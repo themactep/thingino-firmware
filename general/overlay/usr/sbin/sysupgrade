@@ -1,362 +1,585 @@
 #!/bin/sh
 #
-# OpenIPC.org | v.20221118
+# OpenIPC.org | v.20230209
+# development version
 #
 
-scr_version=1.0.16
+scr_version=0.999999
 
 args=" $@"
 
-set -e
-
 LOCK_FILE=/tmp/sysupgrade.lock
+curl="curl --connect-timeout 30 --max-time 120 --location --silent"
 
-echo_c() {
-	# 31 red, 32 green, 33 yellow, 34 blue, 35 magenta, 36 cyan, 37 white, 38 grey
-	[ -z "$HASERLVER" ] && t="\e[1;$1m$2\e[0m" || t="$2"
-	echo -e "$t"
+verbose() {
+  [ "1" = "$be_verbose" ]
 }
 
-die() {
-	echo_c 31 "$1 Aborting."
-	reboot_system
+echo_c() {
+  # 31 red, 32 green, 33 yellow, 34 blue, 35 magenta, 36 cyan, 37 white, 38 grey
+  [ -z "$HASERLVER" ] && t="\e[1;$1m$2\e[0m" || t="$2"
+  echo -e "$t"
+}
+
+echo_action() {
+  printf "%-30s" "$1"
+}
+
+echo_error() {
+  echo_fail "${1:-error}"
+  quit_program 1
+}
+
+echo_fail() {
+  echo_c 31 "${1:-fail}"
+}
+
+echo_ok() {
+  echo_c 32 "${1:-OK}"
+}
+
+echo_title() {
+  echo_c 34 "$1"
+}
+
+check_file() {
+  [ ! -f "$1" ] && echo_error "File $1 not found!"
+}
+
+check_for_required_actions() {
+  echo_title "Check required arguments"
+  if [ "1" != "$update_kernel" ] && [ "1" != "$update_rootfs" ] && [ "1" != "$update_web_ui" ] && [ "1" != "$clean_overlay" ]; then
+    echo "Please provide one or more action: -k, -r, -n, -w, -h."
+    echo "Try $(basename "$0") -h for help."
+    quit_program 0
+  fi
+}
+
+check_for_conflicting_actions() {
+  echo_title "Check arguments conficts"
+  if [ "1" = "$update_web_ui" ] && [ "1" = "$update_rootfs" ]; then
+    update_web_ui=0
+    echo_c 33 "-----------------------------------------------------------------
+It is impossible to update Web UI along with the root filesystem!
+Please update the root filesystem first, then reboot the camera,
+then re-run $(basename $0) -w to update Web UI in a separate run.
+-----------------------------------------------------------------
+"
+    sleep 5
+  fi
+}
+
+check_md5sum() {
+  if [ "1" = "$skip_md5" ]; then
+    echo_c 36 "Skipping MD5 checksum validation."
+    return 0
+  fi
+
+  if [ -z "$bundle_dir" ]; then
+    echo_c 36 "No bundle directly provided. Skipping."
+    return 0
+  fi
+
+  cd $bundle_dir
+
+  echo_action "Verifying MD5 checksum"
+  if !(ls -1 *.md5sum >/dev/null 2>&1); then
+    echo_c 36 "no .md5sum files"
+    return 0
+  elif md5sum -s -c *.md5sum >/dev/null 2>&1; then
+    echo_ok
+  else
+    echo_error "error\nMD5 checksum doesn't match!"
+  fi
+}
+
+check_network() {
+  local cmd="${curl} --head --url ${url:-http://openipc.org/} --output /dev/null --write-out %{http_code}"
+  echo_action "Checking network"
+  if [ "000" = "$($cmd)" ]; then
+    echo_error
+  else
+    echo_ok
+  fi
 }
 
 check_soc() {
-	[ "1" = "$skip_soc" ] && echo "Skip SoC validation" && return 0
-	[ "$1" = "$soc" ] && echo "SoC OK" && return 0
-	die "Wrong SoC!"
+  echo_action "Checking SoC"
+  if [ "1" = "$skip_soc" ]; then
+    echo_c 36 "skipping"
+  else
+    if [ "$1" = "$soc" ]; then
+      echo_ok
+    else
+      echo_error "wrong SoC!"
+    fi
+  fi
 }
 
 compare_versions() {
-	[ "1" = "$skip_ver" ] && echo "Skip version checking" && return 1
-	[ "$1" = "$2" ] && echo_c 32 "Same version, nothing to update" && return 0
-	echo_c 32 "New version, going to update" && return 1
-}
-
-do_update_kernel() {
-	local x=$1
-	[ -z "$x" ] && x="/tmp/uImage.$soc"
-	echo_c 33 "\nKernel"
-	echo "Update kernel from $x"
-	[ ! -f "$x" ] && die "File $x not found"
-  if [ "1" != "$skip_soc" ]; then
-		local ksoc=$(od -j 32 -N 32 -S 1 -A n "$x" | cut -d- -f3)
-		# FIXME: Ingenic kernels do not include proper SoC identifiers.
-		case "$soc" in
-		t31) [ "t" != "$ksoc" ] && die "Wrong SoC!" ;;
-		t21) [ "" != "$ksoc" ] && die "Wrong SoC!" ;;
-		*) check_soc "$ksoc"
-		esac
-		compare_versions "$kernel_version" "$(get_kernel_version "$x")" && return 0
-	fi
-	flashcp -v "$x" "$kernel_device"
-	echo_c 32 "Kernel updated to $(get_kernel_version "$kernel_device")"
-}
-
-do_update_rootfs() {
-	local	x=$1
-	[ -z "$x" ] && x="/tmp/rootfs.squashfs.$soc"
-	echo_c 33 "\nRootFS"
-	echo "Update rootfs from $x"
-	[ ! -f "$x" ] && die "File ${x} not found"
-	local y=/tmp/rootfs
-	if mkdir -p "$y" && loop=$(losetup -f) && losetup "$loop" "$x" && mount "$loop" "$y"; then
-		check_soc "$(head -1 ${y}/etc/hostname | cut -d- -f2)"
-		compare_versions "$system_version" "$(get_system_version "$y")" && return 0
-		umount "$y" && rm -rf "$y" && losetup -d "$loop"
-	else
-		die "Unable to mount $y!"
-	fi
-
-	flashcp -v "$x" "$(get_device "rootfs")"
-	echo_c 32 "RootFS updated to $(get_system_version "")"
-}
-
-do_wipe_overlay() {
-	echo_c 33 "\nOverlayFS"
-	echo "Erase overlay partition"
-	flash_eraseall -j "$(get_device "rootfs_data")"
-}
-
-download_firmware() {
-	echo_c 33 "\nFirmware"
-	osr=$(get_system_build)
-	ftype=$(ipcinfo -F 2>/dev/null)
-	[ ${#ftype} -gt 4 ] && ftype=$(get_flash_type)
-	build="${soc}-${ftype}-${osr}"
-	[ -z "$url" ] && url="https://github.com/OpenIPC/firmware/releases/download/latest/openipc.${build}.tgz"
-	echo "Download from $url"
-	[ -z "$HASERLVER" ] && progress="-#" || progress="-s"
-	[ "$(curl -o /dev/null -s -w '%{http_code}\n' "$url")" = "000" ] && die "Check your network!"
-	curl --connect-timeout 30 -s -m 120 -L "$url" ${progress} -o - | gzip -d | tar xf - -C /tmp && echo_c 32 "Received and unpacked" || die "Cannot retrieve $url"
-	if [ "1" != "$skip_md5" ]; then
-		(cd /tmp && md5sum -s -c *.md5sum) || die "Wrong checksum!"
-	fi
-}
-
-free_resources() {
-	# echo_c 37 "\nStop services, unload modules"
-	# killall majestic crond klogd ntpd rngd syslogd >/dev/null 2>&1 || true
-	# "load_$vendor" -r >/dev/null 2>&1 || true
-	#
-	echo_c 37 "\nStop services, sync files, free up memory"
-	for proc in majestic crond klogd ntpd rngd syslogd; do
-		echo -n "Killing $proc "
-		while [ -n "$(pidof $proc)" ]; do
-			killall $proc >/dev/null 2>&1 || true
-			sleep 0.1
-			echo -n "."
-		done
-		echo ". OK"
-	done
-	sync
-	echo 3 >/proc/sys/vm/drop_caches
-
-	echo_c 34 "\nUptime:"
-	uptime
-
-	echo_c 34 "\nMemory:"
-	free
-
-	echo_c 34 "\nProcesses:"
-	ps | grep -v '\['
-}
-
-sync_time() {
-	echo_c 37 "\nSynchronizing time"
-	ntpd -Nnq
-	echo_c 33 "$(date)"
-}
-
-self_update() {
-	if echo "${args}" | grep -E "\-(k|r|w|url)" >/dev/null 2>&1; then
-		sync_time
-		echo -e "\nChecking for sysupgrade update..."
-		curl -s -k -L -o /tmp/sysupgrade "https://raw.githubusercontent.com/OpenIPC/firmware/master/general/overlay/usr/sbin/sysupgrade"
-		if [ -f /tmp/sysupgrade ] && grep -q "#!/bin/sh" /tmp/sysupgrade; then
-			dstv=$(grep scr_version /tmp/sysupgrade | head -1 | cut -f 2 -d '=')
-			if ! [ "${scr_version}" = "${dstv}" ]; then
-				echo "A new version is available, trying to activate updated script..."
-				chmod +x /tmp/sysupgrade
-				echo -e "Done. Restarting...\n"
-				exec /tmp/sysupgrade ${args}
-				exit 1
-			else
-				echo "Same version. No update required."
-			fi
-		else
-			echo -e "\nVersion checking failed, proceeding with the installed version."
-		fi
-	else
-		echo -e "\nOffline operations."
-	fi
-}
-
-check_sdcard() {
-	echo_c 33 "\nUnmounting SD card"
-	stoplist="autoupdate-kernel.img autoupdate-rootfs.img autoupdate-uboot.img"
-	while [ -n "$(mount | grep /mnt/mmc)" ]; do
-		local d=$(mount | grep /mnt/mmc | tail -1 | awk '{print $3}')
-		echo_c 34 "$d"
-		local f
-		for f in $stoplist; do
-			echo "- checking for ${d}/${f}"
-			if [ -f "${d}/${f}" ]; then
-				echo_c 31 "\nCannot upgrade! Recovery file ${d}/${f} found on the mounted SD card!"
-				echo_c 37 "Please remove the card from the slot and restart sysupgrade."
-				exit 1
-			fi
-		done
-		umount $d
-	done
+  echo_action "Checking version"
+  if [ "1" = "$skip_ver" ]; then
+    echo_c 36 "skipping"
+    return 1
+  elif [ "$1" = "$2" ]; then
+    echo_c 33 "same version"
+    return 0
+  else
+    echo_ok "new"
+    return 1
+  fi
 }
 
 create_lock() {
-	if [ -f $LOCK_FILE ]; then
-		echo_c 31 "\nAnother sysupgrade process is already running!"
-		exit 1
-	fi
-	touch $LOCK_FILE
+  [ "1" = "$force_run" ] && remove_lock
+
+  verbose && echo_action "Checking singletone"
+  if [ -f "$LOCK_FILE" ]; then
+    verbose && echo_fail
+    echo_error "Another sysupgrade process is already running!"
+  else
+    verbose && echo_ok
+  fi
+
+  verbose && echo_action "Setting lock file"
+  if touch "$LOCK_FILE"; then
+    verbose && echo_ok
+  else
+    verbose && echo_fail
+  fi
+}
+
+do_update_kernel() {
+  [ "1" != "$update_kernel" ] && return 0
+  echo_title "Kernel"
+
+  [ -z "$kernel_file" ] && echo_error "Kernel file name is missing!"
+  [ ! -f "$kernel_file" ] && echo_error "File ${kernel_file} not found!"
+
+  if [ "1" != "$skip_soc" ]; then
+    local ksoc=$(od -j 32 -N 32 -S 1 -A n "$kernel_file" | cut -d- -f3)
+    # FIXME: Ingenic kernels do not include proper SoC identifiers.
+    case "$soc" in
+      t31) [ "t" != "$ksoc" ] && echo_error "Wrong SoC!" ;;
+      t21) [ "" != "$ksoc" ] && echo_error "Wrong SoC!" ;;
+      *) check_soc "$ksoc"
+    esac
+    compare_versions "$kernel_version" "$(get_kernel_version "$kernel_file")" && return 0
+  fi
+
+  if flashcp -v "$kernel_file" "$kernel_device"; then
+    echo_ok "kernel updated"
+  else
+    echo_error
+  fi
+}
+
+do_update_rootfs() {
+  [ "1" != "$update_rootfs" ] && return 0
+  echo_title "Root filesystem"
+
+  [ -z "$rootfs_file" ] && echo_error "Rootfs file name is missing!"
+  [ ! -f "$rootfs_file" ] &&  echo_error "File ${rootfs_file} not found!"
+
+  local y=$(mktemp -d) # /tmp/rootfs
+  if mkdir -p "$y" && loop=$(losetup -f) && losetup "$loop" "$rootfs_file" && mount "$loop" "$y"; then
+    check_soc "$(head -1 ${y}/etc/hostname | cut -d- -f2)"
+    compare_versions "$system_version" "$(get_system_version "$y")" && return 0
+    umount "$y" && rm -rf "$y" && losetup -d "$loop"
+  else
+    echo_error "Unable to mount $y!"
+  fi
+
+  if flashcp -v "$rootfs_file" "$(get_device "rootfs")"; then
+    echo_ok "rootfs updated"
+  else
+    echo_error
+  fi
+}
+
+do_update_self() {
+  [ "1" = "$local_update" ] && return 0
+
+  if [ "1" = "$skip_selfupdate" ]; then
+    echo_c 36 "Skipping self updating."
+    return 0
+  fi
+
+  echo_action "Downloading sysupgrade"
+  local tmpfile=$(mktemp)
+  local sysupgrade_url="https://raw.githubusercontent.com/OpenIPC/firmware/master/general/overlay/usr/sbin/sysupgrade"
+  if $curl --url "$sysupgrade_url" --output "$tmpfile"; then
+    echo_ok
+  else
+    echo_fail "fail ($?)"
+    echo "Proceeding with the installed version."
+    return 1
+  fi
+
+  local ver=$(grep scr_version ${tmpfile} | head -1 | cut -f 2 -d '=')
+  echo_action "Checking sysupgrade version"
+
+  [ -z "$ver" ] && echo_error "not found!"
+
+  if [ "${ver//.}" -gt "${scr_version//.}" ]; then
+    echo_ok "newer"
+    echo_action "Installing new version of sysupgrade"
+    chmod +x ${tmpfile}
+    mv ${tmpfile} $(readlink -f $0)
+    echo_c 32 "Restarting.\n\n"
+    exec $0 ${args}
+    exit 0
+  elif [ "${ver//.}" -eq "${scr_version//.}" ]; then
+    echo_c 33 "same"
+    rm $tmpfile
+    return 0
+  elif [ "${ver//.}" -lt "${scr_version//.}" ]; then
+    echo_c 33 "older"
+    rm $tmpfile
+    return 0
+  else
+    echo_error "unknown version!"
+  fi
+}
+
+do_wipe_overlay() {
+  echo "Erasing overlay partition."
+  flash_eraseall -j $(get_device "rootfs_data")
+}
+
+download_bundle() {
+  [ -z "$bundle_url" ] && return 0
+
+  # check url response
+  ($curl --head --url "$bundle_url" --output /dev/null) || echo_error "Invalid response from URL \"${bundle_url}\"!"
+
+  bundle_file="$(mktemp -u).tgz"
+  echo_action "Downloading firmware bundle"
+  if $curl --url "$bundle_url" --output "$bundle_file"; then
+    echo_ok
+  else
+    echo_error "fail\nCannot retrieve ${bundle_url}!"
+  fi
+}
+
+extract_bundle() {
+  [ -z "$bundle_file" ] && return 0
+
+  [ ! -f "$bundle_file" ] && echo_error "Bundle file ${bundle_file} not found!"
+
+  bundle_dir=$(mktemp -d)
+  echo_action "Exracting bundle"
+  if gunzip -c $bundle_file | tar x -C $bundle_dir >/dev/null; then
+    echo_ok
+    rm $bundle_file
+  else
+    echo_error
+  fi
+}
+
+free_resources() {
+  for proc in majestic crond klogd ntpd rngd syslogd; do
+    printf "* %-28s" "killing ${proc}"
+    while [ -n "$(pidof $proc)" ]; do
+      killall $proc >/dev/null 2>&1 || true
+      sleep 0.5
+    done
+    echo_ok
+  done
+  sync
+  echo 3 >/proc/sys/vm/drop_caches
+  reboot_required=1
 }
 
 get_device() {
-	echo -n "/dev/$(grep "\"$1\"" /proc/mtd | cut -d: -f1)"
+  echo -n "/dev/$(grep "\"$1\"" /proc/mtd | cut -d: -f1)"
 }
 
 get_kernel_version() {
-	date "+%H:%M:%S %Y-%m-%d" @$((0x$(xxd -l 4 -s 8 -p "$1" | xargs)))
+  date "+%H:%M:%S %Y-%m-%d" @$((0x$(xxd -l 4 -s 8 -p "$1" | xargs)))
 }
 
 get_system_info() {
-	vendor=$(ipcinfo --vendor)
-	soc=$(fw_printenv -n soc) || die "SoC is not defined in U-Boot environment"
-	kernel_device=$(get_device "kernel")
-	kernel_version=$(get_kernel_version "$kernel_device")
-	system_version=$(get_system_version "")
+  vendor=$(ipcinfo --vendor)
+  soc=$(fw_printenv -n soc) || echo_error "SoC is not defined in U-Boot environment!"
+  flavor=$(grep "BUILD_OPTION" "/etc/os-release" | head -1 | cut -d= -f2)
+  flash_type=$(ipcinfo -F 2>/dev/null)
+  flash_size=$(awk '{sum+=sprintf("0x%s", $2);} END{print sum/1048576;}' /proc/mtd)
+  build="${soc}-${flash_type}-${flavor}"
+  kernel_device=$(get_device "kernel")
+  kernel_version=$(get_kernel_version "$kernel_device")
+  system_version=$(get_system_version "")
 }
 
 get_system_version() {
-	grep "GITHUB_VERSION" "$1/etc/os-release" | head -1 | cut -d= -f2 | sed 's/"//g'
+  grep "GITHUB_VERSION" "$1/etc/os-release" | head -1 | cut -d= -f2 | sed 's/"//g'
 }
 
-get_system_build() {
-	grep "BUILD_OPTION" "/etc/os-release" | head -1 | cut -d= -f2
+normalize_bundle_url() {
+  [ -z "$bundle_url" ] && return 0
+
+  if echo "$bundle_url" | grep -q '://'; then
+    if echo "$bundle_url" | grep -qE '[fhpst]+://[^/]+($|/$|.+/$)'; then
+      [ "/" != "${bundle_url:(-1)}" ] && bundle_url="${bundle_url}/"
+      bundle_url="${bundle_url}${bundle_file}"
+    fi
+  else
+    (echo "$bundle_url" | grep -q "^[~\.]") && bundle_url=$(eval readlink -f $bundle_url)       # needs eval to expand ~
+    (echo "$bundle_url" | grep -qv '/') &&  bundle_url="${bundle_dir}/${bundle_url}"
+    if [ -d "$bundle_url" ]; then
+      [ "/" != "${bundle_url:(-1)}" ] && bundle_url="${bundle_url}/"
+      bundle_url="${bundle_url}${bundle_file}"
+    fi
+    if [ "/" = "${bundle_url:0:1}" ]; then
+      local_update=1
+      bundle_file="$bundle_url"
+      bundle_url=""
+      return 0
+    fi
+  fi
+
+  (echo "$bundle_url" | grep -qv "://") && echo_error "Unknown URL!\n${bundle_url}"
 }
 
-# This flash type detection is deprecated and will be removed in the next updates...
-get_flash_type() {
-  has_nand=$(fw_printenv bootcmd | grep nand | wc -l)
-  [ "1" = "$has_nand" ] && echo "nand" || echo "nor"
-}
-
-print_sysinfo() {
-	get_system_info
-	echo_c 33 "OpenIPC System Updater v${scr_version}"
-	echo_c 36 "\nVendor\t$vendor\nSoC\t$soc\nKernel\t$kernel_version\nRootFS\t$system_version"
+print_system_info() {
+  verbose && echo "print_system_info"
+  echo_title "System"
+  printf "%-16s %s\n" "System-on-Chip" "$vendor $soc"
+  printf "%-16s %s\n" "Flash memory" "${flash_size}MB"
+  printf "%-16s %s\n" "System kernel" "$kernel_version"
+  printf "%-16s %s\n" "System rootfs" "$system_version"
+  printf "%-16s %s\n" "System flavor" "$flavor"
 }
 
 print_usage() {
-	echo "
-Usage: $0 [options]
-Where:
-  -k                   Update kernel from online repository.
-  -r                   Update rootfs from online repository.
-  -w                   Update Web UI to development version.
-      --url=[URL]      Custom URL to update from (.tgz format).
-      --kernel=[FILE]  Update kernel from file (uImage format).
-      --rootfs=[FILE]  Update rootfs from file (squashfs format).
-      --force_md5      Do not validate MD5 hash.
-      --force_soc      Do not validate processor.
-      --force_ver      Do not validate release version.
-      --force_all      Do not validate anything.
-  -n, --wipe_overlay   Wipe overlay partition.
-  -x, --no_reboot      Do not reboot after updating.
-  -z, --no_update      Do not update self.
-  -h, --help           Display this help and exit.
+  echo "Usage: $0 [options]
+
+ACTION:
+  -k, -k=FILE     Update kernel. Optional custom file name, or full path,
+                  or URL to a kernel file in uImage format.
+                  Defaults to uImage.${soc}.
+  -r, -r=FILE     Update rootfs. Optional custom file name, or full path,
+                  or URL to rootfs file in squashfs format.
+                  Defaults to rootfs.squashfs.${soc}.
+  -w, -w=BRANCH   Update Web UI. Optional name of the branch to update from.
+                  Defaults to dev (for development branch).
+  -n              Wipe overlay partition.
+  -h              Show this help and exit.
+
+OPTIONS:
+  -g, --github    Update kernel and rootfs from the latest GitHub bundle.
+  -l, --local     Update kernel and rootfs from files in /tmp/ directory.
+  --url=URL       URL or full local path to firmware bundle in .tgz format,
+                  or local directory to search kernel and rootfs files in.
+                  Defaults to the latest bundle from OpenIPC GitHub repository.
+  -x, --no_reboot Do not reboot after updating.
+  -z, --no_update Do not update self.
+  -v, --verbose   Verbose output. Show more info while running.
+
+  --force_md5     Do not validate MD5 checksum.
+  --force_soc     Do not validate processor.
+  --force_ver     Do not validate release version.
+  --force_run     Do not respect lock from another process.
+  --force_all     Do not validate anything.
 "
 }
 
-reboot_system() {
-	if [ "1" = "$skip_reboot" ]; then
-		echo_c 33 "\nYou asked me not to reboot, so I won't."
-		echo_c 31 "Although a reboot is required to apply the changes."
-		echo_c 37 "Please reboot the camera manually whenever possible."
-		rm $LOCK_FILE
-		exit 1
-	else
-		echo_c 37 "\nUnconditional reboot"
-		reboot -d 1 -f
-	fi
+quit_program() {
+  [ "1" = "$reboot_required" ] && echo_c 35 "\nPlease reboot the camera!"
+  remove_temp_dir
+  remove_lock
+  exit ${1:0}
 }
 
+reboot_system() {
+  if [ "1" = "$skip_reboot" ]; then
+    echo_c 36 "You asked me not to reboot, so I won't."
+    echo_c 36 "Although a reboot is required to apply the changes."
+    quit_program 1
+  else
+    echo_c 37 "Performing unconditional reboot."
+    remove_lock
+    sleep 10
+    reboot -d 1 -f
+  fi
+}
+
+remove_lock() {
+  verbose && echo_action "Removing lock"
+  if [ -f "$LOCK_FILE" ]; then
+    if rm $LOCK_FILE; then
+      verbose && echo_ok
+    else
+      verbose && echo_fail
+    fi
+  else
+    verbose && echo_c 33 "not found"
+  fi
+}
+
+remove_temp_dir() {
+  verbose && echo_action "Removing temp directory"
+  if [ -d "$dir" ]; then
+    if rm -r "$dir"; then
+      verbose && echo_ok
+    else
+      verbose && echo_fail
+    fi
+  else
+    verbose && echo_c 33 "not found"
+  fi
+}
+
+report_resources() {
+  echo_title "Resources"
+  uptime
+  free
+  ps | grep -v '\['
+}
+
+synchronize_time() {
+  [ "1" = "$local_update" ] && return 0
+
+  echo_action "Synchronizing time"
+  if ntpd -Nnq >/dev/null 2>&1; then
+    echo_ok "$(date)"
+  else
+    echo_error
+  fi
+}
+
+unmount_sdcard() {
+  echo_action "Checking SD card"
+
+  if [ "1" = "$skip_unmount" ]; then
+    echo_c 36 "skip"
+    return 0
+  fi
+
+  if mount | grep -qv /mnt/mmc; then
+    echo_c 32 "not mounted"
+    return 0
+  fi
+
+  # Do not unmount card if upgrade is on the card.
+  if [ "${kernel_file#/mnt/mmc}" != "$kernel_file" ] || [ "${rootfs_file#/mnt/mmc}" != "$rootfs_file" ];
+  then
+    echo_c 36 "skip"
+    echo "Upgrade files are on SD card."
+    return 0
+  fi
+
+  if lsof | grep -q /mnt/mmc; then
+    echo_error "busy\nThere is an active process using the SD card!"
+  fi
+
+  echo_c 32 "mounted"
+
+  stoplist="autoupdate-kernel.img autoupdate-rootfs.img autoupdate-uboot.img"
+  while [ -n "$(mount | grep /mnt/mmc)" ]; do
+  local d=$(mount | grep /mnt/mmc | tail -1 | awk '{print $3}')
+    local f
+    for f in $stoplist; do
+      echo_action " ${d}/${f}"
+      if [ -f "${d}/${f}" ]; then
+        echo_error "found\nRecovery file ${d}/${f} found on the mounted SD card!\nPlease remove the card from the slot and restart sysupgrade."
+      else
+        echo_c 32 "not found"
+      fi
+    done
+
+    if umount $d; then
+      echo_ok "SD card unmounted"
+    else
+      echo_error "Failed to unmount SD card!"
+    fi
+  done
+}
+
+get_system_info
+echo_c 37 "OpenIPC System Updater v${scr_version}"
+
+bundle_file="openipc.${build}.tgz"
+bundle_url="https://github.com/OpenIPC/firmware/releases/download/latest/"
+kernel_file="uImage.${soc}"
+rootfs_file="rootfs.squashfs.${soc}"
+web_branch="dev"
+bundle_dir="/tmp/"
+update_kernel=0
+update_rootfs=0
+update_web_ui=0
+clean_overlay=0
+local_update=0
+reboot_required=0
+be_verbose=0
+
 for i in "$@"; do
-	case $i in
-		--force_all)
-			skip_md5=1
-			skip_soc=1
-			skip_ver=1
-			shift
-			;;
-		--force_md5)
-			skip_md5=1
-			shift
-			;;
-		--force_soc)
-			skip_soc=1
-			shift
-			;;
-		--force_ver)
-			skip_ver=1
-			shift
-			;;
-		-h | --help)
-			print_sysinfo
-			print_usage
-			exit 0
-			;;
-		-k)
-			update_kernel=1
-			remote_update=1
-			shift
-			;;
-		--kernel=*)
-			update_kernel=1
-			kernel_file="${i#*=}"
-			[ "$kernel_file" != ${kernel_file#/mnt/mmc} ] && skip_unmount=1
-			shift
-			;;
-		-n | --wipe_overlay)
-			clear_overlay=1
-			shift
-			;;
-		-r)
-			update_rootfs=1
-			remote_update=1
-			shift
-			;;
-		--rootfs=*)
-			update_rootfs=1
-			rootfs_file="${i#*=}"
-			[ "$rootfs_file" != ${rootfs_file#/mnt/mmc} ] && skip_unmount=1
-			shift
-			;;
-		--url=*)
-			url="${i#*=}"
-			shift
-			;;
-		-x | --no_reboot)
-			skip_reboot=1
-			shift
-			;;
-		-w)
-			update_webui=1
-			shift
-			;;
-		-z | --no_update)
-			skip_selfupdate=1
-			shift
-			;;
-		*)
-			print_sysinfo
-			echo_c 37 "\nUnknown option: $1"
-			print_usage
-			exit 1
-			;;
-	esac
+  case $i in
+  -n   | --wipe_overlay ) clean_overlay=1; shift ;;
+  -k   | --kernel       ) update_kernel=1; shift ;;
+  -k=* | --kernel=*     ) update_kernel=1; kernel_file="${i#*=}"; shift ;;
+  -r   | --rootfs       ) update_rootfs=1; shift ;;
+  -r=* | --rootfs=*     ) update_rootfs=1; rootfs_file="${i#*=}"; shift ;;
+  -w   | --web_ui       ) update_web_ui=1; shift ;;
+  -w=* | --web_ui=*     ) update_web_ui=1; web_branch="${i#*=}"; shift ;;
+  -g   | --github       ) update_kernel=1; update_rootfs=1; shift ;;
+  -l   | --local        ) update_kernel=1; update_rootfs=1; bundle_url=/tmp; shift ;;
+         --url=*        ) bundle_url="${i#*=}"; shift ;;
+         --force_all    ) skip_md5=1; skip_soc=1; skip_ver=1; force_run=1; shift ;;
+         --force_md5    ) skip_md5=1; shift ;;
+         --force_run    ) force_run=1; shift ;;
+         --force_soc    ) skip_soc=1; shift ;;
+         --force_ver    ) skip_ver=1; shift ;;
+  -v   | --verbose      ) be_verbose=1; shift ;;
+  -x   | --no_reboot    ) skip_reboot=1; shift ;;
+  -z   | --no_update    ) skip_selfupdate=1; shift ;;
+  -h   | --help         ) print_usage; quit_program; shift ;;
+                       *) echo_error "Unknown argument!\nTry '$(basename "$0") -h' for help."
+  esac
 done
 
-print_sysinfo
+print_system_info
+create_lock
+check_for_required_actions
+check_for_conflicting_actions
+check_network
+do_update_self
+synchronize_time
+normalize_bundle_url
 
-[ "1" != "$clear_overlay" ] &&
-[ "1" != "$update_kernel" ] &&
-[ "1" != "$update_rootfs" ] &&
-[ "1" != "$update_webui" ] &&
-	echo_c 37 "\nTry '$(basename "$0") --help' for options." &&
-	exit 0
+[ "1" = "$clean_overlay" ] && do_wipe_overlay
 
-[ "1" != "$skip_selfupdate" ] && self_update
+if [ "1" = "$update_kernel" ] || [ "1" = "$update_rootfs" ]; then
+  download_bundle
+  extract_bundle
+  check_md5sum
 
-if [ "1" = "$update_webui" ]; then
-	if [ "1" = "$update_rootfs" ]; then
-		update_webui=0
-		echo_c 31 "\nCannot update Web UI along with RootFS!"
-		echo_c 37 "Please update RootFS then reboot the camera and re-run $0 -w to update Web UI in a separate run."
-		sleep 5
-	fi
+  # Add trailing slash to path, if missing
+  [ "/" != "${bundle_dir:(-1)}" ] && bundle_dir="${bundle_dir}/"
+  # Prefix file name with directory name, if not a path.
+  [ "${kernel_file#*/}" = "${kernel_file}" ] && kernel_file="${bundle_dir}${kernel_file}"
+  [ "${rootfs_file#*/}" = "${rootfs_file}" ] && rootfs_file="${bundle_dir}${rootfs_file}"
+
+  if [ "1" = "$update_kernel" ]; then
+    check_file "$kernel_file"
+    echo_action "kernel file"
+    echo_c 32 "$kernel_file"
+  fi
+
+  if [ "1" = "$update_rootfs" ]; then
+    check_file "$rootfs_file"
+    echo_action "rootfs file"
+    echo_c 32 "$rootfs_file"
+  fi
+
+  unmount_sdcard
+  free_resources
+  verbose && report_resources
+
+  do_update_kernel
+  do_update_rootfs
 fi
 
-[ "1" != "$skip_unmount" ] && check_sdcard
-
-create_lock
-free_resources
-
-[ "1" = "$remote_update" ] && download_firmware
-[ "1" = "$update_kernel" ] && do_update_kernel "$kernel_file"
-[ "1" = "$update_rootfs" ] && do_update_rootfs "$rootfs_file"
-[ "1" = "$clear_overlay" ] && do_wipe_overlay
-[ "1" = "$update_webui" ] && updatewebui.sh -b dev
+[ "1" = "$update_web_ui" ] && updatewebui.sh -b $web_branch
 
 reboot_system
-
-exit 0
