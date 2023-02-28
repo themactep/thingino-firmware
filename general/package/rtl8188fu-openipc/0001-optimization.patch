@@ -1,7 +1,6 @@
---- a/Makefile	2020-09-14 06:45:19.000000000 +0300
-+++ b/Makefile	2021-11-11 21:58:55.719826716 +0300
-@@ -1,6 +1,6 @@
- # SPDX-License-Identifier: GPL-2.0
+--- a/Makefile 2023-01-21 00:19:36.383748062 -0500
++++ b/Makefile 2023-01-21 00:19:40.843767693 -0500
+@@ -1,5 +1,5 @@
  EXTRA_CFLAGS += $(USER_EXTRA_CFLAGS)
 -EXTRA_CFLAGS += -O1
 +EXTRA_CFLAGS += -Os
