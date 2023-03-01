@@ -17,8 +17,9 @@ _d=$(date +"%y.%m.%d")
 OPENIPC_VER=$(echo OpenIPC v${_d:0:1}.${_d:1})
 unset _d
 
+OUT_DIR=./output
 SRC_CACHE_DIR="/tmp/buildroot_dl"
-LOCK_FILE="$(pwd)/openipc.lock"
+LOCK_FILE="/var/run/openipc.lock"
 
 #
 # Functions
@@ -31,7 +32,7 @@ echo_c() {
 
 check_or_set_lock() {
   if [ -f "$LOCK_FILE" ] && ps -ax | grep "^\s*\b$(cat "$LOCK_FILE")\b" >/dev/null; then
-    echo_c 31 "Another instance running with PID $(cat "$LOCK_FILE")."
+    echo_c 31 "Another instance is running with PID $(cat "$LOCK_FILE")."
     exit 1
   fi
 
@@ -110,39 +111,61 @@ fresh() {
 
   if [ -d "buildroot-${BR_VER}" ]; then
     echo_c 36 "Found existing Buildroot directory."
-
-    if [ -d "buildroot-${BR_VER}/dl" ]; then
-      echo_c 36 "Found existing Buildroot downloads directory."
-      echo_c 34 "Copying Buildroot downloads to cache directory ..."
-      log_and_run "cp -rvf buildroot-${BR_VER}/dl/* ${SRC_CACHE_DIR}"
-      echo_c 34 "Done.\n"
-    fi
-
-    echo_c 34 "Cleaning source directory."
-    echo_c 35 "make distclean"
-    make distclean
-    echo_c 34 "Done.\n"
   else
     echo_c 31 "Buildroot sources not found."
+    echo_c 34 "Downloading Buildroot sources to cache directory ..."
+    log_and_run "curl --continue-at - --output ${SRC_CACHE_DIR}/buildroot-${BR_VER}.tar.gz https://buildroot.org/downloads/buildroot-${BR_VER}.tar.gz"
+    echo_c 34 "Done.\n"
+    echo_c 34 "Extracting a fresh copy of Buildroot from Buildroot sources ..."
+    log_and_run "tar xvf ${SRC_CACHE_DIR}/buildroot-${BR_VER}.tar.gz"
+    echo_c 34 "Done.\n"
   fi
 
-  echo_c 34 "Downloading Buildroot sources to cache directory ..."
-  log_and_run "curl --continue-at - --output ${SRC_CACHE_DIR}/buildroot-${BR_VER}.tar.gz https://buildroot.org/downloads/buildroot-${BR_VER}.tar.gz"
-  echo_c 34 "Done.\n"
-
-  echo_c 34 "Extracting a fresh copy of Buildroot from Buildroot sources ..."
-  log_and_run "tar xvf ${SRC_CACHE_DIR}/buildroot-${BR_VER}.tar.gz"
-  echo_c 34 "Done.\n"
-
-  echo_c 34 "Copying cached source files back to Buildroot ..."
-  log_and_run "mkdir -p buildroot-${BR_VER}/dl/"
-  log_and_run "cp -rvf ${SRC_CACHE_DIR}/* buildroot-${BR_VER}/dl/"
-  echo_c 34 "Done.\n"
+#  if [ -z "$BR2_DL_DIR" ]; then
+#    if [ -d "$SRC_CACHE_DIR" ]; then
+#      echo_c 36 "Found cache directory."
+#    else
+#      echo_c 31 "Cache directory not found."
+#      echo_c 34 "Creating cache directory ..."
+#      log_and_run "mkdir -p ${SRC_CACHE_DIR}"
+#      echo_c 34 "Done.\n"
+#    fi
+#
+#    if [ -d "buildroot-${BR_VER}/dl" ]; then
+#      echo_c 36 "Found existing Buildroot downloads directory."
+#      echo_c 34 "Copying Buildroot downloads to cache directory ..."
+#      log_and_run "cp -rvf buildroot-${BR_VER}/dl/* ${SRC_CACHE_DIR}"
+#      echo_c 34 "Done.\n"
+#    fi
+#
+#    echo_c 34 "Cleaning source directory."
+#    echo_c 35 "make distclean"
+#    make distclean
+#    echo_c 34 "Done.\n"
+#
+#    echo_c 34 "Copying cached source files back to Buildroot ..."
+#    log_and_run "mkdir -p buildroot-${BR_VER}/dl/"
+#    log_and_run "cp -rvf ${SRC_CACHE_DIR}/* buildroot-${BR_VER}/dl/"
+#    echo_c 34 "Done.\n"
+#  else
+#    make clean
+#  fi
 
   # prevent to double download buildroot
   # make prepare
 
-  echo_c 33 "Start building OpenIPC Firmware ${OPENIPC_VER} for ${SOC}."
+  OUT_DIR="./output-${BOARD}"
+
+  if [ -d "$OUT_DIR" ]; then
+    cd $OUT_DIR
+    make clean
+    cd ..
+  else
+    mkdir $OUT_DIR
+  fi
+  export OUT_DIR=$OUT_DIR
+
+  echo_c 33 "Start building OpenIPC Firmware ${OPENIPC_VER} for ${BOARD}."
   echo "The start-stop times" >/tmp/openipc_buildtime.txt
   date >>/tmp/openipc_buildtime.txt
 }
@@ -150,7 +173,7 @@ fresh() {
 should_fit() {
   local filename=$1
   local maxsize=$2
-  local filesize=$(stat --printf="%s" ./output/images/$filename)
+  local filesize=$(stat --printf="%s" ${OUT_DIR}/images/${filename})
   if [[ $filesize -gt $maxsize ]]; then
     export TG_NOTIFY="Warning: $filename is too large: $filesize vs $maxsize"
     echo_c 31 "Warning: $filename is too large: $filesize vs $maxsize"
@@ -159,49 +182,49 @@ should_fit() {
 }
 
 rename() {
-  if grep -q ultimate_defconfig ./output/.config || grep -q fpv_defconfig ./output/.config; then
+  if grep -q ultimate_defconfig ${OUT_DIR}/.config || grep -q fpv_defconfig ${OUT_DIR}/.config; then
     should_fit uImage $MAX_KERNEL_SIZE_ULTIMATE
     should_fit rootfs.squashfs $MAX_ROOTFS_SIZE_ULTIMATE
   else
     should_fit uImage $MAX_KERNEL_SIZE
     should_fit rootfs.squashfs $MAX_ROOTFS_SIZE
   fi
-  mv -v ./output/images/uImage ./output/images/uImage.${SOC}
-  mv -v ./output/images/rootfs.squashfs ./output/images/rootfs.squashfs.${SOC}
-  mv -v ./output/images/rootfs.cpio ./output/images/rootfs.${SOC}.cpio
-  mv -v ./output/images/rootfs.tar ./output/images/rootfs.${SOC}.tar
+  mv -v ${OUT_DIR}/images/uImage ${OUT_DIR}/images/uImage.${SOC}
+  mv -v ${OUT_DIR}/images/rootfs.squashfs ${OUT_DIR}/images/rootfs.squashfs.${SOC}
+  mv -v ${OUT_DIR}/images/rootfs.cpio ${OUT_DIR}/images/rootfs.${SOC}.cpio
+  mv -v ${OUT_DIR}/images/rootfs.tar ${OUT_DIR}/images/rootfs.${SOC}.tar
   date >>/tmp/openipc_buildtime.txt
   echo_c 31 "\n\n$(cat /tmp/openipc_buildtime.txt)\n\n"
 }
 
 rename_initramfs() {
   should_fit uImage $MAX_KERNEL_SIZE_EXPERIMENTAL
-  mv -v ./output/images/uImage ./output/images/uImage.initramfs.${SOC}
-  mv -v ./output/images/rootfs.cpio ./output/images/rootfs.${SOC}.cpio
-  mv -v ./output/images/rootfs.tar ./output/images/rootfs.${SOC}.tar
+  mv -v ${OUT_DIR}/images/uImage ${OUT_DIR}/images/uImage.initramfs.${SOC}
+  mv -v ${OUT_DIR}/images/rootfs.cpio ${OUT_DIR}/images/rootfs.${SOC}.cpio
+  mv -v ${OUT_DIR}/images/rootfs.tar ${OUT_DIR}/images/rootfs.${SOC}.tar
   date >>/tmp/openipc_buildtime.txt
   echo_c 31 "\n\n$(cat /tmp/openipc_buildtime.txt)\n\n"
 }
 
 autoup_rootfs() {
   echo_c 34 "\nDownloading u-boot created by OpenIPC"
-  curl --location --output ./output/images/u-boot-${SOC}-universal.bin \
+  curl --location --output ${OUT_DIR}/images/u-boot-${SOC}-universal.bin \
     https://github.com/OpenIPC/firmware/releases/download/latest/u-boot-${SOC}-universal.bin
 
   echo_c 34 "\nMaking autoupdate u-boot image"
-  ./output/host/bin/mkimage -A arm -O linux -T firmware -n "$OPENIPC_VER" \
-    -a 0x0 -e 0x50000 -d ./output/images/u-boot-${SOC}-universal.bin \
-    ./output/images/autoupdate-uboot.img
+  ${OUT_DIR}/host/bin/mkimage -A arm -O linux -T firmware -n "$OPENIPC_VER" \
+    -a 0x0 -e 0x50000 -d ${OUT_DIR}/images/u-boot-${SOC}-universal.bin \
+    ${OUT_DIR}/images/autoupdate-uboot.img
 
   echo_c 34 "\nMaking autoupdate kernel image"
-  ./output/host/bin/mkimage -A arm -O linux -T kernel -C none -n "$OPENIPC_VER" \
-    -a 0x50000 -e 0x250000 -d ./output/images/uImage.${SOC} \
-    ./output/images/autoupdate-kernel.img
+  ${OUT_DIR}/host/bin/mkimage -A arm -O linux -T kernel -C none -n "$OPENIPC_VER" \
+    -a 0x50000 -e 0x250000 -d ${OUT_DIR}/images/uImage.${SOC} \
+    ${OUT_DIR}/images/autoupdate-kernel.img
 
   echo_c 34 "\nMaking autoupdate rootfs image"
-  ./output/host/bin/mkimage -A arm -O linux -T filesystem -n "$OPENIPC_VER" \
-    -a 0x250000 -e 0x750000 -d ./output/images/rootfs.squashfs.${SOC} \
-    ./output/images/autoupdate-rootfs.img
+  ${OUT_DIR}/host/bin/mkimage -A arm -O linux -T filesystem -n "$OPENIPC_VER" \
+    -a 0x250000 -e 0x750000 -d ${OUT_DIR}/images/rootfs.squashfs.${SOC} \
+    ${OUT_DIR}/images/autoupdate-rootfs.img
 }
 
 copy_function() {
@@ -256,7 +279,10 @@ else
   select_project
 fi
 
-[ -z "$BOARD" ] && echo_c 31 "Nothing selected." && drop_lock_and_exit
+if [ -z "$BOARD" ]; then
+  echo_c 31 "Nothing selected."
+  drop_lock_and_exit
+fi
 
 COMMAND=$2
 [ -z "$COMMAND" ] && COMMAND=all

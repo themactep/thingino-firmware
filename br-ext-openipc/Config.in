@@ -1,0 +1,41 @@
+config BR2_OPENIPC
+	bool "OpenIPC Firmware"
+ 	default y
+	help
+	  OpenIPC firmware.
+
+	  https://openipc.org
+
+if BR2_OPENIPC
+
+config BR2_OPENIPC_FLAVOR
+	bool
+	depends on BR2_OPENIPC
+
+choice
+	prompt "Which flavor to use"
+
+config BR2_OPENIPC_FLAVOR_LITE
+	bool "Lite"
+	help
+	  Light version for 8MB flash chip
+
+config BR2_OPENIPC_FLAVOR_FPV
+	bool "FPV"
+	help
+	  Version for drones
+
+config BR2_OPENIPC_FLAVOR_ULTIMATE
+	bool "Ultimate"
+	help
+	  Advanced version for 16MB flash chip
+	select BR2_PACKAGE_LAME_OPENIPC
+	select BR2_PACKAGE_LIBWEBSOCKETS_OPENIPC
+	select BR2_PACKAGE_ZEROTIER_ONE
+endchoice
+
+endif
+
+#source "$BR2_EXTERNAL_OPENIPC_PATH/package/mesa-lima/Config.in"
+#source "$BR2_EXTERNAL_OPENIPC_PATH/package/gfx/Config.in"
+#source "$BR2_EXTERNAL_OPENIPC_PATH/package/mesa-test-programs/Config.in"

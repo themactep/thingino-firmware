@@ -1,29 +1,32 @@
 ifneq ($(PLATFORM),)
 	PLATFORM := $(error Setting PLATFORM in make arguments is deprecated, please remove it)
-else
-	ifneq ($(BOARD),)
-		FULL_PATH := $(shell find br-ext-chip-* -name "$(BOARD)*_defconfig")
-		ifeq ($(FULL_PATH),)
-			FULL_PATH := $(error Cannot find anything for $(BOARD))
-		else ifneq ($(shell echo $(FULL_PATH) | wc -w), 1)
-			FULL_PATH := $(error For provided '$(BOARD)' multiple options found: $(FULL_PATH))
-		endif
+endif
 
-		PLATFORM := $(shell echo $(FULL_PATH) | cut -d '/' -f 1 | cut -d '-' -f 4 )
+ifneq ($(BOARD),)
+	FULL_PATH := $(shell find br-ext-chip-* -name "$(BOARD)_defconfig")
+	ifeq ($(FULL_PATH),)
+		FULL_PATH := $(error Cannot find anything for $(BOARD))
+	else ifneq ($(shell echo $(FULL_PATH) | wc -w), 1)
+		FULL_PATH := $(error For provided '$(BOARD)' multiple options found: $(FULL_PATH))
+	endif
 
-		FAMILY := $(shell grep "/board/" $(FULL_PATH) | head -1 | cut -d "/" -f 3)
-		ifeq ($(FAMILY),hi3516cv500)
-			BR_VER ?= 2022.08
-		endif
+	PLATFORM := $(shell echo $(FULL_PATH) | cut -d '/' -f 1 | cut -d '-' -f 4 )
+
+	FAMILY := $(shell grep "/board/" $(FULL_PATH) | head -1 | cut -d "/" -f 3)
+	ifeq ($(FAMILY),hi3516cv500)
+		BR_VER := 2022.08
+#	else ifeq ($(BOARD),t21_lite_shopperplus)
+#		#BR_VER := 2022.11.1
+#		BR_VER := 2023.02-rc1
+	else
+		BR_VER := 2021.02.12
 	endif
 endif
 
-ROOT_DIR      := $(CURDIR)
-BR_EXT_DIR    := $(ROOT_DIR)/br-ext-chip-$(PLATFORM)
-SCRIPTS_DIR   := $(ROOT_DIR)/scripts
-
-BR_VER        ?= 2021.02.12
-BR_DIR        := $(ROOT_DIR)/buildroot-$(BR_VER)
+ROOT_DIR     := $(CURDIR)
+BR_EXT_DIR   := $(ROOT_DIR)/br-ext-chip-$(PLATFORM)
+SCRIPTS_DIR  := $(ROOT_DIR)/scripts
+BR_DIR       := $(ROOT_DIR)/buildroot-$(BR_VER)
 
 .PHONY: usage help clean distclean prepare install-deps all toolchain-params run-tests overlayed-rootfs-%
 
@@ -68,8 +71,9 @@ ifneq ($(shell id -u), 0)
 	@echo "You must be root to perform this action."
 else
 	DEBIAN_FRONTEND=noninteractive apt-get update && \
-		apt-get install build-essential bc cpio curl file git \
-			libncurses-dev make rsync unzip wget -y
+		apt-get -y install \
+			build-essential bc cpio curl file git \
+			libncurses-dev make rsync unzip wget
 endif
 
 
