@@ -98,8 +98,6 @@ clone() {
 }
 
 fresh() {
-  BR_VER=$1
-
   if [ -d "$SRC_CACHE_DIR" ]; then
     echo_c 36 "Found cache directory."
   else
@@ -249,7 +247,7 @@ uni_build() {
   echo_c 33 "\n  SoC: $SOC\nBoard: $BOARD\n"
 
   if [ "all" = "${COMMAND}" ]; then
-    fresh $(make BOARD=${BOARD} buildroot-version)
+    fresh
   fi
 
   log_and_run "make BOARD=${BOARD} ${COMMAND}"
@@ -284,6 +282,8 @@ if [ -z "$BOARD" ]; then
   drop_lock_and_exit
 fi
 
+BR_VER=$(make BOARD=${BOARD} buildroot-version)
+
 COMMAND=$2
 [ -z "$COMMAND" ] && COMMAND=all
 
@@ -291,7 +291,9 @@ for i in "${FUNCS[@]}"; do
   copy_function uni_build $i
 done
 
-echo_c 37 "Building OpenIPC for ${BOARD}"
+echo_c 37 "Building OpenIPC Firmware"
+echo_c 37 "for ${BOARD}"
+echo_c 37 "using Buildroot ${BR_VER}"
 uni_build $BOARD $COMMAND
 
 drop_lock_and_exit
