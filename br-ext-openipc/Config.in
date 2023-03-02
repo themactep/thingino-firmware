@@ -35,7 +35,3 @@ config BR2_OPENIPC_FLAVOR_ULTIMATE
 endchoice
 
 endif
-
-#source "$BR2_EXTERNAL_OPENIPC_PATH/package/mesa-lima/Config.in"
-#source "$BR2_EXTERNAL_OPENIPC_PATH/package/gfx/Config.in"
-#source "$BR2_EXTERNAL_OPENIPC_PATH/package/mesa-test-programs/Config.in"
