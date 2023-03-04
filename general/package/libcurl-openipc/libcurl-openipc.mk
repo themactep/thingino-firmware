@@ -6,7 +6,7 @@
 
 LIBCURL_OPENIPC_VERSION = 7.76.0
 LIBCURL_OPENIPC_SOURCE = curl-$(LIBCURL_OPENIPC_VERSION).tar.xz
-LIBCURL_OPENIPC_SITE = https://curl.haxx.se/download
+LIBCURL_OPENIPC_SITE = https://curl.se/download
 LIBCURL_OPENIPC_DEPENDENCIES = host-pkgconf \
 	$(if $(BR2_PACKAGE_ZLIB),zlib) \
 	$(if $(BR2_PACKAGE_RTMPDUMP),rtmpdump)
