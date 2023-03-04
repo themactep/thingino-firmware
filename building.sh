@@ -180,7 +180,7 @@ should_fit() {
 }
 
 rename() {
-  if grep -q ultimate_defconfig ${OUT_DIR}/.config || grep -q fpv_defconfig ${OUT_DIR}/.config; then
+  if [ "ultimate" = "$FW_FLAVOR" ] || [ "fpv" = "$FW_FLAVOR" ]; then
     should_fit uImage $MAX_KERNEL_SIZE_ULTIMATE
     should_fit rootfs.squashfs $MAX_ROOTFS_SIZE_ULTIMATE
   else
@@ -283,6 +283,7 @@ if [ -z "$BOARD" ]; then
 fi
 
 BR_VER=$(make BOARD=${BOARD} buildroot-version)
+FW_FLAVOR=$(make BOARD=${BOARD} firmware-flavor)
 
 COMMAND=$2
 [ -z "$COMMAND" ] && COMMAND=all

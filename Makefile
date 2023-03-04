@@ -88,6 +88,9 @@ endif
 buildroot-version:
 	@echo $(BR_VER)
 
+firmware-flavor:
+	@echo $(shell grep '^BR2_OPENIPC_FLAVOR_' $(FULL_PATH) | sed 's/^BR2_OPENIPC_FLAVOR_//' | sed 's/=y//' | tr A-Z a-z)
+
 has-nand:
 	@sed -rn "s/^BR2_TARGET_ROOTFS_UBI=(y)/\1/p" $(FULL_PATH)
 
