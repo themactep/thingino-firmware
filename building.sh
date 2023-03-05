@@ -152,7 +152,7 @@ fresh() {
   # prevent to double download buildroot
   # make prepare
 
-  OUT_DIR="./output-${BOARD}"
+  OUT_DIR="./output-${BOARD}-br${BR_VER}"
 
   if [ -d "$OUT_DIR" ]; then
     cd $OUT_DIR
