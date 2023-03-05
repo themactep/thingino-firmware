@@ -153,7 +153,7 @@ fresh() {
     make clean
     cd ..
   else
-    mkdir $OUT_DIR
+    mkdir -p $OUT_DIR
   fi
   export OUT_DIR=$OUT_DIR
 
@@ -261,8 +261,6 @@ uni_build() {
 
 #######
 
-check_or_set_lock
-
 build_list_of_projects
 
 if [ -n "$1" ]; then
@@ -280,9 +278,10 @@ SRC_CACHE_DIR="/tmp/buildroot_dl"
 
 BR_VER=$(make BOARD=${BOARD} buildroot-version)
 FW_FLAVOR=$(make BOARD=${BOARD} firmware-flavor)
+OUT_DIR="../openipc-output/${BOARD}-br${BR_VER}"
+LOCK_FILE="/var/lock/openipc-${BOARD}-br${BR_VER}.lock"
 
-OUT_DIR="./output-${BOARD}-br${BR_VER}"
-LOCK_FILE="/var/run/openipc-${BOARD}-br${BR_VER}.lock"
+check_or_set_lock
 
 COMMAND=$2
 [ -z "$COMMAND" ] && COMMAND=all

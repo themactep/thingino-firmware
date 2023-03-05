@@ -102,7 +102,7 @@ list-configs:
 
 
 # -------------------------------------------------------------------------------------------------
-OUT_DIR ?= $(ROOT_DIR)/output
+OUT_DIR ?= $(ROOT_DIR)/output-$(BOARD)-br$(BR_VER)
 
 # Buildroot considers relative paths relatively to its' own root directory. So we use absolute paths
 # to avoid ambiguity
