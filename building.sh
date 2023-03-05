@@ -33,6 +33,7 @@ check_or_set_lock() {
   fi
 
   echo_c 32 "Starting OpenIPC builder."
+  echo_c 33 "Locking process with a lock file ${LOCK_FILE}"
   echo $$ >$LOCK_FILE
 }
 
