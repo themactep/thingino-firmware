@@ -71,7 +71,7 @@ ifneq ($(shell id -u), 0)
 else
 	DEBIAN_FRONTEND=noninteractive apt-get update && \
 		apt-get -y install \
-			build-essential bc cpio curl file git \
+			build-essential bc bison cpio curl file flex git \
 			libncurses-dev make rsync unzip wget
 endif
 
