@@ -17,10 +17,6 @@ _d=$(date +"%y.%m.%d")
 OPENIPC_VER=$(echo OpenIPC v${_d:0:1}.${_d:1})
 unset _d
 
-OUT_DIR=./output
-SRC_CACHE_DIR="/tmp/buildroot_dl"
-LOCK_FILE="/var/run/openipc.lock"
-
 #
 # Functions
 #
@@ -152,8 +148,6 @@ fresh() {
   # prevent to double download buildroot
   # make prepare
 
-  OUT_DIR="./output-${BOARD}-br${BR_VER}"
-
   if [ -d "$OUT_DIR" ]; then
     cd $OUT_DIR
     make clean
@@ -282,8 +276,13 @@ if [ -z "$BOARD" ]; then
   drop_lock_and_exit
 fi
 
+SRC_CACHE_DIR="/tmp/buildroot_dl"
+
 BR_VER=$(make BOARD=${BOARD} buildroot-version)
 FW_FLAVOR=$(make BOARD=${BOARD} firmware-flavor)
+
+OUT_DIR="./output-${BOARD}-br${BR_VER}"
+LOCK_FILE="/var/run/openipc-${BOARD}-br${BR_VER}.lock"
 
 COMMAND=$2
 [ -z "$COMMAND" ] && COMMAND=all
