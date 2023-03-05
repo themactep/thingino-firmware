@@ -18,14 +18,13 @@ ifneq ($(BOARD),)
 #	else ifeq ($(BOARD),t21_lite_shopperplus)
 #		#BR_VER := 2022.11.1
 #		BR_VER := 2023.02-rc1
-	else
-		BR_VER := 2021.02.12
 	endif
 endif
 
 ROOT_DIR     := $(CURDIR)
 BR_EXT_DIR   := $(ROOT_DIR)/br-ext-chip-$(PLATFORM)
 SCRIPTS_DIR  := $(ROOT_DIR)/scripts
+BR_VER       ?= 2022.08
 BR_DIR       := $(ROOT_DIR)/buildroot-$(BR_VER)
 
 .PHONY: usage help clean distclean prepare install-deps all toolchain-params run-tests overlayed-rootfs-%
