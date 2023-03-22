@@ -10,6 +10,7 @@ INGENIC_OSDRV_T20_LICENSE = MIT
 INGENIC_OSDRV_T20_LICENSE_FILES = LICENSE
 
 define INGENIC_OSDRV_T20_INSTALL_TARGET_CMDS
+	# create directories
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/sensor
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/3.10.14/ingenic
