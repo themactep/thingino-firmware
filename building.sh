@@ -233,7 +233,7 @@ uni_build() {
 
   SOC=$(echo $BOARD | cut -d '_' -f 1)
 
-  set -e
+  # set -e
   if [ "$(echo $BOARD | cut -sd '_' -f 2)" == "" ]; then
     BOARD="${BOARD}_lite"
   fi
