@@ -1,6 +1,7 @@
 export PATH="/bin:/sbin:/usr/bin:/usr/sbin:/tmp"
 export HOME=$(grep -e "^${USER:-root}:" /etc/passwd | cut -d ":" -f 6)
 export HOME=${HOME:-/root}
+export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 export TZ=$(cat /etc/TZ)
 export SENSOR=$(fw_printenv -n sensor)
 export ARCH=$(uname -m)
