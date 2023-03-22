@@ -105,15 +105,17 @@ fresh() {
     echo_c 34 "Done.\n"
   fi
 
-  if [ -d "buildroot-${BR_VER}" ]; then
+  mkdir -p ${SRC_DIR}
+  BR_DIR="${SRC_DIR}/buildroot-${BR_VER}"
+  if [ -d "${BR_DIR}" ]; then
     echo_c 36 "Found existing Buildroot directory."
   else
     echo_c 31 "Buildroot sources not found."
+    BR_TMP=$(mktemp)
     echo_c 34 "Downloading Buildroot sources to cache directory ..."
-    log_and_run "curl --continue-at - --output ${SRC_CACHE_DIR}/buildroot-${BR_VER}.tar.gz https://buildroot.org/downloads/buildroot-${BR_VER}.tar.gz"
-    echo_c 34 "Done.\n"
-    echo_c 34 "Extracting a fresh copy of Buildroot from Buildroot sources ..."
-    log_and_run "tar xvf ${SRC_CACHE_DIR}/buildroot-${BR_VER}.tar.gz"
+    log_and_run "curl --continue-at - --output ${BR_TMP} https://buildroot.org/downloads/buildroot-${BR_VER}.tar.gz"
+    log_and_run "tar -C ${SRC_DIR} -xf ${BR_TMP}"
+    log_and_run "rm ${BR_TMP}"
     echo_c 34 "Done.\n"
   fi
 
@@ -155,9 +157,9 @@ fresh() {
     make clean
     cd ..
   else
+    echo_c 33 "Making ${OUT_DIR} directory."
     mkdir -p $OUT_DIR
   fi
-  export OUT_DIR=$OUT_DIR
 
   echo_c 33 "Start building OpenIPC Firmware ${OPENIPC_VER} for ${BOARD}."
   echo "The start-stop times" >/tmp/openipc_buildtime.txt
@@ -277,11 +279,13 @@ if [ -z "$BOARD" ]; then
   drop_lock_and_exit
 fi
 
+SRC_DIR="${HOME}/local/src"
 SRC_CACHE_DIR="/tmp/buildroot_dl"
 
 BR_VER=$(make BOARD=${BOARD} buildroot-version)
 FW_FLAVOR=$(make BOARD=${BOARD} firmware-flavor)
 OUT_DIR="../openipc-output/${BOARD}-br${BR_VER}"
+OUT_DIR=$(realpath $OUT_DIR)
 LOCK_FILE="/var/lock/openipc-${BOARD}-br${BR_VER}.lock"
 
 check_or_set_lock
@@ -293,9 +297,12 @@ for i in "${FUNCS[@]}"; do
   copy_function uni_build $i
 done
 
-echo_c 37 "Building OpenIPC Firmware"
-echo_c 37 "for ${BOARD}"
-echo_c 37 "using Buildroot ${BR_VER}"
+echo_c 37 "Building OpenIPC Firmware for ${BOARD} using Buildroot ${BR_VER}"
+
+export SRC_DIR=$SRC_DIR
+export BR_DIR=$BR_DIR
+export OUT_DIR=$OUT_DIR
+
 uni_build $BOARD $COMMAND
 
 drop_lock_and_exit
