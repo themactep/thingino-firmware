@@ -13,10 +13,6 @@ MAX_KERNEL_SIZE_EXPERIMENTAL=0x3E8480 # ~3.9MiB,  4097152
 MAX_ROOTFS_SIZE=0x500000              #    5MiB,  5242880
 MAX_ROOTFS_SIZE_ULTIMATE=0xA00000     #   10MiB, 10485760
 
-_d=$(date +"%y.%m.%d")
-OPENIPC_VER=$(echo OpenIPC v${_d:0:1}.${_d:1})
-unset _d
-
 #
 # Functions
 #
@@ -24,6 +20,11 @@ unset _d
 echo_c() {
   # 30 grey, 31 red, 32 green, 33 yellow, 34 blue, 35 magenta, 36 cyan,37 white
   echo -e "\e[1;$1m$2\e[0m"
+}
+
+create_version() {
+  local _d=$(date +"%y.%m.%d")
+  OPENIPC_VER=$(echo OpenIPC v${_d:0:1}.${_d:1})
 }
 
 check_or_set_lock() {
@@ -262,6 +263,7 @@ uni_build() {
 
 #######
 
+create_version
 build_list_of_projects
 
 if [ -n "$1" ]; then
