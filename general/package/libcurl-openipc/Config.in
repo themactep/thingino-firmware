@@ -5,7 +5,7 @@ config BR2_PACKAGE_LIBCURL_OPENIPC
 	  Telnet, and Dict servers, using any of the supported
 	  protocols.
 
-	  https://curl.se/
+	  http://curl.haxx.se/
 
 if BR2_PACKAGE_LIBCURL_OPENIPC
 
