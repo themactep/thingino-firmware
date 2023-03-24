@@ -15,9 +15,9 @@ UACME_OPENIPC_DEPENDENCIES = libcurl-openipc
 
 UACME_OPENIPC_CONF_ENV = ac_cv_prog_cc_c99='-std=gnu99'
 
-ifeq ($(BR2_PACKAGE_MBEDTLS_OPENIPC),y)
+ifeq ($(BR2_PACKAGE_MBEDTLS),y)
 UACME_OPENIPC_CONF_OPTS += --with-mbedtls
-UACME_OPENIPC_DEPENDENCIES += mbedtls-openipc
+UACME_OPENIPC_DEPENDENCIES += mbedtls
 endif
 
 ifeq ($(BR2_PACKAGE_UACME_OPENIPC_UALPN),y)

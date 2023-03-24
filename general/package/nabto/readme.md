@@ -1,17 +1,23 @@
 [Nabto Edge Embedded SDK](https://github.com/nabto/nabto-embedded-sdk)
 
-The package includes the tcp_tunnel_device assembly from sdk. The example shows how you can access an rtsp stream from anywhere in the world through the [Nabto](https://www.nabto.com/) platform.
+The package includes the tcp_tunnel_device assembly from SDK.
+The example shows how you can access an RTSP stream from anywhere in the world
+through the [Nabto](https://www.nabto.com/) platform.
 
 ###### Registration
 
-To configure the camera, you will need to register in the [Nabto Cloud Console](https://console.cloud.nabto.com) and get the `Product-ID` (pr-xxxxxxxx) and `Deviсe-ID` (de-xxxxxxxx).
-for each device to be connected, the `fingerprint` for completion will be received only after the camera has been configured.
+To configure the camera, you will need to register in the
+[Nabto Cloud Console][ncc] and get the `Product-ID` (pr-xxxxxxxx) and
+`Deviсe-ID` (de-xxxxxxxx). For each device to be connected, the `fingerprint`
+for completion will be received only after the camera has been configured.
 
 ###### Camera setup
 
-Start `tcp_tunnel_device` with key `--demo-init` and enter data (pr-xxxxxxxx & de-xxxxxxxx) obtained during registration in [Nabto Cloud Console](https://console.cloud.nabto.com) and creation of device.
+Start `tcp_tunnel_device` with key `--demo-init` and enter data (pr-xxxxxxxx &
+de-xxxxxxxx) obtained during registration in [Nabto Cloud Console][ncc] and
+creation of device.
 
-Then select the proxied service, in this case `rtsp` and specify endpoint `/stream=0`:
+Then select the proxied service, in this case `RTSP` and specify endpoint `/stream=0`:
 
 ```
 root@openipc-t31:# tcp_tunnel_device --demo-init
@@ -37,7 +43,8 @@ Enter your RTSP endpoint (default: /video): /stream=0
 Added rtsp service on localhost port 554 with metadata rtsp-path => /stream=0
 ```
 
-When finished, a `fingerprint` will be issued, which must be saved in the device settings in the cloud.
+When finished, a `fingerprint` will be issued, which must be saved in the device
+settings in the cloud.
 
 ```
 The configuration and state has been initialized
@@ -54,7 +61,7 @@ tcp_tunnel_device
 Make sure that the connection was successful (example):
 
 ```
-root@openipc-t31:# tcp_tunnel_device 
+root@openipc-t31:# tcp_tunnel_device
 
 ######## Nabto TCP Tunnel Device ########
 # Product ID:        pr-ydk3xhyn
@@ -63,14 +70,14 @@ root@openipc-t31:# tcp_tunnel_device
 # Version:           0.0.0-branch.heads/master.commits.1910+a49d27fc.dirty
 # Local UDP Port:    5592
 # Friendly Name:     "Tcp Tunnel"
-# 
+#
 # The device offers Local Open Pairing
-# 
+#
 # The device has Password Open Pairing enabled
 # Open Pairing Password:  X9NphkArpzLU
 # Open Pairing SCT:       9jLgbUb4FWhe
 # Open Pairing String:    p=pr-ydk3xhyn,d=de-orruyc4n,pwd=X9NphkArpzLU,sct=9jLgbUb4FWhe
-# 
+#
 ######## Configured TCP Services ########
 # Id               Type             Host             Port
 # rtsp             rtsp             127.0.0.1        554
@@ -81,15 +88,23 @@ Attached to the basestation
 
 ###### Retrieving a stream
 
-In the example we will fetch the thread on the linux machine, but the releases on [github](https://github.com/nabto/nabto-client-edge-tunnel) have a windows version of the client.
+In the example we will fetch the thread on the linux machine, but the releases
+on [GitHub](https://github.com/nabto/nabto-client-edge-tunnel) have a Windows
+version of the client.
 
 Clone and build the client (downloaded from releases).
 
-There are 2 ways of "pairing" - `Local Open` and `Password Open`. The first mode allows you to easily find and bind the device if it is in the same local network, the second option if the device is remote...
+There are 2 ways of "pairing" - `Local Open` and `Password Open`. The first mode
+allows you to easily find and bind the device if it is in the same local network,
+the second option if the device is remote...
+
 As a universal example, we will use the variant with a remote device.
 
-Run `edge_tunnel_client` with the key `--pair-string` and a string with the necessary device credentials `p=pr-ydk3xhyn,d=de-orruyc4n,pwd=X9NphkArpzLU,sct=9jLgbUb4FWhe`.
-The string is already present in the output of the camera connected to the cloud, so just copy it from the previous step of the camera setup and select `0` - Password Open, when asked for New username we specify `admin`:
+Run `edge_tunnel_client` with the key `--pair-string` and a string with the
+necessary device credentials `p=pr-ydk3xhyn,d=de-orruyc4n,pwd=X9NphkArpzLU,sct=9jLgbUb4FWhe`.
+The string is already present in the output of the camera connected to the cloud,
+so just copy it from the previous step of the camera setup and select
+`0` - Password Open, when asked for New username we specify `admin`:
 
 ```
 $./edge_tunnel_client --pair-string p=pr-ydk3xhyn,d=de-orruyc4n,pwd=X9NphkArpzLU,sct=9jLgbUb4FWhe
@@ -105,7 +120,8 @@ The device [0] pr-ydk3xhyn.de-orruyc4n has been set into the bookmarks as index 
 
 ```
 
-The configuration is complete. Launch the client and check the list of services provided by the camera:
+The configuration is complete. Launch the client and check the list of services
+provided by the camera:
 
 ```
 $ ./edge_tunnel_client --services
@@ -122,11 +138,15 @@ Connected to the device [0] pr-ydk3xhyn.de-orruyc4n
 TCP Tunnel opened for the service rtsp listening on the local port 44391
 ```
 
-At `127.0.0.1:44391` an rtsp stream will be available, use ffplay making sure to select the tcp transport:
+At `127.0.0.1:44391` an RTSP stream will be available, use ffplay making sure to
+select the tcp transport:
 
 ```
 ffplay -rtsp_transport tcp rtsp://127.0.0.1:44391/stream=0
 ```
 
-For more details on platform features and settings, see the official [documentation](https://docs.nabto.com/developer/guides.html)
+For more details on platform features and settings, see the official
+[documentation](https://docs.nabto.com/developer/guides.html)
 
+
+[ncc]: https://console.cloud.nabto.com/

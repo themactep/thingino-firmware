@@ -3198,7 +3198,7 @@ diff --git a/fs/splice.c b/fs/splice.c
 index 9eca476..8d415fc 100644
 --- a/fs/splice.c
 +++ b/fs/splice.c
-@@ -1312,6 +1312,7 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
+@@ -1313,6 +1313,7 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
  
  	return ret;
  }

@@ -26,7 +26,7 @@ define ZEROTIER_ONE_INSTALL_TARGET_CMDS
 	$(MAKE) -C $(@D) DESTDIR=$(TARGET_DIR) install
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
-	cp ../general/package/zerotier-one/files/S90zerotier $(TARGET_DIR)/etc/init.d
+	cp $(BR2_EXTERNAL)/../general/package/zerotier-one/files/S90zerotier $(TARGET_DIR)/etc/init.d
 endef
 
 $(eval $(generic-package))

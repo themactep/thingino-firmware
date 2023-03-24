@@ -32,6 +32,6 @@ AWS_PRODUCER_MAKE_OPTS += VERBOSE=1
 
 AWS_PRODUCER_DEPENDENCIES = \
 	libwebsockets-openipc \
-	mbedtls-openipc
+	mbedtls
 
 $(eval $(cmake-package))

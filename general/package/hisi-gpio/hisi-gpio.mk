@@ -9,8 +9,8 @@ HISI_GPIO_LICENSE = MIT
 HISI_GPIO_LICENSE_FILES = LICENSE
 
 define HISI_GPIO_EXTRACT_CMDS
-	cp ../general/package/hisi-gpio/src/hisi-gpio-scanner.c $(@D)/
-	cp ../general/package/hisi-gpio/src/hisi-gpio-watcher.c $(@D)/
+	cp $(BR2_EXTERNAL)/../general/package/hisi-gpio/src/hisi-gpio-scanner.c $(@D)/
+	cp $(BR2_EXTERNAL)/../general/package/hisi-gpio/src/hisi-gpio-watcher.c $(@D)/
 endef
 
 define HISI_GPIO_BUILD_CMDS

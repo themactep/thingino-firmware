@@ -88,7 +88,7 @@ insert_sns() {
         devmem 0x20030030 32 0x5 #Sensor clock 27MHz
         insmod ssp_pana.ko
         ;;
-    imx104 | imx123 | imx138 | imx222 | imx225 | imx322 | imx323)
+    imx104 | imx123 | imx138_spi | imx222 | imx225 | imx322 | imx323)
         devmem 0x200f000c 32 0x1 #pinmux SPI0
         devmem 0x200f0010 32 0x1 #pinmux SPI0
         devmem 0x200f0014 32 0x1 #pinmux SPI0
@@ -397,14 +397,14 @@ calc_mmz_info() {
         awk 'BEGIN { temp = 0; }
 	{
 		temp = $1/1024/1024 + $2;
-	} 
+	}
 	END { printf("0x%x00000\n", temp); }')
 
     mmz_size=$(echo "$mem_total $os_mem_size" |
         awk 'BEGIN { temp = 0; }
 	{
 		temp = $1 - $2;
-	} 
+	}
 	END { printf("%dM\n", temp); }')
     echo "mmz_start: $mmz_start, mmz_size: $mmz_size"
 }

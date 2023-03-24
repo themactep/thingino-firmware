@@ -26,6 +26,6 @@ AWS_WEBRTC_DEPENDENCIES = \
 	libsrtp-openipc \
 	aws-producer \
 	usrsctp \
-	mbedtls-openipc
+	mbedtls
 
 $(eval $(cmake-package))
