@@ -1,7 +1,0 @@
-
---- a/drivers/gpu/Makefile
-+++ b/drivers/gpu/Makefile
-@@ -1,2 +1,2 @@
--obj-y			+= drm/ vga/
-+obj-y			+= drm/ vga/ vivante/
- obj-$(CONFIG_TEGRA_HOST1X)	+= host1x/

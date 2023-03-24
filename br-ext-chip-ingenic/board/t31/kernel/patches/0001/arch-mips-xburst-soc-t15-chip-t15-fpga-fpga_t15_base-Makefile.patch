@@ -1,6 +1,0 @@
-
---- /dev/null
-+++ b/arch/mips/xburst/soc-t15/chip-t15/fpga/fpga_t15_base/Makefile
-@@ -0,0 +1,2 @@
-+
-+obj-y		+= pm.o

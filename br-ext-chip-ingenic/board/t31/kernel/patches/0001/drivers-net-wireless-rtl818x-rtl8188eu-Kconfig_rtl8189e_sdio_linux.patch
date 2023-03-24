@@ -1,9 +1,0 @@
-
---- /dev/null
-+++ b/drivers/net/wireless/rtl818x/rtl8188eu/Kconfig_rtl8189e_sdio_linux
-@@ -0,0 +1,5 @@
-+config RTL8189ES
-+	tristate "Realtek 8189E SDIO WiFi"
-+	depends on USB
-+	---help---
-+	  Help message of RTL8189ES

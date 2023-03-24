@@ -1,7 +1,0 @@
-
---- a/drivers/net/wireless/rtl818x/Makefile
-+++ b/drivers/net/wireless/rtl818x/Makefile
-@@ -1,2 +1,3 @@
- obj-$(CONFIG_RTL8180)	+= rtl8180/
- obj-$(CONFIG_RTL8187)	+= rtl8187/
-+obj-$(CONFIG_RTL8188EU) += rtl8188eu/

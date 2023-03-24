@@ -1,8 +1,0 @@
-
---- /dev/null
-+++ b/arch/mips/xburst/soc-4780/Makefile
-@@ -0,0 +1,4 @@
-+
-+obj-y += board/
-+obj-y += common/
-+

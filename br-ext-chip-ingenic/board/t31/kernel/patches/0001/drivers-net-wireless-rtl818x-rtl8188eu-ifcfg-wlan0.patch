@@ -1,9 +1,0 @@
-
---- /dev/null
-+++ b/drivers/net/wireless/rtl818x/rtl8188eu/ifcfg-wlan0
-@@ -0,0 +1,4 @@
-+#DHCP client
-+DEVICE=wlan0
-+BOOTPROTO=dhcp
-+ONBOOT=yes
-\ No newline at end of file

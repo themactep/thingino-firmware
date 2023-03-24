@@ -1,9 +1,0 @@
-
---- a/arch/arm/boot/.gitignore
-+++ b/arch/arm/boot/.gitignore
-@@ -4,3 +4,4 @@ xipImage
- bootpImage
- uImage
- *.dtb
-+zImage-dtb
-\ No newline at end of file

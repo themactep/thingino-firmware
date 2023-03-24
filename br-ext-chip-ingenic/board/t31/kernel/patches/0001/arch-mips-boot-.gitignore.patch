@@ -1,8 +1,0 @@
-
---- a/arch/mips/boot/.gitignore
-+++ b/arch/mips/boot/.gitignore
-@@ -4,3 +4,4 @@ vmlinux.*
- zImage
- zImage.tmp
- calc_vmlinuz_load_addr
-+uImage*

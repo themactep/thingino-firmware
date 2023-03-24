@@ -1,8 +1,0 @@
-
---- /dev/null
-+++ b/arch/mips/xburst/soc-t30/chip-t30/isvp/Monkey/pm.c
-@@ -0,0 +1,4 @@
-+#include <gpio.h>
-+__initdata int gpio_ss_table[][2] = {
-+	{GSS_TABLET_END	,GSS_TABLET_END	}
-+};

@@ -1,5 +1,0 @@
-
---- /dev/null
-+++ b/drivers/video/soc_vpu/jz_nvpu/Makefile
-@@ -0,0 +1 @@
-+obj-$(CONFIG_JZ_NVPU) += jz_nvpu.o

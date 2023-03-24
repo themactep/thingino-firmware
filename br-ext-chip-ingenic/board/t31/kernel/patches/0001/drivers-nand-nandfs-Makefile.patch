@@ -1,9 +1,0 @@
-
---- /dev/null
-+++ b/drivers/nand/nandfs/Makefile
-@@ -0,0 +1,5 @@
-+# Makefile for nand block
-+#
-+
-+
-+obj-$(CONFIG_NAND)	+= nand_char_ctrl.o

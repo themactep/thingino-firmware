@@ -1,9 +1,0 @@
-
---- /dev/null
-+++ b/arch/mips/xburst/soc-t10/chip-t10/musca/Makefile
-@@ -0,0 +1,5 @@
-+
-+CFLAGS_KERNEL	+= -I$(srctree)/arch/mips/xburst/soc-t10/chip-t10/$(CONFIG_PRODUCT_NAME)/$(CONFIG_BOARD_NAME)
-+
-+obj-y		+= common/
-+obj-$(CONFIG_BOARD_MUSCA_V10)		+= $(CONFIG_BOARD_NAME)/

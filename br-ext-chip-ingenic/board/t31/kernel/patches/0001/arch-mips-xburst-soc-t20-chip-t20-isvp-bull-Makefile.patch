@@ -1,6 +1,0 @@
-
---- /dev/null
-+++ b/arch/mips/xburst/soc-t20/chip-t20/isvp/bull/Makefile
-@@ -0,0 +1,2 @@
-+
-+obj-y		+= pm.o

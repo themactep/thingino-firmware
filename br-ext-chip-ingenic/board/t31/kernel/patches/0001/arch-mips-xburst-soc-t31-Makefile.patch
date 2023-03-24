@@ -1,7 +1,0 @@
-
---- /dev/null
-+++ b/arch/mips/xburst/soc-t31/Makefile
-@@ -0,0 +1,3 @@
-+
-+obj-$(CONFIG_CHIP_T31) += chip-t31/
-+obj-y += common/

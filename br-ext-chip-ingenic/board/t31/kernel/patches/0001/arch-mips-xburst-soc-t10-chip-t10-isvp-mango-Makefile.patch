@@ -1,6 +1,0 @@
-
---- /dev/null
-+++ b/arch/mips/xburst/soc-t10/chip-t10/isvp/mango/Makefile
-@@ -0,0 +1,2 @@
-+
-+obj-y		+= pm.o

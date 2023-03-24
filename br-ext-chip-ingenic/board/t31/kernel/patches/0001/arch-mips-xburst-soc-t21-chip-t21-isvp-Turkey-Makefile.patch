@@ -1,6 +1,0 @@
-
---- /dev/null
-+++ b/arch/mips/xburst/soc-t21/chip-t21/isvp/Turkey/Makefile
-@@ -0,0 +1,2 @@
-+
-+obj-y		+= pm.o

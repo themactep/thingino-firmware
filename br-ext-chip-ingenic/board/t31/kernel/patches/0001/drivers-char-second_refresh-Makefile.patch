@@ -1,7 +1,0 @@
-
---- /dev/null
-+++ b/drivers/char/second_refresh/Makefile
-@@ -0,0 +1,3 @@
-+obj-y += second_refresh_module.o
-+
-+

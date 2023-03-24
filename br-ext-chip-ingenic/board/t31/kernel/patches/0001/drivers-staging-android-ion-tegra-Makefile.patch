@@ -1,5 +1,0 @@
-
---- /dev/null
-+++ b/drivers/staging/android/ion/tegra/Makefile
-@@ -0,0 +1 @@
-+obj-y += tegra_ion.o

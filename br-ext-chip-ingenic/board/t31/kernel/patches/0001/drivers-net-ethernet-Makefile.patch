@@ -1,8 +1,0 @@
-
---- a/drivers/net/ethernet/Makefile
-+++ b/drivers/net/ethernet/Makefile
-@@ -74,3 +74,4 @@ obj-$(CONFIG_NET_VENDOR_VIA) += via/
- obj-$(CONFIG_NET_VENDOR_WIZNET) += wiznet/
- obj-$(CONFIG_NET_VENDOR_XILINX) += xilinx/
- obj-$(CONFIG_NET_VENDOR_XIRCOM) += xircom/
-+obj-$(CONFIG_JZ_MAC) += ingenic/

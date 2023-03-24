@@ -1,5 +1,0 @@
-
---- a/arch/mips/include/asm/current.h
-+++ /dev/null
-@@ -1 +0,0 @@
--#include <asm-generic/current.h>

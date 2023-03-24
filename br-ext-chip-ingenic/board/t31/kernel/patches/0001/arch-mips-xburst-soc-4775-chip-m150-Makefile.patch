@@ -1,7 +1,0 @@
-
---- /dev/null
-+++ b/arch/mips/xburst/soc-4775/chip-m150/Makefile
-@@ -0,0 +1,3 @@
-+
-+
-+obj-$(CONFIG_PRODUCT_HALLEY)		+= halley/

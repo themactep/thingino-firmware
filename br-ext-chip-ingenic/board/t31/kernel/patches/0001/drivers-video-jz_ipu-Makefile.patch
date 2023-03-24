@@ -1,6 +1,0 @@
-
---- /dev/null
-+++ b/drivers/video/jz_ipu/Makefile
-@@ -0,0 +1,2 @@
-+obj-$(CONFIG_JZ_IPU_V12)        += jz_ipu_v12.o
-+obj-$(CONFIG_JZ_IPU_V13)        += jz_ipu_v13.o

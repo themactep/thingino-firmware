@@ -1,5 +1,0 @@
-
---- /dev/null
-+++ b/arch/mips/xburst/soc-t20/chip-t20/Makefile
-@@ -0,0 +1 @@
-+obj-$(CONFIG_PLATFORM_T20_ISVP)		+= isvp/

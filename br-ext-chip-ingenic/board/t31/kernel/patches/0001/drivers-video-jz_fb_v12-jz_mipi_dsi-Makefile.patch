@@ -1,5 +1,0 @@
-
---- /dev/null
-+++ b/drivers/video/jz_fb_v12/jz_mipi_dsi/Makefile
-@@ -0,0 +1 @@
-+obj-y += jz_mipi_dsi.o jz_mipi_dsi_lowlevel.o jz_mipi_dsih_hal.o

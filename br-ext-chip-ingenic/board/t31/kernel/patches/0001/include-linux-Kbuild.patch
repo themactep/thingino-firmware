@@ -1,6 +1,0 @@
-
---- /dev/null
-+++ b/include/linux/Kbuild
-@@ -0,0 +1,2 @@
-+header-y += if_pppolac.h
-+header-y += if_pppopns.h

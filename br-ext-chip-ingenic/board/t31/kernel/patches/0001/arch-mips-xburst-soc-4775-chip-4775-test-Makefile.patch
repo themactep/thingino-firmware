@@ -1,6 +1,0 @@
-
---- /dev/null
-+++ b/arch/mips/xburst/soc-4775/chip-4775/test/Makefile
-@@ -0,0 +1,2 @@
-+
-+obj-y += test-misc.o test-lcd.o test-pm.o

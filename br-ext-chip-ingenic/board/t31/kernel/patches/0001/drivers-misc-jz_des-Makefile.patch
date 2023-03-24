@@ -1,8 +1,0 @@
-
---- /dev/null
-+++ b/drivers/misc/jz_des/Makefile
-@@ -0,0 +1,4 @@
-+
-+
-+#obj-$(CONFIG_JZ_AES)		+= jz-aes.o jz_fpga_aes_test.o
-+obj-$(CONFIG_JZ_DES)		+= jz_fpga_des_test.o jz_fpga_des_test_tdes.o jz-des.o

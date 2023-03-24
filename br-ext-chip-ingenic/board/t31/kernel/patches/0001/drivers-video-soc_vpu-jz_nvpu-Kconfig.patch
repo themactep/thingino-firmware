@@ -1,8 +1,0 @@
-
---- /dev/null
-+++ b/drivers/video/soc_vpu/jz_nvpu/Kconfig
-@@ -0,0 +1,4 @@
-+config JZ_NVPU
-+    depends on SOC_VPU && !AVPU
-+    bool "vpu client device of soc_vpu to m200, t10, t15, t20, t21, t31 soc"
-+    default n

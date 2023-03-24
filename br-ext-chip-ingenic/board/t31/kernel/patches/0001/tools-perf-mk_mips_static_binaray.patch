@@ -1,5 +1,0 @@
-
---- /dev/null
-+++ b/tools/perf/mk_mips_static_binaray
-@@ -0,0 +1 @@
-+make ARCH=mips CROSS_COMPILE=mips-linux-gnu- -j8
