@@ -10,21 +10,19 @@ function apply_patch() {
     DST=$1
     SRC=$2
 
-    if [[ -d "$SRC" ]]; then
-        if [[ ${SRC:${#SRC}-1} != '/' ]]; then
+    if [[ -d $SRC ]]; then
+        if [[ "overlay" == $(basename "$SRC") ]]; then
             log Apply \"$SRC\" as overlay directory
             cp -r $SRC/* $DST/
         else
             log Apply \"$SRC\" as patches directory
             for P in $SRC/*.patch; do
-                patch -d $DST -p1 <$P
+                patch -d $DST -p1 < $P
             done
         fi
     else
-        if [[ -f "$SRC" ]]; then
-            log Apply \"$SRC\" as single patch
-            patch -d $DST -p1 <$SRC
-        fi
+        log Apply \"$SRC\" as single patch
+        patch -d $DST -p1 < $SRC
     fi
 }
 
