@@ -1,0 +1,9 @@
+
+--- /dev/null
++++ b/drivers/nand/driver/hw/transadaptor/dma_trans.c
+@@ -0,0 +1,5 @@
++/* dma trans function will be done later, now it's not be used, but only be compiled */
++/* in order to avoid be deleted when make distclean in kernel */
++#include <os_clib.h>
++#include <nand_debug.h>
++#include "transadaptor.h"

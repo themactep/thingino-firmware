@@ -1,0 +1,22 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-t20/chip-t20/Kconfig
+@@ -0,0 +1,18 @@
++
++choice
++	prompt "Platform type"
++	depends on CHIP_T20
++	default PLATFORM_T20_ISVP
++
++config PLATFORM_T20_ISVP
++	bool "isvp"
++
++endchoice
++
++config PRODUCT_NAME
++	string
++	default "isvp" if PLATFORM_T20_ISVP
++
++if PLATFORM_T20_ISVP
++source "arch/mips/xburst/soc-t20/chip-t20/isvp/Kconfig"
++endif

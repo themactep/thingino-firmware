@@ -1,0 +1,248 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/Kconfig
+@@ -0,0 +1,244 @@
++
++menuconfig SOC_TYPE
++	tristate "SOC type"
++	depends on MACH_XBURST
++	default y
++	help
++	  This selects MultiMediaCard, Secure Digital and Secure
++	  Digital I/O support.
++
++	  If you want MMC/SD/SDIO support, you should say Y here and
++	  also to your specific host controller driver.
++
++if SOC_TYPE
++choice
++	prompt "SOC types"
++	depends on MACH_XBURST
++	default SOC_M200
++
++config SOC_4780
++	bool "4780"
++	select JZRISC
++
++	select NR_CPUS_DEFAULT_2
++	select SYS_SUPPORTS_SMP
++
++config SOC_4775
++	bool "4775"
++	select JZRISC
++
++config SOC_M200
++	bool "m200"
++	select JZRISC
++
++config SOC_T15
++	bool "t15"
++	select JZRISC
++
++config SOC_T10
++	bool "t10"
++	select JZRISC
++
++config SOC_T20
++	bool "t20"
++	select JZRISC
++
++config SOC_T30
++	bool "t30"
++	select JZRISC
++
++config SOC_T21
++	bool "t21"
++	select JZRISC
++
++config SOC_T31
++	bool "t31"
++	select JZRISC
++
++endchoice
++
++config JZRISC
++	bool
++	select ARCH_REQUIRE_GPIOLIB
++	select IRQ_CPU
++	select DMA_NONCOHERENT
++	select SYS_HAS_CPU_MIPS32_R1
++	select SYS_SUPPORTS_32BIT_KERNEL
++	select SYS_SUPPORTS_LITTLE_ENDIAN
++
++if SOC_4775
++source "arch/mips/xburst/soc-4775/Kconfig"
++endif
++if SOC_4780
++source "arch/mips/xburst/soc-4780/Kconfig"
++endif
++if SOC_M200
++source "arch/mips/xburst/soc-m200/Kconfig"
++endif
++if SOC_T20
++source "arch/mips/xburst/soc-t20/Kconfig"
++endif
++if SOC_T15
++source "arch/mips/xburst/soc-t15/Kconfig"
++endif
++if SOC_T10
++source "arch/mips/xburst/soc-t10/Kconfig"
++endif
++if SOC_T30
++source "arch/mips/xburst/soc-t30/Kconfig"
++endif
++if SOC_T21
++source "arch/mips/xburst/soc-t21/Kconfig"
++endif
++if SOC_T31
++source "arch/mips/xburst/soc-t31/Kconfig"
++endif
++
++config EXTAL_CLOCK
++	depends on MACH_XBURST
++	int "extal clock in MHz"
++	default 12
++
++config FPGA_TEST
++	depends on MACH_XBURST
++	bool "FPGA_TEST"
++	default n
++
++config PM_POWERDOWN_P0
++	depends on MACH_XBURST
++	bool "power down xburst cpu core when sleep"
++	default y
++
++config SUSPEND_WDT
++	depends on PM_POWERDOWN_P0
++	bool "watch dog for power down p0 sleep"
++	default n
++
++config CPU_SUSPEND_TO_IDLE
++        depends on !PM_POWERDOWN_P0
++        bool "cpu enter idle mode when sleep"
++        default n
++
++config RESET_KEEP_POWER
++	depends on MACH_XBURST
++	bool "keep power when press reset key"
++	default y
++
++config HIBERNATE_RESET
++	depends on MACH_XBURST
++	bool "use hibernate reset instead watch dog reset"
++	default n
++
++config TRAPS_USE_TCSM_CHECK
++	depends on TRAPS_USE_TCSM
++	bool "check tcsm when power resume"
++	default n
++
++config CPUFREQ_CHANGE_VCORE
++	depends on CPU_FREQ
++	bool "change vcore voltage when cpu frequency has changed"
++	default n
++
++config CPUFREQ_PARAMETER
++	depends on CPU_FREQ
++	bool "CPU freq parameters"
++	default n
++	help
++	  Board level cpufreq parameter definitions. If you are NOT sure about then,
++	  DON'T say Y here and you will get default define.
++
++config TVOL_L
++	depends on CPUFREQ_PARAMETER
++	int "tVOL_L"
++	default 30
++	help
++	  ms of voltage latency.
++config TVOL_H
++	depends on CPUFREQ_PARAMETER
++	int "tVOL_H"
++	default 500
++	help
++	  ms of voltage hold time.
++config DETE_PERIOD
++	depends on CPUFREQ_PARAMETER
++	int "DETE_PERIOD"
++	default 30000
++	help
++	  freq detect period.
++config HIGH_THRESHOLD
++	depends on CPUFREQ_PARAMETER
++	int "HIGH_THRESHOLD"
++	default 30
++	help
++	  percent of high load threshold.
++config HIFREQ_MINUTE
++	depends on CPUFREQ_PARAMETER
++	int "HIFREQ_MINUTE"
++	default 30
++	help
++	  high freq last time.
++config MAX_APLL_FREQ
++	depends on CPUFREQ_PARAMETER
++	int "MAX_APLL_FREQ"
++	default 1824000
++	help
++	  max cpufreq from APLL.
++config LOW_APLL_FREQ
++	depends on CPUFREQ_PARAMETER
++	int "LOW_APLL_FREQ"
++	default 1300000
++	help
++	  low cpufreq from APLL.
++config APLL_FREQ_STEP
++	depends on CPUFREQ_PARAMETER
++	int "APLL_FREQ_STEP"
++	default 96000
++	help
++	  step of APLL freq.
++
++config SUSPEND_SUPREME_DEBUG
++	depends on PM
++	bool "superme debug for suspend"
++	default n
++
++config RECONFIG_SLEEP_GPIO
++    depends on PM
++    bool "reconfig gpio sleep state."
++    default n
++
++config JZRISC_PEP
++	bool "enable page execution protection"
++	default y
++
++config ARM_ELF_SUPPORT
++	bool "disable arm elf check for mips platform - magic code support depend on this"
++	default y
++
++config SUSPEND_TEST
++	bool "auto suspend test"
++	default n
++
++config DDR_DEBUG
++   bool "ddr debug code"
++   default n
++
++config EARLY_INIT_RUN
++	bool "early run init process"
++	default n
++
++config TEST_RESET_DLL
++	bool "fast test reset_dll"
++	default n
++
++config JZ_IMEM
++	bool "jz imem"
++	default n
++	help
++	  Register two nodes:/proc/jz/imem and /proc/jz/imem1,
++	  The two node will take 16M and 8M memory space,
++	  Which is used such as by mplayer to encode and decode video and audio
++
++config PMON_DEBUG
++	bool "pmon debug proc interface"
++	default n
++endif

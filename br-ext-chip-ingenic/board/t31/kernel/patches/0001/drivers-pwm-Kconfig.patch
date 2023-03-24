@@ -1,0 +1,45 @@
+
+--- a/drivers/pwm/Kconfig
++++ b/drivers/pwm/Kconfig
+@@ -201,4 +201,41 @@ config PWM_VT8500
+ 	  To compile this driver as a module, choose M here: the module
+ 	  will be called pwm-vt8500.
+ 
++config JZ_PWM
++	bool "JZ PWM driver"
++	default y
++comment "JZ PWM function pin select"
++	depends on JZ_PWM
++config JZ_PWM_GPIO_E0
++	bool "GPIO Port E pwm0"
++	depends on JZ_PWM
++	default y
++config JZ_PWM_GPIO_E1
++	bool "GPIO Port E pwm1"
++	depends on JZ_PWM
++	default n
++config JZ_PWM_GPIO_E2
++	bool "GPIO Port E pwm2"
++	depends on JZ_PWM
++	default n
++config JZ_PWM_GPIO_E3
++	bool "GPIO Port E pwm3"
++	depends on JZ_PWM
++	default n
++config JZ_PWM_GPIO_E4
++	bool "GPIO Port E pwm4"
++	depends on JZ_PWM
++	default n
++config JZ_PWM_GPIO_E5
++	bool "GPIO Port E pwm5"
++	depends on JZ_PWM
++	default n
++config JZ_PWM_GPIO_D10
++	bool "GPIO Port D pwm6"
++	depends on JZ_PWM
++	default n
++config JZ_PWM_GPIO_D11
++	bool "GPIO Port D pwm7"
++	depends on JZ_PWM
++	default n
+ endif

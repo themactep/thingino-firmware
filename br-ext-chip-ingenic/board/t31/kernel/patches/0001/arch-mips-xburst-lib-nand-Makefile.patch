@@ -1,0 +1,12 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/lib/nand/Makefile
+@@ -0,0 +1,7 @@
++
++obj-$(CONFIG_NAND) += fate.o
++
++$(obj)/fate.o:$(obj)/lib.a
++
++$(obj)/lib.a:$(obj)/libnm.hex
++	cp $(obj)/libnm.hex $(obj)/lib.a
+\ No newline at end of file

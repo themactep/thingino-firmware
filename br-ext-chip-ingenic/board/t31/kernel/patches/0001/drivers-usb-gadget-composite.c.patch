@@ -1,0 +1,95 @@
+
+--- a/drivers/usb/gadget/composite.c
++++ b/drivers/usb/gadget/composite.c
+@@ -125,7 +125,17 @@ int config_ep_by_speed(struct usb_gadget *g,
+ 
+ ep_found:
+ 	/* commit results */
+-	_ep->maxpacket = usb_endpoint_maxp(chosen_desc);
++	switch (chosen_desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
++	case USB_ENDPOINT_XFER_ISOC:
++	case USB_ENDPOINT_XFER_INT:
++		_ep->maxpacket = (usb_endpoint_maxp(chosen_desc) & 0x7ff) *
++			(((usb_endpoint_maxp(chosen_desc) >> 11) & 0x3) + 1);
++		if (!want_comp_desc)
++			break;
++	default:
++		_ep->maxpacket = (usb_endpoint_maxp(chosen_desc) & 0x7ff);
++		break;
++	}
+ 	_ep->desc = chosen_desc;
+ 	_ep->comp_desc = NULL;
+ 	_ep->maxburst = 0;
+@@ -593,6 +603,7 @@ static void reset_config(struct usb_composite_dev *cdev)
+ 		bitmap_zero(f->endpoints, 32);
+ 	}
+ 	cdev->config = NULL;
++	cdev->delayed_status = 0;
+ }
+ 
+ static int set_config(struct usb_composite_dev *cdev,
+@@ -1451,8 +1462,22 @@ unknown:
+ 			struct usb_configuration	*c;
+ 
+ 			c = cdev->config;
+-			if (c && c->setup)
++			if (!c)
++				goto done;
++
++			/* try current config's setup */
++			if (c->setup) {
+ 				value = c->setup(c, ctrl);
++				goto done;
++			}
++
++			/* try the only function in the current config */
++			if (!list_is_singular(&c->functions))
++				goto done;
++			f = list_first_entry(&c->functions, struct usb_function,
++					     list);
++			if (f->setup)
++				value = f->setup(f, ctrl);
+ 		}
+ 
+ 		goto done;
+@@ -1476,6 +1501,11 @@ unknown:
+ 
+ done:
+ 	/* device either stalls (value < 0) or reports success */
++	if (value < 0) {
++		printk("control error %d req%02x.%02x v%04x i%04x l%d\n", value,
++				ctrl->bRequestType, ctrl->bRequest,
++				w_value, w_index, w_length);
++	}
+ 	return value;
+ }
+ 
+@@ -1497,8 +1527,7 @@ void composite_disconnect(struct usb_gadget *gadget)
+ 
+ /*-------------------------------------------------------------------------*/
+ 
+-static ssize_t composite_show_suspended(struct device *dev,
+-					struct device_attribute *attr,
++static ssize_t suspended_show(struct device *dev, struct device_attribute *attr,
+ 					char *buf)
+ {
+ 	struct usb_gadget *gadget = dev_to_usb_gadget(dev);
+@@ -1506,8 +1535,7 @@ static ssize_t composite_show_suspended(struct device *dev,
+ 
+ 	return sprintf(buf, "%d\n", cdev->suspended);
+ }
+-
+-static DEVICE_ATTR(suspended, 0444, composite_show_suspended, NULL);
++static DEVICE_ATTR_RO(suspended);
+ 
+ static void __composite_unbind(struct usb_gadget *gadget, bool unbind_driver)
+ {
+@@ -1715,7 +1743,7 @@ composite_resume(struct usb_gadget *gadget)
+ {
+ 	struct usb_composite_dev	*cdev = get_gadget_data(gadget);
+ 	struct usb_function		*f;
+-	u8				maxpower;
++	u16				maxpower;
+ 
+ 	/* REVISIT:  should we have config level
+ 	 * suspend/resume callbacks?

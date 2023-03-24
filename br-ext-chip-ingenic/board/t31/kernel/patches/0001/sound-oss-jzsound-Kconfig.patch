@@ -1,0 +1,155 @@
+
+--- /dev/null
++++ b/sound/oss/jzsound/Kconfig
+@@ -0,0 +1,151 @@
++menuconfig SOUND_OSS_XBURST
++	bool "Open Sound System of xburst"
++	#depends on SOUND_OSS_CORE
++	default y
++	help
++	  Say 'Y' to enable Open Sound System drivers of xburst.
++
++
++if SOUND_OSS_XBURST
++
++config COMPILE_JZSOUND_INTO_KO
++	bool "Compile jzsound driver into ko"
++	default n
++	help
++		Say 'Y' to compile driver into ko, 'N' to compile driver into kernel.
++
++#*******************************************************
++config SOUND_JZ_I2S_V12
++	bool "Jz On-Chip I2S driver"
++	help
++		Say 'Y' to enable On-Chip i2s
++
++if SOUND_JZ_I2S_V12
++
++config CODEC_STANDBY_V12
++depends on JZ_EXTERNAL_CODEC_V12 || JZ_INTERNAL_CODEC_V12
++bool "codec standby"
++help
++	Say "Y" to enable codec standby function
++
++menuconfig JZ_INTERNAL_CODEC_V12
++
++	bool "xburst internal coedc"
++	depends on SOUND_JZ_I2S_V12
++	help
++		Say "Y" to select xburst internal codec.
++
++if JZ_INTERNAL_CODEC_V12
++
++	config JZ4780_INTERNAL_CODEC
++	bool "jz4780 internal codec"
++	depends on SOC_4780
++	help
++		Say "Y" to enable jz4780 internal codec.
++
++	config HALLEY_INTERNAL_CODEC_V11
++	bool "halley internal codec"
++	depends on SOC_4775
++	help
++		Say "Y" to enable jz4775 internal codec.
++
++	config M200_INTERNAL_CODEC_V12
++	bool "m200 internal codec"
++	depends on SOC_M200
++	help
++		Say "Y" to enable m200 internal codec.
++
++	config T10_INTERNAL_CODEC
++	bool "t10 internal codec"
++	depends on SOC_T10 || SOC_T20 || SOC_T30 || SOC_T21 || SOC_T31
++	help
++		Say "Y" to enable t10 internal codec.
++
++endif #JZ_INTERNAL_CODEC
++
++menuconfig JZ_EXTERNAL_CODEC_V12
++	bool "xburst external codec"
++	help
++		Say	"Y" to setect xburst external codec		\
++		Note :it is will be unused when internal codec select
++
++if JZ_EXTERNAL_CODEC_V12 #external codec
++
++	config ATC2603_EXTERNAL_CODEC
++	depends on SPI
++	bool "atc2603 external codec"
++	help
++		Say "Y" to enable atc260x codec
++
++endif #JZ_EXTERNAL_CODEC
++
++if JZ_EXTERNAL_CODEC_V12
++
++	config WM8594_CODEC_V12
++	bool "wm8594 external codec"
++	help
++		Say "Y" to enable wm8594 codec
++
++	config AK4951_CODEC
++	bool "ak4951 external codec"
++	help
++		Say "Y" to enable ak4951 codec
++endif
++	config JZ_TS_DMIC
++	bool "jz soc t31 dmic enable"
++	help
++		Say "Y" to choose soc t31 dmic enable
++
++endif #SOUND_I2S_JZ47XX
++#******************************************************
++config SOUND_JZ_PCM_V12
++	bool "Jz On-Chip PCM driver"
++	help
++		Say 'Y' to enable On-Chip pcm
++if SOUND_JZ_PCM_V12
++menu "sound pcm codec list"
++endmenu
++endif #SOUND_PCM_JZ47XX
++
++#******************************************************
++config SOUND_JZ_SPDIF_V12
++	bool "Jz On-Chip SPDIF driver"
++	default n
++	help
++		Say 'Y' to enable On-Chip spdif
++
++menuconfig SOUND_XBURST_DETECT
++	bool "sound detect device of xburst"
++	default n
++	help
++	  Say 'Y' to enable sound detect devices support.
++
++if SOUND_XBURST_DETECT
++
++menu "JZ headset detect"
++
++config JZ_HP_DETECT_CODEC_V12
++	bool "m200 headphone codec detect"
++	depends on SOUND_JZ_I2S_V12 || SOUND_JZ_PCM_V12
++	help
++	Say "Y" to enable codec headphone detect.
++
++config JZ_HP_DETECT_GPIO_V12
++	bool "m200 headphone gpio detect"
++	help
++	Say "Y" to enable gpio headphone detect.
++endmenu #"JZ headset detect"
++
++#menu "JZ dock detect"
++
++#endmenu
++
++endif #SOUND_XBURST_DETECT
++
++#menuconfig SOUND_XBURST_DEBUG_V12
++#	bool "sound debug device of xburst"
++#	default n
++#	help
++#	  Say 'Y' to enable sound debug devices support.
++#
++endif #SOUND_OSS_XBURST

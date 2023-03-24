@@ -1,0 +1,14 @@
+
+--- /dev/null
++++ b/drivers/media/platform/tx-isp/Kconfig
+@@ -0,0 +1,10 @@
++#
++# tx-isp config states
++#
++
++config  SOC_MCLK
++        bool 'MCLK from CPU'
++        depends on VIDEO_TX_ISP
++	default y
++        ---help---
++          MCLK from CPU.

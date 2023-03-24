@@ -1,0 +1,54 @@
+
+--- a/arch/mips/kernel/proc.c
++++ b/arch/mips/kernel/proc.c
+@@ -15,6 +15,7 @@
+ #include <asm/processor.h>
+ #include <asm/prom.h>
+ 
++extern const char *get_board_type(void);
+ unsigned int vced_count, vcei_count;
+ 
+ static int show_cpuinfo(struct seq_file *m, void *v)
+@@ -22,6 +23,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
+ 	unsigned long n = (unsigned long) v - 1;
+ 	unsigned int version = cpu_data[n].processor_id;
+ 	unsigned int fp_vers = cpu_data[n].fpu_id;
++	uint32_t efbuf[4] = {0};
+ 	char fmt [64];
+ 	int i;
+ 
+@@ -98,6 +100,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
+ 	if (cpu_has_mipsmt)	seq_printf(m, "%s", " mt");
+ 	if (cpu_has_mmips)	seq_printf(m, "%s", " micromips");
+ 	if (cpu_has_vz)		seq_printf(m, "%s", " vz");
++	if (cpu_has_eva)	seq_printf(m, "%s", " eva");
++	if (cpu_has_mxu)	seq_printf(m, "%s", " mxu");
+ 	seq_printf(m, "\n");
+ 
+ 	if (cpu_has_mmips) {
+@@ -109,6 +113,14 @@ static int show_cpuinfo(struct seq_file *m, void *v)
+ 	seq_printf(m, "kscratch registers\t: %d\n",
+ 		      hweight8(cpu_data[n].kscratch_mask));
+ 	seq_printf(m, "core\t\t\t: %d\n", cpu_data[n].core);
++#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_MIPS_MT_SMTC)
++	if (cpu_has_mipsmt) {
++		seq_printf(m, "VPE\t\t\t: %d\n", cpu_data[n].vpe_id);
++#if defined(CONFIG_MIPS_MT_SMTC)
++		seq_printf(m, "TC\t\t\t: %d\n", cpu_data[n].tc_id);
++#endif
++	}
++#endif
+ 
+ 	sprintf(fmt, "VCE%%c exceptions\t\t: %s\n",
+ 		      cpu_has_vce ? "%u" : "not available");
+@@ -116,6 +128,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
+ 	seq_printf(m, fmt, 'I', vcei_count);
+ 	seq_printf(m, "\n");
+ 
++	/* Android requires 'Hardware' to setup the init.%hardware%.rc */
++	seq_printf(m, "Hardware\t\t: %s\n", get_board_type());
++	seq_printf(m, "Serial\t\t\t: %08x %08x %08x %08x\n", efbuf[0], efbuf[1], efbuf[2], efbuf[3]);
++
+ 	return 0;
+ }
+ 

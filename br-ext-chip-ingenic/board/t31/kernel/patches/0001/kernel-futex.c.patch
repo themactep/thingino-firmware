@@ -1,0 +1,21 @@
+
+--- a/kernel/futex.c
++++ b/kernel/futex.c
+@@ -62,7 +62,7 @@
+ #include <linux/ptrace.h>
+ #include <linux/sched/rt.h>
+ #include <linux/hugetlb.h>
+-
++#include <linux/freezer.h>
+ #include <asm/futex.h>
+ 
+ #include "rtmutex_common.h"
+@@ -1808,7 +1808,7 @@ static void futex_wait_queue_me(struct futex_hash_bucket *hb, struct futex_q *q,
+ 		 * is no timeout, or if it has yet to expire.
+ 		 */
+ 		if (!timeout || timeout->task)
+-			schedule();
++			freezable_schedule();
+ 	}
+ 	__set_current_state(TASK_RUNNING);
+ }

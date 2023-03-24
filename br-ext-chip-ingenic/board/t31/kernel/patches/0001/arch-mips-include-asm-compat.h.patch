@@ -1,0 +1,17 @@
+
+--- a/arch/mips/include/asm/compat.h
++++ b/arch/mips/include/asm/compat.h
+@@ -298,7 +298,13 @@ typedef struct compat_sigaltstack {
+ 
+ static inline int is_compat_task(void)
+ {
++#ifdef CONFIG_MIPS32_O32
++	return test_thread_flag(TIF_32BIT_REGS);
++#elif defined(CONFIG_MIPS32_N32)
+ 	return test_thread_flag(TIF_32BIT_ADDR);
++#else
++#error No MIPS32 compatibility mode defined
++#endif /* CONFIG_MIPS32_O32 */
+ }
+ 
+ #endif /* _ASM_COMPAT_H */

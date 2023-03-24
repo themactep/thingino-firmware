@@ -1,0 +1,12 @@
+
+--- a/drivers/media/v4l2-core/v4l2-ioctl.c
++++ b/drivers/media/v4l2-core/v4l2-ioctl.c
+@@ -2124,6 +2124,8 @@ bool v4l2_is_known_ioctl(unsigned int cmd)
+ 
+ struct mutex *v4l2_ioctl_get_lock(struct video_device *vdev, unsigned cmd)
+ {
++	if(cmd == VIDIOC_DEFAULT_CMD_LISTEN_BUF)
++		return NULL;
+ 	if (_IOC_NR(cmd) >= V4L2_IOCTLS)
+ 		return vdev->lock;
+ 	if (test_bit(_IOC_NR(cmd), vdev->disable_locking))

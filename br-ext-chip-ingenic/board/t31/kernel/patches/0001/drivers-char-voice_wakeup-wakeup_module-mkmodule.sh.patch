@@ -1,0 +1,12 @@
+
+--- /dev/null
++++ b/drivers/char/voice_wakeup/wakeup_module/mkmodule.sh
+@@ -0,0 +1,8 @@
++#!/bin/sh
++
++make clean
++
++make
++
++
++cp firmware.hex ../voice_wakeup_firmware.hex

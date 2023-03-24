@@ -1,0 +1,11 @@
+
+--- a/drivers/usb/gadget/gadget_chips.h
++++ b/drivers/usb/gadget/gadget_chips.h
+@@ -33,6 +33,7 @@
+ #define gadget_is_net2280(g)		(!strcmp("net2280", (g)->name))
+ #define gadget_is_pxa(g)		(!strcmp("pxa25x_udc", (g)->name))
+ #define gadget_is_pxa27x(g)		(!strcmp("pxa27x_udc", (g)->name))
++#define gadget_is_dwc2(g)		(!strcmp("dwc2-gadget", (g)->name))
+ 
+ /**
+  * gadget_supports_altsettings - return true if altsettings work

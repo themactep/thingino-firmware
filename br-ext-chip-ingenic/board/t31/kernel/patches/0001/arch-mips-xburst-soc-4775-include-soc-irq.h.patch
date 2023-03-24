@@ -1,0 +1,99 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-4775/include/soc/irq.h
+@@ -0,0 +1,95 @@
++/*
++ * IRQ number in JZ47xx INTC definition.
++ *   Only support 4770 now. 2011-9-23
++ *
++ * Copyright (C) 2010 Ingenic Semiconductor Co., Ltd.
++ */
++
++#ifndef __INTC_IRQ_H__
++#define __INTC_IRQ_H__
++
++#include <irq.h>
++
++enum {
++// interrupt controller interrupts
++	IRQ_RESERVED0 = IRQ_INTC_BASE,
++	IRQ_AIC0,
++	IRQ_BCH,
++	IRQ_RESERVED3,
++	IRQ_RESERVED4,
++	IRQ_OHCI,
++	IRQ_RESERVED6,
++	IRQ_RESERVED7,
++	IRQ_SSI0,
++	IRQ_RESERVED9,
++	IRQ_PDMA,
++	IRQ_GPIO6,
++	IRQ_GPIO5,
++	IRQ_GPIO4,
++	IRQ_GPIO3,
++	IRQ_GPIO2,
++	IRQ_GPIO1,
++	IRQ_GPIO0,
++#define IRQ_GPIO_PORT(N) (IRQ_GPIO0 - (N))
++	IRQ_SADC,
++	IRQ_X2D,
++	IRQ_RESERVED20,
++	IRQ_OTG,
++	IRQ_EPDCE,
++	IRQ_EPDC,
++	IRQ_RESERVED24,
++	IRQ_RESERVED25,
++	IRQ_TCU1,		//spec is not found
++	IRQ_TCU0,
++	IRQ_CIM1,
++	IRQ_RESERVED29,
++	IRQ_CIM0,
++	IRQ_LCD0,
++
++	IRQ_RTC,
++	IRQ_OWI,
++	IRQ_RESERVED34,
++	IRQ_MSC2,
++	IRQ_MSC1,
++	IRQ_MSC0,
++	IRQ_RESERVED38,
++	IRQ_RESERVED39,
++	IRQ_PCM0,
++	IRQ_KBC,
++	IRQ_RESERVED42,
++	IRQ_RESERVED43,
++	IRQ_HARB2,
++	IRQ_HARB1,
++	IRQ_HARB0,
++	IRQ_CPM,
++	IRQ_UART3,
++	IRQ_UART2,
++	IRQ_UART1,
++	IRQ_UART0,
++	IRQ_DDR,
++	IRQ_RESERVED53,
++	IRQ_NEMC,
++	IRQ_GMAC,
++	IRQ_RESERVED56,
++	IRQ_RESERVED57,
++	IRQ_I2C2,
++	IRQ_I2C1,
++	IRQ_I2C0,
++	IRQ_PDMAM,
++	IRQ_VPU,
++	IRQ_RESERVED063,
++
++#define IRQ_MCU_GPIO_PORT(N) (IRQ_MCU_GPIO0 + (N))
++	IRQ_MCU_GPIO0,
++	IRQ_MCU_GPIO1,
++	IRQ_MCU_GPIO2,
++	IRQ_MCU_GPIO3,
++	IRQ_MCU_GPIO4,
++	IRQ_MCU_GPIO5,
++};
++
++enum {
++	IRQ_MCU = IRQ_MCU_BASE,
++};
++
++#endif

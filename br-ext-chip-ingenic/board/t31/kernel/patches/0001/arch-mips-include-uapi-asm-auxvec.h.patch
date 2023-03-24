@@ -1,0 +1,8 @@
+
+--- a/arch/mips/include/uapi/asm/auxvec.h
++++ /dev/null
+@@ -1,4 +0,0 @@
+-#ifndef _ASM_AUXVEC_H
+-#define _ASM_AUXVEC_H
+-
+-#endif /* _ASM_AUXVEC_H */

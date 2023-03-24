@@ -1,0 +1,23 @@
+
+--- a/arch/mips/bcm63xx/cpu.c
++++ b/arch/mips/bcm63xx/cpu.c
+@@ -115,7 +115,9 @@ unsigned int bcm63xx_get_memory_size(void)
+ 
+ static unsigned int detect_cpu_clock(void)
+ {
+-	switch (bcm63xx_get_cpu_id()) {
++	u16 cpu_id = bcm63xx_get_cpu_id();
++
++	switch (cpu_id) {
+ 	case BCM6328_CPU_ID:
+ 	{
+ 		unsigned int tmp, mips_pll_fcvo;
+@@ -238,7 +240,7 @@ static unsigned int detect_cpu_clock(void)
+ 	}
+ 
+ 	default:
+-		BUG();
++		panic("Failed to detect clock for CPU with id=%04d\n", cpu_id);
+ 	}
+ }
+ 

@@ -1,0 +1,84 @@
+
+--- a/arch/mips/include/uapi/asm/inst.h
++++ b/arch/mips/include/uapi/asm/inst.h
+@@ -74,8 +74,16 @@ enum spec3_op {
+ 	ext_op, dextm_op, dextu_op, dext_op,
+ 	ins_op, dinsm_op, dinsu_op, dins_op,
+ 	lx_op = 0x0a,
+-	bshfl_op = 0x20,
++	lwle_op = 0x19,
++	lwre_op = 0x1a, cachee_op = 0x1b,
++	sbe_op = 0x1c, she_op = 0x1d,
++	sce_op = 0x1e, swe_op = 0x1f,
++	bshfl_op = 0x20, swle_op = 0x21,
++	swre_op = 0x22, prefe_op = 0x23,
+ 	dbshfl_op = 0x24,
++	lbue_op = 0x28, lhue_op = 0x29,
++	lbe_op = 0x2c, lhe_op = 0x2d,
++	lle_op = 0x2e, lwe_op = 0x2f,
+ 	rdhwr_op = 0x3b
+ };
+ 
+@@ -98,8 +106,9 @@ enum rt_op {
+  */
+ enum cop_op {
+ 	mfc_op	      = 0x00, dmfc_op	    = 0x01,
+-	cfc_op	      = 0x02, mtc_op	    = 0x04,
+-	dmtc_op	      = 0x05, ctc_op	    = 0x06,
++	cfc_op	      = 0x02, mfhc_op	    = 0x03,
++	mtc_op        = 0x04, dmtc_op	    = 0x05,
++	ctc_op	      = 0x06, mthc_op	    = 0x07,
+ 	bc_op	      = 0x08, cop_op	    = 0x10,
+ 	copm_op	      = 0x18
+ };
+@@ -397,8 +406,10 @@ enum mm_32f_73_minor_op {
+ 	mm_movt1_op = 0xa5,
+ 	mm_ftruncw_op = 0xac,
+ 	mm_fneg1_op = 0xad,
++	mm_mfhc1_op = 0xc0,
+ 	mm_froundl_op = 0xcc,
+ 	mm_fcvtd1_op = 0xcd,
++	mm_mthc1_op = 0xe0,
+ 	mm_froundw_op = 0xec,
+ 	mm_fcvts1_op = 0xed,
+ };
+@@ -409,10 +420,11 @@ enum mm_32f_73_minor_op {
+ enum mm_16c_minor_op {
+ 	mm_lwm16_op = 0x04,
+ 	mm_swm16_op = 0x05,
+-	mm_jr16_op = 0x18,
+-	mm_jrc_op = 0x1a,
+-	mm_jalr16_op = 0x1c,
+-	mm_jalrs16_op = 0x1e,
++	mm_jr16_op = 0x0c,
++	mm_jrc_op = 0x0d,
++	mm_jalr16_op = 0x0e,
++	mm_jalrs16_op = 0x0f,
++	mm_jraddiusp_op = 0x18,
+ };
+ 
+ /*
+@@ -538,6 +550,15 @@ struct p_format {		/* Performance counter format (R10000) */
+ 	;))))))
+ };
+ 
++struct spec3_format {   /* SPEC3 */
++	BITFIELD_FIELD(unsigned int opcode : 6,
++	BITFIELD_FIELD(unsigned int rs : 5,
++	BITFIELD_FIELD(unsigned int rt : 5,
++	BITFIELD_FIELD(signed int simmediate : 9,
++	BITFIELD_FIELD(unsigned int ls_func : 7,
++	;)))))
++};
++
+ struct f_format {			/* FPU register format */
+ 	BITFIELD_FIELD(unsigned int opcode : 6,
+ 	BITFIELD_FIELD(unsigned int : 1,
+@@ -854,6 +875,7 @@ union mips_instruction {
+ 	struct c_format c_format;
+ 	struct r_format r_format;
+ 	struct p_format p_format;
++	struct spec3_format spec3_format;
+ 	struct f_format f_format;
+ 	struct ma_format ma_format;
+ 	struct b_format b_format;

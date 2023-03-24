@@ -1,0 +1,17 @@
+
+--- a/arch/mips/kernel/Makefile
++++ b/arch/mips/kernel/Makefile
+@@ -97,12 +97,7 @@ obj-$(CONFIG_HW_PERF_EVENTS)	+= perf_event_mipsxx.o
+ obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
+ 
+ #
+-# DSP ASE supported for MIPS32 or MIPS64 Release 2 cores only. It is not
+-# safe to unconditionnaly use the assembler -mdsp / -mdspr2 switches
+-# here because the compiler may use DSP ASE instructions (such as lwx) in
+-# code paths where we cannot check that the CPU we are running on supports it.
+-# Proper abstraction using HAVE_AS_DSP and macros is done in
+-# arch/mips/include/asm/mipsregs.h.
++# DSP ASE supported for MIPS32 or MIPS64 Release 2 cores only.
+ #
+ ifeq ($(CONFIG_CPU_MIPSR2), y)
+ CFLAGS_DSP 			= -DHAVE_AS_DSP

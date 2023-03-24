@@ -1,0 +1,51 @@
+
+--- /dev/null
++++ b/drivers/gpu/vivante/Kconfig
+@@ -0,0 +1,47 @@
++#
++# VIVANTE_GPU support
++#
++
++menuconfig VIVANTE_GPU
++	tristate "VIVANTE_GPU"
++	depends on SOC_M200
++	help
++	  VIVANTE_GPU
++
++config VIVANTE_GPU_GC1000
++	tristate "VIVANTE_GPU_GC1000"
++	depends on VIVANTE_GPU && SOC_M200
++	help
++	  VIVANTE_GPU_GC1000
++
++
++config GPU_CLOCK_2X
++	int "GPU_CLOCK_2X"
++	depends on VIVANTE_GPU_GC1000 && SOC_M200
++	default 150000000
++	help
++	  M200 SOC designed worst case GPU_CLOCK_2X is 200MHz.
++	  so set default GPU_CLOCK_2X 150000000.
++
++
++config GPU_CONTIGUOUS_SIZE_MB
++	int "GPU_CONTIGUOUS_SIZE_MB(in MB)"
++	depends on VIVANTE_GPU_GC1000 && SOC_M200
++	default 8
++	help
++	  GPU_CONTIGUOUS_SIZE_MB(in MB), default 8(MB).
++	  Should in power of 2. (2,4,8,16)
++
++config VIVANTE_ENABLE_VG
++	tristate "VIVANTE_ENABLE_VG"
++	depends on VIVANTE_GPU_GC1000 && SOC_M200
++	default n
++	help
++	  VIVANTE_ENABLE_VG
++
++config GPU_DYNAMIC_CLOCK_POWER
++	tristate "GPU_DYNAMIC_CLOCK_POWER"
++	depends on VIVANTE_GPU_GC1000 && SOC_M200
++	default n
++	help
++	  CONFIG_GPU_DYNAMIC_CLOCK_POWER. If not define CONFIG_GPU_DYNAMIC_CLOCK_POWER, power on gpu module and enable gpu clock when drv_init().

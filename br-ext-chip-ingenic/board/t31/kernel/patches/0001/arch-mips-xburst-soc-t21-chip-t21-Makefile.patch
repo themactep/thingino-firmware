@@ -1,0 +1,5 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-t21/chip-t21/Makefile
+@@ -0,0 +1 @@
++obj-$(CONFIG_PLATFORM_T21_ISVP)		+= isvp/

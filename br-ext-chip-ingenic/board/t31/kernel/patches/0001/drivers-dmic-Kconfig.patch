@@ -1,0 +1,13 @@
+
+--- /dev/null
++++ b/drivers/dmic/Kconfig
+@@ -0,0 +1,9 @@
++
++config  JZ_TS_DMIC
++	tristate "JZ T10 & T30 DMIC Driver"
++	depends on SOC_T10 || SOC_T30
++	default n
++	help
++	  T10 & T30 DMIC Driver
++
++

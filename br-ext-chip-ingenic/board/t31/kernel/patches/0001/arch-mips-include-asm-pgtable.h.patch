@@ -1,0 +1,19 @@
+
+--- a/arch/mips/include/asm/pgtable.h
++++ b/arch/mips/include/asm/pgtable.h
+@@ -336,6 +336,15 @@ static inline pgprot_t pgprot_noncached(pgprot_t _prot)
+ 	return __pgprot(prot);
+ }
+ 
++static inline pgprot_t pgprot_noncached_wa(pgprot_t _prot)
++{
++	unsigned long prot = pgprot_val(_prot);
++
++	prot = (prot & ~_CACHE_MASK) | _CACHE_CACHABLE_WA;
++
++	return __pgprot(prot);
++}
++
+ /*
+  * Conversion functions: convert a page and protection to a page entry,
+  * and a page entry and page directory to the page they refer to.

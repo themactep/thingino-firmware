@@ -1,0 +1,29 @@
+
+--- /dev/null
++++ b/drivers/video/soc_vpu/Kconfig
+@@ -0,0 +1,25 @@
++#
++# soc_vpu configuration
++#
++menuconfig SOC_VPU
++	depends on !AVPU
++    bool "soc vpu driver"
++    default n
++    help
++        soc vpu platform dirver
++
++if SOC_VPU
++config CHANNEL_NODE_NUM
++    int "channel node number"
++    default 4
++
++config VPU_NODE_NUM
++    depends on SOC_VPU
++    int "vpu node number"
++    default 1
++
++source "drivers/video/soc_vpu/jz_nvpu/Kconfig"
++source "drivers/video/soc_vpu/helix/Kconfig"
++source "drivers/video/soc_vpu/radix/Kconfig"
++
++endif

@@ -1,0 +1,29 @@
+
+--- a/drivers/usb/Kconfig
++++ b/drivers/usb/Kconfig
+@@ -25,6 +25,7 @@ config USB_ARCH_HAS_OHCI
+ 	# MIPS:
+ 	default y if MIPS_ALCHEMY
+ 	default y if MACH_JZ4740
++	default y if MACH_XBURST
+ 	# more:
+ 	default PCI
+ 
+@@ -96,7 +97,7 @@ config USB
+ 	  traditional PC serial port.  The bus supplies power to peripherals
+ 	  and allows for hot swapping.  Up to 127 USB peripherals can be
+ 	  connected to a single USB host in a tree structure.
+-	  
++
+ 	  The USB host is the root of the tree, the peripherals are the
+ 	  leaves and the inner nodes are special USB devices called hubs.
+ 	  Most PCs now have USB host ports, used to connect peripherals
+@@ -144,6 +145,8 @@ source "drivers/usb/image/Kconfig"
+ 
+ endif
+ 
++source "drivers/usb/dwc2/Kconfig"
++
+ source "drivers/usb/dwc3/Kconfig"
+ 
+ source "drivers/usb/chipidea/Kconfig"

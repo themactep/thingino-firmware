@@ -1,0 +1,7 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/lib/isp/fate.c
+@@ -0,0 +1,3 @@
++/**
++ * fate.c
++ **/

@@ -1,0 +1,6 @@
+
+--- /dev/null
++++ b/arch/mips/boot/dts/include/dt-bindings
+@@ -0,0 +1 @@
++../../../../../include/dt-bindings
+\ No newline at end of file

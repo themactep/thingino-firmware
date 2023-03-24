@@ -1,0 +1,22 @@
+
+--- /dev/null
++++ b/drivers/video/jz_fb_v14/Kconfig
+@@ -0,0 +1,18 @@
++config FB_JZ_V14
++	tristate "JZ LCDC framebuffer V1.4"
++	depends on FB
++	select FB_CFB_FILLRECT
++	select FB_CFB_COPYAREA
++	select FB_CFB_IMAGEBLIT
++	help
++	  Framebuffer support for the T30 SoC.
++
++choice
++	prompt "format select"
++	depends on FB_JZ_V14
++	default NV12
++config NV12
++	bool "nv12"
++config RGB888
++	bool "rgb888"
++endchoice

@@ -1,0 +1,118 @@
+
+--- a/drivers/misc/Kconfig
++++ b/drivers/misc/Kconfig
+@@ -51,6 +51,20 @@ config AD525X_DPOT_SPI
+ 	  To compile this driver as a module, choose M here: the
+ 	  module will be called ad525x_dpot-spi.
+ 
++config JZ_SPI_NOR
++	  tristate "Support SPI NOR at Ingenic"
++	  depends on JZRISC
++	  default n
++	  help
++		  Support SPI NOR Flash to JZ SOC.
++
++config PWM_SDK
++	bool "pwm sdk api"
++	depends on JZ_PWM
++	default y
++		help
++			pwm sdk api
++
+ config ATMEL_PWM
+ 	tristate "Atmel AT32/AT91 PWM support"
+ 	depends on HAVE_CLK
+@@ -424,6 +438,10 @@ config TI_DAC7512
+ 	  This driver can also be built as a module. If so, the module
+ 	  will be called ti_dac7512.
+ 
++config UID_STAT
++	bool "UID based statistics tracking exported to /proc/uid_stat"
++	default n
++
+ config VMWARE_BALLOON
+ 	tristate "VMware Balloon Driver"
+ 	depends on X86 && HYPERVISOR_GUEST
+@@ -507,6 +525,44 @@ config USB_SWITCH_FSA9480
+ 	  stereo and mono audio, video, microphone and UART data to use
+ 	  a common connector port.
+ 
++config BROADCOM_RFKILL
++	tristate "Bluetooth power control driver "
++	depends on RFKILL
++	default n
++	---help---
++	Creates an rfkill entry in sysfs for power control of Bluetooth
++	bcm4330 chips.
++
++config BT_BLUEDROID_SUPPORT
++	tristate "BLUEDROID power consumption sleep mode support"
++	depends on BROADCOM_RFKILL
++	default n
++	---help---
++	Add a policy for BT bluedroid stack about power consumption
++
++config BCM_PM_CORE
++	tristate "BCM module power control core driver"
++	default n
++	---help---
++	The driver is for power management of BCM chips, NFC, BT, WiFi.
++
++config BCM_RFKILL
++	tristate "Bluetooth power control driver for BCM-xxxx module"
++	depends on RFKILL
++	default n
++	---help---
++	Creates an rfkill entry in sysfs for power control of Bluetooth
++	bcm-xxxx chips.
++
++
++config GPS_RFKILL
++	tristate "GPS power control driver"
++	depends on RFKILL
++	default n
++	---help---
++	Creates an rfkill entry in sysfs for power control of GPS chips.
++
++
+ config LATTICE_ECP3_CONFIG
+ 	tristate "Lattice ECP3 FPGA bitstream configuration via SPI"
+ 	depends on SPI && SYSFS
+@@ -527,6 +583,37 @@ config SRAM
+ 	  the genalloc API. It is supposed to be used for small on-chip SRAM
+ 	  areas found on many SoCs.
+ 
++config JZ_EFUSE_V13
++	  bool "JZ V13 EFUSE Driver"
++	  default n
++
++config JZ_IRDA_V11
++	  bool "JZ V11_IRDA Driver"
++	  default n
++
++config LOGGER
++	tristate "Log driver porting from Android"
++	default n
++
++config LINUX_PMEM
++	bool "linux pmem allocator"
++	depends on !ANDROID_PMEM
++	default n
++
++config ANDROID_PMEM
++	bool "Android pmem allocator"
++	default n
++
++config JZ_AES
++	bool "JZ SC AES HDL for AES driver"
++
++config JZ_DES
++	bool "JZ SC DES HDL for DES driver"
++
++config RMEM
++	bool "Reserved memory driver(rmem)"
++	default y
++
+ source "drivers/misc/c2port/Kconfig"
+ source "drivers/misc/eeprom/Kconfig"
+ source "drivers/misc/cb710/Kconfig"

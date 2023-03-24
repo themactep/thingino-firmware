@@ -1,0 +1,16 @@
+
+--- a/drivers/usb/host/ohci-hcd.c
++++ b/drivers/usb/host/ohci-hcd.c
+@@ -1099,6 +1099,12 @@ MODULE_LICENSE ("GPL");
+ #define PCI_DRIVER		ohci_pci_driver
+ #endif
+ 
++#ifdef CONFIG_MACH_XBURST
++#include "ohci-jz.c"
++#define PLATFORM_DRIVER     ohci_hcd_jz_driver
++#endif
++
++
+ #if defined(CONFIG_ARCH_SA1100) && defined(CONFIG_SA1111)
+ #include "ohci-sa1111.c"
+ #define SA1111_DRIVER		ohci_hcd_sa1111_driver

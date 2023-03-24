@@ -1,0 +1,15 @@
+
+--- /dev/null
++++ b/drivers/video/soc_vpu/radix/Kconfig
+@@ -0,0 +1,11 @@
++config VPU_RADIX
++    depends on SOC_VPU && !JZ_NVPU && !AVPU
++    bool "vpu radix client device of soc_vpu begin with t30 soc"
++    default n
++
++if VPU_RADIX
++config VPU_RADIX_NUM
++    depends on VPU_RADIX
++    int "vpu radix node number"
++    default 1
++endif

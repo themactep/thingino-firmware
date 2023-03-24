@@ -1,0 +1,61 @@
+
+--- /dev/null
++++ b/drivers/net/wireless/bcmdhd_ap6181/Kconfig
+@@ -0,0 +1,57 @@
++config BCMDHD_AP6181
++	tristate "Broadcom FullMAC wireless cards support"
++	---help---
++	  This module adds support for wireless adapters based on
++	  Broadcom FullMAC chipset.
++
++config BCMDHD_FW_PATH
++	depends on BCMDHD_AP6181
++	string "Firmware path"
++	default "/lib/firmware/fw_bcm40181a2.bin"
++	---help---
++	  Path to the firmware file.
++
++config BCMDHD_NVRAM_PATH
++	depends on BCMDHD_AP6181
++	string "NVRAM path"
++	default "/lib/firmware/nvram.txt"
++	---help---
++	  Path to the calibration file.
++
++config BCMDHD_AP6181_WEXT
++	bool "Enable WEXT support"
++	depends on BCMDHD_AP6181 && CFG80211 = n
++	select WIRELESS_EXT
++	select WEXT_PRIV
++	help
++	  Enables WEXT support
++
++choice
++	prompt "Enable Chip Interface"
++	depends on BCMDHD_AP6181
++	---help---
++		Enable Chip Interface.
++config BCMDHD_AP6181_SDIO
++		bool "SDIO bus interface support"
++		depends on BCMDHD_AP6181 && MMC
++config BCMDHD_AP6181_PCIE
++		bool "PCIe bus interface support"
++		depends on BCMDHD_AP6181 && PCI
++endchoice
++
++choice
++	prompt "Interrupt type"
++	depends on BCMDHD_AP6181 && BCMDHD_AP6181_SDIO
++	---help---
++		Interrupt type
++config BCMDHD_AP6181_SDIO_IRQ
++		bool "In-Band Interrupt"
++		depends on BCMDHD_AP6181 && BCMDHD_AP6181_SDIO
++		---help---
++			Interrupt from SDIO DAT[1]
++config BCMDHD_AP6181_OOB
++		bool "Out-of-Band Interrupt"
++		depends on BCMDHD_AP6181 && BCMDHD_AP6181_SDIO
++		---help---
++			Interrupt from WL_HOST_WAKE.
++endchoice

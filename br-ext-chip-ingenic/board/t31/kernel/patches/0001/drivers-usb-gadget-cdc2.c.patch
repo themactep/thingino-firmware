@@ -1,0 +1,120 @@
+
+--- a/drivers/usb/gadget/cdc2.c
++++ b/drivers/usb/gadget/cdc2.c
+@@ -42,9 +42,6 @@ USB_GADGET_COMPOSITE_OPTIONS();
+  * the runtime footprint, and giving us at least some parts of what
+  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
+  */
+-#include "f_ecm.c"
+-#include "u_ether.c"
+-
+ /*-------------------------------------------------------------------------*/
+ 
+ static struct usb_device_descriptor device_desc = {
+@@ -102,12 +99,12 @@ static struct usb_gadget_strings *dev_strings[] = {
+ 	NULL,
+ };
+ 
+-static u8 hostaddr[ETH_ALEN];
+-static struct eth_dev *the_dev;
+ /*-------------------------------------------------------------------------*/
++static struct usb_function *f_ecm;
++static struct usb_function_instance *fi_ethernet;
++
+ static struct usb_function *f_acm;
+ static struct usb_function_instance *fi_serial;
+-
+ /*
+  * We _always_ have both CDC ECM and CDC ACM functions.
+  */
+@@ -120,28 +117,50 @@ static int __init cdc_do_config(struct usb_configuration *c)
+ 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
+ 	}
+ 
+-	status = ecm_bind_config(c, hostaddr, the_dev);
+-	if (status < 0)
+-		return status;
++	fi_ethernet = usb_get_function_instance("ecm");
++	if (IS_ERR(fi_ethernet))
++		return PTR_ERR(fi_ethernet);
++
++	f_ecm = usb_get_function(fi_ethernet);
++	if (IS_ERR(f_ecm)) {
++		status = PTR_ERR(f_ecm);
++		goto err_ecm_func;
++	}
++
++	status = usb_add_function(c, f_ecm);
++	if (status)
++		goto err_ecm_conf;
++
+ 
+-	fi_serial = usb_get_function_instance("acm");
++	/**********************ACM*************/
++	fi_serial=usb_get_function_instance("acm");
+ 	if (IS_ERR(fi_serial))
+ 		return PTR_ERR(fi_serial);
+ 
+ 	f_acm = usb_get_function(fi_serial);
+ 	if (IS_ERR(f_acm)) {
+ 		status = PTR_ERR(f_acm);
+-		goto err_func_acm;
++		goto err_acm_func;
+ 	}
+ 
+ 	status = usb_add_function(c, f_acm);
+ 	if (status)
+-		goto err_conf;
++		goto err_acm_conf;
++
+ 	return 0;
+-err_conf:
++
++
++err_acm_conf:
+ 	usb_put_function(f_acm);
+-err_func_acm:
++
++err_acm_func:
+ 	usb_put_function_instance(fi_serial);
++
++err_ecm_conf:
++	usb_put_function(f_ecm);
++
++err_ecm_func:
++	usb_put_function_instance(fi_ethernet);
+ 	return status;
+ }
+ 
+@@ -165,11 +184,6 @@ static int __init cdc_bind(struct usb_composite_dev *cdev)
+ 		return -EINVAL;
+ 	}
+ 
+-	/* set up network link layer */
+-	the_dev = gether_setup(cdev->gadget, hostaddr);
+-	if (IS_ERR(the_dev))
+-		return PTR_ERR(the_dev);
+-
+ 	/* Allocate string descriptor numbers ... note that string
+ 	 * contents can be overridden by the composite_dev glue.
+ 	 */
+@@ -192,15 +206,17 @@ static int __init cdc_bind(struct usb_composite_dev *cdev)
+ 	return 0;
+ 
+ fail1:
+-	gether_cleanup(the_dev);
+ 	return status;
+ }
+ 
+ static int __exit cdc_unbind(struct usb_composite_dev *cdev)
+ {
++	usb_put_function(f_ecm);
++	usb_put_function_instance(fi_ethernet);
++
+ 	usb_put_function(f_acm);
+ 	usb_put_function_instance(fi_serial);
+-	gether_cleanup(the_dev);
++
+ 	return 0;
+ }
+ 

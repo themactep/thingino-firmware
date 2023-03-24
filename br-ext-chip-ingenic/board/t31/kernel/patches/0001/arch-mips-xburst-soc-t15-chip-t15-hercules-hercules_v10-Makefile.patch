@@ -1,0 +1,6 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-t15/chip-t15/hercules/hercules_v10/Makefile
+@@ -0,0 +1,2 @@
++
++obj-y		+= pm.o

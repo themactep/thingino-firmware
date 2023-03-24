@@ -1,0 +1,5 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-t30/chip-t30/Makefile
+@@ -0,0 +1 @@
++obj-$(CONFIG_PLATFORM_T30_ISVP)		+= isvp/

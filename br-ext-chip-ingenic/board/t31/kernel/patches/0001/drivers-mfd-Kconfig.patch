@@ -1,0 +1,90 @@
+
+--- a/drivers/mfd/Kconfig
++++ b/drivers/mfd/Kconfig
+@@ -18,6 +18,15 @@ config MFD_CS5535
+ 	  This is the core driver for CS5535/CS5536 MFD functions.  This is
+           necessary for using the board's GPIO and MFGPT functionality.
+ 
++config MFD_DA9024
++	  bool "Support PMIC DA9024 or D2041"
++	  depends on I2C=y && MACH_XBURST
++	  select MFD_CORE
++	  help
++	    This supports for DA9024 or D2041 Power Management IC.
++	    This includes the I2C driver and the core APIs _only_, you have to
++	    select individual components like voltage regulators, RTC.
++
+ config MFD_AS3711
+ 	bool "AMS AS3711"
+ 	select MFD_CORE
+@@ -242,6 +251,44 @@ config MFD_JZ4740_ADC
+ 	  Say yes here if you want support for the ADC unit in the JZ4740 SoC.
+ 	  This driver is necessary for jz4740-battery and jz4740-hwmon driver.
+ 
++config MFD_JZ_SADC_V11
++    tristate "Support for the JZ V11 SADC core"
++	select MFD_CORE
++	depends on SOC_4775
++	help
++	Say yes here if you want support for the SADC unit in the JZ4775 SoC.
++	This driver is necessary for jz-battery driver.
++
++
++config MFD_JZ_SADC_V12
++	tristate "Support for the M200 SADC core"
++	select MFD_CORE
++	depends on SOC_M200
++	help
++	  Say yes here if you want support for the SADC unit in the M200 SoC.
++	  This driver is necessary for jz_battery driver.
++
++config MFD_JZ_SADC_V13
++	tristate "Support for the XBurst SADC core"
++	select MFD_CORE
++	depends on SOC_T15 || SOC_T10 || SOC_T20 || SOC_T30 || SOC_T21 || SOC_T31
++	help
++	  Say yes here if you want support for the SADC unit in the T15 SoC.
++
++config MFD_JZ_SADC_AUX
++	tristate "Support for the XBurst SADC AUX"
++	select MFD_CORE
++	depends on SOC_T15 || SOC_T10 || SOC_T20 || SOC_T30 || SOC_T21 || SOC_T31
++	help
++	  Say yes here if you want support for the SADC unit in the T15 SoC.
++
++config MFD_JZ_TCU
++	tristate "Support for XBurst TCU"
++	select MFD_CORE
++	depends on SOC_T15 || SOC_T10 || SOC_T20 || SOC_T30 || SOC_T21 || SOC_T31
++	help
++	  Say yes here if you want support for the TCU in the XBurst SoC.
++
+ config MFD_88PM800
+ 	tristate "Marvell 88PM800"
+ 	depends on I2C=y && GENERIC_HARDIRQS
+@@ -1116,6 +1163,19 @@ config MFD_WM8994
+ 	  core support for the WM8994, in order to use the actual
+ 	  functionaltiy of the device other drivers must be enabled.
+ 
++config MFD_RICOH619
++	bool "Ricoh R5T619 Power Management system device"
++	depends on I2C && GPIOLIB && GENERIC_HARDIRQS
++	select MFD_CORE
++	default n
++	help
++	  If you say yes here you get support for the Ricoh R5T619
++	  Power Management system device.
++	  This driver provides common support for accessing the device,
++	  additional drivers must be enabled in order to use the
++	  functionality of the device.
++
++
+ endmenu
+ endif
+ 
+@@ -1148,3 +1208,5 @@ config VEXPRESS_CONFIG
+ 	help
+ 	  Platform configuration infrastructure for the ARM Ltd.
+ 	  Versatile Express.
++
++

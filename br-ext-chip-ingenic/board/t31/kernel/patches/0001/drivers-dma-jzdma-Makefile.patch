@@ -1,0 +1,6 @@
+
+--- /dev/null
++++ b/drivers/dma/jzdma/Makefile
+@@ -0,0 +1,2 @@
++obj-y += jz_dma.o
++

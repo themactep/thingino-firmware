@@ -1,0 +1,66 @@
+
+--- /dev/null
++++ b/drivers/net/wireless/mt7601u/PREALLOC/os/linux/Makefile.6.prealloc
+@@ -0,0 +1,62 @@
++include $(RT28xx_DIR)/os/linux/config.mk
++
++#ifdef CONFIG_STA_SUPPORT
++ifeq ($(RT28xx_MODE), STA)
++ifneq ($(findstring 7601,$(CHIPSET)),)
++MOD_NAME = mtprealloc$(MODULE)sta
++else
++MOD_NAME = rtprealloc$(MODULE)sta
++endif
++endif
++#endif // CONFIG_STA_SUPPORT //
++
++#ifdef CONFIG_APSTA_SUPPORT
++ifeq ($(RT28xx_MODE), APSTA)
++MOD_NAME = rtprealloc$(MODULE)apsta
++endif
++#endif // CONFIG_APSTA_SUPPORT //
++
++obj-m := $(MOD_NAME).o
++
++
++#ifdef CONFIG_STA_SUPPORT
++ifeq ($(RT28xx_MODE), STA)
++$(MOD_NAME)-objs := \
++	../../prealloc.o
++endif
++#endif // CONFIG_STA_SUPPORT //
++
++
++#ifdef CONFIG_APSTA_SUPPORT
++ifeq ($(RT28xx_MODE), APSTA)
++$(MOD_NAME)-objs := \
++	../../prealloc.o
++
++ifeq ($(PLATFORM),BL2348)
++$(MOD_NAME)-objs += \
++	../../os/linux/vr_bdlt.o
++endif
++
++ifeq ($(PLATFORM),BLUBB)
++$(MOD_NAME)-objs += \
++	../../os/linux/vr_bdlt.o
++endif
++
++ifeq ($(HAS_BGFP_SUPPORT),y)
++$(MOD_NAME)-objs += \
++	../../os/linux/br_ftph.o
++endif
++endif
++#endif // CONFIG_APSTA_SUPPORT //
++
++clean:
++	rm -f ../../prealloc.o
++
++install:
++	install -d $(LINUX_SRC_MODULE)
++	install -m 644 -c $(addsuffix .ko,$(MOD_NAME)) $(LINUX_SRC_MODULE)
++	/sbin/depmod -a ${shell uname -r}
++
++uninstall:
++	rm -rf $(addprefix $(LINUX_SRC_MODULE),$(addsuffix .ko,$(MOD_NAME)))
++	/sbin/depmod -a ${shell uname -r}

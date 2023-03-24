@@ -1,0 +1,15 @@
+
+--- a/arch/mips/kernel/spram.c
++++ b/arch/mips/kernel/spram.c
+@@ -204,8 +204,10 @@ void __cpuinit spram_config(void)
+ 	switch (c->cputype) {
+ 	case CPU_24K:
+ 	case CPU_34K:
+-	case CPU_74K:
+ 	case CPU_1004K:
++	case CPU_74K:
++	case CPU_PROAPTIV:
++	case CPU_INTERAPTIV:
+ 		config0 = read_c0_config();
+ 		/* FIXME: addresses are Malta specific */
+ 		if (config0 & (1<<24)) {

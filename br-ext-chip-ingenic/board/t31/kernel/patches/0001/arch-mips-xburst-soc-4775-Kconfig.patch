@@ -1,0 +1,30 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-4775/Kconfig
+@@ -0,0 +1,26 @@
++
++choice
++	prompt "Chip type"
++	depends on SOC_4775
++	default CHIP_4775
++
++config CHIP_4775
++       bool "chip-4775"
++       select TRACEPOINTS
++       select SYS_SUPPORTS_HIGHMEM
++       select GENERIC_CLOCKEVENTS_BROADCAST
++
++config CHIP_M150
++	bool "chip-m150"
++	select TRACEPOINTS
++	select SYS_SUPPORTS_HIGHMEM
++	select GENERIC_CLOCKEVENTS_BROADCAST
++
++endchoice
++
++if CHIP_4775
++source "arch/mips/xburst/soc-4775/chip-4775/Kconfig"
++endif
++if CHIP_M150
++source "arch/mips/xburst/soc-4775/chip-m150/Kconfig"
++endif

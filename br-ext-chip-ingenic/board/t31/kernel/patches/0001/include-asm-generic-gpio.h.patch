@@ -1,0 +1,13 @@
+
+--- a/include/asm-generic/gpio.h
++++ b/include/asm-generic/gpio.h
+@@ -118,6 +118,9 @@ struct gpio_chip {
+ 	int			(*set_debounce)(struct gpio_chip *chip,
+ 						unsigned offset, unsigned debounce);
+ 
++	int			(*set_pull)(struct gpio_chip *chip,
++						unsigned offset, unsigned pull);
++
+ 	void			(*set)(struct gpio_chip *chip,
+ 						unsigned offset, int value);
+ 

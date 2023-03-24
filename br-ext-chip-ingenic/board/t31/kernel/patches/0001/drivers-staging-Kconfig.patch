@@ -1,0 +1,23 @@
+
+--- a/drivers/staging/Kconfig
++++ b/drivers/staging/Kconfig
+@@ -62,6 +62,8 @@ source "drivers/staging/line6/Kconfig"
+ 
+ source "drivers/staging/octeon/Kconfig"
+ 
++source "drivers/staging/octeon-usb/Kconfig"
++
+ source "drivers/staging/serqt_usb2/Kconfig"
+ 
+ source "drivers/staging/vt6655/Kconfig"
+@@ -72,10 +74,6 @@ source "drivers/staging/sep/Kconfig"
+ 
+ source "drivers/staging/iio/Kconfig"
+ 
+-source "drivers/staging/zsmalloc/Kconfig"
+-
+-source "drivers/staging/zram/Kconfig"
+-
+ source "drivers/staging/wlags49_h2/Kconfig"
+ 
+ source "drivers/staging/wlags49_h25/Kconfig"

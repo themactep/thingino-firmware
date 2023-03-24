@@ -1,0 +1,17 @@
+
+--- /dev/null
++++ b/drivers/net/wireless/bcm43341/makefile.my
+@@ -0,0 +1,13 @@
++# built_in one
++DHDOFILES += dhd_nvram.o
++DHDCFLAGS += -D_USI_NVRAM_FILE
++
++$(obj)/dhd_nvram.o: $(DHD_SRC)/dhd_nvram.obj FORCE
++ifneq ($(wildcard $(<D)/$(<F)),)
++ifneq ($(KBUILD_SRC),)
++	test -e $@ || cp -p $< $(obj)/$(<F)
++endif
++	-test -h $@ || rm -f $@
++	test -r $@ || (cd $(@D) ; ln -sf $(<F) $(@F) ; cd - )
++endif
++# end of makefile.my

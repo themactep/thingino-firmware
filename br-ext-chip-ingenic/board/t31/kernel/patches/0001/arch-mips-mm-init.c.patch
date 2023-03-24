@@ -1,0 +1,160 @@
+
+--- a/arch/mips/mm/init.c
++++ b/arch/mips/mm/init.c
+@@ -116,14 +116,18 @@ static inline void kmap_coherent_init(void) {}
+ 
+ void *kmap_coherent(struct page *page, unsigned long addr)
+ {
++#ifdef CONFIG_EVA
++	dump_stack();
++	panic("kmap_coherent");
++#else
++
+ 	enum fixed_addresses idx;
+ 	unsigned long vaddr, flags, entrylo;
+ 	unsigned long old_ctx;
+ 	pte_t pte;
+ 	int tlbidx;
+ 
+-	BUG_ON(Page_dcache_dirty(page));
+-
++	/* BUG_ON(Page_dcache_dirty(page)); - removed for I-cache flush */
+ 	inc_preempt_count();
+ 	idx = (addr >> PAGE_SHIFT) & (FIX_N_COLOURS - 1);
+ #ifdef CONFIG_MIPS_MT_SMTC
+@@ -169,9 +173,11 @@ void *kmap_coherent(struct page *page, unsigned long addr)
+ 	EXIT_CRITICAL(flags);
+ 
+ 	return (void*) vaddr;
++#endif /* CONFIG_EVA */
+ }
+ 
+-#define UNIQUE_ENTRYHI(idx) (CKSEG0 + ((idx) << (PAGE_SHIFT + 1)))
++#define UNIQUE_ENTRYHI(idx) (cpu_has_tlbinv ? ((CKSEG0 + ((idx) << (PAGE_SHIFT + 1))) | MIPS_EHINV) : \
++			     (CKSEG0 + ((idx) << (PAGE_SHIFT + 1))))
+ 
+ void kunmap_coherent(void)
+ {
+@@ -213,9 +219,15 @@ void copy_user_highpage(struct page *to, struct page *from,
+ 		copy_page(vto, vfrom);
+ 		kunmap_atomic(vfrom);
+ 	}
+-	if ((!cpu_has_ic_fills_f_dc) ||
+-	    pages_do_alias((unsigned long)vto, vaddr & PAGE_MASK))
++	if (cpu_has_dc_aliases)
++		SetPageDcacheDirty(to);
++	if (((vma->vm_flags & VM_EXEC) && !cpu_has_ic_fills_f_dc) ||
++	    cpu_has_vtag_dcache || (cpu_has_dc_aliases &&
++	     pages_do_alias((unsigned long)vto, vaddr & PAGE_MASK))) {
+ 		flush_data_cache_page((unsigned long)vto);
++		if (cpu_has_dc_aliases)
++			ClearPageDcacheDirty(to);
++	}
+ 	kunmap_atomic(vto);
+ 	/* Make sure this page is cleared on other CPU's too before using it */
+ 	smp_wmb();
+@@ -225,18 +237,33 @@ void copy_to_user_page(struct vm_area_struct *vma,
+ 	struct page *page, unsigned long vaddr, void *dst, const void *src,
+ 	unsigned long len)
+ {
++	void *vto = NULL;
++
+ 	if (cpu_has_dc_aliases &&
+ 	    page_mapped(page) && !Page_dcache_dirty(page)) {
+-		void *vto = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
++		vto = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
+ 		memcpy(vto, src, len);
+-		kunmap_coherent();
+ 	} else {
+ 		memcpy(dst, src, len);
+ 		if (cpu_has_dc_aliases)
+ 			SetPageDcacheDirty(page);
+ 	}
+-	if ((vma->vm_flags & VM_EXEC) && !cpu_has_ic_fills_f_dc)
+-		flush_cache_page(vma, vaddr, page_to_pfn(page));
++	if (((vma->vm_flags & VM_EXEC) && !cpu_has_ic_fills_f_dc) ||
++	    (Page_dcache_dirty(page) &&
++	     pages_do_alias((unsigned long)dst & PAGE_MASK,
++			    vaddr & PAGE_MASK))) {
++		if (vto)
++			mips_flush_data_cache_range(vma, page,
++						    (unsigned long)vto, len);
++		else
++			mips_flush_data_cache_range(vma, page,
++						    (unsigned long)dst, len);
++
++		if (cpu_has_dc_aliases)
++			ClearPageDcacheDirty(page);
++	}
++	if (vto)
++		kunmap_coherent();
+ }
+ 
+ void copy_from_user_page(struct vm_area_struct *vma,
+@@ -248,12 +275,10 @@ void copy_from_user_page(struct vm_area_struct *vma,
+ 		void *vfrom = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
+ 		memcpy(dst, vfrom, len);
+ 		kunmap_coherent();
+-	} else {
++	} else
+ 		memcpy(dst, src, len);
+-		if (cpu_has_dc_aliases)
+-			SetPageDcacheDirty(page);
+-	}
+ }
++EXPORT_SYMBOL_GPL(copy_from_user_page);
+ 
+ void __init fixrange_init(unsigned long start, unsigned long end,
+ 	pgd_t *pgd_base)
+@@ -272,11 +297,11 @@ void __init fixrange_init(unsigned long start, unsigned long end,
+ 	k = __pmd_offset(vaddr);
+ 	pgd = pgd_base + i;
+ 
+-	for ( ; (i < PTRS_PER_PGD) && (vaddr < end); pgd++, i++) {
++	for ( ; (i < PTRS_PER_PGD) && (vaddr != end); pgd++, i++) {
+ 		pud = (pud_t *)pgd;
+-		for ( ; (j < PTRS_PER_PUD) && (vaddr < end); pud++, j++) {
++		for ( ; (j < PTRS_PER_PUD) && (vaddr != end); pud++, j++) {
+ 			pmd = (pmd_t *)pud;
+-			for (; (k < PTRS_PER_PMD) && (vaddr < end); pmd++, k++) {
++			for (; (k < PTRS_PER_PMD) && (vaddr != end); pmd++, k++) {
+ 				if (pmd_none(*pmd)) {
+ 					pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
+ 					set_pmd(pmd, __pmd((unsigned long)pte));
+@@ -322,7 +347,7 @@ int page_is_ram(unsigned long pagenr)
+ void __init paging_init(void)
+ {
+ 	unsigned long max_zone_pfns[MAX_NR_ZONES];
+-	unsigned long lastpfn __maybe_unused;
++	unsigned long lastpfn;
+ 
+ 	pagetable_init();
+ 
+@@ -342,14 +367,6 @@ void __init paging_init(void)
+ #ifdef CONFIG_HIGHMEM
+ 	max_zone_pfns[ZONE_HIGHMEM] = highend_pfn;
+ 	lastpfn = highend_pfn;
+-
+-	if (cpu_has_dc_aliases && max_low_pfn != highend_pfn) {
+-		printk(KERN_WARNING "This processor doesn't support highmem."
+-		       " %ldk highmem ignored\n",
+-		       (highend_pfn - max_low_pfn) << (PAGE_SHIFT - 10));
+-		max_zone_pfns[ZONE_HIGHMEM] = max_low_pfn;
+-		lastpfn = max_low_pfn;
+-	}
+ #endif
+ 
+ 	free_area_init_nodes(max_zone_pfns);
+@@ -447,7 +464,12 @@ void free_initrd_mem(unsigned long start, unsigned long end)
+ void __init_refok free_initmem(void)
+ {
+ 	prom_free_prom_memory();
++#ifdef CONFIG_EVA
++	free_init_pages("unused memory", __pa_symbol(&__init_begin),
++		__pa_symbol(&__init_end));
++#else
+ 	free_initmem_default(POISON_FREE_INITMEM);
++#endif
+ }
+ 
+ #ifndef CONFIG_MIPS_PGD_C0_CONTEXT

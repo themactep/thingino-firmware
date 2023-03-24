@@ -1,0 +1,16 @@
+
+--- a/drivers/net/wireless/rtl818x/Kconfig
++++ b/drivers/net/wireless/rtl818x/Kconfig
+@@ -86,3 +86,12 @@ config RTL8187_LEDS
+ 	depends on RTL8187 && MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = RTL8187)
+ 	default y
+ 
++config RTL8188EU
++        tristate "Realtek 8188EU USB support"
++        depends on MAC80211 && USB
++        select WIRELESS_EXT
++        select WEXT_PRIV
++        select CRYPTO
++        ---help---
++          This is a driver for RTL8188EU based cards.
++

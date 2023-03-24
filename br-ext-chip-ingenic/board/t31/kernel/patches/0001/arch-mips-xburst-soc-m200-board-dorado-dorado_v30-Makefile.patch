@@ -1,0 +1,6 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-m200/board/dorado/dorado_v30/Makefile
+@@ -0,0 +1,2 @@
++
++obj-y		+= pm.o

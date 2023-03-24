@@ -1,0 +1,141 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-4780/Kconfig
+@@ -0,0 +1,137 @@
++
++choice
++	prompt "Board type"
++	depends on SOC_4780
++	default BOARD_TEST
++
++config BOARD_TEST
++        bool "TEST"
++
++config BOARD_PISCES
++        bool "PISCES"
++
++config BOARD_GIANT
++        bool "Giant"
++
++config BOARD_WARRIOR
++        bool "Warrior"
++
++config BOARD_URBOARD
++        bool "Urboard"
++
++config BOARD_PRINTER
++        bool "Printer"
++
++config BOARD_WARRIOR_V_1_1
++        bool "Warrior v1.1"
++
++config BOARD_TROOPER
++        bool "Trooper"
++
++config BOARD_M80
++        bool "M80"
++
++config BOARD_M80B
++        bool "M80B"
++
++config BOARD_JI8070A
++        bool "JI8070A"
++
++config BOARD_JI8070B
++	bool "JI8070B"
++
++config BOARD_Q8
++	bool "Q8"
++
++config BOARD_M80701
++		bool "M80701"
++
++config BOARD_HLBA1
++		bool "HLBA1"
++		
++config BOARD_HDMI_80
++		bool "HDMI_80"
++
++config BOARD_VGA_DONGLE
++		bool "VGA_Dongle"
++
++config BOARD_NPM801
++		bool "NPM801"
++
++config BOARD_CUCKOO
++        bool "cuckoo"
++
++config BOARD_T700D
++		bool "T700D"
++
++config BOARD_LEAF
++		bool "LEAF"
++
++config BOARD_I88
++		bool "I88"
++
++config BOARD_GRUS
++		bool "Grus"
++
++config BOARD_GRUS_V_1_0_1
++		bool "Grus v1.0.1"
++
++config BOARD_NPM3701
++		bool "npm3701"
++
++config BOARD_ZPAD80
++        bool "ZPAD80"
++
++config BOARD_EBOOK
++        bool "EBOOK"
++config BOARD_VEHICLE
++        bool "VEHICLE"
++config BOARD_NPM709J
++	bool "npm709j"
++
++config BOARD_NC750
++	bool "NC750"
++
++config BOARD_RY1000
++	bool "ry1000"
++
++config BOARD_DS_J801MB
++	bool "DS-J801MB"
++
++endchoice
++
++config BOARD_NAME
++	string
++	default "pisces" if BOARD_PISCES
++	default "test" if BOARD_TEST
++	default "Giant" if BOARD_GIANT
++	default "Warrior" if BOARD_WARRIOR
++	default "Urboard" if BOARD_URBOARD
++	default "Printer" if BOARD_PRINTER
++	default "Warrior" if BOARD_WARRIOR_V_1_1
++	default "Trooper" if BOARD_TROOPER
++	default "Captain" if BOARD_CAPTAIN
++	default "HLBA1" if BOARD_HLBA1
++	default "HDMI_80" if BOARD_HDMI_80
++	default "M80" if BOARD_M80
++	default "M80" if BOARD_M80B
++	default "JI8070A" if BOARD_JI8070A
++	default "JI8070B" if BOARD_JI8070B
++	default "Q8" if BOARD_Q8
++	default "M80701" if BOARD_M80701
++	default "NPM801" if BOARD_NPM801
++	default "cuckoo" if BOARD_CUCKOO
++	default "T700D" if BOARD_T700D
++	default "LEAF" if BOARD_LEAF
++	default "I88" if BOARD_I88
++	default "Grus" if BOARD_GRUS
++	default "GrusV101" if BOARD_GRUS_V_1_0_1
++	default "npm3701" if BOARD_NPM3701
++	default "ZPAD80" if BOARD_ZPAD80
++	default "VGA_Dongle" if BOARD_VGA_DONGLE
++	default "EBOOK" if BOARD_EBOOK
++	default "VEHICLE" if BOARD_VEHICLE
++	default "NC750" if BOARD_NC750
++	default "npm709j" if BOARD_NPM709J
++	default "ry1000" if BOARD_RY1000
++	default "DS-J801MB" if BOARD_DS_J801MB

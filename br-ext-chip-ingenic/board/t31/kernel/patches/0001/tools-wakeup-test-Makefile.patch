@@ -1,0 +1,14 @@
+
+--- /dev/null
++++ b/tools/wakeup-test/Makefile
+@@ -0,0 +1,10 @@
++
++SRCFILES=wakeup.c
++
++all: clean wakeup
++
++wakeup: $(SRCFILES)
++	mips-linux-gnu-gcc -o $@ $(SRCFILES) --static
++
++clean:
++	rm -rf wakeup

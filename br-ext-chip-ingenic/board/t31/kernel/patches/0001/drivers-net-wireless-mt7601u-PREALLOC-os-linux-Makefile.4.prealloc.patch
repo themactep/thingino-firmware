@@ -1,0 +1,84 @@
+
+--- /dev/null
++++ b/drivers/net/wireless/mt7601u/PREALLOC/os/linux/Makefile.4.prealloc
+@@ -0,0 +1,80 @@
++include $(RT28xx_DIR)/os/linux/config.mk
++
++#ifdef CONFIG_AP_SUPPORT
++ifeq ($(RT28xx_MODE),AP)
++MOD_NAME = rtutil$(MODULE)ap
++endif
++#endif // CONFIG_AP_SUPPORT //
++
++#ifdef CONFIG_STA_SUPPORT
++ifeq ($(RT28xx_MODE), STA)
++MOD_NAME = rtprealloc$(MODULE)sta
++endif
++#endif // CONFIG_STA_SUPPORT //
++
++#ifdef CONFIG_APSTA_SUPPORT
++ifeq ($(RT28xx_MODE), APSTA)
++MOD_NAME = rtutil$(MODULE)apsta
++endif
++#endif // CONFIG_APSTA_SUPPORT //
++
++OBJ := $(MOD_NAME).o
++
++#ifdef CONFIG_AP_SUPPORT
++
++RT28XX_AP_OBJ := \
++	../../common/rt_os_util.o\
++	../../os/linux/rt_linux_symb.o\
++	../../os/linux/rt_rbus_pci_util.o\
++	../../os/linux/rt_usb_util.o\
++	../../os/linux/rt_linux.o
++
++ifeq ($(HAS_BGFP_SUPPORT),y)
++RT28XX_AP_OBJ += \
++	$(RT28xx_DIR)/os/linux/br_ftph.o
++endif
++
++#endif // CONFIG_AP_SUPPORT //
++
++
++#ifdef CONFIG_STA_SUPPORT
++
++RT28XX_STA_OBJ := \
++	../../prealloc.o
++#endif // CONFIG_STA_SUPPORT //
++
++
++#ifdef CONFIG_APSTA_SUPPORT
++RT28XX_APSTA_OBJ := \
++	../../prealloc.o
++
++#endif // CONFIG_APSTA_SUPPORT //
++
++PHONY := all clean
++
++all:$(OBJ)
++
++rtprealloc$(MODULE)sta.o: $(RT28XX_STA_OBJ)
++	$(LD) -r $^ -o $@
++
++rtprealloc$(MODULE)ap.o: $(RT28XX_AP_OBJ)
++	$(LD) -r $^ -o $@
++
++rtprealloc$(MODULE)apsta.o: $(RT28XX_APSTA_OBJ)
++	$(LD) -r $^ -o $@
++
++clean:
++	rm -f $(RT28xx_DIR)/prealloc.o
++
++install:
++	install -d $(LINUX_SRC_MODULE)
++	install -m 644 -c $(addsuffix .o,$(MOD_NAME)) $(LINUX_SRC_MODULE)
++	/sbin/depmod -a ${shell uname -r}
++
++uninstall:
++	rm -rf $(addprefix $(LINUX_SRC_MODULE),$(addsuffix .o,$(MOD_NAME)))
++	/sbin/depmod -a ${shell uname -r}
++
++# Declare the contents of the .PHONY variable as phony.  We keep that
++# # information in a variable so we can use it in if_changed and friends.
++.PHONY: $(PHONY)

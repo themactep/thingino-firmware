@@ -1,0 +1,10 @@
+
+--- a/arch/mips/include/asm/scatterlist.h
++++ /dev/null
+@@ -1,6 +0,0 @@
+-#ifndef __ASM_SCATTERLIST_H
+-#define __ASM_SCATTERLIST_H
+-
+-#include <asm-generic/scatterlist.h>
+-
+-#endif /* __ASM_SCATTERLIST_H */

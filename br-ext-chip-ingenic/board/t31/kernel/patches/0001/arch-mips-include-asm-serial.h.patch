@@ -1,0 +1,5 @@
+
+--- a/arch/mips/include/asm/serial.h
++++ /dev/null
+@@ -1 +0,0 @@
+-#include <asm-generic/serial.h>

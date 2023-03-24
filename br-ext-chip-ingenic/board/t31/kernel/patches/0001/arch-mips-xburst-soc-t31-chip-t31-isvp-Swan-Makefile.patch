@@ -1,0 +1,7 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-t31/chip-t31/isvp/Swan/Makefile
+@@ -0,0 +1,3 @@
++
++obj-y		+= pm.o
++obj-y		+= gpio_customized.o

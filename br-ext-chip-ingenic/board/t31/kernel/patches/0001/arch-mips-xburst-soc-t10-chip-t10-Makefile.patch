@@ -1,0 +1,6 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-t10/chip-t10/Makefile
+@@ -0,0 +1,2 @@
++obj-$(CONFIG_BOARD_MUSCA)		+= musca/
++obj-$(CONFIG_PLATFORM_ISVP)		+= isvp/

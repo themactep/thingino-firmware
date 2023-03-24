@@ -1,0 +1,15 @@
+
+--- /dev/null
++++ b/drivers/video/soc_vpu/helix/Kconfig
+@@ -0,0 +1,11 @@
++config VPU_HELIX
++    depends on SOC_VPU && !JZ_NVPU && !AVPU
++    bool "vpu helix client device of soc_vpu begin with t30 soc"
++    default n
++
++if VPU_HELIX
++config VPU_HELIX_NUM
++    depends on VPU_HELIX
++    int "vpu helix node number"
++    default 1
++endif

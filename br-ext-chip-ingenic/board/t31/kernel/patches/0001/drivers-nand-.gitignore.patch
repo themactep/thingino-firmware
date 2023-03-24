@@ -1,0 +1,6 @@
+
+--- /dev/null
++++ b/drivers/nand/.gitignore
+@@ -0,0 +1,2 @@
++*.o
++*.cmd

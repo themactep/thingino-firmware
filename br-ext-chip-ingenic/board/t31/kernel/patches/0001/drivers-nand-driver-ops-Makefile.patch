@@ -1,0 +1,9 @@
+
+--- /dev/null
++++ b/drivers/nand/driver/ops/Makefile
+@@ -0,0 +1,5 @@
++
++#obj-$(CONFIG_NAND)	+= nandcommand/
++obj-$(CONFIG_NAND)	+= handler/bad_block.o handler/cpu_msg_handler.o \
++			handler/dma_msg_handler.o handler/spl_rw.o \
++			nand_ops.o

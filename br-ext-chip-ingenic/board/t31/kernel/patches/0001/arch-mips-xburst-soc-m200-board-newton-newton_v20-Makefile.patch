@@ -1,0 +1,6 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-m200/board/newton/newton_v20/Makefile
+@@ -0,0 +1,2 @@
++
++obj-y		+= pm.o

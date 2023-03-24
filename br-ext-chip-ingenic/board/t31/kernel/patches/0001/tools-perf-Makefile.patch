@@ -1,0 +1,21 @@
+
+--- a/tools/perf/Makefile
++++ b/tools/perf/Makefile
+@@ -149,7 +149,7 @@ ETC_PERFCONFIG = etc/perfconfig
+ endif
+ lib = lib
+ 
+-export prefix bindir sharedir sysconfdir
++export AR CC prefix bindir sharedir sysconfdir
+ 
+ RM = rm -f
+ MKDIR = mkdir
+@@ -224,7 +224,7 @@ BASIC_CFLAGS = \
+ 	-I../lib/ \
+ 	-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE
+ 
+-BASIC_LDFLAGS =
++BASIC_LDFLAGS = -static
+ 
+ ifeq ($(call try-cc,$(SOURCE_BIONIC),$(CFLAGS),bionic),y)
+ 	BIONIC := 1

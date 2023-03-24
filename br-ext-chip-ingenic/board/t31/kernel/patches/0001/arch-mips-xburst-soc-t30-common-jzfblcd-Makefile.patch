@@ -1,0 +1,8 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-t30/common/jzfblcd/Makefile
+@@ -0,0 +1,4 @@
++obj-$(CONFIG_T30_FPGA_SLCD_TRULY_240_240) += truly_240_240.o
++obj-$(CONFIG_T30_FPGA_SLCD_KFM701A21) += kfm701a21.o
++obj-$(CONFIG_T30_FPGA_TFT_BM8766) += bm8766.o
++obj-$(CONFIG_T30_FPGA_SLCD_SPI_BYD9158B) += byd9158b.o

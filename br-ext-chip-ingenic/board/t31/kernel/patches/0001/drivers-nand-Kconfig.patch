@@ -1,0 +1,45 @@
+
+--- /dev/null
++++ b/drivers/nand/Kconfig
+@@ -0,0 +1,41 @@
++#
++# NAND subsystem configuration
++# drivers/nand/Kconfig
++#
++
++menuconfig NAND
++	tristate "NAND support"
++	depends on HAS_IOMEM
++	help
++          This enables support for NAND flash
++	  If you want NAND support, you should say Y here and also to the
++	  specific driver for your bus adapter(s) below.
++
++
++if NAND
++
++config NAND_DRIVER
++	bool "Support NAND Flash device"
++        depends on (SOC_4780 || SOC_4775 || SOC_M200) && NAND
++        default y
++
++choice
++        prompt "select nand controller"
++        depends on NAND_DRIVER
++		default NAND_NEMC 
++
++config  NAND_NEMC
++        bool 'use nand nemc'
++        depends on (SOC_4780 || SOC_4775) && NAND
++        help
++          use the nand nemc controller.
++
++config  NAND_NFI
++        bool 'use nand nfi'
++        depends on (SOC_M200) && NAND
++        help
++          use the nand nfi controller.
++
++endchoice
++
++endif #NAND

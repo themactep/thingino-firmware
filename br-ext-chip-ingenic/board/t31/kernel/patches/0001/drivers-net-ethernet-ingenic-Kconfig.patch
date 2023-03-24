@@ -1,0 +1,71 @@
+
+--- /dev/null
++++ b/drivers/net/ethernet/ingenic/Kconfig
+@@ -0,0 +1,67 @@
++config JZ_MAC
++	tristate "ingenic on-chip MAC support"
++	select CRC32
++	select RMII
++	help
++	  This is the driver for JZ on-chip mac device.
++
++choice
++	prompt "JZSOC MAC"
++	default CONFIG_JZ_MAC_V13
++
++config JZ_MAC_V12
++	depends on JZ_MAC
++	bool "V12"
++	help
++	  Select for jz4775
++
++config JZ_MAC_V13
++        depends on JZ_MAC
++	bool "V13"
++	help
++	  Select for X1000
++endchoice
++
++config JZ_MAC_MODE
++	tristate "ingenic on-chip MAC support mode"
++	depends on JZ_MAC
++	select CRC32
++	select RMII
++	select PHYLIB
++	select PHY_RESET
++	help
++	  This is the driver for JZ on-chip mac support mode device.
++
++choice
++	prompt "JZSOC MAC mode"
++	depends on JZ_MAC_MODE
++	default CONFIG_JZ_MAC_MII
++
++config JZ_MAC_MII
++	bool "MII"
++	help
++	  Select Media Independent Interface
++
++config JZ_MAC_GMII
++	bool "GMII"
++	help
++	  Select Gigabit Media Independent Interface
++
++config JZ_MAC_RMII
++	bool "RMII"
++	help
++	  Select Reduced Media Independent Interface
++
++config JZ_MAC_RGMII
++	bool "RGMII"
++	help
++	  Select Reduced Gigabit Media Independent Interface
++endchoice
++
++config JZGPIO_PHY_RESET
++    bool "PHY_RESET"
++	depends on JZ_MAC
++	help
++	  This is the gpio for phy reset for 4775 net
++	  if there is no special porpose
++	  do open this item

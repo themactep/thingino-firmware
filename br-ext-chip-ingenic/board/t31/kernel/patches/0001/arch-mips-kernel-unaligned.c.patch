@@ -1,0 +1,416 @@
+
+--- a/arch/mips/kernel/unaligned.c
++++ b/arch/mips/kernel/unaligned.c
+@@ -105,6 +105,255 @@ static u32 unaligned_action;
+ #define unaligned_action UNALIGNED_ACTION_QUIET
+ #endif
+ extern void show_registers(struct pt_regs *regs);
++asmlinkage void do_cpu(struct pt_regs *regs);
++
++#ifdef CONFIG_EVA
++/* EVA variant */
++
++#ifdef __BIG_ENDIAN
++#define     LoadHW(addr, value, res)  \
++		__asm__ __volatile__ (".set\tnoat\n"        \
++			"1:\tlbe\t%0, 0(%2)\n"               \
++			"2:\tlbue\t$1, 1(%2)\n\t"            \
++			"sll\t%0, 0x8\n\t"                  \
++			"or\t%0, $1\n\t"                    \
++			"li\t%1, 0\n"                       \
++			"3:\t.set\tat\n\t"                  \
++			".insn\n\t"                         \
++			".section\t.fixup,\"ax\"\n\t"       \
++			"4:\tli\t%1, %3\n\t"                \
++			"j\t3b\n\t"                         \
++			".previous\n\t"                     \
++			".section\t__ex_table,\"a\"\n\t"    \
++			STR(PTR)"\t1b, 4b\n\t"              \
++			STR(PTR)"\t2b, 4b\n\t"              \
++			".previous"                         \
++			: "=&r" (value), "=r" (res)         \
++			: "r" (addr), "i" (-EFAULT));
++
++#define     LoadW(addr, value, res)   \
++		__asm__ __volatile__ (                      \
++			"1:\tlwle\t%0, (%2)\n"               \
++			"2:\tlwre\t%0, 3(%2)\n\t"            \
++			"li\t%1, 0\n"                       \
++			"3:\n\t"                            \
++			".insn\n\t"                         \
++			".section\t.fixup,\"ax\"\n\t"       \
++			"4:\tli\t%1, %3\n\t"                \
++			"j\t3b\n\t"                         \
++			".previous\n\t"                     \
++			".section\t__ex_table,\"a\"\n\t"    \
++			STR(PTR)"\t1b, 4b\n\t"              \
++			STR(PTR)"\t2b, 4b\n\t"              \
++			".previous"                         \
++			: "=&r" (value), "=r" (res)         \
++			: "r" (addr), "i" (-EFAULT));
++
++#define     LoadHWU(addr, value, res) \
++		__asm__ __volatile__ (                      \
++			".set\tnoat\n"                      \
++			"1:\tlbue\t%0, 0(%2)\n"              \
++			"2:\tlbue\t$1, 1(%2)\n\t"            \
++			"sll\t%0, 0x8\n\t"                  \
++			"or\t%0, $1\n\t"                    \
++			"li\t%1, 0\n"                       \
++			"3:\n\t"                            \
++			".insn\n\t"                         \
++			".set\tat\n\t"                      \
++			".section\t.fixup,\"ax\"\n\t"       \
++			"4:\tli\t%1, %3\n\t"                \
++			"j\t3b\n\t"                         \
++			".previous\n\t"                     \
++			".section\t__ex_table,\"a\"\n\t"    \
++			STR(PTR)"\t1b, 4b\n\t"              \
++			STR(PTR)"\t2b, 4b\n\t"              \
++			".previous"                         \
++			: "=&r" (value), "=r" (res)         \
++			: "r" (addr), "i" (-EFAULT));
++
++#define     LoadWU(addr, value, res)  \
++		__asm__ __volatile__ (                      \
++			"1:\tlwle\t%0, (%2)\n"               \
++			"2:\tlwre\t%0, 3(%2)\n\t"            \
++			"dsll\t%0, %0, 32\n\t"              \
++			"dsrl\t%0, %0, 32\n\t"              \
++			"li\t%1, 0\n"                       \
++			"3:\n\t"                            \
++			".insn\n\t"                         \
++			"\t.section\t.fixup,\"ax\"\n\t"     \
++			"4:\tli\t%1, %3\n\t"                \
++			"j\t3b\n\t"                         \
++			".previous\n\t"                     \
++			".section\t__ex_table,\"a\"\n\t"    \
++			STR(PTR)"\t1b, 4b\n\t"              \
++			STR(PTR)"\t2b, 4b\n\t"              \
++			".previous"                         \
++			: "=&r" (value), "=r" (res)         \
++			: "r" (addr), "i" (-EFAULT));
++
++#define     StoreHW(addr, value, res) \
++		__asm__ __volatile__ (                      \
++			".set\tnoat\n"                      \
++			"1:\tsbe\t%1, 1(%2)\n\t"             \
++			"srl\t$1, %1, 0x8\n"                \
++			"2:\tsbe\t$1, 0(%2)\n\t"             \
++			".set\tat\n\t"                      \
++			"li\t%0, 0\n"                       \
++			"3:\n\t"                            \
++			".insn\n\t"                         \
++			".section\t.fixup,\"ax\"\n\t"       \
++			"4:\tli\t%0, %3\n\t"                \
++			"j\t3b\n\t"                         \
++			".previous\n\t"                     \
++			".section\t__ex_table,\"a\"\n\t"    \
++			STR(PTR)"\t1b, 4b\n\t"              \
++			STR(PTR)"\t2b, 4b\n\t"              \
++			".previous"                         \
++			: "=r" (res)                        \
++			: "r" (value), "r" (addr), "i" (-EFAULT));
++
++#define     StoreW(addr, value, res)  \
++		__asm__ __volatile__ (                      \
++			"1:\tswle\t%1,(%2)\n"                \
++			"2:\tswre\t%1, 3(%2)\n\t"            \
++			"li\t%0, 0\n"                       \
++			"3:\n\t"                            \
++			".insn\n\t"                         \
++			".section\t.fixup,\"ax\"\n\t"       \
++			"4:\tli\t%0, %3\n\t"                \
++			"j\t3b\n\t"                         \
++			".previous\n\t"                     \
++			".section\t__ex_table,\"a\"\n\t"    \
++			STR(PTR)"\t1b, 4b\n\t"              \
++			STR(PTR)"\t2b, 4b\n\t"              \
++			".previous"                         \
++		: "=r" (res)                                \
++		: "r" (value), "r" (addr), "i" (-EFAULT));
++#endif
++
++#ifdef __LITTLE_ENDIAN
++#define     LoadHW(addr, value, res)  \
++		__asm__ __volatile__ (".set\tnoat\n"        \
++			"1:\tlbe\t%0, 1(%2)\n"               \
++			"2:\tlbue\t$1, 0(%2)\n\t"            \
++			"sll\t%0, 0x8\n\t"                  \
++			"or\t%0, $1\n\t"                    \
++			"li\t%1, 0\n"                       \
++			"3:\t.set\tat\n\t"                  \
++			".insn\n\t"                         \
++			".section\t.fixup,\"ax\"\n\t"       \
++			"4:\tli\t%1, %3\n\t"                \
++			"j\t3b\n\t"                         \
++			".previous\n\t"                     \
++			".section\t__ex_table,\"a\"\n\t"    \
++			STR(PTR)"\t1b, 4b\n\t"              \
++			STR(PTR)"\t2b, 4b\n\t"              \
++			".previous"                         \
++			: "=&r" (value), "=r" (res)         \
++			: "r" (addr), "i" (-EFAULT));
++
++#define     LoadW(addr, value, res)   \
++		__asm__ __volatile__ (                      \
++			"1:\tlwle\t%0, 3(%2)\n"              \
++			"2:\tlwre\t%0, (%2)\n\t"             \
++			"li\t%1, 0\n"                       \
++			"3:\n\t"                            \
++			".insn\n\t"                         \
++			".section\t.fixup,\"ax\"\n\t"       \
++			"4:\tli\t%1, %3\n\t"                \
++			"j\t3b\n\t"                         \
++			".previous\n\t"                     \
++			".section\t__ex_table,\"a\"\n\t"    \
++			STR(PTR)"\t1b, 4b\n\t"              \
++			STR(PTR)"\t2b, 4b\n\t"              \
++			".previous"                         \
++			: "=&r" (value), "=r" (res)         \
++			: "r" (addr), "i" (-EFAULT));
++
++#define     LoadHWU(addr, value, res) \
++		__asm__ __volatile__ (                      \
++			".set\tnoat\n"                      \
++			"1:\tlbue\t%0, 1(%2)\n"              \
++			"2:\tlbue\t$1, 0(%2)\n\t"            \
++			"sll\t%0, 0x8\n\t"                  \
++			"or\t%0, $1\n\t"                    \
++			"li\t%1, 0\n"                       \
++			"3:\n\t"                            \
++			".insn\n\t"                         \
++			".set\tat\n\t"                      \
++			".section\t.fixup,\"ax\"\n\t"       \
++			"4:\tli\t%1, %3\n\t"                \
++			"j\t3b\n\t"                         \
++			".previous\n\t"                     \
++			".section\t__ex_table,\"a\"\n\t"    \
++			STR(PTR)"\t1b, 4b\n\t"              \
++			STR(PTR)"\t2b, 4b\n\t"              \
++			".previous"                         \
++			: "=&r" (value), "=r" (res)         \
++			: "r" (addr), "i" (-EFAULT));
++
++#define     LoadWU(addr, value, res)  \
++		__asm__ __volatile__ (                      \
++			"1:\tlwle\t%0, 3(%2)\n"              \
++			"2:\tlwre\t%0, (%2)\n\t"             \
++			"dsll\t%0, %0, 32\n\t"              \
++			"dsrl\t%0, %0, 32\n\t"              \
++			"li\t%1, 0\n"                       \
++			"3:\n\t"                            \
++			".insn\n\t"                         \
++			"\t.section\t.fixup,\"ax\"\n\t"     \
++			"4:\tli\t%1, %3\n\t"                \
++			"j\t3b\n\t"                         \
++			".previous\n\t"                     \
++			".section\t__ex_table,\"a\"\n\t"    \
++			STR(PTR)"\t1b, 4b\n\t"              \
++			STR(PTR)"\t2b, 4b\n\t"              \
++			".previous"                         \
++			: "=&r" (value), "=r" (res)         \
++			: "r" (addr), "i" (-EFAULT));
++
++#define     StoreHW(addr, value, res) \
++		__asm__ __volatile__ (                      \
++			".set\tnoat\n"                      \
++			"1:\tsbe\t%1, 0(%2)\n\t"             \
++			"srl\t$1,%1, 0x8\n"                 \
++			"2:\tsbe\t$1, 1(%2)\n\t"             \
++			".set\tat\n\t"                      \
++			"li\t%0, 0\n"                       \
++			"3:\n\t"                            \
++			".insn\n\t"                         \
++			".section\t.fixup,\"ax\"\n\t"       \
++			"4:\tli\t%0, %3\n\t"                \
++			"j\t3b\n\t"                         \
++			".previous\n\t"                     \
++			".section\t__ex_table,\"a\"\n\t"    \
++			STR(PTR)"\t1b, 4b\n\t"              \
++			STR(PTR)"\t2b, 4b\n\t"              \
++			".previous"                         \
++			: "=r" (res)                        \
++			: "r" (value), "r" (addr), "i" (-EFAULT));
++
++#define     StoreW(addr, value, res)  \
++		__asm__ __volatile__ (                      \
++			"1:\tswle\t%1, 3(%2)\n"              \
++			"2:\tswre\t%1, (%2)\n\t"             \
++			"li\t%0, 0\n"                       \
++			"3:\n\t"                            \
++			".insn\n\t"                         \
++			".section\t.fixup,\"ax\"\n\t"       \
++			"4:\tli\t%0, %3\n\t"                \
++			"j\t3b\n\t"                         \
++			".previous\n\t"                     \
++			".section\t__ex_table,\"a\"\n\t"    \
++			STR(PTR)"\t1b, 4b\n\t"              \
++			STR(PTR)"\t2b, 4b\n\t"              \
++			".previous"                         \
++		: "=r" (res)                                \
++		: "r" (value), "r" (addr), "i" (-EFAULT));
++#endif
++
++#else
++/* non-EVA variant */
+ 
+ #ifdef __BIG_ENDIAN
+ #define     LoadHW(addr, value, res)  \
+@@ -420,6 +669,8 @@ extern void show_registers(struct pt_regs *regs);
+ 		: "r" (value), "r" (addr), "i" (-EFAULT));
+ #endif
+ 
++#endif
++
+ static void emulate_load_store_insn(struct pt_regs *regs,
+ 	void __user *addr, unsigned int __user *pc)
+ {
+@@ -429,6 +680,9 @@ static void emulate_load_store_insn(struct pt_regs *regs,
+ 	unsigned long origpc;
+ 	unsigned long orig31;
+ 	void __user *fault_addr = NULL;
++#ifdef CONFIG_EVA
++	mm_segment_t seg;
++#endif
+ 
+ 	origpc = (unsigned long)pc;
+ 	orig31 = regs->regs[31];
+@@ -474,6 +728,98 @@ static void emulate_load_store_insn(struct pt_regs *regs,
+ 		 * The remaining opcodes are the ones that are really of
+ 		 * interest.
+ 		 */
++#ifdef CONFIG_EVA
++	case spec3_op:
++
++		/* we can land here only from kernel accessing USER,
++		   so - set user space, temporary for verification */
++		seg = get_fs();
++		set_fs(USER_DS);
++
++		switch (insn.spec3_format.ls_func) {
++
++		case lhe_op:
++			if (!access_ok(VERIFY_READ, addr, 2)) {
++				set_fs(seg);
++				goto sigbus;
++			}
++
++			LoadHW(addr, value, res);
++			if (res) {
++				set_fs(seg);
++				goto fault;
++			}
++			compute_return_epc(regs);
++			regs->regs[insn.spec3_format.rt] = value;
++			break;
++
++		case lwe_op:
++			if (!access_ok(VERIFY_READ, addr, 4)) {
++				set_fs(seg);
++				goto sigbus;
++			}
++
++			LoadW(addr, value, res);
++			if (res) {
++				set_fs(seg);
++				goto fault;
++			}
++			compute_return_epc(regs);
++			regs->regs[insn.spec3_format.rt] = value;
++			break;
++
++		case lhue_op:
++			if (!access_ok(VERIFY_READ, addr, 2)) {
++				set_fs(seg);
++				goto sigbus;
++			}
++
++			LoadHWU(addr, value, res);
++			if (res) {
++				set_fs(seg);
++				goto fault;
++			}
++			compute_return_epc(regs);
++			regs->regs[insn.spec3_format.rt] = value;
++			break;
++
++		case she_op:
++			if (!access_ok(VERIFY_WRITE, addr, 2)) {
++				set_fs(seg);
++				goto sigbus;
++			}
++
++			compute_return_epc(regs);
++			value = regs->regs[insn.spec3_format.rt];
++			StoreHW(addr, value, res);
++			if (res) {
++				set_fs(seg);
++				goto fault;
++			}
++			break;
++
++		case swe_op:
++			if (!access_ok(VERIFY_WRITE, addr, 4)) {
++				set_fs(seg);
++				goto sigbus;
++			}
++
++			compute_return_epc(regs);
++			value = regs->regs[insn.spec3_format.rt];
++			StoreW(addr, value, res);
++			if (res) {
++				set_fs(seg);
++				goto fault;
++			}
++			break;
++
++		default:
++			set_fs(seg);
++			goto sigill;
++		}
++		set_fs(seg);
++		break;
++#endif
+ 	case lh_op:
+ 		if (!access_ok(VERIFY_READ, addr, 2))
+ 			goto sigbus;
+@@ -598,13 +944,27 @@ static void emulate_load_store_insn(struct pt_regs *regs,
+ 		/* Cannot handle 64-bit instructions in 32-bit kernel */
+ 		goto sigill;
+ 
++	case cop1x_op:
++		if (insn.f_format.func != lwxc1_op &&
++		    insn.f_format.func != ldxc1_op &&
++		    insn.f_format.func != swxc1_op &&
++		    insn.f_format.func != sdxc1_op)
++		  goto sigill;
++
+ 	case lwc1_op:
+ 	case ldc1_op:
+ 	case swc1_op:
+ 	case sdc1_op:
++#if 0
++		/* temporary fix for mixing AdEL and CpU exceptions in Impresa */
++		if (!(regs->cp0_status & ST0_CU1)) {
++			do_cpu(regs);
++			return;
++		}
++#endif
+ 		die_if_kernel("Unaligned FP access in kernel code", regs);
+ 		BUG_ON(!used_math());
+-		BUG_ON(!is_fpu_owner());
++//		BUG_ON(!is_fpu_owner());
+ 
+ 		lose_fpu(1);	/* Save FPU state for the emulator. */
+ 		res = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
+@@ -684,7 +1044,8 @@ const int reg16to32[] = { 16, 17, 2, 3, 4, 5, 6, 7 };
+ /* Recode table from 16-bit STORE register notation to 32-bit GPR. */
+ const int reg16to32st[] = { 0, 17, 2, 3, 4, 5, 6, 7 };
+ 
+-void emulate_load_store_microMIPS(struct pt_regs *regs, void __user * addr)
++static void emulate_load_store_microMIPS(struct pt_regs *regs,
++					 void __user *addr)
+ {
+ 	unsigned long value;
+ 	unsigned int res;

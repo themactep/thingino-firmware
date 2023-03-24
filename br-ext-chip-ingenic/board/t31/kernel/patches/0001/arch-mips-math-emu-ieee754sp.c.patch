@@ -1,0 +1,12 @@
+
+--- a/arch/mips/math-emu/ieee754sp.c
++++ b/arch/mips/math-emu/ieee754sp.c
+@@ -41,6 +41,8 @@ int ieee754sp_isnan(ieee754sp x)
+ int ieee754sp_issnan(ieee754sp x)
+ {
+ 	assert(ieee754sp_isnan(x));
++	if (ieee754_csr.nan2008)
++		return !(SPMANT(x) & SP_MBIT(SP_MBITS-1));
+ 	return (SPMANT(x) & SP_MBIT(SP_MBITS-1));
+ }
+ 

@@ -1,0 +1,106 @@
+
+--- a/drivers/spi/Kconfig
++++ b/drivers/spi/Kconfig
+@@ -86,6 +86,102 @@ config SPI_BCM2835
+ 	  is for the regular SPI controller. Slave mode operation is not also
+ 	  not supported.
+ 
++config SPI_JZ_TEST
++	tristate "Ingeinc JZ47XX SPI controller test driver"
++	depends on JZ_SPI
++	default n
++	help
++		SPI controller of Ingenic JZ47xx series SoCs and it's driver test driver
++
++config JZ_SPI
++	tristate "Ingenic JZ series SPI driver"
++	depends on MACH_XBURST
++	select SPI_BITBANG
++	help
++		SPI driver for Ingenic JZ series SoCs
++
++config JZ_SPI0
++    bool "Ingenic SoC SSI controller 0 for SPI Host driver"
++	depends on JZ_SPI
++	select JZ_SPI0_PC
++
++config JZ_SPI0_PC
++    bool "JZ SSI0 controller function pins select"
++	depends on JZ_SPI0
++
++config SPI0_PIO_ONLY
++	bool 'Disable DMA (always use PIO) on JZ SSI controller 0'
++	depends on JZ_SPI0
++	default n
++	help
++		All data is copied between memory and FIFO by the CPU.
++		DMA controllers are ignored.
++
++		Do not select 'n' here unless DMA support for your SOC or board
++		is unavailable (or unstable).
++
++config JZ_SPI1
++	bool "Ingenic SoC SSI controller 1 for SPI Host driver"
++	depends on JZ_SPI
++
++config SPI1_PIO_ONLY
++	bool 'Disable DMA (always use PIO) on JZ SSI controller 1'
++	depends on JZ_SPI1
++	default n
++	help
++		All data is copied between memory and FIFO by the CPU.
++		DMA controllers are ignored.
++
++		Do not select 'n' here unless DMA support for your SOC or board
++		is unavailable (or unstable).
++
++choice
++	prompt "JZ SSI1 controller function pins select"
++	depends on JZ_SPI1
++	default JZ_SPI1_PB_2
++config JZ_SPI1_PB_1
++	bool "GPIO B(17,18,25,26)"
++config JZ_SPI1_PB_2
++	bool "GPIO B(27,28,29,30)"
++endchoice
++
++config JZ_SPI_BOARD_INFO_REGISTER
++	bool "Board info associated by spi master"
++	depends on JZ_SPI
++	default n
++
++config JZ_SPI_PIO_CE
++	bool "Use GPIO CE on JZ SSI controller 0"
++	depends on JZ_SPI
++	default n
++	help
++		Use GPIO control SSI CE by CPU. Sometimes controller's CE NOT match SPI Protocal
++
++config JZ_SPIDEV_TEST
++	tristate "Ingenic spi test driver"
++	depends on JZ_SPI
++	default n
++
++config JZ_SPI_SLAVE
++	bool "Ingenic SoC SSI SLAVE controller for device driver"
++	depends on JZ_SPI
++choice
++	prompt "JZ SSI SLAVE controller function pins select"
++	depends on JZ_SPI_SLAVE
++	default JZ_SPISLV_PB
++config JZ_SPISLV_PB
++	bool "GPIO B(00,01,04,05)"
++config JZ_SPISLV_PC
++	bool "GPIO C(02,03,04,05)"
++endchoice
++
++config JZ_SPI_SPISLV_LOOPTEST
++	bool "Ingenic SoC SSI and SSI SLAVE loop test"
++	depends on JZ_SPI_SLAVE
++
++
++##################################################
++
+ config SPI_BFIN5XX
+ 	tristate "SPI controller driver for ADI Blackfin5xx"
+ 	depends on BLACKFIN

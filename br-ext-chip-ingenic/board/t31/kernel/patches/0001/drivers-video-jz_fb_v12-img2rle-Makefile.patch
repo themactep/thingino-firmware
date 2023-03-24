@@ -1,0 +1,9 @@
+
+--- /dev/null
++++ b/drivers/video/jz_fb_v12/img2rle/Makefile
+@@ -0,0 +1,5 @@
++all:
++	@gcc -g img2rle.c -ljpeg -lpng12 -lz -lm -static -o img2rle
++#@./jpeg2rle logo.jpg initlogo.rle
++clean:
++	rm -f img2rle initlogo.rle

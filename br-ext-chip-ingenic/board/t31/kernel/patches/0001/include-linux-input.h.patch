@@ -1,0 +1,22 @@
+
+--- a/include/linux/input.h
++++ b/include/linux/input.h
+@@ -11,6 +11,7 @@
+ #include <linux/time.h>
+ #include <linux/list.h>
+ #include <uapi/linux/input.h>
++#include <linux/notifier.h>
+ /* Implementation details, userspace should not care about these */
+ #define ABS_MT_FIRST		ABS_MT_TOUCH_MAJOR
+ #define ABS_MT_LAST		ABS_MT_TOOL_Y
+@@ -187,6 +188,10 @@ struct input_dev {
+ 	struct input_value *vals;
+ 
+ 	bool devres_managed;
++
++#ifdef CONFIG_FBBLANK_SUSPEND_TS
++	struct notifier_block fb_notif;
++#endif
+ };
+ #define to_input_dev(d) container_of(d, struct input_dev, dev)
+ 

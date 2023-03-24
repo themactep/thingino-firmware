@@ -1,0 +1,10 @@
+
+--- /dev/null
++++ b/drivers/net/wireless/rtl818x/rtl8188eu/Kconfig
+@@ -0,0 +1,6 @@
++config RTL8188EU
++	tristate "Realtek 8188E USB WiFi"
++	depends on USB
++	---help---
++	  Help message of RTL8188EU
++

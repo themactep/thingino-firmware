@@ -1,0 +1,19 @@
+
+--- a/drivers/mmc/core/sdio_cis.c
++++ b/drivers/mmc/core/sdio_cis.c
+@@ -154,9 +154,12 @@ static int cistpl_funce_common(struct mmc_card *card, struct sdio_func *func,
+ 	card->cis.blksize = buf[1] | (buf[2] << 8);
+ 
+ 	/* TPLFE_MAX_TRAN_SPEED */
++#ifdef CONFIG_BCMDHD_1_141_66
++	card->cis.max_dtr = 24000000;
++#else
+ 	card->cis.max_dtr = speed_val[(buf[3] >> 3) & 15] *
+ 			    speed_unit[buf[3] & 7];
+-
++#endif
+ 	return 0;
+ }
+ 
+old mode 100644
+new mode 100755

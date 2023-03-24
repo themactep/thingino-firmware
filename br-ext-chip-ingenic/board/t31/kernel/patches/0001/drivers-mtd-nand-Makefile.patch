@@ -1,0 +1,27 @@
+
+--- a/drivers/mtd/nand/Makefile
++++ b/drivers/mtd/nand/Makefile
+@@ -2,10 +2,13 @@
+ # linux/drivers/nand/Makefile
+ #
+ 
+-obj-$(CONFIG_MTD_NAND)			+= nand.o
+-obj-$(CONFIG_MTD_NAND_ECC)		+= nand_ecc.o
++#obj-$(CONFIG_MTD_NAND)			+= nand.o
++obj-y         += nand.o
++#obj-$(CONFIG_MTD_NAND_ECC)		+= nand_ecc.o
++obj-y         += nand_ecc.o
+ obj-$(CONFIG_MTD_NAND_BCH)		+= nand_bch.o
+-obj-$(CONFIG_MTD_NAND_IDS)		+= nand_ids.o
++#obj-$(CONFIG_MTD_NAND_IDS)		+= nand_ids.o
++obj-y         += nand_ids.o
+ obj-$(CONFIG_MTD_SM_COMMON) 		+= sm_common.o
+ 
+ obj-$(CONFIG_MTD_NAND_CAFE)		+= cafe_nand.o
+@@ -50,5 +53,6 @@ obj-$(CONFIG_MTD_NAND_JZ4740)		+= jz4740_nand.o
+ obj-$(CONFIG_MTD_NAND_GPMI_NAND)	+= gpmi-nand/
+ obj-$(CONFIG_MTD_NAND_XWAY)		+= xway_nand.o
+ obj-$(CONFIG_MTD_NAND_BCM47XXNFLASH)	+= bcm47xxnflash/
++obj-$(CONFIG_MTD_JZ_SPI_NAND)           += jz_spi_nand.o
+ 
+ nand-objs := nand_base.o nand_bbt.o

@@ -1,0 +1,6 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-t10/chip-t10/musca/musca_v10/Makefile
+@@ -0,0 +1,2 @@
++
++obj-y		+= pm.o

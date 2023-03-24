@@ -1,0 +1,41 @@
+
+--- a/include/uapi/mtd/ubi-user.h
++++ b/include/uapi/mtd/ubi-user.h
+@@ -134,6 +134,13 @@
+  * used. A pointer to a &struct ubi_set_vol_prop_req object is expected to be
+  * passed. The object describes which property should be set, and to which value
+  * it should be set.
++ *
++ * Block devices on UBI volumes
++ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++ *
++ * To attach or detach a block device from an UBI volume the %UBI_IOCVOLCRBLK
++ * and %UBI_IOCVOLRMBLK ioctl commands should be used, respectively.
++ * These commands take no arguments.
+  */
+ 
+ /*
+@@ -188,6 +195,10 @@
+ /* Set an UBI volume property */
+ #define UBI_IOCSETVOLPROP _IOW(UBI_VOL_IOC_MAGIC, 6, \
+ 			       struct ubi_set_vol_prop_req)
++/* Attach a block device to an UBI volume */
++#define UBI_IOCVOLCRBLK _IOW(UBI_VOL_IOC_MAGIC, 7,struct ubi_blkcreate_req)
++/* Detach a block device from an UBI volume */
++#define UBI_IOCVOLRMBLK _IO(UBI_VOL_IOC_MAGIC, 8)
+ 
+ /* Maximum MTD device name length supported by UBI */
+ #define MAX_UBI_MTD_NAME_LEN 127
+@@ -417,4 +428,12 @@ struct ubi_set_vol_prop_req {
+ 	__u64 value;
+ }  __packed;
+ 
++/**
++ * struct ubi_blkcreate_req - a data structure used in block creation requests.
++ * @padding: reserved for future, not used, has to be zeroed
++ */
++struct ubi_blkcreate_req {
++	__s8  padding[128];
++}  __packed;
++
+ #endif /* __UBI_USER_H__ */

@@ -1,0 +1,33 @@
+
+--- a/arch/mips/include/asm/cpu-info.h
++++ b/arch/mips/include/asm/cpu-info.h
+@@ -52,11 +52,14 @@ struct cpuinfo_mips {
+ 	unsigned int		cputype;
+ 	int			isa_level;
+ 	int			tlbsize;
+-	struct cache_desc	icache; /* Primary I-cache */
+-	struct cache_desc	dcache; /* Primary D or combined I/D cache */
+-	struct cache_desc	scache; /* Secondary cache */
+-	struct cache_desc	tcache; /* Tertiary/split secondary cache */
+-	int			srsets; /* Shadow register sets */
++	int                     tlbsizevtlb;
++	int                     tlbsizeftlbsets;
++	int                     tlbsizeftlbways;
++	struct cache_desc	icache;	/* Primary I-cache */
++	struct cache_desc	dcache;	/* Primary D or combined I/D cache */
++	struct cache_desc	scache;	/* Secondary cache */
++	struct cache_desc	tcache;	/* Tertiary/split secondary cache */
++	int			srsets;	/* Shadow register sets */
+ 	int			core;	/* physical core number */
+ #ifdef CONFIG_64BIT
+ 	int			vmbits; /* Virtual memory size in bits */
+@@ -79,6 +82,9 @@ struct cpuinfo_mips {
+ #define NUM_WATCH_REGS 4
+ 	u16			watch_reg_masks[NUM_WATCH_REGS];
+ 	unsigned int		kscratch_mask; /* Usable KScratch mask. */
++	unsigned int            segctl0; /* Memory Segmentation Control 0 */
++	unsigned int            segctl1; /* Memory Segmentation Control 1 */
++	unsigned int            segctl2; /* Memory Segmentation Control 2 */
+ } __attribute__((aligned(SMP_CACHE_BYTES)));
+ 
+ extern struct cpuinfo_mips cpu_data[];

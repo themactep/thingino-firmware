@@ -1,0 +1,7 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-t15/Makefile
+@@ -0,0 +1,3 @@
++
++obj-$(CONFIG_CHIP_T15) += chip-t15/
++obj-y += common/

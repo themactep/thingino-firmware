@@ -1,0 +1,25 @@
+
+--- /dev/null
++++ b/drivers/video/jz_ipu/Kconfig
+@@ -0,0 +1,21 @@
++menuconfig JZ_IPU
++	bool "JZ IPU Driver"
++	default y
++	help
++	  Support for Ingenic dmmu operations.
++
++choice
++	prompt "IPU Version Choice "
++	depends on JZ_IPU
++	default JZ_IPU_V12
++
++config JZ_IPU_V12
++	bool "IPU V12 Driver"
++	help
++	  Support for Ingenic ipu v12 operations.
++config JZ_IPU_V13
++	bool "IPU V13 Driver"
++	help
++	  Support for Ingenic ipu v13 operations.
++
++endchoice

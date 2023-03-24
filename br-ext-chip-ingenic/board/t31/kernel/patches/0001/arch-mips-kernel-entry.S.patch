@@ -1,0 +1,20 @@
+
+--- a/arch/mips/kernel/entry.S
++++ b/arch/mips/kernel/entry.S
+@@ -203,10 +203,16 @@ syscall_exit_work:
+  *
+  * For C code use the inline version named instruction_hazard().
+  */
++#ifdef CONFIG_EVA
++	.align  8
++#endif
+ LEAF(mips_ihb)
+ 	.set	mips32r2
+ 	jr.hb	ra
+ 	nop
++#ifdef CONFIG_EVA
++	.align  8
++#endif
+ 	END(mips_ihb)
+ 
+ #endif /* CONFIG_CPU_MIPSR2 or CONFIG_MIPS_MT */

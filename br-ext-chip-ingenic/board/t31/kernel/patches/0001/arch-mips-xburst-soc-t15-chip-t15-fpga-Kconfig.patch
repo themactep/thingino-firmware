@@ -1,0 +1,18 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-t15/chip-t15/fpga/Kconfig
+@@ -0,0 +1,14 @@
++choice
++	prompt "Board type"
++	depends on BOARD_FPGA_T15
++	default BOARD_FPGA_T15_BASE
++
++config BOARD_FPGA_T15_BASE
++       bool "board fpga t15 base"
++       depends on BOARD_FPGA_T15
++
++endchoice
++
++config BOARD_NAME
++	string
++	default "fpga_t15_base" if BOARD_FPGA_T15_BASE

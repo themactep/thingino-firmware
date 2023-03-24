@@ -1,0 +1,23 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-4775/chip-m150/halley/Kconfig
+@@ -0,0 +1,19 @@
++choice
++prompt "BOARD version"
++depends on PRODUCT_HALLEY
++default BOARD_HALLEY_V10
++
++config BOARD_HALLEY_V10
++bool "board halley v10"
++depends on PRODUCT_HALLEY
++
++endchoice
++
++config BOARD_NAME
++string
++default "halley_v10" if BOARD_HALLEY_V10
++
++
++
++
++

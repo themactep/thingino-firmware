@@ -1,0 +1,9 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-4780/board/giant/Makefile
+@@ -0,0 +1,5 @@
++
++obj-y += giant-misc.o giant-pm.o giant-lcd.o
++
++obj-$(CONFIG_MMC_JZ4780)	+= giant-mmc.o
++obj-$(CONFIG_JZ4780_INTERNAL_CODEC) += giant-sound.o

@@ -1,0 +1,54 @@
+
+--- a/drivers/usb/gadget/Makefile
++++ b/drivers/usb/gadget/Makefile
+@@ -6,7 +6,7 @@ ccflags-$(CONFIG_USB_GADGET_DEBUG) := -DDEBUG
+ obj-$(CONFIG_USB_GADGET)	+= udc-core.o
+ obj-$(CONFIG_USB_LIBCOMPOSITE)	+= libcomposite.o
+ libcomposite-y			:= usbstring.o config.o epautoconf.o
+-libcomposite-y			+= composite.o functions.o configfs.o
++libcomposite-y			+= composite.o functions.o configfs.o u_f.o
+ obj-$(CONFIG_USB_DUMMY_HCD)	+= dummy_hcd.o
+ obj-$(CONFIG_USB_NET2272)	+= net2272.o
+ obj-$(CONFIG_USB_NET2280)	+= net2280.o
+@@ -45,6 +45,23 @@ usb_f_serial-y			:= f_serial.o
+ obj-$(CONFIG_USB_F_SERIAL)	+= usb_f_serial.o
+ usb_f_obex-y			:= f_obex.o
+ obj-$(CONFIG_USB_F_OBEX)	+= usb_f_obex.o
++obj-$(CONFIG_USB_U_ETHER)	+= u_ether.o
++usb_f_ncm-y			:= f_ncm.o
++obj-$(CONFIG_USB_F_NCM)		+= usb_f_ncm.o
++usb_f_ecm-y			:= f_ecm.o
++obj-$(CONFIG_USB_F_ECM)		+= usb_f_ecm.o
++usb_f_phonet-y			:= f_phonet.o
++obj-$(CONFIG_USB_F_PHONET)	+= usb_f_phonet.o
++usb_f_eem-y			:= f_eem.o
++obj-$(CONFIG_USB_F_EEM)		+= usb_f_eem.o
++usb_f_ecm_subset-y		:= f_subset.o
++obj-$(CONFIG_USB_F_SUBSET)	+= usb_f_ecm_subset.o
++usb_f_rndis-y			:= f_rndis.o rndis.o
++obj-$(CONFIG_USB_F_RNDIS)	+= usb_f_rndis.o
++usb_f_mass_storage-y		:= f_mass_storage.o
++obj-$(CONFIG_USB_F_MASS_STORAGE)+= usb_f_mass_storage.o
++usb_f_fs-y			:= f_fs.o
++obj-$(CONFIG_USB_F_FS)		+= usb_f_fs.o
+ 
+ #
+ # USB gadget drivers
+@@ -65,7 +82,9 @@ g_nokia-y			:= nokia.o
+ g_webcam-y			:= webcam.o
+ g_ncm-y				:= ncm.o
+ g_acm_ms-y			:= acm_ms.o
++g_android-y			:= android.o
+ g_tcm_usb_gadget-y		:= tcm_usb_gadget.o
++g_slp-y				:= slp.o
+ 
+ obj-$(CONFIG_USB_ZERO)		+= g_zero.o
+ obj-$(CONFIG_USB_AUDIO)		+= g_audio.o
+@@ -84,4 +103,7 @@ obj-$(CONFIG_USB_G_NOKIA)	+= g_nokia.o
+ obj-$(CONFIG_USB_G_WEBCAM)	+= g_webcam.o
+ obj-$(CONFIG_USB_G_NCM)		+= g_ncm.o
+ obj-$(CONFIG_USB_G_ACM_MS)	+= g_acm_ms.o
++obj-$(CONFIG_USB_G_ANDROID)	+= g_android.o
+ obj-$(CONFIG_USB_GADGET_TARGET)	+= tcm_usb_gadget.o
++obj-$(CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE)	+= multi_config.o
++obj-$(CONFIG_USB_G_SLP)		+= g_slp.o

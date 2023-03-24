@@ -1,0 +1,7 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-4780/board/pisces/Makefile
+@@ -0,0 +1,3 @@
++
++obj-y += pisces-misc.o
++obj-$(CONFIG_MMC_JZ4780)	+= pisces-mmc.o

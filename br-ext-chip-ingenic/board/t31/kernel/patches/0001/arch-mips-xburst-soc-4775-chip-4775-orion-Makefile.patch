@@ -1,0 +1,6 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-4775/chip-4775/orion/Makefile
+@@ -0,0 +1,2 @@
++
++obj-y += orion-misc.o orion-lcd.o orion-pm.o

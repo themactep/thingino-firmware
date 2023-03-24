@@ -1,0 +1,198 @@
+
+--- a/arch/mips/include/asm/pgtable-bits.h
++++ b/arch/mips/include/asm/pgtable-bits.h
+@@ -32,7 +32,32 @@
+  * unpredictable things.  The code (when it is written) to deal with
+  * this problem will be in the update_mmu_cache() code for the r4k.
+  */
+-#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
++
++#if defined(CONFIG_JZRISC_PEP) && defined(CONFIG_CPU_MIPS32)
++#define _PAGE_PRESENT_SHIFT	0
++#define _PAGE_PRESENT		(1 << _PAGE_PRESENT_SHIFT)
++#define _PAGE_READ_SHIFT	1
++#define _PAGE_READ 		(1 << _PAGE_READ_SHIFT)
++#define _PAGE_WRITE_SHIFT	2
++#define _PAGE_WRITE		(1 << _PAGE_WRITE_SHIFT)
++#define _PAGE_ACCESSED_SHIFT	3
++#define _PAGE_ACCESSED		(1 << _PAGE_ACCESSED_SHIFT)
++#define _PAGE_MODIFIED_SHIFT	4
++#define _PAGE_MODIFIED		(1 << _PAGE_MODIFIED_SHIFT)
++#define _PAGE_FILE		(1 << 4)
++#define _PAGE_NO_EXEC		(1 << 5)
++#define _PAGE_GLOBAL		(1 << 6)
++#define _PAGE_VALID_SHIFT	7
++#define _PAGE_VALID		(1 << _PAGE_VALID_SHIFT)
++#define _PAGE_SILENT_READ	(1 << 7)
++#define _PAGE_DIRTY_SHIFT	8
++#define _PAGE_DIRTY		(1 << _PAGE_DIRTY_SHIFT)
++#define _PAGE_SILENT_WRITE	(1 << 8)
++#define _CACHE_SHIFT		(9)
++#define _CACHE_MASK		(7 << _CACHE_SHIFT)
++#define _PFN_SHIFT		(PAGE_SHIFT - 12 + _CACHE_SHIFT + 3)
++
++#elif defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
+ 
+ /*
+  * The following bits are directly used by the TLB hardware
+@@ -102,6 +127,8 @@
+ #define _CACHE_MASK		(1 << _CACHE_UNCACHED_SHIFT)
+ 
+ #else /* 'Normal' r4K case */
++
++#ifndef CONFIG_CPU_MIPSR2
+ /*
+  * When using the RI/XI bit support, we have 13 bits of flags below
+  * the physical address. The RI/XI bits are placed such that a SRL 5
+@@ -154,7 +181,150 @@
+ #define _PAGE_NO_READ_SHIFT	(cpu_has_rixi ? _PAGE_NO_EXEC_SHIFT + 1 : _PAGE_NO_EXEC_SHIFT)
+ #define _PAGE_NO_READ		({BUG_ON(!cpu_has_rixi); 1 << _PAGE_NO_READ_SHIFT; })
+ 
+-#define _PAGE_GLOBAL_SHIFT	(_PAGE_NO_READ_SHIFT + 1)
++#else /* CONFIG_CPU_MIPSR2 */
++
++/* static bits allocation in MIPS R2, two variants -
++   HUGE TLB in 64BIT kernel support or not.
++   RIXI support in both */
++
++#ifdef CONFIG_64BIT
++
++/*
++ * Low bits are: CCC D V G RI XI [S H] M A W R P
++ * TLB refill will do a ROTR 7/9 (in case of cpu_has_rixi),
++ * or SRL/DSRL 7/9 to strip low bits.
++ * PFN size in high bits is 49 or 51 bit --> 512TB or 4*512TB for 4KB pages
++ */
++
++#define _PAGE_PRESENT_SHIFT     (0)
++#define _PAGE_PRESENT		(1 << _PAGE_PRESENT_SHIFT)
++/* implemented in software, should be unused if cpu_has_rixi. */
++#define _PAGE_READ_SHIFT        (_PAGE_PRESENT_SHIFT + 1)
++#define _PAGE_READ              (1 << _PAGE_READ_SHIFT)
++/* implemented in software */
++#define _PAGE_WRITE_SHIFT	(_PAGE_READ_SHIFT + 1)
++#define _PAGE_WRITE		(1 << _PAGE_WRITE_SHIFT)
++/* implemented in software */
++#define _PAGE_ACCESSED_SHIFT	(_PAGE_WRITE_SHIFT + 1)
++#define _PAGE_ACCESSED		(1 << _PAGE_ACCESSED_SHIFT)
++/* implemented in software */
++#define _PAGE_MODIFIED_SHIFT	(_PAGE_ACCESSED_SHIFT + 1)
++#define _PAGE_MODIFIED		(1 << _PAGE_MODIFIED_SHIFT)
++/* set:pagecache unset:swap */
++#define _PAGE_FILE		(_PAGE_MODIFIED)
++
++#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
++/* huge tlb page */
++#define _PAGE_HUGE_SHIFT	(_PAGE_MODIFIED_SHIFT + 1)
++#define _PAGE_HUGE		(1 << _PAGE_HUGE_SHIFT)
++#define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT + 1)
++#define _PAGE_SPLITTING		(1 << _PAGE_SPLITTING_SHIFT)
++#else
++#define _PAGE_HUGE_SHIFT	(_PAGE_MODIFIED_SHIFT)
++#define _PAGE_HUGE		({BUG(); 1; })	/* Dummy value */
++#define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT)
++#define _PAGE_SPLITTING		({BUG(); 1; })	/* Dummy value */
++#endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
++
++/* Page cannot be executed */
++#define _PAGE_NO_EXEC_SHIFT     (_PAGE_SPLITTING_SHIFT + 1)
++#define _PAGE_NO_EXEC           (1 << _PAGE_NO_EXEC_SHIFT)
++
++/* Page cannot be read */
++#define _PAGE_NO_READ_SHIFT     (_PAGE_NO_EXEC_SHIFT + 1)
++#define _PAGE_NO_READ           (1 << _PAGE_NO_READ_SHIFT)
++
++#else /* !CONFIG_64BIT */
++
++#ifndef CONFIG_MIPS_HUGE_TLB_SUPPORT
++
++/*
++ * No HUGE page support
++ * Low bits are: CCC D V G RI(=R) XI M A W P
++ * TLB refill will do a ROTR 6 (in case of cpu_has_rixi),
++ * or SRL 6 to strip low bits.
++ * All 20 bits PFN are preserved in high bits (4GB in 4KB pages)
++ */
++
++#define _PAGE_PRESENT_SHIFT     (0)
++#define _PAGE_PRESENT		(1 << _PAGE_PRESENT_SHIFT)
++/* implemented in software */
++#define _PAGE_WRITE_SHIFT       (_PAGE_PRESENT_SHIFT + 1)
++#define _PAGE_WRITE		(1 << _PAGE_WRITE_SHIFT)
++/* implemented in software */
++#define _PAGE_ACCESSED_SHIFT	(_PAGE_WRITE_SHIFT + 1)
++#define _PAGE_ACCESSED		(1 << _PAGE_ACCESSED_SHIFT)
++/* implemented in software */
++#define _PAGE_MODIFIED_SHIFT	(_PAGE_ACCESSED_SHIFT + 1)
++#define _PAGE_MODIFIED		(1 << _PAGE_MODIFIED_SHIFT)
++/* set:pagecache unset:swap */
++#define _PAGE_FILE		(_PAGE_MODIFIED)
++
++/* huge tlb page dummies */
++#define _PAGE_HUGE_SHIFT	(_PAGE_MODIFIED_SHIFT)
++#define _PAGE_HUGE		({BUG(); 1; })	/* Dummy value */
++#define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT)
++#define _PAGE_SPLITTING		({BUG(); 1; })	/* Dummy value */
++
++/* Page cannot be executed */
++#define _PAGE_NO_EXEC_SHIFT     (_PAGE_SPLITTING_SHIFT + 1)
++#define _PAGE_NO_EXEC           (1 << _PAGE_NO_EXEC_SHIFT)
++
++/* Page cannot be read */
++#define _PAGE_NO_READ_SHIFT     (_PAGE_NO_EXEC_SHIFT + 1)
++#define _PAGE_NO_READ           (1 << _PAGE_NO_READ_SHIFT)
++
++/* implemented in software, should be unused if cpu_has_rixi. */
++#define _PAGE_READ_SHIFT        (_PAGE_NO_READ_SHIFT)
++#define _PAGE_READ              (1 << _PAGE_READ_SHIFT)
++
++#else /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
++
++/*
++ * Low bits are: CCC D V G S H M A W R P
++ * No RIXI is enforced
++ * TLB refill will do a SRL 7,
++ * only 19 bits PFN are preserved in high bits (2GB in 4KB pages)
++ */
++
++#define _PAGE_PRESENT_SHIFT     (0)
++#define _PAGE_PRESENT		(1 << _PAGE_PRESENT_SHIFT)
++/* implemented in software */
++#define _PAGE_READ_SHIFT        (_PAGE_PRESENT_SHIFT + 1)
++#define _PAGE_READ              (1 << _PAGE_READ_SHIFT)
++/* implemented in software */
++#define _PAGE_WRITE_SHIFT       (_PAGE_READ_SHIFT + 1)
++#define _PAGE_WRITE		(1 << _PAGE_WRITE_SHIFT)
++/* implemented in software */
++#define _PAGE_ACCESSED_SHIFT	(_PAGE_WRITE_SHIFT + 1)
++#define _PAGE_ACCESSED		(1 << _PAGE_ACCESSED_SHIFT)
++/* implemented in software */
++#define _PAGE_MODIFIED_SHIFT	(_PAGE_ACCESSED_SHIFT + 1)
++#define _PAGE_MODIFIED		(1 << _PAGE_MODIFIED_SHIFT)
++/* set:pagecache unset:swap */
++#define _PAGE_FILE		(_PAGE_MODIFIED)
++
++/* huge tlb page... but no HUGE page support in MIPS32 yet */
++#define _PAGE_HUGE_SHIFT	(_PAGE_MODIFIED_SHIFT + 1)
++#define _PAGE_HUGE		(1 << _PAGE_HUGE_SHIFT)
++#define _PAGE_SPLITTING_SHIFT	(_PAGE_HUGE_SHIFT + 1)
++#define _PAGE_SPLITTING		(1 << _PAGE_SPLITTING_SHIFT)
++
++/* Page cannot be executed */
++#define _PAGE_NO_EXEC_SHIFT     (_PAGE_SPLITTING_SHIFT)
++#define _PAGE_NO_EXEC           ({BUG(); 1; })  /* Dummy value */
++/* Page cannot be read */
++#define _PAGE_NO_READ_SHIFT     (_PAGE_NO_EXEC_SHIFT)
++#define _PAGE_NO_READ           ({BUG(); 1; })  /* Dummy value */
++
++#endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
++
++#endif /* CONFIG_64BIT */
++
++#endif /* !CONFIG_CPU_MIPSR2 */
++
++
++#define _PAGE_GLOBAL_SHIFT      (_PAGE_NO_READ_SHIFT + 1)
+ #define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
+ 
+ #define _PAGE_VALID_SHIFT	(_PAGE_GLOBAL_SHIFT + 1)

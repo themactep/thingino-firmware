@@ -1,0 +1,11 @@
+
+--- a/include/linux/iio/trigger.h
++++ b/include/linux/iio/trigger.h
+@@ -59,6 +59,7 @@ struct iio_trigger {
+ 	const char			*name;
+ 	struct device			dev;
+ 
++	void				*private_data;
+ 	struct list_head		list;
+ 	struct list_head		alloc_list;
+ 	int use_count;

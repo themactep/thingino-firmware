@@ -1,0 +1,19 @@
+
+--- a/arch/mips/lib/r3k_dump_tlb.c
++++ b/arch/mips/lib/r3k_dump_tlb.c
+@@ -1,9 +1,14 @@
+ /*
+- * Dump R3000 TLB for debugging purposes.
++ * This file is subject to the terms and conditions of the GNU General Public
++ * License.  See the file "COPYING" in the main directory of this archive
++ * for more details.
+  *
+  * Copyright (C) 1994, 1995 by Waldorf Electronics, written by Ralf Baechle.
+  * Copyright (C) 1999 by Silicon Graphics, Inc.
+  * Copyright (C) 1999 by Harald Koerfgen
++ * Copyright (C) 2011 MIPS Technologies, Inc.
++ *
++ * Dump R3000 TLB for debugging purposes.
+  */
+ #include <linux/kernel.h>
+ #include <linux/mm.h>

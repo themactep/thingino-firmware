@@ -1,0 +1,5 @@
+
+--- /dev/null
++++ b/drivers/video/avpu/Kbuild
+@@ -0,0 +1 @@
++obj-$(CONFIG_AVPU_DRIVER)	+= jz_avpu/

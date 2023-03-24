@@ -1,0 +1,18 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-t10/chip-t10/musca/Kconfig
+@@ -0,0 +1,14 @@
++choice
++	prompt "Board type"
++	depends on BOARD_MUSCA
++	default BOARD_MUSCA_V10
++
++config BOARD_MUSCA_V10
++       bool "Musca V10"
++       depends on BOARD_MUSCA
++
++endchoice
++
++config BOARD_NAME
++	string
++	default "musca_v10" if BOARD_MUSCA_V10

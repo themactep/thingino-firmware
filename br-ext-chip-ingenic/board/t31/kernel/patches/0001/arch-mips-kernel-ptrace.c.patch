@@ -1,0 +1,20 @@
+
+--- a/arch/mips/kernel/ptrace.c
++++ b/arch/mips/kernel/ptrace.c
+@@ -222,14 +222,14 @@ int ptrace_set_watch_regs(struct task_struct *child,
+ 	for (i = 0; i < current_cpu_data.watch_reg_use_cnt; i++) {
+ 		__get_user(lt[i], &addr->WATCH_STYLE.watchlo[i]);
+ #ifdef CONFIG_32BIT
+-		if (lt[i] & __UA_LIMIT)
++		if (lt[i] & USER_DS.seg)
+ 			return -EINVAL;
+ #else
+ 		if (test_tsk_thread_flag(child, TIF_32BIT_ADDR)) {
+ 			if (lt[i] & 0xffffffff80000000UL)
+ 				return -EINVAL;
+ 		} else {
+-			if (lt[i] & __UA_LIMIT)
++			if (lt[i] & USER_DS.seg)
+ 				return -EINVAL;
+ 		}
+ #endif

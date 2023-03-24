@@ -1,0 +1,62 @@
+
+--- a/arch/mips/lib/strlen_user.S
++++ b/arch/mips/lib/strlen_user.S
+@@ -11,7 +11,7 @@
+ #include <asm/asm-offsets.h>
+ #include <asm/regdef.h>
+ 
+-#define EX(insn,reg,addr,handler)			\
++#define EX(insn,reg,addr,handler)                       \
+ 9:	insn	reg, addr;				\
+ 	.section __ex_table,"a";			\
+ 	PTR	9b, handler;				\
+@@ -22,19 +22,38 @@
+  *
+  * Return 0 for error
+  */
++LEAF(__strlen_kernel_asm)
++	LONG_L          v0, TI_ADDR_LIMIT($28)  # pointer ok?
++	and             v0, a0
++	bnez            v0, .Lfault
++
++FEXPORT(__strlen_kernel_nocheck_asm)
++	move            v0, a0
++1:      EX(lbu, v1, (v0), .Lfault)
++	PTR_ADDIU       v0, 1
++	bnez            v1, 1b
++	PTR_SUBU        v0, a0
++	jr              ra
++	END(__strlen_kernel_asm)
++
++.Lfault:        move            v0, zero
++	jr              ra
++
++#ifdef CONFIG_EVA
++
+ LEAF(__strlen_user_asm)
+-	LONG_L		v0, TI_ADDR_LIMIT($28)	# pointer ok?
+-	and		v0, a0
+-	bnez		v0, .Lfault
++	LONG_L          v0, TI_ADDR_LIMIT($28)  # pointer ok?
++	and             v0, a0
++	bnez            v0, .Lfault
+ 
+ FEXPORT(__strlen_user_nocheck_asm)
+-	move		v0, a0
+-1:	EX(lbu, v1, (v0), .Lfault)
+-	PTR_ADDIU	v0, 1
+-	bnez		v1, 1b
+-	PTR_SUBU	v0, a0
+-	jr		ra
++	move            v0, a0
++	.set            eva
++1:      EX(lbue, v1, (v0), .Lfault)
++	PTR_ADDIU       v0, 1
++	bnez            v1, 1b
++	PTR_SUBU        v0, a0
++	jr              ra
+ 	END(__strlen_user_asm)
+ 
+-.Lfault:	move		v0, zero
+-	jr		ra
++#endif

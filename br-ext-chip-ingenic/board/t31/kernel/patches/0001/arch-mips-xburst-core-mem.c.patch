@@ -1,0 +1,42 @@
+
+--- a/arch/mips/include/asm/kspd.h
++++ b/arch/mips/xburst/core/mem.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (C) 2005 MIPS Technologies, Inc.  All rights reserved.
++ * Copyright (C) 2006 Ingenic Semiconductor Inc.
+  *
+  *  This program is free software; you can distribute it and/or modify it
+  *  under the terms of the GNU General Public License (Version 2) as
+@@ -15,18 +15,19 @@
+  *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
+  *
+  */
++#include <linux/init.h>
++#include <linux/io.h>
++#include <linux/ioport.h>
+ 
+-#ifndef _ASM_KSPD_H
+-#define _ASM_KSPD_H
+-
+-struct kspd_notifications {
+-	void (*kspd_sp_exit)(int sp_id);
+-
+-	struct list_head list;
+-};
+-
+-static inline void kspd_notify(struct kspd_notifications *notify)
++void __init plat_mem_setup(void)
+ {
++	/* use IO_BASE, so that we can use phy addr on hard manual
++	 * directly with in(bwlq)/out(bwlq) in io.h.
++	 */
++	set_io_port_base(IO_BASE);
++	ioport_resource.start	= 0x00000000;
++	ioport_resource.end	= 0xffffffff;
++	iomem_resource.start	= 0x00000000;
++	iomem_resource.end	= 0xffffffff;
++	return;
+ }
+-
+-#endif

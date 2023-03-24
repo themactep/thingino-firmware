@@ -1,0 +1,8 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-t15/chip-t15/Makefile
+@@ -0,0 +1,4 @@
++obj-$(CONFIG_BOARD_FPGA_T15)		+= fpga/
++obj-$(CONFIG_BOARD_HERCULES)		+= hercules/
++obj-$(CONFIG_BOARD_BOX)			+= box/
++obj-$(CONFIG_BOARD_BOOTES)		+= bootes/

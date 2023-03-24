@@ -1,0 +1,13 @@
+
+--- /dev/null
++++ b/drivers/net/wireless/mt7601u/include/mlme_sys.h
+@@ -0,0 +1,9 @@
++/*
++
++*/
++
++
++#include "rtmp_type.h"
++
++
++

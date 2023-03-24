@@ -1,0 +1,31 @@
+
+--- a/arch/mips/boot/Makefile
++++ b/arch/mips/boot/Makefile
+@@ -40,3 +40,27 @@ quiet_cmd_srec = OBJCOPY $@
+       cmd_srec = $(OBJCOPY) -S -O srec $(strip-flags) $(VMLINUX) $@
+ $(obj)/vmlinux.srec: $(VMLINUX) FORCE
+ 	$(call if_changed,srec)
++ifeq ($(shell uname -m), x86_64)
++UIMAGE_LOADADDR  = $(VMLINUX_LOAD_ADDRESS)
++else
++UIMAGE_LOADADDR  = $(subst ffffffff,,$(VMLINUX_LOAD_ADDRESS))
++endif
++UIMAGE_ENTRYADDR = $(VMLINUX_ENTRY_ADDRESS)
++
++ifeq ($(CONFIG_KERNEL_LZMA),y)
++  uImage_compress_type = lzma
++else
++  uImage_compress_type = gzip
++endif
++
++$(obj)/vmlinux.bin.$(uImage_compress_type): $(obj)/vmlinux.bin FORCE
++	$(call if_changed,$(uImage_compress_type))
++
++targets += uImage.$(uImage_compress_type)
++$(obj)/uImage.$(uImage_compress_type): $(obj)/vmlinux.bin.$(uImage_compress_type) FORCE
++	$(call if_changed,uimage,$(uImage_compress_type))
++
++targets += uImage
++$(obj)/uImage: $(obj)/uImage.$(uImage_compress_type) FORCE
++	@ln -sf $(notdir $<) $@
++	@echo '  Image $@ is ready'

@@ -1,0 +1,12 @@
+
+--- a/fs/nls/Kconfig
++++ b/fs/nls/Kconfig
+@@ -395,7 +395,7 @@ config NLS_ISO8859_9
+ 	  correctly on the screen, you need to include the appropriate
+ 	  input/output character sets. Say Y here for the Latin 5 character
+ 	  set, and it replaces the rarely needed Icelandic letters in Latin 1
+-	  with the Turkish ones. Useful in Turkey.
++	  with the Turkish ones. Useful in Swan.
+ 
+ config NLS_ISO8859_13
+ 	tristate "NLS ISO 8859-13 (Latin 7; Baltic)"

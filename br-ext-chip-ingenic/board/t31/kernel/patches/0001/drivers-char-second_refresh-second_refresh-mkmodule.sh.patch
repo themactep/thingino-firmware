@@ -1,0 +1,12 @@
+
+--- /dev/null
++++ b/drivers/char/second_refresh/second_refresh/mkmodule.sh
+@@ -0,0 +1,8 @@
++#!/bin/sh
++
++make clean
++
++make
++
++
++cp firmware.hex ../second_refresh_firmware.hex

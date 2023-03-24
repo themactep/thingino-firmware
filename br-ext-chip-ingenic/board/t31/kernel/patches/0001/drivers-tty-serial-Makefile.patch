@@ -1,0 +1,11 @@
+
+--- a/drivers/tty/serial/Makefile
++++ b/drivers/tty/serial/Makefile
+@@ -4,6 +4,7 @@
+ 
+ obj-$(CONFIG_SERIAL_CORE) += serial_core.o
+ obj-$(CONFIG_SERIAL_21285) += 21285.o
++obj-$(CONFIG_SERIAL_JZ47XX_UART) += jz_uart.o
+ 
+ # These Sparc drivers have to appear before others such as 8250
+ # which share ttySx minor node space.  Otherwise console device

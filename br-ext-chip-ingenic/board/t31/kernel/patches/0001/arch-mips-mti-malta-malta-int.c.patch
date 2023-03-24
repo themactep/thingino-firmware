@@ -1,0 +1,124 @@
+
+--- a/arch/mips/mti-malta/malta-int.c
++++ b/arch/mips/mti-malta/malta-int.c
+@@ -48,7 +48,7 @@
+ 
+ int gcmp_present = -1;
+ static unsigned long _msc01_biu_base;
+-static unsigned long _gcmp_base;
++unsigned long _gcmp_base;
+ static unsigned int ipi_map[NR_CPUS];
+ 
+ static DEFINE_RAW_SPINLOCK(mips_irq_lock);
+@@ -422,20 +422,62 @@ static struct gic_intr_map gic_intr_map[GIC_NUM_INTRS] = {
+  */
+ int __init gcmp_probe(unsigned long addr, unsigned long size)
+ {
+-	if (mips_revision_sconid != MIPS_REVISION_SCON_ROCIT) {
++	unsigned long confaddr = 0;
++
++	if ((mips_revision_sconid != MIPS_REVISION_SCON_ROCIT) &&
++	    (mips_revision_sconid != MIPS_REVISION_SCON_GT64120)) {
+ 		gcmp_present = 0;
++		pr_debug("GCMP NOT present\n");
+ 		return gcmp_present;
+ 	}
+ 
+ 	if (gcmp_present >= 0)
+ 		return gcmp_present;
+ 
+-	_gcmp_base = (unsigned long) ioremap_nocache(GCMP_BASE_ADDR, GCMP_ADDRSPACE_SZ);
+-	_msc01_biu_base = (unsigned long) ioremap_nocache(MSC01_BIU_REG_BASE, MSC01_BIU_ADDRSPACE_SZ);
+-	gcmp_present = (GCMPGCB(GCMPB) & GCMP_GCB_GCMPB_GCMPBASE_MSK) == GCMP_BASE_ADDR;
++	if (cpu_has_mips_r2 && (read_c0_config3() & MIPS_CONF3_CMGCR)) {
++		/* try CMGCRBase */
++		confaddr = read_c0_cmgcrbase() << 4;
++		_gcmp_base = (unsigned long) ioremap_nocache(confaddr, GCMP_ADDRSPACE_SZ);
++		gcmp_present = (GCMPGCB(GCMPB) & GCMP_GCB_GCMPB_GCMPBASE_MSK) == confaddr;
++		if (gcmp_present) {
++			/* reassign it to 'addr' */
++			if (addr != confaddr)
++				GCMPGCB(GCMPB) = (GCMPGCB(GCMPB) & ~GCMP_GCB_GCMPB_GCMPBASE_MSK) | addr;
++			_gcmp_base = (unsigned long) ioremap_nocache(addr , GCMP_ADDRSPACE_SZ);
++			gcmp_present = (GCMPGCB(GCMPB) & GCMP_GCB_GCMPB_GCMPBASE_MSK) == confaddr;
++			confaddr = addr;
++			if (!gcmp_present) {
++				/* reassignment failed, try CMGCRBase again */
++				confaddr = read_c0_cmgcrbase() << 4;
++				_gcmp_base = (unsigned long) ioremap_nocache(confaddr, GCMP_ADDRSPACE_SZ);
++				gcmp_present = (GCMPGCB(GCMPB) & GCMP_GCB_GCMPB_GCMPBASE_MSK) == confaddr;
++			}
++		}
++	}
++	if (gcmp_present <= 0) {
++		/* try addr */
++		_gcmp_base = (unsigned long) ioremap_nocache(addr, GCMP_ADDRSPACE_SZ);
++		gcmp_present = (GCMPGCB(GCMPB) & GCMP_GCB_GCMPB_GCMPBASE_MSK) == addr;
++		confaddr = addr;
++	}
++	if (gcmp_present <= 0) {
++		/* try GCMP_BASE_ADDR */
++		_gcmp_base = (unsigned long) ioremap_nocache(GCMP_BASE_ADDR, GCMP_ADDRSPACE_SZ);
++		gcmp_present = (GCMPGCB(GCMPB) & GCMP_GCB_GCMPB_GCMPBASE_MSK) == GCMP_BASE_ADDR;
++		confaddr = GCMP_BASE_ADDR;
++	}
++//        _msc01_biu_base = (unsigned long) ioremap_nocache(MSC01_BIU_REG_BASE, MSC01_BIU_ADDRSPACE_SZ);
+ 
+-	if (gcmp_present)
+-		pr_debug("GCMP present\n");
++	if (gcmp_present) {
++		printk("GCMP present\n");
++		if (GCMPGCB(GCMPREV) >= 6)
++			cpu_data[0].options |= MIPS_CPU_CM2;
++		if (cpu_has_cm2 && (size > 0x8000)) {
++			GCMPGCB(GCML2S) = (confaddr + 0x8000) | 1;
++			cpu_data[0].options |= MIPS_CPU_CM2_L2SYNC;
++			printk("L2-only SYNC available\n");
++		}
++	}
+ 	return gcmp_present;
+ }
+ 
+@@ -471,7 +513,7 @@ static void __init fill_ipi_map(void)
+ {
+ 	int cpu;
+ 
+-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
++	for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
+ 		fill_ipi_map1(gic_resched_int_base, cpu, GIC_CPU_INT1);
+ 		fill_ipi_map1(gic_call_int_base, cpu, GIC_CPU_INT2);
+ 	}
+@@ -572,12 +614,11 @@ void __init arch_init_irq(void)
+ 		/* FIXME */
+ 		int i;
+ #if defined(CONFIG_MIPS_MT_SMP)
+-		gic_call_int_base = GIC_NUM_INTRS - NR_CPUS;
+-		gic_resched_int_base = gic_call_int_base - NR_CPUS;
++		gic_call_int_base = GIC_NUM_INTRS -
++			(NR_CPUS - nr_cpu_ids) * 2 - nr_cpu_ids;
++		gic_resched_int_base = gic_call_int_base - nr_cpu_ids;
+ 		fill_ipi_map();
+ #endif
+-		gic_init(GIC_BASE_ADDR, GIC_ADDRSPACE_SZ, gic_intr_map,
+-				ARRAY_SIZE(gic_intr_map), MIPS_GIC_IRQ_BASE);
+ 		if (!gcmp_present) {
+ 			/* Enable the GIC */
+ 			i = REG(_msc01_biu_base, MSC01_SC_CFG);
+@@ -585,6 +626,8 @@ void __init arch_init_irq(void)
+ 				(i | (0x1 << MSC01_SC_CFG_GICENA_SHF));
+ 			pr_debug("GIC Enabled\n");
+ 		}
++		gic_init(GIC_BASE_ADDR, GIC_ADDRSPACE_SZ, gic_intr_map,
++				ARRAY_SIZE(gic_intr_map), MIPS_GIC_IRQ_BASE);
+ #if defined(CONFIG_MIPS_MT_SMP)
+ 		/* set up ipi interrupts */
+ 		if (cpu_has_vint) {
+@@ -597,7 +640,7 @@ void __init arch_init_irq(void)
+ 		printk("CPU%d: status register now %08x\n", smp_processor_id(), read_c0_status());
+ 		write_c0_status(0x1100dc00);
+ 		printk("CPU%d: status register frc %08x\n", smp_processor_id(), read_c0_status());
+-		for (i = 0; i < NR_CPUS; i++) {
++		for (i = 0; i < nr_cpu_ids; i++) {
+ 			arch_init_ipiirq(MIPS_GIC_IRQ_BASE +
+ 					 GIC_RESCHED_INT(i), &irq_resched);
+ 			arch_init_ipiirq(MIPS_GIC_IRQ_BASE +

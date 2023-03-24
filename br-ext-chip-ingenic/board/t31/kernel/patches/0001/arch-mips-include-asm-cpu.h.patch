@@ -1,0 +1,71 @@
+
+--- a/arch/mips/include/asm/cpu.h
++++ b/arch/mips/include/asm/cpu.h
+@@ -97,6 +97,10 @@
+ #define PRID_IMP_1074K		0x9a00
+ #define PRID_IMP_M14KC		0x9c00
+ #define PRID_IMP_M14KEC		0x9e00
++#define PRID_IMP_INTERAPTIV_UP	0xa000
++#define PRID_IMP_INTERAPTIV_MP	0xa100
++#define PRID_IMP_PROAPTIV_UP	0xa200
++#define PRID_IMP_PROAPTIV_MP	0xa300
+ 
+ /*
+  * These are the PRID's for when 23:16 == PRID_COMP_SIBYTE
+@@ -144,9 +148,18 @@
+ 
+ /*
+  * These are the PRID's for when 23:16 == PRID_COMP_INGENIC
++ * cpu_h(12bit CPU_FEATURE),chips(8bit),cpu_l(12bit CPU_ISA_ID)
+  */
++#define PRID_CPU_FEATURE_MASK       0xFFF00000
++#define PRID_CPU_CHIPS_MASK         0x000FF000
++#define PRID_CPU_ISA_MASK           0x00000FFF
++
++#define PRID_IMP_JZRISC             0x00010000
++#define PRID_IMP_JZ4775             0x2ed00000
++#define PRID_IMP_JZ4780             0x3ee00000
++#define PRID_IMP_M200               0x7ae00000
++#define PRID_IMP_ISA_R2             0x0000024f
+ 
+-#define PRID_IMP_JZRISC	       0x0200
+ 
+ /*
+  * These are the PRID's for when 23:16 == PRID_COMP_NETLOGIC
+@@ -265,7 +278,7 @@ enum cpu_type_enum {
+ 	CPU_4KC, CPU_4KEC, CPU_4KSC, CPU_24K, CPU_34K, CPU_1004K, CPU_74K,
+ 	CPU_ALCHEMY, CPU_PR4450, CPU_BMIPS32, CPU_BMIPS3300, CPU_BMIPS4350,
+ 	CPU_BMIPS4380, CPU_BMIPS5000, CPU_JZRISC, CPU_LOONGSON1, CPU_M14KC,
+-	CPU_M14KEC,
++	CPU_M14KEC, CPU_PROAPTIV, CPU_INTERAPTIV,
+ 
+ 	/*
+ 	 * MIPS64 class processors
+@@ -277,6 +290,7 @@ enum cpu_type_enum {
+ 	CPU_LAST
+ };
+ 
++#define MIPS_FTLB_CAPABLE       0x1
+ 
+ /*
+  * ISA Level encodings
+@@ -325,6 +339,11 @@ enum cpu_type_enum {
+ #define MIPS_CPU_PCI		0x00400000 /* CPU has Perf Ctr Int indicator */
+ #define MIPS_CPU_RIXI		0x00800000 /* CPU has TLB Read/eXec Inhibit */
+ #define MIPS_CPU_MICROMIPS	0x01000000 /* CPU has microMIPS capability */
++#define MIPS_CPU_SEGMENTS       0x02000000 /* CPU supports memory segmentation */
++#define MIPS_CPU_EVA            0x04000000 /* CPU supports EVA functionality */
++#define MIPS_CPU_TLBINV         0x08000000 /* CPU supports TLBINV/F */
++#define MIPS_CPU_CM2            0x10000000 /* CPU has CM2 */
++#define MIPS_CPU_CM2_L2SYNC     0x20000000 /* CPU has CM2 L2-only SYNC feature */
+ 
+ /*
+  * CPU ASE encodings
+@@ -337,5 +356,7 @@ enum cpu_type_enum {
+ #define MIPS_ASE_MIPSMT		0x00000020 /* CPU supports MIPS MT */
+ #define MIPS_ASE_DSP2P		0x00000040 /* Signal Processing ASE Rev 2 */
+ #define MIPS_ASE_VZ		0x00000080 /* Virtualization ASE */
++#define MIPS_ASE_XBURSTMXU	0x80000000 /* MIPS Xburst eXtended enhanced Unit */
++#define MIPS_ASE_XBURSTMXUV2	0x40000000 /* MIPS Xburst eXtended enhanced Unit V2 */
+ 
+ #endif /* _ASM_CPU_H */

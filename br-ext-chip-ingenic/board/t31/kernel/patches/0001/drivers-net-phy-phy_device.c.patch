@@ -1,0 +1,12 @@
+
+--- a/drivers/net/phy/phy_device.c
++++ b/drivers/net/phy/phy_device.c
+@@ -921,7 +921,7 @@ static int genphy_config_init(struct phy_device *phydev)
+ 	 * all possible port types */
+ 	features = (SUPPORTED_TP | SUPPORTED_MII
+ 			| SUPPORTED_AUI | SUPPORTED_FIBRE |
+-			SUPPORTED_BNC);
++			SUPPORTED_BNC | SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+ 
+ 	/* Do we support autonegotiation? */
+ 	val = phy_read(phydev, MII_BMSR);

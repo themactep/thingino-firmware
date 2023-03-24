@@ -1,0 +1,18 @@
+
+--- /dev/null
++++ b/arch/mips/xburst/soc-t20/chip-t20/isvp/Kconfig
+@@ -0,0 +1,14 @@
++choice
++	prompt "Board type"
++	depends on PLATFORM_T20_ISVP
++	default BOARD_BULL
++
++config BOARD_BULL
++       bool "Bull"
++       depends on PLATFORM_T20_ISVP
++
++endchoice
++
++config BOARD_NAME
++	string
++	default "bull" if BOARD_BULL

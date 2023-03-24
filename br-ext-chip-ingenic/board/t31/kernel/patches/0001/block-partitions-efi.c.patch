@@ -1,0 +1,218 @@
+
+--- a/block/partitions/efi.c
++++ b/block/partitions/efi.c
+@@ -34,7 +34,7 @@
+  * - Ported to 2.5.7-pre1 and 2.5.7-dj2
+  * - Applied patch to avoid fault in alternate header handling
+  * - cleaned up find_valid_gpt
+- * - On-disk structure and copy in memory is *always* LE now - 
++ * - On-disk structure and copy in memory is *always* LE now -
+  *   swab fields as needed
+  * - remove print_gpt_header()
+  * - only use first max_p partition entries, to keep the kernel minor number
+@@ -51,7 +51,7 @@
+  * - moved le_efi_guid_to_cpus() back into this file.  GPT is the only
+  *   thing that keeps EFI GUIDs on disk.
+  * - Changed gpt structure names and members to be simpler and more Linux-like.
+- * 
++ *
+  * Wed Oct 17 2001 Matt Domsch <Matt_Domsch@dell.com>
+  * - Removed CONFIG_DEVFS_VOLUMES_UUID code entirely per Martin Wilck
+  *
+@@ -76,7 +76,7 @@
+  *
+  * Wed Jun  6 2001 Martin Wilck <Martin.Wilck@Fujitsu-Siemens.com>
+  * - added devfs volume UUID support (/dev/volumes/uuids) for
+- *   mounting file systems by the partition GUID. 
++ *   mounting file systems by the partition GUID.
+  *
+  * Tue Dec  5 2000 Matt Domsch <Matt_Domsch@dell.com>
+  * - Moved crc32() to linux/lib, added efi_crc32().
+@@ -100,6 +100,24 @@
+ #include "check.h"
+ #include "efi.h"
+ 
++#define MAKE_SIGNATURE32( a, b, c, d ) \
++        (((u32)(u8)(d)       ) | \
++        ( (u32)(u8)(c) << 8  ) | \
++        ( (u32)(u8)(b) << 16 ) | \
++        ( (u32)(u8)(a) << 24 ) )
++
++#define INGENIC_SIGNATURE  (MAKE_SIGNATURE32('I','N','G','E'))
++
++typedef struct _custom_mbr {
++	u8 boot_code[432];
++	u32 custom_signature;
++	u32 gpt_header_lba;  // gpt header position
++	__le32 unique_mbr_signature;
++	__le16 unknown;
++	struct partition partition_record[4];
++	__le16 signature;
++} __attribute__ ((packed)) custom_mbr;
++
+ /* This allows a kernel command line option 'gpt' to override
+  * the test for invalid PMBR.  Not __initdata because reloading
+  * the partition tables happens after init too.
+@@ -120,7 +138,7 @@ __setup("gpt", force_gpt_fn);
+  * @len - length of buf
+  *
+  * Description: Returns EFI-style CRC32 value for @buf
+- * 
++ *
+  * This function uses the little endian Ethernet polynomial
+  * but seeds the function with ~0, and xor's with ~0 at the end.
+  * Note, the EFI Specification, v1.02, has a reference to
+@@ -135,7 +153,7 @@ efi_crc32(const void *buf, unsigned long len)
+ /**
+  * last_lba(): return number of last logical block of device
+  * @bdev: block device
+- * 
++ *
+  * Description: Returns last LBA value on success, 0 on error.
+  * This is stored (by sd and ide-geometry) in
+  *  the part[0] entry for this disk, and is the number of
+@@ -220,7 +238,7 @@ static size_t read_lba(struct parsed_partitions *state,
+  * alloc_read_gpt_entries(): reads partition entries from disk
+  * @state
+  * @gpt - GPT header
+- * 
++ *
+  * Description: Returns ptes on success,  NULL on error.
+  * Allocates space for PTEs based on information found in @gpt.
+  * Notes: remember to free pte when you're done!
+@@ -238,7 +256,7 @@ static gpt_entry *alloc_read_gpt_entries(struct parsed_partitions *state,
+                 le32_to_cpu(gpt->sizeof_partition_entry);
+ 	if (!count)
+ 		return NULL;
+-	pte = kmalloc(count, GFP_KERNEL);
++	pte = kzalloc(count, GFP_KERNEL);
+ 	if (!pte)
+ 		return NULL;
+ 
+@@ -256,7 +274,7 @@ static gpt_entry *alloc_read_gpt_entries(struct parsed_partitions *state,
+  * alloc_read_gpt_header(): Allocates GPT header, reads into it from disk
+  * @state
+  * @lba is the Logical Block Address of the partition table
+- * 
++ *
+  * Description: returns GPT header on success, NULL on error.   Allocates
+  * and fills a GPT header starting at @ from @state->bdev.
+  * Note: remember to free gpt when finished with it.
+@@ -267,7 +285,7 @@ static gpt_header *alloc_read_gpt_header(struct parsed_partitions *state,
+ 	gpt_header *gpt;
+ 	unsigned ssz = bdev_logical_block_size(state->bdev);
+ 
+-	gpt = kmalloc(ssz, GFP_KERNEL);
++	gpt = kzalloc(ssz, GFP_KERNEL);
+ 	if (!gpt)
+ 		return NULL;
+ 
+@@ -352,6 +370,7 @@ static int is_gpt_valid(struct parsed_partitions *state, u64 lba,
+ 	 * within the disk.
+ 	 */
+ 	lastlba = last_lba(state->bdev);
++
+ 	if (le64_to_cpu((*gpt)->first_usable_lba) > lastlba) {
+ 		pr_debug("GPT: first_usable_lba incorrect: %lld > %lld\n",
+ 			 (unsigned long long)le64_to_cpu((*gpt)->first_usable_lba),
+@@ -359,10 +378,11 @@ static int is_gpt_valid(struct parsed_partitions *state, u64 lba,
+ 		goto fail;
+ 	}
+ 	if (le64_to_cpu((*gpt)->last_usable_lba) > lastlba) {
++		(*gpt)->last_usable_lba = lastlba;
+ 		pr_debug("GPT: last_usable_lba incorrect: %lld > %lld\n",
+ 			 (unsigned long long)le64_to_cpu((*gpt)->last_usable_lba),
+ 			 (unsigned long long)lastlba);
+-		goto fail;
++		//goto fail;
+ 	}
+ 
+ 	/* Check that sizeof_partition_entry has the correct value */
+@@ -420,7 +440,7 @@ is_pte_valid(const gpt_entry *pte, const u64 lastlba)
+  * @lastlba is the last LBA number
+  * Description: Returns nothing.  Sanity checks pgpt and agpt fields
+  * and prints warnings on discrepancies.
+- * 
++ *
+  */
+ static void
+ compare_gpts(gpt_header *pgpt, gpt_header *agpt, u64 lastlba)
+@@ -537,11 +557,13 @@ static int find_valid_gpt(struct parsed_partitions *state, gpt_header **gpt,
+ 	gpt_entry *pptes = NULL, *aptes = NULL;
+ 	legacy_mbr *legacymbr;
+ 	u64 lastlba;
++	u64 gpt_header_lba = GPT_PRIMARY_PARTITION_TABLE_LBA;
+ 
+ 	if (!ptes)
+ 		return 0;
+ 
+ 	lastlba = last_lba(state->bdev);
++
+         if (!force_gpt) {
+                 /* This will be added to the EFI Spec. per Intel after v1.02. */
+                 legacymbr = kzalloc(sizeof (*legacymbr), GFP_KERNEL);
+@@ -549,13 +571,24 @@ static int find_valid_gpt(struct parsed_partitions *state, gpt_header **gpt,
+                         read_lba(state, 0, (u8 *) legacymbr,
+ 				 sizeof (*legacymbr));
+                         good_pmbr = is_pmbr_valid(legacymbr);
++
++                        if (good_pmbr) {
++                            custom_mbr * tmp_mbr = (custom_mbr*)legacymbr;
++                            if (tmp_mbr->custom_signature == INGENIC_SIGNATURE) {
++                                gpt_header_lba = tmp_mbr->gpt_header_lba;
++                                if (gpt_header_lba == 0) {
++                                    gpt_header_lba = GPT_PRIMARY_PARTITION_TABLE_LBA;
++                                }
++                            }
++                        }
++
+                         kfree(legacymbr);
+                 }
+                 if (!good_pmbr)
+                         goto fail;
+         }
+ 
+-	good_pgpt = is_gpt_valid(state, GPT_PRIMARY_PARTITION_TABLE_LBA,
++	good_pgpt = is_gpt_valid(state, gpt_header_lba,
+ 				 &pgpt, &pptes);
+         if (good_pgpt)
+ 		good_agpt = is_gpt_valid(state,
+@@ -577,7 +610,7 @@ static int find_valid_gpt(struct parsed_partitions *state, gpt_header **gpt,
+                 kfree(agpt);
+                 kfree(aptes);
+                 if (!good_agpt) {
+-                        printk(KERN_WARNING 
++                        printk(KERN_WARNING
+ 			       "Alternate GPT is invalid, "
+                                "using primary GPT.\n");
+                 }
+@@ -588,7 +621,7 @@ static int find_valid_gpt(struct parsed_partitions *state, gpt_header **gpt,
+                 *ptes = aptes;
+                 kfree(pgpt);
+                 kfree(pptes);
+-                printk(KERN_WARNING 
++                printk(KERN_WARNING
+                        "Primary GPT is invalid, using alternate GPT.\n");
+                 return 1;
+         }
+@@ -628,6 +661,7 @@ int efi_partition(struct parsed_partitions *state)
+ 	gpt_entry *ptes = NULL;
+ 	u32 i;
+ 	unsigned ssz = bdev_logical_block_size(state->bdev) / 512;
++	u8 unparsed_guid[37];
+ 
+ 	if (!find_valid_gpt(state, &gpt, &ptes) || !gpt || !ptes) {
+ 		kfree(gpt);
+@@ -656,7 +690,11 @@ int efi_partition(struct parsed_partitions *state)
+ 			state->parts[i + 1].flags = ADDPART_FLAG_RAID;
+ 
+ 		info = &state->parts[i + 1].info;
+-		efi_guid_unparse(&ptes[i].unique_partition_guid, info->uuid);
++		/* Instead of doing a manual swap to big endian, reuse the
++		 * common ASCII hex format as the interim.
++		 */
++		efi_guid_unparse(&ptes[i].unique_partition_guid, unparsed_guid);
++		part_pack_uuid(unparsed_guid, info->uuid);
+ 
+ 		/* Naively convert UTF16-LE to 7 bits. */
+ 		label_max = min(sizeof(info->volname) - 1,

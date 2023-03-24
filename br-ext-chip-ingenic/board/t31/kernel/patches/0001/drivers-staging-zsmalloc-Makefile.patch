@@ -1,0 +1,7 @@
+
+--- a/drivers/staging/zsmalloc/Makefile
++++ /dev/null
+@@ -1,3 +0,0 @@
+-zsmalloc-y 		:= zsmalloc-main.o
+-
+-obj-$(CONFIG_ZSMALLOC)	+= zsmalloc.o

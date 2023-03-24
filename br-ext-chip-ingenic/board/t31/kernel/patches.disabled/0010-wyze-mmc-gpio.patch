@@ -1,0 +1,26 @@
+--- a/arch/mips/xburst/soc-t31/common/gpio.c
++++ b/arch/mips/xburst/soc-t31/common/gpio.c
+@@ -978,6 +978,10 @@
+ 			pr_info("Skipping MSC1_PB GPIO setup\n");
+ 			continue;
+ 		}
++		if ((!strcmp(g->name,"wyze-mmc-enable") || !strcmp(g->name,"wyze-mmc-detect")) && !disable_gmac){
++			pr_info("Skipping WYZE GPIO setup\n");
++			continue;
++		}
+ 
+ 		jz = &jz_gpio_chips[g->port];
+ 		if (GPIO_AS_FUNC(g->func)) {
+--- a/arch/mips/xburst/soc-t31/include/mach/platform.h
++++ b/arch/mips/xburst/soc-t31/include/mach/platform.h
+@@ -25,7 +25,9 @@
+ #define MSC1_PORTA							\
+ 	{ .name = "msc1-pA",		.port = GPIO_PORT_A, .func = GPIO_FUNC_3, .pins = 0x30f00, }
+ #define MSC1_PORTB							\
+-	{ .name = "msc1-pB",		.port = GPIO_PORT_B, .func = GPIO_FUNC_1, .pins = (0x6f<<8), }
++	{ .name = "msc1-pB",		.port = GPIO_PORT_B, .func = GPIO_FUNC_1, .pins = (0x6f<<8), }, \
++	{ .name = "wyze-mmc-enable",	.port = GPIO_PORT_B, .func = GPIO_OUTPUT0, .pins = 0x8000, }, \
++	{ .name = "wyze-mmc-detect",	.port = GPIO_PORT_B, .func = GPIO_OUTPUT1, .pins = 0x40000000, }
+ #define MSC1_PORTC							\
+ 	{ .name = "msc1-pC",		.port = GPIO_PORT_C, .func = GPIO_FUNC_0, .pins = (0x3f<<2), }
+ #define I2S_PORTC                           \

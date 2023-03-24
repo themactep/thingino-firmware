@@ -1,0 +1,5 @@
+
+--- a/arch/mips/include/asm/local64.h
++++ /dev/null
+@@ -1 +0,0 @@
+-#include <asm-generic/local64.h>

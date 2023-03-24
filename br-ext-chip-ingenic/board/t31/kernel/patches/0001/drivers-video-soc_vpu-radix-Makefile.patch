@@ -1,0 +1,5 @@
+
+--- /dev/null
++++ b/drivers/video/soc_vpu/radix/Makefile
+@@ -0,0 +1 @@
++obj-$(CONFIG_VPU_RADIX) += radix.o

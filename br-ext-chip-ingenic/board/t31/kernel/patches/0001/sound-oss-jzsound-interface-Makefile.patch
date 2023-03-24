@@ -1,0 +1,6 @@
+
+--- /dev/null
++++ b/sound/oss/jzsound/interface/Makefile
+@@ -0,0 +1,2 @@
++
++obj-$(CONFIG_SOUND_OSS_XBURST) += xb_snd_dsp.o xb_snd_mixer.o

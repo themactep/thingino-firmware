@@ -1,0 +1,18 @@
+
+--- a/drivers/dma/Kconfig
++++ b/drivers/dma/Kconfig
+@@ -88,6 +88,14 @@ config DW_DMAC
+ 	  Support the Synopsys DesignWare AHB DMA controller.  This
+ 	  can be integrated in chips such as the Atmel AT32ap7000.
+ 
++config XBURST_DMAC
++        tristate "XBURST DMA V12 support"
++        depends on SOC_4771 || SOC_4780 || SOC_4775 || SOC_M200 || SOC_T15 || SOC_T10 || SOC_T20 || SOC_T30 || SOC_T21 || SOC_T31
++        select DMA_ENGINE
++        help
++          Support the XBURST DMA controller. This support the
++          jz4770 || jz4780 || jz4775 || jz m200 || jz t15 || jz t10 || jz t20 || jz t30 || jz t21 || jz t31 chip.
++
+ config DW_DMAC_BIG_ENDIAN_IO
+ 	bool "Use big endian I/O register access"
+ 	default y if AVR32

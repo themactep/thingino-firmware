@@ -1,0 +1,14 @@
+
+--- /dev/null
++++ b/drivers/net/wireless/mt7601u/cp_prealloc.sh
+@@ -0,0 +1,10 @@
++#!/bin/bash
++
++logfile="PREALLOC/os/linux/Module.symvers"
++
++if [ -e $logfile ]; then
++  cat PREALLOC/os/linux/Module.symvers >> os/linux/Module.symvers
++fi
++echo
++
++exit 0

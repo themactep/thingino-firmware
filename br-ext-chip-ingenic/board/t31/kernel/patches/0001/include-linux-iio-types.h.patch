@@ -1,0 +1,19 @@
+
+--- a/include/linux/iio/types.h
++++ b/include/linux/iio/types.h
+@@ -26,6 +26,7 @@ enum iio_chan_type {
+ 	IIO_ANGL,
+ 	IIO_TIMESTAMP,
+ 	IIO_CAPACITANCE,
++	IIO_QUATERNION,
+ 	IIO_ALTVOLTAGE,
+ 	IIO_CCT,
+ 	IIO_PRESSURE,
+@@ -46,6 +47,7 @@ enum iio_modifier {
+ 	IIO_MOD_X_OR_Y_OR_Z,
+ 	IIO_MOD_LIGHT_BOTH,
+ 	IIO_MOD_LIGHT_IR,
++	IIO_MOD_R,
+ 	IIO_MOD_ROOT_SUM_SQUARED_X_Y,
+ 	IIO_MOD_SUM_SQUARED_X_Y_Z,
+ 	IIO_MOD_LIGHT_CLEAR,

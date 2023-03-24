@@ -1,0 +1,12 @@
+
+--- a/sound/oss/Kconfig
++++ b/sound/oss/Kconfig
+@@ -247,6 +247,8 @@ config MSND_FIFOSIZE
+ 	  and Pinnacle). Larger values reduce the chance of data overruns at
+ 	  the expense of overall latency. If unsure, use the default.
+ 
++source "sound/oss/jzsound/Kconfig"
++
+ menuconfig SOUND_OSS
+ 	tristate "OSS sound modules"
+ 	depends on ISA_DMA_API && VIRT_TO_BUS

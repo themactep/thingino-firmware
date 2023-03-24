@@ -1,0 +1,26 @@
+
+--- /dev/null
++++ b/sound/soc/ingenic/Kconfig
+@@ -0,0 +1,22 @@
++menuconfig SND_ALSA_INGENIC
++	tristate "SoC Audio for INGENIC"
++	depends on JZRISC && SND_SOC && !SOUND_OSS_XBURST
++	help
++		Say 'Y' to enable Alsa drivers of INGENIC.
++
++if SND_ALSA_INGENIC
++
++config JZ_ASOC_DMA_AUTO_CLR_DRT_MEM
++	bool "JZ audio dma clear auto dirty memory"
++	help
++	  Say Y if you audio dma clear auto dirty memory, so you would not
++	  clear by slience_threshold set by user app
++config JZ_ASOC_DMA_HRTIMER_MODE
++	bool "JZ audio dma cyclic dma with hrtimer callback mode"
++	depends on HIGH_RES_TIMERS
++	default n
++	help
++	  Say Y if you want suport sandard cyclic dma interface, Say N, that
++	  dma cyclic interface is not standard
++
++endif ## SND_ASOC_INGENIC
