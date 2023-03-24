@@ -1,0 +1,13 @@
+auto wlan0
+iface wlan0 inet dhcp
+    pre-up modprobe mac80211
+    pre-up sleep 1
+    pre-up insmod /lib/modules/3.10.14__isvp_swan_1.0__/kernel/drivers/net/wireless/rtlwifi/rtl8189ftv.ko
+    pre-up sleep 1
+    pre-up wpa_passphrase $(fw_printenv -n wifissid || echo openipc) $(fw_printenv -n wifipass || echo openipc) >/tmp/wpa_supplicant.conf
+    pre-up sed -i '2i \\tscan_ssid=1' /tmp/wpa_supplicant.conf
+    pre-up ifconfig wlan0 up
+    pre-up wpa_supplicant -B -Dnl80211 -iwlan0 -c/tmp/wpa_supplicant.conf
+    pre-up sleep 3
+    #pre-up echo -e "nameserver 77.88.8.8\nnameserver 8.8.4.4\n" >/tmp/resolv.conf
+    post-down killall -q wpa_supplicant

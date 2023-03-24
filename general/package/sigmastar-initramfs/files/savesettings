@@ -1,0 +1,7 @@
+#!/bin/sh
+if [ -d /mnt/mmcblk0p1 ]; then
+	tar -cf /tmp/settings.tar -C /overlay root
+	mv -f /tmp/settings.tar /mnt/mmcblk0p1 && echo OpenIPC: Save settings to sdcard
+else
+	echo OpenIPC: Cannot save settings to sdcard
+fi
