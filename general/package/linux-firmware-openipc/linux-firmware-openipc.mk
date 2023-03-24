@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-LINUX_FIRMWARE_OPENIPC_VERSION = 20190717
+LINUX_FIRMWARE_OPENIPC_VERSION = 20221214
 LINUX_FIRMWARE_OPENIPC_SOURCE = linux-firmware-$(LINUX_FIRMWARE_OPENIPC_VERSION).tar.gz
 LINUX_FIRMWARE_OPENIPC_SITE = https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/snapshot
 #LINUX_FIRMWARE_OPENIPC_SITE = http://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git
