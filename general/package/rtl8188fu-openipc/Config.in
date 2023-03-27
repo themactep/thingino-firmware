@@ -2,9 +2,7 @@ config BR2_PACKAGE_RTL8188FU_OPENIPC
 	bool "rtl8188fu-openipc"
 	depends on BR2_LINUX_KERNEL
 	help
-	  Wireless driver rtl8188fu.
-
-	  https://github.com/ulli-kroll/rtl8188fu
+	  Wireless driver rtl8188fu from Ingenic SDK.
 
 comment "RTL8188FU needs a Linux kernel to be built"
 	depends on !BR2_LINUX_KERNEL
