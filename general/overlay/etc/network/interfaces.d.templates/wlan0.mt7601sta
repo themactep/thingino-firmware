@@ -1,4 +1,4 @@
-manual wlan0
+auto wlan0
 iface wlan0 inet dhcp
     pre-up modprobe cfg80211
     pre-up modprobe mt7601sta
