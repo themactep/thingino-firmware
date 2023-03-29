@@ -48,5 +48,11 @@ show_fullname() { echo "openipc-$(ipcinfo --chip-name)-$(ipcinfo --short-sensor)
 
 set_fullname() { show_fullname >/etc/hostname; }
 
+upgrade_from_tftp() {
+  tftp -r uImage.$(fw_printenv -n soc) -l /tmp/uImage.$(fw_printenv -n soc) -g $(fw_printenv -n serverip)
+  tftp -r rootfs.squashfs.$(fw_printenv -n soc) -l /tmp/rootfs.squashfs.$(fw_printenv -n soc) -g $(fw_printenv -n serverip)
+  sysupgrade --kernel=/tmp/uImage.$(fw_printenv -n soc) --rootfs=/tmp/rootfs.squashfs.$(fw_printenv -n soc) -z --force_all
+}
+
 # Source configuration files from /etc/profile.d
 for i in /etc/profile.d/*.sh; do [ -r "$i" ] && . $i; done; unset i
