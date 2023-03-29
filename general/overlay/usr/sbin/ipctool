@@ -1,0 +1,8 @@
+#!/bin/sh
+IPCTOOL=/tmp/ipctool
+if [ ! -x $IPCTOOL ]; then
+  curl -s -L -o $IPCTOOL https://github.com/OpenIPC/ipctool/releases/download/latest/ipctool$ARC
+  chmod +x $IPCTOOL
+  echo "ipctool installed from GitHub"
+fi
+$IPCTOOL $@
