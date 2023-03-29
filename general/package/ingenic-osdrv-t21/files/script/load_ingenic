@@ -1,7 +1,6 @@
 #!/bin/sh
 
 KMOD_PATH=/lib/modules/3.10.14__isvp_turkey_1.0__/ingenic
-SOC=$(ipcinfo --chip-name || fw_printenv -n soc)
 
 echo 1 >/proc/sys/vm/overcommit_memory
 
@@ -84,7 +83,7 @@ echo --------------------
 
 lsmod | grep "tx_isp" >/dev/null
 if [ $? -ne 0 ]; then
-    insmod ${KMOD_PATH/%\//}/tx-isp-${SOC}.ko ${ISP_PARAM}
+    insmod ${KMOD_PATH/%\//}/tx-isp-t21.ko ${ISP_PARAM}
     check_return "insmod isp drv"
 fi
 
@@ -96,6 +95,6 @@ fi
 
 lsmod | grep ${SENSOR} >/dev/null
 if [ $? -ne 0 ]; then
-    insmod ${KMOD_PATH/%\//}/sensor_${SENSOR}_${SOC}.ko ${SENSOR_PARAM}
+    insmod ${KMOD_PATH/%\//}/sensor_${SENSOR}_t21.ko ${SENSOR_PARAM}
     check_return "insmod sensor drv"
 fi
