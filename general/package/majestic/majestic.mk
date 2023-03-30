@@ -28,6 +28,8 @@ else ifeq ($(BR2_OPENIPC_FLAVOR_FPV),y)
 	RELEASE := fpv
 else ifeq ($(BR2_OPENIPC_FLAVOR_LITE),y)
 	RELEASE := lite
+else ifeq ($(BR2_OPENIPC_FLAVOR_ULTIMATE),y)
+	RELEASE := ultimate
 else
 	# default
 	RELEASE := wtf
