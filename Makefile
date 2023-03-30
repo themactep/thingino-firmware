@@ -168,6 +168,8 @@ pack: $(FULL_FIRMWARE_BIN)
 	@echo "DONE"
 
 tftp: $(FULL_FIRMWARE_BIN)
+	@busybox tftp -l $(KERNEL_BIN) -r uImage.$(SOC_MODEL) -p $(TFTP_SERVER_IP)
+	@busybox tftp -l $(ROOTFS_BIN) -r rootfs.squashfs.$(SOC_MODEL) -p $(TFTP_SERVER_IP)
 	@busybox tftp -l $(FULL_FIRMWARE_BIN) -r $(FULL_FIRMWARE_NAME) -p $(TFTP_SERVER_IP)
 
 sdcard: $(FULL_FIRMWARE_BIN)
