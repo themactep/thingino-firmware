@@ -29,8 +29,6 @@ export EDITOR='/bin/vi'
 
 [ -x /usr/bin/arp ] || arp() { cat /proc/net/arp; }
 
-cli() { yaml-cli -i /etc/majestic.yaml $@; }
-
 differ() { diff -rN "/rom$1" "$1"; }
 
 majestic_changes() { diff -L "Majestic changes" -U 3 /rom/etc/majestic.yaml /etc/majestic.yaml; }
