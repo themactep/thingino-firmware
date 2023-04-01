@@ -35,6 +35,10 @@ else
 	RELEASE := wtf
 endif
 
+ifeq ($(RELEASE),lte)
+	RELEASE := fpv
+endif
+
 MAJESTIC_SOURCE := majestic.$(FAMILY).$(RELEASE).master.tar.bz2
 
 MAJESTIC_DEPENDENCIES = \
