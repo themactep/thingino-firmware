@@ -1,45 +1,26 @@
 #!/bin/bash
-#
-# Please check BR2_ROOTFS_POST_BUILD_SCRIPT option in config
-#
 
-D=$(date "+%y.%m.%d")
-echo "OPENIPC_VERSION=${D:0:1}.${D:1}" >>${TARGET_DIR}/usr/lib/os-release
-date "+GITHUB_VERSION=\"${GIT_BRANCH}+${GIT_HASH}, %Y-%m-%d\"" >>${TARGET_DIR}/usr/lib/os-release
-date "+TIME_STAMP=%s" >>${TARGET_DIR}/usr/lib/os-release
-if grep -q fpv_defconfig ${BR2_CONFIG}; then
-  echo "BUILD_OPTION=fpv" >>${TARGET_DIR}/usr/lib/os-release
-elif grep -q lte_defconfig ${BR2_CONFIG}; then
-  echo "BUILD_OPTION=lte" >>${TARGET_DIR}/usr/lib/os-release
-elif grep -q ultimate_defconfig ${BR2_CONFIG}; then
-  echo "BUILD_OPTION=ultimate" >>${TARGET_DIR}/usr/lib/os-release
-else
-  echo "BUILD_OPTION=lite" >>${TARGET_DIR}/usr/lib/os-release
-fi
+DATE=$(date +%y.%m.%d)
+FILE=${TARGET_DIR}/usr/lib/os-release
+
+echo OPENIPC_VERSION=${DATE:0:1}.${DATE:1} >> ${FILE}
+date +GITHUB_VERSION="\"${GIT_BRANCH-local}+${GIT_HASH-build}, %Y-%m-%d"\" >> ${FILE}
+echo BUILD_OPTION=${OPENIPC_RELEASE} >> ${FILE}
+date +TIME_STAMP=%s >> ${FILE}
 
 echo --- BR2_TOOLCHAIN_BUILDROOT_LIBC: ${BR2_EXTERNAL_LIBC}
 rm -f ${TARGET_DIR}/usr/bin/gdbserver
 
-[ ${BR2_EXTERNAL_LIBC} = "glibc" ] && exit 0
-
-if ! grep -q ^BR2_PACKAGE_WIFIBROADCAST=y ${BR2_CONFIG} && \
-  ! grep -q ^BR2_PACKAGE_LIBV4L=y ${BR2_CONFIG} && \
-  ! grep -q ^BR2_PACKAGE_MAVLINK_ROUTER=y ${BR2_CONFIG} && \
-  ! grep -q ^BR2_PACKAGE_INGENIC_OSDRV_T30=y ${BR2_CONFIG}; then
-    rm -f ${TARGET_DIR}/usr/lib/libstdc++*
+CONF="INGENIC_OSDRV_T30=y|LIBV4L=y|MAVLINK_ROUTER=y|WIFIBROADCAST=y"
+if [ ${BR2_EXTERNAL_LIBC} != "glibc" ] && ! grep -qE ${CONF} ${BR2_CONFIG}; then
+  rm -f ${TARGET_DIR}/usr/lib/libstdc++*
 fi
 
-[ ${BR2_EXTERNAL_LIBC} = "uclibc" ] && exit 0
+if [ ${BR2_EXTERNAL_LIBC} = "musl" ]; then
+  NAME=${OPENIPC_RELEASE/lte/fpv}
+  LIST=${BR2_EXTERNAL_SCRIPTS}/excludes/${OPENIPC_MODEL}_${NAME}.list
+  test -e ${LIST} && xargs -a ${LIST} -i rm -f ${TARGET_DIR}{}
 
-ln -sfv /lib/libc.so ${TARGET_DIR}/lib/ld-uClibc.so.0
-ln -sfv ../../lib/libc.so ${TARGET_DIR}/usr/bin/ldd
-
-soc=$(grep defconfig ${BR2_CONFIG} | rev | cut -d "_" -f3- | cut -d "/" -f1 | rev)
-release=$(cat ${TARGET_DIR}/usr/lib/os-release | grep BUILD_OPTION | cut -d "=" -f2)
-exlist="${BR2_EXTERNAL_SCRIPTS}/excludes/${soc}_${release}.list"
-
-if [ -f ${exlist} ]; then
-  for e in $(cat ${exlist}); do
-    rm -f ${TARGET_DIR}${e}
-  done
+  ln -sf /lib/libc.so ${TARGET_DIR}/lib/ld-uClibc.so.0
+  ln -sf ../../lib/libc.so ${TARGET_DIR}/usr/bin/ldd
 fi
