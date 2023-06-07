@@ -75,4 +75,9 @@ define MAJESTIC_INSTALL_TARGET_CMDS
 	[ ! -f "$(TARGET_DIR)/usr/lib/libmbedcrypto.so.6" ] && ln -srfv $(TARGET_DIR)/usr/lib/libmbedcrypto.so.7 $(TARGET_DIR)/usr/lib/libmbedcrypto.so.6
 endef
 
+define MAJESTIC_REMOVE_DOWNLOAD
+	rm -f $(BR2_DL_DIR)/majestic/$(MAJESTIC_SOURCE)
+endef
+MAJESTIC_PRE_DOWNLOAD_HOOKS += MAJESTIC_REMOVE_DOWNLOAD
+
 $(eval $(generic-package))
