@@ -1,22 +1,26 @@
 #!/bin/sh
 
-# You don't usually need to touch this file at all, the full configuration
-# of the bridge can be done in a standard way on /etc/network/interfaces.
-
-# Have a look at /usr/share/doc/bridge-utils/README.Debian.gz if you want
-# more info about the way on wich a bridge is set up on Debian.
+# Configuration of the bridge should be done in /etc/network/interfaces.d/bridgeX
+# Read more at https://wiki.debian.org/BridgeNetworkConnections
 
 [ ! -x /usr/sbin/brctl ] && exit 0
 
 case "$IF_BRIDGE_PORTS" in
-  "")
-    exit 0 ;;
-  none)
-    INTERFACES="" ;;
-  all)
-    INTERFACES=`grep eth /proc/net/dev|sed 's/\(\ *\)\(eth[^:]*\)\(.*\)/\2/'` ;;
-  *)
-    INTERFACES="$IF_BRIDGE_PORTS" ;;
+	"")
+		exit 0
+		;;
+
+	none)
+		INTERFACES=""
+		;;
+
+	all)
+		INTERFACES=$(grep eth /proc/net/dev|sed 's/\(\ *\)\(eth[^:]*\)\(.*\)/\2/')
+		;;
+
+	*)
+		INTERFACES="$IF_BRIDGE_PORTS"
+		;;
 esac
 
 brctl delbr $IFACE
