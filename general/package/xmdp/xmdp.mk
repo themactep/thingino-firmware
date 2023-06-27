@@ -18,7 +18,7 @@ define XMDP_BUILD_CMDS
 endef
 
 define XMDP_INSTALL_TARGET_CMDS
-	install -m 0755 -D $(@D)/xmdp $(TARGET_DIR)/usr/bin/xmdp
+	$(INSTALL) -m 0755 -D $(@D)/xmdp $(TARGET_DIR)/usr/bin/xmdp
 endef
 
 $(eval $(generic-package))

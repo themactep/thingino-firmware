@@ -19,7 +19,7 @@ define AUTONIGHT_BUILD_CMDS
 endef
 
 define AUTONIGHT_INSTALL_TARGET_CMDS
-	install -m 0755 -D $(@D)/autonight $(TARGET_DIR)/usr/bin/autonight
+	$(INSTALL) -m 0755 -D $(@D)/autonight $(TARGET_DIR)/usr/bin/autonight
 endef
 
 $(eval $(generic-package))

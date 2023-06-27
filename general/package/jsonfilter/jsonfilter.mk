@@ -20,7 +20,7 @@ JSONFILTER_DEPENDENCIES = \
     $(if $(BR2_PACKAGE_LIBUBOX),libubox)
 
 define JSONFILTER_INSTALL_TARGET_CMDS
-    install -m 0755 -D $(@D)/jsonpath $(TARGET_DIR)/usr/bin/jsonfilter
+    $(INSTALL) -m 0755 -D $(@D)/jsonpath $(TARGET_DIR)/usr/bin/jsonfilter
 endef
 
 $(eval $(cmake-package))

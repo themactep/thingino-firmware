@@ -16,7 +16,7 @@ define I2C_TELEMETRY_BUILD_CMDS
 endef
 
 define I2C_TELEMETRY_INSTALL_TARGET_CMDS
-	install -m 0755 -D $(@D)/ina219 $(TARGET_DIR)/usr/sbin/ina219
+	$(INSTALL) -m 0755 -D $(@D)/ina219 $(TARGET_DIR)/usr/sbin/ina219
 endef
 
 $(eval $(generic-package))
