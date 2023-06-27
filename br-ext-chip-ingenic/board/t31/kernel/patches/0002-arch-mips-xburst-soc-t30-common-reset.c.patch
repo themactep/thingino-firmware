@@ -1,0 +1,12 @@
+
+--- a/arch/mips/xburst/soc-t30/common/reset.c
++++ b/arch/mips/xburst/soc-t30/common/reset.c
+@@ -89,7 +89,7 @@ static void inline rtc_write_reg(int reg,int value)
+  * Function: Keep power for CPU core when reset.
+  * So that EPC, tcsm and so on can maintain it's status after reset-key pressed.
+  */
+-void inline reset_keep_power(int keep_pwr)
++static void inline reset_keep_power(int keep_pwr)
+ {
+ 	if (keep_pwr)
+ 		rtc_write_reg(RTC_PWRONCR,

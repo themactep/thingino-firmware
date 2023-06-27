@@ -1,0 +1,18 @@
+config BR2_PACKAGE_INGENIC_OSDRV_T21
+	bool "ingenic-osdrv-t21"
+	help
+	  ingenic-osdrv-t21 - Ingenic kernel modules and libs
+
+	  https://openipc.org
+
+config BR2_OPENIPC_SENSOR_KO_SHA1
+	string "sensor_xxxx.ko SHA1"
+	default ""
+	help
+	  Sensor driver file SHA1 hash
+
+config BR2_OPENIPC_TXISP_KO_SHA1
+	string "tx-isp.ko SHA1"
+	default ""
+	help
+	  TX-ISP driver file SHA1 hash

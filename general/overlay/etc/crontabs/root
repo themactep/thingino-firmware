@@ -1,0 +1,23 @@
+#
+# Example of job definition:
+# .---------------- minute (0 - 59)
+# |    .------------- hour (0 - 23)
+# |    |      .---------- day of month (1 - 31)
+# |    |      |     .------- month (1 - 12) OR jan,feb,mar,apr ...
+# |    |      |     |     .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+# |    |      |     |     |
+# *    *      *     *     *     command to be executed
+#
+#
+#*/30  *      *     *     *     /usr/bin/logger -p cron.info -t crond WTF ?
+#
+#*/30  *      *     *     *     /usr/sbin/send2email.sh
+#
+#*/30  *      *     *     *     /usr/sbin/send2ftp.sh
+#
+#*/30  *      *     *     *     /usr/sbin/send2telegram.sh
+#
+#*/30  *      *     *     *     /usr/sbin/send2telegram.sh -t 3651038111:ACHzXLtPAUiKi3715S1 -c -10028718
+#
+#*/30  *      *     *     *     /usr/sbin/send2yadisk.sh 
+#

@@ -1,0 +1,7 @@
+config BR2_PACKAGE_MAJESTIC_FONTS
+	bool "Majestic, fonts package"
+	default n
+	help
+	  Minimized TTF fonts for Majestic streamer
+
+	  https://openipc.org

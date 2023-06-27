@@ -1,0 +1,5 @@
+buildroot-*/
+output-*/
+general/package.disabled/
+sdk/
+tmp/

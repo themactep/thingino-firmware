@@ -1,0 +1,68 @@
+name: toolchain
+on:
+  workflow_dispatch:
+
+env:
+  TAG_NAME: latest
+
+jobs:
+  toolchain:
+    name: Toolchain
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - ak3918ev300
+          - dm36x
+          - fh8852v100
+          - fh8852v200
+          - gk7102
+          - gm8136
+          - hi3516cv100
+          - hi3516cv200
+          - hi3516cv300
+          - hi3516cv500
+          - hi3516ev200
+          - hi3519v101
+          - hi3536cv100
+          - msc313e
+          - msc316dc
+          - msc316dm
+          - nt98562
+          - rv1126
+          - s3l
+          - ssc335
+          - ssc338q
+          - t31
+          - t40
+          - xm510
+          - xm530
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      - name: Build toolchain
+        run: |
+          echo "8.8.8.8 invisible-mirror.net" | sudo tee -a /etc/hosts
+          echo "8.8.8.8 distfiles.dereferenced.org" | sudo tee -a /etc/hosts
+
+          CONFIG=$(find br-ext-chip-* -name ${{matrix.platform}}_lite_defconfig)
+          GCC=$(make BOARD=${CONFIG} toolname)
+          echo GCC=${GCC} >> ${GITHUB_ENV}
+          URL=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG_NAME}/${GCC}.tgz
+          echo ${URL}
+          if ! wget --spider ${URL} 2> /dev/null; then
+            sed -i "s|EXTERNAL=y|EXTERNAL=n|g" ${CONFIG}
+            make BOARD=${CONFIG} br-sdk
+            SDK=$(find output/images -name *_sdk-buildroot.tar.gz)
+            mv ${SDK} ${GCC}.tgz
+          fi
+
+      - name: Upload toolchain
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{env.TAG_NAME}}
+          files: ${{env.GCC}}.tgz

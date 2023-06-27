@@ -1,0 +1,9 @@
+config BR2_PACKAGE_MAVFWD
+	bool "mavfwd"
+	default n
+	select BR2_PACKAGE_LIBEVENT_OPENIPC
+	select BR2_PACKAGE_DATALINK
+	help
+	  mavfwd - Cool and awesome mavlink forwader for FPV
+
+	  https://github.com/OpenIPC/mavfwd

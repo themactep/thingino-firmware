@@ -1,0 +1,9 @@
+## @file
+# CODEOWNERS
+#
+# Copyright (c) 2022, Intel Corporation. All rights reserved.<BR>
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+*       @widgetii @dimerr @FlyRouter
+docs/*  @cronyx @p0i5k @themactep @ZigFisher

@@ -1,0 +1,22 @@
+diff --git a/scripts/kconfig/menu.c b/scripts/kconfig/menu.c
+index a26cc5d..72c9dba 100644
+--- a/scripts/kconfig/menu.c
++++ b/scripts/kconfig/menu.c
+@@ -525,7 +525,7 @@
+ {
+ 	int i, j;
+ 	struct menu *submenu[8], *menu, *location = NULL;
+-	struct jump_key *jump;
++	struct jump_key *jump = NULL;
+ 
+ 	str_printf(r, _("Prompt: %s\n"), _(prop->text));
+ 	menu = prop->menu->parent;
+@@ -563,7 +563,7 @@
+ 		str_printf(r, _("  Location:\n"));
+ 		for (j = 4; --i >= 0; j += 2) {
+ 			menu = submenu[i];
+-			if (head && location && menu == location)
++			if (jump && menu == location)
+ 				jump->offset = r->len - 1;
+ 			str_printf(r, "%*c-> %s", j, ' ',
+ 				   _(menu_get_prompt(menu)));
