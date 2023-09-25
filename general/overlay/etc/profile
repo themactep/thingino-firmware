@@ -46,6 +46,10 @@ set_fullname() {
 	show_fullname >/etc/hostname
 }
 
+show_wlan() {
+	grep -r '$1..=' /etc/wireless | cut -d '"' -f 4
+}
+
 upgrade_from_tftp() {
 	tftp -r uImage.$(fw_printenv -n soc) -l /tmp/uImage.$(fw_printenv -n soc) -g $(fw_printenv -n serverip)
 	tftp -r rootfs.squashfs.$(fw_printenv -n soc) -l /tmp/rootfs.squashfs.$(fw_printenv -n soc) -g $(fw_printenv -n serverip)
