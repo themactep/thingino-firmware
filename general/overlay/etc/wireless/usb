@@ -1,6 +1,7 @@
 #!/bin/sh
 
 set_gpio() {
+	test -e /sys/class/gpio/gpio$1 && echo $1 > /sys/class/gpio/unexport
 	echo $1 > /sys/class/gpio/export
 	echo out > /sys/class/gpio/gpio$1/direction
 	echo $2 > /sys/class/gpio/gpio$1/value
@@ -25,6 +26,27 @@ if [ "$1" = "rtl8733bu-generic" ]; then
 	exit 0
 fi
 
+# GK7205V200 CamHi
+if [ "$1" = "mt7601u-gk7205v200-camhi" ]; then
+	set_gpio 9 0
+	modprobe mt7601u
+	exit 0
+fi
+
+# GK7205V200 CamHi
+if [ "$1" = "rtl8733bu-gk7205v200-camhi" ]; then
+	set_gpio 9 0
+	modprobe 8733bu
+	exit 0
+fi
+
+# GK7205V200 Kafei
+if [ "$1" = "8188fu-gk7205v200-kafei" ]; then
+	set_gpio 57 0
+	modprobe 8188fu
+	exit 0
+fi
+
 # HI3516EV200 CamHi
 if [ "$1" = "mt7601u-hi3516ev200-camhi" ]; then
 	set_gpio 9 0
@@ -36,6 +58,12 @@ fi
 if [ "$1" = "mt7601u-hi3516ev300-camhi" ]; then
 	devmem 0x100C0080 32 0x530
 	set_gpio 7 0
+	modprobe mt7601sta
+	exit 0
+fi
+
+# HI3518EV100 CamHi
+if [ "$1" = "mt7601u-hi3518ev100-camhi" ]; then
 	modprobe mt7601sta
 	exit 0
 fi
@@ -59,6 +87,12 @@ fi
 if [ "$1" = "rtl8188fu-ssc337de-foscam" ]; then
 	set_gpio 15 0
 	modprobe 8188fu
+	exit 0
+fi
+
+# SSC337DE Vendor
+if [ "$1" = "aic8800-ssc337de-vendor" ]; then
+	modprobe aic8800_fdrv
 	exit 0
 fi
 
