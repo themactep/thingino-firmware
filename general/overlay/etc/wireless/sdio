@@ -1,6 +1,7 @@
 #!/bin/sh
 
 set_gpio() {
+	test -e /sys/class/gpio/gpio$1 && echo $1 > /sys/class/gpio/unexport
 	echo $1 > /sys/class/gpio/export
 	echo out > /sys/class/gpio/gpio$1/direction
 	echo $2 > /sys/class/gpio/gpio$1/value
@@ -22,9 +23,9 @@ if [ "$1" = "atbm603x-t31-mmc0" ]; then
 	devmem 0x10011134 32 0x20000
 	set_mmc 0
 
-	cp /usr/share/atbm603x_conf/atbm_txpwer_dcxo_cfg.txt /tmp
-	cp /usr/share/atbm603x_conf/set_rate_power.txt /tmp
-	modprobe atbm603x_wifi_sdi0 atbm_printk_mask=0
+	cp /usr/share/atbm60xx_conf/atbm_txpwer_dcxo_cfg.txt /tmp
+	cp /usr/share/atbm60xx_conf/set_rate_power.txt /tmp
+	modprobe atbm603x_wifi_sdio atbm_printk_mask=0
 	exit 0
 fi
 
@@ -34,20 +35,32 @@ if [ "$1" = "atbm603x-t31-mmc1" ]; then
 	devmem 0x10011110 32 0x6e094800
 	set_mmc 1
 
-	cp /usr/share/atbm603x_conf/atbm_txpwer_dcxo_cfg.txt /tmp
-	cp /usr/share/atbm603x_conf/set_rate_power.txt /tmp
-	modprobe atbm603x_wifi_sdi1 atbm_printk_mask=0
+	cp /usr/share/atbm60xx_conf/atbm_txpwer_dcxo_cfg.txt /tmp
+	cp /usr/share/atbm60xx_conf/set_rate_power.txt /tmp
+	modprobe atbm603x_wifi_sdio atbm_printk_mask=0
 	exit 0
 fi
 
 # T31 Wyze V3 / AtomCam 2 ATBM603x
 if [ "$1" = "atbm603x-t31-wyze-v3" ]; then
-	set_gpio 57 1
+	set_gpio 57 0;set_gpio 57 1
 	set_mmc 1
 
-	cp /usr/share/atbm603x_conf/atbm_txpwer_dcxo_cfg.txt /tmp
-	cp /usr/share/atbm603x_conf/set_rate_power.txt /tmp
-	modprobe atbm603x_wifi_sdi1 atbm_printk_mask=0
+	cp /usr/share/atbm60xx_conf/atbm_txpwer_dcxo_cfg.txt /tmp
+	cp /usr/share/atbm60xx_conf/set_rate_power.txt /tmp
+	modprobe atbm603x_wifi_sdio atbm_printk_mask=0
+	exit 0
+fi
+
+# T31 Wyze PanV2 ATBM603x
+if [ "$1" = "atbm603x-t31-wyze-pan-v2" ]; then
+
+	set_gpio 58 0;set_gpio 58 1
+	set_mmc 1
+
+	cp /usr/share/atbm60xx_conf/atbm_txpwer_dcxo_cfg.txt /tmp
+	cp /usr/share/atbm60xx_conf/set_rate_power.txt /tmp
+	modprobe atbm603x_wifi_sdio atbm_printk_mask=0
 	exit 0
 fi
 
@@ -74,7 +87,7 @@ if [ "$1" = "rtl8189ftv-t20-wyze-v2" ]; then
 fi
 
 # T20 Wyze PanV1 RTL8189ES
-if [ "$1" = "rtl8189ftv-t20-wyze-pan-v1" ]; then
+if [ "$1" = "rtl8189es-t20-wyze-pan-v1" ]; then
 	set_mmc 1
 	modprobe 8189es rtw_power_mgnt=0 rtw_enusbss=0
 	exit 0
