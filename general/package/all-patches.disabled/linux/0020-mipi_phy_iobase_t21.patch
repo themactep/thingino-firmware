@@ -1,0 +1,39 @@
+--- a/arch/mips/xburst/soc-t21/include/soc/base.h
++++ b/arch/mips/xburst/soc-t21/include/soc/base.h
+@@ -20,7 +20,11 @@
+ #define MONITOR_IOBASE	0x130f0000		// T21 delete
+ #define EPDC_IOBASE	0x130c0000			// T21 delete
+ #define EPDCE_IOBASE	0x130d0000		// T21 delete
++#define MIPI_CSI_IOBASE	0x10040000
++#define MIPI_PHY_IOBASE 0x10022000
+ #define DSI_IOBASE      0x13014000		// T21 delete
++#define ISP_VIC_IOBASE	0x13300000
++#define ISP_CORE_IOBASE	0x13380000
+ 
+ /* AHB1 BUS Devices Base */
+ #define SCH_IOBASE	0x13200000
+--- a/arch/mips/xburst/soc-t21/include/soc/irq.h
++++ b/arch/mips/xburst/soc-t21/include/soc/irq.h
+@@ -33,8 +33,10 @@
+ 	IRQ_GPIO0,
+ #define IRQ_GPIO_PORT(N) (IRQ_GPIO0 - (N))
+ 	IRQ_SADC,
+-	IRQ_RESERVED19,
+-	IRQ_RESERVED20,
++//	IRQ_RESERVED19,
++	IRQ_MSCALER,
++//	IRQ_RESERVED20,
++	IRQ_LDC,
+ 	IRQ_OTG,
+ 	IRQ_HASH,
+ 	IRQ_AES,
+@@ -48,7 +50,8 @@
+ 	IRQ_LCDC,
+ 
+ 	IRQ_RTC,
+-	IRQ_RESERVED33,
++//	IRQ_RESERVED33,
++	IRQ_NCU,
+ 	IRQ_DTRNG,
+ 	IRQ_RESERVED35,
+ 	IRQ_MSC1,

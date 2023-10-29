@@ -1,2 +1,2 @@
-name: GENERAL
-desc: Buildroot external tree for general packages
+name: OPENIPC
+desc: OpenIPC br2-external tree

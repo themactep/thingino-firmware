@@ -1,6 +1,0 @@
-
---- /dev/null
-+++ b/tools/perf/Documentation/GNUmakefile
-@@ -0,0 +1,2 @@
-+%:
-+	@:

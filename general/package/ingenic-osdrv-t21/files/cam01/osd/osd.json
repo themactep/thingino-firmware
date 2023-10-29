@@ -1,0 +1,12 @@
+{
+	"time": {
+		"x_pct": 2.5,
+		"y_pct": 4.444444,
+		"w_pix": 16,
+		"h_pix": 32,
+		"max"  : 19,
+		"format":"%F %T",
+		"order": "0123456789- :",
+		"file":"/app/osd/time.rgba"
+	}
+}

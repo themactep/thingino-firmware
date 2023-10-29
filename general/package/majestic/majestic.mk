@@ -4,47 +4,45 @@
 #
 ################################################################################
 
-MAJESTIC_VERSION = current
 MAJESTIC_SITE = https://openipc.s3-eu-west-1.amazonaws.com
+MAJESTIC_SOURCE = majestic.$(MAJESTIC_FAMILY).$(MAJESTIC_RELEASE).master.tar.bz2
 
 MAJESTIC_LICENSE = PROPRIETARY
 MAJESTIC_LICENSE_FILES = LICENSE
 
-$(eval FAMILY := $(patsubst "%",%,$(BR2_OPENIPC_SOC_FAMILY)))
-ifeq ($(FAMILY),t10)
-	FAMILY := t21
+$(eval MAJESTIC_FAMILY = $(patsubst "%",%,$(BR2_OPENIPC_SOC_FAMILY)))
+ifeq ($(MAJESTIC_FAMILY),t10)
+	MAJESTIC_FAMILY= t21
 endif
 
-$(eval RELEASE := $(patsubst "%",%,$(BR2_OPENIPC_SOC_FLAVOR)))
-ifeq ($(RELEASE),y)
-	RELEASE := ultimate
-	# we don't have Majestic binary Ultimate distributions for these
-	# platforms so use Lite
-	ifeq ($(FAMILY),hi3516av100)
-		RELEASE := lite
-	else ifeq ($(FAMILY),hi3519v101)
-		RELEASE := lite
-	endif
+# we don't have Majestic ultimate for these platforms
+MAJESTIC_LIST = hi3516av100 hi3519v101 t21
+
+$(eval MAJESTIC_RELEASE = $(patsubst "%",%,$(BR2_OPENIPC_SOC_FLAVOR)))
+ifeq ($(MAJESTIC_RELEASE),y)
+	MAJESTIC_RELEASE = ultimate
 else ifeq ($(BR2_OPENIPC_FLAVOR_FPV),y)
-	RELEASE := fpv
+	MAJESTIC_RELEASE = fpv
 else ifeq ($(BR2_OPENIPC_FLAVOR_LITE),y)
-	RELEASE := lite
+	MAJESTIC_RELEASE = lite
 else ifeq ($(BR2_OPENIPC_FLAVOR_ULTIMATE),y)
-	RELEASE := ultimate
+	MAJESTIC_RELEASE = ultimate
 else
 	# default
-	RELEASE := wtf
+	MAJESTIC_RELEASE = wtf
 endif
 
-ifeq ($(RELEASE),lte)
-	RELEASE := fpv
+ifneq ($(filter $(MAJESTIC_LIST),$(MAJESTIC_FAMILY)),)
+	MAJESTIC_RELEASE = lite
 endif
 
-MAJESTIC_SOURCE := majestic.$(FAMILY).$(RELEASE).master.tar.bz2
+ifeq ($(MAJESTIC_RELEASE),lte)
+	MAJESTIC_RELEASE = fpv
+endif
 
 MAJESTIC_DEPENDENCIES = \
-	libevent-openipc \
 	json-c \
+	libevent-openipc \
 	mbedtls \
 	mxml \
 	zlib
@@ -60,6 +58,8 @@ MAJESTIC_DEPENDENCIES += \
 	lame
 endif
 
+MAJESTIC_STRIP_COMPONENTS = 0
+
 define MAJESTIC_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
 	$(INSTALL) -m 644 $(@D)/majestic-mini.yaml $(TARGET_DIR)/etc/majestic.yaml
@@ -74,11 +74,8 @@ define MAJESTIC_INSTALL_TARGET_CMDS
 	# Majestic is compiled for older libmbedtls
 	[ ! -f "$(TARGET_DIR)/usr/lib/libmbedtls.so.13" ] && ln -srfv $(TARGET_DIR)/usr/lib/libmbedtls.so.14 $(TARGET_DIR)/usr/lib/libmbedtls.so.13
 	[ ! -f "$(TARGET_DIR)/usr/lib/libmbedcrypto.so.6" ] && ln -srfv $(TARGET_DIR)/usr/lib/libmbedcrypto.so.7 $(TARGET_DIR)/usr/lib/libmbedcrypto.so.6
-endef
 
-define MAJESTIC_REMOVE_DOWNLOAD
-	rm -f $(BR2_DL_DIR)/majestic/$(MAJESTIC_SOURCE)
+	rm -rf $(MAJESTIC_DL_DIR)
 endef
-MAJESTIC_PRE_DOWNLOAD_HOOKS += MAJESTIC_REMOVE_DOWNLOAD
 
 $(eval $(generic-package))

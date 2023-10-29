@@ -5,7 +5,7 @@
 #
 
 # (patsubst "%",%,$(BR2_OPENIPC_BR_VERSION))
-BUILDROOT_VERSION = 2023.08.1
+BUILDROOT_VERSION = 2023.08.2
 
 # overrides Buildroot dl/ directory
 # can be reused from environment, just export the value:
