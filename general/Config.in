@@ -1,21 +1,69 @@
-config BR2_OPENIPC_SOC_VENDOR
-	string "SoC vendor"
-	default "hisilicon"
+config BR2_OPENIPC
+	bool "OpenIPC Firmware"
+	default y
+	help
+	  OpenIPC firmware.
 
-config BR2_OPENIPC_SOC_MODEL
-	string "SoC model"
-	default "hi3516ev300"
+	  https://openipc.org
+
+if BR2_OPENIPC
+
+config BR2_OPENIPC_SOC_VENDOR
+	string "SoC manufacturer"
 
 config BR2_OPENIPC_SOC_FAMILY
 	string "SoC family"
-	default "hi3516ev200"
+
+config BR2_OPENIPC_SOC_MODEL
+	string "SoC model"
+
+config BR2_OPENIPC_SENSOR_MODEL
+	string "Image sensor model"
+
+config BR2_OPENIPC_BR_VERSION
+	string "Version of Buildroot"
 
 config BR2_OPENIPC_FLAVOR
-	string "OpenIPC flavor"
-	default "lite"
+	bool
+	depends on BR2_OPENIPC
+
+choice
+	prompt "Flash chip size"
+
+config BR2_OPENIPC_FLASH_SIZE_8M
+	bool "8MB Flash Chip"
+
+config BR2_OPENIPC_FLASH_SIZE_16M
+	bool "16MB Flash Chip"
+endchoice
+
+choice
+	prompt "Which flavor to use"
+
+config BR2_OPENIPC_FLAVOR_LITE
+	bool "Lite"
+	help
+	  Light version for 8MB flash chip
+
+config BR2_OPENIPC_FLAVOR_FPV
+	bool "FPV"
+	help
+	  Version for drones
+
+config BR2_OPENIPC_FLAVOR_ULTIMATE
+	bool "Ultimate"
+	help
+	  Advanced version for 16MB flash chip
+	select BR2_OPENIPC_FLASH_SIZE_16M
+	select BR2_PACKAGE_LAME_OPENIPC
+	select BR2_PACKAGE_LIBWEBSOCKETS_OPENIPC
+	select BR2_PACKAGE_ZEROTIER_ONE
+endchoice
 
 config BR2_OPENIPC_FLASH_SIZE
 	string "OpenIPC flash size"
 	default "8"
 
-source "$BR2_EXTERNAL_GENERAL_PATH/package/Config.in"
+source "$BR2_EXTERNAL_OPENIPC_PATH/package/Config.in"
+
+endif
