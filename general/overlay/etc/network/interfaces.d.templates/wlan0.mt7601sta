@@ -1,9 +1,0 @@
-auto wlan0
-iface wlan0 inet dhcp
-    pre-up modprobe cfg80211
-    pre-up modprobe mt7601sta
-    pre-up wpa_passphrase $(fw_printenv -n wifissid || echo openipc) $(fw_printenv -n wifipass || echo openipc) >/tmp/wpa_supplicant.conf
-    pre-up sed -i '2i \\tscan_ssid=1' /tmp/wpa_supplicant.conf
-    pre-up sleep 3
-    pre-up wpa_supplicant -B -D wext -i wlan0 -c/tmp/wpa_supplicant.conf
-    post-down killall -q wpa_supplicant

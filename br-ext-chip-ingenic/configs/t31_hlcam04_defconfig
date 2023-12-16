@@ -3604,11 +3604,9 @@ BR2_TARGET_UBOOT_CUSTOM_PATCH_DIR=""
 #
 # Buildroot external tree for Ingenic based IP cameras (in /home/paul/localwork/openipc-firmware-themactep/br-ext-chip-ingenic)
 #
-BR2_OPENIPC=y
 BR2_OPENIPC_SOC_VENDOR="ingenic"
 BR2_OPENIPC_SOC_FAMILY="t31"
 BR2_OPENIPC_SOC_MODEL="t31n"
-BR2_OPENIPC_BR_VERSION="2022.11.2"
 # BR2_OPENIPC_FLASH_SIZE_8M is not set
 BR2_OPENIPC_FLASH_SIZE_16M=y
 BR2_OPENIPC_FLAVOR_ULTIMATE=y

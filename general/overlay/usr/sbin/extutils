@@ -1,27 +1,28 @@
 #!/bin/sh
 
-CMD=$(echo $0 | cut -d / -f 4)
-ARCH=$(uname -m)
-
-if echo $ARCH | grep -q mips; then
-	ARC='-mips32'
-else
-	ARC=''
-fi
-
-case "${CMD}" in
+case "$(echo $0 | cut -d / -f 4)" in
 	cli)
 		yaml-cli -i /etc/majestic.yaml "$@"
 		;;
 
 	sensor_cli)
-		yaml-cli -i /etc/sensor/$(fw_printenv -n sensor).yaml $@
+		sensor=$(fw_printenv -n sensor)
+		if [ -z "$sensor" ]; then
+			echo "Sensor is not defined in u-boot environment"
+			exit 1
+		fi
+		yaml-cli -i /etc/sensor/${sensor}.yaml $@
 		;;
 
 	ipctool)
+		if echo $(uname -m) | grep -q mips; then
+			filename='ipctool-mips32'
+		else
+			filename='ipctool'
+		fi
 		IPCTOOL=/tmp/ipctool
 		if [ ! -x $IPCTOOL ]; then
-			curl -s -L -o $IPCTOOL https://github.com/OpenIPC/ipctool/releases/download/latest/ipctool$ARC
+			curl -s -L -o $IPCTOOL https://github.com/OpenIPC/ipctool/releases/download/latest/${filename}
 			chmod +x $IPCTOOL
 			echo "The ipctool installed as remote GitHub plugin"
 		fi
@@ -30,10 +31,29 @@ case "${CMD}" in
 
 	check_mac)
 		if [ "$(fw_printenv -n ethaddr)" = "00:00:23:34:45:66" ]; then
-			XMMAC="$(ipcinfo --xm-mac)" && [ -n "${XMMAC}" ] && [ ! "Nothing found." = "${XMMAC}" ] && fw_setenv ethaddr ${XMMAC} && reboot -f || echo "Warning. Wired network interface has default MAC address, please change it."
+			XMMAC=$(ipcinfo --xm-mac)
+			if [ -z "$XMMAC" -o "Nothing found." = "$XMMAC" ]; then
+				echo "Ethernet interface MAC address is invalid, please change it."
+				exit 1
+			fi
+			fw_setenv ethaddr $XMMAC
+			reboot -f
+
 		fi
 		;;
 
+	system_fb)
+		[ -f /etc/system.ok ] && exit 1
+
+		if [ -f /usr/share/openipc/customizer.sh ]; then
+			echo "Run customizer"
+			sh /usr/share/openipc/customizer.sh
+			touch /etc/system.ok
+		else
+			echo "Customizer not found"
+			exit 1
+		fi
+		;;
 	*)
 		;;
 esac

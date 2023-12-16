@@ -1,5 +1,6 @@
 config BR2_PACKAGE_IPCTOOL
 	bool "ipctool"
+	select BR2_PACKAGE_LIBYAML
 	help
 	  ipctool - IP cameras chip information tool
 

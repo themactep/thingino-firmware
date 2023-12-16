@@ -10,7 +10,7 @@ MAJESTIC_SOURCE = majestic.$(MAJESTIC_FAMILY).$(MAJESTIC_RELEASE).master.tar.bz2
 MAJESTIC_LICENSE = PROPRIETARY
 MAJESTIC_LICENSE_FILES = LICENSE
 
-$(eval MAJESTIC_FAMILY = $(patsubst "%",%,$(BR2_OPENIPC_SOC_FAMILY)))
+$(eval MAJESTIC_FAMILY = $(patsubst "%",%,$(OPENIPC_SOC_FAMILY)))
 ifeq ($(MAJESTIC_FAMILY),t10)
 	MAJESTIC_FAMILY= t21
 endif
@@ -18,18 +18,12 @@ endif
 # we don't have Majestic ultimate for these platforms
 MAJESTIC_LIST = hi3516av100 hi3519v101 t21
 
-$(eval MAJESTIC_RELEASE = $(patsubst "%",%,$(BR2_OPENIPC_SOC_FLAVOR)))
-ifeq ($(MAJESTIC_RELEASE),y)
-	MAJESTIC_RELEASE = ultimate
-else ifeq ($(BR2_OPENIPC_FLAVOR_FPV),y)
+ifeq ($(BR2_OPENIPC_FLAVOR_FPV),y)
 	MAJESTIC_RELEASE = fpv
 else ifeq ($(BR2_OPENIPC_FLAVOR_LITE),y)
 	MAJESTIC_RELEASE = lite
 else ifeq ($(BR2_OPENIPC_FLAVOR_ULTIMATE),y)
 	MAJESTIC_RELEASE = ultimate
-else
-	# default
-	MAJESTIC_RELEASE = wtf
 endif
 
 ifneq ($(filter $(MAJESTIC_LIST),$(MAJESTIC_FAMILY)),)
