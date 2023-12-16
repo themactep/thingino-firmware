@@ -3,47 +3,36 @@
 # OpenIPC.org | v.20220722
 #
 
-set -e
-
-mpp=$(awk '/Version:/ {print $3,$4"]"}' /proc/umap/sys) || true
+mpp=$(awk '/Version:/ {print $3,$4"]"}' /proc/umap/sys) || echo "unknown MPP"
 soc=$(ipcinfo --chip-name)
 
-prepare() {
-	case ${soc} in
+PQL_URL="https://github.com/widgetii/pqtools/raw/master"
+PQT_DL_URL="https://raw.githubusercontent.com/widgetii/pqtools/master"
 
+case ${soc} in
 	hi3516ev200 | hi3516ev300 | hi3516dv200 | hi3518ev300)
-		echo -e "\n\e[1;31mA supported processor with ${mpp} was found...\e[0m\n"
-		echo -e "\n\e[1;31mDownload PQTools from https://github.com/widgetii/pqtools/raw/master/hi3516ev300/PQTools.tgz\e[0m\n"
-		ittb_url="https://raw.githubusercontent.com/widgetii/pqtools/master/hi3516ev300/ittb_V1.0.1.2.tgz"
+		pqtools_url="${PQL_URL}/hi3516ev300/PQTools.tgz"
+		ittb_url="${PQT_DL_URL}/hi3516ev300/ittb_V1.0.1.2.tgz"
 		ittb_folder="ittb_V1.0.1.2"
 		;;
-
 	gk7205v200 | gk7205v300)
-		echo -e "\n\e[1;31mA supported processor with unknown MPP was found...\e[0m\n"
-		echo -e "\n\e[1;31mDownload PQTools from https://github.com/widgetii/pqtools/raw/master/gk7205v200/PQTools.tgz\e[0m\n"
-		ittb_url="https://raw.githubusercontent.com/widgetii/pqtools/master/gk7205v200/ittb_V1.0.2.0.tgz"
+		pqtools_url="${PQL_URL}/gk7205v200/PQTools.tgz"
+		ittb_url="${PQT_DL_URL}/gk7205v200/ittb_V1.0.2.0.tgz"
 		ittb_folder="ittb_V1.0.2.0"
 		;;
-
 	*)
-		echo -e "\n\e[1;31mSorry but the ${soc} is not supported at the moment...\e[0m\n"
+		echo "${soc} is not supported"
 		exit 1
 		;;
+esac
 
-	esac
-}
+echo "SoC with ${mpp}"
+echo "Download PQTools from ${pqtools_url}"
 
-download() if [[ -d /tmp/${ittb_folder} ]]; then
-	echo -e "\n\e[1;31mA directory with utilities was found and the download is not needed...\e[0m\n"
-	echo -e "\n\e[1;31mWe run the utilities for sensor calibration...\e[0m\n"
-	cd /tmp/${ittb_folder}
-	./start.sh
-else
-	echo -e "\n\e[1;31mDownloading the latest tools, please wait...\e[0m\n"
+if [ ! -d /tmp/${ittb_folder} ]; then
 	curl -s ${ittb_url} | gzip -d - | tar xvf - -C /tmp
-	echo -e "\n\e[1;31mWe run the utilities for sensor calibration...\e[0m\n"
-	cd /tmp/${ittb_folder}
-	./start.sh
 fi
 
-prepare && download
+echo "Calibrate sensor"
+cd /tmp/${ittb_folder}
+./start.sh

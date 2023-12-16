@@ -50,6 +50,10 @@ show_wlan() {
 	grep -r '$1..=' /etc/wireless | cut -d '"' -f 4 | sort | grep -e $(fw_printenv -n soc) -e generic
 }
 
+network() {
+	/etc/init.d/S40network "$1"
+}
+
 switch_debug() {
 	[ "$1" = "on" ] && action='+' report='enabled' || action='-' report='disabled'
 	mount | grep -q 'debugfs' || mount -t debugfs none /sys/kernel/debug
@@ -62,9 +66,11 @@ switch_debug() {
 }
 
 upgrade_from_tftp() {
-	tftp -r uImage.$(fw_printenv -n soc) -l /tmp/uImage.$(fw_printenv -n soc) -g $(fw_printenv -n serverip)
-	tftp -r rootfs.squashfs.$(fw_printenv -n soc) -l /tmp/rootfs.squashfs.$(fw_printenv -n soc) -g $(fw_printenv -n serverip)
-	sysupgrade --kernel=/tmp/uImage.$(fw_printenv -n soc) --rootfs=/tmp/rootfs.squashfs.$(fw_printenv -n soc) -z --force_all
+	soc=$(fw_printenv -n soc)
+	tftpip=$(fw_printenv -n serverip)
+	tftp -r uImage.$soc -l /tmp/uImage.$soc -g $tftpip
+	tftp -r rootfs.squashfs.$soc -l /tmp/rootfs.squashfs.$soc -g $tftpip
+	sysupgrade --kernel=/tmp/uImage.$soc --rootfs=/tmp/rootfs.squashfs.$soc -z --force_all
 }
 
 # Source configuration files from /etc/profile.d

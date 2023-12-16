@@ -19,9 +19,15 @@ reset_network() {
 
 while getopts hmn flag; do
 	case ${flag} in
-		m) reset_majestic ;;
-		n) reset_network ;;
-		h) show_help ;;
+		m)
+			reset_majestic
+			;;
+		n)
+			reset_network
+			;;
+		h)
+			show_help
+			;;
 	esac
 done
 

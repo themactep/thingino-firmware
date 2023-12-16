@@ -4,8 +4,8 @@
 # https://github.com/themactep/openipc-firmware
 #
 
-# (patsubst "%",%,$(BR2_OPENIPC_BR_VERSION))
-BUILDROOT_VERSION = 2023.08.2
+# BUILDROOT_VERSION = 2023.08.3
+BUILDROOT_VERSION = 2023.11-rc2
 
 # overrides Buildroot dl/ directory
 # can be reused from environment, just export the value:
@@ -13,94 +13,125 @@ BUILDROOT_VERSION = 2023.08.2
 BR2_DL_DIR ?= $(CURDIR)/dl
 
 # TFTP server IP address to upload compiled images to
-TFTP_SERVER_IP := 192.168.1.254
+TFTP_SERVER_IP ?= 192.168.1.254
 
 # directory for extracting Buildroot sources
-SRC_DIR := $(HOME)/local/src
+SRC_DIR ?= $(HOME)/local/src
 
 BUILDROOT_BUNDLE = $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION).tar.gz
-BUILDROOT_DIR    = $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)
+BUILDROOT_DIR = $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)
 
 # working directory
-OUTPUT_DIR := $(HOME)/openipc-fw-output
+OUTPUT_DIR = $(HOME)/openipc-fw-output/$(BOARD)-br$(BUILDROOT_VERSION)
 
 # OpenIPC project directories
-SCRIPTS_DIR       := $(CURDIR)/scripts
+SCRIPTS_DIR := $(CURDIR)/scripts
 BUILDROOT_EXT_DIR := $(CURDIR)/general
-BOARD_MAKE         = $(MAKE) -C $(BUILDROOT_DIR) BR2_EXTERNAL=$(BUILDROOT_EXT_DIR) O=$(OUTPUT_DIR)
 
+# make command for buildroot
+BR2_MAKE = $(MAKE) -C $(BUILDROOT_DIR) BR2_EXTERNAL=$(BUILDROOT_EXT_DIR) O=$(OUTPUT_DIR)
+
+LIST_OF_BOARD = $(shell find ./br-ext-*/configs/*_defconfig | sort | sed -E "s/^\.\/br-ext-chip-(.+)\/configs\/(.*)_defconfig/'\2' '\1 \2'/")
+
+# check BOARD value from env
 ifeq ($(BOARD),)
-LIST := $(shell find ./br-ext-*/configs/*_defconfig | sort | \
-	sed -E "s/^\.\/br-ext-chip-(.+)\/configs\/(.*)_defconfig/'\2' '\1 \2'/")
-BOARD := $(or $(shell whiptail --title "Available boards" --menu "Please select a board:" 20 76 12 \
-	--notags $(LIST) 3>&1 1>&2 2>&3),$(CONFIG))
+# if empty, check for journal
+ifeq ($(shell test -f .board; echo $$?),0)
+# if found, restore BOARD from journal
+BOARD := $(shell cat .board)
+# ask permision to reuse the value
+ifeq ($(shell whiptail --yesno "Resore board $(BOARD) from the previous session?" 10 40 3>&1 1>&2 2>&3; echo $$?),1)
+# if told no, reset the BOARD
+BOARD :=
+# and remove the journal
+$(shell rm .board)
+endif
+endif
 endif
 
-DEFCONFIGS := $(shell find ./br-ext-*/configs/ -name $(BOARD)_defconfig)
-ifeq ($(DEFCONFIGS),)
-$(error Cannot find a config for $(BOARD))
-else ifeq ($(echo $(DEFCONFIGS) | wc -w), 1)
-$(error Found multiple configs for $(BOARD): $(DEFCONFIGS))
-else
-DEFCONFIG := $(shell realpath $(DEFCONFIGS))
+# if still no BOARD
+ifeq ($(BOARD),)
+# select it from a list of boards
+BOARD := $(or $(shell whiptail --title "Available boards" --menu "Please select a board:" 20 76 12 --notags $(LIST_OF_BOARD) 3>&1 1>&2 2>&3),$(CONFIG))
 endif
+
+# if BOARD selected
+ifneq ($(BOARD),)
+# save selection to the journal
+$(shell echo $(BOARD)>.board)
+# find board config file
+BOARD_CONFIG := $(shell find ./br-ext-*/configs/ -name $(BOARD)_defconfig)
+endif
+
+# did we find a config?
+ifeq ($(BOARD_CONFIG),)
+$(error Cannot find a config for the board: $(BOARD))
+endif
+
+# did we find multimple configs?
+ifeq ($(echo $(BOARD_CONFIGS) | wc -w), 1)
+$(error Found multiple configs for $(BOARD): $(BOARD_CONFIG))
+endif
+
+# include the config by its full path
+DEFCONFIG := $(shell realpath $(BOARD_CONFIG))
 include $(DEFCONFIG)
 
-$(eval SOC_VENDOR = $(patsubst "%",%,$(BR2_OPENIPC_SOC_VENDOR)))
-$(eval SOC_FAMILY = $(patsubst "%",%,$(BR2_OPENIPC_SOC_FAMILY)))
-$(eval SOC_MODEL = $(patsubst "%",%,$(BR2_OPENIPC_SOC_MODEL)))
+#SOC_VENDOR := $(patsubst "%",%,$(BR2_OPENIPC_SOC_VENDOR))
+SOC_FAMILY := $(patsubst "%",%,$(BR2_OPENIPC_SOC_FAMILY))
+SOC_MODEL := $(patsubst "%",%,$(BR2_OPENIPC_SOC_MODEL))
 
 ifeq ($(BR2_OPENIPC_FLAVOR_LITE),y)
-$(eval BR2_OPENIPC_FLAVOR = lite)
+BR2_OPENIPC_FLAVOR := lite
 else ifeq ($(BR2_OPENIPC_FLAVOR_FPV),y)
-$(eval BR2_OPENIPC_FLAVOR = fpv)
+BR2_OPENIPC_FLAVOR := fpv
 else ifeq ($(BR2_OPENIPC_FLAVOR_ULTIMATE),y)
-$(eval BR2_OPENIPC_FLAVOR = ultimate)
+BR2_OPENIPC_FLAVOR := ultimate
 else
 $(info Unknown flavor, using lite.)
-BR2_OPENIPC_FLAVOR = lite
+BR2_OPENIPC_FLAVOR := lite
 endif
 
-$(eval KERNEL_VERSION      = $(patsubst "%",%,$(BR2_LINUX_KERNEL_VERSION)))
-# $(eval BUILDROOT_EXT_DIR   = $(CURDIR)/br-ext-chip-$(SOC_VENDOR))
-$(eval OUTPUT_DIR          = $(OUTPUT_DIR)/$(BOARD)-br$(BUILDROOT_VERSION))
+KERNEL_VERSION := $(patsubst "%",%,$(BR2_LINUX_KERNEL_VERSION))
+# BUILDROOT_EXT_DIR := $(CURDIR)/br-ext-chip-$(SOC_VENDOR)
 
 ifneq ($(BR2_TOOLCHAIN_EXTERNAL),)
 export BR2_TOOLCHAIN_EXTERNAL=y
-$(eval OUTPUT_DIR = $(OUTPUT_DIR)-ext)
+OUTPUT_DIR := $(OUTPUT_DIR)-ext
 endif
 
 ifeq ($(BR2_OPENIPC_FLASH_SIZE_8M),y)
-$(eval FLASH_SIZE_HEX = 0x800000)
-$(eval FLASH_SIZE_MB = 8)
-$(eval FLASH_KERNEL_OFFSET_HEX = 0x50000)
-$(eval FLASH_ROOTFS_OFFSET_HEX = 0x250000)
-$(eval MAX_KERNEL_SIZE = $(shell printf "%d" 0x200000))
-$(eval MAX_ROOTFS_SIZE = $(shell printf "%d" 0x500000))
+FLASH_SIZE_HEX := 0x800000
+FLASH_SIZE_MB := 8
+FLASH_KERNEL_OFFSET_HEX := 0x50000
+FLASH_ROOTFS_OFFSET_HEX := 0x250000
+MAX_KERNEL_SIZE := $(shell printf "%d" 0x200000)
+MAX_ROOTFS_SIZE := $(shell printf "%d" 0x500000)
 else ifeq ($(BR2_OPENIPC_FLASH_SIZE_16M),y)
-$(eval FLASH_SIZE_HEX = 0x1000000)
-$(eval FLASH_SIZE_MB = 16)
-$(eval FLASH_KERNEL_OFFSET_HEX = 0x50000)
-$(eval FLASH_ROOTFS_OFFSET_HEX = 0x350000)
-$(eval MAX_KERNEL_SIZE = $(shell printf "%d" 0x300000))
-$(eval MAX_ROOTFS_SIZE = $(shell printf "%d" 0xA00000))
+FLASH_SIZE_HEX := 0x1000000
+FLASH_SIZE_MB := 16
+FLASH_KERNEL_OFFSET_HEX := 0x50000
+FLASH_ROOTFS_OFFSET_HEX := 0x350000
+MAX_KERNEL_SIZE := $(shell printf "%d" 0x300000)
+MAX_ROOTFS_SIZE := $(shell printf "%d" 0xA00000)
 endif
 
-WGET               = wget --quiet --no-verbose --retry-connrefused --continue --timeout=3
-GITHUB_URL         = https://github.com/OpenIPC/firmware/releases/download/latest
-FULL_FIRMWARE_NAME = openipc-$(SOC_MODEL)-$(BR2_OPENIPC_FLAVOR)-$(FLASH_SIZE_MB)mb.bin
-FULL_FIRMWARE_BIN  = $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
-BOOTLOADER_BIN     = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL)-universal.bin
+WGET               := wget --quiet --no-verbose --retry-connrefused --continue --timeout=3
+GITHUB_URL         := https://github.com/OpenIPC/firmware/releases/download/latest
 
-KERNEL_BIN         = $(OUTPUT_DIR)/images/uImage              #.$(SOC_MODEL)
-ROOTFS_BIN         = $(OUTPUT_DIR)/images/rootfs.squashfs     #.$(SOC_MODEL)
-ROOTFS_TAR         = $(OUTPUT_DIR)/images/rootfs.tar
-ROOTFS_CPIO        = $(OUTPUT_DIR)/images/rootfs.cpio
+FULL_FIRMWARE_NAME := openipc-$(SOC_MODEL)-$(BR2_OPENIPC_FLAVOR)-$(FLASH_SIZE_MB)mb.bin
+FULL_FIRMWARE_BIN  := $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
+BOOTLOADER_BIN     := $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL)-universal.bin
+
+KERNEL_BIN         := $(OUTPUT_DIR)/images/uImage              #.$(SOC_MODEL)
+ROOTFS_BIN         := $(OUTPUT_DIR)/images/rootfs.squashfs     #.$(SOC_MODEL)
+ROOTFS_TAR         := $(OUTPUT_DIR)/images/rootfs.tar
+ROOTFS_CPIO        := $(OUTPUT_DIR)/images/rootfs.cpio
 
 KERNEL_SIZE        = $(shell stat -c%s $(KERNEL_BIN))
 ROOTFS_SIZE        = $(shell stat -c%s $(ROOTFS_BIN))
 
-# fail-safe 8MB
+# fail-safe to 8MB
 FLASH_SIZE_MB           ?= 8
 FLASH_SIZE_HEX          ?= 0x800000
 FLASH_KERNEL_OFFSET_HEX ?= 0x50000
@@ -108,29 +139,34 @@ FLASH_ROOTFS_OFFSET_HEX ?= 0x250000
 MAX_KERNEL_SIZE         ?= $(shell printf "%d" 0x200000)
 MAX_ROOTFS_SIZE         ?= $(shell printf "%d" 0x500000)
 
+CAMERA_IP_ADDRESS = $(shell read CAMERA_IP_ADDRESS)
+
 .PHONY: all toolchain sdk clean distclean br-% help pack tftp sdcard install-prerequisites overlayed-rootfs-%
 
 all: $(OUTPUT_DIR)/.config
 ifndef BOARD
 	$(MAKE) BOARD=$(BOARD) $@
 endif
-	$(BOARD_MAKE) all
+	$(BR2_MAKE) all
+
+br-%-dirclean: $(OUTPUT_DIR)/.config
+	rm -rf $(OUTPUT_DIR)/per-package/$(subst -dirclean,,$(subst br-,,$@)) $(OUTPUT_DIR)/build/$(subst -dirclean,,$(subst br-,,$@))*
 
 br-%: $(OUTPUT_DIR)/.config
-	$(BOARD_MAKE) $(subst br-,,$@)
+	$(BR2_MAKE) $(subst br-,,$@)
 
 toolchain: $(OUTPUT_DIR)/.config
-	$(BOARD_MAKE) toolchain
+	$(BR2_MAKE) toolchain
 
 sdk: $(OUTPUT_DIR)/.config
-	$(BOARD_MAKE) sdk
+	$(BR2_MAKE) sdk
 
 clean: $(OUTPUT_DIR)/.config
-	$(BOARD_MAKE) clean
+	$(BR2_MAKE) clean
 	rm -rvf $(OUTPUT_DIR)/target $(OUTPUT_DIR)/.config
 
 defconfig:
-	$(BOARD_MAKE) defconfig
+	$(BR2_MAKE) defconfig
 
 distclean:
 	# $(BOARD_MAKE) distclean
@@ -151,9 +187,12 @@ sdcard: $(FULL_FIRMWARE_BIN)
 	#umount /dev/sdb2
 	#@echo "Done"
 
+upload:
+	scp -O uImage rootfs.squashfs root@$(CAMERA_IP_ADDRESS):/tmp/
+
 install-prerequisites:
 ifneq ($(shell id -u), 0)
-	$(error You must be root to perform this action.)
+	$(error requested operation requires superuser privilege)
 else
 	@DEBIAN_FRONTEND=noninteractive apt-get update
 	@DEBIAN_FRONTEND=noninteractive apt-get -y install build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail
@@ -166,7 +205,7 @@ $(OUTPUT_DIR):
 	mkdir -p $(OUTPUT_DIR)
 
 $(OUTPUT_DIR)/.config: $(BUILDROOT_DIR)/Makefile
-	$(BOARD_MAKE) BR2_DEFCONFIG=$(DEFCONFIG) defconfig
+	$(BR2_MAKE) BR2_DEFCONFIG=$(DEFCONFIG) defconfig
 
 #$(OUTPUT_DIR)/toolchain-params.mk:
 #	echo "$(OUTPUT_DIR)/toolchain-params.mk is not defined!"
@@ -189,22 +228,22 @@ $(BOOTLOADER_BIN):
 
 $(KERNEL_BIN):
 	$(info KERNEL_BIN: $@)
-	$(BOARD_MAKE) linux-rebuild
+	$(BR2_MAKE) linux-rebuild
 #	mv -vf $(OUTPUT_DIR)/images/uImage $@
 
 $(ROOTFS_BIN):
 	$(info ROOTFS_BIN: $@)
-	$(BOARD_MAKE) all
+	$(BR2_MAKE) all
 #	mv -vf $(OUTPUT_DIR)/images/rootfs.squashfs $@
 
 $(ROOTFS_TAR):
 	$(info ROOTFS_TAR: $@)
-	$(BOARD_MAKE) all
+	$(BR2_MAKE) all
 #	mv -vf $(OUTPUT_DIR)/images/rootfs.tar $@
 
 $(ROOTFS_CPIO):
 	$(info ROOTFS_CPIO: $@)
-	$(BOARD_MAKE) all
+	$(BR2_MAKE) all
 #	mv -vf $(OUTPUT_DIR)/images/rootfs.cpio $@
 
 $(FULL_FIRMWARE_BIN) : $(BOOTLOADER_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)

@@ -1,13 +1,11 @@
 #!/bin/sh
 #
-# OpenIPC.org | v.20231008
+# OpenIPC.org | v.20231202
 #
 
-scr_version=1.0.21
+scr_version=1.0.25
 
 args=" $@"
-
-set -e
 
 LOCK_FILE=/tmp/sysupgrade.lock
 IPCINFO=/tmp/ipcinfo
@@ -89,7 +87,7 @@ download_firmware() {
 	osr=$(get_system_build)
 	ftype="nor"
 	build="${soc}-${ftype}-${osr}"
-	[ -z "$url" ] && url="https://github.com/OpenIPC/firmware/releases/download/${branch}/openipc.${build}.tgz"
+	[ -z "$url" ] && url=$(fw_printenv -n upgrade || echo "https://github.com/OpenIPC/firmware/releases/download/${branch}/openipc.${build}.tgz")
 	echo "Download from $url"
 	[ -z "$HASERLVER" ] && progress="-#" || progress="-s"
 	[ "$(curl -o /dev/null -s -w '%{http_code}\n' "$url")" = "000" ] && die "Check your network!"
@@ -105,7 +103,13 @@ free_resources() {
 	# "load_$vendor" -r >/dev/null 2>&1 || true
 	#
 	echo_c 37 "\nStop services, sync files, free up memory"
-	for proc in majestic crond klogd ntpd rngd syslogd; do
+
+	echo -n "Killing majestic ... "
+	time=$(grep TIME_STAMP /etc/os-release | cut -d= -f2)
+	[ "$time" -gt "1702544400" ] && killall -SIGUSR2 majestic || killall majestic
+	echo "OK"
+
+	for proc in crond klogd ntpd rngd syslogd; do
 		echo -n "Killing $proc "
 		while [ -n "$(pidof $proc)" ]; do
 			killall $proc >/dev/null 2>&1 || true
@@ -190,6 +194,10 @@ get_device() {
 
 get_kernel_version() {
 	date "+%H:%M:%S %Y-%m-%d" @$((0x$(xxd -l 4 -s 8 -p "$1" | xargs)))
+}
+
+get_rootfs_size() {
+	$(grep "\brootfs\b" /proc/mtd | awk '{print $2}')
 }
 
 get_system_info() {

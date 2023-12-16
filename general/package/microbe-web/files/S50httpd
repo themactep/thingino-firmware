@@ -13,7 +13,7 @@ if [ "$(fw_printenv -n debug)" ]; then
 	echo "Development mode"
 	if [ -z "$(cat /etc/mtab | grep /tmp/dev)" ]; then
 		mkdir -p /tmp/dev
-		mount -t nfs -o nolock,tcp $(fw_printenv -n devip):/srv/nfs/openipc/dev /tmp/dev
+		mount -t nfs -o nolock,tcp,nfsvers=3 $(fw_printenv -n devip):/srv/nfs/openipc/dev /tmp/dev
 	fi
 
 	pid=$(ps ax | grep httpd | grep 85 | xargs | cut -d " " -f 1)
