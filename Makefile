@@ -4,19 +4,18 @@
 # https://github.com/themactep/openipc-firmware
 #
 
-# BUILDROOT_VERSION = 2023.08.3
-BUILDROOT_VERSION = 2023.11-rc2
+BUILDROOT_VERSION = 2023.11
 
 # overrides Buildroot dl/ directory
 # can be reused from environment, just export the value:
 # export BR2_DL_DIR = /path/to/your/local/storage
-BR2_DL_DIR ?= $(CURDIR)/dl
+BR2_DL_DIR ?= $(HOME)/dl
 
 # TFTP server IP address to upload compiled images to
 TFTP_SERVER_IP ?= 192.168.1.254
 
 # directory for extracting Buildroot sources
-SRC_DIR ?= $(HOME)/local/src
+SRC_DIR ?= $(HOME)/src
 
 BUILDROOT_BUNDLE = $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION).tar.gz
 BUILDROOT_DIR = $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)
