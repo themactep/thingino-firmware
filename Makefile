@@ -40,7 +40,7 @@ ifeq ($(shell test -f .board; echo $$?),0)
 # if found, restore BOARD from journal
 BOARD := $(shell cat .board)
 # ask permision to reuse the value
-ifeq ($(shell whiptail --yesno "Resore board $(BOARD) from the previous session?" 10 40 3>&1 1>&2 2>&3; echo $$?),1)
+ifeq ($(shell whiptail --yesno "Restore board $(BOARD) from the previous session?" 10 40 3>&1 1>&2 2>&3; echo $$?),1)
 # if told no, reset the BOARD
 BOARD :=
 # and remove the journal
