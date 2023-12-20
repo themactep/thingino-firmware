@@ -17,8 +17,8 @@ TFTP_SERVER_IP ?= 192.168.1.254
 # directory for extracting Buildroot sources
 SRC_DIR ?= $(HOME)/src
 
-BUILDROOT_BUNDLE = $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION).tar.gz
-BUILDROOT_DIR = $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)
+BUILDROOT_BUNDLE := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION).tar.gz
+BUILDROOT_DIR := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)
 
 # working directory
 OUTPUT_DIR = $(HOME)/openipc-fw-output/$(BOARD)-br$(BUILDROOT_VERSION)
@@ -39,7 +39,7 @@ ifeq ($(shell test -f .board; echo $$?),0)
 # if found, restore BOARD from journal
 BOARD := $(shell cat .board)
 # ask permision to reuse the value
-ifeq ($(shell whiptail --yesno "Restore board $(BOARD) from the previous session?" 10 40 3>&1 1>&2 2>&3; echo $$?),1)
+ifeq ($(shell whiptail --yesno "Use $(BOARD) from the previous session?" 10 40 3>&1 1>&2 2>&3; echo $$?),1)
 # if told no, reset the BOARD
 BOARD :=
 # and remove the journal
@@ -115,28 +115,28 @@ MAX_KERNEL_SIZE := $(shell printf "%d" 0x300000)
 MAX_ROOTFS_SIZE := $(shell printf "%d" 0xA00000)
 endif
 
-WGET               := wget --quiet --no-verbose --retry-connrefused --continue --timeout=3
-GITHUB_URL         := https://github.com/OpenIPC/firmware/releases/download/latest
+WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=3
+GITHUB_URL := https://github.com/OpenIPC/firmware/releases/download/latest
 
 FULL_FIRMWARE_NAME := openipc-$(SOC_MODEL)-$(BR2_OPENIPC_FLAVOR)-$(FLASH_SIZE_MB)mb.bin
-FULL_FIRMWARE_BIN  := $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
-BOOTLOADER_BIN     := $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL)-universal.bin
+FULL_FIRMWARE_BIN := $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
+BOOTLOADER_BIN := $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL)-universal.bin
 
-KERNEL_BIN         := $(OUTPUT_DIR)/images/uImage              #.$(SOC_MODEL)
-ROOTFS_BIN         := $(OUTPUT_DIR)/images/rootfs.squashfs     #.$(SOC_MODEL)
-ROOTFS_TAR         := $(OUTPUT_DIR)/images/rootfs.tar
-ROOTFS_CPIO        := $(OUTPUT_DIR)/images/rootfs.cpio
+KERNEL_BIN := $(OUTPUT_DIR)/images/uImage              #.$(SOC_MODEL)
+ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs     #.$(SOC_MODEL)
+ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
+ROOTFS_CPIO := $(OUTPUT_DIR)/images/rootfs.cpio
 
-KERNEL_SIZE        = $(shell stat -c%s $(KERNEL_BIN))
-ROOTFS_SIZE        = $(shell stat -c%s $(ROOTFS_BIN))
+KERNEL_SIZE = $(shell stat -c%s $(KERNEL_BIN))
+ROOTFS_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
 
 # fail-safe to 8MB
-FLASH_SIZE_MB           ?= 8
-FLASH_SIZE_HEX          ?= 0x800000
+FLASH_SIZE_MB ?= 8
+FLASH_SIZE_HEX ?= 0x800000
 FLASH_KERNEL_OFFSET_HEX ?= 0x50000
 FLASH_ROOTFS_OFFSET_HEX ?= 0x250000
-MAX_KERNEL_SIZE         ?= $(shell printf "%d" 0x200000)
-MAX_ROOTFS_SIZE         ?= $(shell printf "%d" 0x500000)
+MAX_KERNEL_SIZE ?= $(shell printf "%d" 0x200000)
+MAX_ROOTFS_SIZE ?= $(shell printf "%d" 0x500000)
 
 CAMERA_IP_ADDRESS = $(shell read CAMERA_IP_ADDRESS)
 
@@ -203,22 +203,24 @@ endif
 $(OUTPUT_DIR):
 	mkdir -p $(OUTPUT_DIR)
 
-$(OUTPUT_DIR)/.config: $(BUILDROOT_DIR)/Makefile
-	$(BR2_MAKE) BR2_DEFCONFIG=$(DEFCONFIG) defconfig
-
 #$(OUTPUT_DIR)/toolchain-params.mk:
-#	echo "$(OUTPUT_DIR)/toolchain-params.mk is not defined!"
+#	echo "$@ is not defined!"
 
 $(SRC_DIR):
 	mkdir -p $(SRC_DIR)
 
-$(BUILDROOT_DIR)/Makefile: $(BUILDROOT_BUNDLE)
+$(BUILDROOT_DIR)/.installed: $(BUILDROOT_BUNDLE)
+	ls -l $(dirname $@)
 	tar -C $(SRC_DIR) -xf $(BUILDROOT_BUNDLE)
+	touch $@
 
 $(BUILDROOT_BUNDLE):
 	$(WGET) -O $@ https://buildroot.org/downloads/buildroot-$(BUILDROOT_VERSION).tar.gz || \
 	$(WGET) -O $@ https://github.com/buildroot/buildroot/archive/refs/tags/$(BUILDROOT_VERSION).tar.gz
 	#https://github.com/buildroot/buildroot/archive/refs/heads/master.zip
+
+$(OUTPUT_DIR)/.config: $(BUILDROOT_DIR)/.installed
+	$(BR2_MAKE) BR2_DEFCONFIG=$(DEFCONFIG) defconfig
 
 $(BOOTLOADER_BIN):
 	$(info BOOTLOADER_BIN: $@)
