@@ -1,6 +1,0 @@
-sensor:
-  name: imx307
-  address: 0x1a
-  width: 1920
-  height: 1080
-  bus: i2c
