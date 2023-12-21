@@ -99,44 +99,38 @@ export BR2_TOOLCHAIN_EXTERNAL=y
 OUTPUT_DIR := $(OUTPUT_DIR)-ext
 endif
 
-ifeq ($(BR2_OPENIPC_FLASH_SIZE_8M),y)
-FLASH_SIZE_HEX := 0x800000
-FLASH_SIZE_MB := 8
-FLASH_KERNEL_OFFSET_HEX := 0x50000
-FLASH_ROOTFS_OFFSET_HEX := 0x250000
-MAX_KERNEL_SIZE := $(shell printf "%d" 0x200000)
-MAX_ROOTFS_SIZE := $(shell printf "%d" 0x500000)
-else ifeq ($(BR2_OPENIPC_FLASH_SIZE_16M),y)
+ifeq ($(BR2_OPENIPC_FLASH_SIZE_16M),y)
 FLASH_SIZE_HEX := 0x1000000
 FLASH_SIZE_MB := 16
 FLASH_KERNEL_OFFSET_HEX := 0x50000
 FLASH_ROOTFS_OFFSET_HEX := 0x350000
 MAX_KERNEL_SIZE := $(shell printf "%d" 0x300000)
 MAX_ROOTFS_SIZE := $(shell printf "%d" 0xA00000)
+else ifeq ($(BR2_OPENIPC_FLASH_SIZE_8M),y)
+FLASH_SIZE_HEX := 0x800000
+FLASH_SIZE_MB := 8
+FLASH_KERNEL_OFFSET_HEX := 0x50000
+FLASH_ROOTFS_OFFSET_HEX := 0x250000
+MAX_KERNEL_SIZE := $(shell printf "%d" 0x200000)
+MAX_ROOTFS_SIZE := $(shell printf "%d" 0x500000)
+else
+$(error Flash size is not set in defconfig)
 endif
 
+# hardcoded variables
 WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=3
 GITHUB_URL := https://github.com/OpenIPC/firmware/releases/download/latest
+KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
+ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
+ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
+ROOTFS_CPIO := $(OUTPUT_DIR)/images/rootfs.cpio
 
 FULL_FIRMWARE_NAME := openipc-$(SOC_MODEL)-$(BR2_OPENIPC_FLAVOR)-$(FLASH_SIZE_MB)mb.bin
 FULL_FIRMWARE_BIN := $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
 BOOTLOADER_BIN := $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL)-universal.bin
 
-KERNEL_BIN := $(OUTPUT_DIR)/images/uImage              #.$(SOC_MODEL)
-ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs     #.$(SOC_MODEL)
-ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
-ROOTFS_CPIO := $(OUTPUT_DIR)/images/rootfs.cpio
-
 KERNEL_SIZE = $(shell stat -c%s $(KERNEL_BIN))
 ROOTFS_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
-
-# fail-safe to 8MB
-FLASH_SIZE_MB ?= 8
-FLASH_SIZE_HEX ?= 0x800000
-FLASH_KERNEL_OFFSET_HEX ?= 0x50000
-FLASH_ROOTFS_OFFSET_HEX ?= 0x250000
-MAX_KERNEL_SIZE ?= $(shell printf "%d" 0x200000)
-MAX_ROOTFS_SIZE ?= $(shell printf "%d" 0x500000)
 
 CAMERA_IP_ADDRESS = $(shell read CAMERA_IP_ADDRESS)
 
@@ -148,8 +142,10 @@ ifndef BOARD
 endif
 	$(BR2_MAKE) all
 
+# delete all build/{package} and per-package/{package} files
 br-%-dirclean: $(OUTPUT_DIR)/.config
-	rm -rf $(OUTPUT_DIR)/per-package/$(subst -dirclean,,$(subst br-,,$@)) $(OUTPUT_DIR)/build/$(subst -dirclean,,$(subst br-,,$@))*
+	rm -rvf $(OUTPUT_DIR)/per-package/$(subst -dirclean,,$(subst br-,,$@)) \
+			$(OUTPUT_DIR)/build/$(subst -dirclean,,$(subst br-,,$@))*
 
 br-%: $(OUTPUT_DIR)/.config
 	$(BR2_MAKE) $(subst br-,,$@)
@@ -174,11 +170,13 @@ distclean:
 pack: $(FULL_FIRMWARE_BIN)
 	@echo "DONE"
 
+# upload kernel. rootfs and full image to tftp server
 tftp: $(FULL_FIRMWARE_BIN)
 	@busybox tftp -l $(KERNEL_BIN) -r uImage.$(SOC_MODEL) -p $(TFTP_SERVER_IP)
 	@busybox tftp -l $(ROOTFS_BIN) -r rootfs.squashfs.$(SOC_MODEL) -p $(TFTP_SERVER_IP)
 	@busybox tftp -l $(FULL_FIRMWARE_BIN) -r $(FULL_FIRMWARE_NAME) -p $(TFTP_SERVER_IP)
 
+# upload full image to an sd card
 sdcard: $(FULL_FIRMWARE_BIN)
 	#@cp $(FULL_FIRMWARE_BIN) $$(mount | grep sdb1 | awk '{print $$3}')/$(FULL_FIRMWARE_NAME)
 	#sync
@@ -186,9 +184,11 @@ sdcard: $(FULL_FIRMWARE_BIN)
 	#umount /dev/sdb2
 	#@echo "Done"
 
+# upload kernel and rootfs in /tmp/ directory of the camera
 upload:
 	scp -O uImage rootfs.squashfs root@$(CAMERA_IP_ADDRESS):/tmp/
 
+# install prerequisites
 install-prerequisites:
 ifneq ($(shell id -u), 0)
 	$(error requested operation requires superuser privilege)
@@ -200,53 +200,71 @@ endif
 # prepare: $(OUTPUT_DIR)/.config $(BUILDROOT_DIR)/Makefile
 #	@echo "Buildroot $(BUILDROOT_VERSION) is in $(BUILDROOT_DIR) directory."
 
+# create output directory
 $(OUTPUT_DIR):
 	mkdir -p $(OUTPUT_DIR)
 
+# check for toolchain parameters file
 #$(OUTPUT_DIR)/toolchain-params.mk:
 #	echo "$@ is not defined!"
 
+# create source directory
 $(SRC_DIR):
 	mkdir -p $(SRC_DIR)
 
+# install Buildroot sources
 $(BUILDROOT_DIR)/.installed: $(BUILDROOT_BUNDLE)
 	ls -l $(dirname $@)
 	tar -C $(SRC_DIR) -xf $(BUILDROOT_BUNDLE)
+	# remove shadowed packages
+	# FIXME: it's a dirty hack because buildroot does not do overlaying
+	# sed -i "/\/\(nginx\|wolfssl\)\//d" $(BUILDROOT_DIR)/package/Config.in
+	# rm -r $(BUILDROOT_DIR)/package/nginx
+	# rm -r $(BUILDROOT_DIR)/package/wolfssl
+	# FIXME: It should not be needed but I tried to check for $(BUILDROOT_DIR)/Makefile and it keeps extracting the bundle again and again
 	touch $@
 
+# download Buildroot bundle
 $(BUILDROOT_BUNDLE):
-	$(WGET) -O $@ https://buildroot.org/downloads/buildroot-$(BUILDROOT_VERSION).tar.gz || \
 	$(WGET) -O $@ https://github.com/buildroot/buildroot/archive/refs/tags/$(BUILDROOT_VERSION).tar.gz
 	#https://github.com/buildroot/buildroot/archive/refs/heads/master.zip
 
+# create defconfig
 $(OUTPUT_DIR)/.config: $(BUILDROOT_DIR)/.installed
 	$(BR2_MAKE) BR2_DEFCONFIG=$(DEFCONFIG) defconfig
 
+# download bootloader
+# FIXME: should be built locally
 $(BOOTLOADER_BIN):
 	$(info BOOTLOADER_BIN: $@)
 	$(WGET) -O $@ $(GITHUB_URL)/u-boot-$(SOC_MODEL)-universal.bin || \
 	$(WGET) -O $@ $(GITHUB_URL)/u-boot-$(SOC_FAMILY)-universal.bin
 
+# rebuild Linux kernel
 $(KERNEL_BIN):
 	$(info KERNEL_BIN: $@)
 	$(BR2_MAKE) linux-rebuild
 #	mv -vf $(OUTPUT_DIR)/images/uImage $@
 
+# rebuild rootfs
 $(ROOTFS_BIN):
 	$(info ROOTFS_BIN: $@)
 	$(BR2_MAKE) all
 #	mv -vf $(OUTPUT_DIR)/images/rootfs.squashfs $@
 
+# create .tar file of rootfs
 $(ROOTFS_TAR):
 	$(info ROOTFS_TAR: $@)
 	$(BR2_MAKE) all
 #	mv -vf $(OUTPUT_DIR)/images/rootfs.tar $@
 
+# create .cpio file of rootfs
 $(ROOTFS_CPIO):
 	$(info ROOTFS_CPIO: $@)
 	$(BR2_MAKE) all
 #	mv -vf $(OUTPUT_DIR)/images/rootfs.cpio $@
 
+# create a full firmware image
 $(FULL_FIRMWARE_BIN) : $(BOOTLOADER_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
 	$(info KERNEL_SIZE: $(KERNEL_SIZE))
 	$(info MAX_KERNEL_SIZE: $(MAX_KERNEL_SIZE))
