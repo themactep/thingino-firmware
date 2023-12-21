@@ -7,44 +7,31 @@ else ifeq ($(BR2_OPENIPC_FLAVOR_ULTIMATE),y)
 endif
 
 ifeq ($(BR2_OPENIPC_SOC_ALLWINNER),y)
-$(info "allwinner")
-OPENIPC_SOC_VENDOR = allwinner
+	OPENIPC_SOC_VENDOR = allwinner
 else ifeq ($(BR2_OPENIPC_SOC_AMBARELLA),y)
-$(info "ambarella")
-OPENIPC_SOC_VENDOR = ambarella
+	OPENIPC_SOC_VENDOR = ambarella
 else ifeq ($(BR2_OPENIPC_SOC_ANYKA),y)
-$(info "anyka")
-OPENIPC_SOC_VENDOR = anyka
+	OPENIPC_SOC_VENDOR = anyka
 else ifeq ($(BR2_OPENIPC_SOC_FULLHAN),y)
-$(info "fullhan")
-OPENIPC_SOC_VENDOR = fullhan
+	OPENIPC_SOC_VENDOR = fullhan
 else ifeq ($(BR2_OPENIPC_SOC_GOKE),y)
-$(info "goke")
-OPENIPC_SOC_VENDOR = goke
+	OPENIPC_SOC_VENDOR = goke
 else ifeq ($(BR2_OPENIPC_SOC_GRAINMEDIA),y)
-$(info "grainmedia")
-OPENIPC_SOC_VENDOR = grainmedia
+	OPENIPC_SOC_VENDOR = grainmedia
 else ifeq ($(BR2_OPENIPC_SOC_HISILICON),y)
-$(info "hisilicon")
-OPENIPC_SOC_VENDOR = hisilicon
+	OPENIPC_SOC_VENDOR = hisilicon
 else ifeq ($(BR2_OPENIPC_SOC_INGENIC),y)
-$(info "ingenic")
-OPENIPC_SOC_VENDOR = ingenic
+	OPENIPC_SOC_VENDOR = ingenic
 else ifeq ($(BR2_OPENIPC_SOC_NOVATEK),y)
-$(info "novatek")
-OPENIPC_SOC_VENDOR = novatek
+	OPENIPC_SOC_VENDOR = novatek
 else ifeq ($(BR2_OPENIPC_SOC_ROCKCHIP),y)
-$(info "rockchip")
-OPENIPC_SOC_VENDOR = rockchip
+	OPENIPC_SOC_VENDOR = rockchip
 else ifeq ($(BR2_OPENIPC_SOC_SIGMASTAR),y)
-$(info "sigmastar")
-OPENIPC_SOC_VENDOR = sigmastar
+	OPENIPC_SOC_VENDOR = sigmastar
 else ifeq ($(BR2_OPENIPC_SOC_TI),y)
-$(info "ti")
-OPENIPC_SOC_VENDOR = ti
+	OPENIPC_SOC_VENDOR = ti
 else ifeq ($(BR2_OPENIPC_SOC_XIONGMAI),y)
-$(info "xiongmai")
-OPENIPC_SOC_VENDOR = xiongmai
+	OPENIPC_SOC_VENDOR = xiongmai
 endif
 
 ifeq ($(BR2_OPENIPC_SOC_ALLWINNER_V83X),y)
