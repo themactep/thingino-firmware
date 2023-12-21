@@ -13,9 +13,9 @@
 -LIBS_O = -Wl,--gc-sections ../libtomcrypt/libtomcrypt.a -lpthread -lrt
 -LIBS_N = -Wl,--gc-sections ../libtomcrypt/libtomcrypt.a -lpthread -lrt
 -endif
-+INCLUDE = -DHAVE_MBEDTLS -ffunction-sections -fdata-sections
-+LIBS_O = -Wl,--gc-sections -lmbedtls -lmbedcrypto -lpthread
-+LIBS_N = -Wl,--gc-sections -lmbedtls -lmbedcrypto -lpthread
++INCLUDE = -DHAVE_MBEDTLS -ffunction-sections -fdata-sections -lrt
++LIBS_O = -Wl,--gc-sections -lmbedtls -lmbedcrypto -lpthread -lrt
++LIBS_N = -Wl,--gc-sections -lmbedtls -lmbedcrypto -lpthread -lrt
  LIBS_W = -Wl,--gc-sections
  
  all: onvif_simple_server onvif_notify_server wsd_simple_server
