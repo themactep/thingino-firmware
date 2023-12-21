@@ -3,3 +3,4 @@ output-*/
 general/package.disabled/
 sdk/
 tmp/
+.board
