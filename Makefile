@@ -4,6 +4,9 @@
 # https://github.com/themactep/openipc-firmware
 #
 
+#CAMERA_IP_ADDRESS = $(shell read CAMERA_IP_ADDRESS)
+CAMERA_IP_ADDRESS := "192.168.1.184"
+
 BUILDROOT_VERSION = 2023.11
 
 # overrides Buildroot dl/ directory
@@ -132,8 +135,6 @@ BOOTLOADER_BIN := $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL)-universal.bin
 KERNEL_SIZE = $(shell stat -c%s $(KERNEL_BIN))
 ROOTFS_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
 
-CAMERA_IP_ADDRESS = $(shell read CAMERA_IP_ADDRESS)
-
 .PHONY: all toolchain sdk clean distclean br-% help pack tftp sdcard install-prerequisites overlayed-rootfs-%
 
 all: $(OUTPUT_DIR)/.config
@@ -186,7 +187,12 @@ sdcard: $(FULL_FIRMWARE_BIN)
 
 # upload kernel and rootfs in /tmp/ directory of the camera
 upload:
-	scp -O uImage rootfs.squashfs root@$(CAMERA_IP_ADDRESS):/tmp/
+	scp -O $(KERNEL_BIN) root@$(CAMERA_IP_ADDRESS):/tmp/uImage
+	scp -O $(ROOTFS_BIN) root@$(CAMERA_IP_ADDRESS):/tmp/rootfs.squashfs
+
+# upload firmware file on the camera via ssh and run upgrade remotely
+upgrade: upload
+	ssh root@$(CAMERA_IP_ADDRESS) "sysupgrade -z --kernel=/tmp/uImage --rootfs=/tmp/rootfs.squashfs --force_ver"
 
 # install prerequisites
 install-prerequisites:
