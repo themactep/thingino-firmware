@@ -173,17 +173,18 @@ pack: $(FULL_FIRMWARE_BIN)
 
 # upload kernel. rootfs and full image to tftp server
 tftp: $(FULL_FIRMWARE_BIN)
-	@busybox tftp -l $(KERNEL_BIN) -r uImage.$(SOC_MODEL) -p $(TFTP_SERVER_IP)
-	@busybox tftp -l $(ROOTFS_BIN) -r rootfs.squashfs.$(SOC_MODEL) -p $(TFTP_SERVER_IP)
+	@busybox tftp -l $(KERNEL_BIN) -r uImage.$(SOC_FAMILY) -p $(TFTP_SERVER_IP)
+	@busybox tftp -l $(ROOTFS_BIN) -r rootfs.squashfs.$(SOC_FAMILY) -p $(TFTP_SERVER_IP)
 	@busybox tftp -l $(FULL_FIRMWARE_BIN) -r $(FULL_FIRMWARE_NAME) -p $(TFTP_SERVER_IP)
 
 # upload full image to an sd card
 sdcard: $(FULL_FIRMWARE_BIN)
-	#@cp $(FULL_FIRMWARE_BIN) $$(mount | grep sdb1 | awk '{print $$3}')/$(FULL_FIRMWARE_NAME)
-	#sync
-	#umount /dev/sdb1
-	#umount /dev/sdb2
-	#@echo "Done"
+	@cp -v $(KERNEL_BIN) $$(mount | grep sdc1 | awk '{print $$3}')
+	@cp -v $(ROOTFS_BIN) $$(mount | grep sdc1 | awk '{print $$3}')
+	@cp -v $(FULL_FIRMWARE_BIN) $$(mount | grep sdc1 | awk '{print $$3}')
+	sync
+	umount /dev/sdc1
+	@echo "Done"
 
 # upload kernel and rootfs in /tmp/ directory of the camera
 upload:
