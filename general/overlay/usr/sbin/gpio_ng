@@ -285,6 +285,9 @@ case "$1" in
 	clear)
 		set_pin_value "$2" 0
 		;;
+	dir)
+		set_direction "$2" "$3"
+		;;
 	info)
 		get_pin_info "$2" "$3"
 		;;
@@ -295,8 +298,8 @@ case "$1" in
 		ls -l /sys/class/gpio/
 		echo
 		[ -z "$(mount | grep /sys/kernel/debug)" ] && mount -t debugfs none /sys/kernel/debug
-                log_and_run "cat /sys/kernel/debug/gpio"
-                ;;
+		log_and_run "cat /sys/kernel/debug/gpio"
+		;;
 	set)
 		if [ -z "$3" ]; then
 			# mimic old behaviour

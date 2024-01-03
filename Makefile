@@ -128,12 +128,28 @@ ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 ROOTFS_CPIO := $(OUTPUT_DIR)/images/rootfs.cpio
 
+ALIGN_BLOCK := $(shell echo $$(( 32 * 1024 )))
+
 FULL_FIRMWARE_NAME := openipc-$(SOC_MODEL)-$(BR2_OPENIPC_FLAVOR)-$(FLASH_SIZE_MB)mb.bin
 FULL_FIRMWARE_BIN := $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
-BOOTLOADER_BIN := $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL)-universal.bin
+FULL_FIRMWARE_BIN_FLEX := $(OUTPUT_DIR)/images/flex-$(FULL_FIRMWARE_NAME)
 
-KERNEL_SIZE = $(shell stat -c%s $(KERNEL_BIN))
-ROOTFS_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
+U_BOOT_BIN := $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL)-universal.bin
+
+U_BOOT_OFFSET      := 0
+U_BOOT_SIZE         = $(shell stat -c%s $(U_BOOT_BIN))
+U_BOOT_SIZE_ALIGNED = $(shell echo $$(( ($(U_BOOT_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
+
+U_BOOT_ENV_OFFSET  := $(shell echo $$(( 0x40000 ))) # 256K
+U_BOOT_ENV_SIZE    := $(shell echo $$(( 0x10000 ))) # 64K
+
+KERNEL_SIZE         = $(shell stat -c%s $(KERNEL_BIN))
+KERNEL_SIZE_ALIGNED = $(shell echo $$(( ($(KERNEL_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
+KERNEL_OFFSET_FLEX  = $(shell echo $$(( $(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_SIZE) )))
+
+ROOTFS_SIZE         = $(shell stat -c%s $(ROOTFS_BIN))
+ROOTFS_SIZE_ALIGNED = $(shell echo $$(( ($(ROOTFS_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
+ROOTFS_OFFSET_FLEX  = $(shell echo $$(( $(KERNEL_OFFSET_FLEX) + $(KERNEL_SIZE_ALIGNED) )))
 
 .PHONY: all toolchain sdk clean distclean br-% help pack tftp sdcard install-prerequisites overlayed-rootfs-%
 
@@ -168,8 +184,17 @@ distclean:
 	# $(BOARD_MAKE) distclean
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
-pack: $(FULL_FIRMWARE_BIN)
+pack: delete_full_bin $(FULL_FIRMWARE_BIN)
 	@echo "DONE"
+
+delete_full_bin:
+	rm $(FULL_FIRMWARE_BIN)
+
+pack_flex: delete_flex_bin $(FULL_FIRMWARE_BIN_FLEX)
+	@echo "DONE"
+
+delete_flex_bin:
+	rm $(FULL_FIRMWARE_BIN_FLEX)
 
 # upload kernel. rootfs and full image to tftp server
 tftp: $(FULL_FIRMWARE_BIN)
@@ -242,8 +267,8 @@ $(OUTPUT_DIR)/.config: $(BUILDROOT_DIR)/.installed
 
 # download bootloader
 # FIXME: should be built locally
-$(BOOTLOADER_BIN):
-	$(info BOOTLOADER_BIN: $@)
+$(U_BOOT_BIN):
+	$(info U_BOOT_BIN: $@)
 	$(WGET) -O $@ $(GITHUB_URL)/u-boot-$(SOC_MODEL)-universal.bin || \
 	$(WGET) -O $@ $(GITHUB_URL)/u-boot-$(SOC_FAMILY)-universal.bin
 
@@ -272,26 +297,43 @@ $(ROOTFS_CPIO):
 #	mv -vf $(OUTPUT_DIR)/images/rootfs.cpio $@
 
 # create a full firmware image
-$(FULL_FIRMWARE_BIN) : $(BOOTLOADER_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
-	$(info KERNEL_SIZE: $(KERNEL_SIZE))
+$(FULL_FIRMWARE_BIN): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
+	$(info KERNEL_SIZE:     $(KERNEL_SIZE))
 	$(info MAX_KERNEL_SIZE: $(MAX_KERNEL_SIZE))
-	$(info ROOTFS_SIZE: $(ROOTFS_SIZE))
+	$(info ROOTFS_SIZE:     $(ROOTFS_SIZE))
 	$(info MAX_ROOTFS_SIZE: $(MAX_ROOTFS_SIZE))
-	$(info FLASH_SIZE_HEX: $(FLASH_SIZE_HEX))
-	$(info BOOTLOADER_BIN: $(BOOTLOADER_BIN))
+	$(info FLASH_SIZE_HEX:  $(FLASH_SIZE_HEX))
+	$(info U_BOOT_BIN:      $(U_BOOT_BIN))
 	$(info FULL_FIRMWARE_BIN: $@)
 	@if [ "$(KERNEL_SIZE)" -gt "$(MAX_KERNEL_SIZE)" ]; then echo "Kernel size of $(KERNEL_SIZE) is larger than $(MAX_KERNEL_SIZE)"; exit 1; fi
 	@if [ "$(ROOTFS_SIZE)" -gt "$(MAX_ROOTFS_SIZE)" ]; then echo "Rootfs size of $(ROOTFS_SIZE) is larger than $(MAX_ROOTFS_SIZE)"; exit 1; fi
-	@dd if=/dev/zero bs=$$(($(FLASH_SIZE_HEX))) skip=0 count=1 status=none | tr '\000' '\377' > $(FULL_FIRMWARE_BIN)
-	@dd if=$(BOOTLOADER_BIN) bs=$$(stat -c%s $(BOOTLOADER_BIN)) seek=0 count=1 of=$@ conv=notrunc status=none
-	@dd if=$(KERNEL_BIN) bs=$(ROOTFS_SIZE) seek=$$(($(FLASH_KERNEL_OFFSET_HEX)))B count=1 of=$(FULL_FIRMWARE_BIN) conv=notrunc status=none
-	@dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$$(($(FLASH_ROOTFS_OFFSET_HEX)))B count=1 of=$(FULL_FIRMWARE_BIN) conv=notrunc status=none
+	@dd if=/dev/zero bs=$$(($(FLASH_SIZE_HEX))) skip=0 count=1 status=none | tr '\000' '\377' > $@
+	@dd if=$(U_BOOT_BIN) bs=$(U_BOOT_SIZE) seek=0 count=1 of=$@ conv=notrunc status=none
+	@dd if=$(KERNEL_BIN) bs=$(ROOTFS_SIZE) seek=$$(($(FLASH_KERNEL_OFFSET_HEX)))B count=1 of=$@ conv=notrunc status=none
+	@dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$$(($(FLASH_ROOTFS_OFFSET_HEX)))B count=1 of=$@ conv=notrunc status=none
 
 ### FIXME: B suffix works only with dd ver 9.0+
 #	if [ $$(dd --version | head -1 | awk '{print $$3}' | cut -d. -f1) -lt 9 ]; then
-#		dd if=$(KERNEL_BIN) bs=1 seek=$$(($(FLASH_KERNEL_OFFSET_HEX))) count=$(ROOTFS_SIZE) of=$(FULL_FIRMWARE_BIN) conv=notrunc status=none;
-#		dd if=$(ROOTFS_BIN) bs=1 seek=$$(($(FLASH_ROOTFS_OFFSET_HEX))) count=$(ROOTFS_SIZE) of=$(FULL_FIRMWARE_BIN) conv=notrunc status=none;
+#		dd if=$(KERNEL_BIN) bs=1 seek=$$(($(FLASH_KERNEL_OFFSET_HEX))) count=$(ROOTFS_SIZE) of=$@ conv=notrunc status=none;
+#		dd if=$(ROOTFS_BIN) bs=1 seek=$$(($(FLASH_ROOTFS_OFFSET_HEX))) count=$(ROOTFS_SIZE) of=$@ conv=notrunc status=none;
 #	fi
+
+$(FULL_FIRMWARE_BIN_FLEX): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
+	$(info KERNEL_SIZE:         $(KERNEL_SIZE))
+	$(info KERNEL_SIZE_ALIGNED: $(KERNEL_SIZE_ALIGNED))
+	$(info MAX_KERNEL_SIZE:     $(MAX_KERNEL_SIZE))
+	$(info ROOTFS_SIZE:         $(ROOTFS_SIZE))
+	$(info ROOTFS_SIZE_ALIGNED: $(ROOTFS_SIZE_ALIGNED))
+	$(info MAX_ROOTFS_SIZE:     $(MAX_ROOTFS_SIZE))
+	$(info FLASH_SIZE_HEX:      $(FLASH_SIZE_HEX))
+	$(info U_BOOT_BIN:          $(U_BOOT_BIN))
+	$(info FULL_FIRMWARE_BIN:   $@)
+#	@if [ "$(KERNEL_SIZE)" -gt "$(MAX_KERNEL_SIZE)" ]; then echo "Kernel size of $(KERNEL_SIZE) is larger than $(MAX_KERNEL_SIZE)"; exit 1; fi
+#	@if [ "$(ROOTFS_SIZE)" -gt "$(MAX_ROOTFS_SIZE)" ]; then echo "Rootfs size of $(ROOTFS_SIZE) is larger than $(MAX_ROOTFS_SIZE)"; exit 1; fi
+	@dd if=/dev/zero bs=$$(($(FLASH_SIZE_HEX))) skip=0 count=1 status=none | tr '\000' '\377' > $@
+	@dd if=$(U_BOOT_BIN) bs=$(U_BOOT_SIZE) seek=$(U_BOOT_OFFSET) count=1 of=$@ conv=notrunc status=none
+	@dd if=$(KERNEL_BIN) bs=$(KERNEL_SIZE) seek=$(KERNEL_OFFSET_FLEX)B count=1 of=$@ conv=notrunc status=none
+	@dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$(ROOTFS_OFFSET_FLEX)B count=1 of=$@ conv=notrunc status=none
 
 help:
 	@echo "\n\
@@ -300,6 +342,7 @@ help:
 	  - make install-deps - install system deps\n\
 	  - make BOARD=<BOARD-ID> all - build all needed for a board (toolchain, kernel and rootfs images)\n\
 	  - make BOARD=<BOARD-ID> pack - create a full binary for programmer\n\
+	  - make BOARD=<BOARD-ID> pack_flex - create a full binary with a dense layout\n\
 	  - make BOARD=<BOARD-ID> clean - cleaning before reassembly\n\
 	  - make BOARD=<BOARD-ID> distclean - switching to the factory state\n\
 	  - make BOARD=<BOARD-ID> prepare - download and unpack buildroot\n\
