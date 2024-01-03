@@ -73,6 +73,12 @@ upgrade_from_tftp() {
 	sysupgrade --kernel=/tmp/uImage.$soc --rootfs=/tmp/rootfs.squashfs.$soc -z --force_all
 }
 
+upgrade_from_sdcard() {
+    cp -v /mnt/mmcblk0p1/uImage /tmp/
+    cp -v /mnt/mmcblk0p1/rootfs.squashfs /tmp/
+	sysupgrade --kernel=/tmp/uImage --rootfs=/tmp/rootfs.squashfs -z --force_all
+}
+
 # Source configuration files from /etc/profile.d
 for i in /etc/profile.d/*.sh; do
 	[ -r "$i" ] && . $i
