@@ -247,6 +247,7 @@ $(SRC_DIR):
 # install Buildroot sources
 $(BUILDROOT_DIR)/.installed: $(BUILDROOT_BUNDLE)
 	ls -l $(dirname $@)
+	mkdir -p $(SRC_DIR)
 	tar -C $(SRC_DIR) -xf $(BUILDROOT_BUNDLE)
 	# remove shadowed packages
 	# FIXME: it's a dirty hack because buildroot does not do overlaying
