@@ -151,7 +151,7 @@ ROOTFS_SIZE         = $(shell stat -c%s $(ROOTFS_BIN))
 ROOTFS_SIZE_ALIGNED = $(shell echo $$(( ($(ROOTFS_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
 ROOTFS_OFFSET_FLEX  = $(shell echo $$(( $(KERNEL_OFFSET_FLEX) + $(KERNEL_SIZE_ALIGNED) )))
 
-.PHONY: all toolchain sdk clean distclean br-% help pack tftp sdcard install-prerequisites overlayed-rootfs-%
+.PHONY: all toolchain sdk clean distclean br-% help pack pack_flex tftp sdcard install-prerequisites overlayed-rootfs-%
 
 all: $(OUTPUT_DIR)/.config
 ifndef BOARD
@@ -188,13 +188,13 @@ pack: delete_full_bin $(FULL_FIRMWARE_BIN)
 	@echo "DONE"
 
 delete_full_bin:
-	rm $(FULL_FIRMWARE_BIN)
+	@if [ -f $(FULL_FIRMWARE_BIN) ]; then rm $(FULL_FIRMWARE_BIN); fi
 
 pack_flex: delete_flex_bin $(FULL_FIRMWARE_BIN_FLEX)
 	@echo "DONE"
 
 delete_flex_bin:
-	rm $(FULL_FIRMWARE_BIN_FLEX)
+	@if [ -f $(FULL_FIRMWARE_BIN_FLEX) ]; then rm $(FULL_FIRMWARE_BIN_FLEX); fi
 
 # upload kernel. rootfs and full image to tftp server
 tftp: $(FULL_FIRMWARE_BIN)
@@ -340,7 +340,7 @@ help:
 	@echo "\n\
 	BR-OpenIPC usage:\n\
 	  - make help - print this help\n\
-	  - make install-deps - install system deps\n\
+	  - make install-prerequisites - install system deps\n\
 	  - make BOARD=<BOARD-ID> all - build all needed for a board (toolchain, kernel and rootfs images)\n\
 	  - make BOARD=<BOARD-ID> pack - create a full binary for programmer\n\
 	  - make BOARD=<BOARD-ID> pack_flex - create a full binary with a dense layout\n\
