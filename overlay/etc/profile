@@ -1,0 +1,89 @@
+export PATH="/bin:/sbin:/usr/bin:/usr/sbin:/tmp"
+export HOME=$(grep -e "^${USER:-root}:" /etc/passwd | cut -d ":" -f 6)
+export HOME=${HOME:-/root}
+export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+export TZ=$(cat /etc/TZ)
+export SENSOR=$(fw_printenv -n sensor)
+
+echo_c() { echo -ne "\e[1;$1m$2\e[0m"; }
+
+if [ "$PS1" ]; then
+	[ -f /etc/os-release ] && . /etc/os-release
+	[ -f /etc/openipc_banner ] && echo_c 34 "$(cat /etc/openipc_banner)"
+	echo
+	echo_c 32 "$(printf "%53s" "${GITHUB_VERSION}")"
+	echo -e "\n\n"
+	if [ "$(id -u)" -eq 0 ]; then
+		export PS1='\u@\h:\w\# '
+	else
+		export PS1='\u@\h:\w\$ '
+	fi
+fi
+
+export EDITOR='/bin/vi'
+
+[ -x /usr/bin/arp ] || arp() { cat /proc/net/arp; }
+
+differ() {
+	diff -rN "/rom$1" "$1"
+}
+
+majestic_changes() {
+	diff -L "Majestic changes" -U 3 /rom/etc/majestic.yaml /etc/majestic.yaml
+}
+
+show_modules() {
+	echo; cat /proc/modules | cut -f 1 -d " " | while read module; do echo "Module: $module"; \
+	if [ -d "/sys/module/$module/parameters" ]; then ls /sys/module/$module/parameters/ | while read parameter; \
+	do echo -n "Parameter: $parameter --> "; cat /sys/module/$module/parameters/$parameter; done; fi; echo; done
+}
+
+show_fullname() {
+	echo "openipc-$(ipcinfo --chip-name)-$(ipcinfo --short-sensor)"
+}
+
+set_fullname() {
+	show_fullname >/etc/hostname
+}
+
+show_wlan() {
+	grep -r '$1..=' /etc/wireless | cut -d '"' -f 4 | sort | grep -e $(fw_printenv -n soc) -e generic
+}
+
+show_gain() {
+	while sleep 1; do curl -s http://localhost/metrics | grep ^isp_again | cut -d' ' -f2; done
+}
+
+network() {
+	/etc/init.d/S40network "$1"
+}
+
+switch_debug() {
+	[ "$1" = "on" ] && action='+' report='enabled' || action='-' report='disabled'
+	mount | grep -q 'debugfs' || mount -t debugfs none /sys/kernel/debug
+	echo "${action}p" > /sys/kernel/debug/dynamic_debug/control
+	for entry in mmc_core avpu squashfs mtdblock; do
+		echo "module $entry -p" > /sys/kernel/debug/dynamic_debug/control
+	done
+	echo "file fs/sysfs/file.c -p" > /sys/kernel/debug/dynamic_debug/control
+	echo "Dynamic debug for all files has been $report."
+}
+
+upgrade_from_tftp() {
+	soc=$(fw_printenv -n soc)
+	tftpip=$(fw_printenv -n serverip)
+	tftp -r uImage.$soc -l /tmp/uImage.$soc -g $tftpip
+	tftp -r rootfs.squashfs.$soc -l /tmp/rootfs.squashfs.$soc -g $tftpip
+	sysupgrade --kernel=/tmp/uImage.$soc --rootfs=/tmp/rootfs.squashfs.$soc -z --force_all
+}
+
+upgrade_from_sdcard() {
+    cp -v /mnt/mmcblk0p1/uImage /tmp/
+    cp -v /mnt/mmcblk0p1/rootfs.squashfs /tmp/
+	sysupgrade --kernel=/tmp/uImage --rootfs=/tmp/rootfs.squashfs -z --force_all
+}
+
+# Source configuration files from /etc/profile.d
+for i in /etc/profile.d/*.sh; do
+	[ -r "$i" ] && . $i
+done; unset i

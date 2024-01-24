@@ -1,6 +1,0 @@
-config BR2_PACKAGE_XIONGMAI_OSDRV_XM530
-	bool "xiongmai-osdrv-xm530"
-	help
-	  xiongmai-osdrv-xm530 - XiongMai kernel modules and libs
-
-	  https://openipc.org

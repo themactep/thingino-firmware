@@ -1,4 +1,0 @@
-config BR2_PACKAGE_HISILICON_OSDRV_SERDES
-	bool "hisilicon-osdrv-serdes"
-	help
-	  HiSilicon SerDes kernel driver.

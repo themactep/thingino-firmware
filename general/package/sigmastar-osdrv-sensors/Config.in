@@ -1,4 +1,0 @@
-config BR2_PACKAGE_SIGMASTAR_OSDRV_SENSORS
-	bool "sigmastar-osdrv-sensors"
-	help
-	  Sigmastar sensor kernel driver

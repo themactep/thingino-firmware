@@ -2,213 +2,178 @@
 # OpenIPC Firmware
 # themactep edition
 # https://github.com/themactep/openipc-firmware
-#
 
-#CAMERA_IP_ADDRESS = $(shell read CAMERA_IP_ADDRESS)
-CAMERA_IP_ADDRESS := "192.168.1.184"
+BUILDROOT_VERSION := 2023.11.1
 
-BUILDROOT_VERSION = 2023.11
+# Camera IP address
+CAMERA_IP_ADDRESS ?= 192.168.1.10
 
-# overrides Buildroot dl/ directory
+# Device of SD card
+SDCARD_DEVICE ?= /dev/sdc
+
+FLASH_SIZE_MB ?= 8
+
+SENSOR_MODEL ?= jxf23
+
+# TFTP server IP address to upload compiled images to
+TFTP_IP_ADDRESS ?= 192.168.1.254
+
+# Buildroot downloads directory
 # can be reused from environment, just export the value:
 # export BR2_DL_DIR = /path/to/your/local/storage
 BR2_DL_DIR ?= $(HOME)/dl
 
-# TFTP server IP address to upload compiled images to
-TFTP_SERVER_IP ?= 192.168.1.254
-
 # directory for extracting Buildroot sources
 SRC_DIR ?= $(HOME)/src
-
 BUILDROOT_BUNDLE := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION).tar.gz
 BUILDROOT_DIR := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)
 
 # working directory
 OUTPUT_DIR = $(HOME)/openipc-fw-output/$(BOARD)-br$(BUILDROOT_VERSION)
+STDOUT_LOG = $(OUTPUT_DIR)/compilation.log
+STDERR_LOG = $(OUTPUT_DIR)/compilation-errors.log
 
 # OpenIPC project directories
+BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(CURDIR)/scripts
-BUILDROOT_EXT_DIR := $(CURDIR)/general
 
 # make command for buildroot
-BR2_MAKE = $(MAKE) -C $(BUILDROOT_DIR) BR2_EXTERNAL=$(BUILDROOT_EXT_DIR) O=$(OUTPUT_DIR)
+BR2_MAKE = $(MAKE) -C $(BUILDROOT_DIR) BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
 
-LIST_OF_BOARD = $(shell find ./br-ext-*/configs/*_defconfig | sort | sed -E "s/^\.\/br-ext-chip-(.+)\/configs\/(.*)_defconfig/'\2' '\1 \2'/")
+BOARDS = $(shell find ./configs/*_defconfig | sort | sed -E "s/^\.\/configs\/(.*)_defconfig/'\1' '\1'/")
+#BOARDS = $(shell find $(CURDIR)/br-ext-*/configs/*_defconfig | sort | awk -F '/' '{print $$NF}')
 
 # check BOARD value from env
-ifeq ($(BOARD),)
 # if empty, check for journal
-ifeq ($(shell test -f .board; echo $$?),0)
-# if found, restore BOARD from journal
-BOARD := $(shell cat .board)
-# ask permision to reuse the value
-ifeq ($(shell whiptail --yesno "Use $(BOARD) from the previous session?" 10 40 3>&1 1>&2 2>&3; echo $$?),1)
-# if told no, reset the BOARD
-BOARD :=
-# and remove the journal
-$(shell rm .board)
-endif
-endif
-endif
-
-# if still no BOARD
+# if found, restore BOARD from journal, ask permision to reuse the value.
+# if told no, reset the BOARD and remove the journal
 ifeq ($(BOARD),)
-# select it from a list of boards
-BOARD := $(or $(shell whiptail --title "Available boards" --menu "Please select a board:" 20 76 12 --notags $(LIST_OF_BOARD) 3>&1 1>&2 2>&3),$(CONFIG))
+ifeq ($(shell test -f .board; echo $$?),0)
+BOARD = $(shell cat .board)
+ifeq ($(shell whiptail --yesno "Use $(BOARD) from the previous session?" 10 40 3>&1 1>&2 2>&3; echo $$?),1)
+BOARD =
+endif
+endif
 endif
 
-# if BOARD selected
-ifneq ($(BOARD),)
-# save selection to the journal
+# if still no BOARD, select it from a list of boards
+ifeq ($(BOARD),)
+BOARD := $(or $(shell whiptail --title "Boards" --menu "Select a board:" 20 76 12 --notags $(BOARDS) 3>&1 1>&2 2>&3))
+endif
+
+# if still no BOARD, bail out with an error
+ifeq ($(BOARD),)
+$(error NO BOARD!)
+endif
+
+# otherwise, save selection to the journal
 $(shell echo $(BOARD)>.board)
-# find board config file
-BOARD_CONFIG := $(shell find ./br-ext-*/configs/ -name $(BOARD)_defconfig)
-endif
 
-# did we find a config?
+# find board config file
+BOARD_CONFIG = $(shell find $(BR2_EXTERNAL)/configs/ -name $(BOARD)_defconfig)
+
+# if board config file not found, bail out with an error
 ifeq ($(BOARD_CONFIG),)
 $(error Cannot find a config for the board: $(BOARD))
 endif
 
-# did we find multimple configs?
+# if multimple config files are found, bail out with an error
 ifeq ($(echo $(BOARD_CONFIGS) | wc -w), 1)
 $(error Found multiple configs for $(BOARD): $(BOARD_CONFIG))
 endif
 
-# include the config by its full path
-DEFCONFIG := $(shell realpath $(BOARD_CONFIG))
-include $(DEFCONFIG)
+# otherwise, read camera config file
+include $(BOARD_CONFIG)
 
-#SOC_VENDOR := $(patsubst "%",%,$(BR2_OPENIPC_SOC_VENDOR))
-SOC_FAMILY := $(patsubst "%",%,$(BR2_OPENIPC_SOC_FAMILY))
-SOC_MODEL := $(patsubst "%",%,$(BR2_OPENIPC_SOC_MODEL))
-
-ifeq ($(BR2_OPENIPC_FLAVOR_LITE),y)
-BR2_OPENIPC_FLAVOR := lite
-else ifeq ($(BR2_OPENIPC_FLAVOR_FPV),y)
-BR2_OPENIPC_FLAVOR := fpv
-else ifeq ($(BR2_OPENIPC_FLAVOR_ULTIMATE),y)
-BR2_OPENIPC_FLAVOR := ultimate
-else
-$(info Unknown flavor, using lite.)
-BR2_OPENIPC_FLAVOR := lite
-endif
-
-KERNEL_VERSION := $(patsubst "%",%,$(BR2_LINUX_KERNEL_VERSION))
-# BUILDROOT_EXT_DIR := $(CURDIR)/br-ext-chip-$(SOC_VENDOR)
-
-ifneq ($(BR2_TOOLCHAIN_EXTERNAL),)
-export BR2_TOOLCHAIN_EXTERNAL=y
-OUTPUT_DIR := $(OUTPUT_DIR)-ext
-endif
-
-ifeq ($(BR2_OPENIPC_FLASH_SIZE_16M),y)
-FLASH_SIZE_HEX := 0x1000000
-FLASH_SIZE_MB := 16
-FLASH_KERNEL_OFFSET_HEX := 0x50000
-FLASH_ROOTFS_OFFSET_HEX := 0x350000
-MAX_KERNEL_SIZE := $(shell printf "%d" 0x300000)
-MAX_ROOTFS_SIZE := $(shell printf "%d" 0xA00000)
-else ifeq ($(BR2_OPENIPC_FLASH_SIZE_8M),y)
-FLASH_SIZE_HEX := 0x800000
-FLASH_SIZE_MB := 8
-FLASH_KERNEL_OFFSET_HEX := 0x50000
-FLASH_ROOTFS_OFFSET_HEX := 0x250000
-MAX_KERNEL_SIZE := $(shell printf "%d" 0x200000)
-MAX_ROOTFS_SIZE := $(shell printf "%d" 0x500000)
-else
-$(error Flash size is not set in defconfig)
-endif
+# include device tree makefile
+include $(BR2_EXTERNAL)/external.mk
 
 # hardcoded variables
 WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=3
-GITHUB_URL := https://github.com/OpenIPC/firmware/releases/download/latest
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
-ROOTFS_CPIO := $(OUTPUT_DIR)/images/rootfs.cpio
 
 ALIGN_BLOCK := $(shell echo $$(( 32 * 1024 )))
 
-FULL_FIRMWARE_NAME := openipc-$(SOC_MODEL)-$(BR2_OPENIPC_FLAVOR)-$(FLASH_SIZE_MB)mb.bin
-FULL_FIRMWARE_BIN := $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
-FULL_FIRMWARE_BIN_FLEX := $(OUTPUT_DIR)/images/flex-$(FULL_FIRMWARE_NAME)
+FULL_FIRMWARE_NAME = openipc-$(SOC_MODEL)-$(FLASH_SIZE_MB)mb.bin
+FULL_FIRMWARE_BIN = $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
 
-U_BOOT_BIN := $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL)-universal.bin
+U_BOOT_GITHUB_URL := https://github.com/OpenIPC/firmware/releases/download/latest
+U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL)-universal.bin
 
-U_BOOT_OFFSET      := 0
-U_BOOT_SIZE         = $(shell stat -c%s $(U_BOOT_BIN))
+U_BOOT_OFFSET := 0
+U_BOOT_SIZE = $(shell stat -c%s $(U_BOOT_BIN))
 U_BOOT_SIZE_ALIGNED = $(shell echo $$(( ($(U_BOOT_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
 
-U_BOOT_ENV_OFFSET  := $(shell echo $$(( 0x40000 ))) # 256K
-U_BOOT_ENV_SIZE    := $(shell echo $$(( 0x10000 ))) # 64K
+U_BOOT_ENV_OFFSET := $(shell echo $$(( 0x40000 ))) # 256K
+U_BOOT_ENV_SIZE := $(shell echo $$(( 0x10000 ))) # 64K
 
-KERNEL_SIZE         = $(shell stat -c%s $(KERNEL_BIN))
+KERNEL_SIZE = $(shell stat -c%s $(KERNEL_BIN))
 KERNEL_SIZE_ALIGNED = $(shell echo $$(( ($(KERNEL_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
-KERNEL_OFFSET_FLEX  = $(shell echo $$(( $(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_SIZE) )))
+KERNEL_OFFSET = $(shell echo $$(( $(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_SIZE) )))
 
-ROOTFS_SIZE         = $(shell stat -c%s $(ROOTFS_BIN))
+ROOTFS_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
 ROOTFS_SIZE_ALIGNED = $(shell echo $$(( ($(ROOTFS_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
-ROOTFS_OFFSET_FLEX  = $(shell echo $$(( $(KERNEL_OFFSET_FLEX) + $(KERNEL_SIZE_ALIGNED) )))
+ROOTFS_OFFSET = $(shell echo $$(( $(KERNEL_OFFSET) + $(KERNEL_SIZE_ALIGNED) )))
 
-.PHONY: all toolchain sdk clean distclean br-% help pack pack_flex tftp sdcard install-prerequisites overlayed-rootfs-%
-
-all: $(OUTPUT_DIR)/.config
-ifndef BOARD
-	$(MAKE) BOARD=$(BOARD) $@
+ifeq ($(SENSOR_MODEL),)
+$(error SENSOR IS NOT SET)
 endif
-	$(BR2_MAKE) all
+
+.PHONY: all toolchain sdk clean defconfig distclean help pack pack_flex tftp sdcard install-prerequisites overlayed-rootfs-% br-%
+
+all: defconfig
+ifndef BOARD
+	$(MAKE) BOARD=$(BOARD) $@ 1>>$(STDOUT_LOG) # 2>>$(STDERR_LOG)
+endif
+	$(BR2_MAKE) all 1>>$(STDOUT_LOG) # 2>>$(STDERR_LOG)
 
 # delete all build/{package} and per-package/{package} files
-br-%-dirclean: $(OUTPUT_DIR)/.config
-	rm -rvf $(OUTPUT_DIR)/per-package/$(subst -dirclean,,$(subst br-,,$@)) \
+br-%-dirclean: defconfig
+	rm -rf $(OUTPUT_DIR)/per-package/$(subst -dirclean,,$(subst br-,,$@)) \
 			$(OUTPUT_DIR)/build/$(subst -dirclean,,$(subst br-,,$@))*
 
-br-%: $(OUTPUT_DIR)/.config
+br-%: defconfig
 	$(BR2_MAKE) $(subst br-,,$@)
 
-toolchain: $(OUTPUT_DIR)/.config
+toolchain: defconfig
 	$(BR2_MAKE) toolchain
 
-sdk: $(OUTPUT_DIR)/.config
+sdk: defconfig
 	$(BR2_MAKE) sdk
 
-clean: $(OUTPUT_DIR)/.config
+clean: defconfig
 	$(BR2_MAKE) clean
 	rm -rvf $(OUTPUT_DIR)/target $(OUTPUT_DIR)/.config
 
-defconfig:
-	$(BR2_MAKE) defconfig
+defconfig: $(BUILDROOT_DIR)
+	@rm -rvf $(OUTPUT_DIR)/.config
+	$(BR2_MAKE) BR2_DEFCONFIG=$(BOARD_CONFIG) defconfig
+
+delete_full_bin:
+	@if [ -f $(FULL_FIRMWARE_BIN) ]; then rm $(FULL_FIRMWARE_BIN); fi
 
 distclean:
 	# $(BOARD_MAKE) distclean
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
-pack: delete_full_bin $(FULL_FIRMWARE_BIN)
+pack: defconfig delete_full_bin $(FULL_FIRMWARE_BIN)
 	@echo "DONE"
-
-delete_full_bin:
-	@if [ -f $(FULL_FIRMWARE_BIN) ]; then rm $(FULL_FIRMWARE_BIN); fi
-
-pack_flex: delete_flex_bin $(FULL_FIRMWARE_BIN_FLEX)
-	@echo "DONE"
-
-delete_flex_bin:
-	@if [ -f $(FULL_FIRMWARE_BIN_FLEX) ]; then rm $(FULL_FIRMWARE_BIN_FLEX); fi
 
 # upload kernel. rootfs and full image to tftp server
 tftp: $(FULL_FIRMWARE_BIN)
-	@busybox tftp -l $(KERNEL_BIN) -r uImage.$(SOC_FAMILY) -p $(TFTP_SERVER_IP)
-	@busybox tftp -l $(ROOTFS_BIN) -r rootfs.squashfs.$(SOC_FAMILY) -p $(TFTP_SERVER_IP)
-	@busybox tftp -l $(FULL_FIRMWARE_BIN) -r $(FULL_FIRMWARE_NAME) -p $(TFTP_SERVER_IP)
+	@busybox tftp -l $(KERNEL_BIN) -r uImage.$(SOC_FAMILY) -p $(TFTP_IP_ADDRESS)
+	@busybox tftp -l $(ROOTFS_BIN) -r rootfs.squashfs.$(SOC_FAMILY) -p $(TFTP_IP_ADDRESS)
+	@busybox tftp -l $(FULL_FIRMWARE_BIN) -r $(FULL_FIRMWARE_NAME) -p $(TFTP_IP_ADDRESS)
 
 # upload full image to an sd card
 sdcard: $(FULL_FIRMWARE_BIN)
-	@cp -v $(KERNEL_BIN) $$(mount | grep sdc1 | awk '{print $$3}')
-	@cp -v $(ROOTFS_BIN) $$(mount | grep sdc1 | awk '{print $$3}')
-	@cp -v $(FULL_FIRMWARE_BIN) $$(mount | grep sdc1 | awk '{print $$3}')
+	@cp -v $(KERNEL_BIN) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')
+	@cp -v $(ROOTFS_BIN) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')
+	@cp -v $(FULL_FIRMWARE_BIN) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')
 	sync
-	umount /dev/sdc1
+	umount $(SDCARD_DEVICE)1
 	@echo "Done"
 
 # upload kernel and rootfs in /tmp/ directory of the camera
@@ -229,7 +194,7 @@ else
 	@DEBIAN_FRONTEND=noninteractive apt-get -y install build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail
 endif
 
-# prepare: $(OUTPUT_DIR)/.config $(BUILDROOT_DIR)/Makefile
+# prepare: defconfig $(BUILDROOT_DIR)/Makefile
 #	@echo "Buildroot $(BUILDROOT_VERSION) is in $(BUILDROOT_DIR) directory."
 
 # create output directory
@@ -245,16 +210,11 @@ $(SRC_DIR):
 	mkdir -p $(SRC_DIR)
 
 # install Buildroot sources
-$(BUILDROOT_DIR)/.installed: $(BUILDROOT_BUNDLE)
+#$(BUILDROOT_DIR)/.installed: $(BUILDROOT_BUNDLE)
+$(BUILDROOT_DIR): $(BUILDROOT_BUNDLE)
 	ls -l $(dirname $@)
 	mkdir -p $(SRC_DIR)
 	tar -C $(SRC_DIR) -xf $(BUILDROOT_BUNDLE)
-	# remove shadowed packages
-	# FIXME: it's a dirty hack because buildroot does not do overlaying
-	# sed -i "/\/\(nginx\|wolfssl\)\//d" $(BUILDROOT_DIR)/package/Config.in
-	# rm -r $(BUILDROOT_DIR)/package/nginx
-	# rm -r $(BUILDROOT_DIR)/package/wolfssl
-	# FIXME: It should not be needed but I tried to check for $(BUILDROOT_DIR)/Makefile and it keeps extracting the bundle again and again
 	touch $@
 
 # download Buildroot bundle
@@ -262,100 +222,97 @@ $(BUILDROOT_BUNDLE):
 	$(WGET) -O $@ https://github.com/buildroot/buildroot/archive/refs/tags/$(BUILDROOT_VERSION).tar.gz
 	#https://github.com/buildroot/buildroot/archive/refs/heads/master.zip
 
-# create defconfig
-$(OUTPUT_DIR)/.config: $(BUILDROOT_DIR)/.installed
-	$(BR2_MAKE) BR2_DEFCONFIG=$(DEFCONFIG) defconfig
+## create defconfig
+#$(OUTPUT_DIR)/.config: $(BUILDROOT_DIR)/.installed
+#	$(info $(BR2_MAKE) BR2_DEFCONFIG=$(BOARD_CONFIG) defconfig)
+#	$(BR2_MAKE) BR2_DEFCONFIG=$(BOARD_CONFIG) defconfig
 
 # download bootloader
 # FIXME: should be built locally
 $(U_BOOT_BIN):
-	$(info U_BOOT_BIN: $@)
-	$(WGET) -O $@ $(GITHUB_URL)/u-boot-$(SOC_MODEL)-universal.bin || \
-	$(WGET) -O $@ $(GITHUB_URL)/u-boot-$(SOC_FAMILY)-universal.bin
+	$(info U_BOOT_BIN:          $@)
+	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL)-universal.bin || \
+	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_FAMILY)-universal.bin
 
 # rebuild Linux kernel
 $(KERNEL_BIN):
-	$(info KERNEL_BIN: $@)
+	$(info KERNEL_BIN:          $@)
+	$(info KERNEL_SIZE:         $(KERNEL_SIZE))
+	$(info KERNEL_SIZE_ALIGNED: $(KERNEL_SIZE_ALIGNED))
 	$(BR2_MAKE) linux-rebuild
 #	mv -vf $(OUTPUT_DIR)/images/uImage $@
 
 # rebuild rootfs
 $(ROOTFS_BIN):
-	$(info ROOTFS_BIN: $@)
+	$(info ROOTFS_BIN:          $@)
+	$(info ROOTFS_SIZE:         $(ROOTFS_SIZE))
+	$(info ROOTFS_SIZE_ALIGNED: $(ROOTFS_SIZE_ALIGNED))
 	$(BR2_MAKE) all
 #	mv -vf $(OUTPUT_DIR)/images/rootfs.squashfs $@
 
 # create .tar file of rootfs
 $(ROOTFS_TAR):
-	$(info ROOTFS_TAR: $@)
+	$(info ROOTFS_TAR:          $@)
 	$(BR2_MAKE) all
 #	mv -vf $(OUTPUT_DIR)/images/rootfs.tar $@
 
 # create .cpio file of rootfs
 $(ROOTFS_CPIO):
-	$(info ROOTFS_CPIO: $@)
+	$(info ROOTFS_CPIO:         $@)
 	$(BR2_MAKE) all
 #	mv -vf $(OUTPUT_DIR)/images/rootfs.cpio $@
 
-# create a full firmware image
 $(FULL_FIRMWARE_BIN): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
-	$(info KERNEL_SIZE:     $(KERNEL_SIZE))
-	$(info MAX_KERNEL_SIZE: $(MAX_KERNEL_SIZE))
-	$(info ROOTFS_SIZE:     $(ROOTFS_SIZE))
-	$(info MAX_ROOTFS_SIZE: $(MAX_ROOTFS_SIZE))
-	$(info FLASH_SIZE_HEX:  $(FLASH_SIZE_HEX))
-	$(info U_BOOT_BIN:      $(U_BOOT_BIN))
-	$(info FULL_FIRMWARE_BIN: $@)
-	@if [ "$(KERNEL_SIZE)" -gt "$(MAX_KERNEL_SIZE)" ]; then echo "Kernel size of $(KERNEL_SIZE) is larger than $(MAX_KERNEL_SIZE)"; exit 1; fi
-	@if [ "$(ROOTFS_SIZE)" -gt "$(MAX_ROOTFS_SIZE)" ]; then echo "Rootfs size of $(ROOTFS_SIZE) is larger than $(MAX_ROOTFS_SIZE)"; exit 1; fi
-	@dd if=/dev/zero bs=$$(($(FLASH_SIZE_HEX))) skip=0 count=1 status=none | tr '\000' '\377' > $@
-	@dd if=$(U_BOOT_BIN) bs=$(U_BOOT_SIZE) seek=0 count=1 of=$@ conv=notrunc status=none
-	@dd if=$(KERNEL_BIN) bs=$(ROOTFS_SIZE) seek=$$(($(FLASH_KERNEL_OFFSET_HEX)))B count=1 of=$@ conv=notrunc status=none
-	@dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$$(($(FLASH_ROOTFS_OFFSET_HEX)))B count=1 of=$@ conv=notrunc status=none
-
-### FIXME: B suffix works only with dd ver 9.0+
-#	if [ $$(dd --version | head -1 | awk '{print $$3}' | cut -d. -f1) -lt 9 ]; then
-#		dd if=$(KERNEL_BIN) bs=1 seek=$$(($(FLASH_KERNEL_OFFSET_HEX))) count=$(ROOTFS_SIZE) of=$@ conv=notrunc status=none;
-#		dd if=$(ROOTFS_BIN) bs=1 seek=$$(($(FLASH_ROOTFS_OFFSET_HEX))) count=$(ROOTFS_SIZE) of=$@ conv=notrunc status=none;
-#	fi
-
-$(FULL_FIRMWARE_BIN_FLEX): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
-	$(info KERNEL_SIZE:         $(KERNEL_SIZE))
-	$(info KERNEL_SIZE_ALIGNED: $(KERNEL_SIZE_ALIGNED))
-	$(info MAX_KERNEL_SIZE:     $(MAX_KERNEL_SIZE))
-	$(info ROOTFS_SIZE:         $(ROOTFS_SIZE))
-	$(info ROOTFS_SIZE_ALIGNED: $(ROOTFS_SIZE_ALIGNED))
-	$(info MAX_ROOTFS_SIZE:     $(MAX_ROOTFS_SIZE))
-	$(info FLASH_SIZE_HEX:      $(FLASH_SIZE_HEX))
-	$(info U_BOOT_BIN:          $(U_BOOT_BIN))
-	$(info FULL_FIRMWARE_BIN:   $@)
-#	@if [ "$(KERNEL_SIZE)" -gt "$(MAX_KERNEL_SIZE)" ]; then echo "Kernel size of $(KERNEL_SIZE) is larger than $(MAX_KERNEL_SIZE)"; exit 1; fi
-#	@if [ "$(ROOTFS_SIZE)" -gt "$(MAX_ROOTFS_SIZE)" ]; then echo "Rootfs size of $(ROOTFS_SIZE) is larger than $(MAX_ROOTFS_SIZE)"; exit 1; fi
 	@dd if=/dev/zero bs=$$(($(FLASH_SIZE_HEX))) skip=0 count=1 status=none | tr '\000' '\377' > $@
 	@dd if=$(U_BOOT_BIN) bs=$(U_BOOT_SIZE) seek=$(U_BOOT_OFFSET) count=1 of=$@ conv=notrunc status=none
-	@dd if=$(KERNEL_BIN) bs=$(KERNEL_SIZE) seek=$(KERNEL_OFFSET_FLEX)B count=1 of=$@ conv=notrunc status=none
-	@dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$(ROOTFS_OFFSET_FLEX)B count=1 of=$@ conv=notrunc status=none
+	@dd if=$(KERNEL_BIN) bs=$(KERNEL_SIZE) seek=$(KERNEL_OFFSET)B count=1 of=$@ conv=notrunc status=none
+	@dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$(ROOTFS_OFFSET)B count=1 of=$@ conv=notrunc status=none
+
+info:
+	$(info =========================================================================)
+	$(info BOARD:              $(BOARD))
+	$(info BOARD_CONFIG:       $(BOARD_CONFIG))
+	$(info BR2_DL_DIR:         $(BR2_DL_DIR))
+	$(info BR2_EXTERNAL:       $(BR2_EXTERNAL))
+	$(info BR2_KERNEL:         $(BR2_KERNEL))
+	$(info BR2_MAKE:           $(BR2_MAKE))
+	$(info BUILDROOT_BUNDLE:   $(BUILDROOT_BUNDLE))
+	$(info BUILDROOT_DIR:      $(BUILDROOT_DIR))
+	$(info BUILDROOT_VERSION:  $(BUILDROOT_VERSION))
+	$(info CAMERA_IP_ADDRESS:  $(CAMERA_IP_ADDRESS))
+	$(info CURDIR:             $(CURDIR))
+	$(info FLASH_SIZE_HEX:     $(FLASH_SIZE_HEX))
+	$(info FLASH_SIZE_MB:      $(FLASH_SIZE_MB))
+	$(info KERNEL:             $(KERNEL))
+	$(info SENSOR_MODEL:       $(SENSOR_MODEL))
+	$(info SOC_FAMILY:         $(SOC_FAMILY))
+	$(info SOC_MODEL:          $(SOC_MODEL))
+	$(info SOC_VENDOR:         $(SOC_VENDOR))
+	$(info TOOLCHAIN:          $(TOOLCHAIN))
+	$(info OUTPUT_DIR:         $(OUTPUT_DIR))
+	$(info SCRIPTS_DIR:        $(SCRIPTS_DIR))
+	$(info SRC_DIR:            $(SRC_DIR))
+	$(info STDERR_LOG:         $(STDERR_LOG))
+	$(info STDOUT_LOG:         $(STDOUT_LOG))
+	$(info TFTP_IP_ADDRESS:    $(TFTP_IP_ADDRESS))
+	$(info U_BOOT_BIN:         $(U_BOOT_BIN))
+	$(info U_BOOT_GITHUB_URL:  $(U_BOOT_GITHUB_URL))
+	$(info =========================================================================)
 
 help:
 	@echo "\n\
 	BR-OpenIPC usage:\n\
 	  - make help - print this help\n\
 	  - make install-prerequisites - install system deps\n\
-	  - make BOARD=<BOARD-ID> all - build all needed for a board (toolchain, kernel and rootfs images)\n\
+	  - make BOARD=<BOARD-ID> - build all needed for a board (toolchain, kernel and rootfs images)\n\
 	  - make BOARD=<BOARD-ID> pack - create a full binary for programmer\n\
-	  - make BOARD=<BOARD-ID> pack_flex - create a full binary with a dense layout\n\
 	  - make BOARD=<BOARD-ID> clean - cleaning before reassembly\n\
 	  - make BOARD=<BOARD-ID> distclean - switching to the factory state\n\
 	  - make BOARD=<BOARD-ID> prepare - download and unpack buildroot\n\
 	  - make BOARD=<BOARD-ID> board-info - write to stdout information about selected board\n\
-	  - make overlayed-rootfs-<FS-TYPE> ROOTFS_OVERLAYS=... - create rootfs image that contains original Buildroot target dir overlayed by some custom layers.\n\
 	Example:\n\
 	    make overlayed-rootfs-squashfs ROOTFS_OVERLAYS=./examples/echo_server/overlay\n\
 	"
-
-## there are some extra targets of specific packages
-#include $(sort $(wildcard $(CURDIR)/extra/*.mk))
-
 
 ###### Buildroot directories
 # TOPDIR             = ./buildroot
