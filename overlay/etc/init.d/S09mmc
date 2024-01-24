@@ -1,0 +1,81 @@
+#!/bin/sh
+
+MMC_VENDOR=$(ipcinfo -v)
+MMC_SOC_FAMILY=$(ipcinfo -f)
+MMC_SOC_SUBVAR=$(ipcinfo -c)
+
+MMC_GPIO_CD=$(fw_printenv -n gpio_mmc_cd)
+
+if [ -z "$MMC_GPIO_CD" ]; then
+	MMC_GPIO_CD="59"
+fi
+
+check_return() {
+	if [ $? -ne 0 ]; then
+		echo "err: $1"
+		exit
+	fi
+}
+
+load_module() {
+	case "$MMC_VENDOR" in
+		"ingenic")
+			MMC_MODULE="jzmmc_v12"
+			# Default CD-PIN for Ingenic PB27 (GPIO59)
+			MMC_PARAM="cd_gpio_pin=$MMC_GPIO_CD"
+
+			# Check if MDIO directory exists
+			if [ ! -d /proc/jz/mdio ]; then
+				case "$MMC_SOC_FAMILY" in
+					t20 | t10 | t21 | t30 | t40 | t41)
+						echo "OK"
+						;;
+					t31)
+						# Check for specific SOC sub-variants
+						if [ "$MMC_SOC_SUBVAR" != "t31a" ] && [ "$MMC_SOC_SUBVAR" != "t31al" ]; then
+							ingenic-gpio pb08 func 1 drive 2
+							ingenic-gpio pb09 func 1 drive 1
+							ingenic-gpio pb10 func 1 drive 1
+							ingenic-gpio pb11 func 1 drive 1
+							ingenic-gpio pb13 func 1 drive 1
+							ingenic-gpio pb14 func 1 drive 1
+						else
+							echo "Skipping GPIO setup for $MMC_SOC_SUBVAR"
+							return 1
+						fi
+						;;
+					t23)
+						echo "Unsupported: T23"
+						;;
+					# Add more cases for other SOC types as needed here
+					*)
+						echo "Unsupported SOC type: $MMC_SOC_FAMILY"
+						return 1
+						;;
+				esac
+			fi
+			;;
+		*)
+			echo "MMC Host support disabled, unsupported vendor: $MMC_VENDOR"
+			return 1
+			;;
+	esac
+
+	lsmod | grep "$MMC_MODULE" >/dev/null
+	if [ $? -ne 0 ]; then
+		modprobe $MMC_MODULE ${MMC_PARAM}
+		check_return "modprobe $MMC_MODULE"
+		echo "OK"
+	fi
+}
+
+case "$1" in
+	start)
+		if [ "$MMC_VENDOR" == "ingenic" ]; then
+			printf "Starting MMC: "
+			load_module
+		fi
+		;;
+esac
+
+exit 0

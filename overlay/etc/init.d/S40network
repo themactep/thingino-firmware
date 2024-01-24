@@ -1,0 +1,48 @@
+#!/bin/sh
+dev=$(fw_printenv -n wlandev)
+mac=$(fw_printenv -n wlanmac)
+
+set_wireless() {
+	path=/etc/wireless
+	if $path/usb "$dev" || $path/sdio "$dev"; then
+		[ -n "$mac" ] && ip link set dev wlan0 address "$mac"
+		ifup wlan0
+	elif $path/modem "$dev"; then
+		ifup usb0
+	fi
+	ifconfig eth0 192.168.192.10
+}
+
+case "$1" in
+	start)
+		echo "Starting network..."
+		ifup lo
+		if [ -n "$dev" ]; then
+			set_wireless
+		else
+			ifup eth0
+		fi
+		;;
+
+	stop)
+		echo "Stopping network..."
+		ifdown lo
+		if [ -n "$dev" ]; then
+			ifdown -f wlan0
+			ifdown -f usb0
+		else
+			ifdown eth0
+		fi
+		;;
+
+	restart|reload)
+		"$0" stop
+		"$0" start
+		;;
+
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+esac
+
+exit 0

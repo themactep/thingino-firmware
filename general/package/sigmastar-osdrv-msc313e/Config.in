@@ -1,6 +1,0 @@
-config BR2_PACKAGE_SIGMASTAR_OSDRV_MSC313E
-	bool "sigmastar-osdrv-msc313e"
-	help
-	  sigmastar-osdrv-msc313e - SigmaStar kernel modules and libs
-
-	  https://openipc.org

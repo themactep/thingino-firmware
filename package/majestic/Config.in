@@ -1,0 +1,21 @@
+config BR2_PACKAGE_MAJESTIC
+	bool "Majestic streamer"
+	select BR2_PACKAGE_INGENIC_LIBIMP_CONTROL
+	select BR2_PACKAGE_JSON_C
+	select BR2_PACKAGE_LIBEVENT_OPENIPC
+	select BR2_PACKAGE_LIBEVENT_OPENIPC_REMOVE_PYSCRIPT
+	select BR2_PACKAGE_LIBWEBSOCKETS_OPENIPC
+	select BR2_PACKAGE_LIBYAML
+	select BR2_PACKAGE_MAJESTIC_FONTS
+	select BR2_PACKAGE_MBEDTLS
+	select BR2_PACKAGE_MBEDTLS_DTLS_SRTP
+	select BR2_PACKAGE_MXML
+	select BR2_PACKAGE_OPUS
+	select BR2_PACKAGE_OPUS_FIXED_POINT
+	select BR2_PACKAGE_ZLIB
+	select BR2_PACKAGE_LIBOGG
+	select BR2_PACKAGE_LAME
+	help
+	  Tiny but powerful IPC streaming software
+	  (non-commercial version for personal use only)
+	  https://openipc.org
