@@ -1,7 +1,4 @@
 #!/bin/sh
-#
-# Start mdev....
-#
 
 case "$1" in
 	start)

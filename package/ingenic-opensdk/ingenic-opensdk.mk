@@ -5,7 +5,8 @@
 ################################################################################
 
 INGENIC_OPENSDK_SITE_METHOD = git
-INGENIC_OPENSDK_SITE = https://github.com/OpenIPC/openingenic
+INGENIC_OPENSDK_SITE = https://github.com/themactep/openingenic.git
+#INGENIC_OPENSDK_SITE = https://github.com/OpenIPC/openingenic
 INGENIC_OPENSDK_VERSION = $(shell git ls-remote $(INGENIC_OPENSDK_SITE) HEAD | head -1 | cut -f1)
 
 INGENIC_OPENSDK_LICENSE = GPL-3.0

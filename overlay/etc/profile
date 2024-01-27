@@ -9,7 +9,7 @@ echo_c() { echo -ne "\e[1;$1m$2\e[0m"; }
 
 if [ "$PS1" ]; then
 	[ -f /etc/os-release ] && . /etc/os-release
-	[ -f /etc/openipc_banner ] && echo_c 34 "$(cat /etc/openipc_banner)"
+	[ -f /etc/banner ] && echo_c 34 "$(cat /etc/banner)"
 	echo
 	echo_c 32 "$(printf "%53s" "${GITHUB_VERSION}")"
 	echo -e "\n\n"

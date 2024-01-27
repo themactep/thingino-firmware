@@ -1,9 +1,5 @@
 #!/bin/sh
-#
-# Starts dropbear sshd.
-#
 
-# Allow a few customizations from a config file
 test -r /etc/default/dropbear && . /etc/default/dropbear
 
 start() {

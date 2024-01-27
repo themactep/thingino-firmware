@@ -28,7 +28,7 @@ while [ true ]; do
 		# 20 counts =~ 5 seconds @ 0.25 sleep intervals
 		if [ $count -eq 20 ]; then
 			echo 'RESETTING FIRMWARE'
-			firstboot
+			sysupgrade -n
 		fi
 	fi
 	# This interval uses 1% CPU. Less sleep = more CPU

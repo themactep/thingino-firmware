@@ -1,4 +1,5 @@
 #!/bin/sh
+
 dev=$(fw_printenv -n wlandev)
 mac=$(fw_printenv -n wlanmac)
 

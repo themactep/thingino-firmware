@@ -1,7 +1,4 @@
 #!/bin/sh
-#
-# Start rc.local
-#
 
 start() {
 	echo "Starting rc.local"
@@ -15,7 +12,6 @@ restart() {
 
 stop() {
 	echo "Stopping rc.local"
-	# Check if rc.local.stop exists and if so, execute it
 	if [ -x /etc/rc.local.stop ]; then
 		/etc/rc.local.stop
 	else
