@@ -1,0 +1,98 @@
+#!/bin/sh
+
+# Path to the GPIO configuration file
+CONFIG_FILE="/etc/gpio.conf"
+
+# Function to process gpio commands
+process_gpio_command() {
+	case "$1" in
+		set)
+			gpio set "$2" >/dev/null 2>&1
+			;;
+		clear)
+			gpio clear "$2" >/dev/null 2>&1
+			;;
+		*)
+			echo "Invalid gpio command"
+			return 1
+			;;
+	esac
+	return 0
+}
+
+# Function to process ingenic commands
+process_ingenic_command() {
+	# Calculate the group and pin from the GPIO number
+	group=$(( $1 / 32 ))
+	pin=$(( $1 % 32 ))
+	
+	# Convert the group number to a group letter (A, B, C, etc.)
+	group_letter=$(printf "\\$(printf '%03o' $((group + 65)))")
+
+	# The rest of the arguments are passed as-is
+	shift 1 # Remove the first argument (gpio_num) before passing to ingenic-gpio
+	
+	ingenic-gpio "p$group_letter$pin" "$@"
+	return 0
+}
+
+# Function to read and process the config file
+process_config_file() {
+	success=1
+
+	# Check if the configuration file exists
+	if [ ! -f "$CONFIG_FILE" ]; then
+		echo "GPIO configuration file not found!"
+		exit 1
+	fi
+	
+	# Read the configuration file line by line
+	while IFS= read -r line || [ -n "$line" ]; do
+		# Ignore comments and empty lines
+		if [ -z "$line" ] || [ "${line#\#}" != "$line" ]; then
+			continue
+		fi
+		
+		# Split the line into arguments
+		set -- $line
+		
+		# Process the command
+		case "$1" in
+			gpio)
+				process_gpio_command "$2" "$3" || success=0
+				;;
+			ingenic)
+				process_ingenic_command "$2" "$3" "$4" "$5" "$6" || success=0
+				;;
+			*)
+				echo "Unknown command: $1"
+				success=0
+				;;
+		esac
+	done < "$CONFIG_FILE"
+
+	# Check success flag
+	if [ $success -eq 1 ]; then
+		echo "OK"
+	else
+		echo "Failed"
+	fi
+}
+
+# Main script execution
+case "$1" in
+	start)
+		echo -n "Starting GPIO: "
+		process_config_file
+		;;
+	stop)
+		;;
+	restart|reload)
+		;;
+	*)
+		echo "Usage: $0 {start}"
+		exit 1
+		;;
+esac
+
+exit 0
