@@ -184,10 +184,6 @@ upload:
 	scp -O $(KERNEL_BIN) root@$(CAMERA_IP_ADDRESS):/tmp/uImage
 	scp -O $(ROOTFS_BIN) root@$(CAMERA_IP_ADDRESS):/tmp/rootfs.squashfs
 
-# upload firmware file on the camera via ssh and run upgrade remotely
-upgrade: upload
-	ssh root@$(CAMERA_IP_ADDRESS) "sysupgrade -z --kernel=/tmp/uImage --rootfs=/tmp/rootfs.squashfs --force_ver"
-
 # install prerequisites
 install-prerequisites:
 ifneq ($(shell id -u), 0)

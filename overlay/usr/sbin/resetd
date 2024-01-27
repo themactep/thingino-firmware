@@ -27,8 +27,8 @@ while [ true ]; do
 
 		# 20 counts =~ 5 seconds @ 0.25 sleep intervals
 		if [ $count -eq 20 ]; then
-			echo 'RESETTING FIRMWARE'
-			sysupgrade -n
+			echo "Erasing overlay partition."
+			flash_eraseall -j "/dev/$(grep "rootfs_data" /proc/mtd | cut -d: -f1)"
 		fi
 	fi
 	# This interval uses 1% CPU. Less sleep = more CPU
