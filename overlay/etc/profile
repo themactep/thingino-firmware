@@ -69,20 +69,6 @@ switch_debug() {
 	echo "Dynamic debug for all files has been $report."
 }
 
-upgrade_from_tftp() {
-	soc=$(fw_printenv -n soc)
-	tftpip=$(fw_printenv -n serverip)
-	tftp -r uImage.$soc -l /tmp/uImage.$soc -g $tftpip
-	tftp -r rootfs.squashfs.$soc -l /tmp/rootfs.squashfs.$soc -g $tftpip
-	sysupgrade --kernel=/tmp/uImage.$soc --rootfs=/tmp/rootfs.squashfs.$soc -z --force_all
-}
-
-upgrade_from_sdcard() {
-    cp -v /mnt/mmcblk0p1/uImage /tmp/
-    cp -v /mnt/mmcblk0p1/rootfs.squashfs /tmp/
-	sysupgrade --kernel=/tmp/uImage --rootfs=/tmp/rootfs.squashfs -z --force_all
-}
-
 # Source configuration files from /etc/profile.d
 for i in /etc/profile.d/*.sh; do
 	[ -r "$i" ] && . $i
