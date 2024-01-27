@@ -5,16 +5,7 @@ DAEMON="watchdog"
 WATCHDOG_ENABLED=false
 WATCHDOG_TIMEOUT=60
 
-SUPPORTED_VENDORS="ingenic"
 WATCHDOG_ARGS="-T $WATCHDOG_TIMEOUT /dev/watchdog"
-WATCHDOG_VENDOR=$(ipcinfo -v)
-
-vendor_supported() {
-	for vendor in $SUPPORTED_VENDORS; do
-		[ "$WATCHDOG_VENDOR" = "$vendor" ] && return 0
-	done
-	return 1
-}
 
 start()
 {
@@ -24,7 +15,7 @@ start()
 		exit 0
 	fi
 
-	if vendor_supported && [ "$WATCHDOG_ENABLED" = "true" ]; then
+	if [ "$WATCHDOG_ENABLED" = "true" ]; then
 		printf "Starting ${DAEMON}: "
 		start-stop-daemon -b -S -q -x "/sbin/${DAEMON}" -- ${WATCHDOG_ARGS}
 		if [ $? = 0 ]; then

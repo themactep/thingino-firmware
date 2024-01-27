@@ -15,45 +15,15 @@ case "$(echo $0 | cut -d / -f 4)" in
 		;;
 
 	ipctool)
-		if echo $(uname -m) | grep -q mips; then
-			filename='ipctool-mips32'
-		else
-			filename='ipctool'
-		fi
 		IPCTOOL=/tmp/ipctool
 		if [ ! -x $IPCTOOL ]; then
-			curl -s -L -o $IPCTOOL https://github.com/OpenIPC/ipctool/releases/download/latest/${filename}
+			curl -s -L -o $IPCTOOL https://github.com/OpenIPC/ipctool/releases/download/latest/ipctool-mips32
 			chmod +x $IPCTOOL
 			echo "The ipctool installed as remote GitHub plugin"
 		fi
 		$IPCTOOL $@
 		;;
 
-	check_mac)
-		if [ "$(fw_printenv -n ethaddr)" = "00:00:23:34:45:66" ]; then
-			XMMAC=$(ipcinfo --xm-mac)
-			if [ -z "$XMMAC" -o "Nothing found." = "$XMMAC" ]; then
-				echo "Ethernet interface MAC address is invalid, please change it."
-				exit 1
-			fi
-			fw_setenv ethaddr $XMMAC
-			reboot -f
-
-		fi
-		;;
-
-	system_fb)
-		[ -f /etc/system.ok ] && exit 1
-
-		if [ -f /usr/share/openipc/customizer.sh ]; then
-			echo "Run customizer"
-			sh /usr/share/openipc/customizer.sh
-			touch /etc/system.ok
-		else
-			echo "Customizer not found"
-			exit 1
-		fi
-		;;
 	*)
 		;;
 esac

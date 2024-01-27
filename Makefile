@@ -82,7 +82,10 @@ ifeq ($(echo $(BOARD_CONFIGS) | wc -w), 1)
 $(error Found multiple configs for $(BOARD): $(BOARD_CONFIG))
 endif
 
-# otherwise, read camera config file
+# read common config file
+include $(BR2_EXTERNAL)/common.mk
+
+# read camera config file
 include $(BOARD_CONFIG)
 
 # include device tree makefile
@@ -270,6 +273,7 @@ $(FULL_FIRMWARE_BIN): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
 
 info:
 	$(info =========================================================================)
+	$(info BASE_DIR:           $(BASE_DIR))
 	$(info BOARD:              $(BOARD))
 	$(info BOARD_CONFIG:       $(BOARD_CONFIG))
 	$(info BR2_DL_DIR:         $(BR2_DL_DIR))
@@ -280,6 +284,7 @@ info:
 	$(info BUILDROOT_DIR:      $(BUILDROOT_DIR))
 	$(info BUILDROOT_VERSION:  $(BUILDROOT_VERSION))
 	$(info CAMERA_IP_ADDRESS:  $(CAMERA_IP_ADDRESS))
+	$(info CONFIG_DIR:         $(CONFIG_DIR))
 	$(info CURDIR:             $(CURDIR))
 	$(info FLASH_SIZE_HEX:     $(FLASH_SIZE_HEX))
 	$(info FLASH_SIZE_MB:      $(FLASH_SIZE_MB))
@@ -295,6 +300,7 @@ info:
 	$(info STDERR_LOG:         $(STDERR_LOG))
 	$(info STDOUT_LOG:         $(STDOUT_LOG))
 	$(info TFTP_IP_ADDRESS:    $(TFTP_IP_ADDRESS))
+	$(info TOPDIR:             $(TOPDIR))
 	$(info U_BOOT_BIN:         $(U_BOOT_BIN))
 	$(info U_BOOT_GITHUB_URL:  $(U_BOOT_GITHUB_URL))
 	$(info =========================================================================)

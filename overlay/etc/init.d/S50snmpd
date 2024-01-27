@@ -8,8 +8,6 @@ SNMPD_ARGS="-n -4 -c openipc -i eth0 -D OpenIPC -C https://openipc.org -L Intern
 # shellcheck source=/dev/null
 [ -r "/etc/default/$DAEMON" ] && . "/etc/default/$DAEMON"
 
-# The mini-snmpd does not create a pidfile, so pass "-n" in the command line
-# and use "-m" to instruct start-stop-daemon to create one.
 start() {
 	printf 'Starting %s: ' "$DAEMON"
 	[ -f /usr/sbin/$DAEMON ] || echo -en "DISABLED, "

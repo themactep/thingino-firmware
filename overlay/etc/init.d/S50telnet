@@ -1,9 +1,7 @@
 #!/bin/sh
-#
-# Start telnet server
-#
 
 TELNETD_ARGS="-F -p 4321 -l /bin/sh"
+
 [ -r /etc/default/telnet ] && . /etc/default/telnet
 
 start() {
