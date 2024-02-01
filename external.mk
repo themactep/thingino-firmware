@@ -1,15 +1,5 @@
 $(info --- FILE: external.mk ---)
 
-#ifeq ($(FLASH_SIZE_MB),32)
-#FLASH_SIZE_HEX := 0x2000000
-#else ifeq ($(FLASH_SIZE_MB),16)
-#FLASH_SIZE_HEX := 0x1000000
-#else ifeq ($(FLASH_SIZE_MB),8)
-#FLASH_SIZE_HEX := 0x800000
-#else
-#$(error Flash size is not set in defconfig)
-#endif
-
 SOC_VENDOR := ingenic
 
 ifeq ($(BR2_SOC_INGENIC_T10),y)
