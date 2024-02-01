@@ -27,12 +27,10 @@ MAJESTIC_DEPENDENCIES = \
 	zlib
 #	lame
 
-MAJESTIC_STRIP_COMPONENTS = 0
-
 define MAJESTIC_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
-	$(INSTALL) -m 644 $(@D)/majestic-mini.yaml $(TARGET_DIR)/etc/majestic.yaml
-	$(INSTALL) -m 644 $(@D)/majestic.yaml $(TARGET_DIR)/etc/majestic.full
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc $(@D)/majestic.yaml
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc $(@D)/majestic.full
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d $(MAJESTIC_PKGDIR)/files/S95majestic
