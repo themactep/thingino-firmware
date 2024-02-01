@@ -22,6 +22,10 @@ MAJESTIC_DEPENDENCIES = \
 	mxml \
 	zlib
 
+define MAJESTIC_EXTRACT_CMDS
+	cp -r $(MAJESTIC_PKGDIR)/files/* $(@D)/
+endef
+
 define MAJESTIC_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc $(MAJESTIC_PKGDIR)/files/majestic.yaml
