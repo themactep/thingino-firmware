@@ -1,4 +1,0 @@
-config BR2_PACKAGE_SIGMASTAR_MOTORS
-	bool "majestic-plugins"
-	help
-	  Sample for Majestic plugins.
