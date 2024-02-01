@@ -1,5 +1,5 @@
 system:
-  webAdmin: enabled
+  webAdmin: disabled
   buffer: 1024
 isb:
   blkCnt: 1
