@@ -135,7 +135,8 @@ endif
 # delete all build/{package} and per-package/{package} files
 br-%-dirclean: defconfig
 	rm -rf $(OUTPUT_DIR)/per-package/$(subst -dirclean,,$(subst br-,,$@)) \
-			$(OUTPUT_DIR)/build/$(subst -dirclean,,$(subst br-,,$@))*
+			$(OUTPUT_DIR)/build/$(subst -dirclean,,$(subst br-,,$@))* \
+			$(OUTPUT_DIR)/target
 
 br-%: defconfig
 	$(BR2_MAKE) $(subst br-,,$@)
