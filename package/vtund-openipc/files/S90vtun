@@ -1,16 +1,16 @@
 #! /bin/sh
 #
 # submitted by Morgon Kanter
-# 
+#
 
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
 DAEMON=/usr/sbin/vtund
 CONFFILE=/etc/vtund-start.conf
 PIDPREFIX=/var/run/vtund
-  
+
 test -f $DAEMON || exit 0
-  
-case "$1" in 
+
+case "$1" in
        start)
       # find all the defined tunnels
       egrep -v '^[:space:]*(#.*)?$' $CONFFILE | while true;
@@ -29,15 +29,15 @@ case "$1" in
                   TARGET=`echo $i|cut -f 2 -d " "`;
                   echo  "Starting vtund client $HOST to $TARGET.";
                   start-stop-daemon --start --exec $DAEMON --pidfile $PIDPREFIX.$HOST.pid -- $i;
- 
+
               fi
           done
               ;;
-       stop) 
+       stop)
           echo "Stopping vtund.";
           for i in $PIDPREFIX*;
           do
-              start-stop-daemon --stop --pidfile $i; 
+              start-stop-daemon --stop --pidfile $i;
               rm -f $i;
           done
                ;;
@@ -45,10 +45,10 @@ case "$1" in
           echo "Reloading vtund.";
           for i in $PIDPREFIX*;
           do
-              start-stop-daemon --stop --signal 1 --pidfile $i; 
+              start-stop-daemon --stop --signal 1 --pidfile $i;
           done
               ;;
-       restart) 
+       restart)
           $0 stop
           sleep 1;
           $0 start
