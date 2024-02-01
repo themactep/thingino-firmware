@@ -3,7 +3,8 @@
 # themactep edition
 # https://github.com/themactep/openipc-firmware
 
-BUILDROOT_VERSION := 2023.11.1
+#BUILDROOT_VERSION := 2023.11.1
+BUILDROOT_VERSION := git
 
 # Camera IP address
 CAMERA_IP_ADDRESS ?= 192.168.1.10
@@ -26,7 +27,10 @@ BR2_DL_DIR ?= $(HOME)/dl
 # directory for extracting Buildroot sources
 SRC_DIR ?= $(HOME)/src
 BUILDROOT_BUNDLE := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION).tar.gz
-BUILDROOT_DIR := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)
+BUILDROOT_REPO := https://github.com/themactep/buildroot.git
+BUILDROOT_DIR := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)-themactep
+#BUILDROOT_REPO := https://github.com/buildroot/buildroot.git
+#BUILDROOT_DIR := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)
 
 # working directory
 OUTPUT_DIR = $(HOME)/openipc-fw-output/$(BOARD)-br$(BUILDROOT_VERSION)
@@ -58,7 +62,8 @@ endif
 
 # if still no BOARD, select it from a list of boards
 ifeq ($(BOARD),)
-BOARD := $(or $(shell whiptail --title "Boards" --menu "Select a board:" 20 76 12 --notags $(BOARDS) 3>&1 1>&2 2>&3))
+#BOARD := $(or $(shell whiptail --title "Boards" --menu "Select a board:" 20 76 12 --notags $(BOARDS) 3>&1 1>&2 2>&3))
+BOARD := $(or $(shell eval `resize`; whiptail --title "Boards" --menu "Select a board:" $$LINES $$COLUMNS $$(( LINES - 8 )) --notags $(BOARDS) 3>&1 1>&2 2>&3))
 endif
 
 # if still no BOARD, bail out with an error
@@ -124,9 +129,9 @@ ifeq ($(SENSOR_MODEL),)
 $(error SENSOR IS NOT SET)
 endif
 
-.PHONY: all toolchain sdk clean defconfig distclean help pack pack_flex tftp sdcard install-prerequisites overlayed-rootfs-% br-%
+.PHONY: all toolchain sdk clean defconfig distclean help pack pack_flex tftp sdcard update_buildroot install-prerequisites overlayed-rootfs-% br-%
 
-all: defconfig
+all: update_buildroot defconfig
 ifndef BOARD
 	$(MAKE) BOARD=$(BOARD) $@ 1>>$(STDOUT_LOG) # 2>>$(STDERR_LOG)
 endif
@@ -150,6 +155,13 @@ sdk: defconfig
 clean: defconfig
 	$(BR2_MAKE) clean
 	rm -rvf $(OUTPUT_DIR)/target $(OUTPUT_DIR)/.config
+
+update_buildroot: $(SRC_DIR)
+	if [ ! -d "$(BUILDROOT_DIR)" ]; then git clone --depth 1 $(BUILDROOT_REPO) $(BUILDROOT_DIR); fi
+	cd $(BUILDROOT_DIR)
+	git pull
+	cd -
+	echo "Buildroot updated"
 
 defconfig: $(BUILDROOT_DIR)
 	@rm -rvf $(OUTPUT_DIR)/.config
@@ -182,8 +194,9 @@ sdcard: $(FULL_FIRMWARE_BIN)
 
 # upload kernel and rootfs in /tmp/ directory of the camera
 upload:
-	scp -O $(KERNEL_BIN) root@$(CAMERA_IP_ADDRESS):/tmp/uImage
-	scp -O $(ROOTFS_BIN) root@$(CAMERA_IP_ADDRESS):/tmp/rootfs.squashfs
+	# scp -O full4programmer-8MB-flex.bin root@192.168.1.130:/mnt/mmcblk0p1/autoupdate-full.bin
+	scp -O $(KERNEL_BIN) root@$(CAMERA_IP_ADDRESS):/mnt/mmcblk0p1/autoupdate-kernel.bin
+	scp -O $(ROOTFS_BIN) root@$(CAMERA_IP_ADDRESS):/tmp/mmcblk0p1/autoupdate-rootfs.bin
 
 # install prerequisites
 install-prerequisites:
@@ -209,9 +222,8 @@ $(OUTPUT_DIR):
 $(SRC_DIR):
 	mkdir -p $(SRC_DIR)
 
-# install Buildroot sources
-#$(BUILDROOT_DIR)/.installed: $(BUILDROOT_BUNDLE)
-$(BUILDROOT_DIR): $(BUILDROOT_BUNDLE)
+# install Buildroot sources from bundle
+$(BUILDROOT_DIR)/.extracted: $(BUILDROOT_BUNDLE)
 	ls -l $(dirname $@)
 	mkdir -p $(SRC_DIR)
 	tar -C $(SRC_DIR) -xf $(BUILDROOT_BUNDLE)
