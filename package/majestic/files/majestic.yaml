@@ -1,6 +1,8 @@
 system:
   webAdmin: enabled
   buffer: 1024
+isb:
+  blkCnt: 1
 image:
   mirror: false
   flip: false
