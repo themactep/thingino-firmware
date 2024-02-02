@@ -6,7 +6,6 @@ PIDFILE="/var/run/$DAEMON.pid"
 
 DAEMON_ARGS="-s"
 
-# shellcheck source=/dev/null
 [ -r "/etc/default/$DAEMON" ] && . "/etc/default/$DAEMON"
 
 load_majestic() {
@@ -14,7 +13,6 @@ load_majestic() {
 	[ -f $DAEMON_PATH/$DAEMON ] || echo -en "DISABLED, "
 
 	start-stop-daemon -b -m -S -p "$PIDFILE" -x sh -- -c "/lib/ld-musl-mipsel.so.1 --preload /usr/lib/libimp_control.so $DAEMON_PATH/$DAEMON $DAEMON_ARGS"
-
 	status=$?
 	if [ "$status" -eq 0 ]; then
 		echo "OK"
@@ -24,7 +22,6 @@ load_majestic() {
 	return "$status"
 }
 
-# The daemon does not create a pidfile, and use "-m" to instruct start-stop-daemon to create one.
 start() {
 	logger -s -p daemon.info -t $(ipcinfo -v) "Loading video system has started..."
 	export SENSOR=$(fw_printenv -n sensor)
@@ -56,7 +53,7 @@ reload() {
 }
 
 case "$1" in
-	start|stop|restart|reload)
+	start | stop | restart | reload)
 		"$1"
 		;;
 	*)
