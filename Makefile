@@ -147,7 +147,7 @@ br-%: defconfig
 	$(BR2_MAKE) $(subst br-,,$@)
 
 clean: defconfig
-	rm -rvf $(OUTPUT_DIR)/target $(OUTPUT_DIR)/.config
+	rm -rf $(OUTPUT_DIR)/target $(OUTPUT_DIR)/.config
 
 defconfig: $(BUILDROOT_DIR)
 	@rm -rvf $(OUTPUT_DIR)/.config
