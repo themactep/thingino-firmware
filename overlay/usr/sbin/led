@@ -9,7 +9,7 @@ setLED() {
 	if [ -z "$2" ]; then
 		echo "[INFO] Status Lights: GPIO_$1 is not set in $0" > /dev/kmsg
 	else
-		gpio_ng set "$2" "$3"
+		gpio set "$2" "$3"
 	fi
 }
 
