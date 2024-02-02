@@ -9,7 +9,7 @@ WATCHDOG_ARGS="-T $WATCHDOG_TIMEOUT /dev/watchdog"
 
 start()
 {
-	if [ "$(cli -g .watchdog.enabled)" = "true" ]; then
+	if [ "$(yaml-cli -g .watchdog.enabled)" = "true" ]; then
 		printf "Starting ${DAEMON}: "
 		echo "majestic watchdog enabled"
 		exit 0
