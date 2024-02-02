@@ -13,7 +13,7 @@ define INGENIC_DIAG_TOOLS_BUILD_CMDS
 endef
 
 define INGENIC_DIAG_TOOLS_INSTALL_TARGET_CMDS
-    $(INSTALL) -D -m 0755 $(@D)/ingenic-gpio $(TARGET_DIR)/usr/bin/
+    $(INSTALL) -D -m 0755 $(@D)/ingenic-gpio $(TARGET_DIR)/usr/bin/gpio-diag
 endef
 
 $(eval $(generic-package))
