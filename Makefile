@@ -146,22 +146,8 @@ br-%-dirclean: defconfig
 br-%: defconfig
 	$(BR2_MAKE) $(subst br-,,$@)
 
-toolchain: defconfig
-	$(BR2_MAKE) toolchain
-
-sdk: defconfig
-	$(BR2_MAKE) sdk
-
 clean: defconfig
-	$(BR2_MAKE) clean
 	rm -rvf $(OUTPUT_DIR)/target $(OUTPUT_DIR)/.config
-
-update_buildroot: $(SRC_DIR)
-	if [ ! -d "$(BUILDROOT_DIR)" ]; then git clone --depth 1 $(BUILDROOT_REPO) $(BUILDROOT_DIR); fi
-	cd $(BUILDROOT_DIR)
-	git pull
-	cd -
-	echo "Buildroot updated"
 
 defconfig: $(BUILDROOT_DIR)
 	@rm -rvf $(OUTPUT_DIR)/.config
@@ -177,26 +163,39 @@ distclean:
 pack: defconfig delete_full_bin $(FULL_FIRMWARE_BIN)
 	@echo "DONE"
 
+sdk: defconfig
+	$(BR2_MAKE) sdk
+
+toolchain: defconfig
+	$(BR2_MAKE) toolchain
+
+update_buildroot: $(SRC_DIR)
+	if [ ! -d "$(BUILDROOT_DIR)" ]; then git clone --depth 1 $(BUILDROOT_REPO) $(BUILDROOT_DIR); fi
+	cd $(BUILDROOT_DIR)
+	git pull
+	cd -
+	echo "Buildroot updated"
+
+# upload kernel and rootfs in /tmp/ directory of the camera
+upload_ipc:
+	# scp -O full4programmer-8MB-flex.bin root@192.168.1.130:/mnt/mmcblk0p1/autoupdate-full.bin
+	scp -O $(KERNEL_BIN) root@$(CAMERA_IP_ADDRESS):/mnt/mmcblk0p1/autoupdate-kernel.bin
+	scp -O $(ROOTFS_BIN) root@$(CAMERA_IP_ADDRESS):/tmp/mmcblk0p1/autoupdate-rootfs.bin
+
 # upload kernel. rootfs and full image to tftp server
-tftp: $(FULL_FIRMWARE_BIN)
+upload_tftp: $(FULL_FIRMWARE_BIN)
 	@busybox tftp -l $(KERNEL_BIN) -r uImage.$(SOC_FAMILY) -p $(TFTP_IP_ADDRESS)
 	@busybox tftp -l $(ROOTFS_BIN) -r rootfs.squashfs.$(SOC_FAMILY) -p $(TFTP_IP_ADDRESS)
 	@busybox tftp -l $(FULL_FIRMWARE_BIN) -r $(FULL_FIRMWARE_NAME) -p $(TFTP_IP_ADDRESS)
 
 # upload full image to an sd card
-sdcard: $(FULL_FIRMWARE_BIN)
+upload_sdcard: $(FULL_FIRMWARE_BIN)
 	@cp -v $(KERNEL_BIN) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')
 	@cp -v $(ROOTFS_BIN) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')
 	@cp -v $(FULL_FIRMWARE_BIN) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')
 	sync
 	umount $(SDCARD_DEVICE)1
 	@echo "Done"
-
-# upload kernel and rootfs in /tmp/ directory of the camera
-upload:
-	# scp -O full4programmer-8MB-flex.bin root@192.168.1.130:/mnt/mmcblk0p1/autoupdate-full.bin
-	scp -O $(KERNEL_BIN) root@$(CAMERA_IP_ADDRESS):/mnt/mmcblk0p1/autoupdate-kernel.bin
-	scp -O $(ROOTFS_BIN) root@$(CAMERA_IP_ADDRESS):/tmp/mmcblk0p1/autoupdate-rootfs.bin
 
 # install prerequisites
 install-prerequisites:
@@ -280,7 +279,7 @@ $(FULL_FIRMWARE_BIN): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
 	@dd if=$(KERNEL_BIN) bs=$(KERNEL_SIZE) seek=$(KERNEL_OFFSET)B count=1 of=$@ conv=notrunc status=none
 	@dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$(ROOTFS_OFFSET)B count=1 of=$@ conv=notrunc status=none
 
-info:
+info: defconfig
 	$(info =========================================================================)
 	$(info BASE_DIR:           $(BASE_DIR))
 	$(info BOARD:              $(BOARD))
