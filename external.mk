@@ -57,11 +57,12 @@ endif
 ### Packages
 
 #ifeq ($(call qstrip,$(BR2_DL_DIR)),$(TOPDIR)/dl)
-OPENIPC_KERNEL = "https://github.com/openipc/linux/archive/$(BR2_KERNEL).tar.gz"
+#OPENIPC_KERNEL = "https://github.com/openipc/linux/archive/$(BR2_KERNEL).tar.gz"
 #else
 #OPENIPC_KERNEL = $(shell git ls-remote https://github.com/openipc/linux $(BR2_KERNEL) | head -1 | cut -f1)
 #LOCAL_DOWNLOAD = y
 #endif
+OPENIPC_KERNEL = "https://github.com/gtxaspec/openipc_linux/archive/$(BR2_KERNEL).tar.gz"
 
 # if config file uses external toolchain, use it
 ifneq ($(BR2_TOOLCHAIN_EXTERNAL),)

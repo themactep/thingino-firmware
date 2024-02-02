@@ -1,7 +1,7 @@
 system:
   webAdmin: disabled
   buffer: 1024
-isb:
+isp:
   blkCnt: 1
 image:
   mirror: false
@@ -12,7 +12,7 @@ image:
   saturation: 50
   luminance: 50
 osd:
-  enabled: false
+  enabled: true
   template: "%d.%m.%Y %H:%M:%S"
 nightMode:
   enabled: false
