@@ -4,10 +4,6 @@ KMOD_PATH=/lib/modules/$(uname -r)/ingenic
 SOC=$(ipcinfo -f)
 vendor=$(ipcinfo -v)
 
-if [ ! -f /usr/sbin/sensor_cli ]; then
-	ln -s /usr/sbin/extutils /usr/sbin/sensor_cli
-fi
-
 echo 1 >/proc/sys/vm/overcommit_memory
 
 log_vendor() {

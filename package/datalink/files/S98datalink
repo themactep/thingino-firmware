@@ -22,7 +22,7 @@ case "$1" in
 		echo "ToDo: Running usb_modeswitch or other shit here..."
 	  fi
 	  # for the future
-	  #cli -s .outgoing.url1 udp://${gs_ipaddr}:${gs_port}
+	  #yaml-cli -s .outgoing.url1 udp://${gs_ipaddr}:${gs_port}
 	  if [ ${use_zt} = "true" ]; then
 		echo "Starting ZeroTier-One daemon..."
 		/usr/sbin/zerotier-one -d &

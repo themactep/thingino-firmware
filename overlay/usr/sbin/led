@@ -1,0 +1,37 @@
+#!/bin/sh
+
+GPIO_R=$(fw_printenv -n gpio_led_r)
+GPIO_G=$(fw_printenv -n gpio_led_g)
+GPIO_B=$(fw_printenv -n gpio_led_b)
+
+# color, pin, state
+setLED() {
+	if [ -z "$2" ]; then
+		echo "[INFO] Status Lights: GPIO_$1 is not set in $0" > /dev/kmsg
+	else
+		gpio_ng set "$2" "$3"
+	fi
+}
+
+# R, G, B
+setRGB() {
+	setLED "R" "$GPIO_R" $1
+	setLED "G" "$GPIO_G" $2
+	setLED "B" "$GPIO_B" $3
+}
+
+case "$1" in
+	off)	setRGB 0 0 0 ;;
+	red)	setRGB 1 0 0 ;;
+	green)	setRGB 0 1 0 ;;
+	blue)	setRGB 0 0 1 ;;
+	yellow)	setRGB 1 1 0 ;;
+	magenta | purple)
+		setRGB 1 0 1 ;;
+	cyan)	setRGB 0 1 1 ;;
+	white)	setRGB 1 1 1 ;;
+	*)
+		echo "Usage: $0 <off|red|green|blue|yellow|magenta|cyan|white>"
+esac
+
+exit 0
