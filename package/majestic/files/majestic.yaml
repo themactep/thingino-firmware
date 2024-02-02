@@ -48,5 +48,5 @@ motionDetect:
 ipeye:
   enabled: false
 watchdog:
-  enabled: true
+  enabled: false
   timeout: 300
