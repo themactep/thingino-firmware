@@ -32,11 +32,11 @@ my_mount()
 }
 
 case "${ACTION}" in
-add|"")
-	my_umount ${MDEV}
-	my_mount ${MDEV}
-	;;
-remove)
-	my_umount ${MDEV}
-	;;
+	add | "")
+		my_umount ${MDEV}
+		my_mount ${MDEV}
+		;;
+	remove)
+		my_umount ${MDEV}
+		;;
 esac
