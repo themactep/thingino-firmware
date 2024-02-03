@@ -16,11 +16,10 @@ define WEBUI_INSTALL_TARGET_CMDS
 	cp -rv $(@D)/www $(TARGET_DIR)/var
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
-	cp $(WEBUI_PKGDIR)/files/httpd.conf $(TARGET_DIR)/etc
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc $(WEBUI_PKGDIR)/files/httpd.conf
 
-#	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
-#	cp $(WEBUI_PKGDIR)/files/S50httpd $(TARGET_DIR)/etc/init.d
-#	cp -rv $(@D)/files/etc/init.d/* $(TARGET_DIR)/etc/init.d
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
+	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d $(WEBUI_PKGDIR)/files/S50httpd
 endef
 
 $(eval $(generic-package))
