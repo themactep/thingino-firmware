@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Get the timezone from the u-boot environment variable
-timezone=$(fw_printenv -n timezone 2>/dev/null)
+timezone=$(fw_printenv -n timezone 2> /dev/null)
 if [ -z "$timezone" ]; then
 	echo "Timezone env variable not found, using system default."
 	exit 1
@@ -10,8 +10,8 @@ fi
 echo "User defined timezone: $timezone"
 
 # Check if the values in /etc/timezone and /etc/TZ match the ones from fw_printenv
-current_timezone=$(cat /etc/timezone 2>/dev/null)
-current_tz_value=$(cat /etc/TZ 2>/dev/null)
+current_timezone=$(cat /etc/timezone 2> /dev/null)
+current_tz_value=$(cat /etc/TZ 2> /dev/null)
 
 if [ "$timezone" = "$current_timezone" ] && [ "$timezone" = "$current_tz_value" ]; then
 	echo "Timezone settings are already up to date."

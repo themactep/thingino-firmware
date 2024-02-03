@@ -13,7 +13,7 @@ switch_to_day() {
 	/usr/sbin/irled off
 	/usr/sbin/ircut on
 	echo "Switched to day mode"
-	echo "day" >$MODE_FILE
+	echo "day" > $MODE_FILE
 }
 
 switch_to_night() {
@@ -21,7 +21,7 @@ switch_to_night() {
 	/usr/sbin/irled on
 	/usr/sbin/ircut off
 	echo "Switched to night mode"
-	echo "night" >$MODE_FILE
+	echo "night" > $MODE_FILE
 }
 
 # determine luminance of the scene
@@ -36,7 +36,7 @@ case "$1" in
 		switch_to_day
 		;;
 	~ | toggle)
-		if [ "$(cat $MODE_FILE 2>/dev/null)" = "day" ]; then
+		if [ "$(cat $MODE_FILE 2> /dev/null)" = "day" ]; then
 			switch_to_night
 		else
 			switch_to_day

@@ -8,13 +8,13 @@ MODE_FILE=/tmp/colormode.txt
 switch_to_color() {
 	/usr/sbin/imp-control ispmode 0
 	echo "Switched to full-color mode"
-	echo "day" >$MODE_FILE
+	echo "day" > $MODE_FILE
 }
 
 switch_to_monochrome() {
 	/usr/sbin/imp-control ispmode 1
 	echo "Switched to monochrome mode"
-	echo "night" >$MODE_FILE
+	echo "night" > $MODE_FILE
 }
 
 case "$1" in
@@ -25,7 +25,7 @@ case "$1" in
 		switch_to_color
 		;;
 	~ | toggle)
-		if [ "$(cat $MODE_FILE 2>/dev/null)" = "day" ]; then
+		if [ "$(cat $MODE_FILE 2> /dev/null)" = "day" ]; then
 			switch_to_monochrome
 		else
 			switch_to_color

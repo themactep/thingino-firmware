@@ -15,7 +15,7 @@ case "$IF_BRIDGE_PORTS" in
 		;;
 
 	all)
-		INTERFACES=$(grep eth /proc/net/dev|sed 's/\(\ *\)\(eth[^:]*\)\(.*\)/\2/')
+		INTERFACES=$(grep eth /proc/net/dev | sed 's/\(\ *\)\(eth[^:]*\)\(.*\)/\2/')
 		;;
 
 	*)
@@ -26,5 +26,5 @@ esac
 brctl delbr $IFACE
 
 for i in $INTERFACES; do
-  ip link set $i down
+	ip link set $i down
 done

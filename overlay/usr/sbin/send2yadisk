@@ -22,10 +22,10 @@ while getopts d:f:P:ru:vh flag; do
 	case "$flag" in
 		d)
 			yadisk_path=$OPTARG
-			 ;;
+			;;
 		f)
 			yadisk_file=$OPTARG
-			 ;;
+			;;
 		P)
 			yadisk_password=$OPTARG
 			;;
@@ -38,7 +38,7 @@ while getopts d:f:P:ru:vh flag; do
 		v)
 			verbose="true"
 			;;
-		h|*)
+		h | *)
 			show_help
 			;;
 	esac
@@ -93,7 +93,7 @@ fi
 
 # create path to destination directory
 url="https://webdav.yandex.ru"
-subdirs="${yadisk_path// /_}" # prevent splitting by whitespaces
+subdirs="${yadisk_path// /_}"                         # prevent splitting by whitespaces
 subdirs="$(echo "$yadisk_path" | sed "s/[^\/]$/\//")" # add final slash if missing
 suburl=""
 while [ -n "$subdirs" ]; do
@@ -103,10 +103,11 @@ while [ -n "$subdirs" ]; do
 		suburl="${suburl}/${subdir}"
 		_command="${command} --request MKCOL ${url}/${_url}/ " # disposable subcommand
 		log "$_command"
-		eval "$_command" >>"$LOG_FILE" 2>&1
+		eval "$_command" >> "$LOG_FILE" 2>&1
 	fi
 	subdirs="${subdirs#*/}"
-done; unset _command
+done
+unset _command
 
 # upload file
 url="${url}${_url}/$(TZ=$(cat /etc/TZ) date +"%G%m%d-%H%M%S").jpg"
@@ -115,7 +116,7 @@ command="${command} --request PUT"
 command="${command} --upload-file ${snapshot}"
 
 log "$command"
-eval "$command" >>"$LOG_FILE" 2>&1
+eval "$command" >> "$LOG_FILE" 2>&1
 
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 

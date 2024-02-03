@@ -50,19 +50,19 @@ ir_filter_on() {
 case "$mode" in
 	0 | off | night)
 		ir_filter_off
-		echo 0 >$MODE_FILE
+		echo 0 > $MODE_FILE
 		;;
 	1 | on | day)
 		ir_filter_on
-		echo 1 >$MODE_FILE
+		echo 1 > $MODE_FILE
 		;;
 	~ | toggle)
-		if [ "$(cat $MODE_FILE 2>/dev/null)" -eq 0 ]; then
+		if [ "$(cat $MODE_FILE 2> /dev/null)" -eq 0 ]; then
 			ir_filter_on
-			echo 1 >$MODE_FILE
+			echo 1 > $MODE_FILE
 		else
 			ir_filter_off
-			echo 0 >$MODE_FILE
+			echo 0 > $MODE_FILE
 		fi
 		;;
 	*)
