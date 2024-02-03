@@ -55,10 +55,12 @@ validate_file() {
 }
 
 validate_pin() {
-	if [ -z "$1" ]; then
-		echo_c 31 "PIN $1 IS NOT SET"
+	local pin=$(echo "$1" | sed s/[^0-9]//g)
+	if [ -z "$pin" ]; then
+		echo_c 31 "PIN $pin IS NOT SET"
 		exit 1
 	fi
+	echo "$pin"
 }
 
 range_of_pins() {
@@ -71,8 +73,7 @@ range_of_pins() {
 
 # export pin if it is not already exported
 export_pin() {
-	local pin="$1"
-	validate_pin $pin
+	local pin=$(validate_pin $1)
 	if [ -d "/sys/class/gpio/gpio${pin}" ]; then
 		echo_c 33 "pin $pin already exported"
 	else
@@ -87,8 +88,7 @@ export_pin() {
 
 # unexport pin if it is exported
 unexport_pin() {
-	local pin="$1"
-	validate_pin $pin
+	local pin=$(validate_pin $1)
 	if [ -d "/sys/class/gpio/gpio${pin}" ]; then
 		if echo $pin > /sys/class/gpio/unexport 2> /dev/null; then
 			echo_c 32 "pin $pin unexported"
@@ -196,14 +196,14 @@ get_pin_value() {
 }
 
 set_direction() {
-	validate_pin $1
+	local pin=$(validate_pin $1)
 
-	export_pin $1
+	export_pin "$pin"
 
 	case "$2" in
 		in | out)
 			log_and_run "echo $2 > /sys/class/gpio/gpio${1}/direction"
-			get_direction "$1"
+			get_direction "$pin"
 			;;
 		*)
 			echo_c 31 "What direction?"
@@ -213,8 +213,7 @@ set_direction() {
 }
 
 set_pin_value() {
-	local pin="$1"
-	validate_pin "$pin"
+	local pin=$(validate_pin $1)
 
 	#	export_pin $pin
 
@@ -271,8 +270,8 @@ sweep_pins() {
 		sleep 0.25
 		set_pin_value "$pin" 0
 
-		#		set_direction $pin "in"
-		#		unexport_pin "$pin"
+		# set_direction $pin "in"
+		# unexport_pin "$pin"
 
 		logger HELLO - "$pin"
 	done
