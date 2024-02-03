@@ -1,7 +1,7 @@
 #
 # OpenIPC Firmware
 # themactep edition
-# https://github.com/themactep/openipc-firmware
+# https://github.com/themactep/wehaveopenipcathome-firmware
 
 #BUILDROOT_VERSION := 2023.11.1
 BUILDROOT_VERSION := git
