@@ -34,6 +34,7 @@ Commands:
 	toggle <pin1>		Toggle <pin1> output state HIGH/LOW
 	set <pin1> <value>	Set <pin1> output state to <value>
 
+	claim <pin1>		Claim pin to the kernel
 	list			Show claimed pins via debugfs
 
 Legacy:
@@ -283,6 +284,8 @@ if [ -z "$2" ] && [ "list" != "$1" ]; then
 fi
 
 case "$1" in
+	claim)
+		echo $1 > /proc/gpio_claim/gpio
 	clear)
 		set_pin_value "$2" 0
 		;;
@@ -296,8 +299,6 @@ case "$1" in
 		get_pin_value "$2" "$3"
 		;;
 	list)
-		ls -l /sys/class/gpio/
-		echo
 		[ -z "$(mount | grep /sys/kernel/debug)" ] && mount -t debugfs none /sys/kernel/debug
 		log_and_run "cat /sys/kernel/debug/gpio"
 		;;
