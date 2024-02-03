@@ -5,7 +5,7 @@ SOC=$(ipcinfo -f || fw_printenv -n soc)
 KMOD_PATH=/lib/modules/$(uname -r)/${vendor}
 SENSOR_EXT_PARAM=""
 
-echo 1 >/proc/sys/vm/overcommit_memory
+echo 1 > /proc/sys/vm/overcommit_memory
 
 check_vb() {
 	if [ "$(fw_printenv -n totalmem)" = "64M" ] && [ "$(fw_printenv -n rmem)" = "40M" ]; then
@@ -47,17 +47,17 @@ sync_sensor_param() {
 
 check_vb
 
-lsmod | grep "sinfo" >/dev/null
+lsmod | grep "sinfo" > /dev/null
 if [ $? -ne 0 ]; then
 	modprobe sinfo
 	check_return "insmod sinfo"
 fi
 
-if fw_printenv -n sensor >/dev/null; then
+if fw_printenv -n sensor > /dev/null; then
 	export SENSOR=$(fw_printenv -n sensor)
 	log_vendor "Get data from environment and set SENSOR as ${SENSOR}"
 else
-	echo 1 >/proc/jz/sinfo/info
+	echo 1 > /proc/jz/sinfo/info
 	check_return "start sinfo"
 	SENSOR_INFO=$(cat /proc/jz/sinfo/info)
 	check_return "get sensor type"
@@ -179,35 +179,37 @@ echo "SENSOR: ${SENSOR}"
 echo "SENSOR_PARAM: ${SENSOR_PARAM}"
 echo --------------------
 
-lsmod | grep "avpu" >/dev/null
+lsmod | grep "avpu" > /dev/null
 if [ $? -ne 0 ]; then
 	modprobe avpu ${AVPU_PARAM}
 	check_return "insmod avpu"
 fi
 
-lsmod | grep "tx_isp" >/dev/null
+lsmod | grep "tx_isp" > /dev/null
 if [ $? -ne 0 ]; then
 	modprobe tx-isp-${SOC} ${ISP_PARAM}
 	check_return "insmod isp drv"
 fi
 
-lsmod | grep ${SENSOR} >/dev/null
+lsmod | grep ${SENSOR} > /dev/null
 if [ $? -ne 0 ]; then
 	modprobe sensor_${SENSOR}_${SOC} ${SENSOR_PARAM} ${SENSOR_EXT_PARAM}
 	check_return "insmod sensor drv"
 fi
 
-lsmod | grep "audio" >/dev/null
+lsmod | grep "audio" > /dev/null
 if [ $? -ne 0 ]; then
 	modprobe audio spk_gpio=-1
 	check_return "insmod audio"
 fi
 
-lsmod | grep "gpio" >/dev/null
+lsmod | grep "gpio" > /dev/null
 if [ $? -ne 0 ]; then
 	modprobe gpio
 	check_return "insmod gpio"
 fi
 
 gpios=$(fw_printenv | grep ^gpio_ | cut -d= -f2 | sed 's/[[:alpha:]]//g' | tr '\n' ' ')
-for i in $gpios; do echo $i >/proc/gpio_claim/gpio; done
+for i in $gpios; do
+	gpio claim $i
+done
