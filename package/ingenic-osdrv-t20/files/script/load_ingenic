@@ -1,14 +1,11 @@
 #!/bin/sh
 
-KMOD_PATH=/lib/modules/$(uname -r)/ingenic
+vendor="ingenic"
 SOC=$(ipcinfo -f || fw_printenv -n soc)
-vendor=$(ipcinfo -v)
+KMOD_PATH=/lib/modules/$(uname -r)/${vendor}
+SENSOR_EXT_PARAM=""
 
 echo 1 >/proc/sys/vm/overcommit_memory
-
-log_vendor() {
-	logger -s -p daemon.info -t ${vendor} "$1"
-}
 
 check_return() {
 	if [ $? -ne 0 ]; then
@@ -18,11 +15,13 @@ check_return() {
 	fi
 }
 
-SENSOR_EXT_PARAM=""
+log_vendor() {
+	logger -s -p daemon.info -t ${vendor} "$1"
+}
 
 lsmod | grep "sinfo" >/dev/null
 if [ $? -ne 0 ]; then
-	modprobe sinfo.ko
+	modprobe sinfo
 	check_return "insmod sinfo"
 fi
 
@@ -45,35 +44,35 @@ else
 fi
 
 case ${SENSOR} in
-"jxf22")
-	ISP_PARAM="isp_clk=90000000"
-	SENSOR_PARAM=""
-	;;
-"jxf23")
-	ISP_PARAM="isp_clk=90000000"
-	SENSOR_PARAM=""
-	;;
-"jxh42")
-	ISP_PARAM="isp_clk=90000000"
-	SENSOR_PARAM=""
-	;;
-"sc2135")
-	ISP_PARAM="isp_clk=100000000"
-	SENSOR_PARAM=""
-	;;
-"sc2232")
-	ISP_PARAM="isp_clk=90000000"
-	SENSOR_PARAM=""
-	;;
-"sc2235")
-	ISP_PARAM="isp_clk=90000000"
-	SENSOR_PARAM=""
-	;;
-*)
-	ISP_PARAM="isp_clk=90000000"
-	SENSOR_PARAM=""
-	break
-	;;
+	jxf22)
+		ISP_PARAM="isp_clk=90000000"
+		SENSOR_PARAM=""
+		;;
+	jxf23)
+		ISP_PARAM="isp_clk=90000000"
+		SENSOR_PARAM=""
+		;;
+	jxh42)
+		ISP_PARAM="isp_clk=90000000"
+		SENSOR_PARAM=""
+		;;
+	sc2135)
+		ISP_PARAM="isp_clk=100000000"
+		SENSOR_PARAM=""
+		;;
+	sc2232)
+		ISP_PARAM="isp_clk=90000000"
+		SENSOR_PARAM=""
+		;;
+	sc2235)
+		ISP_PARAM="isp_clk=90000000"
+		SENSOR_PARAM=""
+		;;
+	*)
+		ISP_PARAM="isp_clk=90000000"
+		SENSOR_PARAM=""
+		break
+		;;
 esac
 
 echo --------------------
@@ -82,20 +81,17 @@ echo "SENSOR: ${SENSOR}"
 echo "SENSOR_PARAM: ${SENSOR_PARAM}"
 echo --------------------
 
-lsmod | grep "tx_isp" >/dev/null
-if [ $? -ne 0 ]; then
+if ! grep -q "^tx_isp" /proc/modules; then
 	modprobe tx-isp-${SOC} ${ISP_PARAM}
 	check_return "insmod isp drv"
 fi
 
-lsmod | grep ${SENSOR} >/dev/null
-if [ $? -ne 0 ]; then
+if ! grep -q "^{SENSOR}" /proc/modules; then
 	modprobe sensor_${SENSOR}_${SOC} ${SENSOR_PARAM} ${SENSOR_EXT_PARAM}
 	check_return "insmod sensor drv"
 fi
 
-lsmod | grep "audio" >/dev/null
-if [ $? -ne 0 ]; then
+if ! grep -q "^audio" /proc/modules; then
 	modprobe audio spk_gpio=-1
 	check_return "insmod audio"
 fi
