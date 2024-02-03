@@ -17,7 +17,7 @@ show_help() {
 
 get_snapshot() {
 	log "Trying to save a snapshot."
-	LIMIT_ATTEMPTS=$(( LIMIT_ATTEMPTS - 1 ))
+	LIMIT_ATTEMPTS=$((LIMIT_ATTEMPTS - 1))
 
 	command="curl --verbose"
 	command="${command} --connect-timeout ${curl_timeout}"
@@ -25,7 +25,7 @@ get_snapshot() {
 	command="${command} --silent --fail"
 	command="${command} --url ${snapshot_url}?t=$(date +"%s") --output ${snapshot}"
 	log "$command"
-	if $command >>"$LOG_FILE"; then
+	if $command >> "$LOG_FILE"; then
 		log "Snapshot saved to ${snapshot}."
 		quit_clean 0
 	fi
@@ -54,7 +54,7 @@ while getopts fhrv flag; do
 		v)
 			verbose="true"
 			;;
-		h|*)
+		h | *)
 			show_help
 			;;
 	esac
@@ -74,7 +74,7 @@ if [ "true" = "$force" ]; then
 elif [ ! -f "$snapshot" ]; then
 	log "Snapshot not found."
 	get_snapshot
-elif [ "$(date -r "$snapshot" +%s)" -le "$(( $(date +%s) - SECONDS_TO_EXPIRE ))" ]; then
+elif [ "$(date -r "$snapshot" +%s)" -le "$(($(date +%s) - SECONDS_TO_EXPIRE))" ]; then
 	log "Snapshot is expired."
 	rm $snapshot
 	get_snapshot

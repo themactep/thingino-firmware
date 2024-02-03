@@ -21,17 +21,19 @@ setRGB() {
 }
 
 case "$1" in
-	off)	setRGB 0 0 0 ;;
-	red)	setRGB 1 0 0 ;;
-	green)	setRGB 0 1 0 ;;
-	blue)	setRGB 0 0 1 ;;
-	yellow)	setRGB 1 1 0 ;;
+	off) setRGB 0 0 0 ;;
+	red) setRGB 1 0 0 ;;
+	green) setRGB 0 1 0 ;;
+	blue) setRGB 0 0 1 ;;
+	yellow) setRGB 1 1 0 ;;
 	magenta | purple)
-		setRGB 1 0 1 ;;
-	cyan)	setRGB 0 1 1 ;;
-	white)	setRGB 1 1 1 ;;
+		setRGB 1 0 1
+		;;
+	cyan) setRGB 0 1 1 ;;
+	white) setRGB 1 1 1 ;;
 	*)
 		echo "Usage: $0 <off|red|green|blue|yellow|magenta|cyan|white>"
+		;;
 esac
 
 exit 0

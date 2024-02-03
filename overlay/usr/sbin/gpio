@@ -75,7 +75,7 @@ export_pin() {
 	if [ -d "/sys/class/gpio/gpio${pin}" ]; then
 		echo_c 33 "pin $pin already exported"
 	else
-		if echo $pin > /sys/class/gpio/export 2>/dev/null; then
+		if echo $pin > /sys/class/gpio/export 2> /dev/null; then
 			echo_c 32 "pin $pin exported"
 		else
 			echo_c 31 "pin $pin is busy"
@@ -89,7 +89,7 @@ unexport_pin() {
 	local pin="$1"
 	validate_pin $pin
 	if [ -d "/sys/class/gpio/gpio${pin}" ]; then
-		if echo $pin > /sys/class/gpio/unexport 2>/dev/null; then
+		if echo $pin > /sys/class/gpio/unexport 2> /dev/null; then
 			echo_c 32 "pin $pin unexported"
 		else
 			echo_c 31 "pin $pin is busy"
@@ -200,7 +200,7 @@ set_direction() {
 	export_pin $1
 
 	case "$2" in
-		in|out)
+		in | out)
 			log_and_run "echo $2 > /sys/class/gpio/gpio${1}/direction"
 			get_direction "$1"
 			;;
@@ -215,17 +215,18 @@ set_pin_value() {
 	local pin="$1"
 	validate_pin "$pin"
 
-#	export_pin $pin
+	#	export_pin $pin
 
 	local direction=$(get_direction "$pin")
 	case "$direction" in
-		in|out)
+		in | out)
 			# echo "Pin $pin direction is $direction"
 			true
 			;;
 		*)
 			# echo_c 34 "Pin $pin direction is not set"
 			set_direction "$pin" "out"
+			;;
 	esac
 
 	case "$(get_direction $pin)" in
@@ -243,7 +244,7 @@ set_pin_value() {
 	esac
 	get_pin_value "$pin"
 
-#	export_pin $pin
+	#	export_pin $pin
 }
 
 sweep_pins() {
@@ -269,8 +270,8 @@ sweep_pins() {
 		sleep 0.25
 		set_pin_value "$pin" 0
 
-#		set_direction $pin "in"
-#		unexport_pin "$pin"
+		#		set_direction $pin "in"
+		#		unexport_pin "$pin"
 
 		logger HELLO - "$pin"
 	done
@@ -291,7 +292,7 @@ case "$1" in
 	info)
 		get_pin_info "$2" "$3"
 		;;
-	get|read)
+	get | read)
 		get_pin_value "$2" "$3"
 		;;
 	list)
@@ -323,13 +324,13 @@ case "$1" in
 			set_pin_value "$2" 0
 		fi
 		;;
-	export|catch)
+	export | catch)
 		export_pin "$2"
 		;;
-	unexport|release)
+	unexport | release)
 		unexport_pin "$2"
 		;;
-	search|scan)
+	search | scan)
 		sweep_pins "$2" "$3"
 		;;
 	*)

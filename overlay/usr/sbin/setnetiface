@@ -112,8 +112,7 @@ while getopts a:d:D:g:h:i:k:m:n:p:r:s:t:v flag; do
 		v)
 			verbose=1
 			;;
-		*)
-			;;
+		*) ;;
 	esac
 done
 
@@ -163,52 +162,53 @@ if [ "static" = "$network_mode" ]; then
 fi
 
 tmp_config_file="/tmp/${plugin}.conf"
-:>"$tmp_config_file"
+: > "$tmp_config_file"
 
-printf "$TEMPLATE_COMMON" $network_interface $network_mode >>"$tmp_config_file"
+printf "$TEMPLATE_COMMON" $network_interface $network_mode >> "$tmp_config_file"
 
 if [ "eth0" = "$network_interface" ]; then
-	printf "$TEMPLATE_MAC" >>"$tmp_config_file"
+	printf "$TEMPLATE_MAC" >> "$tmp_config_file"
 fi
 
 if [ "static" = "$network_mode" ]; then
-	printf "$TEMPLATE_STATIC" "$network_address" "$network_netmask" >>"$tmp_config_file"
+	printf "$TEMPLATE_STATIC" "$network_address" "$network_netmask" >> "$tmp_config_file"
 
 	# skip gateway if empty
 	if [ -n "$network_gateway" ]; then
-		echo "    gateway ${network_gateway}" >>"$tmp_config_file"
+		echo "    gateway ${network_gateway}" >> "$tmp_config_file"
 	fi
 
 	# skip dns servers if empty
 	if [ -n "$network_nameservers" ]; then
-		echo -n "    pre-up echo -e \"" >>"$tmp_config_file"
+		echo -n "    pre-up echo -e \"" >> "$tmp_config_file"
 		for dns in ${network_nameservers//,/ }; do
-			echo -n "nameserver ${dns}\n" >>"$tmp_config_file"
-		done; unset dns
-		echo "\" >/tmp/resolv.conf" >>"$tmp_config_file"
+			echo -n "nameserver ${dns}\n" >> "$tmp_config_file"
+		done
+		unset dns
+		echo "\" >/tmp/resolv.conf" >> "$tmp_config_file"
 	fi
 fi
 
 if [ "wlan0" = "$network_interface" ]; then
 	tmp_env_file=$(mktemp)
-	printf "wlandev %s\nwlanssid %s\nwlanpass %s" "$network_device" "$network_ssid" "$network_password" >"$tmp_env_file"
+	printf "wlandev %s\nwlanssid %s\nwlanpass %s" "$network_device" "$network_ssid" "$network_password" > "$tmp_env_file"
 	fw_setenv -s "$tmp_env_file"
 
-	printf "$TEMPLATE_WIRELESS" $network_ssid $network_password >>"$tmp_config_file"
+	printf "$TEMPLATE_WIRELESS" $network_ssid $network_password >> "$tmp_config_file"
 fi
 
 # TODO: preset ppp_gpio
 if [ "ppp0" = "$network_interface" ]; then
-	printf "$TEMPLATE_PPP" "$ppp_gpio" "$ppp_gpio" "$ppp_gpio" "$ppp_gpio" "$ppp_gpio" >>"$tmp_config_file"
+	printf "$TEMPLATE_PPP" "$ppp_gpio" "$ppp_gpio" "$ppp_gpio" "$ppp_gpio" "$ppp_gpio" >> "$tmp_config_file"
 fi
 
 # TODO: preset usb_vendor usb_product
 if [ "usb0" = "$network_interface" ]; then
-	printf "$TEMPLATE_USB" "$usb_vendor" "$usb_product" >>"$tmp_config_file"
+	printf "$TEMPLATE_USB" "$usb_vendor" "$usb_product" >> "$tmp_config_file"
 fi
 
 if [ "wg0" = "$network_interface" ]; then
-	printf "$TEMPLATE_WIREGUARD" "$network_interface" "$network_interface" "$network_interface" >>"$tmp_config_file"
+	printf "$TEMPLATE_WIREGUARD" "$network_interface" "$network_interface" "$network_interface" >> "$tmp_config_file"
 fi
 
 iface_file="/etc/network/interfaces.d/${network_interface}"
@@ -218,7 +218,7 @@ cat "$iface_file"
 if [ -n "$network_hostname" ]; then
 	_old_hostname="$(hostname)"
 	if [ "$network_hostname" != "$_old_hostname" ]; then
-		echo "$network_hostname" >/etc/hostname
+		echo "$network_hostname" > /etc/hostname
 		hostname "$network_hostname"
 		sed -r -i "/127.0.1.1/s/(\b)${_old_hostname}(\b)/\1${network_hostname}\2/" /etc/hosts >&2
 	fi

@@ -38,7 +38,7 @@ while getopts b:f:rs:t:vh flag; do
 		v)
 			verbose="true"
 			;;
-		h|*)
+		h | *)
 			show_help
 			;;
 	esac
@@ -101,12 +101,12 @@ else
 		echo "Date: $(date -R)"
 		echo ""
 		echo "${email_body}"
-	} >>$email_file
+	} >> $email_file
 	command="${command} --upload-file ${email_file}"
 fi
 
 log "$command"
-eval "$command" >>"$LOG_FILE" 2>&1
+eval "$command" >> "$LOG_FILE" 2>&1
 
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 

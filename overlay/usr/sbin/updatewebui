@@ -34,7 +34,7 @@ while getopts b:c:fhv flag; do
 			verbose=1
 			v_opts="-v"
 			;;
-		h|*)
+		h | *)
 			print_usage
 			;;
 	esac
@@ -108,7 +108,7 @@ if [ -n "$error" ]; then
 	clean_quit 2 "ATTENTION! There were errors!"
 fi
 
-echo "${branch}+${commit}, ${timestamp}" >/var/www/.version
+echo "${branch}+${commit}, ${timestamp}" > /var/www/.version
 [ -f /tmp/sysinfo.txt ] && rm $v_opts /tmp/sysinfo.txt
 
 clean_quit 0 "Done."

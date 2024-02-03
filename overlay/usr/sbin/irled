@@ -27,13 +27,13 @@ fi
 
 case "$mode" in
 	on | 1)
-		gpio set $pin >/dev/null
+		gpio set $pin > /dev/null
 		;;
 	off | 0)
-		gpio clear $pin >/dev/null
+		gpio clear $pin > /dev/null
 		;;
 	~ | toggle)
-		gpio toggle $pin >/dev/null
+		gpio toggle $pin > /dev/null
 		;;
 	*)
 		echo "Unknown mode"

@@ -35,9 +35,12 @@ for i in 0 1 2 3 4 5 6 7 8 9; do
 		bot_commands="${bot_commands}{\"command\":\"${_c}\",\"description\":\"${_d}\"},"
 		bot_keyboard="${bot_keyboard}\"/${_c}\","
 		bot_inline_keyboard="${bot_inline_keyboard}{\"text\":\"${_c}\",\"callback_data\":\"${_s}\"},"
-		unset _d; unset _s
-	fi; unset _c
-done; unset i
+		unset _d
+		unset _s
+	fi
+	unset _c
+done
+unset i
 
 bot_commands="${bot_commands}{\"command\":\"help\",\"description\":\"Help\"}]"
 bot_keyboard="${bot_keyboard}\"/help\"]],\"one_time_keyboard\":true,\"resize_keyboard\":true}"
@@ -111,24 +114,24 @@ set_chat_menu_button() {
 # show_menu "chat_id"
 show_menu() {
 	local data="{\"chat_id\":\"$1\",\"text\":\"Here you go\""
-#	[ -n "$2" ] && data="${data},\"reply_to_message_id\":\"$2\""
+	#	[ -n "$2" ] && data="${data},\"reply_to_message_id\":\"$2\""
 	case "$chat_type" in
-	"private")
-		#data="${data},\"reply_markup\":${bot_keyboard}"
-		data="${data},\"reply_markup\":${bot_inline_keyboard}"
-		;;
-	"channel")
-		#data="${data},\"reply_markup\":${bot_keyboard}"
-		data="${data},\"reply_markup\":${bot_inline_keyboard}"
-		;;
-	"group")
-		#data="${data},\"reply_markup\":${bot_keyboard}"
-		data="${data},\"reply_markup\":${bot_inline_keyboard}"
-		;;
-	"supergroup")
-		#data="${data},\"reply_markup\":${bot_keyboard}"
-		data="${data},\"reply_markup\":${bot_inline_keyboard}"
-		;;
+		"private")
+			#data="${data},\"reply_markup\":${bot_keyboard}"
+			data="${data},\"reply_markup\":${bot_inline_keyboard}"
+			;;
+		"channel")
+			#data="${data},\"reply_markup\":${bot_keyboard}"
+			data="${data},\"reply_markup\":${bot_inline_keyboard}"
+			;;
+		"group")
+			#data="${data},\"reply_markup\":${bot_keyboard}"
+			data="${data},\"reply_markup\":${bot_inline_keyboard}"
+			;;
+		"supergroup")
+			#data="${data},\"reply_markup\":${bot_keyboard}"
+			data="${data},\"reply_markup\":${bot_inline_keyboard}"
+			;;
 	esac
 	data="${data}}"
 	api_call "sendMessage" "$data"
@@ -205,7 +208,7 @@ while [ true ]; do
 				log "Processing message ${update_id}."
 
 				log "Saving pointer $((update_id + 1)) to $offset_file."
-				echo $((update_id + 1)) >$offset_file
+				echo $((update_id + 1)) > $offset_file
 
 				if [ -z "$(jsonfilter -i $data_file -e "$.result[@.update_id=$update_id].*.entities")" ]; then
 					log "Message ${update_id} has no entities."
@@ -216,7 +219,7 @@ while [ true ]; do
 				log "Message ${update_id} has entities: $(cat /tmp/entities.json)"
 
 				IFS=$'\n'
-				entities=$(cat /tmp/entities.json);
+				entities=$(cat /tmp/entities.json)
 				for entity in $entities; do
 					chat_id=$(jsonfilter -i ${data_file} -e "$.result[@.update_id=$update_id].*.chat.id")
 					chat_type=$(jsonfilter -i ${data_file} -e "$.result[@.update_id=$update_id].*.chat.type")
@@ -248,7 +251,8 @@ while [ true ]; do
 						_l=$(jsonfilter -s "${entity}" -e "$.length")
 						bot_command="${message_text:$_o:$_l}"
 						log "BOT COMMAND: ${bot_command}" 31
-						unset _l; unset _o
+						unset _l
+						unset _o
 
 						# split command by '@' to $command and $mention
 						mention=${bot_command##*@}
@@ -275,7 +279,8 @@ while [ true ]; do
 						eval _c="\$telegrambot_command_$i"
 						eval _s="\$telegrambot_script_$i"
 						[ -n "$telegrambot_command_$i" ] && casecmd="${casecmd}\"/$_c\") script='$_s' ;;"
-						unset _c; unset _s
+						unset _c
+						unset _s
 					done
 					casecmd="${casecmd}*) message=\"Command \$bot_command not found.\" ;;"
 					casecmd="${casecmd}esac;"
@@ -292,9 +297,17 @@ while [ true ]; do
 				fi
 
 				# clean up
-				unset bot_command; unset chat_id; unset chat_type; unset mention
-				unset message_id; unset message_text; unset message_type; unset url
-				unset message; unset script; unset casecmd
+				unset bot_command
+				unset chat_id
+				unset chat_type
+				unset mention
+				unset message_id
+				unset message_text
+				unset message_type
+				unset url
+				unset message
+				unset script
+				unset casecmd
 			done
 		fi
 	fi

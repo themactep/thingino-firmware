@@ -21,7 +21,7 @@ exp() {
 	fi
 }
 
-write(){
+write() {
 	echo $1 > /sys/class/gpio/gpio$2/value
 }
 
@@ -43,8 +43,10 @@ search() {
 	for pin in $(seq $1 $2); do
 		echo "================================="
 		exp ${pin} && echo "  Exported GPIO-${pin} from kernel space" && echo "	Set GPIO-${pin} to OUTPUT mode"
-		write 0 ${pin} && echo "	  Set GPIO-${pin} to LO level" ; sleep 1
-		write 1 ${pin} && echo "	  Set GPIO-${pin} to HI level" ; sleep 1
+		write 0 ${pin} && echo "	  Set GPIO-${pin} to LO level"
+		sleep 1
+		write 1 ${pin} && echo "	  Set GPIO-${pin} to HI level"
+		sleep 1
 		echo in > /sys/class/gpio/gpio${pin}/direction && echo "	Set GPIO-${pin} to INPUT mode"
 		unexport ${pin} && echo "  Unexported GPIO-${pin}"
 		logger HELLO - ${pin}

@@ -26,7 +26,7 @@ while getopts f:u:vh flag; do
 		v)
 			verbose="true"
 			;;
-		h|*)
+		h | *)
 			show_help
 			;;
 	esac
@@ -65,7 +65,7 @@ command="${command} -T ${speaker_file}"
 command="${command} --url ${speaker_url}"
 
 log "$command"
-eval "$command" >>"$LOG_FILE" 2>&1
+eval "$command" >> "$LOG_FILE" 2>&1
 
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 

@@ -29,7 +29,7 @@ if [ "$1" = "l610-t31-camhi" ]; then
 	modprobe usbserial vendor=0x1782 product=0x4d11
 	modprobe rndis_host
 	sleep 10
-	echo "AT+GTRNDIS=1,2" >/dev/ttyUSB0
+	echo "AT+GTRNDIS=1,2" > /dev/ttyUSB0
 	exit 0
 fi
 

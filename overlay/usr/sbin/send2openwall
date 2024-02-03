@@ -16,7 +16,8 @@ show_help() {
 
 # default values
 flash_size=$(awk '{sum+=sprintf("0x%s", $2);} END{print sum/1048576;}' /proc/mtd)
-fw_variant=$(grep "BUILD_OPTION" /etc/os-release | cut -d= -f2 | tr -d /\"/); [ -z "$fw_variant" ] && fw_variant="lite"
+fw_variant=$(grep "BUILD_OPTION" /etc/os-release | cut -d= -f2 | tr -d /\"/)
+[ -z "$fw_variant" ] && fw_variant="lite"
 fw_version=$(grep "OPENIPC_VERSION" /etc/os-release | cut -d= -f2 | tr -d /\"/)
 
 network_hostname=$(hostname -s)
@@ -45,7 +46,7 @@ while getopts frvh flag; do
 		v)
 			verbose="true"
 			;;
-		h|*)
+		h | *)
 			show_help
 			;;
 	esac
@@ -95,7 +96,7 @@ command="${command} -F 'uptime=${uptime}'"
 command="${command} -F 'file=@${snapshot}'"
 
 log "$command"
-eval "$command" >>"$LOG_FILE" 2>&1
+eval "$command" >> "$LOG_FILE" 2>&1
 
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 

@@ -5,24 +5,24 @@
 case "$IFACE" in
 	vlan0*)
 		vconfig set_name_type VLAN_PLUS_VID
-		VLANID=$(echo $IFACE|sed "s/vlan0*//")
+		VLANID=$(echo $IFACE | sed "s/vlan0*//")
 		;;
 
 	vlan*)
 		vconfig set_name_type VLAN_PLUS_VID_NO_PAD
-		VLANID=$(echo $IFACE|sed "s/vlan*//")
+		VLANID=$(echo $IFACE | sed "s/vlan*//")
 		;;
 
 	*.0*)
 		vconfig set_name_type DEV_PLUS_VID
-		VLANID=$(echo $IFACE|sed "s/.*\.0*\([0-9]\+\)$/\1/g")
-		IF_VLAN_RAW_DEVICE=$(echo $IFACE|sed "s/^\(.*\)\.[^.]*/\1/")
+		VLANID=$(echo $IFACE | sed "s/.*\.0*\([0-9]\+\)$/\1/g")
+		IF_VLAN_RAW_DEVICE=$(echo $IFACE | sed "s/^\(.*\)\.[^.]*/\1/")
 		;;
 
 	*.*)
 		vconfig set_name_type DEV_PLUS_VID_NO_PAD
-		VLANID=$(echo $IFACE|sed "s/.*\.0*\([0-9]\+\)$/\1/g")
-		IF_VLAN_RAW_DEVICE=$(echo $IFACE|sed "s/^\(.*\)\.[^.]*/\1/")
+		VLANID=$(echo $IFACE | sed "s/.*\.0*\([0-9]\+\)$/\1/g")
+		IF_VLAN_RAW_DEVICE=$(echo $IFACE | sed "s/^\(.*\)\.[^.]*/\1/")
 		;;
 
 	*)
