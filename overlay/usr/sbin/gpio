@@ -286,6 +286,7 @@ fi
 case "$1" in
 	claim)
 		echo $1 > /proc/gpio_claim/gpio
+		;;
 	clear)
 		set_pin_value "$2" 0
 		;;
