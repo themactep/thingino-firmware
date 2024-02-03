@@ -3,15 +3,13 @@
 case "$1" in
 	start)
 		echo "Starting mdev..."
-		echo /sbin/mdev >/proc/sys/kernel/hotplug
+		echo /sbin/mdev > /proc/sys/kernel/hotplug
 		/sbin/mdev -s
 		;;
 
-	stop)
-		;;
+	stop) ;;
 
-	restart|reload)
-		;;
+	restart | reload) ;;
 
 	*)
 		echo "Usage: $0 {start|stop|restart|reload}"

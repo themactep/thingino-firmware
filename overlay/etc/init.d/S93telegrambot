@@ -36,14 +36,14 @@ restart() {
 }
 
 case "$1" in
-start | stop | restart)
-	"$1"
-	;;
-reload)
-	restart
-	;;
-*)
-	echo "Usage: $0 {start|stop|restart|reload}"
-	exit 1
-	;;
+	start | stop | restart)
+		"$1"
+		;;
+	reload)
+		restart
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+		;;
 esac

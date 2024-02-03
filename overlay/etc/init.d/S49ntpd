@@ -37,7 +37,7 @@ stop() {
 }
 
 case "$1" in
-	start|stop)
+	start | stop)
 		"$1"
 		;;
 
