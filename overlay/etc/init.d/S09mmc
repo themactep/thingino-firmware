@@ -31,24 +31,22 @@ start() {
 				# do nothing
 				;;
 			t31)
-				# Check for specific SOC sub-variants
 				if [ "$MMC_SOC_SUBVAR" = "t31a" ] || [ "$MMC_SOC_SUBVAR" = "t31al" ]; then
 					echo "Skipping GPIO setup for $MMC_SOC_SUBVAR"
 					return 1
 				else
-					ingenic-gpio pb08 func 1 drive 2
-					ingenic-gpio pb09 func 1 drive 1
-					ingenic-gpio pb10 func 1 drive 1
-					ingenic-gpio pb11 func 1 drive 1
-					ingenic-gpio pb13 func 1 drive 1
-					ingenic-gpio pb14 func 1 drive 1
+					gpio-diag pb08 func 1 drive 2
+					gpio-diag pb09 func 1 drive 1
+					gpio-diag pb10 func 1 drive 1
+					gpio-diag pb11 func 1 drive 1
+					gpio-diag pb13 func 1 drive 1
+					gpio-diag pb14 func 1 drive 1
 				fi
 				;;
 			t23)
 				echo "Unsupported: T23"
 				exit 1
 				;;
-			# Add more cases for other SOC types as needed here
 			*)
 				echo "Unsupported SOC type: $MMC_SOC_FAMILY"
 				exit 1
