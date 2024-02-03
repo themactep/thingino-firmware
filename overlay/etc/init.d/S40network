@@ -36,7 +36,7 @@ case "$1" in
 		fi
 		;;
 
-	restart|reload)
+	restart | reload)
 		"$0" stop
 		"$0" start
 		;;
@@ -44,6 +44,7 @@ case "$1" in
 	*)
 		echo "Usage: $0 {start|stop|restart}"
 		exit 1
+		;;
 esac
 
 exit 0

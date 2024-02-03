@@ -23,8 +23,8 @@ process_gpio_command() {
 # Function to process ingenic commands
 process_ingenic_command() {
 	# Calculate the group and pin from the GPIO number
-	group=$(( $1 / 32 ))
-	pin=$(( $1 % 32 ))
+	group=$(($1 / 32))
+	pin=$(($1 % 32))
 
 	# Convert the group number to a group letter (A, B, C, etc.)
 	group_letter=$(printf "\\$(printf '%03o' $((group + 65)))")
@@ -85,10 +85,8 @@ case "$1" in
 		echo -n "Starting GPIO: "
 		process_config_file
 		;;
-	stop)
-		;;
-	restart|reload)
-		;;
+	stop) ;;
+	restart | reload) ;;
 	*)
 		echo "Usage: $0 {start}"
 		exit 1

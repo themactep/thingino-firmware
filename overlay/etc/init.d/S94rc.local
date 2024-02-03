@@ -23,7 +23,7 @@ case "$1" in
 	start)
 		start
 		;;
-	restart|reload)
+	restart | reload)
 		restart
 		;;
 	stop)

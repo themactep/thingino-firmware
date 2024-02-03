@@ -7,8 +7,7 @@ WATCHDOG_TIMEOUT=60
 
 WATCHDOG_ARGS="-T $WATCHDOG_TIMEOUT /dev/watchdog"
 
-start()
-{
+start() {
 	if [ "$(yaml-cli -g .watchdog.enabled)" = "true" ]; then
 		printf "Starting ${DAEMON}: "
 		echo "majestic watchdog enabled"
@@ -29,8 +28,7 @@ start()
 	fi
 }
 
-stop()
-{
+stop() {
 	printf "Stopping ${DAEMON}: "
 	if start-stop-daemon -K -q -s KILL -n "${DAEMON}"; then
 		echo "OK"
@@ -40,11 +38,11 @@ stop()
 }
 
 case "$1" in
-	start|stop)
+	start | stop)
 		"$1"
 		;;
 
-	restart|reload)
+	restart | reload)
 		stop
 		start
 		;;
