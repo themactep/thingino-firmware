@@ -6,10 +6,4 @@
 # Make sure that the script will "exit 0" on success or any other
 # value on error.
 
-ircut.sh ~
-sleep 0.5
-ircut.sh ~
-sleep 0.5
-daynight.sh day
-
 exit 0
