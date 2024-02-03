@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# disable for now
+exit
+
 case "$1" in
 	start)
 		/usr/sbin/resetd &
