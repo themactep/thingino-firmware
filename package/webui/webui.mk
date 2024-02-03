@@ -5,7 +5,7 @@
 ################################################################################
 
 WEBUI_SITE_METHOD = git
-WEBUI_SITE = https://github.com/themactep/openipc-webui
+WEBUI_SITE = https://github.com/themactep/wehaveopenipcathome-webui
 WEBUI_VERSION = $(shell git ls-remote $(WEBUI_SITE) HEAD | head -1 | cut -f1)
 
 WEBUI_LICENSE = MIT

@@ -8,8 +8,8 @@ __You've been warned!__
 ### Usage
 
 ```
-git clone https://github.com/themactep/openipc-firmware openipc-firmware-themactep
-cd openipc-firmware-themactep
+git clone https://github.com/themactep/wehaveopenipcathome-firmware
+cd wehaveopenipcathome-firmware
 make
 ```
 
