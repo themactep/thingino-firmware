@@ -163,6 +163,10 @@ distclean:
 pack: defconfig delete_full_bin $(FULL_FIRMWARE_BIN)
 	@echo "DONE"
 
+rebuild-%:
+	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean
+	$(BR2_MAKE) $(subst rebuild-,,$@)
+
 sdk: defconfig
 	$(BR2_MAKE) sdk
 
