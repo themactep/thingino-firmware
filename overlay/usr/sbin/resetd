@@ -1,10 +1,10 @@
 #!/bin/sh
 
 # Set Reset switch GPIO
-pin=
+pin=$(fw_printenv -n gpio_reset_btn)
 
 if [ -z "$pin" ]; then
-	echo "GPIO not set. Exiting"
+	echo "[resetd] GPIO not set. Exiting"
 	echo "[resetd] GPIO undefined in /usr/sbin/resetd" > /dev/kmsg
 	exit 1
 fi
