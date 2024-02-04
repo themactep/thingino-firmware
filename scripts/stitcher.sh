@@ -4,7 +4,7 @@
 #   a firmware file assembler for wehaveopencipathome project
 #
 # Usage:
-#   ./stitcher.sh uboot.bin uImage rootfs.squashfs
+#   ./stitcher.sh
 #
 # This script will produce a binary file autoupdate-full.bin
 # suitable for updating an IPC from an SD card,
