@@ -1,6 +1,4 @@
-#
-# OpenIPC Firmware
-# themactep edition
+# We Have OpenIPC at Home Firmware
 # https://github.com/themactep/wehaveopenipcathome-firmware
 
 #BUILDROOT_VERSION := 2023.11.1
@@ -31,11 +29,11 @@ BUILDROOT_DIR := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)-themactep
 #BUILDROOT_DIR := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)
 
 # working directory
-OUTPUT_DIR = $(HOME)/openipc-fw-output/$(BOARD)-br$(BUILDROOT_VERSION)
+OUTPUT_DIR = $(HOME)/output/$(BOARD)-br$(BUILDROOT_VERSION)
 STDOUT_LOG = $(OUTPUT_DIR)/compilation.log
 STDERR_LOG = $(OUTPUT_DIR)/compilation-errors.log
 
-# OpenIPC project directories
+# project directories
 BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(CURDIR)/scripts
 
@@ -102,11 +100,11 @@ ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 
 ALIGN_BLOCK := $(shell echo $$(( 32 * 1024 )))
 
-FULL_FIRMWARE_NAME = openipc-$(SOC_MODEL)-$(FLASH_SIZE_MB)mb.bin
+FULL_FIRMWARE_NAME = firmware-$(SOC_MODEL).bin
 FULL_FIRMWARE_BIN = $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
 
-U_BOOT_GITHUB_URL := https://github.com/OpenIPC/firmware/releases/download/latest
-U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL)-universal.bin
+U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
+U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL).bin
 
 U_BOOT_OFFSET := 0
 U_BOOT_SIZE = $(shell stat -c%s $(U_BOOT_BIN))
@@ -177,20 +175,14 @@ update_buildroot: $(SRC_DIR)
 
 # upload kernel and rootfs in /tmp/ directory of the camera
 upload_ipc:
-	# scp -O full4programmer-8MB-flex.bin root@192.168.1.130:/mnt/mmcblk0p1/autoupdate-full.bin
-	scp -O $(KERNEL_BIN) root@$(CAMERA_IP_ADDRESS):/mnt/mmcblk0p1/autoupdate-kernel.bin
-	scp -O $(ROOTFS_BIN) root@$(CAMERA_IP_ADDRESS):/tmp/mmcblk0p1/autoupdate-rootfs.bin
+	@scp -O full4programmer-8MB-flex.bin root@192.168.1.130:/mnt/mmcblk0p1/autoupdate-full.bin
 
 # upload kernel. rootfs and full image to tftp server
 upload_tftp: $(FULL_FIRMWARE_BIN)
-	@busybox tftp -l $(KERNEL_BIN) -r uImage.$(SOC_FAMILY) -p $(TFTP_IP_ADDRESS)
-	@busybox tftp -l $(ROOTFS_BIN) -r rootfs.squashfs.$(SOC_FAMILY) -p $(TFTP_IP_ADDRESS)
 	@busybox tftp -l $(FULL_FIRMWARE_BIN) -r $(FULL_FIRMWARE_NAME) -p $(TFTP_IP_ADDRESS)
 
 # upload full image to an sd card
 upload_sdcard: $(FULL_FIRMWARE_BIN)
-	@cp -v $(KERNEL_BIN) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')
-	@cp -v $(ROOTFS_BIN) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')
 	@cp -v $(FULL_FIRMWARE_BIN) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')
 	sync
 	umount $(SDCARD_DEVICE)1
@@ -293,8 +285,6 @@ info: defconfig
 	$(info CAMERA_IP_ADDRESS:  $(CAMERA_IP_ADDRESS))
 	$(info CONFIG_DIR:         $(CONFIG_DIR))
 	$(info CURDIR:             $(CURDIR))
-	$(info FLASH_SIZE_HEX:     $(FLASH_SIZE_HEX))
-	$(info FLASH_SIZE_MB:      $(FLASH_SIZE_MB))
 	$(info KERNEL:             $(KERNEL))
 	$(info SENSOR_MODEL:       $(SENSOR_MODEL))
 	$(info SOC_FAMILY:         $(SOC_FAMILY))
@@ -314,7 +304,7 @@ info: defconfig
 
 help:
 	@echo "\n\
-	BR-OpenIPC usage:\n\
+	Usage:\n\
 	  - make help - print this help\n\
 	  - make install-prerequisites - install system deps\n\
 	  - make BOARD=<BOARD-ID> - build all needed for a board (toolchain, kernel and rootfs images)\n\
