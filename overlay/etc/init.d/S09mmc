@@ -6,6 +6,8 @@ MMC_SOC_SUBVAR=$(ipcinfo -c)
 MMC_MODULE="jzmmc_v12"
 
 MMC_GPIO_CD=$(fw_printenv -n gpio_mmc_cd)
+MMC_GPIO_PWR=$(fw_printenv -n gpio_mmc_power)
+
 # Default CD-PIN for Ingenic PB27 (GPIO59)
 [ -z "$MMC_GPIO_CD" ] && MMC_GPIO_CD="59"
 
@@ -14,6 +16,17 @@ check_return() {
 		echo "err: $1"
 		exit 1
 	fi
+}
+
+set_gpios() {
+        # Set addtional MMC GPIOs
+        # This needs to run AFTER the driver has been loaded for thw sd card to mount during boot
+        if [ ${#MMC_GPIO_PWR} -eq 3 ] && [ "${MMC_GPIO_PWR%[oO]}" != "$MMC_GPIO_PWR" ]; then
+                case "${MMC_GPIO_PWR#??}" in
+                        "O") gpio set ${MMC_GPIO_PWR%[oO]} ;;
+                        "o") gpio clear ${MMC_GPIO_PWR%[oO]} ;;
+                esac
+        fi
 }
 
 start() {
@@ -60,6 +73,7 @@ start() {
 	else
 		echo modprobe $MMC_MODULE ${MMC_PARAM}
 		if modprobe $MMC_MODULE ${MMC_PARAM}; then
+			set_gpios
 			echo "OK"
 		else
 			echo "FAIL"
@@ -68,13 +82,11 @@ start() {
 	fi
 }
 
-stop() {
-	rmmod $MMC_MODULE
-}
-
 case "$1" in
-	start | stop)
+	start)
 		$1
+		;;
+	stop)
 		;;
 	reload | restart)
 		stop
