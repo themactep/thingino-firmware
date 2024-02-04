@@ -76,6 +76,7 @@ config BR2_OPENIPC_SYSTEM_PACKAGES
 	select BR2_PACKAGE_LIBCURL_OPENSSL
 	select BR2_PACKAGE_LIBCURL_PROXY_SUPPORT
 	select BR2_PACKAGE_LIBCURL_VERBOSE
+	select BR2_PACKAGE_LOGCAT
 	select BR2_PACKAGE_MAJESTIC
 	select BR2_PACKAGE_MBEDTLS
 	select BR2_PACKAGE_MBEDTLS_COMPRESSION
@@ -122,7 +123,6 @@ config BR2_PACKAGE_OPENIPC_DEV_PACKAGES
 	bool "OpenIPC Development Packages"
     select BR2_PACKAGE_GDB
     select BR2_PACKAGE_HOST_GDB
-	select BR2_PACKAGE_LOGCAT_OPENIPC
 	help
 	  OpenIPC Development Packages includes
 	  tools for development of the firmware.
