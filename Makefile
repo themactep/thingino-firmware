@@ -175,10 +175,7 @@ toolchain: defconfig
 
 update_buildroot: $(SRC_DIR)
 	if [ ! -d "$(BUILDROOT_DIR)" ]; then git clone --depth 1 $(BUILDROOT_REPO) $(BUILDROOT_DIR); fi
-	cd $(BUILDROOT_DIR)
-	git pull
-	cd -
-	echo "Buildroot updated"
+	cd $(BUILDROOT_DIR) && git pull && echo "Buildroot updated"
 
 # upload kernel and rootfs in /tmp/ directory of the camera
 upload_ipc:
