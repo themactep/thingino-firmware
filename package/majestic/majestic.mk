@@ -13,18 +13,23 @@ ifeq ($(MAJESTIC_FAMILY),t10)
 endif
 
 MAJESTIC_RELEASE = lite
-MAJESTIC_DEPENDENCIES = \
-	json-c \
-	libevent-openipc \
-	libogg \
-	opus \
-	mbedtls \
-	mxml \
-	zlib
 
-define MAJESTIC_EXTRACT_CMDS
-	cp -r $(MAJESTIC_PKGDIR)/files/* $(@D)/
-endef
+MAJESTIC_DEPENDENCIES += \
+	libevent-openipc \
+	libogg-openipc \
+	mbedtls-openipc \
+	opus-openipc \
+
+#MAJESTIC_DEPENDENCIES += \
+#	libevent \
+#	libogg \
+#	opus \
+#	mbedtls \
+#	mxml \
+#	zlib
+
+MAJESTIC_DEPENDENCIES += \
+	json-c
 
 define MAJESTIC_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
@@ -40,8 +45,8 @@ define MAJESTIC_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/fonts/truetype $(MAJESTIC_PKGDIR)/files/UbuntuMono-Regular.ttf
 
 	# Majestic is compiled for older libmbedtls
-	[ ! -f "$(TARGET_DIR)/usr/lib/libmbedtls.so.13" ] && ln -srfv $(TARGET_DIR)/usr/lib/libmbedtls.so.14 $(TARGET_DIR)/usr/lib/libmbedtls.so.13
-	[ ! -f "$(TARGET_DIR)/usr/lib/libmbedcrypto.so.6" ] && ln -srfv $(TARGET_DIR)/usr/lib/libmbedcrypto.so.7 $(TARGET_DIR)/usr/lib/libmbedcrypto.so.6
+	#[ ! -f "$(TARGET_DIR)/usr/lib/libmbedtls.so.13" ] && ln -srfv $(TARGET_DIR)/usr/lib/libmbedtls.so.14 $(TARGET_DIR)/usr/lib/libmbedtls.so.13
+	#[ ! -f "$(TARGET_DIR)/usr/lib/libmbedcrypto.so.6" ] && ln -srfv $(TARGET_DIR)/usr/lib/libmbedcrypto.so.7 $(TARGET_DIR)/usr/lib/libmbedcrypto.so.6
 endef
 
 $(eval $(generic-package))
