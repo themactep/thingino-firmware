@@ -12,8 +12,6 @@ CAMERA_IP_ADDRESS ?= 192.168.1.10
 # Device of SD card
 SDCARD_DEVICE ?= /dev/sdc
 
-FLASH_SIZE_MB ?= 8
-
 SENSOR_MODEL ?= jxf23
 
 # TFTP server IP address to upload compiled images to
@@ -275,7 +273,7 @@ $(ROOTFS_CPIO):
 #	mv -vf $(OUTPUT_DIR)/images/rootfs.cpio $@
 
 $(FULL_FIRMWARE_BIN): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
-	@dd if=/dev/zero bs=$$(($(FLASH_SIZE_HEX))) skip=0 count=1 status=none | tr '\000' '\377' > $@
+	@dd if=/dev/zero bs=8M skip=0 count=1 status=none | tr '\000' '\377' > $@
 	@dd if=$(U_BOOT_BIN) bs=$(U_BOOT_SIZE) seek=$(U_BOOT_OFFSET) count=1 of=$@ conv=notrunc status=none
 	@dd if=$(KERNEL_BIN) bs=$(KERNEL_SIZE) seek=$(KERNEL_OFFSET)B count=1 of=$@ conv=notrunc status=none
 	@dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$(ROOTFS_OFFSET)B count=1 of=$@ conv=notrunc status=none
