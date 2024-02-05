@@ -20,7 +20,9 @@ MAJESTIC_DEPENDENCIES += \
 	libogg-openipc \
 	mbedtls-openipc \
 	opus-openipc \
-else
+endif
+
+ifneq ($(BR2_SOC_INGENIC_T20),y)
 MAJESTIC_DEPENDENCIES += \
 	libevent \
 	libogg \
@@ -29,6 +31,7 @@ MAJESTIC_DEPENDENCIES += \
 	mxml \
 	zlib
 endif
+
 MAJESTIC_DEPENDENCIES += \
 	json-c
 
