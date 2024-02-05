@@ -14,20 +14,21 @@ endif
 
 MAJESTIC_RELEASE = lite
 
+ifeq ($(BR2_SOC_INGENIC_T20),y)
 MAJESTIC_DEPENDENCIES += \
 	libevent-openipc \
 	libogg-openipc \
 	mbedtls-openipc \
 	opus-openipc \
-
-#MAJESTIC_DEPENDENCIES += \
-#	libevent \
-#	libogg \
-#	opus \
-#	mbedtls \
-#	mxml \
-#	zlib
-
+else
+MAJESTIC_DEPENDENCIES += \
+	libevent \
+	libogg \
+	opus \
+	mbedtls \
+	mxml \
+	zlib
+endif
 MAJESTIC_DEPENDENCIES += \
 	json-c
 
