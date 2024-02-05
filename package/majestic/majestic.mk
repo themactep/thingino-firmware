@@ -19,7 +19,7 @@ MAJESTIC_DEPENDENCIES += \
 	libevent-openipc \
 	libogg-openipc \
 	mbedtls-openipc \
-	opus-openipc \
+	opus-openipc
 endif
 
 ifneq ($(BR2_SOC_INGENIC_T20),y)
