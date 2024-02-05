@@ -209,7 +209,7 @@ if [ $? -ne 0 ]; then
 	check_return "insmod gpio"
 fi
 
-gpios=$(fw_printenv | grep ^gpio_ | cut -d= -f2 | sed 's/[[:alpha:]]//g' | tr '\n' ' ')
-for i in $gpios; do
-	gpio claim $i
-done
+#gpios=$(fw_printenv gpio_ircut | grep ^gpio_ | cut -d= -f2 | sed 's/[[:alpha:]]//g' | tr '\n' ' ')
+#for i in $gpios; do
+#	gpio claim $i
+#done
