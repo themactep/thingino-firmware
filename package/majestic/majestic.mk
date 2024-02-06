@@ -16,7 +16,6 @@ MAJESTIC_RELEASE = lite
 
 ifeq ($(BR2_SOC_INGENIC_T20), y)
 MAJESTIC_DEPENDENCIES += \
-	libevent-openipc \
 	libogg-openipc \
 	mbedtls-openipc \
 	opus-openipc
@@ -24,7 +23,6 @@ endif
 
 ifneq ($(BR2_SOC_INGENIC_T20), y)
 MAJESTIC_DEPENDENCIES += \
-	libevent \
 	libogg \
 	opus \
 	mbedtls \
@@ -33,6 +31,7 @@ MAJESTIC_DEPENDENCIES += \
 endif
 
 MAJESTIC_DEPENDENCIES += \
+	libevent-openipc \
 	json-c
 
 define MAJESTIC_INSTALL_TARGET_CMDS
