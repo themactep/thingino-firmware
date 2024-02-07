@@ -17,42 +17,99 @@
 #
 # 2024, Paul Philippov <paul@themactep.com>
 
-echo "Analyzing files..."
-echo
-for i in *; do
-	# is a file
-	[ ! -f $i ] && continue
-	# is not a symbolic link
-	[ -L $i ] && continue
-	magic=$(xxd -l4 -ps "$i")
-	case "$magic" in
-		06050403)
-			[ "$(stat -c%s $i)" -gt "262144" ] && continue
-			echo U-Boot: $i
-			u_boot=$i
+show_help_and_exit() {
+	echo "Usage: $(basename "$0") [-u <uboot.bin>] [-k <kernel.bin>] [-r <rootfs.bin>] [-h]"
+	exit 1
+}
+
+scan_files() {
+	echo "Analyzing files..."
+	local i
+	for i in *; do
+		# is a file
+		[ ! -f $i ] && continue
+
+		# is not a symbolic link
+		[ -L $i ] && continue
+
+		magic=$(xxd -l4 -ps "$i")
+		case "$magic" in
+			06050403)
+				[ -n "$u_boot" ] && continue
+				[ "$(stat -c%s $i)" -gt "262144" ] && continue
+				u_boot=$i
+				;;
+			27051956)
+				[ -n "$kernel" ] && continue
+				kernel=$i
+				;;
+			68737173)
+				[ -n "$rootfs" ] && continue
+				rootfs=$i
+				;;
+			*)
+				# do nothing
+				;;
+	    esac
+	done
+}
+
+if [ "$#" -eq "0" ]; then
+	show_help_and_exit
+fi
+
+for a in "$@"; do
+	case "$a" in
+		-a | --auto)
+			scan_files
 			;;
-		27051956)
-			echo Kernel: $i
-			kernel=$i
+		-u | --uboot)
+			u_boot=$2
+			shift
+			shift
 			;;
-		68737173)
-			echo RootFS: $i
-			rootfs=$i
+		-k | --kernel)
+			kernel=$2
+			shift
+			shift
 			;;
-		*)
-			# do nothing
+		-r | --rootfs)
+			rootfs=$2
+			shift
+			shift
 			;;
-    esac
+		-h | --help)
+			show_help_and_exit
+			;;
+	esac
 done
+
+if [ -z "$u_boot" ] || [ ! -f "$u_boot" ]; then
+	echo "Cannot find U-Boot."
+	abort=$((abort + 11))
+fi
+if [ -z "$kernel" ] || [ ! -f "$kernel" ]; then
+ 	echo "Cannot find Kernel."
+ 	abort+=$((abort + 2))
+fi
+if [ -z "$rootfs" ] || [ ! -f "$kernel" ]; then
+	echo "Cannot find RootFS."
+	abort=3
+fi
+
+if [ "$abort" -gt 0 ]; then
+	echo "Aborting..."
+	exit $abort
+fi
+
 echo
-
-[ -z "$u_boot" ] && echo Cannot find U-Boot. Aborting... && exit 2
-[ -z "$kernel" ] && echo Cannot find Kernel. Aborting... && exit 3
-[ -z "$rootfs" ] && echo Cannot find RootFS. Aborting... && exit 4
-
-echo Found all required parts of the future firmware.
-echo We are good to go!
-echo Assembling...
+echo "U-Boot: $u_boot"
+echo "Kernel: $kernel"
+echo "RootFS: $rootfs"
+echo
+echo "Found all required parts of the future firmware."
+echo "We are good to go!"
+echo "Assembling..."
 echo
 
 alignment=$((64 * 1024))
