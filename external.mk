@@ -54,27 +54,23 @@ else
 BR2_KERNEL = $(SOC_VENDOR)-$(SOC_FAMILY)
 endif
 
+BR2_TOOLCHAIN_BUILDROOT_VENDOR="thingino"
+
 ### Packages
 
-#ifeq ($(call qstrip,$(BR2_DL_DIR)),$(TOPDIR)/dl)
-#OPENIPC_KERNEL = "https://github.com/openipc/linux/archive/$(BR2_KERNEL).tar.gz"
-#else
-#OPENIPC_KERNEL = $(shell git ls-remote https://github.com/openipc/linux $(BR2_KERNEL) | head -1 | cut -f1)
-#LOCAL_DOWNLOAD = y
-#endif
-OPENIPC_KERNEL = "https://github.com/gtxaspec/openipc_linux/archive/$(BR2_KERNEL).tar.gz"
+THINGINO_KERNEL = "https://github.com/gtxaspec/openipc_linux/archive/$(BR2_KERNEL).tar.gz"
 
 # if config file uses external toolchain, use it
-ifneq ($(BR2_TOOLCHAIN_EXTERNAL),)
-OPENIPC_TOOLCHAIN = latest/$(shell $(SCRIPTS_DIR)/show_toolchains.sh $(BOARD_CONFIG))
-export BR2_TOOLCHAIN_EXTERNAL=y
-OUTPUT_DIR := $(OUTPUT_DIR)-ext
-endif
+#ifneq ($(BR2_TOOLCHAIN_EXTERNAL),)
+#OPENIPC_TOOLCHAIN = latest/$(shell $(SCRIPTS_DIR)/show_toolchains.sh $(BOARD_CONFIG))
+#export BR2_TOOLCHAIN_EXTERNAL=y
+#OUTPUT_DIR := $(OUTPUT_DIR)-ext
+#endif
 
 export SOC_VENDOR
 export SOC_FAMILY
 export SOC_MODEL
-export OPENIPC_KERNEL
+export THINGINO_KERNEL
 
 # include makefiles from packages
 include $(sort $(wildcard $(BR2_EXTERNAL)/package/*/*.mk))

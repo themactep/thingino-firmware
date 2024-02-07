@@ -5,5 +5,4 @@ config BR2_PACKAGE_LIBOGG_OPENIPC
 	  and stream format for the Xiph.org multimedia codecs. As
 	  with all Xiph.org technology is it an open format free for
 	  anyone to use.
-
 	  http://xiph.org/ogg/

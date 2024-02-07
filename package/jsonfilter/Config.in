@@ -5,5 +5,4 @@ config BR2_PACKAGE_JSONFILTER
 	select BR2_PACKAGE_LIBUBOX
 	help
 	  jsonfilter - simple JSON parser
-
 	  https://lxr.openwrt.org/source/jsonpath/

@@ -2,5 +2,4 @@ config BR2_PACKAGE_LAME_OPENIPC
 	bool "lame-openipc"
 	help
 	  LAME is a high quality MPEG Audio Layer III (MP3) encoder.
-
 	  http://lame.sourceforge.net/

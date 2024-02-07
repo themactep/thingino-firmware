@@ -1,4 +1,4 @@
-# We Have OpenIPC at Home Firmware
+# THINGINO Firmware
 # https://github.com/themactep/wehaveopenipcathome-firmware
 
 #BUILDROOT_VERSION := 2023.11.1

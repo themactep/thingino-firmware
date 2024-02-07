@@ -1,7 +1,0 @@
-config BR2_PACKAGE_XMDP
-	bool "xmdp"
-	default n
-	help
-	  Utility for finding devices that support the NETIP protocol
-
-	  https://openipc.org

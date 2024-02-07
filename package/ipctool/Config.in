@@ -3,5 +3,4 @@ config BR2_PACKAGE_IPCTOOL
 	select BR2_PACKAGE_LIBYAML
 	help
 	  ipctool - IP cameras chip information tool
-
 	  https://github.com/openipc/ipctool/
