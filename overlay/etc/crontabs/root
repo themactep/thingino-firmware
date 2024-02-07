@@ -13,3 +13,4 @@
 #*/30  *  *  *  *     /usr/sbin/send2telegram
 #*/30  *  *  *  *     /usr/sbin/send2telegram -t 3651038111:ACHzXLtPAUiKi3715S1 -c -10028718
 #*/30  *  *  *  *     /usr/sbin/send2yadisk
+*/1  *  *  *  *  /usr/sbin/daynight
