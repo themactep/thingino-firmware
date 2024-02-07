@@ -3,5 +3,4 @@ config BR2_PACKAGE_MINI_SNMPD_OPENIPC
 	help
 	  Mini SNMPd is a minimal implementation targeted at small or
 	  embedded UNIX systems with limited resources
-
 	  http://troglobit.com/mini-snmpd.html

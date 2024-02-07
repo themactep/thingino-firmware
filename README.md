@@ -1,9 +1,6 @@
-This is a highly experimental fork of the [OpenIPC firmware][1] 
-for personal research focused primarily on Ingenic SoC.
+## THINGINO
 
-You don't need to clone it unless you want to break something.
-
-__You've been warned!__
+IPC firmware, derived from [OpenIPC][1] and focused on Ingenic SoC.
 
 ### Usage
 

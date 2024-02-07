@@ -1,6 +1,0 @@
-config BR2_PACKAGE_NODE_EXPORTER
-	bool "node-exporter"
-	help
-	  node-exporter - Monitoring Linux host metrics with Prometheus
-
-	  https://openipc.org
