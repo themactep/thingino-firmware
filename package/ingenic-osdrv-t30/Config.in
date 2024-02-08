@@ -1,6 +1,4 @@
 config BR2_PACKAGE_INGENIC_OSDRV_T30
 	bool "ingenic-osdrv-t30"
 	help
-	  ingenic-osdrv-t30 - Ingenic kernel modules and libs
-
-	  https://openipc.org
+	  Ingenic kernel modules and libs for T30 SoC

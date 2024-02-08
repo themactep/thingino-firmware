@@ -3,4 +3,4 @@ config BR2_PACKAGE_WEBUI
 	select BR2_PACKAGE_HASERL
 	help
 	  Web UI working with httpd and haserl.
-	  https://github.com/themactep/wehaveopenipcathome-webui
+	  https://github.com/themactep/thingino-webui
