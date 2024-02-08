@@ -1,17 +1,6 @@
-config SOC_VENDOR
-	string "SoC Vendor"
-
-config SOC_FAMILY
-	string "SoC Family"
-
-config SOC_MODEL
-	string "SoC Model"
 
 config BR2_SENSOR_MODEL
 	string "Image sensor model"
-
-config FLASH_SIZE_MB
-	string "Flash size"
 
 menu "THINGINO firmware"
 
@@ -98,7 +87,6 @@ config BR2_THINGINO_EXTRA_PACKAGES
 	select BR2_PACKAGE_IFUPDOWN_SCRIPTS
 	select BR2_PACKAGE_JSONFILTER
 	select BR2_PACKAGE_LIBWEBSOCKETS_OPENIPC
-	select BR2_PACKAGE_MINI_SNMPD
 	select BR2_PACKAGE_MOSQUITTO_BROKER
 	select BR2_PACKAGE_MOTORS
 	select BR2_PACKAGE_NGINX
