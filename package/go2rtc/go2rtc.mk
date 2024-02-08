@@ -15,7 +15,7 @@ GO2RTC_INSTALL_TARGET = YES
 
 GO2RTC_DEPENDENCIES = host-go host-upx
 GO2RTC_GO_ENV = GOARCH=mipsle
-GO2RTC_LDFLAGS = -s -w
+GO2RTC_LDFLAGS = -s -w" -gcflags=all="-l -B
 
 define GO2RTC_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/bin/go2rtc $(TARGET_DIR)/usr/bin/go2rtc
