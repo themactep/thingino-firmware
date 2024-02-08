@@ -3,6 +3,7 @@ export HOME=$(grep -e "^${USER:-root}:" /etc/passwd | cut -d ":" -f 6)
 export HOME=${HOME:-/root}
 export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 export TZ=$(cat /etc/TZ)
+export EDITOR='/bin/vi'
 export SENSOR=$(fw_printenv -n sensor)
 
 echo_c() { echo -ne "\e[1;$1m$2\e[0m"; }
@@ -19,8 +20,6 @@ if [ "$PS1" ]; then
 		export PS1='\u@\h:\w\$ '
 	fi
 fi
-
-export EDITOR='/bin/vi'
 
 [ -x /usr/bin/arp ] || arp() { cat /proc/net/arp; }
 
