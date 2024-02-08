@@ -1,5 +1,5 @@
 # THINGINO Firmware
-# https://github.com/themactep/wehaveopenipcathome-firmware
+# https://github.com/themactep/thingino-firmware
 
 #BUILDROOT_VERSION := 2023.11.1
 BUILDROOT_VERSION := git
