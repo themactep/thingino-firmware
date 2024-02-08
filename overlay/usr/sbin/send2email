@@ -53,9 +53,9 @@ done
 [ -z "$email_to_address" ] && log "Recipient's email address not found" && exit 14
 
 # assign default values if not set
-#[ -z "$email_from_name" ] && email_from_name="OpenIPC Camera"
-#[ -z "$email_to_name" ] && email_to_name="OpenIPC Camera Admin"
-#[ -z "$email_subject" ] && email_subject="Snapshot from OpenIPC Camera"
+#[ -z "$email_from_name" ] && email_from_name="Thingino Camera"
+#[ -z "$email_to_name" ] && email_to_name="Thingino Camera Admin"
+#[ -z "$email_subject" ] && email_subject="Snapshot from Thingino Camera"
 
 command="curl --silent --verbose"
 command="${command} --connect-timeout ${curl_timeout}"
