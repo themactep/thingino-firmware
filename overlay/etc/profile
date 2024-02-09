@@ -12,7 +12,7 @@ if [ "$PS1" ]; then
 	[ -f /etc/os-release ] && . /etc/os-release
 	[ -f /etc/banner ] && echo_c 34 "$(cat /etc/banner)"
 	echo
-	echo_c 32 "$(printf "%53s" "${GITHUB_VERSION}")"
+	echo_c 32 "$(printf "%65s" "${VERSION}")"
 	echo -e "\n\n"
 	if [ "$(id -u)" -eq 0 ]; then
 		export PS1="\[\e[31m\][\[\e[m\]\[\e[38;5;172m\]\u\[\e[m\]@\[\e[38;5;153m\]\h\[\e[m\] \[\e[38;5;214m\]\W\[\e[m\]\[\e[31m\]]\[\e[m\]\\# "
