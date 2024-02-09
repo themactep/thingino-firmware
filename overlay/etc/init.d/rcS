@@ -22,13 +22,13 @@ for i in /etc/init.d/S??*; do
 			(
 				trap - INT QUIT TSTP
 				set start
-				$i
+				/bin/sh -c "$i" 2>&1 | tee >(logger -t $i)
 			)
 			;;
 
 		*)
 			# No sh extension, so fork subprocess.
-			$i start
+			/bin/sh -c "$i start" 2>&1 | tee >(logger -t $i)
 			;;
 	esac
 done
