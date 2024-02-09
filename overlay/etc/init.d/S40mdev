@@ -2,10 +2,17 @@
 
 case "$1" in
 	start)
-		echo "Starting mdev..."
+		echo -n "Starting mdev: "
 		echo /sbin/mdev > /proc/sys/kernel/hotplug
 		/sbin/mdev -s
-		;;
+		status=$?
+		if [ "$status" -eq 0 ]; then
+				echo "OK"
+		else
+				echo "FAIL"
+		fi
+		return "$status"
+			;;
 
 	stop) ;;
 

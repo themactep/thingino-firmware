@@ -17,16 +17,18 @@ start() {
 }
 
 stop() {
-	printf 'Stopping %s: ' "$DAEMON"
-	start-stop-daemon -K -q -p "$PIDFILE"
-	status=$?
-	if [ "$status" -eq 0 ]; then
-		rm -f "$PIDFILE"
-		echo "OK"
-	else
-		echo "FAIL"
+	if [ ! -f "$PIDFILE" ]; then
+		printf 'Stopping %s: ' "$DAEMON"
+		start-stop-daemon -K -q -p "$PIDFILE"
+		status=$?
+		if [ "$status" -eq 0 ]; then
+			rm -f "$PIDFILE"
+			echo "OK"
+		else
+			echo "FAIL"
+		fi
+		return "$status"
 	fi
-	return "$status"
 }
 
 restart() {
