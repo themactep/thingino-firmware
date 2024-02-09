@@ -1,14 +1,13 @@
 #!/bin/bash
 #
 # GStreamer based video player for glass-on-glass tests.
-# Use it together with https://openipc.org/tools/high-resolution-timer
-#
+# Use it with https://thingino.com/timer
 
 protocol="$1"
 codec="$2"
 
 show_help_and_exit() {
-    echo "Usage: $0 [rtmp|rtsp] [h264|h265] [rtsp://root:12345@192.168.1.10:554/stream=0]"
+    echo "Usage: $0 [rtmp|rtsp] [h264|h265] [rtsp://root:root@192.168.1.10:554/stream=0]"
     exit 1
 }
 
