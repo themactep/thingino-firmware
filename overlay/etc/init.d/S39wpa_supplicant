@@ -1,0 +1,82 @@
+#!/bin/sh
+
+DAEMON=wpa_supplicant
+
+start() {
+	printf 'Starting %s: ' "$DAEMON"
+	ssid="$(fw_printenv -n wlanssid)"
+	pass="$(fw_printenv -n wlanpass)"
+
+	if [ -z "$pass" ]; then
+		echo "wlanpass is empty, exiting."
+		exit 0
+	fi
+
+	generate_wpa_supplicant_conf() {
+		if [ ${#pass} -lt 64 ]; then
+			wpa_passphrase "$ssid" "$pass" > "/etc/$DAEMON.conf"
+		else
+			wpa_passphrase "$ssid" "dummy_password" > "/etc/$DAEMON.conf"
+			sed -i "s/psk=.*$/psk=$pass/" /etc/$DAEMON.conf
+		fi
+
+		if [ ${#pass} -lt 64 ]; then
+			psk=$(grep '^\s*psk=' "/etc/$DAEMON.conf" | cut -d= -f2 | tail -n 1)
+			fw_setenv wlanpass "$psk"
+		fi
+	}
+
+	if [ ! -f "/etc/$DAEMON.conf" ] || [ ${#pass} -lt 64 ] || ssid_changed; then
+		generate_wpa_supplicant_conf
+	fi
+
+	start-stop-daemon -S -x "/sbin/$DAEMON" -- -P "/var/run/$DAEMON.wlan0.pid" \
+		-B -i wlan0 -c "/etc/$DAEMON.conf" -f "/tmp/$DAEMON.log"
+
+	status=$?
+	if [ "$status" -eq 0 ]; then
+			echo "OK"
+	else
+			echo "FAIL"
+	fi
+	return "$status"
+}
+
+ssid_changed() {
+	current_ssid=$(grep '^ssid=' "/etc/$DAEMON.conf" | cut -d= -f2- | tr -d '"')
+	[ "$ssid" != "$current_ssid" ]
+}
+
+stop() {
+	printf 'Stopping %s: ' "$DAEMON"
+	start-stop-daemon -K -q -p "/var/run/$DAEMON.wlan0.pid" -x "/sbin/$DAEMON"
+
+	status=$?
+	if [ "$status" -eq 0 ]; then
+			echo "OK"
+	else
+			echo "FAIL"
+	fi
+	return "$status"
+}
+
+restart() {
+	stop
+	start
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart|reload)
+		restart
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+		;;
+esac
