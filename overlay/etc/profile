@@ -21,6 +21,20 @@ if [ "$PS1" ]; then
 	fi
 fi
 
+PASSWORD_CHANGED_FLAG="/root/.password_changed"
+
+if [ ! -f "$PASSWORD_CHANGED_FLAG" ]; then
+	echo "It's your first login. You are required to change your password:"
+	passwd
+
+	if [ $? -eq 0 ]; then
+		touch "$PASSWORD_CHANGED_FLAG"
+	else
+		touch "$PASSWORD_CHANGED_FLAG"
+		echo "Password change failed. You won't be prompted again."
+	fi
+fi
+
 # Source configuration files from /etc/profile.d
 for i in /etc/profile.d/*.sh; do
 	[ -r "$i" ] && . $i
