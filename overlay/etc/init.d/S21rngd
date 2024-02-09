@@ -3,11 +3,6 @@
 NAME="rngd"
 DAEMON="/usr/sbin/${NAME}"
 DAEMON_ARGS="-r /dev/urandom"
-CFG_FILE="/etc/default/${NAME}"
-PID_FILE="/var/run/${NAME}.pid"
-
-# Read configuration variable file if it is present
-[ -r "${CFG_FILE}" ] && . "${CFG_FILE}"
 
 start() {
 	printf "Starting ${NAME}: "
@@ -17,10 +12,7 @@ start() {
 
 stop() {
 	printf "Stopping ${NAME}: "
-	# This daemon does not exit properly with the default TERM signal unless
-	# it's forced to work by something reading /dev/random. Killing it and
-	# removing its PID file is more straightforward.
-	if start-stop-daemon -K -q -s KILL -p "${PID_FILE}" -n "${NAME}"; then
+	if start-stop-daemon -K -q -x $DAEMON; then
 		rm -f "${PID_FILE}"
 		echo "OK"
 	else

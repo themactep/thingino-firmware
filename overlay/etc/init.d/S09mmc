@@ -30,7 +30,7 @@ set_gpios() {
 }
 
 start() {
-	printf "Starting MMC: "
+	echo -n "Starting MMC: "
 
 	MMC_PARAM="cd_gpio_pin=$MMC_GPIO_CD"
 
@@ -71,10 +71,9 @@ start() {
 		echo "$MMC_MODULE is already loaded"
 		exit 1
 	else
-		echo modprobe $MMC_MODULE ${MMC_PARAM}
 		if modprobe $MMC_MODULE ${MMC_PARAM}; then
-			set_gpios
 			echo "OK"
+			set_gpios
 		else
 			echo "FAIL"
 			exit 1

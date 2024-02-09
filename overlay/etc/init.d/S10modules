@@ -2,7 +2,7 @@
 
 case "$1" in
 	start)
-		printf "Loading modules:"
+		echo -n "Loading modules: "
 		# load modules for detected devices
 		# find /sys/ -name modalias -print0 | xargs -0 sort -u -z | xargs -0 modprobe -abq
 
@@ -18,5 +18,6 @@ case "$1" in
 			# attempt to load modules
 			modprobe ${module} ${args} > /dev/null
 		done < /etc/modules
+		echo "OK"
 		;;
 esac

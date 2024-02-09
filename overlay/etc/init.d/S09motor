@@ -38,9 +38,10 @@ set_gpio_vars() {
 }
 
 start() {
+	echo -n "Starting motor: "
 	# Check if motors are supported
 	if [ -z "$gpio_motor_h" ] || [ -z "$gpio_motor_v" ]; then
-		echo "Motors disabled"
+		echo "DISABLED"
 		exit 0
 	fi
 
@@ -53,8 +54,6 @@ start() {
 
 	set_gpio_vars "$gpio_motor_v" "v"
 	check_return $? "Failed to set vertical GPIO variables"
-
-	echo -n "Starting motor: "
 
 	# Check if the module is already loaded
 	check_module motor sample_motor

@@ -23,7 +23,6 @@ load_majestic() {
 }
 
 start() {
-	logger -s -p daemon.info -t $(ipcinfo -v) "Loading video system has started..."
 	export SENSOR=$(fw_printenv -n sensor)
 	load_majestic
 }
