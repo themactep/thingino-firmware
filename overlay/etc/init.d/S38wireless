@@ -1,0 +1,63 @@
+#!/bin/sh
+
+start() {
+	printf 'Starting %s: ' "wireless"
+	wlandev="$(fw_printenv -n wlandev)"
+	gpionum="$(fw_printenv -n gpio_wlan)"
+
+	modulename="${wlandev}"
+
+	if [ -n "$gpionum" ]; then
+		num=${gpionum%[oO]}
+		state=${gpionum#$num}
+
+		case "$state" in
+			O)
+				gpio_cmd="high"
+				;;
+			o)
+				gpio_cmd="low"
+				;;
+		esac
+
+		echo "Setting GPIO $num $gpio_cmd"
+		if ! gpio $gpio_cmd $num; then
+			echo "Failed to set GPIO $num $gpio_cmd"
+			exit 1
+		fi
+	fi
+
+	# Assume that we are SDIO, and we need to insert
+	if ! mmc 1; then
+		echo "Failed to initialize SDIO device"
+		exit 1
+	fi
+
+	if [ "$wlandev" = "rndis_host" ]; then
+		if ! modprobe usbserial; then
+			echo "Failed to load usbserial module for $modulename"
+			exit 1
+		fi
+	fi
+
+	if ! lsmod | grep -q "$modulename"; then
+		echo "$modulename"
+		if ! modprobe $modulename; then
+			echo "Failed to load module $modulename"
+			exit 1
+		fi
+	fi
+
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		;;
+	*)
+		echo "Usage: $0 {start}"
+		exit 1
+		;;
+esac
