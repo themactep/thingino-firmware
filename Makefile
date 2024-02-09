@@ -37,6 +37,10 @@ STDERR_LOG = $(OUTPUT_DIR)/compilation-errors.log
 BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(CURDIR)/scripts
 
+TOOLCHAIN_URL = http://thingino.com/dl/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz
+TOOLCHAIN_DIR := $(CURDIR)/toolchain
+TOOLCHAIN_BUNDLE := $(TOOLCHAIN_DIR)/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz
+
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BUILDROOT_DIR) BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
 
@@ -145,7 +149,7 @@ br-%: defconfig
 clean: defconfig
 	rm -rf $(OUTPUT_DIR)/target $(OUTPUT_DIR)/.config
 
-defconfig: $(BUILDROOT_DIR)
+defconfig: $(BUILDROOT_DIR) $(TOOLCHAIN_DIR)/mipsel-thingino-linux-musl_sdk-buildroot/.extracted
 	@rm -rvf $(OUTPUT_DIR)/.config
 	$(BR2_MAKE) BR2_DEFCONFIG=$(BOARD_CONFIG) defconfig
 
@@ -212,6 +216,11 @@ $(OUTPUT_DIR):
 $(SRC_DIR):
 	mkdir -p $(SRC_DIR)
 
+# download Buildroot bundle
+$(BUILDROOT_BUNDLE):
+	$(WGET) -O $@ https://github.com/buildroot/buildroot/archive/refs/tags/$(BUILDROOT_VERSION).tar.gz
+	#https://github.com/buildroot/buildroot/archive/refs/heads/master.zip
+
 # install Buildroot sources from bundle
 $(BUILDROOT_DIR)/.extracted: $(BUILDROOT_BUNDLE)
 	ls -l $(dirname $@)
@@ -219,10 +228,16 @@ $(BUILDROOT_DIR)/.extracted: $(BUILDROOT_BUNDLE)
 	tar -C $(SRC_DIR) -xf $(BUILDROOT_BUNDLE)
 	touch $@
 
-# download Buildroot bundle
-$(BUILDROOT_BUNDLE):
-	$(WGET) -O $@ https://github.com/buildroot/buildroot/archive/refs/tags/$(BUILDROOT_VERSION).tar.gz
-	#https://github.com/buildroot/buildroot/archive/refs/heads/master.zip
+# download toolchain
+$(TOOLCHAIN_BUNDLE):
+	mkdir -p $(TOOLCHAIN_DIR)
+	$(WGET) -O $@ $(TOOLCHAIN_URL)
+
+# extract toolchain
+$(TOOLCHAIN_DIR)/mipsel-thingino-linux-musl_sdk-buildroot/.extracted: $(TOOLCHAIN_BUNDLE)
+	tar -C $(TOOLCHAIN_DIR) -xf $(TOOLCHAIN_BUNDLE)
+	cd $(TOOLCHAIN_DIR)/mipsel-thingino-linux-musl_sdk-buildroot && ./relocate-sdk.sh
+	touch $@
 
 ## create defconfig
 #$(OUTPUT_DIR)/.config: $(BUILDROOT_DIR)/.installed
