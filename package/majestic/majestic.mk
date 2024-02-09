@@ -14,6 +14,12 @@ endif
 
 MAJESTIC_RELEASE = lite
 
+MAJESTIC_DEPENDENCIES += \
+	json-c \
+	libevent-openipc \
+	mxml \
+	zlib
+
 ifeq ($(BR2_SOC_INGENIC_T20), y)
 MAJESTIC_DEPENDENCIES += \
 	libogg-openipc \
@@ -24,15 +30,9 @@ endif
 ifneq ($(BR2_SOC_INGENIC_T20), y)
 MAJESTIC_DEPENDENCIES += \
 	libogg \
-	opus \
 	mbedtls \
-	mxml \
-	zlib
+	opus
 endif
-
-MAJESTIC_DEPENDENCIES += \
-	libevent-openipc \
-	json-c
 
 define MAJESTIC_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
