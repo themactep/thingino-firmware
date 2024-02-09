@@ -2,8 +2,7 @@
 
 case "$1" in
 	start)
-		logger -s -p daemon.info -t ingenic "$1"
-		echo -e '\nLoading of kernel modules...'
-		load_ingenic -i
+		echo "Starting vendor..."
+		load_ingenic
 		;;
 esac

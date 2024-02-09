@@ -1,21 +1,28 @@
 #!/bin/sh
 
 start() {
-	echo "Starting rc.local"
+	echo -n "Starting rc.local: "
 	/etc/rc.local
+	status=$?
+	if [ "$status" -eq 0 ]; then
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+	return "$status"
 }
 
 restart() {
-	echo "Restarting rc.local"
-	/etc/rc.local
+	start
 }
 
 stop() {
-	echo "Stopping rc.local"
+    echo -n "Stopping rc.local: "
 	if [ -x /etc/rc.local.stop ]; then
 		/etc/rc.local.stop
+		echo "OK"
 	else
-		echo "/etc/rc.local.stop not found or not executable."
+		echo "/etc/rc.local.stop not found."
 	fi
 }
 
