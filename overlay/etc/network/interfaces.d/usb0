@@ -1,3 +1,2 @@
 auto usb0
 iface usb0 inet dhcp
-    pre-up /etc/wireless/modem $(fw_printenv -n wlandev)
