@@ -3,5 +3,6 @@ output-*/
 general/package.disabled/
 sdk/
 tmp/
+toolchain/
 wirebox/
 .board
