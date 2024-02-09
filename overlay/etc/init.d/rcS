@@ -1,5 +1,7 @@
 #!/bin/sh
 
+export TZ=$(cat /etc/TZ)
+
 # Seritificates for curl in non-interactive shell
 export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
