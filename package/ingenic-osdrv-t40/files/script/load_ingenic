@@ -2,13 +2,8 @@
 
 KMOD_PATH=/lib/modules/$(uname -r)/ingenic
 SOC=$(ipcinfo -f || fw_printenv -n soc)
-vendor=$(ipcinfo -v)
 
 echo 1 >/proc/sys/vm/overcommit_memory
-
-log_vendor() {
-	logger -s -p daemon.info -t ${vendor} "$1"
-}
 
 check_return() {
 	if [ $? -ne 0 ]; then
@@ -18,15 +13,18 @@ check_return() {
 	fi
 }
 
-lsmod | grep "sinfo" >/dev/null
-if [ $? -ne 0 ]; then
+log() {
+	logger -s -p daemon.info -t ingenic "$1"
+}
+
+if ! grep -q "^sinfo" /proc/modules; then
 	modprobe sinfo
-	check_return "insmod sinfo"
+	check_return "modprobe sinfo"
 fi
 
 if fw_printenv -n sensor >/dev/null; then
 	export SENSOR=$(fw_printenv -n sensor)
-	log_vendor "Get data from environment and set SENSOR as ${SENSOR}"
+	log "Get data from environment and set SENSOR as ${SENSOR}"
 else
 	echo 1 >/proc/jz/sinfo/info
 	check_return "start sinfo"
@@ -37,33 +35,32 @@ else
 		unset SENSOR
 		fw_setenv sensor
 	else
-		log_vendor "Get data from sinfo and set SENSOR as ${SENSOR}"
-		fw_setenv sensor $SENSOR && log_vendor "Write detected ${SENSOR} to U-Boot ENV"
+		log "Get data from sinfo and set SENSOR as ${SENSOR}"
+		fw_setenv sensor $SENSOR && log "Write detected ${SENSOR} to U-Boot ENV"
 	fi
 fi
 
-case ${SENSOR} in
-"imx307")
-	AVPU_PARAM="clk_name=mpll avpu_clk=550000000"
-	ISP_PARAM="clk_name=mpll isp_clk=367000000 isp_memopt=2"
-	SENSOR_PARAM=""
-	;;
-"imx335")
-	AVPU_PARAM="clk_name=vpll avpu_clk=654000000"
-	ISP_PARAM="clk_name=mpll isp_clk=367000000 isp_memopt=2"
-	SENSOR_PARAM=""
-	;;
-"imx415")
-	AVPU_PARAM="clk_name=vpll avpu_clk=654000000"
-	ISP_PARAM="isp_clk=350000000"
-	SENSOR_PARAM=""
-	;;
-*)
-	AVPU_PARAM="clk_name=vpll avpu_clk=654000000"
-	ISP_PARAM="isp_clk=350000000"
-	SENSOR_PARAM=""
-	break
-	;;
+case "$SENSOR" in
+	imx307)
+		AVPU_PARAM="clk_name=mpll avpu_clk=550000000"
+		ISP_PARAM="clk_name=mpll isp_clk=367000000 isp_memopt=2"
+		SENSOR_PARAM=""
+		;;
+	imx335)
+		AVPU_PARAM="clk_name=vpll avpu_clk=654000000"
+		ISP_PARAM="clk_name=mpll isp_clk=367000000 isp_memopt=2"
+		SENSOR_PARAM=""
+		;;
+	imx415)
+		AVPU_PARAM="clk_name=vpll avpu_clk=654000000"
+		ISP_PARAM="isp_clk=350000000"
+		SENSOR_PARAM=""
+		;;
+	*)
+		AVPU_PARAM="clk_name=vpll avpu_clk=654000000"
+		ISP_PARAM="isp_clk=350000000"
+		SENSOR_PARAM=""
+		;;
 esac
 
 echo --------------------
@@ -73,41 +70,34 @@ echo "SENSOR: ${SENSOR}"
 echo "SENSOR_PARAM: ${SENSOR_PARAM}"
 echo --------------------
 
-lsmod | grep "avpu" >/dev/null
-if [ $? -ne 0 ]; then
-	modprobe avpu ${AVPU_PARAM}
+if ! grep -q "^avpu" /proc/modules; then
+	modprobe avpu $AVPU_PARAM
 	check_return "insmod avpu"
 fi
 
-lsmod | grep "tx_isp" >/dev/null
-if [ $? -ne 0 ]; then
-	modprobe tx-isp-${SOC} ${ISP_PARAM}
-	check_return "insmod isp drv"
+if ! grep -q "^tx_isp" /proc/modules; then
+	modprobe tx-isp-${SOC} $ISP_PARAM
+	check_return "modprobe isp drv"
 fi
 
-lsmod | grep ${SENSOR} >/dev/null
-if [ $? -ne 0 ]; then
-	modprobe sensor_${SENSOR}_${SOC} ${SENSOR_PARAM}
-	check_return "insmod sensor drv"
+if ! grep -q "^${SENSOR}" /proc/modules; then
+	modprobe sensor_${SENSOR}_${SOC} $SENSOR_PARAM
+	check_return "modprobe sensor drv"
 fi
 
-lsmod | grep "audio" >/dev/null
-if [ $? -ne 0 ]; then
+if ! grep -q "^audio" /proc/modules; then
 	modprobe audio spk_gpio=-1
-	check_return "insmod audio"
+	check_return "modprobe audio"
 fi
 
-lsmod | grep "gpio" >/dev/null
-if [ $? -ne 0 ]; then
+if ! grep -q "^gpio" /proc/modules; then
 	modprobe gpio
-	check_return "insmod gpio"
+	check_return "modprobe gpio"
 fi
 
-if [ ! -z "$(lsmod | grep "gpio")" ]; then
-	GPIOS=".nightMode.irCutPin1 .nightMode.irCutPin2 .nightMode.irSensorPin .nightMode.backlightPin .audio.speakerPin"
-	for GPIO in $(echo ${GPIOS})
-	do
-		G=$(yaml-cli -g ${GPIO})
-		[ ! -z "${G}" ] && echo ${G} > /proc/gpio_claim/gpio
+if grep -q "^gpio" /proc/modules; then
+	for GPIO in ".nightMode.irCutPin1 .nightMode.irCutPin2 .nightMode.irSensorPin .nightMode.backlightPin .audio.speakerPin"; do
+		G=$(yaml-cli -g $GPIO)
+		[ ! -z "$G" ] && echo $G > /proc/gpio_claim/gpio
 	done
 fi
