@@ -31,7 +31,7 @@ start() {
 	fi
 
 	start-stop-daemon -S -x "/sbin/$DAEMON" -- -P "/var/run/$DAEMON.wlan0.pid" \
-		-B -i wlan0 -c "/etc/$DAEMON.conf" -f "/tmp/$DAEMON.log"
+		-B -i wlan0 -c "/etc/$DAEMON.conf" -s
 
 	status=$?
 	if [ "$status" -eq 0 ]; then
