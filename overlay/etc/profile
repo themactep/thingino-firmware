@@ -22,7 +22,7 @@ if [ "$PS1" ]; then
 fi
 
 # Source configuration files from /etc/profile.d
-for i in /etc/profile.d/*.sh; do
+for i in /etc/profile.d/*; do
 	[ -r "$i" ] && . $i
 done
 unset i
