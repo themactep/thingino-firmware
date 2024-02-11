@@ -32,7 +32,7 @@ do_mount() {
 	fi
 
 	if [ -f "$run_once" ] && [ ! -f "$run_once_flag" ]; then
-		(sh $run_once && touch $run_once_flag | log
+		(sh $run_once && touch $run_once_flag) | log
 	fi
 
 	if [ -f "$run" ]; then
