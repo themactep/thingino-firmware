@@ -10,9 +10,10 @@ fi
 . /usr/sbin/common-plugins
 singleton
 
-[ "true" != "$telegrambot_enabled" ] &&
-	log "Telegram Bot is not enabled in ${CONFIG_FILE}." &&
+if [ "true" != "$telegrambot_enabled" ]; then
+	log "Telegram Bot is not enabled in ${CONFIG_FILE}."
 	quit_clean 10
+fi
 
 data_file="/tmp/${plugin}.json"
 offset_file="/tmp/${plugin}_offset"
@@ -22,31 +23,31 @@ IFS_ORIG=$IFS
 API_URL="https://api.telegram.org/bot${telegrambot_token}"
 
 ### Build command menu and keyboards
-
 bot_commands="["
 bot_keyboard="{\"keyboard\":[["
 bot_inline_keyboard="{\"inline_keyboard\":[["
-
-for i in 0 1 2 3 4 5 6 7 8 9; do
-	_c=$(eval "echo \"\$telegrambot_command_$i\"")
-	if [ -n "$_c" ]; then
-		_d=$(eval "echo \"\$telegrambot_description_$i\"")
-		_s=$(eval "echo \"\$telegrambot_script_$i\"")
-		bot_commands="${bot_commands}{\"command\":\"${_c}\",\"description\":\"${_d}\"},"
-		bot_keyboard="${bot_keyboard}\"/${_c}\","
-		bot_inline_keyboard="${bot_inline_keyboard}{\"text\":\"${_c}\",\"callback_data\":\"${_s}\"},"
-		unset _d
-		unset _s
-	fi
-	unset _c
-done
-unset i
-
+build_menu
 bot_commands="${bot_commands}{\"command\":\"help\",\"description\":\"Help\"}]"
 bot_keyboard="${bot_keyboard}\"/help\"]],\"one_time_keyboard\":true,\"resize_keyboard\":true}"
 bot_inline_keyboard="${bot_inline_keyboard}{\"text\":\"help\",\"callback_data\":\"help.sh\"}]],\"one_time_keyboard\":true,\"resize_keyboard\":true}"
 
 ### Common methods
+
+build_menu() {
+	local i
+	for i in $(seq 0 9); do
+		local command=$(eval "echo \"\$telegrambot_command_$i\"")
+		if [ -n "$command" ]; then
+			local description=$(eval "echo \"\$telegrambot_description_$i\"")
+			local script=$(eval "echo \"\$telegrambot_script_$i\"")
+			bot_commands="${bot_commands}{\"command\":\"${command}\",\"description\":\"${description}\"},"
+			bot_keyboard="${bot_keyboard}\"/${command}\","
+			bot_inline_keyboard="${bot_inline_keyboard}{\"text\":\"${command}\",\"callback_data\":\"${script}\"},"
+			unset description
+			unset script
+		fi
+	done
+}
 
 dump_data() {
 	log "DATA: $(cat $data_file)" 37
@@ -76,8 +77,8 @@ restore_offset() {
 
 api_call() {
 	log $1 32
-	cmd="curl --silent --request POST --url \"${API_URL}/${1}\" --header \"Content-Type: application/json\" --data '${2}' $3"
-	log_and_run "$cmd"
+	local command="curl --silent --request POST --url \"${API_URL}/${1}\" --header \"Content-Type: application/json\" --data '${2}' $3"
+	log_and_run "$command"
 }
 
 ### Bot actions

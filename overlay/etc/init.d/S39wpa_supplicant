@@ -1,6 +1,9 @@
 #!/bin/sh
 
 DAEMON=wpa_supplicant
+IFACE=wlan0
+CONFIG="/etc/$DAEMON.conf"
+PIDFILE="/var/run/$DAEMON.$IFACE.pid"
 
 start() {
 	printf 'Starting %s: ' "$DAEMON"
@@ -14,50 +17,47 @@ start() {
 
 	generate_wpa_supplicant_conf() {
 		if [ ${#pass} -lt 64 ]; then
-			wpa_passphrase "$ssid" "$pass" > "/etc/$DAEMON.conf"
+			wpa_passphrase "$ssid" "$pass" > $CONFIG
 		else
-			wpa_passphrase "$ssid" "dummy_password" > "/etc/$DAEMON.conf"
-			sed -i "s/psk=.*$/psk=$pass/" /etc/$DAEMON.conf
+			wpa_passphrase "$ssid" "dummy_password" > $CONFIG
+			sed -i "s/psk=.*$/psk=$pass/" $CONFIG
 		fi
 
 		if [ ${#pass} -lt 64 ]; then
-			psk=$(grep '^\s*psk=' "/etc/$DAEMON.conf" | cut -d= -f2 | tail -n 1)
+			psk=$(grep '^\s*psk=' $CONFIG | cut -d= -f2 | tail -n 1)
 			fw_setenv wlanpass "$psk"
 		fi
 	}
 
-	if [ ! -f "/etc/$DAEMON.conf" ] || [ ${#pass} -lt 64 ] || ssid_changed; then
+	if [ ! -f "$CONFIG" ] || [ ${#pass} -lt 64 ] || ssid_changed; then
 		generate_wpa_supplicant_conf
 	fi
 
-	start-stop-daemon -S -x "/sbin/$DAEMON" -- \
-		-i wlan0 -c "/etc/$DAEMON.conf" -P "/var/run/$DAEMON.wlan0.pid" -B
-
+	start-stop-daemon -S -x /sbin/$DAEMON -- -i $IFACE -c $CONFIG -P $PIDFILE -B
 	status=$?
 	if [ "$status" -eq 0 ]; then
-			echo "OK"
+		echo "OK"
 	else
-			echo "FAIL"
+		echo "FAIL"
 	fi
-	return "$status"
+	return $status
 }
 
 ssid_changed() {
-	current_ssid=$(grep '^ssid=' "/etc/$DAEMON.conf" | cut -d= -f2- | tr -d '"')
+	current_ssid=$(grep '^ssid=' $CONFIG | cut -d= -f2- | tr -d '"')
 	[ "$ssid" != "$current_ssid" ]
 }
 
 stop() {
-	printf 'Stopping %s: ' "$DAEMON"
-	start-stop-daemon -K -q -p "/var/run/$DAEMON.wlan0.pid" -x "/sbin/$DAEMON"
-
+	printf 'Stopping %s: ' $DAEMON
+	start-stop-daemon -K -q -p "$PIDFILE" -x /sbin/$DAEMON
 	status=$?
 	if [ "$status" -eq 0 ]; then
-			echo "OK"
+		echo "OK"
 	else
-			echo "FAIL"
+		echo "FAIL"
 	fi
-	return "$status"
+	return $status
 }
 
 restart() {
@@ -66,13 +66,10 @@ restart() {
 }
 
 case "$1" in
-	start)
-		start
+	start | stop | restart)
+		$1
 		;;
-	stop)
-		stop
-		;;
-	restart|reload)
+	reload)
 		restart
 		;;
 	*)
