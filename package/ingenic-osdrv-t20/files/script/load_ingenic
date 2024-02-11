@@ -19,11 +19,6 @@ log() {
 	logger -s -p daemon.info -t ingenic "$1"
 }
 
-if ! grep -q "^sinfo" /proc/modules; then
-	modprobe sinfo
-	check_return "modprobe sinfo"
-fi
-
 case "$SENSOR" in
 	jxf22)
 		ISP_PARAM="isp_clk=90000000"

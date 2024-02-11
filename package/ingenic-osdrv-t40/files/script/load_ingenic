@@ -17,29 +17,6 @@ log() {
 	logger -s -p daemon.info -t ingenic "$1"
 }
 
-if ! grep -q "^sinfo" /proc/modules; then
-	modprobe sinfo
-	check_return "modprobe sinfo"
-fi
-
-if fw_printenv -n sensor >/dev/null; then
-	export SENSOR=$(fw_printenv -n sensor)
-	log "Get data from environment and set SENSOR as ${SENSOR}"
-else
-	echo 1 >/proc/jz/sinfo/info
-	check_return "start sinfo"
-	SENSOR_INFO=$(cat /proc/jz/sinfo/info)
-	check_return "get sensor type"
-	SENSOR=${SENSOR_INFO#*:}
-	if [ "sensor not found" = "$SENSOR" ]; then
-		unset SENSOR
-		fw_setenv sensor
-	else
-		log "Get data from sinfo and set SENSOR as ${SENSOR}"
-		fw_setenv sensor $SENSOR && log "Write detected ${SENSOR} to U-Boot ENV"
-	fi
-fi
-
 case "$SENSOR" in
 	imx307)
 		AVPU_PARAM="clk_name=mpll avpu_clk=550000000"
