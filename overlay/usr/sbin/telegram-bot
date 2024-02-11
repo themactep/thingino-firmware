@@ -179,8 +179,8 @@ delete_message() {
 }
 
 tgb_readfromapi() {
-	local cmd="jsonfilter -s \"$updates\" -e \"$.result[@.update_id=$update_id].message.chat.id\""
-	log_and_run "$cmd"
+	local command="jsonfilter -s \"$updates\" -e \"$.result[@.update_id=$update_id].message.chat.id\""
+	log_and_run "$command"
 }
 
 ### Logics
