@@ -276,12 +276,12 @@ while [ true ]; do
 					[ "reboot" = "$bot_command" ] && save_offset
 
 					casecmd="case \"\$bot_command\" in "
-					for i in 0 1 2 3 4 5 6 7 8 9; do
-						eval _c="\$telegrambot_command_$i"
-						eval _s="\$telegrambot_script_$i"
-						[ -n "$telegrambot_command_$i" ] && casecmd="${casecmd}\"/$_c\") script='$_s' ;;"
-						unset _c
-						unset _s
+					for i in $(seq 0 9); do
+						eval command="\$telegrambot_command_$i"
+						eval script="\$telegrambot_script_$i"
+						[ -n "$telegrambot_command_$i" ] && casecmd="${casecmd}\"/$command\") script='$script' ;;"
+						unset command
+						unset script
 					done
 					casecmd="${casecmd}*) message=\"Command \$bot_command not found.\" ;;"
 					casecmd="${casecmd}esac;"
