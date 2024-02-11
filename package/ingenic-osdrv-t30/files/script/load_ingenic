@@ -18,11 +18,6 @@ log() {
 	logger -s -p daemon.info -t ingenic "$1"
 }
 
-if ! grep -q "^sinfo" /proc/modules; then
-	insmod ${KMOD_PATH/%\//}/sinfo.ko
-	check_return "insmod sinfo"
-fi
-
 case "$SENSOR" in
 	*)
 		ISP_PARAM=""

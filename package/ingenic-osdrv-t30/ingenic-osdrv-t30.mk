@@ -19,7 +19,6 @@ define INGENIC_OSDRV_T30_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/lib/modules/3.10.14__isvp_monkey_1.0__/ingenic $(INGENIC_OSDRV_T30_PKGDIR)/files/kmod/sensor_$(BR2_SENSOR_MODEL)_t30.ko
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/lib/modules/3.10.14__isvp_monkey_1.0__/ingenic $(INGENIC_OSDRV_T30_PKGDIR)/files/kmod/audio.ko
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/lib/modules/3.10.14__isvp_monkey_1.0__/ingenic $(INGENIC_OSDRV_T30_PKGDIR)/files/kmod/gpio.ko
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/lib/modules/3.10.14__isvp_monkey_1.0__/ingenic $(INGENIC_OSDRV_T30_PKGDIR)/files/kmod/sinfo.ko
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/lib/modules/3.10.14__isvp_monkey_1.0__/ingenic $(INGENIC_OSDRV_T30_PKGDIR)/files/kmod/tx-isp-t30.ko
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/bin
