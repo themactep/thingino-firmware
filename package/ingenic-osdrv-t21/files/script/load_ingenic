@@ -1,8 +1,6 @@
 #!/bin/sh
 
 KMOD_PATH=/lib/modules/$(uname -r)/ingenic
-SOC=$(ipcinfo -f || fw_printenv -n soc)
-SENSOR=$(cat /etc/sensor/model)
 
 echo 1 >/proc/sys/vm/overcommit_memory
 
