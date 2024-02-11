@@ -5,9 +5,6 @@ PIDFILE="/var/run/$DAEMON.pid"
 
 CROND_ARGS="-f -c /etc/crontabs"
 
-# shellcheck source=/dev/null
-[ -r "/etc/default/$DAEMON" ] && . "/etc/default/$DAEMON"
-
 start() {
 	printf 'Starting %s: ' "$DAEMON"
 	[ -f /usr/sbin/$DAEMON ] || echo -en "DISABLED, "
