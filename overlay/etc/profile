@@ -4,7 +4,6 @@ export HOME=${HOME:-/root}
 export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 export TZ=$(cat /etc/TZ)
 export EDITOR='/bin/vi'
-export SENSOR=$(cat /etc/sensor/model)
 
 echo_c() { echo -ne "\e[1;$1m$2\e[0m"; }
 
