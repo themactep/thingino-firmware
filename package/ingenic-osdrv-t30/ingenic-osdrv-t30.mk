@@ -67,6 +67,7 @@ define INGENIC_OSDRV_T30_INSTALL_TARGET_CMDS
 	# $(INSTALL) -m 644 -t $(TARGET_DIR)/etc/sensor $(INGENIC_OSDRV_T30_PKGDIR)/files/sensor/params/sc2235.bin
 	# $(INSTALL) -m 644 -t $(TARGET_DIR)/etc/sensor $(INGENIC_OSDRV_T30_PKGDIR)/files/sensor/params/sc4236.bin
 	# $(INSTALL) -m 644 -t $(TARGET_DIR)/etc/sensor $(INGENIC_OSDRV_T30_PKGDIR)/files/sensor/params/sc5235.bin
+	echo $(BR2_SENSOR_MODEL) >$(TARGET_DIR)/etc/sensor/model
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/3.10.14__isvp_monkey_1.0__/ingenic
 	# $(INSTALL) -m 644 -t $(TARGET_DIR)/lib/modules/3.10.14__isvp_monkey_1.0__/ingenic $(INGENIC_OSDRV_T30_PKGDIR)/files/kmod/sensor_bg0806_t30.ko

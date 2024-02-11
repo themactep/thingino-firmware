@@ -2,6 +2,7 @@
 
 KMOD_PATH=/lib/modules/$(uname -r)/ingenic
 SOC=$(ipcinfo -f || fw_printenv -n soc)
+SENSOR=$(cat /etc/sensor/model)
 
 echo 1 >/proc/sys/vm/overcommit_memory
 
@@ -20,24 +21,6 @@ log() {
 if ! grep -q "^sinfo" /proc/modules; then
 	modprobe sinfo
 	check_return "modprobe sinfo"
-fi
-
-if fw_printenv -n sensor >/dev/null; then
-	export SENSOR=$(fw_printenv -n sensor)
-	log "Get data from environment and set SENSOR as ${SENSOR}"
-else
-	echo 1 >/proc/jz/sinfo/info
-	check_return "start sinfo"
-	SENSOR_INFO=$(cat /proc/jz/sinfo/info)
-	check_return "get sensor type"
-	SENSOR=${SENSOR_INFO#*:}
-	if [ "sensor not found" = "$SENSOR" ]; then
-		unset SENSOR
-		fw_setenv sensor
-	else
-		log "Get data from sinfo and set SENSOR as ${SENSOR}"
-		fw_setenv sensor $SENSOR && log "Write detected ${SENSOR} to U-Boot ENV"
-	fi
 fi
 
 case "$SENSOR" in
