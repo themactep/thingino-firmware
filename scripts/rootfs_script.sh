@@ -21,12 +21,12 @@ GIT_BRANCH=$(git branch | grep ^* | awk '{print $2}')
 GIT_HASH=$(git show -s --format=%H)
 GIT_TIME=$(git show -s --format=%ci)
 
-echo "GITHUB_VERSION=\"${GIT_BRANCH}+${GIT_HASH}, ${GIT_TIME}\"" >> ${FILE}
-date +TIME_STAMP=%s >> ${FILE}
+echo "GITHUB_VERSION=\"${GIT_BRANCH}+${GIT_HASH}, ${GIT_TIME}\"" >>${FILE}
+date +TIME_STAMP=%s >>${FILE}
 
 CONF="INGENIC_OSDRV_T30=y|LIBV4L=y|WEBRTC_AUDIO_PROCESSING=y|USES_GLIBC"
 if ! grep -qP ${CONF} ${BR2_CONFIG}; then
-  rm -f ${TARGET_DIR}/usr/lib/libstdc++*
+	rm -f ${TARGET_DIR}/usr/lib/libstdc++*
 fi
 
 #if grep -q "USES_MUSL" ${BR2_CONFIG}; then

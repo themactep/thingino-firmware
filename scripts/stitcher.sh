@@ -50,7 +50,7 @@ scan_files() {
 			*)
 				# do nothing
 				;;
-	    esac
+		esac
 	done
 }
 
@@ -89,8 +89,8 @@ if [ -z "$u_boot" ] || [ ! -f "$u_boot" ]; then
 	abort=$((abort + 11))
 fi
 if [ -z "$kernel" ] || [ ! -f "$kernel" ]; then
- 	echo "Cannot find Kernel."
- 	abort+=$((abort + 2))
+	echo "Cannot find Kernel."
+	abort+=$((abort + 2))
 fi
 if [ -z "$rootfs" ] || [ ! -f "$kernel" ]; then
 	echo "Cannot find RootFS."
@@ -123,12 +123,12 @@ kernel_size_aligned=$(((kernel_size / alignment + 1) * alignment))
 
 rootfs_offset=$((kernel_offset + kernel_size_aligned))
 rootfs_size=$(stat -c%s $rootfs)
-rootfs_size_aligned=$(( ($rootfs_size / $alignment + 1) * $alignment ))
+rootfs_size_aligned=$((($rootfs_size / $alignment + 1) * $alignment))
 
 tmpfile=$(mktemp)
 
 #echo dd if=/dev/zero bs=8M skip=0 count=1 | tr '\000' '\377' > $tmpfile
-dd if=/dev/zero bs=8M skip=0 count=1 2> /dev/null | tr '\000' '\377' > $tmpfile
+dd if=/dev/zero bs=8M skip=0 count=1 2>/dev/null | tr '\000' '\377' >$tmpfile
 
 #echo dd if=$u_boot bs=1 seek=$u_boot_offset count=$u_boot_size of=$tmpfile conv=notrunc status=none
 dd if=$u_boot bs=1 seek=$u_boot_offset count=$u_boot_size of=$tmpfile conv=notrunc status=none
