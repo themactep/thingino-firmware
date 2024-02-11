@@ -25,6 +25,7 @@ define INGENIC_OSDRV_T40_INSTALL_TARGET_CMDS
 
         # Modules for T40 are built from the openingenic repository sources, so we don't need to copy them.
 	#$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/4.4.94/ingenic
+	echo $(BR2_SENSOR_MODEL) >$(TARGET_DIR)/etc/sensor/model
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/bin
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/bin $(INGENIC_OSDRV_T40_PKGDIR)/files/script/load*
