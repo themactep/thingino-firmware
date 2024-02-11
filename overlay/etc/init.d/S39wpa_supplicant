@@ -30,8 +30,8 @@ start() {
 		generate_wpa_supplicant_conf
 	fi
 
-	start-stop-daemon -S -x "/sbin/$DAEMON" -- -P "/var/run/$DAEMON.wlan0.pid" \
-		-B -i wlan0 -c "/etc/$DAEMON.conf" -s
+	start-stop-daemon -S -x "/sbin/$DAEMON" -- \
+		-i wlan0 -c "/etc/$DAEMON.conf" -P "/var/run/$DAEMON.wlan0.pid" -B
 
 	status=$?
 	if [ "$status" -eq 0 ]; then
