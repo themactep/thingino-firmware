@@ -84,17 +84,20 @@ for a in "$@"; do
 	esac
 done
 
+abort=0
 if [ -z "$u_boot" ] || [ ! -f "$u_boot" ]; then
 	echo "Cannot find U-Boot."
-	abort=$((abort + 11))
+	abort=$((abort + 1))
 fi
+
 if [ -z "$kernel" ] || [ ! -f "$kernel" ]; then
 	echo "Cannot find Kernel."
-	abort+=$((abort + 2))
+	abort=$((abort + 2))
 fi
+
 if [ -z "$rootfs" ] || [ ! -f "$kernel" ]; then
 	echo "Cannot find RootFS."
-	abort=3
+	abort=$((abort + 3))
 fi
 
 if [ "$abort" -gt 0 ]; then
