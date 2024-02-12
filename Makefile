@@ -133,9 +133,11 @@ endif
 
 all: update_buildroot defconfig
 ifndef BOARD
-	$(MAKE) BOARD=$(BOARD) $@ # 1>>$(STDOUT_LOG) # 2>>$(STDERR_LOG)
+	$(MAKE) BOARD=$(BOARD) $@
+	# 1>>$(STDOUT_LOG) 2>>$(STDERR_LOG)
 endif
-	$(BR2_MAKE) all # 1>>$(STDOUT_LOG) # 2>>$(STDERR_LOG)
+	$(BR2_MAKE) all
+	# 1>>$(STDOUT_LOG) 2>>$(STDERR_LOG)
 
 # delete all build/{package} and per-package/{package} files
 br-%-dirclean: defconfig
