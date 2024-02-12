@@ -1,0 +1,59 @@
+#!/bin/sh
+
+cpuid=$((($(devmem 0x1300002C) >> 12) & 0xFFFF))
+if [ $cpuid -eq $((0x40)) ] || [ $cpuid -eq $((0x41)) ]; then
+	reg=0x13540250
+else
+	reg=0x13540238
+fi
+
+if [ "$1" == "-f" ]; then
+	[ "$cpuid" -eq $((0x2000)) ] && cpuid=0x20
+	printf 'T%X\n' $cpuid
+	exit
+fi
+
+cpu_sig=$(printf '0x%08X' $(((cpuid << 16) | $((($(devmem $reg) >> 16) & 0xFFFF)))))
+case "$cpu_sig" in
+	0x00050000) soc="T10" ;;
+	0x20001111) soc="T20N" ;;
+	0x20002222) soc="T20X" ;;
+	0x20003333) soc="T20L" ;;
+	0x00211111) soc="T21N" ;;
+	0x00213333) soc="T21L" ;;
+	0x00215555) soc="T21Z" ;;
+	0x00231111) soc="T23N" ;;
+	0x00301111) soc="T30N" ;;
+	0x00302222) soc="T30X" ;;
+	0x00303333) soc="T30AL" ;;
+	0x00304444) soc="T30A" ;;
+	0x00305555) soc="T30Z" ;;
+	0x00311111) soc="T31N" ;;
+	0x00312222) soc="T31X" ;;
+	0x00313333) soc="T31AL" ;;
+	0x00314444) soc="T31A" ;;
+	0x00315555) soc="T31Z" ;;
+	0x0031DDDD) soc="T31ZC" ;;
+	0x0031EEEE) soc="T31LC" ;;
+	0x00401111) soc="T40L" ;;
+	0x00404444) soc="T40A" ;;
+	0x00407777) soc="T40XP" ;;
+	0x00408888) soc="T40NN" ;;
+	0x00411111) soc="T41N" ;;
+	0x00413333) soc="T41L" ;;
+	0x00414444) soc="T41A" ;;
+	0x00415555) soc="T41ZL" ;;
+	0x00416666) soc="T41ZX" ;;
+	0x00417777) soc="T41ZN" ;;
+	0x00418888) soc="T41LC" ;;
+	0x00419999) soc="T41LQ" ;;
+	0x0041AAAA) soc="T41NQ" ;;
+	*)
+		echo "Unknown SoC: $cpu_sig"
+		exit 1
+		;;
+esac
+
+echo $soc
+
+exit 0
