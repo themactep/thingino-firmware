@@ -24,8 +24,8 @@ GIT_TIME=$(git show -s --format=%ci)
 echo "GITHUB_VERSION=\"${GIT_BRANCH}+${GIT_HASH}, ${GIT_TIME}\"" >>${FILE}
 date +TIME_STAMP=%s >>${FILE}
 
-CONF="INGENIC_OSDRV_T30=y|LIBV4L=y|WEBRTC_AUDIO_PROCESSING=y|USES_GLIBC"
-if ! grep -qP ${CONF} ${BR2_CONFIG}; then
+CONF="USES_GLIBC|GDB=y|INGENIC_OSDRV_T30=y|LIBV4L=y|WEBRTC_AUDIO_PROCESSING=y"
+if ! grep -qP $CONF $BR2_CONFIG; then
 	rm -f ${TARGET_DIR}/usr/lib/libstdc++*
 fi
 
