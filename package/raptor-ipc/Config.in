@@ -1,0 +1,5 @@
+config BR2_PACKAGE_RAPTOR_IPC
+	bool "raptor-ipc"
+	help
+	  Raptor, an innovative and open-source platform designed for modular, multi-platform IP camera streaming.
+	  https://github.com/gtxaspec/raptor

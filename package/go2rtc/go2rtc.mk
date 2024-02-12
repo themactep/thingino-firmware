@@ -5,7 +5,8 @@
 ################################################################################
 
 GO2RTC_SITE_METHOD = git
-GO2RTC_SITE = https://github.com/AlexxIT/go2rtc
+#GO2RTC_SITE = https://github.com/AlexxIT/go2rtc
+GO2RTC_SITE = https://github.com/wltechblog/go2rtc-smaller
 GO2RTC_VERSION = $(shell git ls-remote $(GO2RTC_SITE) HEAD | head -1 | cut -f1)
 
 GO2RTC_LICENSE = MIT

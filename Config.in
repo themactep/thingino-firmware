@@ -1,7 +1,3 @@
-
-config BR2_SENSOR_MODEL
-	string "Image sensor model"
-
 menu "THINGINO firmware"
 
 choice
@@ -50,6 +46,9 @@ config BR2_SOC_INGENIC_T41
 	select BR2_PACKAGE_INGENIC_OSDRV_T41
 endchoice
 
+config BR2_SENSOR_MODEL
+	string "Image sensor model"
+
 config BR2_THINGINO_SYSTEM_PACKAGES
 	bool "THINGINO System Packages"
 	select BR2_PACKAGE_DROPBEAR
@@ -61,13 +60,10 @@ config BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_LIBCURL_CURL
 	select BR2_PACKAGE_LIBCURL_EXTRA_PROTOCOLS_FEATURES
 	select BR2_PACKAGE_LIBCURL_MBEDTLS
-	select BR2_PACKAGE_LIBCURL_OPENSSL
 	select BR2_PACKAGE_LIBCURL_PROXY_SUPPORT
 	select BR2_PACKAGE_LIBCURL_VERBOSE
-	select BR2_PACKAGE_LOGCAT
 	select BR2_PACKAGE_MBEDTLS
 	select BR2_PACKAGE_MBEDTLS_COMPRESSION
-	select BR2_PACKAGE_MOSQUITTO
 	select BR2_PACKAGE_UBOOT_TOOLS
 	select BR2_PACKAGE_WEBUI
 	help
@@ -75,18 +71,15 @@ config BR2_THINGINO_SYSTEM_PACKAGES
 	  include essential system setup.
 	  https://github.com/thingino/firmware
 
-config BR2_THINGINO_MAJESTIC_PACKAGES
-	bool "Majestic Streamer Packages"
-	select BR2_PACKAGE_IPCTOOL
-	select BR2_PACKAGE_MAJESTIC
-
 config BR2_THINGINO_EXTRA_PACKAGES
 	bool "THINGINO Extra Packages"
 	select BR2_PACKAGE_CAPJPEG
 	select BR2_PACKAGE_FDK_AAC_OPENIPC
 	select BR2_PACKAGE_IFUPDOWN_SCRIPTS
 	select BR2_PACKAGE_JSONFILTER
+	select BR2_PACKAGE_LIBCURL_OPENSSL
 	select BR2_PACKAGE_LIBWEBSOCKETS_OPENIPC
+	select BR2_PACKAGE_MOSQUITTO
 	select BR2_PACKAGE_MOTORS
 	select BR2_PACKAGE_NGINX
 	select BR2_PACKAGE_NGINX_HTTP
@@ -104,15 +97,32 @@ config BR2_THINGINO_EXTRA_PACKAGES
 	  include optional utilities.
 	  https://github.com/thingino/firmware
 
-config BR2_PACKAGE_THINGINO_DEV_PACKAGES
+config BR2_THINGINO_DEV_PACKAGES
 	bool "THINGINO Development Packages"
 	select BR2_PACKAGE_GDB
 	select BR2_PACKAGE_HOST_GDB
+	select BR2_PACKAGE_LOGCAT
 	select BR2_PACKAGE_WPA_SUPPLICANT_DEBUG_SYSLOG if BR2_PACKAGE_WPA_SUPPLICANT
 	help
 	  THINGINO Development Packages
 	  include tools for firmware development.
 	  https://github.com/thingino/firmware
+
+config BR2_THINGINO_RAPTOR_PACKAGES
+	bool "Raptor Streamer Packages"
+	select BR2_PACKAGE_GO2RTC
+	select BR2_PACKAGE_RAPTOR_IPC
+	help
+	  Raptor Streaming Platform.
+	  https://github.com/thingino/firmware
+
+config BR2_THINGINO_MAJESTIC_PACKAGES
+	bool "Majestic Streamer Packages"
+	select BR2_PACKAGE_IPCTOOL
+	select BR2_PACKAGE_MAJESTIC
+	help
+	  Majesic Streamer.
+	  https://github.com/openipc/majestic
 
 source "$BR2_EXTERNAL_THINGINO_PATH/package/Config.in"
 
