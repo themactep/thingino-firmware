@@ -1,7 +1,7 @@
 #!/bin/sh
 
-MMC_SOC_FAMILY=$(ipcinfo -f)
-MMC_SOC_SUBVAR=$(ipcinfo -c)
+SOC_FAMILY=$(/usr/sbin/soc -f)
+SOC_MODEL=$(/usr/sbin/soc)
 
 MMC_MODULE="jzmmc_v12"
 
@@ -20,7 +20,7 @@ check_return() {
 
 set_gpios() {
 	# Set addtional MMC GPIOs
-	# This needs to run AFTER the driver has been loaded for thw sd card to mount during boot
+	# This needs to run AFTER the driver has been loaded for the sd card to mount during boot
 	if [ ${#MMC_GPIO_PWR} -eq 3 ] && [ "${MMC_GPIO_PWR%[oO]}" != "$MMC_GPIO_PWR" ]; then
 		case "${MMC_GPIO_PWR#??}" in
 			"O") gpio set ${MMC_GPIO_PWR%[oO]} ;;
@@ -39,13 +39,17 @@ start() {
 		echo "/proc/jz/mdio directory exists!"
 		exit 1
 	else
-		case "$MMC_SOC_FAMILY" in
-			t20 | t10 | t21 | t30 | t40 | t41)
+		case "$SOC_FAMILY" in
+			T10 | T20 | T21 | T30 | T40 | T41)
 				# do nothing
 				;;
-			t31)
-				if [ "$MMC_SOC_SUBVAR" = "t31a" ] || [ "$MMC_SOC_SUBVAR" = "t31al" ]; then
-					echo "Skipping GPIO setup for $MMC_SOC_SUBVAR"
+			T23)
+				echo "Unsupported: T23"
+				exit 1
+				;;
+			T31)
+				if [ "$SOC_MODEL" = "T31A" ] || [ "$SOC_MODEL" = "T31AL" ]; then
+					echo "Skipping GPIO setup for $SOC_MODEL"
 					return 1
 				else
 					gpio-diag pb08 func 1 drive 2
@@ -56,12 +60,8 @@ start() {
 					gpio-diag pb14 func 1 drive 1
 				fi
 				;;
-			t23)
-				echo "Unsupported: T23"
-				exit 1
-				;;
 			*)
-				echo "Unsupported SOC type: $MMC_SOC_FAMILY"
+				echo "Unsupported SOC type: $SOC_FAMILY"
 				exit 1
 				;;
 		esac
@@ -86,6 +86,7 @@ case "$1" in
 		$1
 		;;
 	stop)
+		true
 		;;
 	reload | restart)
 		stop

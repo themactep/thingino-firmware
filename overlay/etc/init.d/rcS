@@ -1,7 +1,7 @@
 #!/bin/sh
 
 export SENSOR=$(cat /etc/sensor/model)
-export SOC=$(ipcinfo -f || fw_printenv -n soc)
+export SOC=$(/usr/sbin/soc -f)
 export TZ=$(cat /etc/TZ)
 
 # Seritificates for curl in non-interactive shell
