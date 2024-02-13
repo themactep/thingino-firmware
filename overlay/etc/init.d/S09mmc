@@ -40,15 +40,15 @@ start() {
 		exit 1
 	else
 		case "$SOC_FAMILY" in
-			T10 | T20 | T21 | T30 | T40 | T41)
+			t10 | t20 | t21 | t30 | t40 | t41)
 				# do nothing
 				;;
-			T23)
+			t23)
 				echo "Unsupported: T23"
 				exit 1
 				;;
-			T31)
-				if [ "$SOC_MODEL" = "T31A" ] || [ "$SOC_MODEL" = "T31AL" ]; then
+			t31)
+				if [ "$SOC_MODEL" = "t31a" ] || [ "$SOC_MODEL" = "t31al" ]; then
 					echo "Skipping GPIO setup for $SOC_MODEL"
 					return 1
 				else

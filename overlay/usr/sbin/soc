@@ -9,45 +9,45 @@ fi
 
 if [ "$1" == "-f" ]; then
 	[ "$cpuid" -eq $((0x2000)) ] && cpuid=0x20
-	printf 'T%X\n' $cpuid
+	printf 't%X\n' $cpuid
 	exit
 fi
 
 cpu_sig=$(printf '0x%08X' $(((cpuid << 16) | $((($(devmem $reg) >> 16) & 0xFFFF)))))
 case "$cpu_sig" in
-	0x00050000) soc="T10" ;;
-	0x20001111) soc="T20N" ;;
-	0x20002222) soc="T20X" ;;
-	0x20003333) soc="T20L" ;;
-	0x00211111) soc="T21N" ;;
-	0x00213333) soc="T21L" ;;
-	0x00215555) soc="T21Z" ;;
-	0x00231111) soc="T23N" ;;
-	0x00301111) soc="T30N" ;;
-	0x00302222) soc="T30X" ;;
-	0x00303333) soc="T30AL" ;;
-	0x00304444) soc="T30A" ;;
-	0x00305555) soc="T30Z" ;;
-	0x00311111) soc="T31N" ;;
-	0x00312222) soc="T31X" ;;
-	0x00313333) soc="T31AL" ;;
-	0x00314444) soc="T31A" ;;
-	0x00315555) soc="T31Z" ;;
-	0x0031DDDD) soc="T31ZC" ;;
-	0x0031EEEE) soc="T31LC" ;;
-	0x00401111) soc="T40L" ;;
-	0x00404444) soc="T40A" ;;
-	0x00407777) soc="T40XP" ;;
-	0x00408888) soc="T40NN" ;;
-	0x00411111) soc="T41N" ;;
-	0x00413333) soc="T41L" ;;
-	0x00414444) soc="T41A" ;;
-	0x00415555) soc="T41ZL" ;;
-	0x00416666) soc="T41ZX" ;;
-	0x00417777) soc="T41ZN" ;;
-	0x00418888) soc="T41LC" ;;
-	0x00419999) soc="T41LQ" ;;
-	0x0041AAAA) soc="T41NQ" ;;
+	0x00050000) soc="t10" ;;
+	0x20001111) soc="t20n" ;;
+	0x20002222) soc="t20x" ;;
+	0x20003333) soc="t20l" ;;
+	0x00211111) soc="t21n" ;;
+	0x00213333) soc="t21l" ;;
+	0x00215555) soc="t21z" ;;
+	0x00231111) soc="t23n" ;;
+	0x00301111) soc="t30n" ;;
+	0x00302222) soc="t30x" ;;
+	0x00303333) soc="t30al" ;;
+	0x00304444) soc="t30a" ;;
+	0x00305555) soc="t30z" ;;
+	0x00311111) soc="t31n" ;;
+	0x00312222) soc="t31x" ;;
+	0x00313333) soc="t31al" ;;
+	0x00314444) soc="t31a" ;;
+	0x00315555) soc="t31z" ;;
+	0x0031DDDD) soc="t31zc" ;;
+	0x0031EEEE) soc="t31lc" ;;
+	0x00401111) soc="t40l" ;;
+	0x00404444) soc="t40a" ;;
+	0x00407777) soc="t40xp" ;;
+	0x00408888) soc="t40nn" ;;
+	0x00411111) soc="t41n" ;;
+	0x00413333) soc="t41l" ;;
+	0x00414444) soc="t41a" ;;
+	0x00415555) soc="t41zl" ;;
+	0x00416666) soc="t41zx" ;;
+	0x00417777) soc="t41zn" ;;
+	0x00418888) soc="t41lc" ;;
+	0x00419999) soc="t41lq" ;;
+	0x0041AAAA) soc="t41nq" ;;
 	*)
 		echo "Unknown SoC: $cpu_sig"
 		exit 1
