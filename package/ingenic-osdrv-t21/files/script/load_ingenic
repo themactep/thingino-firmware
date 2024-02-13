@@ -44,19 +44,19 @@ case "$SENSOR" in
 esac
 
 echo --------------------
-echo "ISP_PARAM: ${ISP_PARAM}"
-echo "SENSOR: ${SENSOR}"
-echo "SENSOR_PARAM: ${SENSOR_PARAM}"
+echo "ISP_PARAM: $ISP_PARAM"
+echo "SENSOR: $SENSOR"
+echo "SENSOR_PARAM: $SENSOR_PARAM"
 echo --------------------
 
 if ! grep -q "^tx_isp" /proc/modules; then
 	modprobe tx-isp-${SOC} $ISP_PARAM
-	check_return "modprobe isp drv"
+	check_return "modprobe tx-isp-${SOC}"
 fi
 
 if ! grep -q "^${SENSOR}" /proc/modules; then
 	modprobe sensor_${SENSOR}_${SOC} $SENSOR_PARAM
-	check_return "modprobe sensor drv"
+	check_return "modprobe sensor_${SENSOR}_${SOC}"
 fi
 
 if ! grep -q "^audio" /proc/modules; then
