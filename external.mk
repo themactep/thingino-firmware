@@ -39,24 +39,22 @@ BR2_PACKAGE_INGENIC_OSDRV_T20=y
 endif
 
 ifeq ($(BR2_SOC_INGENIC_T10),y)
-KERNEL_BRANCH = $(SOC_VENDOR)-t31
+KERNEL_BRANCH := $(SOC_VENDOR)-t31
 else ifeq ($(BR2_SOC_INGENIC_T15),y)
-KERNEL_BRANCH = $(SOC_VENDOR)-t31
+KERNEL_BRANCH := $(SOC_VENDOR)-t31
 else ifeq ($(BR2_SOC_INGENIC_T20),y)
-KERNEL_BRANCH = $(SOC_VENDOR)-t31
+KERNEL_BRANCH := $(SOC_VENDOR)-t31
 else ifeq ($(BR2_SOC_INGENIC_T21),y)
-KERNEL_BRANCH = $(SOC_VENDOR)-t31
+KERNEL_BRANCH := $(SOC_VENDOR)-t31
 else ifeq ($(BR2_SOC_INGENIC_T23),y)
-KERNEL_BRANCH = $(SOC_VENDOR)-t31
+KERNEL_BRANCH := $(SOC_VENDOR)-t31
 else ifeq ($(BR2_SOC_INGENIC_T30),y)
-KERNEL_BRANCH = $(SOC_VENDOR)-t31
+KERNEL_BRANCH := $(SOC_VENDOR)-t31
 else
-KERNEL_BRANCH = $(SOC_VENDOR)-$(SOC_FAMILY)
+KERNEL_BRANCH := $(SOC_VENDOR)-$(SOC_FAMILY)
 endif
 
 ### Packages
-
-THINGINO_KERNEL = "https://github.com/gtxaspec/openipc_linux/archive/$(KERNEL_BRANCH).tar.gz"
 
 # if config file uses external toolchain, use it
 #ifneq ($(BR2_TOOLCHAIN_EXTERNAL),)
@@ -65,10 +63,13 @@ THINGINO_KERNEL = "https://github.com/gtxaspec/openipc_linux/archive/$(KERNEL_BR
 #OUTPUT_DIR := $(OUTPUT_DIR)-ext
 #endif
 
+#THINGINO_KERNEL = "https://github.com/gtxaspec/openipc_linux/archive/$(KERNEL_BRANCH).tar.gz"
+#export THINGINO_KERNEL
+
 export SOC_VENDOR
 export SOC_FAMILY
 export SOC_MODEL
-export THINGINO_KERNEL
+export KERNEL_BRANCH
 
 # include makefiles from packages
 include $(sort $(wildcard $(BR2_EXTERNAL)/package/*/*.mk))
