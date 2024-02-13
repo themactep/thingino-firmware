@@ -40,10 +40,10 @@ case "$SENSOR" in
 esac
 
 echo --------------------
-echo "AVPU_PARAM: ${AVPU_PARAM}"
-echo "ISP_PARAM: ${ISP_PARAM}"
-echo "SENSOR: ${SENSOR}"
-echo "SENSOR_PARAM: ${SENSOR_PARAM}"
+echo "AVPU_PARAM: $AVPU_PARAM"
+echo "ISP_PARAM: $ISP_PARAM"
+echo "SENSOR: $SENSOR"
+echo "SENSOR_PARAM: $SENSOR_PARAM"
 echo --------------------
 
 if ! grep -q "^avpu" /proc/modules; then
@@ -53,12 +53,12 @@ fi
 
 if ! grep -q "^tx_isp" /proc/modules; then
 	modprobe tx-isp-${SOC} $ISP_PARAM
-	check_return "modprobe isp drv"
+	check_return "modprobe tx-isp-${SOC}"
 fi
 
 if ! grep -q "^${SENSOR}" /proc/modules; then
 	modprobe sensor_${SENSOR}_${SOC} $SENSOR_PARAM
-	check_return "modprobe sensor drv"
+	check_return "modprobe sensor_${SENSOR}_${SOC}"
 fi
 
 if ! grep -q "^audio" /proc/modules; then
@@ -71,9 +71,9 @@ if ! grep -q "^gpio" /proc/modules; then
 	check_return "modprobe gpio"
 fi
 
-if grep -q "^gpio" /proc/modules; then
-	for GPIO in ".nightMode.irCutPin1 .nightMode.irCutPin2 .nightMode.irSensorPin .nightMode.backlightPin .audio.speakerPin"; do
-		G=$(yaml-cli -g $GPIO)
-		[ ! -z "$G" ] && echo $G > /proc/gpio_claim/gpio
-	done
-fi
+#if grep -q "^gpio" /proc/modules; then
+#	for GPIO in ".nightMode.irCutPin1 .nightMode.irCutPin2 .nightMode.irSensorPin .nightMode.backlightPin .audio.speakerPin"; do
+#		G=$(yaml-cli -g $GPIO)
+#		[ ! -z "$G" ] && echo $G > /proc/gpio_claim/gpio
+#	done
+#fi
