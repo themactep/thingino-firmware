@@ -118,7 +118,6 @@ config BR2_THINGINO_RAPTOR_PACKAGES
 
 config BR2_THINGINO_MAJESTIC_PACKAGES
 	bool "Majestic Streamer Packages"
-	select BR2_PACKAGE_IPCTOOL
 	select BR2_PACKAGE_MAJESTIC
 	help
 	  Majesic Streamer.
