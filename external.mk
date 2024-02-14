@@ -132,10 +132,12 @@ KERNEL_BRANCH := $(SOC_VENDOR)-t41
 BR2_PACKAGE_INGENIC_OSDRV_T41=y
 endif
 
+THINGINO_KERNEL = "https://github.com/gtxaspec/openipc_linux/archive/$(KERNEL_BRANCH).tar.gz"
+
 export SOC_VENDOR
 export SOC_FAMILY
 export SOC_MODEL
-export KERNEL_BRANCH
+export THINGINO_KERNEL
 
 # include makefiles from packages
 include $(sort $(wildcard $(BR2_EXTERNAL)/package/*/*.mk))
