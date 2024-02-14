@@ -104,7 +104,7 @@ ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 
 ALIGN_BLOCK := $(shell echo $$(( 32 * 1024 )))
 
-FULL_FIRMWARE_NAME = firmware-$(SOC_MODEL).bin
+FULL_FIRMWARE_NAME = firmware-$(SOC_MODEL)-$(shell printf '%d\n' $(U_BOOT_TIME) $(KERNEL_TIME) $(ROOTFS_TIME) | sort -gr | head -1).bin
 FULL_FIRMWARE_BIN = $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
@@ -113,6 +113,7 @@ U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL).bin
 U_BOOT_OFFSET := 0
 U_BOOT_SIZE = $(shell stat -c%s $(U_BOOT_BIN))
 U_BOOT_SIZE_ALIGNED = $(shell echo $$(( ($(U_BOOT_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
+U_BOOT_TIME = $(shell stat -c%Y $(U_BOOT_BIN))
 
 U_BOOT_ENV_OFFSET := $(shell echo $$(( 0x40000 ))) # 256K
 U_BOOT_ENV_SIZE := $(shell echo $$(( 0x10000 ))) # 64K
@@ -120,10 +121,12 @@ U_BOOT_ENV_SIZE := $(shell echo $$(( 0x10000 ))) # 64K
 KERNEL_SIZE = $(shell stat -c%s $(KERNEL_BIN))
 KERNEL_SIZE_ALIGNED = $(shell echo $$(( ($(KERNEL_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
 KERNEL_OFFSET = $(shell echo $$(( $(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_SIZE) )))
+KERNEL_TIME = $(shell stat -c%Y $(KERNEL_BIN))
 
 ROOTFS_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
 ROOTFS_SIZE_ALIGNED = $(shell echo $$(( ($(ROOTFS_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
 ROOTFS_OFFSET = $(shell echo $$(( $(KERNEL_OFFSET) + $(KERNEL_SIZE_ALIGNED) )))
+ROOTFS_TIME = $(shell stat -c%Y $(ROOTFS_BIN))
 
 ifeq ($(SENSOR_MODEL),)
 $(error SENSOR IS NOT SET)
@@ -247,11 +250,9 @@ $(TOOLCHAIN_DIR)/mipsel-thingino-linux-musl_sdk-buildroot/.extracted: $(TOOLCHAI
 #	$(BR2_MAKE) BR2_DEFCONFIG=$(BOARD_CONFIG) defconfig
 
 # download bootloader
-# FIXME: should be built locally
 $(U_BOOT_BIN):
 	$(info U_BOOT_BIN:          $@)
-	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL)-universal.bin || \
-	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_FAMILY)-universal.bin
+	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL).bin
 
 # rebuild Linux kernel
 $(KERNEL_BIN):
