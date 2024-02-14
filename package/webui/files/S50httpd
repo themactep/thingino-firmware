@@ -6,30 +6,20 @@ CONFFILE="/etc/httpd.conf"
 
 HTTPD_ARGS="httpd -p 85 -f -c $CONFFILE -r Authentication"
 
-# shellcheck source=/dev/null
-[ -r "/etc/default/$DAEMON" ] && . "/etc/default/$DAEMON"
-
-if [ "$(fw_printenv -n debug)" ]; then
+if [ -n "$(fw_printenv -n debug)" ]; then
 	logger -t httpd "Development mode"
-	if [ -z "$(cat /etc/mtab | grep /tmp/dev)" ]; then
-		mkdir -p /tmp/dev
-		mount -t nfs -o nolock,tcp,nfsvers=3 $(fw_printenv -n devip):/srv/nfs/openipc/dev /tmp/dev
+	devip=$(fw_printenv -n devip)
+	if [ -n "$devip" ]; then
+		if [ -z "$(cat /etc/mtab | grep /var/www)" ]; then
+			rm -r /var/www
+			mkdir /var/www
+			mount -t nfs -o nolock,tcp,nfsvers=3 ${devip}:/srv/nfs/www /var/www
+		fi
 	fi
-
-	pid=$(ps ax | grep httpd | grep 85 | xargs | cut -d " " -f 1)
-	[ ! -z "$pid" ] && kill -9 $pid
-	sleep 3
-	sed -i "/^H:\/var\/www/H:\/tmp\/dev\/files\/var\/www/" $CONFFILE
-	sed -i "/^\/cgi-bin:admin:/s/^/#/" $CONFFILE
-	# HTTP_MODE=development httpd -p 86 -h "/tmp/dev/files/var/www" -c /dev/null $1
 else
 	logger -t httpd "Production mode"
-	sed -i "/^H:\/tmp\/dev\/files\/var\/www/H:\/var\/www/" $CONFFILE
-	sed -i "/^#\/cgi-bin:admin:/s/^#//" $CONFFILE
 fi
 
-# The httpd does not create a pidfile, so pass "-n" in the command line
-# and use "-m" to instruct start-stop-daemon to create one.
 start() {
 	printf 'Starting %s: ' "$DAEMON"
 	[ -f /usr/sbin/$DAEMON ] || echo -en "DISABLED, "
