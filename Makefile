@@ -148,6 +148,9 @@ br-%-dirclean: defconfig
 			$(OUTPUT_DIR)/build/$(subst -dirclean,,$(subst br-,,$@))* \
 			$(OUTPUT_DIR)/target
 
+br-savedefconfig:
+	$(BR2_MAKE) $(subst br-,,$@)
+
 br-%: defconfig
 	$(BR2_MAKE) $(subst br-,,$@)
 
