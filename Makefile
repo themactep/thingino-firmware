@@ -104,16 +104,12 @@ ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 
 ALIGN_BLOCK := $(shell echo $$(( 32 * 1024 )))
 
-FULL_FIRMWARE_NAME = firmware-$(SOC_MODEL)-$(shell printf '%d\n' $(U_BOOT_TIME) $(KERNEL_TIME) $(ROOTFS_TIME) | sort -gr | head -1).bin
-FULL_FIRMWARE_BIN = $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
-
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL).bin
 
 U_BOOT_OFFSET := 0
 U_BOOT_SIZE = $(shell stat -c%s $(U_BOOT_BIN))
 U_BOOT_SIZE_ALIGNED = $(shell echo $$(( ($(U_BOOT_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
-U_BOOT_TIME = $(shell stat -c%Y $(U_BOOT_BIN))
 
 U_BOOT_ENV_OFFSET := $(shell echo $$(( 0x40000 ))) # 256K
 U_BOOT_ENV_SIZE := $(shell echo $$(( 0x10000 ))) # 64K
@@ -121,18 +117,21 @@ U_BOOT_ENV_SIZE := $(shell echo $$(( 0x10000 ))) # 64K
 KERNEL_SIZE = $(shell stat -c%s $(KERNEL_BIN))
 KERNEL_SIZE_ALIGNED = $(shell echo $$(( ($(KERNEL_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
 KERNEL_OFFSET = $(shell echo $$(( $(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_SIZE) )))
-KERNEL_TIME = $(shell stat -c%Y $(KERNEL_BIN))
 
 ROOTFS_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
 ROOTFS_SIZE_ALIGNED = $(shell echo $$(( ($(ROOTFS_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
 ROOTFS_OFFSET = $(shell echo $$(( $(KERNEL_OFFSET) + $(KERNEL_SIZE_ALIGNED) )))
-ROOTFS_TIME = $(shell stat -c%Y $(ROOTFS_BIN))
+
+# create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
+FULL_FIRMWARE_NAME = thingino-$(SOC_MODEL)-$(SENSOR_MODEL)-$(shell printf '%d\n' $(shell stat -c%Y $(U_BOOT_BIN)) $(shell stat -c%Y $(KERNEL_BIN)) $(shell stat -c%Y $(ROOTFS_BIN)) | sort -gr | head -1).bin
+FULL_FIRMWARE_BIN = $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
+FULL_FIRMWARE_BIN_SIZE = $(shell stat -c%s $(FULL_FIRMWARE_BIN))
 
 ifeq ($(SENSOR_MODEL),)
 $(error SENSOR IS NOT SET)
 endif
 
-.PHONY: all toolchain sdk clean defconfig distclean help pack pack_flex tftp sdcard update_buildroot install-prerequisites overlayed-rootfs-% br-%
+.PHONY: all toolchain sdk clean defconfig distclean help pack tftp sdcard update_buildroot install-prerequisites overlayed-rootfs-% br-%
 
 all: update_buildroot defconfig
 ifndef BOARD
@@ -169,6 +168,12 @@ distclean:
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
 pack: defconfig delete_full_bin $(FULL_FIRMWARE_BIN)
+	if [ $(FULL_FIRMWARE_BIN_SIZE) -gt 8388608 ]; \
+	then \
+	dd if=/dev/zero bs=16M skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
+	dd if=$(FULL_FIRMWARE_BIN) bs=$(FULL_FIRMWARE_BIN_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
+	mv $(OUTPUT_DIR)/images/padded $(FULL_FIRMWARE_BIN); \
+	fi
 	@echo "DONE"
 
 rebuild-%:
