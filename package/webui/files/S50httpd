@@ -4,28 +4,12 @@ DAEMON="httpd"
 PIDFILE="/var/run/$DAEMON.pid"
 CONFFILE="/etc/httpd.conf"
 
-HTTPD_ARGS="httpd -p 85 -f -c $CONFFILE -r Authentication"
-
-if [ -n "$(fw_printenv -n debug)" ]; then
-	logger -t httpd "Development mode"
-	devip=$(fw_printenv -n devip)
-	if [ -n "$devip" ]; then
-		if [ -z "$(cat /etc/mtab | grep /var/www)" ]; then
-			rm -r /var/www
-			mkdir /var/www
-			mount -t nfs -o nolock,tcp,nfsvers=3 ${devip}:/srv/nfs/www /var/www
-		fi
-	fi
-else
-	logger -t httpd "Production mode"
-fi
+HTTPD_ARGS="-p 85 -f -c $CONFFILE -r Authentication"
 
 start() {
 	printf 'Starting %s: ' "$DAEMON"
 	[ -f /usr/sbin/$DAEMON ] || echo -en "DISABLED, "
-	# shellcheck disable=SC2086 # we need the word splitting
-	start-stop-daemon -b -m -S -q -p "$PIDFILE" -x "/usr/sbin/$DAEMON" \
-		-- $HTTPD_ARGS
+	start-stop-daemon -b -m -S -q -p "$PIDFILE" -x "/usr/sbin/$DAEMON" -- $HTTPD_ARGS
 	status=$?
 	if [ "$status" -eq 0 ]; then
 		echo "OK"
@@ -57,10 +41,11 @@ restart() {
 
 case "$1" in
 	start|stop|restart)
-		"$1";;
+		$1
+		;;
 	reload)
-		# Restart, since there is no true "reload" feature.
-		restart;;
+		restart
+		;;
 	*)
 		echo "Usage: $0 {start|stop|restart|reload}"
 		exit 1
