@@ -4,8 +4,8 @@
 ::sysinit:/bin/mount -o remount,rw /
 ::sysinit:/bin/mkdir -p /dev/pts
 ::sysinit:/bin/mkdir -p /dev/shm
-::sysinit:/bin/mkdir -p /run/lock/subsys
 ::sysinit:/bin/mount -a
+::sysinit:/bin/mkdir -p /run/lock/subsys
 null::sysinit:/bin/ln -sf /proc/self/fd /dev/fd
 null::sysinit:/bin/ln -sf /proc/self/fd/0 /dev/stdin
 null::sysinit:/bin/ln -sf /proc/self/fd/1 /dev/stdout
