@@ -21,9 +21,10 @@ start() {
 	fi
 
 	# Search for the timezone in the file
-	matching_line=$(zcat /var/www/a/tz.js.gz | grep -i -F "$timezone")
+	tzjs="/var/www/a/tz.js"
+	matching_line=$(grep -i -F "$timezone" $tzjs)
 	if [ -z "$matching_line" ]; then
-		echo "Timezone not found in system file."
+		echo "Timezone not found in ${tzjs}."
 		exit 1
 	fi
 
@@ -46,6 +47,7 @@ case "$1" in
 		start
 		;;
 	stop)
+		true
 		;;
 	*)
 		echo "Usage: $0 {start|stop}"
