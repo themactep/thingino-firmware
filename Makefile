@@ -200,17 +200,17 @@ update_buildroot: $(SRC_DIR)
 	if [ ! -d "$(BUILDROOT_DIR)" ]; then git clone --depth 1 $(BUILDROOT_REPO) $(BUILDROOT_DIR); fi
 	cd $(BUILDROOT_DIR) && git pull && echo "Buildroot updated"
 
-# upload kernel and rootfs in /tmp/ directory of the camera
+# upgrade firmware using /tmp/ directory of the camera
 upgrade_ota: pack
 	@scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -O $(FULL_FIRMWARE_BIN) root@$(CAMERA_IP_ADDRESS):/tmp/fwupdate.bin
 	@ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@$(CAMERA_IP_ADDRESS) "flashcp -v /tmp/fwupdate.bin /dev/mtd6 && reboot"
 	@echo "Done"
 
-# upload kernel. rootfs and full image to tftp server
+# upload firmware to tftp server
 upload_tftp: $(FULL_FIRMWARE_BIN)
 	@busybox tftp -l $(FULL_FIRMWARE_BIN) -r $(FULL_FIRMWARE_NAME) -p $(TFTP_IP_ADDRESS)
 
-# upload full image to an sd card
+# upload firmware to an sd card
 upload_sdcard: $(FULL_FIRMWARE_BIN)
 	@cp -v $(FULL_FIRMWARE_BIN) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')/autoupdate-full.bin
 	sync
