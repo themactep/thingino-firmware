@@ -125,7 +125,7 @@ FULL_FIRMWARE_NAME = thingino-$(SOC_MODEL)-$(BR2_SENSOR_MODEL)-$(shell printf '%
 FULL_FIRMWARE_BIN = $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
 FULL_FIRMWARE_BIN_SIZE = $(shell stat -c%s $(FULL_FIRMWARE_BIN))
 
-.PHONY: all toolchain sdk clean defconfig distclean help pack tftp sdcard update_buildroot install-prerequisites overlayed-rootfs-% br-%
+.PHONY: all toolchain sdk bootstrap clean defconfig distclean help pack pad update_buildroot upload_tftp upload_sdcard upgrade_ota br-%
 
 all: update_buildroot defconfig
 ifndef BOARD
@@ -147,6 +147,15 @@ br-savedefconfig:
 
 br-%: defconfig
 	$(BR2_MAKE) $(subst br-,,$@)
+
+# install prerequisites
+bootstrap:
+ifneq ($(shell id -u), 0)
+	$(error requested operation requires superuser privilege)
+else
+	@DEBIAN_FRONTEND=noninteractive apt-get update
+	@DEBIAN_FRONTEND=noninteractive apt-get -y install build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail
+endif
 
 clean: defconfig
 	rm -rf $(OUTPUT_DIR)/target $(OUTPUT_DIR)/.config
@@ -192,8 +201,10 @@ update_buildroot: $(SRC_DIR)
 	cd $(BUILDROOT_DIR) && git pull && echo "Buildroot updated"
 
 # upload kernel and rootfs in /tmp/ directory of the camera
-upload_ipc:
-	@scp -O full4programmer-8MB-flex.bin root@192.168.1.130:/mnt/mmcblk0p1/autoupdate-full.bin
+upgrade_ota: pack
+	@scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -O $(FULL_FIRMWARE_BIN) root@$(CAMERA_IP_ADDRESS):/tmp/fwupdate.bin
+	@ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@$(CAMERA_IP_ADDRESS) "flashcp -v /tmp/fwupdate.bin /dev/mtd6 && reboot"
+	@echo "Done"
 
 # upload kernel. rootfs and full image to tftp server
 upload_tftp: $(FULL_FIRMWARE_BIN)
@@ -201,19 +212,10 @@ upload_tftp: $(FULL_FIRMWARE_BIN)
 
 # upload full image to an sd card
 upload_sdcard: $(FULL_FIRMWARE_BIN)
-	@cp -v $(FULL_FIRMWARE_BIN) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')
+	@cp -v $(FULL_FIRMWARE_BIN) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')/autoupdate-full.bin
 	sync
 	umount $(SDCARD_DEVICE)1
 	@echo "Done"
-
-# install prerequisites
-install-prerequisites:
-ifneq ($(shell id -u), 0)
-	$(error requested operation requires superuser privilege)
-else
-	@DEBIAN_FRONTEND=noninteractive apt-get update
-	@DEBIAN_FRONTEND=noninteractive apt-get -y install build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail
-endif
 
 # prepare: defconfig $(BUILDROOT_DIR)/Makefile
 #	@echo "Buildroot $(BUILDROOT_VERSION) is in $(BUILDROOT_DIR) directory."
@@ -333,15 +335,13 @@ help:
 	@echo "\n\
 	Usage:\n\
 	  - make help - print this help\n\
-	  - make install-prerequisites - install system deps\n\
+	  - make bootstrap - install system deps\n\
 	  - make BOARD=<BOARD-ID> - build all needed for a board (toolchain, kernel and rootfs images)\n\
 	  - make BOARD=<BOARD-ID> pack - create a full binary for programmer\n\
 	  - make BOARD=<BOARD-ID> clean - cleaning before reassembly\n\
 	  - make BOARD=<BOARD-ID> distclean - switching to the factory state\n\
 	  - make BOARD=<BOARD-ID> prepare - download and unpack buildroot\n\
 	  - make BOARD=<BOARD-ID> board-info - write to stdout information about selected board\n\
-	Example:\n\
-	    make overlayed-rootfs-squashfs ROOTFS_OVERLAYS=./examples/echo_server/overlay\n\
 	"
 
 ###### Buildroot directories
