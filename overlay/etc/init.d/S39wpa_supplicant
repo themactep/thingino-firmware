@@ -10,8 +10,8 @@ start() {
 	ssid="$(fw_printenv -n wlanssid)"
 	pass="$(fw_printenv -n wlanpass)"
 
-	if [ -z "$pass" ]; then
-		echo "wlanpass is empty, exiting."
+	if [ -z "$ssid" ] || [ -z "$pass" ]; then
+		echo "WiFi credentials missing"
 		exit 0
 	fi
 
