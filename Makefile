@@ -132,6 +132,7 @@ ifndef BOARD
 	$(MAKE) BOARD=$(BOARD) $@
 	# 1>>$(STDOUT_LOG) 2>>$(STDERR_LOG)
 endif
+	@command -v figlet &>/dev/null && figlet -f pagga $(BOARD)
 	$(BR2_MAKE) all
 	# 1>>$(STDOUT_LOG) 2>>$(STDERR_LOG)
 
