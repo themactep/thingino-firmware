@@ -16,19 +16,7 @@ for i in /etc/init.d/S??*; do
 	# Ignore dangling symlinks (if any).
 	[ ! -f "$i" ] && continue
 
-	case "$i" in
-		*.sh)
-			# Source shell script for speed.
-			(
-				trap - INT QUIT TSTP
-				set start
-				/bin/sh -c "$i" 2>&1 | tee >(logger -t $i)
-			)
-			;;
-
-		*)
-			# No sh extension, so fork subprocess.
-			/bin/sh -c "$i start" 2>&1 | tee >(logger -t $i)
-			;;
-	esac
+	/bin/sh -c "$i start" 2>&1 | tee >(logger -t $i)
 done
+
+exit 0
