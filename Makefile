@@ -10,8 +10,6 @@ CAMERA_IP_ADDRESS ?= 192.168.1.10
 # Device of SD card
 SDCARD_DEVICE ?= /dev/sdc
 
-SENSOR_MODEL ?= jxf23
-
 # TFTP server IP address to upload compiled images to
 TFTP_IP_ADDRESS ?= 192.168.1.254
 
@@ -123,13 +121,9 @@ ROOTFS_SIZE_ALIGNED = $(shell echo $$(( ($(ROOTFS_SIZE) / $(ALIGN_BLOCK) + 1) * 
 ROOTFS_OFFSET = $(shell echo $$(( $(KERNEL_OFFSET) + $(KERNEL_SIZE_ALIGNED) )))
 
 # create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
-FULL_FIRMWARE_NAME = thingino-$(SOC_MODEL)-$(SENSOR_MODEL)-$(shell printf '%d\n' $(shell stat -c%Y $(U_BOOT_BIN)) $(shell stat -c%Y $(KERNEL_BIN)) $(shell stat -c%Y $(ROOTFS_BIN)) | sort -gr | head -1).bin
+FULL_FIRMWARE_NAME = thingino-$(SOC_MODEL)-$(BR2_SENSOR_MODEL)-$(shell printf '%d\n' $(shell stat -c%Y $(U_BOOT_BIN)) $(shell stat -c%Y $(KERNEL_BIN)) $(shell stat -c%Y $(ROOTFS_BIN)) | sort -gr | head -1).bin
 FULL_FIRMWARE_BIN = $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
 FULL_FIRMWARE_BIN_SIZE = $(shell stat -c%s $(FULL_FIRMWARE_BIN))
-
-ifeq ($(SENSOR_MODEL),)
-$(error SENSOR IS NOT SET)
-endif
 
 .PHONY: all toolchain sdk clean defconfig distclean help pack tftp sdcard update_buildroot install-prerequisites overlayed-rootfs-% br-%
 
@@ -312,7 +306,7 @@ info: defconfig
 	$(info CONFIG_DIR:         $(CONFIG_DIR))
 	$(info CURDIR:             $(CURDIR))
 	$(info KERNEL:             $(KERNEL))
-	$(info SENSOR_MODEL:       $(SENSOR_MODEL))
+	$(info BR2_SENSOR_MODEL:   $(BR2_SENSOR_MODEL))
 	$(info SOC_FAMILY:         $(SOC_FAMILY))
 	$(info SOC_MODEL:          $(SOC_MODEL))
 	$(info SOC_VENDOR:         $(SOC_VENDOR))
