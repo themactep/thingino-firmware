@@ -170,6 +170,12 @@ pack: defconfig delete_full_bin $(FULL_FIRMWARE_BIN)
 	fi
 	@echo "DONE"
 
+pad: $(FULL_FIRMWARE_BIN)
+	dd if=/dev/zero bs=16M skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
+	dd if=$(FULL_FIRMWARE_BIN) bs=$(FULL_FIRMWARE_BIN_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
+	mv $(OUTPUT_DIR)/images/padded $(FULL_FIRMWARE_BIN);
+
+
 rebuild-%:
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean
 	$(BR2_MAKE) $(subst rebuild-,,$@)
