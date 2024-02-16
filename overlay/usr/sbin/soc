@@ -30,7 +30,7 @@ case "$cpu_sig" in
 	0x00305555) soc="t30z" ;;
 	0x00311111) soc="t31n" ;;
 	0x00312222) soc="t31x" ;;
-	0x00313333) soc="t31al" ;;
+	0x00313333) soc="t31l" ;;
 	0x00314444) soc="t31a" ;;
 	0x00315555) soc="t31z" ;;
 	0x00316666) soc="t31zx" ;;
@@ -49,6 +49,7 @@ case "$cpu_sig" in
 	0x00418888) soc="t41lc" ;;
 	0x00419999) soc="t41lq" ;;
 	0x0041AAAA) soc="t41nq" ;;
+	#0x0041????) soc="t41xq" ;;
 	*)
 		echo "Unknown SoC: $cpu_sig"
 		exit 1
