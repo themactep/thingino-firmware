@@ -18,6 +18,20 @@ start() {
 		fi
 	fi
 
+	SSHKEY_ENV=$(fw_printenv -n sshkey_ed25519)
+	DROPBEAR_KEY="/etc/dropbear/dropbear_ed25519_host_key"
+
+	[ -s "$DROPBEAR_KEY" ] || {
+		[ -n "$SSHKEY_ENV" ] && echo "$SSHKEY_ENV" | base64 -d | gzip -d > $DROPBEAR_KEY && logger -t S50dropbear "SSH Key restored." || {
+			dropbearkey -t ed25519 -f $DROPBEAR_KEY && logger -t S50dropbear "Generated dropbear host keys."
+		}
+	}
+
+	[ -z "$SSHKEY_ENV" ] && [ -s "$DROPBEAR_KEY" ] && {
+		SSHKEY_ENV=$(gzip -c $DROPBEAR_KEY | base64 | tr -d '\n')
+		fw_setenv sshkey_ed25519 "$SSHKEY_ENV" && logger -t S50dropbear "SSH key backed up."
+	}
+
 	printf "Starting dropbear sshd: "
 	umask 077
 
