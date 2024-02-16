@@ -34,6 +34,7 @@ case "$cpu_sig" in
 	0x00314444) soc="t31a" ;;
 	0x00315555) soc="t31z" ;;
 	0x00316666) soc="t31zx" ;;
+	0x0031CCCC) soc="t31al" ;;
 	0x0031DDDD) soc="t31zc" ;;
 	0x0031EEEE) soc="t31lc" ;;
 	0x00401111) soc="t40l" ;;
