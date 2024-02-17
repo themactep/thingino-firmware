@@ -12,8 +12,9 @@ case "$1" in
 		;;
 
 	restart | reload)
-		"$0" stop
-		"$0" start
+		stop
+		sleep 1
+		start
 		;;
 
 	*)

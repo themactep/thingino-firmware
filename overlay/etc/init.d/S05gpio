@@ -85,8 +85,9 @@ case "$1" in
 		echo -n "Starting GPIO: "
 		process_config_file
 		;;
-	stop) ;;
-	restart | reload) ;;
+	stop | restart | reload)
+		true
+	 	;;
 	*)
 		echo "Usage: $0 {start}"
 		exit 1

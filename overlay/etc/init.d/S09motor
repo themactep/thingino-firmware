@@ -71,11 +71,9 @@ case "$1" in
 	start)
 		start
 		;;
-	stop)
-		# Implement stop logic if needed
-		;;
-	restart | reload)
-		# Implement restart or reload logic if needed
+	stop | restart | reload)
+		# Implement logic if needed
+		true
 		;;
 	*)
 		echo "Usage: $0 {start|stop|restart|reload}"

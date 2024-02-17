@@ -7,7 +7,6 @@ SYSLOGD_ARGS="-C64 -t"
 
 start() {
 	printf 'Starting %s: ' "$DAEMON"
-	# shellcheck disable=SC2086 # we need the word splitting
 	start-stop-daemon -b -m -S -q -p "$PIDFILE" -x "/sbin/$DAEMON" -- -n $SYSLOGD_ARGS
 	status=$?
 	if [ "$status" -eq 0 ]; then
@@ -35,15 +34,15 @@ case "$1" in
 	start | stop)
 		"$1"
 		;;
-
 	restart | reload)
 		stop
 		sleep 1
 		start
 		;;
-
 	*)
 		echo "Usage: $0 {start|stop|restart|reload}"
 		exit 1
 		;;
 esac
+
+exit 0

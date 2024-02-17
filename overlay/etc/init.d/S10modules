@@ -21,3 +21,5 @@ case "$1" in
 		echo "OK"
 		;;
 esac
+
+exit 0

@@ -12,10 +12,6 @@ start() {
 	return "$status"
 }
 
-restart() {
-	start
-}
-
 stop() {
 	echo -n "Stopping rc.local: "
 	if [ -x /etc/rc.local.stop ]; then
@@ -27,14 +23,13 @@ stop() {
 }
 
 case "$1" in
-	start)
-		start
+	start | stop)
+		$1
 		;;
 	restart | reload)
-		restart
-		;;
-	stop)
 		stop
+		sleep 1
+		start
 		;;
 	*)
 		echo "Usage: $0 {start|stop|restart|reload}"
