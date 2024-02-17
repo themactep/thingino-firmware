@@ -22,7 +22,7 @@ stop() {
 
 case "$1" in
 	start | stop)
-		"$1"
+		$1
 		;;
 
 	restart | reload)
@@ -35,3 +35,5 @@ case "$1" in
 		exit 1
 		;;
 esac
+
+exit 0

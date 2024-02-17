@@ -55,9 +55,12 @@ case "$1" in
 		start
 		;;
 	stop)
+		true
 		;;
 	*)
 		echo "Usage: $0 {start}"
 		exit 1
 		;;
 esac
+
+exit 0

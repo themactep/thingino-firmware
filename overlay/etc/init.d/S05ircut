@@ -20,5 +20,8 @@ case "$1" in
 		start
 		;;
 	stop)
+		true
 		;;
 esac
+
+exit 0

@@ -6,3 +6,5 @@ case "$1" in
 		load_ingenic
 		;;
 esac
+
+exit 0

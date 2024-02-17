@@ -12,11 +12,11 @@ case "$1" in
 				echo "FAIL"
 		fi
 		return "$status"
-			;;
+		;;
 
-	stop) ;;
-
-	restart | reload) ;;
+	stop | restart | reload)
+		true
+		;;
 
 	*)
 		echo "Usage: $0 {start|stop|restart|reload}"

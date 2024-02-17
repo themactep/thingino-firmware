@@ -31,21 +31,19 @@ stop() {
 	fi
 }
 
-restart() {
-	stop
-	sleep 1
-	start
-}
-
 case "$1" in
 	start | stop | restart)
-		"$1"
+		$1
 		;;
 	reload)
-		restart
+		stop
+		sleep 1
+		start
 		;;
 	*)
 		echo "Usage: $0 {start|stop|restart|reload}"
 		exit 1
 		;;
 esac
+
+exit 0
