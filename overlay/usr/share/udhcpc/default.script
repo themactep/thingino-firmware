@@ -54,7 +54,6 @@ case "$ACTION" in
 		;;
 esac
 
-echo "Processing files in $0.d/"
 for hook in "$0.d/"*; do
 	[ -f "$hook" ] && [ -x "$hook" ] && $hook $ACTION
 done
