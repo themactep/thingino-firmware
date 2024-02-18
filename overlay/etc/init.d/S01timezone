@@ -5,7 +5,7 @@ start() {
 	# Get the timezone from the u-boot environment variable
 	timezone=$(fw_printenv -n timezone 2> /dev/null)
 	if [ -z "$timezone" ]; then
-		echo "Timezone env variable not found, using system default."
+		echo "Using system default"
 		exit 1
 	fi
 
