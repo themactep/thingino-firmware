@@ -1,7 +1,9 @@
 #!/bin/sh
 
+DROPBEAR_ARGS="$DROPBEAR_ARGS -R -B -k -p 22 -K 300"
+
 start() {
-	DROPBEAR_ARGS="$DROPBEAR_ARGS -R -B -k -p 22 -K 300"
+	printf "Starting dropbear sshd: "
 
 	# If /etc/dropbear is a symlink to /var/run/dropbear, and
 	#   - the filesystem is RO (i.e. we can not rm the symlink),
@@ -22,17 +24,16 @@ start() {
 	DROPBEAR_KEY="/etc/dropbear/dropbear_ed25519_host_key"
 
 	[ -s "$DROPBEAR_KEY" ] || {
-		[ -n "$SSHKEY_ENV" ] && echo "$SSHKEY_ENV" | base64 -d | gzip -d > $DROPBEAR_KEY && logger -t S50dropbear "SSH Key restored." || {
-			dropbearkey -t ed25519 -f $DROPBEAR_KEY && logger -t S50dropbear "Generated dropbear host keys."
+		[ -n "$SSHKEY_ENV" ] && echo "$SSHKEY_ENV" | base64 -d | gzip -d > $DROPBEAR_KEY && logger -t $0 "SSH Key restored." || {
+			dropbearkey -t ed25519 -f $DROPBEAR_KEY 2>&1 | logger -t $0 && logger -t $0 "Generated dropbear host keys."
 		}
 	}
 
 	[ -z "$SSHKEY_ENV" ] && [ -s "$DROPBEAR_KEY" ] && {
 		SSHKEY_ENV=$(gzip -c $DROPBEAR_KEY | base64 | tr -d '\n')
-		fw_setenv sshkey_ed25519 "$SSHKEY_ENV" && logger -t S50dropbear "SSH key backed up."
+		fw_setenv sshkey_ed25519 "$SSHKEY_ENV" && logger -t $0 "SSH key backed up."
 	}
 
-	printf "Starting dropbear sshd: "
 	umask 077
 
 	start-stop-daemon -S -q -p /var/run/dropbear.pid --exec /usr/sbin/dropbear -- $DROPBEAR_ARGS
