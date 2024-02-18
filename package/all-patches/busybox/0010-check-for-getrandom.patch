@@ -2,7 +2,7 @@ diff --git a/miscutils/seedrng.c b/miscutils/seedrng.c
 index 967741dc7..7cc855141 100644
 --- a/miscutils/seedrng.c
 +++ b/miscutils/seedrng.c
-@@ -45,6 +45,20 @@
+@@ -65,6 +65,20 @@
  #include <sys/random.h>
  #include <sys/file.h>
  
