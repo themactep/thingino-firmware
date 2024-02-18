@@ -33,7 +33,7 @@ start() {
 		generate_wpa_supplicant_conf
 	fi
 
-	start-stop-daemon -S -x /sbin/$DAEMON -- -i $IFACE -c $CONFIG -P $PIDFILE -B
+	start-stop-daemon -S -x /sbin/$DAEMON -- -i $IFACE -c $CONFIG -P $PIDFILE -B 2>&1 | logger -t $0
 	status=$?
 	if [ "$status" -eq 0 ]; then
 		echo "OK"
