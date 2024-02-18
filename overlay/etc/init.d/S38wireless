@@ -48,6 +48,7 @@ start() {
 		fi
 	fi
 
+	echo "OK"
 }
 
 case "$1" in
