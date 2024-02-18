@@ -121,7 +121,7 @@ ROOTFS_SIZE_ALIGNED = $(shell echo $$(( ($(ROOTFS_SIZE) / $(ALIGN_BLOCK) + 1) * 
 ROOTFS_OFFSET = $(shell echo $$(( $(KERNEL_OFFSET) + $(KERNEL_SIZE_ALIGNED) )))
 
 # create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
-FULL_FIRMWARE_NAME = thingino-$(SOC_MODEL)-$(BR2_SENSOR_MODEL)-$(shell printf '%d\n' $(shell stat -c%Y $(U_BOOT_BIN)) $(shell stat -c%Y $(KERNEL_BIN)) $(shell stat -c%Y $(ROOTFS_BIN)) | sort -gr | head -1).bin
+FULL_FIRMWARE_NAME = thingino-$(SOC_MODEL)-$(subst ",,$(BR2_SENSOR_MODEL))-$(shell date -u +%Y%m%d%H%M -d @$(shell printf '%d\n' $(shell stat -c%Y $(U_BOOT_BIN)) $(shell stat -c%Y $(KERNEL_BIN)) $(shell stat -c%Y $(ROOTFS_BIN)) | sort -gr | head -1)).bin
 FULL_FIRMWARE_BIN = $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
 FULL_FIRMWARE_BIN_SIZE = $(shell stat -c%s $(FULL_FIRMWARE_BIN))
 
