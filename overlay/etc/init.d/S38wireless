@@ -20,8 +20,8 @@ start() {
 				;;
 		esac
 
-		echo "Setting GPIO $num $gpio_cmd"
-		if ! gpio $gpio_cmd $num; then
+		echo -n "GPIO $num $gpio_cmd"
+		if ! gpio $gpio_cmd $num 2>&1 | logger -t $0; then
 			echo "Failed to set GPIO $num $gpio_cmd"
 			exit 1
 		fi
@@ -41,7 +41,7 @@ start() {
 	fi
 
 	if ! lsmod | grep -q "$modulename"; then
-		echo "$modulename"
+		echo -n "... $modulename... "
 		if ! modprobe $modulename; then
 			echo "Failed to load module $modulename"
 			exit 1
