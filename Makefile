@@ -217,16 +217,9 @@ upload_sdcard: $(FULL_FIRMWARE_BIN)
 	umount $(SDCARD_DEVICE)1
 	@echo "Done"
 
-# prepare: defconfig $(BUILDROOT_DIR)/Makefile
-#	@echo "Buildroot $(BUILDROOT_VERSION) is in $(BUILDROOT_DIR) directory."
-
 # create output directory
 $(OUTPUT_DIR):
 	mkdir -p $(OUTPUT_DIR)
-
-# check for toolchain parameters file
-#$(OUTPUT_DIR)/toolchain-params.mk:
-#	echo "$@ is not defined!"
 
 # create source directory
 $(SRC_DIR):
@@ -254,11 +247,6 @@ $(TOOLCHAIN_DIR)/mipsel-thingino-linux-musl_sdk-buildroot/.extracted: $(TOOLCHAI
 	tar -C $(TOOLCHAIN_DIR) -xf $(TOOLCHAIN_BUNDLE)
 	cd $(TOOLCHAIN_DIR)/mipsel-thingino-linux-musl_sdk-buildroot && ./relocate-sdk.sh
 	touch $@
-
-## create defconfig
-#$(OUTPUT_DIR)/.config: $(BUILDROOT_DIR)/.installed
-#	$(info $(BR2_MAKE) BR2_DEFCONFIG=$(BOARD_CONFIG) defconfig)
-#	$(BR2_MAKE) BR2_DEFCONFIG=$(BOARD_CONFIG) defconfig
 
 # download bootloader
 $(U_BOOT_BIN):
@@ -302,29 +290,40 @@ $(FULL_FIRMWARE_BIN): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
 info: defconfig
 	$(info =========================================================================)
 	$(info BASE_DIR:           $(BASE_DIR))
+	$(info BASE_TARGET_DIR:    $(BASE_TARGET_DIR))
+	$(info BINARIES_DIR:       $(BINARIES_DIR))
 	$(info BOARD:              $(BOARD))
 	$(info BOARD_CONFIG:       $(BOARD_CONFIG))
 	$(info BR2_DL_DIR:         $(BR2_DL_DIR))
 	$(info BR2_EXTERNAL:       $(BR2_EXTERNAL))
 	$(info BR2_KERNEL:         $(BR2_KERNEL))
 	$(info BR2_MAKE:           $(BR2_MAKE))
+	$(info BR2_SENSOR_MODEL:   $(BR2_SENSOR_MODEL))
+	$(info BUILD_DIR:          $(BUILD_DIR))
 	$(info BUILDROOT_BUNDLE:   $(BUILDROOT_BUNDLE))
 	$(info BUILDROOT_DIR:      $(BUILDROOT_DIR))
 	$(info BUILDROOT_VERSION:  $(BUILDROOT_VERSION))
 	$(info CAMERA_IP_ADDRESS:  $(CAMERA_IP_ADDRESS))
 	$(info CONFIG_DIR:         $(CONFIG_DIR))
+	$(info CPE_UPDATES_DIR:    $(CPE_UPDATES_DIR))
 	$(info CURDIR:             $(CURDIR))
+	$(info GRAPHS_DIR:         $(GRAPHS_DIR))
+	$(info HOST_DIR:           $(HOST_DIR))
+	$(info HOST_DIR_SYMLINK:   $(HOST_DIR_SYMLINK))
 	$(info KERNEL:             $(KERNEL))
-	$(info BR2_SENSOR_MODEL:   $(BR2_SENSOR_MODEL))
+	$(info LEGAL_INFO_DIR:     $(LEGAL_INFO_DIR))
 	$(info SOC_FAMILY:         $(SOC_FAMILY))
 	$(info SOC_MODEL:          $(SOC_MODEL))
 	$(info SOC_VENDOR:         $(SOC_VENDOR))
 	$(info TOOLCHAIN:          $(TOOLCHAIN))
 	$(info OUTPUT_DIR:         $(OUTPUT_DIR))
+	$(info PER_PACKAGE_DIR:    $(PER_PACKAGE_DIR))
 	$(info SCRIPTS_DIR:        $(SCRIPTS_DIR))
 	$(info SRC_DIR:            $(SRC_DIR))
+	$(info STAGING_DIR:        $(STAGING_DIR))
 	$(info STDERR_LOG:         $(STDERR_LOG))
 	$(info STDOUT_LOG:         $(STDOUT_LOG))
+	$(info TARGET_DIR:         $(TARGET_DIR))
 	$(info TFTP_IP_ADDRESS:    $(TFTP_IP_ADDRESS))
 	$(info TOPDIR:             $(TOPDIR))
 	$(info U_BOOT_BIN:         $(U_BOOT_BIN))
@@ -343,50 +342,3 @@ help:
 	  - make BOARD=<BOARD-ID> prepare - download and unpack buildroot\n\
 	  - make BOARD=<BOARD-ID> board-info - write to stdout information about selected board\n\
 	"
-
-###### Buildroot directories
-# TOPDIR             = ./buildroot
-# STAGING_DIR        = ./output/staging
-# TARGET_DIR         = ./output/target
-
-# BASE_DIR           = ./output
-# BASE_TARGET_DIR    = ./output/target
-# BINARIES_DIR       = ./output/images
-# HOST_DIR           = ./output/host
-# HOST_DIR_SYMLINK   = ./output/host
-# BUILD_DIR          = ./output/build
-# LEGAL_INFO_DIR     = ./output/legal-info
-# GRAPHS_DIR         = ./output/graphs
-# PER_PACKAGE_DIR    = ./output/per-package
-# CPE_UPDATES_DIR    = ./output/cpe-updates
-
-#  <pkg>                         - Build and install <pkg> and all its dependencies
-#  <pkg>-source                  - Only download the source files for <pkg>
-#  <pkg>-extract                 - Extract <pkg> sources
-#  <pkg>-patch                   - Apply patches to <pkg>
-#  <pkg>-depends                 - Build <pkg>'s dependencies
-#  <pkg>-configure               - Build <pkg> up to the configure step
-#  <pkg>-build                   - Build <pkg> up to the build step
-#  <pkg>-show-info               - Generate info about <pkg>, as a JSON blurb
-#  <pkg>-show-depends            - List packages on which <pkg> depends
-#  <pkg>-show-rdepends           - List packages which have <pkg> as a dependency
-#  <pkg>-show-recursive-depends  - Recursively list packages on which <pkg> depends
-#  <pkg>-show-recursive-rdepends - Recursively list packages which have <pkg> as a dependency
-#  <pkg>-graph-depends           - Generate a graph of <pkg>'s dependencies
-#  <pkg>-graph-rdepends          - Generate a graph of <pkg>'s reverse dependencies
-#  <pkg>-dirclean                - Remove <pkg> build directory
-#  <pkg>-reconfigure             - Restart the build from the configure step
-#  <pkg>-rebuild                 - Restart the build from the build step
-#  <pkg>-reinstall               - Restart the build from the install step
-#  busybox-menuconfig            - Run BusyBox menuconfig
-#  linux-menuconfig              - Run Linux kernel menuconfig
-#  linux-savedefconfig           - Run Linux kernel savedefconfig
-#  linux-update-defconfig        - Save the Linux configuration to the path specified by BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE
-#  list-defconfigs               - list all defconfigs (pre-configured minimal systems)
-#  source                        - download all sources needed for offline-build
-#  external-deps                 - list external packages used
-#  legal-info                    - generate info about license compliance
-#  show-info                     - generate info about packages, as a JSON blurb
-#  pkg-stats                     - generate info about packages as JSON and HTML
-#  printvars                     - dump internal variables selected with VARS=...
-#  make V=0|1                    - 0 => quiet build (default), 1 => verbose build
