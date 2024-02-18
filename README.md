@@ -1,4 +1,6 @@
-## THINGINO
+## Thingino
+
+![thingino logo](https://thingino.com/a/logo.svg)
 
 IPC firmware, derived from [OpenIPC][1] and focused on Ingenic SoC.
 
