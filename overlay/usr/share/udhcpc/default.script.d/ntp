@@ -1,0 +1,9 @@
+#!/bin/sh
+
+case "$1" in
+	renew | rebound)
+		ntpd -q -N -n
+		;;
+esac
+
+exit 0
