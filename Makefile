@@ -60,8 +60,8 @@ endif
 
 # if still no BOARD, select it from a list of boards
 ifeq ($(BOARD),)
-#BOARD := $(or $(shell whiptail --title "Boards" --menu "Select a board:" 20 76 12 --notags $(BOARDS) 3>&1 1>&2 2>&3))
-BOARD := $(or $(shell eval `resize`; whiptail --title "Boards" --menu "Select a board:" $$LINES $$COLUMNS $$(( LINES - 8 )) --notags $(BOARDS) 3>&1 1>&2 2>&3))
+BOARD := $(or $(shell whiptail --title "Boards" --menu "Select a board:" 20 76 12 --notags $(BOARDS) 3>&1 1>&2 2>&3))
+#BOARD := $(or $(shell eval `resize`; whiptail --title "Boards" --menu "Select a board:" $$LINES $$COLUMNS $$(( LINES - 8 )) --notags $(BOARDS) 3>&1 1>&2 2>&3))
 endif
 
 # if still no BOARD, bail out with an error
