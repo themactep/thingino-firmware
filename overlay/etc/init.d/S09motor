@@ -64,7 +64,7 @@ start() {
 	check_return $? "Failed to load motor module for ingenic"
 	echo "OK"
 	# Initialize motor position upon successful module loading
-	ingenic-motor -r > /dev/null 2>&1 &
+	motors -r > /dev/null 2>&1 &
 }
 
 case "$1" in
