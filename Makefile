@@ -413,7 +413,7 @@ help:
 	  - make              - build all needed for a board (toolchain, kernel and rootfs images)\n\
 	  - make pack_full    - create a full firmware file\n\
 	  - make pack_update  - create an update firmware file (no bootloader)\n\
-	  - make padd_full    - pad the full firmware file with zeroes to 16MB\n\
+	  - make pad_full     - pad the full firmware file with zeroes to 16MB\n\
 	  - make pad_update   - pad the update firmware file with zeroes to 16MB\n\
 	  - make clean        - cleaning before reassembly\n\
 	  - make distclean    - switching to the factory state\n\
