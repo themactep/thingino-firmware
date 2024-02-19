@@ -36,8 +36,8 @@ BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(CURDIR)/scripts
 
 TOOLCHAIN_URL ?= http://thingino.com/dl/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz
-TOOLCHAIN_DIR := $(CURDIR)/toolchain
-TOOLCHAIN_BUNDLE := $(TOOLCHAIN_DIR)/$(shell basename $(TOOLCHAIN_URL))
+TOOLCHAIN_DIR = $(CURDIR)/toolchain/$(SOC_FAMILY)
+TOOLCHAIN_BUNDLE = $(TOOLCHAIN_DIR)/$(shell basename $(TOOLCHAIN_URL))
 
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BUILDROOT_DIR) BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
@@ -127,7 +127,7 @@ FULL_FIRMWARE_BIN_SIZE = $(shell stat -c%s $(FULL_FIRMWARE_BIN))
 
 .PHONY: all toolchain sdk bootstrap clean defconfig distclean help pack pad update_buildroot upload_tftp upload_sdcard upgrade_ota br-%
 
-all: update_buildroot defconfig
+all: update_buildroot defconfig $(TOOLCHAIN_DIR)/.extracted
 ifndef BOARD
 	$(MAKE) BOARD=$(BOARD) $@
 	# 1>>$(STDOUT_LOG) 2>>$(STDERR_LOG)
@@ -160,7 +160,7 @@ endif
 clean: defconfig
 	rm -rf $(OUTPUT_DIR)/target $(OUTPUT_DIR)/.config
 
-defconfig: $(BUILDROOT_DIR) $(TOOLCHAIN_DIR)/mipsel-thingino-linux-musl_sdk-buildroot/.extracted
+defconfig: $(BUILDROOT_DIR)
 	@rm -rvf $(OUTPUT_DIR)/.config
 	$(BR2_MAKE) BR2_DEFCONFIG=$(BOARD_CONFIG) defconfig
 
@@ -243,9 +243,9 @@ $(TOOLCHAIN_BUNDLE):
 	$(WGET) -O $@ $(TOOLCHAIN_URL)
 
 # extract toolchain
-$(TOOLCHAIN_DIR)/mipsel-thingino-linux-musl_sdk-buildroot/.extracted: $(TOOLCHAIN_BUNDLE)
-	tar -C $(TOOLCHAIN_DIR) -xf $(TOOLCHAIN_BUNDLE)
-	cd $(TOOLCHAIN_DIR)/mipsel-thingino-linux-musl_sdk-buildroot && ./relocate-sdk.sh
+$(TOOLCHAIN_DIR)/.extracted: $(TOOLCHAIN_BUNDLE)
+	tar -C $(TOOLCHAIN_DIR) -xf $(TOOLCHAIN_BUNDLE) --strip-components=1
+	cd $(TOOLCHAIN_DIR) && ./relocate-sdk.sh
 	touch $@
 
 # download bootloader
