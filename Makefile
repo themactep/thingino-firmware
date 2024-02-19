@@ -26,18 +26,25 @@ BUILDROOT_DIR := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)-themactep
 #BUILDROOT_REPO := https://github.com/buildroot/buildroot.git
 #BUILDROOT_DIR := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)
 
+# toolchain
+ifeq ($(GCC),12)
+TOOLCHAIN_URL = https://thingino.com/dl/mipsel-buildroot-linux-musl_sdk-buildroot-gcc12-glibc235.tar.gz
+else
+TOOLCHAIN_URL = http://thingino.com/dl/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz
+GCC = 13
+endif
+
+OUTPUT_DIR = $(HOME)/output/$(BOARD)-gcc$(GCC)-br$(BUILDROOT_VERSION)
+TOOLCHAIN_DIR = $(CURDIR)/toolchain/$(SOC_FAMILY)
+TOOLCHAIN_BUNDLE = $(TOOLCHAIN_DIR)/$(shell basename $(TOOLCHAIN_URL))
+
 # working directory
-OUTPUT_DIR = $(HOME)/output/$(BOARD)-br$(BUILDROOT_VERSION)
 STDOUT_LOG = $(OUTPUT_DIR)/compilation.log
 STDERR_LOG = $(OUTPUT_DIR)/compilation-errors.log
 
 # project directories
 BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(CURDIR)/scripts
-
-TOOLCHAIN_URL ?= http://thingino.com/dl/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz
-TOOLCHAIN_DIR = $(CURDIR)/toolchain/$(SOC_FAMILY)
-TOOLCHAIN_BUNDLE = $(TOOLCHAIN_DIR)/$(shell basename $(TOOLCHAIN_URL))
 
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BUILDROOT_DIR) BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
@@ -132,7 +139,14 @@ ifndef BOARD
 	$(MAKE) BOARD=$(BOARD) $@
 	# 1>>$(STDOUT_LOG) 2>>$(STDERR_LOG)
 endif
-	@if command -v figlet; then figlet -f pagga $(BOARD); fi
+# FIXME: I think there is a better way to do that 
+ifeq ($(GCC),12)
+	sed -i 's/^BR2_TOOLCHAIN_EXTERNAL_GCC_13=y/# BR2_TOOLCHAIN_EXTERNAL_GCC_13 is not set/' $(OUTPUT_DIR)/.config; \
+	sed -i 's/^# BR2_TOOLCHAIN_EXTERNAL_GCC_12 is not set/BR2_TOOLCHAIN_EXTERNAL_GCC_12=y/' $(OUTPUT_DIR)/.config; \
+	sed -i 's/^BR2_TOOLCHAIN_GCC_AT_LEAST_13=y/# BR2_TOOLCHAIN_GCC_AT_LEAST_13 is not set/' $(OUTPUT_DIR)/.config; \
+	sed -i 's/^BR2_TOOLCHAIN_GCC_AT_LEAST="13"/BR2_TOOLCHAIN_GCC_AT_LEAST="12"/' $(OUTPUT_DIR)/.config;
+endif
+	if command -v figlet; then figlet -f pagga $(BOARD); fi;
 	$(BR2_MAKE) all
 	# 1>>$(STDOUT_LOG) 2>>$(STDERR_LOG)
 
