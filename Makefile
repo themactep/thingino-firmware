@@ -37,7 +37,7 @@ SCRIPTS_DIR := $(CURDIR)/scripts
 
 TOOLCHAIN_URL ?= http://thingino.com/dl/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz
 TOOLCHAIN_DIR := $(CURDIR)/toolchain
-TOOLCHAIN_BUNDLE := $(TOOLCHAIN_DIR)/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz
+TOOLCHAIN_BUNDLE := $(TOOLCHAIN_DIR)/$(shell basename $(TOOLCHAIN_URL))
 
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BUILDROOT_DIR) BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
