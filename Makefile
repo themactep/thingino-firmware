@@ -178,7 +178,7 @@ ROOTFS_OFFSET = $(shell echo $$(($(KERNEL_OFFSET) + $(KERNEL_SIZE_ALIGNED) )))
 FIRMWARE_BIN_FULL_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_FULL))
 FIRMWARE_BIN_NOBOOT_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_NOBOOT))
 
-.PHONY: all toolchain sdk bootstrap clean defconfig distclean help info pack_full pack_noboot pad_full pad_noboot update_buildroot upload_tftp upload_sdcard upgrade_ota br-%
+.PHONY: all toolchain sdk bootstrap clean defconfig distclean help info pack_full pack_update pad_full pad_update update_buildroot upload_tftp upload_sdcard upgrade_ota br-%
 
 all: update_buildroot defconfig $(TOOLCHAIN_DIR)/.extracted
 ifndef BOARD
@@ -241,7 +241,7 @@ pack_full: defconfig delete_bin_full $(FIRMWARE_BIN_FULL)
 	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_FULL); \
 	fi
 
-pack_noboot: defconfig delete_bin_noboot $(FIRMWARE_BIN_NOBOOT)
+pack_update: defconfig delete_bin_noboot $(FIRMWARE_BIN_NOBOOT)
 	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(SIZE_8M_NOBOOT) ]; \
 	then \
 	dd if=/dev/zero bs=$(SIZE_16M_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
@@ -254,7 +254,7 @@ pad_full: $(FIRMWARE_BIN_FULL)
 	dd if=$(FIRMWARE_BIN_FULL) bs=$(FIRMWARE_BIN_FULL_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
 	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_FULL);
 
-pad_noboot: $(FIRMWARE_BIN_NOBOOT)
+pad_update: $(FIRMWARE_BIN_NOBOOT)
 	echo "--- $@"
 	dd if=/dev/zero bs=$(SIZE_16M_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
 	dd if=$(FIRMWARE_BIN_NOBOOT) bs=$(FIRMWARE_BIN_NOBOOT_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
