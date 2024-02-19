@@ -35,7 +35,7 @@ STDERR_LOG = $(OUTPUT_DIR)/compilation-errors.log
 BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(CURDIR)/scripts
 
-TOOLCHAIN_URL = http://thingino.com/dl/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz
+TOOLCHAIN_URL ?= http://thingino.com/dl/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz
 TOOLCHAIN_DIR := $(CURDIR)/toolchain
 TOOLCHAIN_BUNDLE := $(TOOLCHAIN_DIR)/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz
 
