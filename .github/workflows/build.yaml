@@ -1,0 +1,175 @@
+name: build
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+env:
+  TAG_NAME: latest
+  TERM: linux
+  BR2_DL_DIR: /tmp/dl
+  TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
+  TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_BUILD}}
+  TG_OPTIONS: -s -o /dev/null -w %{http_code}
+  TG_ENABLE: true
+
+jobs:
+  build-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send build alert
+        if: env.TG_ENABLE== 'true'
+        run: |
+          TG_MSG="Firmware Build started\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\n"
+          TG_ICON="\xF0\x9F\x9A\xA6 GitHub Actions"
+          TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
+          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
+          echo Telegram response: ${HTTP}
+
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Generate matrix
+        id: set-matrix
+        run: |
+          CONFIGS=$(.github/scripts/list_configs.sh)
+          JSON_MATRIX="{\"thingino-version\": ["
+          for CONFIG in $CONFIGS; do
+            JSON_MATRIX+="\"${CONFIG}\","
+          done
+          JSON_MATRIX="${JSON_MATRIX%,}]}" # Remove the last comma and close the JSON array
+          echo "Matrix: $JSON_MATRIX"
+          echo "matrix=$JSON_MATRIX" >> $GITHUB_OUTPUT
+
+  buildroot:
+    name: ${{ matrix.thingino-version }}
+    needs: generate-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup ccache
+        uses: actions/cache@v4
+        if: always()
+        with:
+          path: /tmp/ccache
+          key: ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-
+
+      - name: Setup buildroot download directory cache
+        uses: actions/cache@v4
+        if: always()
+        with:
+          path: /tmp/dl
+          # Use a static key for shared cache across builds
+          key: ${{ runner.os }}-dl-shared-v1
+          # Use a broad restore-keys to always use the latest available cache but with consideration to os
+          restore-keys: |
+            ${{ runner.os }}-dl-shared-
+
+      - name: Setup repo sources
+        run: |
+          sudo echo "deb http://archive.ubuntu.com/ubuntu/ lunar main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          sudo tee -a /etc/apt/preferences.d/prefer-jammy <<EOF
+          Package: *
+          Pin: release a=jammy
+          Pin-Priority: 500
+
+          Package: *
+          Pin: release a=lunar
+          Pin-Priority: 100
+          EOF
+
+      - name: Update repo sources
+        run: |
+          sudo apt-get update
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail gcc gcc-mipsel-linux-gnu lzop u-boot-tools ca-certificates ccache
+
+      - name: Install GCC13 dependencies
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --no-install-suggests libc6=2.37-0ubuntu2 libc-bin=2.37-0ubuntu2 libc6-mipsel-cross=2.37-0ubuntu1cross1 libc6-dev=2.37-0ubuntu2 libc-dev-bin=2.37-0ubuntu2 coreutils=9.1-1ubuntu2 libgmp10=2:6.2.1+dfsg1-1.1ubuntu1
+
+      - name: Build firmware
+        run: |
+          export GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})
+          export GIT_BRANCH=${GITHUB_REF_NAME}
+          echo "GIT_HASH=${GIT_HASH}" >> ${GITHUB_ENV}
+          echo "GIT_BRANCH=${GIT_BRANCH}" >> ${GITHUB_ENV}
+
+          mkdir -p /tmp/ccache
+          mkdir -p /tmp/dl
+          ln -s /tmp/ccache ${HOME}/.ccache
+          ln -s /tmp/dl ${HOME}/dl
+
+          BOARD=${{ matrix.thingino-version }} make
+
+          TIME=$(date -d @${SECONDS} +%M:%S)
+          echo "TIME=${TIME}" >> ${GITHUB_ENV}
+
+      - name: Prepare full image
+        run: |
+          BOARD=${{ matrix.thingino-version }} make pack_full
+
+      - name: Rename image for release
+        run: |
+          # Extract the defconfig name to form a pattern for the file name, change _ to -
+          DYNAMIC_PART=$(echo "${{ matrix.thingino-version }}")
+          PATTERN="thingino-${DYNAMIC_PART}-*.bin"
+
+          # Find the binary file using the generated pattern
+          NORFW=$(find ${HOME}/output/${{ matrix.thingino-version }}*/images/ -name "${PATTERN}" | head -n 1)
+          echo "NORFW: $NORFW"
+          if [[ -n "${NORFW}" ]]; then
+            # Remove the numeric timestamp part from the filename
+            NORFW_BASENAME=$(echo "${NORFW}" | sed 's/-[0-9]\{12\}\.bin$/.bin/')
+            echo "NORFW_BASENAME: $NORFW_BASENAME"
+            mv "${NORFW}" "${NORFW_BASENAME}"
+            echo NORFW=${NORFW_BASENAME} >> ${GITHUB_ENV}
+          else
+            echo "Matching .bin file not found."
+            exit 1
+          fi
+
+      - name: Upload firmware
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@master
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          files: ${{ env.NORFW }}
+
+      - name: Send binary
+        if: github.event_name != 'pull_request' && env.NORFW && env.TG_ENABLE== 'true'
+        run: |
+          TG_MSG="Commit: ${GIT_HASH}\nBranch: ${GIT_BRANCH}\nTag: ${TAG_NAME}\nTime: ${TIME}\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n"
+          TG_ICON="\xE2\x9C\x85 GitHub Actions"
+          TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
+          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER}" -F document=@${NORFW} -F disable_web_page_preview=true)
+          echo Telegram response: ${HTTP}
+
+      - name: Send error
+        if: github.event_name != 'pull_request' && failure()
+        run: |
+          TG_WARN="Error: ${{ matrix.thingino-version }}\n"
+          TG_MSG="Commit: ${GIT_HASH}\nBranch: ${GIT_BRANCH}\nTag: ${TAG_NAME}\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n"
+          TG_ICON="\xE2\x9A\xA0 GitHub Actions"
+          TG_HEADER=$(echo -e ${TG_WARN}${TG_MSG}${TG_ICON})
+          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
+          echo Telegram response: ${HTTP}
