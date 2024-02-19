@@ -35,7 +35,7 @@ GCC = 13
 endif
 
 OUTPUT_DIR = $(HOME)/output/$(BOARD)-gcc$(GCC)-br$(BUILDROOT_VERSION)
-TOOLCHAIN_DIR = $(CURDIR)/toolchain/$(SOC_FAMILY)
+TOOLCHAIN_DIR = $(CURDIR)/toolchain/$(GCC)
 TOOLCHAIN_BUNDLE = $(TOOLCHAIN_DIR)/$(shell basename $(TOOLCHAIN_URL))
 
 # working directory
