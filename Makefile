@@ -28,9 +28,9 @@ BUILDROOT_DIR := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)-themactep
 
 # toolchain
 ifeq ($(GCC),12)
-TOOLCHAIN_URL = https://thingino.com/dl/mipsel-buildroot-linux-musl_sdk-buildroot-gcc12-glibc235.tar.gz
+TOOLCHAIN_URL := https://thingino.com/dl/mipsel-buildroot-linux-musl_sdk-buildroot-gcc12-glibc235.tar.gz
 else
-TOOLCHAIN_URL = http://thingino.com/dl/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz
+TOOLCHAIN_URL := http://thingino.com/dl/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz
 GCC = 13
 endif
 
@@ -103,36 +103,82 @@ include $(BR2_EXTERNAL)/external.mk
 
 # hardcoded variables
 WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=3
+
+U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
+U_BOOT_BIN  = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL).bin
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 
-ALIGN_BLOCK := $(shell echo $$(( 32 * 1024 )))
+# create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
+FIRMWARE_NAME_FULL = thingino-$(SOC_MODEL)-$(subst ",,$(BR2_SENSOR_MODEL))-$(shell date -u +%Y%m%d%H%M -d @$(shell printf '%d\n' $(shell stat -c%Y $(U_BOOT_BIN)) $(shell stat -c%Y $(KERNEL_BIN)) $(shell stat -c%Y $(ROOTFS_BIN)) | sort -gr | head -1)).bin
+FIRMWARE_BIN_FULL = $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_FULL)
 
-U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
-U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL).bin
+FIRMWARE_NAME_NOBOOT = thingino-update-$(SOC_MODEL)-$(subst ",,$(BR2_SENSOR_MODEL))-$(shell date -u +%Y%m%d%H%M -d @$(shell printf '%d\n' $(shell stat -c%Y $(U_BOOT_BIN)) $(shell stat -c%Y $(KERNEL_BIN)) $(shell stat -c%Y $(ROOTFS_BIN)) | sort -gr | head -1)).bin
+FIRMWARE_BIN_NOBOOT = $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_NOBOOT)
 
-U_BOOT_OFFSET := 0
+# 0x0008000б 32K, 32_768
+define ALIGN_BLOCK
+32768
+endef
+
+# 0x0800000, 8M, 8_388_608
+define SIZE_8M
+8388608
+endef
+
+# 0x1000000, 16M, 16_777_216
+define SIZE_16M
+16777216
+endef 
+
+# from the very beginning
+define U_BOOT_OFFSET
+0
+endef
+
+# 0x40000, 256K, 262_144
+define U_BOOT_ENV_OFFSET
+262144
+endef
+
+# 0x10000, 64K, 65_536
+define U_BOOT_ENV_SIZE
+65536
+endef
+
+# U_BOOT_ENV_SIZE + U_BOOT_ENV_SIZE
+# 0x40000 + 0x10000 = 0x50000 = 327_680
+define KERNEL_OFFSET     
+327680
+endef
+
+# SIZE_8M - KERNEL_OFFSET
+# 0x0800000 - 0x0050000 = 0x7B0000 = 8_060_928
+define SIZE_8M_NOBOOT
+8060928
+endef
+
+# SIZE_16M - KERNEL_OFFSET
+# 0x1000000 - 0x0050000 = 0xFB0000 = 16_449_536 
+define SIZE_16M_NOBOOT
+16449536
+endef
+
 U_BOOT_SIZE = $(shell stat -c%s $(U_BOOT_BIN))
-U_BOOT_SIZE_ALIGNED = $(shell echo $$(( ($(U_BOOT_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
-
-U_BOOT_ENV_OFFSET := $(shell echo $$(( 0x40000 ))) # 256K
-U_BOOT_ENV_SIZE := $(shell echo $$(( 0x10000 ))) # 64K
+U_BOOT_SIZE_ALIGNED = $(shell echo $$((($(U_BOOT_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK))))
 
 KERNEL_SIZE = $(shell stat -c%s $(KERNEL_BIN))
-KERNEL_SIZE_ALIGNED = $(shell echo $$(( ($(KERNEL_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
-KERNEL_OFFSET = $(shell echo $$(( $(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_SIZE) )))
+KERNEL_SIZE_ALIGNED = $(shell echo $$((($(KERNEL_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK))))
 
 ROOTFS_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
-ROOTFS_SIZE_ALIGNED = $(shell echo $$(( ($(ROOTFS_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK) )))
-ROOTFS_OFFSET = $(shell echo $$(( $(KERNEL_OFFSET) + $(KERNEL_SIZE_ALIGNED) )))
+ROOTFS_SIZE_ALIGNED = $(shell echo $$((($(ROOTFS_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK))))
+ROOTFS_OFFSET = $(shell echo $$(($(KERNEL_OFFSET) + $(KERNEL_SIZE_ALIGNED) )))
 
-# create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
-FULL_FIRMWARE_NAME = thingino-$(SOC_MODEL)-$(subst ",,$(BR2_SENSOR_MODEL))-$(shell date -u +%Y%m%d%H%M -d @$(shell printf '%d\n' $(shell stat -c%Y $(U_BOOT_BIN)) $(shell stat -c%Y $(KERNEL_BIN)) $(shell stat -c%Y $(ROOTFS_BIN)) | sort -gr | head -1)).bin
-FULL_FIRMWARE_BIN = $(OUTPUT_DIR)/images/$(FULL_FIRMWARE_NAME)
-FULL_FIRMWARE_BIN_SIZE = $(shell stat -c%s $(FULL_FIRMWARE_BIN))
+FIRMWARE_BIN_FULL_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_FULL))
+FIRMWARE_BIN_NOBOOT_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_NOBOOT))
 
-.PHONY: all toolchain sdk bootstrap clean defconfig distclean help pack pad update_buildroot upload_tftp upload_sdcard upgrade_ota br-%
+.PHONY: all toolchain sdk bootstrap clean defconfig distclean help info pack_full pack_noboot pad_full pad_noboot update_buildroot upload_tftp upload_sdcard upgrade_ota br-%
 
 all: update_buildroot defconfig $(TOOLCHAIN_DIR)/.extracted
 ifndef BOARD
@@ -172,33 +218,47 @@ else
 endif
 
 clean: defconfig
-	rm -rf $(OUTPUT_DIR)/target $(OUTPUT_DIR)/.config
+	@rm -rf $(OUTPUT_DIR)/target $(OUTPUT_DIR)/.config
 
 defconfig: $(BUILDROOT_DIR)
 	@rm -rvf $(OUTPUT_DIR)/.config
 	$(BR2_MAKE) BR2_DEFCONFIG=$(BOARD_CONFIG) defconfig
 
-delete_full_bin:
-	@if [ -f $(FULL_FIRMWARE_BIN) ]; then rm $(FULL_FIRMWARE_BIN); fi
+delete_bin_full:
+	@if [ -f $(FIRMWARE_BIN_FULL) ]; then rm $(FIRMWARE_BIN_FULL); fi
+
+delete_bin_noboot:
+	@if [ -f $(FIRMWARE_BIN_NOBOOT) ]; then rm $(FIRMWARE_BIN_NOBOOT); fi
 
 distclean:
-	# $(BOARD_MAKE) distclean
-	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
+	@if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
-pack: defconfig delete_full_bin $(FULL_FIRMWARE_BIN)
-	if [ $(FULL_FIRMWARE_BIN_SIZE) -gt 8388608 ]; \
+pack_full: defconfig delete_bin_full $(FIRMWARE_BIN_FULL)
+	if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(SIZE_8M) ]; \
 	then \
-	dd if=/dev/zero bs=16M skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
-	dd if=$(FULL_FIRMWARE_BIN) bs=$(FULL_FIRMWARE_BIN_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
-	mv $(OUTPUT_DIR)/images/padded $(FULL_FIRMWARE_BIN); \
+	dd if=/dev/zero bs=$(SIZE_16M) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
+	dd if=$(FIRMWARE_BIN_FULL) bs=$(FIRMWARE_BIN_FULL_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
+	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_FULL); \
 	fi
-	@echo "DONE"
 
-pad: $(FULL_FIRMWARE_BIN)
-	dd if=/dev/zero bs=16M skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
-	dd if=$(FULL_FIRMWARE_BIN) bs=$(FULL_FIRMWARE_BIN_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
-	mv $(OUTPUT_DIR)/images/padded $(FULL_FIRMWARE_BIN);
+pack_noboot: defconfig delete_bin_noboot $(FIRMWARE_BIN_NOBOOT)
+	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(SIZE_8M_NOBOOT) ]; \
+	then \
+	dd if=/dev/zero bs=$(SIZE_16M_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
+	dd if=$(FIRMWARE_BIN_NOBOOT) bs=$(FIRMWARE_BIN_NOBOOT_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
+	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_NOBOOT); \
+	fi
 
+pad_full: $(FIRMWARE_BIN_FULL)
+	dd if=/dev/zero bs=$(SIZE_16M) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
+	dd if=$(FIRMWARE_BIN_FULL) bs=$(FIRMWARE_BIN_FULL_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
+	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_FULL);
+
+pad_noboot: $(FIRMWARE_BIN_NOBOOT)
+	echo "--- $@"
+	dd if=/dev/zero bs=$(SIZE_16M_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
+	dd if=$(FIRMWARE_BIN_NOBOOT) bs=$(FIRMWARE_BIN_NOBOOT_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
+	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_NOBOOT);
 
 rebuild-%:
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean
@@ -214,22 +274,24 @@ update_buildroot: $(SRC_DIR)
 	if [ ! -d "$(BUILDROOT_DIR)" ]; then git clone --depth 1 $(BUILDROOT_REPO) $(BUILDROOT_DIR); fi
 	cd $(BUILDROOT_DIR) && git pull && echo "Buildroot updated"
 
+update_ota: pack_noboot
+	scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -O $(FIRMWARE_BIN_NOBOOT) root@$(CAMERA_IP_ADDRESS):/tmp/fwupdate.bin
+	ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@$(CAMERA_IP_ADDRESS) "flashcp -v /tmp/fwupdate.bin /dev/mtd5 && reboot"
+
 # upgrade firmware using /tmp/ directory of the camera
 upgrade_ota: pack
-	@scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -O $(FULL_FIRMWARE_BIN) root@$(CAMERA_IP_ADDRESS):/tmp/fwupdate.bin
-	@ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@$(CAMERA_IP_ADDRESS) "flashcp -v /tmp/fwupdate.bin /dev/mtd6 && reboot"
-	@echo "Done"
+	scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -O $(FIRMWARE_BIN_FULL) root@$(CAMERA_IP_ADDRESS):/tmp/fwupgrade.bin
+	ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@$(CAMERA_IP_ADDRESS) "flashcp -v /tmp/fwupgrade.bin /dev/mtd6 && reboot"
 
 # upload firmware to tftp server
-upload_tftp: $(FULL_FIRMWARE_BIN)
-	@busybox tftp -l $(FULL_FIRMWARE_BIN) -r $(FULL_FIRMWARE_NAME) -p $(TFTP_IP_ADDRESS)
+upload_tftp: $(FIRMWARE_BIN_FULL)
+	busybox tftp -l $(FIRMWARE_BIN_FULL) -r $(FIRMWARE_NAME_FULL) -p $(TFTP_IP_ADDRESS)
 
 # upload firmware to an sd card
-upload_sdcard: $(FULL_FIRMWARE_BIN)
-	@cp -v $(FULL_FIRMWARE_BIN) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')/autoupdate-full.bin
+upload_sdcard: $(FIRMWARE_BIN_FULL)
+	cp -v $(FIRMWARE_BIN_FULL) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')/autoupdate-full.bin
 	sync
 	umount $(SDCARD_DEVICE)1
-	@echo "Done"
 
 # create output directory
 $(OUTPUT_DIR):
@@ -289,70 +351,76 @@ $(ROOTFS_TAR):
 	$(BR2_MAKE) all
 #	mv -vf $(OUTPUT_DIR)/images/rootfs.tar $@
 
-# create .cpio file of rootfs
-$(ROOTFS_CPIO):
-	$(info ROOTFS_CPIO:         $@)
-	$(BR2_MAKE) all
-#	mv -vf $(OUTPUT_DIR)/images/rootfs.cpio $@
+$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
+	dd if=/dev/zero bs=$(SIZE_8M) skip=0 count=1 status=none | tr '\000' '\377' > $@
+	dd if=$(U_BOOT_BIN) bs=$(U_BOOT_SIZE) seek=$(U_BOOT_OFFSET) count=1 of=$@ conv=notrunc status=none
+	dd if=$(KERNEL_BIN) bs=$(KERNEL_SIZE) seek=$(KERNEL_OFFSET)B count=1 of=$@ conv=notrunc status=none
+	dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$(ROOTFS_OFFSET)B count=1 of=$@ conv=notrunc status=none
 
-$(FULL_FIRMWARE_BIN): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
-	@dd if=/dev/zero bs=8M skip=0 count=1 status=none | tr '\000' '\377' > $@
-	@dd if=$(U_BOOT_BIN) bs=$(U_BOOT_SIZE) seek=$(U_BOOT_OFFSET) count=1 of=$@ conv=notrunc status=none
-	@dd if=$(KERNEL_BIN) bs=$(KERNEL_SIZE) seek=$(KERNEL_OFFSET)B count=1 of=$@ conv=notrunc status=none
-	@dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$(ROOTFS_OFFSET)B count=1 of=$@ conv=notrunc status=none
+$(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN)
+	dd if=/dev/zero bs=$(SIZE_8M_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $@
+	dd if=$(KERNEL_BIN) bs=$(KERNEL_SIZE) seek=0 count=1 of=$@ conv=notrunc status=none
+	dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$(KERNEL_SIZE_ALIGNED)B count=1 of=$@ conv=notrunc status=none
 
 info: defconfig
 	$(info =========================================================================)
-	$(info BASE_DIR:           $(BASE_DIR))
-	$(info BASE_TARGET_DIR:    $(BASE_TARGET_DIR))
-	$(info BINARIES_DIR:       $(BINARIES_DIR))
 	$(info BOARD:              $(BOARD))
 	$(info BOARD_CONFIG:       $(BOARD_CONFIG))
 	$(info BR2_DL_DIR:         $(BR2_DL_DIR))
 	$(info BR2_EXTERNAL:       $(BR2_EXTERNAL))
-	$(info BR2_KERNEL:         $(BR2_KERNEL))
 	$(info BR2_MAKE:           $(BR2_MAKE))
 	$(info BR2_SENSOR_MODEL:   $(BR2_SENSOR_MODEL))
-	$(info BUILD_DIR:          $(BUILD_DIR))
 	$(info BUILDROOT_BUNDLE:   $(BUILDROOT_BUNDLE))
 	$(info BUILDROOT_DIR:      $(BUILDROOT_DIR))
 	$(info BUILDROOT_VERSION:  $(BUILDROOT_VERSION))
 	$(info CAMERA_IP_ADDRESS:  $(CAMERA_IP_ADDRESS))
-	$(info CONFIG_DIR:         $(CONFIG_DIR))
-	$(info CPE_UPDATES_DIR:    $(CPE_UPDATES_DIR))
 	$(info CURDIR:             $(CURDIR))
-	$(info GRAPHS_DIR:         $(GRAPHS_DIR))
-	$(info HOST_DIR:           $(HOST_DIR))
-	$(info HOST_DIR_SYMLINK:   $(HOST_DIR_SYMLINK))
-	$(info KERNEL:             $(KERNEL))
-	$(info LEGAL_INFO_DIR:     $(LEGAL_INFO_DIR))
 	$(info SOC_FAMILY:         $(SOC_FAMILY))
 	$(info SOC_MODEL:          $(SOC_MODEL))
 	$(info SOC_VENDOR:         $(SOC_VENDOR))
-	$(info TOOLCHAIN:          $(TOOLCHAIN))
 	$(info OUTPUT_DIR:         $(OUTPUT_DIR))
-	$(info PER_PACKAGE_DIR:    $(PER_PACKAGE_DIR))
 	$(info SCRIPTS_DIR:        $(SCRIPTS_DIR))
 	$(info SRC_DIR:            $(SRC_DIR))
-	$(info STAGING_DIR:        $(STAGING_DIR))
 	$(info STDERR_LOG:         $(STDERR_LOG))
 	$(info STDOUT_LOG:         $(STDOUT_LOG))
-	$(info TARGET_DIR:         $(TARGET_DIR))
 	$(info TFTP_IP_ADDRESS:    $(TFTP_IP_ADDRESS))
-	$(info TOPDIR:             $(TOPDIR))
 	$(info U_BOOT_BIN:         $(U_BOOT_BIN))
 	$(info U_BOOT_GITHUB_URL:  $(U_BOOT_GITHUB_URL))
+#	$(info BASE_DIR:           $(BASE_DIR))
+#	$(info BASE_TARGET_DIR:    $(BASE_TARGET_DIR))
+#	$(info BINARIES_DIR:       $(BINARIES_DIR))
+#	$(info BR2_KERNEL:         $(BR2_KERNEL))
+#	$(info BUILD_DIR:          $(BUILD_DIR))
+#	$(info CONFIG_DIR:         $(CONFIG_DIR))
+#	$(info CPE_UPDATES_DIR:    $(CPE_UPDATES_DIR))
+#	$(info GRAPHS_DIR:         $(GRAPHS_DIR))
+#	$(info HOST_DIR:           $(HOST_DIR))
+#	$(info HOST_DIR_SYMLINK:   $(HOST_DIR_SYMLINK))
+#	$(info KERNEL:             $(KERNEL))
+#	$(info LEGAL_INFO_DIR:     $(LEGAL_INFO_DIR))
+#	$(info PER_PACKAGE_DIR:    $(PER_PACKAGE_DIR))
+#	$(info STAGING_DIR:        $(STAGING_DIR))
+#	$(info TARGET_DIR:         $(TARGET_DIR))
+#	$(info TOOLCHAIN:          $(TOOLCHAIN))
+#	$(info TOPDIR:             $(TOPDIR))
 	$(info =========================================================================)
 
 help:
 	@echo "\n\
 	Usage:\n\
-	  - make help - print this help\n\
-	  - make bootstrap - install system deps\n\
-	  - make BOARD=<BOARD-ID> - build all needed for a board (toolchain, kernel and rootfs images)\n\
-	  - make BOARD=<BOARD-ID> pack - create a full binary for programmer\n\
-	  - make BOARD=<BOARD-ID> clean - cleaning before reassembly\n\
-	  - make BOARD=<BOARD-ID> distclean - switching to the factory state\n\
-	  - make BOARD=<BOARD-ID> prepare - download and unpack buildroot\n\
-	  - make BOARD=<BOARD-ID> board-info - write to stdout information about selected board\n\
+	  - make help         - print this help\n\
+	  - make bootstrap    - install system deps\n\
+	  - make              - build all needed for a board (toolchain, kernel and rootfs images)\n\
+	  - make pack_full    - create a full firmware file\n\
+	  - make pack_update  - create an update firmware file (no bootloader)\n\
+	  - make padd_full    - pad the full firmware file with zeroes to 16MB\n\
+	  - make pad_update   - pad the update firmware file with zeroes to 16MB\n\
+	  - make clean        - cleaning before reassembly\n\
+	  - make distclean    - switching to the factory state\n\
+	  - make prepare      - download and unpack buildroot\n\
+	  - make info         - write to stdout information about selected board\n\
+	  - make upgrade_ota CAMERA_IP_ADDRESS=192.168.1.10\n\
+                      - upload the full firmware file to the camera over network, and flash it\n\
+	  - make update_ota CAMERA_IP_ADDRESS=192.168.1.10\n\
+                      - upload the update firmware file to the camera over network, and flash it\n\
 	"
