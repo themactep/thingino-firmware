@@ -1,20 +1,38 @@
 #!/bin/sh
 
 DROPBEAR_KEY="/etc/dropbear/dropbear_ed25519_host_key"
+SSHKEY_ENV=$(fw_printenv -n sshkey_ed25519)
+
+generate_keys() {
+	dropbearkey -t ed25519 -f $DROPBEAR_KEY 2>&1 | logger -t $0
+	logger -t $0 "Generated dropbear host keys."
+}
+
+restore_keys() {
+	echo "$SSHKEY_ENV" | base64 -d | gzip -d > $DROPBEAR_KEY
+	logger -t $0 "SSH Key restored."
+}
+
+save_keys() {
+	SSHKEY_ENV=$(gzip -c $DROPBEAR_KEY | base64 | tr -d '\n')
+	fw_setenv sshkey_ed25519 "$SSHKEY_ENV"
+	logger -t $0 "SSH key backed up."
+}
 
 case "$1" in
 	start)
-		[ -s "$DROPBEAR_KEY" ] || {
-			SSHKEY_ENV=$(fw_printenv -n sshkey_ed25519)
-			[ -n "$SSHKEY_ENV" ] && echo "$SSHKEY_ENV" | base64 -d | gzip -d > $DROPBEAR_KEY && logger -t $0 "SSH Key restored." || {
-				dropbearkey -t ed25519 -f $DROPBEAR_KEY 2>&1 | logger -t $0 && logger -t $0 "Generated dropbear host keys."
-			}
-		}
-	
-		[ -z "$SSHKEY_ENV" ] && [ -s "$DROPBEAR_KEY" ] && {
-			SSHKEY_ENV=$(gzip -c $DROPBEAR_KEY | base64 | tr -d '\n')
-			fw_setenv sshkey_ed25519 "$SSHKEY_ENV" && logger -t $0 "SSH key backed up."
-		}
+		if [ -s "$DROPBEAR_KEY" ]; then 
+			if [ -z "$SSHKEY_ENV" ]; then
+				save_keys
+			fi
+		else
+			if [ -z "$SSHKEY_ENV" ]; then
+				generate_keys
+				save_keys
+			else
+				restore_keys
+			fi
+		fi
 		;;
 	reload | stop | restart)
 		true
