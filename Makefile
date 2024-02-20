@@ -225,7 +225,7 @@ defconfig: $(BUILDROOT_DIR)
 delete_bin_full:
 	@if [ -f $(FIRMWARE_BIN_FULL) ]; then rm $(FIRMWARE_BIN_FULL); fi
 
-delete_bin_noboot:
+delete_bin_update:
 	@if [ -f $(FIRMWARE_BIN_NOBOOT) ]; then rm $(FIRMWARE_BIN_NOBOOT); fi
 
 distclean:
@@ -239,7 +239,7 @@ pack_full: defconfig delete_bin_full $(FIRMWARE_BIN_FULL)
 	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_FULL); \
 	fi
 
-pack_update: defconfig delete_bin_noboot $(FIRMWARE_BIN_NOBOOT)
+pack_update: defconfig delete_bin_update $(FIRMWARE_BIN_NOBOOT)
 	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(SIZE_8M_NOBOOT) ]; \
 	then \
 	dd if=/dev/zero bs=$(SIZE_16M_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
@@ -272,7 +272,7 @@ update_buildroot: $(SRC_DIR)
 	if [ ! -d "$(BUILDROOT_DIR)" ]; then git clone --depth 1 $(BUILDROOT_REPO) $(BUILDROOT_DIR); fi
 	cd $(BUILDROOT_DIR) && git pull && echo "Buildroot updated"
 
-update_ota: pack_noboot
+update_ota: pack_update
 	scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -O $(FIRMWARE_BIN_NOBOOT) root@$(CAMERA_IP_ADDRESS):/tmp/fwupdate.bin
 	ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@$(CAMERA_IP_ADDRESS) "flashcp -v /tmp/fwupdate.bin /dev/mtd5 && reboot"
 
