@@ -137,9 +137,12 @@ endif
 
 THINGINO_KERNEL = "https://github.com/gtxaspec/openipc_linux/archive/$(KERNEL_BRANCH).tar.gz"
 
+SOC_MODEL_LESS_Z = $(subst z,,$(SOC_MODEL))
+
 export SOC_VENDOR
 export SOC_FAMILY
 export SOC_MODEL
+export SOC_MODEL_LESS_Z
 export THINGINO_KERNEL
 
 # include makefiles from packages
