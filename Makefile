@@ -325,7 +325,7 @@ $(TOOLCHAIN_DIR)/.extracted: $(TOOLCHAIN_BUNDLE)
 # download bootloader
 $(U_BOOT_BIN):
 	$(info U_BOOT_BIN:          $@)
-	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL).bin
+	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL_LESS_Z).bin
 
 # rebuild Linux kernel
 $(KERNEL_BIN):
