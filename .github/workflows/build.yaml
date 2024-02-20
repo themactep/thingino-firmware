@@ -1,13 +1,9 @@
 name: build
 on:
-  pull_request:
-    branches:
-      - master
-  push:
-    branches:
-      - master
+  schedule:
+    - cron:  '15 1 * * *'
   workflow_dispatch:
-
+  
 env:
   TAG_NAME: latest
   TERM: linux
@@ -24,10 +20,10 @@ jobs:
       - name: Send build alert
         if: env.TG_ENABLE== 'true'
         run: |
-          TG_MSG="Firmware Build started\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\n"
+          TG_MSG="Firmware build started:\n[${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
           TG_ICON="\xF0\x9F\x9A\xA6 GitHub Actions"
           TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
-          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
+          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
           echo Telegram response: ${HTTP}
 
   generate-matrix:
@@ -158,18 +154,18 @@ jobs:
       - name: Send binary
         if: github.event_name != 'pull_request' && env.NORFW && env.TG_ENABLE== 'true'
         run: |
-          TG_MSG="Commit: ${GIT_HASH}\nBranch: ${GIT_BRANCH}\nTag: ${TAG_NAME}\nTime: ${TIME}\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n"
+          TG_MSG="Commit: [${GIT_HASH}](https://github.com/themactep/thingino-firmware/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/themactep/thingino-firmware/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/themactep/thingino-firmware/releases/tag/${TAG_NAME})\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
           TG_ICON="\xE2\x9C\x85 GitHub Actions"
           TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
-          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER}" -F document=@${NORFW} -F disable_web_page_preview=true)
+          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER}" -F document=@${NORFW} -F disable_web_page_preview=true)
           echo Telegram response: ${HTTP}
 
       - name: Send error
         if: github.event_name != 'pull_request' && failure()
         run: |
-          TG_WARN="Error: ${{ matrix.thingino-version }}\n"
-          TG_MSG="Commit: ${GIT_HASH}\nBranch: ${GIT_BRANCH}\nTag: ${TAG_NAME}\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n"
+          TG_WARN="Error: \${{ matrix.thingino-version }}\n"
+          TG_MSG="Commit: [${GIT_HASH}](https://github.com/themactep/thingino-firmware/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/themactep/thingino-firmware/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/themactep/thingino-firmware/releases/tag/${TAG_NAME})\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
           TG_ICON="\xE2\x9A\xA0 GitHub Actions"
           TG_HEADER=$(echo -e ${TG_WARN}${TG_MSG}${TG_ICON})
-          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
+          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
           echo Telegram response: ${HTTP}
