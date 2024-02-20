@@ -50,7 +50,6 @@ SCRIPTS_DIR := $(CURDIR)/scripts
 BR2_MAKE = $(MAKE) -C $(BUILDROOT_DIR) BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
 
 BOARDS = $(shell find ./configs/*_defconfig | sort | sed -E "s/^\.\/configs\/(.*)_defconfig/'\1' '\1'/")
-#BOARDS = $(shell find $(CURDIR)/br-ext-*/configs/*_defconfig | sort | awk -F '/' '{print $$NF}')
 
 # check BOARD value from env
 # if empty, check for journal
@@ -68,7 +67,6 @@ endif
 # if still no BOARD, select it from a list of boards
 ifeq ($(BOARD),)
 BOARD := $(or $(shell whiptail --title "Boards" --menu "Select a board:" 20 76 12 --notags $(BOARDS) 3>&1 1>&2 2>&3))
-#BOARD := $(or $(shell eval `resize`; whiptail --title "Boards" --menu "Select a board:" $$LINES $$COLUMNS $$(( LINES - 8 )) --notags $(BOARDS) 3>&1 1>&2 2>&3))
 endif
 
 # if still no BOARD, bail out with an error
@@ -111,10 +109,10 @@ ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 
 # create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
-FIRMWARE_NAME_FULL = thingino-$(SOC_MODEL)-$(subst ",,$(BR2_SENSOR_MODEL))-$(shell date -u +%Y%m%d%H%M -d @$(shell printf '%d\n' $(shell stat -c%Y $(U_BOOT_BIN)) $(shell stat -c%Y $(KERNEL_BIN)) $(shell stat -c%Y $(ROOTFS_BIN)) | sort -gr | head -1)).bin
+FIRMWARE_NAME_FULL = thingino-$(BOARD)-$(shell date -u +%Y%m%d%H%M -d @$(shell printf '%d\n' $(shell stat -c%Y $(U_BOOT_BIN)) $(shell stat -c%Y $(KERNEL_BIN)) $(shell stat -c%Y $(ROOTFS_BIN)) | sort -gr | head -1)).bin
 FIRMWARE_BIN_FULL = $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_FULL)
 
-FIRMWARE_NAME_NOBOOT = thingino-update-$(SOC_MODEL)-$(subst ",,$(BR2_SENSOR_MODEL))-$(shell date -u +%Y%m%d%H%M -d @$(shell printf '%d\n' $(shell stat -c%Y $(U_BOOT_BIN)) $(shell stat -c%Y $(KERNEL_BIN)) $(shell stat -c%Y $(ROOTFS_BIN)) | sort -gr | head -1)).bin
+FIRMWARE_NAME_NOBOOT = thingino-$(BOARD)-$(shell date -u +%Y%m%d%H%M -d @$(shell printf '%d\n' $(shell stat -c%Y $(U_BOOT_BIN)) $(shell stat -c%Y $(KERNEL_BIN)) $(shell stat -c%Y $(ROOTFS_BIN)) | sort -gr | head -1))-update.bin
 FIRMWARE_BIN_NOBOOT = $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_NOBOOT)
 
 # 0x0008000б 32K, 32_768
