@@ -231,7 +231,7 @@ delete_bin_update:
 distclean:
 	@if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
-pack_full: defconfig all delete_bin_full $(FIRMWARE_BIN_FULL)
+pack_full: defconfig $(FIRMWARE_BIN_FULL)
 	if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(SIZE_8M) ]; \
 	then \
 	dd if=/dev/zero bs=$(SIZE_16M) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
@@ -239,7 +239,7 @@ pack_full: defconfig all delete_bin_full $(FIRMWARE_BIN_FULL)
 	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_FULL); \
 	fi
 
-pack_update: defconfig all delete_bin_update $(FIRMWARE_BIN_NOBOOT)
+pack_update: defconfig $(FIRMWARE_BIN_NOBOOT)
 	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(SIZE_8M_NOBOOT) ]; \
 	then \
 	dd if=/dev/zero bs=$(SIZE_16M_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
