@@ -16,7 +16,7 @@ read_registers() {
 
 print_wiki_line() {
 	read_registers
-	printf "||| 0x%08x | 0x%04x | 0x%08x | 0x%04x | 0x%08x | 0x%04x | 0x%08x | 0x%04x | 0x%08x | 0x%04x |\n" \
+	printf "||| 0x%08x | 0x%04x | 0x%08x | 0x%02x | 0x%08x | 0x%02x | 0x%08x | 0x%04x | 0x%08x | 0x%04x |\n" \
 		"$cpuid_raw" "$cpuid" "$cppsr_raw" "$cppsr" "$subrm_raw" "$subrm" "$type1_raw" "$type1" "$type2_raw" "$type2"
 }
 
