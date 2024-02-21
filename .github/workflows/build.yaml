@@ -1,7 +1,7 @@
 name: build
 on:
   schedule:
-    - cron:  '15 1 * * *'
+    - cron:  '15 09 * * *'
   workflow_dispatch:
   
 env:
