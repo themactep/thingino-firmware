@@ -144,6 +144,12 @@ jobs:
             exit 1
           fi
 
+      - name: Upload firmware as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.thingino-version }}
+          path: ${{ env.NORFW_BASENAME }}
+
       - name: Upload firmware
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@master
@@ -163,7 +169,7 @@ jobs:
       - name: Send error
         if: github.event_name != 'pull_request' && failure()
         run: |
-          TG_WARN="Error: \${{ matrix.thingino-version }}\n"
+          TG_WARN="Error: ${{ matrix.thingino-version }}\n"
           TG_MSG="Commit: [${GIT_HASH}](https://github.com/themactep/thingino-firmware/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/themactep/thingino-firmware/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/themactep/thingino-firmware/releases/tag/${TAG_NAME})\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
           TG_ICON="\xE2\x9A\xA0 GitHub Actions"
           TG_HEADER=$(echo -e ${TG_WARN}${TG_MSG}${TG_ICON})
