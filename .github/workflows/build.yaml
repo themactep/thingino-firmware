@@ -16,8 +16,13 @@ env:
 jobs:
   build-notify:
     runs-on: ubuntu-latest
+    outputs:
+      start_time: ${{ steps.set_output.outputs.time }}
     steps:
-      - name: Send build alert
+      - name: Save workflow start time
+        id: set_output
+        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
+      - name: Send build start notifcation
         if: env.TG_ENABLE== 'true'
         run: |
           TG_MSG="Firmware build started:\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
@@ -42,7 +47,7 @@ jobs:
           for CONFIG in $CONFIGS; do
             JSON_MATRIX+="\"${CONFIG}\","
           done
-          JSON_MATRIX="${JSON_MATRIX%,}]}" # Remove the last comma and close the JSON array
+          JSON_MATRIX="${JSON_MATRIX%,}]}"
           echo "Matrix: $JSON_MATRIX"
           echo "matrix=$JSON_MATRIX" >> $GITHUB_OUTPUT
 
@@ -72,13 +77,12 @@ jobs:
         if: always()
         with:
           path: /tmp/dl
-          # Use a static key for shared cache across builds
           key: ${{ runner.os }}-dl-shared-v1
           # Use a broad restore-keys to always use the latest available cache but with consideration to os
           restore-keys: |
             ${{ runner.os }}-dl-shared-
 
-      - name: Setup repo sources
+      - name: Setup repo sources for GCC13
         run: |
           sudo echo "deb http://archive.ubuntu.com/ubuntu/ lunar main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
           sudo tee -a /etc/apt/preferences.d/prefer-jammy <<EOF
@@ -91,11 +95,11 @@ jobs:
           Pin-Priority: 100
           EOF
 
-      - name: Update repo sources
+      - name: Update system sources
         run: |
           sudo apt-get update
 
-      - name: Install dependencies
+      - name: Install build dependencies
         run: |
           sudo apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail gcc gcc-mipsel-linux-gnu lzop u-boot-tools ca-certificates ccache
 
@@ -131,14 +135,14 @@ jobs:
           PATTERN="thingino-${DYNAMIC_PART}-*.bin"
 
           # Find the binary file using the generated pattern
-          NORFW=$(find ${HOME}/output/${{ matrix.thingino-version }}*/images/ -name "${PATTERN}" | head -n 1)
-          echo "NORFW: $NORFW"
-          if [[ -n "${NORFW}" ]]; then
+          INGFW=$(find ${HOME}/output/${{ matrix.thingino-version }}*/images/ -name "${PATTERN}" | head -n 1)
+          echo "INGFW: $INGFW"
+          if [[ -n "${INGFW}" ]]; then
             # Remove the numeric timestamp part from the filename
-            NORFW_BASENAME=$(echo "${NORFW}" | sed 's/-[0-9]\{12\}\.bin$/.bin/')
-            echo "NORFW_BASENAME: $NORFW_BASENAME"
-            mv "${NORFW}" "${NORFW_BASENAME}"
-            echo NORFW=${NORFW_BASENAME} >> ${GITHUB_ENV}
+            INGFW_BASENAME=$(echo "${INGFW}" | sed 's/-[0-9]\{12\}\.bin$/.bin/')
+            echo "INGFW_BASENAME: $INGFW_BASENAME"
+            mv "${INGFW}" "${INGFW_BASENAME}"
+            echo INGFW=${INGFW_BASENAME} >> ${GITHUB_ENV}
           else
             echo "Matching .bin file not found."
             exit 1
@@ -147,31 +151,51 @@ jobs:
       - name: Upload firmware as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: firmware-${{ matrix.thingino-version }}
-          path: ${{ env.NORFW_BASENAME }}
+          name: thingino-${{ matrix.thingino-version }}
+          path: ${{ env.INGFW }}
 
       - name: Upload firmware
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.TAG_NAME }}
-          files: ${{ env.NORFW }}
+          files: ${{ env.INGFW }}
 
-      - name: Send binary
-        if: github.event_name != 'pull_request' && env.NORFW && env.TG_ENABLE== 'true'
+      - name: Send completion notification with binary
+        if: github.event_name != 'pull_request' && env.INGFW && env.TG_ENABLE== 'true'
         run: |
-          TG_MSG="Commit: [${GIT_HASH}](https://github.com/themactep/thingino-firmware/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/themactep/thingino-firmware/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/themactep/thingino-firmware/releases/tag/${TAG_NAME})\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
+          TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
           TG_ICON="\xE2\x9C\x85 GitHub Actions"
           TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
-          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER}" -F document=@${NORFW} -F disable_web_page_preview=true)
+          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER}" -F document=@${INGFW} -F disable_web_page_preview=true)
           echo Telegram response: ${HTTP}
 
-      - name: Send error
+      - name: Send error notification
         if: github.event_name != 'pull_request' && failure()
         run: |
-          TG_WARN="Error: ${{ matrix.thingino-version }}\n"
-          TG_MSG="Commit: [${GIT_HASH}](https://github.com/themactep/thingino-firmware/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/themactep/thingino-firmware/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/themactep/thingino-firmware/releases/tag/${TAG_NAME})\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
+          TG_ESCAPED_VERSION=$(echo "${{ matrix.thingino-version }}" | sed 's/_/\\_/g')
+          TG_WARN="Error: ${TG_ESCAPED_VERSION}\n"
+          TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
           TG_ICON="\xE2\x9A\xA0 GitHub Actions"
           TG_HEADER=$(echo -e ${TG_WARN}${TG_MSG}${TG_ICON})
+          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
+          echo Telegram response: ${HTTP}
+
+  notify-completion:
+    needs: [buildroot, build-notify]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Send completion summary
+        if: env.TG_ENABLE == 'true'
+        run: |
+          START_TIME=${{ needs.build-notify.outputs.start_time }}
+          END_TIME=$(date -u +%s)
+          ELAPSED=$((END_TIME - START_TIME))
+          ELAPSED_MIN=$((ELAPSED / 60))
+          ELAPSED_SEC=$((ELAPSED % 60))
+          TG_MSG="Firmware build completed:\nTotal elapsed time: ${ELAPSED_MIN}m ${ELAPSED_SEC}s\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
+          TG_ICON="\xF0\x9F\x9A\xA9 GitHub Actions"
+          TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
           HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
           echo Telegram response: ${HTTP}
