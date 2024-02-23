@@ -262,7 +262,7 @@ rebuild-%:
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean
 	$(BR2_MAKE) $(subst rebuild-,,$@)
 
-sdk: defconfig
+sdk: update_buildroot defconfig
 	$(BR2_MAKE) sdk
 
 toolchain: defconfig
