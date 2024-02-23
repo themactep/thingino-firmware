@@ -1,11 +1,11 @@
-name: build
+name: toolchain
 on:
   schedule:
-    - cron:  '15 09 * * *'
+    - cron:  '15 09 * * 0'
   workflow_dispatch:
   
 env:
-  TAG_NAME: firmware
+  TAG_NAME: toolchain
   TERM: linux
   BR2_DL_DIR: /tmp/dl
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
@@ -25,39 +25,22 @@ jobs:
       - name: Send build start notifcation
         if: env.TG_ENABLE== 'true'
         run: |
-          TG_MSG="Firmware build started:\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
+          TG_MSG="Toolchain build started:\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
           TG_ICON="\xF0\x9F\x9A\xA6 GitHub Actions"
           TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
           HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
           echo Telegram response: ${HTTP}
 
-  generate-matrix:
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Generate matrix
-        id: set-matrix
-        run: |
-          CONFIGS=$(.github/scripts/list_configs.sh)
-          JSON_MATRIX="{\"thingino-version\": ["
-          for CONFIG in $CONFIGS; do
-            JSON_MATRIX+="\"${CONFIG}\","
-          done
-          JSON_MATRIX="${JSON_MATRIX%,}]}"
-          echo "Matrix: $JSON_MATRIX"
-          echo "matrix=$JSON_MATRIX" >> $GITHUB_OUTPUT
-
-  buildroot:
-    name: ${{ matrix.thingino-version }}
-    needs: generate-matrix
+  build-toolchain:
+    name: ${{ matrix.toolchain-version }}
+    needs: notify-begin
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
+      matrix:
+        toolchain-version:
+          - toolchain_xburst1_musl_gcc13
+          - toolchain_xburst1_musl_gcc12
 
     steps:
       - name: Checkout source
@@ -68,19 +51,19 @@ jobs:
         if: always()
         with:
           path: /tmp/ccache
-          key: ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ github.sha }}
+          key: ${{ runner.os }}-ccache-${{ matrix.toolchain-version }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-
+            ${{ runner.os }}-ccache-${{ matrix.toolchain-version }}-
 
       - name: Setup buildroot download directory cache
         uses: actions/cache@v4
         if: always()
         with:
           path: /tmp/dl
-          key: ${{ runner.os }}-dl-shared-v1
+          key: ${{ runner.os }}-toolchain-dl-shared-v1
           # Use a broad restore-keys to always use the latest available cache but with consideration to os
           restore-keys: |
-            ${{ runner.os }}-dl-shared-
+            ${{ runner.os }}-toolchain-dl-shared-
 
       - name: Setup repo sources for GCC13
         run: |
@@ -107,7 +90,7 @@ jobs:
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --no-install-suggests libc6=2.37-0ubuntu2 libc-bin=2.37-0ubuntu2 libc6-mipsel-cross=2.37-0ubuntu1cross1 libc6-dev=2.37-0ubuntu2 libc-dev-bin=2.37-0ubuntu2 coreutils=9.1-1ubuntu2 libgmp10=2:6.2.1+dfsg1-1.1ubuntu1
 
-      - name: Build firmware
+      - name: Build toolchain
         run: |
           export GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})
           export GIT_BRANCH=${GITHUB_REF_NAME}
@@ -119,61 +102,52 @@ jobs:
           ln -s /tmp/ccache ${HOME}/.ccache
           ln -s /tmp/dl ${HOME}/dl
 
-          BOARD=${{ matrix.thingino-version }} make
+          BOARD=${{ matrix.toolchain-version }} make sdk
 
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
-      - name: Prepare full image
+      - name: Rename toolchain package for release
         run: |
-          BOARD=${{ matrix.thingino-version }} make pack_full
-
-      - name: Rename image for release
-        run: |
-          # Extract the defconfig name to form a pattern for the file name, change _ to -
-          DYNAMIC_PART=$(echo "${{ matrix.thingino-version }}")
-          PATTERN="thingino-${DYNAMIC_PART}-*.bin"
-
-          # Find the binary file using the generated pattern
-          INGFW=$(find ${HOME}/output/${{ matrix.thingino-version }}*/images/ -name "${PATTERN}" | head -n 1)
-          echo "INGFW: $INGFW"
-          if [[ -n "${INGFW}" ]]; then
-            # Remove the numeric timestamp part from the filename
-            INGFW_BASENAME=$(echo "${INGFW}" | sed 's/-[0-9]\{12\}\.bin$/.bin/')
-            echo "INGFW_BASENAME: $INGFW_BASENAME"
-            mv "${INGFW}" "${INGFW_BASENAME}"
-            echo INGFW=${INGFW_BASENAME} >> ${GITHUB_ENV}
+          INGTC=$(find ${HOME}/output/${{ matrix.toolchain-version }}*/images/ -name "mipsel-thingino-linux-musl_sdk-buildroot.tar.gz" | head -n 1)
+          if [[ -n "$INGTC" ]]; then
+            DIR_PATH=$(dirname "$INGTC")
+            INGTC_FINAL="${DIR_PATH}/thingino-${{ matrix.toolchain-version }}-linux-musl_sdk-mipsel.tar.gz"
+            mv "$INGTC" "$INGTC_FINAL"
+            echo "INGTC=$INGTC_FINAL" >> $GITHUB_ENV
           else
-            echo "Matching .bin file not found."
+            echo "Matching file not found."
             exit 1
           fi
 
-      - name: Upload firmware as artifact
+      - name: Upload toolchain as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: thingino-${{ matrix.thingino-version }}
-          path: ${{ env.INGFW }}
+          name: thingino-${{ matrix.toolchain-version }}-linux-musl_sdk-mipsel.tar.gz
+          path: ${{ env.INGTC }}
 
-      - name: Upload firmware
+      - name: Upload toolchain
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.TAG_NAME }}
-          files: ${{ env.INGFW }}
+          files: ${{ env.INGTC }}
 
-      - name: Send completion notification with binary
-        if: github.event_name != 'pull_request' && env.INGFW && env.TG_ENABLE== 'true'
+      - name: Send completion notification with job link
+        if: github.event_name != 'pull_request' && env.INGTC && env.TG_ENABLE== 'true'
         run: |
-          TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
+          TG_ESCAPED_VERSION=$(echo "${{ matrix.toolchain-version }}" | sed 's/_/\\_/g')
+          TG_MSG="${TG_ESCAPED_VERSION}\nCommit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }})\n\n"
           TG_ICON="\xE2\x9C\x85 GitHub Actions"
-          TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
-          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER}" -F document=@${INGFW} -F disable_web_page_preview=true)
+          TG_HEADER=$(echo -e "${TG_MSG}${TG_ICON}")
+          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
           echo Telegram response: ${HTTP}
+
 
       - name: Send error notification
         if: github.event_name != 'pull_request' && failure()
         run: |
-          TG_ESCAPED_VERSION=$(echo "${{ matrix.thingino-version }}" | sed 's/_/\\_/g')
+          TG_ESCAPED_VERSION=$(echo "${{ matrix.toolchain-version }}" | sed 's/_/\\_/g')
           TG_WARN="Error: ${TG_ESCAPED_VERSION}\n"
           TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
           TG_ICON="\xE2\x9A\xA0 GitHub Actions"
@@ -182,7 +156,7 @@ jobs:
           echo Telegram response: ${HTTP}
 
   notify-completion:
-    needs: [buildroot, notify-begin]
+    needs: [build-toolchain, notify-begin]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -194,7 +168,7 @@ jobs:
           ELAPSED=$((END_TIME - START_TIME))
           ELAPSED_MIN=$((ELAPSED / 60))
           ELAPSED_SEC=$((ELAPSED % 60))
-          TG_MSG="Firmware build completed:\nTotal elapsed time: ${ELAPSED_MIN}m ${ELAPSED_SEC}s\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
+          TG_MSG="Toolchain build completed:\nTotal build time: ${ELAPSED_MIN}m ${ELAPSED_SEC}s\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
           TG_ICON="\xF0\x9F\x9A\xA9 GitHub Actions"
           TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
           HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
