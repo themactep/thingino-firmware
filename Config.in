@@ -8,6 +8,8 @@ endchoice
 
 choice
 	prompt "SoC Model"
+config BR2_SOC_INGENIC_DUMMY
+	bool "TDUMMY"
 config BR2_SOC_INGENIC_T10L
 	bool "T10L"
 	select BR2_PACKAGE_INGENIC_OSDRV_T20

@@ -2,7 +2,10 @@ $(info --- FILE: external.mk ---)
 
 SOC_VENDOR := ingenic
 
-ifeq ($(BR2_SOC_INGENIC_T10L),y)
+ifeq ($(BR2_SOC_INGENIC_DUMMY),y)
+SOC_MODEL := t31x
+BR2_SOC_INGENIC_T31=y
+else ifeq ($(BR2_SOC_INGENIC_T10L),y)
 SOC_MODEL := t10l
 BR2_SOC_INGENIC_T10=y
 else ifeq ($(BR2_SOC_INGENIC_T10N),y)
