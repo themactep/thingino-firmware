@@ -1,7 +1,6 @@
 # THINGINO Firmware
 # https://github.com/themactep/thingino-firmware
 
-#BUILDROOT_VERSION := 2023.11.1
 BUILDROOT_VERSION := git
 
 # Camera IP address
@@ -20,27 +19,15 @@ BR2_DL_DIR ?= $(HOME)/dl
 
 # directory for extracting Buildroot sources
 SRC_DIR ?= $(HOME)/src
+
+# working directory
+OUTPUT_DIR ?= $(HOME)/output/$(BOARD)
+STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
+STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
+
 BUILDROOT_BUNDLE := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION).tar.gz
 BUILDROOT_REPO := https://github.com/themactep/buildroot.git
 BUILDROOT_DIR := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)-themactep
-#BUILDROOT_REPO := https://github.com/buildroot/buildroot.git
-#BUILDROOT_DIR := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)
-
-# toolchain
-ifeq ($(GCC),12)
-TOOLCHAIN_URL := https://thingino.com/dl/mipsel-buildroot-linux-musl_sdk-buildroot-gcc12-glibc235.tar.gz
-else
-TOOLCHAIN_URL := http://thingino.com/dl/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz
-GCC = 13
-endif
-
-OUTPUT_DIR = $(HOME)/output/$(BOARD)-gcc$(GCC)-br$(BUILDROOT_VERSION)
-TOOLCHAIN_DIR = $(CURDIR)/toolchain/$(GCC)
-TOOLCHAIN_BUNDLE = $(TOOLCHAIN_DIR)/$(shell basename $(TOOLCHAIN_URL))
-
-# working directory
-STDOUT_LOG = $(OUTPUT_DIR)/compilation.log
-STDERR_LOG = $(OUTPUT_DIR)/compilation-errors.log
 
 # project directories
 BR2_EXTERNAL := $(CURDIR)
@@ -176,19 +163,12 @@ ROOTFS_OFFSET = $(shell echo $$(($(KERNEL_OFFSET) + $(KERNEL_SIZE_ALIGNED) )))
 FIRMWARE_BIN_FULL_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_FULL))
 FIRMWARE_BIN_NOBOOT_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_NOBOOT))
 
-.PHONY: all toolchain sdk bootstrap clean defconfig distclean help info pack_full pack_update pad_full pad_update update_buildroot upload_tftp upload_sdcard upgrade_ota br-%
+.PHONY: all toolchain sdk bootstrap clean defconfig distclean help info pack pack_full pack_update pad_full pad_update update_buildroot upload_tftp upload_sdcard upgrade_ota br-%
 
-all: update_buildroot defconfig $(TOOLCHAIN_DIR)/.extracted
+all: update_buildroot defconfig
 ifndef BOARD
 	$(MAKE) BOARD=$(BOARD) $@
 	# 1>>$(STDOUT_LOG) 2>>$(STDERR_LOG)
-endif
-# FIXME: I think there is a better way to do that 
-ifeq ($(GCC),12)
-	sed -i 's/^BR2_TOOLCHAIN_EXTERNAL_GCC_13=y/# BR2_TOOLCHAIN_EXTERNAL_GCC_13 is not set/' $(OUTPUT_DIR)/.config; \
-	sed -i 's/^# BR2_TOOLCHAIN_EXTERNAL_GCC_12 is not set/BR2_TOOLCHAIN_EXTERNAL_GCC_12=y/' $(OUTPUT_DIR)/.config; \
-	sed -i 's/^BR2_TOOLCHAIN_GCC_AT_LEAST_13=y/# BR2_TOOLCHAIN_GCC_AT_LEAST_13 is not set/' $(OUTPUT_DIR)/.config; \
-	sed -i 's/^BR2_TOOLCHAIN_GCC_AT_LEAST="13"/BR2_TOOLCHAIN_GCC_AT_LEAST="12"/' $(OUTPUT_DIR)/.config;
 endif
 	if command -v figlet; then figlet -f pagga $(BOARD); fi;
 	$(BR2_MAKE) all
@@ -231,6 +211,12 @@ delete_bin_update:
 distclean:
 	@if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
+menuconfig:
+	$(BR2_MAKE) BR2_DEFCONFIG=$(BOARD_CONFIG) menuconfig
+	$(BR2_MAKE) BR2_DEFCONFIG=$(BOARD_CONFIG) savedefconfig
+
+pack: pack_full
+
 pack_full: defconfig $(FIRMWARE_BIN_FULL)
 	if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(SIZE_8M) ]; \
 	then \
@@ -263,10 +249,13 @@ rebuild-%:
 	$(BR2_MAKE) $(subst rebuild-,,$@)
 
 sdk: update_buildroot defconfig
+ifeq ($(GCC),12)
+	sed -i 's/^BR2_TOOLCHAIN_EXTERNAL_GCC_13=y/# BR2_TOOLCHAIN_EXTERNAL_GCC_13 is not set/' $(OUTPUT_DIR)/.config; \
+	sed -i 's/^# BR2_TOOLCHAIN_EXTERNAL_GCC_12 is not set/BR2_TOOLCHAIN_EXTERNAL_GCC_12=y/' $(OUTPUT_DIR)/.config; \
+	sed -i 's/^BR2_TOOLCHAIN_GCC_AT_LEAST_13=y/# BR2_TOOLCHAIN_GCC_AT_LEAST_13 is not set/' $(OUTPUT_DIR)/.config; \
+	sed -i 's/^BR2_TOOLCHAIN_GCC_AT_LEAST="13"/BR2_TOOLCHAIN_GCC_AT_LEAST="12"/' $(OUTPUT_DIR)/.config;
+endif
 	$(BR2_MAKE) sdk
-
-toolchain: defconfig
-	$(BR2_MAKE) toolchain
 
 update_buildroot: $(SRC_DIR)
 	if [ ! -d "$(BUILDROOT_DIR)" ]; then git clone --depth 1 $(BUILDROOT_REPO) $(BUILDROOT_DIR); fi
@@ -309,17 +298,6 @@ $(BUILDROOT_DIR)/.extracted: $(BUILDROOT_BUNDLE)
 	ls -l $(dirname $@)
 	mkdir -p $(SRC_DIR)
 	tar -C $(SRC_DIR) -xf $(BUILDROOT_BUNDLE)
-	touch $@
-
-# download toolchain
-$(TOOLCHAIN_BUNDLE):
-	mkdir -p $(TOOLCHAIN_DIR)
-	$(WGET) -O $@ $(TOOLCHAIN_URL)
-
-# extract toolchain
-$(TOOLCHAIN_DIR)/.extracted: $(TOOLCHAIN_BUNDLE)
-	tar -C $(TOOLCHAIN_DIR) -xf $(TOOLCHAIN_BUNDLE) --strip-components=1
-	cd $(TOOLCHAIN_DIR) && ./relocate-sdk.sh
 	touch $@
 
 # download bootloader
@@ -384,23 +362,6 @@ info: defconfig
 	$(info TFTP_IP_ADDRESS:    $(TFTP_IP_ADDRESS))
 	$(info U_BOOT_BIN:         $(U_BOOT_BIN))
 	$(info U_BOOT_GITHUB_URL:  $(U_BOOT_GITHUB_URL))
-#	$(info BASE_DIR:           $(BASE_DIR))
-#	$(info BASE_TARGET_DIR:    $(BASE_TARGET_DIR))
-#	$(info BINARIES_DIR:       $(BINARIES_DIR))
-#	$(info BR2_KERNEL:         $(BR2_KERNEL))
-#	$(info BUILD_DIR:          $(BUILD_DIR))
-#	$(info CONFIG_DIR:         $(CONFIG_DIR))
-#	$(info CPE_UPDATES_DIR:    $(CPE_UPDATES_DIR))
-#	$(info GRAPHS_DIR:         $(GRAPHS_DIR))
-#	$(info HOST_DIR:           $(HOST_DIR))
-#	$(info HOST_DIR_SYMLINK:   $(HOST_DIR_SYMLINK))
-#	$(info KERNEL:             $(KERNEL))
-#	$(info LEGAL_INFO_DIR:     $(LEGAL_INFO_DIR))
-#	$(info PER_PACKAGE_DIR:    $(PER_PACKAGE_DIR))
-#	$(info STAGING_DIR:        $(STAGING_DIR))
-#	$(info TARGET_DIR:         $(TARGET_DIR))
-#	$(info TOOLCHAIN:          $(TOOLCHAIN))
-#	$(info TOPDIR:             $(TOPDIR))
 	$(info =========================================================================)
 
 help:
