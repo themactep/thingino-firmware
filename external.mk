@@ -135,7 +135,10 @@ SOC_FAMILY := t41
 KERNEL_BRANCH := $(SOC_VENDOR)-t41
 endif
 
-THINGINO_KERNEL = "https://github.com/gtxaspec/openipc_linux/archive/$(KERNEL_BRANCH).tar.gz"
+KERNEL_SITE = https://github.com/gtxaspec/openipc_linux
+KERNEL_HASH = $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
+THINGINO_KERNEL = https://github.com/gtxaspec/openipc_linux/archive/$(KERNEL_HASH).tar.gz
+THINGINO_TOOLCHAIN = https://github.com/themactep/thingino-firmware/releases/download/toolchain/thingino-toolchain_xburst1_musl_gcc13-linux-mipsel.tar.gz
 
 SOC_MODEL_LESS_Z = $(subst z,,$(SOC_MODEL))
 
@@ -144,6 +147,7 @@ export SOC_FAMILY
 export SOC_MODEL
 export SOC_MODEL_LESS_Z
 export THINGINO_KERNEL
+export THINGINO_TOOLCHAIN
 
 ifneq ($(BR2_SOC_INGENIC_DUMMY),y)
 # include makefiles from packages
