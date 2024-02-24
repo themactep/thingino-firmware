@@ -36,7 +36,7 @@ SCRIPTS_DIR := $(CURDIR)/scripts
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BUILDROOT_DIR) BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
 
-BOARDS = $(shell find ./configs/*_defconfig | sort | sed -E "s/^\.\/configs\/(.*)_defconfig/'\1' '\1'/")
+BOARDS = $(shell find ./configs/*_defconfig | grep -v "\(_generic\|toolchain_\)" | sort | sed -E "s/^\.\/configs\/(.*)_defconfig/'\1' '\1'/")
 
 # check BOARD value from env
 # if empty, check for journal
