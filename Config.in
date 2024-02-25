@@ -140,6 +140,17 @@ config BR2_THINGINO_SYSTEM_PACKAGES
 	  include essential system setup.
 	  https://github.com/thingino/firmware
 
+config BR2_THINGINO_WIRELESS_PACKAGES
+	bool "THINGINO Wireless Packages"
+	select BR2_PACKAGE_WIRELESS_TOOLS
+	select BR2_PACKAGE_WPA_SUPPLICANT
+	select BR2_PACKAGE_WPA_SUPPLICANT_PASSPHRASE
+	help
+	  THINGINO Wireless Packages
+	  include essentials for a wirless connection.
+	  You still need to add a Wi-Fi driver!
+	  https://github.com/thingino/firmware
+
 config BR2_THINGINO_EXTRA_PACKAGES
 	bool "THINGINO Extra Packages"
 	select BR2_PACKAGE_CAPJPEG
