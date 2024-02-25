@@ -90,7 +90,7 @@ include $(BR2_EXTERNAL)/external.mk
 WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=3
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
-U_BOOT_BIN  = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL).bin
+U_BOOT_BIN  = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL_LESS_Z).bin
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
