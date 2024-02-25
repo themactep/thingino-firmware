@@ -7,4 +7,3 @@ config BR2_PACKAGE_INGENIC_OPENSDK
 
 comment "INGENIC_OPENSDK needs a Linux kernel to be built"
 	depends on !BR2_LINUX_KERNEL
-
