@@ -96,10 +96,21 @@ ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 
 # create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
-FIRMWARE_NAME_FULL = thingino-$(BOARD)-$(shell date -u +%Y%m%d%H%M -d @$(shell printf '%d\n' $(shell stat -c%Y $(U_BOOT_BIN)) $(shell stat -c%Y $(KERNEL_BIN)) $(shell stat -c%Y $(ROOTFS_BIN)) | sort -gr | head -1)).bin
+FIRMWARE_NAME_FULL = thingino-$(BOARD)-$(shell \
+    U_BOOT_DATE=$$(if [ -f $(U_BOOT_BIN) ]; then stat -c%Y $(U_BOOT_BIN); else echo 0; fi); \
+    KERNEL_DATE=$$(if [ -f $(KERNEL_BIN) ]; then stat -c%Y $(KERNEL_BIN); else echo 0; fi); \
+    ROOTFS_DATE=$$(if [ -f $(ROOTFS_BIN) ]; then stat -c%Y $(ROOTFS_BIN); else echo 0; fi); \
+    LATEST_DATE=$$(printf '%d\n' $$U_BOOT_DATE $$KERNEL_DATE $$ROOTFS_DATE | sort -gr | head -1); \
+    if [ $$LATEST_DATE -eq 0 ]; then echo "missing"; else date -u +%Y%m%d%H%M -d @$$LATEST_DATE; fi).bin
+
 FIRMWARE_BIN_FULL = $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_FULL)
 
-FIRMWARE_NAME_NOBOOT = thingino-$(BOARD)-$(shell date -u +%Y%m%d%H%M -d @$(shell printf '%d\n' $(shell stat -c%Y $(U_BOOT_BIN)) $(shell stat -c%Y $(KERNEL_BIN)) $(shell stat -c%Y $(ROOTFS_BIN)) | sort -gr | head -1))-update.bin
+FIRMWARE_NAME_NOBOOT = thingino-$(BOARD)-$(shell \
+    KERNEL_DATE=$$(if [ -f $(KERNEL_BIN) ]; then stat -c%Y $(KERNEL_BIN); else echo 0; fi); \
+    ROOTFS_DATE=$$(if [ -f $(ROOTFS_BIN) ]; then stat -c%Y $(ROOTFS_BIN); else echo 0; fi); \
+    LATEST_DATE=$$(printf '%d\n' $$KERNEL_DATE $$ROOTFS_DATE | sort -gr | head -1); \
+    if [ $$LATEST_DATE -eq 0 ]; then echo "missing"; else date -u +%Y%m%d%H%M -d @$$LATEST_DATE; fi)-update.bin
+
 FIRMWARE_BIN_NOBOOT = $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_NOBOOT)
 
 # 0x0008000б 32K, 32_768
