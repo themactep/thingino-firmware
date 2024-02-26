@@ -179,11 +179,10 @@ FIRMWARE_BIN_NOBOOT_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_NOBOOT))
 all: update_buildroot defconfig
 ifndef BOARD
 	$(MAKE) BOARD=$(BOARD) $@
-	# 1>>$(STDOUT_LOG) 2>>$(STDERR_LOG)
 endif
-	if command -v figlet; then figlet -f pagga $(BOARD); fi;
+	@if command -v figlet >/dev/null; then figlet -f pagga $(BOARD); fi;
 	$(BR2_MAKE) all
-	# 1>>$(STDOUT_LOG) 2>>$(STDERR_LOG)
+	@if command -v figlet >/dev/null; then figlet -f pagga "FINE"; fi;	
 
 # delete all build/{package} and per-package/{package} files
 br-%-dirclean: defconfig
