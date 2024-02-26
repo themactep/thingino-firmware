@@ -1,7 +1,7 @@
 ## Thingino
 
 [![toolchain](https://github.com/themactep/thingino-firmware/actions/workflows/toolchain.yaml/badge.svg)](https://github.com/themactep/thingino-firmware/actions/workflows/toolchain.yaml)
-[![build](https://github.com/themactep/thingino-firmware/actions/workflows/build.yaml/badge.svg)](https://github.com/themactep/thingino-firmware/actions/workflows/build.yaml)
+[![firmware](https://github.com/themactep/thingino-firmware/actions/workflows/firmware.yaml/badge.svg)](https://github.com/themactep/thingino-firmware/actions/workflows/firmware.yaml)
 
 ![thingino logo](https://thingino.com/a/logo.svg)
 
