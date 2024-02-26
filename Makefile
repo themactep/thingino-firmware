@@ -269,6 +269,7 @@ endif
 	$(BR2_MAKE) sdk
 
 update_buildroot: $(SRC_DIR)
+	if [ !-d "$(SRC_DIR)" ]; then mkdir -p "$(SRC_DIR)"; fi
 	if [ ! -d "$(BUILDROOT_DIR)" ]; then git clone --depth 1 $(BUILDROOT_REPO) $(BUILDROOT_DIR); fi
 	cd $(BUILDROOT_DIR) && git pull && echo "Buildroot updated"
 
