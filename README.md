@@ -1,5 +1,8 @@
 ## Thingino
 
+[![toolchain](https://github.com/themactep/thingino-firmware/actions/workflows/toolchain.yaml/badge.svg)](https://github.com/themactep/thingino-firmware/actions/workflows/toolchain.yaml)
+[![build](https://github.com/themactep/thingino-firmware/actions/workflows/build.yaml/badge.svg)](https://github.com/themactep/thingino-firmware/actions/workflows/build.yaml)
+
 ![thingino logo](https://thingino.com/a/logo.svg)
 
 IPC firmware, derived from [OpenIPC][1] and focused on Ingenic SoC.
