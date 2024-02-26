@@ -5,7 +5,7 @@
 ################################################################################
 
 ATBM60XX_SITE_METHOD = git
-ATBM60XX_SITE = https://github.com/openipc/atbm_60xx
+ATBM60XX_SITE = https://github.com/gtxaspec/atbm60xx
 ATBM60XX_VERSION = $(shell git ls-remote $(ATBM60XX_SITE) HEAD | head -1 | cut -f1)
 
 ATBM60XX_LICENSE = GPL-2.0
