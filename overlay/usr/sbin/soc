@@ -22,6 +22,7 @@ print_wiki_line() {
 
 print_soc_family() {
 	read_registers
+	[ "$cpuid" -eq $((0x0005)) ] && cpuid=0x10
 	[ "$cpuid" -eq $((0x2000)) ] && cpuid=0x20
 	printf 't%X\n' $cpuid
 }
