@@ -1,116 +1,110 @@
 menu "THINGINO firmware"
 
 choice
-	prompt "SoC Vendor"
-config BR2_SOC_INGENIC
-	bool "Ingenic"
-endchoice
-
-choice
 	prompt "SoC Model"
 config BR2_SOC_INGENIC_DUMMY
-	bool "TDUMMY"
+	bool "Dummy (for toolchain)"
 config BR2_SOC_INGENIC_T10L
-	bool "T10L"
+	bool "Ingenic T10L"
 	select BR2_PACKAGE_INGENIC_OSDRV_T20
 config BR2_SOC_INGENIC_T10N
-	bool "T10N"
+	bool "Ingenic T10N"
 	select BR2_PACKAGE_INGENIC_OSDRV_T20
 config BR2_SOC_INGENIC_T10A
-	bool "T10A"
+	bool "Ingenic T10A"
 	select BR2_PACKAGE_INGENIC_OSDRV_T20
 config BR2_SOC_INGENIC_T20L
-	bool "T20L"
+	bool "Ingenic T20L"
 	select BR2_PACKAGE_INGENIC_OSDRV_T20
 config BR2_SOC_INGENIC_T20N
-	bool "T20N"
+	bool "Ingenic T20N"
 	select BR2_PACKAGE_INGENIC_OSDRV_T20
 config BR2_SOC_INGENIC_T20X
-	bool "T20X"
+	bool "Ingenic T20X"
 	select BR2_PACKAGE_INGENIC_OSDRV_T20
 config BR2_SOC_INGENIC_T21L
-	bool "T21L"
+	bool "Ingenic T21L"
 	select BR2_PACKAGE_INGENIC_OSDRV_T21
 config BR2_SOC_INGENIC_T21N
-	bool "T21N"
+	bool "Ingenic T21N"
 	select BR2_PACKAGE_INGENIC_OSDRV_T21
 config BR2_SOC_INGENIC_T21X
-	bool "T21X"
+	bool "Ingenic T21X"
 	select BR2_PACKAGE_INGENIC_OSDRV_T21
 config BR2_SOC_INGENIC_T21Z
-	bool "T21Z"
+	bool "Ingenic T21Z"
 	select BR2_PACKAGE_INGENIC_OSDRV_T21
 config BR2_SOC_INGENIC_T21ZL
-	bool "T21ZL"
+	bool "Ingenic T21ZL"
 	select BR2_PACKAGE_INGENIC_OSDRV_T21
 config BR2_SOC_INGENIC_T23N
-	bool "T23N"
+	bool "Ingenic T23N"
 	select BR2_PACKAGE_INGENIC_OSDRV_T23
 config BR2_SOC_INGENIC_T23ZN
-	bool "T23ZN"
+	bool "Ingenic T23ZN"
 	select BR2_PACKAGE_INGENIC_OSDRV_T23
 config BR2_SOC_INGENIC_T30L
-	bool "T30L"
+	bool "Ingenic T30L"
 	select BR2_PACKAGE_INGENIC_OSDRV_T30
 config BR2_SOC_INGENIC_T30N
-	bool "T30N"
+	bool "Ingenic T30N"
 	select BR2_PACKAGE_INGENIC_OSDRV_T30
 config BR2_SOC_INGENIC_T30X
-	bool "T30X"
+	bool "Ingenic T30X"
 	select BR2_PACKAGE_INGENIC_OSDRV_T30
 config BR2_SOC_INGENIC_T30A
-	bool "T30A"
+	bool "Ingenic T30A"
 	select BR2_PACKAGE_INGENIC_OSDRV_T30
 config BR2_SOC_INGENIC_T31L
-	bool "T31L"
+	bool "Ingenic T31L"
 	select BR2_PACKAGE_INGENIC_OSDRV_T31
 config BR2_SOC_INGENIC_T31N
-	bool "T31N"
+	bool "Ingenic T31N"
 	select BR2_PACKAGE_INGENIC_OSDRV_T31
 config BR2_SOC_INGENIC_T31X
-	bool "T31X"
+	bool "Ingenic T31X"
 	select BR2_PACKAGE_INGENIC_OSDRV_T31
 config BR2_SOC_INGENIC_T31A
-	bool "T31A"
+	bool "Ingenic T31A"
 	select BR2_PACKAGE_INGENIC_OSDRV_T31
 config BR2_SOC_INGENIC_T31AL
-	bool "T31AL"
+	bool "Ingenic T31AL"
 	select BR2_PACKAGE_INGENIC_OSDRV_T31
 config BR2_SOC_INGENIC_T31ZL
-	bool "T31ZL"
+	bool "Ingenic T31ZL"
 	select BR2_PACKAGE_INGENIC_OSDRV_T31
 config BR2_SOC_INGENIC_T31ZX
-	bool "T31ZX"
+	bool "Ingenic T31ZX"
 	select BR2_PACKAGE_INGENIC_OSDRV_T31
 config BR2_SOC_INGENIC_T31XL
-	bool "T31XL"
+	bool "Ingenic T31XL"
 	select BR2_PACKAGE_INGENIC_OSDRV_T31
 config BR2_SOC_INGENIC_T40N
-	bool "T40N"
+	bool "Ingenic T40N"
 	select BR2_PACKAGE_INGENIC_OSDRV_T40
 config BR2_SOC_INGENIC_T40XP
-	bool "T40XP"
+	bool "Ingenic T40XP"
 	select BR2_PACKAGE_INGENIC_OSDRV_T40
 config BR2_SOC_INGENIC_T40A
-	bool "T40A"
+	bool "Ingenic T40A"
 	select BR2_PACKAGE_INGENIC_OSDRV_T40
 config BR2_SOC_INGENIC_T41LQ
-	bool "T41LQ"
+	bool "Ingenic T41LQ"
 	select BR2_PACKAGE_INGENIC_OSDRV_T41
 config BR2_SOC_INGENIC_T41NQ
-	bool "T41NQ"
+	bool "Ingenic T41NQ"
 	select BR2_PACKAGE_INGENIC_OSDRV_T41
 config BR2_SOC_INGENIC_T41ZL
-	bool "T41ZL"
+	bool "Ingenic T41ZL"
 	select BR2_PACKAGE_INGENIC_OSDRV_T41
 config BR2_SOC_INGENIC_T41ZN
-	bool "T41ZN"
+	bool "Ingenic T41ZN"
 	select BR2_PACKAGE_INGENIC_OSDRV_T41
 config BR2_SOC_INGENIC_T41ZX
-	bool "T41ZX"
+	bool "Ingenic T41ZX"
 	select BR2_PACKAGE_INGENIC_OSDRV_T41
 config BR2_SOC_INGENIC_T41A
-	bool "T41A"
+	bool "Ingenic T41A"
 	select BR2_PACKAGE_INGENIC_OSDRV_T41
 endchoice
 
@@ -118,7 +112,7 @@ config BR2_SENSOR_MODEL
 	string "Image sensor model"
 
 config BR2_THINGINO_SYSTEM_PACKAGES
-	bool "THINGINO System Packages"
+	bool "Thingino System Packages"
 	select BR2_PACKAGE_DROPBEAR
 	select BR2_PACKAGE_INGENIC_DIAG_TOOLS
 	select BR2_PACKAGE_INGENIC_OPENSDK
@@ -141,7 +135,7 @@ config BR2_THINGINO_SYSTEM_PACKAGES
 	  https://github.com/thingino/firmware
 
 config BR2_THINGINO_WIRELESS_PACKAGES
-	bool "THINGINO Wireless Packages"
+	bool "Thingino Wireless Packages"
 	select BR2_PACKAGE_WIRELESS_TOOLS
 	select BR2_PACKAGE_WPA_SUPPLICANT
 	select BR2_PACKAGE_WPA_SUPPLICANT_PASSPHRASE
@@ -152,7 +146,7 @@ config BR2_THINGINO_WIRELESS_PACKAGES
 	  https://github.com/thingino/firmware
 
 config BR2_THINGINO_EXTRA_PACKAGES
-	bool "THINGINO Extra Packages"
+	bool "Thingino Extra Packages"
 	select BR2_PACKAGE_CAPJPEG
 	select BR2_PACKAGE_FDK_AAC_OPENIPC
 	select BR2_PACKAGE_IFUPDOWN_SCRIPTS
@@ -178,7 +172,7 @@ config BR2_THINGINO_EXTRA_PACKAGES
 	  https://github.com/thingino/firmware
 
 config BR2_THINGINO_DEV_PACKAGES
-	bool "THINGINO Development Packages"
+	bool "Thingino Development Packages"
 	select BR2_PACKAGE_GDB
 	select BR2_PACKAGE_HOST_GDB
 	select BR2_PACKAGE_LOGCAT
