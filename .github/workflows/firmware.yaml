@@ -1,9 +1,9 @@
-name: build
+name: firmware
 on:
   schedule:
     - cron:  '15 09 * * *'
   workflow_dispatch:
-  
+
 env:
   TAG_NAME: firmware
   TERM: linux
