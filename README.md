@@ -14,9 +14,11 @@ make
 
 ### Resources
 
+- Project [Wiki][0]
 - Buildroot Manual [HTML][2] [PDF][3]
 - [OpenIPC Firmware][1]
 
+[0]: https://github.com/themactep/thingino-firmware/wiki
 [1]: https://github.com/OpenIPC/firmware
 [2]: https://buildroot.org/downloads/manual/manual.html
 [3]: https://nightly.buildroot.org/manual.pdf
