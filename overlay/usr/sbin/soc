@@ -22,8 +22,10 @@ print_wiki_line() {
 
 print_soc_family() {
 	read_registers
-	[ "$cpuid" -eq $((0x0005)) ] && cpuid=0x10
-	[ "$cpuid" -eq $((0x2000)) ] && cpuid=0x20
+	case "$cpuid" in
+		5) cpuid=0x10 ;;
+		8192) cpuid=0x20 ;;  
+	esac
 	printf 't%X\n' $cpuid
 }
 
