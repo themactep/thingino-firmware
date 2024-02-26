@@ -9,7 +9,7 @@ define RAPTOR_IPC_BUILD_CMDS
 	$(MAKE) $(RAPTOR_IPC_MAKE_OPTS) CROSS_COMPILE=$(TARGET_CROSS) \
 		TARGET=$(SOC_FAMILY) \
 		SOC_FAMILY=$(shell echo $(SOC_FAMILY) | tr a-z A-Z) \
-		SENSOR_MODEL=$(shell echo $(BR2_SENSOR_MODEL) | tr a-z A-Z) \
+		SENSOR_MODEL=$(shell echo $(SENSOR_MODEL) | tr a-z A-Z) \
 		-C $(@D)
 endef
 
