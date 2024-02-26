@@ -45,7 +45,7 @@ case "$1" in
 		>$tmpfile
 		[ -n "$domain" ] && echo "search $domain" >>$tmpfile
 		for i in $dns; do
-			echo " Adding DNS server $i"
+			echo "Adding DNS server $i"
 			echo "nameserver $i" >>$tmpfile
 		done
 		mv $tmpfile $realconf
