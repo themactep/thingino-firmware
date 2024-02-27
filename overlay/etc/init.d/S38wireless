@@ -27,17 +27,17 @@ start() {
 		fi
 	fi
 
-	# Assume that we are SDIO, and we need to insert
-	if ! mmc 1; then
-		echo "Failed to initialize SDIO device"
-		exit 1
-	fi
-
 	if [ "$wlandev" = "rndis_host" ]; then
 		if ! modprobe usbserial; then
 			echo "Failed to load usbserial module for $modulename"
 			exit 1
 		fi
+	fi
+
+	# Assume that we are SDIO, and we need to insert
+	if ! mmc 1; then
+		echo "Failed to initialize SDIO device"
+		# exit 1
 	fi
 
 	if ! lsmod | grep -q "$modulename"; then
