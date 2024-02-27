@@ -182,7 +182,7 @@ ifndef BOARD
 endif
 	@if command -v figlet >/dev/null; then figlet -f pagga $(BOARD); fi;
 	$(BR2_MAKE) all
-	@if command -v figlet >/dev/null; then figlet -f pagga "FINE"; fi;	
+	@if command -v figlet >/dev/null; then figlet -f pagga "FINE"; fi;
 
 # delete all build/{package} and per-package/{package} files
 br-%-dirclean: defconfig
@@ -268,9 +268,9 @@ endif
 	$(BR2_MAKE) sdk
 
 update_buildroot: $(SRC_DIR)
-	if [ ! -d "$(SRC_DIR)" ]; then mkdir -p "$(SRC_DIR)"; fi
-	if [ ! -d "$(BUILDROOT_DIR)" ]; then git clone --depth 1 $(BUILDROOT_REPO) $(BUILDROOT_DIR); fi
-	cd $(BUILDROOT_DIR) && git pull && echo "Buildroot updated"
+	@if [ ! -d "$(SRC_DIR)" ]; then mkdir -p "$(SRC_DIR)"; fi
+	@if [ ! -d "$(BUILDROOT_DIR)" ]; then git clone --depth 1 $(BUILDROOT_REPO) $(BUILDROOT_DIR); fi
+	@cd $(BUILDROOT_DIR) && git pull && echo "Buildroot updated"
 
 update_ota: pack_update
 	scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -O $(FIRMWARE_BIN_NOBOOT) root@$(CAMERA_IP_ADDRESS):/tmp/fwupdate.bin
