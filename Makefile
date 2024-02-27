@@ -1,4 +1,4 @@
-# THINGINO Firmware
+# Thingino Firmware
 # https://github.com/themactep/thingino-firmware
 
 BUILDROOT_VERSION := git
