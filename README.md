@@ -10,7 +10,7 @@ IPC firmware, derived from [OpenIPC][1] and focused on Ingenic SoC.
 ### Usage
 
 ```
-git clone https://github.com/themactep/thingino-firmware
+git clone --recurse-submodules https://github.com/themactep/thingino-firmware
 cd thingino-firmware
 make
 ```
