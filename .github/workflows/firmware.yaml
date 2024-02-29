@@ -62,6 +62,8 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+        with:
+          submodules: 'true' 
 
       - name: Setup ccache
         uses: actions/cache@v4
