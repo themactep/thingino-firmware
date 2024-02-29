@@ -1,8 +1,6 @@
 # Thingino Firmware
 # https://github.com/themactep/thingino-firmware
 
-BUILDROOT_VERSION := git
-
 # Camera IP address
 CAMERA_IP_ADDRESS ?= 192.168.1.10
 
@@ -25,16 +23,12 @@ OUTPUT_DIR ?= $(HOME)/output/$(BOARD)
 STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
 STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
 
-BUILDROOT_BUNDLE := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION).tar.gz
-BUILDROOT_REPO := https://github.com/themactep/buildroot.git
-BUILDROOT_DIR := $(SRC_DIR)/buildroot-$(BUILDROOT_VERSION)-themactep
-
 # project directories
 BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(CURDIR)/scripts
 
 # make command for buildroot
-BR2_MAKE = $(MAKE) -C $(BUILDROOT_DIR) BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
+BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
 
 BOARDS = $(shell find ./configs/*_defconfig | grep -v "\(_generic\|toolchain_\)" | sort | sed -E "s/^\.\/configs\/(.*)_defconfig/'\1' '\1'/")
 
@@ -174,9 +168,9 @@ ROOTFS_OFFSET = $(shell echo $$(($(KERNEL_OFFSET) + $(KERNEL_SIZE_ALIGNED) )))
 FIRMWARE_BIN_FULL_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_FULL))
 FIRMWARE_BIN_NOBOOT_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_NOBOOT))
 
-.PHONY: all toolchain sdk bootstrap clean defconfig distclean help info pack pack_full pack_update pad pad_full pad_update update_buildroot upload_tftp upload_sdcard upgrade_ota br-%
+.PHONY: all toolchain sdk bootstrap clean defconfig distclean help info pack pack_full pack_update pad pad_full pad_update upload_tftp upload_sdcard upgrade_ota br-%
 
-all: update_buildroot defconfig
+all: defconfig
 ifndef BOARD
 	$(MAKE) BOARD=$(BOARD) $@
 endif
@@ -208,7 +202,7 @@ endif
 clean: defconfig
 	@rm -rf $(OUTPUT_DIR)/target $(OUTPUT_DIR)/.config
 
-defconfig: $(BUILDROOT_DIR)
+defconfig:
 	@rm -rvf $(OUTPUT_DIR)/.config
 	$(BR2_MAKE) BR2_DEFCONFIG=$(BOARD_CONFIG) defconfig
 
@@ -260,7 +254,7 @@ rebuild-%:
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean
 	$(BR2_MAKE) $(subst rebuild-,,$@)
 
-sdk: update_buildroot defconfig
+sdk: defconfig
 ifeq ($(GCC),12)
 	sed -i 's/^BR2_TOOLCHAIN_EXTERNAL_GCC_13=y/# BR2_TOOLCHAIN_EXTERNAL_GCC_13 is not set/' $(OUTPUT_DIR)/.config; \
 	sed -i 's/^# BR2_TOOLCHAIN_EXTERNAL_GCC_12 is not set/BR2_TOOLCHAIN_EXTERNAL_GCC_12=y/' $(OUTPUT_DIR)/.config; \
@@ -268,11 +262,6 @@ ifeq ($(GCC),12)
 	sed -i 's/^BR2_TOOLCHAIN_GCC_AT_LEAST="13"/BR2_TOOLCHAIN_GCC_AT_LEAST="12"/' $(OUTPUT_DIR)/.config;
 endif
 	$(BR2_MAKE) sdk
-
-update_buildroot: $(SRC_DIR)
-	@if [ ! -d "$(SRC_DIR)" ]; then mkdir -p "$(SRC_DIR)"; fi
-	@if [ ! -d "$(BUILDROOT_DIR)" ]; then git clone --depth 1 $(BUILDROOT_REPO) $(BUILDROOT_DIR); fi
-	@cd $(BUILDROOT_DIR) && git pull && echo "Buildroot updated"
 
 update_ota: pack_update
 	scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -O $(FIRMWARE_BIN_NOBOOT) root@$(CAMERA_IP_ADDRESS):/tmp/fwupdate.bin
@@ -300,18 +289,6 @@ $(OUTPUT_DIR):
 # create source directory
 $(SRC_DIR):
 	mkdir -p $(SRC_DIR)
-
-# download Buildroot bundle
-$(BUILDROOT_BUNDLE):
-	$(WGET) -O $@ https://github.com/buildroot/buildroot/archive/refs/tags/$(BUILDROOT_VERSION).tar.gz
-	#https://github.com/buildroot/buildroot/archive/refs/heads/master.zip
-
-# install Buildroot sources from bundle
-$(BUILDROOT_DIR)/.extracted: $(BUILDROOT_BUNDLE)
-	ls -l $(dirname $@)
-	mkdir -p $(SRC_DIR)
-	tar -C $(SRC_DIR) -xf $(BUILDROOT_BUNDLE)
-	touch $@
 
 # download bootloader
 $(U_BOOT_BIN):
@@ -359,9 +336,6 @@ info: defconfig
 	$(info BR2_EXTERNAL:       $(BR2_EXTERNAL))
 	$(info BR2_MAKE:           $(BR2_MAKE))
 	$(info BR2_SENSOR_MODEL:   $(BR2_SENSOR_MODEL))
-	$(info BUILDROOT_BUNDLE:   $(BUILDROOT_BUNDLE))
-	$(info BUILDROOT_DIR:      $(BUILDROOT_DIR))
-	$(info BUILDROOT_VERSION:  $(BUILDROOT_VERSION))
 	$(info CAMERA_IP_ADDRESS:  $(CAMERA_IP_ADDRESS))
 	$(info CURDIR:             $(CURDIR))
 	$(info SOC_FAMILY:         $(SOC_FAMILY))
@@ -389,7 +363,6 @@ help:
 	  - make pad_update   - pad the update firmware file with zeroes to 16MB\n\
 	  - make clean        - cleaning before reassembly\n\
 	  - make distclean    - switching to the factory state\n\
-	  - make prepare      - download and unpack buildroot\n\
 	  - make info         - write to stdout information about selected board\n\
 	  - make upgrade_ota CAMERA_IP_ADDRESS=192.168.1.10\n\
                       - upload the full firmware file to the camera over network, and flash it\n\
