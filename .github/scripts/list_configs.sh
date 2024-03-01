@@ -2,7 +2,7 @@
 cd configs || exit
 
 # Array of strings to exclude
-exclude_patterns=("t23" "n23" "toolchain")
+exclude_patterns=("t23" "n23" "toolchain" "build_cache")
 
 # Build the grep pattern to exclude files
 exclude_pattern=$(printf "|%s" "${exclude_patterns[@]}")
