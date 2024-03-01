@@ -1,7 +1,8 @@
 name: toolchain
 on:
   schedule:
-    - cron:  '15 09 * * 0'
+    # 00:15 PST / Sunday
+    - cron:  '15 08 * * 0'
   workflow_dispatch:
 
 env:
@@ -45,16 +46,27 @@ jobs:
           - toolchain_xburst1_gnu_gcc12
 
     steps:
-      - name: Build cache validity
-        id: date
-        run: |
-          echo "WEEK_NUMBER=$(date +%U)" >> $GITHUB_ENV
-          echo "CURRENT_YEAR=$(date +%Y)" >> $GITHUB_ENV
-
       - name: Checkout source
         uses: actions/checkout@v4
         with:
           submodules: 'true'
+
+      - name: Setup Environment
+        id: date
+        run: |
+          echo "WEEK_NUMBER=$(date +%U)" >> $GITHUB_ENV
+          echo "CURRENT_YEAR=$(date +%Y)" >> $GITHUB_ENV
+          export GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})
+          export GIT_BRANCH=${GITHUB_REF_NAME}
+          echo "GIT_HASH=${GIT_HASH}" >> ${GITHUB_ENV}
+          echo "GIT_BRANCH=${GIT_BRANCH}" >> ${GITHUB_ENV}
+
+      - name: Setup cache directories
+        run: |
+          mkdir -p /tmp/ccache
+          mkdir -p /tmp/dl
+          ln -s /tmp/ccache ${HOME}/.ccache
+          ln -s /tmp/dl ${HOME}/dl
 
       - name: Setup ccache
         uses: actions/cache@v4
@@ -70,9 +82,9 @@ jobs:
         if: always()
         with:
           path: /tmp/dl
-          key: ${{ runner.os }}-toolchain-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
+          key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
           restore-keys: |
-            ${{ runner.os }}-toolchain-shared-v1-${{ env.CURRENT_YEAR }}-week-
+            ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-
 
       - name: Setup repo sources for GCC13
         run: |
@@ -101,16 +113,6 @@ jobs:
 
       - name: Build toolchain
         run: |
-          export GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})
-          export GIT_BRANCH=${GITHUB_REF_NAME}
-          echo "GIT_HASH=${GIT_HASH}" >> ${GITHUB_ENV}
-          echo "GIT_BRANCH=${GIT_BRANCH}" >> ${GITHUB_ENV}
-
-          mkdir -p /tmp/ccache
-          mkdir -p /tmp/dl
-          ln -s /tmp/ccache ${HOME}/.ccache
-          ln -s /tmp/dl ${HOME}/dl
-
           BOARD=${{ matrix.toolchain-version }} make sdk
 
           TIME=$(date -d @${SECONDS} +%M:%S)
