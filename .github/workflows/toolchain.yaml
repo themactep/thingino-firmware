@@ -3,7 +3,7 @@ on:
   schedule:
     - cron:  '15 09 * * 0'
   workflow_dispatch:
-  
+
 env:
   TAG_NAME: toolchain
   TERM: linux
@@ -45,8 +45,16 @@ jobs:
           - toolchain_xburst1_gnu_gcc12
 
     steps:
+      - name: Build cache validity
+        id: date
+        run: |
+          echo "WEEK_NUMBER=$(date +%U)" >> $GITHUB_ENV
+          echo "CURRENT_YEAR=$(date +%Y)" >> $GITHUB_ENV
+
       - name: Checkout source
         uses: actions/checkout@v4
+        with:
+          submodules: 'true'
 
       - name: Setup ccache
         uses: actions/cache@v4
@@ -62,10 +70,9 @@ jobs:
         if: always()
         with:
           path: /tmp/dl
-          key: ${{ runner.os }}-toolchain-dl-shared-v1
-          # Use a broad restore-keys to always use the latest available cache but with consideration to os
+          key: ${{ runner.os }}-toolchain-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
           restore-keys: |
-            ${{ runner.os }}-toolchain-dl-shared-
+            ${{ runner.os }}-toolchain-shared-v1-${{ env.CURRENT_YEAR }}-week-
 
       - name: Setup repo sources for GCC13
         run: |
