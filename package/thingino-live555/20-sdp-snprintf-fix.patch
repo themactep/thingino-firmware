@@ -1,0 +1,87 @@
+--- a/liveMedia/ServerMediaSession.cpp	2021-05-03 08:42:11.000000000 -0500
++++ b/liveMedia/ServerMediaSession.cpp	2023-01-18 20:44:55.477817187 -0600
+@@ -270,40 +270,46 @@
+     }
+ 
+     char const* const sdpPrefixFmt =
+-      "v=0\r\n"
+-      "o=- %ld%06ld %d IN %s %s\r\n"
+-      "s=%s\r\n"
+-      "i=%s\r\n"
+-      "t=0 0\r\n"
+-      "a=tool:%s%s\r\n"
+-      "a=type:broadcast\r\n"
+-      "a=control:*\r\n"
+-      "%s"
+-      "%s"
+-      "a=x-qt-text-nam:%s\r\n"
+-      "a=x-qt-text-inf:%s\r\n"
+-      "%s";
+-    sdpLength += strlen(sdpPrefixFmt)
+-      + 20 + 6 + 20 + 3/*IP4 or IP6*/ + ipAddressStrSize
+-      + strlen(fDescriptionSDPString)
+-      + strlen(fInfoSDPString)
+-      + strlen(libNameStr) + strlen(libVersionStr)
+-      + strlen(sourceFilterLine)
+-      + strlen(rangeLine)
+-      + strlen(fDescriptionSDPString)
+-      + strlen(fInfoSDPString)
+-      + strlen(fMiscSDPLines);
++      "v=0\r\n";
++//      "o=- %d%d %d IN %s";// %s\r\n";
++//      "s=%s\r\n"
++//      "i=%s\r\n"
++//      "t=0 0\r\n"
++//      "a=tool:%s%s\r\n"
++//      "a=type:broadcast\r\n"
++//      "a=control:*\r\n"  //<-- To here is still sent
++//      "%s"  // source filter line
++//      "%s" // range line
++//      "a=x-qt-text-nam:%s\r\n"
++//      "a=x-qt-text-inf:%s\r\n"
++//      "%s";
++//    sdpLength += strlen(sdpPrefixFmt)
++//      + 20 + 6 + 20 + 3/*IP4 or IP6*/ + ipAddressStrSize
++//      + strlen(fDescriptionSDPString)
++//      + strlen(fInfoSDPString)
++//      + strlen(libNameStr) + strlen(libVersionStr)
++//      + strlen(sourceFilterLine)
++//      + strlen(rangeLine)
++//      + strlen(fDescriptionSDPString)
++//      + strlen(fInfoSDPString)
++//      + strlen(fMiscSDPLines); 
++sdpLength=10000;
+     sdpLength += 1000; // in case the length of the "subsession->sdpLines()" calls below change
+     sdp = new char[sdpLength];
+     if (sdp == NULL) break;
+ 
+     // Generate the SDP prefix (session-level lines):
+-    snprintf(sdp, sdpLength, sdpPrefixFmt,
+-	     fCreationTime.tv_sec, fCreationTime.tv_usec, // o= <session id>
+-	     1, // o= <version> // (needs to change if params are modified)
+-	     addressFamily == AF_INET ? "IP4" : "IP6", // o= <address family>
+-	     ipAddressStr.val(), // o= <address>
+-	     fDescriptionSDPString, // s= <description>
++    snprintf(sdp, sdpLength, sdpPrefixFmt);//,
++
++
++//  COMMENTING THIS STUFF OUT BECAUSE SNPRINTF IS CRASHING ON MUSL/MIPS
++//  seems to stream and work anyway
++//
++//	     fCreationTime.tv_sec, fCreationTime.tv_usec, // o= <session id>
++//	     1, // o= <version> // (needs to change if params are modified)
++//	     addressFamily == AF_INET ? "IP4" : "IP6");//, // o= <address family>
++//	     ipAddressStr.val(), // o= <address>
++/*	     fDescriptionSDPString, // s= <description>
+ 	     fInfoSDPString, // i= <info>
+ 	     libNameStr, libVersionStr, // a=tool:
+ 	     sourceFilterLine, // a=source-filter: incl (if a SSM session)
+@@ -311,7 +317,7 @@
+ 	     fDescriptionSDPString, // a=x-qt-text-nam: line
+ 	     fInfoSDPString, // a=x-qt-text-inf: line
+ 	     fMiscSDPLines); // miscellaneous session SDP lines (if any)
+-
++*/
+     // Then, add the (media-level) lines for each subsession:
+     char* mediaSDP = sdp;
+     for (subsession = fSubsessionsHead; subsession != NULL;
