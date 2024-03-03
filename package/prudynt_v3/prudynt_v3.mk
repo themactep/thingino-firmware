@@ -1,7 +1,7 @@
 PRUDYNT_V3_SITE_METHOD = git
 PRUDYNT_V3_SITE = https://github.com/gtxaspec/prudynt-v3
 PRUDYNT_V3_VERSION = $(shell git ls-remote $(PRUDYNT_V3_SITE) HEAD | head -1 | cut -f1)
-PRUDYNT_V3_DEPENDENCIES = libconfig thingino-live555 ingenic-osdrv-t31 freetype
+PRUDYNT_V3_DEPENDENCIES = libconfig thingino-live555 ingenic-osdrv-t31 freetype thingino-fonts
 
 # PRUDYNT_CFLAGS = $(TARGET_CLAGS)
 PRUDYNT_CFLAGS += -DNO_OPENSSL=1 -Og -g
@@ -10,7 +10,7 @@ PRUDYNT_CFLAGS += -I$(STAGING_DIR)/usr/include/freetype2
 PRUDYNT_CFLAGS += -I$(STAGING_DIR)/usr/include/liveMedia
 PRUDYNT_CFLAGS += -I$(STAGING_DIR)/usr/include/groupsock
 PRUDYNT_CFLAGS += -I$(STAGING_DIR)/usr/include/UsageEnvironment
-PRUDYNT_CFLAGS += -I$(STAGING_DIR)/usr/include/BasicUsageEnvironment 
+PRUDYNT_CFLAGS += -I$(STAGING_DIR)/usr/include/BasicUsageEnvironment
 
 PRUDYNT_LDFLAGS = $(TARGET_LDFLAGS)
 PRUDYNT_LDFLAGS += -L$(STAGING_DIR)/usr/lib
