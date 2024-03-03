@@ -6,11 +6,17 @@ PRUDYNT_V3_DEPENDENCIES = libconfig thingino-live555 ingenic-osdrv-t31 freetype
 define PRUDYNT_V3_BUILD_CMDS
     $(MAKE) ARCH=$(TARGET_ARCH) CROSS_COMPILE=$(TARGET_CROSS) \
         CFLAGS="-DNO_OPENSSL=1 -Og -g \
-        -I$(STAGING_DIR)/usr/include -I$(STAGING_DIR)/usr/include/freetype2 \
-        -I$(STAGING_DIR)/usr/include/liveMedia -I$(STAGING_DIR)/usr/include/groupsock \
-        -I$(STAGING_DIR)/usr/include/UsageEnvironment -I$(STAGING_DIR)/usr/include/BasicUsageEnvironment" \
-        LDFLAGS="$(TARGET_LDFLAGS) -L$(STAGING_DIR)/usr/lib \
-	-L$(TARGET_DIR)/usr/lib" -C $(@D) all
+		-I$(STAGING_DIR)/usr/include \
+		-I$(STAGING_DIR)/usr/include/freetype2 \
+		-I$(STAGING_DIR)/usr/include/liveMedia \
+		-I$(STAGING_DIR)/usr/include/groupsock \
+		-I$(STAGING_DIR)/usr/include/UsageEnvironment \
+		-I$(STAGING_DIR)/usr/include/BasicUsageEnvironment" \
+        LDFLAGS="$(TARGET_LDFLAGS) 
+        	-L$(STAGING_DIR)/usr/lib 
+        	-L$(TARGET_DIR)/usr/lib" \
+        -C $(@D) \
+        all
 endef
 
 define PRUDYNT_V3_INSTALL_TARGET_CMDS
