@@ -1,6 +1,7 @@
 PRUDYNT_V3_SITE_METHOD = git
 PRUDYNT_V3_SITE = https://github.com/gtxaspec/prudynt-v3
 PRUDYNT_V3_VERSION = $(shell git ls-remote $(PRUDYNT_V3_SITE) HEAD | head -1 | cut -f1)
+PRUDYNT_V3_DEPENDENCIES = libconfig thingino-live555 ingenic-osdrv-t31 freetype
 
 # PRUDYNT_CFLAGS = $(TARGET_CLAGS)
 PRUDYNT_CFLAGS += -DNO_OPENSSL=1 -Og -g
