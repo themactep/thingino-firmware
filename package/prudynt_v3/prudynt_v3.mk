@@ -12,8 +12,8 @@ define PRUDYNT_V3_BUILD_CMDS
 		-I$(STAGING_DIR)/usr/include/groupsock \
 		-I$(STAGING_DIR)/usr/include/UsageEnvironment \
 		-I$(STAGING_DIR)/usr/include/BasicUsageEnvironment" \
-        LDFLAGS="$(TARGET_LDFLAGS) 
-        	-L$(STAGING_DIR)/usr/lib 
+        LDFLAGS="$(TARGET_LDFLAGS) \
+        	-L$(STAGING_DIR)/usr/lib \
         	-L$(TARGET_DIR)/usr/lib" \
         -C $(@D) \
         all
