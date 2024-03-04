@@ -1,0 +1,61 @@
+#!/bin/sh
+
+DAEMON=prudynt
+DAEMON_PATH="/usr/bin"
+PIDFILE="/var/run/$DAEMON.pid"
+
+load_daemon() {
+	printf 'Starting %s: ' "$DAEMON"
+	[ -f $DAEMON_PATH/$DAEMON ] || echo -en "DISABLED, "
+
+	start-stop-daemon -b -m -S -p $PIDFILE -x \
+	/usr/bin/env -- LD_PRELOAD=/usr/lib/libimp_control.so $DAEMON_PATH/$DAEMON
+
+	status=$?
+
+	if [ "$status" -eq 0 ]; then
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+	return $status
+}
+
+start() {
+	load_daemon
+}
+
+stop() {
+	printf 'Stopping %s: ' "$DAEMON"
+	[ -f "$DAEMON_PATH/$DAEMON" ] || echo -en "DISABLED, "
+	start-stop-daemon -K -q -p $PIDFILE
+	status=$?
+	if [ "$status" -eq 0 ]; then
+		rm -f "$PIDFILE"
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+	return $status
+}
+
+restart() {
+	stop || true
+	sleep 1
+	reload
+}
+
+reload() {
+	load_daemon
+}
+
+case "$1" in
+	start | stop | restart | reload)
+		$1
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+esac
+
+exit 0
