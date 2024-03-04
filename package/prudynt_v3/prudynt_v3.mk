@@ -23,6 +23,7 @@ endef
 
 define PRUDYNT_V3_INSTALL_TARGET_CMDS
     $(INSTALL) -m 0755 -D $(@D)/bin/prudynt $(TARGET_DIR)/usr/bin/prudynt
+    $(INSTALL) -m 0644 -D $(@D)/prudynt.cfg.example $(TARGET_DIR)/etc/prudynt.cfg
 endef
 
 $(eval $(generic-package))
