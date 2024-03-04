@@ -1,5 +1,0 @@
-config BR2_PACKAGE_PRUDYNT_V3
-	bool "prudynt for t31"
-	default n
-	help
-		Experimental port

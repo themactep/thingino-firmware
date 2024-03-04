@@ -1,0 +1,5 @@
+config BR2_PACKAGE_PRUDYNT_T
+        bool "prudynt-t for T31"
+        select BR2_PACKAGE_INGENIC_LIBIMP_CONTROL
+        help
+                Experimental streamer
