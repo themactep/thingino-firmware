@@ -8,10 +8,12 @@ WATCHDOG_TIMEOUT=60
 WATCHDOG_ARGS="-T $WATCHDOG_TIMEOUT /dev/watchdog"
 
 start() {
-	if [ "$(yaml-cli -g .watchdog.enabled)" = "true" ]; then
-		echo -n "Starting ${DAEMON}: "
-		echo "majestic watchdog enabled"
-		exit 0
+	if command -v yaml-cli >/dev/null 2>&1; then
+		if [ "$(yaml-cli -g .watchdog.enabled)" = "true" ]; then
+			echo -n "Starting ${DAEMON}: "
+			echo "majestic watchdog enabled"
+			exit 0
+		fi
 	fi
 
 	if [ "$WATCHDOG_ENABLED" = "true" ]; then
