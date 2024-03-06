@@ -4,7 +4,11 @@ PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) HEAD | head -1 | cut
 PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 ingenic-osdrv-t31 freetype thingino-fonts
 
 # PRUDYNT_CFLAGS = $(TARGET_CLAGS)
-PRUDYNT_CFLAGS += -DNO_OPENSSL=1 -Og -g
+ifeq ($(SOC_FAMILY),t20)
+	PRUDYNT_CFLAGS += -DNO_OPENSSL=1 -O0 -DPLATFORM_T20
+else ifeq ($(SOC_FAMILY),t30)
+	PRUDYNT_CFLAGS += -DNO_OPENSSL=1 -O2 -DPLATFORM_T31
+endif
 PRUDYNT_CFLAGS += -I$(STAGING_DIR)/usr/include
 PRUDYNT_CFLAGS += -I$(STAGING_DIR)/usr/include/freetype2
 PRUDYNT_CFLAGS += -I$(STAGING_DIR)/usr/include/liveMedia
@@ -24,7 +28,7 @@ endef
 define PRUDYNT_T_INSTALL_TARGET_CMDS
     $(INSTALL) -m 0755 -D $(@D)/bin/prudynt $(TARGET_DIR)/usr/bin/prudynt
     $(INSTALL) -m 0644 -D $(@D)/prudynt.cfg.example $(TARGET_DIR)/etc/prudynt.cfg
-    $(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S95prudynt $(TARGET_DIR)/etc/init.d/S95prudynt
+    $(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)files/S95prudynt $(TARGET_DIR)/etc/init.d/S95prudynt
 endef
 
 $(eval $(generic-package))
