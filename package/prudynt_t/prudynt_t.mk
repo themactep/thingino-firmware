@@ -14,16 +14,18 @@ else ifeq ($(SOC_FAMILY),t31)
 	PRUDYNT_CFLAGS += -DNO_OPENSSL=1 -O2 -DPLATFORM_T31
 	PRUDYNT_T_DEPENDENCIES += ingenic-osdrv-t31
 endif
-PRUDYNT_CFLAGS += -I$(STAGING_DIR)/usr/include
-PRUDYNT_CFLAGS += -I$(STAGING_DIR)/usr/include/freetype2
-PRUDYNT_CFLAGS += -I$(STAGING_DIR)/usr/include/liveMedia
-PRUDYNT_CFLAGS += -I$(STAGING_DIR)/usr/include/groupsock
-PRUDYNT_CFLAGS += -I$(STAGING_DIR)/usr/include/UsageEnvironment
-PRUDYNT_CFLAGS += -I$(STAGING_DIR)/usr/include/BasicUsageEnvironment
 
-PRUDYNT_LDFLAGS = $(TARGET_LDFLAGS)
-PRUDYNT_LDFLAGS += -L$(STAGING_DIR)/usr/lib
-PRUDYNT_LDFLAGS += -L$(TARGET_DIR)/usr/lib
+PRUDYNT_CFLAGS += \
+	-I$(STAGING_DIR)/usr/include \
+	-I$(STAGING_DIR)/usr/include/freetype2 \
+	-I$(STAGING_DIR)/usr/include/liveMedia \
+	-I$(STAGING_DIR)/usr/include/groupsock \
+	-I$(STAGING_DIR)/usr/include/UsageEnvironment \
+	-I$(STAGING_DIR)/usr/include/BasicUsageEnvironment
+
+PRUDYNT_LDFLAGS = $(TARGET_LDFLAGS) \
+	-L$(STAGING_DIR)/usr/lib \
+	-L$(TARGET_DIR)/usr/lib
 
 define PRUDYNT_T_BUILD_CMDS
     $(MAKE) ARCH=$(TARGET_ARCH) CROSS_COMPILE=$(TARGET_CROSS) \
