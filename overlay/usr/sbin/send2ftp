@@ -69,14 +69,7 @@ if [ -z "$ftp_port" ]; then
 fi
 
 if [ -z "$ftp_file" ]; then
-	if [ "true" = "$ftp_use_heif" ] && [ "h265" = "$(yaml-cli -g .video0.codec)" ]; then
-		snapshot=/tmp/snapshot4cron.heif
-		snapshot4cron -r
-	else
-		snapshot=/tmp/snapshot4cron.jpg
-		snapshot4cron
-	fi
-	# [ $? -ne 0 ] && echo "Cannot get a snapshot" && exit 2
+	snapshot=/tmp/snapshot.jpg
 	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && exit 3
 
 	ftp_file=$snapshot

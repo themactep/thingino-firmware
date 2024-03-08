@@ -30,13 +30,6 @@ fi
 
 touch "$STOP_FILE"
 
-# get a fresh snapshot
-snapshot4cron -f
-if [ $? -ne 0 ]; then
-	echo "Cannot get a snapshot"
-	quit_clean 2
-fi
-
 # send alerts
 [ "true" = "$motion_send2email" ] && send2email
 [ "true" = "$motion_send2ftp" ] && send2ftp

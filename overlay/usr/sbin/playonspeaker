@@ -37,11 +37,6 @@ if [ "false" = "$speaker_enabled" ]; then
 	exit 10
 fi
 
-if [ "false" = "$(yaml-cli -g .audio.enabled)" ]; then
-	log "Playing on speaker is disabled in Majestic."
-	exit 11
-fi
-
 # validate mandatory values
 if [ -z "$speaker_url" ]; then
 	log "Speaker URL is not set"

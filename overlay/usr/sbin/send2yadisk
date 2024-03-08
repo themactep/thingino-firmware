@@ -50,18 +50,8 @@ if [ "false" = "$yadisk_enabled" ]; then
 fi
 
 if [ -z "$yadisk_file" ]; then
-	if [ "true" = "$yadisk_use_heif" ] && [ "h265" = "$(yaml-cli -g .video0.codec)" ]; then
-		snapshot=/tmp/snapshot4cron.heif
-		snapshot4cron -r
-	else
-		snapshot=/tmp/snapshot4cron.jpg
-		snapshot4cron
-	fi
-
-	if [ ! -f "$snapshot" ]; then
-		log "Cannot find a snapshot"
-		exit 3
-	fi
+	snapshot=/tmp/snapshot.jpg
+	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && exit 3
 
 	yadisk_file=$snapshot
 fi
