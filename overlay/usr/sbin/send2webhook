@@ -48,26 +48,8 @@ command="${command} --connect-timeout ${curl_timeout}"
 command="${command} --max-time ${curl_timeout} -X POST"
 
 if [ "true" = "$webhook_attach_snapshot" ]; then
-	if [ "true" = "$webhoook_use_heif" ] && [ "h265" = "$(yaml-cli -g .video0.codec)" ]; then
-		snapshot=/tmp/snapshot4cron.heif
-		snapshot4cron -r
-		exitcode=$?
-	else
-		snapshot=/tmp/snapshot4cron.jpg
-		snapshot4cron
-		exitcode=$?
-	fi
-
-	if [ $exitcode -ne 0 ]; then
-		log "Cannot get a snapshot. Exit code: $exitcode"
-		exit 2
-	fi
-
-	snapshot=/tmp/snapshot4cron.jpg
-	if [ ! -f "$snapshot" ]; then
-		log "Cannot find a snapshot"
-		exit 3
-	fi
+	snapshot=/tmp/snapshot.jpg
+	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && exit 3
 
 	command="${command} -F 'image=@$snapshot'"
 fi

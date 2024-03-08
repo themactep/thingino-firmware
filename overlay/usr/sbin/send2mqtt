@@ -100,23 +100,9 @@ eval "$command1" >> "$LOG_FILE" 2>&1
 
 # send file
 if [ "true" = "$mqtt_send_snap" ]; then
-	if [ "true" = "$mqtt_use_heif" ] && [ "h265" = "$(yaml-cli -g .video0.codec)" ]; then
-		snapshot=/tmp/snapshot4cron.heif
-		snapshot4cron -r
-	else
-		snapshot=/tmp/snapshot4cron.jpg
-		snapshot4cron
-	fi
-	exitcode=$?
-	if [ $exitcode -ne 0 ]; then
-		log "Cannot get a snapshot. Exit code: $exitcode"
-		exit 2
-	fi
-	snapshot=/tmp/snapshot4cron.jpg
-	if [ ! -f "$snapshot" ]; then
-		log "Cannot find a snapshot"
-		exit 3
-	fi
+	snapshot=/tmp/snapshot.jpg
+	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && exit 3
+
 	mqtt_file=$snapshot
 	command2="${command} -t ${mqtt_snap_topic} -f \"${mqtt_file}\""
 	log "$command2"

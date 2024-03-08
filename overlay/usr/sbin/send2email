@@ -73,15 +73,7 @@ command="${command} --mail-rcpt ${email_to_address}"
 command="${command} --user '${email_smtp_username}:${email_smtp_password}'"
 
 if [ "true" = "$email_attach_snapshot" ]; then
-	if [ "true" = "$email_use_heif" ] && [ "h265" = "$(yaml-cli -g .video0.codec)" ]; then
-		snapshot=/tmp/snapshot4cron.heif
-		snapshot4cron -r
-	else
-		snapshot=/tmp/snapshot4cron.jpg
-		snapshot4cron
-	fi
-	exitcode=$?
-	[ $exitcode -ne 0 ] && log "Cannot get a snapshot. Exit code: $exitcode" && exit 2
+	snapshot=/tmp/snapshot.jpg
 	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && exit 3
 
 	email_body="$(date -R)"
