@@ -24,28 +24,7 @@ log() {
 	logger -s -p daemon.info -t ingenic "$1"
 }
 
-sync_sensor_param() {
-	STREAMER_RES=$(yaml-cli -g .video0.size)
-	STREAMER_FPS=$(yaml-cli -g .video0.fps)
-	if [ ! -z "$STREAMER_RES" ] && [ ! -z "$STREAMER_FPS" ]; then
-		CUR_SENSOR_RES="$(sensor_cli -g .sensor.width)x$(sensor_cli -g .sensor.height)"
-		if ! [ "$CUR_SENSOR_RES" = "$STREAMER_RES" ]; then
-			STREAMER_PARAM="${STREAMER_RES}x${STREAMER_FPS}"
-			RES_LIST=$(sensor_cli -g .sensor.resolutions)
-			for RES in $(echo $RES_LIST | tr ',' '\n'); do
-				if [ "$(echo $RES | cut -d "_" -f1)" = "$STREAMER_PARAM" ]; then
-					sensor_cli -s .sensor.width $(echo $STREAMER_PARAM | cut -d "x" -f1)
-					sensor_cli -s .sensor.height $(echo $STREAMER_PARAM | cut -d "x" -f2)
-					SENSOR_EXT_PARAM="sensor_resolution=$(echo $RES | cut -d "_" -f2) sensor_max_fps=$(echo $STREAMER_FPS)"
-				fi
-			done
-		fi
-	fi
-}
-
 check_vb
-
-sync_sensor_param
 
 case "$SENSOR" in
 	gc2053)
