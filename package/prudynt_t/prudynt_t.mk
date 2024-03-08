@@ -39,7 +39,7 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
     $(INSTALL) -m 0644 -D $(@D)/prudynt.cfg.example $(TARGET_DIR)/etc/prudynt.cfg
     $(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)files/S95prudynt $(TARGET_DIR)/etc/init.d/S95prudynt
     sed -i '/i2c_address:/ s/0x37/$(SENSOR_I2C_ADDRESS)/' $(TARGET_DIR)/etc/prudynt.cfg
-    sed -i '/model:/ s/"gc2053"/model: $(BR2_SENSOR_MODEL)/' $(TARGET_DIR)/etc/prudynt.cfg
+    sed -i '/model:/ s/"gc2053"/$(BR2_SENSOR_MODEL)/' $(TARGET_DIR)/etc/prudynt.cfg
 endef
 
 $(eval $(generic-package))
