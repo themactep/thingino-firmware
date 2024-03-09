@@ -48,6 +48,11 @@ start() {
 		fi
 	fi
 
+	mac_address=$(fw_printenv -n wlanmac)
+	if [ -n "$mac_address" ]; then
+		ip link set dev wlan0 address "$mac_address"
+	fi
+
 	echo "OK"
 }
 
