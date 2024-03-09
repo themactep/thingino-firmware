@@ -3,19 +3,19 @@ PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
 PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) HEAD | head -1 | cut -f1)
 PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 freetype thingino-fonts
 
-# PRUDYNT_CFLAGS = $(TARGET_CLAGS)
 ifeq ($(SOC_FAMILY),t20)
-	PRUDYNT_CFLAGS += -DNO_OPENSSL=1 -O0 -DPLATFORM_T20
+	PRUDYNT_CFLAGS += -DPLATFORM_T20
 	PRUDYNT_T_DEPENDENCIES += ingenic-osdrv-t20
 else ifeq ($(SOC_FAMILY),t21)
-	PRUDYNT_CFLAGS += -DNO_OPENSSL=1 -O0 -DPLATFORM_T21
+	PRUDYNT_CFLAGS += -DPLATFORM_T21
 	PRUDYNT_T_DEPENDENCIES += ingenic-osdrv-t21
 else ifeq ($(SOC_FAMILY),t31)
-	PRUDYNT_CFLAGS += -DNO_OPENSSL=1 -O2 -DPLATFORM_T31
+	PRUDYNT_CFLAGS += -DPLATFORM_T31
 	PRUDYNT_T_DEPENDENCIES += ingenic-osdrv-t31
 endif
 
 PRUDYNT_CFLAGS += \
+	-DNO_OPENSSL=1 -O0 \
 	-I$(STAGING_DIR)/usr/include \
 	-I$(STAGING_DIR)/usr/include/freetype2 \
 	-I$(STAGING_DIR)/usr/include/liveMedia \
@@ -29,7 +29,7 @@ PRUDYNT_LDFLAGS = $(TARGET_LDFLAGS) \
 
 define PRUDYNT_T_BUILD_CMDS
     $(MAKE) ARCH=$(TARGET_ARCH) CROSS_COMPILE=$(TARGET_CROSS) \
-        CFLAGS="$(PRUDYNT_CFLAGS)" LDFLAGS="$(PRUDYNT_LDFLAGS)" -C $(@D) all
+        CFLAGS="$(PRUDYNT_CFLAGS)" LDFLAGS="$(PRUDYNT_LDFLAGS)" -C $(@D) all commit_tag=$(shell git show -s --format=%h)
 endef
 
 SENSOR_I2C_ADDRESS = $(shell awk '/address:/ {print $$2}' $(TARGET_DIR)/etc/sensor/$(SENSOR_MODEL).yaml)
