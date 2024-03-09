@@ -18,12 +18,11 @@ start() {
 	generate_wpa_supplicant_conf() {
 		if [ ${#pass} -lt 64 ]; then
 			wpa_passphrase "$ssid" "$pass" > $CONFIG
-			sed -i '/ssid/a \\tscan_ssid=1' $CONFIG
 		else
 			wpa_passphrase "$ssid" "dummy_password" > $CONFIG
 			sed -i "s/psk=.*$/psk=$pass/" $CONFIG
-			sed -i '/ssid/a \\tscan_ssid=1' $CONFIG
 		fi
+		sed -i '/ssid/a \\tscan_ssid=1' $CONFIG
 
 		if [ ${#pass} -lt 64 ]; then
 			psk=$(grep '^\s*psk=' $CONFIG | cut -d= -f2 | tail -n 1)
