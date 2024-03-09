@@ -1,7 +1,7 @@
 PRUDYNT_T_SITE_METHOD = git
 PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
 PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) HEAD | head -1 | cut -f1)
-PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 freetype thingino-fonts
+PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-freetype thingino-fonts
 
 ifeq ($(SOC_FAMILY),t20)
 	PRUDYNT_CFLAGS += -DPLATFORM_T20
@@ -15,7 +15,7 @@ else ifeq ($(SOC_FAMILY),t31)
 endif
 
 PRUDYNT_CFLAGS += \
-	-DNO_OPENSSL=1 -O0 \
+	-DNO_OPENSSL=1 -O2 \
 	-I$(STAGING_DIR)/usr/include \
 	-I$(STAGING_DIR)/usr/include/freetype2 \
 	-I$(STAGING_DIR)/usr/include/liveMedia \
