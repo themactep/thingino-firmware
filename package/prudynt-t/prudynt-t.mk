@@ -33,6 +33,7 @@ define PRUDYNT_T_BUILD_CMDS
 endef
 
 SENSOR_I2C_ADDRESS = $(shell awk '/address:/ {print $$2}' $(TARGET_DIR)/etc/sensor/$(SENSOR_MODEL).yaml)
+SENSOR_FPS = $(shell awk '/#define SENSOR_OUTPUT_MAX_FPS/ {print $$3}' $(OUTPUT_DIR)/build/ingenic-opensdk/kernel/sensors/$(SOC_FAMILY)/$(SENSOR_MODEL).c)
 
 define PRUDYNT_T_INSTALL_TARGET_CMDS
     $(INSTALL) -m 0755 -D $(@D)/bin/prudynt $(TARGET_DIR)/usr/bin/prudynt
@@ -40,6 +41,7 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
     $(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)files/S95prudynt $(TARGET_DIR)/etc/init.d/S95prudynt
     sed -i '/i2c_address:/ s/0x37/$(SENSOR_I2C_ADDRESS)/' $(TARGET_DIR)/etc/prudynt.cfg
     sed -i '/model:/ s/"gc2053"/$(BR2_SENSOR_MODEL)/' $(TARGET_DIR)/etc/prudynt.cfg
+    sed -i '/fps:/ s/24/$(SENSOR_FPS)/' $(TARGET_DIR)/etc/prudynt.cfg
 endef
 
 $(eval $(generic-package))
