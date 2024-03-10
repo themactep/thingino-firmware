@@ -1,0 +1,79 @@
+#!/bin/sh
+
+DAEMON=openRTSP
+ENABLED=false
+
+stream0fps=$(grep "fps:" /etc/prudynt.cfg | head -1 | awk '{print $2}' | tr -d ';')
+stream0width=$(grep "width:" /etc/prudynt.cfg | head -1 | awk '{print $2}' | tr -d ';')
+stream0height=$(grep "height:" /etc/prudynt.cfg | head -1 | awk '{print $2}' | tr -d ';')
+rtsp_username=$(grep "username:" /etc/prudynt.cfg | awk '{print $2}' | tr -d '";')
+rtsp_password=$(grep "password:" /etc/prudynt.cfg | awk '{print $2}' | tr -d '";')
+
+file_prefix="thingino-"
+record_path="/mnt/mmcblk0p1"
+record_interval=60
+
+start() {
+if [ "$ENABLED" = "true" ]; then
+	echo -n "Starting RTSP recorder: "
+
+	if [ "$record_path" = "/mnt/mmcblk0p1" ] && ! mount | grep -q "$record_path"; then
+		echo "Record path is set to /mnt/mmcblk0p1, SD card is not mounted, exit."
+		exit 1
+	fi
+
+	if [ ! -d "$record_path" ]; then
+		echo "Record path does not exist, exit"
+		exit 1
+	fi
+
+	if ! pidof prudynt >/dev/null; then
+		echo "Prudynt is not running. Unable to record RTSP stream."
+		exit 1
+	fi
+
+	if [ ! -d "$record_path" ]; then
+		mkdir -p "$record_path"
+	fi
+
+	cd "$record_path"
+
+	if ! pidof $DAEMON >/dev/null; then
+		sleep 2
+		start-stop-daemon -b -S -q -x ${DAEMON} -- -u "$rtsp_username" "$rtsp_password" -w "$stream0width" -h \ 
+			"$stream0height" -f "$stream0fps" -P $record_interval -q -v -b 1048576 -t -H -F "$file_prefix" "rtsp://127.0.0.1/unicast"
+		echo "OK"
+	else
+		echo "RTSP recorder already running."
+	fi
+fi
+}
+
+stop() {
+	echo -n "Stopping RTSP recorder: "
+
+	if start-stop-daemon -K -q -s KILL -n "$DAEMON"; then
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+}
+
+case "$1" in
+	start | stop)
+		$1
+		;;
+
+	restart | reload)
+		stop
+		sleep 1
+		start
+		;;
+
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}" >&2
+		exit 1
+		;;
+esac
+
+exit 0
