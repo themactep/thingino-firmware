@@ -1,0 +1,162 @@
+#!/bin/sh
+
+KMOD_PATH=/lib/modules/$(uname -r)/ingenic
+SENSOR_EXT_PARAM=""
+
+echo 1 >/proc/sys/vm/overcommit_memory
+
+check_vb() {
+	if [ "$(fw_printenv -n totalmem)" = "64M" ] && [ "$(fw_printenv -n rmem)" = "40M" ]; then
+		log_vendor "Setting memory"
+		fw_setenv osmem 39M && fw_setenv rmem 25M@0x2700000 && reboot
+	fi
+}
+
+check_return() {
+	if [ $? -ne 0 ]; then
+		echo err: $1
+		echo exit
+		exit
+	fi
+}
+
+log() {
+	logger -s -p daemon.info -t ingenic "$1"
+}
+
+check_vb
+
+case "$SENSOR" in
+	gc2053)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=125000000"
+		SENSOR_PARAM="data_interface=1"
+		;;
+	gc2083)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=200000000"
+		SENSOR_PARAM="shvflip=1"
+		;;
+	gc4653)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=200000000"
+		SENSOR_PARAM=""
+		;;
+	imx307)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=125000000"
+		SENSOR_PARAM=""
+		;;
+	imx327)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=125000000"
+		SENSOR_PARAM=""
+		;;
+	jxf37)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=200000000 isp_memopt=1 isp_day_night_switch_drop_frame_num=1 isp_ch0_pre_dequeue_time=12 isp_ch0_pre_dequeue_interrupt_process=0 isp_ch0_pre_dequeue_valid_lines=540"
+		SENSOR_PARAM="shvflip=1"
+		;;
+	jxh62)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM=""
+		SENSOR_PARAM=""
+		;;
+	jxq03 | jxq03p)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=150000000"
+		SENSOR_PARAM=""
+		;;
+	jxk04)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=125000000 isp_ch0_pre_dequeue_time=14 isp_ch0_pre_dequeue_interrupt_process=0 isp_ch0_pre_dequeue_valid_lines=540 isp_memopt=1"
+		SENSOR_PARAM="shvflip=1"
+		;;
+	os03b10)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=200000000"
+		SENSOR_PARAM=""
+		;;
+	sc200ai)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=100000000 isp_ch0_pre_dequeue_time=20 isp_ch0_pre_dequeue_interrupt_process=0 isp_memopt=1"
+		SENSOR_PARAM="shvflip=1"
+		;;
+	sc2232)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=125000000"
+		SENSOR_PARAM=""
+		;;
+	sc2335)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=100000000 isp_ch0_pre_dequeue_time=20 isp_ch0_pre_dequeue_interrupt_process=0 isp_memopt=1"
+		SENSOR_PARAM=""
+		;;
+	sc2336)
+		AVPU_PARAM="clk_name=vpll avpu_clk=500000000"
+		ISP_PARAM="isp_clk=200000000 isp_ch0_pre_dequeue_time=24 isp_ch0_pre_dequeue_interrupt_process=0 isp_memopt=1"
+		SENSOR_PARAM="shvflip=1"
+		;;
+	sc3335)
+		AVPU_PARAM="clk_name=mpll avpu_clk=500000000"
+		ISP_PARAM="isp_clk=200000000 isp_memopt=1"
+		SENSOR_PARAM=""
+		;;
+	sc3338)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=150000000"
+		SENSOR_PARAM=""
+		;;
+	sc5235)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=200000000"
+		SENSOR_PARAM=""
+		;;
+	sc4236)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=150000000"
+		SENSOR_PARAM=""
+		;;
+	*)
+		AVPU_PARAM="clk_name=vpll avpu_clk=400000000"
+		ISP_PARAM="isp_clk=125000000"
+		SENSOR_PARAM=""
+		;;
+esac
+
+echo --------------------
+echo "AVPU_PARAM: $AVPU_PARAM"
+echo "ISP_PARAM: $ISP_PARAM"
+echo "SENSOR: $SENSOR"
+echo "SENSOR_PARAM: $SENSOR_PARAM"
+echo --------------------
+
+if ! grep -q "^avpu" /proc/modules; then
+	modprobe avpu $AVPU_PARAM
+	check_return "insmod avpu"
+fi
+
+if ! grep -q "^tx_isp" /proc/modules; then
+	modprobe tx-isp-${SOC} $ISP_PARAM
+	check_return "modprobe tx-isp-${SOC}"
+fi
+
+if ! grep -q "^${SENSOR}" /proc/modules; then
+	modprobe sensor_${SENSOR}_${SOC} $SENSOR_PARAM $SENSOR_EXT_PARAM
+	check_return "modprobe sensor_${SENSOR}_${SOC}"
+fi
+
+if ! grep -q "^audio" /proc/modules; then
+	modprobe audio spk_gpio=-1
+	check_return "modprobe audio"
+fi
+
+if ! grep -q "^gpio" /proc/modules; then
+	modprobe gpio
+	check_return "modprobe gpio"
+fi
+
+#gpios=$(fw_printenv gpio_ircut | grep ^gpio_ | cut -d= -f2 | sed 's/[[:alpha:]]//g' | tr '\n' ' ')
+#for i in $gpios; do
+#	gpio claim $i
+#done
