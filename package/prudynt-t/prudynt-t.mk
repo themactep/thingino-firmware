@@ -15,7 +15,7 @@ else ifeq ($(SOC_FAMILY),t31)
 endif
 
 PRUDYNT_CFLAGS += \
-	-DNO_OPENSSL=1 -O2 \
+	-DNO_OPENSSL=1 -Os \
 	-I$(STAGING_DIR)/usr/include \
 	-I$(STAGING_DIR)/usr/include/freetype2 \
 	-I$(STAGING_DIR)/usr/include/liveMedia \
@@ -39,6 +39,7 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
     $(INSTALL) -m 0755 -D $(@D)/bin/prudynt $(TARGET_DIR)/usr/bin/prudynt
     $(INSTALL) -m 0644 -D $(@D)/prudynt.cfg.example $(TARGET_DIR)/etc/prudynt.cfg
     $(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)files/S95prudynt $(TARGET_DIR)/etc/init.d/S95prudynt
+    $(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)files/S96record $(TARGET_DIR)/etc/init.d/S96record
     sed -i '/i2c_address:/ s/0x37/$(SENSOR_I2C_ADDRESS)/' $(TARGET_DIR)/etc/prudynt.cfg
     sed -i '/model:/ s/"gc2053"/$(BR2_SENSOR_MODEL)/' $(TARGET_DIR)/etc/prudynt.cfg
     sed -i '/fps:/ s/24/$(SENSOR_FPS)/' $(TARGET_DIR)/etc/prudynt.cfg
