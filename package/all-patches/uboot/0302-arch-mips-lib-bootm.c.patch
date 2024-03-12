@@ -1,0 +1,28 @@
+
+--- a/arch/mips/lib/bootm.c	2013-07-23 07:58:13.000000000 -0400
++++ b/arch/mips/lib/bootm.c	2023-07-26 11:31:38.000000000 -0400
+@@ -49,6 +49,12 @@
+ 	char env_buf[12];
+ 	char *cp;
+ 
++	if (IMAGE_ENABLE_OF_LIBFDT && images->ft_len) {
++		if (image_setup_linux(images)) {
++			printf("FDT Creating Failed:hanging ...\n");
++		}
++	}
++
+ 	linux_params_init(UNCACHED_SDRAM(gd->bd->bi_boot_params), commandline);
+ 
+ #ifdef CONFIG_MEMSIZE_IN_BYTES
+@@ -98,7 +104,10 @@
+ 	/* we assume that the kernel is in place */
+ 	printf("\nStarting kernel ...\n\n");
+ 
+-	theKernel(linux_argc, linux_argv, linux_env, 0);
++	if (IMAGE_ENABLE_OF_LIBFDT && images->ft_len)
++		theKernel(-2, (ulong)images->ft_addr, 0, 0);
++	else
++		theKernel(linux_argc, linux_argv, linux_env, 0);
+ }
+ 
+ int do_bootm_linux(int flag, int argc, char * const argv[],

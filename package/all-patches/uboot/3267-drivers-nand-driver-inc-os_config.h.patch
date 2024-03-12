@@ -1,0 +1,19 @@
+
+--- a/drivers/nand/driver/inc/os_config.h	1969-12-31 19:00:00.000000000 -0500
++++ b/drivers/nand/driver/inc/os_config.h	2023-07-26 11:31:38.000000000 -0400
+@@ -0,0 +1,15 @@
++#include <config.h>
++
++#ifdef CONFIG_JZ4780
++#define CONFIG_SOC_4780
++#elif defined(CONFIG_JZ4775)
++#define CONFIG_SOC_4775
++#elif defined(CONFIG_M150)
++#define CONFIG_SOC_M150
++#elif defined(CONFIG_M200)
++#define CONFIG_SOC_M200
++#elif defined(CONFIG_T15)
++#define CONFIG_SOC_T15
++#elif defined(CONFIG_T10)
++#define CONFIG_SOC_T10
++#endif

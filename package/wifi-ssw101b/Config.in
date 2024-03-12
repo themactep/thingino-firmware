@@ -1,0 +1,6 @@
+config BR2_PACKAGE_WIFI_SSW101B
+	bool "Sigmastar SSW101B"
+	select BR2_LINUX_KERNEL
+	help
+	  Wireless driver ssw101b.
+	  SigmaStar ssw101b WiFi driver

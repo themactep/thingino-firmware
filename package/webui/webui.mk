@@ -27,7 +27,7 @@ define WEBUI_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d $(WEBUI_PKGDIR)/files/S50httpd
 
-	if ! grep -q "^BR2_THINGINO_DEV_PACKAGES=y" $(BR2_CONFIG); then \
+	if grep -q "^BR2_THINGINO_DEV_PACKAGES=y" $(BR2_CONFIG); then \
 		$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d $(WEBUI_PKGDIR)/files/S44devmounts; \
 	fi
 endef

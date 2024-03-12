@@ -1,4 +1,0 @@
-config BR2_PACKAGE_INGENIC_OSDRV_T23
-	bool "ingenic-osdrv-t23"
-	help
-	  Ingenic kernel modules and libs for T23 SoC

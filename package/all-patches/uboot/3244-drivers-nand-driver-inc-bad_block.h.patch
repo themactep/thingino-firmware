@@ -1,0 +1,17 @@
+
+--- a/drivers/nand/driver/inc/bad_block.h	1969-12-31 19:00:00.000000000 -0500
++++ b/drivers/nand/driver/inc/bad_block.h	2023-07-26 11:31:38.000000000 -0400
+@@ -0,0 +1,13 @@
++#ifndef __BAD_BLOCK_H
++#define __BAD_BLOCK_H
++
++#include "nand_debug.h"
++#include "ndmessage.h"
++#include "nand_ops.h"
++#include "nand_io.h"
++#include "nand_info.h"
++#include "ndcommand.h"
++
++int is_bad_block(struct nandops_info *ops, Nand_Task *nandtask);
++int mark_bad_block(struct nandops_info *ops, Nand_Task *nandtask);
++#endif

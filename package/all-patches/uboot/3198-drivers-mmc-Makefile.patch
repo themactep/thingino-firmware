@@ -1,0 +1,26 @@
+
+--- a/drivers/mmc/Makefile	2013-07-23 07:58:13.000000000 -0400
++++ b/drivers/mmc/Makefile	2023-07-26 11:31:38.000000000 -0400
+@@ -30,7 +30,11 @@
+ COBJS-$(CONFIG_DAVINCI_MMC) += davinci_mmc.o
+ COBJS-$(CONFIG_FSL_ESDHC) += fsl_esdhc.o
+ COBJS-$(CONFIG_FTSDC010) += ftsdc010_mci.o
++ifndef CONFIG_SPL_BUILD
+ COBJS-$(CONFIG_GENERIC_MMC) += mmc.o
++else
++COBJS-$(CONFIG_GENERIC_MMC) += mmc_spl.o
++endif
+ COBJS-$(CONFIG_GENERIC_ATMEL_MCI) += gen_atmel_mci.o
+ COBJS-$(CONFIG_MMC_SPI) += mmc_spi.o
+ COBJS-$(CONFIG_ARM_PL180_MMCI) += arm_pl180_mmci.o
+@@ -48,6 +52,10 @@
+ COBJS-$(CONFIG_DWMMC) += dw_mmc.o
+ COBJS-$(CONFIG_EXYNOS_DWMMC) += exynos_dw_mmc.o
+ COBJS-$(CONFIG_ZYNQ_SDHCI) += zynq_sdhci.o
++COBJS-$(CONFIG_JZ_MMC) += jz_mmc.o
++ifndef CONFIG_SPL_BUILD
++COBJS-$(CONFIG_GENERIC_MMC) += mmc_write.o
++endif
+ 
+ COBJS	:= $(COBJS-y)
+ SRCS	:= $(COBJS:.o=.c)

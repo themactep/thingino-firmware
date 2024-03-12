@@ -1,0 +1,113 @@
+
+--- a/arch/mips/cpu/xburst/start.S	2013-07-23 07:58:13.000000000 -0400
++++ b/arch/mips/cpu/xburst/start.S	2023-07-26 11:31:37.000000000 -0400
+@@ -28,6 +28,8 @@
+ #include <asm/mipsregs.h>
+ #include <asm/addrspace.h>
+ #include <asm/cacheops.h>
++#include <asm/arch/base.h>
++#include "traps.h"
+ 
+ 	.set noreorder
+ 
+@@ -88,7 +90,7 @@
+ 
+ 	/* flush d-cache */
+ 	li	t0, KSEG0
+-	addi	t1, t0, CONFIG_SYS_DCACHE_SIZE
++	or	t1, t0, CONFIG_SYS_DCACHE_SIZE
+ 2:
+ 	cache	INDEX_WRITEBACK_INV_D, 0(t0)
+ 	bne	t0, t1, 2b
+@@ -98,7 +100,7 @@
+ 
+ 	/* flush i-cache */
+ 	li	t0, KSEG0
+-	addi	t1, t0, CONFIG_SYS_ICACHE_SIZE
++	or	t1, t0, CONFIG_SYS_ICACHE_SIZE
+ 3:
+ 	cache	INDEX_INVALIDATE_I, 0(t0)
+ 	bne	t0, t1, 3b
+@@ -190,3 +192,82 @@
+ 	 move	a1, a2
+ 
+ 	.end	relocate_code
++
++
++#ifdef CONFIG_XBURST_TRAPS
++// push context: at, v0-v1,a0-a3,t0-t9,s0-s7,fp,ra, & pc
++	.macro  SAVE_ALL
++	.set noat
++	.set noreorder
++        sw ra,PT_RA(sp)
++        sw fp,PT_FP(sp)
++        sw t9,PT_T9(sp)
++        sw t8,PT_T8(sp)
++        sw s7,PT_S7(sp)
++        sw s6,PT_S6(sp)
++        sw s5,PT_S5(sp)
++        sw s4,PT_S4(sp)
++        sw s3,PT_S3(sp)
++        sw s2,PT_S2(sp)
++        sw s1,PT_S1(sp)
++        sw s0,PT_S0(sp)
++        sw t7,PT_T7(sp)
++        sw t6,PT_T6(sp)
++        sw t5,PT_T5(sp)
++        sw t4,PT_T4(sp)
++        sw t3,PT_T3(sp)
++        sw t2,PT_T2(sp)
++        sw t1,PT_T1(sp)
++        sw t0,PT_T0(sp)
++        sw a3,PT_A3(sp)
++        sw a2,PT_A2(sp)
++        sw a1,PT_A1(sp)
++        sw a0,PT_A0(sp)
++        sw v1,PT_V1(sp)
++        sw v0,PT_V0(sp)
++        sw AT,PT_AT(sp)
++        mfc0 k1,CP0_STATUS
++        sw k1,PT_STATUS(sp)
++        mfc0 k1, CP0_EPC
++        sw k1,PT_EPC(sp)
++        mflo k1
++        sw k1,PT_LO(sp)
++        mfhi k1
++        sw k1,PT_HI(sp)
++	nop
++	la t1,0x80000004
++	sw sp,0(t1)
++	.endm
++
++#define	NESTED(symbol, framesize, rpc)                  \
++		.globl	symbol;                         \
++		.align	2;                              \
++		.type	symbol, @function;              \
++		.ent	symbol, 0;                       \
++symbol:		.frame	sp, framesize, rpc
++
++/*
++ * END - mark end of function
++ */
++#define	END(function)                                   \
++		.end	function;		        \
++		.size	function, .-function
++
++
++/*
++ * General exception vector for all other CPUs.
++ *
++ * Be careful when changing this, it has to be at most 128 bytes
++ * to fit into space reserved for the exception handler.
++ */
++NESTED(handle_exception, 0, sp)
++	addi sp,sp,-PT_LEN
++	SAVE_ALL
++	la	t9,0x80000000
++	lw	t9,0(t9)
++	jr	t9
++	nop
++	nop
++END(handle_exception)
++
++#endif

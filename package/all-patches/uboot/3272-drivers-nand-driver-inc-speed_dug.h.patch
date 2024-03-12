@@ -1,0 +1,26 @@
+
+--- a/drivers/nand/driver/inc/speed_dug.h	1969-12-31 19:00:00.000000000 -0500
++++ b/drivers/nand/driver/inc/speed_dug.h	2023-07-26 11:31:38.000000000 -0400
+@@ -0,0 +1,22 @@
++#ifndef _SPEED_DUG_H_
++#define _SPEED_DUG_H_
++
++#include <pagelist.h>
++#include <nand_debug.h>
++
++#define NDD_READ	1
++#define NDD_WRITE	0
++#define DEBUG_TIME_BYTES (10 * 1024 *1024) //10MB
++
++void __speed_dug_begin(int mode, PageList *pl);
++void __speed_dug_end(int mode);
++
++#ifdef DEBUG_SPEED
++#define speed_dug_begin(mode, pl) __speed_dug_begin(mode, pl)
++#define speed_dug_end(mode) __speed_dug_end(mode)
++#else
++#define speed_dug_begin(mode, pl)
++#define speed_dug_end(mode)
++#endif
++
++#endif /* _SPEED_DUG_H_ */

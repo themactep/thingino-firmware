@@ -1,0 +1,16 @@
+
+--- a/include/spl.h	2013-07-23 07:58:13.000000000 -0400
++++ b/include/spl.h	2023-07-26 11:31:38.000000000 -0400
+@@ -73,6 +73,12 @@
+ /* SPI SPL functions */
+ void spl_spi_load_image(void);
+ 
++/* SFC NOR SPL functions */
++void spl_sfc_nor_load_image(void);
++
++/* SFC NAND SPL functions */
++void spl_sfc_nand_load_image(void);
++
+ /* Ethernet SPL functions */
+ void spl_net_load_image(const char *device);
+ 

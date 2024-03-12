@@ -1,0 +1,91 @@
+
+--- a/tools/Makefile	2013-07-23 07:58:13.000000000 -0400
++++ b/tools/Makefile	2024-01-21 03:01:46.549458387 -0500
+@@ -21,7 +21,7 @@
+ # MA 02111-1307 USA
+ #
+ 
+-TOOLSUBDIRS = kernel-doc
++TOOLSUBDIRS = kernel-doc ingenic-tools
+ 
+ #
+ # Include this after HOSTOS HOSTARCH check
+@@ -130,35 +130,52 @@
+ 
+ # Generated LCD/video logo
+ LOGO_H = $(OBJTREE)/include/bmp_logo.h
++ifndef CONFIG_BATTERYDET_LED
++CHARGE_LOGO_H = $(OBJTREE)/include/charge_logo.h
++endif
+ LOGO_DATA_H = $(OBJTREE)/include/bmp_logo_data.h
+ LOGO-$(CONFIG_LCD_LOGO) += $(LOGO_H)
++ifndef CONFIG_BATTERYDET_LED
++LOGO-$(CONFIG_CMD_BATTERYDET) += $(CHARGE_LOGO_H)
++endif
+ LOGO-$(CONFIG_LCD_LOGO) += $(LOGO_DATA_H)
+ LOGO-$(CONFIG_VIDEO_LOGO) += $(LOGO_H)
+ LOGO-$(CONFIG_VIDEO_LOGO) += $(LOGO_DATA_H)
+ 
+ # Generic logo
+ ifeq ($(LOGO_BMP),)
+-LOGO_BMP= logos/denx.bmp
+ 
+ # Use board logo and fallback to vendor
++ifneq ($(wildcard $(TOPDIR)/board/$(BOARDDIR)/logo/$(BOARD).bmp),)
++LOGO_BMP ?= $(TOPDIR)/board/$(BOARDDIR)/logo/$(BOARD).bmp
++endif
+ ifneq ($(wildcard logos/$(BOARD).bmp),)
+-LOGO_BMP= logos/$(BOARD).bmp
++LOGO_BMP ?= logos/$(BOARD).bmp
+ else
+ ifneq ($(wildcard logos/$(VENDOR).bmp),)
+-LOGO_BMP= logos/$(VENDOR).bmp
++LOGO_BMP ?= logos/$(VENDOR).bmp
+ endif
++LOGO_BMP ?= logos/ingenic.bmp
+ endif
+ 
+ endif # !LOGO_BMP
++ifeq ($(CHARGE_LOGO_BMP),)
++CHARGE_LOGO_BMP= charge_logo/1.bmp \
++		charge_logo/2.bmp \
++		charge_logo/3.bmp \
++		charge_logo/4.bmp \
++		charge_logo/5.bmp \
++		charge_logo/6.bmp
++endif
+ 
+ # now $(obj) is defined
+ HOSTSRCS += $(addprefix $(SRCTREE)/,$(EXT_OBJ_FILES-y:.o=.c))
+ HOSTSRCS += $(addprefix $(SRCTREE)/tools/,$(OBJ_FILES-y:.o=.c))
+ HOSTSRCS += $(addprefix $(SRCTREE)/lib/libfdt/,$(LIBFDT_OBJ_FILES-y:.o=.c))
+ HOSTSRCS += $(addprefix $(SRCTREE)/lib/rsa/,$(RSA_OBJ_FILES-y:.o=.c))
+-BINS	:= $(addprefix $(obj),$(sort $(BIN_FILES-y)))
+-LIBFDT_OBJS	:= $(addprefix $(obj),$(LIBFDT_OBJ_FILES-y))
+-RSA_OBJS	:= $(addprefix $(obj),$(RSA_OBJ_FILES-y))
++BINS := $(addprefix $(obj),$(sort $(BIN_FILES-y)))
++LIBFDT_OBJS := $(addprefix $(obj),$(LIBFDT_OBJ_FILES-y))
++RSA_OBJS := $(addprefix $(obj),$(RSA_OBJ_FILES-y))
+ 
+ # We cannot check CONFIG_FIT_SIGNATURE here since it is not set on the host
+ FIT_SIG_OBJ_FILES	:= image-sig.o
+@@ -175,7 +192,7 @@
+ 		-idirafter $(SRCTREE)/include \
+ 		-idirafter $(OBJTREE)/include2 \
+ 		-idirafter $(OBJTREE)/include \
+-	        -I $(SRCTREE)/lib/libfdt \
++		-I $(SRCTREE)/lib/libfdt \
+ 		-I $(SRCTREE)/tools \
+ 		-DCONFIG_SYS_TEXT_BASE=$(CONFIG_SYS_TEXT_BASE) \
+ 		-DUSE_HOSTCC \
+@@ -292,6 +309,10 @@
+ $(LOGO_DATA_H):	$(obj)bmp_logo $(LOGO_BMP)
+ 	$(obj)./bmp_logo --gen-data $(LOGO_BMP) > $@
+ 
++ifndef CONFIG_BATTERYDET_LED
++$(CHARGE_LOGO_H) : $(obj)bmp_logo $(CHARGE_LOGO_BMP)
++	$(obj)./bmp_logo  $(CHARGE_LOGO_BMP) > $@
++endif
+ #########################################################################
+ 
+ # defines $(obj).depend target

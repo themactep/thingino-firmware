@@ -1,0 +1,13 @@
+
+--- a/tools/ingenic-tools/mkpalladium.sh	1969-12-31 19:00:00.000000000 -0500
++++ b/tools/ingenic-tools/mkpalladium.sh	2023-07-26 11:31:38.000000000 -0400
+@@ -0,0 +1,9 @@
++#!/bin/sh
++mipsel-linux-android-objdump -D ../../spl/u-boot-spl > ../../palladium.dump
++./btow ../../spl/u-boot-spl.bin ../../palladium.txt
++cd ../../
++ls palladium.txt palladium.dump
++#myscp paladin.dump /home/user/work/paladin
++#myscp paladin.txt /home/user/work/paladin
++#upload paladin.dump paladin
++#upload paladin.txt paladin

@@ -1,6 +1,0 @@
-sensor:
-  name: sc2300
-  address: 0x30
-  width: 1920
-  height: 1080
-  bus: i2c

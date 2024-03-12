@@ -1,0 +1,4 @@
+config BR2_PACKAGE_WIFI_RTL8188EU
+	bool "Realtek RTL8188EU"
+	help
+	  Realtek 8188EU

@@ -1,0 +1,5 @@
+
+--- a/include/asm/errno.h	2013-07-23 07:58:13.000000000 -0400
++++ b/include/asm/errno.h	1969-12-31 19:00:00.000000000 -0500
+@@ -1 +0,0 @@
+-#include <asm-generic/errno.h>

@@ -1,0 +1,26 @@
+
+--- a/drivers/video/Makefile	2013-07-23 07:58:13.000000000 -0400
++++ b/drivers/video/Makefile	2023-07-26 11:31:38.000000000 -0400
+@@ -56,6 +56,22 @@
+ COBJS-$(CONFIG_VIDEO_SMI_LYNXEM) += smiLynxEM.o videomodes.o
+ COBJS-$(CONFIG_VIDEO_TEGRA) += tegra.o
+ COBJS-$(CONFIG_VIDEO_VCXK) += bus_vcxk.o
++COBJS-$(CONFIG_VIDEO_BYD_BM8766U) += jz_lcd/lcd_panel/byd_bm8766u.o
++COBJS-$(CONFIG_VIDEO_BM347WV_F_8991FTGF) += jz_lcd/lcd_panel/byd_8991.o \
++	jz_lcd/lcd_panel/byd_8991_init.o
++COBJS-$(CONFIG_VIDEO_ILI_6122) += jz_lcd/lcd_panel/ili_6122.o
++
++COBJS-$(CONFIG_VIDEO_X163) += jz_lcd/lcd_panel/auo_x163.o \
++				jz_lcd/lcd_panel/write_command_auo_x163.o
++
++COBJS-$(CONFIG_VIDEO_BYD_9177AA) += jz_lcd/lcd_panel/byd_9177aa.o
++COBJS-$(CONFIG_VIDEO_TRULY_TFT240240_2_E) += jz_lcd/lcd_panel/truly_tft240240_2_e.o
++COBJS-$(CONFIG_VIDEO_LH155) += jz_lcd/lcd_panel/lh155.o
++COBJS-$(CONFIG_JZ_MIPI_DSI) += jz_lcd/jz_mipi_dsi/jz_mipi_dsi.o jz_lcd/jz_mipi_dsi/jz_mipi_dsi_lowlevel.o jz_lcd/jz_mipi_dsi/jz_mipi_dsih_hal.o \
++				jz_lcd/jz_mipi_dsi/write_command_to_mipi.o
++COBJS-$(CONFIG_VIDEO_JZ4775) += jz_lcd/backlight_pwm.o jz_lcd/jz4775_lcd.o
++COBJS-$(CONFIG_VIDEO_JZ4780) += jz_lcd/backlight_pwm.o jz_lcd/jz4780_lcd.o
++COBJS-$(CONFIG_JZ_LCD_V12) += jz_lcd/backlight_pwm.o jz_lcd/jz_lcd_v1_2.o
+ 
+ COBJS	:= $(sort $(COBJS-y))
+ SRCS	:= $(COBJS:.o=.c)

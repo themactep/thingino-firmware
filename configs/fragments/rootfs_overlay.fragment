@@ -1,0 +1,2 @@
+BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL)/rootfs_overlay"
+BR2_ROOTFS_POST_BUILD_SCRIPT="$(BR2_EXTERNAL)/scripts/rootfs_script.sh"

@@ -1,0 +1,14 @@
+
+--- a/arch/mips/cpu/u-boot.lds	2013-07-23 07:58:13.000000000 -0400
++++ b/arch/mips/cpu/u-boot.lds	2023-07-26 11:31:37.000000000 -0400
+@@ -100,8 +100,8 @@
+ 
+ 	.bss __rel_dyn_start (OVERLAY) : {
+ 		__bss_start = .;
+-		*(.sbss.*)
+-		*(.bss.*)
++		*(.sbss*)
++		*(.bss*)
+ 		*(COMMON)
+ 		. = ALIGN(4);
+ 		__bss_end = .;

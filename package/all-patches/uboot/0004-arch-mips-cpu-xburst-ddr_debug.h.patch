@@ -1,0 +1,15 @@
+
+--- a/arch/mips/cpu/xburst/ddr_debug.h	1969-12-31 19:00:00.000000000 -0500
++++ b/arch/mips/cpu/xburst/ddr_debug.h	2023-07-26 11:31:37.000000000 -0400
+@@ -0,0 +1,11 @@
++
++#ifdef CONFIG_DWC_DEBUG
++#define dwc_debug(fmt, args...)			\
++	do {					\
++		printf(fmt, ##args);		\
++	} while (0)
++#else
++#define dwc_debug(fmt, args...)			\
++	do {					\
++	} while (0)
++#endif

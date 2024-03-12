@@ -1,9 +1,10 @@
 config BR2_PACKAGE_PRUDYNT_T
-        bool "prudynt-t for thingino"
-        select BR2_PACKAGE_INGENIC_LIBIMP_CONTROL
-        select BR2_PACKAGE_LIBCONFIG
-        select BR2_PACKAGE_THINGINO_LIVE555
-        select BR2_PACKAGE_THINGINO_FREETYPE
-        select BR2_PACKAGE_THINGINO_FONTS
-        help
-                Ingenic video streamer
+	bool "Prudynt-T streamer"
+	select BR2_PACKAGE_INGENIC_SDK
+	select BR2_PACKAGE_INGENIC_LIBIMP_CONTROL
+	select BR2_PACKAGE_LIBCONFIG
+	select BR2_PACKAGE_THINGINO_LIVE555
+	select BR2_PACKAGE_THINGINO_FREETYPE
+	select BR2_PACKAGE_THINGINO_FONTS
+	help
+	  Video streamer for Ingenic T-series.

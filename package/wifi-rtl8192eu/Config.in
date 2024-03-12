@@ -1,0 +1,7 @@
+config BR2_PACKAGE_WIFI_RTL8192EU
+	bool "Realtek RTL8192EU"
+	select  BR2_LINUX_KERNEL
+	select CONFIG_WIRELESS_EXT
+	help
+	  A standalone driver for the RTL8192EU USB Wi-Fi adapter.
+	  https://github.com/Mange/rtl8192eu-linux-driver

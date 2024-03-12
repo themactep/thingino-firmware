@@ -1,4 +1,0 @@
-config BR2_PACKAGE_INGENIC_OSDRV_T20
-	bool "ingenic-osdrv-t20"
-	help
-	  Ingenic kernel modules and libs for T20 SoC

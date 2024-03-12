@@ -1,0 +1,5 @@
+config BR2_PACKAGE_WIFI_MT7601STA
+	bool "Mediatek MT7601STA"
+	select BR2_LINUX_KERNEL
+	help
+	  Wireless driver mt7601sta.

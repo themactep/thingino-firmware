@@ -1,0 +1,18 @@
+
+--- a/board/ingenic/pawscan/partitions.tab	1969-12-31 19:00:00.000000000 -0500
++++ b/board/ingenic/pawscan/partitions.tab	2023-07-26 11:31:38.000000000 -0400
+@@ -0,0 +1,13 @@
++property:
++    disk_size = 512m
++    gpt_header_lba = 512
++    custom_signature = 0
++
++partition:
++	#name     =  start,   size, fstype
++	xboot     =     0m,     3m,
++	boot      =     3m,     8m, EMPTY
++	system    =    12m,    32m, LINUX_FS
++        data      =    48m,   448m, LINUX_FS
++
++#fstype could be: LINUX_FS, FAT_FS, EMPTY
+\ No newline at end of file

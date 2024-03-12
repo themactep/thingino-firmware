@@ -1,0 +1,15 @@
+
+--- a/include/usb.h	2013-07-23 07:58:13.000000000 -0400
++++ b/include/usb.h	2023-07-26 11:31:38.000000000 -0400
+@@ -155,8 +155,10 @@
+ 	defined(CONFIG_USB_OMAP3) || defined(CONFIG_USB_DA8XX) || \
+ 	defined(CONFIG_USB_BLACKFIN) || defined(CONFIG_USB_AM35X) || \
+ 	defined(CONFIG_USB_MUSB_DSPS) || defined(CONFIG_USB_MUSB_AM35X) || \
+-	defined(CONFIG_USB_MUSB_OMAP2PLUS)
++	defined(CONFIG_USB_MUSB_OMAP2PLUS) || defined(CONFIG_USB_DWC2)
+ 
++
++int board_usb_init(void);
+ int usb_lowlevel_init(int index, void **controller);
+ int usb_lowlevel_stop(int index);
+ 

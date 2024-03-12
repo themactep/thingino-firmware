@@ -1,4 +1,4 @@
 config BR2_PACKAGE_INGENIC_PWM
-	bool "ingenic-pwm"
+	bool "Ingenic PWM"
 	help
-	  Userspace program for controlling PWM channels on the Ingenic platform
+	  Userspace program for controlling PWM channels on the Ingenic platform.

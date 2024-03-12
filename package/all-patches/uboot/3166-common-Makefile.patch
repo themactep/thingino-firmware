@@ -1,0 +1,117 @@
+
+--- a/common/Makefile	2013-07-23 07:58:13.000000000 -0400
++++ b/common/Makefile	2023-07-26 11:31:38.000000000 -0400
+@@ -42,6 +42,9 @@
+ 
+ # core command
+ COBJS-y += cmd_boot.o
++COBJS-y += cmd_boota.o
++COBJS-$(CONFIG_BOOT_ANDROID) += boot_mode.o
++COBJS-$(CONFIG_CMD_FASTBOOT) += cmd_fastboot.o
+ COBJS-$(CONFIG_CMD_BOOTM) += cmd_bootm.o
+ COBJS-y += cmd_help.o
+ COBJS-y += cmd_version.o
+@@ -50,6 +53,7 @@
+ COBJS-y += env_attr.o
+ COBJS-y += env_callback.o
+ COBJS-y += env_flags.o
++COBJS-$(CONFIG_FPGA) += cmd_jzfpga.o
+ COBJS-$(CONFIG_ENV_IS_IN_DATAFLASH) += env_dataflash.o
+ COBJS-$(CONFIG_ENV_IS_IN_EEPROM) += env_eeprom.o
+ XCOBJS-$(CONFIG_ENV_IS_EMBEDDED) += env_embedded.o
+@@ -60,6 +64,8 @@
+ COBJS-$(CONFIG_ENV_IS_IN_MMC) += env_mmc.o
+ COBJS-$(CONFIG_ENV_IS_IN_FAT) += env_fat.o
+ COBJS-$(CONFIG_ENV_IS_IN_NAND) += env_nand.o
++COBJS-$(CONFIG_ENV_IS_IN_SFC_NAND) += env_sfcnand.o
++COBJS-$(CONFIG_ENV_IS_IN_NAND_ZM) += env_nand_zm.o
+ COBJS-$(CONFIG_ENV_IS_IN_NVRAM) += env_nvram.o
+ COBJS-$(CONFIG_ENV_IS_IN_ONENAND) += env_onenand.o
+ COBJS-$(CONFIG_ENV_IS_IN_SPI_FLASH) += env_sf.o
+@@ -74,6 +80,7 @@
+ COBJS-$(CONFIG_CMD_BDI) += cmd_bdinfo.o
+ COBJS-$(CONFIG_CMD_BEDBUG) += bedbug.o cmd_bedbug.o
+ COBJS-$(CONFIG_CMD_BMP) += cmd_bmp.o
++COBJS-$(CONFIG_CMD_LOGO_RLE) += cmd_rle.o
+ COBJS-$(CONFIG_CMD_BOOTMENU) += cmd_bootmenu.o
+ COBJS-$(CONFIG_CMD_BOOTLDR) += cmd_bootldr.o
+ COBJS-$(CONFIG_CMD_BOOTSTAGE) += cmd_bootstage.o
+@@ -100,6 +107,9 @@
+ COBJS-$(CONFIG_CMD_EXT4) += cmd_ext4.o
+ COBJS-$(CONFIG_CMD_EXT2) += cmd_ext2.o
+ COBJS-$(CONFIG_CMD_FAT) += cmd_fat.o
++COBJS-$(CONFIG_CMD_SDUPDATE) += cmd_sdupdate.o
++COBJS-$(CONFIG_CMD_TFTPDOWNLOAD) += cmd_tftpdownload.o
++COBJS-$(CONFIG_CMD_WATCHDOG) += cmd_watchdog.o
+ COBJS-$(CONFIG_CMD_FDC)$(CONFIG_CMD_FDOS) += cmd_fdc.o
+ COBJS-$(CONFIG_OF_LIBFDT) += cmd_fdt.o fdt_support.o
+ COBJS-$(CONFIG_CMD_FDOS) += cmd_fdos.o
+@@ -120,6 +130,7 @@
+ COBJS-$(CONFIG_CMD_IRQ) += cmd_irq.o
+ COBJS-$(CONFIG_CMD_ITEST) += cmd_itest.o
+ COBJS-$(CONFIG_CMD_JFFS2) += cmd_jffs2.o
++COBJS-$(CONFIG_CMD_JFFS2) += cmd_jffs2load.o
+ COBJS-$(CONFIG_CMD_CRAMFS) += cmd_cramfs.o
+ COBJS-$(CONFIG_CMD_LDRINFO) += cmd_ldrinfo.o
+ COBJS-$(CONFIG_CMD_LED) += cmd_led.o
+@@ -141,9 +152,12 @@
+ COBJS-$(CONFIG_CMD_MISC) += cmd_misc.o
+ COBJS-$(CONFIG_CMD_MMC) += cmd_mmc.o
+ COBJS-$(CONFIG_CMD_MMC_SPI) += cmd_mmc_spi.o
++COBJS-$(CONFIG_CMD_SFC_NOR) += cmd_nor_sfc.o
+ COBJS-$(CONFIG_MP) += cmd_mp.o
+ COBJS-$(CONFIG_CMD_MTDPARTS) += cmd_mtdparts.o
+ COBJS-$(CONFIG_CMD_NAND) += cmd_nand.o
++COBJS-$(CONFIG_CMD_ZM_NAND) += cmd_nand_zm.o
++COBJS-$(CONFIG_CMD_SFCNAND) += cmd_sfcnand.o
+ COBJS-$(CONFIG_CMD_NET) += cmd_net.o
+ COBJS-$(CONFIG_CMD_ONENAND) += cmd_onenand.o
+ COBJS-$(CONFIG_CMD_OTP) += cmd_otp.o
+@@ -160,11 +174,16 @@
+ COBJS-$(CONFIG_SANDBOX) += cmd_sandbox.o
+ COBJS-$(CONFIG_CMD_SATA) += cmd_sata.o
+ COBJS-$(CONFIG_CMD_SF) += cmd_sf.o
++COBJS-$(CONFIG_CMD_SPI_BURNER) += cmd_spi_burner.o
+ COBJS-$(CONFIG_CMD_SCSI) += cmd_scsi.o
+ COBJS-$(CONFIG_CMD_SHA1SUM) += cmd_sha1sum.o
+ COBJS-$(CONFIG_CMD_SETEXPR) += cmd_setexpr.o
+ COBJS-$(CONFIG_CMD_SOFTSWITCH) += cmd_softswitch.o
++ifdef CONFIG_CMD_BURN
+ COBJS-$(CONFIG_CMD_SPI) += cmd_spi.o
++else
++COBJS-$(CONFIG_CMD_SPI) += cmd_nor_spi.o
++endif
+ COBJS-$(CONFIG_CMD_SPIBOOTLDR) += cmd_spibootldr.o
+ COBJS-$(CONFIG_CMD_STRINGS) += cmd_strings.o
+ COBJS-$(CONFIG_CMD_TERMINAL) += cmd_terminal.o
+@@ -189,10 +208,12 @@
+ COBJS-$(CONFIG_CMD_ZIP) += cmd_zip.o
+ COBJS-$(CONFIG_CMD_ZFS) += cmd_zfs.o
+ 
++COBJS-$(CONFIG_DDR_PARAM_DEBUG) += cmd_ddr.o
+ # others
+ COBJS-$(CONFIG_BOOTSTAGE) += bootstage.o
+ COBJS-$(CONFIG_CONSOLE_MUX) += iomux.o
+ COBJS-y += flash.o
++COBJS-$(CONFIG_CMD_FLOCK) += cmd_flock.o
+ COBJS-$(CONFIG_CMD_KGDB) += kgdb.o kgdb_stubs.o
+ COBJS-$(CONFIG_I2C_EDID) += edid.o
+ COBJS-$(CONFIG_KALLSYMS) += kallsyms.o
+@@ -205,6 +226,9 @@
+ COBJS-$(CONFIG_USB_KEYBOARD) += usb_kbd.o
+ COBJS-$(CONFIG_CMD_DFU) += cmd_dfu.o
+ COBJS-$(CONFIG_CMD_GPT) += cmd_gpt.o
++COBJS-$(CONFIG_CMD_BURN) += cmd_burn.o
++COBJS-$(CONFIG_CMD_EFUSE) += cmd_efuse.o
++COBJS-$(CONFIG_CMD_BATTERYDET) += cmd_batterydet.o
+ endif
+ 
+ ifdef CONFIG_SPL_BUILD
+@@ -248,7 +272,6 @@
+ COBJS-y += memsize.o
+ COBJS-y += stdio.o
+ 
+-
+ COBJS	:= $(sort $(COBJS-y))
+ XCOBJS	:= $(sort $(XCOBJS-y))
+ SRCS	:= $(COBJS:.o=.c) $(XCOBJS:.o=.c)

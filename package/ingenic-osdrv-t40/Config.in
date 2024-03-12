@@ -1,4 +1,0 @@
-config BR2_PACKAGE_INGENIC_OSDRV_T40
-	bool "ingenic-osdrv-t40"
-	help
-	  Ingenic kernel modules and libs for T40 SoC

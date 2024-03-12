@@ -1,0 +1,2 @@
+config BR2_SENSOR_MODEL
+	string "Image sensor model"

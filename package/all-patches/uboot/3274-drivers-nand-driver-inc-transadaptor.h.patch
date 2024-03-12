@@ -1,0 +1,18 @@
+
+--- a/drivers/nand/driver/inc/transadaptor.h	1969-12-31 19:00:00.000000000 -0500
++++ b/drivers/nand/driver/inc/transadaptor.h	2023-07-26 11:31:38.000000000 -0400
+@@ -0,0 +1,14 @@
++#ifndef __TRANSADAPTOR_H__
++#define __TRANSADAPTOR_H__
++
++#define SRCADD  0
++#define DSTADD  1
++#define SRC_AND_DST_ADD    2
++
++typedef struct __TransAdaptor transadaptor;
++struct __TransAdaptor{
++	int (*prepare_memcpy) (int context, unsigned char *src, unsigned char *dst, unsigned int len, unsigned short flag);
++	int (*finish_memcpy) (int context);
++};
++
++#endif

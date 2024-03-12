@@ -1,0 +1,16 @@
+
+--- a/drivers/nand/driver/inc/emc_nand_timing.h	1969-12-31 19:00:00.000000000 -0500
++++ b/drivers/nand/driver/inc/emc_nand_timing.h	2023-07-26 11:31:38.000000000 -0400
+@@ -0,0 +1,12 @@
++#ifndef _EMC_NAND_TIMING_H_
++#define _EMC_NAND_TIMING_H_
++typedef struct __emc_toggle_timing {
++        unsigned int tRPRE;	/* ... duration/width/time */
++        unsigned int tDS;	/* ... duration/width/time */
++        unsigned int tWPRE;	/* ... duration/width/time */
++        unsigned int tDQSRE;	/* ... duration/width/time */
++        unsigned int tWPST;	/* ... duration/width/time */
++} emc_toggle_timing;
++
++
++#endif /* _EMC_NAND_TIMING_H_ */

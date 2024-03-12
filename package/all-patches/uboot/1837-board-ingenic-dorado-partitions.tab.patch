@@ -1,0 +1,22 @@
+
+--- a/board/ingenic/dorado/partitions.tab	1969-12-31 19:00:00.000000000 -0500
++++ b/board/ingenic/dorado/partitions.tab	2023-07-26 11:31:38.000000000 -0400
+@@ -0,0 +1,18 @@
++property:
++    disk_size = 4096m
++    gpt_header_lba = 512
++    custom_signature = 0
++
++partition:
++	#name     =  start,   size, fstype
++	xboot     =     0m,     3m,
++	boot      =     3m,     8m, EMPTY
++	recovery  =    12m,    16m, EMPTY
++        pretest   =    28m,    16m, EMPTY
++        reserved  =    44m,    52m, EMPTY
++	misc      =    96m,     4m, EMPTY
++	cache     =   100m,   100m, LINUX_FS
++	system    =   200m,   700m, LINUX_FS
++	data      =   900m,  2048m, LINUX_FS
++
++#fstype could be: LINUX_FS, FAT_FS, EMPTY

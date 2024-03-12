@@ -1,0 +1,11 @@
+
+--- a/drivers/usb/gadget/epautoconf.c	2013-07-23 07:58:13.000000000 -0400
++++ b/drivers/usb/gadget/epautoconf.c	2023-07-26 11:31:38.000000000 -0400
+@@ -30,6 +30,7 @@
+ 
+ #define isdigit(c)      ('0' <= (c) && (c) <= '9')
+ 
++#define MANY_ENDPOINTS  //cli add
+ /* we must assign addresses for configurable endpoints (like net2280) */
+ static unsigned epnum;
+ 
