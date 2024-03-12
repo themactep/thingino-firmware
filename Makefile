@@ -106,7 +106,7 @@ FIRMWARE_BIN_NOBOOT_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_NOBOOT))
 	pack pack_full pack_update pad pad_full pad_update reconfig \
 	upload_tftp upload_sdcard upgrade_ota br-%
 
-all:
+all: $(OUTPUT_DIR)/.config
 	$(info --------------> all)
 #ifndef CAMERA
 #	$(MAKE) CAMERA=$(CAMERA) $@
@@ -114,8 +114,8 @@ all:
 	@if command -v figlet >/dev/null; then figlet -t -f pagga $(CAMERA); fi;
 	# Generate .config file
 	if ! test -f $(OUTPUT_DIR)/.config; then $(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) defconfig; fi
-	# Add local.mk to the building directory to override settings
-	if test -f $(BR2_EXTERNAL)/local.mk; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
+#	# Add local.mk to the building directory to override settings
+#	if test -f $(BR2_EXTERNAL)/local.mk; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
 	$(BR2_MAKE) all
 	@if command -v figlet >/dev/null; then figlet -t -f pagga "FINE"; fi;
 
@@ -133,16 +133,21 @@ endif
 
 ### Configuration
 
+FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(CAMERA_CONFIG_REAL))
+
 # Configure buildroot for a particular board
 defconfig:
 	$(info --------------> defconfig)
+	$(info * make OUTPUT_DIR $(OUTPUT_DIR))
 	mkdir -p $(OUTPUT_DIR)
+	$(info * remove existing .config file)
 	rm -rvf $(OUTPUT_DIR)/.config
-	for i in $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(CAMERA_CONFIG_REAL)); do \
-  		cat configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
-  		echo >>$(OUTPUT_DIR)/.config; \
+	$(info * add fragments FRAGMENTS=$(FRAGMENTS))
+	for i in $(FRAGMENTS); do \
+		echo "** add configs/fragments/$$i.fragment"; \
+		cat configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
+		echo >>$(OUTPUT_DIR)/.config; \
 	done
-	$(error OK)
 	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 	# $(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) defconfig
@@ -155,7 +160,7 @@ defconfig_classic:
 	if test -f $(BR2_EXTERNAL)/local.mk; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
 
 # Call configurator UI
-menuconfig:
+menuconfig: $(OUTPUT_DIR)/.config
 	$(info --------------> menuconfig)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) menuconfig
 
