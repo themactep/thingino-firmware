@@ -1,8 +1,8 @@
 #!/bin/sh
 
-DROPBEAR_ARGS="-R -k -K 300"
 DROPBEAR_DIR="/etc/dropbear"
 DROPBEAR_PID="/run/dropbear.pid"
+DROPBEAR_ARGS="-R -k -K 300"
 
 start() {
 	printf "Starting dropbear sshd: "

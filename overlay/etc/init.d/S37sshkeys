@@ -25,7 +25,7 @@ save_keys() {
 
 case "$1" in
 	start)
-		if [ -s "$DROPBEAR_KEY" ]; then 
+		if [ -s "$DROPBEAR_KEY" ]; then
 			if [ -z "$SSHKEY_ENV" ]; then
 				save_keys
 			fi
