@@ -1,0 +1,3 @@
+#!/bin/sh
+
+yaml-cli -i /etc/sensor/${SENSOR}.yaml $@

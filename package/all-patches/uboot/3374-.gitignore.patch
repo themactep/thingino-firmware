@@ -1,0 +1,27 @@
+
+--- a/.gitignore	2013-07-23 07:58:13.000000000 -0400
++++ b/.gitignore	2023-07-26 11:31:37.000000000 -0400
+@@ -53,6 +53,15 @@
+ # Generated files
+ #
+ 
++kk
++/include/charge_logo.h
++/tools/logos/ingenic.rle
++/include/rle_boot_logo.h
++/tools/charge_logo/charg*
++/include/rle_charge_logo.h
++/common/rle_logo.c
++/tools/logos/ingenic.jpg.rle
++
+ *.depend*
+ /LOG
+ /errlog
+@@ -88,3 +97,6 @@
+ 
+ # spl ais files
+ /spl/*.ais
++
++# IDE config file
++.vscode
+\ No newline at end of file

@@ -1,5 +1,5 @@
 config BR2_PACKAGE_WEBUI
-	bool "webui"
+	bool "Web User Interface"
 	select BR2_PACKAGE_HASERL
 	help
 	  Web UI working with httpd and haserl.

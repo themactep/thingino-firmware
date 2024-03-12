@@ -1,0 +1,353 @@
+
+--- a/drivers/video/jz_lcd/lcd_panel/BM347WV-F-8991FTGF_init_code_from_byd.txt	1969-12-31 19:00:00.000000000 -0500
++++ b/drivers/video/jz_lcd/lcd_panel/BM347WV-F-8991FTGF_init_code_from_byd.txt	2023-07-26 11:31:38.000000000 -0400
+@@ -0,0 +1,349 @@
++/*************************************************************/
++//By: ma.fei2@byd.com
++//Date :2010.10.08
++//IC:NT35510
++//Hardware_version:testboard_v0
++//Software_version:C8051SSD_8820B_V0
++/*************************************************************/
++
++#include <LCD_Flash_all.h>
++#include <def.h>
++#include <intrins.h>
++
++void delayus (unsigned int t)
++{
++	unsigned int i;
++	while(t--)
++	{
++		for(i=0;i<5;i++);
++	}
++}
++
++void SPI_3W_SET_CMD(unsigned char c)
++{
++	unsigned char i;
++	lcd_cs=0;
++
++	SCL=0;
++	delayus(1);    SDA=0;
++	SCL=1;
++	delayus(1);
++	for(i=0;i<8;i++)
++	{
++
++		SCL=0;
++		delayus(1);
++		SDA=(bit)(c&0x80);
++		SCL=1;
++		delayus(1);
++		c=c<<1;
++	}
++	lcd_cs=1;
++
++}
++
++void SPI_3W_SET_PAs(unsigned char d)
++{
++	unsigned char i;
++	lcd_cs=0;
++
++	SCL=0;
++	delayus(1);   |SDA=1;
++	SCL=1;
++	delayus(1);
++	for(i=0;i<8;i++)
++	{
++		SCL=0;
++		delayus(1);
++		SDA=(bit)(d&0x80);
++		SCL=1;
++		delayus(1);
++		d=d<<1;
++	}
++	lcd_cs=1;
++
++}
++
++void Initial_IC(void)
++{
++	SFRPAGE = CONFIG_PAGE;
++
++	lcd_reset = 1;
++	delay(10); // Delay 1ms
++	lcd_reset = 0;
++	delay(100); // Delay 10ms // This delay time is necessary
++	lcd_reset = 1;
++	delay(500); // Delay 100 ms
++
++	//delay(20); //10ms
++	//Delay 10mS; After Internal mechanism Program (load OTP)
++
++	SPI_3W_SET_CMD(0xB9); //Set_EXTC
++	SPI_3W_SET_PAs(0xFF);
++	SPI_3W_SET_PAs(0x83);
++	SPI_3W_SET_PAs(0x69);
++
++
++	SPI_3W_SET_CMD(0xB1); //Set Power
++	SPI_3W_SET_PAs(0x01);
++	SPI_3W_SET_PAs(0x00);
++	SPI_3W_SET_PAs(0x34);
++	SPI_3W_SET_PAs(0x06);
++	SPI_3W_SET_PAs(0x00);
++	SPI_3W_SET_PAs(0x11);
++	SPI_3W_SET_PAs(0x11);
++	SPI_3W_SET_PAs(0x2A);
++	SPI_3W_SET_PAs(0x32);
++	SPI_3W_SET_PAs(0x3F);
++	SPI_3W_SET_PAs(0x3F);
++	SPI_3W_SET_PAs(0x07);
++	SPI_3W_SET_PAs(0x23);
++	SPI_3W_SET_PAs(0x01);
++	SPI_3W_SET_PAs(0xE6);
++	SPI_3W_SET_PAs(0xE6);
++	SPI_3W_SET_PAs(0xE6);
++	SPI_3W_SET_PAs(0xE6);
++	SPI_3W_SET_PAs(0xE6);
++
++
++	SPI_3W_SET_CMD(0xB2); // SET Display 480x800
++	SPI_3W_SET_PAs(0x00);
++	SPI_3W_SET_PAs(0x2B);
++	SPI_3W_SET_PAs(0x03);
++	SPI_3W_SET_PAs(0x03);
++	SPI_3W_SET_PAs(0x70);
++	SPI_3W_SET_PAs(0x00);
++	SPI_3W_SET_PAs(0xFF);
++	SPI_3W_SET_PAs(0x00);
++	SPI_3W_SET_PAs(0x00);
++	SPI_3W_SET_PAs(0x00);
++	SPI_3W_SET_PAs(0x00);
++	SPI_3W_SET_PAs(0x03);
++	SPI_3W_SET_PAs(0x03);
++	SPI_3W_SET_PAs(0x00);
++	SPI_3W_SET_PAs(0x01);
++
++	SPI_3W_SET_CMD(0xB4); // SET Display CYC
++	SPI_3W_SET_PAs(0x00);
++	SPI_3W_SET_PAs(0x0C);
++	SPI_3W_SET_PAs(0xA0);
++	SPI_3W_SET_PAs(0x0E);
++	SPI_3W_SET_PAs(0x06);
++
++
++
++	SPI_3W_SET_CMD(0xB6); // SET VCOM
++	SPI_3W_SET_PAs(0x2C);
++	SPI_3W_SET_PAs(0x2C);
++
++
++	SPI_3W_SET_CMD(0xD5); //SET GIP
++	SPI_3W_SET_PAs(0x00);
++	SPI_3W_SET_PAs(0x05);
++	SPI_3W_SET_PAs(0x03);
++	SPI_3W_SET_PAs(0x00);
++	SPI_3W_SET_PAs(0x01);
++	SPI_3W_SET_PAs(0x09);
++	SPI_3W_SET_PAs(0x10);
++	SPI_3W_SET_PAs(0x80);
++	SPI_3W_SET_PAs(0x37);
++	SPI_3W_SET_PAs(0x37);
++	SPI_3W_SET_PAs(0x20);
++	SPI_3W_SET_PAs(0x31);
++	SPI_3W_SET_PAs(0x46);
++	SPI_3W_SET_PAs(0x8A);
++	SPI_3W_SET_PAs(0x57);
++	SPI_3W_SET_PAs(0x9B);
++	SPI_3W_SET_PAs(0x20);
++	SPI_3W_SET_PAs(0x31);
++	SPI_3W_SET_PAs(0x46);
++	SPI_3W_SET_PAs(0x8A);
++	SPI_3W_SET_PAs(0x57);
++	SPI_3W_SET_PAs(0x9B);
++	SPI_3W_SET_PAs(0x07);
++	SPI_3W_SET_PAs(0x0F);
++	SPI_3W_SET_PAs(0x02);
++	SPI_3W_SET_PAs(0x00);
++
++
++	SPI_3W_SET_CMD(0xE0); //SET GAMMA
++	SPI_3W_SET_PAs(0x00);
++	SPI_3W_SET_PAs(0x08);
++	SPI_3W_SET_PAs(0x0D);
++	SPI_3W_SET_PAs(0x2D);
++	SPI_3W_SET_PAs(0x34);
++	SPI_3W_SET_PAs(0x3F);
++	SPI_3W_SET_PAs(0x19);
++	SPI_3W_SET_PAs(0x38);
++	SPI_3W_SET_PAs(0x09);
++	SPI_3W_SET_PAs(0x0E);
++	SPI_3W_SET_PAs(0x0E);
++	SPI_3W_SET_PAs(0x12);
++	SPI_3W_SET_PAs(0x14);
++	SPI_3W_SET_PAs(0x12);
++	SPI_3W_SET_PAs(0x14);
++	SPI_3W_SET_PAs(0x13);
++	SPI_3W_SET_PAs(0x19);
++	SPI_3W_SET_PAs(0x00);
++	SPI_3W_SET_PAs(0x08);
++
++	SPI_3W_SET_PAs(0x0D);
++	SPI_3W_SET_PAs(0x2D);
++	SPI_3W_SET_PAs(0x34);
++	SPI_3W_SET_PAs(0x3F);
++	SPI_3W_SET_PAs(0x19);
++	SPI_3W_SET_PAs(0x38);
++	SPI_3W_SET_PAs(0x09);
++	SPI_3W_SET_PAs(0x0E);
++	SPI_3W_SET_PAs(0x0E);
++	SPI_3W_SET_PAs(0x12);
++	SPI_3W_SET_PAs(0x14);
++	SPI_3W_SET_PAs(0x12);
++	SPI_3W_SET_PAs(0x14);
++	SPI_3W_SET_PAs(0x13);
++	SPI_3W_SET_PAs(0x19);
++
++
++	SPI_3W_SET_CMD(0xC1); //set DGC
++	SPI_3W_SET_PAs(0x01); //enable DGC function
++	SPI_3W_SET_PAs(0x02); //SET R-GAMMA
++	SPI_3W_SET_PAs(0x08);
++	SPI_3W_SET_PAs(0x12);
++	SPI_3W_SET_PAs(0x1A);
++	SPI_3W_SET_PAs(0x22);
++	SPI_3W_SET_PAs(0x2A);
++	SPI_3W_SET_PAs(0x31);
++	SPI_3W_SET_PAs(0x36);
++	SPI_3W_SET_PAs(0x3F);
++	SPI_3W_SET_PAs(0x48);
++	SPI_3W_SET_PAs(0x51);
++	SPI_3W_SET_PAs(0x58);
++	SPI_3W_SET_PAs(0x60);
++	SPI_3W_SET_PAs(0x68);
++	SPI_3W_SET_PAs(0x70);
++	SPI_3W_SET_PAs(0x78);
++	SPI_3W_SET_PAs(0x80);
++	SPI_3W_SET_PAs(0x88);
++	SPI_3W_SET_PAs(0x90);
++	SPI_3W_SET_PAs(0x98);
++	SPI_3W_SET_PAs(0xA0);
++	SPI_3W_SET_PAs(0xA7);
++	SPI_3W_SET_PAs(0xAF);
++	SPI_3W_SET_PAs(0xB6);
++	SPI_3W_SET_PAs(0xBE);
++	SPI_3W_SET_PAs(0xC7);
++	SPI_3W_SET_PAs(0xCE);
++	SPI_3W_SET_PAs(0xD6);
++	SPI_3W_SET_PAs(0xDE);
++	SPI_3W_SET_PAs(0xE6);
++	SPI_3W_SET_PAs(0xEF);
++	SPI_3W_SET_PAs(0xF5);
++	SPI_3W_SET_PAs(0xFB);
++	SPI_3W_SET_PAs(0xFC);
++	SPI_3W_SET_PAs(0xFE);
++	SPI_3W_SET_PAs(0x8C);
++	SPI_3W_SET_PAs(0xA4);
++	SPI_3W_SET_PAs(0x19);
++	SPI_3W_SET_PAs(0xEC);
++	SPI_3W_SET_PAs(0x1B);
++	SPI_3W_SET_PAs(0x4C);
++
++	SPI_3W_SET_PAs(0x40);
++	SPI_3W_SET_PAs(0x02); //SET G-Gamma
++	SPI_3W_SET_PAs(0x08);
++	SPI_3W_SET_PAs(0x12);
++	SPI_3W_SET_PAs(0x1A);
++	SPI_3W_SET_PAs(0x22);
++	SPI_3W_SET_PAs(0x2A);
++	SPI_3W_SET_PAs(0x31);
++	SPI_3W_SET_PAs(0x36);
++	SPI_3W_SET_PAs(0x3F);
++	SPI_3W_SET_PAs(0x48);
++	SPI_3W_SET_PAs(0x51);
++	SPI_3W_SET_PAs(0x58);
++	SPI_3W_SET_PAs(0x60);
++	SPI_3W_SET_PAs(0x68);
++	SPI_3W_SET_PAs(0x70);
++	SPI_3W_SET_PAs(0x78);
++	SPI_3W_SET_PAs(0x80);
++	SPI_3W_SET_PAs(0x88);
++	SPI_3W_SET_PAs(0x90);
++	SPI_3W_SET_PAs(0x98);
++	SPI_3W_SET_PAs(0xA0);
++	SPI_3W_SET_PAs(0xA7);
++	SPI_3W_SET_PAs(0xAF);
++	SPI_3W_SET_PAs(0xB6);
++	SPI_3W_SET_PAs(0xBE);
++	SPI_3W_SET_PAs(0xC7);
++	SPI_3W_SET_PAs(0xCE);
++	SPI_3W_SET_PAs(0xD6);
++	SPI_3W_SET_PAs(0xDE);
++	SPI_3W_SET_PAs(0xE6);
++	SPI_3W_SET_PAs(0xEF);
++	SPI_3W_SET_PAs(0xF5);
++	SPI_3W_SET_PAs(0xFB);
++	SPI_3W_SET_PAs(0xFC);
++	SPI_3W_SET_PAs(0xFE);
++	SPI_3W_SET_PAs(0x8C);
++	SPI_3W_SET_PAs(0xA4);
++	SPI_3W_SET_PAs(0x19);
++	SPI_3W_SET_PAs(0xEC);
++	SPI_3W_SET_PAs(0x1B);
++	SPI_3W_SET_PAs(0x4C);
++	SPI_3W_SET_PAs(0x40);
++	SPI_3W_SET_PAs(0x02); //SET B-Gamma
++	SPI_3W_SET_PAs(0x08);
++	SPI_3W_SET_PAs(0x12);
++	SPI_3W_SET_PAs(0x1A);
++	SPI_3W_SET_PAs(0x22);
++	SPI_3W_SET_PAs(0x2A);
++	SPI_3W_SET_PAs(0x31);
++	SPI_3W_SET_PAs(0x36);
++	SPI_3W_SET_PAs(0x3F);
++	SPI_3W_SET_PAs(0x48);
++	SPI_3W_SET_PAs(0x51);
++	SPI_3W_SET_PAs(0x58);
++	SPI_3W_SET_PAs(0x60);
++	SPI_3W_SET_PAs(0x68);
++	SPI_3W_SET_PAs(0x70);
++	SPI_3W_SET_PAs(0x78);
++
++	SPI_3W_SET_PAs(0x80);
++	SPI_3W_SET_PAs(0x88);
++	SPI_3W_SET_PAs(0x90);
++	SPI_3W_SET_PAs(0x98);
++	SPI_3W_SET_PAs(0xA0);
++	SPI_3W_SET_PAs(0xA7);
++	SPI_3W_SET_PAs(0xAF);
++	SPI_3W_SET_PAs(0xB6);
++	SPI_3W_SET_PAs(0xBE);
++	SPI_3W_SET_PAs(0xC7);
++	SPI_3W_SET_PAs(0xCE);
++	SPI_3W_SET_PAs(0xD6);
++	SPI_3W_SET_PAs(0xDE);
++	SPI_3W_SET_PAs(0xE6);
++	SPI_3W_SET_PAs(0xEF);
++	SPI_3W_SET_PAs(0xF5);
++	SPI_3W_SET_PAs(0xFB);
++	SPI_3W_SET_PAs(0xFC);
++	SPI_3W_SET_PAs(0xFE);
++	SPI_3W_SET_PAs(0x8C);
++	SPI_3W_SET_PAs(0xA4);
++	SPI_3W_SET_PAs(0x19);
++	SPI_3W_SET_PAs(0xEC);
++	SPI_3W_SET_PAs(0x1B);
++	SPI_3W_SET_PAs(0x4C);
++	SPI_3W_SET_PAs(0x40);
++
++
++	SPI_3W_SET_CMD(0x3A); //Set COLMOD
++	SPI_3W_SET_PAs(0x77);
++
++
++	SPI_3W_SET_CMD(0x11); //Sleep Out
++
++	delay(150); //120ms
++
++	SPI_3W_SET_CMD(0x29); //Display On
++
++}

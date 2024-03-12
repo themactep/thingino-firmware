@@ -1,0 +1,13 @@
+
+--- a/drivers/mtd/nand/Makefile	2013-07-23 07:58:13.000000000 -0400
++++ b/drivers/mtd/nand/Makefile	2023-07-26 11:31:38.000000000 -0400
+@@ -79,6 +79,9 @@
+ COBJS-$(CONFIG_NAND_OMAP_GPMC) += omap_gpmc.o
+ COBJS-$(CONFIG_NAND_PLAT) += nand_plat.o
+ COBJS-$(CONFIG_NAND_DOCG4) += docg4.o
++COBJS-$(CONFIG_JZ_SPI_NANDFLASH) += jz_spi_nand.o
++COBJS-$(CONFIG_CMD_SFC_NAND) += jz_sfc_nand.o jz_sfc.o
++
+ 
+ else  # minimal SPL drivers
+ 

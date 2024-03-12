@@ -1,0 +1,5 @@
+config BR2_PACKAGE_WIFI_RTL8188FU
+	bool "Realtek RTL8188FU"
+	select BR2_LINUX_KERNEL
+	help
+	  RTL8188FU wireless driver

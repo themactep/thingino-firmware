@@ -1,0 +1,14 @@
+
+--- a/drivers/misc/Makefile	2013-07-23 07:58:13.000000000 -0400
++++ b/drivers/misc/Makefile	2023-07-26 11:31:38.000000000 -0400
+@@ -40,6 +40,10 @@
+ COBJS-$(CONFIG_PDSP188x) += pdsp188x.o
+ COBJS-$(CONFIG_STATUS_LED) += status_led.o
+ COBJS-$(CONFIG_TWL4030_LED) += twl4030_led.o
++COBJS-$(CONFIG_JZ4780_EFUSE) += jz4780_efuse.o
++COBJS-$(CONFIG_M200_EFUSE) += m200_efuse.o
++COBJS-$(CONFIG_T15_EFUSE) += t15_efuse.o
++COBJS-$(CONFIG_T10_EFUSE) += t10_efuse.o
+ 
+ COBJS	:= $(COBJS-y)
+ SRCS	:= $(COBJS:.o=.c)

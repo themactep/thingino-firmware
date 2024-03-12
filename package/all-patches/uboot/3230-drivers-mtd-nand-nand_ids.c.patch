@@ -1,0 +1,24 @@
+
+--- a/drivers/mtd/nand/nand_ids.c	2013-07-23 07:58:13.000000000 -0400
++++ b/drivers/mtd/nand/nand_ids.c	2023-07-26 11:31:38.000000000 -0400
+@@ -23,7 +23,9 @@
+ *	512	512 Byte page size
+ */
+ const struct nand_flash_dev nand_flash_ids[] = {
+-
++#ifdef CONFIG_JZ_SPI_NANDFLASH
++	{"SPI-NAND 256MiB 3,3V 8-bit",	0xf2, 2048, 256, 0x20000, 0},
++#endif
+ #ifdef CONFIG_MTD_NAND_MUSEUM_IDS
+ 	{"NAND 1MiB 5V 8-bit",		0x6e, 256, 1, 0x1000, 0},
+ 	{"NAND 2MiB 5V 8-bit",		0x64, 256, 2, 0x1000, 0},
+@@ -178,6 +180,9 @@
+ 	{NAND_MFR_AMD, "AMD/Spansion"},
+ 	{NAND_MFR_MACRONIX, "Macronix"},
+ 	{NAND_MFR_EON, "Eon"},
++#ifdef CONFIG_JZ_SPI_NANDFLASH
++	{NAND_SPI_GIGA, "spi-nand-giga"},
++#endif
+ 	{0x0, "Unknown"}
+ };
+ 

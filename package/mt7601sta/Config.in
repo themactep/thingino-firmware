@@ -1,8 +1,0 @@
-config BR2_PACKAGE_MT7601STA
-	bool "mt7601sta"
-	depends on BR2_LINUX_KERNEL
-	help
-	  Wireless driver mt7601sta.
-
-comment "mt7601sta needs a Linux kernel to be built"
-	depends on !BR2_LINUX_KERNEL

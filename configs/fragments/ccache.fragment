@@ -1,0 +1,2 @@
+BR2_CCACHE=y
+BR2_CCACHE_DIR="$(HOME)/.ccache"

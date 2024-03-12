@@ -1,0 +1,42 @@
+
+--- a/arch/mips/config.mk	2013-07-23 07:58:13.000000000 -0400
++++ b/arch/mips/config.mk	2023-07-26 11:31:37.000000000 -0400
+@@ -21,7 +21,7 @@
+ # MA 02111-1307 USA
+ #
+ 
+-CROSS_COMPILE ?= mips_4KC-
++CROSS_COMPILE ?= mips-linux-gnu-
+ 
+ # Handle special prefix in ELDK 4.0 toolchain
+ ifneq (,$(findstring 4KCle,$(CROSS_COMPILE)))
+@@ -39,6 +39,7 @@
+ # Default to EB if no endianess is configured
+ ENDIANNESS ?= -EB
+ 
++PLATFORM_CPPFLAGS += -msoft-float -std=gnu89
+ PLATFORM_CPPFLAGS += -DCONFIG_MIPS -D__MIPS__
+ 
+ #
+@@ -59,11 +60,18 @@
+ # MODFLAGS			+= -mlong-calls
+ #
+ # On the other hand, we want PIC in the U-Boot code to relocate it from ROM
+-# to RAM. $28 is always used as gp.
++# to RAM, unless we're building SPL which doesn't relocate. $28 is always
++# used as gp.
+ #
+-PLATFORM_CPPFLAGS		+= -G 0 -mabicalls -fpic $(ENDIANNESS)
++PLATFORM_CPPFLAGS		+= -G 0 $(ENDIANNESS)
+ PLATFORM_CPPFLAGS		+= -msoft-float
+ PLATFORM_LDFLAGS		+= -G 0 -static -n -nostdlib $(ENDIANNESS)
+ PLATFORM_RELFLAGS		+= -ffunction-sections -fdata-sections
+-LDFLAGS_FINAL			+= --gc-sections -pie
++LDFLAGS_FINAL			+= --gc-sections
+ OBJCFLAGS			+= --remove-section=.dynsym
++ifdef CONFIG_SPL_BUILD
++PLATFORM_CPPFLAGS		+= -fno-pic -mno-abicalls
++else
++PLATFORM_CPPFLAGS		+= -fpic -mabicalls
++LDFLAGS_FINAL			+= -pie
++endif

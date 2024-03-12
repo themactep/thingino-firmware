@@ -1,0 +1,209 @@
+
+--- a/common/cmd_jffs2.c	2013-07-23 07:58:13.000000000 -0400
++++ b/common/cmd_jffs2.c	2023-07-26 11:31:38.000000000 -0400
+@@ -414,6 +414,10 @@
+ 			part->size = id->size - part->offset;
+ 
+ 		part->sector_size = get_part_sector_size(id, part);
++		if (part->sector_size == 0) {
++			extern flash_info_t flash_info[];
++			part->sector_size = flash_info[id->num].size / flash_info[id->num].sector_count;
++		}
+ 
+ 		DEBUGF("part  : name = %s, size = 0x%08lx, offset = 0x%08lx\n",
+ 				part->name, part->size, part->offset);
+@@ -471,6 +475,9 @@
+ 	return NULL;
+ }
+ 
++extern void* norflash_memory_map_init();
++extern void norflash_memory_map_deinit(void *buf);
++
+ /***************************************************/
+ /* U-boot commands				   */
+ /***************************************************/
+@@ -490,8 +497,9 @@
+ 	char *fsname;
+ 	char *filename;
+ 	int size;
++	void *buf;
+ 	struct part_info *part;
+-	ulong offset = load_addr;
++	ulong offset = CONFIG_START_VIRTUAL_ADDRESS;
+ 
+ 	/* pre-set Boot file name */
+ 	if ((filename = getenv("bootfile")) == NULL) {
+@@ -507,9 +515,15 @@
+ 		filename = argv[2];
+ 	}
+ 
++	buf = norflash_memory_map_init();
++	if (buf == NULL)
++		return 1;
++
+ 	/* make sure we are in sync with env variables */
+-	if (mtdparts_init() !=0)
++	if (mtdparts_init() !=0) {
++		norflash_memory_map_deinit(buf);
+ 		return 1;
++	}
+ 
+ 	if ((part = jffs2_part_info(current_mtd_dev, current_mtd_partnum))){
+ 
+@@ -532,8 +546,80 @@
+ 			printf("### %s LOAD ERROR<%x> for %s!\n", fsname, size, filename);
+ 		}
+ 
++		norflash_memory_map_deinit(buf);
+ 		return !(size > 0);
+ 	}
++	norflash_memory_map_deinit(buf);
++	return 1;
++}
++
++/**
++ * routine implementing fsdump u-boot command. this routine tries to show
++ * a requested file contents from jffs2/cramfs filesystem on a current partition.
++ *
++ * @param cmdtp command internal data
++ * @param flag command flag
++ * @param argc number of arguments supplied to the command
++ * @param argv arguments list
++ * @return 0 on success, 1 otherwise
++ */
++int do_jffs2_fsdump(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
++{
++	char *fsname;
++	char *filename;
++	int size;
++	void *buf;
++	struct part_info *part;
++	ulong offset = CONFIG_START_VIRTUAL_ADDRESS;
++
++	/* pre-set Boot file name */
++	if ((filename = getenv("bootfile")) == NULL) {
++		filename = "uImage";
++	}
++
++	if (argc == 2) {
++		filename = argv[1];
++	}
++	if (argc == 3) {
++		offset = simple_strtoul(argv[1], NULL, 16);
++		load_addr = offset;
++		filename = argv[2];
++	}
++
++	buf = norflash_memory_map_init();
++	if (buf == NULL)
++		return 1;
++
++	/* make sure we are in sync with env variables */
++	if (mtdparts_init() !=0) {
++		norflash_memory_map_deinit(buf);
++		return 1;
++	}
++
++	if ((part = jffs2_part_info(current_mtd_dev, current_mtd_partnum))){
++
++		/* check partition type for cramfs */
++		fsname = (cramfs_check(part) ? "CRAMFS" : "JFFS2");
++
++		if (cramfs_check(part)) {
++			size = cramfs_load ((char *) offset, part, filename);
++		} else {
++			/* if this is not cramfs assume jffs2 */
++			size = jffs2_1pass_load((char *)offset, part, filename);
++		}
++
++		if (size > 0) {
++			setenv_hex("filesize", size);
++			*(char*)(offset + size) = 0;
++			printf("%s\n", (char*)offset);
++		} else {
++			printf("### %s LOAD ERROR<%x> for %s!\n", fsname, size, filename);
++		}
++
++		norflash_memory_map_deinit(buf);
++		return !(size > 0);
++	}
++	norflash_memory_map_deinit(buf);
+ 	return 1;
+ }
+ 
+@@ -551,14 +637,21 @@
+ {
+ 	char *filename = "/";
+ 	int ret;
++	void *buf;
+ 	struct part_info *part;
+ 
+ 	if (argc == 2)
+ 		filename = argv[1];
+ 
++	buf = norflash_memory_map_init();
++	if (buf == NULL)
++		return 1;
++
+ 	/* make sure we are in sync with env variables */
+-	if (mtdparts_init() !=0)
++	if (mtdparts_init() !=0) {
++		norflash_memory_map_deinit(buf);
+ 		return 1;
++	}
+ 
+ 	if ((part = jffs2_part_info(current_mtd_dev, current_mtd_partnum))){
+ 
+@@ -570,8 +663,10 @@
+ 			ret = jffs2_1pass_ls(part, filename);
+ 		}
+ 
++		norflash_memory_map_deinit(buf);
+ 		return ret ? 0 : 1;
+ 	}
++	norflash_memory_map_deinit(buf);
+ 	return 1;
+ }
+ 
+@@ -590,10 +685,17 @@
+ 	struct part_info *part;
+ 	char *fsname;
+ 	int ret;
++	void *buf;
++
++	buf = norflash_memory_map_init();
++	if (buf == NULL)
++		return 1;
+ 
+ 	/* make sure we are in sync with env variables */
+-	if (mtdparts_init() !=0)
++	if (mtdparts_init() !=0) {
++		norflash_memory_map_deinit(buf);
+ 		return 1;
++	}
+ 
+ 	if ((part = jffs2_part_info(current_mtd_dev, current_mtd_partnum))){
+ 
+@@ -608,8 +710,10 @@
+ 			ret = jffs2_1pass_info(part);
+ 		}
+ 
++		norflash_memory_map_deinit(buf);
+ 		return ret ? 0 : 1;
+ 	}
++	norflash_memory_map_deinit(buf);
+ 	return 1;
+ }
+ 
+@@ -632,4 +736,11 @@
+ 	"print information about filesystems",
+ 	""
+ );
++U_BOOT_CMD(
++	fsdump,	3,	0,	do_jffs2_fsdump,
++	"show file contents from a filesystem image",
++	"[ off ] [ filename ]\n"
++	"    - load binary file from flash bank\n"
++	"      with offset 'off'"
++);
+ /***************************************************/

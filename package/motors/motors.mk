@@ -1,9 +1,3 @@
-################################################################################
-#
-# motors
-#
-################################################################################
-
 MOTORS_SITE_METHOD = git
 MOTORS_SITE = https://github.com/openipc/motors.git
 MOTORS_VERSION = $(shell git ls-remote $(MOTORS_SITE) HEAD | head -1 | cut -f1)
@@ -16,6 +10,9 @@ define MOTORS_BUILD_CMDS
 endef
 
 define MOTORS_INSTALL_TARGET_CMDS
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
+	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d/ $(MOTORS_PKGDIR)/files/S09motor
+
 	$(INSTALL) -m 0755 -D $(@D)/ingenic-motor/ingenic-motor $(TARGET_DIR)/usr/bin/motors
 endef
 

@@ -1,5 +1,7 @@
 config BR2_PACKAGE_RAPTOR_IPC
-	bool "raptor-ipc"
+	bool "Raptor streamer"
+	select BR2_PACKAGE_GO2RTC
+	select BR2_PACKAGE_INGENIC_LIBIMP_CONTROL
 	help
 	  Raptor, an innovative and open-source platform designed for modular, multi-platform IP camera streaming.
 	  https://github.com/gtxaspec/raptor

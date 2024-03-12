@@ -1,0 +1,16 @@
+
+--- a/LOG/pdm360ng.MAKELOG	2023-01-02 16:15:56.664141692 -0500
++++ b/LOG/pdm360ng.MAKELOG	1969-12-31 19:00:00.000000000 -0500
+@@ -1,12 +0,0 @@
+-Generating include/autoconf.mk.dep
+-Generating include/autoconf.mk
+-mips-linux-gnu-gcc -DDO_DEPS_ONLY \
+-	-g  -Os  -fpic -mrelocatable -ffunction-sections -fdata-sections -meabi -D__KERNEL__ -I/home/paul/dev/u-boot-2013.07/include -fno-builtin -ffreestanding -nostdinc -isystem /home/paul/mnt/chulan/toolchains/ingenic/mips-gcc472-glibc216-32bit-r2.3.3/bin/../lib/gcc/mips-linux-gnu/4.7.2/include -pipe -DCONFIG_PPC -D__powerpc__ -DCONFIG_MPC512X -DCONFIG_E300 -ffixed-r2 -msoft-float -mcpu=603e -Wall -Wstrict-prototypes     \
+-	-o lib/asm-offsets.s lib/asm-offsets.c -c -S
+-if [ -f arch/powerpc/cpu/mpc512x//asm-offsets.c ];then \
+-	mips-linux-gnu-gcc -DDO_DEPS_ONLY \
+-	-g  -Os  -fpic -mrelocatable -ffunction-sections -fdata-sections -meabi -D__KERNEL__ -I/home/paul/dev/u-boot-2013.07/include -fno-builtin -ffreestanding -nostdinc -isystem /home/paul/mnt/chulan/toolchains/ingenic/mips-gcc472-glibc216-32bit-r2.3.3/bin/../lib/gcc/mips-linux-gnu/4.7.2/include -pipe -DCONFIG_PPC -D__powerpc__ -DCONFIG_MPC512X -DCONFIG_E300 -ffixed-r2 -msoft-float -mcpu=603e -Wall -Wstrict-prototypes     \
+-		-o arch/powerpc/cpu/mpc512x//asm-offsets.s arch/powerpc/cpu/mpc512x//asm-offsets.c -c -S; \
+-else \
+-	touch arch/powerpc/cpu/mpc512x//asm-offsets.s; \
+-fi

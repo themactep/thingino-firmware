@@ -1,0 +1,6 @@
+config BR2_PACKAGE_WIFI_RTL8188EUS
+	bool "Realtek RTL8188EUS"
+	select BR2_LINUX_KERNEL
+	help
+	  A standalone driver for the RTL8188EU/RTL8188EUS/RTL8188ETV USB Wi-Fi adapter.
+	  https://github.com/aircrack-ng/rtl8188eus/

@@ -1,0 +1,11 @@
+
+--- a/drivers/serial/Makefile	2013-07-23 07:58:13.000000000 -0400
++++ b/drivers/serial/Makefile	2023-07-26 11:31:38.000000000 -0400
+@@ -26,6 +26,7 @@
+ LIB	:= $(obj)libserial.o
+ 
+ COBJS-y += serial.o
++#COBJS-y += serial_cloner.o
+ 
+ COBJS-$(CONFIG_ALTERA_UART) += altera_uart.o
+ COBJS-$(CONFIG_ALTERA_JTAG_UART) += altera_jtag_uart.o

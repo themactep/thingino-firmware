@@ -1,0 +1,19 @@
+
+--- a/board/ingenic/isvp_t21/partitions.tab	1969-12-31 19:00:00.000000000 -0500
++++ b/board/ingenic/isvp_t21/partitions.tab	2023-07-26 11:31:38.000000000 -0400
+@@ -0,0 +1,14 @@
++property:
++    disk_size = 512m
++    gpt_header_lba = 512
++    custom_signature = 0
++
++partition:
++	#name     =  start,   size, fstype
++	xboot     =     0m,     3m,
++	boot      =     3m,     8m, EMPTY
++	system    =    12m,   128m, LINUX_FS
++	data      =   140m,   256m, LINUX_FS
++	vfat      =   396m,    64m,
++
++#fstype could be: LINUX_FS, FAT_FS, EMPTY
+\ No newline at end of file

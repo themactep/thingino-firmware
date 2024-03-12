@@ -138,12 +138,22 @@ SOC_FAMILY := t41
 KERNEL_BRANCH := $(SOC_VENDOR)-t41
 endif
 
+ifeq ($(BR2_PACKAGE_MAJESTIC),y)
+STREAMER := majestic
+else ifeq ($(BR2_PACKAGE_RAPTOR_IPC),y)
+STREAMER := raptor
+else ifeq ($(BR2_PACKAGE_PRUDYNT_T),y)
+STREAMER := prudynt
+endif
+
 KERNEL_SITE = https://github.com/gtxaspec/openipc_linux
 KERNEL_HASH = $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
-THINGINO_KERNEL = https://github.com/gtxaspec/openipc_linux/archive/$(KERNEL_HASH).tar.gz
+THINGINO_KERNEL = $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
+
+# TODO: download the latest build
 THINGINO_TOOLCHAIN = https://github.com/themactep/thingino-firmware/releases/download/toolchain/thingino-toolchain_xburst1_musl_gcc13-linux-mipsel.tar.gz
 
-SENSOR_MODEL = $(subst z,,$(BR2_SENSOR_MODEL))
+SENSOR_MODEL = $(subst ",,$(BR2_SENSOR_MODEL))
 SOC_MODEL_LESS_Z = $(subst z,,$(SOC_MODEL))
 
 export SOC_VENDOR
@@ -153,6 +163,7 @@ export SOC_MODEL_LESS_Z
 export SENSOR_MODEL
 export THINGINO_KERNEL
 export THINGINO_TOOLCHAIN
+export STREAMER
 
 ifneq ($(BR2_SOC_INGENIC_DUMMY),y)
 # include makefiles from packages

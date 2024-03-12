@@ -1,0 +1,20 @@
+
+--- a/arch/mips/lib/Makefile	2013-07-23 07:58:13.000000000 -0400
++++ b/arch/mips/lib/Makefile	2023-07-26 11:31:38.000000000 -0400
+@@ -34,12 +34,16 @@
+ 
+ SOBJS-y	+=
+ 
++ifndef CONFIG_SPL_BUILD
+ COBJS-y	+= board.o
+ ifeq ($(CONFIG_QEMU_MIPS),y)
+ COBJS-$(CONFIG_CMD_BOOTM) += bootm_qemu_mips.o
+ else
+ COBJS-$(CONFIG_CMD_BOOTM) += bootm.o
+ endif
++else
++COBJS-$(CONFIG_SPL_FRAMEWORK) += spl.o
++endif
+ 
+ SRCS	:= $(SOBJS-y:.o=.S) $(COBJS-y:.o=.c)
+ OBJS	:= $(addprefix $(obj),$(SOBJS-y) $(COBJS-y))

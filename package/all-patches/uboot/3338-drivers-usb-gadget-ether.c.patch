@@ -1,0 +1,201 @@
+
+--- a/drivers/usb/gadget/ether.c	2013-07-23 07:58:13.000000000 -0400
++++ b/drivers/usb/gadget/ether.c	2023-07-26 11:31:38.000000000 -0400
+@@ -19,6 +19,8 @@
+  * along with this program; if not, write to the Free Software
+  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  */
++//#define DEBUG
++//#define DEBUG_VERBOSE
+ 
+ #include <common.h>
+ #include <asm/errno.h>
+@@ -108,10 +110,9 @@
+ 			|USB_CDC_PACKET_TYPE_PROMISCUOUS \
+ 			|USB_CDC_PACKET_TYPE_DIRECTED)
+ 
+-#define USB_CONNECT_TIMEOUT (3 * CONFIG_SYS_HZ)
++#define USB_CONNECT_TIMEOUT (30 * CONFIG_SYS_HZ)
+ 
+ /*-------------------------------------------------------------------------*/
+-
+ struct eth_dev {
+ 	struct usb_gadget	*gadget;
+ 	struct usb_request	*req;		/* for control responses */
+@@ -133,6 +134,9 @@
+ 	unsigned		rndis:1;
+ 	unsigned		suspended:1;
+ 	unsigned		network_started:1;
++#ifdef CONFIG_USB_ETH_HALT			/*cli@ingenic.cn*/
++	unsigned		network_halted:1;
++#endif
+ 	u16			cdc_filter;
+ 	unsigned long		todo;
+ 	int			mtu;
+@@ -1229,13 +1233,30 @@
+ }
+ 
+ #ifdef CONFIG_USB_ETH_RNDIS
+-
+ static void rndis_response_complete(struct usb_ep *ep, struct usb_request *req)
+ {
++#ifdef CONFIG_USB_ETH_HALT
++	rndis_indicate_status_msg_type *resp;
++#endif
++
+ 	if (req->status || req->actual != req->length)
+ 		debug("rndis response complete --> %d, %d/%d\n",
+ 			req->status, req->actual, req->length);
++#ifdef CONFIG_USB_ETH_HALT
++	resp = (rndis_indicate_status_msg_type*) req->buf;
++	if (__constant_le32_to_cpu(resp->MessageType) ==
++			REMOTE_NDIS_INDICATE_STATUS_MSG) {
++		if (resp->Status == RNDIS_STATUS_MEDIA_CONNECT) {
++			printf("set success eth is connect\n");
++			l_ethdev.network_halted = 0;
++		} else {
++			printf("set success eth is disconnect\n");
++			l_ethdev.network_halted = 1;
++			mdelay(1000);
++		}
+ 
++	}
++#endif
+ 	/* done sending after USB_CDC_GET_ENCAPSULATED_RESPONSE */
+ }
+ 
+@@ -1491,8 +1512,12 @@
+ 				req->complete = rndis_response_complete;
+ 				rndis_free_response(dev->rndis_config, buf);
+ 				value = n;
++			} else {
++				/* else stalls ... spec says to avoid that */
++				memset(req->buf,0,1);
++				value = req->length = 1;
++				req->complete = rndis_response_complete;
+ 			}
+-			/* else stalls ... spec says to avoid that */
+ 		}
+ 		break;
+ #endif	/* RNDIS */
+@@ -1926,6 +1951,7 @@
+ 					BITRATE(dev->gadget)/100);
+ 		rndis_signal_connect(dev->rndis_config);
+ 	}
++	dev->network_halted = 0;
+ }
+ 
+ static int eth_stop(struct eth_dev *dev)
+@@ -1933,21 +1959,35 @@
+ #ifdef RNDIS_COMPLETE_SIGNAL_DISCONNECT
+ 	unsigned long ts;
+ 	unsigned long timeout = CONFIG_SYS_HZ; /* 1 sec to stop RNDIS */
++	//unsigned int retry = 10;
+ #endif
+-
+-	if (rndis_active(dev)) {
++	if (rndis_active(dev)
++#ifdef CONFIG_USB_ETH_HALT
++			&& !dev->network_halted
++#endif
++			) {
+ 		rndis_set_param_medium(dev->rndis_config, NDIS_MEDIUM_802_3, 0);
++//retry:
++		debug("eth_stop\n");
+ 		rndis_signal_disconnect(dev->rndis_config);
+ 
+ #ifdef RNDIS_COMPLETE_SIGNAL_DISCONNECT
+ 		/* Wait until host receives OID_GEN_MEDIA_CONNECT_STATUS */
+ 		ts = get_timer(0);
+-		while (get_timer(ts) < timeout)
+-			usb_gadget_handle_interrupts();
++		//dev->network_halted = 0;
++		while (get_timer(ts) < timeout
++#ifdef CONFIG_USB_ETH_HALT
++				&& !dev->network_halted
+ #endif
+-
++		      ) usb_gadget_handle_interrupts();
++#endif
++#ifndef CONFIG_USB_ETH_HALT
+ 		rndis_uninit(dev->rndis_config);
+ 		dev->rndis = 0;
++#endif
++	//	printf("=====eth stop ok\n");
++	//	if (retry--)
++	//		goto retry;
+ 	}
+ 
+ 	return 0;
+@@ -2341,9 +2381,19 @@
+ {
+ 	struct eth_dev *dev = &l_ethdev;
+ 	struct usb_gadget *gadget;
++	int ret = 0;
+ 	unsigned long ts;
+ 	unsigned long timeout = USB_CONNECT_TIMEOUT;
+ 
++#ifdef CONFIG_USB_ETH_HALT
++	if (dev->network_started) {
++		if (dev->network_halted) {
++			eth_start(dev, 0);
++		}
++		return 0;
++	}
++#endif
++
+ 	if (!netdev) {
+ 		error("received NULL ptr");
+ 		goto fail;
+@@ -2374,8 +2424,10 @@
+ 		goto fail;
+ 	}
+ 
+-	if (usb_gadget_register_driver(&eth_driver) < 0)
++	if ((ret = usb_gadget_register_driver(&eth_driver))< 0) {
++		error("usb gadget register errno %d \n",ret);
+ 		goto fail;
++	}
+ 
+ 	dev->network_started = 0;
+ 
+@@ -2496,7 +2548,6 @@
+ void usb_eth_halt(struct eth_device *netdev)
+ {
+ 	struct eth_dev *dev = &l_ethdev;
+-
+ 	if (!netdev) {
+ 		error("received NULL ptr");
+ 		return;
+@@ -2519,6 +2570,9 @@
+ 	 */
+ 	eth_stop(dev);
+ 
++#if defined(RNDIS_COMPLETE_SIGNAL_DISCONNECT) && defined(CONFIG_USB_ETH_HALT)
++	if (!dev->network_started) {
++#endif
+ 	usb_gadget_disconnect(dev->gadget);
+ 
+ 	/* Clear pending interrupt */
+@@ -2528,6 +2582,9 @@
+ 	}
+ 
+ 	usb_gadget_unregister_driver(&eth_driver);
++#if defined(RNDIS_COMPLETE_SIGNAL_DISCONNECT) && defined(CONFIG_USB_ETH_HALT)
++	}
++#endif
+ }
+ 
+ static struct usb_gadget_driver eth_driver = {
+@@ -2554,6 +2611,11 @@
+ 	netdev->recv = usb_eth_recv;
+ 	netdev->halt = usb_eth_halt;
+ 
++#ifdef CONFIG_USB_ETH_HALT
++	l_ethdev.network_started = 0;
++	l_ethdev.network_halted = 0;
++#endif
++
+ #ifdef CONFIG_MCAST_TFTP
+   #error not supported
+ #endif

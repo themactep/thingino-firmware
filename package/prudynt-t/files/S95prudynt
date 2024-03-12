@@ -5,14 +5,11 @@ DAEMON_PATH="/usr/bin"
 PIDFILE="/var/run/$DAEMON.pid"
 
 load_daemon() {
-	printf 'Starting %s: ' "$DAEMON"
+	printf 'Starting %s: ' $DAEMON
 	[ -f $DAEMON_PATH/$DAEMON ] || echo -en "DISABLED, "
-
 	start-stop-daemon -b -m -S -p $PIDFILE -x \
 	/usr/bin/env -- LD_PRELOAD=/usr/lib/libimp_control.so $DAEMON_PATH/$DAEMON
-
 	status=$?
-
 	if [ "$status" -eq 0 ]; then
 		echo "OK"
 	else
@@ -26,12 +23,12 @@ start() {
 }
 
 stop() {
-	printf 'Stopping %s: ' "$DAEMON"
+	printf 'Stopping %s: ' $DAEMON
 	[ -f "$DAEMON_PATH/$DAEMON" ] || echo -en "DISABLED, "
 	start-stop-daemon -K -q -p $PIDFILE
 	status=$?
 	if [ "$status" -eq 0 ]; then
-		rm -f "$PIDFILE"
+		rm -f $PIDFILE
 		echo "OK"
 	else
 		echo "FAIL"

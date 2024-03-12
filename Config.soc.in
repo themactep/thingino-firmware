@@ -1,0 +1,75 @@
+choice
+	prompt "SoC Model"
+config BR2_SOC_INGENIC_DUMMY
+	bool "Dummy (for toolchain)"
+config BR2_SOC_INGENIC_T10L
+	bool "Ingenic T10L"
+config BR2_SOC_INGENIC_T10N
+	bool "Ingenic T10N"
+config BR2_SOC_INGENIC_T10A
+	bool "Ingenic T10A"
+config BR2_SOC_INGENIC_T20L
+	bool "Ingenic T20L"
+config BR2_SOC_INGENIC_T20N
+	bool "Ingenic T20N"
+config BR2_SOC_INGENIC_T20X
+	bool "Ingenic T20X"
+config BR2_SOC_INGENIC_T21L
+	bool "Ingenic T21L"
+config BR2_SOC_INGENIC_T21N
+	bool "Ingenic T21N"
+config BR2_SOC_INGENIC_T21X
+	bool "Ingenic T21X"
+config BR2_SOC_INGENIC_T21Z
+	bool "Ingenic T21Z"
+config BR2_SOC_INGENIC_T21ZL
+	bool "Ingenic T21ZL"
+config BR2_SOC_INGENIC_T23N
+	bool "Ingenic T23N"
+config BR2_SOC_INGENIC_T23ZN
+	bool "Ingenic T23ZN"
+config BR2_SOC_INGENIC_T30L
+	bool "Ingenic T30L"
+config BR2_SOC_INGENIC_T30N
+	bool "Ingenic T30N"
+config BR2_SOC_INGENIC_T30X
+	bool "Ingenic T30X"
+config BR2_SOC_INGENIC_T30A
+	bool "Ingenic T30A"
+config BR2_SOC_INGENIC_T31L
+	bool "Ingenic T31L"
+config BR2_SOC_INGENIC_T31LC
+	bool "Ingenic T31LC"
+config BR2_SOC_INGENIC_T31N
+	bool "Ingenic T31N"
+config BR2_SOC_INGENIC_T31X
+	bool "Ingenic T31X"
+config BR2_SOC_INGENIC_T31A
+	bool "Ingenic T31A"
+config BR2_SOC_INGENIC_T31AL
+	bool "Ingenic T31AL"
+config BR2_SOC_INGENIC_T31ZL
+	bool "Ingenic T31ZL"
+config BR2_SOC_INGENIC_T31ZX
+	bool "Ingenic T31ZX"
+config BR2_SOC_INGENIC_T31XL
+	bool "Ingenic T31XL"
+config BR2_SOC_INGENIC_T40N
+	bool "Ingenic T40N"
+config BR2_SOC_INGENIC_T40XP
+	bool "Ingenic T40XP"
+config BR2_SOC_INGENIC_T40A
+	bool "Ingenic T40A"
+config BR2_SOC_INGENIC_T41LQ
+	bool "Ingenic T41LQ"
+config BR2_SOC_INGENIC_T41NQ
+	bool "Ingenic T41NQ"
+config BR2_SOC_INGENIC_T41ZL
+	bool "Ingenic T41ZL"
+config BR2_SOC_INGENIC_T41ZN
+	bool "Ingenic T41ZN"
+config BR2_SOC_INGENIC_T41ZX
+	bool "Ingenic T41ZX"
+config BR2_SOC_INGENIC_T41A
+	bool "Ingenic T41A"
+endchoice

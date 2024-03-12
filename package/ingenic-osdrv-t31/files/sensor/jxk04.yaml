@@ -1,6 +1,0 @@
-sensor:
-  name: jxk04
-  address: 0x40
-  width: 2560
-  height: 1440
-  bus: i2c

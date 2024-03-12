@@ -1,0 +1,190 @@
+
+--- a/arch/mips/cpu/xburst/timer.c	2013-07-23 07:58:13.000000000 -0400
++++ b/arch/mips/cpu/xburst/timer.c	2023-07-26 11:31:37.000000000 -0400
+@@ -1,6 +1,8 @@
+ /*
+- *  Copyright (c) 2006
+- *  Ingenic Semiconductor, <jlwei@ingenic.cn>
++ * Timer for JZ4775, JZ4780
++ *
++ * Copyright (c) 2013 Imagination Technologies
++ * Author: Paul Burton <paul.burton@imgtec.com>
+  *
+  * This program is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License as
+@@ -20,142 +22,77 @@
+ 
+ #include <config.h>
+ #include <common.h>
++#include <div64.h>
+ #include <asm/io.h>
+-
+-#include <asm/jz4740.h>
+-
+-#define TIMER_CHAN  0
+-#define TIMER_FDATA 0xffff  /* Timer full data value */
++#include <asm/mipsregs.h>
++#include <asm/arch/ost.h>
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+ 
+-static struct jz4740_tcu *tcu = (struct jz4740_tcu *)JZ4740_TCU_BASE;
++unsigned int multiple __attribute__ ((section(".data")));
+ 
+-void reset_timer_masked(void)
++static uint32_t tcu_readl(uint32_t off)
+ {
+-	/* reset time */
+-	gd->arch.lastinc = readl(&tcu->tcnt0);
+-	gd->arch.tbl = 0;
++	return readl((void __iomem *)TCU_BASE + off);
+ }
+ 
+-ulong get_timer_masked(void)
++static void tcu_writew(uint16_t val, uint32_t off)
+ {
+-	ulong now = readl(&tcu->tcnt0);
+-
+-	if (gd->arch.lastinc <= now)
+-		gd->arch.tbl += now - gd->arch.lastinc; /* normal mode */
+-	else {
+-		/* we have an overflow ... */
+-		gd->arch.tbl += TIMER_FDATA + now - gd->arch.lastinc;
+-	}
+-
+-	gd->arch.lastinc = now;
+-
+-	return gd->arch.tbl;
++	writew(val, (void __iomem *)TCU_BASE + off);
+ }
+ 
+-void udelay_masked(unsigned long usec)
++static void tcu_writel(uint32_t val, uint32_t off)
+ {
+-	ulong tmo;
+-	ulong endtime;
+-	signed long diff;
+-
+-	/* normalize */
+-	if (usec >= 1000) {
+-		tmo = usec / 1000;
+-		tmo *= CONFIG_SYS_HZ;
+-		tmo /= 1000;
+-	} else {
+-		if (usec > 1) {
+-			tmo = usec * CONFIG_SYS_HZ;
+-			tmo /= 1000*1000;
+-		} else
+-			tmo = 1;
+-	}
+-
+-	endtime = get_timer_masked() + tmo;
+-
+-	do {
+-		ulong now = get_timer_masked();
+-		diff = endtime - now;
+-	} while (diff >= 0);
++	writel(val, (void __iomem *)TCU_BASE + off);
+ }
+ 
++#define USEC_IN_1SEC 1000000
+ int timer_init(void)
+ {
+-	writel(TCU_TCSR_PRESCALE256 | TCU_TCSR_EXT_EN, &tcu->tcsr0);
+-
+-	writel(0, &tcu->tcnt0);
+-	writel(0, &tcu->tdhr0);
+-	writel(TIMER_FDATA, &tcu->tdfr0);
+-
+-	/* mask irqs */
+-	writel((1 << TIMER_CHAN) | (1 << (TIMER_CHAN + 16)), &tcu->tmsr);
+-	writel(1 << TIMER_CHAN, &tcu->tscr); /* enable timer clock */
+-	writeb(1 << TIMER_CHAN, &tcu->tesr); /* start counting up */
+-
+-	gd->arch.lastinc = 0;
+-	gd->arch.tbl = 0;
++#ifdef CONFIG_BURNER
++	multiple = gd->arch.gi->extal / USEC_IN_1SEC / OST_DIV;
++#else
++	multiple = CONFIG_SYS_EXTAL / USEC_IN_1SEC / OST_DIV;
++#endif
++
++	reset_timer();
++	tcu_writel(OSTCSR_CNT_MD | OSTCSR_PRESCALE | OSTCSR_EXT_EN, TCU_OSTCSR);
++	tcu_writew(TER_OSTEN, TCU_TESR);
+ 
+ 	return 0;
+ }
+ 
+ void reset_timer(void)
+ {
+-	reset_timer_masked();
++	tcu_writel(0, TCU_OSTCNTH);
++	tcu_writel(0, TCU_OSTCNTL);
++	tcu_writel(0, TCU_OSTDR);
+ }
+ 
+-ulong get_timer(ulong base)
++static uint64_t get_timer64(void)
+ {
+-	return get_timer_masked() - base;
++	uint32_t low = tcu_readl(TCU_OSTCNTL);
++	uint32_t high = tcu_readl(TCU_OSTCNTHBUF);
++	return ((uint64_t)high << 32) | low;
+ }
+ 
+-void set_timer(ulong t)
++ulong get_timer(ulong base)
+ {
+-	gd->arch.tbl = t;
++	return lldiv(get_timer64(), (USEC_IN_1SEC/CONFIG_SYS_HZ) * multiple) - base;
+ }
+ 
+ void __udelay(unsigned long usec)
+ {
+-	ulong tmo, tmp;
+-
+-	/* normalize */
+-	if (usec >= 1000) {
+-		tmo = usec / 1000;
+-		tmo *= CONFIG_SYS_HZ;
+-		tmo /= 1000;
+-	} else {
+-		if (usec >= 1) {
+-			tmo = usec * CONFIG_SYS_HZ;
+-			tmo /= 1000 * 1000;
+-		} else
+-			tmo = 1;
+-	}
+-
+-	/* check for rollover during this delay */
+-	tmp = get_timer(0);
+-	if ((tmp + tmo) < tmp)
+-		reset_timer_masked();  /* timer would roll over */
+-	else
+-		tmo += tmp;
+-
+-	while (get_timer_masked() < tmo)
+-		;
++	/* OST count increments at 3MHz */
++	uint64_t end = get_timer64() + ((uint64_t)usec * multiple);
++	while (get_timer64() < end);
+ }
+ 
+-/*
+- * This function is derived from PowerPC code (read timebase as long long).
+- * On MIPS it just returns the timer value.
+- */
+ unsigned long long get_ticks(void)
+ {
+-	return get_timer(0);
++	return get_timer64();
+ }
+ 
+-/*
+- * This function is derived from PowerPC code (timebase clock frequency).
+- * On MIPS it returns the number of timer ticks per second.
+- */
+ ulong get_tbclk(void)
+ {
+ 	return CONFIG_SYS_HZ;

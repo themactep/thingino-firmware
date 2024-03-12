@@ -1,0 +1,5 @@
+
+--- a/tools/ingenic-tools/security/aesukey	1969-12-31 19:00:00.000000000 -0500
++++ b/tools/ingenic-tools/security/aesukey	2023-07-26 11:31:38.000000000 -0400
+@@ -0,0 +1 @@
++aeskey[4] = {0xee6694c3, 0xef42d55b, 0x60bdfed8, 0x16536470};

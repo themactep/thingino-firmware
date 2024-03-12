@@ -1,0 +1,21 @@
+
+--- a/include/ingenic_soft_i2c.h	1969-12-31 19:00:00.000000000 -0500
++++ b/include/ingenic_soft_i2c.h	2023-07-26 11:31:38.000000000 -0400
+@@ -0,0 +1,17 @@
++
++#ifndef __INCLUDE__GPIO__I2C__
++#define __INCLUDE__GPIO__I2C__
++
++struct i2c {
++	unsigned int scl;
++	unsigned int sda;
++};
++
++void i2c_init(struct i2c *i2c);
++int  i2c_write(struct i2c *i2c,unsigned char chip,
++		unsigned int addr, int alen, unsigned char *buffer, int len);
++int  i2c_read(struct i2c *i2c,unsigned char chip,
++		unsigned int addr, int alen, unsigned char *buffer, int len);
++
++int i2c_probe(struct i2c *i2c, unsigned char addr);
++#endif

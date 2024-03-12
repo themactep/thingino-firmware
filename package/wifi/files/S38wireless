@@ -1,0 +1,68 @@
+#!/bin/sh
+
+start() {
+	echo "Starting wireless:"
+	modulename="$(fw_printenv -n wlandev)"
+	gpionum="$(fw_printenv -n gpio_wlan)"
+	mac_address=$(fw_printenv -n wlanmac)
+
+	if [ -n "$gpionum" ]; then
+		num=${gpionum%[oO]}
+		state=${gpionum#$num}
+
+		case "$state" in
+			O)
+				gpio_cmd="high"
+				;;
+			o)
+				gpio_cmd="low"
+				;;
+		esac
+
+		echo -n " Set GPIO $num $gpio_cmd ... "
+		if gpio $gpio_cmd $num 2>&1 | logger -t $0; then
+			echo "OK"
+		else
+			echo "FAIL"
+			exit 1
+		fi
+	fi
+
+	# Assume that we are SDIO, and we need to insert
+	echo -n " Send INSERT to MMC1 ... "
+	if mmc 1 2>&1 | logger -t $0; then
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+
+	if ! lsmod | grep -q "$modulename"; then
+		echo -n " Load module $modulename ... "
+		if modprobe $modulename 2>&1 | logger -t $0; then
+			echo "OK"
+		else
+			echo "FAIL"
+		fi
+	fi
+
+	if [ -n "$mac_address" ]; then
+		ip link set dev wlan0 address $mac_address
+	fi
+
+	echo "OK"
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		true
+		;;
+	*)
+		echo "Usage: $0 {start}"
+		exit 1
+		;;
+esac
+
+exit 0

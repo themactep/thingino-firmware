@@ -1,4 +1,0 @@
-config BR2_PACKAGE_INGENIC_OSDRV_T21
-	bool "ingenic-osdrv-t21"
-	help
-	  Ingenic kernel modules and libs for T21 SoC

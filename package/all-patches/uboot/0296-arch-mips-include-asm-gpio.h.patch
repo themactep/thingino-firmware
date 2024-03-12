@@ -1,0 +1,6 @@
+
+--- a/arch/mips/include/asm/gpio.h	1969-12-31 19:00:00.000000000 -0500
++++ b/arch/mips/include/asm/gpio.h	2023-07-26 11:31:38.000000000 -0400
+@@ -0,0 +1,2 @@
++#include <asm/arch/gpio.h>
++#include <asm-generic/gpio.h>

@@ -1,24 +1,21 @@
 #!/bin/sh
 
 DAEMON="watchdog"
-
-WATCHDOG_ENABLED=true
 WATCHDOG_TIMEOUT=60
-
 WATCHDOG_ARGS="-T $WATCHDOG_TIMEOUT /dev/watchdog"
 
 start() {
-	if [ "$WATCHDOG_ENABLED" = "true" ]; then
-		echo -n "Starting ${DAEMON}: "
-		start-stop-daemon -b -S -q -x "/sbin/${DAEMON}" -- ${WATCHDOG_ARGS}
-		if [ $? = 0 ]; then
-			echo "OK"
-		else
-			echo "FAIL"
-		fi
-	else
+	if [ "$(fw_printenv -n disable_watchdog)" = "true" ]; then
 		echo "Watchdog: System watchdog disabled"
 		exit 0
+	fi
+
+	echo -n "Starting ${DAEMON}: "
+	start-stop-daemon -b -S -q -x "/sbin/${DAEMON}" -- ${WATCHDOG_ARGS}
+	if [ $? = 0 ]; then
+		echo "OK"
+	else
+		echo "FAIL"
 	fi
 }
 

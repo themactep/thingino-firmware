@@ -1,0 +1,36 @@
+From: Xi Ruoyao <xry111@xry111.site>
+Date: Sat, 15 Apr 2023 11:55:50 +0000 (+0800)
+Subject: build: Use -nostdinc generating macro_list [PR109522]
+X-Git-Url: https://gcc.gnu.org/git/?p=gcc.git;a=commitdiff_plain;h=be6c13d5cef6fd9ca97dea7a6f5fbf93c51235b5;hp=2d76f2b45d6649174748d862a31bb95c53ee1117
+
+build: Use -nostdinc generating macro_list [PR109522]
+
+This prevents a spurious message building a cross-compiler when target
+libc is not installed yet:
+
+    cc1: error: no include path in which to search for stdc-predef.h
+
+As stdc-predef.h was added to define __STDC_* macros by libc, it's
+unlikely the header will ever contain some bad definitions w/o "__"
+prefix so it should be safe.
+
+gcc/ChangeLog:
+
+	PR other/109522
+	* Makefile.in (s-macro_list): Pass -nostdinc to
+	$(GCC_FOR_TARGET).
+---
+
+diff --git a/gcc/Makefile.in b/gcc/Makefile.in
+index 9300b3ee7f5d..17486585813f 100644
+--- a/gcc/Makefile.in
++++ b/gcc/Makefile.in
+@@ -3254,7 +3254,7 @@ install-gcc-tooldir:
+ 
+ macro_list: s-macro_list; @true
+ s-macro_list : $(GCC_PASSES) cc1$(exeext)
+-	echo | $(GCC_FOR_TARGET) -E -dM - | \
++	echo | $(GCC_FOR_TARGET) -nostdinc -E -dM - | \
+ 	  sed -n -e 's/^#define \([^_][a-zA-Z0-9_]*\).*/\1/p' \
+ 		 -e 's/^#define \(_[^_A-Z][a-zA-Z0-9_]*\).*/\1/p' | \
+ 	  sort -u > tmp-macro_list

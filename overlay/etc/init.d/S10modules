@@ -15,10 +15,9 @@ case "$1" in
 					;;
 			esac
 
-			# attempt to load modules
-			modprobe ${module} ${args} > /dev/null
+			echo -n "Load module ${module} ... "
+			modprobe ${module} ${args} && echo "OK" || echo "FAIL"
 		done < /etc/modules
-		echo "OK"
 		;;
 esac
 

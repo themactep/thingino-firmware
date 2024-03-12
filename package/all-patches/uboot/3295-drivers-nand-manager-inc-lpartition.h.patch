@@ -1,0 +1,37 @@
+
+--- a/drivers/nand/manager/inc/lpartition.h	1969-12-31 19:00:00.000000000 -0500
++++ b/drivers/nand/manager/inc/lpartition.h	2023-07-26 11:31:38.000000000 -0400
+@@ -0,0 +1,33 @@
++#ifndef __LPARTITION_H__
++#define __LPARTITION_H__
++
++#define LPARTITION(OBJ) ((LPartition*)OBJ)
++
++#ifndef String
++#define String char*
++#endif
++
++#include "singlelist.h"
++typedef struct _LPartition LPartition;
++#define MUL_PARTS 4
++typedef struct _lmul_parts lmul_parts;
++struct _lmul_parts{
++    int startSector;
++    int sectorCount;
++    char *name;
++};
++struct _LPartition {
++	struct singlelist head;
++    int startSector;
++    int sectorCount;
++    const char* name;
++    int mode;
++    int pc; /*partcontext*/
++
++    int hwsector;
++    unsigned int segmentsize;
++    lmul_parts lparts[MUL_PARTS];
++    int parts_num;
++};
++
++#endif

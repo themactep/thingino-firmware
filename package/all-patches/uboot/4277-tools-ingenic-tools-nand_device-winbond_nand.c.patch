@@ -1,0 +1,27 @@
+
+--- a/tools/ingenic-tools/nand_device/winbond_nand.c	1969-12-31 19:00:00.000000000 -0500
++++ b/tools/ingenic-tools/nand_device/winbond_nand.c	2023-07-26 11:31:38.000000000 -0400
+@@ -0,0 +1,23 @@
++#include <stdio.h>
++#include "nand_common.h"
++
++#define WINBOND_MID			    0xEF
++#define WINBOND_NAND_DEVICD_COUNT	    2
++
++static unsigned char winbond_xgv[] = {0x2, 0x3};
++
++static struct device_struct device[] = {
++	DEVICE_STRUCT(0xAA, 2048, 2, 4, 2, 2, winbond_xgv),
++	DEVICE_STRUCT(0xAB, 2048, 2, 4, 2, 2, winbond_xgv),
++};
++
++static struct nand_desc winbond_nand = {
++
++	.id_manufactory = WINBOND_MID,
++	.device_counts = WINBOND_NAND_DEVICD_COUNT,
++	.device = device,
++};
++
++int winbond_nand_register_func(void) {
++	return nand_register(&winbond_nand);
++}
