@@ -28,7 +28,7 @@ ifeq ($(BOARD),)
 else
  $(info * found BOARD "$(BOARD)" in command line)
  $(info * search for matching config files)
- CONFIGS = $(shell find ./configs/ ./cameras/ -name "$(BOARD)*")
+ CAMERA_CONFIG = $(shell find ./configs/ ./cameras/ -name "$(BOARD)*")
 endif
 
 ifeq ($(CAMERA_CONFIG),)
