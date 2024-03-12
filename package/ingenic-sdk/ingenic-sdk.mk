@@ -1,5 +1,5 @@
 INGENIC_SDK_SITE_METHOD = git
-INGENIC_SDK_SITE = https://github.com/themactep/openingenic
+INGENIC_SDK_SITE = https://github.com/themactep/ingenic-sdk
 INGENIC_SDK_VERSION = $(shell git ls-remote $(INGENIC_SDK_SITE) master | head -1 | cut -f1)
 
 INGENIC_SDK_LICENSE = GPL-3.0
