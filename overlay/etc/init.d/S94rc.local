@@ -19,6 +19,7 @@ stop() {
 		echo "OK"
 	else
 		echo "/etc/rc.local.stop not found."
+		exit 1
 	fi
 }
 
