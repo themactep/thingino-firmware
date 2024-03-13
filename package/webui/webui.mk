@@ -6,9 +6,7 @@
 
 WEBUI_SITE_METHOD = git
 WEBUI_SITE = https://github.com/themactep/thingino-webui
-ifeq ($(BR2_PACKAGE_MAJESTIC),y)
-WEBUI_VERSION = $(shell git ls-remote $(WEBUI_SITE) majestic | head -1 | cut -f1)
-else ifeq ($(BR2_PACKAGE_PRUDYNT_T),y)
+ifeq ($(BR2_PACKAGE_PRUDYNT_T),y)
 WEBUI_VERSION = $(shell git ls-remote $(WEBUI_SITE) prudynt | head -1 | cut -f1)
 else
 WEBUI_VERSION = $(shell git ls-remote $(WEBUI_SITE) master | head -1 | cut -f1)
