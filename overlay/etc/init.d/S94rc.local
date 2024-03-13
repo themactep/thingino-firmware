@@ -23,13 +23,13 @@ stop() {
 }
 
 case "$1" in
-	start | stop)
+	start)
 		$1
 		;;
-	restart | reload)
+	stop)
 		stop
-		sleep 1
-		start
+		;;
+	restart | reload)
 		;;
 	*)
 		echo "Usage: $0 {start|stop|restart|reload}"

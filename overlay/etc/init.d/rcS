@@ -16,7 +16,13 @@ for i in /etc/init.d/S??*; do
 	# Ignore dangling symlinks (if any).
 	[ ! -f "$i" ] && continue
 
-	/bin/sh -c "$i start" 2>&1 | tee >(logger -t $i)
+	if /bin/sh -c "$i start" > /tmp/initlog 2>&1; then
+		cat /tmp/initlog | logger -t $i
+	else
+		cat /tmp/initlog | logger -t $i
+		echo "$i failed to start properly" | logger -t $i
+	fi
+	rm -f /tmp/initlog
 done
 
 exit 0
