@@ -138,9 +138,7 @@ SOC_FAMILY := t41
 KERNEL_BRANCH := $(SOC_VENDOR)-t41
 endif
 
-ifeq ($(BR2_PACKAGE_MAJESTIC),y)
-STREAMER := majestic
-else ifeq ($(BR2_PACKAGE_RAPTOR_IPC),y)
+ifeq ($(BR2_PACKAGE_RAPTOR_IPC),y)
 STREAMER := raptor
 else ifeq ($(BR2_PACKAGE_PRUDYNT_T),y)
 STREAMER := prudynt

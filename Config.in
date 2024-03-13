@@ -40,7 +40,7 @@ endif
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
 	bool "Streamer Packages"
 	default y
-	select BR2_PACKAGE_PRUDYNT_T if !BR2_PACKAGE_MAJESTIC && !BR2_PACKAGE_RAPTOR_IPC
+	select BR2_PACKAGE_PRUDYNT_T if !BR2_PACKAGE_RAPTOR_IPC
 	help
 	  Thingino Development Packages
 	  include tools for firmware development.
@@ -48,7 +48,6 @@ menuconfig BR2_THINGINO_STREAMER_PACKAGES
 
 if BR2_THINGINO_STREAMER_PACKAGES
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/raptor-ipc/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/majestic/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/prudynt-t/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/ffmpeg-openipc/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/go2rtc/Config.in"
@@ -60,18 +59,13 @@ endif
 
 menu "Extra Packages"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/capjpeg/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/fdk-aac-openipc/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/jsonfilter/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/libevent-openipc/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/libogg-openipc/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/libwebsockets-openipc/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/motors/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/quirc-openipc/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/uacme-openipc/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/vtund-openipc/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/yaml-cli/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/zerotier-one/Config.in"
 
 	config BR2_PACKAGE_IFUPDOWN_SCRIPTS
