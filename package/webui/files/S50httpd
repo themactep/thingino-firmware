@@ -4,7 +4,7 @@ DAEMON="httpd"
 PIDFILE="/var/run/$DAEMON.pid"
 CONFFILE="/etc/httpd.conf"
 
-HTTPD_ARGS="-p 85 -f -c $CONFFILE -r Authentication"
+HTTPD_ARGS="-f -c $CONFFILE -r Authentication"
 
 start() {
 	printf 'Starting %s: ' "$DAEMON"
