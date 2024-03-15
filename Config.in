@@ -85,6 +85,7 @@ endmenu
 
 menuconfig BR2_THINGINO_DEV_PACKAGES
 	bool "Development Packages"
+	default y
 	help
 	  Thingino Development Packages
 	  include tools for firmware development.
@@ -93,9 +94,9 @@ menuconfig BR2_THINGINO_DEV_PACKAGES
 if BR2_THINGINO_DEV_PACKAGES
 	config BR2_PACKAGE_GDB
 		bool "gdb Server and Client"
-		default y
 		depends on BR2_THINGINO_DEV_PACKAGES
 		select BR2_PACKAGE_HOST_GDB
+		# needs a fuxup for CONFIG_HAVE_ARCH_KGDB=y
 
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat/Config.in"
 endif
