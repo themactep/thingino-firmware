@@ -98,7 +98,7 @@ if BR2_THINGINO_DEV_PACKAGES
 		select BR2_PACKAGE_HOST_GDB
 		# needs a fuxup for CONFIG_HAVE_ARCH_KGDB=y
 
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat/Config.in"
+	source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat-mini/Config.in"
 endif
 
 endmenu
