@@ -1,6 +1,6 @@
 config BR2_PACKAGE_LOGCAT
 	bool "logcat"
-	default y
+	default n
 	depends on BR2_THINGINO_DEV_PACKAGES
 	help
 	  Userspace programs for reading the Android logging
