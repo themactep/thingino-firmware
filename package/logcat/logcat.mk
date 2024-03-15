@@ -7,4 +7,10 @@ LOGCAT_LICENSE_FILES = COPYING
 
 LOGCAT_INSTALL_STAGING = YES
 
+LOGCAT_DEPENDENCIES = host-upx
+define LOGCAT_INSTALL_STAGING_CMDS
+        $(HOST_DIR)/bin/upx --best --lzma $(@D)/logcat/logcat
+        $(HOST_DIR)/bin/upx --best --lzma $(@D)/logwrapper/logwrapper
+endef
+
 $(eval $(cmake-package))
