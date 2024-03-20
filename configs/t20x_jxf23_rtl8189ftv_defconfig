@@ -1,4 +1,4 @@
-# FRAG: soc toolchain ccache brand rootfs kernel system target
+# FRAG: soc toolchain ccache brand rootfs kernel system target local
 BR2_SOC_INGENIC_T20X=y
 BR2_SENSOR_MODEL="jxf23"
 BR2_PACKAGE_WIFI=y
