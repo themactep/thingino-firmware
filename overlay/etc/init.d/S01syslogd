@@ -1,38 +1,27 @@
 #!/bin/sh
 
 DAEMON="syslogd"
-PIDFILE="/var/run/$DAEMON.pid"
-
-SYSLOGD_ARGS="-C64 -t"
+DAEMON_ARGS="-n -C64 -t"
+PIDFILE="/run/$DAEMON.pid"
 
 start() {
-	printf 'Starting %s: ' "$DAEMON"
-	start-stop-daemon -b -m -S -q -p "$PIDFILE" -x "/sbin/$DAEMON" -- -n $SYSLOGD_ARGS
-	status=$?
-	if [ "$status" -eq 0 ]; then
-		echo "OK"
-	else
-		echo "FAIL"
-	fi
+	printf 'Starting %s: ' $DAEMON
+	start-stop-daemon -q -p $PIDFILE -S -b -m -x /sbin/$DAEMON -- $DAEMON_ARGS
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
 	return "$status"
 }
 
 stop() {
-	printf 'Stopping %s: ' "$DAEMON"
-	start-stop-daemon -K -q -p "$PIDFILE"
-	status=$?
-	if [ "$status" -eq 0 ]; then
-		rm -f "$PIDFILE"
-		echo "OK"
-	else
-		echo "FAIL"
-	fi
+	printf 'Stopping %s: ' $DAEMON
+	start-stop-daemon -q -p $PIDFILE -K
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	rm -f $PIDFILE
 	return "$status"
 }
 
 case "$1" in
 	start | stop)
-		"$1"
+		$1
 		;;
 	restart | reload)
 		stop

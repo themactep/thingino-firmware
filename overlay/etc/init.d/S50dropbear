@@ -6,16 +6,16 @@ DROPBEAR_ARGS="-R -k -K 300"
 
 start() {
 	printf "Starting dropbear sshd: "
-#	[ -L "$DROPBEAR_DIR" ] && rm -r "$DROPBEAR_DIR"
-#	[ ! -d "$DROPBEAR_DIR" ] && mkdir -p "$DROPBEAR_DIR"
+	[ -L "$DROPBEAR_DIR" ] && rm -r "$DROPBEAR_DIR"
+	[ ! -d "$DROPBEAR_DIR" ] && mkdir -p "$DROPBEAR_DIR"
 	umask 077
-	start-stop-daemon -S -q -p $DROPBEAR_PID --exec /usr/sbin/dropbear -- $DROPBEAR_ARGS
+	start-stop-daemon -q -p $DROPBEAR_PID -S -x /usr/sbin/dropbear -- $DROPBEAR_ARGS
 	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
 stop() {
 	printf "Stopping dropbear sshd: "
-	start-stop-daemon -K -q -p $DROPBEAR_PID
+	start-stop-daemon -q -p $DROPBEAR_PID -K
 	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 

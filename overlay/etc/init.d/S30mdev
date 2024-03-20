@@ -5,13 +5,7 @@ case "$1" in
 		echo -n "Starting mdev: "
 		echo /sbin/mdev > /proc/sys/kernel/hotplug
 		/sbin/mdev -s
-		status=$?
-		if [ "$status" -eq 0 ]; then
-				echo "OK"
-		else
-				echo "FAIL"
-		fi
-		return "$status"
+		[ $? = 0 ] && echo "OK" || echo "FAIL"
 		;;
 
 	stop | restart | reload)

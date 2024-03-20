@@ -10,22 +10,15 @@ start() {
 		exit 0
 	fi
 
-	echo -n "Starting ${DAEMON}: "
-	start-stop-daemon -b -S -q -x "/sbin/${DAEMON}" -- ${WATCHDOG_ARGS}
-	if [ $? = 0 ]; then
-		echo "OK"
-	else
-		echo "FAIL"
-	fi
+	echo -n "Starting $DAEMON: "
+	start-stop-daemon -q -b -S -x /sbin/$DAEMON -- $WATCHDOG_ARGS
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
 stop() {
 	echo "Stopping ${DAEMON}: "
-	if start-stop-daemon -K -q -s KILL -n "${DAEMON}"; then
-		echo "OK"
-	else
-		echo "FAIL"
-	fi
+	start-stop-daemon -q -K -s KILL -n $DAEMON
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
 case "$1" in

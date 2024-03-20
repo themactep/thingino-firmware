@@ -11,13 +11,6 @@ MMC_GPIO_PWR=$(fw_printenv -n gpio_mmc_power)
 # Default CD-PIN for Ingenic PB27 (GPIO59)
 [ -z "$MMC_GPIO_CD" ] && MMC_GPIO_CD="59"
 
-check_return() {
-	if [ $? -ne 0 ]; then
-		echo "err: $1"
-		exit 1
-	fi
-}
-
 set_gpios() {
 	# Set addtional MMC GPIOs
 	# This needs to run AFTER the driver has been loaded for the sd card to mount during boot
