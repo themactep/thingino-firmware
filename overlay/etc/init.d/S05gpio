@@ -69,14 +69,9 @@ process_config_file() {
 				success=0
 				;;
 		esac
-	done < "$CONFIG_FILE"
+	done < $CONFIG_FILE
 
-	# Check success flag
-	if [ $success -eq 1 ]; then
-		echo "OK"
-	else
-		echo "Failed"
-	fi
+	[ $success -eq 1 ] && echo "OK" || echo "Failed"
 }
 
 # Main script execution

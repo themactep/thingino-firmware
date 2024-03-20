@@ -5,14 +5,7 @@ start() {
 	ircut ~ >/dev/null 2>&1
 	sleep 0.5
 	ircut ~ >/dev/null 2>&1
-
-	status=$?
-	if [ "$status" -eq 0 ]; then
-		echo "OK"
-	else
-		echo "FAIL"
-	fi
-	return "$status"
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
 case "$1" in

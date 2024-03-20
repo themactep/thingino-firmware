@@ -16,7 +16,7 @@ start() {
 	current_tz_value=$(cat /etc/TZ 2> /dev/null)
 
 	if [ "$timezone" = "$current_timezone" ] && [ "$timezone" = "$current_tz_value" ]; then
-		echo "Timezone settings are already up to date."
+		echo "Timezone settings are up to date"
 		exit 0
 	fi
 
@@ -24,7 +24,7 @@ start() {
 	tzjs="/var/www/a/tz.js"
 	matching_line=$(grep -i -F "$timezone" $tzjs)
 	if [ -z "$matching_line" ]; then
-		echo "Timezone not found in ${tzjs}."
+		echo "Timezone not found in $tzjs"
 		exit 1
 	fi
 
