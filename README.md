@@ -15,6 +15,12 @@ cd thingino-firmware
 make
 ```
 
+### Updating
+```
+git pull
+git submodule update --remote --merge
+```
+
 ### Resources
 
 - Project [Wiki][0]
