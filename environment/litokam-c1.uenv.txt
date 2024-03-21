@@ -1,0 +1,14 @@
+gpio_default=6O 7O 8o 9O 10o 11o 14I 18O 42o 43o 49i 50o
+gpio_wlan=6O
+gpio_mmc_cd=49
+gpio_ir850=50
+gpio_led_g=8
+gpio_led_r=9
+gpio_ircut=11 10
+day_night_min=5000
+day_night_max=15000
+enable_updates=true
+disable_eth=true
+wlandev=atbm6012b
+wlanssid=thingino
+wlanpass=thingino
