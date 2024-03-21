@@ -8,7 +8,6 @@ start() {
 	printf 'Starting %s: ' $DAEMON
 	start-stop-daemon -q -p $PIDFILE -S -b -m -x /sbin/$DAEMON -- $DAEMON_ARGS
 	[ $? = 0 ] && echo "OK" || echo "FAIL"
-	return "$status"
 }
 
 stop() {
@@ -16,7 +15,6 @@ stop() {
 	start-stop-daemon -q -p $PIDFILE -K
 	[ $? = 0 ] && echo "OK" || echo "FAIL"
 	rm -f $PIDFILE
-	return "$status"
 }
 
 case "$1" in
