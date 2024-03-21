@@ -6,3 +6,4 @@ tmp/
 toolchain/
 wirebox/
 .board
+configs/fragments/local.fragment
