@@ -29,8 +29,8 @@ start() {
 
 	# Check if MDIO directory exists
 	if [ -d /proc/jz/mdio ]; then
-		echo "/proc/jz/mdio directory exists!"
-		exit 1
+		echo -n "/proc/jz/mdio directory exists, MSC1 disabled... "
+		load_module
 	else
 		case "$SOC_FAMILY" in
 			t10 | t20 | t21 | t30 | t40 | t41)
@@ -58,8 +58,11 @@ start() {
 				exit 1
 				;;
 		esac
+	load_module
 	fi
+}
 
+load_module() {
 	if grep -q "$MMC_MODULE" /proc/modules; then
 		echo "$MMC_MODULE is already loaded"
 		exit 1
