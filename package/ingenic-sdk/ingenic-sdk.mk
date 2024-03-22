@@ -28,14 +28,12 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/ $(@D)/lib/$(SOC_FAMILY)/*.so
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/sensor
-	$(INSTALL) -m 644 -D $(@D)/sensor-config/$(SENSOR_MODEL).yaml $(TARGET_DIR)/etc/sensor/$(SENSOR_MODEL).yaml
 	$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_MODEL).bin $(TARGET_DIR)/etc/sensor/$(SENSOR_CONFIG_NAME)
 	echo $(SENSOR_MODEL) >$(TARGET_DIR)/etc/sensor/model
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/bin
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/bin $(INGENIC_SDK_PKGDIR)files/load_ingenic
 endef
-
 
 $(eval $(kernel-module))
 $(eval $(generic-package))
