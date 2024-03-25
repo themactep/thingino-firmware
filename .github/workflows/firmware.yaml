@@ -137,47 +137,71 @@ jobs:
         run: |
           BOARD=${{ matrix.thingino-version }} make pack_full
 
-      - name: Rename image for release
+      - name: Prepare update image
         run: |
-          # Extract the defconfig name to form a pattern for the file name, change _ to -
-          DYNAMIC_PART=$(echo "${{ matrix.thingino-version }}")
-          PATTERN="thingino-${DYNAMIC_PART}-*.bin"
+          BOARD=${{ matrix.thingino-version }} make pack_update
 
-          # Find the binary file using the generated pattern
-          INGFW=$(find ${HOME}/output/${{ matrix.thingino-version }}*/images/ -name "${PATTERN}" | head -n 1)
-          echo "INGFW: $INGFW"
-          if [[ -n "${INGFW}" ]]; then
-            # Remove the numeric timestamp part from the filename
-            INGFW_BASENAME=$(echo "${INGFW}" | sed 's/-[0-9]\{12\}\.bin$/.bin/')
-            echo "INGFW_BASENAME: $INGFW_BASENAME"
-            mv "${INGFW}" "${INGFW_BASENAME}"
-            echo INGFW=${INGFW_BASENAME} >> ${GITHUB_ENV}
+      - name: Rename and set environment for firmware files
+        run: |
+          DYNAMIC_PART="${{ matrix.thingino-version }}"
+          PATTERN="thingino-${DYNAMIC_PART}-*.bin"
+          UPDATE_PATTERN="thingino-${DYNAMIC_PART}-*-update.bin"
+          FULL_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "${PATTERN}" | grep -v -- '-update.bin' | head -n 1)
+          UPDATE_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "${UPDATE_PATTERN}" | grep -- '-update.bin' | head -n 1)
+          echo "FULL_FW: $FULL_FW"
+          echo "UPDATE_FW: $UPDATE_FW"
+          if [[ -n "${FULL_FW}" && -n "${UPDATE_FW}" ]]; then
+            FULL_FW_BASENAME=$(basename "${FULL_FW}" | sed 's/-[0-9]\{12\}\.bin$/.bin/')
+            UPDATE_FW_BASENAME=$(basename "${UPDATE_FW}" | sed -E 's/-[0-9]{12}(-update)?\.bin$/-update.bin/')
+            mv "${FULL_FW}" "${HOME}/output/${DYNAMIC_PART}/images/${FULL_FW_BASENAME}"
+            mv "${UPDATE_FW}" "${HOME}/output/${DYNAMIC_PART}/images/${UPDATE_FW_BASENAME}"
+            echo "FULL_FW=${HOME}/output/${DYNAMIC_PART}/images/${FULL_FW_BASENAME}" >> ${GITHUB_ENV}
+            echo "UPDATE_FW=${HOME}/output/${DYNAMIC_PART}/images/${UPDATE_FW_BASENAME}" >> ${GITHUB_ENV}
           else
-            echo "Matching .bin file not found."
+            echo "Matching .bin files not found."
             exit 1
           fi
 
-      - name: Upload firmware as artifact
+      - name: Upload full firmware as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: thingino-${{ matrix.thingino-version }}
-          path: ${{ env.INGFW }}
+          name: thingino-${{ matrix.thingino-version }}-full-firmware
+          path: |
+            ${{ env.FULL_FW }}
 
-      - name: Upload firmware
+      - name: Upload update firmware as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: thingino-${{ matrix.thingino-version }}-update-firmware
+          path: |
+            ${{ env.UPDATE_FW }}
+
+      - name: Upload full firmware to release
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.TAG_NAME }}
-          files: ${{ env.INGFW }}
+          files: |
+            ${{ env.FULL_FW }}
 
-      - name: Send completion notification with binary
-        if: github.event_name != 'pull_request' && env.INGFW && env.TG_ENABLE== 'true'
+      - name: Upload update firmware to release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@master
+        with:
+          tag_name: firmware_update
+          files: |
+            ${{ env.UPDATE_FW }}
+
+      - name: Send completion notification with binaries
+        if: github.event_name != 'pull_request' && env.FULL_FW && env.UPDATE_FW && env.TG_ENABLE == 'true'
         run: |
           TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
           TG_ICON="\xE2\x9C\x85 GitHub Actions"
-          TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
-          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER}" -F document=@${INGFW} -F disable_web_page_preview=true)
-          echo Telegram response: ${HTTP}
+          TG_HEADER=$(echo -e "${TG_MSG}${TG_ICON}")
+          HTTP_FULL=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER} Full Firmware" -F document=@${FULL_FW} -F disable_web_page_preview=true)
+          HTTP_UPDATE=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER} Update Firmware" -F document=@${UPDATE_FW} -F disable_web_page_preview=true)
+          echo "Telegram response Full Firmware: $HTTP_FULL"
+          echo "Telegram response Update Firmware: $HTTP_UPDATE"
 
       - name: Send error notification
         if: github.event_name != 'pull_request' && failure()
