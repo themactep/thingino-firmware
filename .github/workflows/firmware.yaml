@@ -1,3 +1,5 @@
+# "Imitation is the sincerest form of flattery that mediocrity can pay to greatness."
+
 name: firmware
 on:
   schedule:
@@ -7,11 +9,12 @@ on:
 
 env:
   TAG_NAME: firmware
+  UPD_TAG_NAME: firmware_update
   TERM: linux
   BR2_DL_DIR: /tmp/dl
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
   TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_BUILD}}
-  TG_OPTIONS: -s -o /dev/null -w %{http_code}
+  TG_OPTIONS: -s
   TG_ENABLE: true
 
 jobs:
@@ -188,20 +191,26 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@master
         with:
-          tag_name: firmware_update
+          tag_name: ${{ env.UPD_TAG_NAME }}
           files: |
             ${{ env.UPDATE_FW }}
 
-      - name: Send completion notification with binaries
-        if: github.event_name != 'pull_request' && env.FULL_FW && env.UPDATE_FW && env.TG_ENABLE == 'true'
+      - name: Send firmware completion notifications with binaries
+        if: github.event_name != 'pull_request' && (env.FULL_FW || env.UPDATE_FW) && env.TG_ENABLE == 'true'
         run: |
-          TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
-          TG_ICON="\xE2\x9C\x85 GitHub Actions"
-          TG_HEADER=$(echo -e "${TG_MSG}${TG_ICON}")
-          HTTP_FULL=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER} Full Firmware" -F document=@${FULL_FW} -F disable_web_page_preview=true)
-          HTTP_UPDATE=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER} Update Firmware" -F document=@${UPDATE_FW} -F disable_web_page_preview=true)
-          echo "Telegram response Full Firmware: $HTTP_FULL"
-          echo "Telegram response Update Firmware: $HTTP_UPDATE"
+          if [ -n "${{ env.FULL_FW }}" ]; then
+            TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
+            TG_HEADER=$(echo -e "${TG_MSG}\xE2\x9C\x85 GitHub Actions")
+            HTTP_FULL=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER}" -F document=@${FULL_FW} -F disable_web_page_preview=true)
+            echo "Telegram response Full Firmware: $HTTP_FULL"
+          fi
+
+          if [ -n "${{ env.UPDATE_FW }}" ]; then
+            TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [firmware\\_update](https://github.com/${GITHUB_REPOSITORY}/releases/tag/firmware\\_update)\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
+            TG_HEADER=$(echo -e "${TG_MSG}\xE2\x9C\x85 GitHub Actions")
+            HTTP_UPDATE=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER}" -F document=@${UPDATE_FW} -F disable_web_page_preview=true)
+            echo "Telegram response Update Firmware: $HTTP_UPDATE"
+          fi
 
       - name: Send error notification
         if: github.event_name != 'pull_request' && failure()
