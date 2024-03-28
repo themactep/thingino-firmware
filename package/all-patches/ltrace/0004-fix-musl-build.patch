@@ -1,0 +1,71 @@
+From 2070162fef54fceeb62fd2a6989dde4948f807d7 Mon Sep 17 00:00:00 2001
+From: Fabrice Fontaine <fontaine.fabrice at gmail.com>
+Date: Thu, 2 Nov 2023 16:59:41 +0100
+Subject: [PATCH] fix musl build
+
+Signed-off-by: Fabrice Fontaine <fontaine.fabrice at gmail.com>
+Upstream: unsent yet
+---
+ configure.ac                   | 1 +
+ sysdeps/linux-gnu/mips/plt.c   | 2 ++
+ sysdeps/linux-gnu/ppc/regs.c   | 2 ++
+ sysdeps/linux-gnu/xtensa/plt.c | 2 ++
+ 4 files changed, 7 insertions(+)
+
+diff --git a/configure.ac b/configure.ac
+index c83dd02..8015f0d 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -33,6 +33,7 @@ AC_CANONICAL_HOST
+ 
+ case "${host_os}" in
+     linux-gnu*) HOST_OS="linux-gnu" ;;
++    linux-musl*) HOST_OS="linux-gnu" ;;
+     linux-uclibc*) HOST_OS="linux-gnu" ;;
+     *)		AC_MSG_ERROR([unkown host-os ${host_os}]) ;;
+ esac
+diff --git a/sysdeps/linux-gnu/mips/plt.c b/sysdeps/linux-gnu/mips/plt.c
+index c7c10ac..ab96961 100644
+--- a/sysdeps/linux-gnu/mips/plt.c
++++ b/sysdeps/linux-gnu/mips/plt.c
+@@ -23,7 +23,9 @@
+ 
+ #include <sys/ptrace.h>
+ #include <errno.h>
++#ifdef __GLIBC__
+ #include <error.h>
++#endif
+ #include <gelf.h>
+ #include <inttypes.h>
+ #include <string.h>
+diff --git a/sysdeps/linux-gnu/ppc/regs.c b/sysdeps/linux-gnu/ppc/regs.c
+index 40d7e7a..71a0d35 100644
+--- a/sysdeps/linux-gnu/ppc/regs.c
++++ b/sysdeps/linux-gnu/ppc/regs.c
+@@ -27,7 +27,9 @@
+ #include <sys/ptrace.h>
+ #include <asm/ptrace.h>
+ #include <errno.h>
++#ifdef __GLIBC__
+ #include <error.h>
++#endif
+ 
+ #include "proc.h"
+ #include "common.h"
+diff --git a/sysdeps/linux-gnu/xtensa/plt.c b/sysdeps/linux-gnu/xtensa/plt.c
+index dd0a0f1..b281510 100644
+--- a/sysdeps/linux-gnu/xtensa/plt.c
++++ b/sysdeps/linux-gnu/xtensa/plt.c
+@@ -19,7 +19,9 @@
+  */
+ 
+ #include <errno.h>
++#ifdef __GLIBC__
+ #include <error.h>
++#endif
+ #include <gelf.h>
+ #include <inttypes.h>
+ #include <string.h>
+-- 
+2.42.0
+
