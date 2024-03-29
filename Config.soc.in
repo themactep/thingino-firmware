@@ -73,3 +73,11 @@ config BR2_SOC_INGENIC_T41ZX
 config BR2_SOC_INGENIC_T41A
 	bool "Ingenic T41A"
 endchoice
+
+choice
+    prompt "Kernel version"
+config KERNEL_VERSION_3
+    bool "Kernel 3.10.14"
+config KERNEL_VERSION_4
+    bool "Kernel 4.4.94"
+endchoice
