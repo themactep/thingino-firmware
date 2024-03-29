@@ -12,13 +12,6 @@ TEMPLATE_MAC="    hwaddress ether \$(fw_printenv -n ethaddr || echo 00:00:23:34:
 # $network_address $network_netmask
 TEMPLATE_STATIC="    address %s\n    netmask %s\n"
 
-# $network_ssid $network_password
-TEMPLATE_WIRELESS="    post-up wpa_passphrase \"\$(fw_printenv -n wlanssid)\" \"\$(fw_printenv -n wlanpass)\" > /tmp/wpa_supplicant.conf
-    post-up sed -i 's/#psk.*/scan_ssid=1/g' /tmp/wpa_supplicant.conf
-    post-up wpa_supplicant -B -i wlan0 -D nl80211,wext -c /tmp/wpa_supplicant.conf
-    post-down killall -q wpa_supplicant
-"
-
 # ppp_gpio=61
 # $ppp_gpio $ppp_gpio $ppp_gpio $ppp_gpio $ppp_gpio
 TEMPLATE_PPP="    # PPP
@@ -127,23 +120,6 @@ if [ -z "$network_interface" ]; then
 	exit 11
 fi
 
-if [ "wlan0" = "$network_interface" ]; then
-	if [ -z "$network_device" ]; then
-		log "Wireless network device is not set"
-		exit 12
-	fi
-
-	if [ -z "$network_ssid" ]; then
-		log "Wireless network SSID is not set"
-		exit 13
-	fi
-
-	if [ -z "$network_password" ]; then
-		log "Wireless network passphrase is not set"
-		exit 14
-	fi
-fi
-
 if [ -z "$network_mode" ]; then
 	log "Network mode is not set"
 	exit 15
@@ -164,6 +140,7 @@ fi
 tmp_config_file="/tmp/${plugin}.conf"
 : > "$tmp_config_file"
 
+printf "auto %s\n" $network_interface >> "$tmp_config_file"
 printf "$TEMPLATE_COMMON" $network_interface $network_mode >> "$tmp_config_file"
 
 if [ "eth0" = "$network_interface" ]; then
@@ -190,11 +167,19 @@ if [ "static" = "$network_mode" ]; then
 fi
 
 if [ "wlan0" = "$network_interface" ]; then
+	# update env parameters only if not empty
 	tmp_env_file=$(mktemp)
-	printf "wlandev %s\nwlanssid %s\nwlanpass %s" "$network_device" "$network_ssid" "$network_password" > "$tmp_env_file"
+	:>$tmp_env_file
+	if [ -n "$network_device" ]; then
+		printf "wlandev %s\n" "$network_device" >> "$tmp_env_file"
+	fi
+	if [ -n "$network_ssid" ]; then
+		printf "wlanssid %s\n" "$network_ssid" >> "$tmp_env_file"
+	fi
+	if [ -n "$network_password" ]; then
+		printf "wlanpass %s\n" "$network_password" >> "$tmp_env_file"
+	fi
 	fw_setenv -s "$tmp_env_file"
-
-	printf "$TEMPLATE_WIRELESS" $network_ssid $network_password >> "$tmp_config_file"
 fi
 
 # TODO: preset ppp_gpio
