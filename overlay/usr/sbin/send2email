@@ -44,13 +44,31 @@ while getopts b:f:rs:t:vh flag; do
 	esac
 done
 
-[ "false" = "$email_enabled" ] && log "Sending to email is disabled." && exit 10
+if [ "false" = "$email_enabled" ]; then
+	log "Sending to email is disabled."
+	exit 10
+fi
 
 # validate mandatory values
-[ -z "$email_smtp_host" ] && log "SMTP host not found in config" && exit 11
-[ -z "$email_smtp_port" ] && log "SMTP port not found in config" && exit 12
-[ -z "$email_from_address" ] && log "Sender's email address not found" && exit 13
-[ -z "$email_to_address" ] && log "Recipient's email address not found" && exit 14
+if [ -z "$email_smtp_host" ]; then
+	log "SMTP host not found in config"
+	exit 11
+fi
+
+if [ -z "$email_smtp_port" ]; then
+	log "SMTP port not found in config"
+	 exit 12
+fi
+
+if [ -z "$email_from_address" ]; then
+	log "Sender's email address not found"
+	exit 13
+fi
+
+if [ -z "$email_to_address" ]; then
+	log "Recipient's email address not found"
+	exit 14
+fi
 
 # assign default values if not set
 #[ -z "$email_from_name" ] && email_from_name="Thingino Camera"
