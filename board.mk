@@ -1,5 +1,5 @@
-LIST_OF_CAMERAS := $(shell find ./cameras/* | sort | sed -E "s/^\.\/cameras\/(.*)/'cameras\/\1' '\1'/")
-LIST_OF_CONFIGS := $(shell find ./configs/*_defconfig | grep -v "\(toolchain_\|build_cache_\)" | sort | sed -E "s/^\.\/configs\/(.*)_defconfig/'configs\/\1_defconfig' '\1'/")
+LIST_OF_CAMERAS := $(shell find ./configs/cameras/* | sort | sed -E "s/^\.\/configs\/cameras\/(.*)/'cameras\/\1' '\1'/")
+LIST_OF_CONFIGS := $(shell find ./configs/modules/* | sort | sed -E "s/^\.\/configs\/modules\/(.*)_defconfig/'configs\/\1_defconfig' '\1'/")
 BUILD_MEMO := /tmp/thingino-board.$(shell ps -o ppid $$PPID | tail -1 | xargs)
 
 ifeq ($(BOARD),)
@@ -28,7 +28,7 @@ ifeq ($(BOARD),)
 else
  $(info * found BOARD "$(BOARD)" in command line)
  $(info * search for matching config files)
- CAMERA_CONFIG = $(shell find ./configs/ ./cameras/ -name "$(BOARD)*")
+ CAMERA_CONFIG = $(shell find ./configs/modules ./configs/cameras ./configs/github ./configs/experimental -name "$(BOARD)*")
 endif
 
 ifeq ($(CAMERA_CONFIG),)
@@ -53,7 +53,7 @@ else
 endif
 
 $(info * get real path to the config file)
-CAMERA_CONFIG_REAL = $(shell realpath $(BR2_EXTERNAL)/$(CAMERA_CONFIG))
+CAMERA_CONFIG_REAL = $(shell realpath $(BR2_EXTERNAL)/configs/$(CAMERA_CONFIG))
 $(info CAMERA_CONFIG_REAL = $(CAMERA_CONFIG_REAL))
 
 $(info * restore CAMERA for CAMERA_CONFIG)
