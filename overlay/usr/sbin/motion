@@ -22,12 +22,6 @@ if [ -f "$STOP_FILE" ]; then
 	fi
 fi
 
-# check number of the motions detected
-if [ "$1" -lt "$motion_sensitivity" ]; then
-	log "Number of objects is below sensitivity threshold!"
-	quit_clean 4
-fi
-
 touch "$STOP_FILE"
 
 # send alerts
