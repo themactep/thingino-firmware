@@ -3,7 +3,7 @@
 DAEMON=wpa_supplicant
 IFACE=wlan0
 CONFIG="/etc/$DAEMON.conf"
-PIDFILE="/var/run/$DAEMON.$IFACE.pid"
+PIDFILE="/run/$DAEMON.$IFACE.pid"
 
 start() {
 	printf 'Starting %s: ' "$DAEMON"
