@@ -1,18 +1,22 @@
 #!/bin/sh
 
 if [ -z "$1" ]; then
-	echo "Usage: $0 <filename>"
+	echo "Usage: $0 <filename|command>"
 	exit 1
 fi
 
-file="$1"
-if [ ! -f "$file" ]; then
-	echo "Cannot find file ${file}"
+if [ -f "$1" ]; then
+	file="$1"
+elif which "$1" > /dev/null; then
+	file=$(mktemp)
+	command "$1" > "$file"
+else
+	echo "Cannot find file of command $1"
 	exit 2
 fi
 
 if [ -z "$(cat "$file")" ]; then
-	echo "File ${file} is empty"
+	echo "File $file is empty"
 	exit 3
 fi
 
