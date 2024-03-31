@@ -51,9 +51,14 @@ fi
 
 if [ -z "$yadisk_file" ]; then
 	snapshot=/tmp/snapshot.jpg
-	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && exit 3
+	if [ ! -f "$snapshot" ]; then
+		log "Cannot find a snapshot"
+		exit 3
+	fi
 
-	yadisk_file=$snapshot
+	yadisk_file=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
+	delete_tempfile="true"
+	cp $snapshot $yadisk_file
 fi
 
 # validate mandatory values
@@ -68,17 +73,17 @@ if [ -z "$yadisk_password" ]; then
 fi
 
 command="curl --verbose"
-command="${command} --connect-timeout ${curl_timeout}"
-command="${command} --max-time ${curl_timeout}"
+command="$command --connect-timeout $curl_timeout"
+command="$command --max-time $curl_timeout"
 
 # Yandex Disk credentials
-command="${command} --user '${yadisk_username}:${yadisk_password}'"
+command="$command --user '${yadisk_username}:${yadisk_password}'"
 
 # SOCK5 proxy, if needed
 if [ "true" = "$yadisk_socks5_enabled" ]; then
 	. /etc/webui/socks5.conf
-	command="${command} --socks5-hostname ${socks5_host}:${socks5_port}"
-	command="${command} --proxy-user ${socks5_login}:${socks5_password}"
+	command="$command --socks5-hostname ${socks5_host}:${socks5_port}"
+	command="$command --proxy-user ${socks5_login}:${socks5_password}"
 fi
 
 # create path to destination directory
@@ -91,7 +96,7 @@ while [ -n "$subdirs" ]; do
 	subdir="${subdir// /%20}" # convert each space into %20
 	if [ -n "$subdir" ]; then
 		suburl="${suburl}/${subdir}"
-		_command="${command} --request MKCOL ${url}/${_url}/ " # disposable subcommand
+		_command="$command --request MKCOL ${url}/${_url}/ " # disposable subcommand
 		log "$_command"
 		eval "$_command" >> "$LOG_FILE" 2>&1
 	fi
@@ -101,13 +106,14 @@ unset _command
 
 # upload file
 url="${url}${_url}/$(TZ=$(cat /etc/TZ) date +"%G%m%d-%H%M%S").jpg"
-command="${command} --url ${url}"
-command="${command} --request PUT"
-command="${command} --upload-file ${snapshot}"
+command="$command --url $url"
+command="$command --request PUT"
+command="$command --upload-file $yadisk_file"
 
 log "$command"
 eval "$command" >> "$LOG_FILE" 2>&1
 
+[ "true" = "$delete_tempfile" ]  && [ -f "$yadisk_file" ] && rm "$yadisk_file"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 exit 0
