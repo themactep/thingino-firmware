@@ -48,10 +48,3 @@ if ! grep -q "^gpio" /proc/modules; then
 	insmod ${KMOD_PATH/%\//}/gpio.ko
 	check_return "insmod ${KMOD_PATH/%\//}/gpio.ko"
 fi
-
-#if grep -q "^gpio" /proc/modules; then
-#	for GPIO in ".nightMode.irCutPin1 .nightMode.irCutPin2 .nightMode.irSensorPin .nightMode.backlightPin .audio.speakerPin"; do
-#		G=$(yaml-cli -g $GPIO)
-#		[ ! -z "$G" ] && echo $G >/proc/gpio_claim/gpio
-#	done
-#fi
