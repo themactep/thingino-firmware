@@ -32,7 +32,7 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	echo $(SENSOR_MODEL) >$(TARGET_DIR)/etc/sensor/model
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/bin
-	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/bin $(INGENIC_SDK_PKGDIR)files/load_ingenic
+	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/bin $(INGENIC_SDK_PKGDIR)/files/load_ingenic
 endef
 
 $(eval $(kernel-module))
