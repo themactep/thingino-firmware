@@ -237,6 +237,9 @@ ifeq ($(GCC),12)
 endif
 	$(BR2_MAKE) sdk
 
+source: defconfig
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source
+
 update_ota: pack_update
 	scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -O $(FIRMWARE_BIN_NOBOOT) root@$(CAMERA_IP_ADDRESS):/tmp/fwupdate.bin
 	ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@$(CAMERA_IP_ADDRESS) "flashcp -v /tmp/fwupdate.bin /dev/mtd5 && reboot"
