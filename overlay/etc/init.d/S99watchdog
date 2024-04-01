@@ -16,7 +16,7 @@ start() {
 }
 
 stop() {
-	echo "Stopping ${DAEMON}: "
+	echo -n "Stopping ${DAEMON}: "
 	start-stop-daemon -q -K -s KILL -n $DAEMON
 	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
