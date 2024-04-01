@@ -12,7 +12,7 @@ env:
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
   TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_BUILD}}
   TG_OPTIONS: -s -o /dev/null -w %{http_code}
-  TG_ENABLE: true
+  TG_ENABLE: false
 
 jobs:
   notify-begin:
@@ -42,6 +42,8 @@ jobs:
         toolchain-version:
           - toolchain_xburst1_musl_gcc13
           - toolchain_xburst1_musl_gcc12
+          - toolchain_xburst2_musl_gcc13
+          - toolchain_xburst2_musl_gcc12
           - toolchain_xburst1_gnu_gcc13
           - toolchain_xburst1_gnu_gcc12
 
