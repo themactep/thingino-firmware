@@ -1,8 +1,8 @@
 #!/bin/bash
-cd configs || exit
+cd configs/modules || exit
 
 # Array of strings to exclude
-exclude_patterns=("t23" "n23" "toolchain" "build_cache")
+exclude_patterns=("t23" "n23")
 
 # Build the grep pattern to exclude files
 exclude_pattern=$(printf "|%s" "${exclude_patterns[@]}")
