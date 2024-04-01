@@ -1,0 +1,21 @@
+#!/bin/sh
+
+case "$1" in
+start)
+	HOSTNAME=$(fw_printenv -n hostname 2>/dev/null)
+	echo -n "Setting hostname: "
+	if [ -n "$HOSTNAME" ]; then
+			hostname "$HOSTNAME"
+			[ $? = 0 ] && echo "OK" || echo "FAIL"
+	fi
+	;;
+stop)
+	true
+	;;
+*)
+	echo "Usage: $0 {start}"
+	exit 1
+	;;
+esac
+
+exit 0
