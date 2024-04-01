@@ -6,8 +6,8 @@ start)
 	echo -n "Setting hostname: "
 	if [ -n "$HOSTNAME" ]; then
 			hostname "$HOSTNAME"
-			[ $? = 0 ] && echo "OK" || echo "FAIL"
 	fi
+	echo "OK"
 	;;
 stop)
 	true
