@@ -106,8 +106,8 @@ FIRMWARE_BIN_FULL_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_FULL))
 FIRMWARE_BIN_NOBOOT_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_NOBOOT))
 
 .PHONY: all toolchain sdk bootstrap clean defconfig distclean help \
-	pack pack_full pack_update pad pad_full pad_update reconfig \
-	upload_tftp upload_sdcard upgrade_ota br-%
+	pack pack_full pack_update pad pad_full pad_update prepare_config \
+	reconfig upload_tftp upload_sdcard upgrade_ota br-%
 
 all: $(OUTPUT_DIR)/.config
 	$(info --------------> all)
@@ -168,22 +168,18 @@ defconfig: prepare_config
 
 # Call configurator UI
 menuconfig: $(OUTPUT_DIR)/.config
-	$(info --------------> menuconfig)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) menuconfig
 
 # Permanently save changes to the defconfig
 saveconfig:
-	$(info --------------> saveconfig)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) savedefconfig
 
 ### Files
 
 clean:
-	$(info --------------> clean)
 	rm -rf $(OUTPUT_DIR)/target
 
 distclean:
-	$(info --------------> distclean)
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
 delete_bin_full:
@@ -193,7 +189,6 @@ delete_bin_update:
 	if [ -f $(FIRMWARE_BIN_NOBOOT) ]; then rm $(FIRMWARE_BIN_NOBOOT); fi
 
 pack: pack_full
-	$(info --------------> pack)
 
 pack_full: $(FIRMWARE_BIN_FULL)
 	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
@@ -211,16 +206,13 @@ pack_update: $(FIRMWARE_BIN_NOBOOT)
 #	fi
 
 pad: pad_full
-	$(info --------------> pad)
 
 pad_full: $(FIRMWARE_BIN_FULL)
-	$(info --------------> pad_full)
 	dd if=/dev/zero bs=$(SIZE_16M) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
 	dd if=$(FIRMWARE_BIN_FULL) bs=$(FIRMWARE_BIN_FULL_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
 	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_FULL);
 
 pad_update: $(FIRMWARE_BIN_NOBOOT)
-	$(info --------------> pad_update)
 	dd if=/dev/zero bs=$(SIZE_16M_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
 	dd if=$(FIRMWARE_BIN_NOBOOT) bs=$(FIRMWARE_BIN_NOBOOT_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
 	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_NOBOOT);
@@ -276,7 +268,6 @@ br-%-dirclean:
 br-%:
 	$(BR2_MAKE) $(subst br-,,$@)
 
-
 # create output directory
 $(OUTPUT_DIR):
 	mkdir -p $(OUTPUT_DIR)
@@ -290,7 +281,6 @@ $(SRC_DIR):
 
 # download bootloader
 $(U_BOOT_BIN):
-	$(info U_BOOT_BIN:          $@)
 	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL_LESS_Z).bin
 
 # rebuild Linux kernel
