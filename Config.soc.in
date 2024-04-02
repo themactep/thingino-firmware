@@ -75,6 +75,17 @@ config BR2_SOC_INGENIC_T41A
 endchoice
 
 choice
+	prompt "Flash chip size"
+config FLASH_SIZE_8
+	bool "8MB (64KBit)"
+	default y
+config FLASH_SIZE_16
+	bool "16MB (128KBit)"
+config FLASH_SIZE_32
+	bool "32MB (256KBit)"
+endchoice
+
+choice
 	prompt "Kernel version"
 config KERNEL_VERSION_3
 	bool "Kernel 3.10.14"
