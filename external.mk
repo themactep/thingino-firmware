@@ -1,5 +1,12 @@
 $(info --- FILE: external.mk ---)
 
+# 0x0800000, 8M, 8_388_608
+SIZE_8M  := 8388608
+# 0x1000000, 16M, 16_777_216
+SIZE_16M := 16777216
+# 0x2000000, 32M, 33_554_432
+SIZE_32M := 33554432
+
 SOC_VENDOR := ingenic
 
 ifeq ($(BR2_SOC_INGENIC_DUMMY),y)
@@ -173,11 +180,21 @@ SOC_FAMILY := t41
 KERNEL_BRANCH := $(SOC_VENDOR)-t41
 endif
 
-ifeq ($(BR2_PACKAGE_RAPTOR_IPC),y)
-STREAMER := raptor
-else ifeq ($(BR2_PACKAGE_PRUDYNT_T),y)
-STREAMER := prudynt
+SENSOR_MODEL = $(subst ",,$(BR2_SENSOR_MODEL))
+
+ifeq ($(FLASH_SIZE_8),y)
+$(info FLASH_SIZE_8=$(FLASH_SIZE_8))
+FLASH_SIZE := $(SIZE_8M)
+else ifeq ($(FLASH_SIZE_16),y)
+$(info FLASH_SIZE_16=$(FLASH_SIZE_16))
+FLASH_SIZE := $(SIZE_16M)
+else ifeq ($(FLASH_SIZE_32),y)
+$(info FLASH_SIZE_32=$(FLASH_SIZE_32))
+FLASH_SIZE := $(SIZE_32M)
+else
+FLASH_SIZE := SIZE_8M
 endif
+$(info FLASH_SIZE=$(FLASH_SIZE))
 
 # default to older kernel if none set
 ifneq ($(KERNEL_VERSION_3)$(KERNEL_VERSION_4),y)
@@ -201,8 +218,14 @@ $(info KERNEL_HASH=$(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head 
 THINGINO_KERNEL = $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
 $(info THINGINO_KERNEL=$(THINGINO_KERNEL))
 
-SENSOR_MODEL = $(subst ",,$(BR2_SENSOR_MODEL))
+ifeq ($(BR2_PACKAGE_RAPTOR_IPC),y)
+STREAMER := raptor
+else ifeq ($(BR2_PACKAGE_PRUDYNT_T),y)
+STREAMER := prudynt
+endif
+
 SOC_MODEL_LESS_Z = $(subst z,,$(SOC_MODEL))
+$(info SOC_MODEL_LESS_Z:    $(SOC_MODEL_LESS_Z))
 
 export SOC_VENDOR
 export SOC_FAMILY
@@ -210,6 +233,7 @@ export SOC_MODEL
 export SOC_MODEL_LESS_Z
 export SOC_RAM
 export SENSOR_MODEL
+export FLASH_SIZE
 export THINGINO_KERNEL
 export KERNEL_SITE
 export KERNEL_BRANCH
