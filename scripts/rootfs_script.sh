@@ -24,6 +24,13 @@ GIT_TIME=$(git show -s --format=%ci)
 echo "GITHUB_VERSION=\"${GIT_BRANCH}+${GIT_HASH}, ${GIT_TIME}\"" >>${FILE}
 date +TIME_STAMP=%s >>${FILE}
 
+if grep -q "^U_BOOT_ENV_TXT" ${BR2_CONFIG}; then
+	uenv=$(sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$\(\w+\)(.+)\"/\1/p" $BR2_CONFIG)
+	if [ -f "${BR2_EXTERNAL}${uenv}" ]; then
+		cp -v ${BR2_EXTERNAL}${uenv} ${TARGET_DIR}/etc/uenv.txt
+	fi
+fi
+
 if grep -q "USES_MUSL" ${BR2_CONFIG}; then
 #  LIST=${BR2_EXTERNAL}/scripts/excludes/${SOC_MODEL}.list
 #  test -e ${LIST} && xargs -a ${LIST} -I % rm -rf ${TARGET_DIR}/%
