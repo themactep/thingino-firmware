@@ -1,1 +1,2 @@
+# system.fragment
 BR2_PACKAGE_BUSYBOX_CONFIG="$(BR2_EXTERNAL)/package/busybox/busybox.config"

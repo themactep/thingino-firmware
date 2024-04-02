@@ -1,3 +1,4 @@
+# soc.fragment
 BR2_mipsel=y
 BR2_mips_xburst=y
 # BR2_MIPS_SOFT_FLOAT is not set
