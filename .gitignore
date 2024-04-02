@@ -7,3 +7,4 @@ toolchain/
 wirebox/
 .board
 configs/fragments/local.fragment
+/local.mk
