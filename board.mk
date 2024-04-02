@@ -1,3 +1,5 @@
+$(info --- FILE: board.mk ---)
+
 LIST_OF_CAMERAS := $(shell find ./configs/cameras/* | sort | sed -E "s/^\.\/configs\/cameras\/(.*)/'cameras\/\1' '\1'/")
 LIST_OF_CONFIGS := $(shell find ./configs/modules/* | sort | sed -E "s/^\.\/configs\/modules\/(.*)_defconfig/'modules\/\1_defconfig' '\1'/")
 BUILD_MEMO := /tmp/thingino-board.$(shell ps -o ppid $$PPID | tail -1 | xargs)
