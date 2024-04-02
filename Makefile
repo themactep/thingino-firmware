@@ -58,10 +58,6 @@ ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 
 # 0x0008000, 32K, 32_768
 ALIGN_BLOCK       := 32768
-# 0x0800000, 8M, 8_388_608
-SIZE_8M           := 8388608
-# 0x1000000, 16M, 16_777_216
-SIZE_16M          := 16777216
 
 # 0x0, from the very beginning
 U_BOOT_OFFSET     := 0
@@ -73,9 +69,13 @@ U_BOOT_ENV_SIZE   := 65536
 # U_BOOT_ENV_SIZE + U_BOOT_ENV_SIZE, 0x40000 + 0x10000 = 0x50000 = 327_680
 KERNEL_OFFSET     := 327680
 # SIZE_8M  - KERNEL_OFFSET, 0x0800000 - 0x0050000 = 0x7B0000 = 8_060_928
-SIZE_8M_NOBOOT    := 8060928
+# SIZE_8M_NOBOOT    := 8060928
 # SIZE_16M - KERNEL_OFFSET, 0x1000000 - 0x0050000 = 0xFB0000 = 16_449_536
-SIZE_16M_NOBOOT   := 16449536
+# SIZE_16M_NOBOOT   := 16449536
+# SIZE_32M - KERNEL_OFFSET, 0x2000000 - 0x0050000 = 0x1FB0000 = 33_226_752
+# SIZE_32M_NOBOOT   := 33226752
+
+FLASH_SIZE_NOBOOT = $(shell echo $(FLASH_SIZE) - $(KERNEL_OFFSET) | bc)
 
 # create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
 FIRMWARE_NAME_FULL = thingino-$(CAMERA)-$(shell \
@@ -195,22 +195,19 @@ pack: pack_full
 	$(info --------------> pack)
 
 pack_full: $(FIRMWARE_BIN_FULL)
-	$(info --------------> pack_full)
-	if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(SIZE_8M) ]; \
-	then \
-	dd if=/dev/zero bs=$(SIZE_16M) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
-	dd if=$(FIRMWARE_BIN_FULL) bs=$(FIRMWARE_BIN_FULL_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
-	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_FULL); \
-	fi
+	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
+#	dd if=/dev/zero bs=$(SIZE_16M) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
+#	dd if=$(FIRMWARE_BIN_FULL) bs=$(FIRMWARE_BIN_FULL_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
+#	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_FULL); \
+#	fi
 
 pack_update: $(FIRMWARE_BIN_NOBOOT)
-	$(info --------------> pack_update)
-	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(SIZE_8M_NOBOOT) ]; \
-	then \
-	dd if=/dev/zero bs=$(SIZE_16M_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
-	dd if=$(FIRMWARE_BIN_NOBOOT) bs=$(FIRMWARE_BIN_NOBOOT_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
-	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_NOBOOT); \
-	fi
+	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(FLASH_SIZE_NOBOOT) ]; then $(FIGLET) "OVERSIZE"; fi
+#	then \
+#	dd if=/dev/zero bs=$(SIZE_16M_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
+#	dd if=$(FIRMWARE_BIN_NOBOOT) bs=$(FIRMWARE_BIN_NOBOOT_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
+#	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_NOBOOT); \
+#	fi
 
 pad: pad_full
 	$(info --------------> pad)
@@ -318,16 +315,14 @@ $(ROOTFS_TAR):
 	$(BR2_MAKE) all
 #	mv -vf $(OUTPUT_DIR)/images/rootfs.tar $@
 
-$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
-	$(info --------------> FIRMWARE_BIN_FULL=$(FIRMWARE_BIN_FULL))
-	dd if=/dev/zero bs=$(SIZE_8M) skip=0 count=1 status=none | tr '\000' '\377' > $@
+$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
+	dd if=/dev/zero bs=$(FLASH_SIZE) skip=0 count=1 status=none | tr '\000' '\377' > $@
 	dd if=$(U_BOOT_BIN) bs=$(U_BOOT_SIZE) seek=$(U_BOOT_OFFSET) count=1 of=$@ conv=notrunc status=none
 	dd if=$(KERNEL_BIN) bs=$(KERNEL_SIZE) seek=$(KERNEL_OFFSET)B count=1 of=$@ conv=notrunc status=none
 	dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$(ROOTFS_OFFSET)B count=1 of=$@ conv=notrunc status=none
 
 $(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN)
-	$(info --------------> FIRMWARE_BIN_NOBOOT=$(FIRMWARE_BIN_NOBOOT))
-	dd if=/dev/zero bs=$(SIZE_8M_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $@
+	dd if=/dev/zero bs=$(FLASH_SIZE_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $@
 	dd if=$(KERNEL_BIN) bs=$(KERNEL_SIZE) seek=0 count=1 of=$@ conv=notrunc status=none
 	dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$(KERNEL_SIZE_ALIGNED)B count=1 of=$@ conv=notrunc status=none
 
