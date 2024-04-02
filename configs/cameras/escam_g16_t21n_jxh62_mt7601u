@@ -1,1 +1,2 @@
-../modules/t21n_jxh62_mt7601u_defconfig
+# MODULE: t21n_jxh62_mt7601u_defconfig
+FLASH_SIZE_8=y

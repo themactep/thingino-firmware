@@ -1,1 +1,2 @@
-../modules/t31x_gc2053_atbm6031_defconfig
+# MODULE: t31x_gc2053_atbm6031_defconfig
+FLASH_SIZE_16=y
