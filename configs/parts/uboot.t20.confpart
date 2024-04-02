@@ -1,4 +1,0 @@
-BR2_TARGET_UBOOT=y
-BR2_TARGET_UBOOT_CUSTOM_MAKEOPTS="isvp_t20_sfcnor"
-BR2_TARGET_UBOOT_CUSTOM_REPO_URL=https://github.com/gtxaspec/u-boot-ingenic
-BR2_TARGET_UBOOT_NEEDS_LZOP=y
