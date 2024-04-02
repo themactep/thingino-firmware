@@ -283,6 +283,13 @@ $(SRC_DIR):
 $(U_BOOT_BIN):
 	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL_LESS_Z).bin
 
+$(U_BOOT_ENV_BIN):
+ifneq ($(U_BOOT_ENV_TXT),)
+	if [ -f "$(U_BOOT_ENV_TXT)" ]; then \
+	$(SCRIPTS_DIR)/mkenvimage -s 0x10000 -o $@ $(U_BOOT_ENV_TXT); \
+	fi
+endif
+
 # rebuild Linux kernel
 $(KERNEL_BIN):
 	$(info KERNEL_BIN:          $@)
