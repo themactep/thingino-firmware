@@ -35,9 +35,6 @@ BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$
 # handle the board
 include $(BR2_EXTERNAL)/board.mk
 
-# read camera config file
-include $(CAMERA_CONFIG_REAL)
-
 # include device tree makefile
 include $(BR2_EXTERNAL)/external.mk
 
@@ -139,31 +136,35 @@ endif
 
 ### Configuration
 
-FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(CAMERA_CONFIG_REAL))
+FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(MODULE_CONFIG_REAL))
 
-# Configure buildroot for a particular board
-defconfig:
-	$(info --------------> defconfig)
+# Assemble config from bits and pieces
+prepare_config:
+	# create output directory
 	$(info * make OUTPUT_DIR $(OUTPUT_DIR))
 	mkdir -p $(OUTPUT_DIR)
+	# delete older config
 	$(info * remove existing .config file)
 	rm -rvf $(OUTPUT_DIR)/.config
-	$(info * add fragments FRAGMENTS=$(FRAGMENTS))
+	# gather fragments of a new config
+	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(MODULE_CONFIG_REAL))
 	for i in $(FRAGMENTS); do \
 		echo "** add configs/fragments/$$i.fragment"; \
 		cat configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
 		echo >>$(OUTPUT_DIR)/.config; \
 	done
+	# add module configuration
+	cat $(MODULE_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+	# add camera configuration
 	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
-	# $(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) defconfig
-	# @if test -f $(BR2_EXTERNAL)/local.mk; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
-
-defconfig_classic:
-	$(info --------------> defconfig_classic)
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) defconfig
 	# Add local.mk to the building directory to override settings
 	if test -f $(BR2_EXTERNAL)/local.mk; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
+
+# Configure buildroot for a particular board
+defconfig: prepare_config
+	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
+	# $(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) defconfig
 
 # Call configurator UI
 menuconfig: $(OUTPUT_DIR)/.config
