@@ -130,8 +130,8 @@ ifneq ($(shell id -u), 0)
 else
 	@DEBIAN_FRONTEND=noninteractive apt-get update
 	@DEBIAN_FRONTEND=noninteractive apt-get -y install \
-		build-essential bc bison cpio curl file flex git \
-		libncurses-dev make rsync unzip wget whiptail gawk
+		build-essential bc bison cpio curl file flex gawk git \
+		libncurses-dev make rsync unzip wget whiptail
 endif
 
 ### Configuration
