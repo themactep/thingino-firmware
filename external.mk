@@ -192,7 +192,7 @@ else ifeq ($(FLASH_SIZE_32),y)
 $(info FLASH_SIZE_32=$(FLASH_SIZE_32))
 FLASH_SIZE := $(SIZE_32M)
 else
-FLASH_SIZE := SIZE_8M
+FLASH_SIZE := $(SIZE_8M)
 endif
 $(info FLASH_SIZE=$(FLASH_SIZE))
 
