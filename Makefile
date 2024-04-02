@@ -44,6 +44,12 @@ include $(BR2_EXTERNAL)/external.mk
 # hardcoded variables
 WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=3
 
+ifeq ($(shell command -v figlet),)
+FIGLET := echo
+else
+FIGLET := $(shell command -v figlet) -t -f pagga
+endif
+
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 U_BOOT_BIN  = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL_LESS_Z).bin
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
@@ -111,13 +117,13 @@ all: $(OUTPUT_DIR)/.config
 #ifndef CAMERA
 #	$(MAKE) CAMERA=$(CAMERA) $@
 #endif
-	@if command -v figlet >/dev/null; then figlet -t -f pagga $(CAMERA); fi;
+	@$(FIGLET) $(CAMERA)
 	# Generate .config file
 	if ! test -f $(OUTPUT_DIR)/.config; then $(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) defconfig; fi
 #	# Add local.mk to the building directory to override settings
 #	if test -f $(BR2_EXTERNAL)/local.mk; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
 	$(BR2_MAKE) all
-	@if command -v figlet >/dev/null; then figlet -t -f pagga "FINE"; fi;
+	@$(FIGLET) "FINE"
 
 # install prerequisites
 bootstrap:
