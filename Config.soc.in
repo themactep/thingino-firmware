@@ -81,3 +81,7 @@ config KERNEL_VERSION_3
 config KERNEL_VERSION_4
 	bool "Kernel 4.4.94"
 endchoice
+
+config U_BOOT_ENV_TXT
+	prompt "Path to U-Boot environment text file"
+	string ""
