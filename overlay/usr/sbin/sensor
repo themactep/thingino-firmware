@@ -12,7 +12,7 @@ case "$1" in
 		done
 		;;
 	*)
-		echo "Usage: $0 [${params}]"
+		echo "Usage: $0 [${params} all]"
 		;;
 esac
 
