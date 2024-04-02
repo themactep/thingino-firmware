@@ -1,0 +1,13 @@
+#!/bin/sh
+
+env_txt="/etc/uenv.txt"
+
+if [ -f "$env_txt" ] && [ "false" = $(fw_printenv -n boot_complete) ]; then
+	env_tmp=$(mktemp)
+	sed 's/=/ /' $env_txt >$env_tmp
+	fw_setenv -s $env_tmp
+	fw_setenv boot_complete true
+	reboot
+fi
+
+exit 0
