@@ -1,7 +1,9 @@
 $(info --- FILE: board.mk ---)
 
 LIST_OF_CAMERAS := $(shell find ./configs/cameras/* | sort | sed -E "s/^\.\/configs\/cameras\/(.*)/'cameras\/\1' '\1'/")
-LIST_OF_CONFIGS := $(shell find ./configs/modules/* | sort | sed -E "s/^\.\/configs\/modules\/(.*)_defconfig/'modules\/\1_defconfig' '\1'/")
+LIST_OF_MODULES := $(shell find ./configs/modules/* | sort | sed -E "s/^\.\/configs\/modules\/(.*)_defconfig/'modules\/\1_defconfig' '\1'/")
+LIST_OF_TESTING := $(shell find ./configs/testing/* | sort | sed -E "s/^\.\/configs\/testing\/(.*)/'testing\/\1' '\1'/")
+
 BUILD_MEMO := /tmp/thingino-board.$(shell ps -o ppid $$PPID | tail -1 | xargs)
 
 ifeq ($(BOARD),)
@@ -35,12 +37,17 @@ endif
 
 ifeq ($(CAMERA_CONFIG),)
  $(info * select CAMERA_CONFIG from a list)
+ $(info $(LIST_OF_CAMERAS))
+ $(info $(LIST_OF_MODULES))
+ $(info $(LIST_OF_TESTING))
  CAMERA_CONFIG := $(or $(shell whiptail --title "Config files" \
 	--menu "Select a camera or a board:" 20 76 12 --notags \
-	" " "*----- CAMERA ---------------------------*" \
+	" " "*----- CAMERAS ---------------------------*" \
 	$(LIST_OF_CAMERAS) \
-	" " "*----- CONFIG ---------------------------*" \
-	$(LIST_OF_CONFIGS) \
+	" " "*----- MODULES ---------------------------*" \
+	$(LIST_OF_MODULES) \
+	" " "*----- EXPERIMENTAL CONFIGS --------------*" \
+	$(LIST_OF_TESTING) \
 	3>&1 1>&2 2>&3))
 endif
 
