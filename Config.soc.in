@@ -78,7 +78,6 @@ choice
 	prompt "Flash chip size"
 config FLASH_SIZE_8
 	bool "8MB (64KBit)"
-	default y
 config FLASH_SIZE_16
 	bool "16MB (128KBit)"
 config FLASH_SIZE_32
@@ -94,5 +93,4 @@ config KERNEL_VERSION_4
 endchoice
 
 config U_BOOT_ENV_TXT
-	prompt "Path to U-Boot environment text file"
-	string ""
+	string "Path to U-Boot environment text file"
