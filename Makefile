@@ -156,8 +156,10 @@ prepare_config:
 	done
 	# add module configuration
 	cat $(MODULE_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+ifneq ($(CAMERA_CONFIG_REAL),$(MODULE_CONFIG_REAL))
 	# add camera configuration
 	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+endif
 	# Add local.mk to the building directory to override settings
 	if test -f $(BR2_EXTERNAL)/local.mk; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
 
