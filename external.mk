@@ -156,27 +156,35 @@ endif
 
 ifeq ($(BR2_SOC_INGENIC_T10),y)
 SOC_FAMILY := t10
+SDK_VERSION := 3.12.0
 KERNEL_BRANCH := $(SOC_VENDOR)-t31
 else ifeq ($(BR2_SOC_INGENIC_T20),y)
 SOC_FAMILY := t20
+SDK_VERSION := 3.12.0
 KERNEL_BRANCH := $(SOC_VENDOR)-t31
 else ifeq ($(BR2_SOC_INGENIC_T21),y)
 SOC_FAMILY := t21
+SDK_VERSION := 1.0.33
 KERNEL_BRANCH := $(SOC_VENDOR)-t31
 else ifeq ($(BR2_SOC_INGENIC_T23),y)
 SOC_FAMILY := t23
+SDK_VERSION := 1.1.0
 KERNEL_BRANCH := $(SOC_VENDOR)-t31
 else ifeq ($(BR2_SOC_INGENIC_T30),y)
 SOC_FAMILY := t30
+SDK_VERSION := 1.0.5
 KERNEL_BRANCH := $(SOC_VENDOR)-t31
 else ifeq ($(BR2_SOC_INGENIC_T31),y)
 SOC_FAMILY := t31
+SDK_VERSION := 1.1.6
 KERNEL_BRANCH := $(SOC_VENDOR)-t31
 else ifeq ($(BR2_SOC_INGENIC_T40),y)
 SOC_FAMILY := t40
+SDK_VERSION := 1.2.0
 KERNEL_BRANCH := $(SOC_VENDOR)-t40
 else ifeq ($(BR2_SOC_INGENIC_T41),y)
 SOC_FAMILY := t41
+SDK_VERSION := 1.2.0
 KERNEL_BRANCH := $(SOC_VENDOR)-t41
 endif
 
@@ -226,6 +234,29 @@ endif
 
 SOC_MODEL_LESS_Z = $(subst z,,$(SOC_MODEL))
 $(info SOC_MODEL_LESS_Z:    $(SOC_MODEL_LESS_Z))
+
+SOC_FAMILY_CAPS = $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
+$(info SOC_FAMILY_CAPS:     $(SOC_FAMILY_CAPS))
+
+# Determine project C library, set SDK C library and toolchain version
+ifeq ($(BR2_TOOLCHAIN_USES_GLIBC),y)
+BR2_LIBC_NAME := glibc
+SDK_LIBC_NAME := glibc
+SDK_LIBC_VERSION := 4.7.2
+else ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
+BR2_LIBC_NAME := uclibc
+SDK_LIBC_NAME := uclibc
+SDK_LIBC_VERSION := 4.7.2
+else ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
+BR2_LIBC_NAME := musl
+SDK_LIBC_NAME := uclibc
+SDK_LIBC_VERSION := 4.7.2
+else
+$(info Building for unknown, default to uClibc libs)
+SDK_LIBC_NAME := uclibc
+SDK_LIBC_VERSION := 4.7.2
+endif
+$(info Building using $(BR2_LIBC_NAME) with $(SDK_LIBC_NAME) libs for GCC $(SDK_LIBC_VERSION) toolchain from $(SDK_VERSION) SDK)
 
 export SOC_VENDOR
 export SOC_FAMILY
