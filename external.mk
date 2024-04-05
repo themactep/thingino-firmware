@@ -242,19 +242,19 @@ $(info SOC_FAMILY_CAPS:     $(SOC_FAMILY_CAPS))
 ifeq ($(BR2_TOOLCHAIN_USES_GLIBC),y)
 BR2_LIBC_NAME := glibc
 SDK_LIBC_NAME := glibc
-SDK_LIBC_VERSION := 4.7.2
+SDK_LIBC_VERSION := 5.4.0
 else ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
 BR2_LIBC_NAME := uclibc
 SDK_LIBC_NAME := uclibc
-SDK_LIBC_VERSION := 4.7.2
+SDK_LIBC_VERSION := 5.4.0
 else ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 BR2_LIBC_NAME := musl
 SDK_LIBC_NAME := uclibc
-SDK_LIBC_VERSION := 4.7.2
+SDK_LIBC_VERSION := 5.4.0
 else
 $(info Building for unknown, default to uClibc libs)
 SDK_LIBC_NAME := uclibc
-SDK_LIBC_VERSION := 4.7.2
+SDK_LIBC_VERSION := 5.4.0
 endif
 $(info Building using $(BR2_LIBC_NAME) with $(SDK_LIBC_NAME) libs for GCC $(SDK_LIBC_VERSION) toolchain from $(SDK_VERSION) SDK)
 
