@@ -1,6 +1,10 @@
 # Thingino Firmware
 # https://github.com/themactep/thingino-firmware
 
+ifeq ($(__BASH_MAKE_COMPLETION__),1)
+	exit
+endif
+
 # Camera IP address
 # shortened to just IP for convenience of running from command line
 IP ?= 192.168.1.10
