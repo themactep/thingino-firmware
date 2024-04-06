@@ -207,7 +207,7 @@ $(info FLASH_SIZE=$(FLASH_SIZE))
 # default to older kernel if none set
 ifneq ($(KERNEL_VERSION_3)$(KERNEL_VERSION_4),y)
 $(info Defaulting to kernel 3.x)
-KERNEL_VERSION_3 = y
+KERNEL_VERSION_3=y
 endif
 
 ifeq ($(KERNEL_VERSION_3),y)
@@ -242,23 +242,22 @@ $(info SOC_FAMILY_CAPS:     $(SOC_FAMILY_CAPS))
 ifeq ($(BR2_TOOLCHAIN_USES_GLIBC),y)
 BR2_LIBC_NAME := glibc
 SDK_LIBC_NAME := glibc
-SDK_LIBC_VERSION := 5.4.0
 else ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
 BR2_LIBC_NAME := uclibc
 SDK_LIBC_NAME := uclibc
-SDK_LIBC_VERSION := 5.4.0
 else ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 BR2_LIBC_NAME := musl
 SDK_LIBC_NAME := uclibc
-SDK_LIBC_VERSION := 5.4.0
 else
-$(info Building for unknown, default to uClibc libs)
+# default to uClibc libs
+BR2_LIBC_NAME := unknown
 SDK_LIBC_NAME := uclibc
-SDK_LIBC_VERSION := 5.4.0
 endif
 
-ifneq (,$(findstring y,$(BR2_SOC_INGENIC_T10)$(BR2_SOC_INGENIC_T20)$(BR2_SOC_INGENIC_T30)))
+ifeq ($(BR2_SOC_INGENIC_T10)$(BR2_SOC_INGENIC_T20)$(BR2_SOC_INGENIC_T30),y)
 SDK_LIBC_VERSION := 4.7.2
+else
+SDK_LIBC_VERSION := 5.4.0
 endif
 
 $(info Building using $(BR2_LIBC_NAME) with $(SDK_LIBC_NAME) libs for GCC $(SDK_LIBC_VERSION) toolchain from $(SDK_VERSION) SDK)
