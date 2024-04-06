@@ -256,6 +256,11 @@ $(info Building for unknown, default to uClibc libs)
 SDK_LIBC_NAME := uclibc
 SDK_LIBC_VERSION := 5.4.0
 endif
+
+ifneq (,$(findstring y,$(BR2_SOC_INGENIC_T10)$(BR2_SOC_INGENIC_T20)$(BR2_SOC_INGENIC_T30)))
+SDK_LIBC_VERSION := 4.7.2
+endif
+
 $(info Building using $(BR2_LIBC_NAME) with $(SDK_LIBC_NAME) libs for GCC $(SDK_LIBC_VERSION) toolchain from $(SDK_VERSION) SDK)
 
 export SOC_VENDOR
