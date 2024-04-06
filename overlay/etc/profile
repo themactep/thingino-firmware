@@ -7,14 +7,14 @@ export EDITOR='/bin/vi'
 export SENSOR=$(cat /etc/sensor/model)
 export SOC=$(/usr/sbin/soc -f)
 
-echo_c() { echo -ne "\e[1;$1m$2\e[0m"; }
+echo_c() { echo -en "\e[38;5;$1m$2\e[0m"; }
 
 if [ "$PS1" ]; then
-	[ -f /etc/os-release ] && . /etc/os-release
-	[ -f /etc/banner ] && echo_c 34 "$(cat /etc/banner)"
-	echo
-	echo_c 32 "$(printf "%64s" $VERSION)"
-	echo -e "\n\n"
+        [ -f /etc/os-release ] && . /etc/os-release
+        [ -f /etc/banner ] && echo -e "$(cat /etc/banner)"
+        echo_c 244 "       $IMAGE_ID\n"
+        echo_c 244 "       $BUILD_ID\n"
+        echo
 	if [ "$(id -u)" -eq 0 ]; then
 		export PS1="\[\e[31m\][\[\e[m\]\[\e[38;5;172m\]\u\[\e[m\]@\[\e[38;5;153m\]\h\[\e[m\] \[\e[38;5;214m\]\W\[\e[m\]\[\e[31m\]]\[\e[m\]\\# "
 	else
