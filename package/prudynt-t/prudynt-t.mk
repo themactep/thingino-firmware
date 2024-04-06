@@ -5,6 +5,9 @@ PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 ingenic-sdk thingino-freetyp
 PRUDYNT_T_GIT_SUBMODULES = YES
 
 PRUDYNT_CFLAGS += -DPLATFORM_$(shell echo $(SOC_FAMILY) | tr a-z A-Z)
+ifeq ($(KERNEL_VERSION_4),y)
+PRUDYNT_CFLAGS += -DKERNEL_VERSION_4
+endif
 
 PRUDYNT_CFLAGS += \
 	-DNO_OPENSSL=1 -Os \
