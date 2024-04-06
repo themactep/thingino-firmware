@@ -35,13 +35,7 @@ start() {
 	fi
 
 	start-stop-daemon -S -x /sbin/$DAEMON -- -i $IFACE -c $CONFIG -P $PIDFILE -B 2>&1 | logger -t $0
-	status=$?
-	if [ "$status" -eq 0 ]; then
-		echo "OK"
-	else
-		echo "FAIL"
-	fi
-	return $status
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
 ssid_changed() {
@@ -52,13 +46,7 @@ ssid_changed() {
 stop() {
 	printf 'Stopping %s: ' $DAEMON
 	start-stop-daemon -K -q -p "$PIDFILE" -x /sbin/$DAEMON
-	status=$?
-	if [ "$status" -eq 0 ]; then
-		echo "OK"
-	else
-		echo "FAIL"
-	fi
-	return $status
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
 restart() {
