@@ -32,7 +32,7 @@ tmp_file=$(mktemp -u)
 echo "Downloading firmware."
 if curl -# -L -f -o $tmp_file $url; then
 	echo "Performing upgrade. Do not turn off the power!"
-	if flashcp -v $tmp_file /dev/$mtd_dev; done
+	if flashcp -v $tmp_file /dev/$mtd_dev; then
 		echo "Rebooting..."
 		reboot
 	else
