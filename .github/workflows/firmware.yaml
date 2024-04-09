@@ -46,7 +46,7 @@ jobs:
       - name: Generate matrix
         id: set-matrix
         run: |
-          CONFIGS=$(find configs/{cameras,modules}/ | sort | awk -F '/' '!/t23/ {print $(NF)}' | awk NF)
+          CONFIGS=$(find configs/{cameras,modules}/ -type f | grep -v 't23' | sort | awk -F '/' '{print $(NF)}' | sed 's/_defconfig$//' | awk NF)
           JSON_MATRIX="{\"thingino-version\": ["
           for CONFIG in $CONFIGS; do
             JSON_MATRIX+="\"${CONFIG}\","
