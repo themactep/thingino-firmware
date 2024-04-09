@@ -7,6 +7,7 @@ gpio_wlan=57O
 gpio_ircut=53 52
 gpio_ir850=47
 gpio_ir940=49
+gpio_speaker=63
 wlandev=8189fs
 wlanssid=thingino
 wlanpass=thingino

@@ -5,6 +5,7 @@ gpio_ir850=49
 gpio_mmc_cd=43
 gpio_mmc_power=48o
 gpio_wlan=62O
+gpio_speaker=63
 disable_eth=true
 enable_updates=true
 day_night_min=5000
