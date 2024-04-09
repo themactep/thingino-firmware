@@ -46,7 +46,7 @@ jobs:
       - name: Generate matrix
         id: set-matrix
         run: |
-          CONFIGS=$(.github/scripts/list_configs.sh)
+          CONFIGS=$(find configs/{cameras,modules}/ | sort | awk -F '/' '!/t23/ {print $(NF)}' | awk NF)
           JSON_MATRIX="{\"thingino-version\": ["
           for CONFIG in $CONFIGS; do
             JSON_MATRIX+="\"${CONFIG}\","
