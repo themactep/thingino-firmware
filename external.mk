@@ -260,6 +260,14 @@ else
 SDK_LIBC_VERSION := 5.4.0
 endif
 
+ifeq ($(BR2_SOC_INGENIC_T31),y)
+ifeq ($(KERNEL_VERSION_4),y)
+SDK_LIBC_VERSION := 4.7.2
+SDK_LIBC_NAME := uclibc
+SDK_VERSION := 1.1.5.2
+endif
+endif
+
 $(info Building using $(BR2_LIBC_NAME) with $(SDK_LIBC_NAME) libs for GCC $(SDK_LIBC_VERSION) toolchain from $(SDK_VERSION) SDK)
 
 export SOC_VENDOR
