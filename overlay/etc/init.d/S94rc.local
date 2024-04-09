@@ -1,19 +1,15 @@
 #!/bin/sh
 
 start() {
-	echo -n "Starting rc.local: "
+	echo "Running /etc/rc.local"
 	/etc/rc.local
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
 stop() {
-	echo -n "Stopping rc.local: "
-	if [ ! -x /etc/rc.local.stop ]; then
-		echo "/etc/rc.local.stop not found."
-		exit 1
+	if [ -x /etc/rc.local.stop ]; then
+		echo "Running /etc/rc.local.stop"
+		/etc/rc.local.stop
 	fi
-	/etc/rc.local.stop
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
 case "$1" in
@@ -29,4 +25,4 @@ case "$1" in
 		;;
 esac
 
-exit $?
+exit 0

@@ -6,4 +6,6 @@
 # Make sure that the script will "exit 0" on success or any other
 # value on error.
 
+echo "Ciao"
+
 exit 0
