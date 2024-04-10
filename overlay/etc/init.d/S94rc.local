@@ -1,13 +1,13 @@
 #!/bin/sh
 
 start() {
-	echo "Running /etc/rc.local"
-	/etc/rc.local
+	echo "Running /etc/rc.local..."
+	( ( nohup /etc/rc.local >/dev/null 2>&1 </dev/null & ) & )
 }
 
 stop() {
 	if [ -x /etc/rc.local.stop ]; then
-		echo "Running /etc/rc.local.stop"
+		echo "Running /etc/rc.local.stop..."
 		/etc/rc.local.stop
 	fi
 }
