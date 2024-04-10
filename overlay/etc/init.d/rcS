@@ -14,18 +14,26 @@ export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 # executing them in numerical order.
 execute_and_log() {
 	script="$1"
-	if /bin/sh -c "$script start" > /tmp/initlog 2>&1; then
-		cat /tmp/initlog | logger -t $script
-		cat /tmp/initlog  # Output to console
+	mkfifo /tmp/initlogpipe
+
+	while IFS= read -r line; do
+		echo "$line" | logger -t "$script"
+		echo "$line"
+	done < /tmp/initlogpipe &
+
+	logger_pid=$!
+
+	if /bin/sh -c "$script start" > /tmp/initlogpipe 2>&1; then
+		: # Success
 	else
-		cat /tmp/initlog | logger -t $script
-		cat /tmp/initlog  # Output to console
+		: # Failure
 	fi
-	rm -f /tmp/initlog
+
+	rm -f /tmp/initlogpipe
 }
 
 for i in /etc/init.d/S??*; do
-	[ ! -f "$i" ] && continue  # Ignore dangling symlinks (if any).
+	[ ! -f "$i" ] && continue
 	execute_and_log "$i" &
 	wait
 done
