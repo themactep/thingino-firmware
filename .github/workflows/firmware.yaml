@@ -42,6 +42,9 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+        with:
+          ref: "master"
+          fetch-depth: "0"
 
       - name: Generate matrix
         id: set-matrix
@@ -69,6 +72,7 @@ jobs:
         with:
           submodules: 'true'
           ref: "master"
+          fetch-depth: "0"
 
       - name: Setup Environment
         id: date
