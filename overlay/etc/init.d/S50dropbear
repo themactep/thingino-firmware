@@ -4,6 +4,13 @@ DROPBEAR_DIR="/etc/dropbear"
 DROPBEAR_PID="/run/dropbear.pid"
 DROPBEAR_ARGS="-R -k -K 300"
 
+# display default credentials on first login
+if [ ! -f /etc/shadow- ]; then
+	tmpfile=/tmp/dropbearbanner.txt
+	echo "Default login is root/root." > $tmpfile
+	DROPBEAR_ARGS="$DROPBEAR_ARGS -b $tmpfile"
+fi
+
 start() {
 	printf "Starting dropbear sshd: "
 	[ -L "$DROPBEAR_DIR" ] && rm -r "$DROPBEAR_DIR"
