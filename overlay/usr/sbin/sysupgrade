@@ -34,7 +34,7 @@ if curl -# -L -f -o $tmp_file $url; then
 	echo "Performing upgrade. Do not turn off the power!"
 	if flashcp -v $tmp_file /dev/$mtd_dev; then
 		echo "Rebooting..."
-		reboot
+		echo 1 > /proc/jz/watchdog/reset
 	else
 		echo "Upgrade failed!"
 		echo "You have to perform a recovery flashing before rebooting the camera!"
