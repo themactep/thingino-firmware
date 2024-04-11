@@ -1,5 +1,17 @@
 #!/bin/bash
 
+temp_rc=$(mktemp)
+cat <<-'EOF' > $temp_rc
+dialog_color = (RED,WHITE,OFF)
+screen_color = (WHITE,RED,ON)
+EOF
+
+UI=dialog
+GIT_BRANCH=$(git branch | grep ^* | awk '{print $2}')
+GIT_HASH=$(git show -s --format=%H)
+GIT_TIME=$(git show -s --format=%ci)
+BACKTITLE="THINGINO Firmware - ${GIT_BRANCH}+${GIT_HASH:0:7}, ${GIT_TIME}"
+
 check_and_install_dialog() {
 	if ! command -v dialog &> /dev/null; then
 		echo "'dialog' is not installed. It is required for this script to run."
@@ -24,12 +36,10 @@ check_and_install_dialog() {
 	fi
 }
 
-UI=dialog
-
 function main_menu() {
 	check_and_install_dialog
 	while true; do
-		CHOICE=$($UI --erase-on-exit --cancel-label "Exit" --help-button --title "THINGINO Buildroot" --menu "Choose an option" 18 110 30 \
+		CHOICE=$($UI --colors --backtitle "$BACKTITLE" --erase-on-exit --cancel-label "Exit" --help-button --title "THINGINO Buildroot" --menu "Choose an option" 18 110 30 \
 			"menuconfig" "Proceed to the buildroot menu (toolchain, kernel, and rootfs)" \
 			"pack_full" "Create a full firmware image"  \
 			"pack_update" "Create an update firmware image (no bootloader)" \
@@ -57,7 +67,7 @@ function main_menu() {
 }
 
 function show_help_msgbox() {
-	$UI --title "THINGINO help" --msgbox "$1" 10 70
+	$UI --colors --backtitle "$BACKTITLE" --title "THINGINO help" --msgbox "$1" 10 70
 }
 
 function show_help() {
@@ -83,53 +93,45 @@ function show_help() {
 			show_help_msgbox "This function initiates an Over-the-Air (OTA) upgrade using the full firmware image. You'll need to specify the target device's IP address. It's used for comprehensive updates that include the bootloader, kernel, and filesystem.";;
 		"HELP update_ota")
 			show_help_msgbox "This option performs an OTA update with just the firmware update image, excluding the bootloader. You'll need to provide the target device's IP address. It's ideal for routine software updates after the initial full installation.";;
-		*)your
+		*)
 			show_help_msgbox "No help information is available for the selected item. Please choose another option or consult the thingino wiki for more details.";;
 	esac
 }
 
-function execute_choice() {
+execute_choice() {
 	case $1 in
 		menuconfig | pack_full | pack_update | pad_full | pad_update | make)
 			make $1
 			exit
 			;;
-		clean)
-			make clean
+		clean | distclean)
+			make $1
 			;;
-		distclean)
-			make distclean
-			;;
-		upgrade_ota)
-			IP=$(dialog --stdout --title "Input IP" --inputbox "Enter the IP address for OTA upgrade" 8 78)
+		upgrade_ota | update_ota)
+			local action="upgrade"
+			local warning="You are about to start a full upgrade, which includes upgrading the device's bootloader. This operation is critical and may disrupt the device's functionality if it fails. Proceed with caution. Are you sure you want to continue with the flashing process?"
+			[ "$1" = "update_ota" ] && {
+				action="update"
+				warning="Flashing will begin. Be careful, as this might disrupt the device's operation if it fails. Are you sure you want to continue?"
+			}
+
+			IP=$($UI --backtitle "$BACKTITLE" --stdout --title "Input IP" --inputbox "Enter the IP address for OTA $action" 8 78)
 			if [ $? -eq 0 ]; then
-				if dialog --stdout --title "Warning" --yesno "You are about to start a full upgrade, which includes upgrading the device's bootloader. This operation is critical and may disrupt the device's functionality if it fails. Proceed with caution. Are you sure you want to continue with the flashing process?" 12 78; then
-					echo "Proceeding with OTA upgrade to $IP..."
-					make upgrade_ota IP=$IP
+				if $(DIALOGRC=$temp_rc $UI --backtitle "$BACKTITLE" --stdout --colors --title "Warning" --yesno "$warning" 12 78); then
+					echo "Proceeding with OTA $action to $IP..."
+					make $1 IP=$IP
 					exit
 				else
-					echo "OTA upgrade canceled by user."
+					echo "OTA $action canceled by user."
 				fi
 			else
 				echo "User canceled the operation."
 			fi
-			;;
-		update_ota)
-			IP=$(dialog --stdout --title "Input IP" --inputbox "Enter the IP address for OTA update" 8 78)
-			if [ $? -eq 0 ]; then
-				if dialog --stdout --title "Warning" --yesno "Flashing will begin. Be careful, as this might disrupt the device's operation if it fails. Are you sure you want to continue?" 10 78; then
-					echo "Proceeding with OTA update to $IP..."
-					make update_ota IP=$IP
-					exit
-				else
-					echo "OTA update canceled by user."
-				fi
-			else
-				echo "User canceled the operation."
-			fi
+			rm -f $temp_rc
 			;;
 		*)
-			echo "Invalid choice." ;;
+			echo "Invalid choice."
+			;;
 	esac
 }
 
