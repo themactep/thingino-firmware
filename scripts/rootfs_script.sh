@@ -40,6 +40,10 @@ if grep -q ^U_BOOT_ENV_TXT $BR2_CONFIG; then
 	fi
 fi
 
+if [ -f "${TARGET_DIR}/lib/libconfig.so" ]; then
+	rm -vf ${TARGET_DIR}/lib/libconfig.so*
+fi
+
 if grep -q ^BR2_TOOLCHAIN_USES_MUSL $BR2_CONFIG; then
   ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/lib/ld-uClibc.so.0
   ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/usr/bin/ldd
