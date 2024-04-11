@@ -16,7 +16,7 @@ start() {
 	done
 	echo " OK"
 
-	echo -n "Restoring IMP Configuration: "
+	echo -n "Restoring IMP Configuration:"
 	if [ -f "$config" ]; then
 		echo
 		while read -r line; do
@@ -31,16 +31,16 @@ start() {
 }
 
 case "$1" in
-start | restart | reload)
-	start
-	;;
-stop)
-	:
-	;;
-*)
-	echo "Usage: $0 {start|restart|reload}"
-	exit 1
-	;;
+	start | restart | reload)
+		start
+		;;
+	stop)
+		:
+		;;
+	*)
+		echo "Usage: $0 {start|restart|reload}"
+		exit 1
+		;;
 esac
 
 exit 0
