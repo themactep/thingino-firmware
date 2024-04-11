@@ -106,6 +106,7 @@ function execute_choice() {
 				if dialog --stdout --title "Warning" --yesno "You are about to start a full upgrade, which includes upgrading the device's bootloader. This operation is critical and may disrupt the device's functionality if it fails. Proceed with caution. Are you sure you want to continue with the flashing process?" 12 78; then
 					echo "Proceeding with OTA upgrade to $IP..."
 					make upgrade_ota IP=$IP
+					exit
 				else
 					echo "OTA upgrade canceled by user."
 				fi
@@ -119,6 +120,7 @@ function execute_choice() {
 				if dialog --stdout --title "Warning" --yesno "Flashing will begin. Be careful, as this might disrupt the device's operation if it fails. Are you sure you want to continue?" 10 78; then
 					echo "Proceeding with OTA update to $IP..."
 					make update_ota IP=$IP
+					exit
 				else
 					echo "OTA update canceled by user."
 				fi
