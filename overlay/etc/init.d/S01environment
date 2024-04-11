@@ -1,0 +1,33 @@
+#!/bin/sh
+
+ENV_TXT="/etc/uenv.txt"
+
+start () {
+	echo -n "Check ENV: "
+
+	if [ -f "$ENV_TXT" ] && [ "false" = $(fw_printenv -n boot_complete) ]; then
+			ENV_TMP=$(mktemp)
+			sed 's/=/ /' $ENV_TXT >$ENV_TMP
+			fw_setenv -s $ENV_TMP
+			fw_setenv boot_complete true
+			echo "ENV updated. Rebooting now..."
+			reboot
+	else
+			echo "OK"
+	fi
+}
+
+case "$1" in
+start)
+	$1
+	;;
+stop|restart)
+	true
+	;;
+*)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+	;;
+esac
+
+exit 0
