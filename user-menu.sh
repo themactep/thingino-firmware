@@ -16,12 +16,15 @@ if ! command -v dialog &> /dev/null; then
                     echo "Failed to install 'dialog'. Please install it manually and rerun this script."
                     exit 1
                 fi
-                break;;
+                break
+		;;
             [Nn]* )
                 echo "Cannot proceed without 'dialog'. Exiting..."
-                exit 1;;
+                exit 1
+		;;
             * )
-                echo "Please answer yes or no.";;
+                echo "Please answer yes or no."
+		;;
         esac
     done
 fi
