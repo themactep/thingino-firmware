@@ -1,0 +1,35 @@
+#!/bin/sh
+
+DAEMON="syslogd"
+DAEMON_ARGS="-n -C64 -t"
+PIDFILE="/run/$DAEMON.pid"
+
+start() {
+	printf 'Starting %s: ' $DAEMON
+	start-stop-daemon -q -p $PIDFILE -S -b -m -x /sbin/$DAEMON -- $DAEMON_ARGS
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+}
+
+stop() {
+	printf 'Stopping %s: ' $DAEMON
+	start-stop-daemon -q -p $PIDFILE -K
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	rm -f $PIDFILE
+}
+
+case "$1" in
+	start | stop)
+		$1
+		;;
+	restart | reload)
+		stop
+		sleep 1
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+		;;
+esac
+
+exit 0
