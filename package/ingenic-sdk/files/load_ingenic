@@ -177,7 +177,7 @@ if find /lib/modules/ -name gpio.ko | grep -q .; then
 	fi
 fi
 
-if find /lib/modules/ -name avpu.ko | grep -q .; then
+if find /lib/modules/ -name audio.ko | grep -q .; then
 	if ! grep -q ^audio /proc/modules; then
 		echo -n "Load audio module ... "
 		modprobe audio spk_gpio=-1 && echo "OK" || echo "FAIL"
@@ -200,4 +200,3 @@ if find /lib/modules/ -name avpu.ko | grep -q .; then
 		modprobe avpu $AVPU_PARAM && echo "OK" || echo "FAIL"
 	fi
 fi
-
