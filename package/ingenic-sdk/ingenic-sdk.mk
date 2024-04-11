@@ -22,12 +22,21 @@ else
 SENSOR_CONFIG_NAME = $(SENSOR_MODEL)-$(SOC_FAMILY).bin
 endif
 
+ifeq ($(CONFIG_SOC_T40)$(CONFIG_SOC_T41),y)
+	LIBALOG_FILE = $(@D)/lib/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/libalog.so
+else
+	# Install libalog.so from T31 1.1.6 for every XBurst1 SoC
+	# 40032d0802b86f3cfb0b2b13d866556e
+	LIBALOG_FILE = $(@D)/lib/T31/lib/1.1.6/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/libalog.so
+endif
+
 define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/$(KERNEL_VERSION)
 	touch $(TARGET_DIR)/lib/modules/$(KERNEL_VERSION)/modules.builtin.modinfo
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/lib
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/ $(@D)/lib/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/*.so
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/ $(LIBALOG_FILE)
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/sensor
 	$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_MODEL).bin $(TARGET_DIR)/etc/sensor/$(SENSOR_CONFIG_NAME)
