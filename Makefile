@@ -136,7 +136,7 @@ else
 	@DEBIAN_FRONTEND=noninteractive apt-get update
 	@DEBIAN_FRONTEND=noninteractive apt-get -y install \
 		build-essential bc bison cpio curl file flex gawk git \
-		libncurses-dev make rsync unzip wget whiptail
+		libncurses-dev make rsync unzip wget whiptail dialog
 endif
 
 ### Configuration
