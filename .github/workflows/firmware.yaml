@@ -68,6 +68,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: 'true'
+          ref: "master"
 
       - name: Setup Environment
         id: date
