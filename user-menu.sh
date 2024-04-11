@@ -1,37 +1,33 @@
 #!/bin/bash
 
-# Check if dialog is installed
-if ! command -v dialog &> /dev/null; then
-    echo "'dialog' is not installed. It is required for this script to run."
-    while true; do
-        read -p "Do you want to install 'dialog' now? [Y/n] " yn
-        case $yn in
-            [Yy]* )
-                echo "Attempting to install 'dialog'..."
-                sudo apt-get update; sudo apt-get install -y --no-install-recommends --no-install-suggests dialog
-                # Check if dialog was successfully installed
-                if command -v dialog &> /dev/null; then
-                    echo "'dialog' was successfully installed."
-                else
-                    echo "Failed to install 'dialog'. Please install it manually and rerun this script."
-                    exit 1
-                fi
-                break
-		;;
-            [Nn]* )
-                echo "Cannot proceed without 'dialog'. Exiting..."
-                exit 1
-		;;
-            * )
-                echo "Please answer yes or no."
-		;;
-        esac
-    done
-fi
+check_and_install_dialog() {
+	if ! command -v dialog &> /dev/null; then
+		echo "'dialog' is not installed. It is required for this script to run."
+		read -p "Do you want to install 'dialog' now? [Y/n] " yn
+		case $yn in
+			[Yy]* )
+				echo "Attempting to install 'dialog'..."
+				sudo apt-get update; sudo apt-get install -y --no-install-recommends --no-install-suggests dialog
+				check_and_install_dialog
+				;;
+			[Nn]* )
+				echo "Cannot proceed without 'dialog'. Exiting..."
+				exit 1
+				;;
+			* )
+				echo "Please answer yes or no."
+				check_and_install_dialog
+				;;
+		esac
+	else
+		echo "'dialog' is installed."
+	fi
+}
 
 UI=dialog
 
 function main_menu() {
+	check_and_install_dialog
 	while true; do
 		CHOICE=$($UI --erase-on-exit --cancel-label "Exit" --help-button --title "THINGINO Buildroot" --menu "Choose an option" 18 110 30 \
 			"menuconfig" "Proceed to the buildroot menu (toolchain, kernel, and rootfs)" \
@@ -94,37 +90,17 @@ function show_help() {
 
 function execute_choice() {
 	case $1 in
-		"menuconfig")
-			make menuconfig
+		menuconfig | pack_full | pack_update | pad_full | pad_update | make)
+			make $1
 			exit
 			;;
-		"pack_full")
-			make pack_full
-			exit
-			;;
-		"pack_update")
-			make pack_update
-			exit
-			;;
-		"pad_full")
-			make pad_full
-			exit
-			;;
-		"pad_update")
-			make pad_update
-			exit
-			;;
-		"clean")
+		clean)
 			make clean
 			;;
-		"distclean")
+		distclean)
 			make distclean
 			;;
-		"make")
-			make
-			exit
-			;;
-		"upgrade_ota")
+		upgrade_ota)
 			IP=$(dialog --stdout --title "Input IP" --inputbox "Enter the IP address for OTA upgrade" 8 78)
 			if [ $? -eq 0 ]; then
 				if dialog --stdout --title "Warning" --yesno "You are about to start a full upgrade, which includes upgrading the device's bootloader. This operation is critical and may disrupt the device's functionality if it fails. Proceed with caution. Are you sure you want to continue with the flashing process?" 12 78; then
@@ -136,9 +112,8 @@ function execute_choice() {
 			else
 				echo "User canceled the operation."
 			fi
-			exit
 			;;
-		"update_ota")
+		update_ota)
 			IP=$(dialog --stdout --title "Input IP" --inputbox "Enter the IP address for OTA update" 8 78)
 			if [ $? -eq 0 ]; then
 				if dialog --stdout --title "Warning" --yesno "Flashing will begin. Be careful, as this might disrupt the device's operation if it fails. Are you sure you want to continue?" 10 78; then
@@ -150,7 +125,6 @@ function execute_choice() {
 			else
 				echo "User canceled the operation."
 			fi
-			exit
 			;;
 		*)
 			echo "Invalid choice." ;;
