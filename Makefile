@@ -244,13 +244,11 @@ source: defconfig
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source
 
 update_ota: pack_update
-	scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -O $(FIRMWARE_BIN_NOBOOT) root@$(CAMERA_IP_ADDRESS):/tmp/fwupdate.bin
-	ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@$(CAMERA_IP_ADDRESS) "flashcp -v /tmp/fwupdate.bin /dev/mtd5 && reboot"
+	scripts/fw_ota.sh $(FIRMWARE_BIN_NOBOOT) $(CAMERA_IP_ADDRESS) mtd5
 
 # upgrade firmware using /tmp/ directory of the camera
 upgrade_ota: pack
-	scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -O $(FIRMWARE_BIN_FULL) root@$(CAMERA_IP_ADDRESS):/tmp/fwupgrade.bin
-	ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@$(CAMERA_IP_ADDRESS) "flashcp -v /tmp/fwupgrade.bin /dev/mtd6 && reboot"
+	script/fw_ota.sh $(FIRMWARE_BIN_FULL) $(CAMERA_IP_ADDRESS) mtd6
 
 # upload firmware to tftp server
 upload_tftp: $(FIRMWARE_BIN_FULL)
