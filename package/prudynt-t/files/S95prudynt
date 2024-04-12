@@ -12,10 +12,6 @@ load_daemon() {
 	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
 }
 
-restore_config() {
-
-}
-
 start() {
 	load_daemon
 }
