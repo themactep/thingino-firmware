@@ -74,14 +74,6 @@ jobs:
           ref: "master"
           fetch-depth: "0"
 
-      - name: Switch to master branch
-        run: |
-          git checkout master
-
-      - name: Print GitHub REF NAME
-        run: |
-          echo "The workflow was triggered on the branch or tag: $GITHUB_REF_NAME"
-
       - name: Setup Environment
         id: date
         run: |
