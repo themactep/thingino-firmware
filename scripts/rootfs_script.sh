@@ -3,10 +3,12 @@
 # get image id from the path to output
 IMAGE_ID=$(echo $BR2_CONFIG | awk -F '/' '{print $(NF-1)}')
 
+cd $BR2_EXTERNAL
 GIT_BRANCH=$(git branch | grep ^* | awk '{print $2}')
 GIT_HASH=$(git show -s --format=%H)
 GIT_TIME=$(git show -s --format=%ci)
 BUILD_ID="${GIT_BRANCH}+${GIT_HASH:0:7}, ${GIT_TIME}"
+cd -
 
 FILE=${TARGET_DIR}/usr/lib/os-release
 # prefix exiting buildroot entires
