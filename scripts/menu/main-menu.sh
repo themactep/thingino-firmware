@@ -82,16 +82,24 @@ execute_choice() {
 			}
 
 			IP=$("${DIALOG_COMMON[@]}" --stdout --title "Input IP" --inputbox "Enter the IP address for OTA $action" 8 78)
-			if [ $? -eq 0 ]; then
-				if $(DIALOGRC=$temp_rc "${DIALOG_COMMON[@]}" --stdout --title "Warning" --yesno "$warning" 12 78); then
-					echo "Proceeding with OTA $action to $IP..."
-					make $1 IP=$IP
-					exit
-				else
-					echo "OTA $action canceled by user."
-				fi
-			else
+			exit_status=$?
+
+			if [ $exit_status -ne 0 ]; then
 				echo "User canceled the operation."
+				return
+			fi
+
+			if [ -z "$IP" ]; then
+				DIALOGRC=$temp_rc "${DIALOG_COMMON[@]}" --stdout --title "Warning" --msgbox "No IP address entered, returning to main menu." 5 78
+				return
+			fi
+
+			if DIALOGRC=$temp_rc "${DIALOG_COMMON[@]}" --stdout --title "Warning" --yesno "$warning" 12 78; then
+				echo "Proceeding with OTA $action to $IP..."
+				make $1 IP=$IP
+				exit
+			else
+				echo "OTA $action canceled by user."
 			fi
 			rm -f $temp_rc
 			;;
