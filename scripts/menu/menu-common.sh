@@ -47,3 +47,7 @@ exit_status() {
 		exit
 	fi
 }
+
+no_device() {
+	"${DIALOG_COMMON[@]}" --msgbox "Error: No device selected.\n\nPlease select a device first." 7 60
+}
