@@ -19,7 +19,7 @@ function main_menu() {
 			"pad_full" "Pad the full firmware image to 16MB" \
 			"pad_update" "Pad the update firmware image to 16MB" \
 			"clean" "Clean before reassembly"  \
-			"distclean" "Start building from scratch"  \
+			"distclean" "Remove all cached files from current profile"  \
 			"make" "Generate firmware" \
 			"upgrade_ota" "Upload the full firmware file to the camera over network, and flash it"  \
 			"update_ota" "Upload the update firmware file to the camera over network, and flash it"  \
