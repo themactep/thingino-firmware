@@ -144,7 +144,7 @@ endif
 FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(MODULE_CONFIG_REAL))
 
 # Assemble config from bits and pieces
-prepare_config:
+prepare_config: buildroot/Makefile
 	# create output directory
 	$(info * make OUTPUT_DIR $(OUTPUT_DIR))
 	mkdir -p $(OUTPUT_DIR)
@@ -272,6 +272,10 @@ br-%-dirclean:
 
 br-%:
 	$(BR2_MAKE) $(subst br-,,$@)
+
+buildroot/Makefile:
+	git submodule init
+	git submodule update
 
 # create output directory
 $(OUTPUT_DIR):
