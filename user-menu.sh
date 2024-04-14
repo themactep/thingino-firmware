@@ -6,7 +6,7 @@ function main_menu() {
 	while true; do
 		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu \
 		"\Zb\Z1THINGINO\Zn is an open-source replacement firmware designed specifically for   \Zr\Z4Ingenic\Zn based IP cameras, offering freedom from restrictive stock firmware and providing a user-friendly alternative to other complex options.  \
-		\n\nJoin us in unlocking the full potential of your IP camera with \Zb\Z1THINGINO\Zn's robust and customizable features! \
+		\n\nJoin us in unlocking the full potential of your hardware with \Zb\Z1THINGINO\Zn's robust and customizable features! \
 		\n\nSelect an option:" 18 80 20 \
 			"1" "Introduction" \
 			"2" "Guided Compilation" \
@@ -37,10 +37,10 @@ function show_help() {
 function execute_choice(){
 	case $1 in
 		1)
-			"${DIALOG_COMMON[@]}" --msgbox "Thingino is an open source firmware for IP cameras built on an Ingenic SoC. Originally derived from OpenIPC it has branched to an independent project with a different vision and a different approach.\n\n
+			"${DIALOG_COMMON[@]}" --msgbox "Thingino is an open source firmware for devices built on an Ingenic SoC. Originally derived from OpenIPC it has branched to an independent project with a different vision and a different approach.\n\n
 Thingino does not try to build a universal firmware that would be used on multiple models. Instead, we build a firmware which is nicely tailored to the targeted hardware, with minimum overhead.\n\n
 Thingino is young but develops fast. You should expect frequent updates, exciting new features, and occasional breaking changes.
-Thingino uses a custom version of prudynt as a go-to streamer while working on its own fully open modular solution - Raptor." 16 100
+Thingino uses a custom version of prudynt as a go-to streamer while working on its own fully open modular solution - Raptor." 15 100
 			;;
 		2)
 			./scripts/menu/menu2-guided.sh
