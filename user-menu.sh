@@ -4,7 +4,7 @@ source ./scripts/menu/menu-common.sh
 
 function main_menu() {
 	while true; do
-		CHOICE=$("${DIALOG_COMMON[@]}" --erase-on-exit --help-button --menu \
+		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu \
 		"\Zb\Z1THINGINO\Zn is an open-source replacement firmware designed specifically for   \Zr\Z4Ingenic\Zn based IP cameras, offering freedom from restrictive stock firmware and providing a user-friendly alternative to other complex options.  \
 		\n\nJoin us in unlocking the full potential of your IP camera with \Zb\Z1THINGINO\Zn's robust and customizable features! \
 		\n\nSelect an option:" 18 80 20 \
@@ -50,7 +50,6 @@ Thingino uses a custom version of prudynt as a go-to streamer while working on i
 			exit
 			;;
 		4)
-			echo -e "\n\nTHINGINO! http://www.thingino.com"
 			exit
 			;;
 		*)
