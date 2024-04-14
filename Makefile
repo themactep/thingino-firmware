@@ -5,6 +5,10 @@ ifeq ($(__BASH_MAKE_COMPLETION__),1)
 	exit
 endif
 
+ifneq ($(shell command -v gawk >/dev/null; echo $$?),0)
+$(error Please install gawk!)
+endif
+
 # Camera IP address
 # shortened to just IP for convenience of running from command line
 IP ?= 192.168.1.10
