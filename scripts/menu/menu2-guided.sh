@@ -3,6 +3,7 @@
 camera_value=""
 step1_completed=false
 step2_completed=false
+step3_completed=false
 
 source ./scripts/menu/menu-common.sh
 
@@ -12,15 +13,18 @@ main_menu() {
 	while true; do
 		if $step1_completed && ! $step2_completed; then
 			default_item="2"
-		elif $step2_completed; then
+		elif $step2_completed && ! $step3_completed; then
 			default_item="3"
+		elif $step3_completed; then
+			default_item="4"
 		fi
 
 		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --default-item "$default_item" \
 			--menu "Please select:" 15 50 4 \
 			"1" "Step 1: Select device" \
-			"2" "Step 2: Make firmware" \
-			"3" "Step 3: Make Image" \
+			"2" "Step 2: Install prerequsites" \
+			"3" "Step 3: Make firmware" \
+			"4" "Step 4: Make Image" \
 			3>&1 1>&2 2>&3)
 
 			exit_status
@@ -33,8 +37,10 @@ function show_help() {
 		"HELP 1")
 			show_help_msgbox "Choose a device profile that closely matches your hardware specifications.\n\nYou can select from a 'Cameras' profile with preconfigured environmental settings tailored for specific camera models, or opt for a 'Board' profile which provides basic configurations necessary to initialize the hardware.\n\nExperimental profiles are also available for bleeding edge testing." 15;;
 		"HELP 2")
-			show_help_msgbox "This option starts the firmware compilation process. The duration of this process depends on your computer's speed. Please be patient as it might take some time." 8;;
+			show_help_msgbox "The 'Bootstrap' option initiates the installation of all necessary prerequisite software required for the compilation of the firmware. This includes tools and libraries that are essential for building the firmware from source. Selecting this will ensure your environment is correctly set up to proceed with building THINGINO without encountering missing dependencies.\n\nRequires super-user privileges." 12 70;;
 		"HELP 3")
+			show_help_msgbox "This option starts the firmware compilation process. The duration of this process depends on your computer's speed. Please be patient as it might take some time." 8;;
+		"HELP 4")
 			show_help_msgbox "After successfully compiling the firmware, this option allows you to create an image file that can be flashed to your device. Use this to update your device with the new firmware." 8;;
 		*)
 			show_help_msgbox "No help information is available for the selected item. Please choose another option or consult the thingino wiki for more details.";;
@@ -51,6 +57,9 @@ function execute_choice() {
 			;;
 		3)
 			step3
+			;;
+		4)
+			step4
 			;;
 		*)
 			clear
@@ -78,7 +87,7 @@ step1() {
 	camera_value=$(echo "$output" | grep 'CAMERA =' | tail -n1 | awk -F' = ' '{print $2}')
 
 	if [ -n "$camera_value" ]; then
-		"${DIALOG_COMMON[@]}" --msgbox "Selected Device: $camera_value\n\nNext, proceed to step 2, to begin the make process." 10 40
+		"${DIALOG_COMMON[@]}" --msgbox "Selected Device: \Z1$camera_value\Zn\n\nNext, proceed to step 2, to continue the build process." 9 40
 		step1_completed=true
 	else
 		"${DIALOG_COMMON[@]}" --msgbox "Error: No device selected.\n\nPlease select a device first." 7 40
@@ -87,7 +96,26 @@ step1() {
 
 step2() {
 	if [ -n "$camera_value" ]; then
-		"${DIALOG_COMMON[@]}" --no-cancel --no-label "Back" --yesno "Making firmware for $camera_value...\n\nProceed with make?" 8 40
+		"${DIALOG_COMMON[@]}" --no-cancel --no-label "Back" --yes-label "Install" --yesno "Do you want to install pre-requisites?\n\nYou may skip this step if you are certain they are already installed." 8 60
+		response=$?
+		exec 3>&-
+		if [ $response -eq 1 ]; then
+			step2_completed=true
+			return
+		elif [ $response -eq 255 ]; then
+			echo "Dialog was closed or escaped." >&2
+			return
+		fi
+		sudo BOARD=$camera_value make bootstrap
+		step2_completed=true
+	else
+		"${DIALOG_COMMON[@]}" --msgbox "Error: No device selected.\n\nPlease select a device first." 7 40
+	fi
+}
+
+step3() {
+	if [ -n "$camera_value" ]; then
+		"${DIALOG_COMMON[@]}" --no-cancel --no-label "Back" --yesno "Making firmware for \Z1$camera_value\Zn...\n\nProceed with make?" 8 40
 		response=$?
 		exec 3>&-
 		if [ $response -eq 1 ]; then
@@ -97,18 +125,26 @@ step2() {
 			return
 		fi
 		BOARD=$camera_value make
-		step2_completed=true
-		"${DIALOG_COMMON[@]}" --msgbox "Make process complete!\\nYou may proceed to create an image." 7 40
+		step3_completed=true
+		"${DIALOG_COMMON[@]}" --msgbox "Make process complete!\n\nYou may proceed to create an image." 7 40
 	else
 		"${DIALOG_COMMON[@]}" --msgbox "Error: No device selected.\n\nPlease select a device first." 7 40
 	fi
 }
 
-step3() {
+step4() {
 	if [ -n "$camera_value" ]; then
-		"${DIALOG_COMMON[@]}" --msgbox "Making image for $camera_value...\n\nPress OK to begin." 8 40
+		"${DIALOG_COMMON[@]}" --no-cancel --no-label "Back" --yesno "Making image for $camera_value...\n\nPress OK to begin." 8 40
+		response=$?
+		exec 3>&-
+		if [ $response -eq 1 ]; then
+			return
+		elif [ $response -eq 255 ]; then
+			echo "Dialog was closed or escaped." >&2
+			return
+		fi
 		BOARD=$camera_value make pack
-		step2_completed=true
+		step3_completed=true
 		"${DIALOG_COMMON[@]}" --msgbox "Image process complete!\\n\nYour images are located in \n$HOME/output/$camera_value/images" 10 40
 	else
 		"${DIALOG_COMMON[@]}" --msgbox "Error: No device selected.\n\nPlease select a device first." 7 40
