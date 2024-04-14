@@ -51,3 +51,7 @@ exit_status() {
 no_device() {
 	"${DIALOG_COMMON[@]}" --msgbox "Error: No device selected.\n\nPlease select a device first." 7 60
 }
+
+closed_dialog() {
+	echo "Dialog was closed or escaped." >&2
+}
