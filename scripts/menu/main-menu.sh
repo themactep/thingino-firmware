@@ -11,7 +11,8 @@ source ./scripts/menu/menu-common.sh
 function main_menu() {
 	check_and_install_dialog
 	while true; do
-		CHOICE=$("${DIALOG_COMMON[@]}" --erase-on-exit --help-button --menu "Choose an option" 18 110 30 \
+		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Choose an option" 19 110 30 \
+			"bootstrap" "Install prerequisite software necessary for the compilation process" \
 			"menuconfig" "Proceed to the buildroot menu (toolchain, kernel, and rootfs)" \
 			"br-linux-menuconfig" "Proceed to the Linux Kernel configuration" \
 			"pack_full" "Create a full firmware image"  \
@@ -19,7 +20,7 @@ function main_menu() {
 			"pad_full" "Pad the full firmware image to 16MB" \
 			"pad_update" "Pad the update firmware image to 16MB" \
 			"clean" "Clean before reassembly"  \
-			"distclean" "Remove all cached files from current profile"  \
+			"distclean" "Remove all cached build files from current profile"  \
 			"make" "Generate firmware" \
 			"upgrade_ota" "Upload the full firmware file to the camera over network, and flash it"  \
 			"update_ota" "Upload the update firmware file to the camera over network, and flash it"  \
@@ -32,6 +33,8 @@ function main_menu() {
 function show_help() {
 	local item=$1
 	case "$item" in
+		"HELP bootstrap")
+			show_help_msgbox "The 'Bootstrap' option initiates the installation of all necessary prerequisite software required for the compilation of the firmware. This includes tools and libraries that are essential for building the firmware from source. Selecting this will ensure your environment is correctly set up to proceed with building THINGINO without encountering missing dependencies.\n\nRequires super-user privileges." 12 70;;
 		"HELP menuconfig")
 			show_help_msgbox "Launches a graphical interface for configuring the toolchain, kernel options, and the packages that will be included in your root filesystem. It's a crucial step for customizing your build according to your needs.";;
 		"HELP br-linux-menuconfig")
@@ -61,6 +64,10 @@ function show_help() {
 
 execute_choice() {
 	case $1 in
+		bootstrap)
+			sudo make $1
+			sleep 2
+			;;
 		menuconfig | pack_full | pack_update | pad_full | pad_update| make)
 			make $1
 			exit

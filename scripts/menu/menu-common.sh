@@ -3,14 +3,14 @@ GIT_BRANCH=$(git branch | grep ^* | awk '{print $2}')
 GIT_HASH=$(git show -s --format=%H)
 GIT_TIME=$(git show -s --format=%ci)
 BACKTITLE="THINGINO Firmware - ${GIT_BRANCH}+${GIT_HASH:0:7}, ${GIT_TIME}"
-DIALOG_COMMON=($UI --colors --backtitle "$BACKTITLE" --cancel-label "Exit" --title "THINGINO Buildroot")
+DIALOG_COMMON=($UI --keep-tite --erase-on-exit --clear --colors --backtitle "$BACKTITLE" --cancel-label "Exit" --title "THINGINO Buildroot")
 
 function show_help_msgbox() {
 	local message=$1
 	local height=${2:-10}  # Default height is 10 if not provided
 	local width=${3:-70}   # Default width is 70 if not provided
 
-	"${DIALOG_COMMON[@]}" --erase-on-exit --clear --title "THINGINO help" --msgbox "$message" $height $width
+	"${DIALOG_COMMON[@]}" --title "THINGINO help" --msgbox "$message" $height $width
 }
 
 check_and_install_dialog() {
@@ -32,8 +32,6 @@ check_and_install_dialog() {
 				check_and_install_dialog
 				;;
 		esac
-	else
-		echo "'dialog' is installed."
 	fi
 }
 
@@ -46,7 +44,6 @@ exit_status() {
 		# Help button pressed
 		show_help "$CHOICE"
 	else
-		echo -e "\n\nTHINGINO! http://www.thingino.com"
 		exit
 	fi
 }

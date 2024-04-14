@@ -16,7 +16,7 @@ main_menu() {
 			default_item="3"
 		fi
 
-		CHOICE=$("${DIALOG_COMMON[@]}" --clear --help-button --default-item "$default_item" \
+		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --default-item "$default_item" \
 			--menu "Please select:" 15 50 4 \
 			"1" "Step 1: Select device" \
 			"2" "Step 2: Make firmware" \
