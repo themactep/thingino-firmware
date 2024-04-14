@@ -10,7 +10,7 @@ function show_help_msgbox() {
 	local height=${2:-10}  # Default height is 10 if not provided
 	local width=${3:-70}   # Default width is 70 if not provided
 
-	"${DIALOG_COMMON[@]}" --title "THINGINO help" --msgbox "$message" $height $width
+	"${DIALOG_COMMON[@]}" --erase-on-exit --clear --title "THINGINO help" --msgbox "$message" $height $width
 }
 
 check_and_install_dialog() {

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -x
-
 camera_value=""
 step1_completed=false
 step2_completed=false
@@ -89,7 +87,7 @@ step1() {
 
 step2() {
 	if [ -n "$camera_value" ]; then
-		"${DIALOG_COMMON[@]}" --no-cancel --no-label "Back" --yesno "Making firmware for $camera_value...\n\nProceed with make?" 7 40
+		"${DIALOG_COMMON[@]}" --no-cancel --no-label "Back" --yesno "Making firmware for $camera_value...\n\nProceed with make?" 8 40
 		response=$?
 		exec 3>&-
 		if [ $response -eq 1 ]; then
@@ -108,7 +106,7 @@ step2() {
 
 step3() {
 	if [ -n "$camera_value" ]; then
-		"${DIALOG_COMMON[@]}" --msgbox "Making image for $camera_value..." 7 40
+		"${DIALOG_COMMON[@]}" --msgbox "Making image for $camera_value...\n\nPress OK to begin." 8 40
 		BOARD=$camera_value make pack
 		step2_completed=true
 		"${DIALOG_COMMON[@]}" --msgbox "Image process complete!\\n\nYour images are located in \n$HOME/output/$camera_value/images" 10 40
