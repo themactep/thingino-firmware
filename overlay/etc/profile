@@ -1,4 +1,4 @@
-export PATH="/bin:/sbin:/usr/bin:/usr/sbin:/tmp"
+export PATH="/bin:/sbin:/tmp"
 export HOME=$(grep -e "^${USER:-root}:" /etc/passwd | cut -d ":" -f 6)
 export HOME=${HOME:-/root}
 export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
