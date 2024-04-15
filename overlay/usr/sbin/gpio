@@ -10,11 +10,6 @@ ASCII_W="\e[1;37m"
 ASCII_D="\e[1;38m"
 ASCII_B="\e[0m"
 
-echo_c() {
-	# 31 red, 32 green, 33 yellow, 34 blue, 35 magenta, 36 cyan, 37 white, 38 grey
-	echo -e "\e[1;$1m$2\e[0m"
-}
-
 log_and_run() {
 	[ -n "$DEBUG" ] && echo -e "${ASCII_C}${1}${ASCII_B}"
 	eval "$1"
