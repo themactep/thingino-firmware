@@ -1,5 +1,5 @@
 PID=$$
-LOCK_FILE="/var/run/process-${PID}.pid"
+LOCK_FILE="/run/process-${PID}.pid"
 LOG_FILE=/tmp/webui.log
 LOG_SIZE_LIMIT=50000
 
