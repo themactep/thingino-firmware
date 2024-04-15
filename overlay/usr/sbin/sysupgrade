@@ -1,9 +1,10 @@
 #!/bin/sh
 
-profile=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' /etc/os-release)
+data=/etc/os-release
+profile=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $data)
 
 if [ -z "$profile" ]; then
-	echo "Building profile is not set in /etc/os-release"
+	echo "Building profile is not set in $data"
 	exit 1
 fi
 
