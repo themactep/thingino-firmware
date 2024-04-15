@@ -129,7 +129,7 @@ step3() {
 		fi
 		BOARD=$camera_value make
 		step3_completed=true
-		"${DIALOG_COMMON[@]}" --msgbox "Make process complete!\n\nYou may proceed to create an image." 7 60
+		"${DIALOG_COMMON[@]}" --msgbox "The firmware compilation process is now complete!\n\nYou can now proceed to create a firmware image, which is necessary for flashing the firmware onto your device." 8 70
 	else
 		no_device
 	fi
@@ -137,7 +137,7 @@ step3() {
 
 step4() {
 	if [ -n "$camera_value" ]; then
-		"${DIALOG_COMMON[@]}" --no-cancel --no-label "Back" --yes-label "OK" --yesno "Making image for $camera_value...\n\nPress OK to begin." 7 60
+		"${DIALOG_COMMON[@]}" --no-cancel --no-label "Back" --yes-label "OK" --yesno "Making image for \Z1$camera_value\Zn...\n\nPress OK to begin." 7 60
 		response=$?
 		exec 3>&-
 		if [ $response -eq 1 ]; then
@@ -148,7 +148,8 @@ step4() {
 		fi
 		BOARD=$camera_value make pack
 		step3_completed=true
-		"${DIALOG_COMMON[@]}" --msgbox "Image process complete!\\n\nYour images are located in \n$HOME/output/$camera_value/images" 10 60
+		"${DIALOG_COMMON[@]}" --msgbox "Image process complete!\\n\nYour images are located in \n\Z1$HOME/output/$camera_value/images\Zn" 8 60
+		exit
 	else
 		no_device
 	fi

@@ -3,7 +3,7 @@ GIT_BRANCH=$(git branch | grep ^* | awk '{print $2}')
 GIT_HASH=$(git show -s --format=%H)
 GIT_TIME=$(git show -s --format=%ci)
 BACKTITLE="THINGINO Firmware - ${GIT_BRANCH}+${GIT_HASH:0:7}, ${GIT_TIME}"
-DIALOG_COMMON=($UI --keep-tite --erase-on-exit --clear --colors --backtitle "$BACKTITLE" --cancel-label "Exit" --title "THINGINO Buildroot")
+DIALOG_COMMON=($UI --keep-tite --colors --backtitle "$BACKTITLE" --cancel-label "Exit" --title "THINGINO Buildroot")
 
 function show_help_msgbox() {
 	local message=$1

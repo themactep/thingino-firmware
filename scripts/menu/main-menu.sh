@@ -11,7 +11,7 @@ source ./scripts/menu/menu-common.sh
 function main_menu() {
 	check_and_install_dialog
 	while true; do
-		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Choose an option" 19 110 30 \
+		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Select an option:" 19 110 30 \
 			"bootstrap" "Install prerequisite software necessary for the compilation process" \
 			"menuconfig" "Proceed to the buildroot menu (toolchain, kernel, and rootfs)" \
 			"br-linux-menuconfig" "Proceed to the Linux Kernel configuration" \
@@ -68,14 +68,14 @@ execute_choice() {
 			sudo make $1
 			sleep 2
 			;;
-		menuconfig | pack_full | pack_update | pad_full | pad_update| make)
+		pack_full | pack_update | pad_full | pad_update| make)
 			make $1
 			exit
 			;;
-		br-linux-menuconfig)
+		menuconfig | br-linux-menuconfig)
 			make $1
 			#savedefconfig future user box
-			exit
+			#exit
 			;;
 		clean | distclean)
 			make $1
