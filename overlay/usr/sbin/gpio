@@ -1,5 +1,7 @@
 #!/bin/sh
 
+gpiodir=/sys/class/gpio
+
 ASCII_R="\e[1;31m"
 ASCII_G="\e[1;32m"
 ASCII_Y="\e[1;33m"
@@ -69,10 +71,10 @@ range_of_pins() {
 # export pin if it is not already exported
 export_pin() {
 	local pin=$(validate_pin $1)
-	if [ -d "/sys/class/gpio/gpio${pin}" ]; then
+	if [ -d "${gpiodir}/gpio${pin}" ]; then
 		echo_c 33 "pin $pin already exported"
 	else
-		if echo $pin > /sys/class/gpio/export 2> /dev/null; then
+		if echo $pin > ${gpiodir}/export 2> /dev/null; then
 			echo_c 32 "pin $pin exported"
 		else
 			echo_c 31 "pin $pin is busy"
@@ -84,8 +86,8 @@ export_pin() {
 # unexport pin if it is exported
 unexport_pin() {
 	local pin=$(validate_pin $1)
-	if [ -d "/sys/class/gpio/gpio${pin}" ]; then
-		if echo $pin > /sys/class/gpio/unexport 2> /dev/null; then
+	if [ -d "${gpiodir}/gpio${pin}" ]; then
+		if echo $pin > ${gpiodir}/unexport 2> /dev/null; then
 			echo_c 32 "pin $pin unexported"
 		else
 			echo_c 31 "pin $pin is busy"
@@ -103,7 +105,7 @@ get_pin_info() {
 	echo -e "pin\tact.low\tdirect.\tvalue"
 	for pin in $range; do
 		local exported
-		if [ -d "/sys/class/gpio/gpio${pin}" ]; then
+		if [ -d "${gpiodir}/gpio${pin}" ]; then
 			exported=1
 		else
 			exported=0
@@ -111,20 +113,20 @@ get_pin_info() {
 		fi
 
 		printf "%3d" $pin
-		if [ ! -d "/sys/class/gpio/gpio${pin}" ]; then
+		if [ ! -d "${gpiodir}/gpio${pin}" ]; then
 			echo -e $ASCII_R pin cannot be exported $ASCII_B
 			continue
 		fi
 
-		res=$(cat "/sys/class/gpio/gpio${pin}/active_low")
+		res=$(cat "${gpiodir}/gpio${pin}/active_low")
 		[ "0" = "$res" ] && color=$ASCII_C || color=$ASCII_M
 		echo -en "\t" $color $res $ASCII_B
 
-		res=$(cat "/sys/class/gpio/gpio${pin}/direction")
+		res=$(cat "${gpiodir}/gpio${pin}/direction")
 		[ "in" = "$res" ] && color=$ASCII_C || color=$ASCII_M
 		echo -en "\t" $color $res $ASCII_B
 
-		res=$(cat "/sys/class/gpio/gpio${pin}/value")
+		res=$(cat "${gpiodir}/gpio${pin}/value")
 		[ "1" = "$res" ] && color=$ASCII_Y || color=$ASCII_G
 		echo -en "\t" $color $res $ASCII_B
 
@@ -134,17 +136,17 @@ get_pin_info() {
 }
 
 get_direction() {
-	if [ ! -f "/sys/class/gpio/gpio${1}/direction" ]; then
-		echo_c 31 "/sys/class/gpio/gpio${1}/direction not found"
+	if [ ! -f "${gpiodir}/gpio${1}/direction" ]; then
+		echo_c 31 "${gpiodir}/gpio${1}/direction not found"
 		exit 1
 	fi
 
-	cat "/sys/class/gpio/gpio${1}/direction"
+	cat "${gpiodir}/gpio${1}/direction"
 }
 
 get_only_pin_value() {
 	pin=$1
-	local pin_dir="/sys/class/gpio/gpio${pin}"
+	local pin_dir="${gpiodir}/gpio${pin}"
 	local exported
 
 	if [ -d "$pin_dir" ]; then
@@ -167,7 +169,7 @@ get_pin_value() {
 	local pin
 
 	for pin in $range; do
-		local pin_dir="/sys/class/gpio/gpio${pin}"
+		local pin_dir="${gpiodir}/gpio${pin}"
 		local exported
 
 		if [ -d "$pin_dir" ]; then
@@ -192,12 +194,11 @@ get_pin_value() {
 
 set_direction() {
 	local pin=$(validate_pin $1)
-
 	export_pin "$pin"
 
 	case "$2" in
 		in | out)
-			log_and_run "echo $2 > /sys/class/gpio/gpio${1}/direction"
+			log_and_run "echo $2 > ${gpiodir}/gpio${1}/direction"
 			get_direction "$pin"
 			;;
 		*)
@@ -209,8 +210,7 @@ set_direction() {
 
 set_pin_value() {
 	local pin=$(validate_pin $1)
-
-	#	export_pin $pin
+	# export_pin $pin
 
 	local direction=$(get_direction "$pin")
 	case "$direction" in
@@ -231,7 +231,7 @@ set_pin_value() {
 			;;
 		out)
 			# echo_c 32 "Pin $pin is output"
-			log_and_run "echo $2 > /sys/class/gpio/gpio${pin}/value"
+			log_and_run "echo $2 > ${gpiodir}/gpio${pin}/value"
 			;;
 		*)
 			echo_c 31 "Unknown direction"
