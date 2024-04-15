@@ -5,13 +5,6 @@ LOG_SIZE_LIMIT=50000
 
 curl_timeout=100
 
-echo_c() {
-	# 31 red, 32 green, 33 yellow, 34 blue, 35 magenta, 36 cyan, 37 white, 38 grey
-	local t
-	[ -z "$HASERLVER" ] && t="\e[1;$1m$2\e[0m" || t="$2"
-	echo -e "$t"
-}
-
 log() {
 	# poor man's logrotate
 	if [ -f "$LOG_FILE" ] && [ "$(stat -c%s "$LOG_FILE")" -gt $LOG_SIZE_LIMIT ]; then
