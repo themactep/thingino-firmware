@@ -2,7 +2,7 @@
 
 plugin="daynight"
 
-. /usr/sbin/common-plugins
+. /sbin/common-plugins
 singleton
 
 STOP_FILE=/tmp/daynight.stop

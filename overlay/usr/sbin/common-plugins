@@ -1,4 +1,4 @@
-. /usr/sbin/common
+. /sbin/common
 
 if [ -z "$plugin" ]; then
 	log "ERROR: No plugin name found."
