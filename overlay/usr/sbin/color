@@ -6,13 +6,13 @@
 MODE_FILE=/tmp/colormode.txt
 
 switch_to_color() {
-	/usr/sbin/imp-control ispmode 0
+	imp-control ispmode 0
 	echo "Switched to full-color mode"
 	echo "day" > $MODE_FILE
 }
 
 switch_to_monochrome() {
-	/usr/sbin/imp-control ispmode 1
+	imp-control ispmode 1
 	echo "Switched to monochrome mode"
 	echo "night" > $MODE_FILE
 }
