@@ -3,9 +3,9 @@ export HOME=$(grep -e "^${USER:-root}:" /etc/passwd | cut -d ":" -f 6)
 export HOME=${HOME:-/root}
 export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 export TZ=$(cat /etc/TZ)
-export EDITOR='/bin/vi'
+export EDITOR='vi'
 export SENSOR=$(cat /etc/sensor/model)
-export SOC=$(/usr/sbin/soc -f)
+export SOC=$(soc -f)
 
 echo_c() { echo -en "\e[38;5;$1m$2\e[0m"; }
 

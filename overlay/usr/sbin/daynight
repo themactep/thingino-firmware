@@ -9,17 +9,17 @@ STOP_FILE=/tmp/daynight.stop
 MODE_FILE=/tmp/nightmode.txt
 
 switch_to_day() {
-	/usr/sbin/color on
-	/usr/sbin/irled off
-	/usr/sbin/ircut on
+	color on
+	irled off
+	ircut on
 	echo "Switched to day mode"
 	echo "day" > $MODE_FILE
 }
 
 switch_to_night() {
-	/usr/sbin/color off
-	/usr/sbin/irled on
-	/usr/sbin/ircut off
+	color off
+	irled on
+	ircut off
 	echo "Switched to night mode"
 	echo "night" > $MODE_FILE
 }
