@@ -110,6 +110,7 @@ execute_choice() {
 
 			if DIALOGRC=$temp_rc "${DIALOG_COMMON[@]}" --title "Warning" --yesno "$warning" 12 78; then
 				echo "Proceeding with OTA $action to $IP..."
+				make $1
 				make $1 IP=$IP
 				exit
 			else
