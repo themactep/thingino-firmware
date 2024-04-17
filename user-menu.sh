@@ -23,6 +23,7 @@ check_and_install_dialog() {
 		esac
 	else
 		echo "'dialog' is installed."
+		clear
 	fi
 }
 
