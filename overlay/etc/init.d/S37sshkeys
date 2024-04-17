@@ -1,10 +1,6 @@
 #!/bin/sh
 
-DROPBEAR_KEY_DIR="/etc/dropbear"
-DROPBEAR_KEY="${DROPBEAR_KEY_DIR}/dropbear_ed25519_host_key"
-[ -L "$DROPBEAR_KEY_DIR" ] && rm -r "$DROPBEAR_KEY_DIR"
-[ ! -d "$DROPBEAR_KEY_DIR" ] && mkdir -p "$DROPBEAR_KEY_DIR"
-
+DROPBEAR_KEY="/etc/dropbear/dropbear_ed25519_host_key"
 SSHKEY_ENV=$(fw_printenv -n sshkey_ed25519)
 
 generate_keys() {

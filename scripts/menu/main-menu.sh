@@ -1,6 +1,7 @@
 #!/bin/bash
 
 temp_rc=$(mktemp)
+temp_ip=$(mktemp)
 cat <<-'EOF' > $temp_rc
 dialog_color = (RED,WHITE,OFF)
 screen_color = (WHITE,RED,ON)
@@ -88,26 +89,35 @@ execute_choice() {
 				warning="Flashing will begin. Be careful, as this might disrupt the device's operation if it fails. Are you sure you want to continue?"
 			}
 
-			IP=$("${DIALOG_COMMON[@]}" --stdout --title "Input IP" --inputbox "Enter the IP address for OTA $action" 8 78)
+			# Fix for containers, or environments with broken privs
+
+			"${DIALOG_COMMON[@]}" --title "Input IP" --inputbox "Enter the IP address for OTA $action" 8 78 2>"$temp_ip"
 			exit_status=$?
 
 			if [ $exit_status -ne 0 ]; then
 				echo "User canceled the operation."
+				rm -f "$temp_ip"
 				return
 			fi
+
+			IP=$(<"$temp_ip")
 
 			if [ -z "$IP" ]; then
-				DIALOGRC=$temp_rc "${DIALOG_COMMON[@]}" --stdout --title "Warning" --msgbox "No IP address entered, returning to main menu." 5 78
+				DIALOGRC=$temp_rc "${DIALOG_COMMON[@]}" --title "Warning" --msgbox "No IP address entered, returning to main menu." 5 78
+				rm -f "$temp_ip"
 				return
 			fi
 
-			if DIALOGRC=$temp_rc "${DIALOG_COMMON[@]}" --stdout --title "Warning" --yesno "$warning" 12 78; then
+			if DIALOGRC=$temp_rc "${DIALOG_COMMON[@]}" --title "Warning" --yesno "$warning" 12 78; then
 				echo "Proceeding with OTA $action to $IP..."
+				make pack
 				make $1 IP=$IP
 				exit
 			else
 				echo "OTA $action canceled by user."
 			fi
+
+			rm -f $temp_ip
 			rm -f $temp_rc
 			;;
 		*)
