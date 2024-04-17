@@ -10,8 +10,8 @@ export SOC=$(soc -f)
 if [ "$PS1" ]; then
         [ -f /etc/os-release ] && . /etc/os-release
         [ -f /etc/banner ] && echo -e "$(cat /etc/banner)"
-        echo_c 244 "       $IMAGE_ID\n"
-        echo_c 244 "       $BUILD_ID\n"
+        echo_c 244 "       $IMAGE_ID"
+        echo_c 244 "       $BUILD_ID"
         echo
 	if [ "$(id -u)" -eq 0 ]; then
 		export PS1="\[\e[31m\][\[\e[m\]\[\e[38;5;172m\]\u\[\e[m\]@\[\e[38;5;153m\]\h\[\e[m\] \[\e[38;5;214m\]\W\[\e[m\]\[\e[31m\]]\[\e[m\]\\# "

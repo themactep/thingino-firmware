@@ -1,8 +1,36 @@
 #!/bin/bash
 
+export NCURSES_NO_UTF8_ACS=1
+
 source ./scripts/menu/menu-common.sh
 
+check_and_install_dialog() {
+	if ! command -v dialog &> /dev/null; then
+		echo "'dialog' is not installed. It is required for this script to run."
+		read -p "Do you want to install 'dialog' now? [Y/n] " yn
+		case $yn in
+			[Yy]* )
+				echo "Attempting to install 'dialog'..."
+				sudo apt-get update; sudo apt-get install -y --no-install-recommends --no-install-suggests dialog
+				check_and_install_dialog
+				;;
+			[Nn]* )
+				echo "Cannot proceed without 'dialog'. Exiting..."
+				exit 1
+				;;
+			* )
+				echo "Please answer yes or no."
+				check_and_install_dialog
+				;;
+		esac
+	else
+		echo "'dialog' is installed."
+		clear
+	fi
+}
+
 function main_menu() {
+	check_and_install_dialog
 	while true; do
 		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu \
 		"\Zb\Z1THINGINO\Zn is an open-source replacement firmware designed specifically for   \Zr\Z4Ingenic\Zn SoC based devices, offering freedom from restrictive stock firmware and providing a user-friendly alternative to other complex options.  \
