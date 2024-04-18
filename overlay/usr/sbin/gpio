@@ -298,12 +298,7 @@ case "$1" in
 		log_and_run "cat /sys/kernel/debug/gpio"
 		;;
 	set)
-		if [ -z "$3" ]; then
-			# mimic old behaviour
-			set_pin_value "$2" 1
-		else
-			set_pin_value "$2" "$3"
-		fi
+		set_pin_value "$2" ${3:-1}
 		;;
 	high)
 		set_pin_value "$2" 1
