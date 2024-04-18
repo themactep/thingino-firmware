@@ -1,4 +1,4 @@
-gpio_default=1i 18O 39I 47o 48I 49O 50I 52I 63o 73O 79o 80o
+gpio_default=18O 39I 47o 48I 49O 50I 52I 63o 73O 79o 80o
 gpio_mmc_cd=52
 gpio_ir850=73o
 gpio_ircut=79 80
