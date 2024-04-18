@@ -1,12 +1,5 @@
 #!/bin/bash
 
-temp_rc=$(mktemp)
-temp_ip=$(mktemp)
-cat <<-'EOF' > $temp_rc
-dialog_color = (RED,WHITE,OFF)
-screen_color = (WHITE,RED,ON)
-EOF
-
 source ./scripts/menu/menu-common.sh
 
 function main_menu() {
