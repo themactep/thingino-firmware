@@ -9,25 +9,35 @@ source ./scripts/menu/menu-common.sh
 
 main_menu() {
 	local default_item="1"
+	local step2_label="Step 2: Install prerequisites"
 
 	while true; do
-		if $step1_completed && ! $step2_completed; then
-			default_item="2"
-		elif $step2_completed && ! $step3_completed; then
-			default_item="3"
+		# Adjust default item based on the state of the previous steps
+		if $step1_completed; then
+			if [ -f ".prereqs.done" ]; then
+				default_item="3"  # Skip to Step 3 if prereqs are installed
+			else
+				default_item="2"  # Go to Step 2 if prereqs are not installed
+			fi
 		elif $step3_completed; then
 			default_item="4"
 		fi
 
+		if [ -f ".prereqs.done" ]; then
+			step2_label="Step 2: Prerequisites Installed (Completed)"
+		else
+			step2_label="Step 2: Install prerequisites"
+		fi
+
 		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --default-item "$default_item" \
-			--menu "Guided Compilation:" 11 70 4 \
+			--menu "Guided Compilation:" 12 70 4 \
 			"1" "Step 1: Select device" \
-			"2" "Step 2: Install prerequsites" \
+			"2" "$step2_label" \
 			"3" "Step 3: Make firmware" \
 			"4" "Step 4: Make Image" \
+			"5" "Step 5: (Optional) OTA Firmware" \
 			3>&1 1>&2 2>&3)
-
-			exit_status
+		exit_status
 	done
 }
 
@@ -48,7 +58,16 @@ this will ensure your environment is correctly set up to proceed with building T
 computer's speed. Please be patient as it might take some time." 7;;
 		"HELP 4")
 			show_help_msgbox "After successfully compiling the firmware, this option allows you to create an image file that can \
-be flashed to your device. Use this to update your device with the new firmware." 7;;
+be manually flashed to your device. Use this to provide your device with the new firmware." 7;;
+		"HELP 5")
+			show_help_msgbox "After successfully compiling the firmware, this option allows you to send a compiled firmware image \
+directly to your existing device via networking.  You'll need the IP address of the device you wish to upgrade." 8;;
+		"HELP 7")
+			show_help_msgbox "This function initiates an Over-the-Air (OTA) upgrade using the full firmware image. You'll need to \
+specify the target device's IP address. It's used for comprehensive updates that include the bootloader, kernel, and filesystem." 8;;
+		"HELP 8")
+			show_help_msgbox "This option performs an OTA update with just the firmware update image, excluding the bootloader. \
+You'll need to provide the target device's IP address. It's ideal for routine software updates after the initial full installation." 8;;
 		*)
 			show_help_msgbox "No help information is available for the selected item. Please choose another option or consult \
 the thingino wiki for more details.";;
@@ -65,8 +84,17 @@ function execute_choice() {
 			;;
 		4)	step4
 			;;
-		*)	clear
-			echo "Program terminated or invalid option."
+		5)	step5
+			;;
+		7)  ota "upgrade"
+			;;
+		8)  ota "update"
+			;;
+		"HELP 7") show_help "HELP 7"
+			;;
+		"HELP 8") show_help "HELP 8"
+			;;
+		*)	echo "Program terminated or invalid option."
 			;;
 	esac
 }
@@ -90,7 +118,7 @@ step1() {
 	camera_value=$(echo "$output" | grep 'CAMERA =' | tail -n1 | awk -F' = ' '{print $2}')
 
 	if [ -n "$camera_value" ]; then
-		"${DIALOG_COMMON[@]}" --msgbox "Selected Device: \Z1$camera_value\Zn\n\nNext, proceed to step 2, to continue the build process." 7 60
+		"${DIALOG_COMMON[@]}" --msgbox "Selected Device: \Z1$camera_value\Zn\n\nLets proceed to the next step to continue the build process." 8 60
 		step1_completed=true
 	else
 		no_device
@@ -99,18 +127,20 @@ step1() {
 
 step2() {
 	if [ -n "$camera_value" ]; then
+		if [ -f ".prereqs.done" ]; then
+			"${DIALOG_COMMON[@]}" --msgbox "Pre-requisites are already installed." 5 60
+			return
+		fi
 		"${DIALOG_COMMON[@]}" --no-cancel --no-label "Back" --yes-label "Install" --yesno "Do you want to install pre-requisites?\n\nYou may skip this step if you are certain they are already installed." 8 60
 		response=$?
 		exec 3>&-
 		if [ $response -eq 1 ]; then
-			step2_completed=true
 			return
 		elif [ $response -eq 255 ]; then
 			closed_dialog
 			return
 		fi
-		sudo BOARD=$camera_value make bootstrap
-		step2_completed=true
+		sudo BOARD=$camera_value make bootstrap && touch .prereqs.done
 	else
 		no_device
 	fi
@@ -152,6 +182,61 @@ step4() {
 		exit
 	else
 		no_device
+	fi
+}
+
+step5() {
+	if [ -n "$camera_value" ]; then
+		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --cancel-label "Back" --menu "OTA Operations" 9 50 2 \
+			"7" "OTA Upgrade" \
+			"8" "OTA Update" \
+			3>&1 1>&2 2>&3)
+		execute_choice "$CHOICE"
+	else
+		no_device
+	fi
+}
+
+ota() {
+	local action="$1"
+	local warning=""
+	local size=""
+
+	if [ "$action" == "upgrade" ]; then
+		warning="You are about to start a FULL UPGRADE, which includes upgrading the device's bootloader. This operation is critical and may disrupt the device's functionality if it fails. Proceed with caution.\n\nAre you sure you want to continue with the flashing process?"
+		size=9
+	else
+		warning="Flashing will begin. Be careful, as this might disrupt the device's operation if it fails.\n\nAre you sure you want to continue?"
+		size=8
+	fi
+
+	local temp_ip="$(mktemp)"
+	"${DIALOG_COMMON[@]}" --title "Input IP" --inputbox "Enter the IP address for OTA $action" 8 78 2>"$temp_ip"
+	local exit_status=$?
+
+	if [ $exit_status -ne 0 ]; then
+		echo "User canceled the operation."
+		rm -f "$temp_ip"
+		return
+	fi
+
+	local IP=$(<"$temp_ip")
+	rm -f "$temp_ip"
+
+	if [ -z "$IP" ]; then
+		DIALOGRC=$temp_rc "${DIALOG_COMMON[@]}" --title "Warning" --msgbox "No IP address entered, returning to main menu." 5 78
+		return
+	fi
+
+	if DIALOGRC=$temp_rc "${DIALOG_COMMON[@]}" --title "Warning" --yesno "$warning" $size 78; then
+		echo "Proceeding with OTA $action to $IP..."
+		BOARD=$camera_value make pack
+		BOARD=$camera_value make "${action}_ota" IP="$IP"
+
+		"${DIALOG_COMMON[@]}" --msgbox "OTA $action complete, please check your device!\n\nReturning to main menu." 7 70
+		exit
+	else
+		echo "OTA $action canceled by user."
 	fi
 }
 

@@ -5,6 +5,13 @@ GIT_TIME=$(git show -s --format=%ci)
 BACKTITLE="THINGINO Firmware - ${GIT_BRANCH}+${GIT_HASH:0:7}, ${GIT_TIME}"
 DIALOG_COMMON=($UI --keep-tite --colors --backtitle "$BACKTITLE" --cancel-label "Exit" --title "THINGINO Buildroot")
 
+temp_rc=$(mktemp)
+temp_ip=$(mktemp)
+cat <<-'EOF' > $temp_rc
+dialog_color = (RED,WHITE,OFF)
+screen_color = (WHITE,RED,ON)
+EOF
+
 function show_help_msgbox() {
 	local message=$1
 	local height=${2:-10}  # Default height is 10 if not provided
