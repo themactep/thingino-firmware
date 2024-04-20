@@ -219,7 +219,7 @@ else ifeq ($(KERNEL_VERSION_4),y)
 $(info Building for kernel 4.x)
 KERNEL_VERSION = 4.4
 KERNEL_SITE = https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94
-KERNEL_BRANCH = 4.4-stable
+KERNEL_BRANCH = stable
 endif
 KERNEL_HASH = $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
 $(info KERNEL_HASH=$(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1))
