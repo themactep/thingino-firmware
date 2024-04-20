@@ -37,7 +37,7 @@ FULL_KERNEL_VERSION = 3.10.14
 endif
 
 define INGENIC_SDK_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(LINUX_CONFIG_LOCALVERSION)
 	touch $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)/modules.builtin.modinfo
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/lib
