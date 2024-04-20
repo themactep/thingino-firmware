@@ -30,9 +30,15 @@ else
 	LIBALOG_FILE = $(@D)/lib/T31/lib/1.1.6/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/libalog.so
 endif
 
+ifeq ($(KERNEL_VERSION_4),y)
+FULL_KERNEL_VERSION = 4.4.94
+else
+FULL_KERNEL_VERSION = 3.10.14
+endif
+
 define INGENIC_SDK_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/$(KERNEL_VERSION)
-	touch $(TARGET_DIR)/lib/modules/$(KERNEL_VERSION)/modules.builtin.modinfo
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)
+	touch $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)/modules.builtin.modinfo
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/lib
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/ $(@D)/lib/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/*.so
