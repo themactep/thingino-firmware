@@ -1,7 +1,8 @@
 WIFI_RTL8189FS_SITE_METHOD = git
-WIFI_RTL8189FS_SITE = https://github.com/openipc/realtek-wlan
 ifeq ($(LINUX_VERSION_4_4),y)
 WIFI_RTL8189FS_SITE = https://github.com/jwrdegoede/rtl8189ES_linux
+else
+WIFI_RTL8189FS_SITE = https://github.com/openipc/realtek-wlan
 endif
 
 WIFI_RTL8189FS_VERSION = $(shell git ls-remote $(WIFI_RTL8189FS_SITE) rtl8189fs | head -1 | cut -f1)

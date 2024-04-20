@@ -1,4 +1,6 @@
 # FRAG: soc toolchain ccache brand rootfs kernel system target local
+CONFIG_DT_T31X_WYZE_V3=y
+
 BR2_SOC_INGENIC_T31X=y
 BR2_SENSOR_MODEL="gc2053"
 BR2_PACKAGE_WIFI=y
