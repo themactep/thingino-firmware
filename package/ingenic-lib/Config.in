@@ -1,0 +1,4 @@
+config BR2_PACKAGE_INGENIC_LIB
+	bool "ingenic-lib"
+	help
+	  Ingenic IMP platform libraries
