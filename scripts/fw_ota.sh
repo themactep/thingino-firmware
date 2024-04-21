@@ -24,6 +24,12 @@ initialize_ssh_connection() {
 	FLASH_PARTITION="$3"
 
 	# Start the master connection & keep it open in the background
+	for i in {1..50}; do
+		echo ""
+	done
+	printf '\033[1;1H'
+
+	echo "Initializing SSH connection to device..."
 	ssh -fN $SSH_OPTS root@"$CAMERA_IP_ADDRESS"
 	echo "SSH connection initialized."
 }
@@ -64,7 +70,7 @@ transfer_and_verify_firmware() {
 flash_firmware() {
 	echo "Flashing firmware to the device..."
 	ssh $SSH_OPTS root@"$CAMERA_IP_ADDRESS" "\
-	flashcp -v /tmp/fwupdate.bin /dev/${FLASH_PARTITION} && reboot;"
+	flashcp -v /tmp/fwupdate.bin /dev/${FLASH_PARTITION} && echo 1 > /proc/jz/watchdog/reset;"
 	echo "Firmware flashed successfully. Device is rebooting."
 }
 

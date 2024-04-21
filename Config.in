@@ -9,6 +9,8 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	default y
 	select BR2_PACKAGE_DROPBEAR
 	select BR2_PACKAGE_INGENIC_DIAG_TOOLS
+	select BR2_PACKAGE_INGENIC_LIB
+	select BR2_PACKAGE_INGENIC_MUSL
 	select BR2_PACKAGE_INGENIC_PWM
 	select BR2_PACKAGE_INGENIC_SDK
 	select BR2_PACKAGE_LIBCURL
@@ -49,6 +51,7 @@ if BR2_THINGINO_STREAMER_PACKAGES
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/raptor-ipc/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/prudynt-t/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/ffmpeg-openipc/Config.in"
+	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ffmpeg/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/go2rtc/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-libimp-control/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-live555/Config.in"

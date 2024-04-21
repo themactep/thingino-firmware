@@ -1,0 +1,5 @@
+# MODULE: t31x_gc2053_atbm6031_defconfig
+FLASH_SIZE_16=y
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/wyze-cp3.uenv.txt"
+BR2_PACKAGE_MOSQUITTO=y
+BR2_PACKAGE_MOTORS=y

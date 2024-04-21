@@ -248,11 +248,11 @@ source: defconfig
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source
 
 update_ota: pack_update
-	scripts/fw_ota.sh $(FIRMWARE_BIN_NOBOOT) $(CAMERA_IP_ADDRESS) mtd5
+	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_NOBOOT) $(CAMERA_IP_ADDRESS) mtd5
 
 # upgrade firmware using /tmp/ directory of the camera
 upgrade_ota: pack
-	script/fw_ota.sh $(FIRMWARE_BIN_FULL) $(CAMERA_IP_ADDRESS) mtd6
+	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_FULL) $(CAMERA_IP_ADDRESS) mtd6
 
 # upload firmware to tftp server
 upload_tftp: $(FIRMWARE_BIN_FULL)
