@@ -1,0 +1,4 @@
+config BR2_PACKAGE_INGENIC_MUSL
+	bool "ingenic-musl"
+	help
+	  Shared library implementing musl compatability with the Ingenic IMP platform

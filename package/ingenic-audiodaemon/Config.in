@@ -1,4 +1,7 @@
 config BR2_PACKAGE_INGENIC_AUDIODAEMON
 	bool "ingenic-audiodaemon"
+	select BR2_PACKAGE_LIBWEBSOCKETS
+	select BR2_PACKAGE_CJSON
+	select BR2_PACKAGE_INGENIC_MUSL
 	help
 	  Userspace program for interfacing with Audio on the Ingenic platform using IMP
