@@ -5,25 +5,6 @@ plugin="motion"
 . /sbin/common-plugins
 singleton
 
-STOP_FILE=/tmp/motion.stop
-
-if [ "true" != "$motion_enabled" ]; then
-	log "Motion detection is disabled in config!"
-	quit_clean 3
-fi
-
-# throttle execution
-[ -z "$motion_throttle" ] && motion_throttle=1
-
-if [ -f "$STOP_FILE" ]; then
-	if [ "$(date -r "$STOP_FILE" +%s)" -ge "$(($(date +%s) - motion_throttle))" ]; then
-		log "Too soon for another trigger!"
-		quit_clean 99
-	fi
-fi
-
-touch "$STOP_FILE"
-
 # send alerts
 [ "true" = "$motion_send2email" ] && send2email
 [ "true" = "$motion_send2ftp" ] && send2ftp
