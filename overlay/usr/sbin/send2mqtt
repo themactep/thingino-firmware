@@ -103,12 +103,16 @@ if [ "true" = "$mqtt_send_snap" ]; then
 	snapshot=/tmp/snapshot.jpg
 	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && exit 3
 
-	mqtt_file=$snapshot
-	command2="${command} -t ${mqtt_snap_topic} -f \"${mqtt_file}\""
+	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
+	delete_tempfile="true"
+	cp $snapshot $attachment
+
+	command2="${command} -t ${mqtt_snap_topic} -f \"${attachment}\""
 	log "$command2"
 	eval "$command2" >> "$LOG_FILE" 2>&1
 fi
 
+[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 exit 0
