@@ -34,23 +34,6 @@ initialize_ssh_connection() {
 	echo "SSH connection initialized."
 }
 
-# Checks if mtd5 and mtd6 are present in /proc/mtd on the camera
-check_partitions_exist() {
-	echo "Checking if required partitions (mtd5 and mtd6) exist..."
-	ssh $SSH_OPTS root@"$CAMERA_IP_ADDRESS" "\
-	if ! grep -q 'mtd5' /proc/mtd || ! grep -q 'mtd6' /proc/mtd; then \
-			exit 1; \
-	fi"
-
-	# Check the exit status of the SSH command
-	if [ "$?" -ne 0 ]; then
-		echo "Required partitions not found. Exiting..."
-		exit 1
-	fi
-
-	echo "Required partitions found."
-}
-
 # Transfers firmware file and verifies MD5 checksum
 transfer_and_verify_firmware() {
 	echo "Transferring firmware file to the device..."
@@ -68,15 +51,13 @@ transfer_and_verify_firmware() {
 
 # Flashes the firmware to the specified device partition and reboots
 flash_firmware() {
-	echo "Flashing firmware to the device..."
 	ssh $SSH_OPTS root@"$CAMERA_IP_ADDRESS" "\
-	flashcp -v /tmp/fwupdate.bin /dev/${FLASH_PARTITION} && echo 1 > /proc/jz/watchdog/reset;"
+	sysupgrade /tmp/fwupdate.bin"
 	echo "Firmware flashed successfully. Device is rebooting."
 }
 
 main() {
 	initialize_ssh_connection "$@"
-	check_partitions_exist
 	transfer_and_verify_firmware
 	flash_firmware
 }
