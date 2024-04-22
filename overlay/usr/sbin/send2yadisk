@@ -56,9 +56,11 @@ if [ -z "$yadisk_file" ]; then
 		exit 3
 	fi
 
-	yadisk_file=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
+	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
 	delete_tempfile="true"
 	cp $snapshot $yadisk_file
+
+	yadisk_file=$attachment
 fi
 
 # validate mandatory values
@@ -113,7 +115,7 @@ command="$command --upload-file $yadisk_file"
 log "$command"
 eval "$command" >> "$LOG_FILE" 2>&1
 
-[ "true" = "$delete_tempfile" ]  && [ -f "$yadisk_file" ] && rm "$yadisk_file"
+[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 exit 0

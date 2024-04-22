@@ -85,9 +85,11 @@ if [ -z "$telegram_message" ]; then
 			exit 3
 		fi
 
-		telegram_photo=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
+		attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
 		delete_tempfile="true"
-		cp $snapshot $telegram_photo
+		cp $snapshot $attachment
+
+		telegram_photo=$attachment
 	fi
 fi
 
@@ -107,7 +109,7 @@ command="$command -F 'chat_id=${telegram_channel}'"
 command="$command -F 'disable_notification=${telegram_disable_notification}'"
 command="$command --url https://api.telegram.org/bot${telegram_token}/"
 
-if [ -n "$telegram_photo" ]; then
+if [ -n "$attachment" ]; then
 	if [ "true" = "$telegram_as_attachment" ]; then
 		command1="$command"
 		command1="${command1}sendDocument"
@@ -137,7 +139,7 @@ else
 	eval "$command4" >> "$LOG_FILE" 2>&1
 fi
 
-[ "true" = "$delete_tempfile" ]  && [ -f "$telegram_photo" ] && rm "$telegram_photo"
+[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 exit 0

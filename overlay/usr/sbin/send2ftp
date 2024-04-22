@@ -72,7 +72,11 @@ if [ -z "$ftp_file" ]; then
 	snapshot=/tmp/snapshot.jpg
 	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && exit 3
 
-	ftp_file=$snapshot
+	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
+	delete_tempfile="true"
+	cp $snapshot $attachment
+
+	ftp_file=$attachment
 fi
 
 command="curl --verbose"
@@ -97,6 +101,7 @@ command="${command} --ftp-create-dirs"
 log "$command"
 eval "$command" >> "$LOG_FILE" 2>&1
 
+[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 exit 0
