@@ -212,18 +212,9 @@ pack: pack_full
 
 pack_full: $(FIRMWARE_BIN_FULL)
 	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
-#	dd if=/dev/zero bs=$(SIZE_16M) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
-#	dd if=$(FIRMWARE_BIN_FULL) bs=$(FIRMWARE_BIN_FULL_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
-#	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_FULL); \
-#	fi
 
 pack_update: $(FIRMWARE_BIN_NOBOOT)
 	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(FLASH_SIZE_NOBOOT) ]; then $(FIGLET) "OVERSIZE"; fi
-#	then \
-#	dd if=/dev/zero bs=$(SIZE_16M_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
-#	dd if=$(FIRMWARE_BIN_NOBOOT) bs=$(FIRMWARE_BIN_NOBOOT_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
-#	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_NOBOOT); \
-#	fi
 
 pad: pad_full
 
@@ -326,14 +317,11 @@ $(ROOTFS_BIN):
 	$(info ROOTFS_SIZE:         $(ROOTFS_SIZE))
 	$(info ROOTFS_SIZE_ALIGNED: $(ROOTFS_SIZE_ALIGNED))
 	$(BR2_MAKE) all
-#	mv -vf $(OUTPUT_DIR)/images/rootfs.squashfs $@
 
 # create .tar file of rootfs
 $(ROOTFS_TAR):
-	$(info --------------> ROOTFS_TAR=$(ROOTFS_TAR))
 	$(info ROOTFS_TAR:          $@)
 	$(BR2_MAKE) all
-#	mv -vf $(OUTPUT_DIR)/images/rootfs.tar $@
 
 $(OVERLAY_BIN): create_overlay
 	$(info OVERLAY_BIN:         $@)
