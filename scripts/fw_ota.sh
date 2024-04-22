@@ -21,7 +21,6 @@ initialize_ssh_connection() {
 
 	FIRMWARE_BIN_NOBOOT="$1"
 	CAMERA_IP_ADDRESS="$2"
-	FLASH_PARTITION="$3"
 
 	# Start the master connection & keep it open in the background
 	for i in {1..50}; do
