@@ -44,6 +44,14 @@ Legacy:
 "
 }
 
+validate_directory() {
+	if [ ! -d "$1" ]; then
+		echo_c 33 "non-existing directory $1"
+		echo_c 33 "pin is not exported?"
+		exit 1
+	fi
+}
+
 validate_file() {
 	if [ ! -f "$1" ]; then
 		echo -n "FILE $1 NOT FOUND"
@@ -78,7 +86,7 @@ export_pin() {
 			echo_c 32 "pin $pin exported"
 		else
 			echo_c 31 "pin $pin is busy"
-			continue
+			exit 1
 		fi
 	fi
 }
@@ -198,8 +206,13 @@ set_direction() {
 
 	case "$2" in
 		in | out)
-			log_and_run "echo $2 > ${gpiodir}/gpio${1}/direction"
-			get_direction "$pin"
+			if [ -d "${gpiodir}/gpio${pin}" ]; then
+				log_and_run "echo $2 > ${gpiodir}/gpio${pin}/direction"
+				get_direction "$pin"
+			else
+				echo_c 33 "Pin $pin is not exported?"
+				exit 1
+			fi
 			;;
 		*)
 			echo_c 31 "What direction?"
