@@ -19,7 +19,7 @@ initialize_ssh_connection() {
 		exit 1
 	fi
 
-	FIRMWARE_BIN_NOBOOT="$1"
+	FIRMWARE_BIN="$1"
 	CAMERA_IP_ADDRESS="$2"
 
 	echo "Initializing SSH connection to device..."
@@ -30,15 +30,15 @@ initialize_ssh_connection() {
 # Transfers firmware file and verifies MD5 checksum
 transfer_and_verify_firmware() {
 	echo "Transferring firmware file to the device..."
-	LOCAL_MD5=$(md5sum "$FIRMWARE_BIN_NOBOOT" | cut -d' ' -f1)
+	LOCAL_MD5=$(md5sum "$FIRMWARE_BIN" | cut -d' ' -f1)
 
 	ssh $SSH_OPTS root@"$CAMERA_IP_ADDRESS" "\
 	cat >/tmp/fwupdate.bin; \
 	REMOTE_MD5=\$(md5sum /tmp/fwupdate.bin | cut -d' ' -f1); \
 	if [ \"\$REMOTE_MD5\" != \"$LOCAL_MD5\" ]; then \
-			echo 'MD5 checksum does not match, exiting...'; \
-			exit 1; \
-	fi" < "$FIRMWARE_BIN_NOBOOT"
+		echo 'MD5 checksum does not match, exiting...'; \
+		exit 1; \
+	fi" < "$FIRMWARE_BIN"
 	echo "Firmware file transferred and MD5 checksum verified."
 }
 
