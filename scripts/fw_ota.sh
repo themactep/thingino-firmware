@@ -22,12 +22,6 @@ initialize_ssh_connection() {
 	FIRMWARE_BIN_NOBOOT="$1"
 	CAMERA_IP_ADDRESS="$2"
 
-	# Start the master connection & keep it open in the background
-	for i in {1..50}; do
-		echo ""
-	done
-	printf '\033[1;1H'
-
 	echo "Initializing SSH connection to device..."
 	ssh -fN $SSH_OPTS root@"$CAMERA_IP_ADDRESS"
 	echo "SSH connection initialized."
