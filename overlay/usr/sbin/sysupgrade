@@ -86,8 +86,10 @@ if ! grep -q "$mtd_dev" /proc/mtd; then
 	die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
 fi
 
-echo "Performing upgrade. Do not turn off the power!"
+echo "Erasing overlay"
+flash_eraseall -j /dev/mtd4
 
+echo "Performing upgrade. Do not turn off the power!"
 if flashcp -v $binary_file /dev/$mtd_dev; then
 	echo "Rebooting..."
 	echo 1 > /proc/jz/watchdog/reset
