@@ -1,8 +1,7 @@
 PRUDYNT_T_SITE_METHOD = git
 PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
 PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) HEAD | head -1 | cut -f1)
-PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 ingenic-sdk thingino-freetype thingino-fonts
-PRUDYNT_T_GIT_SUBMODULES = YES
+PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-freetype thingino-fonts ingenic-lib ingenic-musl
 
 PRUDYNT_CFLAGS += -DPLATFORM_$(shell echo $(SOC_FAMILY) | tr a-z A-Z)
 ifeq ($(KERNEL_VERSION_4),y)
@@ -34,6 +33,7 @@ endef
 define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0755 -D $(@D)/bin/prudynt $(TARGET_DIR)/usr/bin/prudynt
 	$(INSTALL) -m 0644 -D $(@D)/prudynt.cfg.example $(TARGET_DIR)/etc/prudynt.cfg
+	sed -i 's/;.*$$/;/' $(TARGET_DIR)/etc/prudynt.cfg
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S95prudynt $(TARGET_DIR)/etc/init.d/S95prudynt
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S96record $(TARGET_DIR)/etc/init.d/S96record
 	$(INSTALL) -m 0755 -D $(@D)/res/thingino_logo_1.bgra $(TARGET_DIR)/usr/share/thingino_logo_1.bgra
