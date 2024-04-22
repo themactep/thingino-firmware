@@ -1,0 +1,5 @@
+config BR2_PACKAGE_WIFI_SSV6158
+	bool "SSV6158"
+	select BR2_LINUX_KERNEL
+	help
+	  SV6158 wireless driver
