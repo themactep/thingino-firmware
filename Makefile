@@ -61,6 +61,7 @@ U_BOOT_ENV_BIN := $(OUTPUT_DIR)/images/uenv.bin
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
+OVERLAY_BIN := $(OUTPUT_DIR)/images/overlay.jffs2
 
 # 0x0008000, 32K, 32_768
 ALIGN_BLOCK       := 32768
@@ -107,15 +108,19 @@ U_BOOT_SIZE_ALIGNED = $(shell echo $$((($(U_BOOT_SIZE) / $(ALIGN_BLOCK) + 1) * $
 KERNEL_SIZE = $(shell stat -c%s $(KERNEL_BIN))
 KERNEL_SIZE_ALIGNED = $(shell echo $$((($(KERNEL_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK))))
 
+ROOTFS_OFFSET = $(shell echo $$(($(KERNEL_OFFSET) + $(KERNEL_SIZE_ALIGNED))))
 ROOTFS_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
 ROOTFS_SIZE_ALIGNED = $(shell echo $$((($(ROOTFS_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK))))
-ROOTFS_OFFSET = $(shell echo $$(($(KERNEL_OFFSET) + $(KERNEL_SIZE_ALIGNED) )))
+
+OVERLAY_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_SIZE_ALIGNED))))
+OVERLAY_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_SIZE_ALIGNED) - $(U_BOOT_ENV_SIZE) - $(KERNEL_SIZE_ALIGNED) - $(ROOTFS_SIZE_ALIGNED))))
+OVERLAY_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_SIZE_ALIGNED) + $(ROOTFS_SIZE_ALIGNED))))
 
 FIRMWARE_BIN_FULL_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_FULL))
 FIRMWARE_BIN_NOBOOT_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_NOBOOT))
 
-.PHONY: all toolchain sdk bootstrap clean defconfig distclean help \
-	pack pack_full pack_update pad pad_full pad_update prepare_config \
+.PHONY: all toolchain sdk bootstrap clean create_overlay defconfig distclean \
+	help pack pack_full pack_update pad pad_full pad_update prepare_config \
 	reconfig upload_tftp upload_sdcard upgrade_ota br-%
 
 all: $(OUTPUT_DIR)/.config
@@ -199,6 +204,10 @@ delete_bin_full:
 delete_bin_update:
 	if [ -f $(FIRMWARE_BIN_NOBOOT) ]; then rm $(FIRMWARE_BIN_NOBOOT); fi
 
+create_overlay:
+	if [ -f $(OVERLAY_BIN) ]; then rm $(OVERLAY_BIN); fi
+	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --pad=$(OVERLAY_SIZE) --root=$(BR2_EXTERNAL)/overlay/ --eraseblock=0x8000 --output=$(OVERLAY_BIN) --squash
+
 pack: pack_full
 
 pack_full: $(FIRMWARE_BIN_FULL)
@@ -248,11 +257,11 @@ source: defconfig
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source
 
 update_ota: pack_update
-	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_NOBOOT) $(CAMERA_IP_ADDRESS) mtd5
+	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_NOBOOT) $(CAMERA_IP_ADDRESS)
 
 # upgrade firmware using /tmp/ directory of the camera
 upgrade_ota: pack
-	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_FULL) $(CAMERA_IP_ADDRESS) mtd6
+	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_FULL) $(CAMERA_IP_ADDRESS)
 
 # upload firmware to tftp server
 upload_tftp: $(FIRMWARE_BIN_FULL)
@@ -326,16 +335,23 @@ $(ROOTFS_TAR):
 	$(BR2_MAKE) all
 #	mv -vf $(OUTPUT_DIR)/images/rootfs.tar $@
 
-$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN)
+$(OVERLAY_BIN): create_overlay
+	$(info OVERLAY_BIN:         $@)
+	$(info OVERLAY_SIZE:        $(OVERLAY_SIZE))
+	$(info OVERLAY_OFFSET:      $(OVERLAY_OFFSET))
+
+$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
 	dd if=/dev/zero bs=$(FLASH_SIZE) skip=0 count=1 status=none | tr '\000' '\377' > $@
 	dd if=$(U_BOOT_BIN) bs=$(U_BOOT_SIZE) seek=$(U_BOOT_OFFSET) count=1 of=$@ conv=notrunc status=none
 	dd if=$(KERNEL_BIN) bs=$(KERNEL_SIZE) seek=$(KERNEL_OFFSET)B count=1 of=$@ conv=notrunc status=none
 	dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$(ROOTFS_OFFSET)B count=1 of=$@ conv=notrunc status=none
+	dd if=$(OVERLAY_BIN) bs=$(OVERLAY_SIZE) seek=$(OVERLAY_OFFSET)B count=1 of=$@ conv=notrunc status=none
 
-$(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN)
+$(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
 	dd if=/dev/zero bs=$(FLASH_SIZE_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $@
 	dd if=$(KERNEL_BIN) bs=$(KERNEL_SIZE) seek=0 count=1 of=$@ conv=notrunc status=none
 	dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$(KERNEL_SIZE_ALIGNED)B count=1 of=$@ conv=notrunc status=none
+	dd if=$(OVERLAY_BIN) bs=$(OVERLAY_SIZE) seek=$(OVERLAY_OFFSET_NOBOOT)B count=1 of=$@ conv=notrunc status=none
 
 help:
 	@echo "\n\
