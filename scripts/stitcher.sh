@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Stitcher
-#   a firmware file assembler for wehaveopencipathome project
+#   a firmware file assembler for thingino project
 #
 # Usage:
 #   ./stitcher.sh
