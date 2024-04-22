@@ -86,6 +86,10 @@ if ! grep -q "$mtd_dev" /proc/mtd; then
 	die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
 fi
 
+echo "Stopping services"
+/etc/init.d/S95prudynt stop
+/etc/init.d/S93telegrambot stop
+
 echo "Erasing overlay"
 flash_eraseall -j /dev/mtd4
 
