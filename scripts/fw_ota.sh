@@ -14,8 +14,8 @@ trap cleanup EXIT
 
 # Validates input parameters and sets up SSH connection sharing, single authentication request
 initialize_ssh_connection() {
-	if [ "$#" -ne 3 ]; then
-		echo "Usage: $0 FIRMWARE_FILE IP_ADDRESS FLASH_PARTITION"
+	if [ "$#" -ne 2 ]; then
+		echo "Usage: $0 FIRMWARE_FILE IP_ADDRESS"
 		exit 1
 	fi
 
