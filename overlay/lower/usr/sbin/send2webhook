@@ -51,7 +51,11 @@ if [ "true" = "$webhook_attach_snapshot" ]; then
 	snapshot=/tmp/snapshot.jpg
 	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && exit 3
 
-	command="${command} -F 'image=@$snapshot'"
+	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
+	delete_tempfile="true"
+	cp $snapshot $attachment
+
+	command="${command} -F 'image=@$attachment'"
 fi
 
 # SOCK5 proxy, if needed
@@ -66,6 +70,7 @@ command="${command} --url ${webhook_url}"
 log "$command"
 eval "$command" >> "$LOG_FILE" 2>&1
 
+[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 exit 0

@@ -97,13 +97,17 @@ if [ "true" = "$email_attach_snapshot" ]; then
 		exit 3
 	fi
 
+	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
+	delete_tempfile="true"
+	cp $snapshot $attachment
+
 	email_body="$(date -R)"
 	command="${command} -H 'Subject: ${email_subject}'"
 	command="${command} -H 'From: "${email_from_name}" <${email_from_address}>'"
 	command="${command} -H 'To: "${email_to_name}" <${email_to_address}>'"
 	command="${command} -F '=(;type=multipart/mixed'"
 	command="${command} -F '=${email_body};type=text/plain'"
-	command="${command} -F 'file=@${snapshot};type=image/jpeg;encoder=base64'"
+	command="${command} -F 'file=@${attachment};type=image/jpeg;encoder=base64'"
 	command="${command} -F '=)'"
 else
 	email_file="/tmp/email.$$.txt"
@@ -121,6 +125,7 @@ fi
 log "$command"
 eval "$command" >> "$LOG_FILE" 2>&1
 
+[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 [ -f ${email_file} ] && rm -f ${email_file}
