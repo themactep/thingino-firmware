@@ -205,6 +205,7 @@ delete_bin_update:
 	if [ -f $(FIRMWARE_BIN_NOBOOT) ]; then rm $(FIRMWARE_BIN_NOBOOT); fi
 
 create_overlay:
+	@if [ $(OVERLAY_SIZE) -lt 0 ]; then $(FIGLET) "OVERSIZE"; fi
 	if [ -f $(OVERLAY_BIN) ]; then rm $(OVERLAY_BIN); fi
 	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --pad=$(OVERLAY_SIZE) --root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=0x8000 --output=$(OVERLAY_BIN) --squash
 
