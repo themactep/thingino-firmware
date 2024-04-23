@@ -12,3 +12,7 @@ gpio_wlan=8O
 wlandev=ssv6158
 wlanssid=thingino
 wlanpass=thingino
+gpio_motor_v=64 53 52 54
+gpio_motor_h=61 62 63 51
+gpio_ircut=58 57
+gpio_ir850=9
