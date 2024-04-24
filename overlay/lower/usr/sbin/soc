@@ -24,7 +24,7 @@ print_soc_family() {
 	read_registers
 	case "$cpuid" in
 		5) cpuid=0x10 ;;
-		8192) cpuid=0x20 ;;  
+		8192) cpuid=0x20 ;;
 	esac
 	printf 't%X\n' $cpuid
 }
@@ -89,7 +89,7 @@ print_soc_model() {
 }
 
 show_usage() {
-	echo -e "Usage: $0 [-f|-m|-w]\n\t-m\tSoC model\n\t-f\tSoC family\n\t-d\traw info for wiki\n"
+	echo -e "Usage: $0 [-f|-m|-w]\n\t-m\tSoC model\n\t-f\tSoC family\n\t-w\traw info for wiki\n"
 }
 
 case "$1" in
