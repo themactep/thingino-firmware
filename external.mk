@@ -154,6 +154,104 @@ SOC_RAM := 512
 BR2_SOC_INGENIC_T41=y
 endif
 
+# Default ISP clock speed
+ISP_CLK := 100000000
+
+ifeq ($(BR2_ISP_CLK_90MHZ),y)
+	ISP_CLK := 90000000
+endif
+ifeq ($(BR2_ISP_CLK_100MHZ),y)
+	ISP_CLK := 100000000
+endif
+ifeq ($(BR2_ISP_CLK_125MHZ),y)
+	ISP_CLK := 125000000
+endif
+ifeq ($(BR2_ISP_CLK_150MHZ),y)
+	ISP_CLK := 150000000
+endif
+ifeq ($(BR2_ISP_CLK_175MHZ),y)
+	ISP_CLK := 175000000
+endif
+ifeq ($(BR2_ISP_CLK_200MHZ),y)
+	ISP_CLK := 200000000
+endif
+ifeq ($(BR2_ISP_CLK_220MHZ),y)
+	ISP_CLK := 220000000
+endif
+ifeq ($(BR2_ISP_CLK_225MHZ),y)
+	ISP_CLK := 225000000
+endif
+
+AVPU_CLK := 400000000
+ifeq ($(BR2_AVPU_CLK_400MHZ),y)
+	AVPU_CLK := 400000000
+endif
+ifeq ($(BR2_AVPU_CLK_450MHZ),y)
+	AVPU_CLK := 450000000
+endif
+ifeq ($(BR2_AVPU_CLK_500MHZ),y)
+	AVPU_CLK := 500000000
+endif
+ifeq ($(BR2_AVPU_CLK_550MHZ),y)
+	AVPU_CLK := 550000000
+endif
+ifeq ($(BR2_AVPU_CLK_600MHZ),y)
+	AVPU_CLK := 600000000
+endif
+ifeq ($(BR2_AVPU_CLK_650MHZ),y)
+	AVPU_CLK := 650000000
+endif
+ifeq ($(BR2_AVPU_CLK_700MHZ),y)
+	AVPU_CLK := 700000000
+endif
+
+AVPU_CLK_SRC :=
+ifeq ($(BR2_AVPU_MPLL),y)
+   AVPU_CLK_SRC := clk_name=mpll
+endif
+ifeq ($(BR2_AVPU_VPLL),y)
+   AVPU_CLK_SRC := clk_name=vpll
+endif
+
+ISP_MEMOPT :=
+ifeq ($(BR2_ISP_MEMOPT_0),y)
+	ISP_MEMOPT :=
+endif
+ifeq ($(BR2_ISP_MEMOPT_1),y)
+	ISP_MEMOPT := isp_memopt=1
+endif
+ifeq ($(BR2_ISP_MEMOPT_2),y)
+	ISP_MEMOPT := isp_memopt=2
+endif
+
+ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM :=
+ifneq ($(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM),-1)
+ifneq ($(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM),)
+	ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM := isp_day_night_switch_drop_frame_num=$(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM)
+endif
+endif
+
+ISP_CH0_PRE_DEQUEUE_TIME :=
+ifneq ($(BR2_ISP_CH0_PRE_DEQUEUE_TIME),-1)
+ifneq ($(BR2_ISP_CH0_PRE_DEQUEUE_TIME),)
+	ISP_CH0_PRE_DEQUEUE_TIME := isp_ch0_pre_dequeue_time=$(BR2_ISP_CH0_PRE_DEQUEUE_TIME)
+endif
+endif
+
+ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS :=
+ifneq ($(BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS),-1)
+ifneq ($(BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS),)
+	ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS := isp_ch0_pre_dequeue_interrupt_process=$(BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS)
+endif
+endif
+
+ISP_CH0_PRE_DEQUEUE_VALID_LINES :=
+ifneq ($(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES),-1)
+ifneq ($(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES),)
+	ISP_CH0_PRE_DEQUEUE_VALID_LINES := isp_ch0_pre_dequeue_valid_lines=$(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES)
+endif
+endif
+
 ifeq ($(BR2_SOC_INGENIC_T10),y)
 SOC_FAMILY := t10
 SDK_VERSION := 3.12.0
@@ -283,6 +381,14 @@ export KERNEL_BRANCH
 export KERNEL_HASH
 export KERNEL_VERSION
 export STREAMER
+export ISP_CLK
+export ISP_MEMOPT
+export ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM
+export ISP_CH0_PRE_DEQUEUE_TIME
+export ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
+export ISP_CH0_PRE_DEQUEUE_VALID_LINES
+export AVPU_CLK
+export AVPU_CLK_SRC
 
 ifneq ($(BR2_SOC_INGENIC_DUMMY),y)
 # include makefiles from packages

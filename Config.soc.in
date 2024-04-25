@@ -74,6 +74,8 @@ config BR2_SOC_INGENIC_T41A
 	bool "Ingenic T41A"
 endchoice
 
+source "$BR2_EXTERNAL_THINGINO_PATH/Config.isp.in"
+
 choice
 	prompt "Flash chip size"
 config FLASH_SIZE_8
