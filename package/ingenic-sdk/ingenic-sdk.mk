@@ -27,6 +27,10 @@ else
 FULL_KERNEL_VERSION = 3.10.14
 endif
 
+define INGENIC_SDK_BUILD_CMDS
+		$(INGENIC_SDK_PKGDIR)/module.sh $(SENSOR_MODEL) $(SOC_FAMILY) > $(@D)/sensor_params.conf
+endef
+
 define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
 	touch $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/modules.builtin.modinfo
@@ -35,8 +39,13 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_MODEL).bin $(TARGET_DIR)/etc/sensor/$(SENSOR_CONFIG_NAME)
 	echo $(SENSOR_MODEL) >$(TARGET_DIR)/etc/sensor/model
 
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/bin
-	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/bin $(INGENIC_SDK_PKGDIR)/files/load_ingenic
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/modules.d
+	$(INSTALL) -m 644 $(@D)/sensor_params.conf $(TARGET_DIR)/etc/modules.d/sensor
+
+	echo tx_isp_$(SOC_FAMILY) isp_clk=$(ISP_CLK) $(ISP_MEMOPT) $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS) $(ISP_CH0_PRE_DEQUEUE_VALID_LINES) > $(TARGET_DIR)/etc/modules.d/isp
+	if [ "$$SOC_FAMILY" = "t31" ]; then \
+		echo "avpu $(AVPU_CLK_SRC) avpu_clk=$(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/avpu; \
+	fi
 endef
 
 $(eval $(kernel-module))

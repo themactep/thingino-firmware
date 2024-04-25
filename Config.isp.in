@@ -1,0 +1,116 @@
+menu "ISP Configuration"
+	choice
+		prompt "ISP Clock Speed"
+		default BR2_ISP_CLK_100MHZ
+		help
+			Choose the ISP clock speed from the predefined options.
+
+		config BR2_ISP_CLK_90MHZ
+			bool "90 MHz"
+
+		config BR2_ISP_CLK_100MHZ
+			bool "100 MHz"
+
+		config BR2_ISP_CLK_125MHZ
+			bool "125 MHz"
+
+		config BR2_ISP_CLK_150MHZ
+			bool "150 MHz"
+
+		config BR2_ISP_CLK_175MHZ
+			bool "175 MHz"
+
+		config BR2_ISP_CLK_200MHZ
+			bool "200 MHz"
+
+		config BR2_ISP_CLK_220MHZ
+			bool "220 MHz"
+
+		config BR2_ISP_CLK_225MHZ
+			bool "225 MHz"
+	endchoice
+
+	choice
+		prompt "ISP Memory Optimization Level"
+		help
+			Select the memory optimization level for ISP.
+
+		config BR2_ISP_MEMOPT_0
+			bool "0: No optimization"
+
+		config BR2_ISP_MEMOPT_1
+			bool "1: Level 1 optimization"
+
+		config BR2_ISP_MEMOPT_2
+			bool "2: Level 2 optimization"
+	endchoice
+
+	config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM
+		int "Day/Night switch drop frame number"
+		default -1
+		help
+			Set the number of frames to drop during the day/night switch.
+			Set to -1 to disable.
+
+	config BR2_ISP_CH0_PRE_DEQUEUE_TIME
+		int "Pre-dequeue time for channel 0"
+		default -1
+		help
+			Set the pre-dequeue time for channel 0 in milliseconds.
+			Set to -1 to disable.
+
+	config BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
+		int "Pre-dequeue interrupt processing for channel 0"
+		default -1
+		help
+			Set the pre-dequeue interrupt processing time for channel 0.
+			Set to -1 to disable.
+
+	config BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
+		int "Valid lines for pre-dequeue for channel 0"
+		default -1
+		help
+			Set the number of valid lines for pre-dequeue for channel 0.
+			Set to -1 to disable.
+
+	choice
+		prompt "AVPU Clock Speed"
+		default BR2_AVPU_CLK_400MHZ
+		help
+			Choose the ISP clock speed from the predefined options.
+
+		config BR2_AVPU_CLK_400MHZ
+			bool "400 MHz"
+
+		config BR2_AVPU_CLK_450MHZ
+			bool "450 MHz"
+
+		config BR2_AVPU_CLK_500MHZ
+			bool "500 MHz"
+
+		config BR2_AVPU_CLK_550MHZ
+			bool "550 MHz"
+
+		config BR2_AVPU_CLK_600MHZ
+			bool "600 MHz"
+
+		config BR2_AVPU_CLK_650MHZ
+			bool "650 MHz"
+
+		config BR2_AVPU_CLK_700MHZ
+			bool "700 MHz"
+	endchoice
+
+	choice
+		prompt "AVPU Clock Source"
+		default BR2_AVPU_VPLL
+		help
+			Select the clock source for the AVPU
+
+		config BR2_AVPU_MPLL
+			bool "MPLL Clock Source"
+
+		config BR2_AVPU_VPLL
+			bool "VPLL Clock Source"
+	endchoice
+endmenu
