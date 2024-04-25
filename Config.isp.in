@@ -1,7 +1,8 @@
 menu "ISP Configuration"
 	choice
 		prompt "ISP Clock Speed"
-		default BR2_ISP_CLK_100MHZ
+		default BR2_ISP_CLK_100MHZ if BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31A || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL || BR2_SOC_INGENIC_T31ZX || BR2_SOC_INGENIC_T31XL
+		default BR2_ISP_CLK_90MHZ
 		help
 			Choose the ISP clock speed from the predefined options.
 
@@ -16,101 +17,108 @@ menu "ISP Configuration"
 
 		config BR2_ISP_CLK_150MHZ
 			bool "150 MHz"
+			depends on BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31A || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL || BR2_SOC_INGENIC_T31ZX || BR2_SOC_INGENIC_T31XL
 
 		config BR2_ISP_CLK_175MHZ
 			bool "175 MHz"
+			depends on BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31A || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL || BR2_SOC_INGENIC_T31ZX || BR2_SOC_INGENIC_T31XL
 
 		config BR2_ISP_CLK_200MHZ
 			bool "200 MHz"
+			depends on BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31A || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL || BR2_SOC_INGENIC_T31ZX || BR2_SOC_INGENIC_T31XL
 
 		config BR2_ISP_CLK_220MHZ
 			bool "220 MHz"
+			depends on BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31A || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL || BR2_SOC_INGENIC_T31ZX || BR2_SOC_INGENIC_T31XL
 
 		config BR2_ISP_CLK_225MHZ
 			bool "225 MHz"
+			depends on BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31A || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL || BR2_SOC_INGENIC_T31ZX || BR2_SOC_INGENIC_T31XL
 	endchoice
 
-	choice
-		prompt "ISP Memory Optimization Level"
-		help
-			Select the memory optimization level for ISP.
+	if BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31A || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL || BR2_SOC_INGENIC_T31ZX || BR2_SOC_INGENIC_T31XL
+		choice
+			prompt "ISP Memory Optimization Level"
+			help
+				Select the memory optimization level for ISP.
 
-		config BR2_ISP_MEMOPT_0
-			bool "0: No optimization"
+			config BR2_ISP_MEMOPT_0
+				bool "0: No optimization"
 
-		config BR2_ISP_MEMOPT_1
-			bool "1: Level 1 optimization"
+			config BR2_ISP_MEMOPT_1
+				bool "1: Level 1 optimization"
 
-		config BR2_ISP_MEMOPT_2
-			bool "2: Level 2 optimization"
-	endchoice
+			config BR2_ISP_MEMOPT_2
+				bool "2: Level 2 optimization"
+		endchoice
 
-	config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM
-		int "Day/Night switch drop frame number"
-		default -1
-		help
-			Set the number of frames to drop during the day/night switch.
-			Set to -1 to disable.
+		config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM
+			int "Day/Night switch drop frame number"
+			default -1
+			help
+				Set the number of frames to drop during the day/night switch.
+				Set to -1 to disable.
 
-	config BR2_ISP_CH0_PRE_DEQUEUE_TIME
-		int "Pre-dequeue time for channel 0"
-		default -1
-		help
-			Set the pre-dequeue time for channel 0 in milliseconds.
-			Set to -1 to disable.
+		config BR2_ISP_CH0_PRE_DEQUEUE_TIME
+			int "Pre-dequeue time for channel 0"
+			default -1
+			help
+				Set the pre-dequeue time for channel 0 in milliseconds.
+				Set to -1 to disable.
 
-	config BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
-		int "Pre-dequeue interrupt processing for channel 0"
-		default -1
-		help
-			Set the pre-dequeue interrupt processing time for channel 0.
-			Set to -1 to disable.
+		config BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
+			int "Pre-dequeue interrupt processing for channel 0"
+			default -1
+			help
+				Set the pre-dequeue interrupt processing time for channel 0.
+				Set to -1 to disable.
 
-	config BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
-		int "Valid lines for pre-dequeue for channel 0"
-		default -1
-		help
-			Set the number of valid lines for pre-dequeue for channel 0.
-			Set to -1 to disable.
+		config BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
+			int "Valid lines for pre-dequeue for channel 0"
+			default -1
+			help
+				Set the number of valid lines for pre-dequeue for channel 0.
+				Set to -1 to disable.
 
-	choice
-		prompt "AVPU Clock Speed"
-		default BR2_AVPU_CLK_400MHZ
-		help
-			Choose the ISP clock speed from the predefined options.
+		choice
+			prompt "AVPU Clock Speed"
+			default BR2_AVPU_CLK_400MHZ
+			help
+				Choose the ISP clock speed from the predefined options.
 
-		config BR2_AVPU_CLK_400MHZ
-			bool "400 MHz"
+			config BR2_AVPU_CLK_400MHZ
+				bool "400 MHz"
 
-		config BR2_AVPU_CLK_450MHZ
-			bool "450 MHz"
+			config BR2_AVPU_CLK_450MHZ
+				bool "450 MHz"
 
-		config BR2_AVPU_CLK_500MHZ
-			bool "500 MHz"
+			config BR2_AVPU_CLK_500MHZ
+				bool "500 MHz"
 
-		config BR2_AVPU_CLK_550MHZ
-			bool "550 MHz"
+			config BR2_AVPU_CLK_550MHZ
+				bool "550 MHz"
 
-		config BR2_AVPU_CLK_600MHZ
-			bool "600 MHz"
+			config BR2_AVPU_CLK_600MHZ
+				bool "600 MHz"
 
-		config BR2_AVPU_CLK_650MHZ
-			bool "650 MHz"
+			config BR2_AVPU_CLK_650MHZ
+				bool "650 MHz"
 
-		config BR2_AVPU_CLK_700MHZ
-			bool "700 MHz"
-	endchoice
+			config BR2_AVPU_CLK_700MHZ
+				bool "700 MHz"
+		endchoice
 
-	choice
-		prompt "AVPU Clock Source"
-		default BR2_AVPU_VPLL
-		help
-			Select the clock source for the AVPU
+		choice
+			prompt "AVPU Clock Source"
+			default BR2_AVPU_VPLL
+			help
+				Select the clock source for the AVPU
 
-		config BR2_AVPU_MPLL
-			bool "MPLL Clock Source"
+			config BR2_AVPU_MPLL
+				bool "MPLL Clock Source"
 
-		config BR2_AVPU_VPLL
-			bool "VPLL Clock Source"
-	endchoice
+			config BR2_AVPU_VPLL
+				bool "VPLL Clock Source"
+		endchoice
+	endif
 endmenu
