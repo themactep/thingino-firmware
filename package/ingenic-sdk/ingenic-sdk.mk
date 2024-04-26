@@ -43,8 +43,13 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 644 $(@D)/sensor_params.conf $(TARGET_DIR)/etc/modules.d/sensor
 
 	echo tx_isp_$(SOC_FAMILY) isp_clk=$(ISP_CLK) $(ISP_MEMOPT) $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS) $(ISP_CH0_PRE_DEQUEUE_VALID_LINES) > $(TARGET_DIR)/etc/modules.d/isp
+
 	if [ "$$SOC_FAMILY" = "t31" ]; then \
 		echo "avpu $(AVPU_CLK_SRC) avpu_clk=$(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/avpu; \
+	fi
+
+	if [ -n "$(AUDIO_GPIO_VALUE)" ]; then \
+		echo "audio $(AUDIO_GPIO_VALUE)" > $(TARGET_DIR)/etc/modules.d/audio; \
 	fi
 endef
 
