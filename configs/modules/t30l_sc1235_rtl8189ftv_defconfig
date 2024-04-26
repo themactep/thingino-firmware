@@ -1,5 +1,5 @@
 # FRAG: soc toolchain ccache brand rootfs kernel system target local
 BR2_SOC_INGENIC_T30L=y
-BR2_SENSOR_MODEL="sc1235"
+BR2_SENSOR_SC1235=y
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_RTL8189FS=y

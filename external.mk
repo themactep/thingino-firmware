@@ -154,54 +154,264 @@ SOC_RAM := 512
 BR2_SOC_INGENIC_T41=y
 endif
 
+# Image sensor
+ifeq ($(BR2_SENSOR_DUMMY),y)
+SENSOR_MODEL :=
+else ifeq ($(BR2_SENSOR_AR1337),y)
+SENSOR_MODEL := ar1337
+else ifeq ($(BR2_SENSOR_BF3A03),y)
+SENSOR_MODEL := bf3a03
+else ifeq ($(BR2_SENSOR_C2399),y)
+SENSOR_MODEL := c2399
+else ifeq ($(BR2_SENSOR_C23A98),y)
+SENSOR_MODEL := c23a98
+else ifeq ($(BR2_SENSOR_C3390),y)
+SENSOR_MODEL := c3390
+else ifeq ($(BR2_SENSOR_C4390),y)
+SENSOR_MODEL := c4390
+else ifeq ($(BR2_SENSOR_CV2001),y)
+SENSOR_MODEL := cv2001
+else ifeq ($(BR2_SENSOR_CV3001),y)
+SENSOR_MODEL := cv3001
+else ifeq ($(BR2_SENSOR_CV4001),y)
+SENSOR_MODEL := cv4001
+else ifeq ($(BR2_SENSOR_GC0328),y)
+SENSOR_MODEL := gc0328
+else ifeq ($(BR2_SENSOR_GC032A),y)
+SENSOR_MODEL := gc032a
+else ifeq ($(BR2_SENSOR_GC1034),y)
+SENSOR_MODEL := gc1034
+else ifeq ($(BR2_SENSOR_GC1054),y)
+SENSOR_MODEL := gc1054
+else ifeq ($(BR2_SENSOR_GC1084),y)
+SENSOR_MODEL := gc1084
+else ifeq ($(BR2_SENSOR_GC2023),y)
+SENSOR_MODEL := gc2023
+else ifeq ($(BR2_SENSOR_GC2033),y)
+SENSOR_MODEL := gc2033
+else ifeq ($(BR2_SENSOR_GC2053),y)
+SENSOR_MODEL := gc2053
+else ifeq ($(BR2_SENSOR_GC2063),y)
+SENSOR_MODEL := gc2063
+else ifeq ($(BR2_SENSOR_GC2083),y)
+SENSOR_MODEL := gc2083
+else ifeq ($(BR2_SENSOR_GC2093),y)
+SENSOR_MODEL := gc2093
+else ifeq ($(BR2_SENSOR_GC3003),y)
+SENSOR_MODEL := gc3003
+else ifeq ($(BR2_SENSOR_GC3003A),y)
+SENSOR_MODEL := gc3003a
+else ifeq ($(BR2_SENSOR_GC4023),y)
+SENSOR_MODEL := gc4023
+else ifeq ($(BR2_SENSOR_GC4653),y)
+SENSOR_MODEL := gc4653
+else ifeq ($(BR2_SENSOR_GC4C33),y)
+SENSOR_MODEL := gc4c33
+else ifeq ($(BR2_SENSOR_GC5035),y)
+SENSOR_MODEL := gc5035
+else ifeq ($(BR2_SENSOR_GC5603),y)
+SENSOR_MODEL := gc5603
+else ifeq ($(BR2_SENSOR_IMX298),y)
+SENSOR_MODEL := imx298
+else ifeq ($(BR2_SENSOR_IMX307),y)
+SENSOR_MODEL := imx307
+else ifeq ($(BR2_SENSOR_IMX327),y)
+SENSOR_MODEL := imx327
+else ifeq ($(BR2_SENSOR_IMX335),y)
+SENSOR_MODEL := imx335
+else ifeq ($(BR2_SENSOR_JXF23),y)
+SENSOR_MODEL := jxf23
+else ifeq ($(BR2_SENSOR_JXF28P),y)
+SENSOR_MODEL := jxf28p
+else ifeq ($(BR2_SENSOR_JXF32),y)
+SENSOR_MODEL := jxf32
+else ifeq ($(BR2_SENSOR_JXF35),y)
+SENSOR_MODEL := jxf35
+else ifeq ($(BR2_SENSOR_JXF352),y)
+SENSOR_MODEL := jxf352
+else ifeq ($(BR2_SENSOR_JXF355P),y)
+SENSOR_MODEL := jxf355p
+else ifeq ($(BR2_SENSOR_JXF37),y)
+SENSOR_MODEL := jxf37
+else ifeq ($(BR2_SENSOR_JXF37P),y)
+SENSOR_MODEL := jxf37p
+else ifeq ($(BR2_SENSOR_JXF38P),y)
+SENSOR_MODEL := jxf38p
+else ifeq ($(BR2_SENSOR_JXF51),y)
+SENSOR_MODEL := jxf51
+else ifeq ($(BR2_SENSOR_JXF53),y)
+SENSOR_MODEL := jxf53
+else ifeq ($(BR2_SENSOR_JXH61P),y)
+SENSOR_MODEL := jxh61p
+else ifeq ($(BR2_SENSOR_JXH62),y)
+SENSOR_MODEL := jxh62
+else ifeq ($(BR2_SENSOR_JXH63),y)
+SENSOR_MODEL := jxh63
+else ifeq ($(BR2_SENSOR_JXH66),y)
+SENSOR_MODEL := jxh66
+else ifeq ($(BR2_SENSOR_JXK03),y)
+SENSOR_MODEL := jxk03
+else ifeq ($(BR2_SENSOR_JXK04),y)
+SENSOR_MODEL := jxk04
+else ifeq ($(BR2_SENSOR_JXK05),y)
+SENSOR_MODEL := jxk05
+else ifeq ($(BR2_SENSOR_JXK06),y)
+SENSOR_MODEL := jxk06
+else ifeq ($(BR2_SENSOR_JXQ03),y)
+SENSOR_MODEL := jxq03
+else ifeq ($(BR2_SENSOR_JXQ03P),y)
+SENSOR_MODEL := jxq03p
+else ifeq ($(BR2_SENSOR_MIS2006),y)
+SENSOR_MODEL := mis2006
+else ifeq ($(BR2_SENSOR_MIS2008),y)
+SENSOR_MODEL := mis2008
+else ifeq ($(BR2_SENSOR_MIS4001),y)
+SENSOR_MODEL := mis4001
+else ifeq ($(BR2_SENSOR_MIS5001),y)
+SENSOR_MODEL := mis5001
+else ifeq ($(BR2_SENSOR_OS02D20),y)
+SENSOR_MODEL := os02d20
+else ifeq ($(BR2_SENSOR_OS02G10),y)
+SENSOR_MODEL := os02g10
+else ifeq ($(BR2_SENSOR_OS02K10),y)
+SENSOR_MODEL := os02k10
+else ifeq ($(BR2_SENSOR_OS03B10),y)
+SENSOR_MODEL := os03b10
+else ifeq ($(BR2_SENSOR_OS04B10),y)
+SENSOR_MODEL := os04b10
+else ifeq ($(BR2_SENSOR_OS04C10),y)
+SENSOR_MODEL := os04c10
+else ifeq ($(BR2_SENSOR_OS04L10),y)
+SENSOR_MODEL := os04l10
+else ifeq ($(BR2_SENSOR_OS05A10),y)
+SENSOR_MODEL := os05a10
+else ifeq ($(BR2_SENSOR_OS05A20),y)
+SENSOR_MODEL := os05a20
+else ifeq ($(BR2_SENSOR_OV2740),y)
+SENSOR_MODEL := ov2740
+else ifeq ($(BR2_SENSOR_OV2745),y)
+SENSOR_MODEL := ov2745
+else ifeq ($(BR2_SENSOR_OV5648),y)
+SENSOR_MODEL := ov5648
+else ifeq ($(BR2_SENSOR_OV5695),y)
+SENSOR_MODEL := ov5695
+else ifeq ($(BR2_SENSOR_OV8856),y)
+SENSOR_MODEL := ov8856
+else ifeq ($(BR2_SENSOR_OV9732),y)
+SENSOR_MODEL := ov9732
+else ifeq ($(BR2_SENSOR_PS5258),y)
+SENSOR_MODEL := ps5258
+else ifeq ($(BR2_SENSOR_PS5260),y)
+SENSOR_MODEL := ps5260
+else ifeq ($(BR2_SENSOR_PS5268),y)
+SENSOR_MODEL := ps5268
+else ifeq ($(BR2_SENSOR_PS5270),y)
+SENSOR_MODEL := ps5270
+else ifeq ($(BR2_SENSOR_PS5520),y)
+SENSOR_MODEL := ps5520
+else ifeq ($(BR2_SENSOR_SC1346),y)
+SENSOR_MODEL := sc1346
+else ifeq ($(BR2_SENSOR_SC200AI),y)
+SENSOR_MODEL := sc200ai
+else ifeq ($(BR2_SENSOR_SC201CS),y)
+SENSOR_MODEL := sc201cs
+else ifeq ($(BR2_SENSOR_SC202CS),y)
+SENSOR_MODEL := sc202cs
+else ifeq ($(BR2_SENSOR_SC2210),y)
+SENSOR_MODEL := sc2210
+else ifeq ($(BR2_SENSOR_SC2232H),y)
+SENSOR_MODEL := sc2232h
+else ifeq ($(BR2_SENSOR_SC2235),y)
+SENSOR_MODEL := sc2235
+else ifeq ($(BR2_SENSOR_SC2239),y)
+SENSOR_MODEL := sc2239
+else ifeq ($(BR2_SENSOR_SC2239P),y)
+SENSOR_MODEL := sc2239p
+else ifeq ($(BR2_SENSOR_SC223A),y)
+SENSOR_MODEL := sc223a
+else ifeq ($(BR2_SENSOR_SC230AI),y)
+SENSOR_MODEL := sc230ai
+else ifeq ($(BR2_SENSOR_SC2310),y)
+SENSOR_MODEL := sc2310
+else ifeq ($(BR2_SENSOR_SC2315E),y)
+SENSOR_MODEL := sc2315e
+else ifeq ($(BR2_SENSOR_SC2332),y)
+SENSOR_MODEL := sc2332
+else ifeq ($(BR2_SENSOR_SC2335),y)
+SENSOR_MODEL := sc2335
+else ifeq ($(BR2_SENSOR_SC2336),y)
+SENSOR_MODEL := sc2336
+else ifeq ($(BR2_SENSOR_SC301IOT),y)
+SENSOR_MODEL := sc301iot
+else ifeq ($(BR2_SENSOR_SC3235),y)
+SENSOR_MODEL := sc3235
+else ifeq ($(BR2_SENSOR_SC3335),y)
+SENSOR_MODEL := sc3335
+else ifeq ($(BR2_SENSOR_SC3336),y)
+SENSOR_MODEL := sc3336
+else ifeq ($(BR2_SENSOR_SC3338),y)
+SENSOR_MODEL := sc3338
+else ifeq ($(BR2_SENSOR_SC401AI),y)
+SENSOR_MODEL := sc401ai
+else ifeq ($(BR2_SENSOR_SC4236),y)
+SENSOR_MODEL := sc4236
+else ifeq ($(BR2_SENSOR_SC4236H),y)
+SENSOR_MODEL := sc4236h
+else ifeq ($(BR2_SENSOR_SC4238),y)
+SENSOR_MODEL := sc4238
+else ifeq ($(BR2_SENSOR_SC4335),y)
+SENSOR_MODEL := sc4335
+else ifeq ($(BR2_SENSOR_SC4336),y)
+SENSOR_MODEL := sc4336
+else ifeq ($(BR2_SENSOR_SC4336P),y)
+SENSOR_MODEL := sc4336p
+else ifeq ($(BR2_SENSOR_SC450AI),y)
+SENSOR_MODEL := sc450ai
+else ifeq ($(BR2_SENSOR_SC500AI),y)
+SENSOR_MODEL := sc500ai
+else ifeq ($(BR2_SENSOR_SC5235),y)
+SENSOR_MODEL := sc5235
+else ifeq ($(BR2_SENSOR_SP1405),y)
+SENSOR_MODEL := sp1405
+else ifeq ($(BR2_SENSOR_TP2850),y)
+SENSOR_MODEL := tp2850
+endif
+
 # Default ISP clock speed
 ISP_CLK := 100000000
 
 ifeq ($(BR2_ISP_CLK_90MHZ),y)
 	ISP_CLK := 90000000
-endif
-ifeq ($(BR2_ISP_CLK_100MHZ),y)
+else ifeq ($(BR2_ISP_CLK_100MHZ),y)
 	ISP_CLK := 100000000
-endif
-ifeq ($(BR2_ISP_CLK_125MHZ),y)
+else ifeq ($(BR2_ISP_CLK_125MHZ),y)
 	ISP_CLK := 125000000
-endif
-ifeq ($(BR2_ISP_CLK_150MHZ),y)
+else ifeq ($(BR2_ISP_CLK_150MHZ),y)
 	ISP_CLK := 150000000
-endif
-ifeq ($(BR2_ISP_CLK_175MHZ),y)
+else ifeq ($(BR2_ISP_CLK_175MHZ),y)
 	ISP_CLK := 175000000
-endif
-ifeq ($(BR2_ISP_CLK_200MHZ),y)
+else ifeq ($(BR2_ISP_CLK_200MHZ),y)
 	ISP_CLK := 200000000
-endif
-ifeq ($(BR2_ISP_CLK_220MHZ),y)
+else ifeq ($(BR2_ISP_CLK_220MHZ),y)
 	ISP_CLK := 220000000
-endif
-ifeq ($(BR2_ISP_CLK_225MHZ),y)
+else ifeq ($(BR2_ISP_CLK_225MHZ),y)
 	ISP_CLK := 225000000
 endif
 
 AVPU_CLK := 400000000
 ifeq ($(BR2_AVPU_CLK_400MHZ),y)
 	AVPU_CLK := 400000000
-endif
-ifeq ($(BR2_AVPU_CLK_450MHZ),y)
+else ifeq ($(BR2_AVPU_CLK_450MHZ),y)
 	AVPU_CLK := 450000000
-endif
-ifeq ($(BR2_AVPU_CLK_500MHZ),y)
+else ifeq ($(BR2_AVPU_CLK_500MHZ),y)
 	AVPU_CLK := 500000000
-endif
-ifeq ($(BR2_AVPU_CLK_550MHZ),y)
+else ifeq ($(BR2_AVPU_CLK_550MHZ),y)
 	AVPU_CLK := 550000000
-endif
-ifeq ($(BR2_AVPU_CLK_600MHZ),y)
+else ifeq ($(BR2_AVPU_CLK_600MHZ),y)
 	AVPU_CLK := 600000000
-endif
-ifeq ($(BR2_AVPU_CLK_650MHZ),y)
+else ifeq ($(BR2_AVPU_CLK_650MHZ),y)
 	AVPU_CLK := 650000000
-endif
-ifeq ($(BR2_AVPU_CLK_700MHZ),y)
+else ifeq ($(BR2_AVPU_CLK_700MHZ),y)
 	AVPU_CLK := 700000000
 endif
 
