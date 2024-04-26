@@ -52,33 +52,90 @@ menu "ISP Configuration"
 				bool "2: Level 2 optimization"
 		endchoice
 
-		config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM
-			int "Day/Night switch drop frame number"
-			default -1
-			help
-				Set the number of frames to drop during the day/night switch.
-				Set to -1 to disable.
+		menu "Day/Night switch drop frame number"
+			choice
+				prompt "Enable or Disable"
+				default BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_DISABLED
 
-		config BR2_ISP_CH0_PRE_DEQUEUE_TIME
-			int "Pre-dequeue time for channel 0"
-			default -1
-			help
-				Set the pre-dequeue time for channel 0 in milliseconds.
-				Set to -1 to disable.
+				config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_DISABLED
+					bool "Disable"
 
-		config BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
-			int "Pre-dequeue interrupt processing for channel 0"
-			default -1
-			help
-				Set the pre-dequeue interrupt processing time for channel 0.
-				Set to -1 to disable.
+				config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_ENABLED
+					bool "Enable"
+			endchoice
 
-		config BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
-			int "Valid lines for pre-dequeue for channel 0"
-			default -1
-			help
-				Set the number of valid lines for pre-dequeue for channel 0.
-				Set to -1 to disable.
+			config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE
+				int "Specify the number of frames to drop"
+				depends on BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_ENABLED
+				default 0
+				help
+					Specify the exact number of frames to drop during the switch.
+					This setting is only active if the drop frame feature is enabled.
+		endmenu
+
+		menu "Pre-dequeue Time for Channel 0"
+			choice
+				prompt "Enable or Disable"
+				default BR2_ISP_CH0_PRE_DEQUEUE_TIME_DISABLED
+
+				config BR2_ISP_CH0_PRE_DEQUEUE_TIME_DISABLED
+					bool "Disabled"
+
+				config BR2_ISP_CH0_PRE_DEQUEUE_TIME_ENABLED
+					bool "Enabled"
+			endchoice
+
+			config BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE
+				int "Specify pre-dequeue time in milliseconds"
+				depends on BR2_ISP_CH0_PRE_DEQUEUE_TIME_ENABLED
+				default 0
+				help
+					Specify the exact pre-dequeue time for channel 0 in milliseconds.
+					This setting is only active if the pre-dequeue time feature is enabled.
+		endmenu
+
+		menu "Pre-dequeue Interrupt Processing for Channel 0"
+			choice
+				prompt "Enable or Disable"
+				default BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_DISABLED
+
+				config BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_DISABLED
+					bool "Disabled"
+
+				config BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_ENABLED
+					bool "Enabled"
+			endchoice
+
+			config BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_VALUE
+				int "Specify interrupt processing time"
+				depends on BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_ENABLED
+				default 0
+				help
+					Specify the interrupt processing time for pre-dequeue for channel 0.
+					This setting is only active if the feature is enabled.
+		endmenu
+
+		menu "Valid Lines for Pre-dequeue for Channel 0"
+			choice
+				prompt "Enable or Disable"
+				default BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_DISABLED
+
+				config BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_DISABLED
+					bool "Disabled"
+
+				config BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_ENABLED
+					bool "Enabled"
+			endchoice
+
+			config BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE
+				int "Specify valid lines"
+				depends on BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_ENABLED
+				default 0
+				help
+					Specify the number of valid lines for pre-dequeue for channel 0.
+					This setting is only active if the feature is enabled.
+		endmenu
+
 
 		choice
 			prompt "AVPU Clock Speed"
