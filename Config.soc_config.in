@@ -1,4 +1,4 @@
-menu "ISP Configuration"
+menu "SOC Configuration"
 	choice
 		prompt "ISP Clock Speed"
 		default BR2_ISP_CLK_100MHZ if BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31A || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL || BR2_SOC_INGENIC_T31ZX || BR2_SOC_INGENIC_T31XL
@@ -52,16 +52,16 @@ menu "ISP Configuration"
 				bool "2: Level 2 optimization"
 		endchoice
 
-		menu "Day/Night switch drop frame number"
+		menu "ISP Day/Night switch drop frame number"
 			choice
 				prompt "Enable or Disable"
 				default BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_DISABLED
 
 				config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_DISABLED
-					bool "Disable"
+					bool "Disabled"
 
 				config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_ENABLED
-					bool "Enable"
+					bool "Enabled"
 			endchoice
 
 			config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE
@@ -73,7 +73,7 @@ menu "ISP Configuration"
 					This setting is only active if the drop frame feature is enabled.
 		endmenu
 
-		menu "Pre-dequeue Time for Channel 0"
+		menu "ISP Pre-dequeue Time for Channel 0"
 			choice
 				prompt "Enable or Disable"
 				default BR2_ISP_CH0_PRE_DEQUEUE_TIME_DISABLED
@@ -94,7 +94,7 @@ menu "ISP Configuration"
 					This setting is only active if the pre-dequeue time feature is enabled.
 		endmenu
 
-		menu "Pre-dequeue Interrupt Processing for Channel 0"
+		menu "ISP Pre-dequeue Interrupt Processing for Channel 0"
 			choice
 				prompt "Enable or Disable"
 				default BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_DISABLED
@@ -115,7 +115,7 @@ menu "ISP Configuration"
 					This setting is only active if the feature is enabled.
 		endmenu
 
-		menu "Valid Lines for Pre-dequeue for Channel 0"
+		menu "ISP Valid Lines for Pre-dequeue for Channel 0"
 			choice
 				prompt "Enable or Disable"
 				default BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_DISABLED
@@ -178,4 +178,25 @@ menu "ISP Configuration"
 				bool "VPLL Clock Source"
 		endchoice
 	endif
+
+	menu "Audio Configuration"
+		choice
+			prompt "Enable Audio"
+			default BR2_AUDIO_DISABLED
+
+			config BR2_AUDIO_DISABLED
+				bool "Disabled"
+
+			config BR2_AUDIO_ENABLED
+				bool "Enabled"
+		endchoice
+
+		config BR2_AUDIO_GPIO_VALUE
+			int "Specify GPIO Pin for Audio"
+			depends on BR2_AUDIO_ENABLED
+			default 0
+			help
+				Enter the GPIO pin number used for audio output.
+				This setting is only active if audio is enabled.
+	endmenu
 endmenu

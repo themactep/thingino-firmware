@@ -244,6 +244,13 @@ ifeq ($(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_ENABLED),y)
 	ISP_CH0_PRE_DEQUEUE_VALID_LINES := isp_ch0_pre_dequeue_valid_lines=$(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE)
 endif
 
+AUDIO_GPIO :=
+ifeq ($(BR2_AUDIO_ENABLED),y)
+	AUDIO_GPIO := spk_gpio=$(BR2_AUDIO_GPIO_VALUE)
+else
+	AUDIO_GPIO:= spk_gpio=-1
+endif
+
 ifeq ($(BR2_SOC_INGENIC_T10),y)
 SOC_FAMILY := t10
 SDK_VERSION := 3.12.0
@@ -381,6 +388,7 @@ export ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
 export ISP_CH0_PRE_DEQUEUE_VALID_LINES
 export AVPU_CLK
 export AVPU_CLK_SRC
+export AUDIO_GPIO
 
 ifneq ($(BR2_SOC_INGENIC_DUMMY),y)
 # include makefiles from packages

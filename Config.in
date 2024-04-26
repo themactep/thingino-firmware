@@ -1,7 +1,6 @@
 menu "Thingino Firmware"
 
 source "$BR2_EXTERNAL_THINGINO_PATH/Config.soc.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/Config.sensor.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi/Config.in"
 
 menuconfig BR2_THINGINO_SYSTEM_PACKAGES
