@@ -126,7 +126,7 @@ choice
 	config BR2_AVPU_VPLL
 		bool "VPLL Clock Source"
 	config BR2_AVPU_INTERNAL
-		bool "Moudle Internal Clock Source"
+		bool "Module Internal Clock Source"
 endchoice
 
 menuconfig BR2_AUDIO
