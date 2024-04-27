@@ -35,8 +35,19 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_MODEL).bin $(TARGET_DIR)/etc/sensor/$(SENSOR_CONFIG_NAME)
 	echo $(SENSOR_MODEL) >$(TARGET_DIR)/etc/sensor/model
 
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/bin
-	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/bin $(INGENIC_SDK_PKGDIR)/files/load_ingenic
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/modules.d
+
+	echo tx_isp_$(SOC_FAMILY) isp_clk=$(ISP_CLK) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp
+
+	if [ "$(SOC_FAMILY)" = "t31" ]; then \
+		echo "avpu $(AVPU_CLK_SRC) avpu_clk=$(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/avpu; \
+	fi
+
+	if [ "$(BR2_AUDIO)" = "y" ]; then \
+		echo "audio $(AUDIO_GPIO)" > $(TARGET_DIR)/etc/modules.d/audio; \
+	fi
+
+	echo "sensor_$(SENSOR_MODEL)_$(SOC_FAMILY) $(BR2_SENSOR_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor
 endef
 
 $(eval $(kernel-module))

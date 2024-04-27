@@ -1,5 +1,5 @@
 # FRAG: soc toolchain ccache brand rootfs kernel system target local
 BR2_SOC_INGENIC_T21N=y
-BR2_SENSOR_MODEL="ov2735b"
+BR2_SENSOR_OV2735B=y
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_MT7601U=y
