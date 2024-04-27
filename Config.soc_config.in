@@ -48,12 +48,12 @@ endchoice
 menuconfig BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME
 	bool "ISP Day/Night switch drop frame number"
 if BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME
-config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE
-	int "Number of frames to drop"
-	default 0
-	help
-	  Specify the exact number of frames to drop during the switch.
-	  This setting is only active if the drop frame feature is enabled.
+	config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE
+		int "Number of frames to drop"
+		default 0
+		help
+		  Specify the exact number of frames to drop during the switch.
+		  This setting is only active if the drop frame feature is enabled.
 endif
 
 menuconfig BR2_ISP_CH0_PRE_DEQUEUE_TIME
@@ -63,8 +63,8 @@ if BR2_ISP_CH0_PRE_DEQUEUE_TIME
 		int "Pre-dequeue time in milliseconds"
 		default 0
 		help
-			Specify the exact pre-dequeue time for channel 0 in milliseconds.
-			This setting is only active if the pre-dequeue time feature is enabled.
+		  Specify the exact pre-dequeue time for channel 0 in milliseconds.
+		  This setting is only active if the pre-dequeue time feature is enabled.
 endif
 
 menuconfig BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
@@ -74,8 +74,8 @@ if BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
 		int "Interrupt processing time"
 		default 0
 		help
-			Specify the interrupt processing time for pre-dequeue for channel 0.
-			This setting is only active if the feature is enabled.
+		  Specify the interrupt processing time for pre-dequeue for channel 0.
+		  This setting is only active if the feature is enabled.
 endif
 
 menuconfig BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
@@ -85,8 +85,8 @@ if BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
 		int "Pre-dequeue valid lines"
 		default 0
 		help
-			Specify the number of valid lines for pre-dequeue for channel 0.
-			This setting is only active if the feature is enabled.
+		  Specify the number of valid lines for pre-dequeue for channel 0.
+		  This setting is only active if the feature is enabled.
 endif
 endif
 endif
@@ -95,7 +95,7 @@ choice
 	prompt "AVPU Clock Speed"
 	default BR2_AVPU_CLK_400MHZ
 	help
-		Choose the ISP clock speed from the predefined options.
+	  Choose the ISP clock speed from the predefined options.
 
 	config BR2_AVPU_CLK_400MHZ
 		bool "400 MHz"
@@ -117,7 +117,7 @@ choice
 	prompt "AVPU Clock Source"
 	default BR2_AVPU_INTERNAL
 	help
-		Select the clock source for the AVPU
+	  Select the clock source for the AVPU
 
 	config BR2_AVPU_MPLL
 		bool "MPLL Clock Source"
@@ -134,8 +134,8 @@ if BR2_AUDIO
 		int "GPIO Pin for Audio"
 		default 0
 		help
-			Enter the GPIO pin number used for audio output.
-			This setting is only active if audio is enabled.
+		  Enter the GPIO pin number used for audio output.
+		  This setting is only active if audio is enabled.
 endif
 
 endmenu
