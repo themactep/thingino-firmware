@@ -65,6 +65,8 @@ choice BR2_SENSOR_NAME
         bool "Sony IMX327"
     config BR2_SENSOR_IMX335
         bool "Sony IMX335"
+    config BR2_SENSOR_JXF22
+        bool "JX-F22"
     config BR2_SENSOR_JXF23
         bool "JX-F23"
     config BR2_SENSOR_JXF28P
