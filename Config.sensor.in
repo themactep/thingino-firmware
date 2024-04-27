@@ -135,6 +135,8 @@ choice BR2_SENSOR_NAME
         bool "OS05a10"
     config BR2_SENSOR_OS05A20
         bool "OS05a20"
+    config BR2_SENSOR_OV2735B
+        bool "OmniVision OV2735b"
     config BR2_SENSOR_OV2740
         bool "OmniVision OV2740"
     config BR2_SENSOR_OV2745

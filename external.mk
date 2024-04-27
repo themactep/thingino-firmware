@@ -289,6 +289,8 @@ else ifeq ($(BR2_SENSOR_OS05A10),y)
 SENSOR_MODEL := os05a10
 else ifeq ($(BR2_SENSOR_OS05A20),y)
 SENSOR_MODEL := os05a20
+else ifeq ($(BR2_SENSOR_OV2735B),y)
+SENSOR_MODEL := ov2735b
 else ifeq ($(BR2_SENSOR_OV2740),y)
 SENSOR_MODEL := ov2740
 else ifeq ($(BR2_SENSOR_OV2745),y)
