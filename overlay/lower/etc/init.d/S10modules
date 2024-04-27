@@ -20,8 +20,8 @@ case "$1" in
 
 		load_modules "/etc/modules"
 
-		if [ -d "/etc/init.d/modules.d" ]; then
-			for conf in /etc/init.d/modules.d/*; do
+		if [ -d "/etc/modules.d" ]; then
+			for conf in /etc/modules.d/*; do
 				load_modules "${conf}"
 			done
 		fi
