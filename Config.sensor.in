@@ -173,6 +173,8 @@ choice BR2_SENSOR_NAME
         bool "SmartSens SC202cs"
     config BR2_SENSOR_SC2210
         bool "SmartSens SC2210"
+    config BR2_SENSOR_SC2232
+        bool "SmartSens SC2232"
     config BR2_SENSOR_SC2232H
         bool "SmartSens SC2232h"
     config BR2_SENSOR_SC2235
