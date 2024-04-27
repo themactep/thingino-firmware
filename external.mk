@@ -422,6 +422,9 @@ endif
 ifeq ($(BR2_AVPU_VPLL),y)
    AVPU_CLK_SRC := clk_name=vpll
 endif
+ifeq ($(BR2_AVPU_INTERNAL),y)
+   AVPU_CLK_SRC :=
+endif
 
 ISP_MEMOPT :=
 ifeq ($(BR2_ISP_MEMOPT_0),y)
