@@ -3,7 +3,7 @@
 config="/etc/imp.conf"
 
 check_imp() {
-	echo -n "Establishing connection ..."
+	echo -n "Connecting to libimp-control: "
 	i=0
 	while :; do
 		grep -q running /proc/jz/isp/isp-fs &&
@@ -18,7 +18,7 @@ check_imp() {
 
 start() {
 	check_imp
-	echo -n "Restoring IMP Configuration:"
+	echo -n "Restoring IMP Configuration: "
 	if [ -f "$config" ]; then
 		echo
 		while read -r line; do
@@ -27,7 +27,7 @@ start() {
 		done < $config
 		echo "Done"
 	else
-		echo "DISABLED"
+		echo "Disabled"
 		return
 	fi
 }

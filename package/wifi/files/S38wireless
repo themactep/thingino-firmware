@@ -49,7 +49,6 @@ start() {
 		ip link set dev wlan0 address $mac_address
 	fi
 
-	echo "OK"
 }
 
 case "$1" in

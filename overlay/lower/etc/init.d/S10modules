@@ -9,14 +9,14 @@ load_modules() {
 				continue
 				;;
 		esac
-		echo -n "Load module ${module}... "
+		echo -n " ${module}... "
 		modprobe ${module} ${args} && echo "OK" || echo "FAIL"
 	done < "${file}"
 }
 
 case "$1" in
 	start)
-		echo -n "Loading modules: "
+		echo "Loading modules: "
 
 		load_modules "/etc/modules"
 
