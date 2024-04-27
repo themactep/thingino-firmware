@@ -1,2 +1,3 @@
 # MODULE: t31zx_imx327_eth_defconfig
 FLASH_SIZE_16=y
+BR2_AVPU_VPLL=y

@@ -1,2 +1,3 @@
 # MODULE: t31al_gc2053_atbm6031_defconfig
 FLASH_SIZE_16=y
+BR2_SENSOR_PARAMS="sensor_max_fps=30 data_interface=1"
