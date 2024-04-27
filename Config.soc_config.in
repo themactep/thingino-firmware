@@ -101,6 +101,8 @@ choice
 		bool "400 MHz"
 	config BR2_AVPU_CLK_450MHZ
 		bool "450 MHz"
+	config BR2_AVPU_CLK_486MHZ
+		bool "486 MHz"
 	config BR2_AVPU_CLK_500MHZ
 		bool "500 MHz"
 	config BR2_AVPU_CLK_550MHZ
