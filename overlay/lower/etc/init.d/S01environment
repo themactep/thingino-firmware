@@ -5,7 +5,8 @@ ENV_TXT="/etc/uenv.txt"
 start () {
 	echo -n "Check ENV: "
 
-	if [ -f "$ENV_TXT" ] && [ "false" = $(fw_printenv -n boot_complete) ]; then
+	boot_status=$(fw_printenv -n boot_complete)
+	if [ -f "$ENV_TXT" ] && [ "false" = "$boot_status" ]; then
 			ENV_TMP=$(mktemp)
 			sed 's/=/ /' $ENV_TXT >$ENV_TMP
 			fw_setenv -s $ENV_TMP
