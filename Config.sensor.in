@@ -87,6 +87,8 @@ choice BR2_SENSOR_NAME
         bool "JX-F51"
     config BR2_SENSOR_JXF53
         bool "JX-F53"
+    config BR2_SENSOR_JXH42
+        bool "JX-H42"
     config BR2_SENSOR_JXH61P
         bool "JX-H61p"
     config BR2_SENSOR_JXH62
