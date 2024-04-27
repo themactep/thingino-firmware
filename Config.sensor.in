@@ -225,6 +225,8 @@ endchoice
 
 config BR2_SENSOR_PARAMS
 	string "Image sensor parameters"
+config BR2_ISP_PARAMS
+	string "ISP parameters"
 
 if FALSE
 menu "Image Sensor Configuration"
