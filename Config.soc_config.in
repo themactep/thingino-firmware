@@ -30,6 +30,7 @@ choice
 		depends on BR2_SOC_FAMILY_INGENIC_T31
 endchoice
 
+if FALSE
 if BR2_SOC_FAMILY_INGENIC_T31
 choice
 	prompt "ISP Memory Optimization Level"
@@ -87,6 +88,8 @@ if BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
 			Specify the number of valid lines for pre-dequeue for channel 0.
 			This setting is only active if the feature is enabled.
 endif
+endif
+endif
 
 choice
 	prompt "AVPU Clock Speed"
@@ -112,7 +115,7 @@ endchoice
 
 choice
 	prompt "AVPU Clock Source"
-	default BR2_AVPU_VPLL
+	default BR2_AVPU_INTERNAL
 	help
 		Select the clock source for the AVPU
 
@@ -120,8 +123,9 @@ choice
 		bool "MPLL Clock Source"
 	config BR2_AVPU_VPLL
 		bool "VPLL Clock Source"
+	config BR2_AVPU_INTERNAL
+		bool "Moudle Internal Clock Source"
 endchoice
-endif
 
 menuconfig BR2_AUDIO
 	bool "Audio Configuration"
