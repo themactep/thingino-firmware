@@ -124,7 +124,7 @@ FIRMWARE_BIN_NOBOOT_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_NOBOOT))
 	reconfig upload_tftp upload_sdcard upgrade_ota br-%
 
 all: $(OUTPUT_DIR)/.config
-	$(info --------------> all)
+	$(info -------------------> all)
 #ifndef CAMERA
 #	$(MAKE) CAMERA=$(CAMERA) $@
 #endif
@@ -138,7 +138,7 @@ all: $(OUTPUT_DIR)/.config
 
 # install prerequisites
 bootstrap:
-	$(info --------------> bootstrap)
+	$(info -------------------> bootstrap)
 ifneq ($(shell id -u), 0)
 	$(error requested operation requires superuser privilege)
 else
@@ -154,6 +154,7 @@ FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(MODULE_CO
 
 # Assemble config from bits and pieces
 prepare_config: buildroot/Makefile
+	$(info -------------------> prepare_config)
 	# create output directory
 	$(info * make OUTPUT_DIR $(OUTPUT_DIR))
 	mkdir -p $(OUTPUT_DIR)
@@ -178,66 +179,82 @@ endif
 
 # Configure buildroot for a particular board
 defconfig: prepare_config
+	$(info -------------------> defconfig)
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 	# $(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) defconfig
 
 # Call configurator UI
 menuconfig: $(OUTPUT_DIR)/.config
+	$(info -------------------> menuconfig)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) menuconfig
 
 # Permanently save changes to the defconfig
 saveconfig:
+	$(info -------------------> saveconfig)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) savedefconfig
 
 ### Files
 
 clean:
+	$(info -------------------> clean)
 	rm -rf $(OUTPUT_DIR)/target
 
 distclean:
+	$(info -------------------> distclean)
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
 delete_bin_full:
+	$(info -------------------> delete_bin_full)
 	if [ -f $(FIRMWARE_BIN_FULL) ]; then rm $(FIRMWARE_BIN_FULL); fi
 
 delete_bin_update:
+	$(info -------------------> delete_bin_update)
 	if [ -f $(FIRMWARE_BIN_NOBOOT) ]; then rm $(FIRMWARE_BIN_NOBOOT); fi
 
-create_overlay:
 create_overlay: $(U_BOOT_BIN)
+	$(info -------------------> create_overlay)
 	@if [ $(OVERLAY_SIZE) -lt 0 ]; then $(FIGLET) "OVERSIZE"; fi
 	if [ -f $(OVERLAY_BIN) ]; then rm $(OVERLAY_BIN); fi
 	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --pad=$(OVERLAY_SIZE) --root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=0x8000 --output=$(OVERLAY_BIN) --squash
 
 pack: pack_full
+	$(info -------------------> pack)
 
 pack_full: $(FIRMWARE_BIN_FULL)
+	$(info -------------------> pack_full)
 	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
 
 pack_update: $(FIRMWARE_BIN_NOBOOT)
+	$(info -------------------> pack_update)
 	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(FLASH_SIZE_NOBOOT) ]; then $(FIGLET) "OVERSIZE"; fi
 
 pad: pad_full
+	$(info -------------------> pad)
 
 pad_full: $(FIRMWARE_BIN_FULL)
+	$(info -------------------> pad_full)
 	dd if=/dev/zero bs=$(SIZE_16M) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
 	dd if=$(FIRMWARE_BIN_FULL) bs=$(FIRMWARE_BIN_FULL_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
 	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_FULL);
 
 pad_update: $(FIRMWARE_BIN_NOBOOT)
+	$(info -------------------> pad_update)
 	dd if=/dev/zero bs=$(SIZE_16M_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
 	dd if=$(FIRMWARE_BIN_NOBOOT) bs=$(FIRMWARE_BIN_NOBOOT_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
 	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_NOBOOT);
 
 reconfig:
+	$(info -------------------> reconfig)
 	rm -rvf $(OUTPUT_DIR)/.config
 
 rebuild-%:
+	$(info -------------------> rebuild-%)
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean
 	$(BR2_MAKE) $(subst rebuild-,,$@)
 
 sdk: defconfig
+	$(info -------------------> sdk)
 ifeq ($(GCC),12)
 	sed -i 's/^BR2_TOOLCHAIN_EXTERNAL_GCC_13=y/# BR2_TOOLCHAIN_EXTERNAL_GCC_13 is not set/' $(OUTPUT_DIR)/.config; \
 	sed -i 's/^# BR2_TOOLCHAIN_EXTERNAL_GCC_12 is not set/BR2_TOOLCHAIN_EXTERNAL_GCC_12=y/' $(OUTPUT_DIR)/.config; \
@@ -247,21 +264,26 @@ endif
 	$(BR2_MAKE) sdk
 
 source: defconfig
+	$(info -------------------> source)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source
 
 update_ota: pack_update
+	$(info -------------------> update_ota)
 	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_NOBOOT) $(CAMERA_IP_ADDRESS)
 
 # upgrade firmware using /tmp/ directory of the camera
 upgrade_ota: pack
+	$(info -------------------> upgrade_ota)
 	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_FULL) $(CAMERA_IP_ADDRESS)
 
 # upload firmware to tftp server
 upload_tftp: $(FIRMWARE_BIN_FULL)
+	$(info -------------------> upload_ftp)
 	busybox tftp -l $(FIRMWARE_BIN_FULL) -r $(FIRMWARE_NAME_FULL) -p $(TFTP_IP_ADDRESS)
 
 # upload firmware to an sd card
 upload_sdcard: $(FIRMWARE_BIN_FULL)
+	$(info -------------------> upload_sdcard)
 	cp -v $(FIRMWARE_BIN_FULL) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')/autoupdate-full.bin
 	sync
 	umount $(SDCARD_DEVICE)1
@@ -271,34 +293,43 @@ upload_sdcard: $(FIRMWARE_BIN_FULL)
 
 # delete all build/{package} and per-package/{package} files
 br-%-dirclean:
+	$(info -------------------> br-%-dirclean)
 	rm -rf $(OUTPUT_DIR)/per-package/$(subst -dirclean,,$(subst br-,,$@)) \
 	       $(OUTPUT_DIR)/build/$(subst -dirclean,,$(subst br-,,$@))* \
 	       $(OUTPUT_DIR)/target
 #  \ sed -i /^$(subst -dirclean,,$(subst br-,,$@))/d $(OUTPUT_DIR)/build/packages-file-list.txt
 
 br-%:
+	$(info -------------------> br-%)
 	$(BR2_MAKE) $(subst br-,,$@)
 
 buildroot/Makefile:
+	$(info -------------------> buildroot/Makefile)
 	git submodule init
 	git submodule update
 
 # create output directory
 $(OUTPUT_DIR):
+	$(info -------------------> $(OUTPUT_DIR))
 	mkdir -p $(OUTPUT_DIR)
 
 # configure build
 $(OUTPUT_DIR)/.config: defconfig
+	$(info -------------------> $(OUTPUT_DIR)/.config)
 
 # create source directory
 $(SRC_DIR):
+	$(info -------------------> $(SRC_DIR))
 	mkdir -p $(SRC_DIR)
 
 # download bootloader
 $(U_BOOT_BIN):
+	$(info -------------------> $(U_BOOT_BIN))
+	$(info U_BOOT_BIN not found!)
 	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL_LESS_Z).bin
 
 $(U_BOOT_ENV_BIN):
+	$(info -------------------> $(U_BOOT_ENV_BIN))
 ifneq ($(U_BOOT_ENV_TXT),)
 	if [ -f "$(U_BOOT_ENV_TXT)" ]; then \
 	$(SCRIPTS_DIR)/mkenvimage -s 0x10000 -o $@ $(U_BOOT_ENV_TXT); \
@@ -307,6 +338,7 @@ endif
 
 # rebuild Linux kernel
 $(KERNEL_BIN):
+	$(info -------------------> $(KERNEL_BIN))
 	$(info KERNEL_BIN:          $@)
 	$(info KERNEL_SIZE:         $(KERNEL_SIZE))
 	$(info KERNEL_SIZE_ALIGNED: $(KERNEL_SIZE_ALIGNED))
@@ -315,6 +347,7 @@ $(KERNEL_BIN):
 
 # rebuild rootfs
 $(ROOTFS_BIN):
+	$(info -------------------> $(ROOTFS_BIN))
 	$(info ROOTFS_BIN:          $@)
 	$(info ROOTFS_SIZE:         $(ROOTFS_SIZE))
 	$(info ROOTFS_SIZE_ALIGNED: $(ROOTFS_SIZE_ALIGNED))
@@ -322,15 +355,18 @@ $(ROOTFS_BIN):
 
 # create .tar file of rootfs
 $(ROOTFS_TAR):
+	$(info -------------------> $(ROOTFS_TAR))
 	$(info ROOTFS_TAR:          $@)
 	$(BR2_MAKE) all
 
 $(OVERLAY_BIN): create_overlay
+	$(info -------------------> $(OVERLAY_BIN))
 	$(info OVERLAY_BIN:         $@)
 	$(info OVERLAY_SIZE:        $(OVERLAY_SIZE))
 	$(info OVERLAY_OFFSET:      $(OVERLAY_OFFSET))
 
 $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
+	$(info -------------------> $(FIRMWARE_BIN_FULL))
 	dd if=/dev/zero bs=$(FLASH_SIZE) skip=0 count=1 status=none | tr '\000' '\377' > $@
 	dd if=$(U_BOOT_BIN) bs=$(U_BOOT_SIZE) seek=$(U_BOOT_OFFSET) count=1 of=$@ conv=notrunc status=none
 	dd if=$(KERNEL_BIN) bs=$(KERNEL_SIZE) seek=$(KERNEL_OFFSET)B count=1 of=$@ conv=notrunc status=none
@@ -338,6 +374,7 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN
 	dd if=$(OVERLAY_BIN) bs=$(OVERLAY_SIZE) seek=$(OVERLAY_OFFSET)B count=1 of=$@ conv=notrunc status=none
 
 $(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
+	$(info -------------------> $(FIRMWARE_BIN_NOBOOT))
 	dd if=/dev/zero bs=$(FLASH_SIZE_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $@
 	dd if=$(KERNEL_BIN) bs=$(KERNEL_SIZE) seek=0 count=1 of=$@ conv=notrunc status=none
 	dd if=$(ROOTFS_BIN) bs=$(ROOTFS_SIZE) seek=$(KERNEL_SIZE_ALIGNED)B count=1 of=$@ conv=notrunc status=none
