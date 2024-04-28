@@ -4,14 +4,10 @@ WIFI_ATBM60XX_VERSION = $(shell git ls-remote $(WIFI_ATBM60XX_SITE) HEAD | head 
 
 WIFI_ATBM60XX_LICENSE = GPL-2.0
 
-#LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
-#	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)
-#	touch $(TARGET_DIR)/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)/modules.builtin.modinfo
-
-#	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)/extra/hal_apollo
-#	$(INSTALL) -m 644 -t $(TARGET_DIR)/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)/extra/hal_apollo $(@D)/hal_apollo/$(ATBM_MODULE_NAME).ko
-
+LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
 define WIFI_ATBM60XX_INSTALL_TARGET_CMDS
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)
+	touch $(TARGET_DIR)/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)/modules.builtin.modinfo
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/atbm60xx_conf
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/atbm60xx_conf $(WIFI_ATBM60XX_PKGDIR)/files/*.txt
 endef
