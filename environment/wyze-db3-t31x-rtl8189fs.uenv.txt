@@ -9,3 +9,5 @@ wlanpass=thingino
 disable_eth=true
 disable_sd=true
 enable_updates=true
+osmem=86M@0x0
+rmem=42M@0x5600000
