@@ -59,7 +59,10 @@ start() {
 }
 
 stop() {
-	rmmod motor || die "Failed to unload motor module."
+	echo -n "Stopping motors: "
+	# FIXME: motor.ko crashes on upload
+	# rmmod motor || die "Failed to unload motor module."
+	echo "OK"
 }
 
 case "$1" in
