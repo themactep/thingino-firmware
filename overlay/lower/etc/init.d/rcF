@@ -1,0 +1,16 @@
+#!/bin/sh
+
+echo "Press the [f] key to enter failsafe mode"
+
+stty -icanon min 0 time 20 -echo
+
+key=$(dd bs=1 count=1 2>/dev/null)
+
+stty sane
+
+if [ "$key" = "f" ]; then
+	echo "Entering failsafe mode..."
+	/bin/sh
+else
+	/etc/init.d/rcS
+fi
