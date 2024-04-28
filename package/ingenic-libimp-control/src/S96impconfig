@@ -5,8 +5,15 @@ config="/etc/imp.conf"
 check_imp() {
 	echo -n "Connecting to libimp-control: "
 	i=0
+	platform=$(soc -f)
+	if [ "$platform" = "t10" ] || [ "$platform" = "t20" ]; then
+		isp_path="/proc/jz/isp/isp_info"
+	else
+		isp_path="/proc/jz/isp/isp-fs"
+	fi
+
 	while :; do
-		grep -q running /proc/jz/isp/isp-fs &&
+		grep -Eq "running|Software" $isp_path &&
 			imp-control getdeviceid > /dev/null &&
 			echo " OK" && return
 		echo -n "."
