@@ -4,6 +4,12 @@ on:
     # 23:15 PST / Saturday
     - cron:  '15 07 * * 0'
   workflow_dispatch:
+    inputs:
+      tg_disabled:
+        type: boolean
+        description: 'Disable Telegram notifications'
+        required: false
+        default: false
 
 env:
   TAG_NAME: update_cache
@@ -12,7 +18,6 @@ env:
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
   TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_BUILD}}
   TG_OPTIONS: -s -o /dev/null -w %{http_code}
-  TG_ENABLE: true
 
 jobs:
   notify-begin:
@@ -24,7 +29,7 @@ jobs:
         id: set_output
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
       - name: Send build start notifcation
-        if: env.TG_ENABLE== 'true'
+        if: ${{ github.event.inputs.tg_disabled == 'false' }}
         run: |
           TG_MSG="Buildroot cache update started:\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
           TG_ICON="\xF0\x9F\x9A\xA6 GitHub Actions"
@@ -107,7 +112,7 @@ jobs:
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
       - name: Send completion notification with job link
-        if: github.event_name != 'pull_request' && env.INGTC && env.TG_ENABLE== 'true'
+        if: ${{ github.event_name != 'pull_request' && env.INGTC && github.event.inputs.tg_disabled == 'false' }}
         run: |
           TG_ESCAPED_VERSION=$(echo "${{ matrix.caches-version }}" | sed 's/_/\\_/g')
           TG_MSG="${TG_ESCAPED_VERSION}\nCommit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }})\n\n"
@@ -118,7 +123,7 @@ jobs:
 
 
       - name: Send error notification
-        if: github.event_name != 'pull_request' && failure()
+        if: ${{ github.event_name != 'pull_request' && failure() && github.event.inputs.tg_disabled == 'false' }}
         run: |
           TG_ESCAPED_VERSION=$(echo "${{ matrix.caches-version }}" | sed 's/_/\\_/g')
           TG_WARN="Error: ${TG_ESCAPED_VERSION}\n"
@@ -134,7 +139,7 @@ jobs:
     if: always()
     steps:
       - name: Send completion summary
-        if: env.TG_ENABLE == 'true'
+        if: ${{ github.event.inputs.tg_disabled == 'false' }}
         run: |
           START_TIME=${{ needs.notify-begin.outputs.start_time }}
           END_TIME=$(date -u +%s)
