@@ -6,6 +6,22 @@ on:
     # 01:15 PST / Nightly
     - cron:  '15 09 * * *'
   workflow_dispatch:
+    inputs:
+      tg_disabled:
+        type: boolean
+        description: 'Disable Telegram notifications'
+        required: false
+        default: false
+      graph_enabled:
+        type: boolean
+        description: 'Enable build time graph'
+        required: false
+        default: false
+      teacup_only:
+        type: boolean
+        description: 'Only build teacup profile '
+        required: false
+        default: false
 
 env:
   TAG_NAME: firmware
@@ -15,7 +31,6 @@ env:
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
   TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_BUILD}}
   TG_OPTIONS: -s
-  TG_ENABLE: true
 
 jobs:
   notify-begin:
@@ -27,7 +42,7 @@ jobs:
         id: set_output
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
       - name: Send build start notifcation
-        if: env.TG_ENABLE== 'true'
+        if: ${{ github.event.inputs.tg_disabled == 'false' }}
         run: |
           TG_MSG="Firmware build started:\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
           TG_ICON="\xF0\x9F\x9A\xA6 GitHub Actions"
@@ -49,7 +64,11 @@ jobs:
       - name: Generate matrix
         id: set-matrix
         run: |
-          CONFIGS=$(find configs/{cameras,modules}/ -type f | grep -v 't23' | sort | awk -F '/' '{print $(NF)}' | sed 's/_defconfig$//' | awk NF)
+          if [[ "${{ github.event.inputs.teacup_only }}" == 'true' ]]; then
+            CONFIGS=$(find configs/{cameras,modules}/ -type f | grep -v 't23' | sort | awk -F '/' '{print $(NF)}' | sed 's/_defconfig$//' | awk NF | grep 'teacup')
+          else
+            CONFIGS=$(find configs/{cameras,modules}/ -type f | grep -v 't23' | sort | awk -F '/' '{print $(NF)}' | sed 's/_defconfig$//' | awk NF)
+          fi
           JSON_MATRIX="{\"thingino-version\": ["
           for CONFIG in $CONFIGS; do
             JSON_MATRIX+="\"${CONFIG}\","
@@ -96,9 +115,9 @@ jobs:
         if: always()
         with:
           path: /tmp/ccache
-          key: ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ github.sha }}
+          key: ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
           restore-keys: |
-            ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-
+            ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-
 
       - name: Setup buildroot download directory cache
         uses: actions/cache@v4
@@ -128,7 +147,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          sudo apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail gcc gcc-mipsel-linux-gnu lzop u-boot-tools ca-certificates ccache
+          sudo apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail gcc gcc-mipsel-linux-gnu lzop u-boot-tools ca-certificates ccache python3-numpy python3-matplotlib
 
       - name: Install GCC13 dependencies
         run: |
@@ -140,6 +159,11 @@ jobs:
 
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
+
+      - name: Generate build graphs
+        if: ${{ github.event.inputs.graph_enabled == 'true' }}
+        run: |
+          BOARD=${{ matrix.thingino-version }} make br-graph-build
 
       - name: Prepare full image
         run: |
@@ -169,6 +193,14 @@ jobs:
             echo "Matching .bin files not found."
             exit 1
           fi
+
+      - name: Upload duration graph as artifact
+        if: ${{ github.event.inputs.graph_enabled == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.thingino-version }}-build.hist-duration
+          path: |
+            ~/output/${{ matrix.thingino-version }}/graphs/build.hist-duration.pdf
 
       - name: Upload full firmware as artifact
         uses: actions/upload-artifact@v4
@@ -201,7 +233,7 @@ jobs:
             ${{ env.UPDATE_FW }}
 
       - name: Send firmware completion notifications with binaries
-        if: github.event_name != 'pull_request' && (env.FULL_FW || env.UPDATE_FW) && env.TG_ENABLE == 'true'
+        if: ${{ github.event.inputs.tg_disabled == 'false' && (env.FULL_FW || env.UPDATE_FW) }}
         run: |
           if [ -n "${{ env.FULL_FW }}" ]; then
             TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
@@ -218,7 +250,7 @@ jobs:
           fi
 
       - name: Send error notification
-        if: github.event_name != 'pull_request' && failure()
+        if: ${{ github.event.inputs.tg_disabled == 'false' && failure() }}
         run: |
           TG_ESCAPED_VERSION=$(echo "${{ matrix.thingino-version }}" | sed 's/_/\\_/g')
           TG_WARN="Error: ${TG_ESCAPED_VERSION}\n"
@@ -234,7 +266,7 @@ jobs:
     if: always()
     steps:
       - name: Send completion summary
-        if: env.TG_ENABLE == 'true'
+        if: ${{ github.event.inputs.tg_disabled == 'false' }}
         run: |
           START_TIME=${{ needs.notify-begin.outputs.start_time }}
           END_TIME=$(date -u +%s)
