@@ -140,4 +140,16 @@ if BR2_AUDIO
 		  This setting is only active if audio is enabled.
 endif
 
+choice
+	prompt "PWM Support"
+	default BR2_PWM_DISABLE
+	help
+	  Enable or Disable PWM support
+
+	config BR2_PWM_ENABLE
+		bool "Enabled"
+	config BR2_PWM_DISABLE
+		bool "Disabled"
+endchoice
+
 endmenu
