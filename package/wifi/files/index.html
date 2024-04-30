@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width,initial-scale=1" name="viewport">
+<title>Thingino Wireless Network Configuration</title>
+<style>
+body {font-family:sans-serif;text-align:center;padding:1vh;background:rgb(33, 37, 41);color:rgb(222, 226, 230)}
+h1{font-weight:400;font-size:5em;margin:4rem 0 2rem}
+h1 span{color:#f80}
+h2{font-weight:400;font-size:2rem}
+input{display:block;font-size:2rem;padding:0.75rem 1rem;margin:2rem auto;border:none;border-radius:0.75rem;max-width:90%}
+input[type="submit"]{background:#f80}
+</style>
+</head>
+<body>
+<main>
+<h1>th<span>ing</span>ino</h1>
+<h2>Wireless Network Credentials</h2>
+<form action="/cgi-bin/update.cgi" method="post">
+<input type="text" name="ssid" placeholder="Network SSID">
+<input type="password" name="password" placeholder="Network Password">
+<input type="submit" value="Save Credentials">
+</form>
+</main>
+</body>
+</html>
