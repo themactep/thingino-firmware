@@ -1,6 +1,6 @@
 # MODULE: t31l_sc3336_rtl8188fu_defconfig
 FLASH_SIZE_16=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/dekco-dc5l-t31l-rtl8188fu.uenv.txt"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/dekco-dc5l.uenv.txt"
 BR2_PACKAGE_MOSQUITTO=y
 BR2_PACKAGE_MOTORS=y
 BR2_ISP_PARAMS="isp_ch0_pre_dequeue_time=24 isp_ch0_pre_dequeue_interrupt_process=0 isp_memopt=1"
