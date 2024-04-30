@@ -29,7 +29,7 @@ on:
         default: false
 
 env:
-  TAG_NAME: module_firmware
+  TAG_NAME: module
   UPD_TAG_NAME: module_update
   TERM: linux
   BR2_DL_DIR: /tmp/dl
