@@ -3,15 +3,15 @@
 ENV_TXT="/etc/uenv.txt"
 
 start () {
-	echo -n "Check ENV: "
+	echo -n "U-Boot ENV: "
 
 	boot_status=$(fw_printenv -n boot_complete)
-	if [ -f "$ENV_TXT" ] && [ "false" = "$boot_status" ]; then
+	if [ -f "$ENV_TXT" ] && { [ "$boot_status" = "false" ] || [ -z "$boot_status" ]; }; then
 			ENV_TMP=$(mktemp)
 			sed 's/=/ /' $ENV_TXT >$ENV_TMP
 			fw_setenv -s $ENV_TMP
 			fw_setenv boot_complete true
-			echo "ENV updated. Rebooting now..."
+			echo "U-Boot ENV updated. Rebooting now..."
 			reboot
 	else
 			echo "OK"
