@@ -2,11 +2,13 @@
 # Stop all init scripts in /etc/init.d
 # executing them in reversed numerical order.
 
-for i in $(ls -r /etc/init.d/S??*); do
+for prefix in K S; do
+	for i in $(ls -r /etc/init.d/${prefix}??* 2>/dev/null); do
 	# Ignore dangling symlinks (if any).
 	[ ! -f "$i" ] && continue
 
 	/bin/sh -c "$i stop" 2>&1 | tee >(logger -t $i)
+	done
 done
 
 exit 0
