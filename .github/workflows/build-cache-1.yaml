@@ -10,6 +10,11 @@ on:
         description: 'Disable Telegram notifications'
         required: false
         default: false
+      tg_scratch:
+        type: boolean
+        description: 'Use TG scratch channel'
+        required: false
+        default: false
 
 env:
   TAG_NAME: update_cache
@@ -17,6 +22,7 @@ env:
   BR2_DL_DIR: /tmp/dl
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
   TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_BUILD}}
+  TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
   TG_OPTIONS: -s -o /dev/null -w %{http_code}
 
 jobs:
@@ -31,6 +37,9 @@ jobs:
       - name: Send build start notifcation
         if: ${{ github.event.inputs.tg_disabled == 'false' }}
         run: |
+          if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
+            TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+          fi
           TG_MSG="Buildroot cache update started:\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
           TG_ICON="\xF0\x9F\x9A\xA6 GitHub Actions"
           TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
@@ -114,6 +123,9 @@ jobs:
       - name: Send completion notification with job link
         if: ${{ github.event_name != 'pull_request' && env.INGTC && github.event.inputs.tg_disabled == 'false' }}
         run: |
+          if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
+            TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+          fi
           TG_ESCAPED_VERSION=$(echo "${{ matrix.caches-version }}" | sed 's/_/\\_/g')
           TG_MSG="${TG_ESCAPED_VERSION}\nCommit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }})\n\n"
           TG_ICON="\xE2\x9C\x85 GitHub Actions"
@@ -125,6 +137,9 @@ jobs:
       - name: Send error notification
         if: ${{ github.event_name != 'pull_request' && failure() && github.event.inputs.tg_disabled == 'false' }}
         run: |
+          if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
+            TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+          fi
           TG_ESCAPED_VERSION=$(echo "${{ matrix.caches-version }}" | sed 's/_/\\_/g')
           TG_WARN="Error: ${TG_ESCAPED_VERSION}\n"
           TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
@@ -141,6 +156,9 @@ jobs:
       - name: Send completion summary
         if: ${{ github.event.inputs.tg_disabled == 'false' }}
         run: |
+          if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
+            TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+          fi
           START_TIME=${{ needs.notify-begin.outputs.start_time }}
           END_TIME=$(date -u +%s)
           ELAPSED=$((END_TIME - START_TIME))
