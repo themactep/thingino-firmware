@@ -3,8 +3,15 @@
 DAEMON="httpd"
 PIDFILE="/var/run/$DAEMON.pid"
 CONFFILE="/etc/httpd.conf"
+PORTAL_CONFFILE="/etc/httpd-portal.conf"
+ssid="$(fw_printenv -n wlanssid)"
+pass="$(fw_printenv -n wlanpass)"
 
-HTTPD_ARGS="-f -c $CONFFILE -r Authentication"
+if ([ -z "$ssid" ] || [ -z "$pass" ]) && ip link show wlan0 &>/dev/null; then
+    HTTPD_ARGS="-f -c $PORTAL_CONFFILE"
+else
+    HTTPD_ARGS="-f -c $CONFFILE -r Authentication"
+fi
 
 start() {
 	printf 'Starting %s: ' "$DAEMON"
