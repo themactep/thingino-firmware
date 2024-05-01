@@ -10,8 +10,14 @@ start() {
 	ssid="$(fw_printenv -n wlanssid)"
 	pass="$(fw_printenv -n wlanpass)"
 
+	if ! ip link show wlan0 &>/dev/null; then
+		echo "Interface 'wlan0' does not exist."
+		exit 1
+	fi
+
 	if [ -z "$ssid" ] || [ -z "$pass" ]; then
 		echo "WiFi credentials missing"
+		sed -i '/^auto wlan0$/s/^/#/' /etc/network/interfaces.d/wlan0
 		exit 0
 	fi
 
@@ -33,6 +39,8 @@ start() {
 	if [ ! -f "$CONFIG" ] || [ ${#pass} -lt 64 ] || ssid_changed; then
 		generate_wpa_supplicant_conf
 	fi
+
+	sed -i '/^#auto wlan0$/s/^#//' /etc/network/interfaces.d/wlan0
 
 	start-stop-daemon -S -x /sbin/$DAEMON -- -i $IFACE -c $CONFIG -P $PIDFILE -B 2>&1 | logger -t $0
 	[ $? = 0 ] && echo "OK" || echo "FAIL"
