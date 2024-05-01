@@ -1,8 +1,7 @@
-THINGINO_PORTAL_VERSION = 1.0
-
 define THINGINO_PORTAL_INSTALL_TARGET_CMDS
-    $(INSTALL) -D -m 0644 $(@D)/files/udhcpd.conf $(TARGET_DIR)/etc/udhcpd.conf
-    $(INSTALL) -D -m 0644 $(@D)/files/wpa_ap.conf $(TARGET_DIR)/etc/wpa_ap.conf
+    $(INSTALL) -D -m 0644 $(THINGINO_PORTAL_PKGDIR)/files/udhcpd.conf $(TARGET_DIR)/etc/udhcpd.conf
+    $(INSTALL) -D -m 0644 $(THINGINO_PORTAL_PKGDIR)/files/wpa_ap.conf $(TARGET_DIR)/etc/wpa_ap.conf
+    $(INSTALL) -D -m 0755 $(THINGINO_PORTAL_PKGDIR)/files/S37portal $(TARGET_DIR)/etc/init.d/S37portal
 endef
 
 $(eval $(generic-package))

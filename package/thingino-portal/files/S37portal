@@ -1,6 +1,6 @@
 #!/bin/sh
 
-ENABLE=true
+ENABLE=false
 HOST_IP=172.16.0
 
 init_portal() {
