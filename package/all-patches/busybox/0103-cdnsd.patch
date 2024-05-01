@@ -1,5 +1,5 @@
---- busybox-1.36.1/networking/cdnsd.c	2024-04-30 20:22:36.098932315 -0700
-+++ /home/aag/output/wyze_c3_t31x_rtl/build/busybox-1.36.1/networking/cdnsd.c	2024-04-30 22:22:49.205193486 -0700
+--- a/networking/cdnsd.c	2024-04-30 20:22:36.098932315 -0700
++++ b/networking/cdnsd.c	2024-04-30 22:22:49.205193486 -0700
 @@ -0,0 +1,503 @@
 +/* vi: set sw=4 ts=4: */
 +/*
