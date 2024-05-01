@@ -1,13 +1,13 @@
 #!/bin/sh
 
-ENABLE=false
+ENABLE=true
 HOST_IP=172.16.0
 
 ssid="$(fw_printenv -n wlanssid)"
 pass="$(fw_printenv -n wlanpass)"
 
 timeout(){
-	sleep 300 && /etc/init.d/S41portal stop #&& reboot
+	sleep 300 && /etc/init.d/S41portal stop
 }
 
 if ! ip link show wlan0 &>/dev/null; then
