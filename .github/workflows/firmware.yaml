@@ -1,5 +1,3 @@
-# "Imitation is the sincerest form of flattery that mediocrity can pay to greatness."
-
 name: firmware
 on:
   schedule:
@@ -24,7 +22,7 @@ on:
         default: false
       teacup_only:
         type: boolean
-        description: 'Only build teacup profile '
+        description: 'Only build Tea Cup profile '
         required: false
         default: false
 
@@ -128,7 +126,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-
 
-      - name: Setup buildroot download directory cache
+      - name: Setup BR2_DL_DIR cache
         uses: actions/cache@v4
         if: always()
         with:
@@ -150,7 +148,7 @@ jobs:
           Pin-Priority: 100
           EOF
 
-      - name: Update system sources
+      - name: Update APT sources
         run: |
           sudo apt-get update
 
@@ -182,7 +180,7 @@ jobs:
         run: |
           BOARD=${{ matrix.thingino-version }} make pack_update
 
-      - name: Rename and set environment for firmware files
+      - name: Set environment for firmware files
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
           PATTERN="thingino-${DYNAMIC_PART}-*.bin"
