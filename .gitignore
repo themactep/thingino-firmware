@@ -11,3 +11,4 @@ configs/fragments/local.fragment
 /local.mk
 /.bootstrapped
 /.settings/
+/environment/@local.uenv.txt

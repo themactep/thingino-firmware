@@ -10,5 +10,3 @@ day_night_max=15000
 enable_updates=true
 disable_eth=true
 wlandev=atbm6012b
-wlanssid=thingino
-wlanpass=thingino

@@ -17,5 +17,3 @@ day_night_max=15000
 osmem=42M@0x0
 rmem=22M@0x2a00000
 wlandev=8188fu
-wlanssid=thingino
-wlanpass=thingino

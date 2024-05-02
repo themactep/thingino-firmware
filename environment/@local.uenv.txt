@@ -1,0 +1,4 @@
+## enviroment settings for local compilation
+## lines starting with # will be ignored
+# wlanssid=thingino
+# wlanpass=thingino

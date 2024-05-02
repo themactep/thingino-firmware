@@ -14,5 +14,3 @@ rmem=22016K@0x2A80000
 enable_updates=true
 disable_eth=true
 wlandev=atbm6031
-wlanssid=thingino
-wlanpass=thingino

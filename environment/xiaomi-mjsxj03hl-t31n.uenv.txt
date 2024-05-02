@@ -11,5 +11,3 @@ enable_updates=true
 osmem=40M@0x0
 rmem=24M@0x2800000
 wlandev=8189fs
-wlanssid=thingino
-wlanpass=thingino
