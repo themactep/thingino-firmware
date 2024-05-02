@@ -56,6 +56,8 @@ FIGLET := $(shell command -v figlet) -t -f pagga
 endif
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
+U_BOOT_ENV_LOCAL_TXT := $(BR2_EXTERNAL)/environment/@local.uenv.txt
+U_BOOT_ENV_FINAL_TXT := $(OUTPUT_DIR)/env.txt
 U_BOOT_BIN  = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL_LESS_Z).bin
 U_BOOT_ENV_BIN := $(OUTPUT_DIR)/images/uenv.bin
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
@@ -335,7 +337,11 @@ $(U_BOOT_ENV_BIN):
 	$(info -------------------> $(U_BOOT_ENV_BIN))
 ifneq ($(U_BOOT_ENV_TXT),)
 	if [ -f "$(U_BOOT_ENV_TXT)" ]; then \
-	$(SCRIPTS_DIR)/mkenvimage -s 0x10000 -o $@ $(U_BOOT_ENV_TXT); \
+	cat $(U_BOOT_ENV_TXT) > $(U_BOOT_ENV_FINAL_TXT); \
+	if [ -f "$(U_BOOT_ENV_LOCAL_TXT)" ]; then \
+	grep -v '^#' $(U_BOOT_ENV_LOCAL_TXT) >> $(U_BOOT_ENV_FINAL_TXT); \
+	fi; \
+	$(SCRIPTS_DIR)/mkenvimage -s 0x10000 -o $@ $(U_BOOT_ENV_FINAL_TXT); \
 	fi
 endif
 

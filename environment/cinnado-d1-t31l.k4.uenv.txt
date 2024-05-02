@@ -12,5 +12,3 @@ day_night_min=5000
 day_night_max=15000
 disable_eth=true
 wlandev=atbm6031
-wlanssid=thingino
-wlanpass=thingino

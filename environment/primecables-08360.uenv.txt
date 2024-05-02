@@ -7,5 +7,3 @@ day_night_max=15000
 enable_updates=true
 disable_eth=true
 wlandev=8188fu
-wlanssid=thingino
-wlanpass=thingino

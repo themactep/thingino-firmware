@@ -14,5 +14,3 @@ osmem=94M@0x0
 rmem=22M@0x5E00000
 ispmem=11M@0x7400000
 wlandev=8189fs
-wlanssid=thingino
-wlanpass=thingino

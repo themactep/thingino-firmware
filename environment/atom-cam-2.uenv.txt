@@ -8,7 +8,5 @@ gpio_ircut=53 52
 gpio_ir850=26
 gpio_speaker=63
 wlandev=atbm6031
-wlanssid=thingino
-wlanpass=thingino
 disable_eth=true
 enable_updates=true
