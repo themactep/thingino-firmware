@@ -41,6 +41,8 @@ start() {
 	[ -z "$motors_app" ] && die "DISABLED\n\tNo motors app found"
 	[ -z "$gpio_motor_h" ] && die "DISABLED\n\tPan motor GPIO are not set"
 	[ -z "$gpio_motor_v" ] && die "DISABLED\n\tTilt motor GPIO are not set"
+	[ -z "$motor_h_maxstep" ] && die "DISABLED\n\tPan motor Steps are not set"
+	[ -z "$motor_v_maxstep" ] && die "DISABLED\n\tTilt motor Steps are not set"
 
 	# Set GPIO per motor phase
 	set_motor_phases "h" "$gpio_motor_h"
