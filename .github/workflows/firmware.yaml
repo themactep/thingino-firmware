@@ -2,7 +2,7 @@ name: firmware
 on:
   schedule:
     # 01:15 PST / Nightly
-    - cron:  '15 09 * * *'
+    - cron:  '15 9 * * *'
   workflow_dispatch:
     inputs:
       tg_disabled:
@@ -41,12 +41,19 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       start_time: ${{ steps.set_output.outputs.time }}
+      tg_disabled: ${{ steps.set_env.outputs.tg_disabled }}
     steps:
       - name: Save workflow start time
         id: set_output
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
+
+      - name: Setup Notify Environment
+        run: |
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+          echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
+
       - name: Send build start notifcation
-        if: ${{ github.event.inputs.tg_disabled == 'false' }}
+        if: env.TG_DISABLED == 'false'
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
@@ -86,7 +93,7 @@ jobs:
 
   buildroot:
     name: ${{ matrix.thingino-version }}
-    needs: generate-matrix
+    needs: [generate-matrix, notify-begin]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -109,6 +116,7 @@ jobs:
           export GIT_BRANCH=${GITHUB_REF_NAME}
           echo "GIT_HASH=${GIT_HASH}" >> ${GITHUB_ENV}
           echo "GIT_BRANCH=${GIT_BRANCH}" >> ${GITHUB_ENV}
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
 
       - name: Setup cache directories
         run: |
@@ -240,7 +248,7 @@ jobs:
             ${{ env.UPDATE_FW }}
 
       - name: Send firmware completion notifications with binaries
-        if: ${{ github.event.inputs.tg_disabled == 'false' && (env.FULL_FW || env.UPDATE_FW) }}
+        if: ${{ env.TG_DISABLED == 'false' && (env.FULL_FW || env.UPDATE_FW) }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
@@ -260,7 +268,7 @@ jobs:
           fi
 
       - name: Send error notification
-        if: ${{ github.event.inputs.tg_disabled == 'false' && failure() }}
+        if: ${{ env.TG_DISABLED == 'false' && failure() }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
@@ -278,8 +286,12 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
+      - name: Setup Environment
+        run: |
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+
       - name: Send completion summary
-        if: ${{ github.event.inputs.tg_disabled == 'false' }}
+        if: ${{ env.TG_DISABLED == 'false' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
