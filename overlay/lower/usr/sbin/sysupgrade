@@ -87,8 +87,17 @@ if ! grep -q "$mtd_dev" /proc/mtd; then
 fi
 
 echo "Stopping services"
-/etc/init.d/S95prudynt stop
+/etc/init.d/S01syslogd stop
+/etc/init.d/S21rngd stop
+/etc/init.d/S49ntpd stop
+/etc/init.d/S50httpd stop
+/etc/init.d/S60crond stop
 /etc/init.d/S93telegrambot stop
+/etc/init.d/S95prudynt stop
+
+rm -f /tmp/snapshot.jpg
+
+echo 3 > /proc/sys/vm/drop_caches;sync
 
 echo "Erasing overlay"
 flash_eraseall -j /dev/mtd4
