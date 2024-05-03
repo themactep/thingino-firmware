@@ -18,20 +18,20 @@ if ! grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline; then
 		mtdchrdev=$(grep 'rootfs_data' /proc/mtd | cut -d: -f1)
 
 		if [ "$(xxd -l 2 -p /dev/${mtdblkdev})" != "8519" ]; then
-			echo "Invalid JFFS2 header, or /dev/${mtdblkdev} is not formatted as JFFS2."
+			echo "Init: Invalid JFFS2 header, or /dev/${mtdblkdev} is not formatted as JFFS2. Formatting Overlay partition..."
 			flash_eraseall -j /dev/${mtdchrdev}
-			echo "Reformatting done. Attempting to remount..."
+			echo "Init: Overlay formatting done. Attempting to remount..."
 		fi
 
 		if mount -t jffs2 /dev/${mtdblkdev} /overlay; then
-			echo "JFFS2 filesystem mounted successfully."
+			echo "Init: Overlay mounted as JFFS2 successfully."
 		else
-			echo "Failed to mount JFFS2, trying fallback to tmpfs..."
+			echo "Init: Failed to mount Overlay as JFFS2, fallback to tmpfs..."
 			mount -t tmpfs tmpfs /overlay || exit
 		fi
 
 		if ! cat /proc/mounts | grep -q ${mtdblkdev}; then
-			echo "ERROR: Unable to mount overlay, using tmpfs..."
+			echo "Init: ERROR: Unable to mount Overlay!"
 			exit 1
 		fi
 	fi
