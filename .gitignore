@@ -12,3 +12,4 @@ configs/fragments/local.fragment
 /.bootstrapped
 /.settings/
 /environment/@local.uenv.txt
+/.prereqs.done
