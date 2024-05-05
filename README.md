@@ -1,6 +1,6 @@
 ![Thingino Logo](https://thingino.com/a/logo.svg)
 
-Thingino is an open-source IP camera firmware derived from [OpenIPC][1] and focused on Ingenic SoC.
+Thingino is an open-source IP camera firmware focused on Ingenic SoC.
 
 ### Usage
 
@@ -20,7 +20,7 @@ git submodule update --remote --merge
 
 - Project [Wiki][0]
 - Buildroot Manual [HTML][2] [PDF][3]
-- [OpenIPC Firmware][1]
+- [Official Discord channel][3]
 
 ### GitHub CI Status
 
@@ -29,6 +29,6 @@ git submodule update --remote --merge
 
 
 [0]: https://github.com/themactep/thingino-firmware/wiki
-[1]: https://github.com/OpenIPC/firmware
-[2]: https://buildroot.org/downloads/manual/manual.html
-[3]: https://nightly.buildroot.org/manual.pdf
+[1]: https://buildroot.org/downloads/manual/manual.html
+[2]: https://nightly.buildroot.org/manual.pdf
+[3]: https://discord.gg/xDmqS944zr
