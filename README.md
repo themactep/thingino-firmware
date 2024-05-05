@@ -19,8 +19,8 @@ git submodule update --remote --merge
 ### Resources
 
 - Project [Wiki][0]
-- Buildroot Manual [HTML][2] [PDF][3]
-- [Official Discord channel][3]
+- Buildroot Manual [HTML][1] [PDF][2]
+- Official [Discord channel][3]
 
 ### GitHub CI Status
 
