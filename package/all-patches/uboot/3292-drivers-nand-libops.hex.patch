@@ -1,171 +1,0 @@
-
---- a/drivers/nand/libops.hex	1969-12-31 19:00:00.000000000 -0500
-+++ b/drivers/nand/libops.hex	2023-07-26 11:31:38.000000000 -0400
-@@ -0,0 +1,167 @@
-+!<arch>
-+/               1426488050  0     0     0       1044      `
-+,˙
-+hynix_extend_command.o/
-+micron_extend_command.o/
-+micron_2_extend_command.o/
-+samsung_extend_command.o/
-+memorydealer.o/ 1426488048  1010  1001  100644  7048      `
-+ELF@P4(<ú'!‡ôÉådåbå! §*D@‡ˇΩ'ÇèºØøØBåB(@ôèˇˇbå#(Öd¨‡!EÑèÖèÑ$•$	¯ 3$ºèôè	¯ Óˇ<ú'!‡ôl†ä$»ˇΩ'∞ØºØ∞$4øØ0∂Ø,µØ(¥Ø$≥Ø ≤Ø±Ø•$*ååÄ¢åäÉÄˇ<!êÄ∆0!Ä!à<ˇˇ•4L¿¯ˇI$¯ˇHå#@ˇ1¸ˇCå!@$8e$k
-+`*@Ë
-+%s %d not support free function!
-+ContinueMemory from %p to %p size = %d
-+dealer = %p dealer->zmid = 0x%08x
-+heap: %d size = %d
-+%s %d %s
-+%s %d %s addr:%p  dealer->heapsize = %d
-+no free start = 0x%08x
-+memory no enough
-+Ndd_DeinitContinueMemoryNdd_DeallocateGCC: (Ingenic 2014.05) 4.7.2Agnu.symtab.strtab.shstrtab.rel.text.data.bss.reginfo.rel.pdr.mdebug.abi32.rodata.str1.4.rodata.comment.gnu.attributes@
-+	@êà%0+00p0=H¿9	@pBP2X_`0g0êpıˇˇoÆæÄ¿	–øÒˇ	îî‹pd%
-+7
-+I
-+U	Z	_8	dp	i‡
-+nT
-+$åx
-+$úú
-+$Æ¿
-+$memorydealer.cd_allocallocd_free__FUNCTION__.1341__FUNCTION__.1363g_nand_heap$LC0$LC1$LC2$LC3$LC6$LC4$LC5$LC7$LC8$LC9$LC10_gp_disputils_dbg_level__ndprintnd_dump_stackNdd_NewUnitNdd_InitContinueMemoryNdd_InitMemoryNdd_DeinitContinueMemoryNdd_AllocateNdd_PageAllocateNdd_DeallocateNdd_DeleteUnitNdd_MemoryInitNdd_InitNdd_MemoryDeinitNdd_VirtualAllocNdd_NewUnitsNdd_VirtualFreeNdd_ContinueAllocNdd_ContinueFree,	Dd	lh	pt%Ä Ñ% îò†!§%!l!p%!¸	 	$(%ptÄ	¨§	∞®	¥∏%» Ã% ‘ÿË	D	L`#T	då%#‹!‡%!hd	lp%ÑÄ	àî%®§	¨¥%ƒ»‘	¯	¸		%$ (% 04<	HX%àåî	†∞%‡‰,	(%(T(l%(Ä	¿	‰‘	Ï‡	ÿ	¯%¸	ê			%0	 4	% D	H	x		§		∞	»	"–	‘	%"‰	*Ë	ƒ		Ï	%*¸	
-+
-+	
-+% 
-+(
-+ ,
-+% T
-+X
-+`
-+	h
-+l
-+-p
-+%-x
-+|
-+Ñ
-+	å
-+ê
-+(î
-+%(ú
-+†
-+®
-+	∞
-+¥
-+%∏
-+%%¿
-+ƒ
-+Ã
-+	‘
-+ÿ
-+'‹
-+%' @`"Ä$†%¿&‡
-+ELFP4(<ú'!‡ôôè ! †<ú'!‡ôôè ! †Ç$C(Ñ$ÉÉˇ∆$!†! ¿Ä(!Ä# ÉÖÙ†8„$>Ë$i(	HßpCÄ@!8(*8«
-+tC°!»†!P!p!(KÄ!¿#èCm@y	!< •$*0∞¿B$;KHHˆˇ@$H#¯ˇ *0∞$*0∞!pO
-+$Ùˇ¿B$÷ˇÕC2é(“qÙˇ„åÄ!ê£Œ1Œˇ!®¢!•é»%£Œ%B$À£Æµ&!pˆˇP‚å¬ˇ@p@1Ä5&B&PÆBÆPÆ4øè0µè,¥è(≥è$≤è ±è∞è‡8Ω'!(ƒˇ!P!P!('∑ˇ9's2#p!E°ˇ@üˇ`@¡#è	!J •$*0∞øˇ¿B$îˇSHHˆˇ@$H#¯ˇ *0∞!pX
-+$Ûˇ$3ébéÕˇ@s&ÙˇCå`Tå»ˇÄ!ò@!ÄÙˇCå˚ˇ`TåÄ˘ˇ@`ÙˇE$
-+S!`få¿!¿få¸ˇFBåb¨9é	¯ ! †Ëˇ!Ä¨ˇ@`ÙˇE$b9é	¯ $&§ˇB&˙ˇ`!ò`cé¸ˇbBåbÆ9é	¯ $&òˇB&!(∂ˇ!P!ê‡
-+„
-+top = %p usize = %d minreqsize = %d
-+z = %p z->memadpt.alloc = %p
-+free address error address expected v[%p] 0x%08x but %p
-+free count error count expected %d but %d
-+not find address %p
-+GCC: (Ingenic 2014.05) 4.7.2Agnu.symtab.strtab.shstrtab.rel.text.data.bss.reginfo.rel.pdr.mdebug.abi32.rodata.str1.4.comment.gnu.attributes@‡		@p`% 
-++ 
-+0p 
-+=8
-+@9	@–PBxP2xË
-+OXi{–äö§Ë≠h∫l∆
-+Ï	
-+8%<
-+hd	lt%êå	ú†%∞	ƒ	∏¿	ƒ–‘%ËÏÙ¸%–	‹‡%lpx|%Ñà∏			D	XT	\%`hl%	,			%		%(		,	4	%@	D	%T	X	`	d	% @`Ä†¿‡
-+ELF†	P4(`$Ç†Ç†äåâå˛ˇ<ˇc$«ˇ$¸<$(®ˇˇB4$PC$H#¸<´4Ö¨Ö¨$PB•è$H"%PH%H(0$å†ä¨á¨â¨Ö¨ã¨≈îÜåˇ•0*$√
-+)2@Ã
-+ELFê
-+P4(2$Ç†Ä†Ä†ååäåàå˛ˇ<ˇc$«ˇ	$¸<$(©ˇˇB4$PC$@$`Éˇ<$p$hBÖ¨™4Ö¨ˇˇk5•è¸	<$`Çˇˇ$$`ã%h©$XÀ0$(é†å¨á¨ä¨ç¨à¨ã¨ Ö¨$ä¨≈î(Üåˇ•0*$√
-+&
-+i¿∞	pXÒˇ–
-+*3AÃ
-+ELF@
-+P4(0$Ç†Ä†Ä†äåâåàå˛ˇ<ˇc$«ˇ$¸<$(¶ˇˇB4$H#$@ˇ<$C$@ˇˇ∆4$H"$b¢è$H&$0¸<™4%hÇ¨ˇˇ$ Ç¨Ö¨â¨á¨Ö¨Ü¨ä¨É¨‡$«ˇ$$(¢$Ç†Ö¨…îàå˛ˇ<ˇc$ˇ)1J	$@¸<ˇˇB4%@	ˇ	<$@ˇˇ)5$@	‡ˇ	$â†à¨á¨Ö¨≈îÜåˇ•0*$√
-+,5CúÃ
-+ELF†	P4(`$Ç†Ç†äåâå˛ˇ<ˇc$«ˇ$¸<$(®ˇˇB4$PC$H#¸<´4Ö¨Ö¨$PB•è$H"%PH%H(0$å†ä¨á¨â¨Ö¨ã¨≈îÜåˇ•0*$√
-++4BÃ
-+ELF P4(Ä†àå˛ˇ<ˇc$«ˇ	$¸<$(©ˇˇB4$@ˇˇÁ0ˇ	<$@ˇˇ)5B:Ö¨Ä>$@	©4•è%@0$á†à¨Ö¨â¨≈îÜåˇ•0*$√
-+sorry! we don't have been supported the extend command about the manufacturer.
-+please change TWO_PLANES to ONE_PLANE in board.
-+nand_extendcommand_initGCC: (Ingenic 2014.05) 4.7.2Agnu.symtab.strtab.shstrtab.rel.text.data.bss.reginfo.rel.pdr.mdebug.abi32.rodata.str1.4.rodata.comment.gnu.attributes@P	@p%ê+ê0pê=®9	@`ÄB®	P2®	§_P
-+ g0p
-+pıˇˇoé
-+û
-+Ä†Ä	 OÒˇ	
-+
-+	#ú3ú|FO]òx∞|ñ,t≠†H«
-+ELFÿmP4(ÉåÇå«å@Cpâå8q®å™åÙ‡
-+‡$‡˚ˇ$‡˙ˇ$<ú'!‡ô†ôèÿˇΩ'p9' ±Ø∞Ø!àÄºØ!Ä†$øØ	¯ ! ¿)!  !(%ÉåÑ$˝ˇÖb¨$øè ±è∞è(Ω'‡<ú'!‡ô∞ˇΩ'0≤Ø¯ˇ$$ê≤«ˇ$R6$êB$ºØ¢£$LøØHæØD∑Ø@∂Ø<µØ8¥Ø4≥Ø,±Ø(∞Ø¢£ë‡R6ˇˇ‚$ˇˇB0ú‘$w6!Çº!ÄÄ!®¿ ¢Ø!†ºæéôèƒè—ó	¯ ÷óºèÉèjå*Ù@ ÇÄ!ÄÑñÉñ!É}#•'é¶'c0!√
-+|&éÄ8
-+£Øh§s6R2%òo# «πå@í≠5l! !(`!8†,™Ø(¢ØR6	¯ %êM,™è(πè!PJPÍÆd‚é&é)
-+Ä 
-+πØYå$ßè# §! !(@	¯ ,™Ø,™è!8†!PBd‚éPÍÆ
-+Ä 
-+&éYå# §! !(`	¯ ,™Ø,™èºè!BP‚Æ0©èôè&ï@ı&'ï1! †!(`4	9'	¯ !0ÜPÈéd‚é
-+! d!(@!8¿(®Ø$¢Ø÷6	¯ %∞ (®èºè!@HPÆ$™èÄ!Üé# Çôè™Ø! d!(¿(®Ø	¯ !8(®è!8¿!@déPÆ)Ä ÜéYå# §! d!(@	¯ (®Ø(®èºè!PÆ&ñ'ñëè@&4	1&1! ¿!(@!» 	¯ !0¶Pédé)Ä ÜéYå ßè# §! d!(@	¯ (®Ø(®è! ¿!HPÆ,©è!(@&ï'ï1!» 	¯ !0¶ÊñÁñ
-+ßØÉ9Ä s6÷2%òjπå# ‰
-+FéÉßØÄ 9î6s2%†äπå# ‰
-+!Xã!Émçlåtç+∞¨Ïˇ¿såËˇç+∞ìS¨L¨cå%*X»C¨)%Íˇ`*™*™@i
-+a	!hç!ò !`¨¢ç£ç)%Ç≠É≠!I£ç#S*¢É≠≠%Ùˇ@å%`I	Q!Pä!H©BçCç"≠#≠Cç%*»#≠J%ˆˇ@)%!H*)™ˇ@!xÒ#Ê
-+
-+f$G%bÇ†‡!‡ˇˇ$<ú'!‡ôòˇΩ'Ä™èx£èºØB-døØ`æØ\∑ØX∂ØTµØP¥ØL≥ØH≤ØD±Ø@∞Ø •Ø$¶Ø(ßØ@,£ØÇèBåB(z@ôèˇˇ$døè`æè\∑èX∂èTµèP¥èL≥èH≤èD±è@∞è‡hΩ'ÇèÄ
-+B$!CBå!\@!pÄÖåäå8•Ø@4™Ø!!!¿#d!£B$<`¨P`¨¯ˇJ!@≈ç ç|≠è∆
-+D$«ˇ$$d0c4ç
-+çÑÙÄ	çˇˇc0p#P IÙ 
-+$H‰
-+•q(+ ´-Ä%jç#(´§ÙÄn∆êˇ·
-+$$j8&q! ‡
-+@ôèÑèÖèôèÑ$@•$	¯ Ê$ºèôè	¯ ,‰éÿˇºèÖèôèÑ$@•$	¯ “$æˇºèÖèôèÑ$@•$	¯ ‡$»ˇºè<ú'!‡ôÿˇΩ'±ØºØ$øØ ≤Ø∞ØÇå@!àÄíè!!Ä§R&$é¿#C!»@	¯ ! Ç#é&+ºèÙˇ`!ôè	¯ !  ºèôè	¯ $éºèôè	¯ !  ºè$øè ≤è±è∞èôè (Ω'¸ˇˇÛ
-+ERROR(nand_driver): %s(line:%d), "the number of rb per nemc is %d\n", ret = %d !
-+the number of rb per nemc is %d
-+ERROR:%s  startPageID(%d) is too large
-+ERROR(nand_driver): %s(line:%d), goto err_sort_out !
-+ERROR(nand_driver): %s(line:%d), "the length of pagelist is more than apagelist", ret = %d !
-+ERROR(nand_driver): %s(line:%d), "ndd_continuealloc is failed\n", ret = %d !
-+ERROR(nand_driver): %s(line:%d), "mergesort is failed\n", ret = %d !
-+ERROR(nand_driver): %s(line:%d), goto err_gatherpageid_out !
-+ERROR(nand_driver): %s(line:%d), "the planes(%d) is wrong in the struct lib_partition\n", ret = %d !
-+ERROR(nand_driver): %s(line:%d), "sort_pagelist is wrong\n", ret = %d !
-+ERROR(nand_driver): %s(line:%d), "startBlock(%d) is too large", ret = %d !
-+ERROR(nand_driver): %s(line:%d), "the length of blocklist is more than ablocklist", ret = %d !
-+ERROR(nand_driver): %s(line:%d), "sort_blocklist is wrong\n", ret = %d !
-+ERROR(nand_driver): %s(line:%d), "vblockid(%d) is wrong!\n", ret = %d !
-+ERROR(nand_driver): %s(line:%d), "model is wrong\n", ret = %d !
-+ERROR(nand_driver): %s(line:%d), "lib_nandops_init's parameters are wrong!!\n", ret = %d !
-+ERROR(nand_driver): %s(line:%d), goto err_ndd_memoryinit !
-+ERROR(nand_driver): %s(line:%d), goto err_alloc_ops !
-+ERROR(nand_driver): %s(line:%d), goto err_alloc_opsunit !
-+ERROR(nand_driver): %s(line:%d), goto err_unit_init_out1 !
-+ERROR(nand_driver): %s(line:%d), goto err_unit_init_out2 !
-+ERROR(nand_driver): %s(line:%d), goto err_unit_init_out3 !
-+ERROR(nand_driver): %s(line:%d), goto err_unit_init_out4 !
-+ERROR(nand_driver): %s(line:%d), goto err_unit_init_out5 !
-+ERROR(nand_driver): %s(line:%d), goto err_opsunit_init !
-+∞Ù(Pê‰LhKXJ¸K¸K$V@UîUhUhUlib_nandops_creat_tasklib_nandops_readsort_pagelistcreat_gatherpageidmergesortdiv_rb_2planecreate_taskmsgchange_list_to_msglib_nandops_writelib_nandops_erasesort_blocklistnandops_opbadblocklib_nandops_getretlib_nandops_initnandopsunit_initd†‘àƒ¥#p ‡¨@t:x87†5–48FºCÿA$@?GCC: (Ingenic 2014.05) 4.7.2Agnu.symtab.strtab.shstrtab.rel.text.data.bss.reginfo.rel.pdr.mdebug.abi32.rodata.str1.4.rel.rodata.rel.data.rel.local.comment.gnu.attributes@¿^	@ph%_+_0p_=_@9	@ÿóPBXdP2Xdc`k`_	@(ôx
-+o¿lPk	@†ô†0màıˇˇo.m>mò–p–_	†x–Òˇ†#†ú6<hH§x	[pn∏
-+|åLã®
-+ôÿß(∑<»
-+Mò
-+[å
-+
-+ix
-+wƒ2á–4–
-+ì‡
-+°Ã
-+Ø
-+ΩT
-+À<
-+ŸÍ˙
-+@
-+,
-+
-+$	)H	.ú	3X	8Ë
-\ No newline at end of file

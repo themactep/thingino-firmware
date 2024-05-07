@@ -1,8 +1,0 @@
-
---- a/tools/ingenic-tools-fpag/security/Makefile	1969-12-31 19:00:00.000000000 -0500
-+++ b/tools/ingenic-tools-fpag/security/Makefile	2023-07-26 11:31:38.000000000 -0400
-@@ -0,0 +1,4 @@
-+crypy:crypy.c aes.c md5.c sha1_1.c sha1_2.c
-+	gcc crypy.c aes.c md5.c sha1_1.c sha1_2.c rsa.c rsa.h -o crypy
-+clean:
-+	rm result.h aa *.hex crypy -rf
