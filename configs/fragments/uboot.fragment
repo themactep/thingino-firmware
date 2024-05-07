@@ -1,0 +1,11 @@
+BR2_TARGET_UBOOT=y
+BR2_TARGET_UBOOT_CUSTOM_GIT=y
+BR2_TARGET_UBOOT_CUSTOM_REPO_URL="https://github.com/gtxaspec/u-boot-ingenic"
+BR2_TARGET_UBOOT_CUSTOM_REPO_VERSION="master"
+BR2_TARGET_UBOOT_NEEDS_LZOP=y
+# BR2_TARGET_UBOOT_FORMAT_BIN is not set
+BR2_TARGET_UBOOT_FORMAT_CUSTOM=y
+BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="u-boot-lzo-with-spl.bin"
+
+# this must go to either module config or have a fabrica in Config.soc.in
+BR2_TARGET_UBOOT_BOARDNAME="isvp_t31_sfcnor_ddr128M"
