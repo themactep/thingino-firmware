@@ -1,8 +1,0 @@
-
---- a/include/config.mk	2023-01-02 16:15:57.720147155 -0500
-+++ b/include/config.mk	1969-12-31 19:00:00.000000000 -0500
-@@ -1,4 +0,0 @@
--ARCH   = powerpc
--CPU    = mpc512x
--BOARD  = mpc5121ads
--VENDOR = freescale
