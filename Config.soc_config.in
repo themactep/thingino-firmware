@@ -132,16 +132,12 @@ choice
 		bool "Module Internal Clock Source"
 endchoice
 
-menuconfig BR2_AUDIO
-	bool "Audio Configuration"
-if BR2_AUDIO
-	config BR2_AUDIO_GPIO_VALUE
-		int "GPIO Pin for Audio"
-		default 0
-		help
-		  Enter the GPIO pin number used for audio output.
-		  This setting is only active if audio is enabled.
-endif
+config BR2_AUDIO
+	bool "Audio Support"
+	help
+	  Enable audio suport.
+	  The GPIO pin for enabling audio can be specified in the U-Boot environment
+	  using the "gpio_speaker" parameter. If not specified, the default value is "-1".
 
 choice
 	prompt "PWM Support"

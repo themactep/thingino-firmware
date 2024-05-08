@@ -471,13 +471,6 @@ ifeq ($(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES),y)
 	ISP_CH0_PRE_DEQUEUE_VALID_LINES := isp_ch0_pre_dequeue_valid_lines=$(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE)
 endif
 
-AUDIO_GPIO :=
-ifeq ($(BR2_AUDIO),y)
-	AUDIO_GPIO := spk_gpio=$(BR2_AUDIO_GPIO_VALUE)
-else
-	AUDIO_GPIO:= spk_gpio=-1
-endif
-
 ifeq ($(BR2_SOC_INGENIC_T10),y)
 SOC_FAMILY := t10
 SDK_VERSION := 3.12.0
