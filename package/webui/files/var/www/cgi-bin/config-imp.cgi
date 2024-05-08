@@ -76,12 +76,12 @@ check_mirror() {
 %>
 <%in p/header.cgi %>
 
-<div class="row row-cols-4 g-4">
-<div class="col">
+<div class="d-flex justify-content-between flex-wrap">
+<div class="flex-grow-1 me-5" style="flex-basis: 250px;">
 <h3>Video Output</h3>
 <%# field_switch "ispmode" "$icon_moon" %>
-<div class="row">
-<div class="col mb-3">
+<div class="">
+<div class=" mb-3">
 <p class="form-label">Color</p>
 <div class="btn-group d-flex" role="group" aria-label="Night Mode">
 <input type="radio" class="btn-check" name="ispmode" id="ispmode_day" value="0"<% checked_if $ispmode 0 %>>
@@ -90,7 +90,7 @@ check_mirror() {
 <label class="btn btn-outline-primary" for="ispmode_night" title="Night mode"><%= $icon_moon %></label>
 </div>
 </div>
-<div class="col mb-3">
+<div class=" mb-3">
 <p class="form-label">Flip</p>
 <div class="btn-group d-flex" role="group" aria-label="Flip and Mirror">
 <input type="checkbox" class="btn-check" name="flip" id="flip" value="1"<% check_flip %>>
@@ -120,7 +120,7 @@ check_mirror() {
 <% field_range "sinter" "Sinter Strength" "0,255" %>
 <% field_range "temper" "Temper Strength" "0,255" %>
 </div>
-<div class="col">
+<div class="flex-grow-1 me-5" style="flex-basis: 250px;">
 <h3>Video Output</h3>
 <% field_range "aecomp" "AE Compensation" "0,255" %>
 <% field_range "dpc" "DPC Strength" "0,255" %>
@@ -131,19 +131,19 @@ check_mirror() {
 <% field_number "again" "Analog Gain" %>
 <% field_number "dgain" "Digital Gain" %>
 <% field_number "backlightcomp" "Backlight Compensation" %>
-<div class="row">
-<div class="col">
+<div class="">
+<div class="">
 <% field_number "whitebalance_mode" "Mode" %>
 </div>
-<div class="col">
+<div class="">
 <% field_number "whitebalance_rgain" "RGain" %>
 </div>
-<div class="col">
+<div class="">
 <% field_number "whitebalance_bgain" "BGain" %>
 </div>
 </div>
 </div>
-<div class="col">
+<div class="flex-grow-1 me-5" style="flex-basis: 250px;">
 <h3>Audio Input</h3>
 <% field_range "aivol" "Audio Input Volume" "-30,120" %>
 <% field_range "aigain" "Audio Input Gain" "0,31" %>
@@ -157,7 +157,7 @@ check_mirror() {
 <% field_range "aovol" "Audio Output Volume", "-30,120" %>
 <% field_range "aogain" "Audio Output Gain" "0,31" %>
 </div>
-<div class="col">
+<div class="flex-grow-1" style="flex-basis: 250px;">
 <h3>OSD</h3>
 <% group_osd "Date & Time" 0 %>
 <% group_osd "Title" 1 %>
@@ -171,14 +171,12 @@ check_mirror() {
 <p class="mb-0">Please do not forget to save your changes!</p>
 </div>
 
-<div class="row">
-<div class="col-auto me-auto mb-3">
+<div>
+<div class="d-flex justify-content-between mb-3">
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-3">
 <input type="hidden" name="save_changes" value="1">
 <input type="submit" value="Save Changes" class="btn btn-primary">
 </form>
-</div>
-<div class="col-auto mb-3">
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-3">
 <input type="hidden" name="reset_changes" value="1">
 <input type="submit" value="Reset to default" class="btn btn-danger">
