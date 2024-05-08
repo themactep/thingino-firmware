@@ -28,6 +28,9 @@ choice
 	config BR2_ISP_CLK_225MHZ
 		bool "225 MHz"
 		depends on BR2_SOC_FAMILY_INGENIC_T31
+	config BR2_ISP_CLK_250MHZ
+		bool "250 MHz"
+		depends on BR2_SOC_FAMILY_INGENIC_T31
 endchoice
 
 if FALSE
