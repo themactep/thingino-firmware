@@ -229,8 +229,8 @@ create_overlay: $(U_BOOT_BIN)
 	$(info -------------------> create_overlay)
 	if [ $(OVERLAY_SIZE) -lt 0 ]; then $(FIGLET) "OVERSIZE"; fi
 	if [ -f $(OVERLAY_BIN) ]; then rm $(OVERLAY_BIN); fi
-	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=0x8000 --output=$(OVERLAY_BIN) --squash
-	#$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --pad=$(OVERLAY_SIZE) --root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=0x8000 --output=$(OVERLAY_BIN) --squash
+	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=0x8000 --output=$(OVERLAY_BIN) --squash
+	#$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --pad=$(OVERLAY_SIZE) --root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=0x8000 --output=$(OVERLAY_BIN) --squash
 
 pack: pack_full
 	$(info -------------------> pack)
