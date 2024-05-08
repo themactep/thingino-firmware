@@ -66,27 +66,27 @@ ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 OVERLAY_BIN := $(OUTPUT_DIR)/images/overlay.jffs2
 
 # 0x0008000, 32K, 32_768
-ALIGN_BLOCK       := 32768
+ALIGN_BLOCK := 32768
 
 # U-Boor environment is pinned to 0x50000
 # 0x40000, 256K, 262_144
-U_BOOT_ENV_OFFSET        = 262144
+U_BOOT_ENV_OFFSET := 262144
 # 0x48000, 288K, 294_912
-#U_BOOT_ENV_OFFSET        = 294912
+#U_BOOT_ENV_OFFSET := 294912
 # 0x50000, 320K, 327_680
-#U_BOOT_ENV_OFFSET        = 327680
+#U_BOOT_ENV_OFFSET := 327680
 
 # 0x8000, 32K, 32_768
-# U_BOOT_ENV_SIZE         = 32768
+# U_BOOT_ENV_SIZE := 32768
 # 0x10000, 64K, 65_536
-U_BOOT_ENV_SIZE          = 65536
+U_BOOT_ENV_SIZE := 65536
 
 # SIZE_8M  - KERNEL_OFFSET, 0x0800000 - 0x0050000 = 0x7B0000 = 8_060_928
-# SIZE_8M_NOBOOT    := 8060928
+# SIZE_8M_NOBOOT := 8060928
 # SIZE_16M - KERNEL_OFFSET, 0x1000000 - 0x0050000 = 0xFB0000 = 16_449_536
-# SIZE_16M_NOBOOT   := 16449536
+# SIZE_16M_NOBOOT := 16449536
 # SIZE_32M - KERNEL_OFFSET, 0x2000000 - 0x0050000 = 0x1FB0000 = 33_226_752
-# SIZE_32M_NOBOOT   := 33226752
+# SIZE_32M_NOBOOT := 33226752
 
 # create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
 FIRMWARE_NAME_FULL = thingino-$(CAMERA)-$(shell \
@@ -123,11 +123,12 @@ OVERLAY_OFFSET           = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_SIZE_ALI
 OVERLAY_SIZE             = $(shell echo $$(($(FLASH_SIZE) - $(OVERLAY_OFFSET))))
 
 OVERLAY_OFFSET_NOBOOT    = $(shell echo $$(($(KERNEL_SIZE_ALIGNED) + $(ROOTFS_SIZE_ALIGNED))))
+OVERLAY_SIZE_NOBOOT      = $(shell echo $$(($(FLASH_SIZE_NOBOOT) - $(OVERLAY_OFFSET))))
 
 FIRMWARE_BIN_FULL_SIZE   = $(shell stat -c%s $(FIRMWARE_BIN_FULL))
 FIRMWARE_BIN_NOBOOT_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_NOBOOT))
 
-FLASH_SIZE_NOBOOT        = $(shell echo $$(($(FLASH_SIZE) - $(KERNEL_OFFSET))))
+FLASH_SIZE_NOBOOT        = $(shell echo $$(($(SIZE_8M) - $(KERNEL_OFFSET))))
 
 .PHONY: all toolchain sdk bootstrap clean create_overlay defconfig distclean \
 	help pack pack_full pack_update pad pad_full pad_update prepare_config \
@@ -385,13 +386,13 @@ $(OVERLAY_BIN): create_overlay
 
 $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
 	$(info -------------------> $$(FIRMWARE_BIN_FULL))
+	$(info FLASH_SIZE:        $(shell printf "0x%07X %8d" $(FLASH_SIZE) $(FLASH_SIZE)))
 	$(info U_BOOT_OFFSET:     $(shell printf "0x%07X %8d = 0x%07X" $(U_BOOT_OFFSET) $(U_BOOT_SIZE) $(shell echo $(U_BOOT_OFFSET) + $(U_BOOT_SIZE) | bc)))
 	$(info U_BOOT_ENV_OFFSET: $(shell printf "0x%07X %8d = 0x%07X" $(U_BOOT_ENV_OFFSET) $(U_BOOT_ENV_SIZE) $(shell echo $(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_SIZE) | bc)))
 	$(info KERNEL_OFFSET:     $(shell printf "0x%07X %8d = 0x%07X" $(KERNEL_OFFSET) $(KERNEL_SIZE) $(shell echo $(KERNEL_OFFSET) + $(KERNEL_SIZE) | bc)))
 	$(info ROOTFS_OFFSET:     $(shell printf "0x%07X %8d = 0x%07X" $(ROOTFS_OFFSET)  $(ROOTFS_SIZE) $(shell echo $(ROOTFS_OFFSET) + $(ROOTFS_SIZE) | bc)))
 	$(info OVERLAY_OFFSET:    $(shell printf "0x%07X %8d = 0x%07X" $(OVERLAY_OFFSET)  $(OVERLAY_SIZE) $(shell echo $(OVERLAY_OFFSET) + $(OVERLAY_SIZE) | bc)))
-	#dd if=/dev/zero bs=$(FLASH_SIZE) skip=0 count=1 status=none | tr '\000' '\377' > $@
-	dd if=/dev/zero bs=8M skip=0 count=1 status=none | tr '\000' '\377' > $@
+	dd if=/dev/zero bs=$(SIZE_8M) skip=0 count=1 status=none | tr '\000' '\377' > $@
 	dd if=$(U_BOOT_BIN)  bs=$(U_BOOT_SIZE)  seek=$(U_BOOT_OFFSET)B  count=1 of=$@ conv=notrunc status=none
 	dd if=$(KERNEL_BIN)  bs=$(KERNEL_SIZE)  seek=$(KERNEL_OFFSET)B  count=1 of=$@ conv=notrunc status=none
 	dd if=$(ROOTFS_BIN)  bs=$(ROOTFS_SIZE)  seek=$(ROOTFS_OFFSET)B  count=1 of=$@ conv=notrunc status=none
@@ -399,10 +400,14 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN
 
 $(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
 	$(info -------------------> $$(FIRMWARE_BIN_NOBOOT))
+	$(info FLASH_SIZE_NOBOOT: $(shell printf "0x%07X %8d" $(FLASH_SIZE_NOBOOT) $(FLASH_SIZE_NOBOOT)))
+	$(info KERNEL_OFFSET:     $(shell printf "0x%07X %8d = 0x%07X" $(KERNEL_OFFSET) $(KERNEL_SIZE) $(shell echo $(KERNEL_OFFSET) + $(KERNEL_SIZE) | bc)))
+	$(info ROOTFS_OFFSET:     $(shell printf "0x%07X %8d = 0x%07X" $(ROOTFS_OFFSET)  $(ROOTFS_SIZE) $(shell echo $(ROOTFS_OFFSET) + $(ROOTFS_SIZE) | bc)))
+	$(info OVERLAY_OFFSET:    $(shell printf "0x%07X %8d = 0x%07X" $(OVERLAY_OFFSET)  $(OVERLAY_SIZE) $(shell echo $(OVERLAY_OFFSET) + $(OVERLAY_SIZE) | bc)))
 	dd if=/dev/zero bs=$(FLASH_SIZE_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $@
 	dd if=$(KERNEL_BIN)  bs=$(KERNEL_SIZE)  seek=0 count=1 of=$@ conv=notrunc status=none
 	dd if=$(ROOTFS_BIN)  bs=$(ROOTFS_SIZE)  seek=$(KERNEL_SIZE_ALIGNED)B count=1 of=$@ conv=notrunc status=none
-	dd if=$(OVERLAY_BIN) bs=$(OVERLAY_SIZE) seek=$(OVERLAY_OFFSET_NOBOOT)B count=1 of=$@ conv=notrunc status=none
+	dd if=$(OVERLAY_BIN) bs=$(OVERLAY_SIZE_NOBOOT) seek=$(OVERLAY_OFFSET_NOBOOT)B count=1 of=$@ conv=notrunc status=none
 
 help:
 	@echo "\n\
