@@ -1,6 +1,6 @@
 # MODULE: t31l_gc2083_eth_defconfig
 FLASH_SIZE_16=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/vanhua-h33c.uenv.txt"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/vanhua-h33.uenv.txt"
 BR2_AVPU_VPLL=y
 BR2_AVPU_CLK_486MHZ=y
 BR2_ISP_CLK_200MHZ=y
