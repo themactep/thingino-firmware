@@ -1,6 +1,0 @@
-config BR2_PACKAGE_FFMPEG_OPENIPC
-	bool "FFmpeg (openipc-deprecated)"
-	help
-	  FFmpeg is a complete, cross-platform solution to record,
-	  convert and stream audio and video.
-	  http://www.ffmpeg.org
