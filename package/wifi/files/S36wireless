@@ -45,10 +45,8 @@ start() {
 		fi
 	fi
 
-	if [ "$modulename" = "ssv6158" ]; then
-		echo "ssv6158 Warmup..."
-		sleep 1
-	fi
+	echo "1 Second WIFI Warmup..."
+	sleep 1
 
 	if [ -n "$mac_address" ]; then
 		ip link set dev wlan0 address $mac_address
