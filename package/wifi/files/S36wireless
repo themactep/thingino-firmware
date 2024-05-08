@@ -45,7 +45,7 @@ start() {
 		fi
 	fi
 
-	if [ "$modulename" == "ssv6158" ]; then
+	if [ "$modulename" = "ssv6158" ]; then
 		echo "ssv6158 Warmup..."
 		sleep 1
 	fi
