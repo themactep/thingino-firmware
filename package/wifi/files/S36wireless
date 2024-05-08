@@ -45,6 +45,9 @@ start() {
 		fi
 	fi
 
+	echo "1 Second WIFI Warmup..."
+	sleep 1
+
 	if [ -n "$mac_address" ]; then
 		ip link set dev wlan0 address $mac_address
 	fi
