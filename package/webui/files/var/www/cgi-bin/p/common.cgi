@@ -161,6 +161,18 @@ checked_if() {
 	[ "$1" = "$2" ] && echo -n " checked"
 }
 
+checked_if_not() {
+	[ "$1" != "$2" ] && echo -n " checked"
+}
+
+selected_if() {
+	[ "$1" = "$2" ] && echo -n " selected"
+}
+
+if_else() {
+	[ "$1" = "$2" ] && echo -n " $3" || echo -n " $4"
+}
+
 e() {
 	echo -e -n "$1"
 }
@@ -386,27 +398,37 @@ group_osd() {
 	local o=$(echo "${c}" | cut -d" " -f2)
 	local px=$(echo "${c}" | cut -d" " -f4)
 	local py=$(echo "${c}" | cut -d" " -f5)
+	local ps=$(echo "${c}" | cut -d" " -f6)
 	echo "<div class=\"group_osd mb-3\" data-idx=\"${2}\" data-conf=\"${c}\">" \
-		 "<p class=\"range mb-1\" id=\"osd_${2}_wrap\">" \
+		 "<p class=\"range mb-0\" id=\"osd_${2}_wrap\">" \
 		 "<label class=\"form-label\" for=\"osd_${2}\">${1}</label>" \
-		 "<span class=\"input-group\">" \
-		 "<label class=\"input-group-text\">" \
+		 "<div class=\"input-group\">" \
+		 "<label class=\"input-group-text border-bottom-0 rounded-0\" style=\"border-top-left-radius: 6px !important\">" \
 		 "<input type=\"checkbox\" class=\"form-control form-check-input\" id=\"osd_show_${2}\" name=\"osd_show_${2}\" title=\"Enabled\" $(checked_if ${e} 1)>" \
 		 "</label>" \
 		 "<input type=\"hidden\" id=\"osd_fgAlpha_${2}\" name=\"osd_fgAlpha_${2}\" value>" \
-		 "<input type=\"range\" class=\"form-control form-range\" id=\"osd_fgAlpha_${2}-range\" value=\"${o}\" min=\"0\" max=\"255\" step=\"\" title=\"Opacity\">" \
-		 "<span class=\"input-group-text show-value\" id=\"osd_fgAlpha_${2}-show\">${o}</span>" \
-		 "</span>" \
-		 "</p>" \
-		 "<p class=\"number mb-1\">" \
-		 "<span class=\"input-group\">" \
-		 "<span class=\"input-group-text show-value\" style=\"min-width: 4.6rem;\">Offset</span>" \
-		 "<span class=\"input-group-text show-value\">x</span>" \
-		 "<input type=\"number\" id=\"osd_posx_${2}\" name=\"osd_posx_${2}\" class=\"form-control text-end\" value=\"${px}\" min=\"\" max=\"\" step=\"\" autocomplete=\"off\">" \
-		 "<span class=\"input-group-text show-value\">y</span>" \
-		 "<input type=\"number\" id=\"osd_posy_${2}\" name=\"osd_posy_${2}\" class=\"form-control text-end\" value=\"${py}\" min=\"\" max=\"\" step=\"\" autocomplete=\"off\">" \
-		 "</span>" \
-		 "</p></div>"	
+		 "<input type=\"range\" class=\"form-control form-range border-bottom-0\" id=\"osd_fgAlpha_${2}-range\" value=\"${o}\" min=\"0\" max=\"255\" step=\"\" title=\"Opacity\">" \
+		 "<span class=\"input-group-text show-value rounded-0 border-bottom-0\" id=\"osd_fgAlpha_${2}-show\" style=\"border-top-right-radius: 6px !important; min-width: 2.3rem;\">${o}</span>" \
+		 "</div>" \
+         "<div class=\"input-group\">" \
+         "<span class=\"input-group-text rounded-0 border-bottom-0\">Position</span>" \
+    	 "<input type=\"radio\" class=\"btn-check rounded-0\" name=\"osd_pos_${2}\" id=\"osd_pos_fixed_${2}\" value=\"0\" $(checked_if ${ps} 0)>" \
+         "<label class=\"btn btn-outline-secondary form-control rounded-0\" for=\"osd_pos_fixed_${2}\">fixed</label>" \
+         "<input type=\"radio\" class=\"btn-check rounded-0\" name=\"osd_pos_${2}\" id=\"osd_pos_auto_${2}\" value=\"1\" $(checked_if_not ${ps} 0)>" \
+         "<label class=\"btn btn-outline-secondary form-control rounded-0\" for=\"osd_pos_auto_${2}\">auto</label>" \
+         "</div>" \
+		 "<div class=\"input-group $(if_else ${ps} 0 "" "d-none")\" id=\"osd_pos_fixed_${2}_ig\">" \
+		 "<span class=\"input-group-text show-value rounded-0\" style=\"border-bottom-left-radius: 6px !important;\">x</span>" \
+		 "<input type=\"number\" id=\"osd_posx_${2}\" name=\"osd_posx_${2}\" class=\"form-control text-end rounded-0\" value=\"${px}\" min=\"0\">" \
+		 "<span class=\"input-group-text show-value rounded-0\">y</span>" \
+		 "<input type=\"number\" id=\"osd_posy_${2}\" name=\"osd_posy_${2}\" class=\"form-control text-end rounded-0\" value=\"${py}\" min=\"0\" style=\"border-bottom-right-radius: 6px !important;\">" \
+		 "</div>" \
+		 "<div class=\"input-group $(if_else ${ps} 0 "d-none" "")\" id=\"osd_pos_auto_${2}_ig\">" \
+         "<select class=\"form-select rounded-0 rounded-bottom\" id=\"osd_apos_${2}\" name=\"osd_apos_${2}\">" \
+         "<option>Choose...</option><option value=\"1\" $(selected_if ${ps} 1)>top</option><option value=\"2\" $(selected_if ${ps} 2)>top right</option>" \
+         "<option value=\"3\" $(selected_if ${ps} 3)>right</option><option value=\"4\" $(selected_if ${ps} 4)>bottom right</option><option value=\"5\" $(selected_if ${ps} 5)>bottom</option>" \
+         "<option value=\"6\" $(selected_if ${ps} 6)>bottom left</option><option value=\"7\" $(selected_if ${ps} 7)>left</option><option value=\"8\" $(selected_if ${ps} 8)>top left</option>" \
+         "</select></div></p></div>"		 	 
 }
 
 alert_append() {
