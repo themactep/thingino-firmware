@@ -103,7 +103,7 @@ fi
 </div>
 <div class="modal-body">
 <ol>
-<li>Start a chat with <a href=\"https://t.me/BotFather\">@BotFather</a></li>
+<li>Start a chat with <a href="https://t.me/BotFather">@BotFather</a></li>
 <li>Enter <code>/start</code> to start a session.</li>
 <li>Enter <code>/newbot</code> to create a new bot.</li>
 <li>Give your bot channel a name, e.g. <i>cool_cam_bot</i>.</li>
