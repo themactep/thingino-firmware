@@ -139,9 +139,9 @@ OVERLAY_OFFSET           = $(shell echo $$(($(ROOTFS_OFFSET)     + $(ROOTFS_PART
 # special case with no uboot nor env
 OVERLAY_OFFSET_NOBOOT    = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PARTITION_SIZE))))
 
-.PHONY: all toolchain sdk bootstrap clean create_overlay defconfig distclean \
-	help pack pack_full pack_update pad pad_full pad_update prepare_config \
-	reconfig upload_tftp upload_sdcard upgrade_ota br-%
+.PHONY: all toolchain sdk bootstrap clean create_overlay defconfig distclean help \
+	pack pack_full pack_update prepare_config reconfig upload_tftp upload_sdcard \
+	upgrade_ota br-%
 
 all: $(OUTPUT_DIR)/.config
 	$(info -------------------> all)
@@ -189,8 +189,8 @@ ifneq ($(CAMERA_CONFIG_REAL),$(MODULE_CONFIG_REAL))
 	# add camera configuration
 	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
 endif
-	if [ -f configs/fragments/local.fragment ]; then \
-		cat configs/fragments/local.fragment >>$(OUTPUT_DIR)/.config; \
+	if [ -f configs/fragments/@local.fragment ]; then \
+		cat configs/fragments/@local.fragment >>$(OUTPUT_DIR)/.config; \
 	fi
 	# Add local.mk to the building directory to override settings
 	if test -f $(BR2_EXTERNAL)/local.mk; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
@@ -251,21 +251,6 @@ pack_update: $(FIRMWARE_BIN_NOBOOT)
 	$(info FIRMWARE_BIN_NOBOOT_SIZE: $(FIRMWARE_BIN_NOBOOT_SIZE))
 	$(info FIRMWARE_NOBOOT_SIZE_MAX: $(FIRMWARE_NOBOOT_SIZE_MAX))
 	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(FIRMWARE_NOBOOT_SIZE_MAX) ]; then $(FIGLET) "OVERSIZE"; fi
-
-pad: pad_full
-	$(info -------------------> pad)
-
-pad_full: $(FIRMWARE_BIN_FULL)
-	$(info -------------------> pad_full)
-	dd if=/dev/zero bs=$(SIZE_16M) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
-	dd if=$(FIRMWARE_BIN_FULL) bs=$(FIRMWARE_BIN_FULL_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
-	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_FULL);
-
-pad_update: $(FIRMWARE_BIN_NOBOOT)
-	$(info -------------------> pad_update)
-	dd if=/dev/zero bs=$(SIZE_16M_NOBOOT) skip=0 count=1 status=none | tr '\000' '\377' > $(OUTPUT_DIR)/images/padded; \
-	dd if=$(FIRMWARE_BIN_NOBOOT) bs=$(FIRMWARE_BIN_NOBOOT_SIZE) seek=0 count=1 of=$(OUTPUT_DIR)/images/padded conv=notrunc status=none; \
-	mv $(OUTPUT_DIR)/images/padded $(FIRMWARE_BIN_NOBOOT);
 
 reconfig:
 	$(info -------------------> reconfig)
@@ -429,8 +414,6 @@ help:
 	                        (toolchain, kernel, and rootfs)\n\
 	  make pack_full      create a full firmware image\n\
 	  make pack_update    create an update firmware image (no bootloader)\n\
-	  make pad_full       pad the full firmware image to 16MB\n\
-	  make pad_update     pad the update firmware image to 16MB\n\
 	  make clean          clean before reassembly\n\
 	  make distclean      start building from scratch\n\
 	  make rebuild-<pkg>  perform a clean package rebuild for <pkg>\n\
