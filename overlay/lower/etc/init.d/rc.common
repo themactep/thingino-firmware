@@ -11,9 +11,20 @@ stopping() {
 	echo -n "Stopping $DAEMON: "
 }
 
+start_daemon() {
+	local command=${COMMAND:-$DAEMON_PATH/$DAEMON}
+	start-stop-daemon -q -b -S -x $COMMAND > /dev/null 2>&1
+	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
+}
+
+stop_daemon() {
+	start-stop-daemon -q -K -n $DAEMON > /dev/null 2>&1 ## do we need -s KILL?
+	[ $? -eq 0 ] && { rm -f $PIDFILE && echo "OK"; } || echo "FAIL"
+}
+
 start_daemon_with_pid() {
 	local command=${COMMAND:-$DAEMON_PATH/$DAEMON}
-	start-stop-daemon -q -b -m -S $PIDFILE -x $COMMAND > /dev/null 2>&1
+	start-stop-daemon -q -b -m -S -p $PIDFILE -x $COMMAND > /dev/null 2>&1
 	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
 }
 
