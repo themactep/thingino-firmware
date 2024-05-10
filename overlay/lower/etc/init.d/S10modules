@@ -9,7 +9,7 @@ load_modules() {
 				continue
 				;;
 		esac
-		eval "args=\"${args}\""  # Evaluate the arguments
+		eval "args=\"${args}\""
 		echo -n " ${module}... "
 		modprobe ${module} ${args} && echo "OK" || echo "FAIL"
 	done < "${file}"
