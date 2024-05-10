@@ -3,6 +3,8 @@
 DAEMON=openRTSP
 ENABLED=false
 
+. /etc/init.d/rc.common
+
 die() {
 	echo "$1. Exit."
 	exit 1
@@ -26,6 +28,8 @@ start() {
 	if [ "$ENABLED" = "true" ]; then
 		echo -n "Starting RTSP recorder: "
 
+		is_streamer_disabled && die
+
 		if [ "$record_path" = "/mnt/mmcblk0p1" ] && ! grep -q "$record_path" /proc/mounts; then
 			die "Record path is set to $record_path but SD card is not mounted"
 		fi
@@ -46,17 +50,17 @@ start() {
 		fi
 
 		sleep 2
-		start-stop-daemon -b -S -q -x ${DAEMON} -- -u "$rtsp_username" "$rtsp_password" \
-			-w "$stream0width" -h "$stream0height" -f "$stream0fps" -P $record_interval \
-			-q -v -b 1048576 -t -H -F "$file_prefix" rtsp://127.0.0.1/ch0
-		echo "OK"
+		COMMAND="${DAEMON} -- -u "$rtsp_username" "$rtsp_password" \
+				-w "$stream0width" -h "$stream0height" -f "$stream0fps" -P $record_interval \
+				-q -v -b 1048576 -t -H -F "$file_prefix" rtsp://127.0.0.1/ch0"
+		start_daemon
 	fi
 }
 
 stop() {
-	echo -n "Stopping RTSP recorder: "
-	start-stop-daemon -K -q -s KILL -n "$DAEMON"
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	stopping
+	is_streamer_disabled && { echo -e "DISABLED"; exit 0; }
+	stop_daemon
 }
 
 case "$1" in

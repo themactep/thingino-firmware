@@ -1,31 +1,21 @@
 #!/bin/sh
 
 DAEMON=prudynt
-DAEMON_PATH="/usr/bin"
-PIDFILE="/var/run/$DAEMON.pid"
 
-load_daemon() {
-	printf 'Starting %s: ' $DAEMON
-	[ -f $DAEMON_PATH/$DAEMON ] || echo -en "DISABLED, "
-	start-stop-daemon -b -m -S -p $PIDFILE -x \
-		/usr/bin/env -- LD_PRELOAD=/usr/lib/libimp_control.so $DAEMON_PATH/$DAEMON
-	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
-}
+. /etc/init.d/rc.common
+
+COMMAND="/usr/bin/env -- LD_PRELOAD=/usr/lib/libimp_control.so $DAEMON_PATH/$DAEMON"
 
 start() {
-	load_daemon
+	starting
+	is_streamer_disabled && { echo -e "DISABLED"; exit 0; }
+	start_daemon_with_pid
 }
 
 stop() {
-	printf 'Stopping %s: ' $DAEMON
-	[ -f "$DAEMON_PATH/$DAEMON" ] || echo -en "DISABLED, "
-	start-stop-daemon -K -q -p $PIDFILE
-	if [ $? -eq 0 ]; then
-		rm -f $PIDFILE
-		echo "OK"
-	else
-		echo "FAIL"
-	fi
+	stopping
+	is_streamer_disabled && { echo -e "DISABLED"; exit 0; }
+	stop_daemon_with_pid
 }
 
 restart() {
@@ -35,7 +25,7 @@ restart() {
 }
 
 reload() {
-	load_daemon
+	start
 }
 
 case "$1" in
