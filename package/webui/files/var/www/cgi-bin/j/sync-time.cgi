@@ -12,5 +12,5 @@ Pragma: no-cache
 Expires: $(TZ=GMT0 date +'%a, %d %b %Y %T %Z')
 Etag: \"$(cat /proc/sys/kernel/random/uuid)\"
 
-${payload}
+$payload
 "
