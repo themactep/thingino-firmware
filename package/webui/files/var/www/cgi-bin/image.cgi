@@ -8,6 +8,6 @@ Cache-Control: no-store
 Pragma: no-cache
 Date: $date
 Expires: $date
-Connecton: close
+Connection: close
 "
 cat $preview
