@@ -66,7 +66,7 @@ For static mode:
 
   -v             Verbose output.
 "
-	exit 0
+	quit_clean 0
 }
 
 ## override config values with command line arguments
@@ -111,29 +111,29 @@ done
 
 if [ $# -eq 0 ]; then
 	show_help
-	exit 1
+	quit_clean 1
 fi
 
 ## validate mandatory values
 if [ -z "$network_interface" ]; then
 	log "Network interface is not set"
-	exit 11
+	quit_clean 11
 fi
 
 if [ -z "$network_mode" ]; then
 	log "Network mode is not set"
-	exit 15
+	quit_clean 15
 fi
 
 if [ "static" = "$network_mode" ]; then
 	if [ -z "$network_address" ]; then
 		log "Interface IP address is not set"
-		exit 16
+		quit_clean 16
 	fi
 
 	if [ -z "$network_netmask" ]; then
 		log "Netmask is not set"
-		exit 17
+		quit_clean 17
 	fi
 fi
 
@@ -152,7 +152,7 @@ if [ "static" = "$network_mode" ]; then
 
 	# skip gateway if empty
 	if [ -n "$network_gateway" ]; then
-		echo "    gateway ${network_gateway}" >> "$tmp_config_file"
+		echo "    gateway $network_gateway" >> "$tmp_config_file"
 	fi
 
 	# skip dns servers if empty
@@ -196,7 +196,7 @@ if [ "wg0" = "$network_interface" ]; then
 	printf "$TEMPLATE_WIREGUARD" "$network_interface" "$network_interface" "$network_interface" >> "$tmp_config_file"
 fi
 
-iface_file="/etc/network/interfaces.d/${network_interface}"
+iface_file="/etc/network/interfaces.d/$network_interface"
 mv "$tmp_config_file" "$iface_file"
 cat "$iface_file"
 
@@ -213,4 +213,4 @@ update_caminfo
 generate_signature
 touch /tmp/network-restart.txt
 
-exit 0
+quit_clean 0

@@ -11,7 +11,7 @@ show_help() {
   -v          Verbose output.
   -h          Show this help.
 "
-	exit 0
+	quit_clean 0
 }
 
 # override config values with command line arguments
@@ -34,38 +34,38 @@ done
 
 if [ "false" = "$webhook_enabled" ]; then
 	log "Sending to webhook is disabled."
-	exit 10
+	quit_clean 10
 fi
 
 # validate mandatory values
 if [ -z "$webhook_url" ]; then
 	log "Webhook URL not found"
-	exit 11
+	quit_clean 11
 fi
 
 command="curl --verbose"
-command="${command} --connect-timeout ${curl_timeout}"
-command="${command} --max-time ${curl_timeout} -X POST"
+command="$command --connect-timeout $curl_timeout"
+command="$command --max-time $curl_timeout -X POST"
 
 if [ "true" = "$webhook_attach_snapshot" ]; then
 	snapshot=/tmp/snapshot.jpg
-	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && exit 3
+	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && quit_clean 3
 
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
 	delete_tempfile="true"
 	cp $snapshot $attachment
 
-	command="${command} -F 'image=@$attachment'"
+	command="$command -F 'image=@$attachment'"
 fi
 
 # SOCK5 proxy, if needed
 if [ "true" = "$webhook_socks5_enabled" ]; then
 	. /etc/webui/socks5.conf
-	command="${command} --socks5-hostname ${socks5_host}:${socks5_port}"
-	command="${command} --proxy-user ${socks5_login}:${socks5_password}"
+	command="$command --socks5-hostname ${socks5_host}:$socks5_port"
+	command="$command --proxy-user ${socks5_login}:$socks5_password"
 fi
 
-command="${command} --url ${webhook_url}"
+command="$command --url $webhook_url"
 
 log "$command"
 eval "$command" >> "$LOG_FILE" 2>&1
@@ -73,4 +73,4 @@ eval "$command" >> "$LOG_FILE" 2>&1
 [ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
-exit 0
+quit_clean 0
