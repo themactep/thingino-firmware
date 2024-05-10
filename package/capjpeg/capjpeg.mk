@@ -6,7 +6,8 @@
 
 CAPJPEG_SITE_METHOD = git
 CAPJPEG_SITE = https://github.com/openipc/capjpeg
-CAPJPEG_VERSION = $(shell git ls-remote $(CAPJPEG_SITE) HEAD | head -1 | cut -f1)
+CAPJPEG_SITE_BRANCH = master
+CAPJPEG_VERSION = $(shell git ls-remote $(CAPJPEG_SITE) $(CAPJPEG_SITE_BRANCH) | head -1 | cut -f1)
 
 CAPJPEG_LICENSE = MIT
 CAPJPEG_LICENSE_FILES = LICENSE
