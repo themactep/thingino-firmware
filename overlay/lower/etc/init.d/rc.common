@@ -37,3 +37,6 @@ is_streamer_disabled() {
 	fw_printenv -n disable_streamer 2>/dev/null | grep -q "true"
 }
 
+die() {
+	exit 1
+}
