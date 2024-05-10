@@ -14,7 +14,7 @@ show_help() {
   -v          Verbose output.
   -h          Show this help.
 "
-	exit 0
+	quit_clean 0
 }
 
 # override config values with command line arguments
@@ -46,28 +46,28 @@ done
 
 if [ "false" = "$email_enabled" ]; then
 	log "Sending to email is disabled."
-	exit 10
+	quit_clean 10
 fi
 
 # validate mandatory values
 if [ -z "$email_smtp_host" ]; then
 	log "SMTP host not found in config"
-	exit 11
+	quit_clean 11
 fi
 
 if [ -z "$email_smtp_port" ]; then
 	log "SMTP port not found in config"
-	 exit 12
+	quit_clean 12
 fi
 
 if [ -z "$email_from_address" ]; then
 	log "Sender's email address not found"
-	exit 13
+	quit_clean 13
 fi
 
 if [ -z "$email_to_address" ]; then
 	log "Recipient's email address not found"
-	exit 14
+	quit_clean 14
 fi
 
 # assign default values if not set
@@ -76,25 +76,25 @@ fi
 #[ -z "$email_subject" ] && email_subject="Snapshot from Thingino Camera"
 
 command="curl --silent --verbose"
-command="${command} --connect-timeout ${curl_timeout}"
-command="${command} --max-time ${curl_timeout}"
+command="$command --connect-timeout $curl_timeout"
+command="$command --max-time $curl_timeout"
 
 if [ "true" = "$email_smtp_use_ssl" ]; then
-	command="${command} --ssl --url smtps://"
+	command="$command --ssl --url smtps://"
 else
-	command="${command} --url smtp://"
+	command="$command --url smtp://"
 fi
 command="${command}${email_smtp_host}:${email_smtp_port}"
 
-command="${command} --mail-from ${email_from_address}"
-command="${command} --mail-rcpt ${email_to_address}"
-command="${command} --user '${email_smtp_username}:${email_smtp_password}'"
+command="$command --mail-from $email_from_address"
+command="$command --mail-rcpt $email_to_address"
+command="$command --user '${email_smtp_username}:${email_smtp_password}'"
 
 if [ "true" = "$email_attach_snapshot" ]; then
 	snapshot=/tmp/snapshot.jpg
 	if [ ! -f "$snapshot" ]; then
 		log "Cannot find a snapshot"
-		exit 3
+		quit_clean 3
 	fi
 
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
@@ -102,24 +102,24 @@ if [ "true" = "$email_attach_snapshot" ]; then
 	cp $snapshot $attachment
 
 	email_body="$(date -R)"
-	command="${command} -H 'Subject: ${email_subject}'"
-	command="${command} -H 'From: "${email_from_name}" <${email_from_address}>'"
-	command="${command} -H 'To: "${email_to_name}" <${email_to_address}>'"
-	command="${command} -F '=(;type=multipart/mixed'"
-	command="${command} -F '=${email_body};type=text/plain'"
-	command="${command} -F 'file=@${attachment};type=image/jpeg;encoder=base64'"
-	command="${command} -F '=)'"
+	command="$command -H 'Subject: $email_subject'"
+	command="$command -H 'From: "$email_from_name" <$email_from_address>'"
+	command="$command -H 'To: "$email_to_name" <$email_to_address>'"
+	command="$command -F '=(;type=multipart/mixed'"
+	command="$command -F '=${email_body};type=text/plain'"
+	command="$command -F 'file=@${attachment};type=image/jpeg;encoder=base64'"
+	command="$command -F '=)'"
 else
 	email_file="/tmp/email.$$.txt"
 	{
-		echo "From: ${email_from_name} <${email_from_address}>"
-		echo "To: ${email_to_name} <${email_to_address}>"
-		echo "Subject: ${email_subject}"
+		echo "From: $email_from_name <$email_from_address>"
+		echo "To: $email_to_name <$email_to_address>"
+		echo "Subject: $email_subject"
 		echo "Date: $(date -R)"
 		echo ""
-		echo "${email_body}"
+		echo "$email_body"
 	} >> $email_file
-	command="${command} --upload-file ${email_file}"
+	command="$command --upload-file $email_file"
 fi
 
 log "$command"
@@ -128,6 +128,7 @@ eval "$command" >> "$LOG_FILE" 2>&1
 [ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
-[ -f ${email_file} ] && rm -f ${email_file}
+[ -f "$email_file" ] && rm -f $email_file
 
-exit 0
+quit_clean 0
+

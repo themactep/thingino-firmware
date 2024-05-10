@@ -14,4 +14,4 @@ singleton
 [ "true" = "$motion_send2yadisk" ] && send2yadisk
 [ "true" = "$motion_playonspeaker" ] && playonspeaker
 
-exit 0
+quit_clean 0

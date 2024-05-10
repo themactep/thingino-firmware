@@ -17,7 +17,7 @@ show_help() {
   -v          Verbose output.
   -h          Show this help.
 "
-	exit 0
+	quit_clean 0
 }
 
 # default values
@@ -61,18 +61,18 @@ done
 
 if [ "false" = "$telegram_enabled" ]; then
 	log "Sending to Telegram is disabled."
-	exit 10
+	quit_clean 10
 fi
 
 # validate mandatory values
 if [ -z "$telegram_token" ]; then
 	log "Telegram token not found"
-	exit 11
+	quit_clean 11
 fi
 
 if [ -z "$telegram_channel" ]; then
 	log "Telegram channel not found"
-	exit 12
+	quit_clean 12
 fi
 
 if [ -z "$telegram_message" ]; then
@@ -82,7 +82,7 @@ if [ -z "$telegram_message" ]; then
 		snapshot=/tmp/snapshot.jpg
 		if [ ! -f "$snapshot" ]; then
 			log "Cannot find a snapshot"
-			exit 3
+			quit_clean 3
 		fi
 
 		attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
@@ -100,28 +100,28 @@ command="$command --max-time $curl_timeout"
 # SOCK5 proxy, if needed
 if [ "true" = "$telegram_socks5_enabled" ]; then
 	. /etc/webui/socks5.conf
-	command="$command --socks5-hostname ${socks5_host}:${socks5_port}"
-	command="$command --proxy-user ${socks5_login}:${socks5_password}"
+	command="$command --socks5-hostname ${socks5_host}:$socks5_port"
+	command="$command --proxy-user ${socks5_login}:$socks5_password"
 fi
 
 command="$command -H 'Content-Type: multipart/form-data'"
-command="$command -F 'chat_id=${telegram_channel}'"
-command="$command -F 'disable_notification=${telegram_disable_notification}'"
-command="$command --url https://api.telegram.org/bot${telegram_token}/"
+command="$command -F 'chat_id=$telegram_channel'"
+command="$command -F 'disable_notification=$telegram_disable_notification'"
+command="$command --url https://api.telegram.org/bot$telegram_token/"
 
 if [ -n "$attachment" ]; then
 	if [ "true" = "$telegram_as_attachment" ]; then
 		command1="$command"
 		command1="${command1}sendDocument"
-		command1="$command1 -F 'document=@${telegram_photo}'"
-		command1="$command1 -F 'caption=${telegram_message}'"
+		command1="$command1 -F 'document=@$telegram_photo'"
+		command1="$command1 -F 'caption=$telegram_message'"
 		log "$command1"
 		eval "$command1" >> "$LOG_FILE" 2>&1
 	elif [ "true" = "$telegram_as_photo" ]; then
 		command2="$command"
 		command2="${command2}sendPhoto"
-		command2="$command2 -F 'photo=@${telegram_photo}'"
-		command2="$command2 -F 'caption=${telegram_message}'"
+		command2="$command2 -F 'photo=@$telegram_photo'"
+		command2="$command2 -F 'caption=$telegram_message'"
 		log "$command2"
 		eval "$command2" >> "$LOG_FILE" 2>&1
 	else
@@ -134,7 +134,7 @@ if [ -n "$attachment" ]; then
 else
 	command4="$command"
 	command4="${command4}sendMessage"
-	command4="$command4 -F 'text=${telegram_message}'"
+	command4="$command4 -F 'text=$telegram_message'"
 	log "$command4"
 	eval "$command4" >> "$LOG_FILE" 2>&1
 fi
@@ -142,4 +142,4 @@ fi
 [ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
-exit 0
+quit_clean 0
