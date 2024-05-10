@@ -1,9 +1,12 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 config="/etc/imp.conf"
 
 check_imp() {
 	echo -n "Connecting to libimp-control: "
+	is_streamer_disabled && { echo -e "DISABLED"; exit 0; }
 	i=0
 	platform=$(soc -f)
 	if [ "$platform" = "t10" ] || [ "$platform" = "t20" ]; then
