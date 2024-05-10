@@ -1,0 +1,28 @@
+#!/bin/sh
+
+DAEMON_PATH="/usr/bin"
+PIDFILE="/var/run/$DAEMON.pid"
+
+starting() {
+	echo -n "Starting $DAEMON: "
+}
+
+stopping() {
+	echo -n "Stopping $DAEMON: "
+}
+
+start_daemon_with_pid() {
+	local command=${COMMAND:-$DAEMON_PATH/$DAEMON}
+	start-stop-daemon -q -b -m -S $PIDFILE -x $COMMAND > /dev/null 2>&1
+	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
+}
+
+stop_daemon_with_pid() {
+	start-stop-daemon -q -K -p $PIDFILE > /dev/null 2>&1
+	[ $? -eq 0 ] && { rm -f $PIDFILE && echo "OK"; } || echo "FAIL"
+}
+
+is_streamer_disabled() {
+	fw_printenv -n disable_streamer 2>/dev/null | grep -q "true"
+}
+
