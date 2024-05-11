@@ -5,14 +5,12 @@ source ./scripts/menu/menu-common.sh
 function main_menu() {
 	check_and_install_dialog
 	while true; do
-		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Select an option:" 19 110 30 \
+		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Select an option:" 17 110 30 \
 			"bootstrap" "Install prerequisite software necessary for the compilation process" \
 			"menuconfig" "Proceed to the buildroot menu (toolchain, kernel, and rootfs)" \
 			"br-linux-menuconfig" "Proceed to the Linux Kernel configuration" \
 			"pack_full" "Create a full firmware image"  \
 			"pack_update" "Create an update firmware image (no bootloader)" \
-			"pad_full" "Pad the full firmware image to 16MB" \
-			"pad_update" "Pad the update firmware image to 16MB" \
 			"clean" "Clean before reassembly"  \
 			"distclean" "Remove all cached build files from current profile"  \
 			"make" "Generate firmware" \
@@ -37,10 +35,6 @@ function show_help() {
 			show_help_msgbox "This option initiates the process of building a complete firmware image. This includes the bootloader, the kernel, and the root filesystem. It's suitable for initial installations or complete upgrades of a device." 8;;
 		"HELP pack_update")
 			show_help_msgbox "Selecting this option builds a firmware update image excluding the bootloader component. This is typically used for Over-the-Air (OTA) updates, allowing for the device's software to be updated without altering the bootloader." 8;;
-		"HELP pad_full")
-			show_help_msgbox "This command increases the size of the full firmware image to 16MB by adding zeros to the end. This padding process ensures the firmware image meets the size requirement for certain flashing tools or devices." 8;;
-		"HELP pad_update")
-			show_help_msgbox "Similar to 'pad_full', this option pads the update firmware image to reach 16MB in size. This is particularly useful when the update image needs to match a specific size for the update process to succeed." 8;;
 		"HELP clean")
 			show_help_msgbox "The 'clean' command removes most of the files generated during the build process but preserves your configuration settings. This allows you to rebuild your firmware quickly without starting from scratch." 8;;
 		"HELP distclean")
@@ -62,7 +56,7 @@ execute_choice() {
 			sudo make $1
 			sleep 2
 			;;
-		pack_full | pack_update | pad_full | pad_update| make)
+		pack_full | pack_update | make)
 			make $1
 			exit
 			;;
