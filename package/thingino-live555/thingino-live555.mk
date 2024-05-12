@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-THINGINO_LIVE555_VERSION = latest
-THINGINO_LIVE555_SOURCE = live555-latest.tar.gz
+THINGINO_LIVE555_VERSION = 2024.05.05
+THINGINO_LIVE555_SOURCE = live.$(THINGINO_LIVE555_VERSION).tar.gz
 THINGINO_LIVE555_SITE = http://www.live555.com/liveMedia/public
 # There is a COPYING file with the GPL-3.0 license text, but none of
 # the source files appear to be released under GPL-3.0, and the
