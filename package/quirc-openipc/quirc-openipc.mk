@@ -1,9 +1,3 @@
-################################################################################
-#
-# quirc-openipc
-#
-################################################################################
-
 QUIRC_OPENIPC_SITE_METHOD = git
 QUIRC_OPENIPC_SITE = https://github.com/openipc/quirc
 QUIRC_OPENIPC_VERSION = $(shell git ls-remote $(QUIRC_OPENIPC_SITE) HEAD | head -1 | cut -f1)

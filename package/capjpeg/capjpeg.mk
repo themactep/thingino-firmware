@@ -1,9 +1,3 @@
-################################################################################
-#
-# capjpeg
-#
-################################################################################
-
 CAPJPEG_SITE_METHOD = git
 CAPJPEG_SITE = https://github.com/openipc/capjpeg
 CAPJPEG_SITE_BRANCH = master

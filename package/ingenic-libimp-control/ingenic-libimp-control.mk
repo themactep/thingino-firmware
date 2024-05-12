@@ -1,9 +1,3 @@
-################################################################################
-#
-# ingenic-libimp-control
-#
-################################################################################
-
 INGENIC_LIBIMP_CONTROL_SITE_METHOD = git
 INGENIC_LIBIMP_CONTROL_SITE = https://github.com/gtxaspec/libimp_control
 INGENIC_LIBIMP_CONTROL_SITE_BRANCH = master

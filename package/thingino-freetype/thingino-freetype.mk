@@ -1,9 +1,3 @@
-################################################################################
-#
-# freetype
-#
-################################################################################
-
 THINGINO_FREETYPE_VERSION = 2.13.2
 THINGINO_FREETYPE_SOURCE = freetype-$(THINGINO_FREETYPE_VERSION).tar.xz
 THINGINO_FREETYPE_SITE = http://download.savannah.gnu.org/releases/freetype

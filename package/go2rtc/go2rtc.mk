@@ -1,9 +1,3 @@
-################################################################################
-#
-# go2rtc
-#
-################################################################################
-
 GO2RTC_SITE_METHOD = git
 #GO2RTC_SITE = https://github.com/AlexxIT/go2rtc
 GO2RTC_SITE = https://github.com/wltechblog/go2rtc-smaller

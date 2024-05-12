@@ -1,9 +1,3 @@
-################################################################################
-#
-# zerotier-one
-#
-################################################################################
-
 ZEROTIER_ONE_VERSION = 1.12.2
 ZEROTIER_ONE_SITE = $(call github,zerotier,ZeroTierOne,$(ZEROTIER_ONE_VERSION))
 
