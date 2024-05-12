@@ -1,9 +1,3 @@
-################################################################################
-#
-# ingenic-diag-tools
-#
-################################################################################
-
 INGENIC_DIAG_TOOLS_SITE_METHOD = git
 INGENIC_DIAG_TOOLS_SITE = https://github.com/gtxaspec/jz-diag-tools
 INGENIC_DIAG_TOOLS_SITE_BRANCH = main

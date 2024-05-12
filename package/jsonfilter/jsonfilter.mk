@@ -1,9 +1,3 @@
-################################################################################
-#
-# jsonfilter
-#
-################################################################################
-
 JSONFILTER_SITE_METHOD = git
 JSONFILTER_SITE = https://github.com/openwrt/jsonpath
 JSONFILTER_VERSION = $(shell git ls-remote $(JSONFILTER_SITE) HEAD | head -1 | cut -f1)

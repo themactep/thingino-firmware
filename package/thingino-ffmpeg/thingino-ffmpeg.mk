@@ -1,9 +1,3 @@
-################################################################################
-#
-# thingino-ffmpeg
-#
-################################################################################
-
 THINGINO_FFMPEG_VERSION = 7.0
 THINGINO_FFMPEG_SOURCE = ffmpeg-$(THINGINO_FFMPEG_VERSION).tar.xz
 THINGINO_FFMPEG_SITE = http://ffmpeg.org/releases

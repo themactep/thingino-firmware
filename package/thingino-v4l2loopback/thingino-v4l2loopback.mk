@@ -1,9 +1,3 @@
-################################################################################
-#
-# v4l2loopback
-#
-################################################################################
-
 THINGINO_V4L2LOOPBACK_VERSION = 0.12.4
 THINGINO_V4L2LOOPBACK_SITE = $(call github,umlaeute,v4l2loopback,v$(THINGINO_V4L2LOOPBACK_VERSION))
 THINGINO_V4L2LOOPBACK_LICENSE = GPL-2.0+

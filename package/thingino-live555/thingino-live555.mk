@@ -1,9 +1,3 @@
-################################################################################
-#
-# live555
-#
-################################################################################
-
 THINGINO_LIVE555_VERSION = 2024.05.05
 THINGINO_LIVE555_SOURCE = live.$(THINGINO_LIVE555_VERSION).tar.gz
 THINGINO_LIVE555_SITE = http://www.live555.com/liveMedia/public

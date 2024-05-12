@@ -1,9 +1,3 @@
-################################################################################
-#
-# uacme-openipc
-#
-################################################################################
-
 UACME_OPENIPC_VERSION = 1.2.4
 # Released versions are on branch upstream/latest, tagged as
 # upstream/X.Y.Z Do not use vX.Y.Z tags from master, as they do not
