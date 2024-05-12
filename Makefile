@@ -65,8 +65,8 @@ ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 OVERLAY_BIN := $(OUTPUT_DIR)/images/overlay.jffs2
 
-# 0x0008000, 32K, 32_768
-ALIGN_BLOCK := 32768
+# 0x0010000, 64K, 65_536
+ALIGN_BLOCK := 65536
 
 # U-Boor environment is pinned to 0x50000
 # 0x40000, 256K, 262_144
@@ -234,7 +234,7 @@ create_overlay: $(U_BOOT_BIN)
 	$(info -------------------> create_overlay)
 	if [ $(OVERLAY_SIZE) -lt 0 ]; then $(FIGLET) "OVERSIZE"; fi
 	if [ -f $(OVERLAY_BIN) ]; then rm $(OVERLAY_BIN); fi
-	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --pad --root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=0x8000 --output=$(OVERLAY_BIN) --squash
+	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --pad --root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=$(ALIGN_BLOCK) --output=$(OVERLAY_BIN) --squash
 	#$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --pad=$(OVERLAY_SIZE) --root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=0x8000 --output=$(OVERLAY_BIN) --squash
 
 pack: pack_full
