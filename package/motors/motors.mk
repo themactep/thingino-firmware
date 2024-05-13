@@ -1,6 +1,7 @@
 MOTORS_SITE_METHOD = git
 MOTORS_SITE = https://github.com/gtxaspec/ingenic-motor.git
-MOTORS_VERSION = $(shell git ls-remote $(MOTORS_SITE) HEAD | head -1 | cut -f1)
+MOTORS_SITE_BRANCH = master
+MOTORS_VERSION = $(shell git ls-remote $(MOTORS_SITE) $(MOTORS_SITE_BRANCH) | head -1 | cut -f1)
 
 MOTORS_LICENSE = MIT
 MOTORS_LICENSE_FILES = LICENSE

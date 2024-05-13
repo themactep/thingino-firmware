@@ -1,6 +1,7 @@
 QUIRC_OPENIPC_SITE_METHOD = git
 QUIRC_OPENIPC_SITE = https://github.com/openipc/quirc
-QUIRC_OPENIPC_VERSION = $(shell git ls-remote $(QUIRC_OPENIPC_SITE) HEAD | head -1 | cut -f1)
+QUIRC_OPENIPC_SITE_BRANCH = master
+QUIRC_OPENIPC_VERSION = $(shell git ls-remote $(QUIRC_OPENIPC_SITE) $(QUIRC_OPENIPC_SITE_BRANCH) | head -1 | cut -f1)
 
 QUIRC_OPENIPC_DEPENDENCIES = libjpeg
 LIBJPEG_CONF_OPTS = --disable-shared

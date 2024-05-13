@@ -1,6 +1,7 @@
 LOGCAT_MINI_SITE_METHOD = git
 LOGCAT_MINI_SITE = https://github.com/wltechblog/logcat-mini
-LOGCAT_MINI_VERSION = $(shell git ls-remote $(LOGCAT_MINI_SITE) HEAD | head -1 | cut -f1)
+LOGCAT_MINI_SITE_BRANCH = main
+LOGCAT_MINI_VERSION = $(shell git ls-remote $(LOGCAT_MINI_SITE) $(LOGCAT_MINI_SITE_BRANCH) | head -1 | cut -f1)
 
 LOGCAT_MINI_LICENSE = GPL-2.0
 LOGCAT_MINI_LICENSE_FILES = COPYING

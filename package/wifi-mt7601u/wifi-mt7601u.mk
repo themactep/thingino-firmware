@@ -1,6 +1,7 @@
 WIFI_MT7601U_SITE_METHOD = git
 WIFI_MT7601U_SITE = https://github.com/openipc/mt7601u
-WIFI_MT7601U_VERSION = $(shell git ls-remote $(WIFI_MT7601U_SITE) HEAD | head -1 | cut -f1)
+WIFI_MT7601U_SITE_BRANCH = master
+WIFI_MT7601U_VERSION = $(shell git ls-remote $(WIFI_MT7601U_SITE) $(WIFI_MT7601U_SITE_BRANCH) | head -1 | cut -f1)
 
 WIFI_MT7601U_LICENSE = GPL-2.0
 
