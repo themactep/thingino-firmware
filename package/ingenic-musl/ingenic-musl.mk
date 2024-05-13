@@ -1,6 +1,7 @@
 INGENIC_MUSL_SITE_METHOD = git
 INGENIC_MUSL_SITE = https://github.com/gtxaspec/ingenic-musl
-INGENIC_MUSL_VERSION = $(shell git ls-remote $(INGENIC_MUSL_SITE) HEAD | head -1 | cut -f1)
+INGENIC_MUSL_SITE_BRANCH = master
+INGENIC_MUSL_VERSION = $(shell git ls-remote $(INGENIC_MUSL_SITE) $(INGENIC_MUSL_SITE_BRANCH) | head -1 | cut -f1)
 INGENIC_MUSL_INSTALL_STAGING = YES
 
 INGENIC_MUSL_LICENSE = GPL-2.0

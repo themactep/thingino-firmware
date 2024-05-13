@@ -1,6 +1,7 @@
 WIFI_ATBM6012B_SITE_METHOD = git
 WIFI_ATBM6012B_SITE = https://github.com/gtxaspec/atbm60xx
-WIFI_ATBM6012B_VERSION = $(shell git ls-remote $(WIFI_ATBM6012B_SITE) HEAD | head -1 | cut -f1)
+WIFI_ATBM6012B_SITE_BRANCH = master
+WIFI_ATBM6012B_VERSION = $(shell git ls-remote $(WIFI_ATBM6012B_SITE) $(WIFI_ATBM6012B_SITE_BRANCH) | head -1 | cut -f1)
 
 WIFI_ATBM6012B_LICENSE = GPL-2.0
 

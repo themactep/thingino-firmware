@@ -1,6 +1,7 @@
 JSONFILTER_SITE_METHOD = git
 JSONFILTER_SITE = https://github.com/openwrt/jsonpath
-JSONFILTER_VERSION = $(shell git ls-remote $(JSONFILTER_SITE) HEAD | head -1 | cut -f1)
+JSONFILTER_SITE_BRANCH = master
+JSONFILTER_VERSION = $(shell git ls-remote $(JSONFILTER_SITE) $(JSONFILTER_SITE_BRANCH) | head -1 | cut -f1)
 
 JSONFILTER_LICENSE = ISC, BSD-3-Clause
 JSONFILTER_DEPENDENCIES = json-c libubox
