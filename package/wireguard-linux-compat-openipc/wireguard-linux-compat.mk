@@ -1,9 +1,3 @@
-################################################################################
-#
-# wireguard-openipc (with fallthru patch)
-#
-################################################################################
-
 WIREGUARD_LINUX_COMPAT_OPENIPC_VERSION = 1.0.20220627
 WIREGUARD_LINUX_COMPAT_OPENIPC_SITE = https://git.zx2c4.com/wireguard-linux-compat/snapshot
 WIREGUARD_LINUX_COMPAT_OPENIPC_SOURCE = wireguard-linux-compat-$(WIREGUARD_LINUX_COMPAT_VERSION).tar.xz
