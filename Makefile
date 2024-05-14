@@ -68,19 +68,6 @@ OVERLAY_BIN := $(OUTPUT_DIR)/images/overlay.jffs2
 # 0x0010000, 64K, 65_536
 ALIGN_BLOCK := 65536
 
-# U-Boor environment is pinned to 0x50000
-# 0x40000, 256K, 262_144
-#U_BOOT_ENV_OFFSET := 262144
-# 0x48000, 288K, 294_912
-#U_BOOT_ENV_OFFSET := 294912
-# 0x50000, 320K, 327_680
-#U_BOOT_ENV_OFFSET := 327680
-
-# 0x8000, 32K, 32_768
-# U_BOOT_ENV_SIZE := 32768
-# 0x10000, 64K, 65_536
-#U_BOOT_ENV_SIZE := 65536
-
 # create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
 FIRMWARE_NAME_FULL = thingino-$(CAMERA)-$(shell \
     U_BOOT_DATE=$$(if [ -f $(U_BOOT_BIN) ]; then stat -c%Y $(U_BOOT_BIN); else echo 0; fi); \
