@@ -219,12 +219,9 @@ delete_bin_update:
 
 create_env_bin:
 	:> $(U_BOOT_ENV_FINAL_TXT); \
-	if [ -f "$(U_BOOT_ENV_TXT)" ]; then \
-	  cat $(U_BOOT_ENV_TXT) >> $(U_BOOT_ENV_FINAL_TXT); \
-	  if [ -f "$(U_BOOT_ENV_LOCAL_TXT)" ]; then \
-	    grep -v '^#' $(U_BOOT_ENV_LOCAL_TXT) >> $(U_BOOT_ENV_FINAL_TXT); \
-  	  fi; \
-	fi;
+	if [ -f $(U_BOOT_ENV_TXT) ]; then cat $(U_BOOT_ENV_TXT) >> $(U_BOOT_ENV_FINAL_TXT); fi; \
+	if [ -f $(U_BOOT_ENV_LOCAL_TXT) ]; then grep --invert-match '^#' $(U_BOOT_ENV_LOCAL_TXT) >> $(U_BOOT_ENV_FINAL_TXT); fi; \
+	cat $(U_BOOT_ENV_FINAL_TXT)
 
 create_overlay: $(U_BOOT_BIN)
 	$(info -------------------> create_overlay)
