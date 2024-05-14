@@ -230,6 +230,15 @@ delete_bin_update:
 	$(info -------------------> delete_bin_update)
 	if [ -f $(FIRMWARE_BIN_NOBOOT) ]; then rm $(FIRMWARE_BIN_NOBOOT); fi
 
+create_env_bin:
+	:> $(U_BOOT_ENV_FINAL_TXT); \
+	if [ -f "$(U_BOOT_ENV_TXT)" ]; then \
+	  cat $(U_BOOT_ENV_TXT) >> $(U_BOOT_ENV_FINAL_TXT); \
+	  if [ -f "$(U_BOOT_ENV_LOCAL_TXT)" ]; then \
+	    grep -v '^#' $(U_BOOT_ENV_LOCAL_TXT) >> $(U_BOOT_ENV_FINAL_TXT); \
+  	  fi; \
+	fi;
+
 create_overlay: $(U_BOOT_BIN)
 	$(info -------------------> create_overlay)
 	if [ $(OVERLAY_SIZE) -lt 0 ]; then $(FIGLET) "OVERSIZE"; fi
@@ -336,17 +345,9 @@ $(U_BOOT_BIN):
 	$(info U_BOOT_BIN not found!)
 	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL_LESS_Z).bin
 
-$(U_BOOT_ENV_BIN):
+$(U_BOOT_ENV_BIN): create_env_bin
 	$(info -------------------> $$(U_BOOT_ENV_BIN))
-ifneq ($(U_BOOT_ENV_TXT),)
-	if [ -f "$(U_BOOT_ENV_TXT)" ]; then \
-	cat $(U_BOOT_ENV_TXT) > $(U_BOOT_ENV_FINAL_TXT); \
-	if [ -f "$(U_BOOT_ENV_LOCAL_TXT)" ]; then \
-	grep -v '^#' $(U_BOOT_ENV_LOCAL_TXT) >> $(U_BOOT_ENV_FINAL_TXT); \
-	fi; \
-	$(SCRIPTS_DIR)/mkenvimage -s $(U_BOOT_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_FINAL_TXT); \
-	fi
-endif
+	$(SCRIPTS_DIR)/mkenvimage -s $(U_BOOT_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_FINAL_TXT)
 
 # rebuild Linux kernel
 $(KERNEL_BIN):
