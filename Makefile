@@ -47,7 +47,7 @@ include $(BR2_EXTERNAL)/board.mk
 include $(BR2_EXTERNAL)/external.mk
 
 # hardcoded variables
-WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=3
+WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=5
 
 ifeq ($(shell command -v figlet),)
 FIGLET := echo
