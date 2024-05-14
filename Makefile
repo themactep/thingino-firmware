@@ -47,7 +47,7 @@ include $(BR2_EXTERNAL)/board.mk
 include $(BR2_EXTERNAL)/external.mk
 
 # hardcoded variables
-WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=3
+WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=5
 
 ifeq ($(shell command -v figlet),)
 FIGLET := echo
@@ -67,19 +67,6 @@ OVERLAY_BIN := $(OUTPUT_DIR)/images/overlay.jffs2
 
 # 0x0010000, 64K, 65_536
 ALIGN_BLOCK := 65536
-
-# U-Boor environment is pinned to 0x50000
-# 0x40000, 256K, 262_144
-#U_BOOT_ENV_OFFSET := 262144
-# 0x48000, 288K, 294_912
-#U_BOOT_ENV_OFFSET := 294912
-# 0x50000, 320K, 327_680
-#U_BOOT_ENV_OFFSET := 327680
-
-# 0x8000, 32K, 32_768
-# U_BOOT_ENV_SIZE := 32768
-# 0x10000, 64K, 65_536
-#U_BOOT_ENV_SIZE := 65536
 
 # create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
 FIRMWARE_NAME_FULL = thingino-$(CAMERA)-$(shell \
@@ -230,11 +217,17 @@ delete_bin_update:
 	$(info -------------------> delete_bin_update)
 	if [ -f $(FIRMWARE_BIN_NOBOOT) ]; then rm $(FIRMWARE_BIN_NOBOOT); fi
 
+create_env_bin:
+	:> $(U_BOOT_ENV_FINAL_TXT); \
+	if [ -f $(U_BOOT_ENV_TXT) ]; then cat $(U_BOOT_ENV_TXT) >> $(U_BOOT_ENV_FINAL_TXT); fi; \
+	if [ -f $(U_BOOT_ENV_LOCAL_TXT) ]; then grep --invert-match '^#' $(U_BOOT_ENV_LOCAL_TXT) >> $(U_BOOT_ENV_FINAL_TXT); fi; \
+	cat $(U_BOOT_ENV_FINAL_TXT)
+
 create_overlay: $(U_BOOT_BIN)
 	$(info -------------------> create_overlay)
 	if [ $(OVERLAY_SIZE) -lt 0 ]; then $(FIGLET) "OVERSIZE"; fi
 	if [ -f $(OVERLAY_BIN) ]; then rm $(OVERLAY_BIN); fi
-	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --pad --root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=$(ALIGN_BLOCK) --output=$(OVERLAY_BIN) --squash
+	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --pad=$(OVERLAY_SIZE) --root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=$(ALIGN_BLOCK) --output=$(OVERLAY_BIN) --squash
 	#$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --pad=$(OVERLAY_SIZE) --root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=0x8000 --output=$(OVERLAY_BIN) --squash
 
 pack: pack_full
@@ -336,17 +329,9 @@ $(U_BOOT_BIN):
 	$(info U_BOOT_BIN not found!)
 	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL_LESS_Z).bin
 
-$(U_BOOT_ENV_BIN):
+$(U_BOOT_ENV_BIN): create_env_bin
 	$(info -------------------> $$(U_BOOT_ENV_BIN))
-ifneq ($(U_BOOT_ENV_TXT),)
-	if [ -f "$(U_BOOT_ENV_TXT)" ]; then \
-	cat $(U_BOOT_ENV_TXT) > $(U_BOOT_ENV_FINAL_TXT); \
-	if [ -f "$(U_BOOT_ENV_LOCAL_TXT)" ]; then \
-	grep -v '^#' $(U_BOOT_ENV_LOCAL_TXT) >> $(U_BOOT_ENV_FINAL_TXT); \
-	fi; \
-	$(SCRIPTS_DIR)/mkenvimage -s $(U_BOOT_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_FINAL_TXT); \
-	fi
-endif
+	$(SCRIPTS_DIR)/mkenvimage -s $(U_BOOT_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_FINAL_TXT)
 
 # rebuild Linux kernel
 $(KERNEL_BIN):
