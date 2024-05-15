@@ -86,12 +86,6 @@ FIRMWARE_NAME_NOBOOT = thingino-$(CAMERA)-$(shell \
 
 FIRMWARE_BIN_NOBOOT      = $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_NOBOOT)
 
-FIRMWARE_FULL_SIZE_MIN   = $(shell echo $$(($(OVERLAY_OFFSET) + $(OVERLAY_BIN_SIZE_ALIGNED))))
-FIRMWARE_FULL_SIZE_MAX   = $(FLASH_SIZE)
-
-FIRMWARE_NOBOOT_SIZE_MIN = $(shell echo $$(($(OVERLAY_OFFSET_NOBOOT) + $(OVERLAY_BIN_SIZE_ALIGNED))))
-FIRMWARE_NOBOOT_SIZE_MAX = $(shell echo $$(($(FLASH_SIZE) - $(KERNEL_OFFSET))))
-
 # file sizes
 U_BOOT_BIN_SIZE          = $(shell stat -c%s $(U_BOOT_BIN))
 U_BOOT_ENV_BIN_SIZE      = $(shell stat -c%s $(U_BOOT_ENV_BIN))
@@ -112,9 +106,12 @@ U_BOOT_ENV_PARTITION_SIZE := 65536
 KERNEL_PARTITION_SIZE     = $(KERNEL_BIN_SIZE_ALIGNED)
 ROOTFS_PARTITION_SIZE     = $(ROOTFS_BIN_SIZE_ALIGNED)
 
+FIRMWARE_FULL_SIZE        = $(FLASH_SIZE)
+FIRMWARE_NOBOOT_SIZE      = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE) - $(U_BOOT_ENV_PARTITION_SIZE))))
+
 # dynamic partitions
 OVERLAY_SIZE             = $(shell echo $$(($(FLASH_SIZE) - $(OVERLAY_OFFSET))))
-OVERLAY_SIZE_NOBOOT      = $(shell echo $$(($(FIRMWARE_NOBOOT_SIZE_MIN) - $(OVERLAY_OFFSET_NOBOOT))))
+OVERLAY_SIZE_NOBOOT      = $(shell echo $$(($(FIRMWARE_NOBOOT_SIZE) - $(OVERLAY_OFFSET_NOBOOT))))
 
 # partition offsets
 U_BOOT_OFFSET            = 0
@@ -219,8 +216,8 @@ delete_bin_update:
 
 create_env_bin:
 	:> $(U_BOOT_ENV_FINAL_TXT); \
-	if [ -f $(U_BOOT_ENV_TXT) ]; then cat $(U_BOOT_ENV_TXT) >> $(U_BOOT_ENV_FINAL_TXT); fi; \
-	if [ -f $(U_BOOT_ENV_LOCAL_TXT) ]; then grep --invert-match '^#' $(U_BOOT_ENV_LOCAL_TXT) >> $(U_BOOT_ENV_FINAL_TXT); fi; \
+	if [ -n "$(U_BOOT_ENV_TXT)" ] && [ -f "$(U_BOOT_ENV_TXT)" ]; then cat $(U_BOOT_ENV_TXT) >> $(U_BOOT_ENV_FINAL_TXT); fi; \
+	if [ -n "$(U_BOOT_ENV_LOCAL_TXT)" ] && [ -f "$(U_BOOT_ENV_LOCAL_TXT)" ]; then grep --invert-match '^#' $(U_BOOT_ENV_LOCAL_TXT) >> $(U_BOOT_ENV_FINAL_TXT); fi; \
 	cat $(U_BOOT_ENV_FINAL_TXT)
 
 create_overlay: $(U_BOOT_BIN)
@@ -236,14 +233,14 @@ pack: pack_full
 pack_full: $(FIRMWARE_BIN_FULL)
 	$(info -------------------> pack_full)
 	$(info FIRMWARE_BIN_FULL_SIZE:   $(FIRMWARE_BIN_FULL_SIZE))
-	$(info FIRMWARE_FULL_SIZE_MAX:   $(FIRMWARE_FULL_SIZE_MAX))
-	if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FIRMWARE_FULL_SIZE_MAX) ]; then $(FIGLET) "OVERSIZE"; fi
+	$(info FIRMWARE_FULL_SIZE:       $(FIRMWARE_FULL_SIZE))
+	if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FIRMWARE_FULL_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
 
 pack_update: $(FIRMWARE_BIN_NOBOOT)
 	$(info -------------------> pack_update)
 	$(info FIRMWARE_BIN_NOBOOT_SIZE: $(FIRMWARE_BIN_NOBOOT_SIZE))
-	$(info FIRMWARE_NOBOOT_SIZE_MAX: $(FIRMWARE_NOBOOT_SIZE_MAX))
-	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(FIRMWARE_NOBOOT_SIZE_MAX) ]; then $(FIGLET) "OVERSIZE"; fi
+	$(info FIRMWARE_NOBOOT_SIZE:     $(FIRMWARE_NOBOOT_SIZE))
+	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(FIRMWARE_NOBOOT_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
 
 reconfig:
 	$(info -------------------> reconfig)
@@ -364,8 +361,8 @@ $(OVERLAY_BIN): create_overlay
 
 $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
 	$(info -------------------> $$(FIRMWARE_BIN_FULL))
-	$(info $(shell printf "%-10s   %8d" FLASH_SIZE $(FLASH_SIZE)))
-	$(info $(shell printf "%-10s   %8d" FIRMWARE   $(FIRMWARE_FULL_SIZE_MIN)))
+	$(info $(shell printf "%-25s   %8d" FLASH_SIZE $(FLASH_SIZE)))
+	$(info $(shell printf "%-25s   %8d" FIRMWARE_FULL_SIZE $(FIRMWARE_FULL_SIZE)))
 	$(info $(shell printf "%-10s | %-8s | %-9s | %-9s | " PARTITION SIZE OFFSET END))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" U_BOOT     $(U_BOOT_BIN_SIZE)     $(U_BOOT_OFFSET)     $$(($(U_BOOT_OFFSET)     + $(U_BOOT_BIN_SIZE)     ))))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" U_BOOT_ENV $(U_BOOT_ENV_BIN_SIZE) $(U_BOOT_ENV_OFFSET) $$(($(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_BIN_SIZE) ))))
@@ -380,13 +377,13 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN
 
 $(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
 	$(info -------------------> $$(FIRMWARE_BIN_NOBOOT))
-	$(info $(shell printf "%-10s   %8d" FLASH_SIZE $(FLASH_SIZE)))
-	$(info $(shell printf "%-10s   %8d" FIRMWARE   $(FIRMWARE_NOBOOT_SIZE_MIN)))
+	$(info $(shell printf "%-25s   %8d" FLASH_SIZE $(FLASH_SIZE)))
+	$(info $(shell printf "%-25s   %8d" FIRMWARE_NOBOOT_SIZE $(FIRMWARE_NOBOOT_SIZE)))
 	$(info $(shell printf "%-10s | %-8s | %-9s | %-9s | " PARTITION SIZE OFFSET END))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" KERNEL     $(KERNEL_BIN_SIZE)          $(KERNEL_OFFSET)   $$(($(KERNEL_OFFSET)  + $(KERNEL_BIN_SIZE)  ))))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" ROOTFS     $(ROOTFS_BIN_SIZE)          $(ROOTFS_OFFSET)   $$(($(ROOTFS_OFFSET)  + $(ROOTFS_BIN_SIZE)  ))))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" OVERLAY    $(OVERLAY_BIN_SIZE)         $(OVERLAY_OFFSET)  $$(($(OVERLAY_OFFSET) + $(OVERLAY_BIN_SIZE) ))))
-	dd if=/dev/zero bs=$(FIRMWARE_NOBOOT_SIZE_MIN) skip=0 count=1 status=none | tr '\000' '\377' > $@
+	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" KERNEL     $(KERNEL_BIN_SIZE)     $(KERNEL_OFFSET)   $$(($(KERNEL_OFFSET)  + $(KERNEL_BIN_SIZE)  ))))
+	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" ROOTFS     $(ROOTFS_BIN_SIZE)     $(ROOTFS_OFFSET)   $$(($(ROOTFS_OFFSET)  + $(ROOTFS_BIN_SIZE)  ))))
+	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" OVERLAY    $(OVERLAY_BIN_SIZE)    $(OVERLAY_OFFSET)  $$(($(OVERLAY_OFFSET) + $(OVERLAY_BIN_SIZE) ))))
+	dd if=/dev/zero bs=$(FIRMWARE_NOBOOT_SIZE) skip=0 count=1 status=none | tr '\000' '\377' > $@
 	dd if=$(KERNEL_BIN)  bs=$(KERNEL_BIN_SIZE)  seek=0 count=1 of=$@ conv=notrunc status=none
 	dd if=$(ROOTFS_BIN)  bs=$(ROOTFS_BIN_SIZE)  seek=$(KERNEL_PARTITION_SIZE)B count=1 of=$@ conv=notrunc status=none
 	dd if=$(OVERLAY_BIN) bs=$(OVERLAY_BIN_SIZE) seek=$(OVERLAY_OFFSET_NOBOOT)B count=1 of=$@ conv=notrunc status=none
