@@ -1,11 +1,8 @@
 #!/bin/sh
-#
-# Start zerotier-one
-#
 
 config_file=/etc/webui/zerotier.conf
 [ ! -f "$config_file" ] && echo "Config file not found." && exit 2
-source $config_file
+. $config_file
 
 case "$1" in
 	start)
@@ -14,7 +11,7 @@ case "$1" in
 			/sbin/modprobe tun
 			/usr/sbin/zerotier-one -d
 		else
-			echo "Zerotier-One service is disabled in ${config_file}."
+			echo "Zerotier-One service is disabled in $config_file"
 			exit 3
 		fi
 		;;
