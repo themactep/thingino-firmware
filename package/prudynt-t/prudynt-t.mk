@@ -32,17 +32,20 @@ define PRUDYNT_T_BUILD_CMDS
 endef
 
 define PRUDYNT_T_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 0755 -D $(@D)/bin/prudynt $(TARGET_DIR)/usr/bin/prudynt
-	$(INSTALL) -m 0644 -D $(@D)/prudynt.cfg.example $(TARGET_DIR)/etc/prudynt.cfg
-	sed -i 's/;.*$$/;/' $(TARGET_DIR)/etc/prudynt.cfg
-	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S95prudynt $(TARGET_DIR)/etc/init.d/S95prudynt
-	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S96record $(TARGET_DIR)/etc/init.d/S96record
-	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/prudyntcfg $(TARGET_DIR)/usr/bin/prudyntcfg
-	$(INSTALL) -m 0755 -D $(@D)/res/thingino_logo_1.bgra $(TARGET_DIR)/usr/share/thingino_logo_1.bgra
-	$(INSTALL) -m 0755 -D $(@D)/res/thingino_logo_2.bgra $(TARGET_DIR)/usr/share/thingino_logo_2.bgra
-	if echo "$(SOC_RAM)" | grep -q "64"; then \
-		sed -i 's/^\([ \t]*\)# *buffers: 2;/\1buffers: 1;/' $(TARGET_DIR)/etc/prudynt.cfg; \
-	fi
+    $(INSTALL) -m 0755 -D $(@D)/bin/prudynt $(TARGET_DIR)/usr/bin/prudynt
+    $(INSTALL) -m 0644 -D $(@D)/prudynt.cfg.example $(TARGET_DIR)/etc/prudynt.cfg
+    sed -i 's/;.*$$/;/' $(TARGET_DIR)/etc/prudynt.cfg
+    $(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S95prudynt $(TARGET_DIR)/etc/init.d/S95prudynt
+    $(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S96record $(TARGET_DIR)/etc/init.d/S96record
+    $(INSTALL) -m 0755 -D $(@D)/res/thingino_logo_1.bgra $(TARGET_DIR)/usr/share/thingino_logo_1.bgra
+    $(INSTALL) -m 0755 -D $(@D)/res/thingino_logo_2.bgra $(TARGET_DIR)/usr/share/thingino_logo_2.bgra
+    if echo "$(SOC_RAM)" | grep -q "64"; then \
+        sed -i 's/^\([ \t]*\)# *buffers: 2;/\1buffers: 1;/' $(TARGET_DIR)/etc/prudynt.cfg; \
+    fi
+    awk '{if(NR>0)gsub(/^[[:space:]]*/,"")}{if(NR>1)printf("%s",$$0);else print $$0;}' \
+        $(PRUDYNT_T_PKGDIR)/files/prudyntcfg.awk > $(PRUDYNT_T_PKGDIR)/files/prudyntcfg
+    $(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/prudyntcfg $(TARGET_DIR)/usr/bin/prudyntcfg
+    rm $(PRUDYNT_T_PKGDIR)/files/prudyntcfg
 endef
 
 $(eval $(generic-package))
