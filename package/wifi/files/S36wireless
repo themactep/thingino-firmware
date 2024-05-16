@@ -3,6 +3,7 @@
 start() {
 	echo "Starting wireless:"
 	modulename="$(fw_printenv -n wlandev)"
+	moduleopts="$(fw_printenv -n wlandevopts)"
 	gpionum="$(fw_printenv -n gpio_wlan)"
 	mac_address=$(fw_printenv -n wlanmac)
 
@@ -38,7 +39,7 @@ start() {
 
 	if ! lsmod | grep -q "$modulename"; then
 		echo -n " Load module $modulename ... "
-		if modprobe $modulename 2>&1 | logger -t $0; then
+		if modprobe $modulename $moduleopts 2>&1 | logger -t $0; then
 			echo "OK"
 		else
 			echo "FAIL"
