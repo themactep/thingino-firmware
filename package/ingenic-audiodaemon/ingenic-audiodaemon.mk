@@ -26,6 +26,7 @@ endef
 
 define INGENIC_AUDIODAEMON_INSTALL_TARGET_CMDS
     cp -a $(@D)/build/bin/. $(TARGET_DIR)/usr/bin/
+    cp -a $(@D)/config/iad.json $(TARGET_DIR)/etc/
 endef
 
 $(eval $(generic-package))
