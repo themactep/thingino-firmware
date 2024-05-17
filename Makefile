@@ -303,7 +303,7 @@ br-%:
 buildroot/Makefile:
 	$(info -------------------> buildroot/Makefile)
 	git submodule init
-	git submodule update
+	git submodule update --depth 1 --recursive
 
 # create output directory
 $(OUTPUT_DIR):
