@@ -76,15 +76,14 @@ FIRMWARE_NAME_FULL = thingino-$(CAMERA)-$(shell \
     LATEST_DATE=$$(printf '%d\n' $$U_BOOT_DATE $$KERNEL_DATE $$ROOTFS_DATE | sort -gr | head -1); \
     if [ $$LATEST_DATE -eq 0 ]; then echo "missing"; else date -u +%Y%m%d%H%M -d @$$LATEST_DATE; fi).bin
 
-FIRMWARE_BIN_FULL = $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_FULL)
-
 FIRMWARE_NAME_NOBOOT = thingino-$(CAMERA)-$(shell \
     KERNEL_DATE=$$(if [ -f $(KERNEL_BIN) ]; then stat -c%Y $(KERNEL_BIN); else echo 0; fi); \
     ROOTFS_DATE=$$(if [ -f $(ROOTFS_BIN) ]; then stat -c%Y $(ROOTFS_BIN); else echo 0; fi); \
     LATEST_DATE=$$(printf '%d\n' $$KERNEL_DATE $$ROOTFS_DATE | sort -gr | head -1); \
     if [ $$LATEST_DATE -eq 0 ]; then echo "missing"; else date -u +%Y%m%d%H%M -d @$$LATEST_DATE; fi)-update.bin
 
-FIRMWARE_BIN_NOBOOT      = $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_NOBOOT)
+FIRMWARE_BIN_FULL        := $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_FULL)
+FIRMWARE_BIN_NOBOOT      := $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_NOBOOT)
 
 # file sizes
 U_BOOT_BIN_SIZE          = $(shell stat -c%s $(U_BOOT_BIN))
@@ -92,6 +91,7 @@ U_BOOT_ENV_BIN_SIZE      = $(shell stat -c%s $(U_BOOT_ENV_BIN))
 KERNEL_BIN_SIZE          = $(shell stat -c%s $(KERNEL_BIN))
 ROOTFS_BIN_SIZE          = $(shell stat -c%s $(ROOTFS_BIN))
 OVERLAY_BIN_SIZE         = $(shell stat -c%s $(OVERLAY_BIN))
+
 FIRMWARE_BIN_FULL_SIZE   = $(shell stat -c%s $(FIRMWARE_BIN_FULL))
 FIRMWARE_BIN_NOBOOT_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_NOBOOT))
 
@@ -369,10 +369,18 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" ROOTFS     $(ROOTFS_BIN_SIZE)     $(ROOTFS_OFFSET)     $$(($(ROOTFS_OFFSET)     + $(ROOTFS_BIN_SIZE)     ))))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" OVERLAY    $(OVERLAY_BIN_SIZE)    $(OVERLAY_OFFSET)    $$(($(OVERLAY_OFFSET)    + $(OVERLAY_BIN_SIZE)    ))))
 	dd if=/dev/zero bs=$(SIZE_8M) skip=0 count=1 status=none | tr '\000' '\377' > $@
-	dd if=$(U_BOOT_BIN)  bs=$(U_BOOT_BIN_SIZE)  seek=$(U_BOOT_OFFSET)B  count=1 of=$@ conv=notrunc status=none
-	dd if=$(KERNEL_BIN)  bs=$(KERNEL_BIN_SIZE)  seek=$(KERNEL_OFFSET)B  count=1 of=$@ conv=notrunc status=none
-	dd if=$(ROOTFS_BIN)  bs=$(ROOTFS_BIN_SIZE)  seek=$(ROOTFS_OFFSET)B  count=1 of=$@ conv=notrunc status=none
-	dd if=$(OVERLAY_BIN) bs=$(OVERLAY_BIN_SIZE) seek=$(OVERLAY_OFFSET)B count=1 of=$@ conv=notrunc status=none
+	if [ $$(dd --version | head -1 | awk '{print $$3}' | cut -d. -f1) -lt 9 ]; \
+	then \
+	  dd if=$(U_BOOT_BIN)  bs=1 seek=$(U_BOOT_OFFSET)  count=$(U_BOOT_BIN_SIZE)   of=$@ conv=notrunc status=none; \
+	  dd if=$(KERNEL_BIN)  bs=1 seek=$(KERNEL_OFFSET)  count=$(KENRLE_BIN_SIZE)   of=$@ conv=notrunc status=none; \
+	  dd if=$(ROOTFS_BIN)  bs=1 seek=$(ROOTFS_OFFSET)  count=$(ROOTFS_BIN_SIZE)   of=$@ conv=notrunc status=none; \
+	  dd if=$(OVERLAY_BIN) bs=1 seek=$(OVERLAY_OFFSET) count=$(OVERLAY_BIN_SIZE)  of=$@ conv=notrunc status=none; \
+	else \
+	  dd if=$(U_BOOT_BIN)  bs=$(U_BOOT_BIN_SIZE)  seek=$(U_BOOT_OFFSET)B  count=1 of=$@ conv=notrunc status=none; \
+	  dd if=$(KERNEL_BIN)  bs=$(KERNEL_BIN_SIZE)  seek=$(KERNEL_OFFSET)B  count=1 of=$@ conv=notrunc status=none; \
+	  dd if=$(ROOTFS_BIN)  bs=$(ROOTFS_BIN_SIZE)  seek=$(ROOTFS_OFFSET)B  count=1 of=$@ conv=notrunc status=none; \
+	  dd if=$(OVERLAY_BIN) bs=$(OVERLAY_BIN_SIZE) seek=$(OVERLAY_OFFSET)B count=1 of=$@ conv=notrunc status=none; \
+	fi
 
 $(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
 	$(info -------------------> $$(FIRMWARE_BIN_NOBOOT))
@@ -383,10 +391,16 @@ $(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" ROOTFS     $(ROOTFS_BIN_SIZE)     $(ROOTFS_OFFSET)   $$(($(ROOTFS_OFFSET)  + $(ROOTFS_BIN_SIZE)  ))))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" OVERLAY    $(OVERLAY_BIN_SIZE)    $(OVERLAY_OFFSET)  $$(($(OVERLAY_OFFSET) + $(OVERLAY_BIN_SIZE) ))))
 	dd if=/dev/zero bs=$(FIRMWARE_NOBOOT_SIZE) skip=0 count=1 status=none | tr '\000' '\377' > $@
-	dd if=$(KERNEL_BIN)  bs=$(KERNEL_BIN_SIZE)  seek=0 count=1 of=$@ conv=notrunc status=none
-	dd if=$(ROOTFS_BIN)  bs=$(ROOTFS_BIN_SIZE)  seek=$(KERNEL_PARTITION_SIZE)B count=1 of=$@ conv=notrunc status=none
-	dd if=$(OVERLAY_BIN) bs=$(OVERLAY_BIN_SIZE) seek=$(OVERLAY_OFFSET_NOBOOT)B count=1 of=$@ conv=notrunc status=none
-
+	if [ $$(dd --version | head -1 | awk '{print $$3}' | cut -d. -f1) -lt 9 ]; \
+	then \
+	  dd if=$(KERNEL_BIN)  bs=1 seek=0                        count=$(KERNEL_BIN_SIZE)   of=$@ conv=notrunc status=none; \
+	  dd if=$(ROOTFS_BIN)  bs=1 seek=$(KERNEL_PARTITION_SIZE) count=$(ROOTFS_BIN_SIZE)   of=$@ conv=notrunc status=none; \
+	  dd if=$(OVERLAY_BIN) bs=1 seek=$(OVERLAY_OFFSET_NOBOOT) count=$(OVERLAY_BIN_SIZE)  of=$@ conv=notrunc status=none; \
+	else \
+	  dd if=$(KERNEL_BIN)  bs=$(KERNEL_BIN_SIZE)  seek=0 count=1 of=$@ conv=notrunc status=none; \
+	  dd if=$(ROOTFS_BIN)  bs=$(ROOTFS_BIN_SIZE)  seek=$(KERNEL_PARTITION_SIZE)B count=1 of=$@ conv=notrunc status=none; \
+	  dd if=$(OVERLAY_BIN) bs=$(OVERLAY_BIN_SIZE) seek=$(OVERLAY_OFFSET_NOBOOT)B count=1 of=$@ conv=notrunc status=none; \
+	fi
 help:
 	@echo "\n\
 	Usage:\n\
