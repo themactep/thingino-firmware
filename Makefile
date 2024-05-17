@@ -372,7 +372,7 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN
 	if [ $$(dd --version | awk -F '[. ]' 'NR==1{print $$3}') -lt 9 ]; \
 	then \
 	  dd if=$(U_BOOT_BIN)  bs=1 seek=$(U_BOOT_OFFSET)  count=$(U_BOOT_BIN_SIZE)   of=$@ conv=notrunc status=none; \
-	  dd if=$(KERNEL_BIN)  bs=1 seek=$(KERNEL_OFFSET)  count=$(KENRLE_BIN_SIZE)   of=$@ conv=notrunc status=none; \
+	  dd if=$(KERNEL_BIN)  bs=1 seek=$(KERNEL_OFFSET)  count=$(KERNEL_BIN_SIZE)   of=$@ conv=notrunc status=none; \
 	  dd if=$(ROOTFS_BIN)  bs=1 seek=$(ROOTFS_OFFSET)  count=$(ROOTFS_BIN_SIZE)   of=$@ conv=notrunc status=none; \
 	  dd if=$(OVERLAY_BIN) bs=1 seek=$(OVERLAY_OFFSET) count=$(OVERLAY_BIN_SIZE)  of=$@ conv=notrunc status=none; \
 	else \
