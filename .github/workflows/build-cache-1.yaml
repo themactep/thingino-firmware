@@ -27,7 +27,7 @@ env:
 
 jobs:
   notify-begin:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       start_time: ${{ steps.set_output.outputs.time }}
     steps:
@@ -49,7 +49,7 @@ jobs:
   build-caches:
     name: ${{ matrix.caches-version }}
     needs: notify-begin
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -88,19 +88,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-
 
-      - name: Setup repo sources for GCC13
-        run: |
-          sudo echo "deb http://archive.ubuntu.com/ubuntu/ lunar main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          sudo tee -a /etc/apt/preferences.d/prefer-jammy <<EOF
-          Package: *
-          Pin: release a=jammy
-          Pin-Priority: 500
-
-          Package: *
-          Pin: release a=lunar
-          Pin-Priority: 100
-          EOF
-
       - name: Update system sources
         run: |
           sudo apt-get update
@@ -108,10 +95,6 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail gcc gcc-mipsel-linux-gnu lzop u-boot-tools ca-certificates ccache
-
-      - name: Install GCC13 dependencies
-        run: |
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends --no-install-suggests libc6=2.37-0ubuntu2 libc-bin=2.37-0ubuntu2 libc6-mipsel-cross=2.37-0ubuntu1cross1 libc6-dev=2.37-0ubuntu2 libc-dev-bin=2.37-0ubuntu2 coreutils=9.1-1ubuntu2 libgmp10=2:6.2.1+dfsg1-1.1ubuntu1
 
       - name: Generate buildroot cache
         run: |
@@ -150,7 +133,7 @@ jobs:
 
   notify-completion:
     needs: [build-caches, notify-begin]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: always()
     steps:
       - name: Send completion summary

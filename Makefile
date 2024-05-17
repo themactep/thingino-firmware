@@ -248,8 +248,7 @@ reconfig:
 
 rebuild-%:
 	$(info -------------------> rebuild-%)
-	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean
-	$(BR2_MAKE) $(subst rebuild-,,$@)
+	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
 
 sdk: defconfig
 	$(info -------------------> sdk)
