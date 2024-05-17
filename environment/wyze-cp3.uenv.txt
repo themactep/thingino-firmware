@@ -8,6 +8,7 @@ gpio_speaker=7
 motor_maxstep_h=3050
 motor_maxstep_v=1550
 wlandev=atbm6031
+wlandevopts=atbm_printk_mask=0
 day_night_min=5000
 day_night_max=15000
 disable_eth=true

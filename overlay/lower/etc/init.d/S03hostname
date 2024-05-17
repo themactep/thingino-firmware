@@ -3,11 +3,14 @@
 case "$1" in
 start)
 	HOSTNAME=$(fw_printenv -n hostname 2>/dev/null)
-	echo -n "Setting hostname: "
-	if [ -n "$HOSTNAME" ]; then
-			hostname "$HOSTNAME"
+	echo -n "Starting hostname: "
+	if [ -z "$HOSTNAME" ]; then
+		OS_NAME=$(sed -n 's/^HOSTNAME=//p' /etc/os-release)
+		MAC_SUFFIX=$(fw_printenv -n wlanmac | sed 's/://g;s/.*\(....\)$/\1/')
+		HOSTNAME="${OS_NAME}-${MAC_SUFFIX}"
 	fi
-	echo "OK"
+	hostname "$HOSTNAME"
+	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
 	;;
 stop)
 	true

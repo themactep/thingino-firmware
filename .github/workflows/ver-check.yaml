@@ -1,0 +1,37 @@
+name: Version Check
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  update-thingino-live555:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "master"
+          fetch-depth: "1"
+
+      - name: Get Latest Live555 Release
+        id: thingino-live555
+        run: |
+          upstream_ver=$(curl -s http://www.live555.com/liveMedia/public/ | grep -oP 'live\.\d{4}\.\d{2}\.\d{2}\.tar\.gz' | sort -r | head -n 1 | awk -F'.' '{print $2"."$3"."$4}')
+          current_ver=$(cat package/thingino-live555/thingino-live555.mk | grep "THINGINO_LIVE555_VERSION =" | awk '{ print $3 }')
+          sed -i "s/THINGINO_LIVE555_VERSION = [0-9]\{4\}\.[0-9]\{2\}\.[0-9]\{2\}/THINGINO_LIVE555_VERSION = $upstream_ver/" package/thingino-live555/thingino-live555.mk
+          echo "upstream_ver=$upstream_ver" >> $GITHUB_OUTPUT
+          echo "current_ver=$current_ver" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        if: steps.thingino-live555.outputs.current_ver != '' && steps.thingino-live555.outputs.current_ver != steps.thingino-live555.outputs.upstream_ver
+        with:
+          title: 'Update thingino-live555 to ${{ steps.thingino-live555.outputs.upstream_ver }}'
+          commit-message: 'Update thingino-live555 version from ${{ steps.thingino-live555.outputs.current_ver }} to ${{ steps.thingino-live555.outputs.upstream_ver }}'
+          branch: thingino-live555-version
+          body: |
+            This pull request updates thingino-live555 to the latest version: ${{ steps.thingino-live555.outputs.upstream_ver }}
+          base: master
+          delete-branch: true
+
