@@ -14,3 +14,5 @@ gpio_motor_v=64 53 52 54
 gpio_motor_h=61 62 63 51
 gpio_ircut=58 57
 gpio_ir850=9
+gpio_led_r=17
+gpio_led_b=16
