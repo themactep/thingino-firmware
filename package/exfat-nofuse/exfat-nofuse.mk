@@ -10,7 +10,7 @@ $(MAKE) \
 endef
 
 define EXFAT_NOFUSE_INSTALL_TARGET_CMDS
-    $(INSTALL) -D -m 0644 $(@D)/exfat.ko $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
+	$(INSTALL) -D -m 0644 $(@D)/exfat.ko $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
 endef
 
 $(eval $(kernel-module))
