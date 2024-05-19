@@ -1,11 +1,11 @@
 #!/bin/sh
 
 start() {
-	echo -n "Setting Timezone: "
+	echo -n "Starting Timezone: "
 	# Get the timezone from the u-boot environment variable
 	timezone=$(fw_printenv -n timezone 2> /dev/null)
 	if [ -z "$timezone" ]; then
-		echo "Using system default"
+		echo "UTC0"
 		exit 1
 	fi
 
@@ -16,7 +16,6 @@ start() {
 	current_tz_value=$(cat /etc/TZ 2> /dev/null)
 
 	if [ "$timezone" = "$current_timezone" ] && [ "$timezone" = "$current_tz_value" ]; then
-		echo "Timezone settings are up to date"
 		exit 0
 	fi
 
@@ -39,7 +38,7 @@ start() {
 
 	export TZ=$value
 
-	echo "OK"
+	echo "$timezone"
 }
 
 case "$1" in
