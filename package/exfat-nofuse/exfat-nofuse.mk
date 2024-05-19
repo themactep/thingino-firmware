@@ -16,6 +16,8 @@ define EXFAT_NOFUSE_INSTALL_TARGET_CMDS
 	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
 	$(INSTALL) -m 755 -d $(TARGET_MODULES_PATH)/extra
 	$(INSTALL) -m 0644 -t $(TARGET_MODULES_PATH)/extra/ $(@D)/exfat.ko
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
+	echo exfat >> $(TARGET_DIR)/etc/modules
 endef
 
 $(eval $(kernel-module))
