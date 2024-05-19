@@ -56,7 +56,7 @@ FIGLET := $(shell command -v figlet) -t -f pagga
 endif
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
-U_BOOT_ENV_LOCAL_TXT := $(BR2_EXTERNAL)/environment/@local.uenv.txt
+U_BOOT_ENV_LOCAL_TXT := $(BR2_EXTERNAL)/local.uenv.txt
 U_BOOT_ENV_FINAL_TXT := $(OUTPUT_DIR)/env.txt
 U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL_LESS_Z).bin
 U_BOOT_ENV_BIN := $(OUTPUT_DIR)/images/uenv.bin
