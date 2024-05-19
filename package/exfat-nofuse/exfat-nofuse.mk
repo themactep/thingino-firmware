@@ -1,16 +1,21 @@
-EXFAT_NOFUSE_VERSION = master
-EXFAT_NOFUSE_SITE = $(call github,dorimanx,exfat-nofuse,$(EXFAT_NOFUSE_VERSION))
+EXFAT_NOFUSE_SITE_METHOD = git
+EXFAT_NOFUSE_SITE = https://github.com/dorimanx/exfat-nofuse
+EXFAT_NOFUSE_SITE_BRANCH = master
+EXFAT_NOFUSE_VERSION = $(shell git ls-remote $(EXFAT_NOFUSE_SITE) $(EXFAT_NOFUSE_SITE_BRANCH) | head -1 | cut -f1)
+
 EXFAT_NOFUSE_LICENSE = GPL-2.0+
 EXFAT_NOFUSE_LICENSE_FILES = COPYING
 
 define EXFAT_NOFUSE_BUILD_CMDS
-$(MAKE) \
-        CROSS_COMPILE=$(TARGET_CROSS) \
-        -C $(@D) KDIR=$(LINUX_DIR)
+	$(MAKE) CROSS_COMPILE=$(TARGET_CROSS) -C $(@D) KDIR=$(LINUX_DIR)
 endef
 
+TARGET_MODULES_PATH = $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
 define EXFAT_NOFUSE_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0644 $(@D)/exfat.ko $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
+	$(INSTALL) -m 755 -d $(TARGET_MODULES_PATH)
+	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
+	$(INSTALL) -m 755 -d $(TARGET_MODULES_PATH)/extra
+	$(INSTALL) -m 0644 -t $(TARGET_MODULES_PATH)/extra/ $(@D)/exfat.ko
 endef
 
 $(eval $(kernel-module))
