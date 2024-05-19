@@ -4,7 +4,7 @@
 plugin="motion"
 plugin_name="Motion guard"
 page_title="Motion guard"
-params="enabled sensitivity send2email send2ftp send2mqtt send2telegram send2webhook send2yadisk playonspeaker throttle"
+params="enabled sensitivity send2email send2ftp send2ssh send2mqtt send2telegram send2webhook send2yadisk playonspeaker throttle"
 
 tmp_file=/tmp/$plugin
 
@@ -25,6 +25,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ "true" = "$motion_enabled" ]; then
 		[ "false" = "$motion_send2email" ] && \
 			[ "false" = "$motion_send2ftp" ] && \
+			[ "false" = "$motion_send2ssh" ] && \
 			[ "false" = "$motion_send2mqtt" ] && \
 			[ "false" = "$motion_send2telegram" ] && \
 			[ "false" = "$motion_send2webhook" ] && \
@@ -81,6 +82,9 @@ fi
 <li class="list-group-item send2ftp">
 <% field_checkbox "motion_send2ftp" "Upload to FTP" "<a href=\"plugin-send2ftp.cgi\">Configure uploading to FTP</a>" %>
 </li>
+<li class="list-group-item send2ssh">
+<% field_checkbox "motion_send2ssh" "Upload to SSH" "<a href=\"plugin-send2ssh.cgi\">Configure uploading to SSH</a>" %>
+</li>
 <li class="list-group-item send2mqtt">
 <% field_checkbox "motion_send2mqtt" "Send to MQTT" "<a href=\"plugin-send2mqtt.cgi\">Configure sending to MQTT</a>" %>
 </li>
@@ -109,6 +113,7 @@ fi
 <script>
 <% [ "true" != "$email_enabled"    ] && echo "\$('#motion_send2email').disabled = true;" %>
 <% [ "true" != "$ftp_enabled"      ] && echo "\$('#motion_send2ftp').disabled = true;" %>
+<% [ "true" != "$ssh_enabled"      ] && echo "\$('#motion_send2ssh').disabled = true;" %>
 <% [ "true" != "$mqtt_enabled"     ] && echo "\$('#motion_send2mqtt').disabled = true;" %>
 <% [ "true" != "$telegram_enabled" ] && echo "\$('#motion_send2telegram').disabled = true;" %>
 <% [ "true" != "$webhook_enabled"  ] && echo "\$('#motion_send2webhook').disabled = true;" %>

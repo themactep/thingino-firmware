@@ -75,6 +75,10 @@ Please open RTSP stream at <i><a href="<%= $rtsp_url %>"><%= $rtsp_url %></a></i
 <div class="input-group-text"><a href="plugin-send2ftp.cgi" title="FTP Storage settings"><%= $icon_gear %></a></div>
 </div>
 <div class="input-group">
+<button class="form-control btn btn-primary text-start" type="button" data-sendto="ssh">SSH</button>
+<div class="input-group-text"><a href="plugin-send2ssh.cgi" title="SSH Storage settings"><%= $icon_gear %></a></div>
+</div>
+<div class="input-group">
 <button class="form-control btn btn-primary text-start" type="button" data-sendto="telegram">Telegram</button>
 <div class="input-group-text"><a href="plugin-send2telegram.cgi" title="Telegram bot settings"><%= $icon_gear %></a></div>
 </div>
@@ -100,6 +104,7 @@ const network_address = "<%= $network_address %>";
 
 <% [ "true" != "$email_enabled"    ] && echo "\$('button[data-sendto=email]').disabled = true;" %>
 <% [ "true" != "$ftp_enabled"      ] && echo "\$('button[data-sendto=ftp]').disabled = true;" %>
+<% [ "true" != "$ssh_enabled"      ] && echo "\$('button[data-sendto=ssh]').disabled = true;" %>
 <% [ "true" != "$mqtt_enabled"     ] && echo "\$('button[data-sendto=mqtt]').disabled = true;" %>
 <% [ "true" != "$webhook_enabled"  ] && echo "\$('button[data-sendto=webhook]').disabled = true;" %>
 <% [ "true" != "$telegram_enabled" ] && echo "\$('button[data-sendto=telegram]').disabled = true;" %>
