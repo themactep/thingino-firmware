@@ -5,7 +5,7 @@ start() {
 	# Get the timezone from the u-boot environment variable
 	timezone=$(fw_printenv -n timezone 2> /dev/null)
 	if [ -z "$timezone" ]; then
-		echo "UTC0"
+		echo "GMT0"
 		exit 1
 	fi
 
