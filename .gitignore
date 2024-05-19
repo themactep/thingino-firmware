@@ -7,7 +7,7 @@ toolchain/
 wirebox/
 .board
 .gitconfig
-configs/fragments/local.fragment
+/local.fragment
 /local.mk
 /.bootstrapped
 /.settings/
