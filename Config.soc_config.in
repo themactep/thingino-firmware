@@ -151,6 +151,11 @@ choice
 		bool "Disabled"
 endchoice
 
+config BR2_MOTORS
+	bool "Pan/Tilt Motors"
+	help
+	  The camera has Pan and/or Tilt motors.
+
 config BR2_SDCARD
 	bool "SD Card"
 	help

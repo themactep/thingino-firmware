@@ -1,5 +1,5 @@
 # MODULE: t21n_sc2300_rtl8188ftv_defconfig
 FLASH_SIZE_8=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/primecables-08361.uenv.txt"
-BR2_PACKAGE_MOTORS=y
+BR2_MOTORS=y
 BR2_SDCARD=y
