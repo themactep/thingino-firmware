@@ -1,6 +1,7 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/themactep/ingenic-sdk
-INGENIC_SDK_VERSION = $(shell git ls-remote $(INGENIC_SDK_SITE) master | head -1 | cut -f1)
+INGENIC_SDK_SITE_BRANCH = master
+INGENIC_SDK_VERSION = $(shell git ls-remote $(INGENIC_SDK_SITE) $(INGENIC_SDK_SITE_BRANCH) | head -1 | cut -f1)
 
 INGENIC_SDK_LICENSE = GPL-3.0
 INGENIC_SDK_LICENSE_FILES = LICENSE
@@ -27,16 +28,16 @@ else
 FULL_KERNEL_VERSION = 3.10.14
 endif
 
+TARGET_MODULES_PATH = $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
 define INGENIC_SDK_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
-	touch $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/modules.builtin.modinfo
+	$(INSTALL) -m 755 -d $(TARGET_MODULES_PATH)
+	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/sensor
 	$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_MODEL).bin $(TARGET_DIR)/etc/sensor/$(SENSOR_CONFIG_NAME)
-	echo $(SENSOR_MODEL) >$(TARGET_DIR)/etc/sensor/model
+	echo $(SENSOR_MODEL) > $(TARGET_DIR)/etc/sensor/model
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/modules.d
-
 	echo tx_isp_$(SOC_FAMILY) isp_clk=$(ISP_CLK) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp
 
 	if [ "$(SOC_FAMILY)" = "t31" ]; then \
