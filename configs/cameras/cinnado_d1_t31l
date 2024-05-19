@@ -6,3 +6,4 @@ BR2_ISP_PARAMS="isp_ch0_pre_dequeue_time=24 isp_ch0_pre_dequeue_interrupt_proces
 BR2_SENSOR_PARAMS="shvflip=1"
 BR2_PACKAGE_MOSQUITTO=y
 BR2_PACKAGE_MOTORS=y
+BR2_SDCARD=y

@@ -151,4 +151,9 @@ choice
 		bool "Disabled"
 endchoice
 
+config BR2_SDCARD
+	bool "SD Card"
+	help
+	  The hardware has an SD card slot.
+
 endmenu
