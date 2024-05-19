@@ -58,7 +58,7 @@ endif
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 U_BOOT_ENV_LOCAL_TXT := $(BR2_EXTERNAL)/environment/@local.uenv.txt
 U_BOOT_ENV_FINAL_TXT := $(OUTPUT_DIR)/env.txt
-U_BOOT_BIN  = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL_LESS_Z).bin
+U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL_LESS_Z).bin
 U_BOOT_ENV_BIN := $(OUTPUT_DIR)/images/uenv.bin
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
@@ -82,46 +82,46 @@ FIRMWARE_NAME_NOBOOT = thingino-$(CAMERA)-$(shell \
     LATEST_DATE=$$(printf '%d\n' $$KERNEL_DATE $$ROOTFS_DATE | sort -gr | head -1); \
     if [ $$LATEST_DATE -eq 0 ]; then echo "missing"; else date -u +%Y%m%d%H%M -d @$$LATEST_DATE; fi)-update.bin
 
-FIRMWARE_BIN_FULL        := $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_FULL)
-FIRMWARE_BIN_NOBOOT      := $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_NOBOOT)
+FIRMWARE_BIN_FULL = $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_FULL)
+FIRMWARE_BIN_NOBOOT = $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_NOBOOT)
 
 # file sizes
-U_BOOT_BIN_SIZE          = $(shell stat -c%s $(U_BOOT_BIN))
-U_BOOT_ENV_BIN_SIZE      = $(shell stat -c%s $(U_BOOT_ENV_BIN))
-KERNEL_BIN_SIZE          = $(shell stat -c%s $(KERNEL_BIN))
-ROOTFS_BIN_SIZE          = $(shell stat -c%s $(ROOTFS_BIN))
-OVERLAY_BIN_SIZE         = $(shell stat -c%s $(OVERLAY_BIN))
+U_BOOT_BIN_SIZE = $(shell stat -c%s $(U_BOOT_BIN))
+U_BOOT_ENV_BIN_SIZE = $(shell stat -c%s $(U_BOOT_ENV_BIN))
+KERNEL_BIN_SIZE = $(shell stat -c%s $(KERNEL_BIN))
+ROOTFS_BIN_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
+OVERLAY_BIN_SIZE = $(shell stat -c%s $(OVERLAY_BIN))
 
-FIRMWARE_BIN_FULL_SIZE   = $(shell stat -c%s $(FIRMWARE_BIN_FULL))
+FIRMWARE_BIN_FULL_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_FULL))
 FIRMWARE_BIN_NOBOOT_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_NOBOOT))
 
-U_BOOT_BIN_SIZE_ALIGNED  = $(shell echo $$((($(U_BOOT_BIN_SIZE)  / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK))))
-KERNEL_BIN_SIZE_ALIGNED  = $(shell echo $$((($(KERNEL_BIN_SIZE)  / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK))))
-ROOTFS_BIN_SIZE_ALIGNED  = $(shell echo $$((($(ROOTFS_BIN_SIZE)  / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK))))
+U_BOOT_BIN_SIZE_ALIGNED = $(shell echo $$((($(U_BOOT_BIN_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK))))
+KERNEL_BIN_SIZE_ALIGNED = $(shell echo $$((($(KERNEL_BIN_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK))))
+ROOTFS_BIN_SIZE_ALIGNED = $(shell echo $$((($(ROOTFS_BIN_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK))))
 OVERLAY_BIN_SIZE_ALIGNED = $(shell echo $$((($(OVERLAY_BIN_SIZE) / $(ALIGN_BLOCK) + 1) * $(ALIGN_BLOCK))))
 
 # fixed size partitions
-U_BOOT_PARTITION_SIZE     := 262144
+U_BOOT_PARTITION_SIZE := 262144
 U_BOOT_ENV_PARTITION_SIZE := 65536
-KERNEL_PARTITION_SIZE     = $(KERNEL_BIN_SIZE_ALIGNED)
-ROOTFS_PARTITION_SIZE     = $(ROOTFS_BIN_SIZE_ALIGNED)
+KERNEL_PARTITION_SIZE = $(KERNEL_BIN_SIZE_ALIGNED)
+ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
 
-FIRMWARE_FULL_SIZE        = $(FLASH_SIZE)
-FIRMWARE_NOBOOT_SIZE      = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE) - $(U_BOOT_ENV_PARTITION_SIZE))))
+FIRMWARE_FULL_SIZE = $(FLASH_SIZE)
+FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE) - $(U_BOOT_ENV_PARTITION_SIZE))))
 
 # dynamic partitions
-OVERLAY_SIZE             = $(shell echo $$(($(FLASH_SIZE) - $(OVERLAY_OFFSET))))
-OVERLAY_SIZE_NOBOOT      = $(shell echo $$(($(FIRMWARE_NOBOOT_SIZE) - $(OVERLAY_OFFSET_NOBOOT))))
+OVERLAY_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(OVERLAY_OFFSET))))
+OVERLAY_SIZE_NOBOOT = $(shell echo $$(($(FIRMWARE_NOBOOT_SIZE) - $(OVERLAY_OFFSET_NOBOOT))))
 
 # partition offsets
-U_BOOT_OFFSET            = 0
-U_BOOT_ENV_OFFSET        = $(shell echo $$(($(U_BOOT_OFFSET)     + $(U_BOOT_PARTITION_SIZE))))
-KERNEL_OFFSET            = $(shell echo $$(($(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_PARTITION_SIZE))))
-ROOTFS_OFFSET            = $(shell echo $$(($(KERNEL_OFFSET)     + $(KERNEL_PARTITION_SIZE))))
-OVERLAY_OFFSET           = $(shell echo $$(($(ROOTFS_OFFSET)     + $(ROOTFS_PARTITION_SIZE))))
+U_BOOT_OFFSET = 0
+U_BOOT_ENV_OFFSET = $(shell echo $$(($(U_BOOT_OFFSET) + $(U_BOOT_PARTITION_SIZE))))
+KERNEL_OFFSET = $(shell echo $$(($(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_PARTITION_SIZE))))
+ROOTFS_OFFSET = $(shell echo $$(($(KERNEL_OFFSET) + $(KERNEL_PARTITION_SIZE))))
+OVERLAY_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
 
 # special case with no uboot nor env
-OVERLAY_OFFSET_NOBOOT    = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PARTITION_SIZE))))
+OVERLAY_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PARTITION_SIZE))))
 
 .PHONY: all toolchain sdk bootstrap clean create_overlay defconfig distclean help \
 	pack pack_full pack_update prepare_config reconfig upload_tftp upload_sdcard \
@@ -142,9 +142,8 @@ ifneq ($(shell id -u), 0)
 	$(error requested operation requires superuser privilege)
 else
 	@DEBIAN_FRONTEND=noninteractive apt-get update
-	@DEBIAN_FRONTEND=noninteractive apt-get -y install \
-		build-essential bc bison cpio curl file flex gawk git \
-		libncurses-dev make rsync unzip wget whiptail dialog
+	@DEBIAN_FRONTEND=noninteractive apt-get -y install build-essential bc bison cpio curl \
+		file flex gawk git libncurses-dev make rsync unzip wget whiptail dialog
 endif
 
 ### Configuration
@@ -174,16 +173,15 @@ ifneq ($(CAMERA_CONFIG_REAL),$(MODULE_CONFIG_REAL))
 	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
 endif
 	# Add local.fragment to the final config
-	if test -f local.fragment; then cat local.fragment >>$(OUTPUT_DIR)/.config; fi
+	if [ -f local.fragment ]; then cat local.fragment >>$(OUTPUT_DIR)/.config; fi
 	# Add local.mk to the building directory to override settings
-	if test -f $(BR2_EXTERNAL)/local.mk; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
+	if [ -f $(BR2_EXTERNAL)/local.mk ]; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
 
 # Configure buildroot for a particular board
 defconfig: prepare_config
 	$(info -------------------> defconfig)
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
-	# $(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) defconfig
 
 # Call configurator UI
 menuconfig: $(OUTPUT_DIR)/.config
@@ -215,16 +213,19 @@ delete_bin_update:
 
 create_env_bin:
 	:> $(U_BOOT_ENV_FINAL_TXT); \
-	if [ -n "$(U_BOOT_ENV_TXT)" ] && [ -f "$(U_BOOT_ENV_TXT)" ]; then cat $(U_BOOT_ENV_TXT) >> $(U_BOOT_ENV_FINAL_TXT); fi; \
-	if [ -n "$(U_BOOT_ENV_LOCAL_TXT)" ] && [ -f "$(U_BOOT_ENV_LOCAL_TXT)" ]; then grep --invert-match '^#' $(U_BOOT_ENV_LOCAL_TXT) >> $(U_BOOT_ENV_FINAL_TXT); fi; \
+	if [ -n "$(U_BOOT_ENV_TXT)" ] && [ -f "$(U_BOOT_ENV_TXT)" ]; then \
+		cat $(U_BOOT_ENV_TXT) >> $(U_BOOT_ENV_FINAL_TXT); fi; \
+	if [ -n "$(U_BOOT_ENV_LOCAL_TXT)" ] && [ -f "$(U_BOOT_ENV_LOCAL_TXT)" ]; then \
+		grep --invert-match '^#' $(U_BOOT_ENV_LOCAL_TXT) >> $(U_BOOT_ENV_FINAL_TXT); fi; \
 	cat $(U_BOOT_ENV_FINAL_TXT)
 
 create_overlay: $(U_BOOT_BIN)
 	$(info -------------------> create_overlay)
 	if [ $(OVERLAY_SIZE) -lt 0 ]; then $(FIGLET) "OVERSIZE"; fi
 	if [ -f $(OVERLAY_BIN) ]; then rm $(OVERLAY_BIN); fi
-	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --pad=$(OVERLAY_SIZE) --root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=$(ALIGN_BLOCK) --output=$(OVERLAY_BIN) --squash
-	#$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --pad=$(OVERLAY_SIZE) --root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=0x8000 --output=$(OVERLAY_BIN) --squash
+	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --pad=$(OVERLAY_SIZE) \
+		--root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=$(ALIGN_BLOCK) \
+		--output=$(OVERLAY_BIN) --squash
 
 pack: pack_full
 	$(info -------------------> pack)
@@ -291,8 +292,8 @@ upload_sdcard: $(FIRMWARE_BIN_FULL)
 br-%-dirclean:
 	$(info -------------------> br-%-dirclean)
 	rm -rf $(OUTPUT_DIR)/per-package/$(subst -dirclean,,$(subst br-,,$@)) \
-	       $(OUTPUT_DIR)/build/$(subst -dirclean,,$(subst br-,,$@))* \
-	       $(OUTPUT_DIR)/target
+		$(OUTPUT_DIR)/build/$(subst -dirclean,,$(subst br-,,$@))* \
+		$(OUTPUT_DIR)/target
 #  \ sed -i /^$(subst -dirclean,,$(subst br-,,$@))/d $(OUTPUT_DIR)/build/packages-file-list.txt
 
 br-%:
@@ -359,51 +360,46 @@ $(OVERLAY_BIN): create_overlay
 
 $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
 	$(info -------------------> $$(FIRMWARE_BIN_FULL))
-	$(info $(shell printf "%-25s   %8d" FLASH_SIZE $(FLASH_SIZE)))
-	$(info $(shell printf "%-25s   %8d" FIRMWARE_FULL_SIZE $(FIRMWARE_FULL_SIZE)))
-	$(info $(shell printf "%-10s | %-8s | %-9s | %-9s | " PARTITION SIZE OFFSET END))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" U_BOOT     $(U_BOOT_BIN_SIZE)     $(U_BOOT_OFFSET)     $$(($(U_BOOT_OFFSET)     + $(U_BOOT_BIN_SIZE)     ))))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" U_BOOT_ENV $(U_BOOT_ENV_BIN_SIZE) $(U_BOOT_ENV_OFFSET) $$(($(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_BIN_SIZE) ))))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" KERNEL     $(KERNEL_BIN_SIZE)     $(KERNEL_OFFSET)     $$(($(KERNEL_OFFSET)     + $(KERNEL_BIN_SIZE)     ))))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" ROOTFS     $(ROOTFS_BIN_SIZE)     $(ROOTFS_OFFSET)     $$(($(ROOTFS_OFFSET)     + $(ROOTFS_BIN_SIZE)     ))))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" OVERLAY    $(OVERLAY_BIN_SIZE)    $(OVERLAY_OFFSET)    $$(($(OVERLAY_OFFSET)    + $(OVERLAY_BIN_SIZE)    ))))
+	$(info $(shell printf "%-10s | %8s | %9s | %9s |" PARTITION SIZE OFFSET END))
+	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" U_BOOT $(U_BOOT_BIN_SIZE) $(U_BOOT_OFFSET) $$(($(U_BOOT_OFFSET) + $(U_BOOT_BIN_SIZE)))))
+	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" U_BOOT_ENV $(U_BOOT_ENV_BIN_SIZE) $(U_BOOT_ENV_OFFSET) $$(($(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_BIN_SIZE)))))
+	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" KERNEL $(KERNEL_BIN_SIZE) $(KERNEL_OFFSET) $$(($(KERNEL_OFFSET) + $(KERNEL_BIN_SIZE)))))
+	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" ROOTFS $(ROOTFS_BIN_SIZE) $(ROOTFS_OFFSET) $$(($(ROOTFS_OFFSET) + $(ROOTFS_BIN_SIZE)))))
+	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" OVERLAY $(OVERLAY_BIN_SIZE) $(OVERLAY_OFFSET) $$(($(OVERLAY_OFFSET) + $(OVERLAY_BIN_SIZE)))))
 	dd if=/dev/zero bs=$(SIZE_8M) skip=0 count=1 status=none | tr '\000' '\377' > $@
-	if [ $$(dd --version | awk -F '[. ]' 'NR==1{print $$3}') -lt 9 ]; \
-	then \
-	  dd if=$(U_BOOT_BIN)  bs=1 seek=$(U_BOOT_OFFSET)  count=$(U_BOOT_BIN_SIZE)   of=$@ conv=notrunc status=none; \
-	  dd if=$(KERNEL_BIN)  bs=1 seek=$(KERNEL_OFFSET)  count=$(KERNEL_BIN_SIZE)   of=$@ conv=notrunc status=none; \
-	  dd if=$(ROOTFS_BIN)  bs=1 seek=$(ROOTFS_OFFSET)  count=$(ROOTFS_BIN_SIZE)   of=$@ conv=notrunc status=none; \
-	  dd if=$(OVERLAY_BIN) bs=1 seek=$(OVERLAY_OFFSET) count=$(OVERLAY_BIN_SIZE)  of=$@ conv=notrunc status=none; \
+	if [ $$(dd --version | awk -F '[. ]' 'NR==1{print $$3}') -lt 9 ]; then \
+		dd if=$(U_BOOT_BIN) bs=1 seek=$(U_BOOT_OFFSET) count=$(U_BOOT_BIN_SIZE) of=$@ conv=notrunc status=none; \
+		dd if=$(KERNEL_BIN) bs=1 seek=$(KERNEL_OFFSET) count=$(KERNEL_BIN_SIZE) of=$@ conv=notrunc status=none; \
+		dd if=$(ROOTFS_BIN) bs=1 seek=$(ROOTFS_OFFSET) count=$(ROOTFS_BIN_SIZE) of=$@ conv=notrunc status=none; \
+		dd if=$(OVERLAY_BIN) bs=1 seek=$(OVERLAY_OFFSET) count=$(OVERLAY_BIN_SIZE) of=$@ conv=notrunc status=none; \
 	else \
-	  dd if=$(U_BOOT_BIN)  bs=$(U_BOOT_BIN_SIZE)  seek=$(U_BOOT_OFFSET)B  count=1 of=$@ conv=notrunc status=none; \
-	  dd if=$(KERNEL_BIN)  bs=$(KERNEL_BIN_SIZE)  seek=$(KERNEL_OFFSET)B  count=1 of=$@ conv=notrunc status=none; \
-	  dd if=$(ROOTFS_BIN)  bs=$(ROOTFS_BIN_SIZE)  seek=$(ROOTFS_OFFSET)B  count=1 of=$@ conv=notrunc status=none; \
-	  dd if=$(OVERLAY_BIN) bs=$(OVERLAY_BIN_SIZE) seek=$(OVERLAY_OFFSET)B count=1 of=$@ conv=notrunc status=none; \
+		dd if=$(U_BOOT_BIN) bs=$(U_BOOT_BIN_SIZE) seek=$(U_BOOT_OFFSET)B count=1 of=$@ conv=notrunc status=none; \
+		dd if=$(KERNEL_BIN) bs=$(KERNEL_BIN_SIZE) seek=$(KERNEL_OFFSET)B count=1 of=$@ conv=notrunc status=none; \
+		dd if=$(ROOTFS_BIN) bs=$(ROOTFS_BIN_SIZE) seek=$(ROOTFS_OFFSET)B count=1 of=$@ conv=notrunc status=none; \
+		dd if=$(OVERLAY_BIN) bs=$(OVERLAY_BIN_SIZE) seek=$(OVERLAY_OFFSET)B count=1 of=$@ conv=notrunc status=none; \
 	fi
 
 $(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
 	$(info -------------------> $$(FIRMWARE_BIN_NOBOOT))
-	$(info $(shell printf "%-25s   %8d" FLASH_SIZE $(FLASH_SIZE)))
-	$(info $(shell printf "%-25s   %8d" FIRMWARE_NOBOOT_SIZE $(FIRMWARE_NOBOOT_SIZE)))
-	$(info $(shell printf "%-10s | %-8s | %-9s | %-9s | " PARTITION SIZE OFFSET END))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" KERNEL     $(KERNEL_BIN_SIZE)     $(KERNEL_OFFSET)   $$(($(KERNEL_OFFSET)  + $(KERNEL_BIN_SIZE)  ))))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" ROOTFS     $(ROOTFS_BIN_SIZE)     $(ROOTFS_OFFSET)   $$(($(ROOTFS_OFFSET)  + $(ROOTFS_BIN_SIZE)  ))))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" OVERLAY    $(OVERLAY_BIN_SIZE)    $(OVERLAY_OFFSET)  $$(($(OVERLAY_OFFSET) + $(OVERLAY_BIN_SIZE) ))))
+	$(info $(shell printf "%-10s | %8s | %9s | %9s |" PARTITION SIZE OFFSET END))
+	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" KERNEL $(KERNEL_BIN_SIZE) $(KERNEL_OFFSET) $$(($(KERNEL_OFFSET) + $(KERNEL_BIN_SIZE)))))
+	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" ROOTFS $(ROOTFS_BIN_SIZE) $(ROOTFS_OFFSET) $$(($(ROOTFS_OFFSET) + $(ROOTFS_BIN_SIZE)))))
+	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" OVERLAY $(OVERLAY_BIN_SIZE) $(OVERLAY_OFFSET) $$(($(OVERLAY_OFFSET) + $(OVERLAY_BIN_SIZE)))))
 	dd if=/dev/zero bs=$(FIRMWARE_NOBOOT_SIZE) skip=0 count=1 status=none | tr '\000' '\377' > $@
-	if [ $$(dd --version | awk -F '[. ]' 'NR==1{print $$3}') -lt 9 ]; \
-	then \
-	  dd if=$(KERNEL_BIN)  bs=1 seek=0                        count=$(KERNEL_BIN_SIZE)   of=$@ conv=notrunc status=none; \
-	  dd if=$(ROOTFS_BIN)  bs=1 seek=$(KERNEL_PARTITION_SIZE) count=$(ROOTFS_BIN_SIZE)   of=$@ conv=notrunc status=none; \
-	  dd if=$(OVERLAY_BIN) bs=1 seek=$(OVERLAY_OFFSET_NOBOOT) count=$(OVERLAY_BIN_SIZE)  of=$@ conv=notrunc status=none; \
+	if [ $$(dd --version | awk -F '[. ]' 'NR==1{print $$3}') -lt 9 ]; then \
+		dd if=$(KERNEL_BIN) bs=1 seek=0 count=$(KERNEL_BIN_SIZE) of=$@ conv=notrunc status=none; \
+		dd if=$(ROOTFS_BIN) bs=1 seek=$(KERNEL_PARTITION_SIZE) count=$(ROOTFS_BIN_SIZE) of=$@ conv=notrunc status=none; \
+		dd if=$(OVERLAY_BIN) bs=1 seek=$(OVERLAY_OFFSET_NOBOOT) count=$(OVERLAY_BIN_SIZE) of=$@ conv=notrunc status=none; \
 	else \
-	  dd if=$(KERNEL_BIN)  bs=$(KERNEL_BIN_SIZE)  seek=0 count=1 of=$@ conv=notrunc status=none; \
-	  dd if=$(ROOTFS_BIN)  bs=$(ROOTFS_BIN_SIZE)  seek=$(KERNEL_PARTITION_SIZE)B count=1 of=$@ conv=notrunc status=none; \
-	  dd if=$(OVERLAY_BIN) bs=$(OVERLAY_BIN_SIZE) seek=$(OVERLAY_OFFSET_NOBOOT)B count=1 of=$@ conv=notrunc status=none; \
+		dd if=$(KERNEL_BIN) bs=$(KERNEL_BIN_SIZE) seek=0 count=1 of=$@ conv=notrunc status=none; \
+		dd if=$(ROOTFS_BIN) bs=$(ROOTFS_BIN_SIZE) seek=$(KERNEL_PARTITION_SIZE)B count=1 of=$@ conv=notrunc status=none; \
+		dd if=$(OVERLAY_BIN) bs=$(OVERLAY_BIN_SIZE) seek=$(OVERLAY_OFFSET_NOBOOT)B count=1 of=$@ conv=notrunc status=none; \
 	fi
 help:
 	@echo "\n\
 	Usage:\n\
 	  make bootstrap      install system deps\n\
+	  make defconfig      (re)create conig file\n\
 	  make                build everything needed for the board\n\
 	                        (toolchain, kernel, and rootfs)\n\
 	  make pack_full      create a full firmware image\n\
