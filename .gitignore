@@ -9,7 +9,7 @@ wirebox/
 .gitconfig
 /local.fragment
 /local.mk
+/local.uenv.txt
 /.bootstrapped
 /.settings/
-/environment/@local.uenv.txt
 /.prereqs.done
