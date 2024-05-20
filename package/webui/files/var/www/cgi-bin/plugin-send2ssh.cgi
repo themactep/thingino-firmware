@@ -4,7 +4,7 @@
 plugin="ssh"
 plugin_name="Send to SSH"
 page_title="Send to SSH"
-params="enabled host username password path port socks5_enabled template use_heif"
+params="enabled host username file path port template"
 
 tmp_file=/tmp/${plugin}.conf
 
@@ -21,8 +21,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	### Validation
 	if [ "true" = "$ssh_enabled" ]; then
 		[ "true" = "$ssh_send2ssh" ] && [ -z "$ssh_sshhost" ] && set_error_flag "SSH address cannot be empty."
-		[ "true" = "$ssh_send2tssh" ] && [ -z "$ssh_tsshhost" ] && set_error_flag "TSSH address cannot be empty."
-		[ "true" = "$ssh_save4web" ] && [ -z "$ssh_localpath" ] && set_error_flag "Local path cannot be empty."
 	fi
 	[ -z "$ssh_template" ] && ssh_template="Screenshot-%Y%m%d-%H%M%S.jpg"
 
@@ -43,9 +41,8 @@ else
 	include $config_file
 
 	# Default values
-	[ -z "$ssh_port" ] && ssh_port="21"
+	[ -z "$ssh_port" ] && ssh_port="22"
 	[ -z "$ssh_template" ] && ssh_template="${network_hostname}-%Y%m%d-%H%M%S.jpg"
-	[ -z "$ssh_use_heif" ] && ssh_use_heif="false"
 fi
 %>
 <%in p/header.cgi %>
@@ -57,13 +54,11 @@ fi
 <% field_text "ssh_host" "SSH host" %>
 <% field_text "ssh_port" "SSH port" %>
 <% field_text "ssh_username" "SSH username" %>
-<% field_password "ssh_password" "SSH password" %>
+<% field_text "ssh_file" "SSH src file" %>
 </div>
 <div class="col">
 <% field_text "ssh_path" "SSH path" "relative to SSH root directory" %>
 <% field_text "ssh_template" "File template" "Supports <a href=\"https://man7.org/linux/man-pages/man3/strftime.3.html \" target=\"_blank\">strftime()</a> format." %>
-<% field_switch "ssh_use_heif" "Use HEIF image format" "Requires H.265 codec on Video0." %>
-<% field_switch "ssh_socks5_enabled" "Use SOCKS5" "<a href=\"network-socks5.cgi\">Configure</a> SOCKS5 access" %>
 </div>
 <div class="col">
 <% ex "cat $config_file" %>
