@@ -3,6 +3,7 @@
 IFS_ORIG=$IFS
 
 STR_NOT_SUPPORTED="not supported on this system"
+STR_SUPPORTS_STRFTIME="Supports <a href=\"https://man7.org/linux/man-pages/man3/strftime.3.html \" target=\"_blank\">strftime()</a> format."
 
 # tag "tag" "text" "css" "extras"
 tag() {
@@ -428,7 +429,7 @@ group_osd() {
          "<option>Choose...</option><option value=\"1\" $(selected_if ${ps} 1)>top</option><option value=\"2\" $(selected_if ${ps} 2)>top right</option>" \
          "<option value=\"3\" $(selected_if ${ps} 3)>right</option><option value=\"4\" $(selected_if ${ps} 4)>bottom right</option><option value=\"5\" $(selected_if ${ps} 5)>bottom</option>" \
          "<option value=\"6\" $(selected_if ${ps} 6)>bottom left</option><option value=\"7\" $(selected_if ${ps} 7)>left</option><option value=\"8\" $(selected_if ${ps} 8)>top left</option>" \
-         "</select></div></p></div>"		 	 
+         "</select></div></p></div>"
 }
 
 alert_append() {

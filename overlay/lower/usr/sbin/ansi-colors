@@ -1,0 +1,7 @@
+#!/bin/sh
+for x in $(seq 0 15); do
+	for i in $(seq 1 16); do
+		echo_c $((16 * x + i)) "$(printf "%4d" $((16 * x + i)))"
+	done
+	echo
+done
