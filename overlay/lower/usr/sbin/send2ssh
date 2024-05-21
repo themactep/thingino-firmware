@@ -1,0 +1,94 @@
+#!/bin/sh
+
+plugin="ssh"
+
+. /sbin/common-plugins
+
+show_help() {
+	echo "Usage: $0 [-h host] [-p port] [-u username] [-f file] [-d path] [-t template] [-v] [-h]
+  -s host     SSH server FQDN or IP address.
+  -p port     SSH server port.
+  -d path     Directory on server, relative to SSH root.
+  -f file     File to upload.
+  -u username SSH username.
+  -t template File name on remote
+  -v          Verbose output.
+  -h          Show this help.
+"
+	quit_clean 0
+}
+
+# override config values with command line arguments
+while getopts d:f:p:P:rs:u:vh flag; do
+	case "$flag" in
+		d)
+			ssh_path=$OPTARG
+			;;
+		f)
+			ssh_file=$OPTARG
+			;;
+		p)
+			ssh_port=$OPTARG
+			;;
+		s)
+			ssh_host=$OPTARG
+			;;
+		u)
+			ssh_username=$OPTARG
+			;;
+		d)
+			ssh_path=$OPTARG
+			;;
+		t)
+			ssh_template=$OPTARG
+			;;
+		v)
+			verbose="true"
+			;;
+		h | *)
+			show_help
+			;;
+	esac
+done
+
+if [ "false" = "$ssh_enabled" ]; then
+	log "Sending to SSH is disabled."
+	quit_clean 10
+fi
+
+# validate mandatory values
+if [ -z "$ssh_host" ]; then
+	log "SSH host not found"
+	quit_clean 11
+fi
+
+if [ -z "$ssh_port" ]; then
+	log "SSH port not found"
+	quit_clean 12
+fi
+
+if [ -z "$ssh_file" ]; then
+	snapshot=/tmp/snapshot.jpg
+	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && quit_clean 3
+
+	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
+	delete_tempfile="true"
+	cp $snapshot $attachment
+
+	ssh_file=$attachment
+fi
+
+command="scp"
+command="$command -P $ssh_port"
+command="$command $ssh_file"
+[ -n "$ssh_username" ] && command="${command} ${ssh_username}@"
+command="${command}${ssh_host}:$ssh_path"
+[ -n "$ssh_template" ] && command="${command}/$(date +"$ssh_template")"
+
+log "$command"
+eval "$command" >> "$LOG_FILE" 2>&1
+
+[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
+[ "true" = "$verbose" ] && cat "$LOG_FILE"
+
+quit_clean 0
