@@ -1,14 +1,9 @@
 #!/bin/sh
 
-# set parameters from cli
-mode=$1
-pin1=$2
-pin2=$3
-
 # read IRCUT pins from bootloader environment
 gpio_ircut=$(fw_printenv -n gpio_ircut)
-[ -z "$pin1" ] && pin1=$(echo $gpio_ircut | awk '{print $1}')
-[ -z "$pin2" ] && pin2=$(echo $gpio_ircut | awk '{print $2}')
+pin1=$(echo $gpio_ircut | awk '{print $1}')
+pin2=$(echo $gpio_ircut | awk '{print $2}')
 
 if [ -z "$pin1" ]; then
 	echo "Please define IRCUT pin"
@@ -16,57 +11,96 @@ if [ -z "$pin1" ]; then
 	exit 1
 fi
 
-if [ -z "$pin2" ]; then
-	echo "Unless you have a single GPIO IRCUT driver, please define the second pin:"
-	echo "fw_setenv gpio_ircut <pin1> <pin2>"
+# default to output high
+[ "$pin1" = "${pin1//[^0-9]/}" ] && pin1="${pin1}O"
+
+case ${pin1:(-1)} in
+	o)
+		pin1_on=0
+		pin1_off=1
+		;;
+	O | *)
+		pin1_on=1
+		pin1_off=0
+		;;
+esac
+pin1=${pin1:0:(-1)}
+
+if [ -n "$pin2" ]; then
+	# default to output high
+	[ "$pin2" = "${pin2//[^0-9]/}" ] && pin2="${pin2}O"
+
+	case ${pin2:(-1)} in
+		o)
+			pin2_on=0
+			pin2_off=1
+			;;
+		O | *)
+			pin2_on=1
+			pin2_off=0
+			;;
+	esac
+	pin2=${pin2:0:(-1)}
 fi
 
 MODE_FILE=/tmp/ircutmode.txt
 
+report_ir_filter() {
+	case "$(cat $MODE_FILE 2> /dev/null)" in
+		0)
+			echo "IRCUT filter is removed"
+			;;
+		1)
+			echo "IRCUT filter is set"
+			;;
+		*)
+			echo "IRCUT filter is in unknown state"
+			;;
+	esac
+}
+
 ir_filter_off() {
-	if [ -z "$pin2" ]; then
-		gpio set "$pin1"
-	else
-		gpio set "$pin1"
-		gpio clear "$pin2"
+	gpio set "$pin1" "$pin1_off"
+	if [ -n "$pin2" ]; then
+		gpio set "$pin2" "$pin2_on"
 		usleep 10000
-		gpio clear "$pin1"
+		gpio set "$pin2" "$pin2_off"
 	fi
-	echo "IRCUT filter removed"
+	echo 0 > $MODE_FILE
 }
 
 ir_filter_on() {
-	if [ -z "$pin2" ]; then
-		gpio clear "$pin1"
-	else
-		gpio clear "$pin1"
-		gpio set "$pin2"
+	gpio set "$pin1" "$pin1_on"
+	if [ -n "$pin2" ]; then
+		gpio set "$pin2" "$pin2_off"
 		usleep 10000
-		gpio clear "$pin2"
+		gpio set "$pin1" "$pin1_off"
 	fi
-	echo "IRCUT filter set"
+	echo 1 > $MODE_FILE
 }
 
-case "$mode" in
+case "$1" in
 	0 | off | night)
 		ir_filter_off
-		echo 0 > $MODE_FILE
+		report_ir_filter
 		;;
 	1 | on | day)
 		ir_filter_on
-		echo 1 > $MODE_FILE
+		report_ir_filter
 		;;
 	~ | toggle)
 		if [ "$(cat $MODE_FILE 2> /dev/null)" -eq 0 ]; then
 			ir_filter_on
-			echo 1 > $MODE_FILE
 		else
 			ir_filter_off
-			echo 0 > $MODE_FILE
 		fi
+		report_ir_filter
+		;;
+	? | status)
+		report_ir_filter
 		;;
 	*)
-		echo "Unknown mode ${mode}"
+		echo "Usage: $0 [on|off|toggle|status]"
 		exit 1
 		;;
 esac
