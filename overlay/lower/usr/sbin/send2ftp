@@ -5,14 +5,13 @@ plugin="ftp"
 . /sbin/common-plugins
 
 show_help() {
-	echo "Usage: $0 [-h host] [-p port] [-u username] [-P password] [-d path] [-f file] [-v] [-h]
+	echo "Usage: $0 [-s host] [-p port] [-u username] [-P password] [-d path] [-f file] [-v] [-h]
   -s host     FTP server FQDN or IP address.
   -p port     FTP server port.
   -d path     Directory on server, relative to FTP root.
   -f file     File to upload.
   -u username FTP username.
   -P password FTP password.
-  -r          Use HEIF image format.
   -v          Verbose output.
   -h          Show this help.
 "
@@ -20,7 +19,7 @@ show_help() {
 }
 
 # override config values with command line arguments
-while getopts d:f:p:P:rs:u:vh flag; do
+while getopts d:f:p:P:s:u:vh flag; do
 	case "$flag" in
 		d)
 			ftp_path=$OPTARG
@@ -34,14 +33,11 @@ while getopts d:f:p:P:rs:u:vh flag; do
 		P)
 			ftp_password=$OPTARG
 			;;
-		r)
-			ftp_use_heif="true"
-			;;
 		s)
 			ftp_host=$OPTARG
 			;;
 		u)
-			ftp_username=$OPTARG
+			ftp_user=$OPTARG
 			;;
 		v)
 			verbose="true"
@@ -51,6 +47,8 @@ while getopts d:f:p:P:rs:u:vh flag; do
 			;;
 	esac
 done
+
+[ -z "$ftp_port" ] && ftp_port=21
 
 if [ "false" = "$ftp_enabled" ]; then
 	log "Sending to FTP is disabled."
@@ -91,7 +89,7 @@ if [ "true" = "$ftp_socks5_enabled" ]; then
 fi
 
 command="$command --url ftp://"
-[ -n "$ftp_username" ] && [ -n "$ftp_password" ] && command="${command}${ftp_username}:$ftp_password"
+[ -n "$ftp_user" ] && [ -n "$ftp_password" ] && command="${command}${ftp_user}:$ftp_password"
 command="${command}@${ftp_host}:$ftp_port"
 [ -n "$ftp_path" ] && command="${command}/${ftp_path// /%20}"
 command="${command}/$(date +"$ftp_template")"
@@ -101,7 +99,7 @@ command="$command --ftp-create-dirs"
 log "$command"
 eval "$command" >> "$LOG_FILE" 2>&1
 
-[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
+[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 quit_clean 0
