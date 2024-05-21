@@ -85,7 +85,7 @@ fi
 </div>
 <div class="col">
 <% field_text "mqtt_topic" "MQTT topic" %>
-<% field_textarea "mqtt_message" "MQTT message" "Supports <a href=\"https://man7.org/linux/man-pages/man3/strftime.3.html \" target=\"_blank\">strftime()</a> format." %>
+<% field_textarea "mqtt_message" "MQTT message" ""$STR_SUPPORTS_STRFTIME"" %>
 <% field_switch "mqtt_send_snap" "Send a snapshot" %>
 <% field_switch "mqtt_use_heif" "Use HEIF image format" "Requires H.265 codec on Video0." %>
 <% field_text "mqtt_snap_topic" "MQTT topic to send the snapshot to" %>

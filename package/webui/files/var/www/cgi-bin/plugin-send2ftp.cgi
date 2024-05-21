@@ -4,7 +4,7 @@
 plugin="ftp"
 plugin_name="Send to FTP"
 page_title="Send to FTP"
-params="enabled host username password path port socks5_enabled template use_heif"
+params="enabled host user password path port socks5_enabled template"
 
 tmp_file=/tmp/${plugin}.conf
 
@@ -24,7 +24,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		[ "true" = "$ftp_send2tftp" ] && [ -z "$ftp_tftphost" ] && set_error_flag "TFTP address cannot be empty."
 		[ "true" = "$ftp_save4web" ] && [ -z "$ftp_localpath" ] && set_error_flag "Local path cannot be empty."
 	fi
-	[ -z "$ftp_template" ] && ftp_template="Screenshot-%Y%m%d-%H%M%S.jpg"
+	[ -z "$ftp_template" ] && ftp_template="${network_hostname}-%Y%m%d-%H%M%S.jpg"
 
 	if [ -z "$error" ]; then
 		# create temp config file
@@ -45,7 +45,6 @@ else
 	# Default values
 	[ -z "$ftp_port" ] && ftp_port="21"
 	[ -z "$ftp_template" ] && ftp_template="${network_hostname}-%Y%m%d-%H%M%S.jpg"
-	[ -z "$ftp_use_heif" ] && ftp_use_heif="false"
 fi
 %>
 <%in p/header.cgi %>
@@ -56,13 +55,12 @@ fi
 <div class="col">
 <% field_text "ftp_host" "FTP host" %>
 <% field_text "ftp_port" "FTP port" %>
-<% field_text "ftp_username" "FTP username" %>
+<% field_text "ftp_user" "FTP user" %>
 <% field_password "ftp_password" "FTP password" %>
 </div>
 <div class="col">
 <% field_text "ftp_path" "FTP path" "relative to FTP root directory" %>
-<% field_text "ftp_template" "File template" "Supports <a href=\"https://man7.org/linux/man-pages/man3/strftime.3.html \" target=\"_blank\">strftime()</a> format." %>
-<% field_switch "ftp_use_heif" "Use HEIF image format" "Requires H.265 codec on Video0." %>
+<% field_text "ftp_template" "Filename template" ""$STR_SUPPORTS_STRFTIME"" %>
 <% field_switch "ftp_socks5_enabled" "Use SOCKS5" "<a href=\"network-socks5.cgi\">Configure</a> SOCKS5 access" %>
 </div>
 <div class="col">
