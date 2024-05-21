@@ -12,6 +12,7 @@ start () {
 			fw_setenv -s $ENV_TMP
 			fw_setenv boot_complete true
 			echo "U-Boot ENV updated. Rebooting now..."
+			/etc/init.d/K99watchdog stop
 			sync; sleep 2
 			reboot -f
 	else
