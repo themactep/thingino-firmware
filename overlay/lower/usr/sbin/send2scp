@@ -5,14 +5,13 @@ plugin="ssh"
 . /sbin/common-plugins
 
 show_help() {
-	echo "Usage: $0 [-h host] [-p port] [-u username] [-P password] [-d path] [-f file] [-v] [-h]
+	echo "Usage: $0 [-h host] [-p port] [-u username] [-f file] [-d path] [-t template] [-v] [-h]
   -s host     SSH server FQDN or IP address.
   -p port     SSH server port.
   -d path     Directory on server, relative to SSH root.
   -f file     File to upload.
   -u username SSH username.
-  -P password SSH password.
-  -r          Use HEIF image format.
+  -t template File name on remote
   -v          Verbose output.
   -h          Show this help.
 "
@@ -31,17 +30,17 @@ while getopts d:f:p:P:rs:u:vh flag; do
 		p)
 			ssh_port=$OPTARG
 			;;
-		P)
-			ssh_password=$OPTARG
-			;;
-		r)
-			ssh_use_heif="true"
-			;;
 		s)
 			ssh_host=$OPTARG
 			;;
 		u)
 			ssh_username=$OPTARG
+			;;
+		d)
+			ssh_path=$OPTARG
+			;;
+		t)
+			ssh_template=$OPTARG
 			;;
 		v)
 			verbose="true"
@@ -79,24 +78,12 @@ if [ -z "$ssh_file" ]; then
 	ssh_file=$attachment
 fi
 
-command="curl --verbose"
-command="$command --connect-timeout $curl_timeout"
-command="$command --max-time $curl_timeout"
-
-# SOCK5 proxy, if needed
-if [ "true" = "$ssh_socks5_enabled" ]; then
-	. /etc/webui/socks5.conf
-	command="$command --socks5-hostname ${socks5_host}:$socks5_port"
-	command="$command --proxy-user ${socks5_login}:$socks5_password"
-fi
-
-command="$command --url ssh://"
-[ -n "$ssh_username" ] && [ -n "$ssh_password" ] && command="${command}${ssh_username}:$ssh_password"
-command="${command}@${ssh_host}:$ssh_port"
-[ -n "$ssh_path" ] && command="${command}/${ssh_path// /%20}"
-command="${command}/$(date +"$ssh_template")"
-command="$command --upload-file $ssh_file"
-command="$command --ssh-create-dirs"
+command="scp"
+command="$command -P $ssh_port"
+command="$command $ssh_file"
+[ -n "$ssh_username" ] && command="${command} ${ssh_username}@"
+command="${command}${ssh_host}:$ssh_path"
+[ -n "$ssh_template" ] && command="${command}/$(date +"$ssh_template")"
 
 log "$command"
 eval "$command" >> "$LOG_FILE" 2>&1

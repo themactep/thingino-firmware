@@ -22,7 +22,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ "true" = "$ssh_enabled" ]; then
 		[ "true" = "$ssh_send2ssh" ] && [ -z "$ssh_sshhost" ] && set_error_flag "SSH address cannot be empty."
 	fi
-	[ -z "$ssh_template" ] && ssh_template="Screenshot-%Y%m%d-%H%M%S.jpg"
 
 	if [ -z "$error" ]; then
 		# create temp config file
@@ -42,7 +41,6 @@ else
 
 	# Default values
 	[ -z "$ssh_port" ] && ssh_port="22"
-	[ -z "$ssh_template" ] && ssh_template="${network_hostname}-%Y%m%d-%H%M%S.jpg"
 fi
 %>
 <%in p/header.cgi %>
