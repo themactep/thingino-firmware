@@ -4,7 +4,7 @@
 plugin="ssh"
 plugin_name="Send to SSH"
 page_title="Send to SSH"
-params="enabled host username file path port template"
+params="enabled host username file path port template cmd"
 
 tmp_file=/tmp/${plugin}.conf
 
@@ -57,6 +57,7 @@ fi
 <div class="col">
 <% field_text "ssh_path" "SSH path" "relative to SSH root directory" %>
 <% field_text "ssh_template" "File template" "Supports <a href=\"https://man7.org/linux/man-pages/man3/strftime.3.html \" target=\"_blank\">strftime()</a> format." %>
+<% field_text "ssh_cmd" "SSH command" %>
 </div>
 <div class="col">
 <% ex "cat $config_file" %>
