@@ -5,13 +5,11 @@ plugin="ssh"
 . /sbin/common-plugins
 
 show_help() {
-	echo "Usage: $0 [-h host] [-p port] [-u username] [-f file] [-d path] [-t template] [-v] [-h]
+	echo "Usage: $0 [-h host] [-p port] [-u username] [-c command] [-v] [-h]
   -s host     SSH server FQDN or IP address.
   -p port     SSH server port.
-  -d path     Directory on server, relative to SSH root.
-  -f file     File to upload.
   -u username SSH username.
-  -t template File name on remote
+  -c command  Commamnd to run on remote
   -v          Verbose output.
   -h          Show this help.
 "
@@ -19,18 +17,12 @@ show_help() {
 }
 
 # override config values with command line arguments
-while getopts d:f:p:P:rs:u:vh flag; do
+while getopts p:h:u:d:t:vh flag; do
 	case "$flag" in
-		d)
-			ssh_path=$OPTARG
-			;;
-		f)
-			ssh_file=$OPTARG
-			;;
 		p)
 			ssh_port=$OPTARG
 			;;
-		s)
+		h)
 			ssh_host=$OPTARG
 			;;
 		u)
@@ -67,28 +59,20 @@ if [ -z "$ssh_port" ]; then
 	quit_clean 12
 fi
 
-if [ -z "$ssh_file" ]; then
-	snapshot=/tmp/snapshot.jpg
-	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && quit_clean 3
-
-	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	delete_tempfile="true"
-	cp $snapshot $attachment
-
-	ssh_file=$attachment
+if [ -z "$ssh_cmd" ]; then
+	log "SSH command not found"
+	quit_clean 13
 fi
 
-command="scp"
-command="$command -P $ssh_port"
-command="$command $ssh_file"
+command="ssh"
+command="$command -p $ssh_port"
 [ -n "$ssh_username" ] && command="${command} ${ssh_username}@"
-command="${command}${ssh_host}:$ssh_path"
-[ -n "$ssh_template" ] && command="${command}/$(date +"$ssh_template")"
+command="${command}${ssh_host}"
+command="${command} ${ssh_cmd}"
 
 log "$command"
 eval "$command" >> "$LOG_FILE" 2>&1
 
-[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 quit_clean 0
