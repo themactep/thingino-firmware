@@ -25,8 +25,9 @@ define INGENIC_AUDIODAEMON_BUILD_CMDS
 endef
 
 define INGENIC_AUDIODAEMON_INSTALL_TARGET_CMDS
-    cp -a $(@D)/build/bin/. $(TARGET_DIR)/usr/bin/
-    cp -a $(@D)/config/iad.json $(TARGET_DIR)/etc/
+	$(INSTALL) -m 0755 -D $(INGENIC_AUDIODAEMON_PKGDIR)/files/S96iad $(TARGET_DIR)/etc/init.d/S96iad
+	$(INSTALL) -m 0755 -D $(@D)/build/bin/* $(TARGET_DIR)/usr/bin/
+	$(INSTALL) -m 0644 -D $(@D)/config/iad.json $(TARGET_DIR)/etc/iad.json
 endef
 
 $(eval $(generic-package))
