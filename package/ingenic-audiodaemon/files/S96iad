@@ -1,0 +1,38 @@
+#!/bin/sh
+
+DAEMON="iad -r -c /etc/iad.json"
+
+. /etc/init.d/rc.common
+
+start() {
+	starting
+	is_streamer_disabled && { echo -e "DISABLED"; exit 0; }
+	start_daemon
+}
+
+stop() {
+	stopping
+	is_streamer_disabled && { echo -e "DISABLED"; exit 0; }
+	stop_daemon
+}
+
+restart() {
+	stop || true
+	sleep 1
+	reload
+}
+
+reload() {
+	start
+}
+
+case "$1" in
+	start | stop | restart | reload)
+		$1
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+esac
+
+exit 0
