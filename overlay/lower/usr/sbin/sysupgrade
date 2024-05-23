@@ -43,6 +43,10 @@ else
 	binary_file=$(mktemp -u)
 fi
 
+if ! grep -q -e "mtd6" -e "mtd5" /proc/mtd; then
+	die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
+fi
+
 case "$upgrade" in
 	local) ;;
 
@@ -81,10 +85,6 @@ case "$magic" in
 	*)
 		die "Unknown file"
 esac
-
-if ! grep -q "$mtd_dev" /proc/mtd; then
-	die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
-fi
 
 echo "Stopping services"
 /etc/init.d/S01syslogd stop
