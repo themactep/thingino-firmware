@@ -7,16 +7,16 @@ if [ -t 0 ]; then
 	fi
 
 	file=$(mktemp)
-	sh -c "$*" > "$file" 2>&1
+	sh -c "$*" > $file 2>&1
 else
 	file=$(mktemp)
-	cat - > "$file"
+	cat - > $file
 fi
 
 [ -s "$file" ] || { echo "File $file is empty"; exit 3; }
 
-url=$(nc termbin.com 9999 < "$file")
-echo "$url"
+url=$(nc termbin.com 9999 < $file)
+echo $url
 
-rm -f "$file"
+rm -f $file
 exit 0
