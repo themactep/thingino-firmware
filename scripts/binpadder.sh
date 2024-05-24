@@ -4,10 +4,10 @@
 # Pads binary file with 0xFF to match full size of flashing chip.
 #
 # Example:
-#   ./binpadder.sh openipc-u-boot-t10-universal.bin 8
+#   ./binpadder.sh u-boot-t10.bin 8
 #
 # Running this command will produce a new binary file
-# openipc-u-boot-t10-universal-8MB-padded.bin
+# u-boot-t10-8MB-padded.bin
 # in the same directory as the original binary file.
 #
 # Paul Philippov <paul@themactep.com>
