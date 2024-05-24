@@ -3,7 +3,7 @@
 . /etc/init.d/rc.common
 
 filter_net_output() {
-  awk '/ip: SIOCGIFINDEX: No such device|route: SIOCDELRT: No such process|ip: SIOCGIFFLAGS: No such device/ {print " " $0 | "logger -t $0 >&2"; next} {print " " $0}'
+  awk '/ip: SIOCGIFINDEX: No such device|route: SIOCDELRT: No such process|ip: SIOCGIFFLAGS: No such device/ {print " " $0 | "logger -t '$(readlink -f $0)' >&2"; next} {print " " $0}'
 }
 
 case "$1" in
