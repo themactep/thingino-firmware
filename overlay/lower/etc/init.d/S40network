@@ -1,14 +1,20 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
+filter_net_output() {
+  awk '/ip: SIOCGIFINDEX: No such device|route: SIOCDELRT: No such process|ip: SIOCGIFFLAGS: No such device/ {print " " $0 | "logger -t $0 >&2"; next} {print " " $0}'
+}
+
 case "$1" in
 	start)
 		echo "Starting network..."
-		ifup -a
+		ifup -a 2>&1 | filter_net_output
 		;;
 
 	stop)
 		echo "Stopping network..."
-		ifdown -a
+		ifdown -a 2>&1 | indent_output
 		;;
 
 	restart | reload)

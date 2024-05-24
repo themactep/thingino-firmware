@@ -49,7 +49,7 @@ start() {
 	sleep 1
 
 	if [ -n "$mac_address" ]; then
-		ip link set dev wlan0 address $mac_address
+		ip link set dev wlan0 address $mac_address 2>&1 | logger -t $0
 	fi
 
 }

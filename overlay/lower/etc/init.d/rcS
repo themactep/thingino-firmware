@@ -7,9 +7,6 @@ export TZ=$(cat /etc/TZ)
 # Seritificates for curl in non-interactive shell
 export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
-# Set the firmware creation time as the base system time
-/bin/date -s @$(stat -t /etc/os-release | cut -d" " -f12)
-
 # Start all init scripts in /etc/init.d
 # executing them in numerical order.
 execute_and_log() {
