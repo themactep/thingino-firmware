@@ -47,3 +47,10 @@ indent_output() {
 die() {
 	exit 1
 }
+
+wlan_check() {
+	if ! ip link show wlan0 &>/dev/null; then
+			echo "Interface 'wlan0' does not exist." 2>&1 | logger -t $0
+			return 1
+	fi
+}

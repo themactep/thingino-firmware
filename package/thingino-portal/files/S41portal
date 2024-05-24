@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 ENABLE=true
 HOST_IP=172.16.0
 
@@ -10,14 +12,10 @@ timeout(){
 	sleep 300 && /etc/init.d/S41portal stop
 }
 
-if ! ip link show wlan0 2>&1 | logger -t $0; then
-	echo "Interface 'wlan0' does not exist." 2>&1 | logger -t $0
-	exit 1
-fi
-
 init_portal() {
 	echo -n "Starting WiFi Portal: "
 	if [ "$ENABLE" = "true" ]; then
+		wlan_check || { echo "Disabled"; exit 1; }
 		if [ -z "$ssid" ] || [ -z "$pass" ]; then
 			ip a add dev wlan0 $HOST_IP.1/24
 			ip link set wlan0 up

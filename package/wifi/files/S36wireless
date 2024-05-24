@@ -29,7 +29,7 @@ start() {
 		fi
 	fi
 
-	# Assume that we are SDIO, and we need to insert
+	#FIXME Assume that we are SDIO, and we need to insert
 	echo -n " Send INSERT to MMC1 ... "
 	if mmc 1 2>&1 | logger -t $0; then
 		echo "OK"
