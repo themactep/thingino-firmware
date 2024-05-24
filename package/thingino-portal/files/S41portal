@@ -10,15 +10,15 @@ timeout(){
 	sleep 300 && /etc/init.d/S41portal stop
 }
 
-if ! ip link show wlan0 &>/dev/null; then
-	echo "Interface 'wlan0' does not exist."
+if ! ip link show wlan0 2>&1 | logger -t $0; then
+	echo "Interface 'wlan0' does not exist." 2>&1 | logger -t $0
 	exit 1
 fi
 
 init_portal() {
+	echo -n "Starting WiFi Portal: "
 	if [ "$ENABLE" = "true" ]; then
 		if [ -z "$ssid" ] || [ -z "$pass" ]; then
-			printf 'Starting WiFi Portal: '
 			ip a add dev wlan0 $HOST_IP.1/24
 			ip link set wlan0 up
 			ip route add $HOST_IP.0/24 dev wlan0 > /dev/null 2>&1
@@ -32,7 +32,11 @@ init_portal() {
 
 			start-stop-daemon -S -x /sbin/wpa_supplicant -- -i wlan0 -B -c /etc/wpa_ap.conf 2>&1 | logger -t $0
 
+			[ $? = 0 ] && echo "OK" || echo "FAIL"
+
 			timeout &
+		else
+			echo "Disabled"
 		fi
 	fi
 }
@@ -40,7 +44,6 @@ init_portal() {
 case "$1" in
 	start)
 		init_portal
-		[ $? = 0 ] && echo "OK" || echo "FAIL"
 		;;
 	stop)
 		start-stop-daemon -K -q -x /sbin/udhcpd

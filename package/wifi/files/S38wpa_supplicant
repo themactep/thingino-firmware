@@ -11,7 +11,7 @@ start() {
 	pass="$(fw_printenv -n wlanpass)"
 
 	if ! ip link show wlan0 &>/dev/null; then
-		echo "Interface 'wlan0' does not exist."
+		echo "Interface 'wlan0' does not exist." 2>&1 | logger -t $0
 		exit 1
 	fi
 
