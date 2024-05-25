@@ -1,5 +1,6 @@
 ONVIF_SIMPLE_SERVER_SITE_METHOD = git
-ONVIF_SIMPLE_SERVER_SITE = https://github.com/roleoroleo/onvif_simple_server
+#ONVIF_SIMPLE_SERVER_SITE = https://github.com/roleoroleo/onvif_simple_server
+ONVIF_SIMPLE_SERVER_SITE = https://github.com/Sparpet/onvif_simple_server
 ONVIF_SIMPLE_SERVER_SITE_BRANCH = master
 ONVIF_SIMPLE_SERVER_VERSION = $(shell git ls-remote $(ONVIF_SIMPLE_SERVER_SITE) $(ONVIF_SIMPLE_SERVER_SITE_BRANCH) | head -1 | awk '{ print $$1 }')
 
