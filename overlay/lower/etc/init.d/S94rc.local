@@ -2,7 +2,9 @@
 
 start() {
 	echo "Running /etc/rc.local..."
-	( ( nohup /etc/rc.local >/dev/null 2>&1 </dev/null & ) & )
+	#( ( nohup /etc/rc.local >/dev/null 2>&1 </dev/null & ) & )
+	start-stop-daemon -b -S -x /usr/bin/env -- /bin/sh -c "/etc/rc.local 2>&1 | logger -p daemon.info -t $0"
+
 }
 
 stop() {

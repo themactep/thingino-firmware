@@ -8,7 +8,7 @@ config="/etc/imp.conf"
 
 check_imp() {
 	echo -n "Connecting to libimp-control: "
-	is_streamer_disabled && { echo -e "DISABLED"; exit 0; }
+	is_streamer_disabled && { echo -e "Disabled"; exit 0; }
 	i=0
 	platform=$(soc -f)
 	if [ "$platform" = "t10" ] || [ "$platform" = "t20" ]; then

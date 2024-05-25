@@ -15,7 +15,7 @@ fi
 
 start() {
 	printf 'Starting %s: ' "$DAEMON"
-	[ -f /usr/sbin/$DAEMON ] || echo -en "DISABLED, "
+	[ -f /usr/sbin/$DAEMON ] || echo -en "Disabled, "
 	start-stop-daemon -b -m -S -q -p "$PIDFILE" -x "/usr/sbin/$DAEMON" -- $HTTPD_ARGS
 	status=$?
 	if [ "$status" -eq 0 ]; then
@@ -28,7 +28,7 @@ start() {
 
 stop() {
 	printf 'Stopping %s: ' "$DAEMON"
-	[ -f /usr/sbin/$DAEMON ] || echo -en "DISABLED, "
+	[ -f /usr/sbin/$DAEMON ] || echo -en "Disabled, "
 	start-stop-daemon -K -q -p "$PIDFILE"
 	status=$?
 	if [ "$status" -eq 0 ]; then

@@ -19,7 +19,7 @@ timezone() {
 	tzjs="/var/www/a/tz.js"
 	matching_line=$(grep -i -F "$timezone" $tzjs)
 	if [ -z "$matching_line" ]; then
-		echo "Timezone not found in $tzjs" | logger -t $0
+		echo "Timezone not found in $tzjs" | logger -p daemon.info -t $0
 		return 1
 	fi
 

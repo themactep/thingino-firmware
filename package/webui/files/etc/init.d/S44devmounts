@@ -6,7 +6,7 @@ devip=$(fw_printenv -n devip)
 
 start() {
 	if ! grep -q /var/www /etc/mtab; then
-		logger -t httpd "mount development webui"
+		logger -p daemon.info -t httpd "mount development webui"
 		rm -r /var/www
 		mkdir /var/www
 		mount -t nfs -o nolock,tcp,nfsvers=3 ${devip}:/srv/nfs/www /var/www
@@ -15,7 +15,7 @@ start() {
 
 stop() {
 	if grep -q /var/www /etc/mtab; then
-		logger -t httpd "unmount development webui"
+		logger -p daemon.info -t httpd "unmount development webui"
 		umount /var/www
 		rm -r /overlay/var/www
 		mount -o remount /

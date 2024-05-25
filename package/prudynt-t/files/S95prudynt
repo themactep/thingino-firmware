@@ -8,13 +8,13 @@ COMMAND="/usr/bin/env -- LD_PRELOAD=/usr/lib/libimp_control.so $DAEMON_PATH/$DAE
 
 start() {
 	starting
-	is_streamer_disabled && { echo -e "DISABLED"; exit 0; }
+	is_streamer_disabled && { echo -e "Disabled"; exit 0; }
 	start_daemon_with_pid
 }
 
 stop() {
 	stopping
-	is_streamer_disabled && { echo -e "DISABLED"; exit 0; }
+	is_streamer_disabled && { echo -e "Disabled"; exit 0; }
 	stop_daemon_with_pid
 }
 
