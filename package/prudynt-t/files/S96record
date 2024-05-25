@@ -23,7 +23,7 @@ start() {
 	if [ "$ENABLED" = "true" ]; then
 		echo -n "Starting RTSP recorder: "
 
-		is_streamer_disabled && { echo -e "DISABLED"; exit 0; }
+		is_streamer_disabled && { echo -e "Disabled"; exit 0; }
 
 		if [ "$record_path" = "/mnt/mmcblk0p1" ] && ! grep -q "$record_path" /proc/mounts; then
 			die "Record path is set to $record_path but SD card is not mounted"
@@ -54,7 +54,7 @@ start() {
 
 stop() {
 	stopping
-	is_streamer_disabled && { echo -e "DISABLED"; exit 0; }
+	is_streamer_disabled && { echo -e "Disabled"; exit 0; }
 	stop_daemon
 }
 

@@ -41,7 +41,7 @@ start() {
 
 	sed -i '/^#auto wlan0$/s/^#//' /etc/network/interfaces.d/wlan0
 
-	start-stop-daemon -S -x /sbin/$DAEMON -- -i $IFACE -c $CONFIG -P $PIDFILE -B 2>&1 | logger -t $0
+	start-stop-daemon -S -x /sbin/$DAEMON -- -i $IFACE -c $CONFIG -P $PIDFILE -B 2>&1 | logger -p daemon.info -t $0
 	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 

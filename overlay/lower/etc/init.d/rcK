@@ -7,7 +7,7 @@ for prefix in K S; do
 	# Ignore dangling symlinks (if any).
 	[ ! -f "$i" ] && continue
 
-	/bin/sh -c "$i stop" 2>&1 | tee >(logger -t $i)
+	/bin/sh -c "$i stop" 2>&1 | tee >(logger -p daemon.info -t $i)
 	done
 done
 
