@@ -29,7 +29,7 @@ start() {
 		fi
 	fi
 
-	# Assume that we are SDIO, and we need to insert
+	#FIXME Assume that we are SDIO, and we need to insert
 	echo -n " Send INSERT to MMC1 ... "
 	if mmc 1 2>&1 | logger -t $0; then
 		echo "OK"
@@ -49,7 +49,7 @@ start() {
 	sleep 1
 
 	if [ -n "$mac_address" ]; then
-		ip link set dev wlan0 address $mac_address
+		ip link set dev wlan0 address $mac_address 2>&1 | logger -t $0
 	fi
 
 }

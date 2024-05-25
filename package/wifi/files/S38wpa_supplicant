@@ -5,15 +5,14 @@ IFACE=wlan0
 CONFIG="/etc/$DAEMON.conf"
 PIDFILE="/run/$DAEMON.$IFACE.pid"
 
+. /etc/init.d/rc.common
+
 start() {
-	printf 'Starting %s: ' "$DAEMON"
+	starting
 	ssid="$(fw_printenv -n wlanssid)"
 	pass="$(fw_printenv -n wlanpass)"
 
-	if ! ip link show wlan0 &>/dev/null; then
-		echo "Interface 'wlan0' does not exist."
-		exit 1
-	fi
+	wlan_check || { echo "Disabled"; exit 1; }
 
 	if [ -z "$ssid" ] || [ -z "$pass" ]; then
 		echo "WiFi credentials missing"

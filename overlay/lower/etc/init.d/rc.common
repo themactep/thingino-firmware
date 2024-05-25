@@ -1,6 +1,7 @@
 #!/bin/sh
 
 DAEMON_PATH="/usr/bin"
+DAEMON=${DAEMON:-$0}
 SHORT_DAEMON=$(basename ${DAEMON%% *})
 PIDFILE="/var/run/${daemon_base_name}.pid"
 
@@ -20,7 +21,7 @@ start_daemon() {
 }
 
 stop_daemon() {
-	start-stop-daemon -q -K -n $SHORT_DAEMON > /dev/null 2>&1 ## do we need -s KILL?
+	start-stop-daemon -q -K -n $SHORT_DAEMON > /dev/null 2>&1 #FIXME do we need -s KILL?
 	[ $? -eq 0 ] && { rm -f $PIDFILE && echo "OK"; } || echo "FAIL"
 }
 
@@ -39,6 +40,17 @@ is_streamer_disabled() {
 	fw_printenv -n disable_streamer 2>/dev/null | grep -q "true"
 }
 
+indent_output() {
+	awk '{print " "$0}'
+}
+
 die() {
 	exit 1
+}
+
+wlan_check() {
+	if ! ip link show wlan0 &>/dev/null; then
+			echo "Interface 'wlan0' does not exist." 2>&1 | logger -t $0
+			return 1
+	fi
 }

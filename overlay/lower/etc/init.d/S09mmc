@@ -16,8 +16,8 @@ set_gpios() {
 	# This needs to run AFTER the driver has been loaded for the sd card to mount during boot
 	if [ ${#MMC_GPIO_PWR} -eq 3 ] && [ "${MMC_GPIO_PWR%[oO]}" != "$MMC_GPIO_PWR" ]; then
 		case "${MMC_GPIO_PWR#??}" in
-			"O") gpio set ${MMC_GPIO_PWR%[oO]} ;;
-			"o") gpio clear ${MMC_GPIO_PWR%[oO]} ;;
+			"O") gpio set ${MMC_GPIO_PWR%[oO]} 2>&1 | logger -t $0 ;;
+			"o") gpio clear ${MMC_GPIO_PWR%[oO]} 2>&1 | logger -t $0 ;;
 		esac
 	fi
 }
