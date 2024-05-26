@@ -1,7 +1,6 @@
 #!/bin/sh
 
 DAEMON=wsd_simple_server
-ENABLED=false
 
 . /etc/init.d/rc.common
 
@@ -25,7 +24,7 @@ update_config() {
 
 start() {
 	starting "ONVIF"
-	{ is_streamer_disabled || [ "$ENABLED" = "false" ]; } && echo "Disabled" && exit 0
+	is_streamer_disabled && echo "Disabled" && exit 0
 	start_daemon
 
 	update_config "model" "$model"
@@ -38,7 +37,7 @@ start() {
 
 stop() {
 	stopping "ONVIF"
-	is_streamer_disabled && { echo -e "Disabled"; exit 0; }
+	is_streamer_disabled && echo "Disabled" && exit 0
 	stop_daemon_with_pid
 }
 
@@ -47,7 +46,8 @@ case "$1" in
 		$1
 		;;
 	restart | reload)
-		stop;start
+		stop
+		start
 		;;
 	*)
 		echo "Usage: $0 {start|stop|restart|reload}"
