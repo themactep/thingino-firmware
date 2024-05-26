@@ -6,11 +6,13 @@ SHORT_DAEMON=$(basename ${DAEMON%% *})
 PIDFILE="/var/run/$SHORT_DAEMON.pid"
 
 starting() {
-	echo -n "Starting $SHORT_DAEMON: "
+	local daemon_name="${1:-$SHORT_DAEMON}"
+	echo -n "Starting $daemon_name: "
 }
 
 stopping() {
-	echo -n "Stopping $SHORT_DAEMON: "
+	local daemon_name="${1:-$SHORT_DAEMON}"
+	echo -n "Stopping $daemon_name: "
 }
 
 start_daemon() {
