@@ -1,4 +1,4 @@
-name: Version Check
+name: live555 version check
 on:
   schedule:
     - cron: '0 0 * * *'
@@ -22,6 +22,8 @@ jobs:
           sed -i "s/THINGINO_LIVE555_VERSION = [0-9]\{4\}\.[0-9]\{2\}\.[0-9]\{2\}/THINGINO_LIVE555_VERSION = $upstream_ver/" package/thingino-live555/thingino-live555.mk
           echo "upstream_ver=$upstream_ver" >> $GITHUB_OUTPUT
           echo "current_ver=$current_ver" >> $GITHUB_OUTPUT
+          echo "upstream_version: $upstream_ver"
+          echo "current_version: $current_ver"
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
