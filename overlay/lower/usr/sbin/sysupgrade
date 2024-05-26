@@ -46,12 +46,10 @@ else
 	binary_file=$(mktemp -u)
 fi
 
-if [[ "$1" =~ ^https?:// ]]; then
-	echo "Downloading firmware from $1."
+if echo "$1" | grep -qE '^https?://'; then
 	binary_file=$(mktemp)  # Create a temporary file
-	if ! curl -# -L -f -o $binary_file $1; then
-		die "Failed to download firmware from $1. Exiting."
-	fi
+	echo "Downloading firmware from $1."
+	curl -# -L -f -o $binary_file $1 || die "Failed to download firmware from $1. Exiting."
 fi
 
 if ! grep -q -e "mtd6" -e "mtd5" /proc/mtd; then
