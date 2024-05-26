@@ -8,6 +8,8 @@ model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' /etc/os-release)
 firmware_ver=$(awk -F '[:=, ]+' '/^BUILD_ID=/ {print $2}' /etc/os-release)
 serial_num=$(fw_printenv -n ethaddr)
 iface=$(awk '$2 == "00000000" && $3 != "00000000" {print $1}' /proc/net/route)
+username=$(awk -F '"' '/username:/ {print $2}' /etc/prudynt.conf)
+password=$(awk -F '"' '/password:/ {print $2}' /etc/prudynt.conf)
 
 COMMAND="$DAEMON --pid_file /var/run/$DAEMON.pid --if_name $iface --xaddr "http://%s/onvif/device_service" -m $model -n thingino"
 
@@ -29,6 +31,9 @@ start() {
 	update_config "firmware_ver" "$firmware_ver"
 	update_config "serial_num" "$serial_num"
 	update_config "ifs" "$iface"
+	update_config "user" "$username"
+	update_config "password" "$password"
+
 }
 
 stop() {
