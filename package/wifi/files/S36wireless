@@ -1,11 +1,15 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 start() {
-	echo "Starting wireless:"
+	echo -n "Starting wireless: "
 	modulename="$(fw_printenv -n wlandev)"
 	moduleopts="$(fw_printenv -n wlandevopts)"
 	gpionum="$(fw_printenv -n gpio_wlan)"
 	mac_address=$(fw_printenv -n wlanmac)
+
+	wlandev_check || { echo "Disabled"; exit 1; }
 
 	if [ -n "$gpionum" ]; then
 		num=${gpionum%[oO]}
@@ -20,7 +24,7 @@ start() {
 				;;
 		esac
 
-		echo -n " Set GPIO $num $gpio_cmd ... "
+		echo -en "\n Set GPIO $num $gpio_cmd... "
 		if gpio $gpio_cmd $num 2>&1 | logger -p daemon.info -t $0; then
 			echo "OK"
 		else
