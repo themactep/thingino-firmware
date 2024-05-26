@@ -3,7 +3,7 @@
 DAEMON_PATH="/usr/bin"
 DAEMON=${DAEMON:-$0}
 SHORT_DAEMON=$(basename ${DAEMON%% *})
-PIDFILE="/var/run/${daemon_base_name}.pid"
+PIDFILE="/var/run/$SHORT_DAEMON.pid"
 
 starting() {
 	echo -n "Starting $SHORT_DAEMON: "
