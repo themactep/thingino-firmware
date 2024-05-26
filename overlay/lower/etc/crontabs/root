@@ -5,4 +5,4 @@
 # |  |  |  |  .---- day of week (0-7 or sun,mon,tue,wed,thu,fri,sat)
 # *  *  *  *  *  command to run
 #
-#*/1  *  *  *  *  /usr/sbin/daynight
+#*/1  *  *  *  *  /sbin/daynight
