@@ -1,6 +1,7 @@
 #!/bin/sh
 
 DAEMON=wsd_simple_server
+ENABLED=false
 
 . /etc/init.d/rc.common
 
@@ -8,8 +9,8 @@ model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' /etc/os-release)
 firmware_ver=$(awk -F '[:=, ]+' '/^BUILD_ID=/ {print $2}' /etc/os-release)
 serial_num=$(fw_printenv -n ethaddr)
 iface=$(awk '$2 == "00000000" && $3 != "00000000" {print $1}' /proc/net/route)
-username=$(awk -F '"' '/username:/ {print $2}' /etc/prudynt.conf)
-password=$(awk -F '"' '/password:/ {print $2}' /etc/prudynt.conf)
+username=$(awk -F '"' '/username:/ {print $2}' /etc/prudynt.cfg)
+password=$(awk -F '"' '/password:/ {print $2}' /etc/prudynt.cfg)
 
 COMMAND="$DAEMON --pid_file /var/run/$DAEMON.pid --if_name $iface --xaddr "http://%s/onvif/device_service" -m $model -n thingino"
 
@@ -24,7 +25,7 @@ update_config() {
 
 start() {
 	starting "ONVIF"
-	is_streamer_disabled && { echo -e "Disabled"; exit 0; }
+	{ is_streamer_disabled || [ "$ENABLED" = "false" ]; } && echo "Disabled" && exit 0
 	start_daemon
 
 	update_config "model" "$model"
@@ -33,7 +34,6 @@ start() {
 	update_config "ifs" "$iface"
 	update_config "user" "$username"
 	update_config "password" "$password"
-
 }
 
 stop() {
