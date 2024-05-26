@@ -1,6 +1,7 @@
 buildroot-*/
-output-*/
 general/package.disabled/
+output-*/
+overlay/upper
 sdk/
 tmp/
 toolchain/
@@ -13,3 +14,4 @@ wirebox/
 /.bootstrapped
 /.settings/
 /.prereqs.done
+/.vscode

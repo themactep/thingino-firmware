@@ -10,16 +10,17 @@ die() {
 }
 
 show_help() {
-	echo "Usage: $0 <filename> | [-f | -p]
+	echo "Usage: $0 <filename> | [-f | -p] | <URL>
 Where:
   -f          full upgrade with a binary from GitHub
   -p          partial upgrade with a binary from GitHub
   <filename>  full or partial upgrade from a local file
+  <URL>       download and upgrade from the specified URL
 "
 	exit 0
 }
 
-while getopts fp flag; do
+while getopts "fp" flag; do
 	case "$flag" in
 		f)
 			upgrade="full"
@@ -29,6 +30,8 @@ while getopts fp flag; do
 			;;
 	esac
 done
+
+shift $(($OPTIND - 1))
 
 if [ -z "$upgrade" ]; then
 	upgrade="local"
@@ -41,6 +44,12 @@ else
 		die "Building profile is not set in $data"
 	fi
 	binary_file=$(mktemp -u)
+fi
+
+if echo "$1" | grep -qE '^https?://'; then
+	binary_file=$(mktemp)  # Create a temporary file
+	echo "Downloading firmware from $1."
+	curl -# -L -f -o $binary_file $1 || die "Failed to download firmware from $1. Exiting."
 fi
 
 if ! grep -q -e "mtd6" -e "mtd5" /proc/mtd; then

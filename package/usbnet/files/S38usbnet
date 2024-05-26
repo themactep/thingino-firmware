@@ -20,7 +20,7 @@ start() {
 		esac
 
 		echo -n " Set GPIO $num $gpio_cmd ... "
-		if gpio $gpio_cmd $num 2>&1 | logger -t $0; then
+		if gpio $gpio_cmd $num 2>&1 | logger -p daemon.info -t $0; then
 			echo "OK"
 		else
 			echo "FAIL"

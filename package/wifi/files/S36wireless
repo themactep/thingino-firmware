@@ -1,11 +1,15 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 start() {
-	echo "Starting wireless:"
+	echo -n "Starting wireless: "
 	modulename="$(fw_printenv -n wlandev)"
 	moduleopts="$(fw_printenv -n wlandevopts)"
 	gpionum="$(fw_printenv -n gpio_wlan)"
 	mac_address=$(fw_printenv -n wlanmac)
+
+	wlandev_check || { echo "Disabled"; exit 1; }
 
 	if [ -n "$gpionum" ]; then
 		num=${gpionum%[oO]}
@@ -20,8 +24,8 @@ start() {
 				;;
 		esac
 
-		echo -n " Set GPIO $num $gpio_cmd ... "
-		if gpio $gpio_cmd $num 2>&1 | logger -t $0; then
+		echo -en "\n Set GPIO $num $gpio_cmd... "
+		if gpio $gpio_cmd $num 2>&1 | logger -p daemon.info -t $0; then
 			echo "OK"
 		else
 			echo "FAIL"
@@ -31,7 +35,7 @@ start() {
 
 	#FIXME Assume that we are SDIO, and we need to insert
 	echo -n " Send INSERT to MMC1 ... "
-	if mmc 1 2>&1 | logger -t $0; then
+	if mmc 1 2>&1 | logger -p daemon.info -t $0; then
 		echo "OK"
 	else
 		echo "FAIL"
@@ -39,7 +43,7 @@ start() {
 
 	if ! lsmod | grep -q "$modulename"; then
 		echo -n " Load module $modulename ... "
-		if modprobe $modulename $moduleopts 2>&1 | logger -t $0; then
+		if modprobe $modulename $moduleopts 2>&1 | logger -p daemon.info -t $0; then
 			echo "OK"
 		else
 			echo "FAIL"
@@ -49,7 +53,7 @@ start() {
 	sleep 1
 
 	if [ -n "$mac_address" ]; then
-		ip link set dev wlan0 address $mac_address 2>&1 | logger -t $0
+		ip link set dev wlan0 address $mac_address 2>&1 | logger -p daemon.info -t $0
 	fi
 
 }

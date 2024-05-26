@@ -3,14 +3,16 @@
 DAEMON_PATH="/usr/bin"
 DAEMON=${DAEMON:-$0}
 SHORT_DAEMON=$(basename ${DAEMON%% *})
-PIDFILE="/var/run/${daemon_base_name}.pid"
+PIDFILE="/var/run/$SHORT_DAEMON.pid"
 
 starting() {
-	echo -n "Starting $SHORT_DAEMON: "
+	local daemon_name="${1:-$SHORT_DAEMON}"
+	echo -n "Starting $daemon_name: "
 }
 
 stopping() {
-	echo -n "Stopping $SHORT_DAEMON: "
+	local daemon_name="${1:-$SHORT_DAEMON}"
+	echo -n "Stopping $daemon_name: "
 }
 
 start_daemon() {
@@ -50,7 +52,14 @@ die() {
 
 wlan_check() {
 	if ! ip link show wlan0 &>/dev/null; then
-			echo "Interface 'wlan0' does not exist." 2>&1 | logger -t $0
+			echo "Interface 'wlan0' does not exist." 2>&1 | logger -p daemon.info -t $0
+			return 1
+	fi
+}
+
+wlandev_check() {
+		if ! fw_printenv -n wlandev &>/dev/null; then
+			echo "wlandev is empty" 2>&1 | logger -p daemon.info -t $0
 			return 1
 	fi
 }
