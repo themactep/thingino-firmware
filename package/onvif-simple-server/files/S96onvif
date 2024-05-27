@@ -50,8 +50,6 @@ start() {
 
 stop() {
 	stopping "ONVIF"
-	is_streamer_disabled && die 0 "Disabled"
-	is_onvif_disabled && die 0 "Disabled"
 	stop_daemon_with_pid
 }
 
