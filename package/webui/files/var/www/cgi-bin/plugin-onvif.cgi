@@ -11,6 +11,8 @@ tmp_file=/tmp/$plugin
 config_file="${ui_config_dir}/${plugin}.conf"
 [ ! -f "$config_file" ] && touch $config_file
 
+onvif_control=/etc/init.d/S96onvif
+
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
 	for p in $params; do
@@ -27,17 +29,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		done; unset p
 		mv $tmp_file $config_file
 
-		cp $prudynt_config $tmp_file
-		if [ $motion_enabled = "true" ]; then
-			sed -i '/^motion:/n/enabled:/{s/ false;/ true;/}' $tmp_file
-		else
-			sed -i '/^motion:/n/enabled:/{s/ true;/ false;/}' $tmp_file
-		fi
-		sed -i -E "/^motion:/n/sensitivity:/{s/: \d*;/: ${motion_sensitivity};/}" $tmp_file
-		sed -i -E "/^motion:/n/cooldown_time:/{s/: \d*;/: ${motion_throttle};/}" $tmp_file
-		mv $tmp_file $prudynt_config
-
-		$prudynt_control restart >/dev/null
+		[ -f $onvif_control ] && $onvif_control restart >/dev/null
 
 		update_caminfo
 		redirect_to "$SCRIPT_NAME"
