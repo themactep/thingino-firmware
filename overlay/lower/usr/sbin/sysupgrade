@@ -17,7 +17,6 @@ Where:
   <filename>  full or partial upgrade from a local file
   <URL>       download and upgrade from the specified URL
 "
-	exit 0
 }
 
 while getopts "fp" flag; do
@@ -35,7 +34,7 @@ shift $(($OPTIND - 1))
 
 if [ -z "$upgrade" ]; then
 	upgrade="local"
-	[ -z "$1" ] && show_help
+	[ -z "$1" ] && { show_help; exit 1; }
 	binary_file="$1"
 else
 	data=/etc/os-release
@@ -107,9 +106,6 @@ echo "Stopping services"
 rm -f /tmp/snapshot.jpg
 
 echo 3 > /proc/sys/vm/drop_caches;sync
-
-echo "Erasing overlay"
-flash_eraseall -j /dev/mtd4
 
 echo "Performing upgrade. Do not turn off the power!"
 if flashcp -v $binary_file /dev/$mtd_dev; then
