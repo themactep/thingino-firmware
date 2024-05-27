@@ -123,8 +123,8 @@ OVERLAY_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
 # special case with no uboot nor env
 OVERLAY_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PARTITION_SIZE))))
 
-.PHONY: all toolchain sdk bootstrap clean create_overlay defconfig distclean help \
-	pack pack_full pack_update prepare_config reconfig upload_tftp upload_sdcard \
+.PHONY: all toolchain sdk bootstrap clean cleanbuild create_overlay defconfig distclean \
+ 	help pack pack_full pack_update prepare_config reconfig upload_tftp upload_sdcard \
 	upgrade_ota br-%
 
 all: $(OUTPUT_DIR)/.config
@@ -198,6 +198,9 @@ saveconfig:
 clean:
 	$(info -------------------> clean)
 	rm -rf $(OUTPUT_DIR)/target
+
+cleanbuild: distclean all
+	$(info -------------------> cleanbuild)
 
 distclean:
 	$(info -------------------> distclean)
