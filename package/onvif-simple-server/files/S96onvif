@@ -1,8 +1,16 @@
 #!/bin/sh
 
 DAEMON=wsd_simple_server
+ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
 
 . /etc/init.d/rc.common
+
+# create an empty config if missing
+[ ! -f $ONVIF_WEBUI_CONF ] && touch $ONVIF_WEBUI_CONF
+# read the config
+. $ONVIF_WEBUI_CONF
+# default to "enabled" and update config
+[ -z "$onvif_enabled" ] && onvif_enabled="true" && echo "onvif_enabled=$onvif_enabled" >> $ONVIF_WEBUI_CONF
 
 model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' /etc/os-release)
 firmware_ver=$(awk -F '[:=, ]+' '/^BUILD_ID=/ {print $2}' /etc/os-release)
@@ -12,6 +20,10 @@ username=$(awk -F '"' '/username:/ {print $2}' /etc/prudynt.cfg)
 password=$(awk -F '"' '/password:/ {print $2}' /etc/prudynt.cfg)
 
 COMMAND="$DAEMON --pid_file /var/run/$DAEMON.pid --if_name $iface --xaddr "http://%s/onvif/device_service" -m $model -n thingino"
+
+is_onvif_disabled() {
+	[ "true" != "$onvif_enabled" ]
+}
 
 update_config() {
 	local key=$1 value=$2 file="/etc/onvif.conf"
@@ -24,7 +36,8 @@ update_config() {
 
 start() {
 	starting "ONVIF"
-	is_streamer_disabled && echo "Disabled" && exit 0
+	is_streamer_disabled && die 0 "Disabled"
+	is_onvif_disabled && die 0 "Disabled"
 	start_daemon
 
 	update_config "model" "$model"
@@ -37,7 +50,8 @@ start() {
 
 stop() {
 	stopping "ONVIF"
-	is_streamer_disabled && echo "Disabled" && exit 0
+	is_streamer_disabled && die 0 "Disabled"
+	is_onvif_disabled && die 0 "Disabled"
 	stop_daemon_with_pid
 }
 
