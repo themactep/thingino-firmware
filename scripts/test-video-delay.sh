@@ -8,7 +8,7 @@
 
 if ! command -v gst-launch-1.0 > /dev/null; then
 	echo "This script requires GStreamer."
-	echo "Please run \"sudo apt install gstreamer1.0-tools gstreamer1.0-plugins-bad\" first, then re-run this script."
+	echo "Please run \"sudo apt install gstreamer1.0-tools gstreamer1.0-plugins-bad gstreamer1.0-libav\" first, then re-run this script."
 	exit 1
 fi
 
