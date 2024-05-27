@@ -6,6 +6,7 @@ ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
 . /etc/init.d/rc.common
 
 # create an empty config if missing
+[ ! -d $(dirname $ONVIF_WEBUI_CONF) ] && mkdir -p $(dirname $ONVIF_WEBUI_CONF)
 [ ! -f $ONVIF_WEBUI_CONF ] && touch $ONVIF_WEBUI_CONF
 # read the config
 . $ONVIF_WEBUI_CONF
