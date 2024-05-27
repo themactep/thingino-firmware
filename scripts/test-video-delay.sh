@@ -1,18 +1,28 @@
 #!/bin/bash
 #
-# GStreamer based video player for glass-on-glass tests.
-# Use it with https://thingino.com/timer
+# GStreamer based script for glass-to-glass latency testing.
+# Use it together with https://thingino.com/timer
+#
+# 2023, Paul Philippov <paul@themactep.com>
+#
+
+if ! command -v gst-launch-1.0 > /dev/null; then
+	echo "This script requires GStreamer."
+	echo "Please run \"sudo apt install gstreamer1.0-tools\" first, then re-run this script."
+	exit 1
+fi
 
 protocol="$1"
 codec="$2"
 
 show_help_and_exit() {
-	echo "Usage: $0 [rtmp|rtsp] [h264|h265] [rtsp://root:root@192.168.1.10:554/stream=0]"
+	echo "Usage: $0 [rtmp|rtsp] [h264|h265] [rtsp://thingino:thingino@192.168.1.10:554/ch0]"
 	exit 1
 }
 
 case "$protocol" in
 	"rtmp")
+		echo "This only works with OpenIPC, not Thingino!"
 		case "$codec" in
 			"h265")
 				gst-launch-1.0 -vvv udpsrc port=5600 \
@@ -38,11 +48,11 @@ case "$protocol" in
 		[ -z "$url" ] && show_help_and_exit
 		case "$codec" in
 			"h264")
-				gst-launch-1.0 -vvv rtspsrc location=${url} ! queue ! \
+				gst-launch-1.0 -vvv rtspsrc location=$url ! queue ! \
 					rtph264depay ! h264parse ! avdec_h264 ! fpsdisplaysink sync=false name=v
 				;;
 			"h265")
-				gst-launch-1.0 -vvv rtspsrc location=${url} ! queue ! \
+				gst-launch-1.0 -vvv rtspsrc location=$url ! queue ! \
 					rtph265depay ! h265parse ! avdec_h265 ! fpsdisplaysink sync=false name=v
 				;;
 			*)
