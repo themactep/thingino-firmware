@@ -29,7 +29,11 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		done; unset p
 		mv $tmp_file $config_file
 
-		[ -f $onvif_control ] && $onvif_control restart >/dev/null
+		if [ -f "$onvif_control" ]; then
+			$onvif_control restart >> /tmp/webui.log
+		else
+			echo "$onvif_control not found" >> /tmp/webui.log
+		fi
 
 		update_caminfo
 		redirect_to "$SCRIPT_NAME"
