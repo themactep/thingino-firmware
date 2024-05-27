@@ -47,7 +47,8 @@ indent_output() {
 }
 
 die() {
-	exit 1
+	[ -n "$2" ] && echo "$2"
+	exit ${1:-1}
 }
 
 wlan_check() {
