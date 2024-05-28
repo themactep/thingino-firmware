@@ -65,7 +65,7 @@ elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then %>
 <div class="invalid-feedback">Please enter password</div>
 </div>
 <div class="mb-3">
-<label class="form-label">User <b>root</b> Public SSH Key</label>
+<label class="form-label">User <b>root</b> Public SSH Key (optional)</label>
 <textarea class="form-control form-control-lg bg-light text-dark text-break" name="rootpkey" id="rootpkey" rows="8"><%= $rootpkey %></textarea>
 </div>
 <div class="mb-3">
