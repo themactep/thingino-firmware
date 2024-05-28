@@ -106,22 +106,12 @@ Pragma: no-cache
 </div>
 <% fi %>
 
-<% if [ "$network_macaddr" = "00:00:23:34:45:66" ] && [ -f /etc/shadow- ] && [ -n $(grep root /etc/shadow- | cut -d: -f2) ]; then %>
-<%in p/mac-address.cgi %>
-<% fi %>
-
 <% if [ "true" = "$telegram_socks5_enabled" ] || [ "true" = "$yadisk_socks5_enabled" ]; then
 if [ -z "$socks5_host" ] || [ -z "$socks5_port" ]; then %>
 <div class="alert alert-danger">
 <p class="mb-0">You want to use SOCKS5 proxy but it is not configured! Please <a href="network-socks5.cgi">configure the proxy</a>.</p>
 </div>
 <% fi; fi %>
-
-<% if [ "true" = "$speaker_enabled" ]; then %>
-<div class="alert alert-danger">
-<p class="mb-0">You need to enable audio in settings.</a></p>
-</div>
-<% fi %>
 
 <% if [ "$(cat /etc/TZ)" != "$TZ" ]; then %>
 <div class="alert alert-danger">
