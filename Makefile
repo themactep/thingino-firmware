@@ -284,7 +284,7 @@ upload_tftp: $(FIRMWARE_BIN_FULL)
 # upload firmware to an sd card
 upload_sdcard: $(FIRMWARE_BIN_FULL)
 	$(info -------------------> upload_sdcard)
-	cp -v $(FIRMWARE_BIN_FULL) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')/autoupdate-full.bin
+	cp -vf $(FIRMWARE_BIN_FULL) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')/autoupdate-full.bin
 	sync
 	umount $(SDCARD_DEVICE)1
 
