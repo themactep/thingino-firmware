@@ -17,7 +17,7 @@ stopping() {
 
 start_daemon() {
 	local command=${COMMAND:-$DAEMON_PATH/$DAEMON}
-	[[ "$command" =~ \  ]] && command="${command%% *} -- ${command#* }"
+	case "$command" in *\ *) command="${command%% *} -- ${command#* }";; esac
 	start-stop-daemon -q -b -S -x $command > /dev/null 2>&1
 	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
 }

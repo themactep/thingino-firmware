@@ -45,7 +45,7 @@ start() {
 		fi
 
 		sleep 2
-		COMMAND="${DAEMON} -- -u "$rtsp_username" "$rtsp_password" \
+		COMMAND="${DAEMON} -u "$rtsp_username" "$rtsp_password" \
 				-w "$stream0width" -h "$stream0height" -f "$stream0fps" -P $record_interval \
 				-q -v -b 1048576 -t -H -F "$file_prefix" rtsp://127.0.0.1/ch0"
 		start_daemon
