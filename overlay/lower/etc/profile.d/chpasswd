@@ -8,8 +8,6 @@
 		[ "$p1" = "$p2" ] && {
 			echo "root:$p1" | chpasswd -c sha512 2>/dev/null && {
 				echo_c 118 "\n\nPassword updated.\n"
-				rm /etc/issue
-				cp /etc/issue.net /etc/issue
 				break
 			} || echo_c 196 "\n\nUpdate failed. Please try again.\n"
 		} || echo_c 196 "\n\nPassword mismatch. Please try again.\n"
