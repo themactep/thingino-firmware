@@ -38,7 +38,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 		update_caminfo
 		/etc/init.d/S93telegrambot restart >/dev/null
-		redirect_back "success" "${plugin_name} config updated."
+		redirect_back "success" "$plugin_name config updated."
 	fi
 
 	redirect_to $SCRIPT_NAME
