@@ -46,22 +46,22 @@ elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then %>
 <form action="<%= $SCRIPT_NAME %>" method="post" class="my-3 needs-validation" novalidate style="max-width:26rem">
 <div class="mb-3">
 <label class="form-label">Wireless Network Name (SSID)</label>
-<input class="form-control form-control-lg bg-light text-dark" type="text" name="wlanssid" value="<%= $wlanssid %>" required>
+<input class="form-control form-control-lg bg-light text-dark" type="text" name="wlanssid" value="<%= $wlanssid %>" required autocapitalize="none">
 <div class="invalid-feedback">Please enter network name</div>
 </div>
 <div class="mb-3">
 <label class="form-label">Wireless Network Password</label>
-<input class="form-control form-control-lg bg-light text-dark" type="text" name="wlanpass" id="wlanpass" value="<%= $wlanpass %>" required>
+<input class="form-control form-control-lg bg-light text-dark" type="text" name="wlanpass" id="wlanpass" value="<%= $wlanpass %>" required autocapitalize="none">
 <div class="invalid-feedback">Please enter password</div>
 </div>
 <div class="mb-3">
 <label class="form-label">Camera Hostname</label>
-<input class="form-control form-control-lg bg-light text-dark" type="text" name="hostname" value="<%= $hostname %>" required>
+<input class="form-control form-control-lg bg-light text-dark" type="text" name="hostname" value="<%= $hostname %>" required autocapitalize="none">
 <div class="invalid-feedback">Please enter hostname</div>
 </div>
 <div class="mb-3">
 <label class="form-label">User <b>root</b> Password</label>
-<input class="form-control form-control-lg bg-light text-dark" type="text" name="rootpass" id="rootpass" value="<%= $rootpass %>" required>
+<input class="form-control form-control-lg bg-light text-dark" type="text" name="rootpass" id="rootpass" value="<%= $rootpass %>" required autocapitalize="none">
 <div class="invalid-feedback">Please enter password</div>
 </div>
 <div class="mb-3">
