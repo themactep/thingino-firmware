@@ -20,7 +20,6 @@ init_portal() {
 			ip a add dev wlan0 $HOST_IP.1/24
 			ip link set wlan0 up
 			ip route add $HOST_IP.0/24 dev wlan0 > /dev/null 2>&1
-			echo "* $HOST_IP.1" > /etc/dnsd.conf
 			start-stop-daemon -S -x /sbin/udhcpd -- -S -I $HOST_IP.1 /etc/udhcpd.conf 2>&1
 			start-stop-daemon -S -x /sbin/dnsd -- -i $HOST_IP.1 -c /etc/dnsd.conf -d | logger -p daemon.info -t $0
 
