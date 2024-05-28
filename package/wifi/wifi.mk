@@ -26,8 +26,17 @@ define WIFI_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/www-portal
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/var/www-portal/ $(WIFI_PKGDIR)/files/index.html
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/var/www-portal/ $(WIFI_PKGDIR)/files/favicon.ico
+
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/www-portal/cgi-bin
-	$(INSTALL) -m 755 -t $(TARGET_DIR)/var/www-portal/cgi-bin/ $(WIFI_PKGDIR)/files/update.cgi
+	$(INSTALL) -m 755 -t $(TARGET_DIR)/var/www-portal/cgi-bin/ $(WIFI_PKGDIR)/files/index.cgi
+
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/www/a
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/var/www/a $(WIFI_PKGDIR)/files/bootstrap.min.css
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/var/www/a $(WIFI_PKGDIR)/files/bootstrap.bundle.min.js
+
+	ln -sr $(TARGET_DIR)/var/www/a/bootstrap.min.css       $(TARGET_DIR)/var/www-portal/
+	ln -sr $(TARGET_DIR)/var/www/a/bootstrap.bundle.min.js $(TARGET_DIR)/var/www-portal/
 endef
 
 $(eval $(generic-package))
