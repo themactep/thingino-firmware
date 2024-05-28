@@ -35,7 +35,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		mv $tmp_file $config_file
 
 		update_caminfo
-		redirect_back "success" "${plugin_name} config updated."
+		redirect_back "success" "$plugin_name config updated."
 	fi
 
 	redirect_to $SCRIPT_NAME

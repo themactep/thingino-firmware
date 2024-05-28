@@ -4,7 +4,7 @@
 plugin="email"
 plugin_name="Send to email"
 page_title="Send to email"
-params="enabled attach_snapshot use_heif from_name from_address to_name to_address subject body smtp_host smtp_port smtp_username smtp_password smtp_use_ssl socks5_enabled"
+params="enabled attach_snapshot from_name from_address to_name to_address subject body smtp_host smtp_port smtp_username smtp_password smtp_use_ssl socks5_enabled"
 
 tmp_file=/tmp/${plugin}.conf
 
@@ -39,7 +39,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		mv $tmp_file $config_file
 
 		update_caminfo
-		redirect_back "success" "${plugin_name} config updated."
+		redirect_back "success" "$plugin_name config updated."
 	fi
 
 	redirect_to $SCRIPT_NAME
@@ -48,7 +48,6 @@ else
 
 	# Default values
 	[ -z "$email_attach_snapshot" ] && email_attach_snapshot="true"
-	[ -z "$email_use_heif" ] && email_use_heif="false"
 	[ -z "$email_smtp_port" ] && email_smtp_port="25"
 	[ -z "$email_from_name" ] && email_from_name="Camera ${network_hostname}"
 	[ -z "$email_to_name" ] && email_to_name="Camera admin"
@@ -75,7 +74,6 @@ fi
 <% field_text "email_subject" "Email subject" %>
 <% field_textarea "email_body" "Email text" "Line breaks will be replaced with whitespace." %>
 <% field_switch "email_attach_snapshot" "Attach snapshot" %>
-<% field_switch "email_use_heif" "Use HEIF image format" "Requires H.265 codec on Video0." %>
 <% # field_switch "email_socks5_enabled" "Use SOCKS5" "<a href=\"network-socks5.cgi\">Configure</a> SOCKS5 access" %>
 </div>
 <div class="col">

@@ -4,7 +4,7 @@
 plugin="telegram"
 plugin_name="Send to Telegram"
 page_title="Send to Telegram"
-params="enabled token as_attachment as_photo use_heif channel caption socks5_enabled"
+params="enabled token as_attachment as_photo channel caption socks5_enabled"
 
 tmp_file=/tmp/${plugin}.conf
 
@@ -33,7 +33,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		mv $tmp_file $config_file
 
 		update_caminfo
-		redirect_back "success" "${plugin_name} config updated."
+		redirect_back "success" "$plugin_name config updated."
 	fi
 
 	redirect_to $SCRIPT_NAME
@@ -42,7 +42,6 @@ else
 
 	# Default values
 	[ -z "$telegram_caption" ] && telegram_caption="%hostname, %datetime"
-	[ -z "$telegram_use_heif" ] && telegram_use_heif="false"
 fi
 %>
 <%in p/header.cgi %>
@@ -58,7 +57,6 @@ fi
 <div class="col">
 <% field_switch "telegram_as_attachment" "Send as attachment." %>
 <% field_switch "telegram_as_photo" "Send as photo." %>
-<% field_switch "telegram_use_heif" "Use HEIF format." "Requires H.265 codec on Video0." %>
 <% field_switch "telegram_socks5_enabled" "Use SOCKS5" "<a href=\"network-socks5.cgi\">Configure</a> SOCKS5 access" %>
 </div>
 <div class="col">

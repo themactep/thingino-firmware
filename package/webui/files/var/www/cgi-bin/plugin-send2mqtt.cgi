@@ -4,7 +4,7 @@
 plugin="mqtt"
 plugin_name="MQTT client"
 page_title="MQTT client"
-params="enabled host port client_id username password topic message send_snap snap_topic use_heif use_ssl"
+params="enabled host port client_id username password topic message send_snap snap_topic use_ssl"
 
 [ ! -f /usr/bin/mosquitto_pub ] && redirect_to "/" "danger" "MQTT client is not a part of your firmware."
 
@@ -55,7 +55,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		mv $tmp_file $config_file
 
 		update_caminfo
-		redirect_back "success" "${plugin_name} config updated."
+		redirect_back "success" "$plugin_name config updated."
 	fi
 
 	redirect_to $SCRIPT_NAME
@@ -67,7 +67,6 @@ else
 	[ -z "$mqtt_port" ] && mqtt_port="1883"
 	[ -z "$mqtt_topic" ] && mqtt_topic="thingino/${mqtt_client_id}"
 	[ -z "$mqtt_message" ] && mqtt_message=""
-	[ -z "$mqtt_use_heif" ] && mqtt_use_heif="false"
 fi
 %>
 <%in p/header.cgi %>
@@ -87,7 +86,6 @@ fi
 <% field_text "mqtt_topic" "MQTT topic" %>
 <% field_textarea "mqtt_message" "MQTT message" ""$STR_SUPPORTS_STRFTIME"" %>
 <% field_switch "mqtt_send_snap" "Send a snapshot" %>
-<% field_switch "mqtt_use_heif" "Use HEIF image format" "Requires H.265 codec on Video0." %>
 <% field_text "mqtt_snap_topic" "MQTT topic to send the snapshot to" %>
 <% field_switch "mqtt_socks5_enabled" "Use SOCKS5" "<a href=\"network-socks5.cgi\">Configure</a> SOCKS5 access" %>
 </div>
