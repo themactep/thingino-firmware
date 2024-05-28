@@ -4,7 +4,7 @@
 plugin="yadisk"
 plugin_name="Send to Yandex Disk"
 page_title="Send to Yandex Disk"
-params="enabled username password path use_heif socks5_enabled"
+params="enabled username password path socks5_enabled"
 
 tmp_file=/tmp/${plugin}.conf
 
@@ -39,9 +39,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	redirect_to $SCRIPT_NAME
 else
 	include $config_file
-
-	# Default values
-	[ -z "$yadisk_use_heif" ] && yadisk_use_heif="false"
 fi
 %>
 <%in p/header.cgi %>
@@ -55,7 +52,6 @@ fi
 </div>
 <div class="col">
 <% field_text "yadisk_path" "Yandex Disk path" %>
-<% field_switch "yandex_use_heif" "Use HEIF format." "Requires H.265 codec on Video0." %>
 <% field_switch "yadisk_socks5_enabled" "Use SOCKS5" "<a href=\"network-socks5.cgi\">Configure</a> SOCKS5 access" %>
 </div>
 <div class="col">
