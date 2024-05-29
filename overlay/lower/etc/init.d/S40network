@@ -3,17 +3,17 @@
 . /etc/init.d/rc.common
 
 filter_net_output() {
-  awk '/ip: SIOCGIFINDEX: No such device|route: SIOCDELRT: No such process|ip: SIOCGIFFLAGS: No such device/ {print " " $0 | "logger -p daemon.info -t '$(readlink -f $0)' >&2"; next} {print " " $0}'
+	awk '/ip: SIOCGIFINDEX: No such device|route: SIOCDELRT: No such process|ip: SIOCGIFFLAGS: No such device/ {print " " $0 | "logger -p daemon.info -t '$(readlink -f $0)' >&2"; next} {print " " $0}'
 }
 
 case "$1" in
 	start)
-		echo "Starting network..."
+		starting
 		ifup -a 2>&1 | filter_net_output
 		;;
 
 	stop)
-		echo "Stopping network..."
+		stopping
 		ifdown -a 2>&1 | indent_output
 		;;
 
@@ -24,8 +24,7 @@ case "$1" in
 		;;
 
 	*)
-		echo "Usage: $0 {start|stop|restart}"
-		exit 1
+		die 1 "Usage: $0 {start|stop|restart}"
 		;;
 esac
 

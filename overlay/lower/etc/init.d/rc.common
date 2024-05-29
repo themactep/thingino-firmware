@@ -2,33 +2,40 @@
 
 DAEMON_PATH="/usr/bin"
 DAEMON=${DAEMON:-$0}
-SHORT_DAEMON=$(basename ${DAEMON%% *})
-PIDFILE="/var/run/$SHORT_DAEMON.pid"
+DAEMON_SHORT=$(basename ${DAEMON%% *})
+DAEMON_FULL="$DAEMON_PATH/$DAEMON"
+DAEMON_ARGS=""
+PIDFILE="/var/run/$DAEMON_SHORT.pid"
+
+die() {
+	[ -n "$2" ] && echo "$2"
+	exit ${1:-1}
+}
 
 starting() {
-	local daemon_name="${1:-$SHORT_DAEMON}"
+	local daemon_name="${1:-$DAEMON_SHORT}"
 	echo -n "Starting $daemon_name: "
 }
 
 stopping() {
-	local daemon_name="${1:-$SHORT_DAEMON}"
+	local daemon_name="${1:-$DAEMON_SHORT}"
 	echo -n "Stopping $daemon_name: "
 }
 
 start_daemon() {
-	local command=${COMMAND:-$DAEMON_PATH/$DAEMON}
-	case "$command" in *\ *) command="${command%% *} -- ${command#* }";; esac
+	local command=${COMMAND:-$DAEMON_FULL}
+	case "$command" in *\ *) command="${command%% *} -- ${command#* }" ;; esac
 	start-stop-daemon -q -b -S -x $command > /dev/null 2>&1
 	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
 }
 
 stop_daemon() {
-	start-stop-daemon -q -K -n $SHORT_DAEMON > /dev/null 2>&1 #FIXME do we need -s KILL?
+	start-stop-daemon -q -K -n $DAEMON_SHORT > /dev/null 2>&1 #FIXME do we need -s KILL?
 	[ $? -eq 0 ] && { rm -f $PIDFILE && echo "OK"; } || echo "FAIL"
 }
 
 start_daemon_with_pid() {
-	local command=${COMMAND:-$DAEMON_PATH/$DAEMON}
+	local command=${COMMAND:-$DAEMON_FULL}
 	start-stop-daemon -q -b -m -S -p $PIDFILE -x $command > /dev/null 2>&1
 	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
 }
@@ -39,28 +46,23 @@ stop_daemon_with_pid() {
 }
 
 is_streamer_disabled() {
-	fw_printenv -n disable_streamer 2>/dev/null | grep -q "true"
+	fw_printenv -n disable_streamer 2> /dev/null | grep -q "true"
 }
 
 indent_output() {
 	awk '{print " "$0}'
 }
 
-die() {
-	[ -n "$2" ] && echo "$2"
-	exit ${1:-1}
-}
-
 wlan_check() {
-	if ! ip link show wlan0 &>/dev/null; then
-			echo "Interface 'wlan0' does not exist." 2>&1 | logger -p daemon.info -t $0
-			return 1
+	if ! ip link show wlan0 &> /dev/null; then
+		echo "Interface 'wlan0' does not exist." 2>&1 | logger -p daemon.info -t $0
+		return 1
 	fi
 }
 
 wlandev_check() {
-		if ! fw_printenv -n wlandev &>/dev/null; then
-			echo "wlandev is empty" 2>&1 | logger -p daemon.info -t $0
-			return 1
+	if ! fw_printenv -n wlandev &> /dev/null; then
+		echo "wlandev is empty" 2>&1 | logger -p daemon.info -t $0
+		return 1
 	fi
 }
