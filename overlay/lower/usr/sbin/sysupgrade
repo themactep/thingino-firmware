@@ -110,7 +110,7 @@ echo 3 > /proc/sys/vm/drop_caches;sync
 echo "Performing upgrade. Do not turn off the power!"
 if flashcp -v $binary_file /dev/$mtd_dev; then
 	echo "Rebooting..."
-	echo 1 > /proc/jz/watchdog/reset
+	reboot -f
 else
 	echo "Upgrade failed!"
 	die "You have to perform a recovery flashing before rebooting the camera!"
