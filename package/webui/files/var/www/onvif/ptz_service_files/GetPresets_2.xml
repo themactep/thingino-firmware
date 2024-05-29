@@ -1,8 +1,0 @@
-            <tptz:Preset token="%TOKEN%">
-                <tt:Name>%NAME%</tt:Name>
-                <tt:PTZPosition>
-                    <tt:PanTilt x="%X%"
-                                y="%Y%"/>
-                    <tt:Zoom x="%Z%"/>
-                </tt:PTZPosition>
-            </tptz:Preset>

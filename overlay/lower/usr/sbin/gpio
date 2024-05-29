@@ -24,6 +24,7 @@ Commands:
 	export <pin1>		Export <pin1> from kernel space
 	unexport <pin1>		Release <pin1> back to the kernel space
 
+	input <pin1>		Set <pin1> as input
 	read <pin1> [<pin2>]	Read values of a range of pins from <pin1> to <pin2>
 
 	high <pin1>		Set <pin1> output state to HIGH
@@ -302,6 +303,9 @@ case "$1" in
 		;;
 	info)
 		get_pin_info "$2" "$3"
+		;;
+	input)
+		set_direction "$2" "in"
 		;;
 	get | read)
 		get_pin_value "$2" "$3"
