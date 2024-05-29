@@ -47,6 +47,7 @@ start() {
 	update_config "ifs" "$iface"
 	update_config "user" "$username"
 	update_config "password" "$password"
+	update_config "hardware_id" "ingenic_$(soc -m)"
 }
 
 stop() {
