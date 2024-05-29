@@ -41,14 +41,17 @@ start() {
 	is_onvif_disabled && die 0 "Disabled"
 	start_daemon
 
-	update_config "model" "$model"
-	update_config "firmware_ver" "$firmware_ver"
-	update_config "serial_num" "$serial_num"
-	update_config "ifs" "$iface"
-	update_config "user" "$username"
-	update_config "password" "$password"
-	update_config "hardware_id" "ingenic_$(soc -m)"
-	update_config "ptz" "$(fw_printenv -n gpio_motor_h || echo 0)"
+	if ! grep -q "^# GENERATED" "/etc/onvif.conf"; then
+			sed -i '1i # GENERATED On '"$(date)" /etc/onvif.conf
+			update_config "model" "$model"
+			update_config "firmware_ver" "$firmware_ver"
+			update_config "serial_num" "$serial_num"
+			update_config "ifs" "$iface"
+			update_config "user" "$username"
+			update_config "password" "$password"
+			update_config "hardware_id" "ingenic_$(soc -m)"
+			update_config "ptz" "$(fw_printenv -n gpio_motor_h || echo 0)"
+	fi
 }
 
 stop() {
