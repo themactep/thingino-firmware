@@ -27,7 +27,7 @@ env:
 
 jobs:
   notify-begin:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     outputs:
       start_time: ${{ steps.set_output.outputs.time }}
     steps:
@@ -49,7 +49,12 @@ jobs:
   build-caches:
     name: ${{ matrix.caches-version }}
     needs: notify-begin
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: debian:trixie
     strategy:
       fail-fast: false
       matrix:
@@ -57,10 +62,23 @@ jobs:
           - build_cache
 
     steps:
+      - name: Update APT sources
+        run: |
+          apt-get update
+
+      - name: Install build dependencies
+        run: |
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail gawk gcc lzop u-boot-tools ca-certificates ccache procps bash
+
+      - name: Setup gh container workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Checkout source
         uses: actions/checkout@v4
         with:
           submodules: 'true'
+          ref: "master"
+          fetch-depth: "1"
 
       - name: Setup Environment
         id: date
@@ -71,6 +89,7 @@ jobs:
           export GIT_BRANCH=${GITHUB_REF_NAME}
           echo "GIT_HASH=${GIT_HASH}" >> ${GITHUB_ENV}
           echo "GIT_BRANCH=${GIT_BRANCH}" >> ${GITHUB_ENV}
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
 
       - name: Setup cache directories
         run: |
@@ -79,7 +98,16 @@ jobs:
           ln -s /tmp/ccache ${HOME}/.ccache
           ln -s /tmp/dl ${HOME}/dl
 
-      - name: Setup buildroot download directory cache
+      - name: Restore build cache
+        uses: actions/cache@v4
+        if: always()
+        with:
+          path: /tmp/ccache
+          key: ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-
+
+      - name: Restore Buildroot DL cache
         uses: actions/cache@v4
         if: always()
         with:
@@ -87,14 +115,6 @@ jobs:
           key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
           restore-keys: |
             ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-
-
-      - name: Update system sources
-        run: |
-          sudo apt-get update
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail gcc gcc-mipsel-linux-gnu lzop u-boot-tools ca-certificates ccache
 
       - name: Generate buildroot cache
         run: |
@@ -133,7 +153,7 @@ jobs:
 
   notify-completion:
     needs: [build-caches, notify-begin]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Send completion summary
