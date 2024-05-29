@@ -68,7 +68,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail gawk gcc lzop u-boot-tools ca-certificates ccache procps bash
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail gawk gcc lzop u-boot-tools ca-certificates ccache procps
 
       - name: Setup gh container workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -123,7 +123,7 @@ jobs:
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
-      - name: Send completion notification with job link
+      - name: Send completion notification
         if: ${{ github.event_name != 'pull_request' && env.INGTC && github.event.inputs.tg_disabled == 'false' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
