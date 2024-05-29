@@ -1,24 +1,21 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 motors_app=$(which motors)
 gpio_motor_h=$(fw_printenv -n gpio_motor_h)
 gpio_motor_v=$(fw_printenv -n gpio_motor_v)
 motor_h_maxstep=$(fw_printenv -n motor_maxstep_h)
 motor_v_maxstep=$(fw_printenv -n motor_maxstep_v)
 
-die() {
-	echo -e "$1"
-	exit ${2:-1}
-}
-
 check_module_loaded() {
 	for module in "$@"; do
-		grep -qE "^$module" /proc/modules && die "Module $module already loaded." 0
+		grep -qE "^$module" /proc/modules && die 0 "Module $module already loaded."
 	done
 }
 
 set_motor_phases() {
-	[ "$(echo $2 | wc -w)" -lt 4 ] && die "Missing phase for ${1}motor"
+	[ "$(echo $2 | wc -w)" -lt 4 ] && die 1 "Missing phase for ${1}motor"
 
 	local i=1
 	for gpio in $2; do
@@ -32,17 +29,17 @@ rehome_motors() {
 }
 
 start() {
-	echo -n "Starting motors: "
+	starting
 
 	# Do not double load module
 	check_module_loaded motor sample_motor
 
 	# Check if motors are supported
-	[ -z "$motors_app" ] && die "Disabled\n\tNo motors app found"
-	[ -z "$gpio_motor_h" ] && die "Disabled\n\tPan motor GPIO are not set"
-	[ -z "$gpio_motor_v" ] && die "Disabled\n\tTilt motor GPIO are not set"
-	[ -z "$motor_h_maxstep" ] && die "Disabled\n\tPan motor Steps are not set"
-	[ -z "$motor_v_maxstep" ] && die "Disabled\n\tTilt motor Steps are not set"
+	[ -z "$motors_app" ] && die 1 "Disabled\n\tNo motors app found"
+	[ -z "$gpio_motor_h" ] && die 1 "Disabled\n\tPan motor GPIO are not set"
+	[ -z "$gpio_motor_v" ] && die 1 "Disabled\n\tTilt motor GPIO are not set"
+	[ -z "$motor_h_maxstep" ] && die 1 "Disabled\n\tPan motor Steps are not set"
+	[ -z "$motor_v_maxstep" ] && die 1 "Disabled\n\tTilt motor Steps are not set"
 
 	# Set GPIO per motor phase
 	set_motor_phases "h" "$gpio_motor_h"
@@ -52,7 +49,7 @@ start() {
 	modprobe motor hmaxstep=$motor_h_maxstep vmaxstep=$motor_v_maxstep \
 		hst1=$hst1 hst2=$hst2 hst3=$hst3 hst4=$hst4 \
 		vst1=$vst1 vst2=$vst2 vst3=$vst3 vst4=$vst4 \
-		|| die "Failed to load motor module"
+		|| die 1 "Failed to load motor module"
 
 	echo "OK"
 
@@ -61,9 +58,9 @@ start() {
 }
 
 stop() {
-	echo -n "Stopping motors: "
+	stopping
 	# FIXME: motor.ko crashes on upload
-	# rmmod motor || die "Failed to unload motor module."
+	# rmmod motor || die 1 "Failed to unload motor module."
 	echo "OK"
 }
 
@@ -77,7 +74,7 @@ case "$1" in
 		start
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		die 1 "Usage: $0 {start|stop|restart|reload}"
 		;;
 esac
 

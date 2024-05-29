@@ -1,14 +1,12 @@
 #!/bin/sh
 
-DAEMON=impconfig
-
 . /etc/init.d/rc.common
 
 config="/etc/imp.conf"
 
 check_imp() {
 	echo -n "Connecting to libimp-control: "
-	is_streamer_disabled && { echo -e "Disabled"; exit 0; }
+	is_streamer_disabled && die 0 "Disabled"
 	i=0
 	platform=$(soc -f)
 	if [ "$platform" = "t10" ] || [ "$platform" = "t20" ]; then
@@ -18,13 +16,15 @@ check_imp() {
 	fi
 
 	while :; do
-		grep -Eq "running|Software" $isp_path &&
-			imp-control getdeviceid > /dev/null &&
-			echo " OK" && return
+		if grep -Eq "running|Software" $isp_path; then
+			imp-control getdeviceid > /dev/null
+			echo " OK"
+			return
+		fi
 		echo -n "."
 		i=$((i + 1))
 		sleep 1
-		[ $i -gt 10 ] && echo " FAIL (timeout)" && exit 1
+		[ $i -gt 10 ] && die 1 " FAIL (timeout)"
 	done
 }
 
@@ -52,8 +52,7 @@ case "$1" in
 		:
 		;;
 	*)
-		echo "Usage: $0 {start|restart|reload}"
-		exit 1
+		die 1 "Usage: $0 {start|restart|reload}"
 		;;
 esac
 

@@ -6,13 +6,13 @@ DAEMON="iad -r -c /etc/iad.json"
 
 start() {
 	starting
-	is_streamer_disabled && { echo -e "Disabled"; exit 0; }
+	is_streamer_disabled && die 0 "Disabled"
 	start_daemon
 }
 
 stop() {
 	stopping
-	is_streamer_disabled && { echo -e "Disabled"; exit 0; }
+	is_streamer_disabled && die 0 "Disabled"
 	stop_daemon
 }
 
@@ -31,8 +31,7 @@ case "$1" in
 		$1
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart|reload}"
-		exit 1
+		die 1 "Usage: $0 {start|stop|restart|reload}"
 esac
 
 exit 0
