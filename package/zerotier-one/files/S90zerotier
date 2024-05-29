@@ -1,12 +1,11 @@
 #!/bin/sh
 
 config_file=/etc/webui/zerotier.conf
-[ ! -f "$config_file" ] && echo "Config file not found." && exit 2
-. $config_file
+[  -f "$config_file" ] && . $config_file
 
 case "$1" in
 	start)
-		if [ "true" = "$zerotier_enabled" ]; then
+		if [ "false" != "$zerotier_enabled" ]; then
 			echo "Starting zerotier-one daemon..."
 			/sbin/modprobe tun
 			/usr/sbin/zerotier-one -d
