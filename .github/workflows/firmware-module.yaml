@@ -119,7 +119,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail gawk gcc lzop u-boot-tools ca-certificates ccache procps bash
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail gawk gcc lzop u-boot-tools ca-certificates ccache procps
 
       - name: Setup gh container workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -186,8 +186,8 @@ jobs:
       - name: Prepare full image
         run: |
           if [[ "${{ github.event.inputs.debug_only }}" == 'true' ]]; then
-            mkdir -p ${HOME}/output/teacup/images/
-            echo "debug_only" > ${HOME}/output/teacup/images/thingino-teacup-202405281539.bin
+            mkdir -p ${HOME}/output/${{ matrix.thingino-version }}/images/
+            echo "debug_only" > ${HOME}/output/${{ matrix.thingino-version }}/images/thingino-${{ matrix.thingino-version }}.bin
           else
             BOARD=${{ matrix.thingino-version }} make pack_full
           fi
@@ -195,8 +195,8 @@ jobs:
       - name: Prepare update image
         run: |
           if [[ "${{ github.event.inputs.debug_only }}" == 'true' ]]; then
-           mkdir -p ${HOME}/output/teacup/images/
-           echo "debug_only" > ${HOME}/output/teacup/images/thingino-teacup-202405282352-update.bin
+           mkdir -p ${HOME}/output/${{ matrix.thingino-version }}/images/
+           echo "debug_only" > ${HOME}/output/${{ matrix.thingino-version }}/images/thingino-${{ matrix.thingino-version }}-update.bin
           else
             BOARD=${{ matrix.thingino-version }} make pack_update
           fi
@@ -204,19 +204,13 @@ jobs:
       - name: Find built firmware images
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
-          PATTERN="thingino-${DYNAMIC_PART}-*.bin"
-          UPDATE_PATTERN="thingino-${DYNAMIC_PART}-*-update.bin"
-          FULL_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "${PATTERN}" | grep -v -- '-update.bin' | head -n 1)
-          UPDATE_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "${UPDATE_PATTERN}" | grep -- '-update.bin' | head -n 1)
+          FULL_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}.bin" ! -name "*update.bin" | head -n 1)
+          UPDATE_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}-update.bin" | head -n 1)
           echo "FULL_FW: $FULL_FW"
           echo "UPDATE_FW: $UPDATE_FW"
-          if [[ -n "${FULL_FW}" && -n "${UPDATE_FW}" ]]; then
-            FULL_FW_BASENAME=$(basename "${FULL_FW}" | sed 's/-[0-9]\{12\}\.bin$/.bin/')
-            UPDATE_FW_BASENAME=$(basename "${UPDATE_FW}" | sed -E 's/-[0-9]{12}(-update)?\.bin$/-update.bin/')
-            mv "${FULL_FW}" "${HOME}/output/${DYNAMIC_PART}/images/${FULL_FW_BASENAME}"
-            mv "${UPDATE_FW}" "${HOME}/output/${DYNAMIC_PART}/images/${UPDATE_FW_BASENAME}"
-            echo "FULL_FW=${HOME}/output/${DYNAMIC_PART}/images/${FULL_FW_BASENAME}" >> ${GITHUB_ENV}
-            echo "UPDATE_FW=${HOME}/output/${DYNAMIC_PART}/images/${UPDATE_FW_BASENAME}" >> ${GITHUB_ENV}
+          if [[ -n "$FULL_FW" && -n "$UPDATE_FW" ]]; then
+            echo "FULL_FW=${FULL_FW}" >> ${GITHUB_ENV}
+            echo "UPDATE_FW=${UPDATE_FW}" >> ${GITHUB_ENV}
           else
             echo "Matching .bin files not found."
             exit 1
