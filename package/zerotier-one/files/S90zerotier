@@ -10,7 +10,7 @@ case "$1" in
 		[ "false" = "$zerotier_enabled" ] && die 3 "Zerotier-One service is disabled in $config_file"
 
 		starting
-		{ modprobe tun && zerotier-one -d; } || die 1 "FAIL"
+		{ modprobe tun && zerotier-one -d > /dev/null 2>&1; } || die 1 "FAIL"
 		echo "OK"
 		;;
 	stop)
