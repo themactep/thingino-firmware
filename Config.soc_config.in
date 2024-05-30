@@ -139,17 +139,16 @@ config BR2_AUDIO
 	  The GPIO pin for enabling audio can be specified in the U-Boot environment
 	  using the "gpio_speaker" parameter. If not specified, the default value is "-1".
 
-choice
-	prompt "PWM Support"
-	default BR2_PWM_DISABLE
+config BR2_AUDIO_PARAMS
+	string "Audio Parameters"
+	depends on BR2_AUDIO
 	help
-	  Enable or Disable PWM support
+	  Specify the parameters to pass when loading the audio kernel module.
 
-	config BR2_PWM_ENABLE
-		bool "Enabled"
-	config BR2_PWM_DISABLE
-		bool "Disabled"
-endchoice
+config BR2_PWM_ENABLE
+	bool "PWM Support"
+	help
+	  Enable or Disable PWM support.
 
 config BR2_MOTORS
 	bool "Pan/Tilt Motors"
