@@ -2,8 +2,8 @@
 
 DAEMON_PATH="/usr/bin"
 DAEMON=${DAEMON:-$0}
-DAEMON_SHORT=$(basename ${DAEMON%% *})
-DAEMON_FULL="$DAEMON_PATH/$DAEMON"
+DAEMON_SHORT=$(basename ${DAEMON%% *} | sed -r 's/^S\d{2}/')
+DAEMON_FULL="$(which $DAEMON_SHORT)"
 DAEMON_ARGS=""
 PIDFILE="/var/run/$DAEMON_SHORT.pid"
 
