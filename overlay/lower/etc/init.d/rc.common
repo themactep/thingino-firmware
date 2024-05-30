@@ -25,7 +25,7 @@ stopping() {
 start_daemon() {
 	local command=${COMMAND:-$DAEMON_FULL}
 	case "$command" in *\ *) command="${command%% *} -- ${command#* }" ;; esac
-	start-stop-daemon -q -b -S -x $command > /dev/null 2>&1
+	start-stop-daemon -q -b -S -x "$command > /dev/null 2>&1"
 	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
 }
 
@@ -36,7 +36,7 @@ stop_daemon() {
 
 start_daemon_with_pid() {
 	local command=${COMMAND:-$DAEMON_FULL}
-	start-stop-daemon -q -b -m -S -p $PIDFILE -x $command > /dev/null 2>&1
+	start-stop-daemon -q -b -m -S -p $PIDFILE -x "$command > /dev/null 2>&1"
 	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
 }
 
