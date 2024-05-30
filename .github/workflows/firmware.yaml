@@ -22,12 +22,12 @@ on:
         default: false
       teacup_only:
         type: boolean
-        description: 'Only build Tea Cup profile '
+        description: 'Only build Tea Cup profile'
         required: false
         default: false
       debug_only:
         type: boolean
-        description: 'Debug: Generate dummy image files '
+        description: 'Debug: Generate dummy image files'
         required: false
         default: false
 
@@ -168,38 +168,17 @@ jobs:
             ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-
 
       - name: Build firmware
+        if: ${{ github.event.inputs.debug_only == 'false' }}
         run: |
-          if [[ "${{ github.event.inputs.debug_only }}" == 'false' ]]; then
-            BOARD=${{ matrix.thingino-version }} make
-            TIME=$(date -d @${SECONDS} +%M:%S)
-            echo "TIME=${TIME}" >> ${GITHUB_ENV}
-          fi
+          BOARD=${{ matrix.thingino-version }} make
+          TIME=$(date -d @${SECONDS} +%M:%S)
+          echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
       - name: Generate build graphs
-        if: ${{ github.event.inputs.graph_enabled == 'true' }}
+        if: ${{ github.event.inputs.graph_enabled == 'true' && github.event.inputs.debug_only == 'false' }}
         run: |
-          if [[ "${{ github.event.inputs.debug_only }}" == 'false' ]]; then
-            apt-get install -y --no-install-recommends --no-install-suggests python3-numpy python3-matplotlib
-            BOARD=${{ matrix.thingino-version }} make br-graph-build
-          fi
-
-      - name: Prepare full image
-        run: |
-          if [[ "${{ github.event.inputs.debug_only }}" == 'true' ]]; then
-            mkdir -p ${HOME}/output/${{ matrix.thingino-version }}/images/
-            echo "debug_only" > ${HOME}/output/${{ matrix.thingino-version }}/images/thingino-${{ matrix.thingino-version }}.bin
-          else
-            BOARD=${{ matrix.thingino-version }} make pack_full
-          fi
-
-      - name: Prepare update image
-        run: |
-          if [[ "${{ github.event.inputs.debug_only }}" == 'true' ]]; then
-           mkdir -p ${HOME}/output/${{ matrix.thingino-version }}/images/
-           echo "debug_only" > ${HOME}/output/${{ matrix.thingino-version }}/images/thingino-${{ matrix.thingino-version }}-update.bin
-          else
-            BOARD=${{ matrix.thingino-version }} make pack_update
-          fi
+          apt-get install -y --no-install-recommends --no-install-suggests python3-numpy python3-matplotlib
+          BOARD=${{ matrix.thingino-version }} make br-graph-build
 
       - name: Find built firmware images
         run: |
