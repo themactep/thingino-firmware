@@ -21,34 +21,33 @@ record_path="/mnt/mmcblk0p1"
 record_interval=60
 
 start() {
-	if [ "$ENABLED" = "true" ]; then
-		echo -n "Starting RTSP recorder: "
+	starting
+	[ "$ENABLED" = "true" ] || die 0 "Disabled"
+	is_streamer_disabled && die 0 "Disabled"
 
-		is_streamer_disabled && die 0 "Disabled"
-
-		if [ "$record_path" = "/mnt/mmcblk0p1" ]; then
-			grep -q "$record_path" /proc/mounts || die 1 "Record path is set to $record_path but SD card is not mounted"
-		fi
-
-		[ -d "$record_path" ] || die 1 "Record path does not exist"
-
-		pidof prudynt > /dev/null || die 1 "Prudynt is not running. Unable to record RTSP stream"
-
-		[ -d "$record_path" ] || mkdir -p "$record_path"
-		cd "$record_path" || die 1 "Cannot change directory to $record_path"
-
-		pidof $DAEMON > /dev/null && die 1 "RTSP recorder already running"
-
-		sleep 2
-		COMMAND="$DAEMON -u "$rtsp_username" "$rtsp_password" \
-				-w "$stream0width" -h "$stream0height" -f "$stream0fps" -P $record_interval \
-				-q -v -b 1048576 -t -H -F "$file_prefix" rtsp://127.0.0.1/ch0"
-		start_daemon
+	if [ "$record_path" = "/mnt/mmcblk0p1" ]; then
+		grep -q "$record_path" /proc/mounts || die 1 "Record path is set to $record_path but SD card is not mounted"
 	fi
+
+	[ -d "$record_path" ] || die 1 "Record path does not exist"
+
+	pidof prudynt > /dev/null || die 1 "Prudynt is not running. Unable to record RTSP stream"
+
+	[ -d "$record_path" ] || mkdir -p "$record_path"
+	cd "$record_path" || die 1 "Cannot change directory to $record_path"
+
+	pidof $DAEMON > /dev/null && die 1 "RTSP recorder already running"
+
+	sleep 2
+	COMMAND="$DAEMON -u "$rtsp_username" "$rtsp_password" \
+			-w "$stream0width" -h "$stream0height" -f "$stream0fps" -P $record_interval \
+			-q -v -b 1048576 -t -H -F "$file_prefix" rtsp://127.0.0.1/ch0"
+	start_daemon
 }
 
 stop() {
 	stopping
+	[ "$ENABLED" = "true" ] || die 0 "Disabled"
 	is_streamer_disabled && die 0 "Disabled"
 	stop_daemon
 }
