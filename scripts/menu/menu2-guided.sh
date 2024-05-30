@@ -34,8 +34,7 @@ main_menu() {
 			"1" "Step 1: Select device" \
 			"2" "$step2_label" \
 			"3" "Step 3: Make firmware" \
-			"4" "Step 4: Make Image" \
-			"5" "Step 5: (Optional) OTA Firmware" \
+			"5" "Step 4: (Optional) OTA Firmware" \
 			3>&1 1>&2 2>&3)
 		exit_status
 	done
@@ -56,9 +55,6 @@ this will ensure your environment is correctly set up to proceed with building T
 		"HELP 3")
 			show_help_msgbox "This option starts the firmware compilation process. The duration of this process depends on your \
 computer's speed. Please be patient as it might take some time." 7;;
-		"HELP 4")
-			show_help_msgbox "After successfully compiling the firmware, this option allows you to create an image file that can \
-be manually flashed to your device. Use this to provide your device with the new firmware." 7;;
 		"HELP 5")
 			show_help_msgbox "After successfully compiling the firmware, this option allows you to send a compiled firmware image \
 directly to your existing device via networking.  You'll need the IP address of the device you wish to upgrade." 8;;
@@ -81,8 +77,6 @@ function execute_choice() {
 		2)	step2
 			;;
 		3)	step3
-			;;
-		4)	step4
 			;;
 		5)	step5
 			;;
@@ -159,27 +153,7 @@ step3() {
 		fi
 		BOARD=$camera_value make
 		step3_completed=true
-		"${DIALOG_COMMON[@]}" --msgbox "The firmware compilation process is now complete!\n\nYou can now proceed to create a firmware image, which is necessary for flashing the firmware onto your device." 8 70
-	else
-		no_device
-	fi
-}
-
-step4() {
-	if [ -n "$camera_value" ]; then
-		"${DIALOG_COMMON[@]}" --no-cancel --no-label "Back" --yes-label "OK" --yesno "Making image for \Z1$camera_value\Zn...\n\nPress OK to begin." 7 60
-		response=$?
-		exec 3>&-
-		if [ $response -eq 1 ]; then
-			return
-		elif [ $response -eq 255 ]; then
-			closed_dialog
-			return
-		fi
-		BOARD=$camera_value make pack
-		step3_completed=true
-		"${DIALOG_COMMON[@]}" --msgbox "Image process complete!\\n\nYour images are located in \n\Z1$HOME/output/$camera_value/images\Zn" 8 60
-		exit
+		"${DIALOG_COMMON[@]}" --msgbox "The firmware compilation process is now complete!\n\n" 5 70
 	else
 		no_device
 	fi
