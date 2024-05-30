@@ -74,7 +74,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail gawk gcc lzop u-boot-tools ca-certificates ccache procps bash
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cpio curl ca-certificates file git make gawk procps rsync unzip wget
 
       - name: Setup gh container workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
