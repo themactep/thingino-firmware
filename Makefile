@@ -193,7 +193,7 @@ clean:
 	$(info -------------------> clean)
 	rm -rf $(OUTPUT_DIR)/target
 
-cleanbuild: distclean build
+cleanbuild: distclean all
 	$(info -------------------> cleanbuild)
 
 distclean:
