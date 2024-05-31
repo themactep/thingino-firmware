@@ -1,7 +1,6 @@
 config BR2_PACKAGE_LOGCAT
 	bool "logcat"
 	default n
-	depends on BR2_THINGINO_DEV_PACKAGES
 	help
 	  Full featured userspace programs for reading the Android logging
 	  facility, which is used by Ingenic IMP libraries.
