@@ -1,6 +1,5 @@
 config BR2_PACKAGE_GADGET_SERIAL
 	bool "gadget_serial"
 	default y
-	depends on BR2_THINGINO_DEV_PACKAGES
 	help
 	  Enables a USB gadget serial device to allow termial access
