@@ -35,9 +35,9 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 fi
 
 if [ "POST" = "$REQUEST_METHOD" ] && [ "save" = "$POST_mode" ]; then
-	fw_setenv wlanssid $wlanssid
-	fw_setenv wlanpass $wlanpass
-	fw_setenv hostname $hostname
+	tempfile=$(mktemp)
+	echo -e "wlanssid $wlanssid\nwlanpass $wlanpass\nhostname $hostname" > $tempfile
+	fw_setenv -s $tempfile
 	echo "root:${rootpass}" | chpasswd -c sha512
 	echo "$rootpkey" > $SSH_AUTH_KEYS
 	echo "<h1 class=\"mt-5 text-center display-1\">Done. Rebooting...</h1>"
