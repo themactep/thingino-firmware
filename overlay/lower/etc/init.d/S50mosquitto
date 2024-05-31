@@ -1,0 +1,30 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+DAEMON_ARGS="-c /etc/mosquitto/mosquitto.conf"
+
+start() {
+        starting
+        start_daemon_with_pid
+}
+
+stop() {
+        stopping
+        stop_daemon_with_pid
+}
+
+case "$1" in
+        start | stop)
+                $1
+                ;;
+        restart | reload)
+                stop
+                start
+                ;;
+        *)
+                die 1 "Usage: $0 {start|stop|restart}"
+                ;;
+esac
+
+exit 0

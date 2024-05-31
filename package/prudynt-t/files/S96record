@@ -22,8 +22,8 @@ record_interval=60
 
 start() {
 	starting
-	[ "$ENABLED" = "true" ] || die 0 "Disabled"
-	is_streamer_disabled && die 0 "Disabled"
+	[ "$ENABLED" = "true" ] || disabled
+	is_streamer_disabled && disabled
 
 	if [ "$record_path" = "/mnt/mmcblk0p1" ]; then
 		grep -q "$record_path" /proc/mounts || die 1 "Record path is set to $record_path but SD card is not mounted"
@@ -47,8 +47,8 @@ start() {
 
 stop() {
 	stopping
-	[ "$ENABLED" = "true" ] || die 0 "Disabled"
-	is_streamer_disabled && die 0 "Disabled"
+	[ "$ENABLED" = "true" ] || disabled
+	is_streamer_disabled && disabled
 	stop_daemon
 }
 

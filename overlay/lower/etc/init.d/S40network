@@ -9,12 +9,12 @@ filter_net_output() {
 case "$1" in
 	start)
 		starting
-		ifup -a 2>&1 | filter_net_output
+		ifup -a 2>&1 | log && ok || fail
 		;;
 
 	stop)
 		stopping
-		ifdown -a 2>&1 | indent_output
+		ifdown -a 2>&1 | log && ok || fail
 		;;
 
 	restart | reload)

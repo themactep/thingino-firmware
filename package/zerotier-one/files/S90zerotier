@@ -11,12 +11,12 @@ case "$1" in
 
 		starting
 		{ modprobe tun && zerotier-one -d > /dev/null 2>&1; } || die 1 "FAIL"
-		echo "OK"
+		ok
 		;;
 	stop)
 		stopping
 		{ kill -9 $(pidof zerotier-one) && rmmod -w tun; } || die 1 "FAIL"
-		echo "OK"
+		ok
 		;;
 	*)
 		die 1 "Usage: $0 {start|stop}"

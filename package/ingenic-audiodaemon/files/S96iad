@@ -6,13 +6,13 @@ DAEMON="iad -r -c /etc/iad.json"
 
 start() {
 	starting
-	is_streamer_disabled && die 0 "Disabled"
+	is_streamer_disabled && disabled
 	start_daemon
 }
 
 stop() {
 	stopping
-	is_streamer_disabled && die 0 "Disabled"
+	is_streamer_disabled && disabled
 	stop_daemon
 }
 

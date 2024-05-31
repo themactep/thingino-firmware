@@ -3,13 +3,13 @@
 . /etc/init.d/rc.common
 
 start() {
-	starting
-	modulename="$(fw_printenv -n wlandev)"
-	moduleopts="$(fw_printenv -n wlandevopts)"
-	gpionum="$(fw_printenv -n gpio_wlan)"
-	mac_address=$(fw_printenv -n wlanmac)
+	starting_batch
+	modulename=$(envvar wlandev)
+	moduleopts="$(envvar wlandevopts)"
+	gpionum="$(envvar gpio_wlan)"
+	mac_address=$(envvar wlanmac)
 
-	wlandev_check || die 1 "Disabled"
+	wlandev_check || { disabled; exit 0; }
 
 	if [ -n "$gpionum" ]; then
 		num=${gpionum%[oO]}
@@ -24,33 +24,24 @@ start() {
 				;;
 		esac
 
-		echo -en "\n Set GPIO $num $gpio_cmd... "
-		gpio $gpio_cmd $num 2>&1 | logger -p daemon.info -t $0 || die 1 "FAIL"
-
-		echo "OK"
+		printf "%-35s" " Set GPIO $num $gpio_cmd"
+		gpio $gpio_cmd $num 2>&1 | log && ok || fail
 	fi
 
 	#FIXME Assume that we are SDIO, and we need to insert
-	echo -n " Send INSERT to MMC1 ... "
-	if mmc 1 2>&1 | logger -p daemon.info -t $0; then
-		echo "OK"
-	else
-		echo "FAIL"
-	fi
+	printf "%-35s" " Send INSERT to MMC1"
+	mmc 1 2>&1 | log && ok || fail
 
-	if ! lsmod | grep -q "$modulename"; then
-		echo -n " Load module $modulename ... "
-		if modprobe $modulename $moduleopts 2>&1 | logger -p daemon.info -t $0; then
-			echo "OK"
-		else
-			echo "FAIL"
-		fi
+	if ! grep -q "^$modulename " /proc/modules; then
+		printf "%-35s" " Load module $modulename"
+		modprobe $modulename $moduleopts 2>&1 | log && ok || fail
 	fi
 
 	sleep 1
 
 	if [ -n "$mac_address" ]; then
-		ip link set dev wlan0 address $mac_address 2>&1 | logger -p daemon.info -t $0
+		printf "%-35s" " Set MAC address $mac_address"
+		ip link set dev wlan0 address $mac_address 2>&1 | log && ok || fail
 	fi
 }
 

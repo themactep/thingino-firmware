@@ -81,8 +81,7 @@ print_soc_model() {
 		0x0041AAAA) soc="t41nq" ;;
 		# 0x0041????) soc="t41xq" ;;
 		*)
-			echo "Unknown SoC: $cpu_sig"
-			exit 1
+			die 1 "Unknown SoC: $cpu_sig"
 			;;
 	esac
 	echo $soc

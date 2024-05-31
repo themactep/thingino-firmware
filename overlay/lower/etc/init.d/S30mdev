@@ -6,8 +6,7 @@ case "$1" in
 	start)
 		starting
 		echo /sbin/mdev > /proc/sys/kernel/hotplug
-		/sbin/mdev -s
-		[ $? = 0 ] && echo "OK" || echo "FAIL"
+		/sbin/mdev -s && ok || fail
 		;;
 	stop | restart | reload)
 		true

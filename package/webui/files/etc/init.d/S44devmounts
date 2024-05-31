@@ -1,25 +1,30 @@
 #!/bin/sh
 
-devip=$(fw_printenv -n devip)
-[ -z "$devip" ] && exit
-[ -z "$(fw_printenv -n debug)" ] && exit
+. /etc/init.d/rc.common
+
+devip=$(envvar devip)
 
 start() {
+	starting
+	[ -z "$devip" ] && disabled
+	[ -z "$(envvar debug)" ] && disabled
+
 	if ! grep -q /var/www /etc/mtab; then
-		logger -p daemon.info -t httpd "mount development webui"
-		rm -r /var/www
-		mkdir /var/www
-		mount -t nfs -o nolock,tcp,nfsvers=3 ${devip}:/srv/nfs/www /var/www
+		rm -r /var/www | log
+		mkdir /var/www | log
+		mount -t nfs -o nolock,tcp,nfsvers=3 ${devip}:/srv/nfs/www /var/www | log
 	fi
+	ok
 }
 
 stop() {
+	stopping
 	if grep -q /var/www /etc/mtab; then
-		logger -p daemon.info -t httpd "unmount development webui"
-		umount /var/www
-		rm -r /overlay/var/www
-		mount -o remount /
+		umount /var/www | log
+		rm -r /overlay/var/www | log
+		mount -o remount / | log
 	fi
+	ok
 }
 
 case "$1" in
@@ -32,6 +37,5 @@ case "$1" in
 		start
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart|reload}"
-		exit 1
+		die 1 "Usage: $0 {start|stop|restart|reload}"
 esac

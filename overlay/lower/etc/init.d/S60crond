@@ -6,13 +6,13 @@ DAEMON_ARGS="-f -c /etc/crontabs"
 
 start() {
 	starting
-	[ -f $DAEMON_FULL ] || die 1 "Disabled."
+	[ -f $DAEMON_FULL ] || disabled
 	start_daemon_with_pid
 }
 
 stop() {
 	stopping
-	[ -f $DAEMON_FULL ] || die 1 "Disabled."
+	[ -f $DAEMON_FULL ] || disabled
 	stop_daemon_with_pid
 }
 

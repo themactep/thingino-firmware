@@ -1,10 +1,7 @@
 #!/bin/sh
 
 if [ -t 0 ]; then
-	if [ -z "$1" ]; then
-		echo "Usage: $0 <command>"
-		exit 1
-	fi
+	[ -z "$1" ] && die 1 "Usage: $0 <command>"
 
 	file=$(mktemp)
 	sh -c "$*" > $file 2>&1
@@ -13,10 +10,11 @@ else
 	cat - > $file
 fi
 
-[ -s "$file" ] || { echo "File $file is empty"; exit 3; }
+[ -s "$file" ] || die 3 "File $file is empty"
 
 url=$(nc termbin.com 9999 < $file)
 echo $url
 
 rm -f $file
+
 exit 0

@@ -70,7 +70,7 @@ process_config_file() {
 		esac
 	done < $CONFIG_FILE
 
-	[ $success -eq 1 ] && echo "OK" || echo "Failed"
+	[ $success -eq 1 ] && ok || fail
 }
 
 # Main script execution

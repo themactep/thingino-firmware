@@ -1,43 +1,28 @@
 #!/bin/sh
 
-DAEMON="httpd"
-PIDFILE="/var/run/$DAEMON.pid"
+. /etc/init.d/rc.common
+
 CONFFILE="/etc/httpd.conf"
 PORTAL_CONFFILE="/etc/httpd-portal.conf"
-ssid="$(fw_printenv -n wlanssid)"
-pass="$(fw_printenv -n wlanpass)"
+ssid="$(envvar wlanssid)"
+pass="$(envvar wlanpass)"
 
 if ([ -z "$ssid" ] || [ -z "$pass" ]) && ip link show wlan0 &>/dev/null; then
-    HTTPD_ARGS="-f -c $PORTAL_CONFFILE"
+    DAEMON_ARGS="-f -c $PORTAL_CONFFILE"
 else
-    HTTPD_ARGS="-f -c $CONFFILE -r Authentication"
+    DAEMON_ARGS="-f -c $CONFFILE -r Authentication"
 fi
 
 start() {
-	printf 'Starting %s: ' "$DAEMON"
-	[ -f /usr/sbin/$DAEMON ] || echo -en "Disabled, "
-	start-stop-daemon -b -m -S -q -p "$PIDFILE" -x "/usr/sbin/$DAEMON" -- $HTTPD_ARGS
-	status=$?
-	if [ "$status" -eq 0 ]; then
-		echo "OK"
-	else
-		echo "FAIL"
-	fi
-	return "$status"
+	starting
+	[ -f $DAEMON_FULL ] || disabled
+	start_daemon_with_pid
 }
 
 stop() {
-	printf 'Stopping %s: ' "$DAEMON"
-	[ -f /usr/sbin/$DAEMON ] || echo -en "Disabled, "
-	start-stop-daemon -K -q -p "$PIDFILE"
-	status=$?
-	if [ "$status" -eq 0 ]; then
-		rm -f "$PIDFILE"
-		echo "OK"
-	else
-		echo "FAIL"
-	fi
-	return "$status"
+	stopping
+	[ -f $DAEMON_FULL ] || disabled
+	stop_daemon_with_pid
 }
 
 restart() {
