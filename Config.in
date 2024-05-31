@@ -77,14 +77,18 @@ menu "Extra Packages"
 
 	config BR2_PACKAGE_IFUPDOWN_SCRIPTS
 		bool "ifupdown-scripts"
+
 	config BR2_PACKAGE_MOSQUITTO
 		bool "mosquitto"
+
 	config BR2_PACKAGE_NGINX
 		bool "nginx"
 		select BR2_PACKAGE_NGINX_HTTP
 		select BR2_PACKAGE_NGINX_HTTP_SSL_MODULE
+
 	config BR2_PACKAGE_SSHPASS
 		bool "sshpass"
+
 	config BR2_PACKAGE_WIREGUARD_LINUX_COMPAT
 		bool "wireguad-linux-compat"
 		select BR2_PACKAGE_WIREGUARD_TOOLS
