@@ -168,14 +168,13 @@ jobs:
             ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-
 
       - name: Build firmware
-        if: ${{ github.event.inputs.debug_only == 'false' }}
         run: |
           BOARD=${{ matrix.thingino-version }} make
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
       - name: Generate build graphs
-        if: ${{ github.event.inputs.graph_enabled == 'true' && github.event.inputs.debug_only == 'false' }}
+        if: ${{ github.event.inputs.graph_enabled == 'true' }}
         run: |
           apt-get install -y --no-install-recommends --no-install-suggests python3-numpy python3-matplotlib
           BOARD=${{ matrix.thingino-version }} make br-graph-build
