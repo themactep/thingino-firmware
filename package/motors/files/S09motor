@@ -3,10 +3,10 @@
 . /etc/init.d/rc.common
 
 motors_app=$(which motors)
-gpio_motor_h=$(fw_printenv -n gpio_motor_h)
-gpio_motor_v=$(fw_printenv -n gpio_motor_v)
-motor_h_maxstep=$(fw_printenv -n motor_maxstep_h)
-motor_v_maxstep=$(fw_printenv -n motor_maxstep_v)
+gpio_motor_h=$(get gpio_motor_h)
+gpio_motor_v=$(get gpio_motor_v)
+motor_h_maxstep=$(get motor_maxstep_h)
+motor_v_maxstep=$(get motor_maxstep_v)
 
 check_module_loaded() {
 	for module in "$@"; do
@@ -49,19 +49,17 @@ start() {
 	modprobe motor hmaxstep=$motor_h_maxstep vmaxstep=$motor_v_maxstep \
 		hst1=$hst1 hst2=$hst2 hst3=$hst3 hst4=$hst4 \
 		vst1=$vst1 vst2=$vst2 vst3=$vst3 vst4=$vst4 \
-		|| die "Failed to load motor module"
-
-	echo "OK"
+		&& ok || die "Failed to load motor module"
 
 	# Set motors zero position unless disabled
-	[ "true" != "$(fw_printenv -n disable_homing)" ] && rehome_motors
+	[ "true" != "$(get disable_homing)" ] && rehome_motors
 }
 
 stop() {
 	stopping
 	# FIXME: motor.ko crashes on upload
 	# rmmod motor || die "Failed to unload motor module."
-	echo "OK"
+	ok
 }
 
 case "$1" in

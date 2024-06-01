@@ -6,15 +6,15 @@ ENV_TXT="/etc/uenv.txt"
 
 start() {
 	starting
-	[ -f "$ENV_TXT" ] || quit "OK"
-	[ "$(get boot_complete)" = "true" ] && quit "OK"
+	[ -f "$ENV_TXT" ] || { ok && quit }
+	[ "true" = "$(get boot_complete)" ] && { ok && quit }
 
 	ENV_TMP=$(mktemp)
 	sed 's/=/ /' $ENV_TXT > $ENV_TMP
 	echo "boot_complete true" >> $ENV_TMP
 	fw_setenv -s $ENV_TMP
 
-	echo "U-Boot ENV updated. Rebooting now..."
+	info "U-Boot ENV updated. Rebooting now..."
 	/etc/init.d/K99watchdog stop
 	sync
 	sleep 2

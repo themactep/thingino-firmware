@@ -21,7 +21,7 @@ fi
 
 model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' /etc/os-release)
 firmware_ver=$(awk -F '[:=, "]+' '/^BUILD_ID=/ {print $2}' /etc/os-release)
-serial_num=$(fw_printenv -n ethaddr)
+serial_num=$(get ethaddr)
 iface=$(awk '$2 == "00000000" && $3 != "00000000" {print $1}' /proc/net/route)
 username=$(awk -F '"' '/username:/ {print $2}' /etc/prudynt.cfg)
 password=$(awk -F '"' '/password:/ {print $2}' /etc/prudynt.cfg)
@@ -53,7 +53,7 @@ start() {
 		update_config "user" "$username"
 		update_config "password" "$password"
 		update_config "hardware_id" "ingenic_$(soc -m)"
-		update_config "ptz" "$(fw_printenv -n gpio_motor_h || echo 0)"
+		update_config "ptz" "$(get gpio_motor_h || echo 0)"
 	fi
 }
 

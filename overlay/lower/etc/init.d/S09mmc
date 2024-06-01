@@ -18,15 +18,15 @@ set_gpios() {
 	# This needs to run AFTER the driver has been loaded for the sd card to mount during boot
 	if [ ${#MMC_GPIO_PWR} -eq 3 ] && [ "${MMC_GPIO_PWR%[oO]}" != "$MMC_GPIO_PWR" ]; then
 		case "${MMC_GPIO_PWR#??}" in
-			"O") gpio set ${MMC_GPIO_PWR%[oO]} 1 2>&1 | logger -p daemon.info -t $0 ;;
-			"o") gpio set ${MMC_GPIO_PWR%[oO]} 0 2>&1 | logger -p daemon.info -t $0 ;;
+			"O") gpio set ${MMC_GPIO_PWR%[oO]} 1 2>&1 | log ;;
+			"o") gpio set ${MMC_GPIO_PWR%[oO]} 0 2>&1 | log ;;
 		esac
 	fi
 }
 
 load_module() {
 	grep -q "$MMC_MODULE" /proc/modules && die "$MMC_MODULE is already loaded"
-	modprobe $MMC_MODULE $MMC_PARAM && ok || die "FAIL"
+	modprobe $MMC_MODULE $MMC_PARAM && ok || { fail && die }
 	set_gpios
 }
 
