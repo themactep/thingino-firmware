@@ -5,7 +5,7 @@
 ENV_TXT="/etc/uenv.txt"
 
 start() {
-	echo -n "U-Boot ENV: "
+	starting
 	[ -f "$ENV_TXT" ] || quit "OK"
 	[ "$(get boot_complete)" = "true" ] && quit "OK"
 
