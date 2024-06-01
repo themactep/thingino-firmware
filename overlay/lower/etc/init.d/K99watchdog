@@ -6,8 +6,7 @@ WATCHDOG_ARGS="-T $WATCHDOG_TIMEOUT /dev/watchdog"
 
 start() {
 	if [ "$(fw_printenv -n disable_watchdog)" = "true" ]; then
-		echo "Watchdog: System watchdog disabled"
-		exit 0
+		quit "Watchdog: System watchdog disabled"
 	fi
 
 	echo -n "Starting $DAEMON: "
