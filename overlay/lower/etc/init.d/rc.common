@@ -1,5 +1,6 @@
 #!/bin/sh
 
+DAEMON_ARGS=""
 DAEMON_PATH="/bin"
 DAEMON=${DAEMON:-$0}
 SHORT_DAEMON=$(basename ${DAEMON%% *})
@@ -44,7 +45,7 @@ stop_daemon_with_pid() {
 }
 
 is_streamer_disabled() {
-	fw_printenv -n disable_streamer 2>/dev/null | grep -q "true"
+	fw_printenv -n disable_streamer 2> /dev/null | grep -q "true"
 }
 
 indent_output() {
