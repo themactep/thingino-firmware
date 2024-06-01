@@ -30,7 +30,8 @@ start_daemon() {
 
 stop_daemon() {
 	start-stop-daemon -q -K -n $SHORT_DAEMON > /dev/null 2>&1 #FIXME do we need -s KILL?
-	[ $? -eq 0 ] && { rm -f $PIDFILE && echo "OK"; } || echo "FAIL"
+	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
+	[ -f $PIDFILE ] && rm -f $PIDFILE
 }
 
 start_daemon_with_pid() {
@@ -42,7 +43,8 @@ start_daemon_with_pid() {
 
 stop_daemon_with_pid() {
 	start-stop-daemon -q -K -p $PIDFILE > /dev/null 2>&1
-	[ $? -eq 0 ] && { rm -f $PIDFILE && echo "OK"; } || echo "FAIL"
+	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
+	[ -f $PIDFILE ] && rm -f $PIDFILE
 }
 
 is_streamer_disabled() {
