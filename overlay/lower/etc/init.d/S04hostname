@@ -21,13 +21,13 @@ start_hostname() {
 }
 
 case "$1" in
-	start) 
+	start)
 		start_hostname
 		;;
-	stop) 
+	stop)
 		true
 		;;
-	*) 
+	*)
 		echo "Usage: $0 {start}"
 		exit 1
 		;;

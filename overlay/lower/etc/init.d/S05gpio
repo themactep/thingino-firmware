@@ -84,7 +84,7 @@ case "$1" in
 		;;
 	stop | restart | reload)
 		true
-	 	;;
+		;;
 	*)
 		echo "Usage: $0 {start}"
 		exit 1

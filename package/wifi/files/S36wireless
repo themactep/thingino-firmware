@@ -55,7 +55,6 @@ start() {
 	if [ -n "$mac_address" ]; then
 		ip link set dev wlan0 address $mac_address 2>&1 | logger -p daemon.info -t $0
 	fi
-
 }
 
 case "$1" in
