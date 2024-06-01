@@ -23,7 +23,7 @@ execute_and_log() {
 	logger_pid=$!
 
 	/bin/sh -c "$script start" > /tmp/initlogpipe 2>&1
-	# && ok || fail
+	# check_result
 
 	rm -f /tmp/initlogpipe
 }

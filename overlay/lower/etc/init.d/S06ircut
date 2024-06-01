@@ -9,7 +9,8 @@ case "$1" in
 			ircut off > /dev/null 2>&1
 			sleep 0.5
 			ircut on > /dev/null 2>&1
-		} && ok || fail
+		}
+		check_result
 		;;
 	stop)
 		true
