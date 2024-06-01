@@ -1,8 +1,8 @@
 #!/bin/sh
 
-GPIO_R=$(fw_printenv -n gpio_led_r)
-GPIO_G=$(fw_printenv -n gpio_led_g)
-GPIO_B=$(fw_printenv -n gpio_led_b)
+GPIO_R=$(get gpio_led_r)
+GPIO_G=$(get gpio_led_g)
+GPIO_B=$(get gpio_led_b)
 
 # color, pin, state
 setLED() {

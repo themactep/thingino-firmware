@@ -7,7 +7,7 @@ ENV_TXT="/etc/uenv.txt"
 start() {
 	echo -n "U-Boot ENV: "
 	[ -f "$ENV_TXT" ] || quit "OK"
-	[ "$(fw_printenv -n boot_complete)" = "true" ] && quit "OK"
+	[ "$(get boot_complete)" = "true" ] && quit "OK"
 
 	ENV_TMP=$(mktemp)
 	sed 's/=/ /' $ENV_TXT > $ENV_TMP

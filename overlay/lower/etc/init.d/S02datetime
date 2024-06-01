@@ -4,7 +4,7 @@
 
 timezone() {
 	# Get the timezone from the u-boot environment variable
-	timezone=$(fw_printenv -n timezone 2> /dev/null)
+	timezone=$(get timezone 2> /dev/null)
 	[ -z "$timezone" ] && return 1
 
 	# Check if the values in /etc/timezone and /etc/TZ match the ones from fw_printenv

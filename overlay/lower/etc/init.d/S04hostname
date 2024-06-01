@@ -3,10 +3,10 @@
 . /etc/init.d/rc.common
 
 start() {
-	HOSTNAME=$(fw_printenv -n hostname 2> /dev/null)
+	HOSTNAME=$(get hostname)
 	if [ -z "$HOSTNAME" ]; then
 		OS_NAME=$(sed -n 's/^HOSTNAME=//p' /etc/os-release)
-		MAC_SUFFIX=$(fw_printenv -n wlanmac | sed 's/://g;s/.*\(....\)$/\1/')
+		MAC_SUFFIX=$(get wlanmac | sed 's/://g;s/.*\(....\)$/\1/')
 		HOSTNAME="${OS_NAME}-${MAC_SUFFIX}"
 	fi
 	starting
