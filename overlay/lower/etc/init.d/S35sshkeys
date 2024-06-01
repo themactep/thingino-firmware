@@ -3,7 +3,7 @@
 . /etc/init.d/rc.common
 
 DROPBEAR_KEY="/etc/dropbear/dropbear_ed25519_host_key"
-SSHKEY_ENV=$(fw_printenv -n sshkey_ed25519)
+SSHKEY_ENV=$(get sshkey_ed25519)
 
 generate_keys() {
 	dropbearkey -t ed25519 -f $DROPBEAR_KEY 2>&1 | logger -p daemon.info -t $0
