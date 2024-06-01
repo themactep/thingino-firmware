@@ -15,7 +15,7 @@ Where:
   -f          full upgrade with a binary from GitHub
   -p          partial upgrade with a binary from GitHub
   <filename>  full or partial upgrade from a local file
-  <URL>       download and upgrade from the specified URL
+  <URL>       full or partial upgrade from a URL
 "
 }
 
