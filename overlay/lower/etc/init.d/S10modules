@@ -21,14 +21,11 @@ load_modules() {
 case "$1" in
 	start)
 		echo "Loading modules: "
-
 		load_modules /etc/modules
-
-		if [ -d /etc/modules.d ]; then
-			for conf in /etc/modules.d/*; do
-				load_modules $conf
-			done
-		fi
+		[ -d /etc/modules.d ] || quit
+		for conf in /etc/modules.d/*; do
+			load_modules $conf
+		done
 		;;
 esac
 
