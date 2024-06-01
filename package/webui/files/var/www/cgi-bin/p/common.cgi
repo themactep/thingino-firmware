@@ -664,7 +664,7 @@ t_value() {
 }
 
 update_caminfo() {
-	debug=$(fw_printenv -n debug)
+	debug=$(get debug)
 	[ -z "$debug" ] && debug=0
 
 	local tmpfile=${ui_tmp_dir}/sysinfo.tmp
@@ -691,7 +691,7 @@ update_caminfo() {
 	soc_family=$(/usr/sbin/soc -f)
 
 	# Firmware
-	uboot_version=$(fw_printenv -n ver)
+	uboot_version=$(get ver)
 	[ -z "$uboot_version" ] && uboot_version=$(strings /dev/mtdblock0 | grep '^U-Boot \d' | head -1)
 	fw_version=$(grep "^VERSION" /etc/os-release | cut -d= -f2 | tr -d /\"/)
 	fw_build=$(grep "^GITHUB_VERSION" /etc/os-release | cut -d= -f2 | tr -d /\"/)
@@ -716,10 +716,10 @@ update_caminfo() {
 		network_gateway=$(ip r | sed -nE "/default/s/.+ via ([0-9\.]+).+?/\1/p")
 	else
 		network_default_interface=$(ip r | sed -nE 's/.+dev (\w+).+?/\1/p' | head -n 1)
-		network_gateway='' # $(fw_printenv -n gatewayip) # FIXME: Why do we need this?
-		# network_macaddr=$(fw_printenv -n ethaddr)      # FIXME: Why do we need this?
-		# network_address=$(fw_printenv -n ipaddr)       # FIXME: Maybe use $(hostname -i) that would return 127.0.1.1?
-		# network_netmask=$(fw_printenv -n netmask)
+		network_gateway='' # $(get gatewayip) # FIXME: Why do we need this?
+		# network_macaddr=$(get ethaddr)      # FIXME: Why do we need this?
+		# network_address=$(get ipaddr)       # FIXME: Maybe use $(hostname -i) that would return 127.0.1.1?
+		# network_netmask=$(get netmask)
 	fi
 	network_macaddr=$(cat /sys/class/net/${network_default_interface}/address)
 	network_address=$(ip r | sed -nE "/${network_default_interface}/s/.+src ([0-9\.]+).+?/\1/p" | uniq)
@@ -754,7 +754,7 @@ overlay_root soc soc_family sensor tz_data tz_name uboot_version ui_password ui_
 update_uboot_env() {
 	local name="$1"
 	local value="$2"
-	[ "$value" != "$(fw_printenv -n $name)" ] && fw_setenv $name $value
+	[ "$value" != "$(get $name)" ] && fw_setenv $name $value
 }
 
 xl() {

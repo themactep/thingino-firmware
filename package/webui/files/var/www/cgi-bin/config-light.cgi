@@ -28,15 +28,15 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 fi
 
 # read data from env
-day_night_min=$(fw_printenv -n day_night_min)
-day_night_max=$(fw_printenv -n day_night_max)
-ir850_pin=$(fw_printenv -n gpio_ir850)
-ir850_channel=$(fw_printenv -n pwm_ch_ir850)
-ir940_pin=$(fw_printenv -n gpio_ir940)
-ir940_channel=$(fw_printenv -n pwm_ch_ir940)
-white_pin=$(fw_printenv -n gpio_white)
-white_channel=$(fw_printenv -n pwm_ch_white)
-ircut_pins=$(fw_printenv -n gpio_ircut)
+day_night_min=$(get day_night_min)
+day_night_max=$(get day_night_max)
+ir850_pin=$(get gpio_ir850)
+ir850_channel=$(get pwm_ch_ir850)
+ir940_pin=$(get gpio_ir940)
+ir940_channel=$(get pwm_ch_ir940)
+white_pin=$(get gpio_white)
+white_channel=$(get pwm_ch_white)
+ircut_pins=$(get gpio_ircut)
 ircut_pin1=$(echo $ircut_pins | awk '{print $1}')
 ircut_pin2=$(echo $ircut_pins | awk '{print $2}')
 
