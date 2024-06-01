@@ -26,13 +26,13 @@ fail() {
 }
 
 info() {
-        echo_c 66 " $1"
-        echo "$1" | log
+	echo_c 66 " $1"
+	echo "$1" | log
 }
 
 warn() {
-        echo_c 166 " $1"
-        echo "$1" | log
+	echo_c 166 " $1"
+	echo "$1" | log
 }
 
 proclaim() {
