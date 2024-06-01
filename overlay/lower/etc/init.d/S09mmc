@@ -26,7 +26,7 @@ set_gpios() {
 
 load_module() {
 	grep -q "$MMC_MODULE" /proc/modules && die "$MMC_MODULE is already loaded"
-	modprobe $MMC_MODULE $MMC_PARAM && ok || { fail && die }
+	modprobe $MMC_MODULE $MMC_PARAM && ok || { fail && die; }
 	set_gpios
 }
 

@@ -27,7 +27,7 @@ check_imp() {
 
 restore_config() {
 	proclaim " Restoring IMP Configuration: "
-	[ -f "$config" ] || { echo "Disabled" && return }
+	[ -f "$config" ] || { echo "Disabled" && return; }
 	while read -r line; do
 		echo -e " * $line"
 		imp-control $line > /dev/null
