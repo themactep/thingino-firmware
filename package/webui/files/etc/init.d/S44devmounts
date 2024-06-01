@@ -13,7 +13,8 @@ start() {
 		rm -r /var/www
 		mkdir /var/www
 		mount -t nfs -o nolock,tcp,nfsvers=3 ${devip}:/srv/nfs/www /var/www
-	} && ok || fail
+	}
+	check_result
 }
 
 stop() {
@@ -23,7 +24,8 @@ stop() {
 		umount /var/www
 		rm -r /overlay/var/www
 		mount -o remount /
-	} && ok || fail
+	}
+	check_result
 }
 
 case "$1" in

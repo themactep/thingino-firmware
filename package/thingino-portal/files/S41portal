@@ -21,14 +21,14 @@ init_portal() {
 	ip route add $CNET.0/24 dev wlan0 > /dev/null 2>&1
 
 	start-stop-daemon -S -x /sbin/udhcpd -- -S -I $CNET.1 /etc/udhcpd.conf 2>&1
-	start-stop-daemon -S -x /sbin/dnsd -- -i $CNET.1 -c /etc/dnsd.conf -d | logger -p daemon.info -t $0
+	start-stop-daemon -S -x /sbin/dnsd -- -i $CNET.1 -c /etc/dnsd.conf -d | log
 
 	mac_address=$(ip link show wlan0 | awk '/ether/ {print $2}')
 	last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
 	sed -i "/ssid=\"THINGINO-\"$/ s/\"$/$last_two\"/" /etc/wpa_ap.conf
 
-	start-stop-daemon -S -x /sbin/wpa_supplicant -- -i wlan0 -B -c /etc/wpa_ap.conf 2>&1 | logger -p daemon.info -t $0
-	[ $? = 0 ] && ok || fail
+	start-stop-daemon -S -x /sbin/wpa_supplicant -- -i wlan0 -B -c /etc/wpa_ap.conf 2>&1 | log
+	check_result
 
 	timeout &
 }

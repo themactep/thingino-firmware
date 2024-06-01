@@ -25,23 +25,28 @@ start() {
 		esac
 
 		proclaim " Set GPIO $num $gpio_cmd"
-		gpio $gpio_cmd $num 2>&1 | log && ok || { fail && die }
+		gpio $gpio_cmd $num 2>&1 | log
+		check_result
+		# die
 	fi
 
 	#FIXME Assume that we are SDIO, and we need to insert
 	proclaim " Send INSERT to MMC1"
-	if mmc 1 2>&1 | log && ok || fail
+	if mmc 1 2>&1 | log
+	check_result
 
 	if ! grep -q "^$modulename " /proc/modules; then
 		proclaim " Load module $modulename"
-		modprobe $modulename $moduleopts 2>&1 | log && ok || fail
+		modprobe $modulename $moduleopts 2>&1 | log
+		check_result
 	fi
 
 	sleep 1
 
 	if [ -n "$mac_address" ]; then
 		proclaim " Set MAC address $mac_address"
-		ip link set dev wlan0 address $mac_address 2>&1 | log && ok || fail
+		ip link set dev wlan0 address $mac_address 2>&1 | log
+		check_result
 	fi
 }
 

@@ -14,7 +14,8 @@ load_modules() {
 		esac
 		eval "args=\"$args\""
 		proclaim " $module"
-		modprobe $module $args && ok || fail
+		modprobe $module $args
+		check_result
 	done < $file
 }
 
