@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 SOC_FAMILY=$(/usr/sbin/soc -f)
 SOC_MODEL=$(/usr/sbin/soc -m)
 

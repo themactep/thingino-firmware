@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 case "$1" in
 	start)
 		echo -n "Starting mdev: "

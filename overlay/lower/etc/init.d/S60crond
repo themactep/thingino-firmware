@@ -1,5 +1,6 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
 DAEMON="crond"
 PIDFILE="/run/$DAEMON.pid"
 

@@ -1,7 +1,6 @@
 #!/bin/sh
-#
-# Starts dropbear sshd.
-#
+
+. /etc/init.d/rc.common
 
 # Allow a few customizations from a config file
 test -r /etc/default/dropbear && . /etc/default/dropbear

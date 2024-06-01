@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 config_file=/etc/webui/zerotier.conf
 [ -f "$config_file" ] && . $config_file
 

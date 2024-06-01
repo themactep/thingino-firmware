@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 DAEMON=wpa_supplicant
 IFACE=wlan0
 CONFIG="/etc/$DAEMON.conf"

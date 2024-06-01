@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 timezone() {
 	# Get the timezone from the u-boot environment variable
 	timezone=$(fw_printenv -n timezone 2> /dev/null)
