@@ -2,24 +2,18 @@
 
 . /etc/init.d/rc.common
 
-DAEMON="watchdog"
 WATCHDOG_TIMEOUT=60
-WATCHDOG_ARGS="-T $WATCHDOG_TIMEOUT /dev/watchdog"
+DAEMON_ARGS="-T $WATCHDOG_TIMEOUT /dev/watchdog"
 
 start() {
-	if [ "$(fw_printenv -n disable_watchdog)" = "true" ]; then
-		quit "Watchdog: System watchdog disabled"
-	fi
-
-	echo -n "Starting $DAEMON: "
-	start-stop-daemon -q -b -S -x /sbin/$DAEMON -- $WATCHDOG_ARGS
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	starting
+	[ "true" = "$(get disable_watchdog)" ] && quit "Disabled"
+	start_daemon
 }
 
 stop() {
-	echo -n "Stopping ${DAEMON}: "
-	start-stop-daemon -q -K -s KILL -n $DAEMON
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	stopping
+	stop_daemon
 }
 
 case "$1" in
