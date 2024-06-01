@@ -19,4 +19,5 @@ url=$(nc termbin.com 9999 < $file)
 echo $url
 
 rm -f $file
+
 exit 0
