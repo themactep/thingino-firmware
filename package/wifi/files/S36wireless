@@ -32,7 +32,7 @@ start() {
 
 	#FIXME Assume that we are SDIO, and we need to insert
 	proclaim " Send INSERT to MMC1"
-	if mmc 1 2>&1 | log
+	mmc 1 2>&1 | log
 	check_result
 
 	if ! grep -q "^$modulename " /proc/modules; then
