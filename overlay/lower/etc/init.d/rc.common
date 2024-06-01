@@ -57,9 +57,10 @@ die() {
 }
 
 wlan_check() {
-	if ! ip link show wlan0 &>/dev/null; then
-			echo "Interface 'wlan0' does not exist." 2>&1 | logger -p daemon.info -t $0
-			return 1
+	iface="wlan0"
+	if ! ip link show $iface &> /dev/null; then
+		echo "Interface '$iface' does not exist." 2>&1 | logger -p daemon.info -t $0
+		return 1
 	fi
 }
 
