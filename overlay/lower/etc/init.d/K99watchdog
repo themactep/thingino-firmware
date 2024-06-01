@@ -2,8 +2,7 @@
 
 . /etc/init.d/rc.common
 
-WATCHDOG_TIMEOUT=60
-DAEMON_ARGS="-T $WATCHDOG_TIMEOUT /dev/watchdog"
+DAEMON_ARGS="-T 60 /dev/watchdog"
 
 start() {
 	starting
