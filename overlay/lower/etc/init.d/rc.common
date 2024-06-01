@@ -65,8 +65,8 @@ wlan_check() {
 }
 
 wlandev_check() {
-		if ! fw_printenv -n wlandev &>/dev/null; then
-			echo "wlandev is empty" 2>&1 | logger -p daemon.info -t $0
-			return 1
+	if ! fw_printenv -n wlandev &> /dev/null; then
+		echo "wlandev is empty" 2>&1 | logger -p daemon.info -t $0
+		return 1
 	fi
 }
