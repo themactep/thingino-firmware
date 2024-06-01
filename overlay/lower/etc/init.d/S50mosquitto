@@ -5,26 +5,26 @@
 DAEMON_ARGS="-c /etc/mosquitto/mosquitto.conf"
 
 start() {
-        starting
-        start_daemon_with_pid
+	starting
+	start_daemon_with_pid
 }
 
 stop() {
-        stopping
-        stop_daemon_with_pid
+	stopping
+	stop_daemon_with_pid
 }
 
 case "$1" in
-        start | stop)
-                $1
-                ;;
-        restart | reload)
-                stop
-                start
-                ;;
-        *)
-                die "Usage: $0 {start|stop|restart}"
-                ;;
+	start | stop)
+		$1
+		;;
+	restart | reload)
+		stop
+		start
+		;;
+	*)
+		die "Usage: $0 {start|stop|restart}"
+		;;
 esac
 
 exit 0
