@@ -1,28 +1,24 @@
 #!/bin/sh
 
-DAEMON="hostname"
-
 . /etc/init.d/rc.common
 
-update_hosts_file() {
-	sed -i "/^127.0.1.1/s/\t.*$/\t$1/" /etc/hosts
-}
-
-start_hostname() {
-	HOSTNAME=$(fw_printenv -n hostname 2>/dev/null)
-	[ -z "$HOSTNAME" ] && {
+start() {
+	HOSTNAME=$(fw_printenv -n hostname 2> /dev/null)
+	if [ -z "$HOSTNAME" ]; then
 		OS_NAME=$(sed -n 's/^HOSTNAME=//p' /etc/os-release)
 		MAC_SUFFIX=$(fw_printenv -n wlanmac | sed 's/://g;s/.*\(....\)$/\1/')
 		HOSTNAME="${OS_NAME}-${MAC_SUFFIX}"
-	}
+	fi
 	starting
-	hostname "$HOSTNAME"
-	[ $? -eq 0 ] && { echo "OK"; update_hosts_file "$HOSTNAME"; } || echo "FAIL"
+	hostname "$HOSTNAME" || die "FAIL"
+	echo "OK"
+	sed -i "/^127.0.1.1/s/\t.*$/\t$HOSTNAME/" /etc/hosts
+
 }
 
 case "$1" in
 	start)
-		start_hostname
+		$1
 		;;
 	stop)
 		true
