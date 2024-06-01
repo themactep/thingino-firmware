@@ -15,45 +15,37 @@ ssid_changed() {
 
 start() {
 	starting
-	ssid="$(fw_printenv -n wlanssid)"
-	pass="$(fw_printenv -n wlanpass)"
+	ssid="$(get wlanssid)"
+	pass="$(get wlanpass)"
 
-	wlan_check || die "Disabled"
+	# convert plain-text password no matter what
+	if [ -n "$pass" ] && [ ${#pass} -lt 64 ]; then
+		tmpfile=$(mktemp)
+		wpa_passphrase "$ssid" "$pass" > $tmpfile
+		fw_setenv wlanpass "$(grep '^\s*psk=' $tmpfile | cut -d= -f2 | tail -n 1)"
+	fi
+
+	wlan_check || quit "Disabled"
 
 	if [ -z "$ssid" ] || [ -z "$pass" ]; then
 		sed -i '/^auto wlan0$/s/^/#/' /etc/network/interfaces.d/wlan0
 		quit "WiFi credentials missing"
 	fi
 
-	generate_wpa_supplicant_conf() {
-		if [ ${#pass} -lt 64 ]; then
-			wpa_passphrase "$ssid" "$pass" > $CONFIG
-		else
-			wpa_passphrase "$ssid" "dummy_password" > $CONFIG
-			sed -i "s/psk=.*$/psk=$pass/" $CONFIG
-		fi
+	if [ ! -f "$CONFIG" ] || ssid_changed; then
+		wpa_passphrase "$ssid" "dummy_password" > $CONFIG
+		sed -i "s/psk=.*$/psk=${pass}/" $CONFIG
 		sed -i '/ssid/a \\tscan_ssid=1' $CONFIG
-
-		if [ ${#pass} -lt 64 ]; then
-			psk=$(grep '^\s*psk=' $CONFIG | cut -d= -f2 | tail -n 1)
-			fw_setenv wlanpass "$psk"
-		fi
-	}
-
-	if [ ! -f "$CONFIG" ] || [ ${#pass} -lt 64 ] || ssid_changed; then
-		generate_wpa_supplicant_conf
 	fi
 
 	sed -i '/^#auto wlan0$/s/^#//' /etc/network/interfaces.d/wlan0
 
-	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1 | logger -p daemon.info -t $0
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1 | log && ok || fail
 }
 
 stop() {
 	stopping
-	start-stop-daemon -K -q -p "$PIDFILE" -x $DAEMON_FULL
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	stop_daemon_with_pid
 }
 
 case "$1" in

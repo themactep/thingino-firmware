@@ -25,6 +25,16 @@ fail() {
 	echo_c 124 "FAIL"
 }
 
+info() {
+        echo_c 66 " $1"
+        echo "$1" | log
+}
+
+warn() {
+        echo_c 166 " $1"
+        echo "$1" | log
+}
+
 proclaim() {
 	printf "%-35s" "$1"
 }
@@ -33,30 +43,40 @@ starting() {
 	proclaim "Starting ${1:-$DAEMON_SHORT}"
 }
 
+starting_batch() {
+	echo "Starting ${1:-$DAEMON_SHORT} ..."
+}
+
 stopping() {
 	proclaim "Stopping ${1:-$DAEMON_SHORT}"
 }
 
+log() {
+	logger -p daemon.info -t $DAEMON_SHORT[$$] <&0
+}
+
 start_daemon() {
-	local command=${COMMAND:-$DAEMON_FULL}
+	local command="${COMMAND:-$DAEMON_FULL}"
+	[ -n "$DAEMON_ARGS" ] && command="$command $DAEMON_ARGS"
 	command="${command/ / -- }"
-	start-stop-daemon -q -b -S -x $command > /dev/null 2>&1 && ok || fail
+	start-stop-daemon -b -S -x $command 2>&1 | log && ok || fail
 }
 
 stop_daemon() {
-	#FIXME: do we need -s KILL?
-	start-stop-daemon -q -K -n $DAEMON_SHORT > /dev/null 2>&1 && ok || fail
+	#FIXME do we need -s KILL?
+	start-stop-daemon -K -n $DAEMON_SHORT 2>&1 | log && ok || fail
 	[ -f $PIDFILE ] && rm -f $PIDFILE
 }
 
 start_daemon_with_pid() {
-	local command=${COMMAND:-$DAEMON_FULL}
+	local command="${COMMAND:-$DAEMON_FULL}"
+	[ -n "$DAEMON_ARGS" ] && command="$command $DAEMON_ARGS"
 	command="${command/ / -- }"
-	start-stop-daemon -q -b -m -S -p $PIDFILE -x $command > /dev/null 2>&1 && ok || fail
+	start-stop-daemon -b -m -S -p $PIDFILE -x $command 2>&1 | log && ok || fail
 }
 
 stop_daemon_with_pid() {
-	start-stop-daemon -q -K -p $PIDFILE > /dev/null 2>&1 && ok || fail
+	start-stop-daemon -K -p $PIDFILE 2>&1 | log && ok || fail
 	[ -f $PIDFILE ] && rm -f $PIDFILE
 }
 
@@ -71,14 +91,14 @@ indent_output() {
 wlan_check() {
 	iface="wlan0"
 	if ! ip link show $iface &> /dev/null; then
-		echo "Interface '$iface' does not exist." 2>&1 | logger -p daemon.info -t $0
+		echo "Interface '$iface' does not exist." 2>&1 | log
 		return 1
 	fi
 }
 
 wlandev_check() {
 	if [ -z "$(get wlandev)" ]; then
-		echo "wlandev is empty" 2>&1 | logger -p daemon.info -t $0
+		echo "wlandev is empty" 2>&1 | log
 		return 1
 	fi
 }

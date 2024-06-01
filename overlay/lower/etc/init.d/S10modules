@@ -13,14 +13,14 @@ load_modules() {
 				;;
 		esac
 		eval "args=\"$args\""
-		echo -n " $module ... "
+		proclaim " $module"
 		modprobe $module $args && ok || fail
 	done < $file
 }
 
 case "$1" in
 	start)
-		echo "Loading modules: "
+		starting_batch
 		load_modules /etc/modules
 		[ -d /etc/modules.d ] || quit
 		for conf in /etc/modules.d/*; do

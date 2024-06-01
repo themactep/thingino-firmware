@@ -10,11 +10,17 @@ case "$1" in
 		[ "false" = "$zerotier_enabled" ] && die "Zerotier-One service is disabled in $config_file"
 
 		starting
-		{ modprobe tun && zerotier-one -d; } && echo "OK" || die "FAIL"
+		{
+			modprobe tun
+			zerotier-one -d
+		} ok || fail
 		;;
 	stop)
 		stopping
-		{ kill -9 $(pidof zerotier-one) && rmmod -w tun; } && echo "OK" || die "FAIL"
+		{
+			kill -9 $(pidof zerotier-one)
+			rmmod -w tun
+		} && ok || fail
 		;;
 	*)
 		die "Usage: $0 {start|stop}"

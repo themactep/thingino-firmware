@@ -4,11 +4,11 @@
 
 CNET=172.16.0
 
-ssid="$(fw_printenv -n wlanssid)"
-pass="$(fw_printenv -n wlanpass)"
+ssid="$(get wlanssid)"
+pass="$(get wlanpass)"
 
 timeout() {
-	sleep 300 && /etc/init.d/S41portal stop
+	sleep 300 && $0 stop
 }
 
 init_portal() {
@@ -28,7 +28,7 @@ init_portal() {
 	sed -i "/ssid=\"THINGINO-\"$/ s/\"$/$last_two\"/" /etc/wpa_ap.conf
 
 	start-stop-daemon -S -x /sbin/wpa_supplicant -- -i wlan0 -B -c /etc/wpa_ap.conf 2>&1 | logger -p daemon.info -t $0
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	[ $? = 0 ] && ok || fail
 
 	timeout &
 }
