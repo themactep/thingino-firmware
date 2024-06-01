@@ -10,10 +10,8 @@ start() {
 		HOSTNAME="${OS_NAME}-${MAC_SUFFIX}"
 	fi
 	starting
-	hostname "$HOSTNAME" || die "FAIL"
-	ok
+	hostname "$HOSTNAME" && ok || die "FAIL"
 	sed -i "/^127.0.1.1/s/\t.*$/\t$HOSTNAME/" /etc/hosts
-
 }
 
 case "$1" in
