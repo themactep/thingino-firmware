@@ -4,24 +4,26 @@
 
 CNET=172.16.0
 
-ssid="$(get wlanssid)"
-pass="$(get wlanpass)"
-
 timeout() {
 	sleep 300 && $0 stop
 }
 
 init_portal() {
+	# quit if no wireless interface
+	wlan_check || quit
+
+	# quit if credentials are set
+	ssid="$(get wlanssid)"
+	pass="$(get wlanpass)"
+	[ -n "$ssid" ] && [ -n "$pass" ] && quit
+
 	starting
-	wlan_check || die "Disabled"
-	[ -n "$ssid" ] && [ -n "$pass" ] && die "Disabled"
-
-	ip a add dev wlan0 $CNET.1/24
+	ip a add dev wlan0 ${CNET}.1/24
 	ip link set wlan0 up
-	ip route add $CNET.0/24 dev wlan0 > /dev/null 2>&1
+	ip route add ${CNET}.0/24 dev wlan0 > /dev/null 2>&1
 
-	start-stop-daemon -S -x /sbin/udhcpd -- -S -I $CNET.1 /etc/udhcpd.conf 2>&1
-	start-stop-daemon -S -x /sbin/dnsd -- -i $CNET.1 -c /etc/dnsd.conf -d | log
+	start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd.conf 2>&1
+	start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /etc/dnsd.conf -d | log
 
 	mac_address=$(ip link show wlan0 | awk '/ether/ {print $2}')
 	last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
@@ -41,7 +43,7 @@ case "$1" in
 		start-stop-daemon -K -q -x /sbin/udhcpd
 		start-stop-daemon -K -q -x /sbin/dnsd
 		start-stop-daemon -K -q -x /sbin/wpa_supplicant
-		ip address delete dev wlan0 $CNET.1/24
+		ip address delete dev wlan0 ${CNET}.1/24
 		ip link set wlan0 down
 		;;
 	reload | restart)
