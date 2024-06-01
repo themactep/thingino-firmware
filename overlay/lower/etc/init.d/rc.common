@@ -17,6 +17,14 @@ quit() {
 	exit 0
 }
 
+ok() {
+	echo_c 70 "OK"
+}
+
+fail() {
+	echo_c 124 "FAIL"
+}
+
 starting() {
 	echo -n "Starting ${1:-$DAEMON_SHORT}: "
 }
@@ -29,13 +37,13 @@ start_daemon() {
 	local command=${COMMAND:-$DAEMON_FULL}
 	command="${command/ / -- }"
 	start-stop-daemon -q -b -S -x $command > /dev/null 2>&1
-	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
+	[ $? -eq 0 ] && ok || fail
 }
 
 stop_daemon() {
 	#FIXME: do we need -s KILL?
 	start-stop-daemon -q -K -n $DAEMON_SHORT > /dev/null 2>&1
-	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
+	[ $? -eq 0 ] && ok || fail
 	[ -f $PIDFILE ] && rm -f $PIDFILE
 }
 
@@ -43,12 +51,12 @@ start_daemon_with_pid() {
 	local command=${COMMAND:-$DAEMON_FULL}
 	command="${command/ / -- }"
 	start-stop-daemon -q -b -m -S -p $PIDFILE -x $command > /dev/null 2>&1
-	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
+	[ $? -eq 0 ] && ok || fail
 }
 
 stop_daemon_with_pid() {
 	start-stop-daemon -q -K -p $PIDFILE > /dev/null 2>&1
-	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
+	[ $? -eq 0 ] && ok || fail
 	[ -f $PIDFILE ] && rm -f $PIDFILE
 }
 
