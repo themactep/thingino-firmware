@@ -7,17 +7,15 @@ test -r /etc/default/dropbear && . /etc/default/dropbear
 
 start() {
 	DROPBEAR_ARGS="$DROPBEAR_ARGS -R"
-	printf "Starting dropbear sshd: "
 	umask 077
 
-	start-stop-daemon -S -q -p /var/run/dropbear.pid \
-		--exec /usr/sbin/dropbear -- $DROPBEAR_ARGS
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	starting
+	start_daemon_with_pid
 }
+
 stop() {
-	printf "Stopping dropbear sshd: "
-	start-stop-daemon -K -q -p /var/run/dropbear.pid
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	stopping
+	stop_daemon_with_pid
 }
 
 case "$1" in

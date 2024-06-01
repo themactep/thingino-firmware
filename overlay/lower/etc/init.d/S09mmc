@@ -25,7 +25,7 @@ set_gpios() {
 }
 
 start() {
-	echo -n "Starting MMC: "
+	starting
 
 	MMC_PARAM="cd_gpio_pin=$MMC_GPIO_CD"
 

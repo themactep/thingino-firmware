@@ -1,10 +1,8 @@
 #!/bin/sh
 
-DAEMON=prudynt
-
 . /etc/init.d/rc.common
 
-COMMAND="/usr/bin/env -- LD_PRELOAD=/usr/lib/libimp_control.so $DAEMON_PATH/$DAEMON"
+COMMAND="/usr/bin/env -- LD_PRELOAD=/usr/lib/libimp_control.so $DAEMON_FULL"
 
 start() {
 	starting

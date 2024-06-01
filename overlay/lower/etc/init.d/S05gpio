@@ -79,7 +79,7 @@ process_config_file() {
 # Main script execution
 case "$1" in
 	start)
-		echo -n "Starting GPIO: "
+		starting
 		process_config_file
 		;;
 	stop | restart | reload)
