@@ -3,7 +3,8 @@
 DAEMON_ARGS=""
 DAEMON_PATH="/bin"
 DAEMON=${DAEMON:-$0}
-SHORT_DAEMON=$(basename ${DAEMON%% *})
+DAEMON_SHORT=$(basename "${DAEMON%% *}" | sed -r 's/^[KS]\d{2}//')
+DAEMON_FULL="$(which $DAEMON_SHORT)"
 PIDFILE="/run/$DAEMON_SHORT.pid"
 
 quit() {
@@ -12,30 +13,29 @@ quit() {
 }
 
 starting() {
-	local daemon_name="${1:-$SHORT_DAEMON}"
-	echo -n "Starting $daemon_name: "
+	echo -n "Starting ${1:-$DAEMON_SHORT}: "
 }
 
 stopping() {
-	local daemon_name="${1:-$SHORT_DAEMON}"
-	echo -n "Stopping $daemon_name: "
+	echo -n "Stopping ${1:-$DAEMON_SHORT}: "
 }
 
 start_daemon() {
-	local command=${COMMAND:-$DAEMON_PATH/$DAEMON}
+	local command=${COMMAND:-$DAEMON_FULL}
 	command="${command/ / -- }"
 	start-stop-daemon -q -b -S -x $command > /dev/null 2>&1
 	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
 }
 
 stop_daemon() {
-	start-stop-daemon -q -K -n $SHORT_DAEMON > /dev/null 2>&1 #FIXME do we need -s KILL?
+	#FIXME: do we need -s KILL?
+	start-stop-daemon -q -K -n $DAEMON_SHORT > /dev/null 2>&1
 	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
 	[ -f $PIDFILE ] && rm -f $PIDFILE
 }
 
 start_daemon_with_pid() {
-	local command=${COMMAND:-$DAEMON_PATH/$DAEMON}
+	local command=${COMMAND:-$DAEMON_FULL}
 	command="${command/ / -- }"
 	start-stop-daemon -q -b -m -S -p $PIDFILE -x $command > /dev/null 2>&1
 	[ $? -eq 0 ] && echo "OK" || echo "FAIL"

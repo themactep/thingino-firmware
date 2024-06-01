@@ -34,7 +34,7 @@ timezone() {
 }
 
 start() {
-	echo -n "Starting datetime: "
+	starting
 	timezone
 	/bin/date -s @$(stat -t /etc/os-release | cut -d" " -f12)
 }

@@ -34,7 +34,7 @@ rehome_motors() {
 }
 
 start() {
-	echo -n "Starting motors: "
+	starting
 
 	# Do not double load module
 	check_module_loaded motor sample_motor
@@ -63,7 +63,7 @@ start() {
 }
 
 stop() {
-	echo -n "Stopping motors: "
+	stopping
 	# FIXME: motor.ko crashes on upload
 	# rmmod motor || die "Failed to unload motor module."
 	echo "OK"

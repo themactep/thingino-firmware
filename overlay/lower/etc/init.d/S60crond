@@ -1,24 +1,19 @@
 #!/bin/sh
 
 . /etc/init.d/rc.common
-DAEMON="crond"
-PIDFILE="/run/$DAEMON.pid"
 
-CROND_ARGS="-f -c /etc/crontabs"
+DAEMON_ARGS="-f -c /etc/crontabs"
 
 start() {
 	printf 'Starting %s: ' $DAEMON
 	[ -f /usr/sbin/$DAEMON ] || echo -en "Disabled, "
-	start-stop-daemon -q -p $PIDFILE -S -b -m -x /sbin/$DAEMON -- $CROND_ARGS
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	start_daemon_with_pid
 }
 
 stop() {
-	printf 'Stopping %s: ' $DAEMON
+	stopping
 	[ -f /usr/sbin/$DAEMON ] || echo -en "Disabled, "
-	start-stop-daemon -q -p $PIDFILE -K
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
-	rm -f $PIDFILE
+	stop_daemon_with_pid
 }
 
 case "$1" in

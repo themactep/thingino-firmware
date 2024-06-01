@@ -3,7 +3,7 @@
 . /etc/init.d/rc.common
 
 start() {
-	echo -n "Starting ircut: "
+	starting
 	ircut off > /dev/null 2>&1
 	sleep 0.5
 	ircut on > /dev/null 2>&1

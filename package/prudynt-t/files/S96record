@@ -1,9 +1,10 @@
 #!/bin/sh
 
 DAEMON=openRTSP
-ENABLED=false
 
 . /etc/init.d/rc.common
+
+ENABLED=false
 
 read_config() {
 	sed -nE "s/^.*$1:\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
@@ -54,6 +55,7 @@ start() {
 
 stop() {
 	stopping
+	[ "$ENABLED" = "true" ] || quit "Disabled"
 	is_streamer_disabled && quit "Disabled"
 	stop_daemon
 }

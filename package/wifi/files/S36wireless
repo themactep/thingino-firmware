@@ -3,7 +3,7 @@
 . /etc/init.d/rc.common
 
 start() {
-	echo -n "Starting wireless: "
+	starting
 	modulename="$(fw_printenv -n wlandev)"
 	moduleopts="$(fw_printenv -n wlandevopts)"
 	gpionum="$(fw_printenv -n gpio_wlan)"

@@ -8,12 +8,12 @@ filter_net_output() {
 
 case "$1" in
 	start)
-		echo "Starting network..."
+		starting
 		ifup -a 2>&1 | filter_net_output
 		;;
 
 	stop)
-		echo "Stopping network..."
+		stopping
 		ifdown -a 2>&1 | indent_output
 		;;
 
