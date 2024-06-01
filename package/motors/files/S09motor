@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 motors_app=$(which motors)
 gpio_motor_h=$(fw_printenv -n gpio_motor_h)
 gpio_motor_v=$(fw_printenv -n gpio_motor_v)
@@ -13,7 +15,7 @@ die() {
 
 check_module_loaded() {
 	for module in "$@"; do
-		grep -qE "^$module" /proc/modules && die "Module $module already loaded." 0
+		grep -qE "^$module" /proc/modules && quit "Module $module already loaded."
 	done
 }
 
