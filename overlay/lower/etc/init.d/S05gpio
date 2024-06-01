@@ -43,10 +43,7 @@ process_config_file() {
 	success=1
 
 	# Check if the configuration file exists
-	if [ ! -f "$CONFIG_FILE" ]; then
-		echo "GPIO configuration file not found!"
-		exit 1
-	fi
+	[ -f "$CONFIG_FILE" ] || die "GPIO configuration file not found!"
 
 	# Read the configuration file line by line
 	while IFS= read -r line || [ -n "$line" ]; do
@@ -86,8 +83,7 @@ case "$1" in
 		true
 		;;
 	*)
-		echo "Usage: $0 {start}"
-		exit 1
+		die "Usage: $0 {start}"
 		;;
 esac
 

@@ -9,7 +9,7 @@ start() {
 	gpionum="$(fw_printenv -n gpio_wlan)"
 	mac_address=$(fw_printenv -n wlanmac)
 
-	wlandev_check || { echo "Disabled"; exit 1; }
+	wlandev_check || die "Disabled"
 
 	if [ -n "$gpionum" ]; then
 		num=${gpionum%[oO]}
@@ -25,12 +25,7 @@ start() {
 		esac
 
 		echo -en "\n Set GPIO $num $gpio_cmd... "
-		if gpio $gpio_cmd $num 2>&1 | logger -p daemon.info -t $0; then
-			echo "OK"
-		else
-			echo "FAIL"
-			exit 1
-		fi
+		gpio $gpio_cmd $num 2>&1 | logger -p daemon.info -t $0 && echo "OK" || die "FAIL"
 	fi
 
 	#FIXME Assume that we are SDIO, and we need to insert
@@ -65,8 +60,7 @@ case "$1" in
 		true
 		;;
 	*)
-		echo "Usage: $0 {start}"
-		exit 1
+		die "Usage: $0 {start}"
 		;;
 esac
 

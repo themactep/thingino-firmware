@@ -8,11 +8,6 @@ gpio_motor_v=$(fw_printenv -n gpio_motor_v)
 motor_h_maxstep=$(fw_printenv -n motor_maxstep_h)
 motor_v_maxstep=$(fw_printenv -n motor_maxstep_v)
 
-die() {
-	echo -e "$1"
-	exit ${2:-1}
-}
-
 check_module_loaded() {
 	for module in "$@"; do
 		grep -qE "^$module" /proc/modules && quit "Module $module already loaded."
