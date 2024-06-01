@@ -14,7 +14,7 @@ load_modules() {
 		esac
 		eval "args=\"$args\""
 		echo -n " $module ... "
-		modprobe $module $args && echo "OK" || echo "FAIL"
+		modprobe $module $args && ok || fail
 	done < $file
 }
 
