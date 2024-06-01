@@ -4,9 +4,9 @@
 
 start() {
 	echo -n "Starting ircut: "
-	ircut off >/dev/null 2>&1
+	ircut off > /dev/null 2>&1
 	sleep 0.5
-	ircut on >/dev/null 2>&1
+	ircut on > /dev/null 2>&1
 	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 

@@ -17,9 +17,8 @@ start() {
 	wlan_check || { echo "Disabled"; exit 1; }
 
 	if [ -z "$ssid" ] || [ -z "$pass" ]; then
-		echo "WiFi credentials missing"
 		sed -i '/^auto wlan0$/s/^/#/' /etc/network/interfaces.d/wlan0
-		exit 0
+		quit "WiFi credentials missing"
 	fi
 
 	generate_wpa_supplicant_conf() {
@@ -58,17 +57,13 @@ stop() {
 	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
-restart() {
-	stop
-	start
-}
-
 case "$1" in
-	start | stop | restart)
+	start | stop)
 		$1
 		;;
-	reload)
-		restart
+	reload | restart)
+		stop
+		start
 		;;
 	*)
 		echo "Usage: $0 {start|stop|restart|reload}"

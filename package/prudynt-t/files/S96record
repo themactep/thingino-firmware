@@ -9,11 +9,11 @@ read_config() {
 	sed -nE "s/^.*$1:\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
 }
 
-stream0fps=$(read_config "fps")
-stream0width=$(read_config "width")
-stream0height=$(read_config "height")
-rtsp_username=$(read_config "username")
-rtsp_password=$(read_config "password")
+stream0fps=$(read_config fps)
+stream0width=$(read_config width)
+stream0height=$(read_config height)
+rtsp_username=$(read_config username)
+rtsp_password=$(read_config password)
 
 file_prefix="thingino-"
 record_path="/mnt/mmcblk0p1"
@@ -54,7 +54,7 @@ start() {
 
 stop() {
 	stopping
-	is_streamer_disabled && { echo -e "Disabled"; exit 0; }
+	is_streamer_disabled && quit "Disabled"
 	stop_daemon
 }
 
