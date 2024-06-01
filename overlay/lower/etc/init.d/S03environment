@@ -6,8 +6,8 @@ ENV_TXT="/etc/uenv.txt"
 
 start() {
 	starting
-	[ -f "$ENV_TXT" ] || { ok && quit }
-	[ "true" = "$(get boot_complete)" ] && { ok && quit }
+	[ -f "$ENV_TXT" ] || { ok && quit[] }
+	[ "true" = "$(get boot_complete)" ] && { ok && quit; }
 
 	ENV_TMP=$(mktemp)
 	sed 's/=/ /' $ENV_TXT > $ENV_TMP
