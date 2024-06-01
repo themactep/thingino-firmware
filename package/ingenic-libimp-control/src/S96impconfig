@@ -22,7 +22,7 @@ check_imp() {
 		echo -n "."
 		i=$((i + 1))
 		sleep 1
-		[ $i -gt 10 ] && echo " FAIL (timeout)" && exit 1
+		[ $i -gt 10 ] && die " FAIL (timeout)"
 	done
 }
 
@@ -50,8 +50,7 @@ case "$1" in
 		:
 		;;
 	*)
-		echo "Usage: $0 {start|restart|reload}"
-		exit 1
+		die "Usage: $0 {start|restart|reload}"
 		;;
 esac
 

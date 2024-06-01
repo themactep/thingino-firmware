@@ -18,7 +18,7 @@ start() {
 	ssid="$(fw_printenv -n wlanssid)"
 	pass="$(fw_printenv -n wlanpass)"
 
-	wlan_check || { echo "Disabled"; exit 1; }
+	wlan_check || die "Disabled"
 
 	if [ -z "$ssid" ] || [ -z "$pass" ]; then
 		sed -i '/^auto wlan0$/s/^/#/' /etc/network/interfaces.d/wlan0
@@ -65,8 +65,7 @@ case "$1" in
 		start
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart|reload}"
-		exit 1
+		die "Usage: $0 {start|stop|restart|reload}"
 		;;
 esac
 

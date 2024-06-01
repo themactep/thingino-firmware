@@ -30,8 +30,7 @@ case "$1" in
 		true
 		;;
 	*)
-	echo "Usage: $0 {start|stop|restart}"
-	exit 1
+		die "Usage: $0 {start}"
 		;;
 esac
 

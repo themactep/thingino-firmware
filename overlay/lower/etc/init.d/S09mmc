@@ -39,8 +39,7 @@ start() {
 				# do nothing
 				;;
 			t23)
-				echo "Unsupported: T23"
-				exit 1
+				die "Unsupported: T23"
 				;;
 			t31)
 				if [ "$SOC_MODEL" = "t31a" ] || [ "$SOC_MODEL" = "t31al" ]; then
@@ -56,8 +55,7 @@ start() {
 				fi
 				;;
 			*)
-				echo "Unsupported SOC type: $SOC_FAMILY"
-				exit 1
+				die "Unsupported SOC type: $SOC_FAMILY"
 				;;
 		esac
 	load_module
@@ -90,6 +88,9 @@ case "$1" in
 		stop
 		sleep 1
 		start
+		;;
+	*)
+		die "Usage: $0 {start}"
 		;;
 esac
 

@@ -31,8 +31,7 @@ case "$1" in
 		$1
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart|reload}"
-		exit 1
+		die "Usage: $0 {start|stop|restart|reload}"
 		;;
 esac
 
