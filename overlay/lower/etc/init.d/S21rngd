@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 NAME="rngd"
 DAEMON="/sbin/${NAME}"
 DAEMON_ARGS="-r /dev/urandom"

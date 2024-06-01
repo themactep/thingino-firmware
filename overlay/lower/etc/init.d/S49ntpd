@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 DAEMON="ntpd"
 DAEMON_ARGS="-n"
 PIDFILE="/run/$DAEMON.pid"

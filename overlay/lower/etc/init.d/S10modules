@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 load_modules() {
 	local file="$1"
 	[ -r "${file}" ] || return 0

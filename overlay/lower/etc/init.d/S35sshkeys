@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 DROPBEAR_KEY="/etc/dropbear/dropbear_ed25519_host_key"
 SSHKEY_ENV=$(fw_printenv -n sshkey_ed25519)
 

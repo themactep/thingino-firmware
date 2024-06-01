@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 DAEMON="watchdog"
 WATCHDOG_TIMEOUT=60
 WATCHDOG_ARGS="-T $WATCHDOG_TIMEOUT /dev/watchdog"

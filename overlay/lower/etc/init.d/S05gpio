@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 # Path to the GPIO configuration file
 CONFIG_FILE="/etc/gpio.conf"
 
