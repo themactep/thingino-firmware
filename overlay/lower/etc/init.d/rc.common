@@ -52,7 +52,7 @@ stopping() {
 }
 
 log() {
-	logger -p daemon.info -t $DAEMON_SHORT[$$] <&0
+	logger -p daemon.info -t ${DAEMON_SHORT}[$$] <&0
 }
 
 check_result() {
