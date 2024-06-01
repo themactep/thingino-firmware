@@ -25,12 +25,16 @@ fail() {
 	echo_c 124 "FAIL"
 }
 
+proclaim() {
+	printf "%-35s" "$1"
+}
+
 starting() {
-	echo -n "Starting ${1:-$DAEMON_SHORT}: "
+	proclaim "Starting ${1:-$DAEMON_SHORT}"
 }
 
 stopping() {
-	echo -n "Stopping ${1:-$DAEMON_SHORT}: "
+	proclaim "Stopping ${1:-$DAEMON_SHORT}"
 }
 
 start_daemon() {
