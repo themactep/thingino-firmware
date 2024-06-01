@@ -1,9 +1,9 @@
 #!/bin/sh
 
-DAEMON_PATH="/usr/bin"
+DAEMON_PATH="/bin"
 DAEMON=${DAEMON:-$0}
 SHORT_DAEMON=$(basename ${DAEMON%% *})
-PIDFILE="/var/run/$SHORT_DAEMON.pid"
+PIDFILE="/run/$DAEMON_SHORT.pid"
 
 quit() {
 	[ -z "$1" ] || echo_c 30 "$1"
