@@ -4,8 +4,8 @@
 
 CONFFILE="/etc/httpd.conf"
 PORTAL_CONFFILE="/etc/httpd-portal.conf"
-ssid="$(get -n wlanssid)"
-pass="$(get -n wlanpass)"
+ssid="$(get wlanssid)"
+pass="$(get wlanpass)"
 
 if ([ -z "$ssid" ] || [ -z "$pass" ]) && ip link show wlan0 &>/dev/null; then
     DAEMON_ARGS="-f -c $PORTAL_CONFFILE"
