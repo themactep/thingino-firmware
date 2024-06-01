@@ -16,7 +16,7 @@ execute_and_log() {
 	mkfifo /tmp/initlogpipe
 
 	while IFS= read -r line; do
-		clean_line=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g')
+		clean_line=$(echo "$line" | awk '{ gsub(/\x1b\[[0-9;]*m/, ""); $1=$1; print }')
 		echo "$clean_line" | logger -t "$script"
 		echo "$line"
 	done < /tmp/initlogpipe &
