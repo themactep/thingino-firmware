@@ -16,9 +16,11 @@ check_imp() {
 	fi
 
 	while :; do
-		grep -Eq "running|Software" $isp_path &&
-			imp-control getdeviceid > /dev/null &&
-			echo " OK" && return
+		if grep -Eq "running|Software" $isp_path; then
+			imp-control getdeviceid > /dev/null
+			echo " OK"
+			return
+		fi
 		echo -n "."
 		i=$((i + 1))
 		sleep 1
