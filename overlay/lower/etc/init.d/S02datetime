@@ -3,17 +3,13 @@
 timezone() {
 	# Get the timezone from the u-boot environment variable
 	timezone=$(fw_printenv -n timezone 2> /dev/null)
-	if [ -z "$timezone" ]; then
-		return 1
-	fi
+	[ -z "$timezone" ] && return 1
 
 	# Check if the values in /etc/timezone and /etc/TZ match the ones from fw_printenv
 	current_timezone=$(cat /etc/timezone 2> /dev/null)
 	current_tz_value=$(cat /etc/TZ 2> /dev/null)
 
-	if [ "$timezone" = "$current_timezone" ] && [ "$timezone" = "$current_tz_value" ]; then
-		return 0
-	fi
+	[ "$timezone" = "$current_timezone" ] && [ "$timezone" = "$current_tz_value" ] && return 0
 
 	# Search for the timezone in the file
 	tzjs="/var/www/a/tz.js"

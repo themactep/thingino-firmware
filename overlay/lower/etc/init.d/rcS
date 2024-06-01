@@ -30,7 +30,7 @@ execute_and_log() {
 }
 
 for i in /etc/init.d/S??*; do
-	[ ! -f "$i" ] && continue
+	[ -f "$i" ] || continue
 	execute_and_log "$i" &
 	wait
 done
