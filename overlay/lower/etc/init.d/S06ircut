@@ -2,17 +2,14 @@
 
 . /etc/init.d/rc.common
 
-start() {
-	starting
-	ircut off > /dev/null 2>&1
-	sleep 0.5
-	ircut on > /dev/null 2>&1
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
-}
-
 case "$1" in
 	start)
-		start
+		starting
+		{
+			ircut off > /dev/null 2>&1
+			sleep 0.5
+			ircut on > /dev/null 2>&1
+		} && ok || fail
 		;;
 	stop)
 		true
