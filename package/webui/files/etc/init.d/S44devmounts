@@ -6,9 +6,9 @@ devip=$(get devip)
 
 start() {
 	starting
-	[ -z "$devip" ] && quit
-	[ -z "$(fw_printenv -n debug)" ] && quit
-	grep -q /var/www /etc/mtab || quit
+	[ -z "$devip" ] && quit "No IP set"
+	[ -z "$(fw_printenv -n debug)" ] && quit "Not in debug mode"
+	grep -q /var/www /etc/mtab && quit "Already mounted"
 	{
 		rm -r /var/www
 		mkdir /var/www
@@ -29,14 +29,15 @@ stop() {
 }
 
 case "$1" in
-	start|stop)
+	start | stop)
 		$1
 		;;
-	restart|reload)
+	restart | reload)
 		stop
 		sleep 1
 		start
 		;;
 	*)
 		die "Usage: $0 {start|stop|restart|reload}"
+		;;
 esac
