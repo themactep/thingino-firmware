@@ -22,7 +22,8 @@ start() {
 	if [ -n "$pass" ] && [ ${#pass} -lt 64 ]; then
 		tmpfile=$(mktemp)
 		wpa_passphrase "$ssid" "$pass" > $tmpfile
-		fw_setenv wlanpass "$(grep '^\s*psk=' $tmpfile | cut -d= -f2 | tail -n 1)"
+		pass=$(grep '^\s*psk=' $tmpfile | cut -d= -f2 | tail -n 1)
+		fw_setenv wlanpass $pass
 	fi
 
 	wlan_check || quit "Disabled"
