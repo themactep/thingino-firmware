@@ -17,7 +17,7 @@ execute_and_log() {
 
 	while IFS= read -r line; do
 		clean_line=$(echo "$line" | awk '{ gsub(/\x1b\[[0-9;]*m/, ""); $1=$1; print }')
-		echo "$clean_line" | logger -t "$script"
+		echo "$clean_line" | logger -p daemon.info -t "$script"
 		echo "$line"
 	done < /tmp/initlogpipe &
 
