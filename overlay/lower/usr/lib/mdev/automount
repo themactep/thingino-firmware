@@ -10,33 +10,42 @@ log() {
 }
 
 cleanup() {
-	[ -d "${destdir}/$1" ] && rmdir "${destdir}/$1"
+	[ -d "${destdir}/$1" ] && rmdir "${destdir}/$1" | logger -t automount -p daemon.info
 }
 
 do_umount() {
 	if grep -qs "^/dev/$1 " /proc/mounts; then
-		umount "${destdir}/$1"
+		umount "${destdir}/$1" 2>&1 | logger -t automount -p daemon.info
 	fi
 	cleanup $1
 }
 
+do_fsck() {
+	fsck -a "/dev/$1" 2>&1 | logger -t automount -p daemon.warning || {
+		log "fsck check failed on /dev/$1. Mounting process aborted."
+		return 1
+	}
+}
+
 do_mount() {
-	if ! mkdir -p "${destdir}/$1"; then
+	if ! mkdir -p "${destdir}/$1" 2>&1 | logger -t automount -p daemon.error; then
 		log "Cannot create directory ${destdir}/$1"
 		exit 1
 	fi
 
-	if ! mount -t auto -o sync "/dev/$1" "${destdir}/$1"; then
+	do_fsck $1 || exit 1
+
+	if ! mount -t auto -o sync "/dev/$1" "${destdir}/$1" 2>&1 | logger -t automount -p daemon.info; then
 		cleanup $1
 		exit 1
 	fi
 
 	if [ -f "$run_once" ] && [ ! -f "$run_once_flag" ]; then
-		(sh $run_once && touch $run_once_flag) | log
+		(sh $run_once 2>&1 | logger -t automount -p daemon.info && touch $run_once_flag)
 	fi
 
 	if [ -f "$run" ]; then
-		sh $run | log
+		sh $run 2>&1 | logger -t automount -p daemon.info
 	fi
 }
 
