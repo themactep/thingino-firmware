@@ -1,0 +1,16 @@
+#!/bin/sh
+
+echo -e "Warning: This action will erase the overlay partition and reset the device to Thingino installation defaults. \n\nAre you sure you want to proceed? (yes/no)"
+read response
+if [ "$response" != "yes" ]; then
+	echo "Operation aborted."
+	return 1
+fi
+
+rootfs_data_dev=$(awk '$4 ~ /"rootfs_data"/ {gsub(":","",$1); print $1}' /proc/mtd)
+if [ -z "$rootfs_data_dev" ]; then
+	echo "overlay partition not found!"
+	return 1
+fi
+
+flash_eraseall -j "/dev/${rootfs_data_dev}" && echo "Erase completed. Rebooting..." && reboot -f
