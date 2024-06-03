@@ -1,4 +1,4 @@
-# toolchain.fragment
+# toolchain-musl-gcc13.fragment
 BR2_TOOLCHAIN_EXTERNAL=y
 BR2_TOOLCHAIN_EXTERNAL_CUSTOM=y
 BR2_TOOLCHAIN_EXTERNAL_DOWNLOAD=y
