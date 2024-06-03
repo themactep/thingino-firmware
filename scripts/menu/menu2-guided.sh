@@ -50,7 +50,7 @@ provides basic configurations necessary to initialize the hardware.\n\nExperimen
 		"HELP 2")
 			show_help_msgbox "The 'Bootstrap' option initiates the installation of all necessary prerequisite software required for \
 the compilation of the firmware.\n\nThis includes tools and libraries that are essential for building the firmware from source. Selecting \
-this will ensure your environment is correctly set up to proceed with building THINGINO without encountering missing dependencies. \
+this will ensure your environment is correctly set up to proceed with building Thingino without encountering missing dependencies. \
 \n\nRequires super-user privileges." 14;;
 		"HELP 3")
 			show_help_msgbox "This option starts the firmware compilation process. The duration of this process depends on your \
