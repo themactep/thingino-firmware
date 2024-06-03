@@ -107,21 +107,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-
 
-      - name: Restore Buildroot DL cache
-        uses: actions/cache@v4
-        if: always()
-        with:
-          path: /tmp/dl
-          key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
-          restore-keys: |
-            ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-
-
       - name: Generate buildroot cache
         run: |
           BOARD=${{ matrix.caches-version }} make
 
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
+
+      - name: Save Buildroot DL cache
+        uses: actions/cache@v4
+        if: always()
+        with:
+          path: /tmp/dl
+          key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
 
       - name: Send completion notification
         if: ${{ github.event_name != 'pull_request' && env.INGTC && github.event.inputs.tg_disabled == 'false' }}
