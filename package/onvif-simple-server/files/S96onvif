@@ -22,7 +22,7 @@ fi
 model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' /etc/os-release)
 firmware_ver=$(awk -F '[:=, "]+' '/^BUILD_ID=/ {print $2}' /etc/os-release)
 serial_num=$(get ethaddr)
-iface=$(awk '$2 == "00000000" && $3 != "00000000" {print $1}' /proc/net/route)
+iface=$(awk '$2 == "00000000" && $3 != "00000000" {print $1; exit}' /proc/net/route)
 username=$(awk -F '"' '/username:/ {print $2}' /etc/prudynt.cfg)
 password=$(awk -F '"' '/password:/ {print $2}' /etc/prudynt.cfg)
 
