@@ -126,13 +126,7 @@ all: build pack
 # install prerequisites
 bootstrap:
 	$(info -------------------> bootstrap)
-ifneq ($(shell id -u), 0)
-	$(error requested operation requires superuser privilege)
-else
-	@DEBIAN_FRONTEND=noninteractive apt-get update
-	@DEBIAN_FRONTEND=noninteractive apt-get -y install build-essential bc bison cpio curl \
-		file flex gawk git libncurses-dev make rsync unzip wget whiptail dialog
-endif
+	$(SCRIPTS_DIR)/dep_check.sh
 
 build: defconfig
 	$(info -------------------> build)
