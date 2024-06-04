@@ -6,12 +6,12 @@ source ./scripts/menu/menu-common.sh
 
 check_and_install_dialog() {
 	if ! command -v dialog &> /dev/null; then
-		echo "'dialog' is not installed. It is required for this script to run."
-		read -p "Do you want to install 'dialog' now? [Y/n] " yn
+		echo "'dialog' is not installed. Dialog, along with other software components are required for this script to run."
+		read -p "Do you want to install prerequisites now? [Y/n] " yn
 		case $yn in
 			[Yy]* )
-				echo "Attempting to install 'dialog'..."
-				sudo apt-get update; sudo apt-get install -y --no-install-recommends --no-install-suggests dialog
+				echo "Attempting to install prerequisites..."
+				./scripts/dep_check.sh
 				check_and_install_dialog
 				;;
 			[Nn]* )
