@@ -27,8 +27,8 @@ function xhrGet(url) {
 
 function moveMotor(dir, steps = 100, d = 'g') {
 	console.log(dir, steps);
-	const x_max=<% echo -n $(fw_printenv -n motor_maxstep_h) %>;
-	const y_max=<% echo -n $(fw_printenv -n motor_maxstep_v) %>;
+	const x_max=<% echo -n $(get motor_maxstep_h) %>;
+	const y_max=<% echo -n $(get motor_maxstep_v) %>;
 	const step = x_max / steps;
 	if (dir == 'homing') {
 		xhrGet("/cgi-bin/j/motor.cgi?d=r");

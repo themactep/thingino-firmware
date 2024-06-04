@@ -1,10 +1,17 @@
 #!/bin/sh
 
-[ -z "$1" ] && echo "Usage: $0 <mmc port>" && exit 1
+if [ -z "$1" ]; then
+	echo "Usage: $0 <mmc port>"
+	exit 1
+fi
 
 endpoint=/sys/devices/platform/jzmmc_v1.2.${1}/present
 
-[ ! -f "$endpoint" ] && echo "No endpoint $endpoint" && exit 2
+if [ ! -f "$endpoint" ]; then
+	echo "No endpoint $endpoint"
+	exit 1
+fi
 
 echo INSERT > $endpoint
+
 exit 0

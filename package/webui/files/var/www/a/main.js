@@ -73,7 +73,7 @@ function heartbeat() {
 		.then(setTimeout(heartbeat, 10000));
 }
 
-(function () {
+(() => {
 	function initAll() {
 		function toggleAuto(el) {
 			const id = el.dataset.for;

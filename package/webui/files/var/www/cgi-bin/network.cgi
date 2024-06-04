@@ -6,9 +6,9 @@ page_title="Network settings"
 params="address dhcp dns_1 dns_2 gateway hostname netmask interface wlan_device wlan_ssid wlan_pass"
 tmp_file=/tmp/${plugin}.conf
 
-network_wlan_device="$(fw_printenv -n wlandev)"
-network_wlan_ssid="$(fw_printenv -n wlanssid)"
-network_wlan_pass="" # "$(fw_printenv -n wlanpass)"
+network_wlan_device="$(get wlandev)"
+network_wlan_ssid="$(get wlanssid)"
+network_wlan_pass="" # "$(get wlanpass)"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	case "$POST_action" in

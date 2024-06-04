@@ -6,12 +6,12 @@ source ./scripts/menu/menu-common.sh
 
 check_and_install_dialog() {
 	if ! command -v dialog &> /dev/null; then
-		echo "'dialog' is not installed. It is required for this script to run."
-		read -p "Do you want to install 'dialog' now? [Y/n] " yn
+		echo "'dialog' is not installed. Dialog, along with other software components are required for this script to run."
+		read -p "Do you want to install prerequisites now? [Y/n] " yn
 		case $yn in
 			[Yy]* )
-				echo "Attempting to install 'dialog'..."
-				sudo apt-get update; sudo apt-get install -y --no-install-recommends --no-install-suggests dialog
+				echo "Attempting to install prerequisites..."
+				./scripts/dep_check.sh
 				check_and_install_dialog
 				;;
 			[Nn]* )
@@ -33,8 +33,8 @@ function main_menu() {
 	check_and_install_dialog
 	while true; do
 		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu \
-		"\Zb\Z1THINGINO\Zn is an open-source replacement firmware designed specifically for   \Zr\Z4Ingenic\Zn SoC based devices, offering freedom from restrictive stock firmware and providing a user-friendly alternative to other complex options.  \
-		\n\nJoin us in unlocking the full potential of your hardware with \Zb\Z1THINGINO\Zn's robust and customizable features! \
+		"\Zb\Z1Thingino\Zn is an open-source replacement firmware designed specifically for   \Zr\Z4Ingenic\Zn SoC based devices, offering freedom from restrictive stock firmware and providing a user-friendly alternative to other complex options.  \
+		\n\nJoin us in unlocking the full potential of your hardware with \Zb\Z1Thingino\Zn's robust and customizable features! \
 		\n\nSelect an option:" 18 80 20 \
 			"1" "Introduction" \
 			"2" "Guided Compilation" \
@@ -50,15 +50,15 @@ function show_help() {
 	local item=$1
 	case "$item" in
 		"HELP 1")
-			show_help_msgbox "Displays a comprehensive introduction to THINGINO, outlining its core features and benefits, and how it transforms your IP camera experience." 7;;
+			show_help_msgbox "Displays a comprehensive introduction to Thingino, outlining its core features and benefits, and how it transforms your IP camera experience." 7;;
 		"HELP 2")
-			show_help_msgbox "Initiates the guided compilation process, which assists you step-by-step in setting up THINGINO on your device. Ideal for users who are configuring THINGINO for the first time." 7;;
+			show_help_msgbox "Initiates the guided compilation process, which assists you step-by-step in setting up Thingino on your device. Ideal for users who are configuring Thingino for the first time." 7;;
 		"HELP 3")
-			show_help_msgbox "Launches you to the main menu, where you can access all key features and settings of THINGINO. Navigate through options to customize and control your firmware installation." 7;;
+			show_help_msgbox "Launches you to the main menu, where you can access all key features and settings of Thingino. Navigate through options to customize and control your firmware installation." 7;;
 		"HELP 4")
-			show_help_msgbox "Exits the THINGINO program safely." 5;;
+			show_help_msgbox "Exits the Thingino program safely." 5;;
 		*)
-			show_help_msgbox "No help information is available for the selected item. Please choose another option or consult the thingino wiki for more details.";;
+			show_help_msgbox "No help information is available for the selected item. Please choose another option or consult the Thingino Wiki for more details.";;
 	esac
 }
 

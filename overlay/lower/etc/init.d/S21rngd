@@ -1,21 +1,17 @@
 #!/bin/sh
 
-NAME="rngd"
-DAEMON="/sbin/${NAME}"
+. /etc/init.d/rc.common
+
 DAEMON_ARGS="-r /dev/urandom"
-PIDFILE="/run/$NAME.pid"
 
 start() {
-	printf "Starting ${NAME}: "
-	start-stop-daemon -q -S -x $DAEMON -- $DAEMON_ARGS
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	starting
+	start_daemon_with_pid
 }
 
 stop() {
-	printf "Stopping ${NAME}: "
-	start-stop-daemon -K -q -x $DAEMON
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
-	rm -f $PIDFILE
+	stopping
+	stop_daemon_with_pid
 }
 
 case "$1" in
@@ -27,8 +23,7 @@ case "$1" in
 		start
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart|reload}" >&2
-		exit 1
+		die "Usage: $0 {start|stop|restart|reload}"
 		;;
 esac
 

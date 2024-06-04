@@ -24,7 +24,7 @@ function show_help() {
 	local item=$1
 	case "$item" in
 		"HELP bootstrap")
-			show_help_msgbox "The 'Bootstrap' option initiates the installation of all necessary prerequisite software required for the compilation of the firmware.\n\nThis includes tools and libraries that are essential for building the firmware from source. Selecting this will ensure your environment is correctly set up to proceed with building THINGINO without encountering missing dependencies.\n\nRequires super-user privileges." 13 80;;
+			show_help_msgbox "The 'Bootstrap' option initiates the installation of all necessary prerequisite software required for the compilation of the firmware.\n\nThis includes tools and libraries that are essential for building the firmware from source. Selecting this will ensure your environment is correctly set up to proceed with building Thingino without encountering missing dependencies.\n\nRequires super-user privileges." 13 80;;
 		"HELP menuconfig")
 			show_help_msgbox "Launches a graphical interface for configuring the toolchain, kernel options, and the packages that will be included in your root filesystem. It's a crucial step for customizing your build according to your needs." 8;;
 		"HELP br-linux-menuconfig")
