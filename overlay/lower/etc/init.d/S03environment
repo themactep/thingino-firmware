@@ -1,36 +1,36 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 ENV_TXT="/etc/uenv.txt"
 
-start () {
-	echo -n "U-Boot ENV: "
+start() {
+	starting
+	[ -f "$ENV_TXT" ] || { ok && quit; }
+	[ "true" = "$(get boot_complete)" ] && { ok && quit; }
 
-	boot_status=$(fw_printenv -n boot_complete)
-	if [ -f "$ENV_TXT" ] && { [ "$boot_status" = "false" ] || [ -z "$boot_status" ]; }; then
-			ENV_TMP=$(mktemp)
-			sed 's/=/ /' $ENV_TXT >$ENV_TMP
-			fw_setenv -s $ENV_TMP
-			fw_setenv boot_complete true
-			echo "U-Boot ENV updated. Rebooting now..."
-			/etc/init.d/K99watchdog stop
-			sync; sleep 2
-			reboot -f
-	else
-			echo "OK"
-	fi
+	ENV_TMP=$(mktemp)
+	sed 's/=/ /' $ENV_TXT > $ENV_TMP
+	echo "boot_complete true" >> $ENV_TMP
+	fw_setenv -s $ENV_TMP
+
+	info "U-Boot ENV updated. Rebooting now..."
+	/etc/init.d/K99watchdog stop
+	sync
+	sleep 2
+	reboot -f
 }
 
 case "$1" in
-start)
-	$1
-	;;
-stop|restart)
-	true
-	;;
-*)
-	echo "Usage: $0 {start|stop|restart}"
-	exit 1
-	;;
+	start)
+		$1
+		;;
+	stop | restart)
+		true
+		;;
+	*)
+		die "Usage: $0 {start}"
+		;;
 esac
 
 exit 0

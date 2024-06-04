@@ -2,7 +2,7 @@
 
 . /etc/init.d/rc.common
 
-DAEMON_ARGS="-n"
+DAEMON_ARGS="-c /etc/mosquitto/mosquitto.conf"
 
 start() {
 	starting
@@ -18,13 +18,12 @@ case "$1" in
 	start | stop)
 		$1
 		;;
-	reload)
+	restart | reload)
 		stop
-		sleep 1
 		start
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		die "Usage: $0 {start|stop|restart}"
 		;;
 esac
 

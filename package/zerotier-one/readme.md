@@ -1,31 +1,19 @@
 # ZeroTier One
 
-Пакет [ZeroTier One](https://www.zerotier.com) для сборок ultimate.
+Run ZTO from the console as `zerotiner-one -d &`.
 
-### Запуск на прошивках без web интерфейса
+Create an account at https://my.zerotier.com/.
 
-Для запуска сервиса выполнить в консоли ssh или из собственных скриптов:
+Get a network_id and set it as private network.
 
-```
-/usr/sbin/zerotiner-one -d &
-```
+In the camera console, run `zerotier-cli join <network_id>`.
 
-### Быстрый старт
+Successful connection will return `200 join OK`.
 
-1. Зарегистироваться на [my.zerotier.com](https://my.zerotier.com)
-2. Получить ID сети, настроить сеть как приватную.
-3. Из консоли камеры (web консоль или ssh) выполнить:
+Go to https://my.zerotier.com/ and authorize the connected camera by checking the peer.
 
-```
-zerotier-cli join network_id где (ID сети полученный на этапе 2) в ответ будет отображен статус: <200 join OK>
-```
+The configuration is stored in the file /var/lib/zerotier-one.
 
-4. Перейти в веб интерфейс на [my.zerotier.com](https://my.zerotier.com) и авторизовать только что подключенную камеру, авторизация происходит методом установки галочки напротив соотвествующего пира.
+To leave the network, run `zerotier-cli leave network_id`.
 
-Настройка завершена.
-
-Вся конфигурация хранится в /var/lib/zerotier-one, покинуть сеть (отключиться) можно выполнив команду в консоли:
-
-```
-zerotier-cli leave network_id где (ID сети полученный на этапе 2) в ответ будет отображен статус: <200 leave OK>
-```
+A successful disconnect will return `200 leave OK`.

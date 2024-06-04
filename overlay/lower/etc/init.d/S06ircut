@@ -1,19 +1,22 @@
 #!/bin/sh
 
-start() {
-	echo -n "Starting ircut: "
-	ircut off >/dev/null 2>&1
-	sleep 0.5
-	ircut on >/dev/null 2>&1
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
-}
+. /etc/init.d/rc.common
 
 case "$1" in
 	start)
-		start
+		starting
+		{
+			ircut off > /dev/null 2>&1
+			sleep 0.5
+			ircut on > /dev/null 2>&1
+		}
+		check_result
 		;;
 	stop)
 		true
+		;;
+	*)
+		die "Usage: $0 {start}"
 		;;
 esac
 

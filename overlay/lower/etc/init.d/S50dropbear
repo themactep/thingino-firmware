@@ -1,44 +1,34 @@
 #!/bin/sh
-#
-# Starts dropbear sshd.
-#
+
+. /etc/init.d/rc.common
 
 # Allow a few customizations from a config file
 test -r /etc/default/dropbear && . /etc/default/dropbear
 
 start() {
 	DROPBEAR_ARGS="$DROPBEAR_ARGS -R"
-
-	printf "Starting dropbear sshd: "
 	umask 077
 
-	start-stop-daemon -S -q -p /var/run/dropbear.pid \
-		--exec /usr/sbin/dropbear -- $DROPBEAR_ARGS
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	starting
+	start_daemon_with_pid
 }
+
 stop() {
-	printf "Stopping dropbear sshd: "
-	start-stop-daemon -K -q -p /var/run/dropbear.pid
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
-}
-restart() {
-	stop
-	start
+	stopping
+	stop_daemon_with_pid
 }
 
 case "$1" in
-  start)
-  	start
-	;;
-  stop)
-  	stop
-	;;
-  restart|reload)
-  	restart
-	;;
-  *)
-	echo "Usage: $0 {start|stop|restart}"
-	exit 1
+	start | stop)
+		$1
+		;;
+	restart | reload)
+		stop
+		start
+		;;
+	*)
+		die "Usage: $0 {start|stop|restart}"
+		;;
 esac
 
 exit $?

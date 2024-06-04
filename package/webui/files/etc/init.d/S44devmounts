@@ -1,37 +1,43 @@
 #!/bin/sh
 
-devip=$(fw_printenv -n devip)
-[ -z "$devip" ] && exit
-[ -z "$(fw_printenv -n debug)" ] && exit
+. /etc/init.d/rc.common
+
+devip=$(get devip)
 
 start() {
-	if ! grep -q /var/www /etc/mtab; then
-		logger -p daemon.info -t httpd "mount development webui"
+	starting
+	[ -z "$devip" ] && quit "No IP set"
+	[ -z "$(fw_printenv -n debug)" ] && quit "Not in debug mode"
+	grep -q /var/www /etc/mtab && quit "Already mounted"
+	{
 		rm -r /var/www
 		mkdir /var/www
 		mount -t nfs -o nolock,tcp,nfsvers=3 ${devip}:/srv/nfs/www /var/www
-	fi
+	}
+	check_result
 }
 
 stop() {
-	if grep -q /var/www /etc/mtab; then
-		logger -p daemon.info -t httpd "unmount development webui"
+	stopping
+	grep -q /var/www /etc/mtab || quit
+	{
 		umount /var/www
 		rm -r /overlay/var/www
 		mount -o remount /
-	fi
+	}
+	check_result
 }
 
 case "$1" in
-	start|stop)
+	start | stop)
 		$1
 		;;
-	restart|reload)
+	restart | reload)
 		stop
 		sleep 1
 		start
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart|reload}"
-		exit 1
+		die "Usage: $0 {start|stop|restart|reload}"
+		;;
 esac

@@ -84,7 +84,8 @@ export_pin() {
 		echo_c 33 "pin $pin already exported"
 	else
 		if echo $pin > ${gpiodir}/export 2> /dev/null; then
-			echo_c 32 "pin $pin exported"
+			# echo_c 32 "pin $pin exported"
+			true
 		else
 			echo_c 31 "pin $pin is busy"
 			exit 1
@@ -97,7 +98,8 @@ unexport_pin() {
 	local pin=$(validate_pin $1)
 	if [ -d "${gpiodir}/gpio${pin}" ]; then
 		if echo $pin > ${gpiodir}/unexport 2> /dev/null; then
-			echo_c 32 "pin $pin unexported"
+			# echo_c 32 "pin $pin unexported"
+			true
 		else
 			echo_c 31 "pin $pin is busy"
 			exit 1
@@ -192,7 +194,7 @@ get_pin_value() {
 
 		if [ -f "${pin_dir}/value" ]; then
 			value=$(cat "${pin_dir}/value")
-			echo_c 34 "${pin}\t${direction}\t${value}"
+			# echo_c 34 "${pin}\t${direction}\t${value}"
 		else
 			echo_c 31 "${pin_dir}/value not found"
 		fi

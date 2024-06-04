@@ -1,33 +1,28 @@
 #!/bin/sh
 
-DAEMON=telegram-bot
-PIDFILE=/var/run/telegrambot.pid
-DAEMON_ARGS=""
+. /etc/init.d/rc.common
 
 start() {
-	printf 'Starting %s: ' "$DAEMON"
-	start-stop-daemon -b -m -S -q -p "$PIDFILE" -x /sbin/$DAEMON -- $DAEMON_ARGS
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	starting
+	start_daemon_with_pid
 }
 
 stop() {
-	printf 'Stopping %s: ' "$DAEMON"
-	start-stop-daemon -K -q -p "$PIDFILE"
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	stopping
+	stop_daemon_with_pid
 }
 
 case "$1" in
-	start | stop | restart)
+	start | stop)
 		$1
 		;;
-	reload)
+	restart | reload)
 		stop
 		sleep 1
 		start
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart|reload}"
-		exit 1
+		die "Usage: $0 {start|stop|restart|reload}"
 		;;
 esac
 
