@@ -7,10 +7,10 @@ PORTAL_CONFFILE="/etc/httpd-portal.conf"
 ssid="$(get wlanssid)"
 pass="$(get wlanpass)"
 
-if ([ -z "$ssid" ] || [ -z "$pass" ]) && ip link show wlan0 &>/dev/null; then
-    DAEMON_ARGS="-f -c $PORTAL_CONFFILE"
+if ([ -z "$ssid" ] || [ -z "$pass" ]) && ip link show wlan0 &> /dev/null; then
+	DAEMON_ARGS="-f -c $PORTAL_CONFFILE"
 else
-    DAEMON_ARGS="-f -c $CONFFILE -r Authentication"
+	DAEMON_ARGS="-f -c $CONFFILE -r Authentication"
 fi
 
 start() {
@@ -32,7 +32,7 @@ restart() {
 }
 
 case "$1" in
-	start|stop|restart)
+	start | stop | restart)
 		$1
 		;;
 	reload)
@@ -40,4 +40,5 @@ case "$1" in
 		;;
 	*)
 		die "Usage: $0 {start|stop|restart|reload}"
+		;;
 esac
