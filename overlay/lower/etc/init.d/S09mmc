@@ -14,14 +14,16 @@ MMC_GPIO_PWR=$(get gpio_mmc_power)
 [ -z "$MMC_GPIO_CD" ] && MMC_GPIO_CD="59"
 
 set_gpios() {
-	# Set addtional MMC GPIOs
+	# Set additional MMC GPIOs
 	# This needs to run AFTER the driver has been loaded for the sd card to mount during boot
-	if [ ${#MMC_GPIO_PWR} -eq 3 ] && [ "${MMC_GPIO_PWR%[oO]}" != "$MMC_GPIO_PWR" ]; then
-		case "${MMC_GPIO_PWR#??}" in
-			"O") gpio set ${MMC_GPIO_PWR%[oO]} 1 2>&1 | log ;;
-			"o") gpio set ${MMC_GPIO_PWR%[oO]} 0 2>&1 | log ;;
-		esac
-	fi
+	for gpio in $MMC_GPIO_PWR; do
+		if [ "${#gpio}" -eq 3 ] && [ "${gpio%[oO]}" != "$gpio" ]; then
+			case "${gpio#??}" in
+				"O") gpio set "${gpio%[oO]}" 1 2>&1 | log ;;
+				"o") gpio set "${gpio%[oO]}" 0 2>&1 | log ;;
+			esac
+		fi
+	done
 }
 
 load_module() {
