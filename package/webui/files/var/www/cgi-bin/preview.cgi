@@ -24,74 +24,68 @@ check_mirror() {
 <%in p/header.cgi %>
 
 <div class="row preview">
-<div class="col-12 mb-3">
-<div id="frame" class="position-relative mb-2">
-<div class="smpte">
-<div class="bar1"></div>
-<div class="bar2"></div>
-<div class="bar3"></div>
-</div>
-<img id="preview" class="img-fluid"></img>
-<%in p/motors.cgi %>
-
-<div id="controls" class="position-absolute bottom-0 start-0 end-0">
-<div class="buttons p-0">
-<div class="row">
-<div class="col">
-<div class="btn-group d-flex" role="group" aria-label="Night Mode">
-<input type="checkbox" class="btn-check" name="daynight" id="daynight" value="1"<% checked_if $daynight 1 %>>
-<label class="btn btn-dark" for="daynight" title="Night mode"><%= $icon_moon %></label>
-<input type="checkbox" class="btn-check" name="ispmode" id="ispmode" value="1"<% checked_if $ispmode 1 %>>
-<label class="btn btn-sm btn-dark" for="ispmode" title="Color mode"><%= $icon_color %></label>
-<input type="checkbox" class="btn-check" name="ircut" id="ircut" value="1"<% checked_if $ircut 1 %><% get gpio_ircut >/dev/null || echo " disabled" %>>
-<label class="btn btn-sm btn-dark" for="ircut" title="IR filter"><%= $icon_ircut %></label>
-<input type="checkbox" class="btn-check" name="ir850" id="ir850" value="1"<% checked_if $ir850 1 %><% get gpio_ir850 >/dev/null || echo " disabled" %>>
-<label class="btn btn-sm btn-dark" for="ir850" title="IR LED 850 nm"><%= $icon_ir850 %></label>
-<input type="checkbox" class="btn-check" name="ir940" id="ir940" value="1"<% checked_if $ir940 1 %><% get gpio_ir940 >/dev/null || echo " disabled" %>>
-<label class="btn btn-sm btn-dark" for="ir940" title="IR LED 940 nm"><%= $icon_ir940 %></label>
-<input type="checkbox" class="btn-check" name="white" id="white" value="1"<% checked_if $white 1 %><% get gpio_white >/dev/null || echo " disabled" %>>
-<label class="btn btn-sm btn-dark" for="white" title="White LED"><%= $icon_white %></label>
-<input type="checkbox" class="btn-check" name="flip" id="flip" value="1"<% check_flip %>>
-<label class="btn btn-sm btn-dark" for="flip" title="Flip vertically"><%= $icon_flip %></label>
-<input type="checkbox" class="btn-check" name="mirror" id="mirror" value="1"<% check_mirror %>>
-<label class="btn btn-sm btn-dark" for="mirror" title="Flip horizontally"><%= $icon_flop %></label>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<p class="small text-body-secondary">The image above refreshes once per second and may appear choppy.<br>
-Please open RTSP stream at <i><a href="<%= $rtsp_url %>"><%= $rtsp_url %></a></i> in you favorite media player to see video feed.</p>
-</div>
-<div class="col-12">
-<div class="d-flex flex-column flex-md-row gap-2 mb-3">
-<div class="input-group">
-<button class="form-control btn btn-primary text-start" type="button" data-sendto="email">Email</button>
-<div class="input-group-text"><a href="plugin-send2email.cgi" title="Email settings"><%= $icon_gear %></a></div>
-</div>
-<div class="input-group">
-<button class="form-control btn btn-primary text-start" type="button" data-sendto="ftp">FTP</button>
-<div class="input-group-text"><a href="plugin-send2ftp.cgi" title="FTP Storage settings"><%= $icon_gear %></a></div>
-</div>
-<div class="input-group">
-<button class="form-control btn btn-primary text-start" type="button" data-sendto="telegram">Telegram</button>
-<div class="input-group-text"><a href="plugin-send2telegram.cgi" title="Telegram bot settings"><%= $icon_gear %></a></div>
-</div>
-<div class="input-group">
-<button class="form-control btn btn-primary text-start" type="button" data-sendto="mqtt">MQTT</button>
-<div class="input-group-text"><a href="plugin-send2mqtt.cgi" title="MQTT settings"><%= $icon_gear %></a></div>
-</div>
-<div class="input-group">
-<button class="form-control btn btn-primary text-start" type="button" data-sendto="webhook">WebHook</button>
-<div class="input-group-text"><a href="plugin-send2webhook.cgi" title="Webhook settings"><%= $icon_gear %></a></div>
-</div>
-<div class="input-group">
-<button class="form-control btn btn-primary text-start" type="button" data-sendto="yadisk">Yandex Disk</button>
-<div class="input-group-text"><a href="plugin-send2yadisk.cgi" title="Yandex Disk bot settings"><%= $icon_gear %></a></div>
-</div>
-</div>
-</div>
+	<div class="col-12 mb-3">
+		<div id="frame" class="position-relative mb-2">
+			<div class="smpte">
+				<div class="bar1"></div>
+				<div class="bar2"></div>
+				<div class="bar3"></div>
+			</div>
+			<img id="preview" class="img-fluid" alt="Image: Preview"></img>
+			<%in p/motors.cgi %>
+			<div id="controls" class="position-absolute bottom-0 start-0 end-0">
+				<div class="buttons btn-group d-flex" role="group" aria-label="Night Mode">
+					<input type="checkbox" class="btn-check" name="daynight" id="daynight" value="1"<% checked_if $daynight 1 %>>
+					<label class="btn btn-dark" for="daynight" title="Night mode"><%= $icon_moon %></label>
+					<input type="checkbox" class="btn-check" name="ispmode" id="ispmode" value="1"<% checked_if $ispmode 1 %>>
+					<label class="btn btn-sm btn-dark" for="ispmode" title="Color mode"><%= $icon_color %></label>
+					<input type="checkbox" class="btn-check" name="ircut" id="ircut" value="1"<% checked_if $ircut 1 %><% get gpio_ircut >/dev/null || echo " disabled" %>>
+					<label class="btn btn-sm btn-dark" for="ircut" title="IR filter"><%= $icon_ircut %></label>
+					<input type="checkbox" class="btn-check" name="ir850" id="ir850" value="1"<% checked_if $ir850 1 %><% get gpio_ir850 >/dev/null || echo " disabled" %>>
+					<label class="btn btn-sm btn-dark" for="ir850" title="IR LED 850 nm"><%= $icon_ir850 %></label>
+					<input type="checkbox" class="btn-check" name="ir940" id="ir940" value="1"<% checked_if $ir940 1 %><% get gpio_ir940 >/dev/null || echo " disabled" %>>
+					<label class="btn btn-sm btn-dark" for="ir940" title="IR LED 940 nm"><%= $icon_ir940 %></label>
+					<input type="checkbox" class="btn-check" name="white" id="white" value="1"<% checked_if $white 1 %><% get gpio_white >/dev/null || echo " disabled" %>>
+					<label class="btn btn-sm btn-dark" for="white" title="White LED"><%= $icon_white %></label>
+					<input type="checkbox" class="btn-check" name="flip" id="flip" value="1"<% check_flip %>>
+					<label class="btn btn-sm btn-dark" for="flip" title="Flip vertically"><%= $icon_flip %></label>
+					<input type="checkbox" class="btn-check" name="mirror" id="mirror" value="1"<% check_mirror %>>
+					<label class="btn btn-sm btn-dark" for="mirror" title="Flip horizontally"><%= $icon_flop %></label>
+				</div>
+			</div>
+		</div>
+		<p class="small text-body-secondary">The image above refreshes once per second and may appear choppy.<br>
+			Please open RTSP stream at <i><a href="<%= $rtsp_url %>"><%= $rtsp_url %></a></i> in you favorite media player to see video feed.</p>
+	</div>
+	<div class="col-12">
+		<div class="d-flex flex-column flex-md-row gap-2 mb-3">
+			<a href="image.cgi" target="_blank" class="form-control btn btn-primary text-start">Save image</a>
+			<div class="input-group">
+				<button class="form-control btn btn-primary text-start" type="button" data-sendto="email">Email</button>
+				<div class="input-group-text"><a href="plugin-send2email.cgi" title="Email settings"><%= $icon_gear %></a></div>
+			</div>
+			<div class="input-group">
+				<button class="form-control btn btn-primary text-start" type="button" data-sendto="ftp">FTP</button>
+				<div class="input-group-text"><a href="plugin-send2ftp.cgi" title="FTP Storage settings"><%= $icon_gear %></a></div>
+			</div>
+			<div class="input-group">
+				<button class="form-control btn btn-primary text-start" type="button" data-sendto="telegram">Telegram</button>
+				<div class="input-group-text"><a href="plugin-send2telegram.cgi" title="Telegram bot settings"><%= $icon_gear %></a></div>
+			</div>
+			<div class="input-group">
+				<button class="form-control btn btn-primary text-start" type="button" data-sendto="mqtt">MQTT</button>
+				<div class="input-group-text"><a href="plugin-send2mqtt.cgi" title="MQTT settings"><%= $icon_gear %></a></div>
+			</div>
+			<div class="input-group">
+				<button class="form-control btn btn-primary text-start" type="button" data-sendto="webhook">WebHook</button>
+				<div class="input-group-text"><a href="plugin-send2webhook.cgi" title="Webhook settings"><%= $icon_gear %></a></div>
+			</div>
+			<div class="input-group">
+				<button class="form-control btn btn-primary text-start" type="button" data-sendto="yadisk">Yandex Disk</button>
+				<div class="input-group-text"><a href="plugin-send2yadisk.cgi" title="Yandex Disk bot settings"><%= $icon_gear %></a></div>
+			</div>
+		</div>
+	</div>
 </div>
 
 <script src="/a/imp-config.js"></script>
