@@ -109,7 +109,7 @@ if flashcp -v $binary_file /dev/$mtd_dev; then
 	reboot -f
 else
 	echo "Upgrade failed!"
-	die "You have to perform a recovery flashing before rebooting the camera!"
+	die "Caution: You may need to perform a recovery flash restore before rebooting the camera!"
 fi
 
 exit 0
