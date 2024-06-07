@@ -56,24 +56,25 @@ fi
 	mount
 	center_text "GPIO"
 	gpio list
-	center_text "JZ"
+	center_text "ENV"
+	fw_printenv | grep -v -e "wlanpass" -e "sshkey" -e "wlanmac" -e "ethaddr" -e "gatewayip" -e "ipaddr" -e "serverip"
 
 	if [ -f /proc/jz/isp/isp-m0 ]; then
-		echo "isp-fs:"
+		center_text "isp-fs"
 		cat /proc/jz/isp/isp-fs
 	fi
 
 	if [ -f /proc/jz/isp/isp-m0 ]; then
-		echo "isp-m0:"
+		center_text "isp-m0"
 		cat /proc/jz/isp/isp-m0
 	fi
 
 	if [ -f /proc/jz/isp/isp_info ]; then
-		echo "isp_info:"
+		center_text "isp_info"
 		cat /proc/jz/isp/isp_info
 	fi
 
-	echo "sensor:"
+	center_text "sensor"
 	sensor -a
 } > $output_file
 
