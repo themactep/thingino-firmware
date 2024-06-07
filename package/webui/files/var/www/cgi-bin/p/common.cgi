@@ -697,7 +697,6 @@ update_caminfo() {
 	fw_build=$(grep "^GITHUB_VERSION" /etc/os-release | cut -d= -f2 | tr -d /\"/)
 
 	# WebUI version
-	ui_version="bundled"; [ -f /var/www/.version ] && ui_version=$(cat /var/www/.version)
 	ui_password=$(grep root /etc/shadow|cut -d: -f2)
 
 	# Network
@@ -739,7 +738,7 @@ update_caminfo() {
 	local variables="flash_size flash_size_mb flash_type fw_version fw_build
 network_address network_cidr network_default_interface network_dhcp network_dns_1
 network_dns_2 network_gateway network_hostname network_interfaces network_macaddr network_netmask
-overlay_root soc soc_family sensor tz_data tz_name uboot_version ui_password ui_version"
+overlay_root soc soc_family sensor tz_data tz_name uboot_version ui_password"
 	local v
 	for v in $variables; do
 		eval "echo ${v}=\'\$${v}\'>>${tmpfile}"
