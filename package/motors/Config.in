@@ -1,6 +1,6 @@
 config BR2_PACKAGE_MOTORS
 	bool "motors"
-	depends on BR2_MOTORS || BR2_MOTORS_SPI
+	depends on BR2_MOTORS
 	help
 	  Various code to manage motor hardware
 
