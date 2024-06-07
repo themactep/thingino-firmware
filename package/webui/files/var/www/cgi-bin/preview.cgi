@@ -54,8 +54,10 @@ check_mirror() {
 				</div>
 			</div>
 		</div>
-		<p class="small text-body-secondary">The image above refreshes once per second and may appear choppy.<br>
-			Please open RTSP stream at <i><a href="<%= $rtsp_url %>"><%= $rtsp_url %></a></i> in you favorite media player to see video feed.</p>
+		<p class="small text-body-secondary">The image above refreshes once per second and may appear choppy.
+			<br>Please open RTSP stream at <i><a href="<%= $rtsp_url %>"><%= $rtsp_url %></a></i> in you favorite media player to see video feed.
+			<br>Move the cursor over the center of the preview image to reveal the motor controls. Use a single click for precise positioning, double click for coarse, long-distance movement.
+		</p>
 	</div>
 	<div class="col-12">
 		<div class="d-flex flex-column flex-md-row gap-2 mb-3">
