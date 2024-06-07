@@ -18,7 +18,7 @@ center_text() {
 echo "thingino diagnostics"
 echo "This script requires network access."
 echo "It is designed to generate log information to share with developers for diagnostic issues."
-echo "It may contain sensitive or personal information."
+echo "It may contain sensitive or personal information, so make sure to review the log before sharing the link!"
 read -p "Do you wish to proceed? (yes/no): " response
 
 if [ "$response" != "yes" ]; then
@@ -76,7 +76,7 @@ fi
 	sensor -a
 } > $output_file
 
-echo "Your diagnostics log link is ready:"
+echo -e "\nYour diagnostics log link is ready:"
 send2pastebin cat $output_file
 rm -f $output_file
 
