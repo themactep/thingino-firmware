@@ -59,6 +59,9 @@ fi
 	center_text "ENV"
 	fw_printenv | grep -v -e "wlanpass" -e "sshkey" -e "wlanmac" -e "ethaddr" -e "gatewayip" -e "ipaddr" -e "serverip"
 
+	center_text "CLOCKS"
+	cat /proc/jz/clock/clocks
+
 	if [ -f /proc/jz/isp/isp-m0 ]; then
 		center_text "isp-fs"
 		cat /proc/jz/isp/isp-fs
