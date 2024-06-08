@@ -169,7 +169,7 @@ fi
 if [ "wlan0" = "$network_interface" ]; then
 	# update env parameters only if not empty
 	tmp_env_file=$(mktemp)
-	:>$tmp_env_file
+	: > $tmp_env_file
 	if [ -n "$network_device" ]; then
 		printf "wlandev %s\n" "$network_device" >> "$tmp_env_file"
 	fi

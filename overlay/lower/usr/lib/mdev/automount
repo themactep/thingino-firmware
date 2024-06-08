@@ -34,7 +34,7 @@ do_mount() {
 handle_scripts() {
 	local device=$1
 
-    [ -f "$run_once_flag" ] && log "Runonce done file exists on /mnt/$device"
+	[ -f "$run_once_flag" ] && log "Runonce done file exists on /mnt/$device"
 
 	[ -f "$run_once" ] && [ ! -f "$run_once_flag" ] && {
 		sh $run_once 2>&1 && touch $run_once_flag && log "Executed runonce script on /mnt/$device" || log "Failed to execute runonce script on /mnt/$device"
