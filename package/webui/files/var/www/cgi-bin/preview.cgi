@@ -4,10 +4,11 @@
 <%
 page_title="Camera preview"
 rtsp_address=$network_address
-rtsp_username="thingino" # TODO: get from config
-rtsp_password="thingino" # TODO: get from config
-rtsp_port=554 # TODO: get from config
-rtsp_url="rtsp://${rtsp_username}:${rtsp_password}@${rtsp_address}:${rtsp_port}/ch0"
+rtsp_username="$(sed -En '/^rtsp:/n/username:/{s/^.+username:\s\"(.+)";/\1/p}' /etc/prudynt.cfg)"
+rtsp_password="$(sed -En '/^rtsp:/n/password:/{s/^.+password:\s\"(.+)";/\1/p}' /etc/prudynt.cfg)"
+rtsp_port="$(sed -En '/^rtsp:/n/port:/{s/^.+port:\s(.+);/\1/p}' /etc/prudynt.cfg)"
+[ "$rtsp_port" == "554" ] && rtsp_port="" || rtsp_port=":$rtsp_port"
+rtsp_url="rtsp://${rtsp_username}:${rtsp_password}@${rtsp_address}${rtsp_port}/ch0"
 
 for i in "ispmode"; do
 	eval "$i=\"$(/usr/sbin/imp-control $i)\""
@@ -55,7 +56,7 @@ check_mirror() {
 			</div>
 		</div>
 		<p class="small text-body-secondary">The image above refreshes once per second and may appear choppy.
-			<br>Please open RTSP stream at <i><a href="<%= $rtsp_url %>"><%= $rtsp_url %></a></i> in you favorite media player to see video feed.
+			Use RTSP media player instead, e.g. <span class="text-white">mpv --profile=low-latency <%= $rtsp_url %></span>.
 			<br>Move the cursor over the center of the preview image to reveal the motor controls. Use a single click for precise positioning, double click for coarse, long-distance movement.
 		</p>
 	</div>
