@@ -1,4 +1,4 @@
-<% if [ -f /usr/bin/motors ]; then %>
+<% if [ -f /bin/motors ]; then %>
 <div id="motor" class="position-absolute top-50 start-50 translate-middle">
 <div class="jst">
 <a class="s" data-dir="uc"></a>
