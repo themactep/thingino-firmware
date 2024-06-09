@@ -254,8 +254,7 @@ set_pin_value() {
 			;;
 	esac
 	get_pin_value "$pin"
-
-	#	export_pin $pin
+	# export_pin $pin
 }
 
 sweep_pins() {
