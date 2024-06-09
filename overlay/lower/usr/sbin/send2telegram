@@ -135,7 +135,7 @@ else
 	eval "$command4" >> "$LOG_FILE" 2>&1
 fi
 
-[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
+[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 quit_clean 0

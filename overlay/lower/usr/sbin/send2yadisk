@@ -111,7 +111,7 @@ command="$command --upload-file $yadisk_file"
 log "$command"
 eval "$command" >> "$LOG_FILE" 2>&1
 
-[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
+[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 quit_clean 0

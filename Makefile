@@ -237,7 +237,7 @@ reconfig:
 	$(info -------------------> reconfig)
 	rm -rvf $(OUTPUT_DIR)/.config
 
-rebuild-%:
+rebuild-%: defconfig
 	$(info -------------------> rebuild-%)
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
 
