@@ -73,6 +73,7 @@ menu "Extra Packages"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/zerotier-one/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-portal/Config.in"
+	source "$BR2_EXTERNAL_THINGINO_PATH/package/wyze-accessory/Config.in"
 
 	config BR2_PACKAGE_IFUPDOWN_SCRIPTS
 		bool "ifupdown-scripts"
