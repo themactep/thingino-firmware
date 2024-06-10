@@ -28,7 +28,7 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_MOTORS if BR2_MOTORS
 	select BR2_PACKAGE_UBOOT_TOOLS
 	select BR2_PACKAGE_JSONFILTER
-	select BR2_PACKAGE_WEBUI
+	select BR2_PACKAGE_THINGINO_WEBUI
 	select BR2_PACKAGE_WPA_SUPPLICANT_DEBUG_SYSLOG if BR2_PACKAGE_WPA_SUPPLICANT
 	help
 	  Thingino System Packages
@@ -40,7 +40,7 @@ if BR2_THINGINO_SYSTEM_PACKAGES
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-sdk/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-pwm/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/webui/Config.in"
+	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
 endif
 
 menuconfig BR2_THINGINO_STREAMER_PACKAGES

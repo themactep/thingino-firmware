@@ -660,7 +660,8 @@ t_label() {
 
 t_value() {
 	# eval "echo \"\$${1}\""
-	eval echo '$'${1}
+	#eval echo '$'${1}
+	eval echo "\$$1"
 }
 
 update_caminfo() {
