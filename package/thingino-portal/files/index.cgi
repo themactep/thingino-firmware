@@ -40,6 +40,7 @@ if [ "POST" = "$REQUEST_METHOD" ] && [ "save" = "$POST_mode" ]; then
 	fw_setenv -s $tempfile
 	echo "root:${rootpass}" | chpasswd -c sha512
 	echo "$rootpkey" > $SSH_AUTH_KEYS
+	sed -i "s/^ifs=.*$/ifs=wlan0/" /etc/onvif.conf
 	echo "<h1 class=\"mt-5 text-center display-1\">Done. Rebooting...</h1>"
 	reboot -d 5
 elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then %>
