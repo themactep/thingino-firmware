@@ -92,6 +92,14 @@ is_streamer_disabled() {
 	[ "true" = "$(get disable_streamer)" ]
 }
 
+is_boot_complete() {
+	[ "true" = "$(get boot_complete)" ]
+}
+
+is_gateway_reachable() {
+	ping -c 1 -W 1 $(ip route | grep default | awk '{print $3}') > /dev/null 2>&1
+}
+
 indent_output() {
 	awk '{print " "$0}'
 }
