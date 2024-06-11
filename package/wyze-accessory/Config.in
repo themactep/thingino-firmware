@@ -1,0 +1,16 @@
+config BR2_PACKAGE_WYZE_ACCESSORY
+	bool "Wyze Accessories"
+	help
+	  Kernel modules, programs, and scripts for controlling Wyze accessories, such as the Spotlight or Wyze Car.
+
+config BR2_PACKAGE_WYZE_ACCESSORY_SPOTLIGHT
+	bool "Wyze Spotlight"
+	depends on BR2_PACKAGE_WYZE_ACCESSORY
+	help
+	  Kernel modules and scripts for controlling the Wyze Spotlight accessory
+
+config BR2_PACKAGE_WYZE_ACCESSORY_CAR
+	bool "Wyze Car"
+	depends on BR2_PACKAGE_WYZE_ACCESSORY
+	help
+	  Kernel modules and scripts for controlling the Wyze Car accessory

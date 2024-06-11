@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SSH_CONTROL_PATH="/tmp/ssh_mux_%h_%p_%r"
-SSH_OPTS="-o ControlMaster=auto -o ControlPath=$SSH_CONTROL_PATH -o ControlPersist=600 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+SSH_OPTS="-o ConnectTimeout=5 -o ServerAliveInterval=2 -o ControlMaster=auto -o ControlPath=$SSH_CONTROL_PATH -o ControlPersist=600 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
 # Cleanup function to close SSH master connection
 cleanup() {
@@ -23,8 +23,12 @@ initialize_ssh_connection() {
 	CAMERA_IP_ADDRESS="$2"
 
 	echo "Initializing SSH connection to device..."
-	ssh -fN $SSH_OPTS root@"$CAMERA_IP_ADDRESS"
-	echo "SSH connection initialized."
+	if ssh -fN $SSH_OPTS root@"$CAMERA_IP_ADDRESS"; then
+		echo "SSH connection initialized."
+	else
+		echo "Failed to initialize ssh connection"
+		exit 1
+	fi
 }
 
 # Transfers firmware file and verifies MD5 checksum
@@ -47,8 +51,7 @@ transfer_and_verify_firmware() {
 
 # Flashes the firmware to the specified device partition and reboots
 flash_firmware() {
-	echo "Attempting to flash firmware..."
-	if ssh $SSH_OPTS root@"$CAMERA_IP_ADDRESS" "sysupgrade /tmp/fwupdate.bin"; then
+	if ssh $SSH_OPTS root@"$CAMERA_IP_ADDRESS" "sysupgrade /tmp/fwupdate.bin" 2>&1 | tee /dev/tty | grep -q "Rebooting"; then
 		echo "Firmware flashed successfully. Device is rebooting."
 	else
 		echo "Firmware flashing failed."

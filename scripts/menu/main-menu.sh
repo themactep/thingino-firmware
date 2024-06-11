@@ -5,12 +5,10 @@ source ./scripts/menu/menu-common.sh
 function main_menu() {
 	check_and_install_dialog
 	while true; do
-		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Select an option:" 17 110 30 \
+		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Select an option:" 15 110 30 \
 			"bootstrap" "Install prerequisite software necessary for the compilation process" \
 			"menuconfig" "Proceed to the buildroot menu (toolchain, kernel, and rootfs)" \
 			"br-linux-menuconfig" "Proceed to the Linux Kernel configuration" \
-			"pack_full" "Create a full firmware image"  \
-			"pack_update" "Create an update firmware image (no bootloader)" \
 			"clean" "Clean before reassembly"  \
 			"distclean" "Remove all cached build files from current profile"  \
 			"make" "Generate firmware" \
@@ -26,15 +24,11 @@ function show_help() {
 	local item=$1
 	case "$item" in
 		"HELP bootstrap")
-			show_help_msgbox "The 'Bootstrap' option initiates the installation of all necessary prerequisite software required for the compilation of the firmware.\n\nThis includes tools and libraries that are essential for building the firmware from source. Selecting this will ensure your environment is correctly set up to proceed with building THINGINO without encountering missing dependencies.\n\nRequires super-user privileges." 13 80;;
+			show_help_msgbox "The 'Bootstrap' option initiates the installation of all necessary prerequisite software required for the compilation of the firmware.\n\nThis includes tools and libraries that are essential for building the firmware from source. Selecting this will ensure your environment is correctly set up to proceed with building Thingino without encountering missing dependencies.\n\nRequires super-user privileges." 13 80;;
 		"HELP menuconfig")
 			show_help_msgbox "Launches a graphical interface for configuring the toolchain, kernel options, and the packages that will be included in your root filesystem. It's a crucial step for customizing your build according to your needs." 8;;
 		"HELP br-linux-menuconfig")
 			show_help_msgbox "Launches a graphical interface for configuring the Linux Kernel." 5;;
-		"HELP pack_full")
-			show_help_msgbox "This option initiates the process of building a complete firmware image. This includes the bootloader, the kernel, and the root filesystem. It's suitable for initial installations or complete upgrades of a device." 8;;
-		"HELP pack_update")
-			show_help_msgbox "Selecting this option builds a firmware update image excluding the bootloader component. This is typically used for Over-the-Air (OTA) updates, allowing for the device's software to be updated without altering the bootloader." 8;;
 		"HELP clean")
 			show_help_msgbox "The 'clean' command removes most of the files generated during the build process but preserves your configuration settings. This allows you to rebuild your firmware quickly without starting from scratch." 8;;
 		"HELP distclean")
@@ -56,7 +50,7 @@ execute_choice() {
 			sudo make $1
 			sleep 2
 			;;
-		pack_full | pack_update | make)
+		make)
 			make $1
 			exit
 			;;
@@ -97,7 +91,6 @@ execute_choice() {
 
 			if DIALOGRC=$temp_rc "${DIALOG_COMMON[@]}" --title "Warning" --yesno "$warning" 12 78; then
 				echo "Proceeding with OTA $action to $IP..."
-				make pack
 				make $1 IP=$IP
 				exit
 			else

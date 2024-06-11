@@ -5,12 +5,13 @@ menuconfig BR2_THINGINO_DEV_PACKAGES
 	  Thingino Development Packages
 	  include tools for firmware development.
 	  https://github.com/thingino/firmware
+
 if BR2_THINGINO_DEV_PACKAGES
 	config BR2_PACKAGE_GDB
 		bool "gdb Server and Client"
-		depends on BR2_THINGINO_DEV_PACKAGES
 		select BR2_PACKAGE_HOST_GDB
 		# needs a fuxup for CONFIG_HAVE_ARCH_KGDB=y
+
 	config BR2_PACKAGE_SELECT_LTRACE
 		bool "ltrace"
 		select BR2_PACKAGE_LTRACE
@@ -19,7 +20,7 @@ if BR2_THINGINO_DEV_PACKAGES
 		  exits. While the command is executing, ltrace intercepts and
 		  records the dynamic library calls which are called by the
 		  executed process and the signals received by that process.
-		depends on BR2_THINGINO_DEV_PACKAGES
+
 	config BR2_PACKAGE_SELECT_STRACE
 		bool "strace"
 		select BR2_PACKAGE_STRACE
@@ -27,14 +28,14 @@ if BR2_THINGINO_DEV_PACKAGES
 		  A useful diagnostic, instructional, and debugging tool.
 		  Allows you to track what system calls a program makes
 		  while it is running.
-		depends on BR2_THINGINO_DEV_PACKAGES
+
 	config BR2_PACKAGE_SELECT_VALGRIND
 		bool "valgrind"
 		select BR2_PACKAGE_VALGRIND
 		help
 		  Tool for debugging and profiling Linux programs.
-		depends on BR2_THINGINO_DEV_PACKAGES
 
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat-mini/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat/Config.in"
+	source "$BR2_EXTERNAL_THINGINO_PATH/package/gadget-serial/Config.in"
 endif

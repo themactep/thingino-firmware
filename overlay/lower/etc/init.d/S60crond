@@ -1,23 +1,19 @@
 #!/bin/sh
 
-DAEMON="crond"
-PIDFILE="/run/$DAEMON.pid"
+. /etc/init.d/rc.common
 
-CROND_ARGS="-f -c /etc/crontabs"
+DAEMON_ARGS="-f -c /etc/crontabs"
 
 start() {
-	printf 'Starting %s: ' $DAEMON
-	[ -f /usr/sbin/$DAEMON ] || echo -en "Disabled, "
-	start-stop-daemon -q -p $PIDFILE -S -b -m -x /sbin/$DAEMON -- $CROND_ARGS
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	starting
+	[ -f $DAEMON_FULL ] || quit "Disabled"
+	start_daemon_with_pid
 }
 
 stop() {
-	printf 'Stopping %s: ' $DAEMON
-	[ -f /usr/sbin/$DAEMON ] || echo -en "Disabled, "
-	start-stop-daemon -q -p $PIDFILE -K
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
-	rm -f $PIDFILE
+	stopping
+	[ -f $DAEMON_FULL ] || quit "Disabled"
+	stop_daemon_with_pid
 }
 
 case "$1" in
@@ -30,8 +26,7 @@ case "$1" in
 		start
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart|reload}"
-		exit 1
+		die "Usage: $0 {start|stop|restart|reload}"
 		;;
 esac
 

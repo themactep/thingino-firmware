@@ -7,7 +7,6 @@ plugin="webhook"
 show_help() {
 	echo "Usage: $0 [-u url] [-v] [-h]
   -u url      Webhook URL.
-  -r          Use HEIF image format.
   -v          Verbose output.
   -h          Show this help.
 "
@@ -15,11 +14,8 @@ show_help() {
 }
 
 # override config values with command line arguments
-while getopts u:rvh flag; do
+while getopts u:vh flag; do
 	case "$flag" in
-		r)
-			webhook_use_heif="true"
-			;;
 		u)
 			webhook_url=$OPTARG
 			;;
@@ -70,7 +66,7 @@ command="$command --url $webhook_url"
 log "$command"
 eval "$command" >> "$LOG_FILE" 2>&1
 
-[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
+[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 quit_clean 0

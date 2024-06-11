@@ -1,31 +1,32 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 load_modules() {
-	local file="$1"
-	[ -r "${file}" ] || return 0
+	local file=$1
+	[ -r "$file" ] || return 0
+
 	while read -r module args; do
 		case "$module" in
 			"" | "#"*)
 				continue
 				;;
 		esac
-		eval "args=\"${args}\""
-		echo -n " ${module}... "
-		modprobe ${module} ${args} && echo "OK" || echo "FAIL"
-	done < "${file}"
+		eval "args=\"$args\""
+		proclaim " $module"
+		modprobe $module $args
+		check_result
+	done < $file
 }
 
 case "$1" in
 	start)
-		echo "Loading modules: "
-
-		load_modules "/etc/modules"
-
-		if [ -d "/etc/modules.d" ]; then
-			for conf in /etc/modules.d/*; do
-				load_modules "${conf}"
-			done
-		fi
+		starting_batch
+		load_modules /etc/modules
+		[ -d /etc/modules.d ] || quit
+		for conf in /etc/modules.d/*; do
+			load_modules $conf
+		done
 		;;
 esac
 

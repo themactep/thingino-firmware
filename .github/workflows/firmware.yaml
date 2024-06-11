@@ -22,7 +22,12 @@ on:
         default: false
       teacup_only:
         type: boolean
-        description: 'Only build Tea Cup profile '
+        description: 'Only build Tea Cup profile'
+        required: false
+        default: false
+      debug_only:
+        type: boolean
+        description: 'Debug: Generate dummy image files'
         required: false
         default: false
 
@@ -38,7 +43,7 @@ env:
 
 jobs:
   notify-begin:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     outputs:
       start_time: ${{ steps.set_output.outputs.time }}
       tg_disabled: ${{ steps.set_env.outputs.tg_disabled }}
@@ -65,10 +70,13 @@ jobs:
           echo Telegram response: ${HTTP}
 
   generate-matrix:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
+      - name: setup env test
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Checkout source
         uses: actions/checkout@v4
         with:
@@ -94,12 +102,28 @@ jobs:
   buildroot:
     name: ${{ matrix.thingino-version }}
     needs: [generate-matrix, notify-begin]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: debian:trixie
     strategy:
       fail-fast: false
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
 
     steps:
+      - name: Update APT sources
+        run: |
+          apt-get update
+
+      - name: Install build dependencies
+        run: |
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cpio curl ca-certificates file git make gawk procps rsync unzip wget
+
+      - name: Setup gh container workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Checkout source
         uses: actions/checkout@v4
         with:
@@ -125,7 +149,7 @@ jobs:
           ln -s /tmp/ccache ${HOME}/.ccache
           ln -s /tmp/dl ${HOME}/dl
 
-      - name: Setup ccache
+      - name: Restore build cache
         uses: actions/cache@v4
         if: always()
         with:
@@ -134,7 +158,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-
 
-      - name: Setup BR2_DL_DIR cache
+      - name: Restore Buildroot DL cache
         uses: actions/cache@v4
         if: always()
         with:
@@ -143,56 +167,34 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-
 
-      - name: Update APT sources
-        run: |
-          sudo apt-get update
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail gcc gcc-mipsel-linux-gnu lzop u-boot-tools ca-certificates ccache python3-numpy python3-matplotlib
-
       - name: Build firmware
         run: |
           BOARD=${{ matrix.thingino-version }} make
-
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
       - name: Generate build graphs
         if: ${{ github.event.inputs.graph_enabled == 'true' }}
         run: |
+          apt-get install -y --no-install-recommends --no-install-suggests python3-numpy python3-matplotlib
           BOARD=${{ matrix.thingino-version }} make br-graph-build
 
-      - name: Prepare full image
-        run: |
-          BOARD=${{ matrix.thingino-version }} make pack_full
-
-      - name: Prepare update image
-        run: |
-          BOARD=${{ matrix.thingino-version }} make pack_update
-
-      - name: Set environment for firmware files
+      - name: Find built firmware images
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
-          PATTERN="thingino-${DYNAMIC_PART}-*.bin"
-          UPDATE_PATTERN="thingino-${DYNAMIC_PART}-*-update.bin"
-          FULL_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "${PATTERN}" | grep -v -- '-update.bin' | head -n 1)
-          UPDATE_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "${UPDATE_PATTERN}" | grep -- '-update.bin' | head -n 1)
+          FULL_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}.bin" ! -name "*update.bin" | head -n 1)
+          UPDATE_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}-update.bin" | head -n 1)
           echo "FULL_FW: $FULL_FW"
           echo "UPDATE_FW: $UPDATE_FW"
-          if [[ -n "${FULL_FW}" && -n "${UPDATE_FW}" ]]; then
-            FULL_FW_BASENAME=$(basename "${FULL_FW}" | sed 's/-[0-9]\{12\}\.bin$/.bin/')
-            UPDATE_FW_BASENAME=$(basename "${UPDATE_FW}" | sed -E 's/-[0-9]{12}(-update)?\.bin$/-update.bin/')
-            mv "${FULL_FW}" "${HOME}/output/${DYNAMIC_PART}/images/${FULL_FW_BASENAME}"
-            mv "${UPDATE_FW}" "${HOME}/output/${DYNAMIC_PART}/images/${UPDATE_FW_BASENAME}"
-            echo "FULL_FW=${HOME}/output/${DYNAMIC_PART}/images/${FULL_FW_BASENAME}" >> ${GITHUB_ENV}
-            echo "UPDATE_FW=${HOME}/output/${DYNAMIC_PART}/images/${UPDATE_FW_BASENAME}" >> ${GITHUB_ENV}
+          if [[ -n "$FULL_FW" && -n "$UPDATE_FW" ]]; then
+            echo "FULL_FW=${FULL_FW}" >> ${GITHUB_ENV}
+            echo "UPDATE_FW=${UPDATE_FW}" >> ${GITHUB_ENV}
           else
             echo "Matching .bin files not found."
             exit 1
           fi
 
-      - name: Upload duration graph as artifact
+      - name: Upload duration graph artifact
         if: ${{ github.event.inputs.graph_enabled == 'true' }}
         uses: actions/upload-artifact@v4
         with:
@@ -200,14 +202,14 @@ jobs:
           path: |
             ~/output/${{ matrix.thingino-version }}/graphs/build.hist-duration.pdf
 
-      - name: Upload full firmware as artifact
+      - name: Upload full firmware artifact
         uses: actions/upload-artifact@v4
         with:
           name: thingino-${{ matrix.thingino-version }}-full-firmware
           path: |
             ${{ env.FULL_FW }}
 
-      - name: Upload update firmware as artifact
+      - name: Upload update firmware artifact
         uses: actions/upload-artifact@v4
         with:
           name: thingino-${{ matrix.thingino-version }}-update-firmware
@@ -266,7 +268,7 @@ jobs:
 
   notify-completion:
     needs: [buildroot, notify-begin]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Setup Environment

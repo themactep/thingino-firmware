@@ -1,66 +1,124 @@
 #!/bin/sh
 
-DAEMON_PATH="/usr/bin"
+DAEMON_ARGS=""
+DAEMON_PATH="/bin"
 DAEMON=${DAEMON:-$0}
-SHORT_DAEMON=$(basename ${DAEMON%% *})
-PIDFILE="/var/run/$SHORT_DAEMON.pid"
+DAEMON_SHORT=$(basename "${DAEMON%% *}" | sed -r 's/^[KS]\d{2}//')
+DAEMON_FULL="$(which $DAEMON_SHORT)"
+PIDFILE="/run/$DAEMON_SHORT.pid"
+
+die() {
+	[ -z "$1" ] || echo_c 88 "$1"
+	exit 1
+}
+
+quit() {
+	[ -z "$1" ] || echo_c 30 "$1"
+	exit 0
+}
+
+ok() {
+	echo_c 70 "OK"
+}
+
+fail() {
+	echo_c 124 "FAIL"
+}
+
+info() {
+	echo_c 66 " $1"
+	echo "$1" | log
+}
+
+warn() {
+	echo_c 166 " $1"
+	echo "$1" | log
+}
+
+proclaim() {
+	printf "%-35s" "$1"
+}
+
+proclaim_n() {
+    printf "\n%-35s" "$1"
+}
 
 starting() {
-	local daemon_name="${1:-$SHORT_DAEMON}"
-	echo -n "Starting $daemon_name: "
+	proclaim "Starting ${1:-$DAEMON_SHORT}"
+}
+
+starting_batch() {
+	echo "Starting ${1:-$DAEMON_SHORT} ..."
 }
 
 stopping() {
-	local daemon_name="${1:-$SHORT_DAEMON}"
-	echo -n "Stopping $daemon_name: "
+	proclaim "Stopping ${1:-$DAEMON_SHORT}"
+}
+
+log() {
+	logger -p daemon.info -t ${DAEMON_SHORT}[$$] <&0
+}
+
+check_result() {
+	[ "$?" -eq 0 ] && ok || fail
 }
 
 start_daemon() {
-	local command=${COMMAND:-$DAEMON_PATH/$DAEMON}
-	[[ "$command" =~ \  ]] && command="${command%% *} -- ${command#* }"
-	start-stop-daemon -q -b -S -x $command > /dev/null 2>&1
-	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
+	local command="${COMMAND:-$DAEMON_FULL}"
+	[ -n "$DAEMON_ARGS" ] && command="$command $DAEMON_ARGS"
+	command="${command/ / -- }"
+	start-stop-daemon -b -S -x $command 2>&1 | log
+	check_result
 }
 
 stop_daemon() {
-	start-stop-daemon -q -K -n $SHORT_DAEMON > /dev/null 2>&1 #FIXME do we need -s KILL?
-	[ $? -eq 0 ] && { rm -f $PIDFILE && echo "OK"; } || echo "FAIL"
+	#FIXME do we need -s KILL?
+	start-stop-daemon -K -n $DAEMON_SHORT 2>&1 | log
+	check_result
+	[ -f $PIDFILE ] && rm -f $PIDFILE
 }
 
 start_daemon_with_pid() {
-	local command=${COMMAND:-$DAEMON_PATH/$DAEMON}
-	start-stop-daemon -q -b -m -S -p $PIDFILE -x $command > /dev/null 2>&1
-	[ $? -eq 0 ] && echo "OK" || echo "FAIL"
+	local command="${COMMAND:-$DAEMON_FULL}"
+	[ -n "$DAEMON_ARGS" ] && command="$command $DAEMON_ARGS"
+	command="${command/ / -- }"
+	start-stop-daemon -b -m -S -p $PIDFILE -x $command 2>&1 | log
+	check_result
 }
 
 stop_daemon_with_pid() {
-	start-stop-daemon -q -K -p $PIDFILE > /dev/null 2>&1
-	[ $? -eq 0 ] && { rm -f $PIDFILE && echo "OK"; } || echo "FAIL"
+	start-stop-daemon -K -p $PIDFILE 2>&1 | log
+	check_result
+	[ -f $PIDFILE ] && rm -f $PIDFILE
 }
 
 is_streamer_disabled() {
-	fw_printenv -n disable_streamer 2>/dev/null | grep -q "true"
+	[ "true" = "$(get disable_streamer)" ]
+}
+
+is_boot_complete() {
+	[ "true" = "$(get boot_complete)" ]
+}
+
+is_gateway_reachable() {
+	ping -c 1 -W 1 $(ip route | grep default | awk '{print $3}') > /dev/null 2>&1
 }
 
 indent_output() {
 	awk '{print " "$0}'
 }
 
-die() {
-	[ -n "$2" ] && echo "$2"
-	exit ${1:-1}
-}
-
 wlan_check() {
-	if ! ip link show wlan0 &>/dev/null; then
-			echo "Interface 'wlan0' does not exist." 2>&1 | logger -p daemon.info -t $0
-			return 1
+	iface="wlan0"
+	if ! ip link show $iface &> /dev/null; then
+		echo "Interface '$iface' does not exist." 2>&1 | log
+		return 1
 	fi
 }
 
 wlandev_check() {
-		if ! fw_printenv -n wlandev &>/dev/null; then
-			echo "wlandev is empty" 2>&1 | logger -p daemon.info -t $0
-			return 1
+	if [ -z "$(get wlandev)" ]; then
+		echo "wlandev is empty" 2>&1 | log
+		return 1
 	fi
 }

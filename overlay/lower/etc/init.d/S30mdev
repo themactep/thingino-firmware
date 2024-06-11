@@ -1,20 +1,19 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 case "$1" in
 	start)
-		echo -n "Starting mdev: "
+		starting
 		echo /sbin/mdev > /proc/sys/kernel/hotplug
 		/sbin/mdev -s
-		[ $? = 0 ] && echo "OK" || echo "FAIL"
+		check_result
 		;;
-
 	stop | restart | reload)
 		true
 		;;
-
 	*)
-		echo "Usage: $0 {start|stop|restart|reload}"
-		exit 1
+		die "Usage: $0 {start}"
 		;;
 esac
 

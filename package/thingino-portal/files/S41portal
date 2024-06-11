@@ -2,41 +2,38 @@
 
 . /etc/init.d/rc.common
 
-ENABLE=true
-HOST_IP=172.16.0
+CNET=172.16.0
 
-ssid="$(fw_printenv -n wlanssid)"
-pass="$(fw_printenv -n wlanpass)"
-
-timeout(){
-	sleep 300 && /etc/init.d/S41portal stop
+timeout() {
+	sleep 300 && $0 stop
 }
 
 init_portal() {
-	echo -n "Starting WiFi Portal: "
-	if [ "$ENABLE" = "true" ]; then
-		wlan_check || { echo "Disabled"; exit 1; }
-		if [ -z "$ssid" ] || [ -z "$pass" ]; then
-			ip a add dev wlan0 $HOST_IP.1/24
-			ip link set wlan0 up
-			ip route add $HOST_IP.0/24 dev wlan0 > /dev/null 2>&1
-			echo "* $HOST_IP.1" > /etc/dnsd.conf
-			start-stop-daemon -S -x /sbin/udhcpd -- -S -I $HOST_IP.1 /etc/udhcpd.conf 2>&1
-			start-stop-daemon -S -x /sbin/dnsd -- -i $HOST_IP.1 -c /etc/dnsd.conf -d | logger -p daemon.info -t $0
+	# quit if no wireless interface
+	wlan_check || quit
 
-			mac_address=$(ip link show wlan0 | awk '/ether/ {print $2}')
-			last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
-			sed -i "/ssid=\"THINGINO-\"$/ s/\"$/$last_two\"/" /etc/wpa_ap.conf
+	# quit if credentials are set
+	ssid="$(get wlanssid)"
+	pass="$(get wlanpass)"
 
-			start-stop-daemon -S -x /sbin/wpa_supplicant -- -i wlan0 -B -c /etc/wpa_ap.conf 2>&1 | logger -p daemon.info -t $0
+	starting
+	[ -n "$ssid" ] && [ -n "$pass" ] && quit "Disabled"
 
-			[ $? = 0 ] && echo "OK" || echo "FAIL"
+	ip a add dev wlan0 ${CNET}.1/24
+	ip link set wlan0 up
+	ip route add ${CNET}.0/24 dev wlan0 > /dev/null 2>&1
 
-			timeout &
-		else
-			echo "Disabled"
-		fi
-	fi
+	start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd.conf 2>&1
+	start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /etc/dnsd.conf -d | log
+
+	mac_address=$(ip link show wlan0 | awk '/ether/ {print $2}')
+	last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
+	sed -i "/ssid=\"THINGINO-\"$/ s/\"$/$last_two\"/" /etc/wpa_ap.conf
+
+	start-stop-daemon -S -x /sbin/wpa_supplicant -- -i wlan0 -B -c /etc/wpa_ap.conf 2>&1 | log
+	check_result
+
+	timeout &
 }
 
 case "$1" in
@@ -47,15 +44,14 @@ case "$1" in
 		start-stop-daemon -K -q -x /sbin/udhcpd
 		start-stop-daemon -K -q -x /sbin/dnsd
 		start-stop-daemon -K -q -x /sbin/wpa_supplicant
-		ip address delete dev wlan0 $HOST_IP.1/24
+		ip address delete dev wlan0 ${CNET}.1/24
 		ip link set wlan0 down
 		;;
-	reload|restart)
+	reload | restart)
 		true
 		;;
 	*)
-		echo "Usage: $0 {start|stop|reload|restart}"
-		exit 1
+		die "Usage: $0 {start|stop|reload|restart}"
 		;;
 esac
 

@@ -8,7 +8,6 @@ show_help() {
 	echo "Usage: $0 [-f address] [-t address] [-s subject] [-b body] [-v] [-h]
   -f address  Sender's email address
   -t address  Recipient's email address
-  -r          Use HEIF image format.
   -s subject  Subject line.
   -b body     Letter body.
   -v          Verbose output.
@@ -18,16 +17,13 @@ show_help() {
 }
 
 # override config values with command line arguments
-while getopts b:f:rs:t:vh flag; do
+while getopts b:f:s:t:vh flag; do
 	case "$flag" in
 		b)
 			email_body=$OPTARG
 			;;
 		f)
 			email_from_address=$OPTARG
-			;;
-		r)
-			email_use_heif="true"
 			;;
 		s)
 			email_subject=$OPTARG
@@ -125,10 +121,9 @@ fi
 log "$command"
 eval "$command" >> "$LOG_FILE" 2>&1
 
-[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
+[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 [ -f "$email_file" ] && rm -f $email_file
 
 quit_clean 0
-

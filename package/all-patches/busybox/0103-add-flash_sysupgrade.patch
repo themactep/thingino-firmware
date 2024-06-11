@@ -1,0 +1,342 @@
+--- a/miscutils/flash_sysupgrade.c 2024-04-30 20:22:36.098932315 -0700
+--- b/miscutils/flash_sysupgrade.c 2024-04-30 22:22:49.205193486 -0700
+@@ -0,0 +1,339 @@
++/* vi: set sw=4 ts=4: */
++/*
++* busybox implementation of flash_sysupgrade, based on flashcp.
++*
++* (C) 2009 Stefan Seyfried <seife@sphairon.com>
++*
++* Licensed under GPLv2, see file LICENSE in this source tree.
++*/
++//config:config FLASH_SYSUPGRADE
++//config:    bool "flash_sysupgrade (5.3 kb)"
++//config:    default n  # doesn't build on Ubuntu 8.04
++//config:    help
++//config:    The flash_sysupgrade binary, inspired by flashcp.
++//config:    This utility is used to copy images into a MTD device.
++//config:    Accepts binary or gzip compressed binary files.
++
++//applet:IF_FLASH_SYSUPGRADE(APPLET(flash_sysupgrade, BB_DIR_USR_SBIN, BB_SUID_DROP))
++/* not NOEXEC: if flash operation stalls, use less memory in "hung" process */
++
++//kbuild:lib-$(CONFIG_FLASH_SYSUPGRADE) += flash_sysupgrade.o
++
++//usage:#define flash_sysupgrade_trivial_usage
++//usage:       "[-v] FILE|'-' MTD_DEVICE [SHA256SUM]"
++//usage:#define flash_sysupgrade_full_usage "\n\n"
++//usage:       "Copy a file or stdin to an MTD device\n"
++//usage:       "  FILE             Specify the file to copy, may be a binary or gzip compressed binary file\n"
++//usage:       "  '-'              Denote stdin as the input\n"
++//usage:       "  MTD_DEVICE       Specify the MTD device for output\n"
++//usage:       "  [SHA256SUM]      Optional SHA256 checksum for validation\n"
++//usage:       "  -v               Verbose output\n"
++
++#include "libbb.h"
++#include <mtd/mtd-user.h>
++#include <stdint.h>
++#include <string.h>
++
++#define MTD_DEBUG 0
++#define OPT_v (1 << 0)
++#define BUFSIZE (4 * 1024)
++#define SHA256SUM_SIZE 65
++#define SHA256_DIGEST_LENGTH 32
++
++typedef struct {
++	uint32_t state[8];
++	uint64_t bitcount;
++	uint8_t buffer[64];
++} SHA256_CTX;
++
++void sha256_transform(SHA256_CTX *ctx, const uint8_t data[]);
++void sha256_init(SHA256_CTX *ctx);
++void sha256_update(SHA256_CTX *ctx, const uint8_t data[], size_t len);
++void sha256_final(SHA256_CTX *ctx, uint8_t hash[]);
++
++#define ROTLEFT(a,b) (((a) << (b)) | ((a) >> (32-(b))))
++#define ROTRIGHT(a,b) (((a) >> (b)) | ((a) << (32-(b))))
++#define CH(x,y,z) (((x) & (y)) ^ (~(x) & (z)))
++#define MAJ(x,y,z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
++#define EP0(x) (ROTRIGHT(x,2) ^ ROTRIGHT(x,13) ^ ROTRIGHT(x,22))
++#define EP1(x) (ROTRIGHT(x,6) ^ ROTRIGHT(x,11) ^ ROTRIGHT(x,25))
++#define SIG0(x) (ROTRIGHT(x,7) ^ ROTRIGHT(x,18) ^ ((x) >> 3))
++#define SIG1(x) (ROTRIGHT(x,17) ^ ROTRIGHT(x,19) ^ ((x) >> 10))
++
++static const uint32_t k[64] = {
++	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
++	0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
++	0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
++	0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
++	0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
++	0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
++	0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
++	0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
++};
++
++void sha256_transform(SHA256_CTX *ctx, const uint8_t data[]) {
++	uint32_t a, b, c, d, e, f, g, h, i, j, t1, t2, m[64];
++
++	for (i = 0, j = 0; i < 16; ++i, j += 4)
++		m[i] = (data[j] << 24) | (data[j + 1] << 16) | (data[j + 2] << 8) | (data[j + 3]);
++	for (; i < 64; ++i)
++		m[i] = SIG1(m[i - 2]) + m[i - 7] + SIG0(m[i - 15]) + m[i - 16];
++
++	a = ctx->state[0];
++	b = ctx->state[1];
++	c = ctx->state[2];
++	d = ctx->state[3];
++	e = ctx->state[4];
++	f = ctx->state[5];
++	g = ctx->state[6];
++	h = ctx->state[7];
++
++	for (i = 0; i < 64; ++i) {
++		t1 = h + EP1(e) + CH(e, f, g) + k[i] + m[i];
++		t2 = EP0(a) + MAJ(a, b, c);
++		h = g;
++		g = f;
++		f = e;
++		e = d + t1;
++		d = c;
++		c = b;
++		b = a;
++		a = t1 + t2;
++	}
++
++	ctx->state[0] += a;
++	ctx->state[1] += b;
++	ctx->state[2] += c;
++	ctx->state[3] += d;
++	ctx->state[4] += e;
++	ctx->state[5] += f;
++	ctx->state[6] += g;
++	ctx->state[7] += h;
++}
++
++void sha256_init(SHA256_CTX *ctx) {
++	ctx->bitcount = 0;
++	ctx->state[0] = 0x6a09e667;
++	ctx->state[1] = 0xbb67ae85;
++	ctx->state[2] = 0x3c6ef372;
++	ctx->state[3] = 0xa54ff53a;
++	ctx->state[4] = 0x510e527f;
++	ctx->state[5] = 0x9b05688c;
++	ctx->state[6] = 0x1f83d9ab;
++	ctx->state[7] = 0x5be0cd19;
++}
++
++void sha256_update(SHA256_CTX *ctx, const uint8_t data[], size_t len) {
++	size_t i;
++
++	for (i = 0; i < len; ++i) {
++		ctx->buffer[ctx->bitcount / 8 % 64] = data[i];
++		if ((ctx->bitcount += 8) == 0) ctx->bitcount -= 8;
++		if ((ctx->bitcount / 8) % 64 == 0)
++			sha256_transform(ctx, ctx->buffer);
++	}
++}
++
++void sha256_final(SHA256_CTX *ctx, uint8_t hash[]) {
++	uint32_t i = ctx->bitcount / 8 % 64;
++
++	ctx->buffer[i++] = 0x80;
++	while (i % 64 != 56)
++		ctx->buffer[i++] = 0x00;
++	for (i = 56; i < 64; ++i)
++		ctx->buffer[i] = ctx->bitcount >> ((63 - i) * 8);
++
++	sha256_transform(ctx, ctx->buffer);
++
++	for (i = 0; i < 8; ++i)
++		hash[i * 4] = (ctx->state[i] >> 24) & 0xff,
++		hash[i * 4 + 1] = (ctx->state[i] >> 16) & 0xff,
++		hash[i * 4 + 2] = (ctx->state[i] >> 8) & 0xff,
++		hash[i * 4 + 3] = ctx->state[i] & 0xff;
++}
++
++static void progress(int mode, uoff_t count, uoff_t total) {
++	uoff_t percent;
++
++	if (!option_mask32) //if (!(option_mask32 & OPT_v))
++		return;
++	percent = count * 100;
++	if (total)
++		percent = (unsigned)(percent / total);
++	printf("\r%s: %"OFF_FMT"u/%"OFF_FMT"u (%u%%) ",
++		(mode < 0) ? "Erasing block" : ((mode == 0) ? "Writing kb" : "Verifying kb"),
++		count, total, (unsigned) percent);
++	fflush_all();
++}
++
++static void progress_newline(void) {
++	if (!option_mask32) //if (!(option_mask32 & OPT_v))
++		return;
++	bb_putchar('\n');
++}
++
++int flash_sysupgrade_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
++
++int flash_sysupgrade_main(int argc UNUSED_PARAM, char **argv) {
++	int fd_f = -1, fd_d; /* input file and mtd device file descriptors */
++	int i;
++	uoff_t erase_count;
++	struct mtd_info_user mtd;
++	struct erase_info_user e;
++	struct stat statb;
++	//const char *filename, *devicename;
++	RESERVE_CONFIG_UBUFFER(buf, BUFSIZE);
++	RESERVE_CONFIG_UBUFFER(buf2, BUFSIZE);
++	char *input_buffer = NULL;
++	uoff_t input_size = 0;
++	unsigned char hash[SHA256_DIGEST_LENGTH];
++	char hash_str[SHA256SUM_SIZE];
++	SHA256_CTX sha256;
++	const char *expected_sha256sum = NULL;
++
++	getopt32(argv, "^v", &option_mask32); /* Parse options */
++	argc -= optind;
++	argv += optind;
++
++	if (argc < 2 || argc > 3) {
++		bb_show_usage();
++		return EXIT_FAILURE;
++	}
++
++	const char *filename = argv[0];
++	const char *devicename = argv[1];
++	if (argc == 3) {
++		expected_sha256sum = argv[2];
++	}
++
++	/* open input file and mtd device and do sanity checks */
++	if (strcmp(filename, "-") == 0) {
++		fd_f = STDIN_FILENO;
++		input_buffer = xmalloc(BUFSIZE);
++		input_size = 0;
++		sha256_init(&sha256);
++		while (1) {
++			ssize_t bytes_read = read(fd_f, input_buffer + input_size, BUFSIZE);
++			if (bytes_read < 0) {
++				bb_perror_msg_and_die("read error on stdin");
++			}
++			if (bytes_read == 0) {
++				break;
++			}
++			sha256_update(&sha256, (uint8_t *)(input_buffer + input_size), bytes_read);
++			input_size += bytes_read;
++			input_buffer = xrealloc(input_buffer, input_size + BUFSIZE);
++		}
++		statb.st_size = input_size;
++		sha256_final(&sha256, hash);
++		for (i = 0; i < SHA256_DIGEST_LENGTH; i++) {
++			sprintf(hash_str + (i * 2), "%02x", hash[i]);
++		}
++		hash_str[SHA256SUM_SIZE - 1] = '\0';
++
++		if (expected_sha256sum && strcmp(hash_str, expected_sha256sum) != 0) {
++			bb_error_msg_and_die("SHA256 checksum mismatch. Expected: %s, Got: %s", expected_sha256sum, hash_str);
++		}
++	} else {
++		fd_f = xopen(filename, O_RDONLY);
++		fstat(fd_f, &statb);
++	}
++
++	fd_d = xopen(devicename, O_SYNC | O_RDWR);
++#if !MTD_DEBUG
++	if (ioctl(fd_d, MEMGETINFO, &mtd) < 0) {
++		bb_error_msg_and_die("%s is not a MTD flash device", devicename);
++	}
++	if (statb.st_size > mtd.size) {
++		bb_error_msg_and_die("%s bigger than %s", filename, devicename);
++	}
++#else
++	mtd.erasesize = 64 * 1024;
++#endif
++
++	/* always erase a complete block */
++	erase_count = (uoff_t) (statb.st_size + mtd.erasesize - 1) / mtd.erasesize;
++	/* erase 1 block at a time to be able to give verbose output */
++	e.length = mtd.erasesize;
++#if 0
++/* (1) bloat
++* (2) will it work for multi-gigabyte devices?
++* (3) worse wrt error detection granularity
++*/
++	/* optimization: if not verbose, erase in one go */
++	if (!opts) { // if (!(opts & OPT_v))
++		e.length = mtd.erasesize * erase_count;
++		erase_count = 1;
++	}
++#endif
++	e.start = 0;
++	for (i = 1; i <= erase_count; i++) {
++		progress(-1, i, erase_count);
++#if !MTD_DEBUG
++		if (ioctl(fd_d, MEMERASE, &e) < 0) {
++			bb_perror_msg_and_die("erase error at 0x%llx on %s",
++								(long long) e.start, devicename);
++		}
++#else
++		usleep(100 * 1000);
++#endif
++		e.start += mtd.erasesize;
++	}
++	progress_newline();
++
++	/* doing this outer loop gives significantly smaller code
++	* than doing two separate loops for writing and verifying */
++	for (i = 0; i <= 1; i++) {
++		uoff_t done;
++		unsigned count;
++
++		if (fd_f != STDIN_FILENO) {
++			xlseek(fd_f, 0, SEEK_SET);
++		}
++		xlseek(fd_d, 0, SEEK_SET);
++		done = 0;
++		count = BUFSIZE;
++		while (1) {
++			uoff_t rem;
++
++			progress(i, done / 1024, (uoff_t) statb.st_size / 1024);
++			rem = statb.st_size - done;
++			if (rem == 0)
++				break;
++			if (rem < BUFSIZE)
++				count = rem;
++
++			if (fd_f == STDIN_FILENO) {
++				memcpy(buf, input_buffer + done, count);
++			} else {
++				xread(fd_f, buf, count);
++			}
++
++			if (i == 0) {
++				int ret;
++				if (count < BUFSIZE)
++					memset((char *) buf + count, 0, BUFSIZE - count);
++				errno = 0;
++				ret = full_write(fd_d, buf, BUFSIZE);
++				if (ret != BUFSIZE) {
++					bb_perror_msg_and_die("write error at 0x%"OFF_FMT"x on %s, "
++										"write returned %d",
++										done, devicename, ret);
++				}
++			} else { /* i == 1 */
++				xread(fd_d, buf2, count);
++				if (memcmp(buf, buf2, count) != 0) {
++					bb_error_msg_and_die("verification mismatch at 0x%"OFF_FMT"x", done);
++				}
++			}
++
++			done += count;
++		}
++
++		progress_newline();
++	}
++	/* we won't come here if there was an error */
++
++	free(input_buffer);
++	return EXIT_SUCCESS;
++}

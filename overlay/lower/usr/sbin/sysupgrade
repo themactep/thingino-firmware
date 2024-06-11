@@ -15,7 +15,7 @@ Where:
   -f          full upgrade with a binary from GitHub
   -p          partial upgrade with a binary from GitHub
   <filename>  full or partial upgrade from a local file
-  <URL>       download and upgrade from the specified URL
+  <URL>       full or partial upgrade from a URL
 "
 }
 
@@ -39,9 +39,7 @@ if [ -z "$upgrade" ]; then
 else
 	data=/etc/os-release
 	profile=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $data)
-	if [ -z "$profile" ]; then
-		die "Building profile is not set in $data"
-	fi
+	[ -z "$profile" ] && die "Building profile is not set in $data"
 	binary_file=$(mktemp -u)
 fi
 
@@ -66,13 +64,11 @@ case "$upgrade" in
 			fw_file="/thingino-${profile}.bin"
 		fi
 		echo "Downloading firmware from ${url}${fw_file}."
-		if ! curl -# -L -f -o $binary_file ${url}${fw_file}; then
-			die "Failed to download firmware from $url. Exiting."
-		fi
+		curl -# -L -f -o $binary_file ${url}${fw_file} || die "Failed to download firmware from $url"
 		;;
 esac
 
-[ ! -f "$binary_file" ] && die "File $1 not found"
+[ -f "$binary_file" ] || die "File $1 not found"
 
 magic=$(xxd -l 4 -p $binary_file)
 case "$magic" in
@@ -113,7 +109,7 @@ if flashcp -v $binary_file /dev/$mtd_dev; then
 	echo 1 > /proc/jz/watchdog/reset
 else
 	echo "Upgrade failed!"
-	die "You have to perform a recovery flashing before rebooting the camera!"
+	die "Caution: You may need to perform a recovery flash restore before rebooting the camera!"
 fi
 
 exit 0

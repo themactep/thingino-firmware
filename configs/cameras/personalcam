@@ -1,8 +1,8 @@
 # MODULE: t31x_gc2053_atbm6031_defconfig
 FLASH_SIZE_16=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/personalcam.uenv.txt"
-BR2_PACKAGE_MOSQUITTO=y
 BR2_MOTORS=y
+BR2_MOTORS_TCU=y
 BR2_SENSOR_PARAMS="sensor_max_fps=30 data_interface=1"
 BR2_PACKAGE_WIREGUARD_LINUX_COMPAT=y
 BR2_SDCARD=y

@@ -27,7 +27,7 @@ env:
 
 jobs:
   notify-begin:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     outputs:
       start_time: ${{ steps.set_output.outputs.time }}
     steps:
@@ -49,7 +49,12 @@ jobs:
   build-toolchain:
     name: ${{ matrix.toolchain-version }}
     needs: notify-begin
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: debian:trixie
     strategy:
       fail-fast: false
       matrix:
@@ -63,10 +68,23 @@ jobs:
           - toolchain_4_4_xburst1_musl_gcc13
 
     steps:
+      - name: Update APT sources
+        run: |
+          apt-get update
+
+      - name: Install build dependencies
+        run: |
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cpio curl ca-certificates file git make gawk procps rsync unzip wget
+
+      - name: Setup gh container workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Checkout source
         uses: actions/checkout@v4
         with:
           submodules: 'true'
+          ref: "master"
+          fetch-depth: "1"
 
       - name: Setup Environment
         id: date
@@ -85,7 +103,7 @@ jobs:
           ln -s /tmp/ccache ${HOME}/.ccache
           ln -s /tmp/dl ${HOME}/dl
 
-      - name: Setup ccache
+      - name: Restore build cache
         uses: actions/cache@v4
         if: always()
         with:
@@ -94,7 +112,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ccache-${{ matrix.toolchain-version }}-
 
-      - name: Setup buildroot download directory cache
+      - name: Restore Buildroot DL cache
         uses: actions/cache@v4
         if: always()
         with:
@@ -102,14 +120,6 @@ jobs:
           key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
           restore-keys: |
             ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-
-
-      - name: Update system sources
-        run: |
-          sudo apt-get update
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cpio curl file flex git libncurses-dev make rsync unzip wget whiptail gcc gcc-mipsel-linux-gnu lzop u-boot-tools ca-certificates ccache
 
       - name: Build toolchain
         run: |
@@ -131,20 +141,20 @@ jobs:
             exit 1
           fi
 
-      - name: Upload toolchain as artifact
+      - name: Upload toolchain artifact
         uses: actions/upload-artifact@v4
         with:
           name: thingino-${{ matrix.toolchain-version }}-linux-mipsel.tar.gz
           path: ${{ env.INGTC }}
 
-      - name: Upload toolchain
+      - name: Upload toolchain to release
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.TAG_NAME }}
           files: ${{ env.INGTC }}
 
-      - name: Send completion notification with job link
+      - name: Send completion notification
         if: ${{ github.event_name != 'pull_request' && env.INGTC && github.event.inputs.tg_disabled == 'false' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
@@ -174,7 +184,7 @@ jobs:
 
   notify-completion:
     needs: [build-toolchain, notify-begin]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Send completion summary

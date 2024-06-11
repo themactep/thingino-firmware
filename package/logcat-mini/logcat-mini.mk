@@ -9,8 +9,9 @@ LOGCAT_MINI_LICENSE_FILES = COPYING
 LOGCAT_MINI_INSTALL_STAGING = YES
 
 LOGCAT_MINI_DEPENDENCIES = host-upx
+
 define LOGCAT_MINI_INSTALL_STAGING_CMDS
-        $(HOST_DIR)/bin/upx --best $(@D)/logcat
+	$(HOST_DIR)/bin/upx --best $(@D)/logcat
 endef
 
 $(eval $(cmake-package))

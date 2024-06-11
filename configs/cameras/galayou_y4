@@ -1,9 +1,0 @@
-# MODULE: t31n_sc2336_atbm6012b_defconfig
-FLASH_SIZE_8=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/galayou-y4.uenv.txt"
-BR2_AVPU_VPLL=y
-BR2_ISP_PARAMS="isp_ch0_pre_dequeue_time=24 isp_ch0_pre_dequeue_interrupt_process=0 isp_memopt=1"
-BR2_SENSOR_PARAMS="shvflip=1"
-BR2_PACKAGE_MOSQUITTO=y
-BR2_MOTORS=y
-BR2_SDCARD=y

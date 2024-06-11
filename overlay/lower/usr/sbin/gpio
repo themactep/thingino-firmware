@@ -24,6 +24,7 @@ Commands:
 	export <pin1>		Export <pin1> from kernel space
 	unexport <pin1>		Release <pin1> back to the kernel space
 
+	input <pin1>		Set <pin1> as input
 	read <pin1> [<pin2>]	Read values of a range of pins from <pin1> to <pin2>
 
 	high <pin1>		Set <pin1> output state to HIGH
@@ -83,7 +84,8 @@ export_pin() {
 		echo_c 33 "pin $pin already exported"
 	else
 		if echo $pin > ${gpiodir}/export 2> /dev/null; then
-			echo_c 32 "pin $pin exported"
+			# echo_c 32 "pin $pin exported"
+			true
 		else
 			echo_c 31 "pin $pin is busy"
 			exit 1
@@ -96,7 +98,8 @@ unexport_pin() {
 	local pin=$(validate_pin $1)
 	if [ -d "${gpiodir}/gpio${pin}" ]; then
 		if echo $pin > ${gpiodir}/unexport 2> /dev/null; then
-			echo_c 32 "pin $pin unexported"
+			# echo_c 32 "pin $pin unexported"
+			true
 		else
 			echo_c 31 "pin $pin is busy"
 			exit 1
@@ -191,7 +194,7 @@ get_pin_value() {
 
 		if [ -f "${pin_dir}/value" ]; then
 			value=$(cat "${pin_dir}/value")
-			echo_c 34 "${pin}\t${direction}\t${value}"
+			# echo_c 34 "${pin}\t${direction}\t${value}"
 		else
 			echo_c 31 "${pin_dir}/value not found"
 		fi
@@ -251,8 +254,7 @@ set_pin_value() {
 			;;
 	esac
 	get_pin_value "$pin"
-
-	#	export_pin $pin
+	# export_pin $pin
 }
 
 sweep_pins() {
@@ -302,6 +304,9 @@ case "$1" in
 		;;
 	info)
 		get_pin_info "$2" "$3"
+		;;
+	input)
+		set_direction "$2" "in"
 		;;
 	get | read)
 		get_pin_value "$2" "$3"

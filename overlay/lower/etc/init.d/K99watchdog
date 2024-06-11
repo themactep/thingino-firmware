@@ -1,24 +1,18 @@
 #!/bin/sh
 
-DAEMON="watchdog"
-WATCHDOG_TIMEOUT=60
-WATCHDOG_ARGS="-T $WATCHDOG_TIMEOUT /dev/watchdog"
+. /etc/init.d/rc.common
+
+DAEMON_ARGS="-T 60 /dev/watchdog"
 
 start() {
-	if [ "$(fw_printenv -n disable_watchdog)" = "true" ]; then
-		echo "Watchdog: System watchdog disabled"
-		exit 0
-	fi
-
-	echo -n "Starting $DAEMON: "
-	start-stop-daemon -q -b -S -x /sbin/$DAEMON -- $WATCHDOG_ARGS
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	starting
+	[ "true" = "$(get disable_watchdog)" ] && quit "Disabled"
+	start_daemon
 }
 
 stop() {
-	echo -n "Stopping ${DAEMON}: "
-	start-stop-daemon -q -K -s KILL -n $DAEMON
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	stopping
+	stop_daemon
 }
 
 case "$1" in
@@ -33,8 +27,7 @@ case "$1" in
 		;;
 
 	*)
-		echo "Usage: $0 {start|stop|restart|reload}" >&2
-		exit 1
+		die "Usage: $0 {start|stop|restart|reload}"
 		;;
 esac
 

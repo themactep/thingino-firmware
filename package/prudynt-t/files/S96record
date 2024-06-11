@@ -1,60 +1,54 @@
 #!/bin/sh
 
 DAEMON=openRTSP
-ENABLED=false
 
 . /etc/init.d/rc.common
+
+ENABLED=false
 
 read_config() {
 	sed -nE "s/^.*$1:\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
 }
 
-stream0fps=$(read_config "fps")
-stream0width=$(read_config "width")
-stream0height=$(read_config "height")
-rtsp_username=$(read_config "username")
-rtsp_password=$(read_config "password")
+stream0fps=$(read_config fps)
+stream0width=$(read_config width)
+stream0height=$(read_config height)
+rtsp_username=$(read_config username)
+rtsp_password=$(read_config password)
 
 file_prefix="thingino-"
 record_path="/mnt/mmcblk0p1"
 record_interval=60
 
 start() {
-	if [ "$ENABLED" = "true" ]; then
-		echo -n "Starting RTSP recorder: "
+	starting
+	[ "$ENABLED" = "true" ] || quit "Disabled"
+	is_streamer_disabled && quit "Disabled"
 
-		is_streamer_disabled && { echo -e "Disabled"; exit 0; }
-
-		if [ "$record_path" = "/mnt/mmcblk0p1" ] && ! grep -q "$record_path" /proc/mounts; then
-			die "Record path is set to $record_path but SD card is not mounted"
-		fi
-
-		if [ ! -d "$record_path" ]; then
-			die "Record path does not exist"
-		fi
-
-		if ! pidof prudynt >/dev/null; then
-			die "Prudynt is not running. Unable to record RTSP stream"
-		fi
-
-		[ ! -d "$record_path" ] && mkdir -p "$record_path"
-		cd "$record_path" || die "Cannot change directory to $record_path"
-
-		if pidof $DAEMON >/dev/null; then
-			die "RTSP recorder already running"
-		fi
-
-		sleep 2
-		COMMAND="${DAEMON} -- -u "$rtsp_username" "$rtsp_password" \
-				-w "$stream0width" -h "$stream0height" -f "$stream0fps" -P $record_interval \
-				-q -v -b 1048576 -t -H -F "$file_prefix" rtsp://127.0.0.1/ch0"
-		start_daemon
+	if [ "$record_path" = "/mnt/mmcblk0p1" ]; then
+		grep -q "$record_path" /proc/mounts || die "Record path is set to $record_path but SD card is not mounted"
 	fi
+
+	[ -d "$record_path" ] || die "Record path does not exist"
+
+	pidof prudynt > /dev/null || die "Prudynt is not running. Unable to record RTSP stream"
+
+	[ -d "$record_path" ] || mkdir -p "$record_path"
+	cd "$record_path" || die "Cannot change directory to $record_path"
+
+	pidof $DAEMON > /dev/null && die "RTSP recorder already running"
+
+	sleep 2
+	COMMAND="$DAEMON -u "$rtsp_username" "$rtsp_password" \
+			-w "$stream0width" -h "$stream0height" -f "$stream0fps" -P $record_interval \
+			-q -v -b 1048576 -t -H -F "$file_prefix" rtsp://127.0.0.1/ch0"
+	start_daemon
 }
 
 stop() {
 	stopping
-	is_streamer_disabled && { echo -e "Disabled"; exit 0; }
+	[ "$ENABLED" = "true" ] || quit "Disabled"
+	is_streamer_disabled && quit "Disabled"
 	stop_daemon
 }
 
@@ -70,8 +64,7 @@ case "$1" in
 		;;
 
 	*)
-		echo "Usage: $0 {start|stop|restart|reload}" >&2
-		exit 1
+		die "Usage: $0 {start|stop|restart|reload}"
 		;;
 esac
 

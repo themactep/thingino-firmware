@@ -1,7 +1,0 @@
-# MODULE: t31x_sc4336p_ssv6158_defconfig
-FLASH_SIZE_16=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/wuuk-y0510.uenv.txt"
-BR2_PACKAGE_MOSQUITTO=y
-BR2_MOTORS=y
-BR2_AUDIO=y
-BR2_SDCARD=y
