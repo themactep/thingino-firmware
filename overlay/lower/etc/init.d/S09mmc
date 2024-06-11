@@ -1,44 +1,52 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 SOC_FAMILY=$(/usr/sbin/soc -f)
 SOC_MODEL=$(/usr/sbin/soc -m)
 
 MMC_MODULE="jzmmc_v12"
 
-MMC_GPIO_CD=$(fw_printenv -n gpio_mmc_cd)
-MMC_GPIO_PWR=$(fw_printenv -n gpio_mmc_power)
+MMC_GPIO_CD=$(get gpio_mmc_cd)
+MMC_GPIO_PWR=$(get gpio_mmc_power)
 
 # Default CD-PIN for Ingenic PB27 (GPIO59)
 [ -z "$MMC_GPIO_CD" ] && MMC_GPIO_CD="59"
 
 set_gpios() {
-	# Set addtional MMC GPIOs
+	# Set additional MMC GPIOs
 	# This needs to run AFTER the driver has been loaded for the sd card to mount during boot
-	if [ ${#MMC_GPIO_PWR} -eq 3 ] && [ "${MMC_GPIO_PWR%[oO]}" != "$MMC_GPIO_PWR" ]; then
-		case "${MMC_GPIO_PWR#??}" in
-			"O") gpio set ${MMC_GPIO_PWR%[oO]} 2>&1 | logger -p daemon.info -t $0 ;;
-			"o") gpio clear ${MMC_GPIO_PWR%[oO]} 2>&1 | logger -p daemon.info -t $0 ;;
-		esac
-	fi
+	for gpio in $MMC_GPIO_PWR; do
+		if [ "${#gpio}" -eq 3 ] && [ "${gpio%[oO]}" != "$gpio" ]; then
+			case "${gpio#??}" in
+				"O") gpio set "${gpio%[oO]}" 1 2>&1 | log ;;
+				"o") gpio set "${gpio%[oO]}" 0 2>&1 | log ;;
+			esac
+		fi
+	done
+}
+
+load_module() {
+	grep -q "$MMC_MODULE" /proc/modules && die "$MMC_MODULE is already loaded"
+	modprobe $MMC_MODULE $MMC_PARAM && ok || { fail && die; }
+	set_gpios
 }
 
 start() {
-	echo -n "Starting MMC: "
+	starting
 
 	MMC_PARAM="cd_gpio_pin=$MMC_GPIO_CD"
 
 	# Check if MDIO directory exists
 	if [ -d /proc/jz/mdio ]; then
-		echo -n "/proc/jz/mdio directory exists, MSC1 disabled... "
-		load_module
+		echo -n "/proc/jz/mdio directory exists, MSC1 disabled... " | log
 	else
 		case "$SOC_FAMILY" in
 			t10 | t20 | t21 | t30 | t40 | t41)
 				# do nothing
 				;;
 			t23)
-				echo "Unsupported: T23"
-				exit 1
+				die "Unsupported: T23"
 				;;
 			t31)
 				if [ "$SOC_MODEL" = "t31a" ] || [ "$SOC_MODEL" = "t31al" ]; then
@@ -54,27 +62,11 @@ start() {
 				fi
 				;;
 			*)
-				echo "Unsupported SOC type: $SOC_FAMILY"
-				exit 1
+				die "Unsupported SOC type: $SOC_FAMILY"
 				;;
 		esac
+	fi
 	load_module
-	fi
-}
-
-load_module() {
-	if grep -q "$MMC_MODULE" /proc/modules; then
-		echo "$MMC_MODULE is already loaded"
-		exit 1
-	else
-		if modprobe $MMC_MODULE ${MMC_PARAM}; then
-			echo "OK"
-			set_gpios
-		else
-			echo "FAIL"
-			exit 1
-		fi
-	fi
 }
 
 case "$1" in
@@ -88,6 +80,9 @@ case "$1" in
 		stop
 		sleep 1
 		start
+		;;
+	*)
+		die "Usage: $0 {start}"
 		;;
 esac
 

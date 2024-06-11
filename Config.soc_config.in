@@ -82,7 +82,7 @@ if BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
 endif
 
 menuconfig BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
- 	bool "ISP Valid Lines for Pre-dequeue for Channel 0"
+	bool "ISP Valid Lines for Pre-dequeue for Channel 0"
 if BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
 	config BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE
 		int "Pre-dequeue valid lines"
@@ -139,22 +139,33 @@ config BR2_AUDIO
 	  The GPIO pin for enabling audio can be specified in the U-Boot environment
 	  using the "gpio_speaker" parameter. If not specified, the default value is "-1".
 
-choice
-	prompt "PWM Support"
-	default BR2_PWM_DISABLE
+config BR2_AUDIO_PARAMS
+	string "Audio Parameters"
+	depends on BR2_AUDIO
 	help
-	  Enable or Disable PWM support
+	  Specify the parameters to pass when loading the audio kernel module.
 
-	config BR2_PWM_ENABLE
-		bool "Enabled"
-	config BR2_PWM_DISABLE
-		bool "Disabled"
-endchoice
+config BR2_PWM_ENABLE
+	bool "PWM Support"
+	help
+	  Enable or Disable PWM support.
 
 config BR2_MOTORS
-	bool "Pan/Tilt Motors"
+	bool "Pan/Tilt/Zoom Motors"
 	help
-	  The camera has Pan and/or Tilt motors.
+	  The camera has Pan/Tilt or Zoom motors.
+
+config BR2_MOTORS_TCU
+	bool "Pan/Tilt Motors TCU"
+	depends on BR2_MOTORS
+	help
+	  The camera has Pan/Tilt or Zoom motors using PWM/GPIO via TCU
+
+config BR2_MOTORS_SPI
+	bool "Pan/Tilt SPI using ms419xx"
+	depends on BR2_MOTORS
+	help
+	  The camera has Pan/Tilt or Zoom motors using the ms419xx chip
 
 config BR2_SDCARD
 	bool "SD Card"

@@ -1,7 +1,9 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 export SENSOR=$(cat /etc/sensor/model)
-export SOC=$(/usr/sbin/soc -f)
+export SOC=$(soc -f)
 export TZ=$(cat /etc/TZ)
 
 # Seritificates for curl in non-interactive shell
@@ -14,23 +16,22 @@ execute_and_log() {
 	mkfifo /tmp/initlogpipe
 
 	while IFS= read -r line; do
-		echo "$line" | logger -t "$script"
+		clean_line=$(echo "$line" | awk '{ gsub(/\x1b\[[0-9;]*m/, ""); $1=$1; print }')
+		echo "$clean_line" | logger -p daemon.info -t "$script"
 		echo "$line"
 	done < /tmp/initlogpipe &
 
 	logger_pid=$!
 
-	if /bin/sh -c "$script start" > /tmp/initlogpipe 2>&1; then
-		: # Success
-	else
-		: # Failure
-	fi
+	/bin/sh -c "$script start" > /tmp/initlogpipe 2>&1
+	# check_result
 
 	rm -f /tmp/initlogpipe
 }
 
 for i in /etc/init.d/S??*; do
-	[ ! -f "$i" ] && continue
+	[ -f "$i" ] || continue
+
 	execute_and_log "$i" &
 	wait
 done

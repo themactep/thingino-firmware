@@ -34,5 +34,4 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-rtl8812au/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-rtw-hostapd/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-ssw101b/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-syn43436/Config.in"
-
 endif

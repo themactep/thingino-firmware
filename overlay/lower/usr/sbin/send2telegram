@@ -12,7 +12,6 @@ show_help() {
   -p photo    Path to photo file.
     -i          Send inline.
     -a          Send as attachment.
-    -r          Use HEIF image format.
   -s          Disable notification.
   -v          Verbose output.
   -h          Show this help.
@@ -24,7 +23,7 @@ show_help() {
 telegram_disable_notification=false
 
 # override config values with command line arguments
-while getopts ac:im:p:rst:vh flag; do
+while getopts ac:im:p:st:vh flag; do
 	case "$flag" in
 		a)
 			telegram_as_attachment="true"
@@ -40,9 +39,6 @@ while getopts ac:im:p:rst:vh flag; do
 			;;
 		p)
 			telegram_photo=$OPTARG
-			;;
-		r)
-			teleram_use_heif="true"
 			;;
 		s)
 			telegram_disable_notification=true
@@ -139,7 +135,7 @@ else
 	eval "$command4" >> "$LOG_FILE" 2>&1
 fi
 
-[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
+[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 quit_clean 0

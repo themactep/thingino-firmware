@@ -1,10 +1,12 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 start() {
-	gpionum="$(fw_printenv -n gpio_usbnet)"
+	gpionum="$(get gpio_usbnet)"
 	modulename="rndis_host"
 
-	echo "Starting USB networking..."
+	starting
 
 	if [ -n "$gpionum" ]; then
 		num=${gpionum%[oO]}
@@ -20,33 +22,16 @@ start() {
 		esac
 
 		echo -n " Set GPIO $num $gpio_cmd ... "
-		if gpio $gpio_cmd $num 2>&1 | logger -p daemon.info -t $0; then
-			echo "OK"
-		else
-			echo "FAIL"
-			exit 1
-		fi
+		gpio $gpio_cmd $num 2>&1 | log && ok || { fail && die }
 	fi
 
 	echo -n " Load usbserial module ... "
-	if modprobe usbserial; then
-		echo "OK"
-	else
-		echo "FAIL"
-		exit 1
-	fi
+	modprobe usbserial && ok || { fail && die }
 
 	if ! grep -q ^$modulename /proc/modules; then
 		echo -n " Load $modulename module ... "
-		if modprobe $modulename; then
-			echo "OK"
-		else
-			echo "FAIL"
-			exit 1
-		fi
+		modprobe $modulename && ok || { fail && die }
 	fi
-
-	echo "OK"
 }
 
 case "$1" in
@@ -57,8 +42,7 @@ case "$1" in
 		true
 		;;
 	*)
-		echo "Usage: $0 {start}"
-		exit 1
+		die "Usage: $0 {start}"
 		;;
 esac
 

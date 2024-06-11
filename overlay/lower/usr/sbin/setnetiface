@@ -7,7 +7,7 @@ plugin="network"
 # $(date) $network_mode $network_interface $network_address
 TEMPLATE_COMMON="iface %s inet %s\n"
 
-TEMPLATE_MAC="    hwaddress ether \$(fw_printenv -n ethaddr || echo 00:00:23:34:45:66)\n"
+TEMPLATE_MAC="    hwaddress ether \$(get ethaddr || echo 00:00:23:34:45:66)\n"
 
 # $network_address $network_netmask
 TEMPLATE_STATIC="    address %s\n    netmask %s\n"
@@ -169,7 +169,7 @@ fi
 if [ "wlan0" = "$network_interface" ]; then
 	# update env parameters only if not empty
 	tmp_env_file=$(mktemp)
-	:>$tmp_env_file
+	: > $tmp_env_file
 	if [ -n "$network_device" ]; then
 		printf "wlandev %s\n" "$network_device" >> "$tmp_env_file"
 	fi

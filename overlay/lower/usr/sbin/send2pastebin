@@ -13,10 +13,14 @@ else
 	cat - > $file
 fi
 
-[ -s "$file" ] || { echo "File $file is empty"; exit 3; }
+if [ ! -s "$file" ]; then
+	echo "File $file is empty"
+	exit 1
+fi
 
 url=$(nc termbin.com 9999 < $file)
 echo $url
 
 rm -f $file
+
 exit 0

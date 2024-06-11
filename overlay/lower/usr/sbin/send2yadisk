@@ -10,7 +10,6 @@ show_help() {
   -f file     File to upload.
   -u username Yandex Disk username.
   -P password Yandex Disk username.
-  -r          Use HEIF image format.
   -v          Verbose output.
   -h          Show this help.
 "
@@ -18,7 +17,7 @@ show_help() {
 }
 
 # override config values with command line arguments
-while getopts d:f:P:ru:vh flag; do
+while getopts d:f:P:u:vh flag; do
 	case "$flag" in
 		d)
 			yadisk_path=$OPTARG
@@ -28,9 +27,6 @@ while getopts d:f:P:ru:vh flag; do
 			;;
 		P)
 			yadisk_password=$OPTARG
-			;;
-		r)
-			yadisk_use_heif="true"
 			;;
 		u)
 			yadisk_username=$OPTARG
@@ -115,7 +111,7 @@ command="$command --upload-file $yadisk_file"
 log "$command"
 eval "$command" >> "$LOG_FILE" 2>&1
 
-[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
+[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 quit_clean 0

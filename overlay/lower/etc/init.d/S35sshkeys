@@ -1,22 +1,24 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 DROPBEAR_KEY="/etc/dropbear/dropbear_ed25519_host_key"
-SSHKEY_ENV=$(fw_printenv -n sshkey_ed25519)
+SSHKEY_ENV=$(get sshkey_ed25519)
 
 generate_keys() {
-	dropbearkey -t ed25519 -f $DROPBEAR_KEY 2>&1 | logger -p daemon.info -t $0
-	logger -p daemon.info -t $0 "Generated dropbear host keys."
+	dropbearkey -t ed25519 -f $DROPBEAR_KEY 2>&1 | log
+	log "Generated dropbear host keys."
 }
 
 restore_keys() {
 	echo "$SSHKEY_ENV" | base64 -d | gzip -d > $DROPBEAR_KEY
-	logger -p daemon.info -t $0 "SSH Key restored."
+	log "SSH Key restored."
 }
 
 save_keys() {
 	SSHKEY_ENV=$(gzip -c $DROPBEAR_KEY | base64 | tr -d '\n')
 	fw_setenv sshkey_ed25519 "$SSHKEY_ENV"
-	logger -p daemon.info -t $0 "SSH key backed up."
+	log "SSH key backed up."
 }
 
 case "$1" in
@@ -38,8 +40,7 @@ case "$1" in
 		true
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart|reload}"
-		exit 1
+		die "Usage: $0 {start}"
 		;;
 esac
 

@@ -1,47 +1,43 @@
 #!/bin/sh
 
-DAEMON=impconfig
-
 . /etc/init.d/rc.common
 
 config="/etc/imp.conf"
 
 check_imp() {
-	echo -n "Connecting to libimp-control: "
-	is_streamer_disabled && { echo -e "Disabled"; exit 0; }
-	i=0
-	platform=$(soc -f)
-	if [ "$platform" = "t10" ] || [ "$platform" = "t20" ]; then
+	proclaim " Connecting to libimp-control"
+	is_streamer_disabled && quit "Disabled"
+	local soc=$(soc -f)
+	if [ "$soc" = "t10" ] || [ "$soc" = "t20" ]; then
 		isp_path="/proc/jz/isp/isp_info"
 	else
 		isp_path="/proc/jz/isp/isp-fs"
 	fi
 
+	local i=0
 	while :; do
-		grep -Eq "running|Software" $isp_path &&
-			imp-control getdeviceid > /dev/null &&
-			echo " OK" && return
-		echo -n "."
+		if grep -Eq "running|Software" $isp_path; then
+			imp-control getdeviceid > /dev/null && ok && return
+		fi
 		i=$((i + 1))
 		sleep 1
-		[ $i -gt 10 ] && echo " FAIL (timeout)" && exit 1
+		[ $i -gt 10 ] && die fail && die
 	done
 }
 
+restore_config() {
+	proclaim " Restoring IMP Configuration: "
+	[ -f "$config" ] || quit "Disabled"
+	while read -r line; do
+		echo -e " * $line"
+		imp-control $line > /dev/null
+	done < $config
+}
+
 start() {
-	check_imp
-	echo -n " Restoring IMP Configuration: "
-	if [ -f "$config" ]; then
-		echo
-		while read -r line; do
-			echo -e " * $line"
-			imp-control $line > /dev/null
-		done < $config
-		echo "Done"
-	else
-		echo "Disabled"
-		return
-	fi
+	starting_batch
+        check_imp
+        restore_config
 }
 
 case "$1" in
@@ -52,8 +48,7 @@ case "$1" in
 		:
 		;;
 	*)
-		echo "Usage: $0 {start|restart|reload}"
-		exit 1
+		die "Usage: $0 {start|restart|reload}"
 		;;
 esac
 

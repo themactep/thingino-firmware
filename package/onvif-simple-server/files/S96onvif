@@ -1,26 +1,27 @@
 #!/bin/sh
 
 DAEMON=wsd_simple_server
-ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
 
 . /etc/init.d/rc.common
 
-# create an empty config if missing
+# needed for args
+iface=$(awk '($2~/0{8}/&&$3!~/0{8}/){print $1;exit}' /proc/net/route); [ -z "$iface" ] && iface="wlan0"
+model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' /etc/os-release)
+
+# extract iface for daemon from onvif.conf
+DAEMON_ARGS="--if_name $(awk -F= '/^ifs=/{print $2}' /etc/onvif.conf) --xaddr \"http://%s/onvif/device_service\" -m $model -n thingino --pid_file /var/run/$DAEMON_SHORT.pid"
+
+# read web config, create if missing
+ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
 [ ! -d $(dirname $ONVIF_WEBUI_CONF) ] && mkdir -p $(dirname $ONVIF_WEBUI_CONF)
 [ ! -f $ONVIF_WEBUI_CONF ] && touch $ONVIF_WEBUI_CONF
-# read the config
 . $ONVIF_WEBUI_CONF
+
 # default to "enabled" and update config
-[ -z "$onvif_enabled" ] && onvif_enabled="true" && echo "onvif_enabled=$onvif_enabled" >> $ONVIF_WEBUI_CONF
-
-model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' /etc/os-release)
-firmware_ver=$(awk -F '[:=, ]+' '/^BUILD_ID=/ {print $2}' /etc/os-release)
-serial_num=$(fw_printenv -n ethaddr)
-iface=$(awk '$2 == "00000000" && $3 != "00000000" {print $1}' /proc/net/route)
-username=$(awk -F '"' '/username:/ {print $2}' /etc/prudynt.cfg)
-password=$(awk -F '"' '/password:/ {print $2}' /etc/prudynt.cfg)
-
-COMMAND="$DAEMON --pid_file /var/run/$DAEMON.pid --if_name $iface --xaddr "http://%s/onvif/device_service" -m $model -n thingino"
+if [ -z "$onvif_enabled" ]; then
+	onvif_enabled="true"
+	echo "onvif_enabled=$onvif_enabled" >> $ONVIF_WEBUI_CONF
+fi
 
 is_onvif_disabled() {
 	[ "true" != "$onvif_enabled" ]
@@ -29,24 +30,27 @@ is_onvif_disabled() {
 update_config() {
 	local key=$1 value=$2 file="/etc/onvif.conf"
 	local current=$(awk -F "=" -v key="$key" '$1==key {print $2}' $file)
-
-	if [ "$current" != "$value" ]; then
-		sed -i "s/^$key=.*/$key=$value/" $file
-	fi
+	[ "$current" = "$value" ] || sed -i "s/^$key=.*/$key=$value/" $file
 }
 
 start() {
 	starting "ONVIF"
-	is_streamer_disabled && die 0 "Disabled"
-	is_onvif_disabled && die 0 "Disabled"
+	is_gateway_reachable || quit "Disabled"
+	is_streamer_disabled && quit "Disabled"
+	is_onvif_disabled && quit "Disabled"
 	start_daemon
 
-	update_config "model" "$model"
-	update_config "firmware_ver" "$firmware_ver"
-	update_config "serial_num" "$serial_num"
-	update_config "ifs" "$iface"
-	update_config "user" "$username"
-	update_config "password" "$password"
+	if ! grep -q "^# GENERATED" "/etc/onvif.conf"; then
+		update_config "model" "$model"
+		update_config "hardware_id" "ingenic_$(soc -m)"
+		update_config "serial_num" "$(get ethaddr)"
+		update_config "firmware_ver" "$(awk -F '[:=, "]+' '/^BUILD_ID=/ {print $2}' /etc/os-release)"
+		update_config "ifs" "$iface"
+		update_config "user" "$(awk -F '"' '/username:/ {print $2}' /etc/prudynt.cfg)"
+		update_config "password" "$(awk -F '"' '/password:/ {print $2}' /etc/prudynt.cfg)"
+		update_config "ptz" "$([ -n "$(fw_printenv -n gpio_motor_h)" ] && echo 1 || echo 0)"
+		sed -i '1i # GENERATED On '"$(date)" /etc/onvif.conf
+	fi
 }
 
 stop() {
@@ -63,8 +67,7 @@ case "$1" in
 		start
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart|reload}"
-		exit 1
+		die "Usage: $0 {start|stop|restart|reload}"
 		;;
 esac
 

@@ -28,7 +28,7 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_MOTORS if BR2_MOTORS
 	select BR2_PACKAGE_UBOOT_TOOLS
 	select BR2_PACKAGE_JSONFILTER
-	select BR2_PACKAGE_WEBUI
+	select BR2_PACKAGE_THINGINO_WEBUI
 	select BR2_PACKAGE_WPA_SUPPLICANT_DEBUG_SYSLOG if BR2_PACKAGE_WPA_SUPPLICANT
 	help
 	  Thingino System Packages
@@ -39,7 +39,8 @@ if BR2_THINGINO_SYSTEM_PACKAGES
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-diag-tools/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-sdk/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-pwm/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/webui/Config.in"
+	source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
+	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
 endif
 
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
@@ -68,23 +69,26 @@ menu "Extra Packages"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/exfat-nofuse/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/jsonfilter/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/motors/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/quirc-openipc/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/zerotier-one/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-portal/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-tailscale/Config.in"
+	source "$BR2_EXTERNAL_THINGINO_PATH/package/wyze-accessory/Config.in"
 
 	config BR2_PACKAGE_IFUPDOWN_SCRIPTS
 		bool "ifupdown-scripts"
+
 	config BR2_PACKAGE_MOSQUITTO
 		bool "mosquitto"
+
 	config BR2_PACKAGE_NGINX
 		bool "nginx"
 		select BR2_PACKAGE_NGINX_HTTP
 		select BR2_PACKAGE_NGINX_HTTP_SSL_MODULE
+
 	config BR2_PACKAGE_SSHPASS
 		bool "sshpass"
+
 	config BR2_PACKAGE_WIREGUARD_LINUX_COMPAT
 		bool "wireguad-linux-compat"
 		select BR2_PACKAGE_WIREGUARD_TOOLS

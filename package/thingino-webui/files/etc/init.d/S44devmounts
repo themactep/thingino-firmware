@@ -1,0 +1,43 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+devip=$(get devip)
+
+start() {
+	starting
+	[ -z "$devip" ] && quit "No IP set"
+	[ -z "$(fw_printenv -n debug)" ] && quit "Not in debug mode"
+	grep -q /var/www /etc/mtab && quit "Already mounted"
+	{
+		rm -r /var/www
+		mkdir /var/www
+		mount -t nfs -o nolock,tcp,nfsvers=3 ${devip}:/srv/nfs/www /var/www
+	}
+	check_result
+}
+
+stop() {
+	stopping
+	grep -q /var/www /etc/mtab || quit
+	{
+		umount /var/www
+		rm -r /overlay/var/www
+		mount -o remount /
+	}
+	check_result
+}
+
+case "$1" in
+	start | stop)
+		$1
+		;;
+	restart | reload)
+		stop
+		sleep 1
+		start
+		;;
+	*)
+		die "Usage: $0 {start|stop|restart|reload}"
+		;;
+esac

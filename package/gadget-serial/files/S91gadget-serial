@@ -1,0 +1,24 @@
+#!/bin/sh
+
+config_file=/etc/webui/zerotier.conf
+[ -f "$config_file" ] && . $config_file
+
+case "$1" in
+	start)
+		/sbin/modprobe g_serial
+		grep ttyGS0 /etc/inittab || echo "::respawn:/sbin/getty -L ttyGS0 115200 vt100" >> /etc/inittab
+		kill -1 1
+		echo "Serial gadget console started"
+		;;
+	stop)
+		echo "Stopping gadget console"
+		grep -v ttyGS0 /etc/inittab > /tmp/init.tmp
+		mv /tmp/init.tmp /etc/inittab
+		kill -1 1
+		/sbin/rmmod -w g_serial
+		;;
+	*)
+		echo "Usage: $0 {start|stop}"
+		exit 1
+		;;
+esac

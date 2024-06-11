@@ -1,20 +1,17 @@
 #!/bin/sh
 
-DAEMON="syslogd"
+. /etc/init.d/rc.common
+
 DAEMON_ARGS="-n -C64 -t"
-PIDFILE="/run/$DAEMON.pid"
 
 start() {
-	printf 'Starting %s: ' $DAEMON
-	start-stop-daemon -q -p $PIDFILE -S -b -m -x /sbin/$DAEMON -- $DAEMON_ARGS
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	starting
+	start_daemon_with_pid
 }
 
 stop() {
-	printf 'Stopping %s: ' $DAEMON
-	start-stop-daemon -q -p $PIDFILE -K
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
-	rm -f $PIDFILE
+	stopping
+	stop_daemon_with_pid
 }
 
 case "$1" in
@@ -27,8 +24,7 @@ case "$1" in
 		start
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart|reload}"
-		exit 1
+		die "Usage: $0 {start|stop|restart|reload}"
 		;;
 esac
 

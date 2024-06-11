@@ -1,0 +1,7 @@
+config BR2_PACKAGE_THINGINO_WEBUI
+	bool "Thingino Firmware Web User Interface"
+	select BR2_PACKAGE_HASERL
+	select BR2_PACKAGE_ONVIF_SIMPLE_SERVER
+	help
+	  Thingino Web UI working with httpd and haserl.
+	  https://github.com/themactep/thingino-firmware

@@ -1,17 +1,22 @@
 #!/bin/sh
 
-timezone() {
+. /etc/init.d/rc.common
+
+set_timezone() {
 	# Get the timezone from the u-boot environment variable
-	timezone=$(fw_printenv -n timezone 2> /dev/null)
+	timezone=$(get timezone 2> /dev/null)
 	if [ -z "$timezone" ]; then
+		fail
+		warn "Timezone value not found in environment"
 		return 1
 	fi
 
-	# Check if the values in /etc/timezone and /etc/TZ match the ones from fw_printenv
-	current_timezone=$(cat /etc/timezone 2> /dev/null)
-	current_tz_value=$(cat /etc/TZ 2> /dev/null)
-
+	# Check if the values in /etc/ match those in environment
+	current_timezone=$(cat /etc/timezone)
+	current_tz_value=$(cat /etc/TZ)
 	if [ "$timezone" = "$current_timezone" ] && [ "$timezone" = "$current_tz_value" ]; then
+		ok
+		info "Timezone is already set"
 		return 0
 	fi
 
@@ -19,38 +24,39 @@ timezone() {
 	tzjs="/var/www/a/tz.js"
 	matching_line=$(grep -i -F "$timezone" $tzjs)
 	if [ -z "$matching_line" ]; then
-		echo "Timezone not found in $tzjs" | logger -p daemon.info -t $0
+		fail
+		warn "Timezone $timezone not found in $tzjs"
 		return 1
 	fi
 
-	# Extract the value associated with the timezone
-	value=$(echo "$matching_line" | sed "s/^.*v:'\([^']*\)'.*$/\1/")
+	# set timezone in system environment
+	tz=$(echo "$matching_line" | sed "s/^.*v:'\([^']*\)'.*$/\1/")
+	export TZ=$tz
 
-	# Write the TZ file first
-	echo $value > /etc/TZ
-
-	# Then write the timezone file
+	# save timezone
+	echo $tz > /etc/TZ
 	echo $timezone > /etc/timezone
 
-	export TZ=$value
+	ok
+	info "Set TZ to $tz ($timezone)"
 }
 
-start() {
-	echo -n "Starting datetime: "
-	timezone
-	/bin/date -s @$(stat -t /etc/os-release | cut -d" " -f12)
+set_time() {
+	date=$(date -s @$(stat -c%X /etc/os-release))
+	info "Set fail-safe system time to: $date"
 }
 
 case "$1" in
 	start)
-		start
+		starting
+		set_timezone
+		set_time
 		;;
 	stop)
 		true
 		;;
 	*)
-		echo "Usage: $0 {start|stop}"
-		exit 1
+		die "Usage: $0 {start}"
 		;;
 esac
 
