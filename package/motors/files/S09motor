@@ -35,11 +35,11 @@ start() {
 	check_module_loaded motor sample_motor
 
 	# Check if motors are supported
-	[ -z "$motors_app" ] && die "Disabled\n\tNo motors app found"
-	[ -z "$gpio_motor_h" ] && die "Disabled\n\tPan motor GPIO are not set"
-	[ -z "$gpio_motor_v" ] && die "Disabled\n\tTilt motor GPIO are not set"
-	[ -z "$motor_h_maxstep" ] && die "Disabled\n\tPan motor Steps are not set"
-	[ -z "$motor_v_maxstep" ] && die "Disabled\n\tTilt motor Steps are not set"
+	[ -z "$motors_app" ] && die "Disabled\n No motors app found"
+	[ -z "$gpio_motor_h" ] && die "Disabled\n Pan motor GPIO are not set"
+	[ -z "$gpio_motor_v" ] && die "Disabled\n Tilt motor GPIO are not set"
+	[ -z "$motor_h_maxstep" ] && die "Disabled\n Pan motor Steps are not set"
+	[ -z "$motor_v_maxstep" ] && die "Disabled\n Tilt motor Steps are not set"
 
 	# Set GPIO per motor phase
 	set_motor_phases "h" "$gpio_motor_h"
