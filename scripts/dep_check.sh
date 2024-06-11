@@ -2,7 +2,13 @@
 
 check_glibc_version() {
 	local min_version="2.38"
-	local current_version=$(ldd --version | head -n1 | grep -oP '\d+\.\d+' | head -1)
+	# Check if running on Alpine with musl
+	if ldd --version 2>&1 | grep -q musl; then
+		echo "Alpine Linux detected with musl libc."
+		return 0
+	fi
+
+	local current_version=$(ldd --version | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
 	if [ "$(printf '%s\n' "$min_version" "$current_version" | sort -V | head -n1)" = "$min_version" ]; then
 		echo "glibc version is $current_version, which is >= $min_version."
 	else
@@ -129,6 +135,9 @@ if [ -f /etc/os-release ]; then
 				[wget]=wget
 				[libnewt]=newt
 				[dialog]=dialog
+				[perl]=perl
+				[findutils]=findutils
+				[grep]=grep
 			)
 			;;
 		*)
