@@ -110,14 +110,14 @@ case "$cmd" in
 		/usr/sbin/daynight $val
 		ok_json "{\"night\":\"${mode}\"}"
 		;;
-	ir850 | ir940 | whled)
+	ir850 | ir940)
 		/usr/sbin/irled $val $cmd
 		ok_json "{\"led_${cmd}\":\"${val}\"}"
 		;;
 	ircut)
 		/usr/sbin/ircut $val
 		ok_json "{\"ircut\":\"${val}\"}"
-		;;	
+		;;
 	setosd)
 		# save to temp config
 		handle=`echo "$val" | cut -d" " -f1`
