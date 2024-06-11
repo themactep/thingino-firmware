@@ -46,8 +46,8 @@ check_mirror() {
 					<label class="btn btn-sm btn-dark" for="ir850" title="IR LED 850 nm"><%= $icon_ir850 %></label>
 					<input type="checkbox" class="btn-check" name="ir940" id="ir940" value="1"<% checked_if $ir940 1 %><% get gpio_ir940 >/dev/null || echo " disabled" %>>
 					<label class="btn btn-sm btn-dark" for="ir940" title="IR LED 940 nm"><%= $icon_ir940 %></label>
-					<input type="checkbox" class="btn-check" name="white" id="white" value="1"<% checked_if $white 1 %><% get gpio_white >/dev/null || echo " disabled" %>>
-					<label class="btn btn-sm btn-dark" for="white" title="White LED"><%= $icon_white %></label>
+					<input type="checkbox" class="btn-check" name="whled" id="whled" value="1"<% checked_if $whled 1 %><% get gpio_whled >/dev/null || echo " disabled" %>>
+					<label class="btn btn-sm btn-dark" for="whled" title="White LED"><%= $icon_white %></label>
 					<input type="checkbox" class="btn-check" name="flip" id="flip" value="1"<% check_flip %>>
 					<label class="btn btn-sm btn-dark" for="flip" title="Flip vertically"><%= $icon_flip %></label>
 					<input type="checkbox" class="btn-check" name="mirror" id="mirror" value="1"<% check_mirror %>>
