@@ -110,7 +110,7 @@ case "$cmd" in
 		/usr/sbin/daynight $val
 		ok_json "{\"night\":\"${mode}\"}"
 		;;
-	ir850 | ir940)
+	ir850 | ir940 | white)
 		/usr/sbin/irled $val $cmd
 		ok_json "{\"led_${cmd}\":\"${val}\"}"
 		;;
