@@ -39,6 +39,10 @@ proclaim() {
 	printf "%-35s" "$1"
 }
 
+proclaim_n() {
+    printf "\n%-35s" "$1"
+}
+
 starting() {
 	proclaim "Starting ${1:-$DAEMON_SHORT}"
 }
