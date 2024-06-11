@@ -1,9 +1,9 @@
 PRUDYNT_T_SITE_METHOD = git
-PRUDYNT_T_SITE = https://github.com/Lu-fi/prudynt-t
-PRUDYNT_T_SITE_BRANCH = dev
+PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
+PRUDYNT_T_SITE_BRANCH = master
 PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
 
-PRUDYNT_T_DEPENDENCIES = libconfig libwebsockets thingino-live555 thingino-freetype thingino-fonts ingenic-lib
+PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-freetype thingino-fonts ingenic-lib
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 PRUDYNT_T_DEPENDENCIES += ingenic-musl
 endif
