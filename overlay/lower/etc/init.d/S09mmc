@@ -39,7 +39,7 @@ start() {
 
 	# Check if MDIO directory exists
 	if [ -d /proc/jz/mdio ]; then
-		echo -n "/proc/jz/mdio directory exists, MSC1 disabled... "
+		echo -n "/proc/jz/mdio directory exists, MSC1 disabled... " | log
 	else
 		case "$SOC_FAMILY" in
 			t10 | t20 | t21 | t30 | t40 | t41)
