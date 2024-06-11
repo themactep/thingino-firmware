@@ -37,4 +37,5 @@ if BR2_THINGINO_DEV_PACKAGES
 
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat-mini/Config.in"
 	source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat/Config.in"
+	source "$BR2_EXTERNAL_THINGINO_PATH/package/gadget-serial/Config.in"
 endif
