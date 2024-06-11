@@ -8,7 +8,8 @@ DAEMON=wsd_simple_server
 iface=$(awk '($2~/0{8}/&&$3!~/0{8}/){print $1;exit}' /proc/net/route); [ -z "$iface" ] && iface="wlan0"
 model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' /etc/os-release)
 
-DAEMON_ARGS="--if_name $iface --xaddr \"http://%s/onvif/device_service\" -m $model -n thingino --pid_file /var/run/$DAEMON_SHORT.pid"
+# extract iface for daemon from onvif.conf
+DAEMON_ARGS="--if_name $(awk -F= '/^ifs=/{print $2}' /etc/onvif.conf) --xaddr \"http://%s/onvif/device_service\" -m $model -n thingino --pid_file /var/run/$DAEMON_SHORT.pid"
 
 # read web config, create if missing
 ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
