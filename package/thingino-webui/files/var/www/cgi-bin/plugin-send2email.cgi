@@ -74,7 +74,7 @@ fi
 <% field_text "email_subject" "Email subject" %>
 <% field_textarea "email_body" "Email text" "Line breaks will be replaced with whitespace." %>
 <% field_switch "email_attach_snapshot" "Attach snapshot" %>
-<% # field_switch "email_socks5_enabled" "Use SOCKS5" "<a href=\"network-socks5.cgi\">Configure</a> SOCKS5 access" %>
+<% # field_switch "email_socks5_enabled" "Use SOCKS5" "<a href=\"config-socks5.cgi\">Configure</a> SOCKS5 access" %>
 </div>
 <div class="col">
 <% ex "cat $config_file" %>

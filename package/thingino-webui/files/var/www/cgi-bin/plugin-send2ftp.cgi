@@ -61,7 +61,7 @@ fi
 <div class="col">
 <% field_text "ftp_path" "FTP path" "relative to FTP root directory" %>
 <% field_text "ftp_template" "Filename template" ""$STR_SUPPORTS_STRFTIME"" %>
-<% field_switch "ftp_socks5_enabled" "Use SOCKS5" "<a href=\"network-socks5.cgi\">Configure</a> SOCKS5 access" %>
+<% field_switch "ftp_socks5_enabled" "Use SOCKS5" "<a href=\"config-socks5.cgi\">Configure</a> SOCKS5 access" %>
 </div>
 <div class="col">
 <% ex "cat $config_file" %>

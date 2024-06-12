@@ -18,7 +18,7 @@
 <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasDebug" aria-labelledby="offcanvasDebugLabel">
 <div class="offcanvas-header">
 <h5 class="offcanvas-title" id="offcanvasDebugLabel">Debug Info</h5>
-<form action="webui-settings.cgi" method="post">
+<form action="config-webui.cgi" method="post">
 <% field_hidden "action" "init" %>
 <% button_submit "Re-read environment" %>
 </form>
