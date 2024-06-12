@@ -3,7 +3,7 @@
 <%
 plugin="network"
 page_title="Network settings"
-params="address dhcp dns_1 dns_2 gateway hostname netmask interface wlan_device wlan_ssid wlan_pass"
+params="address dhcp dns_1 dns_2 gateway netmask interface wlan_device wlan_ssid wlan_pass"
 tmp_file=/tmp/${plugin}.conf
 
 network_wlan_device="$(get wlandev)"
@@ -48,22 +48,22 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 			if [ -z "$error" ]; then
 				command="setnetiface"
-				command="${command} -i $network_interface"
-				command="${command} -m $network_mode"
-				command="${command} -h $network_hostname"
+				command="$command -i $network_interface"
+				command="$command -m $network_mode"
+				command="$command -h \"$(hostname)\""
 
 				if [ "wlan0" = "$network_interface" ]; then
-					command="${command} -r $network_wlan_device"
-					command="${command} -s $network_wlan_ssid"
-					command="${command} -p $network_wlan_pass"
+					command="$command -r $network_wlan_device"
+					command="$command -s $network_wlan_ssid"
+					command="$command -p $network_wlan_pass"
 				fi
 
 				if [ "dhcp" != "$network_mode" ]; then
-					command="${command} -a $network_address"
-					command="${command} -n $network_netmask"
-					[ -n "$network_gateway" ] && command="${command} -g $network_gateway"
-					[ -n "$network_dns_1" ] && command="${command} -d $network_dns_1"
-					[ -n "$network_dns_2" ] && command="${command},${network_dns_2}"
+					command="$command -a $network_address"
+					command="$command -n $network_netmask"
+					[ -n "$network_gateway" ] && command="$command -g $network_gateway"
+					[ -n "$network_dns_1" ] && command="$command -d $network_dns_1"
+					[ -n "$network_dns_2" ] && command="$command,${network_dns_2}"
 				fi
 
 				echo "$command" >>/tmp/webui.log
@@ -82,7 +82,6 @@ fi
 <div class="col col-md-6 col-lg-4 mb-4">
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_hidden "action" "update" %>
-<% field_text "network_hostname" "Hostname" %>
 <% field_select "network_interface" "Network interface" "eth0 wlan0" %>
 <% field_text "network_wlan_device" "WLAN Device" %>
 <% field_text "network_wlan_ssid" "WLAN SSID" %>
@@ -98,7 +97,6 @@ fi
 </form>
 </div>
 <div class="col col-md-6 col-lg-8">
-<% ex "cat /etc/hostname" %>
 <% ex "cat /etc/hosts" %>
 <% ex "cat /etc/network/interfaces" %>
 <% for i in $(ls -1 /etc/network/interfaces.d/); do %>
