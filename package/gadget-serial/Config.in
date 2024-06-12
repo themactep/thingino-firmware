@@ -1,5 +1,4 @@
 config BR2_PACKAGE_GADGET_SERIAL
-	bool "gadget_serial"
-	default n
+	bool "gadget-serial"
 	help
 	  Enables a USB gadget serial device to allow termial access
