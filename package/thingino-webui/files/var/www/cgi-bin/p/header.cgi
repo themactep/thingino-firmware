@@ -47,14 +47,14 @@ Pragma: no-cache
 <a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownSettings" role="button">Settings</a>
 <ul aria-labelledby="dropdownSettings" class="dropdown-menu">
 <li><a class="dropdown-item" href="config-hostname.cgi">Hostname</a></li>
-<li><a class="dropdown-item" href="network.cgi">Network</a></li>
-<li><a class="dropdown-item" href="time-config.cgi">Time</a></li>
+<li><a class="dropdown-item" href="config-network.cgi">Network</a></li>
+<li><a class="dropdown-item" href="config-time.cgi">Time</a></li>
 <li><a class="dropdown-item" href="config-light.cgi">Illumination</a></li>
 <li><a class="dropdown-item" href="config-imp.cgi">IMP Control</a></li>
-<li><a class="dropdown-item" href="network-socks5.cgi">SOCKS5 Proxy</a></li>
-<li><a class="dropdown-item" href="webui-settings.cgi">Web Interface</a></li>
-<li><a class="dropdown-item" href="admin.cgi">Admin Profile</a></li>
-<li><a class="dropdown-item" href="users.cgi">Users</a></li>
+<li><a class="dropdown-item" href="config-socks5.cgi">SOCKS5 Proxy</a></li>
+<li><a class="dropdown-item" href="config-webui.cgi">Web Interface</a></li>
+<li><a class="dropdown-item" href="config-admin.cgi">Admin Profile</a></li>
+<li><a class="dropdown-item" href="config-users.cgi">Users</a></li>
 <li><hr class="dropdown-divider"></li>
 <li><a class="dropdown-item" href="reset.cgi">Reset...</a></li>
 </ul>
@@ -98,19 +98,19 @@ Pragma: no-cache
 </div>
 <div class="col-1" id="daynight_value"></div>
 <div class="col-md-4 col-lg-3 mb-2 text-end">
-<div><a href="/cgi-bin/time-config.cgi" id="time-now" class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover"></a></div>
+<div><a href="/cgi-bin/config-time.cgi" id="time-now" class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover"></a></div>
 </div>
 </div>
 <% if [ -z "$network_gateway" ]; then %>
 <div class="alert alert-warning">
-<p class="mb-0">No Internet connection. Please <a href="network.cgi">check your network settings</a>.</p>
+<p class="mb-0">No Internet connection. Please <a href="config-network.cgi">check your network settings</a>.</p>
 </div>
 <% fi %>
 
 <% if [ "true" = "$telegram_socks5_enabled" ] || [ "true" = "$yadisk_socks5_enabled" ]; then
 if [ -z "$socks5_host" ] || [ -z "$socks5_port" ]; then %>
 <div class="alert alert-danger">
-<p class="mb-0">You want to use SOCKS5 proxy but it is not configured! Please <a href="network-socks5.cgi">configure the proxy</a>.</p>
+<p class="mb-0">You want to use SOCKS5 proxy but it is not configured! Please <a href="config-socks5.cgi">configure the proxy</a>.</p>
 </div>
 <% fi; fi %>
 
@@ -119,7 +119,7 @@ if [ -z "$socks5_host" ] || [ -z "$socks5_port" ]; then %>
 <p>$TZ variable in system environment needs updating!</p>
 <span class="d-flex gap-3">
 <a class="btn btn-danger" href="reboot.cgi">Reboot camera</a>
-<a class="btn btn-primary" href="time-config.cgi">See timezone settings</a>
+<a class="btn btn-primary" href="config-time.cgi">See timezone settings</a>
 </span>
 </div>
 <% fi %>
@@ -129,7 +129,7 @@ if [ -z "$socks5_host" ] || [ -z "$socks5_port" ]; then %>
 <p>Network settings have been updated. Restart to apply changes.</p>
 <span class="d-flex gap-3">
 <a class="btn btn-danger" href="reboot.cgi">Reboot camera</a>
-<a class="btn btn-primary" href="network.cgi">See network settings</a>
+<a class="btn btn-primary" href="config-network.cgi">See network settings</a>
 </span>
 </div>
 <% fi %>

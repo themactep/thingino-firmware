@@ -57,7 +57,7 @@ fi
 <div class="col">
 <% field_switch "telegram_as_attachment" "Send as attachment." %>
 <% field_switch "telegram_as_photo" "Send as photo." %>
-<% field_switch "telegram_socks5_enabled" "Use SOCKS5" "<a href=\"network-socks5.cgi\">Configure</a> SOCKS5 access" %>
+<% field_switch "telegram_socks5_enabled" "Use SOCKS5" "<a href=\"config-socks5.cgi\">Configure</a> SOCKS5 access" %>
 </div>
 <div class="col">
 <% ex "cat $config_file" %>

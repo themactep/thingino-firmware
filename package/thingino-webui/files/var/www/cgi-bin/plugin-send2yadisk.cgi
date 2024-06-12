@@ -52,7 +52,7 @@ fi
 </div>
 <div class="col">
 <% field_text "yadisk_path" "Yandex Disk path" %>
-<% field_switch "yadisk_socks5_enabled" "Use SOCKS5" "<a href=\"network-socks5.cgi\">Configure</a> SOCKS5 access" %>
+<% field_switch "yadisk_socks5_enabled" "Use SOCKS5" "<a href=\"config-socks5.cgi\">Configure</a> SOCKS5 access" %>
 </div>
 <div class="col">
 <% ex "cat $config_file" %>

@@ -20,10 +20,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			[ -z "$POST_tz_name" ] && redirect_to $SCRIPT_NAME "warning" "Empty timezone name. Skipping."
 			[ -z "$POST_tz_data" ] && redirect_to $SCRIPT_NAME "warning" "Empty timezone value. Skipping."
 
-			[ "$tz_data" != "$POST_tz_data" ] && \
-				echo "${POST_tz_data}" >/etc/TZ
-			[ "$tz_name" != "$POST_tz_name" ] && \
-				echo "${POST_tz_name}" >/etc/timezone && \
+			[ "$tz_data" != "$POST_tz_data" ] && echo "$POST_tz_data" >/etc/TZ
+			[ "$tz_name" != "$POST_tz_name" ] && echo "$POST_tz_name" >/etc/timezone && \
 				fw_setenv timezone "$POST_tz_name"
 
 			tmp_file=/tmp/ntp.conf
