@@ -67,6 +67,7 @@ jobs:
           - toolchain_xburst1_musl_gcc14
           - toolchain_xburst1_gnu_gcc14
           - toolchain_4_4_xburst1_musl_gcc13
+          - toolchain_4_4_xburst1_musl_gcc14
 
     steps:
       - name: Update APT sources
