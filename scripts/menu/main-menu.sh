@@ -5,11 +5,14 @@ source ./scripts/menu/menu-common.sh
 function main_menu() {
 	check_and_install_dialog
 	while true; do
-		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Select an option:" 15 110 30 \
+		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Select an option:" 18 110 30 \
 			"bootstrap" "Install prerequisite software necessary for the compilation process" \
 			"menuconfig" "Proceed to the buildroot menu (toolchain, kernel, and rootfs)" \
-			"br-linux-menuconfig" "Proceed to the Linux Kernel configuration" \
+			"br-linux-menuconfig" "Proceed to the Linux Kernel menu configuration" \
+			"br-busybox-menuconfig" "Proceed to the Busybox menu configuration" \
+			"defconfig" "(Re)create config file" \
 			"clean" "Clean before reassembly"  \
+			"cleanbuild" "Build everything from scratch" \
 			"distclean" "Remove all cached build files from current profile"  \
 			"make" "Generate firmware" \
 			"upgrade_ota" "Upload the full firmware file to the camera over network, and flash it"  \
@@ -39,6 +42,12 @@ function show_help() {
 			show_help_msgbox "This function initiates an Over-the-Air (OTA) upgrade using the full firmware image. You'll need to specify the target device's IP address. It's used for comprehensive updates that include the bootloader, kernel, and filesystem." 8;;
 		"HELP update_ota")
 			show_help_msgbox "This option performs an OTA update with just the firmware update image, excluding the bootloader. You'll need to provide the target device's IP address. It's ideal for routine software updates after the initial full installation." 8;;
+		"HELP defconfig")
+			show_help_msgbox "The 'defconfig' option recreates the default configuration file. It's used to reset your configuration settings to the default state, which can be helpful if you want to start the configuration process anew." 8;;
+		"HELP br-busybox-menuconfig")
+			show_help_msgbox "Proceed to the Busybox menu configuration. This allows you to customize the Busybox settings." 7;;
+		"HELP cleanbuild")
+			show_help_msgbox "The 'cleanbuild' option builds everything from scratch. It removes all previously built files and starts the build process from the beginning, ensuring a clean build environment." 7;;
 		*)
 			show_help_msgbox "No help information is available for the selected item. Please choose another option or consult the thingino wiki for more details.";;
 	esac

@@ -17,7 +17,9 @@ main_menu() {
 			step1_completed=true
 		fi
 
-		if $step1_completed && $step2_completed; then
+		if $step3_completed; then
+			default_item="2"  # Go back to Step 2 if Step 3 is complete
+		elif $step1_completed && $step2_completed; then
 			default_item="3"  # Skip to Step 3 if step 1 and step 2 are completed
 		elif $step1_completed; then
 			default_item="2"  # Skip to Step 2 if step 1 is completed
@@ -150,7 +152,7 @@ step3() {
 			closed_dialog
 			return
 		fi
-		BOARD=$camera_value make
+		#BOARD=$camera_value make
 		step3_completed=true
 		"${DIALOG_COMMON[@]}" --msgbox "The firmware compilation process is now complete!\\n\nYour firmware images are located in \n\Z1$HOME/output/$camera_value/images\Zn" 8 70
 	else
