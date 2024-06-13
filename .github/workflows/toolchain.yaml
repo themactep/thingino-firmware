@@ -19,7 +19,7 @@ on:
 env:
   TAG_NAME: toolchain
   TERM: linux
-  BR2_DL_DIR: /tmp/dl
+  BR2_DL_DIR: ~/dl
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
   TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_BUILD}}
   TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
@@ -31,12 +31,19 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       start_time: ${{ steps.set_output.outputs.time }}
+      tg_disabled: ${{ steps.set_env.outputs.tg_disabled }}
     steps:
       - name: Save workflow start time
         id: set_output
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
+
+      - name: Setup Notify Environment
+        run: |
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+          echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
+
       - name: Send build start notifcation
-        if: ${{ github.event.inputs.tg_disabled == 'false' }}
+        if: env.TG_DISABLED == 'false'
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
@@ -76,7 +83,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cpio curl ca-certificates file git make gawk procps rsync unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git make gawk procps rsync unzip wget
 
       - name: Setup gh container workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -97,19 +104,18 @@ jobs:
           export GIT_BRANCH=${GITHUB_REF_NAME}
           echo "GIT_HASH=${GIT_HASH}" >> ${GITHUB_ENV}
           echo "GIT_BRANCH=${GIT_BRANCH}" >> ${GITHUB_ENV}
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
 
       - name: Setup cache directories
         run: |
-          mkdir -p /tmp/ccache
-          mkdir -p /tmp/dl
-          ln -s /tmp/ccache ${HOME}/.ccache
-          ln -s /tmp/dl ${HOME}/dl
+          mkdir -p ~/.ccache
+          mkdir -p ~/dl
 
       - name: Restore build cache
         uses: actions/cache@v4
         if: always()
         with:
-          path: /tmp/ccache
+          path: ~/.ccache
           key: ${{ runner.os }}-ccache-${{ matrix.toolchain-version }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-ccache-${{ matrix.toolchain-version }}-
@@ -118,7 +124,7 @@ jobs:
         uses: actions/cache@v4
         if: always()
         with:
-          path: /tmp/dl
+          path: ~/dl
           key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
           restore-keys: |
             ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-
@@ -160,7 +166,7 @@ jobs:
           files: ${{ env.INGTC }}
 
       - name: Send completion notification
-        if: ${{ github.event_name != 'pull_request' && env.INGTC && github.event.inputs.tg_disabled == 'false' }}
+        if: ${{ github.event_name != 'pull_request' && env.INGTC && env.TG_DISABLED == 'false' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
@@ -174,7 +180,7 @@ jobs:
 
 
       - name: Send error notification
-        if: ${{ github.event_name != 'pull_request' && failure() && github.event.inputs.tg_disabled == 'false' }}
+        if: ${{ github.event_name != 'pull_request' && failure() && env.TG_DISABLED == 'false' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
@@ -193,7 +199,7 @@ jobs:
     if: always()
     steps:
       - name: Send completion summary
-        if: ${{ github.event.inputs.tg_disabled == 'false' }}
+        if: ${{ env.TG_DISABLED == 'false' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
