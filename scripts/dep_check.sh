@@ -1,7 +1,7 @@
 #!/bin/bash
 
 check_glibc_version() {
-	local min_version="2.38"
+	local min_version="2.31"
 	# Check if running on Alpine with musl
 	if ldd --version 2>&1 | grep -q musl; then
 		echo "Alpine Linux detected with musl libc."
