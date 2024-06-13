@@ -122,12 +122,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-
 
+      - name: Prepare buildroot cache
+        run: |
+          BOARD=${{ matrix.toolchain-version }} make source
+          TIME=$(date -d @${SECONDS} +%M:%S)
+          echo "TIME=${TIME}" >> ${GITHUB_ENV}
+
       - name: Build toolchain
         run: |
           BOARD=${{ matrix.toolchain-version }} make sdk
-
-          TIME=$(date -d @${SECONDS} +%M:%S)
-          echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
       - name: Rename toolchain package for release
         run: |
