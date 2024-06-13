@@ -42,24 +42,24 @@ if [ -f /etc/os-release ]; then
 			pkg_manager="dpkg"
 			pkg_check_command="-l"
 			pkg_install_cmd="apt-get install -y"
-			pkg_list=$(dpkg -l)
+			pkg_update_cmd="apt-get update"
 			declare -A packages=(
-				[build-essential]=build-essential
-				[bc]=bc
-				[bison]=bison
-				[cpio]=cpio
-				[curl]=curl
-				[file]=file
-				[flex]=flex
-				[gawk]=gawk
-				[git]=git
-				[libncurses-dev]=libncurses-dev
-				[make]=make
-				[rsync]=rsync
-				[unzip]=unzip
-				[wget]=wget
-				[whiptail]=whiptail
-				[dialog]=dialog
+				[build-essential]='build-essential'
+				[bc]='bc'
+				[bison]='bison'
+				[cpio]='cpio'
+				[curl]='curl'
+				[file]='file'
+				[flex]='flex'
+				[gawk]='gawk'
+				[git]='git'
+				[libncurses-dev]='libncurses-dev'
+				[make]='make'
+				[rsync]='rsync'
+				[unzip]='unzip'
+				[wget]='wget'
+				[whiptail]='whiptail'
+				[dialog]='dialog'
 			)
 			;;
 		rhel|centos|fedora)
@@ -69,22 +69,22 @@ if [ -f /etc/os-release ]; then
 			pkg_install_cmd="dnf install -y"
 			pkg_list=$(rpm -qa)
 			declare -A packages=(
-				[gcc]=gcc
-				[make]=make
-				[bc]=bc
-				[bison]=bison
-				[cpio]=cpio
-				[curl]=curl
-				[file]=file
-				[flex]=flex
-				[gawk]=gawk
-				[git]=git
-				[ncurses-devel]=ncurses-devel
-				[rsync]=rsync
-				[unzip]=unzip
-				[wget]=wget
-				[newt]=newt
-				[dialog]=dialog
+				[gcc]='gcc'
+				[make]='make'
+				[bc]='bc'
+				[bison]='bison'
+				[cpio]='cpio'
+				[curl]='curl'
+				[file]='file'
+				[flex]='flex'
+				[gawk]='gawk'
+				[git]='git'
+				[ncurses-devel]='ncurses-devel'
+				[rsync]='rsync'
+				[unzip]='unzip'
+				[wget]='wget'
+				[newt]='newt'
+				[dialog]='dialog'
 			)
 			;;
 		arch)
@@ -94,22 +94,22 @@ if [ -f /etc/os-release ]; then
 			pkg_install_cmd="pacman -S --noconfirm"
 			pkg_list=$(pacman -Q)
 			declare -A packages=(
-				[base-devel]=base-devel
-				[bc]=bc
-				[bison]=bison
-				[cpio]=cpio
-				[curl]=curl
-				[file]=file
-				[flex]=flex
-				[gawk]=gawk
-				[git]=git
-				[ncurses]=ncurses
-				[make]=make
-				[rsync]=rsync
-				[unzip]=unzip
-				[wget]=wget
-				[libnewt]=libnewt
-				[dialog]=dialog
+				[base-devel]='base-devel'
+				[bc]='bc'
+				[bison]='bison'
+				[cpio]='cpio'
+				[curl]='curl'
+				[file]='file'
+				[flex]='flex'
+				[gawk]='gawk'
+				[git]='git'
+				[ncurses]='ncurses'
+				[make]='make'
+				[rsync]='rsync'
+				[unzip]='unzip'
+				[wget]='wget'
+				[libnewt]='libnewt'
+				[dialog]='dialog'
 			)
 			;;
 		alpine)
@@ -119,25 +119,25 @@ if [ -f /etc/os-release ]; then
 			pkg_install_cmd="apk add"
 			pkg_list=$(apk info)
 			declare -A packages=(
-				[build-base]=build-base
-				[bc]=bc
-				[bison]=bison
-				[cpio]=cpio
-				[curl]=curl
-				[file]=file
-				[flex]=flex
-				[gawk]=gawk
-				[git]=git
-				[ncurses-dev]=ncurses-dev
-				[make]=make
-				[rsync]=rsync
-				[unzip]=unzip
-				[wget]=wget
-				[libnewt]=newt
-				[dialog]=dialog
-				[perl]=perl
-				[findutils]=findutils
-				[grep]=grep
+				[build-base]='build-base'
+				[bc]='bc'
+				[bison]='bison'
+				[cpio]='cpio'
+				[curl]='curl'
+				[file]='file'
+				[flex]='flex'
+				[gawk]='gawk'
+				[git]='git'
+				[ncurses-dev]='ncurses-dev'
+				[make]='make'
+				[rsync]='rsync'
+				[unzip]='unzip'
+				[wget]='wget'
+				[newt]='newt'
+				[dialog]='dialog'
+				[perl]='perl'
+				[findutils]='findutils'
+				[grep]='grep'
 			)
 			;;
 		*)
@@ -155,7 +155,7 @@ check_glibc_version
 packages_to_install=()
 
 for key in "${!packages[@]}"; do
-	if ! echo "$pkg_list" | grep -qw "${packages[$key]}"; then
+	if ! dpkg-query -W -f='${Status}' "${packages[$key]}" 2>/dev/null | grep -q "install ok installed"; then
 		packages_to_install+=("${packages[$key]}")
 	else
 		echo "Package ${packages[$key]} is installed."
@@ -174,6 +174,10 @@ if [ ${#packages_to_install[@]} -ne 0 ]; then
 			echo "This script needs superuser privileges to install packages."
 			echo "Please run it with sudo or as root."
 			exit 1
+		fi
+		if [ "$ID" = "ubuntu" ] || [ "$ID" = "debian" ]; then
+			echo "Updating package list..."
+			$install_cmd $pkg_update_cmd
 		fi
 		for pkg in "${packages_to_install[@]}"; do
 			install_packages $pkg
