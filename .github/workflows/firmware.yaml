@@ -35,7 +35,7 @@ env:
   TAG_NAME: firmware
   UPD_TAG_NAME: firmware_update
   TERM: linux
-  BR2_DL_DIR: /tmp/dl
+  BR2_DL_DIR: ~/dl
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
   TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_BUILD}}
   TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
@@ -119,7 +119,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cpio curl ca-certificates file git make gawk procps rsync unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc cmake cpio curl ca-certificates file git make gawk procps rsync unzip wget
 
       - name: Setup gh container workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -144,16 +144,14 @@ jobs:
 
       - name: Setup cache directories
         run: |
-          mkdir -p /tmp/ccache
-          mkdir -p /tmp/dl
-          ln -s /tmp/ccache ${HOME}/.ccache
-          ln -s /tmp/dl ${HOME}/dl
+          mkdir -p ~/.ccache
+          mkdir -p ~/dl
 
       - name: Restore build cache
         uses: actions/cache@v4
         if: always()
         with:
-          path: /tmp/ccache
+          path: ~/.ccache
           key: ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
           restore-keys: |
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-
@@ -162,7 +160,7 @@ jobs:
         uses: actions/cache@v4
         if: always()
         with:
-          path: /tmp/dl
+          path: ~/dl
           key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
           restore-keys: |
             ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-
