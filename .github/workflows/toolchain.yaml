@@ -54,7 +54,7 @@ jobs:
       run:
         shell: bash
     container:
-      image: debian:trixie
+      image: debian:bullseye
     strategy:
       fail-fast: false
       matrix:
