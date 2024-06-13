@@ -18,12 +18,12 @@ check_glibc_version() {
 }
 
 install_packages() {
-	local package=$1
-	echo "Package $package is NOT installed. Attempting to install..."
-	if $install_cmd $pkg_install_cmd $package; then
-		echo "Installed $package"
+	local packages=("$@")
+	echo "The following packages are missing and need to be installed: ${packages[*]}"
+	if $install_cmd $pkg_install_cmd "${packages[@]}"; then
+		echo "Installed ${packages[*]}"
 	else
-		echo "Failed to install $package"
+		echo "Failed to install ${packages[*]}"
 	fi
 }
 
@@ -179,9 +179,7 @@ if [ ${#packages_to_install[@]} -ne 0 ]; then
 			echo "Updating package list..."
 			$install_cmd $pkg_update_cmd
 		fi
-		for pkg in "${packages_to_install[@]}"; do
-			install_packages $pkg
-		done
+		install_packages "${packages_to_install[@]}"
 	else
 		echo "Installation aborted by the user."
 		exit 0
