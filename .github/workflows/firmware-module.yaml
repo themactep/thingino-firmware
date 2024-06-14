@@ -2,7 +2,7 @@ name: firmware-module
 on:
   schedule:
     # 02:15 PST / Nightly
-    - cron:  '15 10 * * *'
+    - cron:  '15 9 * * *'
   workflow_dispatch:
     inputs:
       tg_disabled:
