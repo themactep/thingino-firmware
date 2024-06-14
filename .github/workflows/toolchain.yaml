@@ -15,6 +15,11 @@ on:
         description: 'Use TG scratch channel'
         required: false
         default: false
+      latest_only:
+        type: boolean
+        description: 'Only build latest default toolchain'
+        required: false
+        default: false
 
 env:
   TAG_NAME: toolchain
@@ -54,9 +59,39 @@ jobs:
           HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
           echo Telegram response: ${HTTP}
 
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: setup env test
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          ref: "master"
+          fetch-depth: "1"
+
+      - name: Generate matrix
+        id: set-matrix
+        run: |
+          if [[ "${{ github.event.inputs.latest_only }}" == 'true' ]]; then
+            CONFIGS=$(find configs/github/ -type f | sort | awk -F '/' '{print $(NF)}' | sed 's/_defconfig$//'| grep 'toolchain_xburst1_musl_gcc14')
+          else
+            CONFIGS=$(find configs/github/ -type f | sort | awk -F '/' '{print $(NF)}' | sed 's/_defconfig$//' | grep 'toolchain_xburst1')
+          fi
+          JSON_MATRIX="{\"toolchain-version\": ["
+          for CONFIG in $CONFIGS; do
+            JSON_MATRIX+="\"${CONFIG}\","
+          done
+          JSON_MATRIX="${JSON_MATRIX%,}]}"
+          echo "Matrix: $JSON_MATRIX"
+          echo "matrix=$JSON_MATRIX" >> $GITHUB_OUTPUT
+
   build-toolchain:
     name: ${{ matrix.toolchain-version }}
-    needs: notify-begin
+    needs: [generate-matrix, notify-begin]
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -65,16 +100,7 @@ jobs:
       image: debian:bullseye
     strategy:
       fail-fast: false
-      matrix:
-        toolchain-version:
-          - toolchain_xburst1_musl_gcc12
-          - toolchain_xburst1_gnu_gcc12
-          - toolchain_xburst1_musl_gcc13
-          - toolchain_xburst1_gnu_gcc13
-          - toolchain_xburst1_musl_gcc14
-          - toolchain_xburst1_gnu_gcc14
-          - toolchain_4_4_xburst1_musl_gcc13
-          - toolchain_4_4_xburst1_musl_gcc14
+      matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
 
     steps:
       - name: Update APT sources
@@ -85,7 +111,7 @@ jobs:
         run: |
           apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git make gawk procps rsync unzip wget
 
-      - name: Setup gh container workspace
+      - name: Setup gh workspace in container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout source
@@ -112,13 +138,11 @@ jobs:
           mkdir -p ~/dl
 
       - name: Restore Buildroot DL cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         if: always()
         with:
           path: ~/dl
           key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
-          restore-keys: |
-            ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-
 
       - name: Prepare buildroot cache
         run: |
