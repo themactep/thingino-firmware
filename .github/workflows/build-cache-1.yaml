@@ -2,7 +2,7 @@ name: buildroot-cache
 on:
   schedule:
     # 23:15 PST / Saturday
-    - cron:  '15 07 * * 0'
+    - cron:  '15 06 * * 0'
   workflow_dispatch:
     inputs:
       tg_disabled:
