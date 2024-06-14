@@ -37,6 +37,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	# update os-release
 	if [ "$hostname" != "$(sed -nE "s/^HOSTNAME=(.*)$/\1/p" /etc/os-release)" ]; then
 		sed -i "/^HOSTNAME/s/=.*$/=$hostname/" /etc/os-release
+		. /etc/os-release
 	fi
 
 	# update hostname
