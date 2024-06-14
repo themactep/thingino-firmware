@@ -70,7 +70,7 @@ jobs:
         run: |
           apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git make gawk procps rsync unzip wget
 
-      - name: Setup gh container workspace
+      - name: Setup gh workspace in container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout source
@@ -96,7 +96,7 @@ jobs:
           mkdir -p ~/.ccache
           mkdir -p ~/dl
 
-      - name: Prepare buildroot cache
+      - name: Download buildroot sources
         run: |
           BOARD=${{ matrix.caches-version }} make source
           TIME=$(date -d @${SECONDS} +%M:%S)
@@ -106,12 +106,23 @@ jobs:
         run: |
           BOARD=${{ matrix.caches-version }} make
 
+      - name: Prune Buildroot DL cache
+        run: |
+          find ~/dl/ -type d -name git -exec rm -rf {} +
+
       - name: Save Buildroot DL cache
-        uses: actions/cache@v4
+        uses: actions/cache/save@v4
         if: always()
         with:
           path: ~/dl
-          key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
+          key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}          
+
+      - name: Save Buildroot ccache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
 
       - name: Send completion notification
         if: ${{ github.event_name != 'pull_request' && env.INGTC && github.event.inputs.tg_disabled == 'false' }}
@@ -125,7 +136,6 @@ jobs:
           TG_HEADER=$(echo -e "${TG_MSG}${TG_ICON}")
           HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
           echo Telegram response: ${HTTP}
-
 
       - name: Send error notification
         if: ${{ github.event_name != 'pull_request' && failure() && github.event.inputs.tg_disabled == 'false' }}
