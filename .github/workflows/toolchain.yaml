@@ -111,15 +111,6 @@ jobs:
           mkdir -p ~/.ccache
           mkdir -p ~/dl
 
-      - name: Restore build cache
-        uses: actions/cache@v4
-        if: always()
-        with:
-          path: ~/.ccache
-          key: ${{ runner.os }}-ccache-${{ matrix.toolchain-version }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-ccache-${{ matrix.toolchain-version }}-
-
       - name: Restore Buildroot DL cache
         uses: actions/cache@v4
         if: always()
