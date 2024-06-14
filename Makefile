@@ -6,7 +6,7 @@ ifeq ($(__BASH_MAKE_COMPLETION__),1)
 endif
 
 ifneq ($(shell command -v gawk >/dev/null; echo $$?),0)
-$(error Please install gawk!)
+$(error Please run `make bootstrap` to install prerequisites.)
 endif
 
 # Camera IP address
