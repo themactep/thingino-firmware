@@ -337,7 +337,7 @@ field_switch() {
 	[ -z "$o" ] && o="true,false"
 	local o1=$(echo "$o" | cut -d, -f1)
 	local o2=$(echo "$o" | cut -d, -f2)
-	echo "<p class=\"boolean\">" \
+	echo "<p class=\"boolean\" id=\"${1}_wrap\">" \
 		"<span class=\"form-check form-switch\">" \
 		"<input type=\"hidden\" id=\"${1}-false\" name=\"${1}\" value=\"${o2}\">" \
 		"<input type=\"checkbox\" id=\"${1}\" name=\"${1}\" value=\"${o1}\" role=\"switch\" class=\"form-check-input\"$(checked_if "$o1" "$v")>" \
