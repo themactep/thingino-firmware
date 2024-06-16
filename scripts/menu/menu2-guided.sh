@@ -152,7 +152,7 @@ step3() {
 			closed_dialog
 			return
 		fi
-		#BOARD=$camera_value make
+		BOARD=$camera_value make
 		step3_completed=true
 		"${DIALOG_COMMON[@]}" --msgbox "The firmware compilation process is now complete!\\n\nYour firmware images are located in \n\Z1$HOME/output/$camera_value/images\Zn" 8 70
 	else
