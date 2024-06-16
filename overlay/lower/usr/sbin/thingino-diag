@@ -46,6 +46,8 @@ fi
 	ipcs
 	center_text "KMOD"
 	lsmod
+	center_text "KMOD-2"
+	for file in /etc/modules.d/*; do echo "== $file =="; cat "$file"; done
 	center_text "USB"
 	lsusb
 	center_text "MEMORY"
