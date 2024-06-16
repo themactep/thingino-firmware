@@ -1,0 +1,104 @@
+#!/bin/sh
+
+# Function to display the help message
+show_help() {
+	echo "Usage: $0 [-m host|device]"
+	echo ""
+	echo "Options:"
+	echo "  -m    Set the USB mode to either 'host' or 'device'."
+	echo "  -h    Display this help message."
+	exit 0
+}
+
+# Function to set USB to host mode
+set_host_mode() {
+	echo "Setting USB to host mode"
+	devmem 0x10000040 32 0x0b000096
+}
+
+# Function to set USB to device mode for t20
+set_device_mode_t20() {
+	echo "Setting USB to device mode for t20"
+	devmem 0x10000040 32 0x0b800096
+	devmem 0x13500000 32 0x001100cc
+}
+
+# Function to set USB to device mode for t31
+set_device_mode_t31() {
+	echo "Setting USB to device mode for t31"
+	devmem 0x13500000 32 0x001100cc
+	devmem 0x10000040 32 0x0b000096
+	devmem 0x10000040 32 0x0b000FFF
+}
+
+# Function to display the current USB mode
+display_current_mode() {
+	result=$(devmem 0x13500000 32)
+	case "$result" in
+		0x001900CC)
+			echo "Current mode: Device mode"
+			;;
+		0x003800CC)
+			echo "Current mode: Host mode"
+			;;
+		*)
+			echo "Unknown mode: $result"
+			;;
+	esac
+}
+
+# Parse command line arguments
+while getopts ":m:h" opt; do
+	case $opt in
+		m)
+			MODE=$OPTARG
+			;;
+		h)
+			show_help
+			;;
+		\?)
+			echo "Invalid option: -$OPTARG" >&2
+			show_help
+			;;
+		:)
+			echo "Option -$OPTARG requires an argument." >&2
+			show_help
+			;;
+	esac
+done
+
+# Check if the mode was provided
+if [ -z "$MODE" ]; then
+	display_current_mode
+	exit 0
+fi
+
+# Get the SOC type
+SOC=$(soc -f)
+
+# Set USB mode based on the provided argument and SOC type
+case "$MODE" in
+	host)
+		set_host_mode
+		;;
+	device)
+		case "$SOC" in
+			t20)
+				set_device_mode_t20
+				;;
+			t31)
+				set_device_mode_t31
+				;;
+			*)
+				echo "Unknown SOC type: $SOC"
+				exit 1
+				;;
+		esac
+		;;
+	*)
+		echo "Invalid mode: $MODE"
+		show_help
+		;;
+esac
+
+exit 0
