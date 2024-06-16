@@ -8,6 +8,7 @@ start() {
 		OS_NAME=$(sed -n 's/^HOSTNAME=//p' /etc/os-release)
 		MAC_SUFFIX=$(get wlanmac | sed 's/://g;s/.*\(....\)$/\1/')
 		HOSTNAME="${OS_NAME}-${MAC_SUFFIX}"
+		fw_setenv hostname $HOSTNAME
 	fi
 	starting
 	hostname "$HOSTNAME" && ok || { fail && die; }
