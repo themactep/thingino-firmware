@@ -3,13 +3,13 @@ WYZE_ACCESSORY_SITE_METHOD = local
 WYZE_ACCESSORY_SITE = $(WYZE_ACCESSORY_PKGDIR)/files
 
 define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_SPOTLIGHT
-	$(INSTALL) -m 755 -D $(WYZE_ACCESSORY_PKGDIR)/files/spotlight_ctl.sh $(TARGET_DIR)/usr/sbin/spotlight_ctl.sh
+	$(INSTALL) -m 755 -D $(WYZE_ACCESSORY_PKGDIR)/files/spotlight_ctl $(TARGET_DIR)/usr/sbin/spotlight_ctl
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/modules.d
 	echo ch341 >> $(TARGET_DIR)/etc/modules.d/accessory
 endef
 
 define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_CAR
-	$(INSTALL) -m 0755 -D $(WYZE_ACCESSORY_PKGDIR)/files/car_control.sh $(TARGET_DIR)/usr/sbin/car_control.sh
+	$(INSTALL) -m 0755 -D $(WYZE_ACCESSORY_PKGDIR)/files/car_control $(TARGET_DIR)/usr/sbin/car_control
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
 	echo cp210x >> $(TARGET_DIR)/etc/modules.d/accessory
 endef
