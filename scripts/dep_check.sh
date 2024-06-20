@@ -144,6 +144,34 @@ if [ -f /etc/os-release ]; then
 				[grep]='grep'
 			)
 			;;
+		"opensuse-tumbleweed")
+			echo "OpenSUSE Tumbleweed"
+			pkg_manager="zypper"
+			pkg_check_command="zypper search -i"
+			pkg_install_cmd="zypper install"
+			declare -A packages=(
+				[gcc]='gcc'
+				[make]='make'
+				[bc]='bc'
+				[bison]='bison'
+				[cpio]='cpio'
+				[cmake]='cmake'
+				[curl]='curl'
+				[file]='file'
+				[flex]='flex'
+				[gawk]='gawk'
+				[git]='git'
+				[ncurses-devel]='ncurses-devel'
+				[rsync]='rsync'
+				[unzip]='unzip'
+				[wget]='wget'
+				[newt]='newt'
+				[dialog]='dialog'
+				[perl]='perl'
+				[findutils]='findutils'
+				[grep]='grep'
+			)
+			;;
 		*)
 			echo "Unsupported OS"
 			exit 1
