@@ -171,6 +171,9 @@ defconfig: prepare_config
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 	# $(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) defconfig
 
+select-device:
+	$(info -------------------> select-device)
+
 # Call configurator UI
 menuconfig: $(OUTPUT_DIR)/.config
 	$(info -------------------> menuconfig)

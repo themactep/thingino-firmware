@@ -129,7 +129,7 @@ step2() {
 		camera_value=""  # Reset if reselecting
 	fi
 
-	output=$(BR2_EXTERNAL=$PWD make -f board.mk)
+	output=$(BR2_EXTERNAL=$PWD make select-device)
 	camera_value=$(echo "$output" | grep 'CAMERA =' | tail -n1 | awk -F' = ' '{print $2}')
 
 	if [ -n "$camera_value" ]; then
