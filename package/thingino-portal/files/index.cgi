@@ -52,7 +52,7 @@ elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then %>
 </div>
 <div class="mb-3">
 <label class="form-label">Wireless Network Password</label>
-<input class="form-control form-control-lg bg-light text-dark" type="text" name="wlanpass" id="wlanpass" value="<%= $wlanpass %>" required autocapitalize="none">
+<input class="form-control form-control-lg bg-light text-dark" type="text" name="wlanpass" id="wlanpass" value="<%= $wlanpass %>" required autocapitalize="none" minlength="8" pattern=".{8,64}">
 <div class="invalid-feedback">Please enter a password 8 - 64 characters</div>
 </div>
 <div class="mb-3">
@@ -90,6 +90,7 @@ elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then %>
 <% else %>
 <div class="alert alert-secondary my-3">
 <h3>Ready to connect</h3>
+<p>Please double-check the entered data and correct it if you see an error!</p>
 <p>Please double-check the entered data and correct it if you see an error!</p>
 
 <form action="<%= $SCRIPT_NAME %>" method="POST" class="mb-3">
