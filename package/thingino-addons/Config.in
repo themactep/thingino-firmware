@@ -1,5 +1,5 @@
 config BR2_PACKAGE_THINGINO_ADDONS
-	bool "Thingino ADDONS"
+	bool "Thingino add-ons"
 	help
 	  Kernel modules, programs, and scripts to make your device better!
 
@@ -7,4 +7,4 @@ config BR2_PACKAGE_THINGINO_ADDONS_NETFILTER
 	bool "Netfilter"
 	depends on BR2_PACKAGE_THINGINO_ADDONS
 	help
-	  Build the required kernel modules and required dependencies to enable netfilter/IPTables support.
+	  Build necessary kernel modules and dependencies to enable netfilter/iptables support.
