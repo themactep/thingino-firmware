@@ -91,7 +91,6 @@ elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then %>
 <div class="alert alert-secondary my-3">
 <h3>Ready to connect</h3>
 <p>Please double-check the entered data and correct it if you see an error!</p>
-<p>Please double-check the entered data and correct it if you see an error!</p>
 
 <form action="<%= $SCRIPT_NAME %>" method="POST" class="mb-3">
 <input type="hidden" name="mode" value="edit">
