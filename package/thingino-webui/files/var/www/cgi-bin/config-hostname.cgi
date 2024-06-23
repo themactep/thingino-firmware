@@ -58,10 +58,10 @@ check_hostname
 <% field_text "hostname" "Hostname" %>
 </div>
 <div class="col">
+<% ex "fw_printenv -n hostname" %>
+<% ex "hostname" %>
 </div>
 <div class="col">
-<h3>Environment Settings</h3>
-<% ex "hostname" %>
 <% ex "cat /etc/hostname" %>
 <% ex "echo \$HOSTNAME" %>
 <% ex "grep 127.0.1.1 /etc/hosts" %>
