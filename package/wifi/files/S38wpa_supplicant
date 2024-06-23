@@ -26,7 +26,7 @@ start() {
 		fw_setenv wlanpass $pass
 	fi
 
-	wlan_check || quit "Disabled"
+	iface_exists "wlan0" || quit "Disabled"
 
 	if [ -z "$ssid" ] || [ -z "$pass" ]; then
 		sed -i '/^auto wlan0$/s/^/#/' /etc/network/interfaces.d/wlan0

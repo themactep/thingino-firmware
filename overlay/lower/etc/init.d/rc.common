@@ -108,15 +108,24 @@ indent_output() {
 	awk '{print " "$0}'
 }
 
-wlan_check() {
-	iface="wlan0"
-	if ! ip link show $iface &> /dev/null; then
+iface_exists() {
+	iface="$1"
+
+	if [ -z "$iface" ]; then
+		echo "Interface parameter missing." 2>&1 | log
+		return 1
+	fi
+
+	if ip link show $iface &> /dev/null; then
+		echo "Interface '$iface' exists." 2>&1 | log
+		return 0
+	else
 		echo "Interface '$iface' does not exist." 2>&1 | log
 		return 1
 	fi
 }
 
-wlandev_check() {
+wlandev_exists() {
 	if [ -z "$(get wlandev)" ]; then
 		echo "wlandev is empty" 2>&1 | log
 		return 1
