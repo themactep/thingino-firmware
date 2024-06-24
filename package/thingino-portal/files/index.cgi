@@ -43,7 +43,9 @@ if [ "POST" = "$REQUEST_METHOD" ] && [ "save" = "$POST_mode" ]; then
 	sed -i "s/^ifs=.*$/ifs=wlan0/" /etc/onvif.conf
 	echo "<h1 class=\"mt-5 text-center display-1\">Done. Rebooting...</h1>"
 	reboot -d 5
-elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then %>
+elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then
+	hostname=$(hostname)
+%>
 <form action="<%= $SCRIPT_NAME %>" method="post" class="my-3 needs-validation" novalidate style="max-width:26rem">
 <div class="mb-3">
 <label class="form-label">Wireless Network Name (SSID)</label>
