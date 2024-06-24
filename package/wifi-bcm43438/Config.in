@@ -1,0 +1,3 @@
+config BR2_PACKAGE_WIFI_BCM43438
+	bool "Broadcom 43438 (AP6212a)"
+	select BR2_LINUX_KERNEL
