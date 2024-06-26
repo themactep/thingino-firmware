@@ -1,4 +1,4 @@
-THINGINO_LIVE555_VERSION = 2024.05.30
+THINGINO_LIVE555_VERSION = 2024.06.26
 THINGINO_LIVE555_SOURCE = live.$(THINGINO_LIVE555_VERSION).tar.gz
 THINGINO_LIVE555_SITE = http://www.live555.com/liveMedia/public
 # There is a COPYING file with the GPL-3.0 license text, but none of
