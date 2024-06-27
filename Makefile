@@ -35,7 +35,7 @@ STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
 
 # project directories
 BR2_EXTERNAL := $(CURDIR)
-SCRIPTS_DIR := $(CURDIR)/scripts
+SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
