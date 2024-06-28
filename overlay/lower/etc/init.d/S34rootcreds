@@ -7,49 +7,49 @@ SHADOW_PATH="/etc/shadow"
 ROOT_SSH_ENV="ssh_authorized_keys"
 KEYFILE_PATH="/root/.ssh/authorized_keys"
 
-ROOT_PW_SAVED=""
-ROOT_PW_CUR=""
-ROOT_SSH_SAVED=""
-ROOT_SSH_CUR=""
+root_pw_saved=""
+root_pw_cur=""
+root_ssh_saved=""
+root_ssh_cur=""
 
 load_saved_creds() {
-	ROOT_SSH_SAVED="$(fw_printenv -n ${ROOT_SSH_ENV})"
-	ROOT_PW_SAVED="$(fw_printenv -n ${ROOT_PW_ENV})"
-	ROOT_PW_CUR="$(grep '^root:' "${SHADOW_PATH}" | head -1 | cut -d ':' -f 2 | base64 | tr -d '\n')"
+	root_ssh_saved="$(fw_printenv -n ${ROOT_SSH_ENV})"
+	root_pw_saved="$(fw_printenv -n ${ROOT_PW_ENV})"
+	root_pw_cur="$(grep '^root:' "${SHADOW_PATH}" | head -1 | cut -d ':' -f 2 | base64 | tr -d '\n')"
 	if [ -f "${KEYFILE_PATH}" ] ; then
-		ROOT_SSH_CUR="$(grep '[A-Za-z0-9]' "${KEYFILE_PATH}" | gzip | base64 | tr -d '\n')"
+		root_ssh_cur="$(grep '[A-Za-z0-9]' "${KEYFILE_PATH}" | gzip | base64 | tr -d '\n')"
 	fi
 }
 
 save_root_password() {
-	fw_setenv ${ROOT_PW_ENV} "${ROOT_PW_CUR}"
+	fw_setenv ${ROOT_PW_ENV} "${root_pw_cur}"
 	log "Saved root password." &
 }
 
 save_root_sshkey() {
-	fw_setenv ${ROOT_SSH_ENV} "${ROOT_SSH_CUR}"
+	fw_setenv ${ROOT_SSH_ENV} "${root_ssh_cur}"
 	log "Saved root authorized ssh keys." &
 }
 
 restore_root_password(){
-	if [ -n "${ROOT_PW_SAVED}" ] ; then
- 		ROOT_PW_DATA=$(echo "${ROOT_PW_SAVED}" | base64 -d | grep '[A-Za-z0-9]' | head -1 | sed -e 's/^root://' -e 's/:.*//' )
-		if [ -n "${ROOT_PW_DATA}" ] ; then
-			TMP_SHADOW=$(mktemp -p /tmp)
-			echo "root:${ROOT_PW_DATA}:::::::" > "${TMP_SHADOW}"
-			grep -v '^root:' "${SHADOW_PATH}" >> "${TMP_SHADOW}"
+	if [ -n "${root_pw_saved}" ] ; then
+ 		root_pw_data=$(echo "${root_pw_saved}" | base64 -d | grep '[A-Za-z0-9]' | head -1 | sed -e 's/^root://' -e 's/:.*//' )
+		if [ -n "${root_pw_data}" ] ; then
+			tmp_shadow=$(mktemp -p /tmp)
+			echo "root:${root_pw_data}:::::::" > "${tmp_shadow}"
+			grep -v '^root:' "${SHADOW_PATH}" >> "${tmp_shadow}"
 			mv -f "${SHADOW_PATH}" "${SHADOW_PATH}-"
-			mv -f "${TMP_SHADOW}" "${SHADOW_PATH}"
+			mv -f "${tmp_shadow}" "${SHADOW_PATH}"
 			log "Root password restored." &
 		fi
 	fi
 }
 
 restore_root_sshkey() {
-	if [ -n "${ROOT_SSH_SAVED}" ] ; then
-		TMP_KEYS=$(mktemp -p /root/.ssh)
-  		echo "$ROOT_SSH_SAVED" | base64 -d | gunzip >> "${TMP_KEYS}"
-		grep -Eq "ssh-rsa|ssh-ed25519|ecdsa-sha" "${TMP_KEYS}" && mv -v "${TMP_KEYS}" "${KEYFILE_PATH}"
+	if [ -n "${root_ssh_saved}" ] ; then
+		tmp_keys=$(mktemp -p /root/.ssh)
+  		echo "$root_ssh_saved" | base64 -d | gunzip >> "${tmp_keys}"
+		grep -Eq "ssh-rsa|ssh-ed25519|ecdsa-sha" "${tmp_keys}" && mv -v "${tmp_keys}" "${KEYFILE_PATH}"
 		log "SSH Key restored." &
 	fi
 }
@@ -58,27 +58,22 @@ restore_root_sshkey() {
 load_saved_creds
 case "$1" in
 	start)
-		# If root password needs changing, that probably means this is an upgrade, so restore
 		if [ -s "${KEYFILE_PATH}" ]; then
-			# root has ssh keys, save 'em to EEPROM
-			if [ "x$ROOT_SSH_SAVED" != "x${ROOT_SSH_CUR}" ]; then
-				# save keys not the same as running keys...
+			if [ "x$root_ssh_saved" != "x${root_ssh_cur}" ]; then
 				save_root_sshkey
 			fi
 		else
-			# no keyfile present, try restore saved keys
-			if [ -n "${ROOT_SSH_SAVED}" ] ; then
+			if [ -n "${root_ssh_saved}" ] ; then
 				restore_root_sshkey
 			fi
 		fi
 
-		# ROOT_PW_{SAVED,CUR}
 		if [ -f "${SHADOW_PATH}-" ] ; then
-			if [ -z "${ROOT_PW_SAVED}" ] || [ "x${ROOT_PW_SAVED}" != "x${ROOT_PW_CUR}" ]; then
+			if [ -z "${root_pw_saved}" ] || [ "x${root_pw_saved}" != "x${root_pw_cur}" ]; then
 				save_root_password
 			fi
 		else
-			if [ -n "${ROOT_SSH_SAVED}" ] ; then
+			if [ -n "${root_ssh_saved}" ] ; then
 				restore_root_password
 			fi
 		fi
