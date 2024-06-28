@@ -96,6 +96,13 @@ jobs:
           mkdir -p ~/.ccache
           mkdir -p ~/dl
 
+      - name: Restore Buildroot DL cache
+        uses: actions/cache/restore@v4
+        if: always()
+        with:
+          path: ~/dl
+          key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
+
       - name: Generate buildroot cache
         run: |
           BOARD=${{ matrix.caches-version }} make
