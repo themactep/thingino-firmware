@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 ROOT_PW_ENV="root_pw_hash"
 SHADOW_PATH="/etc/shadow"
 ROOT_SSH_ENV="ssh_authorized_keys"
@@ -19,59 +21,26 @@ load_saved_creds() {
 	fi
 }
 
-check_saved_creds() {
-	RET=0
-	if [ -n "${ROOT_PW_SAVED}" ] ; then
-		if [ "x${ROOT_PW_SAVED}" == "x${ROOT_PW_CUR}" ] ; then
-			X="matches"
-		else
-			X="does not match"
-			RET=1
-		fi
-		echo "Saved root password ${X} current password"
-	else
-		echo "No saved root password"
-		RET=1
-	fi
-
-	if [ -n "${ROOT_SSH_SAVED}" ] ; then
-		if [ "x${ROOT_SSH_SAVED}" == "x${ROOT_SSH_CUR}" ] ; then
-			X="match"
-		else
-			X="do not match"
-			RET=1
-		fi
-		echo "Saved root ssh keys ${X} current ssh keys"
-	else
-		echo "No saved root ssh keys"
-		RET=1
-	fi
-	return $RET
-}
-
-
 save_root_password() {
-	#echo fw_setenv ${ROOT_PW_ENV} "${ROOT_PW_CUR}"
 	fw_setenv ${ROOT_PW_ENV} "${ROOT_PW_CUR}"
-	logger -p daemon.info -t $0 "Saved root password."
+	log "Saved root password." &
 }
 
 save_root_sshkey() {
-	#echo fw_setenv ${ROOT_SSH_ENV} "${ROOT_SSH_CUR}"
 	fw_setenv ${ROOT_SSH_ENV} "${ROOT_SSH_CUR}"
-	logger -p daemon.info -t $0 "Saved root authorized ssh keys."
+	log "Saved root authorized ssh keys." &
 }
 
 restore_root_password(){
 	if [ -n "${ROOT_PW_SAVED}" ] ; then
  		ROOT_PW_DATA=$(echo "${ROOT_PW_SAVED}" | base64 -d | grep '[A-Za-z0-9]' | head -1 | sed -e 's/^root://' -e 's/:.*//' )
 		if [ -n "${ROOT_PW_DATA}" ] ; then
-			TMP_SHADOW=$(mktemp -p /etc)
+			TMP_SHADOW=$(mktemp -p /tmp)
 			echo "root:${ROOT_PW_DATA}:::::::" > "${TMP_SHADOW}"
 			grep -v '^root:' "${SHADOW_PATH}" >> "${TMP_SHADOW}"
-			ln -f "${SHADOW_PATH}" "${SHADOW_PATH}-"
-			mv -v "${TMP_SHADOW}" "${SHADOW_PATH}"
-			logger -p daemon.info -t $0 "Root password restored."
+			mv -f "${SHADOW_PATH}" "${SHADOW_PATH}-"
+			mv -f "${TMP_SHADOW}" "${SHADOW_PATH}"
+			log "Root password restored." &
 		fi
 	fi
 }
@@ -81,7 +50,7 @@ restore_root_sshkey() {
 		TMP_KEYS=$(mktemp -p /root/.ssh)
   		echo "$ROOT_SSH_SAVED" | base64 -d | gunzip >> "${TMP_KEYS}"
 		grep -Eq "ssh-rsa|ssh-ed25519|ecdsa-sha" "${TMP_KEYS}" && mv -v "${TMP_KEYS}" "${KEYFILE_PATH}"
-		logger -p daemon.info -t $0 "SSH Key restored."
+		log "SSH Key restored." &
 	fi
 }
 
@@ -89,20 +58,16 @@ restore_root_sshkey() {
 load_saved_creds
 case "$1" in
 	start)
-		# {save,restore}_root_{password,sshkey}
-		# If ssh keys are missing, try restore
 		# If root password needs changing, that probably means this is an upgrade, so restore
 		if [ -s "${KEYFILE_PATH}" ]; then
 			# root has ssh keys, save 'em to EEPROM
 			if [ "x$ROOT_SSH_SAVED" != "x${ROOT_SSH_CUR}" ]; then
 				# save keys not the same as running keys...
-				logger -p daemon.info -t $0 "Saving root authorized ssh keys"
 				save_root_sshkey
 			fi
 		else
 			# no keyfile present, try restore saved keys
 			if [ -n "${ROOT_SSH_SAVED}" ] ; then
-				logger -p daemon.info -t $0 "Restoring root authorized ssh keys"
 				restore_root_sshkey
 			fi
 		fi
@@ -110,32 +75,20 @@ case "$1" in
 		# ROOT_PW_{SAVED,CUR}
 		if [ -f "${SHADOW_PATH}-" ] ; then
 			if [ -z "${ROOT_PW_SAVED}" ] || [ "x${ROOT_PW_SAVED}" != "x${ROOT_PW_CUR}" ]; then
-				logger -p daemon.info -t $0 "Saving root password"
 				save_root_password
 			fi
 		else
 			if [ -n "${ROOT_SSH_SAVED}" ] ; then
-				logger -p daemon.info -t $0 "Restoring root password keys"
 				restore_root_password
 			fi
 		fi
 
 		;;
-	status)
-		check_saved_creds
-		;;
-	save)
-		fw_setenv ${ROOT_SSH_ENV} ""
-		save_root_sshkey
-		fw_setenv ${ROOT_PW_ENV} ""
-		save_root_password
-		check_saved_creds
-		;;
-	stop | restart)
+	status | stop | restart)
 		true
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart|save|status}"
+		echo "Usage: $0 {start|stop|restart|status}"
 		exit 1
 		;;
 esac
