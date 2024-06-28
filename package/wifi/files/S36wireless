@@ -3,7 +3,7 @@
 . /etc/init.d/rc.common
 
 start() {
-	starting_batch
+	starting
 	modulename="$(get wlandev)"
 	moduleopts="$(get wlandevopts)"
 	gpionum="$(get gpio_wlan)"
