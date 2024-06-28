@@ -1,6 +1,7 @@
 #!/bin/sh
 
-echo -e "Warning: This action will erase the overlay partition and reset the device to Thingino installation defaults. \n\nAre you sure you want to proceed? (yes/no)"
+echo -e "\033[31;47m!!! Warning !!!\033[0m\n\nThis action will erase the overlay and env partitions, and reset the device to Thingino installation defaults, like the first boot.\n\n\033[33;40mAll saved settings and configurations will be erased!\033[0m\n\nAre you sure you want to proceed? (yes/no)"
+
 read response
 if [ "$response" != "yes" ]; then
 	echo "Operation aborted."
@@ -13,4 +14,4 @@ if [ -z "$rootfs_data_dev" ]; then
 	return 1
 fi
 
-flash_eraseall -j "/dev/${rootfs_data_dev}" && echo "Erase completed. Rebooting..." && reboot -f
+flash_eraseall -j "/dev/${rootfs_data_dev}" && flash_eraseall /dev/mtd1 && echo "Erase completed. Rebooting..." && reboot -f
