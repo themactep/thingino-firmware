@@ -1,3 +1,4 @@
 auto eth0
 iface eth0 inet dhcp
     hwaddress ether $(fw_printenv -n ethaddr)
+    post-up sleep 3
