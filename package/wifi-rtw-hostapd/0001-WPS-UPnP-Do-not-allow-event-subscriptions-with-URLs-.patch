@@ -73,7 +73,7 @@ index 6e10e4bc0c3f..7d4b7439940e 100644
  		a = os_zalloc(sizeof(*a) + alloc_len);
  		if (a == NULL)
  			break;
-@@ -890,11 +906,12 @@ static int eth_get(const char *device, u8 ea[ETH_ALEN])
+@@ -889,11 +905,12 @@ static int eth_get(const char *device, u8 ea[ETH_ALEN])
   * @net_if: Selected network interface name
   * @ip_addr: Buffer for returning IP address in network byte order
   * @ip_addr_text: Buffer for returning a pointer to allocated IP address text
@@ -87,7 +87,7 @@ index 6e10e4bc0c3f..7d4b7439940e 100644
  {
  	struct ifreq req;
  	int sock = -1;
-@@ -920,6 +937,19 @@ int get_netif_info(const char *net_if, unsigned *ip_addr, char **ip_addr_text,
+@@ -919,6 +936,19 @@ int get_netif_info(const char *net_if, unsigned *ip_addr, char **ip_addr_text,
  	in_addr.s_addr = *ip_addr;
  	os_snprintf(*ip_addr_text, 16, "%s", inet_ntoa(in_addr));
  
@@ -107,7 +107,7 @@ index 6e10e4bc0c3f..7d4b7439940e 100644
  #ifdef __linux__
  	os_strlcpy(req.ifr_name, net_if, sizeof(req.ifr_name));
  	if (ioctl(sock, SIOCGIFHWADDR, &req) < 0) {
-@@ -1026,11 +1056,15 @@ static int upnp_wps_device_start(struct upnp_wps_device_sm *sm, char *net_if)
+@@ -1025,11 +1055,15 @@ static int upnp_wps_device_start(struct upnp_wps_device_sm *sm, char *net_if)
  
  	/* Determine which IP and mac address we're using */
  	if (get_netif_info(net_if, &sm->ip_addr, &sm->ip_addr_text,
