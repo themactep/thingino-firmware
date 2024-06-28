@@ -1,6 +1,6 @@
 --- a/hal/rtl8188f/rtl8188f_rf6052.c	2023-01-22 01:07:36.908023657 -0500
 +++ b/hal/rtl8188f/rtl8188f_rf6052.c	2023-01-22 01:04:22.391120917 -0500
-@@ -20,7 +20,7 @@
+@@ -15,7 +15,7 @@
  /******************************************************************************
   *
   *
@@ -11,7 +11,7 @@
   *
 --- a/hal/rtl8188f/usb/rtl8188fu_xmit.c	2023-01-22 01:07:36.908023657 -0500
 +++ b/hal/rtl8188f/usb/rtl8188fu_xmit.c	2023-01-22 01:01:43.570382112 -0500
-@@ -877,7 +877,7 @@
+@@ -867,7 +867,7 @@
  	ptxdesc->txdw3 |= cpu_to_le32((8 << 28)); /*set bit3 to 1. Suugested by TimChen. 2009.12.29. */
  
  
@@ -20,7 +20,7 @@
  	/* ----- end of fill tx desc ----- */
  
  	/* */
-@@ -895,7 +895,7 @@
+@@ -885,7 +885,7 @@
  	pipe = usb_sndbulkpipe(pdvobj->pusbdev, pHalData->Queue2EPNum[(u8)MGT_QUEUE_INX] & 0x0f);
  
  	usb_fill_bulk_urb(urb, pdvobj->pusbdev, pipe,
