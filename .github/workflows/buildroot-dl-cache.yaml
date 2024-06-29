@@ -1,0 +1,162 @@
+name: buildroot-dl-cache
+on:
+  schedule:
+    # 23:00 PST / Saturday
+    - cron:  '00 06 * * 0'
+  workflow_dispatch:
+    inputs:
+      tg_disabled:
+        type: boolean
+        description: 'Disable Telegram notifications'
+        required: false
+        default: false
+      tg_scratch:
+        type: boolean
+        description: 'Use TG scratch channel'
+        required: false
+        default: false
+
+env:
+  TAG_NAME: update_cache
+  TERM: linux
+  BR2_DL_DIR: ~/dl
+  TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
+  TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_BUILD}}
+  TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
+  TG_OPTIONS: -s -o /dev/null -w %{http_code}
+
+jobs:
+  notify-begin:
+    runs-on: ubuntu-latest
+    outputs:
+      start_time: ${{ steps.set_output.outputs.time }}
+    steps:
+      - name: Save workflow start time
+        id: set_output
+        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
+      - name: Send build start notifcation
+        if: ${{ github.event.inputs.tg_disabled == 'false' }}
+        run: |
+          if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
+            TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+          fi
+          TG_MSG="Buildroot cache update started:\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
+          TG_ICON="\xF0\x9F\x9A\xA6 GitHub Actions"
+          TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
+          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
+          echo Telegram response: ${HTTP}
+
+  build-caches:
+    name: ${{ matrix.caches-version }}
+    needs: notify-begin
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: debian:trixie
+    strategy:
+      fail-fast: false
+      matrix:
+        caches-version:
+          - build_cache
+
+    steps:
+      - name: Update APT sources
+        run: |
+          apt-get update
+
+      - name: Install build dependencies
+        run: |
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git make gawk procps rsync unzip wget
+
+      - name: Setup gh workspace in container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+          ref: "master"
+          fetch-depth: "1"
+
+      - name: Setup Environment
+        id: date
+        run: |
+          echo "WEEK_NUMBER=$(date +%U)" >> $GITHUB_ENV
+          echo "CURRENT_YEAR=$(date +%Y)" >> $GITHUB_ENV
+          export GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})
+          export GIT_BRANCH=${GITHUB_REF_NAME}
+          echo "GIT_HASH=${GIT_HASH}" >> ${GITHUB_ENV}
+          echo "GIT_BRANCH=${GIT_BRANCH}" >> ${GITHUB_ENV}
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+
+      - name: Setup cache directories
+        run: |
+          mkdir -p ~/.ccache
+          mkdir -p ~/dl
+
+      - name: Download buildroot sources
+        run: |
+          BOARD=${{ matrix.caches-version }} make source
+          TIME=$(date -d @${SECONDS} +%M:%S)
+          echo "TIME=${TIME}" >> ${GITHUB_ENV}
+
+      - name: Prune Buildroot DL cache
+        run: |
+          find ~/dl/ -type d -name git -exec rm -rf {} +
+
+      - name: Save Buildroot DL cache
+        uses: actions/cache/save@v4
+        with:
+          path: ~/dl
+          key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
+
+      - name: Send completion notification
+        if: ${{ github.event_name != 'pull_request' && env.INGTC && github.event.inputs.tg_disabled == 'false' }}
+        run: |
+          if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
+            TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+          fi
+          TG_ESCAPED_VERSION=$(echo "${{ matrix.caches-version }}" | sed 's/_/\\_/g')
+          TG_MSG="${TG_ESCAPED_VERSION}\nCommit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }})\n\n"
+          TG_ICON="\xE2\x9C\x85 GitHub Actions"
+          TG_HEADER=$(echo -e "${TG_MSG}${TG_ICON}")
+          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
+          echo Telegram response: ${HTTP}
+
+      - name: Send error notification
+        if: ${{ github.event_name != 'pull_request' && failure() && github.event.inputs.tg_disabled == 'false' }}
+        run: |
+          if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
+            TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+          fi
+          TG_ESCAPED_VERSION=$(echo "${{ matrix.caches-version }}" | sed 's/_/\\_/g')
+          TG_WARN="Error: ${TG_ESCAPED_VERSION}\n"
+          TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
+          TG_ICON="\xE2\x9A\xA0 GitHub Actions"
+          TG_HEADER=$(echo -e ${TG_WARN}${TG_MSG}${TG_ICON})
+          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
+          echo Telegram response: ${HTTP}
+
+  notify-completion:
+    needs: [build-caches, notify-begin]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Send completion summary
+        if: ${{ github.event.inputs.tg_disabled == 'false' }}
+        run: |
+          if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
+            TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+          fi
+          START_TIME=${{ needs.notify-begin.outputs.start_time }}
+          END_TIME=$(date -u +%s)
+          ELAPSED=$((END_TIME - START_TIME))
+          ELAPSED_MIN=$((ELAPSED / 60))
+          ELAPSED_SEC=$((ELAPSED % 60))
+          TG_MSG="Buildroot cache completed:\nTotal build time: ${ELAPSED_MIN}m ${ELAPSED_SEC}s\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
+          TG_ICON="\xF0\x9F\x9A\xA9 GitHub Actions"
+          TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
+          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
+          echo Telegram response: ${HTTP}

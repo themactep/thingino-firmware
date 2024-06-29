@@ -1,8 +1,8 @@
-name: buildroot-cache
+name: build-cache
 on:
   schedule:
     # 23:15 PST / Saturday
-    - cron:  '15 07 * * 0'
+    - cron:  '15 06 * * 0'
   workflow_dispatch:
     inputs:
       tg_disabled:
@@ -19,7 +19,7 @@ on:
 env:
   TAG_NAME: update_cache
   TERM: linux
-  BR2_DL_DIR: /tmp/dl
+  BR2_DL_DIR: ~/dl
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
   TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_BUILD}}
   TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
@@ -68,9 +68,9 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cpio curl ca-certificates file git make gawk procps rsync unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git make gawk procps rsync unzip wget
 
-      - name: Setup gh container workspace
+      - name: Setup gh workspace in container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout source
@@ -93,35 +93,26 @@ jobs:
 
       - name: Setup cache directories
         run: |
-          mkdir -p /tmp/ccache
-          mkdir -p /tmp/dl
-          ln -s /tmp/ccache ${HOME}/.ccache
-          ln -s /tmp/dl ${HOME}/dl
-
-      - name: Restore build cache
-        uses: actions/cache@v4
-        if: always()
-        with:
-          path: /tmp/ccache
-          key: ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
-          restore-keys: |
-            ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-
+          mkdir -p ~/.ccache
+          mkdir -p ~/dl
 
       - name: Restore Buildroot DL cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         if: always()
         with:
-          path: /tmp/dl
+          path: ~/dl
           key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
-          restore-keys: |
-            ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-
 
       - name: Generate buildroot cache
         run: |
           BOARD=${{ matrix.caches-version }} make
 
-          TIME=$(date -d @${SECONDS} +%M:%S)
-          echo "TIME=${TIME}" >> ${GITHUB_ENV}
+      - name: Save Buildroot ccache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
 
       - name: Send completion notification
         if: ${{ github.event_name != 'pull_request' && env.INGTC && github.event.inputs.tg_disabled == 'false' }}
@@ -135,7 +126,6 @@ jobs:
           TG_HEADER=$(echo -e "${TG_MSG}${TG_ICON}")
           HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
           echo Telegram response: ${HTTP}
-
 
       - name: Send error notification
         if: ${{ github.event_name != 'pull_request' && failure() && github.event.inputs.tg_disabled == 'false' }}

@@ -3,45 +3,50 @@
 destdir=/mnt
 run="${destdir}/${MDEV}/run.sh"
 run_once="${destdir}/${MDEV}/runonce.sh"
-run_once_flag=${run_once/.sh/.done}
+run_once_flag="${runonce/.sh/.done}"
 
 log() {
 	logger -s -t automount -p daemon.info "$1"
 }
 
 cleanup() {
-	[ -d "${destdir}/$1" ] && rmdir "${destdir}/$1"
+	[ -d "${destdir}/$1" ] && rmdir "${destdir}/$1" 2>&1 && log "Removed directory ${destdir}/$1" || log "Failed to remove directory ${destdir}/$1"
 }
 
 do_umount() {
-	if grep -qs "^/dev/$1 " /proc/mounts; then
-		umount "${destdir}/$1"
-	fi
+	grep -qs "^/dev/$1 " /proc/mounts && umount "${destdir}/$1" 2>&1 && log "Unmounted ${destdir}/$1" || log "Failed to unmount ${destdir}/$1"
 	cleanup $1
 }
 
+do_fsck() {
+	fsck -a "/dev/$1" 2>&1 | logger -t automount -p daemon.warning || { log "fsck check failed on /dev/$1. Mounting process aborted."; return 1; }
+	log "fsck check succeeded on /dev/$1"
+}
+
 do_mount() {
-	if ! mkdir -p "${destdir}/$1"; then
-		log "Cannot create directory ${destdir}/$1"
-		exit 1
-	fi
+	mkdir -p "${destdir}/$1" 2>&1 || { log "Cannot create directory ${destdir}/$1"; return 1; }
+	do_fsck $1 || return 1
+	mount -t auto -o sync "/dev/$1" "${destdir}/$1" 2>&1 || { log "Failed to mount /dev/$1 at ${destdir}/$1"; cleanup $1; return 1; }
+	log "Mounted /dev/$1 at ${destdir}/$1"
+	handle_scripts $1
+}
 
-	if ! mount -t auto -o sync "/dev/$1" "${destdir}/$1"; then
-		cleanup $1
-		exit 1
-	fi
+handle_scripts() {
+	local device=$1
 
-	if [ -f "$run_once" ] && [ ! -f "$run_once_flag" ]; then
-		(sh $run_once && touch $run_once_flag) | log
-	fi
+	[ -f "$run_once_flag" ] && log "Runonce done file exists on /mnt/$device"
 
-	if [ -f "$run" ]; then
-		sh $run | log
-	fi
+	[ -f "$run_once" ] && [ ! -f "$run_once_flag" ] && {
+		sh $run_once 2>&1 && touch $run_once_flag && log "Executed runonce script on /mnt/$device" || log "Failed to execute runonce script on /mnt/$device"
+	}
+
+	[ -f "$run" ] && {
+		sh $run 2>&1 && log "Executed run script on /mnt/$device" || log "Failed to execute run script on /mnt/$device"
+	}
 }
 
 case "${ACTION}" in
-	add | "")
+	add|"")
 		do_umount ${MDEV}
 		do_mount ${MDEV}
 		;;

@@ -606,8 +606,9 @@ export ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
 export ISP_CH0_PRE_DEQUEUE_VALID_LINES
 export AVPU_CLK
 export AVPU_CLK_SRC
-export AUDIO_GPIO
 export BR2_MOTORS
+export BR2_MOTORS_TCU
+export BR2_MOTORS_SPI
 
 ifneq ($(BR2_SOC_INGENIC_DUMMY),y)
 # include makefiles from packages

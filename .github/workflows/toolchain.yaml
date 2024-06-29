@@ -2,7 +2,7 @@ name: toolchain
 on:
   schedule:
     # 00:15 PST / Sunday
-    - cron:  '15 08 * * 0'
+    - cron:  '15 07 * * 0'
   workflow_dispatch:
     inputs:
       tg_disabled:
@@ -15,27 +15,40 @@ on:
         description: 'Use TG scratch channel'
         required: false
         default: false
+      latest_only:
+        type: boolean
+        description: 'Only build latest default toolchain'
+        required: false
+        default: false
 
 env:
   TAG_NAME: toolchain
   TERM: linux
-  BR2_DL_DIR: /tmp/dl
+  BR2_DL_DIR: ~/dl
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
   TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_BUILD}}
   TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
   TG_OPTIONS: -s -o /dev/null -w %{http_code}
+  FORCE_UNSAFE_CONFIGURE: 1
 
 jobs:
   notify-begin:
     runs-on: ubuntu-latest
     outputs:
       start_time: ${{ steps.set_output.outputs.time }}
+      tg_disabled: ${{ steps.set_env.outputs.tg_disabled }}
     steps:
       - name: Save workflow start time
         id: set_output
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
+
+      - name: Setup Notify Environment
+        run: |
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+          echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
+
       - name: Send build start notifcation
-        if: ${{ github.event.inputs.tg_disabled == 'false' }}
+        if: env.TG_DISABLED == 'false'
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
@@ -46,26 +59,48 @@ jobs:
           HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
           echo Telegram response: ${HTTP}
 
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: setup env test
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          ref: "master"
+          fetch-depth: "1"
+
+      - name: Generate matrix
+        id: set-matrix
+        run: |
+          if [[ "${{ github.event.inputs.latest_only }}" == 'true' ]]; then
+            CONFIGS=$(find configs/github/ -type f | sort | awk -F '/' '{print $(NF)}' | sed 's/_defconfig$//'| grep 'toolchain_xburst1_musl_gcc14')
+          else
+            CONFIGS=$(find configs/github/ -type f | sort | awk -F '/' '{print $(NF)}' | sed 's/_defconfig$//' | grep 'toolchain_xburst1')
+          fi
+          JSON_MATRIX="{\"toolchain-version\": ["
+          for CONFIG in $CONFIGS; do
+            JSON_MATRIX+="\"${CONFIG}\","
+          done
+          JSON_MATRIX="${JSON_MATRIX%,}]}"
+          echo "Matrix: $JSON_MATRIX"
+          echo "matrix=$JSON_MATRIX" >> $GITHUB_OUTPUT
+
   build-toolchain:
     name: ${{ matrix.toolchain-version }}
-    needs: notify-begin
+    needs: [generate-matrix, notify-begin]
     runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
     container:
-      image: debian:trixie
+      image: debian:bullseye
     strategy:
       fail-fast: false
-      matrix:
-        toolchain-version:
-          - toolchain_xburst1_musl_gcc12
-          - toolchain_xburst1_gnu_gcc12
-          - toolchain_xburst1_musl_gcc13
-          - toolchain_xburst1_gnu_gcc13
-          - toolchain_xburst1_musl_gcc14
-          - toolchain_xburst1_gnu_gcc14
-          - toolchain_4_4_xburst1_musl_gcc13
+      matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
 
     steps:
       - name: Update APT sources
@@ -74,9 +109,9 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cpio curl ca-certificates file git make gawk procps rsync unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git make gawk procps rsync unzip wget
 
-      - name: Setup gh container workspace
+      - name: Setup gh workspace in container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout source
@@ -95,38 +130,29 @@ jobs:
           export GIT_BRANCH=${GITHUB_REF_NAME}
           echo "GIT_HASH=${GIT_HASH}" >> ${GITHUB_ENV}
           echo "GIT_BRANCH=${GIT_BRANCH}" >> ${GITHUB_ENV}
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
 
       - name: Setup cache directories
         run: |
-          mkdir -p /tmp/ccache
-          mkdir -p /tmp/dl
-          ln -s /tmp/ccache ${HOME}/.ccache
-          ln -s /tmp/dl ${HOME}/dl
-
-      - name: Restore build cache
-        uses: actions/cache@v4
-        if: always()
-        with:
-          path: /tmp/ccache
-          key: ${{ runner.os }}-ccache-${{ matrix.toolchain-version }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-ccache-${{ matrix.toolchain-version }}-
+          mkdir -p ~/.ccache
+          mkdir -p ~/dl
 
       - name: Restore Buildroot DL cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         if: always()
         with:
-          path: /tmp/dl
+          path: ~/dl
           key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
-          restore-keys: |
-            ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-
+
+      - name: Prepare buildroot cache
+        run: |
+          BOARD=${{ matrix.toolchain-version }} make source
+          TIME=$(date -d @${SECONDS} +%M:%S)
+          echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
       - name: Build toolchain
         run: |
           BOARD=${{ matrix.toolchain-version }} make sdk
-
-          TIME=$(date -d @${SECONDS} +%M:%S)
-          echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
       - name: Rename toolchain package for release
         run: |
@@ -155,7 +181,7 @@ jobs:
           files: ${{ env.INGTC }}
 
       - name: Send completion notification
-        if: ${{ github.event_name != 'pull_request' && env.INGTC && github.event.inputs.tg_disabled == 'false' }}
+        if: ${{ github.event_name != 'pull_request' && env.INGTC && env.TG_DISABLED == 'false' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
@@ -169,7 +195,7 @@ jobs:
 
 
       - name: Send error notification
-        if: ${{ github.event_name != 'pull_request' && failure() && github.event.inputs.tg_disabled == 'false' }}
+        if: ${{ github.event_name != 'pull_request' && failure() && env.TG_DISABLED == 'false' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
@@ -188,7 +214,7 @@ jobs:
     if: always()
     steps:
       - name: Send completion summary
-        if: ${{ github.event.inputs.tg_disabled == 'false' }}
+        if: ${{ env.TG_DISABLED == 'false' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}

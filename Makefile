@@ -6,7 +6,7 @@ ifeq ($(__BASH_MAKE_COMPLETION__),1)
 endif
 
 ifneq ($(shell command -v gawk >/dev/null; echo $$?),0)
-$(error Please install gawk!)
+$(error Please run `make bootstrap` to install prerequisites.)
 endif
 
 # Camera IP address
@@ -35,7 +35,7 @@ STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
 
 # project directories
 BR2_EXTERNAL := $(CURDIR)
-SCRIPTS_DIR := $(CURDIR)/scripts
+SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
@@ -126,13 +126,7 @@ all: build pack
 # install prerequisites
 bootstrap:
 	$(info -------------------> bootstrap)
-ifneq ($(shell id -u), 0)
-	$(error requested operation requires superuser privilege)
-else
-	@DEBIAN_FRONTEND=noninteractive apt-get update
-	@DEBIAN_FRONTEND=noninteractive apt-get -y install build-essential bc bison cpio curl \
-		file flex gawk git libncurses-dev make rsync unzip wget whiptail dialog
-endif
+	$(SCRIPTS_DIR)/dep_check.sh
 
 build: defconfig
 	$(info -------------------> build)
@@ -176,6 +170,9 @@ defconfig: prepare_config
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 	# $(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) defconfig
+
+select-device:
+	$(info -------------------> select-device)
 
 # Call configurator UI
 menuconfig: $(OUTPUT_DIR)/.config
@@ -243,7 +240,7 @@ reconfig:
 	$(info -------------------> reconfig)
 	rm -rvf $(OUTPUT_DIR)/.config
 
-rebuild-%:
+rebuild-%: defconfig
 	$(info -------------------> rebuild-%)
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
 
@@ -400,7 +397,7 @@ help:
 	@echo "\n\
 	Usage:\n\
 	  make bootstrap      install system deps\n\
-	  make defconfig      (re)create conig file\n\
+	  make defconfig      (re)create config file\n\
 	  make                build and pack everything\n\
 	  make build          build kernel and rootfs\n\
 	  make cleanbuild     build everything from scratch\n\

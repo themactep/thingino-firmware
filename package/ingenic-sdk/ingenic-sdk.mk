@@ -45,7 +45,7 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	fi
 
 	if [ "$(BR2_AUDIO)" = "y" ]; then \
-		echo "audio spk_gpio=\$$(fw_printenv -n gpio_speaker || echo -1) $(BR2_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/audio; \
+		echo "audio \$$(fw_printenv -n gpio_speaker | awk '{if (\$$0 == \"\") {print \"spk_gpio=-1 spk_level=-1\"} else if (\$$0 ~ /^[0-9]+[Oo]\$$/) {print \"spk_gpio=\" substr(\$$0, 1, length(\$$0)-1) \" spk_level=\" (\$$0 ~ /O\$$/ ? 1 : 0)} else {print \"spk_gpio=\" \$$0 \" spk_level=-1\"}} END {if (NR == 0) print \"spk_gpio=-1 spk_level=-1\"}') $(BR2_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/audio; \
 	fi
 
 	if [ "$(BR2_PWM_ENABLE)" = "y" ]; then \
