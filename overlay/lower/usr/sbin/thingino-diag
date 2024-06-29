@@ -19,7 +19,7 @@ echo "thingino diagnostics"
 echo "This script requires network access."
 echo "It is designed to generate log information to share with developers for diagnostic issues."
 echo "It may contain sensitive or personal information, so make sure to review the log before sharing the link!"
-echo "We use termbin to share the log. Please review their acceptable use policy at https://www.termbin.com"
+echo -e "We use termbin to share the log. Please review their acceptable use policy at https://www.termbin.com\n"
 read -p "Do you wish to proceed? (yes/no): " response
 
 if [ "$response" != "yes" ]; then
