@@ -54,8 +54,9 @@ function heartbeat() {
 		.then((response) => response.json())
 		.then((json) => {
 			if (json.time_now !== '') {
+				let options = {timeZone: json.timezone.replaceAll(' ', '_')};
 				const d = new Date(json.time_now * 1000);
-				$('#time-now').textContent = d.toLocaleString() + ' ' + json.timezone;
+				$('#time-now').textContent = d.toLocaleString(navigator.language, options) + ' ' + json.timezone;
 			}
 			if (json.mem_used !== '') {
 				setProgressBar('#pb-memory', json.mem_used, 'Memory Usage');
