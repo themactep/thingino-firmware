@@ -59,7 +59,7 @@ fi
 	center_text "GPIO"
 	gpio list
 	center_text "ENV"
-	fw_printenv | grep -v -e "wlanpass" -e "sshkey" -e "wlanmac" -e "ethaddr" -e "gatewayip" -e "ipaddr" -e "serverip"
+	fw_printenv | awk -F'=' '/wlanpass|sshkey|ssh_authorized_keys|root_pw_hash|wlanmac|ethaddr|gatewayip|ipaddr|serverip/ {print $1 "=REDACTED"} !/wlanpass|sshkey|ssh_authorized_keys|root_pw_hash|wlanmac|ethaddr|gatewayip|ipaddr|serverip/ {print}'
 
 	center_text "CLOCKS"
 	cat /proc/jz/clock/clocks
@@ -86,5 +86,4 @@ fi
 echo -e "\nYour diagnostics log link is ready:"
 send2pastebin cat $output_file
 rm -f $output_file
-
 
