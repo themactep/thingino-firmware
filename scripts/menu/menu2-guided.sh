@@ -9,30 +9,34 @@ source ./scripts/menu/menu-common.sh
 
 main_menu() {
 	local default_item="1"
-	local step2_label="Step 2: Install prerequisites"
+	local step1_label="Step 1: Install prerequisites"
 
 	while true; do
 		# Adjust default item based on the state of the previous steps
-		if $step1_completed; then
-			if [ -f ".prereqs.done" ]; then
-				default_item="3"  # Skip to Step 3 if prereqs are installed
-			else
-				default_item="2"  # Go to Step 2 if prereqs are not installed
-			fi
-		elif $step3_completed; then
-			default_item="4"
+		if [ -f ".prereqs.done" ]; then
+			step1_completed=true
 		fi
 
-		if [ -f ".prereqs.done" ]; then
-			step2_label="Step 2: Prerequisites Installed (Completed)"
+		if $step3_completed; then
+			default_item="2"  # Go back to Step 2 if Step 3 is complete
+		elif $step1_completed && $step2_completed; then
+			default_item="3"  # Skip to Step 3 if step 1 and step 2 are completed
+		elif $step1_completed; then
+			default_item="2"  # Skip to Step 2 if step 1 is completed
 		else
-			step2_label="Step 2: Install prerequisites"
+			default_item="1"  # Start with Step 1
+		fi
+
+		if $step1_completed; then
+			step1_label="Step 1: Prerequisites Installed (Completed)"
+		else
+			step1_label="Step 1: Install prerequisites"
 		fi
 
 		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --default-item "$default_item" \
 			--menu "Guided Compilation:" 12 70 4 \
-			"1" "Step 1: Select device" \
-			"2" "$step2_label" \
+			"1" "$step1_label" \
+			"2" "Step 2: Select device" \
 			"3" "Step 3: Make firmware" \
 			"5" "Step 4: (Optional) OTA Firmware" \
 			3>&1 1>&2 2>&3)
@@ -43,14 +47,14 @@ main_menu() {
 function show_help() {
 	local item=$1
 	case "$item" in
-		"HELP 1")
+		"HELP 2")
 			show_help_msgbox "Choose a device profile that closely matches your hardware specifications.\n\nYou can select from a \
 'Cameras' profile with preconfigured environmental settings tailored for specific camera models, or opt for a 'Board' profile which \
 provides basic configurations necessary to initialize the hardware.\n\nExperimental profiles are also available for bleeding edge testing." 14;;
-		"HELP 2")
+		"HELP 1")
 			show_help_msgbox "The 'Bootstrap' option initiates the installation of all necessary prerequisite software required for \
 the compilation of the firmware.\n\nThis includes tools and libraries that are essential for building the firmware from source. Selecting \
-this will ensure your environment is correctly set up to proceed with building THINGINO without encountering missing dependencies. \
+this will ensure your environment is correctly set up to proceed with building Thingino without encountering missing dependencies. \
 \n\nRequires super-user privileges." 14;;
 		"HELP 3")
 			show_help_msgbox "This option starts the firmware compilation process. The duration of this process depends on your \
@@ -94,6 +98,23 @@ function execute_choice() {
 }
 
 step1() {
+	if [ -f ".prereqs.done" ]; then
+		"${DIALOG_COMMON[@]}" --msgbox "Pre-requisites are already installed." 5 60
+		return
+	fi
+	"${DIALOG_COMMON[@]}" --no-cancel --no-label "Back" --yes-label "Install" --yesno "Do you want to install pre-requisites?\n\nYou may skip this step if you are certain they are already installed." 8 60
+	response=$?
+	exec 3>&-
+	if [ $response -eq 1 ]; then
+		return
+	elif [ $response -eq 255 ]; then
+		closed_dialog
+		return
+	fi
+	./scripts/dep_check.sh && touch .prereqs.done
+}
+
+step2() {
 	if [ -n "$camera_value" ]; then
 		exec 3>&1
 		"${DIALOG_COMMON[@]}" --title "Confirmation" --yesno "You've already selected a device. Do you want to select again?" 6 60
@@ -108,37 +129,17 @@ step1() {
 		camera_value=""  # Reset if reselecting
 	fi
 
-	output=$(BR2_EXTERNAL=$PWD make -f board.mk)
+	output=$(BR2_EXTERNAL=$PWD make select-device)
 	camera_value=$(echo "$output" | grep 'CAMERA =' | tail -n1 | awk -F' = ' '{print $2}')
 
 	if [ -n "$camera_value" ]; then
 		"${DIALOG_COMMON[@]}" --msgbox "Selected Device: \Z1$camera_value\Zn\n\nLets proceed to the next step to continue the build process." 8 60
-		step1_completed=true
+		step2_completed=true
 	else
 		no_device
 	fi
 }
 
-step2() {
-	if [ -n "$camera_value" ]; then
-		if [ -f ".prereqs.done" ]; then
-			"${DIALOG_COMMON[@]}" --msgbox "Pre-requisites are already installed." 5 60
-			return
-		fi
-		"${DIALOG_COMMON[@]}" --no-cancel --no-label "Back" --yes-label "Install" --yesno "Do you want to install pre-requisites?\n\nYou may skip this step if you are certain they are already installed." 8 60
-		response=$?
-		exec 3>&-
-		if [ $response -eq 1 ]; then
-			return
-		elif [ $response -eq 255 ]; then
-			closed_dialog
-			return
-		fi
-		sudo BOARD=$camera_value make bootstrap && touch .prereqs.done
-	else
-		no_device
-	fi
-}
 
 step3() {
 	if [ -n "$camera_value" ]; then
@@ -153,7 +154,7 @@ step3() {
 		fi
 		BOARD=$camera_value make
 		step3_completed=true
-		"${DIALOG_COMMON[@]}" --msgbox "The firmware compilation process is now complete!\n\n" 5 70
+		"${DIALOG_COMMON[@]}" --msgbox "The firmware compilation process is now complete!\\n\nYour firmware images are located in \n\Z1$HOME/output/$camera_value/images\Zn" 8 70
 	else
 		no_device
 	fi

@@ -27,7 +27,7 @@ check_imp() {
 
 restore_config() {
 	proclaim " Restoring IMP Configuration: "
-	[ -f "$config" ] || { echo "Disabled" && return; }
+	[ -f "$config" ] || quit "Disabled"
 	while read -r line; do
 		echo -e " * $line"
 		imp-control $line > /dev/null
@@ -38,7 +38,6 @@ start() {
 	starting_batch
         check_imp
         restore_config
-        echo "Done"
 }
 
 case "$1" in

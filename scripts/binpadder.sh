@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Binary file padder.
 # Pads binary file with 0xFF to match full size of flashing chip.

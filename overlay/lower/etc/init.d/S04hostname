@@ -8,10 +8,20 @@ start() {
 		OS_NAME=$(sed -n 's/^HOSTNAME=//p' /etc/os-release)
 		MAC_SUFFIX=$(get wlanmac | sed 's/://g;s/.*\(....\)$/\1/')
 		HOSTNAME="${OS_NAME}-${MAC_SUFFIX}"
+		fw_setenv hostname $HOSTNAME
 	fi
 	starting
 	hostname "$HOSTNAME" && ok || { fail && die; }
-	sed -i "/^127.0.1.1/s/\t.*$/\t$HOSTNAME/" /etc/hosts
+	if [ "$HOSTNAME" != "$(sed -nE "s/^127.0.1.1\t(.*)$/\1/p" /etc/os-release)" ]; then
+		sed -i "/^127.0.1.1/s/\t.*$/\t$HOSTNAME/" /etc/hosts
+	fi
+	if [ "$HOSTNAME" != "$(sed -nE "s/^HOSTNAME=(.*)$/\1/p" /etc/os-release)" ]; then
+		sed -i "/^HOSTNAME/s/=.*$/=$HOSTNAME/" /etc/os-release
+	fi
+	if [ "$HOSTNAME" != "$(cat /etc/hostname)" ]; then
+		echo "$HOSTNAME" > /etc/hostname
+	fi
+	export HOSTNAME="$HOSTNAME"
 }
 
 case "$1" in

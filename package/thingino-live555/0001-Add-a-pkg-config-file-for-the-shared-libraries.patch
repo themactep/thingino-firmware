@@ -35,7 +35,7 @@ diff --git a/Makefile.tail b/Makefile.tail
 index fc594ea..a20a527 100644
 --- a/Makefile.tail
 +++ b/Makefile.tail
-@@ -22,7 +22,12 @@ all:
+@@ -25,7 +25,12 @@ all:
  	@echo
  	@echo "For more information about this source code (including your obligations under the LGPL), please see our FAQ at http://live555.com/liveMedia/faq.html"
  

@@ -1,0 +1,5 @@
+# MODULE: t31n_sc223a_rtl8188ftv_defconfig
+FLASH_SIZE_16=y
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/overtech_ov59wb.uenv.txt"
+BR2_AUDIO=y
+BR2_SDCARD=y

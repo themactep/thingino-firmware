@@ -1,0 +1,41 @@
+#!/bin/sh
+
+PTZ_CONF_FILE="/etc/ptz_presets.conf"
+
+if [ $# -lt 1 ]; then
+	echo "Usage: $0 [-g] <preset_number>"
+	exit 1
+fi
+
+if [ "$1" = "-g" ]; then
+	while IFS='=,' read -r PNUM PNAME PX PY; do
+		# Ignore lines starting with '#'
+		[ "${PNUM#\#}" != "$PNUM" ] && continue
+		echo "$PNUM=$PNAME,$PX,$PY"
+	done < "$PTZ_CONF_FILE"
+	exit 0
+fi
+
+PRESET_NUM=$1
+
+# Read the configuration file and find the preset
+while IFS='=,' read -r PNUM PNAME PX PY; do
+	# Ignore lines starting with '#'
+	[ "${PNUM#\#}" != "$PNUM" ] && continue
+
+	if [ "$PNUM" = "$PRESET_NUM" ]; then
+		if [ -n "$PX" ] && [ -n "$PY" ]; then
+			logger -t ptz_preset "Running command: motors -d h -x $PX -y $PY"
+			motors -d h -x "$PX" -y "$PY"
+			exit 0
+		else
+			logger -t ptz_preset "Invalid preset format or coordinates missing for preset $PRESET_NUM."
+			echo "Invalid preset format or coordinates missing for preset $PRESET_NUM."
+			exit 1
+		fi
+	fi
+done < "$PTZ_CONF_FILE"
+
+logger -t ptz_preset "Preset number $PRESET_NUM not found."
+echo "Preset number $PRESET_NUM not found."
+exit 1

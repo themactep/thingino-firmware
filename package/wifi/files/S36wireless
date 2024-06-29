@@ -3,7 +3,7 @@
 . /etc/init.d/rc.common
 
 start() {
-	starting_batch
+	starting
 	modulename="$(get wlandev)"
 	moduleopts="$(get wlandevopts)"
 	gpionum="$(get gpio_wlan)"
@@ -24,7 +24,7 @@ start() {
 				;;
 		esac
 
-		proclaim " Set GPIO $num $gpio_cmd"
+		proclaim_n " Set GPIO $num $gpio_cmd"
 		gpio $gpio_cmd $num 2>&1 | log
 		check_result
 		# die

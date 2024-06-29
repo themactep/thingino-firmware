@@ -4,13 +4,17 @@ DAEMON=wsd_simple_server
 
 . /etc/init.d/rc.common
 
-ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
+# needed for args
+iface=$(awk '($2~/0{8}/&&$3!~/0{8}/){print $1;exit}' /proc/net/route); [ -z "$iface" ] && iface="wlan0"
+model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' /etc/os-release)
 
-# create an empty config if missing
+# extract iface for daemon from onvif.conf
+DAEMON_ARGS="--if_name $(awk -F= '/^ifs=/{print $2}' /etc/onvif.conf) --xaddr \"http://%s/onvif/device_service\" -m $model -n thingino --pid_file /var/run/$DAEMON_SHORT.pid"
+
+# read web config, create if missing
+ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
 [ ! -d $(dirname $ONVIF_WEBUI_CONF) ] && mkdir -p $(dirname $ONVIF_WEBUI_CONF)
 [ ! -f $ONVIF_WEBUI_CONF ] && touch $ONVIF_WEBUI_CONF
-
-# read the config
 . $ONVIF_WEBUI_CONF
 
 # default to "enabled" and update config
@@ -18,15 +22,6 @@ if [ -z "$onvif_enabled" ]; then
 	onvif_enabled="true"
 	echo "onvif_enabled=$onvif_enabled" >> $ONVIF_WEBUI_CONF
 fi
-
-model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' /etc/os-release)
-firmware_ver=$(awk -F '[:=, "]+' '/^BUILD_ID=/ {print $2}' /etc/os-release)
-serial_num=$(get ethaddr)
-iface=$(awk '$2 == "00000000" && $3 != "00000000" {print $1}' /proc/net/route)
-username=$(awk -F '"' '/username:/ {print $2}' /etc/prudynt.cfg)
-password=$(awk -F '"' '/password:/ {print $2}' /etc/prudynt.cfg)
-
-COMMAND="$DAEMON --pid_file /var/run/$DAEMON.pid --if_name $iface --xaddr "http://%s/onvif/device_service" -m $model -n thingino"
 
 is_onvif_disabled() {
 	[ "true" != "$onvif_enabled" ]
@@ -40,20 +35,21 @@ update_config() {
 
 start() {
 	starting "ONVIF"
+	is_gateway_reachable || quit "Disabled"
 	is_streamer_disabled && quit "Disabled"
 	is_onvif_disabled && quit "Disabled"
 	start_daemon
 
 	if ! grep -q "^# GENERATED" "/etc/onvif.conf"; then
-		sed -i '1i # GENERATED On '"$(date)" /etc/onvif.conf
 		update_config "model" "$model"
-		update_config "firmware_ver" "$firmware_ver"
-		update_config "serial_num" "$serial_num"
-		update_config "ifs" "$iface"
-		update_config "user" "$username"
-		update_config "password" "$password"
 		update_config "hardware_id" "ingenic_$(soc -m)"
-		update_config "ptz" "$(get gpio_motor_h || echo 0)"
+		update_config "serial_num" "$(get ethaddr)"
+		update_config "firmware_ver" "$(awk -F '[:=, "]+' '/^BUILD_ID=/ {print $2}' /etc/os-release)"
+		update_config "ifs" "$iface"
+		update_config "user" "$(awk -F '"' '/username:/ {print $2}' /etc/prudynt.cfg)"
+		update_config "password" "$(awk -F '"' '/password:/ {print $2}' /etc/prudynt.cfg)"
+		update_config "ptz" "$([ -n "$(fw_printenv -n gpio_motor_h)" ] && echo 1 || echo 0)"
+		sed -i '1i # GENERATED On '"$(date)" /etc/onvif.conf
 	fi
 }
 

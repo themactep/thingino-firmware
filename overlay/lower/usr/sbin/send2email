@@ -121,10 +121,9 @@ fi
 log "$command"
 eval "$command" >> "$LOG_FILE" 2>&1
 
-[ "true" = "$delete_tempfile" ]  && [ -f "$attachment" ] && rm "$attachment"
+[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 [ -f "$email_file" ] && rm -f $email_file
 
 quit_clean 0
-

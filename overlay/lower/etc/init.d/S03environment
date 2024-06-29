@@ -10,8 +10,9 @@ start() {
 	[ "true" = "$(get boot_complete)" ] && { ok && quit; }
 
 	ENV_TMP=$(mktemp)
-	sed 's/=/ /' $ENV_TXT > $ENV_TMP
 	echo "boot_complete true" >> $ENV_TMP
+	sed 's/=/ /' $ENV_TXT >> $ENV_TMP
+	echo >> $ENV_TMP
 	fw_setenv -s $ENV_TMP
 
 	info "U-Boot ENV updated. Rebooting now..."

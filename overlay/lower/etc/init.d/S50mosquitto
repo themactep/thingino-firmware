@@ -6,11 +6,13 @@ DAEMON_ARGS="-c /etc/mosquitto/mosquitto.conf"
 
 start() {
 	starting
+	[ -f $DAEMON_FULL ] || quit "Disabled"
 	start_daemon_with_pid
 }
 
 stop() {
 	stopping
+	[ -f $DAEMON_FULL ] || quit "Disabled"
 	stop_daemon_with_pid
 }
 
