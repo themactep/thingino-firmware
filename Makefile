@@ -58,7 +58,8 @@ endif
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 U_BOOT_ENV_LOCAL_TXT := $(BR2_EXTERNAL)/local.uenv.txt
 U_BOOT_ENV_FINAL_TXT := $(OUTPUT_DIR)/env.txt
-U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL_LESS_Z).bin
+#U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL_LESS_Z).bin
+U_BOOT_BIN = u-boot-lzo-with-spl.bin
 U_BOOT_ENV_BIN := $(OUTPUT_DIR)/images/uenv.bin
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
