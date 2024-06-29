@@ -5,10 +5,9 @@ BR2_TARGET_UBOOT_CUSTOM_REPO_VERSION="origin/master"
 BR2_TARGET_UBOOT_NEEDS_LZOP=y
 BR2_TARGET_UBOOT_FORMAT_CUSTOM=y
 BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="u-boot-lzo-with-spl.bin"
+BR2_TARGET_UBOOT_BOARDNAME="$(UBOOT_BOARDNAME)"
 
 # alternative source
 #BR2_TARGET_UBOOT_CUSTOM_TARBALL=y
 #BR2_TARGET_UBOOT_CUSTOM_TARBALL_LOCATION="https://github.com/gtxaspec/u-boot-ingenic/archive/refs/heads/master.tar.gz"
 
-# this must go to either module config or have a fabrica in Config.soc.in, and vary by soc type
-#BR2_TARGET_UBOOT_BOARDNAME="isvp_t31_sfcnor_ddr128M"
