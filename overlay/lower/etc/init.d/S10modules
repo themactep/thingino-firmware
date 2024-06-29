@@ -13,7 +13,7 @@ load_modules() {
 				;;
 		esac
 		eval "args=\"$args\""
-		proclaim " $module"
+		proclaim " $module $args"
 		modprobe $module $args
 		check_result
 	done < $file

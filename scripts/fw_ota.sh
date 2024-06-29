@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SSH_CONTROL_PATH="/tmp/ssh_mux_%h_%p_%r"
-SSH_OPTS="-o ConnectTimeout=5 -o ServerAliveInterval=2 -o ControlMaster=auto -o ControlPath=$SSH_CONTROL_PATH -o ControlPersist=600 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+SSH_OPTS="-o ConnectTimeout=10 -o ServerAliveInterval=2 -o ControlMaster=auto -o ControlPath=$SSH_CONTROL_PATH -o ControlPersist=600 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
 # Cleanup function to close SSH master connection
 cleanup() {

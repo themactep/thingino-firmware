@@ -27,6 +27,9 @@ while getopts "fp" flag; do
 		p)
 			upgrade="part"
 			;;
+		*)
+			echo "Invalid flag"
+			;;
 	esac
 done
 

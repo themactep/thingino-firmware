@@ -1,4 +1,4 @@
-# FRAG: soc toolchain ccache brand rootfs kernel system target
+# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
 BR2_SOC_INGENIC_T10L=y
 BR2_SENSOR_JXH42=y
 BR2_PACKAGE_WIFI=y

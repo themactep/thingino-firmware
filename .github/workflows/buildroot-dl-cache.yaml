@@ -1,8 +1,8 @@
-name: build-cache
+name: buildroot-dl-cache
 on:
   schedule:
-    # 23:15 PST / Saturday
-    - cron:  '15 06 * * 0'
+    # 23:00 PST / Saturday
+    - cron:  '00 06 * * 0'
   workflow_dispatch:
     inputs:
       tg_disabled:
@@ -96,23 +96,21 @@ jobs:
           mkdir -p ~/.ccache
           mkdir -p ~/dl
 
-      - name: Restore Buildroot DL cache
-        uses: actions/cache/restore@v4
-        if: always()
+      - name: Download buildroot sources
+        run: |
+          BOARD=${{ matrix.caches-version }} make source
+          TIME=$(date -d @${SECONDS} +%M:%S)
+          echo "TIME=${TIME}" >> ${GITHUB_ENV}
+
+      - name: Prune Buildroot DL cache
+        run: |
+          find ~/dl/ -type d -name git -exec rm -rf {} +
+
+      - name: Save Buildroot DL cache
+        uses: actions/cache/save@v4
         with:
           path: ~/dl
           key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
-
-      - name: Generate buildroot cache
-        run: |
-          BOARD=${{ matrix.caches-version }} make
-
-      - name: Save Buildroot ccache
-        uses: actions/cache/save@v4
-        if: always()
-        with:
-          path: ~/.ccache
-          key: ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
 
       - name: Send completion notification
         if: ${{ github.event_name != 'pull_request' && env.INGTC && github.event.inputs.tg_disabled == 'false' }}
