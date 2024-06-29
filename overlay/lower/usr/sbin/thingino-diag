@@ -19,7 +19,7 @@ echo "thingino diagnostics"
 echo "This script requires network access."
 echo "It is designed to generate log information to share with developers for diagnostic issues."
 echo "It may contain sensitive or personal information, so make sure to review the log before sharing the link!"
-echo "We use termbin to share the log. Please review their acceptable use policy at https://www.termbin.com"
+echo -e "We use termbin to share the log. Please review their acceptable use policy at https://www.termbin.com\n"
 read -p "Do you wish to proceed? (yes/no): " response
 
 if [ "$response" != "yes" ]; then
@@ -59,7 +59,7 @@ fi
 	center_text "GPIO"
 	gpio list
 	center_text "ENV"
-	fw_printenv | grep -v -e "wlanpass" -e "sshkey" -e "wlanmac" -e "ethaddr" -e "gatewayip" -e "ipaddr" -e "serverip"
+	fw_printenv | awk -F'=' '{if (/wlanpass|sshkey|ssh_authorized_keys|root_pw_hash|wlanmac|ethaddr|gatewayip|ipaddr|serverip/) print $1 "=REDACTED"; else print}'
 
 	center_text "CLOCKS"
 	cat /proc/jz/clock/clocks
@@ -86,5 +86,4 @@ fi
 echo -e "\nYour diagnostics log link is ready:"
 send2pastebin cat $output_file
 rm -f $output_file
-
 
