@@ -9,7 +9,7 @@ start() {
 	gpionum="$(get gpio_wlan)"
 	mac_address=$(get wlanmac)
 
-	wlandev_check || quit "Disabled"
+	wlandev_exists || quit "Disabled"
 
 	if [ -n "$gpionum" ]; then
 		num=${gpionum%[oO]}
