@@ -2,7 +2,7 @@
 <%in p/common.cgi %>
 <%
 plugin="dusk2dawn"
-plugin_name="Automatic cron job"
+plugin_name="Day/Night by Sun"
 page_title="Dusk to Dawn"
 params="enabled lat lng runat"
 
