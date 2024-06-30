@@ -325,7 +325,7 @@ $(U_BOOT_BIN):
 
 $(U_BOOT_ENV_BIN): create_env_bin
 	$(info -------------------> $$(U_BOOT_ENV_BIN))
-	$(BR2_EXTERNAL)/tools/mkenvimage -s $(U_BOOT_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_FINAL_TXT)
+	mkenvimage -s $(U_BOOT_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_FINAL_TXT)
 
 # rebuild Linux kernel
 $(KERNEL_BIN):
