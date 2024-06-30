@@ -1,8 +1,6 @@
-# .---------------- minute (0-59)
-# |  .------------- hour (0-23)
-# |  |  .---------- day of month (1-31)
-# |  |  |  .------- month (1-12 or jan,feb,mar,apr,may,jun,jul,aug,sep,nov,dec)
-# |  |  |  |  .---- day of week (0-7 or sun,mon,tue,wed,thu,fri,sat)
-# *  *  *  *  *  command to run
-#
-#*/1  *  *  *  *  /usr/sbin/daynight
+# see https://github.com/themactep/thingino-firmware/wiki/Cron-jobs
+
+# reboot camera nightly @ 3:00
+#0 3 * * * reboot -f
+# run daynight every minute
+#*/1 * * * * daynight
