@@ -19,6 +19,9 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	done; unset p
 
 	# validation
+	[ -z "$dusk2dawn_lat" ] && error="Latitude cannot be empty"
+	[ -z "$dusk2dawn_lng" ] && error="Longitude cannot be empty"
+	[ -z "$dusk2dawn_runat" ] && error="Run at time cannot be empty"
 
 	if [ -z "$error" ]; then
 		: > $tmp_file
@@ -27,9 +30,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		done; unset p
 		mv $tmp_file $config_file
 
-		[ -z "$dusk2dawn_lat" ] && error="Latitude cannot be empty"
-		[ -z "$dusk2dawn_lng" ] && error="Longitude cannot be empty"
-		[ -z "$dusk2dawn_runat" ] && error="Run at time cannot be empty"
+		dusk2dawn > /dev/null
 
 		update_caminfo
 		redirect_to "$SCRIPT_NAME"
