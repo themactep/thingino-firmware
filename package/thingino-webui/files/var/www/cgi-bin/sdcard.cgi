@@ -2,10 +2,7 @@
 <%in p/common.cgi %>
 <% page_title="SD Card" %>
 <%in p/header.cgi %>
-<%
-ls /dev/mmc* >/dev/null 2>&1
-if [ $? -ne 0 ]; then
-%>
+<% if ! ls /dev/mmc* >/dev/null 2>&1; then %>
 <div class="alert alert-danger">
 <h4>Does this camera support SD Card?</h4>
 <p>Your camera does not have an SD Card slot or SD Card is not inserted.</p>
