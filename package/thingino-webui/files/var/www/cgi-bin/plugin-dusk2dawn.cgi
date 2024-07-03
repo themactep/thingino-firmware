@@ -53,7 +53,7 @@ fi
 <% field_text "dusk2dawn_runat" "Run at" %>
 </div>
 <div class="col col-12 col-xl-4">
-<% ex "cat /etc/crontabs/root" %>
+<% ex "crontab -l" %>
 </div>
 <div class="col col-12 col-xl-4">
 <% [ -f $config_file ] && ex "cat $config_file" %>
