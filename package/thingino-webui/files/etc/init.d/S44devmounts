@@ -5,27 +5,51 @@
 devip=$(get devip)
 
 start() {
-	starting
-	[ -z "$devip" ] && quit "No IP set"
-	[ -z "$(fw_printenv -n debug)" ] && quit "Not in debug mode"
+	starting_batch
+
+	if [ -z "$(fw_printenv -n debug)" ]; then
+		info "Not in debug mode"
+		quit
+	fi
+
+	if [ -z "$devip" ]; then
+		info "Remote machine IP is not set"
+		quit
+	else
+		info "Remote machine is $devip"
+	fi
+
 	grep -q /var/www /etc/mtab && quit "Already mounted"
 	{
+		info "Shadow original web"
 		rm -r /var/www
+
+		info "Create a blank mountpoint"
 		mkdir /var/www
+
+		info "Mount remote share"
 		mount -t nfs -o nolock,tcp,nfsvers=3 ${devip}:/srv/nfs/www /var/www
 	}
-	check_result
+	# check_result
 }
 
 stop() {
-	stopping
-	grep -q /var/www /etc/mtab || quit
-	{
+	stopping_batch
+
+	if grep -q /var/www /etc/mtab; then
+		info "Unmount /var/www"
 		umount /var/www
+
+		info "Unshadow mountpoint"
 		rm -r /overlay/var/www
+
+		info "Remount overlay"
 		mount -o remount /
-	}
-	check_result
+	else
+		info "Nothing to unmount"
+		quit
+	fi
+	# check_result
 }
 
 case "$1" in
