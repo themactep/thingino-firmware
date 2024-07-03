@@ -55,6 +55,10 @@ stopping() {
 	proclaim "Stopping ${1:-$DAEMON_SHORT}"
 }
 
+stopping_batch() {
+	echo "Stopping ${1:-$DAEMON_SHORT} ..."
+}
+
 log() {
 	logger -p daemon.info -t ${DAEMON_SHORT}[$$] <&0
 }
