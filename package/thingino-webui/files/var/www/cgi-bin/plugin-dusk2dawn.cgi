@@ -18,10 +18,11 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		sanitize "${plugin}_${p}"
 	done; unset p
 
+	[ -z "$dusk2dawn_runat" ] && dusk2dawn_runat="0:00"
+
 	# validation
 	[ -z "$dusk2dawn_lat" ] && error="Latitude cannot be empty"
 	[ -z "$dusk2dawn_lng" ] && error="Longitude cannot be empty"
-	[ -z "$dusk2dawn_runat" ] && error="Run at time cannot be empty"
 
 	if [ -z "$error" ]; then
 		: > $tmp_file
@@ -40,6 +41,7 @@ else
 
 	# default values
 	[ -z "$dusk2dawn_enabled" ] && dusk2dawn_enabled=false
+	[ -z "$dusk2dawn_runat" ] && dusk2dawn_runat="0:00"
 fi
 %>
 <%in p/header.cgi %>
