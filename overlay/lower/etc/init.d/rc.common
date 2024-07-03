@@ -117,7 +117,6 @@ iface_exists() {
 	fi
 
 	if ip link show $iface &> /dev/null; then
-		
 		if [ "eth0" == $iface ] && ! is_gateway_reachable; then
 			echo "eth0 has no local connection" 2>&1 | log
 			return 1
