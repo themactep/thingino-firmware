@@ -1,6 +1,7 @@
 # MODULE: t31l_jxq03p_rtl8189ftv_defconfig
 FLASH_SIZE_16=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/xiaomi-mjsxj03hl-t31n.uenv.txt"
-U_BOOT_OVERRIDE_BOARDNAME="isvp_t31_xiaomi_sfcnor"
 BR2_AVPU_VPLL=y
 BR2_SDCARD=y
+BR2_TARGET_UBOOT_BOARDNAME="isvp_t31_xiaomi_sfcnor"
+BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="u-boot-with-spl.bin"
