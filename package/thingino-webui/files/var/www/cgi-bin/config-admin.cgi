@@ -18,8 +18,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	[ -z "$admin_name"  ] && set_error_flag "Name cannot be empty."
 	[ -z "$admin_email" ] && set_error_flag "Email cannot be empty."
-	# [ -z "$admin_telegram" ] && error="Telegram username cannot be empty."
-	# [ -z "$admin_discord" ] && error="Discord username cannot be empty."
+	# [ -z "$admin_telegram" ] && set_error_flag "Telegram username cannot be empty."
+	# [ -z "$admin_discord" ] && set_error_flag "Discord username cannot be empty."
 
 	# add @ to Discord and Telegram usernames, if missed
 	[ -n "$admin_discord" ] && [ "${admin_discord:0:1}" != "@" ] && admin_discord="@$admin_discord"
