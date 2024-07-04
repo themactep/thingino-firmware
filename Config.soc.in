@@ -124,8 +124,3 @@ config U_BOOT_ENV_TXT
 	string "Path to U-Boot environment text file"
 	help
 	     Path to the U-Boot environment configuration file used to configure the ENV on the device
-
-config U_BOOT_OVERRIDE_BOARDNAME
-	string "Custom board name for U-Boot"
-	help
-	     U-Boot board name override for devices with custom SPL (secure boot, etc.)
