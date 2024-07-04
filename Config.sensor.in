@@ -235,10 +235,16 @@ choice BR2_SENSOR_NAME
         bool "TP2850"
 endchoice
 
-config BR2_SENSOR_PARAMS
+menu "ISP Module Config"
+    config BR2_SENSOR_PARAMS
 	string "Image sensor parameters"
-config BR2_ISP_PARAMS
+	help
+	    Set additional parameters passed to image sensor kernel module
+    config BR2_ISP_PARAMS
 	string "ISP parameters"
+	help
+	    Set additional parameters passed to the ISP kernel module
+endmenu
 
 if FALSE
 menu "Image Sensor Configuration"
