@@ -53,7 +53,7 @@ fi
 <% field_text "ssh_host" "SSH host" %>
 <% field_text "ssh_port" "SSH port" %>
 <% field_text "ssh_username" "SSH username" %>
-<% field_text "ssh_command" "Remote command" ""$STR_SUPPORTS_STRFTIME"" %>
+<% field_text "ssh_command" "Remote command" "$STR_SUPPORTS_STRFTIME" %>
 </div>
 <div class="col">
 </div>
