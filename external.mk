@@ -102,7 +102,11 @@ else ifeq ($(BR2_SOC_INGENIC_T31L),y)
 SOC_MODEL := t31l
 SOC_RAM := 64
 BR2_SOC_INGENIC_T31=y
+ifeq ($(BR2_XIAOMI_SPL),y)
+UBOOT_BOARDNAME="isvp_t31_xiaomi_sfcnor"
+else
 UBOOT_BOARDNAME="isvp_t31_sfcnor_lite"
+endif
 else ifeq ($(BR2_SOC_INGENIC_T31LC),y)
 SOC_MODEL := t31lc
 SOC_RAM := 64
