@@ -326,7 +326,7 @@ $(SRC_DIR):
 # download bootloader
 $(U_BOOT_BIN):
 	$(info -------------------> $$(U_BOOT_BIN))
-	$(info U_BOOT_BIN not found!)
+	$(info U_BOOT_BIN $(U_BOOT_BIN) not found!)
 	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL_LESS_Z).bin
 
 $(U_BOOT_ENV_BIN): create_env_bin
