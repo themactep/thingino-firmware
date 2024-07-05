@@ -1,14 +1,11 @@
 #!/usr/bin/haserl
 <%in p/common.cgi %>
 <%
-plugin="speaker"
-plugin_name="Play on speaker"
-page_title="Play on speaker"
-params="enabled url file"
-# volume srate codec outputEnabled speakerPin speakerPinInvert
+plugin="development"
+page_title="Development"
+params="enabled nfs_ip nfs_share"
 
 tmp_file=/tmp/${plugin}.conf
-
 config_file="${ui_config_dir}/${plugin}.conf"
 [ ! -f "$config_file" ] && touch $config_file
 
@@ -19,10 +16,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		sanitize "${plugin}_${p}"
 	done; unset p
 
-	### Validation
-	if [ "true" = "$speaker_enabled" ]; then
-		[ -z "$speaker_url"   ] && set_error_flag "URL cannot be empty."
-	fi
+	[ -z "$development_nfs_ip" ] && set_error_flag "NFS server IP cannot be empty."
+	[ -z "$development_nfs_share" ] && set_error_flag "NFS share cannot be empty."
 
 	if [ -z "$error" ]; then
 		# create temp config file
@@ -33,15 +28,12 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		mv $tmp_file $config_file
 
 		update_caminfo
-		redirect_back "success" "$plugin_name config updated."
+		redirect_back "success" "Development config updated."
 	fi
-
-	redirect_to $SCRIPT_NAME
 else
 	include $config_file
 
-	# Default values
-	[ -z "$speaker_url" ] && speaker_url="http://127.0.0.1/play_audio"
+	[ -z "$development_nfs_share" ] && development_nfs_share="/srv/nfs/www"
 fi
 %>
 <%in p/header.cgi %>
@@ -49,15 +41,17 @@ fi
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
 <div class="col">
 <form action="<%= $SCRIPT_NAME %>" method="post">
-<% field_switch "speaker_enabled" "Enable playing on speaker" %>
-<% field_text "speaker_url" "URL" %>
-<% field_text "speaker_file" "Audio file" %>
+<% field_hidden "action" "update" %>
+<% field_switch "development_enabled" "Enable development mode" %>
+<% field_text "development_nfs_ip" "NFS server IP" %>
+<% field_text "development_nfs_share" "NFS share" %>
 <% button_submit %>
 </form>
 </div>
 <div class="col">
+</div>
+<div class="col">
 <% ex "cat $config_file" %>
-<% button_webui_log %>
 </div>
 </div>
 

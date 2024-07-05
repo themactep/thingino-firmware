@@ -2,33 +2,45 @@
 
 . /etc/init.d/rc.common
 
-devip=$(get devip)
+DEV_MOUNT_POINT="/var/www"
 
 start() {
 	starting_batch
 
-	if [ -z "$(fw_printenv -n debug)" ]; then
-		info "Not in debug mode"
+	if [ -f /etc/webui/development.conf ]; then
+		. /etc/webui/development.conf
+	else
+		development_enabled=$(get development_enabled)
+		development_nfs_ip=$(get development_nfs_ip)
+		development_nfs_share=$(get development_nfs_share)
+	fi
+
+	if [ "true" != "$development_enabled" ]; then
+		info "Not in development mode"
 		quit
 	fi
 
-	if [ -z "$devip" ]; then
+	if [ -z "$development_nfs_ip" ]; then
 		info "Remote machine IP is not set"
 		quit
 	else
-		info "Remote machine is $devip"
+		info "Remote machine is $development_nfs_ip"
 	fi
 
-	grep -q /var/www /etc/mtab && quit "Already mounted"
+	if [ -z "$development_nfs_share" ]; then
+		development_nfs_share="/srv/nfs/www"
+	fi
+
+	grep -q $DEV_MOUNT_POINT /etc/mtab && quit "Already mounted"
 	{
 		info "Shadow original web"
-		rm -r /var/www
+		rm -r $DEV_MOUNT_POINT
 
 		info "Create a blank mountpoint"
-		mkdir /var/www
+		mkdir $DEV_MOUNT_POINT
 
 		info "Mount remote share"
-		mount -t nfs -o nolock,tcp,nfsvers=3 ${devip}:/srv/nfs/www /var/www
+		mount -t nfs -o nolock,tcp,nfsvers=3 ${development_nfs_ip}:${development_nfs_share} $DEV_MOUNT_POINT
 	}
 	# check_result
 }
