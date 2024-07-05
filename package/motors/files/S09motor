@@ -5,14 +5,8 @@
 motors_app=$(which motors)
 gpio_motor_h=$(get gpio_motor_h)
 gpio_motor_v=$(get gpio_motor_v)
-motor_h_maxstep=$(get motor_maxstep_h)
-motor_v_maxstep=$(get motor_maxstep_v)
-
-check_module_loaded() {
-	for module in "$@"; do
-		grep -qE "^$module" /proc/modules && quit "Module $module already loaded."
-	done
-}
+motor_maxstep_h=$(get motor_maxstep_h)
+motor_maxstep_v=$(get motor_maxstep_v)
 
 set_motor_phases() {
 	[ "$(echo $2 | wc -w)" -lt 4 ] && die "Missing phase for ${1}motor"
@@ -24,39 +18,51 @@ set_motor_phases() {
 	done
 }
 
-rehome_motors() {
-	motors -r > /dev/null 2>&1 &
+home_motors() {
+	[ "true" = "$(get disable_homing)" ] && warn "Homing disabled"
+
+	local x=$((motor_maxstep_h / 2))
+	local y=$((motor_maxstep_v / 2))
+	local motor_pos_0=$(get motor_pos_0)
+	if [ -n "$motor_pos_0" ]; then
+		x=$(echo $motor_pos_0 | cut -d, -f1)
+		y=$(echo $motor_pos_0 | cut -d, -f2)
+	fi
+
+	info "Home and position motors to $x,$y"
+	motors -r -d h -x $x -y $y > /dev/null 2>&1 &
 }
 
 start() {
-	starting
-
-	# Do not double load module
-	check_module_loaded motor sample_motor
+	starting_batch
 
 	# Check if motors are supported
-	[ -z "$motors_app" ] && die "Disabled\n No motors app found"
-	[ -z "$gpio_motor_h" ] && die "Disabled\n Pan motor GPIO are not set"
-	[ -z "$gpio_motor_v" ] && die "Disabled\n Tilt motor GPIO are not set"
-	[ -z "$motor_h_maxstep" ] && die "Disabled\n Pan motor Steps are not set"
-	[ -z "$motor_v_maxstep" ] && die "Disabled\n Tilt motor Steps are not set"
+	[ -z "$motors_app"      ] && die " No motors app found"
+	[ -z "$gpio_motor_h"    ] && die " Pan motor GPIO pins are not set"
+	[ -z "$gpio_motor_v"    ] && die " Tilt motor GPIO pins are not set"
+	[ -z "$motor_maxstep_h" ] && die " Pan motor Steps are not set"
+	[ -z "$motor_maxstep_v" ] && die " Tilt motor Steps are not set"
 
-	# Set GPIO per motor phase
-	set_motor_phases "h" "$gpio_motor_h"
-	set_motor_phases "v" "$gpio_motor_v"
+	if grep -qE "^(sample_)?motor" /proc/modules; then
+		info "Motors module already loaded."
+	else
+		info "Set GPIO per motor phase"
+		set_motor_phases "h" "$gpio_motor_h"
+		set_motor_phases "v" "$gpio_motor_v"
 
-	# Load module with parameters
-	modprobe motor hmaxstep=$motor_h_maxstep vmaxstep=$motor_v_maxstep \
-		hst1=$hst1 hst2=$hst2 hst3=$hst3 hst4=$hst4 \
-		vst1=$vst1 vst2=$vst2 vst3=$vst3 vst4=$vst4 \
-		&& ok || die "Failed to load motor module"
+		info "Load module with parameters"
+		modprobe motor hmaxstep=$motor_maxstep_h vmaxstep=$motor_maxstep_v \
+			hst1=$hst1 hst2=$hst2 hst3=$hst3 hst4=$hst4 \
+			vst1=$vst1 vst2=$vst2 vst3=$vst3 vst4=$vst4 \
+			|| die "Failed to load motor module"
+	fi
 
-	# Set motors zero position unless disabled
-	[ "true" != "$(get disable_homing)" ] && rehome_motors
+	home_motors
 }
 
 stop() {
 	stopping
+
 	# FIXME: motor.ko crashes on upload
 	# rmmod motor || die "Failed to unload motor module."
 	ok
