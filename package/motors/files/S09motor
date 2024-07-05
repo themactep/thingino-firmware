@@ -43,7 +43,7 @@ start() {
 	[ -z "$motor_maxstep_h" ] && die " Pan motor Steps are not set"
 	[ -z "$motor_maxstep_v" ] && die " Tilt motor Steps are not set"
 
-	if grep -qE "^(sample_)?motor" /proc/modules; then
+	if grep -qE "^motor" /proc/modules; then
 		info "Motors module already loaded."
 	else
 		info "Set GPIO per motor phase"
