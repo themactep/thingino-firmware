@@ -45,7 +45,7 @@ proclaim() {
 }
 
 proclaim_n() {
-    printf "\n%-35s" "$1"
+	printf "\n%-35s" "$1"
 }
 
 starting() {
