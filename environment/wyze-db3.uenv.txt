@@ -11,5 +11,7 @@ gpio_speaker=58
 gpio_white=49
 gpio_wlan=57O
 osmem=86M@0x0
+pwm_ch_ir850=2
+pwm_ch_white=3
 rmem=42M@0x5600000
 wlandev=8189fs
