@@ -1,5 +1,10 @@
 #!/bin/sh
 
+if [ "$0" = "-sh" ]; then
+	echo "Do not run directly!"
+	return
+fi
+
 DAEMON_ARGS=""
 DAEMON_PATH="/bin"
 DAEMON=${DAEMON:-$0}
