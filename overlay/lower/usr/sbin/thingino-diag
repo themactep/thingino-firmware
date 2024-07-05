@@ -59,7 +59,9 @@ fi
 	center_text "GPIO"
 	gpio list
 	center_text "ENV"
-	fw_printenv | awk -F'=' '{if (/wlanpass|sshkey|ssh_authorized_keys|root_pw_hash|wlanmac|ethaddr|gatewayip|ipaddr|serverip/) print $1 "=REDACTED"; else print}'
+	fw_printenv | awk -F'=' '{if (/wlanpass|sshkey|ssh_authorized_keys|root_pw_hash|wlanmac|ethaddr|gatewayip|ipaddr|serverip/) print $1 "=REDACTED"; else print}' | sort
+	center_text "CMDLINE"
+	cat /proc/cmdline
 
 	center_text "CLOCKS"
 	cat /proc/jz/clock/clocks
