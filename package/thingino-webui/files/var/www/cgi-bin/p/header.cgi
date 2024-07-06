@@ -54,6 +54,7 @@ Pragma: no-cache
 <% if [ -f /bin/motors ]; then %>
 <li><a class="dropdown-item" href="config-motors.cgi">Motors</a></li>
 <% fi %>
+<li><a class="dropdown-item" href="config-osd.cgi">OSD</a></li>
 <li><a class="dropdown-item" href="config-imp.cgi">IMP Control</a></li>
 <li><a class="dropdown-item" href="config-socks5.cgi">SOCKS5 Proxy</a></li>
 <li><a class="dropdown-item" href="config-webui.cgi">Web Interface</a></li>
