@@ -94,8 +94,22 @@ Pragma: no-cache
 <div class="container" style="min-height: 85vh">
 <div class="row mt-1 x-small">
 <div class="col-lg-2">
-<div id="pb-memory" class="progress my-1" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar"></div></div>
-<div id="pb-overlay" class="progress my-1" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar"></div></div>
+<div class="progress-stacked memory my-1">
+<div class="progress" role="progressbar" aria-label="Active" id="pb-memory-active">
+<div class="progress-bar"></div>
+</div>
+<div class="progress" role="progressbar" aria-label="Buffers" id="pb-memory-buffers">
+<div class="progress-bar"></div>
+</div>
+<div class="progress" role="progressbar" aria-label="Cached" id="pb-memory-cached">
+<div class="progress-bar"></div>
+</div>
+</div>
+<div class="progress-stacked overlay my-1">
+<div class="progress" role="progressbar" id="pb-overlay-used">
+<div class="progress-bar"></div>
+</div>
+</div>
 </div>
 <div class="col-md-6 mb-2">
 <%= $(signature) %>
