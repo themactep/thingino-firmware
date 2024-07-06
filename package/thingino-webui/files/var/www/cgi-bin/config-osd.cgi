@@ -43,6 +43,7 @@ setTimeout(t, 1000);
 	/etc/init.d/S95prudynt restart &
 else
 	fontname=$(sed -nE '/font_path:/s/.*\/(.*)";/\1/p' $OSD_CONFIG)
+	ts=$(date +%s)
 %>
 <div class="row g-4 mb-4">
 <div class="col-lg-4">
@@ -54,7 +55,7 @@ else
 </div>
 <div class="col-lg-8">
 <div id="preview-wrapper" class="mb-4 position-relative">
-<img id="preview" src="image.cgi" alt="Image: Preview" class="img-fluid">
+<img id="preview" src="image.cgi?t=<%= $ts %>" alt="Image: Preview" class="img-fluid">
 <button type="button" class="btn btn-primary btn-large position-absolute top-50 start-50 translate-middle" data-bs-toggle="modal" data-bs-target="#previewModal"><%= $icon_zoom %></button>
 </div>
 <div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
@@ -62,7 +63,7 @@ else
 <h1 class="modal-title fs-4" id="previewModalLabel">Full screen preview</h1>
 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div><div class="modal-body text-center">
-<img id="preview" src="image.cgi" alt="Image: Preview" class="img-fluid">
+<img id="preview" src="image.cgi?t=<%= $ts %>" alt="Image: Preview" class="img-fluid">
 </div></div></div></div>
 <% ex "grep font_path $OSD_CONFIG" %>
 </div>
