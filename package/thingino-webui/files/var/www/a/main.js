@@ -16,19 +16,13 @@ function sleep(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-function setProgressBar(id, value, name) {
-	$(id).setAttribute('aria-valuenow', value);
-	$(id).title = name + ': ' + value + '%'
-	const pb = $(id + ' .progress-bar');
-	pb.style.width = value + '%';
-	pb.classList = 'progress-bar';
-	if (value > 95) {
-		pb.classList.add('bg-danger');
-	} else if (value > 90) {
-		pb.classList.add('bg-warning');
-	} else {
-		pb.classList.add('bg-success');
-	}
+function setProgressBar(id, value, maxvalue) {
+	let value_percent = Math.ceil(value / (maxvalue / 100));
+	const el = $(id);
+	el.setAttribute('aria-valuemin', 0);
+	el.setAttribute('aria-valuemax', maxvalue);
+	el.setAttribute('aria-valuenow', value);
+	el.style.width = value_percent + '%';
 }
 
 function sendToApi(endpoint) {
@@ -58,12 +52,15 @@ function heartbeat() {
 				const d = new Date(json.time_now * 1000);
 				$('#time-now').textContent = d.toLocaleString(navigator.language, options) + ' ' + json.timezone;
 			}
-			if (json.mem_used !== '') {
-				setProgressBar('#pb-memory', json.mem_used, 'Memory Usage');
-			}
-			if (json.overlay_used !== '') {
-				setProgressBar('#pb-overlay', json.overlay_used, 'Overlay Usage');
-			}
+
+			$('.progress-stacked.memory').title = "Free memory: " + json.mem_free + "KiB"
+			setProgressBar('#pb-memory-active', json.mem_active, json.mem_total);
+			setProgressBar('#pb-memory-buffers', json.mem_buffers, json.mem_total);
+			setProgressBar('#pb-memory-cached', json.mem_cached, json.mem_total);
+
+			$('.progress-stacked.overlay').title = "Free overlay: " + json.overlay_free + "KiB"
+			setProgressBar('#pb-overlay-used', json.overlay_used, json.overlay_total);
+
 			if (json.daynight_value !== '-1') {
 				$('#daynight_value').textContent = '☀️ ' + json.daynight_value;
 			}
