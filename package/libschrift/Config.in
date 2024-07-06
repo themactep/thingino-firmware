@@ -1,0 +1,6 @@
+config BR2_PACKAGE_LIBSCHRIFT
+	bool "libschrift"
+	help
+	  libschrift is a lightweight TrueType font rendering library.
+
+	  https://github.com/tomolt/libschrift
