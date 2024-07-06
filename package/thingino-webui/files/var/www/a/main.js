@@ -16,13 +16,14 @@ function sleep(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-function setProgressBar(id, value, maxvalue) {
+function setProgressBar(id, value, maxvalue, name) {
 	let value_percent = Math.ceil(value / (maxvalue / 100));
 	const el = $(id);
 	el.setAttribute('aria-valuemin', 0);
 	el.setAttribute('aria-valuemax', maxvalue);
 	el.setAttribute('aria-valuenow', value);
 	el.style.width = value_percent + '%';
+	el.title = name + ': ' + value + 'KiB';
 }
 
 function sendToApi(endpoint) {
@@ -54,12 +55,12 @@ function heartbeat() {
 			}
 
 			$('.progress-stacked.memory').title = "Free memory: " + json.mem_free + "KiB"
-			setProgressBar('#pb-memory-active', json.mem_active, json.mem_total);
-			setProgressBar('#pb-memory-buffers', json.mem_buffers, json.mem_total);
-			setProgressBar('#pb-memory-cached', json.mem_cached, json.mem_total);
+			setProgressBar('#pb-memory-active', json.mem_active, json.mem_total, 'Memory Active');
+			setProgressBar('#pb-memory-buffers', json.mem_buffers, json.mem_total, 'Memory Buffers');
+			setProgressBar('#pb-memory-cached', json.mem_cached, json.mem_total, 'Memory Cached');
 
 			$('.progress-stacked.overlay').title = "Free overlay: " + json.overlay_free + "KiB"
-			setProgressBar('#pb-overlay-used', json.overlay_used, json.overlay_total);
+			setProgressBar('#pb-overlay-used', json.overlay_used, json.overlay_total, 'Overlay Usage');
 
 			if (json.daynight_value !== '-1') {
 				$('#daynight_value').textContent = '☀️ ' + json.daynight_value;
