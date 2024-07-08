@@ -58,6 +58,7 @@ if [ -f /etc/os-release ]; then
 				[make]='make'
 				[rsync]='rsync'
 				[unzip]='unzip'
+				[u-boot-tools]='u-boot-tools'
 				[wget]='wget'
 				[whiptail]='whiptail'
 				[dialog]='dialog'

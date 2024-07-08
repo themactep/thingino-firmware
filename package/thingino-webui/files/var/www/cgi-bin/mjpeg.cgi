@@ -11,8 +11,8 @@ echo -n -e $frame
 cat $preview
 echo -n -e $frame
 while :; do
-    cat $preview
-    echo -n -e "\r\n\r\n"
-    echo -n -e $frame
-    sleep 1
+	cat $preview
+	echo -n -e "\r\n\r\n"
+	echo -n -e $frame
+	sleep 1
 done

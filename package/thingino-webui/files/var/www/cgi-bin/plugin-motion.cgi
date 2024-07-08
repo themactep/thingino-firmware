@@ -4,7 +4,7 @@
 plugin="motion"
 plugin_name="Motion guard"
 page_title="Motion guard"
-params="enabled sensitivity send2email send2ftp send2mqtt send2telegram send2webhook send2yadisk playonspeaker throttle"
+params="enabled sensitivity send2email send2ftp send2mqtt send2telegram send2webhook send2yadisk throttle"
 
 tmp_file=/tmp/$plugin
 
@@ -29,7 +29,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			[ "false" = "$motion_send2telegram" ] && \
 			[ "false" = "$motion_send2webhook" ] && \
 			[ "false" = "$motion_send2yadisk" ] && \
-			[ "false" = "$motion_playonspeaker" ] && \
 			set_error_flag "You need to select at least one method of notification"
 	fi
 
@@ -93,9 +92,6 @@ fi
 <li class="list-group-item send2yadisk">
 <% field_checkbox "motion_send2yadisk" "Upload to Yandex Disk" "<a href=\"plugin-send2yadisk.cgi\">Configure sending to Yandex Disk</a>" %>
 </li>
-<li class="list-group-item playonspeaker">
-<% field_checkbox "motion_playonspeaker" "Play sound file on speaker" "<a href=\"plugin-playonspeaker.cgi\">Configure playing on speaker</a>" %>
-</li>
 </ul>
 </div>
 <div class="col col-12 col-xl-4">
@@ -113,7 +109,6 @@ fi
 <% [ "true" != "$telegram_enabled" ] && echo "\$('#motion_send2telegram').disabled = true;" %>
 <% [ "true" != "$webhook_enabled"  ] && echo "\$('#motion_send2webhook').disabled = true;" %>
 <% [ "true" != "$yadisk_enabled"   ] && echo "\$('#motion_send2yadisk').disabled = true;" %>
-<% [ "true" != "$speaker_enabled"  ] && echo "\$('#motion_playonspeaker').disabled = true;" %>
 </script>
 
 <%in p/footer.cgi %>

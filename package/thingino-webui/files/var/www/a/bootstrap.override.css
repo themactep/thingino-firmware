@@ -123,9 +123,18 @@ textarea {
 	min-height: 60vh;
 }
 
-#pb-memory, #pb-overlay {
-	height: 4px;
+.progress-stacked {
+	height: 5px;
 	cursor: pointer;
+}
+
+.progress-bar {
+	background-color: gray;
+	cursor: pointer;
+}
+
+.progress-bar:hover {
+	background-color: #f80;
 }
 
 .preview canvas {

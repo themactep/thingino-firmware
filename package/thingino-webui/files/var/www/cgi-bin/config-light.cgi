@@ -1,7 +1,7 @@
 #!/usr/bin/haserl
 <%in p/common.cgi %>
 <%
-page_title="Illumination"
+page_title="Illumination Controls"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
@@ -19,20 +19,20 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	day_night_min=$POST_day_night_min
 
 	# default values
-	[ -z "$day_night_min" ] && day_night_min=400
-	[ -z "$day_night_max" ] && day_night_max=600
+	[ -z "$day_night_min" ] && day_night_min=5000
+	[ -z "$day_night_max" ] && day_night_max=15000
 
 	# save values to env
 	tmpfile=$(mktemp)
+	echo "gpio_ir850 $ir850_pin" >> $tmpfile
+	echo "gpio_ir940 $ir940_pin" >> $tmpfile
+	echo "gpio_white $white_pin" >> $tmpfile
+	echo "gpio_ircut $ircut_pin1 $ircut_pin2" >> $tmpfile
+	echo "pwm_ch_ir850 $ir850_pwm" >> $tmpfile
+	echo "pwm_ch_ir940 $ir940_pwm" >> $tmpfile
+	echo "pwm_ch_white $white_pwm" >> $tmpfile
 	echo "day_night_min $day_night_min" >> $tmpfile
 	echo "day_night_max $day_night_max" >> $tmpfile
-	echo "gpio_ir850 $ir850_pin" >> $tmpfile
-	echo "pwm_ch_ir850 $ir850_pwm" >> $tmpfile
-	echo "gpio_ir940 $ir940_pin" >> $tmpfile
-	echo "pwm_ch_ir940 $ir940_pwm" >> $tmpfile
-	echo "gpio_white $white_pin" >> $tmpfile
-	echo "pwm_ch_white $white_pwm" >> $tmpfile
-	echo "gpio_ircut $ircut_pin1 $ircut_pin2" >> $tmpfile
 	fw_setenv -s $tmpfile
 	rm $tmpfile
 fi
@@ -51,14 +51,9 @@ ircut_pins=$(get gpio_ircut)
 ircut_pin1=$(echo $ircut_pins | awk '{print $1}')
 ircut_pin2=$(echo $ircut_pins | awk '{print $2}')
 
-# read data from cron
-cron_line=$(sed -n /daynight/p /etc/crontabs/root)
-
-#[[ "$cron_line" =~ "^#" ]] && cron_enable="false" || cron_enable="true"
-
 # default values
-[ -z "$day_night_min" ] && day_night_min=400
-[ -z "$day_night_max" ] && day_night_max=600
+[ -z "$day_night_min" ] && day_night_min=5000
+[ -z "$day_night_max" ] && day_night_max=15000
 
 %>
 <%in p/header.cgi %>
@@ -88,13 +83,6 @@ cron_line=$(sed -n /daynight/p /etc/crontabs/root)
 	</div>
 </div>
 <div class="col">
-	<h5>Day/Night Switching</h5>
-	<% field_switch "cron_enable" "Run by cron" %>
-	<p class="string" id="cron_line_wrap">
-		<label for="cron_line" class="form-label">cron line</label>
-		<input type="text" id="cron_line" name="cron_line" class="form-control" value="<%= "$cron_line" %>">
-        </p>
-
 	<h6>Day/Night Trigger Threshold</h6>
 	<div class="row mb-3">
 		<div class="col"><% field_number "day_night_min" "Min. gain in night mode" %></div>
@@ -106,17 +94,15 @@ cron_line=$(sed -n /daynight/p /etc/crontabs/root)
 <h3>Environment Settings</h3>
 <pre>
 gpio_ir850: <%= $ir850_pin %>
-pwm_ch_ir850: <%= $ir850_pwm %>
 gpio_ir940: <%= $ir940_pin %>
-pwm_ch_ir940: <%= $ir940_pwm %>
 gpio_white: <%= $white_pin %>
-pwm_ch_white: <%= $white_pwm %>
 gpio_ircut: <%= $ircut_pins %>
+pwm_ch_ir850: <%= $ir850_pwm %>
+pwm_ch_ir940: <%= $ir940_pwm %>
+pwm_ch_white: <%= $white_pwm %>
 day_night_min: <%= $day_night_min %>
 day_night_max: <%= $day_night_max %>
 </pre>
-
-<% ex "sed -n /daynight/p /etc/crontabs/root" %>
 </div>
 <div class="col">
 <% button_webui_log %>

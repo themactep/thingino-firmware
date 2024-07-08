@@ -5,6 +5,8 @@
 # Stop all init scripts in /etc/init.d
 # executing them in reversed numerical order.
 
+echo_c 196 "\n\nGoing to reboot!\n"
+
 for prefix in K S; do
 	for i in $(ls -r /etc/init.d/${prefix}??* 2> /dev/null); do
 		# Ignore dangling symlinks (if any).

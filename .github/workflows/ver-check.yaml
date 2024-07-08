@@ -18,7 +18,11 @@ jobs:
       - name: Get Latest Live555 Release
         id: thingino-live555
         run: |
-          upstream_ver=$(curl -s http://www.live555.com/liveMedia/public/ | grep -oP 'live\.\d{4}\.\d{2}\.\d{2}\.tar\.gz' | sort -r | head -n 1 | awk -F'.' '{print $2"."$3"."$4}')
+          upstream_ver=$(curl -sf http://www.live555.com/liveMedia/public/ | grep -oP 'live\.\d{4}\.\d{2}\.\d{2}\.tar\.gz' | sort -r | head -n 1 | awk -F'.' '{print $2"."$3"."$4}')
+          if [ -z "$upstream_ver" ]; then
+            echo "Error: Failed to fetch upstream version" >&2
+            exit 1
+          fi
           current_ver=$(cat package/thingino-live555/thingino-live555.mk | grep "THINGINO_LIVE555_VERSION =" | awk '{ print $3 }')
           sed -i "s/THINGINO_LIVE555_VERSION = [0-9]\{4\}\.[0-9]\{2\}\.[0-9]\{2\}/THINGINO_LIVE555_VERSION = $upstream_ver/" package/thingino-live555/thingino-live555.mk
           echo "upstream_ver=$upstream_ver" >> $GITHUB_OUTPUT
@@ -28,7 +32,7 @@ jobs:
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
-        if: steps.thingino-live555.outputs.current_ver != '' && steps.thingino-live555.outputs.current_ver != steps.thingino-live555.outputs.upstream_ver
+        if: ${{ steps.thingino-live555.outputs.current_ver != '' && steps.thingino-live555.outputs.current_ver != steps.thingino-live555.outputs.upstream_ver }}
         with:
           title: 'Update thingino-live555 to ${{ steps.thingino-live555.outputs.upstream_ver }}'
           commit-message: 'Update thingino-live555 version from ${{ steps.thingino-live555.outputs.current_ver }} to ${{ steps.thingino-live555.outputs.upstream_ver }}'
@@ -37,4 +41,3 @@ jobs:
             This pull request updates thingino-live555 to the latest version: ${{ steps.thingino-live555.outputs.upstream_ver }}
           base: master
           delete-branch: true
-

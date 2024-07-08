@@ -38,8 +38,8 @@
 <% ex "env | sort" %>
 </div>
 <div id="t3-tab-pane" role="tabpanel" class="tab-pane fade" aria-labelledby="t3-tab" tabindex="0">
-<% ex "cat /etc/imp.conf" %>
-<% ex "cat /tmp/imp.conf" %>
+<% [ -f /etc/imp.conf ] && ex "cat /etc/imp.conf" %>
+<% [ -f /tmp/imp.conf ] && ex "cat /tmp/imp.conf" %>
 <b>in memory values</b>
 <pre><% for i in $commands; do eval "echo $i = \$$i"; done %></pre>
 <b>commands to fix</b>

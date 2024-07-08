@@ -1,4 +1,5 @@
 BR2_TARGET_UBOOT=y
+BR2_TARGET_UBOOT_BUILD_SYSTEM_LEGACY=y
 BR2_TARGET_UBOOT_CUSTOM_GIT=y
 BR2_TARGET_UBOOT_CUSTOM_REPO_URL="https://github.com/gtxaspec/u-boot-ingenic"
 BR2_TARGET_UBOOT_CUSTOM_REPO_VERSION="origin/master"
@@ -10,4 +11,3 @@ BR2_TARGET_UBOOT_BOARDNAME="$(UBOOT_BOARDNAME)"
 # alternative source
 #BR2_TARGET_UBOOT_CUSTOM_TARBALL=y
 #BR2_TARGET_UBOOT_CUSTOM_TARBALL_LOCATION="https://github.com/gtxaspec/u-boot-ingenic/archive/refs/heads/master.tar.gz"
-

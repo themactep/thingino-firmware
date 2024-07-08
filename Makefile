@@ -11,11 +11,11 @@ endif
 
 # Camera IP address
 # shortened to just IP for convenience of running from command line
-IP ?= 192.168.1.10
+IP ?= 192.168.1.174
 CAMERA_IP_ADDRESS = $(IP)
 
 # Device of SD card
-SDCARD_DEVICE ?= /dev/sdc
+SDCARD_DEVICE ?= /dev/sdf
 
 # TFTP server IP address to upload compiled images to
 TFTP_IP_ADDRESS ?= 192.168.1.254
@@ -58,9 +58,14 @@ endif
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 U_BOOT_ENV_LOCAL_TXT := $(BR2_EXTERNAL)/local.uenv.txt
 U_BOOT_ENV_FINAL_TXT := $(OUTPUT_DIR)/env.txt
-#U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-$(SOC_MODEL_LESS_Z).bin
-U_BOOT_BIN = u-boot-lzo-with-spl.bin
-U_BOOT_ENV_BIN := $(OUTPUT_DIR)/images/uenv.bin
+
+ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
+U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-lzo-with-spl.bin
+else
+U_BOOT_BIN = $(OUTPUT_DIR)/images/$(patsubst "%",%,$(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME))
+endif
+U_BOOT_ENV_BIN = $(OUTPUT_DIR)/images/uenv.bin
+
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
@@ -263,12 +268,12 @@ toolchain: defconfig
 	$(info -------------------> sdk)
 	$(BR2_MAKE) sdk
 
-update_ota: pack_update
+update_ota: $(FIRMWARE_BIN_NOBOOT)
 	$(info -------------------> update_ota)
 	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_NOBOOT) $(CAMERA_IP_ADDRESS)
 
 # upgrade firmware using /tmp/ directory of the camera
-upgrade_ota: pack
+upgrade_ota: $(FIRMWARE_BIN_FULL)
 	$(info -------------------> upgrade_ota)
 	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_FULL) $(CAMERA_IP_ADDRESS)
 
@@ -321,12 +326,12 @@ $(SRC_DIR):
 # download bootloader
 $(U_BOOT_BIN):
 	$(info -------------------> $$(U_BOOT_BIN))
-	$(info U_BOOT_BIN not found!)
+	$(info U_BOOT_BIN $(U_BOOT_BIN) not found!)
 	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL_LESS_Z).bin
 
 $(U_BOOT_ENV_BIN): create_env_bin
 	$(info -------------------> $$(U_BOOT_ENV_BIN))
-	$(SCRIPTS_DIR)/mkenvimage -s $(U_BOOT_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_FINAL_TXT)
+	mkenvimage -s $(U_BOOT_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_FINAL_TXT)
 
 # rebuild Linux kernel
 $(KERNEL_BIN):

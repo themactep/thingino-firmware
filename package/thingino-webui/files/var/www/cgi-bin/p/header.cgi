@@ -17,7 +17,7 @@ Pragma: no-cache
 <script src="/a/main.js"></script>
 </head>
 
-<body id="page-<%= $pagename %>" <%= ${webui_level:-user} %><% [ "$debug" -ge "1" ] && echo -n " debug" %>">
+<body id="page-<%= $pagename %>" class="<%= ${webui_level:-user} %><% [ "$debug" -ge 1 ] && echo -n " debug" %>">
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
 <div class="container">
 <a class="navbar-brand" href="status.cgi"><img alt="Image: thingino logo" width="150" src="/a/logo.svg"></a>
@@ -51,6 +51,10 @@ Pragma: no-cache
 <li><a class="dropdown-item" href="config-hostname.cgi">Hostname</a></li>
 <li><a class="dropdown-item" href="config-time.cgi">Time</a></li>
 <li><a class="dropdown-item" href="config-light.cgi">Illumination</a></li>
+<% if [ -f /bin/motors ]; then %>
+<li><a class="dropdown-item" href="config-motors.cgi">Motors</a></li>
+<% fi %>
+<li><a class="dropdown-item" href="config-osd.cgi">OSD</a></li>
 <li><a class="dropdown-item" href="config-imp.cgi">IMP Control</a></li>
 <li><a class="dropdown-item" href="config-socks5.cgi">SOCKS5 Proxy</a></li>
 <li><a class="dropdown-item" href="config-webui.cgi">Web Interface</a></li>
@@ -91,8 +95,22 @@ Pragma: no-cache
 <div class="container" style="min-height: 85vh">
 <div class="row mt-1 x-small">
 <div class="col-lg-2">
-<div id="pb-memory" class="progress my-1" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar"></div></div>
-<div id="pb-overlay" class="progress my-1" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar"></div></div>
+<div class="progress-stacked memory my-1">
+<div class="progress" role="progressbar" aria-label="Active" id="pb-memory-active">
+<div class="progress-bar"></div>
+</div>
+<div class="progress" role="progressbar" aria-label="Buffers" id="pb-memory-buffers">
+<div class="progress-bar"></div>
+</div>
+<div class="progress" role="progressbar" aria-label="Cached" id="pb-memory-cached">
+<div class="progress-bar"></div>
+</div>
+</div>
+<div class="progress-stacked overlay my-1">
+<div class="progress" role="progressbar" id="pb-overlay-used">
+<div class="progress-bar"></div>
+</div>
+</div>
 </div>
 <div class="col-md-6 mb-2">
 <%= $(signature) %>

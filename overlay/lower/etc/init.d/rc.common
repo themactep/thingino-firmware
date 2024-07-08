@@ -1,5 +1,10 @@
 #!/bin/sh
 
+if [ "$0" = "-sh" ]; then
+	echo "Do not run directly!"
+	return
+fi
+
 DAEMON_ARGS=""
 DAEMON_PATH="/bin"
 DAEMON=${DAEMON:-$0}
@@ -40,7 +45,7 @@ proclaim() {
 }
 
 proclaim_n() {
-    printf "\n%-35s" "$1"
+	printf "\n%-35s" "$1"
 }
 
 starting() {
@@ -53,6 +58,10 @@ starting_batch() {
 
 stopping() {
 	proclaim "Stopping ${1:-$DAEMON_SHORT}"
+}
+
+stopping_batch() {
+	echo "Stopping ${1:-$DAEMON_SHORT} ..."
 }
 
 log() {
@@ -117,7 +126,6 @@ iface_exists() {
 	fi
 
 	if ip link show $iface &> /dev/null; then
-		
 		if [ "eth0" == $iface ] && ! is_gateway_reachable; then
 			echo "eth0 has no local connection" 2>&1 | log
 			return 1

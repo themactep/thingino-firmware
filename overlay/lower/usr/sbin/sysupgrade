@@ -1,13 +1,10 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
 KERNEL_MAGIC="27051956"
 U_BOOT_MAGIC="06050403"
 ROOTFS_MAGIC="68737173"
-
-die() {
-	echo "$1"
-	exit ${2:-99}
-}
 
 show_help() {
 	echo "Usage: $0 <filename> | [-f | -p] | <URL>
@@ -16,10 +13,15 @@ Where:
   -p          partial upgrade with a binary from GitHub
   <filename>  full or partial upgrade from a local file
   <URL>       full or partial upgrade from a URL
+  -h          this help
 "
 }
 
-while getopts "fp" flag; do
+stop_service() {
+	/etc/init.d/$1 stop
+}
+
+while getopts "fhp" flag; do
 	case "$flag" in
 		f)
 			upgrade="full"
@@ -27,38 +29,34 @@ while getopts "fp" flag; do
 		p)
 			upgrade="part"
 			;;
-		*)
-			echo "Invalid flag"
+		h|*)
+			show_help
+			exit 1
 			;;
 	esac
 done
+[ -z "$upgrade" ] && upgrade="local"
 
 shift $(($OPTIND - 1))
 
-if [ -z "$upgrade" ]; then
-	upgrade="local"
+if [ "local" = "$upgrade" ]; then
 	[ -z "$1" ] && { show_help; exit 1; }
-	binary_file="$1"
+
+	if echo "$1" | grep -qE '^https?://'; then
+		binary_file=$(mktemp)
+		info "Downloading firmware from $1"
+		curl -# -L -f -o $binary_file $1 || die "Failed to download firmware from $1"
+	else
+		binary_file="$1"
+	fi
 else
 	data=/etc/os-release
 	profile=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $data)
 	[ -z "$profile" ] && die "Building profile is not set in $data"
-	binary_file=$(mktemp -u)
-fi
-
-if echo "$1" | grep -qE '^https?://'; then
-	binary_file=$(mktemp)  # Create a temporary file
-	echo "Downloading firmware from $1."
-	curl -# -L -f -o $binary_file $1 || die "Failed to download firmware from $1. Exiting."
-fi
-
-if ! grep -q -e "mtd6" -e "mtd5" /proc/mtd; then
-	die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
+	binary_file=$(mktemp -u) # Create a name of temporary file
 fi
 
 case "$upgrade" in
-	local) ;;
-
 	full | part)
 		url="https://github.com/themactep/thingino-firmware/releases/download/firmware"
 		if [ "part" = "$upgrade" ]; then
@@ -66,9 +64,11 @@ case "$upgrade" in
 		else
 			fw_file="/thingino-${profile}.bin"
 		fi
-		echo "Downloading firmware from ${url}${fw_file}."
+		info "Downloading firmware from ${url}${fw_file}."
 		curl -# -L -f -o $binary_file ${url}${fw_file} || die "Failed to download firmware from $url"
 		;;
+	local) ;;
+
 esac
 
 [ -f "$binary_file" ] || die "File $1 not found"
@@ -91,22 +91,39 @@ case "$magic" in
 		;;
 	*)
 		die "Unknown file"
+		;;
 esac
 
-echo "Stopping services"
-/etc/init.d/S01syslogd stop
-/etc/init.d/S21rngd stop
-/etc/init.d/S49ntpd stop
-/etc/init.d/S50httpd stop
-/etc/init.d/S60crond stop
-/etc/init.d/S93telegrambot stop
-/etc/init.d/S95prudynt stop
+grep -q -e "mtd6" -e "mtd5" /proc/mtd || die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
 
-rm -f /tmp/snapshot.jpg
+info "Stop services"
+stop_service S01syslogd
+stop_service S21rngd
+stop_service S49ntpd
+stop_service S50httpd
+stop_service S60crond
+stop_service S93telegrambot
+stop_service S95prudynt
 
-echo 3 > /proc/sys/vm/drop_caches;sync
+proclaim "Remove snapshot"
+rm -f /tmp/snapshot.jpg && check_result
 
-echo "Performing upgrade. Do not turn off the power!"
+proclaim "Drop caches"
+echo "3" > /proc/sys/vm/drop_caches && check_result
+
+proclaim "Sync changes"
+sync && check_result
+
+proclaim "Unmount overlay"
+umount /overlay && check_result
+
+proclaim "Unmount roots"
+umount / && check_result
+
+echo
+
+info "Performing upgrade"
+warn "Do not turn off the power!"
 if flashcp -v $binary_file /dev/$mtd_dev; then
 	echo "Rebooting..."
 	echo 1 > /proc/jz/watchdog/reset

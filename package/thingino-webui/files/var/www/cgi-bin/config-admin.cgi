@@ -3,7 +3,7 @@
 <%
 plugin="admin"
 page_title="Admin profile"
-params="name email telegram"
+params="name email telegram discord"
 
 tmp_file=/tmp/${plugin}.conf
 config_file="${ui_config_dir}/${plugin}.conf"
@@ -16,11 +16,13 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		sanitize "${plugin}_${p}"
 	done; unset p
 
-	[ -z "$admin_name"  ] && set_error_flag "Admin name cannot be empty."
-	[ -z "$admin_email" ] && set_error_flag "Admin email cannot be empty."
-	# [ -z "$admin_telegram" ] && error="Admin telegram username cannot be empty."
+	[ -z "$admin_name"  ] && set_error_flag "Name cannot be empty."
+	[ -z "$admin_email" ] && set_error_flag "Email cannot be empty."
+	# [ -z "$admin_telegram" ] && set_error_flag "Telegram username cannot be empty."
+	# [ -z "$admin_discord" ] && set_error_flag "Discord username cannot be empty."
 
-	# add @ to Telegram username, if missed
+	# add @ to Discord and Telegram usernames, if missed
+	[ -n "$admin_discord" ] && [ "${admin_discord:0:1}" != "@" ] && admin_discord="@$admin_discord"
 	[ -n "$admin_telegram" ] && [ "${admin_telegram:0:1}" != "@" ] && admin_telegram="@$admin_telegram"
 
 	if [ -z "$error" ]; then
@@ -42,17 +44,19 @@ fi
 
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
 <div class="col">
-<h3>Settings</h3>
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_hidden "action" "update" %>
-<% field_text "admin_name" "Admin's full name" "will be used for sending emails" %>
-<% field_text "admin_email" "Admin's email address" %>
-<% field_text "admin_telegram" "Admin's nick on Telegram" %>
+<% field_text "admin_name" "Full name" %>
+<% field_text "admin_email" "Email address" %>
+<p class="small">Full name and email address above will be used as sender for emails originating from the camera.</p>
 <% button_submit %>
+</div>
+<div class="col">
+<% field_text "admin_telegram" "Username on Telegram" %>
+<% field_text "admin_discord" "Username on Discord" %>
 </form>
 </div>
 <div class="col">
-<h3>Config file</h3>
 <% ex "cat $config_file" %>
 </div>
 </div>

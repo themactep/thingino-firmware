@@ -75,7 +75,7 @@ done; unset i; unset x
 <h3>Configuration</h3>
 <% ex "cat /etc/timezone" %>
 <% ex "cat /etc/TZ" %>
-<%# ex "echo \$TZ" %>
+<% ex "echo \$TZ" %>
 <% ex "cat /etc/ntp.conf" %>
 <p id="sync-time-wrapper"><a href="#" id="sync-time">Sync time</a></p>
 </div>
