@@ -41,8 +41,15 @@ if [ "true" != "$dusk2dawn_enabled" ] && [ "true" != "$force_run" ]; then
 	quit_clean 10
 fi
 
-[ -z "$dusk2dawn_lat" ] && dusk2dawn_lat="$(fw_printenv -n geolat)"
-[ -z "$dusk2dawn_lng" ] && dusk2dawn_lng="$(fw_printenv -n geolng)"
+if [ -z "$dusk2dawn_lat" ]; then
+	log "Latitude is not set."
+	dusk2dawn_lat="$(fw_printenv -n geolat)"
+fi
+
+if [ -z "$dusk2dawn_lng" ]l then
+	log "Longitude is not set."
+	dusk2dawn_lng="$(fw_printenv -n geolng)"
+fi
 
 # validate mandatory values
 if [ -z "$dusk2dawn_lat" ]; then
@@ -55,7 +62,7 @@ if [ -z "$dusk2dawn_lng" ]; then
 	quit_clean 12
 fi
 
-tz="$(fw_printenv -n timezone)"
+tz="$(fw_printenv -n timezone | tr ' ' '_')"
 
 crontab_file=/etc/crontabs/root
 
@@ -75,7 +82,7 @@ if [ "true" = "$ftp_socks5_enabled" ]; then
 fi
 
 command="$command --output $tmpfile"
-command="$command --url \"https://api.sunrise-sunset.org/json?lat=${dusk2dawn_lat}&lng=${dusk2dawn_lng}&formatted=0&tzid=${tz}\""
+command="$command --url \"https://api.sunrise-sunset.org/json?date=today&lat=${dusk2dawn_lat}&lng=${dusk2dawn_lng}&formatted=0&tzid=${tz}\""
 
 log "$command"
 eval "$command" >> "$LOG_FILE" 2>&1
