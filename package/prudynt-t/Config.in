@@ -5,7 +5,17 @@ config BR2_PACKAGE_PRUDYNT_T
 	select BR2_PACKAGE_INGENIC_LIBIMP_CONTROL
 	select BR2_PACKAGE_LIBCONFIG
 	select BR2_PACKAGE_THINGINO_LIVE555
-	select BR2_PACKAGE_THINGINO_FREETYPE
+	select BR2_PACKAGE_THINGINO_FREETYPE if !BR2_PACKAGE_PRUDYNT_T_NG
 	select BR2_PACKAGE_THINGINO_FONTS
 	help
 	  Video streamer for Ingenic T-series.
+
+	  https://github.com/gtxaspec/prudynt-t
+
+config BR2_PACKAGE_PRUDYNT_T_NG
+	bool "Prudynt NG"
+	select BR2_PACKAGE_LIBWEBSOCKETS
+	help
+	  Use Next Generation experimental version of Prudynt-T streamer.
+
+	  https://github.com/Lu-Fi/prudynt-t
