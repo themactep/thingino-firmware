@@ -1,0 +1,6 @@
+# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+BR2_SOC_INGENIC_T31LC=y
+BR2_SENSOR_SC2336=y
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_ATBM6012BX=y
+BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME="u-boot-with-spl.bin"
