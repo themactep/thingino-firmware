@@ -1,0 +1,8 @@
+$(info --- FILE: local.mk ---)
+# rename this file to local.mk
+
+# LINUX_OVERRIDE_SRCDIR=$(HOME)/thingino/linux
+# LINUX_HEADERS_OVERRIDE_SRCDIR=$(HOME)/thingino/linux
+# BR2_KERNEL_HEADERS_AS_KERNEL=n
+# UBOOT_OVERRIDE_SRCDIR=$(HOME)/thingino/uboot
+# INGENIC_SDK_OVERRIDE_SRCDIR=$(HOME)/thingino/ingenic-sdk
