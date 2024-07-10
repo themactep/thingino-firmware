@@ -1,9 +1,19 @@
 PRUDYNT_T_SITE_METHOD = git
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
+PRUDYNT_T_SITE = https://github.com/Lu-Fi/prudynt-t
+PRUDYNT_T_SITE_BRANCH = lowstream
+else
 PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
 PRUDYNT_T_SITE_BRANCH = master
+endif
 PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
 
-PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-freetype thingino-fonts ingenic-lib
+PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-fonts ingenic-lib
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
+PRUDYNT_T_DEPENDENCIES += libwebsockets
+else
+PRUDYNT_T_DEPENDENCIES += thingino-freetype
+endif
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 PRUDYNT_T_DEPENDENCIES += ingenic-musl
 endif
@@ -16,11 +26,15 @@ endif
 PRUDYNT_CFLAGS += \
 	-DNO_OPENSSL=1 -Os \
 	-I$(STAGING_DIR)/usr/include \
-	-I$(STAGING_DIR)/usr/include/freetype2 \
 	-I$(STAGING_DIR)/usr/include/liveMedia \
 	-I$(STAGING_DIR)/usr/include/groupsock \
 	-I$(STAGING_DIR)/usr/include/UsageEnvironment \
 	-I$(STAGING_DIR)/usr/include/BasicUsageEnvironment
+
+ifneq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
+PRUDYNT_CFLAGS += \
+	-I$(STAGING_DIR)/usr/include/freetype2
+endif
 
 PRUDYNT_LDFLAGS = $(TARGET_LDFLAGS) \
 	-L$(STAGING_DIR)/usr/lib \

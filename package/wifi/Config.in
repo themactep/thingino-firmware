@@ -15,6 +15,7 @@ menuconfig BR2_PACKAGE_WIFI
 if BR2_PACKAGE_WIFI
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-aic8800/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6012b/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6012bx/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6031/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6032/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-atbm6041/Config.in"
