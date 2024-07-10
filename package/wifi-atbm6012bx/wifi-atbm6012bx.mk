@@ -1,5 +1,6 @@
 WIFI_ATBM6012BX_SITE_METHOD = git
-WIFI_ATBM6012BX_SITE = https://github.com/gtxaspec/atbm60xx
+#WIFI_ATBM6012BX_SITE = https://github.com/gtxaspec/atbm60xx
+WIFI_ATBM6012BX_SITE = https://github.com/themactep/atbm60xx
 WIFI_ATBM6012BX_SITE_BRANCH = 60xx-x
 WIFI_ATBM6012BX_VERSION = $(shell git ls-remote $(WIFI_ATBM6012BX_SITE) $(WIFI_ATBM6012BX_SITE_BRANCH) | head -1 | cut -f1)
 
