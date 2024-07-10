@@ -1,5 +1,6 @@
 $(info --- FILE: local.mk ---)
 # rename this file to local.mk
+# read chapter 8.13.6 of https://buildroot.org/downloads/manual/manual.pdf
 
 # LINUX_OVERRIDE_SRCDIR=$(HOME)/thingino/linux
 # LINUX_HEADERS_OVERRIDE_SRCDIR=$(HOME)/thingino/linux
