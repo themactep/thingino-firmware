@@ -19,7 +19,10 @@ set_motor_phases() {
 }
 
 home_motors() {
-	[ "true" = "$(get disable_homing)" ] && warn "Homing disabled"
+	if [ "true" = "$(get disable_homing)" ]; then
+		warn "Homing disabled"
+		return
+	fi
 
 	local x=$((motor_maxstep_h / 2))
 	local y=$((motor_maxstep_v / 2))
