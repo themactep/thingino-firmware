@@ -1,0 +1,32 @@
+# GPIOs 0-31, GPIO A:
+# gpio-6   (                    ) out hi
+# gpio-7   (                    ) out lo
+# gpio-14  (                    ) in  hi
+# gpio-16  (                    ) out hi
+# gpio-17  (                    ) out hi
+# gpio-18  (sc2336_reset        ) out hi
+#
+# GPIOs 32-63, GPIO B:
+# gpio-35  (                    ) out hi
+# gpio-49  (mmc_detect          ) in  lo
+# gpio-50  (                    ) out low
+# gpio-51  (�K��a*$]               ) out lo
+# gpio-52  (�K��a*$]               ) out lo
+# gpio-53  (�K��a*$]               ) out lo
+# gpio-54  (�K��a*$]               ) out lo
+# gpio-57  (sda                 ) in  hi
+# gpio-58  (scl                 ) in  hi
+# gpio-61  (�K��a*$]               ) out lo
+# gpio-62  (�K��a*$]               ) out lo
+# gpio-63  (�K��a*$]               ) out lo
+#
+# GPIOs 64-95, GPIO C:
+# gpio-64  (�K��a*$]               ) out lo
+
+gpio_default=6O 7o 14i 16O 17O 18O 35O 49i 50o 51o 52o 53o 54o 57i 58i 61o 62o 63o 64o
+gpio_mmc_cd=49
+gpio_motor_h=50 51 52 53
+gpio_motor_v=54 61 62 63
+gpio_sda=57i
+gpio_scl=58i
+gpio_wlan=6
