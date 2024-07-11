@@ -1,0 +1,15 @@
+#!/bin/sh
+
+gpio=$1
+interval=$2
+
+if [ $interval = "0"]; then
+    gpio set $gpio
+    sleep infinity
+else
+    while :
+    do  
+        gpio toggle $gpio
+        sleep $interval
+    done
+fi

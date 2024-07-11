@@ -4,8 +4,6 @@ DAEMON=openRTSP
 
 . /etc/init.d/rc.common
 
-ENABLED=false
-
 read_config() {
 	sed -nE "s/^.*$1:\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
 }
@@ -16,13 +14,57 @@ stream0height=$(read_config height)
 rtsp_username=$(read_config username)
 rtsp_password=$(read_config password)
 
-file_prefix="thingino-"
-record_path="/mnt/mmcblk0p1"
-record_interval=60
+# read web config, create if missing
+RECORD_WEBUI_CONF=/etc/webui/record.conf
+[ ! -d $(dirname $RECORD_WEBUI_CONF) ] && mkdir -p $(dirname $RECORD_WEBUI_CONF)
+[ ! -f $RECORD_WEBUI_CONF ] && touch $RECORD_WEBUI_CONF
+. $RECORD_WEBUI_CONF
+
+# default to "disabled" and update config
+if [ -z "$record_enabled" ]; then
+	record_enabled="false"
+	echo "record_enabled=$record_enabled" >> $RECORD_WEBUI_CONF
+fi
+
+# set default file prefix to "thingino-"
+if [ -z "$record_prefix" ]; then
+	record_prefix="thingino-"
+	echo "record_prefix=$record_prefix" >> $RECORD_WEBUI_CONF
+fi
+
+# set default file path to mmc mount location
+if [ -z "$record_path" ]; then
+	record_path="/mnt/mmcblk0p1"
+	echo "record_path=$record_path" >> $RECORD_WEBUI_CONF
+fi
+
+# set default record interval to 60 seconds
+if [ -z "$record_interval" ]; then
+	record_interval=60
+	echo "record_interval=$record_interval" >> $RECORD_WEBUI_CONF
+fi
+
+# set default led blinker setting
+if [ -z "$record_led_enabled" ]; then
+	record_led_enabled=false
+	echo "record_led_enabled=$record_led_enabled" >> $RECORD_WEBUI_CONF
+fi
+
+# set default blink led gpio from environment variable
+if [ -z "$record_led_gpio" ]; then
+	record_led_gpio=$(get gpio_led_r)
+	echo "record_led_gpio=$record_led_gpio" >> $RECORD_WEBUI_CONF
+fi
+
+# set default led blink interval to 1 second
+if [ -z "$record_led_interval" ]; then
+	record_led_interval=1
+	echo "record_led_interval=$record_led_interval" >> $RECORD_WEBUI_CONF
+fi
 
 start() {
 	starting
-	[ "$ENABLED" = "true" ] || quit "Disabled"
+	[ "$record_enabled" = "true" ] || quit "Disabled"
 	is_streamer_disabled && quit "Disabled"
 
 	if [ "$record_path" = "/mnt/mmcblk0p1" ]; then
@@ -38,17 +80,20 @@ start() {
 
 	pidof $DAEMON > /dev/null && die "RTSP recorder already running"
 
+	[ "$record_led_enabled" = "true" ] && blink $record_led_gpio $record_led_interval &
+
 	sleep 2
 	COMMAND="$DAEMON -u "$rtsp_username" "$rtsp_password" \
 			-w "$stream0width" -h "$stream0height" -f "$stream0fps" -P $record_interval \
-			-q -v -b 1048576 -t -H -F "$file_prefix" rtsp://127.0.0.1/ch0"
+			-q -v -b 1048576 -t -H -F "$record_prefix" rtsp://127.0.0.1/ch0"
+
 	start_daemon
 }
 
 stop() {
 	stopping
-	[ "$ENABLED" = "true" ] || quit "Disabled"
 	is_streamer_disabled && quit "Disabled"
+	pidof blink > /dev/null && kill -15 $(pidof blink) && gpio clear $record_led_gpio
 	stop_daemon
 }
 

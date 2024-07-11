@@ -51,6 +51,7 @@ Pragma: no-cache
 <li><a class="dropdown-item" href="config-hostname.cgi">Hostname</a></li>
 <li><a class="dropdown-item" href="config-time.cgi">Time</a></li>
 <li><a class="dropdown-item" href="config-light.cgi">Illumination</a></li>
+<li><a class="dropdown-item" href="config-record.cgi">Local Recording</a></li>
 <% if [ -f /bin/motors ]; then %>
 <li><a class="dropdown-item" href="config-motors.cgi">Motors</a></li>
 <% fi %>
