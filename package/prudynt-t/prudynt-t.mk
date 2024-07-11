@@ -10,7 +10,7 @@ PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRA
 
 PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-fonts ingenic-lib
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
-PRUDYNT_T_DEPENDENCIES += libwebsockets
+PRUDYNT_T_DEPENDENCIES += libwebsockets libschrift
 else
 PRUDYNT_T_DEPENDENCIES += thingino-freetype
 endif
