@@ -1,249 +1,249 @@
 choice BR2_SENSOR_NAME
-    prompt "Image Sensor Model"
+	prompt "Image Sensor Model"
 
-    config BR2_SENSOR_DUMMY
-        bool "Dummy (no sensor)"
-    config BR2_SENSOR_AR1337
-        bool "AR1337"
-    config BR2_SENSOR_BF3A03
-        bool "BF3A03"
-    config BR2_SENSOR_C2399
-        bool "C2399"
-    config BR2_SENSOR_C23A98
-        bool "C23A98"
-    config BR2_SENSOR_C3390
-        bool "C3390"
-    config BR2_SENSOR_C4390
-        bool "C4390"
-    config BR2_SENSOR_CV2001
-        bool "CV2001"
-    config BR2_SENSOR_CV3001
-        bool "CV3001"
-    config BR2_SENSOR_CV4001
-        bool "CV4001"
-    config BR2_SENSOR_GC0328
-        bool "Galaxycore GC0328"
-    config BR2_SENSOR_GC032A
-        bool "Galaxycore GC032A"
-    config BR2_SENSOR_GC1034
-        bool "Galaxycore GC1034"
-    config BR2_SENSOR_GC1054
-        bool "Galaxycore GC1054"
-    config BR2_SENSOR_GC1084
-        bool "Galaxycore GC1084"
-    config BR2_SENSOR_GC2023
-        bool "Galaxycore GC2023"
-    config BR2_SENSOR_GC2033
-        bool "Galaxycore GC2033"
-    config BR2_SENSOR_GC2053
-        bool "Galaxycore GC2053"
-    config BR2_SENSOR_GC2063
-        bool "Galaxycore GC2063"
-    config BR2_SENSOR_GC2083
-        bool "Galaxycore GC2083"
-    config BR2_SENSOR_GC2093
-        bool "Galaxycore GC2093"
-    config BR2_SENSOR_GC3003
-        bool "Galaxycore GC3003"
-    config BR2_SENSOR_GC3003A
-        bool "Galaxycore GC3003a"
-    config BR2_SENSOR_GC4023
-        bool "Galaxycore GC4023"
-    config BR2_SENSOR_GC4653
-        bool "Galaxycore GC4653"
-    config BR2_SENSOR_GC4C33
-        bool "Galaxycore GC4c33"
-    config BR2_SENSOR_GC5035
-        bool "Galaxycore GC5035"
-    config BR2_SENSOR_GC5603
-        bool "Galaxycore GC5603"
-    config BR2_SENSOR_IMX298
-        bool "Sony IMX298"
-    config BR2_SENSOR_IMX307
-        bool "Sony IMX307"
-    config BR2_SENSOR_IMX327
-        bool "Sony IMX327"
-    config BR2_SENSOR_IMX335
-        bool "Sony IMX335"
-    config BR2_SENSOR_JXF22
-        bool "JX-F22"
-    config BR2_SENSOR_JXF23
-        bool "JX-F23"
-    config BR2_SENSOR_JXF28P
-        bool "JX-F28p"
-    config BR2_SENSOR_JXF32
-        bool "JX-F32"
-    config BR2_SENSOR_JXF35
-        bool "JX-F35"
-    config BR2_SENSOR_JXF352
-        bool "JX-F352"
-    config BR2_SENSOR_JXF355P
-        bool "JX-F355p"
-    config BR2_SENSOR_JXF37
-        bool "JX-F37"
-    config BR2_SENSOR_JXF37P
-        bool "JX-F37p"
-    config BR2_SENSOR_JXF38P
-        bool "JX-F38p"
-    config BR2_SENSOR_JXF51
-        bool "JX-F51"
-    config BR2_SENSOR_JXF53
-        bool "JX-F53"
-    config BR2_SENSOR_JXH42
-        bool "JX-H42"
-    config BR2_SENSOR_JXH61P
-        bool "JX-H61p"
-    config BR2_SENSOR_JXH62
-        bool "JX-H62"
-    config BR2_SENSOR_JXH63
-        bool "JX-H63"
-    config BR2_SENSOR_JXH66
-        bool "JX-H66"
-    config BR2_SENSOR_JXK03
-        bool "JX-K03"
-    config BR2_SENSOR_JXK04
-        bool "JX-K04"
-    config BR2_SENSOR_JXK05
-        bool "JX-K05"
-    config BR2_SENSOR_JXK06
-        bool "JX-K06"
-    config BR2_SENSOR_JXQ03
-        bool "JX-Q03"
-    config BR2_SENSOR_JXQ03P
-        bool "JX-Q03p"
-    config BR2_SENSOR_MIS2006
-        bool "MIS2006"
-    config BR2_SENSOR_MIS2008
-        bool "MIS2008"
-    config BR2_SENSOR_MIS4001
-        bool "MIS4001"
-    config BR2_SENSOR_MIS5001
-        bool "MIS5001"
-    config BR2_SENSOR_OS02D20
-        bool "OS02d20"
-    config BR2_SENSOR_OS02G10
-        bool "OS02g10"
-    config BR2_SENSOR_OS02K10
-        bool "OS02k10"
-    config BR2_SENSOR_OS03B10
-        bool "OS03b10"
-    config BR2_SENSOR_OS04B10
-        bool "OS04b10"
-    config BR2_SENSOR_OS04C10
-        bool "OS04c10"
-    config BR2_SENSOR_OS04L10
-        bool "OS04l10"
-    config BR2_SENSOR_OS05A10
-        bool "OS05a10"
-    config BR2_SENSOR_OS05A20
-        bool "OS05a20"
-    config BR2_SENSOR_OV2735B
-        bool "OmniVision OV2735b"
-    config BR2_SENSOR_OV2740
-        bool "OmniVision OV2740"
-    config BR2_SENSOR_OV2745
-        bool "OmniVision OV2745"
-    config BR2_SENSOR_OV5648
-        bool "OmniVision OV5648"
-    config BR2_SENSOR_OV5695
-        bool "OmniVision OV5695"
-    config BR2_SENSOR_OV8856
-        bool "OmniVision OV8856"
-    config BR2_SENSOR_OV9732
-        bool "OmniVision OV9732"
-    config BR2_SENSOR_PS5258
-        bool "PS5258"
-    config BR2_SENSOR_PS5260
-        bool "PS5260"
-    config BR2_SENSOR_PS5268
-        bool "PS5268"
-    config BR2_SENSOR_PS5270
-        bool "PS5270"
-    config BR2_SENSOR_PS5520
-        bool "PS5520"
-    config BR2_SENSOR_SC1235
-        bool "SmartSens SC1235"
-    config BR2_SENSOR_SC1346
-        bool "SmartSens SC1346"
-    config BR2_SENSOR_SC200AI
-        bool "SmartSens SC200ai"
-    config BR2_SENSOR_SC201CS
-        bool "SmartSens SC201cs"
-    config BR2_SENSOR_SC202CS
-        bool "SmartSens SC202cs"
-    config BR2_SENSOR_SC2210
-        bool "SmartSens SC2210"
-    config BR2_SENSOR_SC2232
-        bool "SmartSens SC2232"
-    config BR2_SENSOR_SC2232H
-        bool "SmartSens SC2232h"
-    config BR2_SENSOR_SC2235
-        bool "SmartSens SC2235"
-    config BR2_SENSOR_SC2239
-        bool "SmartSens SC2239"
-    config BR2_SENSOR_SC2239P
-        bool "SmartSens SC2239p"
-    config BR2_SENSOR_SC223A
-        bool "SmartSens SC223a"
-    config BR2_SENSOR_SC230AI
-        bool "SmartSens SC230ai"
-    config BR2_SENSOR_SC2300
-        bool "SmartSens SC2300"
-    config BR2_SENSOR_SC2310
-        bool "SmartSens SC2310"
-    config BR2_SENSOR_SC2315E
-        bool "SmartSens SC2315e"
-    config BR2_SENSOR_SC2332
-        bool "SmartSens SC2332"
-    config BR2_SENSOR_SC2335
-        bool "SmartSens SC2335"
-    config BR2_SENSOR_SC2336
-        bool "SmartSens SC2336"
-    config BR2_SENSOR_SC301IOT
-        bool "SmartSens SC301IoT"
-    config BR2_SENSOR_SC3235
-        bool "SmartSens SC3235"
-    config BR2_SENSOR_SC3335
-        bool "SmartSens SC3335"
-    config BR2_SENSOR_SC3336
-        bool "SmartSens SC3336"
-    config BR2_SENSOR_SC3338
-        bool "SmartSens SC3338"
-    config BR2_SENSOR_SC401AI
-        bool "SmartSens SC401ai"
-    config BR2_SENSOR_SC4236
-        bool "SmartSens SC4236"
-    config BR2_SENSOR_SC4236H
-        bool "SmartSens SC4236h"
-    config BR2_SENSOR_SC4238
-        bool "SmartSens SC4238"
-    config BR2_SENSOR_SC4335
-        bool "SmartSens SC4335"
-    config BR2_SENSOR_SC4336
-        bool "SmartSens SC4336"
-    config BR2_SENSOR_SC4336P
-        bool "SmartSens SC4336p"
-    config BR2_SENSOR_SC450AI
-        bool "SmartSens SC450ai"
-    config BR2_SENSOR_SC500AI
-        bool "SmartSens SC500ai"
-    config BR2_SENSOR_SC5235
-        bool "SmartSens SC5235"
-    config BR2_SENSOR_SP1405
-        bool "SP1405"
-    config BR2_SENSOR_TP2850
-        bool "TP2850"
+config BR2_SENSOR_DUMMY
+	bool "Dummy (no sensor)"
+config BR2_SENSOR_AR1337
+	bool "AR1337"
+config BR2_SENSOR_BF3A03
+	bool "BF3A03"
+config BR2_SENSOR_C2399
+	bool "C2399"
+config BR2_SENSOR_C23A98
+	bool "C23A98"
+config BR2_SENSOR_C3390
+	bool "C3390"
+config BR2_SENSOR_C4390
+	bool "C4390"
+config BR2_SENSOR_CV2001
+	bool "CV2001"
+config BR2_SENSOR_CV3001
+	bool "CV3001"
+config BR2_SENSOR_CV4001
+	bool "CV4001"
+config BR2_SENSOR_GC0328
+	bool "Galaxycore GC0328"
+config BR2_SENSOR_GC032A
+	bool "Galaxycore GC032A"
+config BR2_SENSOR_GC1034
+	bool "Galaxycore GC1034"
+config BR2_SENSOR_GC1054
+	bool "Galaxycore GC1054"
+config BR2_SENSOR_GC1084
+	bool "Galaxycore GC1084"
+config BR2_SENSOR_GC2023
+	bool "Galaxycore GC2023"
+config BR2_SENSOR_GC2033
+	bool "Galaxycore GC2033"
+config BR2_SENSOR_GC2053
+	bool "Galaxycore GC2053"
+config BR2_SENSOR_GC2063
+	bool "Galaxycore GC2063"
+config BR2_SENSOR_GC2083
+	bool "Galaxycore GC2083"
+config BR2_SENSOR_GC2093
+	bool "Galaxycore GC2093"
+config BR2_SENSOR_GC3003
+	bool "Galaxycore GC3003"
+config BR2_SENSOR_GC3003A
+	bool "Galaxycore GC3003a"
+config BR2_SENSOR_GC4023
+	bool "Galaxycore GC4023"
+config BR2_SENSOR_GC4653
+	bool "Galaxycore GC4653"
+config BR2_SENSOR_GC4C33
+	bool "Galaxycore GC4c33"
+config BR2_SENSOR_GC5035
+	bool "Galaxycore GC5035"
+config BR2_SENSOR_GC5603
+	bool "Galaxycore GC5603"
+config BR2_SENSOR_IMX298
+	bool "Sony IMX298"
+config BR2_SENSOR_IMX307
+	bool "Sony IMX307"
+config BR2_SENSOR_IMX327
+	bool "Sony IMX327"
+config BR2_SENSOR_IMX335
+	bool "Sony IMX335"
+config BR2_SENSOR_JXF22
+	bool "JX-F22"
+config BR2_SENSOR_JXF23
+	bool "JX-F23"
+config BR2_SENSOR_JXF28P
+	bool "JX-F28p"
+config BR2_SENSOR_JXF32
+	bool "JX-F32"
+config BR2_SENSOR_JXF35
+	bool "JX-F35"
+config BR2_SENSOR_JXF352
+	bool "JX-F352"
+config BR2_SENSOR_JXF355P
+	bool "JX-F355p"
+config BR2_SENSOR_JXF37
+	bool "JX-F37"
+config BR2_SENSOR_JXF37P
+	bool "JX-F37p"
+config BR2_SENSOR_JXF38P
+	bool "JX-F38p"
+config BR2_SENSOR_JXF51
+	bool "JX-F51"
+config BR2_SENSOR_JXF53
+	bool "JX-F53"
+config BR2_SENSOR_JXH42
+	bool "JX-H42"
+config BR2_SENSOR_JXH61P
+	bool "JX-H61p"
+config BR2_SENSOR_JXH62
+	bool "JX-H62"
+config BR2_SENSOR_JXH63
+	bool "JX-H63"
+config BR2_SENSOR_JXH66
+	bool "JX-H66"
+config BR2_SENSOR_JXK03
+	bool "JX-K03"
+config BR2_SENSOR_JXK04
+	bool "JX-K04"
+config BR2_SENSOR_JXK05
+	bool "JX-K05"
+config BR2_SENSOR_JXK06
+	bool "JX-K06"
+config BR2_SENSOR_JXQ03
+	bool "JX-Q03"
+config BR2_SENSOR_JXQ03P
+	bool "JX-Q03p"
+config BR2_SENSOR_MIS2006
+	bool "MIS2006"
+config BR2_SENSOR_MIS2008
+	bool "MIS2008"
+config BR2_SENSOR_MIS4001
+	bool "MIS4001"
+config BR2_SENSOR_MIS5001
+	bool "MIS5001"
+config BR2_SENSOR_OS02D20
+	bool "OS02d20"
+config BR2_SENSOR_OS02G10
+	bool "OS02g10"
+config BR2_SENSOR_OS02K10
+	bool "OS02k10"
+config BR2_SENSOR_OS03B10
+	bool "OS03b10"
+config BR2_SENSOR_OS04B10
+	bool "OS04b10"
+config BR2_SENSOR_OS04C10
+	bool "OS04c10"
+config BR2_SENSOR_OS04L10
+	bool "OS04l10"
+config BR2_SENSOR_OS05A10
+	bool "OS05a10"
+config BR2_SENSOR_OS05A20
+	bool "OS05a20"
+config BR2_SENSOR_OV2735B
+	bool "OmniVision OV2735b"
+config BR2_SENSOR_OV2740
+	bool "OmniVision OV2740"
+config BR2_SENSOR_OV2745
+	bool "OmniVision OV2745"
+config BR2_SENSOR_OV5648
+	bool "OmniVision OV5648"
+config BR2_SENSOR_OV5695
+	bool "OmniVision OV5695"
+config BR2_SENSOR_OV8856
+	bool "OmniVision OV8856"
+config BR2_SENSOR_OV9732
+	bool "OmniVision OV9732"
+config BR2_SENSOR_PS5258
+	bool "PS5258"
+config BR2_SENSOR_PS5260
+	bool "PS5260"
+config BR2_SENSOR_PS5268
+	bool "PS5268"
+config BR2_SENSOR_PS5270
+	bool "PS5270"
+config BR2_SENSOR_PS5520
+	bool "PS5520"
+config BR2_SENSOR_SC1235
+	bool "SmartSens SC1235"
+config BR2_SENSOR_SC1346
+	bool "SmartSens SC1346"
+config BR2_SENSOR_SC200AI
+	bool "SmartSens SC200ai"
+config BR2_SENSOR_SC201CS
+	bool "SmartSens SC201cs"
+config BR2_SENSOR_SC202CS
+	bool "SmartSens SC202cs"
+config BR2_SENSOR_SC2210
+	bool "SmartSens SC2210"
+config BR2_SENSOR_SC2232
+	bool "SmartSens SC2232"
+config BR2_SENSOR_SC2232H
+	bool "SmartSens SC2232h"
+config BR2_SENSOR_SC2235
+	bool "SmartSens SC2235"
+config BR2_SENSOR_SC2239
+	bool "SmartSens SC2239"
+config BR2_SENSOR_SC2239P
+	bool "SmartSens SC2239p"
+config BR2_SENSOR_SC223A
+	bool "SmartSens SC223a"
+config BR2_SENSOR_SC230AI
+	bool "SmartSens SC230ai"
+config BR2_SENSOR_SC2300
+	bool "SmartSens SC2300"
+config BR2_SENSOR_SC2310
+	bool "SmartSens SC2310"
+config BR2_SENSOR_SC2315E
+	bool "SmartSens SC2315e"
+config BR2_SENSOR_SC2332
+	bool "SmartSens SC2332"
+config BR2_SENSOR_SC2335
+	bool "SmartSens SC2335"
+config BR2_SENSOR_SC2336
+	bool "SmartSens SC2336"
+config BR2_SENSOR_SC301IOT
+	bool "SmartSens SC301IoT"
+config BR2_SENSOR_SC3235
+	bool "SmartSens SC3235"
+config BR2_SENSOR_SC3335
+	bool "SmartSens SC3335"
+config BR2_SENSOR_SC3336
+	bool "SmartSens SC3336"
+config BR2_SENSOR_SC3338
+	bool "SmartSens SC3338"
+config BR2_SENSOR_SC401AI
+	bool "SmartSens SC401ai"
+config BR2_SENSOR_SC4236
+	bool "SmartSens SC4236"
+config BR2_SENSOR_SC4236H
+	bool "SmartSens SC4236h"
+config BR2_SENSOR_SC4238
+	bool "SmartSens SC4238"
+config BR2_SENSOR_SC4335
+	bool "SmartSens SC4335"
+config BR2_SENSOR_SC4336
+	bool "SmartSens SC4336"
+config BR2_SENSOR_SC4336P
+	bool "SmartSens SC4336p"
+config BR2_SENSOR_SC450AI
+	bool "SmartSens SC450ai"
+config BR2_SENSOR_SC500AI
+	bool "SmartSens SC500ai"
+config BR2_SENSOR_SC5235
+	bool "SmartSens SC5235"
+config BR2_SENSOR_SP1405
+	bool "SP1405"
+config BR2_SENSOR_TP2850
+	bool "TP2850"
 endchoice
 
 menu "ISP Module Config"
-    config BR2_SENSOR_PARAMS
+config BR2_SENSOR_PARAMS
 	string "Image sensor parameters"
 	help
-	    Set additional parameters passed to image sensor kernel module
-    config BR2_ISP_PARAMS
+	  Set additional parameters passed to image sensor kernel module
+config BR2_ISP_PARAMS
 	string "ISP parameters"
 	help
-	    Set additional parameters passed to the ISP kernel module
+	  Set additional parameters passed to the ISP kernel module
 endmenu
 
 if FALSE
