@@ -128,6 +128,7 @@ BUILD_TIME = $(shell awk -F ':' 'NR==1{a=$$1} END{b=$$1} END {print (b-a)/60" mi
 all: build pack
 	$(info -------------------> all)
 	@$(FIGLET) "FINE [$(BUILD_TIME)]"
+	@$(FIGLET) $(CAMERA)
 
 # install prerequisites
 bootstrap:
