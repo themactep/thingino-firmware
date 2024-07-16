@@ -36,11 +36,11 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	  https://github.com/thingino/firmware
 
 if BR2_THINGINO_SYSTEM_PACKAGES
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-diag-tools/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-sdk/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-pwm/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-diag-tools/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-sdk/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-pwm/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
 endif
 
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
@@ -53,47 +53,47 @@ menuconfig BR2_THINGINO_STREAMER_PACKAGES
 	  https://github.com/thingino/firmware
 
 if BR2_THINGINO_STREAMER_PACKAGES
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/raptor-ipc/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/prudynt-t/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ffmpeg/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/go2rtc/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-libimp-control/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-live555/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-fonts/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-v4l2loopback/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-audiodaemon/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/raptor-ipc/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/prudynt-t/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ffmpeg/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/go2rtc/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-libimp-control/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-live555/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-fonts/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-v4l2loopback/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-audiodaemon/Config.in"
 endif
 
 menu "Extra Packages"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/capjpeg/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/exfat-nofuse/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/jsonfilter/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/motors/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/quirc-openipc/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/libschrift/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/zerotier-one/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-portal/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/wyze-accessory/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-addons/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/capjpeg/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/exfat-nofuse/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/jsonfilter/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/motors/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/quirc-openipc/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/libschrift/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/zerotier-one/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-portal/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wyze-accessory/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-addons/Config.in"
 
-	config BR2_PACKAGE_IFUPDOWN_SCRIPTS
-		bool "ifupdown-scripts"
+config BR2_PACKAGE_IFUPDOWN_SCRIPTS
+	bool "ifupdown-scripts"
 
-	config BR2_PACKAGE_MOSQUITTO
-		bool "mosquitto"
+config BR2_PACKAGE_MOSQUITTO
+	bool "mosquitto"
 
-	config BR2_PACKAGE_NGINX
-		bool "nginx"
-		select BR2_PACKAGE_NGINX_HTTP
-		select BR2_PACKAGE_NGINX_HTTP_SSL_MODULE
+config BR2_PACKAGE_NGINX
+	bool "nginx"
+	select BR2_PACKAGE_NGINX_HTTP
+	select BR2_PACKAGE_NGINX_HTTP_SSL_MODULE
 
-	config BR2_PACKAGE_SSHPASS
-		bool "sshpass"
+config BR2_PACKAGE_SSHPASS
+	bool "sshpass"
 
-	config BR2_PACKAGE_WIREGUARD_LINUX_COMPAT
-		bool "wireguad-linux-compat"
-		select BR2_PACKAGE_WIREGUARD_TOOLS
+config BR2_PACKAGE_WIREGUARD_LINUX_COMPAT
+	bool "wireguad-linux-compat"
+	select BR2_PACKAGE_WIREGUARD_TOOLS
 endmenu
 
 menuconfig BR2_THINGINO_DEV_PACKAGES
@@ -105,37 +105,37 @@ menuconfig BR2_THINGINO_DEV_PACKAGES
 	  https://github.com/thingino/firmware
 
 if BR2_THINGINO_DEV_PACKAGES
-	config BR2_PACKAGE_GDB
-		bool "gdb Server and Client"
-		select BR2_PACKAGE_HOST_GDB
-		# needs a fuxup for CONFIG_HAVE_ARCH_KGDB=y
+config BR2_PACKAGE_GDB
+	bool "gdb Server and Client"
+	select BR2_PACKAGE_HOST_GDB
+	# needs a fuxup for CONFIG_HAVE_ARCH_KGDB=y
 
-	config BR2_PACKAGE_SELECT_LTRACE
-		bool "ltrace"
-		select BR2_PACKAGE_LTRACE
-		help
-		  Debugging program which runs a specified command until it
-		  exits. While the command is executing, ltrace intercepts and
-		  records the dynamic library calls which are called by the
-		  executed process and the signals received by that process.
+config BR2_PACKAGE_SELECT_LTRACE
+	bool "ltrace"
+	select BR2_PACKAGE_LTRACE
+	help
+	  Debugging program which runs a specified command until it
+	  exits. While the command is executing, ltrace intercepts and
+	  records the dynamic library calls which are called by the
+	  executed process and the signals received by that process.
 
-	config BR2_PACKAGE_SELECT_STRACE
-		bool "strace"
-		select BR2_PACKAGE_STRACE
-		help
-		  A useful diagnostic, instructional, and debugging tool.
-		  Allows you to track what system calls a program makes
-		  while it is running.
+config BR2_PACKAGE_SELECT_STRACE
+	bool "strace"
+	select BR2_PACKAGE_STRACE
+	help
+	  A useful diagnostic, instructional, and debugging tool.
+	  Allows you to track what system calls a program makes
+	  while it is running.
 
-	config BR2_PACKAGE_SELECT_VALGRIND
-		bool "valgrind"
-		select BR2_PACKAGE_VALGRIND
-		help
-		  Tool for debugging and profiling Linux programs.
+config BR2_PACKAGE_SELECT_VALGRIND
+	bool "valgrind"
+	select BR2_PACKAGE_VALGRIND
+	help
+	  Tool for debugging and profiling Linux programs.
 
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat-mini/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat/Config.in"
-	source "$BR2_EXTERNAL_THINGINO_PATH/package/gadget-serial/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat-mini/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/gadget-serial/Config.in"
 endif
 
 endmenu
