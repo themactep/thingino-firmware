@@ -11,32 +11,31 @@
 # Paul Philippov <paul@themactep.com>
 
 if [ $# -lt 2 ]; then
-  echo "Usage: $0 <binary file> <final size>"
-  exit 1
+	echo "Usage: $0 <binary file> <final size>"
+	exit 1
 fi
-
 
 unit=${2:0-1}
 echo "SIZE: $2"
 echo "UNIT: $unit"
 
-
 case "$unit" in
-   b|B|0|1|2|3|4|5|6|7|8|9|0)
-    break
-    final_size=$2 ;;
-   k|K)
-    final_size=$((${2::-1} * 1024))
-    break
-    ;;
-   m|M)
-    final_size=$((${2::-1} * 1024 * 1024))
-    break
-    ;;
-   *)
-    echo "$unit - Unknown unit"
-    exit 2
-    ;;
+	b | B | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0)
+		final_size=$2
+		break
+		;;
+	k | K)
+		final_size=$((${2::-1} * 1024))
+		break
+		;;
+	m | M)
+		final_size=$((${2::-1} * 1024 * 1024))
+		break
+		;;
+	*)
+		echo "$unit - Unknown unit"
+		exit 2
+		;;
 esac
 
 input_file="$1"
