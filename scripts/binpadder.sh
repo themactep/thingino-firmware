@@ -2,14 +2,13 @@
 #
 # Binary file padder.
 # Pads binary file with 0xFF to a given size.
-# Size can be in given as bytes, or with a suffix:
+# Size can be given as bytes, or with a suffix:
 # 16000, 256k, 8m
 #
 # Example:
 # ./binpadder.sh u-boot-t10.bin 8M
 #
 # Paul Philippov <paul@themactep.com>
-#
 
 if [ $# -lt 2 ]; then
   echo "Usage: $0 <binary file> <final size>"
