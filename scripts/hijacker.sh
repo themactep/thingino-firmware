@@ -14,6 +14,7 @@
 # 2024-05-14: Fix false-positive matches
 # 2024-07-08: Start telnet
 # 2024-07-10: Refactor and colorize output
+# 2024-07-16: Use original file compression type
 
 if [ -z "$1" ]; then
 	echo "Usage: $0 <stock firmware dump>"
@@ -85,6 +86,9 @@ done
 say "extract rootfs partition from full dump: $rootfs_size bytes at offset $rootfs_offset"
 run "dd if=$full_binary_file bs=1 skip=$rootfs_offset count=$rootfs_size of=$rootfs_file status=progress"
 
+say "determine compression of the original file"
+run "compression=\"$(unsquashfs -s $rootfs_file | awk '/Compression/{print "-comp",$2}')\""
+
 say "unpack rootfs partition"
 run "unsquashfs $rootfs_file || die Unable to unpack rootfs!"
 
@@ -99,7 +103,7 @@ run "echo 'telnetd &' >> $(find squashfs-root -name rcS)"
 
 say "repack rootfs partition"
 new_rootfs_file="${rootfs_file}-patched"
-run "mksquashfs squashfs-root $new_rootfs_file -comp xz"
+run "mksquashfs squashfs-root $new_rootfs_file $compression"
 
 say "make sure new rootfs fits the partition"
 new_rootfs_size=$(stat -c %s "$new_rootfs_file")
