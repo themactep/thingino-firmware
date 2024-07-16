@@ -6,15 +6,7 @@
 # Tested on HiSilicon and Ingenic firmware dumps from NOR SPI flash chips.
 # Use at your own risk.
 #
-# Paul Philppov <paul@themactep.com>
-# 2023-11-21: Initial release
-# 2023-11-25: Handle hexadecimal values in mtdparts
-# 2024-01-26: Use the last found copy of mtdparts
-# 2024-02-14: Enable disabled console
-# 2024-05-14: Fix false-positive matches
-# 2024-07-08: Start telnet
-# 2024-07-10: Refactor and colorize output
-# 2024-07-16: Use original file compression type
+# 2023, Paul Philippov <paul@themactep.com>
 
 if [ -z "$1" ]; then
 	echo "Usage: $0 <stock firmware dump>"
@@ -36,7 +28,7 @@ run() {
 }
 
 say() {
-	echo_c 70 "\n$1"
+	echo_c 72 "\n$1"
 }
 
 full_binary_file="$1"
@@ -103,11 +95,11 @@ run "echo 'telnetd &' >> $(find squashfs-root -name rcS)"
 
 say "repack rootfs partition"
 new_rootfs_file="${rootfs_file}-patched"
-run "mksquashfs squashfs-root $new_rootfs_file $compression"
+run "mksquashfs squashfs-root $new_rootfs_file $compression -quiet"
 
 say "make sure new rootfs fits the partition"
 new_rootfs_size=$(stat -c %s "$new_rootfs_file")
-[ $new_rootfs_size -gt $rootfs_size ] && die "repacked file is larger than available partition!"
+[ $new_rootfs_size -gt $rootfs_size ] && die "repacked file is larger than available partition!" || echo_c 046 "it fits"
 
 say "echo make a patched copy of full binary"
 new_full_binary_file="${full_binary_file}-patched"
