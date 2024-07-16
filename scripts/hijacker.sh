@@ -117,7 +117,7 @@ run "dd if=$tmp_file bs=1 seek=$rootfs_offset count=$rootfs_size of=$new_full_bi
 run "dd if=$new_rootfs_file bs=1 seek=$rootfs_offset count=$new_rootfs_size of=$new_full_binary_file conv=notrunc status=progress"
 
 say "clean up the mess"
-#run "rm -rf squashfs-root"
+run "rm -rf squashfs-root"
 run "rm -rf $rootfs_file"
 run "rm -rf $new_rootfs_file"
 run "rm -f $tmp_file"
