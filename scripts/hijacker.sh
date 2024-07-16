@@ -57,14 +57,14 @@ for p in ${mtdparts//,/ }; do
 		p_size_bytes=""
 	elif [ "0x" = "${p_size:0:2}" ]; then
 		## convert hex values
-		p_size_bytes=$(( $p_size ))
+		p_size_bytes=$(($p_size))
 	else
 		p_size_value=$(echo $p_size | sed -E 's/[^0-9]//g')
 		p_size_unit=$(echo $p_size | sed -E 's/[0-9]+//')
 		if [ "k" = "${p_size_unit,,}" ]; then
-			p_size_bytes=$(( p_size_value * 1024 ))
+			p_size_bytes=$((p_size_value * 1024))
 		elif [ "m" = "${p_size_unit,,}" ]; then
-			p_size_bytes=$(( p_size_value * 1024 * 1024 ))
+			p_size_bytes=$((p_size_value * 1024 * 1024))
 		else
 			p_size_bytes=$p_size_value
 		fi
@@ -72,14 +72,14 @@ for p in ${mtdparts//,/ }; do
 
 	printf "%-14s\toffset: %8d\tsize: %8d\n" $p $offset_bytes $p_size_bytes
 	if [ "$n" = "$root_part_num" ]; then
-		echo "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+		echo_c 190 "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
 		rootfs_file=rootfs.bin
 		rootfs_offset=$offset_bytes
 		rootfs_size=$p_size_bytes
 	fi
 
-	offset_bytes=$(( offset_bytes + p_size_bytes ))
-	n=$(( n + 1 ))
+	offset_bytes=$((offset_bytes + p_size_bytes))
+	n=$((n + 1))
 done
 
 say "extract rootfs partition from full dump: $rootfs_size bytes at offset $rootfs_offset"
