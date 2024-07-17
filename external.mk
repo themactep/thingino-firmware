@@ -190,6 +190,9 @@ BR2_SOC_INGENIC_T41=y
 UBOOT_BOARDNAME="isvp_t41_sfcnor"
 endif
 
+# FIXME requires U=Boot >= 2018.05
+#BR2_TARGET_UBOOT_DEFAULT_ENV_FILE=$(U_BOOT_ENV_TXT)
+
 # Image sensor
 ifeq ($(BR2_SENSOR_DUMMY),y)
 SENSOR_MODEL :=

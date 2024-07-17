@@ -56,8 +56,7 @@ FIGLET := $(shell command -v figlet) -t -f pagga
 endif
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
-U_BOOT_ENV_LOCAL_TXT := $(BR2_EXTERNAL)/local.uenv.txt
-U_BOOT_ENV_FINAL_TXT := $(OUTPUT_DIR)/env.txt
+U_BOOT_ENV_FINAL_TXT := $(TARGET_DIR)/etc/uenv.txt
 
 ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
 U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-lzo-with-spl.bin
@@ -206,19 +205,12 @@ distclean:
 
 delete_bin_full:
 	$(info -------------------> delete_bin_full)
+	$(info -------------------> delete_bin_full)
 	if [ -f $(FIRMWARE_BIN_FULL) ]; then rm $(FIRMWARE_BIN_FULL); fi
 
 delete_bin_update:
 	$(info -------------------> delete_bin_update)
 	if [ -f $(FIRMWARE_BIN_NOBOOT) ]; then rm $(FIRMWARE_BIN_NOBOOT); fi
-
-create_env_bin:
-	:> $(U_BOOT_ENV_FINAL_TXT); \
-	if [ -n "$(U_BOOT_ENV_TXT)" ] && [ -f "$(U_BOOT_ENV_TXT)" ]; then \
-	cat $(U_BOOT_ENV_TXT) >> $(U_BOOT_ENV_FINAL_TXT); fi; \
-	if [ -n "$(U_BOOT_ENV_LOCAL_TXT)" ] && [ -f "$(U_BOOT_ENV_LOCAL_TXT)" ]; then \
-	grep --invert-match '^#' $(U_BOOT_ENV_LOCAL_TXT) >> $(U_BOOT_ENV_FINAL_TXT); fi; \
-	cat $(U_BOOT_ENV_FINAL_TXT)
 
 create_overlay: $(U_BOOT_BIN)
 	$(info -------------------> create_overlay)
@@ -330,7 +322,7 @@ $(U_BOOT_BIN):
 	$(info U_BOOT_BIN $(U_BOOT_BIN) not found!)
 	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL_LESS_Z).bin
 
-$(U_BOOT_ENV_BIN): create_env_bin
+$(U_BOOT_ENV_BIN):
 	$(info -------------------> $$(U_BOOT_ENV_BIN))
 	mkenvimage -s $(U_BOOT_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_FINAL_TXT)
 
