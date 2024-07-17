@@ -2,6 +2,7 @@ menu "Thingino Firmware"
 
 source "$BR2_EXTERNAL_THINGINO_PATH/Config.soc.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-kopt/Config.in"
 
 menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	bool "System Packages"
