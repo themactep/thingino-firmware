@@ -58,7 +58,6 @@ config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
 	  Enable wired Ethernet support on the SoC
-
 config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V12
 	bool "JZ_MAC V12"
 	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
@@ -69,6 +68,7 @@ config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13
 	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
 	help
 	  Enable the Ingenic ethernet V13 driver
+
 config BR2_PACKAGE_THINGINO_KOPT_DWC2
 	bool "USB Support"
 	depends on BR2_PACKAGE_THINGINO_KOPT
