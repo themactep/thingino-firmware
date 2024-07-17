@@ -32,7 +32,7 @@ ifeq ($(BOARD),)
 else
  $(info * found BOARD "$(BOARD)" in command line)
  $(info * search for matching config files)
- CAMERA_CONFIG = $(shell find ./configs/modules ./configs/cameras ./configs/github ./configs/testing -name "$(BOARD)*" | sed 's/\.\/configs\///')
+ CAMERA_CONFIG = $(shell find ./configs/modules ./configs/cameras ./configs/github ./configs/testing -name "$(BOARD)" | sed 's/\.\/configs\///')
 endif
 
 ifeq ($(CAMERA_CONFIG),)
