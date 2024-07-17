@@ -8,6 +8,10 @@ INGENIC_AUDIODAEMON_LICENSE_FILES = COPYING
 
 INGENIC_AUDIODAEMON_DEPENDENCIES += cjson libwebsockets ingenic-musl ingenic-lib
 
+INGENIC_AUDIODAEMON_LDFLAGS = $(TARGET_LDFLAGS) \
+        -L$(STAGING_DIR)/usr/lib \
+        -L$(TARGET_DIR)/usr/lib
+
 define INGENIC_AUDIODAEMON_BUILD_CMDS
 	$(MAKE) version -C $(@D)
 	$(MAKE) CROSS_COMPILE=$(TARGET_CROSS) \
@@ -19,8 +23,9 @@ define INGENIC_AUDIODAEMON_BUILD_CMDS
 	-I$(@D)/include \
 	-I$(@D)/build \
 	-I$(STAGING_DIR)/usr/include \
-	-I$(STAGING_DIR)/usr/include/cjson" \
-	LDFLAGS="$(LDFLAGS) -L$(STAGING_DIR)/usr/lib -L$(TARGET_DIR)/usr/lib" \
+	-I$(STAGING_DIR)/usr/include/cjson \
+	-DCONFIG_$(SOC_FAMILY_CAPS)" \
+	LDFLAGS="$(INGENIC_AUIODAEMON_LDFLAGS)" \
 	all -C $(@D)
 endef
 
