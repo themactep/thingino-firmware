@@ -1,4 +1,4 @@
-# MODULE: t23n_sc2336_atbm6012bx_defconfig
+# MODULE: t23n_sc2336_atbm6012bx
 FLASH_SIZE_8=y
 BR2_MOTORS=y
 BR2_MOTORS_TCU=y

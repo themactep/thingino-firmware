@@ -1,4 +1,4 @@
-# MODULE: t20l_jxf22_rtl8189ftv_defconfig
+# MODULE: t20l_jxf22_rtl8189ftv
 FLASH_SIZE_16=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/xiaomi-xiaofang-t20l.uenv.txt"
 BR2_SDCARD=y

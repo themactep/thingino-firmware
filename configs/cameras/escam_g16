@@ -1,4 +1,4 @@
-# MODULE: t21n_jxh62_mt7601u_defconfig
+# MODULE: t21n_jxh62_mt7601u
 FLASH_SIZE_8=y
 BR2_AVPU_VPLL=y
 BR2_SDCARD=y

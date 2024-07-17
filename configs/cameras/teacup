@@ -1,4 +1,4 @@
-# MODULE: t31zx_imx327_eth_defconfig
+# MODULE: t31zx_imx327_eth
 FLASH_SIZE_16=y
 BR2_AVPU_VPLL=y
 BR2_ISP_CLK_125MHZ=y
