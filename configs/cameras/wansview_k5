@@ -1,4 +1,4 @@
-# MODULE: t21n_ov2735b_mt7601u_defconfig
+# MODULE: t21n_ov2735b_mt7601u
 FLASH_SIZE_8=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/wansview-k5.uenv.txt"
 BR2_SDCARD=y

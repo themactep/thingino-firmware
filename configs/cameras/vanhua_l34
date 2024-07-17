@@ -1,3 +1,3 @@
-# MODULE: t31l_gc2083_eth_defconfig
+# MODULE: t31l_gc2083_eth
 FLASH_SIZE_8=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/vanhua-l34.uenv.txt"
