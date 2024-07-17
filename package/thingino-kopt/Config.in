@@ -1,0 +1,78 @@
+
+menuconfig BR2_PACKAGE_THINGINO_KOPT
+	bool "Kernel Options"
+	help
+	  Per device kernel customization support
+
+config BR2_PACKAGE_THINGINO_KOPT_MMC
+	bool "MMC Support"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enable MMC support
+config BR2_PACKAGE_THINGINO_KOPT_MMC0
+	bool "Enable MMC0"
+	depends on BR2_PACKAGE_THINGINO_KOPT_MMC
+	help
+	  Enables the MMC0 on the SoC
+config BR2_PACKAGE_THINGINO_KOPT_MMC0_4BIT
+	bool "MMC0 4-Bit"
+	depends on BR2_PACKAGE_THINGINO_KOPT_MMC0
+	help
+	  Enables 4 bit support on MMC0
+
+config BR2_PACKAGE_THINGINO_KOPT_MMC0_8BIT
+	bool "MMC0 8-Bit"
+	depends on BR2_PACKAGE_THINGINO_KOPT_MMC0
+	help
+	  Enables 8 bit support on MMC0
+config BR2_PACKAGE_THINGINO_KOPT_MMC1
+	bool "Enable MMC1"
+	depends on BR2_PACKAGE_THINGINO_KOPT_MMC
+	help
+	  Enables the MMC1 on the SoC
+config BR2_PACKAGE_THINGINO_KOPT_MMC1_4BIT
+	bool "MMC1 4-Bit"
+	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
+	help
+	  Enables 4 bit support on MMC1
+config BR2_PACKAGE_THINGINO_KOPT_MMC1_8BIT
+	bool "MMC1 8-Bit"
+	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
+	help
+	  Enables 8 bit support on MMC1
+
+config BR2_PACKAGE_THINGINO_KOPT_RTC
+	bool "RTC"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Build necessary kernel modules and dependencies to enable netfilter/iptables support.
+
+config BR2_PACKAGE_THINGINO_KOPT_PWM
+	bool "PWM"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enable PWM
+
+config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
+	bool "Ethernet Support"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enable wired Ethernet support on the SoC
+
+config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V12
+	bool "JZ_MAC V12"
+	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
+	help
+	  Enable the Ingenic ethernet V12 driver
+config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13
+	bool "JZ_MAC V13"
+	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
+	help
+	  Enable the Ingenic ethernet V13 driver
+config BR2_PACKAGE_THINGINO_KOPT_DWC2
+	bool "USB Support"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enable the DWC2 USB driver
+
+
