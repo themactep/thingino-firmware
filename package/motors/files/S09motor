@@ -2,12 +2,6 @@
 
 . /etc/init.d/rc.common
 
-motors_app=$(which motors)
-gpio_motor_h=$(get gpio_motor_h)
-gpio_motor_v=$(get gpio_motor_v)
-motor_maxstep_h=$(get motor_maxstep_h)
-motor_maxstep_v=$(get motor_maxstep_v)
-
 set_motor_phases() {
 	[ "$(echo $2 | wc -w)" -lt 4 ] && die "Missing phase for ${1}motor"
 
@@ -38,6 +32,12 @@ home_motors() {
 
 start() {
 	starting_batch
+
+	motors_app=$(which motors)
+	gpio_motor_h=$(fw_printenv -n gpio_motor_h)
+	gpio_motor_v=$(fw_printenv -n gpio_motor_v)
+	motor_maxstep_h=$(fw_printenv -n motor_maxstep_h)
+	motor_maxstep_v=$(fw_printenv -n motor_maxstep_v)
 
 	# Check if motors are supported
 	[ -z "$motors_app"      ] && die " No motors app found"
