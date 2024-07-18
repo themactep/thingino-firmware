@@ -1,4 +1,4 @@
-# MODULE: t31l_sc2336_atbm6032_defconfig
+# MODULE: t31l_sc2336_atbm6032
 FLASH_SIZE_8=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/galayou-y4-t31l.uenv.txt"
 BR2_AVPU_VPLL=y

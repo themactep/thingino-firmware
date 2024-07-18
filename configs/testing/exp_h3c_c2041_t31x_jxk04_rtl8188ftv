@@ -1,4 +1,4 @@
-# MODULE: t31x_jxk04_rtl8188ftv_defconfig
+# MODULE: t31x_jxk04_rtl8188ftv
 FLASH_SIZE_16=y
 BR2_MOTORS=y
 BR2_MOTORS_TCU=y
