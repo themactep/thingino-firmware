@@ -55,6 +55,7 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	sed -i 's/;.*$$/;/' $(TARGET_DIR)/etc/prudynt.cfg
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S95prudynt $(TARGET_DIR)/etc/init.d/S95prudynt
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S96record $(TARGET_DIR)/etc/init.d/S96record
+	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/record $(TARGET_DIR)/usr/sbin/record
 	$(INSTALL) -m 0755 -D $(@D)/res/thingino_logo_1.bgra $(TARGET_DIR)/usr/share/thingino_logo_1.bgra
 	$(INSTALL) -m 0755 -D $(@D)/res/thingino_logo_2.bgra $(TARGET_DIR)/usr/share/thingino_logo_2.bgra
 	if echo "$(SOC_RAM)" | grep -q "64"; then \

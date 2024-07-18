@@ -1,9 +1,23 @@
 #!/bin/sh
 
+. /sbin/common
+
 gpio=$1
 interval=$2
 
-if [ $interval = "0"]; then
+if [ -z "$gpio" ]; then
+   log "Blink: Invalid gpio argument. Exiting."
+   echo "Usage: blink <gpio_pin> [blink_interval (seconds) ] (default interval=1s)"
+   exit 1
+fi
+
+if [ -z "$interval" ]; then
+   log "Blink: Empty interval. Setting to 1 second."
+   echo "Blink: Empty interval. Setting to 1 second."
+   interval=1
+fi
+
+if [ $interval = "0" ]; then
     gpio set $gpio
     sleep infinity
 else
