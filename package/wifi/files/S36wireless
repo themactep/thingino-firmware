@@ -3,17 +3,18 @@
 . /etc/init.d/rc.common
 
 start() {
-	starting
-	modulename="$(get wlandev)"
-	moduleopts="$(get wlandevopts)"
-	gpionum="$(get gpio_wlan)"
-	mac_address=$(get wlanmac)
+	starting_batch
 
-	wlandev_exists || quit "Disabled"
+	wlandev="$(get wlandev)"
+	if [ -z "$wlandev" ]; then
+		warn "wlandev is empty"
+		exit 1
+	fi
 
-	if [ -n "$gpionum" ]; then
-		num=${gpionum%[oO]}
-		state=${gpionum#$num}
+	gpio_wlan="$(get gpio_wlan)"
+	if [ -n "$gpio_wlan" ]; then
+		num=${gpio_wlan%[oO]}
+		state=${gpio_wlan#$num}
 
 		case "$state" in
 			O)
@@ -24,29 +25,26 @@ start() {
 				;;
 		esac
 
-		proclaim_n " Set GPIO $num $gpio_cmd"
+		info "Set GPIO $num $gpio_cmd"
 		gpio $gpio_cmd $num 2>&1 | log
-		check_result
-		# die
 	fi
 
 	#FIXME Assume that we are SDIO, and we need to insert
-	proclaim " Send INSERT to MMC1"
+	info "Send INSERT to MMC1"
 	mmc 1 2>&1 | log
-	check_result
 
-	if ! grep -q "^$modulename " /proc/modules; then
-		proclaim " Load module $modulename"
-		modprobe $modulename $moduleopts 2>&1 | log
-		check_result
+	if ! grep -q "^$wlandev " /proc/modules; then
+		wlandevopts="$(get wlandevopts)"
+		info "Load module $wlandev with $wlandevopts"
+		modprobe $wlandev $wlandevopts 2>&1 | log
 	fi
 
 	sleep 1
 
-	if [ -n "$mac_address" ]; then
-		proclaim " Set MAC address $mac_address"
-		ip link set dev wlan0 address $mac_address 2>&1 | log
-		check_result
+	wlanmac=$(get wlanmac)
+	if [ -n "$wlanmac" ]; then
+		info "Set MAC address $wlanmac"
+		ip link set dev wlan0 address $wlanmac 2>&1 | log
 	fi
 }
 

@@ -36,8 +36,8 @@ update_config() {
 start() {
 	starting "ONVIF"
 	is_gateway_reachable || quit "Disabled"
-	is_streamer_disabled && quit "Disabled"
-	is_onvif_disabled && quit "Disabled"
+	is_streamer_disabled && quit "Streamer disabled"
+	is_onvif_disabled && quit "ONVIF disabled"
 	start_daemon
 
 	if ! grep -q "^# GENERATED" "/etc/onvif.conf"; then
