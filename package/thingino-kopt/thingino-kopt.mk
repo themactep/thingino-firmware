@@ -100,6 +100,19 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_WIFI
 	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_DWC2_VERBOSE_VERBOSE)
 endef
 endif
+################ UART #########################
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_UART0),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART0
+	$(call KCONFIG_ENABLE_OPT,SERIAL_JZ47XX_UART0)
+endef
+endif
+
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_UART2),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART2
+	$(call KCONFIG_ENABLE_OPT,SERIAL_JZ47XX_UART2)
+endef
+endif
+
 ################ RTC #########################
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_RTC),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_RTC
@@ -125,12 +138,11 @@ endef
 endif
 
 ################ WDT #########################
-
 ################ I2C #########################
+################ SADC #########################
 
 
 ####################################################
-
 #This is required for BR to successfully concatenate the kernel options when used with modules
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_JZ_MAC_V12)
@@ -147,6 +159,8 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_WIFI)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_RTC)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_PWM)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART0)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART2)
 endef
 
 $(eval $(generic-package))
