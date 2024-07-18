@@ -32,7 +32,7 @@
 		if [ -z "$error" ]; then
 			# Check if record path starts and ends with "/"
 			if [ -z $record_path ]; then
-			 	echo "record path empty. Record path cannot be empty. Disabling." >> /tmp/webui.log
+			 	echo "Record path cannot be empty. Disabling." >> /tmp/webui.log
 				record_enable=false
 				record_path="/mnt/mmcblk0p1/"
 			else
@@ -109,7 +109,7 @@
 
 		<div class="col col-12 col-xl-4">
 			<h3>Status LED</h3>
-			<% field_switch "record_led_enabled" "Blink LED" "flash a status LED when recording"%>
+			<% field_switch "record_led_enabled" "Blink LED" "Flash a status LED when recording"%>
 			<% field_number "record_led_gpio" "LED GPIO Pin" "" "Default: gpio_led_r" %>
 			<% field_range "record_led_interval" "Blink Interval (seconds)" "0,3.0,0.5" "Set to 0 for always on"%>
 		</div>

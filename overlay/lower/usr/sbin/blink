@@ -17,6 +17,8 @@ if [ -z "$interval" ]; then
    interval=1
 fi
 
+echo "Starting blink with PID $$"
+
 if [ $interval = "0" ]; then
     gpio set $gpio
     sleep infinity

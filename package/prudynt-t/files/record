@@ -23,7 +23,7 @@ RECORD_WEBUI_CONF=/etc/webui/record.conf
 
 # Check available space on save location
 if [ -n "$(ls -A $record_path*$record_format 2>/dev/null)" ]; then
-	# If there are files with the correct format in the directory, use the last saved file size as a requirement
+	# If there are files in the save directory, use the last saved file size as a requirement
 	requiredSpace=$((`ls -1ltcr $record_path*$record_format | awk 'END{print $5}'` *2/1024))	# Output in kiB
 	logger "using 2x last file size of $requiredSpace"
 else
@@ -59,8 +59,6 @@ if [ "$availableSpace" -le "$requiredSpace" ]; then
 fi
 
 # Set file format
-format_option="-4"
-
 case "$record_format" in
 	.mov)
 		format_option="-q -y -H"

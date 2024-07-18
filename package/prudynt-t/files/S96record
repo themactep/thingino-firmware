@@ -46,16 +46,20 @@ if [ -z "$record_loop" ]; then
 	echo "record_loop=$record_loop" >> $RECORD_WEBUI_CONF
 fi
 
-# set default led blinker setting
-if [ -z "$record_led_enabled" ]; then
-	record_led_enabled=false
-	echo "record_led_enabled=$record_led_enabled" >> $RECORD_WEBUI_CONF
-fi
-
 # set default blink led gpio from environment variable
 if [ -z "$record_led_gpio" ]; then
 	record_led_gpio=$(get gpio_led_r)
 	echo "record_led_gpio=$record_led_gpio" >> $RECORD_WEBUI_CONF
+fi
+
+# set default led blinker setting if gpio_led_r is set from above
+if [ -z "$record_led_enabled" ]; then
+	if [ -z "$record_led_gpio" ]; then
+		record_led_enabled=false
+	else
+		record_led_enabled=true
+	fi
+	echo "record_led_enabled=$record_led_enabled" >> $RECORD_WEBUI_CONF
 fi
 
 # set default led blink interval to 1 second
@@ -75,7 +79,7 @@ start() {
 	[ "$record_enabled" = "true" ] || quit "Disabled"
 	is_streamer_disabled && quit "Streamer disabled"
 
-	if [[ "$record_path" = "/mnt/mmcblk0p*/*" ]]; then
+	if [[ "$record_path" = "/mnt/mmcblk0p*" ]]; then
 		# Only checking for partition 1 but this should suffice
 		grep -q "/mnt/mmcblk0p1" /proc/mounts || terminate "SD card is not mounted"
 	fi
