@@ -1,7 +1,7 @@
 $(info --- FILE: board.mk ---)
 
 LIST_OF_CAMERAS := $(shell find ./configs/cameras/* | sort | sed -E "s/^\.\/configs\/cameras\/(.*)/'cameras\/\1' '\1'/")
-LIST_OF_MODULES := $(shell find ./configs/modules/* | sort | sed -E "s/^\.\/configs\/modules\/(.*)_defconfig/'modules\/\1_defconfig' '\1'/")
+LIST_OF_MODULES := $(shell find ./configs/modules/* | sort | sed -E "s/^\.\/configs\/modules\/(.*)/'modules\/\1' '\1'/")
 LIST_OF_TESTING := $(shell find ./configs/testing/* | sort | sed -E "s/^\.\/configs\/testing\/(.*)/'testing\/\1' '\1'/")
 
 BUILD_MEMO := /tmp/thingino-board.$(shell ps -o ppid $$PPID | tail -1 | xargs)
@@ -32,7 +32,7 @@ ifeq ($(BOARD),)
 else
  $(info * found BOARD "$(BOARD)" in command line)
  $(info * search for matching config files)
- CAMERA_CONFIG = $(shell find ./configs/modules ./configs/cameras ./configs/github ./configs/testing -name "$(BOARD)*" | sed 's/\.\/configs\///')
+ CAMERA_CONFIG = $(shell find ./configs/modules ./configs/cameras ./configs/github ./configs/testing -name "$(BOARD)" | sed 's/\.\/configs\///')
 endif
 
 ifeq ($(CAMERA_CONFIG),)
@@ -75,7 +75,7 @@ endif
 $(info MODULE_CONFIG = $(MODULE_CONFIG))
 
 $(info * restore CAMERA for CAMERA_CONFIG)
-CAMERA = $(shell basename $(CAMERA_CONFIG_REAL) | sed s/_defconfig//)
+CAMERA = $(shell basename $(CAMERA_CONFIG_REAL))
 $(info CAMERA = $(CAMERA))
 
 # read camera config file

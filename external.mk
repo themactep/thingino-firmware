@@ -190,6 +190,9 @@ BR2_SOC_INGENIC_T41=y
 UBOOT_BOARDNAME="isvp_t41_sfcnor"
 endif
 
+# FIXME requires U=Boot >= 2018.05
+#BR2_TARGET_UBOOT_DEFAULT_ENV_FILE=$(U_BOOT_ENV_TXT)
+
 # Image sensor
 ifeq ($(BR2_SENSOR_DUMMY),y)
 SENSOR_MODEL :=
@@ -577,13 +580,8 @@ $(info KERNEL_HASH=$(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head 
 THINGINO_KERNEL = $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
 $(info THINGINO_KERNEL=$(THINGINO_KERNEL))
 
-ifeq ($(BR2_SOC_INGENIC_T23),y)
-THINGINO_UBOOT_REPO = https://github.com/themactep/thingino-u-boot
-THINGINO_UBOOT_REPO_BRANCH = resolved1
-else
 THINGINO_UBOOT_REPO = https://github.com/gtxaspec/u-boot-ingenic
 THINGINO_UBOOT_REPO_BRANCH = master
-endif
 THINGINO_UBOOT_REPO_VERSION = $(shell git ls-remote $(THINGINO_UBOOT_REPO) $(THINGINO_UBOOT_REPO_BRANCH) | head -1 | cut -f1)
 $(info THINGINO_UBOOT_REPO=$(THINGINO_UBOOT_REPO))
 $(info THINGINO_UBOOT_REPO_BRANCH=$(THINGINO_UBOOT_REPO_BRANCH))

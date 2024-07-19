@@ -87,9 +87,9 @@ jobs:
         id: set-matrix
         run: |
           if [[ "${{ github.event.inputs.teacup_only }}" == 'true' ]]; then
-            CONFIGS=$(find configs/modules/ -type f | grep -v 't23' | sort | awk -F '/' '{print $(NF)}' | sed 's/_defconfig$//' | awk NF | grep 't31zx_imx327_eth')
+            CONFIGS=$(find configs/modules/ -type f | sort | awk -F '/' '{print $(NF)}' | awk NF | grep 't31zx_imx327_eth')
           else
-            CONFIGS=$(find configs/modules/ -type f | grep -v 't23' | sort | awk -F '/' '{print $(NF)}' | sed 's/_defconfig$//' | awk NF)
+            CONFIGS=$(find configs/modules/ -type f | sort | awk -F '/' '{print $(NF)}' | awk NF)
           fi
           JSON_MATRIX="{\"thingino-version\": ["
           for CONFIG in $CONFIGS; do

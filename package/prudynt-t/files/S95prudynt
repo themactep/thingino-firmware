@@ -6,13 +6,13 @@ COMMAND="/usr/bin/env -- LD_PRELOAD=/usr/lib/libimp_control.so $DAEMON_FULL"
 
 start() {
 	starting
-	is_streamer_disabled && quit "Disabled"
+	is_streamer_disabled && quit "Streamer disabled"
 	start_daemon_with_pid
 }
 
 stop() {
 	stopping
-	is_streamer_disabled && quit "Disabled"
+	is_streamer_disabled && quit "Streamer disabled"
 	stop_daemon_with_pid
 }
 

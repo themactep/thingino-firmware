@@ -1,4 +1,4 @@
-# MODULE: t31l_sc2336_atbm6012b_defconfig
+# MODULE: t31l_sc2336_atbm6012b
 FLASH_SIZE_8=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/litokam-c1.uenv.txt"
 BR2_AVPU_VPLL=y

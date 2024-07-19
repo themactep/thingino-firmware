@@ -9,7 +9,7 @@ iface=$(awk '($2~/0{8}/&&$3!~/0{8}/){print $1;exit}' /proc/net/route); [ -z "$if
 model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' /etc/os-release)
 
 # extract iface for daemon from onvif.conf
-DAEMON_ARGS="--if_name $(awk -F= '/^ifs=/{print $2}' /etc/onvif.conf) --xaddr \"http://%s/onvif/device_service\" -m $model -n thingino --pid_file /var/run/$DAEMON_SHORT.pid"
+DAEMON_ARGS="--if_name $(awk -F= '/^ifs=/{print $2}' /etc/onvif.conf) --xaddr http://%s/onvif/device_service -m $model -n thingino --pid_file /var/run/$DAEMON_SHORT.pid"
 
 # read web config, create if missing
 ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
@@ -36,8 +36,8 @@ update_config() {
 start() {
 	starting "ONVIF"
 	is_gateway_reachable || quit "Disabled"
-	is_streamer_disabled && quit "Disabled"
-	is_onvif_disabled && quit "Disabled"
+	is_streamer_disabled && quit "Streamer disabled"
+	is_onvif_disabled && quit "ONVIF disabled"
 	start_daemon
 
 	if ! grep -q "^# GENERATED" "/etc/onvif.conf"; then

@@ -1,4 +1,4 @@
-# MODULE: t31n_sc3335_atbm6031_defconfig
+# MODULE: t31n_sc3335_atbm6031
 FLASH_SIZE_16=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/xiaomi-hlcam04.uenv.txt"
 BR2_SDCARD=y

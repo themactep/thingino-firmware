@@ -46,7 +46,7 @@ start() {
 				# do nothing
 				;;
 			t23 | t31)
-				if [ "$SOC_MODEL" = "t31a" ] || [ "$SOC_MODEL" = "t31al" ]; then
+				if [ "$SOC_MODEL" = "t31a" ]; then
 					echo "Skipping GPIO setup for $SOC_MODEL"
 					return 1
 				else

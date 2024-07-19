@@ -1,4 +1,4 @@
-# MODULE: t20x_jxf22_rtl8189etv_defconfig
+# MODULE: t20x_jxf22_rtl8189etv
 FLASH_SIZE_16=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/wyze-cp1.uenv.txt"
 BR2_MOTORS=y

@@ -52,6 +52,7 @@ fi
 <div class="row g-4 mb-4">
 <div class="col col-12 col-xl-4">
 <% field_switch "dusk2dawn_enabled" "Enable dusk2dawn script" %>
+<p>Find your coordinated on <a href="https://latitude.to/">latitude.to</a>.</p>
 <% field_text "dusk2dawn_lat" "Latitude" %>
 <% field_text "dusk2dawn_lng" "Longitude" %>
 <% field_text "dusk2dawn_runat" "Run at" %>

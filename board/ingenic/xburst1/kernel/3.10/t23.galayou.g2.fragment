@@ -1,0 +1,5 @@
+#
+# kernel config overrides for Galayou G2/T23n on top of t23.generic.config
+#
+CONFIG_JZMMC_V12_MMC0_PB_4BIT=n
+CONFIG_JZMMC_V12_MMC0_1BIT=y

@@ -1,0 +1,3 @@
+config BR2_PACKAGE_WIFI_ATBM6031X
+	select BR2_LINUX_KERNEL
+	bool "AltoBeam ATBM6031X"
