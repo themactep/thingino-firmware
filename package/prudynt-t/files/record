@@ -1,0 +1,83 @@
+#!/bin/sh
+
+read_config() {
+	sed -nE "s/^.*$1:\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
+}
+
+terminate() {
+	sed -i 's/record_enabled=\"true\"/record_enabled=\"false\"/g' /etc/webui/record.conf
+	/etc/init.d/S96record stop
+	logger "$1"
+	die "$1"
+	exit 1
+}
+
+stream0fps=$(read_config fps)
+stream0width=$(read_config width)
+stream0height=$(read_config height)
+rtsp_username=$(read_config username)
+rtsp_password=$(read_config password)
+
+RECORD_WEBUI_CONF=/etc/webui/record.conf
+. $RECORD_WEBUI_CONF
+
+# Check available space on save location
+if [ -n "$(ls -A $record_path*$record_format 2>/dev/null)" ]; then
+	# If there are files in the save directory, use the last saved file size as a requirement
+	requiredSpace=$((`ls -1ltcr $record_path*$record_format | awk 'END{print $5}'` *2/1024))	# Output in kiB
+	logger "using 2x last file size of $requiredSpace"
+else
+	# otherwise default to 150kB per second
+	requiredSpace=$((150*$record_interval))
+	logger "using estimated file size of $requiredSpace"
+fi
+
+availableSpace=$(df "$record_path" | awk 'END{print $4}')	# output in kiB
+logger "available space is $availableSpace"
+
+if [ "$availableSpace" -le "$requiredSpace" ]; then
+    # Delete oldest file if loop recording is enabled, otherwise exit with error
+	if [ "$record_loop" = "true" ]; then
+		logger "Loop recording enabled. Deleting oldest files in save location"
+		while [ "$availableSpace" -le "$requiredSpace" ]
+		do
+			oldestFile=$(ls -1tr $record_path | head -1)
+			logger "deleting $oldestFile"
+			rm "$oldestFile"
+			availableSpace=$(df "$record_path" | awk 'END{print $4}')
+			logger "availableSpace = $availableSpace"
+
+			if [ -z $(ls -A $record_path 2>/dev/null) ]; then
+				logger "Deleted all files in $record_path yet no more space!"
+				terminate "Deleted all files in $record_path yet no more space!"
+			fi
+		done
+	else
+		logger "Loop recording is disabled and not enough disk space. Exiting."
+		terminate "Loop recording is disabled and not enough disk space. Exiting."
+	fi
+fi
+
+# Set file format
+case "$record_format" in
+	.mov)
+		format_option="-q -y -H"
+		;;
+	.avi)
+		format_option="-i"
+		break
+		;;
+	*)
+		# Make MP4 the default
+		format_option="-4 -y -H"
+		;;
+esac
+
+# openRTSP -u "thingino" "thingino" -w "1920" -h "1080" -f "24" -d 10 -q -v -H -b 1048576 -t rtsp://127.0.0.1/ch0 > "/mnt/mmcblk0p1/thingino-$(date "+%Y%m%d_%H_%M_%S")"
+
+openRTSP -u "$rtsp_username" "$rtsp_password" -w "$stream0width" -h "$stream0height" -f "$stream0fps" -d "$record_interval" "$format_option" -b 1048576 -t rtsp://127.0.0.1/ch0 > "$record_path$record_prefix$(date "+%Y-%m-%d_%H-%M-%S")$record_format"
+
+# location of this script to recall it when duration is up
+/usr/sbin/record
+
+exit 0
