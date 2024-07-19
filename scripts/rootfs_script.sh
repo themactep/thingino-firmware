@@ -42,6 +42,9 @@ if grep -q ^U_BOOT_ENV_TXT $BR2_CONFIG; then
 	if [ -f "${BR2_EXTERNAL}${uenv}" ]; then
 		cp -v ${BR2_EXTERNAL}${uenv} ${TARGET_DIR}/etc/uenv.txt
 	fi
+	if [ -f "${BR2_EXTERNAL}/local.uenv.txt" ]; then
+		grep --invert-match '^#' "${BR2_EXTERNAL}/local.uenv.txt" >> ${TARGET_DIR}/etc/uenv.txt
+	fi
 fi
 
 if [ -f "${TARGET_DIR}/lib/libconfig.so" ]; then

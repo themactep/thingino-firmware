@@ -1,26 +1,27 @@
-![Thingino Logo](https://thingino.com/a/logo.svg)
+## Thingino. Open Source Firmware for Ingenic SoC IP Cameras.
 
-Thingino is an open-source IP camera firmware focused on Ingenic SoC.
+![Thingino Web UI](https://thingino.com/a/webui-hawaii.jpg)
 
-### Usage
+### Supported Hardware
+
+Visit [project website][0] for a list of supported cameras. 
+
+### Building
 
 ```
 git clone --recurse-submodules https://github.com/themactep/thingino-firmware
 cd thingino-firmware
 make
 ```
-
-### Updating
-```
-git pull
-git submodule update --remote --merge
-```
+Read [Building from sources](https://github.com/themactep/thingino-firmware/wiki/Building-from-sources) article for more info.
 
 ### Resources
 
-- Project [Wiki][0]
-- Buildroot Manual [HTML][1] [PDF][2]
-- Official [Discord channel][3]
+- [Project Website][0]
+- [Project Wiki][1]
+- Buildroot Manual [HTML][5] [PDF][6]
+- [Discord channel][3]
+- [Telegram group][4]
 
 ### GitHub CI Status
 
@@ -28,7 +29,9 @@ git submodule update --remote --merge
 [![firmware](https://github.com/themactep/thingino-firmware/actions/workflows/firmware.yaml/badge.svg)](https://github.com/themactep/thingino-firmware/actions/workflows/firmware.yaml)
 
 
-[0]: https://github.com/themactep/thingino-firmware/wiki
-[1]: https://buildroot.org/downloads/manual/manual.html
-[2]: https://nightly.buildroot.org/manual.pdf
+[0]: https://thingino.com/
+[1]: https://github.com/themactep/thingino-firmware/wiki
 [3]: https://discord.gg/xDmqS944zr
+[4]: https://t.me/thingino
+[5]: https://buildroot.org/downloads/manual/manual.html
+[6]: https://nightly.buildroot.org/manual.pdf

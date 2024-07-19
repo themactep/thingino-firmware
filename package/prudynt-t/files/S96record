@@ -1,54 +1,115 @@
 #!/bin/sh
 
-DAEMON=openRTSP
+DAEMON=record
 
 . /etc/init.d/rc.common
 
-ENABLED=false
+# read web config, create if missing
+RECORD_WEBUI_CONF=/etc/webui/record.conf
+[ ! -d $(dirname $RECORD_WEBUI_CONF) ] && mkdir -p $(dirname $RECORD_WEBUI_CONF)
+[ ! -f $RECORD_WEBUI_CONF ] && touch $RECORD_WEBUI_CONF
+. $RECORD_WEBUI_CONF
 
-read_config() {
-	sed -nE "s/^.*$1:\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
+# default to "disabled" and update config
+if [ -z "$record_enabled" ]; then
+	record_enabled="false"
+	echo "record_enabled=$record_enabled" >> $RECORD_WEBUI_CONF
+fi
+
+# set default file prefix to "thingino-"
+if [ -z "$record_prefix" ]; then
+	record_prefix="thingino-"
+	echo "record_prefix=$record_prefix" >> $RECORD_WEBUI_CONF
+fi
+
+# set default file path to mmc mount location
+if [ -z "$record_path" ]; then
+	record_path="/mnt/mmcblkp01/"
+	echo 'record_path="$record_path"' >> $RECORD_WEBUI_CONF
+fi
+
+# set default file format to mp4
+if [ -z "$record_format" ]; then
+	record_format=".mp4"
+	echo "record_format=$record_format" >> $RECORD_WEBUI_CONF
+fi
+
+# set default record interval to 60 seconds
+if [ -z "$record_interval" ]; then
+	record_interval=60
+	echo "record_interval=$record_interval" >> $RECORD_WEBUI_CONF
+fi
+
+# set default record looping to true
+if [ -z "$record_loop" ]; then
+	record_loop=true
+	echo "record_loop=$record_loop" >> $RECORD_WEBUI_CONF
+fi
+
+# set default blink led gpio from environment variable
+if [ -z "$record_led_gpio" ]; then
+	record_led_gpio=$(get gpio_led_r)
+	echo "record_led_gpio=$record_led_gpio" >> $RECORD_WEBUI_CONF
+fi
+
+# set default led blinker setting if gpio_led_r is set from above
+if [ -z "$record_led_enabled" ]; then
+	if [ -z "$record_led_gpio" ]; then
+		record_led_enabled=false
+	else
+		record_led_enabled=true
+	fi
+	echo "record_led_enabled=$record_led_enabled" >> $RECORD_WEBUI_CONF
+fi
+
+# set default led blink interval to 1 second
+if [ -z "$record_led_interval" ]; then
+	record_led_interval=1
+	echo "record_led_interval=$record_led_interval" >> $RECORD_WEBUI_CONF
+fi
+
+terminate() {
+	# Reset webui config record_enabled to false and print error message
+	die "$1"
+	sed -i 's/record_enabled=\"true\"/record_enabled=\"false\"/g' /etc/webui/record.conf
 }
-
-stream0fps=$(read_config fps)
-stream0width=$(read_config width)
-stream0height=$(read_config height)
-rtsp_username=$(read_config username)
-rtsp_password=$(read_config password)
-
-file_prefix="thingino-"
-record_path="/mnt/mmcblk0p1"
-record_interval=60
 
 start() {
 	starting
-	[ "$ENABLED" = "true" ] || quit "Disabled"
-	is_streamer_disabled && quit "Disabled"
+	[ "$record_enabled" = "true" ] || quit "Disabled"
+	is_streamer_disabled && quit "Streamer disabled"
 
-	if [ "$record_path" = "/mnt/mmcblk0p1" ]; then
-		grep -q "$record_path" /proc/mounts || die "Record path is set to $record_path but SD card is not mounted"
+	if [[ "$record_path" = "/mnt/mmcblk0p*" ]]; then
+		# Only checking for partition 1 but this should suffice
+		grep -q "/mnt/mmcblk0p1" /proc/mounts || terminate "SD card is not mounted"
 	fi
 
-	[ -d "$record_path" ] || die "Record path does not exist"
-
-	pidof prudynt > /dev/null || die "Prudynt is not running. Unable to record RTSP stream"
+	pidof prudynt > /dev/null || terminate "Prudynt is not running. Unable to record RTSP stream"
 
 	[ -d "$record_path" ] || mkdir -p "$record_path"
-	cd "$record_path" || die "Cannot change directory to $record_path"
+	cd "$record_path" || terminate "Cannot change directory to $record_path"
 
 	pidof $DAEMON > /dev/null && die "RTSP recorder already running"
 
+	if [ "$record_led_enabled" = "true" ]; then
+		blink $record_led_gpio $record_led_interval & echo $! > /tmp/record_blink_pid
+	fi
+
 	sleep 2
-	COMMAND="$DAEMON -u "$rtsp_username" "$rtsp_password" \
-			-w "$stream0width" -h "$stream0height" -f "$stream0fps" -P $record_interval \
-			-q -v -b 1048576 -t -H -F "$file_prefix" rtsp://127.0.0.1/ch0"
 	start_daemon
 }
 
 stop() {
 	stopping
-	[ "$ENABLED" = "true" ] || quit "Disabled"
-	is_streamer_disabled && quit "Disabled"
+	is_streamer_disabled && quit "Streamer disabled"
+
+	if [ -f /tmp/record_blink_pid ]; then
+		logger "PID file exists"
+		kill -15 $(cat "/tmp/record_blink_pid")
+		rm /tmp/record_blink_pid
+		gpio clear $record_led_gpio
+	fi
+
 	stop_daemon
 }
 

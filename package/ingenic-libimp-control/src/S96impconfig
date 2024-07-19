@@ -6,7 +6,7 @@ config="/etc/imp.conf"
 
 check_imp() {
 	proclaim " Connecting to libimp-control"
-	is_streamer_disabled && quit "Disabled"
+	is_streamer_disabled && quit "Streamer disabled"
 	local soc=$(soc -f)
 	if [ "$soc" = "t10" ] || [ "$soc" = "t20" ]; then
 		isp_path="/proc/jz/isp/isp_info"
@@ -27,7 +27,7 @@ check_imp() {
 
 restore_config() {
 	proclaim " Restoring IMP Configuration: "
-	[ -f "$config" ] || quit "Disabled"
+	[ -f "$config" ] || quit "Nothing to restore"
 	while read -r line; do
 		echo -e " * $line"
 		imp-control $line > /dev/null

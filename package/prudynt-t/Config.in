@@ -14,6 +14,7 @@ config BR2_PACKAGE_PRUDYNT_T
 
 config BR2_PACKAGE_PRUDYNT_T_NG
 	bool "Prudynt NG"
+	select BR2_PACKAGE_LIBSCHRIFT
 	select BR2_PACKAGE_LIBWEBSOCKETS
 	help
 	  Use Next Generation experimental version of Prudynt-T streamer.

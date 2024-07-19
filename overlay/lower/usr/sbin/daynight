@@ -27,6 +27,7 @@ switch_to_night() {
 # determine luminance of the scene
 value=$(imp-control gettotalgain)
 reversed=1
+state=$(cat $MODE_FILE 2>/dev/null)
 
 case "$1" in
 	night)
@@ -36,7 +37,7 @@ case "$1" in
 		switch_to_day
 		;;
 	~ | toggle)
-		if [ "$(cat $MODE_FILE 2> /dev/null)" = "day" ]; then
+		if [ "$state" = "day" ]; then
 			switch_to_night
 		else
 			switch_to_day
@@ -49,15 +50,15 @@ case "$1" in
 		echo "$day_night_min - $value - $day_night_max"
 
 		if [ "$reversed" -eq 0 ]; then
-			if [ "$value" -lt "$day_night_min" ]; then
+			if [ "$value" -lt "$day_night_min" ] && [ "$state" != "day" ]; then
 				switch_to_day
-			elif [ "$value" -gt "$day_night_max" ]; then
+			elif [ "$value" -gt "$day_night_max" ] && [ "$state" != "night" ]; then
 				switch_to_night
 			fi
 		else
-			if [ "$value" -gt "$day_night_max" ]; then
+			if [ "$value" -gt "$day_night_max" ] && [ "$state" != "night" ]; then
 				switch_to_night
-			elif [ "$value" -lt "$day_night_min" ]; then
+			elif [ "$value" -lt "$day_night_min" ] && [ "$state" != "day" ]; then
 				switch_to_day
 			fi
 		fi

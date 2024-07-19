@@ -10,7 +10,7 @@ PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRA
 
 PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-fonts ingenic-lib
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
-PRUDYNT_T_DEPENDENCIES += libwebsockets
+PRUDYNT_T_DEPENDENCIES += libwebsockets libschrift
 else
 PRUDYNT_T_DEPENDENCIES += thingino-freetype
 endif
@@ -55,9 +55,10 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	sed -i 's/;.*$$/;/' $(TARGET_DIR)/etc/prudynt.cfg
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S95prudynt $(TARGET_DIR)/etc/init.d/S95prudynt
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S96record $(TARGET_DIR)/etc/init.d/S96record
+	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/record $(TARGET_DIR)/usr/sbin/record
 	$(INSTALL) -m 0755 -D $(@D)/res/thingino_logo_1.bgra $(TARGET_DIR)/usr/share/thingino_logo_1.bgra
 	$(INSTALL) -m 0755 -D $(@D)/res/thingino_logo_2.bgra $(TARGET_DIR)/usr/share/thingino_logo_2.bgra
-	if echo "$(SOC_RAM)" | grep -q "64"; then \
+	if echo "$(SOC_RAM)" | grep -q "64" && ! echo "$(SOC_FAMILY)" | grep -q "t23"; then \
 		sed -i 's/^\([ \t]*\)# *buffers: 2;/\1buffers: 1;/' $(TARGET_DIR)/etc/prudynt.cfg; \
 	fi
 	awk '{if(NR>0)gsub(/^[[:space:]]*/,"")}{if(NR>1)printf("%s",$$0);else print $$0;}' \
