@@ -1,13 +1,13 @@
 day_night_max=15000
 day_night_min=5000
 gpio_default=6O 7o 8i 10i 11i 17O 18O 48O 49o 50o 58i 59o 61o 62o
+gpio_default_net=72
 gpio_ir850=60
 gpio_ircut=49 50
-gpio_white=59
 gpio_mmc_cd=58
-gpio_default_net=72
+gpio_white=59
+gpio_wlan=48O
 osmem=80M@0x0
 rmem=48M@0x5000000
-gpio_wlan=48O
 wlandev=bcmdhd
 wlandevopts=gpio_wl_reg_on=48 gpio_wl_host_wake=39 firmware_path=/usr/lib/firmware/fw_bcm43436b0.bin nvram_path=/usr/lib/firmware/nv_bcm43436b0.txt op_mode=2
