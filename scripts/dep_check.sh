@@ -37,7 +37,7 @@ if [ -f /etc/os-release ]; then
 	. /etc/os-release
 	OS=$NAME
 	case $ID in
-		ubuntu|debian)
+		ubuntu|debian|linuxmint)
 			echo "Debian-based"
 			pkg_manager="dpkg"
 			pkg_check_command="-l"
