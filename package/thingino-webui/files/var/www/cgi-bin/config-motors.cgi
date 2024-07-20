@@ -126,8 +126,8 @@ fi
 <pre>
 gpio_motor_h: <%= $gpio_motor_h %>
 gpio_motor_v: <%= $gpio_motor_v %>
+motor_maxstep_h: <%= $motor_maxstep_h %>
 motor_maxstep_v: <%= $motor_maxstep_v %>
-motor_maxstep_v: <%= $motor_maxstep_h %>
 disable_homing: <%= $disable_homing %>
 motor_pos_0: <%= $motor_pos_0 %>
 </pre>
