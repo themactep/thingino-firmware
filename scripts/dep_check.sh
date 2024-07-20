@@ -174,7 +174,7 @@ if [ -f /etc/os-release ]; then
 			)
 			;;
 		*)
-			echo "Unsupported OS"
+			echo "Unsupported OS: $ID"
 			exit 1
 			;;
 	esac
