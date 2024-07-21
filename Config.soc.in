@@ -233,11 +233,11 @@ choice
 	  Select the clock source for the AVPU
 
 config BR2_AVPU_MPLL
-	bool "MPLL Clock Source"
+	bool "MPLL"
 config BR2_AVPU_VPLL
-	bool "VPLL Clock Source"
+	bool "VPLL"
 config BR2_AVPU_INTERNAL
-	bool "Module Internal Clock Source"
+	bool "Module Internal"
 endchoice
 
 choice
@@ -298,7 +298,7 @@ config BR2_AUDIO_PARAMS
 	string "Audio Parameters"
 	depends on BR2_AUDIO
 	help
-	  Specify the parameters to pass when loading the audio kernel module.
+	  Specify additional parameters to pass when loading the audio kernel module.
 
 config BR2_PWM_ENABLE
 	bool "PWM Support"
@@ -323,9 +323,9 @@ config BR2_MOTORS_SPI
 	  The camera has Pan/Tilt or Zoom motors using the ms419xx chip
 
 config BR2_SDCARD
-	bool "SD Card"
+	bool "SD/MMC Card"
 	help
-	  The hardware has an SD card slot.
+	  The hardware has an SD/MMC card slot.
 
 endmenu
 
