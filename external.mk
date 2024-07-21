@@ -479,6 +479,32 @@ ifeq ($(BR2_AVPU_INTERNAL),y)
    AVPU_CLK_SRC :=
 endif
 
+ISP_CLKA_CLK := 400000000
+ifeq ($(BR2_ISP_CLKA_400MHZ),y)
+ISP_CLKA_CLK := 400000000
+else ifeq ($(BR2_ISP_CLKA_450MHZ),y)
+ISP_CLKA_CLK := 450000000
+else ifeq ($(BR2_ISP_CLKA_500MHZ),y)
+ISP_CLKA_CLK := 500000000
+else ifeq ($(BR2_ISP_CLKA_550MHZ),y)
+ISP_CLKA_CLK := 550000000
+else ifeq ($(BR2_ISP_CLKA_600MHZ),y)
+ISP_CLKA_CLK := 600000000
+else ifeq ($(BR2_ISP_CLKA_650MHZ),y)
+ISP_CLKA_CLK := 650000000
+else ifeq ($(BR2_ISP_CLKA_700MHZ),y)
+ISP_CLKA_CLK := 700000000
+endif
+
+ISP_CLK_SRC :=
+ifeq ($(BR2_ISP_CLK_SCLKA),y)
+   ISP_CLK_SRC := clk_name=sclka
+endif
+ISP_CLKA_SRC :=
+ifeq ($(BR2_ISP_CLKA_SCLKA),y)
+   ISP_CLKA_CLK_SRC := clka_name=sclka
+endif
+
 ISP_MEMOPT :=
 ifeq ($(BR2_ISP_MEMOPT_0),y)
 	ISP_MEMOPT :=

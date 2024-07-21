@@ -38,7 +38,12 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	echo $(SENSOR_MODEL) > $(TARGET_DIR)/etc/sensor/model
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/modules.d
-	echo tx_isp_$(SOC_FAMILY) isp_clk=$(ISP_CLK) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp
+
+	if [ "$(SOC_FAMILY)" = "t23" ]; then \
+		echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC)  isp_clk=$(ISP_CLK) $(ISP_CLKA_CLK_SRC) isp_clka=$(ISP_CLKA_CLK) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
+	else \
+		echo tx_isp_$(SOC_FAMILY) isp_clk=$(ISP_CLK) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
+	fi
 
 	if [ "$(SOC_FAMILY)" = "t31" ]; then \
 		echo "avpu $(AVPU_CLK_SRC) avpu_clk=$(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/avpu; \
