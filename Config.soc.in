@@ -264,7 +264,7 @@ endchoice
 
 choice
 	prompt "ISP Clock-A Speed"
-	default BR2_ISP_CLKA_600MHZ
+	default BR2_ISP_CLKA_400MHZ
 	depends on BR2_SOC_FAMILY_INGENIC_T23
 	help
 	  Choose the ISP clock speed from the predefined options.
