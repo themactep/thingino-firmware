@@ -104,6 +104,7 @@ menu "SoC Configuration"
 choice
 	prompt "ISP Clock Speed"
 	default BR2_ISP_CLK_125MHZ if BR2_SOC_FAMILY_INGENIC_T31
+	default BR2_ISP_CLK_200MHZ if BR2_SOC_FAMILY_INGENIC_T23
 	default BR2_ISP_CLK_90MHZ
 	help
 	  Choose the ISP clock speed from the predefined options.
@@ -116,22 +117,22 @@ config BR2_ISP_CLK_125MHZ
 	bool "125 MHz"
 config BR2_ISP_CLK_150MHZ
 	bool "150 MHz"
-	depends on BR2_SOC_FAMILY_INGENIC_T31
+	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_T23
 config BR2_ISP_CLK_175MHZ
 	bool "175 MHz"
-	depends on BR2_SOC_FAMILY_INGENIC_T31
+	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_T23
 config BR2_ISP_CLK_200MHZ
 	bool "200 MHz"
-	depends on BR2_SOC_FAMILY_INGENIC_T31
+	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_T23
 config BR2_ISP_CLK_220MHZ
 	bool "220 MHz"
-	depends on BR2_SOC_FAMILY_INGENIC_T31
+	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_T23
 config BR2_ISP_CLK_225MHZ
 	bool "225 MHz"
-	depends on BR2_SOC_FAMILY_INGENIC_T31
+	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_T23
 config BR2_ISP_CLK_250MHZ
 	bool "250 MHz"
-	depends on BR2_SOC_FAMILY_INGENIC_T31
+	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_T23
 endchoice
 
 if FALSE
@@ -202,6 +203,7 @@ endif
 choice
 	prompt "AVPU Clock Speed"
 	default BR2_AVPU_CLK_400MHZ
+	depends on BR2_SOC_FAMILY_INGENIC_T31
 	help
 	  Choose the ISP clock speed from the predefined options.
 
@@ -226,6 +228,7 @@ endchoice
 choice
 	prompt "AVPU Clock Source"
 	default BR2_AVPU_INTERNAL
+	depends on BR2_SOC_FAMILY_INGENIC_T31
 	help
 	  Select the clock source for the AVPU
 
@@ -235,6 +238,53 @@ config BR2_AVPU_VPLL
 	bool "VPLL Clock Source"
 config BR2_AVPU_INTERNAL
 	bool "Module Internal Clock Source"
+endchoice
+
+choice
+	prompt "ISP Clock Source"
+	default BR2_ISP_CLK_SCLKA
+	depends on BR2_SOC_FAMILY_INGENIC_T23
+	help
+	  Select the clock source for the AVPU
+
+config BR2_ISP_CLK_SCLKA
+	bool "SCLKA_CLK"
+endchoice
+
+choice
+	prompt "ISP Clock-A Source"
+	default BR2_ISP_CLKA_SCLKA
+	depends on BR2_SOC_FAMILY_INGENIC_T23
+	help
+	  Select the clock source for the AVPU
+
+config BR2_ISP_CLKA_SCLKA
+	bool "SCLKA_CLK"
+endchoice
+
+choice
+	prompt "ISP Clock-A Speed"
+	default BR2_ISP_CLKA_600MHZ
+	depends on BR2_SOC_FAMILY_INGENIC_T23
+	help
+	  Choose the ISP clock speed from the predefined options.
+
+config BR2_ISP_CLKA_400MHZ
+	bool "400 MHz"
+config BR2_ISP_CLKA_450MHZ
+	bool "450 MHz"
+config BR2_ISP_CLKA_486MHZ
+	bool "486 MHz"
+config BR2_ISP_CLKA_500MHZ
+	bool "500 MHz"
+config BR2_ISP_CLKA_550MHZ
+	bool "550 MHz"
+config BR2_ISP_CLKA_600MHZ
+	bool "600 MHz"
+config BR2_ISP_CLKA_650MHZ
+	bool "650 MHz"
+config BR2_ISP_CLKA_700MHZ
+	bool "700 MHz"
 endchoice
 
 config BR2_AUDIO
