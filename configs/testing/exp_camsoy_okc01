@@ -1,4 +1,5 @@
 # MODULE: t31lc_gc1084_hi3881
 FLASH_SIZE_8=y
 BR2_SDCARD=y
+BR2_PACKAGE_WIFI=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/camsoy_okc01.uenv.txt"
