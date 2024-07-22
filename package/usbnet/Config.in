@@ -1,0 +1,40 @@
+menuconfig BR2_PACKAGE_USBNET
+	bool "USB Networking Options"
+	help
+	  Networking Device Options
+
+config BR2_PACKAGE_USBNET_USB_DIRECT_NCM
+	bool "CDC-NCM"
+	depends on BR2_PACKAGE_USBNET
+	help
+	  Enable CDC_NCM Support
+
+#config BR2_PACKAGE_USBNET_USB_DIRECT_ECM
+#	bool "CDC-ECM"
+#	depends on BR2_PACKAGE_USBNET
+#	help
+#	  Enables CDC_ECM
+
+config BR2_PACKAGE_USBNET_RNDIS
+	bool "RNDIS"
+	depends on BR2_PACKAGE_USBNET
+	help
+	  Enables RNDIS
+
+config BR2_PACKAGE_USBNET_ASIX
+	bool "ASIX USB"
+	depends on BR2_PACKAGE_USBNET
+	help
+	  Enables ASIX AX8817X core usb driver
+
+config BR2_PACKAGE_USBNET_CDC_ETHER
+	bool "CDCETHER"
+	depends on BR2_PACKAGE_USBNET
+	help
+	  Enables CDC Ethernt usb driver
+
+config BR2_PACKAGE_USBNET_WWAN_SERIAL
+	bool "WWAN via USB SERIAL"
+	depends on BR2_PACKAGE_USBNET
+	help
+	  Enables WWAN via USB SERIAL support
