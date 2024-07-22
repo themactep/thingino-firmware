@@ -5,7 +5,8 @@ WIFI_HI3881_VERSION = $(shell git ls-remote $(WIFI_HI3881_SITE) $(WIFI_HI3881_SI
 
 WIFI_HI3881_LICENSE = GPL-2.0
 
-HI3881_MODULE_NAME = "hi3881"
+HI3881_MODULE_NAME = hi3881
+
 
 WIFI_HI3881_MODULE_MAKE_OPTS = \
 	KDIR=$(LINUX_DIR) \
@@ -33,12 +34,18 @@ endef
 
 LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
 define WIFI_HI3881_INSTALL_CONFIGS
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/$(LINUX_VERSION)$(LINUX_CONFIG_LOCALVERSION)
-	touch $(TARGET_DIR)/lib/modules/$(LINUX_VERSION)$(LINUX_CONFIG_LOCALVERSION)/modules.builtin.modinfo
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
+	touch $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/modules.builtin.modinfo
+        $(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/hi3881-wifi
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/hi3881-wifi $(@D)/firmware/wifi_cfg/fcc/wifi_cfg
+#        $(INSTALL) -m 755 -d $(TARGET_DIR)/lib/firmware
+#        $(INSTALL) -m 644 $(@D)/firmware/hi3881_fw.bin $(TARGET_DIR)/lib/firmware/hi3881_fw.bin
 endef
 
+WIFI_HI3881_POST_INSTALL_TARGET_HOOKS += WIFI_HI3881_INSTALL_CONFIGS
+
 define WIFI_HI3881_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 755 $(@D)/driver/$(HI3881_MODULE_NAME).ko $(TARGET_DIR)/lib/modules/$(LINUX_VERSION)$(LINUX_CONFIG_LOCALVERSION)/$(HI3881_MODULE_NAME).ko
+	$(INSTALL) -D -m 755 $(@D)/driver/$(HI3881_MODULE_NAME).ko $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/extra/$(HI3881_MODULE_NAME).ko
 endef
 
 $(eval $(kernel-module))
