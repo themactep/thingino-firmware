@@ -7,7 +7,7 @@ index 19c0632..311ca32 100644
    2 <BA>궨<D2><E5>
  *****************************************************************************/
 -#define WIFI_CFG_C01_PATH   "/tmp/wifi_cfg"
-+#define WIFI_CFG_C01_PATH   "/usr/share/wifi-hi3881/wifi_cfg"
++#define WIFI_CFG_C01_PATH   "/usr/share/hi3881-wifi/wifi_cfg"
  #define WIFI_CFG_C02_PATH   HI_NULL
  #define RAM_CHECK_CFG_PATH  HI_NULL
  #define STORE_WIFI_MEM      HI_NULL
