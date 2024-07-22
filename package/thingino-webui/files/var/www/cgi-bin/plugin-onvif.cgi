@@ -4,15 +4,22 @@
 plugin="onvif"
 plugin_name="ONVIF Server"
 page_title="ONVIF Server"
-params="enabled debug"
+params="debug enabled password username"
 
 tmp_file=/tmp/$plugin
+onvif_control=/etc/init.d/S96onvif
+onvif_debug_file=/tmp/onvif_simple_server.debug
 
 config_file="${ui_config_dir}/${plugin}.conf"
 [ ! -f "$config_file" ] && touch $config_file
 
-onvif_control=/etc/init.d/S96onvif
-onvif_debug_file=/tmp/onvif_simple_server.debug
+# get system values
+onvif_username=$(awk -F: '/ONVIF Service/ {print $1}' /etc/passwd)
+
+# populate default values
+[ -z "$onvif_debug" ] && onvif_debug="false"
+[ -z "$onvif_password" ] && onvif_password="thingino"
+[ -z "$onvif_username" ] && onvif_username="onvif"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
@@ -22,7 +29,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	done; unset p
 
 	# validation
-
 	if [ -z "$error" ]; then
 		:>$tmp_file
 		for p in $params; do
@@ -42,6 +48,13 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			echo "$onvif_control not found" >> /tmp/webui.log
 		fi
 
+		# create user onvif, if absent
+		if ! grep -q ^${onvif_username}: /etc/passwd >/dev/null; then
+			adduser -SH -G nobody -h /homeless -g "ONVIF Service" $onvif_username
+		fi
+		# update system password
+		echo "${onvif_username}:${onvif_password}" | chpasswd
+
 		update_caminfo
 		redirect_to "$SCRIPT_NAME"
 	fi
@@ -59,6 +72,8 @@ fi
 <div class="row g-4 mb-4">
 <div class="col col-12 col-xl-4">
 <% field_switch "onvif_enabled" "Enable ONVIF Server" %>
+<% field_text "onvif_username" "Username" %>
+<% field_password "onvif_password" "Password" %>
 <% field_switch "onvif_debug" "Enable debug" %>
 </div>
 <div class="col col-12 col-xl-4">
@@ -71,4 +86,7 @@ fi
 <% button_submit %>
 </form>
 
+<script>
+$('#onvif_username').disabled = true;
+</script>
 <%in p/footer.cgi %>
