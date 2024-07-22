@@ -1,5 +1,7 @@
 #!/bin/sh
 
+DAEMON="motors-daemon -d"
+
 . /etc/init.d/rc.common
 
 set_motor_phases() {
@@ -13,6 +15,7 @@ set_motor_phases() {
 }
 
 home_motors() {
+	##DAEMON needs disable homing option
 	if [ "true" = "$(get disable_homing)" ]; then
 		warn "Homing disabled"
 		return
@@ -60,12 +63,14 @@ start() {
 			|| die "Failed to load motor module"
 	fi
 
-	home_motors
+	#home_motors
+	starting
+	start_daemon
 }
 
 stop() {
 	stopping
-
+	stop_daemon
 	# FIXME: motor.ko crashes on upload
 	# rmmod motor || die "Failed to unload motor module."
 	ok
