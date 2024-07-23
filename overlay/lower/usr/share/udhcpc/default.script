@@ -11,6 +11,20 @@ NETMASK=""
 BROADCAST="broadcast +"
 [ -n "$broadcast" ] && BROADCAST="broadcast $broadcast"
 
+# Define default metrics for interface types
+DEFAULT_METRIC=100
+WIRELESS_METRIC=200
+WIRED_METRIC=100
+
+# Function to determine the interface type
+get_interface_type() {
+case "$1" in
+	wlan*|wlp*|wls*) echo "wireless" ;;
+	eth*|enp*|ens*|usb*|enx*) echo "wired" ;;
+	*) echo "unknown" ;;
+esac
+}
+
 case "$1" in
 	deconfig)
 		ip -4 addr flush dev $interface up
@@ -26,13 +40,24 @@ case "$1" in
 				:
 			done
 
-			metric=0
 			for i in $router; do
 				echo "Adding router $i"
 				if [ "$subnet" = "255.255.255.255" ]; then
 					ip route add $i dev $interface
 				fi
-				route add default gw $i dev $interface metric $((metric++))
+				# Set different metrics based on interface type
+				IF_TYPE=$(get_interface_type $interface)
+				case "$IF_TYPE" in
+					wireless)
+						route add default gw $i dev $interface metric $WIRELESS_METRIC
+						;;
+					wired)
+						route add default gw $i dev $interface metric $WIRED_METRIC
+						;;
+					*)
+						route add default gw $i dev $interface metric $DEFAULT_METRIC
+						;;
+				esac
 			done
 		fi
 
