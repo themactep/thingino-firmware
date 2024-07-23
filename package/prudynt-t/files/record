@@ -78,6 +78,6 @@ esac
 openRTSP -u "$rtsp_username" "$rtsp_password" -w "$stream0width" -h "$stream0height" -f "$stream0fps" -d "$record_interval" "$format_option" -b 1048576 -t rtsp://127.0.0.1/ch0 > "$record_path$record_prefix$(date "+%Y-%m-%d_%H-%M-%S")$record_format"
 
 # location of this script to recall it when duration is up
-/usr/sbin/record
+/usr/sbin/record &
 
 exit 0
