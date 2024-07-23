@@ -18,6 +18,7 @@ home_motors() {
 	##DAEMON needs disable homing option
 	if [ "true" = "$(get disable_homing)" ]; then
 		warn "Homing disabled"
+		DAEMON="motors-daemon -d -p"
 		return
 	fi
 
@@ -63,9 +64,9 @@ start() {
 			|| die "Failed to load motor module"
 	fi
 
-	#home_motors
+	home_motors
 	starting
-	start_daemon
+	start_motors
 }
 
 stop() {
@@ -74,6 +75,11 @@ stop() {
 	# FIXME: motor.ko crashes on upload
 	# rmmod motor || die "Failed to unload motor module."
 	ok
+}
+
+start_motors() {
+    eval $DAEMON
+	start_daemon
 }
 
 case "$1" in
