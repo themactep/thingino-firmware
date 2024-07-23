@@ -2,6 +2,4 @@ config BR2_PACKAGE_MOTORS
 	bool "motors"
 	depends on BR2_MOTORS
 	help
-	  Various code to manage motor hardware
-
-	  https://openipc.org
+	  Userspace programs to manage motor hardware

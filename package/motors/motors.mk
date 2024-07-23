@@ -8,6 +8,7 @@ MOTORS_LICENSE_FILES = LICENSE
 
 define MOTORS_BUILD_CMDS
 	$(TARGET_CC) -Os -s $(@D)/motor.c -o $(@D)/motors
+	$(TARGET_CC) -Os -s $(@D)/motor-daemon.c -o $(@D)/motors-daemon
 endef
 
 define MOTORS_INSTALL_TARGET_CMDS
@@ -15,6 +16,7 @@ define MOTORS_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d/ $(MOTORS_PKGDIR)/files/S09motor
 
 	$(INSTALL) -m 0755 -D $(@D)/motors $(TARGET_DIR)/usr/bin/motors
+	$(INSTALL) -m 0755 -D $(@D)/motors-daemon $(TARGET_DIR)/usr/bin/motors-daemon
 endef
 
 $(eval $(generic-package))
