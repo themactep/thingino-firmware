@@ -31,7 +31,8 @@ home_motors() {
 	fi
 
 	info "Home and position motors to $x,$y"
-	motors -r -d h -x $x -y $y > /dev/null 2>&1 &
+	motors -r > /dev/null 2>&1 &
+	motors -d h -x $x -y $y > /dev/null 2>&1 &
 }
 
 start() {
