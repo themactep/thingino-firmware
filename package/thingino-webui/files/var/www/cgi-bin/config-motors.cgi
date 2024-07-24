@@ -147,14 +147,12 @@ function checkHoming() {
 }
 
 function readMotors() {
-	const xhr = new XMLHttpRequest();
-	xhr.onload = () => {
-		const data = JSON.parse(xhr.responseText);
-		$('#motor_pos_0_x').value = data.xpos;
-		$('#motor_pos_0_y').value = data.ypos;
-	}
-	xhr.open('GET', "/cgi-bin/j/motor.cgi?d=j");
-	xhr.send();
+	fetch("/cgi-bin/j/motor.cgi?d=j")
+		.then(res => res.json())
+		.then(({xpos, ypos}) => {
+			$('#motor_pos_0_x').value = xpos;
+			$('#motor_pos_0_y').value = ypos;
+		});
 	$('#disable_homing').checked = false;
 }
 
