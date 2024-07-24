@@ -15,14 +15,12 @@
 </div>
 
 <script>
-function xhrGet(url) {
-	const xhr = new XMLHttpRequest();
-	xhr.onload = () => {
-		const data = JSON.parse(xhr.responseText);
-		$('#ptzpos').textContent = data.xpos + "," + data.ypos;
-	}
-	xhr.open('GET', url);
-	xhr.send();
+function runMotorCmd(args) {
+	fetch(`/cgi-bin/j/motor.cgi?${args}`)
+		.then(res => res.json())
+		.then(({xpos, ypos}) => {
+			$('#ptzpos').textContent = xpos + "," + ypos;
+		});
 }
 
 function moveMotor(dir, steps = 100, d = 'g') {
@@ -31,18 +29,14 @@ function moveMotor(dir, steps = 100, d = 'g') {
 	const y_max=<% echo -n $(get motor_maxstep_v) %>;
 	const step = x_max / steps;
 	if (dir == 'homing') {
-		xhrGet("/cgi-bin/j/motor.cgi?d=r");
+		runMotorCmd("d=r");
 	} else if (dir == 'cc') {
-		xhrGet("/cgi-bin/j/motor.cgi?d=x&x=" + x_max / 2 + "&y=" + y_max / 2);
+		runMotorCmd("d=x&x=" + x_max / 2 + "&y=" + y_max / 2);
 	} else {
 		let y = dir.includes("u") ? -step : dir.includes("d") ? step : 0;
 		let x = dir.includes("l") ? -step : dir.includes("r") ? step : 0;
-		xhrGet("/cgi-bin/j/motor.cgi?d=g&x=" + x + "&y=" + y);
+		runMotorCmd("d=g&x=" + x + "&y=" + y);
 	}
-}
-
-function readMotors() {
-	xhrGet("/cgi-bin/j/motor.cgi?d=j");
 }
 
 let timer;
@@ -53,7 +47,7 @@ $$(".jst a.s").forEach(el => {
 $(".jst a.b").addEventListener("click", ev => {if (ev.detail === 1) {timer = setTimeout(() => { moveMotor('cc') }, 200)}});
 $(".jst a.b").addEventListener("dblclick", ev => {clearTimeout(timer); moveMotor('homing')});
 
-readMotors();
+runMotorCmd("d=j");
 </script>
 
 <style>
