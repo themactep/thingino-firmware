@@ -41,6 +41,7 @@ Pragma: no-cache
 <li><a class="dropdown-item" href="info-modules.cgi">lsmod</a></li>
 <li><a class="dropdown-item" href="info-dmesg.cgi">dmesg</a></li>
 <li><a class="dropdown-item" href="info-log.cgi">logread</a></li>
+<li><a class="dropdown-item" href="info-weblog.cgi">WebUI Log</a></li>
 </ul>
 </li>
 <li class="nav-item dropdown">

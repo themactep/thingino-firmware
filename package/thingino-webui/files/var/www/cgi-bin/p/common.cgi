@@ -141,10 +141,6 @@ button_submit() {
 	echo "<div class=\"mt-2\"><input type=\"submit\" class=\"btn btn-${c}\"${x} value=\"${t}\"></div>"
 }
 
-button_webui_log() {
-	[ -f "/tmp/webui.log" ] && link_to "Download log file" "dl.cgi?file=/tmp/webui.log"
-}
-
 check_file_exist() {
 	[ ! -f "$1" ] && redirect_back "danger" "File ${1} not found"
 }

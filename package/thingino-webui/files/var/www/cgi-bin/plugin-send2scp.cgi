@@ -68,7 +68,6 @@ fi
 </div>
 <div class="col">
 <% ex "cat $config_file" %>
-<% button_webui_log %>
 </div>
 </div>
 <% button_submit %>

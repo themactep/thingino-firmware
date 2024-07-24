@@ -66,9 +66,6 @@ check_hostname
 <% ex "echo \$HOSTNAME" %>
 <% ex "grep 127.0.1.1 /etc/hosts" %>
 </div>
-<div class="col">
-<% button_webui_log %>
-</div>
 </div>
 <% button_submit %>
 </form>

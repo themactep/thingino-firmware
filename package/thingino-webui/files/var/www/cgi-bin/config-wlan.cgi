@@ -47,9 +47,6 @@ wlan_pass="$(get wlanpass)"
 <div class="col-8">
 <% ex "fw_printenv | grep wlan | sort" %>
 </div>
-<div class="col">
-<% button_webui_log %>
-</div>
 </div>
 <% button_submit %>
 </form>

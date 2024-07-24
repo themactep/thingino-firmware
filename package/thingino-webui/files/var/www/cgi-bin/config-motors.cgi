@@ -132,9 +132,6 @@ disable_homing: <%= $disable_homing %>
 motor_pos_0: <%= $motor_pos_0 %>
 </pre>
 </div>
-<div class="col">
-<% button_webui_log %>
-</div>
 </div>
 <% button_submit %>
 </form>

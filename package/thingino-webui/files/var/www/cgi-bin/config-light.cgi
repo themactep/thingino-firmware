@@ -105,9 +105,6 @@ day_night_min: <%= $day_night_min %>
 day_night_max: <%= $day_night_max %>
 </pre>
 </div>
-<div class="col">
-<% button_webui_log %>
-</div>
 </div>
 <% button_submit %>
 </form>

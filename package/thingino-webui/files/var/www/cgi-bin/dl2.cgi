@@ -13,6 +13,9 @@ case "$log" in
 	netstat)
 		netstat -a >$file
 		;;
+	weblog)
+		cat /tmp/webui.log >$file
+		;;
 	*)
 		echo "Unknown file."
 		exit 1
