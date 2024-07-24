@@ -238,7 +238,7 @@ field_number() {
 	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"${n}-auto\">${ab}" \
 		"<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"${n}\" data-value=\"${vr}\" $(checked_if "$ab" "$v")>" \
 		"</label>"
-	echo "<input type=\"number\" id=\"${n}\" name=\"${n}\" class=\"form-control text-end\" value=\"${vr}\" min=\"${mn}\" max=\"${mx}\" step=\"${st}\">" \
+	echo "<input type=\"text\" id=\"${n}\" name=\"${n}\" class=\"form-control text-end\" value=\"${vr}\" pattern=\"[0-9]{1,}\" title=\"numeric value\" data-min=\"${mn}\" data-max=\"${mx}\" data-step=\"${st}\">" \
 		"</span>"
 	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">${h}</span>"
 	echo "</p>"
