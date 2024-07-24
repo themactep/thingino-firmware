@@ -131,16 +131,10 @@ check_mirror() {
 <% field_number "again" "Analog Gain" %>
 <% field_number "dgain" "Digital Gain" %>
 <% field_number "backlightcomp" "Backlight Compensation" %>
-<div class="">
-<div class="">
-<% field_number "whitebalance_mode" "Mode" %>
-</div>
-<div class="">
-<% field_number "whitebalance_rgain" "RGain" %>
-</div>
-<div class="">
-<% field_number "whitebalance_bgain" "BGain" %>
-</div>
+<div>
+<div><% field_number "whitebalance_mode" "Mode" %></div>
+<div><% field_number "whitebalance_rgain" "RGain" %></div>
+<div><% field_number "whitebalance_bgain" "BGain" %></div>
 </div>
 </div>
 <div class="flex-grow-1 me-5" style="flex-basis: 250px;">

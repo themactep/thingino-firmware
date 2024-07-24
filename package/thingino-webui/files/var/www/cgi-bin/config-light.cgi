@@ -76,14 +76,15 @@ ircut_pin2=$(echo $ircut_pins | awk '{print $2}')
 		<div class="col"><% field_number "white_pin" "GPIO pin" %></div>
 		<div class="col"><% field_number "white_pwn" "PWM channel" %></div>
 	</div>
+</div>
+<div class="col">
 	<h5>IR CUT filter</h5>
 	<div class="row mb-3">
 		<div class="col"><% field_number "ircut_pin1" "GPIO pin 1" %></div>
 		<div class="col"><% field_number "ircut_pin2" "GPIO pin 2" %></div>
 	</div>
-</div>
-<div class="col">
-	<h6>Day/Night Trigger Threshold</h6>
+
+	<h5>Day/Night Trigger Threshold</h5>
 	<div class="row mb-3">
 		<div class="col"><% field_number "day_night_min" "Min. gain in night mode" %></div>
 		<div class="col"><% field_number "day_night_max" "Max. gain in day mode" %></div>
