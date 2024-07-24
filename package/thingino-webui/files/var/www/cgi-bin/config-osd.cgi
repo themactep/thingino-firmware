@@ -6,19 +6,17 @@ page_title="OSD"
 
 OSD_CONFIG="/etc/prudynt.cfg"
 OSD_FONT_PATH="/usr/share/fonts"
-OSD_FONT_FILE="$OSD_FONT_PATH/osd.ttf"
+FONT_REGEXP="s/(#\s*)?font_path:(.+);/font_path: \"${OSD_FONT_PATH//\//\\/}\/\%s\";/"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
-
-	if [ -n "$HASERL_uploadfile_path" ]; then
-		filesize=$(cat $HASERL_uploadfile_path | wc -c)
-		filename=$FORM_uploadfile_name
-		filepath=$HASERL_uploadfile_path
-		mv $filepath $OSD_FONT_FILE
+	if [ -n "$HASERL_fontfile_path" ] && [ $(stat -c%s $HASERL_fontfile_path) -gt 0 ]; then
+		fontname="uploaded.ttf"
+		mv "$HASERL_fontfile_path" "$OSD_FONT_PATH/$fontname"
+		sed -ri "$(printf "$FONT_REGEXP" "$fontname")" /etc/prudynt.cfg
 		need_to_reload="true"
 	elif [ -n "$POST_fontname" ]; then
-		sed -ri "s/(#\s*)?font_path:(.+);/font_path: \"${OSD_FONT_PATH//\//\\/}\/${POST_fontname}\";/" /etc/prudynt.cfg
+		sed -ri "$(printf "$FONT_REGEXP" "$POST_fontname")" /etc/prudynt.cfg
 		need_to_reload="true"
 	else
 		echo "File upload failed. No font selected." > /root/fontname
@@ -27,9 +25,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 fi
 %>
 <%in p/header.cgi %>
-<%
-if [ "true" = "$need_to_reload" ]; then
-%>
+<% if [ "true" = "$need_to_reload" ]; then %>
 <h3>Restarting Prudynt</h3>
 <h4>Please wait...</h4>
 <progress max="2" value="0"></progress>
@@ -37,7 +33,7 @@ if [ "true" = "$need_to_reload" ]; then
 const p=document.querySelector('progress'); let s=0;
 function t(){s+=1;p.value=s;(s===p.max)?g():setTimeout(t,1000);}
 function g(){window.location.replace(window.location);}
-setTimeout(t, 1000);
+setTimeout(t, 2000);
 </script>
 <%
 	/etc/init.d/S95prudynt restart &
@@ -49,7 +45,7 @@ else
 <div class="col-lg-4">
 <form action="<%= $SCRIPT_NAME %>" method="post" enctype="multipart/form-data">
 <% field_select "fontname" "Select a font" "$(ls -1 $OSD_FONT_PATH)" %>
-<%# field_file "fontfile" "Upload a TTF file" %>
+<% field_file "fontfile" "Upload a TTF file" %>
 <% button_submit %>
 </form>
 </div>
@@ -62,10 +58,14 @@ else
 <div class="modal-dialog modal-fullscreen"><div class="modal-content"><div class="modal-header">
 <h1 class="modal-title fs-4" id="previewModalLabel">Full screen preview</h1>
 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-</div><div class="modal-body text-center">
+</div>
+<div class="modal-body text-center">
 <img id="preview" src="image.cgi?t=<%= $ts %>" alt="Image: Preview" class="img-fluid">
-</div></div></div></div>
-<% ex "grep font_path $OSD_CONFIG" %>
+</div>
+</div>
+</div>
+</div>
+<% ex "grep font_path $OSD_CONFIG | xargs" %>
 </div>
 </div>
 
