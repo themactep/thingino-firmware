@@ -30,7 +30,7 @@ is_onvif_disabled() {
 update_config() {
 	local key=$1 value=$2 file="/etc/onvif.conf"
 	local current=$(awk -F "=" -v key="$key" '$1==key {print $2}' $file)
-	[ "$current" = "$value" ] || sed -i "s!^$key=.*!$key=$value!" $file
+	[ "$current" = "$value" ] || sed -i "s/^$key=.*/$key=$value/" $file
 }
 
 start() {
@@ -51,8 +51,8 @@ start() {
 		update_config "ptz" "$([ -n "$(fw_printenv -n gpio_motor_h)" ] && echo 1 || echo 0)"
 		update_config "max_step_x" "$(get motor_maxstep_h)"
 		update_config "max_step_y" "$(get motor_maxstep_v)"
-		update_config "move_right" "motors -d h -x $(get motor_maxstep_h) > /dev/null"
-		update_config "move_up" "motors -d h -y $(get motor_maxstep_v) > /dev/null"
+		update_config "move_right" "motors -d h -x $(get motor_maxstep_h)"
+		update_config "move_up" "motors -d h -y $(get motor_maxstep_v)"
 		sed -i '1i # GENERATED On '"$(date)" /etc/onvif.conf
 	fi
 }
