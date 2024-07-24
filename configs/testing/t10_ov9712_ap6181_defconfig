@@ -1,4 +1,0 @@
-# FRAG: soc toolchain ccache brand rootfs kernel system target local
-BR2_SOC_INGENIC_T10L=y
-BR2_SENSOR_MODEL="ov9712"
-FLASH_SIZE_16=y
