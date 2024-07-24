@@ -51,8 +51,8 @@ start() {
 		update_config "ptz" "$([ -n "$(fw_printenv -n gpio_motor_h)" ] && echo 1 || echo 0)"
 		update_config "max_step_x" "$(get motor_maxstep_h)"
 		update_config "max_step_y" "$(get motor_maxstep_v)"
-		update_config "move_right" "motors -q -d h -x $(get motor_maxstep_h)"
-		update_config "move_up" "motors -q -d h -y $(get motor_maxstep_v)"
+		update_config "move_right" "motors -d h -x $(get motor_maxstep_h)"
+		update_config "move_up" "motors -d h -y $(get motor_maxstep_v)"
 		sed -i '1i # GENERATED On '"$(date)" /etc/onvif.conf
 	fi
 }
