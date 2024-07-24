@@ -13,6 +13,9 @@ case "$log" in
 	netstat)
 		netstat -a >$file
 		;;
+	snmp)
+		cat /proc/net/snmp >$file
+		;;
 	weblog)
 		cat /tmp/webui.log >$file
 		;;

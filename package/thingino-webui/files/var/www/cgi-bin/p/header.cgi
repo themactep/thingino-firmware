@@ -38,6 +38,7 @@ Pragma: no-cache
 <li><a class="dropdown-item" href="info-proc-umap.cgi">Information from /proc/umap</a></li>
 <% fi %>
 <li><a class="dropdown-item" href="info-netstat.cgi">netstat</a></li>
+<li><a class="dropdown-item" href="info-snmp.cgi">snmp</a></li>
 <li><a class="dropdown-item" href="info-modules.cgi">lsmod</a></li>
 <li><a class="dropdown-item" href="info-dmesg.cgi">dmesg</a></li>
 <li><a class="dropdown-item" href="info-log.cgi">logread</a></li>
