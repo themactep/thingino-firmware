@@ -3,6 +3,7 @@
 . /etc/init.d/rc.common
 
 COMMAND="/usr/bin/env -- LD_PRELOAD=/usr/lib/libimp_control.so $DAEMON_FULL"
+SNAPSHOT="/tmp/snapshot.jpg"
 
 start() {
 	starting
@@ -13,6 +14,7 @@ start() {
 stop() {
 	stopping
 	is_streamer_disabled && quit "Streamer disabled"
+	[ -f "$SNAPSHOT" ] && rm $SNAPSHOT
 	stop_daemon_with_pid
 }
 
