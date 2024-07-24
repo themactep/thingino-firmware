@@ -35,6 +35,7 @@
 }
 
 body.debug:before {
+	color: #333;
 	display:block;
 	font-size:10rem;
 	font-variant:all-small-caps;
@@ -42,7 +43,7 @@ body.debug:before {
 	line-height:1;
 	position:fixed;
 	right:3rem;
-	top:3rem;
+	bottom:3rem;
 	z-index:-1;
 }
 
