@@ -42,7 +42,7 @@ wlan_pass="$(get wlanpass)"
 <div class="row g-4 mb-4">
 <div class="col-4">
 <% field_text "wlan_ssid" "Wireless Network SSID" %>
-<% field_text "wlan_pass" "Wireless Network Password" %>
+<% field_text "wlan_pass" "Wireless Network Password" "Plain-text password will be automatically converted to a PSK upon submission" %>
 </div>
 <div class="col-8">
 <% ex "fw_printenv | grep wlan | sort" %>
