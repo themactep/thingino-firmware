@@ -86,6 +86,6 @@ fi
 } > $output_file
 
 echo -e "\nYour diagnostics log link is ready:"
-send2pastebin cat $output_file
+send2termbin cat $output_file
 rm -f $output_file
 

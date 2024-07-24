@@ -5,5 +5,5 @@
 <% ex "/sbin/logread" %>
 <% button_refresh %>
 <% button_download "logread" %>
-<a class="btn btn-warning" href="send.cgi?to=pastebin&file=logread" target="_blank">Send to PasteBin</a>
+<a class="btn btn-warning" href="send.cgi?to=termbin&file=logread" target="_blank">Send to TermBin</a>
 <%in p/footer.cgi %>

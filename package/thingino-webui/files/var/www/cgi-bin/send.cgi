@@ -7,7 +7,7 @@ case "$target" in
 		/usr/sbin/send2${target} $opts >/dev/null
 		redirect_back "success" "Sent to $target"
 		;;
-	pastebin)
+	termbin)
 		t=$(mktemp)
 		$GET_file >$t
 		url=$(/usr/sbin/send2${target} $t)

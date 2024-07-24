@@ -7,7 +7,8 @@ export EDITOR='vi'
 export SENSOR=$(cat /etc/sensor/model)
 export SOC=$(soc -f)
 
-alias pb="send2pastebin"
+alias pb="send2termbin"
+alias tb="send2termbin"
 
 if [ "$PS1" ]; then
         [ -f /etc/os-release ] && . /etc/os-release

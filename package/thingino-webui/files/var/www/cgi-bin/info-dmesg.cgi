@@ -5,5 +5,5 @@
 <% ex "/bin/dmesg" %>
 <% button_refresh %>
 <% button_download "dmesg" %>
-<a class="btn btn-warning" href="send.cgi?to=pastebin&file=dmesg" target="_blank">Send to PasteBin</a>
+<a class="btn btn-warning" href="send.cgi?to=termbin&file=dmesg" target="_blank">Send to TermBin</a>
 <%in p/footer.cgi %>
