@@ -50,6 +50,7 @@ Pragma: no-cache
 <li><a class="dropdown-item" href="config-network.cgi">Network</a></li>
 <li><a class="dropdown-item" href="config-hostname.cgi">Hostname</a></li>
 <li><a class="dropdown-item" href="config-time.cgi">Time</a></li>
+<li><a class="dropdown-item" href="config-indication.cgi">LED Indicators</a></li>
 <li><a class="dropdown-item" href="config-light.cgi">Illumination</a></li>
 <li><a class="dropdown-item" href="config-record.cgi">Local Recording</a></li>
 <% if [ -f /bin/motors ]; then %>
