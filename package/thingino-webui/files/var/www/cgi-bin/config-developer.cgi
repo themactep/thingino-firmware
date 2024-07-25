@@ -5,9 +5,8 @@ plugin="development"
 page_title="Development"
 params="enabled nfs_ip nfs_share"
 
-tmp_file=/tmp/${plugin}.conf
-config_file="${ui_config_dir}/${plugin}.conf"
-[ ! -f "$config_file" ] && touch $config_file
+read_from_env $plugin
+[ -z "$development_nfs_share" ] && development_nfs_share="/srv/nfs/www"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
@@ -20,20 +19,14 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	[ -z "$development_nfs_share" ] && set_error_flag "NFS share cannot be empty."
 
 	if [ -z "$error" ]; then
-		# create temp config file
-		:>$tmp_file
-		for p in $params; do
-			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
-		done; unset p
-		mv $tmp_file $config_file
-
+        	tmpfile=$(mktemp)
+                for p in $params; do
+        		eval "echo ${plugin}_${p}=\$${plugin}_${p}" >> $tmpfile
+        	done; unset p
+        	fw_setenv -s $tmpfile
 		update_caminfo
-		redirect_back "success" "Development config updated."
-	fi
-else
-	include $config_file
-
-	[ -z "$development_nfs_share" ] && development_nfs_share="/srv/nfs/www"
+        	redirect_back "success" "Development config updated."
+        fi
 fi
 %>
 <%in p/header.cgi %>

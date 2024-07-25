@@ -765,6 +765,13 @@ d() {
 	echo "$1" >&2
 }
 
+read_from_env() {
+	 local tmpfile=$(mktemp)
+         fw_printenv | grep "^${1}_" > $tmpfile
+         . $tmpfile
+         rm $tmpfile
+}
+
 dump() {
 	echo "Content-Type: text/plain; charset=UTF-8
 Date: $(time_http)
