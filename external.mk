@@ -447,6 +447,8 @@ else ifeq ($(BR2_ISP_CLK_225MHZ),y)
 ISP_CLK := 225000000
 else ifeq ($(BR2_ISP_CLK_250MHZ),y)
 ISP_CLK := 250000000
+else ifeq ($(BR2_ISP_CLK_300MHZ),y)
+ISP_CLK := 300000000
 else
 ISP_CLK := 100000000
 endif
