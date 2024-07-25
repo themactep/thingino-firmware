@@ -58,8 +58,13 @@ update_config() {
 		echo "${name} ${pin}${active_suffix}" >> $tmpfile
 		# remove the pin from defaults
 		DEFAULT_PINS=$(echo $DEFAULT_PINS | sed -E "s/\b($pin[oO])\b//")
-		# add it to defaults in active state
-		[ "true" = "$pin_lit" ] && DEFAULT_PINS="$DEFAULT_PINS ${pin}${active_suffix}"
+		if [ "true" != "$pin_lit" ]; then
+			case "$active_suffix" in
+			 	o) active_suffix="O" ;;
+				O) active_suffix="o" ;;
+			esac
+		fi
+		DEFAULT_PINS="$DEFAULT_PINS ${pin}${active_suffix}"
 	else
 		# read the existing pin for the color from environment and remove it from defaults
 		pin=$(fw_printenv -n ${name})
