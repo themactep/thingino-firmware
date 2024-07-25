@@ -9,7 +9,6 @@ read_from_env $plugin
 [ -z "$development_nfs_share" ] && development_nfs_share="/srv/nfs/www"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	# parse values from parameters
 	for p in $params; do
 		eval ${plugin}_${p}=\$POST_${plugin}_${p}
 		sanitize "${plugin}_${p}"
@@ -44,7 +43,7 @@ fi
 <div class="col">
 </div>
 <div class="col">
-<% ex "cat $config_file" %>
+<% ex "fw_printenv | grep ^development_" %>
 </div>
 </div>
 

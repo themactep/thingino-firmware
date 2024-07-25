@@ -63,7 +63,8 @@ Pragma: no-cache
 <li><a class="dropdown-item" href="config-socks5.cgi">SOCKS5 Proxy</a></li>
 <li><a class="dropdown-item" href="config-webui.cgi">Web Interface</a></li>
 <li><a class="dropdown-item" href="config-admin.cgi">Admin Profile</a></li>
-<li><a class="dropdown-item" href="config-users.cgi">Users</a></li>
+<!--<li><a class="dropdown-item" href="config-users.cgi">Users</a></li>-->
+<li><a class="dropdown-item" href="config-developer.cgi">Developer</a></li>
 <li><hr class="dropdown-divider"></li>
 <li><a class="dropdown-item" href="reset.cgi">Reset...</a></li>
 </ul>

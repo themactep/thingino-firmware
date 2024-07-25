@@ -101,6 +101,13 @@ stop_daemon_with_pid() {
 	[ -f $PIDFILE ] && rm -f $PIDFILE
 }
 
+get_vars_from_env() {
+	local tmpfile=$(mktemp)
+	fw_printenv | grep ^${1}_ > $tmpfile
+	. $tmpfile
+	rm $tmpfile
+}
+
 is_streamer_disabled() {
 	[ "true" = "$(get disable_streamer)" ]
 }

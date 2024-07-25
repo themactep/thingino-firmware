@@ -6,14 +6,7 @@ DEV_MOUNT_POINT="/var/www"
 
 start() {
 	starting_batch
-
-	if [ -f /etc/webui/development.conf ]; then
-		. /etc/webui/development.conf
-	else
-		development_enabled=$(get development_enabled)
-		development_nfs_ip=$(get development_nfs_ip)
-		development_nfs_share=$(get development_nfs_share)
-	fi
+	get_vars_from_env "development"
 
 	if [ "true" != "$development_enabled" ]; then
 		info "Not in development mode"

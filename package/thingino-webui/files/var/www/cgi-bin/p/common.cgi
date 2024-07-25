@@ -761,6 +761,13 @@ xl() {
 	[ -n "$o" ] && echo "<div class=\"x-small p-3\"><i>${o}</i></div>"
 }
 
+read_from_env() {
+	 local tmpfile=$(mktemp)
+         fw_printenv | grep ^${1}_ > $tmpfile
+         . $tmpfile
+         rm $tmpfile
+}
+
 d() {
 	echo "$1" >&2
 }
