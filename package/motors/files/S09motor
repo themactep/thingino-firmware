@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DAEMON="motors-daemon -d"
+DAEMON="motors-daemon"
 
 . /etc/init.d/rc.common
 
@@ -15,13 +15,6 @@ set_motor_phases() {
 }
 
 home_motors() {
-	##DAEMON needs disable homing option
-	if [ "true" = "$(get disable_homing)" ]; then
-		warn "Homing disabled"
-		DAEMON="motors-daemon -d -p"
-		return
-	fi
-
 	local x=$((motor_maxstep_h / 2))
 	local y=$((motor_maxstep_v / 2))
 	local motor_pos_0=$(get motor_pos_0)
@@ -31,6 +24,10 @@ home_motors() {
 	fi
 
 	info "Home and position motors to $x,$y"
+
+	#FIXME wait for home to finish until daemon is fixed
+	sleep 8
+
 	motors -r > /dev/null 2>&1 &
 	motors -d h -x $x -y $y > /dev/null 2>&1 &
 }
@@ -65,9 +62,15 @@ start() {
 			|| die "Failed to load motor module"
 	fi
 
+	if [ "true" = "$(get disable_homing)" ]; then
+		warn "Homing disabled"
+		DAEMON_ARGS="-d -p"
+	else
+		DAEMON_ARGS="-d"
+	fi
+
+	start_daemon
 	home_motors
-	starting
-	start_motors
 }
 
 stop() {
@@ -76,11 +79,6 @@ stop() {
 	# FIXME: motor.ko crashes on upload
 	# rmmod motor || die "Failed to unload motor module."
 	ok
-}
-
-start_motors() {
-    eval $DAEMON
-	start_daemon
 }
 
 case "$1" in
