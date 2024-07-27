@@ -105,3 +105,9 @@ config BR2_PACKAGE_THINGINO_KOPT_PWM
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
 	  Enable PWM
+
+config BR2_PACKAGE_THINGINO_KOPT_SPI1_PB2
+	bool "SPI1 PB2"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enable SPI1 on PB_2

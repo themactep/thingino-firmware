@@ -137,10 +137,19 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_PWM
 endef
 endif
 
+################ SPI #########################
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_SPI1_PB2),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SPI1_PB2
+	$(call KCONFIG_ENABLE_OPT,CONFIG_SPI)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_JZ_SPI)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_JZ_SPI1)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_JZ_SPI1_PB_2)
+endef
+endif
+
 ################ WDT #########################
 ################ I2C #########################
 ################ SADC #########################
-
 
 ####################################################
 #This is required for BR to successfully concatenate the kernel options when used with modules
@@ -159,6 +168,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DWC2_WIFI)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_RTC)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_PWM)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SPI1_PB2)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART0)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART2)
 endef
