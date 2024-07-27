@@ -126,6 +126,7 @@ info "Performing upgrade"
 warn "Do not turn off the power!"
 if flashcp -v $binary_file /dev/$mtd_dev; then
 	echo "Rebooting..."
+	reboot -f -d 3
 	echo 1 > /proc/jz/watchdog/reset
 else
 	echo "Upgrade failed!"
