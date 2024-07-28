@@ -33,16 +33,21 @@ say() {
 
 full_binary_file="$1"
 
-bootcmd=$(strings "$full_binary_file" | grep -E "mtdparts=\w+_sfc:" | tail -1)
+bootcmd=$(strings "$full_binary_file" | grep -E "mtdparts=\w+_sfc:[0-9]" | tail -1)
+[ -z "$bootcmd" ] && die "Cannot determine boot command!"
+say "Boot command: $bootcmd"
 
 root_part_num=$(echo $bootcmd | sed -E "s/(.*)(root=)/\\2/" | cut -d ' ' -f 1 | cut -d '=' -f 2 | sed -E "s/.*(.)/\\1/")
+[ "$root_part_num" -eq 0 ] && die "Cannot determine root partition!"
+say "Root partition #: $root_part_num"
 
 offset_bytes=0
 
 say "looking for mtd partitions"
 mtdparts=$(echo $bootcmd | sed -E "s/(.*)(mtdparts=)/\\2/" | cut -d ' ' -f 1 | cut -d: -f2)
+[ -z "$mtdparts" ] && die "Cannot determine partitioning!"
+say "Partitioning: $mtdparts"
 
-say "Found this: $mtdparts"
 for p in ${mtdparts//,/ }; do
 	p_size=$(echo $p | cut -d '(' -f 1)
 
