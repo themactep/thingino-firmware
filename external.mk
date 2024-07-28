@@ -595,7 +595,7 @@ endif
 ifeq ($(KERNEL_VERSION_3),y)
 $(info Building for kernel 3.x)
 KERNEL_VERSION = 3.10
-KERNEL_SITE = https://github.com/gtxaspec/openipc_linux
+KERNEL_SITE = https://github.com/gtxaspec/thingino-linux
 KERNEL_BRANCH = ingenic-t31
 else ifeq ($(KERNEL_VERSION_4),y)
 $(info Building for kernel 4.x)

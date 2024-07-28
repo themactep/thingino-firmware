@@ -15,6 +15,6 @@ webrtc:
     - stun:8555
 
 streams:
-  openipc_jpeg: http://username:password@127.0.0.1/image.jpg
-  openipc_rtsp-1: rtsp://username:password@127.0.0.1/stream=0
-  openipc_rtsp-2: rtsp://username:password@127.0.0.1/stream=1
+  jpeg: http://username:password@127.0.0.1/image.jpg
+  rtsp-1: rtsp://username:password@127.0.0.1/stream=0
+  rtsp-2: rtsp://username:password@127.0.0.1/stream=1
