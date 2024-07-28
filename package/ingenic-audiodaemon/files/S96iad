@@ -1,8 +1,9 @@
 #!/bin/sh
 
-DAEMON="iad -r -c /etc/iad.json"
-
 . /etc/init.d/rc.common
+
+DAEMON="iad"
+DAEMON_ARGS="-r -c /etc/iad.json"
 
 start() {
 	starting
