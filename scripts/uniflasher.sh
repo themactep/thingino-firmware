@@ -26,7 +26,7 @@ fi
 mtd_num=0
 needle=0
 align_block=$((32 * 1024))
-fw_size=$(stat -c%s $firmware)
+fw_size=$(cat $firmware | wc -c)
 
 for size_hex in $(awk 'NR>1{print $2}' /proc/mtd); do
 	[ "$needle" -ge "$fw_size" ] && break
