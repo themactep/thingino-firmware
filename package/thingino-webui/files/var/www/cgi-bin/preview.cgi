@@ -61,7 +61,7 @@ check_mirror() {
 		</p>
 	</div>
 	<div class="col-12">
-		<div class="d-flex flex-column flex-md-row gap-2 mb-3">
+		<div class="d-flex flex-column flex-lg-row gap-2 mb-3">
 			<a href="image.cgi" target="_blank" class="form-control btn btn-primary text-start">Save image</a>
 			<div class="input-group">
 				<button class="form-control btn btn-primary text-start" type="button" data-sendto="email">Email</button>
