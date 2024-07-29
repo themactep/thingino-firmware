@@ -20,12 +20,12 @@ config BR2_PACKAGE_THINGINO_KOPT_MMC0_1BIT
 	help
 	  Force 1 bit mode for MMC0 on T23 based SoCs
 config BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT
-	bool "MMC0 4-Bit"
+	bool "MMC0 PB 4-Bit"
 	depends on BR2_PACKAGE_THINGINO_KOPT_MMC0
 	help
 	  Enables 4 bit support for MMC0 on GPIO PB
 config BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_8BIT
-	bool "MMC0 8-Bit"
+	bool "MMC0 PB 8-Bit"
 	depends on BR2_PACKAGE_THINGINO_KOPT_MMC0
 	help
 	  Enables 8 bit support for MMC0 on GPIO PB
@@ -35,15 +35,27 @@ config BR2_PACKAGE_THINGINO_KOPT_MMC1
 	help
 	  Enables the MMC1 on the SoC, typically used for SDIO WiFi modules.
 config BR2_PACKAGE_THINGINO_KOPT_MMC1_PB_4BIT
-	bool "MMC1 4-Bit"
+	bool "MMC1 PB 4-Bit"
 	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
 	help
 	  Enables 4 bit support for MMC1 on GPIO PB
 config BR2_PACKAGE_THINGINO_KOPT_MMC1_PB_8BIT
-	bool "MMC1 8-Bit"
+	bool "MMC1 PB 8-Bit"
 	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
 	help
 	  Enables 8 bit support for MMC1 on GPIO PB
+config BR2_PACKAGE_THINGINO_KOPT_MMC1_PC_4BIT
+	bool "MMC1 PC 4-Bit"
+	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
+	depends on BR2_SOC_FAMILY_INGENIC_T20
+	help
+	  Enables 4 bit support for MMC1 on GPIO PC
+config BR2_PACKAGE_THINGINO_KOPT_MMC1_PD_4BIT
+	bool "MMC1 PD 4-Bit"
+	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
+	depends on BR2_SOC_FAMILY_INGENIC_T20
+	help
+	  Enables 4 bit support for MMC1 on GPIO PD
 
 config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
 	bool "Ethernet Support"
