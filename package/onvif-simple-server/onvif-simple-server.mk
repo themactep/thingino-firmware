@@ -13,6 +13,11 @@ else
 ONVIF_SIMPLE_SERVER_DEPENDENCIES += libtomcrypt
 endif
 
+# username | uid | group | gid | password | home | shell | groups | comment
+define ONVIF_SIMPLE_SERVER_USERS
+onvif -1 onvif -1 =onvif - - - ONVIF Service
+endef
+
 define ONVIF_SIMPLE_SERVER_BUILD_CMDS
 	$(TARGET_CONFIGURE_OPTS) $(MAKE) -C $(@D) $(MAKE_OPTS)
 endef
