@@ -11,7 +11,7 @@ start() {
 
 stop() {
 	stopping
-	stop_daemon_with_pid
+	start_daemon_with_pid
 }
 
 case "$1" in
@@ -19,7 +19,6 @@ case "$1" in
 		$1
 		;;
 	restart | reload)
-		stop
 		start
 		;;
 	*)
