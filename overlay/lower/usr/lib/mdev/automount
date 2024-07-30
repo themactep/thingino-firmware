@@ -10,47 +10,93 @@ log() {
 }
 
 cleanup() {
-	[ -d "${destdir}/$1" ] && rmdir "${destdir}/$1" 2>&1 && log "Removed directory ${destdir}/$1" || log "Failed to remove directory ${destdir}/$1"
-}
-
-do_umount() {
-	grep -qs "^/dev/$1 " /proc/mounts && umount "${destdir}/$1" 2>&1 && log "Unmounted ${destdir}/$1" || log "Failed to unmount ${destdir}/$1"
-	cleanup $1
+	if [ -d "${destdir}/${MDEV}" ]; then
+		if rmdir "${destdir}/${MDEV}" 2>&1; then
+			log "Removed ${destdir}/${MDEV} mountpoint."
+		else
+			log "Failed to remove ${destdir}/${MDEV} mountpoint."
+		fi
+	fi
 }
 
 do_fsck() {
-	fsck -a "/dev/$1" 2>&1 | logger -t automount -p daemon.warning || { log "fsck check failed on /dev/$1. Mounting process aborted."; return 1; }
-	log "fsck check succeeded on /dev/$1"
+	if fsck -a "/dev/${MDEV}" 2>&1 | logger -t automount -p daemon.warning; then
+		log "fsck check succeeded on /dev/${MDEV}"
+	else
+		log "fsck check failed on /dev/${MDEV}. Mounting process aborted."
+		return 1
+	fi
 }
 
 do_mount() {
-	mkdir -p "${destdir}/$1" 2>&1 || { log "Cannot create directory ${destdir}/$1"; return 1; }
-	do_fsck $1 || return 1
-	mount -t auto -o sync "/dev/$1" "${destdir}/$1" 2>&1 || { log "Failed to mount /dev/$1 at ${destdir}/$1"; cleanup $1; return 1; }
-	log "Mounted /dev/$1 at ${destdir}/$1"
-	handle_scripts $1
+	if ! mkdir -p "${destdir}/${MDEV}" 2>&1; then
+		log "Cannot create ${destdir}/${MDEV} mountpoint."
+		return 1
+	fi
+
+	do_fsck || return 1
+
+	if ! mount -t auto -o sync "/dev/${MDEV}" "${destdir}/${MDEV}" 2>&1; then
+		log "Failed to mount /dev/${MDEV} at ${destdir}/${MDEV} mountpoint."
+		cleanup
+		return 1
+	fi
+
+	log "Mounted /dev/${MDEV} at ${destdir}/${MDEV} mountpoint."
+
+	[ -f "$run_once" ] && do_run_once
+	[ -f "$run" ] && do_run_always
 }
 
-handle_scripts() {
-	local device=$1
+do_umount() {
+	if grep -qs "^/dev/${MDEV} " /proc/mounts; then
+		if umount "${destdir}/${MDEV}" 2>&1; then
+			log "Unmounted ${destdir}/${MDEV} mountpoint."
+		else
+			log "Failed to unmount ${destdir}/${MDEV} mountpoint."
+		fi
+	else
+		log "/dev/${MDEV} is not mounted."
+	fi
 
-	[ -f "$run_once_flag" ] && log "Runonce done file exists on /mnt/$device"
-
-	[ -f "$run_once" ] && [ ! -f "$run_once_flag" ] && {
-		sh $run_once 2>&1 && touch $run_once_flag && log "Executed runonce script on /mnt/$device" || log "Failed to execute runonce script on /mnt/$device"
-	}
-
-	[ -f "$run" ] && {
-		sh $run 2>&1 && log "Executed run script on /mnt/$device" || log "Failed to execute run script on /mnt/$device"
-	}
+	cleanup
 }
 
-case "${ACTION}" in
-	add|"")
-		do_umount ${MDEV}
-		do_mount ${MDEV}
+do_run_always() {
+	if sh $run 2>&1; then
+		log "Executed $run script."
+	else
+		log "Failed to execute $run script."
+	fi
+}
+
+do_run_once() {
+	if [ -f "$run_once_flag" ]; then
+		log "Stop flag $run_once_flag exists."
+		return 1
+	fi
+
+	if sh $run_once 2>&1; then
+		touch $run_once_flag
+		log "Executed $run_once script."
+	else
+		log "Failed to execute $run_once script."
+	fi
+}
+
+if [ -z "$MDEV" ]; then
+	log "No device name to mount!"
+	exit 1
+fi
+
+case "$ACTION" in
+	add | "")
+		do_umount
+		do_mount
 		;;
 	remove)
-		do_umount ${MDEV}
+		do_umount
 		;;
 esac
+
+exit 0
