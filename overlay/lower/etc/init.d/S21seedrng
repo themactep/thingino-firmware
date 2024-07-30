@@ -2,7 +2,7 @@
 
 . /etc/init.d/rc.common
 
-DAEMON_ARGS="-r /dev/urandom"
+DAEMON_ARGS="-d /etc/seedrng"
 
 start() {
 	starting
