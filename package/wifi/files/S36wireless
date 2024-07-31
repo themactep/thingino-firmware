@@ -39,7 +39,12 @@ start() {
 		modprobe $wlandev $wlandevopts 2>&1 | log
 	fi
 
-	sleep 1
+	m=50 # limit to 5 seconds
+	while [ "$m" -gt 0 ]; do
+		grep -q wlan0 /proc/net/wireless && break
+		m=$((m-1))
+		sleep 0.1
+	done
 
 	wlanmac=$(get wlanmac)
 	if [ -n "$wlanmac" ]; then
