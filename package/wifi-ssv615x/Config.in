@@ -1,0 +1,5 @@
+config BR2_PACKAGE_WIFI_SSV615X
+	bool "SSV615x"
+	select BR2_LINUX_KERNEL
+	help
+	  SV615X wireless driver
