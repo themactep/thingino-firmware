@@ -1,4 +1,0 @@
-# MODULE: t21n_ov2735b_rtl8188ftv
-FLASH_SIZE_8=y
-BR2_SENSOR_PARAMS="sensor_gpio_func=0"
-BR2_SDCARD=y

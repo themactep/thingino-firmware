@@ -98,7 +98,6 @@ grep -q -e "mtd6" -e "mtd5" /proc/mtd || die "Please run 'fw_setenv enable_updat
 
 info "Stop services"
 stop_service S01syslogd
-stop_service S21rngd
 stop_service S49ntpd
 stop_service S50httpd
 stop_service S60crond

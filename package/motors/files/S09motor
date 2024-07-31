@@ -69,13 +69,10 @@ start() {
 
 	if [ "true" = "$(get disable_homing)" ]; then
 		warn "Homing disabled"
-		DAEMON_ARGS="-d -p"
 	else
-		DAEMON_ARGS="-d"
+		home_motors
+		position_motors
 	fi
-
-	start_daemon
-	home_motors
 }
 
 stop() {
