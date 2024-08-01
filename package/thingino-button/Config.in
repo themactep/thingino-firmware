@@ -1,0 +1,5 @@
+config BR2_PACKAGE_THINGINO_BUTTON
+	bool "thingino-button"
+	depends on BR2_USE_MMU # fork()
+	help
+		Minimal daemon to monitor and execute commands vis button events

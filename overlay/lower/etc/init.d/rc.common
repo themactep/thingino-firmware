@@ -35,6 +35,11 @@ info() {
 	echo "$1" | log
 }
 
+info_n() {
+	echo_c 66 "$1"
+	echo "$1" | log
+}
+
 warn() {
 	echo_c 166 " $1"
 	echo "$1" | log
@@ -83,6 +88,12 @@ start_daemon() {
 stop_daemon() {
 	#FIXME do we need -s KILL?
 	start-stop-daemon -K -n $DAEMON_SHORT 2>&1 | log
+	check_result
+	[ -f $PIDFILE ] && rm -f $PIDFILE
+}
+
+stop_daemon_process() {
+	start-stop-daemon -K -x /bin/$DAEMON_SHORT 2>&1 | log
 	check_result
 	[ -f $PIDFILE ] && rm -f $PIDFILE
 }

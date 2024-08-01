@@ -29,6 +29,28 @@ FULL_KERNEL_VERSION = 3.10.14
 endif
 
 TARGET_MODULES_PATH = $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
+
+define GENERATE_GPIO_USERKEYS_CONFIG
+	gpio_userkeys_config="gpio-userkeys gpio_config="; \
+	keycode=0; \
+	first_button=28; \
+	while IFS= read -r line; do \
+		case "$$line" in \
+			gpio_button=*) \
+				gpio_num=$${line#*=}; \
+				gpio_userkeys_config="$$gpio_userkeys_config$${first_button},$${gpio_num},1;"; \
+				;; \
+			gpio_button_*=*) \
+				gpio_num=$${line#*=}; \
+				gpio_userkeys_config="$$gpio_userkeys_config$${keycode},$${gpio_num},1;"; \
+				keycode=$$((keycode + 1)); \
+				;; \
+		esac; \
+	done < $(U_BOOT_ENV_TXT); \
+	gpio_userkeys_config=$${gpio_userkeys_config%;}; \
+	echo "$$gpio_userkeys_config" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys
+endef
+
 define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_MODULES_PATH)
 	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
@@ -60,6 +82,8 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	fi
 
 	echo "sensor_$(SENSOR_MODEL)_$(SOC_FAMILY) $(BR2_SENSOR_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor
+
+	$(GENERATE_GPIO_USERKEYS_CONFIG)
 endef
 
 $(eval $(kernel-module))
