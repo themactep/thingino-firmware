@@ -69,7 +69,7 @@ fi
 </form>
 
 <script>
-function getCooridnates() {
+function getCoordinates() {
 	if ("geolocation" in navigator) {
 		navigator.geolocation.getCurrentPosition((pos) => {
 			$('#dusk2dawn_lat').value= pos.coords.latitude;
