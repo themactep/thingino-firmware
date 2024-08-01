@@ -18,8 +18,7 @@ onvif_username=$(awk -F: '/ONVIF Service/ {print $1}' /etc/passwd)
 
 # populate default values
 [ -z "$onvif_debug" ] && onvif_debug="false"
-[ -z "$onvif_password" ] && onvif_password="thingino"
-[ -z "$onvif_username" ] && onvif_username="onvif"
+[ -z "$onvif_password" ] && onvif_password="onvif"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
@@ -28,7 +27,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		sanitize "${plugin}_${p}"
 	done; unset p
 
-	# validation
 	if [ -z "$error" ]; then
 		:>$tmp_file
 		for p in $params; do
@@ -48,10 +46,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			echo "$onvif_control not found" >> /tmp/webui.log
 		fi
 
-		# create user onvif, if absent
-		if ! grep -q ^${onvif_username}: /etc/passwd >/dev/null; then
-			adduser -SH -G nobody -h /homeless -g "ONVIF Service" $onvif_username
-		fi
 		# update system password
 		echo "${onvif_username}:${onvif_password}" | chpasswd
 
@@ -86,7 +80,11 @@ fi
 <% button_submit %>
 </form>
 
+<pre class="mt-4">
+onvif://<%= $onvif_username %>:<%= $onvif_password %>@<%= $network_address %>/onvif/device_service
+</pre>
+
 <script>
-$('#onvif_username').disabled = true;
+$('#onvif_username').readOnly = true;
 </script>
 <%in p/footer.cgi %>
