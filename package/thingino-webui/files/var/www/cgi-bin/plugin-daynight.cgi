@@ -31,14 +31,21 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		done; unset p
 		mv $tmp_file $config_file
 
+		# update crontab
 		tmpfile=$(mktemp)
 		cat $CRONTABS > $tmpfile
 		sed -i '/daynight/d' $tmpfile
 		echo "# run daynight every ${daynight_interval} minutes" >> $tmpfile
-
 		[ "true" != "$daynight_enabled" ] && echo -n "#" >> $tmpfile
 		echo "1/${daynight_interval} * * * * daynight" >> $tmpfile
 		mv $tmpfile $CRONTABS
+
+		# update values in env
+		tmpfile=$(mktemp)
+		echo "day_night_min $daynight_min" >> $tmpfile
+		echo "day_night_max $daynight_max" >> $tmpfile
+		fw_setenv -s $tmpfile
+		rm $tmpfile
 
 		update_caminfo
 		redirect_back "success" "$plugin_name config updated."
@@ -60,16 +67,14 @@ fi
 <div class="row g-4 mb-4">
 <div class="col col-12 col-xl-4">
 <% field_switch "daynight_enabled" "Enable daynight script" %>
-<% field_number "daynight_min" "Switch to day mode when gain value is below" %>
-<% field_number "daynight_max" "Switch to night mode when gain value is above" %>
+<% field_number "daynight_min" "Minimum gain in night mode" %>
+<% field_number "daynight_max" "Maximum gain in day mode" %>
 <% field_number "daynight_interval" "Run every X minutes" %>
 </div>
-<div class="col col-12 col-xl-4">
-<div id="demo"></div>
-<% ex "crontab -l" %>
-</div>
-<div class="col col-12 col-xl-4">
+<div class="col col-12 col-xl-8">
+<% ex "fw_printenv | grep day_night" %>
 <% [ -f $config_file ] && ex "cat $config_file" %>
+<% ex "crontab -l" %>
 </div>
 </div>
 
