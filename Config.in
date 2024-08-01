@@ -11,6 +11,7 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_DROPBEAR
 	select BR2_PACKAGE_EXFAT_NOFUSE if BR2_SDCARD
 	select BR2_PACKAGE_INGENIC_AUDIODAEMON if BR2_AUDIO
+	select BR2_PACKAGE_THINGINO_SOUNDS if BR2_AUDIO
 	select BR2_PACKAGE_INGENIC_DIAG_TOOLS
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_INGENIC_MUSL
@@ -43,6 +44,8 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-sdk/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-pwm/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-button/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sounds/Config.in"
 endif
 
 menuconfig BR2_THINGINO_STREAMER_PACKAGES

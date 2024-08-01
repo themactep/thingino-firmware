@@ -1,0 +1,37 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+DAEMON=
+DAEMON_ARGS="-d"
+
+start() {
+	starting
+	start_daemon
+}
+
+stop() {
+	stopping
+	stop_daemon_process
+}
+
+restart() {
+	stop || true
+	sleep 1
+	reload
+}
+
+reload() {
+	start
+}
+
+case "$1" in
+	start | stop | restart | reload)
+		$1
+		;;
+	*)
+		die "Usage: $0 {start|stop|restart|reload}"
+		;;
+esac
+
+exit 0
