@@ -10,7 +10,7 @@ WIFI_SSV615X_MODULE_MAKE_OPTS = \
 	KSRC=$(LINUX_DIR)
 
 define WIFI_SSV615X_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(WIFI_SSV615X_PKGDIR)/ssv6155-usb-40M.cfg
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/wifi $(WIFI_SSV615X_PKGDIR)/files/ssv6155-usb-40M.cfg
 endef
 
 $(eval $(kernel-module))
