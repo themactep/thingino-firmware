@@ -2,6 +2,7 @@ disable_eth=true
 disable_sd=true
 enable_updates=true
 gpio_button=6
+gpio_button_front=7
 gpio_default=6i 7i 18O 38o 39o 49o 52o 53o 57O 61O 62O
 gpio_ircut=53 52
 gpio_led_b=39
