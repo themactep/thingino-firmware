@@ -1,7 +1,7 @@
 disable_eth=true
 enable_updates=true
 gpio_button=50
-gpio_button_front=8
+gpio_button_call=8
 gpio_default=25ID 26IDU
 gpio_ir850=59
 gpio_led_g=16
