@@ -32,7 +32,7 @@ TARGET_MODULES_PATH = $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qst
 
 define GENERATE_GPIO_USERKEYS_CONFIG
 	gpio_userkeys_config="gpio-userkeys gpio_config="; \
-	keycode=0; \
+	keycode=2; \
 	first_button=28; \
 	while IFS= read -r line; do \
 		case "$$line" in \
