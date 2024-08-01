@@ -16,4 +16,4 @@ gpio_wlan=10O
 motor_maxstep_h=3982
 motor_maxstep_v=1100
 wlandev=ssv6155
-wlandevopts=stacfgpath\=\/lib\/modules\/3.10.14__isvp_swan_1.0__\/ssv6155-usb-40M.cfg
+wlandevopts=stacfgpath\=\/etc\/ssv6155-usb-40M.cfg
