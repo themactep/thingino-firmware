@@ -12,7 +12,8 @@ PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-fonts ingenic-lib
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
 PRUDYNT_T_DEPENDENCIES += libwebsockets libschrift
 else
-PRUDYNT_T_DEPENDENCIES += thingino-freetype
+PRUDYNT_T_DEPENDENCIES += libwebsockets libschrift
+#PRUDYNT_T_DEPENDENCIES += thingino-freetype
 endif
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 PRUDYNT_T_DEPENDENCIES += ingenic-musl
