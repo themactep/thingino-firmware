@@ -7,8 +7,8 @@ MOTORS_LICENSE = MIT
 MOTORS_LICENSE_FILES = LICENSE
 
 define MOTORS_BUILD_CMDS
-	$(TARGET_CC) -Os -s $(@D)/motor.c -o $(@D)/motors
-	$(TARGET_CC) -Os -s $(@D)/motor-daemon.c -o $(@D)/motors-daemon
+	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(@D)/motor.c -o $(@D)/motors
+	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(@D)/motor-daemon.c -o $(@D)/motors-daemon
 endef
 
 define MOTORS_INSTALL_TARGET_CMDS
