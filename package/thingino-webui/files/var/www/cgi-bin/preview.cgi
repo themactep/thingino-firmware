@@ -6,9 +6,10 @@ page_title="Camera preview"
 rtsp_address=$network_address
 rtsp_username="$(sed -En '/^rtsp:/n/username:/{s/^.+username:\s\"(.+)";/\1/p}' /etc/prudynt.cfg)"
 rtsp_password="$(sed -En '/^rtsp:/n/password:/{s/^.+password:\s\"(.+)";/\1/p}' /etc/prudynt.cfg)"
-rtsp_port="$(sed -En '/^rtsp:/n/port:/{s/^.+port:\s(.+);/\1/p}' /etc/prudynt.cfg)"
-[ "$rtsp_port" == "554" ] && rtsp_port="" || rtsp_port=":$rtsp_port"
-rtsp_url="rtsp://${rtsp_username}:${rtsp_password}@${rtsp_address}${rtsp_port}/ch0"
+#rtsp_port="$(sed -En '/^rtsp:/n/port:/{s/^.+port:\s(.+);/\1/p}' /etc/prudynt.cfg)"
+#[ "$rtsp_port" == "554" ] && rtsp_port="" || rtsp_port=":$rtsp_port"
+#rtsp_url="rtsp://${rtsp_username}:${rtsp_password}@${rtsp_address}${rtsp_port}/ch0"
+rtsp_url="rtsp://${rtsp_username}:${rtsp_password}@${rtsp_address}/ch0"
 
 for i in "ispmode"; do
 	eval "$i=\"$(/usr/sbin/imp-control $i)\""
@@ -112,18 +113,25 @@ $$("button[data-sendto]").forEach(el => {
 	});
 });
 
-const l = document.location;
-const pimg = '/cgi-bin/mjpeg.cgi';
-const jpg = document.getElementById("preview");
+function capture() { ws.send('{"action":{"capture":null}}'); }
 
-document.addEventListener('DOMContentLoaded', loaded, false);
-
-async function loaded() {
-	while (true) {
-		await jpg.decode().catch(function() {
-			jpg.src = pimg;
-		});
-		await new Promise((resolve) => setTimeout(resolve, 5000));
+const jpg = $("#preview");
+const ws_url = 'ws://' + document.location.hostname + ':8089';
+let ws = new WebSocket(ws_url);
+ws.binaryType = 'arraybuffer';
+ws.onopen  = () => capture();
+ws.onclose = () => console.log('WebSocket connection closed');
+ws.onerror = (error) => console.error('WebSocket error', error);
+ws.onmessage = (event) => {
+	if (typeof event.data === 'string') {
+		const msg = JSON.parse(event.data);
+		const time = new Date(msg.date);
+		const timeStr = time.toLocaleTimeString();
+	} else if (event.data instanceof ArrayBuffer) {
+		const blob = new Blob([event.data], {type: 'image/jpeg'});
+		const url = URL.createObjectURL(blob);
+		jpg.src = url;
+		capture();
 	}
 }
 
