@@ -5,6 +5,16 @@
 KERNEL_MAGIC="27051956"
 U_BOOT_MAGIC="06050403"
 ROOTFS_MAGIC="68737173"
+BB_BINARY=/tmp/busybox
+
+if [ -z "$RUNNING_WITH_TMP_BUSYBOX" ]; then
+    if [ ! -f /tmp/busybox ]; then
+        cp /bin/busybox /tmp/busybox
+        cp /sbin/sysupgrade /tmp/sysupgrade
+    fi
+
+    RUNNING_WITH_TMP_BUSYBOX=1 exec /tmp/busybox sh /tmp/sysupgrade "$@"
+fi
 
 show_help() {
 	echo "Usage: $0 <filename> | [-f | -p] | <URL>
@@ -103,6 +113,7 @@ stop_service S50httpd
 stop_service S60crond
 stop_service S93telegrambot
 stop_service S95prudynt
+stop_service S96iad
 
 proclaim "Remove snapshot"
 rm -f /tmp/snapshot.jpg && check_result
@@ -123,9 +134,9 @@ echo
 
 info "Performing upgrade"
 warn "Do not turn off the power!"
-if flashcp -v $binary_file /dev/$mtd_dev; then
+if $BB_BINARY flashcp -v $binary_file /dev/$mtd_dev; then
 	echo "Rebooting..."
-	reboot -f -d 3
+	$BB_BINARY reboot -f -d 3
 	echo 1 > /proc/jz/watchdog/reset
 else
 	echo "Upgrade failed!"
