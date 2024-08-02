@@ -10,6 +10,7 @@ gpio_ircut=26 25
 gpio_mmc_cd=43
 gpio_mmc_power=48o
 gpio_speaker=63
+gpio_usb_en=47O
 gpio_wlan=62O
 ispmem=11M@0x7400000
 osmem=94M@0x0
