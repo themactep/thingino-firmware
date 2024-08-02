@@ -66,6 +66,10 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(PRUDYNT_T_PKGDIR)/files/prudyntcfg.awk > $(PRUDYNT_T_PKGDIR)/files/prudyntcfg
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/prudyntcfg $(TARGET_DIR)/usr/bin/prudyntcfg
 	rm $(PRUDYNT_T_PKGDIR)/files/prudyntcfg
+	if [ "$(BR2_PACKAGE_PRUDYNT_T_NG)" = "y" ]; then \
+	echo "Removing LD_PRELOAD command line from init script"; \
+	sed -i '/^COMMAND=/d' $(TARGET_DIR)/etc/init.d/S95prudynt; \
+	fi
 endef
 
 $(eval $(generic-package))
