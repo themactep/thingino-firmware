@@ -3,6 +3,9 @@
  * This assumes that any process updating the file will do so via renaming a
  * temporary file (rather than writing to the file directly).
  *
+ * argv[1] is the name of the file
+ * argv[2] if provided, write this as boundary for use in a MJPEG stream
+ *
  * Returns success if the entire file was sent, and failure otherwise.
  */
 #include <stdio.h>
@@ -24,11 +27,12 @@ main(int ac, char *av[])
         return EXIT_FAILURE;
     }
     char *jpeg = av[1];
-    char *boundary = ac > 2 ? av[2] : "frame";
+    char *boundary = ac > 2 ? av[2] : NULL;
     int jpegfd = open(jpeg, O_RDONLY);
     struct stat st;
     fstat(jpegfd, &st);
-    printf("--%s" CRLF, boundary);
+    if (boundary != NULL)
+        printf("--%s" CRLF, boundary);
     printf("Content-Type: image/jpeg" CRLF);
     printf("Content-Length: %jd" CRLF CRLF, (intmax_t) st.st_size);
     fflush(stdout);
