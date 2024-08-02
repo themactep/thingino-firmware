@@ -77,15 +77,6 @@ fi
 </div>
 <div class="col col-12 col-xl-8">
 
-<div class="progress-stacked mb-1">
-	<div class="progress" role="progressbar" aria-label="Nothing" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-	  <div class="progress-bar"></div>
-	</div>
-	<div class="progress day" role="progressbar" aria-label="Day mode" aria-valuenow="<%= $pb_day %>" aria-valuemin="0" aria-valuemax="100">
-	  <div class="progress-bar bg-success" style="width: 10%"></div>
-	</div>
-</div>
-
 <% ex "fw_printenv | grep day_night" %>
 <% [ -f $config_file ] && ex "cat $config_file" %>
 <% ex "crontab -l" %>
