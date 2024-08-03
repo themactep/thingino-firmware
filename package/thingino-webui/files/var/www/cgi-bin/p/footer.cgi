@@ -13,7 +13,7 @@
 </div>
 </footer>
 
-<% if [ "$debug" -ge 0 ]; then %>
+<% if [ "$debug" -gt 0 ]; then %>
 <button id="debug-button" type="button" class="btn btn-primary btn-sm m-2 float-start" data-bs-toggle="offcanvas" data-bs-target="#offcanvasDebug" aria-controls="offcanvasDebug">Debug</button>
 <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasDebug" aria-labelledby="offcanvasDebugLabel">
 <div class="offcanvas-header">

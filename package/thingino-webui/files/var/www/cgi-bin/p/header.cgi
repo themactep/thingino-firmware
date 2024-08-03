@@ -17,7 +17,7 @@ Pragma: no-cache
 <script src="/a/main.js"></script>
 </head>
 
-<body id="page-<%= $pagename %>" class="<%= ${webui_level:-user} %><% [ "$debug" -ge 0 ] && echo -n " debug" %>">
+<body id="page-<%= $pagename %>" class="<%= ${webui_level:-user} %><% [ "$debug" -gt 0 ] && echo -n " debug" %>">
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
 <div class="container">
 <a class="navbar-brand" href="status.cgi"><img alt="Image: thingino logo" width="150" src="/a/logo.svg"></a>
