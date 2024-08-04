@@ -52,7 +52,7 @@ do
 	sleep $record_interval
 
 	# Check if openRTSP process is still running
-	if [ -z $(pidof openRTSP > /dev/null) ]; then
-		terminate "openRTSP is not running"
+	if [ -z $(pidof openRTSP) ]; then
+		terminate "openRTSP is not running. Shutting down recorder"
 	fi
 done
