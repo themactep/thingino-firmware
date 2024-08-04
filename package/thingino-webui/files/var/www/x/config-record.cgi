@@ -6,7 +6,7 @@
 	plugin="record"
 	plugin_name="Local Recording"
 	page_title="Local Recording"
-	params="enabled prefix path format interval loop led_enabled led_gpio led_interval"
+	params="enabled prefix path format interval loop diskusage led_enabled led_gpio led_interval"
 
 	tmp_file=/tmp/$plugin
 
@@ -24,11 +24,6 @@
 
 		# validation
 
-		if [ -z "$record_led_gpio" ]; then
-			record_led_enabled=false
-			echo "LED GPIO PIN not defined. Disabling blink" >> /tmp/webui.log
-		fi
-
 		if [ -z "$error" ]; then
 			# Check if record path starts and ends with "/"
 			if [ -z $record_path ]; then
@@ -45,6 +40,18 @@
 					echo "record path does not end with "/". Adding" >> /tmp/webui.log
 					record_path="$record_path/"
 				fi
+			fi
+
+			# Checking if LED GPIO is defined, otherwise disable
+			if [ -z "$record_led_gpio" ]; then
+				record_led_enabled=false
+				echo "LED GPIO PIN not defined. Disabling blink" >> /tmp/webui.log
+			fi
+
+			# Check if max disk usage is defined, otherwise default to 95%
+			if [ -z "$record_diskusage" ]; then
+				record_diskusage=85
+				echo "Max Disk Usage not defined. Defaulting to 85%" >> /tmp/webui.log
 			fi
 
 			:>$tmp_file
@@ -78,6 +85,7 @@
 		[ -z "$record_format" ] && record_format=".mp4"
 		[ -z "$record_interval" ] && record_interval=60
 		[ -z "$record_loop" ] && record_loop=true
+		[ -z "$record_diskusage" ] && record_diskusage=85
 		[ -z "$record_led_enabled" ] && record_led_enabled=false
 		[ -z "$record_led_gpio" ] && record_led_gpio=$(get gpio_led_r)
 		[ -z "$record_led_interval" ] && record_led_interval=1
@@ -103,6 +111,7 @@
 			<% field_select "record_format" "Output File Format" ".mov, .mp4, .avi" %>
 			<% field_number "record_interval" "Recording Interval (seconds)" "" "How long to record in each file" %>
 			<% field_checkbox "record_loop" "Loop Recording" "Delete oldest file to make space for newer recordings"%>
+			<% field_number "record_diskusage" "Max disk space usage %" "" "How much disk space to use before stopping/ deleting old files" %>
 			<br>
 			<% button_submit %>
 		</div>

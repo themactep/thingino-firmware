@@ -51,6 +51,12 @@ if [ -z "$record_interval" ]; then
 	echo "record_interval=$record_interval" >> $RECORD_WEBUI_CONF
 fi
 
+# set default max disk usage %
+if [ -z "$record_diskusage" ]; then
+	record_diskusage=85
+	echo "record_diskusage=$record_diskusage" >> $RECORD_WEBUI_CONF
+fi
+
 # set default record looping to true
 if [ -z "$record_loop" ]; then
 	record_loop=true
