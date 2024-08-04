@@ -23,6 +23,9 @@ if [ -z "$firmware" ]; then
 	exit 1
 fi
 
+# stop services
+killall majestic httpd ntpd crond || true
+
 mtd_num=0
 needle=0
 align_block=$((32 * 1024))
