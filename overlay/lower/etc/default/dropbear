@@ -1,1 +1,0 @@
-DROPBEAR_ARGS="-k -K 300 -b /etc/issue.net"

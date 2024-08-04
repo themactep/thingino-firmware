@@ -1,12 +1,10 @@
 #!/bin/sh
 
+DAEMON_ARGS="-k -K 300 -b /etc/issue.net -R"
+
 . /etc/init.d/rc.common
 
-# Allow a few customizations from a config file
-test -r /etc/default/dropbear && . /etc/default/dropbear
-
 start() {
-	DROPBEAR_ARGS="$DROPBEAR_ARGS -R"
 	umask 077
 
 	starting
