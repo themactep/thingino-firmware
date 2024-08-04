@@ -28,6 +28,10 @@ Where:
 }
 
 stop_service() {
+	if [ ! -f "/etc/init.d/$1" ]; then
+		info "Not found"
+		return
+	fi
 	/etc/init.d/$1 stop
 }
 
