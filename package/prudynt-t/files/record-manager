@@ -1,0 +1,58 @@
+#!/bin/sh
+
+RECORD_WEBUI_CONF=/etc/webui/record.conf
+. $RECORD_WEBUI_CONF
+
+terminate() {
+	# Reset webui config record_enabled to false and print error message
+	sed -i 's/record_enabled=\"true\"/record_enabled=\"false\"/g' /etc/webui/record.conf
+	logger "$1"
+	/etc/init.d/S96record stop
+}
+
+while :
+do
+	# Check available space on save location
+	if [ -n "$(ls -A $record_path*$record_format 2>/dev/null)" ]; then
+		# If there are files in the save directory, use the last saved file size as a requirement
+		requiredSpace=$((`ls -1ltcr $record_path*$record_format | awk 'END{print $5}'` *2/1024))	# Output in kiB
+		logger "using 2x last file size of $requiredSpace"
+	else
+		# otherwise default to 150kB per second
+		requiredSpace=$((150*$record_interval))
+		logger "using estimated file size of $requiredSpace"
+	fi
+
+	availableSpace=$(df "$record_path" | awk 'END{print $4}')	# output in kiB
+	logger "available space is $availableSpace"
+
+	if [ "$availableSpace" -le "$requiredSpace" ]; then
+		# Delete oldest file if loop recording is enabled, otherwise exit with error
+		if [ "$record_loop" = "true" ]; then
+			logger "Loop recording enabled. Deleting oldest files in save location"
+			while [ "$availableSpace" -le "$requiredSpace" ]
+			do
+				oldestFile=$(ls -1tr $record_path | head -1)
+				logger "deleting $oldestFile"
+				rm "$oldestFile"
+				availableSpace=$(df "$record_path" | awk 'END{print $4}')
+				logger "availableSpace = $availableSpace"
+
+				if [ -z $(ls -A $record_path 2>/dev/null) ]; then
+					logger "Deleted all files in $record_path yet no more space!"
+					terminate "Deleted all files in $record_path yet no more space!"
+				fi
+			done
+		else
+			logger "Loop recording is disabled and not enough disk space. Exiting."
+			terminate "Loop recording is disabled and not enough disk space. Exiting."
+		fi
+	fi
+
+	sleep $record_interval
+
+	# Check if openRTSP process is still running
+	if [ -z $(pidof openRTSP > /dev/null) ]; then
+		terminate "openRTSP is not running"
+	fi
+done
