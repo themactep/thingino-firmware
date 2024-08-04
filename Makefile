@@ -11,7 +11,7 @@ endif
 
 # Camera IP address
 # shortened to just IP for convenience of running from command line
-IP ?= 192.168.1.174
+IP ?= 192.168.1.10
 CAMERA_IP_ADDRESS = $(IP)
 
 # Device of SD card
