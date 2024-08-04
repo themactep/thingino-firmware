@@ -1,0 +1,4 @@
+# MODULE: exp_t23n_sc2336_atbm6062
+FLASH_SIZE_8=y
+BR2_AUDIO=y
+BR2_SDCARD=y
