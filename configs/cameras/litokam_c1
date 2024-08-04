@@ -5,4 +5,5 @@ BR2_AVPU_VPLL=y
 BR2_ISP_CLK_220MHZ=y
 BR2_ISP_PARAMS="isp_ch0_pre_dequeue_time=20 isp_ch0_pre_dequeue_interrupt_process=0 isp_ch0_pre_dequeue_valid_lines=540 isp_day_night_switch_drop_frame_num=6"
 BR2_SENSOR_PARAMS="shvflip=1"
+BR2_AUDIO=y
 BR2_SDCARD=y
