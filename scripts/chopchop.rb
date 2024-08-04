@@ -24,32 +24,51 @@ def input_file_name
 end
 
 def address_from
-  show_usage_and_die "Start address is not set" unless ARGV[1]
+  unless ARGV[1]
+    puts "Start address is not set"
+    return
+  end
   @address_from ||= ARGV[1]
   # FIXME: process suffix
-  @address_from.to_i(16) if @address_from.start_with?('0x')
+  if @address_from.to_s.start_with?('0x')
+    @address_from=@address_from.to_i(16)
+  else
+    @address_from=@address_from.to_i
+  end
+  @address_from
 end
 
 def address_till
+  unless ARGV[2]
+    puts "Finish address is not set. Constructing..."
+  end
   @address_till ||= if ARGV[2]
     @address_till = ARGV[2]
     # FIXME: process suffix
-    @address_till.to_i(16) if @address_till.start_with?('0x')
+    if @address_till.to_s.start_with?('0x')
+      @address_till=@address_till.to_i(16)
+    else
+      @address_till=@address_till.to_i
+    end
+    @address_till
   else
     full_length
   end
 end
 
 def address_range_length
-  @address_range_lenght ||= address_till - address_from
+  @address_range_length ||= address_till - address_from
 end
 
 def full_length
+  puts "Checking full file length"
   @full_length ||= File.size(input_file_name)
   #`stat -c%s #{input_file_name}`
+  puts "-> #{@full_length}"
 end
 
 def extract_a_chunk
+  puts "#{address_from} #{address_till}"
   output_file_name = format('0x%08X-0x%08X.bin', address_from, address_till)
   `dd if=#{input_file_name} of=#{output_file_name} skip=#{address_from}B bs=#{address_range_length} count=1`
 end
@@ -140,9 +159,15 @@ end
 
 show_usage_and_die "Please provide a file name" if ARGV.empty?
 
-if ARGV[1]
+puts "input_file_name = #{input_file_name}"
+puts "address_from = #{address_from}"
+puts "address_till = #{address_till}"
+
+if @address_from
+  puts "Address range given. Extracting part."
   extract_a_chunk
 else
+  puts "No address range given. Extracting everything."
   extract_all
 end
 
