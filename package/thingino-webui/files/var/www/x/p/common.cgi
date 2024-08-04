@@ -146,7 +146,7 @@ check_file_exist() {
 }
 
 check_password() {
-	local safepage="/cgi-bin/config-webui.cgi"
+	local safepage="/x/config-webui.cgi"
 	[ "$debug" -gt 0 ] && return
 	[ -z "$REQUEST_URI" ] || [ "$REQUEST_URI" = "$safepage" ] && return
 	if [ ! -f /etc/shadow- ] || [ -z $(grep root /etc/shadow- | cut -d: -f2) ]; then

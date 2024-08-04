@@ -78,7 +78,7 @@ $('form').addEventListener('submit', event => {
 			if (startIndex < chunk.length) yield chunk.substr(startIndex);
 		} finally {
 			if ('true' === el.dataset['reboot']) {
-				window.location.href = '/cgi-bin/reboot.cgi'
+				window.location.href = '/x/reboot.cgi'
 			} else {
 				el.innerHTML += '\n--- finished ---\n';
 			}
@@ -86,7 +86,7 @@ $('form').addEventListener('submit', event => {
 		}
 	}
 	async function run() {
-		for await (let line of makeTextFileLineIterator('/cgi-bin/j/run.cgi?cmd=' + btoa(el.dataset['cmd']))) {
+		for await (let line of makeTextFileLineIterator('/x/j/run.cgi?cmd=' + btoa(el.dataset['cmd']))) {
 			const re1 = /\u001b\[1;(\d+)m/;
 			const re2 = /\u001b\[0m/;
 			line = line.replace(re1, '<span class="ansi-$1">').replace(re2, '</span>')

@@ -109,7 +109,7 @@ $$("button[data-sendto]").forEach(el => {
 		ev.preventDefault();
 		if (!confirm("Are you sure?")) return false;
 		const tgt = ev.target.dataset["sendto"];
-		xhrGet("/cgi-bin/send.cgi?to=" + tgt);
+		xhrGet("/x/send.cgi?to=" + tgt);
 	});
 });
 

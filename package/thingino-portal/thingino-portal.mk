@@ -12,9 +12,9 @@ define THINGINO_PORTAL_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/var/www-portal/ $(THINGINO_PORTAL_PKGDIR)/files/favicon.ico
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/var/www-portal/ $(THINGINO_PORTAL_PKGDIR)/files/index.html
 
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/www-portal/cgi-bin
-	$(INSTALL) -m 755 -t $(TARGET_DIR)/var/www-portal/cgi-bin/ $(THINGINO_PORTAL_PKGDIR)/files/index.cgi
-	$(INSTALL) -m 755 -t $(TARGET_DIR)/var/www-portal/cgi-bin/ $(THINGINO_PORTAL_PKGDIR)/files/portal.cgi
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/www-portal/x
+	$(INSTALL) -m 755 -t $(TARGET_DIR)/var/www-portal/x/ $(THINGINO_PORTAL_PKGDIR)/files/index.cgi
+	$(INSTALL) -m 755 -t $(TARGET_DIR)/var/www-portal/x/ $(THINGINO_PORTAL_PKGDIR)/files/portal.cgi
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/www/a
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/var/www/a $(THINGINO_PORTAL_PKGDIR)/files/bootstrap.bundle.min.js

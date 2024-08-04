@@ -1,17 +1,11 @@
-diff -Naur a/networking/httpd.c b/networking/httpd.c
---- a/networking/httpd.c	2023-07-19 20:00:29.413569385 +0200
-+++ b/networking/httpd.c	2023-07-19 20:02:07.024333868 +0200
-@@ -2406,6 +2406,13 @@
- 		}
- 		cgi_type = CGI_NORMAL;
- 	}
-+	else if (is_prefixed_with(tptr, "onvif/")) {
-+		if (tptr[6] == '\0') {
-+			/* protect listing "cgi-bin/" */
-+			send_headers_and_exit(HTTP_FORBIDDEN);
-+		}
-+		cgi_type = CGI_NORMAL;
-+	}
- #endif
+--- a/networking/httpd.c	2024-08-04 04:12:08.545455041 -0400
++++ b/networking/httpd.c	2024-08-04 04:11:05.624714131 -0400
+@@ -2399,7 +2399,7 @@
+ 	tptr = urlcopy + 1;      /* skip first '/' */
  
- 	if (urlp[-1] == '/') {
+ #if ENABLE_FEATURE_HTTPD_CGI
+-	if (is_prefixed_with(tptr, "cgi-bin/")) {
++	if (is_prefixed_with(tptr, "x/") || is_prefixed_with(tptr, "onvif/")) {
+ 		if (tptr[8] == '\0') {
+ 			/* protect listing "cgi-bin/" */
+ 			send_headers_and_exit(HTTP_FORBIDDEN);

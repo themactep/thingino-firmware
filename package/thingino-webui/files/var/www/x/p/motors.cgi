@@ -16,7 +16,7 @@
 
 <script>
 function runMotorCmd(args) {
-	fetch(`/cgi-bin/j/motor.cgi?${args}`)
+	fetch(`/x/j/motor.cgi?${args}`)
 		.then(res => res.json())
 		.then(({xpos, ypos}) => {
 			$('#ptzpos').textContent = xpos + "," + ypos;
