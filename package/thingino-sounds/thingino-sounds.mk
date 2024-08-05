@@ -7,7 +7,16 @@ endef
 
 define THINGINO_SOUNDS_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/sounds
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/sounds $(@D)/*.pcm
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/sounds $(@D)/th-chime_*.pcm
 endef
+
+
+ifeq ($(BR2_THINGINO_DEVICE_TYPE_DOORBELL),y)
+define THINGINO_SOUNDS_INSTALL_DOORBELL_FILES
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/sounds $(@D)/th-doorbell_*
+endef
+
+THINGINO_SOUNDS_INSTALL_TARGET_CMDS += THINGINO_SOUNDS_INSTALL_DOORBELL_FILES
+endif
 
 $(eval $(generic-package))
