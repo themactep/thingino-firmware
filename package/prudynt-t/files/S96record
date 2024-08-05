@@ -21,6 +21,12 @@ RECORD_WEBUI_CONF=/etc/webui/record.conf
 [ ! -f $RECORD_WEBUI_CONF ] && touch $RECORD_WEBUI_CONF
 . $RECORD_WEBUI_CONF
 
+# default debugging on
+if [ -z "$record_debug" ]; then
+	record_debug="true"
+	echo "record_debug=$record_debug" >> $RECORD_WEBUI_CONF
+fi
+
 # default to "disabled" and update config
 if [ -z "$record_enabled" ]; then
 	record_enabled="false"
@@ -35,13 +41,13 @@ fi
 
 # set default file path to mmc mount location
 if [ -z "$record_path" ]; then
-	record_path="/mnt/mmcblkp01/"
-	echo 'record_path="$record_path"' >> $RECORD_WEBUI_CONF
+	record_path="/mnt/mmcblk0p1/"
+	echo "record_path=$record_path" >> $RECORD_WEBUI_CONF
 fi
 
-# set default file format to mp4
+# set default file format to avi
 if [ -z "$record_format" ]; then
-	record_format=".mp4"
+	record_format="avi"
 	echo "record_format=$record_format" >> $RECORD_WEBUI_CONF
 fi
 
@@ -87,17 +93,17 @@ fi
 
 # Set file format
 case "$record_format" in
-	.mov)
-		format_option="-q -y -H"
+	mov)
+		format_option="-q"
 		break
 		;;
-	.avi)
-		format_option="-i"
+	mp4)
+		format_option="-4"
 		break
 		;;
 	*)
-		# Make MP4 the default
-		format_option="-4 -y -H"
+		# Make AVI the default
+		format_option="-i"
 		break
 		;;
 esac

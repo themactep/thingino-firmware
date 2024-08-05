@@ -13,22 +13,22 @@ terminate() {
 while :
 do
 	usedSpace=$(df /mnt/mmcblk0p1/ | awk 'END{print $5}' | cut -d'%' -f1)
-	logger "Used disk space is $usedSpace%"
+	[ "$record_debug" = "true" ] && logger "Used disk space is $usedSpace%"
 
 	if [ "$usedSpace" -ge "$record_diskusage" ]; then
 		# Delete oldest file if loop recording is enabled, otherwise exit with error
 		if [ "$record_loop" = "true" ]; then
-			logger "Loop recording enabled. Deleting oldest files in save location"
+			[ "$record_debug" = "true" ] && logger "Loop recording enabled. Deleting oldest files in save location"
 			while [ "$usedSpace" -ge "$record_diskusage" ]
 			do
 				oldestFile=$(ls -1tr --group-directories-first $record_path | head -1)
-				logger "deleting $oldestFile"
+				[ "$record_debug" = "true" ] && logger "deleting $oldestFile"
 				rm "$oldestFile"
 				usedSpace=$(df /mnt/mmcblk0p1/ | awk 'END{print $5}' | cut -d'%' -f1)
-				logger "Used disk space is $usedSpace%"
+				[ "$record_debug" = "true" ] && logger "Used disk space is $usedSpace%"
 
 				if [ -z $(ls -A $record_path 2>/dev/null) ]; then
-					logger "Deleted all files in $record_path yet no more space!"
+					[ "$record_debug" = "true" ] && logger "Deleted all files in $record_path yet no more space!"
 					terminate "Deleted all files in $record_path yet no more space!"
 				fi
 			done
