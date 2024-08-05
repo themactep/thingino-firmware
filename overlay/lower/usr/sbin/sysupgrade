@@ -114,7 +114,7 @@ info "Stop services"
 stop_service S01syslogd
 stop_service S49ntpd
 stop_service S50httpd
-stop_service S60crond
+stop_service S50crond
 stop_service S93telegrambot
 stop_service S95prudynt
 stop_service S96iad
