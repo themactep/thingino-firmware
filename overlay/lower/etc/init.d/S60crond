@@ -1,8 +1,8 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
-
 DAEMON_ARGS="-f -c /etc/crontabs"
+
+. /etc/init.d/rc.common
 
 start() {
 	starting

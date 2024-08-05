@@ -2,10 +2,8 @@
 
 . /etc/init.d/rc.common
 
-# Path to the GPIO configuration file
 CONFIG_FILE="/etc/gpio.conf"
 
-# Function to process GPIO commands
 process_gpio_command() {
 	case "$1" in
 		set)
@@ -22,7 +20,6 @@ process_gpio_command() {
 	return 0
 }
 
-# Function to process ingenic commands
 process_ingenic_command() {
 	# Calculate the group and pin from the GPIO number
 	group=$(($1 / 32))

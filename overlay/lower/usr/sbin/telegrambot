@@ -3,7 +3,7 @@
 plugin="telegrambot"
 
 if [ -z "$(command -v jsonfilter)" ]; then
-	echo "${plugin} is not supported on this platform, missing jsonfilter."
+	echo "$plugin is not supported on this platform, missing jsonfilter."
 	exit 99
 fi
 

@@ -5,6 +5,8 @@ if [ "$0" = "-sh" ]; then
 	return
 fi
 
+debug=$(get debug)
+
 DAEMON=${DAEMON:-$0}
 DAEMON_ARGS=${DAEMON_ARGS:-}
 DAEMON_PATH="/bin"
@@ -13,12 +15,12 @@ DAEMON_FULL="$(which $DAEMON_SHORT)"
 PIDFILE="/run/$DAEMON_SHORT.pid"
 
 die() {
-	[ -z "$1" ] || echo_c 88 "$1"
+	[ -z "$1" ] || echo_c 124 " $1"
 	exit 1
 }
 
 quit() {
-	[ -z "$1" ] || echo_c 30 "$1"
+	[ -z "$1" ] || echo_c 66 " $1"
 	exit 0
 }
 

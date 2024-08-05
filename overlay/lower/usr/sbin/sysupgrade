@@ -51,7 +51,7 @@ while getopts "fhp" flag; do
 done
 [ -z "$upgrade" ] && upgrade="local"
 
-shift $(($OPTIND - 1))
+shift $((OPTIND-1))
 
 if [ "local" = "$upgrade" ]; then
 	[ -z "$1" ] && { show_help; exit 1; }

@@ -125,17 +125,14 @@ BUILD_TIME = $(shell awk -F ':' 'NR==1{a=$$1} END{b=$$1} END {print (b-a)/60" mi
  	upload_tftp upload_sdcard upgrade_ota br-%
 
 all: build pack
-	$(info -------------------> all)
 	@$(FIGLET) "FINE [$(BUILD_TIME)]"
 	@$(FIGLET) $(CAMERA)
 
 # install prerequisites
 bootstrap:
-	$(info -------------------> bootstrap)
 	$(SCRIPTS_DIR)/dep_check.sh
 
 build: defconfig
-	$(info -------------------> build)
 	@$(FIGLET) $(CAMERA)
 	$(BR2_MAKE) all
 
@@ -145,7 +142,6 @@ FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(MODULE_CO
 
 # Assemble config from bits and pieces
 prepare_config: buildroot/Makefile
-	$(info -------------------> prepare_config)
 	# create output directory
 	$(info * make OUTPUT_DIR $(OUTPUT_DIR))
 	mkdir -p $(OUTPUT_DIR)
@@ -172,48 +168,37 @@ endif
 
 # Configure buildroot for a particular board
 defconfig: prepare_config
-	$(info -------------------> defconfig)
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 	# $(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) defconfig
 
-select-device:
-	$(info -------------------> select-device)
+# select-device:
 
 # Call configurator UI
 menuconfig: $(OUTPUT_DIR)/.config
-	$(info -------------------> menuconfig)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) menuconfig
 
 # Permanently save changes to the defconfig
 saveconfig:
-	$(info -------------------> saveconfig)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) savedefconfig
 
 ### Files
 
 clean:
-	$(info -------------------> clean)
 	rm -rf $(OUTPUT_DIR)/target
 
 cleanbuild: distclean all
-	$(info -------------------> cleanbuild)
 
 distclean:
-	$(info -------------------> distclean)
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
 delete_bin_full:
-	$(info -------------------> delete_bin_full)
-	$(info -------------------> delete_bin_full)
 	if [ -f $(FIRMWARE_BIN_FULL) ]; then rm $(FIRMWARE_BIN_FULL); fi
 
 delete_bin_update:
-	$(info -------------------> delete_bin_update)
 	if [ -f $(FIRMWARE_BIN_NOBOOT) ]; then rm $(FIRMWARE_BIN_NOBOOT); fi
 
 create_overlay: $(U_BOOT_BIN)
-	$(info -------------------> create_overlay)
 	if [ $(OVERLAY_SIZE) -lt 0 ]; then $(FIGLET) "OVERSIZE"; fi
 	if [ -f $(OVERLAY_BIN) ]; then rm $(OVERLAY_BIN); fi
 	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --pad=$(OVERLAY_SIZE) \
@@ -221,30 +206,24 @@ create_overlay: $(U_BOOT_BIN)
 		--output=$(OVERLAY_BIN) --squash
 
 pack: pack_full pack_update
-	$(info -------------------> pack)
 
 pack_full: $(FIRMWARE_BIN_FULL)
-	$(info -------------------> pack_full)
 	$(info FIRMWARE_BIN_FULL_SIZE:   $(FIRMWARE_BIN_FULL_SIZE))
 	$(info FIRMWARE_FULL_SIZE:       $(FIRMWARE_FULL_SIZE))
 	if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FIRMWARE_FULL_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
 
 pack_update: $(FIRMWARE_BIN_NOBOOT)
-	$(info -------------------> pack_update)
 	$(info FIRMWARE_BIN_NOBOOT_SIZE: $(FIRMWARE_BIN_NOBOOT_SIZE))
 	$(info FIRMWARE_NOBOOT_SIZE:     $(FIRMWARE_NOBOOT_SIZE))
 	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(FIRMWARE_NOBOOT_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
 
 reconfig:
-	$(info -------------------> reconfig)
 	rm -rvf $(OUTPUT_DIR)/.config
 
 rebuild-%: defconfig
-	$(info -------------------> rebuild-%)
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
 
 sdk: defconfig
-	$(info -------------------> sdk)
 ifeq ($(GCC),12)
 	sed -i 's/^BR2_TOOLCHAIN_EXTERNAL_GCC_13=y/# BR2_TOOLCHAIN_EXTERNAL_GCC_13 is not set/' $(OUTPUT_DIR)/.config; \
 	sed -i 's/^# BR2_TOOLCHAIN_EXTERNAL_GCC_12 is not set/BR2_TOOLCHAIN_EXTERNAL_GCC_12=y/' $(OUTPUT_DIR)/.config; \
@@ -254,30 +233,24 @@ endif
 	$(BR2_MAKE) sdk
 
 source: defconfig
-	$(info -------------------> source)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source
 
 toolchain: defconfig
-	$(info -------------------> sdk)
 	$(BR2_MAKE) sdk
 
 update_ota: $(FIRMWARE_BIN_NOBOOT)
-	$(info -------------------> update_ota)
 	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_NOBOOT) $(CAMERA_IP_ADDRESS)
 
 # upgrade firmware using /tmp/ directory of the camera
 upgrade_ota: $(FIRMWARE_BIN_FULL)
-	$(info -------------------> upgrade_ota)
 	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_FULL) $(CAMERA_IP_ADDRESS)
 
 # upload firmware to tftp server
 upload_tftp: $(FIRMWARE_BIN_FULL)
-	$(info -------------------> upload_ftp)
 	busybox tftp -l $(FIRMWARE_BIN_FULL) -r $(FIRMWARE_NAME_FULL) -p $(TFTP_IP_ADDRESS)
 
 # upload firmware to an sd card
 upload_sdcard: $(FIRMWARE_BIN_FULL)
-	$(info -------------------> upload_sdcard)
 	cp -vf $(FIRMWARE_BIN_FULL) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')/autoupdate-full.bin
 	sync
 	umount $(SDCARD_DEVICE)1
@@ -287,48 +260,39 @@ upload_sdcard: $(FIRMWARE_BIN_FULL)
 
 # delete all build/{package} and per-package/{package} files
 br-%-dirclean:
-	$(info -------------------> br-%-dirclean)
 	rm -rf $(OUTPUT_DIR)/per-package/$(subst -dirclean,,$(subst br-,,$@)) \
 		$(OUTPUT_DIR)/build/$(subst -dirclean,,$(subst br-,,$@))* \
 		$(OUTPUT_DIR)/target
 	#  \ sed -i /^$(subst -dirclean,,$(subst br-,,$@))/d $(OUTPUT_DIR)/build/packages-file-list.txt
 
 br-%:
-	$(info -------------------> br-%)
 	$(BR2_MAKE) $(subst br-,,$@)
 
 buildroot/Makefile:
-	$(info -------------------> buildroot/Makefile)
 	git submodule init
 	git submodule update --depth 1 --recursive
 
 # create output directory
 $(OUTPUT_DIR):
-	$(info -------------------> $$(OUTPUT_DIR))
 	mkdir -p $(OUTPUT_DIR)
 
 # configure build
 $(OUTPUT_DIR)/.config: defconfig
-	$(info -------------------> $$(OUTPUT_DIR)/.config)
 
 # create source directory
 $(SRC_DIR):
-	$(info -------------------> $$(SRC_DIR))
 	mkdir -p $(SRC_DIR)
 
 # download bootloader
 $(U_BOOT_BIN):
-	$(info -------------------> $$(U_BOOT_BIN))
 	$(info U_BOOT_BIN $(U_BOOT_BIN) not found!)
 	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL_LESS_Z).bin
 
 $(U_BOOT_ENV_BIN):
-	$(info -------------------> $$(U_BOOT_ENV_BIN))
 	mkenvimage -s $(U_BOOT_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_FINAL_TXT)
 
 # rebuild Linux kernel
 $(KERNEL_BIN):
-	$(info -------------------> $$(KERNEL_BIN))
 	$(info KERNEL_BIN:            $@)
 	$(info KERNEL_BIN_SIZE:       $(KERNEL_BIN_SIZE))
 	$(info KERNEL_PARTITION_SIZE: $(KERNEL_PARTITON_SIZE))
@@ -337,7 +301,6 @@ $(KERNEL_BIN):
 
 # rebuild rootfs
 $(ROOTFS_BIN):
-	$(info -------------------> $$(ROOTFS_BIN))
 	$(info ROOTFS_BIN:            $@)
 	$(info ROOTFS_BIN_SIZE:       $(ROOTFS_BIN_SIZE))
 	$(info ROOTFS_PARTITION_SIZE: $(ROOTFS_PARTITION_SIZE))
@@ -345,18 +308,15 @@ $(ROOTFS_BIN):
 
 # create .tar file of rootfs
 $(ROOTFS_TAR):
-	$(info -------------------> $$(ROOTFS_TAR))
 	$(info ROOTFS_TAR:          $@)
 	$(BR2_MAKE) all
 
 $(OVERLAY_BIN): create_overlay
-	$(info -------------------> $$(OVERLAY_BIN))
 	$(info OVERLAY_BIN:         $@)
 	$(info OVERLAY_BIN_SIZE:    $(OVERLAY_BIN_SIZE))
 	$(info OVERLAY_OFFSET:      $(OVERLAY_OFFSET))
 
 $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
-	$(info -------------------> $$(FIRMWARE_BIN_FULL))
 	$(info $(shell printf "%-10s | %8s | %9s | %9s |" PARTITION SIZE OFFSET END))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" U_BOOT $(U_BOOT_BIN_SIZE) $(U_BOOT_OFFSET) $$(($(U_BOOT_OFFSET) + $(U_BOOT_BIN_SIZE)))))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" U_BOOT_ENV $(U_BOOT_ENV_BIN_SIZE) $(U_BOOT_ENV_OFFSET) $$(($(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_BIN_SIZE)))))
@@ -377,7 +337,6 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN
 	fi
 
 $(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
-	$(info -------------------> $$(FIRMWARE_BIN_NOBOOT))
 	$(info $(shell printf "%-10s | %8s | %9s | %9s |" PARTITION SIZE OFFSET END))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" KERNEL $(KERNEL_BIN_SIZE) $(KERNEL_OFFSET) $$(($(KERNEL_OFFSET) + $(KERNEL_BIN_SIZE)))))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" ROOTFS $(ROOTFS_BIN_SIZE) $(ROOTFS_OFFSET) $$(($(ROOTFS_OFFSET) + $(ROOTFS_BIN_SIZE)))))
