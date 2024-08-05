@@ -112,12 +112,16 @@ grep -q -e "mtd6" -e "mtd5" /proc/mtd || die "Please run 'fw_setenv enable_updat
 
 info "Stop services"
 stop_service S01syslogd
+stop_service S15thingino-button
 stop_service S49ntpd
 stop_service S50httpd
 stop_service S50crond
+stop_service S50mdnsd
+stop_service S50mosquitto
 stop_service S93telegrambot
 stop_service S95prudynt
 stop_service S96iad
+stop_service S96onvif
 
 info "Remove snapshot"
 run "rm -f /tmp/snapshot.jpg"
