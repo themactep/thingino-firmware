@@ -88,7 +88,6 @@ export_pin() {
 			true
 		else
 			echo_c 31 "pin $pin is busy"
-			exit 1
 		fi
 	fi
 }
@@ -194,7 +193,7 @@ get_pin_value() {
 
 		if [ -f "${pin_dir}/value" ]; then
 			value=$(cat "${pin_dir}/value")
-			# echo_c 34 "${pin}\t${direction}\t${value}"
+			echo_c 34 "${pin}\t${direction}\t${value}"
 		else
 			echo_c 31 "${pin_dir}/value not found"
 		fi
