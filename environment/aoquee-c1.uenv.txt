@@ -1,0 +1,14 @@
+day_night_max=15000
+day_night_min=500
+disable_eth=true
+enable_updates=true
+gpio_button=38
+gpio_ir850=46
+gpio_ircut=57 58
+gpio_led_b=48
+gpio_led_w=60
+gpio_mmc_cd=50
+gpio_speaker=39
+gpio_wlan=47o
+wlandev=atbm6062u
+wlandevopts=atbm_printk_mask=0
