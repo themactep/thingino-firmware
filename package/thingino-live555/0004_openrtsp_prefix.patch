@@ -8,37 +8,17 @@
  
  #if defined(__WIN32__) || defined(_WIN32)
  #define snprintf _snprintf
-@@ -995,17 +996,22 @@ void createOutputFiles(char const* periodicFilenameSuffix) {
- }
- 
- void createPeriodicOutputFiles() {
+@@ -997,5 +998,9 @@ void createPeriodicOutputFiles() {
 -  // Create a filename suffix that notes the time interval that's being recorded:
 -  char periodicFileNameSuffix[100];
 -  snprintf(periodicFileNameSuffix, sizeof periodicFileNameSuffix, "-%05d-%05d",
 -	   fileOutputSecondsSoFar, fileOutputSecondsSoFar + fileOutputInterval);
--  createOutputFiles(periodicFileNameSuffix);
--
--  // Schedule an event for writing the next output file:
--  periodicFileOutputTask
--    = env->taskScheduler().scheduleDelayedTask(fileOutputInterval*1000000,
--					       (TaskFunc*)periodicFileOutputTimerHandler,
--					       (void*)NULL);
 +    time_t now = time(NULL);
 +    struct tm *tm_struct = localtime(&now);
-+    int secondsToNextMinute = 60 - tm_struct->tm_sec; // Calculate seconds to next minute
 +    char periodicFileNameSuffix[200];
 +
 +    snprintf(periodicFileNameSuffix, sizeof periodicFileNameSuffix, "%04d-%02d-%02d_%02d-%02d-%05d-%05d",
 +             tm_struct->tm_year + 1900, tm_struct->tm_mon + 1, tm_struct->tm_mday,
 +             tm_struct->tm_hour, tm_struct->tm_min,
 +             fileOutputSecondsSoFar, fileOutputSecondsSoFar + fileOutputInterval);
-+
-+    createOutputFiles(periodicFileNameSuffix);
-+
-+    // Initially delay to align with the next full minute, then schedule at regular intervals
-+    periodicFileOutputTask = env->taskScheduler().scheduleDelayedTask(secondsToNextMinute * 1000000,
-+                                                                       (TaskFunc*)periodicFileOutputTimerHandler,
-+                                                                       (void*)NULL);
  }
- 
- void setupStreams() {
