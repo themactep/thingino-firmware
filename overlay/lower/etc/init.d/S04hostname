@@ -23,7 +23,7 @@ update_hostname() {
 update_hosts() {
 	if [ "$hostname" != "$(sed -nE "s/^127.0.1.1\t(.*)$/\1/p" $FILE_HOSTS)" ]; then
 		info "Update $FILE_HOSTS"
-		run "sed -i \"/^127.0.1.1/s/\t.*$/\t$hostname/\" $FILE_HOSTS"
+		run "sed -i /^127.0.1.1/s/\t.*$/\t$hostname/ $FILE_HOSTS"
 	fi
 }
 

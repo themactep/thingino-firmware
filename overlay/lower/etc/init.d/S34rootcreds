@@ -58,6 +58,7 @@ restore_root_sshkey() {
 load_saved_creds
 case "$1" in
 	start)
+		starting
 		if [ -s "${KEYFILE_PATH}" ]; then
 			if [ "x$root_ssh_saved" != "x${root_ssh_cur}" ]; then
 				save_root_sshkey
@@ -77,7 +78,7 @@ case "$1" in
 				restore_root_password
 			fi
 		fi
-
+		ok
 		;;
 	status | stop | restart)
 		true

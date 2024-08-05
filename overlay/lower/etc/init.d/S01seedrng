@@ -7,8 +7,7 @@ DAEMON_ARGS="-d /etc/seedrng"
 case "$1" in
         start | stop | restart | reload)
         	starting
-                $DAEMON_FULL $DAEMON_ARGS | log
-                check_result
+                start_daemon_with_pid
                 ;;
         *)
                 echo "Usage: $0 {start|stop|restart|reload}"
