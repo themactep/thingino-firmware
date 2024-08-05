@@ -1,0 +1,14 @@
+#! /bin/sh
+
+. /etc/init.d/rc.common
+
+case "$1" in
+        start | stop | restart | reload)
+        	starting
+                $DAEMON_FULL $DAEMON_ARGS | log
+                check_result
+                ;;
+        *)
+                echo "Usage: $0 {start|stop|restart|reload}"
+                exit 1
+esac
