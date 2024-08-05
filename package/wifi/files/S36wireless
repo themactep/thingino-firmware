@@ -3,7 +3,7 @@
 . /etc/init.d/rc.common
 
 start() {
-	starting_batch
+	starting
 
 	wlandev="$(get wlandev)"
 	if [ -z "$wlandev" ]; then
