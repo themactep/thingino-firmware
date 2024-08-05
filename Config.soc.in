@@ -352,6 +352,19 @@ config KERNEL_VERSION_4
 	bool "Kernel 4.4.94"
 endchoice
 
+choice
+	prompt "Device type"
+config BR2_THINGINO_DEVICE_TYPE_IPCAM
+	default y
+	bool "IP-Camera"
+	help
+	   Specifies the device type as a Camera and installs configurations specific to this type.
+config BR2_THINGINO_DEVICE_TYPE_DOORBELL
+	bool "Doorbell"
+	help
+	   Specifies the device type as a Doorbell and installs configurations specific to this type.
+endchoice
+
 config U_BOOT_ENV_TXT
 	string "Path to U-Boot environment text file"
 	help

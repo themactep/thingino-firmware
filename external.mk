@@ -690,6 +690,9 @@ export BR2_MOTORS
 export BR2_MOTORS_TCU
 export BR2_MOTORS_SPI
 
+export BR2_THINGINO_DEVICE_TYPE_IPCAM
+export BR2_THINGINO_DEVICE_TYPE_DOORBELL
+
 ifneq ($(BR2_SOC_INGENIC_DUMMY),y)
 # include makefiles from packages
 include $(sort $(wildcard $(BR2_EXTERNAL)/package/*/*.mk))
