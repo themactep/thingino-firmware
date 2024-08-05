@@ -14,6 +14,8 @@ DAEMON_SHORT=$(basename "${DAEMON%% *}" | sed -r 's/^[KS]\d{2}//')
 DAEMON_FULL="$(which $DAEMON_SHORT)"
 PIDFILE="/run/$DAEMON_SHORT.pid"
 
+[ -r "/etc/default/$DAEMON_SHORT" ] && . "/etc/default/$DAEMON_SHORT"
+
 die() {
 	[ -z "$1" ] || echo_c 124 " $1"
 	exit 1
