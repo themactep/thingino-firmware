@@ -24,6 +24,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/var
 	cp -rv $(THINGINO_WEBUI_PKGDIR)/files/var/www $(TARGET_DIR)/var/
+
+	rm -r $(TARGET_DIR)/var/www/.idea
 endef
 
 $(eval $(generic-package))
