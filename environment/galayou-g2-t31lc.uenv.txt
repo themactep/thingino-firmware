@@ -1,3 +1,5 @@
+day_night_max=15000
+day_night_min=500
 disable_eth=true
 enable_updates=true
 gpio_default=6O 7o 8O 9O 10o 11o 14i 17i 18O 49i 50o 51o 52o 53o 54o 60O 61o 62o 63o 64o

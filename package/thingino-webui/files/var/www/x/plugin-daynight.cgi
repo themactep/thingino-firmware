@@ -57,7 +57,7 @@ else
 
 	# Default values
 	[ -z "$daynight_min" ] && daynight_min=500
-	[ -z "$daynight_max" ] && daynight_max=100000
+	[ -z "$daynight_max" ] && daynight_max=15000
 	[ -z "$daynight_interval" ] && daynight_interval=1
 
 	maxgain=131072
@@ -76,6 +76,15 @@ fi
 <% field_number "daynight_interval" "Run every X minutes" %>
 </div>
 <div class="col col-12 col-xl-8">
+
+<div class="progress-stacked mb-1">
+	<div class="progress" role="progressbar" aria-label="Nothing" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+		<div class="progress-bar"></div>
+	</div>
+	<div class="progress day" role="progressbar" aria-label="Day mode" aria-valuenow="<%= $pb_day %>" aria-valuemin="0" aria-valuemax="100">
+		<div class="progress-bar bg-success" style="width: 10%"></div>
+	</div>
+</div>
 
 <% ex "fw_printenv | grep day_night" %>
 <% [ -f $config_file ] && ex "cat $config_file" %>

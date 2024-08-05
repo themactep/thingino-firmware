@@ -1,5 +1,5 @@
 day_night_max=15000
-day_night_min=5000
+day_night_min=500
 enable_updates=true
 gpio_default=18O 57o 58o
 gpio_ircut=57 58

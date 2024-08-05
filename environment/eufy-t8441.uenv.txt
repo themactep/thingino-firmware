@@ -1,5 +1,5 @@
 day_night_max=15000
-day_night_min=5000
+day_night_min=500
 gpio_default=6O 7o 8i 10i 11i 17O 18O 48O 49o 50o 58i 59o 61o 62o
 gpio_default_net=72
 gpio_ir850=60

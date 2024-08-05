@@ -1,8 +1,8 @@
+day_night_max=15000
+day_night_min=500
 disable_eth=false
 disable_homing=true
 enable_updates=true
-day_night_max=15000
-day_night_min=5000
 gpio_button=59
 gpio_default=18O 39o 40o 41o 42o 43o 45o 46o 48o 52i 59i 63O 78O 79o 80o 81o 82o
 gpio_ir850=81
