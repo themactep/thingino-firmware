@@ -5,13 +5,13 @@
 case "$1" in
 	start)
 		starting
-		ifup -a 2>&1 | log
+		run "ifup -a"
 		check_result
 		;;
 
 	stop)
 		stopping
-		ifdown -a 2>&1 | log
+		run "ifdown -a"
 		check_result
 		;;
 

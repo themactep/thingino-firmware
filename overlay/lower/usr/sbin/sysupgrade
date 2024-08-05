@@ -119,20 +119,20 @@ stop_service S93telegrambot
 stop_service S95prudynt
 stop_service S96iad
 
-proclaim "Remove snapshot"
-rm -f /tmp/snapshot.jpg && check_result
+info "Remove snapshot"
+run "rm -f /tmp/snapshot.jpg"
 
-proclaim "Drop caches"
-echo "3" > /proc/sys/vm/drop_caches && check_result
+info "Drop caches"
+run "echo 3 > /proc/sys/vm/drop_caches"
 
-proclaim "Sync changes"
-sync && check_result
+info "Sync changes"
+run "sync"
 
-proclaim "Unmount overlay"
-umount /overlay && check_result
+info "Unmount overlay"
+run "umount /overlay"
 
-proclaim "Unmount roots"
-umount / && check_result
+info "Unmount roots"
+run "umount /"
 
 echo
 

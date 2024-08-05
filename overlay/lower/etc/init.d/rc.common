@@ -17,12 +17,12 @@ PIDFILE="/run/$DAEMON_SHORT.pid"
 [ -r "/etc/default/$DAEMON_SHORT" ] && . "/etc/default/$DAEMON_SHORT"
 
 die() {
-	[ -z "$1" ] || echo_c 124 " $1"
+	[ -z "$1" ] || echo_c 124 "$1"
 	exit 1
 }
 
 quit() {
-	[ -z "$1" ] || echo_c 66 " $1"
+	[ -z "$1" ] || echo_c 66 "$1"
 	exit 0
 }
 
@@ -35,7 +35,7 @@ fail() {
 }
 
 info() {
-	echo_c 66 " $1"
+	[ "0$debug" -gt 0 ] && echo_c 66 "$1"
 	echo "$1" | log
 }
 
@@ -45,32 +45,23 @@ info_n() {
 }
 
 warn() {
-	echo_c 166 " $1"
+	echo_c 166 "$1"
 	echo "$1" | log
 }
 
-proclaim() {
-	printf "%-35s" "$1"
-}
-
-proclaim_n() {
-	printf "\n%-35s" "$1"
+run() {
+	[ "0$debug" -gt 0 ] && echo_c 144 "$1"
+	$1 2>&1 | log
 }
 
 starting() {
-	proclaim "Starting ${1:-$DAEMON_SHORT}"
-}
-
-starting_batch() {
-	echo "Starting ${1:-$DAEMON_SHORT} ..."
+	echo -n "Starting ${1:-$DAEMON_SHORT}"
+	[ "0$debug" -gt 0 ] && echo " ..." || echo -n ": "
 }
 
 stopping() {
-	proclaim "Stopping ${1:-$DAEMON_SHORT}"
-}
-
-stopping_batch() {
-	echo "Stopping ${1:-$DAEMON_SHORT} ..."
+	echo -n "Stopping ${1:-$DAEMON_SHORT}"
+	[ "0$debug" -gt 0 ] && echo " ..." || echo -n ": "
 }
 
 log() {
@@ -78,26 +69,28 @@ log() {
 }
 
 check_result() {
-	[ "$?" -eq 0 ] && ok || fail
+	local res=$?
+#	[ "0$debug" -gt 0 ] && return
+	[ "$res" -eq 0 ] && ok || fail
 }
 
 start_daemon() {
 	local command="${COMMAND:-$DAEMON_FULL}"
 	[ -n "$DAEMON_ARGS" ] && command="$command $DAEMON_ARGS"
 	command="${command/ / -- }"
-	start-stop-daemon -b -S -x $command 2>&1 | log
+	run "start-stop-daemon -b -S -x $command"
 	check_result
 }
 
 stop_daemon() {
 	#FIXME do we need -s KILL?
-	start-stop-daemon -K -n $DAEMON_SHORT 2>&1 | log
+	run "start-stop-daemon -K -n $DAEMON_SHORT"
 	check_result
 	[ -f $PIDFILE ] && rm -f $PIDFILE
 }
 
 stop_daemon_process() {
-	start-stop-daemon -K -x /bin/$DAEMON_SHORT 2>&1 | log
+	start-stop-daemon -K -x $DAEMON_FULL 2>&1 | log
 	check_result
 	[ -f $PIDFILE ] && rm -f $PIDFILE
 }
@@ -106,12 +99,12 @@ start_daemon_with_pid() {
 	local command="${COMMAND:-$DAEMON_FULL}"
 	[ -n "$DAEMON_ARGS" ] && command="$command $DAEMON_ARGS"
 	command="${command/ / -- }"
-	start-stop-daemon -b -m -S -p $PIDFILE -x $command 2>&1 | log
+	run "start-stop-daemon -b -m -S -p $PIDFILE -x $command"
 	check_result
 }
 
 stop_daemon_with_pid() {
-	start-stop-daemon -K -p $PIDFILE 2>&1 | log
+	run "start-stop-daemon -K -p $PIDFILE"
 	check_result
 	[ -f $PIDFILE ] && rm -f $PIDFILE
 }

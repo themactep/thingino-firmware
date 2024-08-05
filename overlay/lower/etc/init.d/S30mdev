@@ -5,8 +5,8 @@
 case "$1" in
 	start)
 		starting
-		echo /sbin/mdev > /proc/sys/kernel/hotplug
-		/sbin/mdev -s
+		run "echo /sbin/mdev > /proc/sys/kernel/hotplug"
+		run "/sbin/mdev -s"
 		check_result
 		;;
 	stop | restart | reload)

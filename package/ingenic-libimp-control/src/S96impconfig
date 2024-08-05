@@ -5,39 +5,44 @@
 config="/etc/imp.conf"
 
 check_imp() {
-	proclaim " Connecting to libimp-control"
-	is_streamer_disabled && quit "Streamer disabled"
 	local soc=$(soc -f)
+	local isp_path
 	if [ "$soc" = "t10" ] || [ "$soc" = "t20" ]; then
 		isp_path="/proc/jz/isp/isp_info"
 	else
 		isp_path="/proc/jz/isp/isp-fs"
 	fi
 
-	local i=0
-	while :; do
+	echo -n "Connecting to libimp-control: "
+	local i=10
+	while [ "$i" -gt 0 ]; do
 		if grep -Eq "running|Software" $isp_path; then
-			imp-control getdeviceid > /dev/null && ok && return
+			run "imp-control getdeviceid > /dev/null"
+			check_result
+			return
 		fi
-		i=$((i + 1))
+		i=$((i-1))
 		sleep 1
-		[ $i -gt 10 ] && die fail && die
 	done
+	die "Timeout. Cannot connect to libimp-control."
 }
 
 restore_config() {
-	proclaim " Restoring IMP Configuration: "
+	echo -n "Restoring IMP Configuration: "
 	[ -f "$config" ] || quit "Nothing to restore"
+
 	while read -r line; do
-		echo -e " * $line"
-		imp-control $line > /dev/null
+		run "imp-control $line > /dev/null"
 	done < $config
+	check_result
 }
 
 start() {
-	starting_batch
-        check_imp
-        restore_config
+	starting
+	is_streamer_disabled && quit "Streamer disabled" || ok
+
+	check_imp
+	restore_config
 }
 
 case "$1" in

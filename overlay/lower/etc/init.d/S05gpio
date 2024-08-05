@@ -7,10 +7,10 @@ CONFIG_FILE="/etc/gpio.conf"
 process_gpio_command() {
 	case "$1" in
 		set)
-			gpio set "$2"
+			run "gpio set \"$2\""
 			;;
 		clear)
-			gpio clear "$2"
+			run "gpio clear \"$2\""
 			;;
 		*)
 			echo "Invalid GPIO command"
@@ -31,7 +31,7 @@ process_ingenic_command() {
 	# The rest of the arguments are passed as-is
 	shift 1 # Remove the first argument (gpio_num) before passing to ingenic-gpio
 
-	ingenic-gpio "p$group_letter$pin" "$@"
+	run "ingenic-gpio \"p$group_letter$pin\" \"$@\""
 	return 0
 }
 

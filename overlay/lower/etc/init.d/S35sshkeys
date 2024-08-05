@@ -6,19 +6,19 @@ DROPBEAR_KEY="/etc/dropbear/dropbear_ed25519_host_key"
 SSHKEY_ENV=$(get sshkey_ed25519)
 
 generate_keys() {
-	dropbearkey -t ed25519 -f $DROPBEAR_KEY 2>&1 | log
-	log "Generated dropbear host keys."
+	run "dropbearkey -t ed25519 -f $DROPBEAR_KEY"
+	info "Generated dropbear host keys."
 }
 
 restore_keys() {
-	echo "$SSHKEY_ENV" | base64 -d | gzip -d > $DROPBEAR_KEY
-	log "SSH Key restored."
+	run "echo \"$SSHKEY_ENV\" | base64 -d | gzip -d > $DROPBEAR_KEY"
+	info "SSH Key restored."
 }
 
 save_keys() {
 	SSHKEY_ENV=$(gzip -c $DROPBEAR_KEY | base64 | tr -d '\n')
-	fw_setenv sshkey_ed25519 "$SSHKEY_ENV"
-	log "SSH key backed up."
+	run "fw_setenv sshkey_ed25519 \"$SSHKEY_ENV\""
+	info "SSH key backed up."
 }
 
 case "$1" in

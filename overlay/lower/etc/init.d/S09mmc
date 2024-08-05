@@ -13,14 +13,25 @@ MMC_GPIO_PWR=$(get gpio_mmc_power)
 # Default CD-PIN for Ingenic PB27 (GPIO59)
 [ -z "$MMC_GPIO_CD" ] && MMC_GPIO_CD="59"
 
-set_gpios() {
+set_gpio() {
+	info "Set GPIO $1 to F$2 D$3"
+	gpio-diag $1 func $2 drive $3
+}
+
+set_power() {
 	# Set additional MMC GPIOs
 	# This needs to run AFTER the driver has been loaded for the sd card to mount during boot
 	for gpio in $MMC_GPIO_PWR; do
 		if [ "${#gpio}" -eq 3 ] && [ "${gpio%[oO]}" != "$gpio" ]; then
 			case "${gpio#??}" in
-				"O") gpio set "${gpio%[oO]}" 1 2>&1 | log ;;
-				"o") gpio set "${gpio%[oO]}" 0 2>&1 | log ;;
+				"O")
+					info "Set GPIO "${gpio%[oO]}" high"
+					run "gpio set "${gpio%[oO]}" 1"
+					;;
+				"o")
+					info "Set GPIO "${gpio%[oO]}" low"
+					run "gpio set "${gpio%[oO]}" 0"
+					;;
 			esac
 		fi
 	done
@@ -28,8 +39,9 @@ set_gpios() {
 
 load_module() {
 	grep -q "$MMC_MODULE" /proc/modules && die "$MMC_MODULE is already loaded"
-	modprobe $MMC_MODULE $MMC_PARAM && ok || { fail && die; }
-	set_gpios
+	info "Load $MMC_MODULE $MMC_PARAM"
+	modprobe $MMC_MODULE $MMC_PARAM || die "Failed to load module!"
+	set_power
 }
 
 start() {
@@ -43,19 +55,19 @@ start() {
 	else
 		case "$SOC_FAMILY" in
 			t10 | t20 | t21 | t30 | t40 | t41)
-				# do nothing
+				info "Skip GPIO setup for $SOC_MODEL"
 				;;
 			t23 | t31)
 				if [ "$SOC_MODEL" = "t31a" ]; then
-					echo "Skipping GPIO setup for $SOC_MODEL"
+					info "Skip GPIO setup for $SOC_MODEL"
 					return 1
 				else
-					gpio-diag pb08 func 1 drive 2
-					gpio-diag pb09 func 1 drive 1
-					gpio-diag pb10 func 1 drive 1
-					gpio-diag pb11 func 1 drive 1
-					gpio-diag pb13 func 1 drive 1
-					gpio-diag pb14 func 1 drive 1
+					set_gpio pb08 1 2
+					set_gpio pb09 1 1
+					set_gpio pb10 1 1
+					set_gpio pb11 1 1
+					set_gpio pb13 1 1
+					set_gpio pb14 1 1
 				fi
 				;;
 			*)

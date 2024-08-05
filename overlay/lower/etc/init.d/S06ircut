@@ -6,11 +6,13 @@ case "$1" in
 	start)
 		starting
 		{
+			info "IRCUT filter engaged"
 			ircut off > /dev/null 2>&1
 			sleep 0.5
+			info "IRCUT filter disengaged"
 			ircut on > /dev/null 2>&1
 		}
-		check_result
+		# daynight
 		;;
 	stop)
 		true

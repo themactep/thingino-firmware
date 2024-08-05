@@ -6,7 +6,6 @@ set_timezone() {
 	# Get the timezone from the u-boot environment variable
 	timezone=$(get timezone 2> /dev/null)
 	if [ -z "$timezone" ]; then
-		fail
 		warn "Timezone value not found in environment"
 		return 1
 	fi
@@ -15,7 +14,6 @@ set_timezone() {
 	current_timezone=$(cat /etc/timezone)
 	current_tz_value=$(cat /etc/TZ)
 	if [ "$timezone" = "$current_timezone" ] && [ "$timezone" = "$current_tz_value" ]; then
-		ok
 		info "Timezone is already set"
 		return 0
 	fi
@@ -24,7 +22,6 @@ set_timezone() {
 	tzjs="/var/www/a/tz.js"
 	matching_line=$(grep -i -F "$timezone" $tzjs)
 	if [ -z "$matching_line" ]; then
-		fail
 		warn "Timezone $timezone not found in $tzjs"
 		return 1
 	fi
@@ -32,13 +29,12 @@ set_timezone() {
 	# set timezone in system environment
 	tz=$(echo "$matching_line" | sed "s/^.*v:'\([^']*\)'.*$/\1/")
 	export TZ=$tz
+	info "Set TZ to $tz ($timezone)"
 
 	# save timezone
-	echo $tz > /etc/TZ
-	echo $timezone > /etc/timezone
-
-	ok
-	info "Set TZ to $tz ($timezone)"
+	run "echo $tz > /etc/TZ"
+	run "echo $timezone > /etc/timezone"
+	info "Save timezone configuration"
 }
 
 set_time() {

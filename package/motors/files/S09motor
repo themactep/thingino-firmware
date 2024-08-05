@@ -34,7 +34,7 @@ position_motors() {
 }
 
 start() {
-	starting_batch
+	starting
 
 	motors_app=$(which motors)
 	gpio_motor_h=$(fw_printenv -n gpio_motor_h)

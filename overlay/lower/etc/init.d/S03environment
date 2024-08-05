@@ -4,22 +4,29 @@
 
 ENV_TXT="/etc/uenv.txt"
 
+provision_environment() {
+	[ -f "$ENV_TXT" ] || die "$ENV_TXT is missing"
+
+	local tmpfile=$(mktemp)
+	echo "boot_complete true" >> $tmpfile
+	sed 's/=/ /' $ENV_TXT >> $tmpfile
+	echo >> $tmpfile
+	fw_setenv -s $tmpfile
+}
+
 start() {
 	starting
-	[ -f "$ENV_TXT" ] || { ok && quit; }
-	[ "true" = "$(get boot_complete)" ] && { ok && quit; }
+        if [ "true" = "$(get boot_complete)" ]; then
+                info "Provisioning not needed"
+        else
+                provision_environment
 
-	ENV_TMP=$(mktemp)
-	echo "boot_complete true" >> $ENV_TMP
-	sed 's/=/ /' $ENV_TXT >> $ENV_TMP
-	echo >> $ENV_TMP
-	fw_setenv -s $ENV_TMP
-
-	info "U-Boot ENV updated. Rebooting now..."
-	/etc/init.d/K99watchdog stop
-	sync
-	sleep 2
-	reboot -f
+                info "U-Boot ENV updated. Rebooting now..."
+                /etc/init.d/K99watchdog stop
+                sync
+                sleep 2
+                reboot -f
+        fi
 }
 
 case "$1" in
