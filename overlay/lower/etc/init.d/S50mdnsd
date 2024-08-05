@@ -1,0 +1,27 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+case "$1" in
+        start | restart)
+        	starting
+        	start_daemon_with_pid
+                ;;
+        stop)
+        	stopping
+        	stop_daemon_with_pid
+        	;;
+ 	reload)
+        	stopping
+        	stop_daemon_with_pid
+	        #start-stop-daemon -K -s HUP -q -p "$PIDFILE" -x "$DEAMON_FULL"
+
+	        start
+ 		;;
+        *)
+                echo "Usage: $0 {start|stop|restart|reload}"
+                exit 1
+                ;;
+esac
+
+exit 0
