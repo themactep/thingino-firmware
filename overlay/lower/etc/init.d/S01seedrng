@@ -2,6 +2,8 @@
 
 . /etc/init.d/rc.common
 
+DAEMON_ARGS="-d /etc/seedrng"
+
 case "$1" in
         start | stop | restart | reload)
         	starting
