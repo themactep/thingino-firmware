@@ -47,6 +47,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		fw_setenv -s $tmpfile
 		rm $tmpfile
 
+		[ "true" = "$daynight_enabled" ] && daynight &
+
 		update_caminfo
 		redirect_back "success" "$plugin_name config updated."
 	fi
