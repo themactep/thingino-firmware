@@ -83,6 +83,10 @@ fi
 
 	center_text "sensor"
 	sensor -a
+
+	center_text "streamer"
+	awk -F':' '{if (/password/) print $1 " REDACTED"; else print}' /etc/prudynt.cfg
+
 } > $output_file
 
 echo -e "\nYour diagnostics log link is ready:"
