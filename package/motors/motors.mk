@@ -24,7 +24,6 @@ endef
 else
 define MOTORS_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d/ $(MOTORS_PKGDIR)/files/S09motor
 
 	$(INSTALL) -m 0755 -D $(@D)/motors $(TARGET_DIR)/usr/bin/motors
