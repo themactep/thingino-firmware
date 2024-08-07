@@ -207,4 +207,13 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART2)
 endef
 
+################ CIFS FS #########################
+
+ifeq ($(BR2_PACKAGE_CIFS_UTILS),y)
+define CIFS_UTILS_LINUX_CONFIG_FIXUPS
+        $(call KCONFIG_ENABLE_OPT,CONFIG_CIFS)
+        $(call KCONFIG_ENABLE_OPT,CONFIG_CIFS_SMB2)
+endef
+endif
+
 $(eval $(generic-package))
