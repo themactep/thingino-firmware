@@ -96,6 +96,11 @@ check_mirror() {
 
 <script src="/a/imp-config.js"></script>
 <script>
+var preview = {
+	timeout: null,
+	interval: 1000
+};
+var ws = null;
 const network_address = "<%= $network_address %>";
 
 <% [ "true" != "$email_enabled"    ] && echo "\$('button[data-sendto=email]').disabled = true;" %>
@@ -128,10 +133,13 @@ ws.onmessage = (event) => {
 		const time = new Date(msg.date);
 		const timeStr = time.toLocaleTimeString();
 	} else if (event.data instanceof ArrayBuffer) {
-		const blob = new Blob([event.data], {type: 'image/jpeg'});
-		const url = URL.createObjectURL(blob);
-		jpg.src = url;
-		capture();
+		if(jpg = $("#preview")) {
+			const blob = new Blob([event.data], {type: 'image/jpeg'});
+			const url = URL.createObjectURL(blob);
+			jpg.src = url;
+			clearTimeout(preview.timeout);
+			preview.timeout = setTimeout(capture, preview.interval);
+		}
 	}
 }
 
