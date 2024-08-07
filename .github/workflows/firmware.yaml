@@ -34,6 +34,7 @@ on:
 env:
   TAG_NAME: firmware
   UPD_TAG_NAME: firmware_update
+  SHA256_TAG_NAME: verify
   TERM: linux
   BR2_DL_DIR: ~/dl
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
@@ -186,6 +187,8 @@ jobs:
           if [[ -n "$FULL_FW" && -n "$UPDATE_FW" ]]; then
             echo "FULL_FW=${FULL_FW}" >> ${GITHUB_ENV}
             echo "UPDATE_FW=${UPDATE_FW}" >> ${GITHUB_ENV}
+            echo "FULL_FW_SHA=${FULL_FW}.sha256sum" >> ${GITHUB_ENV}
+            echo "UPDATE_FW_SHA=${UPDATE_FW}.sha256sum" >> ${GITHUB_ENV}
           else
             echo "Matching .bin files not found."
             exit 1
@@ -205,6 +208,7 @@ jobs:
           name: thingino-${{ matrix.thingino-version }}-full-firmware
           path: |
             ${{ env.FULL_FW }}
+            ${{ env.FULL_FW_SHA }}
 
       - name: Upload update firmware artifact
         uses: actions/upload-artifact@v4
@@ -212,6 +216,7 @@ jobs:
           name: thingino-${{ matrix.thingino-version }}-update-firmware
           path: |
             ${{ env.UPDATE_FW }}
+            ${{ env.UPDATE_FW_SHA }}
 
       - name: Upload full firmware to release
         if: github.event_name != 'pull_request'
@@ -228,6 +233,15 @@ jobs:
           tag_name: ${{ env.UPD_TAG_NAME }}
           files: |
             ${{ env.UPDATE_FW }}
+
+      - name: Upload verify
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@master
+        with:
+          tag_name: ${{ env.SHA256_TAG_NAME }}
+          files: |
+            ${{ env.UPDATE_FW_SHA }}
+            ${{ env.FULL_FW_SHA }}
 
       - name: Send firmware completion notifications with binaries
         if: ${{ env.TG_DISABLED == 'false' && (env.FULL_FW || env.UPDATE_FW) }}

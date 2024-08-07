@@ -211,11 +211,13 @@ pack_full: $(FIRMWARE_BIN_FULL)
 	$(info FIRMWARE_BIN_FULL_SIZE:   $(FIRMWARE_BIN_FULL_SIZE))
 	$(info FIRMWARE_FULL_SIZE:       $(FIRMWARE_FULL_SIZE))
 	if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FIRMWARE_FULL_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
+	@sha256sum $(FIRMWARE_BIN_FULL) | awk '{print $$1 "  " filename}' filename=$$(basename $(FIRMWARE_BIN_FULL)) > $(FIRMWARE_BIN_FULL).sha256sum
 
 pack_update: $(FIRMWARE_BIN_NOBOOT)
 	$(info FIRMWARE_BIN_NOBOOT_SIZE: $(FIRMWARE_BIN_NOBOOT_SIZE))
 	$(info FIRMWARE_NOBOOT_SIZE:     $(FIRMWARE_NOBOOT_SIZE))
 	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(FIRMWARE_NOBOOT_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
+	@sha256sum $(FIRMWARE_BIN_NOBOOT) | awk '{print $$1 "  " filename}' filename=$$(basename $(FIRMWARE_BIN_NOBOOT)) > $(FIRMWARE_BIN_NOBOOT).sha256sum
 
 reconfig:
 	rm -rvf $(OUTPUT_DIR)/.config
