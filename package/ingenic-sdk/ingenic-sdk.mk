@@ -51,6 +51,21 @@ define GENERATE_GPIO_USERKEYS_CONFIG
 	echo "$$gpio_userkeys_config" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys
 endef
 
+define GENERATE_AUDIO_CONFIG
+	gpio_speaker=$$(awk -F= '/^gpio_speaker=/ {print $$2}' $(U_BOOT_ENV_TXT)); \
+	if [ -z "$$gpio_speaker" ]; then \
+		spk_gpio=-1; \
+		spk_level=-1; \
+	elif echo "$$gpio_speaker" | grep -qE '^[0-9]+[Oo]$$'; then \
+		spk_gpio=$$(echo "$$gpio_speaker" | sed 's/[Oo]$$//'); \
+		spk_level=$$(echo "$$gpio_speaker" | grep -q 'O$$' && echo 1 || echo 0); \
+	else \
+		spk_gpio=$$gpio_speaker; \
+		spk_level=-1; \
+	fi; \
+	echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(BR2_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/audio
+endef
+
 define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_MODULES_PATH)
 	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
@@ -72,8 +87,8 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	fi
 
 	if [ "$(BR2_AUDIO)" = "y" ]; then \
-		echo "audio \$$(fw_printenv -n gpio_speaker | awk '{if (\$$0 == \"\") {print \"spk_gpio=-1 spk_level=-1\"} else if (\$$0 ~ /^[0-9]+[Oo]\$$/) {print \"spk_gpio=\" substr(\$$0, 1, length(\$$0)-1) \" spk_level=\" (\$$0 ~ /O\$$/ ? 1 : 0)} else {print \"spk_gpio=\" \$$0 \" spk_level=-1\"}} END {if (NR == 0) print \"spk_gpio=-1 spk_level=-1\"}') $(BR2_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/audio; \
 		$(INSTALL) -m 644 -D $(@D)/config/webrtc_profile.ini $(TARGET_DIR)/etc/; \
+		$(GENERATE_AUDIO_CONFIG); \
 	fi
 
 	if [ "$(BR2_PWM_ENABLE)" = "y" ]; then \
@@ -81,7 +96,7 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/pwm; \
 	fi
 
-	echo "sensor_$(SENSOR_MODEL)_$(SOC_FAMILY) $(BR2_SENSOR_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor
+	echo "sensor_$(SENSOR_MODEL)_$(SOC_FAMILY) $(BR2_SENSOR_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor; \
 
 	$(GENERATE_GPIO_USERKEYS_CONFIG)
 endef
