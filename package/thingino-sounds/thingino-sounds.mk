@@ -8,6 +8,7 @@ endef
 define THINGINO_SOUNDS_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/sounds
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/sounds $(@D)/th-chime_*.pcm
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/sounds $(@D)/thingino.pcm
 endef
 
 
