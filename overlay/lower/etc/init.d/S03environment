@@ -12,6 +12,7 @@ provision_environment() {
 	sed 's/=/ /' $ENV_TXT >> $tmpfile
 	echo >> $tmpfile
 	fw_setenv -s $tmpfile
+	fw_setenv sysupgrade_complete true
 }
 
 start() {

@@ -1,0 +1,30 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+start() {
+    SYSUPGRADE_COMPLETE=$(fw_printenv -n sysupgrade_complete)
+
+    if [ "$SYSUPGRADE_COMPLETE" = "false" ]; then
+        iac -f /usr/share/sounds/thingino.pcm | log
+        fw_setenv sysupgrade_complete=true
+        info_n "Update completed!"
+    else
+        ok
+    fi
+}
+
+case "$1" in
+        start | restart)
+                starting
+                start
+                ;;
+        stop | reload)
+                ;;
+        *)
+                echo "Usage: $0 {start|stop|restart|reload}"
+                exit 1
+                ;;
+esac
+
+exit 0
