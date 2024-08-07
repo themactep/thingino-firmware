@@ -12,7 +12,7 @@ start() {
 
 stop() {
 	stopping
-	stop_daemon
+	start-stop-daemon -K -s KILL -n watchdog
 }
 
 case "$1" in
