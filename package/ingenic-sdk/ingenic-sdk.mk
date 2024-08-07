@@ -34,21 +34,26 @@ define GENERATE_GPIO_USERKEYS_CONFIG
 	gpio_userkeys_config="gpio-userkeys gpio_config="; \
 	keycode=2; \
 	first_button=28; \
+	has_gpio_buttons=0; \
 	while IFS= read -r line; do \
 		case "$$line" in \
 			gpio_button=*) \
+				has_gpio_buttons=1; \
 				gpio_num=$${line#*=}; \
 				gpio_userkeys_config="$$gpio_userkeys_config$${first_button},$${gpio_num},1;"; \
 				;; \
 			gpio_button_*=*) \
+				has_gpio_buttons=1; \
 				gpio_num=$${line#*=}; \
 				gpio_userkeys_config="$$gpio_userkeys_config$${keycode},$${gpio_num},1;"; \
 				keycode=$$((keycode + 1)); \
 				;; \
 		esac; \
 	done < $(U_BOOT_ENV_TXT); \
-	gpio_userkeys_config=$${gpio_userkeys_config%;}; \
-	echo "$$gpio_userkeys_config" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys
+	if [ "$$has_gpio_buttons" -eq 1 ]; then \
+		gpio_userkeys_config=$${gpio_userkeys_config%;}; \
+		echo "$$gpio_userkeys_config" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys; \
+	fi
 endef
 
 define GENERATE_AUDIO_CONFIG
