@@ -354,8 +354,8 @@ endchoice
 
 choice
 	prompt "Device type"
+	default BR2_THINGINO_DEVICE_TYPE_IPCAM
 config BR2_THINGINO_DEVICE_TYPE_IPCAM
-	default y
 	bool "IP-Camera"
 	help
 	   Specifies the device type as a Camera and installs configurations specific to this type.
