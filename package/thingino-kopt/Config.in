@@ -130,3 +130,12 @@ config BR2_PACKAGE_THINGINO_KOPT_SPI1_PB2
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
 	  Enable SPI1 on PB_2
+
+config BR2_PACKAGE_THINGINO_KOPT_CIFS
+	bool "CIFS"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+        select BR2_PACKAGE_CIFS_UTILS
+        help
+	  Enable CIFS support
+
+
