@@ -26,8 +26,9 @@ start() {
                 /etc/init.d/K99watchdog stop
                 sync
                 sleep 2
-                reboot -f -d 3
-                echo reset > /proc/jz/reset/reset
+#                reboot -f -d 10
+#		sleep 2
+                echo wdt > /proc/jz/reset/reset
         fi
 }
 
