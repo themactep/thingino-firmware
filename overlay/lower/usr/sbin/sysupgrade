@@ -151,7 +151,7 @@ if $BB_BINARY flashcp -v $binary_file /dev/$mtd_dev; then
 
 	echo "Rebooting..."
 	$BB_BINARY reboot -f -d 3
-	echo 1 > /proc/jz/watchdog/reset
+	echo reset > /proc/jz/reset/reset
 else
 	echo "Upgrade failed!"
 	die "Caution: You may need to perform a recovery flash restore before rebooting the camera!"
