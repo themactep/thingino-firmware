@@ -188,6 +188,16 @@ endif
 ################ WDT #########################
 ################ I2C #########################
 
+################ CIFS FS #########################
+
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_CIFS),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_CIFS
+        $(call KCONFIG_ENABLE_OPT,CONFIG_CIFS)
+        $(call KCONFIG_ENABLE_OPT,CONFIG_CIFS_SMB2)
+endef
+endif
+
+
 ####################################################
 #This is required for BR to successfully concatenate the kernel options when used with modules
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
@@ -212,7 +222,9 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SPI1_PB2)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART0)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART2)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_CIFS)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_ADC)
 endef
+
 
 $(eval $(generic-package))
