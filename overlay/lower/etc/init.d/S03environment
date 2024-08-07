@@ -27,7 +27,7 @@ start() {
                 sync
                 sleep 2
                 reboot -f -d 3
-                echo 1 > /proc/jz/watchdog/reset
+                echo reset > /proc/jz/reset/reset
         fi
 }
 
