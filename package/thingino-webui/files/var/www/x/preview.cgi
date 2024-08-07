@@ -2,6 +2,7 @@
 <%in p/common.cgi %>
 <%in p/icons.cgi %>
 <%
+token="$(cat /run/prudynt_websocket_token)"
 page_title="Camera preview"
 rtsp_address=$network_address
 rtsp_username="$(sed -En '/^rtsp:/n/username:/{s/^.+username:\s\"(.+)";/\1/p}' /etc/prudynt.cfg)"
@@ -116,7 +117,7 @@ $$("button[data-sendto]").forEach(el => {
 function capture() { ws.send('{"action":{"capture":null}}'); }
 
 const jpg = $("#preview");
-const ws_url = 'ws://' + document.location.hostname + ':8089';
+const ws_url = 'ws://' + document.location.hostname + ':8089?token=<%= $token %>';
 let ws = new WebSocket(ws_url);
 ws.binaryType = 'arraybuffer';
 ws.onopen  = () => capture();
