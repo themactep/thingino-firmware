@@ -34,7 +34,7 @@ on:
 env:
   TAG_NAME: module
   UPD_TAG_NAME: module_update
-  SHA256_TAG_NAME: verify
+  SHA256_TAG_NAME: verify_module
   TERM: linux
   BR2_DL_DIR: ~/dl
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
