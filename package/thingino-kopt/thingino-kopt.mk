@@ -177,9 +177,16 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SPI1_PB2
 endef
 endif
 
+################ SADC #########################
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_ADC),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_ADC
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MFD_JZ_SADC_V13)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_MFD_JZ_SADC_AUX)
+endef
+endif
+
 ################ WDT #########################
 ################ I2C #########################
-################ SADC #########################
 
 ####################################################
 #This is required for BR to successfully concatenate the kernel options when used with modules
@@ -205,6 +212,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_SPI1_PB2)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART0)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART2)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_ADC)
 endef
 
 $(eval $(generic-package))
