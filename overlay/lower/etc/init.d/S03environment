@@ -23,12 +23,9 @@ start() {
                 provision_environment
 
                 info "U-Boot ENV updated. Rebooting now..."
-                /etc/init.d/K99watchdog stop
                 sync
                 sleep 2
-#                reboot -f -d 10
-#		sleep 2
-                echo wdt > /proc/jz/reset/reset
+                reboot -f -d 3
         fi
 }
 
