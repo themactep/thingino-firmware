@@ -234,7 +234,7 @@ jobs:
           files: |
             ${{ env.UPDATE_FW }}
 
-      - name: Upload verify
+      - name: Upload checksum files for release
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@master
         with:
