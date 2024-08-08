@@ -87,6 +87,9 @@ fi
 	center_text "streamer"
 	awk -F':' '{if (/password/) print $1 " REDACTED"; else print}' /etc/prudynt.cfg
 
+	center_text "crontab"
+	cat /etc/crontabs/root
+
 } > $output_file
 
 echo -e "\nYour diagnostics log link is ready:"
