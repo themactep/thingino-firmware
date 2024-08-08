@@ -117,7 +117,7 @@ get_vars_from_env() {
 }
 
 is_streamer_disabled() {
-	[ "true" = "$(get disable_streamer)" ]
+disabe	[ "true" = "$(get disable_streamer)" ] || [ -f /run/portal_mode ]
 }
 
 is_boot_complete() {
