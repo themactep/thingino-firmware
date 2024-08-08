@@ -11,6 +11,17 @@ define MOTORS_BUILD_CMDS
 	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(@D)/motor-daemon.c -o $(@D)/motors-daemon
 endef
 
+ifeq ($(BR2_MOTORS_INVERT_GPIO_DIR),y)
+define MOTORS_INSTALL_TARGET_CMDS
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
+	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d/ $(MOTORS_PKGDIR)/files/S09motor
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/modprobe.d
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/modprobe.d/ $(MOTORS_PKGDIR)/files/motor.conf
+
+	$(INSTALL) -m 0755 -D $(@D)/motors $(TARGET_DIR)/usr/bin/motors
+	$(INSTALL) -m 0755 -D $(@D)/motors-daemon $(TARGET_DIR)/usr/bin/motors-daemon
+endef
+else
 define MOTORS_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d/ $(MOTORS_PKGDIR)/files/S09motor
@@ -18,5 +29,6 @@ define MOTORS_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0755 -D $(@D)/motors $(TARGET_DIR)/usr/bin/motors
 	$(INSTALL) -m 0755 -D $(@D)/motors-daemon $(TARGET_DIR)/usr/bin/motors-daemon
 endef
+endif
 
 $(eval $(generic-package))
