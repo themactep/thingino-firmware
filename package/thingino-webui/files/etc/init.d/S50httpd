@@ -25,20 +25,18 @@ stop() {
 	stop_daemon_with_pid
 }
 
-restart() {
-	stop
-	sleep 1
-	start
-}
-
 case "$1" in
-	start | stop | restart)
+	start | stop)
 		$1
 		;;
-	reload)
-		restart
+	restart | reload)
+		stop
+		sleep 1
+		start
 		;;
 	*)
 		die "Usage: $0 {start|stop|restart|reload}"
 		;;
 esac
+
+exit 0
