@@ -20,6 +20,8 @@ init_portal() {
 	starting
 	[ -n "$ssid" ] && [ -n "$pass" ] && quit "Disabled"
 
+	echo $$ > /run/portal_mode
+
 	ip a add dev wlan0 ${CNET}.1/24
 	ip link set wlan0 up
 	ip route add ${CNET}.0/24 dev wlan0 > /dev/null 2>&1
