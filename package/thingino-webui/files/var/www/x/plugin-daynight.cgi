@@ -58,6 +58,9 @@ else
 	include $config_file
 
 	# Default values
+	if [ -z "$daynight_enabled" ] && [ "*" = "$(awk -F/ '/daynight$/{print $1}' $CRONTABS)" ]; then
+		daynight_enabled="true"
+	fi
 	[ -z "$daynight_min" ] && daynight_min=500
 	[ -z "$daynight_max" ] && daynight_max=15000
 	[ -z "$daynight_interval" ] && daynight_interval=1
