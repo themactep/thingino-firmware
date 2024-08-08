@@ -29,7 +29,7 @@ cleanup() {
 }
 
 do_fsck() {
-	if fsck "$devicenode"; then
+	if fsck -y "$devicenode"; then
 		log "fsck check succeeded on $devicenode"
 	else
 		log "fsck check failed on $devicenode, mounting process aborted."
