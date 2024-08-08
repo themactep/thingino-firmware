@@ -27,6 +27,9 @@ start() {
 
 		info "Set GPIO $num $gpio_cmd"
 		gpio $gpio_cmd $num 2>&1 | log
+		if [ "$wlandev" == "bcmdhd" ]; then
+			gpio unexport $num
+		fi
 	fi
 
 	#FIXME Assume that we are SDIO, and we need to insert
