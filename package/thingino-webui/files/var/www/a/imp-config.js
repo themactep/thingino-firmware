@@ -1,19 +1,19 @@
 function callImp(command, value) {
 	if (command.startsWith("osd_")) {
-		let i=command.split('_')[2];
-		let a=command.split('_')[1];
-		let g=document.querySelector('.group_osd[data-idx="'+i+'"]');
+		let i = command.split('_')[2];
+		let a = command.split('_')[1];
+		let g = document.querySelector('.group_osd[data-idx="' + i + '"]');
 		if (command.startsWith("osd_pos_")) {
-			document.getElementById("osd_pos_auto_"+i+"_ig").classList.toggle("d-none");
-			document.getElementById("osd_pos_fixed_"+i+"_ig").classList.toggle("d-none");
+			document.getElementById("osd_pos_auto_" + i + "_ig").classList.toggle("d-none");
+			document.getElementById("osd_pos_fixed_" + i + "_ig").classList.toggle("d-none");
 		}
-		let c=g.getAttribute("data-conf").split(" ");
-		if(a == 'fgAlpha') c[1] = value
-		if(a == 'show') c[2] = value
-		if(a == 'posx') c[3] = value
-		if(a == 'posy') c[4] = value
-		if(a == 'pos') c[5] = (value==0?0:document.getElementById("osd_apos_"+i).value)
-		if(a == 'apos') c[5] = value
+		let c = g.getAttribute("data-conf").split(" ");
+		if (a === 'fgAlpha') c[1] = value
+		if (a === 'show') c[2] = value
+		if (a === 'posx') c[3] = value
+		if (a === 'posy') c[4] = value
+		if (a === 'pos') c[5] = (value === 0 ? 0 : document.getElementById("osd_apos_" + i).value)
+		if (a === 'apos') c[5] = value
 		g.setAttribute('data-conf', c.join(' '));
 		value = g.getAttribute("data-conf");
 		command = 'setosd';
