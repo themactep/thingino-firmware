@@ -7,7 +7,6 @@ define THINGINO_WEBUI_BUILD_CMDS
 	$(TARGET_CC) $(TARGET_CFLAGS) $(TARGET_LDFLAGS) -std=c99 -pedantic \
 		-o $(@D)/mjpeg_frame $(@D)/mjpeg_frame.c
 endef
-#-O2 -Wl,-z -Wl,max-page-size=4096 \
 
 define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
