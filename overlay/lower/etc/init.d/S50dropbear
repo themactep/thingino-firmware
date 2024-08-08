@@ -1,6 +1,10 @@
 #!/bin/sh
 
 DAEMON_ARGS="-k -K 300 -b /etc/issue.net -R"
+# -k              Disable remote port forwarding
+# -K <keepalive>  (0 is never, default 0, in seconds)
+# -b bannerfile   Display the contents of bannerfile before user login
+# -R              Create hostkeys as required
 
 . /etc/init.d/rc.common
 

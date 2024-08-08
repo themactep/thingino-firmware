@@ -6,33 +6,39 @@ DROPBEAR_KEY="/etc/dropbear/dropbear_ed25519_host_key"
 SSHKEY_ENV=$(get sshkey_ed25519)
 
 generate_keys() {
+	info "Generate a key"
 	run "dropbearkey -t ed25519 -f $DROPBEAR_KEY"
-	info "Generated dropbear host keys."
 }
 
 restore_keys() {
-	run "echo \"$SSHKEY_ENV\" | base64 -d | gzip -d > $DROPBEAR_KEY"
-	info "SSH Key restored."
+	info "Restore the key"
+	# FIXME: run fails on pipes
+	echo $SSHKEY_ENV | base64 -d | gzip -d > $DROPBEAR_KEY
 }
 
 save_keys() {
+	info "Back up the key"
 	SSHKEY_ENV=$(gzip -c $DROPBEAR_KEY | base64 | tr -d '\n')
-	run "fw_setenv sshkey_ed25519 \"$SSHKEY_ENV\""
-	info "SSH key backed up."
+	run "fw_setenv sshkey_ed25519 $SSHKEY_ENV"
 }
 
 case "$1" in
 	start)
 		starting
 		if [ -s "$DROPBEAR_KEY" ]; then
+			info "Key present on the filesystem"
 			if [ -z "$SSHKEY_ENV" ]; then
+				info "Key backup not found in the environment"
 				save_keys
 			fi
 		else
+			info "Key not found on the filesystem"
 			if [ -z "$SSHKEY_ENV" ]; then
+				info "Key backup not found in the environment"
 				generate_keys
 				save_keys
 			else
+				info "Key backup present in the environment"
 				restore_keys
 			fi
 		fi
