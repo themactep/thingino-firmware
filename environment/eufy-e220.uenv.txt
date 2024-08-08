@@ -8,9 +8,10 @@ gpio_ircut=57 58
 gpio_mmc_cd=49
 gpio_motor_h=61 62 63 51
 gpio_motor_v=64 53 52 54
-gpio_wlan=8O
 motor_maxstep_h=3700
 motor_maxstep_v=1000
+gpio_wlan=48O
 osmem=64M@0x0
 rmem=64M@0x4000000
-wlandev=b43
+wlandev=bcmdhd
+wlandevopts=gpio_wl_reg_on=48 gpio_wl_host_wake=39 firmware_path=/usr/lib/firmware/fw_bcm43438a1.bin nvram_path=/usr/lib/firmware/nv_bcm43438a1.txt op_mode=2
