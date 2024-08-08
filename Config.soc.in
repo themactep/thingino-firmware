@@ -339,6 +339,12 @@ config BR2_MOTORS_TCU
 	help
 	  The camera has Pan/Tilt or Zoom motors using PWM/GPIO via TCU
 
+config BR2_MOTORS_INVERT_GPIO_DIR
+	bool "Pan/Tilt Motors using inverted GPIO dir"
+	depends on BR2_MOTORS_TCU
+	help
+	  The camera has Pan/Tilt or Zoom motors using PWM/GPIO via TCU with inverted GPIO dir
+
 config BR2_MOTORS_SPI
 	bool "Pan/Tilt SPI using ms419xx"
 	depends on BR2_MOTORS
