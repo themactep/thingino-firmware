@@ -21,16 +21,16 @@ start() {
 				;;
 		esac
 
-		echo -n " Set GPIO $num $gpio_cmd ... "
-		gpio $gpio_cmd $num 2>&1 | log && ok || { fail && die }
+		info "Set GPIO $num $gpio_cmd"
+		run "gpio $gpio_cmd $num"
 	fi
 
-	echo -n " Load usbserial module ... "
-	modprobe usbserial && ok || { fail && die }
+	info "Load usbserial module"
+	run "modprobe usbserial"
 
 	if ! grep -q ^$modulename /proc/modules; then
-		echo -n " Load $modulename module ... "
-		modprobe $modulename && ok || { fail && die }
+		info "Load $modulename module"
+		run "modprobe $modulename"
 	fi
 }
 
