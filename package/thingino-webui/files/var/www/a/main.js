@@ -19,7 +19,7 @@ function sleep(ms) {
 function setProgressBar(id, value, maxvalue, name) {
 	let value_percent = Math.ceil(value / (maxvalue / 100));
 	const el = $(id);
-	el.setAttribute('aria-valuemin', 0);
+	el.setAttribute('aria-valuemin', '0');
 	el.setAttribute('aria-valuemax', maxvalue);
 	el.setAttribute('aria-valuenow', value);
 	el.style.width = value_percent + '%';
@@ -28,9 +28,9 @@ function setProgressBar(id, value, maxvalue, name) {
 
 function sendToApi(endpoint) {
 	const xhr = new XMLHttpRequest();
-	xhr.addEventListener("load", reqListener);
-	xhr.open("GET", 'http://' + network_address + endpoint);
-	xhr.setRequestHeader("Authorization", "Basic " + btoa("admin:"));
+	xhr.addEventListener('load', reqListener);
+	xhr.open('GET', 'http://' + network_address + endpoint);
+	xhr.setRequestHeader('Authorization', 'Basic ' + btoa('admin:'));
 	xhr.send();
 }
 
@@ -54,12 +54,12 @@ function heartbeat() {
 				$('#time-now').textContent = d.toLocaleString(navigator.language, options) + ' ' + json.timezone;
 			}
 
-			$('.progress-stacked.memory').title = "Free memory: " + json.mem_free + "KiB"
+			$('.progress-stacked.memory').title = 'Free memory: ' + json.mem_free + 'KiB'
 			setProgressBar('#pb-memory-active', json.mem_active, json.mem_total, 'Memory Active');
 			setProgressBar('#pb-memory-buffers', json.mem_buffers, json.mem_total, 'Memory Buffers');
 			setProgressBar('#pb-memory-cached', json.mem_cached, json.mem_total, 'Memory Cached');
 
-			$('.progress-stacked.overlay').title = "Free overlay: " + json.overlay_free + "KiB"
+			$('.progress-stacked.overlay').title = 'Free overlay: ' + json.overlay_free + 'KiB'
 			setProgressBar('#pb-overlay-used', json.overlay_used, json.overlay_total, 'Overlay Usage');
 
 			if (json.daynight_value !== '-1') {
@@ -97,11 +97,11 @@ function heartbeat() {
 		// For .warning and .danger buttons, ask confirmation on action.
 		$$('.btn-danger, .btn-warning, .confirm').forEach(el => {
 			// for input, find its parent form and attach listener to it submit event
-			if (el.nodeName === "INPUT") {
-				while (el.nodeName !== "FORM") el = el.parentNode
-				el.addEventListener('submit', ev => (!confirm("Are you sure?")) ? ev.preventDefault() : null)
+			if (el.nodeName === 'INPUT') {
+				while (el.nodeName !== 'FORM') el = el.parentNode
+				el.addEventListener('submit', ev => (!confirm('Are you sure?')) ? ev.preventDefault() : null)
 			} else {
-				el.addEventListener('click', ev => (!confirm("Are you sure?")) ? ev.preventDefault() : null)
+				el.addEventListener('click', ev => (!confirm('Are you sure?')) ? ev.preventDefault() : null)
 			}
 		});
 
@@ -125,8 +125,8 @@ function heartbeat() {
 			toggleAuto(el);
 		});
 
-		// show password when "show" checkbox is checked
-		$$(".password input[type=checkbox]").forEach(el => {
+		// show password when checkbox is checked
+		$$('.password input[type=checkbox]').forEach(el => {
 			el.addEventListener('change', ev => {
 				const pw = $('#' + ev.target.dataset['for']);
 				pw.type = (el.checked) ? 'text' : 'password';
@@ -163,7 +163,7 @@ function heartbeat() {
 					}
 					if (startIndex < chunk.length) yield chunk.substring(startIndex);
 				} finally {
-					if ("true" === el.dataset["reboot"]) {
+					if ('true' === el.dataset['reboot']) {
 						window.location.href = '/x/reboot.cgi'
 					} else {
 						el.innerHTML += '\n--- finished ---\n';
@@ -172,7 +172,7 @@ function heartbeat() {
 			}
 
 			async function run() {
-				for await (let line of makeTextFileLineIterator('/x/j/run.cgi?cmd=' + btoa(el.dataset["cmd"]))) {
+				for await (let line of makeTextFileLineIterator('/x/j/run.cgi?cmd=' + btoa(el.dataset['cmd']))) {
 					const re1 = /\u001b\[1;(\d+)m/;
 					const re2 = /\u001b\[0m/;
 					line = line.replace(re1, '<span class="ansi-$1">').replace(re2, '</span>')
