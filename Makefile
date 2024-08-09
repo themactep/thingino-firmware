@@ -122,7 +122,7 @@ BUILD_TIME = $(shell awk -F ':' 'NR==1{a=$$1} END{b=$$1} END {print (b-a)/60" mi
 
 .PHONY: all bootstrap build clean cleanbuild create_overlay defconfig distclean \
  	help pack pack_full pack_update prepare_config reconfig sdk toolchain \
- 	upload_tftp upload_sdcard upgrade_ota br-%
+ 	upload_tftp upgrade_ota br-%
 
 all: build pack
 	@$(FIGLET) "FINE [$(BUILD_TIME)]"
@@ -250,13 +250,6 @@ upgrade_ota: $(FIRMWARE_BIN_FULL)
 # upload firmware to tftp server
 upload_tftp: $(FIRMWARE_BIN_FULL)
 	busybox tftp -l $(FIRMWARE_BIN_FULL) -r $(FIRMWARE_NAME_FULL) -p $(TFTP_IP_ADDRESS)
-
-# upload firmware to an sd card
-upload_sdcard: $(FIRMWARE_BIN_FULL)
-	cp -vf $(FIRMWARE_BIN_FULL) $$(mount | grep $(SDCARD_DEVICE)1 | awk '{print $$3}')/autoupdate-full.bin
-	sync
-	umount $(SDCARD_DEVICE)1
-
 
 ### Buildroot
 
