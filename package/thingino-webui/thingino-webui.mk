@@ -9,19 +9,19 @@ define THINGINO_WEBUI_BUILD_CMDS
 endef
 
 define THINGINO_WEBUI_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc $(THINGINO_WEBUI_PKGDIR)/files/etc/httpd.conf
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc
+	$(INSTALL) -m 0644 -t $(TARGET_DIR)/etc $(THINGINO_WEBUI_PKGDIR)/files/etc/httpd.conf
 
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
-	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d $(THINGINO_WEBUI_PKGDIR)/files/etc/init.d/S50httpd
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/init.d
+	$(INSTALL) -m 0755 -t $(TARGET_DIR)/etc/init.d $(THINGINO_WEBUI_PKGDIR)/files/etc/init.d/S50httpd
 
-	$(INSTALL) -m 0755 -D $(@D)/mjpeg_frame $(TARGET_DIR)/usr/bin/mjpeg_frame
+	$(INSTALL) -m 0755 -t $(TARGET_DIR)/usr/bin $(@D)/mjpeg_frame
 
 	if grep -q "^BR2_THINGINO_DEV_PACKAGES=y" $(BR2_CONFIG); then \
-		$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d $(THINGINO_WEBUI_PKGDIR)/files/etc/init.d/S44devmounts; \
+		$(INSTALL) -m 0755 -t $(TARGET_DIR)/etc/init.d $(THINGINO_WEBUI_PKGDIR)/files/etc/init.d/S44devmounts; \
 	fi
 
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/var
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var
 	cp -rv $(THINGINO_WEBUI_PKGDIR)/files/var/www $(TARGET_DIR)/var/
 endef
 
