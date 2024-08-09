@@ -1,0 +1,12 @@
+day_night_max=15000
+day_night_min=500
+disable_eth=true
+enable_updates=true
+gpio_button=
+gpio_default=25o 26o
+gpio_ir850=
+gpio_ircut=25 26
+gpio_mmc_cd=
+gpio_speaker=
+gpio_wlan=
+wlandev=mt7601sta
