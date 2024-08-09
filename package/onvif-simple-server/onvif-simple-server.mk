@@ -15,7 +15,7 @@ endif
 
 # username | uid | group | gid | password | home | shell | groups | comment
 define ONVIF_SIMPLE_SERVER_USERS
-onvif -1 onvif -1 =onvif - - - ONVIF Service
+thingino -1 thingino -1 =thingino - - - Streaming Service
 endef
 
 define ONVIF_SIMPLE_SERVER_BUILD_CMDS
