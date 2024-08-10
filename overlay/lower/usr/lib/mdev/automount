@@ -39,8 +39,14 @@ do_fsck() {
 	if [ "$fsck_status" -eq 0 ]; then
 		log "fsck check succeeded on $devicenode"
 	else
-		log "fsck check failed on $devicenode, mounting process aborted."
-		return 1
+		log "fsck check failed on $devicenode."
+
+		if [ "$fsck_status" -eq 8 ] || [ "$fsck_status" -eq 16 ] || [ "$fsck_status" -eq 32 ] || [ "$fsck_status" -eq 128 ]; then
+			log "Critical fsck error with exit status $fsck_status, mounting process aborted."
+			return 1
+		else
+			log "Non-critical fsck error with exit status $fsck_status, continuing."
+		fi
 	fi
 }
 
