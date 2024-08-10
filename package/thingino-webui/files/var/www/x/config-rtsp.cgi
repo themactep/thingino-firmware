@@ -47,15 +47,13 @@ fi
 </form>
 </div>
 <div class="col col-12 col-xl-8">
-<% ex "cat $prudynt_config" %>
-</div>
-</div>
-
 <pre class="mt-4">
 rtsp://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>/ch0
 rtsp://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>/ch1
 onvif://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>/onvif/device_service
 </pre>
+</div>
+</div>
 
 <script>
 $('#rtsp_username').readOnly = true;
