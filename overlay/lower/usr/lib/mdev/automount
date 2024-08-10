@@ -29,7 +29,14 @@ cleanup() {
 }
 
 do_fsck() {
-	if fsck -y "$devicenode"; then
+	res=$(fsck -V -y "$devicenode" 2>&1)
+	fsck_status=$?
+
+	echo "$res" | while IFS= read -r line; do
+		log "$line"
+	done
+
+	if [ "$fsck_status" -eq 0 ]; then
 		log "fsck check succeeded on $devicenode"
 	else
 		log "fsck check failed on $devicenode, mounting process aborted."
