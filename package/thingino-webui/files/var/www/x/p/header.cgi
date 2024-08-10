@@ -55,6 +55,7 @@ Pragma: no-cache
 <li><a class="dropdown-item" href="config-indication.cgi">LED Indicators</a></li>
 <li><a class="dropdown-item" href="config-light.cgi">Illumination</a></li>
 <li><a class="dropdown-item" href="config-record.cgi">Local Recording</a></li>
+<li><a class="dropdown-item" href="config-rtsp.cgi">RTSP/ONVIF Access</a></li>
 <% if [ -f /bin/motors ]; then %>
 <li><a class="dropdown-item" href="config-motors.cgi">Motors</a></li>
 <% fi %>
