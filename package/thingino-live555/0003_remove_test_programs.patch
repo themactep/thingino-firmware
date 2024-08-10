@@ -1,10 +1,13 @@
 --- a/Makefile.tail
 +++ b/Makefile.tail
-@@ -35,7 +35,6 @@
+@@ -31,10 +31,6 @@
  	cd $(GROUPSOCK_DIR) ; $(MAKE) install
  	cd $(USAGE_ENVIRONMENT_DIR) ; $(MAKE) install
  	cd $(BASIC_USAGE_ENVIRONMENT_DIR) ; $(MAKE) install
 -	cd $(TESTPROGS_DIR) ; $(MAKE) install
- 	cd $(MEDIA_SERVER_DIR) ; $(MAKE) install
- 	cd $(PROXY_SERVER_DIR) ; $(MAKE) install
- 	cd $(HLS_PROXY_DIR) ; $(MAKE) install
+-	cd $(MEDIA_SERVER_DIR) ; $(MAKE) install
+-	cd $(PROXY_SERVER_DIR) ; $(MAKE) install
+-	cd $(HLS_PROXY_DIR) ; $(MAKE) install
+ 
+ clean:
+ 	cd $(LIVEMEDIA_DIR) ; $(MAKE) clean
