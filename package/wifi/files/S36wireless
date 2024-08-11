@@ -29,9 +29,10 @@ start() {
 		gpio $gpio_cmd $num 2>&1 | log
 	fi
 
-	#FIXME Assume that we are SDIO, and we need to insert
-	info "Send INSERT to MMC1"
-	mmc 1 2>&1 | log
+	if [ "$(fw_printenv -n wlanbus)" = "sdio" ]; then
+		info "Send INSERT to MMC1"
+		mmc 1 2>&1 | log
+	fi
 
 	if ! grep -q "^$wlandev " /proc/modules; then
 		wlandevopts="$(get wlandevopts)"
