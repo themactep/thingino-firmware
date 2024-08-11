@@ -18,4 +18,5 @@ osmem=86M@0x0
 pwm_ch_ir850=2
 pwm_ch_white=3
 rmem=42M@0x5600000
+wlanbus=sdio
 wlandev=8189fs

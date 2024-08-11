@@ -16,4 +16,5 @@ motor_maxstep_h=3700
 motor_maxstep_v=1000
 osmem=64M@0x0
 rmem=64M@0x4000000
+wlanbus=usb
 wlandev=ssv6158

@@ -10,4 +10,5 @@ gpio_led_b=73o
 gpio_led_r=72o
 gpio_mmc_cd=52
 gpio_speaker=63o
+wlanbus=usb
 wlandev=mt7601sta

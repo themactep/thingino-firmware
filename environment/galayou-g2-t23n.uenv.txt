@@ -16,5 +16,6 @@ gpio_speaker=7
 gpio_wlan=6O
 motor_maxstep_h=3982
 motor_maxstep_v=796
+wlanbus=usb
 wlandev=atbm6012bx
 wlandevopts=atbm_printk_mask=0

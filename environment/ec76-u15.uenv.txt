@@ -15,4 +15,5 @@ gpio_speaker=63o
 gpio_white=82
 motor_maxstep_h=4000
 motor_maxstep_v=1300
+wlanbus=usb
 wlandev=8188fu

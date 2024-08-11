@@ -10,4 +10,5 @@ gpio_led_b=53o
 gpio_led_r=52o
 gpio_mmc_cd=51
 gpio_speaker=63
+wlanbus=usb
 wlandev=8188fu

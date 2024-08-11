@@ -12,4 +12,5 @@ gpio_motor_en=11
 gpio_motor_h=51 63 62 61
 gpio_motor_v=64 53 52 54
 gpio_wlan=10
+wlanbus=usb
 wlandev=8188fu

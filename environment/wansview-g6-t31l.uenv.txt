@@ -16,5 +16,6 @@ osmem=43520K@0x0
 pwm_ch_ir850=2
 pwm_ch_white=3
 rmem=22016K@0x2A80000
+wlanbus=usb
 wlandev=atbm6012b
 wlandevopts=atbm_printk_mask=0
