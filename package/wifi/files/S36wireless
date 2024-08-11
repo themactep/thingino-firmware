@@ -29,7 +29,11 @@ start() {
 		gpio $gpio_cmd $num 2>&1 | log
 	fi
 
-	if [ "$(fw_printenv -n wlanbus)" = "sdio" ]; then
+	# transition logic, will be changes in a few weeks so wlanbus only.
+	wlanbus=$(fw_printenv -n wlanbus)
+
+	if [ "$wlanbus" = "sdio" ] || { [ -z "$wlanbus" ] && 
+	case "$(fw_printenv -n wlandev)" in atbm6031|hi3881|bcmhd|b43|8189es|8189fs) true;; *) false;; esac; }; then
 		info "Send INSERT to MMC1"
 		mmc 1 2>&1 | log
 	fi
