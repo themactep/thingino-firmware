@@ -58,7 +58,7 @@ do_mount() {
 		return 1
 	fi
 
-	do_fsck || return 1
+#	do_fsck || return 1
 
 	if mount -t auto -o sync "$devicenode" "$mountpoint"; then
 		log "Mounted $devicenode to $mountpoint mountpoint."
