@@ -30,6 +30,7 @@ is_onvif_disabled() {
 update_config() {
 	local key=$1 value=$2 file="/etc/onvif.conf"
 	local current=$(awk -F "=" -v key="$key" '$1==key {print $2}' $file)
+	[ -z "$value" ] && value="0"
 	[ "$current" = "$value" ] || sed -i "s/^$key=.*/$key=$value/" $file
 }
 
