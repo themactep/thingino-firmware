@@ -125,7 +125,7 @@ is_boot_complete() {
 }
 
 is_gateway_reachable() {
-	ping -c 1 -W 1 -I $iface $(ip route | grep default | awk '{print $3}') > /dev/null 2>&1
+	ping -c 1 -W 1 -I $iface $(ip route | grep $iface | grep default | awk '{print $3}') > /dev/null 2>&1
 }
 
 indent_output() {
