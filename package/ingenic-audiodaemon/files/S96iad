@@ -7,13 +7,11 @@ DAEMON_ARGS="-r -c /etc/iad.json"
 
 start() {
 	starting
-	is_streamer_disabled && quit "Streamer disabled"
 	start_daemon
 }
 
 stop() {
 	stopping
-	is_streamer_disabled && quit "Streamer disabled"
 	stop_daemon
 }
 
