@@ -5,27 +5,34 @@
 DAEMON_ARGS="-n"
 
 start() {
-	starting
-	start_daemon_with_pid
+        if [ ! -f /tmp/ntp.conf ]; then
+cat <<EOL > /tmp/ntp.conf
+server clock.sjc.he.net iburst
+server clock.fmt.he.net iburst
+server clock.nyc.he.net iburst
+EOL
+fi
+        starting
+        start_daemon_with_pid
 }
 
 stop() {
-	stopping
-	stop_daemon_with_pid
+        stopping
+        stop_daemon_with_pid
 }
 
 case "$1" in
-	start | stop)
-		$1
-		;;
-	reload)
-		stop
-		sleep 1
-		start
-		;;
-	*)
-		die "Usage: $0 {start|stop|restart|reload}"
-		;;
+        start | stop)
+                $1
+                ;;
+        reload)
+                stop
+                sleep 1
+                start
+                ;;
+        *)
+                die "Usage: $0 {start|stop|restart|reload}"
+                ;;
 esac
 
 exit 0
