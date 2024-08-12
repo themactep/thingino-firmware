@@ -73,18 +73,11 @@ case "$1" in
 			echo "Adding DNS server $i"
 			echo "nameserver $i" >>$tmpfile
 		done
+		mv $tmpfile $realconf
                 if [ -n "$ntpsrv" ]; then
-                        echo "NTP servers provided by DHCP: $ntpsrv"
-                        # Erase /etc/ntp.conf before adding new servers
-                        > /etc/ntp.conf
-                        # Add NTP servers to /etc/ntp.conf
-                        for t in $ntpsrv; do
-                                echo "Adding NTP server $t"
-                                echo "server $t iburst" >> /etc/ntp.conf
-                        done
+                        echo $ntpsrv | tr ' ' '\n' | sed 's/^/server /; s/$/ iburst/' > /tmp/ntp.conf
                         /etc/init.d/S49ntpd reload
                 fi
-		mv $tmpfile $realconf
 		;;
 esac
 
