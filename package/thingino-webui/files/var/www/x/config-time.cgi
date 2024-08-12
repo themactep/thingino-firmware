@@ -12,7 +12,7 @@ seq=$(seq 0 3)
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	case "$POST_action" in
 		reset)
-			cp /rom/etc/ntp.conf /etc/ntp.conf
+			cp /rom/etc/ntp.conf /tmp/ntp.conf
 			redirect_back "success" "Configuration reset to firmware defaults."
 			;;
 		update)
