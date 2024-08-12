@@ -5,30 +5,30 @@
 DAEMON_ARGS="-n"
 
 start() {
-        if [ ! -f /tmp/ntp.conf ]; then
+	starting
+	if [ ! -f /tmp/ntp.conf ]; then
 		cp -f /rom/etc/ntp.conf /tmp/ntp.conf
 	fi
-        starting
-        start_daemon_with_pid
+	start_daemon_with_pid
 }
 
 stop() {
-        stopping
-        stop_daemon_with_pid
+	stopping
+	stop_daemon_with_pid
 }
 
 case "$1" in
-        start | stop)
-                $1
-                ;;
+	start | stop)
+		$1
+		;;
         reload)
-                stop
-                sleep 1
-                start
-                ;;
-        *)
-                die "Usage: $0 {start|stop|restart|reload}"
-                ;;
+		stop
+		sleep 1
+		start
+		;;
+	*)
+		die "Usage: $0 {start|stop|restart|reload}"
+		;;
 esac
 
 exit 0
