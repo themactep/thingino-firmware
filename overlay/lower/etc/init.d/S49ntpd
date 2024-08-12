@@ -6,12 +6,8 @@ DAEMON_ARGS="-n"
 
 start() {
         if [ ! -f /tmp/ntp.conf ]; then
-cat <<EOL > /tmp/ntp.conf
-server clock.sjc.he.net iburst
-server clock.fmt.he.net iburst
-server clock.nyc.he.net iburst
-EOL
-fi
+		cp -f /rom/etc/ntp.conf /etc/ntp.conf
+	fi
         starting
         start_daemon_with_pid
 }
