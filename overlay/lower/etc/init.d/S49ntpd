@@ -21,7 +21,7 @@ case "$1" in
 	start | stop)
 		$1
 		;;
-        reload)
+	reload)
 		stop
 		sleep 1
 		start
