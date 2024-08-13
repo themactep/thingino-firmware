@@ -54,7 +54,7 @@ if ! grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline; then
 
 	# Create /tmp/ntp.conf if it doesn't exist and symlink /etc/ntp.conf to it
 	if [ ! -f /tmp/ntp.conf ]; then
-		echo "/tmp/ntp.conf created and linked to /etc/ntp.conf"
+		echo "Default /tmp/ntp.conf created"
 		cat <<EOF > /tmp/ntp.conf
 server clock.sjc.he.net iburst
 server clock.fmt.he.net iburst
@@ -65,4 +65,5 @@ EOF
 		echo "Failed to create symlink for /etc/ntp.conf" >&2
 		exit 1
 	}
+	echo "/tmp/ntp.conf linked to /etc/ntp.conf"
 fi
