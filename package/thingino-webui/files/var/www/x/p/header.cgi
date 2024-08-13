@@ -48,6 +48,7 @@ Pragma: no-cache
 <li class="nav-item dropdown">
 <a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownSettings" role="button">Settings</a>
 <ul aria-labelledby="dropdownSettings" class="dropdown-menu">
+<li><a class="dropdown-item" href="config-audio.cgi">Audio</a></li>
 <li><a class="dropdown-item" href="config-wlan.cgi">Wi-Fi</a></li>
 <li><a class="dropdown-item" href="config-network.cgi">Network</a></li>
 <li><a class="dropdown-item" href="config-hostname.cgi">Hostname</a></li>
