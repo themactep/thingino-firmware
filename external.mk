@@ -360,6 +360,8 @@ else ifeq ($(BR2_SENSOR_SC1235),y)
 SENSOR_MODEL := sc1235
 else ifeq ($(BR2_SENSOR_SC1346),y)
 SENSOR_MODEL := sc1346
+else ifeq ($(BR2_SENSOR_SC1A4T),y)
+SENSOR_MODEL := sc1a4t
 else ifeq ($(BR2_SENSOR_SC200AI),y)
 SENSOR_MODEL := sc200ai
 else ifeq ($(BR2_SENSOR_SC201CS),y)
