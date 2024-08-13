@@ -74,6 +74,10 @@ case "$1" in
 			echo "nameserver $i" >>$tmpfile
 		done
 		mv $tmpfile $realconf
+		if [ -n "$ntpsrv" ]; then
+			echo $ntpsrv | tr ' ' '\n' | sed 's/^/server /; s/$/ iburst/' > /tmp/ntp.conf
+			/etc/init.d/S49ntpd reload
+		fi
 		;;
 esac
 
