@@ -7,7 +7,17 @@ DAEMON_ARGS="-n"
 start() {
 	starting
 	if [ ! -f /tmp/ntp.conf ]; then
-		cp -f /rom/etc/ntp.conf /tmp/ntp.conf
+cat <<EOL > /tmp/ntp.conf
+server clock.sjc.he.net iburst
+server clock.fmt.he.net iburst
+server clock.nyc.he.net iburst
+EOL
+	ln -sf /tmp/ntp.conf /etc/ntp.conf || {
+        	echo "Failed to create symlink for /etc/ntp.conf" >&2
+		exit 1
+	}
+fi
+
 	fi
 	start_daemon_with_pid
 }
