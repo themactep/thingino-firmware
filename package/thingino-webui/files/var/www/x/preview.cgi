@@ -57,8 +57,8 @@ check_mirror() {
 				</div>
 			</div>
 		</div>
-		<p class="small text-body-secondary">The image above refreshes once per second and may appear choppy.
-			Use RTSP media player instead, e.g. <span class="text-white">mpv --profile=low-latency <%= $rtsp_url %></span>.
+		<p class="small text-body-secondary">The image above refreshes at a rate of about <span id="frame_rate"></span> frames per second and may appear choppy.
+			Use an RTSP media player instead, e.g. <span class="text-white">mpv --profile=low-latency <%= $rtsp_url %></span>.
 			<br>Move the cursor over the center of the preview image to reveal the motor controls. Use a single click for precise positioning, double click for coarse, long-distance movement.
 		</p>
 	</div>
@@ -115,6 +115,7 @@ $$("button[data-sendto]").forEach(el => {
 });
 
 function capture() { ws.send('{"action":{"capture":null}}'); }
+let last_frame_ts = null;
 
 const jpg = $("#preview");
 const ws_url = 'ws://' + document.location.hostname + ':8089?token=<%= $token %>';
@@ -129,6 +130,12 @@ ws.onmessage = (event) => {
 		const time = new Date(msg.date);
 		const timeStr = time.toLocaleTimeString();
 	} else if (event.data instanceof ArrayBuffer) {
+		const now = Date.now();
+		if (last_frame_ts != null) {
+			const frame_rate = Math.round(1000/(Date.now() - last_frame_ts));
+			$("#frame_rate").innerText = frame_rate;
+		}
+		last_frame_ts = now;
 		const blob = new Blob([event.data], {type: 'image/jpeg'});
 		const url = URL.createObjectURL(blob);
 		jpg.src = url;
