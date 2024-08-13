@@ -6,9 +6,6 @@ DAEMON_ARGS="-n"
 
 start() {
 	starting
-	if [ ! -f /tmp/ntp.conf ]; then
-		cp -f /rom/etc/ntp.conf /tmp/ntp.conf
-	fi
 	start_daemon_with_pid
 }
 
