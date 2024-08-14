@@ -95,9 +95,6 @@
 
 <%in p/header.cgi %>
 
-<% echo $(df -h /mnt/nfs/ | awk 'NR==2{print $1}') 
-echo $record_path %>
-
 <%	if [[ $record_path = "/mnt/nfs*" ]]; then
 		if [[ $(df -h /mnt/nfs/ | awk 'NR==2{print $1}') = "overlayfs" ]]; then %>
 			<div class="alert alert-danger">

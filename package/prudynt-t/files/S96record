@@ -122,14 +122,14 @@ start() {
 
 	# Check if there is a mount at /mnt/nfs/. Only checks this directory root
 	nfs_mount = $(df -h /mnt/nfs/ | awk 'NR==2{print $1}')
-	if [[ $(nfs_mount) = "overlayfs" ]]; then
+	if [ $(nfs_mount) = "overlayfs" ]; then
 		nfs_mounted = false
 	else
 		nfs_mounted = true
 	fi
 
-	if [[ "$record_path" = "/mnt/nfs/*" ]]; then
-		if [[ "$nfs_mounted" = "false"  ]]; then
+	if [ "$record_path" = "/mnt/nfs/*" ]; then
+		if [ "$nfs_mounted" = "false"  ]; then
 			terminate "NFS location is not mounted."
 		fi
 	elif [[ "$record_path" = "/mnt/mmcblk0p*" ]]; then
