@@ -122,17 +122,22 @@ start() {
 
 	# Check if there is a mount at /mnt/nfs/. Only checks this directory root
 	nfs_mount = $(df -h /mnt/nfs/ | awk 'NR==2{print $1}')
+	[ "$record_debug" = "true" ] && logger "NFS Mount found at $nfs_mount"
+
 	if [ $(nfs_mount) = "overlayfs" ]; then
 		nfs_mounted = false
 	else
 		nfs_mounted = true
 	fi
 
-	if [ "$record_path" = "/mnt/nfs/*" ]; then
+	[ "$record_debug" = "true" ] && logger "Record path is set to: $record_path"
+	if [[ "$record_path" = "/mnt/nfs/*" ]]; then
+		[ "$record_debug" = "true" ] && logger "NFS record path is true"
 		if [ "$nfs_mounted" = "false"  ]; then
 			terminate "NFS location is not mounted."
 		fi
 	elif [[ "$record_path" = "/mnt/mmcblk0p*" ]]; then
+		[ "$record_debug" = "true" ] && logger "SD record path is true"
 		# Only checking for partition 1 but this should suffice for multi-partition cards
 		grep -q "/mnt/mmcblk0p1" /proc/mounts || terminate "SD card is not mounted."
 	fi
