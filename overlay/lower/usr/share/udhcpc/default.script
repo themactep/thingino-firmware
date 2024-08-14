@@ -75,7 +75,7 @@ case "$1" in
 		done
 		mv $tmpfile $realconf
 		if [ -n "$ntpsrv" ] && [ -w /tmp/ntp.conf ]; then
-			echo $ntpsrv | tr ' ' '\n' | sed 's/^/server /; s/$/ iburst/' > /tmp/ntp.conf
+			echo $ntpsrv | tr ' ' '\n' | sed 's/^/server /; s/$/ iburst	#added by DHCP/' > /tmp/ntp.conf
 			/etc/init.d/S49ntpd reload
 		fi
 		;;
