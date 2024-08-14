@@ -14,7 +14,7 @@ seq=$(seq 0 3)
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	case "$POST_action" in
 		reset)
-			cp $ntpd_static_config $ntpd_working_config
+			cp /rom${ntpd_static_config} $ntpd_static_config
 			redirect_back "success" "Configuration reset to firmware defaults."
 			;;
 		update)
