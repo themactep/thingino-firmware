@@ -95,12 +95,24 @@
 
 <%in p/header.cgi %>
 
-<%	if ! ls /dev/mmc* >/dev/null 2>&1; then %>
+<% echo $(df -h /mnt/nfs/ | awk 'NR==2{print $1}') 
+echo $record_path %>
+
+<%	if [[ $record_path = "/mnt/nfs*" ]]; then
+		if [[ $(df -h /mnt/nfs/ | awk 'NR==2{print $1}') = "overlayfs" ]]; then %>
+			<div class="alert alert-danger">
+				<h4>Is your NFS mount set up correctly?</h4>
+				<p>The record path is set to an NFS share location but there does not seem to be an NFS mount on the camera.</p>
+				<p>Check that your NFS share is mounted at: <b>/mnt/nfs/</b></p>
+			</div>
+		<% fi
+elif ! ls /dev/mmc* >/dev/null 2>&1; then %>
 	<div class="alert alert-danger">
-		<h4>Does this camera support SD Card?</h4>
-		<p>Your camera does not have an SD Card slot or SD Card is not inserted.</p>
+		<h4>Does this camera support SD Card or NFS mounts?</h4>
+		<p>Your camera does not have an SD Card slot or an SD Card is not inserted.</p>
+		<p>Alternatively set up an NFS mount at: <b>/mnt/nfs/</b> </p>
 	</div>
-<% else %>
+<% fi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 	<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
@@ -108,7 +120,7 @@
 			<h3>Recording</h3>
 			<% field_switch "record_enabled" "Enable Recording" %>
 			<% field_text "record_prefix" "Filename Prefix" "e.g. thingino-yyyy-mm-dd_HH-MM-SS.mp4" "thingino-" %>
-			<% field_text "record_path" "Record Directory in SD Card" "Directory will be created if non-existent" "/"%>
+			<% field_text "record_path" "Record Directory" "Directory will be created if non-existent" "/"%>
 			<% field_select "record_format" "Output File Format" "mov, mp4, avi" %>
 			<% field_number "record_interval" "Recording Interval (seconds)" "" "How long to record in each file" %>
 			<% field_checkbox "record_loop" "Loop Recording" "Delete oldest file to make space for newer recordings"%>
@@ -133,5 +145,4 @@
 	
 </form>
 
-<% fi %>
 <%in p/footer.cgi %>

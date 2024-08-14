@@ -10,9 +10,16 @@ terminate() {
 	/etc/init.d/S96record stop
 }
 
+getUsedSpace() {
+	if [[ $record_path = "/mnt/nfs*" ]]; then
+		usedSpace=$(df /mnt/nfs/ | awk 'NR==3{print $4}' | cut -d'%' -f1)
+	else
+		usedSpace=$(df /mnt/mmcblk0p1/ | awk 'END{print $5}' | cut -d'%' -f1)
+}
+
 while :
 do
-	usedSpace=$(df /mnt/mmcblk0p1/ | awk 'END{print $5}' | cut -d'%' -f1)
+	getUsedSpace
 	[ "$record_debug" = "true" ] && logger "Used disk space is $usedSpace%"
 
 	if [ "$usedSpace" -ge "$record_diskusage" ]; then
@@ -24,7 +31,7 @@ do
 				oldestFile=$(ls -1tr --group-directories-first $record_path | head -1)
 				[ "$record_debug" = "true" ] && logger "deleting $oldestFile"
 				rm "$oldestFile"
-				usedSpace=$(df /mnt/mmcblk0p1/ | awk 'END{print $5}' | cut -d'%' -f1)
+				getUsedSpace
 				[ "$record_debug" = "true" ] && logger "Used disk space is $usedSpace%"
 
 				if [ -z $(ls -A $record_path 2>/dev/null) ]; then
