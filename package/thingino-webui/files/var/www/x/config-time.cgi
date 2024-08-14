@@ -7,6 +7,8 @@ page_title="Time"
 config_file="${ui_config_dir}/${plugin}.conf"
 [ ! -f "$config_file" ] && touch $config_file
 
+ntpd_static_config=/etc/default/ntp.conf
+ntpd_working_config=/tmp/ntp.conf
 seq=$(seq 0 3)
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
@@ -24,14 +26,13 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			[ "$tz_name" != "$POST_tz_name" ] && echo "$POST_tz_name" >/etc/timezone && \
 				fw_setenv timezone "$POST_tz_name"
 
-			tmp_file=/tmp/ntp.conf
-			:>$tmp_file
+			tmp_file=$(mktemp)
 			for i in $seq; do
 				eval s="\$POST_ntp_server_${i}"
 				[ -n "$s" ] && echo "server ${s} iburst" >>$tmp_file
 			done
 			unset i; unset s
-			mv $tmp_file /etc/ntp.conf
+			mv $tmp_file $ntpd_static_config
 			redirect_back "success" "Configuration updated."
 			;;
 	esac
@@ -76,7 +77,8 @@ done; unset i; unset x
 <% ex "cat /etc/timezone" %>
 <% ex "cat /etc/TZ" %>
 <% ex "echo \$TZ" %>
-<% ex "cat /etc/ntp.conf" %>
+<% ex "cat $ntpd_working_config" %>
+<% ex "cat $ntpd_static_config" %>
 <p id="sync-time-wrapper"><a href="#" id="sync-time">Sync time</a></p>
 </div>
 </div>

@@ -1,6 +1,9 @@
 GO2RTC_SITE_METHOD = git
-#GO2RTC_SITE = https://github.com/AlexxIT/go2rtc
-GO2RTC_SITE = https://github.com/wltechblog/go2rtc-smaller
+ifeq ($(BR2_PACKAGE_GO2RTC_MINI),y)
+	GO2RTC_SITE = https://github.com/wltechblog/go2rtc-smaller
+else
+	GO2RTC_SITE = https://github.com/AlexxIT/go2rtc
+endif
 GO2RTC_SITE_BRANCH = master
 GO2RTC_VERSION = $(shell git ls-remote $(GO2RTC_SITE) $(GO2RTC_SITE_BRANCH) | head -1 | cut -f1)
 
@@ -9,7 +12,7 @@ GO2RTC_LICENSE_FILES = LICENSE
 
 GO2RTC_INSTALL_TARGET = YES
 
-GO2RTC_DEPENDENCIES = host-go host-upx
+GO2RTC_DEPENDENCIES = host-upx
 GO2RTC_GO_ENV = GOARCH=mipsle
 GO2RTC_LDFLAGS = -s -w" -gcflags=all="-l -B
 
