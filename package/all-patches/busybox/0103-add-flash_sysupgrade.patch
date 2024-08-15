@@ -26,7 +26,7 @@
 +//usage:       "[-v] FILE|'-' MTD_DEVICE [SHA256SUM]"
 +//usage:#define flash_sysupgrade_full_usage "\n\n"
 +//usage:       "Copy a file or stdin to an MTD device\n"
-+//usage:       "  FILE             Specify the file to copy, may be a binary or gzip compressed binary file\n"
++//usage:       "  FILE             Specify the binary file to write\n"
 +//usage:       "  '-'              Denote stdin as the input\n"
 +//usage:       "  MTD_DEVICE       Specify the MTD device for output\n"
 +//usage:       "  [SHA256SUM]      Optional SHA256 checksum for validation\n"
