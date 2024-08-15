@@ -66,7 +66,7 @@ reboot_func() {
 }
 
 stop_services() {
-	services="S01syslogd S15thingino-button S49ntpd S50httpd S50crond S50mdnsd S50mosquitto S93telegrambot S95prudynt S96iad S96onvif"
+	services="S01syslogd S09motor S15thingino-button S49ntpd S50httpd S50crond S50mdnsd S50mosquitto S93telegrambot S95prudynt S96iad S96onvif"
 	for service in $services; do
 		stop_service "$service"
 	done
