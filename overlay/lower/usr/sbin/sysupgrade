@@ -124,13 +124,16 @@ done
 
 shift $((OPTIND-1))
 
-info "Stop services"
-stop_services
+if [ "$upgrade" != "local" ] || [ -n "$1" ]; then
+	# Only stop services and remove snapshot if performing an upgrade
+	info "Stop services"
+	stop_services
 
-info "Remove snapshot"
-run "rm -f /tmp/snapshot.jpg"
+	info "Remove snapshot"
+	run "rm -f /tmp/snapshot.jpg"
 
-flush_memory
+	flush_memory
+fi
 
 if [ "local" = "$upgrade" ]; then
 	[ -z "$1" ] && { show_help; exit 1; }
