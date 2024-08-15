@@ -39,6 +39,7 @@ start() {
 	motors_app=$(which motors)
 	gpio_motor_h=$(fw_printenv -n gpio_motor_h)
 	gpio_motor_v=$(fw_printenv -n gpio_motor_v)
+	gpio_motor_invert=$(fw_printenv -n gpio_motor_invert)
 	motor_maxstep_h=$(fw_printenv -n motor_maxstep_h)
 	motor_maxstep_v=$(fw_printenv -n motor_maxstep_v)
 
@@ -48,6 +49,8 @@ start() {
 	[ -z "$gpio_motor_v"    ] && die " Tilt motor GPIO pins are not set"
 	[ -z "$motor_maxstep_h" ] && die " Pan motor Steps are not set"
 	[ -z "$motor_maxstep_v" ] && die " Tilt motor Steps are not set"
+
+	[ "$gpio_motor_invert" == "true" ] && gpio_motor_invert_opt="invert_gpio_dir=1"
 
 	if grep -qE "^motor" /proc/modules; then
 		info "Module motor already loaded."
@@ -60,6 +63,7 @@ start() {
 		modprobe motor hmaxstep=$motor_maxstep_h vmaxstep=$motor_maxstep_v \
 			hst1=$hst1 hst2=$hst2 hst3=$hst3 hst4=$hst4 \
 			vst1=$vst1 vst2=$vst2 vst3=$vst3 vst4=$vst4 \
+			$gpio_motor_invert_opt \
 			|| die "Failed to load motor module"
 	fi
 

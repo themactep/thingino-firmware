@@ -12,6 +12,7 @@ gpio_mmc_cd=59
 gpio_mmc_power=17O
 gpio_motor_h=7 6 8 10
 gpio_motor_v=9 11 14 16
+gpio_motor_invert=true
 gpio_speaker=63
 gpio_wlan=48O
 motor_maxstep_h=3900
