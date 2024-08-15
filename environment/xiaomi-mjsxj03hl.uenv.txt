@@ -12,5 +12,4 @@ gpio_mmc_cd=48
 gpio_speaker=63
 osmem=32M@0x0
 rmem=32M@0x2000000
-wlanbus=sdio
 wlandev=8189fs

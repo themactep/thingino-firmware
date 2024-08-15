@@ -12,5 +12,4 @@ gpio_motor_h=61 62 63 51
 gpio_motor_v=54 52 53 64
 osmem=41836K@0x0
 rmem=23700K@0x28DB000
-wlanbus=usb
 wlandev=atbm6012bx

@@ -12,5 +12,4 @@ gpio_motor_h=51 54 52 53
 gpio_motor_v=external
 gpio_speaker=9O
 gpio_wlan=7o
-wlanbus=usb
 wlandev=8188fu

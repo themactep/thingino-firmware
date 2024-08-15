@@ -12,5 +12,4 @@ gpio_sda=12 57
 gpio_scl=13 58
 gpio_speaker=63
 gpio_wlan=
-wlanbus=usb
 wlandev=mt7601sta

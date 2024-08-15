@@ -15,6 +15,5 @@ gpio_motor_v=63 62 61 60
 gpio_speaker=8
 motor_maxstep_h=2130
 motor_maxstep_v=1600
-wlanbus=sdio
 wlandev=atbm6031
 wlandevopts=atbm_printk_mask=0

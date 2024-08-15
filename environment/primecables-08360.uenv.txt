@@ -10,5 +10,4 @@ gpio_mmc_cd=52
 gpio_scl=39i
 gpio_sda=48i
 gpio_speaker=63O
-wlanbus=usb
 wlandev=8188fu

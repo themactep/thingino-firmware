@@ -11,6 +11,5 @@ gpio_motor_v=52 53 64 59
 gpio_wlan=47O
 motor_maxstep_h=3700
 motor_maxstep_v=1000
-wlanbus=sdio
 wlandev=atbm6031
 wlandevopts=atbm_printk_mask=0

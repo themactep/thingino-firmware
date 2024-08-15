@@ -14,5 +14,4 @@ gpio_speaker=63
 gpio_wlan=57O
 osmem=42M@0x0
 rmem=22M@0x2a00000
-wlanbus=sdio
 wlandev=atbm6031

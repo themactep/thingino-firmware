@@ -9,5 +9,4 @@ gpio_led_r=53o
 gpio_mmc_cd=51
 gpio_speaker=63
 gpio_wlan=62o
-wlanbus=sdio
 wlandev=8189fs
