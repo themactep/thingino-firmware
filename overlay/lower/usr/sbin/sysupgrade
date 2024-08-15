@@ -60,7 +60,8 @@ verify_checksum() {
 }
 
 reboot_func() {
-	echo "Rebooting..."
+	echo "Rebooting in 5 seconds..."
+	sleep 5
 	echo wdt > /proc/jz/reset/reset
 }
 
