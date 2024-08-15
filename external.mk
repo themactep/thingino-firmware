@@ -521,6 +521,9 @@ endif
 ifeq ($(BR2_ISP_MEMOPT_2),y)
 	ISP_MEMOPT := isp_memopt=2
 endif
+ifeq ($(BR2_ISP_MEMOPT_3),y)
+	ISP_MEMOPT := isp_memopt=3
+endif
 
 ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM :=
 ifeq ($(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM),y)
