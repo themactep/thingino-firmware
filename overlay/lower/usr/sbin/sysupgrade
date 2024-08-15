@@ -87,8 +87,6 @@ flash_firmware() {
 	device="$2"
 	is_gzip="$3"
 
-	echo "if $command $file | $BB_BINARY flash_sysupgrade -v - /dev/$device"
-
 	if [ "$is_gzip" = "true" ]; then
 		if $command $file | $BB_BINARY flash_sysupgrade -v - /dev/$device; then
 			if [ "mtd5" = "$device" ]; then
