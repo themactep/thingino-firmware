@@ -145,6 +145,7 @@ rm -f /tmp/snapshot.jpg
 flush_memory
 
 if [ "local" = "$upgrade" ]; then
+	echo "Ugrading from a provided file"
 	if echo "$1" | grep -qE '^https?://'; then
 		binary_file=$(mktemp)
 		echo "Downloading firmware from $1"
@@ -157,6 +158,7 @@ if [ "local" = "$upgrade" ]; then
 		binary_file="$1"
 	fi
 else
+	echo "Ugrading from GitHub"
 	data=/etc/os-release
 	profile=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $data)
 	if [ -z "$profile" ]; then
@@ -233,13 +235,7 @@ echo "Unmount rootfs"
 umount /
 
 flush_memory
-
-echo
-
-echo "Performing upgrade"
-echo
-
-echo "Do not turn off the power!"
+echo -e "\nPerforming upgrade\nDo not turn off the power!\n"
 flash_firmware
 
 exit 0
