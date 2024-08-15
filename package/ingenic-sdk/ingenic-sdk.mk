@@ -57,18 +57,22 @@ define GENERATE_GPIO_USERKEYS_CONFIG
 endef
 
 define GENERATE_AUDIO_CONFIG
-	gpio_speaker=$$(awk -F= '/^gpio_speaker=/ {print $$2}' $(U_BOOT_ENV_TXT)); \
-	if [ -z "$$gpio_speaker" ]; then \
-		spk_gpio=-1; \
-		spk_level=-1; \
-	elif echo "$$gpio_speaker" | grep -qE '^[0-9]+[Oo]$$'; then \
-		spk_gpio=$$(echo "$$gpio_speaker" | sed 's/[Oo]$$//'); \
-		spk_level=$$(echo "$$gpio_speaker" | grep -q 'O$$' && echo 1 || echo 0); \
+	if [ -n "$(U_BOOT_ENV_TXT)" ] && [ -f $(U_BOOT_ENV_TXT) ]; then \
+		gpio_speaker=$$(awk -F= '/^gpio_speaker=/ {print $$2}' $(U_BOOT_ENV_TXT)); \
+		if [ -z "$$gpio_speaker" ]; then \
+				spk_gpio=-1; \
+				spk_level=-1; \
+		elif echo "$$gpio_speaker" | grep -qE '^[0-9]+[Oo]$$'; then \
+				spk_gpio=$$(echo "$$gpio_speaker" | sed 's/[Oo]$$//'); \
+				spk_level=$$(echo "$$gpio_speaker" | grep -q 'O$$' && echo 1 || echo 0); \
+		else \
+				spk_gpio=$$gpio_speaker; \
+				spk_level=-1; \
+		fi; \
+		echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(BR2_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/audio; \
 	else \
-		spk_gpio=$$gpio_speaker; \
-		spk_level=-1; \
-	fi; \
-	echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(BR2_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/audio
+		echo "Skipping audio configuration: U_BOOT_ENV_TXT is empty or does not exist."; \
+	fi
 endef
 
 define INGENIC_SDK_INSTALL_TARGET_CMDS
