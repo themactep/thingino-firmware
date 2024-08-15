@@ -25,7 +25,7 @@ start() {
                 info "U-Boot ENV updated. Rebooting now..."
                 sync
                 sleep 2
-                reboot -f -d 3
+		echo wdt > /proc/jz/reset/reset
         fi
 }
 
