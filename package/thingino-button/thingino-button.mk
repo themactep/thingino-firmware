@@ -10,7 +10,7 @@ endef
 define THINGINO_BUTTON_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/thingino-button $(TARGET_DIR)/usr/bin/thingino-button
 	$(INSTALL) -m 0755 -D $(THINGINO_BUTTON_PKGDIR)/files/S15thingino-button $(TARGET_DIR)/etc/init.d/S15thingino-button
-	$(INSTALL) -m 0755 -D $(THINGINO_BUTTON_PKGDIR)/files/thingino-button.conf $(TARGET_DIR)/etc/thingino-button.conf
+	$(INSTALL) -m 0644 -D $(THINGINO_BUTTON_PKGDIR)/files/thingino-button.conf $(TARGET_DIR)/etc/thingino-button.conf
 endef
 
 $(eval $(generic-package))
