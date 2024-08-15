@@ -37,6 +37,35 @@ stop_service() {
 	/etc/init.d/$1 stop
 }
 
+verify_checksum() {
+	checksum_url="$1"
+	firmware_file="$2"
+
+	checksum_file=$(mktemp)
+	info "Downloading SHA-256 checksum from $checksum_url"
+	curl -# -L -f -o $checksum_file $checksum_url || die "Failed to download checksum from $checksum_url"
+
+	# Extract the expected checksum (first field) from the downloaded file
+	expected_checksum=$(awk '{print $1}' $checksum_file)
+	actual_checksum=$($BB_BINARY sha256sum $firmware_file | awk '{print $1}')
+
+	if [ "$expected_checksum" = "$actual_checksum" ]; then
+		info "SHA-256 checksum verification succeeded."
+	else
+		die "SHA-256 checksum verification failed! Firmware file might be corrupted."
+	fi
+}
+
+cleanup() {
+	[ -n "$binary_file" ] && [ -f "$binary_file" ] && rm -f "$binary_file"
+	[ -n "$checksum_file" ] && [ -f "$checksum_file" ] && rm -f "$checksum_file"
+	rm -f /tmp/busybox /tmp/fw_setenv /tmp/fw_printenv /tmp/sysupgrade
+	info "Cleaned up temporary files."
+}
+
+# Trap signals to ensure cleanup on exit
+trap cleanup EXIT INT TERM
+
 while getopts "fhp" flag; do
 	case "$flag" in
 		f)
@@ -72,19 +101,48 @@ else
 	binary_file=$(mktemp -u) # Create a name of temporary file
 fi
 
+info "Stop services"
+stop_service S01syslogd
+stop_service S15thingino-button
+stop_service S49ntpd
+stop_service S50httpd
+stop_service S50crond
+stop_service S50mdnsd
+stop_service S50mosquitto
+stop_service S93telegrambot
+stop_service S95prudynt
+stop_service S96iad
+stop_service S96onvif
+
+info "Remove snapshot"
+run "rm -f /tmp/snapshot.jpg"
+
+info "Drop caches"
+run "echo 3 > /proc/sys/vm/drop_caches"
+
+info "Sync changes"
+run "sync"
+
 case "$upgrade" in
 	full | part)
 		url="https://github.com/themactep/thingino-firmware/releases/download/firmware"
+		checksum_url="https://github.com/themactep/thingino-firmware/releases/download/verify"
+
 		if [ "part" = "$upgrade" ]; then
 			fw_file="_update/thingino-${profile}-update.bin"
+			sha256_file="thingino-${profile}-update.bin.sha256sum"
 		else
 			fw_file="/thingino-${profile}.bin"
+			sha256_file="thingino-${profile}.bin.sha256sum"
 		fi
+
 		info "Downloading firmware from ${url}${fw_file}."
 		curl -# -L -f -o $binary_file ${url}${fw_file} || die "Failed to download firmware from $url"
+
+		# Perform checksum verification
+		verify_checksum "${checksum_url}/${sha256_file}" "$binary_file"
 		;;
 	local) ;;
-
 esac
 
 [ -f "$binary_file" ] || die "File $1 not found"
@@ -112,32 +170,10 @@ esac
 
 grep -q -e "mtd6" -e "mtd5" /proc/mtd || die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
 
-info "Stop services"
-stop_service S01syslogd
-stop_service S15thingino-button
-stop_service S49ntpd
-stop_service S50httpd
-stop_service S50crond
-stop_service S50mdnsd
-stop_service S50mosquitto
-stop_service S93telegrambot
-stop_service S95prudynt
-stop_service S96iad
-stop_service S96onvif
-
-info "Remove snapshot"
-run "rm -f /tmp/snapshot.jpg"
-
-info "Drop caches"
-run "echo 3 > /proc/sys/vm/drop_caches"
-
-info "Sync changes"
-run "sync"
-
 info "Unmount overlay"
 run "umount /overlay"
 
-info "Unmount roots"
+info "Unmount rootfs"
 run "umount /"
 
 echo
@@ -150,7 +186,6 @@ if $BB_BINARY flashcp -v $binary_file /dev/$mtd_dev; then
 	fi
 
 	echo "Rebooting..."
-	$BB_BINARY reboot -f -d 3
 	echo wdt > /proc/jz/reset/reset
 else
 	echo "Upgrade failed!"
