@@ -39,8 +39,7 @@ stop_service() {
 }
 
 verify_checksum() {
-	checksum_url="$1"
-	firmware_file="$2"
+	checksum_url="${checksum_url}/${sha256_file}"
 
 	checksum_file=$(mktemp)
 	echo "Downloading SHA-256 checksum from $checksum_url"
@@ -51,7 +50,7 @@ verify_checksum() {
 
 	# Extract the expected checksum (first field) from the downloaded file
 	expected_checksum=$(awk '{print $1}' "$checksum_file")
-	actual_checksum=$($BB_BINARY sha256sum "$firmware_file" | awk '{print $1}')
+	actual_checksum=$($BB_BINARY sha256sum "$binary_file" | awk '{print $1}')
 
 	if [ "$expected_checksum" = "$actual_checksum" ]; then
 		echo "SHA-256 checksum verification succeeded."
@@ -126,27 +125,26 @@ while getopts "fhp" flag; do
 			;;
 	esac
 done
-[ -z "$upgrade" ] && upgrade="local"
 
-shift $((OPTIND-1))
-
-if [ "$upgrade" != "local" ] || [ -n "$1" ]; then
-	# Only stop services and remove snapshot if performing an upgrade
-	echo "Stop services"
-	stop_services
-
-	echo "Remove snapshot"
-	rm -f /tmp/snapshot.jpg
-
-	flush_memory
-fi
-
-if [ "local" = "$upgrade" ]; then
+if [ -z "$upgrade" ]; then
 	if [ -z "$1" ]; then
 		show_help
 		exit 1
 	fi
+	upgrade="local"
+fi
 
+shift $((OPTIND-1))
+
+echo "Stop services"
+stop_services
+
+echo "Remove snapshot"
+rm -f /tmp/snapshot.jpg
+
+flush_memory
+
+if [ "local" = "$upgrade" ]; then
 	if echo "$1" | grep -qE '^https?://'; then
 		binary_file=$(mktemp)
 		echo "Downloading firmware from $1"
@@ -157,7 +155,6 @@ if [ "local" = "$upgrade" ]; then
 		downloaded_file=1  # Set flag indicating the file was downloaded
 	else
 		binary_file="$1"
-		downloaded_file=0  # Local file, do not delete on cleanup
 	fi
 else
 	data=/etc/os-release
@@ -187,8 +184,7 @@ else
 
 	downloaded_file=1  # Set flag indicating the file was downloaded
 
-	# Perform checksum verification
-	verify_checksum "${checksum_url}/${sha256_file}" "$binary_file"
+	verify_checksum
 fi
 
 # Detect if the file is gzipped
