@@ -31,18 +31,18 @@ initialize_ssh_connection() {
 	fi
 }
 
-# Transfers firmware file and verifies MD5 checksum
+# Transfers firmware file and verifies SHA256 checksum
 transfer_and_verify_firmware() {
 	echo "Transferring firmware file to the device..."
-	LOCAL_MD5=$(md5sum "$FIRMWARE_BIN" | cut -d' ' -f1)
+	LOCAL_SHA256=$(sha256sum "$FIRMWARE_BIN" | cut -d' ' -f1)
 	if timeout 300 ssh $SSH_OPTS root@"$CAMERA_IP_ADDRESS" "\
 		cat >/tmp/fwupdate.bin; \
-		REMOTE_MD5=\$(md5sum /tmp/fwupdate.bin | cut -d' ' -f1); \
-		if [ \"\$REMOTE_MD5\" != \"$LOCAL_MD5\" ]; then \
-			echo 'MD5 checksum does not match, exiting...'; \
+		REMOTE_SHA256=\$(sha256sum /tmp/fwupdate.bin | cut -d' ' -f1); \
+		if [ \"\$REMOTE_SHA256\" != \"$LOCAL_SHA256\" ]; then \
+			echo 'SHA256 checksum does not match, exiting...'; \
 			exit 1; \
 		fi" < "$FIRMWARE_BIN"; then
-		echo "Firmware file transferred and MD5 checksum verified."
+		echo "Firmware file transferred and SHA256 checksum verified."
 	else
 		echo "The firmware transfer process timed out or failed."
 		exit 1
