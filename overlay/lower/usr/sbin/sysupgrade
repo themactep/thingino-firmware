@@ -13,7 +13,7 @@ downloaded_file=0  # Flag to track if the file was downloaded
 if [ -z "$RUNNING_WITH_TMP_BUSYBOX" ]; then
 	if [ ! -f /tmp/busybox ]; then
 		cp /bin/busybox /tmp/busybox
-		cp /sbin/sysupgrade /tmp/sysupgrade
+		cp $0 /tmp/sysupgrade
 		cp /sbin/fw_printenv /tmp/fw_printenv
 		ln -s /tmp/fw_printenv /tmp/fw_setenv
 	fi
@@ -214,7 +214,7 @@ run "umount /"
 
 flush_memory
 
-echo
+echo WHAT THE FUCK
 
 info "Performing upgrade"
 warn "Do not turn off the power!"
