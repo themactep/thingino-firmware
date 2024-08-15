@@ -40,11 +40,13 @@ define GENERATE_GPIO_USERKEYS_CONFIG
 			gpio_button=*) \
 				has_gpio_buttons=1; \
 				gpio_num=$${line#*=}; \
+				gpio_num=$$(echo $$gpio_num | tr -cd '[0-9]'); \
 				gpio_userkeys_config="$$gpio_userkeys_config$${first_button},$${gpio_num},1;"; \
 				;; \
 			gpio_button_*=*) \
 				has_gpio_buttons=1; \
 				gpio_num=$${line#*=}; \
+				gpio_num=$$(echo $$gpio_num | tr -cd '[0-9]'); \
 				gpio_userkeys_config="$$gpio_userkeys_config$${keycode},$${gpio_num},1;"; \
 				keycode=$$((keycode + 1)); \
 				;; \
