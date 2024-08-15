@@ -3,7 +3,6 @@
 KERNEL_MAGIC="27051956"
 U_BOOT_MAGIC="06050403"
 ROOTFS_MAGIC="68737173"
-GZIP_MAGIC="1f8b08"
 BB_BINARY=/tmp/busybox
 
 downloaded_file=0  # Flag to track if the file was downloaded
@@ -82,11 +81,7 @@ flush_memory(){
 }
 
 flash_firmware() {
-	if [ "true" = "$is_gzip" ]; then
-		$BB_BINARY zcat $binary_file | $BB_BINARY flash_sysupgrade -v - /dev/$mtd_dev
-	else
-		$BB_BINARY flashcp -v $binary_file /dev/$mtd_dev
-	fi
+	$BB_BINARY flashcp -v $binary_file /dev/$mtd_dev
 
 	if [ $? -ne 0 ]; then
 		echo "Caution: You may need to perform a recovery flash restore before rebooting the camera!"
@@ -145,7 +140,7 @@ rm -f /tmp/snapshot.jpg
 flush_memory
 
 if [ "local" = "$upgrade" ]; then
-	echo "Ugrading from a provided file"
+	echo "Upgrading from a provided file"
 	if echo "$1" | grep -qE '^https?://'; then
 		binary_file=$(mktemp)
 		echo "Downloading firmware from $1"
@@ -158,7 +153,7 @@ if [ "local" = "$upgrade" ]; then
 		binary_file="$1"
 	fi
 else
-	echo "Ugrading from GitHub"
+	echo "Upgrading from GitHub"
 	data=/etc/os-release
 	profile=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $data)
 	if [ -z "$profile" ]; then
@@ -189,17 +184,8 @@ else
 	verify_checksum
 fi
 
-# Detect if the file is gzipped
-magic=$(xxd -l 3 -p "$binary_file")
-if [ "$magic" = "$GZIP_MAGIC" ]; then
-	echo "Detected gzip compressed binary."
-	# Check magic inside the gzipped file
-	internal_magic=$(zcat "$binary_file" | xxd -l 4 -p - | head -n 1)
-	is_gzip="true"
-else
-	# File is not gzipped, check the magic directly
-	internal_magic=$(xxd -l 4 -p "$binary_file")
-fi
+# Detect magic directly from the binary file
+internal_magic=$(xxd -l 4 -p "$binary_file")
 
 case "$internal_magic" in
 	"$U_BOOT_MAGIC")
