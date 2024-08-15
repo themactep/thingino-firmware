@@ -25,17 +25,17 @@ while IFS='=,' read -r PNUM PNAME PX PY; do
 
 	if [ "$PNUM" = "$PRESET_NUM" ]; then
 		if [ -n "$PX" ] && [ -n "$PY" ]; then
-			logger -t ptz_preset "Running command: motors -d h -x $PX -y $PY"
+			logger -t ptz_presets "Running command: motors -d h -x $PX -y $PY"
 			motors -d h -x "$PX" -y "$PY"
 			exit 0
 		else
-			logger -t ptz_preset "Invalid preset format or coordinates missing for preset $PRESET_NUM."
+			logger -t ptz_presets "Invalid preset format or coordinates missing for preset $PRESET_NUM."
 			echo "Invalid preset format or coordinates missing for preset $PRESET_NUM."
 			exit 1
 		fi
 	fi
 done < "$PTZ_CONF_FILE"
 
-logger -t ptz_preset "Preset number $PRESET_NUM not found."
+logger -t ptz_presets "Preset number $PRESET_NUM not found."
 echo "Preset number $PRESET_NUM not found."
 exit 1

@@ -26,7 +26,7 @@ define ONVIF_SIMPLE_SERVER_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/sbin
 	$(INSTALL) -m 0755 -t $(TARGET_DIR)/usr/sbin $(@D)/onvif_simple_server
 	$(INSTALL) -m 0755 -t $(TARGET_DIR)/usr/sbin $(@D)/wsd_simple_server
-	$(INSTALL) -m 0755 -t $(TARGET_DIR)/usr/sbin $(ONVIF_SIMPLE_SERVER_PKGDIR)/files/ptz_preset.sh
+	$(INSTALL) -m 0755 -t $(TARGET_DIR)/usr/sbin $(ONVIF_SIMPLE_SERVER_PKGDIR)/files/ptz_presets
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/etc $(ONVIF_SIMPLE_SERVER_PKGDIR)/files/onvif.conf
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/etc $(ONVIF_SIMPLE_SERVER_PKGDIR)/files/ptz_presets.conf
