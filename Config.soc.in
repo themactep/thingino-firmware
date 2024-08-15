@@ -23,6 +23,15 @@ config BR2_SOC_FAMILY_INGENIC_T41
 	bool
 	default y if BR2_SOC_INGENIC_T41LQ || BR2_SOC_INGENIC_T41NQ || BR2_SOC_INGENIC_T41ZL || BR2_SOC_INGENIC_T41ZN || BR2_SOC_INGENIC_T41ZX || BR2_SOC_INGENIC_T41A
 
+if FALSE
+config BR2_SOC_FAMILY_64MB
+	bool
+	default y if BR2_SOC_INGENIC_T10L || BR2_SOC_INGENIC_T10N || BR2_SOC_INGENIC_T10A || BR2_SOC_INGENIC_T20L || BR2_SOC_INGENIC_T20N || BR2_SOC_INGENIC_T21L || BR2_SOC_INGENIC_T21N || BR2_SOC_INGENIC_T21Z || BR2_SOC_INGENIC_T21ZL || BR2_SOC_INGENIC_T21Z || BR2_SOC_INGENIC_T21ZL || BR2_SOC_INGENIC_T23N || BR2_SOC_INGENIC_T23ZN || BR2_SOC_INGENIC_T30L || BR2_SOC_INGENIC_T30N || BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL
+config BR2_SOC_FAMILY_128MB
+	bool
+	default y if BR2_SOC_INGENIC_T20X || BR2_SOC_INGENIC_T21X || BR2_SOC_INGENIC_T30X || BR2_SOC_INGENIC_T30A || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31ZX
+endif
+
 choice
 	prompt "SoC Model"
 config BR2_SOC_INGENIC_DUMMY
@@ -138,21 +147,32 @@ config BR2_ISP_CLK_300MHZ
 	depends on BR2_SOC_FAMILY_INGENIC_T23
 endchoice
 
-if FALSE
-if BR2_SOC_FAMILY_INGENIC_T31
 choice
 	prompt "ISP Memory Optimization Level"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31
+	default BR2_ISP_MEMOPT_1 if BR2_SOC_INGENIC_T23N || BR2_SOC_INGENIC_T23ZN || BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL
 	help
-	  Select the memory optimization level for ISP.
-
+	  Select the memory optimization level for the ISP.
 config BR2_ISP_MEMOPT_0
-	bool "0: No optimization"
+        bool "Optimize Disabled"
+        help
+           Disables the ISP memory optimization.
 config BR2_ISP_MEMOPT_1
-	bool "1: Level 1 optimization"
+        bool "Optimize Level 1"
+        help
+           Enable ISP memory optimization - Leve 1 - Bypass Lynne + BGM
 config BR2_ISP_MEMOPT_2
-	bool "2: Level 2 optimization"
+        bool "Optimize Level 2"
+        help
+           Enable ISP memory optimization - Leve 2 - Bypass Lynne + BGM + Ass
+config BR2_ISP_MEMOPT_3
+        bool "Optimize Level 3"
+        help
+           Enable ISP memory optimization - Leve 3 - Normal
 endchoice
 
+if FALSE
+if BR2_SOC_FAMILY_INGENIC_T31
 menuconfig BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME
 	bool "ISP Day/Night switch drop frame number"
 
