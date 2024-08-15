@@ -214,7 +214,7 @@ run "umount /"
 
 flush_memory
 
-echo WHAT THE FUCK
+echo
 
 info "Performing upgrade"
 warn "Do not turn off the power!"
