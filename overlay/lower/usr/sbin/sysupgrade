@@ -71,6 +71,14 @@ stop_services() {
 	done
 }
 
+flush_memory(){
+	info "Sync changes"
+	run "sync"
+
+	info "Drop caches"
+	run "echo 3 > /proc/sys/vm/drop_caches"
+}
+
 flash_firmware() {
 	command="$1"
 	file="$2"
@@ -121,6 +129,8 @@ stop_services
 
 info "Remove snapshot"
 run "rm -f /tmp/snapshot.jpg"
+
+flush_memory
 
 if [ "local" = "$upgrade" ]; then
 	[ -z "$1" ] && { show_help; exit 1; }
@@ -199,11 +209,7 @@ run "umount /overlay"
 info "Unmount rootfs"
 run "umount /"
 
-info "Drop caches"
-run "echo 3 > /proc/sys/vm/drop_caches"
-
-info "Sync changes"
-run "sync"
+flush_memory
 
 echo
 
@@ -212,11 +218,11 @@ warn "Do not turn off the power!"
 
 # Flash the firmware
 if [ "$magic" = "$GZIP_MAGIC" ]; then
-    info "Detected gzip compressed binary."
-    flash_firmware $BB_BINARY zcat "$binary_file" "$mtd_dev"
+	info "Detected gzip compressed binary."
+	flash_firmware "zcat" "$binary_file" "$mtd_dev"
 else
-    info "Detected regular binary."
-    flash_firmware $BB_BINARY cat "$binary_file" "$mtd_dev"
+	info "Detected regular binary."
+	flash_firmware "cat" "$binary_file" "$mtd_dev"
 fi
 
 exit 0
