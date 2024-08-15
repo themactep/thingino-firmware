@@ -24,5 +24,10 @@ define WIFI_SSV6158_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_SET_OPT,CONFIG_MAC80211_RC_DEFAULT,"minstrel_ht")
 endef
 
+define WIFI_SSV6158_COPY_CONFIG
+        $(INSTALL) -m 644 $(WIFI_SSV6158_PKGDIR)/files/ssv6x5x-wifi.cfg $(TARGET_DIR)/etc/
+endef
+WIFI_SSV6158_PRE_CONFIGURE_HOOKS += WIFI_SSV6158_COPY_CONFIG
+
 $(eval $(kernel-module))
 $(eval $(generic-package))
