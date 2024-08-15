@@ -57,8 +57,7 @@ check_mirror() {
 				</div>
 			</div>
 		</div>
-		<p class="small text-body-secondary">The image above refreshes at a rate of about <span id="frame_rate"></span> frames per second and may appear choppy.
-			Use an RTSP media player instead, e.g. <span class="text-white">mpv --profile=low-latency <%= $rtsp_url %></span>.
+		<p class="small text-body-secondary">Use an RTSP media player instead, e.g. <span class="text-white">mpv --profile=low-latency <%= $rtsp_url %></span>.
 			<br>Move the cursor over the center of the preview image to reveal the motor controls. Use a single click for precise positioning, double click for coarse, long-distance movement.
 		</p>
 	</div>
@@ -89,7 +88,6 @@ check_mirror() {
 				<button class="form-control btn btn-primary text-start" type="button" data-sendto="yadisk">Yandex Disk</button>
 				<div class="input-group-text"><a href="plugin-send2yadisk.cgi" title="Yandex Disk bot settings"><%= $icon_gear %></a></div>
 			</div>
-			<button id="zonemapper" class="form-control btn btn-secondary" type="button">Zone Mapper</button>
 		</div>
 	</div>
 </div>
@@ -115,7 +113,6 @@ $$("button[data-sendto]").forEach(el => {
 });
 
 function capture() { ws.send('{"action":{"capture":null}}'); }
-let last_frame_ts = null;
 
 const jpg = $("#preview");
 const ws_url = 'ws://' + document.location.hostname + ':8089?token=<%= $token %>';
@@ -130,12 +127,6 @@ ws.onmessage = (event) => {
 		const time = new Date(msg.date);
 		const timeStr = time.toLocaleTimeString();
 	} else if (event.data instanceof ArrayBuffer) {
-		const now = Date.now();
-		if (last_frame_ts != null) {
-			const frame_rate = Math.round(1000/(Date.now() - last_frame_ts));
-			$("#frame_rate").innerText = frame_rate;
-		}
-		last_frame_ts = now;
 		const blob = new Blob([event.data], {type: 'image/jpeg'});
 		const url = URL.createObjectURL(blob);
 		jpg.src = url;
@@ -156,147 +147,6 @@ $("#daynight")?.addEventListener("change", ev => {
 		mode = "day";
 	}
 });
-
-/* ZONE MAPPER */
-
-let rois = [
-	[0,0,50,50],
-	[300,300,100,100]
-];
-
-function reorderCoords(ar) {
-	let numArray = new Float64Array(ar);
-	return numArray.sort();
-}
-
-function normalizeZone(x, y, w, h) {
-	if (w < 0) {
-		w = -(w);
-		x = x - w;
-	}
-	if (h < 0) {
-		h = -(h);
-		y = y - h;
-	}
-	return [x,y,w,h];
-}
-
-function enableZoneMapper() {
-	MinZoneHeight = 30;
-	MinZoneWidth = 30;
-	let mode = 'draw';
-
-	function loadZones() {
-	    rois.forEach(z => {
-		ctx.fillRect(z[0], z[1], z[2], z[3]);
-	    });
-	}
-
-	function resetZones() {
-		ctx.reset();
-		loadZones();
-	}
-
-	let sx = 0;
-	let sy = 0;
-
-	const frame = $('#frame');
-	const fw = frame.clientWidth;
-	const fh = frame.clientHeight;
-
-	const cv = document.createElement('canvas');
-	cv.width = fw;
-	cv.height = fh;
-	cv.id = 'roi';
-	cv.classList.add('position-absolute', 'top-0');
-	frame.append(cv);
-
-	const bound = cv.getBoundingClientRect();
-	const bl = bound.left;
-	const bt = bound.top;
-	const ccl = cv.clientLeft;
-	const cct = cv.clientTop;
-
-        const ctx = cv.getContext('2d');
-        resetZones();
-
-	cv.addEventListener('mousedown', ev => {
-		const x = Math.ceil(ev.clientX - bl - ccl);
-		const y = Math.ceil(ev.clientY - bt - cct);
-		console.log("Mouse button pressed at (" + x + "," + y + ")");
-
-		if (ev.shiftKey) {
-			console.log("Shift key is pressed");
-			let index = 0;
-			rois.forEach(z => {
-				console.log("Zone " + index + " " + z);
-				if (x > z[0] && x < (z[0] + z[2]) && y > z[1] && x < (z[1] + z[3])) {
-					console.log("Click is within this zone!");
-					rois.splice(index, 1);
-					resetZones();
-				}
-				index = index + 1;
-			});
-			return;
-		} else {
-			sx = x;
-			sy = y;
-		}
-		ev.preventDefault();
-	});
-
-	cv.addEventListener('mousemove', ev => {
-		if (ev.buttons != 1) return;
-		if (ev.shiftKey) return;
-
-		const w = Math.ceil(ev.clientX - bl - ccl - sx);
-		const h = Math.ceil(ev.clientY - bt - cct - sy);
-		resetZones();
-
-		if (Math.abs(w) < MinZoneWidth || Math.abs(h) < MinZoneHeight) {
-			ctx.strokeStyle = "red";
-		} else {
-			ctx.strokeStyle = "white";
-		}
-		ctx.lineWidth = 5;
-		ctx.rect(sx, sy, w, h);
-		ctx.stroke();
-	});
-
-	cv.addEventListener('mouseup', ev => {
-		if (ev.shiftKey) {
-			console.log("Shift key is pressed. Exiting.");
-			return;
-		}
-
-		const x = Math.ceil(ev.clientX - bl - ccl);
-		const y = Math.ceil(ev.clientY - bt - cct);
-		console.log("Mouse button released at (" + x + "," + y + ")");
-
-		const w = x - sx;
-		const h = y - sy;
-		console.log("Zone size: " + w + "x" + h);
-
-		if (Math.abs(w) < MinZoneWidth) {
-			console.log("Width is less than " + MinZoneWidth + "px");
-			resetZones();
-			return;
-		} else if (Math.abs(h) < MinZoneHeight) {
-			console.log("Height is less than " + MinZoneHeight + "px");
-			resetZones();
-			return;
-		} else {
-			resetZones();
-			ctx.fillStyle = "red";
-			ctx.fillRect(sx, sy, w, h);
-			rois.push(normalizeZone(sx, sy, w, h));
-		}
-	})
-}
-
-$('#zonemapper').addEventListener('click', () => {
-	enableZoneMapper();
-})
 </script>
 
 <style>
