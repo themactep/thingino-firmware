@@ -83,33 +83,21 @@ flush_memory(){
 }
 
 flash_firmware() {
-	file="$1"
-	device="$2"
-	is_gzip="$3"
-
-	if [ "$is_gzip" = "true" ]; then
-		if $command $file | $BB_BINARY flash_sysupgrade -v - /dev/$device; then
-			if [ "mtd5" = "$device" ]; then
-				/tmp/fw_setenv sysupgrade_complete false
-			fi
-			echo "Upgrade complete."
-			reboot_func
-		else
-			echo "Caution: You may need to perform a recovery flash restore before rebooting the camera!"
-			exit 1
-		fi
+	if [ "true" = "$is_gzip" ]; then
+		$BB_BINARY zcat $binary_file | $BB_BINARY flash_sysupgrade -v - /dev/$mtd_dev
 	else
-		if $BB_BINARY flashcp -v $file /dev/$device; then
-			if [ "mtd5" = "$device" ]; then
-				/tmp/fw_setenv sysupgrade_complete false
-			fi
-			echo "Upgrade complete."
-			reboot_func
-		else
-			echo "Caution: You may need to perform a recovery flash restore before rebooting the camera!"
-			exit 1
-		fi
+		$BB_BINARY flashcp -v $binary_file /dev/$mtd_dev
 	fi
+
+	if [ $? -ne 0 ]; then
+		echo "Caution: You may need to perform a recovery flash restore before rebooting the camera!"
+		exit 1
+	fi
+
+	[ "mtd5" = "$mtd_dev" ] && /tmp/fw_setenv sysupgrade_complete false
+
+	echo "Upgrade complete."
+	reboot_func
 }
 
 cleanup() {
@@ -213,7 +201,6 @@ if [ "$magic" = "$GZIP_MAGIC" ]; then
 else
 	# File is not gzipped, check the magic directly
 	internal_magic=$(xxd -l 4 -p "$binary_file")
-	is_gzip="false"
 fi
 
 case "$internal_magic" in
@@ -255,9 +242,8 @@ echo
 
 echo "Performing upgrade"
 echo
-echo "Do not turn off the power!"
 
-# Flash the firmware
-flash_firmware "$binary_file" "$mtd_dev" "$is_gzip"
+echo "Do not turn off the power!"
+flash_firmware
 
 exit 0
