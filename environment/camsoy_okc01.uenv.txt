@@ -10,5 +10,4 @@ gpio_mmc_cd=61
 gpio_mmc_power=62
 gpio_scl=58
 gpio_sda=57
-wlanbus=sdio
 wlandev=hi3881
