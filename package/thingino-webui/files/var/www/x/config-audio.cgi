@@ -65,5 +65,5 @@ fi
 </div>
 </div>
 </form>
-<% fi %>
+
 <%in _footer.cgi %>
