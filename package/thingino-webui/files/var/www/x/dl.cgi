@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 file=$GET_file
 if [ "/tmp/webui.log" = "$file" ]; then

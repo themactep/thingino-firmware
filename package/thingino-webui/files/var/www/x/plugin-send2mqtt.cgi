@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="mqtt"
 plugin_name="MQTT client"
@@ -69,7 +69,7 @@ else
 	[ -z "$mqtt_message" ] && mqtt_message=""
 fi
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_switch "mqtt_enabled" "Enable MQTT client" %>
@@ -108,4 +108,4 @@ $('#mqtt_use_ssl').addEventListener('change', evt => {
 });
 </script>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

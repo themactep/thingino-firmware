@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="time"
 page_title="Time"
@@ -42,7 +42,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 fi
 %>
 
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_hidden "action" "update" %>
@@ -149,4 +149,4 @@ done; unset i; unset x
 	tzn.addEventListener("change", updateTimezone);
 	$("#frombrowser").addEventListener("click", useBrowserTimezone);
 </script>
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

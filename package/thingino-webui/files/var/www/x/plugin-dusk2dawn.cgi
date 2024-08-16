@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="dusk2dawn"
 plugin_name="Day/Night by Sun"
@@ -46,7 +46,7 @@ else
 	[ -z "$dusk2dawn_runat" ] && dusk2dawn_runat="0:00"
 fi
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <div class="row g-4 mb-4">
@@ -96,4 +96,4 @@ function getCoordinates() {
 }
 </script>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="network"
 page_title="Network settings"
@@ -60,7 +60,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	esac
 fi
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <div class="row g-4">
 <div class="col col-md-6 col-lg-4 mb-4">
@@ -118,4 +118,4 @@ toggleIface();
 toggleDhcp();
 </script>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

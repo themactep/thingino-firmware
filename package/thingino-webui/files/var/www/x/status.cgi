@@ -1,7 +1,7 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <% page_title="Device status" %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <div class="row g-4 mb-4">
 <div class="col">
@@ -19,4 +19,4 @@
 </div>
 </div>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

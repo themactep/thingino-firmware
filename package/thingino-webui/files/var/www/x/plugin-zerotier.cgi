@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="zerotier"
 plugin_name="ZeroTier"
@@ -69,7 +69,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	esac
 fi
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <div class="row g-4 mb-4">
 <div class="col col-lg-4">
@@ -137,4 +137,4 @@ ex "ps | grep zerotier"
 </div>
 </div>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

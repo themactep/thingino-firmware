@@ -1,6 +1,6 @@
 #!/usr/bin/haserl
 
-<%in p/common.cgi %>
+<%in _common.cgi %>
 
 <%
 	plugin="record"
@@ -93,7 +93,7 @@
 	fi
 %>
 
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <%	if ! ls /dev/mmc* >/dev/null 2>&1; then %>
 	<div class="alert alert-danger">
@@ -123,15 +123,15 @@
 			<% field_number "record_led_gpio" "LED GPIO Pin" "" "Default: gpio_led_r" %>
 			<% field_range "record_led_interval" "Blink Interval (seconds)" "0,3.0,0.5" "Set to 0 for always on"%>
 		</div>
-		
+
 		<div class="col">
 			<% field_switch "record_debug" "Enable Debugging" %>
 			<h3>Configuration</h3>
 			<% [ -f $config_file ] && ex "cat $config_file" %>
 		</div>
 	</div>
-	
+
 </form>
 
 <% fi %>
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

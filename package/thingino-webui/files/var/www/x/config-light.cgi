@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 page_title="Illumination Controls"
 
@@ -56,7 +56,7 @@ ircut_pin2=$(echo $ircut_pins | awk '{print $2}')
 [ -z "$day_night_max" ] && day_night_max=15000
 
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
@@ -109,4 +109,4 @@ day_night_max: <%= $day_night_max %>
 <% button_submit %>
 </form>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

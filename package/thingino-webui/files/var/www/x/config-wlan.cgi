@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="wlan"
 page_title="Access to Wi-Fi"
@@ -36,7 +36,7 @@ fi
 wlan_ssid="$(get wlanssid)"
 wlan_pass="$(get wlanpass)"
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <div class="row g-4 mb-4">
@@ -51,4 +51,4 @@ wlan_pass="$(get wlanpass)"
 <% button_submit %>
 </form>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

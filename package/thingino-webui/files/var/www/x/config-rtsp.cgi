@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="rtsp"
 plugin_name="RTSP/ONVIF Access"
@@ -43,7 +43,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	fi
 fi
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <div class="row g-4 mb-4">
 <div class="col col-12 col-xl-4">
@@ -65,4 +65,4 @@ onvif://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>/onvi
 <script>
 $('#rtsp_username').readOnly = true;
 </script>
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

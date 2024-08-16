@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="telegrambot"
 plugin_name="Telegram Bot"
@@ -53,7 +53,7 @@ else
 	[ -z "$telegrambot_caption" ] && telegrambot_caption="%hostname, %datetime"
 fi
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-1 g-4 mb-4">
 <div class="col">
@@ -140,4 +140,4 @@ function resetBotCommands() {
 $('#reset_commands').addEventListener('click', resetBotCommands);
 </script>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

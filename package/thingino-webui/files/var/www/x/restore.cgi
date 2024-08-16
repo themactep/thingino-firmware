@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 [ -z "$GET_f" ] && set_error_flag "Nothing to restore."
 

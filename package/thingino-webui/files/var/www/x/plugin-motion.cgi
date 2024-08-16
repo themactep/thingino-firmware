@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="motion"
 plugin_name="Motion guard"
@@ -51,7 +51,7 @@ else
 	[ -z "$motion_throttle"    ] && motion_throttle=10
 fi
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <div class="row g-4 mb-4">
@@ -100,4 +100,4 @@ fi
 <% [ "true" != "$yadisk_enabled"   ] && echo "\$('#motion_send2yadisk').disabled = true;" %>
 </script>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>
