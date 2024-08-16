@@ -17,6 +17,7 @@ read_data_from_env() {
 field_gpio() {
 	local pin
 	local value
+	local is_active
 	local is_active_low
 	local lit_on_boot
 	local name=gpio_led_$1
@@ -27,13 +28,17 @@ field_gpio() {
 	 	o) pin=${value%?}; is_active_low="checked" ;;
 		*) pin=${value}; active_suffix="O" ;;
 	esac
+
+	pin_status=$(gpio read $pin | awk '{print $3}')
+	[ "$pin_status" -eq 1 ] && is_active="checked"
+
 	if echo $DEFAULT_PINS | grep -E "\b${pin}${active_suffix}\b" > /dev/null; then
 		lit_on_boot="checked"
 	fi
-	echo "<div class=\"mb-3\">
-<label class=\"form-label\" for=\"$name\">$2</label>
-<div class=\"input-group\">
-<div class=\"input-group-text\" style=\"background-color:$2\"></div>
+	echo "<div class=\"mb-3\"><label class=\"form-label\" for=\"$name\">$2</label><div class=\"input-group\">
+<div class=\"input-group-text\" style=\"background-color:$2\">
+<input class=\"form-check-input mt-0 led-status\" type=\"checkbox\" id=\"${name}_on\" name=\"${name}_on\" data-color=\"$1\" value=\"true\" ${is_active}>
+</div>
 <input type=\"text\" class=\"form-control text-end\" name=\"$name\" pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pin\" placeholder=\"GPIO\">
 <div class=\"input-group-text\"><input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" name=\"${name}_inv\" value=\"true\" ${is_active_low}> active low</div>
 <div class=\"input-group-text\"><input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" name=\"${name}_lit\" value=\"true\" ${lit_on_boot}> lit on boot</div>
@@ -108,5 +113,14 @@ fi
 </div>
 <% button_submit %>
 </form>
+
+<script>
+async function switchIndicator(color, state) {
+  await fetch("/x/j/indicator.cgi?c=" + color + "&amp;s=" + state)
+  	.then(response => response.json())
+  	.then(data => { $('#gpio_led_' + color + '_on').checked = (data.message.status == 1) });
+}
+$$('.led-status').forEach(el => el.addEventListener('change', ev => switchIndicator(ev.target.dataset['color'], ev.target.checked?1:0)))
+</script>
 
 <%in _footer.cgi %>
