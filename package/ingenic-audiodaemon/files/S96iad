@@ -17,24 +17,26 @@ if [ -z "$audio_debug" ]; then
 fi
 
 # default to "disabled" and update config
-if [ -z "$net_enable" ]; then
-	net_enable="false"
-	echo "net_enable=$net_enable" >> $AUDIO_WEBUI_CONF
+if [ -z "$audio_net_enabled" ]; then
+	audio_net_enabled="false"
+	echo "audio_net_enabled=$audio_net_enabled" >> $AUDIO_WEBUI_CONF
 fi
 
 # set default port and update config
-if [ -z "$net_port" ]; then
-	net_port=8081
-	echo "net_port=$net_port" >> $AUDIO_WEBUI_CONF
+if [ -z "$audio_net_port" ]; then
+	audio_net_port=8081
+	echo "audio_net_port=$audio_net_port" >> $AUDIO_WEBUI_CONF
 fi
 
 start() {
 	starting
+	[ "$audio_debug" = "true" ] && logger "Starting IAD Daemon"
 	start_daemon
 
 	# Run listener in background for playing audio over the network
-	if [ "$net_enable" = "true" ]; then
-			nc -ll -p $net_port -e iac -s &
+	if [ "$audio_net_enabled" = "true" ]; then
+			[ "$audio_debug" = "true" ] && logger "Starting Network Listener on port $audio_net_port"
+			nc -ll -p $audio_net_port -e iac -s &
 			echo $! > /run/network_audio.pid
 			check_result
 	fi
@@ -44,6 +46,7 @@ stop() {
 	stopping
 	is_streamer_disabled && quit "Streamer disabled"
 
+	[ "$audio_debug" = "true" ] && logger "Killing network listener - PID $(cat /run/network_audio.pid)"
 	kill "$(cat /run/network_audio.pid)"
 
 	stop_daemon

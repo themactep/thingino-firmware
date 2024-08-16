@@ -1,6 +1,6 @@
 #!/usr/bin/haserl
 
-<%in p/common.cgi %>
+<%in _common.cgi %>
 
 <%
 	plugin="audio"
@@ -45,19 +45,19 @@
 
 		# default values
 		[ -z "$audio_debug" ] && audio_debug=false
-		[ -z "$net_enabled" ] && net_enabled=false
-		[ -z "$net_port" ] && net_port=8081
+		[ -z "$audio_net_enabled" ] && audio_net_enabled=false
+		[ -z "$audio_net_port" ] && audio_net_port=8081
 	fi
 %>
 
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 	<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
 		<div class="col">
 			<h3>Network Audio</h3>
-			<% field_switch "net_enabled" "Enable Incoming Audio" "Live stream audio to the camera speaker over the network" %>
-			<% field_number "net_port" "Incoming Audio Port" "" "Which port to listen on" %>
+			<% field_switch "audio_net_enabled" "Enable Incoming Audio" "Live stream audio to the camera speaker over the network" %>
+			<% field_number "audio_net_port" "Incoming Audio Port" "" "Which port to listen on" %>
 			<br>
 			<% button_submit %>
 		</div>
@@ -75,4 +75,4 @@
 </form>
 
 <% fi %>
-<%in p/footer.cgi %>
+<%in _footer.cgi %>
