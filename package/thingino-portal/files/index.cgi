@@ -42,7 +42,13 @@ if [ "POST" = "$REQUEST_METHOD" ] && [ "save" = "$POST_mode" ]; then
 	echo "root:${rootpass}" | chpasswd -c sha512
 	echo "$rootpkey" > $SSH_AUTH_KEYS
 	sed -i "s/^ifs=.*$/ifs=wlan0/" /etc/onvif.conf
-	echo "<h1 class=\"mt-5 text-center display-1\">Done. Rebooting...</h1>"
+%>
+<h3 class="text-center display-3 my-5">Done. Rebooting...</h3>
+<p id="ipclink" class="text-center d-none">Go to <a href="http://<%= $hostname %>.local/">http://<%= $hostname  %>.local/</a></p>
+<script>
+setTimeout(() => document.getElementById('ipclink').classList.remove('d-none'), 5000);
+</script>
+<%
 	reboot -d 5
 elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then
 	hostname=$(hostname)
