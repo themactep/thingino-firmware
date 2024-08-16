@@ -4,13 +4,27 @@
 
 DAEMON_ARGS="-r -c /etc/iad.json"
 
+audiostreamer_enable="$(get audiolistener)"
+audiostreamer_port="$(get audiolistenerport)"
+
 start() {
 	starting
 	start_daemon
+
+	# Run listener in background for playing audio over the network
+	if [ "$audiostreamer_enable" = "true" ]; then
+			nc -ll -p $audiostreamer_port -e iac -s &
+			echo $! > /run/network_audio.pid
+			check_result
+	fi
 }
 
 stop() {
 	stopping
+	is_streamer_disabled && quit "Streamer disabled"
+
+	kill "$(cat /run/network_audio.pid)"
+
 	stop_daemon
 }
 
