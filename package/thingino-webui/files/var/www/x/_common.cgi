@@ -503,6 +503,16 @@ link_to() {
 	echo "<a href=\"${2}\">${1}</a>"
 }
 
+load_configs() {
+	local i
+	local n
+	for i in $(ls -1 config-*); do
+		# get name
+		n="$(sed -r -n '/^page_title=/s/page_title="(.*)"/\1/p' $i)"
+		echo -n "<li><a class=\"dropdown-item\" href=\"${i}\">${n}</a></li>"
+	done
+}
+
 load_plugins() {
 	local i
 	local n
@@ -815,7 +825,7 @@ include $sysinfo_file
 pagename=$(basename "$SCRIPT_NAME")
 pagename="${pagename%%.*}"
 
-include p/locale_en.cgi
+include _locale_en.cgi
 include /etc/webui/mqtt.conf
 include /etc/webui/socks5.conf
 include /etc/webui/speaker.conf

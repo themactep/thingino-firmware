@@ -48,24 +48,7 @@ Pragma: no-cache
 <li class="nav-item dropdown">
 <a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownSettings" role="button">Settings</a>
 <ul aria-labelledby="dropdownSettings" class="dropdown-menu">
-<li><a class="dropdown-item" href="config-wlan.cgi">Wi-Fi</a></li>
-<li><a class="dropdown-item" href="config-network.cgi">Network</a></li>
-<li><a class="dropdown-item" href="config-hostname.cgi">Hostname</a></li>
-<li><a class="dropdown-item" href="config-time.cgi">Time</a></li>
-<li><a class="dropdown-item" href="config-indication.cgi">LED Indicators</a></li>
-<li><a class="dropdown-item" href="config-light.cgi">Illumination</a></li>
-<li><a class="dropdown-item" href="config-record.cgi">Local Recording</a></li>
-<li><a class="dropdown-item" href="config-rtsp.cgi">RTSP/ONVIF Access</a></li>
-<% if [ -f /bin/motors ]; then %>
-<li><a class="dropdown-item" href="config-motors.cgi">Motors</a></li>
-<% fi %>
-<li><a class="dropdown-item" href="config-osd.cgi">OSD</a></li>
-<li><a class="dropdown-item" href="config-imp.cgi">IMP Control</a></li>
-<li><a class="dropdown-item" href="config-socks5.cgi">SOCKS5 Proxy</a></li>
-<li><a class="dropdown-item" href="config-webui.cgi">Web Interface</a></li>
-<li><a class="dropdown-item" href="config-admin.cgi">Admin Profile</a></li>
-<!--<li><a class="dropdown-item" href="config-users.cgi">Users</a></li>-->
-<li><a class="dropdown-item" href="config-developer.cgi">Developer</a></li>
+<% load_configs %>
 <li><hr class="dropdown-divider"></li>
 <li><a class="dropdown-item" href="reset.cgi">Reset...</a></li>
 </ul>
@@ -100,7 +83,7 @@ Pragma: no-cache
 <main class="pb-4">
 <div class="container" style="min-height: 85vh">
 <div class="row mt-1 x-small">
-<div class="col-lg-2">
+<div class="col-md-4 col-lg-2">
 <div class="progress-stacked memory my-1">
 <div class="progress" role="progressbar" aria-label="Active" id="pb-memory-active">
 <div class="progress-bar"></div>
@@ -118,7 +101,7 @@ Pragma: no-cache
 </div>
 </div>
 </div>
-<div class="col-md-6 mb-2">
+<div class="col-md-7 mb-2">
 <%= $(signature) %>
 </div>
 <div class="col-1" id="daynight_value"></div>
