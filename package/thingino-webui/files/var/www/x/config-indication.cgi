@@ -96,19 +96,14 @@ fi
 %>
 <%in _header.cgi %>
 <form action="<%= $SCRIPT_NAME %>" method="post">
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
-<div class="col" style="width:30%">
+<div class="row g-4 mb-4">
+<div class="col-sm-12 col-md-8 col-lg-6 col-xl-4">
 <% field_gpio "r" "Red" %>
 <% field_gpio "g" "Green" %>
 <% field_gpio "b" "Blue" %>
-</div>
-<div class="col" style="width:30%">
 <% field_gpio "y" "Yellow" %>
 <% field_gpio "o" "Orange" %>
 <% field_gpio "w" "White" %>
-</div>
-<div class="col" style="width:40%">
-<% ex "fw_printenv | grep -E 'gpio_(led|default=)' | sort" %>
 </div>
 </div>
 <% button_submit %>
