@@ -24,7 +24,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		done; unset p
 		fw_setenv -s $tmpfile
 		update_caminfo
-		redirect_back "success" "Development config updated."
+		redirect_to "reboot.cgi"
 	fi
 fi
 %>
