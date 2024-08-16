@@ -41,7 +41,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	redirect_to $SCRIPT_NAME "success" "Timezone updated."
 fi
 %>
-
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
