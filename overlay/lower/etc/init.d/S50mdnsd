@@ -1,21 +1,26 @@
 #!/bin/sh
 
+DAEMON_ARGS="-i $(ip addr show | awk '/inet.*brd/{print $NF}' | head -1) -s"
+
 . /etc/init.d/rc.common
 
-case "$1" in
-        start | restart)
-        	starting
-        	start_daemon_with_pid
-                ;;
-        stop)
-        	stopping
-        	stop_daemon_with_pid
-        	;;
- 	reload)
-        	stopping
-        	stop_daemon_with_pid
-	        #start-stop-daemon -K -s HUP -q -p "$PIDFILE" -x "$DEAMON_FULL"
+start() {
+	starting
+	start_daemon_with_pid
+}
 
+stop() {
+	stopping
+	stop_daemon_with_pid
+}
+
+case "$1" in
+        start | stop)
+        	$1
+                ;;
+ 	reload | restart)
+        	stop
+        	sleep 1
 	        start
  		;;
         *)
