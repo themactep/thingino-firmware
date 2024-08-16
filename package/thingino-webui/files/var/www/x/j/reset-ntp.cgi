@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if cp -f /etc/default/ntp.conf /tmp/ntp.conf; then
+if cp /rom/etc/ntp.conf /tmp/ntp.conf; then
 	payload='{"result":"success","message":"Configuration reset to firmware defaults."}'
 else
 	payload='{"result":"danger","message":"Configuration reset to firmware defaults failed!"}'
