@@ -52,8 +52,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	esac
 fi
 
-page_title="Web Interface Settings"
-
 # data for form fields
 ui_username="$USER"
 %>
