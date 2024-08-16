@@ -58,7 +58,10 @@
 			<h3>Network Audio</h3>
 			<% field_switch "audio_net_enabled" "Enable Incoming Audio" "Live stream audio to the camera speaker over the network" %>
 			<% field_number "audio_net_port" "Incoming Audio Port" "" "Which port to listen on" %>
-			<br>
+
+			 <a href="https://github.com/gtxaspec/ingenic-audiodaemon?tab=readme-ov-file#on-pc">See this repo for usage instructions</a> 
+			 
+			<br><br>
 			<% button_submit %>
 		</div>
 

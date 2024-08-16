@@ -10,7 +10,7 @@ AUDIO_WEBUI_CONF=/etc/webui/audio.conf
 [ ! -f $AUDIO_WEBUI_CONF ] && touch $AUDIO_WEBUI_CONF
 . $AUDIO_WEBUI_CONF
 
-# default debugging on
+# default debugging
 if [ -z "$audio_debug" ]; then
 	audio_debug="false"
 	echo "audio_debug=$audio_debug" >> $AUDIO_WEBUI_CONF
@@ -35,7 +35,7 @@ start() {
 
 	# Run listener in background for playing audio over the network
 	if [ "$audio_net_enabled" = "true" ]; then
-			[ "$audio_debug" = "true" ] && logger "Starting Network Listener on port $audio_net_port"
+			[ "$audio_debug" = "true" ] && logger "Starting network listener on port $audio_net_port"
 			nc -ll -p $audio_net_port -e iac -s &
 			echo $! > /run/network_audio.pid
 			check_result
