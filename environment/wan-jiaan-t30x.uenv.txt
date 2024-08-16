@@ -1,0 +1,17 @@
+disable_eth=true
+enable_updates=true
+gpio_button=52
+gpio_call=54
+gpio_ircut=81
+gpio_mmc_cd=59
+gpio_motor_h=78 77 76 75
+gpio_motor_v=49 50 72 73
+gpio_speaker=63
+gpio_wlan=62O
+gpio_led_r=89
+gpio_led_v=90
+motor_maxstep_h=4000
+motor_maxstep_v=310
+wlandev=8189fs
+osmem=64M@0x0
+rmem=64M@0x4000000
