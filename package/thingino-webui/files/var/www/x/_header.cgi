@@ -82,33 +82,23 @@ Pragma: no-cache
 
 <main class="pb-4">
 <div class="container" style="min-height: 85vh">
+
 <div class="row mt-1 x-small">
-<div class="col-md-4 col-lg-2">
+<div class="col col-10 col-md-3 col-lg-2">
 <div class="progress-stacked memory my-1">
-<div class="progress" role="progressbar" aria-label="Active" id="pb-memory-active">
-<div class="progress-bar"></div>
+<div class="progress" role="progressbar" aria-label="Active" id="pb-memory-active"><div class="progress-bar"></div></div>
+<div class="progress" role="progressbar" aria-label="Buffers" id="pb-memory-buffers"><div class="progress-bar"></div></div>
+<div class="progress" role="progressbar" aria-label="Cached" id="pb-memory-cached"><div class="progress-bar"></div></div>
 </div>
-<div class="progress" role="progressbar" aria-label="Buffers" id="pb-memory-buffers">
-<div class="progress-bar"></div>
-</div>
-<div class="progress" role="progressbar" aria-label="Cached" id="pb-memory-cached">
-<div class="progress-bar"></div>
+<div class="progress-stacked overlay">
+<div class="progress" role="progressbar" id="pb-overlay-used"><div class="progress-bar"></div></div>
 </div>
 </div>
-<div class="progress-stacked overlay my-1">
-<div class="progress" role="progressbar" id="pb-overlay-used">
-<div class="progress-bar"></div>
+<div class="col col-2  col-md-2 col-lg-1" id="daynight_value"></div>
+<div class="col col-12 col-md-7 col-lg-6 col-xl-5"><%= $(signature) %></div>
+<div class="col col-12 col-md-12 col-lg-3 col-xl-4 text-end"><a href="/x/config-time.cgi" id="time-now" class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover"></a></div>
 </div>
-</div>
-</div>
-<div class="col-md-7 mb-2">
-<%= $(signature) %>
-</div>
-<div class="col-1" id="daynight_value"></div>
-<div class="col-md-4 col-lg-3 mb-2 text-end">
-<div><a href="/x/config-time.cgi" id="time-now" class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover"></a></div>
-</div>
-</div>
+
 <% if [ -z "$network_gateway" ]; then %>
 <div class="alert alert-warning">
 <p class="mb-0">No Internet connection. Please <a href="config-network.cgi">check your network settings</a>.</p>
