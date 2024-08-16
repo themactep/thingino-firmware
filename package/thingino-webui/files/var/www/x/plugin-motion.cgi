@@ -21,17 +21,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		sanitize "${plugin}_${p}"
 	done; unset p
 
-	# validation
-	if [ "true" = "$motion_enabled" ]; then
-		[ "false" = "$motion_send2email" ] && \
-			[ "false" = "$motion_send2ftp" ] && \
-			[ "false" = "$motion_send2mqtt" ] && \
-			[ "false" = "$motion_send2telegram" ] && \
-			[ "false" = "$motion_send2webhook" ] && \
-			[ "false" = "$motion_send2yadisk" ] && \
-			set_error_flag "You need to select at least one method of notification"
-	fi
-
 	if [ -z "$error" ]; then
 		:>$tmp_file
 		for p in $params; do

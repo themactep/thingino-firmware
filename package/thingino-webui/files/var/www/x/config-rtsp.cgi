@@ -6,7 +6,8 @@ plugin_name="RTSP/ONVIF Access"
 page_title="RTSP/ONVIF Access"
 
 prudynt_config=/etc/prudynt.cfg
-onvif_control=/etc/init.d/S96onvif
+onvif_discovery=/etc/init.d/S96onvif_discovery
+onvif_notify=/etc/init.d/S97onvif_notify
 
 rtsp_username=$(awk -F: '/Streaming Service/ {print $1}' /etc/passwd)
 [ -z "$rtsp_username" ] && rtsp_username=$(awk -F'"' '/username/{print $2}' $prudynt_config)
@@ -25,10 +26,16 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		mv $tmpfile $prudynt_config
 		echo "$rtsp_username:$rtsp_password" | chpasswd
 
-		if [ -f "$onvif_control" ]; then
-			$onvif_control restart >> /tmp/webui.log
+		if [ -f "$onvif_discovery" ]; then
+			$onvif_discovery restart >> /tmp/webui.log
 		else
-			echo "$onvif_control not found" >> /tmp/webui.log
+			echo "$onvif_discovery not found" >> /tmp/webui.log
+		fi
+
+		if [ -f "$onvif_notify" ]; then
+			$onvif_notify restart >> /tmp/webui.log
+		else
+			echo "$onvif_notify not found" >> /tmp/webui.log
 		fi
 
 		update_caminfo
