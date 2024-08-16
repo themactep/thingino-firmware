@@ -14,8 +14,8 @@ case "$d" in
 	r)
 		motors -r >/dev/null
 		;;
-	x)
-		motors -d x -x $x -y $y >/dev/null
+	h)
+		motors -d h -x $x -y $y >/dev/null
 		;;
 esac
 
