@@ -1,9 +1,8 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
-
-DAEMON=
 DAEMON_ARGS="-d"
+
+. /etc/init.d/rc.common
 
 start() {
 	starting
@@ -15,19 +14,14 @@ stop() {
 	stop_daemon_process
 }
 
-restart() {
-	stop || true
-	sleep 1
-	reload
-}
-
-reload() {
-	start
-}
-
 case "$1" in
-	start | stop | restart | reload)
+	start | stop)
 		$1
+		;;
+	restart | reload)
+		stop || true
+		sleep 1
+		start
 		;;
 	*)
 		die "Usage: $0 {start|stop|restart|reload}"
