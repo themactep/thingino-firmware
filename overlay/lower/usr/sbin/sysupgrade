@@ -73,7 +73,7 @@ stop_services() {
 	done
 }
 
-flush_memory(){
+flush_memory() {
 	echo "Sync changes"
 	sync
 
