@@ -1,6 +1,6 @@
 #!/usr/bin/haserl --upload-limit=1024 --upload-dir=/tmp
-<%in p/common.cgi %>
-<%in p/icons.cgi %>
+<%in _common.cgi %>
+<%in _icons.cgi %>
 <%
 page_title="OSD"
 
@@ -24,7 +24,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	fi
 fi
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 <% if [ "true" = "$need_to_reload" ]; then %>
 <h3>Restarting Prudynt</h3>
 <h4>Please wait...</h4>
@@ -82,4 +82,4 @@ $('#preview').addEventListener('click', ev => {
 #preview-wrapper:hover button { visibility: visible; }
 </style>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

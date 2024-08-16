@@ -1,7 +1,7 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <% page_title="Reset things" %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <div class="row row-cols-md-3 g-4 mb-4">
 <div class="col">
@@ -12,8 +12,8 @@
 </div>
 </div>
 <div class="col">
-<%in p/reset-firmware.cgi %>
+<%in _reset-firmware.cgi %>
 </div>
 </div>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

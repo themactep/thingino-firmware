@@ -1,6 +1,6 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <% page_title="Top processes" %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 <% ex "top -n 1 -b" %>
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

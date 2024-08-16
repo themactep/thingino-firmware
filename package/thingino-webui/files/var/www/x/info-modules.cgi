@@ -1,7 +1,7 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <% page_title="Modules" %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 <% ex "lsmod" %>
 <% button_refresh %>
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

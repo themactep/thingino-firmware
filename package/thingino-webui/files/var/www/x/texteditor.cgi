@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	editor_file="$POST_editor_file"
@@ -54,7 +54,7 @@ fi
 
 page_title="Text editor"
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <ul class="nav nav-tabs" role="tablist">
 <% tab_lap "edit" "Editor" "active" %>
@@ -107,4 +107,4 @@ unset _n
 <% fi %>
 </div>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

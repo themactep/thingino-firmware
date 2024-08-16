@@ -1,7 +1,7 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <% page_title="SD Card" %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 <% if ! ls /dev/mmc* >/dev/null 2>&1; then %>
 <div class="alert alert-danger">
 <h4>Does this camera support SD Card?</h4>
@@ -100,4 +100,4 @@ else
 	fi
 fi
 %>
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

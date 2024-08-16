@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="telegram"
 plugin_name="Send to Telegram"
@@ -44,7 +44,7 @@ else
 	[ -z "$telegram_caption" ] && telegram_caption="%hostname, %datetime"
 fi
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_switch "telegram_enabled" "Enable sending to Telegram" %>
@@ -80,4 +80,4 @@ fi
 </div>
 <% fi %>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

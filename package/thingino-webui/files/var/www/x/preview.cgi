@@ -1,6 +1,6 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
-<%in p/icons.cgi %>
+<%in _common.cgi %>
+<%in _icons.cgi %>
 <%
 token="$(cat /run/prudynt_websocket_token)"
 page_title="Camera preview"
@@ -24,7 +24,7 @@ check_mirror() {
 	[ $flip -eq 1 ] || [ $flip -eq 3 ] && echo -n " checked"
 }
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <div class="row preview">
 	<div class="col-12 mb-3">
@@ -35,7 +35,7 @@ check_mirror() {
 				<div class="bar3"></div>
 			</div>
 			<img id="preview" class="img-fluid" alt="Image: Preview"></img>
-			<%in p/motors.cgi %>
+			<%in _motors.cgi %>
 			<div id="controls" class="position-absolute bottom-0 start-0 end-0">
 				<div class="buttons btn-group d-flex" role="group" aria-label="Night Mode">
 					<input type="checkbox" class="btn-check" name="daynight" id="daynight" value="1"<% checked_if $daynight 1 %>>
@@ -154,4 +154,4 @@ $("#daynight")?.addEventListener("change", ev => {
 #controls:hover div.buttons { visibility: visible; }
 </style>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

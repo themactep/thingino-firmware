@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="socks5"
 page_title="SOCKS5 proxy"
@@ -20,7 +20,7 @@ fi
 include $config_file
 %>
 
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
 <div class="col">
@@ -38,4 +38,4 @@ include $config_file
 </div>
 </div>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="ssh"
 plugin_name="Send to SSH"
@@ -44,7 +44,7 @@ else
 	[ -z "$ssh_username" ] && ssh_username="$(whoami)"
 fi
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_switch "ssh_enabled" "Enable sending to SSH server" %>
@@ -64,4 +64,4 @@ fi
 <% button_submit %>
 </form>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

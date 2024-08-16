@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 files=$(ls -1 /proc/umap/)
 file=$GET_file
@@ -9,7 +9,7 @@ if [ -z "$file" ]; then
 fi
 page_title="Information from /proc/umap"
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 <p><%
 for f in $files; do
 	css="btn btn-sm btn-primary"
@@ -20,4 +20,4 @@ done
 </p>
 <% ex "cat /proc/umap/${file}" %>
 <% button_refresh %>
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

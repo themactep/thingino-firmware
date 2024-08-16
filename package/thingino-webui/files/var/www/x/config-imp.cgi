@@ -1,6 +1,6 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
-<%in p/icons.cgi %>
+<%in _common.cgi %>
+<%in _icons.cgi %>
 <%
 imp_config_file=/etc/imp.conf
 imp_config_temp_file=/tmp/imp.conf
@@ -74,7 +74,7 @@ check_mirror() {
 	[ $flip -eq 1 ] || [ $flip -eq 3 ] && echo -n " checked"
 }
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <div class="d-flex justify-content-between flex-wrap">
 <div class="flex-grow-1 me-5" style="flex-basis: 250px;">
@@ -180,4 +180,4 @@ check_mirror() {
 
 <script src="/a/imp-config.js"></script>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

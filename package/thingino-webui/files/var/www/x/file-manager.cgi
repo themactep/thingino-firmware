@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 [ -n "$GET_cd" ] && dir=${GET_cd}
 # expand traversed path to a real directory name
@@ -8,7 +8,7 @@ dir=$(cd ${dir:-/}; pwd)
 dir=$(echo $dir | sed s#^//#/#)
 %>
 <% page_title="File Manager" %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 <h4><%= $dir %></h4>
 <%
 lsfiles=$(ls -al $dir)
@@ -43,4 +43,4 @@ for line in $lsfiles; do
 done
 IFS=$IFS_ORIG
 %>
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

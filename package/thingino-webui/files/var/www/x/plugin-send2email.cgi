@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="email"
 plugin_name="Send to email"
@@ -53,7 +53,7 @@ else
 	#  [ -z "$email_subject" ] && email_subject="Snapshot from ${network_hostname}"
 fi
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_switch "email_enabled" "Enable sending to email" %>
@@ -95,4 +95,4 @@ $('#email_smtp_use_ssl').addEventListener('change', evt => {
 });
 </script>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

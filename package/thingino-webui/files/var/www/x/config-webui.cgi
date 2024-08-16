@@ -1,5 +1,5 @@
 #!/usr/bin/haserl --upload-limit=100 --upload-dir=/tmp
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="webui"
 plugin_name="User interface settings"
@@ -57,7 +57,7 @@ page_title="Web Interface Settings"
 # data for form fields
 ui_username="$USER"
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
 <div class="col">
@@ -90,4 +90,4 @@ ex "cat $config_file"
 </div>
 </div>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

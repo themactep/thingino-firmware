@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="daynight"
 plugin_name="Day/Night"
@@ -70,7 +70,7 @@ else
 	pb_night=$((daynight_max / 128))
 fi
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <div class="row g-4 mb-4">
@@ -91,6 +91,6 @@ fi
 <% button_submit %>
 </form>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>
 
 

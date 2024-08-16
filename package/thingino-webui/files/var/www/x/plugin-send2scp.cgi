@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="scp"
 plugin_name="Send via scp"
@@ -50,7 +50,7 @@ else
 	[ -z "$scp_template" ] && scp_template="${network_hostname}-%Y%m%d-%H%M%S.jpg"
 fi
 %>
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_switch "scp_enabled" "Enable sending to the remote host via scp" %>
@@ -73,4 +73,4 @@ fi
 <% button_submit %>
 </form>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>

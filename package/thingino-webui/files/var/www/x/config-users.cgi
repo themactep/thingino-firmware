@@ -1,5 +1,5 @@
 #!/usr/bin/haserl
-<%in p/common.cgi %>
+<%in _common.cgi %>
 <%
 plugin="users"
 plugin_name="Users"
@@ -52,7 +52,7 @@ users=$(awk 'BEGIN { FS = ":" } ; { if ($3 > 1000) print $1 }' /etc/passwd)
 [ -z "$user_group" ] && user_group="users"
 %>
 
-<%in p/header.cgi %>
+<%in _header.cgi %>
 
 <div class="row g-4 mb-4">
 <div class="col col-lg-4">
@@ -113,4 +113,4 @@ $('#user_shell').disabled = true;
 $('#user_group').disabled = true;
 </script>
 
-<%in p/footer.cgi %>
+<%in _footer.cgi %>
