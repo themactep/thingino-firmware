@@ -1,53 +1,50 @@
 #!/usr/bin/haserl
-
 <%in _common.cgi %>
-
 <%
-	plugin="audio"
-	plugin_name="Audio"
-	page_title="Audio"
-	params="debug net_enabled net_port"
+plugin="audio"
+page_title="Audio"
+params="debug net_enabled net_port"
 
-	tmp_file=/tmp/$plugin
+tmp_file=/tmp/$plugin
 
-	config_file="${ui_config_dir}/${plugin}.conf"
-	[ ! -f "$config_file" ] && touch $config_file
+config_file="${ui_config_dir}/${plugin}.conf"
+[ ! -f "$config_file" ] && touch $config_file
 
-	audio_control=/etc/init.d/S96iad
+audio_control=/etc/init.d/S96iad
 
-	if [ "POST" = "$REQUEST_METHOD" ]; then
-		# parse values from parameters
+if [ "POST" = "$REQUEST_METHOD" ]; then
+	# parse values from parameters
+	for p in $params; do
+		eval ${plugin}_${p}=\$POST_${plugin}_${p}
+		sanitize "${plugin}_${p}"
+	done; unset p
+
+	# validation
+
+	if [ -z "$error" ]; then
+		:>$tmp_file
 		for p in $params; do
-			eval ${plugin}_${p}=\$POST_${plugin}_${p}
-			sanitize "${plugin}_${p}"
+			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
 		done; unset p
+		mv $tmp_file $config_file
 
-		# validation
-
-		if [ -z "$error" ]; then
-			:>$tmp_file
-			for p in $params; do
-				echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
-			done; unset p
-			mv $tmp_file $config_file
-
-			if [ -f "$audio_control" ]; then
-				$audio_control restart >> /tmp/webui.log
-			else
-				echo "$audio_control not found" >> /tmp/webui.log
-			fi
-
-			update_caminfo
-			redirect_to "$SCRIPT_NAME"
+		if [ -f "$audio_control" ]; then
+			$audio_control restart >> /tmp/webui.log
+		else
+			echo "$audio_control not found" >> /tmp/webui.log
 		fi
-	else
-		include $config_file
 
-		# default values
-		[ -z "$audio_debug" ] && audio_debug=false
-		[ -z "$audio_net_enabled" ] && audio_net_enabled=false
-		[ -z "$audio_net_port" ] && audio_net_port=8081
+		update_caminfo
+		redirect_to "$SCRIPT_NAME"
 	fi
+else
+	include $config_file
+
+	# default values
+	[ -z "$audio_debug" ] && audio_debug=false
+	[ -z "$audio_net_enabled" ] && audio_net_enabled=false
+	[ -z "$audio_net_port" ] && audio_net_port=8081
+fi
 %>
 
 <%in _header.cgi %>
