@@ -6,7 +6,6 @@ page_title="Audio"
 params="debug net_enabled net_port"
 
 tmp_file=/tmp/$plugin
-
 config_file="${ui_config_dir}/${plugin}.conf"
 [ ! -f "$config_file" ] && touch $config_file
 
@@ -46,33 +45,25 @@ else
 	[ -z "$audio_net_port" ] && audio_net_port=8081
 fi
 %>
-
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
-	<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
-		<div class="col">
-			<h3>Network Audio</h3>
-			<% field_switch "audio_net_enabled" "Enable Incoming Audio" "Live stream audio to the camera speaker over the network" %>
-			<% field_number "audio_net_port" "Incoming Audio Port" "" "Which port to listen on" %>
-
-			 <a href="https://github.com/gtxaspec/ingenic-audiodaemon?tab=readme-ov-file#on-pc">See this repo for usage instructions</a> 
-			 
-			<br><br>
-			<% button_submit %>
-		</div>
-
-		<div class="col">
-		</div>
-		
-		<div class="col">
-			<% field_switch "audio_debug" "Enable Debugging" %>
-			<h3>Configuration</h3>
-			<% [ -f $config_file ] && ex "cat $config_file" %>
-		</div>
-	</div>
-	
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+<div class="col">
+<h3>Network Audio</h3>
+<% field_switch "audio_net_enabled" "Enable Incoming Audio" "Live stream audio to the camera speaker over the network" %>
+<% field_number "audio_net_port" "Incoming Audio Port" "" "Which port to listen on" %>
+<a href="https://github.com/gtxaspec/ingenic-audiodaemon?tab=readme-ov-file#on-pc">See this repo for usage instructions</a>
+<p><% button_submit %></p>
+</div>
+<div class="col">
+</div>
+<div class="col">
+<% field_switch "audio_debug" "Enable Debugging" %>
+<h3>Configuration</h3>
+<% ex "cat $config_file" %>
+</div>
+</div>
 </form>
-
 <% fi %>
 <%in _footer.cgi %>
