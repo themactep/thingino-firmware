@@ -4,16 +4,37 @@
 
 DAEMON_ARGS="-r -c /etc/iad.json"
 
-audiostreamer_enable="$(get audiolistener)"
-audiostreamer_port="$(get audiolistenerport)"
+# read web config, create if missing
+AUDIO_WEBUI_CONF=/etc/webui/audio.conf
+[ ! -d $(dirname $AUDIO_WEBUI_CONF) ] && mkdir -p $(dirname $AUDIO_WEBUI_CONF)
+[ ! -f $AUDIO_WEBUI_CONF ] && touch $AUDIO_WEBUI_CONF
+. $AUDIO_WEBUI_CONF
+
+# default debugging on
+if [ -z "$audio_debug" ]; then
+	audio_debug="false"
+	echo "audio_debug=$audio_debug" >> $AUDIO_WEBUI_CONF
+fi
+
+# default to "disabled" and update config
+if [ -z "$net_enable" ]; then
+	net_enable="false"
+	echo "net_enable=$net_enable" >> $AUDIO_WEBUI_CONF
+fi
+
+# set default port and update config
+if [ -z "$net_port" ]; then
+	net_port=8081
+	echo "net_port=$net_port" >> $AUDIO_WEBUI_CONF
+fi
 
 start() {
 	starting
 	start_daemon
 
 	# Run listener in background for playing audio over the network
-	if [ "$audiostreamer_enable" = "true" ]; then
-			nc -ll -p $audiostreamer_port -e iac -s &
+	if [ "$net_enable" = "true" ]; then
+			nc -ll -p $net_port -e iac -s &
 			echo $! > /run/network_audio.pid
 			check_result
 	fi
