@@ -6,7 +6,7 @@ start() {
     SYSUPGRADE_COMPLETE=$(fw_printenv -n sysupgrade_complete)
 
     if [ "$SYSUPGRADE_COMPLETE" = "false" ]; then
-        iac -f /usr/share/sounds/thingino.pcm | log
+#        iac -f /usr/share/sounds/thingino.pcm | log
         fw_setenv sysupgrade_complete=true
         info_n "Update completed!"
     else
