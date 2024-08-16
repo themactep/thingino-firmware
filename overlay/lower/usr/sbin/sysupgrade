@@ -13,6 +13,7 @@ if [ -z "$RUNNING_WITH_TMP_BUSYBOX" ]; then
 		cp $0 /tmp/sysupgrade
 		cp /sbin/fw_printenv /tmp/fw_printenv
 		ln -s /tmp/fw_printenv /tmp/fw_setenv
+		cp /etc/fw_env.config /tmp/fw_env.config
 	fi
 
 	RUNNING_WITH_TMP_BUSYBOX=1 exec /tmp/busybox sh /tmp/sysupgrade "$@"
@@ -88,7 +89,7 @@ flash_firmware() {
 		exit 1
 	fi
 
-	[ "mtd5" = "$mtd_dev" ] && /tmp/fw_setenv sysupgrade_complete false
+	[ "mtd5" = "$mtd_dev" ] && /tmp/fw_setenv -c /tmp/fw_env.config sysupgrade_complete false
 
 	echo "Upgrade complete."
 	reboot_func
