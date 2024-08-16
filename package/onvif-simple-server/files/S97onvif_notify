@@ -1,0 +1,49 @@
+#!/bin/sh
+
+DAEMON=onvif_notify_server
+
+. /etc/init.d/rc.common
+
+DAEMON_ARGS="--conf_file /etc/onvif.conf --pid_file /var/run/$DAEMON_SHORT.pid"
+MOTION="/tmp/motion"
+
+# read web config
+ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
+[ -f $ONVIF_WEBUI_CONF ] && . $ONVIF_WEBUI_CONF
+
+# default to "enabled" (config is managed by S96onvif_discovery)
+if [ -z "$onvif_enabled" ]; then
+	onvif_enabled="true"
+fi
+
+is_onvif_disabled() {
+	[ "true" != "$onvif_enabled" ]
+}
+
+start() {
+	starting "ONVIF notify"
+	is_streamer_disabled && quit "Streamer disabled"
+	is_onvif_disabled && quit "ONVIF notify disabled"
+	[ ! -d "$MOTION" ] && mkdir -p $MOTION
+	start_daemon
+}
+
+stop() {
+	stopping "ONVIF notify"
+	stop_daemon_with_pid
+}
+
+case "$1" in
+	start | stop)
+		$1
+		;;
+	restart | reload)
+		stop
+		start
+		;;
+	*)
+		die "Usage: $0 {start|stop|restart|reload}"
+		;;
+esac
+
+exit 0

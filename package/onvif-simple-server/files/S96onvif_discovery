@@ -35,10 +35,10 @@ update_config() {
 }
 
 start() {
-	starting "ONVIF"
+	starting "ONVIF discovery"
 	is_gateway_reachable || quit "Disabled"
 	is_streamer_disabled && quit "Streamer disabled"
-	is_onvif_disabled && quit "ONVIF disabled"
+	is_onvif_disabled && quit "ONVIF discovery disabled"
 	start_daemon
 
 	if ! grep -q "^# GENERATED" "/etc/onvif.conf"; then
@@ -59,7 +59,7 @@ start() {
 }
 
 stop() {
-	stopping "ONVIF"
+	stopping "ONVIF discovery"
 	stop_daemon_with_pid
 }
 
