@@ -3,6 +3,10 @@
 <%
 page_title="Motors"
 
+if [ ! -f /bin/motors ]; then
+	redirect_to "/" "danger" "Your camera does not seem to support motors"
+fi
+
 # Defaults
 gpio_motor_h=$(get gpio_motor_h)
 gpio_motor_v=$(get gpio_motor_v)
