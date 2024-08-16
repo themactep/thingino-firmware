@@ -8,11 +8,12 @@
 <title>Thingino Initial Configuration</title>
 <link rel="stylesheet" href="/bootstrap.min.css">
 <style>
-.container {max-width:28rem}
+.container {max-width:24rem}
+.form-label {margin:0}
 h1,h2 {font-weight:400}
-h1 {font-size:4.5rem}
+h1 {font-size:3rem}
 h1 span {color:#f80}
-h2 {font-size:1.8rem}
+h2 {font-size:1.3rem}
 </style>
 <script src="/bootstrap.bundle.min.js"></script>
 </head>
@@ -47,33 +48,31 @@ elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then
 	hostname=$(hostname)
 %>
 <form action="<%= $SCRIPT_NAME %>" method="post" class="my-3 needs-validation" novalidate style="max-width:26rem">
-<div class="mb-3">
+<div class="mb-2">
 <label class="form-label">Wireless Network Name (SSID)</label>
-<input class="form-control form-control-lg bg-light text-dark" type="text" name="wlanssid" value="<%= $wlanssid %>" required autocapitalize="none">
+<input class="form-control bg-light text-dark" type="text" name="wlanssid" value="<%= $wlanssid %>" required autocapitalize="none">
 <div class="invalid-feedback">Please enter network name</div>
 </div>
-<div class="mb-3">
+<div class="mb-2">
 <label class="form-label">Wireless Network Password</label>
-<input class="form-control form-control-lg bg-light text-dark" type="text" name="wlanpass" id="wlanpass" value="<%= $wlanpass %>" required autocapitalize="none" minlength="8" pattern=".{8,64}">
+<input class="form-control bg-light text-dark" type="text" name="wlanpass" id="wlanpass" value="<%= $wlanpass %>" required autocapitalize="none" minlength="8" pattern=".{8,64}">
 <div class="invalid-feedback">Please enter a password 8 - 64 characters</div>
 </div>
-<div class="mb-3">
+<div class="mb-2">
 <label class="form-label">Camera Hostname</label>
-<input class="form-control form-control-lg bg-light text-dark" type="text" name="hostname" value="<%= $hostname %>" required autocapitalize="none">
+<input class="form-control bg-light text-dark" type="text" name="hostname" value="<%= $hostname %>" required autocapitalize="none">
 <div class="invalid-feedback">Please enter hostname</div>
 </div>
-<div class="mb-3">
+<div class="mb-2">
 <label class="form-label">User <b>root</b> Password</label>
-<input class="form-control form-control-lg bg-light text-dark" type="text" name="rootpass" id="rootpass" value="<%= $rootpass %>" required autocapitalize="none">
+<input class="form-control bg-light text-dark" type="text" name="rootpass" id="rootpass" value="<%= $rootpass %>" required autocapitalize="none">
 <div class="invalid-feedback">Please enter password</div>
 </div>
-<div class="mb-3">
+<div class="mb-4">
 <label class="form-label">User <b>root</b> Public SSH Key (optional)</label>
-<textarea class="form-control form-control-lg bg-light text-dark text-break" name="rootpkey" id="rootpkey" rows="8"><%= $rootpkey %></textarea>
+<textarea class="form-control bg-light text-dark text-break" name="rootpkey" id="rootpkey" rows="3"><%= $rootpkey %></textarea>
 </div>
-<div class="mb-3">
 <input type="submit" value="Save Credentials" class="btn btn-primary">
-</div>
 </form>
 <script>
 (() => {
