@@ -5,7 +5,7 @@ DAEMON=onvif_notify_server
 . /etc/init.d/rc.common
 
 DAEMON_ARGS="--conf_file /etc/onvif.conf --pid_file /var/run/$DAEMON_SHORT.pid"
-MOTION="/tmp/motion"
+MOTION="/run/motion"
 
 # read web config
 ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
