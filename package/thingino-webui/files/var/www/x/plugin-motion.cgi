@@ -6,7 +6,7 @@ plugin_name="Motion guard"
 page_title="Motion guard"
 params="enabled sensitivity send2email send2ftp send2mqtt send2telegram send2webhook send2yadisk throttle"
 
-tmp_file=/tmp/$plugin
+tmp_file=$(mktemp)
 
 config_file="${ui_config_dir}/${plugin}.conf"
 [ ! -f "$config_file" ] && touch $config_file
