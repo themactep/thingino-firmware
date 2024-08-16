@@ -5,7 +5,7 @@ plugin="motion"
 . /sbin/common-plugins
 singleton
 
-MOTION_ALARM="/tmp/motion/motion_alarm"
+MOTION_ALARM="/run/motion/motion_alarm"
 
 start() {
 	# send alerts
