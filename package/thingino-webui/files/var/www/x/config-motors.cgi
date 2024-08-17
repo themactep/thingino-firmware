@@ -148,7 +148,7 @@ function checkHoming() {
 }
 
 function readMotors() {
-	fetch("/x/j/motor.cgi?d=j")
+	fetch("/x/json-motor.cgi?d=j")
 		.then(res => res.json())
 		.then(({xpos, ypos}) => {
 			$('#motor_pos_0_x').value = xpos;

@@ -40,7 +40,7 @@ function callImp(command, value) {
 	}
 
 	const xhr = new XMLHttpRequest();
-	xhr.open('GET', '/x/j/imp.cgi?cmd=' + command + '&val=' + value);
+	xhr.open('GET', '/x/json-imp.cgi?cmd=' + command + '&val=' + value);
 	xhr.send();
 
 	document.querySelector('#savechanges')?.classList.remove('d-none');
