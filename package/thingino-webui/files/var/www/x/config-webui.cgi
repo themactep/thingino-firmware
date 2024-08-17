@@ -5,8 +5,6 @@ plugin="webui"
 plugin_name="User interface settings"
 page_title="Web Interface Settings"
 
-tmp_file=/tmp/${plugin}.conf
-
 config_file="${ui_config_dir}/${plugin}.conf"
 [ ! -f "$config_file" ] && touch $config_file
 
@@ -35,8 +33,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			[ -z "$webui_level" ] && webui_level="user"
 
 			if [ -z "$error" ]; then
-				# create temp config file
-				:>$tmp_file
+				tmp_file=$(mktemp)
 				for p in $params; do
 					echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
 				done; unset p

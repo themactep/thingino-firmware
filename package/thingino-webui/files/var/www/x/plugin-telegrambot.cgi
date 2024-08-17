@@ -11,8 +11,6 @@ for i in $seq; do
 	params="${params} command_${i} description_${i} script_${i}"
 done
 
-tmp_file=/tmp/${plugin}.conf
-
 config_file="${ui_config_dir}/${plugin}.conf"
 [ ! -f "$config_file" ] && touch $config_file
 
@@ -23,14 +21,13 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		sanitize "${plugin}_${p}"
 	done; unset p
 
-	### Validation
+	# validate
 	if [ "true" = "$telegrambot_enabled" ]; then
 		[ -z "$telegrambot_token" ] && set_error_flag "Telegram token cannot be empty."
 	fi
 
 	if [ -z "$error" ]; then
-		# create temp config file
-		:>$tmp_file
+		tmp_file=$(mktemp)
 		for p in $params; do
 			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
 		done; unset p

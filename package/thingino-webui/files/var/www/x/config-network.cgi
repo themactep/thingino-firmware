@@ -4,7 +4,6 @@
 plugin="network"
 page_title="Network settings"
 params="address dhcp dns_1 dns_2 gateway netmask interface wlan_ssid wlan_pass"
-tmp_file=/tmp/${plugin}.conf
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	case "$POST_action" in

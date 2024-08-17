@@ -3,7 +3,7 @@
 IFS_ORIG=$IFS
 
 STR_NOT_SUPPORTED="not supported on this system"
-STR_SUPPORTS_STRFTIME="Supports <a href=\"https://man7.org/linux/man-pages/man3/strftime.3.html \" target=\"_blank\">strftime()</a> format."
+STR_SUPPORTS_STRFTIME="Supports <a href=\"https://man7.org/linux/man-pages/man3/strftime.3.html \" target=\"_blank\">strftime</a> format."
 
 # tag "tag" "text" "css" "extras"
 tag() {

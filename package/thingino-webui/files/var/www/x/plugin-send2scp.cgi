@@ -8,8 +8,6 @@ params="enabled host port user path template command"
 
 SCP_KEY="/root/.ssh/id_dropbear"
 
-tmp_file=/tmp/${plugin}.conf
-
 config_file="${ui_config_dir}/${plugin}.conf"
 [ ! -f "$config_file" ] && touch $config_file
 
@@ -20,7 +18,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		sanitize "${plugin}_${p}"
 	done; unset p
 
-	### Validation
+	# validate
 	if [ "true" = "$scp_enabled" ]; then
 		[ -z "$scp_host" ] && set_error_flag "Target host address cannot be empty."
 	fi
@@ -29,8 +27,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	[ !-f $SCP_KEY ] && dropbearkey -t ed25519 -f $SCP_KEY
 
 	if [ -z "$error" ]; then
-		# create temp config file
-		:>$tmp_file
+		tmp_file=$(mktemp)
 		for p in $params; do
 			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
 		done; unset p

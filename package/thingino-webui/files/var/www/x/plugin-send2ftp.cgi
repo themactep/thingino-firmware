@@ -6,8 +6,6 @@ plugin_name="Send to FTP"
 page_title="Send to FTP"
 params="enabled host user password path port socks5_enabled template"
 
-tmp_file=/tmp/${plugin}.conf
-
 config_file="${ui_config_dir}/${plugin}.conf"
 [ ! -f "$config_file" ] && touch $config_file
 
@@ -18,7 +16,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		sanitize "${plugin}_${p}"
 	done; unset p
 
-	### Validation
+	# validate
 	if [ "true" = "$ftp_enabled" ]; then
 		[ "true" = "$ftp_send2ftp" ] && [ -z "$ftp_ftphost" ] && set_error_flag "FTP address cannot be empty."
 		[ "true" = "$ftp_send2tftp" ] && [ -z "$ftp_tftphost" ] && set_error_flag "TFTP address cannot be empty."
@@ -27,8 +25,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	[ -z "$ftp_template" ] && ftp_template="${network_hostname}-%Y%m%d-%H%M%S.jpg"
 
 	if [ -z "$error" ]; then
-		# create temp config file
-		:>$tmp_file
+		tmp_file=$(mktemp)
 		for p in $params; do
 			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
 		done; unset p
@@ -60,7 +57,7 @@ fi
 </div>
 <div class="col">
 <% field_text "ftp_path" "FTP path" "relative to FTP root directory" %>
-<% field_text "ftp_template" "Filename template" ""$STR_SUPPORTS_STRFTIME"" %>
+<% field_text "ftp_template" "Filename template" "$STR_SUPPORTS_STRFTIME" %>
 <% field_switch "ftp_socks5_enabled" "Use SOCKS5" "<a href=\"config-socks5.cgi\">Configure</a> SOCKS5 access" %>
 </div>
 <div class="col">
