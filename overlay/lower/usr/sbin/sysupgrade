@@ -6,6 +6,7 @@ ROOTFS_MAGIC="68737173"
 BB_BINARY=/tmp/busybox
 
 downloaded_file=0  # Flag to track if the file was downloaded
+trap_signal_received=0  # Flag to track if a signal was received
 
 if [ -z "$RUNNING_WITH_TMP_BUSYBOX" ]; then
 	if [ ! -f /tmp/busybox ]; then
@@ -19,6 +20,25 @@ if [ -z "$RUNNING_WITH_TMP_BUSYBOX" ]; then
 	RUNNING_WITH_TMP_BUSYBOX=1 exec /tmp/busybox sh /tmp/sysupgrade "$@"
 fi
 
+cleanup() {
+	# Only perform cleanup if a signal (Ctrl+C or kill) was received
+	if [ "$trap_signal_received" -eq 1 ]; then
+		$BB_BINARY echo "Clean up temporary files."
+
+		# Only delete files that were downloaded (flag = 1)
+		[ "$downloaded_file" -eq 1 ] && [ -n "$binary_file" ] && [ -f "$binary_file" ] && $BB_BINARY rm -f "$binary_file"
+		[ -n "$checksum_file" ] && [ -f "$checksum_file" ] && $BB_BINARY rm -f "$checksum_file"
+		$BB_BINARY rm -f /tmp/fw_setenv /tmp/fw_printenv /tmp/sysupgrade
+
+		# Ensure no further commands are executed after removing busybox
+		/tmp/busybox rm -f /tmp/busybox
+		exit 0  # Immediately exit after cleanup to prevent any further commands or error output
+	fi
+}
+
+# Trap INT and TERM signals to ensure cleanup when the script is interrupted or killed
+trap 'trap_signal_received=1; cleanup' INT TERM
+
 show_help() {
 	$BB_BINARY echo "Usage: $0 <filename> | [-f | -p] | <URL>
 Where:
@@ -31,20 +51,18 @@ Where:
 }
 
 stop_service() {
-	if [ ! -f "/etc/init.d/$1" ]; then
-		$BB_BINARY echo "Not found"
-		return
+	if [ -f "/etc/init.d/$1" ]; then
+		$BB_BINARY sh /etc/init.d/"$1" stop
 	fi
-	/tmp/busybox sh /etc/init.d/"$1" stop
 }
 
 verify_checksum() {
 	checksum_url="${checksum_url}/${sha256_file}"
 
 	checksum_file=$($BB_BINARY mktemp)
-	$BB_BINARY echo "Downloading SHA-256 checksum from $checksum_url"
+	$BB_BINARY echo -e "Downloading SHA-256 checksum from: \n$checksum_url"
 	if ! curl -# -L -f -o "$checksum_file" "$checksum_url"; then
-		$BB_BINARY echo "Failed to download checksum from $checksum_url"
+		$BB_BINARY echo -e "Failed to download checksum from: \n$checksum_url"
 		exit 1
 	fi
 
@@ -95,18 +113,6 @@ flash_firmware() {
 	reboot_func
 }
 
-cleanup() {
-	$BB_BINARY echo "Clean up temporary files."
-
-	# Only delete files that were downloaded (flag = 1)
-	[ "$downloaded_file" -eq 1 ] && [ -n "$binary_file" ] && [ -f "$binary_file" ] && $BB_BINARY rm -f "$binary_file"
-	[ -n "$checksum_file" ] && [ -f "$checksum_file" ] && $BB_BINARY rm -f "$checksum_file"
-	$BB_BINARY rm -f /tmp/busybox /tmp/fw_setenv /tmp/fw_printenv /tmp/sysupgrade
-}
-
-# Trap signals to ensure cleanup on exit
-trap cleanup EXIT INT TERM
-
 while getopts "fhp" flag; do
 	case "$flag" in
 		f)
@@ -144,9 +150,9 @@ if [ "local" = "$upgrade" ]; then
 	$BB_BINARY echo "Upgrading from a provided file"
 	if echo "$1" | grep -qE '^https?://'; then
 		binary_file=$($BB_BINARY mktemp)
-		$BB_BINARY echo "Downloading firmware from $1"
+		$BB_BINARY echo -e "Downloading firmware from: \n$1"
 		if ! curl -# -L -f -o "$binary_file" "$1"; then
-			$BB_BINARY echo "Failed to download firmware from $1"
+			$BB_BINARY echo -e "Failed to download firmware from: \n$1"
 			exit 1
 		fi
 		downloaded_file=1  # Set flag indicating the file was downloaded
@@ -174,9 +180,9 @@ else
 	fi
 
 	binary_file=$($BB_BINARY mktemp) # Create a temporary file to hold the firmware
-	$BB_BINARY echo "Downloading firmware from ${url}${fw_file}."
+	$BB_BINARY echo -e "Downloading firmware from: \n${url}${fw_file}"
 	if !  curl -# -L -f -o "$binary_file" ${url}"${fw_file}"; then
-		$BB_BINARY echo "Failed to download firmware from ${url}${fw_file}"
+		$BB_BINARY echo -e "Failed to download firmware from: \n${url}${fw_file}"
 		exit 1
 	fi
 
@@ -224,5 +230,8 @@ $BB_BINARY umount /
 flush_memory
 $BB_BINARY echo -e "\nPerforming upgrade\nDo not turn off the power!\n"
 flash_firmware
+
+# If we complete successfully, do not clean up
+trap - INT TERM
 
 exit 0
