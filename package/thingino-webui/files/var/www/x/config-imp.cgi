@@ -60,7 +60,7 @@ if [ -n "$whitebalance" ]; then
 	whitebalance_bgain=$(echo "$whitebalance" | awk '{print $3}')
 fi
 
-# normalize values
+# normalize
 [ "$aiaec" = "on" ] && aiaec="true"
 [ "$aihpf" = "on" ] && aihpf="true"
 [ -z "$setosdpos_x" ] && setosdpos_x=0

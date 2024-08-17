@@ -27,7 +27,7 @@ gpio_motor_v_4=$(echo $gpio_motor_v | awk '{print $4}')
 motor_pos_0_x=$(echo $motor_pos_0 | awk -F',' '{print $1}')
 motor_pos_0_y=$(echo $motor_pos_0 | awk -F',' '{print $2}')
 
-# Normalization
+# normalize
 [ -z "$disable_homing" ] && disable_homing=false
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
@@ -48,7 +48,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	motor_pos_0_x=$POST_motor_pos_0_x
 	motor_pos_0_y=$POST_motor_pos_0_y
 
-	# Validation
+	# validate
 	if [ -z "$gpio_motor_h_1" ] || [ -z "$gpio_motor_h_2" ] || [ -z "$gpio_motor_h_3" ] || [ -z "$gpio_motor_h_4" ] ||
 	   [ -z "$gpio_motor_v_1" ] || [ -z "$gpio_motor_v_2" ] || [ -z "$gpio_motor_v_3" ] || [ -z "$gpio_motor_v_4" ]; then
 		set_error_flag "All pins are required"

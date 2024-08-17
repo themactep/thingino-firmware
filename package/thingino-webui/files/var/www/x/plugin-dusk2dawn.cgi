@@ -6,8 +6,6 @@ plugin_name="Day/Night by Sun"
 page_title="Dusk to Dawn"
 params="enabled lat lng runat"
 
-tmp_file=/tmp/$plugin
-
 config_file="${ui_config_dir}/${plugin}.conf"
 [ ! -f "$config_file" ] && touch $config_file
 
@@ -20,12 +18,12 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	[ -z "$dusk2dawn_runat" ] && dusk2dawn_runat="0:00"
 
-	# Validation
+	# validate
 	[ -z "$dusk2dawn_lat" ] && set_error_flag "Latitude cannot be empty"
 	[ -z "$dusk2dawn_lng" ] && set_error_flag "Longitude cannot be empty"
 
 	if [ -z "$error" ]; then
-		: > $tmp_file
+		tmp_file=$(mktemp)
 		for p in $params; do
 			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
 		done; unset p

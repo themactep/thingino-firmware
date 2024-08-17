@@ -7,7 +7,6 @@ page_title="Day and Night Mode"
 params="enabled interval max min"
 
 CRONTABS=/etc/crontabs/root
-tmp_file=/tmp/$plugin
 
 config_file="${ui_config_dir}/${plugin}.conf"
 [ ! -f "$config_file" ] && touch $config_file
@@ -19,33 +18,33 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		sanitize "${plugin}_${p}"
 	done; unset p
 
-	# Validation
+	# validate
 	[ -z "$daynight_min" ] && set_error_flag "Min value cannot be empty"
 	[ -z "$daynight_max" ] && set_error_flag "Max cannot be empty"
 	[ -z "$daynight_interval" ] && daynight_interval="1"
 
 	if [ -z "$error" ]; then
-		: > $tmp_file
+		tmp_file=$(mktemp)
 		for p in $params; do
 			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 
 		# update crontab
-		tmpfile=$(mktemp)
-		cat $CRONTABS > $tmpfile
-		sed -i '/daynight/d' $tmpfile
-		echo "# run daynight every ${daynight_interval} minutes" >> $tmpfile
-		[ "true" != "$daynight_enabled" ] && echo -n "#" >> $tmpfile
-		echo "*/${daynight_interval} * * * * daynight" >> $tmpfile
-		mv $tmpfile $CRONTABS
+		tmp_file=$(mktemp)
+		cat $CRONTABS > $tmp_file
+		sed -i '/daynight/d' $tmp_file
+		echo "# run daynight every ${daynight_interval} minutes" >> $tmp_file
+		[ "true" != "$daynight_enabled" ] && echo -n "#" >> $tmp_file
+		echo "*/${daynight_interval} * * * * daynight" >> $tmp_file
+		mv $tmp_file $CRONTABS
 
 		# update values in env
-		tmpfile=$(mktemp)
-		echo "day_night_min $daynight_min" >> $tmpfile
-		echo "day_night_max $daynight_max" >> $tmpfile
-		fw_setenv -s $tmpfile
-		rm $tmpfile
+		tmp_file=$(mktemp)
+		echo "day_night_min $daynight_min" >> $tmp_file
+		echo "day_night_max $daynight_max" >> $tmp_file
+		fw_setenv -s $tmp_file
+		rm $tmp_file
 
 		[ "true" = "$daynight_enabled" ] && daynight >/dev/null 2>&1 &
 

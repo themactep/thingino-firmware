@@ -6,8 +6,6 @@ plugin_name="Send to email"
 page_title="Send to email"
 params="enabled attach_snapshot from_name from_address to_name to_address subject body smtp_host smtp_port smtp_username smtp_password smtp_use_ssl socks5_enabled"
 
-tmp_file=/tmp/${plugin}.conf
-
 config_file="${ui_config_dir}/${plugin}.conf"
 [ ! -f "$config_file" ] && touch $config_file
 
@@ -18,10 +16,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		sanitize "${plugin}_${p}"
 	done; unset p
 
-	# Normalization
+	# normalize
 	email_body="$(echo "$email_body" | tr "\r?\n" " ")"
 
-	# Validation
+	# validate
 	if [ "true" = "$email_enabled" ]; then
 		[ -z "$email_smtp_host"    ] && set_error_flag "SMTP host cannot be empty."
 		[ -z "$email_from_address" ] && set_error_flag "Sender email address cannot be empty."
@@ -31,7 +29,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	fi
 
 	if [ -z "$error" ]; then
-		:>$tmp_file
+		tmp_file=$(mktemp)
 		for p in $params; do
 			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
 		done; unset p

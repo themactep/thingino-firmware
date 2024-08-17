@@ -7,7 +7,6 @@ page_title="ZeroTier"
 params="enabled nwid"
 config_file="${ui_config_dir}/${plugin}.conf"
 service_file=/etc/init.d/S90zerotier
-tmp_file=/tmp/${plugin}.conf
 zt_cli_bin=/usr/sbin/zerotier-cli
 zt_one_bin=/usr/sbin/zerotier-one
 
@@ -29,15 +28,14 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 				sanitize "${plugin}_${p}"
 			done; unset p
 
-			### Validation
+			# validate
 			if [ "true" = "$zerotier_enabled" ]; then
 				[ -z "$zerotier_nwid" ] && set_error_flag "ZeroTier Network ID cannot be empty."
 				[ "${#zerotier_nwid}" -ne "16" ] && set_error_flag "ZeroTier Network ID should be 16 digits long."
 			fi
 
 			if [ -z "$error" ]; then
-				# create temp config file
-				:>$tmp_file
+				tmp_file=$(mktemp)
 				for p in $params; do
 					echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
 				done; unset p

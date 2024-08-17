@@ -8,8 +8,6 @@ params="enabled host port client_id username password topic message send_snap sn
 
 [ ! -f /usr/bin/mosquitto_pub ] && redirect_to "/" "danger" "MQTT client is not a part of your firmware."
 
-tmp_file=/tmp/${plugin}.conf
-
 config_file="${ui_config_dir}/${plugin}.conf"
 [ ! -f "$config_file" ] && touch $config_file
 
@@ -20,7 +18,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		sanitize "${plugin}_${p}"
 	done; unset p
 
-	### Validation
+	# validate
 	if [ "true" = "$mqtt_enabled" ]; then
 		[ -z "$mqtt_host" ] && set_error_flag "MQTT broker host cannot be empty."
 		[ -z "$mqtt_port" ] && set_error_flag "MQTT port cannot be empty."
@@ -47,8 +45,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	fi
 
 	if [ -z "$error" ]; then
-		# create temp config file
-		:>$tmp_file
+		tmp_file=$(mktemp)
 		for p in $params; do
 			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
 		done; unset p
@@ -84,7 +81,7 @@ fi
 </div>
 <div class="col">
 <% field_text "mqtt_topic" "MQTT topic" %>
-<% field_textarea "mqtt_message" "MQTT message" ""$STR_SUPPORTS_STRFTIME"" %>
+<% field_textarea "mqtt_message" "MQTT message" "$STR_SUPPORTS_STRFTIME" %>
 <% field_switch "mqtt_send_snap" "Send a snapshot" %>
 <% field_text "mqtt_snap_topic" "MQTT topic to send the snapshot to" %>
 <% field_switch "mqtt_socks5_enabled" "Use SOCKS5" "<a href=\"config-socks5.cgi\">Configure</a> SOCKS5 access" %>
