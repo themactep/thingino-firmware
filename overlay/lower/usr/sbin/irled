@@ -33,7 +33,7 @@ case "$mode" in
 		gpio clear $pin > /dev/null
 		;;
 	read)
-		cat /sys/class/gpio/gpio${pin}/value
+		gpio value $pin
 		;;
 	~ | toggle)
 		gpio toggle $pin > /dev/null
