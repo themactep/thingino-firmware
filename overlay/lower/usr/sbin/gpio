@@ -26,6 +26,7 @@ Commands:
 
 	input <pin1>		Set <pin1> as input
 	read <pin1> [<pin2>]	Read values of a range of pins from <pin1> to <pin2>
+        value <pin1>            Read the bare value for a single pin <pin1>
 
 	high <pin1>		Set <pin1> output state to HIGH
 	low <pin1>		Set <pin1> output state to LOW
@@ -310,6 +311,9 @@ case "$1" in
 	get | read)
 		get_pin_value "$2" "$3"
 		;;
+        value)
+                get_only_pin_value "$2"
+                ;;
 	list)
 		[ -z "$(mount | grep /sys/kernel/debug)" ] && mount -t debugfs none /sys/kernel/debug
 		log_and_run "cat /sys/kernel/debug/gpio"
