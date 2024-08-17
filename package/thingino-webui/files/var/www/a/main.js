@@ -45,7 +45,7 @@ function xhrGet(url) {
 }
 
 function heartbeat() {
-	fetch('/x/j/heartbeat.cgi')
+	fetch('/x/json-heartbeat.cgi')
 		.then((response) => response.json())
 		.then((json) => {
 			if (json.time_now !== '') {
@@ -172,7 +172,7 @@ function heartbeat() {
 			}
 
 			async function run() {
-				for await (let line of makeTextFileLineIterator('/x/j/run.cgi?cmd=' + btoa(el.dataset['cmd']))) {
+				for await (let line of makeTextFileLineIterator('/x/run.cgi?cmd=' + btoa(el.dataset['cmd']))) {
 					const re1 = /\u001b\[1;(\d+)m/;
 					const re2 = /\u001b\[0m/;
 					line = line.replace(re1, '<span class="ansi-$1">').replace(re2, '</span>')

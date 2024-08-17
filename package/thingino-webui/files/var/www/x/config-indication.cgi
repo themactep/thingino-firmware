@@ -111,7 +111,7 @@ fi
 
 <script>
 async function switchIndicator(color, state) {
-  await fetch("/x/j/indicator.cgi?c=" + color + "&amp;s=" + state)
+  await fetch("/x/json-indicator.cgi?c=" + color + "&amp;s=" + state)
   	.then(response => response.json())
   	.then(data => { $('#gpio_led_' + color + '_on').checked = (data.message.status == 1) });
 }

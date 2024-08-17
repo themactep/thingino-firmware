@@ -111,7 +111,7 @@ done; unset i; unset x
 
 	$('#sync-time').addEventListener('click', event => {
 		event.preventDefault();
-		fetch('/x/j/sync-time.cgi')
+		fetch('/x/json-sync-time.cgi')
 			.then((response) => response.json())
 			.then((json) => {
 				p = document.createElement('p');
