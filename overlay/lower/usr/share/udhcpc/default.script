@@ -74,7 +74,7 @@ case "$1" in
 			echo "nameserver $i" >>$tmpfile
 		done
 		mv $tmpfile $realconf
-		if [ -n "$ntpsrv" ] && { [ ! -f /tmp/ntp.conf ] || [ -w /tmp/ntp.conf ]; }; then
+		if [ -n "$ntpsrv" ] && { [ ! -f /tmp/ntp.conf ] || stat -c%a /tmp/ntp.conf | grep -q '[67]'; }; then
 			echo $ntpsrv | tr ' ' '\n' | sed 's/^/server /; s/$/ iburst	#added by DHCP/' > /tmp/ntp.conf
 			/etc/init.d/S49ntpd reload
 		fi
