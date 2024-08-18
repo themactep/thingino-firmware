@@ -120,6 +120,10 @@ is_streamer_disabled() {
 	[ "true" = "$(get disable_streamer)" ] || [ -f /run/portal_mode ]
 }
 
+is_streamer_running() {
+	pidof prudynt > /dev/null
+}
+
 is_boot_complete() {
 	[ "true" = "$(get boot_complete)" ]
 }
