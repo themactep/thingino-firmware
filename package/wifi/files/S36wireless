@@ -33,7 +33,7 @@ start() {
 	fi
 
 	case "$(fw_printenv -n wlandev)" in
-		8189es | 8189fs | atbm6031 | b43 | bcmhd | hi3881 | ssv6158)
+		8189es | 8189fs | atbm6031 | b43 | bcmdhd | hi3881 | ssv6158)
 			info "Send INSERT to MMC1"
 			mmc 1 2>&1 | log
 	esac
