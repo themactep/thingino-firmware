@@ -1,6 +1,6 @@
 --- a/Makefile.tail
 +++ b/Makefile.tail
-@@ -31,10 +31,6 @@
+@@ -35,10 +35,6 @@
  	cd $(GROUPSOCK_DIR) ; $(MAKE) install
  	cd $(USAGE_ENVIRONMENT_DIR) ; $(MAKE) install
  	cd $(BASIC_USAGE_ENVIRONMENT_DIR) ; $(MAKE) install

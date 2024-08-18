@@ -1,6 +1,6 @@
---- a/testProgs/playCommon.cpp
-+++ b/testProgs/playCommon.cpp
-@@ -24,6 +24,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
+--- a/testProgs/playCommon.cpp	2024-08-17 20:23:13.962883551 -0400
++++ b/testProgs/playCommon.cpp	2024-08-17 20:24:38.487927302 -0400
+@@ -24,6 +24,7 @@
  #include "playCommon.hh"
  #include "BasicUsageEnvironment.hh"
  #include "GroupsockHelper.hh"
@@ -8,17 +8,22 @@
  
  #if defined(__WIN32__) || defined(_WIN32)
  #define snprintf _snprintf
-@@ -997,5 +998,9 @@ void createPeriodicOutputFiles() {
+@@ -995,10 +996,14 @@
+ }
+ 
+ void createPeriodicOutputFiles() {
 -  // Create a filename suffix that notes the time interval that's being recorded:
 -  char periodicFileNameSuffix[100];
 -  snprintf(periodicFileNameSuffix, sizeof periodicFileNameSuffix, "-%05d-%05d",
 -	   fileOutputSecondsSoFar, fileOutputSecondsSoFar + fileOutputInterval);
-+    time_t now = time(NULL);
-+    struct tm *tm_struct = localtime(&now);
-+    char periodicFileNameSuffix[200];
++  time_t now = time(NULL);
++  struct tm *tm_struct = localtime(&now);
++  char periodicFileNameSuffix[200];
 +
-+    snprintf(periodicFileNameSuffix, sizeof periodicFileNameSuffix, "%04d-%02d-%02d_%02d-%02d-%05d-%05d",
-+             tm_struct->tm_year + 1900, tm_struct->tm_mon + 1, tm_struct->tm_mday,
-+             tm_struct->tm_hour, tm_struct->tm_min,
-+             fileOutputSecondsSoFar, fileOutputSecondsSoFar + fileOutputInterval);
- }
++  snprintf(periodicFileNameSuffix, sizeof periodicFileNameSuffix, "%04d-%02d-%02d_%02d-%02d-%05d-%05d",
++           tm_struct->tm_year + 1900, tm_struct->tm_mon + 1, tm_struct->tm_mday,
++           tm_struct->tm_hour, tm_struct->tm_min,
++           fileOutputSecondsSoFar, fileOutputSecondsSoFar + fileOutputInterval);
+   createOutputFiles(periodicFileNameSuffix);
+ 
+   // Schedule an event for writing the next output file:
