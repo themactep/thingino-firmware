@@ -43,6 +43,13 @@ define USBNET_LINUX_CONFIG_FIXUPS_ASIX
 endef
 endif
 
+ifeq ($(BR2_PACKAGE_USBNET_ASIX_179_178A),y)
+define USBNET_LINUX_CONFIG_FIXUPS_ASIX
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_USBNET)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_NET_AX88179_178A)
+endef
+endif
+
 ####################################################
 #This is required for BR to successfully concatenate the kernel options when used with modules
 define USBNET_LINUX_CONFIG_FIXUPS

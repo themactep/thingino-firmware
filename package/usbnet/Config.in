@@ -27,6 +27,12 @@ config BR2_PACKAGE_USBNET_ASIX
 	help
 	  Enables ASIX AX8817X core usb driver
 
+config BR2_PACKAGE_USBNET_ASIX_179_178A
+	bool "ASIX AX88179_178A"
+	depends on BR2_PACKAGE_USBNET
+	help
+	  Enables ASIX AX88179_178A core usb driver
+
 config BR2_PACKAGE_USBNET_CDC_ETHER
 	bool "CDCETHER"
 	depends on BR2_PACKAGE_USBNET
