@@ -38,6 +38,10 @@ start() {
 			mmc 1 2>&1 | log
 	esac
 
+	if [ "$(get wlandev)" = "hi3881" ]; then
+		sed -i "s/CFG_MAC=[^;]*;/CFG_MAC=$(get wlanmac);/" /etc/wifi_cfg
+	fi
+
 	if ! grep -q "^$wlandev " /proc/modules; then
 		wlandevopts="$(get wlandevopts)"
 		info "Load module $wlandev with $wlandevopts"
@@ -54,7 +58,10 @@ start() {
 	wlanmac=$(get wlanmac)
 	if [ -n "$wlanmac" ]; then
 		info "Set MAC address $wlanmac"
-		ip link set dev wlan0 address $wlanmac 2>&1 | log
+		if ! [ "$(get wlandev)" = "hi3881" ]; then
+			ip link set dev wlan0 address $wlanmac 2>&1 | log
+		fi
+
 	fi
 }
 
