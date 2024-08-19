@@ -9,9 +9,13 @@ timeout() {
 }
 
 init_portal() {
+	# hi3881 uses ap0
+	net_dev="wlan0"  # default device
+	[ "$(get wlandev)" = "hi3881" ] && net_dev="ap0"
+
 	# quit if no wireless, or if ethernet is present
 	iface_exists "eth0" && quit
-	iface_exists "wlan0" || quit
+	iface_exists "$net_dev" || quit
 
 	# quit if credentials are set
 	ssid="$(get wlanssid)"
@@ -22,18 +26,18 @@ init_portal() {
 
 	echo $$ > /run/portal_mode
 
-	ip a add dev wlan0 ${CNET}.1/24
-	ip link set wlan0 up
-	ip route add ${CNET}.0/24 dev wlan0 > /dev/null 2>&1
+	ip a add dev $net_dev ${CNET}.1/24
+	ip link set $net_dev up
+	ip route add ${CNET}.0/24 dev $net_dev > /dev/null 2>&1
 
 	start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd.conf 2>&1
 	start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /etc/dnsd.conf -d | log
 
-	mac_address=$(ip link show wlan0 | awk '/ether/ {print $2}')
+	mac_address=$(ip link show $net_dev | awk '/ether/ {print $2}')
 	last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
 	sed -i "/ssid=\"THINGINO-\"$/ s/\"$/$last_two\"/" /etc/wpa_ap.conf
 
-	start-stop-daemon -S -x /sbin/wpa_supplicant -- -i wlan0 -B -c /etc/wpa_ap.conf 2>&1 | log
+	start-stop-daemon -S -x /sbin/wpa_supplicant -- -i $net_dev -B -c /etc/wpa_ap.conf 2>&1 | log
 	check_result
 
 	timeout &
@@ -47,8 +51,8 @@ case "$1" in
 		start-stop-daemon -K -q -x /sbin/udhcpd
 		start-stop-daemon -K -q -x /sbin/dnsd
 		start-stop-daemon -K -q -x /sbin/wpa_supplicant
-		ip address delete dev wlan0 ${CNET}.1/24
-		ip link set wlan0 down
+		ip address delete dev $net_dev ${CNET}.1/24
+		ip link set $net_dev down
 		;;
 	reload | restart)
 		true
