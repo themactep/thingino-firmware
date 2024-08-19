@@ -27,7 +27,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			echo "Record path cannot be empty. Disabling." >> /tmp/webui.log
 			record_enable=false
 			record_path="/mnt/mmcblk0p1/"
-		elif [ $record_path[-1] != $'/' ]; then
+		elif [ "${record_path: -1}" != '/' ]; then
 				echo "record path does not end with "/". Adding" >> /tmp/webui.log
 				record_path="$record_path/"
 		fi
