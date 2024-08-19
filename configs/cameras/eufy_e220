@@ -1,12 +1,8 @@
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+# MODULE: t31x_sc3336_syn43438
 BR2_AUDIO=y
 BR2_MOTORS=y
 BR2_MOTORS_TCU=y
-BR2_PACKAGE_WIFI=y
-BR2_PACKAGE_WIFI_SYN43438=y
 BR2_SDCARD=y
-BR2_SENSOR_SC3336=y
-BR2_SOC_INGENIC_T31X=y
 BR2_TARGET_UBOOT_BOARDNAME="isvp_t31_sfcnor_msc1_ddr128M"
 FLASH_SIZE_16=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/eufy-e220.uenv.txt"
