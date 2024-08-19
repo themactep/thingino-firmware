@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if [ -z "$1" ]; then
-	echo "Usage: $0 <mmc port>"
+	echo "Usage: $0 <mmc port> [-r]"
 	exit 1
 fi
 
@@ -12,6 +12,11 @@ if [ ! -f "$endpoint" ]; then
 	exit 1
 fi
 
-echo INSERT > $endpoint
+# Check for the -r flag to determine whether to echo REMOVE or INSERT
+if [ "$2" = "-r" ]; then
+	echo REMOVE > $endpoint
+else
+	echo INSERT > $endpoint
+fi
 
 exit 0
