@@ -2,8 +2,9 @@
 # udhcpc script edited by Tim Riker <Tim@Rikers.org>
 
 [ -z "$1" ] && echo "Error: should be called from udhcpc" && exit 1
-
 RESOLV_CONF="/tmp/resolv.conf"
+NTP_DEFAULT="/etc/default/ntp.conf"
+NTP_CONF="/tmp/ntp.conf"
 
 NETMASK=""
 [ -n "$subnet" ] && NETMASK="/$subnet"
@@ -74,8 +75,9 @@ case "$1" in
 			echo "nameserver $i" >>$tmpfile
 		done
 		mv $tmpfile $realconf
-		if [ -n "$ntpsrv" ] && [ -w /tmp/ntp.conf ]; then
-			echo $ntpsrv | tr ' ' '\n' | sed 's/^/server /; s/$/ iburst	#added by DHCP/' > /tmp/ntp.conf
+		cp $NTP_DEFAULT $NTP_CONF
+		if [ -n "$ntpsrv" ] && [ "$(stat -c%a $NTP_CONF)" != '444' ]; then
+			echo $ntpsrv | tr ' ' '\n' | sed 's/^/server /; s/$/ iburst	#added by DHCP/' > $NTP_CONF
 			/etc/init.d/S49ntpd reload
 		fi
 		;;
