@@ -76,7 +76,7 @@ case "$1" in
 		done
 		mv $tmpfile $realconf
 		cp $NTP_DEFAULT $NTP_CONF
-		if [ -n "$ntpsrv" ] && stat -c%a $NTP_CONF | grep -q '[67]'; then
+		if [ -n "$ntpsrv" ] && [ "$(stat -c%a $NTP_CONF)" != '444' ]; then
 			echo $ntpsrv | tr ' ' '\n' | sed 's/^/server /; s/$/ iburst	#added by DHCP/' > $NTP_CONF
 			/etc/init.d/S49ntpd reload
 		fi
