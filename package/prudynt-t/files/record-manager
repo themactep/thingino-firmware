@@ -14,7 +14,7 @@ getUsedSpace() {
 	if [ $record_path = "/mnt/nfs*" ]; then
 		usedSpace=$(df /mnt/nfs/ | awk 'NR==3{print $4}' | cut -d'%' -f1)
 	else
-		usedSpace=$(df /mnt/mmcblk0p1/ | awk 'END{print $5}' | cut -d'%' -f1)
+		usedSpace=$(df $record_path | awk 'END{print $5}' | cut -d'%' -f1)
 }
 
 while :
