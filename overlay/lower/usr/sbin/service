@@ -1,0 +1,17 @@
+#!/bin/sh
+
+[ "$#" -ne 2 ] && { echo "Usage: service <servicename> <start|stop|restart|reload>"; exit 1; }
+
+SERVICENAME=$1
+ACTION=$2
+
+case "$ACTION" in
+	start|stop|restart|reload) ;;
+	*) echo "Invalid action: $ACTION"; exit 1 ;;
+esac
+
+SERVICE_SCRIPT=$(ls /etc/init.d/*$SERVICENAME 2>/dev/null)
+
+[ -z "$SERVICE_SCRIPT" ] && { echo "Service $SERVICENAME not found."; exit 1; }
+
+$SERVICE_SCRIPT $ACTION || { echo "Failed to $ACTION $SERVICENAME."; exit 1; }
