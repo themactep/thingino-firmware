@@ -1,12 +1,11 @@
 #!/bin/sh
 preview=/tmp/snapshot.jpg
 date=$(TZ=GMT0 date +'%a, %d %b %Y %T %Z')
-echo -n "HTTP/1.1 200 OK
-Content-Disposition: attachment; filename=preview-$(date +%s).jpg
-Cache-Control: no-store
-Pragma: no-cache
-Date: $date
-Expires: $date
-Connection: close
-"
+echo -ne "HTTP/1.1 200 OK\r\n\
+Content-Disposition: attachment; filename=preview-$(date +%s).jpg\r\n\
+Cache-Control: no-store\r\n\
+Pragma: no-cache\r\n\
+Date: $date\r\n\
+Expires: $date\r\n\
+Connection: close\r\n"
 mjpeg_frame $preview
