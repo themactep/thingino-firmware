@@ -32,8 +32,8 @@ set_timezone() {
 	info "Set TZ to $tz ($timezone)"
 
 	# save timezone
-	run "echo $tz > /etc/TZ"
-	run "echo $timezone > /etc/timezone"
+	echo $tz > /etc/TZ
+	echo $timezone > /etc/timezone
 	info "Save timezone configuration"
 }
 
