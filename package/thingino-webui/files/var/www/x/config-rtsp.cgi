@@ -6,6 +6,7 @@ plugin_name="RTSP/ONVIF Access"
 page_title="RTSP/ONVIF Access"
 
 prudynt_config=/etc/prudynt.cfg
+onvif_config=/etc/onvif.conf
 onvif_discovery=/etc/init.d/S96onvif_discovery
 onvif_notify=/etc/init.d/S97onvif_notify
 
@@ -19,11 +20,21 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	sanitize rtsp_password
 
 	if [ -z "$error" ]; then
+		# change password for onvif server
+		tmpfile=$(mktemp)
+		cat $onvif_config > $tmpfile
+		sed -i "/^user=/cuser=$rtsp_username" $tmpfile
+		sed -i "/^password=/cpassword=$rtsp_password" $tmpfile
+		mv $tmpfile $onvif_config
+
+		# change password for prudynt streamer
 		tmpfile=$(mktemp)
 		cat $prudynt_config > $tmpfile
 		sed -i "/username:/c\\\tusername: \"$rtsp_username\";" $tmpfile
 		sed -i "/password:/c\\\tpassword: \"$rtsp_password\";" $tmpfile
 		mv $tmpfile $prudynt_config
+
+		# change password for system user
 		echo "$rtsp_username:$rtsp_password" | chpasswd
 
 		if [ -f "$onvif_discovery" ]; then
