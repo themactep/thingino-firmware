@@ -1,13 +1,7 @@
 diff --git a/driver/oal/plat_firmware.c b/driver/oal/plat_firmware.c
-index 19c0632..311ca32 100644
+index 19c0632..a01a8f9 100644
 --- a/driver/oal/plat_firmware.c
 +++ b/driver/oal/plat_firmware.c
-@@ -87,7 +87,7 @@ static firmware_file_stru *g_st_rw_bin[SOFT_VER_BUTT] = {
- /*****************************************************************************
-   2 <BA>궨<D2><E5>
- *****************************************************************************/
+@@ -90,1 +90,1 @@                          
 -#define WIFI_CFG_C01_PATH   "/tmp/wifi_cfg"
 +#define WIFI_CFG_C01_PATH   "/etc/wifi_cfg"
- #define WIFI_CFG_C02_PATH   HI_NULL
- #define RAM_CHECK_CFG_PATH  HI_NULL
- #define STORE_WIFI_MEM      HI_NULL
