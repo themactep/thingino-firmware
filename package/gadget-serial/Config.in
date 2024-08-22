@@ -1,4 +1,5 @@
 config BR2_PACKAGE_GADGET_SERIAL
 	bool "gadget-serial"
+	select BR2_PACKAGE_THINGINO_KOPT_GADGET_SERIAL
 	help
 	  Enables a USB gadget serial device to allow termial access
