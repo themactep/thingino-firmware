@@ -6,7 +6,7 @@ usb_console=$(fw_printenv -n usb_console)
 
 if [ "$usb_console" = "true" ]; then
 	# Load g_serial module and set USB role
-	modprobe g_serial
+	modprobe g_serial iManufacturer="thingino" iProduct="USB Gadget Serial Console"
 	usb-role -m device
 	sleep 2
 
