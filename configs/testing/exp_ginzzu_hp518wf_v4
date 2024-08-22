@@ -1,0 +1,11 @@
+# MODULE: t31l_gc2083_ssv6006c
+BR2_AUDIO=y
+BR2_AVPU_VPLL=y
+BR2_ISP_CLK_200MHZ=y
+BR2_ISP_PARAMS="isp_ch0_pre_dequeue_time=14 isp_ch0_pre_dequeue_interrupt_process=0 isp_ch0_pre_dequeue_valid_lines=540 isp_memopt=1 data_interface=1 shvflip=1"
+BR2_MOTORS=y
+BR2_MOTORS_TCU=y
+BR2_SDCARD=y
+KERNEL_VERSION_4=y
+FLASH_SIZE_16=y
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/ginzzu_hp518wf.uenv.txt"
