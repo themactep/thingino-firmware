@@ -144,4 +144,8 @@ config BR2_PACKAGE_THINGINO_KOPT_CIFS
         help
 	  Enable CIFS support
 
-
+config BR2_PACKAGE_THINGINO_KOPT_DEVELOP
+	bool "Developer Options"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+        help
+	  Enable Kernel Options for Development/Debugging
