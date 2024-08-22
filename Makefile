@@ -178,7 +178,7 @@ select-device:
 
 # Call configurator UI
 menuconfig: $(OUTPUT_DIR)/.config
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) menuconfig
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) nconfig
 
 # Permanently save changes to the defconfig
 saveconfig:
