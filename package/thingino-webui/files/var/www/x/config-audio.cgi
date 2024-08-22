@@ -50,13 +50,15 @@ fi
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
 <div class="col">
-<h3>Network Audio</h3>
-<% field_switch "audio_net_enabled" "Enable Incoming Audio" "Live stream audio to the camera speaker over the network" %>
-<% field_number "audio_net_port" "Incoming Audio Port" "" "Which port to listen on" %>
+<h3>Audio Backchannel</h3>
+<% field_switch "audio_net_enabled" "Enable Audio Backchannel" "Live stream audio to the camera speaker over the network" %>
+<% field_number "audio_net_port" "Audio Backchannel Port" "" "Which port to listen on" %>
 <a href="https://github.com/gtxaspec/ingenic-audiodaemon?tab=readme-ov-file#on-pc">See this repo for usage instructions</a>
 <p><% button_submit %></p>
 </div>
 <div class="col">
+<h3>Audio Output Settings</h3>
+Work in progress
 </div>
 <div class="col">
 <% field_switch "audio_debug" "Enable Debugging" %>
