@@ -2,17 +2,13 @@
 
 . /etc/init.d/rc.common
 
-echo_c 208 "\nPress the [f] key to enter failsafe mode\n"
+for prefix in F; do
+	for i in $(ls /etc/init.d/${prefix}??* 2> /dev/null); do
+		# Ignore dangling symlinks (if any).
+		[ -f "$i" ] || continue
 
-stty -icanon min 0 time 20 -echo
+		/bin/sh -c "$i" 2>&1
+	done
+done
 
-key=$(dd bs=1 count=1 2> /dev/null)
-
-stty sane
-
-if [ "f" = "$key" ]; then
-	echo_c 118 "Entering failsafe mode..."
-	/bin/sh
-else
-	/etc/init.d/rcS
-fi
+exit 0
