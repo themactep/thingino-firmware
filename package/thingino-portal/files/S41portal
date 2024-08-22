@@ -51,11 +51,13 @@ case "$1" in
 		init_portal
 		;;
 	stop)
-		start-stop-daemon -K -q -x /sbin/udhcpd
-		start-stop-daemon -K -q -x /sbin/dnsd
-		start-stop-daemon -K -q -x /sbin/wpa_supplicant
-		ip address delete dev $net_dev ${CNET}.1/24
-		ip link set $net_dev down
+		if [ -f /run/portal_mode ]; then
+			start-stop-daemon -K -q -x /sbin/udhcpd
+			start-stop-daemon -K -q -x /sbin/dnsd
+			start-stop-daemon -K -q -x /sbin/wpa_supplicant
+			ip address delete dev $net_dev ${CNET}.1/24
+			ip link set $net_dev down
+		fi
 		;;
 	reload | restart)
 		true
