@@ -8,7 +8,9 @@ function main_menu() {
 		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Select an option:" 18 110 30 \
 			"bootstrap" "Install prerequisite software necessary for the compilation process" \
 			"menuconfig" "Proceed to the buildroot menu (toolchain, kernel, and rootfs)" \
+			"nconfig" "Proceed to the buildroot menu (toolchain, kernel, and rootfs)" \
 			"br-linux-menuconfig" "Proceed to the Linux Kernel menu configuration" \
+			"br-linux-nconfig" "Proceed to the Linux Kernel menu configuration" \
 			"br-busybox-menuconfig" "Proceed to the Busybox menu configuration" \
 			"defconfig" "(Re)create config file" \
 			"clean" "Clean before reassembly"  \
@@ -30,7 +32,11 @@ function show_help() {
 			show_help_msgbox "The 'Bootstrap' option initiates the installation of all necessary prerequisite software required for the compilation of the firmware.\n\nThis includes tools and libraries that are essential for building the firmware from source. Selecting this will ensure your environment is correctly set up to proceed with building Thingino without encountering missing dependencies.\n\nRequires super-user privileges." 13 80;;
 		"HELP menuconfig")
 			show_help_msgbox "Launches a graphical interface for configuring the toolchain, kernel options, and the packages that will be included in your root filesystem. It's a crucial step for customizing your build according to your needs." 8;;
+		"HELP nconfig")
+			show_help_msgbox "Launches a graphical interface for configuring the toolchain, kernel options, and the packages that will be included in your root filesystem. It's a crucial step for customizing your build according to your needs." 8;;
 		"HELP br-linux-menuconfig")
+			show_help_msgbox "Launches a graphical interface for configuring the Linux Kernel." 5;;
+		"HELP br-linux-nconfig")
 			show_help_msgbox "Launches a graphical interface for configuring the Linux Kernel." 5;;
 		"HELP clean")
 			show_help_msgbox "The 'clean' command removes most of the files generated during the build process but preserves your configuration settings. This allows you to rebuild your firmware quickly without starting from scratch." 8;;
@@ -63,7 +69,7 @@ execute_choice() {
 			make $1
 			exit
 			;;
-		menuconfig | br-linux-menuconfig)
+		menuconfig | br-linux-menuconfig | nconfig| br-linux-nconfig)
 			make $1
 			#savedefconfig future user box
 			#exit

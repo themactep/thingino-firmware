@@ -1,1 +1,10 @@
-toolchain-musl.fragment
+# toolchain.fragment
+BR2_TOOLCHAIN_EXTERNAL=y
+BR2_TOOLCHAIN_EXTERNAL_CUSTOM=y
+BR2_TOOLCHAIN_EXTERNAL_DOWNLOAD=y
+BR2_TOOLCHAIN_EXTERNAL_URL="https://github.com/themactep/thingino-firmware/releases/download/toolchain/thingino-toolchain_xburst1_musl_gcc14-linux-mipsel.tar.gz"
+BR2_TOOLCHAIN_EXTERNAL_HEADERS_3_10=y
+BR2_TOOLCHAIN_EXTERNAL_CUSTOM_MUSL=y
+BR2_TOOLCHAIN_EXTERNAL_GCC_14=y
+BR2_TOOLCHAIN_EXTERNAL_CXX=y
+BR2_INSTALL_LIBSTDCPP=y
