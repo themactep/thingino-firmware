@@ -218,6 +218,14 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DEVELOP
 endef
 endif
 
+################ GADGET_SERIAL #########################
+
+ifeq ($(BR2_PACKAGE_THINGINO_KOPT_GADGET_SERIAL),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_GADGET_SERIAL
+        $(call KCONFIG_SET_OPT,CONFIG_USB_G_SERIAL,m)
+endef
+endif
+
 ####################################################
 #This is required for BR to successfully concatenate the kernel options when used with modules
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
@@ -244,7 +252,8 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_UART2)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_CIFS)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_ADC)
-	$call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DEVELOP)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DEVELOP)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_GADGET_SERIAL)
 endef
 
 
