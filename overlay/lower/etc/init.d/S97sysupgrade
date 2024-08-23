@@ -8,7 +8,7 @@ start() {
 	if [ "$SYSUPGRADE_COMPLETE" = "false" ]; then
 		starting
 		ok
-		#iac -f /usr/share/sounds/thingino.pcm | log
+		#play_sound thingino.pcm
 		fw_setenv sysupgrade_complete=true
 		info_n "Update completed!"
 	fi
