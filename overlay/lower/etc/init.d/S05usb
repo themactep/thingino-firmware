@@ -1,0 +1,15 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+case "$1" in
+	start)
+		gpio_control "gpio_usb_en" && { starting; ok; } || [ $? -eq 3 ] && info "GPIO command failed"
+		;;
+	stop)
+		true
+		;;
+	*)
+		die "Usage: $0 {start}"
+		;;
+esac

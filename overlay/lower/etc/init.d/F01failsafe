@@ -1,0 +1,22 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+usb_console=$(fw_printenv -n usb_console)
+
+[ "$usb_console" = "true" ] && exit
+
+echo_c 208 "\nPress the [f] key to enter failsafe mode\n"
+
+stty -icanon min 0 time 20 -echo
+
+key=$(dd bs=1 count=1 2> /dev/null)
+
+stty sane
+
+if [ "f" = "$key" ]; then
+	echo_c 118 "Entering failsafe mode..."
+        exec setsid /sbin/getty -n -l /bin/sh -L console 0 vt100
+else
+	/etc/init.d/rcS
+fi

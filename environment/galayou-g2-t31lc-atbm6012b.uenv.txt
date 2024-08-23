@@ -1,0 +1,15 @@
+day_night_max=15000
+day_night_min=500
+disable_eth=true
+enable_updates=true
+gpio_default=6O 7o 8O 9O 10o 11o 14i 17i 18O 49i 50o 51o 52o 53o 54o 60O 61o 62o 63o 64o
+gpio_default_net=
+gpio_ir940=50
+gpio_ircut=10 11
+gpio_led_b=9o
+gpio_mmc_cd=49
+gpio_motor_h=61 62 63 51
+gpio_motor_v=54 52 53 64
+osmem=41836K@0x0
+rmem=23700K@0x28DB000
+wlandev=atbm6012b

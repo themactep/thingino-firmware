@@ -42,7 +42,7 @@ else
 	ts=$(date +%s)
 %>
 <div class="row mb-4">
-<div class="col col-12 col-lg-4 mb-4">
+<div class="col col-12 col-lg-6 mb-4">
 <form action="<%= $SCRIPT_NAME %>" method="post" enctype="multipart/form-data">
 <h5>Main stream</h5>
 <div class="row">
@@ -57,13 +57,15 @@ else
 <% button_submit %>
 </form>
 </div>
-<div class="col col-12 col-lg-8">
+<div class="col col-12 col-lg-6">
 <div id="preview-wrapper" class="mb-4 position-relative">
 <img id="preview" src="image.cgi?t=<%= $ts %>" alt="Image: Preview" class="img-fluid">
 <button type="button" class="btn btn-primary btn-large position-absolute top-50 start-50 translate-middle" data-bs-toggle="modal" data-bs-target="#previewModal"><%= $icon_zoom %></button>
 </div>
 <div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
-<div class="modal-dialog modal-fullscreen"><div class="modal-content"><div class="modal-header">
+<div class="modal-dialog modal-fullscreen">
+<div class="modal-content">
+<div class="modal-header">
 <h1 class="modal-title fs-4" id="previewModalLabel">Full screen preview</h1>
 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
