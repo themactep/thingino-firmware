@@ -5,6 +5,7 @@
 		echo -en "\nPassword: "; stty -echo; read p1
 		echo -en "\nConfirm: "; read p2; stty echo
 		[ -z "$p1" ] && echo_c 196 "\n\nPassword cannot be empty. Please try again.\n" && continue
+		[ "$p1" = "root" ] && echo_c 196 "\n\n'root' is not allowed as a password. Please try again.\n" && continue
 		[ "$p1" = "$p2" ] && {
 			echo "root:$p1" | chpasswd -c sha512 2>/dev/null && {
 				echo_c 118 "\n\nPassword updated.\n"
