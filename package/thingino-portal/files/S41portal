@@ -4,18 +4,18 @@
 
 CNET=172.16.0
 
+# Define net_dev in the global scope
+net_dev="wlan0"  # default device
+if [ "$(get wlandev)" = "hi3881" ]; then
+	net_dev="ap0"
+	sed -i 's/wlan0/ap0/g' /etc/udhcpd.conf
+fi
+
 timeout() {
 	sleep 300 && $0 stop
 }
 
 init_portal() {
-	# hi3881 uses ap0
-	net_dev="wlan0"  # default device
-	if [ "$(get wlandev)" = "hi3881" ]; then
-		net_dev="ap0"
-		sed -i 's/wlan0/ap0/g' /etc/udhcpd.conf
-	fi
-
 	# quit if no wireless, or if ethernet is present
 	iface_exists "eth0" && quit
 	iface_exists "$net_dev" || quit
