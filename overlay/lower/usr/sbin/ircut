@@ -60,21 +60,21 @@ report_ir_filter() {
 }
 
 ir_filter_off() {
-	gpio set "$pin1" "$pin1_off"
+	gpio set "$pin1" "$pin1_off" > /dev/null
 	if [ -n "$pin2" ]; then
-		gpio set "$pin2" "$pin2_on"
+		gpio set "$pin2" "$pin2_on" > /dev/null
 		usleep 10000
-		gpio set "$pin2" "$pin2_off"
+		gpio set "$pin2" "$pin2_off" > /dev/null
 	fi
 	echo 0 > $MODE_FILE
 }
 
 ir_filter_on() {
-	gpio set "$pin1" "$pin1_on"
+	gpio set "$pin1" "$pin1_on" > /dev/null
 	if [ -n "$pin2" ]; then
-		gpio set "$pin2" "$pin2_off"
+		gpio set "$pin2" "$pin2_off" > /dev/null
 		usleep 10000
-		gpio set "$pin1" "$pin1_off"
+		gpio set "$pin1" "$pin1_off" > /dev/null
 	fi
 	echo 1 > $MODE_FILE
 }

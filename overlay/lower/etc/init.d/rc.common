@@ -49,6 +49,10 @@ warn() {
 	echo "$1" | log
 }
 
+play_sound() {
+	iac -f /usr/share/sounds/$1 | log
+}
+
 run() {
 	[ "0$debug" -gt 0 ] && echo_c 144 "$1"
 	$1 2>&1 | log
@@ -155,5 +159,39 @@ iface_exists() {
 	else
 		echo "Interface '$iface' does not exist." 2>&1 | log
 		return 1
+	fi
+}
+
+gpio_control(){
+	gpio_name="$1"
+	gpio_power="$(get "$gpio_name")"
+
+	if [ -z "$gpio_power" ]; then
+		error "GPIO power value for $gpio_name is empty"
+		return 1  # Return 1 if the value is empty
+	fi
+
+	num=${gpio_power%[oO]}
+	state=${gpio_power#$num}
+
+	case "$state" in
+		O)
+			gpio_cmd="high"
+			;;
+		o)
+			gpio_cmd="low"
+			;;
+		*)
+			error "Invalid state for GPIO $gpio_name: $state"
+			return 2  # Return 2 if the state is invalid
+			;;
+	esac
+
+	info "Set GPIO $num $gpio_cmd"
+	if gpio $gpio_cmd $num 2>&1 | log; then
+		return 0  # Return 0 on success
+	else
+		error "Failed to set GPIO $num $gpio_cmd"
+		return 3  # Return 3 if the gpio command fails
 	fi
 }

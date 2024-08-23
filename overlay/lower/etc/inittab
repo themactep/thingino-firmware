@@ -15,6 +15,6 @@ null::sysinit:/bin/ln -sf /proc/self/fd/2 /dev/stderr
 ::sysinit:/bin/hostname -F /etc/hostname
 ::sysinit:/etc/init.d/K99watchdog start
 ::sysinit:/etc/init.d/rcF
-console::respawn:/sbin/getty -L console 0 vt100
+console::respawn:/bin/sh -c '[ "$(fw_printenv -n debug)" = "1" ] && exec /bin/login -f root || exec /sbin/getty -L console 0 vt100'
 ::shutdown:/etc/init.d/rcK
 ::shutdown:/bin/umount -a -f

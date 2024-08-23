@@ -79,7 +79,6 @@ config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_INTERNAL_PHY
 	help
 	  Enable support for the Internal MAC PHY on the T21 SoC
 
-
 config BR2_PACKAGE_THINGINO_KOPT_DWC2
 	bool "USB Support"
 	depends on BR2_PACKAGE_THINGINO_KOPT
@@ -144,4 +143,14 @@ config BR2_PACKAGE_THINGINO_KOPT_CIFS
         help
 	  Enable CIFS support
 
+config BR2_PACKAGE_THINGINO_KOPT_DEVELOP
+	bool "Developer Options"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+        help
+	  Enable Kernel Options for Development/Debugging
 
+config BR2_PACKAGE_THINGINO_KOPT_GADGET_SERIAL
+	bool "GADGET SERIAL"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+        help
+	  Enable USB Gadget serial

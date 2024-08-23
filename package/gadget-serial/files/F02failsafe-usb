@@ -1,0 +1,33 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+usb_console=$(fw_printenv -n usb_console)
+
+if [ "$usb_console" = "true" ]; then
+	# Load g_serial module and set USB role
+	modprobe g_serial iManufacturer="thingino" iProduct="USB Gadget Serial Console"
+	usb-role -m device
+	sleep 2
+
+	# Display the failsafe message only on ttyGS0
+	echo_c 208 "\nPress the [f] key to enter failsafe mode\n" > /dev/ttyGS0
+
+	# Set up the terminal settings for ttyGS0
+	stty -icanon min 0 time 20 -echo < /dev/ttyGS0
+
+	# Read the key input from ttyGS0
+	key_gs0=$(dd bs=1 count=1 2> /dev/null < /dev/ttyGS0)
+
+	# Restore terminal settings for ttyGS0
+	stty sane < /dev/ttyGS0
+
+	# Check for failsafe mode input from ttyGS0
+	if [ "$key_gs0" = "f" ]; then
+		echo_c 118 "Entering failsafe mode..." > /dev/ttyGS0
+		/bin/sh < /dev/ttyGS0 > /dev/ttyGS0 2>&1
+	else
+		/etc/init.d/rcS > /dev/ttyGS0 2>&1
+	/sbin/getty -L ttyGS0 115200 vt100
+	fi
+fi

@@ -17,10 +17,10 @@
 <script>
 function runMotorCmd(args) {
 	fetch(`/x/json-motor.cgi?${args}`)
-		.then(res => res.json())
-		.then(({xpos, ypos}) => {
-			$('#ptzpos').textContent = xpos + "," + ypos;
-		});
+	.then(res => res.json())
+	.then(({xpos, ypos}) => {
+		$('#ptzpos').textContent = xpos + "," + ypos;
+	});
 }
 
 function moveMotor(dir, steps = 100, d = 'g') {
