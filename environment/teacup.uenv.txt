@@ -1,2 +1,2 @@
-enable_updates=true
 disable_eth=false
+enable_updates=true
