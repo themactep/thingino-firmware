@@ -49,6 +49,10 @@ warn() {
 	echo "$1" | log
 }
 
+play_sound() {
+	iac -f /usr/share/sounds/$1 | log
+}
+
 run() {
 	[ "0$debug" -gt 0 ] && echo_c 144 "$1"
 	$1 2>&1 | log
