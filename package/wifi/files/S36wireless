@@ -30,6 +30,11 @@ start() {
 		if [ "$wlandev" == "bcmdhd" ]; then
 			gpio unexport $num
 		fi
+
+		if [ "$wlandev" == "ssv6155" ]; then
+                        gpio toggle $num 2>&1 | log
+
+                fi
 	fi
 
 	case "$(fw_printenv -n wlandev)" in
