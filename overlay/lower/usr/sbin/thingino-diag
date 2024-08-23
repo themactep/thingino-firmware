@@ -81,6 +81,9 @@ fi
 		cat /proc/jz/isp/isp_info
 	fi
 
+	center_text "libimp meminfo"
+	cat /tmp/continuous_mem_info
+
 	center_text "sensor"
 	sensor -a
 
