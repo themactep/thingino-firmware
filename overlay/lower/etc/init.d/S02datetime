@@ -11,9 +11,7 @@ set_timezone() {
 	fi
 
 	# Check if the values in /etc/ match those in environment
-	current_timezone=$(cat /etc/timezone)
-	current_tz_value=$(cat /etc/TZ)
-	if [ "$timezone" = "$current_timezone" ] && [ "$timezone" = "$current_tz_value" ]; then
+	if [ "$timezone" = "$(cat /etc/timezone)" ] && [ "$timezone" = "$(cat /etc/TZ)" ]; then
 		info "Timezone is already set"
 		return 0
 	fi
