@@ -55,7 +55,8 @@ play_sound() {
 
 run() {
 	[ "0$debug" -gt 0 ] && echo_c 144 "$1"
-	$1 2>&1 | log
+	echo "$1" | log
+	eval "$1" 2>&1 | log
 }
 
 starting() {
