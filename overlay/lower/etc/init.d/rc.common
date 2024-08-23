@@ -168,7 +168,6 @@ gpio_control(){
 	gpio_power="$(get "$gpio_name")"
 
 	if [ -z "$gpio_power" ]; then
-		warn "GPIO power value for $gpio_name is empty"
 		return 1  # Return 1 if the value is empty
 	fi
 
