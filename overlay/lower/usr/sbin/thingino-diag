@@ -1,112 +1,89 @@
 #!/bin/sh
 
-output_file="/tmp/support.txt"
-width=46
-force_run=false
-
-center_text() {
+header() {
+	local border="=============================================="
+	local width=46
 	local text="$1"
 	local text_length=${#text}
-	local border="=============================================="
-	local padding=$(( (width - text_length - 2) / 2 ))
+	local padding=$(((width - text_length - 2) / 2))
 	local left_border=${border:0:padding}
 	local right_border=${border:0:(width - padding - text_length - 2)}
-	echo "${border}"
-	echo "${left_border} ${text} ${right_border}"
-	echo "${border}"
+	echo -e "$border\n$left_border $text $right_border\n$border"
 }
 
-# Check for the -f flag
-if [ "$1" = "-f" ]; then
-	force_run=true
-else
-	force_run=false
+infocat() {
+	[ -f "$1" ] || return
+	[ -n "$2" ] && header "$2"
+	cat $1
+}
+
+inforun() {
+	[ -n "$2" ] && header "$2"
+	eval $1
+}
+
+echo "thingino diagnostics"
+echo "This script requires network access."
+echo "It is designed to generate log information to share with developers for diagnostic issues."
+echo "It may contain sensitive or personal information, so make sure to review the log before sharing the link!"
+echo "We use termbin to share the log. Please review their acceptable use policy at https://www.termbin.com/"
+echo
+read -p "Do you wish to proceed? (yes/no): " response
+if [ "yes" != "$response" ]; then
+	echo "Operation aborted by the user."
+	exit 1
 fi
 
-if [ "$force_run" = false ]; then
-	echo "thingino diagnostics"
-	echo "This script requires network access."
-	echo "It is designed to generate log information to share with developers for diagnostic issues."
-	echo "It may contain sensitive or personal information, so make sure to review the log before sharing the link!"
-	echo -e "We use termbin to share the log. Please review their acceptable use policy at https://www.termbin.com\n"
-
-	read -p "Do you wish to proceed? (yes/no): " response
-	if [ "$response" != "yes" ]; then
-		echo "Operation aborted by the user."
-		exit 1
-	fi
-fi
-
+output_file=$(mktemp)
 {
-	date
-	uname -a
-	center_text "THINGINO"
-	cat /etc/os-release
-	center_text "DMESG"
-	dmesg
-	center_text "SYSLOG"
-	logread
-	center_text "LOGCAT"
-	logcat
-	center_text "PS"
-	ps aux
-	center_text "DF"
-	df -h
-	center_text "IPC"
-	ipcs
-	center_text "KMOD"
-	lsmod
-	center_text "KMOD-2"
+	inforun "date"
+	inforun "uname -a"
+	infocat "/etc/os-release" "THINGINO"
+	inforun "dmesg" "DMESG"
+	inforun "logread" "SYSLOG"
+	inforun "logcat" "LOGCAT"
+	inforun "ps" "PS"
+	inforun "df -h" "DF"
+	inforun "ipcs" "IPC"
+	inforun "lsmod" "KMOD"
+
+	header "KMOD-2"
 	for file in /etc/modules.d/*; do echo "== $file =="; cat "$file"; done
-	center_text "USB"
-	lsusb
-	center_text "MEMORY"
-	free -h
-	center_text "LSOF"
-	lsof
-	center_text "MOUNT"
-	mount
-	center_text "GPIO"
-	gpio list
-	center_text "ENV"
-	fw_printenv | awk -F'=' '{if (/wlanpass|sshkey|ssh_authorized_keys|root_pw_hash|wlanmac|ethaddr|gatewayip|ipaddr|serverip/) print $1 "=REDACTED"; else print}' | sort
-	center_text "CMDLINE"
-	cat /proc/cmdline
 
-	center_text "CLOCKS"
-	cat /proc/jz/clock/clocks
+	inforun "lsusb" "USB"
+	inforun "free -h" "MEMORY"
+	inforun "lsof" "LSOF"
+	inforun "mount" "MOUNT"
+	inforun "gpio list" "GPIO"
 
-	if [ -f /proc/jz/isp/isp-m0 ]; then
-		center_text "isp-fs"
-		cat /proc/jz/isp/isp-fs
-	fi
+	header "ENV"
+	fw_printenv | awk -F'=' '{if (/ethaddr|gatewayip|ipaddr|root_pw_hash|serverip|ssh_authorized_keys|sshkey|wlanmac|wlanpass/) print $1 "=REDACTED"; else print}' | sort
 
-	if [ -f /proc/jz/isp/isp-m0 ]; then
-		center_text "isp-m0"
-		cat /proc/jz/isp/isp-m0
-	fi
+	infocat "/proc/cmdline" "CMDLINE"
+	infocat "/proc/jz/clock/clocks" "CLOCKS"
+	infocat "/proc/jz/isp/isp-fs" "isp-fs"
+	infocat "/proc/jz/isp/isp-m0" "isp-m0"
+	infocat "/proc/jz/isp/isp_info" "isp_info"
+	infocat "/tmp/continuous_mem_info" "libimp meminfo"
 
-	if [ -f /proc/jz/isp/isp_info ]; then
-		center_text "isp_info"
-		cat /proc/jz/isp/isp_info
-	fi
+	inforun "sensor -a" "sensor"
 
-	if [ -f /tmp/continuous_mem_info ]; then
-		center_text "libimp meminfo"
-		cat /tmp/continuous_mem_info
-	fi
-
-	center_text "sensor"
-	sensor -a
-
-	center_text "streamer"
+	header "streamer"
 	awk -F':' '{if (/password/) print $1 " REDACTED"; else print}' /etc/prudynt.cfg
 
-	center_text "crontab"
-	cat /etc/crontabs/root
-
+	infocat "/etc/crontabs/root" "crontab"
 } > $output_file
 
-echo -e "\nYour diagnostics log link is ready:"
-send2termbin cat $output_file
+url=$(cat $output_file | send2termbin)
 rm -f $output_file
+
+echo
+if [ -z "$url" ]; then
+	echo "There was an error."
+	exit 1
+fi
+
+echo "Your diagnostics log link:"
+echo $url
+
+exit 0
