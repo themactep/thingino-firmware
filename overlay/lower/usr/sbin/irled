@@ -25,6 +25,9 @@ if [ -z "$pin" ]; then
 	exit 1
 fi
 
+# default to output high
+[ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
+
 case ${pin:(-1)} in
 	o)
 		pin_on=0
