@@ -38,6 +38,7 @@ output_file=$(mktemp)
 {
 	inforun "date"
 	inforun "uname -a"
+	inforun "grep -a "Flex" /dev/mtd0"
 	infocat "/etc/os-release" "THINGINO"
 	inforun "dmesg" "DMESG"
 	inforun "logread" "SYSLOG"
