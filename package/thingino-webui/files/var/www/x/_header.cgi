@@ -1,4 +1,4 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 Content-type: text/html; charset=UTF-8
 Date: <%= $(time_http) %>
 Server: <%= $SERVER_SOFTWARE %>
