@@ -2,6 +2,7 @@
 
 output_file="/tmp/support.txt"
 width=46
+force_run=false
 
 center_text() {
 	local text="$1"
@@ -15,16 +16,25 @@ center_text() {
 	echo "${border}"
 }
 
-echo "thingino diagnostics"
-echo "This script requires network access."
-echo "It is designed to generate log information to share with developers for diagnostic issues."
-echo "It may contain sensitive or personal information, so make sure to review the log before sharing the link!"
-echo -e "We use termbin to share the log. Please review their acceptable use policy at https://www.termbin.com\n"
-read -p "Do you wish to proceed? (yes/no): " response
+# Check for the -f flag
+if [ "$1" = "-f" ]; then
+	force_run=true
+else
+	force_run=false
+fi
 
-if [ "$response" != "yes" ]; then
-	echo "Operation aborted by the user."
-	exit 1
+if [ "$force_run" = false ]; then
+	echo "thingino diagnostics"
+	echo "This script requires network access."
+	echo "It is designed to generate log information to share with developers for diagnostic issues."
+	echo "It may contain sensitive or personal information, so make sure to review the log before sharing the link!"
+	echo -e "We use termbin to share the log. Please review their acceptable use policy at https://www.termbin.com\n"
+
+	read -p "Do you wish to proceed? (yes/no): " response
+	if [ "$response" != "yes" ]; then
+		echo "Operation aborted by the user."
+		exit 1
+	fi
 fi
 
 {
@@ -81,8 +91,10 @@ fi
 		cat /proc/jz/isp/isp_info
 	fi
 
-	center_text "libimp meminfo"
-	cat /tmp/continuous_mem_info
+	if [ -f /tmp/continuous_mem_info ]; then
+		center_text "libimp meminfo"
+		cat /tmp/continuous_mem_info
+	fi
 
 	center_text "sensor"
 	sensor -a
@@ -98,4 +110,3 @@ fi
 echo -e "\nYour diagnostics log link is ready:"
 send2termbin cat $output_file
 rm -f $output_file
-
