@@ -1,0 +1,70 @@
+#!/bin/sh
+
+die() {
+	echo_c 160 "$1"
+	exit 1
+}
+
+format_partition() {
+	unmount_partition $1
+
+	echo_c 36 "Format partition"
+	echo_c 144 "$MKFS -n thingino $1"
+	$MKFS -n thingino $1 2>&1 || die "Cannot format $1 to $POST_fstype"
+}
+
+mount_partitions() {
+	echo_c 36 "Mount partition"
+	echo_c 144 "echo /sbin/mdev > /proc/sys/kernel/hotplug"
+	echo /sbin/mdev > /proc/sys/kernel/hotplug
+	echo_c 144 "mdev -s"
+	mdev -s || die "Cannot re-mount SD card"
+}
+
+unmount_partition() {
+	echo_c 36 "Unmount partition"
+	local limit=5
+	while grep -q $1 /proc/mounts; do
+		[ "$limit" -gt 0 ] || die "Cannot unmount $1"
+		echo_c 144 "umount -l $1"
+		umount -l $1 2>&1
+		sleep 0.5
+		limit=$((limit-1))
+	done
+}
+
+reinsert_sdcard() {
+	echo_c 36 "Reinsert card"
+	echo_c 144 "echo \"\" > /proc/sys/kernel/hotplug"
+	echo "" > /proc/sys/kernel/hotplug
+	echo_c 144 "mmc 0 -r; sleep 1; mmc 0; sleep 1"
+	mmc 0 -r; sleep 1; mmc 0; sleep 1
+}
+
+repartition_sdcard() {
+	echo_c 36 "Repartition card"
+	echo_c 144 "echo -e 'o\nn\np\n1\n\n\nt\n$FSTYPE\nw' | fdisk $1"
+	echo -e "o\nn\np\n1\n\n\nt\n$FSTYPE\nw" | fdisk $1 2>&1 || die "Cannot create a partition on $1"
+}
+
+case "$1" in
+	fat32)
+		MKFS="mkfs.vfat"
+		FSTYPE="b"
+		;;
+	exfat | *)
+		MKFS="mkfs.exfat"
+		FSTYPE="7"
+		;;
+esac
+
+device_name="$(awk -F= '/DEVNAME/{print $2}' /sys/bus/mmc/devices/*/block/*/uevent)"
+[ -z "$device_name" ] && die "No SD card device found"
+
+unmount_partition  "/mnt/${device_name}p1"
+repartition_sdcard "/dev/${device_name}"
+reinsert_sdcard
+format_partition   "/dev/${device_name}p1"
+mount_partitions
+
+exit 0
