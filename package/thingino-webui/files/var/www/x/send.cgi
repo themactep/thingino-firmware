@@ -1,4 +1,4 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
 <%
 target=$GET_to
@@ -8,10 +8,10 @@ case "$target" in
 		redirect_back "success" "Sent to $target"
 		;;
 	termbin)
-		t=$(mktemp)
-		$GET_file >$t
-		url=$(send2${target} <$t)
-		rm $t
+		case $GET_file in
+			weblog) url=$(cat /tmp/webui.log | send2termbin) ;;
+			*) url=$($GET_file | send2termbin) ;;
+		esac
 		redirect_to $url
 		;;
 	*)

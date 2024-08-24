@@ -30,19 +30,7 @@ Pragma: no-cache
 <a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownInformation" role="button">Information</a>
 <ul aria-labelledby="dropdownInformation" class="dropdown-menu">
 <li><a class="dropdown-item" href="status.cgi">Overview</a></li>
-<li><a class="dropdown-item" href="info-cron.cgi">Cron Configuration</a></li>
-<li><a class="dropdown-item" href="info-httpd.cgi">HTTPd Environment</a></li>
-<li><a class="dropdown-item" href="info-top.cgi">Top Processes</a></li>
-<li><a class="dropdown-item" href="info-overlay.cgi">Overlay Partition</a></li>
-<% if [ -e /proc/umap ]; then %>
-<li><a class="dropdown-item" href="info-proc-umap.cgi">Information from /proc/umap</a></li>
-<% fi %>
-<li><a class="dropdown-item" href="info-netstat.cgi">netstat</a></li>
-<li><a class="dropdown-item" href="info-snmp.cgi">snmp</a></li>
-<li><a class="dropdown-item" href="info-modules.cgi">lsmod</a></li>
-<li><a class="dropdown-item" href="info-dmesg.cgi">dmesg</a></li>
-<li><a class="dropdown-item" href="info-log.cgi">logread</a></li>
-<li><a class="dropdown-item" href="info-weblog.cgi">WebUI Log</a></li>
+<% load_infopages %>
 </ul>
 </li>
 <li class="nav-item dropdown">

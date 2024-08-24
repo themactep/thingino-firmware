@@ -1,4 +1,4 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
 <%
 [ -n "$GET_cd" ] && dir=${GET_cd}

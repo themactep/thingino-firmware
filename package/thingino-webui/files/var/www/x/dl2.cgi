@@ -1,4 +1,4 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
 <%
 file=$(mktemp)
@@ -25,15 +25,15 @@ case "$log" in
 		;;
 esac
 check_file_exist $file
-echo "HTTP/1.0 200 OK
-Date: $(time_http)
-Server: $SERVER_SOFTWARE
-Content-type: text/plain
-Content-Disposition: attachment; filename=${log}-$(date +%s).txt
-Content-Length: $(stat -c%s $file)
-Cache-Control: no-store
-Pragma: no-cache
-"
+echo -en "HTTP/1.0 200 OK\r\n
+Date: $(time_http)\r\n
+Server: $SERVER_SOFTWARE\r\n
+Content-type: text/plain\r\n
+Content-Disposition: attachment; filename=${log}-$(date +%s).txt\r\n
+Content-Length: $(stat -c%s $file)\r\n
+Cache-Control: no-store\r\n
+Pragma: no-cache\r\n
+\r\n"
 cat $file
 rm $file
 %>

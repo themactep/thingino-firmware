@@ -1,4 +1,4 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
 <%
 plugin="motion"
@@ -51,7 +51,6 @@ else
 fi
 %>
 <%in _header.cgi %>
-
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <div class="row g-4 mb-4">
 <div class="col col-12 col-xl-4">
@@ -86,17 +85,14 @@ fi
 <% [ -f $config_file ] && ex "cat $config_file" %>
 </div>
 </div>
-
 <% button_submit %>
 </form>
-
 <script>
-<% [ "true" != "$email_enabled"    ] && echo "\$('#motion_send2email').disabled = true;" %>
-<% [ "true" != "$ftp_enabled"      ] && echo "\$('#motion_send2ftp').disabled = true;" %>
-<% [ "true" != "$mqtt_enabled"     ] && echo "\$('#motion_send2mqtt').disabled = true;" %>
+<% [ "true" != "$email_enabled" ] && echo "\$('#motion_send2email').disabled = true;" %>
+<% [ "true" != "$ftp_enabled" ] && echo "\$('#motion_send2ftp').disabled = true;" %>
+<% [ "true" != "$mqtt_enabled" ] && echo "\$('#motion_send2mqtt').disabled = true;" %>
 <% [ "true" != "$telegram_enabled" ] && echo "\$('#motion_send2telegram').disabled = true;" %>
-<% [ "true" != "$webhook_enabled"  ] && echo "\$('#motion_send2webhook').disabled = true;" %>
-<% [ "true" != "$yadisk_enabled"   ] && echo "\$('#motion_send2yadisk').disabled = true;" %>
+<% [ "true" != "$webhook_enabled" ] && echo "\$('#motion_send2webhook').disabled = true;" %>
+<% [ "true" != "$yadisk_enabled" ] && echo "\$('#motion_send2yadisk').disabled = true;" %>
 </script>
-
 <%in _footer.cgi %>

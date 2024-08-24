@@ -1,4 +1,4 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
 <% page_title="SD Card" %>
 <%in _header.cgi %>

@@ -1,4 +1,4 @@
-#!/usr/bin/haserl --upload-limit=100 --upload-dir=/tmp
+#!/bin/haserl --upload-limit=100 --upload-dir=/tmp
 <%in _common.cgi %>
 <%
 plugin="webui"

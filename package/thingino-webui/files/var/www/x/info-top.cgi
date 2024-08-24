@@ -1,4 +1,4 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
 <% page_title="Top processes" %>
 <%in _header.cgi %>

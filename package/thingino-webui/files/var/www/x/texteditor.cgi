@@ -1,4 +1,4 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
 <%
 if [ "POST" = "$REQUEST_METHOD" ]; then

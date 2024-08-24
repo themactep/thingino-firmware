@@ -1,4 +1,4 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%
 IFS_ORIG=$IFS
 
@@ -128,6 +128,11 @@ button_restore_from_rom() {
 		return
 	fi
 	echo "<p><a class=\"btn btn-danger\" href=\"restore.cgi?f=${file}\">Replace ${file} with its version from ROM</a></p>"
+}
+
+button_send2tb() {
+	local file=$1
+	echo "<a class=\"btn btn-warning\" href=\"send.cgi?to=termbin&file=${file}\" target=\"_blank\">Send to TermBin</a>"
 }
 
 # button_submit "text" "type" "extras"
@@ -437,8 +442,8 @@ alert_delete() {
 }
 
 alert_read() {
-	[ ! -f "$alert_file" ] && return
-	[ -z "$(cat $alert_file)" ] && return
+	[ -f "$alert_file" ] || return
+	[ -s "$alert_file" ] || return
 	local c
 	local m
 	local l
@@ -507,8 +512,16 @@ load_configs() {
 	local i
 	local n
 	for i in $(ls -1 config-*); do
-		# get name
-		n="$(sed -r -n '/^page_title=/s/page_title="(.*)"/\1/p' $i)"
+		n="$(sed -r -n '/page_title=/s/page_title="(.*)"/\1/p' $i)"
+		echo -n "<li><a class=\"dropdown-item\" href=\"${i}\">${n}</a></li>"
+	done
+}
+
+load_infopages() {
+	local i
+	local n
+	for i in $(ls -1 info-*); do
+		n="$(sed -r -n '/page_title=/s/^.*page_title="(.*)".*$/\1/p' $i)"
 		echo -n "<li><a class=\"dropdown-item\" href=\"${i}\">${n}</a></li>"
 	done
 }
