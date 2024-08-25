@@ -8,6 +8,7 @@ config BR2_PACKAGE_PRUDYNT_T
 	select BR2_PACKAGE_THINGINO_FREETYPE if !BR2_PACKAGE_PRUDYNT_T_NG
 	select BR2_PACKAGE_THINGINO_FONTS
 	select BR2_PACKAGE_FAAC
+	select BR2_PACKAGE_OPUS
 	help
 	  Video streamer for Ingenic T-series.
 
