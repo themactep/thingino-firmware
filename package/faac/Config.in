@@ -1,0 +1,8 @@
+config BR2_PACKAGE_FAAC
+    bool "faac"
+    depends on BR2_TOOLCHAIN_HAS_THREADS
+    help
+      FAAC is an open-source MPEG-2 and MPEG-4 AAC encoder. It is a command-line
+      tool that can encode audio data into AAC format.
+
+      http://sourceforge.net/projects/faac/

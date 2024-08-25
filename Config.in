@@ -57,6 +57,7 @@ menuconfig BR2_THINGINO_STREAMER_PACKAGES
 	  https://github.com/thingino/firmware
 
 if BR2_THINGINO_STREAMER_PACKAGES
+source "$BR2_EXTERNAL_THINGINO_PATH/package/faac/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/raptor-ipc/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/prudynt-t/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ffmpeg/Config.in"
