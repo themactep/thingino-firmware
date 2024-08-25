@@ -1,4 +1,4 @@
-[ ! -f "/etc/shadow-" ] && {
+[ ! -f "/etc/shadow-" ] && [ ! "$(fw_printenv -n debug)" = "1" ] && [ ! -f "/tmp/.fs" ] && {
 	echo_c 196 "It's your first login. You are required to change your password!\n"
 	trap 'echo_c 184 "\n\nYou will be reminded again the next time you login.\n"; stty echo; trap - INT; return' INT
 	attempts=0

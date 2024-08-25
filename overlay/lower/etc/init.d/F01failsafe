@@ -15,7 +15,9 @@ key=$(dd bs=1 count=1 2> /dev/null)
 stty sane
 
 if [ "f" = "$key" ]; then
+	touch /tmp/.fs
 	echo_c 118 "Entering failsafe mode..."
+	. /etc/profile
         exec setsid /sbin/getty -n -l /bin/sh -L console 0 vt100
 else
 	/etc/init.d/rcS
