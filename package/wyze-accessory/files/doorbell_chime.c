@@ -71,11 +71,11 @@ int is_number(const char *str) {
 	return 1;
 }
 
-// Convert volume percentage to a suitable value for the command
 unsigned char convert_volume_to_value(int volume) {
 	if (volume < 1) volume = 1;
-	if (volume > 100) volume = 100;
-	return (unsigned char)(volume * 0xFF / 100);  // Scale 1-100 to 0x01-0xFF
+	if (volume > 32) volume = 32;
+
+	return (unsigned char)(volume);  // Direct mapping from 1-32 to 0x01-0x20, should be enough.
 }
 
 void send_verify_result(const char *mac_ascii, int debug_mode) {
@@ -188,12 +188,12 @@ int main(int argc, char *argv[]) {
 
 	// Validate and convert volume
 	if (!is_number(volume_arg)) {
-		fprintf(stderr, "Invalid volume. Must be a number between 0 and 100.\n");
+		fprintf(stderr, "Invalid volume. Must be a number between 1 and 32.\n");
 		return EXIT_FAILURE;
 	}
 	int volume = atoi(volume_arg);
-	if (volume < 0 || volume > 100) {
-		fprintf(stderr, "Invalid volume. Must be between 0 and 100.\n");
+	if (volume < 1 || volume > 32) {
+		fprintf(stderr, "Invalid volume. Must be between 1 and 32.\n");
 		return EXIT_FAILURE;
 	}
 	unsigned char volume_value = convert_volume_to_value(volume);
