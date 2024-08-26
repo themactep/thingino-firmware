@@ -100,6 +100,9 @@ flush_memory(){
 }
 
 flash_firmware() {
+	$BB_BINARY echo "Erasing /dev/$mtd_dev"
+	$BB_BINARY flash_eraseall /dev/$mtd_dev
+	$BB_BINARY echo "Writing to /dev/$mtd_dev"
 	$BB_BINARY flashcp -v $binary_file /dev/$mtd_dev
 
 	if [ $? -ne 0 ]; then

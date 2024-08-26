@@ -18,3 +18,5 @@ gpio_wlan=10O
 motor_maxstep_h=3982
 motor_maxstep_v=1100
 wlandev=8188fu
+osmem=80M@0x0
+rmem=48M@0x5000000

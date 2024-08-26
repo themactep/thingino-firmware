@@ -10,7 +10,7 @@ run_logger() {
                 prog_status="OK"
                 while :; do
                         read -r file || {
-                                echo "$prog_status" >&4
+                                info "$prog_status" >&4
                                 break
                         }
                         echo "* Applying $file ..."
@@ -24,7 +24,7 @@ run_std() {
                 prog_status="OK"
                 while :; do
                         read -r file || {
-                                echo "$prog_status" >&4
+                                info "$prog_status" >&4
                                 break
                         }
                         echo "* Applying $file ..."

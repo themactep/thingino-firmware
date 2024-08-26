@@ -55,7 +55,8 @@ play_sound() {
 
 run() {
 	[ "0$debug" -gt 0 ] && echo_c 144 "$1"
-	$1 2>&1 | log
+	echo "$1" | log
+	eval "$1" 2>&1 | log
 }
 
 starting() {
@@ -167,7 +168,6 @@ gpio_control(){
 	gpio_power="$(get "$gpio_name")"
 
 	if [ -z "$gpio_power" ]; then
-		error "GPIO power value for $gpio_name is empty"
 		return 1  # Return 1 if the value is empty
 	fi
 
@@ -182,7 +182,7 @@ gpio_control(){
 			gpio_cmd="low"
 			;;
 		*)
-			error "Invalid state for GPIO $gpio_name: $state"
+			warn "Invalid state for GPIO $gpio_name: $state"
 			return 2  # Return 2 if the state is invalid
 			;;
 	esac
@@ -191,7 +191,7 @@ gpio_control(){
 	if gpio $gpio_cmd $num 2>&1 | log; then
 		return 0  # Return 0 on success
 	else
-		error "Failed to set GPIO $num $gpio_cmd"
+		warn "Failed to set GPIO $num $gpio_cmd"
 		return 3  # Return 3 if the gpio command fails
 	fi
 }

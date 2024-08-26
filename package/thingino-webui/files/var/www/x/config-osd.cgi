@@ -1,4 +1,4 @@
-#!/usr/bin/haserl --upload-limit=1024 --upload-dir=/tmp
+#!/bin/haserl --upload-limit=1024 --upload-dir=/tmp
 <%in _common.cgi %>
 <%in _icons.cgi %>
 <%

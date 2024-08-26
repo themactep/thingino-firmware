@@ -1,0 +1,23 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+wlandev=$(get wlandev)
+[ -z "$wlandev" ] && { echo "wlandev is empty, exit."; exit 1; }
+
+echo -e "Thingino Wi-Fi setup\n"
+echo "Current Wi-Fi driver: $(echo_c 10 $wlandev)"
+
+echo -n "Enter Wi-Fi SSID: "; read ssid
+
+while :; do
+	echo -n "Enter Wi-Fi Password (8-64 characters): "; read -s password; echo
+	echo -n "Confirm Wi-Fi Password: "; read -s password_confirm; echo
+	[ "$password" = "$password_confirm" ] && [ ${#password} -ge 8 ] && [ ${#password} -le 64 ] && break
+	echo "Passwords do not match or password is not between 8 and 64 characters. Please try again."
+done
+
+fw_setenv wlanssid "$ssid"
+fw_setenv wlanpass "$password"
+
+echo -e "\nWi-Fi settings saved. Please restart for changes to take effect."

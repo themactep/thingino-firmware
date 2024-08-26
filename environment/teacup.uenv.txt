@@ -1,2 +1,4 @@
-enable_updates=true
+day_night_max=15000
+day_night_min=500
 disable_eth=false
+enable_updates=true

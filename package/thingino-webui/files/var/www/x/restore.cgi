@@ -1,10 +1,10 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
 <%
 [ -z "$GET_f" ] && set_error_flag "Nothing to restore."
 
 file=$GET_f
-[ ! -f "/rom/${file}" ] && set_error_flag "File /rom/${file} not found!"
+[ -f "/rom/${file}" ] || set_error_flag "File /rom/${file} not found!"
 
 [ -n "$error" ] && redirect_back
 
