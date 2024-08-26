@@ -4,7 +4,7 @@
 
 usb_console=$(fw_printenv -n usb_console)
 
-[ "$usb_console" = "true" ] && exit
+[ "$usb_console" = "true" ] && { [ -f /etc/init.d/F02failsafe-usb ] && exit || echo "F02failsafe-usb not found"; }
 
 echo_c 208 "\nPress the [f] key to enter failsafe mode\n"
 
