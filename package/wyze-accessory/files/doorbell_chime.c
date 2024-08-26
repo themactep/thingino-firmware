@@ -188,12 +188,12 @@ int main(int argc, char *argv[]) {
 
 	// Validate and convert volume
 	if (!is_number(volume_arg)) {
-		fprintf(stderr, "Invalid volume. Must be a number between 1 and 32.\n");
+		fprintf(stderr, "Invalid volume. Must be a number between 1 and 8.\n");
 		return EXIT_FAILURE;
 	}
 	int volume = atoi(volume_arg);
-	if (volume < 1 || volume > 32) {
-		fprintf(stderr, "Invalid volume. Must be between 1 and 32.\n");
+	if (volume < 0 || volume > 10) {
+		fprintf(stderr, "Invalid volume. Must be between 1 and 8.\n");
 		return EXIT_FAILURE;
 	}
 	unsigned char volume_value = convert_volume_to_value(volume);
