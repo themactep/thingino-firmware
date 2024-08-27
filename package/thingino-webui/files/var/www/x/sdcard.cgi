@@ -2,7 +2,7 @@
 <%in _common.cgi %>
 <% page_title="SD Card" %>
 <%in _header.cgi %>
-<% if ! grep -l SD /sys/bus/mmc/devices/**/type > /dev/null; then %>
+<% if ! grep -l SD$ /sys/bus/mmc/devices/**/type > /dev/null; then %>
 <div class="alert alert-danger">
 <h3>Does this camera support SD Card?</h3>
 <p class="mb-0">Your camera does not have an SD Card slot or SD Card is not inserted.</p>
