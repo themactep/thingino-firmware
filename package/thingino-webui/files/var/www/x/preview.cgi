@@ -4,6 +4,7 @@
 <%
 token="$(cat /run/prudynt_websocket_token)"
 page_title="Camera preview"
+which motors > /dev/null && has_motors="true"
 %>
 <%in _header.cgi %>
 
