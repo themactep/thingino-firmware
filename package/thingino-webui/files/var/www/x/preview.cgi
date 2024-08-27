@@ -102,6 +102,8 @@ function updatePreview(data) {
 	const blob = new Blob([data], {type: 'image/jpeg'});
 	const url = URL.createObjectURL(blob);
 	jpg.src = url;
+
+	ws.send('{"action":{"capture":null}}');
 }
 
 const jpg = $("#preview");
@@ -109,7 +111,8 @@ const jpg = $("#preview");
 let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $token %>');
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
-	ws.send('{"image":{"hflip":null,"vflip":null,"running_mode":null},"rtsp":{"username":null,"password":null,"port":null}}');
+	ws.binaryType = 'arraybuffer';
+	ws.send('{"image":{"hflip":null,"vflip":null,"running_mode":null},"rtsp":{"username":null,"password":null,"port":null},"action":{"capture":null}}');
 }
 ws.onclose = () => { console.log('WebSocket connection closed'); }
 ws.onerror = (error) => { console.error('WebSocket error', error); }
@@ -138,8 +141,6 @@ ws.onmessage = (event) => {
 	} else if (event.data instanceof ArrayBuffer) {
 		updatePreview(event.data);
 	}
-	ws.binaryType = 'arraybuffer';
-	ws.send('{"action":{"capture":null}}');
 }
 
 const andSave = ',"action":{"save_config":null}'
