@@ -33,7 +33,8 @@ start() {
 
 		if [ "$wlandev" == "ssv6155" ]; then
                         gpio toggle $num 2>&1 | log
-
+			sleep 0.2
+                        gpio toggle $num 2>&1 | log
                 fi
 	fi
 
