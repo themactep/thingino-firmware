@@ -133,6 +133,10 @@ is_boot_complete() {
 	[ "true" = "$(get boot_complete)" ]
 }
 
+usb_console_en() {
+        [ "true" = "$(get usb_console)" ]
+}
+
 is_gateway_reachable() {
 	ping -c 1 -W 1 -I $iface $(ip route | grep $iface | grep default | awk '{print $3}') > /dev/null 2>&1
 }
@@ -194,4 +198,9 @@ gpio_control(){
 		warn "Failed to set GPIO $num $gpio_cmd"
 		return 3  # Return 3 if the gpio command fails
 	fi
+}
+
+release_print(){
+	[ -f /etc/os-release ] && . /etc/os-release
+	echo_c 244 "thingino $IMAGE_ID [$BUILD_ID]"
 }

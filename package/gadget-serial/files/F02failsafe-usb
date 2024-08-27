@@ -2,29 +2,16 @@
 
 . /etc/init.d/rc.common
 
-usb_console=$(fw_printenv -n usb_console)
-
-if [ "$usb_console" = "true" ]; then
-	# Load g_serial module and set USB role
+if usb_console_en; then
 	modprobe g_serial iManufacturer="thingino" iProduct="USB Serial Console"
 	usb-role -m device
-
-	# Wait for failsafe prompt
 	sleep 2
-
-	# Display the failsafe message only on ttyGS0
 	echo_c 208 "\nPress the [f] key to enter failsafe mode [USB Serial Console]\n" > /dev/ttyGS0
-
-	# Set up the terminal settings for ttyGS0
 	stty -icanon min 0 time 20 -echo < /dev/ttyGS0
-
-	# Read the key input from ttyGS0
-	key_gs0=$(dd bs=1 count=1 2> /dev/null < /dev/ttyGS0)
-
-	# Restore terminal settings for ttyGS0
+	key_gs0=$(dd bs=1 count=1 2>/dev/null < /dev/ttyGS0)
 	stty sane < /dev/ttyGS0
+	release_print > /dev/ttyGS0
 
-	# Check for failsafe mode input from ttyGS0
 	if [ "$key_gs0" = "f" ]; then
 		echo_c 118 "Entering failsafe mode..." > /dev/ttyGS0
 		touch /tmp/.fs
@@ -32,6 +19,7 @@ if [ "$usb_console" = "true" ]; then
 		while true; do setsid /sbin/getty -n -l /bin/sh ttyGS0 0 vt100; sleep 1; done &
 	else
 		/etc/init.d/rcS > /dev/ttyGS0 2>&1
-		if [ "$(get debug)" = "1" ]; then . /etc/profile >/dev/ttyGS0 2>&1 < /dev/ttyGS0 ; cmd="-n -l /bin/sh"; else cmd="-L"; fi; while true; do setsid /sbin/getty $cmd ttyGS0 0 vt100; sleep 1; done &
+		[ "$(get debug)" = "1" ] && { . /etc/profile >/dev/ttyGS0 2>&1 < /dev/ttyGS0; cmd="-n -l /bin/sh"; } || cmd="-L"
+		while true; do setsid /sbin/getty $cmd ttyGS0 0 vt100; sleep 1; done &
 	fi
 fi
