@@ -43,9 +43,9 @@ if [ "POST" = "$REQUEST_METHOD" ]; then %>
 <div class="row">
 <div class="col col-auto">
 <div class="btn-group my-2" role="group" aria-label="Filesystem selection buttons">
-<input type="radio" class="btn-check" name="fstype" id="fstype-exfat" autocomplete="off" checked>
+<input type="radio" class="btn-check" name="fstype" id="fstype-exfat" value="exfat" autocomplete="off" checked>
 <label class="btn btn-outline-danger" for="fstype-exfat">EXFAT</label>
-<input type="radio" class="btn-check" name="fstype" id="fstype-fat32" autocomplete="off">
+<input type="radio" class="btn-check" name="fstype" id="fstype-fat32" value="fat32" autocomplete="off">
 <label class="btn btn-outline-danger" for="fstype-fat32">FAT32</label>
 </div>
 </div>
