@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <termios.h>
 
 // Convert a hexadecimal ASCII character to its ASCII value
 unsigned char hex_char_to_ascii(char c) {
@@ -35,6 +38,49 @@ unsigned short calculate_checksum(const unsigned char *cmd, int length) {
 		sum += cmd[i];
 	}
 	return sum;
+}
+
+// Configure the serial port speed to 115200 baud and set it to raw mode
+int configure_serial_port(int fd) {
+	struct termios tty;
+
+	// Get current serial port settings
+	if (tcgetattr(fd, &tty) != 0) {
+		perror("Error from tcgetattr");
+		return -1;
+	}
+
+	// Set baud rate to 115200
+	cfsetospeed(&tty, B115200);
+	cfsetispeed(&tty, B115200);
+
+	// Set raw mode: Disable input/output processing and set 8N1 (8 data bits, no parity, 1 stop bit)
+	tty.c_cflag |= (CLOCAL | CREAD);  // Enable receiver, local mode
+	tty.c_cflag &= ~CSIZE;
+	tty.c_cflag |= CS8;               // 8 data bits
+	tty.c_cflag &= ~PARENB;           // No parity bit
+	tty.c_cflag &= ~CSTOPB;           // 1 stop bit
+	tty.c_cflag &= ~CRTSCTS;          // No hardware flow control
+
+	tty.c_iflag &= ~(IXON | IXOFF | IXANY); // Disable software flow control
+	tty.c_iflag &= ~(ICRNL | INLCR);        // Disable special handling of newlines
+
+	tty.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);  // Disable canonical mode, echo, and signals
+	tty.c_oflag &= ~OPOST;  // Disable output processing
+
+	tty.c_cc[VMIN] = 1;  // Minimum number of characters to read
+	tty.c_cc[VTIME] = 5; // Timeout in deciseconds
+
+	// Apply the settings
+	if (tcsetattr(fd, TCSANOW, &tty) != 0) {
+		perror("Error from tcsetattr");
+		return -1;
+	}
+
+	// Debug output to verify settings
+	printf("Serial port configured to 115200 baud, raw mode.\n");
+
+	return 0;
 }
 
 // Map sound names to their corresponding IDs
@@ -108,19 +154,27 @@ void send_verify_result(const char *mac_ascii, int debug_mode) {
 	}
 
 	// Open /dev/ttyS0 for writing
-	FILE *serial_port = fopen("/dev/ttyS0", "wb");
-	if (serial_port == NULL) {
+	int serial_port = open("/dev/ttyS0", O_WRONLY | O_NOCTTY | O_SYNC);
+	if (serial_port < 0) {
 		perror("Error opening /dev/ttyS0");
 		exit(EXIT_FAILURE);
 	}
 
+	// Configure the serial port speed to 115200 baud and set it to raw mode
+	if (configure_serial_port(serial_port) < 0) {
+		close(serial_port);
+		return;
+	}
+
 	// Write the command to the serial port
-	fwrite(cmd, sizeof(unsigned char), cmd_len, serial_port);
+	if (write(serial_port, cmd, cmd_len) != cmd_len) {
+		perror("Error writing to /dev/ttyS0");
+	} else {
+		printf("Pairing command sent to /dev/ttyS0\n");
+	}
 
 	// Close the serial port
-	fclose(serial_port);
-
-	printf("Pairing command sent to /dev/ttyS0\n");
+	close(serial_port);
 }
 
 int main(int argc, char *argv[]) {
@@ -157,6 +211,19 @@ int main(int argc, char *argv[]) {
 	if (pairing_mode) {
 		send_verify_result(mac_ascii, debug_mode);
 		return EXIT_SUCCESS;
+	}
+
+	// Open /dev/ttyS0 for writing
+	int serial_port = open("/dev/ttyS0", O_WRONLY | O_NOCTTY | O_SYNC);
+	if (serial_port < 0) {
+		perror("Error opening /dev/ttyS0");
+		return EXIT_FAILURE;
+	}
+
+	// Configure the serial port speed to 115200 baud and set it to raw mode
+	if (configure_serial_port(serial_port) < 0) {
+		close(serial_port);
+		return EXIT_FAILURE;
 	}
 
 	// Sound command operation (existing functionality)
@@ -239,20 +306,17 @@ int main(int argc, char *argv[]) {
 		printf("\n");
 	}
 
-	// Open /dev/ttyS0 for writing
-	FILE *serial_port = fopen("/dev/ttyS0", "wb");
-	if (serial_port == NULL) {
-		perror("Error opening /dev/ttyS0");
+	// Write the command to the serial port
+	if (write(serial_port, cmd, cmd_len) != cmd_len) {
+		perror("Error writing to /dev/ttyS0");
+		close(serial_port);
 		return EXIT_FAILURE;
 	}
 
-	// Write the command to the serial port
-	fwrite(cmd, sizeof(unsigned char), cmd_len, serial_port);
+	printf("Command sent to /dev/ttyS0\n");
 
 	// Close the serial port
-	fclose(serial_port);
-
-	printf("Command sent to /dev/ttyS0\n");
+	close(serial_port);
 
 	return EXIT_SUCCESS;
 }

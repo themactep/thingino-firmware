@@ -2,8 +2,6 @@ config BR2_PACKAGE_EXFAT_NOFUSE
 	bool "exfat-nofuse"
 	depends on BR2_LINUX_KERNEL
 	select BR2_PACKAGE_EXFAT_UTILS
-	select BR2_PACKAGE_DOSFSTOOLS
-	select BR2_PACKAGE_DOSFSTOOLS_FSCK_FAT
 	help
 	  Linux non-fuse read/write kernel driver for the exFAT, FAT12, FAT16 and vfat (FAT32) file systems.
 	  Originally ported from Android kernel v3.0.

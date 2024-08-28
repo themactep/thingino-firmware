@@ -1,0 +1,59 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+start() {
+    starting
+	gpio_env=$(fw_printenv)
+
+	# Extract and process gpio_default values
+	gpio_default=$(echo "$gpio_env" | grep "^gpio_default=" | cut -d'=' -f2)
+
+	# Loop through each line in the gpio_env
+	echo "$gpio_env" | while IFS= read -r line; do
+		# Process gpio_led_x entries
+		if echo "$line" | grep -q "^gpio_led_"; then
+			gpio_led_key=$(echo "$line" | cut -d'=' -f1)
+			gpio_led_value=$(echo "$line" | cut -d'=' -f2)
+
+			gpio_led_num=$(echo "$gpio_led_value" | sed 's/[A-Za-z]//g')   # Extract number
+			gpio_led_state=$(echo "$gpio_led_value" | sed 's/[0-9]//g')  # Extract state (O or o)
+
+			info "gpio_led_num: $gpio_led_num, gpio_led_level: $gpio_led_state"
+
+			# Check if gpio_led_num is in gpio_default and match its state
+			if echo "$gpio_default" | grep -q "$gpio_led_num"; then
+				# Determine state for gpio_num from gpio_default
+				gpio_default_state=$(echo "$gpio_default" | grep -o "$gpio_led_num[Oo]" | tail -c2)
+
+				if [ "$gpio_default_state" = "O" ]; then
+					gpio_state="high"
+				elif [ "$gpio_default_state" = "o" ]; then
+					gpio_state="low"
+				else
+					gpio_state="unknown"
+				fi
+                info "gpio default state: $gpio_state"
+
+				info "Setting GPIO $gpio_led_num to $gpio_state"
+				# Run the command to set the GPIO state
+				gpio "$gpio_state" "$gpio_led_num" > >(logger -p daemon.info -t $0) 2>&1
+			else
+				info "$gpio_led_num not found in gpio_default_map"
+			fi
+		fi
+	done
+    ok
+}
+
+case "$1" in
+		start | restart | reload)
+				start
+				;;
+		stop)
+				true
+				;;
+		*)
+				die "Usage: $0 {start|stop|restart|reload}"
+				;;
+esac

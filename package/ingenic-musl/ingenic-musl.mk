@@ -8,7 +8,7 @@ INGENIC_MUSL_LICENSE = GPL-2.0
 INGENIC_MUSL_LICENSE_FILES = COPYING
 
 define INGENIC_MUSL_BUILD_CMDS
-	$(TARGET_CC) -fPIC -shared -o $(@D)/libmuslshim.so $(@D)/musl_shim.c
+	$(TARGET_CC) $(TARGET_CFLAGS) $(TARGET_LDFLAGS) -fPIC -shared -o $(@D)/libmuslshim.so $(@D)/musl_shim.c
 endef
 
 define INGENIC_MUSL_INSTALL_STAGING_CMDS
