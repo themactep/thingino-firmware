@@ -47,10 +47,10 @@ start() {
 }
 
 case "$1" in
-		start)
-				$1
+		start | restart | reload)
+				start
 				;;
-		stop | restart | reload)
+		stop)
 				true
 				;;
 		*)
