@@ -2,58 +2,47 @@
 
 . /etc/init.d/rc.common
 
+set_pin() {
+	if [ "$(gpio value $1)" -eq $2 ]; then
+		info "Pin $1 is already set to $2"
+	else
+		info "Switch pin $1 to $2"
+		run "gpio set $1 $2"
+	fi
+}
+
 start() {
-    starting
-	gpio_env=$(fw_printenv)
+        starting
+        DEFAULT_PINS=$(fw_printenv -n gpio_default)
+        for pin_raw in $(fw_printenv | grep ^gpio_led_ | awk -F= '{print $2}'); do
+        	[ "$pin_raw" = "${pin_raw//[^0-9]/}" ] && pin_raw="${pin_raw}O"
+                pin="${pin_raw:0:-1}"
+                suffix="${pin_raw:0-1}"
+                case "$suffix" in
+                        o) pin_on=0; pin_off=1 ;;
+                        O) pin_on=1; pin_off=0 ;;
+                        *) die "Unknown suffix!"
+                esac
 
-	# Extract and process gpio_default values
-	gpio_default=$(echo "$gpio_env" | grep "^gpio_default=" | cut -d'=' -f2)
-
-	# Loop through each line in the gpio_env
-	echo "$gpio_env" | while IFS= read -r line; do
-		# Process gpio_led_x entries
-		if echo "$line" | grep -q "^gpio_led_"; then
-			gpio_led_key=$(echo "$line" | cut -d'=' -f1)
-			gpio_led_value=$(echo "$line" | cut -d'=' -f2)
-
-			gpio_led_num=$(echo "$gpio_led_value" | sed 's/[A-Za-z]//g')   # Extract number
-			gpio_led_state=$(echo "$gpio_led_value" | sed 's/[0-9]//g')  # Extract state (O or o)
-
-			info "gpio_led_num: $gpio_led_num, gpio_led_level: $gpio_led_state"
-
-			# Check if gpio_led_num is in gpio_default and match its state
-			if echo "$gpio_default" | grep -q "$gpio_led_num"; then
-				# Determine state for gpio_num from gpio_default
-				gpio_default_state=$(echo "$gpio_default" | grep -o "$gpio_led_num[Oo]" | tail -c2)
-
-				if [ "$gpio_default_state" = "O" ]; then
-					gpio_state="high"
-				elif [ "$gpio_default_state" = "o" ]; then
-					gpio_state="low"
-				else
-					gpio_state="unknown"
-				fi
-                info "gpio default state: $gpio_state"
-
-				info "Setting GPIO $gpio_led_num to $gpio_state"
-				# Run the command to set the GPIO state
-				gpio "$gpio_state" "$gpio_led_num" > >(logger -p daemon.info -t $0) 2>&1
-			else
-				info "$gpio_led_num not found in gpio_default_map"
-			fi
-		fi
-	done
-    ok
+                if echo "$DEFAULT_PINS" | grep -E "\b$pin_raw\b" > /dev/null; then
+                        set_pin $pin $pin_on
+		else
+                        set_pin $pin $pin_off
+                fi
+        done
+        ok
 }
 
 case "$1" in
-		start | restart | reload)
-				start
-				;;
-		stop)
-				true
-				;;
-		*)
-				die "Usage: $0 {start|stop|restart|reload}"
-				;;
+        start | restart | reload)
+                start
+                ;;
+        stop)
+                true
+                ;;
+        *)
+                die "Usage: $0 {start|stop|restart|reload}"
+                ;;
 esac
+
+exit 0
