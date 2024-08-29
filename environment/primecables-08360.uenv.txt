@@ -9,5 +9,5 @@ gpio_ircut=79 80
 gpio_mmc_cd=52
 gpio_scl=39i
 gpio_sda=48i
-gpio_speaker=63O
+gpio_speaker=63o
 wlandev=8188fu

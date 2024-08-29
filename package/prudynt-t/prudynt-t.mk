@@ -8,7 +8,7 @@ PRUDYNT_T_SITE_BRANCH = prudynt-t-old
 endif
 PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
 
-PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-fonts ingenic-lib opus
+PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-fonts ingenic-lib faac opus
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
 PRUDYNT_T_DEPENDENCIES += libwebsockets libschrift
 else
