@@ -59,3 +59,10 @@ if grep -q ^BR2_TOOLCHAIN_USES_MUSL $BR2_CONFIG; then
 	ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/lib/ld-uClibc.so.0
 	ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/usr/bin/ldd
 fi
+
+if grep -q ^BR2_PACKAGE_EXFAT_UTILS $BR2_CONFIG; then
+        rm -vf ${TARGET_DIR}/usr/sbin/exfatattrib
+        rm -vf ${TARGET_DIR}/usr/sbin/dumpexfat
+        rm -vf ${TARGET_DIR}/usr/sbin/exfatlabel
+fi
+
