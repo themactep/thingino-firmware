@@ -14,7 +14,8 @@ FAAC_DEPENDENCIES += host-pkgconf host-libtool
 
 FAAC_CONF_OPTS = --prefix=/usr --enable-shared --disable-static
 
-FAAC_CONF_ENV = PKG_CONFIG="$(PKG_CONFIG_HOST_BINARY)"
+FAAC_LDFLAGS = $(TARGET_LDFLAGS) -z max-page-size=0x1000
+FAAC_CONF_ENV = PKG_CONFIG="$(PKG_CONFIG_HOST_BINARY)" LDFLAGS="$(FAAC_LDFLAGS)"
 
 define FAAC_CONFIGURE_CMDS
 	(cd $(FAAC_SRCDIR) && rm -rf config.cache && \
