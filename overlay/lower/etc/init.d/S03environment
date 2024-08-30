@@ -17,16 +17,16 @@ provision_environment() {
 
 start() {
 	starting
-        if [ "true" = "$(get boot_complete)" ]; then
-                info "Provisioning not needed"
-        else
-                provision_environment
+	if [ "true" = "$(get boot_complete)" ]; then
+		info "Provisioning not needed"
+	else
+		provision_environment
 
-                info "U-Boot ENV updated. Rebooting now..."
-                sync
-                sleep 2
-		echo wdt > /proc/jz/reset/reset
-        fi
+		info "U-Boot ENV updated. Rebooting in 30 seconds..."
+		sync
+		sleep 30
+	reboot -f
+	fi
 }
 
 case "$1" in
