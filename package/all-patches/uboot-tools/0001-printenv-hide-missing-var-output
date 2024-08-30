@@ -1,0 +1,16 @@
+diff --git a/tools/env/fw_env.c b/tools/env/fw_env.c
+index 2a61a5d6f0..2edb872cc6 100644
+--- a/tools/env/fw_env.c
++++ b/tools/env/fw_env.c
+ #include "fw_env_private.h"
+ #include "fw_env.h"
+@@ -484,7 +488,8 @@ int fw_printenv(int argc, char *argv[], int value_only, struct env_opts *opts)
+ 
+ 		val = fw_getenv(name);
+ 		if (!val) {
+-			fprintf(stderr, "## Error: \"%s\" not defined\n", name);
++			if (!value_only)
++				fprintf(stderr, "## Error: \"%s\" not defined\n", name);
+ 			rc = -1;
+ 			continue;
+ 		}
