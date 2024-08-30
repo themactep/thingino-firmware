@@ -67,6 +67,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-fonts/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-v4l2loopback/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-audiodaemon/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/faac/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-opus/Config.in"
 endif
 
 menu "Extra Packages"
