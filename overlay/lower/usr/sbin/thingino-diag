@@ -41,6 +41,7 @@ output_file=$(mktemp)
 	inforun "uname -a"
 	inforun "grep -a \"Ingenic U-Boot Flex\" /dev/mtd0"
 	infocat "/etc/os-release" "THINGINO"
+	inforun "soc -w" "SOC"
 	inforun "dmesg" "DMESG"
 	inforun "logread" "SYSLOG"
 	inforun "logcat" "LOGCAT"
