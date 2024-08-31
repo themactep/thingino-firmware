@@ -23,8 +23,8 @@ void convert_mac_to_ascii(const char *mac, char *mac_ascii) {
 		if (mac[i] == ':') {
 			continue;
 		}
-		unsigned char high = hex_char_to_ascii(mac[i]);
-		unsigned char low = hex_char_to_ascii(mac[i + 1]);
+		unsigned char high = hex_char_to_ascii(toupper(mac[i]));
+		unsigned char low = hex_char_to_ascii(toupper(mac[i + 1]));
 		j += sprintf(mac_ascii + j, "\\x%02X", high);
 		j += sprintf(mac_ascii + j, "\\x%02X", low);
 		i++;  // Skip the next character, as it is part of the current hex byte
