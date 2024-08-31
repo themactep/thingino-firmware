@@ -12,7 +12,6 @@ load_modules() {
 				continue
 				;;
 		esac
-		eval "args=\"$args\""
 		run "modprobe $module $args"
 	done < $file
 }
