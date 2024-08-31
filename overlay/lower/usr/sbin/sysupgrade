@@ -100,10 +100,11 @@ flush_memory(){
 }
 
 flash_firmware() {
-	$BB_BINARY echo "Erasing /dev/$mtd_dev"
+	$BB_BINARY echo "Erasing [First Pass] /dev/$mtd_dev"
 	$BB_BINARY flash_eraseall /dev/$mtd_dev
-	$BB_BINARY echo "Writing to /dev/$mtd_dev"
+	$BB_BINARY echo "Flashing firmware to /dev/$mtd_dev"
 	$BB_BINARY flashcp -v $binary_file /dev/$mtd_dev
+	$BB_BINARY echo -n
 
 	if [ $? -ne 0 ]; then
 		$BB_BINARY echo "Caution: You may need to perform a recovery flash restore before rebooting the camera!"
