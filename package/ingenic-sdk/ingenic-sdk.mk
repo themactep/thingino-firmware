@@ -31,7 +31,7 @@ endif
 TARGET_MODULES_PATH = $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
 
 define GENERATE_GPIO_USERKEYS_CONFIG
-	gpio_userkeys_config="gpio-userkeys gpio_config="; \
+	gpio_userkeys_config="gpio-userkeys gpio_config="\"; \
 	keycode=2; \
 	first_button=28; \
 	has_gpio_buttons=0; \
@@ -54,7 +54,7 @@ define GENERATE_GPIO_USERKEYS_CONFIG
 	done < $(U_BOOT_ENV_TXT); \
 	if [ "$$has_gpio_buttons" -eq 1 ]; then \
 		gpio_userkeys_config=$${gpio_userkeys_config%;}; \
-		echo "$$gpio_userkeys_config" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys; \
+		echo "$$gpio_userkeys_config\"" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys; \
 	fi
 endef
 
