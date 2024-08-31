@@ -1,7 +1,7 @@
 # see https://git.busybox.net/busybox/tree/examples/inittab for help
 
 ::sysinit:/bin/mount -t proc proc /proc
-::sysinit:/bin/mount -o remount,rw /
+::sysinit:/bin/sh -c 'if ! grep -q nfs /proc/mounts; then /bin/mount -o remount,rw /; fi'
 ::sysinit:/bin/mkdir -p /dev/pts
 ::sysinit:/bin/mkdir -p /dev/shm
 ::sysinit:/bin/mount -a
