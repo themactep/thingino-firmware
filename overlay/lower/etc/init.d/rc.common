@@ -16,102 +16,19 @@ PIDFILE="/run/$DAEMON_SHORT.pid"
 
 [ -r "/etc/default/$DAEMON_SHORT" ] && . "/etc/default/$DAEMON_SHORT"
 
-die() {
-	[ -z "$1" ] || echo_c 124 "$1"
-	exit 1
-}
-
-quit() {
-	[ -z "$1" ] || echo_c 66 "$1"
-	exit 0
-}
-
-ok() {
-	echo_c 70 "OK"
-}
-
-fail() {
-	echo_c 124 "FAIL"
-}
-
-info() {
-	is_debug_mode && echo_c 66 "$1"
-	echo "$1" | log
-}
-
-info_n() {
-	echo_c 66 "$1"
-	echo "$1" | log
-}
-
-warn() {
-	echo_c 166 "$1"
-	echo "$1" | log
-}
-
-play_sound() {
-	iac -f /usr/share/sounds/$1 | log
-}
-
-run() {
-	is_debug_mode && echo_c 144 "$*"
-	echo "$*" | log
-	eval "$*" 2>&1 | log
-}
-
-starting() {
-	echo -n "Starting ${1:-$DAEMON_SHORT}"
-	is_debug_mode && echo " ..." || echo -n ": "
-}
-
-stopping() {
-	echo -n "Stopping ${1:-$DAEMON_SHORT}"
-	is_debug_mode && echo " ..." || echo -n ": "
-}
-
-log() {
-	logger -p daemon.info -t ${DAEMON_SHORT}[$$] <&0
-}
-
 check_result() {
 	local res=$?
 #	is_debug_mode && return
 	[ "$res" -eq 0 ] && ok || fail
 }
 
-start_daemon() {
-	local command="${COMMAND:-$DAEMON_FULL}"
-	[ -n "$DAEMON_ARGS" ] && command="$command $DAEMON_ARGS"
-	command="${command/ / -- }"
-	run "start-stop-daemon -b -S -x $command"
-	check_result
+die() {
+	[ -z "$1" ] || echo_c 124 "$1"
+	exit 1
 }
 
-stop_daemon() {
-	#FIXME do we need -s KILL?
-	run "start-stop-daemon -K -n $DAEMON_SHORT"
-	check_result
-	[ -f $PIDFILE ] && rm -f $PIDFILE
-}
-
-stop_daemon_process() {
-	start-stop-daemon -K -x $DAEMON_FULL 2>&1 | log
-	check_result
-	[ -f $PIDFILE ] && rm -f $PIDFILE
-}
-
-start_daemon_with_pid() {
-	local command="${COMMAND:-$DAEMON_FULL}"
-	[ -n "$DAEMON_ARGS" ] && command="$command $DAEMON_ARGS"
-	command="${command/ / -- }"
-	run "start-stop-daemon -b -m -S -p $PIDFILE -x $command"
-	check_result
-}
-
-stop_daemon_with_pid() {
-	run "start-stop-daemon -K -p $PIDFILE"
-	check_result
-	[ -f $PIDFILE ] && rm -f $PIDFILE
+fail() {
+	echo_c 124 "FAIL"
 }
 
 get_vars_from_env() {
@@ -119,57 +36,6 @@ get_vars_from_env() {
 	fw_printenv | grep ^${1}_ > $tmpfile
 	. $tmpfile
 	rm $tmpfile
-}
-
-is_streamer_disabled() {
-	[ "true" = "$(get disable_streamer)" ] || [ -f /run/portal_mode ]
-}
-
-is_streamer_running() {
-	pidof prudynt > /dev/null
-}
-
-is_boot_complete() {
-	[ "true" = "$(get boot_complete)" ]
-}
-
-is_debug_mode() {
-	#[ "false" != "$debug" ]
-	[ "0$debug" -gt 0 ]
-}
-
-usb_console_en() {
-	[ "true" = "$(get usb_console)" ]
-}
-
-is_gateway_reachable() {
-	ping -c 1 -W 1 -I $iface $(ip route | grep $iface | grep default | awk '{print $3}') > /dev/null 2>&1
-}
-
-indent_output() {
-	awk '{print " "$0}'
-}
-
-iface_exists() {
-	iface="$1"
-
-	if [ -z "$iface" ]; then
-		echo "Interface parameter missing." 2>&1 | log
-		return 1
-	fi
-
-	if ip link show $iface &> /dev/null; then
-		if [ "eth0" = $iface ] && ! is_gateway_reachable; then
-			echo "eth0 has no local connection" 2>&1 | log
-			return 1
-		fi
-
-		echo "Interface '$iface' exists." 2>&1 | log
-		return 0
-	else
-		echo "Interface '$iface' does not exist." 2>&1 | log
-		return 1
-	fi
 }
 
 gpio_control() {
@@ -205,8 +71,137 @@ gpio_control() {
 	fi
 }
 
+iface_exists() {
+	iface="$1"
+
+	if [ -z "$iface" ]; then
+		echo "Interface parameter missing." 2>&1 | log
+		return 1
+	fi
+
+	if ip link show $iface &> /dev/null; then
+		if [ "eth0" = $iface ] && ! is_gateway_reachable; then
+			echo "eth0 has no local connection" 2>&1 | log
+			return 1
+		fi
+
+		echo "Interface '$iface' exists." 2>&1 | log
+		return 0
+	else
+		echo "Interface '$iface' does not exist." 2>&1 | log
+		return 1
+	fi
+}
+
+indent_output() {
+	awk '{print " "$0}'
+}
+
+info() {
+	is_debug_mode && echo_c 66 "$1"
+	echo "$1" | log
+}
+
+is_boot_complete() {
+	[ "true" = "$(get boot_complete)" ]
+}
+
+is_debug_mode() {
+	#[ "false" != "$debug" ]
+	[ "0$debug" -gt 0 ]
+}
+
+is_streamer_disabled() {
+	[ "true" = "$(get disable_streamer)" ] || [ -f /run/portal_mode ]
+}
+
+is_streamer_running() {
+	pidof prudynt > /dev/null
+}
+
+is_gateway_reachable() {
+	ping -c 1 -W 1 -I $iface $(ip route | grep $iface | grep default | awk '{print $3}') > /dev/null 2>&1
+}
+
+is_usb_console() {
+	[ "true" = "$(get usb_console)" ]
+}
+
+log() {
+	logger -p daemon.info -t ${DAEMON_SHORT}[$$] <&0
+}
+
+ok() {
+	echo_c 70 "OK"
+}
+
+play_sound() {
+	iac -f /usr/share/sounds/$1 | log
+}
+
 print_release() {
 	[ -f /etc/os-release ] || return
 	. /etc/os-release
 	echo_c 208 "Thingino $IMAGE_ID [$BUILD_ID]\n"
+}
+
+quit() {
+	[ -z "$1" ] || echo_c 66 "$1"
+	exit 0
+}
+
+run() {
+	is_debug_mode && echo_c 144 "$*"
+	echo "$*" | log
+	eval "$*" 2>&1 | log
+}
+
+start_daemon() {
+	local command="${COMMAND:-$DAEMON_FULL}"
+	[ -n "$DAEMON_ARGS" ] && command="$command $DAEMON_ARGS"
+	command="${command/ / -- }"
+	run "start-stop-daemon -b -S -x $command"
+	check_result
+}
+
+start_daemon_with_pid() {
+	local command="${COMMAND:-$DAEMON_FULL}"
+	[ -n "$DAEMON_ARGS" ] && command="$command $DAEMON_ARGS"
+	command="${command/ / -- }"
+	run "start-stop-daemon -b -m -S -p $PIDFILE -x $command"
+	check_result
+}
+
+starting() {
+	echo -n "Starting ${1:-$DAEMON_SHORT}"
+	is_debug_mode && echo " ..." || echo -n ": "
+}
+
+stop_daemon() {
+	#FIXME do we need -s KILL?
+	run "start-stop-daemon -K -n $DAEMON_SHORT"
+	check_result
+	[ -f $PIDFILE ] && rm -f $PIDFILE
+}
+
+stop_daemon_process() {
+	start-stop-daemon -K -x $DAEMON_FULL 2>&1 | log
+	check_result
+	[ -f $PIDFILE ] && rm -f $PIDFILE
+}
+
+stop_daemon_with_pid() {
+	run "start-stop-daemon -K -p $PIDFILE"
+	check_result
+	[ -f $PIDFILE ] && rm -f $PIDFILE
+}
+
+stopping() {
+	echo -n "Stopping ${1:-$DAEMON_SHORT}"
+	is_debug_mode && echo " ..." || echo -n ": "
+}
+
+warn() {
+	echo_c 166 "$1"
+	echo "$1" | log
 }

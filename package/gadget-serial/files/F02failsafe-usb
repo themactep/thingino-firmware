@@ -2,7 +2,7 @@
 
 . /etc/init.d/rc.common
 
-usb_console_en || exit
+is_usb_console || exit
 
 modprobe g_serial iManufacturer="thingino" iProduct="USB Serial Console" || die "Cannot load g_serial module"
 usb-role -m device

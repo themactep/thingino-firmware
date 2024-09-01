@@ -2,7 +2,7 @@
 
 . /etc/init.d/rc.common
 
-usb_console_en && [ -f /etc/init.d/F02failsafe-usb ] && exit
+is_usb_console && [ -f /etc/init.d/F02failsafe-usb ] && exit
 
 echo_c 104 "\nPress the [f] key to enter failsafe mode\n"
 
