@@ -1,17 +1,19 @@
 #!/bin/sh
 
-[ "$#" -ne 2 ] && { echo "Usage: service <servicename> <start|stop|restart|reload>"; exit 1; }
+. /etc/init.d/rc.common
 
-SERVICENAME=$1
+[ "$#" -ne 2 ] && die "Usage: service <servicename> <start|stop|restart|reload>"
+
+SERVICE=$1
 ACTION=$2
 
 case "$ACTION" in
-	start|stop|restart|reload) ;;
-	*) echo "Invalid action: $ACTION"; exit 1 ;;
+	start | stop | reload | restart) true ;;
+	*) die "Invalid action: $ACTION" ;;
 esac
 
-SERVICE_SCRIPT=$(ls /etc/init.d/*$SERVICENAME 2>/dev/null)
+SCRIPT=$(ls /etc/init.d/[FKS][0-9][0-9]$SERVICE 2> /dev/null)
 
-[ -z "$SERVICE_SCRIPT" ] && { echo "Service $SERVICENAME not found."; exit 1; }
+[ -z "$SCRIPT" ] && die "Service $SERVICE not found"
 
-$SERVICE_SCRIPT $ACTION || { echo "Failed to $ACTION $SERVICENAME."; exit 1; }
+$SCRIPT $ACTION || die "Failed to $ACTION $SERVICE"
