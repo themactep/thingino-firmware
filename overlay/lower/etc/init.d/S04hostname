@@ -7,71 +7,57 @@ FILE_HOSTS=/etc/hosts
 FILE_OS_RELEASE=/etc/os-release
 
 set_hostname() {
-	if hostname "$hostname"; then
-		info "Set hostname to $hostname"
-	else
-		die "Cannot set hostname to $hostname"
-	fi
+	[ "$hostname" = "$(hostname)" ] || run "hostname $hostname"
+	info "Hostname is $(hostname)"
 }
 
 update_hostname() {
-	if [ "$hostname" != "$(cat $FILE_HOSTNAME)" ]; then
-		info "Update $FILE_HOSTNAME"
-		run "echo \"$hostname\" > $FILE_HOSTNAME"
-	fi
+	[ "$(cat $FILE_HOSTNAME)" = "$hostname" ] && return
+	run "echo $hostname > $FILE_HOSTNAME"
 }
 update_hosts() {
-	if [ "$hostname" != "$(sed -nE "s/^127.0.1.1\t(.*)$/\1/p" $FILE_HOSTS)" ]; then
-		info "Update $FILE_HOSTS"
-		run "sed -i /^127.0.1.1/s/\t.*$/\t$hostname/ $FILE_HOSTS"
-	fi
+	local ip="127.0.1.1"
+	[ "$(sed -nE "s/^$ip\s+(.*)$/\1/p" $FILE_HOSTS)" = "$hostname" ] && return
+	run "sed -i \"/^$ip/s/.*/$ip\\t$hostname/\" $FILE_HOSTS"
 }
 
 update_os_release() {
-	if [ "$hostname" != "$(sed -nE "s/^hostname=(.*)$/\1/p" $FILE_OS_RELEASE)" ]; then
-		info "Update $FILE_OS_RELEASE"
-		run "sed -i \"/^hostname/s/=.*$/=$hostname/\" $FILE_OS_RELEASE"
-	fi
+	[ "$(sed -nE "s/^hostname=(.*)$/\1/p" $FILE_OS_RELEASE)" = "$hostname" ] && return
+	run "sed -i \"/^hostname/s/=.*$/=$hostname/\" $FILE_OS_RELEASE"
 }
 
-start() {
-	starting
+generate() {
+	os_hostname=$(sed -n 's/^HOSTNAME=//p' /etc/os-release)
+	info "OS hostname: $os_hostname"
 
-	hostname=$(get hostname)
-	if [ -n "$hostname" ]; then
-		info "Hostname set in environment: $hostname"
-	else
-		info "Hostname is not set in environment. Constructing..."
-		os_hostname=$(sed -n 's/^HOSTNAME=//p' /etc/os-release)
-		info "OS hostname is $os_hostname"
-		mac_suffix=$(get wlanmac | sed 's/://g;s/.*\(....\)$/\1/')
-		info "MAC suffix is $mac_suffix"
-		hostname="${os_hostname}-${mac_suffix}"
-		info "Save hostname $hostname to environment"
-		run "fw_setenv hostname $hostname"
-	fi
+	mac_suffix=$(get wlanmac | sed -E 's/://g;s/.*(.{4})$/\1/')
+	info "MAC suffix: $mac_suffix"
 
-	{
+	hostname="${os_hostname}-$mac_suffix"
+	info "Generated hostname: $hostname"
+
+	run "fw_setenv hostname $hostname"
+}
+
+
+case "$1" in
+	start)
+		starting
+		hostname=$(get hostname)
+		[ -z "$hostname" ] && generate
 		set_hostname
 		update_hosts
 		#update_os_release
 		update_hostname
-	}
-	check_result
-
-	info "Update \$HOSTNAME"
-	run "export HOSTNAME=\"$hostname\""
-}
-
-case "$1" in
-	start)
-		$1
+		run "export HOSTNAME=\"$hostname\""
+		ok
 		;;
 	stop)
-		true
+		stopping
+		ok
 		;;
 	*)
-		die "Usage: $0 {start}"
+		die "Usage: $0 {start|stop}"
 		;;
 esac
 
