@@ -35,7 +35,7 @@ fail() {
 }
 
 info() {
-	[ "0$debug" -gt 0 ] && echo_c 66 "$1"
+	is_debug_mode && echo_c 66 "$1"
 	echo "$1" | log
 }
 
@@ -54,19 +54,19 @@ play_sound() {
 }
 
 run() {
-	[ "0$debug" -gt 0 ] && echo_c 144 "$*"
+	is_debug_mode && echo_c 144 "$*"
 	echo "$*" | log
 	eval "$*" 2>&1 | log
 }
 
 starting() {
 	echo -n "Starting ${1:-$DAEMON_SHORT}"
-	[ "0$debug" -gt 0 ] && echo " ..." || echo -n ": "
+	is_debug_mode && echo " ..." || echo -n ": "
 }
 
 stopping() {
 	echo -n "Stopping ${1:-$DAEMON_SHORT}"
-	[ "0$debug" -gt 0 ] && echo " ..." || echo -n ": "
+	is_debug_mode && echo " ..." || echo -n ": "
 }
 
 log() {
@@ -75,7 +75,7 @@ log() {
 
 check_result() {
 	local res=$?
-#	[ "0$debug" -gt 0 ] && return
+#	is_debug_mode && return
 	[ "$res" -eq 0 ] && ok || fail
 }
 
@@ -133,8 +133,13 @@ is_boot_complete() {
 	[ "true" = "$(get boot_complete)" ]
 }
 
+is_debug_mode() {
+	#[ "false" != "$debug" ]
+	[ "0$debug" -gt 0 ]
+}
+
 usb_console_en() {
-        [ "true" = "$(get usb_console)" ]
+	[ "true" = "$(get usb_console)" ]
 }
 
 is_gateway_reachable() {
