@@ -4,13 +4,22 @@
 
 usb_console_en && [ -f /etc/init.d/F02failsafe-usb ] && exit
 
-echo_c 208 "\nPress the [f] key to enter failsafe mode\n"
+echo_c 104 "\nPress the [f] key to enter failsafe mode\n"
 
 stty -icanon min 0 time 20 -echo
 key=$(dd bs=1 count=1 2>/dev/null)
 stty sane
-release_print
 
-[ "$key" = "f" ] && touch /tmp/.fs && echo_c 118 "Entering failsafe mode..." && . /etc/profile && exec setsid /sbin/getty -n -l /bin/sh -L console 0 vt100
+if [ "$key" = "f" ]; then
+	echo_c 118 "Failsafe mode..."
+	touch /tmp/.fs
+	. /etc/profile
+	exec setsid /sbin/getty -n -l /bin/sh -L console 0 vt100
+fi
+
+[ -f /etc/os-release ] && . /etc/os-release
+echo_c 208 "thingino $IMAGE_ID [$BUILD_ID]\n"
 
 /etc/init.d/rcS
+
+exit 0

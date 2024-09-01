@@ -199,8 +199,3 @@ gpio_control() {
 		return 3  # failure
 	fi
 }
-
-release_print(){
-	[ -f /etc/os-release ] && . /etc/os-release
-	echo_c 244 "thingino $IMAGE_ID [$BUILD_ID]"
-}
