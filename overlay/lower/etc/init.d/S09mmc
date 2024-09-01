@@ -45,8 +45,6 @@ load_module() {
 }
 
 start() {
-	starting
-
 	MMC_PARAM="cd_gpio_pin=$MMC_GPIO_CD"
 
 	# Check if MDIO directory exists
@@ -80,10 +78,13 @@ start() {
 
 case "$1" in
 	start)
-		$1
+		starting
+		start
+		check_result
 		;;
 	stop)
-		true
+		stopping
+		ok
 		;;
 	reload | restart)
 		stop
@@ -91,7 +92,7 @@ case "$1" in
 		start
 		;;
 	*)
-		die "Usage: $0 {start}"
+		die "Usage: $0 {start|stop|restart}"
 		;;
 esac
 
