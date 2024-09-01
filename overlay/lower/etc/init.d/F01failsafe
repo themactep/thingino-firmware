@@ -17,8 +17,7 @@ if [ "$key" = "f" ]; then
 	exec setsid /sbin/getty -n -l /bin/sh -L console 0 vt100
 fi
 
-[ -f /etc/os-release ] && . /etc/os-release
-echo_c 208 "thingino $IMAGE_ID [$BUILD_ID]\n"
+print_release
 
 /etc/init.d/rcS
 

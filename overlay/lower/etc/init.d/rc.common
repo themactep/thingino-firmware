@@ -204,3 +204,9 @@ gpio_control() {
 		return 3  # failure
 	fi
 }
+
+print_release() {
+	[ -f /etc/os-release ] || return
+	. /etc/os-release
+	echo_c 208 "Thingino $IMAGE_ID [$BUILD_ID]\n"
+}
