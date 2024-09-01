@@ -1,8 +1,8 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
-
 DAEMON_ARGS="-T 60 /dev/watchdog"
+
+. /etc/init.d/rc.common
 
 start() {
 	starting
@@ -12,7 +12,7 @@ start() {
 
 stop() {
 	stopping
-	start-stop-daemon -K -s KILL -n watchdog
+	stop_daemon
 }
 
 case "$1" in
@@ -20,14 +20,14 @@ case "$1" in
 		$1
 		;;
 
-	restart | reload)
+	reload | restart)
 		stop
 		sleep 1
 		start
 		;;
 
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		die "Usage: $0 {start|stop|restart}"
 		;;
 esac
 
