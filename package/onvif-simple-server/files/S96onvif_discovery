@@ -1,20 +1,25 @@
 #!/bin/sh
 
 DAEMON=wsd_simple_server
+ONVIF_CONFIG=/etc/onvif.conf
+ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
+OS_RELEASE=/etc/os-release
+PRUDYNT_CONFIG=/etc/prudynt.cfg
 
 . /etc/init.d/rc.common
 
 # needed for args
-iface=$(awk '($2~/0{8}/&&$3!~/0{8}/){print $1;exit}' /proc/net/route); [ -z "$iface" ] && iface="wlan0"
-model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' /etc/os-release)
+iface=$(awk '($2~/0{8}/&&$3!~/0{8}/){print $1;exit}' /proc/net/route)
+[ -z "$iface" ] && iface="wlan0"
+
+model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $OS_RELEASE)
 
 # extract iface for daemon from onvif.conf
-DAEMON_ARGS="--if_name $(awk -F= '/^ifs=/{print $2}' /etc/onvif.conf) --xaddr http://%s/onvif/device_service -m $model -n thingino --pid_file /var/run/$DAEMON_SHORT.pid"
+DAEMON_ARGS="--if_name $(awk -F= '/^ifs=/{print $2}' $ONVIF_CONFIG) --xaddr http://%s/onvif/device_service -m $model -n thingino --pid_file /var/run/$DAEMON_SHORT.pid"
 
 # read web config, create if missing
-ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
-[ ! -d $(dirname $ONVIF_WEBUI_CONF) ] && mkdir -p $(dirname $ONVIF_WEBUI_CONF)
-[ ! -f $ONVIF_WEBUI_CONF ] && touch $ONVIF_WEBUI_CONF
+[ -d $(dirname $ONVIF_WEBUI_CONF) ] || mkdir -p $(dirname $ONVIF_WEBUI_CONF)
+[ -f $ONVIF_WEBUI_CONF ] || touch $ONVIF_WEBUI_CONF
 . $ONVIF_WEBUI_CONF
 
 # default to "enabled" and update config
@@ -28,10 +33,13 @@ is_onvif_disabled() {
 }
 
 update_config() {
-	local key=$1 value=$2 file="/etc/onvif.conf"
-	local current=$(awk -F "=" -v key="$key" '$1==key {print $2}' $file)
+	local file=$1
+	local key=$2
+	local value=$3
+	local current=$(awk -F= -v key="$key" '$1==key {print $2}' $file)
 	[ -z "$value" ] && value="0"
-	[ "$current" = "$value" ] || sed -i "s/^$key=.*/$key=$value/" $file
+	[ "$current" = "$value" ] && return
+	sed -i "s/^$key=.*/$key=$value/" $file
 }
 
 start() {
@@ -41,21 +49,24 @@ start() {
 	is_onvif_disabled && quit "ONVIF discovery disabled"
 	start_daemon
 
-	if ! grep -q "^# GENERATED" "/etc/onvif.conf"; then
-		update_config "model" "$model"
-		update_config "hardware_id" "ingenic_$(soc -m)"
-		update_config "serial_num" "$(get ethaddr)"
-		update_config "firmware_ver" "$(awk -F '[:=, "]+' '/^BUILD_ID=/ {print $2}' /etc/os-release)"
-		update_config "ifs" "$iface"
-		update_config "user" "$(awk -F '"' '/username:/ {print $2}' /etc/prudynt.cfg)"
-		update_config "password" "$(awk -F '"' '/password:/ {print $2}' /etc/prudynt.cfg)"
-		update_config "ptz" "$([ -n "$(fw_printenv -n gpio_motor_h)" ] && echo 1 || echo 0)"
-		update_config "max_step_x" "$(get motor_maxstep_h)"
-		update_config "max_step_y" "$(get motor_maxstep_v)"
-		update_config "move_right" "motors -d h -x $(get motor_maxstep_h)"
-		update_config "move_up" "motors -d h -y $(get motor_maxstep_v)"
-		sed -i '1i # GENERATED On '"$(date)" /etc/onvif.conf
-	fi
+	grep -q "^# GENERATED" $ONVIF_CONFIG && return
+
+	tempfile=$(mktemp -u)
+	cp $ONVIF_CONFIG $tempfile
+	update_config $tempfile "model" "$model"
+	update_config $tempfile "hardware_id" "ingenic_$(soc -m)"
+	update_config $tempfile "serial_num" "$(get ethaddr)"
+	update_config $tempfile "firmware_ver" "$(awk -F '[:=, "]+' '/^BUILD_ID=/ {print $2}' $OS_RELEASE)"
+	update_config $tempfile "ifs" "$iface"
+	update_config $tempfile "user" "$(awk -F '"' '/username:/ {print $2}' $PRUDYNT_CONFIG)"
+	update_config $tempfile "password" "$(awk -F '"' '/password:/ {print $2}' $PRUDYNT_CONFIG)"
+	update_config $tempfile "ptz" "$([ -n "$(fw_printenv -n gpio_motor_h)" ] && echo 1 || echo 0)"
+	update_config $tempfile "max_step_x" "$(get motor_maxstep_h)"
+	update_config $tempfile "max_step_y" "$(get motor_maxstep_v)"
+	update_config $tempfile "move_right" "motors -d h -x $(get motor_maxstep_h)"
+	update_config $tempfile "move_up" "motors -d h -y $(get motor_maxstep_v)"
+	sed -i '1i # GENERATED On '"$(date)" $tempfile
+	mv $tempfile $ONVIF_CONFIG
 }
 
 stop() {
@@ -67,12 +78,12 @@ case "$1" in
 	start | stop)
 		$1
 		;;
-	restart | reload)
+	reload | restart)
 		stop
 		start
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		die "Usage: $0 {start|stop|restart}"
 		;;
 esac
 
