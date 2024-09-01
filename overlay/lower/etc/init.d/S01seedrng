@@ -1,15 +1,19 @@
 #! /bin/sh
 
-. /etc/init.d/rc.common
-
 DAEMON_ARGS="-d /etc/seedrng"
 
+. /etc/init.d/rc.common
+
 case "$1" in
-        start | stop | restart | reload)
-        	starting
-                start_daemon_with_pid
-                ;;
-        *)
-                echo "Usage: $0 {start|stop|restart|reload}"
-                exit 1
+	start)
+		starting
+		start_daemon
+		;;
+	stop)
+		stopping
+		stop_daemon
+		;;
+	*)
+		die "Usage: $0 {start|stop}"
+		;;
 esac
