@@ -16,10 +16,11 @@ case "$1" in
 		# daynight
 		;;
 	stop)
-		true
+		stopping
+		ok
 		;;
 	*)
-		die "Usage: $0 {start}"
+		die "Usage: $0 {start|stop}"
 		;;
 esac
 
