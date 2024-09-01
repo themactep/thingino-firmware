@@ -65,16 +65,17 @@ case "$1" in
 		if test -L $RESOLV_CONF; then
 			test -e $RESOLV_CONF || touch $RESOLV_CONF
 		fi
+
 		realconf=$(readlink -f $RESOLV_CONF 2>/dev/null || echo $RESOLV_CONF)
 		echo "Recreating $realconf"
-		tmpfile="$realconf-$$"
-		>$tmpfile
+		tmpfile=$(mktemp)
 		[ -n "$domain" ] && echo "search $domain" >>$tmpfile
 		for i in $dns; do
 			echo "Adding DNS server $i"
 			echo "nameserver $i" >>$tmpfile
 		done
 		mv $tmpfile $realconf
+
 		cp $NTP_DEFAULT $NTP_CONF
 		if [ -n "$ntpsrv" ] && [ "$(stat -c%a $NTP_CONF)" != '444' ]; then
 			echo $ntpsrv | tr ' ' '\n' | sed 's/^/server /; s/$/ iburst	#added by DHCP/' > $NTP_CONF
