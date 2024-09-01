@@ -2,42 +2,35 @@
 
 . /etc/init.d/rc.common
 
-ENV_TXT="/etc/uenv.txt"
+ENV_FILE="/etc/uenv.txt"
 
 provision_environment() {
-	[ -f "$ENV_TXT" ] || die "$ENV_TXT is missing"
+	[ -f "$ENV_FILE" ] || die "$ENV_FILE is missing"
 
 	local tmpfile=$(mktemp)
 	echo "boot_complete true" >> $tmpfile
-	sed 's/=/ /' $ENV_TXT >> $tmpfile
-	echo >> $tmpfile
+	sed 's/=/ /' $ENV_FILE >> $tmpfile
+	echo "sysupgrade_complete false" >> $tmpfile
 	fw_setenv -s $tmpfile
-	fw_setenv sysupgrade_complete false
-}
-
-start() {
-	starting
-	if [ "true" = "$(get boot_complete)" ]; then
-		info "Provisioning not needed"
-	else
-		provision_environment
-
-		info "U-Boot ENV updated. Rebooting in 30 seconds..."
-		sync
-		sleep 30
-	reboot -f
-	fi
+	ok
+	echo_c 220 "\nU-Boot environment updated. Rebooting in 30 seconds..."
+	sync
+	reboot -d 30 -f
+#	echo wdt > /proc/jz/reset/reset
 }
 
 case "$1" in
 	start)
-		$1
+		starting
+		[ "true" = "$(get boot_complete)" ] || provision_environment
+		ok
 		;;
-	stop | restart)
-		true
+	stop)
+		stopping
+		ok
 		;;
 	*)
-		die "Usage: $0 {start}"
+		die "Usage: $0 {start|stop}"
 		;;
 esac
 
