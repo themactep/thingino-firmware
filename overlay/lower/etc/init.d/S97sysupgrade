@@ -2,28 +2,20 @@
 
 . /etc/init.d/rc.common
 
-start() {
-	SYSUPGRADE_COMPLETE=$(fw_printenv -n sysupgrade_complete)
-
-	if [ "$SYSUPGRADE_COMPLETE" = "false" ]; then
-		starting
-		ok
-		#play_sound thingino.pcm
-		fw_setenv sysupgrade_complete=true
-		info_n "Update completed!"
-	fi
-}
-
 case "$1" in
-	start | restart)
-			start
-			;;
-	stop | reload)
-			;;
+	start)
+		starting
+		[ "true" = "$(fw_printenv -n sysupgrade_complete)" ] && ok && quit
+		run "fw_setenv sysupgrade_complete true"
+		# play_sound thingino.pcm
+		;;
+	stop)
+		stopping
+		ok
+		;;
 	*)
-			echo "Usage: $0 {start|stop|restart|reload}"
-			exit 1
-			;;
+		die "Usage: $0 {start|stop}"
+		;;
 esac
 
 exit 0
