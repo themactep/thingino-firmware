@@ -20,13 +20,13 @@ case "$1" in
 	start | stop)
 		$1
 		;;
-	restart | reload)
+	reload | restart)
 		stop
 		sleep 1
 		start
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		die "Usage: $0 {start|stop|restart}"
 		;;
 esac
 

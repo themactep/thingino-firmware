@@ -15,18 +15,18 @@ stop() {
 }
 
 case "$1" in
-        start | stop)
-        	$1
-                ;;
- 	reload | restart)
-        	stop
-        	sleep 1
-	        start
- 		;;
-        *)
-                echo "Usage: $0 {start|stop|restart|reload}"
-                exit 1
-                ;;
+	start | stop)
+		$1
+		;;
+	reload | restart)
+		stop
+		sleep 1
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
 esac
 
 exit 0

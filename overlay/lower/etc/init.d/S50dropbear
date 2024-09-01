@@ -10,7 +10,6 @@ DAEMON_ARGS="-k -K 300 -b /etc/issue.net -R"
 
 start() {
 	umask 077
-
 	starting
 	start_daemon_with_pid
 }
@@ -24,7 +23,7 @@ case "$1" in
 	start | stop)
 		$1
 		;;
-	restart | reload)
+	reload | restart)
 		stop
 		start
 		;;
