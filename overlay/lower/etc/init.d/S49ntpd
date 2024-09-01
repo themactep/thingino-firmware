@@ -1,12 +1,26 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
-
 DAEMON_ARGS="-n"
+
+DEF_CONF="/etc/default/ntp.conf"
+TMP_CONF="/tmp/ntp.conf"
+
+. /etc/init.d/rc.common
 
 start() {
 	starting
-	[ ! -f /tmp/ntp.conf ] && run "cp /etc/default/ntp.conf /tmp/ntp.conf"
+	if [ -f $TMP_CONF ]; then
+		info "work config found"
+	else
+		if [ -f $DEF_CONF ]; then
+			info "default config found"
+		else
+			info "restore default config from ROM"
+			run "cp /rom$DEF_CONF $DEF_CONF"
+		fi
+		info "make a work config from default config"
+		run "cp $DEF_CONF $TMP_CONF"
+	fi
 	start_daemon_with_pid
 }
 
@@ -19,13 +33,13 @@ case "$1" in
 	start | stop)
 		$1
 		;;
-	reload)
+	reload | restart)
 		stop
 		sleep 1
 		start
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		die "Usage: $0 {start|stop|restart}"
 		;;
 esac
 
