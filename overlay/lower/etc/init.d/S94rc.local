@@ -2,28 +2,22 @@
 
 . /etc/init.d/rc.common
 
-start() {
-	echo "Running /etc/rc.local..."
-	#( ( nohup /etc/rc.local >/dev/null 2>&1 </dev/null & ) & )
-	start-stop-daemon -b -S -x /usr/bin/env -- /bin/sh -c "/etc/rc.local 2>&1 | logger -p daemon.info -t $0"
-}
-
-stop() {
-	if [ -x /etc/rc.local.stop ]; then
-		echo "Running /etc/rc.local.stop..."
-		/etc/rc.local.stop
-	fi
-}
-
 case "$1" in
-	start | stop)
-		$1
+	start)
+		starting
+		[ -x /etc/rc.local ] || quit "Nothing to run"
+		#( ( nohup /etc/rc.local >/dev/null 2>&1 </dev/null & ) & )
+		start-stop-daemon -b -S -x /usr/bin/env -- /bin/sh -c "/etc/rc.local 2>&1 | logger -p daemon.info -t $0"
+		check_result
 		;;
-	restart | reload)
-		true
+	stop)
+		stopping
+		[ -x /etc/rc.local.stop ] || quit "Nothing to run"
+		run "/etc/rc.local.stop"
+		check_result
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		die "Usage: $0 {start|stop}"
 		;;
 esac
 
