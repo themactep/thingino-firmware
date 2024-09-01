@@ -5,7 +5,6 @@
 VALID_STATES="high low input"
 
 start() {
-	starting
 	while IFS= read -r line; do
 		# Skip empty lines and comments
 		[ -z "$line" ] || echo "$line" | grep -q '^#' && continue
@@ -23,18 +22,20 @@ start() {
 		run "gpio \"$state\" \"$gpionum\""
 		[ -n "$3" ] && info "Description: $3"
 	done < /etc/gpio.conf
-	ok
 }
 
 case "$1" in
-	start | restart | reload)
+	start)
+		starting
 		start
+		ok
 		;;
 	stop)
-		true
+		stopping
+		ok
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		die "Usage: $0 {start|stop}"
 		;;
 esac
 
