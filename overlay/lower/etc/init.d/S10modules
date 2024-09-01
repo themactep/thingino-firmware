@@ -24,6 +24,14 @@ case "$1" in
 		for conf in /etc/modules.d/*; do
 			load_modules $conf
 		done
+		check_result
+		;;
+	stop)
+		stopping
+		ok
+		;;
+	*)
+		die "Usage: $0 {start|stop}"
 		;;
 esac
 
