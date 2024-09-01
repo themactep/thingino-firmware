@@ -4,12 +4,23 @@
 
 case "$1" in
 	start)
-		gpio_control "gpio_usb_en" && { starting; ok; } || [ $? -eq 3 ] && info "GPIO command failed"
+		starting
+		gpio_control "gpio_usb_en"
+		case "$?" in
+			0) ok ;;
+			1) die "GPIO power is not set" ;;
+			2) die "GPIO is in invalid state" ;;
+			3) die "GPIO command failed" ;;
+			*) die "Unknown exit code $?" ;;
+		esac
 		;;
 	stop)
-		true
+		stopping
+		ok
 		;;
 	*)
-		die "Usage: $0 {start}"
+		die "Usage: $0 {start|stop}"
 		;;
 esac
+
+exit 0

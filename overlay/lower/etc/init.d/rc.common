@@ -167,12 +167,12 @@ iface_exists() {
 	fi
 }
 
-gpio_control(){
+gpio_control() {
 	gpio_name="$1"
 	gpio_power="$(get "$gpio_name")"
 
 	if [ -z "$gpio_power" ]; then
-		return 1  # Return 1 if the value is empty
+		return 1  # no value
 	fi
 
 	num=${gpio_power%[oO]}
@@ -187,16 +187,16 @@ gpio_control(){
 			;;
 		*)
 			warn "Invalid state for GPIO $gpio_name: $state"
-			return 2  # Return 2 if the state is invalid
+			return 2  # invalid state
 			;;
 	esac
 
 	info "Set GPIO $num $gpio_cmd"
 	if gpio $gpio_cmd $num 2>&1 | log; then
-		return 0  # Return 0 on success
+		return 0  # success
 	else
 		warn "Failed to set GPIO $num $gpio_cmd"
-		return 3  # Return 3 if the gpio command fails
+		return 3  # failure
 	fi
 }
 
