@@ -14,19 +14,6 @@ back_up() {
 	run "fw_setenv $ENV_VAR $b64"
 }
 
-restore() {
-	read_env
-	[ -z "$backup" ] && quit "No root authorized keys to restore"
-	local data=$(echo "$backup" | base64 -d)
-	[ -z "$data" ] && quit "Backup is empty"
-	read_file
-	[ "$backup" = "$b64" ] && quit "Same root authorized keys"
-	info "Restore root authorized keys from backup"
-	local tmpfile=$(mktemp -u)
-	echo "$backup" | base64 -d | gunzip >> $tmpfile
-	run "mv -f $tmpfile $DATA_FILE"
-}
-
 read_env() {
 	backup=$(get $ENV_VAR)
 }
@@ -35,18 +22,37 @@ read_file() {
 	b64=$(gzip -c $DATA_FILE | base64 | tr -d '\n')
 }
 
+restore() {
+	read_env
+	[ -z "$backup" ] && quit "No root authorized keys to restore"
+
+	local data=$(echo "$backup" | base64 -d)
+	[ -z "$data" ] && quit "Backup is empty"
+
+	if [ -z "$(echo "$backup" | base64 -d | gunzip)" ]; then
+		run "fw_setenv $ENV_VAR"
+		quit "Backup content is empty"
+	fi
+
+	read_file
+	[ "$backup" = "$b64" ] && quit "Same root authorized keys"
+
+	info "Restore root authorized keys from backup"
+	local tmpfile=$(mktemp -u)
+	echo "$backup" | base64 -d | gunzip >> $tmpfile
+	run "mv -f $tmpfile $DATA_FILE"
+}
+
 case "$1" in
 	start)
 		starting
 		restore
 		ok
 		;;
-	stop)
+	stop | save)
 		stopping
-		ok
-		;;
-	save)
 		back_up
+		ok
 		;;
 	*)
 		die "Usage: $0 {start|stop|save}"
