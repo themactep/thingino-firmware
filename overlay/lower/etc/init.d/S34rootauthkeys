@@ -1,0 +1,56 @@
+#!/bin/sh
+
+DATA_FILE="/root/.ssh/authorized_keys"
+ENV_VAR="ssh_authorized_keys"
+
+. /etc/init.d/rc.common
+
+back_up() {
+	[ -f "$DATA_FILE" ] || quit "No root authorized keys to back up"
+	read_file
+	read_env
+	[ "$backup" = "$b64" ] && quit "Same root authorized keys"
+	info "Back up root authorized keys"
+	run "fw_setenv $ENV_VAR $b64"
+}
+
+restore() {
+	read_env
+	[ -z "$backup" ] && quit "No root authorized keys to restore"
+	local data=$(echo "$backup" | base64 -d)
+	[ -z "$data" ] && quit "Backup is empty"
+	read_file
+	[ "$backup" = "$b64" ] && quit "Same root authorized keys"
+	info "Restore root authorized keys from backup"
+	local tmpfile=$(mktemp -u)
+	echo "$backup" | base64 -d | gunzip >> $tmpfile
+	run "mv -f $tmpfile $DATA_FILE"
+}
+
+read_env() {
+	backup=$(get $ENV_VAR)
+}
+
+read_file() {
+	b64=$(gzip -c $DATA_FILE | base64 | tr -d '\n')
+}
+
+case "$1" in
+	start)
+		starting
+		restore
+		ok
+		;;
+	stop)
+		stopping
+		ok
+		;;
+	save)
+		back_up
+		;;
+	*)
+		die "Usage: $0 {start|stop|save}"
+		;;
+esac
+
+exit 0
