@@ -3,5 +3,5 @@
 # Check if the interface is eth0 and if /proc/cmdline contains "nfs", and /tmp/resolv.conf does not exist
 if [ "$IFACE" = "eth0" ] && grep -q "nfs" /proc/cmdline && [ ! -e /tmp/resolv.conf ]; then
 	# Create a symbolic link to /tmp/resolv.conf
-	ln -s /proc/cmdline /tmp/resolv.conf
+	ln -s /proc/net/pnp /tmp/resolv.conf
 fi
