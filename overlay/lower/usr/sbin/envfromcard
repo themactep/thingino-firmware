@@ -1,16 +1,15 @@
 #!/bin/sh
 
-uenv="/mnt/mmcblk0p1/uEnv.txt"
+. /etc/init.d/rc.common
 
-if [ ! -f "$uenv" ]; then
-	echo "File $uenv not found"
-	exit 1
-fi
+ENV_FILE="/mnt/mmcblk0p1/uenv.txt"
 
-tmp=$(mktemp)
-sed 's/=/ /' $uenv > $tmp
-fw_setenv -s $tmp
-rm $tmp
+[ -f "$ENV_FILE" ] || die "$ENV_FILE is missing"
+
+tmpfile=$(mktemp)
+sed 's/=/ /' $ENV_FILE >> $tmpfile
+fw_setenv -s $tmpfile
+rm $tmpfile
 
 fw_printenv
 
