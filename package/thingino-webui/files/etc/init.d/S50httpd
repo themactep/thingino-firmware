@@ -2,15 +2,15 @@
 
 . /etc/init.d/rc.common
 
-CONFFILE="/etc/httpd.conf"
-PORTAL_CONFFILE="/etc/httpd-portal.conf"
+HTTP_CONF="/etc/httpd.conf"
+PORTAL_CONF="/etc/httpd-portal.conf"
 ssid="$(get wlanssid)"
 pass="$(get wlanpass)"
 
 if ! iface_exists "eth0" && ([ -z "$ssid" ] || [ -z "$pass" ]) && ip link show wlan0 &> /dev/null; then
-	DAEMON_ARGS="-f -c $PORTAL_CONFFILE"
+	DAEMON_ARGS="-f -c $PORTAL_CONF"
 else
-	DAEMON_ARGS="-f -c $CONFFILE -r Authentication"
+	DAEMON_ARGS="-f -c $HTTP_CONF -r Authentication"
 fi
 
 start() {
@@ -29,13 +29,13 @@ case "$1" in
 	start | stop)
 		$1
 		;;
-	restart | reload)
+	reload | restart)
 		stop
 		sleep 1
 		start
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		die "Usage: $0 {start|stop|restart}"
 		;;
 esac
 
