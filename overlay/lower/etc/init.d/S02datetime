@@ -2,52 +2,11 @@
 
 . /etc/init.d/rc.common
 
-set_timezone() {
-	# Get the timezone from the u-boot environment variable
-	timezone=$(get timezone 2> /dev/null)
-	if [ -z "$timezone" ]; then
-		warn "Timezone not found in environment"
-		return 1
-	fi
-
-	# Check if the values in /etc/ match those in environment
-	if [ "$timezone" = "$(cat /etc/timezone)" ] && [ "$timezone" = "$(cat /etc/TZ)" ]; then
-		info "Timezone is already set"
-		return 0
-	fi
-
-	# Search for the timezone in the file
-	tzjs="/var/www/a/tz.js"
-	if [ ! -f "$tzjs" ]; then
-		warn "$tzjs not found"
-		return 1
-	fi
-
-	matching_line=$(grep -i -F "$timezone" $tzjs)
-	if [ -z "$matching_line" ]; then
-		warn "Timezone $timezone not found in $tzjs"
-		return 1
-	fi
-
-	# set timezone in system environment
-	tz=$(echo "$matching_line" | sed "s/^.*v:'\([^']*\)'.*$/\1/")
-	run "export TZ=$tz"
-
-	# save timezone
-	run "echo $tz > /etc/TZ"
-	run "echo $timezone > /etc/timezone"
-}
-
-set_time() {
-	date=$(date -s @$(stat -c%X /etc/os-release))
-	info "Set fail-safe system time to: $date"
-}
-
 case "$1" in
 	start)
 		starting
-		set_timezone
-		set_time
+		date=$(date -s @$(stat -c%X /etc/os-release))
+		quit "Set fail-safe system time to: $date"
 		ok
 		;;
 	stop)
