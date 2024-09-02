@@ -22,18 +22,19 @@ set_power() {
 	# Set additional MMC GPIOs
 	# This needs to run AFTER the driver has been loaded for the sd card to mount during boot
 	for gpio in $MMC_GPIO_PWR; do
-		if [ "${#gpio}" -eq 3 ] && [ "${gpio%[oO]}" != "$gpio" ]; then
-			case "${gpio#??}" in
-				"O")
-					info "Set GPIO "${gpio%[oO]}" high"
-					run "gpio set "${gpio%[oO]}" 1"
-					;;
-				"o")
-					info "Set GPIO "${gpio%[oO]}" low"
-					run "gpio set "${gpio%[oO]}" 0"
-					;;
-			esac
-		fi
+		[ "${#gpio}" -ne 3 ] && continue
+		[ "${gpio%[oO]}" = "$gpio" ] && continue
+
+		case "${gpio#??}" in
+			"O")
+				info "Set GPIO "${gpio%[oO]}" high"
+				run "gpio set "${gpio%[oO]}" 1"
+				;;
+			"o")
+				info "Set GPIO "${gpio%[oO]}" low"
+				run "gpio set "${gpio%[oO]}" 0"
+				;;
+		esac
 	done
 }
 
