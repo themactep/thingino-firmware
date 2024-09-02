@@ -1,7 +1,6 @@
 export PATH="/bin:/sbin:/tmp"
 export HOME=$(awk -F: "/^${USER:-root}:/{print \$6}" /etc/passwd)
 export HOME=${HOME:-/root}
-export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 export TZ=$(cat /etc/TZ)
 export EDITOR="vi"
 export SENSOR=$(cat /etc/sensor/model)
