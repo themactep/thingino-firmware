@@ -7,15 +7,18 @@ init() {
 	[ -z "$wlandev" ] && quit "wlandev is not set"
 
 	pin_raw="$(get gpio_wlan)"
-	[ -z "$pin_raw" ] && quit "gpio_wlan is not set"
-	[ "$pin_raw" = "${pin_raw//[^0-9]/}" ] && pin_raw="${pin_raw}O"
-	pin="${pin_raw:0:-1}"
-	suffix="${pin_raw:0-1}"
-	case "$suffix" in
-		o) pin_on=0; pin_off=1 ;;
-		O) pin_on=1; pin_off=0 ;;
-		*) die "Unknown suffix!"
-	esac
+	if [ -z "$pin_raw" ]; then
+		info "gpio_wlan is not set"
+	else
+		[ "$pin_raw" = "${pin_raw//[^0-9]/}" ] && pin_raw="${pin_raw}O"
+		pin="${pin_raw:0:-1}"
+		suffix="${pin_raw:0-1}"
+		case "$suffix" in
+			o) pin_on=0; pin_off=1 ;;
+			O) pin_on=1; pin_off=0 ;;
+			*) die "Unknown suffix!"
+		esac
+	fi
 
 	wlanmac="$(get wlanmac)"
 	wlandevopts=$(get wlandevopts)
@@ -25,12 +28,14 @@ start() {
 	starting
 	init
 
-	info "Set GPIO $pin to $pin_on"
-	run "gpio set $pin $pin_on"
+	if [ -n "$pin" ]; then
+		info "Set GPIO $pin to $pin_on"
+		run "gpio set $pin $pin_on"
 
-	if [ "bcmdhd" = "$wlandev" ]; then
-		info "Unexport GPIO pin $pin"
-		run "gpio unexport $pin"
+		if [ "bcmdhd" = "$wlandev" ]; then
+			info "Unexport GPIO pin $pin"
+			run "gpio unexport $pin"
+		fi
 	fi
 
 	case "$wlandev" in
