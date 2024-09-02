@@ -23,12 +23,16 @@ check_result() {
 }
 
 die() {
-	[ -z "$1" ] || echo_c 124 "$1"
+	if [ -n "$1" ]; then
+		echo "$1" | log
+		echo_c 124 "$1"
+	fi
 	exit 1
 }
 
 fail() {
 	echo_c 124 "FAIL"
+	echo "FAIL" | log
 }
 
 get_vars_from_env() {
@@ -98,8 +102,8 @@ indent_output() {
 }
 
 info() {
-	is_debug_mode && echo_c 66 "$1"
 	echo "$1" | log
+	is_debug_mode && echo_c 66 "$1"
 }
 
 is_boot_complete() {
@@ -133,6 +137,7 @@ log() {
 
 ok() {
 	echo_c 70 "OK"
+	echo "OK" | log
 }
 
 play_sound() {
@@ -143,16 +148,20 @@ print_release() {
 	[ -f /etc/os-release ] || return
 	. /etc/os-release
 	echo_c 208 "Thingino $IMAGE_ID [$BUILD_ID]\n"
+	echo "Thingino $IMAGE_ID [$BUILD_ID]" | log
 }
 
 quit() {
-	[ -z "$1" ] || echo_c 66 "$1"
+	if [ -n "$1" ]; then
+		echo "$1" | log
+		echo_c 66 "$1"
+	fi
 	exit 0
 }
 
 run() {
-	is_debug_mode && echo_c 144 "$*"
 	echo "$*" | log
+	is_debug_mode && echo_c 144 "$*"
 	eval "$*" 2>&1 | log
 }
 
@@ -173,6 +182,7 @@ start_daemon_with_pid() {
 }
 
 starting() {
+	echo "Starting ${1:-$DAEMON_SHORT}" | log
 	echo -n "Starting ${1:-$DAEMON_SHORT}"
 	is_debug_mode && echo " ..." || echo -n ": "
 }
@@ -197,6 +207,7 @@ stop_daemon_with_pid() {
 }
 
 stopping() {
+	echo "Stopping ${1:-$DAEMON_SHORT}" | log
 	echo -n "Stopping ${1:-$DAEMON_SHORT}"
 	is_debug_mode && echo " ..." || echo -n ": "
 }
