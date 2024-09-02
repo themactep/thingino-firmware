@@ -2,71 +2,50 @@
 
 . /etc/init.d/rc.common
 
-DEV_MOUNT_POINT="/var/www"
+MOUNT_POINT="/var/www"
 
 start() {
 	starting
-	get_vars_from_env "development"
 
-	if [ "true" != "$development_enabled" ]; then
-		info "Not in development mode"
-		quit
-	fi
+	local nfs_ip=$(get development_nfs_ip)
+	local nfs_share=$(get development_nfs_share)
 
-	if [ -z "$development_nfs_ip" ]; then
-		info "Remote machine IP is not set"
-		quit
-	else
-		info "Remote machine is $development_nfs_ip"
-	fi
-
-	if [ -z "$development_nfs_share" ]; then
-		development_nfs_share="/srv/nfs/www"
-	fi
-
-	grep -q $DEV_MOUNT_POINT /etc/mtab && quit "Already mounted"
+	[ "true" != "$(get development_enabled)" ] && quit "Not in development mode"
+	[ -z "$nfs_ip" ] && quit "Remote machine IP is not set"
+	info "Remote machine is $nfs_ip"
+	[ -z "$nfs_share" ] && nfs_share="/srv/nfs/www"
+	grep -q $MOUNT_POINT /etc/mtab && quit "Already mounted"
 	{
-		info "Shadow original web"
-		rm -r $DEV_MOUNT_POINT
-
-		info "Create a blank mountpoint"
-		mkdir $DEV_MOUNT_POINT
-
-		info "Mount remote share"
-		mount -t nfs -o nolock,tcp,nfsvers=3 ${development_nfs_ip}:${development_nfs_share} $DEV_MOUNT_POINT
+		run "rm -r $MOUNT_POINT"
+		run "mkdir $MOUNT_POINT"
+		run "mount -t nfs -o nolock,tcp,nfsvers=3 $nfs_ip:$nfs_share $MOUNT_POINT"
 	}
-	# check_result
+	check_result
 }
 
 stop() {
 	stopping
-
-	if grep -q /var/www /etc/mtab; then
-		info "Unmount /var/www"
-		umount /var/www
-
-		info "Unshadow mountpoint"
-		rm -r /overlay/var/www
-
-		info "Remount overlay"
-		mount -o remount /
-	else
-		info "Nothing to unmount"
-		quit
-	fi
-	# check_result
+	grep -q $MOUNT_POINT /etc/mtab || quit "Nothing to unmount"
+	{
+		run "umount $MOUNT_POINT"
+		run "rm -r /overlay$MOUNT_POINT"
+		run "mount -o remount /"
+	}
+	check_result
 }
 
 case "$1" in
 	start | stop)
 		$1
 		;;
-	restart | reload)
+	reload | restart)
 		stop
 		sleep 1
 		start
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		die "Usage: $0 {start|stop}"
 		;;
 esac
+
+exit 0
