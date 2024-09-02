@@ -22,6 +22,7 @@ case $1 in
 		[ "$backup" = "$b64" ] && quit "Same root password"
 		info "Back up root password"
 		run "fw_setenv $ENV_VAR $b64"
+		quit "Saved"
 		;;
 	restore)
 		read_env
@@ -37,10 +38,12 @@ case $1 in
 		run "sed -i \"s/^root:.*$/root:$data:$doe::::::/\" $tmpfile"
 		run "mv -f $DATA_FILE ${DATA_FILE}-"
 		run "mv -f $tmpfile $DATA_FILE"
+		quit "Restored"
 		;;
 	*)
 		die "Usage: $0 [backup|restore]"
 		;;
 esac
 
+# unreachable?
 exit 0
