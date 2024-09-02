@@ -6,8 +6,7 @@ case "$1" in
 	start)
 		starting
 		date=$(date -s @$(stat -c%X /etc/os-release))
-		quit "Set fail-safe system time to: $date"
-		ok
+		quit "Set time to $date (fail-safe)"
 		;;
 	stop)
 		stopping
