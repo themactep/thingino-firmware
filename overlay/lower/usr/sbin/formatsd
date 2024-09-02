@@ -24,7 +24,7 @@ mount_partitions() {
 unmount_partition() {
 	echo_c 36 "Unmount partition"
 	local limit=5
-	while grep -q $1 /proc/mounts; do
+	while mountpoint -q $1; do
 		[ "$limit" -gt 0 ] || die "Cannot unmount $1"
 		echo_c 144 "umount -l $1"
 		umount -l $1 2>&1
