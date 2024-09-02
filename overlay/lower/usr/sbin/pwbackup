@@ -39,8 +39,7 @@ case $1 in
 		run "mv -f $tmpfile $DATA_FILE"
 		;;
 	*)
-		print "Usage: $0 [backup|restore]"
-		exit 1
+		die "Usage: $0 [backup|restore]"
 		;;
 esac
 
