@@ -8,6 +8,8 @@ show_help() {
 	echo "Usage: $0 [-x coord] [-y coord] [-d date] [-f] [-v] [-h]
   -x coord    Latitude.
   -y coord    Longitude.
+  -r offset   Offset at sunRise (minutes).
+  -s offset   Offset at sunSet (minutes).
   -d date     Date (default: today).
   -f          Force run.
   -v          Verbose output.
@@ -16,14 +18,26 @@ show_help() {
 	quit_clean 0
 }
 
+time_with_offset() {
+	h=$(jsonfilter -s "$json" -e @.results.$1 | awk -F[T:] '{print $2}' | sed 's/^0//')
+	m=$(jsonfilter -s "$json" -e @.results.$1 | awk -F[T:] '{print $3}' | sed 's/^0//')
+	echo $(((1440 + h * 60 + m + $2) % 1440))
+}
+
 # override config values with command line arguments
-while getopts d:fx:y:vh flag; do
+while getopts d:fr:s:x:y:vh flag; do
 	case "$flag" in
 		d)
 			dusk2dawn_date=$OPTARG
 			;;
 		f)
 			force_run="true"
+			;;
+		r)
+			dusk2dawn_offset_sr=$OPTARG
+			;;
+		s)
+			dusk2dawn_offset_ss=$OPTARG
 			;;
 		x)
 			dusk2dawn_lat=$OPTARG
@@ -105,10 +119,13 @@ eval "$command" >> "$LOG_FILE" 2>&1
 json=$(cat $tmpfile)
 [ "true" = "$verbose" ] && echo "$json"
 
-sunrise_h=$(jsonfilter -s "$json" -e @.results.sunrise | awk -F[T:] '{print $2}' | sed 's/^0//')
-sunrise_m=$(jsonfilter -s "$json" -e @.results.sunrise | awk -F[T:] '{print $3}' | sed 's/^0//')
-sunset_h=$(jsonfilter -s "$json" -e @.results.sunset | awk -F[T:] '{print $2}' | sed 's/^0//')
-sunset_m=$(jsonfilter -s "$json" -e @.results.sunset | awk -F[T:] '{print $3}' | sed 's/^0//')
+sunrise_time=$(time_with_offset "sunrise" $dusk2dawn_offset_sr)
+sunrise_h=$((sunrise_time / 60))
+sunrise_m=$((sunrise_time % 60))
+
+sunset_time=$(time_with_offset "sunset" $dusk2dawn_offset_ss)
+sunset_h=$((sunset_time / 60))
+sunset_m=$((sunset_time % 60))
 
 tmp_crontab_file=$(mktemp)
 cp $crontab_file $tmp_crontab_file
