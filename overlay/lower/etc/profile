@@ -9,9 +9,9 @@ export SOC=$(soc -f)
 alias tb="send2termbin"
 
 if [ "$PS1" ]; then
-        [ -f /etc/os-release ] && . /etc/os-release
-        [ -f /etc/banner ] && echo -e "$(cat /etc/banner)"
-        echo_c 244 "\t${IMAGE_ID}\n\t${BUILD_ID}\n"
+	[ -f /etc/os-release ] && . /etc/os-release
+	[ -f /etc/banner ] && echo -e "$(cat /etc/banner)"
+	echo_c 244 "\t${IMAGE_ID}\n\t${BUILD_ID}\n"
 	if [ "$(id -u)" -eq 0 ]; then
 		export PS1="\[\e[38;5;172m\]\u\[\e[m\]@\[\e[38;5;153m\]\h\[\e[m\]\[\e[38;5;214m\] \W\[\e[m\]\\# "
 	else
