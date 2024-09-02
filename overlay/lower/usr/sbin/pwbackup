@@ -1,0 +1,47 @@
+#!/bin/sh
+
+DATA_FILE="/etc/shadow"
+ENV_VAR="root_pw_hash"
+
+. /etc/init.d/rc.common
+
+read_env() {
+	backup="$(fw_printenv -n $ENV_VAR)"
+}
+
+read_file() {
+	b64="$(awk -F: '/root/{print $2}' $DATA_FILE | base64 | tr -d '\n')"
+}
+
+case $1 in
+	backup | save)
+		[ -f "${DATA_FILE}-" ] || quit "Default root password"
+		[ -f "$DATA_FILE" ] || quit "No root password to back up"
+		read_file
+		read_env
+		[ "$backup" = "$b64" ] && quit "Same root password"
+		info "Back up root password"
+		run "fw_setenv $ENV_VAR $b64"
+		;;
+	restore)
+		read_env
+		[ -z "$backup" ] && quit "No backup of root password found"
+		local data=$(echo "$backup" | base64 -d)
+		[ -z "$data" ] && quit "Backup of root password is empty"
+		read_file
+		[ "$backup" = "$b64" ] && quit "Same root password"
+		info "Restore root password from backup"
+		local doe=$(($(date +%s) / 86400))
+		local tmpfile=$(mktemp -u)
+		run "cp $DATA_FILE $tmpfile"
+		run "sed -i \"s/^root:.*$/root:$data:$doe::::::/\" $tmpfile"
+		run "mv -f $DATA_FILE ${DATA_FILE}-"
+		run "mv -f $tmpfile $DATA_FILE"
+		;;
+	*)
+		print "Usage: $0 [backup|restore]"
+		exit 1
+		;;
+esac
+
+exit 0
