@@ -165,7 +165,7 @@ endif
 	if [ -f local.fragment ]; then cat local.fragment >>$(OUTPUT_DIR)/.config; fi
 	# Add local.mk to the building directory to override settings
 	if [ -f $(BR2_EXTERNAL)/local.mk ]; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
-	ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino
+	if [ ! -L $(OUTPUT_DIR)/thingino ]; then ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; fi
 
 # Configure buildroot for a particular board
 defconfig: prepare_config
