@@ -2,54 +2,21 @@
 
 . /etc/init.d/rc.common
 
-CONFIGS="/etc/sysctl.d/ /etc/sysctl.conf"
-LOGGER=/bin/logger
-
-run_logger() {
-        find $CONFIGS -maxdepth 1 -name '*.conf' -print0 2> /dev/null | xargs -0 -r -n 1 readlink -f | {
-                prog_status="OK"
-                while :; do
-                        read -r file || {
-                                info "$prog_status" >&4
-                                break
-                        }
-                        echo "* Applying $file ..."
-                        $DAEMON_FULL $DAEMON_ARGS -p "$file" || prog_status="FAIL"
-                done 2>&1 >&3 | $LOGGER -t sysctl -p kern.err
-        } 3>&1 | $LOGGER -t sysctl -p kern.info
-}
-
-run_std() {
-        find $CONFIGS -maxdepth 1 -name '*.conf' -print0 2> /dev/null | xargs -0 -r -n 1 readlink -f | {
-                prog_status="OK"
-                while :; do
-                        read -r file || {
-                                info "$prog_status" >&4
-                                break
-                        }
-                        echo "* Applying $file ..."
-                        $DAEMON_FULL $DAEMON_ARGS -p "$file" || prog_status="FAIL"
-                done
-        }
-}
-
 case "$1" in
-        start | restart | reload)
-                starting
-                if [ -x $LOGGER ]; then
-                        run_logger 4>&1
-                else
-                        run_std 4>&1
-                fi
-                check_result
-                ;;
-        stop)
-                stopping
-                ok
-                ;;
-        *)
-                echo "Usage: $0 {start|stop|restart|reload}"
-                exit 1
+	start)
+		starting
+		for file in $(find /etc/ -path '*/sysctl\.*' -name '*.conf'); do
+			run "sysctl -p $file"
+		done
+		check_result
+		;;
+	stop)
+		stopping
+		ok
+		;;
+	*)
+		die "Usage: $0 {start|stop}"
+		;;
 esac
 
 exit 0

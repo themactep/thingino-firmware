@@ -2,13 +2,10 @@
 
 . /etc/init.d/rc.common
 
-for prefix in F; do
-	for i in $(ls /etc/init.d/${prefix}??* 2> /dev/null); do
-		# Ignore dangling symlinks (if any).
-		[ -f "$i" ] || continue
-
-		/bin/sh -c "$i" 2>&1
-	done
+# Run init scripts in numerical order.
+for i in $(find /etc/init.d/ -name "F*" -executable | sort -n); do
+	/bin/sh -c "$i"
+	# | log
 done
 
 exit 0
