@@ -80,7 +80,6 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/libschrift/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/zerotier-one/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-portal/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wyze-accessory/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-addons/Config.in"
 
 config BR2_PACKAGE_IFUPDOWN_SCRIPTS
 	bool "ifupdown-scripts"
