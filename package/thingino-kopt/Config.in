@@ -2,7 +2,8 @@
 menuconfig BR2_PACKAGE_THINGINO_KOPT
 	bool "Kernel Options"
 	help
-	  Per device kernel customization support.  Items selected here will override the default kernel configuration.
+	  Per device kernel customization support.
+	  Items selected here will override the default kernel configuration.
 
 config BR2_PACKAGE_THINGINO_KOPT_MMC
 	bool "MMC Support"
@@ -88,13 +89,14 @@ config BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
 	bool "Full USB support with OTG"
 	depends on BR2_PACKAGE_THINGINO_KOPT_DWC2
 	help
-	  Enable the DWC2 USB driver with OTG support. Recommended for devices that have USB data ports.
+	  Enable the DWC2 USB driver with OTG support.
+	  Recommended for devices that have USB data ports.
 config BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
 	bool "USB Wi-Fi Module Only"
 	depends on BR2_PACKAGE_THINGINO_KOPT_DWC2
 	help
-	  Enable the DWC2 USB driver with WiFi only support.  Recommended for devices that use WiFi chipsets
-	  internally connected via USB.
+	  Enable the DWC2 USB driver with WiFi only support.
+	  Recommended for devices that use WiFi chipsets internally connected via USB.
 
 config BR2_PACKAGE_THINGINO_KOPT_UART
 	bool "UART Support"
@@ -139,24 +141,24 @@ config BR2_PACKAGE_THINGINO_KOPT_SPI1_PB2
 config BR2_PACKAGE_THINGINO_KOPT_CIFS
 	bool "CIFS"
 	depends on BR2_PACKAGE_THINGINO_KOPT
-        select BR2_PACKAGE_CIFS_UTILS
-        help
+	select BR2_PACKAGE_CIFS_UTILS
+	help
 	  Enable CIFS support
 
 config BR2_PACKAGE_THINGINO_KOPT_DEVELOP
 	bool "Developer Options"
 	depends on BR2_PACKAGE_THINGINO_KOPT
-        help
+	help
 	  Enable Kernel Options for Development/Debugging
 
 config BR2_PACKAGE_THINGINO_KOPT_GADGET_SERIAL
 	bool "GADGET SERIAL"
 	depends on BR2_PACKAGE_THINGINO_KOPT
-        help
+	help
 	  Enable USB Gadget serial
 
 config BR2_PACKAGE_THINGINO_KOPT_NETFILTER
-        bool "Netfilter"
-        depends on BR2_PACKAGE_THINGINO_KOPT
-        help
-          Build necessary kernel modules and dependencies to enable netfilter/iptables support.
+	bool "Netfilter"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Build necessary kernel modules and dependencies to enable netfilter/iptables support.
