@@ -1,31 +1,27 @@
 #!/bin/sh
 
-. /sbin/common
+PID="/run/blink.pid"
 
-gpio=$1
-interval=$2
+cleanup() {
+	[ -f $PID ] && rm $PID
+	exit
+}
+trap cleanup 1 2 3 6 15
 
-if [ -z "$gpio" ]; then
-   log "Blink: Invalid gpio argument. Exiting."
-   echo "Usage: blink <gpio_pin> [blink_interval (seconds) ] (default interval=1s)"
-   exit 1
+echo $$ > $PID
+
+if [ -z "$1" ]; then
+	echo "Usage: blink <pin> [interval, sec.]"
+	exit 1
 fi
 
-if [ -z "$interval" ]; then
-   log "Blink: Empty interval. Setting to 1 second."
-   echo "Blink: Empty interval. Setting to 1 second."
-   interval=1
-fi
-
-echo "Starting blink with PID $$"
-
-if [ $interval = "0" ]; then
-    gpio set $gpio
-    sleep infinity
+interval=${2:-1}
+if [ "$interval" -eq 0 ]; then
+	gpio set $1
+	sleep infinity
 else
-    while :
-    do  
-        gpio toggle $gpio
-        sleep $interval
-    done
+	while :; do
+		gpio toggle $1
+		sleep $interval
+	done
 fi
