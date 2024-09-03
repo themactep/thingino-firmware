@@ -1,7 +1,7 @@
 #!/bin/sh
 
 DATA_FILE="/etc/shadow"
-ENV_VAR="root_pw_hash"
+ENV_VAR="pwbackup"
 
 . /etc/init.d/rc.common
 
