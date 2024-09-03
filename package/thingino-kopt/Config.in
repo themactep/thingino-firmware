@@ -2,7 +2,7 @@
 menuconfig BR2_PACKAGE_THINGINO_KOPT
 	bool "Kernel Options"
 	help
-	  Per device kernel customization support
+	  Per device kernel customization support.  Items selected here will override the default kernel configuration.
 
 config BR2_PACKAGE_THINGINO_KOPT_MMC
 	bool "MMC Support"
@@ -154,3 +154,9 @@ config BR2_PACKAGE_THINGINO_KOPT_GADGET_SERIAL
 	depends on BR2_PACKAGE_THINGINO_KOPT
         help
 	  Enable USB Gadget serial
+
+config BR2_PACKAGE_THINGINO_KOPT_NETFILTER
+        bool "Netfilter"
+        depends on BR2_PACKAGE_THINGINO_KOPT
+        help
+          Build necessary kernel modules and dependencies to enable netfilter/iptables support.
