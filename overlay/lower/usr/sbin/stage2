@@ -1,0 +1,42 @@
+#!/tmp/busybox sh
+
+binary_file=$1
+mtd_dev=$2
+BB=/tmp/busybox
+MAX_TRIES=3
+TRIES=0
+
+flash_firmware() {
+	#$BB echo "Erasing [First Pass] /dev/$mtd_dev"
+	#$BB flash_eraseall /dev/$mtd_dev
+	$BB echo "Flashing firmware to /dev/$mtd_dev"
+	$BB flashcp -v $binary_file /dev/$mtd_dev
+	return $?  # returns the result of the flashcp command
+}
+
+reboot_func() {
+	$BB echo "Rebooting in 5 seconds..."
+	$BB sleep 5
+	$BB echo wdt > /proc/jz/reset/reset
+}
+
+$BB echo "Starting sysupgrade stage 2 flash process..."
+while [ $TRIES -lt $MAX_TRIES ]; do
+	flash_firmware
+	if [ $? -eq 0 ]; then
+		# Flash succeeded =D
+		reboot_func
+		exit 0
+	else
+		# Flash failed :(
+		TRIES=$(($TRIES + 1))
+		if [ $TRIES -lt $MAX_TRIES ]; then
+			$BB echo "Flashing failed on try $TRIES. Retrying..."
+			$BB sleep 5
+		else
+			$BB echo "Flashing failed after $MAX_TRIES attempts!"
+			$BB echo "WARNING: You may need to perform a recovery flash restore before rebooting the camera!"
+			exit 1
+		fi
+	fi
+done
