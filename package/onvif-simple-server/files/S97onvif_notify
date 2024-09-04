@@ -1,7 +1,7 @@
 #!/bin/sh
 
 DAEMON=onvif_notify_server
-DAEMON_ARGS="--conf_file /etc/onvif.conf --pid_file /var/run/$DAEMON_SHORT.pid"
+DAEMON_ARGS="--conf_file /etc/onvif.conf --pid_file /run/$DAEMON.pid"
 MOTION="/run/motion"
 
 . /etc/init.d/rc.common
