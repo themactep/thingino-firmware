@@ -5,6 +5,53 @@ menuconfig BR2_PACKAGE_THINGINO_KOPT
 	  Per device kernel customization support.
 	  Items selected here will override the default kernel configuration.
 
+config BR2_PACKAGE_THINGINO_KOPT_ADC
+	bool "ADC"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enable ADC (Analog to Digital) support
+
+config BR2_PACKAGE_THINGINO_KOPT_CIFS
+	bool "CIFS"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	select BR2_PACKAGE_CIFS_UTILS
+	help
+	  Enable CIFS (SMB) networking support
+
+config BR2_PACKAGE_THINGINO_KOPT_DEVELOP
+	bool "Developer Options"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enables Kernel Options for Development/Debugging (Valgrind, GDB, ltrace, etc)
+
+config BR2_PACKAGE_THINGINO_KOPT_GADGET_SERIAL
+	bool "USB Gadget Serial"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enable USB Gadget serial support
+
+config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
+	bool "Ethernet Support"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enable native wired Ethernet support on the SoC.
+config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V12
+	bool "JZ_MAC V12"
+	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
+	help
+	  Enable the Ingenic ethernet V12 driver
+config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13
+	bool "JZ_MAC V13"
+	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
+	help
+	  Enable the Ingenic ethernet V13 driver
+config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_INTERNAL_PHY
+	bool "JZ_MAC Internal PHY"
+	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
+	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13 && BR2_SOC_FAMILY_INGENIC_T21
+	help
+	  Enable support for the Internal MAC PHY on the T21 SoC
+
 config BR2_PACKAGE_THINGINO_KOPT_MMC
 	bool "MMC Support"
 	depends on BR2_PACKAGE_THINGINO_KOPT
@@ -58,27 +105,45 @@ config BR2_PACKAGE_THINGINO_KOPT_MMC1_PD_4BIT
 	help
 	  Enables 4 bit support for MMC1 on GPIO PD
 
-config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
-	bool "Ethernet Support"
+config BR2_PACKAGE_THINGINO_KOPT_NETFILTER
+	bool "Netfilter"
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
-	  Enable native wired Ethernet support on the SoC.
-config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V12
-	bool "JZ_MAC V12"
-	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
+	  Build necessary kernel modules and dependencies to enable netfilter/iptables support.
+
+config BR2_PACKAGE_THINGINO_KOPT_PWM
+	bool "PWM"
+	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
-	  Enable the Ingenic ethernet V12 driver
-config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13
-	bool "JZ_MAC V13"
-	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
+	  Enable PWM (Pulse Width Modulation) support
+
+config BR2_PACKAGE_THINGINO_KOPT_RTC
+	bool "RTC"
+	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
-	  Enable the Ingenic ethernet V13 driver
-config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_INTERNAL_PHY
-	bool "JZ_MAC Internal PHY"
-	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
-	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13 && BR2_SOC_FAMILY_INGENIC_T21
+	  Enables RTC (Real Time Clock) support
+
+config BR2_PACKAGE_THINGINO_KOPT_SPI1_PB2
+	bool "SPI1 PB2"
+	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
-	  Enable support for the Internal MAC PHY on the T21 SoC
+	  Enable SPI1 on PB_2
+
+config BR2_PACKAGE_THINGINO_KOPT_UART
+	bool "UART Support"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enables additional UART ports
+config BR2_PACKAGE_THINGINO_KOPT_UART0
+	bool "UART0"
+	depends on BR2_PACKAGE_THINGINO_KOPT_UART
+	help
+	  Enables UART0 on the SoC
+config BR2_PACKAGE_THINGINO_KOPT_UART2
+	bool "UART2"
+	depends on BR2_PACKAGE_THINGINO_KOPT_UART
+	help
+	  Enables UART2 on the SoC
 
 config BR2_PACKAGE_THINGINO_KOPT_DWC2
 	bool "USB Support"
@@ -97,68 +162,3 @@ config BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
 	help
 	  Enable the DWC2 USB driver with WiFi only support.
 	  Recommended for devices that use WiFi chipsets internally connected via USB.
-
-config BR2_PACKAGE_THINGINO_KOPT_UART
-	bool "UART Support"
-	depends on BR2_PACKAGE_THINGINO_KOPT
-	help
-	  Enables additional UART ports
-config BR2_PACKAGE_THINGINO_KOPT_UART0
-	bool "UART0"
-	depends on BR2_PACKAGE_THINGINO_KOPT_UART
-	help
-	  Enables UART0 on the SoC
-config BR2_PACKAGE_THINGINO_KOPT_UART2
-	bool "UART2"
-	depends on BR2_PACKAGE_THINGINO_KOPT_UART
-	help
-	  Enables UART2 on the SoC
-
-config BR2_PACKAGE_THINGINO_KOPT_RTC
-	bool "RTC"
-	depends on BR2_PACKAGE_THINGINO_KOPT
-	help
-	  Enables real time clock support
-
-config BR2_PACKAGE_THINGINO_KOPT_PWM
-	bool "PWM"
-	depends on BR2_PACKAGE_THINGINO_KOPT
-	help
-	  Enable PWM
-
-config BR2_PACKAGE_THINGINO_KOPT_ADC
-	bool "ADC"
-	depends on BR2_PACKAGE_THINGINO_KOPT
-	help
-	  Enable ADC
-
-config BR2_PACKAGE_THINGINO_KOPT_SPI1_PB2
-	bool "SPI1 PB2"
-	depends on BR2_PACKAGE_THINGINO_KOPT
-	help
-	  Enable SPI1 on PB_2
-
-config BR2_PACKAGE_THINGINO_KOPT_CIFS
-	bool "CIFS"
-	depends on BR2_PACKAGE_THINGINO_KOPT
-	select BR2_PACKAGE_CIFS_UTILS
-	help
-	  Enable CIFS support
-
-config BR2_PACKAGE_THINGINO_KOPT_DEVELOP
-	bool "Developer Options"
-	depends on BR2_PACKAGE_THINGINO_KOPT
-	help
-	  Enable Kernel Options for Development/Debugging
-
-config BR2_PACKAGE_THINGINO_KOPT_GADGET_SERIAL
-	bool "GADGET SERIAL"
-	depends on BR2_PACKAGE_THINGINO_KOPT
-	help
-	  Enable USB Gadget serial
-
-config BR2_PACKAGE_THINGINO_KOPT_NETFILTER
-	bool "Netfilter"
-	depends on BR2_PACKAGE_THINGINO_KOPT
-	help
-	  Build necessary kernel modules and dependencies to enable netfilter/iptables support.
