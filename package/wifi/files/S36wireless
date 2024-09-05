@@ -28,7 +28,9 @@ start() {
 	starting
 	init
 
-	if [ -n "$pin" ]; then
+	if [ -z "$pin" ]; then
+		info "GPIO pin for wireless module is not set"
+	else
 		info "Set GPIO $pin to $pin_on"
 		run "gpio set $pin $pin_on"
 
