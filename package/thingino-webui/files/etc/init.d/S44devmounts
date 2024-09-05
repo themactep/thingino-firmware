@@ -14,7 +14,7 @@ start() {
 	[ -z "$nfs_ip" ] && quit "Remote machine IP is not set"
 	info "Remote machine is $nfs_ip"
 	[ -z "$nfs_share" ] && nfs_share="/srv/nfs/www"
-	grep -q $MOUNT_POINT /etc/mtab && quit "Already mounted"
+	mountpoint -q $MOUNT_POINT && quit "Already mounted"
 	{
 		run "rm -r $MOUNT_POINT"
 		run "mkdir $MOUNT_POINT"
@@ -25,7 +25,7 @@ start() {
 
 stop() {
 	stopping
-	grep -q $MOUNT_POINT /etc/mtab || quit "Nothing to unmount"
+	mountpoint -q $MOUNT_POINT || quit "Nothing to unmount"
 	{
 		run "umount $MOUNT_POINT"
 		run "rm -r /overlay$MOUNT_POINT"
