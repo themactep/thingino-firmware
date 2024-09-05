@@ -52,8 +52,8 @@ menuconfig BR2_THINGINO_STREAMER_PACKAGES
 	bool "Streamer Packages"
 	default y
 	help
-	  Thingino Development Packages
-	  include tools for firmware development.
+	  Thingino Streamer Packages
+	  Audio/Video Streaming related packages
 	  https://github.com/thingino/firmware
 
 if BR2_THINGINO_STREAMER_PACKAGES
