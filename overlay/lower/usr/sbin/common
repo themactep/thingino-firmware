@@ -8,6 +8,7 @@ LOG_SIZE_LIMIT=50000
 SOCKS5_CONFIG=/etc/webui/socks5.conf
 
 curl_timeout=100
+curl_verbosity="--silent" # --verbose
 
 CURL="curl $curl_verbosity --connect-timeout $curl_timeout --max-time $curl_timeout"
 
@@ -22,14 +23,14 @@ die() {
 
 log() {
 	# poor man's logrotate
-	if [ -f "$LOG_FILE" ] && [ "$(stat -c%s "$LOG_FILE")" -gt $LOG_SIZE_LIMIT ]; then
+	if [ -f $LOG_FILE ] && [ "$(stat -c%s $LOG_FILE)" -gt $LOG_SIZE_LIMIT ]; then
 		# redundant, but calling log() from within log() is wrong!
-		echo "$(date +"%F %T") [${PID}:${plugin}] Rotate log file" >> $LOG_FILE
+		echo "$(date +"%F %T") [$PID:$plugin] Rotate log file" >> $LOG_FILE
 		mv "$LOG_FILE" "${LOG_FILE}.1"
-		echo "$(date +"%F %T") [${PID}:${plugin}] Log file rotated." >> $LOG_FILE
+		echo "$(date +"%F %T") [$PID:$plugin] Log file rotated." >> $LOG_FILE
 	fi
-	echo "$(date +"%F %T") [${PID}:${plugin}] $1" >> $LOG_FILE
-	echo "$(date +"%F %T") [${PID}:${plugin}] $1"
+	echo "$(date +"%F %T") [$PID:$plugin] $1" >> $LOG_FILE
+	echo "$(date +"%F %T") [$PID:$plugin] $1"
 }
 
 log_and_run() {
@@ -38,18 +39,16 @@ log_and_run() {
 }
 
 quit_clean() {
-	if [ -f "$LOCK_FILE" ]; then
+	if [ -f $LOCK_FILE ]; then
 		log "Remove lock file $LOCK_FILE"
-		rm "$LOCK_FILE"
+		rm $LOCK_FILE
 	fi
-	log "Exit [$1]."
-	exit "$1"
+	log "Exit with code $1."
+	exit $1
 }
 
 run() {
-	local r
-	r=$(eval "$1" >> $LOG_FILE 2>&1)
-	echo "RESULT: $r"
+	echo "$(eval "$1" >> $LOG_FILE 2>&1)"
 }
 
 singleton() {
