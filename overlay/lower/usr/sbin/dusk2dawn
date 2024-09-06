@@ -49,9 +49,7 @@ while getopts d:fr:s:x:y:vh flag; do
 	esac
 done
 
-if [ "true" != "$dusk2dawn_enabled" ] && [ "true" != "$force_run" ]; then
-	die "Dusk to Dawn is disabled"
-fi
+[ "true" != "$dusk2dawn_enabled" ] && [ "true" != "$force_run" ] && die "Dusk to Dawn is disabled"
 
 if [ -z "$dusk2dawn_lat" ]; then
 	log "Latitude is not set"
@@ -82,9 +80,13 @@ fi
 runat_h=${dusk2dawn_runat%%:*}
 runat_m=${dusk2dawn_runat##*:}
 
-command="$CURL --output - --url $API_URL?formatted=0&date=$dusk2dawn_date&lat=$dusk2dawn_lat&lng=$dusk2dawn_lng&tzid=$tz"
+build_cmd "$CURL"
+build_cmd "--output -"
+build_cmd "--url $API_URL?formatted=0&date=$dusk2dawn_date&lat=$dusk2dawn_lat&lng=$dusk2dawn_lng&tzid=$tz"
 [ "true" = "$ftp_socks5_enabled" ] && use_socks5
-json=$(log_and_run "$command")
+# cannot use log_and_run here because need a clear output
+log "$command"
+json=$($command)
 [ "true" = "$verbose" ] && echo "$json"
 
 sr_time=$(time_with_offset "sunrise" $dusk2dawn_offset_sr)
