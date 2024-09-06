@@ -41,6 +41,7 @@ else
 
 	# Default values
 	[ -z "$ftp_port" ] && ftp_port="21"
+	[ -z "$ftp_user" ] && ftp_user="anonymous" && ftp_password="anonymous"
 	[ -z "$ftp_template" ] && ftp_template="${network_hostname}-%Y%m%d-%H%M%S.jpg"
 fi
 %>
