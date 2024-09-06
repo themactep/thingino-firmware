@@ -27,6 +27,7 @@ endef
 define WIFI_SSV615X_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc $(WIFI_SSV615X_PKGDIR)/files/ssv6155-usb-40M.cfg
+        $(INSTALL) -m 644 -t $(TARGET_DIR)/etc $(WIFI_SSV615X_PKGDIR)/files/ssv6006c-wifi.cfg
 endef
 
 $(eval $(kernel-module))
