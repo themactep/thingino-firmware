@@ -15,6 +15,5 @@ gpio_speaker=63O
 gpio_wlan=40o
 motor_maxstep_h=3700
 motor_maxstep_v=1000
-wlanbus=usb
 wlandev=ssv6155
 wlandevopts=stacfgpath=/etc/ssv6006c-wifi.cfg
