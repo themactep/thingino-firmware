@@ -1,7 +1,7 @@
 #!/bin/haserl
 <%in _common.cgi %>
-<% page_title="Diagnostic log" %>
 <%
+page_title="Diagnostic log"
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	[ "true" = "$POST_iagree" ] || set_error_flag "You must explicitly give your consent."
 

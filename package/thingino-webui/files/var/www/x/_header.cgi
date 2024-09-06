@@ -21,22 +21,21 @@ Pragma: no-cache
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
 <div class="container">
 <a class="navbar-brand" href="status.cgi"><img alt="Image: thingino logo" width="150" src="/a/logo.svg"></a>
-<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-<span class="navbar-toggler-icon"></span>
-</button>
+<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
 <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+
 <ul class="navbar-nav">
 <li class="nav-item dropdown">
 <a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownInformation" role="button">Information</a>
 <ul aria-labelledby="dropdownInformation" class="dropdown-menu">
 <li><a class="dropdown-item" href="status.cgi">Overview</a></li>
-<% load_infopages %>
+<% menu "info" %>
 </ul>
 </li>
 <li class="nav-item dropdown">
 <a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownSettings" role="button">Settings</a>
 <ul aria-labelledby="dropdownSettings" class="dropdown-menu">
-<% load_configs %>
+<% menu "config" %>
 <li><hr class="dropdown-divider"></li>
 <li><a class="dropdown-item" href="reset.cgi">Reset...</a></li>
 </ul>
@@ -44,21 +43,16 @@ Pragma: no-cache
 <li class="nav-item dropdown">
 <a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownTools" role="button">Tools</a>
 <ul aria-labelledby="dropdownTools" class="dropdown-menu">
-<li><a class="dropdown-item" href="tools.cgi">Ping & Traceroute</a></li>
-<li><a class="dropdown-item" href="file-manager.cgi">File Manager</a></li>
-<li><a class="dropdown-item" href="sdcard.cgi">SD Card</a></li>
-<li><a class="dropdown-item" href="ssh-keys.cgi">SSH Key</a></li>
+<% menu "tool" %>
 </ul>
 </li>
-<li class="nav-item dropdown">
-<a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownServices" role="button">Services</a>
+<li class="nav-item dropdown"><a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownServices" role="button">Services</a>
 <ul aria-labelledby="dropdownServices" class="dropdown-menu">
-<% load_plugins %>
+<% menu "plugin" %>
 </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="preview.cgi">Preview</a></li>
-<li class="nav-item dropdown">
-<a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownHelp" role="button">Help</a>
+<li class="nav-item dropdown"><a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownHelp" role="button">Help</a>
 <ul aria-labelledby="dropdownHelp" class="dropdown-menu dropdown-menu-lg-end">
 <li><a class="dropdown-item" href="https://thingino.com/">About thingino</a></li>
 </ul>
@@ -71,7 +65,7 @@ Pragma: no-cache
 <main class="pb-4">
 <div class="container" style="min-height: 85vh">
 
-<div class="row mt-1 x-small">
+<div class="row my-2 x-small">
 <div class="col col-10 col-md-3 col-lg-2">
 <div class="progress-stacked memory my-1">
 <div class="progress" role="progressbar" aria-label="Active" id="pb-memory-active"><div class="progress-bar"></div></div>
@@ -82,7 +76,7 @@ Pragma: no-cache
 <div class="progress" role="progressbar" id="pb-overlay-used"><div class="progress-bar"></div></div>
 </div>
 </div>
-<div class="col col-2  col-md-2 col-lg-1" id="daynight_value"></div>
+<div class="col col-2 col-md-2 col-lg-1" id="daynight_value"></div>
 <div class="col col-12 col-md-7 col-lg-6 col-xl-5"><%= $(signature) %></div>
 <div class="col col-12 col-md-12 col-lg-3 col-xl-4 text-end"><a href="/x/config-time.cgi" id="time-now" class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover"></a></div>
 </div>
@@ -131,4 +125,5 @@ if [ -z "$socks5_host" ] || [ -z "$socks5_port" ]; then %>
 <% fi %>
 
 <h2><%= $page_title %></h2>
+
 <% alert_read %>

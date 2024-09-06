@@ -1,6 +1,8 @@
 #!/bin/haserl
 <%in _common.cgi %>
-<% page_title="SD Card" %>
+<%
+page_title="SD Card"
+%>
 <%in _header.cgi %>
 <% if ! grep -l SD$ /sys/bus/mmc/devices/**/type > /dev/null; then %>
 <div class="alert alert-danger">
