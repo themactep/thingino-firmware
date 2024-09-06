@@ -5,7 +5,20 @@ LOCK_FILE="/run/process-${PID}.pid"
 LOG_FILE=/tmp/webui.log
 LOG_SIZE_LIMIT=50000
 
+SOCKS5_CONFIG=/etc/webui/socks5.conf
+
 curl_timeout=100
+
+CURL="curl $curl_verbosity --connect-timeout $curl_timeout --max-time $curl_timeout"
+
+build_cmd() {
+	command="$command $1"
+}
+
+die() {
+	log "$1"
+	quit_clean ${2:-1}
+}
 
 log() {
 	# poor man's logrotate
@@ -47,4 +60,12 @@ singleton() {
 	fi
 	printf "%d\n" $PID > $LOCK_FILE
 	log "Create lock file $LOCK_FILE"
+}
+
+use_socks5() {
+	[ -f $SOCKS5_CONFIG ] || return
+	. $SOCKS5_CONFIG
+	build_cmd "--proxy-user $socks5_login:$socks5_password"
+	build_cmd "--socks5-hostname $socks5_host:$socks5_port"
+	#"--proxy socks5h://$socks5_login:$socks5_password@$socks5_host:$socks5_port"
 }

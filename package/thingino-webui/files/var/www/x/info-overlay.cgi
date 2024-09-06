@@ -1,6 +1,8 @@
 #!/bin/haserl
 <%in _common.cgi %>
-<% page_title="Overlay partition" %>
+<%
+page_title="Overlay partition"
+%>
 <%in _header.cgi %>
 <% s=$(df | grep /overlay | xargs | cut -d' ' -f5) %>
 <div class="alert alert-primary">

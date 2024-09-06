@@ -1,13 +1,13 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
+page_title="File Manager"
 [ -n "$GET_cd" ] && dir=${GET_cd}
 # expand traversed path to a real directory name
 dir=$(cd ${dir:-/}; pwd)
 # no need for POSIX awkward double root
 dir=$(echo $dir | sed s#^//#/#)
 %>
-<% page_title="File Manager" %>
 <%in _header.cgi %>
 <h4><%= $dir %></h4>
 <%

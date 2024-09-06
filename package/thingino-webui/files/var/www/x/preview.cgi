@@ -30,19 +30,14 @@ which motors > /dev/null && has_motors="true"
 </div>
 </div>
 <div class="col-lg-9 mb-3">
-<div id="frame" class="position-relative ratio ratio-16x9 mb-2">
-<div class="smpte"><div class="bar1"></div><div class="bar2"></div><div class="bar3"></div></div>
-<img id="preview" class="img-fluid" alt="Image: Preview"></img>
-<% if [ "true" = "$has_motors" ]; then %>
-<%in _motors.cgi %>
-<% fi %>
+<div id="frame" class="position-relative mb-2">
+<img id="preview" class="img-fluid" alt="Image: Preview">
+<% if [ "true" = "$has_motors" ]; then %><%in _motors.cgi %><% fi %>
 </div>
-<p class="small text-body-secondary"><span id="playrtsp"></span>
 <% if [ "true" = "$has_motors" ]; then %>
-Move the cursor over the center of the preview image to reveal the motor controls.<br>
-Use a single click for precise positioning, double click for coarse, long-distance movement.
+<p class="small">Move mouse cursor over the center of the preview image to reveal the motor controls. Use a single click for precise positioning, double click for coarse, larger distance movement.</p>
 <% fi %>
-</p>
+<p class="small"><span id="playrtsp"></span></p>
 </div>
 <div class="col-lg-2">
 <div class="gap-2">
@@ -82,13 +77,14 @@ Use a single click for precise positioning, double click for coarse, long-distan
 
 <script src="/a/imp-config.js"></script>
 <script>
-<% [ "true" != "$email_enabled"    ] && echo "\$('button[data-sendto=email]').disabled = true;" %>
-<% [ "true" != "$ftp_enabled"      ] && echo "\$('button[data-sendto=ftp]').disabled = true;" %>
-<% [ "true" != "$mqtt_enabled"     ] && echo "\$('button[data-sendto=mqtt]').disabled = true;" %>
-<% [ "true" != "$webhook_enabled"  ] && echo "\$('button[data-sendto=webhook]').disabled = true;" %>
-<% [ "true" != "$telegram_enabled" ] && echo "\$('button[data-sendto=telegram]').disabled = true;" %>
-<% [ "true" != "$yadisk_enabled"   ] && echo "\$('button[data-sendto=yadisk]').disabled = true;" %>
-
+<%
+[ "true" != "$email_enabled"    ] && echo "\$('button[data-sendto=email]').disabled = true;"
+[ "true" != "$ftp_enabled"      ] && echo "\$('button[data-sendto=ftp]').disabled = true;"
+[ "true" != "$mqtt_enabled"     ] && echo "\$('button[data-sendto=mqtt]').disabled = true;"
+[ "true" != "$webhook_enabled"  ] && echo "\$('button[data-sendto=webhook]').disabled = true;"
+[ "true" != "$telegram_enabled" ] && echo "\$('button[data-sendto=telegram]').disabled = true;"
+[ "true" != "$yadisk_enabled"   ] && echo "\$('button[data-sendto=yadisk]').disabled = true;"
+%>
 $$("button[data-sendto]").forEach(el => {
 	el.addEventListener("click", ev => {
 		ev.preventDefault();
@@ -134,7 +130,7 @@ ws.onmessage = (event) => {
 
 		if (msg.rtsp)
 			if (msg.rtsp.username && msg.rtsp.password && msg.rtsp.port)
-				$('#playrtsp').innerHTML = "RTSP player mpv --profile=low-latency rtsp://" +
+				$('#playrtsp').innerHTML = "RTSP player: mpv --profile=low-latency rtsp://" +
 					msg.rtsp.username + ":" + msg.rtsp.password + "@" +
 					document.location.hostname + ":" + msg.rtsp.port + "/ch0";
 
