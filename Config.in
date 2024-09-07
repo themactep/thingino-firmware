@@ -46,6 +46,8 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-button/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sounds/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat-mini/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat/Config.in"
 endif
 
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
@@ -102,7 +104,7 @@ endmenu
 
 menuconfig BR2_THINGINO_DEV_PACKAGES
 	bool "Development Packages"
-	default y
+	select BR2_PACKAGE_THINGINO_KOPT_DEVELOP
 	help
 	  Thingino Development Packages
 	  include tools for firmware development.
@@ -112,7 +114,6 @@ if BR2_THINGINO_DEV_PACKAGES
 config BR2_PACKAGE_GDB
 	bool "gdb Server and Client"
 	select BR2_PACKAGE_HOST_GDB
-	# needs a fuxup for CONFIG_HAVE_ARCH_KGDB=y
 
 config BR2_PACKAGE_SELECT_LTRACE
 	bool "ltrace"
@@ -137,8 +138,6 @@ config BR2_PACKAGE_SELECT_VALGRIND
 	help
 	  Tool for debugging and profiling Linux programs.
 
-source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat-mini/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/gadget-serial/Config.in"
 endif
 
