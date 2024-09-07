@@ -18,54 +18,21 @@ show_help() {
 # override config values with command line arguments
 while getopts m:st:vh flag; do
 	case "$flag" in
-		m)
-			mqtt_message=$OPTARG
-			;;
-		s)
-			mqtt_send_snap="true"
-			;;
-		t)
-			mqtt_topic=$OPTARG
-			;;
-		v)
-			verbose="true"
-			;;
-		h | *)
-			show_help
-			;;
+		m) mqtt_message=$OPTARG ;;
+		s) mqtt_send_snap="true" ;;
+		t) mqtt_topic=$OPTARG ;;
+		v) verbose="true" ;;
+		h | *) show_help ;;
 	esac
 done
 
-if [ "false" = "$mqtt_enabled" ]; then
-	log "Sending to MQTT broker is disabled."
-	quit_clean 10
-fi
-
+[ "false" = "$mqtt_enabled" ] && die "Sending to MQTT broker is disabled."
 # validate mandatory values
-if [ -z "$mqtt_host" ]; then
-	log "MQTT broker host not found in config"
-	quit_clean 11
-fi
-
-if [ -z "$mqtt_port" ]; then
-	log "MQTT broker port not found in config"
-	quit_clean 12
-fi
-
-if [ -z "$mqtt_topic" ]; then
-	log "MQTT topic not found"
-	quit_clean 13
-fi
-
-if [ -z "$mqtt_message" ]; then
-	log "MQTT message template not found"
-	quit_clean 14
-fi
-
-if [ "true" = "$mqtt_send_snap" ] && [ -z "$mqtt_snap_topic" ]; then
-	log "MQTT topic for sending snapshot not found in config"
-	quit_clean 15
-fi
+[ -z "$mqtt_host" ] && die "MQTT broker host not found in config"
+[ -z "$mqtt_port" ] && die "MQTT broker port not found in config"
+[ -z "$mqtt_topic" ] && die "MQTT topic not found"
+[ -z "$mqtt_message" ] && die "MQTT message template not found"
+[ "true" = "$mqtt_send_snap" ] && [ -z "$mqtt_snap_topic" ] && die "MQTT topic for sending snapshot not found in config"
 
 # assign default values if not set
 [ -z "$mqtt_client_id" ] && mqtt_client_id="$network_hostname"
@@ -73,40 +40,30 @@ fi
 # parse strftime templates
 mqtt_message=$(date +"$mqtt_message")
 
-command="mosquitto_pub"
-command="$command -h $mqtt_host"
-command="$command -p $mqtt_port"
-command="$command -i $mqtt_client_id"
-
+build_cmd "mosquitto_pub"
+build_cmd "-h $mqtt_host"
+build_cmd "-p $mqtt_port"
+build_cmd "-i $mqtt_client_id"
 # MQTT credentials, if given
-[ -n "$mqtt_username" ] && command="$command -u $mqtt_username"
-[ -n "$mqtt_password" ] && command="$command -P $mqtt_password"
+[ -n "$mqtt_username" ] && build_cmd "-u $mqtt_username"
+[ -n "$mqtt_password" ] && build_cmd "-P $mqtt_password"
+[ "true" = "$mqtt_socks5_enabled" ] && use_socks5
 
-# SOCK5 proxy, if needed
-if [ "true" = "$mqtt_socks5_enabled" ]; then
-	. /etc/webui/socks5.conf
-	socks_opts="--proxy socks5h://${socks5_login}:${socks5_password}@${socks5_host}:$socks5_port"
-fi
-command="$command $socks_opts"
-
-# send text message
-command1="$command -t $mqtt_topic -m \"$mqtt_message\""
-log "$command1"
-eval "$command1" >> $LOG_FILE 2>&1
-
-# send file
 if [ "true" = "$mqtt_send_snap" ]; then
 	snapshot=/tmp/snapshot.jpg
-	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && quit_clean 3
+	[ -f "$snapshot" ] || die "Cannot find a snapshot"
 
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
 	delete_tempfile="true"
 	cp $snapshot $attachment
 
-	command2="$command -t $mqtt_snap_topic -f \"$attachment\""
-	log "$command2"
-	eval "$command2" >> $LOG_FILE 2>&1
+	build_cmd "-t $mqtt_snap_topic"
+	build_cmd "-f \"$attachment\""
+else
+	build_cmd "-t $mqtt_topic"
+        build_cmd "-m \"$mqtt_message\""
 fi
+log_and_run "$command"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat $LOG_FILE
