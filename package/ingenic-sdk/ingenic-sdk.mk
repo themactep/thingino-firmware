@@ -105,8 +105,6 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	if [ "$(BR2_PWM_ENABLE)" = "y" ]; then \
 		echo "pwm_core" >> $(TARGET_DIR)/etc/modules.d/pwm; \
 		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/pwm; \
-		$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/sbin; \
-		$(INSTALL) -m 755 -D $(INGENIC_SDK_PKGDIR)/files/pwm-ctrl.sh $(TARGET_DIR)/usr/sbin/pwm-ctrl; \
 	fi
 
 	echo "sensor_$(SENSOR_MODEL)_$(SOC_FAMILY) $(BR2_SENSOR_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor; \
