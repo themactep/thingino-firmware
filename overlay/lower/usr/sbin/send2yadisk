@@ -19,97 +19,55 @@ show_help() {
 # override config values with command line arguments
 while getopts d:f:P:u:vh flag; do
 	case "$flag" in
-		d)
-			yadisk_path=$OPTARG
-			;;
-		f)
-			yadisk_file=$OPTARG
-			;;
-		P)
-			yadisk_password=$OPTARG
-			;;
-		u)
-			yadisk_username=$OPTARG
-			;;
-		v)
-			verbose="true"
-			;;
-		h | *)
-			show_help
-			;;
+		d) yadisk_path=$OPTARG ;;
+		f) yadisk_file=$OPTARG ;;
+		P) yadisk_password=$OPTARG ;;
+		u) yadisk_username=$OPTARG ;;
+		v) verbose="true" ;;
+		h | *) show_help ;;
 	esac
 done
 
-if [ "false" = "$yadisk_enabled" ]; then
-	log "Sending to Yandex Disk is disabled."
-	quit_clean 10
-fi
+[ "false" = "$yadisk_enabled" ] && die "Sending to Yandex Disk is disabled."
+
+[ -z "$yadisk_username" ] && die "Yandex Disk username not found"
+[ -z "$yadisk_password" ] && die "Yandex Disk password not found"
 
 if [ -z "$yadisk_file" ]; then
 	snapshot=/tmp/snapshot.jpg
-	if [ ! -f "$snapshot" ]; then
-		log "Cannot find a snapshot"
-		quit_clean 3
-	fi
+	[ -f "$snapshot" ] || die "Cannot find a snapshot"
 
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
 	delete_tempfile="true"
-	cp $snapshot $yadisk_file
+	cp $snapshot $attachment
 
 	yadisk_file=$attachment
 fi
 
-# validate mandatory values
-if [ -z "$yadisk_username" ]; then
-	log "Yandex Disk username not found"
-	quit_clean 11
-fi
+build_cmd "$CURL --user '${yadisk_username}:$yadisk_password'"
+[ "true" = "$yadisk_socks5_enabled" ] && use_socks5
 
-if [ -z "$yadisk_password" ]; then
-	log "Yandex Disk password not found"
-	quit_clean 12
-fi
-
-command="curl --verbose"
-command="$command --connect-timeout $curl_timeout"
-command="$command --max-time $curl_timeout"
-
-# Yandex Disk credentials
-command="$command --user '${yadisk_username}:$yadisk_password'"
-
-# SOCK5 proxy, if needed
-if [ "true" = "$yadisk_socks5_enabled" ]; then
-	. /etc/webui/socks5.conf
-	command="$command --socks5-hostname ${socks5_host}:$socks5_port"
-	command="$command --proxy-user ${socks5_login}:$socks5_password"
-fi
+url="https://webdav.yandex.ru"
+yadisk_path=$(date +"$yadisk_path")
+yadisk_path=${yadisk_path#/} # drop leading slash
+yadisk_path=${yadisk_path%/} # drop trailing slash
 
 # create path to destination directory
-url="https://webdav.yandex.ru"
-subdirs="${yadisk_path// /_}"                         # prevent splitting by whitespaces
-subdirs="$(echo "$yadisk_path" | sed "s/[^\/]$/\//")" # add a final slash if missing
-suburl=""
-while [ -n "$subdirs" ]; do
-	subdir="${subdirs%%/*}"
-	subdir="${subdir// /%20}" # convert each space into %20
-	if [ -n "$subdir" ]; then
-		suburl="${suburl}/${subdir}"
-		_command="$command --request MKCOL ${url}/${_url}/ " # disposable subcommand
-		log "$_command"
-		eval "$_command" >> "$LOG_FILE" 2>&1
-	fi
-	subdirs="${subdirs#*/}"
+subdirs="$yadisk_path"
+subdir="${subdir// /%20}" # convert each space into %20
+for subdir in ${subdirs//\// }; do
+	subdir="${subdirs%%/*}"  # leftmost directory
+	suburl="$suburl/$subdir"
+	[ -n "$subdir" ] && log_and_run "$command --request MKCOL $url$suburl"
+	subdirs="${subdirs#*/}" # remove the processed directory
 done
-unset _command
 
 # upload file
-url="${url}${_url}/$(TZ=$(cat /etc/TZ) date +"%G%m%d-%H%M%S").jpg"
-command="$command --url $url"
-command="$command --request PUT"
-command="$command --upload-file $yadisk_file"
+build_cmd "--request PUT"
+build_cmd "--upload-file $yadisk_file"
+build_cmd "--url $url/$yadisk_path/$(TZ=$(cat /etc/TZ) date +"%G%m%d-%H%M%S").jpg"
 
-log "$command"
-eval "$command" >> "$LOG_FILE" 2>&1
+log_and_run "$command"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
