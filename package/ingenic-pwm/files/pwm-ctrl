@@ -122,13 +122,13 @@ fi
 gpio-diag "$PIN" func "$FUNC_NUM"
 
 # Calculate the duty cycle using awk
-DUTY_NS=$(awk -v b="$BRIGHTNESS" 'BEGIN {
+DUTY_NS=$(awk -v b="$BRIGHTNESS" -v period=1000000 'BEGIN {
 	if (b == 0) {
 		print 0
 	} else if (b <= 10) {
-		print b * 1000
+		print b * 1000  # Linear scaling from 0-10
 	} else {
-		print 100000 + (b - 11) * 9000
+		print int(((b - 10) / 90) * (period - 10000) + 10000)  # Linear scaling from 10000 to 1000000
 	}
 }')
 
