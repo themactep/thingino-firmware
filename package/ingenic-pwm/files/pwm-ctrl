@@ -132,5 +132,12 @@ DUTY_NS=$(awk -v b="$BRIGHTNESS" -v period=1000000 'BEGIN {
 	}
 }')
 
-# Enable the PWM channel with the calculated duty cycle
-pwm -c "$CHANNEL" -e -p 1 -P 1000000 -D "$DUTY_NS"
+# If duty cycle is 0, disable the PWM channel
+if [ "$DUTY_NS" -eq 0 ]; then
+	echo "Disabling PWM channel $CHANNEL as duty cycle is 0"
+	pwm -c "$CHANNEL" -d
+else
+	# Enable the PWM channel with the calculated duty cycle
+	pwm -c "$CHANNEL" -e -p 1 -P 1000000 -D "$DUTY_NS"
+	echo "PWM channel $CHANNEL [$GPIO] enabled with duty cycle $DUTY_NS"
+fi
