@@ -25,61 +25,29 @@ telegram_disable_notification=false
 # override config values with command line arguments
 while getopts ac:im:p:st:vh flag; do
 	case "$flag" in
-		a)
-			telegram_as_attachment="true"
-			;;
-		c)
-			telegram_channel=$OPTARG
-			;;
-		i)
-			telegram_as_photo="true"
-			;;
-		m)
-			telegram_message=$OPTARG
-			;;
-		p)
-			telegram_photo=$OPTARG
-			;;
-		s)
-			telegram_disable_notification=true
-			;;
-		t)
-			telegram_token=$OPTARG
-			;;
-		v)
-			verbose="true"
-			;;
-		h | *)
-			show_help
-			;;
+		a) telegram_as_attachment="true" ;;
+		c) telegram_channel=$OPTARG ;;
+		i) telegram_as_photo="true" ;;
+		m) telegram_message=$OPTARG ;;
+		p) telegram_photo=$OPTARG ;;
+		s) telegram_disable_notification=true ;;
+		t) telegram_token=$OPTARG ;;
+		v) verbose="true" ;;
+		h | *) show_help ;;
 	esac
 done
 
-if [ "false" = "$telegram_enabled" ]; then
-	log "Sending to Telegram is disabled."
-	quit_clean 10
-fi
-
+[ "false" = "$telegram_enabled" ] && die "Sending to Telegram is disabled."
 # validate mandatory values
-if [ -z "$telegram_token" ]; then
-	log "Telegram token not found"
-	quit_clean 11
-fi
-
-if [ -z "$telegram_channel" ]; then
-	log "Telegram channel not found"
-	quit_clean 12
-fi
+[ -z "$telegram_token" ] && die "Telegram token not found"
+[ -z "$telegram_channel" ] && die "Telegram channel not found"
 
 if [ -z "$telegram_message" ]; then
 	telegram_message="$(echo "$telegram_caption" | sed "s/%hostname/$(hostname -s)/;s/%datetime/$(date +"%F %T")/")"
 
 	if [ -z "$telegram_photo" ]; then
 		snapshot=/tmp/snapshot.jpg
-		if [ ! -f "$snapshot" ]; then
-			log "Cannot find a snapshot"
-			quit_clean 3
-		fi
+		[ -f "$snapshot" ] || die "Cannot find a snapshot"
 
 		attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
 		delete_tempfile="true"
@@ -89,50 +57,23 @@ if [ -z "$telegram_message" ]; then
 	fi
 fi
 
-command="curl --verbose"
-command="$command --connect-timeout $curl_timeout"
-command="$command --max-time $curl_timeout"
-
-# SOCK5 proxy, if needed
-if [ "true" = "$telegram_socks5_enabled" ]; then
-	. /etc/webui/socks5.conf
-	command="$command --socks5-hostname ${socks5_host}:$socks5_port"
-	command="$command --proxy-user ${socks5_login}:$socks5_password"
-fi
-
-command="$command -H 'Content-Type: multipart/form-data'"
-command="$command -F 'chat_id=$telegram_channel'"
-command="$command -F 'disable_notification=$telegram_disable_notification'"
-command="$command --url https://api.telegram.org/bot$telegram_token/"
+build_cmd "$CURL"
+[ "true" = "$telegram_socks5_enabled" ] && use_socks5
+build_cmd "-H 'Content-Type: multipart/form-data'"
+build_cmd "-F 'chat_id=$telegram_channel'"
+build_cmd "-F 'disable_notification=$telegram_disable_notification'"
+build_cmd "--url https://api.telegram.org/bot$telegram_token/"
 
 if [ -n "$attachment" ]; then
 	if [ "true" = "$telegram_as_attachment" ]; then
-		command1="$command"
-		command1="${command1}sendDocument"
-		command1="$command1 -F 'document=@$telegram_photo'"
-		command1="$command1 -F 'caption=$telegram_message'"
-		log "$command1"
-		eval "$command1" >> $LOG_FILE 2>&1
+		log_and_run "${command}sendDocument -F 'document=@$telegram_photo' -F 'caption=$telegram_message'"
 	elif [ "true" = "$telegram_as_photo" ]; then
-		command2="$command"
-		command2="${command2}sendPhoto"
-		command2="$command2 -F 'photo=@$telegram_photo'"
-		command2="$command2 -F 'caption=$telegram_message'"
-		log "$command2"
-		eval "$command2" >> $LOG_FILE 2>&1
+		log_and_run "${command}sendPhoto -F 'photo=@$telegram_photo' -F 'caption=$telegram_message'"
 	else
-		command3="$command"
-		command3="${command3}sendMessage"
-		command3="$command3 -F 'text=Please select a method of sending (inline photo or file attachmnet).'"
-		log "$command3"
-		eval "$command3" >> $LOG_FILE 2>&1
+		log_and_run "${command}sendMessage -F 'text=Please select a method of sending (inline photo or file attachmnet).'"
 	fi
 else
-	command4="$command"
-	command4="${command4}sendMessage"
-	command4="$command4 -F 'text=$telegram_message'"
-	log "$command4"
-	eval "$command4" >> $LOG_FILE 2>&1
+	log_and_run "${command}sendMessage -F 'text=$telegram_message'"
 fi
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
