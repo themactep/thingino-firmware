@@ -8,7 +8,7 @@ endef
 
 define WYZE_ACCESSORY_INSTALL_DOORBELL_BUTTON_CONF
         $(INSTALL) -m 755 -d $(TARGET_DIR)/etc
-        echo -e "KEY_1 RELEASE 0 doorbell_ctrl $(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL_MAC) 15 1\nKEY_ENTER TIMED 0.1 iac -f /usr/share/sounds/th-doorbell_1.pcm" \
+        echo -e "KEY_1 RELEASE 0 doorbell_ctrl $(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL_MAC) 15 1\nKEY_1 TIMED 0.1 iac -f /usr/share/sounds/th-doorbell_1.pcm" \
 	>> $(TARGET_DIR)/etc/thingino-button.conf
 	#echo -e "61 high doorbell chime" >> $(TARGET_DIR)/etc/gpio.conf
 endef
