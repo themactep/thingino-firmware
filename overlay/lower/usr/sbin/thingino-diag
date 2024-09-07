@@ -1,5 +1,20 @@
 #!/bin/sh
 
+show_help() {
+	echo "Usage: $0 [-l]"
+	echo
+	echo "Thingino Diagnostics Script"
+	echo
+	echo "This script generates diagnostic logs to help developers troubleshoot issues with Thingino devices."
+	echo "The logs may contain sensitive or personal information, so please review them before sharing."
+	echo
+	echo "Options:"
+	echo "  -l    Save the diagnostics output to a local file instead of sharing it via termbin."
+	echo
+	echo "Without the -l option, the script will generate a link using termbin to share the diagnostics log."
+	exit 0
+}
+
 header() {
 	local border="=============================================="
 	local width=46
@@ -22,6 +37,22 @@ inforun() {
 	eval $1
 }
 
+local_file=""
+while getopts ":lh" opt; do
+	case $opt in
+		l)
+			local_file="yes"
+			;;
+		h)
+			show_help
+			;;
+		\?)
+			echo "Invalid option: -$OPTARG" >&2
+			show_help
+			;;
+	esac
+done
+
 echo "thingino diagnostics"
 echo "This script requires network access."
 echo "It is designed to generate log information to share with developers for diagnostic issues."
@@ -34,7 +65,12 @@ if [ "yes" != "$response" ]; then
 	exit 1
 fi
 
-output_file=$(mktemp)
+if [ -n "$local_file" ]; then
+	output_file="/tmp/thingino-diag-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 4).log"
+else
+	output_file=$(mktemp)
+fi
+
 {
 	inforun "date"
 	inforun "uptime"
@@ -75,18 +111,22 @@ output_file=$(mktemp)
 	awk -F':' '{if (/password/) print $1 " REDACTED"; else print}' /etc/prudynt.cfg
 
 	infocat "/etc/crontabs/root" "crontab"
-} > $output_file
+} > "$output_file"
 
-url=$(cat $output_file | send2termbin)
-rm -f $output_file
+if [ -z "$local_file" ]; then
+	url=$(cat "$output_file" | send2termbin)
+	rm -f "$output_file"
 
-echo
-if [ -z "$url" ]; then
-	echo "There was an error."
-	exit 1
+	echo
+	if [ -z "$url" ]; then
+		echo "There was an error."
+		exit 1
+	fi
+
+	echo "Your diagnostics log link:"
+	echo "$url"
+else
+	echo "Diagnostics log saved locally at: $output_file"
 fi
-
-echo "Your diagnostics log link:"
-echo $url
 
 exit 0
