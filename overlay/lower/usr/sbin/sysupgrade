@@ -145,7 +145,7 @@ stop_services() {
 	say "Stop services"
 	for i in $(find /etc/init.d/ -name "[KS]*" -executable | sort -nr); do
 		case "$(basename $i)" in
-			S36wireless | S38wpa_supplicant | S40network | S50dropbear)
+			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S50dropbear)
 				continue
 				;;
 			*)
