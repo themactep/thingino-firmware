@@ -30,7 +30,7 @@ log() {
 		echo "$(date +"%F %T") [$PID:$plugin] Log file rotated." >> $LOG_FILE
 	fi
 	echo "$(date +"%F %T") [$PID:$plugin] $1" >> $LOG_FILE
-	echo "$(date +"%F %T") [$PID:$plugin] $1"
+	echo "$(date +"%F %T") [$PID:$plugin] $1" >&2
 }
 
 log_and_run() {
