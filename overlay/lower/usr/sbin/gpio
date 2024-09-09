@@ -1,350 +1,136 @@
 #!/bin/sh
 
+. /sbin/common
+
 gpiodir=/sys/class/gpio
 
-ASCII_R="\e[1;31m"
-ASCII_G="\e[1;32m"
-ASCII_Y="\e[1;33m"
-ASCII_B="\e[1;34m"
-ASCII_M="\e[1;35m"
-ASCII_C="\e[1;36m"
-ASCII_W="\e[1;37m"
-ASCII_D="\e[1;38m"
-ASCII_B="\e[0m"
-
-log_and_run() {
-	[ -n "$DEBUG" ] && echo -e "${ASCII_C}${1}${ASCII_B}"
-	eval "$1"
-}
+unexport=0
 
 show_help() {
 	echo "
 Usage: $0 <command with params>
 Commands:
-	export <pin1>		Export <pin1> from kernel space
-	unexport <pin1>		Release <pin1> back to the kernel space
-
-	input <pin1>		Set <pin1> as input
-	read <pin1> [<pin2>]	Read values of a range of pins from <pin1> to <pin2>
-        value <pin1>            Read the bare value for a single pin <pin1>
-
-	high <pin1>		Set <pin1> output state to HIGH
-	low <pin1>		Set <pin1> output state to LOW
-	toggle <pin1>		Toggle <pin1> output state HIGH/LOW
-	set <pin1> <value>	Set <pin1> output state to <value>
-
-	claim <pin1>		Claim pin to the kernel
+	export <pin>		Export <pin> from kernel space
+	unexport <pin>		Release <pin> back to the kernel space
+	input <pin>		Set <pin> as input
+	set <pin> <1|0>		Set <pin> output state to HIGH or LOW
+	toggle <pin>		Toggle <pin> output state HIGH/LOW
+	read <pin>		Read values of <pin>
+	claim <pin>		Claim <pin> to the kernel
+	info <pin>		Get information about the <pin>
 	list			Show claimed pins via debugfs
-
 Legacy:
-	set <pin1>		Set <pin1> output state to HIGH
-	clear <pin1>		Set pin1 output state to LOW
-
-  $0 search <from pin> <to pin>
-	Scan a range of pins switching each to HI then LOW
-	with one second interval and writing results to syslog.
+	high <pin>		Set <pin1> output state to HIGH
+	low <pin>		Set <pin1> output state to LOW
+	clear <pin>		Set pin1 output state to LOW
 "
+	exit 1
 }
 
-validate_directory() {
-	if [ ! -d "$1" ]; then
-		echo_c 33 "non-existing directory $1"
-		echo_c 33 "pin is not exported?"
-		exit 1
-	fi
+list_pins() {
+	grep -q /sys/kernel/debug /proc/mounts || mount -t debugfs none /sys/kernel/debug
+	cat /sys/kernel/debug/gpio
 }
 
-validate_file() {
-	if [ ! -f "$1" ]; then
-		echo -n "FILE $1 NOT FOUND"
-		exit 1
-	fi
+log_and_run() {
+	[ -n "$DEBUG" ] && echo -e "$1"
+	eval "$1"
 }
 
-validate_pin() {
-	local pin=$(echo "$1" | sed s/[^0-9]//g)
-	if [ -z "$pin" ]; then
-		echo_c 31 "PIN $pin IS NOT SET"
-		exit 1
-	fi
-	echo "$pin"
+claim_pin() {
+	export_pin
+	echo $pin > /proc/gpio_claim/gpio
 }
 
-range_of_pins() {
-	if [ -z "$2" ]; then
-		seq "$1" "$1"
-	else
-		seq "$1" "$2"
-	fi
-}
-
-# export pin if it is not already exported
 export_pin() {
-	local pin=$(validate_pin $1)
-	if [ -d "${gpiodir}/gpio${pin}" ]; then
-		echo_c 33 "pin $pin already exported"
-	else
-		if echo $pin > ${gpiodir}/export 2> /dev/null; then
-			# echo_c 32 "pin $pin exported"
-			true
-		else
-			echo_c 31 "pin $pin is busy"
-		fi
-	fi
+	[ -d $gpiodir/gpio$pin ] && return
+	echo $pin > $gpiodir/export
 }
 
-# unexport pin if it is exported
 unexport_pin() {
-	local pin=$(validate_pin $1)
-	if [ -d "${gpiodir}/gpio${pin}" ]; then
-		if echo $pin > ${gpiodir}/unexport 2> /dev/null; then
-			# echo_c 32 "pin $pin unexported"
-			true
-		else
-			echo_c 31 "pin $pin is busy"
-			exit 1
-		fi
+	[ -d "$gpiodir/gpio$pin" ] || return
+	echo $pin > $gpiodir/unexport
+}
+
+set_direction() {
+	export_pin
+	echo $1 > $gpiodir/gpio$pin/direction
+}
+
+set_value() {
+	set_direction "out"
+	echo $1 > $gpiodir/gpio$pin/value
+}
+
+toggle_value() {
+	if [ "$(get_value)" -eq 0 ]; then
+		set_value 1
 	else
-		echo_c 33 "$pin is not exported"
+		set_value 0
 	fi
 }
 
 get_pin_info() {
-	local range=$(range_of_pins "$1" "$2")
-	local pin
+	if [ ! -d "$gpiodir/gpio$pin" ]; then
+		export_pin
+		unexport=1
+	fi
 
-	echo -e "pin\tact.low\tdirect.\tvalue"
-	for pin in $range; do
-		local exported
-		if [ -d "${gpiodir}/gpio${pin}" ]; then
-			exported=1
-		else
-			exported=0
-			export_pin "$pin"
-		fi
+	printf "PIN: %d\nACT: %d\nDIR: %s\nVAL: %d\n" \
+		$pin \
+		$(cat "$gpiodir/gpio$pin/active_low") \
+		$(cat "$gpiodir/gpio$pin/direction") \
+		$(cat "$gpiodir/gpio$pin/value")
 
-		printf "%3d" $pin
-		if [ ! -d "${gpiodir}/gpio${pin}" ]; then
-			echo -e $ASCII_R pin cannot be exported $ASCII_B
-			continue
-		fi
-
-		res=$(cat "${gpiodir}/gpio${pin}/active_low")
-		[ "0" = "$res" ] && color=$ASCII_C || color=$ASCII_M
-		echo -en "\t" $color $res $ASCII_B
-
-		res=$(cat "${gpiodir}/gpio${pin}/direction")
-		[ "in" = "$res" ] && color=$ASCII_C || color=$ASCII_M
-		echo -en "\t" $color $res $ASCII_B
-
-		res=$(cat "${gpiodir}/gpio${pin}/value")
-		[ "1" = "$res" ] && color=$ASCII_Y || color=$ASCII_G
-		echo -en "\t" $color $res $ASCII_B
-
-		printf "\n"
-		[ "$exported" -eq 0 ] && unexport_pin "$pin"
-	done
+	[ "0$unexport" -eq 1 ] && unexport_pin $pin
 }
 
 get_direction() {
-	if [ ! -f "${gpiodir}/gpio${1}/direction" ]; then
-		echo_c 31 "${gpiodir}/gpio${1}/direction not found"
-		exit 1
+	export_pin $pin
+	cat $gpiodir/gpio$1/direction
+}
+
+get_value() {
+	if [ ! -d "$gpiodir/gpio$pin" ]; then
+		export_pin $pin
+		unexport=1
 	fi
-
-	cat "${gpiodir}/gpio${1}/direction"
+	[ -f $gpiodir/gpio$pin/value ] && cat $gpiodir/gpio$pin/value
+	[ "0$unexport" -eq 1 ] && unexport_pin "$pin"
 }
 
-get_only_pin_value() {
-	pin=$1
-	local pin_dir="${gpiodir}/gpio${pin}"
-	local exported
-
-	if [ -d "$pin_dir" ]; then
-		exported=1
-	else
-		exported=0
-		export_pin "$pin"
-	fi
-
-	direction=$(get_direction $pin)
-	if [ -f "${pin_dir}/value" ]; then
-		echo $(cat "${pin_dir}/value")
-	fi
-
-	[ "$exported" -eq 0 ] && unexport_pin "$pin"
-}
-
-get_pin_value() {
-	local range=$(range_of_pins "$1" "$2")
-	local pin
-
-	for pin in $range; do
-		local pin_dir="${gpiodir}/gpio${pin}"
-		local exported
-
-		if [ -d "$pin_dir" ]; then
-			exported=1
-		else
-			exported=0
-			export_pin "$pin"
-		fi
-
-		direction=$(get_direction $pin)
-
-		if [ -f "${pin_dir}/value" ]; then
-			value=$(cat "${pin_dir}/value")
-			echo_c 34 "${pin}\t${direction}\t${value}"
-		else
-			echo_c 31 "${pin_dir}/value not found"
-		fi
-
-		[ "$exported" -eq 0 ] && unexport_pin "$pin"
-	done
-}
-
-set_direction() {
-	local pin=$(validate_pin $1)
-	export_pin "$pin"
-
-	case "$2" in
-		in | out)
-			if [ -d "${gpiodir}/gpio${pin}" ]; then
-				log_and_run "echo $2 > ${gpiodir}/gpio${pin}/direction"
-				get_direction "$pin"
-			else
-				echo_c 33 "Pin $pin is not exported?"
-				exit 1
-			fi
-			;;
-		*)
-			echo_c 31 "What direction?"
-			exit 1
-			;;
-	esac
-}
-
-set_pin_value() {
-	local pin=$(validate_pin $1)
-	# export_pin $pin
-
-	local direction=$(get_direction "$pin")
-	case "$direction" in
-		in | out)
-			# echo "Pin $pin direction is $direction"
-			true
-			;;
-		*)
-			# echo_c 34 "Pin $pin direction is not set"
-			set_direction "$pin" "out"
-			;;
-	esac
-
-	case "$(get_direction $pin)" in
-		in)
-			echo_c 33 "Pin $pin is not output"
-			exit 1
-			;;
-		out)
-			# echo_c 32 "Pin $pin is output"
-			log_and_run "echo $2 > ${gpiodir}/gpio${pin}/value"
-			;;
-		*)
-			echo_c 31 "Unknown direction"
-			;;
-	esac
-	get_pin_value "$pin"
-	# export_pin $pin
-}
-
-sweep_pins() {
-	local range=$(range_of_pins "$1" "$2")
-	local pin
-
-	for pin in $range; do
-		printf "---[ pin %03d ]-----------------------------\n" $pin
-
-		if [ -z "$(get_direction $pin)" ]; then
-			set_direction "$pin" "out"
-		fi
-
-		if [ "out" != "$(get_direction "$pin")" ]; then
-			continue
-		fi
-
-		export_pin "$pin"
-
-		set_pin_value "$pin" 0
-		sleep 0.25
-		set_pin_value "$pin" 1
-		sleep 0.25
-		set_pin_value "$pin" 0
-
-		# set_direction $pin "in"
-		# unexport_pin "$pin"
-
-		logger HELLO - "$pin"
-	done
-}
-
-if [ -z "$2" ] && [ "list" != "$1" ]; then
-	show_help
-	exit 1
+if [ -n "$2" ]; then
+	pin=$(echo $2 | sed s/[^0-9]//g)
+	[ -z "$pin" ] && die "PIN $pin IS NOT SET"
+else
+	[ "list" != "$1" ] && show_help
 fi
 
 case "$1" in
-	claim)
-		echo "$2" > /proc/gpio_claim/gpio
-		;;
-	clear)
-		set_pin_value "$2" 0
-		;;
-	dir)
-		set_direction "$2" "$3"
-		;;
-	info)
-		get_pin_info "$2" "$3"
-		;;
-	input)
-		set_direction "$2" "in"
-		;;
-	get | read)
-		get_pin_value "$2" "$3"
-		;;
-        value)
-                get_only_pin_value "$2"
-                ;;
-	list)
-		[ -z "$(mount | grep /sys/kernel/debug)" ] && mount -t debugfs none /sys/kernel/debug
-		log_and_run "cat /sys/kernel/debug/gpio"
-		;;
-	set)
-		set_pin_value "$2" ${3:-1}
-		;;
-	high)
-		set_pin_value "$2" 1
-		;;
-	low)
-		set_pin_value "$2" 0
-		;;
-	toggle)
-		# FIXME:
-		value="$(get_only_pin_value "$2")"
-		if [ "$value" -eq 0 ]; then
-			set_pin_value "$2" 1
-		else
-			set_pin_value "$2" 0
-		fi
-		;;
 	export | catch)
-		export_pin "$2"
-		;;
+		export_pin ;;
 	unexport | release)
-		unexport_pin "$2"
-		;;
-	search | scan)
-		sweep_pins "$2" "$3"
-		;;
+		unexport_pin ;;
+	input)
+		set_direction "in" ;;
+	set)
+		set_value ${3:-1} ;;
+	toggle)
+		toggle_value ;;
+	get | read | value)
+		get_value ;;
+	claim)
+		claim_pin ;;
+	info)
+		get_pin_info ;;
+	list)
+		list_pins ;;
+	clear)
+		set_value 0 ;;
+	high)
+		set_value 1 ;;
+	low)
+		set_value 0 ;;
 	*)
 		show_help
 		;;
