@@ -1,0 +1,5 @@
+--- a/schrift.c
++++ b/schrift.c
+@@ -1544,1 +1544,1 @@
+-	STACK_ALLOC(cells, Cell, 128 * 128, numPixels);
++	STACK_ALLOC(cells, Cell, 32 * 32, numPixels);
