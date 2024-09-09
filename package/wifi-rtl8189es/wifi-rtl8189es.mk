@@ -25,5 +25,12 @@ define WIFI_RTL8189ES_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_SET_OPT,CONFIG_MAC80211_RC_DEFAULT,"minstrel_ht")
 endef
 
+define WIFI_RTL8189ES_INSTALL_CONFIGS
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/firmware
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/lib/firmware $(WIFI_RTL8189ES_PKGDIR)/files/PHY_REG_PG.txt
+endef
+
+WIFI_RTL8189ES_POST_INSTALL_TARGET_HOOKS += WIFI_RTL8189ES_INSTALL_CONFIGS
+
 $(eval $(kernel-module))
 $(eval $(generic-package))
