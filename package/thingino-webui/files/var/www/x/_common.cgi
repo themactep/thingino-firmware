@@ -203,7 +203,7 @@ field_file() {
 	[ -z "$l" ] && l="$(t_label "$1")"
 	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local h=$3
-	echo "<p class=\"file\">" \
+	echo "<p id=\"$1_wrap\" class=\"file\">" \
 		"<label for=\"$1\" class=\"form-label\">$l</label>" \
 		"<input type=\"file\" id=\"$1\" name=\"$1\" class=\"form-control\">"
 	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
