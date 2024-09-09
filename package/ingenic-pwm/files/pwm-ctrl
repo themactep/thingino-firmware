@@ -24,7 +24,7 @@ case $(soc -f) in
 		;;
 	t23)
 		pwm_table="
-		46 PWM0 FUNC2 PA14
+		14 PWM0 FUNC2 PA14
 		49 PWM0 FUNC0 PB17
 		50 PWM1 FUNC0 PB18
 		59 PWM2 FUNC1 PB27
@@ -49,8 +49,8 @@ case $(soc -f) in
 		;;
 	t31)
 		pwm_table="
-		46 PWM0 FUNC2 PA14
-		54 PWM1 FUNC2 PA22
+		14 PWM0 FUNC2 PA14
+		22 PWM1 FUNC2 PA22
 		49 PWM0 FUNC0 PB17
 		50 PWM1 FUNC0 PB18
 		59 PWM2 FUNC1 PB27
@@ -84,6 +84,11 @@ find_pwm_func() {
 	done
 	exit 1
 }
+
+if [ ! -e /dev/pwm ]; then
+	echo "Error: /dev/pwm not found. Ensure the PWM device is available by loading the appropriate kernel modules."
+	exit 1
+fi
 
 if [ "$1" = "-l" ]; then
 	echo "Available PWM-capable GPIOs:"
