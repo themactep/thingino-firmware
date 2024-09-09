@@ -21,7 +21,7 @@ case $1 in
 		read_env
 		[ "$backup" = "$b64" ] && quit "Same root password"
 		info "Back up root password"
-		run "fw_setenv $ENV_VAR $b64"
+		fw_setenv $ENV_VAR $b64
 		quit "Saved"
 		;;
 	restore)
@@ -34,10 +34,10 @@ case $1 in
 		info "Restore root password from backup"
 		doe=$(($(date +%s) / 86400))
 		tmpfile=$(mktemp -u)
-		run "cp $DATA_FILE $tmpfile"
-		run "sed -i \"s/^root:.*$/root:$data:$doe::::::/\" $tmpfile"
-		run "mv -f $DATA_FILE ${DATA_FILE}-"
-		run "mv -f $tmpfile $DATA_FILE"
+		cp $DATA_FILE $tmpfile
+		sed -i "/^root:/croot:$data:$doe::::::" $tmpfile
+		mv -f $DATA_FILE ${DATA_FILE}-
+		mv -f $tmpfile $DATA_FILE
 		quit "Restored"
 		;;
 	*)
