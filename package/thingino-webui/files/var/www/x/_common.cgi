@@ -439,7 +439,7 @@ Server: $SERVER_SOFTWARE
 html_title() {
 	[ -n "$page_title" ] && echo -n "$page_title"
 	[ -n "$title" ] && echo -n ": $title"
-	echo -n " - thingino"
+	echo -n "- $(hostname) - thingino"
 }
 
 # label "name" "classes" "extras" "units"
