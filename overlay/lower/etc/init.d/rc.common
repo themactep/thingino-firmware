@@ -111,8 +111,7 @@ is_boot_complete() {
 }
 
 is_debug_mode() {
-	#[ "false" != "$debug" ]
-	[ "0$debug" -gt 0 ]
+	[ $((0 + debug)) -gt 0 ] || [ "true" = "$debug" ]
 }
 
 is_streamer_disabled() {
