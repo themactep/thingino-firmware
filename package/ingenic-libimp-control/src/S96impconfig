@@ -16,18 +16,19 @@ check_imp() {
 	while [ "$i" -gt 0 ]; do
 		if grep -Eq "running|Software" $isp_path; then
 			run "imp-control getdeviceid > /dev/null"
+			echo -n " "
 			check_result
 			return
 		fi
 		i=$((i-1))
-		echo -n ". "
+		echo -n "."
 		sleep 1
 	done
-	die "Timeout. Cannot connect to libimp-control."
+	die " Timeout"
 }
 
 restore_config() {
-	echo -n "Restore IMP Configuration:"
+	echo -n "Restore IMP Configuration: "
 	[ -f "$config" ] || quit "Nothing to restore"
 
 	while read -r line; do
