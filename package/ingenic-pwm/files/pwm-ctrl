@@ -96,9 +96,16 @@ if [ "$1" = "-l" ]; then
 	exit 0
 fi
 
-if [ "$#" -ne 2 ]; then
-	echo "Usage: $0 [-l] <gpio> <brightness 0-100>"
+if [ "$#" -lt 2 ]; then
+	echo "Usage: $0 [-l] [-r] <gpio> <brightness 0-100>"
 	exit 1
+fi
+
+# Check for reverse polarity
+REVERSE=1
+if [ "$1" = "-r" ]; then
+	REVERSE=0
+	shift
 fi
 
 # Extract PWM and FUNC for the given GPIO
@@ -143,6 +150,7 @@ if [ "$DUTY_NS" -eq 0 ]; then
 	pwm -c "$CHANNEL" -d
 else
 	# Enable the PWM channel with the calculated duty cycle
-	pwm -c "$CHANNEL" -e -p 1 -P 1000000 -D "$DUTY_NS"
+	pwm -c "$CHANNEL" -d
+	pwm -c "$CHANNEL" -e -p $REVERSE -P 1000000 -D "$DUTY_NS"
 	echo "PWM channel $CHANNEL [$GPIO] enabled with duty cycle $DUTY_NS"
 fi
