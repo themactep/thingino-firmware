@@ -2,6 +2,7 @@
 <%
 IFS_ORIG=$IFS
 
+STR_CONFIGURE_SOCKS5="<a href=\"config-socks5.cgi\">Configure SOCKS5</a>"
 STR_NOT_SUPPORTED="not supported on this system"
 STR_SUPPORTS_STRFTIME="Supports <a href=\"https://man7.org/linux/man-pages/man3/strftime.3.html \" target=\"_blank\">strftime</a> format."
 

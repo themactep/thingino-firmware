@@ -84,7 +84,7 @@ fi
 <% field_textarea "mqtt_message" "MQTT message" "$STR_SUPPORTS_STRFTIME" %>
 <% field_switch "mqtt_send_snap" "Send a snapshot" %>
 <% field_text "mqtt_snap_topic" "MQTT topic to send the snapshot to" %>
-<% field_switch "mqtt_socks5_enabled" "Use SOCKS5" "<a href=\"config-socks5.cgi\">Configure</a> SOCKS5 access" %>
+<% field_switch "mqtt_socks5_enabled" "Use SOCKS5" "$STR_CONFIGURE_SOCKS" %>
 </div>
 <div class="col">
 <% ex "cat $config_file" %>
