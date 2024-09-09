@@ -10,6 +10,7 @@ which motors > /dev/null && has_motors="true"
 
 <div class="row preview">
 <div class="col-lg-1" style="width:4em">
+
 <div class="d-flex flex-nowrap flex-lg-wrap align-content-around" aria-label="Day/Night controls">
 <input type="checkbox" class="btn-check" name="daynight" id="daynight" value="1">
 <label class="btn btn-dark border mb-2" for="daynight" title="Night mode"><%= $icon_moon %></label>

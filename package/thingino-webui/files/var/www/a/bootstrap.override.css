@@ -115,6 +115,10 @@ pre.list b {
 
 textarea {
 	font-family: var(--bs-font-monospace);
+	text-wrap: auto;
+}
+
+textarea.nowrap {
 	height: 50vh;
 	white-space: pre;
 }
@@ -146,43 +150,3 @@ textarea {
 	border: rgba(128, 128, 128, 0.5) 1px solid;
 }
 
-.smpte {
-	width: 100%;
-	height: 100%;
-	background-image: radial-gradient(transparent, hsla(0, 0%, 0%, 0.85)),
-	linear-gradient(transparent 75%, rgb(0, 0, 0) 75%),
-	linear-gradient(to right, rgb(40%, 40%, 40%) 12.5%, rgb(191, 191, 191) 12.5%, rgb(75%, 75%, 75%) 23.2%, yellow 23.2%, yellow 33.9%, cyan 33.9%, cyan 44.6%, green 44.6%, green 55.3%, magenta 55.3%, magenta 66.0%, red 66.0%, red 76.7%, blue 76.7%, blue 87.4%, rgb(40%, 40%, 40%) 87.4%);
-	position: absolute;
-	overflow: hidden;
-	z-index: -1;
-}
-
-.smpte .bar1 {
-	content: "";
-	position: absolute;
-	display: block;
-	background-image: linear-gradient(to right, cyan 12.5%, rgb(99%, 99%, 99%) 12.5%, rgb(99%, 99%, 99%) 23.2%, rgb(75%, 75%, 75%) 23.2%, rgb(75%, 75%, 75%) 87.4%, blue 87.4%);
-	height: 8.3%;
-	width: 100%;
-	bottom: 33.3%;
-}
-
-.smpte .bar2 {
-	content: "";
-	position: absolute;
-	display: block;
-	background-image: linear-gradient(to right, yellow 12.5%, black 12.5%, black 23.2%, black 23.2%, white 87.4%, red 87.4%);
-	height: 8.3%;
-	width: 100%;
-	bottom: 25%;
-}
-
-.smpte .bar3 {
-	content: "";
-	position: absolute;
-	display: block;
-	background-image: linear-gradient(to right, rgb(15%, 15%, 15%) 12.5%, black 12.5%, black 28.56%, white 28.5%, white 49%, black 49%, black 58%, rgb(-2%, -2%, -2%) 58%, rgb(-2%, -2%, -2%) 61.6%, black 61.6%, black 65.2%, rgb(2%, 2%, 2%) 65.2%, rgb(2%, 2%, 2%) 68.8%, black 68.8%, black 72.4%, rgb(4%, 4%, 4%) 72.4%, rgb(4%, 4%, 4%) 76.0%, black 76.0%, black 87.5%, rgb(15%, 15%, 15%) 87.5%);
-	height: 25%;
-	width: 100%;
-	bottom: 0;
-}
