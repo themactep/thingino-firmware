@@ -1,5 +1,6 @@
 config BR2_PACKAGE_MOTORS
 	bool "motors"
 	depends on BR2_MOTORS
+	select BR2_MOTORS_TCU if !BR2_MOTORS_MS419XX
 	help
 	  Userspace programs to manage motor hardware
