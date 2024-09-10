@@ -100,6 +100,8 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	if [ "$(BR2_AUDIO)" = "y" ]; then \
 		$(INSTALL) -m 644 -D $(@D)/config/webrtc_profile.ini $(TARGET_DIR)/etc/; \
 		$(GENERATE_AUDIO_CONFIG); \
+		$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/sbin; \
+		$(INSTALL) -m 755 -D $(INGENIC_SDK_PKGDIR)/files/speaker-ctrl $(TARGET_DIR)/usr/sbin/speaker-ctrl; \
 	fi
 
 	if [ "$(BR2_PWM_ENABLE)" = "y" ]; then \
