@@ -131,7 +131,7 @@ ws.onmessage = (event) => {
 
 		if (msg.rtsp)
 			if (msg.rtsp.username && msg.rtsp.password && msg.rtsp.port)
-				$('#playrtsp').innerHTML = "RTSP player: mpv --profile=low-latency rtsp://" +
+				$('#playrtsp').innerHTML = "RTSP player: mpv --profile=fast rtsp://" +
 					msg.rtsp.username + ":" + msg.rtsp.password + "@" +
 					document.location.hostname + ":" + msg.rtsp.port + "/ch0";
 
