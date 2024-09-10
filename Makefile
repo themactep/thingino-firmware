@@ -38,7 +38,7 @@ BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 
 # make command for buildroot
-BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
+BR2_MAKE = $(MAKE) -j$(shell nproc) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
 
 # handle the board
 include $(BR2_EXTERNAL)/board.mk
@@ -118,14 +118,12 @@ OVERLAY_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
 # special case with no uboot nor env
 OVERLAY_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PARTITION_SIZE))))
 
-BUILD_TIME = $(shell awk -F ':' 'NR==1{a=$$1} END{b=$$1} END {print (b-a)/60" min"}' $(OUTPUT_DIR)/build/build-time.log)
-
 .PHONY: all bootstrap build clean cleanbuild create_overlay defconfig distclean \
  	help pack pack_full pack_update prepare_config reconfig sdk toolchain \
  	upload_tftp upgrade_ota br-%
 
 all: build pack
-	@$(FIGLET) "FINE [$(BUILD_TIME)]"
+	@$(FIGLET) "FINE"
 	@$(FIGLET) $(CAMERA)
 
 # install prerequisites
