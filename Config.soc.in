@@ -356,7 +356,7 @@ config BR2_MOTORS_SPI
 
 config BR2_SDCARD
 	bool "SD/MMC Card"
-	selects BR2_PACKAGE_THINGINO_KOPT_MMC
+	select BR2_PACKAGE_THINGINO_KOPT_MMC
 	help
 	  The hardware has an SD/MMC card slot.
 
