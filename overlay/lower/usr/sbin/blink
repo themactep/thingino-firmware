@@ -1,14 +1,13 @@
 #!/bin/sh
 
 PID="/run/blink.pid"
+echo $$ > $PID
 
 cleanup() {
 	[ -f $PID ] && rm $PID
-	exit
+	exit 0
 }
 trap cleanup 1 2 3 6 15
-
-echo $$ > $PID
 
 if [ -z "$1" ]; then
 	echo "Usage: blink <pin> [interval, sec.]"
