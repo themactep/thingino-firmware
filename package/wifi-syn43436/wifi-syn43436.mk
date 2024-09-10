@@ -1,5 +1,5 @@
 WIFI_SYN43436_SITE_METHOD = git
-WIFI_SYN43436_SITE = http://github.com/acvigue/bcmdhd
+WIFI_SYN43436_SITE = https://github.com/acvigue/bcmdhd
 WIFI_SYN43436_SITE_BRANCH = main
 WIFI_SYN43436_VERSION = $(shell git ls-remote $(WIFI_SYN43436_SITE) $(WIFI_SYN43436_SITE_BRANCH) | head -1 | cut -f1)
 
