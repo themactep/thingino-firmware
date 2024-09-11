@@ -1,14 +1,8 @@
 #!/bin/haserl --upload-limit=1024 --upload-dir=/tmp
 <%in _common.cgi %>
-<%in _icons.cgi %>
 <%
 page_title="On-Screen Display"
-
-token="$(cat /run/prudynt_websocket_token)"
-
 OSD_FONT_PATH="/usr/share/fonts"
-FONT_REGEXP="s/(#\s*)?font_path:(.+);/font_path: \"${OSD_FONT_PATH//\//\\/}\/\%s\";/"
-
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 	if [ -z "$HASERL_fontfile_path" ]; then
@@ -21,9 +15,11 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	redirect_to $SCRIPT_NAME
 fi
 
-FONTS=$(ls -1 $OSD_FONT_PATH)
+token="$(cat /run/prudynt_websocket_token)"
 ts=$(date +%s)
+FONTS=$(ls -1 $OSD_FONT_PATH)
 %>
+<%in _icons.cgi %>
 <%in _header.cgi %>
 
 <div class="row mb-4">
@@ -105,19 +101,17 @@ ts=$(date +%s)
 </div>
 </div>
 
-<script>
-const previewModal = new bootstrap.Modal('#previewModal', {});
-$('#preview').addEventListener('click', ev => {
-	previewModal.show();
-});
-</script>
-
 <style>
 #preview-wrapper button { visibility: hidden; }
 #preview-wrapper:hover button { visibility: visible; }
 </style>
 
 <script>
+const previewModal = new bootstrap.Modal('#previewModal', {});
+$('#preview').addEventListener('click', ev => {
+	previewModal.show();
+});
+
 function sendToWs(payload) {
 	//if (!ws) connectWs();
 	payload = payload.replace(/}$/, ',"action":{"save_config":null,"restart_thread":2}}')
@@ -129,10 +123,8 @@ let sts;
 let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $token %>');
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
-	const payload = '{'+
-		'"stream0":{"osd":{"enabled":null,"font_path":null,"font_size":null,"logo_enabled":null,"time_enabled":null,"uptime_enabled":null,"user_text_enabled":null}},'+
-		'"stream1":{"osd":{"enabled":null,"font_path":null,"font_size":null,"logo_enabled":null,"time_enabled":null,"uptime_enabled":null,"user_text_enabled":null}}'+
-		'}';
+	stream_rq='"osd":{"enabled":null,"font_path":null,"font_size":null,"logo_enabled":null,"time_enabled":null,"uptime_enabled":null,"user_text_enabled":null}';
+	const payload = '{"stream0":{' + stream_rq + '},"stream1":{' + stream_rq + '}}';
 	sendToWs(payload);
 	sts = setTimeout(getSnapshot, 1000);
 }
