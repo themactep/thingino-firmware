@@ -1,6 +1,4 @@
 auto eth0
 iface eth0 inet dhcp
-pre-up if ! readlink -f /sys/class/net/eth0/device | grep -q "usb"; then \
-	hwaddress ether $(fw_printenv -n ethaddr); \
-	fi
+pre-up if ! readlink -f /sys/class/net/eth0/device | grep -q "usb"; then hwaddress ether $(fw_printenv -n ethaddr); fi
 post-up sleep 3
