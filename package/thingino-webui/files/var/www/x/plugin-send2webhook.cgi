@@ -1,4 +1,4 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
 <%
 plugin="webhook"
@@ -47,7 +47,7 @@ fi
 <% field_switch "webhook_enabled" "Enable sending to webhook" %>
 <% field_text "webhook_url" "Webhook URL" %>
 <% field_switch "webhook_attach_snapshot" "Attach Snapshot" %>
-<% field_switch "webhook_socks5_enabled" "Use SOCKS5" "<a href=\"config-socks5.cgi\">Configure</a> SOCKS5 access" %>
+<% field_switch "webhook_socks5_enabled" "Use SOCKS5" "$STR_CONFIGURE_SOCKS" %>
 </div>
 <div class="col">
 <% ex "cat $config_file" %>

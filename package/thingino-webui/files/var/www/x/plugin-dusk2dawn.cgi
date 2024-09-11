@@ -1,13 +1,13 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
 <%
 plugin="dusk2dawn"
 plugin_name="Day/Night by Sun"
 page_title="Dusk to Dawn"
-params="enabled lat lng runat"
+params="enabled lat lng runat offset_sr offset_ss"
 
 config_file="${ui_config_dir}/${plugin}.conf"
-[ ! -f "$config_file" ] && touch $config_file
+[ -f "$config_file" ] || touch $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
@@ -17,6 +17,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	done; unset p
 
 	[ -z "$dusk2dawn_runat" ] && dusk2dawn_runat="0:00"
+	[ -z "$dusk2dawn_offset_sr" ] && dusk2dawn_offset_sr="0"
+	[ -z "$dusk2dawn_offset_ss" ] && dusk2dawn_offset_ss="0"
 
 	# validate
 	[ -z "$dusk2dawn_lat" ] && set_error_flag "Latitude cannot be empty"
@@ -42,6 +44,8 @@ else
 	# Default values
 	[ -z "$dusk2dawn_enabled" ] && dusk2dawn_enabled=false
 	[ -z "$dusk2dawn_runat" ] && dusk2dawn_runat="0:00"
+	[ -z "$dusk2dawn_offset_sr" ] && dusk2dawn_offset_sr="0"
+	[ -z "$dusk2dawn_offset_ss" ] && dusk2dawn_offset_ss="0"
 fi
 %>
 <%in _header.cgi %>
@@ -50,10 +54,14 @@ fi
 <div class="row g-4 mb-4">
 <div class="col col-12 col-xl-4">
 <% field_switch "dusk2dawn_enabled" "Enable dusk2dawn script" %>
-<p>Find your coordinated on <a href="https://latitude.to/">latitude.to</a>.</p>
-<% field_text "dusk2dawn_lat" "Latitude" %>
-<% field_text "dusk2dawn_lng" "Longitude" %>
-<% field_text "dusk2dawn_runat" "Run at" %>
+<p><a href="https://my-coordinates.com/">Find your coordinates</a></p>
+<%
+field_text "dusk2dawn_lat" "Latitude"
+field_text "dusk2dawn_lng" "Longitude"
+field_text "dusk2dawn_offset_sr" "Sunrise offset, minutes"
+field_text "dusk2dawn_offset_ss" "Sunset offset, minutes"
+field_text "dusk2dawn_runat" "Run at"
+%>
 </div>
 <div class="col col-12 col-xl-4">
 <% ex "crontab -l" %>

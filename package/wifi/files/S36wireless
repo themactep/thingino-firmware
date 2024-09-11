@@ -2,46 +2,60 @@
 
 . /etc/init.d/rc.common
 
-start() {
-	starting
-
+init() {
 	wlandev="$(get wlandev)"
-	if [ -z "$wlandev" ]; then
-		warn "wlandev is empty"
-		exit 1
+	[ -z "$wlandev" ] && quit "wlandev is not set"
+
+	pin_raw="$(get gpio_wlan)"
+	if [ -z "$pin_raw" ]; then
+		info "gpio_wlan is not set"
+	else
+		[ "$pin_raw" = "${pin_raw//[^0-9]/}" ] && pin_raw="${pin_raw}O"
+		pin="${pin_raw:0:-1}"
+		suffix="${pin_raw:0-1}"
+		case "$suffix" in
+			o) pin_on=0; pin_off=1 ;;
+			O) pin_on=1; pin_off=0 ;;
+			*) die "Unknown suffix!"
+		esac
 	fi
 
-	gpio_wlan="$(get gpio_wlan)"
-	if [ -n "$gpio_wlan" ]; then
-		num=${gpio_wlan%[oO]}
-		state=${gpio_wlan#$num}
+	wlanmac="$(get wlanmac)"
+	wlandevopts=$(get wlandevopts)
+}
 
-		case "$state" in
-			O)
-				gpio_cmd="high"
-				;;
-			o)
-				gpio_cmd="low"
-				;;
-		esac
+start() {
+	starting
+	init
 
-		info "Set GPIO $num $gpio_cmd"
-		gpio $gpio_cmd $num 2>&1 | log
-		if [ "$wlandev" == "bcmdhd" ]; then
-			gpio unexport $num
+	if [ -z "$pin" ]; then
+		info "GPIO pin for wireless module is not set"
+	else
+		info "Set GPIO $pin to $pin_on"
+		run "gpio set $pin $pin_on"
+
+		if [ "bcmdhd" = "$wlandev" ]; then
+			info "Unexport GPIO pin $pin"
+			run "gpio unexport $pin"
 		fi
 	fi
 
-	case "$(fw_printenv -n wlandev)" in
+	case "$wlandev" in
 		8189es | 8189fs | atbm6031 | b43 | bcmdhd | hi3881 | ssv6158)
 			info "Send INSERT to MMC1"
-			mmc 1 2>&1 | log
+			run "mmc 1"
 	esac
 
-	if ! grep -q "^$wlandev " /proc/modules; then
-		wlandevopts="$(get wlandevopts)"
-		info "Load module $wlandev with $wlandevopts"
-		modprobe $wlandev $wlandevopts 2>&1 | log
+	if [ -n "$wlanmac" ] && [ "hi3881" = "$wlandev" ]; then
+		info "Preset MAC address to $wlanmac"
+		sed -i "s/CFG_MAC=[^;]*;/CFG_MAC=$wlanmac;/" /etc/wifi_cfg
+	fi
+
+	if grep -q "^$wlandev\b" /proc/modules; then
+		info "Module $wlandev is already loaded"
+	else
+		info "Loading $wlandev module with parameters $wlandevopts"
+		run "modprobe $wlandev $wlandevopts"
 	fi
 
 	m=50 # limit to 5 seconds
@@ -51,22 +65,28 @@ start() {
 		sleep 0.1
 	done
 
-	wlanmac=$(get wlanmac)
-	if [ -n "$wlanmac" ]; then
-		info "Set MAC address $wlanmac"
-		ip link set dev wlan0 address $wlanmac 2>&1 | log
+	if [ -n "$wlanmac" ] && [ "hi3881" != "$wlandev" ]; then
+		info "Set MAC address to $wlanmac"
+		run "ip link set dev wlan0 address $wlanmac"
 	fi
+	ok
+}
+
+stop() {
+	stopping
+	init
+	run "ifdown wlan0"
+	run "rmmod $wlandev"
+	run "gpio set $pin $pin_off"
+	ok
 }
 
 case "$1" in
-	start)
-		start
-		;;
-	stop)
-		true
+	start | stop)
+		$1
 		;;
 	*)
-		die "Usage: $0 {start}"
+		die "Usage: $0 {start|stop}"
 		;;
 esac
 

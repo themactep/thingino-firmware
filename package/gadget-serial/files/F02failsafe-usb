@@ -1,0 +1,35 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+is_usb_console || exit
+
+modprobe g_serial iManufacturer="thingino" iProduct="USB Serial Console" || die "Cannot load g_serial module"
+usb-role -m device
+sleep 2
+
+echo_c 104 "\nPress the [f] key to enter failsafe mode [USB Serial Console]\n" > /dev/ttyGS0
+
+stty -icanon min 0 time 20 -echo < /dev/ttyGS0
+key=$(dd bs=1 count=1 2>/dev/null < /dev/ttyGS0)
+stty sane < /dev/ttyGS0
+
+print_release > /dev/ttyGS0
+
+if [ "$key" = "f" ]; then
+	echo_c 118 "Failsafe mode..." > /dev/ttyGS0
+	touch /tmp/.fs
+	. /etc/profile >/dev/ttyGS0 2>&1 < /dev/ttyGS0
+	while :; do setsid /sbin/getty -n -l /bin/sh ttyGS0 0 vt100; sleep 1; done &
+else
+	/etc/init.d/rcS > /dev/ttyGS0 2>&1
+	if is_debug_mode; then
+		. /etc/profile >/dev/ttyGS0 2>&1 < /dev/ttyGS0
+		cmd="-n -l /bin/sh"
+	else
+		cmd="-L"
+	fi
+	while :; do setsid /sbin/getty $cmd ttyGS0 0 vt100; sleep 1; done &
+fi
+
+exit 0

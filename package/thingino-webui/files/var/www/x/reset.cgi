@@ -1,8 +1,7 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
 <% page_title="Reset things" %>
 <%in _header.cgi %>
-
 <div class="row row-cols-md-3 g-4 mb-4">
 <div class="col">
 <div class="alert alert-danger">
@@ -15,5 +14,4 @@
 <%in _reset-firmware.cgi %>
 </div>
 </div>
-
 <%in _footer.cgi %>

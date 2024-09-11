@@ -1,0 +1,19 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+[ "$#" -ne 2 ] && die "Usage: service <servicename> <start|stop|restart|reload>"
+
+SERVICE=$1
+ACTION=$2
+
+case "$ACTION" in
+	start | stop | reload | restart) true ;;
+	*) die "Invalid action: $ACTION" ;;
+esac
+
+SCRIPT=$(ls /etc/init.d/[FKS][0-9][0-9]$SERVICE 2> /dev/null)
+
+[ -z "$SCRIPT" ] && die "Service $SERVICE not found"
+
+$SCRIPT $ACTION || die "Failed to $ACTION $SERVICE"

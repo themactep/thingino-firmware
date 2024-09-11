@@ -17,11 +17,6 @@ function callImp(command, value) {
 		g.setAttribute('data-conf', c.join(' '));
 		value = g.getAttribute("data-conf");
 		command = 'setosd';
-	} else if (["flip", "mirror"].includes(command)) {
-		command = "flip"
-		value = 0
-		if (document.querySelector('#flip').checked) value = (1 << 1)
-		if (document.querySelector('#mirror').checked) value += 1
 	} else if (["aiaec", "aihpf"].includes(command)) {
 		value = (value === 1) ? "on" : "off"
 	} else if (["ains"].includes(command)) {

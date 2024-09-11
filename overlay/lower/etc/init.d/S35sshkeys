@@ -1,54 +1,65 @@
 #!/bin/sh
 
+DATA_FILE="/etc/dropbear/dropbear_ed25519_host_key"
+ENV_VAR="sshkey_ed25519"
+
 . /etc/init.d/rc.common
 
-DROPBEAR_KEY="/etc/dropbear/dropbear_ed25519_host_key"
-SSHKEY_ENV=$(get sshkey_ed25519)
-
-generate_keys() {
-	info "Generate a key"
-	run "dropbearkey -t ed25519 -f $DROPBEAR_KEY"
+back_up() {
+	info "Back up dropbear key"
+	run "fw_setenv $ENV_VAR $b64"
+	read_env
 }
 
-restore_keys() {
-	info "Restore the key"
-	# FIXME: run fails on pipes
-	echo $SSHKEY_ENV | base64 -d | gzip -d > $DROPBEAR_KEY
+generate() {
+	info "Generate a dropbear key"
+	run "dropbearkey -t ed25519 -f $DATA_FILE"
+	read_file
 }
 
-save_keys() {
-	info "Back up the key"
-	SSHKEY_ENV=$(gzip -c $DROPBEAR_KEY | base64 | tr -d '\n')
-	run "fw_setenv sshkey_ed25519 $SSHKEY_ENV"
+restore() {
+	info "Restore the dropbear key"
+	run "echo $backup | base64 -d | gzip -d > $DATA_FILE"
+	read_file
+}
+
+read_env() {
+	info "Read backup dropbear key from environment"
+	backup=$(get $ENV_VAR)
+	[ -z "$backup" ] && info "Nothing in backup"
+}
+
+read_file() {
+	if [ -f "$DATA_FILE" ]; then
+		info "Read dropbear key from file"
+		b64=$(gzip -c $DATA_FILE | base64 | tr -d '\n')
+	fi
+	[ -z "$b64" ] && info "No dropbear key in file"
 }
 
 case "$1" in
 	start)
 		starting
-		if [ -s "$DROPBEAR_KEY" ]; then
-			info "Key present on the filesystem"
-			if [ -z "$SSHKEY_ENV" ]; then
-				info "Key backup not found in the environment"
-				save_keys
-			fi
+		read_file
+		read_env
+		[ -z "$b64" ] && [ -z "$backup" ] && generate
+		[ -n "$b64" ] && [ -z "$backup" ] && back_up
+		if [ "$b64" = "$backup" ]; then
+			info "Same dropbear key"
 		else
-			info "Key not found on the filesystem"
-			if [ -z "$SSHKEY_ENV" ]; then
-				info "Key backup not found in the environment"
-				generate_keys
-				save_keys
-			else
-				info "Key backup present in the environment"
-				restore_keys
-			fi
+			restore
 		fi
 		ok
 		;;
-	reload | stop | restart)
-		true
+	stop)
+		stopping
+		read_file
+		read_env
+		[ "$b64" = "$backup" ] || back_up
+		ok
 		;;
 	*)
-		die "Usage: $0 {start}"
+		die "Usage: $0 {start|stop}"
 		;;
 esac
 

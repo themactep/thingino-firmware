@@ -1,0 +1,26 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+case "$1" in
+	start)
+		starting
+		gpio_control "gpio_usb_en"
+		case "$?" in
+			0) ok ;;
+			1) die "GPIO power is not set" ;;
+			2) die "GPIO is in invalid state" ;;
+			3) die "GPIO command failed" ;;
+			*) die "Unknown exit code $?" ;;
+		esac
+		;;
+	stop)
+		stopping
+		ok
+		;;
+	*)
+		die "Usage: $0 {start|stop}"
+		;;
+esac
+
+exit 0

@@ -1,0 +1,42 @@
+#!/tmp/busybox sh
+
+echo_c() { echo -e "\e[38;5;$1m$2\e[0m"; }
+
+die() { echo_c 160 "$1"; exit 1; }
+
+flash_firmware() {
+	echo "Flashing firmware to $mtd_dev"
+	flashcp -v $fw_file $mtd_dev
+}
+
+go_reboot() {
+	echo "Rebooting in 5 seconds..."
+	sleep 5
+	echo wdt > /proc/jz/reset/reset
+	exit 0
+}
+
+[ -z "$1" ] && die "Firmware file is not set."
+[ -z "$2" ] && die "Target device is not set."
+
+fw_file=$1
+mtd_dev="/dev/$2"
+
+export PATH="/tmp/sysupgrade"
+MAX_TRIES=3
+
+echo_c 208 "Running Stage 2 of sysupgrade."
+x=0
+times=""
+while :; do
+	x=$((x+1))
+	flash_firmware && go_reboot
+	[ $x -gt 1 ] && times=" $x times"
+	echo_c 160 "Flashing failed${times}."
+	[ $x -gt $MAX_TRIES ] && break
+	echo "Retrying in 5 seconds..."
+	sleep 5
+done
+echo "Flashing failed after $MAX_TRIES attempts!"
+echo_c 160 "WARNING: You may need to perform a recovery flash restore before rebooting the camera!"
+exit 1

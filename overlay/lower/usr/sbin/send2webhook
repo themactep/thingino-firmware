@@ -16,55 +16,32 @@ show_help() {
 # override config values with command line arguments
 while getopts u:vh flag; do
 	case "$flag" in
-		u)
-			webhook_url=$OPTARG
-			;;
-		v)
-			verbose="true"
-			;;
-		h | *)
-			show_help
-			;;
+		u) webhook_url=$OPTARG ;;
+		v) verbose="true" ;;
+		h | *) show_help ;;
 	esac
 done
 
-if [ "false" = "$webhook_enabled" ]; then
-	log "Sending to webhook is disabled."
-	quit_clean 10
-fi
-
+[ "false" = "$webhook_enabled" ] && die "Sending to webhook is disabled."
 # validate mandatory values
-if [ -z "$webhook_url" ]; then
-	log "Webhook URL not found"
-	quit_clean 11
-fi
+[ -z "$webhook_url" ] && die "Webhook URL not found"
 
-command="curl --verbose"
-command="$command --connect-timeout $curl_timeout"
-command="$command --max-time $curl_timeout -X POST"
+build_cmd "$CURL"
+[ "true" = "$webhook_socks5_enabled" ] && use_socks5
 
 if [ "true" = "$webhook_attach_snapshot" ]; then
 	snapshot=/tmp/snapshot.jpg
-	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && quit_clean 3
+	[ -f "$snapshot" ] || die "Cannot find a snapshot"
 
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
 	delete_tempfile="true"
 	cp $snapshot $attachment
 
-	command="$command -F 'image=@$attachment'"
+	build_cmd "-F 'image=@$attachment'"
 fi
+build_cmd "--url $webhook_url"
 
-# SOCK5 proxy, if needed
-if [ "true" = "$webhook_socks5_enabled" ]; then
-	. /etc/webui/socks5.conf
-	command="$command --socks5-hostname ${socks5_host}:$socks5_port"
-	command="$command --proxy-user ${socks5_login}:$socks5_password"
-fi
-
-command="$command --url $webhook_url"
-
-log "$command"
-eval "$command" >> "$LOG_FILE" 2>&1
+log_and_run "$command"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"

@@ -246,10 +246,12 @@ config BR2_SENSOR_PARAMS
 	string "Image sensor parameters"
 	help
 	  Set additional parameters passed to image sensor kernel module
+
 config BR2_ISP_PARAMS
 	string "ISP parameters"
 	help
 	  Set additional parameters passed to the ISP kernel module
+
 endmenu
 
 if FALSE

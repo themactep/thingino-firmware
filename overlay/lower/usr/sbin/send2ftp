@@ -21,54 +21,28 @@ show_help() {
 # override config values with command line arguments
 while getopts d:f:p:P:s:u:vh flag; do
 	case "$flag" in
-		d)
-			ftp_path=$OPTARG
-			;;
-		f)
-			ftp_file=$OPTARG
-			;;
-		p)
-			ftp_port=$OPTARG
-			;;
-		P)
-			ftp_password=$OPTARG
-			;;
-		s)
-			ftp_host=$OPTARG
-			;;
-		u)
-			ftp_user=$OPTARG
-			;;
-		v)
-			verbose="true"
-			;;
-		h | *)
-			show_help
-			;;
+		d) ftp_path=$OPTARG ;;
+		f) ftp_file=$OPTARG ;;
+		p) ftp_port=$OPTARG ;;
+		P) ftp_password=$OPTARG ;;
+		s) ftp_host=$OPTARG ;;
+		u) ftp_user=$OPTARG ;;
+		v) verbose="true" ;;
+		h | *) show_help ;;
 	esac
 done
 
-[ -z "$ftp_port" ] && ftp_port=21
-
-if [ "false" = "$ftp_enabled" ]; then
-	log "Sending to FTP is disabled."
-	quit_clean 10
-fi
-
+[ "false" = "$ftp_enabled" ] && die "Sending to FTP is disabled."
 # validate mandatory values
-if [ -z "$ftp_host" ]; then
-	log "FTP host not found"
-	quit_clean 11
-fi
+[ -z "$ftp_host" ] && die "FTP host not found"
 
-if [ -z "$ftp_port" ]; then
-	log "FTP port not found"
-	quit_clean 12
-fi
+# assign default values if not set
+[ -z "$ftp_port" ] && ftp_port=21
+[ -z "$ftp_user" ] && ftp_user="anonymous" && ftp_password="anonymous"
 
 if [ -z "$ftp_file" ]; then
 	snapshot=/tmp/snapshot.jpg
-	[ ! -f "$snapshot" ] && log "Cannot find a snapshot" && quit_clean 3
+	[ -f "$snapshot" ] || die "Cannot find a snapshot"
 
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
 	delete_tempfile="true"
@@ -77,27 +51,19 @@ if [ -z "$ftp_file" ]; then
 	ftp_file=$attachment
 fi
 
-command="curl --verbose"
-command="$command --connect-timeout $curl_timeout"
-command="$command --max-time $curl_timeout"
+url="ftp://"
+[ -n "$ftp_user" ] && [ -n "$ftp_password" ] && url="$url$ftp_user:$ftp_password"
+url="$url@$ftp_host:$ftp_port"
+[ -n "$ftp_path" ] && url="$url/${ftp_path// /%20}"
+url="$url/$(date +"$ftp_template")"
 
-# SOCK5 proxy, if needed
-if [ "true" = "$ftp_socks5_enabled" ]; then
-	. /etc/webui/socks5.conf
-	command="$command --socks5-hostname ${socks5_host}:$socks5_port"
-	command="$command --proxy-user ${socks5_login}:$socks5_password"
-fi
+build_cmd "$CURL"
+[ "true" = "$ftp_socks5_enabled" ] && use_socks5
+build_cmd "--url $url"
+build_cmd "--upload-file $ftp_file"
+build_cmd "--ftp-create-dirs"
 
-command="$command --url ftp://"
-[ -n "$ftp_user" ] && [ -n "$ftp_password" ] && command="${command}${ftp_user}:$ftp_password"
-command="${command}@${ftp_host}:$ftp_port"
-[ -n "$ftp_path" ] && command="${command}/${ftp_path// /%20}"
-command="${command}/$(date +"$ftp_template")"
-command="$command --upload-file $ftp_file"
-command="$command --ftp-create-dirs"
-
-log "$command"
-eval "$command" >> "$LOG_FILE" 2>&1
+log_and_run "$command"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"

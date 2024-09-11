@@ -9,11 +9,12 @@ case "$1" in
 		run "/sbin/mdev -s"
 		check_result
 		;;
-	stop | restart | reload)
-		true
+	stop)
+		stopping
+		ok
 		;;
 	*)
-		die "Usage: $0 {start}"
+		die "Usage: $0 {start|stop}"
 		;;
 esac
 

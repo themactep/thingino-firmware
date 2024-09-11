@@ -153,22 +153,27 @@ choice
 	default BR2_ISP_MEMOPT_1 if BR2_SOC_INGENIC_T23N || BR2_SOC_INGENIC_T23ZN || BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL
 	help
 	  Select the memory optimization level for the ISP.
+
 config BR2_ISP_MEMOPT_0
         bool "Optimize Disabled"
         help
            Disables the ISP memory optimization.
+
 config BR2_ISP_MEMOPT_1
         bool "Optimize Level 1"
         help
            Enable ISP memory optimization - Leve 1 - Bypass Lynne + BGM
+
 config BR2_ISP_MEMOPT_2
         bool "Optimize Level 2"
         help
            Enable ISP memory optimization - Leve 2 - Bypass Lynne + BGM + Ass
+
 config BR2_ISP_MEMOPT_3
         bool "Optimize Level 3"
         help
            Enable ISP memory optimization - Leve 3 - Normal
+
 endchoice
 
 if FALSE
@@ -183,6 +188,7 @@ config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE
 	help
 	  Specify the exact number of frames to drop during the switch.
 	  This setting is only active if the drop frame feature is enabled.
+
 endif
 
 menuconfig BR2_ISP_CH0_PRE_DEQUEUE_TIME
@@ -195,6 +201,7 @@ config BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE
 	help
 	  Specify the exact pre-dequeue time for channel 0 in milliseconds.
 	  This setting is only active if the pre-dequeue time feature is enabled.
+
 endif
 
 menuconfig BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
@@ -207,6 +214,7 @@ config BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_VALUE
 	help
 	  Specify the interrupt processing time for pre-dequeue for channel 0.
 	  This setting is only active if the feature is enabled.
+
 endif
 
 menuconfig BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
@@ -219,6 +227,7 @@ config BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE
 	help
 	  Specify the number of valid lines for pre-dequeue for channel 0.
 	  This setting is only active if the feature is enabled.
+
 endif
 endif
 endif
@@ -347,6 +356,7 @@ config BR2_MOTORS_SPI
 
 config BR2_SDCARD
 	bool "SD/MMC Card"
+	select BR2_PACKAGE_THINGINO_KOPT_MMC
 	help
 	  The hardware has an SD/MMC card slot.
 
@@ -379,6 +389,7 @@ config BR2_THINGINO_DEVICE_TYPE_IPCAM
 	bool "IPCamera"
 	help
 	   Specifies the device type as a Camera and installs configurations specific to this type.
+
 config BR2_THINGINO_DEVICE_TYPE_IPCAM_PAN_TILT
 	bool "IPCamera - Pan/Tilt"
 	help

@@ -1,0 +1,13 @@
+diff --git a/libfaac/coder.h b/libfaac/coder.h
+index ec26a83..28ed06d 100644
+--- a/libfaac/coder.h
++++ b/libfaac/coder.h
+@@ -32,7 +32,7 @@ extern "C" {
+ /* Allow encoding of Digital Radio Mondiale (DRM) with transform length 1024 */
+ //#define DRM_1024
+ 
+-#define MAX_CHANNELS 64
++#define MAX_CHANNELS 1
+ 
+ #ifdef DRM
+ #ifdef DRM_1024

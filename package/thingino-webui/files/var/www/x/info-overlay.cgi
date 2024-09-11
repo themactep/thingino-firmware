@@ -1,10 +1,10 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
 <%
-s=$(df | grep /overlay | xargs | cut -d' ' -f5)
-page_title="Contents of the overlay partition"
+page_title="Overlay partition"
 %>
 <%in _header.cgi %>
+<% s=$(df | grep /overlay | xargs | cut -d' ' -f5) %>
 <div class="alert alert-primary">
 <h5>Overlay partition is <%= $s %> full.</h5>
 <% progressbar "${s/%/}" %>

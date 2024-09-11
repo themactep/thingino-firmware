@@ -1,35 +1,32 @@
 #!/bin/sh
 
 DAEMON=onvif_notify_server
+DAEMON_ARGS="--conf_file /etc/onvif.conf --pid_file /run/$DAEMON.pid"
+MOTION="/run/motion"
 
 . /etc/init.d/rc.common
-
-DAEMON_ARGS="--conf_file /etc/onvif.conf --pid_file /var/run/$DAEMON_SHORT.pid"
-MOTION="/run/motion"
 
 # read web config
 ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
 [ -f $ONVIF_WEBUI_CONF ] && . $ONVIF_WEBUI_CONF
 
 # default to "enabled" (config is managed by S96onvif_discovery)
-if [ -z "$onvif_enabled" ]; then
-	onvif_enabled="true"
-fi
+[ -z "$onvif_enabled" ] && onvif_enabled="true"
 
 is_onvif_disabled() {
 	[ "true" != "$onvif_enabled" ]
 }
 
 start() {
-	starting "ONVIF notify"
+	starting
 	is_streamer_disabled && quit "Streamer disabled"
-	is_onvif_disabled && quit "ONVIF notify disabled"
-	[ ! -d "$MOTION" ] && mkdir -p $MOTION
-	start_daemon
+	is_onvif_disabled && quit "ONVIF disabled"
+	[ -d "$MOTION" ] || mkdir -p $MOTION
+	start_daemon_with_pid
 }
 
 stop() {
-	stopping "ONVIF notify"
+	stopping
 	stop_daemon_with_pid
 }
 
@@ -37,12 +34,13 @@ case "$1" in
 	start | stop)
 		$1
 		;;
-	restart | reload)
+	reload | restart)
 		stop
+		sleep 1
 		start
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		die "Usage: $0 {start|stop|restart}"
 		;;
 esac
 

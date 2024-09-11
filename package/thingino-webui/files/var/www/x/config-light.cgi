@@ -1,4 +1,4 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
 <%
 page_title="Illumination Controls"
@@ -15,12 +15,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	white_pwm=$POST_white_pwn
 	ircut_pin1=$POST_ircut_pin1
 	ircut_pin2=$POST_ircut_pin2
-	day_night_max=$POST_day_night_max
-	day_night_min=$POST_day_night_min
-
-	# default values
-	[ -z "$day_night_min" ] && day_night_min=5000
-	[ -z "$day_night_max" ] && day_night_max=15000
+	day_night_max=${POST_day_night_max:-15000}
+	day_night_min=${POST_day_night_min:-5000}
 
 	# save values to env
 	tmpfile=$(mktemp)

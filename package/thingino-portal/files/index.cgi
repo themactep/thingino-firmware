@@ -1,5 +1,5 @@
-#!/usr/bin/haserl
-<% SSH_AUTH_KEYS=/root/.ssh/authorized_keys %>
+#!/bin/haserl
+
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
 <head>
@@ -33,14 +33,15 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	hostname="$POST_hostname"
 	rootpass="$POST_rootpass"
 	rootpkey="$POST_rootpkey"
+	timezone="$POST_timezone"
 fi
 
 if [ "POST" = "$REQUEST_METHOD" ] && [ "save" = "$POST_mode" ]; then
 	tempfile=$(mktemp)
-	echo -e "wlanssid $wlanssid\nwlanpass $wlanpass\nhostname $hostname" > $tempfile
+	echo -e "wlanssid $wlanssid\nwlanpass $wlanpass\nhostname $hostname\ntimezone $timezone" > $tempfile
 	fw_setenv -s $tempfile
 	echo "root:${rootpass}" | chpasswd -c sha512
-	echo "$rootpkey" > $SSH_AUTH_KEYS
+	echo "$rootpkey" > /root/.ssh/authorized_keys
 	sed -i "s/^ifs=.*$/ifs=wlan0/" /etc/onvif.conf
 %>
 <h3 class="text-center display-3 my-5">Done. Rebooting...</h3>
@@ -65,14 +66,21 @@ elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then
 <div class="invalid-feedback">Please enter a password 8 - 64 characters</div>
 </div>
 <div class="mb-2">
+<label class="form-label">User <b>root</b> Password</label>
+<input class="form-control bg-light text-dark" type="text" name="rootpass" id="rootpass" value="<%= $rootpass %>" required autocapitalize="none">
+<div class="invalid-feedback">Please enter password</div>
+</div>
+<div class="mb-2">
 <label class="form-label">Camera Hostname</label>
 <input class="form-control bg-light text-dark" type="text" name="hostname" value="<%= $hostname %>" required autocapitalize="none">
 <div class="invalid-feedback">Please enter hostname</div>
 </div>
-<div class="mb-2">
-<label class="form-label">User <b>root</b> Password</label>
-<input class="form-control bg-light text-dark" type="text" name="rootpass" id="rootpass" value="<%= $rootpass %>" required autocapitalize="none">
-<div class="invalid-feedback">Please enter password</div>
+<div class="my-3">
+<div class="form-check form-switch">
+<input class="form-check-input" type="checkbox" role="switch" id="frombrowser" value="true">
+<label class="form-check-label" for="frombrowser">Pick up time settings from the browser</label>
+<input type="hidden" name="timezone" id="timezone" value="">
+</div>
 </div>
 <div class="mb-4">
 <label class="form-label">User <b>root</b> Public SSH Key (optional)</label>
@@ -80,7 +88,17 @@ elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then
 </div>
 <input type="submit" value="Save Credentials" class="btn btn-primary">
 </form>
+
 <script>
+document.querySelector("#frombrowser").addEventListener("change", ev => {
+	const tz = document.querySelector("#timezone");
+	if (ev.target.checked) {
+		tz.value = Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_', ' ');
+	} else {
+		tz.value = "";
+	}
+});
+
 (() => {
 	const forms = document.querySelectorAll('.needs-validation');
 	Array.from(forms).forEach(form => {
@@ -106,6 +124,7 @@ elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then
 <input type="hidden" name="hostname" value="<%= $hostname %>">
 <input type="hidden" name="rootpass" value="<%= $rootpass %>">
 <input type="hidden" name="rootpkey" value="<%= $rootpkey %>">
+<input type="hidden" name="timezone" value="<%= $timezone %>">
 <input type="submit" class="btn btn-danger" value="Oops, this requires a correction">
 </form>
 
@@ -114,10 +133,12 @@ elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then
 <dd class="lead"><%= $wlanssid %></dd>
 <dt>Wireless Network Password</dt>
 <dd class="lead text-break"><%= $wlanpass %></dd>
-<dt>Camera Hostname</dt>
-<dd class="lead"><%= $hostname %></dd>
 <dt>User <b>root</b> Password</dt>
 <dd class="lead"><%= $rootpass %></dd>
+<dt>Camera Hostname</dt>
+<dd class="lead"><%= $hostname %></dd>
+<dt>Time settings</dt>
+<dd class="lead"><%= $timezone %></dd>
 <dt>User <b>root</b> Public SSH Key</dt>
 <dd class="lead text-break"><%= $rootpkey %></dd>
 </dl>
@@ -129,6 +150,7 @@ elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then
 <input type="hidden" name="hostname" value="<%= $hostname %>">
 <input type="hidden" name="rootpass" value="<%= $rootpass %>">
 <input type="hidden" name="rootpkey" value="<%= $rootpkey %>">
+<input type="hidden" name="timezone" value="<%= $timezone %>">
 <input type="submit" class="btn btn-success" value="Looks good. Proceed with reboot">
 </form>
 

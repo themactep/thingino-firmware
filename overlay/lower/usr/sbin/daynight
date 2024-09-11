@@ -37,28 +37,28 @@ case "$1" in
 		switch_to_day
 		;;
 	~ | toggle)
-		if [ "$state" = "day" ]; then
+		if [ "day" = "$state" ]; then
 			switch_to_night
 		else
 			switch_to_day
 		fi
 		;;
 	*)
-		day_night_max=$(get day_night_max || echo 2400)
-		day_night_min=$(get day_night_min || echo 1200)
+		day_night_max=$(get day_night_max || echo 15000)
+		day_night_min=$(get day_night_min || echo 500)
 
 		echo "$day_night_min - $value - $day_night_max"
 
 		if [ "$reversed" -eq 0 ]; then
-			if [ "$value" -lt "$day_night_min" ] && [ "$state" != "day" ]; then
+			if [ "$value" -lt "$day_night_min" ] && [ "day" != "$state" ]; then
 				switch_to_day
-			elif [ "$value" -gt "$day_night_max" ] && [ "$state" != "night" ]; then
+			elif [ "$value" -gt "$day_night_max" ] && [ "night" != "$state" ]; then
 				switch_to_night
 			fi
 		else
-			if [ "$value" -gt "$day_night_max" ] && [ "$state" != "night" ]; then
+			if [ "$value" -gt "$day_night_max" ] && [ "night" != "$state" ]; then
 				switch_to_night
-			elif [ "$value" -lt "$day_night_min" ] && [ "$state" != "day" ]; then
+			elif [ "$value" -lt "$day_night_min" ] && [ "day" != "$state" ]; then
 				switch_to_day
 			fi
 		fi

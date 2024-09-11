@@ -6,11 +6,6 @@ export SENSOR=$(cat /etc/sensor/model)
 export SOC=$(soc -f)
 export TZ=$(cat /etc/TZ)
 
-# Seritificates for curl in non-interactive shell
-export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
-
-# Start all init scripts in /etc/init.d
-# executing them in numerical order.
 execute_and_log() {
 	script="$1"
 	mkfifo /tmp/initlogpipe
@@ -29,11 +24,12 @@ execute_and_log() {
 	rm -f /tmp/initlogpipe
 }
 
-for i in /etc/init.d/S??*; do
-	[ -f "$i" ] || continue
-
-	execute_and_log "$i" &
-	wait
+# Run init scripts in numerical order
+for i in $(find /etc/init.d/ -name "S*" -executable | sort -n); do
+	#execute_and_log "$i" &
+	#wait
+	/bin/sh -c "$i start"
+	# | log
 done
 
 exit 0

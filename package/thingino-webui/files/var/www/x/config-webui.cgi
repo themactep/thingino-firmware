@@ -1,4 +1,4 @@
-#!/usr/bin/haserl --upload-limit=100 --upload-dir=/tmp
+#!/bin/haserl --upload-limit=100 --upload-dir=/tmp
 <%in _common.cgi %>
 <%
 plugin="webui"
@@ -64,6 +64,7 @@ ui_username="$USER"
 <input type="text" id="ui_username" name="ui_username" value="<%= $ui_username %>" class="form-control" autocomplete="username" disabled>
 </p>
 <% field_password "ui_password_new" "Password" %>
+<% field_password "ws_token" "Websockets security token" "FIXME: a stub" %>
 <% button_submit %>
 </form>
 </div>

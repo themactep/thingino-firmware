@@ -1,0 +1,14 @@
+# MODULE: t31lc_sc2336_atbm6012bx
+FLASH_SIZE_8=y
+BR2_MOTORS=y
+BR2_MOTORS_TCU=y
+BR2_SDCARD=y
+BR2_PACKAGE_THINGINO_KOPT=y
+BR2_PACKAGE_THINGINO_KOPT_MMC0=y
+BR2_PACKAGE_THINGINO_KOPT_MMC0_1BIT=y
+BR2_PACKAGE_THINGINO_KOPT_MMC=y
+BR2_ISP_CLK_220MHZ=y
+BR2_ISP_PARAMS="isp_ch0_pre_dequeue_time=20 isp_ch0_pre_dequeue_interrupt_process=0 isp_ch0_pre_dequeue_valid_lines=540 isp_day_night_switch_drop_frame_num=6"
+BR2_SENSOR_PARAMS="shvflip=1"
+BR2_WIFI_PARAMS="wifi_bt_comb=1"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/galayou-g2-t31lc-atbm6012bx.uenv.txt"

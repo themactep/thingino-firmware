@@ -1,0 +1,79 @@
+#!/bin/sh
+
+if [ "$#" -ne 2 ]; then
+	echo "Usage: $0 <gpio_pin> <mode>"
+	echo "Set the amplifier chip operating mode"
+	exit 1
+fi
+
+GPIO_PIN="$1"
+MODE="$2"
+
+# Function to control the speaker GPIO based on mode
+control_speaker() {
+	case "$1" in
+		mode0)
+			gpio low "$GPIO_PIN"
+			usleep 600
+			echo "SPEAKER CTL MODE0!"
+			;;
+		mode1)
+			gpio low "$GPIO_PIN"
+			usleep 600
+			gpio high "$GPIO_PIN"
+			usleep 100
+			echo "SPEAKER CTL MODE1!"
+			;;
+		mode2)
+			gpio low "$GPIO_PIN"
+			usleep 600
+			gpio high "$GPIO_PIN"
+			usleep 5
+			gpio low "$GPIO_PIN"
+			usleep 5
+			gpio high "$GPIO_PIN"
+			usleep 100
+			echo "SPEAKER CTL MODE2!"
+			;;
+		mode3)
+			gpio low "$GPIO_PIN"
+			usleep 600
+			gpio high "$GPIO_PIN"
+			usleep 5
+			gpio low "$GPIO_PIN"
+			usleep 5
+			gpio high "$GPIO_PIN"
+			usleep 5
+			gpio low "$GPIO_PIN"
+			usleep 5
+			gpio high "$GPIO_PIN"
+			usleep 100
+			echo "SPEAKER CTL MODE3!"
+			;;
+		mode4)
+			gpio low "$GPIO_PIN"
+			usleep 600
+			gpio high "$GPIO_PIN"
+			usleep 5
+			gpio low "$GPIO_PIN"
+			usleep 5
+			gpio high "$GPIO_PIN"
+			usleep 5
+			gpio low "$GPIO_PIN"
+			usleep 5
+			gpio high "$GPIO_PIN"
+			usleep 5
+			gpio low "$GPIO_PIN"
+			usleep 5
+			gpio high "$GPIO_PIN"
+			usleep 100
+			echo "SPEAKER CTL MODE4!"
+			;;
+		*)
+			echo "Invalid mode. Supported modes: mode0, mode1, mode2, mode3, mode4"
+			exit 1
+			;;
+	esac
+}
+
+control_speaker "$MODE"

@@ -1,237 +1,247 @@
 #!/bin/sh
 
+# mandate virtual partitions
+grep -q "mtd[56]" /proc/mtd || die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
+
 KERNEL_MAGIC="27051956"
 U_BOOT_MAGIC="06050403"
 ROOTFS_MAGIC="68737173"
-BB_BINARY=/tmp/busybox
+GH="https://github.com/"
+PAD="\t\t\t    "
 
-downloaded_file=0  # Flag to track if the file was downloaded
-trap_signal_received=0  # Flag to track if a signal was received
+workdir="/tmp/sysupgrade"
+stage2app="sysupgrade-stage2"
+[ -d $workdir ] || mkdir -p $workdir
+fw_file="$workdir/fw.bin"
 
-if [ -z "$RUNNING_WITH_TMP_BUSYBOX" ]; then
-	if [ ! -f /tmp/busybox ]; then
-		cp /bin/busybox /tmp/busybox
-		cp $0 /tmp/sysupgrade
-		cp /sbin/fw_printenv /tmp/fw_printenv
-		ln -s /tmp/fw_printenv /tmp/fw_setenv
-		cp /etc/fw_env.config /tmp/fw_env.config
-	fi
+self=$(realpath $0)
+bbapplets="echo flash_eraseall flashcp reboot sh sleep"
+upgrade=""
 
-	RUNNING_WITH_TMP_BUSYBOX=1 exec /tmp/busybox sh /tmp/sysupgrade "$@"
-fi
+# work in $workdir
+cd $workdir
+
+bye() {
+	die "\n\n\tMaybe next time..."
+}
+
+check_network() {
+	curl -m 5 -I $1 >/dev/null 2>&1 && return
+	echo_c 160 "No internet?\n"
+	ip a
+	exit 1
+}
+
+check_free_space() {
+	local dl_size=$(curl -sIL $1 | awk '/Content-Length/{fs=$2}END{print fs}')
+	local free_space=$(df -m /tmp | tail -1 | awk '{print $4}')
+	free_space=$((free_space * 1024 * 1024))
+	[ "$dl_size" -gt "$free_space" ] && die "Not enough free space to download firmware: $dl_size > $free_space"
+}
 
 cleanup() {
-	# Only perform cleanup if a signal (Ctrl+C or kill) was received
-	if [ "$trap_signal_received" -eq 1 ]; then
-		$BB_BINARY echo "Clean up temporary files."
+	say "Clean up temporary files."
+	rm -rf $workdir
+	exit 0
+}
 
-		# Only delete files that were downloaded (flag = 1)
-		[ "$downloaded_file" -eq 1 ] && [ -n "$binary_file" ] && [ -f "$binary_file" ] && $BB_BINARY rm -f "$binary_file"
-		[ -n "$checksum_file" ] && [ -f "$checksum_file" ] && $BB_BINARY rm -f "$checksum_file"
-		$BB_BINARY rm -f /tmp/fw_setenv /tmp/fw_printenv /tmp/sysupgrade
+clone_app() {
+	local target="$2"
+	[ -z "$target" ] && target="$(basename $1)"
+	if ! cp -vf "$1" "$workdir/$target"; then
+		say "Error: Failed to copy $1 to $workdir/$target"
+		cleanup
+	fi
+	chmod +x $workdir/$target
+}
 
-		# Ensure no further commands are executed after removing busybox
-		/tmp/busybox rm -f /tmp/busybox
-		exit 0  # Immediately exit after cleanup to prevent any further commands or error output
+die() {
+	say "$1"
+	exit 1
+}
+
+download() {
+	curl -fL# -o $fw_file $1 || die "Download failed!"
+}
+
+expand_bb() {
+	echo "set up $1"
+	ln -s $workdir/busybox $workdir/$1
+}
+
+handle_payload() {
+	if [ "local" = "$upgrade" ]; then
+		say "Upgrading from a provided file"
+		if echo "$1" | grep -qE '^https?://'; then
+			say "Download firmware from\n$1"
+			check_free_space $1
+			download $1
+		else
+			mv $1 $fw_file
+		fi
+	else
+		say "Upgrading from GitHub"
+		data=/etc/os-release
+		profile=$(awk -F= '/^IMAGE_ID=/ {print $2}' $data)
+		[ -z "$profile" ] && die "Building profile is not set in $data"
+
+		gh_url="$GH/themactep/thingino-firmware/releases/download"
+		bin_url="$gh_url/firmware"
+		sha_url="$gh_url/verify/"
+
+		if [ "part" = "$upgrade" ]; then
+			bin_url="${bin_url}_update/thingino-${profile}-update.bin"
+			sha_url="${sha_url}thingino-${profile}-update.bin.sha256sum"
+		else
+			bin_url="${bin_url}/thingino-${profile}.bin"
+			sha_url="${sha_url}thingino-${profile}.bin.sha256sum"
+		fi
+		bin_file=$(basename $bin_url)
+		sha_file=$(basename $sha_url)
+
+		check_free_space $bin_url
+
+		say "Download firmware\n$bin_url"
+		echo "curl -LO# $bin_url"
+		curl -LO# $bin_url || die "Failed to download firmware!"
+
+		say "Download checksum file\n$sha_url"
+		curl -LO# $sha_url || die "Failed to download checksum file!"
+
+		sha256sum -c $sha_file || die "Checksum does not match!"
+
+		rm $sha_file
+		mv $bin_file $fw_file
 	fi
 }
 
-# Trap INT and TERM signals to ensure cleanup when the script is interrupted or killed
-trap 'trap_signal_received=1; cleanup' INT TERM
+flush_memory() {
+	say "Sync changes"
+	sync
+	say "Drop caches"
+	echo 3 > /proc/sys/vm/drop_caches
+}
+
+remove_snapshot() {
+	say "Remove snapshot"
+	rm -f /tmp/snapshot.jpg
+}
+
+say() {
+	echo -e "$1"
+}
 
 show_help() {
-	$BB_BINARY echo "Usage: $0 <filename> | [-f | -p] | <URL>
+	die "Usage: $0 [ -f | -p | <filename> | <URL> ]
 Where:
   -f          full upgrade with a binary from GitHub
   -p          partial upgrade with a binary from GitHub
   <filename>  full or partial upgrade from a local file
   <URL>       full or partial upgrade from a URL
-  -h          this help
-"
-}
-
-stop_service() {
-	if [ -f "/etc/init.d/$1" ]; then
-		$BB_BINARY sh /etc/init.d/"$1" stop
-	fi
-}
-
-verify_checksum() {
-	checksum_url="${checksum_url}/${sha256_file}"
-
-	checksum_file=$($BB_BINARY mktemp)
-	$BB_BINARY echo -e "Downloading SHA-256 checksum from: \n$checksum_url"
-	if ! curl -# -L -f -o "$checksum_file" "$checksum_url"; then
-		$BB_BINARY echo -e "Failed to download checksum from: \n$checksum_url"
-		exit 1
-	fi
-
-	# Extract the expected checksum (first field) from the downloaded file
-	expected_checksum=$($BB_BINARY awk '{print $1}' "$checksum_file")
-	actual_checksum=$($BB_BINARY sha256sum "$binary_file" | $BB_BINARY awk '{print $1}')
-
-	if [ "$expected_checksum" = "$actual_checksum" ]; then
-		$BB_BINARY echo "SHA-256 checksum verification succeeded."
-	else
-		$BB_BINARY echo "SHA-256 checksum verification failed! Firmware file might be corrupted."
-		exit 1
-	fi
-}
-
-reboot_func() {
-	$BB_BINARY echo "Rebooting in 5 seconds..."
-	$BB_BINARY sleep 5
-	$BB_BINARY echo wdt > /proc/jz/reset/reset
+  -h          this help"
 }
 
 stop_services() {
-	services="S01syslogd S09motor S15thingino-button S49ntpd S50httpd S50crond S50mdnsd S50mosquitto S93telegrambot S95prudynt S96iad S96onvif_discovery S97onvif_notify"
-	for service in $services; do
-		stop_service "$service"
+	say "Stop services"
+	for i in $(find /etc/init.d/ -name "[KS]*" -executable | sort -nr); do
+		case "$(basename $i)" in
+			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S50dropbear)
+				continue
+				;;
+			*)
+				sh -c "$i stop"
+				;;
+		esac
 	done
-}
-
-flush_memory(){
-	$BB_BINARY echo "Sync changes"
-	$BB_BINARY sync
-
-	$BB_BINARY echo "Drop caches"
-	$BB_BINARY echo 3 > /proc/sys/vm/drop_caches
-}
-
-flash_firmware() {
-	$BB_BINARY flashcp -v $binary_file /dev/$mtd_dev
-
-	if [ $? -ne 0 ]; then
-		$BB_BINARY echo "Caution: You may need to perform a recovery flash restore before rebooting the camera!"
-		exit 1
-	fi
-
-	[ "mtd5" = "$mtd_dev" ] && /tmp/fw_setenv -c /tmp/fw_env.config sysupgrade_complete false
-
-	$BB_BINARY echo "Upgrade complete."
-	reboot_func
 }
 
 while getopts "fhp" flag; do
 	case "$flag" in
 		f)
+			say "Full upgrade from GitHub"
 			upgrade="full"
+			url="$GH"
 			;;
 		p)
+			say "Partial upgrade from GitHub"
 			upgrade="part"
+			url="$GH"
 			;;
-		h|*)
+		h | *)
 			show_help
-			exit 1
 			;;
 	esac
 done
 
 if [ -z "$upgrade" ]; then
-	if [ -z "$1" ]; then
-		show_help
-		exit 1
-	fi
+	[ -z "$1" ] && show_help
+
 	upgrade="local"
-fi
-
-shift $((OPTIND-1))
-
-$BB_BINARY echo "Stop services"
-stop_services
-
-$BB_BINARY echo "Remove snapshot"
-$BB_BINARY rm -f /tmp/snapshot.jpg
-
-flush_memory
-
-if [ "local" = "$upgrade" ]; then
-	$BB_BINARY echo "Upgrading from a provided file"
 	if echo "$1" | grep -qE '^https?://'; then
-		binary_file=$($BB_BINARY mktemp)
-		$BB_BINARY echo -e "Downloading firmware from: \n$1"
-		if ! curl -# -L -f -o "$binary_file" "$1"; then
-			$BB_BINARY echo -e "Failed to download firmware from: \n$1"
-			exit 1
-		fi
-		downloaded_file=1  # Set flag indicating the file was downloaded
+		echo "Upgrade from a remote file"
+		url="$1"
 	else
-		binary_file="$1"
+		echo "Upgrade from a local file"
+		[ -r "$1" ] || die "Cannot find file $1"
 	fi
-else
-	$BB_BINARY echo "Upgrading from GitHub"
-	data=/etc/os-release
-	profile=$($BB_BINARY awk -F '=' '/^IMAGE_ID=/ {print $2}' $data)
-	if [ -z "$profile" ]; then
-		$BB_BINARY echo "Building profile is not set in $data"
-		exit 1
-	fi
-
-	url="https://github.com/themactep/thingino-firmware/releases/download/firmware"
-	checksum_url="https://github.com/themactep/thingino-firmware/releases/download/verify"
-
-	if [ "$upgrade" = "part" ]; then
-		fw_file="_update/thingino-${profile}-update.bin"
-		sha256_file="thingino-${profile}-update.bin.sha256sum"
-	else
-		fw_file="/thingino-${profile}.bin"
-		sha256_file="thingino-${profile}.bin.sha256sum"
-	fi
-
-	binary_file=$($BB_BINARY mktemp) # Create a temporary file to hold the firmware
-	$BB_BINARY echo -e "Downloading firmware from: \n${url}${fw_file}"
-	if !  curl -# -L -f -o "$binary_file" ${url}"${fw_file}"; then
-		$BB_BINARY echo -e "Failed to download firmware from: \n${url}${fw_file}"
-		exit 1
-	fi
-
-	downloaded_file=1  # Set flag indicating the file was downloaded
-
-	verify_checksum
 fi
 
-# Detect magic directly from the binary file
-internal_magic=$($BB_BINARY xxd -l 4 -p "$binary_file")
+if [ "full" = "$upgrade" ]; then
+	clear
+	echo_c 160 "
+$PAD ____ _____ ___  ____
+$PAD/ ___|_   _/ _ \|  _ \\
+$PAD\___ \ | || | | | |_) |
+$PAD ___) || || |_| |  __/
+$PAD|____/ |_| \___/|_|
+"
+	say "\tYou have requested to perform a full firmware upgrade,"
+	say "\twhich is a risky operation replacing the existing bootloader.\n"
+	say "\tIn the event of an error, the camera will become inoperable,"
+	say "\tand you will need to perform a recovery restore the system.\n"
+	echo_c 160 "\tYou have ten seconds to cancel the upgrade by pressing Ctrl-C."
+	echo -en "\n\n\t    "
 
-case "$internal_magic" in
-	"$U_BOOT_MAGIC")
-		fsize=$($BB_BINARY stat -c%s "$binary_file")
-		if [ "$fsize" -le $((256 * 1024)) ]; then
-			mtd_dev="mtd0"
-		else
-			mtd_dev="mtd6"
-		fi
-		;;
-	"$KERNEL_MAGIC")
-		mtd_dev="mtd5"
-		;;
-	"$ROOTFS_MAGIC")
-		$BB_BINARY echo "We cannot flash only rootfs"
-		exit 1
-		;;
-	*)
-		$BB_BINARY echo "Unknown file"
-		exit 1
-		;;
+	trap bye 2 15
+	i=10
+	while :; do
+		[ "$i" -lt 0 ] && break
+		echo -n "$i"
+		[ "$i" -gt 0 ] && echo -n " .. "
+		i=$((i-1))
+		sleep 1
+	done
+	clear
+fi
+
+trap cleanup 2 6 15
+
+[ -n "$url" ] && check_network "$url"
+
+handle_payload "$@"
+
+case "$(xxd -l 4 -p $fw_file)" in
+	"$U_BOOT_MAGIC") [ "$(stat -c%s $fw_file)" -le 262144 ] && mtd_dev="mtd0" || mtd_dev="mtd6" ;;
+	"$KERNEL_MAGIC") mtd_dev="mtd5" ;;
+	"$ROOTFS_MAGIC") die "We cannot flash only rootfs" ;;
+	*) die "Unknown file" ;;
 esac
 
-if ! $BB_BINARY grep -q -e "mtd6" -e "mtd5" /proc/mtd; then
-	$BB_BINARY echo "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
-	exit 1
+stop_services
+remove_snapshot
+flush_memory
+
+clone_app /bin/busybox
+clone_app /sbin/$stage2app
+for a in $bbapplets; do expand_bb $a; done
+
+echo_c 208 "Switching to Stage 2.\n"
+if ! exec $workdir/busybox sh $workdir/$stage2app "$fw_file" "$mtd_dev"; then
+	say "Error: Failed to execute $workdir/$stage2app"
+	cleanup
 fi
 
-$BB_BINARY echo "Unmount overlay"
-$BB_BINARY umount /overlay
-
-$BB_BINARY echo "Unmount rootfs"
-$BB_BINARY umount /
-
-flush_memory
-$BB_BINARY echo -e "\nPerforming upgrade\nDo not turn off the power!\n"
-flash_firmware
-
-# If we complete successfully, do not clean up
+# If succeeded, do not clean up
 trap - INT TERM
 
 exit 0

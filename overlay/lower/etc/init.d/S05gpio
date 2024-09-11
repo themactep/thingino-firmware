@@ -2,85 +2,40 @@
 
 . /etc/init.d/rc.common
 
-CONFIG_FILE="/etc/gpio.conf"
+VALID_STATES="high low input"
 
-process_gpio_command() {
-	case "$1" in
-		set)
-			run "gpio set \"$2\""
-			;;
-		clear)
-			run "gpio clear \"$2\""
-			;;
-		*)
-			echo "Invalid GPIO command"
-			return 1
-			;;
-	esac
-	return 0
-}
+start() {
+	while IFS= read -r line; do
+		# Skip empty lines and comments
+		[ -z "$line" ] || echo "$line" | grep -q '^#' && continue
 
-process_ingenic_command() {
-	# Calculate the group and pin from the GPIO number
-	group=$(($1 / 32))
-	pin=$(($1 % 32))
-
-	# Convert the group number to a group letter (A, B, C, etc.)
-	group_letter=$(printf "\\$(printf '%03o' $((group + 65)))")
-
-	# The rest of the arguments are passed as-is
-	shift 1 # Remove the first argument (gpio_num) before passing to ingenic-gpio
-
-	run "ingenic-gpio \"p$group_letter$pin\" \"$@\""
-	return 0
-}
-
-# Function to read and process the config file
-process_config_file() {
-	success=1
-
-	# Check if the configuration file exists
-	[ -f "$CONFIG_FILE" ] || die "GPIO configuration file not found!"
-
-	# Read the configuration file line by line
-	while IFS= read -r line || [ -n "$line" ]; do
-		# Ignore comments and empty lines
-		if [ -z "$line" ] || [ "${line#\#}" != "$line" ]; then
-			continue
-		fi
-
-		# Split the line into arguments
+		# Extract fields and validate
 		set -- $line
-
-		# Process the command
-		case "$1" in
-			gpio)
-				process_gpio_command "$2" "$3" || success=0
-				;;
-			ingenic)
-				process_ingenic_command "$2" "$3" "$4" "$5" "$6" || success=0
-				;;
-			*)
-				echo "Unknown command: $1"
-				success=0
-				;;
+		gpionum=$1
+		state=$(echo "$2" | tr '[:upper:]' '[:lower:]')
+		case "$VALID_STATES" in
+			*"$state"*) : ;;
+			*) info "Invalid state: $state in line: $line"; return 1 ;;
 		esac
-	done < $CONFIG_FILE
+		[ "$gpionum" -ge 0 ] && [ "$gpionum" -le 192 ] || { info "Invalid GPIO number: $gpionum in line: $line"; return 1; }
 
-	[ $success -eq 1 ] && ok || fail
+		run "gpio \"$state\" \"$gpionum\""
+		[ -n "$3" ] && info "Description: $3"
+	done < /etc/gpio.conf
 }
 
-# Main script execution
 case "$1" in
 	start)
 		starting
-		process_config_file
+		start
+		ok
 		;;
-	stop | restart | reload)
-		true
+	stop)
+		stopping
+		ok
 		;;
 	*)
-		die "Usage: $0 {start}"
+		die "Usage: $0 {start|stop}"
 		;;
 esac
 

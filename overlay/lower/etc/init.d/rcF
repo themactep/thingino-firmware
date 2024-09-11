@@ -2,17 +2,10 @@
 
 . /etc/init.d/rc.common
 
-echo_c 208 "\nPress the [f] key to enter failsafe mode\n"
+# Run init scripts in numerical order.
+for i in $(find /etc/init.d/ -name "F*" -executable | sort -n); do
+	/bin/sh -c "$i"
+	# | log
+done
 
-stty -icanon min 0 time 20 -echo
-
-key=$(dd bs=1 count=1 2> /dev/null)
-
-stty sane
-
-if [ "f" = "$key" ]; then
-	echo_c 118 "Entering failsafe mode..."
-	/bin/sh
-else
-	/etc/init.d/rcS
-fi
+exit 0

@@ -1,4 +1,4 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
 <%
 file=$GET_file
@@ -10,14 +10,14 @@ else
 	mime="application/octet-stream"
 fi
 check_file_exist $file
-echo "HTTP/1.0 200 OK
-Date: $(time_http)
-Server: $SERVER_SOFTWARE
-Content-type: ${mime}
-Content-Disposition: attachment; filename=${fname}
-Content-Length: $(stat -c%s $file)
-Cache-Control: no-store
-Pragma: no-cache
-"
+echo -en "HTTP/1.0 200 OK\r\n
+Date: $(time_http)\r\n
+Server: $SERVER_SOFTWARE\r\n
+Content-type: ${mime}\r\n
+Content-Disposition: attachment; filename=${fname}\r\n
+Content-Length: $(stat -c%s $file)\r\n
+Cache-Control: no-store\r\n
+Pragma: no-cache\r\n
+\r\n"
 cat $file
 %>

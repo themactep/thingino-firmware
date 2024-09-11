@@ -3,11 +3,29 @@ menuconfig BR2_PACKAGE_USBNET
 	help
 	  Networking Device Options
 
+config BR2_PACKAGE_USBNET_ASIX
+	bool "ASIX AX8817X USB"
+	depends on BR2_PACKAGE_USBNET
+	help
+	  Enables ASIX AX88xxx USB 2.0 core driver
+
+config BR2_PACKAGE_USBNET_ASIX_179_178A
+	bool "ASIX AX88179_178A USB"
+	depends on BR2_PACKAGE_USBNET
+	help
+	  Enables ASIX AX88179_178A USB 3.0 driver
+
+config BR2_PACKAGE_USBNET_CDC_ETHER
+	bool "CDC_ETHER"
+	depends on BR2_PACKAGE_USBNET
+	help
+	  Enables CDC Ethernet over USB
+
 config BR2_PACKAGE_USBNET_USB_DIRECT_NCM
 	bool "CDC-NCM"
 	depends on BR2_PACKAGE_USBNET
 	help
-	  Enable CDC_NCM Support
+	  Enable CDC_NCM Support over USB
 
 #config BR2_PACKAGE_USBNET_USB_DIRECT_ECM
 #	bool "CDC-ECM"
@@ -15,23 +33,17 @@ config BR2_PACKAGE_USBNET_USB_DIRECT_NCM
 #	help
 #	  Enables CDC_ECM
 
+config BR2_PACKAGE_USBNET_R8152
+	bool "Realtek 8152"
+	depends on BR2_PACKAGE_USBNET
+	help
+	  Enables support for Realtek RTL8152 based USB 2.0 network adapters
+
 config BR2_PACKAGE_USBNET_RNDIS
 	bool "RNDIS"
 	depends on BR2_PACKAGE_USBNET
 	help
-	  Enables RNDIS
-
-config BR2_PACKAGE_USBNET_ASIX
-	bool "ASIX USB"
-	depends on BR2_PACKAGE_USBNET
-	help
-	  Enables ASIX AX8817X core usb driver
-
-config BR2_PACKAGE_USBNET_CDC_ETHER
-	bool "CDCETHER"
-	depends on BR2_PACKAGE_USBNET
-	help
-	  Enables CDC Ethernt usb driver
+	  Enables RNDIS over USB
 
 config BR2_PACKAGE_USBNET_WWAN_SERIAL
 	bool "WWAN via USB SERIAL"

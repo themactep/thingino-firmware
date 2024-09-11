@@ -1,6 +1,8 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
-<% page_title="Cron settings" %>
+<%
+page_title="Cron jobs"
+%>
 <%in _header.cgi %>
 <% ex "cat /etc/crontabs/root" %>
 <p><a href="https://devhints.io/cron">Cron syntax cheatsheet</a></p>

@@ -49,7 +49,7 @@ function show_help() {
 	case "$item" in
 		"HELP 2")
 			show_help_msgbox "Choose a device profile that closely matches your hardware specifications.\n\nYou can select from a \
-'Cameras' profile with preconfigured environmental settings tailored for specific camera models, or opt for a 'Board' profile which \
+'Cameras' profile with preconfigured environmental settings tailored for specific camera models, or opt for a 'Module' profile which \
 provides basic configurations necessary to initialize the hardware.\n\nExperimental profiles are also available for bleeding edge testing." 14;;
 		"HELP 1")
 			show_help_msgbox "The 'Bootstrap' option initiates the installation of all necessary prerequisite software required for \

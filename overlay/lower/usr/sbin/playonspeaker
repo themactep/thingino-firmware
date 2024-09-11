@@ -2,7 +2,7 @@
 
 plugin="speaker"
 
-. /sbin/common-plugins
+. /sbin/common
 
 show_help() {
 	echo "Usage: $0 [-u url] [-f file] [-v] [-h]
@@ -17,50 +17,20 @@ show_help() {
 # override config values with command line arguments
 while getopts f:u:vh flag; do
 	case "$flag" in
-		f)
-			speaker_file=$OPTARG
-			;;
-		u)
-			speaker_url=$OPTARG
-			;;
-		v)
-			verbose="true"
-			;;
-		h | *)
-			show_help
-			;;
+		f) speaker_file=$OPTARG ;;
+		u) speaker_url=$OPTARG ;;
+		v) verbose="true" ;;
+		h | *) show_help ;;
 	esac
 done
 
-if [ "false" = "$speaker_enabled" ]; then
-	log "Playing on speaker is disabled in config $config_file"
-	quit_clean 10
-fi
-
+[ "false" = "$speaker_enabled" ] && die "Playing on speaker is disabled in config $config_file"
 # validate mandatory values
-if [ -z "$speaker_url" ]; then
-	log "Speaker URL is not set"
-	quit_clean 12
-fi
+[ -z "$speaker_url" ] && die "Speaker URL is not set"
+[ -z "$speaker_file" ] && die "Audio file is not set"
+[ -f "$speaker_file" ] || die "Audio file $speaker_file not found"
 
-if [ -z "$speaker_file" ]; then
-	log "Audio file is not set"
-	quit_clean 13
-fi
-
-if [ ! -f "$speaker_file" ]; then
-	log "Audio file $speaker_file not found"
-	quit_clean 14
-fi
-
-command="curl --verbose"
-command="$command --connect-timeout $curl_timeout"
-command="$command --max-time $curl_timeout -X POST"
-command="$command -T $speaker_file"
-command="$command --url $speaker_url"
-
-log "$command"
-eval "$command" >> "$LOG_FILE" 2>&1
+log_and_run "$CURL -X POST -T $speaker_file --url $speaker_url"
 
 [ "true" = "$verbose" ] && cat "$LOG_FILE"
 

@@ -1,0 +1,25 @@
+THINGINO_OPUS_VERSION = 1.4
+THINGINO_OPUS_SOURCE = opus-$(THINGINO_OPUS_VERSION).tar.gz
+THINGINO_OPUS_SITE = https://downloads.xiph.org/releases/opus
+THINGINO_OPUS_LICENSE = BSD-3-Clause
+THINGINO_OPUS_LICENSE_FILES = COPYING
+THINGINO_OPUS_CPE_ID_VENDOR = opus-codec
+
+THINGINO_OPUS_AUTORECONF = YES
+THINGINO_OPUS_INSTALL_STAGING = YES
+
+THINGINO_OPUS_CFLAGS = $(TARGET_CFLAGS) -ffunction-sections -fdata-sections
+THINGINO_OPUS_LFLAGS = $(TARGET_LFLAGS) -Wl,--gc-sections -z max-page-size=0x1000
+
+ifeq ($(BR2_TOOLCHAIN_HAS_GCC_BUG_85180),y)
+THINGINO_OPUS_CFLAGS += -O0
+endif
+
+THINGINO_OPUS_CONF_ENV = CFLAGS="$(THINGINO_OPUS_CFLAGS)" LDFLAGS="$(THINGINO_OPUS_LDFLAGS)"
+THINGINO_OPUS_CONF_OPTS = --enable-custom-mode --disable-extra-programs
+
+ifeq ($(BR2_OPTIMIZE_FAST),y)
+THINGINO_OPUS_CONF_OPTS += --enable-float-approx
+endif
+
+$(eval $(autotools-package))

@@ -1,8 +1,8 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
-
 DAEMON_ARGS="-n -C64 -t"
+
+. /etc/init.d/rc.common
 
 start() {
 	starting
@@ -18,13 +18,13 @@ case "$1" in
 	start | stop)
 		$1
 		;;
-	restart | reload)
+	reload | restart)
 		stop
 		sleep 1
 		start
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		die "Usage: $0 {start|stop|restart}"
 		;;
 esac
 

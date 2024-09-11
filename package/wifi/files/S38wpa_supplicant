@@ -5,6 +5,8 @@
 IFACE=wlan0
 CONFIG="/etc/$DAEMON_SHORT.conf"
 PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
+WLAN_INT_FILE="/etc/network/interfaces.d/wlan0"
+SCRIPT_MARKER="# managed by init.d"
 
 DAEMON_ARGS="-i $IFACE -c $CONFIG -P $PIDFILE -B"
 
@@ -26,10 +28,12 @@ start() {
 		fw_setenv wlanpass $pass
 	fi
 
-	iface_exists "wlan0" || quit "Disabled"
+	iface_exists "wlan0" || quit "No wireless interface"
 
 	if [ -z "$ssid" ] || [ -z "$pass" ]; then
-		sed -i '/^auto wlan0$/s/^/#/' /etc/network/interfaces.d/wlan0
+		if grep -q '^auto wlan0' $WLAN_INT_FILE; then
+			sed -i "/^auto wlan0$/s/^/$SCRIPT_MARKER /" $WLAN_INT_FILE
+		fi
 		quit "WiFi credentials missing"
 	fi
 
@@ -39,7 +43,13 @@ start() {
 		sed -i '/ssid/a \\tscan_ssid=1' $CONFIG
 	fi
 
-	sed -i '/^#auto wlan0$/s/^#//' /etc/network/interfaces.d/wlan0
+	if grep -q "^$SCRIPT_MARKER auto wlan0" $WLAN_INT_FILE; then
+		sed -i "s/^$SCRIPT_MARKER //g" $WLAN_INT_FILE
+	elif grep -q "^#auto wlan0" $WLAN_INT_FILE; then
+		quit "wlan0 manually disabled"
+	elif ! grep -q "^auto wlan0" $WLAN_INT_FILE; then
+		quit "Interfaces file not ready"
+	fi
 
 	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1 | log
 	check_result

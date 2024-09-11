@@ -25,12 +25,27 @@ if [ -z "$pin" ]; then
 	exit 1
 fi
 
+# default to output high
+[ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
+
+case ${pin:(-1)} in
+	o)
+		pin_on=0
+		pin_off=1
+		;;
+	O | *)
+		pin_on=1
+		pin_off=0
+		;;
+esac
+pin=${pin:0:(-1)}
+
 case "$mode" in
 	on | 1)
-		gpio set $pin > /dev/null
+		gpio set $pin $pin_on > /dev/null
 		;;
 	off | 0)
-		gpio clear $pin > /dev/null
+		gpio set $pin $pin_off > /dev/null
 		;;
 	read)
 		gpio value $pin

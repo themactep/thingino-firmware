@@ -8,7 +8,8 @@ define INGENIC_PWM_BUILD_CMDS
 endef
 
 define INGENIC_PWM_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0755 $(@D)/ingenic-pwm $(TARGET_DIR)/usr/bin/pwm
+	$(INSTALL) -D -m 0755 $(@D)/ingenic-pwm $(TARGET_DIR)/usr/sbin/pwm
+	$(INSTALL) -D -m 0755 $(INGENIC_PWM_PKGDIR)/files/pwm-ctrl $(TARGET_DIR)/usr/sbin/pwm-ctrl
 endef
 
 $(eval $(generic-package))

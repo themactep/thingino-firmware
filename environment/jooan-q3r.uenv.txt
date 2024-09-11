@@ -1,0 +1,22 @@
+day_night_max=15000
+day_night_min=500
+disable_eth=true
+enable_updates=true
+gpio_default=6O 18O 25ID 26IDU 49o 50o 57o 58o 59o 60o 61i 62i 63O
+gpio_button=62
+gpio_ir850=59
+gpio_ircut=50 49
+gpio_led_g=57
+gpio_led_r=58
+gpio_mmc_cd=61
+gpio_motor_h=14 54 52 53
+gpio_motor_v=14 54 52 53
+gpio_motor_switch=17
+gpio_motor_speed=300
+gpio_speaker=63o
+gpio_white=60O
+gpio_wlan=6
+motor_maxstep_h=4100
+motor_maxstep_v=1200
+wlandev=atbm6012bx
+wlandevopts=atbm_printk_mask=0

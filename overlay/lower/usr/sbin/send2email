@@ -19,92 +19,57 @@ show_help() {
 # override config values with command line arguments
 while getopts b:f:s:t:vh flag; do
 	case "$flag" in
-		b)
-			email_body=$OPTARG
-			;;
-		f)
-			email_from_address=$OPTARG
-			;;
-		s)
-			email_subject=$OPTARG
-			;;
-		t)
-			email_to_address=$OPTARG
-			;;
-		v)
-			verbose="true"
-			;;
-		h | *)
-			show_help
-			;;
+		b) email_body=$OPTARG ;;
+		f) email_from_address=$OPTARG ;;
+		s) email_subject=$OPTARG ;;
+		t) email_to_address=$OPTARG ;;
+		v) verbose="true" ;;
+		h | *) show_help ;;
 	esac
 done
 
-if [ "false" = "$email_enabled" ]; then
-	log "Sending to email is disabled."
-	quit_clean 10
-fi
-
+[ "false" = "$email_enabled" ] && die "Sending to email is disabled."
 # validate mandatory values
-if [ -z "$email_smtp_host" ]; then
-	log "SMTP host not found in config"
-	quit_clean 11
-fi
-
-if [ -z "$email_smtp_port" ]; then
-	log "SMTP port not found in config"
-	quit_clean 12
-fi
-
-if [ -z "$email_from_address" ]; then
-	log "Sender's email address not found"
-	quit_clean 13
-fi
-
-if [ -z "$email_to_address" ]; then
-	log "Recipient's email address not found"
-	quit_clean 14
-fi
+[ -z "$email_smtp_host" ] && die "SMTP host not found in config"
+[ -z "$email_smtp_port" ] && die "SMTP port not found in config"
+[ -z "$email_from_address" ] && die "Sender's email address not found"
+[ -z "$email_to_address" ] && die "Recipient's email address not found"
 
 # assign default values if not set
-#[ -z "$email_from_name" ] && email_from_name="Thingino Camera"
-#[ -z "$email_to_name" ] && email_to_name="Thingino Camera Admin"
-#[ -z "$email_subject" ] && email_subject="Snapshot from Thingino Camera"
+[ -z "$email_from_name" ] && email_from_name="Thingino Camera"
+[ -z "$email_to_name" ] && email_to_name="Thingino Camera Admin"
+[ -z "$email_subject" ] && email_subject="Snapshot from Thingino Camera"
 
-command="curl --silent --verbose"
-command="$command --connect-timeout $curl_timeout"
-command="$command --max-time $curl_timeout"
+# TODO: email address format validation
 
+build_cmd "$CURL"
+build_cmd "--mail-from $email_from_address"
+build_cmd "--mail-rcpt $email_to_address"
+
+[ -n "$email_smtp_username" ] && [ -n "$email_smtp_password" ] && \
+	build_cmd "--user '$email_smtp_username:$email_smtp_password'"
 if [ "true" = "$email_smtp_use_ssl" ]; then
-	command="$command --ssl --url smtps://"
+	build_cmd "--url smtps://$email_smtp_host:$email_smtp_port --ssl"
 else
-	command="$command --url smtp://"
+	build_cmd "--url smtp://$email_smtp_host:$email_smtp_port"
 fi
-command="${command}${email_smtp_host}:${email_smtp_port}"
-
-command="$command --mail-from $email_from_address"
-command="$command --mail-rcpt $email_to_address"
-command="$command --user '${email_smtp_username}:${email_smtp_password}'"
 
 if [ "true" = "$email_attach_snapshot" ]; then
 	snapshot=/tmp/snapshot.jpg
-	if [ ! -f "$snapshot" ]; then
-		log "Cannot find a snapshot"
-		quit_clean 3
-	fi
+	[ -f "$snapshot" ] || die "Cannot find a snapshot"
 
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
 	delete_tempfile="true"
 	cp $snapshot $attachment
 
 	email_body="$(date -R)"
-	command="$command -H 'Subject: $email_subject'"
-	command="$command -H 'From: "$email_from_name" <$email_from_address>'"
-	command="$command -H 'To: "$email_to_name" <$email_to_address>'"
-	command="$command -F '=(;type=multipart/mixed'"
-	command="$command -F '=${email_body};type=text/plain'"
-	command="$command -F 'file=@${attachment};type=image/jpeg;encoder=base64'"
-	command="$command -F '=)'"
+	build_cmd "-H 'Subject: $email_subject'"
+	build_cmd "-H 'From: \"$email_from_name\" <$email_from_address>'"
+	build_cmd "-H 'To: \"$email_to_name\" <$email_to_address>'"
+	build_cmd "-F '=(;type=multipart/mixed'"
+	build_cmd "-F '=$email_body;type=text/plain'"
+	build_cmd "-F 'file=@$attachment;type=image/jpeg;encoder=base64'"
+	build_cmd "-F '=)'"
 else
 	email_file="/tmp/email.$$.txt"
 	{
@@ -115,11 +80,10 @@ else
 		echo ""
 		echo "$email_body"
 	} >> $email_file
-	command="$command --upload-file $email_file"
+	build_cmd "--upload-file $email_file"
 fi
 
-log "$command"
-eval "$command" >> "$LOG_FILE" 2>&1
+log_and_run "$command"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat "$LOG_FILE"

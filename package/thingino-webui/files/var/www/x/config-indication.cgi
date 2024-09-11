@@ -1,4 +1,4 @@
-#!/usr/bin/haserl
+#!/bin/haserl
 <%in _common.cgi %>
 <%
 page_title="LED Indicators"
@@ -15,33 +15,37 @@ read_data_from_env() {
 }
 
 field_gpio() {
-	local pin
-	local value
+	local active_suffix
 	local is_active
 	local is_active_low
+	local is_disabled
 	local lit_on_boot
 	local name=gpio_led_$1
-	eval value=\$$name
-	local active_suffix=${value:0-1}
-	case "$active_suffix" in
-		O) pin=${value%?} ;;
-	 	o) pin=${value%?}; is_active_low="checked" ;;
-		*) pin=${value}; active_suffix="O" ;;
-	esac
+	local pin_off
+	local pin_on
 
-	pin_status=$(gpio read $pin | awk '{print $3}')
-	[ "$pin_status" -eq 1 ] && is_active="checked"
+	eval pin=\$$name
+	if [ -z "$pin" ]; then
+		is_disabled="disabled"
+	else
+		[ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
+		active_suffix=${pin:0-1}
+		case "$active_suffix" in
+			o) pin_on=0; pin_off=1; is_active_low="checked" ;;
+			O) pin_on=1; pin_off=0 ;;
+		esac
+		pin=${pin:0:-1}
 
-	if echo $DEFAULT_PINS | grep -E "\b${pin}${active_suffix}\b" > /dev/null; then
-		lit_on_boot="checked"
+		pin_status=$(gpio read $pin | awk '{print $3}')
+		[ "$pin_status" -eq "$pin_on" ] && is_active="checked"
+
+		echo $DEFAULT_PINS | grep -E "\b$pin$active_suffix\b" > /dev/null && lit_on_boot="checked"
 	fi
-	echo "<div class=\"mb-3\"><label class=\"form-label\" for=\"$name\">$2</label><div class=\"input-group\">
-<div class=\"input-group-text\" style=\"background-color:$2\">
-<input class=\"form-check-input mt-0 led-status\" type=\"checkbox\" id=\"${name}_on\" name=\"${name}_on\" data-color=\"$1\" value=\"true\" ${is_active}>
-</div>
-<input type=\"text\" class=\"form-control text-end\" name=\"$name\" pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pin\" placeholder=\"GPIO\">
-<div class=\"input-group-text\"><input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" name=\"${name}_inv\" value=\"true\" ${is_active_low}> active low</div>
-<div class=\"input-group-text\"><input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" name=\"${name}_lit\" value=\"true\" ${lit_on_boot}> lit on boot</div>
+	echo "<div class=\"mb-3 led led-$1\"><label class=\"form-label\" for=\"$name\">$2</label><div class=\"input-group\">
+<div class=\"input-group-text\" style=\"background-color:$2\"><input type=\"checkbox\" class=\"form-check-input mt-0 led-status\" id=\"${name}_on\" name=\"${name}_on\" data-color=\"$1\" value=\"true\" $is_active $is_disabled></div>
+<input type=\"text\" class=\"form-control text-end\" id=\"$name\" name=\"$name\" data-color=\"$1\" pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pin\" placeholder=\"GPIO\">
+<div class=\"input-group-text\"><input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" name=\"${name}_inv\" value=\"true\" $is_active_low $is_disabled> active low</div>
+<div class=\"input-group-text\"><input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" name=\"${name}_lit\" value=\"true\" $lit_on_boot $is_disabled> lit on boot</div>
 </div></div>"
 }
 
@@ -95,27 +99,45 @@ else
 fi
 %>
 <%in _header.cgi %>
-<form action="<%= $SCRIPT_NAME %>" method="post">
+
 <div class="row g-4 mb-4">
 <div class="col-sm-12 col-md-8 col-lg-6 col-xl-4">
-<% field_gpio "r" "Red" %>
-<% field_gpio "g" "Green" %>
-<% field_gpio "b" "Blue" %>
-<% field_gpio "y" "Yellow" %>
-<% field_gpio "o" "Orange" %>
-<% field_gpio "w" "White" %>
-</div>
-</div>
-<% button_submit %>
+<form action="<%= $SCRIPT_NAME %>" method="post">
+<%
+field_gpio "r" "Red"
+field_gpio "g" "Green"
+field_gpio "b" "Blue"
+field_gpio "y" "Yellow"
+field_gpio "o" "Orange"
+field_gpio "w" "White"
+button_submit
+%>
 </form>
+</div>
+<div class="col col-ld-6">
+<% ex "fw_printenv gpio_default" %>
+<% ex "fw_printenv | grep gpio_led" %>
+</div>
+</div>
 
 <script>
 async function switchIndicator(color, state) {
-  await fetch("/x/json-indicator.cgi?c=" + color + "&amp;s=" + state)
-  	.then(response => response.json())
-  	.then(data => { $('#gpio_led_' + color + '_on').checked = (data.message.status == 1) });
+	await fetch("/x/json-indicator.cgi?c=" + color + "&amp;s=" + state)
+		.then(response => response.json())
+		.then(data => { $('#gpio_led_' + color + '_on').checked = (data.message.status == 1) });
 }
-$$('.led-status').forEach(el => el.addEventListener('change', ev => switchIndicator(ev.target.dataset['color'], ev.target.checked?1:0)))
+$$('.led input[type="text"]').forEach(it => it.addEventListener('change', ev => {
+	const el = ev.target;
+	const c = el.dataset['color'];
+	const s = (el.value == '');
+	$$('div.led-' + c + ' input[type="checkbox"]').forEach(z => {
+		if (s) z.checked = false;
+		z.disabled = s;
+	})
+}))
+$$('.led-status').forEach(el => el.addEventListener('change', ev => {
+	switchIndicator(ev.target.dataset['color'], ev.target.checked ? 1 : 0)
+}))
 </script>
 
 <%in _footer.cgi %>

@@ -83,7 +83,7 @@ case "$MODE" in
 		;;
 	device)
 		case "$SOC" in
-			t20)
+			t10|t20|t21|t23|t30)
 				set_device_mode_t20
 				;;
 			t31)

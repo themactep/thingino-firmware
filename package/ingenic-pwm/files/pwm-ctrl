@@ -1,0 +1,156 @@
+#!/bin/sh
+
+# Format: GPIO CHANNEL FUNC PIN
+case $(soc -f) in
+	t10|t20)
+		pwm_table="
+		49 PWM0 FUNC0 PB17
+		50 PWM1 FUNC0 PB18
+		72 PWM2 FUNC0 PC08
+		73 PWM3 FUNC0 PC09
+		"
+		;;
+	t21)
+		pwm_table="
+		49 PWM0 FUNC0 PB17
+		50 PWM1 FUNC0 PB18
+		75 PWM2 FUNC1 PC11
+		76 PWM3 FUNC1 PC12
+		77 PWM4 FUNC1 PC13
+		78 PWM5 FUNC1 PC14
+		79 PWM6 FUNC0 PC15
+		80 PWM7 FUNC1 PC16
+		"
+		;;
+	t23)
+		pwm_table="
+		14 PWM0 FUNC2 PA14
+		49 PWM0 FUNC0 PB17
+		50 PWM1 FUNC0 PB18
+		59 PWM2 FUNC1 PB27
+		60 PWM3 FUNC1 PB28
+		"
+		;;
+	t30)
+		pwm_table="
+		49 PWM0 FUNC0 PB17
+		50 PWM1 FUNC0 PB18
+		72 PWM2 FUNC0 PC08
+		73 PWM3 FUNC0 PC09
+		75 PWM0 FUNC1 PC11
+		76 PWM1 FUNC1 PC12
+		77 PWM2 FUNC1 PC13
+		78 PWM3 FUNC1 PC14
+		79 PWM4 FUNC1 PC15
+		80 PWM5 FUNC1 PC16
+		81 PWM6 FUNC1 PC17
+		82 PWM7 FUNC1 PC18
+		"
+		;;
+	t31)
+		pwm_table="
+		14 PWM0 FUNC2 PA14
+		22 PWM1 FUNC2 PA22
+		49 PWM0 FUNC0 PB17
+		50 PWM1 FUNC0 PB18
+		59 PWM2 FUNC1 PB27
+		60 PWM3 FUNC1 PB28
+		81 PWM0 FUNC0 PC17
+		82 PWM1 FUNC0 PC18
+		83 PWM2 FUNC0 PC19
+		84 PWM3 FUNC0 PC20
+		"
+		;;
+	*)
+		echo "Unsupported SoC"
+		exit 1
+		;;
+esac
+
+# list all GPIO-PWM mappings
+list_gpios() {
+	echo "$pwm_table" | grep -v '^\s*$' | while read gpio pwm func pin; do
+		echo "GPIO $gpio = $pwm ($pin)"
+	done
+}
+
+# find PWM and FUNC based on GPIO input
+find_pwm_func() {
+	echo "$pwm_table" | grep -v '^\s*$' | while read gpio pwm func pin; do
+		if [ "$gpio" = "$1" ]; then
+			echo "$pwm $func $pin"
+			return 0
+		fi
+	done
+	exit 1
+}
+
+if [ ! -e /dev/pwm ]; then
+	echo "Error: /dev/pwm not found. Ensure the PWM device is available by loading the appropriate kernel modules."
+	exit 1
+fi
+
+if [ "$1" = "-l" ]; then
+	echo "Available PWM-capable GPIOs:"
+	list_gpios
+	exit 0
+fi
+
+if [ "$#" -lt 2 ]; then
+	echo "Usage: $0 [-l] [-r] <gpio> <brightness 0-100>"
+	exit 1
+fi
+
+# Check for reverse polarity
+REVERSE=1
+if [ "$1" = "-r" ]; then
+	REVERSE=0
+	shift
+fi
+
+# Extract PWM and FUNC for the given GPIO
+GPIO="$1"
+BRIGHTNESS="$2"
+pwm_info=$(find_pwm_func "$GPIO")
+
+# Read parameters
+read PWM FUNC PIN <<EOF
+$pwm_info
+EOF
+
+# Extract the channel number from the PWM
+CHANNEL=$(echo "$PWM" | sed 's/PWM//')
+
+# Extract the function number from FUNC
+FUNC_NUM=$(echo "$FUNC" | sed 's/FUNC//')
+
+# brightness is valid
+if [ "$(echo "$BRIGHTNESS < 0" | bc)" -eq 1 ] || [ "$(echo "$BRIGHTNESS > 100" | bc)" -eq 1 ]; then
+	echo "Brightness must be between 0 and 100"
+	exit 1
+fi
+
+# Set the GPIO function using gpio-diag
+gpio-diag "$PIN" func "$FUNC_NUM"
+
+# Calculate the duty cycle using awk
+DUTY_NS=$(awk -v b="$BRIGHTNESS" -v period=1000000 'BEGIN {
+	if (b == 0) {
+		print 0
+	} else if (b <= 10) {
+		print b * 1000  # Linear scaling from 0-10
+	} else {
+		print int(((b - 10) / 90) * (period - 10000) + 10000)  # Linear scaling from 10000 to 1000000
+	}
+}')
+
+# If duty cycle is 0, disable the PWM channel
+if [ "$DUTY_NS" -eq 0 ]; then
+	echo "Disabling PWM channel $CHANNEL as duty cycle is 0"
+	pwm -c "$CHANNEL" -d
+else
+	# Enable the PWM channel with the calculated duty cycle
+	pwm -c "$CHANNEL" -d
+	pwm -c "$CHANNEL" -e -p $REVERSE -P 1000000 -D "$DUTY_NS"
+	echo "PWM channel $CHANNEL [$GPIO] enabled with duty cycle $DUTY_NS"
+fi

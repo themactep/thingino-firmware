@@ -2,7 +2,7 @@
 
 . /etc/init.d/rc.common
 
-COMMAND="/usr/bin/env -- LD_PRELOAD=/usr/lib/libimp_control.so $DAEMON_FULL"
+COMMAND="/bin/env -- LD_PRELOAD=/lib/libimp_control.so $DAEMON_FULL"
 SNAPSHOT="/tmp/snapshot.jpg"
 
 start() {
@@ -14,26 +14,21 @@ start() {
 stop() {
 	stopping
 	is_streamer_disabled && quit "Streamer disabled"
-	[ -f "$SNAPSHOT" ] && rm $SNAPSHOT
+	[ -f "$SNAPSHOT" ] && run "rm $SNAPSHOT"
 	stop_daemon_with_pid
 }
 
-restart() {
-	stop || true
-	sleep 1
-	reload
-}
-
-reload() {
-	start
-}
-
 case "$1" in
-	start | stop | restart | reload)
+	start | stop)
 		$1
 		;;
+	reload | restart)
+		stop || true
+		sleep 1
+		start
+		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		die "Usage: $0 {start|stop|restart}"
 		;;
 esac
 

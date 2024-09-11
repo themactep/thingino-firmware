@@ -8,7 +8,7 @@ PRUDYNT_T_SITE_BRANCH = prudynt-t-old
 endif
 PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
 
-PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-fonts ingenic-lib
+PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-fonts ingenic-lib faac thingino-opus
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
 PRUDYNT_T_DEPENDENCIES += libwebsockets libschrift
 else
@@ -51,7 +51,10 @@ endef
 
 define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0755 -D $(@D)/bin/prudynt $(TARGET_DIR)/usr/bin/prudynt
-	$(INSTALL) -m 0644 -D $(@D)/prudynt.cfg.example $(TARGET_DIR)/etc/prudynt.cfg
+	awk -f $(PRUDYNT_T_PKGDIR)/files/device_presets \
+		$(PRUDYNT_T_PKGDIR)/files/configs/$(shell awk 'BEGIN {split("$(BR2_CONFIG)", a, "/"); print a[length(a)-1]}') \
+		$(@D)/prudynt.cfg.example > $(STAGING_DIR)/prudynt.cfg
+	$(INSTALL) -m 0644 -D $(STAGING_DIR)/prudynt.cfg $(TARGET_DIR)/etc/prudynt.cfg
 	sed -i 's/;.*$$/;/' $(TARGET_DIR)/etc/prudynt.cfg
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S95prudynt $(TARGET_DIR)/etc/init.d/S95prudynt
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S96record $(TARGET_DIR)/etc/init.d/S96record

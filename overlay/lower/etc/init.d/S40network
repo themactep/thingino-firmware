@@ -15,7 +15,7 @@ case "$1" in
 		check_result
 		;;
 
-	restart | reload)
+	reload | restart)
 		stop
 		sleep 1
 		start
