@@ -1,7 +1,11 @@
 #!/bin/sh
 
-# Check if the interface is eth0 and if /proc/cmdline contains "nfs", and /tmp/resolv.conf does not exist
-if [ "$IFACE" = "eth0" ] && grep -q "nfs" /proc/cmdline && [ ! -e /tmp/resolv.conf ]; then
-	# Create a symbolic link to /tmp/resolv.conf
+. /etc/init.d/rc.common
+
+# Detect if the interface is used for nfsroot; if so, configure DNS and skip DHCP to prevent a hang.
+nfsip=`sed -n '/^[^ ]*:.* \/ nfs.*[ ,]addr=\([0-9.]\+\).*/s//\1/p' /proc/mounts`
+if [ -n "$nfsip" ] && ip route get to "$nfsip" | grep -q "dev $IFACE"; then
 	ln -s /proc/net/pnp /tmp/resolv.conf
+	info "Skipping $IFACE, used for NFS from $nfsip"
+	exit 1
 fi
