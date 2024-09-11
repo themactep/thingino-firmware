@@ -56,9 +56,10 @@ else
 		</div>
 		<% #field_file "fontfile0" "Upload a TTF file" %>
 		<div class="d-flex gap-3">
-			<% field_checkbox "osd0_time_enabled" "Time Enabled" %>
-			<% field_checkbox "osd0_user_text_enabled" "User Text Enabled" %>
-			<% field_checkbox "osd0_uptime_enabled" "Uptime Enabled" %>
+			<% field_checkbox "osd0_logo_enabled" "Logo" %>
+			<% field_checkbox "osd0_time_enabled" "Time" %>
+			<% field_checkbox "osd0_user_text_enabled" "User Text" %>
+			<% field_checkbox "osd0_uptime_enabled" "Uptime" %>
 		</div>
 	</div>
 </div>
@@ -73,9 +74,10 @@ else
 		</div>
 		<% #field_file "fontfile1 "Upload a TTF file" %>
 		<div class="d-flex gap-3">
-			<% field_checkbox "osd1_time_enabled" "Time Enabled" %>
-			<% field_checkbox "osd1_user_text_enabled" "User Text Enabled" %>
-			<% field_checkbox "osd1_uptime_enabled" "Uptime Enabled" %>
+			<% field_checkbox "osd1_logo_enabled" "Logo" %>
+			<% field_checkbox "osd1_time_enabled" "Time" %>
+			<% field_checkbox "osd1_user_text_enabled" "User Text" %>
+			<% field_checkbox "osd1_uptime_enabled" "Uptime" %>
 		</div>
 	</div>
 </div>
@@ -132,8 +134,8 @@ let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
 	const payload = '{'+
-		'"stream0":{"osd":{"enabled":null,"font_path":null,"font_size":null,"time_enabled":null,"uptime_enabled":null,"user_text_enabled":null}},'+
-		'"stream1":{"osd":{"enabled":null,"font_path":null,"font_size":null,"time_enabled":null,"uptime_enabled":null,"user_text_enabled":null}}'+
+		'"stream0":{"osd":{"enabled":null,"font_path":null,"font_size":null,"logo_enabled":null,"time_enabled":null,"uptime_enabled":null,"user_text_enabled":null}},'+
+		'"stream1":{"osd":{"enabled":null,"font_path":null,"font_size":null,"logo_enabled":null,"time_enabled":null,"uptime_enabled":null,"user_text_enabled":null}}'+
 		'}';
 	sendToWs(payload);
 	sts = setTimeout(getSnapshot, 1000);
@@ -163,6 +165,9 @@ ws.onmessage = (event) => {
 				$('#fontsize0-show').textContent = msg.stream0.osd.font_size;
 			}
 
+			if (msg.stream0.osd.logo_enabled)
+				$('#osd0_logo_enabled').checked = msg.stream0.osd.logo_enabled;
+
 			if (msg.stream0.osd.time_enabled)
 				$('#osd0_time_enabled').checked = msg.stream0.osd.time_enabled;
 
@@ -186,6 +191,9 @@ ws.onmessage = (event) => {
 				$('#fontsize1-range').value = msg.stream1.osd.font_size;
 				$('#fontsize1-show').textContent = msg.stream1.osd.font_size;
 			}
+
+			if (msg.stream1.osd.logo_enabled)
+				$('#osd1_logo_enabled').checked = msg.stream1.osd.logo_enabled;
 
 			if (msg.stream1.osd.time_enabled)
 				$('#osd1_time_enabled').checked = msg.stream1.osd.time_enabled;
@@ -256,6 +264,7 @@ $('#osd0_enabled').addEventListener('change', ev => {
 $('#fontname0').addEventListener('change', () => setFont(0));
 $('#fontsize0-range').addEventListener('change', () => setFont(0));
 
+$('#osd0_logo_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
 $('#osd0_time_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
 $('#osd0_uptime_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
 $('#osd0_user_text_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
@@ -267,6 +276,7 @@ $('#osd1_enabled').addEventListener('change', ev => {
 $('#fontname1').addEventListener('change', () => setFont(1));
 $('#fontsize1-range').addEventListener('change', () => setFont(1));
 
+$('#osd1_logo_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
 $('#osd1_time_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
 $('#osd1_uptime_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
 $('#osd1_user_text_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
