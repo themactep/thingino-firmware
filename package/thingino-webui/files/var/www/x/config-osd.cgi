@@ -158,7 +158,12 @@ ws.onclose = () => {
 ws.onerror = (error) => { console.error('WebSocket error', error); }
 ws.onmessage = (event) => {
 	if (typeof event.data === 'string') {
-		console.log("<===", event.data);
+		if (event.data == '') {
+			console.log('empty response');
+			return;
+		} else {
+			console.log('<===', event.data);
+		}
 		const msg = JSON.parse(event.data);
 		const time = new Date(msg.date);
 		const timeStr = time.toLocaleTimeString();
