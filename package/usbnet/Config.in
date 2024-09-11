@@ -33,6 +33,12 @@ config BR2_PACKAGE_USBNET_USB_DIRECT_NCM
 #	help
 #	  Enables CDC_ECM
 
+config BR2_PACKAGE_USBNET_R8152
+	bool "Realtek 8152"
+	depends on BR2_PACKAGE_USBNET
+	help
+	  Enables support for Realtek RTL8152 based USB 2.0 network adapters
+
 config BR2_PACKAGE_USBNET_RNDIS
 	bool "RNDIS"
 	depends on BR2_PACKAGE_USBNET

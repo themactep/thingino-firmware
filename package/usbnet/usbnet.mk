@@ -79,6 +79,13 @@ define USBNET_LINUX_CONFIG_FIXUPS_ASIX_179_178A
 endef
 endif
 
+ifeq ($(BR2_PACKAGE_USBNET_R8152),y)
+define USBNET_LINUX_CONFIG_FIXUPS_R8152
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_USBNET)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_USB_RTL8152)
+endef
+endif
+
 ####################################################
 #This is required for BR to successfully concatenate the kernel options when used with modules
 define USBNET_LINUX_CONFIG_FIXUPS
@@ -88,6 +95,7 @@ define USBNET_LINUX_CONFIG_FIXUPS
 	$(call USBNET_LINUX_CONFIG_FIXUPS_RNDIS)
 	$(call USBNET_LINUX_CONFIG_FIXUPS_ASIX)
 	$(call USBNET_LINUX_CONFIG_FIXUPS_ASIX_179_178A)
+	$(call USBNET_LINUX_CONFIG_FIXUPS_R8152)
 endef
 
 $(eval $(generic-package))
