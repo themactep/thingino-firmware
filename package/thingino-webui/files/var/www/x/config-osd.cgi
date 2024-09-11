@@ -6,24 +6,22 @@ page_title="On-Screen Display"
 
 token="$(cat /run/prudynt_websocket_token)"
 
-OSD_CONFIG="/etc/prudynt.cfg"
 OSD_FONT_PATH="/usr/share/fonts"
 FONT_REGEXP="s/(#\s*)?font_path:(.+);/font_path: \"${OSD_FONT_PATH//\//\\/}\/\%s\";/"
 
-FONTS=$(ls -1 $OSD_FONT_PATH)
-
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
-	if [ -n "$HASERL_fontfile_path" ] && [ $(stat -c%s $HASERL_fontfile_path) -gt 0 ]; then
-		fontname="uploaded.ttf"
-		mv "$HASERL_fontfile_path" "$OSD_FONT_PATH/$fontname"
-		sed -ri "$(printf "$FONT_REGEXP" "$fontname")" /etc/prudynt.cfg
-		need_to_reload="true"
+	if [ -z "$HASERL_fontfile_path" ]; then
+		set_error_flag "File upload failed. No font selected?"
+	elif [ $(stat -c%s $HASERL_fontfile_path) -eq 0 ]; then
+		set_error_flag "File upload failed. Empty file?"
 	else
-		echo "File upload failed. No font selected." > /root/fontname
-		set_error_flag "File upload failed. No font selected."
+		mv "$HASERL_fontfile_path" "$OSD_FONT_PATH/uploaded.ttf"
 	fi
+	redirect_to $SCRIPT_NAME
 fi
+
+FONTS=$(ls -1 $OSD_FONT_PATH)
 %>
 <%in _header.cgi %>
 <% if [ "true" = "$need_to_reload" ]; then %>
@@ -43,7 +41,6 @@ else
 %>
 <div class="row mb-4">
 <div class="col col-12 col-lg-6 mb-4">
-<form action="<%= $SCRIPT_NAME %>" method="post" enctype="multipart/form-data">
 
 <div class="card mb-3">
 	<div class="card-header">
@@ -54,7 +51,6 @@ else
 			<div class="col col-8"><% field_select "fontname0" "Font" "$FONTS" %></div>
 			<div class="col col-4"><% field_range "fontsize0" "Font size" "10,80,1" %></div>
 		</div>
-		<% #field_file "fontfile0" "Upload a TTF file" %>
 		<div class="d-flex gap-3">
 			<% field_checkbox "osd0_logo_enabled" "Logo" %>
 			<% field_checkbox "osd0_time_enabled" "Time" %>
@@ -72,7 +68,6 @@ else
 			<div class="col col-8"><% field_select "fontname1" "Font" "$FONTS" %></div>
 			<div class="col col-4"><% field_range "fontsize1" "Font size" "10,80,1" %></div>
 		</div>
-		<% #field_file "fontfile1 "Upload a TTF file" %>
 		<div class="d-flex gap-3">
 			<% field_checkbox "osd1_logo_enabled" "Logo" %>
 			<% field_checkbox "osd1_time_enabled" "Time" %>
@@ -81,9 +76,7 @@ else
 		</div>
 	</div>
 </div>
-
-<% button_submit %>
-</form>
+<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#fontModal">Upload a font</button>
 </div>
 
 <div class="col col-12 col-lg-6">
@@ -107,6 +100,24 @@ else
 </div>
 </div>
 </div>
+
+<div class="modal fade" id="fontModal" tabindex="-1" aria-labelledby="fontModalLabel" aria-hidden="true">
+<div class="modal-dialog">
+<div class="modal-content">
+<div class="modal-header">
+<h1 class="modal-title fs-4" id="fontModalLabel">Upload a font file</h1>
+<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body text-center">
+<form action="<%= $SCRIPT_NAME %>" method="post" enctype="multipart/form-data">
+<% field_file "fontfile" "Upload a TTF file" %>
+<% button_submit %>
+</form>
+</div>
+</div>
+</div>
+</div>
+
 
 <script>
 const previewModal = new bootstrap.Modal('#previewModal', {});
