@@ -23,15 +23,15 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		# change password for onvif server
 		tmpfile=$(mktemp)
 		cat $onvif_config > $tmpfile
-		sed -i "/^user=/cuser=$rtsp_username" $tmpfile
+		#sed -i "/^user=/cuser=$rtsp_username" $tmpfile
 		sed -i "/^password=/cpassword=$rtsp_password" $tmpfile
 		mv $tmpfile $onvif_config
 
 		# change password for prudynt streamer
 		tmpfile=$(mktemp)
 		cat $prudynt_config > $tmpfile
-		sed -i "/username:/c\\\tusername: \"$rtsp_username\";" $tmpfile
-		sed -i "/password:/c\\\tpassword: \"$rtsp_password\";" $tmpfile
+		#prudyntcfg set rtsp username \"$rtsp_username\"
+		prudyntcfg set rtsp password \"$rtsp_password\"
 		mv $tmpfile $prudynt_config
 
 		# change password for system user
