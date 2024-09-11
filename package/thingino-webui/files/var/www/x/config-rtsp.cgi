@@ -35,7 +35,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		mv $tmpfile $prudynt_config
 
 		# change password for system user
-		echo "$rtsp_username:$rtsp_password" | chpasswd
+		echo "$rtsp_username:$rtsp_password" | chpasswd -c sha512
 
 		if [ -f "$onvif_discovery" ]; then
 			$onvif_discovery restart >> /tmp/webui.log
