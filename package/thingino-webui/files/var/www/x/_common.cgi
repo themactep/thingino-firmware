@@ -442,6 +442,25 @@ html_title() {
 	echo -n "- $(hostname) - thingino"
 }
 
+html_theme() {
+	test -f /etc/webui/web.conf && webui_theme=$(awk -F= '/webui_theme/{print $2}' /etc/webui/webui.conf | tr -d '"')
+	case "$webui_theme" in
+		dark | light)
+			echo -n $webui_theme
+			;;
+		auto)
+			if [ $(date +%H) -gt 8 ] && [ $(date +%H) -lt 20 ]; then
+				echo -n "light"
+			else
+				echo -n "dark"
+			fi
+			;;
+		*)
+			echo -n "dark"
+			;;
+	esac
+}
+
 # label "name" "classes" "extras" "units"
 label() {
 	local c="form-label"
