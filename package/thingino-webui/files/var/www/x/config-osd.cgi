@@ -22,23 +22,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 fi
 
 FONTS=$(ls -1 $OSD_FONT_PATH)
+ts=$(date +%s)
 %>
 <%in _header.cgi %>
-<% if [ "true" = "$need_to_reload" ]; then %>
-<h3>Restarting Prudynt</h3>
-<h4>Please wait...</h4>
-<progress max="2" value="0"></progress>
-<script>
-const p=document.querySelector('progress'); let s=0;
-function t(){s+=1;p.value=s;(s===p.max)?g():setTimeout(t,1000);}
-function g(){window.location.replace(window.location);}
-setTimeout(t, 2000);
-</script>
-<%
-	/etc/init.d/S95prudynt restart &
-else
-	ts=$(date +%s)
-%>
+
 <div class="row mb-4">
 <div class="col col-12 col-lg-6 mb-4">
 
@@ -118,14 +105,12 @@ else
 </div>
 </div>
 
-
 <script>
 const previewModal = new bootstrap.Modal('#previewModal', {});
 $('#preview').addEventListener('click', ev => {
 	previewModal.show();
 });
 </script>
-<% fi %>
 
 <style>
 #preview-wrapper button { visibility: hidden; }
@@ -236,7 +221,9 @@ function connectWs() {
 function getSnapshot() {
 	clearTimeout(sts);
 	ws.binaryType = 'arraybuffer';
-	ws.send('{"action":{"capture":null}}');
+	const payload = '{"action":{"capture":null}}';
+	console.log("===>", payload);
+	ws.send(payload);
 	sts = setTimeout(getSnapshot, 500);
 }
 
