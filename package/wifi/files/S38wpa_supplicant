@@ -28,7 +28,7 @@ start() {
 		fw_setenv wlanpass $pass
 	fi
 
-	iface_exists "wlan0" || quit "Disabled"
+	iface_exists "wlan0" || quit "No wireless interface"
 
 	if [ -z "$ssid" ] || [ -z "$pass" ]; then
 		if grep -q '^auto wlan0' $WLAN_INT_FILE; then
