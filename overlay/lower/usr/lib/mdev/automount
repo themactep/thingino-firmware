@@ -18,7 +18,7 @@ log() {
 
 cleanup() {
 	if [ -d "$mountpoint" ]; then
-		if rmdir "$mountpoint"; then
+		if rm -r "$mountpoint"; then
 			log "Removed $mountpoint mountpoint."
 		else
 			log "Failed to remove $mountpoint mountpoint."
