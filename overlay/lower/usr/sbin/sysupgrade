@@ -236,7 +236,7 @@ clone_app /sbin/$stage2app
 for a in $bbapplets; do expand_bb $a; done
 
 echo_c 208 "Switching to Stage 2.\n"
-if ! exec $workdir/busybox sh $workdir/$stage2app "$fw_file" "$mtd_dev"; then
+if ! PATH="/tmp/sysupgrade" exec $workdir/busybox sh $workdir/$stage2app "$fw_file" "$mtd_dev"; then
 	say "Error: Failed to execute $workdir/$stage2app"
 	cleanup
 fi

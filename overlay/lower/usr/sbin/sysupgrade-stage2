@@ -1,5 +1,8 @@
 #!/tmp/busybox sh
 
+export PATH="/tmp/sysupgrade"
+echo "stage 2 PATH is $PATH"
+
 echo_c() { echo -e "\e[38;5;$1m$2\e[0m"; }
 
 die() { echo_c 160 "$1"; exit 1; }
@@ -22,7 +25,6 @@ go_reboot() {
 fw_file=$1
 mtd_dev="/dev/$2"
 
-export PATH="/tmp/sysupgrade"
 MAX_TRIES=3
 
 echo_c 208 "Running Stage 2 of sysupgrade."
