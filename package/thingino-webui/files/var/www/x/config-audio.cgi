@@ -130,11 +130,12 @@ function saveValue(el) {
 	if (el.type == "checkbox") {
 		value = el.checked ? 'true' : 'false';
 	} else if (el.type == "range") {
-		console.log(el);
 		value = el.value;
 		id = id.replace(/-range/, '');
 	} else {
 		value = el.value;
+		if (el.id == "audio_input_format")
+			value = '"' + el.value + '"';
 	}
 	sendToWs('{"audio":{"' + id + '":' + value + '}}');
 }
