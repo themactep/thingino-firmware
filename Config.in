@@ -2,6 +2,7 @@ menu "Thingino Firmware"
 
 source "$BR2_EXTERNAL_THINGINO_PATH/Config.soc.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ethernet/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-kopt/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/usbnet/Config.in"
 
@@ -31,6 +32,7 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_MOTORS if BR2_MOTORS
 	select BR2_PACKAGE_UBOOT_TOOLS
 	select BR2_PACKAGE_JSONFILTER
+	select BR2_PACKAGE_THINGINO_ETHERNET if BR2_ETHERNET
 	select BR2_PACKAGE_THINGINO_KOPT
 	select BR2_PACKAGE_THINGINO_WEBUI
 	select BR2_PACKAGE_WPA_SUPPLICANT_DEBUG_SYSLOG if BR2_PACKAGE_WPA_SUPPLICANT

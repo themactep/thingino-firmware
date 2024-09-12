@@ -332,6 +332,11 @@ config BR2_AUDIO_PARAMS
 	help
 	  Specify additional parameters to pass when loading the audio kernel module.
 
+config BR2_ETHERNET
+	bool "Ethernet port"
+	help
+	  Enable Ethernet networking.
+
 config BR2_PWM_ENABLE
 	bool "PWM Support"
 	help

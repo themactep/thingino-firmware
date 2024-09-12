@@ -1,0 +1,9 @@
+config BR2_PACKAGE_THINGINO_ETHERNET
+	bool "Ethernet port"
+	select BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
+#	select BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_INTERNAL_PHY
+#	select BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V12
+#	select BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13
+	help
+	  Enables support of Ethernet networking.
+
