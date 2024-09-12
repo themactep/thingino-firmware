@@ -385,26 +385,35 @@ endchoice
 choice
 	prompt "Device type"
 	default BR2_THINGINO_DEVICE_TYPE_IPCAM
+
 config BR2_THINGINO_DEVICE_TYPE_IPCAM
 	bool "IPCamera"
 	help
-	   Specifies the device type as a Camera and installs configurations specific to this type.
+	  Specifies the device type as a Camera and installs configurations
+	  specific to this type.
 
 config BR2_THINGINO_DEVICE_TYPE_IPCAM_PAN_TILT
 	bool "IPCamera - Pan/Tilt"
 	help
-	   Specifies the device type as a Camera with Pan and Tilt functionality, and installs configurations specific to this type.
+	  Specifies the device type as a Camera with Pan and Tilt functionality,
+	  and installs configurations specific to this type.
+
 config BR2_THINGINO_DEVICE_TYPE_IPCAM_PAN_TILT_ZOOM
 	bool "IPCamera - Pan/Tilt/Zoom"
 	help
-	   Specifies the device type as a Camera with Pan, Tilt, and Zoom functionality, and installs configurations specific to this type.
+	  Specifies the device type as a Camera with Pan, Tilt, and Zoom
+	  functionality, and installs configurations specific to this type.
+
 config BR2_THINGINO_DEVICE_TYPE_DOORBELL
 	bool "Doorbell"
 	help
-	   Specifies the device type as a Doorbell and installs configurations specific to this type.
+	  Specifies the device type as a Doorbell and installs configurations
+	  specific to this type.
+
 endchoice
 
 config U_BOOT_ENV_TXT
 	string "Path to U-Boot environment text file"
 	help
-	   Path to the U-Boot environment configuration file used to configure the ENV on the device
+	  Path to the U-Boot environment configuration file used to configure
+	  the ENV on the device
