@@ -76,8 +76,8 @@ stop() {
 	stopping
 	init
 	run "ifdown wlan0"
-	run "rmmod $wlandev"
-	run "gpio set $pin $pin_off"
+	run "rmmod -f $wlandev"
+	[ -z "$pin" ] || run "gpio set $pin $pin_off"
 	ok
 }
 
