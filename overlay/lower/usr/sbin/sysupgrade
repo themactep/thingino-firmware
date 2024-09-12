@@ -101,12 +101,9 @@ handle_payload() {
 
 		check_free_space $bin_url
 
-		say "Download firmware\n$bin_url"
+		say "Download firmware and checksum\n- $bin_url\n- $sha_url"
 		echo "curl -LO# $bin_url"
-		curl -LO# $bin_url || die "Failed to download firmware!"
-
-		say "Download checksum file\n$sha_url"
-		curl -LO# $sha_url || die "Failed to download checksum file!"
+		curl -fL# -O $bin_url -O $sha_url || die "Download failed!"
 
 		sha256sum -c $sha_file || die "Checksum does not match!"
 
