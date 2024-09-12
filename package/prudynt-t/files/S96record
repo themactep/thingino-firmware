@@ -120,11 +120,6 @@ start() {
 	[ "$record_enabled" = "true" ] || quit "Disabled"
 	is_streamer_disabled && quit "Streamer disabled"
 
-	if [[ "$record_path" = "/mnt/mmcblk0p*" ]]; then
-		# Only checking for partition 1 but this should suffice for multi-partition cards
-		grep -q "/mnt/mmcblk0p1" /proc/mounts || terminate "SD card is not mounted"
-	fi
-
 	pidof prudynt > /dev/null || terminate "Prudynt is not running. Unable to record RTSP stream"
 
 	[ -d "$record_path" ] || mkdir -p "$record_path"
