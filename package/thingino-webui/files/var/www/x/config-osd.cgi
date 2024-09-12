@@ -112,14 +112,20 @@ $('#preview').addEventListener('click', ev => {
 	previewModal.show();
 });
 
+function ts() {
+	return Math.floor(Date.now());
+}
+
 function sendToWs(payload) {
 	//if (!ws) connectWs();
 	payload = payload.replace(/}$/, ',"action":{"save_config":null,"restart_thread":2}}')
-	console.log("===>", payload);
+
+	console.log(ts(), '===>', payload);
 	ws.send(payload);
 }
 
 let sts;
+
 let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $token %>');
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
@@ -139,7 +145,7 @@ ws.onmessage = (event) => {
 			console.log('empty response');
 			return;
 		} else {
-			console.log('<===', event.data);
+			console.log(ts(), '<===', event.data);
 		}
 		const msg = JSON.parse(event.data);
 		const time = new Date(msg.date);
@@ -214,7 +220,7 @@ function getSnapshot() {
 	clearTimeout(sts);
 	ws.binaryType = 'arraybuffer';
 	const payload = '{"action":{"capture":null}}';
-	console.log("===>", payload);
+	console.log(ts(), "===>", payload);
 	ws.send(payload);
 	sts = setTimeout(getSnapshot, 500);
 }
@@ -248,8 +254,9 @@ function toggleWrappers(id) {
 
 function toggleOSDElement(el) {
 	const status = el.checked ? 'true' : 'false';
+	const stream_id = el.id.substr(3, 1);
 	const id = el.id.replace('osd0_', '').replace('osd1_', '');
-	sendToWs('{"stream0":{"osd":{"' + id + '":' + status + '}}}');
+	sendToWs('{"stream' + stream_id + '":{"osd":{"' + id + '":' + status + '}}}');
 }
 
 $('#osd0_enabled').addEventListener('change', ev => {
