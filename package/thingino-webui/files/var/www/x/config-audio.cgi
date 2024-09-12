@@ -12,7 +12,6 @@ AUDIO_FORMATS="AAC G711A G711U G726 OPUS PCM"
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_switch "audio_input_enabled" "Enabled" %>
-
 <div class="row g-4 mb-4">
 <div class="col col-lg-4">
 <% field_select "audio_input_format" "Audio codec" "$AUDIO_FORMATS" %>
@@ -32,7 +31,6 @@ AUDIO_FORMATS="AAC G711A G711U G726 OPUS PCM"
 <% field_range "audio_input_noise_suppression" "Noise suppression level" "0,3,1" %>
 </div>
 </div>
-<% button_submit %>
 </form>
 
 <script>
