@@ -5,7 +5,7 @@ plugin="webui"
 plugin_name="User interface settings"
 page_title="Web Interface Settings"
 
-config_file="${ui_config_dir}/${plugin}.conf"
+config_file="$ui_config_dir/$plugin.conf"
 [ ! -f "$config_file" ] && touch $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
@@ -14,7 +14,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			new_password="$POST_ui_password_new"
 			[ -z "$new_password" ] && redirect_to $SCRIPT_NAME "danger" "Password cannot be empty!"
 
-			echo "root:${new_password}" | chpasswd -c sha512
+			echo "root:$new_password" | chpasswd -c sha512
 			update_caminfo
 
 			redirect_to "/" "success" "Password updated."
