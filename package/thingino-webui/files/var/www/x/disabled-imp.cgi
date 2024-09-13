@@ -25,8 +25,8 @@ fi
 
 page_title="IMP Configuration"
 
-commands_do_not_work="aemin aiaec aiagc aihpf ains aogain aovol autozoom framerate gopattr mask rcmode setbitrate setgoplength setqp setqpbounds setqpipdelta whitebalance"
-commands="aecomp aeitmax again aigain aialc aigain aivol backlightcomp brightness contrast defogstrength dgain dpc drc flicker flip frontcrop hilight hue ispmode saturation sensorfps setosdalpha setosdpos sharpness sinter temper"
+commands_do_not_work="aemin ains aogain aovol autozoom framerate gopattr mask rcmode setbitrate setgoplength setqp setqpbounds setqpipdelta whitebalance"
+commands="aecomp aeitmax again backlightcomp brightness contrast defogstrength dgain dpc drc flicker flip frontcrop hilight hue ispmode saturation sensorfps setosdalpha setosdpos sharpness sinter temper"
 commands_channel="framerate"
 
 # create a copy of IMP config file
@@ -35,12 +35,6 @@ cp -f $imp_config_file $imp_config_temp_file
 # reading actual values from implib
 for i in $commands; do
 	eval "$i=\"$(/usr/sbin/imp-control $i)\""
-done
-
-# reading actual osd values from implib
-osd="0 1 2 3"
-for i in $osd; do
-	eval "osd_$i=\"$(/usr/sbin/imp-control getosd $i)\""
 done
 
 # read values from temp config file
@@ -61,18 +55,8 @@ if [ -n "$whitebalance" ]; then
 fi
 
 # normalize
-[ "$aiaec" = "on" ] && aiaec="true"
-[ "$aihpf" = "on" ] && aihpf="true"
 [ -z "$setosdpos_x" ] && setosdpos_x=0
 [ -z "$setosdpos_y" ] && setosdpos_y=0
-
-check_flip() {
-	[ $flip -eq 2 ] || [ $flip -eq 3 ] && echo -n " checked"
-}
-
-check_mirror() {
-	[ $flip -eq 1 ] || [ $flip -eq 3 ] && echo -n " checked"
-}
 %>
 <%in _header.cgi %>
 
@@ -139,24 +123,14 @@ check_mirror() {
 </div>
 <div class="flex-grow-1 me-5" style="flex-basis: 250px;">
 <h3>Audio Input</h3>
-<% field_range "aivol" "Audio Input Volume" "-30,120" %>
-<% field_range "aigain" "Audio Input Gain" "0,31" %>
 <%# field_select "aiagc" "Auto Gain Control" "off,gainLevel compGaindB" %>
-<% field_range "aialc" "Audio Input ALC Gain" "0,7" %>
-<% field_switch "aihpf" "High Pass Filter" %>
 <% field_switch "aiaec" "Echo Cancellation" %>
 <%# field_range "ains" "Noise Suppression" "-1,3" %>
-
 <h3>Audio Output</h3>
 <% field_range "aovol" "Audio Output Volume", "-30,120" %>
 <% field_range "aogain" "Audio Output Gain" "0,31" %>
 </div>
 <div class="flex-grow-1" style="flex-basis: 250px;">
-<h3>OSD</h3>
-<% group_osd "Date & Time" 0 %>
-<% group_osd "Title" 1 %>
-<% group_osd "Uptime" 2 %>
-<% group_osd "Logo" 3 %>
 <% field_text "frontcrop" "Front Crop" %>
 </div>
 </div>
