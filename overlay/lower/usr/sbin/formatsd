@@ -1,13 +1,9 @@
 #!/bin/sh
 
-die() {
-	echo_c 160 "$1"
-	exit 1
-}
+. /sbin/common
 
 format_partition() {
 	unmount_partition $1
-
 	echo_c 36 "Format partition"
 	echo_c 144 "$MKFS -n thingino $1"
 	$MKFS -n thingino $1 2>&1 || die "Cannot format $1 to $POST_fstype"
