@@ -38,7 +38,7 @@ BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 
 # make command for buildroot
-BR2_MAKE = $(MAKE) -j$(shell nproc) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
+BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
 
 # handle the board
 include $(BR2_EXTERNAL)/board.mk
@@ -132,7 +132,7 @@ bootstrap:
 
 build: defconfig
 	@$(FIGLET) $(CAMERA)
-	$(BR2_MAKE) all
+	$(BR2_MAKE) -j$(shell nproc) all
 
 ### Configuration
 
