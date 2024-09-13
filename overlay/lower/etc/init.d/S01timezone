@@ -5,19 +5,17 @@
 TZ_ENV_VAR=timezone
 TZNAME_FILE="/etc/timezone"
 TZCODE_FILE="/etc/TZ"
-TZJSON_FILE="/var/www/a/tz.js"
+TZJSON_FILE="/var/www/a/tz.js.gz"
 
 set_timezone() {
 	tzname=$(get $TZ_ENV_VAR)
 	[ -z "$tzname" ] && quit "Timezone is not set"
-
 	if [ ! -f $TZNAME_FILE ] || [ "$tzname" != "$(cat $TZNAME_FILE)" ]; then
 		run "echo $tzname > $TZNAME_FILE"
 	fi
 
 	[ -f "$TZJSON_FILE" ] || die "$TZJSON_FILE not found"
-
-	line=$(grep -i -F "$tzname" $TZJSON_FILE)
+	line=$(zcat $TZJSON_FILE | grep -i -F "$tzname")
 	[ -z "$line" ] && die "Timezone $tzname not found in $TZJSON_FILE"
 
 	tz=$(echo "$line" | sed "s/^.*v:'\([^']*\)'.*$/\1/")
