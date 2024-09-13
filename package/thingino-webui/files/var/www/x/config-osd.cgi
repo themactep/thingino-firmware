@@ -131,7 +131,8 @@ ws.onopen = () => {
 	console.log('WebSocket connection opened');
 	stream_rq='"osd":{"enabled":null,"font_path":null,"font_size":null,"logo_enabled":null,"time_enabled":null,"uptime_enabled":null,"user_text_enabled":null}';
 	const payload = '{"stream0":{' + stream_rq + '},"stream1":{' + stream_rq + '}}';
-	sendToWs(payload);
+	console.log(payload);
+	ws.send(payload);
 	sts = setTimeout(getSnapshot, 1000);
 }
 ws.onclose = () => {
