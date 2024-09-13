@@ -6,12 +6,12 @@
 
 case "$type" in
 	ir850 | ir940 | white)
-		pin=$(get gpio_${type})
+		pin=$(get gpio_$type)
 		;;
 	*)
 		# select first non-empty pin of available
 		for type in ir850 ir940 white; do
-			pin=$(get gpio_${type})
+			pin=$(get gpio_$type)
 			[ -n "$pin" ] && break
 		done
 		# set most common type for error message below
@@ -21,7 +21,7 @@ esac
 
 if [ -z "$pin" ]; then
 	echo "Please define LED GPIO pin"
-	echo "fw_setenv gpio_${type} <pin>"
+	echo "fw_setenv gpio_$type <pin>"
 	exit 1
 fi
 
