@@ -38,7 +38,7 @@ fi
 
 if [ "POST" = "$REQUEST_METHOD" ] && [ "save" = "$POST_mode" ]; then
 	tempfile=$(mktemp)
-	echo -e "wlanssid $wlanssid\nwlanpass $wlanpass\nhostname $hostname\ntimezone $timezone" > $tempfile
+	printf "wlanssid %s\nwlanpass %s\nhostname %s\ntimezone %s\n" "$wlanssid" "$wlanpass" "$hostname" "$timezone" > "$tempfile"
 	fw_setenv -s $tempfile
 	echo "root:${rootpass}" | chpasswd -c sha512
 	echo "$rootpkey" > /root/.ssh/authorized_keys

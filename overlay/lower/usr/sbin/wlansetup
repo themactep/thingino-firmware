@@ -7,9 +7,9 @@ wlandev=$(get wlandev)
 
 echo_c 208 "Thingino Wi-Fi setup"
 echo "Wi-Fi driver: $(echo_c 10 $wlandev)"
-read -p "Enter Wi-Fi SSID: " ssid
+read -r -p "Enter Wi-Fi SSID: " ssid
 while :; do
-	read -p "Enter Wi-Fi Password: " password
+	read -r -p "Enter Wi-Fi Password: " password
 	[ ${#password} -ge 8 ] && [ ${#password} -le 64 ] && break
 	echo_c 160 "Passwords is not between 8 and 64 characters. Please try again."
 done
