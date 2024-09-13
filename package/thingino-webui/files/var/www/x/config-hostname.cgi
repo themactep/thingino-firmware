@@ -3,10 +3,6 @@
 <%
 page_title="Hostname"
 
-function check_hostname() {
-	[ -z "$hostname" ] && hostname="thingino-"
-}
-
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 

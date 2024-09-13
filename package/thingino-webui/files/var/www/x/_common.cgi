@@ -145,6 +145,14 @@ check_file_exist() {
 	[ -f "$1" ] || redirect_back "danger" "File $1 not found"
 }
 
+check_hostname() {
+	[ -z "$hostname" ] && hostname="thingino-"
+}
+
+check_mac_address() {
+	echo "$1" | grep -qE "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"
+}
+
 check_password() {
 	local safepage="/x/config-webui.cgi"
 	[ "$debug" -gt 0 ] && return
