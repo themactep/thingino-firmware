@@ -75,8 +75,8 @@ fi
 <div class="row g-4 mb-4">
 <div class="col col-12 col-xl-4">
 <% field_switch "daynight_enabled" "Enable daynight script" %>
-<% field_number "daynight_min" "Minimum gain in night mode" %>
-<% field_number "daynight_max" "Maximum gain in day mode" %>
+<% field_number "daynight_min" "Min gain to activate day mode" %>
+<% field_number "daynight_max" "Max gain to activate night mode"" %>
 <% field_number "daynight_interval" "Run every X minutes" %>
 </div>
 <div class="col col-12 col-xl-8">
