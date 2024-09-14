@@ -5,13 +5,8 @@ page_title="Motors"
 
 [ -f /bin/motors ] || redirect_to "/" "danger" "Your camera does not seem to support motors"
 
-# Defaults
-gpio_motor_h=$(get gpio_motor_h)
-gpio_motor_v=$(get gpio_motor_v)
-motor_maxstep_h=$(get motor_maxstep_h)
-motor_maxstep_v=$(get motor_maxstep_v)
-disable_homing=$(get disable_homing)
-motor_pos_0=$(get motor_pos_0)
+# read data from env
+fw_printenv | grep -E '(motor|homing)' | xargs -i eval '{}'
 
 # Manipulation
 gpio_motor_h_1=$(echo $gpio_motor_h | awk '{print $1}')
