@@ -5,16 +5,16 @@ plugin="record"
 page_title="Local Recording"
 params="debug enabled prefix path format interval loop diskusage led_enabled led_gpio led_interval"
 
-config_file="${ui_config_dir}/${plugin}.conf"
-[ ! -f "$config_file" ] && touch $config_file
+config_file="$ui_config_dir/$plugin.conf"
+[ -f "$config_file" ] || touch $config_file
 
 record_control=/etc/init.d/S96record
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
 	for p in $params; do
-		eval ${plugin}_${p}=\$POST_${plugin}_${p}
-		sanitize "${plugin}_${p}"
+		eval ${plugin}_$p=\$POST_${plugin}_$p
+		sanitize "${plugin}_$p"
 	done; unset p
 
 	# validation
@@ -50,7 +50,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 		tmp_file=$(mktemp)
 		for p in $params; do
-			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
+			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 
