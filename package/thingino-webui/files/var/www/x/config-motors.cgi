@@ -8,7 +8,7 @@ page_title="Motors"
 # read data from env
 fw_printenv | grep -E '(motor|homing)' | xargs -i eval '{}'
 
-# Manipulation
+# parse
 gpio_motor_h_1=$(echo $gpio_motor_h | awk '{print $1}')
 gpio_motor_h_2=$(echo $gpio_motor_h | awk '{print $2}')
 gpio_motor_h_3=$(echo $gpio_motor_h | awk '{print $3}')
@@ -42,7 +42,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	motor_pos_0_y=$POST_motor_pos_0_y
 
 	# validate
-	if [ -z "$gpio_motor_h_1" ] || [ -z "$gpio_motor_h_2" ] || [ -z "$gpio_motor_h_3" ] || [ -z "$gpio_motor_h_4" ] ||
+	if [ -z "$gpio_motor_h_1" ] || [ -z "$gpio_motor_h_2" ] || [ -z "$gpio_motor_h_3" ] || [ -z "$gpio_motor_h_4" ] || \
 	   [ -z "$gpio_motor_v_1" ] || [ -z "$gpio_motor_v_2" ] || [ -z "$gpio_motor_v_3" ] || [ -z "$gpio_motor_v_4" ]; then
 		set_error_flag "All pins are required"
 	fi
@@ -51,9 +51,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		set_error_flag "Motor max steps aren't set"
 	fi
 
-	# Action
 	if [ -z "$error" ]; then
-		# Data manupulation
+		# construct
 		gpio_motor_h="$POST_gpio_motor_h_1 $POST_gpio_motor_h_2 $POST_gpio_motor_h_3 $POST_gpio_motor_h_4"
 		gpio_motor_v="$POST_gpio_motor_v_1 $POST_gpio_motor_v_2 $POST_gpio_motor_v_3 $POST_gpio_motor_v_4"
 
@@ -63,7 +62,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			motor_pos_0=""
 		fi
 
-		# save values to env
+		# save to env
 		tmpfile=$(mktemp -u)
 		{
 			echo "gpio_motor_h $gpio_motor_h"
