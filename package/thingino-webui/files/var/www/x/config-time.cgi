@@ -4,8 +4,8 @@
 plugin="time"
 page_title="Time"
 
-config_file="${ui_config_dir}/${plugin}.conf"
-[ ! -f "$config_file" ] && touch $config_file
+config_file="$ui_config_dir/$plugin.conf"
+[ -f "$config_file" ] || touch $config_file
 
 ntpd_static_config=/etc/default/ntp.conf
 ntpd_working_config=/tmp/ntp.conf
@@ -14,33 +14,35 @@ seq=$(seq 0 3)
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	case "$POST_action" in
 		reset)
-			cp -f /rom${ntpd_static_config} $ntpd_working_config
-			redirect_back "success" "Configuration reset to firmware defaults."
+			cp -f /rom$ntpd_static_config $ntpd_working_config
 			;;
 		update)
 			# check for mandatory data
-			[ -z "$POST_tz_name" ] && redirect_to $SCRIPT_NAME "warning" "Empty timezone name. Skipping."
-			[ -z "$POST_tz_data" ] && redirect_to $SCRIPT_NAME "warning" "Empty timezone value. Skipping."
+			[ -z "$POST_tz_name" ] && set_error_flag "Empty timezone name."
+			[ -z "$POST_tz_data" ] && set_error_flag "Empty timezone value."
 
-			[ "$tz_data" != "$POST_tz_data" ] && echo "$POST_tz_data" >/etc/TZ
-			[ "$tz_name" != "$POST_tz_name" ] && echo "$POST_tz_name" >/etc/timezone && \
-				fw_setenv timezone "$POST_tz_name"
+		        if [ -z "$error" ]; then
+				[ "$tz_data" = "$POST_tz_data" ] || echo "$POST_tz_data" >/etc/TZ
+				[ "$tz_name" != "$POST_tz_name" ] && \
+					echo "$POST_tz_name" >/etc/timezone && \
+					fw_setenv timezone "$POST_tz_name"
 
-			tmp_file=$(mktemp)
-			for i in $seq; do
-				eval s="\$POST_ntp_server_${i}"
-				[ -n "$s" ] && echo "server ${s} iburst" >>$tmp_file
-			done
-			unset i; unset s
-			mv $tmp_file $ntpd_static_config
-			cp $ntpd_static_config $ntpd_working_config
-			chmod a-w $ntpd_working_config
-			redirect_back "success" "Configuration updated."
+				tmp_file=$(mktemp)
+				for i in $seq; do
+					eval s="\$POST_ntp_server_$i"
+					[ -n "$s" ] && echo "server $s iburst" >>$tmp_file
+				done; unset i; unset s
+
+				mv $tmp_file $ntpd_static_config
+				cp $ntpd_static_config $ntpd_working_config
+				chmod a-w $ntpd_working_config
+				service timezone restart > /dev/null
+			fi
 			;;
 	esac
 
 	update_caminfo
-	redirect_to $SCRIPT_NAME "success" "Timezone updated."
+	redirect_to $SCRIPT_NAME
 fi
 %>
 <%in _header.cgi %>
@@ -62,6 +64,7 @@ fi
 <span class="hint text-secondary">Control string of the timezone selected above. Read-only field, only for monitoring.</span>
 </p>
 <p><a href="#" id="frombrowser">Pick up timezone from browser</a></p>
+<% button_submit %>
 </div>
 <div class="col">
 <h3>Time Synchronization</h3>
@@ -75,6 +78,7 @@ done; unset i; unset x
 </div>
 <div class="col">
 <h3>Configuration</h3>
+<% ex "get timezone" %>
 <% ex "cat /etc/timezone" %>
 <% ex "cat /etc/TZ" %>
 <% ex "echo \$TZ" %>
@@ -83,7 +87,6 @@ done; unset i; unset x
 <p id="sync-time-wrapper"><a href="#" id="sync-time">Sync time</a></p>
 </div>
 </div>
-<% button_submit %>
 </form>
 
 <% if [ ! "$(diff -q -- "/rom${config_file}" "$config_file")" ]; then %>
