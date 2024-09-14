@@ -69,15 +69,17 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		fi
 
 		# save values to env
-		tmpfile=$(mktemp)
-		echo "gpio_motor_h $gpio_motor_h" >> $tmpfile
-		echo "gpio_motor_v $gpio_motor_v" >> $tmpfile
-		echo "motor_maxstep_h $motor_maxstep_h" >> $tmpfile
-		echo "motor_maxstep_v $motor_maxstep_v" >> $tmpfile
-		echo "disable_homing $disable_homing" >> $tmpfile
-		echo "motor_pos_0 $motor_pos_0" >> $tmpfile
+		tmpfile=$(mktemp -u)
+		{
+			echo "gpio_motor_h $gpio_motor_h"
+			echo "gpio_motor_v $gpio_motor_v"
+			echo "motor_maxstep_h $motor_maxstep_h"
+			echo "motor_maxstep_v $motor_maxstep_v"
+			echo "disable_homing $disable_homing"
+			echo "motor_pos_0 $motor_pos_0"
+		} > $tmpfile
 		fw_setenv -s $tmpfile
-		#rm $tmpfile
+		rm $tmpfile
 
 		redirect_to $SCRIPT_NAME
 	fi
