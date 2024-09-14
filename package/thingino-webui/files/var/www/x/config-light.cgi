@@ -87,19 +87,8 @@ ircut_pin2=$(echo $ircut_pins | awk '{print $2}')
 	</div>
 </div>
 <div class="col">
-
 <h3>Environment Settings</h3>
-<pre>
-gpio_ir850: <%= $ir850_pin %>
-gpio_ir940: <%= $ir940_pin %>
-gpio_white: <%= $white_pin %>
-gpio_ircut: <%= $ircut_pins %>
-pwm_ch_ir850: <%= $ir850_pwm %>
-pwm_ch_ir940: <%= $ir940_pwm %>
-pwm_ch_white: <%= $white_pwm %>
-day_night_min: <%= $day_night_min %>
-day_night_max: <%= $day_night_max %>
-</pre>
+<% ex "fw_printenv | grep -E '((gpio|pwm_ch)_(ir|white)|day_night)'" %>
 </div>
 </div>
 <% button_submit %>
