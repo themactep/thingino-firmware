@@ -54,8 +54,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		set_error_flag "All pins are required"
 	fi
 
-	if [ "$motor_maxstep_h" -le 0 ] || [ "$motor_maxstep_v" -le 0 ]; then
-		set_error_flag "Motor max steps are required"
+	if [ "0$motor_maxstep_h" -le 0 ] || [ "0$motor_maxstep_v" -le 0 ]; then
+		set_error_flag "Motor max steps aren't set"
 	fi
 
 	# Action
