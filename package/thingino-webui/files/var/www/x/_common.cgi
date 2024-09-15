@@ -121,7 +121,7 @@ button_reset_firmware() {
 
 button_restore_from_rom() {
 	local file=$1
-	[ ! -f "/rom/$file" ] && return
+	[ -f "/rom/$file" ] || return
 	if [ -z "$(diff "/rom/$file" "$file")" ]; then
 		echo "<p class=\"small fst-italic\">File matches the version in ROM.</p>"
 		return
@@ -238,7 +238,7 @@ field_number() {
 	local h=$4
 	local v=$(t_value "$n")
 	local vr=$v
-	[ -n "$ab" ] && [ "$ab" = "$v" ] && vr=$(( ( $mn + $mx ) / 2 ))
+	[ -n "$ab" ] && [ "$ab" = "$v" ] && vr=$(((mn + mx) / 2))
 	echo "<p class=\"number\">" \
 		"<label class=\"form-label\" for=\"$n\">$l</label>" \
 		"<span class=\"input-group\">"
@@ -283,7 +283,7 @@ field_range() {
 	local h=$4
 	local v=$(t_value "$n")
 	local vr=$v
-	[ -z "$vr" -o "$ab" = "$vr" ] && vr=$(( ( $mn + $mx ) / 2 ))
+	[ -z "$vr" -o "$ab" = "$vr" ] && vr=$(((mn + mx) / 2))
 	echo "<p class=\"range\" id=\"${n}_wrap\">" \
 		"<label class=\"form-label\" for=\"$n\">$l</label>" \
 		"<span class=\"input-group\">"
@@ -507,7 +507,7 @@ menu() {
 
 			# check if plugin is enabled
 			echo -n "<li><a class=\"dropdown-item"
-			grep -q -s "^${p}_enabled=\"true\"" $ui_config_dir/${p}.conf && echo -n " plugin-enabled"
+			grep -q -s "^${p}_enabled=\"true\"" $ui_config_dir/$p.conf && echo -n " plugin-enabled"
 			echo "\" href=\"$i\">$n</a></li>"
 		else
 			# FIXME: dirty hack
@@ -637,7 +637,7 @@ generate_signature() {
 }
 
 signature() {
-	[ ! -f "$signature_file" ] && generate_signature
+	[ -f "$signature_file" ] || generate_signature
 	cat $signature_file
 }
 
@@ -677,7 +677,7 @@ update_caminfo() {
 
 	# FIXME
 	flash_type="NOR"
-	flash_size=$((0x0$(awk '/"all"/ {print $2}' /proc/mtd)))
+	flash_size=$((0x0$(awk '/"all"/{print $2}' /proc/mtd)))
 	if [ "$flash_size" -eq 0 ]; then
 		mtd_size=$(grep -E "nor|nand" $(ls /sys/class/mtd/mtd*/type) | sed -E "s|type.+|size|g")
 		flash_size=$(awk '{sum+=$1} END{print sum}' $mtd_size)
@@ -744,7 +744,7 @@ overlay_root soc soc_family sensor tz_data tz_name uboot_version ui_password"
 	# sort content alphabetically
 	sort <$tmpfile | sed /^$/d >$sysinfo_file && rm $tmpfile && unset tmpfile
 
-	echo -e "debug=${debug}\n# caminfo $(date +"%F %T")\n" >>$sysinfo_file
+	echo -e "debug=$debug\n# caminfo $(date +"%F %T")\n" >>$sysinfo_file
 	generate_signature
 }
 
