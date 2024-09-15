@@ -96,7 +96,6 @@ done; unset i; unset x
 </form>
 <% fi %>
 
-<script src="/a/tz.js"></script>
 <script>
 	function findTimezone(tz) {
 		return tz.n == $("#tz_name").value;
@@ -116,8 +115,8 @@ done; unset i; unset x
 	$('#sync-time').addEventListener('click', event => {
 		event.preventDefault();
 		fetch('/x/json-sync-time.cgi')
-			.then((response) => response.json())
-			.then((json) => {
+			.then(response => response.json())
+			.then(json => {
 				p = document.createElement('p');
 				p.classList.add('alert', 'alert-' + json.result);
 				p.textContent = json.message;
@@ -125,29 +124,38 @@ done; unset i; unset x
 			})
 	});
 
-	const tzn = $("#tz_name");
-	if (navigator.userAgent.includes("Android") && navigator.userAgent.includes("Firefox")) {
-		const sel = document.createElement("select");
-		sel.classList.add("form-select");
-		sel.name = "tz_name";
-		sel.id = "tz_name";
-		sel.options.add(new Option());
-		let opt;
-		TZ.forEach(function (tz) {
-			opt = new Option(tz.n);
-			opt.selected = (tz.n == tzn.value);
-			sel.options.add(opt);
-		});
-		tzn.replaceWith(sel);
-	} else {
-		const el = $("#tz_list");
-		el.innerHTML = "";
-		TZ.forEach(function (tz) {
-			const o = document.createElement("option");
-			o.value = tz.n;
-			el.appendChild(o);
-		});
+	function populate_timezones() {
+		if (navigator.userAgent.includes("Android") && navigator.userAgent.includes("Firefox")) {
+			const sel = document.createElement("select");
+			sel.classList.add("form-select");
+			sel.name = "tz_name";
+			sel.id = "tz_name";
+			sel.options.add(new Option());
+			let opt;
+			TZ.forEach(function (tz) {
+				opt = new Option(tz.n);
+				opt.selected = (tz.n == tzn.value);
+				sel.options.add(opt);
+			});
+			tzn.replaceWith(sel);
+		} else {
+			const el = $("#tz_list");
+			el.innerHTML = "";
+			TZ.forEach(function (tz) {
+				const o = document.createElement("option");
+				o.value = tz.n;
+				el.appendChild(o);
+			});
+		}
 	}
+
+	let TZ;
+
+	fetch(document.location.protocol + '//' + document.location.host + "/a/tz.json")
+		.then(response => response.json())
+		.then(json => { TZ = json; populate_timezones(json) })
+
+	const tzn = $("#tz_name");
 	tzn.addEventListener("focus", ev => ev.target.select());
 	tzn.addEventListener("selectionchange", updateTimezone);
 	tzn.addEventListener("change", updateTimezone);

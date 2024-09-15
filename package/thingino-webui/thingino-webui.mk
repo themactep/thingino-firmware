@@ -39,7 +39,7 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var
 	cp -rv $(THINGINO_WEBUI_PKGDIR)/files/var/www $(TARGET_DIR)/var/
 	find $(TARGET_DIR)/var/www/x/ -type f -name *.cgi -exec chmod 755 {} \;
-	find $(TARGET_DIR)/var/www/a/ -type f \( -name "*.css" -o -name "*.ico" -o -name "*.js" -o -name "*.svg" \) -exec gzip {} \;
+	find $(TARGET_DIR)/var/www/a/ -type f ! -name "*.gz" -exec gzip -9 {} \;
 
 	$(INSTALL) -m 0755 -T $(@D)/mjpeg_inotify $(TARGET_DIR)/var/www/x/mjpeg.cgi
 endef
