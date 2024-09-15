@@ -69,9 +69,6 @@ which motors > /dev/null && has_motors="true"
 <button class="form-control btn btn-primary text-start" type="button" data-sendto="yadisk">Yandex Disk</button>
 <div class="input-group-text"><a href="plugin-send2yadisk.cgi" title="Yandex Disk bot settings"><%= $icon_gear %></a></div>
 </div>
-<% if [ "$debug" -gt 3 ]; then %>
-<button id="zonemapper" class="form-control btn btn-secondary" type="button">Zone Mapper</button>
-<% fi %>
 </div>
 </div>
 </div>
