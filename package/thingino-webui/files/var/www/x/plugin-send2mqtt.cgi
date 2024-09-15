@@ -6,16 +6,16 @@ plugin_name="MQTT client"
 page_title="MQTT client"
 params="enabled host port client_id username password topic message send_snap snap_topic use_ssl"
 
-[ ! -f /usr/bin/mosquitto_pub ] && redirect_to "/" "danger" "MQTT client is not a part of your firmware."
+[ -f /usr/bin/mosquitto_pub ] || redirect_to "/" "danger" "MQTT client is not a part of your firmware."
 
-config_file="${ui_config_dir}/${plugin}.conf"
-[ ! -f "$config_file" ] && touch $config_file
+config_file="$ui_config_dir/$plugin.conf"
+[ -f "$config_file" ] || touch $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
 	for p in $params; do
-		eval ${plugin}_${p}=\$POST_${plugin}_${p}
-		sanitize "${plugin}_${p}"
+		eval ${plugin}_$p=\$POST_${plugin}_$p
+		sanitize "${plugin}_$p"
 	done; unset p
 
 	# validate
@@ -47,7 +47,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
 		for p in $params; do
-			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
+			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 
@@ -62,7 +62,7 @@ else
 	# Default values
 	[ -z "$mqtt_client_id" ] && mqtt_client_id="${network_macaddr//:/}"
 	[ -z "$mqtt_port" ] && mqtt_port="1883"
-	[ -z "$mqtt_topic" ] && mqtt_topic="thingino/${mqtt_client_id}"
+	[ -z "$mqtt_topic" ] && mqtt_topic="thingino/$mqtt_client_id"
 	[ -z "$mqtt_message" ] && mqtt_message=""
 fi
 %>

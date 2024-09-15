@@ -6,14 +6,14 @@ plugin_name="Send to Telegram"
 page_title="Send to Telegram"
 params="enabled token as_attachment as_photo channel caption socks5_enabled"
 
-config_file="${ui_config_dir}/${plugin}.conf"
-[ ! -f "$config_file" ] && touch $config_file
+config_file="$ui_config_dir/$plugin.conf"
+[ -f "$config_file" ] || touch $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
 	for p in $params; do
-		eval ${plugin}_${p}=\$POST_${plugin}_${p}
-		sanitize "${plugin}_${p}"
+		eval ${plugin}_$p=\$POST_${plugin}_$p
+		sanitize "${plugin}_$p"
 	done; unset p
 
 	# validate
@@ -25,7 +25,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
 		for p in $params; do
-			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
+			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 

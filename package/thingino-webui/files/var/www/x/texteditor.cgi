@@ -29,8 +29,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 				else
 					[ -f "${editor_file}.backup" ] && rm "${editor_file}.backup"
 				fi
-			echo "$editor_text" >"$editor_file"
-			redirect_to "${SCRIPT_NAME}?f=${editor_file}" "success" "File saved."
+				echo "$editor_text" >"$editor_file"
+				redirect_to "${SCRIPT_NAME}?f=${editor_file}" "success" "File saved."
 			fi
 			;;
 		*)

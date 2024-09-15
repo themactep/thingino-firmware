@@ -6,14 +6,14 @@ plugin_name="Send to email"
 page_title="Send to email"
 params="enabled attach_snapshot from_name from_address to_name to_address subject body smtp_host smtp_port smtp_username smtp_password smtp_use_ssl socks5_enabled"
 
-config_file="${ui_config_dir}/${plugin}.conf"
-[ ! -f "$config_file" ] && touch $config_file
+config_file="$ui_config_dir/$plugin.conf"
+[ -f "$config_file" ] || touch $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
 	for p in $params; do
-		eval ${plugin}_${p}=\$POST_${plugin}_${p}
-		sanitize "${plugin}_${p}"
+		eval ${plugin}_$p=\$POST_${plugin}_$p
+		sanitize "${plugin}_$p"
 	done; unset p
 
 	# normalize
@@ -31,7 +31,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
 		for p in $params; do
-			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
+			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 
@@ -46,9 +46,9 @@ else
 	# Default values
 	[ -z "$email_attach_snapshot" ] && email_attach_snapshot="true"
 	[ -z "$email_smtp_port" ] && email_smtp_port="25"
-	[ -z "$email_from_name" ] && email_from_name="Camera ${network_hostname}"
+	[ -z "$email_from_name" ] && email_from_name="Camera $network_hostname"
 	[ -z "$email_to_name" ] && email_to_name="Camera admin"
-	#  [ -z "$email_subject" ] && email_subject="Snapshot from ${network_hostname}"
+	#[ -z "$email_subject" ] && email_subject="Snapshot from $network_hostname"
 fi
 %>
 <%in _header.cgi %>

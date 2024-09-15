@@ -6,25 +6,24 @@ plugin_name="Send to Webhook"
 page_title="Send to Webhook"
 params="enabled attach_snapshot url socks5_enabled"
 
-config_file="${ui_config_dir}/${plugin}.conf"
-[ ! -f "$config_file" ] && touch $config_file
+config_file="$ui_config_dir/$plugin.conf"
+[ -f "$config_file" ] || touch $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
 	for p in $params; do
-		eval ${plugin}_${p}=\$POST_${plugin}_${p}
-		sanitize "${plugin}_${p}"
+		eval ${plugin}_$p=\$POST_${plugin}_$p
+		sanitize "${plugin}_$p"
 	done; unset p
 
 	# validate
-	if [ "true" = "$webhook_enabled" ]; then
-		[ -z "$webhook_url" ] && set_error_flag "Webhook URL cannot be empty."
-	fi
+	[ "true" = "$webhook_enabled" ] && [ -z "$webhook_url" ] && \
+		set_error_flag "Webhook URL cannot be empty."
 
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
 		for p in $params; do
-			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
+			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 

@@ -71,8 +71,8 @@ fi
 <%
 for i in $seq; do
 	x=$(expr $i + 1)
-	eval ntp_server_${i}="$(sed -n ${x}p /etc/ntp.conf | cut -d' ' -f2)"
-	field_text "ntp_server_${i}" "NTP Server $(( i + 1 ))"
+	eval ntp_server_$i="$(sed -n ${x}p /etc/ntp.conf | cut -d' ' -f2)"
+	field_text "ntp_server_$i" "NTP Server $((i + 1))"
 done; unset i; unset x
 %>
 </div>

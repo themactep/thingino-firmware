@@ -5,27 +5,27 @@ plugin="zerotier"
 plugin_name="ZeroTier"
 page_title="ZeroTier"
 params="enabled nwid"
-config_file="${ui_config_dir}/${plugin}.conf"
+config_file="$ui_config_dir/$plugin.conf"
 service_file=/etc/init.d/S90zerotier
 zt_cli_bin=/usr/sbin/zerotier-cli
 zt_one_bin=/usr/sbin/zerotier-one
 
-[ ! -f "$zt_cli_bin" ] && redirect_to "/" "danger" "ZerotierOne client is not a part of your firmware."
-[ ! -f "$zt_one_bin" ] && redirect_to "/" "danger" "${zt_one_bin} file not found."
-[ ! -f "$service_file" ] && redirect_to "/" "danger" "${service_file} file not found."
-[ ! -f "$config_file" ] && touch $config_file
+[ -f "$zt_cli_bin" ] || redirect_to "/" "danger" "ZerotierOne client is not a part of your firmware."
+[ -f "$zt_one_bin" ] || redirect_to "/" "danger" "${zt_one_bin} file not found."
+[ -f "$service_file" ] || redirect_to "/" "danger" "${service_file} file not found."
+[ -f "$config_file" ] || touch $config_file
 
 include $config_file
 
-[ -n "$zerotier_nwid" ] && zt_network_config_file="/var/lib/zerotier-one/networks.d/${zerotier_nwid}.conf"
+[ -n "$zerotier_nwid" ] && zt_network_config_file="/var/lib/zerotier-one/networks.d/$zerotier_nwid.conf"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	case "$POST_action" in
 		create)
 			# parse values from parameters
 			for p in $params; do
-				eval ${plugin}_${p}=\$POST_${plugin}_${p}
-				sanitize "${plugin}_${p}"
+				eval ${plugin}_$p=\$POST_${plugin}_$p
+				sanitize "${plugin}_$p"
 			done; unset p
 
 			# validate
@@ -37,7 +37,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			if [ -z "$error" ]; then
 				tmp_file=$(mktemp)
 				for p in $params; do
-					echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
+					echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
 				done; unset p
 				mv $tmp_file $config_file
 

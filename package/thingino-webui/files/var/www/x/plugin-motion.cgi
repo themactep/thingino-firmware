@@ -6,8 +6,8 @@ plugin_name="Motion guard"
 page_title="Motion guard"
 params="enabled sensitivity send2email send2ftp send2mqtt send2telegram send2webhook send2yadisk throttle"
 
-config_file="${ui_config_dir}/${plugin}.conf"
-[ ! -f "$config_file" ] && touch $config_file
+config_file="$ui_config_dir/$plugin.conf"
+[ -f "$config_file" ] || touch $config_file
 
 prudynt_config=/etc/prudynt.cfg
 prudynt_control=/etc/init.d/S95prudynt
@@ -15,14 +15,14 @@ prudynt_control=/etc/init.d/S95prudynt
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
 	for p in $params; do
-		eval ${plugin}_${p}=\$POST_${plugin}_${p}
-		sanitize "${plugin}_${p}"
+		eval ${plugin}_$p=\$POST_${plugin}_$p
+		sanitize "${plugin}_$p"
 	done; unset p
 
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
 		for p in $params; do
-			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
+			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 
@@ -33,14 +33,14 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		else
 			sed -i '/^motion:/n/enabled:/{s/ true;/ false;/}' $tmp_file
 		fi
-		sed -i -E "/^motion:/n/sensitivity:/{s/: \d*;/: ${motion_sensitivity};/}" $tmp_file
-		sed -i -E "/^motion:/n/cooldown_time:/{s/: \d*;/: ${motion_throttle};/}" $tmp_file
+		sed -i -E "/^motion:/n/sensitivity:/{s/: \d*;/: $motion_sensitivity;/}" $tmp_file
+		sed -i -E "/^motion:/n/cooldown_time:/{s/: \d*;/: $motion_throttle;/}" $tmp_file
 		mv $tmp_file $prudynt_config
 
 		$prudynt_control restart >/dev/null
 
 		update_caminfo
-		redirect_to "$SCRIPT_NAME"
+		redirect_to $SCRIPT_NAME
 	fi
 else
 	include $config_file

@@ -6,19 +6,18 @@ plugin_name="Telegram Bot"
 page_title="Telegram Bot"
 
 params="enabled token"
-seq=$(seq 0 9)
-for i in $seq; do
-	params="${params} command_${i} description_${i} script_${i}"
+for i in $(seq 0 9); do
+	params="$params command_$i description_$i script_$i"
 done
 
-config_file="${ui_config_dir}/${plugin}.conf"
-[ ! -f "$config_file" ] && touch $config_file
+config_file="$ui_config_dir/$plugin.conf"
+[ -f "$config_file" ] || touch $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
 	for p in $params; do
-		eval ${plugin}_${p}=\$POST_${plugin}_${p}
-		sanitize "${plugin}_${p}"
+		eval ${plugin}_$p=\$POST_${plugin}_$p
+		sanitize "${plugin}_$p"
 	done; unset p
 
 	# validate
@@ -29,7 +28,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
 		for p in $params; do
-			echo "${plugin}_${p}=\"$(eval echo \$${plugin}_${p})\"" >>$tmp_file
+			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 
@@ -43,7 +42,7 @@ else
 	include $config_file
 
 	for p in $params; do
-		sanitize4web "${plugin}_${p}"
+		sanitize4web "${plugin}_$p"
 	done; unset p
 
 	# Default values
@@ -66,7 +65,7 @@ fi
 <div class="bot-commands mb-4">
 <h5>Bot Commands</h5>
 <p class="hint mb-3">Use $chat_id variable for the active chat ID.</p>
-<% for i in $seq; do %>
+<% for i in $(seq 0 9); do %>
 <div class="row g-1 mb-3 mb-lg-1">
 <div class="col-4 col-lg-2">
 <input type="text" id="telegrambot_command_<%= $i %>" name="telegrambot_command_<%= $i %>" class="form-control" placeholder="Bot Command" value="<%= $(t_value "telegrambot_command_$i") %>">
@@ -119,7 +118,7 @@ const default_commands = [
 	{command:'start',script:'echo "Hello"',description:'Start conversation'},
 	{command:'help',script:'echo "Try https://thingino.com/"',description:'Request help'},
 	{command:'info',script:'cat /etc/os-release',description:'Information about system'},
-	{command:'snap',script:'send2telegram -c $chat_id -p /tmp/snapshot4cron.jpg -i',description:'Take a snapshot'},
+	{command:'snap',script:'send2telegram -c $chat_id -p /tmp/snapshot.jpg -i',description:'Take a snapshot'},
 	{command:'yadisk',script:'send2yadisk && send2telegram -c $chat_id -m "Sent to Yandex Disk"',description:'Send snapshot to Yandex Disk'},
 	{command:'restart',script:'/etc/init.d/S93telegrambot restart',description:'Restart the bot'},
 	{command:'stop',script:'/etc/init.d/S93telegrambot stop',description:'Stop the bot'},
