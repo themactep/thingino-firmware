@@ -34,7 +34,7 @@ cp -f $imp_config_file $imp_config_temp_file
 
 # reading actual values from implib
 for i in $commands; do
-	eval "$i=\"$(/usr/sbin/imp-control $i)\""
+	eval "$i=\"$(imp-control $i)\""
 done
 
 # read values from temp config file
@@ -151,7 +151,5 @@ fi
 </form>
 </div>
 </div>
-
-<script src="/a/imp-config.js"></script>
 
 <%in _footer.cgi %>

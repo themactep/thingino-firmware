@@ -8,10 +8,6 @@ function $$(n) {
 	return document.querySelectorAll(n)
 }
 
-function refresh() {
-	window.location.reload()
-}
-
 function sleep(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms))
 }
@@ -36,12 +32,6 @@ function sendToApi(endpoint) {
 
 function reqListener(data) {
 	console.log(data.responseText);
-}
-
-function xhrGet(url) {
-	const xhr = new XMLHttpRequest();
-	xhr.open('GET', url);
-	xhr.send();
 }
 
 function heartbeat() {
@@ -94,6 +84,34 @@ function heartbeat() {
 
 		$$('form').forEach(el => el.autocomplete = 'off');
 
+// checkboxes
+		$$('input[type=checkbox]').forEach(el => {
+			el.autocomplete = "off"
+			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.checked ? 1 : 0))
+		});
+
+// numbers
+		$$('input[type=number]').forEach(el => {
+			el.autocomplete = "off"
+			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
+		});
+
+// radios
+		$$('input[type=radio]').forEach(el => {
+			el.autocomplete = "off"
+			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
+		});
+
+// ranges
+		$$('input[type=range]').forEach(el => {
+			el.addEventListener('change', ev => callImp(ev.target.id.replace('-range', ''), ev.target.value))
+		});
+
+// selects
+		$$('select').forEach(el => {
+			el.addEventListener('change', ev => callImp(ev.target.id, ev.target.value))
+		});
+
 		// For .warning and .danger buttons, ask confirmation on action.
 		$$('.btn-danger, .btn-warning, .confirm').forEach(el => {
 			// for input, find its parent form and attach listener to it submit event
@@ -105,27 +123,13 @@ function heartbeat() {
 			}
 		});
 
-		$$('.refresh').forEach(el => el.addEventListener('click', refresh));
-
-		// open links to external resources in a new window.
-		$$('a[href^=http]').forEach(el => el.target = '_blank');
-
-		// add auto toggle button and value display for range elements.
-		$$('input[type=range]').forEach(el => {
-			el.addEventListener('input', ev => {
-				const id = ev.target.id.replace(/-range/, '');
-				`1`
-				$('#' + id + '-show').textContent = ev.target.value;
-				$('#' + id).value = ev.target.value;
-			})
-		});
-
+// toggle auto value
 		$$('input.auto-value').forEach(el => {
 			el.addEventListener('click', ev => toggleAuto(ev.target));
 			toggleAuto(el);
 		});
 
-		// show password when checkbox is checked
+// show password when checkbox is checked
 		$$('.password input[type=checkbox]').forEach(el => {
 			el.addEventListener('change', ev => {
 				const pw = $('#' + ev.target.dataset['for']);
@@ -134,7 +138,17 @@ function heartbeat() {
 			});
 		});
 
-		// async output of a command running on camera
+// reload window when refresh button is clicked
+		$$('.refresh').forEach(el => {
+			el.addEventListener('click', ev => {
+				window.location.reload();
+			});
+		});
+
+// set links to external resources to open in a new window.
+		$$('a[href^=http]').forEach(el => el.target = '_blank');
+
+// async output of a command running on camera
 		if ($('pre#output[data-cmd]')) {
 			const el = $('pre#output[data-cmd]');
 
@@ -183,7 +197,7 @@ function heartbeat() {
 			run()
 		}
 
-		heartbeat();
+		//heartbeat();
 	}
 
 	window.addEventListener('load', initAll);

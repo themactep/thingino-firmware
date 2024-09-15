@@ -73,7 +73,6 @@ which motors > /dev/null && has_motors="true"
 </div>
 </div>
 
-<script src="/a/imp-config.js"></script>
 <script>
 <%
 [ "true" != "$email_enabled"    ] && echo "\$('button[data-sendto=email]').disabled = true;"
@@ -83,12 +82,14 @@ which motors > /dev/null && has_motors="true"
 [ "true" != "$telegram_enabled" ] && echo "\$('button[data-sendto=telegram]').disabled = true;"
 [ "true" != "$yadisk_enabled"   ] && echo "\$('button[data-sendto=yadisk]').disabled = true;"
 %>
+
 $$("button[data-sendto]").forEach(el => {
 	el.addEventListener("click", ev => {
 		ev.preventDefault();
 		if (!confirm("Are you sure?")) return false;
-		const tgt = ev.target.dataset["sendto"];
-		xhrGet("/x/send.cgi?to=" + tgt);
+		const xhr = new XMLHttpRequest();
+		xhr.open('GET', "/x/send.cgi?to=" + ev.target.dataset["sendto"]);
+		xhr.send();
 	});
 });
 
