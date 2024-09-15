@@ -2,82 +2,61 @@
 
 plugin="telegrambot"
 
-if [ -z "$(command -v jsonfilter)" ]; then
-	echo "$plugin is not supported on this platform, missing jsonfilter."
-	exit 99
-fi
+command -v jsonfilter > /dev/null || die "$plugin is not supported on this platform, missing jsonfilter."
 
 . /sbin/common-plugins
 singleton
 
-if [ "true" != "$telegrambot_enabled" ]; then
-	log "Telegram Bot is not enabled in ${CONFIG_FILE}."
-	quit_clean 10
-fi
+[ "true" = "$telegrambot_enabled" ] || die "Telegram Bot is not enabled in $CONFIG_FILE."
 
-data_file="/tmp/${plugin}.json"
-offset_file="/tmp/${plugin}_offset"
-offset_file_backup="/etc/webui/${plugin}_offset"
+data_file="/tmp/$plugin.json"
+offset_file="/tmp/$plugin.offset"
+offset_file_backup="/etc/webui/$plugin.offset"
 
 IFS_ORIG=$IFS
 API_URL="https://api.telegram.org/bot$telegrambot_token"
-
-### Build command menu and keyboards
-bot_commands="["
-bot_keyboard="{\"keyboard\":[["
-bot_inline_keyboard="{\"inline_keyboard\":[["
-build_menu
-bot_commands="${bot_commands}{\"command\":\"help\",\"description\":\"Help\"}]"
-bot_keyboard="${bot_keyboard}\"/help\"]],\"one_time_keyboard\":true,\"resize_keyboard\":true}"
-bot_inline_keyboard="${bot_inline_keyboard}{\"text\":\"help\",\"callback_data\":\"help.sh\"}]],\"one_time_keyboard\":true,\"resize_keyboard\":true}"
 
 ### Common methods
 
 build_menu() {
 	local i
+	local description
+	local script
 	for i in $(seq 0 9); do
-		local command=$(eval "echo \"\$telegrambot_command_$i\"")
+		local command=$(eval echo \$telegrambot_command_$i)
 		if [ -n "$command" ]; then
-			local description=$(eval "echo \"\$telegrambot_description_$i\"")
-			local script=$(eval "echo \"\$telegrambot_script_$i\"")
-			bot_commands="${bot_commands}{\"command\":\"${command}\",\"description\":\"${description}\"},"
-			bot_keyboard="${bot_keyboard}\"/${command}\","
-			bot_inline_keyboard="${bot_inline_keyboard}{\"text\":\"${command}\",\"callback_data\":\"${script}\"},"
-			unset description
-			unset script
+			description=$(eval echo \$telegrambot_description_$i)
+			script=$(eval echo \$telegrambot_script_$i)
+			bot_commands="$bot_commands{\"command\":\"$command\",\"description\":\"$description\"},"
+			bot_keyboard="$bot_keyboard\"/$command\","
+			bot_inline_keyboard="$bot_inline_keyboard{\"text\":\"$command\",\"callback_data\":\"$script\"},"
+			description=""
+			script=""
 		fi
 	done
 }
 
 dump_data() {
-	log "DATA: $(cat $data_file)" 37
+	log "DATA: $(cat $data_file)"
 }
 
 save_offset() {
-	if [ -f "$offset_file" ]; then
-		log "Save offset file to permanent storage."
-		cp "$offset_file" "$offset_file_backup"
-		sync
-		sleep 1
-	else
-		log "Offset file $offset_file not found."
-	fi
+	[ -f "$offset_file" ] || return
+	cp "$offset_file" "$offset_file_backup"
+	sync
+	sleep 1
 }
 
 restore_offset() {
-	if [ -f "$offset_file_backup" ]; then
-		log "Restore offset file from permanent storage."
-		cp "$offset_file_backup" "$offset_file"
-	else
-		log "Offset file backup not found in permanent storage."
-	fi
+	[ -f "$offset_file_backup" ] || return
+	cp "$offset_file_backup" "$offset_file"
 }
 
 #### Telegram API
 
 api_call() {
-	log $1 32
-	local command="curl --silent --request POST --url \"${API_URL}/${1}\" --header \"Content-Type: application/json\" --data '${2}' $3"
+	log "$1"
+	command="$CURL --url \"$API_URL/$1\" --header \"Content-Type: application/json\" --data '$2' $3"
 	log_and_run "$command"
 }
 
@@ -86,7 +65,7 @@ api_call() {
 get_me() {
 	api_call "getMe" "{\"timeout\":5}" "--output $data_file"
 	ME="@$(jsonfilter -i $data_file -e "$.result.username")"
-	log "Starting Telegram Bot $ME" 35
+	log "Starting Telegram Bot $ME"
 }
 
 # leave_chat "chat_id"
@@ -134,7 +113,7 @@ show_menu() {
 			data="${data},\"reply_markup\":$bot_inline_keyboard"
 			;;
 	esac
-	data="${data}}"
+	data="$data}"
 	api_call "sendMessage" "$data"
 }
 
@@ -160,15 +139,15 @@ get_updates() {
 	# - chat_member
 	# - chat_join_request
 
-	local data="{\"offset\":\"${offset}\",\"timeout\":5,\"allowed_updates\":[\"message\",\"channel_post\"]}"
+	local data="{\"offset\":\"$offset\",\"timeout\":5,\"allowed_updates\":[\"message\",\"channel_post\"]}"
 	api_call "getUpdates" "$data" "--output $data_file"
 }
 
 # send_message "chat_id" "message text" "reply_to_message"
 send_message() {
 	local data="{\"chat_id\":\"$1\",\"text\":\"$2\""
-	[ -n "$3" ] && data="${data},\"reply_to_message_id\":\"$3\""
-	data="${data}}"
+	[ -n "$3" ] && data="$data,\"reply_to_message_id\":\"$3\""
+	data="$data}"
 	api_call "sendMessage" "$data"
 }
 
@@ -185,6 +164,14 @@ tgb_readfromapi() {
 
 ### Logics
 
+bot_commands="["
+bot_keyboard="{\"keyboard\":[["
+bot_inline_keyboard="{\"inline_keyboard\":[["
+build_menu
+bot_commands="$bot_commands{\"command\":\"help\",\"description\":\"Help\"}]"
+bot_keyboard="$bot_keyboard\"/help\"]],\"one_time_keyboard\":true,\"resize_keyboard\":true}"
+bot_inline_keyboard="$bot_inline_keyboard{\"text\":\"help\",\"callback_data\":\"help.sh\"}]],\"one_time_keyboard\":true,\"resize_keyboard\":true}"
+
 restore_offset
 
 get_me
@@ -193,124 +180,118 @@ set_my_commands
 get_my_commands
 set_chat_menu_button
 
-while [ true ]; do
+while :; do
 	get_updates
 	dump_data
 
 	status=$(jsonfilter -i $data_file -e "$.ok")
 	if [ "true" = "$status" ]; then
 		update_ids=$(jsonfilter -i $data_file -e "$.result[*].update_id")
-		if [ -z "$update_ids" ]; then
-			log "No new messages."
-		else
-			log "Found new messages: $update_ids"
+		[ -z "$update_ids" ] && continue
 
-			for update_id in $update_ids; do
-				log "Processing message $update_id"
+		log "Found new messages: $update_ids"
+		for update_id in $update_ids; do
+			log "Processing message $update_id"
 
-				log "Saving pointer $((update_id + 1)) to $offset_file"
-				echo $((update_id + 1)) > $offset_file
+			next_id=$((update_id + 1))
+			log "Saving pointer $next_id to $offset_file"
+			echo $next_id > $offset_file
 
-				if [ -z "$(jsonfilter -i $data_file -e "$.result[@.update_id=$update_id].*.entities")" ]; then
-					log "Message $update_id has no entities"
-					continue
-				fi
+			if [ -z "$(jsonfilter -i $data_file -e "$.result[@.update_id=$update_id].*.entities")" ]; then
+				log "Message $update_id has no entities"
+				continue
+			fi
 
-				jsonfilter -i $data_file -e "$.result[@.update_id=$update_id].*.entities[*]" > /tmp/entities.json
-				log "Message $update_id has entities: $(cat /tmp/entities.json)"
+			jsonfilter -i $data_file -e "$.result[@.update_id=$update_id].*.entities[*]" > /tmp/entities.json
+			log "Message $update_id has entities: $(cat /tmp/entities.json)"
 
-				IFS=$'\n'
-				entities=$(cat /tmp/entities.json)
-				for entity in $entities; do
-					chat_id=$(jsonfilter -i $data_file -e "$.result[@.update_id=$update_id].*.chat.id")
-					chat_type=$(jsonfilter -i $data_file -e "$.result[@.update_id=$update_id].*.chat.type")
-					message_id=$(jsonfilter -i $data_file -e "$.result[@.update_id=$update_id].*.message_id")
-					message_text=$(jsonfilter -i $data_file -e "$.result[@.update_id=$update_id].*.text")
+			IFS=$'\n'
+			entities=$(cat /tmp/entities.json)
+			for entity in $entities; do
+				chat_id=$(jsonfilter -i $data_file -e "$.result[@.update_id=$update_id].*.chat.id")
+				chat_type=$(jsonfilter -i $data_file -e "$.result[@.update_id=$update_id].*.chat.type")
+				message_id=$(jsonfilter -i $data_file -e "$.result[@.update_id=$update_id].*.message_id")
+				message_text=$(jsonfilter -i $data_file -e "$.result[@.update_id=$update_id].*.text")
 
-					# Available entity types:
-					# - mention (@username)
-					# - hashtag (#hashtag)
-					# - cashtag ($USD)
-					# - bot_command (/start@jobs_bot)
-					# - url (https://telegram.org)
-					# - email (do-not-reply@telegram.org)
-					# - phone_number (+1-212-555-0123)
-					# - bold (bold text)
-					# - italic (italic text)
-					# - underline (underlined text)
-					# - strikethrough (strikethrough text)
-					# - spoiler (spoiler message)
-					# - code (monowidth string)
-					# - pre (monowidth block)
-					# - text_link (for clickable text URLs)
-					# - text_mention” (for users without usernames)
-					# - custom_emoji (for inline custom emoji stickers)
+				# Available entity types:
+				# - mention (@username)
+				# - hashtag (#hashtag)
+				# - cashtag ($USD)
+				# - bot_command (/start@jobs_bot)
+				# - url (https://telegram.org)
+				# - email (do-not-reply@telegram.org)
+				# - phone_number (+1-212-555-0123)
+				# - bold (bold text)
+				# - italic (italic text)
+				# - underline (underlined text)
+				# - strikethrough (strikethrough text)
+				# - spoiler (spoiler message)
+				# - code (monowidth string)
+				# - pre (monowidth block)
+				# - text_link (for clickable text URLs)
+				# - text_mention” (for users without usernames)
+				# - custom_emoji (for inline custom emoji stickers)
 
-					message_type=$(jsonfilter -s "$entity" -e "$.type")
-					if [ "bot_command" = "$message_type" ]; then
-						_o=$(jsonfilter -s "$entity" -e "$.offset")
-						_l=$(jsonfilter -s "$entity" -e "$.length")
-						bot_command="${message_text:$_o:$_l}"
-						log "BOT COMMAND: $bot_command" 31
-						unset _l
-						unset _o
+				message_type=$(jsonfilter -s "$entity" -e "$.type")
+				if [ "bot_command" = "$message_type" ]; then
+					_o=$(jsonfilter -s "$entity" -e "$.offset")
+					_l=$(jsonfilter -s "$entity" -e "$.length")
+					bot_command="${message_text:$_o:$_l}"
+					log "BOT COMMAND: $bot_command"
+					unset _l
+					unset _o
 
-						# split command by '@' to $command and $mention
-						mention=${bot_command##*@}
-						if [ "$bot_command" = "$mention" ]; then
-							log "Command $bot_command is global"
+					# split command by '@' to $command and $mention
+					mention=${bot_command##*@}
+					if [ "$bot_command" = "$mention" ]; then
+						log "Command $bot_command is global"
+						unset mention
+					else
+						bot_command=${bot_command%%@*}
+						if [ -n "$mention" ] && [ "$ME" != "@$mention" ]; then
+							log "Command $bot_command is not for $ME but for $mention"
 							unset mention
-						else
-							bot_command=${bot_command%%@*}
-							if [ -n "$mention" ] && [ "$ME" != "@${mention}" ]; then
-								log "Command $bot_command is not for $ME but for $mention"
-								unset mention
-								unset bot_command
-							fi
+							unset bot_command
 						fi
 					fi
-				done
-				IFS=$IFS_ORIG
-
-				if [ -n "$bot_command" ]; then
-					[ "reboot" = "$bot_command" ] && save_offset
-
-					casecmd="case \"\$bot_command\" in "
-					for i in $(seq 0 9); do
-						eval command="\$telegrambot_command_$i"
-						eval script="\$telegrambot_script_$i"
-						[ -n "$telegrambot_command_$i" ] && casecmd="$casecmd\"/$command\") script='$script' ;;"
-						unset command
-						unset script
-					done
-					casecmd="${casecmd}*) message=\"Command \$bot_command not found.\" ;;"
-					casecmd="${casecmd}esac;"
-					eval $casecmd
-
-					if [ -n "$script" ]; then
-						log "SCRIPT: $script" 35
-						message=$(eval $script)
-					fi
-					# sanitize doublequotes
-					message=${message//\"/\\\"}
-					# reply only if script produced an output
-					[ -n "$message" ] && send_message "$chat_id" "$message" "$message_id"
 				fi
-
-				# clean up
-				unset bot_command
-				unset chat_id
-				unset chat_type
-				unset mention
-				unset message_id
-				unset message_text
-				unset message_type
-				unset url
-				unset message
-				unset script
-				unset casecmd
 			done
-		fi
+			IFS=$IFS_ORIG
+
+			if [ -n "$bot_command" ]; then
+				[ "reboot" = "$bot_command" ] && save_offset
+
+				casecmd="case \"\$bot_command\" in "
+				for i in $(seq 0 9); do
+					[ -n "$telegrambot_command_$i" ] || continue
+					casecmd="$casecmd\"/\$telegrambot_command_$i\") script='\$telegrambot_script_$i' ;;"
+				done
+				casecmd="${casecmd}*) message=\"Command \$bot_command not found.\" ;; esac;"
+				eval $casecmd
+
+				if [ -n "$script" ]; then
+					log "SCRIPT: $script"
+					message=$(eval $script)
+				fi
+				# sanitize doublequotes
+				message=${message//\"/\\\"}
+				# reply only if script produced an output
+				[ -n "$message" ] && send_message "$chat_id" "$message" "$message_id"
+			fi
+
+			# clean up
+			unset bot_command
+			unset chat_id
+			unset chat_type
+			unset mention
+			unset message_id
+			unset message_text
+			unset message_type
+			unset url
+			unset message
+			unset script
+			unset casecmd
+		done
 	fi
 
 	sleep 1
