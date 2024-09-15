@@ -12,8 +12,7 @@
 <ul class="nav nav-tabs" role="tablist">
 <% tab_lap "t1" "sysinfo" "active" %>
 <% tab_lap "t2" "Environment" %>
-<% tab_lap "t3" "IMP" %>
-<% tab_lap "t4" "U-Boot Env" %>
+<% tab_lap "t3" "U-Boot Env" %>
 </ul>
 <div class="tab-content p-2" id="tab-content">
 <div id="t1-tab-pane" role="tabpanel" class="tab-pane fade active show" aria-labelledby="t1-tab" tabindex="0">
@@ -22,15 +21,7 @@
 <div id="t2-tab-pane" role="tabpanel" class="tab-pane fade" aria-labelledby="t2-tab" tabindex="0">
 <% ex "env | sort" %>
 </div>
-<div id="t3-tab-pane" role="tabpanel" class="tab-pane fade" aria-labelledby="t3-tab" tabindex="0">
-<% [ -f /etc/imp.conf ] && ex "cat /etc/imp.conf" %>
-<% [ -f /tmp/imp.conf ] && ex "cat /tmp/imp.conf" %>
-<b>in memory values</b>
-<pre><% for i in $commands; do eval "echo $i = \$$i"; done %></pre>
-<b>commands to fix</b>
-<pre><% for i in $commands_do_not_work; do echo -e "$i\n\t$(/usr/sbin/imp-control $i)"; done %></pre>
-</div>
-<div id="t4-tab-pane" role="tabpanel" class="tab-pane fade" aria-labelledby="t4-tab" tabindex="0">
+<div id="t3-tab-pane" role="tabpanel" class="tab-pane fade" aria-labelledby="t4-tab" tabindex="0">
 <% ex "fw_printenv | sort" %>
 </div>
 </div>
