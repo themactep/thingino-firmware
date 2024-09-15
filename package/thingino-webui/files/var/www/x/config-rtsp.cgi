@@ -10,7 +10,7 @@ onvif_config=/etc/onvif.conf
 onvif_discovery=/etc/init.d/S96onvif_discovery
 onvif_notify=/etc/init.d/S97onvif_notify
 
-rtsp_username=$(awk -F: '/Streaming Service/ {print $1}' /etc/passwd)
+rtsp_username=$(awk -F: '/Streaming Service/{print $1}' /etc/passwd)
 [ -z "$rtsp_username" ] && rtsp_username=$(awk -F'"' '/username/{print $2}' $prudynt_config)
 [ -z "$rtsp_password" ] && rtsp_password=$(awk -F'"' '/password/{print $2}' $prudynt_config)
 [ -z "$rtsp_password" ] && rtsp_password="thingino"
@@ -20,21 +20,15 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	sanitize rtsp_password
 
 	if [ -z "$error" ]; then
-		# change password for onvif server
 		tmpfile=$(mktemp)
 		cat $onvif_config > $tmpfile
 		#sed -i "/^user=/cuser=$rtsp_username" $tmpfile
 		sed -i "/^password=/cpassword=$rtsp_password" $tmpfile
 		mv $tmpfile $onvif_config
 
-		# change password for prudynt streamer
-		tmpfile=$(mktemp)
-		cat $prudynt_config > $tmpfile
-		#prudyntcfg set rtsp username \"$rtsp_username\"
-		prudyntcfg set rtsp password \"$rtsp_password\"
-		mv $tmpfile $prudynt_config
+		#prudyntcfg set rtsp username "\"$rtsp_username\""
+		prudyntcfg set rtsp password "\"$rtsp_password\""
 
-		# change password for system user
 		echo "$rtsp_username:$rtsp_password" | chpasswd -c sha512
 
 		if [ -f "$onvif_discovery" ]; then
