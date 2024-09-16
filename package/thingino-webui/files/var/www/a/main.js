@@ -197,7 +197,7 @@ function heartbeat() {
 			run()
 		}
 
-		//heartbeat();
+		heartbeat();
 	}
 
 	window.addEventListener('load', initAll);
