@@ -186,9 +186,7 @@ function callImp(command, value) {
 
 // reload window when refresh button is clicked
 		$$('.refresh').forEach(el => {
-			el.addEventListener('click', ev => {
-				window.location.reload();
-			});
+			el.addEventListener('click', ev => window.location.reload());
 		});
 
 // set links to external resources to open in a new window.
