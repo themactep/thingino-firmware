@@ -21,6 +21,10 @@ die() {
 	quit_clean ${2:-1}
 }
 
+is_debug_mode() {
+	[ $((0 + debug)) -gt 0 ] || [ "true" = "$debug" ]
+}
+
 tag() {
 	echo "$(ts) [$PID:$plugin]"
 }
@@ -63,6 +67,11 @@ singleton() {
 	log "Check lock file $LOCK_FILE"
 	if [ -f "$LOCK_FILE" ] && ps | grep "^\s*\b$(cat "$LOCK_FILE")\b" > /dev/null; then
 		log "Another instance running with PID $(cat $LOCK_FILE)."
+		exit 1
+	fi
+	pids=$(pidof $plugin)
+	if [ -n "$pids" ] && [ "$$" != "$pids" ]; then
+		log "Another instances found with PIDs $pids."
 		exit 1
 	fi
 	printf "%d\n" $PID > $LOCK_FILE
