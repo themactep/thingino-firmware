@@ -1,22 +1,14 @@
 #!/bin/sh
 
-if [ -z "$1" ]; then
-	echo "Usage: $0 <mmc port> [-r]"
-	exit 1
-fi
+. /sbin/common
 
-endpoint=/sys/devices/platform/jzmmc_v1.2.${1}/present
+[ -z "$1" ] && die "Usage: $0 <mmc port> [-r]"
 
-if [ ! -f "$endpoint" ]; then
-	echo "No endpoint $endpoint"
-	exit 1
-fi
+endpoint=/sys/devices/platform/jzmmc_v1.2.$1/present
+[ -f $endpoint ] || die "No endpoint $endpoint"
 
-# Check for the -r flag to determine whether to echo REMOVE or INSERT
-if [ "$2" = "-r" ]; then
-	echo REMOVE > $endpoint
-else
-	echo INSERT > $endpoint
-fi
+# Do REMOVE if -r supplied, otherwise INSERT
+[ "$2" = "-r" ] && action=REMOVE || action=INSERT
+echo $action > $endpoint
 
 exit 0
