@@ -62,22 +62,63 @@ function heartbeat() {
 		.then(setTimeout(heartbeat, 1000));
 }
 
+function callImp(command, value) {
+	if (command.startsWith("osd_")) {
+		let i = command.split('_')[2];
+		let a = command.split('_')[1];
+		let g = document.querySelector('.group_osd[data-idx="' + i + '"]');
+		if (command.startsWith("osd_pos_")) {
+			document.getElementById("osd_pos_auto_" + i + "_ig").classList.toggle("d-none");
+			document.getElementById("osd_pos_fixed_" + i + "_ig").classList.toggle("d-none");
+		}
+		let c = g.getAttribute("data-conf").split(" ");
+		if (a === 'fgAlpha') c[1] = value
+		if (a === 'show') c[2] = value
+		if (a === 'posx') c[3] = value
+		if (a === 'posy') c[4] = value
+		if (a === 'pos') c[5] = (value === 0 ? 0 : document.getElementById("osd_apos_" + i).value)
+		if (a === 'apos') c[5] = value
+		g.setAttribute('data-conf', c.join(' '));
+		value = g.getAttribute("data-conf");
+		command = 'setosd';
+	} else if (["aiaec", "aihpf"].includes(command)) {
+		value = (value === 1) ? "on" : "off"
+	} else if (["ains"].includes(command)) {
+		if (value === -1) value = "off"
+	} else if (["setosdpos_x", "setosdpos_y"].includes(command)) {
+		command = 'setosdpos'
+		value = '1' +
+			'+' + document.querySelector('#setosdpos_x').value +
+			'+' + document.querySelector('#setosdpos_y').value +
+			'+1087+75';
+	} else if (["whitebalance_mode", "whitebalance_rgain", "whitebalance_bgain"].includes(command)) {
+		command = 'whitebalance'
+		value = document.querySelector('#whitebalance_mode').value +
+			'+' + document.querySelector('#whitebalance_rgain').value +
+			'+' + document.querySelector('#whitebalance_bgain').value;
+	}
+
+	const xhr = new XMLHttpRequest();
+	xhr.open('GET', '/x/json-imp.cgi?cmd=' + command + '&val=' + value);
+	xhr.send();
+
+	document.querySelector('#savechanges')?.classList.remove('d-none');
+}
+
 (() => {
 	function initAll() {
 		function toggleAuto(el) {
 			const id = el.dataset.for;
 			const p = $('#' + id);
-			const r = $('#' + id + '-range');
 			const s = $('#' + id + '-show');
 			if (el.checked) {
 				el.dataset.value = r.value;
 				p.value = 'auto';
-				r.disabled = true;
+				p.disabled = true;
 				s.textContent = '--';
 			} else {
 				p.value = el.dataset.value;
-				r.value = p.value;
-				r.disabled = false;
+				p.disabled = false;
 				s.textContent = p.value;
 			}
 		}
@@ -85,32 +126,37 @@ function heartbeat() {
 		$$('form').forEach(el => el.autocomplete = 'off');
 
 // checkboxes
-		$$('input[type=checkbox]').forEach(el => {
-			el.autocomplete = "off"
-			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.checked ? 1 : 0))
-		});
+// 		$$('input[type=checkbox]').forEach(el => {
+// 			el.autocomplete = "off"
+// 			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.checked ? 1 : 0))
+// 		});
 
 // numbers
-		$$('input[type=number]').forEach(el => {
-			el.autocomplete = "off"
-			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
-		});
+// 		$$('input[type=number]').forEach(el => {
+// 			el.autocomplete = "off"
+// 			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
+// 		});
 
 // radios
-		$$('input[type=radio]').forEach(el => {
-			el.autocomplete = "off"
-			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
-		});
+// 		$$('input[type=radio]').forEach(el => {
+// 			el.autocomplete = "off"
+// 			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
+// 		});
 
 // ranges
 		$$('input[type=range]').forEach(el => {
-			el.addEventListener('change', ev => callImp(ev.target.id.replace('-range', ''), ev.target.value))
+			el.addEventListener('change', ev => {
+				$('#' + ev.target.id + '-show').value = ev.target.value
+			})
+			el.addEventListener('input', ev => {
+				$('#' + ev.target.id + '-show').value = ev.target.value
+			});
 		});
 
 // selects
-		$$('select').forEach(el => {
-			el.addEventListener('change', ev => callImp(ev.target.id, ev.target.value))
-		});
+// 		$$('select').forEach(el => {
+// 			el.addEventListener('change', ev => callImp(ev.target.id, ev.target.value))
+// 		});
 
 		// For .warning and .danger buttons, ask confirmation on action.
 		$$('.btn-danger, .btn-warning, .confirm').forEach(el => {
