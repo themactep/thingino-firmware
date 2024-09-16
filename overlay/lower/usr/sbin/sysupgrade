@@ -35,8 +35,10 @@ check_network() {
 check_free_space() {
 	local dl_size=$(curl -sIL $1 | awk '/Content-Length/{fs=$2}END{print fs}')
 	local free_space=$(df -m /tmp | tail -1 | awk '{print $4}')
+	local flash_size=$((0x$(awk '/^mtd6/{print $2}' /proc/mtd)))
 	free_space=$((free_space * 1024 * 1024))
 	[ "$dl_size" -gt "$free_space" ] && die "Not enough free space to download firmware: $dl_size > $free_space"
+	[ "$dl_size" -gt "$flash_size" ] && die "Firmware is larger than flash chip: $dl_size > $flash_size"
 }
 
 cleanup() {
