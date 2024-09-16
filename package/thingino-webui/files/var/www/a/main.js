@@ -59,7 +59,7 @@ function heartbeat() {
 				$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
 			}
 		})
-		.then(setTimeout(heartbeat, 10000));
+		.then(setTimeout(heartbeat, 1000));
 }
 
 (() => {
