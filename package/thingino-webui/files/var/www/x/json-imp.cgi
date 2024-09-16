@@ -107,15 +107,15 @@ esac
 case "$cmd" in
 	daynight)
 		[ "$val" -eq 1 ] && val="night" || val="day"
-		/usr/sbin/daynight $val
+		daynight $val
 		ok_json "{\"night\":\"${mode}\"}"
 		;;
 	ir850 | ir940 | white)
-		/usr/sbin/irled $val $cmd
+		irled $val $cmd
 		ok_json "{\"led_${cmd}\":\"${val}\"}"
 		;;
 	ircut)
-		/usr/sbin/ircut $val
+		ircut $val
 		ok_json "{\"ircut\":\"${val}\"}"
 		;;
 	setosd)

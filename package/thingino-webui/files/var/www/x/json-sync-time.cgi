@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if /usr/sbin/ntpd -n -q -N; then
+if ntpd -n -q -N; then
 	payload='{"result":"success","message":"Camera time synchronized with NTP server."}'
 else
 	payload='{"result":"danger","message":"Synchronization failed!"}'
