@@ -161,8 +161,8 @@ ws.onmessage = (event) => {
 				$('#fontname0').value = msg.stream0.osd.font_path.split('/').reverse()[0];
 
 			if (msg.stream0.osd.font_size) {
-				$('#fontsize0-range').value = msg.stream0.osd.font_size;
-				$('#fontsize0-show').textContent = msg.stream0.osd.font_size;
+				$('#fontsize0').value = msg.stream0.osd.font_size;
+				$('#fontsize0-show').value = msg.stream0.osd.font_size;
 			}
 
 			if (msg.stream0.osd.logo_enabled)
@@ -188,8 +188,8 @@ ws.onmessage = (event) => {
 				$('#fontname1').value = msg.stream1.osd.font_path.split('/').reverse()[0];
 
 			if (msg.stream1.osd.font_size) {
-				$('#fontsize1-range').value = msg.stream1.osd.font_size;
-				$('#fontsize1-show').textContent = msg.stream1.osd.font_size;
+				$('#fontsize1').value = msg.stream1.osd.font_size;
+				$('#fontsize1-show').value = msg.stream1.osd.font_size;
 			}
 
 			if (msg.stream1.osd.logo_enabled)
@@ -233,7 +233,7 @@ function setFont(n) {
 		return;
 	}
 
-	let fontsize = $('#fontsize'+n+'-range').value;
+	let fontsize = $('#fontsize'+n).value;
 	if (fontsize == '') {
 		console.log("Font size seems empty.");
 		return;
@@ -265,7 +265,7 @@ $('#osd0_enabled').addEventListener('change', ev => {
 	sendToWs('{"stream0":{"osd":{"enabled":'+status+'}}}');
 });
 $('#fontname0').addEventListener('change', () => setFont(0));
-$('#fontsize0-range').addEventListener('change', () => setFont(0));
+$('#fontsize0').addEventListener('change', () => setFont(0));
 
 $('#osd0_logo_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
 $('#osd0_time_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
@@ -277,7 +277,7 @@ $('#osd1_enabled').addEventListener('change', ev => {
 	sendToWs('{"stream1":{"osd":{"enabled":'+status+'}}}');
 });
 $('#fontname1').addEventListener('change', () => setFont(1));
-$('#fontsize1-range').addEventListener('change', () => setFont(1));
+$('#fontsize1').addEventListener('change', () => setFont(1));
 
 $('#osd1_logo_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
 $('#osd1_time_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));

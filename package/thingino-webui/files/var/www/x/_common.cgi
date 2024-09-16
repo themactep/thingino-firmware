@@ -292,10 +292,11 @@ field_range() {
 		"<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")>" \
 		"</label>"
 	# Input that holds the submitting value.
-	echo "<input type=\"hidden\" name=\"$n\" id=\"$n\" value=\"$v\">"
 	# NB! no name on range, since we don't want its data submitted
-	echo "<input type=\"range\" class=\"form-control form-range\" id=\"${n}-range\" value=\"$vr\" min=\"$mn\" max=\"$mx\" step=\"$st\">"
-	echo "<span class=\"input-group-text show-value\" id=\"${n}-show\">$vr</span>" \
+	echo "<span class=\"input-group-text\">" \
+		"<input type=\"text\" id=\"$n-show\" name=\"$n\" value=\"$v\" size=\"4\" class=\"border-0 text-end bg-dark\">" \
+		"</span>" \
+		"<input type=\"range\" id=\"$n\" value=\"$vr\" min=\"$mn\" max=\"$mx\" step=\"$st\" class=\"form-control form-range\">" \
 		"</span>"
 	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
 	echo "</p>"
