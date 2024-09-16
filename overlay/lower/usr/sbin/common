@@ -41,8 +41,8 @@ log() {
 		mv "$LOG_FILE" "${LOG_FILE}.1"
 		echo "$(tag) Log file rotated." >> $LOG_FILE
 	fi
-	echo "$(tag) $1" >> $LOG_FILE
-	echo "$1" >&2
+	echo -e "$(tag) $1" >> $LOG_FILE
+	echo -e "$1" >&2
 }
 
 log_and_run() {
