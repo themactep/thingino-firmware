@@ -19,21 +19,25 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	day_night_min=${POST_day_night_min:-5000}
 
 	# save values to env
-	tmpfile=$(mktemp)
-	echo "gpio_ir850 $ir850_pin" >> $tmpfile
-	echo "gpio_ir940 $ir940_pin" >> $tmpfile
-	echo "gpio_white $white_pin" >> $tmpfile
-	echo "gpio_ircut $ircut_pin1 $ircut_pin2" >> $tmpfile
-	echo "pwm_ch_ir850 $ir850_pwm" >> $tmpfile
-	echo "pwm_ch_ir940 $ir940_pwm" >> $tmpfile
-	echo "pwm_ch_white $white_pwm" >> $tmpfile
-	echo "day_night_min $day_night_min" >> $tmpfile
-	echo "day_night_max $day_night_max" >> $tmpfile
+	tmpfile=$(mktemp -u)
+	{
+		echo "gpio_ir850 $ir850_pin"
+		echo "gpio_ir940 $ir940_pin"
+		echo "gpio_white $white_pin"
+		echo "gpio_ircut $ircut_pin1 $ircut_pin2"
+		echo "pwm_ch_ir850 $ir850_pwm"
+		echo "pwm_ch_ir940 $ir940_pwm"
+		echo "pwm_ch_white $white_pwm"
+		echo "day_night_min $day_night_min"
+		echo "day_night_max $day_night_max"
+	} > $tmpfile
 	fw_setenv -s $tmpfile
 	rm $tmpfile
 fi
 
 # read data from env
+#fw_printenv | grep -E '(gpio_(ir|white)|pwm_ch_ir|day_night)' | xargs -i eval '{}'
+
 ir850_pin=$(get gpio_ir850)
 ir850_pwn=$(get pwm_ch_ir850)
 ir940_pin=$(get gpio_ir940)
