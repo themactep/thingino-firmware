@@ -26,16 +26,9 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		done; unset p
 		mv $tmp_file $config_file
 
-		tmp_file=$(mktemp -u)
-		cp $prudynt_config $tmp_file
-		if [ $motion_enabled = "true" ]; then
-			sed -i '/^motion:/n/enabled:/{s/ false;/ true;/}' $tmp_file
-		else
-			sed -i '/^motion:/n/enabled:/{s/ true;/ false;/}' $tmp_file
-		fi
-		sed -i -E "/^motion:/n/sensitivity:/{s/: \d*;/: $motion_sensitivity;/}" $tmp_file
-		sed -i -E "/^motion:/n/cooldown_time:/{s/: \d*;/: $motion_throttle;/}" $tmp_file
-		mv $tmp_file $prudynt_config
+		prudyntcfg set motion enabled $motion_enabled
+		prudyntcfg set motion sensitivity $motion_sensitivity
+		prudyntcfg set motion cooldown_time $motion_throttle
 
 		$prudynt_control restart >/dev/null
 
