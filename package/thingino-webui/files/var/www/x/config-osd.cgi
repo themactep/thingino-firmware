@@ -15,7 +15,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	redirect_to $SCRIPT_NAME
 fi
 
-token="$(cat /run/prudynt_websocket_token)"
 ts=$(date +%s)
 FONTS=$(ls -1 $OSD_FONT_PATH)
 %>
@@ -126,7 +125,7 @@ function sendToWs(payload) {
 
 let sts;
 
-let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $token %>');
+let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $ws_token %>');
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
 	stream_rq='"osd":{"enabled":null,"font_path":null,"font_size":null,"logo_enabled":null,"time_enabled":null,"uptime_enabled":null,"user_text_enabled":null}';

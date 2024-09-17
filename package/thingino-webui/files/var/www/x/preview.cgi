@@ -2,7 +2,6 @@
 <%in _common.cgi %>
 <%in _icons.cgi %>
 <%
-token="$(cat /run/prudynt_websocket_token)"
 page_title="Camera preview"
 which motors > /dev/null && has_motors="true"
 %>
@@ -103,7 +102,7 @@ function updatePreview(data) {
 
 const jpg = $("#preview");
 
-let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $token %>');
+let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $ws_token %>');
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
 	ws.binaryType = 'arraybuffer';

@@ -1,7 +1,6 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-token="$(cat /run/prudynt_websocket_token)"
 plugin="audio"
 plugin_name="Audio"
 page_title="Audio"
@@ -36,7 +35,7 @@ AUDIO_FORMATS="AAC G711A G711U G726 OPUS PCM"
 <script>
 const AUDIO = 4;
 
-let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $token %>');
+let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $ws_token %>');
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
 	payload = '{"audio":{'+

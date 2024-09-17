@@ -821,4 +821,6 @@ include /etc/webui/yadisk.conf
 
 # FIXME: mandatory password change disabled for testing purposes
 check_password
+
+ws_token="$(cat /run/prudynt_websocket_token)"
 %>
