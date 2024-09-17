@@ -126,10 +126,6 @@ ws.onmessage = (event) => {
 
 const andSave = ',"action":{"save_config":null,"restart_thread":'+AUDIO+'}'
 
-function ts() {
-	return Math.floor(Date.now());
-}
-
 function sendToWs(payload) {
 	payload = payload.replace(/}$/, andSave + '}')
 	console.log(ts(), '===>', payload);

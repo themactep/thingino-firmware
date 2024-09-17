@@ -8,6 +8,10 @@ function $$(n) {
 	return document.querySelectorAll(n)
 }
 
+function ts() {
+	return Math.floor(Date.now());
+}
+
 function sleep(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms))
 }
