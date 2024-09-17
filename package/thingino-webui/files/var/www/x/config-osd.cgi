@@ -115,29 +115,31 @@ function ts() {
 	return Math.floor(Date.now());
 }
 
-function sendToWs(payload) {
-	//if (!ws) connectWs();
-	payload = payload.replace(/}$/, ',"action":{"save_config":null,"restart_thread":2}}')
-
-	console.log(ts(), '===>', payload);
-	ws.send(payload);
-}
-
+const OSD_THREAD = 2;
 let sts;
 
 let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $ws_token %>');
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
-	stream_rq='"osd":{"enabled":null,"font_path":null,"font_size":null,"logo_enabled":null,"time_enabled":null,"uptime_enabled":null,"user_text_enabled":null}';
-	const payload = '{"stream0":{' + stream_rq + '},"stream1":{' + stream_rq + '}}';
+	stream_rq='"osd":{'+
+		'"enabled":null,'+
+		'"font_path":null,'+
+		'"font_size":null,'+
+		'"logo_enabled":null,'+
+		'"time_enabled":null,'+
+		'"uptime_enabled":null,'+
+		'"user_text_enabled":null'+
+		'}';
+	const payload = '{"stream0":{' +
+		stream_rq +
+		'},"stream1":{' +
+		stream_rq +
+		'}}';
 	console.log(payload);
 	ws.send(payload);
 	sts = setTimeout(getSnapshot, 1000);
 }
-ws.onclose = () => {
-	console.log('WebSocket connection closed');
-	connectWs();
-}
+ws.onclose = () => { console.log('WebSocket connection closed'); }
 ws.onerror = (error) => { console.error('WebSocket error', error); }
 ws.onmessage = (event) => {
 	if (typeof event.data === 'string') {
@@ -212,8 +214,12 @@ ws.onmessage = (event) => {
 	}
 }
 
-function connectWs() {
-	 ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $token %>');
+const andSave = ',"action":{"save_config":null,"restart_thread":'+OSD_THREAD+'}'
+
+function sendToWs(payload) {
+	payload = payload.replace(/}$/, andSave + '}')
+	console.log(ts(), '===>', payload);
+	ws.send(payload);
 }
 
 function getSnapshot() {
