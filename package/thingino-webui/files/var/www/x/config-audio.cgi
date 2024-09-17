@@ -60,6 +60,12 @@ ws.onerror = (error) => { console.error('WebSocket error', error); }
 ws.onmessage = (event) => {
 	console.log(event.data);
 
+	if (event.data == '') {
+		console.log('empty response');
+		return;
+	} else {
+		console.log(ts(), '<===', event.data);
+	}
 	const msg = JSON.parse(event.data);
 	console.log(msg);
 
@@ -136,8 +142,6 @@ function saveValue(el) {
 	let id = el.id;
 	if (el.type == "checkbox") {
 		value = el.checked ? 'true' : 'false';
-//	} else if (el.type == "range") {
-//		value = el.value;
 	} else {
 		value = el.value;
 		if (el.id == "input_format")
@@ -147,16 +151,16 @@ function saveValue(el) {
 }
 
 $$('#input_enabled, \
-	#input_format, \
-	#input_sample_rate, \
-	#input_high_pass_filter, \
-	#input_agc_enabled, \
-	#input_bitrate, \
-	#input_vol, \
-	#input_gain, \
-	#input_alc_gain, \
-	#input_agc_target_level_dbfs, \
-	#input_noise_suppression').forEach(
+    #input_format, \
+    #input_sample_rate, \
+    #input_high_pass_filter, \
+    #input_agc_enabled, \
+    #input_bitrate, \
+    #input_vol, \
+    #input_gain, \
+    #input_alc_gain, \
+    #input_agc_target_level_dbfs, \
+    #input_noise_suppression').forEach(
 	el => el.addEventListener('change', ev => saveValue(ev.target))
 );
 </script>
