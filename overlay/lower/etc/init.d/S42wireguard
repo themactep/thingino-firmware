@@ -1,0 +1,75 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+DEV="wg0"
+IP="$(get wg_address)"
+RESOLV_CONF="/tmp/resolv.conf"
+RESOLV_BAK="${RESOLV_CONF}.bak"
+
+case "$1" in
+	force | start)
+		# "force" is for testing, to start wireguard on demand without having it enabled at boot
+		[ "xtrue" = "x$(get wg_enabled)" -o "force" = "$1" ] || die "WireGuard not enabled"
+		ip link show $DEV 2>&1 | grep -q 'UP' && die "WireGuard interface $DEV already running"
+
+		starting
+		rm -f /tmp/wgconf_*
+		wgconf=$(mktemp /tmp/wgconf_XXXXXX)
+
+		echo '[Interface]' >> $wgconf
+		echo "PrivateKey=$(get wg_privkey)" >> $wgconf
+		v=$(get wg_port) ; if [ -n "$v" ] ; then echo "ListenPort=${v}" >> $wgconf ; fi
+
+		echo '[Peer]' >> $wgconf
+		echo "Endpoint=$(get wg_endpoint)" >> $wgconf
+		echo "PublicKey=$(get wg_peerpub)" >> $wgconf
+
+		v=$(get wg_peerpsk) ; if [ -n "$v" ] ; then echo "PresharedKey=${v}" >> $wgconf ; fi
+		v=$(get wg_allowed) ; if [ -n "$v" ] ; then echo "AllowedIPs=${v}" >> $wgconf ; fi
+		v=$(get wg_keepalive) ; if [ -n "$v" ] ; then echo "PersistentKeepalive=${v}" >> $wgconf ; fi
+
+		mtu=$(get wg_mtu) ; if [ -n "$mtu" ] ; then link_mtu="mtu ${mtu}" ; fi
+		run "ip link add dev $DEV type wireguard"
+		run "wg setconf $DEV $wgconf"
+		run "ip address add ${IP} dev $DEV"
+		run "ip link set $link_mtu up dev $DEV"
+
+		DNS=$(get wg_dns)
+		if [ -n "$DNS" ] ; then
+			resolv_tmp=$(mktemp)
+			grep -v nameserver $RESOLV_CONF >> $resolv_tmp
+			for x in $(echo $DNS | tr "," " ") ; do
+				echo "nameserver $x" >> $resolv_tmp
+			done
+			mv $RESOLV_CONF $RESOLV_BAK
+			mv $resolv_tmp $RESOLV_CONF
+		fi
+
+		for r in $(get wg_allowed | tr "," " ") ; do
+			run "ip route add $r dev $DEV"
+		done
+
+		true
+		check_result
+		;;
+
+	stop)
+		stopping
+		for r in $(ip route | awk '/dev wg/{print $1}') ; do
+			run "route del $r dev $DEV"
+		done
+		run "ip link set down $DEV"
+		[ -n "$IP" ] && run "ip address del $IP dev $DEV"
+		[ -s $RESOLV_BAK ] && mv $RESOLV_BAK $RESOLV_CONF
+
+		true
+		check_result
+		;;
+
+	*)
+		die "Usage: $0 {force|start|stop}"
+		;;
+esac
+
+exit 0
