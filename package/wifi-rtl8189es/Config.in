@@ -1,6 +1,7 @@
 config BR2_PACKAGE_WIFI_RTL8189ES
 	bool "Realtek RTL8189ES"
 	select BR2_LINUX_KERNEL
+	select BR2_PACKAGE_THINGINO_KOPT_MMC
 	help
 	  A driver for the RTL8189ES
 	  https://github.com/jwrdegoede/rtl8189ES_linux
