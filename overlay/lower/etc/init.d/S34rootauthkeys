@@ -34,7 +34,7 @@ restore() {
 		quit "Backup content is empty"
 	fi
 
-	read_file
+	[ -f "$DATA_FILE" ] && read_file
 	[ "$backup" = "$b64" ] && quit "Same root authorized keys"
 
 	info "Restore root authorized keys from backup"
