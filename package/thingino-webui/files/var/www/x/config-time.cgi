@@ -35,7 +35,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 				mv $tmp_file $ntpd_static_config
 				cp $ntpd_static_config $ntpd_working_config
-				chmod a-w $ntpd_working_config
+				chmod 444 $ntpd_static_config
+				chmod 444 $ntpd_working_config
 				service timezone restart > /dev/null
 			fi
 			;;
