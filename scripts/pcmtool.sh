@@ -1,11 +1,12 @@
 #!/bin/sh
-# Convert audio file into PCM format, or play PCM audio file
+# Convert audio file into PCM format, or play PCM audio file.
+# Requires ffmpeg.
 # 2024 Paul Philippov, paul@themactep.com
 
 if [ -z "$1" ]; then
 	echo "Usage: $0 <audio file>"
 	exit 1
-fi	
+fi
 
 encode() {
 	ffmpeg -i "$1" -ar 16000 -f s16le -acodec pcm_s16le -ac 1 "${1%.*}.pcm"
