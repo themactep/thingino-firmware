@@ -1,0 +1,162 @@
+#!/bin/sh
+# Experimental automatic day/night contoller
+# ported from Ingenic SDK C samples.
+# Work in progress.
+
+ISP_PROC="/proc/jz/isp/isp-m0"
+
+setIRCUT() {
+	echo "boo";
+}
+
+readProc() {
+	awk -F: "/$1/{print \$2}" $ISP_PROC
+}
+
+getExposure() {
+	exp_ev=$(readProc "ISP EV value us");
+	exp_again=$(readProc "SENSOR analog gain");
+	exp_dgain=$(readProc "SENSOR digital gain");
+}
+
+getWBStatis() {
+	wb_rgain=$(readProc "ISP WB weighted rgain");
+	wb_bgain=$(readProc "ISP WB weighted bgain");
+}
+
+getWBGOLStatis() {
+	wb_rgain=$(readProc "ISP WB weighted rgain");
+	wb_bgain=$(readProc "ISP WB weighted bgain");
+}
+
+getISPMode() {
+	pmode=$(readProc "ISP Runing Mode");
+}
+
+setISPMode() {
+	isp_mode=$1;
+}
+
+getISPRunningMode() {
+	pmode=$(readProc "ISP Runing Mode");
+}
+
+setISPRunningMode() {
+	isp_mode=$1;
+}
+
+IMPISP_RUNNING_MODE_NIGHT=0;
+IMPISP_RUNNING_MODE_DAY=1;
+
+i=0;
+gb_gain=0;
+gr_gain=0;
+iso_buf=0;
+ircut_status=true;
+night_count=0;
+day_count=0;
+
+day_oth_count=0;
+
+# (g/b) statistic in bayer region
+
+gb_gain_record=200;
+gr_gain_record=200;
+gb_gain_buf=200;
+gr_gain_buf=200;
+
+setISPRunningMode $IMPISP_RUNNING_MODE_DAY;
+
+setIRCUT 1;
+
+while : ; do
+	# obtain exposure AE information
+	getExposure
+	if [ $? -eq 0 ]; then
+		printf "u32ExposureTime: %d\n" $exp_ev ;
+		printf "u32AnalogGain:   %d\n" $exp_again;
+		printf "u32DigitalGain:  %d\n" $exp_dgain;
+	else
+		return NULL;
+	fi
+
+	iso_buf=$exp_ev;
+	printf " iso buf ==%f\n" $iso_buf;
+
+	getWBStatis;
+	if [ $? -eq 0 ]; then
+		gr_gain=$wb_rgain;
+		gb_gain=$wb_bgain;
+
+		printf "gb_gain: %f\n" $gb_gain;
+		printf "gr_gain: %f\n" $gr_gain;
+		printf "gr_gain_record: %f\n" $gr_gain_record;
+	else
+		return NULL;
+	fi
+
+	# If the average brightness is less than 20, switches to night vision mode
+
+	if [ "$iso_buf" -gt 1900000 ]; then
+		night_count=$((night_count + 1));
+		printf "night_count==%d\n" $night_count;
+		if [ $night_count -gt 5 ]; then
+			getISPMode;
+			if [ $pmode != $IMPISP_RUNNING_MODE_NIGHT ]; then
+				printf "### entry night mode ###\n";
+				setISPMode $IMPISP_RUNNING_MODE_NIGHT;
+				setIRCUT 0;
+				ircut_status=true;
+			fi
+
+			# After switching to night vision,
+			# take the minimum value of 20 gb_gain as the reference value
+			# for switching to day gb_gain_record，the gb_gain is bayer's G/B
+			for i in $(seq 0 20); do
+				getWBGOLStatis;
+				gr_gain=$wb_rgain;
+				gb_gain=$wb_bgain;
+				if [ $i -eq 0 ]; then
+					gb_gain_buf=$gb_gain;
+					gr_gain_buf=$gr_gain;
+				fi
+				gb_gain_buf=$([ $gb_gain_buf -gt $gb_gain ] && echo $gb_gain || echo $gb_gain_buf);
+				gr_gain_buf=$([ $gr_gain_buf -gt $gr_gain ] && echo $gr_gain || echo $gr_gain_buf);
+
+				usleep 300000;
+
+				gb_gain_record=$gb_gain_buf;
+				gr_gain_record=$gr_gain_buf;
+				printf "gb_gain == %f, iso_buf=%f" $gb_gain $iso_buf;
+				printf "gr_gain_record == %f\n" $gr_gain_record;
+			done
+		fi
+	else
+		night_count=0;
+	fi
+
+	# Meeting these three conditions,
+	# enter the daytime switching judgment condition
+	if [ "$iso_buf" -lt 479832 ] && [ "$ircut_status" = "true" ] && [ "$gb_gain" -gt $(( gb_gain_record + 15 )) ]; then
+		if [ "$iso_buf" -lt 361880 ] || [ $gb_gain -gt 145 ]; then
+			day_count=$((day_count + 1));
+		else
+			day_count=0;
+		fi
+
+		# printf "gr_gain_record == %f gr_gain =%f line=%d\n" $gr_gain_record $gr_gain __LINE__;
+		# printf "day_count == %d\n" $day_count;
+		if [ $day_count -gt 3 ]; then
+			printf "### entry day mode ###\n";
+			getISPRunningMode;
+			if [ $pmode != $IMPISP_RUNNING_MODE_DAY ]; then
+				setISPRunningMode $IMPISP_RUNNING_MODE_DAY;
+				ircut on;
+				ircut_status=false;
+			fi
+		fi
+	else
+		day_count=0;
+	fi
+	sleep 1;
+done

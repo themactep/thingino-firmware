@@ -1,0 +1,29 @@
+#!/bin/sh
+# Scan input GPIO pins for button or a sensor.
+
+GPIO_MAX=95
+
+# exclude pins already set in the environment
+EXCLUDE="55 56"
+EXCLUDE="$EXCLUDE $(fw_printenv | awk -F= '/^gpio_/ { gsub("[diouDIOU]","") ; print $2 }' | tr ' ' "\n" | sort -g | uniq | xargs)"
+[ "$#" -gt 0 ] && EXCLUDE="$EXCLUDE $*"
+
+echo "Excluded pins: $EXCLUDE"
+echo -n "Set pins to input:"
+for i in $(seq 0 $GPIO_MAX); do
+	echo $EXCLUDE | grep -e "\b$i\b" >/dev/null && continue
+	echo -n " $i"
+	gpio input $i > /dev/null
+done
+echo
+gpio list > /tmp/gpio.old
+
+echo "Waiting for actions..."
+while :; do
+	clear
+	gpio list > /tmp/gpio.new
+	diff /tmp/gpio.old /tmp/gpio.new
+	sleep 1
+done
+
+exit 0

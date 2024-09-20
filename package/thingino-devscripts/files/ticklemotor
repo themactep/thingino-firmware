@@ -1,0 +1,51 @@
+#!/bin/sh
+# Send a ripple across motor pins.
+
+if [ $# -lt 4 ]; then
+	echo "Usage: $0 <pin 1> <pin 2> <pin 3> <pin 4>"
+	exit 1
+fi
+
+p1=$1
+p2=$2
+p3=$3
+p4=$4
+
+# timing and number of cycles
+DELAY=0.01
+CYCLES=64
+
+export_pin() {
+	echo "$1" > /sys/class/gpio/export
+	echo "out" > /sys/class/gpio/gpio$1/direction
+}
+
+unexport_pin() {
+	echo "0" > /sys/class/gpio/gpio$1/value
+	echo "$1" > /sys/class/gpio/unexport
+}
+
+ripple() {
+	echo "0" > /sys/class/gpio/gpio$1/value
+	echo "1" > /sys/class/gpio/gpio$2/value
+	sleep $DELAY
+}
+
+export_pin $p1
+export_pin $p2
+export_pin $p3
+export_pin $p4
+
+for i in $(seq $CYCLES); do
+	ripple $p3 $p2
+	ripple $p4 $p3
+	ripple $p1 $p4
+	ripple $p2 $p1
+done
+
+unexport_pin $p1
+unexport_pin $p2
+unexport_pin $p3
+unexport_pin $p4
+
+exit 0
