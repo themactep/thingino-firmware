@@ -8,7 +8,7 @@ case "$1" in
 		gpio_control "gpio_usb_en"
 		case "$?" in
 			0) ok ;;
-			1) die "GPIO power is not set" ;;
+			1) quit "GPIO power is not set" ;;
 			2) die "GPIO is in invalid state" ;;
 			3) die "GPIO command failed" ;;
 			*) die "Unknown exit code $?" ;;
