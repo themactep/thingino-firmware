@@ -11,18 +11,18 @@ which motors > /dev/null && has_motors="true"
 <div class="col-lg-1" style="width:4em">
 
 <div class="d-flex flex-nowrap flex-lg-wrap align-content-around" aria-label="Day/Night controls">
-<input type="checkbox" class="btn-check" name="daynight" id="daynight" value="1">
+<input type="checkbox" class="btn-check imp" name="daynight" id="daynight" value="1">
 <label class="btn btn-dark border mb-2" for="daynight" title="Night mode"><%= $icon_moon %></label>
 <input type="checkbox" class="btn-check" name="ispmode" id="ispmode" value="1">
 <label class="btn btn-dark border mb-2" for="ispmode" title="Color mode"><%= $icon_color %></label>
-<input type="checkbox" class="btn-check" name="ircut" id="ircut" value="1"<% checked_if $ircut 1 %><% get gpio_ircut >/dev/null || echo " disabled" %>>
+<input type="checkbox" class="btn-check imp" name="ircut" id="ircut" value="1"<% checked_if $ircut 1 %><% get gpio_ircut >/dev/null || echo " disabled" %>>
 <label class="btn btn-dark border mb-2" for="ircut" title="IR filter"><%= $icon_ircut %></label>
-<input type="checkbox" class="btn-check" name="ir850" id="ir850" value="1"<% checked_if $ir850 1 %><% get gpio_ir850 >/dev/null || echo " disabled" %>>
+<input type="checkbox" class="btn-check imp" name="ir850" id="ir850" value="1"<% checked_if $ir850 1 %><% get gpio_ir850 >/dev/null || echo " disabled" %>>
 <label class="btn btn-dark border mb-2" for="ir850" title="IR LED 850 nm"><%= $icon_ir850 %></label>
-<input type="checkbox" class="btn-check" name="ir940" id="ir940" value="1"<% checked_if $ir940 1 %><% get gpio_ir940 >/dev/null || echo " disabled" %>>
+<input type="checkbox" class="btn-check imp" name="ir940" id="ir940" value="1"<% checked_if $ir940 1 %><% get gpio_ir940 >/dev/null || echo " disabled" %>>
 <label class="btn btn-dark border mb-2" for="ir940" title="IR LED 940 nm"><%= $icon_ir940 %></label>
-<input type="checkbox" class="btn-check" name="white" id="white" value="1"<% checked_if $white 1 %><% get gpio_white >/dev/null || echo " disabled" %>>
-<label class="btn btn-dark border mb-2" for="white" title="White LED"><%= $icon_white %></label>
+<input type="checkbox" class="btn-check imp" name="white" id="white" value="1"<% checked_if $white 1 %><% get gpio_white >/dev/null || echo " disabled" %>>
+<label class="btn btn-dark border mb-2 imp" for="white" title="White LED"><%= $icon_white %></label>
 <input type="checkbox" class="btn-check" name="vflip" id="vflip" value="1">
 <label class="btn btn-dark border mb-2" for="vflip" title="Flip vertically"><%= $icon_flip %></label>
 <input type="checkbox" class="btn-check" name="hflip" id="hflip" value="1">

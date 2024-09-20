@@ -63,7 +63,7 @@ function heartbeat() {
 				$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
 			}
 		})
-		.then(setTimeout(heartbeat, 1000));
+		.then(setTimeout(heartbeat, 5000));
 }
 
 function callImp(command, value) {
@@ -130,22 +130,22 @@ function callImp(command, value) {
 		$$('form').forEach(el => el.autocomplete = 'off');
 
 // checkboxes
-// 		$$('input[type=checkbox]').forEach(el => {
-// 			el.autocomplete = "off"
-// 			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.checked ? 1 : 0))
-// 		});
+ 		$$('input[type=checkbox].imp').forEach(el => {
+ 			el.autocomplete = "off"
+ 			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.checked ? 1 : 0))
+ 		});
 
 // numbers
-// 		$$('input[type=number]').forEach(el => {
-// 			el.autocomplete = "off"
-// 			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
-// 		});
+ 		$$('input[type=number].imp').forEach(el => {
+ 			el.autocomplete = "off"
+ 			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
+ 		});
 
 // radios
-// 		$$('input[type=radio]').forEach(el => {
-// 			el.autocomplete = "off"
-// 			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
-// 		});
+ 		$$('input[type=radio].imp').forEach(el => {
+ 			el.autocomplete = "off"
+ 			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
+ 		});
 
 // ranges
 		$$('input[type=range]').forEach(el => {
@@ -158,9 +158,9 @@ function callImp(command, value) {
 		});
 
 // selects
-// 		$$('select').forEach(el => {
-// 			el.addEventListener('change', ev => callImp(ev.target.id, ev.target.value))
-// 		});
+ 		$$('select.imp').forEach(el => {
+ 			el.addEventListener('change', ev => callImp(ev.target.id, ev.target.value))
+ 		});
 
 		// For .warning and .danger buttons, ask confirmation on action.
 		$$('.btn-danger, .btn-warning, .confirm').forEach(el => {
