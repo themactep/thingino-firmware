@@ -5,52 +5,12 @@
 IFACE=wlan0
 CONFIG="/etc/$DAEMON_SHORT.conf"
 PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
-WLAN_INT_FILE="/etc/network/interfaces.d/wlan0"
-SCRIPT_MARKER="# managed by init.d"
-
-DAEMON_ARGS="-i $IFACE -c $CONFIG -P $PIDFILE -B"
-
-ssid_changed() {
-	current_ssid=$(grep '^ssid=' $CONFIG | cut -d= -f2- | tr -d '"')
-	[ "$ssid" != "$current_ssid" ]
-}
+DAEMON_ARGS="-i $IFACE -c $CONFIG -P $PIDFILE -B -s"
 
 start() {
 	starting
-	ssid="$(get wlanssid)"
-	pass="$(get wlanpass)"
-
-	# convert plain-text password no matter what
-	if [ -n "$pass" ] && [ ${#pass} -lt 64 ]; then
-		tmpfile=$(mktemp)
-		wpa_passphrase "$ssid" "$pass" > $tmpfile
-		pass=$(grep '^\s*psk=' $tmpfile | cut -d= -f2 | tail -n 1)
-		fw_setenv wlanpass $pass
-	fi
-
 	iface_exists "wlan0" || quit "No wireless interface"
-
-	if [ -z "$ssid" ] || [ -z "$pass" ]; then
-		if grep -q '^auto wlan0' $WLAN_INT_FILE; then
-			sed -i "/^auto wlan0$/s/^/$SCRIPT_MARKER /" $WLAN_INT_FILE
-		fi
-		quit "WiFi credentials missing"
-	fi
-
-	if [ ! -f "$CONFIG" ] || ssid_changed; then
-		wpa_passphrase "$ssid" "dummy_password" > $CONFIG
-		sed -i "s/psk=.*$/psk=${pass}/" $CONFIG
-		sed -i '/ssid/a \\tscan_ssid=1' $CONFIG
-	fi
-
-	if grep -q "^$SCRIPT_MARKER auto wlan0" $WLAN_INT_FILE; then
-		sed -i "s/^$SCRIPT_MARKER //g" $WLAN_INT_FILE
-	elif grep -q "^#auto wlan0" $WLAN_INT_FILE; then
-		quit "wlan0 manually disabled"
-	elif ! grep -q "^auto wlan0" $WLAN_INT_FILE; then
-		quit "Interfaces file not ready"
-	fi
-
+	mkdir -p /var/run/wpa_supplicant
 	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1 | log
 	check_result
 }

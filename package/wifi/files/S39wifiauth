@@ -1,0 +1,77 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+WLAN_INT_FILE="/etc/network/interfaces.d/wlan0"
+SCRIPT_MARKER="# managed by init.d"
+CONFIG="/etc/wpa_supplicant.conf"
+# Always use index 0, to avoid adding multiple SSIDs
+NETWORK_ID="0"
+
+ssid_changed() {
+	# Support whitespace/tabs
+	current_ssid=$(sed -n 's/^[ \t]*ssid="\([^"]*\)".*/\1/p' $CONFIG)
+	[ "$ssid" != "$current_ssid" ]
+}
+
+start() {
+	starting
+	ssid="$(get wlanssid)"
+	pass="$(get wlanpass)"
+
+	# convert plain-text password no matter what
+	if [ -n "$pass" ] && [ ${#pass} -lt 64 ]; then
+		tmpfile=$(mktemp)
+		wpa_passphrase "$ssid" "$pass" > $tmpfile
+		pass=$(grep '^\s*psk=' $tmpfile | cut -d= -f2 | tail -n 1)
+		fw_setenv wlanpass $pass
+	fi
+
+	if [ -z "$ssid" ] || [ -z "$pass" ]; then
+		if grep -q '^auto wlan0' $WLAN_INT_FILE; then
+			sed -i "/^auto wlan0$/s/^/$SCRIPT_MARKER /" $WLAN_INT_FILE
+		fi
+		quit "WiFi credentials missing"
+	fi
+
+	# If no stored SSID, add a new one
+	if echo "$(wpa_cli get_network "$NETWORK_ID" ssid)" | grep -q "FAIL"; then
+		wpa_cli add_network
+	fi
+
+	if [ ! -f "$CONFIG" ] || ssid_changed; then
+		# Set SSID and PSK values
+		wpa_cli set_network "$NETWORK_ID" ssid \"$ssid\"
+		wpa_cli set_network "$NETWORK_ID" psk $pass
+		wpa_cli set_network "$NETWORK_ID" scan_ssid 1
+		# Enable the network
+		wpa_cli enable_network "$NETWORK_ID"
+		wpa_cli save_config
+	fi
+
+	if grep -q "^$SCRIPT_MARKER auto wlan0" $WLAN_INT_FILE; then
+		sed -i "s/^$SCRIPT_MARKER //g" $WLAN_INT_FILE
+	elif grep -q "^#auto wlan0" $WLAN_INT_FILE; then
+		quit "wlan0 manually disabled"
+	elif ! grep -q "^auto wlan0" $WLAN_INT_FILE; then
+		quit "Interfaces file not ready"
+	fi
+	check_result
+}
+
+case "$1" in
+	start)
+		$1
+		;;
+	stop)
+		true
+		;;
+	reload | restart)
+nano 		start
+		;;
+	*)
+		die "Usage: $0 {start|stop|restart|reload}"
+		;;
+esac
+
+exit 0

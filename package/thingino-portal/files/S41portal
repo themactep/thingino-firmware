@@ -37,9 +37,14 @@ case "$1" in
 
 		mac_address=$(ip link show $net_dev | awk '/ether/ {print $2}')
 		last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
-		sed -i "/ssid=\"THINGINO-\"$/ s/\"$/$last_two\"/" /etc/wpa_ap.conf
 
-		start-stop-daemon -S -x /sbin/wpa_supplicant -- -i $net_dev -B -c /etc/wpa_ap.conf 2>&1 | log
+		wpa_cli add_network
+		wpa_cli set_network 0 ssid \"THINGINO-$last_two\"
+		wpa_cli set_network 0 mode 2
+		wpa_cli set_network 0 frequency 2412
+		wpa_cli set_network 0 key_mgmt NONE
+		wpa_cli enable_network 0
+
 		check_result
 
 		timeout &
