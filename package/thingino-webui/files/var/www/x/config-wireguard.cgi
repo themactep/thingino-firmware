@@ -18,8 +18,25 @@ wg_peerpub=$(get wg_peerpub)
 wg_port=$(get wg_port)
 wg_privkey=$(get wg_privkey)
 
+WG_DEV="wg0"
+WG_CTL="/etc/init.d/S42wireguard"
+
+if ip link show $WG_DEV 2>&1 | grep -q 'UP' ; then
+	wg_state="up"
+	wg_action="Stop"
+else
+	wg_state="down"
+	wg_action="Start"
+fi
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
+	if [ "startstop" = "$POST_action" ] ; then
+		if [ $wg_state = "down" ] ; then
+			$WG_CTL force
+		else
+			$WG_CTL stop
+		fi
+	fi
 	if [ "wgconfig" = "$POST_action" ] ; then
 	 	rm -f /tmp/wg_env_*
 		wg_env_script=$(mktemp wg_env_XXXXXX)
@@ -58,7 +75,12 @@ fi
 	</div>
 	<div class="col">
 		<h3>Environment Settings</h3>
-		<% ex "fw_printenv | grep -E '^wg_' | sed -Ee 's/(key|psk)=.*$/\1=[__redacted__]/' | sort" %>
+		<% ex "fw_printenv | grep '^wg_' | sed -Ee 's/(key|psk)=.*$/\1=[__redacted__]/'" %>
+		<% ex "wg show $WG_DEV 2>&1 | grep -A 5 endpoint" %>
+		<form action="<%= $SCRIPT_NAME %>" method="post">
+		<% field_hidden "action" "startstop" %>
+		<% button_submit "$wg_action WireGuard" "danger" %>
+		</form>
 	</div>
 </div>
 
