@@ -5,13 +5,12 @@ source ./scripts/menu/menu-common.sh
 function main_menu() {
 	check_and_install_dialog
 	while true; do
-		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Select an option:" 18 110 30 \
+		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Select an option:" 19 110 30 \
 			"bootstrap" "Install prerequisite software necessary for the compilation process" \
 			"menuconfig" "Proceed to the buildroot menu (toolchain, kernel, and rootfs)" \
-			"nconfig" "Proceed to the buildroot menu (toolchain, kernel, and rootfs)" \
-			"br-linux-menuconfig" "Proceed to the Linux Kernel menu configuration" \
-			"br-linux-nconfig" "Proceed to the Linux Kernel menu configuration" \
-			"br-busybox-menuconfig" "Proceed to the Busybox menu configuration" \
+			"linux-menuconfig" "Proceed to the Linux Kernel menu configuration" \
+			"busybox-menuconfig" "Proceed to the Busybox menu configuration" \
+			"saveconfig" "Save config file" \
 			"defconfig" "(Re)create config file" \
 			"clean" "Clean before reassembly"  \
 			"cleanbuild" "Build everything from scratch" \
@@ -32,11 +31,7 @@ function show_help() {
 			show_help_msgbox "The 'Bootstrap' option initiates the installation of all necessary prerequisite software required for the compilation of the firmware.\n\nThis includes tools and libraries that are essential for building the firmware from source. Selecting this will ensure your environment is correctly set up to proceed with building Thingino without encountering missing dependencies.\n\nRequires super-user privileges." 13 80;;
 		"HELP menuconfig")
 			show_help_msgbox "Launches a graphical interface for configuring the toolchain, kernel options, and the packages that will be included in your root filesystem. It's a crucial step for customizing your build according to your needs." 8;;
-		"HELP nconfig")
-			show_help_msgbox "Launches a graphical interface for configuring the toolchain, kernel options, and the packages that will be included in your root filesystem. It's a crucial step for customizing your build according to your needs." 8;;
-		"HELP br-linux-menuconfig")
-			show_help_msgbox "Launches a graphical interface for configuring the Linux Kernel." 5;;
-		"HELP br-linux-nconfig")
+		"HELP linux-menuconfig")
 			show_help_msgbox "Launches a graphical interface for configuring the Linux Kernel." 5;;
 		"HELP clean")
 			show_help_msgbox "The 'clean' command removes most of the files generated during the build process but preserves your configuration settings. This allows you to rebuild your firmware quickly without starting from scratch." 8;;
@@ -48,9 +43,11 @@ function show_help() {
 			show_help_msgbox "This function initiates an Over-the-Air (OTA) upgrade using the full firmware image. You'll need to specify the target device's IP address. It's used for comprehensive updates that include the bootloader, kernel, and filesystem." 8;;
 		"HELP update_ota")
 			show_help_msgbox "This option performs an OTA update with just the firmware update image, excluding the bootloader. You'll need to provide the target device's IP address. It's ideal for routine software updates after the initial full installation." 8;;
+		"HELP saveconfig")
+			show_help_msgbox "The 'saveconfig' option saves any current changes to the configuration file." 7;;
 		"HELP defconfig")
 			show_help_msgbox "The 'defconfig' option recreates the default configuration file. It's used to reset your configuration settings to the default state, which can be helpful if you want to start the configuration process anew." 8;;
-		"HELP br-busybox-menuconfig")
+		"HELP busybox-menuconfig")
 			show_help_msgbox "Proceed to the Busybox menu configuration. This allows you to customize the Busybox settings." 7;;
 		"HELP cleanbuild")
 			show_help_msgbox "The 'cleanbuild' option builds everything from scratch. It removes all previously built files and starts the build process from the beginning, ensuring a clean build environment." 7;;
@@ -65,14 +62,47 @@ execute_choice() {
 			sudo make $1
 			sleep 2
 			;;
-		make)
+		make|defconfig|saveconfig)
 			make $1
 			exit
 			;;
-		menuconfig | br-linux-menuconfig | nconfig| br-linux-nconfig)
-			make $1
+		menuconfig)
+			CHOICE=$("${DIALOG_COMMON[@]}" --cancel-label "Back" --menu "buildroot menuconfig" 9 50 2 \
+				"1" "menuconfig" \
+				"2" "nconfig" \
+				3>&1 1>&2 2>&3)
+
+			case $CHOICE in
+				1)
+					make menuconfig
+					;;
+				2)
+					make nconfig
+					;;
+				*)
+					echo "Invalid choice."
+					;;
+			esac
 			#savedefconfig future user box
 			#exit
+			;;
+		linux-menuconfig)
+			CHOICE=$("${DIALOG_COMMON[@]}" --cancel-label "Back" --menu "linux kernel menuconfig" 9 50 2 \
+				"1" "linux-menuconfig" \
+				"2" "linux-nconfig" \
+				3>&1 1>&2 2>&3)
+
+			case $CHOICE in
+				1)
+					make br-linux-menuconfig
+					;;
+				2)
+					make br-linux-nconfig
+					;;
+				*)
+					echo "Invalid choice."
+					;;
+			esac
 			;;
 		clean | distclean)
 			make $1
