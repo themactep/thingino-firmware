@@ -64,5 +64,6 @@ if grep -q ^BR2_PACKAGE_EXFAT_UTILS $BR2_CONFIG; then
         rm -vf ${TARGET_DIR}/usr/sbin/exfatattrib
         rm -vf ${TARGET_DIR}/usr/sbin/dumpexfat
         rm -vf ${TARGET_DIR}/usr/sbin/exfatlabel
+        rm -vf ${TARGET_DIR}/etc/network/nfs_check
 fi
 
