@@ -75,7 +75,7 @@ fi
 	</div>
 	<div class="col">
 		<h3>Environment Settings</h3>
-		<% ex "fw_printenv | grep '^wg_' | sed -Ee 's/(key|psk)=.*$/\1=[__redacted__]/'" %>
+		<% ex "fw_printenv | grep '^wg_' | sed -Ee 's/(key|psk)=.*$/\1=[__redacted__]/' | sort" %>
 		<% ex "wg show $WG_DEV 2>&1 | grep -A 5 endpoint" %>
 		<form action="<%= $SCRIPT_NAME %>" method="post">
 		<% field_hidden "action" "startstop" %>
