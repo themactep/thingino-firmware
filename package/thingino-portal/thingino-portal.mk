@@ -3,6 +3,7 @@ define THINGINO_PORTAL_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(THINGINO_PORTAL_PKGDIR)/files/dnsd.conf
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(THINGINO_PORTAL_PKGDIR)/files/httpd-portal.conf
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(THINGINO_PORTAL_PKGDIR)/files/udhcpd.conf
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(THINGINO_PORTAL_PKGDIR)/files/wpa_ap.conf
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d/ $(THINGINO_PORTAL_PKGDIR)/files/S41portal
