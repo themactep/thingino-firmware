@@ -2,7 +2,12 @@
 
 . /etc/init.d/rc.common
 
-if [ "$IFACE" = "wlan0" ] && { [ -z "$(get wlanssid)" ] || [ -z "$(get wlanpass)" ]; }; then
-	info "wlan0 disabled, no ssid/pass"
-	exit 1
+if [ "$IFACE" = "wlan0" ]; then
+	if [ -z "$(get wlanssid)" ] || [ -z "$(get wlanpass)" ]; then
+		info "wlan0 disabled, no SSID/pass"
+		exit 1
+	elif [ "$(get disable_wlan)" = "true" ]; then
+		info "WLAN manually disabled."
+		exit 1
+	fi
 fi
