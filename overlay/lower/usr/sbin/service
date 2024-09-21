@@ -2,10 +2,10 @@
 
 . /etc/init.d/rc.common
 
-[ "$#" -ne 2 ] && die "Usage: service <servicename> <start|stop|restart|reload>"
+[ "$#" -ne 2 ] && die "Usage: service <start|stop|restart|reload> <servicename>"
 
-SERVICE=$1
-ACTION=$2
+ACTION=$1
+SERVICE=$2
 
 case "$ACTION" in
 	start | stop | reload | restart) true ;;
