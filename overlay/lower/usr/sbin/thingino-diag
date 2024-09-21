@@ -94,7 +94,7 @@ fi
 	inforun "gpio list" "GPIO"
 
 	header "ENV"
-	fw_printenv | awk -F'=' '{if (/ethaddr|gatewayip|ipaddr|root_pw_hash|pwbackup|serverip|ssh_authorized_keys|sshkey|wlanmac|wlanpass/) print $1 "=REDACTED"; else print}' | sort
+	fw_printenv | awk -F'=' '{if (/ethaddr|gatewayip|ipaddr|root_pw_hash|pwbackup|serverip|ssh_authorized_keys|sshkey|wlanmac|wlanpass|wg_dns|wg_address|wg_endpoint|wg_peerpub|wg_peerpsk|wg_allowed/) print $1 "=REDACTED"; else print}' | sort
 
 	infocat "/proc/cmdline" "CMDLINE"
 	infocat "/proc/jz/clock/clocks" "CLOCKS"
