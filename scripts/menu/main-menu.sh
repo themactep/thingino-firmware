@@ -62,8 +62,12 @@ execute_choice() {
 			sudo make $1
 			sleep 2
 			;;
-		make|defconfig|saveconfig)
+		make|defconfig|saveconfig|clean|distclean|cleanbuild)
 			make $1
+			exit
+			;;
+		make|busybox-menuconfig)
+			make br-$1
 			exit
 			;;
 		menuconfig)
@@ -103,9 +107,6 @@ execute_choice() {
 					echo "Invalid choice."
 					;;
 			esac
-			;;
-		clean | distclean)
-			make $1
 			;;
 		upgrade_ota | update_ota)
 			local action="upgrade"
