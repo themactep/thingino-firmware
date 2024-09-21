@@ -2,11 +2,7 @@
 
 . /etc/init.d/rc.common
 
-SOC_FAMILY=$(/usr/sbin/soc -f)
-SOC_MODEL=$(/usr/sbin/soc -m)
-
 MMC_MODULE="jzmmc_v12"
-
 MMC_GPIO_CD=$(get gpio_mmc_cd)
 MMC_GPIO_PWR=$(get gpio_mmc_power)
 
@@ -47,33 +43,6 @@ load_module() {
 
 start() {
 	MMC_PARAM="cd_gpio_pin=$MMC_GPIO_CD"
-
-	# Check if MDIO directory exists
-	if [ -d /proc/jz/mdio ]; then
-		echo -n "/proc/jz/mdio directory exists, MSC1 disabled... " | log
-	else
-		case "$SOC_FAMILY" in
-			t10 | t20 | t21 | t30 | t40 | t41)
-				info "Skip GPIO setup for $SOC_MODEL"
-				;;
-			t23 | t31)
-				if [ "$SOC_MODEL" = "t31a" ]; then
-					info "Skip GPIO setup for $SOC_MODEL"
-					return 1
-				else
-					set_gpio pb08 1 2
-					set_gpio pb09 1 1
-					set_gpio pb10 1 1
-					set_gpio pb11 1 1
-					set_gpio pb13 1 1
-					set_gpio pb14 1 1
-				fi
-				;;
-			*)
-				die "Unsupported SOC type: $SOC_FAMILY"
-				;;
-		esac
-	fi
 	load_module
 }
 

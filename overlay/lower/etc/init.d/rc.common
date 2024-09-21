@@ -215,3 +215,8 @@ warn() {
 	echo_c 166 "$1"
 	echo "$1" | log
 }
+
+set_gpio() {
+	info "Set GPIO $1 to F$2 D$3"
+	gpio-diag $1 func $2 drive $3
+}

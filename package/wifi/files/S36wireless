@@ -2,6 +2,9 @@
 
 . /etc/init.d/rc.common
 
+SOC_FAMILY=$(/usr/sbin/soc -f)
+SOC_MODEL=$(/usr/sbin/soc -m)
+
 init() {
 	wlandev="$(get wlandev)"
 	[ -z "$wlandev" ] && quit "wlandev is not set"
@@ -38,6 +41,33 @@ start() {
 			info "Unexport GPIO pin $pin"
 			run "gpio unexport $pin"
 		fi
+	fi
+
+	# Check if MDIO directory exists
+	if [ -d /proc/jz/mdio ]; then
+		info "GMAC is enabled, disabling MSC1... "
+	else
+		case "$SOC_FAMILY" in
+			t10 | t20 | t21 | t30 | t40 | t41)
+				info "Skip GPIO setup for $SOC_MODEL"
+				;;
+			t23 | t31)
+				if [ "$SOC_MODEL" = "t31a" ]; then
+					info "Skip GPIO setup for $SOC_MODEL"
+					return 1
+				else
+					set_gpio pb08 1 2
+					set_gpio pb09 1 1
+					set_gpio pb10 1 1
+					set_gpio pb11 1 1
+					set_gpio pb13 1 1
+					set_gpio pb14 1 1
+				fi
+				;;
+			*)
+				die "Unsupported SOC type: $SOC_FAMILY"
+				;;
+		esac
 	fi
 
 	case "$wlandev" in
