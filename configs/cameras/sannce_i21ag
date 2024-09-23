@@ -1,0 +1,5 @@
+# MODULE: t10l_jxh62_mt7601u
+BR2_AUDIO=y
+BR2_SDCARD=y
+FLASH_SIZE_8=y
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/sannce_i21ag.uenv.txt"

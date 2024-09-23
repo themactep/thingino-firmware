@@ -1,0 +1,16 @@
+day_night_max=15000
+day_night_min=500
+disable_eth=true
+enable_updates=true
+gpio_button=64
+gpio_default=18O 19o 20o 25o 26o 49o 82o 66o 67o
+gpio_ir850=19
+gpio_ircut=25 26
+gpio_led_r=20
+gpio_mmc_cd=59
+gpio_motor_h=49 82 66 67
+gpio_scl=13 58
+gpio_sda=12 57
+gpio_speaker=63
+motor_maxstep_h=1000
+wlandev=mt7601sta
