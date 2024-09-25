@@ -37,14 +37,15 @@ bootcmd=$(strings "$full_binary_file" | grep -E "mtdparts=\w+_sfc:[0-9]" | tail 
 [ -z "$bootcmd" ] && die "Cannot determine boot command!"
 say "Boot command: $bootcmd"
 
-root_part_num=$(echo $bootcmd | sed -E "s/(.*)(root=)/\\2/" | cut -d ' ' -f 1 | cut -d '=' -f 2 | sed -E "s/.*(.)/\\1/")
+root_part_num=$(strings "$full_binary_file" | awk -F= '/^rootnum/{print $2}')
+[ -z "$root_part_num" ] && root_part_num=$(echo $bootcmd | sed -E "s/(.*)(root=)/\\2/" | cut -d ' ' -f 1 | cut -d '=' -f 2 | sed -E "s/.*(.)/\\1/")
 [ "$root_part_num" -eq 0 ] && die "Cannot determine root partition!"
 say "Root partition #: $root_part_num"
 
 offset_bytes=0
 
 say "looking for mtd partitions"
-mtdparts=$(echo $bootcmd | sed -E "s/(.*)(mtdparts=)/\\2/" | cut -d ' ' -f 1 | cut -d: -f2)
+mtdparts=$(echo $bootcmd | sed -E "s/(.*)(mtdparts=jz_sfc)/\\2/" | cut -d ' ' -f 1 | cut -d: -f2)
 [ -z "$mtdparts" ] && die "Cannot determine partitioning!"
 say "Partitioning: $mtdparts"
 
@@ -87,7 +88,7 @@ say "determine compression of the original file"
 run "compression=\"$(unsquashfs -s $rootfs_file | awk '/Compression/{print "-comp",$2}')\""
 
 say "unpack rootfs partition"
-run "unsquashfs $rootfs_file || die Unable to unpack rootfs!"
+run "unsquashfs -no-xattrs $rootfs_file || die Unable to unpack rootfs!"
 
 say "replace password"
 run "echo \"root::0:0:root:/root:/bin/sh\" > $(find squashfs-root -name passwd | grep etc)"
