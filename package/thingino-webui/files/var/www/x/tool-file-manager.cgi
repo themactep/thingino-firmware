@@ -43,7 +43,7 @@ IFS=$'\n'
 for line in $lsfiles; do
 	echo "<tr>"
 	# skip .
-	[ -n "$(echo $line | grep \s\./$)" ] && continue
+	echo $line | grep -q ' \./$' && continue
 
 	name=${line##* }; line=${line% *}
 	path=$(echo "$dir/$name" | sed s#^//#/#)
