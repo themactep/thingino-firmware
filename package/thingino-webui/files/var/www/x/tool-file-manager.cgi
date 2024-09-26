@@ -18,15 +18,22 @@ Pragma: no-cache
 	cat $file
 	redirect_to $SCRIPT_NAME
 fi
-
+%>
+<%in _header.cgi %>
+<%
+path2links() {
+	echo -n "<a href=\"?cd=/\">⌂</a>"
+	for d in ${1//\// }; do
+		d2="$d2/$d"
+		echo -n "/<a href=\"?cd=$d2\">$d</a>"
+	done
+}
 # expand traversed path to a real directory name
 dir=$(cd ${GET_cd:-/}; pwd)
-
 # no need for POSIX awkward double root
 dir=$(echo $dir | sed s#^//#/#)
 %>
-<%in _header.cgi %>
-<h4><%= $dir %></h4>
+<h4><% path2links "$dir" %></h4>
 <table class="table files">
 <thead>
 <tr>
@@ -38,21 +45,17 @@ dir=$(echo $dir | sed s#^//#/#)
 </thead>
 <tbody>
 <%
-lsfiles=$(ls -alLp --group-directories-first $dir)
+lsfiles=$(ls -ALlp --group-directories-first $dir)
 IFS=$'\n'
 for line in $lsfiles; do
 	echo "<tr>"
-	# skip .
-	echo $line | grep -q ' \./$' && continue
-
 	name=${line##* }; line=${line% *}
 	path=$(echo "$dir/$name" | sed s#^//#/#)
-
 	echo "<td>"
 	if [ -d "$path" ]; then
 		echo "<a href=\"?cd=$path\" class=\"fw-bold\">$name</a>"
 	else
-		echo "<a href=\"?dl=$path\" class=\"fw-normal\">$name</a>"
+		echo "<a href=\"?dl=$path\">$name</a>"
 	fi
 	echo "</td>"
 	echo "<td>$(echo $line | awk '{print $5}')</td>"
