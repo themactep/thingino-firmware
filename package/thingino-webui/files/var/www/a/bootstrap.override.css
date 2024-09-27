@@ -346,6 +346,25 @@ textarea.nowrap {
 	height: auto;
 }
 
+.table.files td {
+	font-family: monospace;
+}
+
+.table.files td a {
+	text-decoration: none;
+}
+
+.table.files td:first-child,
+.table.files th:first-child {
+	width: auto;
+}
+
+.table.files td:not(:first-child),
+.table.files th:not(:first-child) {
+	text-align: right;
+	width: 10em;
+}
+
 #frame {
 	border: rgba(128, 128, 128, 0.5) 1px solid;
 }

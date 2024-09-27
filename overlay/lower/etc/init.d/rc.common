@@ -10,7 +10,7 @@ debug=$(get debug)
 DAEMON=${DAEMON:-$0}
 DAEMON_ARGS=${DAEMON_ARGS:-}
 DAEMON_PATH="/bin"
-DAEMON_SHORT=$(basename "${DAEMON%% *}" | sed -r 's/^[KS]\d{2}//')
+DAEMON_SHORT=$(basename "${DAEMON%% *}" | sed -r 's/^[FKS]\d{2}//')
 DAEMON_FULL="$(which $DAEMON_SHORT)"
 PIDFILE="/run/$DAEMON_SHORT.pid"
 
@@ -190,13 +190,16 @@ stop_daemon() {
 	#FIXME do we need -s KILL?
 	run "start-stop-daemon -K -n $DAEMON_SHORT"
 	check_result
-	[ -f $PIDFILE ] && rm -f $PIDFILE
+}
+
+kill_daemon() {
+	run "start-stop-daemon -K -s SIGKILL -n $DAEMON_SHORT"
+	check_result
 }
 
 stop_daemon_process() {
 	start-stop-daemon -K -x $DAEMON_FULL 2>&1 | log
 	check_result
-	[ -f $PIDFILE ] && rm -f $PIDFILE
 }
 
 stop_daemon_with_pid() {

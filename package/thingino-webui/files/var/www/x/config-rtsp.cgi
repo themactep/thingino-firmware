@@ -26,8 +26,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		sed -i "/^password=/cpassword=$rtsp_password" $tmpfile
 		mv $tmpfile $onvif_config
 
-		#prudyntcfg set rtsp username "\"$rtsp_username\""
-		prudyntcfg set rtsp password "\"$rtsp_password\""
+		prudyntcfg set rtsp.password "\"$rtsp_password\""
 
 		echo "$rtsp_username:$rtsp_password" | chpasswd -c sha512
 

@@ -199,16 +199,21 @@ $PAD|____/ |_| \___/|_|
 	say "\tIn the event of an error, the camera will become inoperable,"
 	say "\tand you will need to perform a recovery restore the system.\n"
 	echo_c 160 "\tYou have ten seconds to cancel the upgrade by pressing Ctrl-C."
+	echo_c 160 "\tIf you would like to continue now, press Enter."
 	echo -en "\n\n\t    "
 
 	trap bye 2 15
 	i=10
-	while :; do
-		[ "$i" -lt 0 ] && break
+	while [ $i -ge 0 ]; do
 		echo -n "$i"
 		[ "$i" -gt 0 ] && echo -n " .. "
+		read -t 1 -n 1 keypress
+		if [ $? -eq 0 ]; then
+			if [ "$keypress" = "" ]; then
+				break
+			fi
+		fi
 		i=$((i-1))
-		sleep 1
 	done
 	clear
 fi

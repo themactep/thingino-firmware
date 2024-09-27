@@ -4,7 +4,7 @@
 
 # Run init scripts in numerical order.
 for i in $(find /etc/init.d/ -name "F*" -executable | sort -n); do
-	/bin/sh -c "$i"
+	/bin/sh -c "$i start"
 	# | log
 done
 

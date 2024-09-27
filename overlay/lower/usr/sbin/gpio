@@ -13,6 +13,7 @@ Commands:
 	export <pin>		Export <pin> from kernel space
 	unexport <pin>		Release <pin> back to the kernel space
 	input <pin>		Set <pin> as input
+	output <pin>		Set <pin> as output
 	set <pin> <1|0>		Set <pin> output state to HIGH or LOW
 	toggle <pin>		Toggle <pin> output state HIGH/LOW
 	read <pin>		Read values of <pin>
@@ -113,6 +114,8 @@ case "$1" in
 		unexport_pin ;;
 	input)
 		set_direction "in" ;;
+	output)
+		set_direction "out" ;;
 	set)
 		set_value ${3:-1} ;;
 	toggle)

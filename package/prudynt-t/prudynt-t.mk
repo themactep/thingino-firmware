@@ -65,7 +65,7 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	if echo "$(SOC_RAM)" | grep -q "64" && ! echo "$(SOC_FAMILY)" | grep -Eq "t23"; then \
 		sed -i 's/^\([ \t]*\)# *buffers: 2;/\1buffers: 1;/' $(TARGET_DIR)/etc/prudynt.cfg; \
 	fi
-	awk '{if(NR>0)gsub(/^[[:space:]]*/,"")}{if(NR>1)printf("%s",$$0);else print $$0;}' \
+	awk '{if(NR>1){gsub(/^[[:space:]]*/,"");if(match($$0,"^[[:space:]]*#")){$$0=""}}}{if(length($$0)){if(NR>1)printf("%s",$$0);else print $$0;}}' \
 		$(PRUDYNT_T_PKGDIR)/files/prudyntcfg.awk > $(PRUDYNT_T_PKGDIR)/files/prudyntcfg
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/prudyntcfg $(TARGET_DIR)/usr/bin/prudyntcfg
 	rm $(PRUDYNT_T_PKGDIR)/files/prudyntcfg

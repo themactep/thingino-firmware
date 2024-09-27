@@ -3,7 +3,12 @@
 BACKUP_VAR=overlay_backup
 RESTORE_DIR=/overlay
 
+overlay_check() {
+	grep -q upperdir=/overlay /proc/mounts || { echo "Overlay not mounted, exit"; exit; }
+}
+
 backup() {
+	overlay_check
 	# Calculate the free space in the U-Boot environment, rough estimate.
 	env_size=$(fw_printenv | wc -c)
 	total_size=$((64 * 1024))
@@ -27,6 +32,7 @@ backup() {
 }
 
 restore() {
+	overlay_check
 	# Get the base64-encoded tar.gz data from the environment variable '$BACKUP_VAR'
 	encoded_data=$(fw_printenv -n $BACKUP_VAR)
 
