@@ -1,0 +1,5 @@
+# MODULE: t23n_sc1a4t_atbm6012bx
+BR2_AUDIO=y
+BR2_SDCARD=y
+FLASH_SIZE_8=y
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/jooan-a6m-atbm6012bx.uenv.txt"
