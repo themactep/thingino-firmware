@@ -5,7 +5,7 @@
 echo_c 196 "\n\nGoing to reboot!\n"
 
 # Run init scripts in the desired order: F, K, S with reversed numerical order within each group.
-for letter in F K S; do
+for letter in F S; do
 	for i in $(find /etc/init.d/ -name "${letter}*" -executable | sort -r); do
 		/bin/sh -c "$i stop"
 		# | log
