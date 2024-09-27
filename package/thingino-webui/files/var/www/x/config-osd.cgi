@@ -107,7 +107,13 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
 
 <script>
 const previewModal = new bootstrap.Modal('#previewModal', {});
-$('#preview').addEventListener('click', ev => {
+const preview = $("#preview");
+preview.onload = function()                                                                                                                                                          
+{                                                                                                                                                                                
+    URL.revokeObjectURL(this.src);                                                                                                                                               
+};
+
+preview.addEventListener('click', ev => {
 	previewModal.show();
 });
 
@@ -209,8 +215,8 @@ ws.onmessage = (event) => {
 	} else if (event.data instanceof ArrayBuffer) {
 		const blob = new Blob([event.data], {type: 'image/jpeg'});
 		const url = URL.createObjectURL(blob);
-		$("#preview").src = url;
-		$("#preview_fullsize").src = url
+		preview.src = url;
+		$("#preview_fullsize").src = url;
 	}
 }
 

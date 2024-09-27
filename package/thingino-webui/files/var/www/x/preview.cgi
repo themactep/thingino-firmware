@@ -95,12 +95,16 @@ $$("button[data-sendto]").forEach(el => {
 function updatePreview(data) {
 	const blob = new Blob([data], {type: 'image/jpeg'});
 	const url = URL.createObjectURL(blob);
-	jpg.src = url;
+	preview.src = url;
 
 	ws.send('{"action":{"capture":null}}');
 }
 
-const jpg = $("#preview");
+const preview = $("#preview");
+preview.onload = function()                                                                                                                                                          
+{                                                                                                                                                                                
+    URL.revokeObjectURL(this.src);                                                                                                                                               
+};
 
 let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $ws_token %>');
 ws.onopen = () => {
