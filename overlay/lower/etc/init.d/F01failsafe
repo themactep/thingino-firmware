@@ -2,23 +2,40 @@
 
 . /etc/init.d/rc.common
 
-is_usb_console && [ -f /etc/init.d/F02failsafe-usb ] && exit
+start_console() {
+	is_usb_console && [ -f /etc/init.d/F02failsafe-usb ] && exit
 
-echo_c 104 "\nPress the [f] key to enter failsafe mode\n"
+	echo_c 104 "\nPress the [f] key to enter failsafe mode\n"
 
-stty -icanon min 0 time 20 -echo
-key=$(dd bs=1 count=1 2>/dev/null)
-stty sane
+	stty -icanon min 0 time 20 -echo
+	key=$(dd bs=1 count=1 2>/dev/null)
+	stty sane
 
-if [ "$key" = "f" ]; then
-	echo_c 118 "Failsafe mode..."
-	touch /tmp/.fs
-	. /etc/profile
-	exec setsid /sbin/getty -n -l /bin/sh -L console 0 vt100
-fi
+	if [ "$key" = "f" ]; then
+		echo_c 118 "Failsafe mode..."
+		touch /tmp/.fs
+		. /etc/profile
+		exec setsid /sbin/getty -n -l /bin/sh -L console 0 vt100
+	fi
 
-print_release
+	print_release
 
-/etc/init.d/rcS
+	/etc/init.d/rcS
 
-exit 0
+	exit 0
+}
+
+case "$1" in
+	start)
+		start_console
+		;;
+	stop)
+		true
+		;;
+	restart)
+		true
+		;;
+	*)
+		true
+		;;
+esac
