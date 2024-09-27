@@ -6,6 +6,9 @@ export SENSOR=$(cat /etc/sensor/model)
 export SOC=$(soc -f)
 export TZ=$(cat /etc/TZ)
 
+rm -f /var/run/boot; sleep 0.1
+echo 0.5 > /var/run/boot
+
 execute_and_log() {
 	script="$1"
 	mkfifo /tmp/initlogpipe
@@ -31,5 +34,7 @@ for i in $(find /etc/init.d/ -name "S*" -executable | sort -n); do
 	/bin/sh -c "$i start"
 	# | log
 done
+
+service stop ledd
 
 exit 0
