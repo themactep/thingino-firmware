@@ -192,6 +192,11 @@ stop_daemon() {
 	check_result
 }
 
+kill_daemon() {
+	run "start-stop-daemon -K -s SIGKILL -n $DAEMON_SHORT"
+	check_result
+}
+
 stop_daemon_process() {
 	start-stop-daemon -K -x $DAEMON_FULL 2>&1 | log
 	check_result
