@@ -124,7 +124,6 @@ ws.onopen = () => {
 	console.log('WebSocket connection opened');
 	stream_rq='"osd":{' + params.map((x) => `"${x}":null`).join() + '}';
 	const payload = '{"stream0":{' + stream_rq + '},"stream1":{' + stream_rq + '}}';
-	console.log(payload);
 	ws.send(payload);
 	sts = setTimeout(getSnapshot, 1000);
 }
@@ -132,15 +131,10 @@ ws.onclose = () => { console.log('WebSocket connection closed'); }
 ws.onerror = (error) => { console.error('WebSocket error', error); }
 ws.onmessage = (event) => {
 	if (typeof event.data === 'string') {
-		if (event.data == '') {
-			console.log('empty response');
-			return;
-		} else {
-			console.log(ts(), '<===', event.data);
-		}
+		if (event.data == '') return;
 		const msg = JSON.parse(event.data);
-		const time = new Date(msg.date);
-		const timeStr = time.toLocaleTimeString();
+		if (msg.action && msg.action.capture == 'initiated') return;
+		console.log(ts(), '<===', event.data);
 <%
 for i in 0 1; do
 	stream="stream$i"
@@ -183,7 +177,7 @@ for i in 0 1; do
 	}
 }
 
-const andSave = ',"action":{"save_config":null,"restart_thread":' + ThreadOSD + '}';
+const andSave = ',"action":{"save_config":null}';
 
 function sendToWs(payload) {
 	payload = payload.replace(/}$/, andSave + '}')
@@ -195,24 +189,14 @@ function getSnapshot() {
 	clearTimeout(sts);
 	ws.binaryType = 'arraybuffer';
 	const payload = '{"action":{"capture":null}}';
-	console.log(ts(), "===>", payload);
 	ws.send(payload);
 	sts = setTimeout(getSnapshot, 500);
 }
 
 function setFont(n) {
-	let fontname = $('#fontname'+n).value;
-	if (fontname == '') {
-		console.log("Font name seems empty.");
-		return;
-	}
-
-	let fontsize = $('#fontsize'+n).value;
-	if (fontsize == '') {
-		console.log("Font size seems empty.");
-		return;
-	}
-
+	const fontname = $('#fontname'+n).value;
+	const fontsize = $('#fontsize'+n).value;
+	if (fontname == '' || fontsize == '') return;
 	sendToWs('{"stream' + n + '":{"osd":{'+
 		'"font_path":"/usr/share/fonts/' + fontname + '",'+
 		'"font_size":'+ fontsize + '}}}');
@@ -234,29 +218,18 @@ function toggleOSDElement(el) {
 	sendToWs('{"stream' + stream_id + '":{"osd":{"' + id + '":' + status + '}}}');
 }
 
-$('#osd0_enabled').addEventListener('change', ev => {
+<% for i in 0 1; do %>
+$('#osd<%= $i %>_enabled').addEventListener('change', ev => {
 	const status = ev.target.checked ? 'true' : 'false';
-	sendToWs('{"stream0":{"osd":{"enabled":'+status+'}}}');
+	sendToWs('{"stream<%= $i %>":{"osd":{"enabled":'+status+'}}}');
 });
-$('#fontname0').addEventListener('change', () => setFont(0));
-$('#fontsize0').addEventListener('change', () => setFont(0));
-
-$('#osd0_logo_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
-$('#osd0_time_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
-$('#osd0_uptime_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
-$('#osd0_user_text_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
-
-$('#osd1_enabled').addEventListener('change', ev => {
-	const status = ev.target.checked ? 'true' : 'false';
-	sendToWs('{"stream1":{"osd":{"enabled":'+status+'}}}');
-});
-$('#fontname1').addEventListener('change', () => setFont(1));
-$('#fontsize1').addEventListener('change', () => setFont(1));
-
-$('#osd1_logo_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
-$('#osd1_time_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
-$('#osd1_uptime_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
-$('#osd1_user_text_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
+$('#fontname<%= $i %>').addEventListener('change', () => setFont(0));
+$('#fontsize<%= $i %>').addEventListener('change', () => setFont(0));
+$('#osd<%= $i %>_logo_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
+$('#osd<%= $i %>_time_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
+$('#osd<%= $i %>_uptime_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
+$('#osd<%= $i %>_user_text_enabled').addEventListener('change', ev => toggleOSDElement(ev.target));
+<% done %>
 </script>
 
 <%in _footer.cgi %>
