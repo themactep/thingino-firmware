@@ -25,38 +25,38 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
 <div class="col col-12 col-lg-6 mb-4">
 
 <div class="card mb-3">
-	<div class="card-header">
-		<% field_switch "osd0_enabled" "Main stream" %>
-	</div>
-	<div class="card-body">
-		<div class="row">
-			<div class="col col-8"><% field_select "fontname0" "Font" "$FONTS" %></div>
-			<div class="col col-4"><% field_range "fontsize0" "Font size" "10,80,1" %></div>
-		</div>
-		<div class="d-flex gap-3">
-			<% field_checkbox "osd0_logo_enabled" "Logo" %>
-			<% field_checkbox "osd0_time_enabled" "Time" %>
-			<% field_checkbox "osd0_user_text_enabled" "User Text" %>
-			<% field_checkbox "osd0_uptime_enabled" "Uptime" %>
-		</div>
-	</div>
+<div class="card-header">
+<% field_switch "osd0_enabled" "Main stream" %>
+</div>
+<div class="card-body">
+<div class="row">
+<div class="col col-8"><% field_select "fontname0" "Font" "$FONTS" %></div>
+<div class="col col-4"><% field_range "fontsize0" "Font size" "10,80,1" %></div>
+</div>
+<div class="d-flex gap-3">
+<% field_checkbox "osd0_logo_enabled" "Logo" %>
+<% field_checkbox "osd0_time_enabled" "Time" %>
+<% field_checkbox "osd0_user_text_enabled" "User Text" %>
+<% field_checkbox "osd0_uptime_enabled" "Uptime" %>
+</div>
+</div>
 </div>
 <div class="card mb-3">
-	<div class="card-header">
-		<% field_switch "osd1_enabled" "Sub stream" %>
-	</div>
-	<div class="card-body">
-		<div class="row">
-			<div class="col col-8"><% field_select "fontname1" "Font" "$FONTS" %></div>
-			<div class="col col-4"><% field_range "fontsize1" "Font size" "10,80,1" %></div>
-		</div>
-		<div class="d-flex gap-3">
-			<% field_checkbox "osd1_logo_enabled" "Logo" %>
-			<% field_checkbox "osd1_time_enabled" "Time" %>
-			<% field_checkbox "osd1_user_text_enabled" "User Text" %>
-			<% field_checkbox "osd1_uptime_enabled" "Uptime" %>
-		</div>
-	</div>
+<div class="card-header">
+<% field_switch "osd1_enabled" "Sub stream" %>
+</div>
+<div class="card-body">
+<div class="row">
+<div class="col col-8"><% field_select "fontname1" "Font" "$FONTS" %></div>
+<div class="col col-4"><% field_range "fontsize1" "Font size" "10,80,1" %></div>
+</div>
+<div class="d-flex gap-3">
+<% field_checkbox "osd1_logo_enabled" "Logo" %>
+<% field_checkbox "osd1_time_enabled" "Time" %>
+<% field_checkbox "osd1_user_text_enabled" "User Text" %>
+<% field_checkbox "osd1_uptime_enabled" "Uptime" %>
+</div>
+</div>
 </div>
 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#fontModal">Upload a font</button>
 </div>
@@ -108,39 +108,22 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
 <script>
 const previewModal = new bootstrap.Modal('#previewModal', {});
 const preview = $("#preview");
-preview.onload = function()                                                                                                                                                          
-{                                                                                                                                                                                
-    URL.revokeObjectURL(this.src);                                                                                                                                               
-};
-
-preview.addEventListener('click', ev => {
-	previewModal.show();
-});
+preview.onload = () => { URL.revokeObjectURL(this.src) }
+preview.addEventListener('click', ev => { previewModal.show() });
 
 function ts() {
 	return Math.floor(Date.now());
 }
 
-const OSD_THREAD = 2;
-let sts;
+const params = ['enabled', 'font_path', 'font_size', 'logo_enabled',
+	'time_enabled', 'uptime_enabled', 'user_text_enabled'];
 
+let sts;
 let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $ws_token %>');
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
-	stream_rq='"osd":{'+
-		'"enabled":null,'+
-		'"font_path":null,'+
-		'"font_size":null,'+
-		'"logo_enabled":null,'+
-		'"time_enabled":null,'+
-		'"uptime_enabled":null,'+
-		'"user_text_enabled":null'+
-		'}';
-	const payload = '{"stream0":{' +
-		stream_rq +
-		'},"stream1":{' +
-		stream_rq +
-		'}}';
+	stream_rq='"osd":{' + params.map((x) => `"${x}":null`).join() + '}';
+	const payload = '{"stream0":{' + stream_rq + '},"stream1":{' + stream_rq + '}}';
 	console.log(payload);
 	ws.send(payload);
 	sts = setTimeout(getSnapshot, 1000);
@@ -158,60 +141,40 @@ ws.onmessage = (event) => {
 		const msg = JSON.parse(event.data);
 		const time = new Date(msg.date);
 		const timeStr = time.toLocaleTimeString();
-		if (msg.stream0) {
-			if (msg.stream0.osd.enabled) {
-				$('#osd0_enabled').checked = msg.stream0.osd.enabled;
-				toggleWrappers(0);
-			}
+<%
+for i in 0 1; do
+	stream="stream$i"
+%>
+	data = msg.<%= $stream %>;
+	if (data) {
+//		params.forEach(x => setValue(data, '<%= $stream %>', x));
 
-			if (msg.stream0.osd.font_path)
-				$('#fontname0').value = msg.stream0.osd.font_path.split('/').reverse()[0];
-
-			if (msg.stream0.osd.font_size) {
-				$('#fontsize0').value = msg.stream0.osd.font_size;
-				$('#fontsize0-show').value = msg.stream0.osd.font_size;
-			}
-
-			if (msg.stream0.osd.logo_enabled)
-				$('#osd0_logo_enabled').checked = msg.stream0.osd.logo_enabled;
-
-			if (msg.stream0.osd.time_enabled)
-				$('#osd0_time_enabled').checked = msg.stream0.osd.time_enabled;
-
-			if (msg.stream0.osd.uptime_enabled)
-				$('#osd0_uptime_enabled').checked = msg.stream0.osd.uptime_enabled;
-
-			if (msg.stream0.osd.user_text_enabled)
-				$('#osd0_user_text_enabled').checked = msg.stream0.osd.user_text_enabled;
-
-		}
-		if (msg.stream1) {
-			if (msg.stream1.osd.enabled) {
-				$('#osd1_enabled').checked = msg.stream1.osd.enabled;
-				toggleWrappers(1);
-			}
-
-			if (msg.stream1.osd.font_path)
-				$('#fontname1').value = msg.stream1.osd.font_path.split('/').reverse()[0];
-
-			if (msg.stream1.osd.font_size) {
-				$('#fontsize1').value = msg.stream1.osd.font_size;
-				$('#fontsize1-show').value = msg.stream1.osd.font_size;
-			}
-
-			if (msg.stream1.osd.logo_enabled)
-				$('#osd1_logo_enabled').checked = msg.stream1.osd.logo_enabled;
-
-			if (msg.stream1.osd.time_enabled)
-				$('#osd1_time_enabled').checked = msg.stream1.osd.time_enabled;
-
-			if (msg.stream1.osd.uptime_enabled)
-				$('#osd1_uptime_enabled').checked = msg.stream1.osd.uptime_enabled;
-
-			if (msg.stream1.osd.user_text_enabled)
-				$('#osd1_user_text_enabled').checked = msg.stream1.osd.user_text_enabled;
+		if (data.osd.enabled) {
+			$('#osd<%= $i %>_enabled').checked = data.osd.enabled;
+			toggleWrappers(<%= $i %>);
 		}
 
+		if (data.osd.font_path)
+			$('#fontname<%= $i %>').value = data.osd.font_path.split('/').reverse()[0];
+
+		if (data.osd.font_size) {
+			$('#fontsize<%= $i %>').value = data.osd.font_size;
+			$('#fontsize<%= $i %>-show').value = data.osd.font_size;
+		}
+
+		if (data.osd.logo_enabled)
+			$('#osd<%= $i %>_logo_enabled').checked = data.osd.logo_enabled;
+
+		if (data.osd.time_enabled)
+			$('#osd<%= $i %>_time_enabled').checked = data.osd.time_enabled;
+
+		if (data.osd.uptime_enabled)
+			$('#osd<%= $i %>_uptime_enabled').checked = data.osd.uptime_enabled;
+
+		if (data.osd.user_text_enabled)
+			$('#osd<%= $i %>_user_text_enabled').checked = data.osd.user_text_enabled;
+	}
+<% done %>
 	} else if (event.data instanceof ArrayBuffer) {
 		const blob = new Blob([event.data], {type: 'image/jpeg'});
 		const url = URL.createObjectURL(blob);
@@ -220,7 +183,7 @@ ws.onmessage = (event) => {
 	}
 }
 
-const andSave = ',"action":{"save_config":null,"restart_thread":'+OSD_THREAD+'}'
+const andSave = ',"action":{"save_config":null,"restart_thread":' + ThreadOSD + '}';
 
 function sendToWs(payload) {
 	payload = payload.replace(/}$/, andSave + '}')

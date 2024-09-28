@@ -2,11 +2,17 @@
 <%in _common.cgi %>
 <%
 plugin="rtsp"
-plugin_name="RTSP/ONVIF Access"
-page_title="RTSP/ONVIF Access"
+plugin_name="RTSP/ONVIF"
+page_title="RTSP/ONVIF"
 
 stream0_name="Main stream"
 stream1_name="Substream"
+
+modes="CBR VBR FIXQP"
+case "$(soc -f)" in
+t31) modes="$modes CAPPED_VBR CAPPED_QUALITY" ;;
+*) modes="$modes SMART" ;;
+esac
 
 prudynt_config=/etc/prudynt.cfg
 onvif_config=/etc/onvif.conf
@@ -74,9 +80,9 @@ for i in 0 1; do
 <div class="col-6"><% field_range "${domain}_fps" "FPS" "15,30,1" %></div>
 </div>
 <div class="row g-2">
-<div class="col"><% field_select "${domain}_format" "Format" "H264,H265" %></div>
-<div class="col"><% field_text "${domain}_bitrate" "Bitrate" %></div>
-<div class="col"><% field_text "${domain}_mode" "Mode" %></div>
+<div class="col-3"><% field_select "${domain}_format" "Format" "H264,H265" %></div>
+<div class="col-3"><% field_text "${domain}_bitrate" "Bitrate" %></div>
+<div class="col-6"><% field_select "${domain}_mode" "Mode" "$modes" %></div>
 </div>
 <div class="row g-2">
 <div class="col"><% field_text "${domain}_buffers" "Buffers" %></div>
@@ -141,18 +147,6 @@ function sendToWs(payload) {
 	payload = payload.replace(/}$/, andSave + '}')
 	console.log(ts(), '===>', payload);
 	ws.send(payload);
-}
-
-function setValue(data, domain, name) {
-	const id = `#${domain}_${name}`;
-	const el = $(id);
-	const value = data[name];
-	if (el.type == "checkbox") {
-		el.checked = value;
-	} else {
-		if (el && value) el.value = value;
-		if (el.type == "range") $(`${id}-show`).value = value;
-	}
 }
 
 $('#rtsp_username').readOnly = true;

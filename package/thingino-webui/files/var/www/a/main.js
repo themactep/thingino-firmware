@@ -1,5 +1,10 @@
 let max = 0;
 
+const ThreadRtsp  = 1;
+const ThreadVideo = 2;
+const ThreadAudio = 4;
+const ThreadOSD   = 8;
+
 function $(n) {
 	return document.querySelector(n)
 }
@@ -24,6 +29,18 @@ function setProgressBar(id, value, maxvalue, name) {
 	el.setAttribute('aria-valuenow', value);
 	el.style.width = value_percent + '%';
 	el.title = name + ': ' + value + 'KiB';
+}
+
+function setValue(data, domain, name) {
+	const id = `#${domain}_${name}`;
+	const el = $(id);
+	const value = data[name];
+	if (el.type == "checkbox") {
+		el.checked = value;
+	} else {
+		if (el && value) el.value = value;
+		if (el.type == "range") $(`${id}-show`).value = value;
+	}
 }
 
 function sendToApi(endpoint) {
