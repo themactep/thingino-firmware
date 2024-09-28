@@ -25,14 +25,14 @@ case "$log" in
 		;;
 esac
 check_file_exist $file
-echo -en "HTTP/1.0 200 OK\r\n
-Date: $(time_http)\r\n
-Server: $SERVER_SOFTWARE\r\n
-Content-type: text/plain\r\n
-Content-Disposition: attachment; filename=${log}-$(date +%s).txt\r\n
-Content-Length: $(stat -c%s $file)\r\n
-Cache-Control: no-store\r\n
-Pragma: no-cache\r\n
+echo -en "HTTP/1.0 200 OK\r\n\
+Date: $(time_http)\r\n\
+Server: $SERVER_SOFTWARE\r\n\
+Content-type: text/plain\r\n\
+Content-Disposition: attachment; filename=${log}-$(date +%s).txt\r\n\
+Content-Length: $(stat -c%s $file)\r\n\
+Cache-Control: no-store\r\n\
+Pragma: no-cache\r\n\
 \r\n"
 cat $file
 rm $file

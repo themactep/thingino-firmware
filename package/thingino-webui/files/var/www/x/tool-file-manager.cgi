@@ -6,15 +6,15 @@ page_title="File Manager"
 if [ -n "$GET_dl" ]; then
 	file=$GET_dl
 	check_file_exist $file
-	echo "HTTP/1.0 200 OK
-Date: $(time_http)
-Server: $SERVER_SOFTWARE
-Content-type: application/octet-stream
-Content-Disposition: attachment; filename=$(basename $file)
-Content-Length: $(stat -c%s $file)
-Cache-Control: no-store
-Pragma: no-cache
-"
+	echo -en "HTTP/1.0 200 OK\r\n\
+Date: $(time_http)\r\n\
+Server: $SERVER_SOFTWARE\r\n\
+Content-type: application/octet-stream\r\n\
+Content-Disposition: attachment; filename=$(basename $file)\r\n\
+Content-Length: $(stat -c%s $file)\r\n\
+Cache-Control: no-store\r\n\
+Pragma: no-cache\r\n\
+\r\n"
 	cat $file
 	redirect_to $SCRIPT_NAME
 fi
