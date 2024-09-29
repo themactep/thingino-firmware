@@ -44,37 +44,40 @@ start() {
 		fi
 	fi
 
-	# Check if MDIO directory exists
-	if [ -d /proc/jz/mdio ]; then
-		info "GMAC is enabled, disabling MSC1... "
-	else
-		case "$SOC_FAMILY" in
-			t10 | t20 | t21 | t30 | t40 | t41)
-				info "Skip GPIO setup for $SOC_MODEL"
-				;;
-			t23 | t31)
-				if [ "$SOC_MODEL" = "t31a" ]; then
-					info "Skip GPIO setup for $SOC_MODEL"
-					return 1
-				else
-					set_gpio pb08 1 2
-					set_gpio pb09 1 1
-					set_gpio pb10 1 1
-					set_gpio pb11 1 1
-					set_gpio pb13 1 1
-					set_gpio pb14 1 1
-				fi
-				;;
-			*)
-				die "Unsupported SOC type: $SOC_FAMILY"
-				;;
-		esac
-	fi
-
 	case "$wlandev" in
 		8189es | 8189fs | atbm6031 | b43 | bcmdhd | hi3881 | ssv6158)
-			info "Send INSERT to MMC1"
-			run "mmc 1"
+			# Check if MDIO directory exists
+			if [ -d /proc/jz/mdio ]; then
+				info "GMAC is enabled, disabling MSC1..."
+			else
+				info "Send INSERT to MMC1"
+				run "mmc 1"
+
+				case "$SOC_FAMILY" in
+					t10 | t20 | t21 | t30 | t40 | t41)
+						info "Skip GPIO setup for $SOC_MODEL"
+						;;
+					t23 | t31)
+						if [ "$SOC_MODEL" = "t31a" ]; then
+							info "Skip GPIO setup for $SOC_MODEL"
+							return 1
+						else
+							set_gpio pb08 1 2
+							set_gpio pb09 1 1
+							set_gpio pb10 1 1
+							set_gpio pb11 1 1
+							set_gpio pb13 1 1
+							set_gpio pb14 1 1
+						fi
+						;;
+					*)
+						die "Unsupported SOC type: $SOC_FAMILY"
+						;;
+				esac
+			fi
+			;;
+		*)
+			;;
 	esac
 
 	if [ -n "$wlanmac" ] && [ "hi3881" = "$wlandev" ]; then
