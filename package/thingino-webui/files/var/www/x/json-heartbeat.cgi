@@ -1,10 +1,7 @@
 #!/bin/sh
-echo "HTTP/1.1 200 OK
-Content-type: application/json
-Pragma: no-cache
-Expires: $(TZ=GMT0 date +'%a, %d %b %Y %T %Z')
-Etag: \"$(cat /proc/sys/kernel/random/uuid)\"
-"
+. ./_json.sh
+http_200
+json_header
 printf '{"time_now":"%s","timezone":"%s","mem_total":"%d","mem_active":"%d","mem_buffers":"%d","mem_cached":"%d","mem_free":"%d","overlay_total":"%d","overlay_used":"%d","overlay_free":"%d","daynight_value":"%d","uptime":"%s"}' \
 	"$(date +%s)" \
 	"$(cat /etc/timezone)" \

@@ -1,9 +1,10 @@
 #!/bin/sh
 # shellcheck disable=SC2039
+. ./_json.sh
 
 bad_request() {
-	echo "HTTP/1.1 400 Bad Request"
-	echo # separate headers from content
+	http_400
+	echo
 	echo "$1"
 	exit 1
 }
@@ -23,18 +24,6 @@ unknown_value() {
 urldecode() {
 	local i="${*//+/ }"
 	echo -e "${i//%/\\x}"
-}
-
-ok_json() {
-	echo "HTTP/1.1 200 OK
-Content-type: application/json
-Pragma: no-cache
-Expires: $(TZ=GMT0 date +'%a, %d %b %Y %T %Z')
-Etag: \"$(cat /proc/sys/kernel/random/uuid)\"
-
-$1
-"
-	exit 0
 }
 
 # parse parameters from query string
@@ -108,15 +97,15 @@ case "$cmd" in
 	daynight)
 		[ "$val" -eq 1 ] && val="night" || val="day"
 		daynight $val
-		ok_json "{\"night\":\"${mode}\"}"
+		payload='{"mode":"'$val'"}'
 		;;
 	ir850 | ir940 | white)
 		irled $val $cmd
-		ok_json "{\"led_${cmd}\":\"${val}\"}"
+		payload='{"led_'$cmd'":"'$val'"}'
 		;;
 	ircut)
 		ircut $val
-		ok_json "{\"ircut\":\"${val}\"}"
+		payload='{"ircut":"'$val'"}'
 		;;
 	setosd)
 		# save to temp config
@@ -125,7 +114,7 @@ case "$cmd" in
 		echo "$cmd $val" >> /tmp/imp.conf
 		command="imp-control $cmd $val"
 		result=$($command)
-		ok_json "{\"command\":\"${command}\",\"result\":\"${result}\"}"
+		payload='{"command":"'$command'","result":"'$result'"}'
 		;;
 	*)
 		# save to temp config
@@ -133,6 +122,9 @@ case "$cmd" in
 		echo "$cmd $val" >> /tmp/imp.conf
 		command="imp-control $cmd $val"
 		result=$($command)
-		ok_json "{\"command\":\"${command}\",\"result\":\"${result}\"}"
+		payload='{"command":"'$command'","result":"'$result'"}'
 		;;
 esac
+
+json_ok "$payload"
+
