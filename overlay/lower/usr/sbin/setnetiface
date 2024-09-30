@@ -137,7 +137,7 @@ if [ "static" = "$network_mode" ]; then
 	fi
 fi
 
-tmp_config_file="/tmp/${plugin}.conf"
+tmp_config_file="/tmp/$plugin.conf"
 : > "$tmp_config_file"
 
 printf "auto %s\n" $network_interface >> "$tmp_config_file"
