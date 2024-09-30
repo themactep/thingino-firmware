@@ -5,7 +5,7 @@ page_title="SSH key"
 
 function readKey() {
 	if [ -n "$(get sshkey_${1})" ]; then
-		alert "$(get sshkey_${1})" "secondary" "style=\"overflow-wrap: anywhere;\""
+		alert_save "$(get sshkey_${1})" "secondary" "style=\"overflow-wrap: anywhere;\""
 	fi
 }
 
