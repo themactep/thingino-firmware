@@ -114,7 +114,7 @@ button_submit
 %>
 </form>
 </div>
-<div class="col col-ld-6">
+<div class="col col-md-4 col-lg-6 col-xl-8">
 <% ex "fw_printenv gpio_default" %>
 <% ex "fw_printenv | grep gpio_led" %>
 </div>
@@ -122,22 +122,28 @@ button_submit
 
 <script>
 async function switchIndicator(color, state) {
-	await fetch("/x/json-indicator.cgi?c=" + color + "&amp;s=" + state)
-		.then(response => response.json())
-		.then(data => { $('#gpio_led_' + color + '_on').checked = (data.message.status == 1) });
+	await fetch(`/x/json-indicator.cgi?c=${color}&amp;s=${state}`)
+		.then(res => res.json())
+		.then(data => { $(`#gpio_led_${color}_on`).checked = (data.message.status == 1) });
 }
-$$('.led input[type="text"]').forEach(it => it.addEventListener('change', ev => {
-	const el = ev.target;
-	const c = el.dataset['color'];
-	const s = (el.value == '');
-	$$('div.led-' + c + ' input[type="checkbox"]').forEach(z => {
-		if (s) z.checked = false;
-		z.disabled = s;
-	})
-}))
-$$('.led-status').forEach(el => el.addEventListener('change', ev => {
-	switchIndicator(ev.target.dataset['color'], ev.target.checked ? 1 : 0)
-}))
+
+$$('.led input[type="text"]').forEach(it => {
+	it.onchange = (ev) => {
+		const el = ev.target;
+		const c = el.dataset['color'];
+		const s = (el.value == '');
+		$$(`div.led-${c} input[type="checkbox"]`).forEach(z => {
+			if (s) z.checked = false;
+			z.disabled = s;
+		});
+	}
+});
+
+$$('.led-status').forEach(el => {
+	el.onchange = (ev) => {
+		switchIndicator(ev.target.dataset['color'], ev.target.checked ? 1 : 0)
+	}
+});
 </script>
 
 <%in _footer.cgi %>
