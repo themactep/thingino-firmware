@@ -18,7 +18,6 @@ ws_token="$(cat /run/prudynt_websocket_token)"
 
 [ -d $ui_tmp_dir ] || mkdir -p $ui_tmp_dir
 [ -d $ui_config_dir ] || mkdir -p $ui_config_dir
-[ -f $sysinfo_file ] || update_caminfo
 
 alert_append() {
 	echo "$1:$2" >>"$alert_file"
@@ -618,6 +617,8 @@ read_from_env() {
 include() {
 	[ -f "$1" ] && . "$1"
 }
+
+[ -f $sysinfo_file ] || update_caminfo
 
 include $sysinfo_file
 include /etc/webui/mqtt.conf
