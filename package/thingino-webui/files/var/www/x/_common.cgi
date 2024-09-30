@@ -6,80 +6,36 @@ STR_CONFIGURE_SOCKS5="<a href=\"config-socks5.cgi\">Configure SOCKS5</a>"
 STR_NOT_SUPPORTED="not supported on this system"
 STR_SUPPORTS_STRFTIME="Supports <a href=\"https://man7.org/linux/man-pages/man3/strftime.3.html \" target=\"_blank\">strftime</a> format."
 
-# tag "tag" "text" "css" "extras"
-tag() {
-	local c="$3"
-	[ -n "$c" ] && c=" class=\"$c\""
-	local x="$4"
-	[ -n "$x" ] && x=" $x"
-	echo "<$1$c$x>$2</$t>"
+alert_append() {
+	echo "$1:$2" >>"$alert_file"
 }
 
-# A "tag" "classes" "extras"
-A() {
-	local c="$2"
-	[ -n "$c" ] && c=" class=\"$c\""
-	local x="$3"
-	[ -n "$x" ] && x=" $x"
-	echo "<$1$c$x>"
+alert_delete() {
+	:>"$alert_file"
 }
 
-Z() {
-	echo "</$1>"
+alert_read() {
+	[ -f "$alert_file" ] || return
+	[ -s "$alert_file" ] || return
+	local c
+	local m
+	local l
+	OIFS="$IFS"
+	IFS=$'\n'
+	for l in $(cat "$alert_file"); do
+		c="$(echo $l | cut -d':' -f1)"
+		m="$(echo $l | cut -d':' -f2-)"
+		echo "<div class=\"alert alert-$c alert-dismissible fade show\" role=\"alert\">$m" \
+		"<button type=\"button\" class=\"btn btn-close\" data-bs-dismiss=\"alert\" aria-label=\"Close\"></button>" \
+		"</div>"
+	done
+	IFS=$OIFS
+	alert_delete
 }
 
-# tag "text" "classes" "extras"
-div() {
-	tag "div" "$1" "$2" "$3"
-}
-h1() {
-	tag "h1" "$1" "$2" "$3"
-}
-h2() {
-	tag "h2" "$1" "$2" "$3"
-}
-h3() {
-	tag "h3" "$1" "$2" "$3"
-}
-h4() {
-	tag "h4" "$1" "$2" "$3"
-}
-h5() {
-	tag "h5" "$1" "$2" "$3"
-}
-h6() {
-	tag "h6" "$1" "$2" "$3"
-}
-label() {
-	tag "label" "$1" "$2" "$3"
-}
-li() {
-	tag "li" "$1" "$2" "$3"
-}
-p() {
-	tag "p" "$1" "$2" "$3"
-}
-span() {
-	tag "span" "$1" "$2" "$3"
-}
-
-div_() {
-	A "div" "$1" "$2"
-}
-_div() {
-	Z "div"
-}
-
-span_() {
-	A "span" "$1" "$2"
-}
-_span() {
-	Z "span"
-}
-
-# alert "text" "type" "extras"
-alert() {
-	echo "<div class=\"alert alert-$2\" $3>$1</div>"
+alert_save() {
+	alert_delete
+	alert_append "$1" "$2"
 }
 
 # time_gmt "format" "date"
@@ -176,10 +132,6 @@ selected_if() {
 
 if_else() {
 	[ "$1" = "$2" ] && echo -n " $3" || echo -n " $4"
-}
-
-e() {
-	echo -e -n "$1"
 }
 
 ex() {
@@ -392,59 +344,6 @@ field_textedit() {
 		"<textarea id=\"$1\" name=\"$1\" class=\"form-control\">$v</textarea>"
 	echo "</p>"
 }
-
-alert_append() {
-	echo "$1:$2" >>"$alert_file"
-}
-
-alert_delete() {
-	:>"$alert_file"
-}
-
-alert_read() {
-	[ -f "$alert_file" ] || return
-	[ -s "$alert_file" ] || return
-	local c
-	local m
-	local l
-	OIFS="$IFS"
-	IFS=$'\n'
-	for l in $(cat "$alert_file"); do
-		c="$(echo $l | cut -d':' -f1)"
-		m="$(echo $l | cut -d':' -f2-)"
-		echo "<div class=\"alert alert-$c alert-dismissible fade show\" role=\"alert\">$m" \
-			"<button type=\"button\" class=\"btn btn-close\" data-bs-dismiss=\"alert\" aria-label=\"Close\"></button>" \
-			"</div>"
-	done
-	IFS=$OIFS
-	alert_delete
-}
-
-alert_save() {
-	echo "$1:$2" >$alert_file
-}
-
-header_bad_request() {
-	echo "HTTP/1.1 400 Bad Request
-Cache-Control: no-store
-Pragma: no-cache
-Date: $(time_http)
-Server: $SERVER_SOFTWARE
-
-"
-}
-
-header_ok() {
-	echo "HTTP/1.1 200 OK
-Content-type: application/json; charset=UTF-8
-Cache-Control: no-store
-Pragma: no-cache
-Date: $(time_http)
-Server: $SERVER_SOFTWARE
-
-{}"
-}
-
 html_title() {
 	[ -n "$page_title" ] && echo -n "$page_title"
 	[ -n "$title" ] && echo -n ": $title"
@@ -533,19 +432,12 @@ normalize_pin() {
 	printf "%d %d %d" $pin $pin_on $pin_off
 }
 
-# select_option "name" "value"
-select_option() {
-	local v=$2
-	[ -z "$v" ] && v=$1
-	local s=""
-	[ "$v" = eval \$$v ] && $s=" selected"
-	echo "<option value=\"$v\"$s>$1</label>"
-}
-
 # pre "text" "classes" "extras"
 pre() {
 	# replace <, >, &, ", and ' with HTML entities
-	tag "pre" "$(echo -e "$1" | sed "s/&/\&amp;/g;s/</\&lt;/g;s/>/\&gt;/g;s/\"/\&quot;/g")" "$2" "$3"
+	echo "<pre class=\"$2\" $3>" \
+		$(echo -e "$1" | sed "s/&/\&amp;/g;s/</\&lt;/g;s/>/\&gt;/g;s/\"/\&quot;/g") \
+		"</pre>"
 }
 
 progressbar() {
@@ -578,7 +470,7 @@ Location: $1
 
 report_error() {
 	echo "<h4 class=\"text-danger\">Oops. Something happened.</h4>"
-	alert "$1" "danger"
+	echo "<div class=\"alert alert-danger\">$1</div>"
 }
 
 # report_log "text" "extras"
@@ -594,21 +486,6 @@ report_command_error() {
 
 report_command_info() {
 	echo "<h4># $1</h4><pre class=\"small\">$2</pre>"
-}
-
-# row_ "class"
-row_() {
-	echo "<div class\"row $1\" $2>"
-}
-
-_row() {
-	echo "</div>"
-}
-
-row() {
-	row_ "$2"
-	echo "$1"
-	_row
 }
 
 sanitize() {
@@ -656,8 +533,6 @@ t_label() {
 }
 
 t_value() {
-	# eval "echo \"\$$1\""
-	#eval echo '$'$1
 	eval echo "\$$1"
 }
 
@@ -715,9 +590,6 @@ update_caminfo() {
 	else
 		network_default_interface=$(ip r | sed -nE 's/.+dev (\w+).+?/\1/p' | head -n 1)
 		network_gateway='' # $(get gatewayip) # FIXME: Why do we need this?
-		# network_macaddr=$(get ethaddr)      # FIXME: Why do we need this?
-		# network_address=$(get ipaddr)       # FIXME: Maybe use $(hostname -i) that would return 127.0.1.1?
-		# network_netmask=$(get netmask)
 	fi
 	network_macaddr=$(cat /sys/class/net/$network_default_interface/address)
 	network_address=$(ip r | sed -nE "/$network_default_interface/s/.+src ([0-9\.]+).+?/\1/p" | uniq)
@@ -749,44 +621,11 @@ overlay_root soc soc_family sensor tz_data tz_name uboot_version ui_password"
 	generate_signature
 }
 
-update_uboot_env() {
-	local name="$1"
-	local value="$2"
-	[ "$value" != "$(get $name)" ] && fw_setenv $name $value
-}
-
-xl() {
-	echo "<b>$1</b>"
-	local o=$($1 2>&1)
-	[ $? -ne 0 ] && error=1
-	[ -n "$o" ] && echo "<div class=\"x-small p-3\"><i>$o</i></div>"
-}
-
 read_from_env() {
 	local tmpfile=$(mktemp -u)
 	fw_printenv | grep ^${1}_ > $tmpfile
 	. $tmpfile
 	rm $tmpfile
-}
-
-d() {
-	echo "$1" >&2
-}
-
-dump() {
-	echo "Content-Type: text/plain; charset=UTF-8
-Date: $(time_http)
-Pragma: no-cache
-Connection: close
-
---------------------
-$(env|sort)
---------------------
-"
-	for x in $1; do
-		echo -e "$x = $(eval echo \$$x)\n"
-	done
-	exit
 }
 
 include() {
