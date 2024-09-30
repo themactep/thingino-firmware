@@ -763,7 +763,7 @@ xl() {
 }
 
 read_from_env() {
-	local tmpfile=$(mktemp)
+	local tmpfile=$(mktemp -u)
 	fw_printenv | grep ^${1}_ > $tmpfile
 	. $tmpfile
 	rm $tmpfile
