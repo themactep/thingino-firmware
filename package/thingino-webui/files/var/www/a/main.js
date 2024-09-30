@@ -1,9 +1,9 @@
 let max = 0;
 
-const ThreadRtsp  = 1;
+const ThreadRtsp = 1;
 const ThreadVideo = 2;
 const ThreadAudio = 4;
-const ThreadOSD   = 8;
+const ThreadOSD = 8;
 
 function $(n) {
 	return document.querySelector(n)
@@ -35,6 +35,7 @@ function setValue(data, domain, name) {
 	const id = `#${domain}_${name}`;
 	const el = $(id);
 	const value = data[name];
+	if (!value) return;
 	if (el.type == "checkbox") {
 		el.checked = value;
 	} else {

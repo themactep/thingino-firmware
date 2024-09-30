@@ -84,30 +84,19 @@ ws.onclose = () => { console.log('WebSocket connection closed'); }
 ws.onerror = (error) => { console.error('WebSocket error', error); }
 ws.onmessage = (event) => {
 	console.log(event.data);
-
-	if (event.data == '') {
-		console.log('empty response');
-		return;
-	} else {
-		console.log(ts(), '<===', event.data);
-	}
+	if (event.data == '') return;
+	console.log(ts(), '<===', event.data);
 	const msg = JSON.parse(event.data);
 	console.log(msg);
-
-	const time = new Date(msg.date);
-	const timeStr = time.toLocaleTimeString();
 	if (msg.motion) {
 		if (typeof(msg.motion.enabled) !== 'undefined') {
-			console.log('msg.motion.enabled', msg.motion.enabled);
 			$('#enabled').checked = msg.motion.enabled;
 		}
 		if (typeof(msg.motion.sensitivity) !== 'undefined') {
-			console.log('msg.motion.sensitivity', msg.motion.sensitivity);
 			$('#sensitivity').value = msg.motion.sensitivity;
 			$('#sensitivity-show').value = msg.motion.sensitivity;
 		}
 		if (typeof(msg.motion.cooldown_time) !== 'undefined') {
-			console.log('msg.motion.cooldown_time', msg.motion.cooldown_time);
 			$('#cooldown_time').value = msg.motion.cooldown_time;
 			$('#cooldown_time-show').value = msg.motion.cooldown_time;
 		}
@@ -127,16 +116,14 @@ function saveValue(el) {
 	} else {
 		value = el.value;
 		if (el.id == "input_format")
-			value = '"' + el.value + '"';
+			value = `"${el.value}"`;
 	}
-	sendToWs('{"motion":{"' + id + '":' + value + '}}');
+	sendToWs(`{"motion":{"${id}":${value}}}`);
 }
 
-$$('#enabled, \
-    #sensitivity, \
-    #cooldown_time').forEach(
-	el => el.addEventListener('change', ev => saveValue(ev.target))
-);
+$$('#enabled, #sensitivity, #cooldown_time').forEach(el => {
+	el.onchange = (ev) => saveValue(ev.target);
+});
 </script>
 
 <%in _footer.cgi %>

@@ -60,7 +60,7 @@ fi
 
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
 <div class="col">
-<h3>Access</h3>
+<h3>RTSP/ONVIF Access</h3>
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_text "rtsp_username" "RTSP/ONVIF Username" %>
 <% field_password "rtsp_password" "RTSP/ONVIF Password" %>
@@ -104,9 +104,6 @@ onvif://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>/onvi
 </pre>
 
 <script>
-const STREAM0_THREAD = 0;
-const STREAM1_THREAD = 1;
-
 const params = ['audio_enabled', 'bitrate', 'buffers', 'enabled', 'format', 'fps', 'gop',
 	'height', 'max_gop', 'mode', 'profile', 'rotation', 'rtsp_endpoint', 'width'];
 
@@ -114,39 +111,56 @@ let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
 	stream_rq = '{' + params.map((x) => `"${x}":null`).join() + '}';
-	const payload = '{"stream0":' + stream_rq + ',"stream1":' + stream_rq + '}';
-	console.log(payload);
+	const payload = `{"stream0":${stream_rq},"stream1":${stream_rq}}`;
 	ws.send(payload);
 }
 ws.onclose = () => { console.log('WebSocket connection closed'); }
 ws.onerror = (error) => { console.error('WebSocket error', error); }
 ws.onmessage = (event) => {
-	if (event.data == '') {
-		console.log('empty response');
-		return;
-	} else {
-		console.log(ts(), '<===', event.data);
-	}
+	if (event.data == '') return;
 	const msg = JSON.parse(event.data);
-	const time = new Date(msg.date);
-	const timeStr = time.toLocaleTimeString();
+	console.log(ts(), '<===', event.data);
 	let data;
-<%
-for i in 0 1; do
-	stream="stream$i"
-%>
-	data = msg.<%= $stream %>;
-	if (data)
-		params.forEach(x => setValue(data, '<%= $stream %>', x));
-<% done %>
+	for (const i in [0, 1]) {
+		data = msg[`stream${i}`];
+		if (data) {
+			params.forEach(x => setValue(data, `stream${i}`, x));
+		}
+	}
 }
 
-const andSave = ',"action":{"save_config":null,"restart_thread":' + ThreadVideo + '}'
+const andSave = ',"action":{"save_config":null,"restart_thread":3}';
 
 function sendToWs(payload) {
 	payload = payload.replace(/}$/, andSave + '}')
 	console.log(ts(), '===>', payload);
 	ws.send(payload);
+}
+
+function saveValue(domain, name) {
+	const el = $(`#${domain}_${name}`);
+	if (!el) {
+		console.error(`Element #${domain}_${name} not found`);
+		return;
+	}
+	let value;
+	if (el.type == "checkbox") {
+		value = el.checked;
+	} else {
+		value = el.value;
+		if (name == "height" || name == "width") {
+			value = value &~ 15;
+		} else if (name == "format") {
+			value = `"${value}"`;
+		}
+	}
+	sendToWs(`{"${domain}":{"${name}":${value}}}`);
+}
+
+for (const i in [0, 1]) {
+	params.forEach((x) => {
+		$(`#stream${i}_${x}`).onchange = (ev) => saveValue(`stream${i}`, x);
+	});
 }
 
 $('#rtsp_username').readOnly = true;

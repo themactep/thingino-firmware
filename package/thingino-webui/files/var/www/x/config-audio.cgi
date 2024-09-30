@@ -33,104 +33,63 @@ AUDIO_FORMATS="AAC G711A G711U G726 OPUS PCM"
 </form>
 
 <script>
-const AUDIO = 4;
+const params= ['input_agc_compression_gain_db', 'input_agc_enabled',
+	'input_agc_target_level_dbfs', 'input_alc_gain', 'input_bitrate',
+	'input_enabled', 'input_format', 'input_gain', 'input_high_pass_filter',
+	'input_noise_suppression', 'input_sample_rate', 'input_vol'];
 
 let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $ws_token %>');
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
-	payload = '{"audio":{'+
-		'"input_enabled":null,'+
-		'"input_format":null,'+
-		'"input_sample_rate":null,'+
-		'"input_bitrate":null,'+
-		'"input_high_pass_filter":null,'+
-		'"input_agc_enabled":null,'+
-		'"input_vol":null,'+
-		'"input_gain":null,'+
-		'"input_alc_gain":null,'+
-		'"input_agc_target_level_dbfs":null,'+
-		'"input_agc_compression_gain_db":null,'+
-		'"input_noise_suppression":null,'+
-		'"z":null}}';
+	payload = '{"audio":{' + params.map((x) => `"${x}":null`).join() + '}}';
 	console.log(payload);
 	ws.send(payload);
 }
 ws.onclose = () => { console.log('WebSocket connection closed'); }
 ws.onerror = (error) => { console.error('WebSocket error', error); }
 ws.onmessage = (event) => {
-	console.log(event.data);
-
-	if (event.data == '') {
-		console.log('empty response');
-		return;
-	} else {
-		console.log(ts(), '<===', event.data);
-	}
+	if (event.data == '') return;
 	const msg = JSON.parse(event.data);
-	console.log(msg);
-
-	const time = new Date(msg.date);
-	const timeStr = time.toLocaleTimeString();
-	if (msg.audio) {
-		if (typeof(msg.audio.input_enabled) !== 'undefined') {
-			console.log('msg.audio.input_enabled', msg.audio.input_enabled);
-			$('#input_enabled').checked = msg.audio.input_enabled;
+	console.log(ts(), '<===', event.data);
+	let data = msg.audio;
+	if (data) {
+		if (data.input_enabled) $('#input_enabled').checked = data.input_enabled;
+		if (data.input_format) $('#input_format').value = data.input_format;
+		if (data.input_sample_rate) $('#input_sample_rate').value = data.input_sample_rate;
+		if (data.input_bitrate) {
+			$('#input_bitrate-show').value = data.input_bitrate;
+			$('#input_bitrate').value = data.input_bitrate;
 		}
-		if (typeof(msg.audio.input_format) !== 'undefined') {
-			console.log('msg.audio.input_format', msg.audio.input_format);
-			$('#input_format').value = msg.audio.input_format;
+		if (data.input_high_pass_filter) $('#input_high_pass_filter').checked = data.input_high_pass_filter;
+		if (data.input_agc_enabled) $('#input_agc_enabled').checked = data.input_agc_enabled;
+		if (data.input_vol) {
+			$('#input_vol-show').value = data.input_vol;
+			$('#input_vol').value = data.input_vol;
 		}
-		if (typeof(msg.audio.input_sample_rate) !== 'undefined') {
-			console.log('msg.audio.input_sample_rate', msg.audio.input_sample_rate);
-			$('#input_sample_rate').value = msg.audio.input_sample_rate;
+		if (data.input_gain) {
+			$('#input_gain-show').value = data.input_gain;
+			$('#input_gain').value = data.input_gain;
 		}
-		if (typeof(msg.audio.input_bitrate) !== 'undefined') {
-			console.log('msg.audio.input_bitrate', msg.audio.input_bitrate);
-			$('#input_bitrate-show').value = msg.audio.input_bitrate;
-			$('#input_bitrate').value = msg.audio.input_bitrate;
+		if (data.input_alc_gain) {
+			$('#input_alc_gain-show').value = data.input_alc_gain;
+			$('#input_alc_gain').value = data.input_alc_gain;
 		}
-		if (typeof(msg.audio.input_high_pass_filter) !== 'undefined') {
-			console.log('msg.audio.input_high_pass_filter', msg.audio.input_high_pass_filter);
-			$('#input_high_pass_filter').checked = msg.audio.input_high_pass_filter;
+		if (data.input_agc_target_level_dbfs) {
+			$('#input_agc_target_level_dbfs-show').value = data.input_agc_target_level_dbfs;
+			$('#input_agc_target_level_dbfs').value = data.input_agc_target_level_dbfs;
 		}
-		if (typeof(msg.audio.input_agc_enabled) !== 'undefined') {
-			console.log('msg.audio.input_agc_enabled', msg.audio.input_agc_enabled);
-			$('#input_agc_enabled').checked = msg.audio.input_agc_enabled;
+		if (data.input_agc_compression_gain_db) {
+			$('#input_agc_compression_gain_db-show').value = data.input_agc_compression_gain_db;
+			$('#input_agc_compression_gain_db').value = data.input_agc_compression_gain_db;
 		}
-		if (typeof(msg.audio.input_vol) !== 'undefined') {
-			console.log('msg.audio.input_vol', msg.audio.input_vol);
-			$('#input_vol-show').value = msg.audio.input_vol;
-			$('#input_vol').value = msg.audio.input_vol;
-		}
-		if (typeof(msg.audio.input_gain) !== 'undefined') {
-			console.log('msg.audio.input_gain', msg.audio.input_gain);
-			$('#input_gain-show').value = msg.audio.input_gain;
-			$('#input_gain').value = msg.audio.input_gain;
-		}
-		if (typeof(msg.audio.input_alc_gain) !== 'undefined') {
-			console.log('msg.audio.input_alc_gain', msg.audio.input_alc_gain);
-			$('#input_alc_gain-show').value = msg.audio.input_alc_gain;
-			$('#input_alc_gain').value = msg.audio.input_alc_gain;
-		}
-		if (typeof(msg.audio.input_agc_target_level_dbfs) !== 'undefined') {
-			console.log('msg.audio.input_agc_target_level_dbfs',  msg.audio.input_agc_target_level_dbfs);
-			$('#input_agc_target_level_dbfs-show').value = msg.audio.input_agc_target_level_dbfs;
-			$('#input_agc_target_level_dbfs').value = msg.audio.input_agc_target_level_dbfs;
-		}
-		if (typeof(msg.audio.input_agc_compression_gain_db) !== 'undefined') {
-			console.log('msg.audio.input_agc_compression_gain_db', msg.audio.input_agc_compression_gain_db);
-			$('#input_agc_compression_gain_db-show').value = msg.audio.input_agc_compression_gain_db;
-			$('#input_agc_compression_gain_db').value = msg.audio.input_agc_compression_gain_db;
-		}
-		if (typeof(msg.audio.input_noise_suppression) !== 'undefined') {
-			console.log('msg.audio.input_noise_suppression', msg.audio.input_noise_suppression);
-			$('#input_noise_suppression-show').value = msg.audio.input_noise_suppression;
-			$('#input_noise_suppression').value = msg.audio.input_noise_suppression;
+		if (data.input_noise_suppression) {
+			$('#input_noise_suppression-show').value = data.input_noise_suppression;
+			$('#input_noise_suppression').value = data.input_noise_suppression;
 		}
 	}
 }
 
-const andSave = ',"action":{"save_config":null,"restart_thread":'+AUDIO+'}'
+const andSave = ',"action":{"save_config":null,"restart_thread":4}'
 
 function sendToWs(payload) {
 	payload = payload.replace(/}$/, andSave + '}')
@@ -138,31 +97,26 @@ function sendToWs(payload) {
 	ws.send(payload);
 }
 
-function saveValue(el) {
-	let id = el.id;
+function saveValue(domain, name) {
+	const el = $(`#${name}`);
+	if (!el) {
+		console.error(`Element #${name} not found`);
+		return;
+	}
+	let value;
 	if (el.type == "checkbox") {
-		value = el.checked ? 'true' : 'false';
+		value = el.checked;
 	} else {
 		value = el.value;
 		if (el.id == "input_format")
-			value = '"' + el.value + '"';
+			value = `"${value}"`;
 	}
-	sendToWs('{"audio":{"' + id + '":' + value + '}}');
+	sendToWs(`{"${domain}":{"${name}":${value}}}`);
 }
 
-$$('#input_enabled, \
-    #input_format, \
-    #input_sample_rate, \
-    #input_high_pass_filter, \
-    #input_agc_enabled, \
-    #input_bitrate, \
-    #input_vol, \
-    #input_gain, \
-    #input_alc_gain, \
-    #input_agc_target_level_dbfs, \
-    #input_noise_suppression').forEach(
-	el => el.addEventListener('change', ev => saveValue(ev.target))
-);
+params.forEach((x) => {
+	$(`#${x}`).onchange = (ev) => saveValue("audio", x);
+});
 </script>
 
 <%in _footer.cgi %>

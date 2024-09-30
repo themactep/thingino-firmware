@@ -1,9 +1,9 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-page_title="Monitoring tools"
+page_title="Network Test"
 tools_action="ping"
-tools_target="4.2.2.1"
+tools_target=""
 tools_interface="auto"
 tools_packet_size="56" # 56-1500 for ping, 38-32768 for trace
 tools_duration="5"
@@ -11,14 +11,15 @@ tools_duration="5"
 <%in _header.cgi %>
 <div class="row g-4 mb-4">
 <div class="col col-md-4">
-<h3>Ping Quality</h3>
 <form>
 <% field_select "tools_action" "Action" "ping,trace" %>
-<% field_text "tools_target" "Target FQDN or IP address" %>
-<% field_select "tools_interface" "Network interface" "auto,${interfaces}" %>
-<% field_number "tools_packet_size" "Packet size" "56,65535,1" "Bytes" %>
-<% field_number "tools_duration" "Number of packets" "1,30,1" %>
-<% button_submit "Run" %>
+<% field_text "tools_target" "Target" "FQDN or IP address" %>
+<div class="row g-1">
+<div class="col"><% field_select "tools_interface" "Interface" "auto,${interfaces}" %></div>
+<div class="col"><% field_number "tools_packet_size" "Packet size" "56,65535,1" "Bytes" %></div>
+<div class="col"><% field_number "tools_duration" "# of packets" "1,30,1" %></div>
+</div>
+<% button_submit "Run test" %>
 </form>
 </div>
 <div class="col col-md-8">
@@ -27,30 +28,36 @@ tools_duration="5"
 </div>
 
 <script>
-$('form').addEventListener('submit', event => {
-	event.preventDefault();
+$('form').onsubmit = (ev) => {
+	const tgt = $('#tools_target').value;
+	const pkgsize = $('#tools_packet_size').value;
+	const iface = $('#tools_interface').value;
+	const duration = $('#tools_duration').value;
+
+	ev.preventDefault();
 	$('form input[type=submit]').disabled = true;
 
 	if ($('#tools_action').value == 'ping') {
-		cmd = 'ping -s ' + $('#tools_packet_size').value;
-		if ($('#tools_interface').value !== 'auto') cmd =+ ' -I ' + $('#tools_interface').value;
-		cmd += ' -c ' + $('#tools_duration').value + ' ' + $('#tools_target').value;
+		cmd = `ping -s ${pkgsize}`;
+		if (iface !== 'auto') cmd += ` -I ${iface}`;
+		cmd += ` -c ${duration} ${tgt}`;
 	} else {
-		cmd = 'traceroute -q ' + $('#tools_duration').value + ' -w 1';
-		if ($('#tools_interface').value !== 'auto') cmd =+ ' -i ' + $('#tools_interface').value;
-		cmd += ' ' + $('#tools_target').value + ' ' + $('#tools_packet_size').value;
+		cmd = `traceroute -q ${duration} -w 1`;
+		if (iface !== 'auto') cmd += ` -i ${iface}`;
+		cmd += ` ${tgt} ${pkgsize}`;
 	}
 
-	el = document.createElement('pre')
+	const el = document.createElement('pre');
 	el.id = "output";
 	el.dataset['cmd'] = cmd;
 
-	h6 = document.createElement('h6')
-	h6.textContent = '# ' + cmd;
+	const h6 = document.createElement('h6');
+	h6.textContent = `# ${cmd}`;
 
-	$('#output-wrapper').innerHTML = '';
-	$('#output-wrapper').appendChild(h6);
-	$('#output-wrapper').appendChild(el);
+	const wr = $('#output-wrapper');
+	wr.innerHTML = '';
+	wr.appendChild(h6);
+	wr.appendChild(el);
 
 	async function* makeTextFileLineIterator(url) {
 		const td = new TextDecoder('utf-8');
@@ -78,7 +85,7 @@ $('form').addEventListener('submit', event => {
 			if (startIndex < chunk.length) yield chunk.substr(startIndex);
 		} finally {
 			if ('true' === el.dataset['reboot']) {
-				window.location.href = '/x/reboot.cgi'
+				window.location.href = '/x/reboot.cgi';
 			} else {
 				el.innerHTML += '\n--- finished ---\n';
 			}
@@ -89,11 +96,11 @@ $('form').addEventListener('submit', event => {
 		for await (let line of makeTextFileLineIterator('/x/run.cgi?cmd=' + btoa(el.dataset['cmd']))) {
 			const re1 = /\u001b\[1;(\d+)m/;
 			const re2 = /\u001b\[0m/;
-			line = line.replace(re1, '<span class="ansi-$1">').replace(re2, '</span>')
+			line = line.replace(re1, '<span class="ansi-$1">').replace(re2, '</span>');
 			el.innerHTML += line + '\n';
 		}
 	}
-	run()
-});
+	run();
+}
 </script>
 <%in _footer.cgi %>

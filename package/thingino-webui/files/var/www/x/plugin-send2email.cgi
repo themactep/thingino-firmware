@@ -82,13 +82,12 @@ fi
 
 <script>
 $('#email_body').style.height = "6rem";
-
-$('#email_smtp_use_ssl').addEventListener('change', evt => {
-	const elPort=$('#email_smtp_port');
-	if (evt.target.checked) {
-		if (elPort.value === "25") elPort.value="465";
+$('#email_smtp_use_ssl').onchange = (ev) => {
+	const el=$('#email_smtp_port');
+	if (ev.target.checked) {
+		if (el.value === "25") el.value="465";
 	} else {
-		if (elPort.value === "465") elPort.value="25";
+		if (el.value === "465") el.value="25";
 	}
 });
 </script>

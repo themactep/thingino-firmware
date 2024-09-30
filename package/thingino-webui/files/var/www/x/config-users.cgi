@@ -92,17 +92,17 @@ function hideNewUser() {
 	$('#user_name_new').value = '';
 }
 
-document.querySelector('#show_new_user').addEventListener('click', ev => {
+$('#show_new_user').onclick = (ev) => {
 	ev.preventDefault();
 	showNewUser();
-});
+}
 
-document.querySelector('#hide_new_user').addEventListener('click', ev => {
+$('#hide_new_user').onclick = (ev) => {
 	ev.preventDefault();
 	hideNewUser();
-});
+}
 
-if (document.querySelector('#user_name_new').value == "") {
+if ($('#user_name_new').value == "") {
 	hideNewUser();
 } else {
 	showNewUser();

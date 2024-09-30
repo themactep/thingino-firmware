@@ -95,12 +95,12 @@ fi
 
 <script>
 $('#mqtt_message').style.height = '7rem';
-$('#mqtt_use_ssl').addEventListener('change', evt => {
-	const elPort=$('#mqtt_port');
-	if (evt.target.checked) {
-		if (elPort.value === '1883') elPort.value='8883';
+$('#mqtt_use_ssl').onchange = (ev) => {
+	const el=$('#mqtt_port');
+	if (ev.target.checked) {
+		if (el.value === '1883') el.value='8883';
 	} else {
-		if (elPort.value === '8883') elPort.value='1883';
+		if (el.value === '8883') el.value='1883';
 	}
 });
 </script>

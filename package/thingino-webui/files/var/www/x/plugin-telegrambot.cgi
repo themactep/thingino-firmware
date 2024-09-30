@@ -132,7 +132,7 @@ function resetBotCommands() {
 		i++;
 	});
 }
-$('#reset_commands').addEventListener('click', resetBotCommands);
+$('#reset_commands').onclick = resetBotCommands;
 </script>
 
 <%in _footer.cgi %>

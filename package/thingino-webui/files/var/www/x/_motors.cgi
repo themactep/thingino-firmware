@@ -24,7 +24,6 @@ function runMotorCmd(args) {
 }
 
 function moveMotor(dir, steps = 100, d = 'g') {
-	console.log(dir, steps);
 	const x_max=<% echo -n $(get motor_maxstep_h) %>;
 	const y_max=<% echo -n $(get motor_maxstep_v) %>;
 	const step = x_max / steps;
@@ -41,11 +40,29 @@ function moveMotor(dir, steps = 100, d = 'g') {
 
 let timer;
 $$(".jst a.s").forEach(el => {
-	el.addEventListener("click", ev => {if (ev.detail === 1) {timer = setTimeout(() => {moveMotor(ev.target.dataset.dir, 100)}, 200)}});
-	el.addEventListener("dblclick", ev => {if (ev.detail === 2) {clearTimeout(timer);moveMotor(ev.target.dataset.dir, 10)}});
+	el.onclick = (ev) => {
+		if (ev.detail === 1) {
+			timer = setTimeout(() => { moveMotor(ev.target.dataset.dir, 100 )}, 200);
+		}
+	}
+	el.ondblclick = (ev) => {
+		if (ev.detail === 2) {
+			clearTimeout(timer);
+			moveMotor(ev.target.dataset.dir, 10);
+		}
+	}
 });
-$(".jst a.b").addEventListener("click", ev => {if (ev.detail === 1) {timer = setTimeout(() => { moveMotor('cc') }, 200)}});
-$(".jst a.b").addEventListener("dblclick", ev => {clearTimeout(timer); moveMotor('homing')});
+
+$(".jst a.b").onclick = (ev) => {
+	if (ev.detail === 1) {
+		timer = setTimeout(() => { moveMotor('cc') }, 200);
+	}
+}
+
+$(".jst a.b").ondblclick = (ev) => {
+	clearTimeout(timer);
+	moveMotor('homing');
+}
 
 runMotorCmd("d=j");
 </script>

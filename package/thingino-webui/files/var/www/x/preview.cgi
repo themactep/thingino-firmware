@@ -74,100 +74,100 @@ which motors > /dev/null && has_motors="true"
 
 <script>
 <%
-[ "true" != "$email_enabled"    ] && echo "\$('button[data-sendto=email]').disabled = true;"
-[ "true" != "$ftp_enabled"      ] && echo "\$('button[data-sendto=ftp]').disabled = true;"
-[ "true" != "$mqtt_enabled"     ] && echo "\$('button[data-sendto=mqtt]').disabled = true;"
-[ "true" != "$webhook_enabled"  ] && echo "\$('button[data-sendto=webhook]').disabled = true;"
+[ "true" != "$email_enabled" ] && echo "\$('button[data-sendto=email]').disabled = true;"
+[ "true" != "$ftp_enabled" ] && echo "\$('button[data-sendto=ftp]').disabled = true;"
+[ "true" != "$mqtt_enabled" ] && echo "\$('button[data-sendto=mqtt]').disabled = true;"
+[ "true" != "$webhook_enabled" ] && echo "\$('button[data-sendto=webhook]').disabled = true;"
 [ "true" != "$telegram_enabled" ] && echo "\$('button[data-sendto=telegram]').disabled = true;"
-[ "true" != "$yadisk_enabled"   ] && echo "\$('button[data-sendto=yadisk]').disabled = true;"
+[ "true" != "$yadisk_enabled" ] && echo "\$('button[data-sendto=yadisk]').disabled = true;"
 %>
 
 $$("button[data-sendto]").forEach(el => {
-	el.addEventListener("click", ev => {
+	el.onclick = (ev) => {
 		ev.preventDefault();
 		if (!confirm("Are you sure?")) return false;
 		const xhr = new XMLHttpRequest();
 		xhr.open('GET', "/x/send.cgi?to=" + ev.target.dataset["sendto"]);
 		xhr.send();
-	});
+	}
 });
 
 function updatePreview(data) {
 	const blob = new Blob([data], {type: 'image/jpeg'});
 	const url = URL.createObjectURL(blob);
 	preview.src = url;
-
 	ws.send('{"action":{"capture":null}}');
 }
 
 const preview = $("#preview");
-preview.onload = function()                                                                                                                                                          
-{                                                                                                                                                                                
-    URL.revokeObjectURL(this.src);                                                                                                                                               
-};
+preview.onload = () => { URL.revokeObjectURL(this.src) }
 
-let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $ws_token %>');
+let ws = new WebSocket(`ws://${document.location.hostname}:8089?token=<%= $ws_token %>`);
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
 	ws.binaryType = 'arraybuffer';
-	ws.send('{"image":{"hflip":null,"vflip":null,"running_mode":null},"rtsp":{"username":null,"password":null,"port":null},"action":{"capture":null}}');
+	const payload = '{"image":{"hflip":null,"vflip":null,"running_mode":null},'+
+		'"rtsp":{"username":null,"password":null,"port":null},'+
+		'"stream0":{"rtsp_endpoint":null},'+
+		'"action":{"capture":null}}'
+	ws.send(payload);
 }
 ws.onclose = () => { console.log('WebSocket connection closed'); }
-ws.onerror = (error) => { console.error('WebSocket error', error); }
-ws.onmessage = (event) => {
-	if (typeof event.data === 'string') {
-		const msg = JSON.parse(event.data);
-		const time = new Date(msg.date);
-		const timeStr = time.toLocaleTimeString();
-
+ws.onerror = (err) => { console.error('WebSocket error', err); }
+ws.onmessage = (ev) => {
+	if (typeof ev.data === 'string') {
+		if (ev.data == '') return;
+		const msg = JSON.parse(ev.data);
+		if (msg.action && msg.action.capture == 'initiated') return;
+		console.log(ts(), '<===', ev.data);
 		if (msg.image) {
-			console.log(event.data);
-			if (msg.image.hflip)
-				$('#hflip').checked = msg.image.hflip;
-			if (msg.image.vflip)
-				$('#vflip').checked = msg.image.vflip;
-			if (msg.image.running_mode)
-				$('#ispmode').checked = (msg.image.running_mode == 0);
+			if (msg.image.hflip) $('#hflip').checked = msg.image.hflip;
+			if (msg.image.vflip) $('#vflip').checked = msg.image.vflip;
+			if (msg.image.running_mode) $('#ispmode').checked = (msg.image.running_mode == 0);
 		}
-
-		if (msg.rtsp)
-			if (msg.rtsp.username && msg.rtsp.password && msg.rtsp.port)
-				$('#playrtsp').innerHTML = "RTSP player: mpv --profile=fast rtsp://" +
-					msg.rtsp.username + ":" + msg.rtsp.password + "@" +
-					document.location.hostname + ":" + msg.rtsp.port + "/ch0";
-
-	} else if (event.data instanceof ArrayBuffer) {
-		updatePreview(event.data);
+		if (msg.rtsp) {
+			const r = msg.rtsp;
+			if (r.username && r.password && r.port)
+				$('#playrtsp').innerHTML = "RTSP player: mpv --profile=fast " +
+				`rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
+		}
+	} else if (ev.data instanceof ArrayBuffer) {
+		updatePreview(ev.data);
 	}
 }
 
 const andSave = ',"action":{"save_config":null}'
 
-$('#hflip').addEventListener('change', ev => {
-	ws.send('{"image":{"hflip":' + ev.target.checked + '}'+andSave+'}')
+function sendToWs(payload) {
+	payload = payload.replace(/}$/, andSave + '}')
+	console.log(ts(), '===>', payload);
+	ws.send(payload);
+}
+
+$$('#hflip, #vflip').forEach(el => {
+	el.onchange = (ev) => sendToWs(`{"image":{"${ev.target.id}":${ev.target.checked}}}`);
 });
-$('#vflip').addEventListener('change', ev => {
-	ws.send('{"image":{"vflip":' + ev.target.checked + '}'+andSave+'}')
-});
+
+// not .onchange because we need to catch the event here
 $('#ispmode').addEventListener('change', ev => {
-	console.log('changes!')
 	const m = ev.target.checked ? '0' : '1'
-	ws.send('{"image":{"running_mode":' + m + '}' + andSave + '}')
+	sendToWs(`{"image":{"running_mode":${m}}}`)
 }, true);
 
-$("#daynight")?.addEventListener("change", ev => {
+$("#daynight").onchange = (ev) => {
+	const leds = ["ir850", "ir940", "white"];
 	if (ev.target.checked) {
 		$("#ispmode").checked = false;
 		$("#ircut").checked = false;
-		["ir850", "ir940", "white"].forEach(n => $("#" + n).checked = true)
+		leds.forEach(n => $(`#${n}`).checked = true);
 		mode = "night";
 	} else {
 		$("#ispmode").checked = true;
 		$("#ircut").checked = true;
-		["ir850", "ir940", "white"].forEach(n => $("#" + n).checked = false)
+		leds.forEach(n => $(`#${n}`).checked = false);
 		mode = "day";
 	}
-});
+}
 </script>
 
 <%in _footer.cgi %>

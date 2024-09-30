@@ -113,17 +113,17 @@ done; unset i; unset x
 		updateTimezone();
 	}
 
-	$('#sync-time').addEventListener('click', event => {
-		event.preventDefault();
+	$('#sync-time').onclick = (ev) => {
+		ev.preventDefault();
 		fetch('/x/json-sync-time.cgi')
-			.then(response => response.json())
+			.then(res => res.json())
 			.then(json => {
 				p = document.createElement('p');
 				p.classList.add('alert', 'alert-' + json.result);
 				p.textContent = json.message;
 				$('#sync-time-wrapper').replaceWith(p);
 			})
-	});
+	}
 
 	function populate_timezones() {
 		if (navigator.userAgent.includes("Android") && navigator.userAgent.includes("Firefox")) {
@@ -153,13 +153,16 @@ done; unset i; unset x
 	let TZ;
 
 	fetch(document.location.protocol + '//' + document.location.host + "/a/tz.json")
-		.then(response => response.json())
-		.then(json => { TZ = json; populate_timezones(json) })
+		.then(res => res.json())
+		.then(json => {
+			TZ = json;
+			populate_timezones(json);
+		})
 
 	const tzn = $("#tz_name");
-	tzn.addEventListener("focus", ev => ev.target.select());
-	tzn.addEventListener("selectionchange", updateTimezone);
-	tzn.addEventListener("change", updateTimezone);
-	$("#frombrowser").addEventListener("click", useBrowserTimezone);
+	tzn.onfocus = (ev) => ev.target.select();
+	tzn.onselectionchange = updateTimezone;
+	tzn.onchange = updateTimezone;
+	$("#frombrowser").onclick = useBrowserTimezone;
 </script>
 <%in _footer.cgi %>

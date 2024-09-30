@@ -95,8 +95,8 @@ function toggleDhcp() {
 	const c = $('#network_dhcp[type=checkbox]').checked;
 	const ids = ['network_address','network_netmask','network_gateway','network_dns_1','network_dns_2'];
 	ids.forEach(id => {
-		$('#' + id).disabled = c;
-		let el = $('#' + id + '_wrap');
+		$(`#${id}`).disabled = c;
+		let el = $(`#${id}_wrap`);
 		c ? el.classList.add('d-none') : el.classList.remove('d-none');
 	});
 }
@@ -104,14 +104,14 @@ function toggleDhcp() {
 function toggleIface() {
 	const ids = ['network_wlan_ssid','network_wlan_pass'];
 	if ($('#network_interface').value == 'wlan0') {
-		ids.forEach(id => $('#' + id + '_wrap').classList.remove('d-none'));
+		ids.forEach(id => $(`#${id}_wrap`).classList.remove('d-none'));
 	} else {
-		ids.forEach(id => $('#' + id + '_wrap').classList.add('d-none'));
+		ids.forEach(id => $(`#${id}_wrap`).classList.add('d-none'));
 	}
 }
 
-$('#network_interface').addEventListener('change', toggleIface);
-$('#network_dhcp[type=checkbox]').addEventListener('change', toggleDhcp);
+$('#network_interface').onchange = toggleIface;
+$('#network_dhcp[type=checkbox]').onchange = toggleDhcp;
 
 toggleIface();
 toggleDhcp();
