@@ -13,6 +13,7 @@ gpio_motor_v=$(get gpio_motor_v)
 motor_maxstep_h=$(get motor_maxstep_h)
 motor_maxstep_v=$(get motor_maxstep_v)
 motor_pos_0=$(get motor_pos_0)
+motor_speed=$(get motor_speed)
 
 # parse
 gpio_motor_h_1=$(echo $gpio_motor_h | awk '{print $1}')
@@ -46,6 +47,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	disable_homing=$POST_disable_homing
 	motor_pos_0_x=$POST_motor_pos_0_x
 	motor_pos_0_y=$POST_motor_pos_0_y
+	motor_speed=$POST_motor_speed
 
 	# validate
 	if [ -z "$gpio_motor_h_1" ] || [ -z "$gpio_motor_h_2" ] || [ -z "$gpio_motor_h_3" ] || [ -z "$gpio_motor_h_4" ] || \
@@ -68,6 +70,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			motor_pos_0=""
 		fi
 
+		if [ -z "$motor_speed" ]; then
+			motor_speed=900
+		fi
+
 		# save to env
 		tmpfile=$(mktemp -u)
 		{
@@ -77,6 +83,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			echo "motor_maxstep_v $motor_maxstep_v"
 			echo "disable_homing $disable_homing"
 			echo "motor_pos_0 $motor_pos_0"
+			echo "motor_speed $motor_speed"
 		} > $tmpfile
 		fw_setenv -s $tmpfile
 		rm $tmpfile
@@ -104,6 +111,11 @@ fi
 		<div class="col"><% field_number "gpio_motor_v_2" "pin 2"%></div>
 		<div class="col"><% field_number "gpio_motor_v_3" "pin 3"%></div>
 		<div class="col"><% field_number "gpio_motor_v_4" "pin 4"%></div>
+	</div>
+
+  <h5>Motor Speed</h5>
+	<div class="row mb-1">
+		<div class="col"><% field_number "motor_speed" "speed"%></div>
 	</div>
 </div>
 <div class="col">
@@ -134,6 +146,7 @@ motor_maxstep_h: <%= $motor_maxstep_h %>
 motor_maxstep_v: <%= $motor_maxstep_v %>
 disable_homing: <%= $disable_homing %>
 motor_pos_0: <%= $motor_pos_0 %>
+motor_speed: <%= $motor_speed %>
 </pre>
 </div>
 </div>
