@@ -6,6 +6,20 @@ STR_CONFIGURE_SOCKS5="<a href=\"config-socks5.cgi\">Configure SOCKS5</a>"
 STR_NOT_SUPPORTED="not supported on this system"
 STR_SUPPORTS_STRFTIME="Supports <a href=\"https://man7.org/linux/man-pages/man3/strftime.3.html \" target=\"_blank\">strftime</a> format."
 
+pagename=$(basename "$SCRIPT_NAME")
+pagename="${pagename%%.*}"
+
+ui_config_dir=/etc/webui
+ui_tmp_dir=/tmp/webui
+alert_file=$ui_tmp_dir/alert.txt
+signature_file=$ui_tmp_dir/signature.txt
+sysinfo_file=/tmp/sysinfo.txt
+ws_token="$(cat /run/prudynt_websocket_token)"
+
+[ -d $ui_tmp_dir ] || mkdir -p $ui_tmp_dir
+[ -d $ui_config_dir ] || mkdir -p $ui_config_dir
+[ -f $sysinfo_file ] || update_caminfo
+
 alert_append() {
 	echo "$1:$2" >>"$alert_file"
 }
@@ -144,7 +158,6 @@ ex() {
 # field_checkbox "name" "label" "hint"
 field_checkbox() {
 	local l=$2
-	[ -z "$l" ] && l="$(t_label "$1")"
 	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local h=$3
 	local v=$(t_value "$1")
@@ -160,7 +173,6 @@ field_checkbox() {
 # field_file "name" "label" "hint"
 field_file() {
 	local l=$2
-	[ -z "$l" ] && l="$(t_label "$1")"
 	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local h=$3
 	echo "<p id=\"$1_wrap\" class=\"file\">" \
@@ -180,7 +192,6 @@ field_hidden() {
 field_number() {
 	local n=$1
 	local l=$2
-	[ -z "$l" ] && l="$(t_label "$1")"
 	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local r=$3 # min,max,step,button
 	local mn=$(echo "$r" | cut -d, -f1)
@@ -207,7 +218,6 @@ field_number() {
 # field_password "name" "label" "hint"
 field_password() {
 	local l=$2
-	[ -z "$l" ] && l="$(t_label "$1")"
 	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local h=$3
 	local v=$(t_value "$1")
@@ -225,7 +235,6 @@ field_password() {
 field_range() {
 	local n=$1
 	local l=$2
-	[ -z "$l" ] && l="$(t_label "$n")"
 	[ -z "$l" ] && l="<span class=\"bg-warning\">$n</span>"
 	local r=$3 # min,max,step,button
 	local mn=$(echo "$r" | cut -d, -f1)
@@ -257,7 +266,6 @@ field_range() {
 # field_select "name" "label" "options" "hint" "units"
 field_select() {
 	local l=$2
-	[ -z "$l" ] && l="$(t_label "$1")"
 	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local o=$3
 	o=${o//,/ }
@@ -285,7 +293,6 @@ field_select() {
 # field_swith "name" "label" "hint" "options"
 field_switch() {
 	local l=$2
-	[ -z "$l" ] && l="$(t_label "$1")"
 	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local v=$(t_value "$1")
 	[ -z "$v" ] && v="false"
@@ -307,7 +314,6 @@ field_switch() {
 # field_text "name" "label" "hint" "placeholder"
 field_text() {
 	local l=$2
-	[ -z "$l" ] && l="$(t_label "$1")"
 	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local v="$(t_value "$1")"
 	local h="$3"
@@ -322,7 +328,6 @@ field_text() {
 # field_textarea "name" "label" "hint"
 field_textarea() {
 	local l=$2
-	[ -z "$l" ] && l="$(t_label "$1")"
 	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local v=$(t_value "$1")
 	local h=$3
@@ -336,7 +341,6 @@ field_textarea() {
 # field_textedit "name" "file" "label"
 field_textedit() {
 	local l=$3
-	[ -z "$l" ] && l="$(t_label "$1")"
 	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local v=$(cat "$2")
 	echo "<p class=\"textarea\" id=\"${1}_wrap\">" \
@@ -367,19 +371,6 @@ html_theme() {
 			echo -n "dark"
 			;;
 	esac
-}
-
-# label "name" "classes" "extras" "units"
-label() {
-	local c="form-label"
-	[ -n "$2" ] && c="$c $2"
-	local l="$(t_label "$1")"
-	[ -z "$l" ] && l="$1" && c="$c bg-warning"
-	local x="$3"
-	[ -n "$x" ] && x=" $x"
-	local u="$4"
-	[ -n "$u" ] && l="$l, <span class=\"units text-secondary x-small\">$u</span>"
-	echo "<label for=\"$1\" class=\"$c\"$x>$l</label>"
 }
 
 link_to() {
@@ -528,10 +519,6 @@ tab_lap() {
 		" aria-controls=\"${1}-tab-pane\" aria-selected=\"$s\">$2</button></li>"
 }
 
-t_label() {
-	eval "echo \$tL_$1"
-}
-
 t_value() {
 	eval echo "\$$1"
 }
@@ -632,22 +619,7 @@ include() {
 	[ -f "$1" ] && . "$1"
 }
 
-ui_tmp_dir=/tmp/webui
-ui_config_dir=/etc/webui
-
-alert_file=/tmp/webui/alert.txt
-signature_file=/tmp/webui/signature.txt
-sysinfo_file=/tmp/sysinfo.txt
-
-[ -d $ui_tmp_dir ] || mkdir -p $ui_tmp_dir
-[ -d $ui_config_dir ] || mkdir -p $ui_config_dir
-[ -f $sysinfo_file ] || update_caminfo
 include $sysinfo_file
-
-pagename=$(basename "$SCRIPT_NAME")
-pagename="${pagename%%.*}"
-
-include _locale_en.cgi
 include /etc/webui/mqtt.conf
 include /etc/webui/socks5.conf
 include /etc/webui/speaker.conf
@@ -656,10 +628,5 @@ include /etc/webui/webhook.conf
 include /etc/webui/webui.conf
 include /etc/webui/yadisk.conf
 
-# reload_locale
-
-# FIXME: mandatory password change disabled for testing purposes
 check_password
-
-ws_token="$(cat /run/prudynt_websocket_token)"
 %>
