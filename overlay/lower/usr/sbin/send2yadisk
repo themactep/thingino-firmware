@@ -34,12 +34,8 @@ done
 [ -z "$yadisk_password" ] && die "Yandex Disk password not found"
 
 if [ -z "$yadisk_file" ]; then
-	snapshot=/tmp/snapshot.jpg
-	[ -f "$snapshot" ] || die "Cannot find a snapshot"
-
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	delete_tempfile="true"
-	cp $snapshot $attachment
+	clone_snapshot $attachment
 
 	yadisk_file=$attachment
 fi

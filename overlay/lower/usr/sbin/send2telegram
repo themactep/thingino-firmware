@@ -46,12 +46,8 @@ if [ -z "$telegram_message" ]; then
 	telegram_message="$(echo "$telegram_caption" | sed "s/%hostname/$(hostname -s)/;s/%datetime/$(date +"%F %T")/")"
 
 	if [ -z "$telegram_photo" ]; then
-		snapshot=/tmp/snapshot.jpg
-		[ -f "$snapshot" ] || die "Cannot find a snapshot"
-
 		attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-		delete_tempfile="true"
-		cp $snapshot $attachment
+		clone_snapshot $attachment
 
 		telegram_photo=$attachment
 	fi

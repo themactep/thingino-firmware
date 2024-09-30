@@ -55,12 +55,8 @@ else
 fi
 
 if [ "true" = "$email_attach_snapshot" ]; then
-	snapshot=/tmp/snapshot.jpg
-	[ -f "$snapshot" ] || die "Cannot find a snapshot"
-
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	delete_tempfile="true"
-	cp $snapshot $attachment
+	clone_snapshot $attachment
 
 	email_body="$(date -R)"
 	build_cmd "-H 'Subject: $email_subject'"

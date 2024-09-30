@@ -41,12 +41,8 @@ done
 [ -z "$ftp_user" ] && ftp_user="anonymous" && ftp_password="anonymous"
 
 if [ -z "$ftp_file" ]; then
-	snapshot=/tmp/snapshot.jpg
-	[ -f "$snapshot" ] || die "Cannot find a snapshot"
-
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	delete_tempfile="true"
-	cp $snapshot $attachment
+	clone_snapshot $attachment
 
 	ftp_file=$attachment
 fi

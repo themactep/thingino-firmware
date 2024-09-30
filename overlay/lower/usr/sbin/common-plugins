@@ -18,3 +18,10 @@ if [ -f "$CONFIG_FILE" ]; then
 else
 	log "Configuration file $CONFIG_FILE not found"
 fi
+
+clone_snapshot() {
+	snapshot=/tmp/snapshot.jpg
+	[ -f "$snapshot" ] || die "Cannot find a snapshot"
+	delete_tempfile="true"
+	cp $snapshot $1
+}

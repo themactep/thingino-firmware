@@ -50,12 +50,8 @@ build_cmd "-i $mqtt_client_id"
 [ "true" = "$mqtt_socks5_enabled" ] && use_socks5
 
 if [ "true" = "$mqtt_send_snap" ]; then
-	snapshot=/tmp/snapshot.jpg
-	[ -f "$snapshot" ] || die "Cannot find a snapshot"
-
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	delete_tempfile="true"
-	cp $snapshot $attachment
+	clone_snapshot $attachment
 
 	build_cmd "-t $mqtt_snap_topic"
 	build_cmd "-f \"$attachment\""

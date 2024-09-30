@@ -30,12 +30,8 @@ build_cmd "$CURL"
 [ "true" = "$webhook_socks5_enabled" ] && use_socks5
 
 if [ "true" = "$webhook_attach_snapshot" ]; then
-	snapshot=/tmp/snapshot.jpg
-	[ -f "$snapshot" ] || die "Cannot find a snapshot"
-
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	delete_tempfile="true"
-	cp $snapshot $attachment
+	clone_snapshot $attachment
 
 	build_cmd "-F 'image=@$attachment'"
 fi
