@@ -122,8 +122,8 @@ OVERLAY_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
 OVERLAY_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PARTITION_SIZE))))
 
 .PHONY: all bootstrap build clean cleanbuild create_overlay defconfig distclean \
- 	help pack pack_full pack_update prepare_config reconfig sdk toolchain \
- 	upload_tftp upgrade_ota br-%
+	fast help pack pack_full pack_update prepare_config reconfig sdk toolchain \
+	upload_tftp upgrade_ota br-%
 
 all: build pack
 	@$(FIGLET) "FINE"
@@ -134,6 +134,10 @@ bootstrap:
 	$(SCRIPTS_DIR)/dep_check.sh
 
 build: defconfig
+	@$(FIGLET) $(CAMERA)
+	$(BR2_MAKE) all
+
+fast:
 	@$(FIGLET) $(CAMERA)
 	$(BR2_MAKE) -j$(shell nproc) all
 
