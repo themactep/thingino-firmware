@@ -4,14 +4,14 @@
 [ -z "$GET_f" ] && set_error_flag "Nothing to restore."
 
 file=$GET_f
-[ -f "/rom/${file}" ] || set_error_flag "File /rom/${file} not found!"
+[ -f "/rom/$file" ] || set_error_flag "File /rom/$file not found!"
 
 [ -n "$error" ] && redirect_back
 
-cp "/rom/${file}" "${file}"
+cp "/rom/$file" "$file"
 if [ $? -eq 0 ]; then
-	redirect_back "success" "File ${file} restored to firmware defaults."
+	redirect_back "success" "File $file restored from ROM."
 else
-	redirect_back "danger" "Cannot restore ${file}!"
+	redirect_back "danger" "Cannot restore $file!"
 fi
 %>

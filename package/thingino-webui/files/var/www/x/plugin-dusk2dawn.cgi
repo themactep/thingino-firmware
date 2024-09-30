@@ -6,7 +6,7 @@ plugin_name="Day/Night by Sun"
 page_title="Dusk to Dawn"
 params="enabled lat lng runat offset_sr offset_ss"
 
-config_file="${ui_config_dir}/${plugin}.conf"
+config_file="$ui_config_dir/$plugin.conf"
 [ -f "$config_file" ] || touch $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then

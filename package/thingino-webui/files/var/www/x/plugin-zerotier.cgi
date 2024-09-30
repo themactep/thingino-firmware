@@ -11,8 +11,8 @@ zt_cli_bin=/usr/sbin/zerotier-cli
 zt_one_bin=/usr/sbin/zerotier-one
 
 [ -f "$zt_cli_bin" ] || redirect_to "/" "danger" "ZerotierOne client is not a part of your firmware."
-[ -f "$zt_one_bin" ] || redirect_to "/" "danger" "${zt_one_bin} file not found."
-[ -f "$service_file" ] || redirect_to "/" "danger" "${service_file} file not found."
+[ -f "$zt_one_bin" ] || redirect_to "/" "danger" "$zt_one_bin file not found."
+[ -f "$service_file" ] || redirect_to "/" "danger" "$service_file file not found."
 [ -f "$config_file" ] || touch $config_file
 
 include $config_file
@@ -83,8 +83,8 @@ fi
 <div class="alert alert-success">
 <h5>ZeroTier Tunnel is open</h5>
 <% if [ -f "$zt_network_config_file" ]; then %>
-<% zt_id="$(grep ^nwid= ${zt_network_config_file} | cut -d= -f2)" %>
-<% zt_name="$(grep ^n= ${zt_network_config_file} | cut -d= -f2)" %>
+<% zt_id="$(grep ^nwid= $zt_network_config_file | cut -d= -f2)" %>
+<% zt_name="$(grep ^n= $zt_network_config_file | cut -d= -f2)" %>
 <% if [ -n "$zt_id" ] && [ -n "$zt_name" ]; then %>
 <p>Use the following credentials to set up remote access via active virtual tunnel:</p>
 <dl>

@@ -4,7 +4,7 @@
 target=$GET_to
 case "$target" in
 	email | ftp | mqtt | telegram | webhook | yadisk)
-		send2${target} $opts >/dev/null
+		send2$target $opts >/dev/null
 		redirect_back "success" "Sent to $target"
 		;;
 	termbin)
