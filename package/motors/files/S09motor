@@ -57,7 +57,7 @@ start() {
 	[ -z "$motor_maxstep_v" ] && die " Tilt motor Steps are not set"
 	[ -z "$motor_speed"     ] && motor_speed=900
 
-	[ "$gpio_motor_invert" == "true" ] && gpio_motor_invert_opt="invert_gpio_dir=1"
+	[ "$gpio_motor_invert" = "true" ] && gpio_motor_invert_opt="invert_gpio_dir=1"
 
 	if grep -qE "^motor" /proc/modules; then
 		info "Module motor already loaded."
@@ -78,7 +78,7 @@ start() {
 	# FIXME: daemon should be reporting running state from the very first moment
 	sleep 1
 
-  set_motors_speed $motor_speed
+	set_motors_speed $motor_speed
 
 	if [ "true" = "$(get disable_homing)" ]; then
 		warn "Homing disabled"
