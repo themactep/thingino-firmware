@@ -1,0 +1,22 @@
+mem=38288K@0x0
+rmem=27248K@0x2564000
+day_night_max=15000
+day_night_min=500
+disable_eth=true
+enable_updates=true
+gpio_button=14
+gpio_default=6O 7o 8O 9o 10o 11o 14I 17I 18O 49I 50o 51o 52o 53o 54o 60O 61o 62o 63o 64o
+gpio_ir850=50
+gpio_ircut=10 11
+gpio_white=9
+gpio_mmc_cd=49
+#gpio_mmc_power=46o
+gpio_motor_h=64 53 52 54
+gpio_motor_v=51 63 62 61
+gpio_speaker=60O
+#gpio_wlan=6O
+motor_maxstep_h=3700
+motor_maxstep_v=1000
+wlandev=atbm6012b
+wlandevopts=atbm_printk_mask=0
+
