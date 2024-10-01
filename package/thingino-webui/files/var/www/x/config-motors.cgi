@@ -113,7 +113,7 @@ fi
 		<div class="col"><% field_number "gpio_motor_v_4" "pin 4"%></div>
 	</div>
 
-  <h5>Motor Speed</h5>
+	<h5>Motor Speed</h5>
 	<div class="row mb-1">
 		<div class="col"><% field_number "motor_speed" "speed"%></div>
 	</div>
