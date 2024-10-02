@@ -121,25 +121,25 @@ OVERLAY_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
 # special case with no uboot nor env
 OVERLAY_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PARTITION_SIZE))))
 
-.PHONY: all bootstrap build clean cleanbuild create_overlay defconfig distclean \
-	fast help pack pack_full pack_update prepare_config reconfig sdk toolchain \
-	upload_tftp upgrade_ota br-%
+.PHONY: all bootstrap build build_fast clean cleanbuild create_overlay \
+	defconfig distclean fast help pack pack_full pack_update \
+	prepare_config reconfig sdk toolchain upload_tftp upgrade_ota br-%
 
 all: build pack
 	@$(FIGLET) "FINE"
-	@$(FIGLET) $(CAMERA)
 
 # install prerequisites
 bootstrap:
 	$(SCRIPTS_DIR)/dep_check.sh
 
 build: defconfig
-	@$(FIGLET) $(CAMERA)
 	$(BR2_MAKE) all
 
-fast: build pack
-	@$(FIGLET) $(CAMERA)
+build_fast: defconfig
 	$(BR2_MAKE) -j$(shell nproc) all
+
+fast: build_fast pack
+	@$(FIGLET) "FINE"
 
 ### Configuration
 
@@ -174,6 +174,7 @@ endif
 
 # Configure buildroot for a particular board
 defconfig: prepare_config
+	@$(FIGLET) $(CAMERA)
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 	# $(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) defconfig
@@ -216,6 +217,7 @@ create_overlay: $(U_BOOT_BIN)
 		--output=$(OVERLAY_BIN) --squash
 
 pack: pack_full pack_update
+	@$(FIGLET) $(CAMERA)
 
 pack_full: $(FIRMWARE_BIN_FULL)
 	$(info FIRMWARE_BIN_FULL_SIZE:   $(FIRMWARE_BIN_FULL_SIZE))
