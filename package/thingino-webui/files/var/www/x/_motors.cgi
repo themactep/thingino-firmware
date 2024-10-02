@@ -18,8 +18,8 @@
 function runMotorCmd(args) {
 	fetch(`/x/json-motor.cgi?${args}`)
 	.then(res => res.json())
-	.then(({message}) => {
-		$('#ptzpos').textContent = message.xpos + "," + message.ypos;
+	.then(({message: {xpos, ypos}}) => {
+		$('#ptzpos').textContent = xpos + "," + ypos;
 	});
 }
 
