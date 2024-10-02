@@ -137,7 +137,7 @@ build: defconfig
 	@$(FIGLET) $(CAMERA)
 	$(BR2_MAKE) all
 
-fast:
+fast: build pack
 	@$(FIGLET) $(CAMERA)
 	$(BR2_MAKE) -j$(shell nproc) all
 
