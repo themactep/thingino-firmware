@@ -91,7 +91,7 @@ for i in 0 1; do
 <div class="col"><% field_text "${domain}_profile" "Profile" %></div>
 </div>
 <div class="row g-2">
-<div class="col-9"><% field_text "${domain}_rtsp_endpoint" "Endpoint" "rtsp://$rtsp_username:$rtsp_password@$network_address/ch0" %></div>
+<div class="col-9"><% field_text "${domain}_rtsp_endpoint" "Endpoint" "rtsp://$rtsp_username:$rtsp_password@$network_address/ch$i" %></div>
 <div class="col-3"><% field_text "${domain}_rotation" "Rotation" %></div>
 </div>
 <% field_switch "${domain}_audio_enabled" "Audio" %>
