@@ -11,20 +11,20 @@ AUDIO_FORMATS="AAC G711A G711U G726 OPUS PCM"
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_switch "input_enabled" "Enabled" %>
-<div class="row g-4 mb-4">
-<div class="col col-lg-4">
+<div class="row row-cols-1 row-cols-lg-3 g-4 mb-4">
+<div class="col">
 <% field_select "input_format" "Audio codec" "$AUDIO_FORMATS" %>
 <% field_select "input_sample_rate" "Input audio sampling, Hz" "8000,16000,24000,44100,48000" %>
 <% field_range "input_bitrate" "Input audio bitrate, kbps" "6,256,1" %>
 <% field_checkbox "input_high_pass_filter" "High pass filter (HPF)" %>
 <% field_checkbox "input_agc_enabled" "Automatic gain control (AGC)" %>
 </div>
-<div class="col col-lg-4">
+<div class="col">
 <% field_range "input_vol" "Input volume" "-30,120,1" %>
 <% field_range "input_gain" "Input gain" "0,31,1" %>
 <% field_range "input_alc_gain" "ALC gain" "0,7,1" %>
 </div>
-<div class="col col-lg-4">
+<div class="col">
 <% field_range "input_agc_target_level_dbfs" "AGC target level, dBFS" "0,31,1" %>
 <% field_range "input_agc_compression_gain_db" "AGC compression gain, dB" "0,90,1" %>
 <% field_range "input_noise_suppression" "Noise suppression level" "0,3,1" %>
@@ -38,7 +38,7 @@ const params= ['input_agc_compression_gain_db', 'input_agc_enabled',
 	'input_enabled', 'input_format', 'input_gain', 'input_high_pass_filter',
 	'input_noise_suppression', 'input_sample_rate', 'input_vol'];
 
-let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $ws_token %>');
+let ws = new WebSocket(`ws://${document.location.hostname}:8089?token=<%= $ws_token %>`);
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
 	payload = '{"audio":{' + params.map((x) => `"${x}":null`).join() + '}}';
@@ -46,11 +46,11 @@ ws.onopen = () => {
 	ws.send(payload);
 }
 ws.onclose = () => { console.log('WebSocket connection closed'); }
-ws.onerror = (error) => { console.error('WebSocket error', error); }
-ws.onmessage = (event) => {
-	if (event.data == '') return;
-	const msg = JSON.parse(event.data);
-	console.log(ts(), '<===', event.data);
+ws.onerror = (err) => { console.error('WebSocket error', err); }
+ws.onmessage = (ev) => {
+	if (ev.data == '') return;
+	const msg = JSON.parse(ev.data);
+	console.log(ts(), '<===', ev.data);
 	let data = msg.audio;
 	if (data) {
 		if (data.input_enabled) $('#input_enabled').checked = data.input_enabled;
