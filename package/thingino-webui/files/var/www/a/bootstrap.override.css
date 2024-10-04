@@ -363,6 +363,7 @@ textarea.nowrap {
 .table.files th:not(:first-child) {
 	text-align: right;
 	width: 10em;
+	white-space: nowrap;
 }
 
 #frame {
