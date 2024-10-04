@@ -1,0 +1,26 @@
+#!/bin/sh
+
+if [ -z "$1" ]; then
+	echo "Usage: $0 <from pin> [<to pin>]"
+	exit 1
+fi
+
+play_chime() {
+	audioplay /usr/share/sounds/th-chime_1.pcm 28 28 > /dev/null
+}
+
+pin_from=$1
+pin_till=$2
+[ -z "$pin_till" ] && pin_till=$pin_from
+
+for i in $(seq $pin_from $pin_till); do
+	gpio set $i 1
+	sleep 0.5
+	play_chime
+
+	gpio set $i 0
+	sleep 0.5
+	play_chime
+done
+
+exit 0
