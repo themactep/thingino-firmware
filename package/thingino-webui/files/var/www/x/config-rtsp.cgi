@@ -77,7 +77,7 @@ for i in 0 1; do
 <div class="row g-2">
 <div class="col-3"><% field_text "${domain}_width" "Width" %></div>
 <div class="col-3"><% field_text "${domain}_height" "Height" %></div>
-<div class="col-6"><% field_range "${domain}_fps" "FPS" "15,30,1" %></div>
+<div class="col-6"><% field_range "${domain}_fps" "FPS" "5,30,1" %></div>
 </div>
 <div class="row g-2">
 <div class="col-3"><% field_select "${domain}_format" "Format" "H264,H265" %></div>
