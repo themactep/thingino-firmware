@@ -272,7 +272,7 @@ br-%-dirclean:
 		$(OUTPUT_DIR)/target
 	#  \ sed -i /^$(subst -dirclean,,$(subst br-,,$@))/d $(OUTPUT_DIR)/build/packages-file-list.txt
 
-br-%:
+br-%: defconfig
 	$(BR2_MAKE) $(subst br-,,$@)
 
 buildroot/Makefile:
