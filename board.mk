@@ -19,13 +19,15 @@ ifeq ($(BOARD),)
   else
    $(info * MEMO contains $(CAMERA_CONFIG))
    $(info * confirm the CAMERA_CONFIG)
-   ifeq ($(shell whiptail --yesno "Use $(CAMERA_CONFIG) from the previous session?" 20 76 3>&1 1>&2 2>&3; echo $$?),1)
-    $(info * discard CAMERA_CONFIG)
-    CAMERA_CONFIG =
-    $(info * delete the MEMO file)
-    $(shell rm $(BUILD_MEMO))
-   else
-    $(info * reuse CAMERA_CONFIG from the MEMO)
+   ifneq ($(answer), yes)
+    ifeq ($(shell whiptail --yesno "Use $(CAMERA_CONFIG) from the previous session?" 20 76 3>&1 1>&2 2>&3; echo $$?),1)
+     $(info * discard CAMERA_CONFIG)
+     CAMERA_CONFIG =
+     $(info * delete the MEMO file)
+     $(shell rm $(BUILD_MEMO))
+    else
+     $(info * reuse CAMERA_CONFIG from the MEMO)
+    endif
    endif
   endif
  endif

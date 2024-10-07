@@ -372,6 +372,7 @@ help:
 	  make distclean      start building from scratch\n\
 	  make rebuild-<pkg>  perform a clean package rebuild for <pkg>\n\
 	  make help           print this help\n\
+	  [ answer=yes ]      skip answering yes for board selection\n\
 	  \n\
 	  make upgrade_ota IP=192.168.1.10\n\
 	                      upload the full firmware file to the camera\n\
