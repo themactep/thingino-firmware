@@ -5,6 +5,8 @@ const ThreadVideo = 2;
 const ThreadAudio = 4;
 const ThreadOSD = 8;
 
+const HeartBeatInterval = 1 * 1000;
+
 function $(n) {
 	return document.querySelector(n)
 }
@@ -86,7 +88,7 @@ function heartbeat() {
 				$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
 			}
 		})
-		.then(setTimeout(heartbeat, 5000));
+		.then(setTimeout(heartbeat, HeartBeatInterval));
 }
 
 function callImp(command, value) {
