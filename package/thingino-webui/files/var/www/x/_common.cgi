@@ -29,11 +29,11 @@ ensure_dir $ui_tmp_dir
 ensure_dir $ui_config_dir
 
 alert_append() {
-	echo "$1:$2" >>"$alert_file"
+	echo "$1:$2" >> "$alert_file"
 }
 
 alert_delete() {
-	:>"$alert_file"
+	: > "$alert_file"
 }
 
 alert_read() {
