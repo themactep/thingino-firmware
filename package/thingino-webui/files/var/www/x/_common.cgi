@@ -19,8 +19,14 @@ sysinfo_file=/tmp/sysinfo.txt
 webui_log=/tmp/webui.log
 ws_token="$(cat /run/prudynt_websocket_token)"
 
-[ -d $ui_tmp_dir ] || mkdir -p $ui_tmp_dir
-[ -d $ui_config_dir ] || mkdir -p $ui_config_dir
+ensure_dir() {
+	[ -d "$1" ] && return
+	echo "Directory $1 does not exist. Creating" >> "$webui_log"
+	mkdir -p "$1"
+}
+
+ensure_dir $ui_tmp_dir
+ensure_dir $ui_config_dir
 
 alert_append() {
 	echo "$1:$2" >>"$alert_file"
