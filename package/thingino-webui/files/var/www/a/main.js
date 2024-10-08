@@ -35,12 +35,17 @@ function setValue(data, domain, name) {
 	const id = `#${domain}_${name}`;
 	const el = $(id);
 	const value = data[name];
-	if (!value) return;
-	if (el.type == "checkbox") {
+	if (typeof(value) == 'undefined') {
+		console.error(`no value for ${domain}, ${name}`);
+		return;
+	}
+	if (el.type === "checkbox") {
 		el.checked = value;
 	} else {
-		if (el && value) el.value = value;
-		if (el.type == "range") $(`${id}-show`).value = value;
+		el.value = value;
+		if (el.type === "range") {
+			$(`${id}-show`).textContent = value;
+		}
 	}
 }
 
