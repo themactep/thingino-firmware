@@ -258,14 +258,10 @@ field_range() {
 	# NB! no name on checkbox, since we don't want its data submitted
 	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"${n}-auto\">$ab" \
 		"<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")>" \
-		"</label>"
+		'</label>'
+	echo "<span class=\"input-group-text range-value text-end\" id=\"$n-show\">$v</span>"
 	# Input that holds the submitting value.
-	# NB! no name on range, since we don't want its data submitted
-	echo "<span class=\"input-group-text\">" \
-		"<input type=\"text\" id=\"$n-show\" name=\"$n\" value=\"$v\" size=\"4\" class=\"border-0 text-end bg-dark\">" \
-		"</span>" \
-		"<input type=\"range\" id=\"$n\" value=\"$vr\" min=\"$mn\" max=\"$mx\" step=\"$st\" class=\"form-control form-range\">" \
-		"</span>"
+	echo "<input type=\"range\" id=\"$n\" name=\"$n\" value=\"$vr\" min=\"$mn\" max=\"$mx\" step=\"$st\" class=\"form-control form-range\"></span>"
 	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
 	echo '</p>'
 }

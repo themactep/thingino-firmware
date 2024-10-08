@@ -168,10 +168,10 @@ function callImp(command, value) {
 // ranges
 		$$('input[type=range]').forEach(el => {
 			el.addEventListener('change', ev => {
-				$('#' + ev.target.id + '-show').value = ev.target.value
+				$('#' + ev.target.id + '-show').textContent = ev.target.value
 			})
 			el.addEventListener('input', ev => {
-				$('#' + ev.target.id + '-show').value = ev.target.value
+				$('#' + ev.target.id + '-show').textContent = ev.target.value
 			});
 		});
 
