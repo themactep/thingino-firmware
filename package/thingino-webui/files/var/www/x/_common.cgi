@@ -9,6 +9,8 @@ STR_SUPPORTS_STRFTIME="Supports <a href=\"https://man7.org/linux/man-pages/man3/
 pagename=$(basename "$SCRIPT_NAME")
 pagename="${pagename%%.*}"
 
+assets_ts=$(( $(date +%s) >> 16 ))
+
 ui_config_dir=/etc/webui
 ui_tmp_dir=/tmp/webui
 alert_file=$ui_tmp_dir/alert.txt
