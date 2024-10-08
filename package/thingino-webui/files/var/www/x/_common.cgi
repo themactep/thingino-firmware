@@ -16,6 +16,7 @@ ui_tmp_dir=/tmp/webui
 alert_file=$ui_tmp_dir/alert.txt
 signature_file=$ui_tmp_dir/signature.txt
 sysinfo_file=/tmp/sysinfo.txt
+webui_log=/tmp/webui.log
 ws_token="$(cat /run/prudynt_websocket_token)"
 
 [ -d $ui_tmp_dir ] || mkdir -p $ui_tmp_dir
@@ -378,7 +379,7 @@ link_to() {
 }
 
 log() {
-	echo $1 >/tmp/webui.log
+	echo "$1" >> $webui_log
 }
 
 menu() {
