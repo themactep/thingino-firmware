@@ -63,7 +63,7 @@ Pragma: no-cache
 </nav>
 
 <main class="pb-4">
-<div class="container" style="min-height: 85vh">
+<div class="container" style="min-height: 80vh">
 
 <div class="row my-2 x-small">
 <div class="col col-10 col-md-3 col-lg-2">
