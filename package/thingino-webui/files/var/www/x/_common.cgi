@@ -281,7 +281,7 @@ field_select() {
 	echo "<p class=\"select\" id=\"$1_wrap\">" \
 		"<label for=\"$1\" class=\"form-label\">$l</label>" \
 		"<select class=\"form-select\" id=\"$1\" name=\"$1\">"
-	[ -z "$(t_value "$1")" ] && echo "<option value=\"\">Select from available options</option>"
+	[ -z "$(t_value "$1")" ] && echo '<option value="">- Select -</option>'
 	for o in $o; do
 		v="${o%:*}"
 		n="${o#*:}"
