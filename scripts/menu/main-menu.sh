@@ -5,7 +5,7 @@ source ./scripts/menu/menu-common.sh
 function main_menu() {
 	check_and_install_dialog
 	while true; do
-		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Select an option:" 19 110 30 \
+		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Select an option:" 20 110 30 \
 			"bootstrap" "Install prerequisite software necessary for the compilation process" \
 			"menuconfig" "Proceed to the buildroot menu (toolchain, kernel, and rootfs)" \
 			"linux-menuconfig" "Proceed to the Linux Kernel menu configuration" \
@@ -16,6 +16,7 @@ function main_menu() {
 			"cleanbuild" "Build everything from scratch" \
 			"distclean" "Remove all cached build files from current profile"  \
 			"make" "Generate firmware" \
+			"make fast" "Generate firmware ($(nproc) CPU Cores)" \
 			"upgrade_ota" "Upload the full firmware file to the camera over network, and flash it"  \
 			"update_ota" "Upload the update firmware file to the camera over network, and flash it"  \
 			3>&1 1>&2 2>&3)
@@ -39,6 +40,8 @@ function show_help() {
 			show_help_msgbox "Choosing 'distclean' will clean your build environment more thoroughly than 'clean'. It removes all generated files, including your configuration and all cached build files. Use this to completely restart the build process." 8;;
 		"HELP make")
 			show_help_msgbox "This option starts the compilation process for the entire firmware project based on your current configuration settings. It's a key step in creating the custom thingino firmware for your device." 7;;
+		"HELP make fast")
+			show_help_msgbox "This option starts the compilation process for the entire firmware project based on your current configuration settings. It's a key step in creating the custom thingino firmware for your device.\n\nThis option will uses all available CPU cores for your system during compilation: \Zb\Z1$(nproc) cores available\Zn" 10;;
 		"HELP upgrade_ota")
 			show_help_msgbox "This function initiates an Over-the-Air (OTA) upgrade using the full firmware image. You'll need to specify the target device's IP address. It's used for comprehensive updates that include the bootloader, kernel, and filesystem." 8;;
 		"HELP update_ota")
@@ -64,6 +67,10 @@ execute_choice() {
 			;;
 		make|defconfig|saveconfig|clean|distclean|cleanbuild)
 			make $1
+			exit
+			;;
+		"make fast")
+			make fast
 			exit
 			;;
 		make|busybox-menuconfig)
