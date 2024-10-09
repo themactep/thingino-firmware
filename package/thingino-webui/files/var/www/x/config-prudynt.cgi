@@ -156,13 +156,11 @@ ws.onmessage = (ev) => {
 
 	// Video
 	for (const i in [0, 1]) {
-		const data = msg[`stream${i}`];
+    const domain = `stream${i}`;
+		const data = msg[domain];
 		if (data) {
-			const domain = `stream${i}`;
 			stream_params.forEach((x) => {
-				if (typeof(data[x]) !== 'undefined') {
-					setValue(data, domain, x);
-				}
+				if (typeof(data[x]) !== 'undefined') setValue(data, domain, x);
 			});
 		}
 	}
@@ -171,9 +169,7 @@ ws.onmessage = (ev) => {
 		const data = msg.audio;
 		if (data) {
 			audio_params.forEach((x) => {
-				if (typeof(data[x]) !== 'undefined') {
-					setValue(data, 'audio', x);
-				}
+				if (typeof(data[x]) !== 'undefined') setValue(data, 'audio', x);
 			});
 		}
 	}
