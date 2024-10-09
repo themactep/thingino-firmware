@@ -1,0 +1,47 @@
+#!/bin/sh
+
+PIDFILE="/var/run/odhcp6c_$IFACE.pid"
+
+do_start() {
+	if [ "$(sysctl -n net.ipv6.conf.all.disable_ipv6)" -eq 0 ]; then
+		if [ "$IFACE" != "lo" ]; then
+			odhcp6c -d -p "$PIDFILE" "$IFACE"
+		fi
+	fi
+}
+
+do_stop() {
+	if [ "$IFACE" != "lo" ]; then
+		if [ -f "$PIDFILE" ]; then
+			kill "$(cat "$PIDFILE")"
+			rm -f "$PIDFILE"
+		fi
+	fi
+}
+
+case "$MODE" in
+	start)
+		case "$PHASE" in
+			post-up)
+				echo "Starting odhcp6c for $IFACE"
+		do_start
+				;;
+		esac
+		;;
+
+	stop)
+		case "$PHASE" in
+			pre-down)
+				echo "Stopping odhcp6c for $IFACE"
+				do_stop
+				;;
+		esac
+		;;
+
+	*)
+		echo "Usage: $0 {start|stop}"
+		exit 1
+		;;
+esac
+
+exit 0

@@ -1,0 +1,187 @@
+#!/bin/sh
+
+# odhcp6c thingino - does not support IA_PD yet
+
+if [ -z "$2" ]; then
+	echo "Error: should be run by odhcp6c"
+	exit 1
+fi
+
+# Define the base directory for tracking DHCPv6 data
+DHCP6_DATA_BASE="/var/run/odhcp6c"
+mkdir -p "$DHCP6_DATA_BASE" || { echo "Error: cannot create $DHCP6_DATA_BASE"; exit 1; }
+
+# Update resolv.conf with DNS information
+update_resolv() {
+	local device="$1"
+	local dns="$2"
+
+	(
+		flock 9
+		# Remove existing DHCPv6 DNS entries for the device
+		grep -v "#odhcp6c:$device:" /etc/resolv.conf > /tmp/resolv.conf.tmp
+		# Add new DNS entries with a marker for the device
+		for c in $dns; do
+			echo "nameserver $c #odhcp6c:$device:" >> /tmp/resolv.conf.tmp
+		done
+		mv /tmp/resolv.conf.tmp /etc/resolv.conf
+		chmod 0644 /etc/resolv.conf
+	) 9>/tmp/resolv.conf.lock
+	# Clean up temporary files
+	rm -f /tmp/resolv.conf.lock /tmp/resolv.conf.tmp
+}
+
+# Add a route and track it
+add_route() {
+	local route="$1"
+	local route_list="$2"
+
+	# Strip out 'metric' and 'dev' fields from the route
+	local route_cleaned=$(echo "$route" | sed 's/ metric [0-9]\+//g' | sed 's/ dev [^ ]\+//g')
+
+	# Only store the cleaned route
+	echo "$route_cleaned" >> "$route_list"
+}
+
+# Add an address and track it
+add_address() {
+	local address="$1"
+	local addr_list="$2"
+
+	# Separate the address and options properly
+	local addr="${address%% dev *}"
+	local dev_opts="${address#* dev }"
+
+	# Extract the individual components from dev_opts
+	local dev_name="${dev_opts%% *}"  # Device name (e.g., eth0)
+	local pref_lft="${dev_opts##*preferred_lft }"
+	pref_lft="${pref_lft%% valid_lft*}"  # preferred_lft value
+	local valid_lft="${dev_opts##*valid_lft }"  # valid_lft value
+
+	echo "Adding address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
+
+	# Execute the ip command with the correct format
+	ip -6 address add "$addr" dev "$dev_name" preferred_lft "$pref_lft" valid_lft "$valid_lft" || {
+		echo "Failed to add address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
+		return 1
+	}
+
+	# Track the added address
+	echo "$addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft" >> "$addr_list"
+}
+
+# Function to set up the network interface
+setup_interface() {
+	local device="$1"
+
+	local DHCP6_DATA_DIR="$DHCP6_DATA_BASE/$device"
+	mkdir -p "$DHCP6_DATA_DIR"
+
+	local ADDR_LIST="$DHCP6_DATA_DIR/addresses"
+	local ROUTE_LIST="$DHCP6_DATA_DIR/routes"
+	> "$ADDR_LIST"
+	> "$ROUTE_LIST"
+
+	# Add and track routes
+	for entry in $RA_ROUTES; do
+		local addr="${entry%%,*}"
+		entry="${entry#*,}"
+		local gw="${entry%%,*}"
+		entry="${entry#*,}"
+		local metric="${entry%%,*}"
+
+		if [ -n "$gw" ]; then
+			add_route "$addr via $gw metric $metric dev $device" "$ROUTE_LIST"
+		else
+			add_route "$addr metric $metric dev $device" "$ROUTE_LIST"
+		fi
+	done
+
+	# Add and track addresses
+	for entry in $ADDRESSES; do
+		local addr="${entry%%,*}"
+		entry="${entry#*,}"
+		local preferred="${entry%%,*}"
+		entry="${entry#*,}"
+		local valid="${entry%%,*}"
+
+		add_address "$addr dev $device preferred_lft $preferred valid_lft $valid" "$ADDR_LIST"
+	done
+}
+
+teardown_interface() {
+	local device="$1"
+	local DHCP6_DATA_DIR="/var/run/odhcp6c/$device"
+	local ADDR_LIST="$DHCP6_DATA_DIR/addresses"
+	local ROUTE_LIST="$DHCP6_DATA_DIR/routes"
+
+	# Remove routes added by odhcp6c only
+	if [ -f "$ROUTE_LIST" ]; then
+		while read -r route; do
+			# Extract the route prefix and gateway
+			route_prefix="${route%% via *}"
+			gateway="${route#*via }"
+
+
+			if echo "$route" | grep -q "::/0"; then
+				echo "Skipping removal of default route: $route"
+				continue
+			fi
+
+			# Remove only routes listed in the ROUTE_LIST file
+			if [ "$route" = "$gateway" ]; then
+				gateway=""
+			fi
+
+			# Remove the route
+			if [ -n "$gateway" ]; then
+				echo "Removing odhcp6c-added route: $route_prefix via $gateway"
+				ip -6 route del "$route_prefix" via "$gateway" || echo "Failed to remove route: $route_prefix via $gateway"
+			else
+				echo "Removing odhcp6c-added route: $route_prefix"
+				ip -6 route del "$route_prefix" || echo "Failed to remove route: $route_prefix"
+			fi
+		done < "$ROUTE_LIST"
+		rm -f "$ROUTE_LIST"
+	fi
+
+	# Remove addresses added by odhcp6c
+	if [ -f "$ADDR_LIST" ]; then
+		while read -r addr; do
+			addr="${addr%% dev *}"  # Extract only the address part
+			echo "Removing odhcp6c-added address: $addr dev $device"
+			ip -6 address del "$addr" dev "$device" || echo "Failed to remove address: $addr dev $device"
+			ip -6 route del "$addr" dev "$device" || echo "Failed to remove route: $addr dev $device"
+		done < "$ADDR_LIST"
+		rm -f "$ADDR_LIST"
+	fi
+
+	# Clean up the directory
+	rm -rf "$DHCP6_DATA_DIR"
+}
+
+# Main execution block with locking to prevent concurrent runs
+(
+	flock 9
+	case "$2" in
+		bound)
+			teardown_interface "$1"
+			setup_interface "$1"
+		;;
+		informed|updated|rebound|ra-updated)
+			setup_interface "$1"
+		;;
+		stopped|unbound)
+			teardown_interface "$1"
+		;;
+		started)
+			teardown_interface "$1"
+		;;
+	esac
+
+	# Execute user-defined rules if present
+	[ -f /etc/odhcp6c.user ] && . /etc/odhcp6c.user
+) 9>/tmp/odhcp6c.lock.$1
+
+rm -f /tmp/odhcp6c.lock.$1
+
