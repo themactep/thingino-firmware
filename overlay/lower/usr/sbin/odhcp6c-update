@@ -11,24 +11,44 @@ fi
 DHCP6_DATA_BASE="/var/run/odhcp6c"
 mkdir -p "$DHCP6_DATA_BASE" || { echo "Error: cannot create $DHCP6_DATA_BASE"; exit 1; }
 
-# Update resolv.conf with DNS information
+# Update resolv.conf with DNS information and search domains
 update_resolv() {
 	local device="$1"
 	local dns="$2"
+	local domains="$DOMAINS"
 
 	(
 		flock 9
 		# Remove existing DHCPv6 DNS entries for the device
-		grep -v "#odhcp6c:$device:" /etc/resolv.conf > /tmp/resolv.conf.tmp
-		# Add new DNS entries with a marker for the device
-		for c in $dns; do
-			echo "nameserver $c #odhcp6c:$device:" >> /tmp/resolv.conf.tmp
+		grep -v "search" /tmp/resolv.conf | grep -v "nameserver" > /tmp/resolv.conf.tmp
+
+		# Handle domain search entries (ensure no duplicates)
+		local domain radomain duplicate
+		for radomain in $RA_DOMAINS; do
+			duplicate=0
+			for domain in $domains; do
+				[ "$radomain" = "$domain" ] && duplicate=1
+			done
+			[ "$duplicate" = 0 ] && domains="$domains $radomain"
 		done
-		mv /tmp/resolv.conf.tmp /etc/resolv.conf
-		chmod 0644 /etc/resolv.conf
+
+		# Add unique search domains to resolv.conf
+		for domain in $domains; do
+			grep -q "search $domain" /tmp/resolv.conf.tmp || echo "search $domain" >> /tmp/resolv.conf.tmp
+		done
+
+		# Add unique DNS servers to resolv.conf
+		for c in $dns; do
+			grep -q "nameserver $c" /tmp/resolv.conf.tmp || echo "nameserver $c" >> /tmp/resolv.conf.tmp
+		done
+
+		# Move the temporary file to /tmp/resolv.conf
+		mv /tmp/resolv.conf.tmp /tmp/resolv.conf
+		chmod 0644 /tmp/resolv.conf
 	) 9>/tmp/resolv.conf.lock
-	# Clean up temporary files
-	rm -f /tmp/resolv.conf.lock /tmp/resolv.conf.tmp
+
+	# Clean up the lock file
+	rm -f /tmp/resolv.conf.lock
 }
 
 # Add a route and track it
@@ -107,6 +127,9 @@ setup_interface() {
 
 		add_address "$addr dev $device preferred_lft $preferred valid_lft $valid" "$ADDR_LIST"
 	done
+
+	# Call update_resolv to update resolv.conf with DNS information and search domains
+	[ -n "$RDNSS" ] && update_resolv "$device" "$RDNSS"
 }
 
 teardown_interface() {
@@ -121,7 +144,6 @@ teardown_interface() {
 			# Extract the route prefix and gateway
 			route_prefix="${route%% via *}"
 			gateway="${route#*via }"
-
 
 			if echo "$route" | grep -q "::/0"; then
 				echo "Skipping removal of default route: $route"
@@ -184,4 +206,3 @@ teardown_interface() {
 ) 9>/tmp/odhcp6c.lock.$1
 
 rm -f /tmp/odhcp6c.lock.$1
-
