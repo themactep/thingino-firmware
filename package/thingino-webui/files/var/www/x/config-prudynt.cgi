@@ -99,7 +99,7 @@ for i in 0 1; do
 
 <script>
 // stream0, stream1
-const stream_params = ['bitrate', 'buffers', 'enabled', 'format', 'fps', 'gop', 'height', 'max_gop', 'mode',
+const stream_params = ['audio_enabled', 'bitrate', 'buffers', 'enabled', 'format', 'fps', 'gop', 'height', 'max_gop', 'mode',
 	'profile', 'rotation', 'rtsp_endpoint', 'width'];
 
 // audio
