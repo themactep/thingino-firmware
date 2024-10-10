@@ -84,6 +84,10 @@ gpio_control() {
 	fi
 }
 
+iface_default() {
+	ip r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1
+}
+
 iface_exists() {
 	iface="$1"
 
