@@ -1,13 +1,20 @@
 #!/bin/sh
 
 PIDFILE="/var/run/odhcp6c_$IFACE.pid"
+TIMEOUT=10
 
 do_start() {
-	if [ "$(sysctl -n net.ipv6.conf.all.disable_ipv6)" -eq 0 ]; then
-		if [ "$IFACE" != "lo" ]; then
-			odhcp6c -d -p "$PIDFILE" "$IFACE"
-		fi
-	fi
+	{ start-stop-daemon -m -S -p "$PIDFILE" -x /sbin/odhcp6c -- -t120 -S15 "$IFACE" 2>&1 & echo $! > /tmp/odhcp6c.pid; } | {
+		PID=$(cat /tmp/odhcp6c.pid)
+		( sleep 10 && echo "DHCPv6 timeout reached on $IFACE, exiting." && kill "$PID" && exit 1 ) & SLEEP_PID=$!
+		while read -r line; do
+			if echo "$line" | grep -q "Adding address"; then
+				echo "DHCPv6 configured on $IFACE!"
+				kill "$SLEEP_PID"; wait "$PID"; rm -f /tmp/odhcp6c.pid; exit 0
+			fi
+		done
+		kill "$SLEEP_PID"; rm -f /tmp/odhcp6c.pid; exit 1
+	}
 }
 
 do_stop() {
@@ -23,8 +30,10 @@ case "$MODE" in
 	start)
 		case "$PHASE" in
 			post-up)
-				echo "Starting odhcp6c for $IFACE"
-		do_start
+				if [ "$(sysctl -n net.ipv6.conf.all.disable_ipv6)" -eq 0 ] && [ "$IFACE" != "lo" ]; then
+					echo "Starting odhcp6c for $IFACE"
+					do_start
+				fi
 				;;
 		esac
 		;;
