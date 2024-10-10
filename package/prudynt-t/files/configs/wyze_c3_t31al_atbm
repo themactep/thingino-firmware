@@ -1,3 +1,12 @@
+sensor: {
+	fps: 30;
+};
+stream0: {
+	fps: 30;
+};
+stream1: {
+	fps: 30;
+};
 audio: {
 	input_high_pass_filter: true;
 	input_agc_enabled: true;

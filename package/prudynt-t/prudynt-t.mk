@@ -51,7 +51,7 @@ endef
 
 define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0755 -D $(@D)/bin/prudynt $(TARGET_DIR)/usr/bin/prudynt
-	awk -f $(PRUDYNT_T_PKGDIR)/files/device_presets \
+	awk -f $(PRUDYNT_T_PKGDIR)/files/device_presets.awk \
 		$(PRUDYNT_T_PKGDIR)/files/configs/$(shell awk 'BEGIN {split("$(BR2_CONFIG)", a, "/"); print a[length(a)-1]}') \
 		$(@D)/prudynt.cfg.example > $(STAGING_DIR)/prudynt.cfg
 	$(INSTALL) -m 0644 -D $(STAGING_DIR)/prudynt.cfg $(TARGET_DIR)/etc/prudynt.cfg
