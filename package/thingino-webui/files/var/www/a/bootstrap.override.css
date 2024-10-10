@@ -68,6 +68,10 @@
 	min-width: 3.1rem;
 }
 
+.input-group-text.switch {
+	min-width: 2.5rem;
+}
+
 .navbar-brand {
 	padding: .5rem 0 0;
 }
