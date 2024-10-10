@@ -46,7 +46,7 @@ case "$mode" in
 	off | 0)
 		gpio set $pin $pin_off > /dev/null
 		;;
-	read)
+	? | read | status)
 		gpio value $pin
 		;;
 	~ | toggle)
