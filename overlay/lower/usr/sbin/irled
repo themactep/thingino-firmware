@@ -20,8 +20,7 @@ case "$type" in
 esac
 
 if [ -z "$pin" ]; then
-	echo "Please define LED GPIO pin"
-	echo "fw_setenv gpio_$type <pin>"
+	echo -e "Please define LED GPIO pin\nfw_setenv gpio_$type <pin>" >&2
 	exit 1
 fi
 
@@ -54,7 +53,7 @@ case "$mode" in
 		gpio toggle $pin > /dev/null
 		;;
 	*)
-		echo "Unknown mode"
+		echo -e "Unknown mode" >&2
 		exit 3
 		;;
 esac

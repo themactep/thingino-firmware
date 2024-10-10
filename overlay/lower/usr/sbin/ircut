@@ -6,8 +6,7 @@ pin1=$(echo $gpio_ircut | awk '{print $1}')
 pin2=$(echo $gpio_ircut | awk '{print $2}')
 
 if [ -z "$pin1" ]; then
-	echo "Please define IRCUT pin"
-	echo "fw_setenv gpio_ircut <pin>"
+	echo -e "Please define IRCUT pin\nfw_setenv gpio_ircut <pin>" >&2
 	exit 1
 fi
 
@@ -100,7 +99,7 @@ case "$1" in
 		report_ir_filter
 		;;
 	*)
-		echo "Usage: $0 [on|off|toggle|status]"
+		echo -e "Usage: $0 [on|off|toggle|status]" >&2
 		exit 1
 		;;
 esac

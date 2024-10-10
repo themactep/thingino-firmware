@@ -26,14 +26,10 @@ case "$1" in
 	green) setRGB 0 1 0 ;;
 	blue) setRGB 0 0 1 ;;
 	yellow) setRGB 1 1 0 ;;
-	magenta | purple)
-		setRGB 1 0 1
-		;;
+	magenta | purple) setRGB 1 0 1 ;;
 	cyan) setRGB 0 1 1 ;;
 	white) setRGB 1 1 1 ;;
-	*)
-		echo "Usage: $0 <off|red|green|blue|yellow|magenta|cyan|white>"
-		;;
+	*) echo -e "Usage: $0 <off|red|green|blue|yellow|magenta|cyan|white>" >&2 ;;
 esac
 
 exit 0
