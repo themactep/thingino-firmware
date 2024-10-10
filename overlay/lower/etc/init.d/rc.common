@@ -30,6 +30,15 @@ die() {
 	exit 1
 }
 
+ensure_dir() {
+	[ -d "$1" ] || mkdir -p "$1"
+}
+
+ensure_file() {
+	ensure_dir "$(dirname $1)"
+	[ -f "$1" ] || touch "$1"
+}
+
 fail() {
 	echo_c 124 "FAIL"
 	echo "FAIL" | log
