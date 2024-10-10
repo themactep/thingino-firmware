@@ -3,6 +3,48 @@
 <%
 page_title="Illumination Controls"
 
+field_gpio() {
+	local is_active
+	local is_active_low
+	local is_disabled
+	local lit_on_boot
+	local pin_off
+	local pin_on
+
+	local name=$1
+
+	local var_pin="${name}_pin"
+	eval pin=\$$var_pin
+
+	local var_pwm="${name}_pwm"
+	eval pwm=\$$var_pwm
+
+	if [ -z "$pin" ]; then
+		is_disabled=" disabled"
+	else
+		[ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
+		active_suffix=${pin:0-1}
+		case "$active_suffix" in
+			o) pin_on=0; pin_off=1; is_active_low=" checked" ;;
+			O) pin_on=1; pin_off=0 ;;
+		esac
+		pin=${pin:0:-1}
+
+		pin_status=$(gpio read $pin | awk '{print $3}')
+		[ "$pin_status" -eq "$pin_on" ] && is_active=" checked"
+
+		echo $DEFAULT_PINS | grep -E "\b$pin$active_suffix\b" > /dev/null && lit_on_boot=" checked"
+	fi
+
+	echo "<div class=\"mb-3 led led-$1\"><label class=\"form-label\" for=\"$name\">$2</label><div class=\"input-group\">
+<div class=\"input-group-text switch\"><input type=\"checkbox\" class=\"form-check-input mt-0 led-status\" id=\"${name}_on\" name=\"${name}_on\" data-color=\"$name\" value=\"true\"$is_active$is_disabled></div>
+<input type=\"text\" class=\"form-control text-end\" id=\"${name}_pin\" name=\"${name}_pin\" data-color=\"$1\" pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pin\" placeholder=\"GPIO\">
+<input type=\"text\" class=\"form-control text-end\" id=\"${name}_pwm\" name=\"${name}_pwm\" data-color=\"$1\" pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pwm\" placeholder=\"PWM channel\">
+<div class=\"input-group-text\"><input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" name=\"${name}_inv\" value=\"true\"$is_active_low$is_disabled> active low</div>
+<div class=\"input-group-text\"><input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" name=\"${name}_lit\" value=\"true\"$lit_on_boot$is_disabled> lit on boot</div>
+</div></div>"
+}
+
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
@@ -59,43 +101,55 @@ ircut_pin2=$(echo $ircut_pins | awk '{print $2}')
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
-<div class="col">
-	<h5>850 nm IR LED</h5>
-	<div class="row mb-3">
-		<div class="col"><% field_number "ir850_pin" "GPIO pin" %></div>
-		<div class="col"><% field_number "ir850_pwn" "PWM channel" %></div>
-	</div>
-	<h5>940 nm IR LED</h5>
-	<div class="row mb-3">
-		<div class="col"><% field_number "ir940_pin" "GPIO pin" %></div>
-		<div class="col"><% field_number "ir940_pwn" "PWM channel" %></div>
-	</div>
-	<h5>White Light</h5>
-	<div class="row mb-3">
-		<div class="col"><% field_number "white_pin" "GPIO pin" %></div>
-		<div class="col"><% field_number "white_pwn" "PWM channel" %></div>
-	</div>
-</div>
-<div class="col">
-	<h5>IR CUT filter</h5>
-	<div class="row mb-3">
-		<div class="col"><% field_number "ircut_pin1" "GPIO pin 1" %></div>
-		<div class="col"><% field_number "ircut_pin2" "GPIO pin 2" %></div>
-	</div>
 
-	<h5>Day/Night Trigger Threshold</h5>
-	<div class="row mb-3">
-		<div class="col"><% field_number "day_night_min" "Min. gain in night mode" %></div>
-		<div class="col"><% field_number "day_night_max" "Max. gain in day mode" %></div>
-	</div>
+<div class="row row-cols-1 row-cols-lg-3 g-4 mb-4">
+<div class="col">
+<%
+field_gpio "ir850" "850 nm IR LED"
+field_gpio "ir940" "940 nm IR LED"
+field_gpio "white" "White LED"
+%>
 </div>
 <div class="col">
-<h3>Environment Settings</h3>
+<h5>IR CUT filter</h5>
+<div class="row g-1">
+<div class="col"><% field_number "ircut_pin1" "GPIO pin 1" %></div>
+<div class="col"><% field_number "ircut_pin2" "GPIO pin 2" %></div>
+</div>
+<h5>Day/Night trigger thresholds</h5>
+<div class="row g-1">
+<div class="col"><% field_number "day_night_min" "Min. gain in night mode" %></div>
+<div class="col"><% field_number "day_night_max" "Max. gain in day mode" %></div>
+</div>
+
+</div>
+<div class="col">
+
+<h3>Environment settings</h3>
 <% ex "fw_printenv | grep -E '((gpio|pwm_ch)_(ir|white)|day_night)'" %>
 </div>
 </div>
+
 <% button_submit %>
 </form>
+
+<script>
+async function switchIndicator(color, state) {
+	await fetch(`/x/json-imp.cgi?cmd=${color}&val=${state}`)
+		.then(res => res.json())
+		.then(data => { $(`#${color}_on`).checked = (data.message.result == 1) });
+}
+
+["ir850", "ir940", "white"].forEach(n => {
+	switchIndicator(n, '');
+	$(`#${n}_on`).onchange = (ev) => switchIndicator(n, ev.target.checked ? '1' : '0');
+});
+</script>
+
+<style>
+.led-ir850 .input-group-text:first-child { background-color: #a60000; }
+.led-ir940 .input-group-text:first-child { background-color: #750000; }
+.led-white .input-group-text:first-child { background-color: #eeeeee; }
+</style>
 
 <%in _footer.cgi %>

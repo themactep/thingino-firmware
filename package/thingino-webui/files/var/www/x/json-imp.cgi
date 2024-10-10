@@ -97,24 +97,24 @@ case "$cmd" in
 	daynight)
 		[ "$val" -eq 1 ] && val="night" || val="day"
 		daynight $val
-		payload='{"mode":"'$val'"}'
+		payload="{\"mode\":\"$(daynight status)\"}"
 		;;
 	ir850 | ir940 | white)
-		irled $val $cmd
-		payload='{"led_'$cmd'":"'$val'"}'
+		irled ${val:-read} $cmd
+		payload="{\"command\":\"$command\",\"result\":\"$(irled status $cmd)\"}"
 		;;
 	ircut)
 		ircut $val
-		payload='{"ircut":"'$val'"}'
+		payload="{\"ircut\":\"$val\"}"
 		;;
 	setosd)
-		# save to temp config
 		handle=`echo "$val" | cut -d" " -f1`
+		# save to temp config
 		sed -i "/^$cmd $handle/d" /tmp/imp.conf
 		echo "$cmd $val" >> /tmp/imp.conf
 		command="imp-control $cmd $val"
 		result=$($command)
-		payload='{"command":"'$command'","result":"'$result'"}'
+		payload="{\"command\":\"$command\",\"result\":\"$result\"}"
 		;;
 	*)
 		# save to temp config
@@ -122,9 +122,8 @@ case "$cmd" in
 		echo "$cmd $val" >> /tmp/imp.conf
 		command="imp-control $cmd $val"
 		result=$($command)
-		payload='{"command":"'$command'","result":"'$result'"}'
+		payload="{\"command\":\"$command\",\"result\":\"$result\"}"
 		;;
 esac
 
 json_ok "$payload"
-
