@@ -23,7 +23,7 @@ if ! grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline; then
 			echo "Init: Invalid JFFS2 blocks detected. Formatting required."
 			umount /overlay
 			flash_eraseall -j /dev/$mtdchrdev
-			mount -t jffs2 -o noatime /dev/$mtdblkdev /overlay || mount -t tmpfs tmpfs /overlay || exit 1
+			mount -t jffs2 -o noatime /dev/$mtdblkdev /overlay || mount -t tmpfs -o noatime tmpfs /overlay || exit 1
 
 			if ! grep -q $mtdblkdev /proc/mounts; then
 				echo "Init: ERROR: Failed to mount Overlay!"

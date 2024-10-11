@@ -1,0 +1,61 @@
+#!/bin/sh
+
+PIDFILE="/var/run/odhcp6c_$IFACE.pid"
+TIMEOUT=10
+
+# run this script only for interfaces that have the dhcp-v6-enabled option set,
+# or if IPv6 is globally enabled (not disabled)
+[ "$(sysctl -n net.ipv6.conf.all.disable_ipv6)" -ne 0 ] || [ "$IF_DHCP_V6_ENABLED" != "true" ] && exit 0
+
+do_start() {
+	TMP_LOG=/tmp/odhcp6c.log
+	/sbin/odhcp6c -p "$PIDFILE" -t120 -S15 "$IFACE" > "$TMP_LOG" 2>&1 &
+
+	while [ "$TIMEOUT" -gt 0 ]; do
+		if grep -q "Adding address" "$TMP_LOG"; then
+			echo "DHCPv6 configured on $IFACE!"
+			rm -f "$TMP_LOG"
+			return 0
+		fi
+		sleep 1
+		TIMEOUT=$((TIMEOUT - 1))
+	done
+
+	echo "DHCPv6 timeout reached on $IFACE, exiting."
+	rm -f "$TMP_LOG"
+	return 1
+}
+
+do_stop() {
+	if [ -f "$PIDFILE" ]; then
+		kill "$(cat "$PIDFILE")"
+		rm -f "$PIDFILE"
+	fi
+}
+
+case "$MODE" in
+	start)
+		case "$PHASE" in
+			post-up)
+				echo "Starting odhcp6c for $IFACE"
+				do_start
+				;;
+		esac
+		;;
+
+	stop)
+		case "$PHASE" in
+			pre-down)
+				echo "Stopping odhcp6c for $IFACE"
+				do_stop
+				;;
+		esac
+		;;
+
+	*)
+		echo "Usage: $0 {start|stop}"
+		exit 1
+		;;
+esac
+
+exit 0

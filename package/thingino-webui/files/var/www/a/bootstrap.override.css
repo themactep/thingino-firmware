@@ -1,206 +1,12 @@
 @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=PT+Mono&display=swap");
 
-@media (max-width: 575.98px) {
-	body.debug:before {
-		content: "xs"
-	}
-}
-
-@media (min-width: 576px) and (max-width: 767.98px) {
-	body.debug:before {
-		content: "sm"
-	}
-}
-
-@media (min-width: 768px) and (max-width: 991.98px) {
-	body.debug:before {
-		content: "md"
-	}
-}
-
-@media (min-width: 992px) and (max-width: 1199.98px) {
-	body.debug:before {
-		content: "lg"
-	}
-}
-
-@media (min-width: 1200px) and (max-width: 1399.98px) {
-	body.debug:before {
-		content: "xl"
-	}
-}
-
-@media (min-width: 1400px) {
-	body.debug:before {
-		content: "xxl"
-	}
-}
-
-body.debug:before {
-	color: #333;
-	display: block;
-	font-size: 10rem;
-	font-variant: all-small-caps;
-	font-weight: 700;
-	line-height: 1;
-	position: fixed;
-	right: 3rem;
-	bottom: 3rem;
-	z-index: -1;
-}
-
-#debug-button {
-	position: fixed;
-	bottom: 1rem;
-	left: 1rem;
-}
-
-#offcanvasDebug {
-	--bs-offcanvas-width: 30vw;
-	min-width: 40rem;
-}
-
-pre#output[data-cmd] {
-	background-color: rgb(0, 0, 0);
-	color: rgba(170, 170, 170, 0.8);
-}
-
-.ansi-30 {
-	color: rgba(0, 0, 0, 0.8);
-}
-
-.ansi-31 {
-	color: rgba(170, 0, 0, 0.8);
-}
-
-.ansi-32 {
-	color: rgba(0, 170, 0, 0.8);
-}
-
-.ansi-33 {
-	color: rgba(170, 85, 0, 0.8);
-}
-
-.ansi-34 {
-	color: rgba(0, 0, 170, 0.8);
-}
-
-.ansi-35 {
-	color: rgba(170, 0, 170, 0.8);
-}
-
-.ansi-36 {
-	color: rgba(0, 170, 170, 0.8);
-}
-
-.ansi-37 {
-	color: rgba(170, 170, 170, 0.8);
-}
-
-.ansi-40 {
-	background-color: rgba(0, 0, 0, 0.8);
-}
-
-.ansi-41 {
-	background-color: rgba(255, 0, 0, 0.8);
-}
-
-.ansi-42 {
-	background-color: rgba(0, 128, 0, 0.8);
-}
-
-.ansi-43 {
-	background-color: rgba(255, 255, 0, 0.8);
-}
-
-.ansi-44 {
-	background-color: rgba(0, 0, 255, 0.8);
-}
-
-.ansi-45 {
-	background-color: rgba(255, 0, 255, 0.8);
-}
-
-.ansi-46 {
-	background-color: rgba(0, 255, 255, 0.8);
-}
-
-.ansi-47 {
-	background-color: rgba(255, 255, 255, 0.8);
-}
-
-.ansi-90 {
-	color: rgb(0, 0, 0);
-	font-weight: 700;
-}
-
-.ansi-91 {
-	color: rgb(255, 0, 0);
-	font-weight: 700;
-}
-
-.ansi-92 {
-	color: rgb(0, 128, 0);
-	font-weight: 700;
-}
-
-.ansi-93 {
-	color: rgb(255, 255, 0);
-	font-weight: 700;
-}
-
-.ansi-94 {
-	color: rgb(0, 0, 255);
-	font-weight: 700;
-}
-
-.ansi-95 {
-	color: rgb(255, 0, 255);
-	font-weight: 700;
-}
-
-.ansi-96 {
-	color: rgb(0, 255, 255);
-	font-weight: 700;
-}
-
-.ansi-97 {
-	color: rgb(255, 255, 255);
-	font-weight: 700;
-}
-
-.ansi-100 {
-	background-color: rgb(0, 0, 0);
-}
-
-.ansi-101 {
-	background-color: rgb(255, 0, 0);
-}
-
-.ansi-102 {
-	background-color: rgb(0, 128, 0);
-}
-
-.ansi-103 {
-	background-color: rgb(255, 255, 0);
-}
-
-.ansi-104 {
-	background-color: rgb(0, 0, 255);
-}
-
-.ansi-105 {
-	background-color: rgb(255, 0, 255);
-}
-
-.ansi-106 {
-	background-color: rgb(0, 255, 255);
-}
-
-.ansi-107 {
-	background-color: rgb(255, 255, 255);
-}
+@media (max-width: 575.98px) {body.debug:before {content: "xs"}}
+@media (min-width: 576px) and (max-width: 767.98px) {body.debug:before {content: "sm"}}
+@media (min-width: 768px) and (max-width: 991.98px) {body.debug:before {content: "md"}}
+@media (min-width: 992px) and (max-width: 1199.98px) {body.debug:before {content: "lg"}}
+@media (min-width: 1200px) and (max-width: 1399.98px) {body.debug:before {content: "xl"}}
+@media (min-width: 1400px) {body.debug:before {content: "xxl"}}
 
 :root {
 	--bs-font-sans-serif: "Montserrat", sans-serif;
@@ -247,14 +53,23 @@ pre#output[data-cmd] {
 }
 
 .form-range {
-	height: 2.5rem;
-	padding: 0.75rem;
+	height: 2.375rem;
+	padding: 0.1rem 0.375rem;
 }
 
 .hint {
 	font-size: 0.875rem;
 	margin-top: 0.2rem;
 	margin-bottom: 0;
+}
+
+.input-group-text {
+	font-size: 0.875rem;
+	min-width: 3.1rem;
+}
+
+.input-group-text.switch {
+	min-width: 2.5rem;
 }
 
 .navbar-brand {
@@ -266,10 +81,23 @@ pre#output[data-cmd] {
 	margin-left: -5px;
 }
 
-.range span.show-value {
-	display: block;
-	min-width: 3.5rem;
-	text-align: center;
+.preview canvas {
+	width: 100%;
+	height: auto;
+}
+
+.progress-bar {
+	background-color: gray;
+	cursor: pointer;
+}
+
+.progress-bar:hover {
+	background-color: #f80;
+}
+
+.progress-stacked {
+	height: 5px;
+	cursor: pointer;
 }
 
 .range-value {
@@ -278,6 +106,27 @@ pre#output[data-cmd] {
 
 .tab-pane {
 	padding: 1rem 0;
+}
+
+
+.table.files td {
+	font-family: monospace;
+}
+
+.table.files td a {
+	text-decoration: none;
+}
+
+.table.files td:first-child,
+.table.files th:first-child {
+	width: auto;
+}
+
+.table.files td:not(:first-child),
+.table.files th:not(:first-child) {
+	text-align: right;
+	width: 10em;
+	white-space: nowrap;
 }
 
 .x-small {
@@ -327,45 +176,11 @@ textarea.nowrap {
 	min-height: 60vh;
 }
 
-.progress-stacked {
-	height: 5px;
-	cursor: pointer;
-}
-
-.progress-bar {
-	background-color: gray;
-	cursor: pointer;
-}
-
-.progress-bar:hover {
-	background-color: #f80;
-}
-
-.preview canvas {
-	width: 100%;
-	height: auto;
-}
-
-.table.files td {
-	font-family: monospace;
-}
-
-.table.files td a {
-	text-decoration: none;
-}
-
-.table.files td:first-child,
-.table.files th:first-child {
-	width: auto;
-}
-
-.table.files td:not(:first-child),
-.table.files th:not(:first-child) {
-	text-align: right;
-	width: 10em;
-	white-space: nowrap;
-}
-
 #frame {
 	border: rgba(128, 128, 128, 0.5) 1px solid;
+}
+
+pre#output[data-cmd] {
+	background-color: rgb(0, 0, 0);
+	color: rgba(170, 170, 170, 0.8);
 }

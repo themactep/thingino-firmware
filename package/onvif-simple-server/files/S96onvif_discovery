@@ -8,14 +8,12 @@ PRUDYNT_CONFIG=/etc/prudynt.cfg
 
 . /etc/init.d/rc.common
 
-# needed for args
-iface=$(awk '($2~/0{8}/&&$3!~/0{8}/){print $1;exit}' /proc/net/route)
-[ -z "$iface" ] && iface="wlan0"
+iface="$(iface_default)"
 
 model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $OS_RELEASE)
 
 # extract iface for daemon from onvif.conf
-DAEMON_ARGS="--if_name $(awk -F= '/^ifs=/{print $2}' $ONVIF_CONFIG) --xaddr http://%s/onvif/device_service -m $model -n thingino --pid_file /var/run/$DAEMON_SHORT.pid"
+DAEMON_ARGS="--if_name $iface --xaddr http://%s/onvif/device_service -m $model -n thingino --pid_file /var/run/$DAEMON_SHORT.pid"
 
 # read web config, create if missing
 [ -d $(dirname $ONVIF_WEBUI_CONF) ] || mkdir -p $(dirname $ONVIF_WEBUI_CONF)

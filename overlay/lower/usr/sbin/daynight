@@ -12,7 +12,6 @@ switch_to_day() {
 	color on
 	irled off
 	ircut on
-	echo "Switched to day mode"
 	echo "day" > $MODE_FILE
 }
 
@@ -20,7 +19,6 @@ switch_to_night() {
 	color off
 	irled on
 	ircut off
-	echo "Switched to night mode"
 	echo "night" > $MODE_FILE
 }
 
@@ -42,6 +40,9 @@ case "$1" in
 		else
 			switch_to_day
 		fi
+		;;
+	? | status)
+		cat $MODE_FILE
 		;;
 	*)
 		day_night_max=$(get day_night_max || echo 15000)
