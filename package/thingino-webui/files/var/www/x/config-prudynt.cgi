@@ -161,7 +161,7 @@ function saveValue(domain, name) {
 		value = el.value;
 		if (name == "height" || name == "width") {
 			value = value &~ 15;
-		} else if (name == "format") {
+		} else if (["format", "mode", "input_format"].indexOf(name) !== -1) {
 			value = `"${value}"`;
 		}
 	}
