@@ -1,7 +1,7 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-page_title="Prudynt"
+page_title="Streamer"
 
 AUDIO_FORMATS="AAC G711A G711U G726 OPUS PCM"
 AUDIO_SAMPLING="8000,16000,24000,44100,48000"
