@@ -173,7 +173,7 @@ function saveValue(domain, name) {
 		thread = ThreadAudio;
 	}
 
-	sendToWs(`{"${domain}":{"${name}":${value}}},"action":{"save_config":null,"restart_thread":${thread}}`);
+	sendToWs(`{"${domain}":{"${name}":${value}},"action":{"save_config":null,"restart_thread":${thread}}}`);
 }
 
 for (const i in [0, 1]) {
