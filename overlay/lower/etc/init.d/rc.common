@@ -30,6 +30,15 @@ die() {
 	exit 1
 }
 
+ensure_dir() {
+	[ -d "$1" ] || mkdir -p "$1"
+}
+
+ensure_file() {
+	ensure_dir "$(dirname $1)"
+	[ -f "$1" ] || touch "$1"
+}
+
 fail() {
 	echo_c 124 "FAIL"
 	echo "FAIL" | log
@@ -73,6 +82,10 @@ gpio_control() {
 		warn "Failed to set GPIO $num $gpio_cmd"
 		return 3  # failure
 	fi
+}
+
+iface_default() {
+	ip r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1
 }
 
 iface_exists() {

@@ -26,4 +26,14 @@ define THINGINO_PORTAL_INSTALL_TARGET_CMDS
 	ln -sr $(TARGET_DIR)/var/www/a/bootstrap.bundle.min.js.gz $(TARGET_DIR)/var/www-portal/
 endef
 
+# MT7601u wifi driver needs a PSK for the portal AP to function
+ifeq ($(BR2_PACKAGE_WIFI_MT7601U),y)
+define MODIFY_INSTALL_CONFIGS
+	sed -i '/key_mgmt/s/NONE/WPA-PSK/' $(TARGET_DIR)/etc/wpa_ap.conf
+	sed -i '/network={/a\      psk="thingino"' $(TARGET_DIR)/etc/wpa_ap.conf
+endef
+endif
+
+THINGINO_PORTAL_POST_INSTALL_TARGET_HOOKS += MODIFY_INSTALL_CONFIGS
+
 $(eval $(generic-package))

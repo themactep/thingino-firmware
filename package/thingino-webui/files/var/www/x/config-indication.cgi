@@ -20,32 +20,40 @@ field_gpio() {
 	local is_active_low
 	local is_disabled
 	local lit_on_boot
-	local name=gpio_led_$1
 	local pin_off
 	local pin_on
 
-	eval pin=\$$name
+	local name=gpio_led_$1
+
+	local var_pin="${name}"
+	eval pin=\$$var_pin
+
+	local var_pwm="${name}_pwm"
+	eval pwm=\$$var_pwm
+
 	if [ -z "$pin" ]; then
-		is_disabled="disabled"
+		is_disabled=" disabled"
 	else
 		[ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
 		active_suffix=${pin:0-1}
 		case "$active_suffix" in
-			o) pin_on=0; pin_off=1; is_active_low="checked" ;;
+			o) pin_on=0; pin_off=1; is_active_low=" checked" ;;
 			O) pin_on=1; pin_off=0 ;;
 		esac
 		pin=${pin:0:-1}
 
 		pin_status=$(gpio read $pin | awk '{print $3}')
-		[ "$pin_status" -eq "$pin_on" ] && is_active="checked"
+		[ "$pin_status" -eq "$pin_on" ] && is_active=" checked"
 
-		echo $DEFAULT_PINS | grep -E "\b$pin$active_suffix\b" > /dev/null && lit_on_boot="checked"
+		echo $DEFAULT_PINS | grep -E "\b$pin$active_suffix\b" > /dev/null && lit_on_boot=" checked"
 	fi
+
 	echo "<div class=\"mb-3 led led-$1\"><label class=\"form-label\" for=\"$name\">$2</label><div class=\"input-group\">
-<div class=\"input-group-text\" style=\"background-color:$2\"><input type=\"checkbox\" class=\"form-check-input mt-0 led-status\" id=\"${name}_on\" name=\"${name}_on\" data-color=\"$1\" value=\"true\" $is_active $is_disabled></div>
-<input type=\"text\" class=\"form-control text-end\" id=\"$name\" name=\"$name\" data-color=\"$1\" pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pin\" placeholder=\"GPIO\">
-<div class=\"input-group-text\"><input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" name=\"${name}_inv\" value=\"true\" $is_active_low $is_disabled> active low</div>
-<div class=\"input-group-text\"><input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" name=\"${name}_lit\" value=\"true\" $lit_on_boot $is_disabled> lit on boot</div>
+<div class=\"input-group-text switch\" style=\"background-color:$2\"><input type=\"checkbox\" class=\"form-check-input mt-0 led-status\" id=\"${name}_on\" name=\"${name}_on\" data-color=\"$1\" value=\"true\"$is_active$is_disabled></div>
+<input type=\"text\" class=\"form-control text-end\" id=\"${name}\" name=\"${name}\" data-color=\"$1\" pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pin\" placeholder=\"GPIO\">
+<input type=\"text\" class=\"form-control text-end\" id=\"${name}_pwm\" name=\"${name}_pwm\" data-color=\"$1\" pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pwm\" placeholder=\"PWM channel\">
+<div class=\"input-group-text\"><input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" name=\"${name}_inv\" value=\"true\"$is_active_low$is_disabled> active low</div>
+<div class=\"input-group-text\"><input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" name=\"${name}_lit\" value=\"true\"$lit_on_boot$is_disabled> lit on boot</div>
 </div></div>"
 }
 
@@ -64,7 +72,7 @@ update_config() {
 		else
 			active_suffix="O"
 		fi
-		echo "${name} ${pin}${active_suffix}" >> $tmpfile
+		echo "$name $pin$active_suffix" >> $tmpfile
 		# remove the pin from defaults
 		DEFAULT_PINS=$(echo $DEFAULT_PINS | sed -E "s/\b($pin[oO])\b//")
 		if [ "true" != "$pin_lit" ]; then
@@ -76,13 +84,13 @@ update_config() {
 		DEFAULT_PINS="$DEFAULT_PINS ${pin}${active_suffix}"
 	else
 		# read the existing pin for the color from environment and remove it from defaults
-		pin=$(fw_printenv -n ${name})
+		pin=$(fw_printenv -n $name)
 		[ -n "$pin" ] && DEFAULT_PINS=$(echo $DEFAULT_PINS | sed -E "s/\b($pin[oO])\b/ /")
 		# drop individual environment settings for the color
-		echo "${name}" >> $tmpfile
+		echo "$name" >> $tmpfile
 	fi
 	# sqeeze spacing
-	DEFAULT_PINS=$(echo $DEFAULT_PINS | tr -s ' ')
+	DEFAULT_PINS=$(echo $DEFAULT_PINS | tr -s " ")
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
@@ -100,25 +108,31 @@ fi
 %>
 <%in _header.cgi %>
 
-<div class="row g-4 mb-4">
-<div class="col-sm-12 col-md-8 col-lg-6 col-xl-4">
 <form action="<%= $SCRIPT_NAME %>" method="post">
+
+<div class="row row-cols-1 row-cols-lg-3 g-4 mb-4">
+<div class="col">
 <%
 field_gpio "r" "Red"
 field_gpio "g" "Green"
 field_gpio "b" "Blue"
+%>
+</div>
+<div class="col">
+<%
 field_gpio "y" "Yellow"
 field_gpio "o" "Orange"
 field_gpio "w" "White"
-button_submit
 %>
-</form>
 </div>
-<div class="col col-md-4 col-lg-6 col-xl-8">
+<div class="col">
 <% ex "fw_printenv gpio_default" %>
 <% ex "fw_printenv | grep gpio_led" %>
 </div>
 </div>
+
+<% button_submit %>
+</form>
 
 <script>
 async function switchIndicator(color, state) {
@@ -130,7 +144,7 @@ async function switchIndicator(color, state) {
 $$('.led input[type="text"]').forEach(it => {
 	it.onchange = (ev) => {
 		const el = ev.target;
-		const c = el.dataset['color'];
+		const c = el.dataset.color;
 		const s = (el.value == '');
 		$$(`div.led-${c} input[type="checkbox"]`).forEach(z => {
 			if (s) z.checked = false;
@@ -141,7 +155,7 @@ $$('.led input[type="text"]').forEach(it => {
 
 $$('.led-status').forEach(el => {
 	el.onchange = (ev) => {
-		switchIndicator(ev.target.dataset['color'], ev.target.checked ? 1 : 0)
+		switchIndicator(ev.target.dataset.color, ev.target.checked ? 1 : 0)
 	}
 });
 </script>

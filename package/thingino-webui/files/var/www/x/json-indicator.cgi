@@ -22,5 +22,5 @@ pin=${pin:0:(-1)}
 gpio set "$pin" "$state"
 pin_status=$(cat /sys/class/gpio/gpio$pin/value)
 
-payload='{"pin":"'$pin'","status":"'$pin_status'"}'
+payload="{\"pin\":\"$pin\",\"status\":\"$pin_status\"}"
 json_ok "$payload"

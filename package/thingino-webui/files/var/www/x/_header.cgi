@@ -12,9 +12,9 @@ Pragma: no-cache
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title><% html_title %></title>
 <link rel="stylesheet" href="/a/bootstrap.min.css">
-<link rel="stylesheet" href="/a/bootstrap.override.css">
+<link rel="stylesheet" href="/a/bootstrap.override.css?ts=<%= $assets_ts %>">
 <script src="/a/bootstrap.bundle.min.js"></script>
-<script src="/a/main.js"></script>
+<script src="/a/main.js?ts=<%= $assets_ts %>"></script>
 </head>
 
 <body id="page-<%= $pagename %>" class="<%= ${webui_level:-user} %><% [ "$debug" -gt 0 ] && echo -n " debug" %>">
@@ -63,7 +63,7 @@ Pragma: no-cache
 </nav>
 
 <main class="pb-4">
-<div class="container" style="min-height: 85vh">
+<div class="container" style="min-height: 80vh">
 
 <div class="row my-2 x-small">
 <div class="col col-10 col-md-3 col-lg-2">

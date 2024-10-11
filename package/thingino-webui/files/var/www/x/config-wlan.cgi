@@ -48,12 +48,12 @@ wlan_mac="$(get wlanmac)"
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <div class="row g-4 mb-4">
-<div class="col-4">
+<div class="col">
 <% field_text "wlan_ssid" "Wireless Network SSID" %>
 <% field_text "wlan_pass" "Wireless Network Password" "Plain-text password will be automatically converted to a PSK upon submission" %>
 <% field_text "wlan_mac" "Wireless device MAC address" %>
 </div>
-<div class="col-8">
+<div class="col">
 <% ex "fw_printenv | grep wlan | sort" %>
 </div>
 </div>

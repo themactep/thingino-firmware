@@ -7,12 +7,19 @@ page_title="Motors"
 
 # read data from env
 # fw_printenv | grep -E '(motor|homing)' | xargs -i eval '{}'
-disable_homing=$(get disable_homing)
 gpio_motor_h=$(get gpio_motor_h)
 gpio_motor_v=$(get gpio_motor_v)
 motor_maxstep_h=$(get motor_maxstep_h)
 motor_maxstep_v=$(get motor_maxstep_v)
+motor_speed_h=$(get motor_speed_h)
+motor_speed_v=$(get motor_speed_v)
 motor_pos_0=$(get motor_pos_0)
+disable_homing=$(get disable_homing)
+
+# FIXME: deprecate after splitting to per-motor
+motor_speed=$(get motor_speed)
+[ -z "$motor_speed_h" ] motor_speed_h=motor_speed
+[ -z "$motor_speed_v" ] motor_speed_v=motor_speed
 
 # parse
 gpio_motor_h_1=$(echo $gpio_motor_h | awk '{print $1}')
@@ -46,14 +53,19 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	disable_homing=$POST_disable_homing
 	motor_pos_0_x=$POST_motor_pos_0_x
 	motor_pos_0_y=$POST_motor_pos_0_y
+	motor_speed_h=$POST_motor_speed_h
+	motor_speed_v=$POST_motor_speed_v
 
 	# validate
-	if [ -z "$gpio_motor_h_1" ] || [ -z "$gpio_motor_h_2" ] || [ -z "$gpio_motor_h_3" ] || [ -z "$gpio_motor_h_4" ] || \
-	   [ -z "$gpio_motor_v_1" ] || [ -z "$gpio_motor_v_2" ] || [ -z "$gpio_motor_v_3" ] || [ -z "$gpio_motor_v_4" ]; then
+	if [ -z "$gpio_motor_h_1" ] || [ -z "$gpio_motor_h_2" ] || \
+	   [ -z "$gpio_motor_h_3" ] || [ -z "$gpio_motor_h_4" ] || \
+	   [ -z "$gpio_motor_v_1" ] || [ -z "$gpio_motor_v_2" ] || \
+	   [ -z "$gpio_motor_v_3" ] || [ -z "$gpio_motor_v_4" ]; then
 		set_error_flag "All pins are required"
 	fi
 
-	if [ "0$motor_maxstep_h" -le 0 ] || [ "0$motor_maxstep_v" -le 0 ]; then
+	if [ "0$motor_maxstep_h" -le 0 ] || \
+	   [ "0$motor_maxstep_v" -le 0 ]; then
 		set_error_flag "Motor max steps aren't set"
 	fi
 
@@ -63,10 +75,16 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		gpio_motor_v="$POST_gpio_motor_v_1 $POST_gpio_motor_v_2 $POST_gpio_motor_v_3 $POST_gpio_motor_v_4"
 
 		if [ -n "$motor_pos_0_x" ] && [ -n "$motor_pos_0_y" ]; then
-			motor_pos_0="${motor_pos_0_x},${motor_pos_0_y}"
+			motor_pos_0="$motor_pos_0_x,$motor_pos_0_y"
 		else
 			motor_pos_0=""
 		fi
+
+		[ -z "$motor_speed_h" ] && motor_speed_h=900
+		[ -z "$motor_speed_v" ] && motor_speed_v=900
+
+		# FIXME: deprecate after splitting to per-motor
+		[ -z "$motor_speed" ] motor_speed=motor_speed_h
 
 		# save to env
 		tmpfile=$(mktemp -u)
@@ -75,8 +93,12 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			echo "gpio_motor_v $gpio_motor_v"
 			echo "motor_maxstep_h $motor_maxstep_h"
 			echo "motor_maxstep_v $motor_maxstep_v"
+			echo "motor_speed_h $motor_speed_h"
+			echo "motor_speed_v $motor_speed_v"
 			echo "disable_homing $disable_homing"
 			echo "motor_pos_0 $motor_pos_0"
+			# FIXME: deprecate after splitting to per-motor
+			echo "motor_speed $motor_speed"
 		} > $tmpfile
 		fw_setenv -s $tmpfile
 		rm $tmpfile
@@ -88,55 +110,56 @@ fi
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+<div class="row row-cols-1 row-cols-xl-3 g-4">
 <div class="col">
-	<h5>Pan Motor GPIO</h5>
-	<div class="row mb-4">
-		<div class="col"><% field_number "gpio_motor_h_1" "pin 1" %></div>
-		<div class="col"><% field_number "gpio_motor_h_2" "pin 2" %></div>
-		<div class="col"><% field_number "gpio_motor_h_3" "pin 3" %></div>
-		<div class="col"><% field_number "gpio_motor_h_4" "pin 4" %></div>
-	</div>
-
-	<h5>Tilt Motor GPIO</h5>
-	<div class="row mb-4">
-		<div class="col"><% field_number "gpio_motor_v_1" "pin 1"%></div>
-		<div class="col"><% field_number "gpio_motor_v_2" "pin 2"%></div>
-		<div class="col"><% field_number "gpio_motor_v_3" "pin 3"%></div>
-		<div class="col"><% field_number "gpio_motor_v_4" "pin 4"%></div>
-	</div>
+<h3>Pan motor</h3>
+<div class="row g-1">
+<div class="col"><% field_number "gpio_motor_h_1" "GPIO pin 1" %></div>
+<div class="col"><% field_number "gpio_motor_h_2" "GPIO pin 2" %></div>
+<div class="col"><% field_number "gpio_motor_h_3" "GPIO pin 3" %></div>
+<div class="col"><% field_number "gpio_motor_h_4" "GPIO pin 4" %></div>
+<a href="#" class="mb-4 flip_motor" data-direction="h">Flip direction</a>
+</div>
+<div class="row g-1">
+<div class="col"><% field_number "motor_speed_h" "Max. speed"%></div>
+<div class="col"><% field_number "motor_maxstep_h" "Max. steps" %></div>
+<div class="col"><% field_number "motor_pos_0_x" "Position on boot" %></div>
+<a href="#" class="mb-4" id="read-motors">Pick up the recent position</a>
+</div>
 </div>
 <div class="col">
-	<h5>Motor max. steps</h5>
-	<div class="row mb-4">
-		<div class="col"><% field_number "motor_maxstep_h" "Pan motor steps" %></div>
-		<div class="col"><% field_number "motor_maxstep_v" "Tilt motor steps" %></div>
-	</div>
-
-	<h5>Homing<sup>*</sup> on boot</h5>
-	<p class="small">* camera rotates to its minimum limits to set zero positions on both axis on boot.</p>
-	<% field_switch "disable_homing" "Disable homing" %>
-
-	<h5>Starting position</h5>
-	<div class="row">
-		<div class="col"><% field_number "motor_pos_0_x" "Horizontal coordinate" %></div>
-		<div class="col"><% field_number "motor_pos_0_y" "Vertical coordinate" %></div>
-	</div>
-	<a href="#" class="mb-4" id="read-motors">Pick up the recent coordinates</a>
+<h3>Tilt motor</h3>
+<div class="row g-1">
+<div class="col"><% field_number "gpio_motor_v_1" "GPIO pin 1" %></div>
+<div class="col"><% field_number "gpio_motor_v_2" "GPIO pin 2" %></div>
+<div class="col"><% field_number "gpio_motor_v_3" "GPIO pin 3" %></div>
+<div class="col"><% field_number "gpio_motor_v_4" "GPIO pin 4" %></div>
+<a href="#" class="mb-4 flip_motor" data-direction="v">Flip direction</a>
+</div>
+<div class="row g-1">
+<div class="col"><% field_number "motor_speed_v" "Max. speed"%></div>
+<div class="col"><% field_number "motor_maxstep_v" "Max. steps" %></div>
+<div class="col"><% field_number "motor_pos_0_y" "Position on boot" %></div>
+<a href="#" class="mb-4" id="read-motors">Pick up the recent position</a>
+</div>
 </div>
 <div class="col">
-
-<h3>Environment Settings</h3>
+<h3>Environment settings</h3>
 <pre>
 gpio_motor_h: <%= $gpio_motor_h %>
-gpio_motor_v: <%= $gpio_motor_v %>
 motor_maxstep_h: <%= $motor_maxstep_h %>
+motor_speed_h: <%= $motor_speed_h %>
+
+gpio_motor_v: <%= $gpio_motor_v %>
 motor_maxstep_v: <%= $motor_maxstep_v %>
-disable_homing: <%= $disable_homing %>
+motor_speed_v: <%= $motor_speed_v %>
+
 motor_pos_0: <%= $motor_pos_0 %>
+disable_homing: <%= $disable_homing %>
 </pre>
 </div>
 </div>
+<% field_switch "disable_homing" "Disable homing* on boot" "* camera rotates to its minimum limits to zero both axis" %>
 <% button_submit %>
 </form>
 
@@ -150,19 +173,29 @@ function checkHoming() {
 function readMotors() {
 	fetch("/x/json-motor.cgi?d=j")
 		.then(res => res.json())
-		.then(({xpos, ypos}) => {
+		.then(({message:{xpos, ypos}}) => {
 			$('#motor_pos_0_x').value = xpos;
 			$('#motor_pos_0_y').value = ypos;
 		});
 	$('#disable_homing').checked = false;
 }
 
-$('#read-motors').addEventListener('click', ev => {
+$('#read-motors').onclick = (ev) => {
 	ev.preventDefault();
 	readMotors();
+}
+
+$$('.flip_motor').forEach(el => {
+	el.onclick = (ev) => {
+		let pins = [];
+		const name = `#gpio_motor_${ev.target.dataset.direction}`;
+		[1,2,3,4].forEach((i) => { pins.push($(`${name}_${i}`).value) });
+		pins = pins.reverse();
+		[1,2,3,4].forEach((i) => { $(`${name}_${i}`).value = pins[i - 1] });
+	}
 });
 
-$('#disable_homing').addEventListener('change', checkHoming);
+$('#disable_homing').onchange = () => { checkHoming() }
 
 checkHoming();
 </script>

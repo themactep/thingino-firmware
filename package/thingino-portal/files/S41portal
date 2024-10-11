@@ -27,6 +27,7 @@ case "$1" in
 		[ -n "$ssid" ] && [ -n "$pass" ] && quit "Already configured"
 
 		touch /run/portal_mode
+		touch /var/run/udhcpd.leases
 
 		ip a add dev $net_dev ${CNET}.1/24
 		ip link set $net_dev up

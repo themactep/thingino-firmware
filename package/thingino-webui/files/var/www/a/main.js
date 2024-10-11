@@ -5,6 +5,8 @@ const ThreadVideo = 2;
 const ThreadAudio = 4;
 const ThreadOSD = 8;
 
+const HeartBeatInterval = 1 * 1000;
+
 function $(n) {
 	return document.querySelector(n)
 }
@@ -35,12 +37,17 @@ function setValue(data, domain, name) {
 	const id = `#${domain}_${name}`;
 	const el = $(id);
 	const value = data[name];
-	if (!value) return;
-	if (el.type == "checkbox") {
+	if (typeof(value) == 'undefined') {
+		console.error(`no value for ${domain}, ${name}`);
+		return;
+	}
+	if (el.type === "checkbox") {
 		el.checked = value;
 	} else {
-		if (el && value) el.value = value;
-		if (el.type == "range") $(`${id}-show`).value = value;
+		el.value = value;
+		if (el.type === "range") {
+			$(`${id}-show`).textContent = value;
+		}
 	}
 }
 
@@ -81,7 +88,7 @@ function heartbeat() {
 				$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
 			}
 		})
-		.then(setTimeout(heartbeat, 5000));
+		.then(setTimeout(heartbeat, HeartBeatInterval));
 }
 
 function callImp(command, value) {
@@ -168,10 +175,10 @@ function callImp(command, value) {
 // ranges
 		$$('input[type=range]').forEach(el => {
 			el.addEventListener('change', ev => {
-				$('#' + ev.target.id + '-show').value = ev.target.value
+				$('#' + ev.target.id + '-show').textContent = ev.target.value
 			})
 			el.addEventListener('input', ev => {
-				$('#' + ev.target.id + '-show').value = ev.target.value
+				$('#' + ev.target.id + '-show').textContent = ev.target.value
 			});
 		});
 

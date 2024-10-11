@@ -20,6 +20,11 @@ home_motors() {
 	motors -r > /dev/null 2>&1
 }
 
+set_motors_speed() {
+	info "Set motors speed to $motor_speed"
+	motors -s $1 > /dev/null 2>&1
+}
+
 position_motors() {
 	local x=$((motor_maxstep_h / 2))
 	local y=$((motor_maxstep_v / 2))
@@ -42,6 +47,7 @@ start() {
 	gpio_motor_invert=$(fw_printenv -n gpio_motor_invert)
 	motor_maxstep_h=$(fw_printenv -n motor_maxstep_h)
 	motor_maxstep_v=$(fw_printenv -n motor_maxstep_v)
+	motor_speed=$(fw_printenv -n motor_speed)
 
 	# Check if motors are supported
 	[ -z "$motors_app"      ] && die " No motors app found"
@@ -49,8 +55,9 @@ start() {
 	[ -z "$gpio_motor_v"    ] && die " Tilt motor GPIO pins are not set"
 	[ -z "$motor_maxstep_h" ] && die " Pan motor Steps are not set"
 	[ -z "$motor_maxstep_v" ] && die " Tilt motor Steps are not set"
+	[ -z "$motor_speed"     ] && motor_speed=900
 
-	[ "$gpio_motor_invert" == "true" ] && gpio_motor_invert_opt="invert_gpio_dir=1"
+	[ "$gpio_motor_invert" = "true" ] && gpio_motor_invert_opt="invert_gpio_dir=1"
 
 	if grep -qE "^motor" /proc/modules; then
 		info "Module motor already loaded."
@@ -70,6 +77,8 @@ start() {
 	start_daemon
 	# FIXME: daemon should be reporting running state from the very first moment
 	sleep 1
+
+	set_motors_speed $motor_speed
 
 	if [ "true" = "$(get disable_homing)" ]; then
 		warn "Homing disabled"

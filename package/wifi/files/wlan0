@@ -1,2 +1,3 @@
 auto wlan0
 iface wlan0 inet dhcp
+   dhcp-v6-enabled true
