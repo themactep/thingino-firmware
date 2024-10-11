@@ -8,17 +8,22 @@ TIMEOUT=10
 [ "$(sysctl -n net.ipv6.conf.all.disable_ipv6)" -ne 0 ] || [ "$IF_DHCP_V6_ENABLED" != "true" ] && exit 0
 
 do_start() {
-	{ start-stop-daemon -m -S -p "$PIDFILE" -x /sbin/odhcp6c -- -t120 -S15 "$IFACE" 2>&1 & echo $! > /tmp/odhcp6c.pid; } | {
-		PID=$(cat /tmp/odhcp6c.pid)
-		( sleep 10 && echo "DHCPv6 timeout reached on $IFACE, exiting." && kill "$PID" && exit 1 ) & SLEEP_PID=$!
-		while read -r line; do
-			if echo "$line" | grep -q "Adding address"; then
-				echo "DHCPv6 configured on $IFACE!"
-				kill "$SLEEP_PID"; wait "$PID"; rm -f /tmp/odhcp6c.pid; exit 0
-			fi
-		done
-		kill "$SLEEP_PID"; rm -f /tmp/odhcp6c.pid; exit 1
-	}
+	TMP_LOG=/tmp/odhcp6c.log
+	/sbin/odhcp6c -p "$PIDFILE" -t120 -S15 "$IFACE" > "$TMP_LOG" 2>&1 &
+
+	while [ "$TIMEOUT" -gt 0 ]; do
+		if grep -q "Adding address" "$TMP_LOG"; then
+			echo "DHCPv6 configured on $IFACE!"
+			rm -f "$TMP_LOG"
+			return 0
+		fi
+		sleep 1
+		TIMEOUT=$((TIMEOUT - 1))
+	done
+
+	echo "DHCPv6 timeout reached on $IFACE, exiting."
+	rm -f "$TMP_LOG"
+	return 1
 }
 
 do_stop() {

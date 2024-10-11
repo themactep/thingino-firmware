@@ -1,7 +1,5 @@
 #!/bin/sh
 
-# odhcp6c thingino - does not support IA_PD yet
-
 if [ -z "$2" ]; then
 	echo "Error: should be run by odhcp6c"
 	exit 1
@@ -11,35 +9,147 @@ fi
 DHCP6_DATA_BASE="/var/run/odhcp6c"
 mkdir -p "$DHCP6_DATA_BASE" || { echo "Error: cannot create $DHCP6_DATA_BASE"; exit 1; }
 
+write_lease() {
+	local device="$1"
+	local lease_file="$DHCP6_DATA_BASE/${device}.leases"
+
+	{
+		echo "lease6 {"
+		echo "  interface \"$device\";"
+		for addr in $ADDRESSES; do
+			local address="${addr%%,*}"
+			local preferred="${addr#*,}"
+			preferred="${preferred%%,*}"
+			local valid="${addr#*,}"
+			valid="${valid##*,}"
+
+			echo "    iaaddr $address {"
+			echo "      starts $(date +%s);"
+			echo "      preferred-life $preferred;"
+			echo "      max-life $valid;"
+			echo "    }"
+		done
+
+		# Add Environment:
+		if [ -n "$RDNSS" ]; then
+			echo "  option dhcp6.name-servers $RDNSS;"
+		fi
+
+		if [ -n "$DOMAINS" ]; then
+			echo "  option dhcp6.domain-search $DOMAINS;"
+		fi
+
+		if [ -n "$SNTP_IP" ]; then
+			echo "  option dhcp6.sntp-servers $SNTP_IP;"
+		fi
+
+		if [ -n "$SNTP_FQDN" ]; then
+			echo "  option dhcp6.sntp-servers $SNTP_FQDN;"
+		fi
+
+		if [ -n "$SIP_IP" ]; then
+			echo "  option dhcp6.sip-servers $SIP_IP;"
+		fi
+
+		if [ -n "$SIP_DOMAIN" ]; then
+			echo "  option dhcp6.sip-domain $SIP_DOMAIN;"
+		fi
+
+		if [ -n "$PREFIXES" ]; then
+			echo "  option dhcp6.prefixes $PREFIXES;"
+		fi
+
+		if [ -n "$RA_ADDRESSES" ]; then
+			echo "  option ra.addresses $RA_ADDRESSES;"
+		fi
+
+		if [ -n "$RA_ROUTES" ]; then
+			echo "  option ra.routes $RA_ROUTES;"
+		fi
+
+		if [ -n "$RA_DNS" ]; then
+			echo "  option ra.name-servers $RA_DNS;"
+		fi
+
+		if [ -n "$RA_DOMAINS" ]; then
+			echo "  option ra.domain-search $RA_DOMAINS;"
+		fi
+
+		if [ -n "$RA_MTU" ]; then
+			echo "  option ra.mtu $RA_MTU;"
+		fi
+
+		if [ -n "$RA_HOPLIMIT" ]; then
+			echo "  option ra.hop-limit $RA_HOPLIMIT;"
+		fi
+
+		if [ -n "$RA_REACHABLE" ]; then
+			echo "  option ra.reachable-time $RA_REACHABLE;"
+		fi
+
+		if [ -n "$RA_RETRANSMIT" ]; then
+			echo "  option ra.retransmit-time $RA_RETRANSMIT;"
+		fi
+
+		if [ -n "$AFTR" ]; then
+			echo "  option aftr $AFTR;"
+		fi
+
+		# Add Custom Options
+		for option_var in $(set | grep '^OPTION_[0-9]\+=' | cut -d'=' -f1); do
+			option_value=$(eval echo \$$option_var)
+			echo "  option $option_var $option_value;"
+		done
+
+		echo "}"
+	} > "$lease_file"
+}
+
+# Extract DNS information and domain search from the lease file
+extract_dns_and_domains() {
+	local lease_file="$1"
+	local dns=""
+	local domains=""
+
+	if [ -f "$lease_file" ]; then
+		while read -r line; do
+			case "$line" in
+				"option dhcp6.name-servers"*)
+					dns="${line#*dhcp6.name-servers }"
+					dns="${dns%;}"
+					;;
+				"option dhcp6.domain-search"*)
+					domains="${line#*dhcp6.domain-search }"
+					domains="${domains%;}"
+					;;
+			esac
+		done < "$lease_file"
+	fi
+
+	# Return both dns and domains
+	echo "$dns" "$domains"
+}
+
 # Update resolv.conf with DNS information and search domains
 update_resolv() {
-	local device="$1"
-	local dns="$2"
-	local domains="$DOMAINS"
+	local dns="$1"
+	local domains="$2"
 
 	(
 		flock 9
-		# Remove existing DHCPv6 DNS entries for the device
-		grep -v "search" /tmp/resolv.conf | grep -v "nameserver" > /tmp/resolv.conf.tmp
-
-		# Handle domain search entries (ensure no duplicates)
-		local domain radomain duplicate
-		for radomain in $RA_DOMAINS; do
-			duplicate=0
-			for domain in $domains; do
-				[ "$radomain" = "$domain" ] && duplicate=1
-			done
-			[ "$duplicate" = 0 ] && domains="$domains $radomain"
-		done
+		# Use a unique identifier to remove only DHCPv6 entries
+		grep -v "# added by odhcp6c" /tmp/resolv.conf > /tmp/resolv.conf.tmp
 
 		# Add unique search domains to resolv.conf
 		for domain in $domains; do
-			grep -q "search $domain" /tmp/resolv.conf.tmp || echo "search $domain" >> /tmp/resolv.conf.tmp
+			grep -q "search $domain" /tmp/resolv.conf.tmp || echo "search $domain # added by odhcp6c" >> /tmp/resolv.conf.tmp
+			echo "added search $domain"
 		done
 
 		# Add unique DNS servers to resolv.conf
 		for c in $dns; do
-			grep -q "nameserver $c" /tmp/resolv.conf.tmp || echo "nameserver $c" >> /tmp/resolv.conf.tmp
+			grep -q "nameserver $c" /tmp/resolv.conf.tmp || echo "nameserver $c # added by odhcp6c" >> /tmp/resolv.conf.tmp
+			echo "added nameserver $c"
 		done
 
 		# Move the temporary file to /tmp/resolv.conf
@@ -51,22 +161,9 @@ update_resolv() {
 	rm -f /tmp/resolv.conf.lock
 }
 
-# Add a route and track it
-add_route() {
-	local route="$1"
-	local route_list="$2"
-
-	# Strip out 'metric' and 'dev' fields from the route
-	local route_cleaned=$(echo "$route" | sed 's/ metric [0-9]\+//g' | sed 's/ dev [^ ]\+//g')
-
-	# Only store the cleaned route
-	echo "$route_cleaned" >> "$route_list"
-}
-
 # Add an address and track it
 add_address() {
 	local address="$1"
-	local addr_list="$2"
 
 	# Separate the address and options properly
 	local addr="${address%% dev *}"
@@ -78,44 +175,31 @@ add_address() {
 	pref_lft="${pref_lft%% valid_lft*}"  # preferred_lft value
 	local valid_lft="${dev_opts##*valid_lft }"  # valid_lft value
 
+	# Check if the address already exists
+	if ip -6 address show dev "$dev_name" | grep -q "$addr"; then
+		echo "Address already exists: $addr dev $dev_name, updating lifetimes"
+
+		# Update the address with the new preferred and valid lifetimes
+		ip -6 address change "$addr" dev "$dev_name" preferred_lft "$pref_lft" valid_lft "$valid_lft" || {
+			echo "Failed to update address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
+			return 1
+		}
+		return 0
+	fi
+
 	echo "Adding address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
 
-	# Execute the ip command with the correct format
 	ip -6 address add "$addr" dev "$dev_name" preferred_lft "$pref_lft" valid_lft "$valid_lft" || {
 		echo "Failed to add address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
 		return 1
 	}
 
-	# Track the added address
-	echo "$addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft" >> "$addr_list"
+	# Track the added address in the lease file
+	write_lease "$device"
 }
 
-# Function to set up the network interface
 setup_interface() {
 	local device="$1"
-
-	local DHCP6_DATA_DIR="$DHCP6_DATA_BASE/$device"
-	mkdir -p "$DHCP6_DATA_DIR"
-
-	local ADDR_LIST="$DHCP6_DATA_DIR/addresses"
-	local ROUTE_LIST="$DHCP6_DATA_DIR/routes"
-	> "$ADDR_LIST"
-	> "$ROUTE_LIST"
-
-	# Add and track routes
-	for entry in $RA_ROUTES; do
-		local addr="${entry%%,*}"
-		entry="${entry#*,}"
-		local gw="${entry%%,*}"
-		entry="${entry#*,}"
-		local metric="${entry%%,*}"
-
-		if [ -n "$gw" ]; then
-			add_route "$addr via $gw metric $metric dev $device" "$ROUTE_LIST"
-		else
-			add_route "$addr metric $metric dev $device" "$ROUTE_LIST"
-		fi
-	done
 
 	# Add and track addresses
 	for entry in $ADDRESSES; do
@@ -125,66 +209,65 @@ setup_interface() {
 		entry="${entry#*,}"
 		local valid="${entry%%,*}"
 
-		add_address "$addr dev $device preferred_lft $preferred valid_lft $valid" "$ADDR_LIST"
+		add_address "$addr dev $device preferred_lft $preferred valid_lft $valid"
 	done
 
+	# Extract DNS information and search domains from the lease file
+	local lease_file="$DHCP6_DATA_BASE/${device}.leases"
+	read -r dns domains < <(extract_dns_and_domains "$lease_file")
+
 	# Call update_resolv to update resolv.conf with DNS information and search domains
-	[ -n "$RDNSS" ] && update_resolv "$device" "$RDNSS"
+	[ -n "$dns" ] && update_resolv "$dns" "$domains"
+
+	# Write the lease information to a file
+	write_lease "$device"
 }
 
 teardown_interface() {
 	local device="$1"
-	local DHCP6_DATA_DIR="/var/run/odhcp6c/$device"
-	local ADDR_LIST="$DHCP6_DATA_DIR/addresses"
-	local ROUTE_LIST="$DHCP6_DATA_DIR/routes"
+	local lease_file="$DHCP6_DATA_BASE/${device}.leases"
 
-	# Remove routes added by odhcp6c only
-	if [ -f "$ROUTE_LIST" ]; then
-		while read -r route; do
-			# Extract the route prefix and gateway
-			route_prefix="${route%% via *}"
-			gateway="${route#*via }"
+	# Check if the lease file exists
+	if [ -f "$lease_file" ]; then
+		echo "Attempting to remove addresses and routes from $device"
 
-			if echo "$route" | grep -q "::/0"; then
-				echo "Skipping removal of default route: $route"
-				continue
+		# Read the lease file line by line
+		while read -r line; do
+			# Look for lines containing "iaaddr" and extract the address
+			if echo "$line" | grep -E -q "^\s*iaaddr\s"; then
+				# Extract the address (removing any subnet mask and braces)
+				local addr=$(echo "$line" | awk '{print $2}' | sed 's/[{}]//g' | cut -d'/' -f1)
+
+				# Attempt to remove the address from the interface
+				if [ -n "$addr" ]; then
+					# Attempt to remove the address
+					if ip -6 address del "$addr" dev "$device"; then
+						echo "Successfully removed address: $addr dev $device"
+					else
+						echo "Failed to remove address: $addr dev $device"
+					fi
+
+					# Attempt to remove the route for this address
+					if ip -6 route del "$addr" dev "$device"; then
+						echo "Successfully removed route: $addr dev $device"
+					else
+						echo "Failed to remove route: $addr dev $device"
+					fi
+				fi
 			fi
+		done < "$lease_file"
 
-			# Remove only routes listed in the ROUTE_LIST file
-			if [ "$route" = "$gateway" ]; then
-				gateway=""
-			fi
-
-			# Remove the route
-			if [ -n "$gateway" ]; then
-				echo "Removing odhcp6c-added route: $route_prefix via $gateway"
-				ip -6 route del "$route_prefix" via "$gateway" || echo "Failed to remove route: $route_prefix via $gateway"
-			else
-				echo "Removing odhcp6c-added route: $route_prefix"
-				ip -6 route del "$route_prefix" || echo "Failed to remove route: $route_prefix"
-			fi
-		done < "$ROUTE_LIST"
-		rm -f "$ROUTE_LIST"
+		# Remove the lease file after processing
+		echo "Removing lease file: $lease_file"
+		rm -f "$lease_file"
+	else
+		echo "No existing lease file found for $device."
 	fi
-
-	# Remove addresses added by odhcp6c
-	if [ -f "$ADDR_LIST" ]; then
-		while read -r addr; do
-			addr="${addr%% dev *}"  # Extract only the address part
-			echo "Removing odhcp6c-added address: $addr dev $device"
-			ip -6 address del "$addr" dev "$device" || echo "Failed to remove address: $addr dev $device"
-			ip -6 route del "$addr" dev "$device" || echo "Failed to remove route: $addr dev $device"
-		done < "$ADDR_LIST"
-		rm -f "$ADDR_LIST"
-	fi
-
-	# Clean up the directory
-	rm -rf "$DHCP6_DATA_DIR"
 }
 
 # Main execution block with locking to prevent concurrent runs
 (
-	flock 9
+	flock 8
 	case "$2" in
 		bound)
 			teardown_interface "$1"
@@ -203,6 +286,6 @@ teardown_interface() {
 
 	# Execute user-defined rules if present
 	[ -f /etc/odhcp6c.user ] && . /etc/odhcp6c.user
-) 9>/tmp/odhcp6c.lock.$1
+) 8>/tmp/odhcp6c.lock.$1
 
 rm -f /tmp/odhcp6c.lock.$1
