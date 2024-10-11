@@ -3,6 +3,10 @@
 PIDFILE="/var/run/odhcp6c_$IFACE.pid"
 TIMEOUT=10
 
+# run this script only for interfaces that have the dhcp-v6-enabled option set,
+# or if IPv6 is globally enabled (not disabled)
+[ "$(sysctl -n net.ipv6.conf.all.disable_ipv6)" -ne 0 ] || [ "$IF_DHCP_V6_ENABLED" != "true" ] && exit 0
+
 do_start() {
 	{ start-stop-daemon -m -S -p "$PIDFILE" -x /sbin/odhcp6c -- -t120 -S15 "$IFACE" 2>&1 & echo $! > /tmp/odhcp6c.pid; } | {
 		PID=$(cat /tmp/odhcp6c.pid)
@@ -18,11 +22,9 @@ do_start() {
 }
 
 do_stop() {
-	if [ "$IFACE" != "lo" ]; then
-		if [ -f "$PIDFILE" ]; then
-			kill "$(cat "$PIDFILE")"
-			rm -f "$PIDFILE"
-		fi
+	if [ -f "$PIDFILE" ]; then
+		kill "$(cat "$PIDFILE")"
+		rm -f "$PIDFILE"
 	fi
 }
 
@@ -30,10 +32,8 @@ case "$MODE" in
 	start)
 		case "$PHASE" in
 			post-up)
-				if [ "$(sysctl -n net.ipv6.conf.all.disable_ipv6)" -eq 0 ] && [ "$IFACE" != "lo" ]; then
-					echo "Starting odhcp6c for $IFACE"
-					do_start
-				fi
+				echo "Starting odhcp6c for $IFACE"
+				do_start
 				;;
 		esac
 		;;

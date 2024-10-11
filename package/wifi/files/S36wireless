@@ -77,7 +77,7 @@ start() {
 			fi
 			;;
 		*)
-			;;
+			;; # MMC1 is not SDIO
 	esac
 
 	if [ -n "$wlanmac" ] && [ "hi3881" = "$wlandev" ]; then
