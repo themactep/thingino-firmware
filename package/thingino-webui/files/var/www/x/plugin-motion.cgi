@@ -66,12 +66,12 @@ fi
 <% [ "true" != "$webhook_enabled" ] && echo "\$('#motion_send2webhook').disabled = true;" %>
 <% [ "true" != "$yadisk_enabled" ] && echo "\$('#motion_send2yadisk').disabled = true;" %>
 
-const params = ['enabled', 'sensitivity', 'cooldown_time'];
+const motion_params = ['enabled', 'sensitivity', 'cooldown_time'];
 
 let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $ws_token %>');
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
-	const payload = '{"motion":{' + params.map((x) => `"${x}":null`).join() + '}';
+	const payload = '{"motion":{' + motion_params.map((x) => `"${x}":null`).join() + '}';
 	ws.send(payload);
 }
 ws.onclose = () => { console.log('WebSocket connection closed'); }
@@ -116,7 +116,7 @@ function saveValue(domain, name) {
 	sendToWs(`{"${domain}":{"${name}":${value}},"action":{"save_config":null}}`);
 }
 
-params.forEach((x) => {
+motion_params.forEach((x) => {
 	$(`#motion_${x}`).onchange = (_) => saveValue('motion', x);
 });
 </script>
