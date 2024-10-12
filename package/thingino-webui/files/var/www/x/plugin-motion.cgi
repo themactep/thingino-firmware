@@ -35,11 +35,11 @@ fi
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
-<% field_switch "enabled" "Enable motion guard" %>
+<% field_switch "motion_enabled" "Enable motion guard" %>
 <div class="row g-4 mb-4">
 <div class="col col-12 col-xl-4">
-<% field_range "sensitivity" "Sensitivity" "1,8,1" %>
-<% field_range "cooldown_time" "Delay between alerts, sec." "5,30,1" %>
+<% field_range "motion_sensitivity" "Sensitivity" "1,8,1" %>
+<% field_range "motion_cooldown_time" "Delay between alerts, sec." "5,30,1" %>
 </div>
 <div class="col col-12 col-xl-4">
 <h3>Actions</h3>
@@ -66,63 +66,58 @@ fi
 <% [ "true" != "$webhook_enabled" ] && echo "\$('#motion_send2webhook').disabled = true;" %>
 <% [ "true" != "$yadisk_enabled" ] && echo "\$('#motion_send2yadisk').disabled = true;" %>
 
-//const andSave = ',"action":{"save_config":null,"restart_thread":1}'
-const andSave = ',"action":{"save_config":null}'
+const params = ['enabled', 'sensitivity', 'cooldown_time'];
 
 let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $ws_token %>');
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
-	payload = '{"motion":{'+
-		'"enabled":null,'+
-		'"sensitivity":null,'+
-		'"cooldown_time":null,'+
-		'"z":null}}';
-	console.log(payload);
+	const payload = '{"motion":{' + params.map((x) => `"${x}":null`).join() + '}';
 	ws.send(payload);
 }
 ws.onclose = () => { console.log('WebSocket connection closed'); }
-ws.onerror = (error) => { console.error('WebSocket error', error); }
-ws.onmessage = (event) => {
-	console.log(event.data);
-	if (event.data == '') return;
-	console.log(ts(), '<===', event.data);
-	const msg = JSON.parse(event.data);
-	console.log(msg);
-	if (msg.motion) {
-		if (typeof(msg.motion.enabled) !== 'undefined') {
-			$('#enabled').checked = msg.motion.enabled;
+ws.onerror = (err) => { console.error('WebSocket error', err); }
+ws.onmessage = (ev) => {
+	if (ev.data == '') return;
+	const msg = JSON.parse(ev.data);
+	console.log(ts(), '<===', ev.data);
+	let data;
+	data = msg.motion;
+	if (data) {
+		if (data.enabled)
+			$('#motion_enabled').checked = data.enabled;
+		if (data.sensitivity) {
+			$('#motion_sensitivity').value = data.sensitivity;
+			$('#motion_sensitivity-show').textContent = data.sensitivity;
 		}
-		if (typeof(msg.motion.sensitivity) !== 'undefined') {
-			$('#sensitivity').value = msg.motion.sensitivity;
-			$('#sensitivity-show').value = msg.motion.sensitivity;
-		}
-		if (typeof(msg.motion.cooldown_time) !== 'undefined') {
-			$('#cooldown_time').value = msg.motion.cooldown_time;
-			$('#cooldown_time-show').value = msg.motion.cooldown_time;
+		if (data.cooldown_time) {
+			$('#motion_cooldown_time').value = data.cooldown_time;
+			$('#motion_cooldown_time-show').textContent = data.cooldown_time;
 		}
 	}
 }
 
 function sendToWs(payload) {
-	payload = payload.replace(/}$/, andSave + '}')
 	console.log(ts(), '===>', payload);
 	ws.send(payload);
 }
 
-function saveValue(el) {
-	let id = el.id;
+function saveValue(domain, name) {
+	const el = $(`#${domain}_${name}`);
+	if (!el) {
+		console.error(`Element #${domain}_${name} not found`);
+		return;
+	}
+	let value;
 	if (el.type == "checkbox") {
 		value = el.checked ? 'true' : 'false';
 	} else {
 		value = el.value;
-		if (el.id == "input_format")
-			value = `"${el.value}"`;
 	}
-	sendToWs(`{"motion":{"${id}":${value}}}`);
+	sendToWs(`{"${domain}":{"${name}":${value}},"action":{"save_config":null}}`);
 }
 
-$$('#enabled, #sensitivity, #cooldown_time').forEach(el => {
-	el.onchange = (ev) => saveValue(ev.target);
+params.forEach((x) => {
+	$(`#motion_${x}`).onchange = (_) => saveValue('motion', x);
 });
 </script>
 
