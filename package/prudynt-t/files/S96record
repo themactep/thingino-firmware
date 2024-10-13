@@ -5,7 +5,7 @@ DAEMON=openRTSP
 . /etc/init.d/rc.common
 
 read_config() {
-	sed -nE "s/^.*$1:\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
+	sed -nE "s/^.*$1\s*[:=]\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
 }
 
 # Get values from /etc/prudynt.cfg
