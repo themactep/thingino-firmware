@@ -1,0 +1,20 @@
+day_night_max=15000
+day_night_min=500
+disable_eth=false
+enable_updates=true
+gpio_default=54o 51o 6i 7i 8i 9i 16i 14i 52i 17i
+gpio_ircut=54 51
+gpio_ir850=50
+gpio_speaker=63
+gpio_wlan=11O
+gpio_button=62
+gpio_led_r=57
+gpio_led_g=58
+gpio_motor_h=6 7 8 9
+gpio_motor_v=14 16 17 52
+motor_maxstep_h=4200
+motor_maxstep_v=1800
+wlandev=ssv6155
+wlandevopts=stacfgpath=/usr/share/wifi/ssv6155-usb-40M.cfg
+osmem=80M@0x0
+rmem=48M@0x5000000
