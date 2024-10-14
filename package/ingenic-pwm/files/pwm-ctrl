@@ -85,11 +85,6 @@ find_pwm_func() {
 	exit 1
 }
 
-if [ ! -e /dev/pwm ]; then
-	echo "Error: /dev/pwm not found. Ensure the PWM device is available by loading the appropriate kernel modules."
-	exit 1
-fi
-
 if [ "$1" = "-l" ]; then
 	echo "Available PWM-capable GPIOs:"
 	list_gpios
@@ -98,6 +93,11 @@ fi
 
 if [ "$#" -lt 2 ]; then
 	echo "Usage: $0 [-l] [-r] <gpio> <brightness 0-100>"
+	exit 1
+fi
+
+if [ ! -e /dev/pwm ]; then
+	echo "Error: /dev/pwm not found. Ensure the PWM device is available by loading the appropriate kernel modules."
 	exit 1
 fi
 
@@ -146,11 +146,24 @@ DUTY_NS=$(awk -v b="$BRIGHTNESS" -v period=1000000 'BEGIN {
 
 # If duty cycle is 0, disable the PWM channel
 if [ "$DUTY_NS" -eq 0 ]; then
-	echo "Disabling PWM channel $CHANNEL as duty cycle is 0"
-	pwm -c "$CHANNEL" -d
+	if [ "$REVERSE" -eq 0 ]; then
+		# Reverse polarity: enable PWM when duty cycle is 0
+		pwm -c "$CHANNEL" -e -p $REVERSE -P 1000000 -D "$DUTY_NS"
+		pwm -c "$CHANNEL" -e
+	else
+		# Normal case: disable PWM channel when duty cycle is 0
+		pwm -c "$CHANNEL" -e -p $REVERSE -P 1000000 -D "$DUTY_NS"
+		pwm -c "$CHANNEL" -d
+	fi
 else
 	# Enable the PWM channel with the calculated duty cycle
-	pwm -c "$CHANNEL" -d
+	if [ "$REVERSE" -eq 0 ]; then
+		# Reverse polarity: enable PWM when duty cycle is 0
+		pwm -c "$CHANNEL" -d
+	else
+		# Normal case: disable PWM channel when duty cycle is 0
+		pwm -c "$CHANNEL" -e
+	fi
 	pwm -c "$CHANNEL" -e -p $REVERSE -P 1000000 -D "$DUTY_NS"
 	echo "PWM channel $CHANNEL [$GPIO] enabled with duty cycle $DUTY_NS"
 fi
