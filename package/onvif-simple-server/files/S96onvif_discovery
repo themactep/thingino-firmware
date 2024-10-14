@@ -62,7 +62,7 @@ start() {
 	update_config $tempfile "max_step_x" "$(get motor_maxstep_h)"
 	update_config $tempfile "max_step_y" "$(get motor_maxstep_v)"
 	update_config $tempfile "move_right" "motors -d h -x $(get motor_maxstep_h)"
-	update_config $tempfile "move_up" "motors -d h -y $(get motor_maxstep_v)"
+	update_config $tempfile "move_down" "motors -d h -y $(get motor_maxstep_v)"
 	sed -i '1i # GENERATED On '"$(date)" $tempfile
 	mv $tempfile $ONVIF_CONFIG
 }
