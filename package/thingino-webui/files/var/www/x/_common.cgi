@@ -9,7 +9,14 @@ STR_SUPPORTS_STRFTIME="Supports <a href=\"https://man7.org/linux/man-pages/man3/
 pagename=$(basename "$SCRIPT_NAME")
 pagename="${pagename%%.*}"
 
-assets_ts=$(($(date +%s) >> 16))
+debug=$(get debug)
+[ -z "$debug" ] && debug=0
+
+if [ "$debug" -gt 0 ]; then
+	assets_ts=$(date +%s)
+else
+	assets_ts=$(($(date +%s) >> 16))
+fi
 
 ui_config_dir=/etc/webui
 ui_tmp_dir=/tmp/webui
@@ -475,9 +482,6 @@ t_value() {
 }
 
 update_caminfo() {
-	debug=$(get debug)
-	[ -z "$debug" ] && debug=0
-
 	local tmpfile="$ui_tmp_dir/sysinfo.tmp"
 	:>$tmpfile
 	# add all web-related config files
@@ -514,8 +518,8 @@ update_caminfo() {
 	# Network
 	network_dhcp="false"
 	if [ -f /etc/resolv.conf ]; then
-		network_dns_1=$(cat /etc/resolv.conf | grep nameserver | sed -n 1p | cut -d' ' -f2)
-		network_dns_2=$(cat /etc/resolv.conf | grep nameserver | sed -n 2p | cut -d' ' -f2)
+		network_dns_1=$(grep nameserver /etc/resolv.conf | sed -n 1p | cut -d' ' -f2)
+		network_dns_2=$(grep nameserver /etc/resolv.conf | sed -n 2p | cut -d' ' -f2)
 	fi
 	network_hostname=$(hostname -s)
 	network_interfaces=$(ifconfig | grep '^\w' | awk '{print $1}' | tr '\n' ' ' | sed 's/ $//' | sed -E 's/\blo\b\s?//')

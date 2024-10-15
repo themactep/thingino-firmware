@@ -1,3 +1,5 @@
+const debug = false;
+
 let max = 0;
 
 const ThreadRtsp = 1;
@@ -5,7 +7,12 @@ const ThreadVideo = 2;
 const ThreadAudio = 4;
 const ThreadOSD = 8;
 
-const HeartBeatInterval = 1 * 1000;
+let HeartBeatInterval;
+if (debug) {
+	HeartBeatInterval = 60 * 1000;
+} else {
+	HeartBeatInterval = 1 * 1000;
+}
 
 function $(n) {
 	return document.querySelector(n)
@@ -36,9 +43,15 @@ function setProgressBar(id, value, maxvalue, name) {
 function setValue(data, domain, name) {
 	const id = `#${domain}_${name}`;
 	const el = $(id);
+	if (!el) {
+		if (debug)
+			console.log(`element ${id} not found`);
+		return;
+	}
 	const value = data[name];
-	if (typeof(value) == 'undefined') {
-		console.error(`no value for ${domain}, ${name}`);
+	if (typeof (value) == 'undefined') {
+		if (debug)
+			console.log(`no value for ${domain}, ${name}`);
 		return;
 	}
 	if (el.type === "checkbox") {
@@ -95,17 +108,17 @@ function callImp(command, value) {
 	if (command.startsWith("osd_")) {
 		let i = command.split('_')[2];
 		let a = command.split('_')[1];
-		let g = document.querySelector('.group_osd[data-idx="' + i + '"]');
+		let g = $('.group_osd[data-idx="' + i + '"]');
 		if (command.startsWith("osd_pos_")) {
-			document.getElementById("osd_pos_auto_" + i + "_ig").classList.toggle("d-none");
-			document.getElementById("osd_pos_fixed_" + i + "_ig").classList.toggle("d-none");
+			$("#osd_pos_auto_" + i + "_ig").classList.toggle("d-none");
+			$("#osd_pos_fixed_" + i + "_ig").classList.toggle("d-none");
 		}
 		let c = g.getAttribute("data-conf").split(" ");
 		if (a === 'fgAlpha') c[1] = value
 		if (a === 'show') c[2] = value
 		if (a === 'posx') c[3] = value
 		if (a === 'posy') c[4] = value
-		if (a === 'pos') c[5] = (value === 0 ? 0 : document.getElementById("osd_apos_" + i).value)
+		if (a === 'pos') c[5] = (value === 0 ? 0 : $("#osd_apos_" + i).value)
 		if (a === 'apos') c[5] = value
 		g.setAttribute('data-conf', c.join(' '));
 		value = g.getAttribute("data-conf");
@@ -117,21 +130,21 @@ function callImp(command, value) {
 	} else if (["setosdpos_x", "setosdpos_y"].includes(command)) {
 		command = 'setosdpos'
 		value = '1' +
-			'+' + document.querySelector('#setosdpos_x').value +
-			'+' + document.querySelector('#setosdpos_y').value +
+			'+' + $('#setosdpos_x').value +
+			'+' + $('#setosdpos_y').value +
 			'+1087+75';
 	} else if (["whitebalance_mode", "whitebalance_rgain", "whitebalance_bgain"].includes(command)) {
 		command = 'whitebalance'
-		value = document.querySelector('#whitebalance_mode').value +
-			'+' + document.querySelector('#whitebalance_rgain').value +
-			'+' + document.querySelector('#whitebalance_bgain').value;
+		value = $('#whitebalance_mode').value +
+			'+' + $('#whitebalance_rgain').value +
+			'+' + $('#whitebalance_bgain').value;
 	}
 
 	const xhr = new XMLHttpRequest();
 	xhr.open('GET', '/x/json-imp.cgi?cmd=' + command + '&val=' + value);
 	xhr.send();
 
-	document.querySelector('#savechanges')?.classList.remove('d-none');
+	$('#savechanges')?.classList.remove('d-none');
 }
 
 (() => {
@@ -155,22 +168,22 @@ function callImp(command, value) {
 		$$('form').forEach(el => el.autocomplete = 'off');
 
 // checkboxes
- 		$$('input[type=checkbox].imp').forEach(el => {
- 			el.autocomplete = "off"
+		$$('input[type=checkbox].imp').forEach(el => {
+			el.autocomplete = "off"
  			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.checked ? 1 : 0))
- 		});
+		});
 
 // numbers
- 		$$('input[type=number].imp').forEach(el => {
- 			el.autocomplete = "off"
- 			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
- 		});
+		$$('input[type=number].imp').forEach(el => {
+			el.autocomplete = "off"
+			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
+		});
 
 // radios
- 		$$('input[type=radio].imp').forEach(el => {
- 			el.autocomplete = "off"
- 			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
- 		});
+		$$('input[type=radio].imp').forEach(el => {
+			el.autocomplete = "off"
+			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
+		});
 
 // ranges
 		$$('input[type=range]').forEach(el => {
@@ -183,9 +196,11 @@ function callImp(command, value) {
 		});
 
 // selects
- 		$$('select.imp').forEach(el => {
- 			el.addEventListener('change', ev => callImp(ev.target.id, ev.target.value))
- 		});
+		$$('select.imp').forEach(el => {
+			el.addEventListener('change', ev => {
+				 callImp(ev.target.id, ev.target.value)
+			});
+		});
 
 		// For .warning and .danger buttons, ask confirmation on action.
 		$$('.btn-danger, .btn-warning, .confirm').forEach(el => {
@@ -215,7 +230,9 @@ function callImp(command, value) {
 
 // reload window when refresh button is clicked
 		$$('.refresh').forEach(el => {
-			el.addEventListener('click', ev => window.location.reload());
+			el.addEventListener('click', ev => {
+				window.location.reload()
+			});
 		});
 
 // set links to external resources to open in a new window.
