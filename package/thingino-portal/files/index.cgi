@@ -45,6 +45,7 @@ if [ "POST" = "$REQUEST_METHOD" ] && [ "save" = "$POST_mode" ]; then
 	sed -i "s/^ifs=.*$/ifs=wlan0/" /etc/onvif.conf
 %>
 <h3 class="text-center display-3 my-5">Done. Rebooting...</h3>
+<p class="alert alert-warning text-center">Your MAC address is <% get "wlanmac" %></p>
 <p id="ipclink" class="text-center d-none">Go to <a href="http://<%= $hostname %>.local/">http://<%= $hostname  %>.local/</a></p>
 <script>
 setTimeout(() => document.getElementById('ipclink').classList.remove('d-none'), 5000);
@@ -54,6 +55,7 @@ setTimeout(() => document.getElementById('ipclink').classList.remove('d-none'), 
 elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then
 	hostname=$(hostname)
 %>
+<p class="alert alert-warning text-center">Your MAC address is <% get "wlanmac" %></p>
 <form action="<%= $SCRIPT_NAME %>" method="post" class="my-3 needs-validation" novalidate style="max-width:26rem">
 <div class="mb-2">
 <label class="form-label">Wireless Network Name (SSID)</label>
