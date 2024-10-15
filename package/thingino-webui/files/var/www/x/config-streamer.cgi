@@ -39,6 +39,8 @@ rtsp_username=$(awk -F: '/Streaming Service/{print $1}' /etc/passwd)
 %>
 <%in _header.cgi %>
 
+<p><a href="tool-file-manager.cgi?dl=/etc/prudynt.cfg">Download config file</a></p>
+
 <div class="row row-cols-1 row-cols-xl-3 g-4">
 
 <%
