@@ -40,6 +40,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			echo "$onvif_notify not found" >> /tmp/webui.log
 		fi
 
+		/etc/init.d/S95prudynt restart >/dev/null
 		update_caminfo
 		redirect_to $SCRIPT_NAME
 	fi
