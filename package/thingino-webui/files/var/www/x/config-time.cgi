@@ -9,6 +9,7 @@ config_file="$ui_config_dir/$plugin.conf"
 
 ntpd_static_config=/etc/default/ntp.conf
 ntpd_working_config=/tmp/ntp.conf
+ntpd_sync_status=/tmp/sync_status
 seq=$(seq 0 3)
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
@@ -85,6 +86,7 @@ done; unset i; unset x
 <% ex "echo \$TZ" %>
 <% ex "cat $ntpd_working_config" %>
 <% ex "cat $ntpd_static_config" %>
+<% ex "cat $ntpd_sync_status" %>
 <p id="sync-time-wrapper"><a href="#" id="sync-time">Sync time</a></p>
 </div>
 </div>
