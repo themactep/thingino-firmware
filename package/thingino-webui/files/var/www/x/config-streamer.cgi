@@ -231,6 +231,8 @@ DEFAULT_VALUES = {
 	'image_wb_rgain': 0,
 	'image_hflip': false,
 	'image_vflip': false,
+	'stream0_fps': 25,
+	'stream1_fps': 25,
 }
 
 // audio
@@ -288,7 +290,8 @@ ws.onmessage = (ev) => {
 		const data = msg.audio;
 		if (data) {
 			audio_params.forEach((x) => {
-				if (typeof(data[x]) !== 'undefined') setValue(data, 'audio', x);
+				if (typeof(data[x]) !== 'undefined')
+					setValue(data, 'audio', x);
 			});
 		}
 	}
@@ -297,7 +300,8 @@ ws.onmessage = (ev) => {
 		const data = msg.image;
 		if (data) {
 			image_params.forEach((x) => {
-				if (typeof(data[x]) !== 'undefined') setValue(data, 'image', x);
+				if (typeof(data[x]) !== 'undefined')
+					setValue(data, 'image', x);
 			});
 		}
 	}
@@ -351,14 +355,23 @@ function saveValue(domain, name) {
 		 json_actions += `,"restart_thread":${thread}`;
 	json_actions += '}';
 
-	sendToWs(`{"${domain}":{${payload},${json_actions}}`);
+	sendToWs(`{"${domain}":{${payload}},${json_actions}}`);
 }
 
 for (const i in [0, 1]) {
 	stream_params.forEach((x) => {
 		const el = $(`#stream${i}_${x}`);
-		if (!el) return;
+		if (!el) {
+			console.debug(`element #stream${i}_${x} not found`);
+			return;
+		}
 		el.addEventListener('change', (_) => {
+			saveValue(`stream${i}`, x);
+		});
+		el.addEventListener('dblclick', (_) => {
+			const v = DEFAULT_VALUES[`stream${i}_${x}`];
+			el.value = v;
+			$(`#stream${i}_${x}-show`).textContent = v;
 			saveValue(`stream${i}`, x);
 		});
 	});
