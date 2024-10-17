@@ -173,6 +173,8 @@ for i in 0 1; do
 
 </div>
 
+<p class="text-info">NB! Double-clicking on a range element will restore its default value.</p>
+
 <script>
 const soc = "<% soc -f | tr -d '\n' %>";
 
@@ -316,15 +318,24 @@ function saveValue(domain, name) {
 			value = `"${value}"`;
 		}
 	}
-
+	let payload = `"${name}":${value}`
 	let thread = 0;
 	if (domain == 'stream0' || domain == 'stream1') {
 		thread += ThreadRtsp;
 		thread += ThreadVideo;
 	} else if (domain == 'audio') {
 		thread += ThreadAudio;
+		console.log(name, value);
+		if (name == 'input_format') {
+			if (value == '"G711A"' || value == '"G711U"') {
+				payload += `,"input_sample_rate":8000`
+			} else if (value == '"G726"') {
+				payload += `,"input_sample_rate":16000`
+			} else if (value == '"OPUS"') {
+                        	payload += `,"input_sample_rate":48000`
+			}
+		}
 	}
-
 	let json_actions = '"action":{';
 	// save changes to config file
 	json_actions += '"save_config":null';
@@ -333,7 +344,7 @@ function saveValue(domain, name) {
 		 json_actions += `,"restart_thread":${thread}`;
 	json_actions += '}';
 
-	sendToWs(`{"${domain}":{"${name}":${value}},${json_actions}}`);
+	sendToWs(`{"${domain}":{${payload},${json_actions}}`);
 }
 
 for (const i in [0, 1]) {
@@ -345,6 +356,7 @@ for (const i in [0, 1]) {
 		});
 	});
 }
+
 audio_params.forEach((x) => {
 	const el = $(`#audio_${x}`);
 	if (!el) return;
