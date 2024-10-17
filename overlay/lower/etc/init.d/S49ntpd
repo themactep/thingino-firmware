@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DAEMON_ARGS="-n"
+DAEMON_ARGS="-n -S /etc/ntpd_callback"
 
 DEF_CONF="/etc/default/ntp.conf"
 TMP_CONF="/tmp/ntp.conf"

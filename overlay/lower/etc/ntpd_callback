@@ -1,0 +1,6 @@
+#!/bin/sh
+# This script is called internally by ntpq when time synchronization updated, dont run it yourself
+
+SYNC_STATUS="/tmp/sync_status"
+
+echo -e "$1\nfreq_drift_ppm=$freq_drift_ppm\noffset=$offset\nstratum=$stratum\npoll_interval=$poll_interval" > $SYNC_STATUS
