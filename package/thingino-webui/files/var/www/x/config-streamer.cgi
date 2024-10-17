@@ -281,7 +281,8 @@ ws.onmessage = (ev) => {
 		const data = msg[domain];
 		if (data) {
 			stream_params.forEach((x) => {
-				if (typeof(data[x]) !== 'undefined') setValue(data, domain, x);
+				if (typeof(data[x]) !== 'undefined')
+					setValue(data, domain, x);
 			});
 		}
 	}
