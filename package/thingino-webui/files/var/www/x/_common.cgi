@@ -522,7 +522,7 @@ update_caminfo() {
 		network_dns_2=$(grep nameserver /etc/resolv.conf | sed -n 2p | cut -d' ' -f2)
 	fi
 	network_hostname=$(hostname -s)
-	network_interfaces=$(ifconfig | grep '^\w' | awk '{print $1}' | tr '\n' ' ' | sed 's/ $//' | sed -E 's/\blo\b\s?//')
+	network_interfaces=$(ifconfig | awk '/^[^( |lo)]/{print $1}')
 
 	# if no default interface then no gateway nor wan mac present
 	network_default_interface="$(ip r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)"
