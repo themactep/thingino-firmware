@@ -202,6 +202,13 @@ if (soc == "t31") {
 }
 
 DEFAULT_VALUES = {
+	'audio_input_agc_compression_gain_db': 0,
+	'audio_input_agc_target_level_dbfs': 10,
+	'audio_input_alc_gain': 0,
+	'audio_input_gain': 25,
+	'audio_input_noise_suppression': 0,
+	'audio_input_sample_rate':  16000,
+	'audio_input_vol': 80,
 	'image_ae_compensation': 128,
 	'image_anti_flicker': 2,
 	'image_backlight_compensation': 0,
@@ -359,8 +366,17 @@ for (const i in [0, 1]) {
 
 audio_params.forEach((x) => {
 	const el = $(`#audio_${x}`);
-	if (!el) return;
+	if (!el) {
+		console.debug(`element #image_${x} not found`);
+		return;
+	}
 	el.addEventListener('change', (_) => {
+		saveValue('audio', x);
+	});
+	el.addEventListener('dblclick', (_) => {
+		const v = DEFAULT_VALUES[`audio_${x}`];
+		el.value = v;
+		$(`#audio_${x}-show`).textContent = v;
 		saveValue('audio', x);
 	});
 });
