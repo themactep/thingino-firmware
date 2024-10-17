@@ -147,7 +147,7 @@ ws.onmessage = (ev) => {
 				if (data.osd.font_path) $(`#fontname${i}`).value = data.osd.font_path.split('/').reverse()[0];
 				if (data.osd.font_size) {
 					$(`#fontsize${i}`).value = data.osd.font_size;
-					$(`#fontsize${i}-show`).value = data.osd.font_size;
+					$(`#fontsize${i}-show`).textContent = data.osd.font_size;
 				}
 				if (data.osd.logo_enabled) $(`#osd${i}_logo_enabled`).checked = data.osd.logo_enabled;
 				if (data.osd.time_enabled) $(`#osd${i}_time_enabled`).checked = data.osd.time_enabled;
