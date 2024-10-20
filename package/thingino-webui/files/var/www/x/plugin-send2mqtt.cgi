@@ -95,7 +95,7 @@ fi
 
 <script>
 $('#mqtt_message').style.height = '7rem';
-$('#mqtt_use_ssl').onchange = (ev) => {
+$('#mqtt_use_ssl').addEventListener('change', ev => {
 	const el=$('#mqtt_port');
 	if (ev.target.checked) {
 		if (el.value === '1883') el.value='8883';
