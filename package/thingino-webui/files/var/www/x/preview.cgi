@@ -100,7 +100,7 @@ function updatePreview(data) {
 }
 
 const preview = $("#preview");
-preview.onload = () => { URL.revokeObjectURL(this.src) }
+preview.onload = function() { URL.revokeObjectURL(this.src) }
 
 let ws = new WebSocket(`ws://${document.location.hostname}:8089?token=<%= $ws_token %>`);
 ws.onopen = () => {

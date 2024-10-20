@@ -109,7 +109,7 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
 const preview = $("#preview");
 const previewModal = new bootstrap.Modal('#previewModal', {});
 preview.onclick = () => { previewModal.show() }
-preview.onload = () => { URL.revokeObjectURL(this.src) }
+preview.onload = function() { URL.revokeObjectURL(this.src) }
 
 function ts() {
 	return Math.floor(Date.now());
