@@ -4,7 +4,7 @@
 plugin="email"
 plugin_name="Send to email"
 page_title="Send to email"
-params="enabled attach_snapshot from_name from_address to_name to_address subject body smtp_host smtp_port smtp_username smtp_password smtp_use_ssl socks5_enabled"
+params="enabled attach_snapshot from_name from_address insecure_ssl to_name to_address subject body smtp_host smtp_port smtp_username smtp_password smtp_use_ssl socks5_enabled"
 
 config_file="$ui_config_dir/$plugin.conf"
 [ -f "$config_file" ] || touch $config_file
@@ -44,6 +44,7 @@ else
 	include $config_file
 
 	# Default values
+	[ -z "$email_insecure_ssl" ] && email_insecure_ssl="false"
 	[ -z "$email_attach_snapshot" ] && email_attach_snapshot="true"
 	[ -z "$email_smtp_port" ] && email_smtp_port="25"
 	[ -z "$email_from_name" ] && email_from_name="Camera $network_hostname"
@@ -60,6 +61,7 @@ fi
 <% field_text "email_smtp_host" "SMTP host" %>
 <% field_text "email_smtp_port" "SMTP port" %>
 <% field_switch "email_smtp_use_ssl" "Use TLS/SSL" %>
+<% field_switch "email_insecure_ssl" "Ignore SSL certificate validity" %>
 <% field_text "email_smtp_username" "SMTP username" %>
 <% field_password "email_smtp_password" "SMTP password" %>
 <% field_text "email_from_name" "Sender's name" %>
@@ -82,7 +84,7 @@ fi
 
 <script>
 $('#email_body').style.height = "6rem";
-$('#email_smtp_use_ssl').onchange = (ev) => {
+$('#email_smtp_use_ssl').addEventListener('change', ev => {
 	const el=$('#email_smtp_port');
 	if (ev.target.checked) {
 		if (el.value === "25") el.value="465";
