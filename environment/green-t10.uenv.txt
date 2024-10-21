@@ -1,0 +1,6 @@
+disable_eth=true
+enable_updates=true
+gpio_mmc_cd=59
+gpio_wlan=20O
+wlandev=bcmdhd
+wlandevopts=gpio_wl_reg_on=20 gpio_wl_host_wake=62 firmware_path=/lib/firmware/fw_bcm40181a2.bin nvram_path=/lib/firmware/nvram.txt op_mode=0 disable_proptx=1
