@@ -174,6 +174,7 @@ step3() {
 		fi
 
 		# Run make
+		echo "Making FAST!"
 		BOARD=$camera_value make fast
 		if [ $? -ne 0 ]; then
 			"${DIALOG_COMMON[@]}" --msgbox "\Z1Fatal Error\Zn: 'make' failed. Please check the logs for more details, or you can try again." 6 60
