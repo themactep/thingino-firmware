@@ -75,6 +75,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	} > $tmpfile
 	fw_setenv -s $tmpfile
 	rm $tmpfile
+
+	redirect_to $SCRIPT_NAME
 fi
 
 # read data from env
@@ -104,32 +106,45 @@ ircut_pin2=$(echo $ircut_pins | awk '{print $2}')
 
 <div class="row row-cols-1 row-cols-lg-3 g-4 mb-4">
 <div class="col">
+<h5 class="mb-3">GPIO control pins</h5>
 <%
 field_gpio "ir850" "850 nm IR LED"
 field_gpio "ir940" "940 nm IR LED"
 field_gpio "white" "White LED"
 %>
+<div class="mb-3 led ircut">
+<label class="form-label" for="ircut">IR cut filter</label>
+<div class="input-group">
+<div class="input-group-text">GPIO pin 1</div>
+<input type="text" class="form-control text-end" id="ircut_pin1" name="ircut_pin1" pattern="[0-9]{1,3}" title="empty or a number" value="<%= $ircut_pin1 %>" placeholder="GPIO">
+<div class="input-group-text">GPIO pin 2</div>
+<input type="text" class="form-control text-end" id="ircut_pin2" name="ircut_pin2" pattern="[0-9]{1,3}" title="empty or a number" value="<%= $ircut_pin2 %>" placeholder="GPIO">
+</div>
+<p class="hint text-secondary">IR cut filters are typically controlled by a pair of GPIO pins that define the polarity and thus the direction of the filter's movement.</p>
+</div>
 </div>
 <div class="col">
-<h5>IR CUT filter</h5>
-<div class="row g-1">
-<div class="col"><% field_number "ircut_pin1" "GPIO pin 1" %></div>
-<div class="col"><% field_number "ircut_pin2" "GPIO pin 2" %></div>
+<h5 class="mb-3">Day/Night trigger thresholds</h5>
+<p class="hint text-secondary">The day/night mode is controlled by the brightness of the scene.
+Changes in illumination affect the gain required to normalise a darkened image - the darker the scene,
+the higher the gain value. Switching between modes is triggered by changes in gain beyond the thresholds set below.</p>
+<div class="row my-3">
+<div class="text-end"><label for="day_night_min">Minimum gain in night mode</label></div>
+<div class="col-3"><input type="text" id="day_night_min" name="day_night_min" class="form-control text-end" value="<%= $day_night_min %>" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="150000" data-step="1"></div>
+<div class="col-9"><span class="arrow arrow-1"></span></div>
 </div>
-<h5>Day/Night trigger thresholds</h5>
-<div class="row g-1">
-<div class="col"><% field_number "day_night_min" "Min. gain in night mode" %></div>
-<div class="col"><% field_number "day_night_max" "Max. gain in day mode" %></div>
+<div class="row my-3">
+<label for="day_night_max">Maximum gain in day mode</label>
+<div class="col-9"><span class="arrow arrow-2"></span></div>
+<div class="col-3"><input type="text" id="day_night_max" name="day_night_max" class="form-control text-end" value="<%= $day_night_max %>" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="150000" data-step="1"></div>
 </div>
-
+<p class="hint text-secondary">The current gain value is displayed at the top of each page next to the sun emoji.</p>
 </div>
 <div class="col">
-
 <h3>Environment settings</h3>
 <% ex "fw_printenv | grep -E '((gpio|pwm_ch)_(ir|white)|day_night)'" %>
 </div>
 </div>
-
 <% button_submit %>
 </form>
 
@@ -150,6 +165,10 @@ async function switchIndicator(color, state) {
 .led-ir850 .input-group-text:first-child { background-color: #a60000; }
 .led-ir940 .input-group-text:first-child { background-color: #750000; }
 .led-white .input-group-text:first-child { background-color: #eeeeee; }
+.arrow-1, .arrow-2 { width: 100%; height: 30px; display: flex; }
+.arrow-1 { rotate: 180deg; }
+.arrow:before { background: var(--bs-secondary-bg); content: ""; width: 15px; clip-path: polygon(0 10px, calc(100% - 15px) 10px, calc(100% - 15px) 0, 100% 50%, calc(100% - 15px) 100%, calc(100% - 15px) calc(100% - 10px), 0 calc(100% - 10px)); animation: a1 3s normal forwards ease-in-out; }
+@keyframes a1 { 90%, 100% {flex-grow: 1} }
 </style>
 
 <%in _footer.cgi %>
