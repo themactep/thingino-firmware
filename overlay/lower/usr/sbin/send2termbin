@@ -14,7 +14,7 @@ fi
 
 [ -s "$file" ] || die "File $file is empty"
 
-url=$(nc termbin.com 9999 < $file)
+url=$(cat "$file" | curl -s -T - telnet://termbin.com:9999)
 echo $url
 
 rm -f $file
