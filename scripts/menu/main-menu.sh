@@ -65,7 +65,11 @@ execute_choice() {
 			sudo make $1
 			sleep 2
 			;;
-		make|defconfig|saveconfig|clean|distclean|cleanbuild)
+		make)
+			make
+			exit
+			;;
+		defconfig|saveconfig|clean|distclean|cleanbuild)
 			make $1
 			exit
 			;;
