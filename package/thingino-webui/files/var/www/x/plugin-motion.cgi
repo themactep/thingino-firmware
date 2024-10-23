@@ -8,33 +8,10 @@ params="send2email send2ftp send2mqtt send2telegram send2webhook send2yadisk"
 
 config_file="$ui_config_dir/$plugin.conf"
 [ -f "$config_file" ] || touch $config_file
-
-if [ "POST" = "$REQUEST_METHOD" ]; then
-	# parse values from parameters
-	for p in $params; do
-		eval ${plugin}_$p=\$POST_${plugin}_$p
-		sanitize "${plugin}_$p"
-	done; unset p
-
-	if [ -z "$error" ]; then
-		tmp_file=$(mktemp)
-		for p in $params; do
-			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
-		done; unset p
-		mv $tmp_file $config_file
-
-		/etc/init.d/S95prudynt restart >/dev/null
-
-		update_caminfo
-		redirect_to $SCRIPT_NAME
-	fi
-else
-	include $config_file
-fi
+include $config_file
 %>
 <%in _header.cgi %>
 
-<form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_switch "motion_enabled" "Enable motion guard" %>
 <div class="row g-4 mb-4">
 <div class="col col-12 col-xl-4">
@@ -56,8 +33,6 @@ fi
 <% [ -f $config_file ] && ex "cat $config_file" %>
 </div>
 </div>
-<% button_submit %>
-</form>
 <script>
 <% [ "true" != "$email_enabled" ] && echo "\$('#motion_send2email').disabled = true;" %>
 <% [ "true" != "$ftp_enabled" ] && echo "\$('#motion_send2ftp').disabled = true;" %>
@@ -67,6 +42,7 @@ fi
 <% [ "true" != "$yadisk_enabled" ] && echo "\$('#motion_send2yadisk').disabled = true;" %>
 
 const motion_params = ['enabled', 'sensitivity', 'cooldown_time'];
+const send2_targets = ['email', 'ftp', 'mqtt', 'telegram', 'webhook', 'yadisk'];
 
 let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $ws_token %>');
 ws.onopen = () => {
@@ -118,6 +94,16 @@ function saveValue(domain, name) {
 
 motion_params.forEach((x) => {
 	$(`#motion_${x}`).onchange = (_) => saveValue('motion', x);
+});
+
+async function switchSend2Target(target, state) {
+	await fetch(`/x/json-motion.cgi?target=${target}&amp;state=${state}`)
+		.then(res => res.json())
+		.then(data => { $(`#motion_send2${data.message.target}`).checked = (data.message.status == 1) });
+}
+
+send2_targets.forEach((x) => {
+	$(`#motion_send2${x}`).onchange = (ev) => switchSend2Target(x, ev.target.checked);
 });
 </script>
 
