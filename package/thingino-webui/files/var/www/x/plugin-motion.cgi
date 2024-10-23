@@ -89,7 +89,7 @@ function saveValue(domain, name) {
 	} else {
 		value = el.value;
 	}
-	sendToWs(`{"${domain}":{"${name}":${value}},"action":{"save_config":null}}`);
+	sendToWs(`{"${domain}":{"${name}":${value}},"action":{"save_config":null,"restart_thread":2}}`);
 }
 
 motion_params.forEach((x) => {
