@@ -573,6 +573,9 @@ include() {
 
 [ -f $sysinfo_file ] || update_caminfo
 
+day_night_max=$(get day_night_max)
+day_night_min=$(get day_night_min)
+
 include $sysinfo_file
 include /etc/webui/mqtt.conf
 include /etc/webui/socks5.conf

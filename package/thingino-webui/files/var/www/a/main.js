@@ -167,6 +167,9 @@ function callImp(command, value) {
 
 		$$('form').forEach(el => el.autocomplete = 'off');
 
+		const tooltipTriggerList = $$('[data-bs-toggle="tooltip"]')
+		const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+
 // checkboxes
 		$$('input[type=checkbox].imp').forEach(el => {
 			el.autocomplete = "off"
