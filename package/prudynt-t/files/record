@@ -1,0 +1,77 @@
+#!/bin/sh
+
+. /sbin/common
+
+RECORD_FLAG="/tmp/record.$$"
+
+get_free_space() {
+	available_space=$(df "$record_mount" | awk 'END{print $4}') # output in kiB
+	logger "available_space: $available_space"
+}
+
+read_config() {
+	sed -nE "s/^.*$1:\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
+}
+
+has_files() {
+	[ -n "$(ls -1A "$1")" ]
+}
+
+stream0_width=$(awk -F'[ *]' '/^output resolution:/{print $3}' /proc/jz/isp/isp-fs | head -1 | tr -d '\n')
+stream0_height=$(awk -F'[ *]' '/^output resolution:/{print $6}' /proc/jz/isp/isp-fs | head -1 | tr -d '\n')
+stream0_fps=$(awk -F'[:/]' '/ISP OUTPUT FPS/{print $2}' /proc/jz/isp/isp-m0 | tr -d ' ')
+rtsp_username=$(read_config username); [ -z "$rtsp_username" ] && rtsp_username="thingino"
+rtsp_password=$(read_config password); [ -z "$rtsp_password" ] && rtsp_password="thingino"
+
+RECORD_WEBUI_CONF=/etc/webui/record.conf
+cat $RECORD_WEBUI_CONF
+. $RECORD_WEBUI_CONF
+
+if has_files "$record_mount"; then
+	required_space=$(($(ls -1ltcr "$record_mount" | awk 'END{print $5}') * 2 / 1024)) # output in kiB
+else
+	required_space=$((150 * record_duration))
+fi
+
+get_free_space
+if [ "$available_space" -le "$required_space" ]; then
+	info "Ran out of space."
+	[ "true" = "$record_loop" ] || die "Not in a rolling recording mode!"
+	while [ "$available_space" -le "$required_space" ]; do
+		rm -v "$(ls -1tr "$record_mount" | head -1)"
+		get_free_space
+		has_files "$record_mount" || die "$record_mount is empty yet no space!"
+	done
+fi
+
+case "$record_videoformat" in
+	avi) vformat="-i" ;;
+	mov) vformat="-q -y -H" ;;
+	mp4) vformat="-4 -y -H" ;;
+	  *) vformat="-4 -y -H" ;; # mp4
+esac
+
+touch $RECORD_FLAG
+
+if [ -n "$record_led" ]; then
+	record_led_pin=$(get $record_led | sed s/[^0-9]//g)
+	if [ -n "$record_led_pin" ]; then
+		LEDD_FLAG="/run/ledd/$record_led_pin"
+ 		echo "${record_blink:-1}" > $LEDD_FLAG
+	fi
+fi
+
+while :; do
+	[ -f $RECORD_FLAG ] || break
+	parsed_target=$(date +"$record_mount/$record_filename.$record_videoformat")
+	parsed_target_path=$(dirname "$parsed_target")
+	[ -d "$parsed_target_path" ] || mkdir -p "$parsed_target_path"
+	openRTSP -u $rtsp_username $rtsp_password -w $stream0_width -h $stream0_height \
+		-f $stream0_fps -d $record_duration $vformat -b 1048576 \
+		-t rtsp://127.0.0.1/ch0  > $parsed_target
+done
+
+echo "Cannot find recording flag $RECORD_FLAG. Exiting."
+[ -n "$LEDD_FLAG" ] && [ -f "$LEDD_FLAG" ] && rm $LEDD_FLAG
+
+exit 0
