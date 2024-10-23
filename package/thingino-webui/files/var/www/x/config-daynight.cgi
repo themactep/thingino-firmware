@@ -1,7 +1,9 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-page_title="Illumination Controls"
+page_title="Day/Night Mode Control"
+
+CRONTABS="/etc/crontabs/root"
 
 field_gpio() {
 	local is_active
@@ -59,6 +61,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	ircut_pin2=$POST_ircut_pin2
 	day_night_max=${POST_day_night_max:-15000}
 	day_night_min=${POST_day_night_min:-5000}
+	daynight_enabled=${POST_daynight_enabled:-true}
+	daynight_interval=${POST_daynight_interval:-1}
 
 	# save values to env
 	tmpfile=$(mktemp -u)
@@ -76,11 +80,18 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	fw_setenv -s $tmpfile
 	rm $tmpfile
 
+	# update crontab
+	tmpfile=$(mktemp -u)
+	cat $CRONTABS > $tmpfile
+	sed -i '/daynight/d' $tmpfile
+	echo "# run daynight every $daynight_interval minutes" >> $tmpfile
+	[ "true" = "$daynight_enabled" ] || echo -n "#" >> $tmpfile
+	echo "*/$daynight_interval * * * * daynight" >> $tmpfile
+	mv $tmpfile $CRONTABS
+
+	update_caminfo
 	redirect_to $SCRIPT_NAME
 fi
-
-# read data from env
-#fw_printenv | grep -E '(gpio_(ir|white)|pwm_ch_ir|day_night)' | xargs -i eval '{}'
 
 ir850_pin=$(get gpio_ir850)
 ir850_pwn=$(get pwm_ch_ir850)
@@ -88,17 +99,22 @@ ir940_pin=$(get gpio_ir940)
 ir940_pwn=$(get pwm_ch_ir940)
 white_pin=$(get gpio_white)
 white_pwn=$(get pwm_ch_white)
-day_night_min=$(get day_night_min)
-day_night_max=$(get day_night_max)
 
 ircut_pins=$(get gpio_ircut)
 ircut_pin1=$(echo $ircut_pins | awk '{print $1}')
 ircut_pin2=$(echo $ircut_pins | awk '{print $2}')
 
-# default values
-[ -z "$day_night_min" ] && day_night_min=5000
+grep -q '^[^#].*daynight$' $CRONTABS && daynight_enabled="true"
+[ -z "$daynight_enabled" ] && daynight_enabled="false"
+
+daynight_interval=$(awk -F'[/ ]' '/daynight$/{print $2}' $CRONTABS)
+[ -z "$daynight_interval" ] && daynight_interval=1
+
+day_night_max=$(get day_night_max)
 [ -z "$day_night_max" ] && day_night_max=15000
 
+day_night_min=$(get day_night_min)
+[ -z "$day_night_min" ] && day_night_min=5000
 %>
 <%in _header.cgi %>
 
@@ -116,18 +132,19 @@ field_gpio "white" "White LED"
 <label class="form-label" for="ircut">IR cut filter</label>
 <div class="input-group">
 <div class="input-group-text">GPIO pin 1</div>
-<input type="text" class="form-control text-end" id="ircut_pin1" name="ircut_pin1" pattern="[0-9]{1,3}" title="empty or a number" value="<%= $ircut_pin1 %>" placeholder="GPIO">
+<input type="text" class="form-control text-end" id="ircut_pin1" name="ircut_pin1" pattern="[0-9]{1,3}"
+ title="empty or a number" value="<%= $ircut_pin1 %>" placeholder="GPIO">
 <div class="input-group-text">GPIO pin 2</div>
-<input type="text" class="form-control text-end" id="ircut_pin2" name="ircut_pin2" pattern="[0-9]{1,3}" title="empty or a number" value="<%= $ircut_pin2 %>" placeholder="GPIO">
+<input type="text" class="form-control text-end" id="ircut_pin2" name="ircut_pin2" pattern="[0-9]{1,3}"
+ title="empty or a number" value="<%= $ircut_pin2 %>" placeholder="GPIO">
 </div>
-<p class="hint text-secondary">IR cut filters are typically controlled by a pair of GPIO pins that define the polarity and thus the direction of the filter's movement.</p>
+<p class="hint text-secondary">IR cut filters are typically controlled by a pair of
+ GPIO pins that define the polarity and thus the direction of the filter's movement.</p>
 </div>
 </div>
 <div class="col">
 <h5 class="mb-3">Day/Night trigger thresholds</h5>
-<p class="hint text-secondary">The day/night mode is controlled by the brightness of the scene.
-Changes in illumination affect the gain required to normalise a darkened image - the darker the scene,
-the higher the gain value. Switching between modes is triggered by changes in gain beyond the thresholds set below.</p>
+<p class="hint text-secondary">The day/night mode is controlled by the brightness of the scene. Changes in illumination affect the gain required to normalise a darkened image - the darker the scene, the higher the gain value. Switching between modes is triggered by changes in gain beyond the thresholds set below.</p>
 <div class="row my-3">
 <div class="text-end"><label for="day_night_min">Minimum gain in night mode</label></div>
 <div class="col-3"><input type="text" id="day_night_min" name="day_night_min" class="form-control text-end" value="<%= $day_night_min %>" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="150000" data-step="1"></div>
@@ -141,8 +158,10 @@ the higher the gain value. Switching between modes is triggered by changes in ga
 <p class="hint text-secondary">The current gain value is displayed at the top of each page next to the sun emoji.</p>
 </div>
 <div class="col">
-<h3>Environment settings</h3>
-<% ex "fw_printenv | grep -E '((gpio|pwm_ch)_(ir|white)|day_night)'" %>
+<h5 class="mb-3">Day/Night Script</h5>
+<% field_switch "daynight_enabled" "Enable Day/Night script" %>
+<p>Run with <a href="info-cron.cgi">cron</a> every
+<input type="text" id="daynight_interval" name="daynight_interval" value="<%= $daynight_interval %>" class="form-control text-end" pattern="[0-9]{1,}" data-min="1" data-max="60" data-step="1" title="numeric value"> minutes.</p>
 </div>
 </div>
 <% button_submit %>
@@ -169,6 +188,7 @@ async function switchIndicator(color, state) {
 .arrow-1 { rotate: 180deg; }
 .arrow:before { background: var(--bs-secondary-bg); content: ""; width: 15px; clip-path: polygon(0 10px, calc(100% - 15px) 10px, calc(100% - 15px) 0, 100% 50%, calc(100% - 15px) 100%, calc(100% - 15px) calc(100% - 10px), 0 calc(100% - 10px)); animation: a1 3s normal forwards ease-in-out; }
 @keyframes a1 { 90%, 100% {flex-grow: 1} }
+#daynight_interval { display: inline-block; max-width: 3rem; margin: auto 0.25rem; }
 </style>
 
 <%in _footer.cgi %>
