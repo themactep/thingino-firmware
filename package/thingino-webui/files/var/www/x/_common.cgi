@@ -338,6 +338,10 @@ html_theme() {
 	esac
 }
 
+is_recording() {
+	pidof openRTSP > /dev/null
+}
+
 link_to() {
 	echo "<a href=\"$2\">$1</a>"
 }

@@ -77,7 +77,15 @@ Pragma: no-cache
 <div class="progress" role="progressbar" id="pb-overlay-used"><div class="progress-bar"></div></div>
 </div>
 </div>
-<div class="col col-2 col-md-2 col-lg-1"><a id="daynight_value" href="config-daynight.cgi" class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover" data-bs-toggle="tooltip" data-bs-title="Sensor gain value. If the Day/Night script is enabled, the camera will switch to Day mode when the gain falls below <%= $day_night_min %>, and to Night mode if the gain rises above <%= $day_night_max %>. Click on the link to set the thresholds."></a></div>
+<div class="col col-2 col-md-2 col-lg-1">
+<% if is_recording; then %>
+<a href="config-record.cgi" id="recording" class="link-underline link-underline-opacity-0 icon blink me-2" data-bs-toggle="tooltip" data-bs-title="Recording in progress">⏺</a>
+<% else %>
+<a href="config-record.cgi" id="recording" class="link-underline link-underline-opacity-0 icon me-2" data-bs-toggle="tooltip" data-bs-title="Recording stopped">⏹</a>
+<% fi %>
+<a id="daynight_value" href="config-daynight.cgi" class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover"
+ data-bs-toggle="tooltip" data-bs-title="Sensor gain value. If the Day/Night script is enabled, the camera will switch to Day mode when the gain falls below <%= $day_night_min %>, and to Night mode if the gain rises above <%= $day_night_max %>. Click on the link to set the thresholds."></a>
+</div>
 <div class="col col-12 col-md-7 col-lg-6 col-xl-5"><%= $(signature) %></div>
 <div class="col col-12 col-md-12 col-lg-3 col-xl-4 text-end"><a href="/x/config-time.cgi" id="time-now" class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover"></a></div>
 </div>
