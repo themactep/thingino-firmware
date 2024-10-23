@@ -6,12 +6,30 @@ export EDITOR="vi"
 export SENSOR=$(cat /etc/sensor/model)
 export SOC=$(soc -f)
 
+network_hostname=$(hostname -s)
+network_interfaces=$(ifconfig | awk '/^[^( |lo)]/{print $1}')
+
+# if no default interface then no gateway nor wan mac present
+network_default_interface="$(ip r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)"
+if [ -n "$network_default_interface" ]; then
+	grep -q 'inet\|dhcp' /etc/network/interfaces.d/$network_default_interface && network_dhcp="true"
+	network_gateway=$(ip r | sed -nE "/default/s/.+ via ([0-9\.]+).+?/\1/p")
+else
+	network_default_interface=$(ip r | sed -nE 's/.+dev (\w+).+?/\1/p' | head -n 1)
+	network_gateway="" # $(get gatewayip) # FIXME: Why do we need this?
+fi
+network_macaddr=$(cat /sys/class/net/$network_default_interface/address)
+network_address=$(ip r | sed -nE "/$network_default_interface/s/.+src ([0-9\.]+).+?/\1/p" | uniq)
+
 alias tb="send2termbin"
 
 if [ "$PS1" ]; then
 	[ -f /etc/os-release ] && . /etc/os-release
 	[ -f /etc/banner ] && echo -e "$(cat /etc/banner)"
-	echo_c 244 "\t$IMAGE_ID\n\t$BUILD_ID\n"
+        printf "%65s\n" "$network_hostname"
+        printf "\e[38;5;238m%65s\e[0m\n" "$IMAGE_ID, $BUILD_ID"
+        printf "%65s\n\n" "$network_address on $network_default_interface [$network_macaddr]"
+
 	if [ "$(id -u)" -eq 0 ]; then
 		export PS1="\[\e[38;5;172m\]\u\[\e[m\]@\[\e[38;5;153m\]\h\[\e[m\]\[\e[38;5;214m\] \W\[\e[m\]\\# "
 	else
