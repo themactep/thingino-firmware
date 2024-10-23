@@ -44,6 +44,7 @@ Pragma: no-cache
 <a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownTools" role="button">Tools</a>
 <ul aria-labelledby="dropdownTools" class="dropdown-menu">
 <% menu "tool" %>
+<li><a href="reboot.cgi" class="dropdown-item bg-danger confirm">⏼ Reboot</a></li>
 </ul>
 </li>
 <li class="nav-item dropdown"><a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownServices" role="button">Services</a>
