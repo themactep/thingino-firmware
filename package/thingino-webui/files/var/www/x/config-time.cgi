@@ -22,7 +22,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			[ -z "$POST_tz_name" ] && set_error_flag "Empty timezone name."
 			[ -z "$POST_tz_data" ] && set_error_flag "Empty timezone value."
 
-		        if [ -z "$error" ]; then
+			if [ -z "$error" ]; then
 				[ "$tz_data" = "$POST_tz_data" ] || echo "$POST_tz_data" >/etc/TZ
 				[ "$tz_name" != "$POST_tz_name" ] && \
 					echo "$POST_tz_name" >/etc/timezone && \
@@ -51,7 +51,7 @@ fi
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_hidden "action" "update" %>
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-4 mb-4">
 <div class="col">
 <h3>Time Zone</h3>
 <datalist id="tz_list"></datalist>
@@ -69,6 +69,12 @@ fi
 <% button_submit %>
 </div>
 <div class="col">
+<% ex "get timezone" %>
+<% ex "cat /etc/timezone" %>
+<% ex "cat /etc/TZ" %>
+<% ex "echo \$TZ" %>
+</div>
+<div class="col">
 <h3>Time Synchronization</h3>
 <%
 for i in $seq; do
@@ -79,11 +85,6 @@ done; unset i; unset x
 %>
 </div>
 <div class="col">
-<h3>Configuration</h3>
-<% ex "get timezone" %>
-<% ex "cat /etc/timezone" %>
-<% ex "cat /etc/TZ" %>
-<% ex "echo \$TZ" %>
 <% ex "cat $ntpd_working_config" %>
 <% ex "cat $ntpd_static_config" %>
 <% ex "cat $ntpd_sync_status" %>
