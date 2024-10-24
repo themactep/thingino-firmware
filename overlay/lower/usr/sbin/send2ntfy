@@ -1,0 +1,102 @@
+#!/bin/sh
+
+plugin="ntfy"
+
+. /sbin/common-plugins
+
+show_help() {
+	echo "Usage: $0 [-p priority] [-t title] [-m message] [-u user] [-w password] [-i bool] [-v] [-h]
+  -u username  Username.
+  -w password  Password.
+  -t topic     Topic.
+  -p N         Priority. 1-lowest, 5-highest.
+  -n title     Message title.
+  -m message   Message body.
+  -f [file]    Attach file.
+  -a URL       Attachment URL.
+  -c URL       Click URL.
+  -i URL       Icon URL.
+  -v           Verbose output.
+  -h           Show this help.
+"
+	quit_clean 0
+}
+
+# override config values with command line arguments
+while getopts a:c:f:i:l:m:n:p:s:t:u:vh flag; do
+	case "$flag" in
+		a) ntfy_attach=$OPTARG ;;
+		c) ntfy_click=$OPTARG ;;
+		i) ntfy_icon=$OPTARG ;;
+		m) ntfy_message=$OPTARG ;;
+		n) ntfy_title=$OPTARG ;;
+		p) ntfy_priority=$OPTARG ;;
+		t) ntfy_topic=$OPTARG ;;
+		u) ntfy_username=$OPTARG ;;
+		w) ntfy_password=$OPTARG ;;
+		v) verbose="true" ;;
+		h | *) show_help ;;
+	esac
+done
+
+[ "false" = "$ntfy_enabled" ] && die "Sending to NTFY is disabled."
+# validate mandatory values
+[ -z "$ntfy_topic" ] && die "NTFY topic is not set."
+
+# default values
+[ -z "$ntfy_priority" ] && ntfy_priority=3   # integer 1 to 5
+[ -z "$ntfy_attach"   ] && ntfy_attach=""    # url
+[ -z "$ntfy_click"    ] && ntfy_click=""     # url
+[ -z "$ntfy_icon"     ] && ntfy_icon=""      # url
+[ -z "$ntfy_filename" ] && ntfy_filename=""  # filename of attachment
+[ -z "$ntfy_delay"    ] && ntfy_delay=""     # relative time or timestamp
+[ -z "$ntfy_email"    ] && ntfy_email=""     # email address
+[ -z "$ntfy_call"     ] && ntfy_call=""      # phone number or yes
+[ -z "$ntfy_tags"     ] && ntfy_tags="[]"    # text array
+[ -z "$ntfy_actions"  ] && ntfy_actions="{}" # json array: "actions": [{ "action": "view", "label": "Admin panel", "url": "https://filesrv.lan/admin" }]
+[ -z "$ntfy_title"    ] && ntfy_title=""
+[ -z "$ntfy_message"  ] && ntfy_message=""
+[ -z "$ntfy_markdown" ] && ntfy_markdown="false"
+
+build_cmd "$CURL"
+build_cmd "-H p:$ntfy_msg_priority"
+
+# SOCK5 proxy, if needed
+[ "true" = "$ntfy_socks5_enabled" ] && use_socks5
+
+[ -n "$ntfy_username" ] && [ -n "$ntfy_password" ] && \
+	build_cmd "-u $ntfy_username:$ntfy_password"
+
+if [ "true" = "$ntfy_attach_snapshot" ]; then
+	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
+	clone_snapshot $attachment
+
+	build_cmd "-T \"$attachment\""
+	build_cmd "-H \"Filename: snapshot.jpg\""
+fi
+
+to_payload() { json="$json,\n\"$1\": \"$2\""; }
+
+json="{\"topic\": \"$ntfy_topic\""
+to_payload "message", "$ntfy_message"
+to_payload "title", "$ntfy_title"
+to_payload "tags", "$ntfy_tags"
+to_payload "priority", "$ntfy_priority"
+to_payload "action", "$ntfy_actions"
+to_payload "click", "$ntfy_click"
+to_payload "attach", "$ntfy_attach"
+to_payload "markdown", "$ntfy_markdown"
+to_payload "icon", "$ntfy_icon"
+to_payload "filename", "$ntfy_filename"
+to_payload "delay", "$ntfy_delay"
+to_payload "email", "$ntfy_email"
+to_payload "call", "$ntfy_call"
+json="$json\n}"
+build_cmd "-d '$json' ntfy.sh"
+
+log_and_run "$command"
+
+[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
+[ "true" = "$verbose" ] && cat $LOG_FILE
+
+quit_clean 0
