@@ -28,7 +28,7 @@ start() {
 stop() {
 	stopping
 	is_streamer_disabled && quit "Streamer disabled"
-	rm /tmp/record.do
+	find /tmp/ -name "record.*" -maxdepth 0 -exec rm {} \;
 	stop_daemon_with_pid
 }
 
