@@ -9,26 +9,35 @@ export SOC=$(soc -f)
 network_hostname=$(hostname -s)
 network_interfaces=$(ifconfig | awk '/^[^( |lo)]/{print $1}')
 
-# if no default interface then no gateway nor wan mac present
-network_default_interface="$(ip r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)"
-if [ -n "$network_default_interface" ]; then
-	grep -q 'inet\|dhcp' /etc/network/interfaces.d/$network_default_interface && network_dhcp="true"
-	network_gateway=$(ip r | sed -nE "/default/s/.+ via ([0-9\.]+).+?/\1/p")
-else
-	network_default_interface=$(ip r | sed -nE 's/.+dev (\w+).+?/\1/p' | head -n 1)
-	network_gateway="" # $(get gatewayip) # FIXME: Why do we need this?
-fi
-network_macaddr=$(cat /sys/class/net/$network_default_interface/address)
-network_address=$(ip r | sed -nE "/$network_default_interface/s/.+src ([0-9\.]+).+?/\1/p" | uniq)
+network_default_interface_ipv4=$(ip -4 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)
+network_default_interface_ipv6=$(ip -6 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)
+
+[ -n "$network_default_interface_ipv4" ] && {
+	grep -q 'inet\|dhcp' /etc/network/interfaces.d/$network_default_interface_ipv4 && network_dhcp="true"
+	network_gateway_ipv4=$(ip -4 r | sed -nE "/default/s/.+ via ([0-9\.]+).+?/\1/p")
+	network_address_ipv4=$(ip -4 addr show dev "$network_default_interface_ipv4" | sed -nE '/inet/s/.+inet ([0-9\.]+).+/\1/p' | uniq)
+}
+
+[ -n "$network_default_interface_ipv6" ] && {
+	network_gateway_ipv6=$(ip -6 r | sed -nE "/default/s/.+ via ([a-f0-9:]+).+?/\1/p")
+	network_address_ipv6=$(ip -6 addr show dev "$network_default_interface_ipv6" | sed -nE '/inet6/s/.+inet6 ([2-3][a-f0-9:]+)\/.+scope global/\1/p' | head -n 1)
+	[ -z "$network_address_ipv6" ] && network_address_ipv6=$(ip -6 addr show dev "$network_default_interface_ipv6" | sed -nE '/inet6/s/.+inet6 (fd[a-f0-9:]+)\/.+scope global/\1/p' | head -n 1)
+	network_address_ipv6=$(echo "$network_address_ipv6" | sed 's/dynamic//'| sed 's/[[:space:]]*$//')
+}
+
+network_macaddr=$(cat /sys/class/net/${network_default_interface_ipv4:-$network_default_interface_ipv6}/address)
+
+network_address=${network_address_ipv4:+$network_address_ipv4 (IPv4)}${network_address_ipv4:+, }${network_address_ipv6:+$network_address_ipv6 (IPv6)}
+network_address=${network_address:-"No IP address"}
 
 alias tb="send2termbin"
 
 if [ "$PS1" ]; then
 	[ -f /etc/os-release ] && . /etc/os-release
 	[ -f /etc/banner ] && echo -e "$(cat /etc/banner)"
-        printf "%65s\n" "$network_hostname"
-        printf "\e[38;5;238m%65s\e[0m\n" "$IMAGE_ID, $BUILD_ID"
-        printf "%65s\n\n" "$network_address on $network_default_interface [$network_macaddr]"
+	printf "%65s\n" "$network_hostname"
+	printf "\e[38;5;238m%65s\e[0m\n" "$IMAGE_ID, $BUILD_ID"
+	printf "%65s\n\n" "$network_address on ${network_default_interface_ipv4:-$network_default_interface_ipv6} [$network_macaddr]"
 
 	if [ "$(id -u)" -eq 0 ]; then
 		export PS1="\[\e[38;5;172m\]\u\[\e[m\]@\[\e[38;5;153m\]\h\[\e[m\]\[\e[38;5;214m\] \W\[\e[m\]\\# "
