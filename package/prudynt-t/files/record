@@ -17,15 +17,20 @@ has_files() {
 	[ -n "$(ls -1A "$1")" ]
 }
 
-stream0_width=$(awk -F'[ *]' '/^output resolution:/{print $3}' /proc/jz/isp/isp-fs | head -1 | tr -d '\n')
-stream0_height=$(awk -F'[ *]' '/^output resolution:/{print $6}' /proc/jz/isp/isp-fs | head -1 | tr -d '\n')
-stream0_fps=$(awk -F'[:/]' '/ISP OUTPUT FPS/{print $2}' /proc/jz/isp/isp-m0 | tr -d ' ')
+stream0_width=$(logcat | awk '/\[chn0\]:/{print $6}' | tail -1 | tr -d '\n')
+stream0_height=$(logcat | awk '/\[chn0\]:/{print $9}' | tail -1 | tr -d '\n')
+stream0_fps=$(logcat | awk -F'[=,]' '/i_fps_num/{print $2}' | tail -1 | tr -d '\n')
 rtsp_username=$(read_config username); [ -z "$rtsp_username" ] && rtsp_username="thingino"
 rtsp_password=$(read_config password); [ -z "$rtsp_password" ] && rtsp_password="thingino"
 
 RECORD_WEBUI_CONF=/etc/webui/record.conf
+[ -f $RECORD_WEBUI_CONF ] || die "Config file $RECORD_WEBUI_CONF not found"
 cat $RECORD_WEBUI_CONF
 . $RECORD_WEBUI_CONF
+
+[ -z "$record_mount" ] && die "Mountpoint record_mount is not set"
+mountpoint "$record_mount" || die "Mountpoint $record_mount is not mounted"
+[ -w "$record_mount" ] || die "Mountpoint $record_mount is not writable"
 
 if has_files "$record_mount"; then
 	required_space=$(($(ls -1ltcr "$record_mount" | awk 'END{print $5}') * 2 / 1024)) # output in kiB
