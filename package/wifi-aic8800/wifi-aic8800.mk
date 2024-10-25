@@ -26,7 +26,7 @@ define WIFI_AIC8800_INSTALL_FIRMWARE
 	$(INSTALL) -m 644 $(@D)/fw/aic8800D80/fw_adid_8800d80_u02.bin $(TARGET_DIR)/lib/firmware/aic8800D80/fw_adid_8800d80_u02.bin
 	$(INSTALL) -m 644 $(@D)/fw/aic8800D80/fw_patch_8800d80_u02.bin $(TARGET_DIR)/lib/firmware/aic8800D80/fw_patch_8800d80_u02.bin
 	$(INSTALL) -m 644 $(@D)/fw/aic8800D80/fw_patch_8800d80_u02_ext0.bin $(TARGET_DIR)/lib/firmware/aic8800D80/fw_patch_8800d80_u02_ext0.bin
-	$(INSTALL) -m 644 $(@D)/fw/aic8800D80/fmacfw_8800d80_u02.bin$(TARGET_DIR)/lib/firmware/aic8800D80/fmacfw_8800d80_u02.bin
+	$(INSTALL) -m 644 $(@D)/fw/aic8800D80/fmacfw_8800d80_u02.bin $(TARGET_DIR)/lib/firmware/aic8800D80/fmacfw_8800d80_u02.bin
 	$(INSTALL) -m 644 $(@D)/fw/aic8800D80/aic_userconfig_8800d80.txt $(TARGET_DIR)/lib/firmware/aic8800D80/aic_userconfig_8800d80.txt
 endef
 
