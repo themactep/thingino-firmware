@@ -1,0 +1,51 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+wlandev=$(get wlandev)
+[ -z "$wlandev" ] && die "wlandev is empty, exit."
+
+show_help() {
+	echo "Usage: $0 <command>
+Where command:
+  setup       Set up Wi-Fi credentials
+  info        Display connection details
+"
+}
+
+show_info() {
+	case "$wlandev" in
+		atbm*) iwpriv wlan0 common get_ap_info ;;
+		rtl*) iwconfig wlan0 ;;
+		*) echo "Not supperted on $wlandev" ;;
+	esac
+}
+
+setup() {
+	echo_c 208 "Thingino Wi-Fi setup"
+	echo "Wi-Fi driver: $(echo_c 10 $wlandev)"
+	read -r -p "Enter Wi-Fi SSID: " ssid
+	while :; do
+		read -r -p "Enter Wi-Fi Password: " password
+		[ ${#password} -ge 8 ] && [ ${#password} -le 64 ] && break
+		echo_c 160 "Passwords is not between 8 and 64 characters. Please try again."
+	done
+
+	fw_setenv wlanssid "$ssid"
+	fw_setenv wlanpass "$password"
+
+	echo_c 40 "Wi-Fi settings updated. Please restart for changes to take effect.\n"
+}
+
+case "$(basename $0)" in
+	wlaninfo) exec wlan info ;;
+	wlansetup) exec wlan setup ;;
+esac
+
+case "$1" in
+	setup) setup ;;
+	info) show_info ;;
+	*) show_help ;;
+esac
+
+exit 0
