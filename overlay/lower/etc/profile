@@ -7,28 +7,30 @@ export SENSOR=$(cat /etc/sensor/model)
 export SOC=$(soc -f)
 
 network_hostname=$(hostname -s)
-network_interfaces=$(ifconfig | awk '/^[^( |lo)]/{print $1}')
+ifaces=$(ifconfig | awk '/^[^( |lo)]/{print $1}')
 
-network_default_interface_ipv4=$(ip -4 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)
-network_default_interface_ipv6=$(ip -6 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)
+if4=$(ip -4 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)
+if6=$(ip -6 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)
 
-[ -n "$network_default_interface_ipv4" ] && {
-	grep -q 'inet\|dhcp' /etc/network/interfaces.d/$network_default_interface_ipv4 && network_dhcp="true"
-	network_gateway_ipv4=$(ip -4 r | sed -nE "/default/s/.+ via ([0-9\.]+).+?/\1/p")
-	network_address_ipv4=$(ip -4 addr show dev "$network_default_interface_ipv4" | sed -nE '/inet/s/.+inet ([0-9\.]+).+/\1/p' | uniq)
+[ -n "$if4" ] && {
+	grep -q 'inet\|dhcp' /etc/network/interfaces.d/$if4 && dhcp="true"
+	gw4=$(ip -4 r | sed -nE "/default/s/.+ via ([0-9\.]+).+?/\1/p")
+	ip4=$(ip -4 a show dev "$if4" | sed -nE '/inet/s/.+inet ([0-9\.]+).+/\1/p' | uniq)
 }
 
-[ -n "$network_default_interface_ipv6" ] && {
-	network_gateway_ipv6=$(ip -6 r | sed -nE "/default/s/.+ via ([a-f0-9:]+).+?/\1/p")
-	network_address_ipv6=$(ip -6 addr show dev "$network_default_interface_ipv6" | sed -nE '/inet6/s/.+inet6 ([2-3][a-f0-9:]+)\/.+scope global/\1/p' | head -n 1)
-	[ -z "$network_address_ipv6" ] && network_address_ipv6=$(ip -6 addr show dev "$network_default_interface_ipv6" | sed -nE '/inet6/s/.+inet6 (fd[a-f0-9:]+)\/.+scope global/\1/p' | head -n 1)
-	network_address_ipv6=$(echo "$network_address_ipv6" | sed 's/dynamic//'| sed 's/[[:space:]]*$//')
+[ -n "$if6" ] && {
+	gw6=$(ip -6 r | sed -nE "/default/s/.+ via ([a-f0-9:]+).+?/\1/p")
+	ip6=$(ip -6 a show dev "$if6" | sed -nE "s/^.*(\b([23][0-6]|f[cd])[0-9a-f]{2}:([0-9a-f:/]+)+\b).*scope global/\1/p" | sort | head -n 1)
+	ip6=$(echo "$ip6" | sed 's/dynamic//'| sed 's/[[:space:]]*$//')
 }
 
-network_macaddr=$(cat /sys/class/net/${network_default_interface_ipv4:-$network_default_interface_ipv6}/address)
+mac=$(cat /sys/class/net/${if4:-$if6}/address)
 
-network_address=${network_address_ipv4:+$network_address_ipv4 (IPv4)}${network_address_ipv4:+, }${network_address_ipv6:+$network_address_ipv6 (IPv6)}
-network_address=${network_address:-"No IP address"}
+ip_address=""
+[ -n "$ip4" ] && ip_address="$ip_address$ip4 (IPv4)"
+[ -n "$ip6" ] && [ -n "$ip6" ] && ip_address="$ip_address, "
+[ -n "$ip6" ] && ip_address="$ip_address$ip6 (IPv6)"
+[ -z "$ip_address" ] && ip_address="No IP address"
 
 alias tb="send2termbin"
 
@@ -37,7 +39,7 @@ if [ "$PS1" ]; then
 	[ -f /etc/banner ] && echo -e "$(cat /etc/banner)"
 	printf "%65s\n" "$network_hostname"
 	printf "\e[38;5;238m%65s\e[0m\n" "$IMAGE_ID, $BUILD_ID"
-	printf "%65s\n\n" "$network_address on ${network_default_interface_ipv4:-$network_default_interface_ipv6} [$network_macaddr]"
+	printf "%65s\n\n" "$ip_address on ${if4:-$if6} [$mac]"
 
 	if [ "$(id -u)" -eq 0 ]; then
 		export PS1="\[\e[38;5;172m\]\u\[\e[m\]@\[\e[38;5;153m\]\h\[\e[m\]\[\e[38;5;214m\] \W\[\e[m\]\\# "
