@@ -21,7 +21,7 @@ include $config_file
 [ -z "$record_enabled" ] && record_enabled="false"
 [ -z "$record_led" ] && record_led=$(fw_printenv | awk -F= '/^gpio_led/{print $1;exit}')
 [ -z "$record_loop" ] && record_loop="true"
-[ -z "$record_videoformat" ] && record_videoformat="avi"
+[ -z "$record_videoformat" ] && record_videoformat="mp4"
 if [ -z "$record_filename" ] || [ "/" = "${record_filename:0-1}" ]; then
 	record_filename="thingino/%Y-%m-%d/%H:%M:%S"
 fi
@@ -69,7 +69,7 @@ fi
 <% field_select "record_mount" "Record storage directory" "$MOUNTS" %>
 <div class="row g-1">
 <div class="col-9"><% field_text "record_filename" "File name template" "$STR_SUPPORTS_STRFTIME" %></div>
-<div class="col-3"><% field_select "record_videoformat" "Format" "mov, mp4, avi" "also extention" %></div>
+<div class="col-3"><% field_select "record_videoformat" "Format" "mov, mp4" "also extention" %></div>
 </div>
 <% field_checkbox "record_loop" "Loop Recording" "Delete older files as needed." %>
 </div>
