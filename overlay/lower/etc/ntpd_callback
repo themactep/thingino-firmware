@@ -1,6 +1,14 @@
 #!/bin/sh
-# This script is called internally by ntpq when time synchronization updated, dont run it yourself
+# usage: ntpd -S ntpd_callback
 
-SYNC_STATUS="/tmp/sync_status"
+# /run/sync_success is created when time is synchronized
+# /run/sync_status contains current ntpd status, even if not sync yet
 
-echo -e "$1\nfreq_drift_ppm=$freq_drift_ppm\noffset=$offset\nstratum=$stratum\npoll_interval=$poll_interval" > $SYNC_STATUS
+export action="$1"
+export timestamp="$(date -Iseconds)"
+
+env | \
+grep -E '^(action|freq_drift_ppm|offset|poll_interval|stratum|timestamp)=' | \
+sort > /run/sync_status
+
+[ "$action" = "step" ] || [ "$action" = "stratum" ] && touch /run/sync_success
