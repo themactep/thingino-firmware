@@ -55,6 +55,7 @@ wlan_mac="$(get wlanmac)"
 </div>
 <div class="col">
 <% ex "fw_printenv | grep wlan | sort" %>
+<% ex "wlan info" %>
 </div>
 </div>
 <% button_submit %>
