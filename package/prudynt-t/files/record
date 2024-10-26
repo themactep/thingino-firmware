@@ -50,7 +50,6 @@ if [ "$available_space" -le "$required_space" ]; then
 fi
 
 case "$record_videoformat" in
-	avi) vformat="-i" ;;
 	mov) vformat="-q -y -H" ;;
 	mp4) vformat="-4 -y -H" ;;
 	  *) vformat="-4 -y -H" ;; # mp4

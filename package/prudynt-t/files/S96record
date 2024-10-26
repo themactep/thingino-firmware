@@ -21,7 +21,8 @@ start() {
 	[ "true" = "$record_enabled" ] || quit "Disabled in $WEBUI_CONF"
 	[ -d "$record_mount" ] || quit "Storage is not mounted"
 	record_path=$(dirname "$record_mount/$(date +"$record_filename")")
-	[ -d "$record_path" ] || quit "No access to $record_path"
+	[ -d "$record_path" ] || mkdir -p $record_path
+	[ -w "$record_path" ] || quit "No access to $record_path"
 	start_daemon_with_pid
 }
 
