@@ -1,25 +1,21 @@
 # 18O 38o 39o 40i 45i 46i 48O 57i 58i 59i 60O 62O 63O 64i 72O 73O
 # 102o 103o 104o 105o 108o 109o 110o 114o
-day_night_max=15000
-day_night_min=500
 disable_eth=true
 disable_sd=true
 enable_updates=true
-gpio_button=64
-gpio_button_chime=
-gpio_default=18O 38o 39o 40i 45i 46i 48O 57i 58i 59i 60O 62O 63O 64i 72O 73O
-gpio_ircut=
+gpio_button=46
+gpio_button_chime=40
+gpio_default=18O 38o 39o 40i 45i 46i 48O 49o 57i 58i 59i 60O 62O 63O 64i 72O 73O
+gpio_ir940=90
+gpio_ircut=72 73
 gpio_led_b=39O
 gpio_led_y=38O
-gpio_mmc_cd=59
-gpio_sda=57
-gpio_scl=58
+gpio_led_w=49O
+gpio_mmc_cd=-1
 gpio_speaker=63
-gpio_sub1g=61
-gpio_white=49
+gpio_sub1g=60
+gpio_white=89
 gpio_wlan=57O
 osmem=86M@0x0
-pwm_ch_ir850=2
-pwm_ch_white=3
 rmem=42M@0x5600000
 wlandev=8189fs
