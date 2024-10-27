@@ -165,7 +165,7 @@ update_self() {
 if [ -d $workdir ]; then
 	echo_c 150 "Found working directory $workdir"
 else
-	echo_d 140 "Creating working directory $workdir"
+	echo_c 140 "Creating working directory $workdir"
 	mkdir -p $workdir
 fi
 
