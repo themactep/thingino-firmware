@@ -155,10 +155,10 @@ update_self() {
 	local GH_DL_URL="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/overlay/lower/usr/sbin/"
 	echo_c 130 "curl -fL# -o $workdir/$stage1app \"$GH_DL_URL$stage1app\""
 	curl -fL# -o $workdir/$stage1app "$GH_DL_URL$stage1app" || die "Download failed!"
-	chmod +x $stage1app
+	chmod +x $workdir/$stage1app
 	echo_c 130 "curl -fL# -o $workdir/$stage2app \"$GH_DL_URL$stage2app\""
 	curl -fL# -o /sbin/$stage2app "$GH_DL_URL$stage2app" || die "Download failed!"
-	chmod +x $stage2app
+	chmod +x $workdir/$stage2app
 }
 
 # work in $workdir
