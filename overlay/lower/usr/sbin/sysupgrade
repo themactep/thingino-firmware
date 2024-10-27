@@ -10,16 +10,13 @@ GH="https://github.com/"
 PAD="\t\t\t    "
 
 workdir="/tmp/sysupgrade"
+stage1app="sysupgrade"
 stage2app="sysupgrade-stage2"
-[ -d $workdir ] || mkdir -p $workdir
 fw_file="$workdir/fw.bin"
 
 self=$(realpath $0)
 bbapplets="echo flash_eraseall flashcp reboot sh sleep"
 upgrade=""
-
-# work in $workdir
-cd $workdir
 
 bye() {
 	die "\n\n\tMaybe next time..."
@@ -154,7 +151,25 @@ stop_services() {
 	done
 }
 
-while getopts "fhp" flag; do
+update_self() {
+	local GH_DL_URL="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/overlay/lower/usr/sbin/"
+	echo_c 130 "curl -fL# -o $workdir/$stage1app \"$GH_DL_URL$stage1app\""
+	curl -fL# -o $workdir/$stage1app "$GH_DL_URL$stage1app" || die "Download failed!"
+	chmod +x $stage1app
+	echo_c 130 "curl -fL# -o $workdir/$stage2app \"$GH_DL_URL$stage2app\""
+	curl -fL# -o /sbin/$stage2app "$GH_DL_URL$stage2app" || die "Download failed!"
+	chmod +x $stage2app
+}
+
+# work in $workdir
+if [ -d $workdir ]; then
+	echo_c 150 "Found working directory $workdir"
+else
+	echo_d 140 "Creating working directory $workdir"
+	mkdir -p $workdir
+fi
+
+while getopts "bfhp" flag; do
 	case "$flag" in
 		f)
 			say "Full upgrade from GitHub"
@@ -181,8 +196,21 @@ if [ -z "$upgrade" ]; then
 		url="$1"
 	else
 		echo "Upgrade from a local file"
-		[ -r "$1" ] || die "Cannot find file $1"
+		[ -r "$1" ] || die "Cannot find file $1 from $(pwd)"
+		mv "$1" "$workdir"
 	fi
+fi
+
+echo_c 150 "Switching to working directory $workdir"
+cd $workdir
+pwd
+
+if [ "$(dirname $self)" = "$workdir" ]; then
+	echo_s 150 "Running updated script."
+else
+	echo_c 140 "Updating self."
+	update_self
+	exec $workdir/$stage1app "$@"
 fi
 
 if [ "full" = "$upgrade" ]; then
