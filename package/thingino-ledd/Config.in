@@ -1,4 +1,4 @@
 config BR2_PACKAGE_THINGINO_LEDD
 	bool "thingino-ledd"
 	help
-		Minimal daemon to blink leds to indicate boot status
+	  Minimal daemon to blink leds to indicate boot status
