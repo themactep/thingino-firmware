@@ -158,7 +158,7 @@ update_self() {
 	chmod +x $workdir/$stage1app
 	echo_c 130 "curl -fL# -o $workdir/$stage2app \"$GH_DL_URL$stage2app\""
 	curl -fL# -o /sbin/$stage2app "$GH_DL_URL$stage2app" || die "Download failed!"
-	chmod +x $workdir/$stage2app
+	chmod +x /sbin/$stage2app
 }
 
 # work in $workdir
