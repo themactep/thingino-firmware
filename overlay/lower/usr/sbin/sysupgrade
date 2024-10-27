@@ -6,7 +6,7 @@ grep -q "mtd[56]" /proc/mtd || die "Please run 'fw_setenv enable_updates true' t
 KERNEL_MAGIC="27051956"
 U_BOOT_MAGIC="06050403"
 ROOTFS_MAGIC="68737173"
-GH="https://github.com/"
+GITHUB_URL="https://github.com/"
 PAD="\t\t\t    "
 
 workdir="/tmp/sysupgrade"
@@ -33,6 +33,8 @@ check_free_space() {
 	local dl_size=$(curl -sIL $1 | awk '/Content-Length/{fs=$2}END{print fs}')
 	local free_space=$(df -m /tmp | tail -1 | awk '{print $4}')
 	local flash_size=$((0x$(awk '/^mtd6/{print $2}' /proc/mtd)))
+	local offset="${2:-0}"
+	dl_size=$((dl_size - offset))
 	free_space=$((free_space * 1024 * 1024))
 	[ "$dl_size" -gt "$free_space" ] && die "Not enough free space to download firmware: $dl_size > $free_space"
 	[ "$dl_size" -gt "$flash_size" ] && die "Firmware is larger than flash chip: $dl_size > $flash_size"
@@ -84,26 +86,28 @@ handle_payload() {
 		profile=$(awk -F= '/^IMAGE_ID=/ {print $2}' $data)
 		[ -z "$profile" ] && die "Building profile is not set in $data"
 
-		gh_url="$GH/themactep/thingino-firmware/releases/download"
-		bin_url="$gh_url/firmware"
-		sha_url="$gh_url/verify/"
-
+		gh_url="$GITHUB_URL/themactep/thingino-firmware/releases/download"
 		if [ "part" = "$upgrade" ]; then
-			bin_url="${bin_url}_update/thingino-${profile}-update.bin"
-			sha_url="${sha_url}thingino-${profile}-update.bin.sha256sum"
+			offset=327680
+			bin_file="thingino-$profile-update.bin"
+			bin_url="$gh_url/firmware/thingino-$profile.bin"
 		else
-			bin_url="${bin_url}/thingino-${profile}.bin"
-			sha_url="${sha_url}thingino-${profile}.bin.sha256sum"
+			offset=0
+			bin_file="thingino-$profile.bin"
+			bin_url="$gh_url/firmware/$bin_file"
 		fi
-		bin_file=$(basename $bin_url)
-		sha_file=$(basename $sha_url)
+		sha_url="$gh_url/verify/$bin_file.sha256sum"
 
-		check_free_space $bin_url
+		check_free_space $bin_url $offset
 
 		say "Download firmware and checksum\n- $bin_url\n- $sha_url"
 		echo "curl -LO# $bin_url"
-		curl -fL# -O $bin_url -O $sha_url || die "Download failed!"
 
+		curl -fL# -C $offset -o $bin_file $bin_url || die "Download failed!"
+		curl -fL# -O $sha_url || die "Download failed!"
+		sha_file=$(basename $sha_url)
+
+		say "Verifying downloaded file"
 		sha256sum -c $sha_file || die "Checksum does not match!"
 
 		rm $sha_file
@@ -174,12 +178,12 @@ while getopts "bfhp" flag; do
 		f)
 			say "Full upgrade from GitHub"
 			upgrade="full"
-			url="$GH"
+			url="$GITHUB_URL"
 			;;
 		p)
 			say "Partial upgrade from GitHub"
 			upgrade="part"
-			url="$GH"
+			url="$GITHUB_URL"
 			;;
 		h | *)
 			show_help
