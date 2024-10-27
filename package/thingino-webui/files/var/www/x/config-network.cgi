@@ -20,9 +20,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			# parse values from parameters
 			read_from_post "$plugin" "$params"
 
-			network_interface=$(echo $network_interfaces | cut -d' ' -f1)
-
-			[ -z "$network_interface" ] && set_error_flag "Default network interface cannot be empty."
+			network_interface=$POST_network_interface
+			[ -z "$network_interface" ] && set_error_flag "Network interface cannot be empty."
 
 			if [ "false" = "$network_dhcp" ]; then
 				network_mode="static"
