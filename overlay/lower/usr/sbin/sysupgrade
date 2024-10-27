@@ -206,7 +206,7 @@ cd $workdir
 pwd
 
 if [ "$(dirname $self)" = "$workdir" ]; then
-	echo_s 150 "Running updated script."
+	echo_c 150 "Running updated script."
 else
 	echo_c 140 "Updating self."
 	update_self
