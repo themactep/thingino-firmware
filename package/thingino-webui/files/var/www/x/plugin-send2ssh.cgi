@@ -34,7 +34,7 @@ else
 
 	# Default values
 	[ -z "$ssh_port" ] && ssh_port="22"
-	[ -z "$ssh_username" ] && ssh_username="$(whoami)"
+	[ -z "$ssh_username" ] && ssh_username="root"
 fi
 %>
 <%in _header.cgi %>
