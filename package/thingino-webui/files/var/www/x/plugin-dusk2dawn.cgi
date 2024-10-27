@@ -11,10 +11,7 @@ config_file="$ui_config_dir/$plugin.conf"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
-	for p in $params; do
-		eval ${plugin}_$p=\$POST_${plugin}_$p
-		sanitize "${plugin}_$p"
-	done; unset p
+	read_from_post "$plugin" "$params"
 
 	[ -z "$dusk2dawn_runat" ] && dusk2dawn_runat="0:00"
 	[ -z "$dusk2dawn_offset_sr" ] && dusk2dawn_offset_sr="0"

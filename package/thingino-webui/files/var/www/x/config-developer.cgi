@@ -9,10 +9,9 @@ read_from_env $plugin
 [ -z "$development_nfs_share" ] && development_nfs_share="/srv/nfs/www"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	for p in $params; do
-		eval ${plugin}_${p}=\$POST_${plugin}_${p}
-		sanitize "${plugin}_${p}"
-	done; unset p
+	# parse values from parameters
+	read_from_post "$plugin" "$params"
+
 
 	[ -z "$development_nfs_ip" ] && set_error_flag "NFS server IP cannot be empty."
 	[ -z "$development_nfs_share" ] && set_error_flag "NFS share cannot be empty."

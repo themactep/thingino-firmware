@@ -10,10 +10,7 @@ config_file="$ui_config_dir/$plugin.conf"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
-	for p in $params; do
-		eval ${plugin}_$p=\$POST_${plugin}_$p
-		sanitize "${plugin}_$p"
-	done; unset p
+	read_from_post "$plugin" "$params"
 
 	[ -z "$admin_name"  ] && set_error_flag "Name cannot be empty."
 	[ -z "$admin_email" ] && set_error_flag "Email cannot be empty."

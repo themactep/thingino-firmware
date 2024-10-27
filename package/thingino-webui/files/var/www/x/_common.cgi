@@ -571,6 +571,15 @@ read_from_env() {
 	rm $tmpfile
 }
 
+# read_from_post "plugin" "params"
+read_from_post() {
+	local p
+	for p in $2; do
+		eval $1_$p=\$POST_$1_$p
+		sanitize "$1_$p"
+	done
+}
+
 include() {
 	[ -f "$1" ] && . "$1"
 }

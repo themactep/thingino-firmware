@@ -28,10 +28,7 @@ fi
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
-	for p in $params; do
-		eval ${plugin}_$p=\$POST_${plugin}_$p
-		sanitize "${plugin}_$p"
-	done; unset p
+	read_from_post "$plugin" "$params"
 
 	# normalize
 	[ "/" = "${record_filename:0:1}" ] && record_filename="${record_filename:1}"

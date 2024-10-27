@@ -25,10 +25,9 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			;;
 		interface)
 			params="level theme"
-			for p in $params; do
-				eval ${plugin}_$p=\$POST_${plugin}_$p
-				sanitize "${plugin}_$p"
-			done; unset p
+
+			# parse values from parameters
+			read_from_post "$plugin" "$params"
 
 			[ -z "$webui_level" ] && webui_level="user"
 
