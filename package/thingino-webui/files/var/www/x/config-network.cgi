@@ -54,7 +54,7 @@ fi
 <div class="col col-md-6 col-lg-4 mb-4">
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_hidden "action" "update" %>
-<% field_select "network_interface" "Network interface" "eth0 wlan0" %>
+<% field_select "network_interface" "Network interface" "$network_interfaces" %>
 <% field_text "network_wlan_ssid" "WLAN SSID" %>
 <% field_text "network_wlan_pass" "WLAN Password" %>
 <% field_switch "network_dhcp" "Use DHCP" %>
