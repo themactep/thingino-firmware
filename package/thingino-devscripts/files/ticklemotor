@@ -12,8 +12,8 @@ p3=$3
 p4=$4
 
 # timing and number of cycles
-DELAY=0.01
-CYCLES=64
+DELAY=1000
+CYCLES=128
 
 export_pin() {
 	echo "$1" > /sys/class/gpio/export
@@ -28,7 +28,7 @@ unexport_pin() {
 ripple() {
 	echo "0" > /sys/class/gpio/gpio$1/value
 	echo "1" > /sys/class/gpio/gpio$2/value
-	sleep $DELAY
+	usleep $DELAY
 }
 
 export_pin $p1
