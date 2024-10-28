@@ -5,6 +5,15 @@ define WIFI_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/network/interfaces.d
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/network/interfaces.d/ $(WIFI_PKGDIR)/files/wlan0
+
+	if [ "$(BR2_PACKAGE_THINGINO_KOPT_MMC1_PA_4BIT)" = "y" ]; then \
+		sed -i 's/set_gpio pb08 1 2/set_gpio pa08 3 2/' $(TARGET_DIR)/etc/init.d/S36wireless; \
+		sed -i 's/set_gpio pb09 1 1/set_gpio pa09 3 1/' $(TARGET_DIR)/etc/init.d/S36wireless; \
+		sed -i 's/set_gpio pb10 1 1/set_gpio pa10 3 1/' $(TARGET_DIR)/etc/init.d/S36wireless; \
+		sed -i 's/set_gpio pb11 1 1/set_gpio pa11 3 1/' $(TARGET_DIR)/etc/init.d/S36wireless; \
+		sed -i 's/set_gpio pb13 1 1/set_gpio pa16 3 1/' $(TARGET_DIR)/etc/init.d/S36wireless; \
+		sed -i 's/set_gpio pb14 1 1/set_gpio pa17 3 1/' $(TARGET_DIR)/etc/init.d/S36wireless; \
+	fi
 endef
 
 $(eval $(generic-package))
