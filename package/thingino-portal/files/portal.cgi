@@ -1,2 +1,5 @@
 #!/bin/sh
-echo -en "Status: 302 Moved Temporarily\r\nLocation: http://thingino.local/index.html\r\nContent-type: text/html; charset=UTF-8\r\n\r\n"
+echo "Status: 302 Moved Temporarily
+Content-type: text/html; charset=UTF-8
+Location: http://thingino.local/x/index.cgi
+"
