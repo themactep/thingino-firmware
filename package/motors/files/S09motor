@@ -75,7 +75,7 @@ start() {
 			hst1=$hst1 hst2=$hst2 hst3=$hst3 hst4=$hst4 \
 			$gpio_motor_invert_opt $direction_select_gpio"
 
-		[ -z "$gpio_motor_switch" ] && modprobe_args+=" vst1=$vst1 vst2=$vst2 vst3=$vst3 vst4=$vst4"
+		[ -z "$gpio_motor_switch" ] && modprobe_args="$modprobe_args vst1=$vst1 vst2=$vst2 vst3=$vst3 vst4=$vst4"
 
 		modprobe motor $modprobe_args || die "Failed to load motor module"
 
