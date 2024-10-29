@@ -1,5 +1,7 @@
 #!/bin/sh
 
+echo "Run as $0 $*"
+
 KERNEL_MAGIC="27051956"
 U_BOOT_MAGIC="06050403"
 ROOTFS_MAGIC="68737173"
@@ -79,7 +81,7 @@ handle_payload() {
 			check_free_space $1
 			download $1
 		else
-			mv $1 $fw_file
+			[ -f "$fw_file" ] || die "Cannot find $fw_file"
 		fi
 	else
 		say "Upgrading from GitHub"
@@ -111,7 +113,7 @@ handle_payload() {
 		sha256sum -c $sha_file || die "Checksum does not match!"
 
 		rm $sha_file
-		mv $bin_file $fw_file
+		mv -v "$bin_file" "$fw_file" || die "Cannot move $bin_file to $fw_file"
 	fi
 }
 
@@ -193,6 +195,12 @@ while getopts "bfhpx" flag; do
 done
 shift "$((OPTIND - 1))"
 
+# work in $workdir
+if [ ! -d $workdir ]; then
+	say "Creating $workdir directory"
+	mkdir -p $workdir || die "Cannot create $workdir directory"
+fi
+
 if [ -z "$upgrade" ]; then
 	[ -z "$1" ] && show_help
 
@@ -202,15 +210,17 @@ if [ -z "$upgrade" ]; then
 		url="$1"
 	else
 		say "Upgrade from a local file"
-		[ -r "$1" ] || die "Cannot find file $1 (from $(pwd))"
-		mv "$1" "$workdir"
+		if [ -f "$fw_file" ]; then
+			say "Found $fw_file"
+		else
+			ufile="$(realpath "$1")"
+			[ -r "$ufile" ] || die "Cannot find file $ufile (from $(pwd))"
+			say "Found $ufile"
+			mv -v "$ufile" "$fw_file"
+		fi
 	fi
 fi
 
-# work in $workdir
-if [ ! -d $workdir ]; then
-	mkdir -p $workdir || die "Cannot create $workdir directory"
-fi
 cd $workdir || die "Cannot change directory to $workdir"
 
 if [ "$(dirname $self)" != "$workdir" ]; then
