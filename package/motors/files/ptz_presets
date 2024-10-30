@@ -1,0 +1,63 @@
+#!/bin/sh
+PTZ_CONF_FILE="/etc/ptz_presets.conf"
+
+usage() {
+	echo "Usage: $0 [-g] [-a <preset_number> <preset_name> <x_coord> <y_coord>] [-r <preset_number>]"
+	echo "  -g: Display all presets"
+	echo "  -a: Add a new preset with number, name, and coordinates"
+	echo "  -r: Remove a preset by number"
+	echo "  <preset_number>: Run the specified preset"
+	exit 1
+}
+
+[ $# -lt 1 ] && usage
+
+case "$1" in
+	-g)
+		while IFS='=,' read -r PNUM PNAME PX PY; do
+			[ "${PNUM#\#}" != "$PNUM" ] || echo "$PNUM=$PNAME,$PX,$PY"
+		done < "$PTZ_CONF_FILE"
+		exit 0
+		;;
+	-a)
+		[ $# -ne 5 ] && echo "Error: Missing arguments." && usage
+		PRESET_NUM=$2; PRESET_NAME=$3; PRESET_X=$4; PRESET_Y=$5
+		if grep -q "^$PRESET_NUM=" "$PTZ_CONF_FILE"; then
+			current_preset=$(grep "^$PRESET_NUM=" "$PTZ_CONF_FILE")
+			[ "$current_preset" != "$PRESET_NUM=,," ] && echo "Preset exists. Remove it first to overwrite." && exit 1
+			sed -i "/^$PRESET_NUM=,,/d" "$PTZ_CONF_FILE"
+		fi
+		echo "$PRESET_NUM=$PRESET_NAME,$PRESET_X,$PRESET_Y" >> "$PTZ_CONF_FILE"
+		echo "Preset $PRESET_NUM added."
+		exit 0
+		;;
+	-r)
+		[ $# -ne 2 ] && echo "Error: Missing preset number." && usage
+		PRESET_NUM=$2
+		if grep -q "^$PRESET_NUM=" "$PTZ_CONF_FILE"; then
+			sed -i "s/^$PRESET_NUM=.*/$PRESET_NUM=,,/" "$PTZ_CONF_FILE"
+			echo "Preset $PRESET_NUM removed."
+		else
+			echo "Preset $PRESET_NUM not found."
+		fi
+		exit 0
+		;;
+	*)
+		PRESET_NUM=$1
+		while IFS='=,' read -r PNUM PNAME PX PY; do
+			[ "${PNUM#\#}" != "$PNUM" ] && continue
+			if [ "$PNUM" = "$PRESET_NUM" ]; then
+				if [ -n "$PX" ] && [ -n "$PY" ]; then
+					logger -t ptz_presets "Running: motors -d h -x $PX -y $PY"
+					motors -d h -x "$PX" -y "$PY"
+					exit 0
+				else
+					echo "Invalid preset or missing coordinates for $PRESET_NUM."
+					exit 1
+				fi
+			fi
+		done < "$PTZ_CONF_FILE"
+		echo "Preset $PRESET_NUM not found."
+		exit 1
+		;;
+esac
