@@ -73,9 +73,14 @@ esac
 
 # list all GPIO-PWM mappings
 list_gpios() {
-	echo "$pwm_table" | grep -v '^\s*$' | while read gpio pwm func pin; do
-		echo "GPIO $gpio = $pwm ($pin)"
-	done
+    SOC_MODEL=$(soc -m)
+    echo "$pwm_table" | grep -v '^\s*$' | while read -r gpio pwm func pin; do
+        pin_name=$(echo "$pin" | awk '{print $NF}')
+                if [ "$SOC_MODEL" != "t31a" ] && [[ "$pin_name" == PC* ]]; then
+            continue
+        fi
+        echo "GPIO $gpio = $pwm ($pin)"
+    done
 }
 
 # find PWM and FUNC based on GPIO input
