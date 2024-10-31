@@ -5,6 +5,11 @@
 wlandev=$(get wlandev)
 [ -z "$wlandev" ] && die "wlandev is empty, exit."
 
+SSV_CMD_FILE="/proc/ssv/phy0/ssv_cmd"
+ATBM_CMD_FILE=$(find /sys/module/atbm*/atbmfs -name atbm_cmd 2>/dev/null)
+
+entry_command=$(basename "$0")
+
 show_help() {
 	echo "Usage: $0 <command>
 Where command:
@@ -12,7 +17,31 @@ Where command:
   info        Display connection details
   temp        Display module temperature details
   rssi        Display signal details
+  cli         CLI interface on supported modules
 "
+}
+
+cli() {
+	case "$wlandev" in
+		ssv*) CMD_FILE="$SSV_CMD_FILE" ;;
+		atbm*) CMD_FILE="$ATBM_CMD_FILE" ;;
+		*) echo "Error: CLI Unsupported on current wireless device."; exit 1 ;;
+	esac
+
+	if [ -z "$1" ]; then
+		echo "Usage: $entry_command cli <command>"
+		echo "Send a command to the wireless device CLI interface."
+		echo "Example: $entry_command cli <your_command>"
+		exit 0
+	fi
+
+	if [ -f "$CMD_FILE" ]; then
+		echo "$*" > "$CMD_FILE"
+		cat "$CMD_FILE"
+	else
+		echo "Error: Command file not found for $wlandev."
+		exit 1
+	fi
 }
 
 rssi() {
@@ -23,8 +52,8 @@ rssi() {
 
 	case "$wlandev" in
 		ssv*)
-			echo "rf rssi" > /proc/ssv/phy0/ssv_cmd
-			cat /proc/ssv/phy0/ssv_cmd | sed -n 's/.*ofdm RSSI \(-[0-9]*\).*/\1/p'
+			echo "rf rssi" > $SSV_CMD_FILE
+			cat $SSV_CMD_FILE | sed -n 's/.*ofdm RSSI \(-[0-9]*\).*/\1/p'
 			;;
 		atbm*)
 			iwpriv wlan0 common get_rssi | sed -n 's/.*rssi=\(-[0-9]*\).*/\1/p'
@@ -52,7 +81,7 @@ show_info() {
 	case "$wlandev" in
 		atbm*) iwpriv wlan0 common get_ap_info ;;
 		rtl*) iwconfig wlan0 ;;
-		*) echo "Not supperted on $wlandev" ;;
+		*) echo "Not supported on $wlandev" ;;
 	esac
 }
 
@@ -80,42 +109,46 @@ temp() {
 
 	case "$wlandev" in
 		ssv*)
-				echo "SSV not supported yet."
-				;;
+			echo "SSV not supported yet."
+			;;
 		atbm*)
-				iwpriv wlan0 common get_tjroom | sed -n 's/.*stempC:\([0-9]*\).*/\1/p'
-				;;
+			iwpriv wlan0 common get_tjroom | sed -n 's/.*stempC:\([0-9]*\).*/\1/p'
+			;;
 		818*)
-				echo "Realtek not supported yet."
-				;;
+			echo "Realtek not supported yet."
+			;;
 		bcm*|syn*)
-				echo "Broadcom not supported yet."
-				;;
+			echo "Broadcom not supported yet."
+			;;
 		aic*)
-				echo "AICSemi not supported yet."
-				;;
+			echo "AICSemi not supported yet."
+			;;
 		hi*)
-				echo "HiSilicon not supported yet."
-				;;
+			echo "HiSilicon not supported yet."
+			;;
 		*)
-				echo "Unknown wireless device type."
-				;;
+			echo "Unknown wireless device type."
+			;;
 	esac
 }
 
-case "$(basename $0)" in
+case "$entry_command" in
+	wlancli) cli "$@" ;;
 	wlaninfo) exec wlan info ;;
 	wlansetup) exec wlan setup ;;
 	wlantemp) exec wlan temp ;;
 	wlanrssi) exec wlan rssi ;;
-esac
-
-case "$1" in
-	setup) setup ;;
-	info) show_info ;;
-	temp) temp ;;
-	rssi) rssi ;;
-	*) show_help ;;
+	*)
+		# main case selection for wlan command if no specific entry_command match
+		case "$1" in
+			setup) setup ;;
+			info) show_info ;;
+			temp) temp ;;
+			rssi) rssi ;;
+			cli) shift; cli "$@" ;;
+			*) show_help ;;  # inly show help if no valid command is provided
+		esac
+		;;
 esac
 
 exit 0
