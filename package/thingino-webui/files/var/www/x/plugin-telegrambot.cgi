@@ -113,7 +113,7 @@ const default_commands = [
 	{command:'start',script:'echo "Hello"',description:'Start conversation'},
 	{command:'help',script:'echo "Try https://thingino.com/"',description:'Request help'},
 	{command:'info',script:'cat /etc/os-release',description:'Information about system'},
-	{commans:'diag',script:'thingino-diag',description:'Gather diagnostic information'},
+	{command:'diag',script:'thingino-diag',description:'Gather diagnostic information'},
 	{command:'snap',script:'send2telegram -i -c $chat_id',description:'Take a snapshot'},
 	{command:'yadisk',script:'send2yadisk && send2telegram -m "Sent to Yandex Disk" -c $chat_id',description:'Send snapshot to Yandex Disk'},
 ]
