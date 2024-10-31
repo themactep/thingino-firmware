@@ -9,7 +9,7 @@ params="enabled host port client_id username password topic message send_snap sn
 [ -f /usr/bin/mosquitto_pub ] || redirect_to "/" "danger" "MQTT client is not a part of your firmware."
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
@@ -54,8 +54,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	redirect_to $SCRIPT_NAME
 else
-	include $config_file
-
 	# Default values
 	[ -z "$mqtt_client_id" ] && mqtt_client_id="${network_macaddr//:/}"
 	[ -z "$mqtt_port" ] && mqtt_port="1883"

@@ -7,7 +7,7 @@ page_title="Send to Telegram"
 params="enabled token as_attachment as_photo channel caption socks5_enabled"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
@@ -32,8 +32,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	redirect_to $SCRIPT_NAME
 else
-	include $config_file
-
 	# Default values
 	[ -z "$telegram_caption" ] && telegram_caption="%hostname, %datetime"
 fi

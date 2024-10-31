@@ -581,6 +581,7 @@ read_from_post() {
 }
 
 include() {
+	[ -f "$1" ] || touch $1
 	[ -f "$1" ] && . "$1"
 }
 

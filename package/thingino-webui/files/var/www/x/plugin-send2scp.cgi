@@ -9,7 +9,7 @@ params="enabled host port user path template command"
 SCP_KEY="/root/.ssh/id_dropbear"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
@@ -33,8 +33,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	redirect_to $SCRIPT_NAME
 else
-	include $config_file
-
 	# Default values
 	[ -z "$scp_port" ] && scp_port="22"
 	[ -z "$scp_user" ] && scp_user="root"

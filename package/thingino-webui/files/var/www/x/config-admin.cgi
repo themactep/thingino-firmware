@@ -6,7 +6,7 @@ page_title="Admin profile"
 params="name email telegram discord"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
@@ -32,8 +32,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		update_caminfo
 		redirect_back "success" "Admin profile updated."
 	fi
-else
-	include $config_file
 fi
 %>
 <%in _header.cgi %>

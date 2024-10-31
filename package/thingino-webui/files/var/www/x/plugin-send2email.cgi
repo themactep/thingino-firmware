@@ -7,7 +7,7 @@ page_title="Send to email"
 params="enabled attach_snapshot from_name from_address insecure_ssl to_name to_address subject body smtp_host smtp_port smtp_username smtp_password smtp_use_ssl socks5_enabled"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
@@ -38,8 +38,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	redirect_to $SCRIPT_NAME
 else
-	include $config_file
-
 	# Default values
 	[ -z "$email_insecure_ssl" ] && email_insecure_ssl="false"
 	[ -z "$email_attach_snapshot" ] && email_attach_snapshot="true"

@@ -7,7 +7,7 @@ page_title="Send to Webhook"
 params="enabled attach_snapshot url socks5_enabled"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
@@ -30,8 +30,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	redirect_to $SCRIPT_NAME
 else
-	include $config_file
-
 	[ -z "$webhook_attach_snapshot" ] && webhook_attach_snapshot="true"
 fi
 %>

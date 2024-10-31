@@ -10,7 +10,6 @@ MOUNTS=$(awk '/nfs|fat/{print $2}' /etc/mtab)
 RECORD_CTL="/etc/init.d/S96record"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
 include $config_file
 
 # defaults

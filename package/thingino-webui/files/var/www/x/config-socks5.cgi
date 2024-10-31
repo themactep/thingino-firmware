@@ -6,7 +6,7 @@ page_title="SOCKS5 proxy"
 params="enabled host port username password"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	tmp_file=$(mktemp)
@@ -16,8 +16,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	mv $tmp_file $config_file
 	redirect_to $SCRIPT_NAME
 fi
-
-include $config_file
 %>
 
 <%in _header.cgi %>

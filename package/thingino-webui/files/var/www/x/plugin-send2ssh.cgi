@@ -7,7 +7,7 @@ page_title="Send to SSH"
 params="enabled host username port command"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
@@ -30,8 +30,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	redirect_to $SCRIPT_NAME
 else
-	include $config_file
-
 	# Default values
 	[ -z "$ssh_port" ] && ssh_port="22"
 	[ -z "$ssh_username" ] && ssh_username="root"

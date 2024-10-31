@@ -6,7 +6,7 @@ plugin_name="User interface settings"
 page_title="Web Interface Settings"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	case "$POST_action" in

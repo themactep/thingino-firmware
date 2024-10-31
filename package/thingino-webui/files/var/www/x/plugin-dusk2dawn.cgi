@@ -7,7 +7,7 @@ page_title="Dusk to Dawn"
 params="enabled lat lng runat offset_sr offset_ss"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
@@ -36,8 +36,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	redirect_to $SCRIPT_NAME
 else
-	include $config_file
-
 	# Default values
 	[ -z "$dusk2dawn_enabled" ] && dusk2dawn_enabled=false
 	[ -z "$dusk2dawn_runat" ] && dusk2dawn_runat="0:00"

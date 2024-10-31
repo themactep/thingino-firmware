@@ -7,7 +7,7 @@ page_title="Send to Yandex Disk"
 params="enabled username password path socks5_enabled"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
@@ -31,8 +31,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	fi
 
 	redirect_to $SCRIPT_NAME
-else
-	include $config_file
 fi
 %>
 <%in _header.cgi %>

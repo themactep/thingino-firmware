@@ -7,7 +7,6 @@ page_title="Motion guard"
 params="send2email send2ftp send2mqtt send2telegram send2webhook send2yadisk"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
 include $config_file
 %>
 <%in _header.cgi %>
@@ -30,7 +29,7 @@ include $config_file
 </ul>
 </div>
 <div class="col col-12 col-xl-4">
-<% [ -f $config_file ] && ex "cat $config_file" %>
+<% ex "cat $config_file" %>
 </div>
 </div>
 <script>

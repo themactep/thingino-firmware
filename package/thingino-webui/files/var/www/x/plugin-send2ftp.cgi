@@ -7,7 +7,7 @@ page_title="Send to FTP"
 params="enabled host user password path port socks5_enabled template"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
@@ -34,8 +34,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	redirect_to $SCRIPT_NAME
 else
-	include $config_file
-
 	# Default values
 	[ -z "$ftp_port" ] && ftp_port="21"
 	[ -z "$ftp_user" ] && ftp_user="anonymous" && ftp_password="anonymous"
