@@ -58,7 +58,7 @@ rssi() {
 		atbm*)
 			iwpriv wlan0 common get_rssi | sed -n 's/.*rssi=\(-[0-9]*\).*/\1/p'
 			;;
-		818*)
+		rtl*|818*|87*|88*)
 			iwconfig wlan0 | sed -n 's/.*Signal level=\([0-9]*\)\/100.*/-\1/p'
 			;;
 		bcm*|syn*)
@@ -80,7 +80,7 @@ rssi() {
 show_info() {
 	case "$wlandev" in
 		atbm*) iwpriv wlan0 common get_ap_info ;;
-		rtl*) iwconfig wlan0 ;;
+		rtl*|818*|87*|88*) iwconfig wlan0 ;;
 		*) echo "Not supported on $wlandev" ;;
 	esac
 }
@@ -114,7 +114,7 @@ temp() {
 		atbm*)
 			iwpriv wlan0 common get_tjroom | sed -n 's/.*stempC:\([0-9]*\).*/\1/p'
 			;;
-		818*)
+		rtl*|818*|87*|88*)
 			echo "Realtek not supported yet."
 			;;
 		bcm*|syn*)
