@@ -9,6 +9,6 @@ Date: $date
 Expires: $date
 Connection: close
 "
-echo saveraw 1 > /proc/jz/isp/isp-w02 > /proc/jz/isp
-cat $preview
-rm $preview
+echo saveraw 1 > /proc/jz/isp/isp-w02
+cat $preview && rm $preview
+exit 0
