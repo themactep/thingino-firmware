@@ -40,17 +40,25 @@ esac
 pin=${pin:0:(-1)}
 
 case "$mode" in
-	on | 1)
-		gpio set $pin $pin_on > /dev/null
-		;;
-	off | 0)
+	0 | off)
+		echo "gpio set $pin $pin_off > /dev/null" >&2
 		gpio set $pin $pin_off > /dev/null
 		;;
-	? | read | status)
-		gpio value $pin
+	1 | on)
+		echo "gpio set $pin $pin_on > /dev/null" >&2
+		gpio set $pin $pin_on > /dev/null
 		;;
 	~ | toggle)
+		echo "gpio toggle $pin > /dev/null" >&2
 		gpio toggle $pin > /dev/null
+		;;
+	status)
+		echo "gpio value $pin" >&2
+		gpio value $pin
+		;;
+	\? | read)
+		echo "gpio value $pin | tr -d '\n'" >&2
+		gpio value $pin | tr -d '\n'
 		;;
 	*)
 		echo -e "Unknown mode" >&2

@@ -46,15 +46,9 @@ MODE_FILE=/tmp/ircutmode.txt
 
 report_ir_filter() {
 	case "$(cat $MODE_FILE 2> /dev/null)" in
-		0)
-			echo "IRCUT filter is removed"
-			;;
-		1)
-			echo "IRCUT filter is set"
-			;;
-		*)
-			echo "IRCUT filter is in unknown state"
-			;;
+		0) echo "IRCUT filter is removed" >&2 ;;
+		1) echo "IRCUT filter is set" >&2 ;;
+		*) echo "IRCUT filter is in unknown state" >&2 ;;
 	esac
 }
 
@@ -95,8 +89,11 @@ case "$1" in
 		fi
 		report_ir_filter
 		;;
-	? | status)
+	status)
 		report_ir_filter
+		;;
+	\? | read)
+		cat $MODE_FILE | tr -d '\n'
 		;;
 	*)
 		echo -e "Usage: $0 [on|off|toggle|status]" >&2

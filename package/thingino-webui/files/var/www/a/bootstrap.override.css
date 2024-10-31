@@ -189,6 +189,10 @@ pre#output[data-cmd] {
 	color: lightgray;
 }
 
+.icon.off {
+	filter: grayscale(1) contrast(100) brightness(1)
+}
+
 .blink {
 	color: red;
 	animation: blinker 4s step-end infinite;

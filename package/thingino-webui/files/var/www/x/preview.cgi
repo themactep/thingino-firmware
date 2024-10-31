@@ -8,25 +8,40 @@ which motors > /dev/null && has_motors="true"
 <%in _header.cgi %>
 
 <div class="row preview">
-<div class="col-lg-1" style="width:4em">
+<div class="col-lg-1" style="width:5em">
+<div class="d-flex flex-nowrap flex-lg-wrap align-content-around" aria-label="controls">
 
-<div class="d-flex flex-nowrap flex-lg-wrap align-content-around" aria-label="Day/Night controls">
-<input type="checkbox" class="btn-check imp" name="daynight" id="daynight" value="1">
-<label class="btn btn-dark border mb-2" for="daynight" title="Night mode"><%= $icon_moon %></label>
-<input type="checkbox" class="btn-check" name="ispmode" id="ispmode" value="1">
-<label class="btn btn-dark border mb-2" for="ispmode" title="Color mode"><%= $icon_color %></label>
-<input type="checkbox" class="btn-check imp" name="ircut" id="ircut" value="1"<% checked_if $ircut 1 %><% get gpio_ircut >/dev/null || echo " disabled" %>>
-<label class="btn btn-dark border mb-2" for="ircut" title="IR filter"><%= $icon_ircut %></label>
-<input type="checkbox" class="btn-check imp" name="ir850" id="ir850" value="1"<% checked_if $ir850 1 %><% get gpio_ir850 >/dev/null || echo " disabled" %>>
-<label class="btn btn-dark border mb-2" for="ir850" title="IR LED 850 nm"><%= $icon_ir850 %></label>
-<input type="checkbox" class="btn-check imp" name="ir940" id="ir940" value="1"<% checked_if $ir940 1 %><% get gpio_ir940 >/dev/null || echo " disabled" %>>
-<label class="btn btn-dark border mb-2" for="ir940" title="IR LED 940 nm"><%= $icon_ir940 %></label>
-<input type="checkbox" class="btn-check imp" name="white" id="white" value="1"<% checked_if $white 1 %><% get gpio_white >/dev/null || echo " disabled" %>>
-<label class="btn btn-dark border mb-2 imp" for="white" title="White LED"><%= $icon_white %></label>
+<input type="checkbox" class="btn-check" name="motionguard" id="motionguard" value="1">
+<label class="btn btn-dark border mb-2" for="motionguard" title="Motion Guard"><img src="/a/motion.svg" alt="Motion Guard" class="img-fluid"></label>
+
 <input type="checkbox" class="btn-check" name="vflip" id="vflip" value="1">
-<label class="btn btn-dark border mb-2" for="vflip" title="Flip vertically"><%= $icon_flip %></label>
+<label class="btn btn-dark border mb-2" for="vflip" title="Flip vertically"><img src="/a/flip_v.svg" alt="Flip vertically" class="img-fluid"></label>
+
 <input type="checkbox" class="btn-check" name="hflip" id="hflip" value="1">
-<label class="btn btn-dark border mb-2" for="hflip" title="Flip horizontally"><%= $icon_flop %></label>
+<label class="btn btn-dark border mb-2" for="hflip" title="Flip horizontally"><img src="/a/flip_h.svg" alt="Flip horizontally" class="img-fluid"></label>
+
+<input type="checkbox" class="btn-check imp" name="daynight" id="daynight" value="1">
+<label class="btn btn-dark border mb-2" for="daynight" title="Night mode"><img src="/a/day_night_mode.svg" alt="Day/Night Mode" class="img-fluid"></label>
+
+<input type="checkbox" class="btn-check" name="ispmode" id="ispmode" value="1"<% checked_if $(color ?) "day" %>>
+<label class="btn btn-dark border mb-2" for="ispmode" title="Color mode"><img src="/a/color_mode.svg" alt="Color mode" class="img-fluid"></label>
+
+<% if get gpio_ircut >/dev/null; then %>
+<input type="checkbox" class="btn-check imp" name="ircut" id="ircut" value="1"<% checked_if $(ircut ?) 1 %>>
+<label class="btn btn-dark border mb-2" for="ircut" title="IR filter"><img src="/a/ircut_filter.svg" alt="IR filter" class="img-fluid"></label>
+<% fi %>
+<% if get gpio_ir850 >/dev/null; then %>
+<input type="checkbox" class="btn-check imp" name="ir850" id="ir850" value="1"<% checked_if $(irled ? ir850) 1 %>>
+<label class="btn btn-dark border mb-2" for="ir850" title="IR LED 850 nm"><img src="/a/light_850nm.svg" alt="850nm LED" class="img-fluid"></label>
+<% fi %>
+<% if get gpio_ir940 >/dev/null; then %>
+<input type="checkbox" class="btn-check imp" name="ir940" id="ir940" value="1"<% checked_if $(irled ? ir940) 1 %>>
+<label class="btn btn-dark border mb-2" for="ir940" title="IR LED 940 nm"><img src="/a/light_940nm.svg" alt="940nm LED" class="img-fluid"></label>
+<% fi %>
+<% if get gpio_white >/dev/null; then %>
+<input type="checkbox" class="btn-check imp" name="white" id="white" value="1"<% checked_if $(irled ? white) 1 %>>
+<label class="btn btn-dark border mb-2 imp" for="white" title="White LED"><img src="/a/light_white.svg" alt="White light" class="img-fluid"></label>
+<% fi %>
 </div>
 </div>
 <div class="col-lg-9 mb-3">
@@ -35,7 +50,8 @@ which motors > /dev/null && has_motors="true"
 <% if [ "true" = "$has_motors" ]; then %><%in _motors.cgi %><% fi %>
 </div>
 <% if [ "true" = "$has_motors" ]; then %>
-<p class="small">Move mouse cursor over the center of the preview image to reveal the motor controls. Use a single click for precise positioning, double click for coarse, larger distance movement.</p>
+<p class="small">Move mouse cursor over the center of the preview image to reveal the motor controls.
+Use a single click for precise positioning, double click for coarse, larger distance movement.</p>
 <% fi %>
 <p class="small"><span id="playrtsp"></span></p>
 </div>
@@ -92,6 +108,8 @@ $$("button[data-sendto]").forEach(el => {
 	}
 });
 
+const preview = $("#preview");
+preview.onload = function() { URL.revokeObjectURL(this.src) }
 function updatePreview(data) {
 	const blob = new Blob([data], {type: 'image/jpeg'});
 	const url = URL.createObjectURL(blob);
@@ -99,31 +117,35 @@ function updatePreview(data) {
 	ws.send('{"action":{"capture":null}}');
 }
 
-const preview = $("#preview");
-preview.onload = function() { URL.revokeObjectURL(this.src) }
-
 let ws = new WebSocket(`ws://${document.location.hostname}:8089?token=<%= $ws_token %>`);
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
 	ws.binaryType = 'arraybuffer';
-	const payload = '{"image":{"hflip":null,"vflip":null,"running_mode":null},'+
+	const payload = '{'+
+		'"image":{"hflip":null,"vflip":null,"running_mode":null},'+
+		'"motion":{"enabled":null},'+
 		'"rtsp":{"username":null,"password":null,"port":null},'+
 		'"stream0":{"rtsp_endpoint":null},'+
-		'"action":{"capture":null}}'
+		'"action":{"capture":null}'+
+		'}'
+	console.log(ts(), '===>', payload);
 	ws.send(payload);
 }
 ws.onclose = () => { console.log('WebSocket connection closed'); }
 ws.onerror = (err) => { console.error('WebSocket error', err); }
 ws.onmessage = (ev) => {
-	if (typeof ev.data === 'string') {
+	if (typeof ev.data == 'string') {
 		if (ev.data == '') return;
-		const msg = JSON.parse(ev.data);
-		if (msg.action && msg.action.capture == 'initiated') return;
+		if (ev.data == '{"action":{"capture":"initiated"}}') return;
 		console.log(ts(), '<===', ev.data);
+		const msg = JSON.parse(ev.data);
 		if (msg.image) {
 			if (msg.image.hflip) $('#hflip').checked = msg.image.hflip;
 			if (msg.image.vflip) $('#vflip').checked = msg.image.vflip;
 			if (msg.image.running_mode) $('#ispmode').checked = (msg.image.running_mode == 0);
+		}
+		if (msg.motion) {
+			if (msg.motion.enabled) $('#motionguard').checked = msg.motion.enabled;
 		}
 		if (msg.rtsp) {
 			const r = msg.rtsp;
@@ -149,7 +171,7 @@ $$('#hflip, #vflip').forEach(el => {
 });
 
 // not .onchange because we need to catch the event here
-$('#ispmode').addEventListener('change', ev => {
+$('#ispmode').addEventListener('change', (ev) => {
 	const m = ev.target.checked ? '0' : '1'
 	sendToWs(`{"image":{"running_mode":${m}}}`)
 }, true);
@@ -159,15 +181,23 @@ $("#daynight").onchange = (ev) => {
 	if (ev.target.checked) {
 		$("#ispmode").checked = false;
 		$("#ircut").checked = false;
-		leds.forEach(n => $(`#${n}`).checked = true);
+		leds.forEach((n) => {
+			if ($(`#${n}`)) $(`#${n}`).checked = true
+		});
 		mode = "night";
 	} else {
 		$("#ispmode").checked = true;
 		$("#ircut").checked = true;
-		leds.forEach(n => $(`#${n}`).checked = false);
+		leds.forEach((n) => {
+			if ($(`#${n}`)) $(`#${n}`).checked = false
+		});
 		mode = "day";
 	}
 }
+
+$("#motionguard").addEventListener('change', (ev) => {
+	sendToWs(`{"motion":{"enabled":${ev.target.checked}}}`);
+});
 </script>
 
 <%in _footer.cgi %>

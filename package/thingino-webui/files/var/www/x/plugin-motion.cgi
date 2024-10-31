@@ -12,24 +12,24 @@ include $config_file
 <%in _header.cgi %>
 
 <% field_switch "motion_enabled" "Enable motion guard" %>
-<div class="row g-4 mb-4">
-<div class="col col-12 col-xl-4">
+<div class="row">
+<div class="col">
+<p>A motion event triggers the <code>/sbin/motion</code> script, which in turn sends alerts through the selected and preconfigured notification methods.</p>
+<p>You must configure at least one notification method for the motion monitor to work.</p>
+</div>
+<div class="col">
+<% field_checkbox "motion_send2email" "Send to email" "<a href=\"plugin-send2email.cgi\">Configure sending to email</a>" %>
+<% field_checkbox "motion_send2telegram" "Send to Telegram" "<a href=\"plugin-send2telegram.cgi\">Configure sending to Telegram</a>" %>
+<% field_checkbox "motion_send2mqtt" "Send to MQTT" "<a href=\"plugin-send2mqtt.cgi\">Configure sending to MQTT</a>" %>
+</div>
+<div class="col">
+<% field_checkbox "motion_send2webhook" "Send to webhook" "<a href=\"plugin-send2webhook.cgi\">Configure sending to a webhook</a>" %>
+<% field_checkbox "motion_send2ftp" "Upload to FTP" "<a href=\"plugin-send2ftp.cgi\">Configure uploading to FTP</a>" %>
+<% field_checkbox "motion_send2yadisk" "Upload to Yandex Disk" "<a href=\"plugin-send2yadisk.cgi\">Configure sending to Yandex Disk</a>" %>
+</div>
+<div class="col">
 <% field_range "motion_sensitivity" "Sensitivity" "1,8,1" %>
 <% field_range "motion_cooldown_time" "Delay between alerts, sec." "5,30,1" %>
-</div>
-<div class="col col-12 col-xl-4">
-<h3>Actions</h3>
-<ul class="list-group mb-3">
-<li class="list-group-item"><% field_checkbox "motion_send2email" "Send to email" "<a href=\"plugin-send2email.cgi\">Configure sending to email</a>" %></li>
-<li class="list-group-item"><% field_checkbox "motion_send2ftp" "Upload to FTP" "<a href=\"plugin-send2ftp.cgi\">Configure uploading to FTP</a>" %></li>
-<li class="list-group-item"><% field_checkbox "motion_send2mqtt" "Send to MQTT" "<a href=\"plugin-send2mqtt.cgi\">Configure sending to MQTT</a>" %></li>
-<li class="list-group-item"><% field_checkbox "motion_send2telegram" "Send to Telegram" "<a href=\"plugin-send2telegram.cgi\">Configure sending to Telegram</a>" %></li>
-<li class="list-group-item"><% field_checkbox "motion_send2webhook" "Send to webhook" "<a href=\"plugin-send2webhook.cgi\">Configure sending to a webhook</a>" %></li>
-<li class="list-group-item"><% field_checkbox "motion_send2yadisk" "Upload to Yandex Disk" "<a href=\"plugin-send2yadisk.cgi\">Configure sending to Yandex Disk</a>" %></li>
-</ul>
-</div>
-<div class="col col-12 col-xl-4">
-<% ex "cat $config_file" %>
 </div>
 </div>
 <script>
