@@ -5,6 +5,7 @@ define WIFI_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/sbin/
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/sbin $(WIFI_PKGDIR)/files/wlan
+	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/sbin $(WIFI_PKGDIR)/files/wlancli
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/sbin $(WIFI_PKGDIR)/files/wlanrssi
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/sbin $(WIFI_PKGDIR)/files/wlantemp
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/sbin $(WIFI_PKGDIR)/files/wlaninfo
