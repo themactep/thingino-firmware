@@ -9,16 +9,16 @@ STOP_FILE=/tmp/daynight.stop
 MODE_FILE=/tmp/nightmode.txt
 
 switch_to_day() {
-	color on
-	irled off
 	ircut on
+	irled off
+	color on
 	echo "day" > $MODE_FILE
 }
 
 switch_to_night() {
 	color off
-	irled on
 	ircut off
+	irled on
 	echo "night" > $MODE_FILE
 }
 
