@@ -25,7 +25,7 @@ cli() {
 	case "$wlandev" in
 		ssv*) CMD_FILE="$SSV_CMD_FILE" ;;
 		atbm*) CMD_FILE="$ATBM_CMD_FILE" ;;
-		*) echo "Error: CLI Unsupported on current wireless device."; exit 1 ;;
+		*) echo "Error: CLI Unsupported on $wlandev."; exit 1 ;;
 	esac
 
 	if [ -z "$1" ]; then
@@ -58,8 +58,8 @@ rssi() {
 		atbm*)
 			iwpriv wlan0 common get_rssi | sed -n 's/.*rssi=\(-[0-9]*\).*/\1/p'
 			;;
-		rtl*|818*|87*|88*)
-			iwconfig wlan0 | sed -n 's/.*Signal level=\([0-9]*\)\/100.*/-\1/p'
+		mt7*|rtl*|818*|87*|88*)
+			iwconfig wlan0 | sed -n 's/.*Signal level[=:] *\(-\?[0-9]\+\) *dBm.*/\1/p; s/.*Signal level[=:] *\([0-9]\+\)\/100.*/-\1/p'
 			;;
 		bcm*|syn*)
 			echo "Broadcom not supported yet."
@@ -80,7 +80,7 @@ rssi() {
 show_info() {
 	case "$wlandev" in
 		atbm*) iwpriv wlan0 common get_ap_info ;;
-		rtl*|818*|87*|88*) iwconfig wlan0 ;;
+		mt7*|rtl*|818*|87*|88*) iwconfig wlan0 ;;
 		*) echo "Not supported on $wlandev" ;;
 	esac
 }
@@ -125,6 +125,9 @@ temp() {
 			;;
 		hi*)
 			echo "HiSilicon not supported yet."
+			;;
+		mt7*)
+			echo "MediaTek not supported yet."
 			;;
 		*)
 			echo "Unknown wireless device type."
