@@ -86,6 +86,10 @@
 	height: auto;
 }
 
+.preview .btn {
+	min-width: 2.5rem;
+}
+
 .progress-bar {
 	background-color: gray;
 	cursor: pointer;
