@@ -57,21 +57,25 @@ fi
 %>
 <%in _header.cgi %>
 
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_switch "${plugin}_enabled" "Enable $plugin" %>
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+<div class="row g-4 mb-4">
 <div class="col">
 <% field_select "${plugin}_storage" "Storage directory" "$MOUNTS" %>
 <div class="row g-1">
 <div class="col-9"><% field_text "${plugin}_filename" "Filename template" "$STR_SUPPORTS_STRFTIME" %></div>
 <div class="col-3"><% field_text "${plugin}_interval" "Interval" "minutes" %></div>
 </div>
+
+<div class="alert alert-info">
+<p>Use the following command to combine separate still images in the storage directory into one video file:</p>
+<pre class="cb">ffmpeg -r 10 -f image2 -pattern_type glob -i '*.jpg' \
+	-vcodec libx264 -an timelapse.mp4</pre>
 </div>
-<div class="col">
-<% ex "crontab -l" %>
 </div>
 <div class="col">
 <% ex "cat $config_file" %>
+<% ex "crontab -l" %>
 </div>
 </div>
 <% button_submit %>
