@@ -1,6 +1,8 @@
 #!/bin/haserl
 <%in _common.cgi %>
-<% page_title="Device status" %>
+<%
+page_title="Device status"
+%>
 <%in _header.cgi %>
 
 <div class="row g-4 mb-4">
