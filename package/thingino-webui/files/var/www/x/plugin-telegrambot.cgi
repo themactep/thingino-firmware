@@ -52,7 +52,8 @@ fi
 <% field_switch "telegrambot_enabled" "Enable Telegram Bot" %>
 
 <div class="input-group mb-3">
-<input type="text" id="telegrambot_token" name="telegrambot_token" value="<%= $telegrambot_token %>" class="form-control" placeholder="Bot Token" aria-label="Your Telegram Bot authentication token.">
+<input type="text" id="telegrambot_token" name="telegrambot_token" value="<%= $telegrambot_token %>"
+ class="form-control" placeholder="Bot Token" aria-label="Your Telegram Bot authentication token.">
 <span class="input-group-text">
 <button type="button" class="btn" data-bs-toggle="modal" data-bs-target="#helpModal">Help</button>
 </span>
@@ -63,18 +64,20 @@ fi
 <% for i in $(seq 0 9); do %>
 <div class="row g-1 mb-3 mb-lg-1">
 <div class="col-4 col-lg-2">
-<input type="text" id="telegrambot_command_<%= $i %>" name="telegrambot_command_<%= $i %>" class="form-control" placeholder="Bot Command" value="<%= $(t_value "telegrambot_command_$i") %>">
+<input type="text" id="telegrambot_command_<%= $i %>" name="telegrambot_command_<%= $i %>" class="form-control"
+ placeholder="Bot Command" value="<%= $(t_value "telegrambot_command_$i") %>">
 </div>
 <div class="col-8 col-lg-3">
-<input type="text" id="telegrambot_description_<%= $i %>" name="telegrambot_description_<%= $i %>" class="form-control" placeholder="Command Description" value="<%= $(t_value "telegrambot_description_$i") %>">
+<input type="text" id="telegrambot_description_<%= $i %>" name="telegrambot_description_<%= $i %>" class="form-control"
+ placeholder="Command Description" value="<%= $(t_value "telegrambot_description_$i") %>">
 </div>
 <div class="col-lg-7">
-<input type="text" id="telegrambot_script_<%= $i %>" name="telegrambot_script_<%= $i %>" class="form-control" placeholder="Linux Command" value="<%= $(t_value "telegrambot_script_$i") %>">
+<input type="text" id="telegrambot_script_<%= $i %>" name="telegrambot_script_<%= $i %>" class="form-control"
+ placeholder="Linux Command" value="<%= $(t_value "telegrambot_script_$i") %>">
 </div>
 </div>
 <% done %>
 </div>
-<button type="button" class="btn btn-danger float-end" id="reset_commands">Reset commands</button>
 <% button_submit %>
 </form>
 </div>
@@ -107,27 +110,5 @@ fi
 </div>
 </div>
 </div>
-
-<script>
-const default_commands = [
-	{command:'start',script:'echo "Hello"',description:'Start conversation'},
-	{command:'help',script:'echo "Try https://thingino.com/"',description:'Request help'},
-	{command:'info',script:'cat /etc/os-release',description:'Information about system'},
-	{command:'diag',script:'thingino-diag',description:'Gather diagnostic information'},
-	{command:'snap',script:'send2telegram -i -c $chat_id',description:'Take a snapshot'},
-	{command:'yadisk',script:'send2yadisk && send2telegram -m "Sent to Yandex Disk" -c $chat_id',description:'Send snapshot to Yandex Disk'},
-]
-function resetBotCommands() {
-	$$('.bot-commands input[type=text]').forEach(e => e.value = '');
-	let i=0;
-	default_commands.forEach(c => {
-		$('#telegrambot_command_'+i).value = c.command;
-		$('#telegrambot_script_'+i).value = c.script;
-		$('#telegrambot_description_'+i).value = c.description;
-		i++;
-	});
-}
-$('#reset_commands').onclick = resetBotCommands;
-</script>
 
 <%in _footer.cgi %>
