@@ -12,7 +12,17 @@ snapshot=/tmp/snapshot.jpg
 [ -z "$timelapse_interval" ] && timelapse_interval=1
 
 target="$timelapse_storage/$(date +"$timelapse_filename")"
-mkdir -p "$(dirname "$target")"
+targetdir="$(dirname "$target")"
+mkdir -p "$(dirname "$targetdir")"
+[ -w "$targetdir" ] || die "Cannot write to $targetdir"
+
+converter="$targetdir/convert2video.sh"
+if [ ! -f "$converter" ]; then
+	echo "#/bin/sh
+ffmpeg -r 10 -f image2 -pattern_type glob -i '*.jpg' -vcodec libx264 -an timelapse.mp4
+" > "$converter"
+	chmod +x "$converter"
+fi
 
 [ -f "$snapshot" ] || die "Cannot find a snapshot"
 cp -v "$snapshot" "$target"
