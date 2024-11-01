@@ -1,0 +1,20 @@
+#!/bin/sh
+
+plugin="timelapse"
+
+. /sbin/common-plugins
+
+snapshot=/tmp/snapshot.jpg
+
+[ "false" = "$timelapse_enabled" ] && die "Timelapse is disabled."
+[ -z "$timelapse_storage" ] && die "Timelapse storage cannot be empty."
+[ -z "$timelapse_filename" ] && timelapse_filename="%Y%m%d%H%M.jpg"
+[ -z "$timelapse_interval" ] && timelapse_interval=1
+
+target="$timelapse_storage/$(date +"$timelapse_filename")"
+mkdir -p "$(dirname "$target")"
+
+[ -f "$snapshot" ] || die "Cannot find a snapshot"
+cp -v "$snapshot" "$target"
+
+exit 0
