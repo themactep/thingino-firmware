@@ -112,7 +112,7 @@ temp() {
 			echo "SSV not supported yet."
 			;;
 		atbm*)
-			iwpriv wlan0 common get_tjroom | sed -n 's/.*stempC:\([0-9]*\).*/\1/p'
+			iwpriv wlan0 common get_tjroom | sed -n 's/.*stempC:\(-\?[0-9]\+\).*/\1/p'
 			;;
 		rtl*|818*|87*|88*)
 			echo "Realtek not supported yet."
