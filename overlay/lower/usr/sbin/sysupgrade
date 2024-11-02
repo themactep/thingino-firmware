@@ -146,7 +146,7 @@ Where:
   <URL>   full or partial upgrade from a URL
   -x      do not update the script
   -h      this help"
-  	exit 0
+	exit 0
 }
 
 stop_services() {
