@@ -100,6 +100,7 @@ if [ "GET" = "$REQUEST_METHOD" ] && [ -n "$wlanssid" ] && [ -n "$wlanpass" ]; th
 elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then
 %>
 <p class="alert alert-warning text-center">Your MAC address is <% get "wlanmac" %></p>
+<p class="alert alert-warning text-center">For security, portal will automatically shutoff after 5 minutes. Power cycle camera to re-activate portal.</p>
 <form action="<%= $SCRIPT_NAME %>" method="post" class="my-3 needs-validation" novalidate style="max-width:26rem">
 <div class="mb-2">
 <label class="form-label">Wireless Network Name (SSID)</label>
