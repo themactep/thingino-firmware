@@ -33,7 +33,7 @@ page_title="Reset things"
 <p>Totally revert firmware to its original state. All custom settings and all files stored in the overlay partition will be lost!</p>
 <form action="firmware-reset.cgi" method="post">
 <input type="hidden" name="action" value="fullreset">
-<input type="hidden" name="cmd" value="<% echo "firstboot" | base64 %>">
+<input type="hidden" name="cmd" value="<% echo "firstboot -f" | base64 %>">
 <% button_submit "Reset firmware" "danger" %>
 </form>
 </div>

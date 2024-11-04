@@ -1,0 +1,6 @@
+#!/bin/sh
+ipaddress=$(ip r | sed -nE "/wlan0/s/.+src ([0-9\.]+).+?/\1/p" | uniq)
+curl -s https://thingino.com/sayip?ip=$ipaddress | gunzip | tar -x -C /tmp/
+echo "$ipaddress" | while read -n1 a; do audioplay /tmp/${a/\./dot}.pcm 60 30 >/dev/null; done
+rm /tmp/*.pcm
+exit 0
