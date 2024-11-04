@@ -1,0 +1,21 @@
+#!/bin/sh
+
+if [ -z "$1" ]; then
+	echo "Usage: $0 \"phrase to say\"
+Shortcuts:
+ %ip     Tell IP address
+ %time   Tell recent time
+"
+	exit 1
+fi
+
+case "$1" in
+	%ip)	phrase="IP address is $(ip r | sed -nE "/wlan0/s/.+src ([0-9\.]+).+?/\1/p" | uniq)" ;;
+	%time)	phrase=$(date) ;;
+	*)	phrase="$1" ;;
+esac
+
+curl --silent --get --url "https://thingino.com/say" \
+	--data-urlencode q="$phrase" | audioplay -s 60 30 > /dev/null
+
+exit 0
