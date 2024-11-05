@@ -18,7 +18,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	# defaults
 	[ -z "$timelapse_enabled"  ] && timelapse_enabled="false"
-	[ -z "$timelapse_filename" ] && timelapse_filename="%Y%m%d%H%M.jpg"
+	[ -z "$timelapse_filename" ] && timelapse_filename="%Y%m%dT%H%M.jpg"
 	[ -z "$timelapse_interval" ] && timelapse_interval=1
 
 	# normalize
