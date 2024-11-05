@@ -16,7 +16,7 @@ function main_menu() {
 			"cleanbuild" "Build everything from scratch" \
 			"distclean" "Remove all cached build files from current profile"  \
 			"make" "Generate firmware" \
-			"make fast" "Generate firmware ($(nproc) CPU Cores)" \
+			"make fast" "Generate firmware (use $(nproc) CPU Cores)" \
 			"upgrade_ota" "Upload the full firmware file to the camera over network, and flash it"  \
 			"update_ota" "Upload the update firmware file to the camera over network, and flash it"  \
 			3>&1 1>&2 2>&3)
