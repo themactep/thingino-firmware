@@ -19,15 +19,20 @@ done
 fetch_and_display_profiles() {
 	echo "Gestalt selector - Fetching available profiles:"
 	count=1
-	curl -m 10 -s -H "Accept: application/vnd.github+json" "$LIST_URL" | \
-		jsonfilter -e "@[*].name" | \
-		while read -r line; do
-			profile="${line#thingino-}"
-			profile="${profile%.bin}"
-			echo "  $count) $profile"
-			echo "$count:$profile" >> /tmp/gestalt_list.txt
-			count=$((count + 1))
-		done
+	profiles=$(curl -m 10 -s -H "Accept: application/vnd.github+json" "$LIST_URL" | jsonfilter -e "@[*].name" 2>/dev/null)
+
+	if [ -z "$profiles" ]; then
+		echo "Error: gestalt list empty. Please try again later or check your network connection."
+		exit 1
+	fi
+
+	echo "$profiles" | while read line; do
+		profile="${line#thingino-}"
+		profile="${profile%.bin}"
+		echo "  $count) $profile"
+		echo "$count:$profile" >> /tmp/gestalt_list.txt
+		count=$((count + 1))
+	done
 }
 
 trap 'rm -f /tmp/gestalt_list.txt; exit 0' INT
