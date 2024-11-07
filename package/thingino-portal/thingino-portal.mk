@@ -1,9 +1,9 @@
 define THINGINO_PORTAL_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(THINGINO_PORTAL_PKGDIR)/files/dnsd.conf
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(THINGINO_PORTAL_PKGDIR)/files/dnsd-portal.conf
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(THINGINO_PORTAL_PKGDIR)/files/httpd-portal.conf
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(THINGINO_PORTAL_PKGDIR)/files/udhcpd.conf
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(THINGINO_PORTAL_PKGDIR)/files/wpa_ap.conf
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(THINGINO_PORTAL_PKGDIR)/files/udhcpd-portal.conf
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(THINGINO_PORTAL_PKGDIR)/files/wpa-portal_ap.conf
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d/ $(THINGINO_PORTAL_PKGDIR)/files/S41portal
@@ -30,8 +30,8 @@ endef
 # MT7601u wifi driver needs a PSK for the portal AP to function
 ifeq ($(BR2_PACKAGE_WIFI_MT7601U),y)
 define MODIFY_INSTALL_CONFIGS
-	sed -i '/key_mgmt/s/NONE/WPA-PSK/' $(TARGET_DIR)/etc/wpa_ap.conf
-	sed -i '/network={/a\      psk="thingino"' $(TARGET_DIR)/etc/wpa_ap.conf
+	sed -i '/key_mgmt/s/NONE/WPA-PSK/' $(TARGET_DIR)/etc/wpa-portal_ap.conf
+	sed -i '/network={/a\      psk="thingino"' $(TARGET_DIR)/etc/wpa-portal_ap.conf
 endef
 endif
 
