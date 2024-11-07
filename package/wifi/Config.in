@@ -7,6 +7,7 @@ menuconfig BR2_PACKAGE_WIFI
 	select BR2_PACKAGE_WPA_SUPPLICANT_DEBUG_SYSLOG
 	select BR2_PACKAGE_WIRELESS_TOOLS_IWCONFIG
 	select BR2_PACKAGE_THINGINO_PORTAL
+	select BR2_PACKAGE_THINGINO_AP
 	help
 	  Thingino Wireless Packages
 	  include essentials for a wirless connection.

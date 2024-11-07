@@ -17,6 +17,7 @@ start() {
 	starting
 	ssid="$(get wlanssid)"
 	pass="$(get wlanpass)"
+	wlanap="$(get wlanap)"
 
 	# convert plain-text password no matter what
 	if [ -n "$pass" ] && [ ${#pass} -lt 64 ]; then
@@ -41,6 +42,8 @@ start() {
 		sed -i "s/psk=.*$/psk=${pass}/" $CONFIG
 		sed -i '/ssid/a \\tscan_ssid=1' $CONFIG
 	fi
+
+	[ "$wlanap" == "true" ] && quit "WLAN AP enabled"
 
 	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1 | log
 	check_result
