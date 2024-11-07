@@ -1,0 +1,19 @@
+disable_eth=false
+enable_updates=true
+gpio_button=62
+gpio_button_call=49
+gpio_default=25ID 26IDU 57o 58o
+gpio_ir850=50o
+gpio_ircut=53 52
+gpio_led_g=57O
+gpio_led_r=58O
+gpio_mmc_cd=59
+gpio_motor_h=6 7 8 9
+gpio_motor_v=11 17 16 14
+gpio_speaker=63O
+motor_maxstep_h=4200
+motor_maxstep_v=1600
+wlandev=ssv6155
+wlandevopts=stacfgpath=/usr/share/wifi/ssv6155-usb-40M.cfg
+osmem=80M@0x0
+rmem=48M@0x5000000
