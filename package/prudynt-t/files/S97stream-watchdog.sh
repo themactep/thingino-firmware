@@ -42,7 +42,7 @@ watch() {
 
 		if ! $SUCCESS; then
 			info "Stream Watchdog: Stream stream is down, restarting server..."
-			service prudynt restart
+			service restart prudynt
 
 			RESTART_COUNT=$((RESTART_COUNT+1))
 
