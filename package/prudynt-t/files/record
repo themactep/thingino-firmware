@@ -5,8 +5,8 @@
 RECORD_FLAG="/tmp/record.$$"
 
 get_free_space() {
-	available_space=$(df "$record_mount" | awk 'END{print $4}') # output in kiB
-	logger "available_space: $available_space"
+	available_space=$(df "$record_mount" | awk 'END{print $4}') # in KiB
+	echo "Space available: $available_space KiB"
 }
 
 read_config() {
@@ -14,45 +14,71 @@ read_config() {
 }
 
 has_files() {
-	[ -n "$(ls -1A "$1")" ]
+	[ "$(find "$1" -type f | wc -l)" -gt 0 ]
 }
 
-stream0_width=$(logcat | awk '/\[chn0\]:/{print $6}' | tail -1 | tr -d '\n')
-stream0_height=$(logcat | awk '/\[chn0\]:/{print $9}' | tail -1 | tr -d '\n')
-stream0_fps=$(logcat | awk -F'[=,]' '/i_fps_num/{print $2}' | tail -1 | tr -d '\n')
-rtsp_username=$(read_config username); [ -z "$rtsp_username" ] && rtsp_username="thingino"
-rtsp_password=$(read_config password); [ -z "$rtsp_password" ] && rtsp_password="thingino"
+show_help() {
+	echo "Usage: $0 [<params>]
+Where params are:
+  -u <string>  RTSP username
+  -p <string>  RTSP password
+  -h <int>     Frame height
+  -w <int>     Frame width
+  -f <int>     Frames per second
+  -t <int>     Duration in seconds
+  -v <str>     Record video format
+  -m <path>    Mount point for storing files
+  -n <string>  File name template (supports strftime format)
+  -l           Loop recording, delete oldest files to give space
+  -d <int>     Maximum disk usage, percentage
+"
+}
 
 RECORD_WEBUI_CONF=/etc/webui/record.conf
-[ -f $RECORD_WEBUI_CONF ] || die "Config file $RECORD_WEBUI_CONF not found"
-cat $RECORD_WEBUI_CONF
-. $RECORD_WEBUI_CONF
-
-[ -z "$record_mount" ] && die "Mountpoint record_mount is not set"
-mountpoint "$record_mount" || die "Mountpoint $record_mount is not mounted"
-[ -w "$record_mount" ] || die "Mountpoint $record_mount is not writable"
-
-if has_files "$record_mount"; then
-	required_space=$(($(ls -1ltcr "$record_mount" | awk 'END{print $5}') * 2 / 1024)) # output in kiB
+if [ -f $RECORD_WEBUI_CONF ]; then
+	cat $RECORD_WEBUI_CONF
+	. $RECORD_WEBUI_CONF
 else
-	required_space=$((150 * record_duration))
+	[ "${#1}" -eq 0 ] && die "Config file $RECORD_WEBUI_CONF not found"
 fi
 
-get_free_space
-if [ "$available_space" -le "$required_space" ]; then
-	info "Ran out of space."
-	[ "true" = "$record_loop" ] || die "Not in a rolling recording mode!"
-	while [ "$available_space" -le "$required_space" ]; do
-		rm -v "$(ls -1tr "$record_mount" | head -1)"
-		get_free_space
-		has_files "$record_mount" || die "$record_mount is empty yet no space!"
-	done
-fi
+while getopts "d:f:h:lm:p:t:u:v:w:z:" flag; do
+	case "$flag" in
+		d) record_diskusage=$OPTARG ;;
+		f) stream0_fps=$OPTARG ;;
+		h) stream0_height=$OPTARG ;;
+		l) record_loop="true" ;;
+		m) record_mount=$OPTARG ;;
+		n) record_filename=$OPTARG ;;
+		p) rtsp_password=$OPTARG ;;
+		t) record_duration=$OPTARG ;;
+		u) rtsp_username=$OPTARG ;;
+		v) record_videoformat=$OPTARG ;;
+		w) stream0_width=$OPTARG ;;
+		*) show_help && exit ;;
+	esac
+done
+shift "$((OPTIND - 1))"
+
+record_mount=${record_mount%/}
+
+[ -z "$record_mount"       ] && die "Mountpoint record_mount is not set"
+mountpoint "$record_mount"   || die "Mountpoint $record_mount is not mounted"
+[ -w "$record_mount"       ] || die "Mountpoint $record_mount is not writable"
+[ -z "$record_diskusage"   ] && record_diskusage=95
+[ -z "$record_duration"    ] && record_duration=10
+[ -z "$record_filename"    ] && record_filename="thingino/%Y-%m-%d/%Y-%m-%dT%H-%M-%S"
+[ -z "$record_videoformat" ] && record_videoformat="mp4"
+rtsp_username=$(read_config username); [ -z "$rtsp_username" ] && rtsp_username="thingino"
+rtsp_password=$(read_config password); [ -z "$rtsp_password" ] && rtsp_password="thingino"
+[ -z "$stream0_fps"        ] && stream0_fps=$(logcat | awk -F'[=,]' '/i_fps_num/{print $2}' | tail -1 | tr -d '\n')
+[ -z "$stream0_height"     ] && stream0_height=$(logcat | awk '/\[chn0\]:/{print $9}' | tail -1 | tr -d '\n')
+[ -z "$stream0_width"      ] && stream0_width=$(logcat | awk '/\[chn0\]:/{print $6}' | tail -1 | tr -d '\n')
 
 case "$record_videoformat" in
 	mov) vformat="-q -y -H" ;;
 	mp4) vformat="-4 -y -H" ;;
-	  *) vformat="-4 -y -H" ;; # mp4
+	  *) die "Unknown video format $record_videoformat"
 esac
 
 touch $RECORD_FLAG
@@ -66,17 +92,37 @@ touch $RECORD_FLAG
 #	fi
 #fi
 
+required_space=$((120 * record_duration))
+min_free_space=$(($(df | grep "$record_mount" | awk '{print $2}') * (100 - record_diskusage) / 100 ))
+[ "$min_free_space" -gt "$required_space" ] && required_space=$min_free_space
+
 while :; do
 	[ -f $RECORD_FLAG ] || break
 	parsed_target=$(date +"$record_mount/$record_filename.$record_videoformat")
 	parsed_target_path=$(dirname "$parsed_target")
 	[ -d "$parsed_target_path" ] || mkdir -p "$parsed_target_path"
-	openRTSP -u $rtsp_username $rtsp_password -w $stream0_width -h $stream0_height \
-		-f $stream0_fps -d $record_duration $vformat -b 1048576 \
-		-t rtsp://127.0.0.1/ch0  > $parsed_target
+
+	echo "Space required: $required_space KiB"
+	get_free_space
+	if [ "$available_space" -le "$required_space" ]; then
+		echo "Out of space!"
+		[ "true" = "$record_loop" ] || die "Not in a rolling recording mode!"
+
+		while [ "$available_space" -le "$required_space" ]; do
+			rm -v "$(find "$record_mount" -type f -exec ls -ltr {} + | head -n1 | awk '{print $9}')"
+			get_free_space
+			has_files "$record_mount" || die "$record_mount is empty yet no space!"
+		done
+	fi
+
+	echo "Running openRTSP -u $rtsp_username $rtsp_password -w $stream0_width -h $stream0_height" \
+		"-f $stream0_fps -d $record_duration $vformat -b 1048576 -t rtsp://127.0.0.1/ch0  > $parsed_target"
+	openRTSP -u $rtsp_username $rtsp_password -w $stream0_width -h $stream0_height -f $stream0_fps \
+		-d $record_duration $vformat -b 1048576 -t rtsp://127.0.0.1/ch0  > $parsed_target 2> /dev/null
 done
 
-echo "Cannot find recording flag $RECORD_FLAG. Exiting."
+echo "Cannot find recording flag $RECORD_FLAG"
 [ -n "$LEDD_FLAG" ] && [ -f "$LEDD_FLAG" ] && rm $LEDD_FLAG
+echo "Exit"
 
 exit 0
