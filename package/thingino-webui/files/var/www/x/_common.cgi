@@ -595,7 +595,7 @@ default_for debug 0
 if [ "$debug" -gt 0 ]; then
 	assets_ts=$(date +%s)
 else
-	assets_ts=$(($(date +%s) >> 16))
+	assets_ts=$(($(date +%s) >> 8))
 fi
 
 [ -f $sysinfo_file ] || update_caminfo
