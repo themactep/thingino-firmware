@@ -46,8 +46,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			echo "wlanpass=$wlan_pass"
 			echo "wlanssid=$wlan_ssid"
 			echo "wlanap_enabled=$wlanap_enabled"
-			echo "wlanappass=$wlanap_pass"
-			echo "wlanapssid=$wlanap_ssid"
+			echo "wlanap_pass=$wlanap_pass"
+			echo "wlanap_ssid=$wlanap_ssid"
 		} > $tmpfile
 		fw_setenv -s $tmpfile
 	fi
@@ -59,8 +59,8 @@ wlan_mac="$(get wlanmac)"
 wlan_pass="$(get wlanpass)"
 wlan_ssid="$(get wlanssid)"
 wlanap_enabled="$(get wlanap_enabled)"
-wlanap_pass="$(get wlanappass)"
-wlanap_ssid="$(get wlanapssid)"
+wlanap_pass="$(get wlanap_pass)"
+wlanap_ssid="$(get wlanap_ssid)"
 
 # defaults
 [ -z "$wlanap_ssid" ] && wlanap_ssid="thingino-ap"
