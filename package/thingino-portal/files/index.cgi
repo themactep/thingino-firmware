@@ -27,7 +27,7 @@ elif [ "POST" = "$REQUEST_METHOD" ]; then
 		echo "$rootpkey" > /root/.ssh/authorized_keys
 		sed -i "s/^ifs=.*$/ifs=wlan0/" /etc/onvif.conf
 
-		reboot -d 5 &
+		reboot -d 2 &
 
 		http_header="HTTP/1.1 303 See Other"
 		http_redirect="Location: $SCRIPT_NAME"
@@ -84,7 +84,6 @@ h2 {font-size:1.3rem}
 </header>
 <main>
 <div class="container">
-
 <%
 # GET request with configuration saved
 if [ "GET" = "$REQUEST_METHOD" ] && [ -n "$wlanssid" ] && [ -n "$wlanpass" ]; then
@@ -124,7 +123,7 @@ elif [ "GET" = "$REQUEST_METHOD" ] || [ "edit" = "$POST_mode" ]; then
 </div>
 <div class="my-3">
 <div class="form-check form-switch">
-<input class="form-check-input" type="checkbox" role="switch" id="frombrowser" name="frombrowser" value="true"<% [ "true" = $frombrowser ] && echo " checked" %>>
+<input class="form-check-input" type="checkbox" role="switch" id="frombrowser" name="frombrowser" value="true"<% [ "false" != $frombrowser ] && echo " checked" %>>
 <label class="form-check-label" for="frombrowser">Pick up time settings from the browser</label>
 </div>
 </div>
