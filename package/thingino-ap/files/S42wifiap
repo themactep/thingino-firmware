@@ -47,7 +47,8 @@ case "$1" in
 		pass=$(get wlanap_pass)
 		[ ${#pass} -lt 8 ] && pass="thingino"
 
-		sed -i '/psk=/ s/psk="[^"]*"/psk="'"$pass"'"/' /etc/wpa-ap.conf
+		[[ ${#pass} -eq 64 && "$pass" =~ ^[0-9a-fA-F]{64}$ ]] && quote='' || quote='"'
+		sed -i '/psk=/ s/psk=["]*[^"]*["]*/psk='"$quote$pass$quote"'/' /etc/wpa-ap.conf
 
 		start-stop-daemon -S -x /sbin/wpa_supplicant -- -i $net_dev -B -c /etc/wpa-ap.conf 2>&1 | log
 		check_result
