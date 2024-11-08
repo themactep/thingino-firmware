@@ -32,7 +32,7 @@ field_gpio() {
 		esac
 		pin=${pin:0:-1}
 
-		pin_status=$(gpio read $pin | awk '{print $3}')
+		pin_status=$(gpio read $pin)
 		[ "$pin_status" -eq "$pin_on" ] && is_active=" checked"
 
 		echo $DEFAULT_PINS | grep -E "\b$pin$active_suffix\b" > /dev/null && lit_on_boot=" checked"
