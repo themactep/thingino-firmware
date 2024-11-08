@@ -60,9 +60,7 @@ fi
 wlan_mac="$(get wlanmac)"
 wlan_pass="$(get wlanpass)"
 wlan_ssid="$(get wlanssid)"
-wlanap_enabled="$(get wlanap_enabled)"
-wlanap_pass="$(get wlanap_pass)"
-wlanap_ssid="$(get wlanap_ssid)"
+read_from_env "wlanap"
 
 # defaults
 [ -z "$wlanap_ssid" ] && wlanap_ssid="thingino-ap"
