@@ -3,7 +3,7 @@
 <%
 plugin="network"
 page_title="Network settings"
-params="address dhcp dns_1 dns_2 gateway netmask interface wlan_ssid wlan_pass"
+params="address dhcp dns_1 dns_2 gateway netmask interface"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	case "$POST_action" in
@@ -55,8 +55,6 @@ fi
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_hidden "action" "update" %>
 <% field_select "network_interface" "Network interface" "$network_interfaces" %>
-<% field_text "network_wlan_ssid" "WLAN SSID" %>
-<% field_text "network_wlan_pass" "WLAN Password" %>
 <% field_switch "network_dhcp" "Use DHCP" %>
 <% field_text "network_address" "IP Address" %>
 <% field_text "network_netmask" "IP Netmask" %>
@@ -90,7 +88,7 @@ function toggleDhcp() {
 }
 
 function toggleIface() {
-	const ids = ['network_wlan_ssid','network_wlan_pass'];
+	const ids = [];
 	if ($('#network_interface').value == 'wlan0') {
 		ids.forEach(id => $(`#${id}_wrap`).classList.remove('d-none'));
 	} else {
