@@ -69,36 +69,41 @@ read_from_env "wlanap"
 
 <div class="row">
 <div class="col">
-<ul class="nav nav-underline mb-3" role="tablist">
-<li class="nav-item" role="presentation"><a class="nav-link active" aria-current="page" href="#" data-bs-toggle="tab" data-bs-target="#wlan-tab-pane">WLAN</a></li>
-<li class="nav-item" role="presentation"><a class="nav-link" href="#" data-bs-toggle="tab" data-bs-target="#wlanap-tab-pane">Wireless AP</a></li>
+<ul class="nav nav-underline mb-3" role="tablist" id="tabs">
+<li class="nav-item" role="presentation"><button type="button" role="tab" class="nav-link" data-bs-toggle="tab" data-bs-target="#wlan-tab-pane" id="wlan-tab">Wi-Fi Network</button></li>
+<li class="nav-item" role="presentation"><button type="button" role="tab" class="nav-link" data-bs-toggle="tab" data-bs-target="#wlanap-tab-pane" id="wlanap-tab">Wi-Fi Access Point</button></li>
 </ul>
-
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <div class="tab-content" id="wireless-tabs">
-<div class="tab-pane fade show active" id="wlan-tab-pane" role="tabpanel" aria-labelledby="home-tab" tabindex="0">
-<h3 class="mb-3">Wireless Network</h3>
-<% field_text "wlan_ssid" "Wireless Network SSID" %>
-<% field_text "wlan_pass" "Wireless Network Password" "Plain-text password will be automatically converted to a PSK upon submission" "" "$STR_EIGHT_OR_MORE_CHARS" %>
-<% field_text "wlan_mac" "Wireless device MAC address" %>
-<% button_submit %>
+<div class="tab-pane fade" id="wlan-tab-pane" role="tabpanel" aria-labelledby="home-tab" tabindex="0">
+<% field_text "wlan_ssid" "Wi-Fi Network SSID" %>
+<% field_text "wlan_pass" "Wi-Fi Network Password" "Plain-text password will be automatically converted to a PSK upon submission" "" "$STR_EIGHT_OR_MORE_CHARS" %>
+<% field_text "wlan_mac" "Wi-Fi device MAC address" %>
 </div>
 <div class="tab-pane fade" id="wlanap-tab-pane" role="tabpanel" aria-labelledby="profile-tab" tabindex="1">
-<h3 class="mb-3">Wireless Access Point</h3>
-<form action="<%= $SCRIPT_NAME %>" method="post">
-<% field_switch "wlanap_enabled" "Enable Wireless AP" %>
-<% field_text "wlanap_ssid" "Wireless AP SSID" %>
-<% field_text "wlanap_pass" "Wireless AP Password" "" "" "$STR_EIGHT_OR_MORE_CHARS" %>
+<% field_switch "wlanap_enabled" "Enable Wi-Fi AP" %>
+<% field_text "wlanap_ssid" "Wi-Fi AP SSID" %>
+<% field_text "wlanap_pass" "Wi-Fi AP Password" "" "" "$STR_EIGHT_OR_MORE_CHARS" %>
+</div>
+</div>
 <% button_submit %>
-</div>
-</div>
 </form>
-
 </div>
 <div class="col">
 <% ex "fw_printenv | grep wlan | sort" %>
 <% ex "wlan info" %>
 </div>
 </div>
+
+<script>
+$$('#tabs button').forEach(el => {
+  const trigger = new bootstrap.Tab(el)
+  el.addEventListener('click', ev => {
+    ev.preventDefault()
+    trigger.show()
+  })
+})
+bootstrap.Tab.getInstance($('#wlanap_enabled').checked ? $('#wlanap-tab') : $('#wlan-tab')).show()
+</script>
 
 <%in _footer.cgi %>
