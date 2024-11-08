@@ -8,6 +8,4 @@ define THINGINO_AP_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d/ $(THINGINO_AP_PKGDIR)/files/S42wifiap
 endef
 
-THINGINO_AP_POST_INSTALL_TARGET_HOOKS += MODIFY_INSTALL_CONFIGS
-
 $(eval $(generic-package))
