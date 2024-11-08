@@ -25,7 +25,7 @@ field_gpio() {
 
 	local name=gpio_led_$1
 
-	local var_pin="${name}"
+	local var_pin="$name"
 	eval pin=\$$var_pin
 
 	local var_pwm="${name}_pwm"
@@ -42,7 +42,7 @@ field_gpio() {
 		esac
 		pin=${pin:0:-1}
 
-		pin_status=$(gpio read $pin | awk '{print $3}')
+		pin_status=$(gpio read $pin)
 		[ "$pin_status" -eq "$pin_on" ] && is_active=" checked"
 
 		echo $DEFAULT_PINS | grep -E "\b$pin$active_suffix\b" > /dev/null && lit_on_boot=" checked"
@@ -50,7 +50,7 @@ field_gpio() {
 
 	echo "<div class=\"mb-3 led led-$1\"><label class=\"form-label\" for=\"$name\">$2</label><div class=\"input-group\">
 <div class=\"input-group-text switch\" style=\"background-color:$2\"><input type=\"checkbox\" class=\"form-check-input mt-0 led-status\" id=\"${name}_on\" name=\"${name}_on\" data-color=\"$1\" value=\"true\"$is_active$is_disabled></div>
-<input type=\"text\" class=\"form-control text-end\" id=\"${name}\" name=\"${name}\" data-color=\"$1\" pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pin\" placeholder=\"GPIO\">
+<input type=\"text\" class=\"form-control text-end\" id=\"$name\" name=\"$name\" data-color=\"$1\" pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pin\" placeholder=\"GPIO\">
 <input type=\"text\" class=\"form-control text-end\" id=\"${name}_pwm\" name=\"${name}_pwm\" data-color=\"$1\" pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pwm\" placeholder=\"PWM channel\">
 <div class=\"input-group-text\"><input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" name=\"${name}_inv\" value=\"true\"$is_active_low$is_disabled> active low</div>
 <div class=\"input-group-text\"><input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" name=\"${name}_lit\" value=\"true\"$lit_on_boot$is_disabled> lit on boot</div>
