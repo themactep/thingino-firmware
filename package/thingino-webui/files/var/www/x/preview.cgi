@@ -46,7 +46,7 @@ which motors > /dev/null && has_motors="true"
 </div>
 <div class="col-lg-9 mb-3">
 <div id="frame" class="position-relative mb-2">
-<img id="preview" class="img-fluid" alt="Image: Preview">
+<img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Preview">
 <% if [ "true" = "$has_motors" ]; then %><%in _motors.cgi %><% fi %>
 </div>
 <% if [ "true" = "$has_motors" ]; then %>
