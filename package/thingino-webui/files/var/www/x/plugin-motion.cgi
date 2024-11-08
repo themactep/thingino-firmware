@@ -43,7 +43,7 @@ include $config_file
 const motion_params = ['enabled', 'sensitivity', 'cooldown_time'];
 const send2_targets = ['email', 'ftp', 'mqtt', 'telegram', 'webhook', 'yadisk'];
 
-let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $ws_token %>');
+let ws = new WebSocket('//' + document.location.hostname + ':8089?token=<%= $ws_token %>');
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
 	const payload = '{"motion":{' + motion_params.map((x) => `"${x}":null`).join() + '}}';

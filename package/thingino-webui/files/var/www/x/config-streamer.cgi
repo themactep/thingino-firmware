@@ -253,7 +253,7 @@ const motion_params = ['debounce_time', 'post_time', 'ivs_polling_timeout', 'coo
 const stream_params = ['audio_enabled', 'bitrate', 'buffers', 'enabled', 'format', 'fps', 'gop', 'height', 'max_gop',
  	'mode', 'profile', 'rotation', 'rtsp_endpoint', 'width'];
 
-let ws = new WebSocket('ws://' + document.location.hostname + ':8089?token=<%= $ws_token %>');
+let ws = new WebSocket('//' + document.location.hostname + ':8089?token=<%= $ws_token %>');
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
 	const stream_rq = '{' + stream_params.map((x) => `"${x}":null`).join() + '}';
@@ -342,7 +342,7 @@ function saveValue(domain, name) {
 			} else if (value == '"G726"') {
 				payload += `,"input_sample_rate":16000`
 			} else if (value == '"OPUS"') {
-                        	payload += `,"input_sample_rate":48000`
+				payload += `,"input_sample_rate":48000`
 			}
 		}
 	}
