@@ -34,7 +34,6 @@ on:
 env:
   TAG_NAME: firmware
   UPD_TAG_NAME: firmware_update
-  SHA256_TAG_NAME: verify
   TERM: linux
   BR2_DL_DIR: ~/dl
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
@@ -115,6 +114,9 @@ jobs:
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
 
     steps:
+      - name: Update TAG_NAME with Date
+        run: echo "TAG_NAME=$TAG_NAME-$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
       - name: Update APT sources
         run: |
           apt-get update
@@ -224,8 +226,10 @@ jobs:
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.TAG_NAME }}
+          make_latest: true
           files: |
             ${{ env.FULL_FW }}
+            ${{ env.FULL_FW_SHA }}
 
       - name: Upload update firmware to release
         if: github.event_name != 'pull_request'
@@ -234,15 +238,7 @@ jobs:
           tag_name: ${{ env.UPD_TAG_NAME }}
           files: |
             ${{ env.UPDATE_FW }}
-
-      - name: Upload checksum files for release
-        if: github.event_name != 'pull_request'
-        uses: softprops/action-gh-release@master
-        with:
-          tag_name: ${{ env.SHA256_TAG_NAME }}
-          files: |
             ${{ env.UPDATE_FW_SHA }}
-            ${{ env.FULL_FW_SHA }}
 
       - name: Send firmware completion notifications with binaries
         if: ${{ env.TG_DISABLED == 'false' && (env.FULL_FW || env.UPDATE_FW) }}
