@@ -21,7 +21,7 @@ case "$1" in
 		pass="$(get wlanpass)"
 		wlanap="$(get wlanap_enabled)"
 
-		[ -n "$ssid" ] && [ -n "$pass" ] && quit "WLAN Already configured"
+		[ -n "$ssid" ] && [ -n "$pass" ] && quit "WLAN already configured"
 
 		[ "$wlanap" != "true" ] && quit "WLAN AP disabled"
 
@@ -52,7 +52,6 @@ case "$1" in
 
 		start-stop-daemon -S -x /sbin/wpa_supplicant -- -i $net_dev -B -c /etc/wpa-ap.conf 2>&1 | log
 		check_result
-
 		;;
 	stop)
 		stopping
