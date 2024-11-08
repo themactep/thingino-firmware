@@ -13,13 +13,13 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
 	read_from_post "$plugin" "$params"
 
-	[ -z "$dusk2dawn_runat" ] && dusk2dawn_runat="0:00"
-	[ -z "$dusk2dawn_offset_sr" ] && dusk2dawn_offset_sr="0"
-	[ -z "$dusk2dawn_offset_ss" ] && dusk2dawn_offset_ss="0"
+	default_for "$dusk2dawn_runat" "0:00"
+	default_for "$dusk2dawn_offset_sr" "0"
+	default_for "$dusk2dawn_offset_ss" "0"
 
 	# validate
-	[ -z "$dusk2dawn_lat" ] && set_error_flag "Latitude cannot be empty"
-	[ -z "$dusk2dawn_lng" ] && set_error_flag "Longitude cannot be empty"
+	error_if_empty "$dusk2dawn_lat" "Latitude cannot be empty"
+	error_if_empty "$dusk2dawn_lng" "Longitude cannot be empty"
 
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)

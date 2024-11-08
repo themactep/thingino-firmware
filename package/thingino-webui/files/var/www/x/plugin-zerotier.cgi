@@ -27,8 +27,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 			# validate
 			if [ "true" = "$zerotier_enabled" ]; then
-				[ -z "$zerotier_nwid" ] && set_error_flag "ZeroTier Network ID cannot be empty."
-				[ "${#zerotier_nwid}" -ne "16" ] && set_error_flag "ZeroTier Network ID should be 16 digits long."
+				error_if_empty "$zerotier_nwid" "ZeroTier Network ID cannot be empty."
+				[ "${#zerotier_nwid}" -ne 16 ] && set_error_flag "ZeroTier Network ID should be 16 digits long."
 			fi
 
 			if [ -z "$error" ]; then

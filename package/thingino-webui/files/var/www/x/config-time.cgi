@@ -19,8 +19,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			;;
 		update)
 			# check for mandatory data
-			[ -z "$POST_tz_name" ] && set_error_flag "Empty timezone name."
-			[ -z "$POST_tz_data" ] && set_error_flag "Empty timezone value."
+			error_if_empty "$POST_tz_name" "Empty timezone name."
+			error_if_empty "$POST_tz_data" "Empty timezone value."
 
 			if [ -z "$error" ]; then
 				[ "$tz_data" = "$POST_tz_data" ] || echo "$POST_tz_data" >/etc/TZ

@@ -13,19 +13,21 @@ MOUNTS=$(awk '/nfs|fat/{print $2}' /etc/mtab)
 config_file="$ui_config_dir/$plugin.conf"
 include $config_file
 
+defaults() {
+	default_for timelapse_enabled "false"
+	default_for timelapse_filename "%Y%m%dT%H%M.jpg"
+	default_for timelapse_interval 1
+}
+
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	read_from_post "$plugin" "$params"
-
-	# defaults
-	[ -z "$timelapse_enabled"  ] && timelapse_enabled="false"
-	[ -z "$timelapse_filename" ] && timelapse_filename="%Y%m%dT%H%M.jpg"
-	[ -z "$timelapse_interval" ] && timelapse_interval=1
+	defaults
 
 	# normalize
 	[ "/" = "${timelapse_filename:0:1}" ] && timelapse_filename="${timelapse_filename:1}"
 
 	# validate
-	[ -z "$timelapse_storage" ] && set_error_flag "Timelapse storage cannot be empty."
+	error_if_empty "$timelapse_storage" "Timelapse storage cannot be empty."
 
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
@@ -46,13 +48,9 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		update_caminfo
 		redirect_back "success" "$plugin_name config updated."
 	fi
-
-
 	redirect_to $SCRIPT_NAME
 else
-	[ -z "$timelapse_enabled"  ] && timelapse_enabled="false"
-	[ -z "$timelapse_filename" ] && timelapse_filename="%Y%m%d%H%M.jpg"
-	[ -z "$timelapse_interval" ] && timelapse_interval=1
+	defaults
 fi
 %>
 <%in _header.cgi %>

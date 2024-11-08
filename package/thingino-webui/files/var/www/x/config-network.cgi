@@ -21,12 +21,12 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			read_from_post "$plugin" "$params"
 
 			network_interface=$POST_network_interface
-			[ -z "$network_interface" ] && set_error_flag "Network interface cannot be empty."
+			error_if_empty "$network_interface" "Network interface cannot be empty."
 
 			if [ "false" = "$network_dhcp" ]; then
 				network_mode="static"
-				[ -z "$network_address" ] && set_error_flag "IP address cannot be empty."
-				[ -z "$network_netmask" ] && set_error_flag "Networking mask cannot be empty."
+				error_if_empty "$network_address" "IP address cannot be empty."
+				error_if_empty "$network_netmask" "Networking mask cannot be empty."
 			else
 				network_mode="dhcp"
 			fi

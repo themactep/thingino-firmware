@@ -18,23 +18,23 @@ if [ -n "$POST_action" ] && [ "$POST_action" = "create" ]; then
 
 	[ -n "$user_name_new" ] && user_name=$user_name_new
 
-	[ -z "$user_name" ] && set_error_flag "User name cannot be empty."
-	[ -z "$user_password" ] && set_error_flag "User password cannot be empty."
+	error_if_empty "$user_name" "User name cannot be empty."
+	error_if_empty "$user_password" "User password cannot be empty."
 
 	if [ -z "$error" ]; then
-		if grep -q "^${user_name}:" /etc/passwd; then
-			alert_append "warning" "User ${user_name} found."
+		if grep -q "^$user_name:" /etc/passwd; then
+			alert_append "warning" "User $user_name found."
 		else
-			adduser ${user_name} -h ${user_home:-/dev/null} -s ${user_shell:-/bin/false} -G ${user_group:-users} -D -g "${user_full_name}"
+			adduser $user_name -h ${user_home:-/dev/null} -s ${user_shell:-/bin/false} -G ${user_group:-users} -D -g "$user_full_name"
 			if [ $? -eq 0 ]; then
-				alert_append "success" "User ${user_name} created."
+				alert_append "success" "User $user_name created."
 			else
-				set_error_flag "Failed to create user ${user_name}."
+				set_error_flag "Failed to create user $user_name."
 			fi
 		fi
 
 		if [ -z "$error" ]; then
-			result=$(echo "${user_name}:${user_password}" | chpasswd -c sha512 2>&1)
+			result=$(echo "$user_name:$user_password" | chpasswd -c sha512 2>&1)
 			if [ $? -eq 0 ]; then
 				alert_append "success" "Password for ${user_name} set."
 				redirect_back

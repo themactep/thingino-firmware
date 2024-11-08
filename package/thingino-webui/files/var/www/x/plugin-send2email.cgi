@@ -18,11 +18,11 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	# validate
 	if [ "true" = "$email_enabled" ]; then
-		[ -z "$email_smtp_host"    ] && set_error_flag "SMTP host cannot be empty."
-		[ -z "$email_from_address" ] && set_error_flag "Sender email address cannot be empty."
-		[ -z "$email_from_name"    ] && set_error_flag "Sender name cannot be empty."
-		[ -z "$email_to_address"   ] && set_error_flag "Recipient email address cannot be empty."
-		[ -z "$email_to_name"      ] && set_error_flag "Recipient name cannot be empty."
+		error_if_empty "$email_smtp_host" "SMTP host cannot be empty."
+		error_if_empty "$email_from_address" "Sender email address cannot be empty."
+		error_if_empty "$email_from_name" "Sender name cannot be empty."
+		error_if_empty "$email_to_address" "Recipient email address cannot be empty."
+		error_if_empty "$email_to_name" "Recipient name cannot be empty."
 	fi
 
 	if [ -z "$error" ]; then
@@ -39,11 +39,11 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	redirect_to $SCRIPT_NAME
 else
 	# Default values
-	[ -z "$email_insecure_ssl" ] && email_insecure_ssl="false"
-	[ -z "$email_attach_snapshot" ] && email_attach_snapshot="true"
-	[ -z "$email_smtp_port" ] && email_smtp_port="25"
-	[ -z "$email_from_name" ] && email_from_name="Camera $network_hostname"
-	[ -z "$email_to_name" ] && email_to_name="Camera admin"
+	default_for email_insecure_ssl false
+	default_for email_attach_snapshot true
+	default_for email_smtp_port 25
+	default_for email_from_name "Camera $network_hostname"
+	default_for email_to_name "Camera admin"
 	#[ -z "$email_subject" ] && email_subject="Snapshot from $network_hostname"
 fi
 %>
@@ -51,27 +51,29 @@ fi
 
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_switch "email_enabled" "Enable sending to email" %>
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-4">
 <div class="col">
-<% field_text "email_smtp_host" "SMTP host" %>
-<% field_text "email_smtp_port" "SMTP port" %>
+<h3>SMTP server</h3>
+<div class="row g-1">
+<div class="col-10"><% field_text "email_smtp_host" "FQDN or IP address" %></div>
+<div class="col-2"><% field_text "email_smtp_port" "Port" %></div>
+</div>
 <% field_switch "email_smtp_use_ssl" "Use TLS/SSL" %>
 <% field_switch "email_insecure_ssl" "Ignore SSL certificate validity" %>
-<% field_text "email_smtp_username" "SMTP username" %>
-<% field_password "email_smtp_password" "SMTP password" %>
-<% field_text "email_from_name" "Sender's name" %>
-<% field_text "email_from_address" "Sender's address" "Use an email address where bounce reports can be sent to." %>
+<% field_text "email_smtp_username" "Username" %>
+<% field_password "email_smtp_password" "Password" %>
 </div>
 <div class="col">
+<% field_text "email_from_name" "Sender's name" %>
+<% field_text "email_from_address" "Sender's address" "Use a real email address where bounce reports can be sent to." %>
 <% field_text "email_to_name" "Recipient's name" %>
 <% field_text "email_to_address" "Recipient's address" %>
-<% field_text "email_subject" "Email subject" %>
-<% field_textarea "email_body" "Email text" "Line breaks will be replaced with whitespace." %>
-<% field_switch "email_attach_snapshot" "Attach snapshot" %>
-<% # field_switch "email_socks5_enabled" "Use SOCKS5" "$STR_CONFIGURE_SOCKS" %>
 </div>
 <div class="col">
-<% ex "cat $config_file" %>
+<% field_text "email_subject" "Email subject" %>
+<% field_textarea "email_body" "Email text" "Line breaks will be replaced with whitespaces." %>
+<% field_switch "email_attach_snapshot" "Attach snapshot" %>
+<% # field_switch "email_socks5_enabled" "Use SOCKS5" "$STR_CONFIGURE_SOCKS" %>
 </div>
 </div>
 <% button_submit %>

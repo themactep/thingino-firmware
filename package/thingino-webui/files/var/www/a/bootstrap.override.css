@@ -63,6 +63,10 @@
 	margin-bottom: 0;
 }
 
+.input-color {
+	height: 2.4rem;
+}
+
 .input-group-text {
 	font-size: 0.875rem;
 	min-width: 3.1rem;

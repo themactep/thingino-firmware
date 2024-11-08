@@ -10,15 +10,6 @@ STR_EIGHT_OR_MORE_CHARS=" pattern=\".{8,}\" title=\"8 characters or longer\""
 pagename=$(basename "$SCRIPT_NAME")
 pagename="${pagename%%.*}"
 
-debug=$(get debug)
-[ -z "$debug" ] && debug=0
-
-if [ "$debug" -gt 0 ]; then
-	assets_ts=$(date +%s)
-else
-	assets_ts=$(($(date +%s) >> 16))
-fi
-
 ui_config_dir=/etc/webui
 ui_tmp_dir=/tmp/webui
 alert_file=$ui_tmp_dir/alert.txt
@@ -35,6 +26,17 @@ ensure_dir() {
 
 ensure_dir $ui_tmp_dir
 ensure_dir $ui_config_dir
+
+# name, text
+error_if_empty() {
+	[ -z "$1" ] && set_error_flag "$2"
+}
+
+# name, value
+default_for() {
+	[ -z "$(eval echo \$$1)" ] || return
+	eval $1="$2"
+}
 
 alert_append() {
 	echo "$1:$2" >> "$alert_file"
@@ -163,16 +165,20 @@ field_checkbox() {
 	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local h=$3
 	local v=$(t_value "$1")
-	[ -z "$v" ] && v="false"
+	default_for v "false"
 	echo "<p class=\"boolean form-check\"><input type=\"hidden\" id=\"$1-false\" name=\"$1\" value=\"false\"><input type=\"checkbox\" name=\"$1\" id=\"$1\" value=\"true\" class=\"form-check-input\"$(checked_if "true" "$v")><label for=\"$1\" class=\"form-label\">$l</label>"
 	[ -n "$h" ] && echo "<span class=\"hint text-secondary d-block mb-2\">$h</span>"
 	echo "</p>"
 }
 
+field_color() {
+	echo "<p id=\"$1_wrap\" class=\"file\"><label for=\"$1\" class=\"form-label\">$2</label><input type=\"color\" id=\"$1\" name=\"$1\" class=\"form-control input-color\"></p>"
+}
+
 # field_file "name" "label" "hint"
 field_file() {
 	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
+	default_for l "<span class=\"bg-warning\">$1</span>"
 	local h=$3
 	echo "<p id=\"$1_wrap\" class=\"file\"><label for=\"$1\" class=\"form-label\">$l</label><input type=\"file\" id=\"$1\" name=\"$1\" class=\"form-control\">"
 	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
@@ -189,7 +195,7 @@ field_hidden() {
 field_number() {
 	local n=$1
 	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
+	default_for l "<span class=\"bg-warning\">$1</span>"
 	local r=$3 # min,max,step,button
 	local mn=$(echo "$r" | cut -d, -f1)
 	local mx=$(echo "$r" | cut -d, -f2)
@@ -210,7 +216,7 @@ field_number() {
 # field_password "name" "label" "hint"
 field_password() {
 	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
+	default_for l "<span class=\"bg-warning\">$1</span>"
 	local h=$3
 	local v=$(t_value "$1")
 	echo "<p class=\"password\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$l</label><span class=\"input-group\"><input type=\"password\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"K3wLHaZk3R!\"><label class=\"input-group-text\"><input type=\"checkbox\" class=\"form-check-input me-1\" data-for=\"$1\"> show</label></span>"
@@ -222,7 +228,7 @@ field_password() {
 field_range() {
 	local n=$1
 	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$n</span>"
+	default_for l "<span class=\"bg-warning\">$n</span>"
 	local r=$3 # min,max,step,button
 	local mn=$(echo "$r" | cut -d, -f1)
 	local mx=$(echo "$r" | cut -d, -f2)
@@ -245,7 +251,7 @@ field_range() {
 # field_select "name" "label" "options" "hint" "units"
 field_select() {
 	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
+	default_for l "<span class=\"bg-warning\">$1</span>"
 	local o=$3
 	o=${o//,/ }
 	local h=$4
@@ -270,12 +276,12 @@ field_select() {
 # field_swith "name" "label" "hint" "options"
 field_switch() {
 	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
+	default_for l "<span class=\"bg-warning\">$1</span>"
 	local v=$(t_value "$1")
-	[ -z "$v" ] && v="false"
+	default_for v "false"
 	local h="$3"
 	local o=$4
-	[ -z "$o" ] && o="true,false"
+	default_for o "true,false"
 	local o1=$(echo "$o" | cut -d, -f1)
 	local o2=$(echo "$o" | cut -d, -f2)
 	echo "<p class=\"boolean\" id=\"$1_wrap\"><span class=\"form-check form-switch\"><input type=\"hidden\" id=\"$1-false\" name=\"$1\" value=\"$o2\"><input type=\"checkbox\" id=\"$1\" name=\"$1\" value=\"$o1\" role=\"switch\" class=\"form-check-input\"$(checked_if "$o1" "$v")><label for=\"$1\" class=\"form-check-label\">$l</label></span>"
@@ -286,7 +292,7 @@ field_switch() {
 # field_text "name" "label" "hint" "placeholder" "extra"
 field_text() {
 	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
+	default_for l "<span class=\"bg-warning\">$1</span>"
 	local v="$(t_value "$1")"
 	local h="$3"
 	local p="$4"
@@ -298,7 +304,7 @@ field_text() {
 # field_textarea "name" "label" "hint"
 field_textarea() {
 	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
+	default_for l "<span class=\"bg-warning\">$1</span>"
 	local v=$(t_value "$1")
 	local h=$3
 	echo "<p class=\"textarea\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$l</label><textarea id=\"$1\" name=\"$1\" class=\"form-control\">$v</textarea>"
@@ -309,7 +315,7 @@ field_textarea() {
 # field_textedit "name" "file" "label"
 field_textedit() {
 	local l=$3
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
+	default_for l "<span class=\"bg-warning\">$1</span>"
 	local v=$(cat "$2")
 	echo "<p class=\"textarea\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$l</label><textarea id=\"$1\" name=\"$1\" class=\"form-control\">$v</textarea></p>"
 }
@@ -358,9 +364,9 @@ menu() {
 			p="$(sed -r -n '/^plugin=/s/plugin="(.*)"/\1/p' $i)"
 
 			# hide unsupported plugins
-			[ "$p" = "mqtt"        ] && [ ! -f /bin/mosquitto_pub ] && continue
-			[ "$p" = "telegrambot" ] && [ ! -f /bin/jsonfilter    ] && continue
-			[ "$p" = "zerotier"    ] && [ ! -f /sbin/zerotier-cli ] && continue
+			[ "$p" = "mqtt" ] && [ ! -f /bin/mosquitto_pub ] && continue
+			[ "$p" = "telegrambot" ] && [ ! -f /bin/jsonfilter ] && continue
+			[ "$p" = "zerotier" ] && [ ! -f /sbin/zerotier-cli ] && continue
 			# get plugin description
 			n="$(sed -r -n '/^plugin_name=/s/plugin_name="(.*)"/\1/p' $i)"
 
@@ -511,7 +517,7 @@ update_caminfo() {
 
 	# Firmware
 	uboot_version=$(get ver)
-	[ -z "$uboot_version" ] && uboot_version=$(strings /dev/mtdblock0 | grep '^U-Boot \d' | head -1)
+	default_for uboot_version $(strings /dev/mtdblock0 | grep '^U-Boot \d' | head -1)
 	fw_version=$(grep "^VERSION" /etc/os-release | cut -d= -f2 | tr -d /\"/)
 	fw_build=$(grep "^GITHUB_VERSION" /etc/os-release | cut -d= -f2 | tr -d /\"/)
 
@@ -583,6 +589,14 @@ include() {
 	[ -f "$1" ] || touch $1
 	[ -f "$1" ] && . "$1"
 }
+
+debug=$(get debug)
+default_for debug 0
+if [ "$debug" -gt 0 ]; then
+	assets_ts=$(date +%s)
+else
+	assets_ts=$(($(date +%s) >> 16))
+fi
 
 [ -f $sysinfo_file ] || update_caminfo
 

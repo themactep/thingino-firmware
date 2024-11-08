@@ -27,14 +27,14 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	# validate values for WLAN
 	check_mac_address "$wlan_mac" || set_error_flag "Invalid MAC address format."
-	[ -z "$wlan_ssid" ] && set_error_flag "WLAN SSID cannot be empty."
-	[ -z "$wlan_pass" ] && set_error_flag "WLAN Password cannot be empty."
+	error_if_empty "$wlan_ssid" "WLAN SSID cannot be empty."
+	error_if_empty "$wlan_pass" "WLAN Password cannot be empty."
 	[ ${#wlan_pass} -lt 8 ] && set_error_flag "WLAN Password cannot be shorter than 8 characters."
 
 	# validate values for WLAN AP
 	if [ "true" = "$wlanap_enabled" ]; then
-		[ -z "$wlanap_ssid" ] && set_error_flag "WLAN AP SSID cannot be empty."
-		[ -z "$wlanap_pass" ] && set_error_flag "WLAN AP Password cannot be empty."
+		error_if_empty "$wlanap_ssid" "WLAN AP SSID cannot be empty."
+		error_if_empty "$wlanap_pass" "WLAN AP Password cannot be empty."
 		[ ${#wlanap_pass} -lt 8 ] && set_error_flag "WLAN AP Password cannot be shorter than 8 characters."
 	fi
 

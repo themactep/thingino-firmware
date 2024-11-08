@@ -14,8 +14,9 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	read_from_post "$plugin" "$params"
 
 	# validate
-	[ "true" = "$ssh_enabled" ] && [ -z "$ssh_host" ] && \
-		set_error_flag "SSH address cannot be empty."
+	if [ "true" = "$ssh_enabled" ]; then
+		error_if_empty "$ssh_host" "SSH address cannot be empty."
+	fi
 
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
@@ -31,8 +32,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	redirect_to $SCRIPT_NAME
 else
 	# Default values
-	[ -z "$ssh_port" ] && ssh_port="22"
-	[ -z "$ssh_username" ] && ssh_username="root"
+	default_for ssh_port "22"
+	default_for ssh_username "root"
 fi
 %>
 <%in _header.cgi %>

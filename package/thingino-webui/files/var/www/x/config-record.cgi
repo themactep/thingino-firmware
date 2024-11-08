@@ -13,17 +13,16 @@ config_file="$ui_config_dir/$plugin.conf"
 include $config_file
 
 # defaults
-[ -z "$record_blink" ] && record_blink=1
-[ -z "$record_debug" ] && record_debug=true
-[ -z "$record_diskusage" ] && record_diskusage=85
-[ -z "$record_duration" ] && record_duration=60
-[ -z "$record_enabled" ] && record_enabled="false"
-[ -z "$record_led" ] && record_led=$(fw_printenv | awk -F= '/^gpio_led/{print $1;exit}')
-[ -z "$record_loop" ] && record_loop="true"
-[ -z "$record_videoformat" ] && record_videoformat="mp4"
-if [ -z "$record_filename" ] || [ "/" = "${record_filename:0-1}" ]; then
-	record_filename="thingino/%Y-%m-%d/%Y-%m-%dT%H-%M-%S"
-fi
+default_for record_blink 1
+default_for record_debug true
+default_for record_diskusage 85
+default_for record_duration 60
+default_for record_enabled "false"
+default_for record_led $(fw_printenv | awk -F= '/^gpio_led/{print $1;exit}')
+default_for record_loop "true"
+default_for record_videoformat "mp4"
+default_for record_filename "thingino/%Y-%m-%d/%Y-%m-%dT%H-%M-%S"
+[ "/" = "${record_filename:0-1}" ] && record_filename="thingino/%Y-%m-%d/%Y-%m-%dT%H-%M-%S"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
@@ -33,8 +32,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	[ "/" = "${record_filename:0:1}" ] && record_filename="${record_filename:1}"
 
 	# validate
-	[ -z "$record_mount" ] && set_error_flag "Record mount cannot be empty."
-	[ -z "$record_filename" ] && set_error_flag "Record filename cannot be empty."
+	error_if_empty "$record_mount" "Record mount cannot be empty."
+	error_if_empty "$record_filename" "Record filename cannot be empty."
 
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)

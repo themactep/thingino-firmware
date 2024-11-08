@@ -15,8 +15,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	# validate
 	if [ "true" = "$telegram_enabled" ]; then
-		[ -z "$telegram_token"   ] && set_error_flag "Telegram token cannot be empty."
-		[ -z "$telegram_channel" ] && set_error_flag "Telegram channel cannot be empty."
+		error_if_empty "$telegram_token" "Telegram token cannot be empty."
+		error_if_empty "$telegram_channel" "Telegram channel cannot be empty."
 	fi
 
 	if [ -z "$error" ]; then
@@ -33,7 +33,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	redirect_to $SCRIPT_NAME
 else
 	# Default values
-	[ -z "$telegram_caption" ] && telegram_caption="%hostname, %datetime"
+	default_for telegram_caption "%hostname, %datetime"
 fi
 %>
 <%in _header.cgi %>

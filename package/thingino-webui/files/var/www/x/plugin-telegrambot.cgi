@@ -19,7 +19,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	# validate
 	if [ "true" = "$telegrambot_enabled" ]; then
-		[ -z "$telegrambot_token" ] && set_error_flag "Telegram token cannot be empty."
+		error_if_empty "$telegrambot_token" "Telegram token cannot be empty."
 	fi
 
 	if [ -z "$error" ]; then
@@ -41,7 +41,7 @@ else
 	done; unset p
 
 	# Default values
-	[ -z "$telegrambot_caption" ] && telegrambot_caption="%hostname, %datetime"
+	default_for telegrambot_caption "%hostname, %datetime"
 fi
 %>
 <%in _header.cgi %>

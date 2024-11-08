@@ -17,12 +17,12 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	# validate
 	if [ "true" = "$mqtt_enabled" ]; then
-		[ -z "$mqtt_host" ] && set_error_flag "MQTT broker host cannot be empty."
-		[ -z "$mqtt_port" ] && set_error_flag "MQTT port cannot be empty."
-		# [ -z "$mqtt_username" ] && set_error_flag "MQTT username cannot be empty."
-		# [ -z "$mqtt_password" ] && set_error_flag "MQTT password cannot be empty."
-		[ -z "$mqtt_topic" ] && alert_append "danger" "MQTT topic cannot be empty."
-		[ -z "$mqtt_message" ] && alert_append "danger" "MQTT message cannot be empty."
+		error_if_empty "$mqtt_host" "MQTT broker host cannot be empty."
+		error_if_empty "$mqtt_port" "MQTT port cannot be empty."
+		# error_if_empty "$mqtt_username" "MQTT username cannot be empty."
+		# error_if_empty "$mqtt_password" "MQTT password cannot be empty."
+		error_if_empty "$mqtt_topic" ] "MQTT topic cannot be empty."
+		error_if_empty "$mqtt_message" ] "MQTT message cannot be empty."
 	fi
 
 	if [ "${mqtt_topic:0:1}" = "/" ] || [ "${mqtt_snap_topic:0:1}" = "/" ]; then
@@ -55,10 +55,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	redirect_to $SCRIPT_NAME
 else
 	# Default values
-	[ -z "$mqtt_client_id" ] && mqtt_client_id="${network_macaddr//:/}"
-	[ -z "$mqtt_port" ] && mqtt_port="1883"
-	[ -z "$mqtt_topic" ] && mqtt_topic="thingino/$mqtt_client_id"
-	[ -z "$mqtt_message" ] && mqtt_message=""
+	default_for mqtt_client_id "${network_macaddr//:/}"
+	default_for mqtt_port "1883"
+	default_for mqtt_topic "thingino/$mqtt_client_id"
+	default_for mqtt_message ""
 fi
 %>
 <%in _header.cgi %>

@@ -15,8 +15,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	# validate
 	if [ "true" = "$email_enabled" ]; then
-		[ -z "$yadisk_username" ] && set_error_flag "Yandex Disk username cannot be empty."
-		[ -z "$yadisk_password" ] && set_error_flag "Yandex Disk password cannot be empty."
+		error_if_empty "$yadisk_username" "Yandex Disk username cannot be empty."
+		error_if_empty "$yadisk_password" "Yandex Disk password cannot be empty."
 	fi
 
 	if [ -z "$error" ]; then

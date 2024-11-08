@@ -14,8 +14,9 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	read_from_post "$plugin" "$params"
 
 	# validate
-	[ "true" = "$webhook_enabled" ] && [ -z "$webhook_url" ] && \
-		set_error_flag "Webhook URL cannot be empty."
+	if [ "true" = "$webhook_enabled" ]; then
+		error_if_empty "$webhook_url" "Webhook URL cannot be empty."
+	fi
 
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)

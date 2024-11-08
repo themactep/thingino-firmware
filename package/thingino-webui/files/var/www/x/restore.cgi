@@ -1,7 +1,7 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-[ -z "$GET_f" ] && set_error_flag "Nothing to restore."
+error_if_empty "$GET_f" "Nothing to restore."
 
 file=$GET_f
 [ -f "/rom/$file" ] || set_error_flag "File /rom/$file not found!"

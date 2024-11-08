@@ -16,8 +16,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	read_from_post "$plugin" "$params"
 
 	# validate
-	[ "true" = "$scp_enabled" ] && [ -z "$scp_host" ] && set_error_flag "Target host address cannot be empty."
-	[ -z "$scp_template" ] && scp_template="$network_hostname-%Y%m%d-%H%M%S.jpg"
+	if [ "true" = "$scp_enabled" ]; then
+		error_if_empty "$scp_host" "Target host address cannot be empty."
+	fi
+	default_for scp_template "$network_hostname-%Y%m%d-%H%M%S.jpg"
 	[ -f $SCP_KEY ] || dropbearkey -t ed25519 -f $SCP_KEY
 
 	if [ -z "$error" ]; then
@@ -34,9 +36,9 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	redirect_to $SCRIPT_NAME
 else
 	# Default values
-	[ -z "$scp_port" ] && scp_port="22"
-	[ -z "$scp_user" ] && scp_user="root"
-	[ -z "$scp_template" ] && scp_template="$network_hostname-%Y%m%d-%H%M%S.jpg"
+	default_for scp_port "22"
+	default_for scp_user "root"
+	default_for scp_template "$network_hostname-%Y%m%d-%H%M%S.jpg"
 fi
 %>
 <%in _header.cgi %>
