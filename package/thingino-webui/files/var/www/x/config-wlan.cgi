@@ -25,15 +25,17 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	# normalize values
 	wlan_mac="${wlan_mac//-/:}"
 
-	# default values for WLAN
+	# validate values for WLAN
+	check_mac_address "$wlan_mac" || set_error_flag "Invalid MAC address format."
 	[ -z "$wlan_ssid" ] && set_error_flag "WLAN SSID cannot be empty."
 	[ -z "$wlan_pass" ] && set_error_flag "WLAN Password cannot be empty."
-	check_mac_address "$wlan_mac" || set_error_flag "Invalid MAC address format."
+	[ ${#wlan_pass} -lt 8 ] && set_error_flag "WLAN Password cannot be shorter than 8 characters."
 
-	# default values for WLAN AP
+	# validate values for WLAN AP
 	if [ "true" = "$wlanap_enabled" ]; then
 		[ -z "$wlanap_ssid" ] && set_error_flag "WLAN AP SSID cannot be empty."
 		[ -z "$wlanap_pass" ] && set_error_flag "WLAN AP Password cannot be empty."
+		[ ${#wlanap_pass} -lt 8 ] && set_error_flag "WLAN AP Password cannot be shorter than 8 characters."
 	fi
 
 	if [ -z "$error" ]; then
@@ -79,7 +81,7 @@ wlanap_ssid="$(get wlanap_ssid)"
 <div class="tab-pane fade show active" id="wlan-tab-pane" role="tabpanel" aria-labelledby="home-tab" tabindex="0">
 <h3 class="mb-3">Wireless Network</h3>
 <% field_text "wlan_ssid" "Wireless Network SSID" %>
-<% field_text "wlan_pass" "Wireless Network Password" "Plain-text password will be automatically converted to a PSK upon submission" %>
+<% field_text "wlan_pass" "Wireless Network Password" "Plain-text password will be automatically converted to a PSK upon submission" "" "$STR_EIGHT_OR_MORE_CHARS" %>
 <% field_text "wlan_mac" "Wireless device MAC address" %>
 <% button_submit %>
 </div>
@@ -88,7 +90,7 @@ wlanap_ssid="$(get wlanap_ssid)"
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_switch "wlanap_enabled" "Enable Wireless AP" %>
 <% field_text "wlanap_ssid" "Wireless AP SSID" %>
-<% field_text "wlanap_pass" "Wireless AP Password" %>
+<% field_text "wlanap_pass" "Wireless AP Password" "" "" "$STR_EIGHT_OR_MORE_CHARS" %>
 <% button_submit %>
 </div>
 </div>

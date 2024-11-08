@@ -5,6 +5,7 @@ IFS_ORIG=$IFS
 STR_CONFIGURE_SOCKS5="<a href=\"config-socks5.cgi\">Configure SOCKS5</a>"
 STR_NOT_SUPPORTED="not supported on this system"
 STR_SUPPORTS_STRFTIME="Supports <a href=\"https://man7.org/linux/man-pages/man3/strftime.3.html\" target=\"_blank\">strftime</a> format."
+STR_EIGHT_OR_MORE_CHARS=" pattern=\".{8,}\" title=\"8 characters or longer\""
 
 pagename=$(basename "$SCRIPT_NAME")
 pagename="${pagename%%.*}"
@@ -282,14 +283,14 @@ field_switch() {
 	echo "</p>"
 }
 
-# field_text "name" "label" "hint" "placeholder"
+# field_text "name" "label" "hint" "placeholder" "extra"
 field_text() {
 	local l=$2
 	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local v="$(t_value "$1")"
 	local h="$3"
 	local p="$4"
-	echo "<p class=\"string\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$l</label><input type=\"text\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"$p\">"
+	echo "<p class=\"string\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$l</label><input type=\"text\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"$p\"$5>"
 	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
 	echo "</p>"
 }
