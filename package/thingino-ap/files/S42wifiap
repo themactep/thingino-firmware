@@ -19,7 +19,7 @@ case "$1" in
 		# quit if credentials are set, AP conflicts with normal wifi operation
 		ssid="$(get wlanssid)"
 		pass="$(get wlanpass)"
-		wlanap="$(get wlanap)"
+		wlanap="$(get wlanap_enabled)"
 
 		[ -n "$ssid" ] && [ -n "$pass" ] && quit "WLAN Already configured"
 

@@ -24,7 +24,7 @@ case "$1" in
 		# quit if credentials are set
 		ssid="$(get wlanssid)"
 		pass="$(get wlanpass)"
-		wlanap="$(get wlanap)"
+		wlanap="$(get wlanap_enabled)"
 		[ -n "$ssid" ] && [ -n "$pass" ] && quit "Already configured"
 		[ "$wlanap" == "true" ] && quit "WLAN AP enabled"
 

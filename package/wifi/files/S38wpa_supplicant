@@ -17,7 +17,7 @@ start() {
 	starting
 	ssid="$(get wlanssid)"
 	pass="$(get wlanpass)"
-	wlanap="$(get wlanap)"
+	wlanap="$(get wlanap_enabled)"
 
 	# convert plain-text password no matter what
 	if [ -n "$pass" ] && [ ${#pass} -lt 64 ]; then
