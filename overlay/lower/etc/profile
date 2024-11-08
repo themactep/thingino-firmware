@@ -27,12 +27,6 @@ if6=$(ip -6 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)
 mac=$(cat /sys/class/net/${if4:-$if6}/address)
 
 ip_address=""
-[ -n "$ip4" ] && ip_address="$ip4 (IPv4)"
-[ -n "$ip6" ] && {
-	[ -n "$ip_address" ] && ip_address="$ip_address, "
-	ip_address="$ip_address$ip6 (IPv6)"
-}
-[ -z "$ip_address" ] && ip_address="No IP address"
 
 alias tb="send2termbin"
 
@@ -40,8 +34,11 @@ if [ "$PS1" ]; then
 	[ -f /etc/os-release ] && . /etc/os-release
 	[ -f /etc/banner ] && echo -e "$(cat /etc/banner)"
 	printf "%65s\n" "$network_hostname"
-	printf "\e[38;5;238m%65s\e[0m\n" "$IMAGE_ID, $BUILD_ID"
-	printf "%65s\n\n" "$ip_address on ${if4:-$if6} [$mac]"
+	printf "\e[38;5;240m%65s\e[0m\n" "$IMAGE_ID, $BUILD_ID"
+	[ -n "$ip6" ] && printf "%65s\n" "$ip6 (IPv6)"
+	[ -n "$ip4" ] && printf "%65s\n" "$ip4 (IPv4)"
+	[ -z "$ip4$ip6" ] && echo "No IP address"
+	printf "%65s\n\n" "${if4:-$if6} [$mac]"
 
 	if [ "$(id -u)" -eq 0 ]; then
 		export PS1="\[\e[38;5;172m\]\u\[\e[m\]@\[\e[38;5;153m\]\h\[\e[m\]\[\e[38;5;214m\] \W\[\e[m\]\\# "
