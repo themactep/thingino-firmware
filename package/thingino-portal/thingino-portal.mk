@@ -20,11 +20,13 @@ define THINGINO_PORTAL_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/www/a
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/var/www/a $(THINGINO_PORTAL_PKGDIR)/files/bootstrap.bundle.min.js
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/var/www/a $(THINGINO_PORTAL_PKGDIR)/files/bootstrap.min.css
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/var/www/a $(THINGINO_PORTAL_PKGDIR)/files/logo.svg
 	find $(TARGET_DIR)/var/www/a/ -type f \( -name "*.css" -o -name "*.ico" -o -name "*.js" -o -name "*.svg" \) -exec gzip {} \;
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/www-portal/a
 	ln -sr $(TARGET_DIR)/var/www/a/bootstrap.min.css.gz       $(TARGET_DIR)/var/www-portal/a/
 	ln -sr $(TARGET_DIR)/var/www/a/bootstrap.bundle.min.js.gz $(TARGET_DIR)/var/www-portal/a/
+	ln -sr $(TARGET_DIR)/var/www/a/logo.svg.gz                $(TARGET_DIR)/var/www-portal/a/
 endef
 
 # MT7601u wifi driver needs a PSK for the portal AP to function
