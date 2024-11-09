@@ -9,6 +9,8 @@ TMP_CONF="/tmp/ntp.conf"
 
 start() {
 	starting
+	[ "true" = $(get wlanap_enabled) ] && quit "AP mode"
+
 	if [ -f $TMP_CONF ]; then
 		info "work config found"
 	else
