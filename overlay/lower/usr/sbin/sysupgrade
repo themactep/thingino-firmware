@@ -89,15 +89,15 @@ handle_payload() {
 		profile=$(awk -F= '/^IMAGE_ID=/ {print $2}' $data)
 		[ -z "$profile" ] && die "Building profile is not set in $data"
 
-		gh_url="$GITHUB_URL/themactep/thingino-firmware/releases/download"
+		gh_url="$GITHUB_URL/themactep/thingino-firmware/releases/latest/download"
 		if [ "part" = "$upgrade" ]; then
 			offset=327680
 			bin_file="thingino-$profile-update.bin"
-			bin_url="$gh_url/firmware/thingino-$profile.bin"
+			bin_url="$gh_url/thingino-$profile.bin"
 		else
 			offset=0
 			bin_file="thingino-$profile.bin"
-			bin_url="$gh_url/firmware/$bin_file"
+			bin_url="$gh_url/$bin_file"
 		fi
 		sha_url="$gh_url/verify/$bin_file.sha256sum"
 		sha_file=$(basename $sha_url)
@@ -153,7 +153,7 @@ stop_services() {
 	say "Stop services"
 	for i in $(find /etc/init.d/ -name "[KS]*" -executable | sort -nr); do
 		case "$(basename $i)" in
-			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S50dropbear)
+			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S42wifiap | S50dropbear)
 				continue
 				;;
 			*)
