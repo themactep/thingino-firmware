@@ -114,9 +114,6 @@ jobs:
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
 
     steps:
-      - name: Update TAG_NAME with Date
-        run: echo "TAG_NAME=$TAG_NAME-$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-
       - name: Update APT sources
         run: |
           apt-get update
@@ -145,6 +142,8 @@ jobs:
           echo "GIT_HASH=${GIT_HASH}" >> ${GITHUB_ENV}
           echo "GIT_BRANCH=${GIT_BRANCH}" >> ${GITHUB_ENV}
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+          echo "TAG_NAME=$TAG_NAME-$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+          echo "UPD_TAG_NAME=$UPD_TAG_NAME-$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
       - name: Setup cache directories
         run: |
