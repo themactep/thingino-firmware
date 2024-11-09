@@ -244,7 +244,6 @@ for (const i in [0, 1]) {
 	$(`#fontname${i}`).onchange = () => setFont(i);
 	$(`#fontsize${i}`).onchange = () => setFont(i);
 	$(`#fontstrokecolor${i}`).onchange = () => setFontColor(i);
-	$(`#fontstrokeenabled${i}`).onchange = () => setFontColor(i);
 	$(`#fontstrokesize${i}`).onchange = () => setFontColor(i);
 	$(`#osd${i}_enabled`).onchange = (ev) => sendToWs(`{"stream${i}":{"osd":{"enabled":${ev.target.checked}}}}`);
 	$(`#osd${i}_logo_enabled`).onchange = (ev) => toggleOSDElement(ev.target);
