@@ -89,17 +89,19 @@ handle_payload() {
 		profile=$(awk -F= '/^IMAGE_ID=/ {print $2}' $data)
 		[ -z "$profile" ] && die "Building profile is not set in $data"
 
-		gh_url="$GITHUB_URL/themactep/thingino-firmware/releases/latest/download"
+		gh_url="$GITHUB_URL/themactep/thingino-firmware"
 		if [ "part" = "$upgrade" ]; then
 			offset=327680
 			bin_file="thingino-$profile-update.bin"
-			bin_url="$gh_url/thingino-$profile.bin"
+			bin_url="$gh_url/releases/latest/download/thingino-$profile.bin"
+			sha_url="$gh_url/releases/download/firmware_update/$bin_file.sha256sum"
 		else
 			offset=0
 			bin_file="thingino-$profile.bin"
-			bin_url="$gh_url/$bin_file"
+			bin_url="$gh_url/releases/latest/download/thingino-$profile.bin"
+			sha_url="$gh_url/releases/latest/download/$bin_file.sha256sum"
 		fi
-		sha_url="$gh_url/verify/$bin_file.sha256sum"
+
 		sha_file=$(basename $sha_url)
 
 		check_free_space $bin_url $offset
