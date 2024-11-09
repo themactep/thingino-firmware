@@ -173,7 +173,7 @@ jobs:
 
       - name: Build firmware
         run: |
-          BOARD=${{ matrix.thingino-version }} make
+          BOARD=${{ matrix.thingino-version }} make fast
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
