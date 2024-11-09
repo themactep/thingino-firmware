@@ -43,7 +43,7 @@ start() {
 		sed -i '/ssid/a \\tscan_ssid=1' $CONFIG
 	fi
 
-	[ "$wlanap" == "true" ] && quit "WLAN AP enabled"
+	[ "$wlanap" = "true" ] && quit "WLAN AP enabled"
 
 	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1 | log
 	check_result
