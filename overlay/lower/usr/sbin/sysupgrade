@@ -92,9 +92,14 @@ handle_payload() {
 		gh_url="$GITHUB_URL/themactep/thingino-firmware"
 		if [ "part" = "$upgrade" ]; then
 			offset=327680
+			update_url=$(curl -s https://api.github.com/repos/themactep/thingino-firmware/releases | \
+			jsonfilter -e '@[*].tag_name' | \
+			grep '^firmware_update-' | \
+			sort -r | \
+			head -n 1)
 			bin_file="thingino-$profile-update.bin"
 			bin_url="$gh_url/releases/latest/download/thingino-$profile.bin"
-			sha_url="$gh_url/releases/download/firmware_update/$bin_file.sha256sum"
+			sha_url="$gh_url/releases/download/$update_url/$bin_file.sha256sum"
 		else
 			offset=0
 			bin_file="thingino-$profile.bin"
