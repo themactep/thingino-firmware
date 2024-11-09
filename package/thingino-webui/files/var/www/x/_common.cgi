@@ -17,6 +17,7 @@ signature_file=$ui_tmp_dir/signature.txt
 sysinfo_file=/tmp/sysinfo.txt
 webui_log=/tmp/webui.log
 ws_token="$(cat /run/prudynt_websocket_token)"
+wlanap_enabled=$(get wlanap_enabled)
 
 ensure_dir() {
 	[ -d "$1" ] && return
@@ -341,6 +342,10 @@ html_theme() {
 			echo -n "dark"
 			;;
 	esac
+}
+
+is_adhoc() {
+	[ "true" = "$wlanap_enabled" ]
 }
 
 is_recording() {

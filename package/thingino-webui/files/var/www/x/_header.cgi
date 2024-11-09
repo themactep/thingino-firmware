@@ -90,7 +90,7 @@ Pragma: no-cache
 <div class="col col-12 col-md-12 col-lg-3 col-xl-4 text-end"><a href="/x/config-time.cgi" id="time-now" class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover"></a></div>
 </div>
 
-<% if [ -z "$network_gateway" ]; then %>
+<% if !is_adhoc && [ -z "$network_gateway" ]; then %>
 <div class="alert alert-warning">
 <p class="mb-0">No Internet connection. Please <a href="config-network.cgi">check your network settings</a>.</p>
 </div>
