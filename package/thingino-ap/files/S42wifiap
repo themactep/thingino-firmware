@@ -17,13 +17,8 @@ case "$1" in
 		(iface_exists "eth0" || iface_exists "usb0") && quit "Wired interface found"
 		iface_exists "$net_dev" || quit "Wireless port not found"
 		# quit if credentials are set, AP conflicts with normal wifi operation
-		ssid="$(get wlanssid)"
-		pass="$(get wlanpass)"
-		wlanap="$(get wlanap_enabled)"
 
-		[ -n "$ssid" ] && [ -n "$pass" ] && quit "WLAN already configured"
-
-		[ "$wlanap" != "true" ] && quit "WLAN AP disabled"
+		[ "true" = "$(get wlanap_enabled)" ] || quit "WLAN AP disabled"
 
 		touch /var/run/udhcpd_ap.leases
 		cp /etc/resolv-ap.conf /tmp/resolv.conf
