@@ -1,5 +1,0 @@
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
-BR2_SOC_INGENIC_T31AL=y
-BR2_SENSOR_GC2053=y
-BR2_PACKAGE_WIFI=y
-BR2_PACKAGE_WIFI_ATBM6031=y
