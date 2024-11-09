@@ -25,7 +25,7 @@ case "$1" in
 		ssid="$(get wlanssid)"
 		pass="$(get wlanpass)"
 		wlanap="$(get wlanap_enabled)"
-		[ -n "$ssid" ] && [ -n "$pass" ] && quit "Already configured"
+		[ -n "$ssid" ] && [ -n "$pass" ] && quit "WLAN already configured"
 		[ "$wlanap" == "true" ] && quit "WLAN AP enabled"
 
 		touch /run/portal_mode
