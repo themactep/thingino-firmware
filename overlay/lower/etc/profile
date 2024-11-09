@@ -37,7 +37,7 @@ if [ "$PS1" ]; then
 	printf "\e[38;5;240m%65s\e[0m\n" "$IMAGE_ID, $BUILD_ID"
 	[ -n "$ip6" ] && printf "%65s\n" "$ip6 (IPv6)"
 	[ -n "$ip4" ] && printf "%65s\n" "$ip4 (IPv4)"
-	[ -z "$ip4$ip6" ] && echo "No IP address"
+	[ -z "$ip4$ip6" ] && printf "%65s\n" "No IP address"
 	printf "%65s\n\n" "${if4:-$if6} [$mac]"
 
 	if [ "$(id -u)" -eq 0 ]; then
