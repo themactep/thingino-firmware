@@ -225,7 +225,6 @@ jobs:
             ${{ env.UPDATE_FW_SHA }}
 
       - name: Upload full firmware to release
-        if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.TAG_NAME }}
@@ -235,7 +234,6 @@ jobs:
             ${{ env.FULL_FW_SHA }}
 
       - name: Upload update firmware to release
-        if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.UPD_TAG_NAME }}
