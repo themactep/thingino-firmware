@@ -6,7 +6,7 @@ SOC_FAMILY=$(/usr/sbin/soc -f)
 SOC_MODEL=$(/usr/sbin/soc -m)
 
 init() {
-	[ "$(get disable_wlan)" = "true" ] && quit "WLAN disabled."
+	[ "$(get disable_wlan)" = "true" ] && quit "WLAN disabled"
 	wlandev="$(get wlandev)"
 	[ -z "$wlandev" ] && quit "wlandev is not set"
 
