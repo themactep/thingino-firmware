@@ -4,23 +4,22 @@
 <meta charset="utf-8">
 <meta content="width=device-width,initial-scale=1" name="viewport">
 <title>Please wait... - thingino</title>
-<link href="a/bootstrap.min.css" rel="stylesheet">
+<link href="/a/bootstrap.min.css" rel="stylesheet">
 <style>
-body {text-align:center;padding:1vh;}
-h1{font-size:6vw;line-height:1.5;margin-top:5rem}
-h1 span{color:#f80}
-h3{font-size:2vw;line-height:1;margin-top:5rem}
-progress{width:30rem;max-width:90%;margin-top:5rem}
+body {text-align:center}
+progress{width:30rem;max-width:90%}
 </style>
 </head>
 <body>
+<div class="container">
 <main>
-<h1>th<span>ing</span>ino</h1>
-<h3>Restarting. Please wait...</h3>
+<img src="/a/logo.svg" alt="Thingino Logo" class="img-fluid mt-5 mb-4">
+<h3 class="mb-5">Restarting. Please wait...</h3>
 <progress max="20" value="0"></progress>
 </main>
+</div>
 <script>
-const u=window.location.protocol+'//'+window.location.host;
+const u='//'+window.location.host;
 const p=document.querySelector('progress');
 let s=0;
 function t(){s+=1;p.value=s;(s===p.max)?g():setTimeout(t,1000);}
