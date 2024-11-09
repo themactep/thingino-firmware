@@ -26,6 +26,7 @@ case "$1" in
 		[ "$wlanap" != "true" ] && quit "WLAN AP disabled"
 
 		touch /var/run/udhcpd_ap.leases
+		cp /etc/resolv-ap.conf /tmp/resolv.conf
 
 		ip a add dev $net_dev ${CNET}.1/24
 		ip link set $net_dev up
