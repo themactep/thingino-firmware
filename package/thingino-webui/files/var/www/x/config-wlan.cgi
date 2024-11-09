@@ -67,8 +67,8 @@ read_from_env "wlanap"
 %>
 <%in _header.cgi %>
 
-<div class="row">
-<div class="col">
+<div class="row-cols row-cols-lg-2">
+<div class="col mb-3">
 <ul class="nav nav-underline mb-3" role="tablist" id="tabs">
 <li class="nav-item" role="presentation"><button type="button" role="tab" class="nav-link" data-bs-toggle="tab" data-bs-target="#wlan-tab-pane" id="wlan-tab">Wi-Fi Network</button></li>
 <li class="nav-item" role="presentation"><button type="button" role="tab" class="nav-link" data-bs-toggle="tab" data-bs-target="#wlanap-tab-pane" id="wlanap-tab">Wi-Fi Access Point</button></li>
@@ -89,7 +89,7 @@ read_from_env "wlanap"
 <% button_submit %>
 </form>
 </div>
-<div class="col">
+<div class="col mb-3">
 <% ex "fw_printenv | grep wlan | sort" %>
 <% ex "wlan info" %>
 </div>
