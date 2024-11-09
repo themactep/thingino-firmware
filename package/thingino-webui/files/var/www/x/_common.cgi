@@ -344,7 +344,7 @@ html_theme() {
 	esac
 }
 
-is_adhoc() {
+is_ap() {
 	[ "true" = "$wlanap_enabled" ]
 }
 
