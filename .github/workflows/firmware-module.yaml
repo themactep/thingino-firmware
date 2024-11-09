@@ -222,7 +222,7 @@ jobs:
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.TAG_NAME }}
-          make_latest: true
+          make_latest: false
           files: |
             ${{ env.FULL_FW }}
             ${{ env.FULL_FW_SHA }}
@@ -231,6 +231,7 @@ jobs:
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.UPD_TAG_NAME }}
+          make_latest: false
           files: |
             ${{ env.UPDATE_FW }}
             ${{ env.UPDATE_FW_SHA }}

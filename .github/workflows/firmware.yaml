@@ -237,6 +237,7 @@ jobs:
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.UPD_TAG_NAME }}
+          make_latest: false
           files: |
             ${{ env.UPDATE_FW }}
             ${{ env.UPDATE_FW_SHA }}
