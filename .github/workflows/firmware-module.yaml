@@ -34,7 +34,6 @@ on:
 env:
   TAG_NAME: module
   UPD_TAG_NAME: module_update
-  SHA256_TAG_NAME: verify_module
   TERM: linux
   BR2_DL_DIR: ~/dl
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
@@ -220,29 +219,21 @@ jobs:
             ${{ env.UPDATE_FW_SHA }}
 
       - name: Upload full firmware to release
-        if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.TAG_NAME }}
+          make_latest: true
           files: |
             ${{ env.FULL_FW }}
+            ${{ env.FULL_FW_SHA }}
 
       - name: Upload update firmware to release
-        if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.UPD_TAG_NAME }}
           files: |
             ${{ env.UPDATE_FW }}
-
-      - name: Upload checksum files for release
-        if: github.event_name != 'pull_request'
-        uses: softprops/action-gh-release@master
-        with:
-          tag_name: ${{ env.SHA256_TAG_NAME }}
-          files: |
             ${{ env.UPDATE_FW_SHA }}
-            ${{ env.FULL_FW_SHA }}
 
       - name: Send firmware completion notifications with binaries
         if: ${{ env.TG_DISABLED == 'false' && (env.FULL_FW || env.UPDATE_FW) }}
