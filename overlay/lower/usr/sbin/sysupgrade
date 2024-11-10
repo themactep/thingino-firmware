@@ -58,6 +58,7 @@ clone_app() {
 
 die() {
 	red "$1"
+	cleanup
 	exit 1
 }
 
