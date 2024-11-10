@@ -4,13 +4,14 @@ disable_eth=true
 enable_updates=true
 gpio_button=14
 gpio_default=6O 7o 14i 16O 17O 18O 34O 35O 49i 50o 57i 58i
-gpio_ir940=50
+gpio_ir850=50
 gpio_ircut=16 17
-gpio_led_r=34
+gpio_led_b=34o
+gpio_led_r=35o
 gpio_mmc_cd=49
 gpio_scl=58i
 gpio_sda=57i
-gpio_speaker=7
+gpio_speaker=7o
 gpio_wlan=6O
 wlandev=atbm6012bx
 wlandevopts=atbm_printk_mask=0
