@@ -28,6 +28,10 @@ json_error() {
 json_ok() {
 	http_200
 	json_header
-	echo "{\"code\":200,\"result\":\"success\",\"message\":$1}"
+
+	message="$1"
+	[ "[" = "${mesage:0:1}" ] || message="\"$message\""
+
+	echo "{\"code\":200,\"result\":\"success\",\"message\":$message}"
 	exit 0
 }

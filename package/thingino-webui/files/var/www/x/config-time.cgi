@@ -88,17 +88,25 @@ done; unset i; unset x
 <% ex "cat $ntpd_working_config" %>
 <% ex "cat $ntpd_static_config" %>
 <% ex "cat $ntpd_sync_status" %>
-<p id="sync-time-wrapper"><a href="#" id="sync-time">Sync time</a></p>
 </div>
 </div>
 </form>
 
+<div class="row">
+<div class="col">
+<div id="sync-time-wrapper">
+<button id="sync-time" type="button" class="btn btn-secondary">Sync time</button>
+</div>
+</div>
+<div class="col">
 <% if [ ! "$(diff -q -- "/rom${config_file}" "$config_file")" ]; then %>
 <form action="<%= $SCRIPT_NAME %>" method="post" class="float-end">
 <% field_hidden "action" "reset" %>
 <% button_submit "Restore firmware defaults" "danger" %>
 </form>
 <% fi %>
+</div>
+</div>
 
 <script>
 	function findTimezone(tz) {
@@ -118,7 +126,7 @@ done; unset i; unset x
 
 	$('#sync-time').onclick = (ev) => {
 		ev.preventDefault();
-		fetch('/x/json-sync-time.cgi')
+		fetch('/x/json-sync-time.cgi?' + new URLSearchParams({ "ts": Date.now() / 1000 }).toString())
 			.then(res => res.json())
 			.then(json => {
 				p = document.createElement('p');
