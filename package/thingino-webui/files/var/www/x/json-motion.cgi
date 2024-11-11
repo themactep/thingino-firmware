@@ -12,8 +12,7 @@ case "$target" in
 			true | false)
 				sed -i "/^motion_send2$target/d" $CONF_FILE
 				echo "motion_send2$target=\"$state\"" >> $CONF_FILE
-				payload="{\"target\":\"$target\",\"status\":$state}"
-				json_ok "$payload"
+				json_ok "{\"target\":\"$target\",\"status\":$state}"
 				;;
 			*)
 				json_error "state missing"

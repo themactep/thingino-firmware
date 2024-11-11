@@ -30,7 +30,7 @@ json_ok() {
 	json_header
 
 	message="$1"
-	[ "[" = "${mesage:0:1}" ] || message="\"$message\""
+	[ "{" = "${message:0:1}" ] || message="\"$message\""
 
 	echo "{\"code\":200,\"result\":\"success\",\"message\":$message}"
 	exit 0

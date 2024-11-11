@@ -26,6 +26,13 @@ urldecode() {
 	echo -e "${i//%/\\x}"
 }
 
+save_to_config() {
+	echo "$1 $2" >> /tmp/imp.conf
+	command="imp-control $1 $2"
+	result=$($command)
+	payload="{\"command\":\"$command\",\"result\":\"$result\"}"
+}
+
 # parse parameters from query string
 [ -n "$QUERY_STRING" ] && eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
 
@@ -111,18 +118,12 @@ case "$cmd" in
 		handle=`echo "$val" | cut -d" " -f1`
 		# save to temp config
 		sed -i "/^$cmd $handle/d" /tmp/imp.conf
-		echo "$cmd $val" >> /tmp/imp.conf
-		command="imp-control $cmd $val"
-		result=$($command)
-		payload="{\"command\":\"$command\",\"result\":\"$result\"}"
+		save_to_config "$cmd" "$val"
 		;;
 	*)
 		# save to temp config
 		sed -i "/^$cmd/d" /tmp/imp.conf
-		echo "$cmd $val" >> /tmp/imp.conf
-		command="imp-control $cmd $val"
-		result=$($command)
-		payload="{\"command\":\"$command\",\"result\":\"$result\"}"
+		save_to_config "$cmd" "$val"
 		;;
 esac
 
