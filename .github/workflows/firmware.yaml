@@ -248,7 +248,6 @@ jobs:
           make_latest: false
           files: |
             ${{ env.UPDATE_FW }}
-            ${{ env.UPDATE_FW_SHA }}
 
       - name: Upload update firmware checksum to release - legacy
         uses: softprops/action-gh-release@master
