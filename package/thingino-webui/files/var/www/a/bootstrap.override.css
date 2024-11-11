@@ -8,9 +8,19 @@
 @media (min-width: 1200px) and (max-width: 1399.98px) {body.debug:before {content: "xl"}}
 @media (min-width: 1400px) {body.debug:before {content: "xxl"}}
 
+@keyframes blinker {
+	0% { opacity: 0; }
+	15% { opacity: 1; }
+}
+
 :root {
 	--bs-font-sans-serif: "Montserrat", sans-serif;
 	--bs-font-monospace: "PT Mono", monospace;
+}
+
+.blink {
+	color: red;
+	animation: blinker 4s step-end infinite;
 }
 
 .btn {
@@ -21,12 +31,15 @@
 	position: relative;
 }
 
-.container {
-	display: block;
+.cb {
+        cursor: pointer;
+        text-decoration-color: #f80;
+        text-decoration-line: underline;
+        text-underline-offset: 0.25em;
 }
 
-.cp2cb {
-	cursor: pointer;
+.container {
+	display: block;
 }
 
 .col > h3 {
@@ -61,6 +74,14 @@
 	font-size: 0.875rem;
 	margin-top: 0.2rem;
 	margin-bottom: 0;
+}
+
+.icon {
+	color: lightgray;
+}
+
+.icon.off {
+	filter: grayscale(1) contrast(100) brightness(1)
 }
 
 .input-color {
@@ -115,7 +136,6 @@
 .tab-pane {
 	padding: 1rem 0;
 }
-
 
 .table.files td {
 	font-family: monospace;
@@ -191,22 +211,4 @@ textarea.nowrap {
 pre#output[data-cmd] {
 	background-color: rgb(0, 0, 0);
 	color: rgba(170, 170, 170, 0.8);
-}
-
-.icon {
-	color: lightgray;
-}
-
-.icon.off {
-	filter: grayscale(1) contrast(100) brightness(1)
-}
-
-.blink {
-	color: red;
-	animation: blinker 4s step-end infinite;
-}
-
-@keyframes blinker {
-	0% { opacity: 0; }
-	15% { opacity: 1; }
 }

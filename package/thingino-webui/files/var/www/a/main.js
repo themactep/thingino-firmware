@@ -67,7 +67,7 @@ function setValue(data, domain, name) {
 function sendToApi(endpoint) {
 	const xhr = new XMLHttpRequest();
 	xhr.addEventListener('load', reqListener);
-	xhr.open('GET', 'http://' + network_address + endpoint);
+	xhr.open('GET', '//' + network_address + endpoint);
 	xhr.setRequestHeader('Authorization', 'Basic ' + btoa('admin:'));
 	xhr.send();
 }
@@ -146,6 +146,29 @@ function callImp(command, value) {
 
 	$('#savechanges')?.classList.remove('d-none');
 }
+
+function initCopyToClipboard() {
+	$$(".cb").forEach(function (el) {
+		el.title = "Click to copy to clipboard";
+		el.addEventListener("click", function (ev) {
+			ev.target.preventDefault;
+			ev.target.animate({backgroundColor: '#f80'}, 250);
+			let textArea = document.createElement("textarea");
+			textArea.value = ev.target.textContent;
+			textArea.style.position = "fixed";
+			textArea.style.left = "-999999px";
+			textArea.style.top = "-999999px";
+			document.body.appendChild(textArea);
+			textArea.focus();
+			textArea.select();
+			return new Promise((res, rej) => {
+				document.execCommand('copy') ? res() : rej();
+				textArea.remove();
+			});
+		})
+	})
+}
+
 
 (() => {
 	function initAll() {
@@ -290,8 +313,9 @@ function callImp(command, value) {
 			run()
 		}
 
-		heartbeat();
+		initCopyToClipboard()
+		heartbeat()
 	}
 
-	window.addEventListener('load', initAll);
+	window.addEventListener('load', initAll)
 })();

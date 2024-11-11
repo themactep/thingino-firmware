@@ -53,7 +53,7 @@ which motors > /dev/null && has_motors="true"
 <p class="small">Move mouse cursor over the center of the preview image to reveal the motor controls.
 Use a single click for precise positioning, double click for coarse, larger distance movement.</p>
 <% fi %>
-<p class="small"><span id="playrtsp"></span></p>
+<p class="small">RTSP player command: <span id="playrtsp" class="cb"></span></p>
 </div>
 <div class="col-lg-2">
 <div class="gap-2">
@@ -150,8 +150,8 @@ ws.onmessage = (ev) => {
 		if (msg.rtsp) {
 			const r = msg.rtsp;
 			if (r.username && r.password && r.port)
-				$('#playrtsp').innerHTML = "RTSP player: mpv --profile=fast " +
-				`rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
+				$('#playrtsp').innerHTML = 'mpv --profile=fast ' +
+					`rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
 		}
 	} else if (ev.data instanceof ArrayBuffer) {
 		updatePreview(ev.data);
