@@ -7,6 +7,7 @@ PROD_LIST="$BASE_REPO_URL/cameras"
 PROD_MODULE_LIST="$BASE_REPO_URL/modules"
 DEBUG_LIST="$BASE_REPO_URL/testing"
 LIST_URL=$PROD_LIST
+LIST_PATH="$LIST_PATH"
 
 while getopts "dmh" opt; do
 	case $opt in
@@ -30,16 +31,15 @@ fetch_and_display_profiles() {
 		profile="${line#thingino-}"
 		profile="${profile%.bin}"
 		echo "  $count) $profile"
-		echo "$count:$profile" >> /tmp/gestalt_list.txt
+		echo "$count:$profile" >> $LIST_PATH
 		count=$((count + 1))
 	done
 }
 
-trap 'rm -f /tmp/gestalt_list.txt; exit 0' INT
+trap 'rm -f $LIST_PATH;echo "";exit 0' INT
 
 while true; do
-	if [ ! -f /tmp/gestalt_list.txt ]; then
-		rm -f /tmp/gestalt_list.txt
+	if [ ! -f $LIST_PATH ]; then
 		fetch_and_display_profiles
 	fi
 
@@ -50,7 +50,7 @@ while true; do
 
 	[ -z "$selection" ] && break
 
-	selected_profile=$(grep "^$selection:" /tmp/gestalt_list.txt | cut -d':' -f2)
+	selected_profile=$(grep "^$selection:" $LIST_PATH | cut -d':' -f2)
 	if [ -n "$selected_profile" ]; then
 		sed -i "s/^IMAGE_ID=.*/IMAGE_ID=$selected_profile/" /etc/os-release
 		echo "Device gestalt updated to $selected_profile"
@@ -60,4 +60,4 @@ while true; do
 	fi
 done
 
-rm -f /tmp/gestalt_list.txt
+rm -f $LIST_PATH
