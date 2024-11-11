@@ -322,7 +322,7 @@ field_textedit() {
 }
 
 html_title() {
-	echo -n "$page_title - $(hostname) - thingino"
+        echo -n "$(hostname) - $page_title - thingino"
 }
 
 html_theme() {
