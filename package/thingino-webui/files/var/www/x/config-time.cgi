@@ -118,7 +118,7 @@ done; unset i; unset x
 
 	$('#sync-time').onclick = (ev) => {
 		ev.preventDefault();
-		fetch('/x/json-sync-time.cgi?' + new URLSearchParams({ "ts": Date.now() }).toString())
+		await fetch('/x/json-sync-time.cgi?' + new URLSearchParams({ "ts": Date.now() }).toString())
 			.then(res => res.json())
 			.then(json => {
 				p = document.createElement('p');

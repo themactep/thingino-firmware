@@ -18,8 +18,8 @@ disable_homing=$(get disable_homing)
 
 # FIXME: deprecate after splitting to per-motor
 motor_speed=$(get motor_speed)
-[ -z "$motor_speed_h" ] motor_speed_h=motor_speed
-[ -z "$motor_speed_v" ] motor_speed_v=motor_speed
+[ -z "$motor_speed_h" ] && motor_speed_h=$motor_speed
+[ -z "$motor_speed_v" ] && motor_speed_v=$motor_speed
 
 # parse
 gpio_motor_h_1=$(echo $gpio_motor_h | awk '{print $1}')
@@ -84,7 +84,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		[ -z "$motor_speed_v" ] && motor_speed_v=900
 
 		# FIXME: deprecate after splitting to per-motor
-		[ -z "$motor_speed" ] motor_speed=motor_speed_h
+		[ -z "$motor_speed" ] && motor_speed=$motor_speed_h
 
 		# save to env
 		tmpfile=$(mktemp -u)
@@ -171,7 +171,7 @@ function checkHoming() {
 }
 
 function readMotors() {
-	fetch("/x/json-motor.cgi?d=j")
+	await fetch('/x/json-motor.cgi?' + new URLSearchParams({ "d": "j" }).toString())
 		.then(res => res.json())
 		.then(({message:{xpos, ypos}}) => {
 			$('#motor_pos_0_x').value = xpos;
