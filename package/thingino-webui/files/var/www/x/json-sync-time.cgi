@@ -12,7 +12,7 @@ if [ "true" = "$(fw_printenv -n wlanap_enabled)" ]; then
 	[ "$ts" -lt $now ] && json_error "Cannot go back in time: $ts"
 	[ "$ts" -gt $((now + ys)) ] && json_error "Time gap is more that a year. It's time to upgrade!"
 
-	date -s "$ts"
+	date -s "@$ts"
 	json_ok "Camera time synchronized from the browser. Time is $(date)"
 else
 	if ntpd -n -q -N; then
