@@ -6,7 +6,9 @@ if [ "true" = "$(fw_printenv -n wlanap_enabled)" ]; then
 	now=$(date +%s)
 	ys=31557600
 
-	[ -z "$ts" ] && json_error "Missing required parameter 'ts'."
+	[ -z "$ts" ] && json_error "Missing required parameter 'ts'"
+	ts=$(((ts + 999) / 1000))
+
 	[ "$ts" -lt $now ] && json_error "Cannot go back in time: $ts"
 	[ "$ts" -gt $((now + ys)) ] && json_error "Time gap is more that a year. It's time to upgrade!"
 
