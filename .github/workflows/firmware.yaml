@@ -33,7 +33,6 @@ on:
 
 env:
   TAG_NAME: firmware
-  UPD_TAG_NAME: firmware_update
   TERM: linux
   BR2_DL_DIR: ~/dl
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
@@ -143,7 +142,6 @@ jobs:
           echo "GIT_BRANCH=${GIT_BRANCH}" >> ${GITHUB_ENV}
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           echo "TAG_NAME=$TAG_NAME-$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-          echo "UPD_TAG_NAME=$UPD_TAG_NAME-$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
       - name: Setup cache directories
         run: |
@@ -186,14 +184,10 @@ jobs:
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
           FULL_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}.bin" ! -name "*update.bin" | head -n 1)
-          UPDATE_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}-update.bin" | head -n 1)
           echo "FULL_FW: $FULL_FW"
-          echo "UPDATE_FW: $UPDATE_FW"
-          if [[ -n "$FULL_FW" && -n "$UPDATE_FW" ]]; then
+          if [[ -n "$FULL_FW" ]]; then
             echo "FULL_FW=${FULL_FW}" >> ${GITHUB_ENV}
-            echo "UPDATE_FW=${UPDATE_FW}" >> ${GITHUB_ENV}
             echo "FULL_FW_SHA=${FULL_FW}.sha256sum" >> ${GITHUB_ENV}
-            echo "UPDATE_FW_SHA=${UPDATE_FW}.sha256sum" >> ${GITHUB_ENV}
           else
             echo "Matching .bin files not found."
             exit 1
@@ -215,14 +209,6 @@ jobs:
             ${{ env.FULL_FW }}
             ${{ env.FULL_FW_SHA }}
 
-      - name: Upload update firmware artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: thingino-${{ matrix.thingino-version }}-update-firmware
-          path: |
-            ${{ env.UPDATE_FW }}
-            ${{ env.UPDATE_FW_SHA }}
-
       - name: Upload full firmware to release
         uses: softprops/action-gh-release@master
         with:
@@ -232,33 +218,8 @@ jobs:
             ${{ env.FULL_FW }}
             ${{ env.FULL_FW_SHA }}
 
-      - name: Upload update firmware to release
-        uses: softprops/action-gh-release@master
-        with:
-          tag_name: ${{ env.UPD_TAG_NAME }}
-          make_latest: false
-          files: |
-            ${{ env.UPDATE_FW }}
-            ${{ env.UPDATE_FW_SHA }}
-
-      - name: Upload update firmware to release - legacy
-        uses: softprops/action-gh-release@master
-        with:
-          tag_name: "firmware_update"
-          make_latest: false
-          files: |
-            ${{ env.UPDATE_FW }}
-
-      - name: Upload update firmware checksum to release - legacy
-        uses: softprops/action-gh-release@master
-        with:
-          tag_name: "verify"
-          make_latest: false
-          files: |
-            ${{ env.UPDATE_FW_SHA }}
-
       - name: Send firmware completion notifications with binaries
-        if: ${{ env.TG_DISABLED == 'false' && (env.FULL_FW || env.UPDATE_FW) }}
+        if: ${{ env.TG_DISABLED == 'false' && (env.FULL_FW) }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
@@ -268,13 +229,6 @@ jobs:
             TG_HEADER=$(echo -e "${TG_MSG}\xE2\x9C\x85 GitHub Actions")
             HTTP_FULL=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER}" -F document=@${FULL_FW} -F disable_web_page_preview=true)
             echo "Telegram response Full Firmware: $HTTP_FULL"
-          fi
-
-          if [ -n "${{ env.UPDATE_FW }}" ]; then
-            TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [firmware\\_update](https://github.com/${GITHUB_REPOSITORY}/releases/tag/firmware\\_update)\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
-            TG_HEADER=$(echo -e "${TG_MSG}\xE2\x9C\x85 GitHub Actions")
-            HTTP_UPDATE=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER}" -F document=@${UPDATE_FW} -F disable_web_page_preview=true)
-            echo "Telegram response Update Firmware: $HTTP_UPDATE"
           fi
 
       - name: Send error notification
