@@ -39,9 +39,7 @@ fetch_and_display_profiles() {
 trap 'rm -f $LIST_PATH;echo "";exit 0' INT
 
 while true; do
-	if [ ! -f $LIST_PATH ]; then
-		fetch_and_display_profiles
-	fi
+	[ -f $LIST_PATH ] || fetch_and_display_profiles
 
 	current_image_id=$(grep "^IMAGE_ID=" /etc/os-release | cut -d'=' -f2)
 	echo -e "Current device gestalt: $current_image_id\n"
