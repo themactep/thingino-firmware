@@ -7,7 +7,7 @@ PROD_LIST="$BASE_REPO_URL/cameras"
 PROD_MODULE_LIST="$BASE_REPO_URL/modules"
 DEBUG_LIST="$BASE_REPO_URL/testing"
 LIST_URL=$PROD_LIST
-LIST_PATH="$LIST_PATH"
+LIST_PATH="/tmp/gestalt_list.txt"
 
 while getopts "dmh" opt; do
 	case $opt in
