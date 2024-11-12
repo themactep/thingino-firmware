@@ -167,7 +167,14 @@ function sendToWs(payload) {
 }
 
 $$('#hflip, #vflip').forEach(el => {
-	el.onchange = (ev) => sendToWs(`{"image":{"${ev.target.id}":${ev.target.checked}}}`);
+	el.onchange = (ev) => {
+		sendToWs(`{"image":{"${ev.target.id}":${ev.target.checked}}}`);
+		if (ev.target.id == "hflip") {
+			runMotorCmd("d=i&i=x");
+		} else {
+			runMotorCmd("d=i&i=y");
+		}
+	}
 });
 
 // not .onchange because we need to catch the event here
