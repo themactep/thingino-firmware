@@ -79,15 +79,15 @@ fi
 <%
 for i in $seq; do
 	x=$(expr $i + 1)
-	eval ntp_server_$i="$(sed -n ${x}p /etc/ntp.conf | cut -d' ' -f2)"
+	[ -f "/etc/ntp.conf" ] && eval ntp_server_$i="$(sed -n ${x}p /etc/ntp.conf | cut -d' ' -f2)"
 	field_text "ntp_server_$i" "NTP Server $((i + 1))"
 done; unset i; unset x
 %>
 </div>
 <div class="col">
-<% ex "cat $ntpd_working_config" %>
-<% ex "cat $ntpd_static_config" %>
-<% ex "cat $ntpd_sync_status" %>
+<% [ -f "$ntpd_working_config" ] && ex "cat $ntpd_working_config" %>
+<% [ -f "$ntpd_static_config" ] && ex "cat $ntpd_static_config" %>
+<% [ -f "$ntpd_sync_status" ] && ex "cat $ntpd_sync_status" %>
 </div>
 </div>
 </form>
@@ -97,14 +97,6 @@ done; unset i; unset x
 <div id="sync-time-wrapper">
 <button id="sync-time" type="button" class="btn btn-secondary">Sync time</button>
 </div>
-</div>
-<div class="col">
-<% if [ ! "$(diff -q -- "/rom${config_file}" "$config_file")" ]; then %>
-<form action="<%= $SCRIPT_NAME %>" method="post" class="float-end">
-<% field_hidden "action" "reset" %>
-<% button_submit "Restore firmware defaults" "danger" %>
-</form>
-<% fi %>
 </div>
 </div>
 
