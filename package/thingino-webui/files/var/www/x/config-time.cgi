@@ -17,6 +17,9 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		reset)
 			cp -f /rom$ntpd_static_config $ntpd_working_config
 			;;
+		set)
+			date -s "$POST_time"
+			;;
 		update)
 			# check for mandatory data
 			error_if_empty "$POST_tz_name" "Empty timezone name."
@@ -118,7 +121,7 @@ done; unset i; unset x
 
 	$('#sync-time').onclick = (ev) => {
 		ev.preventDefault();
-		await fetch('/x/json-sync-time.cgi?' + new URLSearchParams({ "ts": Date.now() }).toString())
+		fetch('/x/json-sync-time.cgi?' + new URLSearchParams({ "ts": Date.now() }).toString())
 			.then(res => res.json())
 			.then(json => {
 				p = document.createElement('p');
