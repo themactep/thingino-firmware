@@ -20,8 +20,13 @@ if6=$(ip -6 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)
 
 [ -n "$if6" ] && {
 	gw6=$(ip -6 r | sed -nE "/default/s/.+ via ([a-f0-9:]+).+?/\1/p")
-	ip6=$(ip -6 a show dev "$if6" | sed -nE "s/^.*(\b([23][0-6]|f[cd])[0-9a-f]{2}:([0-9a-f:/]+)+\b).*scope global/\1/p" | sort | head -n 1)
-	ip6=$(echo "$ip6" | sed 's/dynamic//'| sed -E 's/dynamic//; s/[[:space:]]*$//; s%/.*%%')
+	ip6=$(ip -6 a show dev "$if6" | awk '/inet6 /{
+		split($2, a, "/"); ip = a[1]; p = a[2];
+		prio = (ip !~ /^f/) ? 0 : 2; prio += (p == 128) ? 0 : 1;
+		if (!seen[prio]++) res[prio] = ip
+	} END {
+		for (i = 0; i < 4; i++) if (res[i]) { print res[i]; exit }
+	}')
 }
 
 mac=$(cat /sys/class/net/${if4:-$if6}/address)
