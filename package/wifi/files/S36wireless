@@ -50,9 +50,6 @@ start() {
 			if [ -d /proc/jz/mdio ]; then
 				info "GMAC is enabled, disabling MSC1..."
 			else
-				info "Send INSERT to MMC1"
-				run "mmc 1"
-
 				case "$SOC_FAMILY" in
 					t10 | t20 | t21 | t30 | t40 | t41)
 						info "Skip GPIO setup for $SOC_MODEL"
@@ -74,6 +71,9 @@ start() {
 						die "Unsupported SOC type: $SOC_FAMILY"
 						;;
 				esac
+
+				info "Send INSERT to MMC1"
+				run "mmc 1"
 			fi
 			;;
 		*)
