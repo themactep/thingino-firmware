@@ -184,10 +184,12 @@ jobs:
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
           FULL_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}.bin" ! -name "*update.bin" | head -n 1)
+          UPDATE_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}-update.bin" | head -n 1)
           echo "FULL_FW: $FULL_FW"
           if [[ -n "$FULL_FW" ]]; then
             echo "FULL_FW=${FULL_FW}" >> ${GITHUB_ENV}
             echo "FULL_FW_SHA=${FULL_FW}.sha256sum" >> ${GITHUB_ENV}
+            echo "UPDATE_FW_SHA=${UPDATE_FW}.sha256sum" >> ${GITHUB_ENV}
           else
             echo "Matching .bin files not found."
             exit 1
@@ -200,6 +202,14 @@ jobs:
           name: ${{ matrix.thingino-version }}-build.hist-duration
           path: |
             ~/output/${{ matrix.thingino-version }}/graphs/build.hist-duration.pdf
+
+      - name: Upload update firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: thingino-${{ matrix.thingino-version }}-update-firmware
+          path: |
+            ${{ env.UPDATE_FW }}
+            ${{ env.UPDATE_FW_SHA }}
 
       - name: Upload full firmware artifact
         uses: actions/upload-artifact@v4
@@ -217,6 +227,7 @@ jobs:
           files: |
             ${{ env.FULL_FW }}
             ${{ env.FULL_FW_SHA }}
+            ${{ env.UPDATE_FW_SHA }}
 
       - name: Send firmware completion notifications with binaries
         if: ${{ env.TG_DISABLED == 'false' && (env.FULL_FW) }}
