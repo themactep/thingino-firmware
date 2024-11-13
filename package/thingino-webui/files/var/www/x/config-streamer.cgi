@@ -322,9 +322,7 @@ function saveValue(domain, name) {
 		value = el.checked;
 	} else {
 		value = el.value;
-		if (name == "height" || name == "width") {
-			value = value &~ 15;
-		} else if (["format", "input_format", "mode", "rtsp_endpoint"].includes(name)) {
+		if (["format", "input_format", "mode", "rtsp_endpoint"].includes(name)) {
 			value = `"${value}"`;
 		}
 	}
