@@ -240,7 +240,7 @@ field_range() {
 	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"$n-auto\">$ab<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")></label>"
 	echo "<span class=\"input-group-text range-value text-end\" id=\"$n-show\">$v</span>"
 	# Input that holds the submitting value.
-	echo "<input type=\"range\" id=\"$n\" name=\"$n\" value=\"$vr\" min=\"$mn\" max=\"$mx\" step=\"$st\" class=\"form-control form-range\"></span>"
+	echo "<input type=\"range\" id=\"$n\" name=\"$n\" value=\"$vr\" min=\"$mn\" max=\"$mx\" step=\"$st\" class=\"form-control form-range\">"
 	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
 	echo "</p>"
 }
@@ -318,7 +318,7 @@ field_textedit() {
 }
 
 html_title() {
-        echo -n "$(hostname) - $page_title - thingino"
+	echo -n "$(hostname) - $page_title - thingino"
 }
 
 html_theme() {
