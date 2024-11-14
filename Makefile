@@ -9,6 +9,10 @@ ifneq ($(shell command -v gawk >/dev/null; echo $$?),0)
 $(error Please run `make bootstrap` to install prerequisites.)
 endif
 
+ifneq ($(findstring $(empty) $(empty),$(CURDIR)),)
+$(error Current directory path "$(CURDIR)" contains spaces. Please remove spaces from the path and try again.)
+endif
+
 # Camera IP address
 # shortened to just IP for convenience of running from command line
 IP ?= 192.168.1.10
