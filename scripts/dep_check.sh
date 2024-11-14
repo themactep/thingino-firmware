@@ -36,146 +36,156 @@ fi
 if [ -f /etc/os-release ]; then
 	. /etc/os-release
 	OS=$NAME
-	case $ID in
-		ubuntu|debian|linuxmint)
-			echo "Debian-based"
-			pkg_manager="dpkg"
-			pkg_check_command="-l"
-			pkg_install_cmd="apt-get install -y"
-			pkg_update_cmd="apt-get update"
-			declare -A packages=(
-				[build-essential]='build-essential'
-				[bc]='bc'
-				[bison]='bison'
-				[cpio]='cpio'
-				[cmake]='cmake'
-				[curl]='curl'
-				[file]='file'
-				[flex]='flex'
-				[gawk]='gawk'
-				[git]='git'
-				[libncurses-dev]='libncurses-dev'
-				[make]='make'
-				[rsync]='rsync'
-				[unzip]='unzip'
-				[u-boot-tools]='u-boot-tools'
-				[wget]='wget'
-				[whiptail]='whiptail'
-				[dialog]='dialog'
-			)
-			;;
-		rhel|centos|fedora)
-			echo "RedHat-based"
-			pkg_manager="rpm"
-			pkg_check_command="-qa"
-			pkg_install_cmd="dnf install -y"
-			pkg_list=$(rpm -qa)
-			declare -A packages=(
-				[gcc]='gcc'
-				[make]='make'
-				[bc]='bc'
-				[bison]='bison'
-				[cpio]='cpio'
-				[cmake]='cmake'
-				[curl]='curl'
-				[file]='file'
-				[flex]='flex'
-				[gawk]='gawk'
-				[git]='git'
-				[ncurses-devel]='ncurses-devel'
-				[rsync]='rsync'
-				[unzip]='unzip'
-				[wget]='wget'
-				[newt]='newt'
-				[dialog]='dialog'
-			)
-			;;
-		arch)
-			echo "Arch-based"
-			pkg_manager="pacman"
-			pkg_check_command="-Q"
-			pkg_install_cmd="pacman -S --noconfirm"
-			pkg_list=$(pacman -Q)
-			declare -A packages=(
-				[base-devel]='base-devel'
-				[bc]='bc'
-				[bison]='bison'
-				[cpio]='cpio'
-				[cmake]='cmake'
-				[curl]='curl'
-				[file]='file'
-				[flex]='flex'
-				[gawk]='gawk'
-				[git]='git'
-				[ncurses]='ncurses'
-				[make]='make'
-				[rsync]='rsync'
-				[unzip]='unzip'
-				[wget]='wget'
-				[libnewt]='libnewt'
-				[dialog]='dialog'
-			)
-			;;
-		alpine)
-			echo "Alpine Linux"
-			pkg_manager="apk"
-			pkg_check_command="info -e"
-			pkg_install_cmd="apk add"
-			pkg_list=$(apk info)
-			declare -A packages=(
-				[build-base]='build-base'
-				[bc]='bc'
-				[bison]='bison'
-				[cpio]='cpio'
-				[cmake]='cmake'
-				[curl]='curl'
-				[file]='file'
-				[flex]='flex'
-				[gawk]='gawk'
-				[git]='git'
-				[ncurses-dev]='ncurses-dev'
-				[make]='make'
-				[rsync]='rsync'
-				[unzip]='unzip'
-				[wget]='wget'
-				[newt]='newt'
-				[dialog]='dialog'
-				[perl]='perl'
-				[findutils]='findutils'
-				[grep]='grep'
-			)
-			;;
-		"opensuse-tumbleweed")
-			echo "OpenSUSE Tumbleweed"
-			pkg_manager="zypper"
-			pkg_check_command="zypper search -i"
-			pkg_install_cmd="zypper install"
-			declare -A packages=(
-				[gcc]='gcc'
-				[make]='make'
-				[bc]='bc'
-				[bison]='bison'
-				[cpio]='cpio'
-				[cmake]='cmake'
-				[curl]='curl'
-				[file]='file'
-				[flex]='flex'
-				[gawk]='gawk'
-				[git]='git'
-				[ncurses-devel]='ncurses-devel'
-				[rsync]='rsync'
-				[unzip]='unzip'
-				[wget]='wget'
-				[newt]='newt'
-				[dialog]='dialog'
-				[perl]='perl'
-				[findutils]='findutils'
-				[grep]='grep'
-			)
+
+	debian_based_setup() {
+		echo "Debian-based"
+		pkg_manager="dpkg"
+		pkg_check_command="-l"
+		pkg_install_cmd="apt-get install -y"
+		pkg_update_cmd="apt-get update"
+		declare -A packages=(
+			[build-essential]='build-essential'
+			[bc]='bc'
+			[bison]='bison'
+			[cpio]='cpio'
+			[cmake]='cmake'
+			[curl]='curl'
+			[file]='file'
+			[flex]='flex'
+			[gawk]='gawk'
+			[git]='git'
+			[libncurses-dev]='libncurses-dev'
+			[make]='make'
+			[rsync]='rsync'
+			[unzip]='unzip'
+			[u-boot-tools]='u-boot-tools'
+			[wget]='wget'
+			[whiptail]='whiptail'
+			[dialog]='dialog'
+		)
+	}
+
+	# Check ID_LIKE first, followed by ID
+	case "$ID_LIKE" in
+		*debian*)
+			debian_based_setup
 			;;
 		*)
-			echo "Unsupported OS: $ID"
-			exit 1
+			case "$ID" in
+				ubuntu|debian|linuxmint|zorin)
+					debian_based_setup
+					;;
+				rhel|centos|fedora)
+					echo "RedHat-based"
+					pkg_manager="rpm"
+					pkg_check_command="-qa"
+					pkg_install_cmd="dnf install -y"
+					declare -A packages=(
+						[gcc]='gcc'
+						[make]='make'
+						[bc]='bc'
+						[bison]='bison'
+						[cpio]='cpio'
+						[cmake]='cmake'
+						[curl]='curl'
+						[file]='file'
+						[flex]='flex'
+						[gawk]='gawk'
+						[git]='git'
+						[ncurses-devel]='ncurses-devel'
+						[rsync]='rsync'
+						[unzip]='unzip'
+						[wget]='wget'
+						[newt]='newt'
+						[dialog]='dialog'
+					)
+					;;
+				arch)
+					echo "Arch-based"
+					pkg_manager="pacman"
+					pkg_check_command="-Q"
+					pkg_install_cmd="pacman -S --noconfirm"
+					declare -A packages=(
+						[base-devel]='base-devel'
+						[bc]='bc'
+						[bison]='bison'
+						[cpio]='cpio'
+						[cmake]='cmake'
+						[curl]='curl'
+						[file]='file'
+						[flex]='flex'
+						[gawk]='gawk'
+						[git]='git'
+						[ncurses]='ncurses'
+						[make]='make'
+						[rsync]='rsync'
+						[unzip]='unzip'
+						[wget]='wget'
+						[libnewt]='libnewt'
+						[dialog]='dialog'
+					)
+					;;
+				alpine)
+					echo "Alpine Linux"
+					pkg_manager="apk"
+					pkg_check_command="info -e"
+					pkg_install_cmd="apk add"
+					declare -A packages=(
+						[build-base]='build-base'
+						[bc]='bc'
+						[bison]='bison'
+						[cpio]='cpio'
+						[cmake]='cmake'
+						[curl]='curl'
+						[file]='file'
+						[flex]='flex'
+						[gawk]='gawk'
+						[git]='git'
+						[ncurses-dev]='ncurses-dev'
+						[make]='make'
+						[rsync]='rsync'
+						[unzip]='unzip'
+						[wget]='wget'
+						[newt]='newt'
+						[dialog]='dialog'
+						[perl]='perl'
+						[findutils]='findutils'
+						[grep]='grep'
+					)
+					;;
+				opensuse-tumbleweed)
+					echo "OpenSUSE Tumbleweed"
+					pkg_manager="zypper"
+					pkg_check_command="zypper search -i"
+					pkg_install_cmd="zypper install"
+					declare -A packages=(
+						[gcc]='gcc'
+						[make]='make'
+						[bc]='bc'
+						[bison]='bison'
+						[cpio]='cpio'
+						[cmake]='cmake'
+						[curl]='curl'
+						[file]='file'
+						[flex]='flex'
+						[gawk]='gawk'
+						[git]='git'
+						[ncurses-devel]='ncurses-devel'
+						[rsync]='rsync'
+						[unzip]='unzip'
+						[wget]='wget'
+						[newt]='newt'
+						[dialog]='dialog'
+						[perl]='perl'
+						[findutils]='findutils'
+						[grep]='grep'
+					)
+					;;
+				*)
+					echo "Unsupported OS: $ID"
+					exit 1
+					;;
+			esac
 			;;
 	esac
 else
