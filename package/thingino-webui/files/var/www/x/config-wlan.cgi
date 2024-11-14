@@ -91,7 +91,7 @@ default_for wlanap_ssid "thingino-ap"
 </div>
 <div class="col mb-3">
 <% ex "fw_printenv | grep wlan | sort" %>
-<% ex "wlan info" %>
+<% is_ap && ex "wlan cli sta_info | tr ' ' '\n'" || ex "wlan info" %>
 </div>
 </div>
 
