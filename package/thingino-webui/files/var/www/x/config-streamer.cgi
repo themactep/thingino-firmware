@@ -231,11 +231,6 @@ default_for rtsp_password "thingino"
 	</div>
 </div>
 
-<style>
-#preview-wrapper button { visibility: hidden; }
-#preview-wrapper:hover button { visibility: visible; }
-</style>
-
 <script>
 const soc = "<% soc -f | tr -d '\n' %>";
 const preview = $("#preview");

@@ -191,6 +191,14 @@ body:before {
 	margin: auto 0.25rem;
 }
 
+#preview-wrapper button {
+	visibility: hidden;
+}
+
+#preview-wrapper:hover button {
+	visibility: visible;
+}
+
 .nav-underline .nav-link.active,
 .nav-underline .show > .nav-link {
 	font-weight: 400;
