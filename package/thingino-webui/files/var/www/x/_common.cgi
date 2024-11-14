@@ -142,7 +142,7 @@ checked_if() {
 }
 
 checked_if_not() {
-	[ "$1" != "$2" ] && echo -n " checked"
+	[ "$1" = "$2" ] || echo -n " checked"
 }
 
 selected_if() {
