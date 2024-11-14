@@ -9,16 +9,14 @@ which motors > /dev/null && has_motors="true"
 
 <div class="row preview">
 <div class="col-lg-1" style="width:5em">
-<div class="d-flex flex-nowrap flex-lg-wrap align-content-around" aria-label="controls">
+
+<div class="d-flex flex-nowrap flex-lg-wrap align-content-around gap-1" aria-label="controls">
 
 <input type="checkbox" class="btn-check" name="motionguard" id="motionguard" value="1">
 <label class="btn btn-dark border mb-2" for="motionguard" title="Motion Guard"><img src="/a/motion.svg" alt="Motion Guard" class="img-fluid"></label>
 
-<input type="checkbox" class="btn-check" name="vflip" id="vflip" value="1">
-<label class="btn btn-dark border mb-2" for="vflip" title="Flip vertically"><img src="/a/flip_v.svg" alt="Flip vertically" class="img-fluid"></label>
-
-<input type="checkbox" class="btn-check" name="hflip" id="hflip" value="1">
-<label class="btn btn-dark border mb-2" for="hflip" title="Flip horizontally"><img src="/a/flip_h.svg" alt="Flip horizontally" class="img-fluid"></label>
+<input type="checkbox" class="btn-check" name="r180" id="r180" value="1">
+<label class="btn btn-dark border mb-2" for="r180" title="Rotate 180°"><img src="/a/r180.svg" alt="Rotate 180°" class="img-fluid"></label>
 
 <input type="checkbox" class="btn-check imp" name="daynight" id="daynight" value="1">
 <label class="btn btn-dark border mb-2" for="daynight" title="Night mode"><img src="/a/day_night_mode.svg" alt="Day/Night Mode" class="img-fluid"></label>
@@ -53,7 +51,9 @@ which motors > /dev/null && has_motors="true"
 <p class="small">Move mouse cursor over the center of the preview image to reveal the motor controls.
 Use a single click for precise positioning, double click for coarse, larger distance movement.</p>
 <% fi %>
-<p class="small">RTSP player command: <span id="playrtsp" class="cb"></span></p>
+<p><img src="/a/volume-mute.svg" alt="Icon: No Audio" class="float-start me-2" style="height: 3rem" title="No Audio">
+Please note, there is no audio on this page. Open the RTSP stream in a player to hear audio.<br>
+<span id="playrtsp" class="cb"></span></p>
 </div>
 <div class="col-lg-2">
 <div class="gap-2">
@@ -90,12 +90,12 @@ Use a single click for precise positioning, double click for coarse, larger dist
 
 <script>
 <%
-[ "true" != "$email_enabled" ] && echo "\$('button[data-sendto=email]').disabled = true;"
-[ "true" != "$ftp_enabled" ] && echo "\$('button[data-sendto=ftp]').disabled = true;"
-[ "true" != "$mqtt_enabled" ] && echo "\$('button[data-sendto=mqtt]').disabled = true;"
-[ "true" != "$webhook_enabled" ] && echo "\$('button[data-sendto=webhook]').disabled = true;"
-[ "true" != "$telegram_enabled" ] && echo "\$('button[data-sendto=telegram]').disabled = true;"
-[ "true" != "$yadisk_enabled" ] && echo "\$('button[data-sendto=yadisk]').disabled = true;"
+[ "true" = "$email_enabled"    ] || echo "\$('button[data-sendto=email]').disabled = true;"
+[ "true" = "$ftp_enabled"      ] || echo "\$('button[data-sendto=ftp]').disabled = true;"
+[ "true" = "$mqtt_enabled"     ] || echo "\$('button[data-sendto=mqtt]').disabled = true;"
+[ "true" = "$webhook_enabled"  ] || echo "\$('button[data-sendto=webhook]').disabled = true;"
+[ "true" = "$telegram_enabled" ] || echo "\$('button[data-sendto=telegram]').disabled = true;"
+[ "true" = "$yadisk_enabled"   ] || echo "\$('button[data-sendto=yadisk]').disabled = true;"
 %>
 
 $$("button[data-sendto]").forEach(el => {
@@ -140,8 +140,8 @@ ws.onmessage = (ev) => {
 		console.log(ts(), '<===', ev.data);
 		const msg = JSON.parse(ev.data);
 		if (msg.image) {
-			if (msg.image.hflip) $('#hflip').checked = msg.image.hflip;
-			if (msg.image.vflip) $('#vflip').checked = msg.image.vflip;
+			if (msg.image.hflip) $('#r180').checked = msg.image.hflip;
+			if (msg.image.vflip) $('#r180').checked = msg.image.vflip;
 			if (msg.image.running_mode) $('#ispmode').checked = (msg.image.running_mode == 0);
 		}
 		if (msg.motion) {
@@ -158,17 +158,13 @@ ws.onmessage = (ev) => {
 	}
 }
 
-const andSave = ',"action":{"save_config":null}'
-
 function sendToWs(payload) {
-	payload = payload.replace(/}$/, andSave + '}')
+	payload = payload.replace(/}$/, ',"action":{"save_config":null}}')
 	console.log(ts(), '===>', payload);
 	ws.send(payload);
 }
 
-$$('#hflip, #vflip').forEach(el => {
-	el.onchange = (ev) => sendToWs(`{"image":{"${ev.target.id}":${ev.target.checked}}}`);
-});
+$('#r180').onchange = (ev) => sendToWs(`{"image":{"hflip":${ev.target.checked},"vflip":${ev.target.checked}}}`);
 
 // not .onchange because we need to catch the event here
 $('#ispmode').addEventListener('change', (ev) => {
