@@ -123,16 +123,6 @@ if [ -z "$socks5_host" ] || [ -z "$socks5_port" ]; then %>
 </div>
 <% fi %>
 
-<% if [ -f /tmp/motionguard-restart.txt ]; then %>
-<div class="alert alert-danger">
-<p>Changes to motion guard configuration detected. Please restart camera to apply the changes.</p>
-<span class="d-flex gap-3">
-<a class="btn btn-danger" href="reboot.cgi">Reboot camera</a>
-<a class="btn btn-primary" href="plugin-motion.cgi">See motion guard settings</a>
-</span>
-</div>
-<% fi %>
-
 <h2><%= $page_title %></h2>
 
 <% alert_read %>
