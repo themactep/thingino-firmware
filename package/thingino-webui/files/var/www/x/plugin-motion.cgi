@@ -96,7 +96,7 @@ motion_params.forEach((x) => {
 });
 
 async function switchSend2Target(target, state) {
-	await fetch(`/x/json-motion.cgi?target=${target}&amp;state=${state}`)
+	await fetch('/x/json-motion.cgi?' + new URLSearchParams({ "target": target, "state": state }).toString())
 		.then(res => res.json())
 		.then(data => { $(`#motion_send2${data.message.target}`).checked = (data.message.status == 1) });
 }

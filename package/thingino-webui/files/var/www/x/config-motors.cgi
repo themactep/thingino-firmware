@@ -170,7 +170,7 @@ function checkHoming() {
 	$('#motor_pos_0_y').disabled = state;
 }
 
-function readMotors() {
+async function readMotors() {
 	await fetch('/x/json-motor.cgi?' + new URLSearchParams({ "d": "j" }).toString())
 		.then(res => res.json())
 		.then(({message:{xpos, ypos}}) => {

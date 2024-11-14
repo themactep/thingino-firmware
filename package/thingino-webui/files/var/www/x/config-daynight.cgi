@@ -169,7 +169,7 @@ field_gpio "white" "White LED"
 
 <script>
 async function switchIndicator(color, state) {
-	await fetch(`/x/json-imp.cgi?cmd=${color}&val=${state}`)
+	await fetch('/x/json-indicator.cgi?' + new URLSearchParams({ "c": color, "s": state }).toString())
 		.then(res => res.json())
 		.then(data => { $(`#${color}_on`).checked = (data.message.result == 1) });
 }

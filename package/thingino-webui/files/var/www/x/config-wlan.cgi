@@ -97,11 +97,11 @@ default_for wlanap_ssid "thingino-ap"
 
 <script>
 $$('#tabs button').forEach(el => {
-  const trigger = new bootstrap.Tab(el)
-  el.addEventListener('click', ev => {
-    ev.preventDefault()
-    trigger.show()
-  })
+	const trigger = new bootstrap.Tab(el)
+	el.addEventListener('click', ev => {
+		ev.preventDefault()
+		trigger.show()
+	})
 })
 bootstrap.Tab.getInstance($('#wlanap_enabled').checked ? $('#wlanap-tab') : $('#wlan-tab')).show()
 </script>
