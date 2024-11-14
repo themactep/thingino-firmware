@@ -1,22 +1,98 @@
 @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=PT+Mono&display=swap");
 
-@media (max-width: 575.98px) {body.debug:before {content: "xs"}}
-@media (min-width: 576px) and (max-width: 767.98px) {body.debug:before {content: "sm"}}
-@media (min-width: 768px) and (max-width: 991.98px) {body.debug:before {content: "md"}}
-@media (min-width: 992px) and (max-width: 1199.98px) {body.debug:before {content: "lg"}}
-@media (min-width: 1200px) and (max-width: 1399.98px) {body.debug:before {content: "xl"}}
-@media (min-width: 1400px) {body.debug:before {content: "xxl"}}
+body:before {
+	color: #333;
+	display: block;
+	font-size: 5rem;
+	font-variant: all-small-caps;
+	font-weight: 700;
+	line-height: 1;
+	position: fixed;
+	right: 1rem;
+	bottom: 1rem;
+	z-index: -1;
+}
+
+@media (max-width: 575.98px) {
+	body:before {
+		content: "xs"
+	}
+}
+
+@media (min-width: 576px) and (max-width: 767.98px) {
+	body:before {
+		content: "sm"
+	}
+}
+
+@media (min-width: 768px) and (max-width: 991.98px) {
+	body:before {
+		content: "md"
+	}
+}
+
+@media (min-width: 992px) and (max-width: 1199.98px) {
+	body:before {
+		content: "lg"
+	}
+}
+
+@media (min-width: 1200px) and (max-width: 1399.98px) {
+	body:before {
+		content: "xl"
+	}
+}
+
+@media (min-width: 1400px) {
+	body:before {
+		content: "xxl"
+	}
+}
+
+@keyframes a1 {
+	90%, 100% {
+		flex-grow: 1;
+	}
+}
 
 @keyframes blinker {
-	0% { opacity: 0; }
-	15% { opacity: 1; }
+	0% {
+		opacity: 0;
+	}
+	15% {
+		opacity: 1;
+	}
 }
 
 :root {
-	--bs-font-sans-serif: "Montserrat", sans-serif;
 	--bs-font-monospace: "PT Mono", monospace;
+	--bs-font-sans-serif: "Montserrat", sans-serif;
 }
+
+.arrow-1, .arrow-2 {
+	display: flex;
+	height: 30px;
+	width: 100%;
+}
+
+.arrow-1 {
+	rotate: 180deg;
+}
+
+.arrow:before {
+	animation: a1 3s normal forwards ease-in-out;
+	background: var(--bs-secondary-bg);
+	clip-path: polygon(0 10px,
+	calc(100% - 15px) 10px,
+	calc(100% - 15px) 0, 100% 50%,
+	calc(100% - 15px) 100%,
+	calc(100% - 15px) calc(100% - 10px),
+	0 calc(100% - 10px));
+	content: "";
+	width: 15px;
+}
+
 
 .blink {
 	color: red;
@@ -32,10 +108,10 @@
 }
 
 .cb {
-        cursor: pointer;
-        text-decoration-color: #f80;
-        text-decoration-line: underline;
-        text-underline-offset: 0.25em;
+	cursor: pointer;
+	text-decoration-color: #f80;
+	text-decoration-line: underline;
+	text-underline-offset: 0.25em;
 }
 
 .container {
@@ -97,6 +173,31 @@
 	min-width: 2.5rem;
 }
 
+.led-ir850 .input-group-text:first-child {
+	background-color: #a60000;
+}
+
+.led-ir940 .input-group-text:first-child {
+	background-color: #750000;
+}
+
+.led-white .input-group-text:first-child {
+	background-color: #eeeeee;
+}
+
+#daynight_interval {
+	display: inline-block;
+	max-width: 3rem;
+	margin: auto 0.25rem;
+}
+
+.nav-underline .nav-link.active,
+.nav-underline .show > .nav-link {
+	font-weight: 400;
+	color: var(--bs-nav-underline-link-active-color);
+	border-bottom-color: currentcolor;
+}
+
 .navbar-brand {
 	padding: .5rem 0 0;
 }
@@ -135,6 +236,10 @@
 
 .tab-pane {
 	padding: 1rem 0;
+}
+
+.tab-title {
+	margin-bottom: .75em;
 }
 
 .table.files td {
@@ -200,12 +305,16 @@ textarea.nowrap {
 	white-space: pre;
 }
 
-#page-texteditor .tab-pane {
-	min-height: 60vh;
+#editor_text {
+	min-height: 20rem;
 }
 
 #frame {
 	border: rgba(128, 128, 128, 0.5) 1px solid;
+}
+
+#page-texteditor .tab-pane {
+	min-height: 60vh;
 }
 
 pre#output[data-cmd] {
