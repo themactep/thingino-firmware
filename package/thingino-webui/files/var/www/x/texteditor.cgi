@@ -100,10 +100,4 @@ unset _n
 <% fi %>
 </div>
 
-<style>
-#editor_text {
-	min-height: 20rem;
-}
-</style>
-
 <%in _footer.cgi %>

@@ -179,16 +179,4 @@ async function switchIndicator(color, state) {
 	$(`#${n}_on`).onchange = (ev) => switchIndicator(n, ev.target.checked ? '1' : '0');
 });
 </script>
-
-<style>
-.led-ir850 .input-group-text:first-child { background-color: #a60000; }
-.led-ir940 .input-group-text:first-child { background-color: #750000; }
-.led-white .input-group-text:first-child { background-color: #eeeeee; }
-.arrow-1, .arrow-2 { width: 100%; height: 30px; display: flex; }
-.arrow-1 { rotate: 180deg; }
-.arrow:before { background: var(--bs-secondary-bg); content: ""; width: 15px; clip-path: polygon(0 10px, calc(100% - 15px) 10px, calc(100% - 15px) 0, 100% 50%, calc(100% - 15px) 100%, calc(100% - 15px) calc(100% - 10px), 0 calc(100% - 10px)); animation: a1 3s normal forwards ease-in-out; }
-@keyframes a1 { 90%, 100% {flex-grow: 1} }
-#daynight_interval { display: inline-block; max-width: 3rem; margin: auto 0.25rem; }
-</style>
-
 <%in _footer.cgi %>
