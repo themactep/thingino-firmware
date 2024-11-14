@@ -9,8 +9,13 @@ case "$target" in
 		;;
 	termbin)
 		case $GET_file in
-			weblog) url=$(cat /tmp/webui.log | send2termbin) ;;
-			*) url=$($GET_file | send2termbin) ;;
+			weblog)
+				url=$(cat /tmp/webui.log | send2termbin)
+				;;
+			*)
+				cmd=$(echo "$GET_payload" | base64 -d) || cmd="$GET_payload"
+				url=$($cmd | send2termbin)
+				;;
 		esac
 		redirect_to $url
 		;;

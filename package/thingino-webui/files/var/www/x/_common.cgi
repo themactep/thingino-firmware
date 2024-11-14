@@ -53,14 +53,13 @@ alert_read() {
 	local c
 	local m
 	local l
-	OIFS="$IFS"
 	IFS=$'\n'
 	for l in $(cat "$alert_file"); do
 		c="$(echo $l | cut -d':' -f1)"
 		m="$(echo $l | cut -d':' -f2-)"
 		echo "<div class=\"alert alert-$c alert-dismissible fade show\" role=\"alert\">$m<button type=\"button\" class=\"btn btn-close\" data-bs-dismiss=\"alert\" aria-label=\"Close\"></button></div>"
 	done
-	IFS=$OIFS
+	IFS=$IFS_ORIG
 	alert_delete
 }
 
@@ -105,7 +104,7 @@ button_restore_from_rom() {
 }
 
 button_send2tb() {
-	echo "<a class=\"btn btn-warning\" href=\"send.cgi?to=termbin&file=$1\" target=\"_blank\">Send to TermBin</a>"
+	echo "<p class=\"mb-4\"><a class=\"text-warning\" href=\"send.cgi?to=termbin&payload=$(echo "$1" | base64)\" target=\"_blank\">Share via TermBin</a></p>"
 }
 
 # button_submit "text" "type" "extras"
