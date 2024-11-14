@@ -120,10 +120,6 @@ check_file_exist() {
 	[ -f "$1" ] || redirect_back "danger" "File $1 not found"
 }
 
-check_hostname() {
-	[ -z "$hostname" ] && hostname="thingino-"
-}
-
 check_mac_address() {
 	echo "$1" | grep -qE "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"
 }
@@ -468,6 +464,13 @@ sanitize4web() {
 	# convert html entities
 	eval $n=$(echo \${$n//\\\"/\&quot\;})
 	eval $n=$(echo \${$n//\$/\\\$})
+}
+
+save2env() {
+	local tmpfile=$(mktemp -u)
+	echo -e "$*" >> $tmpfile
+	fw_setenv -s $tmpfile
+	rm $tmpfile
 }
 
 set_error_flag() {

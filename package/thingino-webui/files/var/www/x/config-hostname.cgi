@@ -3,47 +3,23 @@
 <%
 page_title="Hostname"
 
+check_hostname() {
+	default_for hostname "thingino-"
+}
+
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	error=""
-
-	# values from the form
 	hostname=$POST_hostname
-
-	# default values
 	check_hostname
-
-	# update env
-	if [ "$hostname" != "$(fw_printenv -n hostname)" ]; then
-		tmpfile=$(mktemp)
-		echo "hostname $hostname" >> $tmpfile
-		fw_setenv -s $tmpfile
-		rm $tmpfile
-	fi
-
-	# update /etc/hostname
-	if [ "$hostname" != "$(cat /etc/hostname)" ]; then
-		echo "$hostname" > /etc/hostname
-	fi
-
-	# update /etc/hosts
-	if [ "$hostname" != "$(sed -nE "s/^127.0.1.1\t(.*)$/\1/p" /etc/os-release)" ]; then
-		sed -i "/^127.0.1.1/s/\t.*$/\t$hostname/" /etc/hosts
-	fi
-
-	# update os-release
-	if [ "$hostname" != "$(sed -nE "s/^HOSTNAME=(.*)$/\1/p" /etc/os-release)" ]; then
-		sed -i "/^HOSTNAME/s/=.*$/=$hostname/" /etc/os-release
-		. /etc/os-release
-	fi
-
-	# update hostname
+	[ "$hostname" = "$(fw_printenv -n hostname)" ] || save2env "hostname $hostname"
+	[ "$hostname" = "$(cat /etc/hostname)" ] || echo "$hostname" > /etc/hostname
+	[ "$hostname" = "$(sed -nE "s/^127.0.1.1\t(.*)$/\1/p" /etc/os-release)" ] || sed -i "/^127.0.1.1/s/\t.*$/\t$hostname/" /etc/hosts
+	[ "$hostname" = "$(sed -nE "s/^HOSTNAME=(.*)$/\1/p" /etc/os-release)" ] || sed -i "/^HOSTNAME/s/=.*$/=$hostname/" /etc/os-release
+	. /etc/os-release
 	hostname "$hostname"
+	redirect_to $SCRIPT_NAME
 fi
 
-# read data from env
 hostname=$(get hostname)
-
-# default values
 check_hostname
 %>
 <%in _header.cgi %>
