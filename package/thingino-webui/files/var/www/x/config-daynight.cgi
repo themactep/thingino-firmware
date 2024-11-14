@@ -64,21 +64,15 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	daynight_enabled=${POST_daynight_enabled:-true}
 	daynight_interval=${POST_daynight_interval:-1}
 
-	# save values to env
-	tmpfile=$(mktemp -u)
-	{
-		echo "gpio_ir850 $ir850_pin"
-		echo "gpio_ir940 $ir940_pin"
-		echo "gpio_white $white_pin"
-		echo "gpio_ircut $ircut_pin1 $ircut_pin2"
-		echo "pwm_ch_ir850 $ir850_pwm"
-		echo "pwm_ch_ir940 $ir940_pwm"
-		echo "pwm_ch_white $white_pwm"
-		echo "day_night_min $day_night_min"
-		echo "day_night_max $day_night_max"
-	} > $tmpfile
-	fw_setenv -s $tmpfile
-	rm $tmpfile
+	save2env "gpio_ir850 $ir850_pin\n" \
+		"gpio_ir940 $ir940_pin\n" \
+		"gpio_white $white_pin\n" \
+		"gpio_ircut $ircut_pin1 $ircut_pin2\n" \
+		"pwm_ch_ir850 $ir850_pwm\n" \
+		"pwm_ch_ir940 $ir940_pwm\n" \
+		"pwm_ch_white $white_pwm\n" \
+		"day_night_min $day_night_min\n" \
+		"day_night_max $day_night_max\n"
 
 	# update crontab
 	tmpfile=$(mktemp -u)
