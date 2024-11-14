@@ -43,7 +43,7 @@ if [ -f /etc/os-release ]; then
 		*debian*)
 			echo "Detected as Debian-based via ID_LIKE"
 			pkg_manager="dpkg"
-			pkg_check_command="dpkg-query -W -f='${Status}'"
+			pkg_check_command="dpkg-query -W -f='\${Status}'"
 			pkg_install_cmd="apt-get install -y"
 			pkg_update_cmd="apt-get update"
 			packages="build-essential bc bison cpio cmake curl file flex gawk git libncurses-dev make rsync unzip u-boot-tools wget whiptail dialog"
@@ -53,7 +53,7 @@ if [ -f /etc/os-release ]; then
 				ubuntu|debian|linuxmint|zorin)
 					echo "Detected as Debian-based via ID"
 					pkg_manager="dpkg"
-					pkg_check_command="dpkg-query -W -f='${Status}'"
+					pkg_check_command="dpkg-query -W -f='\${Status}'"
 					pkg_install_cmd="apt-get install -y"
 					pkg_update_cmd="apt-get update"
 					packages="build-essential bc bison cpio cmake curl file flex gawk git libncurses-dev make rsync unzip u-boot-tools wget whiptail dialog"
@@ -107,35 +107,35 @@ packages_to_install=""
 for pkg in $packages; do
 	case "$pkg_manager" in
 		dpkg)
-			if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"; then
+			if ! $pkg_check_command "$pkg" 2>/dev/null | grep -q "install ok installed"; then
 				packages_to_install="$packages_to_install $pkg"
 			else
 				echo "Package $pkg is installed."
 			fi
 			;;
 		rpm)
-			if ! rpm -q "$pkg" >/dev/null 2>&1; then
+			if ! $pkg_check_command "$pkg" >/dev/null 2>&1; then
 				packages_to_install="$packages_to_install $pkg"
 			else
 				echo "Package $pkg is installed."
 			fi
 			;;
 		pacman)
-			if ! pacman -Q "$pkg" >/dev/null 2>&1; then
+			if ! $pkg_check_command "$pkg" >/dev/null 2>&1; then
 				packages_to_install="$packages_to_install $pkg"
 			else
 				echo "Package $pkg is installed."
 			fi
 			;;
 		apk)
-			if ! apk info -e "$pkg" >/dev/null 2>&1; then
+			if ! $pkg_check_command "$pkg" >/dev/null 2>&1; then
 				packages_to_install="$packages_to_install $pkg"
 			else
 				echo "Package $pkg is installed."
 			fi
 			;;
 		zypper)
-			if ! zypper search -i "$pkg" >/dev/null 2>&1; then
+			if ! $pkg_check_command "$pkg" >/dev/null 2>&1; then
 				packages_to_install="$packages_to_install $pkg"
 			else
 				echo "Package $pkg is installed."
