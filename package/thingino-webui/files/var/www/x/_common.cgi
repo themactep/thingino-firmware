@@ -163,7 +163,7 @@ ex() {
 # field_checkbox "name" "label" "hint"
 field_checkbox() {
 	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
+	default_for l "<span class=\"bg-warning\">$1</span>"
 	local h=$3
 	local v=$(t_value "$1")
 	default_for v "false"

@@ -105,16 +105,16 @@ ircut_pin1=$(echo $ircut_pins | awk '{print $1}')
 ircut_pin2=$(echo $ircut_pins | awk '{print $2}')
 
 grep -q '^[^#].*daynight$' $CRONTABS && daynight_enabled="true"
-[ -z "$daynight_enabled" ] && daynight_enabled="false"
+default_for daynight_enabled "false"
 
 daynight_interval=$(awk -F'[/ ]' '/daynight$/{print $2}' $CRONTABS)
-[ -z "$daynight_interval" ] && daynight_interval=1
+default_for daynight_interval 1
 
 day_night_max=$(get day_night_max)
-[ -z "$day_night_max" ] && day_night_max=15000
+default_for day_night_max 15000
 
 day_night_min=$(get day_night_min)
-[ -z "$day_night_min" ] && day_night_min=5000
+default_for day_night_min 5000
 %>
 <%in _header.cgi %>
 

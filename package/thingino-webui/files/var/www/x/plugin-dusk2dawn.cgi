@@ -37,10 +37,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	redirect_to $SCRIPT_NAME
 else
 	# Default values
-	[ -z "$dusk2dawn_enabled" ] && dusk2dawn_enabled=false
-	[ -z "$dusk2dawn_runat" ] && dusk2dawn_runat="0:00"
-	[ -z "$dusk2dawn_offset_sr" ] && dusk2dawn_offset_sr="0"
-	[ -z "$dusk2dawn_offset_ss" ] && dusk2dawn_offset_ss="0"
+	default_for dusk2dawn_enabled "false"
+	default_for dusk2dawn_runat "0:00"
+	default_for dusk2dawn_offset_sr "0"
+	default_for dusk2dawn_offset_ss "0"
 fi
 %>
 <%in _header.cgi %>

@@ -18,8 +18,8 @@ disable_homing=$(get disable_homing)
 
 # FIXME: deprecate after splitting to per-motor
 motor_speed=$(get motor_speed)
-[ -z "$motor_speed_h" ] && motor_speed_h=$motor_speed
-[ -z "$motor_speed_v" ] && motor_speed_v=$motor_speed
+default_for motor_speed_h $motor_speed
+default_for motor_speed_v $motor_speed
 
 # parse
 gpio_motor_h_1=$(echo $gpio_motor_h | awk '{print $1}')
@@ -34,7 +34,7 @@ motor_pos_0_x=$(echo $motor_pos_0 | awk -F',' '{print $1}')
 motor_pos_0_y=$(echo $motor_pos_0 | awk -F',' '{print $2}')
 
 # normalize
-[ -z "$disable_homing" ] && disable_homing=false
+default_for disable_homing "false"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""

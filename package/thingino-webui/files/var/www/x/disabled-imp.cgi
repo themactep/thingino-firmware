@@ -55,8 +55,8 @@ if [ -n "$whitebalance" ]; then
 fi
 
 # normalize
-[ -z "$setosdpos_x" ] && setosdpos_x=0
-[ -z "$setosdpos_y" ] && setosdpos_y=0
+default_for setosdpos_x 0
+default_for setosdpos_y 0
 %>
 <%in _header.cgi %>
 

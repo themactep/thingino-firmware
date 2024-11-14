@@ -47,9 +47,9 @@ fi
 
 users=$(awk 'BEGIN { FS = ":" } ; { if ($3 > 1000) print $1 }' /etc/passwd)
 
-[ -z "$user_home" ] && user_home="/dev/null"
-[ -z "$user_shell" ] && user_shell="/bin/false"
-[ -z "$user_group" ] && user_group="users"
+default_for user_home "/dev/null"
+default_for user_shell "/bin/false"
+default_for user_group "users"
 %>
 
 <%in _header.cgi %>

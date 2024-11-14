@@ -63,7 +63,7 @@ wlan_ssid="$(get wlanssid)"
 read_from_env "wlanap"
 
 # defaults
-[ -z "$wlanap_ssid" ] && wlanap_ssid="thingino-ap"
+default_for wlanap_ssid "thingino-ap"
 %>
 <%in _header.cgi %>
 
