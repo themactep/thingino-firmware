@@ -51,9 +51,13 @@ which motors > /dev/null && has_motors="true"
 <p class="small">Move mouse cursor over the center of the preview image to reveal the motor controls.
 Use a single click for precise positioning, double click for coarse, larger distance movement.</p>
 <% fi %>
-<p><img src="/a/volume-mute.svg" alt="Icon: No Audio" class="float-start me-2" style="height: 3rem" title="No Audio">
-Please note, there is no audio on this page. Open the RTSP stream in a player to hear audio.<br>
-<span id="playrtsp" class="cb"></span></p>
+
+<div class="alert alert-secondary">
+<p class="mb-0"><img src="/a/volume-mute.svg" alt="Icon: No Audio" class="float-start me-2" style="height:1.75rem" title="No Audio">
+Please note, there is no audio on this page. Open the RTSP stream in a player to hear audio.</p>
+<b id="playrtsp" class="cb"></b>
+</div>
+
 </div>
 <div class="col-lg-2">
 <div class="gap-2">
@@ -102,9 +106,9 @@ $$("button[data-sendto]").forEach(el => {
 	el.onclick = (ev) => {
 		ev.preventDefault();
 		if (!confirm("Are you sure?")) return false;
-		const xhr = new XMLHttpRequest();
-		xhr.open('GET', "/x/send.cgi?to=" + ev.target.dataset["sendto"]);
-		xhr.send();
+		fetch("/x/send.cgi?to=" + ev.target.dataset["sendto"])
+		.then(res => res.json())
+		.then(data => console.log(data))
 	}
 });
 

@@ -1,5 +1,4 @@
 @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=PT+Mono&display=swap");
 
 body:before {
 	color: #333;
@@ -66,7 +65,6 @@ body:before {
 }
 
 :root {
-	--bs-font-monospace: "PT Mono", monospace;
 	--bs-font-sans-serif: "Montserrat", sans-serif;
 }
 
@@ -329,3 +327,10 @@ pre#output[data-cmd] {
 	background-color: rgb(0, 0, 0);
 	color: rgba(170, 170, 170, 0.8);
 }
+
+.led-gpio_led_r > .input-group > .input-group-text.switch {	background: red; }
+.led-gpio_led_g > .input-group > .input-group-text.switch {	background: green; }
+.led-gpio_led_b > .input-group > .input-group-text.switch {	background: blue; }
+.led-gpio_led_y > .input-group > .input-group-text.switch {	background: yellow; }
+.led-gpio_led_o > .input-group > .input-group-text.switch {	background: orange; }
+.led-gpio_led_w > .input-group > .input-group-text.switch {	background: white; }

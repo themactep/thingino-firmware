@@ -22,7 +22,7 @@ Pragma: no-cache
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
 <div class="container">
 <a class="navbar-brand" href="status.cgi"><img alt="Image: thingino logo" width="150" src="/a/logo.svg"></a>
-<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbMain" aria-controls="nbMain" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbMain" aria-controls="nbMain" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
 <div class="collapse navbar-collapse justify-content-end" id="nbMain">
 <ul class="navbar-nav">
 <li class="nav-item"><a class="nav-link" href="info.cgi">Information</a></li>
@@ -32,17 +32,17 @@ Pragma: no-cache
 <li><hr class="dropdown-divider"></li>
 <li><a class="dropdown-item" href="reset.cgi">Reset...</a></li>
 </ul></li>
-<li class="nav-item dropdown"><a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddTools" role="button">Tools</a>
+<li class="nav-item dropdown"><a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddTools" role="button">Tools</a>
 <ul aria-labelledby="ddTools" class="dropdown-menu">
 <% menu "tool" %>
 <li><a href="reboot.cgi" class="dropdown-item bg-danger confirm">⏼ Reboot</a></li>
 </ul></li>
-<li class="nav-item dropdown"><a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddServices" role="button">Services</a>
+<li class="nav-item dropdown"><a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddServices" role="button">Services</a>
 <ul aria-labelledby="ddServices" class="dropdown-menu">
 <% menu "plugin" %>
 </ul></li>
 <li class="nav-item"><a class="nav-link" href="preview.cgi">Preview</a></li>
-<li class="nav-item dropdown"><a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddHelp" role="button">Help</a>
+<li class="nav-item dropdown"><a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddHelp" role="button">Help</a>
 <ul aria-labelledby="ddHelp" class="dropdown-menu dropdown-menu-lg-end">
 <li><a class="dropdown-item" href="https://thingino.com/">About thingino</a></li>
 </ul></li>
