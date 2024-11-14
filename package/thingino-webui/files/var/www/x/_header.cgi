@@ -18,46 +18,38 @@ Pragma: no-cache
 </head>
 
 <body id="page-<%= $pagename %>" class="<%= ${webui_level:-user} %><% [ "$debug" -gt 0 ] && echo -n " debug" %>">
+
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
 <div class="container">
 <a class="navbar-brand" href="status.cgi"><img alt="Image: thingino logo" width="150" src="/a/logo.svg"></a>
-<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
-<div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-
+<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbMain" aria-controls="nbMain" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+<div class="collapse navbar-collapse justify-content-end" id="nbMain">
 <ul class="navbar-nav">
-<li class="nav-item dropdown">
-<a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownInformation" role="button">Information</a>
-<ul aria-labelledby="dropdownInformation" class="dropdown-menu">
+<li class="nav-item dropdown"><a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddInformation" role="button">Information</a>
+<ul aria-labelledby="ddInformation" class="dropdown-menu">
 <li><a class="dropdown-item" href="status.cgi">Overview</a></li>
 <% menu "info" %>
-</ul>
-</li>
-<li class="nav-item dropdown">
-<a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownSettings" role="button">Settings</a>
-<ul aria-labelledby="dropdownSettings" class="dropdown-menu">
+</ul></li>
+<li class="nav-item dropdown"><a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddSettings" role="button">Settings</a>
+<ul aria-labelledby="ddSettings" class="dropdown-menu">
 <% menu "config" %>
 <li><hr class="dropdown-divider"></li>
 <li><a class="dropdown-item" href="reset.cgi">Reset...</a></li>
-</ul>
-</li>
-<li class="nav-item dropdown">
-<a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownTools" role="button">Tools</a>
-<ul aria-labelledby="dropdownTools" class="dropdown-menu">
+</ul></li>
+<li class="nav-item dropdown"><a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddTools" role="button">Tools</a>
+<ul aria-labelledby="ddTools" class="dropdown-menu">
 <% menu "tool" %>
 <li><a href="reboot.cgi" class="dropdown-item bg-danger confirm">⏼ Reboot</a></li>
-</ul>
-</li>
-<li class="nav-item dropdown"><a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownServices" role="button">Services</a>
-<ul aria-labelledby="dropdownServices" class="dropdown-menu">
+</ul></li>
+<li class="nav-item dropdown"><a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddServices" role="button">Services</a>
+<ul aria-labelledby="ddServices" class="dropdown-menu">
 <% menu "plugin" %>
-</ul>
-</li>
+</ul></li>
 <li class="nav-item"><a class="nav-link" href="preview.cgi">Preview</a></li>
-<li class="nav-item dropdown"><a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="dropdownHelp" role="button">Help</a>
-<ul aria-labelledby="dropdownHelp" class="dropdown-menu dropdown-menu-lg-end">
+<li class="nav-item dropdown"><a aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddHelp" role="button">Help</a>
+<ul aria-labelledby="ddHelp" class="dropdown-menu dropdown-menu-lg-end">
 <li><a class="dropdown-item" href="https://thingino.com/">About thingino</a></li>
-</ul>
-</li>
+</ul></li>
 </ul>
 </div>
 </div>
