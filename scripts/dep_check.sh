@@ -18,12 +18,11 @@ check_glibc_version() {
 }
 
 install_packages() {
-	local packages=("$@")
-	echo "The following packages are missing and need to be installed: ${packages[*]}"
-	if $install_cmd $pkg_install_cmd "${packages[@]}"; then
-		echo "Installed ${packages[*]}"
+	echo "The following packages are missing and need to be installed: $*"
+	if $install_cmd $pkg_install_cmd "$@"; then
+		echo "Installed $*"
 	else
-		echo "Failed to install ${packages[*]}"
+		echo "Failed to install $*"
 	fi
 }
 
@@ -172,7 +171,7 @@ if [ -f /etc/os-release ]; then
 					[grep]='grep'
 				)
 				;;
-			opensuse-tumbleweed)
+			opensuse*)
 				echo "OpenSUSE Tumbleweed"
 				pkg_manager="zypper"
 				pkg_check_command="zypper search -i"
