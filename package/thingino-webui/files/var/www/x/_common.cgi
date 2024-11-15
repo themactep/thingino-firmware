@@ -478,7 +478,7 @@ set_error_flag() {
 }
 
 generate_signature() {
-	echo "$soc, $sensor, $flash_size_mb MB, $network_hostname, $network_macaddr" >$signature_file
+	echo "$soc_model, $sensor_model, $flash_size_mb MB, $network_hostname, $network_macaddr" >$signature_file
 }
 
 signature() {
@@ -518,9 +518,12 @@ update_caminfo() {
 	fi
 	flash_size_mb=$((flash_size / 1024 / 1024))
 
-	sensor=$(cat /etc/sensor/model)
-	soc=$(/usr/sbin/soc -m)
-	soc_family=$(/usr/sbin/soc -f)
+	sensor_fps_max=$(sensor max_fps)
+	sensor_fps_min=$(sensor min_fps)
+	sensor_model=$(sensor name)
+
+	soc_family=$(soc -f)
+	soc_model=$(soc -m)
 
 	# Firmware
 	uboot_version=$(get ver)
@@ -564,7 +567,7 @@ update_caminfo() {
 		tz_name="Etc/GMT"; echo "$tz_name" >/etc/timezone
 	fi
 
-	local variables="flash_size flash_size_mb flash_type fw_version fw_build network_address network_cidr network_default_interface network_dhcp network_dns_1 network_dns_2 network_gateway network_hostname network_interfaces network_macaddr network_netmask overlay_root soc soc_family sensor tz_data tz_name uboot_version ui_password"
+	local variables="flash_size flash_size_mb flash_type fw_version fw_build network_address network_cidr network_default_interface network_dhcp network_dns_1 network_dns_2 network_gateway network_hostname network_interfaces network_macaddr network_netmask overlay_root soc_family soc_model sensor_fps_max sensor_fps_min sensor_model tz_data tz_name uboot_version ui_password"
 	local v
 	for v in $variables; do
 		eval "echo $v=\'\$$v\'>>$tmpfile"
@@ -611,6 +614,7 @@ day_night_max=$(get day_night_max)
 day_night_min=$(get day_night_min)
 
 include $sysinfo_file
+
 include /etc/webui/mqtt.conf
 include /etc/webui/socks5.conf
 include /etc/webui/speaker.conf

@@ -197,15 +197,13 @@ body:before {
 	visibility: visible;
 }
 
-.nav-underline .nav-link.active,
-.nav-underline .show > .nav-link {
-	font-weight: 400;
-	color: var(--bs-nav-underline-link-active-color);
-	border-bottom-color: currentcolor;
-}
-
 .navbar-brand {
 	padding: .5rem 0 0;
+}
+
+.navbar-nav .nav-link.active {
+	font-weight: 400;
+	color: #ff8800;
 }
 
 .plugin-enabled {
@@ -288,6 +286,10 @@ body.expert .ui-expert {
 dt {
 	font-weight: 500;
 	color: var(--bs-light);
+}
+
+input[type="checkbox"], .form-check-label {
+	cursor: pointer;
 }
 
 pre {

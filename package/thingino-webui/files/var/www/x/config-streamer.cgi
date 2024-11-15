@@ -22,8 +22,6 @@ AUDIO_BITRATES=$(seq 6 2 256)
 FONTS=$(ls -1 $OSD_FONT_PATH)
 
 ts=$(date +%s)
-soc_family=$(soc -f)
-soc_model=$(soc -m)
 
 if [ "t30" = "$soc_family" ] || [ "t31" = "$soc_family" -a "t31lc" != "$soc_model" ]; then
 	FORMATS="H264,H265"
@@ -70,13 +68,14 @@ default_for rtsp_password "thingino"
 <div class="row row-cols-1 row-cols-lg-2">
 <div class="col mb-3">
 <div id="preview-wrapper" class="mb-4 position-relative">
+<p class="text-warning">Preview is the Main stream</p>
 <p><img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Stream Preview"></p>
 <button type="button" class="btn btn-primary btn-large position-absolute top-50 start-50 translate-middle" data-bs-toggle="modal" data-bs-target="#mdPreview"><%= $icon_zoom %></button>
 </div>
 <p>Double-click on a range element will restore its default value.</p>
 <button type="button" class="btn btn-secondary me-1" id="restart-prudynt">Restart streamer</button>
-<button type="button" class="btn btn-secondary me-1" id="save-prudynt-config">Save streamer config</button>
-<a class="btn btn-secondary" href="tool-file-manager.cgi?dl=/etc/prudynt.cfg">Download config file</a>
+<button type="button" class="btn btn-secondary me-1" id="save-prudynt-config">Save config</button>
+<a class="btn btn-secondary" href="tool-file-manager.cgi?dl=/etc/prudynt.cfg">Download config</a>
 </div>
 
 <div class="col mb-3">
@@ -111,7 +110,7 @@ default_for rtsp_password "thingino"
 <div class="row g-2">
 <div class="col-3"><% field_text "${domain}_width" "Width" %></div>
 <div class="col-3"><% field_text "${domain}_height" "Height" %></div>
-<div class="col-6"><% field_range "${domain}_fps" "FPS" "5,30,1" %></div>
+<div class="col-6"><% field_range "${domain}_fps" "FPS" "$sensor_fps_min,$sensor_fps_max,1" %></div>
 </div>
 <div class="row g-2">
 <div class="col-3"><% field_select "${domain}_format" "Format" $FORMATS %></div>
@@ -133,7 +132,6 @@ default_for rtsp_password "thingino"
 
 <div class="tab-pane fade" id="tab<%= $((i+2)) %>osd-pane" role="tabpanel" aria-labelledby="tab<%= $((i+2)) %>osd">
 <% field_switch "osd${i}_enabled" "OSD enabled" %>
-<% [ "$i" -gt 0 ] && echo "<p class=\"text-warning\">Main stream OSD is shown as a preview!</p>" %>
 <div class="row g-1"><div class="col-7"><label class="form-label" for="fontname<%= $i %>">Font</label>
 <div class="input-group mb-3"><button class="btn btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#mdFont" title="Upload a font">
 <img src="/a/upload.svg" alt="Upload" class="img-fluid" style="height:20px"></button><select class="form-select" id="fontname<%= $i %>">
@@ -224,7 +222,7 @@ default_for rtsp_password "thingino"
 </div></div></div></div>
 
 <script>
-const soc = "<% soc -f | tr -d '\n' %>";
+const soc = "<%= $soc_family %>";
 const preview = $("#preview");
 preview.onload = function() { URL.revokeObjectURL(this.src) }
 
