@@ -15,6 +15,7 @@ update_hostname() {
 	[ "$(cat $FILE_HOSTNAME)" = "$hostname" ] && return
 	run "echo $hostname > $FILE_HOSTNAME"
 }
+
 update_hosts() {
 	local ip="127.0.1.1"
 	[ "$(sed -nE "s/^$ip\s+(.*)$/\1/p" $FILE_HOSTS)" = "$hostname" ] && return
