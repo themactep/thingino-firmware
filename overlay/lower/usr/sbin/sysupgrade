@@ -211,7 +211,7 @@ if [ -z "$upgrade" ]; then
 		say "Upgrade from a remote file"
 		url="$1"
 	else
-		say "Upgrade from a local file"
+		say "Upgrade from a local file $fw_file"
 		if [ -f "$fw_file" ]; then
 			say "Found $fw_file"
 		else
