@@ -7,17 +7,19 @@ STR_NOT_SUPPORTED="not supported on this system"
 STR_SUPPORTS_STRFTIME="Supports <a href=\"https://man7.org/linux/man-pages/man3/strftime.3.html\" target=\"_blank\">strftime</a> format."
 STR_EIGHT_OR_MORE_CHARS=" pattern=\".{8,}\" title=\"8 characters or longer\""
 
-pagename=$(basename "$SCRIPT_NAME")
+pagename=$(basename $SCRIPT_NAME)
 pagename="${pagename%%.*}"
 
+# files
 ui_config_dir=/etc/webui
 ui_tmp_dir=/tmp/webui
 alert_file=$ui_tmp_dir/alert.txt
 signature_file=$ui_tmp_dir/signature.txt
 sysinfo_file=/tmp/sysinfo.txt
 webui_log=/tmp/webui.log
+
+# read from files
 ws_token="$(cat /run/prudynt_websocket_token)"
-wlanap_enabled=$(get wlanap_enabled)
 
 ensure_dir() {
 	[ -d "$1" ] && return
@@ -57,7 +59,9 @@ alert_read() {
 	for l in $(cat "$alert_file"); do
 		c="$(echo $l | cut -d':' -f1)"
 		m="$(echo $l | cut -d':' -f2-)"
-		echo "<div class=\"alert alert-$c alert-dismissible fade show\" role=\"alert\">$m<button type=\"button\" class=\"btn btn-close\" data-bs-dismiss=\"alert\" aria-label=\"Close\"></button></div>"
+		echo "<div class=\"alert alert-$c alert-dismissible fade show\" role=\"alert\">$m
+		<button type=\"button\" class=\"btn btn-close\" data-bs-dismiss=\"alert\" aria-label=\"Close\"></button>
+		</div>"
 	done
 	IFS=$IFS_ORIG
 	alert_delete
@@ -157,102 +161,106 @@ ex() {
 
 # field_checkbox "name" "label" "hint"
 field_checkbox() {
-	local l=$2
-	default_for l "<span class=\"bg-warning\">$1</span>"
-	local h=$3
 	local v=$(t_value "$1")
 	default_for v "false"
-	echo "<p class=\"boolean form-check\"><input type=\"hidden\" id=\"$1-false\" name=\"$1\" value=\"false\"><input type=\"checkbox\" name=\"$1\" id=\"$1\" value=\"true\" class=\"form-check-input\"$(checked_if "true" "$v")><label for=\"$1\" class=\"form-label\">$l</label>"
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary d-block mb-2\">$h</span>"
+	echo "<p class=\"boolean form-check\">
+	<input type=\"hidden\" id=\"$1-false\" name=\"$1\" value=\"false\">
+	<input type=\"checkbox\" name=\"$1\" id=\"$1\" value=\"true\" class=\"form-check-input\"$(checked_if "true" "$v")>
+	<label for=\"$1\" class=\"form-label\">$2</label>"
+	[ -n "$3" ] && echo "<span class=\"hint text-secondary d-block mb-2\">$3</span>"
 	echo "</p>"
 }
 
 field_color() {
-	echo "<p id=\"$1_wrap\" class=\"file\"><label for=\"$1\" class=\"form-label\">$2</label><input type=\"color\" id=\"$1\" name=\"$1\" class=\"form-control input-color\"></p>"
+	echo "<p id=\"$1_wrap\" class=\"file\">
+	<label for=\"$1\" class=\"form-label\">$2</label>
+	<input type=\"color\" id=\"$1\" name=\"$1\" class=\"form-control input-color\">
+	</p>"
 }
 
 # field_file "name" "label" "hint"
 field_file() {
-	local l=$2
-	default_for l "<span class=\"bg-warning\">$1</span>"
-	local h=$3
-	echo "<p id=\"$1_wrap\" class=\"file\"><label for=\"$1\" class=\"form-label\">$l</label><input type=\"file\" id=\"$1\" name=\"$1\" class=\"form-control\">"
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
+	echo "<p id=\"$1_wrap\" class=\"file\">
+	<label for=\"$1\" class=\"form-label\">$2</label>
+	<input type=\"file\" id=\"$1\" name=\"$1\" class=\"form-control\">"
+	[ -n "$3" ] && echo "<span class=\"hint text-secondary\">$3</span>"
 	echo "</p>"
 }
 
 # field_hidden "name" "value"
 field_hidden() {
-	# do we need id here? id=\"$1\". We do for netip password!
 	echo "<input type=\"hidden\" name=\"$1\" id=\"$1\" value=\"$2\" class=\"form-hidden\">"
 }
 
 # field_number "name" "label" "range" "hint"
 field_number() {
 	local n=$1
-	local l=$2
-	default_for l "<span class=\"bg-warning\">$1</span>"
 	local r=$3 # min,max,step,button
 	local mn=$(echo "$r" | cut -d, -f1)
 	local mx=$(echo "$r" | cut -d, -f2)
 	local st=$(echo "$r" | cut -d, -f3)
 	local ab=$(echo "$r" | cut -d, -f4)
-	local h=$4
 	local v=$(t_value "$n")
 	local vr=$v
 	[ -n "$ab" ] && [ "$ab" = "$v" ] && vr=$(((mn + mx) / 2))
-	echo "<p class=\"number\"><label class=\"form-label\" for=\"$n\">$l</label><span class=\"input-group\">"
+	echo "<div class=\"mb-2 number\">
+	<label class=\"form-label\" for=\"$n\">$2</label>
+	<span class=\"input-group\">"
 	# NB! no name on checkbox, since we don't want its data submitted
-	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"${n}-auto\">$ab<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")></label>"
-	echo "<input type=\"text\" id=\"$n\" name=\"$n\" class=\"form-control text-end\" value=\"$vr\" pattern=\"[0-9]{1,}\" title=\"numeric value\" data-min=\"$mn\" data-max=\"$mx\" data-step=\"$st\"></span>"
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
-	echo "</p>"
+	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"${n}-auto\">$ab
+		<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")>
+		</label>"
+	echo "<input type=\"text\" id=\"$n\" name=\"$n\" class=\"form-control text-end\" value=\"$vr\" pattern=\"[0-9]{1,}\" title=\"numeric value\" data-min=\"$mn\" data-max=\"$mx\" data-step=\"$st\">
+	</span>"
+	[ -n "$4" ] && echo "<span class=\"hint text-secondary\">$4</span>"
+	echo "</div>"
 }
 
 # field_password "name" "label" "hint"
 field_password() {
-	local l=$2
-	default_for l "<span class=\"bg-warning\">$1</span>"
-	local h=$3
 	local v=$(t_value "$1")
-	echo "<p class=\"password\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$l</label><span class=\"input-group\"><input type=\"password\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"K3wLHaZk3R!\"><label class=\"input-group-text\"><input type=\"checkbox\" class=\"form-check-input me-1\" data-for=\"$1\"> show</label></span>"
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
-	echo "</p>"
+	echo "<div class=\"mb-2 password\" id=\"$1_wrap\">
+	<label for=\"$1\" class=\"form-label\">$2</label>
+	<span class=\"input-group\">
+	<input type=\"password\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"K3wLHaZk3R!\">
+	<label class=\"input-group-text\"><input type=\"checkbox\" class=\"form-check-input me-1\" data-for=\"$1\"> show</label>
+	</span>"
+	[ -n "$3" ] && echo "<span class=\"hint text-secondary\">$3</span>"
+	echo "</div>"
 }
 
 # field_range "name" "label" "range" "hint"
 field_range() {
 	local n=$1
-	local l=$2
-	default_for l "<span class=\"bg-warning\">$n</span>"
 	local r=$3 # min,max,step,button
 	local mn=$(echo "$r" | cut -d, -f1)
 	local mx=$(echo "$r" | cut -d, -f2)
 	local st=$(echo "$r" | cut -d, -f3)
 	local ab=$(echo "$r" | cut -d, -f4)
-	local h=$4
 	local v=$(t_value "$n")
 	local vr=$v
 	[ -z "$vr" -o "$ab" = "$vr" ] && vr=$(((mn + mx) / 2))
-	echo "<p class=\"range\" id=\"${n}_wrap\"><label class=\"form-label\" for=\"$n\">$l</label><span class=\"input-group\">"
+	echo "<div class=\"mb-2 range\" id=\"${n}_wrap\">
+	<label class=\"form-label\" for=\"$n\">$2</label>
+	<span class=\"input-group\">"
 	# NB! no name on checkbox, since we don't want its data submitted
-	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"$n-auto\">$ab<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")></label>"
+	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"$n-auto\">$ab
+	<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")>
+	</label>"
 	echo "<span class=\"input-group-text range-value text-end\" id=\"$n-show\">$v</span>"
 	# Input that holds the submitting value.
 	echo "<input type=\"range\" id=\"$n\" name=\"$n\" value=\"$vr\" min=\"$mn\" max=\"$mx\" step=\"$st\" class=\"form-control form-range\">"
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
-	echo "</p>"
+	[ -n "$4" ] && echo "<span class=\"hint text-secondary\">$4</span>"
+	echo "</div>"
 }
 
 # field_select "name" "label" "options" "hint" "units"
 field_select() {
-	local l=$2
-	default_for l "<span class=\"bg-warning\">$1</span>"
 	local o=$3
 	o=${o//,/ }
-	local h=$4
-	local u=$5
-	echo "<p class=\"select\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$l</label><select class=\"form-select\" id=\"$1\" name=\"$1\">"
+	echo "<div class=\"mb-2 select\" id=\"$1_wrap\">
+	<label for=\"$1\" class=\"form-label\">$2</label>
+	<select class=\"form-select\" id=\"$1\" name=\"$1\">"
 	[ -z "$(t_value "$1")" ] && echo "<option value=\"\">- Select -</option>"
 	for o in $o; do
 		v="${o%:*}"
@@ -264,56 +272,58 @@ field_select() {
 		unset v; unset n
 	done
 	echo "</select>"
-	[ -n "$u" ] && echo "<span class=\"input-group-text\">$u</span>"
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
-	echo "</p>"
+	[ -n "$5" ] && echo "<span class=\"input-group-text\">$5</span>"
+	[ -n "$4" ] && echo "<span class=\"hint text-secondary\">$4</span>"
+	echo "</div>"
 }
 
 # field_swith "name" "label" "hint" "options"
 field_switch() {
-	local l=$2
-	default_for l "<span class=\"bg-warning\">$1</span>"
 	local v=$(t_value "$1")
 	default_for v "false"
-	local h="$3"
 	local o=$4
 	default_for o "true,false"
 	local o1=$(echo "$o" | cut -d, -f1)
 	local o2=$(echo "$o" | cut -d, -f2)
-	echo "<p class=\"boolean\" id=\"$1_wrap\"><span class=\"form-check form-switch\"><input type=\"hidden\" id=\"$1-false\" name=\"$1\" value=\"$o2\"><input type=\"checkbox\" id=\"$1\" name=\"$1\" value=\"$o1\" role=\"switch\" class=\"form-check-input\"$(checked_if "$o1" "$v")><label for=\"$1\" class=\"form-check-label\">$l</label></span>"
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
-	echo "</p>"
+	echo "<div class=\"mb-2 boolean\" id=\"$1_wrap\">
+	<span class=\"form-check form-switch\">
+	<input type=\"hidden\" id=\"$1-false\" name=\"$1\" value=\"$o2\">
+	<input type=\"checkbox\" id=\"$1\" name=\"$1\" value=\"$o1\" role=\"switch\" class=\"form-check-input\"$(checked_if "$o1" "$v")>
+	<label for=\"$1\" class=\"form-check-label\">$2</label>
+	</span>"
+	[ -n "$3" ] && echo "<span class=\"hint text-secondary\">$3</span>"
+	echo "</div>"
 }
 
 # field_text "name" "label" "hint" "placeholder" "extra"
 field_text() {
-	local l=$2
-	default_for l "<span class=\"bg-warning\">$1</span>"
 	local v="$(t_value "$1")"
 	local h="$3"
 	local p="$4"
-	echo "<p class=\"string\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$l</label><input type=\"text\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"$p\"$5>"
+	echo "<div class=\"mb-2 string\" id=\"$1_wrap\">
+	<label for=\"$1\" class=\"form-label\">$2</label>
+	<input type=\"text\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"$p\"$5>"
 	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
-	echo "</p>"
+	echo "</div>"
 }
 
 # field_textarea "name" "label" "hint"
 field_textarea() {
-	local l=$2
-	default_for l "<span class=\"bg-warning\">$1</span>"
 	local v=$(t_value "$1")
-	local h=$3
-	echo "<p class=\"textarea\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$l</label><textarea id=\"$1\" name=\"$1\" class=\"form-control\">$v</textarea>"
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
-	echo "</p>"
+	echo "<div class=\"mb-2 textarea\" id=\"$1_wrap\">
+	<label for=\"$1\" class=\"form-label\">$2</label>
+	<textarea id=\"$1\" name=\"$1\" class=\"form-control\">$v</textarea>"
+	[ -n "$3" ] && echo "<span class=\"hint text-secondary\">$3</span>"
+	echo "</div>"
 }
 
 # field_textedit "name" "file" "label"
 field_textedit() {
-	local l=$3
-	default_for l "<span class=\"bg-warning\">$1</span>"
 	local v=$(cat "$2")
-	echo "<p class=\"textarea\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$l</label><textarea id=\"$1\" name=\"$1\" class=\"form-control\">$v</textarea></p>"
+	echo "<div class=\"mb-2 textarea\" id=\"$1_wrap\">
+	<label for=\"$1\" class=\"form-label\">$3</label>
+	<textarea id=\"$1\" name=\"$1\" class=\"form-control\">$v</textarea>
+	</div>"
 }
 
 html_title() {
@@ -600,6 +610,11 @@ include() {
 	[ -f "$1" ] && . "$1"
 }
 
+# read from env
+wlanap_enabled=$(get wlanap_enabled)
+
+read_from_env "day_night"
+
 debug=$(get debug)
 default_for debug 0
 if [ "$debug" -gt 0 ]; then
@@ -609,10 +624,6 @@ else
 fi
 
 [ -f $sysinfo_file ] || update_caminfo
-
-day_night_max=$(get day_night_max)
-day_night_min=$(get day_night_min)
-
 include $sysinfo_file
 
 include /etc/webui/mqtt.conf
