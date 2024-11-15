@@ -8,7 +8,7 @@ params="blink debug diskusage duration enabled filename led loop mount videoform
 # constants
 MOUNTS=$(awk '/nfs|fat/{print $2}' /etc/mtab)
 RECORD_CTL="/etc/init.d/S96record"
-
+RECORD_FILENAME_FB="thingino/%F/%FT%%H%M"
 config_file="$ui_config_dir/$plugin.conf"
 include $config_file
 
@@ -21,8 +21,8 @@ default_for record_enabled "false"
 default_for record_led $(fw_printenv | awk -F= '/^gpio_led/{print $1;exit}')
 default_for record_loop "true"
 default_for record_videoformat "mp4"
-default_for record_filename "thingino/%Y-%m-%d/%Y-%m-%dT%H-%M-%S"
-[ "/" = "${record_filename:0-1}" ] && record_filename="thingino/%Y-%m-%d/%Y-%m-%dT%H-%M-%S"
+default_for record_filename "$RECORD_FILENAME_FB"
+[ "/" = "${record_filename:0-1}" ] && record_filename="$RECORD_FILENAME_FB"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
