@@ -249,7 +249,8 @@ field_range() {
 	</label>"
 	echo "<span class=\"input-group-text range-value text-end\" id=\"$n-show\">$v</span>"
 	# Input that holds the submitting value.
-	echo "<input type=\"range\" id=\"$n\" name=\"$n\" value=\"$vr\" min=\"$mn\" max=\"$mx\" step=\"$st\" class=\"form-control form-range\">"
+	echo "<input type=\"range\" id=\"$n\" name=\"$n\" value=\"$vr\" min=\"$mn\" max=\"$mx\" step=\"$st\" class=\"form-control form-range\">
+	</span>"
 	[ -n "$4" ] && echo "<span class=\"hint text-secondary\">$4</span>"
 	echo "</div>"
 }
