@@ -50,36 +50,44 @@ default_for rtsp_password "thingino"
 <%in _icons.cgi %>
 <%in _header.cgi %>
 
-<p><a href="tool-file-manager.cgi?dl=/etc/prudynt.cfg">Download config file</a></p>
-<p>NB! Double-clicking on a range element will restore its default value.</p>
-
 <ul class="nav nav-underline mb-3" role="tablist">
-	<li class="nav-item" role="presentation"><a class="nav-link active" aria-current="page" href="#" data-bs-toggle="tab" data-bs-target="#tab1-pane">Common</a></li>
-	<li class="nav-item" role="presentation"><a class="nav-link" href="#" data-bs-toggle="tab" data-bs-target="#tab2-pane">Main stream</a></li>
-	<li class="nav-item" role="presentation"><a class="nav-link" href="#" data-bs-toggle="tab" data-bs-target="#tab3-pane">Substream</a></li>
-	<li class="nav-item" role="presentation"><a class="nav-link" href="#" data-bs-toggle="tab" data-bs-target="#tab4-pane">Audio</a></li>
-	<li class="nav-item" role="presentation"><a class="nav-link" href="#" data-bs-toggle="tab" data-bs-target="#tab5-pane">Image correction</a></li>
-	<li class="nav-item" role="presentation"><a class="nav-link" href="#" data-bs-toggle="tab" data-bs-target="#tab6-pane">Upload font</a></li>
+<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab1-pane" class="nav-link active" aria-current="page">Common</a></li>
+<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab2-pane" class="nav-link">Main stream</a></li>
+<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab2osd-pane" class="nav-link">Main OSD</a></li>
+<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab3-pane" class="nav-link">Substream</a></li>
+<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab3osd-pane" class="nav-link">Sub OSD</a></li>
+<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab4-pane" class="nav-link">Audio</a></li>
+<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab5-pane" class="nav-link">Image correction</a></li>
+<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab6-pane" class="nav-link">Upload font</a></li>
 </ul>
 
 <div class="row">
 	<div class="col mb-3">
+		<p>Click the image to open a full-size preview</p>
+		<div id="preview-wrapper" class="mb-4 position-relative">
+			<img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Stream Preview">
+			<button type="button" class="btn btn-primary btn-large position-absolute top-50 start-50 translate-middle"
+				data-bs-toggle="modal" data-bs-target="#mdPreview"><%= $icon_zoom %></button>
+		</div>
+		<button type="button" class="btn btn-secondary" id="restart-prudynt">Restart Prudynt</button>
+	</div>
+	<div class="col mb-3">
 		<div class="tab-content" id="streamer-tabs">
-			<div class="tab-pane fade show active" id="tab1-pane" role="tabpanel" aria-labelledby="tab1" tabindex="1">
+			<div class="tab-pane fade show active" id="tab1-pane" role="tabpanel" aria-labelledby="tab1">
 				<p class="select" id="image_core_wb_mode_wrap">
 					<label for="image_core_wb_mode" class="form-label">White balance mode</label>
 					<select class="form-select" id="image_core_wb_mode" name="image_core_wb_mode">
-					<option value="">- Select -</option>
-					<option value="0">AUTO</option>
-					<option value="1">MANUAL</option>
-					<option value="2">DAY LIGHT</option>
-					<option value="3">CLOUDY</option>
-					<option value="4">INCANDESCENT</option>
-					<option value="5">FLOURESCENT</option>
-					<option value="6">TWILIGHT</option>
-					<option value="7">SHADE</option>
-					<option value="8">WARM FLOURESCENT</option>
-					<option value="9">CUSTOM</option>
+						<option value="">- Select -</option>
+						<option value="0">AUTO</option>
+						<option value="1">MANUAL</option>
+						<option value="2">DAY LIGHT</option>
+						<option value="3">CLOUDY</option>
+						<option value="4">INCANDESCENT</option>
+						<option value="5">FLOURESCENT</option>
+						<option value="6">TWILIGHT</option>
+						<option value="7">SHADE</option>
+						<option value="8">WARM FLOURESCENT</option>
+						<option value="9">CUSTOM</option>
 					</select>
 				</p>
 				<% field_range "image_wb_bgain" "Blue channel gain" "0,1024,1" %>
@@ -88,11 +96,8 @@ default_for rtsp_password "thingino"
 				<% field_switch "image_hflip" "Flip image horizontally" %>
 				<% field_switch "image_vflip" "Flip image vertically" %>
 			</div>
-		<%
-		for i in 0 1; do
-			domain="stream$i"
-		%>
-			<div class="tab-pane fade" id="tab<%= $((i+2)) %>-pane" role="tabpanel" aria-labelledby="tab<%= $((i+2)) %>" tabindex="<%= $((i+2)) %>">
+<% for i in 0 1; do domain="stream$i" %>
+			<div class="tab-pane fade" id="tab<%= $((i+2)) %>-pane" role="tabpanel" aria-labelledby="tab<%= $((i+2)) %>">
 				<% field_switch "${domain}_enabled" "Enabled" %>
 				<div class="row g-2">
 					<div class="col-3"><% field_text "${domain}_width" "Width" %></div>
@@ -114,12 +119,27 @@ default_for rtsp_password "thingino"
 					<div class="col-9"><% field_text "${domain}_rtsp_endpoint" "Endpoint" "rtsp://$rtsp_username:$rtsp_password@$network_address/ch$i" %></div>
 					<div class="col-3"><% field_text "${domain}_rotation" "Rotation" %></div>
 				</div>
-				<% field_switch "${domain}_audio_enabled" "Audio" %>
-
+				<% field_switch "${domain}_audio_enabled" "Audio in the stream" %>
+			</div>
+			<div class="tab-pane fade" id="tab<%= $((i+2)) %>osd-pane" role="tabpanel" aria-labelledby="tab<%= $((i+2)) %>osd">
 				<% field_switch "osd${i}_enabled" "OSD enabled" %>
 				<div class="row g-1">
-					<div class="col-8"><% field_select "fontname${i}" "Font" "$FONTS" %></div>
-					<div class="col-4"><% field_range "fontsize${i}" "Font size" "10,80,1" %></div>
+					<div class="col-7">
+						<label class="form-label" for="fontname<%= $i %>">Font</label>
+						<div class="input-group mb-3">
+							<button class="btn btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#mdFont" title="Upload a font">
+								<img src="/a/upload.svg" alt="Upload" class="img-fluid" style="height:20px">
+							</button>
+							<select class="form-select" id="fontname<%= $i %>">
+							<% for f in $FONTS; do %>
+								<option><%= $f %></option>
+							<% done %>
+							</select>
+						</div>
+					</div>
+					<div class="col-5">
+						<% field_range "fontsize${i}" "Font size" "10,80,1" %>
+					</div>
 				</div>
 				<div class="d-flex gap-3">
 					<% field_switch "osd${i}_logo_enabled" "Logo" %>
@@ -138,7 +158,7 @@ default_for rtsp_password "thingino"
 			</div>
 		<% done %>
 
-			<div class="tab-pane fade" id="tab4-pane" role="tabpanel" aria-labelledby="tab4" tabindex="4">
+			<div class="tab-pane fade" id="tab4-pane" role="tabpanel" aria-labelledby="tab4">
 				<% field_switch "audio_input_enabled" "Enabled" %>
 				<div class="row g-2">
 					<div class="col"><% field_select "audio_input_format" "Codec" "$AUDIO_FORMATS" %></div>
@@ -163,79 +183,76 @@ default_for rtsp_password "thingino"
 					<div class="col"><% field_range "audio_input_agc_target_level_dbfs" "Target level, dBfs" "0,31,1" %></div>
 				</div>
 			</div>
-			<div class="tab-pane fade" id="tab5-pane" role="tabpanel" aria-labelledby="tab5" tabindex="5">
+			<div class="tab-pane fade" id="tab5-pane" role="tabpanel" aria-labelledby="tab5">
+				<% field_switch "image_running_mode" "Running mode" %>
 				<div class="row g-2">
 					<div class="col"><% field_range "image_brightness" "Brightness" "0,255,1" %></div>
 					<div class="col"><% field_range "image_contrast" "Contrast" "0,255,1" %></div>
-				</div>
-				<div class="row g-2">
 					<div class="col"><% field_range "image_saturation" "Saturation" "0,255,1" %></div>
-					<div class="col"><% field_range "image_hue" "Hue" "0,255,1" %></div>
 				</div>
 				<div class="row g-2">
+					<div class="col"><% field_range "image_hue" "Hue" "0,255,1" %></div>
 					<div class="col"><% field_range "image_sharpness" "Sharpness" "0,255,1" %></div>
 					<div class="col"><% field_range "image_defog_strength" "Defog" "0,255,1" %></div>
 				</div>
 				<div class="row g-2">
 					<div class="col"><% field_range "image_sinter_strength" "Sinter" "0,255,1" %></div>
 					<div class="col"><% field_range "image_temper_strength" "Temper" "0,255,1" %></div>
-				</div>
-				<div class="row g-2">
 					<div class="col"><% field_range "image_dpc_strength" "<abbr title=\"Dead Pixel Compensation\">DPC</abbr> strength" "0,255,1" %></div>
-					<div class="col"><% field_range "image_drc_strength" "<abbr title=\"Dynamic Range Compression\">DRC</abbr> strength" "0,255,1" %></div>
 				</div>
 				<div class="row g-2">
+					<div class="col"><% field_range "image_drc_strength" "<abbr title=\"Dynamic Range Compression\">DRC</abbr> strength" "0,255,1" %></div>
 					<div class="col"><% field_range "image_max_again" "Max. analog gain" "0,160,1" %></div>
 					<div class="col"><% field_range "image_max_dgain" "Max. digital gain" "0,160,1" %></div>
 				</div>
 				<div class="row g-2">
 					<div class="col"><% field_range "image_backlight_compensation" "Backlight comp." "0,10,1" %></div>
 					<div class="col"><% field_range "image_highlight_depress" "Highlight depress" "0,255,1" %></div>
-				</div>
-				<div class="row g-2">
 					<div class="col"><% field_range "image_anti_flicker" "Anti-flicker" "0,2,1" %></div>
-					<div class="col"><% field_range "image_running_mode" "Running mode" "0,1,1" %></div>
 				</div>
 			</div>
+		</div>
+	</div>
+</div>
 
-			<div class="tab-pane fade" id="tab6-pane" role="tabpanel" aria-labelledby="tab6" tabindex="6">
-				<form action="<%= $SCRIPT_NAME %>" method="post" enctype="multipart/form-data" style="max-width:20rem">
+<div class="modal fade" id="mdFont" tabindex="-1" aria-labelledby="mdlFont" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h1 class="modal-title fs-4" id="mdlFont">Upload font file</h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body text-center">
+				<form action="<%= $SCRIPT_NAME %>" method="post" enctype="multipart/form-data">
 					<% field_file "fontfile" "Upload a TTF file" %>
 					<% button_submit %>
 				</form>
 			</div>
-
 		</div>
-	</div>
-	<div class="col mb-3">
-		<p>Click the image to open a full-size preview</p>
-		<div id="preview-wrapper" class="mb-4 position-relative">
-			<img id="preview" src="image.cgi?t=<%= $ts %>" alt="Image: Stream preview" class="img-fluid">
-			<button type="button" class="btn btn-primary btn-large position-absolute top-50 start-50 translate-middle" data-bs-toggle="modal" data-bs-target="#previewModal"><%= $icon_zoom %></button>
-		</div>
-		<button type="button" class="btn btn-secondary" id="restart-prudynt">Restart Prudynt</button>
 	</div>
 </div>
 
-<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+
+<div class="modal fade" id="mdPreview" tabindex="-1" aria-labelledby="mdlPreview" aria-hidden="true">
 	<div class="modal-dialog modal-fullscreen">
 		<div class="modal-content">
 			<div class="modal-header">
-				<h1 class="modal-title fs-4" id="previewModalLabel">Full screen preview</h1>
+				<h1 class="modal-title fs-4" id="mdlPreview">Full screen preview</h1>
 				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
 			<div class="modal-body text-center">
-				<img id="preview_fullsize" src="image.cgi?t=<%= $ts %>" alt="Image: Preview" class="img-fluid">
+				<img id="preview_fullsize" src="/a/nostream.webp" alt="Image: Stream Preview" class="img-fluid">
 			</div>
 		</div>
 	</div>
 </div>
+
+<p>NB! Double-clicking on a range element will restore its default value.</p>
+<p><a href="tool-file-manager.cgi?dl=/etc/prudynt.cfg">Download config file</a></p>
 
 <script>
 const soc = "<% soc -f | tr -d '\n' %>";
 const preview = $("#preview");
-const previewModal = new bootstrap.Modal('#previewModal', {});
-preview.onclick = () => { previewModal.show() }
 preview.onload = function() { URL.revokeObjectURL(this.src) }
 
 function ts() {
