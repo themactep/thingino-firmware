@@ -51,7 +51,7 @@ transfer_and_verify_firmware() {
 
 # Flashes the firmware to the specified device partition and reboots
 flash_firmware() {
-	if ssh $SSH_OPTS root@"$CAMERA_IP_ADDRESS" "sysupgrade /tmp/fwupdate.bin" 2>&1 | tee /dev/tty | grep -q "Rebooting"; then
+	if ssh $SSH_OPTS root@"$CAMERA_IP_ADDRESS" "sysupgrade -x /tmp/fwupdate.bin" 2>&1 | tee /dev/tty | grep -q "Rebooting"; then
 		echo "Firmware flashed successfully. Device is rebooting."
 	else
 		echo "Firmware flashing failed."
