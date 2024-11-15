@@ -71,7 +71,8 @@ function execute_choice(){
 			"${DIALOG_COMMON[@]}" --msgbox "Thingino is an independent open source firmware project for devices built on an Ingenic SoC.\n\n
 Thingino does not try to build a universal firmware that would be used on multiple models. Instead, we build a firmware which is nicely tailored to the targeted hardware, with minimum overhead.\n\n
 Thingino is young but develops fast. You should expect frequent updates, exciting new features, and occasional breaking changes.
-Thingino uses a custom version of prudynt as a go-to streamer while working on its own fully open modular solution - Raptor." 13 100
+Thingino uses a custom version of prudynt as a go-to streamer while working on its own fully open modular solution - Raptor.\n\n
+This menu provides a basic interface to select and build a firmware profile, but you don't have to use it -- you can build everything fully from the command line if you prefer. See the wiki for more information!" 17 100
 			;;
 		2)
 			./scripts/menu/menu2-guided.sh
