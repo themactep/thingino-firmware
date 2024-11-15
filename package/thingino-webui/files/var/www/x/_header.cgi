@@ -21,7 +21,7 @@ Pragma: no-cache
 
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
 <div class="container">
-<a class="navbar-brand" href="status.cgi"><img alt="Image: thingino logo" width="150" src="/a/logo.svg"></a>
+<a class="navbar-brand" href="/"><img alt="Image: thingino logo" width="150" src="/a/logo.svg"></a>
 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbMain" aria-controls="nbMain" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
 <div class="collapse navbar-collapse justify-content-end" id="nbMain">
 <ul class="navbar-nav">
