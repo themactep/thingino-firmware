@@ -50,205 +50,178 @@ default_for rtsp_password "thingino"
 <%in _icons.cgi %>
 <%in _header.cgi %>
 
-<ul class="nav nav-underline mb-3" role="tablist">
-<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab1-pane" class="nav-link active" aria-current="page">Common</a></li>
-<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab2-pane" class="nav-link">Main stream</a></li>
-<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab2osd-pane" class="nav-link">Main OSD</a></li>
-<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab3-pane" class="nav-link">Substream</a></li>
-<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab3osd-pane" class="nav-link">Sub OSD</a></li>
-<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab4-pane" class="nav-link">Audio</a></li>
-<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab5-pane" class="nav-link">Image correction</a></li>
-<li class="nav-item" role="presentation"><a href="#" data-bs-toggle="tab" data-bs-target="#tab6-pane" class="nav-link">Upload font</a></li>
+<nav class="navbar navbar-expand-lg">
+<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbStreamer" aria-controls="nbStreamer" aria-label="Toggle navigation">
+<span class="navbar-toggler-icon"></span>
+</button>
+<div class="collapse navbar-collapse" id="nbStreamer">
+<ul class="navbar-nav" role="tablist">
+<li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab1-pane" class="nav-link active" aria-current="page">Common</a></li>
+<li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab2-pane" class="nav-link">Main stream</a></li>
+<li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab2osd-pane" class="nav-link">Main OSD</a></li>
+<li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab3-pane" class="nav-link">Substream</a></li>
+<li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab3osd-pane" class="nav-link">Sub OSD</a></li>
+<li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab4-pane" class="nav-link">Audio</a></li>
+<li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab5-pane" class="nav-link">Image correction</a></li>
 </ul>
-
-<div class="row">
-	<div class="col mb-3">
-		<p>Click the image to open a full-size preview</p>
-		<div id="preview-wrapper" class="mb-4 position-relative">
-			<img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Stream Preview">
-			<button type="button" class="btn btn-primary btn-large position-absolute top-50 start-50 translate-middle"
-				data-bs-toggle="modal" data-bs-target="#mdPreview"><%= $icon_zoom %></button>
-		</div>
-		<button type="button" class="btn btn-secondary" id="restart-prudynt">Restart Prudynt</button>
-	</div>
-	<div class="col mb-3">
-		<div class="tab-content" id="streamer-tabs">
-			<div class="tab-pane fade show active" id="tab1-pane" role="tabpanel" aria-labelledby="tab1">
-				<p class="select" id="image_core_wb_mode_wrap">
-					<label for="image_core_wb_mode" class="form-label">White balance mode</label>
-					<select class="form-select" id="image_core_wb_mode" name="image_core_wb_mode">
-						<option value="">- Select -</option>
-						<option value="0">AUTO</option>
-						<option value="1">MANUAL</option>
-						<option value="2">DAY LIGHT</option>
-						<option value="3">CLOUDY</option>
-						<option value="4">INCANDESCENT</option>
-						<option value="5">FLOURESCENT</option>
-						<option value="6">TWILIGHT</option>
-						<option value="7">SHADE</option>
-						<option value="8">WARM FLOURESCENT</option>
-						<option value="9">CUSTOM</option>
-					</select>
-				</p>
-				<% field_range "image_wb_bgain" "Blue channel gain" "0,1024,1" %>
-				<% field_range "image_wb_rgain" "Red channel gain" "0,1024,1" %>
-				<% field_range "image_ae_compensation" "<abbr title=\"Automatic Exposure\">AE</abbr> compensation" "0,255,1" %>
-				<% field_switch "image_hflip" "Flip image horizontally" %>
-				<% field_switch "image_vflip" "Flip image vertically" %>
-			</div>
-<% for i in 0 1; do domain="stream$i" %>
-			<div class="tab-pane fade" id="tab<%= $((i+2)) %>-pane" role="tabpanel" aria-labelledby="tab<%= $((i+2)) %>">
-				<% field_switch "${domain}_enabled" "Enabled" %>
-				<div class="row g-2">
-					<div class="col-3"><% field_text "${domain}_width" "Width" %></div>
-					<div class="col-3"><% field_text "${domain}_height" "Height" %></div>
-					<div class="col-6"><% field_range "${domain}_fps" "FPS" "5,30,1" %></div>
-				</div>
-				<div class="row g-2">
-					<div class="col-3"><% field_select "${domain}_format" "Format" $FORMATS %></div>
-					<div class="col-3"><% field_text "${domain}_bitrate" "Bitrate" %></div>
-					<div class="col-6"><% field_select "${domain}_mode" "Mode" "$modes" %></div>
-				</div>
-				<div class="row g-2">
-					<div class="col"><% field_text "${domain}_buffers" "Buffers" %></div>
-					<div class="col"><% field_text "${domain}_gop" "GOP" %></div>
-					<div class="col"><% field_text "${domain}_max_gop" "Max. GOP" %></div>
-					<div class="col"><% field_text "${domain}_profile" "Profile" %></div>
-				</div>
-				<div class="row g-2">
-					<div class="col-9"><% field_text "${domain}_rtsp_endpoint" "Endpoint" "rtsp://$rtsp_username:$rtsp_password@$network_address/ch$i" %></div>
-					<div class="col-3"><% field_text "${domain}_rotation" "Rotation" %></div>
-				</div>
-				<% field_switch "${domain}_audio_enabled" "Audio in the stream" %>
-			</div>
-			<div class="tab-pane fade" id="tab<%= $((i+2)) %>osd-pane" role="tabpanel" aria-labelledby="tab<%= $((i+2)) %>osd">
-				<% field_switch "osd${i}_enabled" "OSD enabled" %>
-				<div class="row g-1">
-					<div class="col-7">
-						<label class="form-label" for="fontname<%= $i %>">Font</label>
-						<div class="input-group mb-3">
-							<button class="btn btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#mdFont" title="Upload a font">
-								<img src="/a/upload.svg" alt="Upload" class="img-fluid" style="height:20px">
-							</button>
-							<select class="form-select" id="fontname<%= $i %>">
-							<% for f in $FONTS; do %>
-								<option><%= $f %></option>
-							<% done %>
-							</select>
-						</div>
-					</div>
-					<div class="col-5">
-						<% field_range "fontsize${i}" "Font size" "10,80,1" %>
-					</div>
-				</div>
-				<div class="d-flex gap-3">
-					<% field_switch "osd${i}_logo_enabled" "Logo" %>
-					<% field_switch "osd${i}_time_enabled" "Time" %>
-					<% field_switch "osd${i}_uptime_enabled" "Uptime" %>
-					<% field_switch "osd${i}_user_text_enabled" "User text" %>
-				</div>
-				<div class="row g-1">
-					<div class="col col-4"><% field_color "fontcolor${i}" "Text color" %></div>
-					<div class="col col-4"><% field_color "fontstrokecolor${i}" "Shadow color" %></div>
-					<div class="col col-4"><% field_range "fontstrokesize${i}" "Shadow size" "0,100,1" %></div>
-				</div>
-					<div class="row g-1">
-					<div class="col col-4"><% field_text "osd${i}_time_format" "Time format" %></div>
-				</div>
-			</div>
-		<% done %>
-
-			<div class="tab-pane fade" id="tab4-pane" role="tabpanel" aria-labelledby="tab4">
-				<% field_switch "audio_input_enabled" "Enabled" %>
-				<div class="row g-2">
-					<div class="col"><% field_select "audio_input_format" "Codec" "$AUDIO_FORMATS" %></div>
-					<div class="col"><% field_select "audio_input_sample_rate" "Sampling, Hz" "$AUDIO_SAMPLING" %></div>
-					<div class="col"><% field_select "audio_input_bitrate" "Bitrate, kbps" "$AUDIO_BITRATES" %></div>
-				</div>
-				<div class="row g-2">
-					<div class="col"><% field_range "audio_input_vol" "Input volume" "-30,120,1" %></div>
-					<div class="col"><% field_range "audio_input_gain" "Input gain" "0,31,1" %></div>
-					<div class="col"><% field_range "audio_input_alc_gain" "<abbr title=\"Automatic Level Control\">ALC</abbr> gain" "0,7,1" %></div>
-				</div>
-				<br>
-				<div class="row g-2">
-					<div class="col"><% field_switch "audio_input_agc_enabled" "<abbr title=\"Automatic gain control\">AGC</abbr> Enabled" %></div>
-					<div class="col"><% field_switch "audio_input_high_pass_filter" "High pass filter" %></div>
-				</div>
-				<div class="row g-2">
-					<div class="col"><% field_range "audio_input_noise_suppression" "Noise suppression level" "0,3,1" %></div>
-				</div>
-				<div class="row g-2">
-					<div class="col"><% field_range "audio_input_agc_compression_gain_db" "Compression gain, dB" "0,90,1" %></div>
-					<div class="col"><% field_range "audio_input_agc_target_level_dbfs" "Target level, dBfs" "0,31,1" %></div>
-				</div>
-			</div>
-			<div class="tab-pane fade" id="tab5-pane" role="tabpanel" aria-labelledby="tab5">
-				<% field_switch "image_running_mode" "Running mode" %>
-				<div class="row g-2">
-					<div class="col"><% field_range "image_brightness" "Brightness" "0,255,1" %></div>
-					<div class="col"><% field_range "image_contrast" "Contrast" "0,255,1" %></div>
-					<div class="col"><% field_range "image_saturation" "Saturation" "0,255,1" %></div>
-				</div>
-				<div class="row g-2">
-					<div class="col"><% field_range "image_hue" "Hue" "0,255,1" %></div>
-					<div class="col"><% field_range "image_sharpness" "Sharpness" "0,255,1" %></div>
-					<div class="col"><% field_range "image_defog_strength" "Defog" "0,255,1" %></div>
-				</div>
-				<div class="row g-2">
-					<div class="col"><% field_range "image_sinter_strength" "Sinter" "0,255,1" %></div>
-					<div class="col"><% field_range "image_temper_strength" "Temper" "0,255,1" %></div>
-					<div class="col"><% field_range "image_dpc_strength" "<abbr title=\"Dead Pixel Compensation\">DPC</abbr> strength" "0,255,1" %></div>
-				</div>
-				<div class="row g-2">
-					<div class="col"><% field_range "image_drc_strength" "<abbr title=\"Dynamic Range Compression\">DRC</abbr> strength" "0,255,1" %></div>
-					<div class="col"><% field_range "image_max_again" "Max. analog gain" "0,160,1" %></div>
-					<div class="col"><% field_range "image_max_dgain" "Max. digital gain" "0,160,1" %></div>
-				</div>
-				<div class="row g-2">
-					<div class="col"><% field_range "image_backlight_compensation" "Backlight comp." "0,10,1" %></div>
-					<div class="col"><% field_range "image_highlight_depress" "Highlight depress" "0,255,1" %></div>
-					<div class="col"><% field_range "image_anti_flicker" "Anti-flicker" "0,2,1" %></div>
-				</div>
-			</div>
-		</div>
-	</div>
 </div>
+</nav>
+
+<div class="row row-cols-1 row-cols-lg-2">
+<div class="col mb-3">
+<div id="preview-wrapper" class="mb-4 position-relative">
+<p><img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Stream Preview"></p>
+<button type="button" class="btn btn-primary btn-large position-absolute top-50 start-50 translate-middle" data-bs-toggle="modal" data-bs-target="#mdPreview"><%= $icon_zoom %></button>
+</div>
+<p>Double-click on a range element will restore its default value.</p>
+<button type="button" class="btn btn-secondary me-1" id="restart-prudynt">Restart streamer</button>
+<button type="button" class="btn btn-secondary me-1" id="save-prudynt-config">Save streamer config</button>
+<a class="btn btn-secondary" href="tool-file-manager.cgi?dl=/etc/prudynt.cfg">Download config file</a>
+</div>
+
+<div class="col mb-3">
+<div class="tab-content" id="streamer-tabs">
+
+<div class="tab-pane fade show active" id="tab1-pane" role="tabpanel" aria-labelledby="tab1">
+<div class="mb-2 select" id="image_core_wb_mode_wrap">
+<label for="image_core_wb_mode" class="form-label">White balance mode</label>
+<select class="form-select" id="image_core_wb_mode" name="image_core_wb_mode">
+<option value="0">AUTO</option>
+<option value="1">MANUAL</option>
+<option value="2">DAY LIGHT</option>
+<option value="3">CLOUDY</option>
+<option value="4">INCANDESCENT</option>
+<option value="5">FLOURESCENT</option>
+<option value="6">TWILIGHT</option>
+<option value="7">SHADE</option>
+<option value="8">WARM FLOURESCENT</option>
+<option value="9">CUSTOM</option>
+</select>
+</div>
+<% field_range "image_wb_bgain" "Blue channel gain" "0,1024,1" %>
+<% field_range "image_wb_rgain" "Red channel gain" "0,1024,1" %>
+<% field_range "image_ae_compensation" "<abbr title=\"Automatic Exposure\">AE</abbr> compensation" "0,255,1" %>
+<% field_switch "image_hflip" "Flip image horizontally" %>
+<% field_switch "image_vflip" "Flip image vertically" %>
+</div>
+
+<% for i in 0 1; do domain="stream$i" %>
+<div class="tab-pane fade" id="tab<%= $((i+2)) %>-pane" role="tabpanel" aria-labelledby="tab<%= $((i+2)) %>">
+<% field_switch "${domain}_enabled" "Enabled" %>
+<div class="row g-2">
+<div class="col-3"><% field_text "${domain}_width" "Width" %></div>
+<div class="col-3"><% field_text "${domain}_height" "Height" %></div>
+<div class="col-6"><% field_range "${domain}_fps" "FPS" "5,30,1" %></div>
+</div>
+<div class="row g-2">
+<div class="col-3"><% field_select "${domain}_format" "Format" $FORMATS %></div>
+<div class="col-3"><% field_text "${domain}_bitrate" "Bitrate" %></div>
+<div class="col-6"><% field_select "${domain}_mode" "Mode" "$modes" %></div>
+</div>
+<div class="row g-2">
+<div class="col"><% field_text "${domain}_buffers" "Buffers" %></div>
+<div class="col"><% field_text "${domain}_gop" "GOP" %></div>
+<div class="col"><% field_text "${domain}_max_gop" "Max. GOP" %></div>
+<div class="col"><% field_text "${domain}_profile" "Profile" %></div>
+</div>
+<div class="row g-2">
+<div class="col-9"><% field_text "${domain}_rtsp_endpoint" "Endpoint" "rtsp://$rtsp_username:$rtsp_password@$network_address/ch$i" %></div>
+<div class="col-3"><% field_text "${domain}_rotation" "Rotation" %></div>
+</div>
+<% field_switch "${domain}_audio_enabled" "Audio in the stream" %>
+</div>
+
+<div class="tab-pane fade" id="tab<%= $((i+2)) %>osd-pane" role="tabpanel" aria-labelledby="tab<%= $((i+2)) %>osd">
+<% field_switch "osd${i}_enabled" "OSD enabled" %>
+<% [ "$i" -gt 0 ] && echo "<p class=\"text-warning\">Main stream OSD is shown as a preview!</p>" %>
+<div class="row g-1"><div class="col-7"><label class="form-label" for="fontname<%= $i %>">Font</label>
+<div class="input-group mb-3"><button class="btn btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#mdFont" title="Upload a font">
+<img src="/a/upload.svg" alt="Upload" class="img-fluid" style="height:20px"></button><select class="form-select" id="fontname<%= $i %>">
+<% for f in $FONTS; do %><option><%= $f %></option><% done %></select></div></div>
+<div class="col-5"><% field_range "fontsize${i}" "Font size" "10,80,1" %></div>
+</div>
+<div class="d-flex gap-3">
+<% field_switch "osd${i}_logo_enabled" "Logo" %>
+<% field_switch "osd${i}_time_enabled" "Time" %>
+<% field_switch "osd${i}_uptime_enabled" "Uptime" %>
+<% field_switch "osd${i}_user_text_enabled" "User text" %>
+</div>
+<div class="row g-1">
+<div class="col col-4"><% field_color "fontcolor${i}" "Text color" %></div>
+<div class="col col-4"><% field_color "fontstrokecolor${i}" "Shadow color" %></div>
+<div class="col col-4"><% field_range "fontstrokesize${i}" "Shadow size" "0,100,1" %></div>
+</div>
+<div class="row g-1">
+<div class="col col-4"><% field_text "osd${i}_time_format" "Time format" "$STR_SUPPORTS_STRFTIME" %></div>
+</div>
+</div>
+<% done %>
+
+<div class="tab-pane fade" id="tab4-pane" role="tabpanel" aria-labelledby="tab4">
+<% field_switch "audio_input_enabled" "Enabled" %>
+<div class="row g-2">
+<div class="col"><% field_select "audio_input_format" "Codec" "$AUDIO_FORMATS" %></div>
+<div class="col"><% field_select "audio_input_sample_rate" "Sampling, Hz" "$AUDIO_SAMPLING" %></div>
+<div class="col"><% field_select "audio_input_bitrate" "Bitrate, kbps" "$AUDIO_BITRATES" %></div>
+</div>
+<div class="row g-2">
+<div class="col"><% field_range "audio_input_vol" "Input volume" "-30,120,1" %></div>
+<div class="col"><% field_range "audio_input_gain" "Input gain" "0,31,1" %></div>
+<div class="col"><% field_range "audio_input_alc_gain" "<abbr title=\"Automatic Level Control\">ALC</abbr> gain" "0,7,1" %></div>
+</div>
+<br>
+<div class="row g-2">
+<div class="col"><% field_switch "audio_input_agc_enabled" "<abbr title=\"Automatic gain control\">AGC</abbr> Enabled" %></div>
+<div class="col"><% field_switch "audio_input_high_pass_filter" "High pass filter" %></div>
+</div>
+<div class="row g-2">
+<div class="col"><% field_range "audio_input_noise_suppression" "Noise suppression level" "0,3,1" %></div>
+</div>
+<div class="row g-2">
+<div class="col"><% field_range "audio_input_agc_compression_gain_db" "Compression gain, dB" "0,90,1" %></div>
+<div class="col"><% field_range "audio_input_agc_target_level_dbfs" "Target level, dBfs" "0,31,1" %></div>
+</div>
+</div>
+
+<div class="tab-pane fade" id="tab5-pane" role="tabpanel" aria-labelledby="tab5">
+<% field_switch "image_running_mode" "Black-and-white mode" %>
+<div class="row row-cols-1 row-cols-lg-3 g-2">
+<div class="col"><% field_range "image_brightness" "Brightness" "0,255,1" %></div>
+<div class="col"><% field_range "image_contrast" "Contrast" "0,255,1" %></div>
+<div class="col"><% field_range "image_saturation" "Saturation" "0,255,1" %></div>
+<div class="col"><% field_range "image_hue" "Hue" "0,255,1" %></div>
+<div class="col"><% field_range "image_sharpness" "Sharpness" "0,255,1" %></div>
+<div class="col"><% field_range "image_defog_strength" "Defog" "0,255,1" %></div>
+<div class="col"><% field_range "image_sinter_strength" "Sinter" "0,255,1" %></div>
+<div class="col"><% field_range "image_temper_strength" "Temper" "0,255,1" %></div>
+<div class="col"><% field_range "image_dpc_strength" "<abbr title=\"Dead Pixel Compensation\">DPC</abbr> strength" "0,255,1" %></div>
+<div class="col"><% field_range "image_drc_strength" "<abbr title=\"Dynamic Range Compression\">DRC</abbr> strength" "0,255,1" %></div>
+<div class="col"><% field_range "image_max_again" "Max. analog gain" "0,160,1" %></div>
+<div class="col"><% field_range "image_max_dgain" "Max. digital gain" "0,160,1" %></div>
+<div class="col"><% field_range "image_backlight_compensation" "Backlight comp." "0,10,1" %></div>
+<div class="col"><% field_range "image_highlight_depress" "Highlight depress" "0,255,1" %></div>
+<div class="col"><% field_range "image_anti_flicker" "Anti-flicker" "0,2,1" %></div>
+</div>
+</div>
+
+</div></div></div>
 
 <div class="modal fade" id="mdFont" tabindex="-1" aria-labelledby="mdlFont" aria-hidden="true">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h1 class="modal-title fs-4" id="mdlFont">Upload font file</h1>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-			</div>
-			<div class="modal-body text-center">
-				<form action="<%= $SCRIPT_NAME %>" method="post" enctype="multipart/form-data">
-					<% field_file "fontfile" "Upload a TTF file" %>
-					<% button_submit %>
-				</form>
-			</div>
-		</div>
-	</div>
-</div>
-
+<div class="modal-dialog"><div class="modal-content"><div class="modal-header">
+<h1 class="modal-title fs-4" id="mdlFont">Upload font file</h1>
+<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div><div class="modal-body text-center">
+<form action="<%= $SCRIPT_NAME %>" method="post" enctype="multipart/form-data">
+<% field_file "fontfile" "Upload a TTF file" %>
+<% button_submit %></form></div></div></div></div>
 
 <div class="modal fade" id="mdPreview" tabindex="-1" aria-labelledby="mdlPreview" aria-hidden="true">
-	<div class="modal-dialog modal-fullscreen">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h1 class="modal-title fs-4" id="mdlPreview">Full screen preview</h1>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-			</div>
-			<div class="modal-body text-center">
-				<img id="preview_fullsize" src="/a/nostream.webp" alt="Image: Stream Preview" class="img-fluid">
-			</div>
-		</div>
-	</div>
-</div>
-
-<p>NB! Double-clicking on a range element will restore its default value.</p>
-<p><a href="tool-file-manager.cgi?dl=/etc/prudynt.cfg">Download config file</a></p>
+<div class="modal-dialog modal-fullscreen"><div class="modal-content"><div class="modal-header">
+<h1 class="modal-title fs-4" id="mdlPreview">Full screen preview</h1>
+<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div><div class="modal-body text-center">
+<img id="preview_fullsize" src="/a/nostream.webp" alt="Image: Stream Preview" class="img-fluid">
+</div></div></div></div>
 
 <script>
 const soc = "<% soc -f | tr -d '\n' %>";
@@ -379,7 +352,6 @@ ws.onmessage = (ev) => {
 						setValue(data, domain, x);
 				});
 				if (data.osd) {
-					//params.forEach(x => setValue(data, `stream${i}`, x));
 					if (data.osd.enabled) {
 						$(`#osd${i}_enabled`).checked = data.osd.enabled;
 						toggleWrappers(i);
@@ -445,6 +417,10 @@ function restartPrudynt() {
 	sendToWs('{"action":{"restart_thread":10}}');
 }
 
+function savePrudyntConfig() {
+	sendToWs('{"action":{"save_config":null}}');
+}
+
 function sendToWs(payload) {
 	console.log(ts(), '===>', payload);
 	ws.send(payload);
@@ -462,7 +438,10 @@ function setFont(n) {
 	const fontname = $(`#fontname${n}`).value;
 	const fontsize = $(`#fontsize${n}`).value;
 	if (fontname == '' || fontsize == '') return;
-	sendToWs(`{"stream${n}":{"osd":{"font_path":"/usr/share/fonts/${fontname}","font_size":${fontsize}}}}`);
+	sendToWs('{"stream'+n+'":{"osd":{'+
+		'"font_path":"/usr/share/fonts/'+fontname+'",'+
+		'"font_size":'+fontsize+
+		'}},"action":{"restart_thread":10}}');
 }
 
 function setFontColor(n) {
@@ -470,14 +449,20 @@ function setFontColor(n) {
 	const fontstrokecolor = $(`#fontstrokecolor${n}`).value.replace(/^#/, '');
 	const fontstrokesize = $(`#fontstrokesize${n}`).value;
 	if (fontcolor == '' || fontstrokecolor == '') return;
-	sendToWs(`{"stream${n}":{"osd":{"font_color":"0xff${fontcolor}","font_stroke_color":"0xff${fontstrokecolor}","font_stroke":${fontstrokesize}}}}`);
+	sendToWs('{"stream'+n+'":{"osd":{'+
+		'"font_color":"0xff'+fontcolor+'",'+
+		'"font_stroke_color":"0xff'+fontstrokecolor+'",'+
+		'"font_stroke":'+fontstrokesize+
+		'}},"action":{"restart_thread":10}}');
 }
 
 function toggleOSDElement(el) {
 	const status = el.checked ? 'true' : 'false';
 	const stream_id = el.id.substr(3, 1);
 	const id = el.id.replace('osd0_', '').replace('osd1_', '');
-	sendToWs(`{"stream${stream_id}":{"osd":{"${id}":${status}}}}`);
+	sendToWs('{"stream'+stream_id+'":{"osd":{'+
+		'"'+id+'":'+status+
+		'}},"action":{"restart_thread":10}}');
 }
 
 function toggleWrappers(id) {
@@ -495,42 +480,44 @@ function saveValue(domain, name) {
 		// console.error(`Element #${domain}_${name} not found`);
 		return;
 	}
+
 	let value;
 	if (el.type == "checkbox") {
-		value = el.checked;
+		if (domain == 'image' && name == 'running_mode')
+			value = el.checked ? 1 : 0;
+		else
+			value = el.checked;
 	} else {
 		value = el.value;
 		if (["format", "input_format", "mode", "rtsp_endpoint"].includes(name)) {
 			value = `"${value}"`;
 		}
 	}
+
 	let payload = `"${name}":${value}`
 	let thread = 0;
-	if (domain == 'stream0' || domain == 'stream1') {
-		thread += ThreadRtsp;
-		thread += ThreadVideo;
-	} else if (domain == 'audio') {
+	if (domain == 'audio') {
 		thread += ThreadAudio;
 		console.log(name, value);
 		if (name == 'input_format') {
 			if (value == '"G711A"' || value == '"G711U"') {
-				payload += `,"input_sample_rate":8000`
+				payload += ',"input_sample_rate":8000'
 			} else if (value == '"G726"') {
-				payload += `,"input_sample_rate":16000`
+				payload += ',"input_sample_rate":16000'
 			} else if (value == '"OPUS"') {
-				payload += `,"input_sample_rate":48000`
+				payload += ',"input_sample_rate":48000'
 			}
 		}
+	} else if (domain == 'stream0' || domain == 'stream1') {
+		thread += ThreadRtsp;
+		thread += ThreadVideo;
+	} else {
+		// domain 'image' does not need a restart
 	}
-	let json_actions = '"action":{';
-	// save changes to config file
-	json_actions += '"save_config":null';
-	// restart threads if needed
-	if (thread > 0)
-		 json_actions += `,"restart_thread":${thread}`;
-	json_actions += '}';
 
-	sendToWs(`{"${domain}":{${payload}},${json_actions}}`);
+	let json_actions = '';
+	if (thread > 0) json_actions = ',"action":{"restart_thread":'+thread+'}';
+	sendToWs('{"'+domain+'":{'+payload+json_actions+'}}');
 }
 
 for (const i in [0, 1]) {
@@ -590,18 +577,22 @@ $('#restart-prudynt').addEventListener('click', ev => {
 	restartPrudynt();
 });
 
+$('#save-prudynt-config').addEventListener('click', ev => {
+	savePrudyntConfig();
+});
+
 for (const i in [0, 1]) {
-	$(`#fontcolor${i}`).onchange = () => setFontColor(i);
-	$(`#fontname${i}`).onchange = () => setFont(i);
-	$(`#fontsize${i}`).onchange = () => setFont(i);
-	$(`#fontstrokecolor${i}`).onchange = () => setFontColor(i);
-	$(`#fontstrokesize${i}`).onchange = () => setFontColor(i);
-	$(`#osd${i}_enabled`).onchange = (ev) => sendToWs(`{"stream${i}":{"osd":{"enabled":${ev.target.checked}}}}`);
-	$(`#osd${i}_logo_enabled`).onchange = (ev) => toggleOSDElement(ev.target);
-	$(`#osd${i}_time_enabled`).onchange = (ev) => toggleOSDElement(ev.target);
-	$(`#osd${i}_time_format`).onchange = (ev) => sendToWs(`{"stream${i}":{"osd":{"time_format":"${ev.target.value}"}}}`);
-	$(`#osd${i}_uptime_enabled`).onchange = (ev) => toggleOSDElement(ev.target);
-	$(`#osd${i}_user_text_enabled`).onchange = (ev) => toggleOSDElement(ev.target);
+	$('#fontcolor'+i).onchange = () => setFontColor(i);
+	$('#fontname'+i).onchange = () => setFont(i);
+	$('#fontsize'+i).onchange = () => setFont(i);
+	$('#fontstrokecolor'+i).onchange = () => setFontColor(i);
+	$('#fontstrokesize'+i).onchange = () => setFontColor(i);
+	$('#osd'+i+'_enabled').onchange = (ev) => sendToWs('{"stream'+i+'":{"osd":{"enabled":'+ev.target.checked+'}},"action":{"restart_thread":10}}}');
+	$('#osd'+i+'_logo_enabled').onchange = (ev) => toggleOSDElement(ev.target);
+	$('#osd'+i+'_time_enabled').onchange = (ev) => toggleOSDElement(ev.target);
+	$('#osd'+i+'_time_format').onchange = (ev) => sendToWs('{"stream'+i+'":{"osd":{"time_format":"'+ev.target.value+'"}},"action":{"restart_thread":10}}}');
+	$('#osd'+i+'_uptime_enabled').onchange = (ev) => toggleOSDElement(ev.target);
+	$('#osd'+i+'_user_text_enabled').onchange = (ev) => toggleOSDElement(ev.target);
 }
 </script>
 
