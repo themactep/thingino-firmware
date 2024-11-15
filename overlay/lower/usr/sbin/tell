@@ -10,9 +10,14 @@ Shortcuts:
 fi
 
 case "$1" in
-	%ip)	phrase="IP address is $(ip r | sed -nE "/wlan0/s/.+src ([0-9\.]+).+?/\1/p" | uniq)" ;;
-	%time)	phrase="$(date)" ;;
-	*)	phrase="$*" ;;
+	%ip)
+		iface="$(ip r | awk '/default/{print $5}' | uniq)"
+		ipaddr=$(ip r | sed -nE "/$iface/s/.+src ([0-9\.]+).+?/\1/p" | uniq)
+		phrase="IP address is $ipaddr" ;;
+	%time)
+		phrase="$(date)" ;;
+	*)
+		phrase="$*" ;;
 esac
 
 curl --silent --get --url "https://thingino.com/say" --data-urlencode q="$phrase" | iac -s
