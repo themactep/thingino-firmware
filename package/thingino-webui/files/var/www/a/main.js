@@ -1,18 +1,10 @@
-const debug = false;
-
-let max = 0;
-
 const ThreadRtsp = 1;
 const ThreadVideo = 2;
 const ThreadAudio = 4;
 const ThreadOSD = 8;
 
-let HeartBeatInterval;
-if (debug) {
-	HeartBeatInterval = 60 * 1000;
-} else {
-	HeartBeatInterval = 1 * 1000;
-}
+let max = 0;
+let HeartBeatInterval = 1000;
 
 function $(n) {
 	return document.querySelector(n)
@@ -43,17 +35,9 @@ function setProgressBar(id, value, maxvalue, name) {
 function setValue(data, domain, name) {
 	const id = `#${domain}_${name}`;
 	const el = $(id);
-	if (!el) {
-		if (debug)
-			console.log(`element ${id} not found`);
-		return;
-	}
+	if (!el) return;
 	const value = data[name];
-	if (typeof (value) == 'undefined') {
-		if (debug)
-			console.log(`no value for ${domain}, ${name}`);
-		return;
-	}
+	if (typeof (value) == 'undefined') return;
 	if (el.type === "checkbox") {
 		el.checked = value;
 	} else {
@@ -94,12 +78,8 @@ function heartbeat() {
 			$('.progress-stacked.overlay').title = 'Free overlay: ' + json.overlay_free + 'KiB'
 			setProgressBar('#pb-overlay-used', json.overlay_used, json.overlay_total, 'Overlay Usage');
 
-			if (json.daynight_value !== '-1') {
-				$('#daynight_value').textContent = '☀️ ' + json.daynight_value;
-			}
-			if (typeof (json.uptime) !== 'undefined' && json.uptime !== '') {
-				$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
-			}
+			if (json.daynight_value !== '-1') $('#daynight_value').textContent = '☀️ ' + json.daynight_value;
+			if (typeof (json.uptime) !== 'undefined' && json.uptime !== '') $('#uptime').textContent = 'Uptime:️ ' + json.uptime;
 		})
 		.then(setTimeout(heartbeat, HeartBeatInterval));
 }
@@ -168,7 +148,6 @@ function initCopyToClipboard() {
 		})
 	})
 }
-
 
 (() => {
 	function initAll() {
