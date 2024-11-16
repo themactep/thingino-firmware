@@ -8,7 +8,7 @@ params="blink debug diskusage duration enabled filename led loop mount videoform
 # constants
 MOUNTS=$(awk '/nfs|fat/{print $2}' /etc/mtab)
 RECORD_CTL="/etc/init.d/S96record"
-RECORD_FILENAME_FB="thingino/%F/%FT%%H%M"
+RECORD_FILENAME_FB="thingino/%F/%FT%H%M"
 config_file="$ui_config_dir/$plugin.conf"
 include $config_file
 
@@ -74,7 +74,7 @@ fi
 </div>
 <div class="col">
 <% field_select "record_led" "Indicator LED" "$(fw_printenv | awk -F= '/^gpio_led/{print $1}')" %>
-<% field_range "record_blink" "Blink interval, seconds" "0,3.0,0.5" "Set to 0 for always on"%>
+<% field_range "record_blink" "Blink interval, seconds" "0,3.0,0.5" "Set to 0 for always on" %>
 </div>
 </div>
 <% button_submit %>
