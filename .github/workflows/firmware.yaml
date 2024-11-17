@@ -189,6 +189,7 @@ jobs:
           if [[ -n "$FULL_FW" ]]; then
             echo "FULL_FW=${FULL_FW}" >> ${GITHUB_ENV}
             echo "FULL_FW_SHA=${FULL_FW}.sha256sum" >> ${GITHUB_ENV}
+            echo "UPDATE_FW=${UPDATE_FW}" >> ${GITHUB_ENV}
             echo "UPDATE_FW_SHA=${UPDATE_FW}.sha256sum" >> ${GITHUB_ENV}
           else
             echo "Matching .bin files not found."
