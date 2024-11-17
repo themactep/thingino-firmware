@@ -1,7 +1,6 @@
 config BR2_PACKAGE_GO2RTC
 	bool "go2rtc streamer"
-        depends on BR2_PACKAGE_HOST_GO_TARGET_ARCH_SUPPORTS
-        select BR2_PACKAGE_HOST_GO
+	select BR2_PACKAGE_HOST_GO
 	help
 	  Ultimate camera streaming application with support of RTSP, WebRTC, HomeKit, FFmpeg, RTMP, etc.
 	  Note: Binary will be UPX Compressed, binary size ~3.4mb
@@ -9,7 +8,6 @@ config BR2_PACKAGE_GO2RTC
 
 config BR2_PACKAGE_GO2RTC_MINI
 	bool "go2rtc streamer - mini version"
-	depends on BR2_PACKAGE_HOST_GO_TARGET_ARCH_SUPPORTS
 	help
 	  Ultimate camera streaming application with limited support for RTSP, for memory constrained devices.
 	  Note: Binary will be UPX Compressed, binary size ~3.4mb
