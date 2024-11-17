@@ -48,12 +48,10 @@ default_for rtsp_password "thingino"
 <%in _icons.cgi %>
 <%in _header.cgi %>
 
-<nav class="navbar navbar-expand-lg">
-<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbStreamer" aria-controls="nbStreamer" aria-label="Toggle navigation">
-<span class="navbar-toggler-icon"></span>
-</button>
+<nav class="navbar navbar-expand-lg mb-4 p-1">
+<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbStreamer" aria-controls="nbStreamer" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
 <div class="collapse navbar-collapse" id="nbStreamer">
-<ul class="navbar-nav" role="tablist">
+<ul class="navbar-nav nav-underline" role="tablist">
 <li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab1-pane" class="nav-link active" aria-current="page">Common</a></li>
 <li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab2-pane" class="nav-link">Main stream</a></li>
 <li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab2osd-pane" class="nav-link">Main OSD</a></li>
@@ -68,10 +66,24 @@ default_for rtsp_password "thingino"
 <div class="row row-cols-1 row-cols-lg-2">
 <div class="col mb-3">
 <div id="preview-wrapper" class="mb-4 position-relative">
-<p class="text-warning">Preview is the Main stream</p>
-<p><img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Stream Preview"></p>
-<button type="button" class="btn btn-primary btn-large position-absolute top-50 start-50 translate-middle" data-bs-toggle="modal" data-bs-target="#mdPreview"><%= $icon_zoom %></button>
+
+<div class="mb-2">
+<label class="form-label me-2">Preview is</label>
+<div class="form-check form-check-inline">
+<input class="form-check-input" type="radio" name="stream2_jpeg_channel" id="stream2_jpeg_channel_0" value="0">
+<label class="form-check-label" for="stream2_jpeg_channel_0">Main stream</label>
 </div>
+<div class="form-check form-check-inline">
+<input class="form-check-input" type="radio" name="stream2_jpeg_channel" id="stream2_jpeg_channel_1" value="1">
+<label class="form-check-label" for="stream2_jpeg_channel_1">Substream</label>
+</div>
+</div>
+
+<p><img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Stream Preview"></p>
+<button type="button" class="btn btn-primary btn-large position-absolute top-50 start-50 translate-middle"
+ data-bs-toggle="modal" data-bs-target="#mdPreview"><%= $icon_zoom %></button>
+</div>
+
 <p>Double-click on a range element will restore its default value.</p>
 <button type="button" class="btn btn-secondary me-1" id="restart-prudynt">Restart streamer</button>
 <button type="button" class="btn btn-secondary me-1" id="save-prudynt-config">Save config</button>
@@ -209,7 +221,8 @@ default_for rtsp_password "thingino"
 <h1 class="modal-title fs-4" id="mdlFont">Upload font file</h1>
 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div><div class="modal-body text-center">
-<form action="<%= $SCRIPT_NAME %>" method="post" enctype="multipart/form-data">
+
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4" enctype="multipart/form-data">
 <% field_file "fontfile" "Upload a TTF file" %>
 <% button_submit %></form></div></div></div></div>
 
@@ -307,6 +320,9 @@ const motion_params = ['debounce_time', 'post_time', 'ivs_polling_timeout', 'coo
 const stream_params = ['audio_enabled', 'bitrate', 'buffers', 'enabled', 'format', 'fps', 'gop', 'height', 'max_gop',
  	'mode', 'profile', 'rotation', 'rtsp_endpoint', 'width'];
 
+// stream 2
+const stream2_params = ['jpeg_channel'];
+
 // OSD
 const osd_params = ['enabled', 'font_color', 'font_path', 'font_size', 'font_stroke_color', 'font_stroke',
 	'logo_enabled', 'time_enabled', 'time_format', 'uptime_enabled', 'user_text_enabled'];
@@ -322,6 +338,7 @@ ws.onopen = () => {
 	const payload = '{' +
 		'"stream0":' + stream_rq +
 		',"stream1":' + stream_rq +
+		',"stream2":{' + stream2_params.map((x) => `"${x}":null`).join() + '}' +
 		',"audio":{' + audio_params.map((x) => `"${x}":null`).join() + '}' +
 		',"image":{' + image_params.map((x) => `"${x}":null`).join() + '}' +
 		'}';
@@ -382,6 +399,15 @@ ws.onmessage = (ev) => {
 			}
 		}
 
+		// Stream 2
+		{
+			data = msg.stream2;
+			if (data) {
+				$('#stream2_jpeg_channel_0').checked = (data.jpeg_channel == 0);
+				$('#stream2_jpeg_channel_1').checked = (data.jpeg_channel == 1);
+			}
+		}
+
 		// Audio
 		{
 			data = msg.audio;
@@ -404,6 +430,8 @@ ws.onmessage = (ev) => {
 			}
 		}
 	} else if (ev.data instanceof ArrayBuffer) {
+		// console.log(ts(), '<===', ev.data);
+
 		const blob = new Blob([ev.data], {type: 'image/jpeg'});
 		const url = URL.createObjectURL(blob);
 		preview.src = url;
@@ -569,6 +597,14 @@ image_params.forEach((x) => {
 		$(`#image_${x}-show`).textContent = v;
 		saveValue('image', x);
 	});
+});
+
+$('#stream2_jpeg_channel_0').addEventListener('click', ev => {
+	sendToWs('{"stream2":{"jpeg_channel":0},"action":{"restart_thread":11}}');
+});
+
+$('#stream2_jpeg_channel_1').addEventListener('click', ev => {
+	sendToWs('{"stream2":{"jpeg_channel":1},"action":{"restart_thread":11}}');
 });
 
 $('#restart-prudynt').addEventListener('click', ev => {

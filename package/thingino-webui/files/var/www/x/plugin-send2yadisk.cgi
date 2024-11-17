@@ -35,7 +35,8 @@ fi
 %>
 <%in _header.cgi %>
 
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+
 <% field_switch "yadisk_enabled" "Enable Yandex Disk bot" %>
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
 <div class="col">

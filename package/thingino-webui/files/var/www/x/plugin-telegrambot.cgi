@@ -48,7 +48,8 @@ fi
 
 <div class="row g-4 mb-4">
 <div class="col">
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+
 <% field_switch "telegrambot_enabled" "Enable Telegram Bot" %>
 
 <div class="input-group mb-3">

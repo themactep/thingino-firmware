@@ -54,27 +54,32 @@ default_for user_group "users"
 
 <%in _header.cgi %>
 
-<div class="row g-4 mb-4">
-<div class="col col-lg-4">
-<h3>Settings</h3>
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
+<div class="col">
 <% field_hidden "action" "create" %>
-<% field_select "user_name" "Username" "$users" "<a href=\"#\" id=\"show_new_user\">Create a new user</a>" %>
+<% field_select "user_name" "Username" "$users" %>
 <% field_text "user_name_new" "Username" "<a href=\"#\" id=\"hide_new_user\">Select an existing user</a>" %>
 <% field_password "user_password" "Password" %>
+</div>
+<div class="col">
 <% field_text "user_full_name" "Full name" %>
 <% field_text "user_home" "Home directory" %>
+</div>
+<div class="col">
 <% field_text "user_shell" "Shell" %>
 <% field_text "user_group" "Group" %>
+</div>
+</div>
 <% button_submit %>
 </form>
-</div>
-<div class="col col-lg-8">
-<h3>Configuration files</h3>
+<p><a href="#" id="show_new_user">Create a new user</a></p>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
 <% ex "cat /etc/passwd" %>
 <% ex "cat /etc/shadow" %>
 <% ex "cat /etc/group" %>
-</div>
 </div>
 
 <script>

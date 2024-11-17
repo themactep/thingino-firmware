@@ -17,7 +17,7 @@ Pragma: no-cache
 <script src="/a/main.js?ts=<%= $assets_ts %>"></script>
 </head>
 
-<body id="page-<%= $pagename %>" class="<%= ${webui_level:-user} %><% [ "$debug" -gt 0 ] && echo -n " debug" %>">
+<body id="page-<%= $pagename %>" class="<%= ${webui_level:-user} %>">
 
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
 <div class="container">

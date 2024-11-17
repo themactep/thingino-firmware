@@ -41,7 +41,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then %>
 <div class="alert alert-danger">
 <h3>ATTENTION! Formatting will destroy all data on the SD Card.</h3>
 <p>Make sure you have a backup copy if you are going to use the data in the future.</p>
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <div class="row">
 <div class="col col-auto">
 <div class="btn-group my-2" role="group" aria-label="Filesystem selection buttons">

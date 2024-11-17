@@ -84,49 +84,6 @@ function heartbeat() {
 		.then(setTimeout(heartbeat, HeartBeatInterval));
 }
 
-function callImp(command, value) {
-	if (command.startsWith("osd_")) {
-		let i = command.split('_')[2];
-		let a = command.split('_')[1];
-		let g = $('.group_osd[data-idx="' + i + '"]');
-		if (command.startsWith("osd_pos_")) {
-			$("#osd_pos_auto_" + i + "_ig").classList.toggle("d-none");
-			$("#osd_pos_fixed_" + i + "_ig").classList.toggle("d-none");
-		}
-		let c = g.getAttribute("data-conf").split(" ");
-		if (a === 'fgAlpha') c[1] = value
-		if (a === 'show') c[2] = value
-		if (a === 'posx') c[3] = value
-		if (a === 'posy') c[4] = value
-		if (a === 'pos') c[5] = (value === 0 ? 0 : $("#osd_apos_" + i).value)
-		if (a === 'apos') c[5] = value
-		g.setAttribute('data-conf', c.join(' '));
-		value = g.getAttribute("data-conf");
-		command = 'setosd';
-	} else if (["aiaec", "aihpf"].includes(command)) {
-		value = (value === 1) ? "on" : "off"
-	} else if (["ains"].includes(command)) {
-		if (value === -1) value = "off"
-	} else if (["setosdpos_x", "setosdpos_y"].includes(command)) {
-		command = 'setosdpos'
-		value = '1' +
-			'+' + $('#setosdpos_x').value +
-			'+' + $('#setosdpos_y').value +
-			'+1087+75';
-	} else if (["whitebalance_mode", "whitebalance_rgain", "whitebalance_bgain"].includes(command)) {
-		command = 'whitebalance'
-		value = $('#whitebalance_mode').value +
-			'+' + $('#whitebalance_rgain').value +
-			'+' + $('#whitebalance_bgain').value;
-	}
-
-	const xhr = new XMLHttpRequest();
-	xhr.open('GET', '/x/json-imp.cgi?cmd=' + command + '&val=' + value);
-	xhr.send();
-
-	$('#savechanges')?.classList.remove('d-none');
-}
-
 function initCopyToClipboard() {
 	$$(".cb").forEach(function (el) {
 		el.title = "Click to copy to clipboard";
@@ -172,24 +129,6 @@ function initCopyToClipboard() {
 		const tooltipTriggerList = $$('[data-bs-toggle="tooltip"]')
 		const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
 
-// checkboxes
-		$$('input[type=checkbox].imp').forEach(el => {
-			el.autocomplete = "off"
- 			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.checked ? 1 : 0))
-		});
-
-// numbers
-		$$('input[type=number].imp').forEach(el => {
-			el.autocomplete = "off"
-			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
-		});
-
-// radios
-		$$('input[type=radio].imp').forEach(el => {
-			el.autocomplete = "off"
-			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
-		});
-
 // ranges
 		$$('input[type=range]').forEach(el => {
 			el.addEventListener('change', ev => {
@@ -197,13 +136,6 @@ function initCopyToClipboard() {
 			})
 			el.addEventListener('input', ev => {
 				$('#' + ev.target.id + '-show').textContent = ev.target.value
-			});
-		});
-
-// selects
-		$$('select.imp').forEach(el => {
-			el.addEventListener('change', ev => {
-				 callImp(ev.target.id, ev.target.value)
 			});
 		});
 

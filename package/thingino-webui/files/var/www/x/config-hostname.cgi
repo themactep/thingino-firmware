@@ -24,22 +24,22 @@ check_hostname
 %>
 <%in _header.cgi %>
 
-<form action="<%= $SCRIPT_NAME %>" method="post">
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <% field_text "hostname" "Hostname" %>
-</div>
-<div class="col">
-<% ex "fw_printenv -n hostname" %>
-<% ex "hostname" %>
-</div>
-<div class="col">
-<% ex "cat /etc/hostname" %>
-<% ex "echo \$HOSTNAME" %>
-<% ex "grep 127.0.1.1 /etc/hosts" %>
 </div>
 </div>
 <% button_submit %>
 </form>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
+<% ex "fw_printenv -n hostname" %>
+<% ex "hostname" %>
+<% ex "cat /etc/hostname" %>
+<% ex "echo \$HOSTNAME" %>
+<% ex "grep 127.0.1.1 /etc/hosts" %>
+</div>
 
 <%in _footer.cgi %>

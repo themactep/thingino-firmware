@@ -20,20 +20,24 @@ fi
 
 <%in _header.cgi %>
 
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
-<form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_hidden "action" "update" %>
 <% field_text "socks5_host" "SOCKS5 Host" %>
 <% field_text "socks5_port" "SOCKS5 Port" "1080" %>
-<% field_text "socks5_username" "SOCKS5 Username" %>
-<% field_password "socks5_password" "SOCKS5 Password" %>
-<% button_submit %>
-</form>
 </div>
 <div class="col">
-<% ex "cat $config_file" %>
+<% field_text "socks5_username" "SOCKS5 Username" %>
+<% field_password "socks5_password" "SOCKS5 Password" %>
 </div>
+</div>
+<% button_submit %>
+</form>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
+<% ex "cat $config_file" %>
 </div>
 
 <%in _footer.cgi %>

@@ -67,43 +67,54 @@ default_for wlanap_ssid "thingino-ap"
 %>
 <%in _header.cgi %>
 
-<div class="row-cols row-cols-lg-2">
-<div class="col mb-3">
-<ul class="nav nav-underline mb-3" role="tablist" id="tabs">
-<li class="nav-item" role="presentation"><button type="button" role="tab" class="nav-link" data-bs-toggle="tab" data-bs-target="#wlan-tab-pane" id="wlan-tab">Wi-Fi Network</button></li>
-<li class="nav-item" role="presentation"><button type="button" role="tab" class="nav-link" data-bs-toggle="tab" data-bs-target="#wlanap-tab-pane" id="wlanap-tab">Wi-Fi Access Point</button></li>
+<nav class="navbar navbar-expand-lg mb-4 p-1">
+<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbWifi"
+ aria-controls="nbStreamer" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+<div class="collapse navbar-collapse" id="nbWifi">
+<ul class="navbar-nav nav-underline" role="tablist">
+<li class="nav-item"><a href="#" data-bs-toggle="tab" id="tab1" data-bs-target="#tab1-pane" class="nav-link active">Wi-Fi Network</a></li>
+<li class="nav-item"><a href="#" data-bs-toggle="tab" id="tab2" data-bs-target="#tab2-pane" class="nav-link">Wi-Fi Access Point</a></li>
 </ul>
-<form action="<%= $SCRIPT_NAME %>" method="post">
-<div class="tab-content" id="wireless-tabs">
-<div class="tab-pane fade" id="wlan-tab-pane" role="tabpanel" aria-labelledby="home-tab" tabindex="0">
+</div>
+</nav>
+
+<div class="row row-cols-1 row-cols-lg-2">
+<div class="col">
+
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+<div class="tab-content" id="wlan-tabs">
+<div class="tab-pane fade show active" id="tab1-pane" role="tabpanel" aria-labelledby="tab1">
 <% field_text "wlan_ssid" "Wi-Fi Network SSID" %>
-<% field_text "wlan_pass" "Wi-Fi Network Password" "Plain-text password will be automatically converted to a PSK upon submission" "" "$STR_EIGHT_OR_MORE_CHARS" %>
+<% field_text "wlan_pass" "Wi-Fi Network Password" "$STR_PASSWORD_TO_PSK" "" "$STR_EIGHT_OR_MORE_CHARS" %>
 <% field_text "wlan_mac" "Wi-Fi device MAC address" %>
 </div>
-<div class="tab-pane fade" id="wlanap-tab-pane" role="tabpanel" aria-labelledby="profile-tab" tabindex="1">
-<% field_switch "wlanap_enabled" "Enable Wi-Fi AP" %>
+<div class="tab-pane fade" id="tab2-pane" role="tabpanel" aria-labelledby="tab2">
 <% field_text "wlanap_ssid" "Wi-Fi AP SSID" %>
-<% field_text "wlanap_pass" "Wi-Fi AP Password" "" "" "$STR_EIGHT_OR_MORE_CHARS" %>
+<% field_text "wlanap_pass" "Wi-Fi AP Password" "$STR_PASSWORD_TO_PSK" "" "$STR_EIGHT_OR_MORE_CHARS" %>
+<% field_switch "wlanap_enabled" "Enable Wi-Fi AP" %>
 </div>
 </div>
 <% button_submit %>
 </form>
-</div>
-<div class="col mb-3">
-<% ex "fw_printenv | grep wlan | sort" %>
-<% is_ap && ex "wlan cli sta_info | tr ' ' '\n'" || ex "wlan info" %>
+
 </div>
 </div>
 
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
+<% ex "fw_printenv | grep wlan | sort" %>
+<% is_ap && ex "wlan cli sta_info | tr ' ' '\n'" || ex "wlan info" %>
+</div>
+
 <script>
-$$('#tabs button').forEach(el => {
+$$('#nbWifi a').forEach(el => {
 	const trigger = new bootstrap.Tab(el)
 	el.addEventListener('click', ev => {
 		ev.preventDefault()
 		trigger.show()
 	})
 })
-bootstrap.Tab.getInstance($('#wlanap_enabled').checked ? $('#wlanap-tab') : $('#wlan-tab')).show()
+bootstrap.Tab.getInstance($('#wlanap_enabled').checked ? $('#tab2') : $('#tab1')).show()
 </script>
 
 <%in _footer.cgi %>

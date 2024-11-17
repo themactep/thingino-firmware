@@ -36,8 +36,9 @@ fi
 %>
 <%in _header.cgi %>
 
-<form action="<%= $SCRIPT_NAME %>" method="post">
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
 <div class="col">
 <% field_switch "webhook_enabled" "Enable sending to webhook" %>
 <% field_text "webhook_url" "Webhook URL" %>

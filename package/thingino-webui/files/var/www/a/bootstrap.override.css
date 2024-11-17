@@ -1,17 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap");
-
-body:before {
-	color: #333;
-	display: block;
-	font-size: 5rem;
-	font-variant: all-small-caps;
-	font-weight: 700;
-	line-height: 1;
-	position: fixed;
-	right: 1rem;
-	bottom: 1rem;
-	z-index: -1;
-}
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@100..900&display=swap");
 
 @media (max-width: 575.98px) {
 	body:before {
@@ -64,6 +51,26 @@ body:before {
 	}
 }
 
+body:before {
+	color: #333;
+	display: block;
+	font-size: 3rem;
+	font-variant: all-small-caps;
+	font-weight: 700;
+	line-height: 1;
+	position: fixed;
+	right: 1rem;
+	bottom: 1rem;
+	z-index: -1;
+}
+
+.montserrat-regular {
+	font-family: "Montserrat", serif;
+	font-optical-sizing: auto;
+	font-weight: 400;
+	font-style: normal;
+}
+
 :root {
 	--bs-font-sans-serif: "Montserrat", sans-serif;
 }
@@ -81,16 +88,10 @@ body:before {
 .arrow:before {
 	animation: a1 3s normal forwards ease-in-out;
 	background: var(--bs-secondary-bg);
-	clip-path: polygon(0 10px,
-	calc(100% - 15px) 10px,
-	calc(100% - 15px) 0, 100% 50%,
-	calc(100% - 15px) 100%,
-	calc(100% - 15px) calc(100% - 10px),
-	0 calc(100% - 10px));
+	clip-path: polygon(0 10px, calc(100% - 15px) 10px, calc(100% - 15px) 0, 100% 50%, calc(100% - 15px) 100%, calc(100% - 15px) calc(100% - 10px), 0 calc(100% - 10px));
 	content: "";
 	width: 15px;
 }
-
 
 .blink {
 	color: red;
@@ -171,15 +172,15 @@ body:before {
 	min-width: 2.5rem;
 }
 
-.led-ir850 .input-group-text:first-child {
+.gpio-ir850 .input-group-text:first-child {
 	background-color: #a60000;
 }
 
-.led-ir940 .input-group-text:first-child {
+.gpio-ir940 .input-group-text:first-child {
 	background-color: #750000;
 }
 
-.led-white .input-group-text:first-child {
+.gpio-white .input-group-text:first-child {
 	background-color: #eeeeee;
 }
 
@@ -275,12 +276,12 @@ body > main > .container > h2 {
 	margin: 2rem 0 1.5rem;
 }
 
-body.user .ui-expert {
+body.user .ui-debug {
 	display: none;
 }
 
-body.expert .ui-expert {
-	display: initial;
+body.expert .ui-debug {
+	display: block;
 }
 
 dt {
@@ -330,9 +331,13 @@ pre#output[data-cmd] {
 	color: rgba(170, 170, 170, 0.8);
 }
 
-.led-gpio_led_r > .input-group > .input-group-text.switch {	background: red; }
-.led-gpio_led_g > .input-group > .input-group-text.switch {	background: green; }
-.led-gpio_led_b > .input-group > .input-group-text.switch {	background: blue; }
-.led-gpio_led_y > .input-group > .input-group-text.switch {	background: yellow; }
-.led-gpio_led_o > .input-group > .input-group-text.switch {	background: orange; }
-.led-gpio_led_w > .input-group > .input-group-text.switch {	background: white; }
+.gpio_led_r > .input-group > .switch { background: red; }
+.gpio_led_g > .input-group > .switch { background: green; }
+.gpio_led_b > .input-group > .switch { background: blue; }
+.gpio_led_y > .input-group > .switch { background: yellow; }
+.gpio_led_o > .input-group > .switch { background: orange; }
+.gpio_led_w > .input-group > .switch { background: white; }
+
+.gpio_ir850 > .input-group > .switch { background: violet; }
+.gpio_ir940 > .input-group > .switch { background: darkviolet; }
+.gpio_white > .input-group > .switch { background: white; }

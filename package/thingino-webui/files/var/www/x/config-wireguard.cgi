@@ -6,17 +6,7 @@ page_title="WireGuard"
 
 [ -f /bin/wg ] || redirect_to "/" "danger" "Your camera does not seem to support WireGuard"
 
-wg_address=$(get wg_address)
-wg_allowed=$(get wg_allowed)
-wg_dns=$(get wg_dns)
-wg_enabled=$(get wg_enabled)
-wg_endpoint=$(get wg_endpoint)
-wg_keepalive=$(get wg_keepalive)
-wg_mtu=$(get wg_mtu)
-wg_peerpsk=$(get wg_peerpsk)
-wg_peerpub=$(get wg_peerpub)
-wg_port=$(get wg_port)
-wg_privkey=$(get wg_privkey)
+read_from_env "wg"
 
 WG_DEV="wg0"
 WG_CTL="/etc/init.d/S42wireguard"
@@ -51,37 +41,46 @@ fi
 
 <%in _header.cgi %>
 
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
-	<div class="col">
-		<form action="<%= $SCRIPT_NAME %>" method="post">
-		<h3>Interface Settings</h3>
-		<% field_hidden "action" "wgconfig" %>
-		<% field_password "wg_privkey" "Private Key" %>
-		<% field_password "wg_peerpsk" "Pre-Shared Key" %>
-		<% field_text "wg_address" "Address" %>
-		<% field_text "wg_port" "Listen Port" %>
-		<% field_text "wg_dns" "DNS" %>
-		<% field_switch "wg_enabled" "Enable WireGuard" %>
-	</div>
-	<div class="col">
-		<h3>Peer Settings</h3>
-		<% field_text "wg_endpoint" "Endpoint host:port" %>
-		<% field_text "wg_peerpub" "Peer Public Key" %>
-		<% field_text "wg_mtu" "MTU" %>
-		<% field_text "wg_keepalive" "Persistent Keepalive" %>
-		<% field_text "wg_allowed" "Allowed CIDRs" %>
-		<% button_submit %>
-		</form>
-	</div>
-	<div class="col">
-		<h3>Environment Settings</h3>
-		<% ex "fw_printenv | grep '^wg_' | sed -Ee 's/(key|psk)=.*$/\1=[__redacted__]/' | sort" %>
-		<% ex "wg show $WG_DEV 2>&1 | grep -A 5 endpoint" %>
-		<form action="<%= $SCRIPT_NAME %>" method="post">
-		<% field_hidden "action" "startstop" %>
-		<% button_submit "$wg_action WireGuard" "danger" %>
-		</form>
-	</div>
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+<% field_switch "wg_enabled" "Enable WireGuard" %>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
+<div class="col">
+<div class="alert alert-info">
+<p>WireGuard is a fast and simple general purpose VPN.</p>
+<% wiki_page "WireGuard-VPN" %>
+</div>
+</div>
+<div class="col">
+<h5>Interface</h5>
+<% field_hidden "action" "wgconfig" %>
+<% field_password "wg_privkey" "Private Key" %>
+<% field_password "wg_peerpsk" "Pre-Shared Key" %>
+<% field_text "wg_address" "Address" %>
+<% field_text "wg_port" "Listen Port" %>
+<% field_text "wg_dns" "DNS" %>
+</div>
+<div class="col">
+<h5>Peer</h5>
+<% field_text "wg_endpoint" "Endpoint host:port" %>
+<% field_text "wg_peerpub" "Peer Public Key" %>
+<% field_text "wg_mtu" "MTU" %>
+<% field_text "wg_keepalive" "Persistent Keepalive" %>
+<% field_text "wg_allowed" "Allowed CIDRs" %>
+</div>
+</div>
+<% button_submit %>
+</form>
+
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+<% field_hidden "action" "startstop" %>
+<% button_submit "$wg_action WireGuard" "danger" %>
+</form>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
+<% ex "fw_printenv | grep '^wg_' | sed -Ee 's/(key|psk)=.*$/\1=[__redacted__]/' | sort" %>
+<% ex "wg show $WG_DEV 2>&1 | grep -A 5 endpoint" %>
 </div>
 
 <%in _footer.cgi %>

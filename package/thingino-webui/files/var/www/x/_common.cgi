@@ -6,6 +6,7 @@ STR_CONFIGURE_SOCKS5="<a href=\"config-socks5.cgi\">Configure SOCKS5</a>"
 STR_NOT_SUPPORTED="not supported on this system"
 STR_SUPPORTS_STRFTIME="Supports <a href=\"https://man7.org/linux/man-pages/man3/strftime.3.html\" target=\"_blank\">strftime</a> format."
 STR_EIGHT_OR_MORE_CHARS=" pattern=\".{8,}\" title=\"8 characters or longer\""
+STR_PASSWORD_TO_PSK="Plain-text password will be automatically converted to a PSK upon submission"
 
 pagename=$(basename $SCRIPT_NAME)
 pagename="${pagename%%.*}"
@@ -116,7 +117,13 @@ button_submit() {
 	local t="${1:-Save changes}"
 	local c="${2:-primary}"
 	local x="${3:- }"
-	echo "<div class=\"mt-2\"><input type=\"submit\" class=\"btn btn-$c\"$x value=\"$t\"></div>"
+	echo "<div class=\"mt-3\"><input type=\"submit\" class=\"btn btn-$c\"$x value=\"$t\"></div>"
+}
+
+button_sync_time() {
+	local text
+	is_ap && text="Set time from the browser" || text="Synchronize time from NTP server"
+	echo "<button id=\"sync-time\" type=\"button\" class=\"btn btn-secondary mb-3\">$text</button>"
 }
 
 check_file_exist() {
@@ -185,6 +192,59 @@ field_file() {
 	<input type=\"file\" id=\"$1\" name=\"$1\" class=\"form-control\">"
 	[ -n "$3" ] && echo "<span class=\"hint text-secondary\">$3</span>"
 	echo "</p>"
+}
+
+# field_gpio "name" "label"
+field_gpio() {
+	local active_suffix
+	local is_active
+	local is_active_low
+	local is_disabled
+	local lit_on_boot
+	local pin_off
+	local pin_on
+
+	local name=$1
+
+	local var_pin="${name}_pin"
+	eval pin=\$$var_pin
+
+	[ -z "$pin" ] && return
+
+	local var_pwm="${name}_pwm"
+	eval pwm=\$$var_pwm
+
+	if [ -z "$pin" ]; then
+		is_disabled=" disabled"
+	else
+		[ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
+		active_suffix=${pin:0-1}
+		case "$active_suffix" in
+			o) pin_on=0; pin_off=1; is_active_low=" checked" ;;
+			O) pin_on=1; pin_off=0 ;;
+		esac
+		pin=${pin:0:-1}
+
+		pin_status=$(gpio read $pin)
+		[ "$pin_status" -eq "$pin_on" ] && is_active=" checked"
+
+		echo $DEFAULT_PINS | grep -E "\b$pin$active_suffix\b" > /dev/null && lit_on_boot=" checked"
+	fi
+
+	echo "<div class=\"mb-3 gpio ${name}\">
+	<label class=\"form-label\" for=\"${name}_pin\">$2</label>
+	<div class=\"input-group\">
+	<div class=\"input-group-text switch\">
+	<input type=\"checkbox\" class=\"form-check-input mt-0 led-status\" id=\"${name}_on\" name=\"${name}_on\" value=\"true\"$is_active$is_disabled>
+	</div>
+	<input type=\"text\" class=\"form-control text-end\" id=\"${name}_pin\" name=\"${name}_pin\" pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pin\" placeholder=\"GPIO\">
+	<input type=\"text\" class=\"form-control text-end\" id=\"${name}_pwm\" name=\"${name}_pwm\" pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pwm\" placeholder=\"PWM channel\">
+	<div class=\"input-group-text\">
+	<input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" id=\"${name}_inv\" name=\"${name}_inv\" value=\"true\"$is_active_low$is_disabled> active low
+	</div>
+	<div class=\"input-group-text\">
+	<input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" id=\"${name}_lit\" name=\"${name}_lit\" value=\"true\"$lit_on_boot$is_disabled> lit on boot
+	</div></div></div>"
 }
 
 # field_hidden "name" "value"
@@ -360,6 +420,10 @@ is_recording() {
 
 link_to() {
 	echo "<a href=\"$2\">$1</a>"
+}
+
+wiki_page() {
+	echo "<p class=\"mb-0\"><a class=\"text-info\" href=\"https://github.com/themactep/thingino-firmware/wiki/$1\">Thingino Wiki</a></p>"
 }
 
 log() {
@@ -578,7 +642,12 @@ update_caminfo() {
 		tz_name="Etc/GMT"; echo "$tz_name" >/etc/timezone
 	fi
 
-	local variables="flash_size flash_size_mb flash_type fw_version fw_build network_address network_cidr network_default_interface network_dhcp network_dns_1 network_dns_2 network_gateway network_hostname network_interfaces network_macaddr network_netmask overlay_root soc_family soc_model sensor_fps_max sensor_fps_min sensor_model tz_data tz_name uboot_version ui_password"
+	# prudynt values
+	rtsp_endpoint_ch0=$(prudyntcfg get stream0.rtsp_endpoint | tr -d '"')
+	rtsp_endpoint_ch1=$(prudyntcfg get stream1.rtsp_endpoint | tr -d '"')
+
+	# create a sourceable file
+	local variables="flash_size flash_size_mb flash_type fw_version fw_build network_address network_cidr network_default_interface network_dhcp network_dns_1 network_dns_2 network_gateway network_hostname network_interfaces network_macaddr network_netmask overlay_root rtsp_endpoint_ch0 rtsp_endpoint_ch1 soc_family soc_model sensor_fps_max sensor_fps_min sensor_model tz_data tz_name uboot_version ui_password"
 	local v
 	for v in $variables; do
 		eval "echo $v=\'\$$v\'>>$tmpfile"
@@ -592,7 +661,7 @@ update_caminfo() {
 
 read_from_env() {
 	local tmpfile=$(mktemp -u)
-	fw_printenv | grep ^$1_ > $tmpfile
+	fw_printenv | grep ^$1_ | sed -E "s/=(.+)$/=\"\\1\"/" > $tmpfile
 	. $tmpfile
 	rm $tmpfile
 }

@@ -14,9 +14,6 @@
 </div>
 </footer>
 
-<% if [ "$debug" -gt 0 ]; then %>
 <%in _debug.cgi %>
-<% fi %>
-
 </body>
 </html>

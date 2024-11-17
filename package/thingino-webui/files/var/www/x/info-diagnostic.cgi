@@ -18,7 +18,7 @@ fi
 <p>The button below generates a massive log that needs to be further shared with developers to help them diagnose problems.
 That log may contain sensitive or personal information, so be sure to review the result before sharing the link!</p>
 <p>We use the termbin.com service to share the log. Please review their <a href="https://www.termbin.com/" target="_blank">acceptable use policy</a>.</p>
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_checkbox "iagree" "I've read and understood the information above. I want to proceed." %>
 <% button_submit "Generate the diagnostic log" %>
 </form>

@@ -50,21 +50,28 @@ fi
 %>
 <%in _header.cgi %>
 
-<div class="row g-4">
-<div class="col col-md-6 col-lg-4 mb-4">
-<form action="<%= $SCRIPT_NAME %>" method="post">
-<% field_hidden "action" "update" %>
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
+<div class="col">
 <% field_select "network_interface" "Network interface" "$network_interfaces" %>
 <% field_switch "network_dhcp" "Use DHCP" %>
+</div>
+<div class="col">
 <% field_text "network_address" "IP Address" %>
 <% field_text "network_netmask" "IP Netmask" %>
 <% field_text "network_gateway" "Gateway" %>
+</div>
+<div class="col">
 <% field_text "network_dns_1" "DNS 1" %>
 <% field_text "network_dns_2" "DNS 2" %>
+</div>
+</div>
+<% field_hidden "action" "update" %>
 <% button_submit %>
 </form>
-</div>
-<div class="col col-md-6 col-lg-8">
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
 <% ex "cat /etc/hosts" %>
 <% ex "cat /etc/network/interfaces" %>
 <% for i in $(ls -1 /etc/network/interfaces.d/); do %>
@@ -74,17 +81,12 @@ fi
 <% ex "ip route list" %>
 <% [ -f /etc/resolv.conf ] && ex "cat /etc/resolv.conf" %>
 </div>
-</div>
 
 <script>
 function toggleDhcp() {
 	const c = $('#network_dhcp[type=checkbox]').checked;
 	const ids = ['network_address','network_netmask','network_gateway','network_dns_1','network_dns_2'];
-	ids.forEach(id => {
-		$(`#${id}`).disabled = c;
-		let el = $(`#${id}_wrap`);
-		c ? el.classList.add('d-none') : el.classList.remove('d-none');
-	});
+	ids.forEach(id => { $(`#${id}`).disabled = c });
 }
 
 function toggleIface() {

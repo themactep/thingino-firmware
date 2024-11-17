@@ -109,10 +109,10 @@ fi
 %>
 <%in _header.cgi %>
 
-<form action="<%= $SCRIPT_NAME %>" method="post">
-<div class="row row-cols-1 row-cols-xl-3 g-4">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
-<h3>Pan motor</h3>
+<h5>Pan motor</h5>
 <div class="row g-1">
 <div class="col"><% field_number "gpio_motor_h_1" "GPIO pin 1" %></div>
 <div class="col"><% field_number "gpio_motor_h_2" "GPIO pin 2" %></div>
@@ -128,7 +128,7 @@ fi
 </div>
 </div>
 <div class="col">
-<h3>Tilt motor</h3>
+<h5>Tilt motor</h5>
 <div class="row g-1">
 <div class="col"><% field_number "gpio_motor_v_1" "GPIO pin 1" %></div>
 <div class="col"><% field_number "gpio_motor_v_2" "GPIO pin 2" %></div>
@@ -144,24 +144,28 @@ fi
 </div>
 </div>
 <div class="col">
-<h3>Environment settings</h3>
+<h5>Homing</h5>
+<p class="alert alert-info">During boot, the camera rotates to its minimum limits and zeroes both axes.
+ If you want to use the camera permanently pointed at a scene, you can disable this behavior.</p>
+<% field_switch "disable_homing" "Disable homing on boot" %>
+</div>
+</div>
+<% button_submit %>
+</form>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
 <pre>
 gpio_motor_h: <%= $gpio_motor_h %>
 motor_maxstep_h: <%= $motor_maxstep_h %>
 motor_speed_h: <%= $motor_speed_h %>
-
 gpio_motor_v: <%= $gpio_motor_v %>
 motor_maxstep_v: <%= $motor_maxstep_v %>
 motor_speed_v: <%= $motor_speed_v %>
-
 motor_pos_0: <%= $motor_pos_0 %>
 disable_homing: <%= $disable_homing %>
 </pre>
 </div>
-</div>
-<% field_switch "disable_homing" "Disable homing* on boot" "* camera rotates to its minimum limits to zero both axis" %>
-<% button_submit %>
-</form>
 
 <script>
 function checkHoming() {

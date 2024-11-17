@@ -55,7 +55,8 @@ case "$POST_action" in
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
 <div class="col">
 <h3>Key Backup</h3>
-<form action="<%= $SCRIPT_NAME %>" method="post">
+
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_hidden "action" "backup" %>
 <p>You can back up your existing SSH key into firmware environment and restore them later, after overlay wiping.</p>
 <% button_submit "Backup SSH key" "danger" %>
@@ -64,7 +65,8 @@ case "$POST_action" in
 <div class="col">
 <h3>Key Restore</h3>
 <p>Restoring previously saved SSH key from firmware environment will let you keep exsiting client's authentication.</p>
-<form action="<%= $SCRIPT_NAME %>" method="post">
+
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_hidden "action" "restore" %>
 <% button_submit "Restore SSH key from backup" "danger" %>
 </form>
@@ -72,7 +74,8 @@ case "$POST_action" in
 <div class="col">
 <h3>Key Delete</h3>
 <p>You can delete saved key from firmware environment, e.g. to replace them with a new key.</p>
-<form action="<%= $SCRIPT_NAME %>" method="post">
+
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_hidden "action" "delete" %>
 <% button_submit "Delete SSH key backup." "danger" %>
 </form>

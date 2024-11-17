@@ -57,9 +57,9 @@ fi
 %>
 <%in _header.cgi %>
 
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_switch "record_enabled" "Enable Recording" %>
-<div class="row row-cols-1 row-cols-lg-3 g-4 mb-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <% field_select "record_mount" "Record storage directory" "$MOUNTS" %>
 <div class="row g-1">
@@ -80,7 +80,6 @@ fi
 <% button_submit %>
 </form>
 
-<br>
 <% if pidof record > /dev/null; then %>
 <h3 class="alert alert-info">Recording in progress.</h3>
 <% else %>
@@ -89,5 +88,10 @@ fi
 <p class="mb-0">Please note. The last active recording will continue until the end of the recording time!</p>
 </div>
 <% fi %>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
+<% ex "cat $config_file" %>
+</div>
 
 <%in _footer.cgi %>

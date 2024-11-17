@@ -45,7 +45,8 @@ fi
 %>
 <%in _header.cgi %>
 
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+
 <div class="row g-4 mb-4">
 <div class="col col-12 col-xl-4">
 <% field_switch "dusk2dawn_enabled" "Enable dusk2dawn script" %>

@@ -52,9 +52,9 @@ fi
 %>
 <%in _header.cgi %>
 
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_hidden "action" "update" %>
-<div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-4 mb-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <h3>Time Zone</h3>
 <datalist id="tz_list"></datalist>
@@ -63,19 +63,12 @@ fi
 <input type="text" id="tz_name" name="tz_name" value="<%= $tz_name %>" class="form-control" list="tz_list">
 <span class="hint text-secondary">Start typing the name of the nearest large city in the box above then select from available variants.</span>
 </p>
+<p><a href="#" id="frombrowser">Pick up timezone from browser</a></p>
 <p class="string">
 <label for="tz_data" class="form-label">Zone string</label>
 <input type="text" id="tz_data" name="tz_data" value="<%= $tz_data %>" class="form-control" readonly>
 <span class="hint text-secondary">Control string of the timezone selected above. Read-only field, only for monitoring.</span>
 </p>
-<p><a href="#" id="frombrowser">Pick up timezone from browser</a></p>
-<% button_submit %>
-</div>
-<div class="col">
-<% ex "get timezone" %>
-<% ex "cat /etc/timezone" %>
-<% ex "cat /etc/TZ" %>
-<% ex "echo \$TZ" %>
 </div>
 <div class="col">
 <h3>Time Synchronization</h3>
@@ -88,19 +81,22 @@ done; unset i; unset x
 %>
 </div>
 <div class="col">
+<% button_sync_time %>
+<p id="sync-time-wrapper"></p>
+</div>
+</div>
+<% button_submit %>
+</form>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
+<% ex "get timezone" %>
+<% ex "cat /etc/timezone" %>
+<% ex "cat /etc/TZ" %>
+<% ex "echo \$TZ" %>
 <% [ -f "$ntpd_working_config" ] && ex "cat $ntpd_working_config" %>
 <% [ -f "$ntpd_static_config" ] && ex "cat $ntpd_static_config" %>
 <% [ -f "$ntpd_sync_status" ] && ex "cat $ntpd_sync_status" %>
-</div>
-</div>
-</form>
-
-<div class="row">
-<div class="col">
-<div id="sync-time-wrapper">
-<button id="sync-time" type="button" class="btn btn-secondary">Sync time</button>
-</div>
-</div>
 </div>
 
 <script>

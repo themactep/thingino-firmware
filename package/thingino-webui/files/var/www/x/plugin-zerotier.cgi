@@ -69,7 +69,8 @@ fi
 <div class="row g-4 mb-4">
 <div class="col col-lg-4">
 <h3>Settings</h3>
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+
 <% field_hidden "action" "create" %>
 <% field_switch "zerotier_enabled" "Enable ZeroTier network on restart" %>
 <% field_text "zerotier_nwid" "ZeroTier Network ID" "Don't have it? Get one at <a href=\"https://my.zerotier.com/\">my.zerotier.com</a>" %>
@@ -88,7 +89,7 @@ fi
 <dt>NWID: <%= $zt_id %></dd>
 <dt>Name: <%= $zt_name %></dd>
 </dl>
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_hidden "action" "leave" %>
 <% button_submit "Leave network" "danger" %>
 </form>
@@ -96,13 +97,13 @@ fi
 <% else %>
 <div class="row">
 <div class="col">
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_hidden "action" "join" %>
 <% button_submit "Join network" %>
 </form>
 </div>
 <div class="col">
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_hidden "action" "stop" %>
 <% button_submit "Close tunnel" "danger" %>
 </form>

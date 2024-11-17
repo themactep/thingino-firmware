@@ -56,6 +56,7 @@ fi
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+
 <% field_switch "${plugin}_enabled" "Enable $plugin" %>
 <div class="row g-4 mb-4">
 <div class="col">
