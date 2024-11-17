@@ -1,5 +1,6 @@
 config BR2_PACKAGE_THINGINO_TAILSCALE
 	bool "tailscale"
 	select BR2_PACKAGE_HOST_GO
+	depends on !FLASH_SIZE_8
 	help
 	  Install Tailscale VPN on Thingino devices.
