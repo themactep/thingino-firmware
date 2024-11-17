@@ -1,0 +1,26 @@
+THINGINO_TAILSCALE_VERSION = 1.76.1
+THINGINO_TAILSCALE_SITE = $(call github,tailscale,tailscale,v$(TAILSCALE_VERSION))
+THINGINO_TAILSCALE_LICENSE = BSD-3-Clause
+THINGINO_TAILSCALE_LICENSE_FILES = LICENSE
+THINGINO_TAILSCALE_GOMOD = tailscale.com
+THINGINO_TAILSCALE_BUILD_TARGETS = cmd/tailscaled
+THINGINO_TAILSCALE_INSTALL_BINS = tailscaled
+
+THINGINO_TAILSCALE_INSTALL_TARGET = YES
+
+THINGINO_TAILSCALE_DEPENDENCIES = host-upx
+THINGINO_TAILSCALE_GO_ENV = GOARCH=mipsle
+THINGINO_TAILSCALE_LDFLAGS = -s -w" -gcflags=all="-l -B
+THINGINO_TAILSCALE_TAGS = ts_include_cli ./cmd/tailscaled
+
+define THINGINO_TAILSCALE_INSTALL_TARGET_CMDS
+	$(INSTALL) -D -m 0755 $(@D)/bin/tailscaled $(TARGET_DIR)/usr/bin/tailscaled
+	$(HOST_DIR)/bin/upx --best --lzma $(TARGET_DIR)/usr/bin/tailscaled
+	ln -sf tailscaled $(TARGET_DIR)/usr/bin/tailscale
+endef
+
+define TAILSCALE_LINUX_CONFIG_FIXUPS
+	$(call KCONFIG_ENABLE_OPT,CONFIG_TUN)
+endef
+
+$(eval $(golang-package))

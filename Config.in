@@ -52,6 +52,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ledd/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sounds/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat-mini/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-tailscale/Config.in"
 endif
 
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
