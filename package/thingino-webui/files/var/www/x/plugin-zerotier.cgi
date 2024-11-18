@@ -22,17 +22,15 @@ include $config_file
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	case "$POST_action" in
 		create)
-			# parse values from parameters
 			read_from_post "$plugin" "$params"
 
-			# validate
 			if [ "true" = "$zerotier_enabled" ]; then
 				error_if_empty "$zerotier_nwid" "ZeroTier Network ID cannot be empty."
 				[ "${#zerotier_nwid}" -ne 16 ] && set_error_flag "ZeroTier Network ID should be 16 digits long."
 			fi
 
 			if [ -z "$error" ]; then
-				tmp_file=$(mktemp)
+				tmp_file=$(mktemp -u)
 				for p in $params; do
 					echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
 				done; unset p
@@ -114,7 +112,7 @@ fi
 <% else %>
 <div class="alert alert-warning">
 <h4>ZeroTier Tunnel is closed</h4>
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_hidden "action" "start" %>
 <% button_submit "Open tunnel" %>
 </form>

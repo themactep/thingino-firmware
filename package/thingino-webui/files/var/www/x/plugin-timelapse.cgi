@@ -49,35 +49,36 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		redirect_back "success" "$plugin_name config updated."
 	fi
 	redirect_to $SCRIPT_NAME
-else
-	defaults
 fi
+
+defaults
 %>
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-
 <% field_switch "${plugin}_enabled" "Enable $plugin" %>
-<div class="row g-4 mb-4">
-<div class="col">
+<div class="row">
+<div class="col col-xl-4">
 <% field_select "${plugin}_storage" "Storage directory" "$MOUNTS" %>
 <div class="row g-1">
 <div class="col-9"><% field_text "${plugin}_filename" "Filename template" "$STR_SUPPORTS_STRFTIME" %></div>
 <div class="col-3"><% field_text "${plugin}_interval" "Interval" "minutes" %></div>
 </div>
-
+</div>
+<div class="col col-xl-8">
 <div class="alert alert-info">
-<p>Use the following command to combine separate still images in the storage directory into one video file:</p>
-<pre class="cb">ffmpeg -r 10 -f image2 -pattern_type glob -i '*.jpg' \
-	-vcodec libx264 -an timelapse.mp4</pre>
+<p>Use this command to combine separate still images in the storage directory into a video file:</p>
+<pre class="cb mb-0">ffmpeg -r 10 -f image2 -pattern_type glob -i '*.jpg' -vcodec libx264 -an timelapse.mp4</pre>
 </div>
-</div>
-<div class="col">
-<% ex "cat $config_file" %>
-<% ex "crontab -l" %>
 </div>
 </div>
 <% button_submit %>
 </form>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
+<% ex "cat $config_file" %>
+<% ex "crontab -l" %>
+</div>
 
 <%in _footer.cgi %>

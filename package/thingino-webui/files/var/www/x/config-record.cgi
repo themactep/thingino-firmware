@@ -25,7 +25,6 @@ default_for record_filename "$RECORD_FILENAME_FB"
 [ "/" = "${record_filename:0-1}" ] && record_filename="$RECORD_FILENAME_FB"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	# parse values from parameters
 	read_from_post "$plugin" "$params"
 
 	# normalize

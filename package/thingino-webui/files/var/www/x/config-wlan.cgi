@@ -18,7 +18,6 @@ convert_psk() {
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	# parse values from parameters
 	read_from_post "wlan" "mac pass ssid"
 	read_from_post "wlanap" "enabled pass ssid"
 

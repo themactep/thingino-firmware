@@ -10,17 +10,15 @@ config_file="$ui_config_dir/$plugin.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	# parse values from parameters
 	read_from_post "$plugin" "$params"
 
-	# validate
 	if [ "true" = "$email_enabled" ]; then
 		error_if_empty "$yadisk_username" "Yandex Disk username cannot be empty."
 		error_if_empty "$yadisk_password" "Yandex Disk password cannot be empty."
 	fi
 
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp)
+		tmp_file=$(mktemp -u)
 		for p in $params; do
 			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
 		done; unset p
@@ -36,22 +34,30 @@ fi
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-
-<% field_switch "yadisk_enabled" "Enable Yandex Disk bot" %>
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+<% field_switch "yadisk_enabled" "Enable sending to Yandex Disk" %>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <% field_text "yadisk_username" "Yandex Disk username" %>
-<% field_password "yadisk_password" "Yandex Disk password" "A dedicated password for application. <a href=\"https://yandex.com/support/id/authorization/app-passwords.html\">Create it here</a>." %>
+<% field_password "yadisk_password" "Yandex Disk password" %>
 </div>
 <div class="col">
 <% field_text "yadisk_path" "Yandex Disk path" "$STR_SUPPORTS_STRFTIME" %>
 <% field_switch "yadisk_socks5_enabled" "Use SOCKS5" "$STR_CONFIGURE_SOCKS5" %>
 </div>
 <div class="col">
-<% ex "cat $config_file" %>
+<div class="alert alert-info">
+<p>Access to your Yandex Disk from thingino requires a dedicated password for application.
+Learn how to create it on <a href="https://yandex.com/support/id/authorization/app-passwords.html">this page</a>.</p>
+<% wiki_page "Plugin:-Yandex-Disk" %>
+</div>
 </div>
 </div>
 <% button_submit %>
 </form>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
+<% ex "cat $config_file" %>
+</div>
 
 <%in _footer.cgi %>

@@ -10,14 +10,12 @@ config_file="$ui_config_dir/$plugin.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	# parse values from parameters
 	read_from_post "$plugin" "$params"
 
 	default_for "$dusk2dawn_runat" "0:00"
 	default_for "$dusk2dawn_offset_sr" "0"
 	default_for "$dusk2dawn_offset_ss" "0"
 
-	# validate
 	error_if_empty "$dusk2dawn_lat" "Latitude cannot be empty"
 	error_if_empty "$dusk2dawn_lng" "Longitude cannot be empty"
 

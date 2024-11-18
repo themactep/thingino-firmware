@@ -10,13 +10,11 @@ config_file="$ui_config_dir/$plugin.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	# parse values from parameters
 	read_from_post "$plugin" "$params"
 
 	# normalize
 	email_body="$(echo "$email_body" | tr "\r?\n" " ")"
 
-	# validate
 	if [ "true" = "$email_enabled" ]; then
 		error_if_empty "$email_smtp_host" "SMTP host cannot be empty."
 		error_if_empty "$email_from_address" "Sender email address cannot be empty."
@@ -51,22 +49,21 @@ fi
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 
-<% field_switch "email_enabled" "Enable sending to email" %>
+<% field_switch "email_enabled" "Enable sending to email address" %>
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-4">
 <div class="col">
-<h3>SMTP server</h3>
 <div class="row g-1">
-<div class="col-10"><% field_text "email_smtp_host" "FQDN or IP address" %></div>
+<div class="col-10"><% field_text "email_smtp_host" "SMTP server FQDN or IP address" %></div>
 <div class="col-2"><% field_text "email_smtp_port" "Port" %></div>
 </div>
+<% field_text "email_smtp_username" "SMTP username" %>
+<% field_password "email_smtp_password" "SMTP password" %>
 <% field_switch "email_smtp_use_ssl" "Use TLS/SSL" %>
 <% field_switch "email_insecure_ssl" "Ignore SSL certificate validity" %>
-<% field_text "email_smtp_username" "Username" %>
-<% field_password "email_smtp_password" "Password" %>
 </div>
 <div class="col">
 <% field_text "email_from_name" "Sender's name" %>
-<% field_text "email_from_address" "Sender's address" "Use a real email address where bounce reports can be sent to." %>
+<% field_text "email_from_address" "Sender's address" %>
 <% field_text "email_to_name" "Recipient's name" %>
 <% field_text "email_to_address" "Recipient's address" %>
 </div>
@@ -79,6 +76,8 @@ fi
 </div>
 <% button_submit %>
 </form>
+
+<p>Use a real email address where bounce reports can be sent to.</p>
 
 <script>
 $('#email_body').style.height = "6rem";

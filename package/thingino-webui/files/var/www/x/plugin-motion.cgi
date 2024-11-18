@@ -12,26 +12,29 @@ include $config_file
 <%in _header.cgi %>
 
 <% field_switch "motion_enabled" "Enable motion guard" %>
-<div class="row">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
-<p>A motion event triggers the <code>/sbin/motion</code> script, which in turn sends alerts through the selected and preconfigured notification methods.</p>
-<p>You must configure at least one notification method for the motion monitor to work.</p>
+<% field_range "motion_sensitivity" "Sensitivity" "1,8,1" %>
+<% field_range "motion_cooldown_time" "Delay between alerts, sec." "5,30,1" %>
 </div>
 <div class="col">
-<% field_checkbox "motion_send2email" "Send to email" "<a href=\"plugin-send2email.cgi\">Configure sending to email</a>" %>
+<% field_checkbox "motion_send2email" "Send to email address" "<a href=\"plugin-send2email.cgi\">Configure sending to email</a>" %>
 <% field_checkbox "motion_send2telegram" "Send to Telegram" "<a href=\"plugin-send2telegram.cgi\">Configure sending to Telegram</a>" %>
 <% field_checkbox "motion_send2mqtt" "Send to MQTT" "<a href=\"plugin-send2mqtt.cgi\">Configure sending to MQTT</a>" %>
-</div>
-<div class="col">
 <% field_checkbox "motion_send2webhook" "Send to webhook" "<a href=\"plugin-send2webhook.cgi\">Configure sending to a webhook</a>" %>
 <% field_checkbox "motion_send2ftp" "Upload to FTP" "<a href=\"plugin-send2ftp.cgi\">Configure uploading to FTP</a>" %>
 <% field_checkbox "motion_send2yadisk" "Upload to Yandex Disk" "<a href=\"plugin-send2yadisk.cgi\">Configure sending to Yandex Disk</a>" %>
 </div>
 <div class="col">
-<% field_range "motion_sensitivity" "Sensitivity" "1,8,1" %>
-<% field_range "motion_cooldown_time" "Delay between alerts, sec." "5,30,1" %>
+<div class="alert alert-info">
+<p>A motion event is detected by the streamer which triggers the <code>/sbin/motion</code> script,
+which sends alerts through the selected and preconfigured notification methods.</p>
+<p>You must configure at least one notification method for the motion monitor to work.</p>
+<% wiki_page "Plugin:-Motion-Guard" %>
 </div>
 </div>
+</div>
+
 <script>
 <% [ "true" != "$email_enabled" ] && echo "\$('#motion_send2email').disabled = true;" %>
 <% [ "true" != "$ftp_enabled" ] && echo "\$('#motion_send2ftp').disabled = true;" %>

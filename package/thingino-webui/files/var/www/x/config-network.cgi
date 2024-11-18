@@ -17,7 +17,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			fi
 			;;
 		update)
-			# parse values from parameters
 			read_from_post "$plugin" "$params"
 
 			network_interface=$POST_network_interface
