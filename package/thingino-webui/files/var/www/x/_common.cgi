@@ -39,7 +39,7 @@ error_if_empty() {
 # name, value
 default_for() {
 	[ -z "$(eval echo \$$1)" ] || return
-	eval $1="$2"
+	eval $1=\$2
 }
 
 alert_append() {
