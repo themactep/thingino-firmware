@@ -20,8 +20,7 @@ case "$name" in
 			cmd=$name
 			;;
 	crontab)	cmd="crontab -l"
-			extras="<p><a href=\"https://devhints.io/cron\">Cron syntax cheatsheet</a></p>" \
-				"<p><a class=\"btn btn-warning\" href=\"texteditor.cgi?f=/etc/crontabs/root\">Edit file</a></p>"
+			extras="<p><a href=\"https://devhints.io/cron\">Cron syntax cheatsheet</a></p><p><a class=\"btn btn-warning\" href=\"texteditor.cgi?f=/etc/crontabs/root\">Edit file</a></p>"
 			;;
 	httpd)		cmd="cat /etc/httpd.conf; printenv"
 			extras="$(button_restore_from_rom "/etc/httpd.conf")"
