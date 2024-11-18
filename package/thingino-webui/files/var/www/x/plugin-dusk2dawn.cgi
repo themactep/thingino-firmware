@@ -46,29 +46,29 @@ fi
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-
-<div class="row g-4 mb-4">
-<div class="col col-12 col-xl-4">
 <% field_switch "dusk2dawn_enabled" "Enable dusk2dawn script" %>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
+<div class="col">
+<% field_text "dusk2dawn_lat" "Latitude"  %>
+<% field_text "dusk2dawn_lng" "Longitude" %>
 <p><a href="https://my-coordinates.com/">Find your coordinates</a></p>
-<%
-field_text "dusk2dawn_lat" "Latitude"
-field_text "dusk2dawn_lng" "Longitude"
-field_text "dusk2dawn_offset_sr" "Sunrise offset, minutes"
-field_text "dusk2dawn_offset_ss" "Sunset offset, minutes"
-field_text "dusk2dawn_runat" "Run at"
-%>
 </div>
-<div class="col col-12 col-xl-4">
-<% ex "crontab -l" %>
+<div class="col">
+<% field_text "dusk2dawn_offset_sr" "Sunrise offset, minutes" %>
+<% field_text "dusk2dawn_offset_ss" "Sunset offset, minutes" %>
 </div>
-<div class="col col-12 col-xl-4">
-<% [ -f $config_file ] && ex "cat $config_file" %>
+<div class="col">
+<% field_text "dusk2dawn_runat" "Run at" %>
 </div>
 </div>
-
 <% button_submit %>
 </form>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
+<% ex "crontab -l" %>
+<% [ -f $config_file ] && ex "cat $config_file" %>
+</div>
 
 <script>
 function getCoordinates() {
