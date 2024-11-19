@@ -66,12 +66,19 @@ die() {
 download() {
 	local file="$2"
 	[ -z "$file" ] && file="$fw_file"
-	curl -fL# --url "$1" -o "$file" $3 || die "Cannot download $1 to $file"
+	if ! curl -fL# --url "$1" -o "$file" $3; then
+		return 1  # Return an error code instead of exiting
+	fi
 }
 
 expand_bb() {
 	echo "set up $1"
 	ln -s $workdir/busybox $workdir/$1
+}
+
+get_previous_release() {
+	curl -s https://api.github.com/repos/themactep/thingino-firmware/releases | \
+	jsonfilter -e '@[*].tag_name' | grep '^firmware-' | head -2 | tail -1
 }
 
 handle_payload() {
@@ -80,7 +87,7 @@ handle_payload() {
 		if echo "$1" | grep -qE '^https?://'; then
 			say "Download firmware from\n$1"
 			check_free_space $1
-			download $1
+			download $1 || die "Cannot download $1 to $fw_file"
 		else
 			[ -f "$fw_file" ] || die "Cannot find $fw_file"
 		fi
@@ -107,9 +114,18 @@ handle_payload() {
 		check_free_space $bin_url $offset
 
 		say "Download firmware and checksum"
-		#\n- $bin_url\n- $sha_url"
-		download "$bin_url" "$bin_file" "-C $offset"
-		download "$sha_url" "$sha_file"
+		if ! download "$bin_url" "$bin_file" "-C $offset"; then
+			say "Latest firmware not found. Trying the previous release."
+			previous_release=$(get_previous_release)
+			[ -z "$previous_release" ] && die "Failed to retrieve the previous release tag."
+
+			bin_url="$gh_url/releases/download/$previous_release/thingino-$profile.bin"
+			sha_url="$gh_url/releases/download/$previous_release/$bin_file.sha256sum"
+
+			download "$bin_url" "$bin_file" "-C $offset" || die "Cannot download firmware from fallback URL."
+		fi
+
+		download "$sha_url" "$sha_file" || die "Cannot download checksum file."
 
 		say "Verifying downloaded file"
 		sha256sum -c $sha_file || die "Checksum does not match!"
