@@ -1,6 +1,7 @@
 #!/bin/sh
 . ./_json.sh
 
+# @params: n - name, s -state
 [ -n "$QUERY_STRING" ] && eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
 
 state=${s:-0}

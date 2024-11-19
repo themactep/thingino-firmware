@@ -21,23 +21,23 @@ which motors > /dev/null && has_motors="true"
 <input type="checkbox" class="btn-check imp" name="daynight" id="daynight" value="1">
 <label class="btn btn-dark border mb-2" for="daynight" title="Night mode"><img src="/a/day_night_mode.svg" alt="Day/Night Mode" class="img-fluid"></label>
 
-<input type="checkbox" class="btn-check" name="ispmode" id="ispmode" value="1"<% checked_if $(color ?) "day" %>>
-<label class="btn btn-dark border mb-2" for="ispmode" title="Color mode"><img src="/a/color_mode.svg" alt="Color mode" class="img-fluid"></label>
+<input type="checkbox" class="btn-check" name="color" id="color" value="1">
+<label class="btn btn-dark border mb-2" for="color" title="Color mode"><img src="/a/color_mode.svg" alt="Color mode" class="img-fluid"></label>
 
 <% if get gpio_ircut >/dev/null; then %>
-<input type="checkbox" class="btn-check imp" name="ircut" id="ircut" value="1"<% checked_if $(ircut ?) 1 %>>
+<input type="checkbox" class="btn-check imp" name="ircut" id="ircut" value="1">
 <label class="btn btn-dark border mb-2" for="ircut" title="IR filter"><img src="/a/ircut_filter.svg" alt="IR filter" class="img-fluid"></label>
 <% fi %>
 <% if get gpio_ir850 >/dev/null; then %>
-<input type="checkbox" class="btn-check imp" name="ir850" id="ir850" value="1"<% checked_if $(irled ? ir850) 1 %>>
+<input type="checkbox" class="btn-check imp" name="ir850" id="ir850" value="1">
 <label class="btn btn-dark border mb-2" for="ir850" title="IR LED 850 nm"><img src="/a/light_850nm.svg" alt="850nm LED" class="img-fluid"></label>
 <% fi %>
 <% if get gpio_ir940 >/dev/null; then %>
-<input type="checkbox" class="btn-check imp" name="ir940" id="ir940" value="1"<% checked_if $(irled ? ir940) 1 %>>
+<input type="checkbox" class="btn-check imp" name="ir940" id="ir940" value="1">
 <label class="btn btn-dark border mb-2" for="ir940" title="IR LED 940 nm"><img src="/a/light_940nm.svg" alt="940nm LED" class="img-fluid"></label>
 <% fi %>
 <% if get gpio_white >/dev/null; then %>
-<input type="checkbox" class="btn-check imp" name="white" id="white" value="1"<% checked_if $(irled ? white) 1 %>>
+<input type="checkbox" class="btn-check imp" name="white" id="white" value="1">
 <label class="btn btn-dark border mb-2 imp" for="white" title="White LED"><img src="/a/light_white.svg" alt="White light" class="img-fluid"></label>
 <% fi %>
 </div>
@@ -106,7 +106,7 @@ $$("button[data-sendto]").forEach(el => {
 	el.onclick = (ev) => {
 		ev.preventDefault();
 		if (!confirm("Are you sure?")) return false;
-		fetch("/x/send.cgi?to=" + ev.target.dataset["sendto"])
+		fetch("/x/send.cgi?" + new URLSearchParams({'to': ev.target.dataset["sendto"]}).toString())
 		.then(res => res.json())
 		.then(data => console.log(data))
 	}
@@ -120,6 +120,9 @@ function updatePreview(data) {
 	preview.src = url;
 	ws.send('{"action":{"capture":null}}');
 }
+
+const ImageBlackMode = 1
+const ImageColorMode = 0
 
 let ws = new WebSocket(`//${document.location.hostname}:8089?token=<%= $ws_token %>`);
 ws.onopen = () => {
@@ -139,14 +142,26 @@ ws.onclose = () => { console.log('WebSocket connection closed'); }
 ws.onerror = (err) => { console.error('WebSocket error', err); }
 ws.onmessage = (ev) => {
 	if (typeof ev.data == 'string') {
-		if (ev.data == '') return;
-		if (ev.data == '{"action":{"capture":"initiated"}}') return;
+		if (ev.data == '') {
+			console.log('Empty response')
+			return
+		}
+		if (ev.data == '{"action":{"capture":"initiated"}}') {
+			return;
+		}
 		console.log(ts(), '<===', ev.data);
 		const msg = JSON.parse(ev.data);
+
 		if (msg.image) {
-			if (msg.image.hflip) $('#r180').checked = msg.image.hflip;
-			if (msg.image.vflip) $('#r180').checked = msg.image.vflip;
-			if (msg.image.running_mode) $('#ispmode').checked = (msg.image.running_mode == 0);
+			if (msg.image.running_mode) {
+				$("#color").checked = msg.image.running_mode;
+			}
+			if (msg.image.hflip) {
+				$('#r180').checked = msg.image.hflip;
+			}
+			if (msg.image.vflip) {
+				$('#r180').checked = msg.image.vflip;
+			}
 		}
 		if (msg.motion) {
 			if (msg.motion.enabled) $('#motionguard').checked = msg.motion.enabled;
@@ -168,36 +183,78 @@ function sendToWs(payload) {
 	ws.send(payload);
 }
 
-$('#r180').onchange = (ev) => sendToWs(`{"image":{"hflip":${ev.target.checked},"vflip":${ev.target.checked}}}`);
-
-// not .onchange because we need to catch the event here
-$('#ispmode').addEventListener('change', (ev) => {
-	const m = ev.target.checked ? '0' : '1'
-	sendToWs(`{"image":{"running_mode":${m}}}`)
-}, true);
-
-$("#daynight").onchange = (ev) => {
-	const leds = ["ir850", "ir940", "white"];
-	if (ev.target.checked) {
-		$("#ispmode").checked = false;
-		$("#ircut").checked = false;
-		leds.forEach((n) => {
-			if ($(`#${n}`)) $(`#${n}`).checked = true
-		});
-		mode = "night";
-	} else {
-		$("#ispmode").checked = true;
-		$("#ircut").checked = true;
-		leds.forEach((n) => {
-			if ($(`#${n}`)) $(`#${n}`).checked = false
-		});
-		mode = "day";
-	}
+function toggleColor() {
+	const mode = $("#color").checked ? ImageBlackMode : ImageColorMode
+	const payload = '{"image":{"running_mode":' + mode + '}}'
+	sendToWs(payload)
 }
 
-$("#motionguard").addEventListener('change', (ev) => {
-	sendToWs(`{"motion":{"enabled":${ev.target.checked}}}`);
+async function toggleIRcut() {
+	const el = $('#ircut')
+	const url = '/x/json-imp.cgi?' + new URLSearchParams({'cmd': 'ircut', 'val': (el.checked ? 0 : 1)}).toString()
+	console.log(url)
+	await fetch(url)
+		.then(res => res.json())
+		.then(data => el.checked = data.message.ircut == 1)
+}
+
+async function toggleLED(el) {
+	if (!el) return;
+	const url = '/x/json-gpio.cgi?' + new URLSearchParams({'n': 'gpio_' + el.id, "s": (el.checked ? 0 : 1)}).toString();
+	console.log(url)
+	await fetch(url)
+		.then(res => res.json())
+		.then(data => el.checked = data.message.status == 1)
+}
+
+async function toggleDayNight(mode) {
+	url = '/x/json-imp.cgi?' + new URLSearchParams({'cmd': 'daynight', 'val': mode}).toString()
+	console.log(url)
+	await fetch(url)
+		.then(res => res.json())
+		.then(data => {
+			 console.log(data.message)
+			 $('#daynight').checked = (data.message.daynight == 'day')
+			 $('#ir850').checked = (data.message.ir850 == 1)
+			 $('#ir940').checked = (data.message.ir940 == 1)
+			 $('#ircut').checked = (data.message.ircut == 1)
+			 $('#color').checked = (data.message.color == 1)
+		})
+}
+
+$("#ircut")?.addEventListener('change', ev => {
+	toggleIRcut()
+}, true);
+
+$("#ir850")?.addEventListener('change', ev => {
+	toggleLED(ev.target)
+}, true);
+
+$("#ir940")?.addEventListener('change', ev => {
+	toggleLED(ev.target)
+}, true);
+
+$("#white")?.addEventListener('change', ev => {
+	toggleLED(ev.target)
+}, true);
+
+$("#color").addEventListener('change', ev => {
+	toggleColor()
 });
+
+$("#motionguard").addEventListener('change', ev => {
+	sendToWs('{"motion":{"enabled":' + ev.target.checked + '}}');
+});
+
+$('#r180').addEventListener('change', ev => {
+	sendToWs('{"image":{"hflip":' + ev.target.checked + ',"vflip":' + ev.target.checked + '}}')
+});
+
+$("#daynight").addEventListener('change', ev => {
+	ev.target.checked ? toggleDayNight('day') : toggleDayNight('night')
+});
+
+toggleDayNight();
 </script>
 
 <%in _footer.cgi %>

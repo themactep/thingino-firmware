@@ -124,7 +124,7 @@ function initCopyToClipboard() {
 			}
 		}
 
-		$$('form').forEach(el => el.autocomplete = 'off');
+		$$('form,input').forEach(el => el.autocomplete = 'off');
 
 		const tooltipTriggerList = $$('[data-bs-toggle="tooltip"]')
 		const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
