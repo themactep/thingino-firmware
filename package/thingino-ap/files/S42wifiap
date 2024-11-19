@@ -27,8 +27,12 @@ case "$1" in
 		ip link set $net_dev up
 		ip route add ${CNET}.0/24 dev $net_dev > /dev/null 2>&1
 
+		cp /etc/dnsd-ap.conf /tmp/dnsd.conf
+		hostname=$(get hostname)
+		grep $hostname /tmp/dnsd.conf > /dev/null || echo $hostname.local ${CNET}.1 >> /tmp/dnsd.conf
+
 		start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd-ap.conf 2>&1
-		start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /etc/dnsd-ap.conf -d | log
+		start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /tmp/dnsd.conf -d | log
 
 		mac_address=$(ip link show $net_dev | awk '/ether/ {print $2}')
 		last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
