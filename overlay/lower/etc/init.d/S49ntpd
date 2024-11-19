@@ -9,7 +9,10 @@ TMP_CONF="/tmp/ntp.conf"
 
 start() {
 	starting
-	[ "true" = "$(get wlanap_enabled)" ] && quit "AP mode"
+	if [ "true" = "$(get wlanap_enabled)" ]; then
+		touch $TMP_CONF
+		DAEMON_ARGS="-n -l"
+	fi
 
 	if [ -f $TMP_CONF ]; then
 		info "work config found"
