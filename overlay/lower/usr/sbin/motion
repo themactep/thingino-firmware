@@ -9,7 +9,11 @@ MOTION_ALARM="/run/motion/motion_alarm"
 MOTION_ALARM_DIR=$(dirname $MOTION_ALARM)
 [ -d $MOTION_ALARM_DIR ] || mkdir -p $MOTION_ALARM_DIR
 
+MOTION_STOP_FILE="/run/motors.pid"
+
 start() {
+	[ -f $MOTION_STOP_FILE ] && exit 0
+
 	touch $MOTION_ALARM
 
 	[ "true" = "$motion_send2email"    ] && send2email
