@@ -215,10 +215,10 @@ async function toggleDayNight(mode) {
 		.then(data => {
 			 console.log(data.message)
 			 $('#daynight').checked = (data.message.daynight == 'day')
-			 $('#ir850').checked = (data.message.ir850 == 1)
-			 $('#ir940').checked = (data.message.ir940 == 1)
-			 $('#ircut').checked = (data.message.ircut == 1)
-			 $('#color').checked = (data.message.color == 1)
+			 if ($('#ir850')) $('#ir850').checked = (data.message.ir850 == 1)
+			 if ($('#ir940')) $('#ir940').checked = (data.message.ir940 == 1)
+			 if ($('#ircut')) $('#ircut').checked = (data.message.ircut == 1)
+			 if ($('#color')) $('#color').checked = (data.message.color == 1)
 		})
 }
 

@@ -44,4 +44,23 @@ case "$cmd" in
 		;;
 esac
 
-json_ok "{\"daynight\":\"$(daynight read)\",\"ir850\":$(irled read ir850),\"ir940\":$(irled read ir940),\"ircut\":$(ircut read),\"color\":$(color read)}"
+payload="{\"time\":\"$(date +%s)\""
+
+daynight=$(daynight read)
+[ -z "$daynight" ] || payload="$payload,\"daynight\":\"$daynight\""
+
+ir850=$(irled read ir850)
+[ -z "$ir850" ] || payload="$payload,\"ir850\":$ir850"
+
+ir940=$(irled read ir940)
+[ -z "$ir940" ] || payload="$payload,\"ir940\":$ir940"
+
+ircut=$(ircut read)
+[ -z "$ircut" ] || payload="$payload,\"ircut\":$ircut"
+
+color=$(color read)
+[ -z "$color" ] || payload="$payload,\"color\":$color"
+
+payload="$payload}"
+
+json_ok "$payload"
