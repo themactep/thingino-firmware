@@ -8,45 +8,52 @@ which motors > /dev/null && has_motors="true"
 <%in _header.cgi %>
 
 <div class="row preview">
-<div class="col-lg-1" style="width:5em">
+<div class="col-lg-1">
 
 <div class="d-flex flex-nowrap flex-lg-wrap align-content-around gap-1" aria-label="controls">
-
 <input type="checkbox" class="btn-check" name="motionguard" id="motionguard" value="1">
 <label class="btn btn-dark border mb-2" for="motionguard" title="Motion Guard"><img src="/a/motion.svg" alt="Motion Guard" class="img-fluid"></label>
 
 <input type="checkbox" class="btn-check" name="r180" id="r180" value="1">
 <label class="btn btn-dark border mb-2" for="r180" title="Rotate 180°"><img src="/a/r180.svg" alt="Rotate 180°" class="img-fluid"></label>
 
-<input type="checkbox" class="btn-check imp" name="daynight" id="daynight" value="1">
+<input type="checkbox" class="btn-check" name="daynight" id="daynight" value="1">
 <label class="btn btn-dark border mb-2" for="daynight" title="Night mode"><img src="/a/day_night_mode.svg" alt="Day/Night Mode" class="img-fluid"></label>
 
 <input type="checkbox" class="btn-check" name="color" id="color" value="1">
 <label class="btn btn-dark border mb-2" for="color" title="Color mode"><img src="/a/color_mode.svg" alt="Color mode" class="img-fluid"></label>
 
 <% if get gpio_ircut >/dev/null; then %>
-<input type="checkbox" class="btn-check imp" name="ircut" id="ircut" value="1">
+<input type="checkbox" class="btn-check" name="ircut" id="ircut" value="1">
 <label class="btn btn-dark border mb-2" for="ircut" title="IR filter"><img src="/a/ircut_filter.svg" alt="IR filter" class="img-fluid"></label>
 <% fi %>
+
 <% if get gpio_ir850 >/dev/null; then %>
-<input type="checkbox" class="btn-check imp" name="ir850" id="ir850" value="1">
+<input type="checkbox" class="btn-check" name="ir850" id="ir850" value="1">
 <label class="btn btn-dark border mb-2" for="ir850" title="IR LED 850 nm"><img src="/a/light_850nm.svg" alt="850nm LED" class="img-fluid"></label>
 <% fi %>
+
 <% if get gpio_ir940 >/dev/null; then %>
-<input type="checkbox" class="btn-check imp" name="ir940" id="ir940" value="1">
+<input type="checkbox" class="btn-check" name="ir940" id="ir940" value="1">
 <label class="btn btn-dark border mb-2" for="ir940" title="IR LED 940 nm"><img src="/a/light_940nm.svg" alt="940nm LED" class="img-fluid"></label>
 <% fi %>
+
 <% if get gpio_white >/dev/null; then %>
-<input type="checkbox" class="btn-check imp" name="white" id="white" value="1">
-<label class="btn btn-dark border mb-2 imp" for="white" title="White LED"><img src="/a/light_white.svg" alt="White light" class="img-fluid"></label>
+<input type="checkbox" class="btn-check" name="white" id="white" value="1">
+<label class="btn btn-dark border mb-2" for="white" title="White LED"><img src="/a/light_white.svg" alt="White light" class="img-fluid"></label>
 <% fi %>
+
+<button type="button" class="btn btn-dark border mb-2" title="Zoom" data-bs-toggle="modal" data-bs-target="#mdPreview">
+<img src="/a/zoom.svg" alt="Zoom" class="img-fluid"></button>
 </div>
+
 </div>
-<div class="col-lg-9 mb-3">
+<div class="col-lg-10">
 <div id="frame" class="position-relative mb-2">
 <img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Preview">
 <% if [ "true" = "$has_motors" ]; then %><%in _motors.cgi %><% fi %>
 </div>
+
 <% if [ "true" = "$has_motors" ]; then %>
 <p class="small">Move mouse cursor over the center of the preview image to reveal the motor controls.
 Use a single click for precise positioning, double click for coarse, larger distance movement.</p>
@@ -57,50 +64,52 @@ Use a single click for precise positioning, double click for coarse, larger dist
 Please note, there is no audio on this page. Open the RTSP stream in a player to hear audio.</p>
 <b id="playrtsp" class="cb"></b>
 </div>
+</div>
+
+<div class="col-lg-1">
+<div class="d-flex flex-nowrap flex-lg-wrap align-content-around gap-1" aria-label="controls">
+
+<a href="image.cgi" target="_blank" class="btn btn-dark border mb-2" title="Save image"><img
+ src="/a/download.svg" alt="Save image" class="img-fluid"></a>
+
+<button type="button" class="btn btn-dark border mb-2" title="Send to email" data-sendto="email"><img
+ src="/a/email.svg" alt="Email" class="img-fluid"></button>
+
+<button type="button" class="btn btn-dark border mb-2" title="Send to email" data-sendto="telegram"><img
+ src="/a/telegram.svg" alt="Telegram" class="img-fluid"></button>
+
+<button type="button" class="btn btn-dark border mb-2" title="Send to FTP" data-sendto="ftp"><img
+ src="/a/ftp.svg" alt="FTP" class="img-fluid"></button>
+
+<button type="button" class="btn btn-dark border mb-2" title="Send to MQTT" data-sendto="mqtt"><img
+ src="/a/mqtt.svg" alt="MQTT" class="img-fluid"></button>
+
+<button type="button" class="btn btn-dark border mb-2" title="Send to Webhook" data-sendto="webhook"><img
+ src="/a/webhook.svg" alt="Webhook" class="img-fluid"></button>
+
+<button type="button" class="btn btn-bark border mb-2" title="Yandex Disk" data-sendto="yadisk"><img
+ src="/a/yadisk.svg" alt="Yandex Disk" class="img-fluid"></button>
 
 </div>
-<div class="col-lg-2">
-<div class="gap-2">
-<div class="mb-1">
-<a href="image.cgi" target="_blank" class="form-control btn btn-primary text-start">Save image</a>
 </div>
-<div class="input-group mb-1">
-<button class="form-control btn btn-primary text-start" type="button" data-sendto="email">Email</button>
-<div class="input-group-text"><a href="plugin-send2email.cgi" title="Email settings"><%= $icon_gear %></a></div>
+
 </div>
-<div class="input-group mb-1">
-<button class="form-control btn btn-primary text-start" type="button" data-sendto="ftp">FTP</button>
-<div class="input-group-text"><a href="plugin-send2ftp.cgi" title="FTP Storage settings"><%= $icon_gear %></a></div>
-</div>
-<div class="input-group mb-1">
-<button class="form-control btn btn-primary text-start" type="button" data-sendto="telegram">Telegram</button>
-<div class="input-group-text"><a href="plugin-send2telegram.cgi" title="Telegram bot settings"><%= $icon_gear %></a></div>
-</div>
-<div class="input-group mb-1">
-<button class="form-control btn btn-primary text-start" type="button" data-sendto="mqtt">MQTT</button>
-<div class="input-group-text"><a href="plugin-send2mqtt.cgi" title="MQTT settings"><%= $icon_gear %></a></div>
-</div>
-<div class="input-group mb-1">
-<button class="form-control btn btn-primary text-start" type="button" data-sendto="webhook">WebHook</button>
-<div class="input-group-text"><a href="plugin-send2webhook.cgi" title="Webhook settings"><%= $icon_gear %></a></div>
-</div>
-<div class="input-group mb-1">
-<button class="form-control btn btn-primary text-start" type="button" data-sendto="yadisk">Yandex Disk</button>
-<div class="input-group-text"><a href="plugin-send2yadisk.cgi" title="Yandex Disk bot settings"><%= $icon_gear %></a></div>
-</div>
-</div>
-</div>
-</div>
+
+<%in _preview.cgi %>
 
 <script>
 <%
-[ "true" = "$email_enabled"    ] || echo "\$('button[data-sendto=email]').disabled = true;"
-[ "true" = "$ftp_enabled"      ] || echo "\$('button[data-sendto=ftp]').disabled = true;"
-[ "true" = "$mqtt_enabled"     ] || echo "\$('button[data-sendto=mqtt]').disabled = true;"
-[ "true" = "$webhook_enabled"  ] || echo "\$('button[data-sendto=webhook]').disabled = true;"
-[ "true" = "$telegram_enabled" ] || echo "\$('button[data-sendto=telegram]').disabled = true;"
-[ "true" = "$yadisk_enabled"   ] || echo "\$('button[data-sendto=yadisk]').disabled = true;"
+for i in email ftp mqtt telegram webhook yadisk; do
+	[ "true" = $(eval echo \$${i}_enabled) ] && continue
 %>
+{
+	let a = document.createElement('a')
+	a.href = 'plugin-send2<%= $i %>.cgi'
+	a.classList.add('btn','btn-outline-danger','mb-2')
+	a.append($('button[data-sendto=<%= $i %>] img'))
+	$('button[data-sendto=<%= $i %>]').replaceWith(a);
+}
+<% done %>
 
 $$("button[data-sendto]").forEach(el => {
 	el.onclick = (ev) => {
@@ -114,10 +123,12 @@ $$("button[data-sendto]").forEach(el => {
 
 const preview = $("#preview");
 preview.onload = function() { URL.revokeObjectURL(this.src) }
+
 function updatePreview(data) {
 	const blob = new Blob([data], {type: 'image/jpeg'});
 	const url = URL.createObjectURL(blob);
 	preview.src = url;
+	$("#preview_fullsize").src = url;
 	ws.send('{"action":{"capture":null}}');
 }
 
