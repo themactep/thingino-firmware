@@ -109,7 +109,11 @@ while :; do
 		[ "true" = "$record_loop" ] || die "Not in a rolling recording mode!"
 
 		while [ "$available_space" -le "$required_space" ]; do
-			rm -v "$(find "$record_mount" -type f -exec ls -ltr {} + | head -n1 | awk '{print $9}')"
+			oldest_file="$(find "$record_mount" -type f -exec ls -ltr {} + | head -n1 | awk '{print $9}')"
+			oldest_file_dir="$(dirname $oldest_file)"
+			rm -v "$oldest_file"
+			[ -z "$(ls -A1 $oldest_file_dir)" ] && rm -rv "$oldest_file_dir"
+
 			get_free_space
 			has_files "$record_mount" || die "$record_mount is empty yet no space!"
 		done
