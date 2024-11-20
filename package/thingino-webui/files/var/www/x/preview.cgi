@@ -1,8 +1,8 @@
 #!/bin/haserl
 <%in _common.cgi %>
-<%in _icons.cgi %>
 <%
 page_title="Camera preview"
+icon_gear="<img src=\"/a/gear.svg\" alt=\"Image: Settings\">"
 which motors > /dev/null && has_motors="true"
 %>
 <%in _header.cgi %>

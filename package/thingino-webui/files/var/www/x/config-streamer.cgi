@@ -45,7 +45,6 @@ default_for rtsp_username $(awk -F'"' '/username/{print $2}' $prudynt_config)
 default_for rtsp_password $(awk -F'"' '/password/{print $2}' $prudynt_config)
 default_for rtsp_password "thingino"
 %>
-<%in _icons.cgi %>
 <%in _header.cgi %>
 
 <nav class="navbar navbar-expand-lg mb-4 p-1">
@@ -81,7 +80,7 @@ default_for rtsp_password "thingino"
 
 <p><img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Stream Preview"></p>
 <button type="button" class="btn btn-primary btn-large position-absolute top-50 start-50 translate-middle"
- data-bs-toggle="modal" data-bs-target="#mdPreview"><%= $icon_zoom %></button>
+ data-bs-toggle="modal" data-bs-target="#mdPreview"><img src="/a/zoom.svg" alt="Image: Zoom"></button>
 </div>
 
 <p>Double-click on a range element will restore its default value.</p>
