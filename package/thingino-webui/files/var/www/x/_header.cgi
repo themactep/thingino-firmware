@@ -25,7 +25,11 @@ Pragma: no-cache
 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbMain" aria-controls="nbMain" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
 <div class="collapse navbar-collapse justify-content-end" id="nbMain">
 <ul class="navbar-nav">
-<li class="nav-item"><a class="nav-link" href="info.cgi">Information</a></li>
+<li class="nav-item dropdown"><a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddInfo" role="button">Information</a>
+<ul aria-labelledby="ddInfo" class="dropdown-menu">
+<li><a class="dropdown-item" href="info.cgi">Commands and logs</a></li>
+<li><a class="dropdown-item" href="info-diagnostic.cgi">Share diagnostic info</a></li>
+</ul></li>
 <li class="nav-item dropdown"><a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddSettings" role="button">Settings</a>
 <ul aria-labelledby="ddSettings" class="dropdown-menu">
 <% menu "config" %>
