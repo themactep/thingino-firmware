@@ -78,7 +78,7 @@ jobs:
       - name: setup env test
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Checkout source
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: "master"
@@ -114,7 +114,7 @@ jobs:
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
 
     steps:
-      - name: Update APT sources
+      - name: Update package manager sources
         run: |
           apt-get update
 
@@ -132,7 +132,7 @@ jobs:
           ref: "master"
           fetch-depth: "1"
 
-      - name: Setup Environment
+      - name: Setup Environment Variables
         id: date
         run: |
           echo "WEEK_NUMBER=$(date +%U)" >> $GITHUB_ENV
@@ -226,6 +226,7 @@ jobs:
         with:
           tag_name: ${{ env.TAG_NAME }}
           make_latest: false
+          draft: true
           files: |
             ${{ env.FULL_FW }}
             ${{ env.FULL_FW_SHA }}
@@ -238,7 +239,9 @@ jobs:
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
           fi
           if [ -n "${{ env.FULL_FW }}" ]; then
-            TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
+            ESCAPED_TAG_NAME=$(echo "${TAG_NAME}" | sed 's/-/\\-/g')
+
+            TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${ESCAPED_TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${ESCAPED_TAG_NAME})\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
             TG_HEADER=$(echo -e "${TG_MSG}\xE2\x9C\x85 GitHub Actions")
             HTTP_FULL=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER}" -F document=@${FULL_FW} -F disable_web_page_preview=true)
             echo "Telegram response Full Firmware: $HTTP_FULL"
@@ -287,7 +290,7 @@ jobs:
 
           if [[ -n "$RELEASE_URL" ]]; then
             echo "Release URL found, attempting to mark as latest..."
-            gh release edit ${{ env.TAG_NAME }} --latest
+            gh release edit ${{ env.TAG_NAME }} --latest --draft=false
             echo "Release marked as latest"
           else
             echo "Release not found, skipping latest release update"
