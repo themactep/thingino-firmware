@@ -19,8 +19,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		error_if_empty "$mqtt_port" "MQTT port cannot be empty."
 		# error_if_empty "$mqtt_username" "MQTT username cannot be empty."
 		# error_if_empty "$mqtt_password" "MQTT password cannot be empty."
-		error_if_empty "$mqtt_topic" ] "MQTT topic cannot be empty."
-		error_if_empty "$mqtt_message" ] "MQTT message cannot be empty."
+		error_if_empty "$mqtt_topic" "MQTT topic cannot be empty."
+		error_if_empty "$mqtt_message" "MQTT message cannot be empty."
 	fi
 
 	if [ "${mqtt_topic:0:1}" = "/" ] || [ "${mqtt_snap_topic:0:1}" = "/" ]; then

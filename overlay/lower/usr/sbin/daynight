@@ -6,7 +6,9 @@ plugin="daynight"
 singleton
 
 STOP_FILE=/tmp/daynight.stop
+
 MODE_FILE=/tmp/nightmode.txt
+[ -f $MODE_FILE ] || echo "day" > $MODE_FILE
 
 switch_to_day() {
 	ircut on
@@ -41,14 +43,14 @@ case "$1" in
 			switch_to_day
 		fi
 		;;
-	? | status)
-		cat $MODE_FILE
+	\? | read | status)
+		echo $state
 		;;
 	*)
 		day_night_max=$(get day_night_max || echo 15000)
 		day_night_min=$(get day_night_min || echo 500)
 
-		echo "$day_night_min - $value - $day_night_max"
+		echo "$day_night_min - $value - $day_night_max" >&2
 
 		if [ "$reversed" -eq 0 ]; then
 			if [ "$value" -lt "$day_night_min" ] && [ "day" != "$state" ]; then

@@ -43,6 +43,7 @@ if [ -n "$pin2" ]; then
 fi
 
 MODE_FILE=/tmp/ircutmode.txt
+[ -f $MODE_FILE ] || touch $MODE_FILE
 
 report_ir_filter() {
 	case "$(cat $MODE_FILE 2> /dev/null)" in

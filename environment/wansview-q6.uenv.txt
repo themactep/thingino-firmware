@@ -16,3 +16,6 @@ motor_maxstep_v=4000
 osmem=43520K@0x0
 rmem=22016K@0x2A80000
 wlandev=8188fu
+
+# 0x28 40
+# 0x48 72

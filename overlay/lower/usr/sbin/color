@@ -1,20 +1,22 @@
 #!/bin/sh
-
 # set parameters from cli, if empty
 [ -z "$mode" ] && mode=$1
 
 MODE_FILE=/tmp/colormode.txt
+[ -f $MODE_FILE ] || touch $MODE_FILE
+
+# NB! ISP mode is set backwards: 0 - color, 1 - monochrome
 
 switch_to_color() {
 	imp-control ispmode 0
 	echo "Switched to full-color mode"
-	echo "day" > $MODE_FILE
+	echo 1 > $MODE_FILE
 }
 
 switch_to_monochrome() {
 	imp-control ispmode 1
 	echo "Switched to monochrome mode"
-	echo "night" > $MODE_FILE
+	echo 0 > $MODE_FILE
 }
 
 case "$1" in

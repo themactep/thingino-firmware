@@ -40,6 +40,7 @@ env:
   TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
   TG_OPTIONS: -s
   FORCE_UNSAFE_CONFIGURE: 1
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   notify-begin:
@@ -119,7 +120,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc cmake cpio curl ca-certificates file git make gawk procps rsync u-boot-tools unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc cmake cpio curl ca-certificates file git make gawk jq procps rsync u-boot-tools unzip wget
 
       - name: Setup gh workspace in container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -224,7 +225,7 @@ jobs:
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.TAG_NAME }}
-          make_latest: true
+          make_latest: false
           files: |
             ${{ env.FULL_FW }}
             ${{ env.FULL_FW_SHA }}
@@ -265,6 +266,32 @@ jobs:
       - name: Setup Environment
         run: |
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+          echo "TAG_NAME=$TAG_NAME-$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+          ref: "master"
+          fetch-depth: "1"
+
+      - name: Get release ID and Mark as Latest
+        run: |
+          echo "Environment variables:"
+          echo "TAG_NAME: ${{ env.TAG_NAME }}"
+          echo "Checking GH authentication status..."
+          gh auth status
+          echo "Attempting to fetch release URL for tag ${TAG_NAME}..."
+          RELEASE_URL=$(gh release view ${{ env.TAG_NAME }} --json url -q ".url")
+          echo "RELEASE_URL: $RELEASE_URL"
+
+          if [[ -n "$RELEASE_URL" ]]; then
+            echo "Release URL found, attempting to mark as latest..."
+            gh release edit ${{ env.TAG_NAME }} --latest
+            echo "Release marked as latest"
+          else
+            echo "Release not found, skipping latest release update"
+          fi
 
       - name: Send completion summary
         if: ${{ env.TG_DISABLED == 'false' }}
