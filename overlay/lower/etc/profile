@@ -34,6 +34,7 @@ mac=$(cat /sys/class/net/${if4:-$if6}/address)
 ip_address=""
 
 alias tb="send2termbin"
+alias ver=". /etc/profile"
 
 if [ "$PS1" ]; then
 	[ -f /etc/os-release ] && . /etc/os-release
