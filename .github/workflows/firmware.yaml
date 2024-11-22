@@ -25,7 +25,7 @@ on:
         description: 'Only build Tea Cup profile'
         required: false
         default: false
-      debug_only:
+      debug_enabled:
         type: boolean
         description: 'Debug: Generate dummy image files'
         required: false
@@ -49,16 +49,20 @@ jobs:
       start_time: ${{ steps.set_output.outputs.time }}
       tg_disabled: ${{ steps.set_env.outputs.tg_disabled }}
     steps:
-      - name: Save workflow start time
+      - name: Set timezone
+        run: |
+          sudo timedatectl set-timezone "America/Los_Angeles"
+
+      - name: Save workflow start time to ENV
         id: set_output
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
-      - name: Setup Notify Environment
+      - name: Setup Notification Environment
         run: |
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
 
-      - name: Send build start notifcation
+      - name: Send build start notifcation via Telegram
         if: env.TG_DISABLED == 'false'
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
@@ -71,11 +75,15 @@ jobs:
           echo Telegram response: ${HTTP}
 
   generate-matrix:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest 
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - name: setup env test
+      - name: Set timezone
+        run: |
+          sudo timedatectl set-timezone "America/Los_Angeles"
+
+      - name: Configure GH workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout repository
@@ -84,7 +92,7 @@ jobs:
           ref: "master"
           fetch-depth: "1"
 
-      - name: Generate matrix
+      - name: Generate device matrix
         id: set-matrix
         run: |
           if [[ "${{ github.event.inputs.teacup_only }}" == 'true' ]]; then
@@ -120,7 +128,13 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc cmake cpio curl ca-certificates file git make gawk jq procps rsync u-boot-tools unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc cmake cpio curl ca-certificates file git make gawk jq procps rsync tzdata u-boot-tools unzip wget
+
+      - name: Set timezone
+        run: |
+          ln -sf /usr/share/zoneinfo/America/Los_Angeles /etc/localtime
+          echo "America/Los_Angeles" > /etc/timezone
+          DEBIAN_FRONTEND=noninteractive dpkg-reconfigure -f noninteractive tzdata
 
       - name: Setup gh workspace in container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -170,10 +184,21 @@ jobs:
           key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
 
       - name: Build firmware
+        if: ${{ github.event.inputs.debug_enabled != 'true' }}
         run: |
           BOARD=${{ matrix.thingino-version }} make fast
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
+
+      - name: Generate workflow dummy debug firmware
+        if: ${{ github.event.inputs.debug_enabled == 'true' }}
+        run: |
+          DYNAMIC_PART="${{ matrix.thingino-version }}"
+          mkdir -p ${HOME}/output/${DYNAMIC_PART}/images/
+          echo "debug" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin
+          echo "debug sha" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin.sha256sum
+          echo "debug" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin
+          echo "debug sha" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin.sha256sum
 
       - name: Generate build graphs
         if: ${{ github.event.inputs.graph_enabled == 'true' }}
@@ -266,6 +291,10 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
+      - name: Set timezone
+        run: |
+          sudo timedatectl set-timezone "America/Los_Angeles"
+
       - name: Setup Environment
         run: |
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
@@ -274,9 +303,35 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
         with:
-          submodules: 'true'
+          submodules: 'false'
           ref: "master"
-          fetch-depth: "1"
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          LAST_RELEASE_TAG=$(gh release list --limit 2 --json tagName -q '.[1].tagName')
+
+          if [ -z "$LAST_RELEASE_TAG" ]; then
+            echo "No previous release found. Skipping release notes generation."
+            echo "RELEASE_NOTES_FILE=$(pwd)/release_notes.md" >> $GITHUB_ENV
+            exit 0
+          fi
+
+          COMMITS=$(gh api \
+            -H "Accept: application/vnd.github.v3+json" \
+            /repos/${{ github.repository }}/compare/$LAST_RELEASE_TAG...HEAD \
+            -q '.commits[].commit.message')
+
+          RELEASE_NOTES="### Commits since last release:\n"
+
+          while IFS= read -r commit; do
+            if [ -n "$commit" ]; then
+              RELEASE_NOTES="${RELEASE_NOTES}- ${commit}\n"
+            fi
+          done <<< "$COMMITS"
+
+          echo -e "$RELEASE_NOTES" > release_notes.md
+          echo "RELEASE_NOTES_FILE=$(pwd)/release_notes.md" >> $GITHUB_ENV
 
       - name: Get release ID and Mark as Latest
         run: |
@@ -290,7 +345,7 @@ jobs:
 
           if [[ -n "$RELEASE_URL" ]]; then
             echo "Release URL found, attempting to mark as latest..."
-            gh release edit ${{ env.TAG_NAME }} --latest --draft=false
+            gh release edit ${{ env.TAG_NAME }} --latest --draft=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
             echo "Release marked as latest"
           else
             echo "Release not found, skipping latest release update"
