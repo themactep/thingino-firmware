@@ -1,5 +1,6 @@
 #!/bin/haserl
 <%
+
 timestamp=$(date +%s)
 ttl_in_sec=120
 
@@ -58,7 +59,7 @@ elif post_request; then
 	if post_request_to_save; then
 		http_header="HTTP/1.1 303 See Other"
 		http_redirect="Location: $SCRIPT_NAME"
-		tempfile=$(mktemp)
+		tempfile=$(mktemp -u)
 		printf "hostname %s\ntimezone %s\n" "$hostname" "$timezone" >> "$tempfile"
 		if [ "true" = "$wlanap_enabled" ]; then
 			printf "wlanap_enabled %s\nwlanap_ssid %s\nwlanap_pass %s\n" "$wlanap_enabled" "$wlanap_ssid" "$wlanap_pass" >> "$tempfile"
@@ -266,15 +267,15 @@ document.querySelector("#wlanap_enabled").addEventListener("change", ev => {
 <input type="hidden" name="mode" value="edit">
 <input type="hidden" name="frombrowser" value="<%= $frombrowser %>">
 <input type="hidden" name="hostname" value="<%= $hostname %>">
-<input type="hidden" name="rootpass" value="<%= $rootpass %>">
+<input type="hidden" name="rootpass" value="<%= ${rootpass//\"/&quot;} %>">
 <input type="hidden" name="rootpkey" value="<%= $rootpkey %>">
 <input type="hidden" name="timestamp" value="<%= $timestamp %>">
 <input type="hidden" name="timezone" value="<%= $timezone %>">
 <input type="hidden" name="wlanap_enabled" value="<%= $wlanap_enabled %>">
-<input type="hidden" name="wlanap_pass" value="<%= $wlanap_pass %>">
-<input type="hidden" name="wlanap_ssid" value="<%= $wlanap_ssid %>">
-<input type="hidden" name="wlanpass" value="<%= $wlanpass %>">
-<input type="hidden" name="wlanssid" value="<%= $wlanssid %>">
+<input type="hidden" name="wlanap_pass" value="<%= ${wlanap_pass//\"/&quot;} %>">
+<input type="hidden" name="wlanap_ssid" value="<%= ${wlanap_ssid//\"/&quot;} %>">
+<input type="hidden" name="wlanpass" value="<%= ${wlanpass//\"/&quot;} %>">
+<input type="hidden" name="wlanssid" value="<%= ${wlanssid//\"/&quot;} %>">
 <input type="submit" class="btn btn-danger" value="Edit data">
 </form>
 </div>
@@ -282,15 +283,15 @@ document.querySelector("#wlanap_enabled").addEventListener("change", ev => {
 <form action="<%= $SCRIPT_NAME %>" method="POST">
 <input type="hidden" name="mode" value="save">
 <input type="hidden" name="hostname" value="<%= $hostname %>">
-<input type="hidden" name="rootpass" value="<%= $rootpass %>">
+<input type="hidden" name="rootpass" value="<%= ${rootpass//\"/&quot;} %>">
 <input type="hidden" name="rootpkey" value="<%= $rootpkey %>">
 <input type="hidden" name="timestamp" value="<%= $timestamp %>">
 <input type="hidden" name="timezone" value="<%= $timezone %>">
 <input type="hidden" name="wlanap_enabled" value="<%= $wlanap_enabled %>">
-<input type="hidden" name="wlanap_pass" value="<%= $wlanap_pass %>">
-<input type="hidden" name="wlanap_ssid" value="<%= $wlanap_ssid %>">
-<input type="hidden" name="wlanpass" value="<%= $wlanpass %>">
-<input type="hidden" name="wlanssid" value="<%= $wlanssid %>">
+<input type="hidden" name="wlanap_pass" value="<%= ${wlanap_pass//\"/&quot;} %>">
+<input type="hidden" name="wlanap_ssid" value="<%= ${wlanap_ssid//\"/&quot;} %>">
+<input type="hidden" name="wlanpass" value="<%= ${wlanpass//\"/&quot;} %>">
+<input type="hidden" name="wlanssid" value="<%= ${wlanssid//\"/&quot;} %>">
 <input type="submit" class="btn btn-success" value="Proceed">
 </form>
 </div>
