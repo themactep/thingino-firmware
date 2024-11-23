@@ -64,8 +64,7 @@ default_for rtsp_password "thingino"
 
 <div class="row row-cols-1 row-cols-lg-2">
 <div class="col mb-3">
-<div id="preview-wrapper" class="mb-4 position-relative">
-
+<div id="preview-wrapper" class="position-relative">
 <div class="mb-2">
 <label class="form-label me-2">Preview is</label>
 <div class="form-check form-check-inline">
@@ -77,21 +76,19 @@ default_for rtsp_password "thingino"
 <label class="form-check-label" for="stream2_jpeg_channel_1">Substream</label>
 </div>
 </div>
-
 <p><img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Stream Preview"></p>
-<button type="button" class="btn btn-primary btn-large position-absolute top-50 start-50 translate-middle"
- data-bs-toggle="modal" data-bs-target="#mdPreview"><img src="/a/zoom.svg" alt="Image: Zoom"></button>
 </div>
-
-<p>Double-click on a range element will restore its default value.</p>
-<button type="button" class="btn btn-secondary me-1" id="restart-prudynt">Restart streamer</button>
-<button type="button" class="btn btn-secondary me-1" id="save-prudynt-config">Save config</button>
+<div class="d-flex flex-wrap align-content-around gap-1">
+<button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#mdPreview">Full-screen</button>
+<button type="button" class="btn btn-secondary" id="restart-prudynt">Restart streamer</button>
+<button type="button" class="btn btn-secondary" id="save-prudynt-config">Save config</button>
 <a class="btn btn-secondary" href="tool-file-manager.cgi?dl=/etc/prudynt.cfg">Download config</a>
 </div>
-
+</div>
 <div class="col mb-3">
-<div class="tab-content" id="streamer-tabs">
+<p class="small">Double-click on a range element will restore its default value.</p>
 
+<div class="tab-content" id="streamer-tabs">
 <div class="tab-pane fade show active" id="tab1-pane" role="tabpanel" aria-labelledby="tab1">
 <div class="mb-2 select" id="image_core_wb_mode_wrap">
 <label for="image_core_wb_mode" class="form-label">White balance mode</label>
@@ -213,7 +210,9 @@ default_for rtsp_password "thingino"
 </div>
 </div>
 
-</div></div></div>
+</div>
+</div>
+</div>
 
 <div class="modal fade" id="mdFont" tabindex="-1" aria-labelledby="mdlFont" aria-hidden="true">
 <div class="modal-dialog"><div class="modal-content"><div class="modal-header">

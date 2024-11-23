@@ -3,24 +3,24 @@
 <%
 page_title="Hostname"
 
-check_hostname() {
-	default_for hostname "thingino-"
-}
-
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	hostname=$POST_hostname
-	check_hostname
-	[ "$hostname" = "$(fw_printenv -n hostname)" ] || save2env "hostname $hostname"
-	[ "$hostname" = "$(cat /etc/hostname)" ] || echo "$hostname" > /etc/hostname
-	[ "$hostname" = "$(sed -nE "s/^127.0.1.1\t(.*)$/\1/p" /etc/os-release)" ] || sed -i "/^127.0.1.1/s/\t.*$/\t$hostname/" /etc/hosts
-	[ "$hostname" = "$(sed -nE "s/^HOSTNAME=(.*)$/\1/p" /etc/os-release)" ] || sed -i "/^HOSTNAME/s/=.*$/=$hostname/" /etc/os-release
-	. /etc/os-release
-	hostname "$hostname"
-	redirect_to $SCRIPT_NAME
+	[ -z "$POST_hostname" ] && set_error_flag "Hostname cannot be empty"
+	echo "$POST_hostname" | grep ' ' && set_error_flag "Hostname cannot contain whitespaces"
+
+	if [ -z "$error" ]; then
+		hostname=$POST_hostname
+		[ "$hostname" = "$(fw_printenv -n hostname)" ] || save2env "hostname $hostname"
+		[ "$hostname" = "$(cat /etc/hostname)" ] || echo "$hostname" > /etc/hostname
+		[ "$hostname" = "$(sed -nE "s/^127.0.1.1\t(.*)$/\1/p" /etc/os-release)" ] || sed -i "/^127.0.1.1/s/\t.*$/\t$hostname/" /etc/hosts
+		[ "$hostname" = "$(sed -nE "s/^HOSTNAME=(.*)$/\1/p" /etc/os-release)" ] || sed -i "/^HOSTNAME/s/=.*$/=$hostname/" /etc/os-release
+		. /etc/os-release
+		hostname "$hostname"
+		redirect_to $SCRIPT_NAME
+	fi
 fi
 
 hostname=$(get hostname)
-check_hostname
+default_for hostname "thingino-"
 %>
 <%in _header.cgi %>
 

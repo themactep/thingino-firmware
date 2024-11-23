@@ -106,6 +106,7 @@ for i in email ftp mqtt telegram webhook yadisk; do
 	let a = document.createElement('a')
 	a.href = 'plugin-send2<%= $i %>.cgi'
 	a.classList.add('btn','btn-outline-danger','mb-2')
+	a.title = 'Configure sent2<%= $i%> plugin'
 	a.append($('button[data-sendto=<%= $i %>] img'))
 	$('button[data-sendto=<%= $i %>]').replaceWith(a);
 }
@@ -115,7 +116,7 @@ $$("button[data-sendto]").forEach(el => {
 	el.onclick = (ev) => {
 		ev.preventDefault();
 		if (!confirm("Are you sure?")) return false;
-		fetch("/x/send.cgi?" + new URLSearchParams({'to': ev.target.dataset["sendto"]}).toString())
+		fetch("/x/send.cgi?" + new URLSearchParams({'to': el.dataset.sendto}).toString())
 		.then(res => res.json())
 		.then(data => console.log(data))
 	}
