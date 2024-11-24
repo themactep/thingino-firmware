@@ -42,7 +42,7 @@ else
 	[ "${#1}" -eq 0 ] && die "Config file $RECORD_WEBUI_CONF not found"
 fi
 
-while getopts "d:f:h:lm:p:t:u:v:w:z:" flag; do
+while getopts "d:f:h:lm:n:p:t:u:v:w:z:" flag; do
 	case "$flag" in
 		d) record_diskusage=$OPTARG ;;
 		f) stream0_fps=$OPTARG ;;
