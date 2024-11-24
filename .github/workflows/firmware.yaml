@@ -309,20 +309,20 @@ jobs:
       - name: Generate release notes
         id: release_notes
         run: |
-          LAST_RELEASE_TAG=$(gh release list --repo themactep/thingino-firmware --limit 2 --json tagName -q '.[1].tagName')
+          LAST_RELEASE_TAG=$(gh release list --limit 2 --json tagName -q '.[1].tagName')
 
           if [ -z "$LAST_RELEASE_TAG" ]; then
             echo "No previous release found. Skipping release notes generation."
             echo "RELEASE_NOTES_FILE=$(pwd)/release_notes.md" >> $GITHUB_ENV
             exit 0
           else
-            echo "Latest release so far is $LAST_RELEASE_TAG."
+            echo "Latest release so far is $LAST_RELEASE_TAG"
           fi
 
           COMMITS=$(gh api \
             -H "Accept: application/vnd.github.v3+json" \
             /repos/${{ github.repository }}/compare/$LAST_RELEASE_TAG...HEAD \
-            -q '.commits[].commit.message')
+            -q '.commits[] | "\(.sha[0:7]) \(.commit.message | gsub("\n"; " "))"')
 
           RELEASE_NOTES="### Commits since last release:\n"
 
