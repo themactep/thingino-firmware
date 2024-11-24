@@ -10,7 +10,15 @@ STOP_FILE=/tmp/daynight.stop
 MODE_FILE=/tmp/nightmode.txt
 [ -f $MODE_FILE ] || echo "day" > $MODE_FILE
 
+is_disabled() {
+	[ "#" = "$(crontab -l | grep daynight$ | cut -c1)" ] || \
+	[ "false" = "$daynight_enabled" ] || \
+	[ -f "$STOP_FILE" ]
+}
+
 switch_to_day() {
+	is_disabled && return
+
 	ircut on
 	irled off
 	color on
@@ -18,6 +26,8 @@ switch_to_day() {
 }
 
 switch_to_night() {
+	is_disabled && return
+
 	color off
 	ircut off
 	irled on
