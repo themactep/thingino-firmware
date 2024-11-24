@@ -1,8 +1,8 @@
 name: firmware
 on:
   schedule:
-    # 01:15 PST / Nightly
-    - cron:  '15 8 * * *'
+    # 01:30 PST / Nightly
+    - cron:  '30 8 * * *'
   workflow_dispatch:
     inputs:
       tg_disabled:
