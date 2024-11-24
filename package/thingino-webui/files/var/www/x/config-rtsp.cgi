@@ -61,9 +61,9 @@ fi
 <dt>ONVIF URL</dt>
 <dd class="cb">onvif://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>/onvif/device_service</dd>
 <dt>RTSP Mainstream URL</dt>
-<dd class="cb">rtsp://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>/<%= $rtsp_endpoint_ch0 %></dd>
+<dd class="cb">rtsp://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>:554/<%= $rtsp_endpoint_ch0 %></dd>
 <dt>RTSP Substream URL</dt>
-<dd class="cb">rtsp://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>/<%= $rtsp_endpoint_ch1 %></dd>
+<dd class="cb">rtsp://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>:554/<%= $rtsp_endpoint_ch1 %></dd>
 </dl>
 </div>
 </div>
