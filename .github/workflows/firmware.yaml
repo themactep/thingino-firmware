@@ -75,7 +75,7 @@ jobs:
           echo Telegram response: ${HTTP}
 
   generate-matrix:
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -139,13 +139,6 @@ jobs:
       - name: Setup gh workspace in container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Checkout source
-        uses: actions/checkout@v4
-        with:
-          submodules: 'true'
-          ref: "master"
-          fetch-depth: "1"
-
       - name: Setup Environment Variables
         id: date
         run: |
@@ -182,6 +175,13 @@ jobs:
         with:
           path: ~/dl
           key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+          ref: "master"
+          fetch-depth: "1"
 
       - name: Build firmware
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
@@ -309,12 +309,14 @@ jobs:
       - name: Generate release notes
         id: release_notes
         run: |
-          LAST_RELEASE_TAG=$(gh release list --limit 2 --json tagName -q '.[1].tagName')
+          LAST_RELEASE_TAG=$(gh release list --repo themactep/thingino-firmware --limit 2 --json tagName -q '.[1].tagName')
 
           if [ -z "$LAST_RELEASE_TAG" ]; then
             echo "No previous release found. Skipping release notes generation."
             echo "RELEASE_NOTES_FILE=$(pwd)/release_notes.md" >> $GITHUB_ENV
             exit 0
+          else
+            echo "Latest release so far is $LAST_RELEASE_TAG."
           fi
 
           COMMITS=$(gh api \
