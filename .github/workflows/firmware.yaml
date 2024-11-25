@@ -63,6 +63,11 @@ jobs:
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
 
+      - name: Setup Notification Channel
+        if: ${{ github.event.inputs.tg_scratch == 'true' }}
+        run: |
+          echo "TG_TOPIC=" >> $GITHUB_ENV
+
       - name: Send build start notifcation via Telegram
         if: env.TG_DISABLED == 'false'
         run: |
