@@ -47,7 +47,7 @@ update_config() {
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "gpio" "ir850_pin ir850_pwn ir940_pin ir940_pwm white_pin white_pwm ircut_pin1 ircut_pin2"
+	read_from_post "gpio" "ir850_pin ir850_pwm ir940_pin ir940_pwm white_pin white_pwm ircut_pin1 ircut_pin2"
 
 	for c in $COLORS; do
 		update_config "$c"
@@ -60,7 +60,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		"pwm_ch_ir850 $gpio_ir850_pwm\n" \
 		"pwm_ch_ir940 $gpio_ir940_pwm\n" \
 		"pwm_ch_white $gpio_white_pwm\n" \
-		"gpio_default=$DEFAULT_PINS"
+		"gpio_default $DEFAULT_PINS"
 
 	redirect_back "success" "Data updated"
 fi
