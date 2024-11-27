@@ -2,7 +2,7 @@
 <%
 
 timestamp=$(date +%s)
-ttl_in_sec=120
+ttl_in_sec=600
 
 from_env() {
 	fw_printenv -n "$1" | tr -d '\n'
