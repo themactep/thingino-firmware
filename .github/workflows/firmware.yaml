@@ -211,6 +211,7 @@ jobs:
           echo "debug" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin
           echo "debug uboot" > ${HOME}/output/${DYNAMIC_PART}/images/u-boot-lzo-with-spl.bin
           echo "debug kernel" > ${HOME}/output/${DYNAMIC_PART}/images/uImage
+          echo "debug rootfs" > ${HOME}/output/${DYNAMIC_PART}/images/rootfs.squashfs
           echo "debug rootfs" > ${HOME}/output/${DYNAMIC_PART}/images/rootfs.tar
           echo "debug sha" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin.sha256sum
           echo "debug" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin
@@ -228,7 +229,8 @@ jobs:
           FULL_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}.bin" ! -name "*update.bin" | head -n 1)
           FULL_FW_UBOOT=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "u-boot-lzo-with-spl.bin" | head -n 1)
           FULL_FW_KERNEL=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "uImage" | head -n 1)
-          FULL_FW_ROOTFS=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "rootfs.tar" | head -n 1)
+          FULL_FW_ROOTFS=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "rootfs.squashfs" | head -n 1)
+          FULL_FW_ROOTFS_TAR=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "rootfs.tar" | head -n 1)
           UPDATE_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}-update.bin" | head -n 1)
           echo "FULL_FW: $FULL_FW"
           if [[ -n "$FULL_FW" ]]; then
@@ -236,6 +238,7 @@ jobs:
             echo "FULL_FW_UBOOT=${FULL_FW_UBOOT}" >> ${GITHUB_ENV}
             echo "FULL_FW_KERNEL=${FULL_FW_KERNEL}" >> ${GITHUB_ENV}
             echo "FULL_FW_ROOTFS=${FULL_FW_ROOTFS}" >> ${GITHUB_ENV}
+            echo "FULL_FW_ROOTFS_TAR=${FULL_FW_ROOTFS_TAR}" >> ${GITHUB_ENV}
             echo "FULL_FW_SHA=${FULL_FW}.sha256sum" >> ${GITHUB_ENV}
             echo "UPDATE_FW=${UPDATE_FW}" >> ${GITHUB_ENV}
             echo "UPDATE_FW_SHA=${UPDATE_FW}.sha256sum" >> ${GITHUB_ENV}
@@ -269,6 +272,7 @@ jobs:
             ${{ env.FULL_FW_UBOOT }}
             ${{ env.FULL_FW_KERNEL }}
             ${{ env.FULL_FW_ROOTFS }}
+            ${{ env.FULL_FW_ROOTFS_TAR }}
             ${{ env.FULL_FW_SHA }}
 
       - name: Upload full firmware to release
