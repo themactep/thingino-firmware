@@ -58,7 +58,7 @@ jobs:
         id: set_output
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
-      - name: Setup Notification Environment
+      - name: Configure Environment Variables
         run: |
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
@@ -118,6 +118,10 @@ jobs:
     name: ${{ matrix.thingino-version }}
     needs: [generate-matrix, notify-begin]
     runs-on: ubuntu-latest
+    outputs:
+      # Feed the hash of the commit we are building into the notify-completion release-notes step
+      GIT_HASH: ${{ steps.env.outputs.git_hash }}
+      TAG_NAME: ${{ steps.env.outputs.tag_name }}
     defaults:
       run:
         shell: bash
@@ -126,7 +130,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
-
     steps:
       - name: Update package manager sources
         run: |
@@ -152,17 +155,21 @@ jobs:
           ref: "master"
           fetch-depth: "1"
 
-      - name: Setup Environment Variables
-        id: date
+      - name: Configure Environment Variables
+        id: env
         run: |
           echo "WEEK_NUMBER=$(date +%U)" >> $GITHUB_ENV
           echo "CURRENT_YEAR=$(date +%Y)" >> $GITHUB_ENV
-          export GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})
-          export GIT_BRANCH=${GITHUB_REF_NAME}
+          echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_ENV
+          echo "GIT_BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
           echo "GIT_HASH=${GIT_HASH}" >> ${GITHUB_ENV}
           echo "GIT_BRANCH=${GIT_BRANCH}" >> ${GITHUB_ENV}
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
-          echo "TAG_NAME=$TAG_NAME-$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+          TAG_NAME="$TAG_NAME-$(date +'%Y-%m-%d')"
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          
+          echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
 
       - name: Setup cache directories
         run: |
@@ -196,7 +203,7 @@ jobs:
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
-      - name: Generate workflow dummy debug firmware
+      - name: Generate debug dummy firmware for workflow testing
         if: ${{ github.event.inputs.debug_enabled == 'true' }}
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
@@ -206,7 +213,7 @@ jobs:
           echo "debug" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin
           echo "debug sha" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin.sha256sum
 
-      - name: Generate build graphs
+      - name: Generate build time graphs
         if: ${{ github.event.inputs.graph_enabled == 'true' }}
         run: |
           apt-get install -y --no-install-recommends --no-install-suggests python3-numpy python3-matplotlib
@@ -301,12 +308,13 @@ jobs:
         run: |
           sudo timedatectl set-timezone "America/Los_Angeles"
 
-      - name: Setup Environment
+      - name: Configure Environment
         run: |
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
-          echo "TAG_NAME=$TAG_NAME-$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+          echo "GIT_HASH=${{ needs.buildroot.outputs.git_hash }}" >> $GITHUB_ENV
+          echo "TAG_NAME=${{ needs.buildroot.outputs.tag_name }}" >> $GITHUB_ENV
 
-      - name: Checkout source
+      - name: Checkout repository source
         uses: actions/checkout@v4
         with:
           submodules: 'false'
@@ -327,7 +335,7 @@ jobs:
 
           COMMITS=$(gh api \
             -H "Accept: application/vnd.github.v3+json" \
-            /repos/${{ github.repository }}/compare/$LAST_RELEASE_TAG...HEAD \
+            /repos/${{ github.repository }}/compare/$LAST_RELEASE_TAG...$GIT_HASH \
             -q '.commits[] | "\(.sha[0:7]) \(.commit.message | gsub("\n"; " "))"')
 
           RELEASE_NOTES="### Commits since last release:\n"
