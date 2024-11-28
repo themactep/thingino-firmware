@@ -4,12 +4,15 @@
 # @params: n - name, s -state
 [ -n "$QUERY_STRING" ] && eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
 
-state=${s:-0}
-
 [ -z "$n" ] && json_error "Required parameter 'n' is not set"
-
 pin=$(fw_printenv -n $n)
 [ -z "$pin" ] && json_error "GPIO is not found"
+
+if [ "$s" -eq 0 ] || [ "$s" -eq 1 ]; then
+	state=${s:-0}
+else
+	[ $(gpio read $pin) -eq 0 ] && state=1 || state=0
+fi
 
 # default to output high
 [ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
@@ -19,7 +22,6 @@ case "${pin:0-1}" in
 esac
 pin=${pin:0:(-1)}
 
-gpio set "$pin" "$state"
-pin_status=$(cat /sys/class/gpio/gpio$pin/value)
+gpio set $pin $state
 
-json_ok "{\"pin\":\"$pin\",\"status\":\"$pin_status\"}"
+json_ok "{\"pin\":\"$pin\",\"status\":\"$(gpio read $pin)\"}"

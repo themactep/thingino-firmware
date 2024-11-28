@@ -3,10 +3,10 @@
 IFS_ORIG=$IFS
 
 STR_CONFIGURE_SOCKS5="<a href=\"config-socks5.cgi\">Configure SOCKS5</a>"
-STR_NOT_SUPPORTED="not supported on this system"
-STR_SUPPORTS_STRFTIME="Supports <a href=\"https://man7.org/linux/man-pages/man3/strftime.3.html\" target=\"_blank\">strftime</a> format."
 STR_EIGHT_OR_MORE_CHARS=" pattern=\".{8,}\" title=\"8 characters or longer\""
+STR_NOT_SUPPORTED="not supported on this system"
 STR_PASSWORD_TO_PSK="Plain-text password will be automatically converted to a PSK upon submission"
+STR_SUPPORTS_STRFTIME="Supports <a href=\"https://strftime.net/\" target=\"_blank\">strftime</a> format."
 
 pagename=$(basename $SCRIPT_NAME)
 pagename="${pagename%%.*}"
@@ -196,55 +196,69 @@ field_file() {
 
 # field_gpio "name" "label"
 field_gpio() {
-	local active_suffix
-	local is_active
-	local is_active_low
-	local is_disabled
-	local lit_on_boot
-	local pin_off
-	local pin_on
-
 	local name=$1
 
 	local var_pin="${name}_pin"
+	local pin
 	eval pin=\$$var_pin
-
 	[ -z "$pin" ] && return
 
 	local var_pwm="${name}_pwm"
+	local pwm
 	eval pwm=\$$var_pwm
 
-	if [ -z "$pin" ]; then
-		is_disabled=" disabled"
-	else
-		[ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
-		active_suffix=${pin:0-1}
-		case "$active_suffix" in
-			o) pin_on=0; pin_off=1; is_active_low=" checked" ;;
-			O) pin_on=1; pin_off=0 ;;
-		esac
-		pin=${pin:0:-1}
+	[ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
 
-		pin_status=$(gpio read $pin)
-		[ "$pin_status" -eq "$pin_on" ] && is_active=" checked"
+	local active_suffix
+	local is_active_low
+	local pin_off
+	local pin_on
+	active_suffix=${pin:0-1}
+	case "$active_suffix" in
+		o) pin_on=0; pin_off=1; is_active_low=" checked" ;;
+		O) pin_on=1; pin_off=0 ;;
+	esac
+	pin=${pin:0:-1}
 
-		echo $DEFAULT_PINS | grep -E "\b$pin$active_suffix\b" > /dev/null && lit_on_boot=" checked"
-	fi
+	local pin_status
+	local is_active
+	pin_status=$(gpio read $pin)
+	[ "$pin_status" -eq "$pin_on" ] && is_active=" checked"
 
-	echo "<div class=\"mb-3 gpio ${name}\">
-	<label class=\"form-label\" for=\"${name}_pin\">$2</label>
-	<div class=\"input-group\">
-	<div class=\"input-group-text switch\">
-	<input type=\"checkbox\" class=\"form-check-input mt-0 led-status\" id=\"${name}_on\" name=\"${name}_on\" value=\"true\"$is_active$is_disabled>
+	local lit_on_boot
+	echo $DEFAULT_PINS | grep -E "\b$pin$active_suffix\b" > /dev/null && lit_on_boot=" checked"
+
+	echo "<div class=\"col\">
+	<div class=\"card h-100 gpio ${name}\">
+	<div class=\"card-header\">$2
+	<div class=\"switch float-end\">
+	<button type=\"button\" class=\"btn btn-sm btn-outline-secondary m-0 led-status\" id=\"${name}_toggle\" $is_active>Test</button>
 	</div>
-	<input type=\"text\" class=\"form-control text-end\" id=\"${name}_pin\" name=\"${name}_pin\" pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pin\" placeholder=\"GPIO\">
-	<input type=\"text\" class=\"form-control text-end\" id=\"${name}_pwm\" name=\"${name}_pwm\" pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pwm\" placeholder=\"PWM channel\">
-	<div class=\"input-group-text\">
-	<input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" id=\"${name}_inv\" name=\"${name}_inv\" value=\"true\"$is_active_low$is_disabled> active low
 	</div>
-	<div class=\"input-group-text\">
-	<input class=\"form-check-input mt-0 me-2\" type=\"checkbox\" id=\"${name}_lit\" name=\"${name}_lit\" value=\"true\"$lit_on_boot$is_disabled> lit on boot
-	</div></div></div>"
+	<div class=\"card-body\">
+	<div class=\"row\">
+	<label class=\"form-label col-9\" for=\"${name}_pin\">GPIO pin #</label>
+	<div class=\"col\">
+	<input type=\"text\" class=\"form-control text-end\" id=\"${name}_pin\" name=\"${name}_pin\" pattern=\"[0-9]{1,3}\" title=\"a number\" value=\"$pin\" required>
+	</div>
+	</div>
+"
+
+if [ $(is_pwm_pin "$pin") ]; then
+	echo "<div class=\"row\"><label class=\"form-label col-9\" for=\"${name}_pwn_ch\">GPIO PWM channel</label>
+<div class=\"col\"><input type=\"text\" class=\"form-control text-end\" id=\"${name}_pwm_ch\" name=\"${name}_pwm_ch\"
+ pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pwm\"></div></div><div class=\"row\"><label
+ class=\"form-label col-9\" for=\"${name}_pwm_lvl\">GPIO PWM level</label><div class=\"col\"><input type=\"text\"
+ class=\"form-control text-end\" id=\"${name}_pwm_lvl\" name=\"${name}_pwm_lvl\" pattern=\"[0-9]{1,3}\"
+ title=\"empty or a number\" value=\"$pwm\"></div></div>"
+else
+	echo "<div class=\"text-warning\">NOT A PWM PIN</div>"
+fi
+	echo "<div class=\"row\"><label class=\"form-label col-9\" for=\"${name}_inv\">Active low</label>
+	<div class=\"col\"><input class=\"form-check-input\" type=\"checkbox\" id=\"${name}_inv\" name=\"${name}_inv\"
+	 value=\"true\"$is_active_low$is_disabled></div></div><div class=\"row mb-0\"> <label class=\"form-label col-9\"
+	 for=\"${name}_lit\">Lit on boot</label> <div class=\"col\"> <input class=\"form-check-input\" type=\"checkbox\"
+	 id=\"${name}_lit\" name=\"${name}_lit\" value=\"true\"$lit_on_boot$is_disabled> </div> </div> </div> </div> </div>"
 }
 
 # field_hidden "name" "value"
@@ -267,11 +281,8 @@ field_number() {
 	<label class=\"form-label\" for=\"$n\">$2</label>
 	<span class=\"input-group\">"
 	# NB! no name on checkbox, since we don't want its data submitted
-	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"${n}-auto\">$ab
-		<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")>
-		</label>"
-	echo "<input type=\"text\" id=\"$n\" name=\"$n\" class=\"form-control text-end\" value=\"$vr\" pattern=\"[0-9]{1,}\" title=\"numeric value\" data-min=\"$mn\" data-max=\"$mx\" data-step=\"$st\">
-	</span>"
+	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"${n}-auto\">$ab <input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")></label>"
+	echo "<input type=\"text\" id=\"$n\" name=\"$n\" class=\"form-control text-end\" value=\"$vr\" pattern=\"[0-9]{1,}\" title=\"numeric value\" data-min=\"$mn\" data-max=\"$mx\" data-step=\"$st\"></span>"
 	[ -n "$4" ] && echo "<span class=\"hint text-secondary\">$4</span>"
 	echo "</div>"
 }
@@ -412,6 +423,10 @@ html_theme() {
 
 is_ap() {
 	[ "true" = "$wlanap_enabled" ]
+}
+
+is_pwm_pin() {
+	$(pwm-ctrl -l | awk "/^GPIO $1/{print \$4}" | sed s/PWM//)
 }
 
 is_recording() {

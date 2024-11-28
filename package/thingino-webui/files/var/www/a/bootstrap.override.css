@@ -106,6 +106,12 @@ body:before {
 	position: relative;
 }
 
+.card-header .btn {
+	--bs-btn-padding-y: 0.2rem;
+	--bs-btn-padding-x: 0.4rem;
+	--bs-btn-font-size: 0.75rem;
+}
+
 .cb {
 	cursor: pointer;
 	text-decoration-color: #f80;
@@ -153,6 +159,7 @@ body:before {
 
 .icon {
 	color: lightgray;
+	max-width: 4rem;
 }
 
 .icon.off {
