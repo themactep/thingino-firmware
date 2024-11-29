@@ -28,6 +28,10 @@ json_error() {
 json_ok() {
 	http_200
 	json_header
-	echo "{\"code\":200,\"result\":\"success\",\"message\":$1}"
+	if [ "{" = "${1:0:1}" ]; then
+		echo "{\"code\":200,\"result\":\"success\",\"message\":$1}"
+	else
+		echo "{\"code\":200,\"result\":\"success\",\"message\":\"$1\"}"
+	fi
 	exit 0
 }

@@ -8,23 +8,25 @@ CNET=172.16.0
 net_dev="wlan0"  # default device
 if [ "$(get wlandev)" = "hi3881" ]; then
 	net_dev="ap0"
-	sed -i 's/wlan0/ap0/g' /etc/udhcpd.conf
+	sed -i 's/wlan0/ap0/g' /etc/udhcpd-portal.conf
 fi
 
 timeout() {
-	sleep 300 && $0 stop
+	sleep 600 && $0 stop
 }
 
 case "$1" in
 	start)
 		starting
 		[ -f /run/portal_mode ] && quit "Already running"
-		iface_exists "eth0" && quit "Ethernet port found"
+		(iface_exists "eth0" || iface_exists "usb0") && quit "Wired interface found"
 		iface_exists "$net_dev" || quit "Wireless port not found"
 		# quit if credentials are set
 		ssid="$(get wlanssid)"
 		pass="$(get wlanpass)"
-		[ -n "$ssid" ] && [ -n "$pass" ] && quit "Already configured"
+		wlanap="$(get wlanap_enabled)"
+		[ -n "$ssid" ] && [ -n "$pass" ] && quit "WLAN already configured"
+		[ "$wlanap" == "true" ] && quit "WLAN AP enabled"
 
 		touch /run/portal_mode
 		touch /var/run/udhcpd.leases
@@ -33,14 +35,14 @@ case "$1" in
 		ip link set $net_dev up
 		ip route add ${CNET}.0/24 dev $net_dev > /dev/null 2>&1
 
-		start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd.conf 2>&1
-		start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /etc/dnsd.conf -d | log
+		start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd-portal.conf 2>&1
+		start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /etc/dnsd-portal.conf -d | log
 
 		mac_address=$(ip link show $net_dev | awk '/ether/ {print $2}')
 		last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
-		sed -i "/ssid=\"THINGINO-\"$/ s/\"$/$last_two\"/" /etc/wpa_ap.conf
+		sed -i "/ssid=\"THINGINO-\"$/ s/\"$/$last_two\"/" /etc/wpa-portal_ap.conf
 
-		start-stop-daemon -S -x /sbin/wpa_supplicant -- -i $net_dev -B -c /etc/wpa_ap.conf 2>&1 | log
+		start-stop-daemon -S -x /sbin/wpa_supplicant -- -i $net_dev -B -c /etc/wpa-portal_ap.conf 2>&1 | log
 		check_result
 
 		timeout &

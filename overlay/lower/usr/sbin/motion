@@ -6,21 +6,27 @@ plugin="motion"
 singleton
 
 MOTION_ALARM="/run/motion/motion_alarm"
+MOTION_ALARM_DIR=$(dirname $MOTION_ALARM)
+[ -d $MOTION_ALARM_DIR ] || mkdir -p $MOTION_ALARM_DIR
+
+MOTION_STOP_FILE="/run/motors.pid"
 
 start() {
-	# send alerts
-	[ -d $(dirname $MOTION_ALARM) ] && touch $MOTION_ALARM
-	[ "$motion_send2email" = "true" ] && send2email
-	[ "$motion_send2ftp" = "true" ] && send2ftp
-	[ "$motion_send2mqtt" = "true" ] && send2mqtt
-	[ "$motion_send2telegram" = "true" ] && send2telegram
-	[ "$motion_send2webhook" = "true" ] && send2webhook
-	[ "$motion_send2yadisk" = "true" ] && send2yadisk
-	[ "$motion_playonspeaker" = "true" ] && playonspeaker
+	[ -f $MOTION_STOP_FILE ] && exit 0
+
+	touch $MOTION_ALARM
+
+	[ "true" = "$motion_send2email"    ] && send2email
+	[ "true" = "$motion_send2ftp"      ] && send2ftp
+	[ "true" = "$motion_send2mqtt"     ] && send2mqtt
+	[ "true" = "$motion_send2telegram" ] && send2telegram
+	[ "true" = "$motion_send2webhook"  ] && send2webhook
+	[ "true" = "$motion_send2yadisk"   ] && send2yadisk
+	[ "true" = "$motion_playonspeaker" ] && playonspeaker
 }
 
 stop() {
-	[ -f "$MOTION_ALARM" ] && rm -f $MOTION_ALARM
+	[ -f $MOTION_ALARM ] && rm -f $MOTION_ALARM
 }
 
 case "$1" in

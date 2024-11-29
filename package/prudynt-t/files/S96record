@@ -1,6 +1,8 @@
 #!/bin/sh
 
-DAEMON=openRTSP
+# http://www.live555.com/openRTSP/
+
+WEBUI_CONF=/etc/webui/record.conf
 
 . /etc/init.d/rc.common
 
@@ -8,171 +10,27 @@ read_config() {
 	sed -nE "s/^.*$1:\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
 }
 
-# Get values from /etc/prudynt.cfg
-stream0fps=$(read_config fps)
-stream0width=$(read_config width)
-stream0height=$(read_config height)
-rtsp_username=$(read_config username)
-rtsp_password=$(read_config password)
-
-# read web config, create if missing
-RECORD_WEBUI_CONF=/etc/webui/record.conf
-[ ! -d $(dirname $RECORD_WEBUI_CONF) ] && mkdir -p $(dirname $RECORD_WEBUI_CONF)
-[ ! -f $RECORD_WEBUI_CONF ] && touch $RECORD_WEBUI_CONF
-. $RECORD_WEBUI_CONF
-
-# default debugging on
-if [ -z "$record_debug" ]; then
-	record_debug="true"
-	echo "record_debug=$record_debug" >> $RECORD_WEBUI_CONF
-fi
-
-# default to "disabled" and update config
-if [ -z "$record_enabled" ]; then
-	record_enabled="false"
-	echo "record_enabled=$record_enabled" >> $RECORD_WEBUI_CONF
-fi
-
-# set default file prefix to "thingino-"
-if [ -z "$record_prefix" ]; then
-	record_prefix="thingino-"
-	echo "record_prefix=$record_prefix" >> $RECORD_WEBUI_CONF
-fi
-
-# set default file path to mmc mount location
-if [ -z "$record_path" ]; then
-	record_path="/mnt/mmcblk0p1/"
-	echo "record_path=$record_path" >> $RECORD_WEBUI_CONF
-fi
-
-# set default file format to avi
-if [ -z "$record_format" ]; then
-	record_format="avi"
-	echo "record_format=$record_format" >> $RECORD_WEBUI_CONF
-fi
-
-# set default record interval to 60 seconds
-if [ -z "$record_interval" ]; then
-	record_interval=60
-	echo "record_interval=$record_interval" >> $RECORD_WEBUI_CONF
-fi
-
-# set default max disk usage %
-if [ -z "$record_diskusage" ]; then
-	record_diskusage=85
-	echo "record_diskusage=$record_diskusage" >> $RECORD_WEBUI_CONF
-fi
-
-# set default record looping to true
-if [ -z "$record_loop" ]; then
-	record_loop=true
-	echo "record_loop=$record_loop" >> $RECORD_WEBUI_CONF
-fi
-
-# set default blink led gpio from environment variable
-if [ -z "$record_led_gpio" ]; then
-	record_led_gpio=$(get gpio_led_r)
-	echo "record_led_gpio=$record_led_gpio" >> $RECORD_WEBUI_CONF
-fi
-
-# set default led blinker setting if gpio_led_r is set from above
-if [ -z "$record_led_enabled" ]; then
-	if [ -z "$record_led_gpio" ]; then
-		record_led_enabled=false
-	else
-		record_led_enabled=true
-	fi
-	echo "record_led_enabled=$record_led_enabled" >> $RECORD_WEBUI_CONF
-fi
-
-# set default led blink interval to 1 second
-if [ -z "$record_led_interval" ]; then
-	record_led_interval=1
-	echo "record_led_interval=$record_led_interval" >> $RECORD_WEBUI_CONF
-fi
-
-# Set file format
-case "$record_format" in
-	mov)
-		format_option="-q"
-		break
-		;;
-	mp4)
-		format_option="-4"
-		break
-		;;
-	*)
-		# Make AVI the default
-		format_option="-i"
-		break
-		;;
-esac
-
-terminate() {
-	# Reset webui config record_enabled to false and print error message
-	sed -i 's/record_enabled=\"true\"/record_enabled=\"false\"/g' /etc/webui/record.conf
-	logger "$1"
-	die "$1"
-}
-
 start() {
 	starting
-	[ "$record_enabled" = "true" ] || quit "Disabled"
+	pidof $DAEMON > /dev/null && quit "$DAEMON is already running"
+
 	is_streamer_disabled && quit "Streamer disabled"
-
-	if [[ "$record_path" = "/mnt/mmcblk0p*" ]]; then
-		# Only checking for partition 1 but this should suffice for multi-partition cards
-		grep -q "/mnt/mmcblk0p1" /proc/mounts || terminate "SD card is not mounted"
-	fi
-
-	pidof prudynt > /dev/null || terminate "Prudynt is not running. Unable to record RTSP stream"
-
-	[ -d "$record_path" ] || mkdir -p "$record_path"
-	cd "$record_path" || terminate "Cannot change directory to $record_path"
-
-	pidof $DAEMON > /dev/null && terminate "RTSP recorder already running"
-
-	sleep 1
-	
-	# Run record-manager script which will check for available storage space and monitor if the openRTSP process is still running
-	start-stop-daemon -b -m -S -p "/run/record-manager.pid" -x "/usr/sbin/record-manager" 2>&1 | log
-	check_result
-
-	sleep 1
-
-	# Blink indicator if configured
-	if [ "$record_led_enabled" = "true" ]; then
-		start-stop-daemon -b -m -S -p "/run/blink.pid" -x blink $record_led_gpio $record_led_interval 2>&1 | log
-		check_result
-	fi
-
-	sleep 1
-	
-	# Run openRTSP
-	COMMAND="$DAEMON -u "$rtsp_username" "$rtsp_password" -w "$stream0width" -h "$stream0height" -f "$stream0fps" \
-			-P "$record_interval" "$format_option" -b 1048576 -t -F "$record_prefix" rtsp://127.0.0.1/ch0"
-
-	start_daemon
+	is_streamer_running || quit "Streamer is not running"
+	[ -f $WEBUI_CONF ] || quit "Not configured"
+	. $WEBUI_CONF
+	[ "true" = "$record_enabled" ] || quit "Disabled in $WEBUI_CONF"
+	[ -d "$record_mount" ] || quit "Storage is not mounted"
+	record_path=$(dirname "$record_mount/$(date +"$record_filename")")
+	[ -d "$record_path" ] || mkdir -p $record_path
+	[ -w "$record_path" ] || quit "No access to $record_path"
+	start_daemon_with_pid
 }
 
 stop() {
 	stopping
 	is_streamer_disabled && quit "Streamer disabled"
-
-	# Stop blink script if configured
-	start-stop-daemon -K -p "/run/blink.pid" 2>&1 | log
-	check_result
-	[ -f "/run/blink.pid" ] && rm -f "/run/blink.pid"
-	# Turn off indicator LED
-	gpio clear $record_led_gpio
-
-	# Stop record-manager script
-	start-stop-daemon -K -p "/run/record-manager.pid" 2>&1 | log
-	check_result
-	[ -f "/run/record-manager.pid" ] && rm -f "/run/record-manager.pid"
-
-	# Stop openRTSP
-	stop_daemon
+	find /tmp/ -name "record.*" -maxdepth 0 -exec rm {} \;
+	stop_daemon_with_pid
 }
 
 case "$1" in
@@ -180,14 +38,14 @@ case "$1" in
 		$1
 		;;
 
-	restart | reload)
+	reload | restart)
 		stop
 		sleep 1
 		start
 		;;
 
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		die "Usage: $0 {start|stop}"
 		;;
 esac
 

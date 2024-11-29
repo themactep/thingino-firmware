@@ -1,0 +1,157 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+wlandev=$(get wlandev)
+[ -z "$wlandev" ] && die "wlandev is empty, exit."
+
+SSV_CMD_FILE="/proc/ssv/phy0/ssv_cmd"
+ATBM_CMD_FILE=$(find /sys/module/atbm*/atbmfs -name atbm_cmd 2>/dev/null)
+
+entry_command=$(basename "$0")
+
+show_help() {
+	echo "Usage: $0 <command>
+Where command:
+  setup       Set up Wi-Fi credentials
+  info        Display connection details
+  temp        Display module temperature details
+  rssi        Display signal details
+  cli         CLI interface on supported modules
+"
+}
+
+cli() {
+	case "$wlandev" in
+		ssv*) CMD_FILE="$SSV_CMD_FILE" ;;
+		atbm*) CMD_FILE="$ATBM_CMD_FILE" ;;
+		*) echo "Error: CLI Unsupported on $wlandev."; exit 1 ;;
+	esac
+
+	if [ -z "$1" ]; then
+		echo "Usage: $entry_command cli <command>"
+		echo "Send a command to the wireless device CLI interface."
+		echo "Example: $entry_command cli <your_command>"
+		exit 0
+	fi
+
+	if [ -f "$CMD_FILE" ]; then
+		echo "$*" > "$CMD_FILE"
+		cat "$CMD_FILE"
+	else
+		echo "Error: Command file not found for $wlandev."
+		exit 1
+	fi
+}
+
+rssi() {
+	if ! ip link show wlan0 > /dev/null 2>&1; then
+		echo "Error: wlan0 interface does not exist."
+		exit 1
+	fi
+
+	case "$wlandev" in
+		ssv*)
+			echo "rf rssi" > $SSV_CMD_FILE
+			cat $SSV_CMD_FILE | sed -n 's/.*ofdm RSSI \(-[0-9]*\).*/\1/p'
+			;;
+		atbm*)
+			iwpriv wlan0 common get_rssi | sed -n 's/.*rssi=\(-[0-9]*\).*/\1/p'
+			;;
+		mt7*|rtl*|818*|87*|88*)
+			iwconfig wlan0 | sed -n 's/.*Signal level[=:] *\(-\?[0-9]\+\) *dBm.*/\1/p; s/.*Signal level[=:] *\([0-9]\+\)\/100.*/-\1/p'
+			;;
+		bcm*|syn*)
+			echo "Broadcom not supported yet."
+			;;
+		aic*)
+			echo "AICSemi not supported yet."
+			;;
+		hi*)
+			echo "HiSilicon not supported yet."
+			;;
+		*)
+			echo "Unknown wireless device type."
+			;;
+	esac
+
+}
+
+show_info() {
+	case "$wlandev" in
+		atbm*) iwpriv wlan0 common get_ap_info ;;
+		mt7*|rtl*|818*|87*|88*) iwconfig wlan0 ;;
+		*) echo "Not supported on $wlandev" ;;
+	esac
+}
+
+setup() {
+	echo_c 208 "Thingino Wi-Fi setup"
+	echo "Wi-Fi driver: $(echo_c 10 $wlandev)"
+	read -r -p "Enter Wi-Fi SSID: " ssid
+	while :; do
+		read -r -p "Enter Wi-Fi Password: " password
+		[ ${#password} -ge 8 ] && [ ${#password} -le 64 ] && break
+		echo_c 160 "Passwords is not between 8 and 64 characters. Please try again."
+	done
+
+	fw_setenv wlanssid "$ssid"
+	fw_setenv wlanpass "$password"
+
+	echo_c 40 "Wi-Fi settings updated. Please restart for changes to take effect.\n"
+}
+
+temp() {
+	if ! ip link show wlan0 > /dev/null 2>&1; then
+		echo "Error: wlan0 interface does not exist."
+		exit 1
+	fi
+
+	case "$wlandev" in
+		ssv*)
+			echo "SSV not supported yet."
+			;;
+		atbm*)
+			iwpriv wlan0 common get_tjroom | sed -n 's/.*stempC:\(-\?[0-9]\+\).*/\1/p'
+			;;
+		rtl*|818*|87*|88*)
+			echo "Realtek not supported yet."
+			;;
+		bcm*|syn*)
+			echo "Broadcom not supported yet."
+			;;
+		aic*)
+			echo "AICSemi not supported yet."
+			;;
+		hi*)
+			echo "HiSilicon not supported yet."
+			;;
+		mt7*)
+			echo "MediaTek not supported yet."
+			;;
+		*)
+			echo "Unknown wireless device type."
+			;;
+	esac
+}
+
+case "$entry_command" in
+	wlancli) cli "$@" ;;
+	wlaninfo) exec wlan info ;;
+	wlansetup) exec wlan setup ;;
+	wlantemp) exec wlan temp ;;
+	wlanrssi) exec wlan rssi ;;
+	*)
+		# main case selection for wlan command if no specific entry_command match
+		case "$1" in
+			setup) setup ;;
+			info) show_info ;;
+			temp) temp ;;
+			rssi) rssi ;;
+			cli) shift; cli "$@" ;;
+			*) show_help ;;  # inly show help if no valid command is provided
+		esac
+		;;
+esac
+
+exit 0

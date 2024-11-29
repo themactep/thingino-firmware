@@ -6,12 +6,46 @@ export EDITOR="vi"
 export SENSOR=$(cat /etc/sensor/model)
 export SOC=$(soc -f)
 
+network_hostname=$(hostname -s)
+ifaces=$(ifconfig | awk '/^[^( |lo)]/{print $1}')
+
+if4=$(ip -4 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)
+if6=$(ip -6 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)
+
+[ -n "$if4" ] && {
+	grep -q 'inet\|dhcp' /etc/network/interfaces.d/$if4 && dhcp="true"
+	gw4=$(ip -4 r | sed -nE "/default/s/.+ via ([0-9\.]+).+?/\1/p")
+	ip4=$(ip -4 a show dev "$if4" | sed -nE '/inet/s/.+inet ([0-9\.]+).+/\1/p' | uniq)
+}
+
+[ -n "$if6" ] && {
+	gw6=$(ip -6 r | sed -nE "/default/s/.+ via ([a-f0-9:]+).+?/\1/p")
+	ip6=$(ip -6 a show dev "$if6" | awk '/inet6 /{
+		split($2, a, "/"); ip = a[1]; p = a[2];
+		prio = (ip !~ /^f/) ? 0 : 2; prio += (p == 128) ? 0 : 1;
+		if (!seen[prio]++) res[prio] = ip
+	} END {
+		for (i = 0; i < 4; i++) if (res[i]) { print res[i]; exit }
+	}')
+}
+
+mac=$(cat /sys/class/net/${if4:-$if6}/address)
+
+ip_address=""
+
 alias tb="send2termbin"
+alias ver=". /etc/profile"
 
 if [ "$PS1" ]; then
 	[ -f /etc/os-release ] && . /etc/os-release
 	[ -f /etc/banner ] && echo -e "$(cat /etc/banner)"
-	echo_c 244 "\t$IMAGE_ID\n\t$BUILD_ID\n"
+	printf "%65s\n" "$network_hostname"
+	printf "\e[38;5;240m%65s\e[0m\n" "$IMAGE_ID, $BUILD_ID"
+	[ -n "$ip6" ] && printf "%65s\n" "$ip6 (IPv6)"
+	[ -n "$ip4" ] && printf "%65s\n" "$ip4 (IPv4)"
+	[ -z "$ip4$ip6" ] && printf "%65s\n" "No IP address"
+	printf "%65s\n\n" "${if4:-$if6} [$mac]"
+
 	if [ "$(id -u)" -eq 0 ]; then
 		export PS1="\[\e[38;5;172m\]\u\[\e[m\]@\[\e[38;5;153m\]\h\[\e[m\]\[\e[38;5;214m\] \W\[\e[m\]\\# "
 	else

@@ -1,0 +1,30 @@
+#!/bin/sh
+
+plugin="timelapse"
+
+. /sbin/common-plugins
+
+snapshot=/tmp/snapshot.jpg
+
+[ "false" = "$timelapse_enabled" ] && die "Timelapse is disabled."
+[ -z "$timelapse_storage" ] && die "Timelapse storage cannot be empty."
+[ -z "$timelapse_filename" ] && timelapse_filename="%Y%m%d%H%M.jpg"
+[ -z "$timelapse_interval" ] && timelapse_interval=1
+
+target="$timelapse_storage/$(date +"$timelapse_filename")"
+targetdir="$(dirname "$target")"
+mkdir -p "$targetdir"
+[ -w "$targetdir" ] || die "Cannot write to $targetdir"
+
+converter="$targetdir/convert2video.sh"
+if [ ! -f "$converter" ]; then
+	echo "#/bin/sh
+ffmpeg -r 10 -f image2 -pattern_type glob -i '*.jpg' -vcodec libx264 -an timelapse.mp4
+" > "$converter"
+	chmod +x "$converter"
+fi
+
+[ -f "$snapshot" ] || die "Cannot find a snapshot"
+cp -v "$snapshot" "$target"
+
+exit 0

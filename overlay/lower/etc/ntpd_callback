@@ -1,0 +1,14 @@
+#!/bin/sh
+# usage: ntpd -S ntpd_callback
+
+# /run/sync_success is created when time is synchronized
+# /run/sync_status contains current ntpd status, even if not sync yet
+
+export action="$1"
+export timestamp="$(date -Iseconds)"
+
+env | \
+grep -E '^(action|freq_drift_ppm|offset|poll_interval|stratum|timestamp)=' | \
+sort > /run/sync_status
+
+[ "$action" = "step" ] || [ "$action" = "stratum" ] && touch /run/sync_success

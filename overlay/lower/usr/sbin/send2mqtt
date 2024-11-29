@@ -40,10 +40,7 @@ done
 # parse strftime templates
 mqtt_message=$(date +"$mqtt_message")
 
-build_cmd "mosquitto_pub"
-build_cmd "-h $mqtt_host"
-build_cmd "-p $mqtt_port"
-build_cmd "-i $mqtt_client_id"
+build_cmd "mosquitto_pub -h $mqtt_host -p $mqtt_port -i $mqtt_client_id"
 # MQTT credentials, if given
 [ -n "$mqtt_username" ] && build_cmd "-u $mqtt_username"
 [ -n "$mqtt_password" ] && build_cmd "-P $mqtt_password"
@@ -52,12 +49,9 @@ build_cmd "-i $mqtt_client_id"
 if [ "true" = "$mqtt_send_snap" ]; then
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
 	clone_snapshot $attachment
-
-	build_cmd "-t $mqtt_snap_topic"
-	build_cmd "-f \"$attachment\""
+	build_cmd "-t $mqtt_snap_topic -f \"$attachment\""
 else
-	build_cmd "-t $mqtt_topic"
-        build_cmd "-m \"$mqtt_message\""
+	build_cmd "-t $mqtt_topic -m \"$mqtt_message\""
 fi
 log_and_run "$command"
 

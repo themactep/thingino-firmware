@@ -79,7 +79,7 @@ page_title="Text editor"
 <% if [ -f "$backup_file" ]; then %>
 <div id="back-tab-pane" role="tabpanel" class="tab-pane fade" aria-labelledby="back-tab" tabindex="0">
 <% ex "cat -t ${editor_file}.backup" %>
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_hidden "action" "restore" %>
 <% field_hidden "editor_file" "$editor_file" %>
 <% button_submit "Restore" "danger" %>
@@ -99,11 +99,5 @@ unset _n
 </div>
 <% fi %>
 </div>
-
-<style>
-#editor_text {
-	min-height: 20rem;
-}
-</style>
 
 <%in _footer.cgi %>

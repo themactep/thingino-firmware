@@ -85,7 +85,6 @@ singleton() {
 use_socks5() {
 	[ -f $SOCKS5_CONFIG ] || return
 	. $SOCKS5_CONFIG
-	build_cmd "--proxy-user $socks5_login:$socks5_password"
-	build_cmd "--socks5-hostname $socks5_host:$socks5_port"
+	build_cmd "--proxy-user $socks5_login:$socks5_password --socks5-hostname $socks5_host:$socks5_port"
 	#"--proxy socks5h://$socks5_login:$socks5_password@$socks5_host:$socks5_port"
 }

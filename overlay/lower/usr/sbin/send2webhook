@@ -35,7 +35,7 @@ if [ "true" = "$webhook_attach_snapshot" ]; then
 
 	build_cmd "-F 'image=@$attachment'"
 fi
-build_cmd "--url $webhook_url"
+build_cmd "--url \"$webhook_url\""
 
 log_and_run "$command"
 

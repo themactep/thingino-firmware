@@ -82,6 +82,11 @@ config BR2_PACKAGE_THINGINO_KOPT_MMC1
 	depends on BR2_PACKAGE_THINGINO_KOPT_MMC
 	help
 	  Enables the MMC1 on the SoC, typically used for SDIO WiFi modules.
+config BR2_PACKAGE_THINGINO_KOPT_MMC1_PA_4BIT
+	bool "MMC1 PA 4-Bit"
+	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
+	help
+	  Enables 4 bit support for MMC1 on GPIO PA
 config BR2_PACKAGE_THINGINO_KOPT_MMC1_PB_4BIT
 	bool "MMC1 PB 4-Bit"
 	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1

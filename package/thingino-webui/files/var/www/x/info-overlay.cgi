@@ -10,5 +10,4 @@ s=$(df | awk '/\/overlay/{print $5}')
 <% progressbar "${s/%/}" %>
 </div>
 <% ex "ls -Rl /overlay/" %>
-<%in _reset-firmware.cgi %>
 <%in _footer.cgi %>

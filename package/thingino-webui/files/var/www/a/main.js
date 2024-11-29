@@ -1,11 +1,10 @@
-let max = 0;
-
 const ThreadRtsp = 1;
 const ThreadVideo = 2;
 const ThreadAudio = 4;
 const ThreadOSD = 8;
 
-const HeartBeatInterval = 1 * 1000;
+let max = 0;
+let HeartBeatInterval = 1000;
 
 function $(n) {
 	return document.querySelector(n)
@@ -36,11 +35,9 @@ function setProgressBar(id, value, maxvalue, name) {
 function setValue(data, domain, name) {
 	const id = `#${domain}_${name}`;
 	const el = $(id);
+	if (!el) return;
 	const value = data[name];
-	if (typeof(value) == 'undefined') {
-		console.error(`no value for ${domain}, ${name}`);
-		return;
-	}
+	if (typeof (value) == 'undefined') return;
 	if (el.type === "checkbox") {
 		el.checked = value;
 	} else {
@@ -54,7 +51,7 @@ function setValue(data, domain, name) {
 function sendToApi(endpoint) {
 	const xhr = new XMLHttpRequest();
 	xhr.addEventListener('load', reqListener);
-	xhr.open('GET', 'http://' + network_address + endpoint);
+	xhr.open('GET', '//' + network_address + endpoint);
 	xhr.setRequestHeader('Authorization', 'Basic ' + btoa('admin:'));
 	xhr.send();
 }
@@ -81,57 +78,32 @@ function heartbeat() {
 			$('.progress-stacked.overlay').title = 'Free overlay: ' + json.overlay_free + 'KiB'
 			setProgressBar('#pb-overlay-used', json.overlay_used, json.overlay_total, 'Overlay Usage');
 
-			if (json.daynight_value !== '-1') {
-				$('#daynight_value').textContent = '☀️ ' + json.daynight_value;
-			}
-			if (typeof (json.uptime) !== 'undefined' && json.uptime !== '') {
-				$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
-			}
+			if (json.daynight_value !== '-1') $('#daynight_value').textContent = '☀️ ' + json.daynight_value;
+			if (typeof (json.uptime) !== 'undefined' && json.uptime !== '') $('#uptime').textContent = 'Uptime:️ ' + json.uptime;
 		})
 		.then(setTimeout(heartbeat, HeartBeatInterval));
 }
 
-function callImp(command, value) {
-	if (command.startsWith("osd_")) {
-		let i = command.split('_')[2];
-		let a = command.split('_')[1];
-		let g = document.querySelector('.group_osd[data-idx="' + i + '"]');
-		if (command.startsWith("osd_pos_")) {
-			document.getElementById("osd_pos_auto_" + i + "_ig").classList.toggle("d-none");
-			document.getElementById("osd_pos_fixed_" + i + "_ig").classList.toggle("d-none");
-		}
-		let c = g.getAttribute("data-conf").split(" ");
-		if (a === 'fgAlpha') c[1] = value
-		if (a === 'show') c[2] = value
-		if (a === 'posx') c[3] = value
-		if (a === 'posy') c[4] = value
-		if (a === 'pos') c[5] = (value === 0 ? 0 : document.getElementById("osd_apos_" + i).value)
-		if (a === 'apos') c[5] = value
-		g.setAttribute('data-conf', c.join(' '));
-		value = g.getAttribute("data-conf");
-		command = 'setosd';
-	} else if (["aiaec", "aihpf"].includes(command)) {
-		value = (value === 1) ? "on" : "off"
-	} else if (["ains"].includes(command)) {
-		if (value === -1) value = "off"
-	} else if (["setosdpos_x", "setosdpos_y"].includes(command)) {
-		command = 'setosdpos'
-		value = '1' +
-			'+' + document.querySelector('#setosdpos_x').value +
-			'+' + document.querySelector('#setosdpos_y').value +
-			'+1087+75';
-	} else if (["whitebalance_mode", "whitebalance_rgain", "whitebalance_bgain"].includes(command)) {
-		command = 'whitebalance'
-		value = document.querySelector('#whitebalance_mode').value +
-			'+' + document.querySelector('#whitebalance_rgain').value +
-			'+' + document.querySelector('#whitebalance_bgain').value;
-	}
-
-	const xhr = new XMLHttpRequest();
-	xhr.open('GET', '/x/json-imp.cgi?cmd=' + command + '&val=' + value);
-	xhr.send();
-
-	document.querySelector('#savechanges')?.classList.remove('d-none');
+function initCopyToClipboard() {
+	$$(".cb").forEach(function (el) {
+		el.title = "Click to copy to clipboard";
+		el.addEventListener("click", function (ev) {
+			ev.target.preventDefault;
+			ev.target.animate({backgroundColor: '#f80'}, 250);
+			let textArea = document.createElement("textarea");
+			textArea.value = ev.target.textContent;
+			textArea.style.position = "fixed";
+			textArea.style.left = "-999999px";
+			textArea.style.top = "-999999px";
+			document.body.appendChild(textArea);
+			textArea.focus();
+			textArea.select();
+			return new Promise((res, rej) => {
+				document.execCommand('copy') ? res() : rej();
+				textArea.remove();
+			});
+		})
+	})
 }
 
 (() => {
@@ -152,25 +124,10 @@ function callImp(command, value) {
 			}
 		}
 
-		$$('form').forEach(el => el.autocomplete = 'off');
+		$$('form,input').forEach(el => el.autocomplete = 'off');
 
-// checkboxes
- 		$$('input[type=checkbox].imp').forEach(el => {
- 			el.autocomplete = "off"
- 			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.checked ? 1 : 0))
- 		});
-
-// numbers
- 		$$('input[type=number].imp').forEach(el => {
- 			el.autocomplete = "off"
- 			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
- 		});
-
-// radios
- 		$$('input[type=radio].imp').forEach(el => {
- 			el.autocomplete = "off"
- 			el.addEventListener('change', ev => callImp(ev.target.name, ev.target.value))
- 		});
+		const tooltipTriggerList = $$('[data-bs-toggle="tooltip"]')
+		const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
 
 // ranges
 		$$('input[type=range]').forEach(el => {
@@ -181,11 +138,6 @@ function callImp(command, value) {
 				$('#' + ev.target.id + '-show').textContent = ev.target.value
 			});
 		});
-
-// selects
- 		$$('select.imp').forEach(el => {
- 			el.addEventListener('change', ev => callImp(ev.target.id, ev.target.value))
- 		});
 
 		// For .warning and .danger buttons, ask confirmation on action.
 		$$('.btn-danger, .btn-warning, .confirm').forEach(el => {
@@ -215,7 +167,9 @@ function callImp(command, value) {
 
 // reload window when refresh button is clicked
 		$$('.refresh').forEach(el => {
-			el.addEventListener('click', ev => window.location.reload());
+			el.addEventListener('click', ev => {
+				window.location.reload()
+			});
 		});
 
 // set links to external resources to open in a new window.
@@ -270,8 +224,9 @@ function callImp(command, value) {
 			run()
 		}
 
-		heartbeat();
+		initCopyToClipboard()
+		heartbeat()
 	}
 
-	window.addEventListener('load', initAll);
+	window.addEventListener('load', initAll)
 })();

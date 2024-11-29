@@ -1,25 +1,22 @@
 #!/bin/sh
 
-# mandate virtual partitions
-grep -q "mtd[56]" /proc/mtd || die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
+echo "Run as $0 $*"
 
 KERNEL_MAGIC="27051956"
 U_BOOT_MAGIC="06050403"
 ROOTFS_MAGIC="68737173"
-GH="https://github.com/"
+GITHUB_URL="https://github.com"
 PAD="\t\t\t    "
 
 workdir="/tmp/sysupgrade"
+stage1app="sysupgrade"
 stage2app="sysupgrade-stage2"
-[ -d $workdir ] || mkdir -p $workdir
 fw_file="$workdir/fw.bin"
 
 self=$(realpath $0)
+selfupdate="true"
 bbapplets="echo flash_eraseall flashcp reboot sh sleep"
 upgrade=""
-
-# work in $workdir
-cd $workdir
 
 bye() {
 	die "\n\n\tMaybe next time..."
@@ -27,7 +24,7 @@ bye() {
 
 check_network() {
 	curl -m 5 -I $1 >/dev/null 2>&1 && return
-	echo_c 160 "No internet?\n"
+	red "No internet?\n"
 	ip a
 	exit 1
 }
@@ -36,6 +33,8 @@ check_free_space() {
 	local dl_size=$(curl -sIL $1 | awk '/Content-Length/{fs=$2}END{print fs}')
 	local free_space=$(df -m /tmp | tail -1 | awk '{print $4}')
 	local flash_size=$((0x$(awk '/^mtd6/{print $2}' /proc/mtd)))
+	local offset="${2:-0}"
+	dl_size=$((dl_size - offset))
 	free_space=$((free_space * 1024 * 1024))
 	[ "$dl_size" -gt "$free_space" ] && die "Not enough free space to download firmware: $dl_size > $free_space"
 	[ "$dl_size" -gt "$flash_size" ] && die "Firmware is larger than flash chip: $dl_size > $flash_size"
@@ -58,12 +57,18 @@ clone_app() {
 }
 
 die() {
-	say "$1"
+	red "$1"
+	cleanup
 	exit 1
 }
 
+# url file options
 download() {
-	curl -fL# -o $fw_file $1 || die "Download failed!"
+	local file="$2"
+	[ -z "$file" ] && file="$fw_file"
+	if ! curl -fL# --url "$1" -o "$file" $3; then
+		return 1  # Return an error code instead of exiting
+	fi
 }
 
 expand_bb() {
@@ -77,9 +82,9 @@ handle_payload() {
 		if echo "$1" | grep -qE '^https?://'; then
 			say "Download firmware from\n$1"
 			check_free_space $1
-			download $1
+			download $1 || die "Cannot download $1 to $fw_file"
 		else
-			mv $1 $fw_file
+			[ -f "$fw_file" ] || die "Cannot find $fw_file"
 		fi
 	else
 		say "Upgrading from GitHub"
@@ -87,30 +92,33 @@ handle_payload() {
 		profile=$(awk -F= '/^IMAGE_ID=/ {print $2}' $data)
 		[ -z "$profile" ] && die "Building profile is not set in $data"
 
-		gh_url="$GH/themactep/thingino-firmware/releases/download"
-		bin_url="$gh_url/firmware"
-		sha_url="$gh_url/verify/"
-
+		gh_url="$GITHUB_URL/themactep/thingino-firmware"
+		bin_url="$gh_url/releases/latest/download/thingino-$profile.bin"
 		if [ "part" = "$upgrade" ]; then
-			bin_url="${bin_url}_update/thingino-${profile}-update.bin"
-			sha_url="${sha_url}thingino-${profile}-update.bin.sha256sum"
+			offset=327680
+			bin_file="thingino-$profile-update.bin"
+			sha_url="$gh_url/releases/latest/download/$bin_file.sha256sum"
 		else
-			bin_url="${bin_url}/thingino-${profile}.bin"
-			sha_url="${sha_url}thingino-${profile}.bin.sha256sum"
+			offset=0
+			bin_file="thingino-$profile.bin"
+			sha_url="$gh_url/releases/latest/download/$bin_file.sha256sum"
 		fi
-		bin_file=$(basename $bin_url)
+
 		sha_file=$(basename $sha_url)
 
-		check_free_space $bin_url
+		check_free_space $bin_url $offset
 
-		say "Download firmware and checksum\n- $bin_url\n- $sha_url"
-		echo "curl -LO# $bin_url"
-		curl -fL# -O $bin_url -O $sha_url || die "Download failed!"
+		#\n- $bin_url\n- $sha_url"
+		say "Downloading firmware from:\n$bin_url"
+		download "$bin_url" "$bin_file" "-C $offset" || die "Cannot download firmware from specified URL."
+		say "Downloading checksum from:\n$sha_url"
+		download "$sha_url" "$sha_file" || die "Cannot download checksum file."
 
+		say "Verifying downloaded file"
 		sha256sum -c $sha_file || die "Checksum does not match!"
 
 		rm $sha_file
-		mv $bin_file $fw_file
+		mv -v "$bin_file" "$fw_file" || die "Cannot move $bin_file to $fw_file"
 	fi
 }
 
@@ -119,6 +127,10 @@ flush_memory() {
 	sync
 	say "Drop caches"
 	echo 3 > /proc/sys/vm/drop_caches
+}
+
+red() {
+	echo -e "\e[38;5;160m$1\e[0m"
 }
 
 remove_snapshot() {
@@ -131,20 +143,22 @@ say() {
 }
 
 show_help() {
-	die "Usage: $0 [ -f | -p | <filename> | <URL> ]
+	say "Usage: $0 [-x] [-f|-p|<file>|<URL>]
 Where:
-  -f          full upgrade with a binary from GitHub
-  -p          partial upgrade with a binary from GitHub
-  <filename>  full or partial upgrade from a local file
-  <URL>       full or partial upgrade from a URL
-  -h          this help"
+  -f      full upgrade with a binary from GitHub
+  -p      partial upgrade with a binary from GitHub
+  <file>  full or partial upgrade from a local file
+  <URL>   full or partial upgrade from a URL
+  -x      do not update the script
+  -h      this help"
+	exit 0
 }
 
 stop_services() {
 	say "Stop services"
 	for i in $(find /etc/init.d/ -name "[KS]*" -executable | sort -nr); do
 		case "$(basename $i)" in
-			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S50dropbear)
+			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S42wifiap | S42wireguard | S50dropbear)
 				continue
 				;;
 			*)
@@ -154,40 +168,81 @@ stop_services() {
 	done
 }
 
-while getopts "fhp" flag; do
+update_self() {
+	local GH_DL_URL="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/overlay/lower/usr/sbin/"
+	download "$GH_DL_URL$stage1app" "$workdir/$stage1app"
+	chmod +x $workdir/$stage1app
+	download "$GH_DL_URL$stage2app" "/sbin/$stage2app"
+	chmod +x /sbin/$stage2app
+}
+
+# mandate virtual partitions
+grep -q "mtd[56]" /proc/mtd || die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
+
+ORIGINAL_ARG="$@"
+while getopts "bfhpx" flag; do
 	case "$flag" in
 		f)
-			say "Full upgrade from GitHub"
 			upgrade="full"
-			url="$GH"
+			url="$GITHUB_URL"
 			;;
 		p)
-			say "Partial upgrade from GitHub"
 			upgrade="part"
-			url="$GH"
+			url="$GITHUB_URL"
+			;;
+		x)
+			selfupdate="false"
 			;;
 		h | *)
 			show_help
 			;;
 	esac
 done
+shift "$((OPTIND - 1))"
+
+# work in $workdir
+if [ ! -d $workdir ]; then
+	say "Creating $workdir directory"
+	mkdir -p $workdir || die "Cannot create $workdir directory"
+fi
 
 if [ -z "$upgrade" ]; then
 	[ -z "$1" ] && show_help
 
 	upgrade="local"
 	if echo "$1" | grep -qE '^https?://'; then
-		echo "Upgrade from a remote file"
+		say "Upgrade from a remote file"
 		url="$1"
 	else
-		echo "Upgrade from a local file"
-		[ -r "$1" ] || die "Cannot find file $1"
+		say "Upgrade from a local file $fw_file"
+		if [ -f "$fw_file" ]; then
+			say "Found $fw_file"
+		else
+			ufile="$(realpath "$1")"
+			[ -r "$ufile" ] || die "Cannot find file $ufile (from $(pwd))"
+			say "Found $ufile"
+			mv -v "$ufile" "$fw_file"
+		fi
 	fi
+fi
+
+cd $workdir || die "Cannot change directory to $workdir"
+
+if [ "$(dirname $self)" != "$workdir" ]; then
+	if [ "true" = "$selfupdate" ]; then
+		say "Updating self"
+		update_self
+	else
+		say "Skip self-update"
+		cp $0 $workdir/$stage1app
+	fi
+	say "Re-running script from $workdir"
+	exec $workdir/$stage1app $ORIGINAL_ARG
 fi
 
 if [ "full" = "$upgrade" ]; then
 	clear
-	echo_c 160 "
+	red "
 $PAD ____ _____ ___  ____
 $PAD/ ___|_   _/ _ \|  _ \\
 $PAD\___ \ | || | | | |_) |
@@ -198,8 +253,8 @@ $PAD|____/ |_| \___/|_|
 	say "\twhich is a risky operation replacing the existing bootloader.\n"
 	say "\tIn the event of an error, the camera will become inoperable,"
 	say "\tand you will need to perform a recovery restore the system.\n"
-	echo_c 160 "\tYou have ten seconds to cancel the upgrade by pressing Ctrl-C."
-	echo_c 160 "\tIf you would like to continue now, press Enter."
+	red "\tYou have ten seconds to cancel the upgrade by pressing Ctrl-C."
+	red "\tIf you would like to continue now, press Enter."
 	echo -en "\n\n\t    "
 
 	trap bye 2 15
@@ -239,9 +294,9 @@ clone_app /bin/busybox
 clone_app /sbin/$stage2app
 for a in $bbapplets; do expand_bb $a; done
 
-echo_c 208 "Switching to Stage 2.\n"
+say "Switching to Stage 2.\n"
 if ! PATH="/tmp/sysupgrade" exec $workdir/busybox sh $workdir/$stage2app "$fw_file" "$mtd_dev"; then
-	say "Error: Failed to execute $workdir/$stage2app"
+	red "Error: Failed to execute $workdir/$stage2app"
 	cleanup
 fi
 

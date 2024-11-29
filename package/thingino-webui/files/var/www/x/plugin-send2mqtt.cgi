@@ -2,30 +2,25 @@
 <%in _common.cgi %>
 <%
 plugin="mqtt"
-plugin_name="MQTT client"
-page_title="MQTT client"
+plugin_name="Send to MQTT"
+page_title="Send to MQTT"
 params="enabled host port client_id username password topic message send_snap snap_topic use_ssl"
 
 [ -f /usr/bin/mosquitto_pub ] || redirect_to "/" "danger" "MQTT client is not a part of your firmware."
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	# parse values from parameters
-	for p in $params; do
-		eval ${plugin}_$p=\$POST_${plugin}_$p
-		sanitize "${plugin}_$p"
-	done; unset p
+	read_from_post "$plugin" "$params"
 
-	# validate
 	if [ "true" = "$mqtt_enabled" ]; then
-		[ -z "$mqtt_host" ] && set_error_flag "MQTT broker host cannot be empty."
-		[ -z "$mqtt_port" ] && set_error_flag "MQTT port cannot be empty."
-		# [ -z "$mqtt_username" ] && set_error_flag "MQTT username cannot be empty."
-		# [ -z "$mqtt_password" ] && set_error_flag "MQTT password cannot be empty."
-		[ -z "$mqtt_topic" ] && alert_append "danger" "MQTT topic cannot be empty."
-		[ -z "$mqtt_message" ] && alert_append "danger" "MQTT message cannot be empty."
+		error_if_empty "$mqtt_host" "MQTT broker host cannot be empty."
+		error_if_empty "$mqtt_port" "MQTT port cannot be empty."
+		# error_if_empty "$mqtt_username" "MQTT username cannot be empty."
+		# error_if_empty "$mqtt_password" "MQTT password cannot be empty."
+		error_if_empty "$mqtt_topic" "MQTT topic cannot be empty."
+		error_if_empty "$mqtt_message" "MQTT message cannot be empty."
 	fi
 
 	if [ "${mqtt_topic:0:1}" = "/" ] || [ "${mqtt_snap_topic:0:1}" = "/" ]; then
@@ -57,45 +52,47 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	redirect_to $SCRIPT_NAME
 else
-	include $config_file
-
 	# Default values
-	[ -z "$mqtt_client_id" ] && mqtt_client_id="${network_macaddr//:/}"
-	[ -z "$mqtt_port" ] && mqtt_port="1883"
-	[ -z "$mqtt_topic" ] && mqtt_topic="thingino/$mqtt_client_id"
-	[ -z "$mqtt_message" ] && mqtt_message=""
+	default_for mqtt_client_id "${network_macaddr//:/}"
+	default_for mqtt_port "1883"
+	default_for mqtt_topic "thingino/$mqtt_client_id"
+	default_for mqtt_message ""
 fi
 %>
 <%in _header.cgi %>
 
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_switch "mqtt_enabled" "Enable MQTT client" %>
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
 <div class="col">
-<% field_text "mqtt_host" "MQTT broker host" %>
-<% field_switch "mqtt_use_ssl" "Use SSL" %>
-<% field_text "mqtt_port" "MQTT broker port" %>
 <% field_text "mqtt_client_id" "MQTT client ID" %>
+<div class="row g-1">
+<div class="col-10"><% field_text "mqtt_host" "MQTT broker FQDN or IP address" %></div>
+<div class="col-2"><% field_text "mqtt_port" "Port" %></div>
+</div>
 <% field_text "mqtt_username" "MQTT broker username" %>
 <% field_password "mqtt_password" "MQTT broker password" %>
+<% field_switch "mqtt_use_ssl" "Use SSL" %>
+<% field_switch "mqtt_socks5_enabled" "Use SOCKS5" "$STR_CONFIGURE_SOCKS" %>
 </div>
 <div class="col">
 <% field_text "mqtt_topic" "MQTT topic" %>
 <% field_textarea "mqtt_message" "MQTT message" "$STR_SUPPORTS_STRFTIME" %>
 <% field_switch "mqtt_send_snap" "Send a snapshot" %>
 <% field_text "mqtt_snap_topic" "MQTT topic to send the snapshot to" %>
-<% field_switch "mqtt_socks5_enabled" "Use SOCKS5" "$STR_CONFIGURE_SOCKS" %>
-</div>
-<div class="col">
-<% ex "cat $config_file" %>
 </div>
 </div>
 <% button_submit %>
 </form>
 
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
+<% ex "cat $config_file" %>
+</div>
+
 <script>
 $('#mqtt_message').style.height = '7rem';
-$('#mqtt_use_ssl').onchange = (ev) => {
+$('#mqtt_use_ssl').addEventListener('change', ev => {
 	const el=$('#mqtt_port');
 	if (ev.target.checked) {
 		if (el.value === '1883') el.value='8883';

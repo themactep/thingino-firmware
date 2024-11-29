@@ -1,0 +1,23 @@
+disable_eth=true
+enable_updates=true
+gpio_button=7
+gpio_button_call=47
+gpio_default=25ID 26IDU 51o 53o 53O 54o
+gpio_ir940=14
+gpio_ircut=59 60
+gpio_led_b=51O
+gpio_led_g=54O
+gpio_mmc_cd=61
+gpio_motor_limit_h_1=6
+gpio_motor_limit_h_2=48
+gpio_motor_switch=62
+gpio_motor_h=49 50 57 58
+gpio_speaker=63
+gpio_wlan=53O
+motor_maxstep_h=6300
+motor_maxstep_v=2500
+motor_speed=700
+osmem=80M@0x0
+rmem=48M@0x5000000
+wlandev=atbm6031
+wlandevopts=atbm_printk_mask=0

@@ -1,4 +1,4 @@
-THINGINO_OPUS_VERSION = 1.4
+THINGINO_OPUS_VERSION = 1.5.2
 THINGINO_OPUS_SOURCE = opus-$(THINGINO_OPUS_VERSION).tar.gz
 THINGINO_OPUS_SITE = https://downloads.xiph.org/releases/opus
 THINGINO_OPUS_LICENSE = BSD-3-Clause
@@ -16,10 +16,6 @@ THINGINO_OPUS_CFLAGS += -O0
 endif
 
 THINGINO_OPUS_CONF_ENV = CFLAGS="$(THINGINO_OPUS_CFLAGS)" LDFLAGS="$(THINGINO_OPUS_LDFLAGS)"
-THINGINO_OPUS_CONF_OPTS = --enable-custom-mode --disable-extra-programs
-
-ifeq ($(BR2_OPTIMIZE_FAST),y)
-THINGINO_OPUS_CONF_OPTS += --enable-float-approx
-endif
+THINGINO_OPUS_CONF_OPTS = --enable-custom-modes --enable-float-approx --disable-extra-programs
 
 $(eval $(autotools-package))

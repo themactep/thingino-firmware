@@ -7,22 +7,23 @@ page_title="Send to FTP"
 params="enabled host user password path port socks5_enabled template"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
+
+defaults() {
+	default_for "ftp_port" 21
+	default_for "ftp_template" "${network_hostname}-%Y%m%d-%H%M%S.jpg"
+	[ -z "$ftp_user" ] && ftp_user="anonymous" && ftp_password="anonymous"
+}
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	# parse values from parameters
-	for p in $params; do
-		eval ${plugin}_$p=\$POST_${plugin}_$p
-		sanitize "${plugin}_$p"
-	done; unset p
+	read_from_post "$plugin" "$params"
 
-	# validate
 	if [ "true" = "$ftp_enabled" ]; then
-		[ "true" = "$ftp_send2ftp" ] && [ -z "$ftp_ftphost" ] && set_error_flag "FTP address cannot be empty."
-		[ "true" = "$ftp_send2tftp" ] && [ -z "$ftp_tftphost" ] && set_error_flag "TFTP address cannot be empty."
-		[ "true" = "$ftp_save4web" ] && [ -z "$ftp_localpath" ] && set_error_flag "Local path cannot be empty."
+		[ "true" = "$ftp_send2ftp"  ] && error_if_empty "$ftp_ftphost" "FTP address cannot be empty."
+		[ "true" = "$ftp_send2tftp" ] && error_if_empty "$ftp_tftphost" "TFTP address cannot be empty."
+		[ "true" = "$ftp_save4web"  ] && error_if_empty "$ftp_localpath" "Local path cannot be empty."
 	fi
-	[ -z "$ftp_template" ] && ftp_template="${network_hostname}-%Y%m%d-%H%M%S.jpg"
+	defaults
 
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
@@ -37,35 +38,34 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	redirect_to $SCRIPT_NAME
 else
-	include $config_file
-
-	# Default values
-	[ -z "$ftp_port" ] && ftp_port="21"
-	[ -z "$ftp_user" ] && ftp_user="anonymous" && ftp_password="anonymous"
-	[ -z "$ftp_template" ] && ftp_template="${network_hostname}-%Y%m%d-%H%M%S.jpg"
+	defaults
 fi
 %>
 <%in _header.cgi %>
 
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_switch "ftp_enabled" "Enable sending to FTP server" %>
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
 <div class="col">
-<% field_text "ftp_host" "FTP host" %>
-<% field_text "ftp_port" "FTP port" %>
-<% field_text "ftp_user" "FTP user" %>
-<% field_password "ftp_password" "FTP password" %>
+<div class="row g-1">
+<div class="col-10"><% field_text "ftp_host" "FTP server FQDN or IP address" %></div>
+<div class="col-2"><% field_text "ftp_port" "Port" %></div>
 </div>
-<div class="col">
-<% field_text "ftp_path" "FTP path" "relative to FTP root directory" %>
-<% field_text "ftp_template" "Filename template" "$STR_SUPPORTS_STRFTIME" %>
+<% field_text "ftp_user" " FTP username" %>
+<% field_password "ftp_password" "FTP password" %>
 <% field_switch "ftp_socks5_enabled" "Use SOCKS5" "$STR_CONFIGURE_SOCKS" %>
 </div>
 <div class="col">
-<% ex "cat $config_file" %>
+<% field_text "ftp_path" "Path on FTP server" "relative to FTP root directory" %>
+<% field_text "ftp_template" "Filename template" "$STR_SUPPORTS_STRFTIME" %>
 </div>
 </div>
 <% button_submit %>
 </form>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
+<% ex "cat $config_file" %>
+</div>
 
 <%in _footer.cgi %>

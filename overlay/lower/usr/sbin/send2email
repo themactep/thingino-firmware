@@ -10,6 +10,7 @@ show_help() {
   -t address  Recipient's email address
   -s subject  Subject line.
   -b body     Letter body.
+  -k          Ignore SSL certificate validity.
   -v          Verbose output.
   -h          Show this help.
 "
@@ -17,10 +18,11 @@ show_help() {
 }
 
 # override config values with command line arguments
-while getopts b:f:s:t:vh flag; do
+while getopts b:f:ks:t:vh flag; do
 	case "$flag" in
 		b) email_body=$OPTARG ;;
 		f) email_from_address=$OPTARG ;;
+		k) email_insecure_ssl="true" ;;
 		s) email_subject=$OPTARG ;;
 		t) email_to_address=$OPTARG ;;
 		v) verbose="true" ;;
@@ -42,14 +44,14 @@ done
 
 # TODO: email address format validation
 
-build_cmd "$CURL"
-build_cmd "--mail-from $email_from_address"
-build_cmd "--mail-rcpt $email_to_address"
+build_cmd "$CURL --mail-from $email_from_address --mail-rcpt $email_to_address"
+[ "true" = "$verbose" ] && build_cmd "--verbose"
 
 [ -n "$email_smtp_username" ] && [ -n "$email_smtp_password" ] && \
 	build_cmd "--user '$email_smtp_username:$email_smtp_password'"
 if [ "true" = "$email_smtp_use_ssl" ]; then
 	build_cmd "--url smtps://$email_smtp_host:$email_smtp_port --ssl"
+	[ "true" = "$email_insecure_ssl" ] && build_cmd "--insecure"
 else
 	build_cmd "--url smtp://$email_smtp_host:$email_smtp_port"
 fi
@@ -82,7 +84,6 @@ fi
 log_and_run "$command"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
-[ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 [ -f "$email_file" ] && rm -f $email_file
 

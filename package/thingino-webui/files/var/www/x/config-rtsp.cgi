@@ -9,9 +9,9 @@ onvif_discovery=/etc/init.d/S96onvif_discovery
 onvif_notify=/etc/init.d/S97onvif_notify
 
 rtsp_username=$(awk -F: '/Streaming Service/{print $1}' /etc/passwd)
-[ -z "$rtsp_username" ] && rtsp_username=$(awk -F'"' '/username/{print $2}' $prudynt_config)
-[ -z "$rtsp_password" ] && rtsp_password=$(awk -F'"' '/password/{print $2}' $prudynt_config)
-[ -z "$rtsp_password" ] && rtsp_password="thingino"
+default_for rtsp_username "$(awk -F'"' '/username/{print $2}' $prudynt_config)"
+default_for rtsp_password "$(awk -F'"' '/password/{print $2}' $prudynt_config)"
+default_for rtsp_password "thingino"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	rtsp_password=$POST_rtsp_password
@@ -40,6 +40,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			echo "$onvif_notify not found" >> /tmp/webui.log
 		fi
 
+		/etc/init.d/S95prudynt restart >/dev/null
 		update_caminfo
 		redirect_to $SCRIPT_NAME
 	fi
@@ -47,26 +48,34 @@ fi
 %>
 <%in _header.cgi %>
 
-<div class="row row-cols-1 row-cols-lg-3 g-4 mb-4">
-<div class="col">
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+<div class="row">
+<div class="col-lg-4">
 <% field_text "rtsp_username" "RTSP/ONVIF Username" %>
 <% field_password "rtsp_password" "RTSP/ONVIF Password" %>
 <% button_submit %>
+</div>
+<div class="col-lg-8">
+<div class="alert alert-info">
+<dl class="mb-0">
+<dt>ONVIF URL</dt>
+<dd class="cb">onvif://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>/onvif/device_service</dd>
+<dt>RTSP Mainstream URL</dt>
+<dd class="cb">rtsp://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>/<%= $rtsp_endpoint_ch0 %></dd>
+<dt>RTSP Substream URL</dt>
+<dd class="cb">rtsp://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>/<%= $rtsp_endpoint_ch1 %></dd>
+</dl>
+</div>
+</div>
+</div>
 </form>
-</div>
-<div class="col">
-</div>
-<div class="col">
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
 <% ex "grep ^thingino /etc/shadow" %>
 <% ex "grep ^password $onvif_config" %>
 <% ex "grep password $prudynt_config | sed -E 's/^\s+//'" %>
 </div>
-</div>
-
-<pre class="mt-4">
-onvif://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>/onvif/device_service
-</pre>
 
 <script>
 $('#rtsp_username').readOnly = true;

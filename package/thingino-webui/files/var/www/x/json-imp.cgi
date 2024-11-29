@@ -26,104 +26,41 @@ urldecode() {
 	echo -e "${i//%/\\x}"
 }
 
-# parse parameters from query string
 [ -n "$QUERY_STRING" ] && eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
 
-# quit if no command sent
 [ -z "$cmd" ] && bad_request "missing required parameter cmd"
 
 val="$(urldecode "$val")"
 
-# check lower limit
-case "$cmd" in
-	aivol | aovol)
-		[ "$val" -lt -30 ] && unknown_value
-		;;
-	ains)
-		[ "$val" -lt -1 ] && unknown_value
-		;;
-	aecomp | aialc | aigain | aogain | brightness | contrast | defogstrength | dpc | drc | flicker | flip | hilight | hue | ispmode | saturation | setosdalpha | sharpness | sinter | temper)
-		[ "$val" -lt -0 ] && unknown_value
-		;;
-	*) ;;
-esac
-
-# check upper limit
-case "$cmd" in
-	ispmode)
-		[ "$val" -gt 1 ] && unknown_value
-		;;
-	flicker)
-		[ "$val" -gt 2 ] && unknown_value
-		;;
-	ains | flip)
-		[ "$val" -gt 3 ] && unknown_value
-		;;
-	aialc)
-		[ "$val" -gt 7 ] && unknown_value
-		;;
-	hilight)
-		[ "$val" -gt 10 ] && unknown_value
-		;;
-	aigain | aogain)
-		[ "$val" -gt 31 ] && unknown_value
-		;;
-	aivol | aovol)
-		[ "$val" -gt 120 ] && unknown_value
-		;;
-	aecomp | brightness | contrast | defogstrength | dpc | drc | hue | saturation | setosdalpha | sharpness | sinter | temper)
-		[ "$val" -gt 255 ] && unknown_value
-		;;
-	*) ;;
-
-esac
-
-# check non-numeric values
-case "$cmd" in
-	aihpf | aiaec | aiagc)
-		case "$val" in
-			on | off)
-				we_are_good
-				;;
-			*)
-				unknown_value
-				;;
-		esac
-		;;
-	*) ;;
-esac
-
 case "$cmd" in
 	daynight)
-		[ "$val" -eq 1 ] && val="night" || val="day"
 		daynight $val
-		payload="{\"mode\":\"$(daynight status)\"}"
 		;;
 	ir850 | ir940 | white)
 		irled ${val:-read} $cmd
-		payload="{\"command\":\"$command\",\"result\":\"$(irled status $cmd)\"}"
 		;;
 	ircut)
 		ircut $val
-		payload="{\"ircut\":\"$val\"}"
-		;;
-	setosd)
-		handle=`echo "$val" | cut -d" " -f1`
-		# save to temp config
-		sed -i "/^$cmd $handle/d" /tmp/imp.conf
-		echo "$cmd $val" >> /tmp/imp.conf
-		command="imp-control $cmd $val"
-		result=$($command)
-		payload="{\"command\":\"$command\",\"result\":\"$result\"}"
-		;;
-	*)
-		# save to temp config
-		sed -i "/^$cmd/d" /tmp/imp.conf
-		echo "$cmd $val" >> /tmp/imp.conf
-		command="imp-control $cmd $val"
-		result=$($command)
-		payload="{\"command\":\"$command\",\"result\":\"$result\"}"
 		;;
 esac
+
+payload="{\"time\":\"$(date +%s)\""
+
+daynight=$(daynight read)
+[ -z "$daynight" ] || payload="$payload,\"daynight\":\"$daynight\""
+
+ir850=$(irled read ir850)
+[ -z "$ir850" ] || payload="$payload,\"ir850\":$ir850"
+
+ir940=$(irled read ir940)
+[ -z "$ir940" ] || payload="$payload,\"ir940\":$ir940"
+
+ircut=$(ircut read)
+[ -z "$ircut" ] || payload="$payload,\"ircut\":$ircut"
+
+color=$(color read)
+[ -z "$color" ] || payload="$payload,\"color\":$color"
+
+payload="$payload}"
 
 json_ok "$payload"

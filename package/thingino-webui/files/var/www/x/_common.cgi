@@ -2,31 +2,45 @@
 <%
 IFS_ORIG=$IFS
 
-STR_CONFIGURE_SOCKS5='<a href="config-socks5.cgi">Configure SOCKS5</a>'
-STR_NOT_SUPPORTED='not supported on this system'
-STR_SUPPORTS_STRFTIME='Supports <a href="https://man7.org/linux/man-pages/man3/strftime.3.html" target="_blank">strftime</a> format.'
+STR_CONFIGURE_SOCKS5="<a href=\"config-socks5.cgi\">Configure SOCKS5</a>"
+STR_EIGHT_OR_MORE_CHARS=" pattern=\".{8,}\" title=\"8 characters or longer\""
+STR_NOT_SUPPORTED="not supported on this system"
+STR_PASSWORD_TO_PSK="Plain-text password will be automatically converted to a PSK upon submission"
+STR_SUPPORTS_STRFTIME="Supports <a href=\"https://strftime.net/\" target=\"_blank\">strftime</a> format."
 
-pagename=$(basename "$SCRIPT_NAME")
+pagename=$(basename $SCRIPT_NAME)
 pagename="${pagename%%.*}"
 
-assets_ts=$(( $(date +%s) >> 16 ))
-
+# files
 ui_config_dir=/etc/webui
 ui_tmp_dir=/tmp/webui
 alert_file=$ui_tmp_dir/alert.txt
 signature_file=$ui_tmp_dir/signature.txt
 sysinfo_file=/tmp/sysinfo.txt
 webui_log=/tmp/webui.log
+
+# read from files
 ws_token="$(cat /run/prudynt_websocket_token)"
 
 ensure_dir() {
 	[ -d "$1" ] && return
-	echo "Directory $1 does not exist. Creating" >> "$webui_log"
+	echo "Directory $1 does not exist. Creating" >> $webui_log
 	mkdir -p "$1"
 }
 
 ensure_dir $ui_tmp_dir
 ensure_dir $ui_config_dir
+
+# name, text
+error_if_empty() {
+	[ -z "$1" ] && set_error_flag "$2"
+}
+
+# name, value
+default_for() {
+	[ -z "$(eval echo \$$1)" ] || return
+	eval $1=\$2
+}
 
 alert_append() {
 	echo "$1:$2" >> "$alert_file"
@@ -42,15 +56,15 @@ alert_read() {
 	local c
 	local m
 	local l
-	OIFS="$IFS"
 	IFS=$'\n'
 	for l in $(cat "$alert_file"); do
 		c="$(echo $l | cut -d':' -f1)"
 		m="$(echo $l | cut -d':' -f2-)"
-		echo "<div class=\"alert alert-$c alert-dismissible fade show\" role=\"alert\">$m" \
-		'<button type="button" class="btn btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>'
+		echo "<div class=\"alert alert-$c alert-dismissible fade show\" role=\"alert\">$m
+		<button type=\"button\" class=\"btn btn-close\" data-bs-dismiss=\"alert\" aria-label=\"Close\"></button>
+		</div>"
 	done
-	IFS=$OIFS
+	IFS=$IFS_ORIG
 	alert_delete
 }
 
@@ -80,34 +94,22 @@ button_download() {
 	echo "<a href=\"dl2.cgi?log=$1\" class=\"btn btn-primary\">Download log</a>"
 }
 
-button_reboot() {
-	echo '<form action="reboot.cgi" method="post"><input type="hidden" name="action" value="reboot">'
-	button_submit "Reboot camera" "danger"
-	echo '</form>'
-}
-
 button_refresh() {
 	echo "<a href=\"$REQUEST_URI\" class=\"btn btn-primary refresh\">Refresh</a>"
-}
-
-button_reset_firmware() {
-	echo '<form action="firmware-reset.cgi" method="post"><input type="hidden" name="action" value="reset">'
-	button_submit "Reset firmware" "danger"
-	echo '</form>'
 }
 
 button_restore_from_rom() {
 	local file=$1
 	[ -f "/rom/$file" ] || return
 	if [ -z "$(diff "/rom/$file" "$file")" ]; then
-		echo '<p class="small fst-italic">File matches the version in ROM.</p>'
+		echo "<p class=\"small fst-italic\">File matches the version in ROM.</p>"
 		return
 	fi
 	echo "<p><a class=\"btn btn-danger\" href=\"restore.cgi?f=$file\">Replace $file with its version from ROM</a></p>"
 }
 
 button_send2tb() {
-	echo "<a class=\"btn btn-warning\" href=\"send.cgi?to=termbin&file=$1\" target=\"_blank\">Send to TermBin</a>"
+	echo "<p class=\"mb-4\"><a class=\"text-warning\" href=\"send.cgi?to=termbin&payload=$(echo "$1" | base64)\" target=\"_blank\">Share via TermBin</a></p>"
 }
 
 # button_submit "text" "type" "extras"
@@ -115,15 +117,17 @@ button_submit() {
 	local t="${1:-Save changes}"
 	local c="${2:-primary}"
 	local x="${3:- }"
-	echo "<div class=\"mt-2\"><input type=\"submit\" class=\"btn btn-$c\"$x value=\"$t\"></div>"
+	echo "<div class=\"mt-3\"><input type=\"submit\" class=\"btn btn-$c\"$x value=\"$t\"></div>"
+}
+
+button_sync_time() {
+	local text
+	is_ap && text="Set time from the browser" || text="Synchronize time from NTP server"
+	echo "<button id=\"sync-time\" type=\"button\" class=\"btn btn-secondary mb-3\">$text</button>"
 }
 
 check_file_exist() {
 	[ -f "$1" ] || redirect_back "danger" "File $1 not found"
-}
-
-check_hostname() {
-	[ -z "$hostname" ] && hostname="thingino-"
 }
 
 check_mac_address() {
@@ -144,7 +148,7 @@ checked_if() {
 }
 
 checked_if_not() {
-	[ "$1" != "$2" ] && echo -n " checked"
+	[ "$1" = "$2" ] || echo -n " checked"
 }
 
 selected_if() {
@@ -164,120 +168,172 @@ ex() {
 
 # field_checkbox "name" "label" "hint"
 field_checkbox() {
-	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
-	local h=$3
 	local v=$(t_value "$1")
-	[ -z "$v" ] && v="false"
-	echo '<p class="boolean form-check">' \
-		"<input type=\"hidden\" id=\"$1-false\" name=\"$1\" value=\"false\">" \
-		"<input type=\"checkbox\" name=\"$1\" id=\"$1\" value=\"true\" class=\"form-check-input\"$(checked_if "true" "$v")>" \
-		"<label for=\"$1\" class=\"form-label\">$l</label>"
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary d-block mb-2\">$h</span>"
-	echo '</p>'
+	default_for v "false"
+	echo "<p class=\"boolean form-check\">
+	<input type=\"hidden\" id=\"$1-false\" name=\"$1\" value=\"false\">
+	<input type=\"checkbox\" name=\"$1\" id=\"$1\" value=\"true\" class=\"form-check-input\"$(checked_if "true" "$v")>
+	<label for=\"$1\" class=\"form-label\">$2</label>"
+	[ -n "$3" ] && echo "<span class=\"hint text-secondary d-block mb-2\">$3</span>"
+	echo "</p>"
+}
+
+field_color() {
+	echo "<p id=\"$1_wrap\" class=\"file\">
+	<label for=\"$1\" class=\"form-label\">$2</label>
+	<input type=\"color\" id=\"$1\" name=\"$1\" class=\"form-control input-color\">
+	</p>"
 }
 
 # field_file "name" "label" "hint"
 field_file() {
-	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
-	local h=$3
-	echo "<p id=\"$1_wrap\" class=\"file\">" \
-		"<label for=\"$1\" class=\"form-label\">$l</label>" \
-		"<input type=\"file\" id=\"$1\" name=\"$1\" class=\"form-control\">"
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
+	echo "<p id=\"$1_wrap\" class=\"file\">
+	<label for=\"$1\" class=\"form-label\">$2</label>
+	<input type=\"file\" id=\"$1\" name=\"$1\" class=\"form-control\">"
+	[ -n "$3" ] && echo "<span class=\"hint text-secondary\">$3</span>"
 	echo "</p>"
+}
+
+# field_gpio "name" "label"
+field_gpio() {
+	local name=$1
+
+	local var_pin="${name}_pin"
+	local pin
+	eval pin=\$$var_pin
+	[ -z "$pin" ] && return
+
+	local var_pwm="${name}_pwm"
+	local pwm
+	eval pwm=\$$var_pwm
+
+	[ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
+
+	local active_suffix
+	local is_active_low
+	local pin_off
+	local pin_on
+	active_suffix=${pin:0-1}
+	case "$active_suffix" in
+		o) pin_on=0; pin_off=1; is_active_low=" checked" ;;
+		O) pin_on=1; pin_off=0 ;;
+	esac
+	pin=${pin:0:-1}
+
+	local pin_status
+	local is_active
+	pin_status=$(gpio read $pin)
+	[ "$pin_status" -eq "$pin_on" ] && is_active=" checked"
+
+	local lit_on_boot
+	echo $DEFAULT_PINS | grep -E "\b$pin$active_suffix\b" > /dev/null && lit_on_boot=" checked"
+
+	echo "<div class=\"col\">
+	<div class=\"card h-100 gpio ${name}\">
+	<div class=\"card-header\">$2
+	<div class=\"switch float-end\">
+	<button type=\"button\" class=\"btn btn-sm btn-outline-secondary m-0 led-status\" id=\"${name}_toggle\" $is_active>Test</button>
+	</div>
+	</div>
+	<div class=\"card-body\">
+	<div class=\"row\">
+	<label class=\"form-label col-9\" for=\"${name}_pin\">GPIO pin #</label>
+	<div class=\"col\">
+	<input type=\"text\" class=\"form-control text-end\" id=\"${name}_pin\" name=\"${name}_pin\" pattern=\"[0-9]{1,3}\" title=\"a number\" value=\"$pin\" required>
+	</div>
+	</div>
+"
+
+if [ $(is_pwm_pin "$pin") ]; then
+	echo "<div class=\"row\"><label class=\"form-label col-9\" for=\"${name}_pwn_ch\">GPIO PWM channel</label>
+<div class=\"col\"><input type=\"text\" class=\"form-control text-end\" id=\"${name}_pwm_ch\" name=\"${name}_pwm_ch\"
+ pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pwm\"></div></div><div class=\"row\"><label
+ class=\"form-label col-9\" for=\"${name}_pwm_lvl\">GPIO PWM level</label><div class=\"col\"><input type=\"text\"
+ class=\"form-control text-end\" id=\"${name}_pwm_lvl\" name=\"${name}_pwm_lvl\" pattern=\"[0-9]{1,3}\"
+ title=\"empty or a number\" value=\"$pwm\"></div></div>"
+else
+	echo "<div class=\"text-warning\">NOT A PWM PIN</div>"
+fi
+	echo "<div class=\"row\"><label class=\"form-label col-9\" for=\"${name}_inv\">Active low</label>
+	<div class=\"col\"><input class=\"form-check-input\" type=\"checkbox\" id=\"${name}_inv\" name=\"${name}_inv\"
+	 value=\"true\"$is_active_low$is_disabled></div></div><div class=\"row mb-0\"> <label class=\"form-label col-9\"
+	 for=\"${name}_lit\">Lit on boot</label> <div class=\"col\"> <input class=\"form-check-input\" type=\"checkbox\"
+	 id=\"${name}_lit\" name=\"${name}_lit\" value=\"true\"$lit_on_boot$is_disabled> </div> </div> </div> </div> </div>"
 }
 
 # field_hidden "name" "value"
 field_hidden() {
-	# do we need id here? id=\"${1}\". We do for netip password!
 	echo "<input type=\"hidden\" name=\"$1\" id=\"$1\" value=\"$2\" class=\"form-hidden\">"
 }
 
 # field_number "name" "label" "range" "hint"
 field_number() {
 	local n=$1
-	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local r=$3 # min,max,step,button
 	local mn=$(echo "$r" | cut -d, -f1)
 	local mx=$(echo "$r" | cut -d, -f2)
 	local st=$(echo "$r" | cut -d, -f3)
 	local ab=$(echo "$r" | cut -d, -f4)
-	local h=$4
 	local v=$(t_value "$n")
 	local vr=$v
 	[ -n "$ab" ] && [ "$ab" = "$v" ] && vr=$(((mn + mx) / 2))
-	echo '<p class="number">' \
-		"<label class=\"form-label\" for=\"$n\">$l</label>" \
-		'<span class=\"input-group\">'
+	echo "<div class=\"mb-2 number\">
+	<label class=\"form-label\" for=\"$n\">$2</label>
+	<span class=\"input-group\">"
 	# NB! no name on checkbox, since we don't want its data submitted
-	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"${n}-auto\">$ab" \
-		"<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")>" \
-		"</label>"
-	echo "<input type=\"text\" id=\"$n\" name=\"$n\" class=\"form-control text-end\" value=\"$vr\" pattern=\"[0-9]{1,}\" title=\"numeric value\" data-min=\"$mn\" data-max=\"$mx\" data-step=\"$st\">" \
-		'</span>'
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
-	echo '</p>'
+	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"${n}-auto\">$ab <input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")></label>"
+	echo "<input type=\"text\" id=\"$n\" name=\"$n\" class=\"form-control text-end\" value=\"$vr\" pattern=\"[0-9]{1,}\" title=\"numeric value\" data-min=\"$mn\" data-max=\"$mx\" data-step=\"$st\"></span>"
+	[ -n "$4" ] && echo "<span class=\"hint text-secondary\">$4</span>"
+	echo "</div>"
 }
 
 # field_password "name" "label" "hint"
 field_password() {
-	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
-	local h=$3
 	local v=$(t_value "$1")
-	echo "<p class=\"password\" id=\"${1}_wrap\">" \
-		"<label for=\"$1\" class=\"form-label\">$l</label><span class=\"input-group\">" \
-		"<input type=\"password\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"K3wLHaZk3R!\">" \
-		'<label class="input-group-text">' \
-		"<input type=\"checkbox\" class=\"form-check-input me-1\" data-for=\"$1\"> show" \
-		'</label></span>'
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
-	echo '</p>'
+	echo "<div class=\"mb-2 password\" id=\"$1_wrap\">
+	<label for=\"$1\" class=\"form-label\">$2</label>
+	<span class=\"input-group\">
+	<input type=\"password\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"K3wLHaZk3R!\">
+	<label class=\"input-group-text\"><input type=\"checkbox\" class=\"form-check-input me-1\" data-for=\"$1\"> show</label>
+	</span>"
+	[ -n "$3" ] && echo "<span class=\"hint text-secondary\">$3</span>"
+	echo "</div>"
 }
 
 # field_range "name" "label" "range" "hint"
 field_range() {
 	local n=$1
-	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$n</span>"
 	local r=$3 # min,max,step,button
 	local mn=$(echo "$r" | cut -d, -f1)
 	local mx=$(echo "$r" | cut -d, -f2)
 	local st=$(echo "$r" | cut -d, -f3)
 	local ab=$(echo "$r" | cut -d, -f4)
-	local h=$4
 	local v=$(t_value "$n")
 	local vr=$v
 	[ -z "$vr" -o "$ab" = "$vr" ] && vr=$(((mn + mx) / 2))
-	echo "<p class=\"range\" id=\"${n}_wrap\">" \
-		"<label class=\"form-label\" for=\"$n\">$l</label>" \
-		'<span class="input-group">'
+	echo "<div class=\"mb-2 range\" id=\"${n}_wrap\">
+	<label class=\"form-label\" for=\"$n\">$2</label>
+	<span class=\"input-group\">"
 	# NB! no name on checkbox, since we don't want its data submitted
-	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"${n}-auto\">$ab" \
-		"<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")>" \
-		'</label>'
+	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"$n-auto\">$ab
+	<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")>
+	</label>"
 	echo "<span class=\"input-group-text range-value text-end\" id=\"$n-show\">$v</span>"
 	# Input that holds the submitting value.
-	echo "<input type=\"range\" id=\"$n\" name=\"$n\" value=\"$vr\" min=\"$mn\" max=\"$mx\" step=\"$st\" class=\"form-control form-range\"></span>"
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
-	echo '</p>'
+	echo "<input type=\"range\" id=\"$n\" name=\"$n\" value=\"$vr\" min=\"$mn\" max=\"$mx\" step=\"$st\" class=\"form-control form-range\">
+	</span>"
+	[ -n "$4" ] && echo "<span class=\"hint text-secondary\">$4</span>"
+	echo "</div>"
 }
 
 # field_select "name" "label" "options" "hint" "units"
 field_select() {
-	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local o=$3
 	o=${o//,/ }
-	local h=$4
-	local u=$5
-	echo "<p class=\"select\" id=\"$1_wrap\">" \
-		"<label for=\"$1\" class=\"form-label\">$l</label>" \
-		"<select class=\"form-select\" id=\"$1\" name=\"$1\">"
-	[ -z "$(t_value "$1")" ] && echo '<option value="">- Select -</option>'
+	echo "<div class=\"mb-2 select\" id=\"$1_wrap\">
+	<label for=\"$1\" class=\"form-label\">$2</label>
+	<select class=\"form-select\" id=\"$1\" name=\"$1\">"
+	[ -z "$(t_value "$1")" ] && echo "<option value=\"\">- Select -</option>"
 	for o in $o; do
 		v="${o%:*}"
 		n="${o#*:}"
@@ -287,74 +343,63 @@ field_select() {
 		echo ">$n</option>"
 		unset v; unset n
 	done
-	echo '</select>'
-	[ -n "$u" ] && echo "<span class=\"input-group-text\">$u</span>"
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
-	echo '</p>'
+	echo "</select>"
+	[ -n "$5" ] && echo "<span class=\"input-group-text\">$5</span>"
+	[ -n "$4" ] && echo "<span class=\"hint text-secondary\">$4</span>"
+	echo "</div>"
 }
 
 # field_swith "name" "label" "hint" "options"
 field_switch() {
-	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local v=$(t_value "$1")
-	[ -z "$v" ] && v="false"
-	local h="$3"
+	default_for v "false"
 	local o=$4
-	[ -z "$o" ] && o="true,false"
+	default_for o "true,false"
 	local o1=$(echo "$o" | cut -d, -f1)
 	local o2=$(echo "$o" | cut -d, -f2)
-	echo "<p class=\"boolean\" id=\"$1_wrap\">" \
-		'<span class="form-check form-switch">' \
-		"<input type=\"hidden\" id=\"$1-false\" name=\"$1\" value=\"$o2\">" \
-		"<input type=\"checkbox\" id=\"$1\" name=\"$1\" value=\"$o1\" role=\"switch\" class=\"form-check-input\"$(checked_if "$o1" "$v")>" \
-		"<label for=\"$1\" class=\"form-check-label\">$l</label>" \
-		'</span>'
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
-	echo '</p>'
+	echo "<div class=\"mb-2 boolean\" id=\"$1_wrap\">
+	<span class=\"form-check form-switch\">
+	<input type=\"hidden\" id=\"$1-false\" name=\"$1\" value=\"$o2\">
+	<input type=\"checkbox\" id=\"$1\" name=\"$1\" value=\"$o1\" role=\"switch\" class=\"form-check-input\"$(checked_if "$o1" "$v")>
+	<label for=\"$1\" class=\"form-check-label\">$2</label>
+	</span>"
+	[ -n "$3" ] && echo "<span class=\"hint text-secondary\">$3</span>"
+	echo "</div>"
 }
 
-# field_text "name" "label" "hint" "placeholder"
+# field_text "name" "label" "hint" "placeholder" "extra"
 field_text() {
-	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local v="$(t_value "$1")"
 	local h="$3"
 	local p="$4"
-	echo "<p class=\"string\" id=\"$1_wrap\">" \
-		"<label for=\"$1\" class=\"form-label\">$l</label>" \
-		"<input type=\"text\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"$p\">"
+	echo "<div class=\"mb-2 string\" id=\"$1_wrap\">
+	<label for=\"$1\" class=\"form-label\">$2</label>
+	<input type=\"text\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"$p\"$5>"
 	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
-	echo '</p>'
+	echo "</div>"
 }
 
 # field_textarea "name" "label" "hint"
 field_textarea() {
-	local l=$2
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local v=$(t_value "$1")
-	local h=$3
-	echo "<p class=\"textarea\" id=\"${1}_wrap\">" \
-		"<label for=\"$1\" class=\"form-label\">$l</label>" \
-		"<textarea id=\"$1\" name=\"$1\" class=\"form-control\">$v</textarea>"
-	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
-	echo '</p>'
+	echo "<div class=\"mb-2 textarea\" id=\"$1_wrap\">
+	<label for=\"$1\" class=\"form-label\">$2</label>
+	<textarea id=\"$1\" name=\"$1\" class=\"form-control\">$v</textarea>"
+	[ -n "$3" ] && echo "<span class=\"hint text-secondary\">$3</span>"
+	echo "</div>"
 }
 
 # field_textedit "name" "file" "label"
 field_textedit() {
-	local l=$3
-	[ -z "$l" ] && l="<span class=\"bg-warning\">$1</span>"
 	local v=$(cat "$2")
-	echo "<p class=\"textarea\" id=\"${1}_wrap\">" \
-		"<label for=\"$1\" class=\"form-label\">$l</label>" \
-		"<textarea id=\"$1\" name=\"$1\" class=\"form-control\">$v</textarea>"
-	echo '</p>'
+	echo "<div class=\"mb-2 textarea\" id=\"$1_wrap\">
+	<label for=\"$1\" class=\"form-label\">$3</label>
+	<textarea id=\"$1\" name=\"$1\" class=\"form-control\">$v</textarea>
+	</div>"
 }
+
 html_title() {
-	[ -n "$page_title" ] && echo -n "$page_title"
-	[ -n "$title" ] && echo -n ": $title"
-	echo -n " - $(hostname) - thingino"
+	echo -n "$(hostname) - $page_title - thingino"
 }
 
 html_theme() {
@@ -376,8 +421,24 @@ html_theme() {
 	esac
 }
 
+is_ap() {
+	[ "true" = "$wlanap_enabled" ]
+}
+
+is_pwm_pin() {
+	$(pwm-ctrl -l | awk "/^GPIO $1/{print \$4}" | sed s/PWM//)
+}
+
+is_recording() {
+	pidof openRTSP > /dev/null
+}
+
 link_to() {
 	echo "<a href=\"$2\">$1</a>"
+}
+
+wiki_page() {
+	echo "<p class=\"mb-0\"><a class=\"text-info\" href=\"https://github.com/themactep/thingino-firmware/wiki/$1\">Thingino Wiki</a></p>"
 }
 
 log() {
@@ -393,9 +454,9 @@ menu() {
 			p="$(sed -r -n '/^plugin=/s/plugin="(.*)"/\1/p' $i)"
 
 			# hide unsupported plugins
-			[ "$p" = "mqtt"        ] && [ ! -f /bin/mosquitto_pub ] && continue
-			[ "$p" = "telegrambot" ] && [ ! -f /bin/jsonfilter    ] && continue
-			[ "$p" = "zerotier"    ] && [ ! -f /sbin/zerotier-cli ] && continue
+			[ "$p" = "mqtt" ] && [ ! -f /bin/mosquitto_pub ] && continue
+			[ "$p" = "telegrambot" ] && [ ! -f /bin/jsonfilter ] && continue
+			[ "$p" = "zerotier" ] && [ ! -f /sbin/zerotier-cli ] && continue
 			# get plugin description
 			n="$(sed -r -n '/^plugin_name=/s/plugin_name="(.*)"/\1/p' $i)"
 
@@ -429,17 +490,13 @@ normalize_pin() {
 # pre "text" "classes" "extras"
 pre() {
 	# replace <, >, &, ", and ' with HTML entities
-	echo "<pre class=\"$2\" $3>" \
-		$(echo -e "$1" | sed "s/&/\&amp;/g;s/</\&lt;/g;s/>/\&gt;/g;s/\"/\&quot;/g") \
-		'</pre>'
+	echo "<pre class=\"$2\" $3>$(echo -e "$1" | sed "s/&/\&amp;/g;s/</\&lt;/g;s/>/\&gt;/g;s/\"/\&quot;/g")</pre>"
 }
 
 progressbar() {
 	local c="primary"
 	[ "$1" -ge "75" ] && c="danger"
-	echo "<div class=\"progress\" role=\"progressbar\" aria-valuenow=\"$1\" aria-valuemin=\"0\" aria-valuemax=\"100\">" \
-		"<div class=\"progress-bar progress-bar-striped progress-bar-animated bg-$c\" style=\"width:$1%\"></div>" \
-		'</div>'
+	echo "<div class=\"progress\" role=\"progressbar\" aria-valuenow=\"$1\" aria-valuemin=\"0\" aria-valuemax=\"100\"><div class=\"progress-bar progress-bar-striped progress-bar-animated bg-$c\" style=\"width:$1%\"></div></div>"
 }
 
 # redirect_back "flash class" "flash text"
@@ -463,8 +520,7 @@ Location: $1
 }
 
 report_error() {
-	echo '<h4 class="text-danger">Oops. Something happened.</h4>'
-	echo "<div class=\"alert alert-danger\">$1</div>"
+	echo "<h4 class=\"text-danger\">Oops. Something happened.</h4><div class=\"alert alert-danger\">$1</div>"
 }
 
 # report_log "text" "extras"
@@ -473,9 +529,9 @@ report_log() {
 }
 
 report_command_error() {
-	echo '<h4 class="text-danger">Oops. Something happened.</h4><div class="alert alert-danger">'
+	echo "<h4 class=\"text-danger\">Oops. Something happened.</h4><div class=\"alert alert-danger\">"
 	report_command_info "$1" "$2"
-	echo '</div>'
+	echo "</div>"
 }
 
 report_command_info() {
@@ -499,13 +555,20 @@ sanitize4web() {
 	eval $n=$(echo \${$n//\$/\\\$})
 }
 
+save2env() {
+	local tmpfile=$(mktemp -u)
+	echo -e "$*" >> $tmpfile
+	fw_setenv -s $tmpfile
+	rm $tmpfile
+}
+
 set_error_flag() {
 	alert_append "danger" "$1"
 	error=1
 }
 
 generate_signature() {
-	echo "$soc, $sensor, $flash_size_mb MB, $network_hostname, $network_macaddr" >$signature_file
+	echo "$soc_model, $sensor_model, $flash_size_mb MB, $network_hostname, $network_macaddr" >$signature_file
 }
 
 signature() {
@@ -517,8 +580,7 @@ tab_lap() {
 	local c=""
 	local s="false"
 	[ -n "$3" ] && s="true" && c=" active"
-	echo "<li class=\"nav-item\" role=\"presentation\"><button role=\"tab\" id=\"#$1-tab\" class=\"nav-link$c\" data-bs-toggle=\"tab\" data-bs-target=\"#$1-tab-pane\"
-	 aria-controls=\"$1-tab-pane\" aria-selected=\"$s\">$2</button></li>"
+	echo "<li class=\"nav-item\" role=\"presentation\"><button role=\"tab\" id=\"#$1-tab\" class=\"nav-link$c\" data-bs-toggle=\"tab\" data-bs-target=\"#$1-tab-pane\" aria-controls=\"$1-tab-pane\" aria-selected=\"$s\">$2</button></li>"
 }
 
 t_value() {
@@ -526,9 +588,6 @@ t_value() {
 }
 
 update_caminfo() {
-	debug=$(get debug)
-	[ -z "$debug" ] && debug=0
-
 	local tmpfile="$ui_tmp_dir/sysinfo.tmp"
 	:>$tmpfile
 	# add all web-related config files
@@ -549,13 +608,16 @@ update_caminfo() {
 	fi
 	flash_size_mb=$((flash_size / 1024 / 1024))
 
-	sensor=$(cat /etc/sensor/model)
-	soc=$(/usr/sbin/soc -m)
-	soc_family=$(/usr/sbin/soc -f)
+	sensor_fps_max=$(sensor max_fps)
+	sensor_fps_min=$(sensor min_fps)
+	sensor_model=$(sensor name)
+
+	soc_family=$(soc -f)
+	soc_model=$(soc -m)
 
 	# Firmware
 	uboot_version=$(get ver)
-	[ -z "$uboot_version" ] && uboot_version=$(strings /dev/mtdblock0 | grep '^U-Boot \d' | head -1)
+	default_for uboot_version $(strings /dev/mtdblock0 | grep '^U-Boot \d' | head -1)
 	fw_version=$(grep "^VERSION" /etc/os-release | cut -d= -f2 | tr -d /\"/)
 	fw_build=$(grep "^GITHUB_VERSION" /etc/os-release | cut -d= -f2 | tr -d /\"/)
 
@@ -565,20 +627,20 @@ update_caminfo() {
 	# Network
 	network_dhcp="false"
 	if [ -f /etc/resolv.conf ]; then
-		network_dns_1=$(cat /etc/resolv.conf | grep nameserver | sed -n 1p | cut -d' ' -f2)
-		network_dns_2=$(cat /etc/resolv.conf | grep nameserver | sed -n 2p | cut -d' ' -f2)
+		network_dns_1=$(grep nameserver /etc/resolv.conf | sed -n 1p | cut -d' ' -f2)
+		network_dns_2=$(grep nameserver /etc/resolv.conf | sed -n 2p | cut -d' ' -f2)
 	fi
 	network_hostname=$(hostname -s)
-	network_interfaces=$(/sbin/ifconfig | grep '^\w' | awk {'print $1'} | tr '\n' ' ' | sed 's/ $//' | sed -E 's/\blo\b\s?//')
+	network_interfaces=$(ifconfig | awk '/^[^( |lo)]/{print $1}')
 
 	# if no default interface then no gateway nor wan mac present
-	network_default_interface=$(ip r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)
+	network_default_interface="$(ip r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)"
 	if [ -n "$network_default_interface" ]; then
-		[ "$(cat /etc/network/interfaces.d/$network_default_interface | grep inet | grep dhcp)" ] && network_dhcp="true"
+		grep -q 'inet\|dhcp' /etc/network/interfaces.d/$network_default_interface && network_dhcp="true"
 		network_gateway=$(ip r | sed -nE "/default/s/.+ via ([0-9\.]+).+?/\1/p")
 	else
 		network_default_interface=$(ip r | sed -nE 's/.+dev (\w+).+?/\1/p' | head -n 1)
-		network_gateway='' # $(get gatewayip) # FIXME: Why do we need this?
+		network_gateway="" # $(get gatewayip) # FIXME: Why do we need this?
 	fi
 	network_macaddr=$(cat /sys/class/net/$network_default_interface/address)
 	network_address=$(ip r | sed -nE "/$network_default_interface/s/.+src ([0-9\.]+).+?/\1/p" | uniq)
@@ -595,10 +657,12 @@ update_caminfo() {
 		tz_name="Etc/GMT"; echo "$tz_name" >/etc/timezone
 	fi
 
-	local variables="flash_size flash_size_mb flash_type fw_version fw_build
-network_address network_cidr network_default_interface network_dhcp network_dns_1
-network_dns_2 network_gateway network_hostname network_interfaces network_macaddr network_netmask
-overlay_root soc soc_family sensor tz_data tz_name uboot_version ui_password"
+	# prudynt values
+	rtsp_endpoint_ch0=$(prudyntcfg get stream0.rtsp_endpoint | tr -d '"')
+	rtsp_endpoint_ch1=$(prudyntcfg get stream1.rtsp_endpoint | tr -d '"')
+
+	# create a sourceable file
+	local variables="flash_size flash_size_mb flash_type fw_version fw_build network_address network_cidr network_default_interface network_dhcp network_dns_1 network_dns_2 network_gateway network_hostname network_interfaces network_macaddr network_netmask overlay_root rtsp_endpoint_ch0 rtsp_endpoint_ch1 soc_family soc_model sensor_fps_max sensor_fps_min sensor_model tz_data tz_name uboot_version ui_password"
 	local v
 	for v in $variables; do
 		eval "echo $v=\'\$$v\'>>$tmpfile"
@@ -612,18 +676,41 @@ overlay_root soc soc_family sensor tz_data tz_name uboot_version ui_password"
 
 read_from_env() {
 	local tmpfile=$(mktemp -u)
-	fw_printenv | grep ^${1}_ > $tmpfile
+	fw_printenv | grep ^$1_ | sed -E "s/=(.+)$/=\"\\1\"/" > $tmpfile
 	. $tmpfile
 	rm $tmpfile
 }
 
+# read_from_post "plugin" "params"
+read_from_post() {
+	local p
+	for p in $2; do
+		eval $1_$p=\$POST_$1_$p
+		sanitize "$1_$p"
+	done
+}
+
 include() {
+	[ -f "$1" ] || touch $1
 	[ -f "$1" ] && . "$1"
 }
 
-[ -f $sysinfo_file ] || update_caminfo
+# read from env
+wlanap_enabled=$(get wlanap_enabled)
 
+read_from_env "day_night"
+
+debug=$(get debug)
+default_for debug 0
+if [ "$debug" -gt 0 ]; then
+	assets_ts=$(date +%s)
+else
+	assets_ts=$(($(date +%s) >> 8))
+fi
+
+[ -f $sysinfo_file ] || update_caminfo
 include $sysinfo_file
+
 include /etc/webui/mqtt.conf
 include /etc/webui/socks5.conf
 include /etc/webui/speaker.conf

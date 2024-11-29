@@ -2,124 +2,95 @@
 <%in _common.cgi %>
 <%
 plugin="record"
-page_title="Local Recording"
-params="debug enabled prefix path format interval loop diskusage led_enabled led_gpio led_interval"
+page_title="Video Recording"
+params="blink debug diskusage duration enabled filename led loop mount videoformat"
 
+# constants
+MOUNTS=$(awk '/nfs|fat/{print $2}' /etc/mtab)
+RECORD_CTL="/etc/init.d/S96record"
+RECORD_FILENAME_FB="thingino/%F/%FT%H%M"
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
-record_control=/etc/init.d/S96record
+# defaults
+default_for record_blink 1
+default_for record_debug true
+default_for record_diskusage 85
+default_for record_duration 60
+default_for record_enabled "false"
+default_for record_led $(fw_printenv | awk -F= '/^gpio_led/{print $1;exit}')
+default_for record_loop "true"
+default_for record_videoformat "mp4"
+default_for record_filename "$RECORD_FILENAME_FB"
+[ "/" = "${record_filename:0-1}" ] && record_filename="$RECORD_FILENAME_FB"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	# parse values from parameters
-	for p in $params; do
-		eval ${plugin}_$p=\$POST_${plugin}_$p
-		sanitize "${plugin}_$p"
-	done; unset p
+	read_from_post "$plugin" "$params"
 
-	# validation
+	# normalize
+	[ "/" = "${record_filename:0:1}" ] && record_filename="${record_filename:1}"
+
+	# validate
+	error_if_empty "$record_mount" "Record mount cannot be empty."
+	error_if_empty "$record_filename" "Record filename cannot be empty."
+
 	if [ -z "$error" ]; then
-		# Check if record path starts and ends with "/"
-		if [ -z $record_path ]; then
-			echo "Record path cannot be empty. Disabling." >> /tmp/webui.log
-			record_enable=false
-			record_path="/mnt/mmcblk0p1/"
-		else
-			if [[ $record_path != "/mnt/*" ]]; then
-				echo "Record path does not seem to be in sd card location. Disabling" >> /tmp/webui.log
-				record_enable=false
-				record_path="/mnt/mmcblk0p1/"
-			fi
-			if [[ $record_path != "/mnt/*/" ]]; then
-				echo "record path does not end with "/". Adding" >> /tmp/webui.log
-				record_path="$record_path/"
-			fi
-		fi
-
-		# Checking if LED GPIO is defined, otherwise disable
-		if [ -z "$record_led_gpio" ]; then
-			record_led_enabled=false
-			echo "LED GPIO PIN not defined. Disabling blink" >> /tmp/webui.log
-		fi
-
-		# Check if max disk usage is defined, otherwise default to 85%
-		if [ -z "$record_diskusage" ]; then
-			record_diskusage=85
-			echo "Max Disk Usage not defined. Defaulting to 85%" >> /tmp/webui.log
-		fi
-
 		tmp_file=$(mktemp)
 		for p in $params; do
 			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 
-		# Check if record path exists
-		if [ ! -d "$record_path" ]; then
-			echo "Record path $record_path does not exist. Creating" >> /tmp/webui.log
-			mkdir -p "$record_path" >> /tmp/webui.log
-		fi
-
-		if [ -f "$record_control" ]; then
-			$record_control restart >> /tmp/webui.log
-		else
-			echo "$record_control not found" >> /tmp/webui.log
+		if [ -f "$RECORD_CTL" ]; then
+			if [ "true" = "$record_enabled" ]; then
+				$RECORD_CTL start > /dev/null
+			else
+				$RECORD_CTL stop > /dev/null
+			fi
 		fi
 
 		update_caminfo
-		redirect_to "$SCRIPT_NAME"
+		redirect_to $SCRIPT_NAME
 	fi
-else
-	include $config_file
-
-	# default values
-	[ -z "$record_debug" ] && record_debug=true
-	[ -z "$record_enabled" ] && record_enabled=false
-	[ -z "$record_prefix" ] && record_prefix="thingino-"
-	[ -z "$record_path" ] && record_path="/mnt/mmcblk0p1/"
-	[ -z "$record_format" ] && record_format="avi"
-	[ -z "$record_interval" ] && record_interval=60
-	[ -z "$record_loop" ] && record_loop=true
-	[ -z "$record_diskusage" ] && record_diskusage=85
-	[ -z "$record_led_enabled" ] && record_led_enabled=false
-	[ -z "$record_led_gpio" ] && record_led_gpio=$(get gpio_led_r)
-	[ -z "$record_led_interval" ] && record_led_interval=1
 fi
 %>
 <%in _header.cgi %>
 
-<% if ! ls /dev/mmc* >/dev/null 2>&1; then %>
-<div class="alert alert-danger">
-<h4>Does this camera support SD Card?</h4>
-<p>Your camera does not have an SD Card slot or SD Card is not inserted.</p>
-</div>
-<% else %>
-<form action="<%= $SCRIPT_NAME %>" method="post">
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
-<div class="col">
-<h3>Recording</h3>
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_switch "record_enabled" "Enable Recording" %>
-<% field_text "record_prefix" "Filename Prefix" "e.g. thingino-yyyy-mm-dd_HH-MM-SS.mp4" "thingino-" %>
-<% field_text "record_path" "Record Directory in SD Card" "Directory will be created if non-existent" "/" %>
-<% field_select "record_format" "Output File Format" "mov, mp4, avi" %>
-<% field_number "record_interval" "Recording Interval (seconds)" "" "How long to record in each file" %>
-<% field_checkbox "record_loop" "Loop Recording" "Delete oldest file to make space for newer recordings" %>
-<% field_number "record_diskusage" "Max disk space usage %" "" "How much disk space to use before stopping/ deleting old files" %>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
+<div class="col">
+<% field_select "record_mount" "Record storage directory" "$MOUNTS" %>
+<div class="row g-1">
+<div class="col-9"><% field_text "record_filename" "File name template" "$STR_SUPPORTS_STRFTIME" %></div>
+<div class="col-3"><% field_select "record_videoformat" "Format" "mov, mp4" "also extention" %></div>
 </div>
-<div class="col col-12 col-xl-4">
-<h3>Status LED</h3>
-<% field_switch "record_led_enabled" "Blink LED" "Flash a status LED when recording"%>
-<% field_number "record_led_gpio" "LED GPIO Pin" "" "Default: gpio_led_r" %>
-<% field_range "record_led_interval" "Blink Interval (seconds)" "0,3.0,0.5" "Set to 0 for always on"%>
+<% field_checkbox "record_loop" "Loop Recording" "Delete older files as needed." %>
 </div>
 <div class="col">
-<% field_switch "record_debug" "Enable Debugging" %>
-<h3>Configuration</h3>
-<% [ -f $config_file ] && ex "cat $config_file" %>
+<% field_range "record_diskusage" "Total disk space usage limit, %" "5,95,5" %>
+<% field_number "record_duration" "Recording duration per file, seconds" %>
+</div>
+<div class="col">
+<% field_select "record_led" "Indicator LED" "$(fw_printenv | awk -F= '/^gpio_led/{print $1}')" %>
+<% field_range "record_blink" "Blink interval, seconds" "0,3.0,0.5" "Set to 0 for always on" %>
 </div>
 </div>
 <% button_submit %>
 </form>
+
+<% if pidof record > /dev/null; then %>
+<h3 class="alert alert-info">Recording in progress.</h3>
+<% else %>
+<div class="alert alert-danger">
+<h3>Recording stopped.</h3>
+<p class="mb-0">Please note. The last active recording will continue until the end of the recording time!</p>
+</div>
 <% fi %>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
+<% ex "cat $config_file" %>
+</div>
 
 <%in _footer.cgi %>

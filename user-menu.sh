@@ -1,36 +1,39 @@
-#!/bin/bash
+#!/bin/sh
+
+dep_check() {
+	# Check if both dialog and Bash are installed
+	if ! command -v dialog >/dev/null 2>&1 || ! command -v bash >/dev/null 2>&1; then
+		echo "'dialog' and/or 'bash' are not installed, which are required for this script to run."
+		echo "Do you want to install prerequisites now? [Y/n] "
+		read yn
+		case "$yn" in
+			[Yy]* | "" )
+				echo "Attempting to install prerequisites..."
+				./scripts/dep_check.sh
+				;;
+			[Nn]* )
+				echo "Cannot proceed without 'dialog' and 'bash'. Exiting..."
+				exit 1
+				;;
+			* )
+				echo "Please answer yes or no."
+				dep_check
+				;;
+		esac
+	fi
+}
+
+dep_check
+
+if [ -z "$BASH_VERSION" ]; then
+    exec bash "$0" "$@"
+fi
 
 export NCURSES_NO_UTF8_ACS=1
 
 source ./scripts/menu/menu-common.sh
 
-check_and_install_dialog() {
-	if ! command -v dialog &> /dev/null; then
-		echo "'dialog' is not installed. Dialog, along with other software components are required for this script to run."
-		read -p "Do you want to install prerequisites now? [Y/n] " yn
-		case $yn in
-			[Yy]* )
-				echo "Attempting to install prerequisites..."
-				./scripts/dep_check.sh
-				check_and_install_dialog
-				;;
-			[Nn]* )
-				echo "Cannot proceed without 'dialog'. Exiting..."
-				exit 1
-				;;
-			* )
-				echo "Please answer yes or no."
-				check_and_install_dialog
-				;;
-		esac
-	else
-		echo "'dialog' is installed."
-		clear
-	fi
-}
-
 function main_menu() {
-	check_and_install_dialog
 	while true; do
 		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu \
 		"\Zb\Z1Thingino\Zn is an open-source replacement firmware designed specifically for   \Zr\Z4Ingenic\Zn SoC based devices, offering freedom from restrictive stock firmware and providing a user-friendly alternative to other complex options.  \
@@ -68,7 +71,8 @@ function execute_choice(){
 			"${DIALOG_COMMON[@]}" --msgbox "Thingino is an independent open source firmware project for devices built on an Ingenic SoC.\n\n
 Thingino does not try to build a universal firmware that would be used on multiple models. Instead, we build a firmware which is nicely tailored to the targeted hardware, with minimum overhead.\n\n
 Thingino is young but develops fast. You should expect frequent updates, exciting new features, and occasional breaking changes.
-Thingino uses a custom version of prudynt as a go-to streamer while working on its own fully open modular solution - Raptor." 13 100
+Thingino uses a custom version of prudynt as a go-to streamer while working on its own fully open modular solution - Raptor.\n\n
+This menu provides a basic interface to select and build a firmware profile, but you don't have to use it -- you can build everything fully from the command line if you prefer. See the wiki for more information!" 17 100
 			;;
 		2)
 			./scripts/menu/menu2-guided.sh

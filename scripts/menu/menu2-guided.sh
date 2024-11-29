@@ -152,7 +152,35 @@ step3() {
 			closed_dialog
 			return
 		fi
-		BOARD=$camera_value make
+
+		# Set BR2_DL_DIR to $HOME/dl if it is not already defined before make ( we should do this in the makefile )
+		BR2_DL_DIR=${BR2_DL_DIR:-"$HOME/dl"}
+
+		# Check if the directory exists, if not, create it
+		if [ ! -d "$BR2_DL_DIR" ]; then
+			echo "Directory $BR2_DL_DIR does not exist. Creating it..."
+			mkdir -p "$BR2_DL_DIR"
+		else
+			echo "Directory $BR2_DL_DIR already exists."
+		fi
+
+		echo "Using download directory: $BR2_DL_DIR"
+
+		# Run make source
+		BOARD=$camera_value make br-source
+		if [ $? -ne 0 ]; then
+			"${DIALOG_COMMON[@]}" --msgbox "\Z1Fatal Error\Zn: 'make source' failed. Please check the logs for more details, or you can try again." 6 60
+			return
+		fi
+
+		# Run make
+		echo "Making FAST!"
+		BOARD=$camera_value make fast
+		if [ $? -ne 0 ]; then
+			"${DIALOG_COMMON[@]}" --msgbox "\Z1Fatal Error\Zn: 'make' failed. Please check the logs for more details, or you can try again." 6 60
+			return
+		fi
+
 		step3_completed=true
 		"${DIALOG_COMMON[@]}" --msgbox "The firmware compilation process is now complete!\\n\nYour firmware images are located in \n\Z1$HOME/output/$camera_value/images\Zn" 8 70
 	else

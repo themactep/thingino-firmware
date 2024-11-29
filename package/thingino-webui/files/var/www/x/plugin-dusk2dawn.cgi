@@ -7,22 +7,17 @@ page_title="Dusk to Dawn"
 params="enabled lat lng runat offset_sr offset_ss"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	# parse values from parameters
-	for p in $params; do
-		eval ${plugin}_$p=\$POST_${plugin}_$p
-		sanitize "${plugin}_$p"
-	done; unset p
+	read_from_post "$plugin" "$params"
 
-	[ -z "$dusk2dawn_runat" ] && dusk2dawn_runat="0:00"
-	[ -z "$dusk2dawn_offset_sr" ] && dusk2dawn_offset_sr="0"
-	[ -z "$dusk2dawn_offset_ss" ] && dusk2dawn_offset_ss="0"
+	default_for "$dusk2dawn_runat" "0:00"
+	default_for "$dusk2dawn_offset_sr" "0"
+	default_for "$dusk2dawn_offset_ss" "0"
 
-	# validate
-	[ -z "$dusk2dawn_lat" ] && set_error_flag "Latitude cannot be empty"
-	[ -z "$dusk2dawn_lng" ] && set_error_flag "Longitude cannot be empty"
+	error_if_empty "$dusk2dawn_lat" "Latitude cannot be empty"
+	error_if_empty "$dusk2dawn_lng" "Longitude cannot be empty"
 
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
@@ -39,40 +34,39 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	redirect_to $SCRIPT_NAME
 else
-	include $config_file
-
 	# Default values
-	[ -z "$dusk2dawn_enabled" ] && dusk2dawn_enabled=false
-	[ -z "$dusk2dawn_runat" ] && dusk2dawn_runat="0:00"
-	[ -z "$dusk2dawn_offset_sr" ] && dusk2dawn_offset_sr="0"
-	[ -z "$dusk2dawn_offset_ss" ] && dusk2dawn_offset_ss="0"
+	default_for dusk2dawn_enabled "false"
+	default_for dusk2dawn_runat "0:00"
+	default_for dusk2dawn_offset_sr "0"
+	default_for dusk2dawn_offset_ss "0"
 fi
 %>
 <%in _header.cgi %>
 
-<form action="<%= $SCRIPT_NAME %>" method="post">
-<div class="row g-4 mb-4">
-<div class="col col-12 col-xl-4">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_switch "dusk2dawn_enabled" "Enable dusk2dawn script" %>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
+<div class="col">
+<% field_text "dusk2dawn_lat" "Latitude"  %>
+<% field_text "dusk2dawn_lng" "Longitude" %>
 <p><a href="https://my-coordinates.com/">Find your coordinates</a></p>
-<%
-field_text "dusk2dawn_lat" "Latitude"
-field_text "dusk2dawn_lng" "Longitude"
-field_text "dusk2dawn_offset_sr" "Sunrise offset, minutes"
-field_text "dusk2dawn_offset_ss" "Sunset offset, minutes"
-field_text "dusk2dawn_runat" "Run at"
-%>
 </div>
-<div class="col col-12 col-xl-4">
-<% ex "crontab -l" %>
+<div class="col">
+<% field_text "dusk2dawn_offset_sr" "Sunrise offset, minutes" %>
+<% field_text "dusk2dawn_offset_ss" "Sunset offset, minutes" %>
 </div>
-<div class="col col-12 col-xl-4">
-<% [ -f $config_file ] && ex "cat $config_file" %>
+<div class="col">
+<% field_text "dusk2dawn_runat" "Run at" %>
 </div>
 </div>
-
 <% button_submit %>
 </form>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
+<% ex "crontab -l" %>
+<% [ -f $config_file ] && ex "cat $config_file" %>
+</div>
 
 <script>
 function getCoordinates() {

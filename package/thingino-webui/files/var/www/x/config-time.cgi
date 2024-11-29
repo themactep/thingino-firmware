@@ -5,10 +5,11 @@ plugin="time"
 page_title="Time"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 ntpd_static_config=/etc/default/ntp.conf
 ntpd_working_config=/tmp/ntp.conf
+ntpd_sync_status=/run/sync_status
 seq=$(seq 0 3)
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
@@ -16,12 +17,15 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		reset)
 			cp -f /rom$ntpd_static_config $ntpd_working_config
 			;;
+		set)
+			date -s "$POST_time"
+			;;
 		update)
 			# check for mandatory data
-			[ -z "$POST_tz_name" ] && set_error_flag "Empty timezone name."
-			[ -z "$POST_tz_data" ] && set_error_flag "Empty timezone value."
+			error_if_empty "$POST_tz_name" "Empty timezone name."
+			error_if_empty "$POST_tz_data" "Empty timezone value."
 
-		        if [ -z "$error" ]; then
+			if [ -z "$error" ]; then
 				[ "$tz_data" = "$POST_tz_data" ] || echo "$POST_tz_data" >/etc/TZ
 				[ "$tz_name" != "$POST_tz_name" ] && \
 					echo "$POST_tz_name" >/etc/timezone && \
@@ -48,9 +52,9 @@ fi
 %>
 <%in _header.cgi %>
 
-<form action="<%= $SCRIPT_NAME %>" method="post">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_hidden "action" "update" %>
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <h3>Time Zone</h3>
 <datalist id="tz_list"></datalist>
@@ -59,43 +63,41 @@ fi
 <input type="text" id="tz_name" name="tz_name" value="<%= $tz_name %>" class="form-control" list="tz_list">
 <span class="hint text-secondary">Start typing the name of the nearest large city in the box above then select from available variants.</span>
 </p>
+<p><a href="#" id="frombrowser">Pick up timezone from browser</a></p>
 <p class="string">
 <label for="tz_data" class="form-label">Zone string</label>
 <input type="text" id="tz_data" name="tz_data" value="<%= $tz_data %>" class="form-control" readonly>
 <span class="hint text-secondary">Control string of the timezone selected above. Read-only field, only for monitoring.</span>
 </p>
-<p><a href="#" id="frombrowser">Pick up timezone from browser</a></p>
-<% button_submit %>
 </div>
 <div class="col">
 <h3>Time Synchronization</h3>
 <%
 for i in $seq; do
 	x=$(expr $i + 1)
-	eval ntp_server_$i="$(sed -n ${x}p /etc/ntp.conf | cut -d' ' -f2)"
+	[ -f "/etc/ntp.conf" ] && eval ntp_server_$i="$(sed -n ${x}p /etc/ntp.conf | cut -d' ' -f2)"
 	field_text "ntp_server_$i" "NTP Server $((i + 1))"
 done; unset i; unset x
 %>
 </div>
 <div class="col">
-<h3>Configuration</h3>
+<% button_sync_time %>
+<p id="sync-time-wrapper"></p>
+</div>
+</div>
+<% button_submit %>
+</form>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
 <% ex "get timezone" %>
 <% ex "cat /etc/timezone" %>
 <% ex "cat /etc/TZ" %>
 <% ex "echo \$TZ" %>
-<% ex "cat $ntpd_working_config" %>
-<% ex "cat $ntpd_static_config" %>
-<p id="sync-time-wrapper"><a href="#" id="sync-time">Sync time</a></p>
+<% [ -f "$ntpd_working_config" ] && ex "cat $ntpd_working_config" %>
+<% [ -f "$ntpd_static_config" ] && ex "cat $ntpd_static_config" %>
+<% [ -f "$ntpd_sync_status" ] && ex "cat $ntpd_sync_status" %>
 </div>
-</div>
-</form>
-
-<% if [ ! "$(diff -q -- "/rom${config_file}" "$config_file")" ]; then %>
-<form action="<%= $SCRIPT_NAME %>" method="post" class="float-end">
-<% field_hidden "action" "reset" %>
-<% button_submit "Restore firmware defaults" "danger" %>
-</form>
-<% fi %>
 
 <script>
 	function findTimezone(tz) {
@@ -115,7 +117,7 @@ done; unset i; unset x
 
 	$('#sync-time').onclick = (ev) => {
 		ev.preventDefault();
-		fetch('/x/json-sync-time.cgi')
+		fetch('/x/json-sync-time.cgi?' + new URLSearchParams({ "ts": Date.now() }).toString())
 			.then(res => res.json())
 			.then(json => {
 				p = document.createElement('p');

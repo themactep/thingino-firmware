@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DAEMON_ARGS="-n"
+DAEMON_ARGS="-n -S /etc/ntpd_callback"
 
 DEF_CONF="/etc/default/ntp.conf"
 TMP_CONF="/tmp/ntp.conf"
@@ -9,6 +9,11 @@ TMP_CONF="/tmp/ntp.conf"
 
 start() {
 	starting
+	if [ "true" = "$(get wlanap_enabled)" ]; then
+		touch $TMP_CONF
+		DAEMON_ARGS="-n -l"
+	fi
+
 	if [ -f $TMP_CONF ]; then
 		info "work config found"
 	else

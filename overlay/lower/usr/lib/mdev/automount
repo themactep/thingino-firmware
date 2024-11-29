@@ -60,7 +60,7 @@ do_mount() {
 
 #	do_fsck || return 1
 
-	if mount -t auto -o sync "$devicenode" "$mountpoint"; then
+	if mount -t auto -o noatime,sync "$devicenode" "$mountpoint"; then
 		log "Mounted $devicenode to $mountpoint mountpoint."
 	else
 		log "Failed to mount $devicenode to $mountpoint mountpoint."
@@ -73,6 +73,8 @@ do_mount() {
 }
 
 do_umount() {
+	stop_recording
+
 	if grep -qs "^$devicenode " /proc/mounts; then
 		if umount "$mountpoint"; then
 			log "Unmounted $mountpoint mountpoint."
@@ -106,6 +108,12 @@ do_run_once() {
 	else
 		log "Failed to execute $run_once script."
 	fi
+}
+
+stop_recording() {
+	while pidof openRTSP > /dev/null; do
+		killall openRTSP
+	done
 }
 
 case "$ACTION" in

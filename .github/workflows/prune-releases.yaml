@@ -1,0 +1,39 @@
+name: Prune Old Releases
+
+on:
+  workflow_dispatch:
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  prune-releases:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: "master"
+          fetch-depth: "1"
+
+      - name: Fetch All Releases
+        id: fetch_releases
+        run: |
+          # Fetch releases starting with 'firmware-' and save them to a JSON file
+          gh release list --limit 100 --json name,createdAt \
+            --jq '.[] | select(.name | startswith("firmware-")) | {name: .name, createdAt: .createdAt}' > releases.json
+
+      - name: Prune Old Releases
+        run: |
+          # Calculate cutoff date (14 days ago)
+          CUTOFF_DATE=$(date -u -d "14 days ago" +%Y-%m-%dT%H:%M:%SZ)
+
+          # Filter releases older than 14 days
+          jq -r --arg CUTOFF_DATE "$CUTOFF_DATE" \
+            '. | select(.createdAt < $CUTOFF_DATE) | .name' releases.json > old_releases.txt
+
+          # Delete each release
+          while IFS= read -r release; do
+            echo "Deleting release: $release"
+            gh release delete "$release" --yes
+          done < old_releases.txt

@@ -12,18 +12,18 @@ grep -q overlay /proc/filesystems || exit 1
 
 if ! grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline; then
 	if grep -q ubifs /proc/cmdline; then
-		mount -t ubifs ubi0:rootfs_data -o noatime /overlay
+		mount -t ubifs -o noatime ubi0:rootfs_data /overlay
 	else
 		mtdblkdev=$(awk -F ':' '/rootfs_data/ {print $1}' /proc/mtd | sed 's/mtd/mtdblock/')
 		mtdchrdev=$(grep 'rootfs_data' /proc/mtd | cut -d: -f1)
 
-		mount -t jffs2 /dev/$mtdblkdev -o noatime /overlay
+		mount -t jffs2 -o noatime /dev/$mtdblkdev /overlay
 
 		if [ $? -ne 0 ] || dmesg | grep -q "jffs2.*: Magic bitmask.*not found"; then
 			echo "Init: Invalid JFFS2 blocks detected. Formatting required."
 			umount /overlay
 			flash_eraseall -j /dev/$mtdchrdev
-			mount -t jffs2 /dev/$mtdblkdev -o noatime /overlay || mount -t tmpfs tmpfs -o noatime /overlay || exit 1
+			mount -t jffs2 -o noatime /dev/$mtdblkdev /overlay || mount -t tmpfs -o noatime tmpfs /overlay || exit 1
 
 			if ! grep -q $mtdblkdev /proc/mounts; then
 				echo "Init: ERROR: Failed to mount Overlay!"
@@ -33,7 +33,7 @@ if ! grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline; then
 	fi
 
 	if grep -q overlayfs /proc/filesystems; then
-		mount -t overlayfs overlayfs -o lowerdir=/,upperdir=/overlay,ro /mnt || {
+		mount -t overlayfs overlayfs -o noatime,lowerdir=/,upperdir=/overlay,ro /mnt || {
 			umount /overlay
 			exit 1
 		}
@@ -41,7 +41,7 @@ if ! grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline; then
 		overlay_rootdir=/overlay/root
 		overlay_workdir=/overlay/work
 		mkdir -p $overlay_rootdir $overlay_workdir
-		mount -t overlay overlay -o lowerdir=/,upperdir=$overlay_rootdir,workdir=$overlay_workdir /mnt || {
+		mount -t overlay overlay -o noatime,lowerdir=/,upperdir=$overlay_rootdir,workdir=$overlay_workdir /mnt || {
 			umount /overlay
 			exit 1
 		}

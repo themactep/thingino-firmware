@@ -4,66 +4,42 @@
 page_title="Hostname"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	error=""
+	[ -z "$POST_hostname" ] && set_error_flag "Hostname cannot be empty"
+	echo "$POST_hostname" | grep ' ' && set_error_flag "Hostname cannot contain whitespaces"
 
-	# values from the form
-	hostname=$POST_hostname
-
-	# default values
-	check_hostname
-
-	# update env
-	if [ "$hostname" != "$(fw_printenv -n hostname)" ]; then
-		tmpfile=$(mktemp)
-		echo "hostname $hostname" >> $tmpfile
-		fw_setenv -s $tmpfile
-		rm $tmpfile
-	fi
-
-	# update /etc/hostname
-	if [ "$hostname" != "$(cat /etc/hostname)" ]; then
-		echo "$hostname" > /etc/hostname
-	fi
-
-	# update /etc/hosts
-	if [ "$hostname" != "$(sed -nE "s/^127.0.1.1\t(.*)$/\1/p" /etc/os-release)" ]; then
-		sed -i "/^127.0.1.1/s/\t.*$/\t$hostname/" /etc/hosts
-	fi
-
-	# update os-release
-	if [ "$hostname" != "$(sed -nE "s/^HOSTNAME=(.*)$/\1/p" /etc/os-release)" ]; then
-		sed -i "/^HOSTNAME/s/=.*$/=$hostname/" /etc/os-release
+	if [ -z "$error" ]; then
+		hostname=$POST_hostname
+		[ "$hostname" = "$(fw_printenv -n hostname)" ] || save2env "hostname $hostname"
+		[ "$hostname" = "$(cat /etc/hostname)" ] || echo "$hostname" > /etc/hostname
+		[ "$hostname" = "$(sed -nE "s/^127.0.1.1\t(.*)$/\1/p" /etc/os-release)" ] || sed -i "/^127.0.1.1/s/\t.*$/\t$hostname/" /etc/hosts
+		[ "$hostname" = "$(sed -nE "s/^HOSTNAME=(.*)$/\1/p" /etc/os-release)" ] || sed -i "/^HOSTNAME/s/=.*$/=$hostname/" /etc/os-release
 		. /etc/os-release
+		hostname "$hostname"
+		redirect_to $SCRIPT_NAME
 	fi
-
-	# update hostname
-	hostname "$hostname"
 fi
 
-# read data from env
 hostname=$(get hostname)
-
-# default values
-check_hostname
+default_for hostname "thingino-"
 %>
 <%in _header.cgi %>
 
-<form action="<%= $SCRIPT_NAME %>" method="post">
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <% field_text "hostname" "Hostname" %>
-</div>
-<div class="col">
-<% ex "fw_printenv -n hostname" %>
-<% ex "hostname" %>
-</div>
-<div class="col">
-<% ex "cat /etc/hostname" %>
-<% ex "echo \$HOSTNAME" %>
-<% ex "grep 127.0.1.1 /etc/hosts" %>
 </div>
 </div>
 <% button_submit %>
 </form>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
+<% ex "fw_printenv -n hostname" %>
+<% ex "hostname" %>
+<% ex "cat /etc/hostname" %>
+<% ex "echo \$HOSTNAME" %>
+<% ex "grep 127.0.1.1 /etc/hosts" %>
+</div>
 
 <%in _footer.cgi %>

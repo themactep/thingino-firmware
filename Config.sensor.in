@@ -155,6 +155,8 @@ config BR2_SENSOR_OV9712
 	bool "OmniVision OV9712"
 config BR2_SENSOR_OV9732
 	bool "OmniVision OV9732"
+config BR2_SENSOR_OV9750
+	bool "OmniVision OV9750"
 config BR2_SENSOR_PS5258
 	bool "PS5258"
 config BR2_SENSOR_PS5260

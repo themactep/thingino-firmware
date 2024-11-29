@@ -6,47 +6,27 @@ plugin_name="User interface settings"
 page_title="Web Interface Settings"
 
 config_file="$ui_config_dir/$plugin.conf"
-[ -f "$config_file" ] || touch $config_file
+include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	case "$POST_action" in
-		access)
-			new_password="$POST_ui_password_new"
-			[ -z "$new_password" ] && redirect_to $SCRIPT_NAME "danger" "Password cannot be empty!"
+	params="level theme"
+	read_from_post "$plugin" "$params"
 
-			echo "root:$new_password" | chpasswd -c sha512
-			update_caminfo
+	[ -z "$webui_level" ] && webui_level="user"
 
-			redirect_to "/" "success" "Password updated."
-			;;
-		init)
-			update_caminfo
-			redirect_to "$HTTP_REFERER" "success" "Environment re-initialized."
-			;;
-		interface)
-			params="level theme"
-			for p in $params; do
-				eval ${plugin}_$p=\$POST_${plugin}_$p
-				sanitize "${plugin}_$p"
-			done; unset p
+	if [ -z "$error" ]; then
+		tmp_file=$(mktemp)
+		for p in $params; do
+			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
+		done; unset p
+		mv $tmp_file $config_file
 
-			[ -z "$webui_level" ] && webui_level="user"
+		new_password="$POST_ui_password_new"
+		[ -z "$new_password" ] || echo "root:$new_password" | chpasswd -c sha512
 
-			if [ -z "$error" ]; then
-				tmp_file=$(mktemp)
-				for p in $params; do
-					echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
-				done; unset p
-				mv $tmp_file $config_file
-
-				update_caminfo
-				redirect_back "success" "$plugin_name config updated."
-			fi
-			;;
-		*)
-			redirect_to $SCRIPT_NAME "danger" "UNKNOWN ACTION: $POST_action"
-			;;
-	esac
+		update_caminfo
+		redirect_back "success" "Data updated."
+	fi
 fi
 
 # data for form fields
@@ -54,36 +34,30 @@ ui_username="$USER"
 %>
 <%in _header.cgi %>
 
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
-<h3>Access</h3>
-<form action="<%= $SCRIPT_NAME %>" method="post">
-<% field_hidden "action" "access" %>
-<p class="string">
-<label for="ui_username" class="form-label">Username</label>
+<div class="string mb-2">
+<label for="ui_username" class="form-label">Web UI username</label>
 <input type="text" id="ui_username" name="ui_username" value="<%= $ui_username %>" class="form-control" autocomplete="username" disabled>
-</p>
+</div>
 <% field_password "ui_password_new" "Password" %>
-<% field_password "ws_token" "Websockets security token" "FIXME: a stub" %>
-<% button_submit %>
-</form>
 </div>
 <div class="col">
-<h3>Interface Details</h3>
-<form action="<%= $SCRIPT_NAME %>" method="post">
-<% field_hidden "action" "interface" %>
-<% field_select "webui_level" "Level" "user,expert" %>
 <% field_select "webui_theme" "Theme" "light,dark,auto" %>
-<% button_submit %>
-</form>
+<% field_select "webui_level" "Level of details" "user,expert" %>
 </div>
 <div class="col">
-<h3>Configuration</h3>
-<%
-ex "cat /etc/httpd.conf"
-ex "cat $config_file"
-%>
+<% field_password "ws_token" "Websockets security token" "FIXME: a stub" %>
 </div>
+</div>
+<% button_submit %>
+</form>
+
+<div class="alert alert-dark ui-debug">
+<h4 class="mb-3">Debug info</h4>
+<% ex "cat /etc/httpd.conf" %>
+<% ex "cat $config_file" %>
 </div>
 
 <%in _footer.cgi %>

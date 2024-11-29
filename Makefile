@@ -9,6 +9,10 @@ ifneq ($(shell command -v gawk >/dev/null; echo $$?),0)
 $(error Please run `make bootstrap` to install prerequisites.)
 endif
 
+ifneq ($(findstring $(empty) $(empty),$(CURDIR)),)
+$(error Current directory path "$(CURDIR)" contains spaces. Please remove spaces from the path and try again.)
+endif
+
 # Camera IP address
 # shortened to just IP for convenience of running from command line
 IP ?= 192.168.1.10
@@ -71,10 +75,10 @@ ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 OVERLAY_BIN := $(OUTPUT_DIR)/images/overlay.jffs2
 
 # 0x0010000, 64K, 65_536
-# ALIGN_BLOCK := 65536
+ALIGN_BLOCK := 65536
 
 # 0x0008000, 32K, 32_768
-ALIGN_BLOCK := 32768
+# ALIGN_BLOCK := 32768
 
 # create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
 FIRMWARE_NAME_FULL = thingino-$(CAMERA).bin
@@ -110,6 +114,7 @@ FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE)
 # dynamic partitions
 OVERLAY_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(OVERLAY_OFFSET))))
 OVERLAY_SIZE_NOBOOT = $(shell echo $$(($(FIRMWARE_NOBOOT_SIZE) - $(OVERLAY_OFFSET_NOBOOT))))
+OVERLAY_MINUMUM_SIZE := 131072
 
 # partition offsets
 U_BOOT_OFFSET = 0
@@ -210,7 +215,7 @@ delete_bin_update:
 	if [ -f $(FIRMWARE_BIN_NOBOOT) ]; then rm $(FIRMWARE_BIN_NOBOOT); fi
 
 create_overlay: $(U_BOOT_BIN)
-	if [ $(OVERLAY_SIZE) -lt 0 ]; then $(FIGLET) "OVERSIZE"; fi
+	if [ $(OVERLAY_SIZE) -lt $(OVERLAY_MINUMUM_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
 	if [ -f $(OVERLAY_BIN) ]; then rm $(OVERLAY_BIN); fi
 	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --pad=$(OVERLAY_SIZE) \
 		--root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=$(ALIGN_BLOCK) \
