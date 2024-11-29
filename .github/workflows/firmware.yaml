@@ -39,7 +39,6 @@ env:
   TG_CHANNEL: -1002083893006_14394
   TG_TOPIC: 14394
   TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
-  TG_OPTIONS: -s
   FORCE_UNSAFE_CONFIGURE: 1
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -63,22 +62,20 @@ jobs:
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
 
-      - name: Setup Notification Channel
-        if: ${{ github.event.inputs.tg_scratch == 'true' }}
-        run: |
-          echo "TG_TOPIC=" >> $GITHUB_ENV
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: "master"
+          fetch-depth: "1"
 
       - name: Send build start notifcation via Telegram
         if: env.TG_DISABLED == 'false'
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+            export TG_TOPIC=""
           fi
-          TG_MSG="Firmware build started:\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
-          TG_ICON="\xF0\x9F\x9A\xA6 GitHub Actions"
-          TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
-          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F message_thread_id=${TG_TOPIC} -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
-          echo Telegram response: ${HTTP}
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC start $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
 
   generate-matrix:
     runs-on: ubuntu-latest
@@ -214,6 +211,7 @@ jobs:
           echo "debug sha" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin.sha256sum
           echo "debug" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin
           echo "debug sha" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin.sha256sum
+          echo "TIME=7:77" >> ${GITHUB_ENV}
 
       - name: Generate build time graphs
         if: ${{ github.event.inputs.graph_enabled == 'true' }}
@@ -289,14 +287,10 @@ jobs:
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+            export TG_TOPIC=""
           fi
           if [ -n "${{ env.FULL_FW }}" ]; then
-            ESCAPED_TAG_NAME=$(echo "${TAG_NAME}" | sed 's/-/\\-/g')
-
-            TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${ESCAPED_TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${ESCAPED_TAG_NAME})\nBuild Time: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
-            TG_HEADER=$(echo -e "${TG_MSG}\xE2\x9C\x85 GitHub Actions")
-            HTTP_FULL=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendDocument -F parse_mode=MarkdownV2 -F message_thread_id=${TG_TOPIC} -F chat_id=${TG_CHANNEL} -F caption="${TG_HEADER}" -F document=@${FULL_FW} -F disable_web_page_preview=true)
-            echo "Telegram response Full Firmware: $HTTP_FULL"
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC completed $TAG_NAME ${{ github.run_id }} ${{ github.repository }} ${GIT_HASH} ${GIT_BRANCH} ${TAG_NAME} ${TIME} ${FULL_FW}
           fi
 
       - name: Send error notification
@@ -304,14 +298,9 @@ jobs:
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+            export TG_TOPIC=""
           fi
-          TG_ESCAPED_VERSION=$(echo "${{ matrix.thingino-version }}" | sed 's/_/\\_/g')
-          TG_WARN="Error: ${TG_ESCAPED_VERSION}\n"
-          TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
-          TG_ICON="\xE2\x9A\xA0 GitHub Actions"
-          TG_HEADER=$(echo -e ${TG_WARN}${TG_MSG}${TG_ICON})
-          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F message_thread_id=${TG_TOPIC} -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
-          echo Telegram response: ${HTTP}
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC error $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
 
   notify-completion:
     needs: [buildroot, notify-begin]
@@ -386,14 +375,11 @@ jobs:
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+            export TG_TOPIC=""
           fi
           START_TIME=${{ needs.notify-begin.outputs.start_time }}
           END_TIME=$(date -u +%s)
           ELAPSED=$((END_TIME - START_TIME))
           ELAPSED_MIN=$((ELAPSED / 60))
           ELAPSED_SEC=$((ELAPSED % 60))
-          TG_MSG="Firmware build completed:\nTotal build time: ${ELAPSED_MIN}m ${ELAPSED_SEC}s\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
-          TG_ICON="\xF0\x9F\x9A\xA9 GitHub Actions"
-          TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
-          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F message_thread_id=${TG_TOPIC} -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
-          echo Telegram response: ${HTTP}
+          .github/scripts/tg-notify.sh $TG_TOKEN $TG_CHANNEL $TG_TOPIC finish ${{ github.workflow }} "${ELAPSED_MIN}m ${ELAPSED_SEC}s" ${{ github.run_id }} ${{ github.repository }}
