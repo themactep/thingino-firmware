@@ -70,7 +70,7 @@ fi
 </div>
 </form>
 
-<div class="alert alert-dark ui-debug">
+<div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "grep ^thingino /etc/shadow" %>
 <% ex "grep ^password $onvif_config" %>

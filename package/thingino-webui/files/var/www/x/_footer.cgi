@@ -14,6 +14,19 @@
 </div>
 </footer>
 
+<div id="debug-wrap">
+<input type="checkbox" class="btn-check" id="debug">
+<label class="btn btn-sm btn-dark border" for="debug" title="debug"><img src="/a/debug.svg" alt="debug" class="img-fluid"></label>
+</div>
+
+<script>
+$('#debug').addEventListener('change', ev => {
+	ev.target.checked ?
+		$('.ui-debug').classList.remove('d-none') :
+		$('.ui-debug').classList.add('d-none') ;
+});
+</script>
+
 <%in _debug.cgi %>
 </body>
 </html>

@@ -74,7 +74,7 @@ default_for day_night_min 5000
 </div>
 </div>
 
-<div class="alert alert-dark ui-debug">
+<div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "fw_printenv | grep gpio | sort" %>
 <% ex "crontab -l" %>

@@ -60,7 +60,7 @@ default_for scp_template "$network_hostname-%Y%m%d-%H%M%S.jpg"
 <% button_submit %>
 </form>
 
-<div class="alert alert-dark ui-debug">
+<div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "cat $config_file" %>
 <% ex "xxd $SCP_KEY" %>
