@@ -42,6 +42,7 @@ env:
   TG_OPTIONS: -s
   FORCE_UNSAFE_CONFIGURE: 1
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  TG_DISABLED: true
 
 jobs:
   notify-begin:
@@ -165,7 +166,11 @@ jobs:
           echo "GIT_HASH=${GIT_HASH}" >> ${GITHUB_ENV}
           echo "GIT_BRANCH=${GIT_BRANCH}" >> ${GITHUB_ENV}
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+          TAG_NAME="$TAG_NAME-$(date +'%Y-%m-%d')"
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          
           echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
 
       - name: Setup cache directories
         run: |
