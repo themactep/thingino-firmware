@@ -133,8 +133,8 @@ gpio_ircut_pin2="$(echo "$gpio_ircut" | awk '{print $2}')"
 <div class="card h-100">
 <div class="card-header">
 IR cut filter
-<div class="switch float-end"><button type="button" data-bs-toggle="modal" data-bs-target="#helpModal"
- class="btn btn-sm btn-outline-info m-0">help</button></div>
+<div class="switch float-end"><img src="/a/help.svg" alt="Help" class="img-fluid" type="button"
+ data-bs-toggle="modal" data-bs-target="#helpModal" style="max-height:1.5rem"></div>
 </div>
 <div class="card-body">
 <div class="row mb-2">
