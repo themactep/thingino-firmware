@@ -10,8 +10,22 @@ onvif_notify=/etc/init.d/S97onvif_notify
 
 rtsp_username=$(awk -F: '/Streaming Service/{print $1}' /etc/passwd)
 default_for rtsp_username "$(awk -F'"' '/username/{print $2}' $prudynt_config)"
+default_for rtsp_username "thingino"
+
 default_for rtsp_password "$(awk -F'"' '/password/{print $2}' $prudynt_config)"
 default_for rtsp_password "thingino"
+
+rtsp_port=$(prudyntcfg get rtsp.port)
+default_for rtsp_port "554"
+
+onvif_port=$(awk -F'=' '/^port=/{print $2}' /etc/onvif.conf)
+default_for onvif_port "80"
+
+rtsp_endpoint_ch0=$(prudyntcfg get stream0.rtsp_endpoint)
+default_for rtsp_endpoint_ch0 "ch0"
+
+rtsp_endpoint_ch1=$(prudyntcfg get stream1.rtsp_endpoint)
+default_for rtsp_endpoint_ch1 "ch1"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	rtsp_password=$POST_rtsp_password
@@ -59,11 +73,11 @@ fi
 <div class="alert alert-info">
 <dl class="mb-0">
 <dt>ONVIF URL</dt>
-<dd class="cb">onvif://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>/onvif/device_service</dd>
+<dd class="cb">onvif://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>:<%= $onvif_port %>/onvif/device_service</dd>
 <dt>RTSP Mainstream URL</dt>
-<dd class="cb">rtsp://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>/<%= $rtsp_endpoint_ch0 %></dd>
+<dd class="cb">rtsp://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>:<%= $rtsp_port %>/<%= $rtsp_endpoint_ch0 %></dd>
 <dt>RTSP Substream URL</dt>
-<dd class="cb">rtsp://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>/<%= $rtsp_endpoint_ch1 %></dd>
+<dd class="cb">rtsp://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>:<%= $rtsp_port %>/<%= $rtsp_endpoint_ch1 %></dd>
 </dl>
 </div>
 </div>
