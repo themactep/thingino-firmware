@@ -1,0 +1,33 @@
+#!/bin/sh
+
+# Script to control the DW9714 VCM focus using BusyBox i2c commands
+# Takes an argument from 0 to 100 to set the focus position percentage
+
+if [ "$#" -ne 1 ]; then
+  echo "Usage: $0 <focus_percentage>"
+  echo "<focus_percentage> should be an integer from 0 to 100"
+  exit 1
+fi
+
+FOCUS_PERCENTAGE=$1
+
+# Validate input
+if [ "$FOCUS_PERCENTAGE" -lt 0 ] || [ "$FOCUS_PERCENTAGE" -gt 100 ]; then
+  echo "Error: focus_percentage must be between 0 and 100."
+  exit 1
+fi
+
+# Translate focus percentage from 0-100 to 0-50
+TRANSLATED_FOCUS=$((FOCUS_PERCENTAGE * 50 / 100))
+
+# Convert translated percentage to DAC value (0-511)
+DAC_VALUE=$((TRANSLATED_FOCUS * 511 / 50))
+
+# Construct the 16-bit value to send to the DAC
+HIGH_BYTE=$(( (DAC_VALUE >> 4) & 0xFF ))
+LOW_BYTE=$(( (DAC_VALUE << 4) & 0xF0 ))
+
+# Send the value using i2cset (assumes I2C bus 0 and address 0x0c)
+i2cset -y 0 0x0c $HIGH_BYTE $LOW_BYTE i
+
+echo "Focus set to $FOCUS_PERCENTAGE% (Translated to: $TRANSLATED_FOCUS%, DAC value: $DAC_VALUE)"

@@ -6,6 +6,12 @@ MOTORS_VERSION = $(shell git ls-remote $(MOTORS_SITE) $(MOTORS_SITE_BRANCH) | he
 MOTORS_LICENSE = MIT
 MOTORS_LICENSE_FILES = LICENSE
 
+ifeq ($(BR2_PACKAGE_MOTORS_DW9714_ONLY),y)
+define MOTORS_INSTALL_TARGET_CMDS
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/sbin
+	$(INSTALL) -m 755 $(MOTORS_PKGDIR)/files/dw9714-ctrl -t $(TARGET_DIR)/usr/sbin
+endef
+else
 define MOTORS_BUILD_CMDS
 	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(@D)/motor.c -o $(@D)/motors
 	$(TARGET_CC) $(TARGET_LDFLAGS) -Os -s $(@D)/motor-daemon.c -o $(@D)/motors-daemon
@@ -20,8 +26,10 @@ define MOTORS_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/sbin/
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/sbin $(MOTORS_PKGDIR)/files/ptz_presets
+
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc $(MOTORS_PKGDIR)/files/ptz_presets.conf
 endef
+endif
 
 $(eval $(generic-package))
