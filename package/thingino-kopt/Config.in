@@ -158,6 +158,9 @@ config BR2_PACKAGE_THINGINO_KOPT_DWC2
 config BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
 	bool "Full USB support with OTG"
 	depends on BR2_PACKAGE_THINGINO_KOPT_DWC2
+	select BR2_PACKAGE_USBNET
+	select BR2_PACKAGE_USBNET_CDC_ETHER
+	select BR2_PACKAGE_USBNET_ASIX
 	help
 	  Enable the DWC2 USB driver with OTG support.
 	  Recommended for devices that have USB data ports.
