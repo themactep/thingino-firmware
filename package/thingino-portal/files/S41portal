@@ -12,7 +12,7 @@ if [ "$(get wlandev)" = "hi3881" ]; then
 fi
 
 timeout() {
-	sleep 300 && $0 stop
+	sleep 600 && $0 stop
 }
 
 case "$1" in

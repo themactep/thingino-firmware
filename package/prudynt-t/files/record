@@ -5,7 +5,7 @@
 RECORD_FLAG="/tmp/record.$$"
 
 get_free_space() {
-	available_space=$(df "$record_mount" | awk 'END{print $4}') # in KiB
+	available_space=$(df -k "$record_mount" | sed 1d | tr -d '\n' | awk 'END{print $4}') # in KiB
 	echo "Space available: $available_space KiB"
 }
 
@@ -22,6 +22,7 @@ show_help() {
 Where params are:
   -u <string>  RTSP username
   -p <string>  RTSP password
+  -e <int>     RTSP endpoint
   -h <int>     Frame height
   -w <int>     Frame width
   -f <int>     Frames per second
@@ -30,6 +31,7 @@ Where params are:
   -m <path>    Mount point for storing files
   -n <string>  File name template (supports strftime format)
   -l           Loop recording, delete oldest files to give space
+  -x           One-time run
   -d <int>     Maximum disk usage, percentage
 "
 }
@@ -42,9 +44,12 @@ else
 	[ "${#1}" -eq 0 ] && die "Config file $RECORD_WEBUI_CONF not found"
 fi
 
-while getopts "d:f:h:lm:p:t:u:v:w:z:" flag; do
+rtsp_endpoint="ch0"
+
+while getopts "d:e:f:h:lm:n:p:t:u:v:w:xz:" flag; do
 	case "$flag" in
 		d) record_diskusage=$OPTARG ;;
+		e) rtsp_endpoint=$OPTARG ;;
 		f) stream0_fps=$OPTARG ;;
 		h) stream0_height=$OPTARG ;;
 		l) record_loop="true" ;;
@@ -55,6 +60,7 @@ while getopts "d:f:h:lm:p:t:u:v:w:z:" flag; do
 		u) rtsp_username=$OPTARG ;;
 		v) record_videoformat=$OPTARG ;;
 		w) stream0_width=$OPTARG ;;
+		x) one_time="true" ;;
 		*) show_help && exit ;;
 	esac
 done
@@ -120,9 +126,11 @@ while :; do
 	fi
 
 	echo "Running openRTSP -u $rtsp_username $rtsp_password -w $stream0_width -h $stream0_height" \
-		"-f $stream0_fps -d $record_duration $vformat -b 1048576 -t rtsp://127.0.0.1/ch0  > $parsed_target"
+		"-f $stream0_fps -d $record_duration $vformat -b 1048576 -t rtsp://127.0.0.1/$rtsp_endpoint  > $parsed_target"
 	openRTSP -u $rtsp_username $rtsp_password -w $stream0_width -h $stream0_height -f $stream0_fps \
 		-d $record_duration $vformat -b 1048576 -t rtsp://127.0.0.1/ch0  > $parsed_target 2> /dev/null
+
+	[ "true" = "$one_time" ] && rm $RECORD_FLAG
 done
 
 echo "Cannot find recording flag $RECORD_FLAG"

@@ -6,7 +6,6 @@ plugin_name="Timelapse"
 page_title="Timelapse"
 params="enabled interval storage filename"
 
-# constants
 CRONTABS="/etc/crontabs/root"
 MOUNTS=$(awk '/nfs|fat/{print $2}' /etc/mtab)
 
@@ -15,7 +14,7 @@ include $config_file
 
 defaults() {
 	default_for timelapse_enabled "false"
-	default_for timelapse_filename "%Y%m%dT%H%M.jpg"
+	default_for timelapse_filename "%Y%m%d/%Y%m%dT%H%M.jpg"
 	default_for timelapse_interval 1
 }
 
@@ -23,10 +22,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	read_from_post "$plugin" "$params"
 	defaults
 
-	# normalize
 	[ "/" = "${timelapse_filename:0:1}" ] && timelapse_filename="${timelapse_filename:1}"
 
-	# validate
 	error_if_empty "$timelapse_storage" "Timelapse storage cannot be empty."
 
 	if [ -z "$error" ]; then
@@ -75,7 +72,7 @@ defaults
 <% button_submit %>
 </form>
 
-<div class="alert alert-dark ui-debug">
+<div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "cat $config_file" %>
 <% ex "crontab -l" %>

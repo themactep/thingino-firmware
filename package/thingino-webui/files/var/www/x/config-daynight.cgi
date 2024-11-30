@@ -45,7 +45,7 @@ default_for day_night_min 5000
 <%in _header.cgi %>
 
 <div class="row mb-4">
-<div class="col-lg-8 col-xxl-9 mb-3">
+<div class="col-lg-8 mb-3">
 <div class="alert alert-info">
 <p>The day/night mode is controlled by the brightness of the scene.
 <p>Changes in illumination affect the gain required to normalise a darkened image - the darker the scene, the higher the gain value.</p>
@@ -55,7 +55,7 @@ default_for day_night_min 5000
 </div>
 </div>
 
-<div class="col-lg-4 col-xxl-3 mb-3">
+<div class="col-lg-4 mb-3">
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_switch "daynight_enabled" "Enable Day/Night script" %>
@@ -74,7 +74,7 @@ default_for day_night_min 5000
 </div>
 </div>
 
-<div class="alert alert-dark ui-debug">
+<div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "fw_printenv | grep gpio | sort" %>
 <% ex "crontab -l" %>

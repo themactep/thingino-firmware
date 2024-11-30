@@ -13,7 +13,7 @@ snapshot=/tmp/snapshot.jpg
 
 target="$timelapse_storage/$(date +"$timelapse_filename")"
 targetdir="$(dirname "$target")"
-mkdir -p "$(dirname "$targetdir")"
+mkdir -p "$targetdir"
 [ -w "$targetdir" ] || die "Cannot write to $targetdir"
 
 converter="$targetdir/convert2video.sh"
