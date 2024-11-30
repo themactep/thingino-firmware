@@ -1,5 +1,0 @@
-config BR2_PACKAGE_WIFI_RTL8733BU
-	bool "Realtek RTL8733BU"
-	select BR2_LINUX_KERNEL
-	help
-	  RTL8733BU wireless driver
