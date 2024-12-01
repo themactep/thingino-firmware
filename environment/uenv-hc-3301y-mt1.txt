@@ -16,3 +16,4 @@ gpio_white=49o
 gpio_ir850=50o
 motor_speed_h=200
 motor_speed_v=200
+wlandev=hi3881
