@@ -68,7 +68,7 @@ elif post_request; then
 		fi
 		fw_setenv -s $tempfile
 		echo "root:$rootpass" | chpasswd -c sha512
-		echo "$rootpkey" > /root/.ssh/authorized_keys
+		echo "$rootpkey" | tr -d '\r' | sed 's/^ //g' > /root/.ssh/authorized_keys
 		sed -i "s/^ifs=.*$/ifs=wlan0/" /etc/onvif.conf
 		reboot -d 2 &
 	else
@@ -258,7 +258,7 @@ document.querySelector("#wlanap_enabled").addEventListener("change", ev => {
 <dt>Time settings</dt>
 <dd class="lead"><%= $timezone %></dd>
 <dt>User <b>root</b> Public SSH Key</dt>
-<dd class="lead text-break"><%= $rootpkey %></dd>
+<dd class="lead text-break" style="max-height:5em;overflow:auto;font-size:0.7em;"><%= $rootpkey %></dd>
 </dl>
 
 <div class="row text-center">

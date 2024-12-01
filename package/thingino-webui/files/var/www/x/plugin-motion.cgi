@@ -36,12 +36,12 @@ which sends alerts through the selected and preconfigured notification methods.<
 </div>
 
 <script>
-<% [ "true" != "$email_enabled" ] && echo "\$('#motion_send2email').disabled = true;" %>
-<% [ "true" != "$ftp_enabled" ] && echo "\$('#motion_send2ftp').disabled = true;" %>
-<% [ "true" != "$mqtt_enabled" ] && echo "\$('#motion_send2mqtt').disabled = true;" %>
-<% [ "true" != "$telegram_enabled" ] && echo "\$('#motion_send2telegram').disabled = true;" %>
-<% [ "true" != "$webhook_enabled" ] && echo "\$('#motion_send2webhook').disabled = true;" %>
-<% [ "true" != "$yadisk_enabled" ] && echo "\$('#motion_send2yadisk').disabled = true;" %>
+<% [ "true" = "$email_enabled" ] || echo "\$('#motion_send2email').disabled = true;" %>
+<% [ "true" = "$ftp_enabled" ] || echo "\$('#motion_send2ftp').disabled = true;" %>
+<% [ "true" = "$mqtt_enabled" ] || echo "\$('#motion_send2mqtt').disabled = true;" %>
+<% [ "true" = "$telegram_enabled" ] || echo "\$('#motion_send2telegram').disabled = true;" %>
+<% [ "true" = "$webhook_enabled" ] || echo "\$('#motion_send2webhook').disabled = true;" %>
+<% [ "true" = "$yadisk_enabled" ] || echo "\$('#motion_send2yadisk').disabled = true;" %>
 
 const motion_params = ['enabled', 'sensitivity', 'cooldown_time'];
 const send2_targets = ['email', 'ftp', 'mqtt', 'telegram', 'webhook', 'yadisk'];

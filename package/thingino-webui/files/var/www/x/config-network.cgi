@@ -69,7 +69,7 @@ fi
 <% button_submit %>
 </form>
 
-<div class="alert alert-dark ui-debug">
+<div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "cat /etc/hosts" %>
 <% ex "cat /etc/network/interfaces" %>
