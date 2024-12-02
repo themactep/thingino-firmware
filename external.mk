@@ -400,6 +400,8 @@ else ifeq ($(BR2_SENSOR_SC2335),y)
 SENSOR_MODEL := sc2335
 else ifeq ($(BR2_SENSOR_SC2336),y)
 SENSOR_MODEL := sc2336
+else ifeq ($(BR2_SENSOR_SC2336P),y)
+SENSOR_MODEL := sc2336p
 else ifeq ($(BR2_SENSOR_SC301IOT),y)
 SENSOR_MODEL := sc301IoT
 else ifeq ($(BR2_SENSOR_SC3235),y)
@@ -480,13 +482,13 @@ endif
 
 AVPU_CLK_SRC :=
 ifeq ($(BR2_AVPU_MPLL),y)
-   AVPU_CLK_SRC := clk_name=mpll
+AVPU_CLK_SRC := clk_name=mpll
 endif
 ifeq ($(BR2_AVPU_VPLL),y)
-   AVPU_CLK_SRC := clk_name=vpll
+AVPU_CLK_SRC := clk_name=vpll
 endif
 ifeq ($(BR2_AVPU_INTERNAL),y)
-   AVPU_CLK_SRC :=
+AVPU_CLK_SRC :=
 endif
 
 ISP_CLKA_CLK := 400000000
@@ -508,45 +510,45 @@ endif
 
 ISP_CLK_SRC :=
 ifeq ($(BR2_ISP_CLK_SCLKA),y)
-   ISP_CLK_SRC := clk_name=sclka
+ISP_CLK_SRC := clk_name=sclka
 endif
 ISP_CLKA_SRC :=
 ifeq ($(BR2_ISP_CLKA_SCLKA),y)
-   ISP_CLKA_CLK_SRC := clka_name=sclka
+ISP_CLKA_CLK_SRC := clka_name=sclka
 endif
 
 ISP_MEMOPT :=
 ifeq ($(BR2_ISP_MEMOPT_0),y)
-	ISP_MEMOPT :=
+ISP_MEMOPT :=
 endif
 ifeq ($(BR2_ISP_MEMOPT_1),y)
-	ISP_MEMOPT := isp_memopt=1
+ISP_MEMOPT := isp_memopt=1
 endif
 ifeq ($(BR2_ISP_MEMOPT_2),y)
-	ISP_MEMOPT := isp_memopt=2
+ISP_MEMOPT := isp_memopt=2
 endif
 ifeq ($(BR2_ISP_MEMOPT_3),y)
-	ISP_MEMOPT := isp_memopt=3
+ISP_MEMOPT := isp_memopt=3
 endif
 
 ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM :=
 ifeq ($(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM),y)
-	ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM := isp_day_night_switch_drop_frame_num=$(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE)
+ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM := isp_day_night_switch_drop_frame_num=$(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE)
 endif
 
 ISP_CH0_PRE_DEQUEUE_TIME :=
 ifeq ($(BR2_ISP_CH0_PRE_DEQUEUE_TIME),y)
-	ISP_CH0_PRE_DEQUEUE_TIME := isp_ch0_pre_dequeue_time=$(BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE)
+ISP_CH0_PRE_DEQUEUE_TIME := isp_ch0_pre_dequeue_time=$(BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE)
 endif
 
 ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS :=
 ifeq ($(BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS),y)
-	ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS := isp_ch0_pre_dequeue_interrupt_process=$(BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_VALUE)
+ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS := isp_ch0_pre_dequeue_interrupt_process=$(BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_VALUE)
 endif
 
 ISP_CH0_PRE_DEQUEUE_VALID_LINES :=
 ifeq ($(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES),y)
-	ISP_CH0_PRE_DEQUEUE_VALID_LINES := isp_ch0_pre_dequeue_valid_lines=$(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE)
+ISP_CH0_PRE_DEQUEUE_VALID_LINES := isp_ch0_pre_dequeue_valid_lines=$(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE)
 endif
 
 ifeq ($(BR2_SOC_INGENIC_T10),y)
