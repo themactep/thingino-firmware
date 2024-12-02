@@ -25,7 +25,13 @@ config BR2_PACKAGE_USBNET_USB_DIRECT_NCM
 	bool "CDC-NCM"
 	depends on BR2_PACKAGE_USBNET
 	help
-	  Enable CDC_NCM Support over USB
+	  Enable CDC_NCM Support over USB, provides a network ip via DHCPD to the connected device.
+
+config BR2_PACKAGE_USBNET_USB_DIRECT_NCM_CLIENT
+	bool "CDC-NCM-CLIENT"
+	depends on BR2_PACKAGE_USBNET
+	help
+	  Enable CDC_NCM Support over USB, working as a client device.
 
 #config BR2_PACKAGE_USBNET_USB_DIRECT_ECM
 #	bool "CDC-ECM"
