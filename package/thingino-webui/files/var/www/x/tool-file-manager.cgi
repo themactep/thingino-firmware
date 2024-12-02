@@ -45,7 +45,7 @@ dir=$(echo $dir | sed s#^//#/#)
 </thead>
 <tbody>
 <%
-lsfiles=$(ls -ALlp --group-directories-first $dir)
+lsfiles=$(ls -ALlpt --group-directories-first $dir)
 IFS=$'\n'
 for line in $lsfiles; do
 	echo "<tr>"
