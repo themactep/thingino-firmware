@@ -155,24 +155,24 @@ choice
 	  Select the memory optimization level for the ISP.
 
 config BR2_ISP_MEMOPT_0
-        bool "Optimize Disabled"
-        help
-           Disables the ISP memory optimization.
+	bool "Optimize Disabled"
+	help
+	  Disables the ISP memory optimization.
 
 config BR2_ISP_MEMOPT_1
-        bool "Optimize Level 1"
-        help
-           Enable ISP memory optimization - Leve 1 - Bypass Lynne + BGM
+	bool "Optimize Level 1"
+	help
+	  Enable ISP memory optimization - Leve 1 - Bypass Lynne + BGM
 
 config BR2_ISP_MEMOPT_2
-        bool "Optimize Level 2"
-        help
-           Enable ISP memory optimization - Leve 2 - Bypass Lynne + BGM + Ass
+	bool "Optimize Level 2"
+	help
+	  Enable ISP memory optimization - Leve 2 - Bypass Lynne + BGM + Ass
 
 config BR2_ISP_MEMOPT_3
-        bool "Optimize Level 3"
-        help
-           Enable ISP memory optimization - Leve 3 - Normal
+	bool "Optimize Level 3"
+	help
+	  Enable ISP memory optimization - Leve 3 - Normal
 
 endchoice
 
