@@ -2,6 +2,7 @@
 
 plugin="motion"
 
+. /sbin/common-motion
 . /sbin/common-plugins
 singleton
 
@@ -13,6 +14,10 @@ MOTION_STOP_FILE="/run/motors.pid"
 
 start() {
 	[ -f $MOTION_STOP_FILE ] && exit 0
+
+	if [ -f $MOTION_CORK ]; then
+		[ "$(motion_cork_age)" -gt "$MOTION_CORK_TIMEOUT" ] || exit 0
+	fi
 
 	touch $MOTION_ALARM
 

@@ -1,0 +1,14 @@
+#!/bin/sh
+
+MOTION_CORK=/run/motion.cork
+MOTION_CORK_TIMEOUT=1
+
+touch_motion_cork() {
+	touch $MOTION_CORK
+}
+
+motion_cork_age() {
+	NOW=$(date +"%s")
+	AGE=$(stat -c "%Y" $MOTION_CORK)
+	echo $((NOW-AGE))
+}

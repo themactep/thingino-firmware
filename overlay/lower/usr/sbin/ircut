@@ -54,6 +54,7 @@ report_ir_filter() {
 }
 
 ir_filter_off() {
+	touch_motion_cork
 	gpio set "$pin1" "$pin1_off" > /dev/null
 	if [ -n "$pin2" ]; then
 		gpio set "$pin2" "$pin2_on" > /dev/null
@@ -64,6 +65,7 @@ ir_filter_off() {
 }
 
 ir_filter_on() {
+	touch_motion_cork
 	gpio set "$pin1" "$pin1_on" > /dev/null
 	if [ -n "$pin2" ]; then
 		gpio set "$pin2" "$pin2_off" > /dev/null

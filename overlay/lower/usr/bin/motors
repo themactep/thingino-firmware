@@ -1,0 +1,6 @@
+#!/bin/sh
+
+. /sbin/common-motion
+
+touch_motion_cork
+motors.bin "$@"
