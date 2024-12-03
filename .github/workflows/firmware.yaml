@@ -351,7 +351,7 @@ jobs:
             /repos/${{ github.repository }}/compare/$LAST_RELEASE_TAG...$GIT_HASH \
             -q '.commits[] | "\(.sha[0:7]) \(.commit.message | gsub("\n"; " "))"')
 
-          RELEASE_NOTES="### Commits since last release:\n"
+          RELEASE_NOTES="### Changes in this release:\n"
 
           while IFS= read -r commit; do
             if [ -n "$commit" ]; then
