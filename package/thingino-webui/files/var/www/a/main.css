@@ -138,6 +138,7 @@ body:before {
 	font-size: 0.9rem;
 }
 
+.form-control:disabled,
 .form-control::placeholder {
 	color: var(--bs-tertiary-color);
 }

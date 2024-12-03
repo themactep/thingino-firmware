@@ -271,6 +271,16 @@ jobs:
             ${{ env.FULL_FW_ROOTFS_TAR }}
             ${{ env.FULL_FW_SHA }}
 
+      - name: Create Release Tag
+        run: |
+          TAG_NAME="${{ env.TAG_NAME }}"
+          if ! gh api repos/${{ github.repository }}/git/ref/tags/$TAG_NAME &>/dev/null; then
+            git tag "$TAG_NAME"
+            git push origin "$TAG_NAME"
+          else
+            echo "Tag $TAG_NAME already exists."
+          fi
+
       - name: Upload full firmware to release
         uses: softprops/action-gh-release@master
         with:
