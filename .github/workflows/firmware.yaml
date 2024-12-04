@@ -128,13 +128,20 @@ jobs:
       fail-fast: false
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
     steps:
+      - name: Install GitHub CLI
+        run: |
+          apt-get update
+          apt-get install -y curl
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+
       - name: Update package manager sources
         run: |
           apt-get update
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc cmake cpio curl ca-certificates file git make gawk jq procps rsync tzdata u-boot-tools unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc cmake cpio curl ca-certificates file git gh make gawk jq procps rsync tzdata u-boot-tools unzip wget
 
       - name: Set timezone
         run: |
@@ -270,8 +277,20 @@ jobs:
             ${{ env.FULL_FW_ROOTFS }}
             ${{ env.FULL_FW_ROOTFS_TAR }}
             ${{ env.FULL_FW_SHA }}
+    
+      - name: Check GitHub CLI Availability
+        run: |
+          echo "Checking if GitHub CLI (gh) is installed..."
+          if which gh &>/dev/null; then
+            echo "GitHub CLI found at: $(which gh)"
+            gh --version
+          else
+            echo "GitHub CLI (gh) not found."
+            exit 1
+          fi
 
       - name: Create Release Tag
+        continue-on-error: true
         run: |
           TAG_NAME="${{ env.TAG_NAME }}"
           if ! gh api repos/${{ github.repository }}/git/ref/tags/$TAG_NAME &>/dev/null; then
@@ -281,12 +300,24 @@ jobs:
             echo "Tag $TAG_NAME already exists."
           fi
 
+      - name: Create Release
+        continue-on-error: true
+        run: |
+          TAG_NAME="${{ env.TAG_NAME }}"
+          if ! gh release view "$TAG_NAME" --repo "${{ github.repository }}" &>/dev/null; then
+            echo "Release $TAG_NAME does not exist. Creating pre-release."
+            gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "prerelease: \`\`\`$TAG_NAME\`\`\` is currently being built, please wait..." --prerelease  
+            else
+            echo "Release $TAG_NAME already exists."gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "\`\`\` thingino release $TAG_NAME is being built, please wait... \`\`\`" --prerelease
+          fi
+
+
       - name: Upload full firmware to release
         uses: softprops/action-gh-release@master
         with:
           tag_name: ${{ env.TAG_NAME }}
           make_latest: false
-          draft: true
+          prerelease: true
           files: |
             ${{ env.FULL_FW }}
             ${{ env.FULL_FW_SHA }}
@@ -374,7 +405,7 @@ jobs:
 
           if [[ -n "$RELEASE_URL" ]]; then
             echo "Release URL found, attempting to mark as latest..."
-            gh release edit ${{ env.TAG_NAME }} --latest --draft=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
+            gh release edit ${{ env.TAG_NAME }} --latest --prerelease=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
             echo "Release marked as latest"
           else
             echo "Release not found, skipping latest release update"
