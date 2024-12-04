@@ -436,6 +436,10 @@ is_recording() {
 	pidof openRTSP > /dev/null
 }
 
+is_valid_mac() {
+	echo "$1" | grep -Eiq '^([0-9a-f]{2}[:-]){5}([0-9a-f]{2})$'
+}
+
 link_to() {
 	echo "<a href=\"$2\">$1</a>"
 }
