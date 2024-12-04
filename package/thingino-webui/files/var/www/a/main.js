@@ -78,8 +78,11 @@ function heartbeat() {
 			$('.progress-stacked.overlay').title = 'Free overlay: ' + json.overlay_free + 'KiB'
 			setProgressBar('#pb-overlay-used', json.overlay_used, json.overlay_total, 'Overlay Usage');
 
-			if (json.daynight_value !== '-1') $('#daynight_value').textContent = '☀️ ' + json.daynight_value;
-			if (typeof (json.uptime) !== 'undefined' && json.uptime !== '') $('#uptime').textContent = 'Uptime:️ ' + json.uptime;
+			if (json.daynight_value !== '-1')
+				$$('.gain').forEach(el => el.textContent = '☀️ ' + json.daynight_value);
+
+			if (typeof (json.uptime) !== 'undefined' && json.uptime !== '')
+				$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
 		})
 		.then(setTimeout(heartbeat, HeartBeatInterval));
 }

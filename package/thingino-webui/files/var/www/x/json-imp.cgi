@@ -33,21 +33,34 @@ urldecode() {
 val="$(urldecode "$val")"
 
 case "$cmd" in
+	color)
+		command="color $val"
+		color $val
+		;;
 	daynight)
+		command="daynight $val"
 		daynight $val
 		;;
 	ir850 | ir940 | white)
+		command="irled ${val:-read} $cmd"
 		irled ${val:-read} $cmd
 		;;
 	ircut)
+		command="ircut $val"
 		ircut $val
 		;;
 esac
 
-payload="{\"time\":\"$(date +%s)\""
+payload="{\"time\":\"$(date +%s)\",\"command\":\"$command\""
 
 daynight=$(daynight read)
 [ -z "$daynight" ] || payload="$payload,\"daynight\":\"$daynight\""
+
+color=$(color read)
+[ -z "$color" ] || payload="$payload,\"color\":$color"
+
+ircut=$(ircut read)
+[ -z "$ircut" ] || payload="$payload,\"ircut\":$ircut"
 
 ir850=$(irled read ir850)
 [ -z "$ir850" ] || payload="$payload,\"ir850\":$ir850"
@@ -55,11 +68,8 @@ ir850=$(irled read ir850)
 ir940=$(irled read ir940)
 [ -z "$ir940" ] || payload="$payload,\"ir940\":$ir940"
 
-ircut=$(ircut read)
-[ -z "$ircut" ] || payload="$payload,\"ircut\":$ircut"
-
-color=$(color read)
-[ -z "$color" ] || payload="$payload,\"color\":$color"
+white=$(irled read white)
+[ -z "$white" ] || payload="$payload,\"white\":$white"
 
 payload="$payload}"
 
