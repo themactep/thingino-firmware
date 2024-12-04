@@ -567,6 +567,7 @@ save2env() {
 	echo -e "$*" >> $tmpfile
 	fw_setenv -s $tmpfile
 	rm $tmpfile
+	fw_printenv > /etc/uenv.txt
 }
 
 set_error_flag() {
