@@ -32,7 +32,7 @@ case "$1" in
 		switch_to_color
 		;;
 	~ | toggle)
-		if [ "$(cat $MODE_FILE 2> /dev/null)" = "day" ]; then
+		if [ "$(cat $MODE_FILE 2> /dev/null)" -eq 1 ]; then
 			switch_to_monochrome
 		else
 			switch_to_color
