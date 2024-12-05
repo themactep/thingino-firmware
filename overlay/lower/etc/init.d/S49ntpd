@@ -9,7 +9,7 @@ TMP_CONF="/tmp/ntp.conf"
 
 start() {
 	starting
-	if [ "true" = "$(get wlanap_enabled)" ]; then
+	if [ "true" = "$(fw_printenv -n wlanap_enabled)" ]; then
 		touch $TMP_CONF
 		DAEMON_ARGS="-n -l"
 	fi

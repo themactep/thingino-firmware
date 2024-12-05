@@ -22,7 +22,7 @@ provision_environment() {
 case "$1" in
 	start)
 		starting
-		[ "true" = "$(get boot_complete)" ] || provision_environment
+		[ "true" = "$(fw_printenv -n boot_complete)" ] || provision_environment
 		ok
 		;;
 	stop)

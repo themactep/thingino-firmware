@@ -15,7 +15,7 @@ back_up() {
 }
 
 read_env() {
-	backup=$(get $ENV_VAR)
+	backup=$(fw_printenv -n $ENV_VAR)
 }
 
 read_file() {

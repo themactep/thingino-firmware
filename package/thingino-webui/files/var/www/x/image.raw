@@ -9,6 +9,7 @@ Date: $date
 Expires: $date
 Connection: close
 "
+echo snapraw 1 > /proc/jz/isp/isp-w02
 echo saveraw 1 > /proc/jz/isp/isp-w02
 cat $preview && rm $preview
 exit 0

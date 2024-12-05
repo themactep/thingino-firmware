@@ -3,7 +3,7 @@
 . /etc/init.d/rc.common
 
 DEV="wg0"
-IP="$(get wg_address)"
+IP="$(fw_printenv -n wg_address)"
 RESOLV_CONF="/tmp/resolv.conf"
 RESOLV_BAK="${RESOLV_CONF}.bak"
 
@@ -11,31 +11,31 @@ case "$1" in
 	force | start)
 		starting
 		# "force" is for testing, to start wireguard on demand without having it enabled at boot
-		[ "xtrue" = "x$(get wg_enabled)" -o "force" = "$1" ] || quit "Disabled"
+		[ "xtrue" = "x$(fw_printenv -n wg_enabled)" -o "force" = "$1" ] || quit "Disabled"
 		ip link show $DEV 2>&1 | grep -q 'UP' && die "WireGuard interface $DEV already running"
 
 		rm -f /tmp/wgconf_*
 		wgconf=$(mktemp /tmp/wgconf_XXXXXX)
 
 		echo '[Interface]' >> $wgconf
-		echo "PrivateKey=$(get wg_privkey)" >> $wgconf
-		v=$(get wg_port) ; if [ -n "$v" ] ; then echo "ListenPort=${v}" >> $wgconf ; fi
+		echo "PrivateKey=$(fw_printenv -n wg_privkey)" >> $wgconf
+		v=$(fw_printenv -n wg_port) ; if [ -n "$v" ] ; then echo "ListenPort=${v}" >> $wgconf ; fi
 
 		echo '[Peer]' >> $wgconf
-		echo "Endpoint=$(get wg_endpoint)" >> $wgconf
-		echo "PublicKey=$(get wg_peerpub)" >> $wgconf
+		echo "Endpoint=$(fw_printenv -n wg_endpoint)" >> $wgconf
+		echo "PublicKey=$(fw_printenv -n wg_peerpub)" >> $wgconf
 
-		v=$(get wg_peerpsk) ; if [ -n "$v" ] ; then echo "PresharedKey=${v}" >> $wgconf ; fi
-		v=$(get wg_allowed) ; if [ -n "$v" ] ; then echo "AllowedIPs=${v}" >> $wgconf ; fi
-		v=$(get wg_keepalive) ; if [ -n "$v" ] ; then echo "PersistentKeepalive=${v}" >> $wgconf ; fi
+		v=$(fw_printenv -n wg_peerpsk) ; if [ -n "$v" ] ; then echo "PresharedKey=${v}" >> $wgconf ; fi
+		v=$(fw_printenv -n wg_allowed) ; if [ -n "$v" ] ; then echo "AllowedIPs=${v}" >> $wgconf ; fi
+		v=$(fw_printenv -n wg_keepalive) ; if [ -n "$v" ] ; then echo "PersistentKeepalive=${v}" >> $wgconf ; fi
 
-		mtu=$(get wg_mtu) ; if [ -n "$mtu" ] ; then link_mtu="mtu ${mtu}" ; fi
+		mtu=$(fw_printenv -n wg_mtu) ; if [ -n "$mtu" ] ; then link_mtu="mtu ${mtu}" ; fi
 		run "ip link add dev $DEV type wireguard"
 		run "wg setconf $DEV $wgconf"
 		run "ip address add ${IP} dev $DEV"
 		run "ip link set $link_mtu up dev $DEV"
 
-		DNS=$(get wg_dns)
+		DNS=$(fw_printenv -n wg_dns)
 		if [ -n "$DNS" ] ; then
 			resolv_tmp=$(mktemp)
 			grep -v nameserver $RESOLV_CONF >> $resolv_tmp
@@ -46,7 +46,7 @@ case "$1" in
 			mv $resolv_tmp $RESOLV_CONF
 		fi
 
-		for r in $(get wg_allowed | tr "," " ") ; do
+		for r in $(fw_printenv -n wg_allowed | tr "," " ") ; do
 			run "ip route add $r dev $DEV"
 		done
 

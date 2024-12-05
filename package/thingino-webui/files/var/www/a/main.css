@@ -194,8 +194,8 @@ body:before {
 
 #daynight_interval {
 	display: inline-block;
-	max-width: 3rem;
 	margin: auto 0.25rem;
+	max-width: 3rem;
 }
 
 #preview-wrapper button {
@@ -314,6 +314,18 @@ textarea.nowrap {
 	white-space: pre;
 }
 
+#day_night_max-show,
+#day_night_min-show {
+	min-width: 5rem;
+}
+
+#debug-wrap {
+	position: fixed;
+	bottom: 1rem;
+	left: 1rem;
+	max-width: 3rem;
+}
+
 #editor_text {
 	min-height: 20rem;
 }
@@ -329,13 +341,6 @@ textarea.nowrap {
 pre#output[data-cmd] {
 	background-color: rgb(0, 0, 0);
 	color: rgba(170, 170, 170, 0.8);
-}
-
-#debug-wrap {
-	position: fixed;
-	bottom: 1rem;
-	left: 1rem;
-	max-width: 3rem;
 }
 
 .gpio_led_r > .input-group > .switch { background: red; }

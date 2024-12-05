@@ -21,14 +21,14 @@ setRGB() {
 }
 
 case "$1" in
+	b*) setRGB 0 0 1 ;;
+	c*) setRGB 0 1 1 ;;
+	g*) setRGB 0 1 0 ;;
+	m* | p*) setRGB 1 0 1 ;;
+	r*) setRGB 1 0 0 ;;
+	w*) setRGB 1 1 1 ;;
+	y*) setRGB 1 1 0 ;;
 	off) setRGB 0 0 0 ;;
-	red) setRGB 1 0 0 ;;
-	green) setRGB 0 1 0 ;;
-	blue) setRGB 0 0 1 ;;
-	yellow) setRGB 1 1 0 ;;
-	magenta | purple) setRGB 1 0 1 ;;
-	cyan) setRGB 0 1 1 ;;
-	white) setRGB 1 1 1 ;;
 	*) echo -e "Usage: $0 <off|red|green|blue|yellow|magenta|cyan|white>" >&2 ;;
 esac
 

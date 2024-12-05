@@ -32,7 +32,7 @@ generate() {
 	os_hostname=$(sed -n 's/^HOSTNAME=//p' /etc/os-release)
 	info "OS hostname: $os_hostname"
 
-	mac_suffix=$(get wlanmac | sed -E 's/://g;s/.*(.{4})$/\1/')
+	mac_suffix=$(fw_printenv -n wlanmac | sed -E 's/://g;s/.*(.{4})$/\1/')
 	info "MAC suffix: $mac_suffix"
 
 	hostname="${os_hostname}-$mac_suffix"
@@ -45,7 +45,7 @@ generate() {
 case "$1" in
 	start)
 		starting
-		hostname=$(get hostname)
+		hostname=$(fw_printenv -n hostname)
 		[ -z "$hostname" ] && generate
 		set_hostname
 		update_hosts

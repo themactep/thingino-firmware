@@ -32,26 +32,27 @@ on:
         default: false
 
 env:
+  BR2_DL_DIR: ~/dl
+  FORCE_UNSAFE_CONFIGURE: 1
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   TAG_NAME: firmware
   TERM: linux
-  BR2_DL_DIR: ~/dl
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
   TG_CHANNEL: -1002083893006_14394
   TG_TOPIC: 14394
   TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
-  FORCE_UNSAFE_CONFIGURE: 1
-  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  TZ: America/Los_Angeles
 
 jobs:
   notify-begin:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       start_time: ${{ steps.set_output.outputs.time }}
       tg_disabled: ${{ steps.set_env.outputs.tg_disabled }}
     steps:
       - name: Set timezone
         run: |
-          sudo timedatectl set-timezone "America/Los_Angeles"
+          sudo timedatectl set-timezone ${{ env.TZ }}
 
       - name: Save workflow start time to ENV
         id: set_output
@@ -78,13 +79,13 @@ jobs:
           .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC start $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
 
   generate-matrix:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Set timezone
         run: |
-          sudo timedatectl set-timezone "America/Los_Angeles"
+          sudo timedatectl set-timezone ${{ env.TZ }}
 
       - name: Configure GH workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -114,7 +115,7 @@ jobs:
   buildroot:
     name: ${{ matrix.thingino-version }}
     needs: [generate-matrix, notify-begin]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       # Feed the hash of the commit we are building into the notify-completion release-notes step
       GIT_HASH: ${{ steps.env.outputs.git_hash }}
@@ -141,12 +142,12 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc cmake cpio curl ca-certificates file git gh make gawk jq procps rsync tzdata u-boot-tools unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests 7zip build-essential bc cmake cpio curl ca-certificates file git gh make gawk jq procps rsync tzdata u-boot-tools unzip wget
 
       - name: Set timezone
         run: |
-          ln -sf /usr/share/zoneinfo/America/Los_Angeles /etc/localtime
-          echo "America/Los_Angeles" > /etc/timezone
+          ln -sf /usr/share/zoneinfo/${{ env.TZ }} /etc/localtime
+          echo ${{ env.TZ }} > /etc/timezone
           DEBIAN_FRONTEND=noninteractive dpkg-reconfigure -f noninteractive tzdata
 
       - name: Setup gh workspace in container
@@ -229,6 +230,7 @@ jobs:
       - name: Locate Built Firmware Artifacts
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
+          FW_PATH=${HOME}/output/${DYNAMIC_PART}/images/
           FULL_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}.bin" ! -name "*update.bin" | head -n 1)
           FULL_FW_UBOOT=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "u-boot-lzo-with-spl.bin" | head -n 1)
           FULL_FW_KERNEL=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "uImage" | head -n 1)
@@ -237,6 +239,7 @@ jobs:
           UPDATE_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}-update.bin" | head -n 1)
           echo "FULL_FW: $FULL_FW"
           if [[ -n "$FULL_FW" ]]; then
+            echo "FW_PATH=${FW_PATH}" >> ${GITHUB_ENV}
             echo "FULL_FW=${FULL_FW}" >> ${GITHUB_ENV}
             echo "FULL_FW_UBOOT=${FULL_FW_UBOOT}" >> ${GITHUB_ENV}
             echo "FULL_FW_KERNEL=${FULL_FW_KERNEL}" >> ${GITHUB_ENV}
@@ -277,17 +280,6 @@ jobs:
             ${{ env.FULL_FW_ROOTFS }}
             ${{ env.FULL_FW_ROOTFS_TAR }}
             ${{ env.FULL_FW_SHA }}
-    
-      - name: Check GitHub CLI Availability
-        run: |
-          echo "Checking if GitHub CLI (gh) is installed..."
-          if which gh &>/dev/null; then
-            echo "GitHub CLI found at: $(which gh)"
-            gh --version
-          else
-            echo "GitHub CLI (gh) not found."
-            exit 1
-          fi
 
       - name: Create Release Tag
         continue-on-error: true
@@ -306,11 +298,10 @@ jobs:
           TAG_NAME="${{ env.TAG_NAME }}"
           if ! gh release view "$TAG_NAME" --repo "${{ github.repository }}" &>/dev/null; then
             echo "Release $TAG_NAME does not exist. Creating pre-release."
-            gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "prerelease: \`\`\`$TAG_NAME\`\`\` is currently being built, please wait..." --prerelease  
+            gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "pre-release: \`\`\`$TAG_NAME\`\`\` is currently being built, please wait..." --prerelease  
             else
-            echo "Release $TAG_NAME already exists."gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "\`\`\` thingino release $TAG_NAME is being built, please wait... \`\`\`" --prerelease
+            echo "Release $TAG_NAME already exists."
           fi
-
 
       - name: Upload full firmware to release
         uses: softprops/action-gh-release@master
@@ -323,7 +314,11 @@ jobs:
             ${{ env.FULL_FW_SHA }}
             ${{ env.UPDATE_FW_SHA }}
 
-      - name: Send firmware completion notifications with binaries
+      - name: Package binaries for notify
+        run: |
+          7zz a -t7z -mx=9 -mmt=on /tmp/thingino-${{ matrix.thingino-version }}.7z ${{ env.FULL_FW }} ${{ env.FULL_FW_SHA }}
+
+      - name: Send firmware completion notifications with attachment
         if: ${{ env.TG_DISABLED == 'false' && (env.FULL_FW) }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
@@ -331,7 +326,7 @@ jobs:
             export TG_TOPIC=""
           fi
           if [ -n "${{ env.FULL_FW }}" ]; then
-          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC completed $TAG_NAME ${{ github.run_id }} ${{ github.repository }} ${GIT_HASH} ${GIT_BRANCH} ${TAG_NAME} ${TIME} ${FULL_FW}
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC completed $TAG_NAME ${{ github.run_id }} ${{ github.repository }} ${GIT_HASH} ${GIT_BRANCH} ${TAG_NAME} ${TIME} /tmp/thingino-${{ matrix.thingino-version }}.7z ${{ matrix.thingino-version }}
           fi
 
       - name: Send error notification
@@ -345,12 +340,12 @@ jobs:
 
   notify-completion:
     needs: [buildroot, notify-begin]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: always()
     steps:
       - name: Set timezone
         run: |
-          sudo timedatectl set-timezone "America/Los_Angeles"
+          sudo timedatectl set-timezone ${{ env.TZ }}
 
       - name: Configure Environment
         run: |
@@ -411,7 +406,7 @@ jobs:
             echo "Release not found, skipping latest release update"
           fi
 
-      - name: Send completion summary
+      - name: Send nofity completion summary
         if: ${{ env.TG_DISABLED == 'false' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
@@ -423,4 +418,4 @@ jobs:
           ELAPSED=$((END_TIME - START_TIME))
           ELAPSED_MIN=$((ELAPSED / 60))
           ELAPSED_SEC=$((ELAPSED % 60))
-          .github/scripts/tg-notify.sh $TG_TOKEN $TG_CHANNEL $TG_TOPIC finish ${{ github.workflow }} "${ELAPSED_MIN}m ${ELAPSED_SEC}s" ${{ github.run_id }} ${{ github.repository }}
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC finish ${{ github.workflow }} "${ELAPSED_MIN}m ${ELAPSED_SEC}s" ${{ github.run_id }} ${{ github.repository }}

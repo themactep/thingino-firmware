@@ -4,9 +4,9 @@
 
 HTTP_CONF="/etc/httpd.conf"
 PORTAL_CONF="/etc/httpd-portal.conf"
-ssid="$(get wlanssid)"
-pass="$(get wlanpass)"
-wlanap="$(get wlanap_enabled)"
+ssid="$(fw_printenv -n wlanssid)"
+pass="$(fw_printenv -n wlanpass)"
+wlanap="$(fw_printenv -n wlanap_enabled)"
 
 if ! iface_exists "eth0" && ! iface_exists "usb0" && ([ -z "$ssid" ] || [ -z "$pass" ]) && ([ -z "$wlanap" ] || [ "$wlanap" = "false" ]) && ip link show wlan0 &> /dev/null; then
 	DAEMON_ARGS="-f -c $PORTAL_CONF"

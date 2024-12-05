@@ -25,7 +25,7 @@ restore() {
 
 read_env() {
 	info "Read backup dropbear key from environment"
-	backup=$(get $ENV_VAR)
+	backup=$(fw_printenv -n $ENV_VAR)
 	[ -z "$backup" ] && info "Nothing in backup"
 }
 
