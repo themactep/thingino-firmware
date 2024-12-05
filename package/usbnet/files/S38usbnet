@@ -3,7 +3,7 @@
 . /etc/init.d/rc.common
 
 start() {
-	gpionum="$(get gpio_usbnet)"
+	gpionum="$(fw_printenv -n gpio_usbnet)"
 	modulename="rndis_host"
 
 	starting
