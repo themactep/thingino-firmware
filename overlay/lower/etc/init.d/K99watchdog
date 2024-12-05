@@ -6,7 +6,7 @@ DAEMON_ARGS="-T 60 /dev/watchdog"
 
 start() {
 	starting
-	[ "true" = "$(get disable_watchdog)" ] && quit "Disabled"
+	[ "true" = "$(fw_printenv -n disable_watchdog)" ] && quit "Disabled"
 	start_daemon
 }
 

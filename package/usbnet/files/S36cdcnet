@@ -13,7 +13,7 @@ decrement_mac() {
 start() {
 	decrement_mac
 	starting
-	modprobe g_ncm iManufacturer=thingino host_addr=$(get ethaddr) dev_addr=$ethaddr iProduct="NCM CDC Ethernet Gadget"
+	modprobe g_ncm iManufacturer=thingino host_addr=$(fw_printenv -n ethaddr) dev_addr=$ethaddr iProduct="NCM CDC Ethernet Gadget"
 	usb-role -m device
 	touch /var/run/udhcpd.leases
 	udhcpd -S -I 172.16.0.1 /etc/udhcpd.conf

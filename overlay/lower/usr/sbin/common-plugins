@@ -12,12 +12,7 @@ CONFIG_FILE="/etc/webui/${plugin}.conf"
 
 log "Plugin ${plugin} initialized"
 
-if [ -f "$CONFIG_FILE" ]; then
-	log "Reading configuration from $CONFIG_FILE"
-	. $CONFIG_FILE
-else
-	log "Configuration file $CONFIG_FILE not found"
-fi
+[ -f "$CONFIG_FILE" ] && . $CONFIG_FILE
 
 clone_snapshot() {
 	snapshot=/tmp/snapshot.jpg

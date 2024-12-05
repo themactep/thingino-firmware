@@ -6,7 +6,7 @@ CNET=172.16.0
 
 # Define net_dev in the global scope
 net_dev="wlan0"  # default device
-if [ "$(get wlandev)" = "hi3881" ]; then
+if [ "$(fw_printenv -n wlandev)" = "hi3881" ]; then
 	net_dev="ap0"
 	sed -i 's/wlan0/ap0/g' /etc/udhcpd-portal.conf
 fi
@@ -22,9 +22,9 @@ case "$1" in
 		(iface_exists "eth0" || iface_exists "usb0") && quit "Wired interface found"
 		iface_exists "$net_dev" || quit "Wireless port not found"
 		# quit if credentials are set
-		ssid="$(get wlanssid)"
-		pass="$(get wlanpass)"
-		wlanap="$(get wlanap_enabled)"
+		ssid="$(fw_printenv -n wlanssid)"
+		pass="$(fw_printenv -n wlanpass)"
+		wlanap="$(fw_printenv -n wlanap_enabled)"
 		[ -n "$ssid" ] && [ -n "$pass" ] && quit "WLAN already configured"
 		[ "$wlanap" == "true" ] && quit "WLAN AP enabled"
 
