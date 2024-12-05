@@ -436,6 +436,10 @@ is_recording() {
 	pidof openRTSP > /dev/null
 }
 
+is_valid_mac() {
+	echo "$1" | grep -Eiq '^([0-9a-f]{2}[:-]){5}([0-9a-f]{2})$'
+}
+
 link_to() {
 	echo "<a href=\"$2\">$1</a>"
 }
@@ -563,6 +567,7 @@ save2env() {
 	echo -e "$*" >> $tmpfile
 	fw_setenv -s $tmpfile
 	rm $tmpfile
+	fw_printenv > /etc/uenv.txt
 }
 
 set_error_flag() {

@@ -17,7 +17,7 @@ if [ $# -lt 4 ]; then
 	echo "  finish <BUILD_NAME> <ELAPSED_TIME> <JOB_ID> <REPOSITORY>"
 	echo "      Send a 'build completed' message with elapsed time."
 	echo
-	echo "  completed <BUILD_NAME> <JOB_ID> <REPOSITORY> <COMMIT_HASH> <BRANCH> <TAG_NAME> <TIME> <FILE_PATH>"
+	echo "  completed <BUILD_NAME> <JOB_ID> <REPOSITORY> <COMMIT_HASH> <BRANCH> <TAG_NAME> <TIME> <FILE_PATH> <PROFILE_NAME>"
 	echo "      Send a 'build completed with binaries' message, optionally attaching a file."
 	echo
 	echo "  error <BUILD_NAME> <ERROR_MESSAGE> <JOB_ID> <REPOSITORY>"
@@ -141,13 +141,15 @@ case "$MESSAGE_TYPE" in
 		TAG_NAME="$5"
 		TIME="$6"
 		FILE_PATH="$7"
+		PROFILE_NAME="$8"
 
 		JOB_LINK="https://github.com/${REPOSITORY}/actions/runs/${JOB_ID}"
 		COMMIT_LINK="https://github.com/${REPOSITORY}/commit/${COMMIT_HASH}"
 		BRANCH_LINK="https://github.com/${REPOSITORY}/tree/${BRANCH}"
 		TAG_LINK="https://github.com/${REPOSITORY}/releases/tag/${TAG_NAME}"
+		PROFILE_LINK="https://github.com/${REPOSITORY}/tree/master/configs/cameras/$PROFILE_NAME"
 
-		MESSAGE="Commit: [${COMMIT_HASH}](${COMMIT_LINK})\nBranch: [${BRANCH}](${BRANCH_LINK})\nTag: [${TAG_NAME}](${TAG_LINK})\nTime: ${TIME}\nJob: [${JOB_ID}](${JOB_LINK})\n\n✅ GitHub Actions"
+		MESSAGE="Profile: [${PROFILE_NAME}](${PROFILE_LINK})\nCommit: [${COMMIT_HASH}](${COMMIT_LINK})\nBranch: [${BRANCH}](${BRANCH_LINK})\nTag: [${TAG_NAME}](${TAG_LINK})\nTime: ${TIME}\nJob: [${JOB_ID}](${JOB_LINK})\n\n✅ GitHub Actions"
 		MESSAGE=$(escape_markdown "$MESSAGE")
 
 		if [ -f "$FILE_PATH" ]; then

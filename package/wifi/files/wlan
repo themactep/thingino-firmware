@@ -2,7 +2,7 @@
 
 . /etc/init.d/rc.common
 
-wlandev=$(get wlandev)
+wlandev=$(fw_printenv -n wlandev)
 [ -z "$wlandev" ] && die "wlandev is empty, exit."
 
 SSV_CMD_FILE="/proc/ssv/phy0/ssv_cmd"

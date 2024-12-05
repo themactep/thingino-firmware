@@ -1,36 +1,64 @@
 #!/bin/sh
 
-plugin="daynight"
-
-. /sbin/common-plugins
-singleton
+pidof -o %PPID daynight && exit
 
 STOP_FILE=/tmp/daynight.stop
 
 MODE_FILE=/tmp/nightmode.txt
 [ -f $MODE_FILE ] || echo "day" > $MODE_FILE
 
+day_night_max=$(get day_night_max)
+day_night_min=$(get day_night_min)
+day_night_color=$(get day_night_color)
+day_night_ircut=$(get day_night_ircut)
+day_night_ir850=$(get day_night_ir850)
+day_night_ir940=$(get day_night_ir940)
+day_night_white=$(get day_night_white)
+
 is_disabled() {
 	[ "#" = "$(crontab -l | grep daynight$ | cut -c1)" ] || \
-	[ "false" = "$daynight_enabled" ] || \
 	[ -f "$STOP_FILE" ]
+}
+
+controls_color() {
+	[ "true" = "$day_night_color" ]
+}
+
+controls_ircut() {
+	[ "true" = "$day_night_ircut" ]
+}
+
+controls_ir850() {
+	[ "true" = "$day_night_ir850" ]
+}
+
+controls_ir940() {
+	[ "true" = "$day_night_ir940" ]
+}
+
+controls_white() {
+	[ "true" = "$day_night_white" ]
 }
 
 switch_to_day() {
 	is_disabled && return
-
-	ircut on
-	irled off
-	color on
+	echo "switch to day"
+	controls_ircut && ircut on
+	controls_ir850 && irled off ir850
+	controls_ir940 && irled off ir940
+	controls_white && irled off white
+	controls_color && color on
 	echo "day" > $MODE_FILE
 }
 
 switch_to_night() {
 	is_disabled && return
-
-	color off
-	ircut off
-	irled on
+	echo "switch to night"
+	controls_color && color off
+	controls_ircut && ircut off
+	controls_ir850 && irled on ir850
+	controls_ir940 && irled on ir940
+	controls_white && irled on white
 	echo "night" > $MODE_FILE
 }
 
@@ -57,9 +85,6 @@ case "$1" in
 		echo $state
 		;;
 	*)
-		day_night_max=$(get day_night_max || echo 15000)
-		day_night_min=$(get day_night_min || echo 500)
-
 		echo "$day_night_min - $value - $day_night_max" >&2
 
 		if [ "$reversed" -eq 0 ]; then
@@ -67,15 +92,19 @@ case "$1" in
 				switch_to_day
 			elif [ "$value" -gt "$day_night_max" ] && [ "night" != "$state" ]; then
 				switch_to_night
+			else
+				echo "within limits"
 			fi
 		else
 			if [ "$value" -gt "$day_night_max" ] && [ "night" != "$state" ]; then
 				switch_to_night
 			elif [ "$value" -lt "$day_night_min" ] && [ "day" != "$state" ]; then
 				switch_to_day
+			else
+				echo "within limits"
 			fi
 		fi
 		;;
 esac
 
-quit_clean 0
+exit 0

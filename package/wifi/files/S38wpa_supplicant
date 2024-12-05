@@ -15,9 +15,9 @@ ssid_changed() {
 
 start() {
 	starting
-	ssid="$(get wlanssid)"
-	pass="$(get wlanpass)"
-	wlanap="$(get wlanap_enabled)"
+	ssid="$(fw_printenv -n wlanssid)"
+	pass="$(fw_printenv -n wlanpass)"
+	wlanap="$(fw_printenv -n wlanap_enabled)"
 
 	# convert plain-text password no matter what
 	if [ -n "$pass" ] && [ ${#pass} -lt 64 ]; then
