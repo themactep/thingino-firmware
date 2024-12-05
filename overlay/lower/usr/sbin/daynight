@@ -16,7 +16,6 @@ day_night_ir940=$(get day_night_ir940)
 day_night_white=$(get day_night_white)
 
 is_disabled() {
-	[ "#" = "$(crontab -l | grep daynight$ | cut -c1)" ] || \
 	[ -f "$STOP_FILE" ]
 }
 
