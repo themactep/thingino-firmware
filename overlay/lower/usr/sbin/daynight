@@ -1,6 +1,6 @@
 #!/bin/sh
 
-pidof -o %PPID daynight && exit
+pidof -o %PPID daynight > /dev/null && exit
 
 STOP_FILE=/tmp/daynight.stop
 
