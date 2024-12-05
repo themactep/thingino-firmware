@@ -3,8 +3,8 @@
 . /etc/init.d/rc.common
 
 MMC_MODULE="jzmmc_v12"
-MMC_GPIO_CD=$(get gpio_mmc_cd)
-MMC_GPIO_PWR=$(get gpio_mmc_power)
+MMC_GPIO_CD=$(fw_printenv -n gpio_mmc_cd)
+MMC_GPIO_PWR=$(fw_printenv -n gpio_mmc_power)
 
 # Default CD-PIN for Ingenic PB27 (GPIO59)
 [ -z "$MMC_GPIO_CD" ] && MMC_GPIO_CD="59"
