@@ -75,10 +75,16 @@ ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 OVERLAY_BIN := $(OUTPUT_DIR)/images/overlay.jffs2
 
 # 0x0010000, 64K, 65_536
-ALIGN_BLOCK := 65536
+# ALIGN_BLOCK := 65536
 
 # 0x0008000, 32K, 32_768
 # ALIGN_BLOCK := 32768
+
+# 0x0004000, 16K, 16_384
+# ALIGN_BLOCK := 16384
+
+# 0x0001000, 4K, 4_096
+ALIGN_BLOCK := 4096
 
 # create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
 FIRMWARE_NAME_FULL = thingino-$(CAMERA).bin
