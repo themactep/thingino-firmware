@@ -316,6 +316,14 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_NETFILTER
 endef
 endif
 
+# TUN required for zerotier#
+ifeq ($(BR2_PACKAGE_ZEROTIER_ONE),y)
+define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_TUN
+        $(call KCONFIG_SET_OPT,CONFIG_TUN,m)
+endef
+endif
+
+
 ####################################################
 #This is required for BR to successfully concatenate the kernel options when used with modules
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
@@ -345,6 +353,7 @@ define THINGINO_KOPT_LINUX_CONFIG_FIXUPS
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_DEVELOP)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_GADGET_SERIAL)
 	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_NETFILTER)
+	$(call THINGINO_KOPT_LINUX_CONFIG_FIXUPS_TUN)
 endef
 
 
