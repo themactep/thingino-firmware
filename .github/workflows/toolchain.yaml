@@ -33,7 +33,7 @@ env:
 
 jobs:
   notify-begin:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       start_time: ${{ steps.set_output.outputs.time }}
       tg_disabled: ${{ steps.set_env.outputs.tg_disabled }}
@@ -60,7 +60,7 @@ jobs:
           echo Telegram response: ${HTTP}
 
   generate-matrix:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -92,7 +92,7 @@ jobs:
   build-toolchain:
     name: ${{ matrix.toolchain-version }}
     needs: [generate-matrix, notify-begin]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         shell: bash
@@ -109,7 +109,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git make gawk procps rsync unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git lzop make gawk procps rsync unzip wget
 
       - name: Setup gh workspace in container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -210,7 +210,7 @@ jobs:
 
   notify-completion:
     needs: [build-toolchain, notify-begin]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: always()
     steps:
       - name: Send completion summary
