@@ -77,9 +77,9 @@ jobs:
         id: set-matrix
         run: |
           if [[ "${{ github.event.inputs.latest_only }}" == 'true' ]]; then
-            CONFIGS=$(find configs/github/ -type f | sort | awk -F '/' '{print $(NF)}' | grep 'toolchain_xburst1_musl_gcc14')
+            CONFIGS=$(find configs/github/ -type f | sort | awk -F '/' '{print $(NF)}' | grep 'gcc14')
           else
-            CONFIGS=$(find configs/github/ -type f | sort | awk -F '/' '{print $(NF)}' | grep 'toolchain_xburst1')
+            CONFIGS=$(find configs/github/ -type f | sort | awk -F '/' '{print $(NF)}' | grep 'toolchain_xburst')
           fi
           JSON_MATRIX="{\"toolchain-version\": ["
           for CONFIG in $CONFIGS; do
