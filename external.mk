@@ -142,22 +142,22 @@ else ifeq ($(BR2_SOC_INGENIC_T40N),y)
 SOC_MODEL := t40n
 SOC_RAM := 128
 BR2_SOC_INGENIC_T40=y
-UBOOT_BOARDNAME="isvp_t40_sfcnor"
+UBOOT_BOARDNAME="isvp_t40n_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40NN),y)
 SOC_MODEL := t40nn
 SOC_RAM := 128
 BR2_SOC_INGENIC_T40=y
-UBOOT_BOARDNAME="isvp_t40_sfcnor"
+UBOOT_BOARDNAME="isvp_t40n_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40XP),y)
 SOC_MODEL := t40xp
 SOC_RAM := 256
 BR2_SOC_INGENIC_T40=y
-UBOOT_BOARDNAME="isvp_t40_sfcnor"
+UBOOT_BOARDNAME="isvp_t40xp_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40A),y)
 SOC_MODEL := t40a
 SOC_RAM := 128
 BR2_SOC_INGENIC_T40=y
-UBOOT_BOARDNAME="isvp_t40_sfcnor"
+UBOOT_BOARDNAME="isvp_t40a_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T41LQ),y)
 SOC_MODEL := t41lq
 SOC_RAM := 64
