@@ -121,8 +121,7 @@ menuconfig BR2_THINGINO_DEV_PACKAGES
 	  https://github.com/thingino/firmware
 
 config BR2_THINGINO_TOOLCHAIN_BUILD
-    bool "Enable Toolchain Build"
-    default n
+	bool "Enable Toolchain Build"
 
 if BR2_THINGINO_DEV_PACKAGES
 config BR2_PACKAGE_GDB
