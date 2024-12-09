@@ -20,7 +20,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		mv $tmp_file $config_file
 
 		new_password="$POST_ui_password_new"
-		[ -z "$new_password" ] || echo "root:$new_password" | chpasswd -c sha512
+		if [ -n "$new_password" ]; then
+			echo "root:$new_password" | chpasswd -c sha512
+			pwbackup save
+		fi
 
 		update_caminfo
 		redirect_back "success" "Data updated."
