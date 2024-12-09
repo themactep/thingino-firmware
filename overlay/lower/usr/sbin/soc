@@ -66,7 +66,7 @@ print_soc_model() {
 		0x0031CCCC) soc="t31al" ;;
 		0x0031DDDD) soc="t31zc" ;;
 		0x0031EEEE) soc="t31lc" ;;
-		0x00401111) soc="t40l" ;;
+		0x00401111) soc="t40n" ;;
 		0x00404444) soc="t40a" ;;
 		0x00407777) soc="t40xp" ;;
 		0x00408888) soc="t40nn" ;;

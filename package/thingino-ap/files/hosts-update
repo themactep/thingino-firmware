@@ -3,7 +3,8 @@
 HOSTS=/tmp/dnsd.conf
 
 cp /etc/dnsd-ap.conf ${HOSTS}
-hostname=$(get hostname)
+
+hostname=$(fw_printenv -n hostname)
 ip=$(head -n 1 ${HOSTS} | cut -F 2)
 grep $hostname ${HOSTS} > /dev/null || echo $(hostname).local $ip >> ${HOSTS}
 
