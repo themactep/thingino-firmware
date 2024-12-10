@@ -150,6 +150,4 @@ playerModal.addEventListener("hidden.bs.modal", ev => {
 })
 </script>
 
-<% env %>
-
 <%in _footer.cgi %>
