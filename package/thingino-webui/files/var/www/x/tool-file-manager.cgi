@@ -104,7 +104,7 @@ const path = "<%= $dir %>"
 const tablebody = $('#filelist tbody')
 const iconPlay = '▶️';
 const iconStop = '⏹️️';
-const lsJson=[<% ls -ALlp --group-directories-first --full-time $dir | awk '{print "{\"name\":\""$9"\",\"size\":\""$5"\",\"permissions\":\""$1"\",\"time\":\""$6,$7,$8"\"},"}' %>]
+const lsJson=[<% ls -ALlp --group-directories-first --full-time $dir | awk '{print "{\"name\":\""$9"\",\"size\":\""$5"\",\"perm\":\""$1"\",\"time\":\""$6,$7,$8"\"},"}' %>]
 lsJson.forEach(file => {
 	let html = '<tr><td>'
 	if (file.name.endsWith('/')) {
@@ -117,7 +117,7 @@ lsJson.forEach(file => {
 				' data-bs-url="?play=' + path + '/' + file.name + '" title="Play">' +
 				iconPlay + '️</button>'
 	}
-	html += '</td><td>' + file.size + '</td><td>' + file.permissions + '</td><td>' + file.timestamp + '</td></tr>'
+	html += '</td><td>' + file.size + '</td><td>' + file.perm + '</td><td>' + file.time + '</td></tr>'
 	tablebody.innerHTML += html
 })
 
