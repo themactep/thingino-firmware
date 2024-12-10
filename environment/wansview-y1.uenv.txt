@@ -1,0 +1,5 @@
+gpio_default=7O 9O 9o 11O 14i 16i 17i 18O 47O 50i 57o 58o
+gpio_mmc_detect=50
+gpio_scl=17
+gpio_sda=16
+gpio_wlan=47

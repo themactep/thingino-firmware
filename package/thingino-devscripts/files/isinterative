@@ -2,17 +2,17 @@
 
 echo_c 208 \$-
 if echo $- | grep -q i > /dev/null; then
-        echo "Interactive"
+	echo "Interactive"
 else
-        echo "Non-interactive"
+	echo "Non-interactive"
 fi
 
 
 echo_c 208 tty
 if tty > /dev/null; then
-        echo "Interactive"
+	echo "Interactive"
 else
-        echo "Non-interactive"
+	echo "Non-interactive"
 fi
 
 exit 0

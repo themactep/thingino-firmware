@@ -114,7 +114,7 @@ FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE)
 # dynamic partitions
 OVERLAY_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(OVERLAY_OFFSET))))
 OVERLAY_SIZE_NOBOOT = $(shell echo $$(($(FIRMWARE_NOBOOT_SIZE) - $(OVERLAY_OFFSET_NOBOOT))))
-OVERLAY_MINUMUM_SIZE := 131072
+OVERLAY_MINUMUM_SIZE := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
 
 # partition offsets
 U_BOOT_OFFSET = 0
@@ -249,7 +249,7 @@ ifeq ($(GCC),12)
 	sed -i 's/^BR2_TOOLCHAIN_GCC_AT_LEAST_13=y/# BR2_TOOLCHAIN_GCC_AT_LEAST_13 is not set/' $(OUTPUT_DIR)/.config; \
 	sed -i 's/^BR2_TOOLCHAIN_GCC_AT_LEAST="13"/BR2_TOOLCHAIN_GCC_AT_LEAST="12"/' $(OUTPUT_DIR)/.config;
 endif
-	$(BR2_MAKE) sdk
+	$(BR2_MAKE) -j$(shell nproc) sdk
 
 source: defconfig
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source

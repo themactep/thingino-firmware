@@ -142,22 +142,22 @@ else ifeq ($(BR2_SOC_INGENIC_T40N),y)
 SOC_MODEL := t40n
 SOC_RAM := 128
 BR2_SOC_INGENIC_T40=y
-UBOOT_BOARDNAME="isvp_t40_sfcnor"
+UBOOT_BOARDNAME="isvp_t40n_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40NN),y)
 SOC_MODEL := t40nn
 SOC_RAM := 128
 BR2_SOC_INGENIC_T40=y
-UBOOT_BOARDNAME="isvp_t40_sfcnor"
+UBOOT_BOARDNAME="isvp_t40n_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40XP),y)
 SOC_MODEL := t40xp
 SOC_RAM := 256
 BR2_SOC_INGENIC_T40=y
-UBOOT_BOARDNAME="isvp_t40_sfcnor"
+UBOOT_BOARDNAME="isvp_t40xp_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40A),y)
 SOC_MODEL := t40a
 SOC_RAM := 128
 BR2_SOC_INGENIC_T40=y
-UBOOT_BOARDNAME="isvp_t40_sfcnor"
+UBOOT_BOARDNAME="isvp_t40a_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T41LQ),y)
 SOC_MODEL := t41lq
 SOC_RAM := 64
@@ -613,9 +613,19 @@ KERNEL_BRANCH = ingenic-t31
 else ifeq ($(KERNEL_VERSION_4),y)
 $(info Building for kernel 4.x)
 KERNEL_VERSION = 4.4
+
+ifeq ($(BR2_SOC_INGENIC_T40),y)
+KERNEL_SITE = https://github.com/gtxaspec/thingino-linux
+KERNEL_BRANCH = ingenic-t40
+else ifeq ($(BR2_SOC_INGENIC_T41),y)
+KERNEL_SITE = https://github.com/gtxaspec/thingino-linux
+KERNEL_BRANCH = ingenic-t41
+else
 KERNEL_SITE = https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94
 KERNEL_BRANCH = stable
 endif
+endif
+
 KERNEL_HASH = $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
 $(info KERNEL_HASH=$(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1))
 THINGINO_KERNEL = $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz

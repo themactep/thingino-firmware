@@ -6,9 +6,13 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ethernet/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-kopt/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/usbnet/Config.in"
 
+config BR2_THINGINO_TOOLCHAIN
+	bool
+	default y if BR2_THINGINO_TOOLCHAIN_BUILD
+
 menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	bool "System Packages"
-	default y
+	default y if !BR2_THINGINO_TOOLCHAIN
 	select BR2_PACKAGE_DROPBEAR
 	select BR2_PACKAGE_EXFAT_NOFUSE if BR2_SDCARD
 	select BR2_PACKAGE_INGENIC_AUDIODAEMON if BR2_AUDIO
@@ -18,15 +22,19 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_INGENIC_MUSL
 	select BR2_PACKAGE_INGENIC_PWM
 	select BR2_PACKAGE_INGENIC_SDK
-	select BR2_PACKAGE_LIBCURL
-	select BR2_PACKAGE_LIBCURL_COOKIES_SUPPORT
-	select BR2_PACKAGE_LIBCURL_CURL
-	select BR2_PACKAGE_LIBCURL_EXTRA_PROTOCOLS_FEATURES
-	select BR2_PACKAGE_LIBCURL_MBEDTLS if !BR2_PACKAGE_OPENSSL
-	select BR2_PACKAGE_LIBCURL_PROXY_SUPPORT
-	select BR2_PACKAGE_LIBCURL_VERBOSE
-	select BR2_PACKAGE_LIBCURL_OPENSSL if BR2_PACKAGE_OPENSSL
-	select BR2_PACKAGE_LIBCURL_WEBSOCKETS_SUPPORT
+	select BR2_PACKAGE_THINGINO_LIBCURL
+	select BR2_PACKAGE_THINGINO_LIBCURL_COOKIES_SUPPORT
+	select BR2_PACKAGE_THINGINO_LIBCURL_CURL_SUPPORT
+	select BR2_PACKAGE_THINGINO_LIBCURL_MQTT_SUPPORT
+	select BR2_PACKAGE_THINGINO_LIBCURL_RTMP_SUPPORT
+	select BR2_PACKAGE_THINGINO_LIBCURL_RTSP_SUPPORT
+	select BR2_PACKAGE_THINGINO_LIBCURL_SMTP_SUPPORT
+	select BR2_PACKAGE_THINGINO_LIBCURL_TFTP_SUPPORT
+	select BR2_PACKAGE_THINGINO_LIBCURL_PROXY_SUPPORT
+	select BR2_PACKAGE_THINGINO_LIBCURL_WEBSOCKETS_SUPPORT if BR2_THINGINO_DEV_PACKAGES
+	select BR2_PACKAGE_THINGINO_LIBCURL_VERBOSE if BR2_THINGINO_DEV_PACKAGES
+	select BR2_PACKAGE_THINGINO_LIBCURL_MBEDTLS if !BR2_PACKAGE_OPENSSL
+	select BR2_PACKAGE_THINGINO_LIBCURL_OPENSSL if BR2_PACKAGE_OPENSSL
 	select BR2_PACKAGE_MBEDTLS
 	select BR2_PACKAGE_MBEDTLS_COMPRESSION
 	select BR2_PACKAGE_MOTORS if BR2_MOTORS
@@ -49,6 +57,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ap/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-button/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ledd/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libcurl/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-portal/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sounds/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
@@ -58,7 +67,7 @@ endif
 
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
 	bool "Streamer Packages"
-	default y
+	default y if !BR2_THINGINO_TOOLCHAIN
 	help
 	  Thingino Streamer Packages
 	  Audio/Video Streaming related packages
@@ -86,6 +95,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/motors/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libschrift/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-tailscale/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wpa_supplicant/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wyze-accessory/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/zerotier-one/Config.in"
 
@@ -117,6 +127,9 @@ menuconfig BR2_THINGINO_DEV_PACKAGES
 	  https://github.com/thingino/firmware
 
 if BR2_THINGINO_DEV_PACKAGES
+config BR2_THINGINO_TOOLCHAIN_BUILD
+	bool "Enable Toolchain Build"
+
 config BR2_PACKAGE_GDB
 	bool "gdb Server and Client"
 	select BR2_PACKAGE_HOST_GDB
