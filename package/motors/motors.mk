@@ -21,7 +21,7 @@ define MOTORS_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d/ $(MOTORS_PKGDIR)/files/S09motor
 
-	$(INSTALL) -m 755 -D $(@D)/motors $(TARGET_DIR)/usr/bin/motors
+	$(INSTALL) -m 755 -D $(@D)/motors $(TARGET_DIR)/usr/bin/motors.bin
 	$(INSTALL) -m 755 -D $(@D)/motors-daemon $(TARGET_DIR)/usr/bin/motors-daemon
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/sbin/
