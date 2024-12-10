@@ -2,7 +2,6 @@ day_night_color=true
 day_night_ir850=true
 day_night_ir940=false
 day_night_ircut=true
-# no idea about min/max
 day_night_max=15000
 day_night_min=500
 day_night_white=false
@@ -12,6 +11,6 @@ gpio_default=19o 25o 26o 77o 60i
 gpio_ir850=19
 gpio_ircut=26 25
 gpio_speaker=77O
-wlandev=8188fu
 ispmem=8M@0x2700000
 rmem=17M@0x2F00000
+wlandev=8188fu
