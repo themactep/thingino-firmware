@@ -90,6 +90,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/motors/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libschrift/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-tailscale/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wpa_supplicant/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wyze-accessory/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/zerotier-one/Config.in"
 
@@ -120,10 +121,10 @@ menuconfig BR2_THINGINO_DEV_PACKAGES
 	  include tools for firmware development.
 	  https://github.com/thingino/firmware
 
+if BR2_THINGINO_DEV_PACKAGES
 config BR2_THINGINO_TOOLCHAIN_BUILD
 	bool "Enable Toolchain Build"
 
-if BR2_THINGINO_DEV_PACKAGES
 config BR2_PACKAGE_GDB
 	bool "gdb Server and Client"
 	select BR2_PACKAGE_HOST_GDB

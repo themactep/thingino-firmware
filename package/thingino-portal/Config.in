@@ -1,5 +1,5 @@
 config BR2_PACKAGE_THINGINO_PORTAL
 	bool "thingino-portal"
-	select BR2_PACKAGE_WPA_SUPPLICANT_AP_SUPPORT
+	select BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_AP_SUPPORT
 	help
 	  Captive Portal Package for WiFi setup
