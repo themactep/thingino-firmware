@@ -375,7 +375,7 @@ jobs:
           COMMITS=$(gh api \
             -H "Accept: application/vnd.github.v3+json" \
             /repos/${{ github.repository }}/compare/$LAST_RELEASE_TAG...$GIT_HASH \
-            -q '.commits | sort_by(.commit.author.date) | reverse | .[] | "\(.sha[0:7]) \(.commit.message | gsub("\n"; " "))"'
+            -q '.commits | sort_by(.commit.author.date) | reverse | .[] | "\(.sha[0:7]) \(.commit.message | gsub("\n"; " "))"')
 
           RELEASE_NOTES="### Changes in this release:\n"
 
