@@ -28,7 +28,7 @@ env:
 
 jobs:
   notify-begin:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       start_time: ${{ steps.set_output.outputs.time }}
     steps:
@@ -50,7 +50,7 @@ jobs:
   build-caches:
     name: ${{ matrix.caches-version }}
     needs: notify-begin
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         shell: bash
@@ -144,7 +144,7 @@ jobs:
 
   notify-completion:
     needs: [build-caches, notify-begin]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: always()
     steps:
       - name: Send completion summary
