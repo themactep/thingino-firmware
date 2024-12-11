@@ -220,23 +220,14 @@ for arg in "$@"; do
 	esac
 done
 
-if [ "$requested_date" = "next_arg" ]; then
-	unset requested_date
-fi
-
 if [ -n "$requested_date" ]; then
-	if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ]; then
-		release_date=$(date -d "$requested_date" +%F) || die "Invalid date: $requested_date"
-	else
-		say "Release date only works with upgrades from GitHub"
+	if [ "$requested_date" = "next_arg" ]; then
+		die "No date provided"
 	fi
-fi
-
-if [ -n "$requested_date" ]; then
 	if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ]; then
 		release_date=$(date -d "$requested_date" +%F) || die "Invalid date: $requested_date"
 	else
-		say "Release date only works with upgrades from GitHub"
+		die "Release date only works with upgrades from GitHub"
 	fi
 fi
 
