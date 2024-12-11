@@ -67,9 +67,10 @@ die() {
 
 # url file options
 download() {
+	local url="$1"
 	local file="$2"
-	[ -z "$file" ] && file="$fw_file"
-	if ! curl -fL# --url "$1" -o "$file" "$3"; then
+	shift 2
+	if ! curl -fL -# --url "$url" -o "$file" "$@"; then
 		return 1 # Return an error code instead of exiting
 	fi
 }
@@ -88,7 +89,7 @@ handle_payload() {
 		if [ -n "$url" ]; then
 			say "Download firmware from\n$url"
 			check_free_space "$url"
-			download "$url" || die "Cannot download $url to $fw_file"
+			download "$url" "$fw_file" || die "Cannot download $url to $fw_file"
 		else
 			[ -f "$fw_file" ] || die "Cannot find $fw_file"
 		fi
@@ -120,7 +121,7 @@ handle_payload() {
 
 		#\n- $bin_url\n- $sha_url"
 		say "Downloading firmware from:\n$bin_url"
-		download "$bin_url" "$bin_file" "-C $offset" || die "Cannot download firmware from specified URL."
+		download "$bin_url" "$bin_file" -C $offset || die "Cannot download firmware from specified URL."
 		say "Downloading checksum from:\n$sha_url"
 		download "$sha_url" "$sha_file" || die "Cannot download checksum file."
 
