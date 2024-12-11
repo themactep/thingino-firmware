@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# shellcheck shell=ash
+# https://github.com/koalaman/shellcheck/issues/3100
+# shellcheck disable=SC3036
+
 echo "Run as $0 $*"
 
 KERNEL_MAGIC="27051956"
@@ -13,7 +17,7 @@ stage1app="sysupgrade"
 stage2app="sysupgrade-stage2"
 fw_file="$workdir/fw.bin"
 
-self=$(realpath $0)
+self=$(realpath "$0")
 selfupdate="true"
 bbapplets="echo flash_eraseall flashcp reboot sh sleep"
 upgrade=""
@@ -23,16 +27,17 @@ bye() {
 }
 
 check_network() {
-	curl -m 5 -I $1 >/dev/null 2>&1 && return
+	curl -m 5 -I "$1" >/dev/null 2>&1 && return
 	red "No internet?\n"
 	ip a
 	exit 1
 }
 
 check_free_space() {
-	local dl_size=$(curl -sIL $1 | awk '/Content-Length/{fs=$2}END{print fs}')
-	local free_space=$(df -m /tmp | tail -1 | awk '{print $4}')
-	local flash_size=$((0x$(awk '/^mtd6/{print $2}' /proc/mtd)))
+	local dl_size free_space flash_size
+	dl_size=$(curl -sIL "$1" | awk '/Content-Length/{fs=$2}END{print fs}')
+	free_space=$(df -m /tmp | tail -1 | awk '{print $4}')
+	flash_size=$((0x$(awk '/^mtd6/{print $2}' /proc/mtd)))
 	local offset="${2:-0}"
 	dl_size=$((dl_size - offset))
 	free_space=$((free_space * 1024 * 1024))
@@ -43,17 +48,15 @@ check_free_space() {
 cleanup() {
 	say "Clean up temporary files."
 	rm -rf $workdir
-	exit 0
 }
 
 clone_app() {
 	local target="$2"
-	[ -z "$target" ] && target="$(basename $1)"
+	[ -z "$target" ] && target="$(basename "$1")"
 	if ! cp -vf "$1" "$workdir/$target"; then
-		say "Error: Failed to copy $1 to $workdir/$target"
-		cleanup
+		die "Error: Failed to copy $1 to $workdir/$target"
 	fi
-	chmod +x $workdir/$target
+	chmod +x "$workdir/$target"
 }
 
 die() {
@@ -66,18 +69,18 @@ die() {
 download() {
 	local file="$2"
 	[ -z "$file" ] && file="$fw_file"
-	if ! curl -fL# --url "$1" -o "$file" $3; then
-		return 1  # Return an error code instead of exiting
+	if ! curl -fL# --url "$1" -o "$file" "$3"; then
+		return 1 # Return an error code instead of exiting
 	fi
 }
 
 expand_bb() {
 	echo "set up $1"
-	ln -s $workdir/busybox $workdir/$1
+	ln -s $workdir/busybox "$workdir/$1"
 }
 
 extract_bootloader() {
-	truncate -s 256K $1
+	truncate -s 256K "$1"
 }
 
 handle_payload() {
@@ -85,8 +88,8 @@ handle_payload() {
 		say "Upgrading from a provided file"
 		if echo "$1" | grep -qE '^https?://'; then
 			say "Download firmware from\n$1"
-			check_free_space $1
-			download $1 || die "Cannot download $1 to $fw_file"
+			check_free_space "$1"
+			download "$1" || die "Cannot download $1 to $fw_file"
 		else
 			[ -f "$fw_file" ] || die "Cannot find $fw_file"
 		fi
@@ -111,10 +114,10 @@ handle_payload() {
 			offset=0
 			bin_file="thingino-$profile.bin"
 		fi
-    sha_url="$gh_url/$bin_file.sha256sum"
-		sha_file=$(basename $sha_url)
+    		sha_url="$gh_url/$bin_file.sha256sum"
+		sha_file=$(basename "$sha_url")
 
-		check_free_space $bin_url $offset
+		check_free_space "$bin_url" $offset
 
 		#\n- $bin_url\n- $sha_url"
 		say "Downloading firmware from:\n$bin_url"
@@ -123,9 +126,9 @@ handle_payload() {
 		download "$sha_url" "$sha_file" || die "Cannot download checksum file."
 
 		say "Verifying downloaded file"
-		sha256sum -c $sha_file || die "Checksum does not match!"
+		sha256sum -c "$sha_file" || die "Checksum does not match!"
 
-		rm $sha_file
+		rm "$sha_file"
 		mv -v "$bin_file" "$fw_file" || die "Cannot move $bin_file to $fw_file"
 	fi
 }
@@ -134,7 +137,7 @@ flush_memory() {
 	say "Sync changes"
 	sync
 	say "Drop caches"
-	echo 3 > /proc/sys/vm/drop_caches
+	echo 3 >/proc/sys/vm/drop_caches
 }
 
 red() {
@@ -151,23 +154,23 @@ say() {
 }
 
 show_help() {
-	say "Usage: $0 [-x] [-f|-p|<file>|<URL>]
+	say "Usage: $0 [-x] [-b] [-f [-d <date>]|-p [-d <date>]|<file>|<URL>]
 Where:
-  -f      full upgrade with a binary from GitHub
-  -p      partial upgrade with a binary from GitHub
-  -b      upgrade only bootloader
-  -d      release date (the latest available, if omitted)
-  <file>  full or partial upgrade from a local file
-  <URL>   full or partial upgrade from a URL
-  -x      do not update the script
-  -h      this help"
-	exit 0
+  -f         full upgrade with a binary from GitHub
+  -p         partial upgrade with a binary from GitHub
+  -b         upgrade only bootloader
+  -d <date>  release date (the latest available, if omitted)
+  <file>     full or partial upgrade from a local file
+  <URL>      full or partial upgrade from a URL
+  -x         do not update the script
+  -h         this help"
+	exit "${1:-0}"
 }
 
 stop_services() {
 	say "Stop services"
 	for i in $(find /etc/init.d/ -name "[KS]*" -executable | sort -nr); do
-		case "$(basename $i)" in
+		case "$(basename "$i")" in
 			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S42wifiap | S42wireguard | S50dropbear | S97sysupgrade)
 				continue
 				;;
@@ -189,18 +192,39 @@ update_self() {
 # mandate virtual partitions
 grep -q "mtd[56]" /proc/mtd || die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
 
-ORIGINAL_ARG="$@"
-while getopts "bd:fhpx" flag; do
-	case "$flag" in
-		b) bootloader_only="true" ;;
-	  d) requested_date=$OPTARG ;;
-		f) upgrade="full"; url="$GITHUB_URL" ;;
-		p) upgrade="part"; url="$GITHUB_URL" ;;
-		x) selfupdate="false" ;;
-		h | *) show_help ;;
+for arg in "$@"; do
+	case "$arg" in
+		-b) bootloader_only="true" ;;
+		-d) requested_date="next_arg" ;;
+		-f) upgrade="full"; url="$GITHUB_URL" ;;
+		-p) upgrade="part"; url="$GITHUB_URL" ;;
+		-x) selfupdate="false" ;;
+		-h) show_help ;;
+		-*) show_help 1 ;;
+		*)
+			if [ "$requested_date" = "next_arg" ]; then
+				requested_date="$arg"
+				continue
+			fi
+			if [ -n "$upgrade" ] || [ -n "$upgrade_target" ]; then
+				show_help 1
+			fi
+			upgrade_target="$arg"
+			;;
 	esac
 done
-shift "$((OPTIND - 1))"
+
+if [ "$requested_date" = "next_arg" ]; then
+	unset requested_date
+fi
+
+if [ -n "$requested_date" ]; then
+  if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ]; then
+    release_date=$(date -d "$requested_date" +%F) || die "Invalid date: $requested_date"
+  else
+    say "Release date only works with upgrades from GitHub"
+  fi
+fi
 
 if [ -n "$requested_date" ]; then
   if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ]; then
@@ -217,18 +241,18 @@ if [ ! -d $workdir ]; then
 fi
 
 if [ -z "$upgrade" ]; then
-	[ -z "$1" ] && show_help
+	[ -z "$upgrade_target" ] && show_help
 
 	upgrade="local"
-	if echo "$1" | grep -qE '^https?://'; then
+	if echo "$upgrade_target" | grep -qE '^https?://'; then
 		say "Upgrade from a remote file"
-		url="$1"
+		url="$upgrade_target"
 	else
 		say "Upgrade from a local file $fw_file"
 		if [ -f "$fw_file" ]; then
 			say "Found $fw_file"
 		else
-			ufile="$(realpath "$1")"
+			ufile="$(realpath "$upgrade_target")"
 			[ -r "$ufile" ] || die "Cannot find file $ufile (from $(pwd))"
 			say "Found $ufile"
 			mv -v "$ufile" "$fw_file"
@@ -238,7 +262,7 @@ fi
 
 cd $workdir || die "Cannot change directory to $workdir"
 
-if [ "$(dirname $self)" != "$workdir" ]; then
+if [ "$(dirname "$self")" != "$workdir" ]; then
 	if [ "true" = "$selfupdate" ]; then
 		say "Updating self"
 		update_self
@@ -247,7 +271,7 @@ if [ "$(dirname $self)" != "$workdir" ]; then
 		cp "$self" "$workdir/$stage1app"
 	fi
 	say "Re-running script from $workdir"
-	exec $workdir/$stage1app $ORIGINAL_ARG
+	exec $workdir/$stage1app "$@"
 fi
 
 if [ "full" = "$upgrade" ]; then
@@ -272,13 +296,14 @@ $PAD|____/ |_| \___/|_|
 	while [ $i -ge 0 ]; do
 		echo -n "$i"
 		[ "$i" -gt 0 ] && echo -n " .. "
-		read -t 1 -n 1 keypress
-		if [ $? -eq 0 ]; then
+		# https://github.com/koalaman/shellcheck/issues/3099
+		# shellcheck disable=SC3045
+		if read -r -t 1 -n 1 keypress; then
 			if [ "$keypress" = "" ]; then
 				break
 			fi
 		fi
-		i=$((i-1))
+		i=$((i - 1))
 	done
 	clear
 fi
@@ -309,15 +334,12 @@ flush_memory
 
 clone_app /bin/busybox
 clone_app /sbin/$stage2app
-for a in $bbapplets; do expand_bb $a; done
+for a in $bbapplets; do expand_bb "$a"; done
 
 say "Switching to Stage 2.\n"
 if ! PATH="/tmp/sysupgrade" exec $workdir/busybox sh $workdir/$stage2app "$fw_file" "$mtd_dev"; then
-	red "Error: Failed to execute $workdir/$stage2app"
-	cleanup
+	die "Error: Failed to execute $workdir/$stage2app"
 fi
 
 # If succeeded, do not clean up
 trap - INT TERM
-
-exit 0

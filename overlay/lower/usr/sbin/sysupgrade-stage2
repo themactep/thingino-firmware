@@ -1,5 +1,8 @@
 #!/tmp/busybox sh
 
+# https://github.com/koalaman/shellcheck/issues/3100
+# shellcheck disable=SC3036
+
 export PATH="/tmp/sysupgrade"
 echo "stage 2 PATH is $PATH"
 
@@ -9,7 +12,7 @@ die() { echo_c 160 "$1"; exit 1; }
 
 flash_firmware() {
 	echo "Flashing firmware to $mtd_dev"
-	flashcp -v $fw_file $mtd_dev
+	flashcp -v "$fw_file" "$mtd_dev"
 }
 
 go_reboot() {
