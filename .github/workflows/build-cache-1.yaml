@@ -106,7 +106,7 @@ jobs:
 
       - name: Generate buildroot cache
         run: |
-          BOARD=${{ matrix.caches-version }} make
+          BOARD=${{ matrix.caches-version }} make fast
 
       - name: Save Buildroot ccache
         uses: actions/cache/save@v4
