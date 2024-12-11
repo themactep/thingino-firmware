@@ -241,7 +241,7 @@ if [ ! -d $workdir ]; then
 fi
 
 if [ -z "$upgrade" ]; then
-	[ -z "$file_or_url" ] && show_help
+	[ -z "$file_or_url" ] && die "No file or URL provided, nor -f or -p option"
 
 	upgrade="local"
 	if echo "$file_or_url" | grep -qE '^https?://'; then
@@ -252,10 +252,12 @@ if [ -z "$upgrade" ]; then
 		if [ -f "$fw_file" ]; then
 			say "Found $fw_file"
 		else
-			ufile="$(realpath "$file_or_url")"
-			[ -r "$ufile" ] || die "Cannot find file $ufile (from $(pwd))"
-			say "Found $ufile"
-			mv -v "$ufile" "$fw_file"
+			if ufile="$(realpath "$file_or_url")" && [ -r "$ufile" ]; then
+				say "Found $ufile"
+				mv -v "$ufile" "$fw_file"
+			else
+				die "Cannot find file $file_or_url"
+			fi
 		fi
 	fi
 fi
