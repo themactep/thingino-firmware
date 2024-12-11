@@ -38,8 +38,8 @@ env:
   TAG_NAME: firmware
   TERM: linux
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
-  TG_CHANNEL: -1002083893006_14394
-  TG_TOPIC: 14394
+  TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_MULTI}}
+  TG_TOPIC: ${{secrets.TELEGRAM_CHANNEL_THINGINO_MULTI_TOPIC_FIRMWARE}}
   TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
   TZ: America/Los_Angeles
 
@@ -264,7 +264,7 @@ jobs:
       - name: Upload compiled firmware artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: thingino-${{ matrix.thingino-version }}-full-firmware
+          name: thingino-${{ matrix.thingino-version }}-firmware
           path: |
             ${{ env.FULL_FW }}
             ${{ env.FULL_FW_UBOOT }}
