@@ -6,7 +6,6 @@ SSH_OPTS="-o ConnectTimeout=10 -o ServerAliveInterval=2 -o ControlMaster=auto -o
 # Cleanup function to close SSH master connection
 cleanup() {
 	ssh -O exit $SSH_OPTS root@"$CAMERA_IP_ADDRESS" 2>/dev/null
-	echo "SSH connection closed."
 }
 
 # Trap to execute cleanup function on script exit
@@ -14,11 +13,6 @@ trap cleanup EXIT
 
 # Validates input parameters and sets up SSH connection sharing, single authentication request
 initialize_ssh_connection() {
-	if [ "$#" -ne 2 ]; then
-		echo "Usage: $0 FIRMWARE_FILE IP_ADDRESS"
-		exit 1
-	fi
-
 	FIRMWARE_BIN="$1"
 	CAMERA_IP_ADDRESS="$2"
 
@@ -65,4 +59,10 @@ main() {
 	flash_firmware
 }
 
-main "$@"
+
+if [ "$#" -ne 2 ]; then
+	echo "Usage: $0 FIRMWARE_FILE IP_ADDRESS"
+	exit 1
+else
+	main "$@"
+fi
