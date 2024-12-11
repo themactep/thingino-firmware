@@ -96,18 +96,22 @@ handle_payload() {
 		profile=$(awk -F= '/^IMAGE_ID=/ {print $2}' $data)
 		[ -z "$profile" ] && die "Building profile is not set in $data"
 
-		gh_url="$GITHUB_URL/themactep/thingino-firmware"
-		bin_url="$gh_url/releases/latest/download/thingino-$profile.bin"
+		gh_url="$GITHUB_URL/themactep/thingino-firmware/releases"
+    if [ -n "$release_date" ]; then
+      gh_url="$gh_url/download/firmware-$release_date"
+      say "Requested release from $release_date"
+    else
+		  gh_url="$gh_url/latest/download"
+    fi
+    bin_url="$gh_url/thingino-$profile.bin"
 		if [ "part" = "$upgrade" ]; then
 			offset=327680
 			bin_file="thingino-$profile-update.bin"
-			sha_url="$gh_url/releases/latest/download/$bin_file.sha256sum"
 		else
 			offset=0
 			bin_file="thingino-$profile.bin"
-			sha_url="$gh_url/releases/latest/download/$bin_file.sha256sum"
 		fi
-
+    sha_url="$gh_url/$bin_file.sha256sum"
 		sha_file=$(basename $sha_url)
 
 		check_free_space $bin_url $offset
@@ -152,6 +156,7 @@ Where:
   -f      full upgrade with a binary from GitHub
   -p      partial upgrade with a binary from GitHub
   -b      upgrade only bootloader
+  -d      release date (the latest available, if omitted)
   <file>  full or partial upgrade from a local file
   <URL>   full or partial upgrade from a URL
   -x      do not update the script
@@ -185,28 +190,25 @@ update_self() {
 grep -q "mtd[56]" /proc/mtd || die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
 
 ORIGINAL_ARG="$@"
-while getopts "bfhpx" flag; do
+while getopts "bd:fhpx" flag; do
 	case "$flag" in
-		b)
-			bootloader_only="true"
-			;;
-		f)
-			upgrade="full"
-			url="$GITHUB_URL"
-			;;
-		p)
-			upgrade="part"
-			url="$GITHUB_URL"
-			;;
-		x)
-			selfupdate="false"
-			;;
-		h | *)
-			show_help
-			;;
+		b) bootloader_only="true" ;;
+	  d) requested_date=$OPTARG ;;
+		f) upgrade="full"; url="$GITHUB_URL" ;;
+		p) upgrade="part"; url="$GITHUB_URL" ;;
+		x) selfupdate="false" ;;
+		h | *) show_help ;;
 	esac
 done
 shift "$((OPTIND - 1))"
+
+if [ -n "$requested_date" ]; then
+  if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ]; then
+    release_date=$(date -d "$requested_date" +%F) || die "Invalid date: $requested_date"
+  else
+    say "Release date only works with upgrades from GitHub"
+  fi
+fi
 
 # work in $workdir
 if [ ! -d $workdir ]; then
@@ -242,7 +244,7 @@ if [ "$(dirname $self)" != "$workdir" ]; then
 		update_self
 	else
 		say "Skip self-update"
-		cp $0 $workdir/$stage1app
+		cp "$self" "$workdir/$stage1app"
 	fi
 	say "Re-running script from $workdir"
 	exec $workdir/$stage1app $ORIGINAL_ARG
