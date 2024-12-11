@@ -8,7 +8,10 @@ echo "stage 2 PATH is $PATH"
 
 echo_c() { echo -e "\e[38;5;$1m$2\e[0m"; }
 
-die() { echo_c 160 "$1"; exit 1; }
+die() {
+	echo_c 160 "$1"
+	exit 1
+}
 
 flash_firmware() {
 	echo "Flashing firmware to $mtd_dev"
@@ -18,7 +21,7 @@ flash_firmware() {
 go_reboot() {
 	echo "Rebooting in 5 seconds..."
 	sleep 5
-	echo wdt > /proc/jz/reset/reset
+	echo wdt >/proc/jz/reset/reset
 	exit 0
 }
 
@@ -34,7 +37,7 @@ echo_c 208 "Running Stage 2 of sysupgrade."
 x=0
 times=""
 while :; do
-	x=$((x+1))
+	x=$((x + 1))
 	flash_firmware && go_reboot
 	[ $x -gt 1 ] && times=" $x times"
 	echo_c 160 "Flashing failed${times}."

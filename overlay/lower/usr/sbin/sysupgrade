@@ -100,13 +100,13 @@ handle_payload() {
 		[ -z "$profile" ] && die "Building profile is not set in $data"
 
 		gh_url="$GITHUB_URL/themactep/thingino-firmware/releases"
-    if [ -n "$release_date" ]; then
-      gh_url="$gh_url/download/firmware-$release_date"
-      say "Requested release from $release_date"
-    else
-		  gh_url="$gh_url/latest/download"
-    fi
-    bin_url="$gh_url/thingino-$profile.bin"
+		if [ -n "$release_date" ]; then
+			gh_url="$gh_url/download/firmware-$release_date"
+			say "Requested release from $release_date"
+		else
+			gh_url="$gh_url/latest/download"
+		fi
+		bin_url="$gh_url/thingino-$profile.bin"
 		if [ "part" = "$upgrade" ]; then
 			offset=327680
 			bin_file="thingino-$profile-update.bin"
@@ -114,7 +114,7 @@ handle_payload() {
 			offset=0
 			bin_file="thingino-$profile.bin"
 		fi
-    		sha_url="$gh_url/$bin_file.sha256sum"
+		sha_url="$gh_url/$bin_file.sha256sum"
 		sha_file=$(basename "$sha_url")
 
 		check_free_space "$bin_url" $offset
@@ -171,12 +171,12 @@ stop_services() {
 	say "Stop services"
 	for i in $(find /etc/init.d/ -name "[KS]*" -executable | sort -nr); do
 		case "$(basename "$i")" in
-			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S42wifiap | S42wireguard | S50dropbear | S97sysupgrade)
-				continue
-				;;
-			*)
-				sh -c "$i stop"
-				;;
+		K99watchdog | S36wireless | S38wpa_supplicant | S40network | S42wifiap | S42wireguard | S50dropbear | S97sysupgrade)
+			continue
+			;;
+		*)
+			sh -c "$i stop"
+			;;
 		esac
 	done
 }
@@ -194,23 +194,29 @@ grep -q "mtd[56]" /proc/mtd || die "Please run 'fw_setenv enable_updates true' t
 
 for arg in "$@"; do
 	case "$arg" in
-		-b) bootloader_only="true" ;;
-		-d) requested_date="next_arg" ;;
-		-f) upgrade="full"; url="$GITHUB_URL" ;;
-		-p) upgrade="part"; url="$GITHUB_URL" ;;
-		-x) selfupdate="false" ;;
-		-h) show_help ;;
-		-*) show_help 1 ;;
-		*)
-			if [ "$requested_date" = "next_arg" ]; then
-				requested_date="$arg"
-				continue
-			fi
-			if [ -n "$upgrade" ] || [ -n "$upgrade_target" ]; then
-				show_help 1
-			fi
-			upgrade_target="$arg"
-			;;
+	-b) bootloader_only="true" ;;
+	-d) requested_date="next_arg" ;;
+	-f)
+		upgrade="full"
+		url="$GITHUB_URL"
+		;;
+	-p)
+		upgrade="part"
+		url="$GITHUB_URL"
+		;;
+	-x) selfupdate="false" ;;
+	-h) show_help ;;
+	-*) show_help 1 ;;
+	*)
+		if [ "$requested_date" = "next_arg" ]; then
+			requested_date="$arg"
+			continue
+		fi
+		if [ -n "$upgrade" ] || [ -n "$upgrade_target" ]; then
+			show_help 1
+		fi
+		upgrade_target="$arg"
+		;;
 	esac
 done
 
@@ -219,19 +225,19 @@ if [ "$requested_date" = "next_arg" ]; then
 fi
 
 if [ -n "$requested_date" ]; then
-  if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ]; then
-    release_date=$(date -d "$requested_date" +%F) || die "Invalid date: $requested_date"
-  else
-    say "Release date only works with upgrades from GitHub"
-  fi
+	if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ]; then
+		release_date=$(date -d "$requested_date" +%F) || die "Invalid date: $requested_date"
+	else
+		say "Release date only works with upgrades from GitHub"
+	fi
 fi
 
 if [ -n "$requested_date" ]; then
-  if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ]; then
-    release_date=$(date -d "$requested_date" +%F) || die "Invalid date: $requested_date"
-  else
-    say "Release date only works with upgrades from GitHub"
-  fi
+	if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ]; then
+		release_date=$(date -d "$requested_date" +%F) || die "Invalid date: $requested_date"
+	else
+		say "Release date only works with upgrades from GitHub"
+	fi
 fi
 
 # work in $workdir
@@ -315,10 +321,10 @@ trap cleanup 2 6 15
 handle_payload "$@"
 
 case "$(xxd -l 4 -p $fw_file)" in
-	"$U_BOOT_MAGIC") [ "$(stat -c%s $fw_file)" -le 262144 ] && mtd_dev="mtd0" || mtd_dev="mtd6" ;;
-	"$KERNEL_MAGIC") mtd_dev="mtd5" ;;
-	"$ROOTFS_MAGIC") die "We cannot flash only rootfs" ;;
-	*) die "Unknown file" ;;
+"$U_BOOT_MAGIC") [ "$(stat -c%s $fw_file)" -le 262144 ] && mtd_dev="mtd0" || mtd_dev="mtd6" ;;
+"$KERNEL_MAGIC") mtd_dev="mtd5" ;;
+"$ROOTFS_MAGIC") die "We cannot flash only rootfs" ;;
+*) die "Unknown file" ;;
 esac
 
 if [ "true" = "$bootloader_only" ]; then
