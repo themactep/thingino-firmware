@@ -1,14 +1,9 @@
 day_night_color=true
-day_night_ir850=true
-day_night_ir940=false
 day_night_ircut=true
-day_night_max=15000
-day_night_min=500
-day_night_white=false
 enable_updates=true
 gpio_button=60
-gpio_default=19o 25o 26o 77o 60i
-gpio_ir850=19
+gpio_default=25o 26o 77o 60i
+gpio_ircds=true
 gpio_ircut=26 25
 gpio_speaker=77O
 ispmem=8M@0x2700000
