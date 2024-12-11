@@ -9,8 +9,11 @@ ONVIF_SIMPLE_SERVER_LICENSE_FILES = LICENSE
 ifeq ($(BR2_PACKAGE_MBEDTLS),y)
 ONVIF_SIMPLE_SERVER_DEPENDENCIES = mbedtls
 MAKE_OPTS += HAVE_MBEDTLS=y
+else ifeq ($(BR2_PACKAGE_WOLFSSL),y)
+ONVIF_SIMPLE_SERVER_DEPENDENCIES = wolfssl
+MAKE_OPTS += HAVE_WOLFSSL=y
 else
-ONVIF_SIMPLE_SERVER_DEPENDENCIES += libtomcrypt
+ONVIF_SIMPLE_SERVER_DEPENDENCIES = libtomcrypt
 endif
 
 # username | uid | group | gid | password | home | shell | groups | comment
