@@ -129,7 +129,7 @@ jobs:
       fail-fast: false
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
     steps:
-      - name: Install GitHub CLI
+      - name: Install GitHub CLI to container
         run: |
           apt-get update
           apt-get install -y curl
@@ -150,7 +150,7 @@ jobs:
           echo ${{ env.TZ }} > /etc/timezone
           DEBIAN_FRONTEND=noninteractive dpkg-reconfigure -f noninteractive tzdata
 
-      - name: Setup gh workspace in container
+      - name: Setup gh workspace to container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout repository source
@@ -160,7 +160,7 @@ jobs:
           ref: "master"
           fetch-depth: "1"
 
-      - name: Configure Environment Variables
+      - name: Configure environment variables
         id: env
         run: |
           echo "WEEK_NUMBER=$(date +%U)" >> $GITHUB_ENV
@@ -189,8 +189,8 @@ jobs:
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-
-            ${{ runner.os }}-ccache-
             ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
+            ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-
 
       - name: Restore Buildroot DL cache
         uses: actions/cache/restore@v4
@@ -227,7 +227,7 @@ jobs:
           apt-get install -y --no-install-recommends --no-install-suggests python3-numpy python3-matplotlib
           BOARD=${{ matrix.thingino-version }} make br-graph-build
 
-      - name: Locate Built Firmware Artifacts
+      - name: Locate built firmware artifacts
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
           FW_PATH=${HOME}/output/${DYNAMIC_PART}/images/
@@ -275,7 +275,7 @@ jobs:
             ${{ env.UPDATE_FW }}
             ${{ env.UPDATE_FW_SHA }}
 
-      - name: Create Release Tag
+      - name: Create release tag
         continue-on-error: true
         run: |
           TAG_NAME="${{ env.TAG_NAME }}"
@@ -286,7 +286,7 @@ jobs:
             echo "Tag $TAG_NAME already exists."
           fi
 
-      - name: Create Release
+      - name: Create release
         continue-on-error: true
         run: |
           TAG_NAME="${{ env.TAG_NAME }}"
