@@ -261,15 +261,7 @@ jobs:
           path: |
             ~/output/${{ matrix.thingino-version }}/graphs/build.hist-duration.pdf
 
-      - name: Upload update firmware artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: thingino-${{ matrix.thingino-version }}-update-firmware
-          path: |
-            ${{ env.UPDATE_FW }}
-            ${{ env.UPDATE_FW_SHA }}
-
-      - name: Upload full firmware artifacts
+      - name: Upload compiled firmware artifacts
         uses: actions/upload-artifact@v4
         with:
           name: thingino-${{ matrix.thingino-version }}-full-firmware
@@ -280,6 +272,8 @@ jobs:
             ${{ env.FULL_FW_ROOTFS }}
             ${{ env.FULL_FW_ROOTFS_TAR }}
             ${{ env.FULL_FW_SHA }}
+            ${{ env.UPDATE_FW }}
+            ${{ env.UPDATE_FW_SHA }}
 
       - name: Create Release Tag
         continue-on-error: true
