@@ -41,14 +41,17 @@ pin=${pin:0:(-1)}
 
 case "$mode" in
 	0 | off)
+		touch_motion_cork
 		echo "gpio set $pin $pin_off > /dev/null" >&2
 		gpio set $pin $pin_off > /dev/null
 		;;
 	1 | on)
+		touch_motion_cork
 		echo "gpio set $pin $pin_on > /dev/null" >&2
 		gpio set $pin $pin_on > /dev/null
 		;;
 	~ | toggle)
+		touch_motion_cork
 		echo "gpio toggle $pin > /dev/null" >&2
 		gpio toggle $pin > /dev/null
 		;;
