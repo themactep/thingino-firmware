@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# shellcheck shell=ash
+# shellcheck shell=busybox
 # https://github.com/koalaman/shellcheck/issues/3100
 # shellcheck disable=SC3036
 
