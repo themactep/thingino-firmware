@@ -102,6 +102,9 @@ case "$1" in
 	-w)
 		print_wiki_line
 		;;
+	"")
+		print_soc_model
+		;;
 	*)
 		show_usage
 		;;
