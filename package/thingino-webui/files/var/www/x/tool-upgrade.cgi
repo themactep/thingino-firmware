@@ -10,7 +10,7 @@ upgrade_file_or_url=""
 <div class="row g-4 mb-4">
 <div class="col col-md-4">
 <form>
-<% field_select "tools_upgrade_option" "Upgrade Option" "Full Upgrade, Partial Upgrade, Upgrade Bootloader" %>
+<% field_select "tools_upgrade_option" "Upgrade Option" "FullUpgrade,PartialUpgrade,UpgradeBootloader" %>
 <% field_text "upgrade_file_or_url" "File/URL (Optional)" "Local file path or URL" %>
 <% button_submit "Run Upgrade" %>
 </form>
@@ -22,7 +22,17 @@ upgrade_file_or_url=""
 
 <script>
 $('form').onsubmit = (ev) => {
-    const upgradeOption = $('#tools_upgrade_option').value;
+    let upgradeOption;
+    const option = $('#tools_upgrade_option').value;
+    if (option === 'FullUpgrade') {
+        upgradeOption = '-f';
+    } else if (option === 'PartialUpgrade') {
+        upgradeOption = '-p';
+    } else if (option === 'UpgradeBootloader') {
+        upgradeOption = '-b';
+    }
+
+
     const fileOrUrl = $('#upgrade_file_or_url').value;
 
     ev.preventDefault();
@@ -80,14 +90,23 @@ $('form').onsubmit = (ev) => {
     }
 
     async function run() {
+        let lineCount = 0;
+        const maxLines = 40;
         for await (let line of makeTextFileLineIterator('/x/run.cgi?cmd=' + btoa(el.dataset.cmd))) {
             const re1 = /\u001b\[1;(\d+)m/;
             const re2 = /\u001b\[0m/;
             line = line.replace(re1, '<span class="ansi-$1">').replace(re2, '</span>');
             el.innerHTML += line + '\n';
+
+            lineCount++;
+            if (lineCount > maxLines) {
+                const lines = el.innerHTML.split('\n');
+                el.innerHTML = lines.slice(lines.length - maxLines).join('\n');
+            }
         }
     }
     run();
 }
 </script>
 <%in _footer.cgi %>
+
