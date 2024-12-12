@@ -1,0 +1,97 @@
+config BR2_PACKAGE_WOLFSSH
+	bool "wolfssh"
+	depends on BR2_PACKAGE_THINGINO_WOLFSSL
+	help
+      wolfSSH is a small, fast, portable SSH implementation,
+      including support for SCP and SFTP.
+
+	  https://www.wolfssl.com/
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_INLINE
+    bool "enable-inline"
+    help
+      Enable inline functions
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_EXAMPLES
+    bool "enable-examples"
+    help
+      Enable examples
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_KEYGEN
+    bool "enable-keygen"
+    select BR2_PACKAGE_THINGINO_WOLFSSL_KEYGEN
+    help
+      Enable key generation
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_SCP
+    bool "enable-scp"
+    help
+      Enable scp support
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_SFTP
+    bool "enable-sftp"
+    help
+      Enable sftp support
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_SSHD
+    bool "enable-sshd"
+    help
+      Enable SSHD support
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_SSHCLIENT
+    bool "enable-sshclient"
+    help
+      Enable SSH client app
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_FWD
+    bool "enable-fwd"
+    help
+      Enable TCP/IP Forwarding support
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_TERM
+    bool "enable-term"
+    help
+      Enable pseudo-terminal support
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_SHELL
+    bool "enable-shell"
+    help
+      Enable echoserver shell support
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_AGENT
+    bool "enable-agent"
+    help
+      Enable ssh-agent support
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_CERTS
+    bool "enable-certs"
+    help
+      Enable X.509 cert support
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_SMALLSTACK
+    bool "enable-smallstack"
+    help
+      Enable small stack
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_ALL
+    bool "enable-all"
+    help
+      Enable all wolfSSH features
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_DISTRO
+    bool "enable-distro"
+    help
+      Enable wolfSSH distro build
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_CURVE25519
+    bool "enable-curve25519"
+    help
+      Enable Curve25519 for key exchange
+
+config BR2_PACKAGE_WOLFSSH_ENABLE_KYBER
+    bool "enable-kyber"
+    select BR2_PACKAGE_THINGINO_WOLFSSL_WOLFSSH
+    select BR2_PACKAGE_THINGINO_WOLFSSL_EXPERIMENTAL
+    select BR2_PACKAGE_THINGINO_WOLFSSL_KYBER
+    help
+      Enable Kyber
