@@ -9,11 +9,12 @@ if [ -n "$GET_play" ]; then
 	filelength=$(stat -c%s $file)
 
 	if ! env | grep -q ^HTTP_RANGE; then
-		echo -en "HTTP/1.1 200 OK\r\n"
-		echo -en "Content-Type: video/mp4\r\n"
-		echo -en "Accept-Ranges: bytes\r\n"
-		echo -en "Content-Length: $filelength\r\n"
-		echo -en "\r\n"
+		http_header "HTTP/1.1 200 OK"
+		http_header "Content-Type: video/mp4"
+		http_header "Accept-Ranges: bytes"
+		http_header "Content-Length: $filelength"
+		http_header "Content-Disposition: attachment; filename=$(basename "$file")"
+		http_header
 		cat $file
 		exit 0
 	fi
@@ -22,9 +23,9 @@ if [ -n "$GET_play" ]; then
 	[ -z "$start" ] && start=0
 
 	if [ "$start" -gt "$filelength" ]; then
-		echo -en "HTTP/1.1 416 Requested Range Not Satisfiable\r\n"
-		echo -en "Content-Range: bytes */$filelength\r\n"
-		echo -en "\r\n"
+		http_header "HTTP/1.1 416 Requested Range Not Satisfiable"
+		http_header "Content-Range: bytes */$filelength"
+		http_header
 		exit 0
 	fi
 
@@ -32,10 +33,10 @@ if [ -n "$GET_play" ]; then
 	[ -z "$end" ] && end=$((filelength - 1))
 	blocksize=$((end - start + 1))
 
-	echo -en "HTTP/1.1 206 Partial Content\r\n"
-	echo -en "Content-Range: bytes $start-$end/$filelength\r\n"
-	echo -en "Content-Length: $blocksize\r\n"
-	echo -en "\r\n"
+	http_header "HTTP/1.1 206 Partial Content"
+	http_header "Content-Range: bytes $start-$end/$filelength"
+	http_header "Content-Length: $blocksize"
+	http_header
 	dd if=$file skip=$start bs=$blocksize count=1 iflag=skip_bytes
 	exit 0
 fi
@@ -46,16 +47,15 @@ if [ -n "$GET_dl" ]; then
 	length=$(stat -c%s $file)
 	timemodepoch=$(stat -c%Y $file)
 	timestamp=$(TZ=GMT0 date +"%a, %d %b %Y %T %Z" --date="@$timemodepoch")
-	echo -en "HTTP/1.0 200 OK\r\n
-Date: $timestamp\r\n
-Server: $SERVER_SOFTWARE\r\n
-Content-type: application/octet-stream\r\n
-Content-Length: $length\r\n
-Content-Disposition: attachment; filename=$(basename $file)\r\n
-Cache-Control: no-store\r\n
-Pragma: no-cache\r\n
-\r\n
-"
+	http_header "HTTP/1.0 200 OK"
+	http_header "Date: $timestamp"
+	http_header "Server: $SERVER_SOFTWARE"
+	http_header "Content-type: application/octet-stream"
+	http_header "Content-Length: $length"
+	http_header "Content-Disposition: attachment; filename=$(basename "$file")"
+	http_header "Cache-Control: no-store"
+	http_header "Pragma: no-cache"
+	http_header
 	cat $file
 	exit 0
 fi
