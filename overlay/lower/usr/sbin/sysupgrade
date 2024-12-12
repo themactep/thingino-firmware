@@ -97,13 +97,13 @@ handle_payload() {
 		[ -z "$profile" ] && die "Building profile is not set in $data"
 
 		gh_url="$GITHUB_URL/themactep/thingino-firmware/releases"
-    if [ -n "$release_date" ]; then
-      gh_url="$gh_url/download/firmware-$release_date"
-      say "Requested release from $release_date"
-    else
-		  gh_url="$gh_url/latest/download"
-    fi
-    bin_url="$gh_url/thingino-$profile.bin"
+		if [ -n "$release_date" ]; then
+			gh_url="$gh_url/download/firmware-$release_date"
+			say "Requested release from $release_date"
+		else
+			gh_url="$gh_url/latest/download"
+		fi
+		bin_url="$gh_url/thingino-$profile.bin"
 		if [ "part" = "$upgrade" ]; then
 			offset=327680
 			bin_file="thingino-$profile-update.bin"
@@ -111,7 +111,7 @@ handle_payload() {
 			offset=0
 			bin_file="thingino-$profile.bin"
 		fi
-    sha_url="$gh_url/$bin_file.sha256sum"
+		sha_url="$gh_url/$bin_file.sha256sum"
 		sha_file=$(basename $sha_url)
 
 		check_free_space $bin_url $offset
@@ -193,7 +193,7 @@ ORIGINAL_ARG="$@"
 while getopts "bd:fhpx" flag; do
 	case "$flag" in
 		b) bootloader_only="true" ;;
-	  d) requested_date=$OPTARG ;;
+  		d) requested_date=$OPTARG ;;
 		f) upgrade="full"; url="$GITHUB_URL" ;;
 		p) upgrade="part"; url="$GITHUB_URL" ;;
 		x) selfupdate="false" ;;
@@ -203,11 +203,11 @@ done
 shift "$((OPTIND - 1))"
 
 if [ -n "$requested_date" ]; then
-  if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ]; then
-    release_date=$(date -d "$requested_date" +%F) || die "Invalid date: $requested_date"
-  else
-    say "Release date only works with upgrades from GitHub"
-  fi
+	if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ]; then
+		release_date=$(date -d "$requested_date" +%F) || die "Invalid date: $requested_date"
+	else
+		say "Release date only works with upgrades from GitHub"
+	fi
 fi
 
 # work in $workdir
