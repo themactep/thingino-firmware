@@ -101,7 +101,7 @@ fi
 Changes in illumination affect the gain required to normalise a darkened image - the darker the scene, the higher the gain value.
 The current gain value is displayed at the top of each page next to the sun emoji.
 Switching between modes is triggered by changes in the gain beyond the threshold values.</p>
-<% wiki_page "Configration:-Night-Mode" %>
+<% wiki_page "Configuration:-Night-Mode" %>
 </div>
 </div>
 </div>
