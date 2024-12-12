@@ -175,7 +175,7 @@ IR cut filter
 </div>
 <div class="modal-body">
 <p>The IR cut filter is typically controlled by a combination of two GPIO pins that define the voltage polarity and direction of movement.</p>
-<% wiki_page "Configration:-Night-Mode#infrared-cut-filter" %>
+<% wiki_page "Configuration:-Night-Mode#infrared-cut-filter" %>
 </div>
 <div class="modal-footer">
 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
