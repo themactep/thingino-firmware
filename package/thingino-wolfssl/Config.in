@@ -1,0 +1,1650 @@
+config BR2_PACKAGE_THINGINO_WOLFSSL
+	bool "wolfssl"
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	help
+	  The wolfSSL embedded SSL library (formerly CyaSSL) is a
+	  lightweight, portable, C-language-based SSL/TLS library
+	  targeted at IoT, embedded, and RTOS environments primarily
+	  because of its size, speed, and feature set.
+
+	  https://www.wolfssl.com/
+
+if BR2_PACKAGE_THINGINO_WOLFSSL
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DISTRO
+	bool "enable-distro"
+	help
+	  Enable wolfSSL distro build
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_EXPERIMENTAL
+	bool "enable-experimental"
+	help
+	  Allow experimental settings in the configuration
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_THREADLOCAL
+	bool "enable-threadlocal"
+	default y
+	help
+	  Enable thread local support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DEBUG_CODE_POINTS
+	bool "enable-debug-code-points"
+	help
+	  Include source file and line number in enable-verbose messages.
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DEBUG_TRACE_ERRCODES
+	bool "enable-debug-trace-errcodes"
+	help
+	  Print trace messages when library errors are thrown.
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_HARDEN_TLS
+	string "enable-harden-tls"
+	help
+	  Enable requirements from RFC9325.
+	  Possible values are <yes>, <112>, or <128>.
+	  <yes> is equivalent to <112>.
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_32BIT
+	bool "enable-32bit"
+	help
+	  Enables 32-bit support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_16BIT
+	bool "enable-16bit"
+	help
+	  Enables 16-bit support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_64BIT
+	bool "enable-64bit"
+	help
+	  Enables 64-bit support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_KDF
+	bool "enable-kdf"
+	default y
+	help
+	  Enables kdf support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_HMAC
+	bool "enable-hmac"
+	default y
+	help
+	  Enables HMAC support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DO178
+	bool "enable-do178"
+	help
+	  Enable DO-178.
+	  Will NOT work w/o DO178 license
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ASM
+	bool "enable-asm"
+	default y if BR2_aarch64
+	default y if (BR2_arm || BR2_armeb) && !BR2_ARM_CPU_ARMV4 # clz
+	default y if BR2_powerpc
+	default y if BR2_powerpc64 || BR2_powerpc64le
+	default y if BR2_mips64 && !BR2_MIPS_CPU_MIPS32R6
+	default y if BR2_mips64el && !BR2_MIPS_CPU_MIPS32R6
+	default y if BR2_mips || BR2_mipsel
+	default y if BR2_riscv && BR2_RISCV_ISA_RVM
+	default y if BR2_s390x
+	help
+	  Enables option for assembly
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_FIPS
+	bool "enable-fips"
+	help
+	  Enable FIPS 140-2.
+	  Will NOT work w/o FIPS license
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ENGINE
+	bool "enable-engine"
+	help
+	  Enable wolfEngine options
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_REPRODUCIBLE_BUILD
+	bool "enable-reproducible-build"
+	help
+	  Enable maximally reproducible build
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_BENCHMARK
+	bool "enable-benchmark"
+	default y
+	help
+	  Build benchmark when building crypttests
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_LINUXKM
+	bool "enable-linuxkm"
+	help
+	  Enable Linux Kernel Module
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_LINUXKM_DEFAULTS
+	bool "enable-linuxkm-defaults"
+	help
+	  Enable feature defaults for Linux Kernel Module
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_LINUXKM_PIE
+	bool "enable-linuxkm-pie"
+	help
+	  Enable relocatable object build of Linux kernel module
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_LINUXKM_BENCHMARKS
+	bool "enable-linuxkm-benchmarks"
+	help
+	  Enable crypto benchmarking autorun at module load time for Linux kernel module
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SP
+	bool "enable-sp"
+	help
+	  Enable Single Precision maths implementation
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SP_MATH_ALL
+	bool "enable-sp-math-all"
+	default y
+	help
+	  Enable Single Precision math implementation for full algorithm suite
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SP_MATH
+	bool "enable-sp-math"
+	help
+	  Enable Single Precision math implementation with restricted algorithm suite
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SP_ASM
+	bool "enable-sp-asm"
+	default y if BR2_x86_64 || BR2_aarch64 || BR2_amd64
+	help
+	  Enable Single Precision assembly implementation
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_FASTMATH
+	bool "enable-fastmath"
+	help
+	  Enable fast math ops
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_FASTHUGEMATH
+	bool "enable-fasthugemath"
+	help
+	  Enable fast math + huge code
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_HEAPMATH
+	bool "enable-heapmath"
+	help
+	  Enable heap based integer.c math ops
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ALL
+	bool "enable-all"
+	help
+	  Enable all wolfSSL features, except SSLv3
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ALL_CRYPTO
+	bool "enable-all-crypto"
+	help
+	  Enable all wolfcrypt algorithms
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_KYBER
+	bool "enable-kyber"
+	select BR2_PACKAGE_THINGINO_WOLFSSL_EXPERIMENTAL
+	help
+	  Enable KYBER
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DILITHIUM
+	bool "enable-dilithium"
+	select BR2_PACKAGE_THINGINO_WOLFSSL_EXPERIMENTAL
+	help
+	  Enable DILITHIUM
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_XMSS
+	bool "enable-xmss"
+	help
+	  Enable stateful XMSS/XMSS^MT signatures
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_LMS
+	bool "enable-lms"
+	help
+	  Enable stateful LMS/HSS signatures
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SINGLETHREADED
+	bool "enable-singlethreaded"
+	help
+	  Enable wolfSSL single threaded
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_RWLOCK
+	bool "enable-rwlock"
+	help
+	  Enable use of rwlock
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CRYPTONLY
+	bool "enable-cryptonly"
+	help
+	  Enable wolfCrypt Only build
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ECH
+	bool "enable-ech"
+	help
+	  Enable ECH
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DTLS
+	bool "enable-dtls"
+	help
+	  Enable wolfSSL DTLS
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DTLS_MTU
+	bool "enable-dtls-mtu"
+	help
+	  Enable setting the MTU size for wolfSSL DTLS
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_KEYLOG_EXPORT
+	bool "enable-keylog-export"
+	help
+	  Enable insecure export of TLS secrets to an NSS keylog file
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_TLS13_DRAFT18
+	bool "enable-tls13-draft18"
+	help
+	  Enable wolfSSL TLS v1.3 Draft 18
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_TLS13
+	bool "enable-tls13"
+	default y
+	help
+	  Enable wolfSSL TLS v1.3
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_QUIC
+	bool "enable-quic"
+	help
+	  Enable QUIC API with wolfSSL TLS v1.3
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_POSTAUTH
+	bool "enable-postauth"
+	help
+	  Enable wolfSSL Post-handshake Authentication
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_HRRCOOKIE
+	bool "enable-hrrcookie"
+	help
+	  Enable the server to send Cookie Extension in HRR with state
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_RNG
+	bool "enable-rng"
+	default y
+	help
+	  Enable compiling and using RNG
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SCTP
+	bool "enable-sctp"
+	help
+	  Enable wolfSSL DTLS-SCTP support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SRTP
+	bool "enable-srtp"
+	help
+	  Enable wolfSSL DTLS-SRTP support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_MCAST
+	bool "enable-mcast"
+	help
+	  Enable wolfSSL DTLS multicast support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_BIND
+	bool "enable-bind"
+	help
+	  Enable Bind DNS compatibility build
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_LIBSSH2
+	bool "enable-libssh2"
+	help
+	  Enable libssh2 compatibility build
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_OPENSSH
+	bool "enable-openssh"
+	help
+	  Enable OpenSSH compatibility build
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_OPENVPN
+	bool "enable-openvpn"
+	help
+	  Enable OpenVPN compatibility build
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_OPENRESTY
+	bool "enable-openresty"
+	help
+	  Enable openresty
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_NGINX
+	bool "enable-nginx"
+	help
+	  Enable nginx
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CHRONY
+	bool "enable-chrony"
+	help
+	  Enable chrony support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_OPENLDAP
+	bool "enable-openldap"
+	help
+	  Enable OpenLDAP support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_LIGHTY
+	bool "enable-lighty"
+	help
+	  Enable lighttpd/lighty
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_RSYSLOG
+	bool "enable-rsyslog"
+	help
+	  Enable rsyslog
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_HAPROXY
+	bool "enable-haproxy"
+	help
+	  Enable haproxy
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_WPAS
+	bool "enable-wpas"
+	help
+	  Enable wpa_supplicant support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_WPAS_DPP
+	bool "enable-wpas-dpp"
+	help
+	  Enable wpa_supplicant support with dpp
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_NTP
+	bool "enable-ntp"
+	help
+	  Enable ntp support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_FORTRESS
+	bool "enable-fortress"
+	help
+	  Enable SSL fortress build
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_LIBWEBSOCKETS
+	bool "enable-libwebsockets"
+	help
+	  Enable libwebsockets
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_NET_SNMP
+	bool "enable-net-snmp"
+	help
+	  Enable net-snmp
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_KRB
+	bool "enable-krb"
+	help
+	  Enable kerberos 5 support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_FFMPEG
+	bool "enable-ffmpeg"
+	help
+	  Enable FFmpeg support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_IP_ALT_NAME
+	bool "enable-ip-alt-name"
+	help
+	  Enable IP subject alternative name
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_QT
+	bool "enable-qt"
+	help
+	  Enable qt
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_BUMP
+	bool "enable-bump"
+	help
+	  Enable SSL Bump build
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SNIFFER
+           bool "enable-sniffer"
+	help
+	  Enable wolfSSL sniffer support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SIGNAL
+	bool "enable-signal"
+	help
+	  Enable signal
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_STRONGSWAN
+	bool "enable-strongswan"
+	help
+	  Enable strongSwan support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_HITCH
+	bool "enable-hitch"
+	help
+	  Enable hitch support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_MEMCACHED
+	bool "enable-memcached"
+	help
+	  Enable memcached support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_OPENSSLCOEXIST
+	bool "enable-opensslcoexist"
+	help
+	  Enable coexistence of wolfssl/openssl
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SMIME
+	bool "enable-smime"
+	help
+	  Enable S/MIME
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_PSA
+        bool "enable-psa"
+	help
+	  use Platform Security Architecture (PSA) interface
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_PSA_LIB_STATIC
+	bool "enable-psa-lib-static"
+	help
+	  Link PSA as static library
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_OPENSSLALL
+        bool "enable-opensslall"
+	help
+	  Enable all OpenSSL API, size++
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_OPENSSLEXTRA
+	bool "enable-opensslextra"
+	help
+	  Enable extra OpenSSL API, size+
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ERROR_QUEUE_PER_THREAD
+        bool "enable-error-queue-per-thread"
+	help
+	  Enable one error queue per thread. Requires thread local storage.
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_MAXSTRENGTH
+	bool "enable-maxstrength"
+	help
+	  Enable Max Strength build, allows TLSv1.2-AEAD-PFS ciphers only
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_HARDEN
+	bool "enable-harden"
+	default y
+	help
+	  Enable Hardened build, Enables Timing Resistance and Blinding
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_IPV6
+	bool "enable-ipv6"
+	help
+	  Enable testing of IPV6
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_LEANPSK
+	bool "enable-leanpsk"
+	help
+	  Enable Lean PSK build
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_LEANTLS
+	bool "enable-leantls"
+	help
+	  Enable Lean TLS build
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_LOWRESOURCE
+	bool "enable-lowresource"
+	help
+	  Enable low resource options for memory/flash
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_TITANCACHE
+	bool "enable-titancache"
+	help
+	  Enable titan session cache
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_HUGECACHE
+	bool "enable-hugecache"
+	help
+	  Enable huge session cache
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_BIGCACHE
+	bool "enable-bigcache"
+	help
+	  Enable big session cache
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SMALLCACHE
+	bool "enable-smallcache"
+	help
+	  Enable small session cache
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SAVESESSION
+	bool "enable-savesession"
+	help
+	  Enable persistent session cache
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SAVECERT
+	bool "enable-savecert"
+	help
+	  Enable persistent cert cache
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_WRITEDUP
+	bool "enable-writedup"
+	help
+	  Enable write duplication of WOLFSSL objects
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ATOMICUSER
+	bool "enable-atomicuser"
+	help
+	  Enable Atomic User Record Layer
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_PKCALLBACKS
+	bool "enable-pkcallbacks"
+	help
+	  Enable Public Key Callbacks
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AESCBC
+	bool "enable-aescbc"
+	default y
+	help
+	  Enable wolfSSL AES-CBC support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AESCBC_LENGTH_CHECKS
+	bool "enable-aescbc-length-checks"
+	help
+	  Enable AES-CBC length validity checks
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AESGCM
+	bool "enable-aesgcm"
+	default y
+	help
+	  Enable wolfSSL AES-GCM support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AESGCM_STREAM
+	bool "enable-aesgcm-stream"
+	help
+	  Enable wolfSSL AES-GCM support with streaming APIs
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AESCCM
+	bool "enable-aesccm"
+	help
+	  Enable wolfSSL AES-CCM support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AESEAX
+	bool "enable-aeseax"
+	help
+	  Enable wolfSSL AES-EAX support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AESSIV
+	bool "enable-aessiv"
+	help
+	  Enable AES-SIV (RFC 5297)
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AESCTR
+	bool "enable-aesctr"
+	help
+	  Enable wolfSSL AES-CTR support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AESOFB
+	bool "enable-aesofb"
+	help
+	  Enable wolfSSL AES-OFB support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AESCFB
+	bool "enable-aescfb"
+	help
+	  Enable wolfSSL AES-CFB support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AES_BITSLICED
+	bool "enable-aes-bitsliced"
+	help
+	  Enable bitsliced implementation of AES
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SM4_ECB
+	bool "enable-sm4-ecb"
+	help
+	  Enable wolfSSL SM4-ECB support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SM4_CBC
+	bool "enable-sm4-cbc"
+	help
+	  Enable wolfSSL SM4-CBC support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SM4_CTR
+	bool "enable-sm4-ctr"
+	help
+	  Enable wolfSSL SM4-CTR support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SM4_GCM
+	bool "enable-sm4-gcm"
+	help
+	  Enable wolfSSL SM4-GCM support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SM4_CCM
+	bool "enable-sm4-ccm"
+	help
+	  Enable wolfSSL SM4-CCM support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ARMASM
+	bool "enable-armasm"
+	help
+	  Enable wolfSSL ARMv8 ASM support.
+	  Set to sha512-crypto or sha3-crypto to use SHA512 and SHA3 instructions with Aarch64 CPU.
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_RISCV_ASM
+	bool "enable-riscv-asm"
+	help
+	  Enable wolfSSL RISC-V ASM support.
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_XILINX
+	bool "enable-xilinx"
+	help
+	  Enable wolfSSL support for Xilinx hardened crypto
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ARIA
+	bool "enable-aria"
+	help
+	  Enable wolfSSL support for ARIA
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CAAM
+	bool "enable-caam"
+	help
+	  Enable wolfSSL support for CAAM
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AESNI
+	bool "enable-aesni"
+	help
+	  Enable wolfSSL AES-NI support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_INTELASM
+	bool "enable-intelasm"
+	help
+	  Enable All Intel ASM speedups
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ALIGNDATA
+	bool "enable-aligndata"
+	default y
+	help
+	  align data for ciphers
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_INTELRAND
+	bool "enable-intelrand"
+	help
+	  Enable Intel rdrand as preferred RNG source
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AMDRAND
+	bool "enable-amdrand"
+	help
+	  Enable AMD rdseed as preferred RNG seeding source
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AFALG
+	bool "enable-afalg"
+	help
+	  Enable Linux af_alg use for crypto
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_KCAPI_HASH
+	bool "enable-kcapi-hash"
+	help
+	  Enable libkcapi use for hashing
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_KCAPI_HMAC
+	bool "enable-kcapi-hmac"
+	help
+	  Enable libkcapi use for HMAC
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_KCAPI_AES
+	bool "enable-kcapi-aes"
+	help
+	  Enable libkcapi use for AES
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_KCAPI_RSA
+	bool "enable-kcapi-rsa"
+	help
+	  Enable libkcapi use for RSA
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_KCAPI_DH
+	bool "enable-kcapi-dh"
+	help
+	  Enable libkcapi use for DH
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_KCAPI_ECC
+	bool "enable-kcapi-ecc"
+	help
+	  Enable libkcapi use for ECC
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_KCAPI
+	bool "enable-kcapi"
+	help
+	  Enable libkcapi use for crypto
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DEVCRYPTO
+	string "enable-devcrypto"
+	help
+	  Enable Linux dev crypto calls:
+	    all
+	    aes (all aes support)
+	    hash (all hash algos)
+	    cbc (aes-cbc only)
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CAMELLIA
+	bool "enable-camellia"
+	help
+	  Enable wolfSSL Camellia support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_MD2
+	bool "enable-md2"
+	help
+	  Enable wolfSSL MD2 support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_NULLCIPHER
+	bool "enable-nullcipher"
+	help
+	  Enable wolfSSL NULL cipher support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_RIPEMD
+	bool "enable-ripemd"
+	help
+	  Enable wolfSSL RIPEMD-160 support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_BLAKE2
+	bool "enable-blake2"
+	help
+	  Enable wolfSSL BLAKE2b support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_BLAKE2S
+	bool "enable-blake2s"
+	help
+	  Enable wolfSSL BLAKE2s support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SHA224
+	bool "enable-sha224"
+	default y if BR2_x86_64 || BR2_amd64 || BR2_aarch64
+	help
+	  Enable wolfSSL SHA-224 support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SHA3
+	bool "enable-sha3"
+	default y if BR2_x86_64 || BR2_amd64 || BR2_aarch64
+	help
+	  Enable wolfSSL SHA-3 support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SHAKE128
+	bool "enable-shake128"
+	help
+	  Enable wolfSSL SHAKE128 support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SHAKE256
+	bool "enable-shake256"
+	help
+	  Enable wolfSSL SHAKE256 support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SHA512
+	bool "enable-sha512"
+	default y
+	help
+	  Enable wolfSSL SHA-512 support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SHA384
+	bool "enable-sha384"
+	default y
+	help
+	  Enable wolfSSL SHA-384 support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SM3
+	bool "enable-sm3"
+	help
+	  Enable wolfSSL SM3 support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SESSIONCERTS
+	bool "enable-sessioncerts"
+	help
+	  Enable session cert storing
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_KEYGEN
+	bool "enable-keygen"
+	help
+	  Enable key generation (only applies to RSA key generation)
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CERTGEN
+	bool "enable-certgen"
+	help
+	  Enable cert generation
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CERTREQ
+	bool "enable-certreq"
+	help
+	  Enable cert request generation
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CERTEXT
+	bool "enable-certext"
+	help
+	  Enable cert request extensions
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CERTGENCACHE
+	bool "enable-certgencache"
+	help
+	  Enable decoded cert caching
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SEP
+	bool "enable-sep"
+	help
+	  Enable sep extensions
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_HKDF
+	bool "enable-hkdf"
+	help
+	  Enable HKDF (HMAC-KDF) support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_HPKE
+	bool "enable-hpke"
+	help
+	  Enable HKPE support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_X963KDF
+	bool "enable-x963kdf"
+	help
+	  Enable X9.63 KDF support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SRTP_KDF
+	bool "enable-srtp-kdf"
+	help
+	  Enable SRTP-KDF support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DSA
+	bool "enable-dsa"
+	help
+	  Enable DSA
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ECCSHAMIR
+	bool "enable-eccshamir"
+	default y
+	help
+	  Enable ECC Shamir
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ECC
+	bool "enable-ecc"
+	default y
+	help
+	  Enable ECC
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SM2
+	bool "enable-sm2"
+	help
+	  Enable wolfSSL SM2 support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ECCCUSTCURVES
+	bool "enable-ecccustcurves"
+	help
+	  Enable ECC custom curves
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_COMPKEY
+	bool "enable-compkey"
+	help
+	  Enable compressed keys support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_BRAINPOOL
+	bool "enable-brainpool"
+	default y if BR2_PACKAGE_THINGINO_WOLFSSL_ECCCUSTCURVES
+	help
+	  Enable Brainpool ECC curves
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CURVE25519
+	bool "enable-curve25519"
+	help
+	  Enable Curve25519
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ED25519
+	bool "enable-ed25519"
+	help
+	  Enable ED25519
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ED25519_STREAM
+	bool "enable-ed25519-stream"
+	help
+	  Enable wolfSSL ED25519 support with streaming verify APIs
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CURVE448
+	bool "enable-curve448"
+	help
+	  Enable Curve448
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ED448
+	bool "enable-ed448"
+	help
+	  Enable ED448
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ED448_STREAM
+	bool "enable-ed448-stream"
+	help
+	  Enable wolfSSL ED448 support with streaming verify APIs
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_FPECC
+	bool "enable-fpecc"
+	help
+	  Enable Fixed Point cache ECC
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ECCENCRYPT
+	string "enable-eccencrypt"
+	help
+	  Enable ECC encrypt.
+	    yes = SEC1 standard,
+	    geniv = Generate IV,
+	    iso18033 = ISO 18033 standard,
+	    old = original wolfSSL algorithm
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ECCSI
+	bool "enable-eccsi"
+	help
+	  Enable ECCSI
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SAKKE
+	bool "enable-sakke"
+	help
+	  Enable SAKKE - paring based crypto
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_PSK
+	bool "enable-psk"
+	help
+	  Enable PSK
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_PSK_ONE_ID
+	bool "enable-psk-one-id"
+	help
+	  Enable PSK
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ERRORSTRINGS
+	bool "enable-errorstrings"
+	default y
+	help
+	  Enable error strings table
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ERRORQUEUE
+	bool "enable-errorqueue"
+	default y
+	help
+	  Disables adding nodes to error queue when compiled with OPENSSL_EXTRA
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SSLV3
+	bool "enable-sslv3"
+	help
+	  Enable SSL version 3.0
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_TLSV10
+	bool "enable-tlsv10"
+	help
+	  Enable old TLS versions 1.0
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_OLDTLS
+	bool "enable-oldtls"
+	help
+	  Enable old TLS versions < 1.2
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_TLSV12
+	bool "enable-tlsv12"
+	default y
+	help
+	  Enable TLS versions 1.2
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_STACKSIZE
+	bool "enable-stacksize"
+	help
+	  Enable stack size info on examples
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_MEMORY
+	bool "enable-memory"
+	default y
+	help
+	  Enable memory callbacks
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_TRACKMEMORY
+	bool "enable-trackmemory"
+	help
+	  Enable memory use info on wolfCrypt and wolfSSL cleanup
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_MEMORYLOG
+	bool "enable-memorylog"
+	help
+	  Enable dynamic memory logging
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_STACKLOG
+	bool "enable-stacklog"
+	help
+	  Enable stack logging
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_WOLFSENTRY
+	bool "enable-wolfsentry"
+	help
+	  Enable wolfSentry hooks and plugins
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_QT_TEST
+	bool "enable-qt-test"
+	help
+	  Enable qt tests
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_RSA
+	bool "enable-rsa"
+	default y
+	help
+	  Enable RSA
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_OAEP
+	bool "enable-oaep"
+	default y
+	help
+	  Enable RSA OAEP
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_RSAPUB
+	bool "enable-rsapub"
+	help
+	  Enable RSA Public Only
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_RSAVFY
+	bool "enable-rsavfy"
+	help
+	  Enable RSA Verify Inline Only
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_RSAPSS
+	bool "enable-rsapss"
+	help
+	  Enable RSA-PSS
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DH
+	bool "enable-dh"
+	default y
+	help
+	  Enable DH
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ANON
+	bool "enable-anon"
+	help
+	  Enable Anonymous
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ASN
+	bool "enable-asn"
+	default y
+	help
+	  Enable ASN
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ASN_PRINT
+	bool "enable-asn-print"
+	default y
+	help
+	  Enable ASN Print API
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AES
+	bool "enable-aes"
+	default y
+	help
+	  Enable AES
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DTLS13
+	bool "enable-dtls13"
+	help
+	  Enable wolfSSL DTLS v1.3
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DTLSCID
+	bool "enable-dtlscid"
+	help
+	  Enable wolfSSL DTLS ConnectionID
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DTLS_FRAG_CH
+	bool "enable-dtls-frag-ch"
+	help
+	  Enable wolfSSL DTLS 1.3 ClientHello fragmenting
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CODING
+	bool "enable-coding"
+	default y
+	help
+	  Enable Coding base 16/64
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_BASE64ENCODE
+	bool "enable-base64encode"
+	default y if BR2_x86_64 || RB2_amd64
+	help
+	  Enable Base64 encoding
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_BASE16
+	bool "enable-base16"
+	help
+	  Enable Base16 encoding/decoding
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_MD4
+	bool "enable-md4"
+	help
+	  Enable MD4
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DES3
+	bool "enable-des3"
+	help
+	  Enable DES3
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DES3_TLS_SUITES
+	bool "enable-des3-tls-suites"
+	help
+	  Enable DES3 TLS cipher suites
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ARC4
+	bool "enable-arc4"
+	help
+	  Enable ARC4
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_MD5
+	bool "enable-md5"
+	default y
+	help
+	  Enable MD5
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SHA
+	bool "enable-sha"
+	default y
+	help
+	  Enable SHA
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SIPHASH
+	bool "enable-siphash"
+	help
+	  Enable SipHash
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CMAC
+	bool "enable-cmac"
+	help
+	  Enable CMAC
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AESXTS
+	bool "enable-aesxts"
+	help
+	  Enable AES XTS
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AESXTS_STREAM
+	bool "enable-aesxts-stream"
+	help
+	  Enable wolfSSL AES-XTS support with streaming APIs
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_XTS
+	bool "enable-xts"
+	help
+	  Please use enable-aesxts
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_WEBSERVER
+	bool "enable-webserver"
+	help
+	  Enable Web Server
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_WEBCLIENT
+	bool "enable-webclient"
+	help
+	  Enable Web Client (HTTP)
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_RC2
+	bool "enable-rc2"
+	help
+	  Enable RC2 encryption
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CUDA
+	bool "enable-cuda"
+	help
+	  Enable NVidia CUDA support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CERTSERVICE
+	bool "enable-certservice"
+	help
+	  Enable cert service
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_PWDBASED
+	bool "enable-pwdbased"
+	help
+	  Enable PWDBASED
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_WOLFENTROPY
+	bool "enable-wolfentropy"
+	help
+	  Enable memuse entropy support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ENTROPY_MEMUSE
+	bool "enable-entropy-memuse"
+	help
+	  Enable memuse entropy support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AESKEYWRAP
+	bool "enable-aeskeywrap"
+	help
+	  Enable AES key wrap support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SELFTEST
+	bool "enable-selftest"
+	help
+	  Enable selftest, Will NOT work w/o CAVP selftest license
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_POLY1305
+	bool "enable-poly1305"
+	default y
+	help
+	  Enable wolfSSL POLY1305 support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CHACHA
+	bool "enable-chacha"
+	default y
+	help
+	  Enable CHACHA
+	  Use `=noasm` to disable ASM AVX/AVX2 speedups
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_XCHACHA
+	bool "enable-xchacha"
+	help
+	  Enable XCHACHA
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_HASHDRBG
+	bool "enable-hashdrbg"
+	default y
+	help
+	  Enable Hash DRBG support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_FILESYSTEM
+	bool "enable-filesystem"
+	default y
+	help
+	  Enable Filesystem support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_INLINE
+	bool "enable-inline"
+	default y
+	help
+	  Enable inline functions
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_OCSP
+	bool "enable-ocsp"
+	help
+	  Enable OCSP
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_OCSPSTAPLING
+	bool "enable-ocspstapling"
+	help
+	  Enable OCSP Stapling
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_OCSPSTAPLING2
+	bool "enable-ocspstapling2"
+	help
+	  Enable OCSP Stapling v2
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CRL
+	bool "enable-crl"
+	help
+	  Enable CRL
+	  Use =io for inline CRL HTTP GET
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CRL_MONITOR
+	bool "enable-crl-monitor"
+	help
+	  Enable CRL Monitor
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SNI
+	bool "enable-sni"
+	default y if RB2_x86_64 || RB2_x86 || RB2_aarch64 || RB2_amd64
+	help
+	  Enable SNI
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_MAXFRAGMENT
+	bool "enable-maxfragment"
+	help
+	  Enable Maximum Fragment Length
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ALPN
+	bool "enable-alpn"
+	help
+	  Enable ALPN
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_TRUSTEDCA
+	bool "enable-trustedca"
+	help
+	  Enable Trusted CA Indication
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_TRUNCATEDHMAC
+	bool "enable-truncatedhmac"
+	help
+	  Enable Truncated HMAC
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_RENEGOTIATION_INDICATION
+	bool "enable-renegotiation-indication"
+	help
+	  Enable Renegotiation Indication for client via empty cipher
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SECURE_RENEGOTIATION
+	bool "enable-secure-renegotiation"
+	help
+	  Enable Secure Renegotiation
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SECURE_RENEGOTIATION_INFO
+	bool "enable-secure-renegotiation-info"
+	default y
+	help
+	  Enable Secure Renegotiation info extension
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_FALLBACK_SCSV
+	bool "enable-fallback-scsv"
+	help
+	  Enable Fallback SCSV
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_KEYING_MATERIAL
+	bool "enable-keying-material"
+	help
+	  Enable Keying Material Exporters
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SUPPORTEDCURVES
+	bool "enable-supportedcurves"
+	default y
+	help
+	  Enable Supported Elliptic Curves
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_FFDHE_ONLY
+	bool "enable-ffdhe-only"
+	help
+	  Enable using only FFDHE in client
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SESSION_TICKET
+	bool "enable-session-ticket"
+	help
+	  Enable Session Ticket
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_TICKET_NONCE_MALLOC
+	bool "enable-ticket-nonce-malloc"
+	help
+	  Enable dynamic allocation of ticket nonces
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_EXTENDED_MASTER
+	bool "enable-extended-master"
+	default y
+	help
+	  Enable Extended Master Secret
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_TLSX
+	bool "enable-tlsx"
+	help
+	  Enable all TLS Extensions
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_EARLYDATA
+	bool "enable-earlydata"
+	help
+	  Enable Early Data handshake with wolfSSL TLS v1.3
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_PKCS7
+	bool "enable-pkcs7"
+	help
+	  Enable PKCS7
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_WOLFSSH
+	bool "enable-wolfssh"
+	help
+	  Enable wolfSSH options
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SSH
+	bool "enable-ssh"
+	help
+	  Enable wolfSSH options
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_WOLFTPM
+	bool "enable-wolftpm"
+	help
+	  Enable wolfTPM options
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_WOLFCLU
+	bool "enable-wolfclu"
+	help
+	  Enable wolfCLU options
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SCEP
+	bool "enable-scep"
+	help
+	  Enable wolfSCEP
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SRP
+	bool "enable-srp"
+	help
+	  Enable Secure Remote Password
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_INDEF
+	bool "enable-indef"
+	help
+	  Enable parsing of indefinite length encoded msgs
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ALTCERTCHAINS
+	bool "enable-altcertchains"
+	help
+	  Enable using alternative certificate chains,
+	  only require leaf certificate to validate to trust root
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SMALLSTACKCACHE
+	bool "enable-smallstackcache"
+	help
+	  Enable Small Stack Usage Caching
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SMALLSTACK
+	bool "enable-smallstack"
+	help
+	  Enable Small Stack Usage
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_VALGRIND
+	bool "enable-valgrind"
+	help
+	  Enable valgrind for unit tests
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_TESTCERT
+	bool "enable-testcert"
+	help
+	  Enable Test Cert
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_IOPOOL
+	bool "enable-iopool"
+	help
+	  Enable I/O Pool example
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_JNI
+	bool "enable-jni"
+	help
+	  Enable wolfSSL JNI
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ASIO
+	bool "enable-asio"
+	help
+	  Enable asio
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_APACHEHTTPD
+	bool "enable-apachehttpd"
+	help
+	  Enable Apache httpd
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ENC_THEN_MAC
+	bool "enable-enc-then-mac"
+	default y
+	help
+	  Enable Encrypt-Then-Mac extension
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_STUNNEL
+	bool "enable-stunnel"
+	help
+	  Enable stunnel
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CURL
+	bool "enable-curl"
+	help
+	  Enable curl
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_TCPDUMP
+	bool "enable-tcpdump"
+	help
+	  Enable tcpdump
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SBLIM_SFCB
+	bool "enable-sblim-sfcb"
+	help
+	  Enable sblim-sfcb support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_LIBEST
+	bool "enable-libest"
+	help
+	  Enable libest
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ENCKEYS
+	bool "enable-enckeys"
+	help
+	  Enable PEM encrypted private key support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_PKCS12
+	bool "enable-pkcs12"
+	default y
+	help
+	  Enable pkcs12
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SCRYPT
+	bool "enable-scrypt"
+	help
+	  Enable SCRYPT
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_EXAMPLES
+	bool "enable-examples"
+	default y
+	help
+	  Enable Examples
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CRYPTTESTS
+	bool "enable-crypttests"
+	default y
+	help
+	  Enable Crypt Bench/Test
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CRYPTTESTS_LIBS
+	bool "enable-crypttests-libs"
+	help
+	  Enable wolfcrypt test and benchmark libraries
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_PKCS11
+	bool "enable-pkcs11"
+	help
+	  Enable pkcs11 access
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_PKCS8
+	bool "enable-pkcs8"
+	default y
+	help
+	  Enable PKCS #8 key packages
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_STATICMEMORY
+	bool "enable-staticmemory"
+	help
+	  Enable static memory use
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_MCAPI
+	bool "enable-mcapi"
+	help
+	  Enable Microchip API
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CRYPTOCB
+	bool "enable-cryptocb"
+	help
+	  Enable crypto callbacks
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ASYNCCRYPT
+	bool "enable-asynccrypt"
+	help
+	  Enable Asynchronous Crypto
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ASYNCCRYPT_SW
+	bool "enable-asynccrypt-sw"
+	help
+	  Enable asynchronous software-based crypto
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ASYNCTHREADS
+	bool "enable-asyncthreads"
+	default y
+	help
+	  Enable Asynchronous Threading
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_AUTOSAR
+	bool "enable-autosar"
+	help
+	  Enable AutoSAR support
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SESSIONEXPORT
+	bool "enable-sessionexport"
+	help
+	  Enable export and import of sessions
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_OLDNAMES
+	bool "enable-oldnames"
+	default y
+	help
+	  Keep backwards compat with old names
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_MEMTEST
+	bool "enable-memtest"
+	help
+	  Memory testing option, for internal use
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_HASHFLAGS
+	bool "enable-hashflags"
+	help
+	  Enable support for hash flags
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DEFAULTDHPARAMS
+	bool "enable-defaultdhparams"
+	help
+	  Enables option for default dh parameters
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_LINUXKM_LKCAPI_REGISTER
+	string "enable-linuxkm-lkcapi-register"
+	default "none"
+	help
+	  Register wolfCrypt implementations with the Linux Kernel Crypto API backplane.
+	  Possible values are "none", "all", "cbc(aes)", "cfb(aes)", "gcm(aes)",
+	  and "xts(aes)", or a comma-separate combination.
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_CONTEXT_EXTRA_USER_DATA
+	bool "enable-context-extra-user-data"
+	help
+	  Enables option for storing user-defined data in TLS API contexts,
+	  with optional argument the number of slots to allocate
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_IOTSAFE
+	bool "enable-iotsafe"
+	help
+	  Enables support for IoT-Safe secure applet
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_IOTSAFE_HWRNG
+	bool "enable-iotsafe-hwrng"
+	help
+	  Enables support for IoT-Safe RNG
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_MAKECLEAN
+	bool "enable-makeclean"
+	help
+	  Enables forced "make clean"
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_USERSETTINGS
+	bool "enable-usersettings"
+	help
+	  Use your own user_settings.h and do not add Makefile CFLAGS
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_OPTFLAGS
+	bool "enable-optflags"
+	default y
+	help
+	  Enable default optimization CFLAGS for the compiler
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_SYS_CA_CERTS
+	bool "enable-sys-ca-certs"
+	default y
+	help
+	  Enable ability to load CA certs from OS
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_DUAL_ALG_CERTS
+	bool "enable-dual-alg-certs"
+	select BR2_PACKAGE_THINGINO_WOLFSSL_EXPERIMENTAL
+	help
+	  Enable support for dual key/signature certificates
+	  in TLS 1.3 as defined in X9.146
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_RPK
+	bool "enable-rpk"
+	help
+	  Enable support for Raw Public Key (RPK) RFC7250
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_OPENSSL_COMPATIBLE_DEFAULTS
+	bool "disable-openssl-compatible-defaults"
+	default y
+	help
+	  Disable OpenSSL compatible defaults when enabled by other options
+
+comment "all features, except SSLv3 needs a toolchain w/ dynamic library"
+	depends on BR2_STATIC_LIBS
+
+endif
+
+comment "wolfssl needs a toolchain w/ threads"
+	depends on !BR2_TOOLCHAIN_HAS_THREADS

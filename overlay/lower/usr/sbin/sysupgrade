@@ -326,7 +326,7 @@ esac
 if [ "true" = "$bootloader_only" ]; then
 	[ "mtd5" = "$mtd_dev" ] || die "Userland image does not have a bootloader!"
 	extract_bootloader "$fw_file"
-	flascp -v $fw_file /dev/mtd0
+	flashcp -v $fw_file /dev/mtd0
 	exit 0
 fi
 

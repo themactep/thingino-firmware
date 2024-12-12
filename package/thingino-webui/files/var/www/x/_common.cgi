@@ -401,6 +401,10 @@ field_textedit() {
 	</div>"
 }
 
+http_header() {
+	echo -en "$1\r\n"
+}
+
 html_title() {
 	echo -n "$(hostname) - $page_title - thingino"
 }
