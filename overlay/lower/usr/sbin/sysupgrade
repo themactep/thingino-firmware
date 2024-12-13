@@ -156,7 +156,7 @@ Where:
   -f      full upgrade with a binary from GitHub
   -p      partial upgrade with a binary from GitHub
   -b      upgrade only bootloader
-  -d      release date (the latest available, if omitted)
+  -d      release date as YYYY-MM-DD (the latest available, if omitted)
   <file>  full or partial upgrade from a local file
   <URL>   full or partial upgrade from a URL
   -x      do not update the script
@@ -186,6 +186,15 @@ update_self() {
 	chmod +x /sbin/$stage2app
 }
 
+check_build_id() {
+    local supplied_date="$1"
+    local build_id_date=$(grep "^BUILD_ID=" /etc/os-release | cut -d',' -f2 | cut -d' ' -f2)
+    if [ "$build_id_date" = "$supplied_date" ]; then
+        say "up to date"
+        exit 0
+    fi
+}
+
 # mandate virtual partitions
 grep -q "mtd[56]" /proc/mtd || die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
 
@@ -193,7 +202,7 @@ ORIGINAL_ARG="$@"
 while getopts "bd:fhpx" flag; do
 	case "$flag" in
 		b) bootloader_only="true" ;;
-  		d) requested_date=$OPTARG ;;
+		d) requested_date=$OPTARG ;;
 		f) upgrade="full"; url="$GITHUB_URL" ;;
 		p) upgrade="part"; url="$GITHUB_URL" ;;
 		x) selfupdate="false" ;;
@@ -205,6 +214,7 @@ shift "$((OPTIND - 1))"
 if [ -n "$requested_date" ]; then
 	if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ]; then
 		release_date=$(date -d "$requested_date" +%F) || die "Invalid date: $requested_date"
+		check_build_id "$release_date"
 	else
 		say "Release date only works with upgrades from GitHub"
 	fi
