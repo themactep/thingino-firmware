@@ -7,6 +7,8 @@ config BR2_PACKAGE_WOLFSSH
 
 	  https://www.wolfssl.com/
 
+if BR2_PACKAGE_WOLFSSH
+
 config BR2_PACKAGE_WOLFSSH_ENABLE_INLINE
     bool "enable-inline"
     help
@@ -95,3 +97,5 @@ config BR2_PACKAGE_WOLFSSH_ENABLE_KYBER
     select BR2_PACKAGE_THINGINO_WOLFSSL_KYBER
     help
       Enable Kyber
+
+endif
