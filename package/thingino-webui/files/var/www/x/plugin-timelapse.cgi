@@ -9,7 +9,7 @@ params="enabled interval storage filename"
 CRONTABS="/etc/crontabs/root"
 MOUNTS=$(awk '/nfs|fat/{print $2}' /etc/mtab)
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/timelapse.conf"
 include $config_file
 
 defaults() {
@@ -19,7 +19,7 @@ defaults() {
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "$plugin" "$params"
+	read_from_post "timelapse" "$params"
 	defaults
 
 	[ "/" = "${timelapse_filename:0:1}" ] && timelapse_filename="${timelapse_filename:1}"
@@ -29,7 +29,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
 		for p in $params; do
-			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
+			echo "timelapse_$p=\"$(eval echo \$timelapse_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 
@@ -53,13 +53,13 @@ defaults
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_switch "${plugin}_enabled" "Enable $plugin" %>
+<% field_switch "timelapse_enabled" "Enable timelapse" %>
 <div class="row">
 <div class="col col-xl-4">
-<% field_select "${plugin}_storage" "Storage directory" "$MOUNTS" %>
+<% field_select "timelapse_storage" "Storage directory" "$MOUNTS" %>
 <div class="row g-1">
-<div class="col-9"><% field_text "${plugin}_filename" "Filename template" "$STR_SUPPORTS_STRFTIME" %></div>
-<div class="col-3"><% field_text "${plugin}_interval" "Interval" "minutes" %></div>
+<div class="col-9"><% field_text "timelapse_filename" "Filename template" "$STR_SUPPORTS_STRFTIME" %></div>
+<div class="col-3"><% field_text "timelapse_interval" "Interval" "minutes" %></div>
 </div>
 </div>
 <div class="col col-xl-8">

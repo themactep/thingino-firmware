@@ -6,11 +6,11 @@ plugin_name="Send to Telegram"
 page_title="Send to Telegram"
 params="enabled token as_attachment as_photo channel caption socks5_enabled"
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/telegram.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "$plugin" "$params"
+	read_from_post "telegram" "$params"
 
 	if [ "true" = "$telegram_enabled" ]; then
 		error_if_empty "$telegram_token" "Telegram token cannot be empty."
@@ -20,7 +20,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp -u)
 		for p in $params; do
-			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
+			echo "telegram_$p=\"$(eval echo \$telegram_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 

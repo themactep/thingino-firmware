@@ -6,11 +6,11 @@ plugin_name="Day/Night by Sun"
 page_title="Dusk to Dawn"
 params="enabled lat lng runat offset_sr offset_ss"
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/dusk2dawn.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "$plugin" "$params"
+	read_from_post "dusk2dawn" "$params"
 
 	default_for "$dusk2dawn_runat" "0:00"
 	default_for "$dusk2dawn_offset_sr" "0"
@@ -22,7 +22,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
 		for p in $params; do
-			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
+			echo "dusk2dawn_$p=\"$(eval echo \$dusk2dawn_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 

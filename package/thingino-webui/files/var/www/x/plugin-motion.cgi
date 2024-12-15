@@ -6,7 +6,7 @@ plugin_name="Motion guard"
 page_title="Motion guard"
 params="send2email send2ftp send2mqtt send2telegram send2webhook send2yadisk"
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/motion.conf"
 include $config_file
 %>
 <%in _header.cgi %>
