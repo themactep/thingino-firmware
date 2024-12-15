@@ -193,7 +193,7 @@ ORIGINAL_ARG="$@"
 while getopts "bd:fhpx" flag; do
 	case "$flag" in
 		b) bootloader_only="true" ;;
-  		d) requested_date=$OPTARG ;;
+		d) requested_date=$OPTARG ;;
 		f) upgrade="full"; url="$GITHUB_URL" ;;
 		p) upgrade="part"; url="$GITHUB_URL" ;;
 		x) selfupdate="false" ;;
