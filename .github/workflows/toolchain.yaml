@@ -216,6 +216,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2.1.0
         with:
+          make_latest: false
           tag_name: ${{ env.TAG_NAME }}
           files: ${{ env.INGTC }}
 
