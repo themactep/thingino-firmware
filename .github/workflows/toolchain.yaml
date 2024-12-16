@@ -183,7 +183,7 @@ jobs:
       - name: Generate debug dummy firmware for workflow testing
         if: ${{ github.event.inputs.debug_enabled == 'true' }}
         run: |
-          DYNAMIC_PART="${{ matrix.thingino-version }}"
+          DYNAMIC_PART="${{ matrix.toolchain-version }}"
           mkdir -p ${HOME}/output/${DYNAMIC_PART}/images/
           echo "debug" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${{ matrix.toolchain-version }}-linux-mipsel.tar.gz
           echo "TIME=7:77" >> ${GITHUB_ENV}
@@ -223,7 +223,7 @@ jobs:
             export TG_TOPIC=""
           fi
           if [ -n "${{ env.INGTC  }}" ]; then
-          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC completed $TAG_NAME ${{ github.run_id }} ${{ github.repository }} ${GIT_HASH} ${GIT_BRANCH} ${TAG_NAME} ${TIME} ${{ matrix.thingino-version }}
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC completed $TAG_NAME ${{ github.run_id }} ${{ github.repository }} ${GIT_HASH} ${GIT_BRANCH} ${TAG_NAME} ${TIME} ${{ matrix.toolchain-version }}
           fi
 
       - name: Send error notification
