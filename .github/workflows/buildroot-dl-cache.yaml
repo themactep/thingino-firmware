@@ -60,7 +60,7 @@ jobs:
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
             export TG_TOPIC=""
           fi
-          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC start $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC start ${{ github.workflow }} ${{ github.run_id }} ${{ github.repository }}
 
   build-caches:
     name: ${{ matrix.caches-version }}
@@ -136,16 +136,6 @@ jobs:
         with:
           path: ~/dl
           key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}-${{ github.run_id }}
-
-      - name: Send firmware completion notifications with attachment
-        if: ${{ env.TG_DISABLED == 'false' }}
-        run: |
-          if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
-            TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
-            export TG_TOPIC=""
-          fi
-
-          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC completed $TAG_NAME ${{ github.run_id }} ${{ github.repository }} ${GIT_HASH} ${GIT_BRANCH} ${TAG_NAME} ${TIME} ${{ matrix.thingino-version }}
 
       - name: Send error notification
         if: ${{ env.TG_DISABLED == 'false' && failure() }}
