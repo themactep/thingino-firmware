@@ -42,7 +42,7 @@ jobs:
         run: |
           sudo timedatectl set-timezone ${{ env.TZ }}
 
-      - name: Save workflow start time
+      - name: Save workflow start time to ENV
         id: set_output
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
@@ -50,6 +50,12 @@ jobs:
         run: |
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: "master"
+          fetch-depth: "1"
 
       - name: Send build start notifcation via Telegram
         if: env.TG_DISABLED == 'false'
