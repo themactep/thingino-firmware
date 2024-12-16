@@ -45,12 +45,18 @@ fi
 TG_OPTIONS="$([ "$SILENT" == true ] && echo '-s -o /dev/null' || echo '')"
 API_URL="https://api.telegram.org/bot${TG_TOKEN}"
 
+# Message Options
+TG_FOOTER="*Thingino BuiltBot* \xE2\x9F\xAEvia Github Actions\xE2\x9F\xAF"
+TG_COMPLETED_ICON="\xF0\x9F\xA4\x96"
+TG_ERROR_ICON="\xE2\x9D\x8C"
+TG_FINISH_ICON="\xF0\x9F\x8F\x81"
+TG_START_ICON="\xF0\x9F\x9A\xA6"
+
 # Escape MarkdownV2 special characters
 escape_markdown() {
 	local text="$1"
 	echo -e "$text" | sed -E \
 		-e 's/\\/\\\\/g' \
-		-e 's/\*/\\*/g' \
 		-e 's/_/\\_/g' \
 		-e 's/\{/\\{/g' \
 		-e 's/\}/\\}/g' \
@@ -67,6 +73,7 @@ escape_markdown() {
 		-e 's/</\\</g' \
 		-e 's/\$/\\\$/g' \
 		-e 's/:/\\:/g'
+#		-e 's/\*/\\*/g' \
 }
 
 send_message() {
@@ -120,7 +127,7 @@ case "$MESSAGE_TYPE" in
 		JOB_ID="$1"
 		REPOSITORY="$2"
 		JOB_LINK="https://github.com/${REPOSITORY}/actions/runs/${JOB_ID}"
-		MESSAGE="${BUILD_NAME} build started:\nJob: [${JOB_ID}](${JOB_LINK})\n\n🚦 GitHub Actions"
+		MESSAGE="${BUILD_NAME} build started:\nJob: [${JOB_ID}](${JOB_LINK})\n\n$TG_START_ICON $TG_FOOTER"
 		MESSAGE=$(escape_markdown "$MESSAGE")
 		send_message "$MESSAGE" "$TG_TOPIC"
 		;;
@@ -129,7 +136,7 @@ case "$MESSAGE_TYPE" in
 		JOB_ID="$2"
 		REPOSITORY="$3"
 		JOB_LINK="https://github.com/${REPOSITORY}/actions/runs/${JOB_ID}"
-		MESSAGE="${BUILD_NAME} build completed:\nTotal elapsed time: ${ELAPSED}\nJob: [${JOB_ID}](${JOB_LINK})\n\n🚩 GitHub Actions"
+		MESSAGE="${BUILD_NAME} build completed:\nTotal elapsed time: ${ELAPSED}\nJob: [${JOB_ID}](${JOB_LINK})\n\n$TG_FINISH_ICON $TG_FOOTER"
 		MESSAGE=$(escape_markdown "$MESSAGE")
 		send_message "$MESSAGE" "$TG_TOPIC"
 		;;
@@ -149,9 +156,8 @@ case "$MESSAGE_TYPE" in
 		TAG_LINK="https://github.com/${REPOSITORY}/releases/tag/${TAG_NAME}"
 		PROFILE_LINK="https://github.com/${REPOSITORY}/tree/master/configs/cameras/$PROFILE_NAME"
 
-		MESSAGE="Profile: [${PROFILE_NAME}](${PROFILE_LINK})\nCommit: [${COMMIT_HASH}](${COMMIT_LINK})\nBranch: [${BRANCH}](${BRANCH_LINK})\nTag: [${TAG_NAME}](${TAG_LINK})\nTime: ${TIME}\nJob: [${JOB_ID}](${JOB_LINK})\n\n✅ GitHub Actions"
+		MESSAGE="Profile: [${PROFILE_NAME}](${PROFILE_LINK})\nCommit: [${COMMIT_HASH}](${COMMIT_LINK})\nBranch: [${BRANCH}](${BRANCH_LINK})\nTag: [${TAG_NAME}](${TAG_LINK})\nDuration: ${TIME}\nJob: [${JOB_ID}](${JOB_LINK})\n\n$TG_COMPLETED_ICON $TG_FOOTER"
 		MESSAGE=$(escape_markdown "$MESSAGE")
-
 		if [ -f "$FILE_PATH" ]; then
 			send_file "$MESSAGE" "$TG_TOPIC" "$FILE_PATH"
 		else
@@ -163,7 +169,7 @@ case "$MESSAGE_TYPE" in
 		JOB_ID="$2"
 		REPOSITORY="$3"
 		JOB_LINK="https://github.com/${REPOSITORY}/actions/runs/${JOB_ID}"
-		MESSAGE="${BUILD_NAME} build failed:\nError: ${ERROR_MESSAGE}\nJob: [${JOB_ID}](${JOB_LINK})\n\n❌ GitHub Actions"
+		MESSAGE="${BUILD_NAME} build failed:\nError: ${ERROR_MESSAGE}\nJob: [${JOB_ID}](${JOB_LINK})\n\n$TG_ERROR_ICON $TG_FOOTER"
 		MESSAGE=$(escape_markdown "$MESSAGE")
 		send_message "$MESSAGE" "$TG_TOPIC"
 		;;
