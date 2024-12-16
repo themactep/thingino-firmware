@@ -17,7 +17,7 @@ if [ $# -lt 4 ]; then
 	echo "  finish <BUILD_NAME> <ELAPSED_TIME> <JOB_ID> <REPOSITORY>"
 	echo "      Send a 'build completed' message with elapsed time."
 	echo
-	echo "  completed <BUILD_NAME> <JOB_ID> <REPOSITORY> <COMMIT_HASH> <BRANCH> <TAG_NAME> <TIME> <FILE_PATH> <PROFILE_NAME>"
+	echo "  completed <BUILD_NAME> <JOB_ID> <REPOSITORY> <COMMIT_HASH> <BRANCH> <TAG_NAME> <TIME> <PROFILE_NAME> <FILE_PATH>"
 	echo "      Send a 'build completed with binaries' message, optionally attaching a file."
 	echo
 	echo "  error <BUILD_NAME> <ERROR_MESSAGE> <JOB_ID> <REPOSITORY>"
@@ -147,8 +147,8 @@ case "$MESSAGE_TYPE" in
 		BRANCH="$4"
 		TAG_NAME="$5"
 		TIME="$6"
-		FILE_PATH="$7"
-		PROFILE_NAME="$8"
+		PROFILE_NAME="$7"
+		FILE_PATH="$8"
 
 		JOB_LINK="https://github.com/${REPOSITORY}/actions/runs/${JOB_ID}"
 		COMMIT_LINK="https://github.com/${REPOSITORY}/commit/${COMMIT_HASH}"
