@@ -109,6 +109,10 @@ jobs:
     name: ${{ matrix.toolchain-version }}
     needs: [generate-matrix, notify-begin]
     runs-on: ubuntu-24.04
+    outputs:
+      # Feed the hash of the commit we are building into the notify-completion release-notes step
+      GIT_HASH: ${{ steps.env.outputs.git_hash }}
+      TAG_NAME: ${{ steps.env.outputs.tag_name }}
     defaults:
       run:
         shell: bash
@@ -143,7 +147,7 @@ jobs:
           fetch-depth: "1"
 
       - name: Configure environment variables
-        id: date
+        id: env
         run: |
           echo "WEEK_NUMBER=$(date +%U)" >> $GITHUB_ENV
           echo "CURRENT_YEAR=$(date +%Y)" >> $GITHUB_ENV
@@ -243,6 +247,18 @@ jobs:
       - name: Set timezone
         run: |
           sudo timedatectl set-timezone ${{ env.TZ }}
+
+      - name: Configure Environment
+        run: |
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+          echo "GIT_HASH=${{ needs.build-toolchain.outputs.git_hash }}" >> $GITHUB_ENV
+          echo "TAG_NAME=${{ needs.build-toolchain.outputs.tag_name }}" >> $GITHUB_ENV
+
+      - name: Checkout repository source
+        uses: actions/checkout@v4
+        with:
+          submodules: 'false'
+          ref: "master"
 
       - name: Send nofity completion summary
         if: ${{ env.TG_DISABLED == 'false' }}
