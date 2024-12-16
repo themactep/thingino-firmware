@@ -320,7 +320,7 @@ jobs:
             export TG_TOPIC=""
           fi
           if [ -n "${{ env.FULL_FW }}" ]; then
-          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC completed $TAG_NAME ${{ github.run_id }} ${{ github.repository }} ${GIT_HASH} ${GIT_BRANCH} ${TAG_NAME} ${TIME} /tmp/thingino-${{ matrix.thingino-version }}.7z ${{ matrix.thingino-version }}
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC completed $TAG_NAME ${{ github.run_id }} ${{ github.repository }} ${GIT_HASH} ${GIT_BRANCH} ${TAG_NAME} ${TIME} ${{ matrix.thingino-version }} /tmp/thingino-${{ matrix.thingino-version }}.7z
           fi
 
       - name: Send error notification
