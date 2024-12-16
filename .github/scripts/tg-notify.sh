@@ -46,7 +46,7 @@ TG_OPTIONS="$([ "$SILENT" == true ] && echo '-s -o /dev/null' || echo '')"
 API_URL="https://api.telegram.org/bot${TG_TOKEN}"
 
 # Message Options
-TG_FOOTER="*Thingino BuiltBot* \xE2\x9F\xAEvia Github Actions\xE2\x9F\xAF"
+TG_FOOTER="*Thingino BuildBot* \xE2\x9F\xAEvia Github Actions\xE2\x9F\xAF"
 TG_COMPLETED_ICON="\xF0\x9F\xA4\x96"
 TG_ERROR_ICON="\xE2\x9D\x8C"
 TG_FINISH_ICON="\xF0\x9F\x8F\x81"
