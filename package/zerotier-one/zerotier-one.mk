@@ -10,11 +10,12 @@ ZEROTIER_ONE_MAKE_OPTS = ZT_SSO_SUPPORTED=0 \
 	CC="$(TARGET_CC)" \
 	CXX="$(TARGET_CXX)" \
 	FLOATABI="$(BR2_GCC_TARGET_FLOAT_ABI)" \
-	LDFLAGS="$(TARGET_LDFLAGS)"
+	LDFLAGS="$(TARGET_LDFLAGS) -static-libstdc++"
 
 ZEROTIER_ONE_DEPENDENCIES = \
 	libminiupnpc \
-	libnatpmp
+	libnatpmp \
+	host-upx
 
 define ZEROTIER_ONE_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_SET_OPT,CONFIG_TUN,m)
@@ -31,5 +32,11 @@ define ZEROTIER_ONE_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/www/x
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/var/www/x/ $(ZEROTIER_ONE_PKGDIR)/files/plugin-zerotier.cgi
 endef
+
+define ZEROTIER_ONE_UPX_INSTALL
+                $(HOST_DIR)/bin/upx --best --lzma $(TARGET_DIR)/usr/sbin/zerotier-one
+endef
+
+ZEROTIER_ONE_POST_INSTALL_TARGET_HOOKS += ZEROTIER_ONE_UPX_INSTALL
 
 $(eval $(generic-package))
