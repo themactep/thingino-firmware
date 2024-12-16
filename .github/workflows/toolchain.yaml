@@ -20,6 +20,11 @@ on:
         description: 'Only build latest default toolchain'
         required: false
         default: false
+      debug_enabled:
+        type: boolean
+        description: 'Debug: Generate dummy image files'
+        required: false
+        default: false
 
 env:
   BR2_DL_DIR: ~/dl
@@ -164,14 +169,24 @@ jobs:
           key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
 
       - name: Prepare buildroot cache
+        if: ${{ github.event.inputs.debug_enabled != 'true' }}
         run: |
           BOARD=${{ matrix.toolchain-version }} make source
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
       - name: Build toolchain
+        if: ${{ github.event.inputs.debug_enabled != 'true' }}
         run: |
           BOARD=${{ matrix.toolchain-version }} make sdk
+
+      - name: Generate debug dummy firmware for workflow testing
+        if: ${{ github.event.inputs.debug_enabled == 'true' }}
+        run: |
+          DYNAMIC_PART="${{ matrix.thingino-version }}"
+          mkdir -p ${HOME}/output/${DYNAMIC_PART}/images/
+          echo "debug" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${{ matrix.toolchain-version }}-linux-mipsel.tar.gz
+          echo "TIME=7:77" >> ${GITHUB_ENV}
 
       - name: Rename toolchain package for release
         run: |
