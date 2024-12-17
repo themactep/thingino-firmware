@@ -6,11 +6,11 @@ plugin_name="Send to SSH"
 page_title="Send to SSH"
 params="enabled host username port command"
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/ssh.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "$plugin" "$params"
+	read_from_post "ssh" "$params"
 
 	if [ "true" = "$ssh_enabled" ]; then
 		error_if_empty "$ssh_host" "SSH address cannot be empty."
@@ -19,7 +19,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmpfile=$(mktemp -u)
 		for p in $params; do
-			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmpfile
+			echo "ssh_$p=\"$(eval echo \$ssh_$p)\"" >>$tmpfile
 		done; unset p
 		mv $tmpfile $config_file
 

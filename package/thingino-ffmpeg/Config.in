@@ -1,9 +1,7 @@
 config BR2_PACKAGE_THINGINO_FFMPEG
-	bool "FFmpeg"
-#       select BR2_PACKAGE_ARGP_STANDALONE if BR2_TOOLCHAIN_USES_UCLIBC || BR2_TOOLCHAIN_USES_MUSL
-#	select BR2_PACKAGE_LIBV4L
-#	select BR2_PACKAGE_LIBV4L_UTILS
+	bool "Thingino FFmpeg"
 	help
+	  Optimized FFmpeg build to record on thingino devices
 	  FFmpeg is a complete, cross-platform solution to record,
 	  convert and stream audio and video.
 	  http://www.ffmpeg.org

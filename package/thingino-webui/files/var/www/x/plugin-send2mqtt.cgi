@@ -8,11 +8,11 @@ params="enabled host port client_id username password topic message send_snap sn
 
 [ -f /usr/bin/mosquitto_pub ] || redirect_to "/" "danger" "MQTT client is not a part of your firmware."
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/mqtt.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "$plugin" "$params"
+	read_from_post "mqtt" "$params"
 
 	if [ "true" = "$mqtt_enabled" ]; then
 		error_if_empty "$mqtt_host" "MQTT broker host cannot be empty."
@@ -42,7 +42,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
 		for p in $params; do
-			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
+			echo "mqtt_$p=\"$(eval echo \$mqtt_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 

@@ -6,11 +6,11 @@ plugin_name="Send to Yandex Disk"
 page_title="Send to Yandex Disk"
 params="enabled username password path socks5_enabled"
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/yadisk.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "$plugin" "$params"
+	read_from_post "yadisk" "$params"
 
 	if [ "true" = "$email_enabled" ]; then
 		error_if_empty "$yadisk_username" "Yandex Disk username cannot be empty."
@@ -20,7 +20,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp -u)
 		for p in $params; do
-			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
+			echo "yadisk_$p=\"$(eval echo \$yadisk_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 

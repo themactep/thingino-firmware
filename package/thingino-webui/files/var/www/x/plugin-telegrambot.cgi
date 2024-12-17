@@ -10,11 +10,11 @@ for i in $(seq 0 9); do
 	params="$params command_$i description_$i script_$i"
 done
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/telegrambot.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "$plugin" "$params"
+	read_from_post "telegrambot" "$params"
 
 	if [ "true" = "$telegrambot_enabled" ]; then
 		error_if_empty "$telegrambot_token" "Telegram token cannot be empty."
@@ -23,7 +23,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp -u)
 		for p in $params; do
-			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
+			echo "telegrambot_$p=\"$(eval echo \$telegrambot_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 
@@ -36,7 +36,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 fi
 
 for p in $params; do
-	sanitize4web "${plugin}_$p"
+	sanitize4web "telegrambot_$p"
 done; unset p
 
 default_for telegrambot_caption "%hostname, %datetime"
