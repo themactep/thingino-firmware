@@ -38,6 +38,7 @@ THINGINO_FFMPEG_CONF_OPTS = \
 	--disable-avdevice \
 	--disable-postproc \
 	--disable-debug \
+	--disable-ffprobe \
 	--enable-small \
 	--disable-encoders \
 	--disable-decoders \
