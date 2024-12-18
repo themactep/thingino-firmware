@@ -184,7 +184,7 @@ jobs:
         run: |
           BOARD=${{ matrix.toolchain-version }} make sdk
 
-      - name: Generate debug dummy firmware for workflow testing
+      - name: Generate debug dummy toolchin for workflow testing
         if: ${{ github.event.inputs.debug_enabled == 'true' }}
         run: |
           DYNAMIC_PART="${{ matrix.toolchain-version }}"
@@ -261,7 +261,7 @@ jobs:
           submodules: 'false'
           ref: "master"
 
-      - name: Send nofity completion summary
+      - name: Send notify completion summary
         if: ${{ env.TG_DISABLED == 'false' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then

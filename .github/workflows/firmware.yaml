@@ -297,7 +297,7 @@ jobs:
             echo "Release $TAG_NAME already exists."
           fi
 
-      - name: Upload full firmware to release
+      - name: Upload ${{ matrix.thingino-version }} to release
         uses: softprops/action-gh-release@v2.1.0
         with:
           tag_name: ${{ env.TAG_NAME }}
@@ -394,13 +394,19 @@ jobs:
 
           if [[ -n "$RELEASE_URL" ]]; then
             echo "Release URL found, attempting to mark as latest..."
-            gh release edit ${{ env.TAG_NAME }} --latest --prerelease=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
+            if [[ -f "${{ env.RELEASE_NOTES_FILE }}" ]]; then
+              echo "Release notes file exists, including --notes-file..."
+              gh release edit ${{ env.TAG_NAME }} --latest --prerelease=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
+            else
+              echo "Release notes file does not exist, skipping --notes-file..."
+              gh release edit ${{ env.TAG_NAME }} --latest --prerelease=false --notes ""
+            fi
             echo "Release marked as latest"
           else
             echo "Release not found, skipping latest release update"
           fi
 
-      - name: Send nofity completion summary
+      - name: Send notify completion summary
         if: ${{ env.TG_DISABLED == 'false' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then

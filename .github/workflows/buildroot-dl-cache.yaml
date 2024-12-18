@@ -167,7 +167,7 @@ jobs:
           submodules: 'false'
           ref: "master"
 
-      - name: Send nofity completion summary
+      - name: Send notify completion summary
         if: ${{ env.TG_DISABLED == 'false' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
