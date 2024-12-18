@@ -62,6 +62,8 @@ jobs:
         run: |
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
+          TAG_NAME="$TAG_NAME-$(date +'%Y-%m-%d')"
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
 
       - name: Checkout repository
         uses: actions/checkout@v4
