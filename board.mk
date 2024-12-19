@@ -76,6 +76,7 @@ $(info MODULE_CONFIG = $(MODULE_CONFIG))
 
 $(info * restore CAMERA for CAMERA_CONFIG)
 CAMERA = $(shell basename $(CAMERA_CONFIG_REAL))
+export CAMERA
 $(info CAMERA = $(CAMERA))
 
 # read camera config file
