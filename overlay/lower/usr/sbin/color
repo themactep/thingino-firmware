@@ -1,4 +1,7 @@
 #!/bin/sh
+
+. /sbin/common-motion
+
 # set parameters from cli, if empty
 [ -z "$mode" ] && mode=$1
 
@@ -8,12 +11,14 @@ MODE_FILE=/tmp/colormode.txt
 # NB! ISP mode is set backwards: 0 - color, 1 - monochrome
 
 switch_to_color() {
+	touch_motion_cork
 	imp-control ispmode 0
 	echo "Switched to full-color mode"
 	echo 1 > $MODE_FILE
 }
 
 switch_to_monochrome() {
+	touch_motion_cork
 	imp-control ispmode 1
 	echo "Switched to monochrome mode"
 	echo 0 > $MODE_FILE
