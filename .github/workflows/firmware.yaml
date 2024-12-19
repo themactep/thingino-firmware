@@ -371,7 +371,16 @@ jobs:
           COMMITS=$(gh api \
             -H "Accept: application/vnd.github.v3+json" \
             /repos/${{ github.repository }}/compare/$LAST_RELEASE_TAG...$GIT_HASH \
-            -q '.commits | sort_by(.commit.author.date) | reverse | .[] | "\(.sha[0:7]) \(.commit.message | gsub("\n"; " "))"')
+            -q '.commits
+                | sort_by(.commit.author.date)
+                | reverse
+                | .[]
+                | select(
+                    .commit.message != "Merge remote-tracking branch '\''origin/master'\''"
+                    and (.commit.message | contains("workflow") | not)
+                    and (.commit.message | contains("Merge pull request #") | not)
+                  )
+                | "\(.sha[0:7]) \(.commit.message | gsub("\n"; " "))"')
 
           RELEASE_NOTES="### Changes in this release:\n"
 
