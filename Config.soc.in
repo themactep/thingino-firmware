@@ -319,6 +319,288 @@ config BR2_ISP_CLKA_700MHZ
 	bool "700 MHz"
 endchoice
 
+choice
+    prompt "ISP Reserved RAM"
+    default BR2_RMEM_32
+    help
+        Specify reserved memory for the ISP in MB.
+
+    config BR2_RMEM_0
+        bool "0 MB"
+    config BR2_RMEM_1
+        bool "1 MB"
+    config BR2_RMEM_2
+        bool "2 MB"
+    config BR2_RMEM_3
+        bool "3 MB"
+    config BR2_RMEM_4
+        bool "4 MB"
+    config BR2_RMEM_5
+        bool "5 MB"
+    config BR2_RMEM_6
+        bool "6 MB"
+    config BR2_RMEM_7
+        bool "7 MB"
+    config BR2_RMEM_8
+        bool "8 MB"
+    config BR2_RMEM_9
+        bool "9 MB"
+    config BR2_RMEM_10
+        bool "10 MB"
+    config BR2_RMEM_11
+        bool "11 MB"
+    config BR2_RMEM_12
+        bool "12 MB"
+    config BR2_RMEM_13
+        bool "13 MB"
+    config BR2_RMEM_14
+        bool "14 MB"
+    config BR2_RMEM_15
+        bool "15 MB"
+    config BR2_RMEM_16
+        bool "16 MB"
+    config BR2_RMEM_17
+        bool "17 MB"
+    config BR2_RMEM_18
+        bool "18 MB"
+    config BR2_RMEM_19
+        bool "19 MB"
+    config BR2_RMEM_20
+        bool "20 MB"
+    config BR2_RMEM_21
+        bool "21 MB"
+    config BR2_RMEM_22
+        bool "22 MB"
+    config BR2_RMEM_23
+        bool "23 MB"
+    config BR2_RMEM_24
+        bool "24 MB"
+    config BR2_RMEM_25
+        bool "25 MB"
+    config BR2_RMEM_26
+        bool "26 MB"
+    config BR2_RMEM_27
+        bool "27 MB"
+    config BR2_RMEM_28
+        bool "28 MB"
+    config BR2_RMEM_29
+        bool "29 MB"
+    config BR2_RMEM_30
+        bool "30 MB"
+    config BR2_RMEM_31
+        bool "31 MB"
+    config BR2_RMEM_32
+        bool "32 MB"
+    config BR2_RMEM_33
+        bool "33 MB"
+    config BR2_RMEM_34
+        bool "34 MB"
+    config BR2_RMEM_35
+        bool "35 MB"
+    config BR2_RMEM_36
+        bool "36 MB"
+    config BR2_RMEM_37
+        bool "37 MB"
+    config BR2_RMEM_38
+        bool "38 MB"
+    config BR2_RMEM_39
+        bool "39 MB"
+    config BR2_RMEM_40
+        bool "40 MB"
+    config BR2_RMEM_41
+        bool "41 MB"
+    config BR2_RMEM_42
+        bool "42 MB"
+    config BR2_RMEM_43
+        bool "43 MB"
+    config BR2_RMEM_44
+        bool "44 MB"
+    config BR2_RMEM_45
+        bool "45 MB"
+    config BR2_RMEM_46
+        bool "46 MB"
+    config BR2_RMEM_47
+        bool "47 MB"
+    config BR2_RMEM_48
+        bool "48 MB"
+    config BR2_RMEM_49
+        bool "49 MB"
+    config BR2_RMEM_50
+        bool "50 MB"
+    config BR2_RMEM_51
+        bool "51 MB"
+    config BR2_RMEM_52
+        bool "52 MB"
+    config BR2_RMEM_53
+        bool "53 MB"
+    config BR2_RMEM_54
+        bool "54 MB"
+    config BR2_RMEM_55
+        bool "55 MB"
+    config BR2_RMEM_56
+        bool "56 MB"
+    config BR2_RMEM_57
+        bool "57 MB"
+    config BR2_RMEM_58
+        bool "58 MB"
+    config BR2_RMEM_59
+        bool "59 MB"
+    config BR2_RMEM_60
+        bool "60 MB"
+    config BR2_RMEM_61
+        bool "61 MB"
+    config BR2_RMEM_62
+        bool "62 MB"
+    config BR2_RMEM_63
+        bool "63 MB"
+    config BR2_RMEM_64
+        bool "64 MB"
+    config BR2_RMEM_65
+        bool "65 MB"
+    config BR2_RMEM_66
+        bool "66 MB"
+    config BR2_RMEM_67
+        bool "67 MB"
+    config BR2_RMEM_68
+        bool "68 MB"
+    config BR2_RMEM_69
+        bool "69 MB"
+    config BR2_RMEM_70
+        bool "70 MB"
+    config BR2_RMEM_71
+        bool "71 MB"
+    config BR2_RMEM_72
+        bool "72 MB"
+    config BR2_RMEM_73
+        bool "73 MB"
+    config BR2_RMEM_74
+        bool "74 MB"
+    config BR2_RMEM_75
+        bool "75 MB"
+    config BR2_RMEM_76
+        bool "76 MB"
+    config BR2_RMEM_77
+        bool "77 MB"
+    config BR2_RMEM_78
+        bool "78 MB"
+    config BR2_RMEM_79
+        bool "79 MB"
+    config BR2_RMEM_80
+        bool "80 MB"
+    config BR2_RMEM_81
+        bool "81 MB"
+    config BR2_RMEM_82
+        bool "82 MB"
+    config BR2_RMEM_83
+        bool "83 MB"
+    config BR2_RMEM_84
+        bool "84 MB"
+    config BR2_RMEM_85
+        bool "85 MB"
+    config BR2_RMEM_86
+        bool "86 MB"
+    config BR2_RMEM_87
+        bool "87 MB"
+    config BR2_RMEM_88
+        bool "88 MB"
+    config BR2_RMEM_89
+        bool "89 MB"
+    config BR2_RMEM_90
+        bool "90 MB"
+    config BR2_RMEM_91
+        bool "91 MB"
+    config BR2_RMEM_92
+        bool "92 MB"
+    config BR2_RMEM_93
+        bool "93 MB"
+    config BR2_RMEM_94
+        bool "94 MB"
+    config BR2_RMEM_95
+        bool "95 MB"
+    config BR2_RMEM_96
+        bool "96 MB"
+    config BR2_RMEM_97
+        bool "97 MB"
+    config BR2_RMEM_98
+        bool "98 MB"
+    config BR2_RMEM_99
+        bool "99 MB"
+    config BR2_RMEM_100
+        bool "100 MB"
+    config BR2_RMEM_101
+        bool "101 MB"
+    config BR2_RMEM_102
+        bool "102 MB"
+    config BR2_RMEM_103
+        bool "103 MB"
+    config BR2_RMEM_104
+        bool "104 MB"
+    config BR2_RMEM_105
+        bool "105 MB"
+    config BR2_RMEM_106
+        bool "106 MB"
+    config BR2_RMEM_107
+        bool "107 MB"
+    config BR2_RMEM_108
+        bool "108 MB"
+    config BR2_RMEM_109
+        bool "109 MB"
+    config BR2_RMEM_110
+        bool "110 MB"
+    config BR2_RMEM_111
+        bool "111 MB"
+    config BR2_RMEM_112
+        bool "112 MB"
+    config BR2_RMEM_113
+        bool "113 MB"
+    config BR2_RMEM_114
+        bool "114 MB"
+    config BR2_RMEM_115
+        bool "115 MB"
+    config BR2_RMEM_116
+        bool "116 MB"
+    config BR2_RMEM_117
+        bool "117 MB"
+    config BR2_RMEM_118
+        bool "118 MB"
+    config BR2_RMEM_119
+        bool "119 MB"
+    config BR2_RMEM_120
+        bool "120 MB"
+    config BR2_RMEM_121
+        bool "121 MB"
+    config BR2_RMEM_122
+        bool "122 MB"
+    config BR2_RMEM_123
+        bool "123 MB"
+    config BR2_RMEM_124
+        bool "124 MB"
+    config BR2_RMEM_125
+        bool "125 MB"
+    config BR2_RMEM_126
+        bool "126 MB"
+    config BR2_RMEM_127
+        bool "127 MB"
+    config BR2_RMEM_128
+        bool "128 MB"
+endchoice
+
+config BR2_GPIO_LIST
+	string "GPIO Enable List"
+	help
+		Specify a comma-separated list of GPIOs to configure at boot. Each GPIO
+		number can be followed by 'O' for high or 'o' for low to set its state.
+
+		For example:
+		6O    # Set GPIO 6 high
+		60o   # Set GPIO 60 low
+		20O   # Set GPIO 20 high
+
+		Example full list: 6O,60o,20O
+
+		The configuration is written to /etc/gpio.conf and applied at boot time
+		by the init script.
+
 config BR2_AUDIO
 	bool "Audio Support"
 	help
