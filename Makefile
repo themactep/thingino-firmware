@@ -197,7 +197,11 @@ defconfig: prepare_config
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 	if [ -f $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) ]; then \
 	grep -v '^#' $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) | tee $(U_BOOT_ENV_FINAL_TXT); fi
-	if [ -f $(BR2_EXTERNAL)/local.uenv.txt ]; then grep -v '^#' $(BR2_EXTERNAL)/local.uenv.txt | tee -a $(U_BOOT_ENV_FINAL_TXT); fi
+	if [ -f $(BR2_EXTERNAL)/local.uenv.txt ]; then \
+		grep -v '^#' $(BR2_EXTERNAL)/local.uenv.txt | while read line; do \
+			grep -F -x -q "$$line" $(U_BOOT_ENV_FINAL_TXT) || echo "$$line" >> $(U_BOOT_ENV_FINAL_TXT); \
+		done; \
+	fi
 
 select-device:
 	$(info -------------------> select-device)
