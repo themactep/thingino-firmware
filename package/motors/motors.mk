@@ -26,6 +26,7 @@ define MOTORS_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/sbin/
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/sbin $(MOTORS_PKGDIR)/files/ptz_presets
+	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/sbin $(MOTORS_PKGDIR)/files/ptz-ctrl
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc $(MOTORS_PKGDIR)/files/ptz_presets.conf
