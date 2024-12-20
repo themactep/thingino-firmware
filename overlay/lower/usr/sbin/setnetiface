@@ -7,7 +7,7 @@ plugin="network"
 # $(date) $network_mode $network_interface $network_address
 TEMPLATE_COMMON="iface %s inet %s\n"
 
-TEMPLATE_MAC="    hwaddress ether \$(get ethaddr || echo 00:00:23:34:45:66)\n"
+TEMPLATE_IPV6="    dhcp-v6-enabled true\n"
 
 # $network_address $network_netmask
 TEMPLATE_STATIC="    address %s\n    netmask %s\n"
@@ -144,7 +144,7 @@ printf "auto %s\n" $network_interface >> "$tmp_config_file"
 printf "$TEMPLATE_COMMON" $network_interface $network_mode >> "$tmp_config_file"
 
 if [ "eth0" = "$network_interface" ]; then
-	printf "$TEMPLATE_MAC" >> "$tmp_config_file"
+	printf "$TEMPLATE_IPV6" >> "$tmp_config_file"
 fi
 
 if [ "static" = "$network_mode" ]; then
