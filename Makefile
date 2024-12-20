@@ -82,7 +82,6 @@ U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-lzo-with-spl.bin
 else
 U_BOOT_BIN = $(OUTPUT_DIR)/images/$(patsubst "%",%,$(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME))
 endif
-U_BOOT_ENV_BIN = $(OUTPUT_DIR)/images/uenv.bin
 
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
@@ -98,7 +97,6 @@ FIRMWARE_BIN_NOBOOT := $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_NOBOOT)
 
 # file sizes
 U_BOOT_BIN_SIZE = $(shell stat -c%s $(U_BOOT_BIN))
-U_BOOT_ENV_BIN_SIZE = $(shell stat -c%s $(U_BOOT_ENV_BIN))
 KERNEL_BIN_SIZE = $(shell stat -c%s $(KERNEL_BIN))
 ROOTFS_BIN_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
 OVERLAY_BIN_SIZE = $(shell stat -c%s $(OVERLAY_BIN))
@@ -323,9 +321,6 @@ $(U_BOOT_BIN):
 	$(info U_BOOT_BIN $(U_BOOT_BIN) not found!)
 	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL_LESS_Z).bin
 
-$(U_BOOT_ENV_BIN):
-	mkenvimage -s $(U_BOOT_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_FINAL_TXT)
-
 # rebuild Linux kernel
 $(KERNEL_BIN):
 	$(info KERNEL_BIN:            $@)
@@ -351,10 +346,9 @@ $(OVERLAY_BIN): create_overlay
 	$(info OVERLAY_BIN_SIZE:    $(OVERLAY_BIN_SIZE))
 	$(info OVERLAY_OFFSET:      $(OVERLAY_OFFSET))
 
-$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
+$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
 	$(info $(shell printf "%-10s | %8s | %9s | %9s |" PARTITION SIZE OFFSET END))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" U_BOOT $(U_BOOT_BIN_SIZE) $(U_BOOT_OFFSET) $$(($(U_BOOT_OFFSET) + $(U_BOOT_BIN_SIZE)))))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" U_BOOT_ENV $(U_BOOT_ENV_BIN_SIZE) $(U_BOOT_ENV_OFFSET) $$(($(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_BIN_SIZE)))))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" KERNEL $(KERNEL_BIN_SIZE) $(KERNEL_OFFSET) $$(($(KERNEL_OFFSET) + $(KERNEL_BIN_SIZE)))))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" ROOTFS $(ROOTFS_BIN_SIZE) $(ROOTFS_OFFSET) $$(($(ROOTFS_OFFSET) + $(ROOTFS_BIN_SIZE)))))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" OVERLAY $(OVERLAY_BIN_SIZE) $(OVERLAY_OFFSET) $$(($(OVERLAY_OFFSET) + $(OVERLAY_BIN_SIZE)))))
