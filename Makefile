@@ -73,7 +73,9 @@ SIZE_4K := 4096
 ALIGN_BLOCK := $(SIZE_32K)
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
-U_BOOT_ENV_FINAL_TXT = $(OUTPUT_DIR)/target/etc/uenv.txt
+
+U_BOOT_ENV_FINAL_TXT = $(OUTPUT_DIR)/uenv.txt
+export U_BOOT_ENV_FINAL_TXT
 
 ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
 U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-lzo-with-spl.bin
@@ -189,12 +191,15 @@ endif
 	if [ -f $(BR2_EXTERNAL)/local.mk ]; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
 	if [ ! -L $(OUTPUT_DIR)/thingino ]; then ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; fi
 
+
 # Configure buildroot for a particular board
 defconfig: prepare_config
 	@$(FIGLET) $(CAMERA)
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
-	# $(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) defconfig
+	if [ -f $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) ]; then \
+	grep -v '^#' $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) | tee $(U_BOOT_ENV_FINAL_TXT); fi
+	if [ -f $(BR2_EXTERNAL)/local.uenv.txt ]; then grep -v '^#' $(BR2_EXTERNAL)/local.uenv.txt | tee -a $(U_BOOT_ENV_FINAL_TXT); fi
 
 select-device:
 	$(info -------------------> select-device)
