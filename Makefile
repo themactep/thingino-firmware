@@ -59,6 +59,19 @@ else
 FIGLET := $(shell command -v figlet) -t -f pagga
 endif
 
+SIZE_32M := 33554432
+SIZE_16M := 16777216
+SIZE_8M := 8388608
+SIZE_256K := 262144
+SIZE_128K := 131072
+SIZE_64K := 65536
+SIZE_32K := 32768
+SIZE_16K := 16384
+SIZE_8K := 8192
+SIZE_4K := 4096
+
+ALIGN_BLOCK := $(SIZE_32K)
+
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 U_BOOT_ENV_FINAL_TXT = $(OUTPUT_DIR)/target/etc/uenv.txt
 
@@ -73,12 +86,6 @@ KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 OVERLAY_BIN := $(OUTPUT_DIR)/images/overlay.jffs2
-
-# 0x0010000, 64K, 65_536
-ALIGN_BLOCK := 65536
-
-# 0x0008000, 32K, 32_768
-# ALIGN_BLOCK := 32768
 
 # create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
 FIRMWARE_NAME_FULL = thingino-$(CAMERA).bin
