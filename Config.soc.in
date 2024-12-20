@@ -415,6 +415,12 @@ config BR2_THINGINO_DEVICE_TYPE_DOORBELL
 	  Specifies the device type as a Doorbell and installs configurations
 	  specific to this type.
 
+config BR2_THINGINO_DEVICE_TYPE_WEBCAM
+	bool "Webcam"
+	help
+	  Specifies the device type as a Web Camera and installs configurations
+	  specific to this type.
+
 endchoice
 
 config U_BOOT_ENV_TXT
