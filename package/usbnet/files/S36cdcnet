@@ -2,6 +2,8 @@
 
 . /etc/init.d/rc.common
 
+CNET=172.16.0.1
+
 decrement_mac() {
 	local mac
 	mac=$(fw_printenv -n ethaddr)
@@ -16,7 +18,8 @@ start() {
 	modprobe g_ncm iManufacturer=thingino host_addr=$(fw_printenv -n ethaddr) dev_addr=$ethaddr iProduct="NCM CDC Ethernet Gadget"
 	usb-role -m device
 	touch /var/run/udhcpd.leases
-	udhcpd -S -I 172.16.0.1 /etc/udhcpd.conf
+        start-stop-daemon -S -x /sbin/dnsd -- -i $CNET -c /etc/dnsd.conf -d | log
+	start-stop-daemon -S -x /sbin/udhcpd -- -S -I $CNET /etc/udhcpd.conf 2>&1
 }
 
 case "$1" in

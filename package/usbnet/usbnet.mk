@@ -7,7 +7,8 @@ ifeq ($(BR2_PACKAGE_USBNET_USB_DIRECT_NCM),y)
 USBNET_INSTALL_TARGET_CMDS = \
 	$(INSTALL) -m 755 -D $(USBNET_PKGDIR)/files/usb0-cdc $(TARGET_DIR)/etc/network/interfaces.d/usb0; \
 	$(INSTALL) -m 755 -D $(USBNET_PKGDIR)/files/S36cdcnet $(TARGET_DIR)/etc/init.d/S36cdcnet; \
-	$(INSTALL) -m 755 -D $(USBNET_PKGDIR)/files/udhcpd.conf $(TARGET_DIR)/etc/udhcpd.conf
+	$(INSTALL) -m 755 -D $(USBNET_PKGDIR)/files/udhcpd.conf $(TARGET_DIR)/etc/udhcpd.conf; \
+	$(INSTALL) -m 755 -D $(USBNET_PKGDIR)/files/dnsd.conf $(TARGET_DIR)/etc/dnsd.conf
 else ifeq ($(BR2_PACKAGE_USBNET_USB_DIRECT_NCM_CLIENT),y)
 USBNET_INSTALL_TARGET_CMDS = \
 	$(INSTALL) -m 755 -D $(USBNET_PKGDIR)/files/S36cdcnet-client $(TARGET_DIR)/etc/init.d/S36cdcnet; \
