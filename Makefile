@@ -135,10 +135,15 @@ OVERLAY_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PAR
 
 .PHONY: all bootstrap build build_fast clean cleanbuild create_overlay \
 	defconfig distclean fast help pack pack_full pack_update \
-	prepare_config reconfig sdk toolchain upload_tftp upgrade_ota br-%
+	prepare_config reconfig sdk toolchain update upload_tftp upgrade_ota br-%
 
 all: build pack
 	@$(FIGLET) "FINE"
+
+# update repo and submodules
+update:
+	git pull --rebase --autostash
+	git submodule update
 
 # install prerequisites
 bootstrap:
