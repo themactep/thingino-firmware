@@ -207,11 +207,14 @@ saveconfig:
 
 ### Files
 
+# remove target/ directory
 clean:
 	rm -rf $(OUTPUT_DIR)/target
 
+# rebuild from scratch
 cleanbuild: distclean all
 
+# remove all build files
 distclean:
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
@@ -249,6 +252,7 @@ reconfig:
 rebuild-%: defconfig
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
 
+# build toolchain fast
 sdk: defconfig
 ifeq ($(GCC),12)
 	sed -i 's/^BR2_TOOLCHAIN_EXTERNAL_GCC_13=y/# BR2_TOOLCHAIN_EXTERNAL_GCC_13 is not set/' $(OUTPUT_DIR)/.config; \
@@ -261,6 +265,7 @@ endif
 source: defconfig
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source
 
+# build toolchain
 toolchain: defconfig
 	$(BR2_MAKE) sdk
 
@@ -287,6 +292,7 @@ br-%-dirclean:
 br-%: defconfig
 	$(BR2_MAKE) $(subst br-,,$@)
 
+# checkout buidroot submodule
 buildroot/Makefile:
 	git submodule init
 	git submodule update --depth 1 --recursive
