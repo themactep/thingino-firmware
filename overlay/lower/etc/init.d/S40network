@@ -2,25 +2,27 @@
 
 . /etc/init.d/rc.common
 
+start() {
+	starting
+	run "ifup -v -a"
+	check_result
+}
+
+stop() {
+	stopping
+	run "ifdown -v -a"
+	check_result
+}
+
 case "$1" in
-	start)
-		starting
-		run "ifup -a"
-		check_result
+	start | stop)
+		$1
 		;;
-
-	stop)
-		stopping
-		run "ifdown -a"
-		check_result
-		;;
-
 	reload | restart)
 		stop
 		sleep 1
 		start
 		;;
-
 	*)
 		die "Usage: $0 {start|stop|restart}"
 		;;
