@@ -73,7 +73,7 @@ fi
 	inforun "date"
 	inforun "uptime"
 	inforun "uname -a"
-	inforun "grep -a \"Ingenic U-Boot Flex\" /dev/mtd0"
+	inforun "grep -a \"Thingino\" /dev/mtd0"
 	infocat "/etc/os-release" "THINGINO"
 	inforun "soc;soc -w" "SOC"
 	inforun "dmesg" "DMESG"
