@@ -2,7 +2,6 @@ menu "Thingino Firmware"
 
 source "$BR2_EXTERNAL_THINGINO_PATH/Config.soc.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ethernet/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-kopt/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/usbnet/Config.in"
 
@@ -56,6 +55,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-pwm/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ap/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-button/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ethernet/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-gpio/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ledd/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libcurl/Config.in"
@@ -115,10 +115,6 @@ config BR2_PACKAGE_NGINX
 
 config BR2_PACKAGE_SSHPASS
 	bool "sshpass"
-
-config BR2_PACKAGE_WIREGUARD_LINUX_COMPAT
-	bool "wireguad-linux-compat"
-	select BR2_PACKAGE_WIREGUARD_TOOLS
 endmenu
 
 menuconfig BR2_THINGINO_DEV_PACKAGES
