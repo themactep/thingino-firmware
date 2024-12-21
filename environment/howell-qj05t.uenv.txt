@@ -1,0 +1,13 @@
+day_night_color=true
+day_night_ircut=true
+day_night_max=5000
+day_night_min=2500
+enable_updates=true
+gpio_button=60
+gpio_default=25o 26o 77o 60i
+gpio_ircds=true
+gpio_ircut=26 25
+gpio_speaker=77O
+ispmem=8M@0x2700000
+rmem=17M@0x2F00000
+wlandev=8188fu

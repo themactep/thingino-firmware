@@ -1,0 +1,8 @@
+auto usb0
+iface usb0 inet static
+address 172.16.0.1
+netmask 255.255.255.0
+gateway 172.16.0.1
+post-up ip link set usb0 up
+post-down ip link set usb0 down
+

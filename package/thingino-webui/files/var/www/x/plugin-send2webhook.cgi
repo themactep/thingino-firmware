@@ -6,11 +6,11 @@ plugin_name="Send to Webhook"
 page_title="Send to Webhook"
 params="enabled attach_snapshot payload socks5_enabled url"
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/webhook.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "$plugin" "$params"
+	read_from_post "webhook" "$params"
 
 	if [ "true" = "$webhook_enabled" ]; then
 		error_if_empty "$webhook_url" "Webhook URL cannot be empty."
@@ -19,7 +19,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp -u)
 		for p in $params; do
-			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
+			echo "webhook_$p=\"$(eval echo \$webhook_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 
@@ -49,7 +49,7 @@ default_for webhook_attach_snapshot "true"
 <% button_submit %>
 </form>
 
-<div class="alert alert-dark ui-debug">
+<div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "cat $config_file" %>
 </div>

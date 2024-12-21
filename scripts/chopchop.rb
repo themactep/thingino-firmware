@@ -39,21 +39,23 @@ def address_from
 end
 
 def address_till
-  unless ARGV[2]
+  if ARGV[2].nil?
     puts "Finish address is not set. Constructing..."
-  end
-  @address_till ||= if ARGV[2]
+    full_length
+    @address_till = @full_length
+  else
     @address_till = ARGV[2]
+    puts "Finish address found among argumnents: #{@address_till}"
     # FIXME: process suffix
     if @address_till.to_s.start_with?('0x')
+      puts "Convert from hexadecimal"
       @address_till=@address_till.to_i(16)
     else
       @address_till=@address_till.to_i
     end
-    @address_till
-  else
-    full_length
   end
+  puts "Finish address is #{@address_till}"
+  @address_till
 end
 
 def address_range_length

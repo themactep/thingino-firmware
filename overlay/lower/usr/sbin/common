@@ -8,7 +8,11 @@ LOG_SIZE_LIMIT=50000
 SOCKS5_CONFIG=/etc/webui/socks5.conf
 
 curl_timeout=100
-curl_verbosity="--silent" # --verbose
+if [ "true" = "$verbose" ]; then
+	curl_verbosity="--verbose"
+else
+	curl_verbosity="--silent"
+fi
 
 CURL="curl $curl_verbosity --connect-timeout $curl_timeout --max-time $curl_timeout"
 
@@ -59,7 +63,6 @@ quit_clean() {
 		log "Remove lock file $LOCK_FILE"
 		rm $LOCK_FILE
 	fi
-	log "Exit with code $1."
 	exit $1
 }
 

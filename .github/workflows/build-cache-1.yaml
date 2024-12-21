@@ -17,40 +17,55 @@ on:
         default: false
 
 env:
+  BR2_DL_DIR: ~/dl
+  FORCE_UNSAFE_CONFIGURE: 1
   TAG_NAME: update_cache
   TERM: linux
-  BR2_DL_DIR: ~/dl
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
-  TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_BUILD}}
+  TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_MULTI}}
+  TG_TOPIC: ${{secrets.TELEGRAM_CHANNEL_THINGINO_MULTI_TOPIC_FIRMWARE}}
   TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
-  TG_OPTIONS: -s -o /dev/null -w %{http_code}
-  FORCE_UNSAFE_CONFIGURE: 1
+  TZ: America/Los_Angeles
 
 jobs:
   notify-begin:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       start_time: ${{ steps.set_output.outputs.time }}
+      tg_disabled: ${{ steps.set_env.outputs.tg_disabled }}
     steps:
-      - name: Save workflow start time
+      - name: Set timezone
+        run: |
+          sudo timedatectl set-timezone ${{ env.TZ }}
+
+      - name: Save workflow start time to ENV
         id: set_output
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
-      - name: Send build start notifcation
-        if: ${{ github.event.inputs.tg_disabled == 'false' }}
+
+      - name: Configure Environment Variables
+        run: |
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+          echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: "master"
+          fetch-depth: "1"
+
+      - name: Send build start notifcation via Telegram
+        if: env.TG_DISABLED == 'false'
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+            export TG_TOPIC=""
           fi
-          TG_MSG="Buildroot cache update started:\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
-          TG_ICON="\xF0\x9F\x9A\xA6 GitHub Actions"
-          TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
-          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
-          echo Telegram response: ${HTTP}
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC start ${{ github.workflow }} ${{ github.run_id }} ${{ github.repository }}
 
   build-caches:
     name: ${{ matrix.caches-version }}
     needs: notify-begin
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         shell: bash
@@ -63,7 +78,7 @@ jobs:
           - build_cache
 
     steps:
-      - name: Update APT sources
+      - name: Update package manager sources
         run: |
           apt-get update
 
@@ -71,26 +86,35 @@ jobs:
         run: |
           apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git make gawk procps rsync u-boot-tools unzip wget
 
-      - name: Setup gh workspace in container
+      - name: Set timezone
+        run: |
+          ln -sf /usr/share/zoneinfo/${{ env.TZ }} /etc/localtime
+          echo ${{ env.TZ }} > /etc/timezone
+          DEBIAN_FRONTEND=noninteractive dpkg-reconfigure -f noninteractive tzdata
+
+      - name: Setup gh workspace to container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Checkout source
+      - name: Checkout repository source
         uses: actions/checkout@v4
         with:
           submodules: 'true'
           ref: "master"
           fetch-depth: "1"
 
-      - name: Setup Environment
-        id: date
+      - name: Configure environment variables
+        id: env
         run: |
           echo "WEEK_NUMBER=$(date +%U)" >> $GITHUB_ENV
           echo "CURRENT_YEAR=$(date +%Y)" >> $GITHUB_ENV
-          export GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})
-          export GIT_BRANCH=${GITHUB_REF_NAME}
-          echo "GIT_HASH=${GIT_HASH}" >> ${GITHUB_ENV}
-          echo "GIT_BRANCH=${GIT_BRANCH}" >> ${GITHUB_ENV}
+          echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_ENV
+          echo "GIT_BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+          TAG_NAME="$TAG_NAME-$(date +'%Y-%m-%d')"
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+
+          echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
 
       - name: Setup cache directories
         run: |
@@ -106,60 +130,55 @@ jobs:
 
       - name: Generate buildroot cache
         run: |
-          BOARD=${{ matrix.caches-version }} make
+          BOARD=${{ matrix.caches-version }} make fast
 
       - name: Save Buildroot ccache
         uses: actions/cache/save@v4
         if: always()
         with:
           path: ~/.ccache
-          key: ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
-
-      - name: Send completion notification
-        if: ${{ github.event_name != 'pull_request' && env.INGTC && github.event.inputs.tg_disabled == 'false' }}
-        run: |
-          if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
-            TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
-          fi
-          TG_ESCAPED_VERSION=$(echo "${{ matrix.caches-version }}" | sed 's/_/\\_/g')
-          TG_MSG="${TG_ESCAPED_VERSION}\nCommit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nTime: ${TIME}\nJob: [${{ github.run_id }}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }})\n\n"
-          TG_ICON="\xE2\x9C\x85 GitHub Actions"
-          TG_HEADER=$(echo -e "${TG_MSG}${TG_ICON}")
-          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
-          echo Telegram response: ${HTTP}
+          key: ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}-${{ github.run_id }}
 
       - name: Send error notification
-        if: ${{ github.event_name != 'pull_request' && failure() && github.event.inputs.tg_disabled == 'false' }}
+        if: ${{ env.TG_DISABLED == 'false' && failure() }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+            export TG_TOPIC=""
           fi
-          TG_ESCAPED_VERSION=$(echo "${{ matrix.caches-version }}" | sed 's/_/\\_/g')
-          TG_WARN="Error: ${TG_ESCAPED_VERSION}\n"
-          TG_MSG="Commit: [${GIT_HASH}](https://github.com/${GITHUB_REPOSITORY}/commit/${GIT_HASH})\nBranch: [${GIT_BRANCH}](https://github.com/${GITHUB_REPOSITORY}/tree/${GIT_BRANCH})\nTag: [${TAG_NAME}](https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME})\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
-          TG_ICON="\xE2\x9A\xA0 GitHub Actions"
-          TG_HEADER=$(echo -e ${TG_WARN}${TG_MSG}${TG_ICON})
-          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
-          echo Telegram response: ${HTTP}
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC error $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
 
   notify-completion:
     needs: [build-caches, notify-begin]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: always()
     steps:
-      - name: Send completion summary
-        if: ${{ github.event.inputs.tg_disabled == 'false' }}
+      - name: Set timezone
+        run: |
+          sudo timedatectl set-timezone ${{ env.TZ }}
+
+      - name: Configure Environment
+        run: |
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+          echo "GIT_HASH=${{ needs.build-caches.outputs.git_hash }}" >> $GITHUB_ENV
+          echo "TAG_NAME=${{ needs.build-caches.outputs.tag_name }}" >> $GITHUB_ENV
+
+      - name: Checkout repository source
+        uses: actions/checkout@v4
+        with:
+          submodules: 'false'
+          ref: "master"
+
+      - name: Send notify completion summary
+        if: ${{ env.TG_DISABLED == 'false' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+            export TG_TOPIC=""
           fi
           START_TIME=${{ needs.notify-begin.outputs.start_time }}
           END_TIME=$(date -u +%s)
           ELAPSED=$((END_TIME - START_TIME))
           ELAPSED_MIN=$((ELAPSED / 60))
           ELAPSED_SEC=$((ELAPSED % 60))
-          TG_MSG="Buildroot cache completed:\nTotal build time: ${ELAPSED_MIN}m ${ELAPSED_SEC}s\nJob: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
-          TG_ICON="\xF0\x9F\x9A\xA9 GitHub Actions"
-          TG_HEADER=$(echo -e ${TG_MSG}${TG_ICON})
-          HTTP=$(curl ${TG_OPTIONS} -H "Content-Type: multipart/form-data" -X POST https://api.telegram.org/bot${TG_TOKEN}/sendMessage -F parse_mode=MarkdownV2 -F chat_id=${TG_CHANNEL} -F text="${TG_HEADER}" -F disable_web_page_preview=true)
-          echo Telegram response: ${HTTP}
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC finish ${{ github.workflow }} "${ELAPSED_MIN}m ${ELAPSED_SEC}s" ${{ github.run_id }} ${{ github.repository }}

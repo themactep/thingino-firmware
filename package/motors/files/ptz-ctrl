@@ -1,0 +1,30 @@
+#!/bin/sh
+
+step=50
+
+echo "Pan/Tilt Controller"
+echo "Controls: w (up), s (down), a (left), d (right), q (quit)"
+echo "Step size: $step"
+
+while true; do
+	read -s -n 1 key
+
+	case $key in
+		w|W)
+			motors -d g -y -$step   # Up is negative
+			;;
+		s|S)
+			motors -d g -y $step    # Down is positive
+			;;
+		a|A)
+			motors -d g -x -$step   # Left is negative
+			;;
+		d|D)
+			motors -d g -x $step    # Right is positive
+			;;
+		q|Q)
+			echo "Quitting..."
+			exit 0
+			;;
+	esac
+done

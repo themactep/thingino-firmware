@@ -31,6 +31,8 @@ define WIFI_SYN43438_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/lib/firmware
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/firmware $(WIFI_SYN43438_PKGDIR)/files/fw_bcm43438a1.bin
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/firmware $(WIFI_SYN43438_PKGDIR)/files/nv_bcm43438a1.txt
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/firmware $(WIFI_SYN43438_PKGDIR)/files/fw_bcm43436b0.bin
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/firmware $(WIFI_SYN43438_PKGDIR)/files/nv_bcm43436b0.txt
 endef
 
 $(eval $(kernel-module))

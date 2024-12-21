@@ -1,0 +1,15 @@
+day_night_color=true
+day_night_ir850=false
+day_night_ir940=false
+day_night_ircut=false
+day_night_white=false
+day_night_max=15000
+day_night_min=500
+disable_eth=true
+disable_sd=true
+enable_updates=true
+gpio_default=53o
+gpio_default_net=
+gpio_ircut=
+gpio_led_r=53O
+gpio_mmc_cd=

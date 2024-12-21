@@ -1,0 +1,32 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+decrement_mac() {
+	local mac
+	mac=$(fw_printenv -n ethaddr)
+	local last_byte_dec=$(( 0x${mac##*:} - 1 ))
+	[ $last_byte_dec -lt 0 ] && { echo "Error: MAC address cannot be decremented below 00" >&2; exit 1; }
+	ethaddr=$(printf "%s:%02x" "${mac%:*}" "$last_byte_dec")
+}
+
+start() {
+	decrement_mac
+	starting
+	modprobe g_ncm iManufacturer=thingino host_addr=$(fw_printenv -n ethaddr) dev_addr=$ethaddr iProduct="NCM CDC Ethernet Gadget"
+	usb-role -m device
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		true
+		;;
+	*)
+		die "Usage: $0 {start}"
+		;;
+esac
+
+exit 0

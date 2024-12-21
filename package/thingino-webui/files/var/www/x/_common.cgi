@@ -12,11 +12,11 @@ pagename=$(basename $SCRIPT_NAME)
 pagename="${pagename%%.*}"
 
 # files
-ui_config_dir=/etc/webui
-ui_tmp_dir=/tmp/webui
 alert_file=$ui_tmp_dir/alert.txt
 signature_file=$ui_tmp_dir/signature.txt
 sysinfo_file=/tmp/sysinfo.txt
+ui_config_dir=/etc/webui
+ui_tmp_dir=/tmp/webui
 webui_log=/tmp/webui.log
 
 # read from files
@@ -136,7 +136,6 @@ check_mac_address() {
 
 check_password() {
 	local safepage="/x/config-webui.cgi"
-	[ "$debug" -gt 0 ] && return
 	[ -z "$REQUEST_URI" ] || [ "$REQUEST_URI" = "$safepage" ] && return
 	if [ ! -f /etc/shadow- ] || [ -z $(grep root /etc/shadow- | cut -d: -f2) ]; then
 		redirect_to "$safepage" "danger" "You must set your own secure password!"
@@ -281,8 +280,12 @@ field_number() {
 	<label class=\"form-label\" for=\"$n\">$2</label>
 	<span class=\"input-group\">"
 	# NB! no name on checkbox, since we don't want its data submitted
-	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"${n}-auto\">$ab <input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")></label>"
-	echo "<input type=\"text\" id=\"$n\" name=\"$n\" class=\"form-control text-end\" value=\"$vr\" pattern=\"[0-9]{1,}\" title=\"numeric value\" data-min=\"$mn\" data-max=\"$mx\" data-step=\"$st\"></span>"
+	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"${n}-auto\">$ab
+	<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")>
+	</label>"
+	echo "<input type=\"text\" id=\"$n\" name=\"$n\" class=\"form-control text-end\" value=\"$vr\"
+	pattern=\"[0-9]{1,}\" title=\"numeric value\" data-min=\"$mn\" data-max=\"$mx\" data-step=\"$st\">
+	</span>"
 	[ -n "$4" ] && echo "<span class=\"hint text-secondary\">$4</span>"
 	echo "</div>"
 }
@@ -398,6 +401,10 @@ field_textedit() {
 	</div>"
 }
 
+http_header() {
+	echo -en "$1\r\n"
+}
+
 html_title() {
 	echo -n "$(hostname) - $page_title - thingino"
 }
@@ -431,6 +438,10 @@ is_pwm_pin() {
 
 is_recording() {
 	pidof openRTSP > /dev/null
+}
+
+is_valid_mac() {
+	echo "$1" | grep -Eiq '^([0-9a-f]{2}[:-]){5}([0-9a-f]{2})$'
 }
 
 link_to() {
@@ -560,6 +571,7 @@ save2env() {
 	echo -e "$*" >> $tmpfile
 	fw_setenv -s $tmpfile
 	rm $tmpfile
+	fw_printenv > /etc/uenv.txt
 }
 
 set_error_flag() {
@@ -670,7 +682,7 @@ update_caminfo() {
 	# sort content alphabetically
 	sort <$tmpfile | sed /^$/d >$sysinfo_file && rm $tmpfile && unset tmpfile
 
-	echo -e "debug=$debug\n# caminfo $(date +"%F %T")\n" >>$sysinfo_file
+	echo -e "# caminfo $(date +"%F %T")\n" >>$sysinfo_file
 	generate_signature
 }
 
@@ -700,13 +712,7 @@ wlanap_enabled=$(get wlanap_enabled)
 
 read_from_env "day_night"
 
-debug=$(get debug)
-default_for debug 0
-if [ "$debug" -gt 0 ]; then
-	assets_ts=$(date +%s)
-else
-	assets_ts=$(($(date +%s) >> 8))
-fi
+assets_ts=$(date +%Y%m%d%H%M)
 
 [ -f $sysinfo_file ] || update_caminfo
 include $sysinfo_file

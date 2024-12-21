@@ -7,10 +7,10 @@ MOUNT_POINT="/var/www"
 start() {
 	starting
 
-	local nfs_ip=$(get development_nfs_ip)
-	local nfs_share=$(get development_nfs_share)
+	local nfs_ip=$(fw_printenv -n development_nfs_ip)
+	local nfs_share=$(fw_printenv -n development_nfs_share)
 
-	[ "true" != "$(get development_enabled)" ] && quit "Not in development mode"
+	[ "true" != "$(fw_printenv -n development_enabled)" ] && quit "Not in development mode"
 	[ -z "$nfs_ip" ] && quit "Remote machine IP is not set"
 	info "Remote machine is $nfs_ip"
 	[ -z "$nfs_share" ] && nfs_share="/srv/nfs/www"

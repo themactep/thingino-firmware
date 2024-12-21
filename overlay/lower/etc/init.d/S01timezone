@@ -8,7 +8,7 @@ TZCODE_FILE="/etc/TZ"
 TZJSON_FILE="/usr/share/tz.json.gz"
 
 set_timezone() {
-	tzname=$(get $TZ_ENV_VAR)
+	tzname=$(fw_printenv -n $TZ_ENV_VAR)
 	[ -z "$tzname" ] && quit "Timezone is not set"
 	if [ ! -f $TZNAME_FILE ] || [ "$tzname" != "$(cat $TZNAME_FILE)" ]; then
 		run "echo $tzname > $TZNAME_FILE"

@@ -76,6 +76,10 @@ expand_bb() {
 	ln -s $workdir/busybox $workdir/$1
 }
 
+extract_bootloader() {
+	truncate -s 256K $1
+}
+
 handle_payload() {
 	if [ "local" = "$upgrade" ]; then
 		say "Upgrading from a provided file"
@@ -92,18 +96,22 @@ handle_payload() {
 		profile=$(awk -F= '/^IMAGE_ID=/ {print $2}' $data)
 		[ -z "$profile" ] && die "Building profile is not set in $data"
 
-		gh_url="$GITHUB_URL/themactep/thingino-firmware"
-		bin_url="$gh_url/releases/latest/download/thingino-$profile.bin"
+		gh_url="$GITHUB_URL/themactep/thingino-firmware/releases"
+		if [ -n "$release_date" ]; then
+			gh_url="$gh_url/download/firmware-$release_date"
+			say "Requested release from $release_date"
+		else
+			gh_url="$gh_url/latest/download"
+		fi
+		bin_url="$gh_url/thingino-$profile.bin"
 		if [ "part" = "$upgrade" ]; then
 			offset=327680
 			bin_file="thingino-$profile-update.bin"
-			sha_url="$gh_url/releases/latest/download/$bin_file.sha256sum"
 		else
 			offset=0
 			bin_file="thingino-$profile.bin"
-			sha_url="$gh_url/releases/latest/download/$bin_file.sha256sum"
 		fi
-
+		sha_url="$gh_url/$bin_file.sha256sum"
 		sha_file=$(basename $sha_url)
 
 		check_free_space $bin_url $offset
@@ -147,6 +155,8 @@ show_help() {
 Where:
   -f      full upgrade with a binary from GitHub
   -p      partial upgrade with a binary from GitHub
+  -b      upgrade only bootloader
+  -d      release date (the latest available, if omitted)
   <file>  full or partial upgrade from a local file
   <URL>   full or partial upgrade from a URL
   -x      do not update the script
@@ -158,7 +168,7 @@ stop_services() {
 	say "Stop services"
 	for i in $(find /etc/init.d/ -name "[KS]*" -executable | sort -nr); do
 		case "$(basename $i)" in
-			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S42wifiap | S42wireguard | S50dropbear)
+			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S42wifiap | S42wireguard | S50dropbear | S97sysupgrade)
 				continue
 				;;
 			*)
@@ -180,25 +190,25 @@ update_self() {
 grep -q "mtd[56]" /proc/mtd || die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
 
 ORIGINAL_ARG="$@"
-while getopts "bfhpx" flag; do
+while getopts "bd:fhpx" flag; do
 	case "$flag" in
-		f)
-			upgrade="full"
-			url="$GITHUB_URL"
-			;;
-		p)
-			upgrade="part"
-			url="$GITHUB_URL"
-			;;
-		x)
-			selfupdate="false"
-			;;
-		h | *)
-			show_help
-			;;
+		b) bootloader_only="true" ;;
+		d) requested_date=$OPTARG ;;
+		f) upgrade="full"; url="$GITHUB_URL" ;;
+		p) upgrade="part"; url="$GITHUB_URL" ;;
+		x) selfupdate="false" ;;
+		h | *) show_help ;;
 	esac
 done
 shift "$((OPTIND - 1))"
+
+if [ -n "$requested_date" ]; then
+	if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ]; then
+		release_date=$(date -d "$requested_date" +%F) || die "Invalid date: $requested_date"
+	else
+		say "Release date only works with upgrades from GitHub"
+	fi
+fi
 
 # work in $workdir
 if [ ! -d $workdir ]; then
@@ -234,7 +244,7 @@ if [ "$(dirname $self)" != "$workdir" ]; then
 		update_self
 	else
 		say "Skip self-update"
-		cp $0 $workdir/$stage1app
+		cp "$self" "$workdir/$stage1app"
 	fi
 	say "Re-running script from $workdir"
 	exec $workdir/$stage1app $ORIGINAL_ARG
@@ -285,6 +295,13 @@ case "$(xxd -l 4 -p $fw_file)" in
 	"$ROOTFS_MAGIC") die "We cannot flash only rootfs" ;;
 	*) die "Unknown file" ;;
 esac
+
+if [ "true" = "$bootloader_only" ]; then
+	[ "mtd5" = "$mtd_dev" ] || die "Userland image does not have a bootloader!"
+	extract_bootloader "$fw_file"
+	flashcp -v $fw_file /dev/mtd0
+	exit 0
+fi
 
 stop_services
 remove_snapshot

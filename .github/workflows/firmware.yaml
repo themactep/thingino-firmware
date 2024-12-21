@@ -32,26 +32,27 @@ on:
         default: false
 
 env:
-  TAG_NAME: firmware
-  TERM: linux
   BR2_DL_DIR: ~/dl
-  TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
-  TG_CHANNEL: -1002083893006_14394
-  TG_TOPIC: 14394
-  TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
   FORCE_UNSAFE_CONFIGURE: 1
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  TAG_NAME: firmware
+  TERM: linux
+  TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
+  TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_MULTI}}
+  TG_TOPIC: ${{secrets.TELEGRAM_CHANNEL_THINGINO_MULTI_TOPIC_FIRMWARE}}
+  TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
+  TZ: America/Los_Angeles
 
 jobs:
   notify-begin:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       start_time: ${{ steps.set_output.outputs.time }}
       tg_disabled: ${{ steps.set_env.outputs.tg_disabled }}
     steps:
       - name: Set timezone
         run: |
-          sudo timedatectl set-timezone "America/Los_Angeles"
+          sudo timedatectl set-timezone ${{ env.TZ }}
 
       - name: Save workflow start time to ENV
         id: set_output
@@ -61,6 +62,8 @@ jobs:
         run: |
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
+          TAG_NAME="$TAG_NAME-$(date +'%Y-%m-%d')"
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -78,13 +81,13 @@ jobs:
           .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC start $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
 
   generate-matrix:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Set timezone
         run: |
-          sudo timedatectl set-timezone "America/Los_Angeles"
+          sudo timedatectl set-timezone ${{ env.TZ }}
 
       - name: Configure GH workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -114,7 +117,7 @@ jobs:
   buildroot:
     name: ${{ matrix.thingino-version }}
     needs: [generate-matrix, notify-begin]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       # Feed the hash of the commit we are building into the notify-completion release-notes step
       GIT_HASH: ${{ steps.env.outputs.git_hash }}
@@ -128,21 +131,28 @@ jobs:
       fail-fast: false
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
     steps:
+      - name: Install GitHub CLI to container
+        run: |
+          apt-get update
+          apt-get install -y curl
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+
       - name: Update package manager sources
         run: |
           apt-get update
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc cmake cpio curl ca-certificates file git make gawk jq procps rsync tzdata u-boot-tools unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests 7zip build-essential bc cmake cpio curl ca-certificates file git gh make gawk jq procps rsync tzdata u-boot-tools unzip wget
 
       - name: Set timezone
         run: |
-          ln -sf /usr/share/zoneinfo/America/Los_Angeles /etc/localtime
-          echo "America/Los_Angeles" > /etc/timezone
+          ln -sf /usr/share/zoneinfo/${{ env.TZ }} /etc/localtime
+          echo ${{ env.TZ }} > /etc/timezone
           DEBIAN_FRONTEND=noninteractive dpkg-reconfigure -f noninteractive tzdata
 
-      - name: Setup gh workspace in container
+      - name: Setup gh workspace to container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout repository source
@@ -152,7 +162,7 @@ jobs:
           ref: "master"
           fetch-depth: "1"
 
-      - name: Configure Environment Variables
+      - name: Configure environment variables
         id: env
         run: |
           echo "WEEK_NUMBER=$(date +%U)" >> $GITHUB_ENV
@@ -162,7 +172,7 @@ jobs:
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           TAG_NAME="$TAG_NAME-$(date +'%Y-%m-%d')"
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
-          
+
           echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_OUTPUT
           echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
 
@@ -181,8 +191,8 @@ jobs:
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-
-            ${{ runner.os }}-ccache-
             ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
+            ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-
 
       - name: Restore Buildroot DL cache
         uses: actions/cache/restore@v4
@@ -219,9 +229,10 @@ jobs:
           apt-get install -y --no-install-recommends --no-install-suggests python3-numpy python3-matplotlib
           BOARD=${{ matrix.thingino-version }} make br-graph-build
 
-      - name: Locate Built Firmware Artifacts
+      - name: Locate built firmware artifacts
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
+          FW_PATH=${HOME}/output/${DYNAMIC_PART}/images/
           FULL_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}.bin" ! -name "*update.bin" | head -n 1)
           FULL_FW_UBOOT=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "u-boot-lzo-with-spl.bin" | head -n 1)
           FULL_FW_KERNEL=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "uImage" | head -n 1)
@@ -230,6 +241,7 @@ jobs:
           UPDATE_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}-update.bin" | head -n 1)
           echo "FULL_FW: $FULL_FW"
           if [[ -n "$FULL_FW" ]]; then
+            echo "FW_PATH=${FW_PATH}" >> ${GITHUB_ENV}
             echo "FULL_FW=${FULL_FW}" >> ${GITHUB_ENV}
             echo "FULL_FW_UBOOT=${FULL_FW_UBOOT}" >> ${GITHUB_ENV}
             echo "FULL_FW_KERNEL=${FULL_FW_KERNEL}" >> ${GITHUB_ENV}
@@ -251,18 +263,10 @@ jobs:
           path: |
             ~/output/${{ matrix.thingino-version }}/graphs/build.hist-duration.pdf
 
-      - name: Upload update firmware artifacts
+      - name: Upload compiled firmware artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: thingino-${{ matrix.thingino-version }}-update-firmware
-          path: |
-            ${{ env.UPDATE_FW }}
-            ${{ env.UPDATE_FW_SHA }}
-
-      - name: Upload full firmware artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: thingino-${{ matrix.thingino-version }}-full-firmware
+          name: thingino-${{ matrix.thingino-version }}-firmware
           path: |
             ${{ env.FULL_FW }}
             ${{ env.FULL_FW_UBOOT }}
@@ -270,19 +274,47 @@ jobs:
             ${{ env.FULL_FW_ROOTFS }}
             ${{ env.FULL_FW_ROOTFS_TAR }}
             ${{ env.FULL_FW_SHA }}
+            ${{ env.UPDATE_FW }}
+            ${{ env.UPDATE_FW_SHA }}
 
-      - name: Upload full firmware to release
-        uses: softprops/action-gh-release@master
+      - name: Create release tag
+        continue-on-error: true
+        run: |
+          TAG_NAME="${{ env.TAG_NAME }}"
+          if ! gh api repos/${{ github.repository }}/git/ref/tags/$TAG_NAME &>/dev/null; then
+            git tag "$TAG_NAME"
+            git push origin "$TAG_NAME"
+          else
+            echo "Tag $TAG_NAME already exists."
+          fi
+
+      - name: Create release
+        continue-on-error: true
+        run: |
+          TAG_NAME="${{ env.TAG_NAME }}"
+          if ! gh release view "$TAG_NAME" --repo "${{ github.repository }}" &>/dev/null; then
+            echo "Release $TAG_NAME does not exist. Creating pre-release."
+            gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "pre-release: \`\`\`$TAG_NAME\`\`\` is currently being built, please wait..." --prerelease  
+            else
+            echo "Release $TAG_NAME already exists."
+          fi
+
+      - name: Upload ${{ matrix.thingino-version }} to release
+        uses: softprops/action-gh-release@v2.1.0
         with:
           tag_name: ${{ env.TAG_NAME }}
           make_latest: false
-          draft: true
+          prerelease: true
           files: |
             ${{ env.FULL_FW }}
             ${{ env.FULL_FW_SHA }}
             ${{ env.UPDATE_FW_SHA }}
 
-      - name: Send firmware completion notifications with binaries
+      - name: Package binaries for notify
+        run: |
+          7zz a -t7z -mx=9 -mmt=on /tmp/thingino-${{ matrix.thingino-version }}.7z ${{ env.FULL_FW }} ${{ env.FULL_FW_SHA }}
+
+      - name: Send firmware completion notifications with attachment
         if: ${{ env.TG_DISABLED == 'false' && (env.FULL_FW) }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
@@ -290,7 +322,7 @@ jobs:
             export TG_TOPIC=""
           fi
           if [ -n "${{ env.FULL_FW }}" ]; then
-          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC completed $TAG_NAME ${{ github.run_id }} ${{ github.repository }} ${GIT_HASH} ${GIT_BRANCH} ${TAG_NAME} ${TIME} ${FULL_FW}
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC completed $TAG_NAME ${{ github.run_id }} ${{ github.repository }} ${GIT_HASH} ${GIT_BRANCH} ${TAG_NAME} ${TIME} ${{ matrix.thingino-version }} /tmp/thingino-${{ matrix.thingino-version }}.7z
           fi
 
       - name: Send error notification
@@ -304,12 +336,12 @@ jobs:
 
   notify-completion:
     needs: [buildroot, notify-begin]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: always()
     steps:
       - name: Set timezone
         run: |
-          sudo timedatectl set-timezone "America/Los_Angeles"
+          sudo timedatectl set-timezone ${{ env.TZ }}
 
       - name: Configure Environment
         run: |
@@ -339,9 +371,18 @@ jobs:
           COMMITS=$(gh api \
             -H "Accept: application/vnd.github.v3+json" \
             /repos/${{ github.repository }}/compare/$LAST_RELEASE_TAG...$GIT_HASH \
-            -q '.commits[] | "\(.sha[0:7]) \(.commit.message | gsub("\n"; " "))"')
+            -q '.commits
+                | sort_by(.commit.author.date)
+                | reverse
+                | .[]
+                | select(
+                    .commit.message != "Merge remote-tracking branch '\''origin/master'\''"
+                    and (.commit.message | contains("workflow") | not)
+                    and (.commit.message | contains("Merge pull request #") | not)
+                  )
+                | "\(.sha[0:7]) \(.commit.message | gsub("\n"; " "))"')
 
-          RELEASE_NOTES="### Commits since last release:\n"
+          RELEASE_NOTES="### Changes in this release:\n"
 
           while IFS= read -r commit; do
             if [ -n "$commit" ]; then
@@ -364,13 +405,19 @@ jobs:
 
           if [[ -n "$RELEASE_URL" ]]; then
             echo "Release URL found, attempting to mark as latest..."
-            gh release edit ${{ env.TAG_NAME }} --latest --draft=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
+            if [[ -f "${{ env.RELEASE_NOTES_FILE }}" ]]; then
+              echo "Release notes file exists, including --notes-file..."
+              gh release edit ${{ env.TAG_NAME }} --latest --prerelease=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
+            else
+              echo "Release notes file does not exist, skipping --notes-file..."
+              gh release edit ${{ env.TAG_NAME }} --latest --prerelease=false --notes ""
+            fi
             echo "Release marked as latest"
           else
             echo "Release not found, skipping latest release update"
           fi
 
-      - name: Send completion summary
+      - name: Send notify completion summary
         if: ${{ env.TG_DISABLED == 'false' }}
         run: |
           if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
@@ -382,4 +429,4 @@ jobs:
           ELAPSED=$((END_TIME - START_TIME))
           ELAPSED_MIN=$((ELAPSED / 60))
           ELAPSED_SEC=$((ELAPSED % 60))
-          .github/scripts/tg-notify.sh $TG_TOKEN $TG_CHANNEL $TG_TOPIC finish ${{ github.workflow }} "${ELAPSED_MIN}m ${ELAPSED_SEC}s" ${{ github.run_id }} ${{ github.repository }}
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC finish ${{ github.workflow }} "${ELAPSED_MIN}m ${ELAPSED_SEC}s" ${{ github.run_id }} ${{ github.repository }}

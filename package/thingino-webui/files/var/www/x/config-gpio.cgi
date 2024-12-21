@@ -133,8 +133,8 @@ gpio_ircut_pin2="$(echo "$gpio_ircut" | awk '{print $2}')"
 <div class="card h-100">
 <div class="card-header">
 IR cut filter
-<div class="switch float-end"><button type="button" data-bs-toggle="modal" data-bs-target="#helpModal"
- class="btn btn-sm btn-outline-info m-0">help</button></div>
+<div class="switch float-end"><img src="/a/help.svg" alt="Help" class="img-fluid" type="button"
+ data-bs-toggle="modal" data-bs-target="#helpModal" style="max-height:1.5rem"></div>
 </div>
 <div class="card-body">
 <div class="row mb-2">
@@ -159,7 +159,7 @@ IR cut filter
 <% button_submit %>
 </form>
 
-<div class="alert alert-dark ui-debug">
+<div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "fw_printenv | grep -E ^\(gpio\|pwm_ch\)_" %>
 <% ex "pwm-ctrl -l | grep ^GPIO" %>
@@ -175,7 +175,7 @@ IR cut filter
 </div>
 <div class="modal-body">
 <p>The IR cut filter is typically controlled by a combination of two GPIO pins that define the voltage polarity and direction of movement.</p>
-<% wiki_page "Configration:-Night-Mode#infrared-cut-filter" %>
+<% wiki_page "Configuration:-Night-Mode#infrared-cut-filter" %>
 </div>
 <div class="modal-footer">
 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

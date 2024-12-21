@@ -158,6 +158,9 @@ config BR2_PACKAGE_THINGINO_KOPT_DWC2
 config BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
 	bool "Full USB support with OTG"
 	depends on BR2_PACKAGE_THINGINO_KOPT_DWC2
+	select BR2_PACKAGE_USBNET
+	select BR2_PACKAGE_USBNET_CDC_ETHER
+	select BR2_PACKAGE_USBNET_ASIX
 	help
 	  Enable the DWC2 USB driver with OTG support.
 	  Recommended for devices that have USB data ports.
@@ -167,3 +170,19 @@ config BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
 	help
 	  Enable the DWC2 USB driver with WiFi only support.
 	  Recommended for devices that use WiFi chipsets internally connected via USB.
+
+config BR2_PACKAGE_THINGINO_KOPT_I2C
+	bool "I2C Support"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enables additional I2C ports
+config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS1
+	bool "I2C1"
+	depends on BR2_PACKAGE_THINGINO_KOPT_I2C
+	help
+	  Enables I2C1 on the SoC
+config BR2_PACKAGE_THINGINO_KOPT_I2C_BUS2
+	bool "I2C2"
+	depends on BR2_PACKAGE_THINGINO_KOPT_I2C
+	help
+	  Enables I2C2 on the SoC

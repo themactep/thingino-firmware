@@ -1,4 +1,4 @@
-THINGINO_FFMPEG_VERSION = 7.0
+THINGINO_FFMPEG_VERSION = 7.1
 THINGINO_FFMPEG_SOURCE = ffmpeg-$(THINGINO_FFMPEG_VERSION).tar.xz
 THINGINO_FFMPEG_SITE = http://ffmpeg.org/releases
 
@@ -9,28 +9,46 @@ THINGINO_FFMPEG_LICENSE_FILES = LICENSE.md COPYING.LGPLv2.1
 
 THINGINO_FFMPEG_CONF_OPTS = \
 	--prefix=/usr \
+	--enable-mipsfpu \
+	--enable-cross-compile \
 	--disable-everything \
-	--disable-x86asm --disable-w32threads --disable-os2threads --disable-alsa --disable-appkit \
-	--disable-avfoundation --disable-bzlib --disable-coreimage --disable-iconv --disable-libxcb \
-	--disable-libxcb-shm --disable-libxcb-xfixes --disable-libxcb-shape --disable-lzma \
-	--disable-asm --disable-sndio --disable-sdl2 --disable-xlib --disable-zlib --disable-amf \
-	--disable-audiotoolbox --disable-cuda --disable-cuvid --disable-d3d11va --disable-dxva2 \
-	--disable-nvdec --disable-nvenc --disable-v4l2-m2m --disable-vaapi --disable-vdpau --disable-videotoolbox \
-	--disable-avdevice --disable-swscale --disable-postproc --disable-doc --disable-runtime-cpudetect \
-	--disable-bsfs --disable-iconv --disable-ffprobe --enable-gpl --enable-version3 --enable-pthreads \
-	\
-	--disable-swresample \
+	--disable-cuda \
+	--disable-cuda-llvm \
+	--enable-gpl \
+	--enable-version3 \
+	--enable-ffmpeg \
+	--enable-avformat \
+	--enable-avcodec \
+	--enable-network \
+	--enable-protocol=tcp \
+	--enable-protocol=udp \
+	--enable-protocol=file \
+	--enable-parser=h264,hevc,aac,opus \
+	--enable-demuxer=rtsp,mov,m4a \
+	--enable-muxer=mp4,opus \
+	--enable-muxer=segment \
+	--disable-doc \
+	--disable-podpages \
+	--disable-htmlpages \
+	--disable-manpages \
+	--disable-txtpages \
+	--disable-iconv \
+	--disable-zlib \
+	--disable-swscale \
 	--disable-avdevice \
-	--disable-filters \
+	--disable-postproc \
+	--disable-debug \
+	--disable-ffprobe \
+	--enable-small \
 	--disable-encoders \
-	--disable-decoders --enable-decoder=h264,hevc \
-	--disable-muxers --enable-muxer=flv,rtsp \
-	--disable-demuxers --enable-demuxer=h264,rtsp \
-	--disable-parsers --enable-parser=h264,hevc \
-	--disable-protocols --enable-protocol=file,rtmp,tcp \
-	--disable-programs --enable-ffmpeg --enable-small
+	--disable-decoders \
+	--disable-runtime-cpudetect \
+	--disable-swresample \
+	--extra-cflags="-Os -flto-partition=none" \
+	--extra-cxxflags="-Os -flto-partition=none" \
+	--extra-ldflags="-z max-page-size=0x1000 -flto-partition=none -Wl,--gc-sections"
 
-THINGINO_FFMPEG_DEPENDENCIES += host-pkgconf
+THINGINO_FFMPEG_DEPENDENCIES += host-pkgconf host-upx
 
 # Default to --cpu=generic for MIPS architecture, in order to avoid a
 # warning from ffmpeg's configure script.
@@ -74,5 +92,12 @@ define THINGINO_FFMPEG_REMOVE_EXAMPLE_SRC_FILES
 	rm -rf $(TARGET_DIR)/usr/share/ffmpeg/examples
 endef
 THINGINO_FFMPEG_POST_INSTALL_TARGET_HOOKS += THINGINO_FFMPEG_REMOVE_EXAMPLE_SRC_FILES
+
+define THINGINO_FFMPEG_UPX_INSTALL
+		$(HOST_DIR)/bin/upx --best --lzma $(TARGET_DIR)/usr/bin/ffmpeg
+endef
+
+THINGINO_FFMPEG_POST_INSTALL_TARGET_HOOKS += THINGINO_FFMPEG_UPX_INSTALL
+
 
 $(eval $(autotools-package))

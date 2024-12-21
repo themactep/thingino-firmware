@@ -1,0 +1,5 @@
+config BR2_PACKAGE_THINGINO_GPIO
+	bool "thingino-gpio"
+	help
+          Select this if you need to configure GPIO pins automatically
+          during system startup.

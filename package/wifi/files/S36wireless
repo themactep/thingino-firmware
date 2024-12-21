@@ -6,11 +6,11 @@ SOC_FAMILY=$(/usr/sbin/soc -f)
 SOC_MODEL=$(/usr/sbin/soc -m)
 
 init() {
-	[ "$(get disable_wlan)" = "true" ] && quit "WLAN disabled"
-	wlandev="$(get wlandev)"
+	[ "$(fw_printenv -n disable_wlan)" = "true" ] && quit "WLAN disabled"
+	wlandev="$(fw_printenv -n wlandev)"
 	[ -z "$wlandev" ] && quit "wlandev is not set"
 
-	pin_raw="$(get gpio_wlan)"
+	pin_raw="$(fw_printenv -n gpio_wlan)"
 	if [ -z "$pin_raw" ]; then
 		info "gpio_wlan is not set"
 	else
@@ -24,8 +24,8 @@ init() {
 		esac
 	fi
 
-	wlanmac="$(get wlanmac)"
-	wlandevopts=$(get wlandevopts)
+	wlanmac="$(fw_printenv -n wlanmac)"
+	wlandevopts=$(fw_printenv -n wlandevopts)
 }
 
 start() {

@@ -6,11 +6,11 @@ plugin_name="Send to email"
 page_title="Send to email"
 params="enabled attach_snapshot from_name from_address insecure_ssl to_name to_address subject body smtp_host smtp_port smtp_username smtp_password smtp_use_ssl socks5_enabled"
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/email.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "$plugin" "$params"
+	read_from_post "email" "$params"
 
 	# normalize
 	email_body="$(echo "$email_body" | tr "\r?\n" " ")"
@@ -26,7 +26,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
 		for p in $params; do
-			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
+			echo "email_$p=\"$(eval echo \$email_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 

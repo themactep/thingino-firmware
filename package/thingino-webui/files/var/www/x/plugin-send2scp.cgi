@@ -9,11 +9,11 @@ params="enabled host port user path template command"
 SCP_KEY="/root/.ssh/id_dropbear"
 [ -f $SCP_KEY ] || dropbearkey -t ed25519 -f $SCP_KEY
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/scp.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "$plugin" "$params"
+	read_from_post "scp" "$params"
 
 	if [ "true" = "$scp_enabled" ]; then
 		error_if_empty "$scp_host" "Target host address cannot be empty."
@@ -24,7 +24,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmpfile=$(mktemp -u)
 		for p in $params; do
-			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmpfile
+			echo "scp_$p=\"$(eval echo \$scp_$p)\"" >>$tmpfile
 		done; unset p
 		mv $tmpfile $config_file
 
@@ -60,7 +60,7 @@ default_for scp_template "$network_hostname-%Y%m%d-%H%M%S.jpg"
 <% button_submit %>
 </form>
 
-<div class="alert alert-dark ui-debug">
+<div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "cat $config_file" %>
 <% ex "xxd $SCP_KEY" %>

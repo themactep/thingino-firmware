@@ -28,7 +28,7 @@ set_motors_speed() {
 position_motors() {
 	local x=$((motor_maxstep_h / 2))
 	local y=$((motor_maxstep_v / 2))
-	local motor_pos_0=$(get motor_pos_0)
+	local motor_pos_0=$(fw_printenv -n motor_pos_0)
 	if [ -n "$motor_pos_0" ]; then
 		x=$(echo $motor_pos_0 | cut -d, -f1)
 		y=$(echo $motor_pos_0 | cut -d, -f2)
@@ -78,7 +78,6 @@ start() {
 		[ -z "$gpio_motor_switch" ] && modprobe_args="$modprobe_args vst1=$vst1 vst2=$vst2 vst3=$vst3 vst4=$vst4"
 
 		modprobe motor $modprobe_args || die "Failed to load motor module"
-
 	fi
 
 	start_daemon
@@ -87,7 +86,7 @@ start() {
 
 	set_motors_speed $motor_speed
 
-	if [ "true" = "$(get disable_homing)" ]; then
+	if [ "true" = "$(fw_printenv -n disable_homing)" ]; then
 		warn "Homing disabled"
 	else
 		home_motors

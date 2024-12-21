@@ -59,26 +59,34 @@ else
 FIGLET := $(shell command -v figlet) -t -f pagga
 endif
 
+SIZE_32M := 33554432
+SIZE_16M := 16777216
+SIZE_8M := 8388608
+SIZE_256K := 262144
+SIZE_128K := 131072
+SIZE_64K := 65536
+SIZE_32K := 32768
+SIZE_16K := 16384
+SIZE_8K := 8192
+SIZE_4K := 4096
+
+ALIGN_BLOCK := $(SIZE_32K)
+
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
-U_BOOT_ENV_FINAL_TXT = $(OUTPUT_DIR)/target/etc/uenv.txt
+
+U_BOOT_ENV_FINAL_TXT = $(OUTPUT_DIR)/uenv.txt
+export U_BOOT_ENV_FINAL_TXT
 
 ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
 U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-lzo-with-spl.bin
 else
 U_BOOT_BIN = $(OUTPUT_DIR)/images/$(patsubst "%",%,$(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME))
 endif
-U_BOOT_ENV_BIN = $(OUTPUT_DIR)/images/uenv.bin
 
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 OVERLAY_BIN := $(OUTPUT_DIR)/images/overlay.jffs2
-
-# 0x0010000, 64K, 65_536
-ALIGN_BLOCK := 65536
-
-# 0x0008000, 32K, 32_768
-# ALIGN_BLOCK := 32768
 
 # create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
 FIRMWARE_NAME_FULL = thingino-$(CAMERA).bin
@@ -89,7 +97,6 @@ FIRMWARE_BIN_NOBOOT := $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_NOBOOT)
 
 # file sizes
 U_BOOT_BIN_SIZE = $(shell stat -c%s $(U_BOOT_BIN))
-U_BOOT_ENV_BIN_SIZE = $(shell stat -c%s $(U_BOOT_ENV_BIN))
 KERNEL_BIN_SIZE = $(shell stat -c%s $(KERNEL_BIN))
 ROOTFS_BIN_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
 OVERLAY_BIN_SIZE = $(shell stat -c%s $(OVERLAY_BIN))
@@ -114,7 +121,7 @@ FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE)
 # dynamic partitions
 OVERLAY_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(OVERLAY_OFFSET))))
 OVERLAY_SIZE_NOBOOT = $(shell echo $$(($(FIRMWARE_NOBOOT_SIZE) - $(OVERLAY_OFFSET_NOBOOT))))
-OVERLAY_MINUMUM_SIZE := 131072
+OVERLAY_MINUMUM_SIZE := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
 
 # partition offsets
 U_BOOT_OFFSET = 0
@@ -128,10 +135,15 @@ OVERLAY_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PAR
 
 .PHONY: all bootstrap build build_fast clean cleanbuild create_overlay \
 	defconfig distclean fast help pack pack_full pack_update \
-	prepare_config reconfig sdk toolchain upload_tftp upgrade_ota br-%
+	prepare_config reconfig sdk toolchain update upload_tftp upgrade_ota br-%
 
 all: build pack
 	@$(FIGLET) "FINE"
+
+# update repo and submodules
+update:
+	git pull --rebase --autostash
+	git submodule update
 
 # install prerequisites
 bootstrap:
@@ -177,12 +189,19 @@ endif
 	if [ -f $(BR2_EXTERNAL)/local.mk ]; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
 	if [ ! -L $(OUTPUT_DIR)/thingino ]; then ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; fi
 
+
 # Configure buildroot for a particular board
 defconfig: prepare_config
 	@$(FIGLET) $(CAMERA)
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
-	# $(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) defconfig
+	if [ -f $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) ]; then \
+	grep -v '^#' $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) | tee $(U_BOOT_ENV_FINAL_TXT); fi
+	if [ -f $(BR2_EXTERNAL)/local.uenv.txt ]; then \
+		grep -v '^#' $(BR2_EXTERNAL)/local.uenv.txt | while read line; do \
+			grep -F -x -q "$$line" $(U_BOOT_ENV_FINAL_TXT) || echo "$$line" >> $(U_BOOT_ENV_FINAL_TXT); \
+		done; \
+	fi
 
 select-device:
 	$(info -------------------> select-device)
@@ -200,11 +219,14 @@ saveconfig:
 
 ### Files
 
+# remove target/ directory
 clean:
 	rm -rf $(OUTPUT_DIR)/target
 
+# rebuild from scratch
 cleanbuild: distclean all
 
+# remove all build files
 distclean:
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
@@ -242,6 +264,7 @@ reconfig:
 rebuild-%: defconfig
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
 
+# build toolchain fast
 sdk: defconfig
 ifeq ($(GCC),12)
 	sed -i 's/^BR2_TOOLCHAIN_EXTERNAL_GCC_13=y/# BR2_TOOLCHAIN_EXTERNAL_GCC_13 is not set/' $(OUTPUT_DIR)/.config; \
@@ -249,11 +272,12 @@ ifeq ($(GCC),12)
 	sed -i 's/^BR2_TOOLCHAIN_GCC_AT_LEAST_13=y/# BR2_TOOLCHAIN_GCC_AT_LEAST_13 is not set/' $(OUTPUT_DIR)/.config; \
 	sed -i 's/^BR2_TOOLCHAIN_GCC_AT_LEAST="13"/BR2_TOOLCHAIN_GCC_AT_LEAST="12"/' $(OUTPUT_DIR)/.config;
 endif
-	$(BR2_MAKE) sdk
+	$(BR2_MAKE) -j$(shell nproc) sdk
 
 source: defconfig
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source
 
+# build toolchain
 toolchain: defconfig
 	$(BR2_MAKE) sdk
 
@@ -280,6 +304,7 @@ br-%-dirclean:
 br-%: defconfig
 	$(BR2_MAKE) $(subst br-,,$@)
 
+# checkout buidroot submodule
 buildroot/Makefile:
 	git submodule init
 	git submodule update --depth 1 --recursive
@@ -299,9 +324,6 @@ $(SRC_DIR):
 $(U_BOOT_BIN):
 	$(info U_BOOT_BIN $(U_BOOT_BIN) not found!)
 	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL_LESS_Z).bin
-
-$(U_BOOT_ENV_BIN):
-	mkenvimage -s $(U_BOOT_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_FINAL_TXT)
 
 # rebuild Linux kernel
 $(KERNEL_BIN):
@@ -328,10 +350,9 @@ $(OVERLAY_BIN): create_overlay
 	$(info OVERLAY_BIN_SIZE:    $(OVERLAY_BIN_SIZE))
 	$(info OVERLAY_OFFSET:      $(OVERLAY_OFFSET))
 
-$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(U_BOOT_ENV_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
+$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
 	$(info $(shell printf "%-10s | %8s | %9s | %9s |" PARTITION SIZE OFFSET END))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" U_BOOT $(U_BOOT_BIN_SIZE) $(U_BOOT_OFFSET) $$(($(U_BOOT_OFFSET) + $(U_BOOT_BIN_SIZE)))))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" U_BOOT_ENV $(U_BOOT_ENV_BIN_SIZE) $(U_BOOT_ENV_OFFSET) $$(($(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_BIN_SIZE)))))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" KERNEL $(KERNEL_BIN_SIZE) $(KERNEL_OFFSET) $$(($(KERNEL_OFFSET) + $(KERNEL_BIN_SIZE)))))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" ROOTFS $(ROOTFS_BIN_SIZE) $(ROOTFS_OFFSET) $$(($(ROOTFS_OFFSET) + $(ROOTFS_BIN_SIZE)))))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" OVERLAY $(OVERLAY_BIN_SIZE) $(OVERLAY_OFFSET) $$(($(OVERLAY_OFFSET) + $(OVERLAY_BIN_SIZE)))))

@@ -6,7 +6,7 @@ plugin_name="Send to FTP"
 page_title="Send to FTP"
 params="enabled host user password path port socks5_enabled template"
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/ftp.conf"
 include $config_file
 
 defaults() {
@@ -16,7 +16,7 @@ defaults() {
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "$plugin" "$params"
+	read_from_post "ftp" "$params"
 
 	if [ "true" = "$ftp_enabled" ]; then
 		[ "true" = "$ftp_send2ftp"  ] && error_if_empty "$ftp_ftphost" "FTP address cannot be empty."
@@ -28,7 +28,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
 		for p in $params; do
-			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
+			echo "ftp_$p=\"$(eval echo \$ftp_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 
@@ -63,7 +63,7 @@ fi
 <% button_submit %>
 </form>
 
-<div class="alert alert-dark ui-debug">
+<div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "cat $config_file" %>
 </div>

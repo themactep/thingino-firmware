@@ -142,22 +142,22 @@ else ifeq ($(BR2_SOC_INGENIC_T40N),y)
 SOC_MODEL := t40n
 SOC_RAM := 128
 BR2_SOC_INGENIC_T40=y
-UBOOT_BOARDNAME="isvp_t40_sfcnor"
+UBOOT_BOARDNAME="isvp_t40n_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40NN),y)
 SOC_MODEL := t40nn
 SOC_RAM := 128
 BR2_SOC_INGENIC_T40=y
-UBOOT_BOARDNAME="isvp_t40_sfcnor"
+UBOOT_BOARDNAME="isvp_t40n_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40XP),y)
 SOC_MODEL := t40xp
 SOC_RAM := 256
 BR2_SOC_INGENIC_T40=y
-UBOOT_BOARDNAME="isvp_t40_sfcnor"
+UBOOT_BOARDNAME="isvp_t40xp_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40A),y)
 SOC_MODEL := t40a
 SOC_RAM := 128
 BR2_SOC_INGENIC_T40=y
-UBOOT_BOARDNAME="isvp_t40_sfcnor"
+UBOOT_BOARDNAME="isvp_t40a_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T41LQ),y)
 SOC_MODEL := t41lq
 SOC_RAM := 64
@@ -400,6 +400,8 @@ else ifeq ($(BR2_SENSOR_SC2335),y)
 SENSOR_MODEL := sc2335
 else ifeq ($(BR2_SENSOR_SC2336),y)
 SENSOR_MODEL := sc2336
+else ifeq ($(BR2_SENSOR_SC2336P),y)
+SENSOR_MODEL := sc2336p
 else ifeq ($(BR2_SENSOR_SC301IOT),y)
 SENSOR_MODEL := sc301IoT
 else ifeq ($(BR2_SENSOR_SC3235),y)
@@ -480,13 +482,13 @@ endif
 
 AVPU_CLK_SRC :=
 ifeq ($(BR2_AVPU_MPLL),y)
-   AVPU_CLK_SRC := clk_name=mpll
+AVPU_CLK_SRC := clk_name=mpll
 endif
 ifeq ($(BR2_AVPU_VPLL),y)
-   AVPU_CLK_SRC := clk_name=vpll
+AVPU_CLK_SRC := clk_name=vpll
 endif
 ifeq ($(BR2_AVPU_INTERNAL),y)
-   AVPU_CLK_SRC :=
+AVPU_CLK_SRC :=
 endif
 
 ISP_CLKA_CLK := 400000000
@@ -508,45 +510,45 @@ endif
 
 ISP_CLK_SRC :=
 ifeq ($(BR2_ISP_CLK_SCLKA),y)
-   ISP_CLK_SRC := clk_name=sclka
+ISP_CLK_SRC := clk_name=sclka
 endif
 ISP_CLKA_SRC :=
 ifeq ($(BR2_ISP_CLKA_SCLKA),y)
-   ISP_CLKA_CLK_SRC := clka_name=sclka
+ISP_CLKA_CLK_SRC := clka_name=sclka
 endif
 
 ISP_MEMOPT :=
 ifeq ($(BR2_ISP_MEMOPT_0),y)
-	ISP_MEMOPT :=
+ISP_MEMOPT :=
 endif
 ifeq ($(BR2_ISP_MEMOPT_1),y)
-	ISP_MEMOPT := isp_memopt=1
+ISP_MEMOPT := isp_memopt=1
 endif
 ifeq ($(BR2_ISP_MEMOPT_2),y)
-	ISP_MEMOPT := isp_memopt=2
+ISP_MEMOPT := isp_memopt=2
 endif
 ifeq ($(BR2_ISP_MEMOPT_3),y)
-	ISP_MEMOPT := isp_memopt=3
+ISP_MEMOPT := isp_memopt=3
 endif
 
 ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM :=
 ifeq ($(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM),y)
-	ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM := isp_day_night_switch_drop_frame_num=$(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE)
+ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM := isp_day_night_switch_drop_frame_num=$(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE)
 endif
 
 ISP_CH0_PRE_DEQUEUE_TIME :=
 ifeq ($(BR2_ISP_CH0_PRE_DEQUEUE_TIME),y)
-	ISP_CH0_PRE_DEQUEUE_TIME := isp_ch0_pre_dequeue_time=$(BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE)
+ISP_CH0_PRE_DEQUEUE_TIME := isp_ch0_pre_dequeue_time=$(BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE)
 endif
 
 ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS :=
 ifeq ($(BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS),y)
-	ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS := isp_ch0_pre_dequeue_interrupt_process=$(BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_VALUE)
+ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS := isp_ch0_pre_dequeue_interrupt_process=$(BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_VALUE)
 endif
 
 ISP_CH0_PRE_DEQUEUE_VALID_LINES :=
 ifeq ($(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES),y)
-	ISP_CH0_PRE_DEQUEUE_VALID_LINES := isp_ch0_pre_dequeue_valid_lines=$(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE)
+ISP_CH0_PRE_DEQUEUE_VALID_LINES := isp_ch0_pre_dequeue_valid_lines=$(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE)
 endif
 
 ifeq ($(BR2_SOC_INGENIC_T10),y)
@@ -611,9 +613,19 @@ KERNEL_BRANCH = ingenic-t31
 else ifeq ($(KERNEL_VERSION_4),y)
 $(info Building for kernel 4.x)
 KERNEL_VERSION = 4.4
+
+ifeq ($(BR2_SOC_INGENIC_T40),y)
+KERNEL_SITE = https://github.com/gtxaspec/thingino-linux
+KERNEL_BRANCH = ingenic-t40
+else ifeq ($(BR2_SOC_INGENIC_T41),y)
+KERNEL_SITE = https://github.com/gtxaspec/thingino-linux
+KERNEL_BRANCH = ingenic-t41
+else
 KERNEL_SITE = https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94
 KERNEL_BRANCH = stable
 endif
+endif
+
 KERNEL_HASH = $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
 $(info KERNEL_HASH=$(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1))
 THINGINO_KERNEL = $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
@@ -706,6 +718,7 @@ export BR2_THINGINO_DEVICE_TYPE_IPCAM_PAN_TILT
 export BR2_THINGINO_DEVICE_TYPE_IPCAM_PAN_TILT_ZOOM
 export BR2_THINGINO_DEVICE_TYPE_IPCAM
 export BR2_THINGINO_DEVICE_TYPE_DOORBELL
+export BR2_THINGINO_DEVICE_TYPE_WEBCAM
 
 ifneq ($(BR2_SOC_INGENIC_DUMMY),y)
 # include makefiles from packages

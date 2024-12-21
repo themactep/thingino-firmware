@@ -9,10 +9,8 @@ config_file="$ui_config_dir/$plugin.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	params="level theme"
+	params="theme"
 	read_from_post "$plugin" "$params"
-
-	[ -z "$webui_level" ] && webui_level="user"
 
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
@@ -22,7 +20,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		mv $tmp_file $config_file
 
 		new_password="$POST_ui_password_new"
-		[ -z "$new_password" ] || echo "root:$new_password" | chpasswd -c sha512
+		if [ -n "$new_password" ]; then
+			echo "root:$new_password" | chpasswd -c sha512
+			pwbackup save
+		fi
 
 		update_caminfo
 		redirect_back "success" "Data updated."
@@ -45,7 +46,6 @@ ui_username="$USER"
 </div>
 <div class="col">
 <% field_select "webui_theme" "Theme" "light,dark,auto" %>
-<% field_select "webui_level" "Level of details" "user,expert" %>
 </div>
 <div class="col">
 <% field_password "ws_token" "Websockets security token" "FIXME: a stub" %>
@@ -54,7 +54,7 @@ ui_username="$USER"
 <% button_submit %>
 </form>
 
-<div class="alert alert-dark ui-debug">
+<div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "cat /etc/httpd.conf" %>
 <% ex "cat $config_file" %>

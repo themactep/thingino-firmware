@@ -11,6 +11,9 @@ case "$1" in
 		;;
 	stop)
 		stopping
+		if [ -f "/tmp/upgrade.me" ]; then
+			sysupgrade -p
+		fi
 		ok
 		;;
 	*)

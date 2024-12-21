@@ -16,6 +16,10 @@ ZEROTIER_ONE_DEPENDENCIES = \
 	libminiupnpc \
 	libnatpmp
 
+define ZEROTIER_ONE_LINUX_CONFIG_FIXUPS
+	$(call KCONFIG_SET_OPT,CONFIG_TUN,m)
+endef
+
 define ZEROTIER_ONE_BUILD_CMDS
 	$(MAKE) $(ZEROTIER_ONE_MAKE_OPTS) -C $(@D) all
 endef

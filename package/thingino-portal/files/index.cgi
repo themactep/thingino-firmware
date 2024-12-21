@@ -1,6 +1,7 @@
 #!/bin/haserl
 <%
-
+image_id=$(awk -F'=' '/IMAGE_ID/{print $2}' /etc/os-release)
+build_id=$(awk -F'=' '/BUILD_ID/{print $2}' /etc/os-release | tr -d '"')
 timestamp=$(date +%s)
 ttl_in_sec=600
 
@@ -123,6 +124,7 @@ h2 {font-size:1.3rem}
 <div class="container">
 <h1><img src="/a/logo.svg" alt="Thingino Logo" class="img-fluid"></h1>
 <h2>Initial Configuration</h2>
+<p class="alert alert-info"><%= $image_id %><br><%= $build_id %></p>
 </div>
 </header>
 <main>

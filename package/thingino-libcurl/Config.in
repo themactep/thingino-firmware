@@ -1,0 +1,135 @@
+config BR2_PACKAGE_THINGINO_LIBCURL
+	bool "thingino-libcurl"
+	help
+	  cURL is a tool for getting files from FTP, HTTP, Gopher,
+	  Telnet, and Dict servers, using any of the supported
+	  protocols.
+
+	  https://curl.se/
+
+if BR2_PACKAGE_THINGINO_LIBCURL
+
+config BR2_PACKAGE_THINGINO_LIBCURL_CURL
+	bool "curl binary"
+	help
+	  Install curl binary as well
+
+config BR2_PACKAGE_THINGINO_LIBCURL_VERBOSE
+	bool "verbose strings"
+	help
+	  Enable verbose text strings
+
+config BR2_PACKAGE_THINGINO_LIBCURL_PROXY_SUPPORT
+	bool "proxy support"
+	default y
+	help
+	  Enable proxy support.
+
+config BR2_PACKAGE_THINGINO_LIBCURL_COOKIES_SUPPORT
+	bool "cookies support"
+	default y
+	help
+	  Enable support for cookies.
+
+config BR2_PACKAGE_THINGINO_LIBCURL_WEBSOCKETS_SUPPORT
+	bool "websockets support"
+	help
+	  Enable support for websockets.
+
+config BR2_PACKAGE_THINGINO_LIBCURL_DICT_SUPPORT
+	bool "dict support"
+	help
+	  Enable support for dict.
+
+config BR2_PACKAGE_THINGINO_LIBCURL_GOPHER_SUPPORT
+	bool "Gopher support"
+	help
+	  Enable support for Gopher.
+
+config BR2_PACKAGE_THINGINO_LIBCURL_IMAP_SUPPORT
+	bool "IMAP support"
+	help
+	  Enable support for IMAP.
+
+config BR2_PACKAGE_THINGINO_LIBCURL_LDAP_SUPPORT
+	bool "LDAP support"
+	help
+	  Enable support for LDAP.
+
+config BR2_PACKAGE_THINGINO_LIBCURL_LDAPS_SUPPORT
+	bool "LDAPS support"
+	help
+	  Enable support for LDAPS.
+
+config BR2_PACKAGE_THINGINO_LIBCURL_POP3_SUPPORT
+	bool "POP3 support"
+	help
+	  Enable support for POP3.
+
+config BR2_PACKAGE_THINGINO_LIBCURL_RTSP_SUPPORT
+	bool "RTSP support"
+	help
+	  Enable support for RTSP.
+
+config BR2_PACKAGE_THINGINO_LIBCURL_SMB_SUPPORT
+	bool "SMB/CIFS support"
+	help
+	  Enable support for SMB/CIFS.
+
+config BR2_PACKAGE_THINGINO_LIBCURL_SMTP_SUPPORT
+	bool "SMTP support"
+	help
+	  Enable support for SMTP.
+
+config BR2_PACKAGE_THINGINO_LIBCURL_TELNET_SUPPORT
+	bool "Telnet support"
+	help
+	  Enable support for telnet.
+
+config BR2_PACKAGE_THINGINO_LIBCURL_TFTP_SUPPORT
+	bool "TFTP support"
+	help
+	  Enable support for TFTP.
+
+# Packages must select that if they require a SSL/TLS-enabled libcurl.
+# Those packages must also select one crypto package that can be used
+# as a backend below.
+config BR2_PACKAGE_THINGINO_LIBCURL_FORCE_TLS
+	bool
+
+choice
+	prompt "SSL/TLS library to use"
+
+config BR2_PACKAGE_THINGINO_LIBCURL_OPENSSL
+	bool "OpenSSL"
+	depends on BR2_PACKAGE_OPENSSL
+
+config BR2_PACKAGE_THINGINO_LIBCURL_BEARSSL
+	bool "BearSSL"
+	depends on BR2_PACKAGE_BEARSSL
+
+config BR2_PACKAGE_THINGINO_LIBCURL_GNUTLS
+	bool "GnuTLS"
+	depends on BR2_PACKAGE_GNUTLS
+
+config BR2_PACKAGE_THINGINO_LIBCURL_MBEDTLS
+	bool "mbed TLS"
+	depends on BR2_PACKAGE_MBEDTLS
+
+config BR2_PACKAGE_THINGINO_LIBCURL_WOLFSSL
+	bool "WolfSSL"
+	depends on BR2_PACKAGE_WOLFSSL
+	depends on !BR2_STATIC_LIBS # wolfssl-all
+	select BR2_PACKAGE_WOLFSSL_ALL
+
+comment "WolfSSL needs a toolchain w/ dynamic library"
+	depends on BR2_PACKAGE_WOLFSSL
+	depends on BR2_STATIC_LIBS
+
+config BR2_PACKAGE_THINGINO_LIBCURL_TLS_NONE
+	bool "None"
+	depends on !BR2_PACKAGE_THINGINO_LIBCURL_FORCE_TLS
+
+endchoice
+
+endif
