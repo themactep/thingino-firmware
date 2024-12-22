@@ -1,0 +1,4 @@
+config BR2_PACKAGE_THINGINO_DIAG
+	bool "thingino-diag"
+	help
+          Installs userspace diagnostic utilities
