@@ -8,8 +8,8 @@ day_night_min=500
 disable_eth=false
 enable_updates=true
 gpio_default=18O 57o 58o
-gpio_ir940 50
+gpio_ir940=50
 gpio_ircut=57 58
-gpio_white 49
+gpio_white=49
 osmem=64M@0x0
 rmem=64M@0x4000000
