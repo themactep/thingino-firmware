@@ -9,13 +9,13 @@ UENV_FILE=$1
 CONFIG_HEADER=$2
 
 if [ ! -f "$UENV_FILE" ]; then
-	echo "Error: $UENV_FILE does not exist."
-	exit 1
+	echo "Error: $UENV_FILE does not exist, not patching."
+	exit 0
 fi
 
 if [ ! -f "$CONFIG_HEADER" ]; then
-	echo "Error: $CONFIG_HEADER does not exist."
-	exit 1
+	echo "Error: $CONFIG_HEADER does not exist, not patching."
+	exit 0
 fi
 
 # Create temporary file with exact format
