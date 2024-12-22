@@ -1,0 +1,4 @@
+config BR2_PACKAGE_THINGINO_MMC
+	bool "thingino-mmc"
+	help
+	  Enables MMC (Multi Media Card) and SDIO platform support package
