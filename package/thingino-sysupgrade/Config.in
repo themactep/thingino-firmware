@@ -1,0 +1,4 @@
+config BR2_PACKAGE_THINGINO_SYSUPGRADE
+	bool "thingino-sysupgrade"
+	help
+	  Enables FOTA (firmware-over-the-air) support package
