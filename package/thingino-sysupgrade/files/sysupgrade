@@ -179,7 +179,7 @@ stop_services() {
 }
 
 update_self() {
-	local GH_DL_URL="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/overlay/lower/usr/sbin/"
+	local GH_DL_URL="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/"
 	download "$GH_DL_URL$stage1app" "$workdir/$stage1app"
 	chmod +x $workdir/$stage1app
 	download "$GH_DL_URL$stage2app" "/sbin/$stage2app"
