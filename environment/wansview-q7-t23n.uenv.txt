@@ -1,0 +1,26 @@
+day_night_color=true
+day_night_ir850=false
+day_night_ir940=true
+day_night_ircut=true
+day_night_white=false
+day_night_max=15000
+day_night_min=500
+disable_eth=true
+enable_updates=true
+gpio_button=38
+gpio_default=6O 18O 38i 39O 40O 45o 46o 47o 49o 52o 53o 57o 58o 59o 61o 62o 63o 64o
+gpio_ir940=45
+gpio_ircut=57 58
+gpio_led_b=40
+gpio_led_r=46
+gpio_mmc_cd=50
+gpio_motor_h=49 63 62 61
+gpio_motor_v=52 53 64 59
+gpio_speaker=39o
+gpio_wlan=47o
+motor_maxstep_h=3700
+motor_maxstep_v=1000
+osmem=43520K@0x0
+rmem=22016K@0x2A80000
+wlandev=atbm6012bx
+wlandevopts=atbm_printk_mask=0
