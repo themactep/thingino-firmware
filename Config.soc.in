@@ -585,7 +585,7 @@ choice
         bool "128 MB"
 endchoice
 
-config BR2_GPIO_LIST
+config BR2_THINGINO_GPIO_LIST
 	string "GPIO Enable List"
 	help
 		Specify a comma-separated list of GPIOs to configure at boot. Each GPIO

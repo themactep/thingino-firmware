@@ -8,8 +8,8 @@ define THINGINO_GPIO_INSTALL_TARGET_CMDS
 endef
 
 define INSTALL_GPIO_CONF
-	if [ -n "$(BR2_GPIO_LIST)" ]; then \
-		echo "$(BR2_GPIO_LIST)" | tr ',' '\n' | while read gpio; do \
+	if [ -n "$(BR2_THINGINO_GPIO_LIST)" ]; then \
+		echo "$(BR2_THINGINO_GPIO_LIST)" | tr ',' '\n' | while read gpio; do \
 			num=$$(echo "$$gpio" | sed 's/[Oo]$$//'); \
 			if echo "$$gpio" | grep -q 'O$$'; then \
 				echo "$$num high" >> $(TARGET_DIR)/etc/gpio.conf; \
