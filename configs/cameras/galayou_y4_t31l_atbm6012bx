@@ -7,7 +7,7 @@ BR2_ISP_PARAMS="isp_ch0_pre_dequeue_time=24 isp_ch0_pre_dequeue_interrupt_proces
 BR2_MOTORS=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
-BR2_SDCARD=y
+BR2_THINGINO_SDCARD=y
 BR2_SENSOR_PARAMS="shvflip=1"
 FLASH_SIZE_8=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/galayou-y4-t31l-atbm6012bx.txt"

@@ -641,7 +641,7 @@ config BR2_MOTORS_SPI
 	help
 	  The camera has Pan/Tilt or Zoom motors using the ms419xx chip
 
-config BR2_SDCARD
+config BR2_THINGINO_SDCARD
 	bool "SD/MMC Card"
 	select BR2_PACKAGE_THINGINO_KOPT_MMC
 	help
