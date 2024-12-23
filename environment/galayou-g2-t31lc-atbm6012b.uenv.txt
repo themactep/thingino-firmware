@@ -21,5 +21,6 @@ motor_maxstep_v=770
 osmem=41836K@0x0
 rmem=23700K@0x28DB000
 wlandev=atbm6012b
+wlandevopts=atbm_printk_mask=0
 
 # 6O 7o 8O 9O 14i 17i 60O

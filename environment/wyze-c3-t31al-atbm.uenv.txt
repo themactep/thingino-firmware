@@ -20,3 +20,4 @@ gpio_mmc_power=48o
 gpio_speaker=63
 gpio_wlan=57O
 wlandev=atbm6031
+wlandevopts=atbm_printk_mask=0
