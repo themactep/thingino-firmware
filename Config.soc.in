@@ -647,7 +647,7 @@ config BR2_SDCARD
 	help
 	  The hardware has an SD/MMC card slot.
 
-config BR2_BUTTON
+config BR2_THINGINO_BUTTON
 	bool "Button Support"
 	select BR2_PACKAGE_THINGINO_BUTTON
 	help
