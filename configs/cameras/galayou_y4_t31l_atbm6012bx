@@ -1,6 +1,6 @@
 # NAME: Galayou Y4 (T31L, SC2336, ATBM6012BX)
 # MODULE: t31l_sc2336_atbm6012bx
-BR2_AUDIO=y
+BR2_THINGINO_AUDIO=y
 BR2_AVPU_VPLL=y
 BR2_BUTTON=y
 BR2_ISP_PARAMS="isp_ch0_pre_dequeue_time=24 isp_ch0_pre_dequeue_interrupt_process=0 isp_memopt=1"

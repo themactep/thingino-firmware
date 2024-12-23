@@ -601,16 +601,16 @@ config BR2_THINGINO_GPIO_LIST
 		The configuration is written to /etc/gpio.conf and applied at boot time
 		by the init script.
 
-config BR2_AUDIO
+config BR2_THINGINO_AUDIO
 	bool "Audio Support"
 	help
 	  Enable audio suport.
 	  The GPIO pin for enabling audio can be specified in the U-Boot environment
 	  using the "gpio_speaker" parameter. If not specified, the default value is "-1".
 
-config BR2_AUDIO_PARAMS
+config BR2_THINGINO_AUDIO_PARAMS
 	string "Audio Parameters"
-	depends on BR2_AUDIO
+	depends on BR2_THINGINO_AUDIO
 	help
 	  Specify additional parameters to pass when loading the audio kernel module.
 

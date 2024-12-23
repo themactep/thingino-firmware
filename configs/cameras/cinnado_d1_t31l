@@ -1,6 +1,6 @@
 # NAME: Cinnado D1 (T31L, SC2336, ATBM6031)
 # MODULE: t31l_sc2336_atbm6031
-BR2_AUDIO=y
+BR2_THINGINO_AUDIO=y
 BR2_AVPU_VPLL=y
 BR2_BUTTON=y
 BR2_ISP_PARAMS="isp_ch0_pre_dequeue_time=24 isp_ch0_pre_dequeue_interrupt_process=0"

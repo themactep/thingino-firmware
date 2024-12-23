@@ -1,7 +1,7 @@
 # NAME: Xiaomi HL-CAM04 (T31N, SC3335, ATBM6031)
 # MODULE: t31n_sc3335_atbm6031
-BR2_AUDIO=y
-BR2_AUDIO_PARAMS="alc_mode=0 mic_gain=0"
+BR2_THINGINO_AUDIO=y
+BR2_THINGINO_AUDIO_PARAMS="alc_mode=0 mic_gain=0"
 BR2_AVPU_CLK_500MHZ=y
 BR2_BUTTON=y
 BR2_ISP_PARAMS="isp_ch0_pre_dequeue_time=14 isp_ch0_pre_dequeue_interrupt_process=0 isp_ch0_pre_dequeue_valid_lines=540"

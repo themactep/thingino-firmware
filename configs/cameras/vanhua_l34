@@ -1,5 +1,5 @@
 # NAME: Vanhua L34 (T31L, GC2083, ETH)
 # MODULE: t31l_gc2083_eth
-BR2_AUDIO=y
+BR2_THINGINO_AUDIO=y
 FLASH_SIZE_8=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/vanhua-l34.uenv.txt"

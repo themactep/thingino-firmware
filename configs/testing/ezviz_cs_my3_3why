@@ -2,7 +2,7 @@
 # MODULE: t31x_jxq03_rtl8188ftv
 FLASH_SIZE_16=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/ezviz-cs-my3-3why.uenv.txt"
-BR2_AUDIO=y
+BR2_THINGINO_AUDIO=y
 BR2_MOTORS=y
 BR2_MOTORS_TCU=y
 BR2_SDCARD=y
