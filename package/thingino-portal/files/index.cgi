@@ -41,6 +41,11 @@ post_request_to_save() {
 	post_request && [ "save" = "$POST_mode" ]
 }
 
+set_error() {
+        error_message="$1"
+        POST_mode="edit"
+}
+
 if post_request_expired; then
 	http_header="HTTP/1.1 303 See Other"
 	http_redirect="Location: $SCRIPT_NAME"
@@ -56,6 +61,9 @@ elif post_request; then
 	wlanap_ssid="$POST_wlanap_ssid"
 	wlanpass="$POST_wlanpass"
 	wlanssid="$POST_wlanssid"
+
+        badchars=$(echo "$hostname" | sed 's/[0-9A-Z\.-]//ig')
+	[ -z "$badchars" ] || set_error "Hostname cannot contain $badchars"
 
 	if post_request_to_save; then
 		http_header="HTTP/1.1 303 See Other"
@@ -150,6 +158,9 @@ to it using your password <b><%= $wlanap_pass %></b>, then open the web interfac
 <% elif get_request || post_request_to_edit; then %>
 
 <p class="alert alert-warning text-center">Your MAC address is <% from_env "wlanmac" %></p>
+<% if [ -n "$error_message" ]; then %>
+<p class="alert alert-danger"><%= $error_message %></p>
+<% fi %>
 <form action="<%= $SCRIPT_NAME %>" method="post" class="my-3 needs-validation" novalidate style="max-width:26rem">
 <div class="mb-2">
 <label class="form-label">Hostname</label>
