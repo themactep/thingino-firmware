@@ -1,3 +1,4 @@
+# NAME: Teacup (T31ZX, IMX327, Ethernet)
 # MODULE: t31zx_imx327_eth
 BR2_AUDIO=y
 BR2_AVPU_VPLL=y

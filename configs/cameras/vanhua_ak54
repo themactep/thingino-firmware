@@ -1,3 +1,4 @@
+# NAME: Vanhua AK54 (T31N, GC2053, ETH)
 # MODULE: t31n_gc2053_eth
 BR2_AUDIO=y
 FLASH_SIZE_8=y

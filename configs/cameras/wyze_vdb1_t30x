@@ -1,3 +1,4 @@
+# NAME: Wyze Video Doorbell v1 (T30X, SC4236, RTL8189FTV)
 # MODULE: t30x_sc4236_rtl8189ftv
 BR2_AUDIO=y
 BR2_BUTTON=y

@@ -1,3 +1,4 @@
+# NAME: Wyze Cam Floodlight v1 (T31X, GC2053, ATBM6031)
 # MODULE: t31x_gc2053_atbm6031
 BR2_AUDIO=y
 BR2_AVPU_CLK_600MHZ=y

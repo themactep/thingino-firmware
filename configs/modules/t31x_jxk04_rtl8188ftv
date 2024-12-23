@@ -1,3 +1,4 @@
+# NAME: T31X, JXK04, RTL8188FTV
 # FRAG: soc toolchain ccache brand rootfs kernel system target uboot
 BR2_SOC_INGENIC_T31X=y
 BR2_SENSOR_JXK04=y

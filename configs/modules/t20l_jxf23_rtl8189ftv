@@ -1,3 +1,4 @@
+# NAME: T20L, JXF23, RTL8189FTV
 # FRAG: soc toolchain ccache brand rootfs kernel system target uboot
 BR2_SOC_INGENIC_T20L=y
 BR2_SENSOR_JXF23=y

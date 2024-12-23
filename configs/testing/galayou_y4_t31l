@@ -1,6 +1,5 @@
+# NAME: Galayou Y4 (T31L, SC2336, ATBM6032)
 # MODULE: t31l_sc2336_atbm6032
-FLASH_SIZE_8=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/galayou-y4-t31l.uenv.txt"
 BR2_AVPU_VPLL=y
 BR2_ISP_CLK_200MHZ=y
 BR2_ISP_PARAMS="isp_ch0_pre_dequeue_time=14 isp_ch0_pre_dequeue_interrupt_process=0"
@@ -14,3 +13,5 @@ BR2_PACKAGE_THINGINO_KOPT_MMC0=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0_1BIT=y
 BR2_PACKAGE_THINGINO_KOPT_MMC=y
 BR2_AUDIO_PARAMS="sign_mode=1"
+FLASH_SIZE_8=y
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/galayou-y4-t31l.uenv.txt"

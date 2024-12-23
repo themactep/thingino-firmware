@@ -1,3 +1,4 @@
+# NAME: Wyze Cam Pan v1 (T20X, JXF22, RTL8189ETV)
 # MODULE: t20x_jxf22_rtl8189etv
 BR2_AUDIO=y
 BR2_BUTTON=y

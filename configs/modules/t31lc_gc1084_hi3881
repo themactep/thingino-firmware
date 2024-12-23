@@ -1,3 +1,4 @@
+# NAME: T31LC, GC1084, HI3881
 # FRAG: soc toolchain ccache brand rootfs kernel system target uboot
 BR2_SOC_INGENIC_T31LC=y
 BR2_SENSOR_GC1084=y

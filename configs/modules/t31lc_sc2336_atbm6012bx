@@ -1,3 +1,4 @@
+# NAME: T31LC, SC2336, ATBM6012BX
 # FRAG: soc toolchain ccache brand rootfs kernel system target uboot
 BR2_SOC_INGENIC_T31LC=y
 BR2_SENSOR_SC2336=y

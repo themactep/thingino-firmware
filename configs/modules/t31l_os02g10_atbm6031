@@ -1,3 +1,4 @@
+# NAME: T31L, OS02G10, ATBM6031
 # FRAG: soc toolchain ccache brand rootfs kernel system target uboot
 BR2_SOC_INGENIC_T31L=y
 BR2_SENSOR_OS02G10=y

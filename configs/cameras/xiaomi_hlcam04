@@ -1,3 +1,4 @@
+# NAME: Xiaomi HL-CAM04 (T31N, SC3335, ATBM6031)
 # MODULE: t31n_sc3335_atbm6031
 BR2_AUDIO=y
 BR2_AUDIO_PARAMS="alc_mode=0 mic_gain=0"

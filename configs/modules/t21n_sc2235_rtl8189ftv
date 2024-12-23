@@ -1,3 +1,4 @@
+# NAME: T21N, SC2235, RTL8189FTV
 # FRAG: soc toolchain ccache brand rootfs kernel system target uboot
 BR2_SOC_INGENIC_T21N=y
 BR2_SENSOR_SC2235=y

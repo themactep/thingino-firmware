@@ -1,3 +1,4 @@
+# NAME: Jooan C9TS (T23N, SC2336P, ATBM6132BU)
 # FRAG_: soc toolchain ccache brand rootfs kernel system target uboot
 BR2_SOC_INGENIC_T23N=y
 BR2_SENSOR_SC2336P=y

@@ -1,3 +1,4 @@
+# NAME: Cinnado D1 T31L (T31L, SC2336, ATBM6031) with Kernel 4.4
 # MODULE: t31l_sc2336_atbm6031
 FLASH_SIZE_8=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/cinnado-d1-t31l.k4.uenv.txt"

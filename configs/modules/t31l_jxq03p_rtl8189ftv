@@ -1,3 +1,4 @@
+# NAME: T31L, JXQ03P, RTL8189FTV
 # FRAG: soc toolchain ccache brand rootfs kernel system target uboot
 BR2_SOC_INGENIC_T31L=y
 BR2_SENSOR_JXQ03P=y

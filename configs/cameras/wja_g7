@@ -1,3 +1,4 @@
+# NAME: WJA G7 (T31X, JXF37, Ethernet)
 # MODULE: t31x_jxf37_eth
 BR2_AUDIO=y
 BR2_BUTTON=y
