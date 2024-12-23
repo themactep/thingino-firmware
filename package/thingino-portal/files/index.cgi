@@ -42,8 +42,8 @@ post_request_to_save() {
 }
 
 set_error() {
-        error_message="$1"
-        POST_mode="edit"
+	error_message="$1"
+	POST_mode="edit"
 }
 
 if post_request_expired; then
