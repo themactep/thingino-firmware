@@ -619,7 +619,7 @@ config BR2_ETHERNET
 	help
 	  Enable Ethernet networking.
 
-config BR2_PWM_ENABLE
+config BR2_THINGINO_PWM_ENABLE
 	bool "PWM Support"
 	help
 	  Enable or Disable PWM support.

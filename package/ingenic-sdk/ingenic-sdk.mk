@@ -104,7 +104,7 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 		$(INSTALL) -m 755 -D $(INGENIC_SDK_PKGDIR)/files/speaker-ctrl $(TARGET_DIR)/usr/sbin/speaker-ctrl; \
 	fi
 
-	if [ "$(BR2_PWM_ENABLE)" = "y" ]; then \
+	if [ "$(BR2_THINGINO_PWM_ENABLE)" = "y" ]; then \
 		echo "pwm_core" >> $(TARGET_DIR)/etc/modules.d/pwm; \
 		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/pwm; \
 	fi
