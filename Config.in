@@ -37,7 +37,7 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_THINGINO_LIBCURL_OPENSSL if BR2_PACKAGE_OPENSSL
 	select BR2_PACKAGE_MBEDTLS
 	select BR2_PACKAGE_MBEDTLS_COMPRESSION
-	select BR2_PACKAGE_MOTORS if BR2_MOTORS
+	select BR2_PACKAGE_THINGINO_MOTORS if BR2_THINGINO_MOTORS
 	select BR2_PACKAGE_UBOOT_TOOLS
 	select BR2_PACKAGE_JSONFILTER
 	select BR2_PACKAGE_THINGINO_ETHERNET if BR2_ETHERNET
@@ -61,6 +61,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ethernet/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-gpio/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ledd/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libcurl/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-motors/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mmc/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-portal/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sounds/Config.in"
@@ -98,7 +99,6 @@ menu "Extra Packages"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/capjpeg/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/exfat-nofuse/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/jsonfilter/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/motors/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libschrift/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-tailscale/Config.in"

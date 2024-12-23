@@ -3,8 +3,8 @@
 BR2_THINGINO_AUDIO=y
 BR2_AVPU_VPLL=y
 BR2_THINGINO_BUTTON=y
-BR2_MOTORS=y
-BR2_MOTORS_TCU=y
+BR2_THINGINO_MOTORS=y
+BR2_THINGINO_MOTORS_TCU=y
 BR2_THINGINO_SDCARD=y
 BR2_ISP_CLK_200MHZ=y
 BR2_ISP_PARAMS="isp_ch0_pre_dequeue_time=14 isp_ch0_pre_dequeue_interrupt_process=0 isp_ch0_pre_dequeue_valid_lines=540 isp_memopt=1"

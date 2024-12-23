@@ -624,20 +624,20 @@ config BR2_PWM_ENABLE
 	help
 	  Enable or Disable PWM support.
 
-config BR2_MOTORS
+config BR2_THINGINO_MOTORS
 	bool "Pan/Tilt/Zoom Motors"
 	help
 	  The camera has Pan/Tilt or Zoom motors.
 
-config BR2_MOTORS_TCU
+config BR2_THINGINO_MOTORS_TCU
 	bool "Pan/Tilt Motors TCU"
-	depends on BR2_MOTORS
+	depends on BR2_THINGINO_MOTORS
 	help
 	  The camera has Pan/Tilt or Zoom motors using PWM/GPIO via TCU
 
-config BR2_MOTORS_SPI
+config BR2_THINGINO_MOTORS_SPI
 	bool "Pan/Tilt SPI using ms419xx"
-	depends on BR2_MOTORS
+	depends on BR2_THINGINO_MOTORS
 	help
 	  The camera has Pan/Tilt or Zoom motors using the ms419xx chip
 
