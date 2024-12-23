@@ -1,0 +1,18 @@
+Langshixing Electronic (Shenzhen)
+---------------------------------
+- http://secu365.cn/
+- https://langshixing.manufacturer.globalsources.com/
+
+also [Avstart](avstart.md), [Mubview](mubview.md)
+
+| FCC                             | Model      | SOC         | CMOS | RES | CODEC | SPI    | ETH | WIFI        | CELL     | SD | MIC | SPK |      BAT | PIR | PAN | TILT | IR LED | WHT | PWR | Link                                                                                                                           |
+|---------------------------------|------------|-------------|------|-----|-------|--------|-----|-------------|----------|----|-----|-----|---------:|-----|-----|------|--------|-----|-----|--------------------------------------------------------------------------------------------------------------------------------|
+| 2AA94CX20X                      | CX20X      | ?           |      |     |       | 25Q64  |     | RTL8188FTV  |          | +  |     |     |          |     |     |      |        |     |     |                                                                                                                                |
+| 2AA94PA201                      | PA201      | ?           |      |     |       | 25Q?   |     | RTL8188ETV  |          | +  |     |     |          |     | +   | +    |        |     |     |                                                                                                                                |
+| 2AYJNDF220                      | DF220      | T31LZ       |      |     |       | 25Q64  |     | Hi3861LV100 |          |    |     |     | 2600 mAh | +   |     |      |        |     |     |                                                                                                                                |
+| 2AYJNDX20X                      | DX20X      | T31ZL       |      |     |       | 25Q64  |     | Hi3861LV100 |          | +  |     |     | 4800 mAh | +   | +   | +    |        |     |     |                                                                                                                                |
+| 2AYJNFA201 (aka 2AXPNDS-30-008) | FA201      | Hi3518EV300 |      |     |       | 25Q128 |     | RTL8188FTV  |          | +  |     |     |          | +   |     |      |        |     |     |                                                                                                                                | 
+| 2AYJNLC323                      | LC323 (D6) | T31LC       |      |     |       | 25Q64  |     | RTL8188FTV  |          |    |     |     |          |     |     |      |        |     |     | https://mubview.com/en-ca/products/5g-2-4ghz-wifi-light-bulb-security-camera-wireless-outdoor-indoor-2k-bulb-camera-mubview-d6 |
+| 2AYJNSXXX0US                    |            | T31ZL       |      |     |       | 25Q64  |     |             | ASR1603S | +  |     |     | 4800 mAh |     | +   | +    |        |     |     |                                                                                                                                |
+| 2AYJNPK321                      | PK320      | T31L        |      |     |       | 25Q64  |     | RTL8188FTV  |          | +  |     |     |          |     | +   | +    |        |     |     | https://mubview.com/en-ca/products/q5-wireless-security-camera-pk320-wired-ptz-security-camera                                 |
+| 2AYJNQB320                      | QB320      | AK3918V330L |      |     |       | 25Q?   |     | RTL8188FTV  |          |    |     |     |          |     | +   | +    |        |     |     |                                                                                                                                |
