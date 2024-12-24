@@ -121,6 +121,7 @@ FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE)
 # dynamic partitions
 OVERLAY_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(OVERLAY_OFFSET))))
 OVERLAY_SIZE_NOBOOT = $(shell echo $$(($(FIRMWARE_NOBOOT_SIZE) - $(OVERLAY_OFFSET_NOBOOT))))
+OVERLAY_ERASEBLOCK_SIZE := $(shell echo $$(($(ALIGN_BLOCK) * 2)))
 OVERLAY_MINUMUM_SIZE := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
 
 # partition offsets
@@ -239,9 +240,10 @@ delete_bin_update:
 create_overlay: $(U_BOOT_BIN)
 	if [ $(OVERLAY_SIZE) -lt $(OVERLAY_MINUMUM_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
 	if [ -f $(OVERLAY_BIN) ]; then rm $(OVERLAY_BIN); fi
-	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --pad=$(OVERLAY_SIZE) \
-		--root=$(BR2_EXTERNAL)/overlay/upper/ --eraseblock=$(ALIGN_BLOCK) \
-		--output=$(OVERLAY_BIN) --squash
+	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --squash \
+		--root=$(BR2_EXTERNAL)/overlay/upper/ \
+		--eraseblock=$(OVERLAY_ERASEBLOCK_SIZE) \
+		--output=$(OVERLAY_BIN) --pad=$(OVERLAY_SIZE)
 
 pack: pack_full pack_update
 	@$(FIGLET) $(CAMERA)
