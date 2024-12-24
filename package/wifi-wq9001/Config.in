@@ -1,0 +1,8 @@
+config BR2_PACKAGE_WIFI_WQ9001
+	bool "WUQI WQ9001"
+	select BR2_LINUX_KERNEL
+	select BR2_PACKAGE_THINGINO_KOPT_DWC2
+	select BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
+	help
+	  WUQI Microelectronics WQ9001 wireless driver
+	  https://www.wuqi-micro.com/

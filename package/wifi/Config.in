@@ -44,4 +44,5 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-ssv615x/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-ssw101b/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-syn43436/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-syn43438/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi-wq9001/Config.in"
 endif
