@@ -4,7 +4,8 @@ HOSTS=/tmp/dnsd.conf
 
 cp /etc/dnsd-ap.conf ${HOSTS}
 hostname=$(fw_printenv -n hostname)
-grep $hostname ${HOSTS} > /dev/null || echo $(hostname).local $(hostname -i) >> ${HOSTS}
+ip=$(head -n 1 ${HOSTS} | cut -F 2)
+grep $hostname ${HOSTS} > /dev/null || echo $(hostname).local $ip >> ${HOSTS}
 
 dumpleases -f /run/udhcpd_ap.leases -d | grep -v "^Mac Address" |
 while read line; do
