@@ -1,0 +1,66 @@
+commit 5f6eabdb6666d914e0f8feb3facfa591dee75a1f
+Author: Tomas Paukrt <44699103+tpaukrt@users.noreply.github.com>
+Date:   Thu Nov 21 03:53:28 2024 +0100
+
+    pppd: Fix build without OpenSSL (#533)
+    
+    The symbol OPENSSL_VERSION_NUMBER is not defined when pppd is
+    compiled without OpenSSL support, so it evaluates to zero.
+    This results in the following linker error:
+    
+    crypto.c:241: undefined reference to `ERR_free_strings'
+    
+    Signed-off-by: Tomas Paukrt <tomaspaukrt@email.cz>
+
+diff --git a/pppd/crypto.c b/pppd/crypto.c
+index 3576afd..8e98261 100644
+--- a/pppd/crypto.c
++++ b/pppd/crypto.c
+@@ -43,7 +43,6 @@
+ #ifdef PPP_WITH_OPENSSL
+ #include <openssl/opensslv.h>
+ #include <openssl/err.h>
+-#endif
+ 
+ #if OPENSSL_VERSION_NUMBER >= 0x30000000L
+ #include <openssl/provider.h>
+@@ -53,6 +52,7 @@ struct crypto_ctx {
+     OSSL_PROVIDER *provider;
+ } g_crypto_ctx;
+ #endif
++#endif
+ 
+ PPP_MD_CTX *PPP_MD_CTX_new()
+ {
+@@ -200,6 +200,7 @@ int PPP_crypto_init()
+ {
+     int retval = 0;
+ 
++#ifdef PPP_WITH_OPENSSL
+ #if OPENSSL_VERSION_NUMBER >= 0x30000000L
+     g_crypto_ctx.legacy = OSSL_PROVIDER_load(NULL, "legacy");
+     if (g_crypto_ctx.legacy == NULL)
+@@ -214,6 +215,7 @@ int PPP_crypto_init()
+         PPP_crypto_error("Could not load default provider");
+         goto done;
+     }
++#endif
+ #endif
+ 
+     retval = 1;
+@@ -225,6 +227,7 @@ done:
+ 
+ int PPP_crypto_deinit()
+ {
++#ifdef PPP_WITH_OPENSSL
+ #if OPENSSL_VERSION_NUMBER >= 0x30000000L
+     if (g_crypto_ctx.legacy) {
+         OSSL_PROVIDER_unload(g_crypto_ctx.legacy);
+@@ -239,6 +242,7 @@ int PPP_crypto_deinit()
+ 
+ #if OPENSSL_VERSION_NUMBER < 0x10100000L
+     ERR_free_strings();
++#endif
+ #endif
+     return 1;
+ }

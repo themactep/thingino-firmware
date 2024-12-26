@@ -1,16 +1,15 @@
+# NAME: (T31X, GC2053, RTL8189FTV) with Kernel 4.4
 # FRAG: soc toolchain ccache brand rootfs kernel system target local
 BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE="$(BR2_EXTERNAL)/board/ingenic/xburst1/kernel/$(KERNEL_VERSION)/t31x.wyze_v3.config"
-
-
-BR2_SOC_INGENIC_T31X=y
-BR2_SENSOR_GC2053=y
+BR2_PACKAGE_E2FSPROGS=y
+BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_4_4=y
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_RTL8189FS=y
-KERNEL_VERSION_4=y
-BR2_TOOLCHAIN_EXTERNAL_URL="https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94/releases/download/4.4.latest/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz"
-# BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_3_10 is not set
-BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_4_4=y
+BR2_SENSOR_GC2053=y
+BR2_SOC_INGENIC_T31X=y
+#BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_3_10 is not set
 BR2_TOOLCHAIN_EXTERNAL_HEADERS_4_4=y
+BR2_TOOLCHAIN_EXTERNAL_URL="https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94/releases/download/4.4.latest/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz"
 BR2_TOOLCHAIN_USES_MUSL=y
 FLASH_SIZE_16=y
-BR2_PACKAGE_E2FSPROGS=y
+KERNEL_VERSION_4=y

@@ -1,3 +1,4 @@
+# NAME: (T31X, GC2053, RTL8189FTV) glibc
 BR2_mipsel=y
 BR2_mips_xburst=y
 # BR2_MIPS_SOFT_FLOAT is not set

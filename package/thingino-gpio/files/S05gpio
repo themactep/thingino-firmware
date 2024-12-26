@@ -4,6 +4,9 @@
 
 VALID_STATES="high low input"
 
+# TODO: Set the maximum GPIO number by SOC model
+MAX_GPIO=192
+
 start() {
 	while IFS= read -r line; do
 		# Skip empty lines and comments
@@ -12,12 +15,17 @@ start() {
 		# Extract fields and validate
 		set -- $line
 		gpionum=$1
-		state=$(echo "$2" | tr '[:upper:]' '[:lower:]')
+		state=$(echo "$2" | tr A-Z a-z)
 		case "$VALID_STATES" in
 			*"$state"*) : ;;
 			*) info "Invalid state: $state in line: $line"; return 1 ;;
 		esac
-		[ "$gpionum" -ge 0 ] && [ "$gpionum" -le 192 ] || { info "Invalid GPIO number: $gpionum in line: $line"; return 1; }
+
+		# pin is in valid range
+		if [ "$gpionum" -lt 0 ] || [ "$gpionum" -gt $MAX_GPIO ]; then
+			info "Invalid GPIO number: $gpionum in line: $line"
+			return 1
+		fi
 
 		run "gpio \"$state\" \"$gpionum\""
 		[ -n "$3" ] && info "Description: $3"

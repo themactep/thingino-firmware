@@ -1,16 +1,16 @@
+# NAME: (T31L, SC2336, ATBM6031) with Kernel 4.4
 # FRAG: soc toolchain ccache brand rootfs kernel system target local
 BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE="$(BR2_EXTERNAL)/board/ingenic/xburst1/kernel/$(KERNEL_VERSION)/t31l.cinnado_d1.config"
-
-BR2_SOC_INGENIC_T31L=y
-BR2_SENSOR_SC2336=y
+BR2_THINGINO_MOTORS=y
+BR2_THINGINO_MOTORS_TCU=y
+BR2_PACKAGE_E2FSPROGS=y
+#BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_3_10 is not set
+BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_4_4=y
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_ATBM6031=y
-KERNEL_VERSION_4=y
-BR2_TOOLCHAIN_EXTERNAL_URL="https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94/releases/download/4.4.latest/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz"
-# BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_3_10 is not set
-BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_4_4=y
+BR2_SENSOR_SC2336=y
+BR2_SOC_INGENIC_T31L=y
 BR2_TOOLCHAIN_EXTERNAL_HEADERS_4_4=y
+BR2_TOOLCHAIN_EXTERNAL_URL="https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94/releases/download/4.4.latest/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz"
 BR2_TOOLCHAIN_USES_MUSL=y
-BR2_MOTORS=y
-BR2_MOTORS_TCU=y
-BR2_PACKAGE_E2FSPROGS=y
+KERNEL_VERSION_4=y

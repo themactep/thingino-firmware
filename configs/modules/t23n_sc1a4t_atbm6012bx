@@ -1,3 +1,4 @@
+# NAME: T23N, SC1A4T, ATBM6012BX
 # FRAG: soc toolchain ccache brand rootfs kernel system target uboot
 BR2_SOC_INGENIC_T23N=y
 BR2_SENSOR_SC1A4T=y

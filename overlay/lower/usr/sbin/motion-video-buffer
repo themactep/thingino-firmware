@@ -1,0 +1,41 @@
+#!/bin/sh
+
+# WIP. DO NOT PORT ISSUES!
+
+plugin="motion-video"
+
+. /sbin/common-plugins
+
+tmpfile=/tmp/motion-video.tmp
+
+rtsp_username="thingino"
+rtsp_password="thingino"
+rtsp_width=640
+rtsp_height=360
+rtsp_fps=25
+clip_duration=5
+clip_format="-q"
+clip_name="/tmp/motion-video.mov"
+
+start() {
+	singleton
+	while :; do
+		openRTSP -u $rtsp_username $rtsp_password \
+			-w $rtsp_width -h $rtsp_height -f $rtsp_fps \
+			-d $clip_duration -v $clip_format -H \
+			-t rtsp://[::1]/ch1 > $tmpfile
+		mv -f $tmpfile $clip_name
+	done
+}
+
+stop() {
+	pid=$(pidof -o %PPID motion-video-buffer)
+	[ -z "$pid" ] || kill -9 $pid
+}
+
+case "$1" in
+	start|stop) $1 & ;;
+	*) die "Usage $0 <start|stop>" ;;
+esac
+
+exit 0

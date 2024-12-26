@@ -1,4 +1,4 @@
 config BR2_PACKAGE_THINGINO_SOUNDS
-	bool "Thingino Sounds"
+	bool "thingino-sounds"
 	help
-	  Sounds for thingino
+	  Base sound files for thingino devices

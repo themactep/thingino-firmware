@@ -5,7 +5,11 @@ page_title="Hostname"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	[ -z "$POST_hostname" ] && set_error_flag "Hostname cannot be empty"
+
+	# validate hostname as per RFC952, RFC1123
 	echo "$POST_hostname" | grep ' ' && set_error_flag "Hostname cannot contain whitespaces"
+	badchars=$(echo "$POST_hostname" | sed 's/[0-9A-Z\.-]//ig')
+	[ -z "$badchars" ] || set_error_flag "Hostname only allowed to contain alphabetic characters, numeric characters, hypen and period. Please get rid of this: ${badchars}"
 
 	if [ -z "$error" ]; then
 		hostname=$POST_hostname

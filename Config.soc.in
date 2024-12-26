@@ -585,7 +585,7 @@ choice
         bool "128 MB"
 endchoice
 
-config BR2_GPIO_LIST
+config BR2_THINGINO_GPIO_LIST
 	string "GPIO Enable List"
 	help
 		Specify a comma-separated list of GPIOs to configure at boot. Each GPIO
@@ -601,16 +601,16 @@ config BR2_GPIO_LIST
 		The configuration is written to /etc/gpio.conf and applied at boot time
 		by the init script.
 
-config BR2_AUDIO
+config BR2_THINGINO_AUDIO
 	bool "Audio Support"
 	help
 	  Enable audio suport.
 	  The GPIO pin for enabling audio can be specified in the U-Boot environment
 	  using the "gpio_speaker" parameter. If not specified, the default value is "-1".
 
-config BR2_AUDIO_PARAMS
+config BR2_THINGINO_AUDIO_PARAMS
 	string "Audio Parameters"
-	depends on BR2_AUDIO
+	depends on BR2_THINGINO_AUDIO
 	help
 	  Specify additional parameters to pass when loading the audio kernel module.
 
@@ -619,35 +619,35 @@ config BR2_ETHERNET
 	help
 	  Enable Ethernet networking.
 
-config BR2_PWM_ENABLE
+config BR2_THINGINO_PWM_ENABLE
 	bool "PWM Support"
 	help
 	  Enable or Disable PWM support.
 
-config BR2_MOTORS
+config BR2_THINGINO_MOTORS
 	bool "Pan/Tilt/Zoom Motors"
 	help
 	  The camera has Pan/Tilt or Zoom motors.
 
-config BR2_MOTORS_TCU
+config BR2_THINGINO_MOTORS_TCU
 	bool "Pan/Tilt Motors TCU"
-	depends on BR2_MOTORS
+	depends on BR2_THINGINO_MOTORS
 	help
 	  The camera has Pan/Tilt or Zoom motors using PWM/GPIO via TCU
 
-config BR2_MOTORS_SPI
+config BR2_THINGINO_MOTORS_SPI
 	bool "Pan/Tilt SPI using ms419xx"
-	depends on BR2_MOTORS
+	depends on BR2_THINGINO_MOTORS
 	help
 	  The camera has Pan/Tilt or Zoom motors using the ms419xx chip
 
-config BR2_SDCARD
+config BR2_THINGINO_SDCARD
 	bool "SD/MMC Card"
 	select BR2_PACKAGE_THINGINO_KOPT_MMC
 	help
 	  The hardware has an SD/MMC card slot.
 
-config BR2_BUTTON
+config BR2_THINGINO_BUTTON
 	bool "Button Support"
 	select BR2_PACKAGE_THINGINO_BUTTON
 	help

@@ -1,0 +1,11 @@
+config BR2_PACKAGE_THINGINO_MOTORS
+	bool "thingino-motors"
+	depends on BR2_THINGINO_MOTORS
+	select BR2_THINGINO_MOTORS_TCU if !BR2_THINGINO_MOTORS_MS419XX
+	help
+	  Userspace programs to manage motor hardware
+
+config BR2_PACKAGE_THINGINO_MOTORS_DW9714_ONLY
+    bool "DW9714 Focus Control"
+    help
+      Enable support for DW9714 VCM, includes control script

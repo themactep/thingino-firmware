@@ -71,7 +71,7 @@ define GENERATE_AUDIO_CONFIG
 				spk_gpio=$$gpio_speaker; \
 				spk_level=-1; \
 		fi; \
-		echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(BR2_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/audio; \
+		echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(BR2_THINGINO_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/audio; \
 	else \
 		echo "Skipping audio configuration: U_BOOT_ENV_TXT is empty or does not exist."; \
 	fi
@@ -97,14 +97,14 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 		echo "avpu $(AVPU_CLK_SRC) avpu_clk=$(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/avpu; \
 	fi
 
-	if [ "$(BR2_AUDIO)" = "y" ]; then \
+	if [ "$(BR2_THINGINO_AUDIO)" = "y" ]; then \
 		$(INSTALL) -m 644 -D $(@D)/config/webrtc_profile.ini $(TARGET_DIR)/etc/; \
 		$(GENERATE_AUDIO_CONFIG); \
 		$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/sbin; \
 		$(INSTALL) -m 755 -D $(INGENIC_SDK_PKGDIR)/files/speaker-ctrl $(TARGET_DIR)/usr/sbin/speaker-ctrl; \
 	fi
 
-	if [ "$(BR2_PWM_ENABLE)" = "y" ]; then \
+	if [ "$(BR2_THINGINO_PWM_ENABLE)" = "y" ]; then \
 		echo "pwm_core" >> $(TARGET_DIR)/etc/modules.d/pwm; \
 		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/pwm; \
 	fi

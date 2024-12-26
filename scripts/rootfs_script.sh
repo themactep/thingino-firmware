@@ -3,6 +3,7 @@
 # get image id from the path to output
 IMAGE_ID=$(echo $BR2_CONFIG | awk -F '/' '{print $(NF-1)}')
 HOSTNAME=$(echo $IMAGE_ID | awk -F '_' '{print $1 "-" $2}')
+BOOTLOADER=$(echo $BR2_TARGET_UBOOT_BOARDNAME | tr -d '"')
 
 cd $BR2_EXTERNAL
 GIT_BRANCH=$(git branch | grep ^* | awk '{print $2}')
@@ -31,6 +32,7 @@ sed 's/^/BUILDROOT_/' $FILE > $tmpfile
 	echo "ARCHITECTURE=mips"
 	echo "IMAGE_ID=${IMAGE_ID}"
 	echo "BUILD_ID=\"${BUILD_ID}\""
+	echo "BOOTLOADER=$BOOTLOADER"
 	echo "HOSTNAME=ing-${HOSTNAME}"
 	date +TIME_STAMP=%s
 	cat $tmpfile
