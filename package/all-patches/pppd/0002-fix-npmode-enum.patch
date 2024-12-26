@@ -1,0 +1,25 @@
+diff --git a/pppd/sys-linux.c b/pppd/sys-linux.c
+index b497231..7512fcb 100644
+--- a/pppd/sys-linux.c
++++ b/pppd/sys-linux.c
+@@ -126,6 +126,7 @@
+ #include <netinet/in.h>
+ #include <arpa/inet.h>
+ 
++#include <linux/ppp_defs.h>
+ #include <linux/ppp-ioctl.h>
+ 
+ #include <linux/netlink.h>
+
+diff --git a/pppd/plugins/pppol2tp/pppol2tp.c b/pppd/plugins/pppol2tp/pppol2tp.c
+index 3b9737e..4660b63 100644
+--- a/pppd/plugins/pppol2tp/pppol2tp.c
++++ b/pppd/plugins/pppol2tp/pppol2tp.c
+@@ -38,6 +38,7 @@
+ 
+ #include <linux/version.h>
+ #include <linux/sockios.h>
++#include <linux/ppp_defs.h>
+ #include <linux/ppp-ioctl.h>
+ 
+ #ifndef aligned_u64
