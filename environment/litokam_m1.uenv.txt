@@ -1,5 +1,5 @@
-mem=42M@0x0
-rmem=22M@0x2a00000
+osmem=39M@0x0
+rmem=25M@0x2700000
 disable_eth=true
 enable_updates=true
 gpio_button=18
