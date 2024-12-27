@@ -25,6 +25,7 @@ start() {
 		wpa_passphrase "$ssid" "$pass" > $tmpfile
 		pass=$(grep '^\s*psk=' $tmpfile | cut -d= -f2 | tail -n 1)
 		fw_setenv wlanpass $pass
+		rm -f $tmpfile
 	fi
 
 	iface_exists "wlan0" || quit "No wireless interface"
