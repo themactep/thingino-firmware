@@ -54,11 +54,11 @@ start() {
 # FIXME: $0 does not work here
 stop() {
 	stopping
-	pid=$(pidof -o %PPID -s S96videocache)
+	pid=$(pidof -o %PPID -s S96vbuffer)
 	[ -z "$pid" ] && quit "Nothing to stop"
 	while [ -n "$pid" ]; do
 		kill -9 $pid > /dev/null
-		pid=$(pidof -o %PPID -s S96videocache)
+		pid=$(pidof -o %PPID -s S96vbuffer)
 	done
 	rm -f $clipfile $lockfile
 	inotifyd rmlater $tmpfile
