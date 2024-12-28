@@ -1,0 +1,82 @@
+#!/bin/sh
+
+plugin="vbuffer"
+
+. /sbin/common
+. /etc/init.d/rc.common
+
+# "parameter" "default"
+read_config() {
+	sed -nE "s/^.*$1\s*[:=]\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
+	[ -z $_ ] || echo $2
+}
+
+# "parameter" "default"
+read_logcat() {
+	logcat | grep 'VBMCreatePool()-1: w=' | head -1 | awk -F '[= ]' "{print \$$1}"
+	[ -z $_ ] || echo $2
+}
+
+rtsp_username=$(read_config "username" "thingino")
+rtsp_password=$(read_config "password" "thingino")
+rtsp_width=$(read_logcat "5" "640")
+rtsp_height=$(read_logcat "7" "360")
+rtsp_fps=25
+clip_duration=5
+clip_format="-q"
+clipfile="/tmp/$plugin.mov"
+lockfile=/tmp/$plugin.lock
+tmpfile=/tmp/$plugin.tmp
+
+start() {
+	starting
+	# FIXME: hangs on start, probably conflict in sourced files
+#	singleton
+	command -v openRTSP >/dev/null || die "openRTSP not found"
+	[ "true" = $(prudyntcfg get motion.enabled) ] || die "Motion guard is not enabled"
+	ok
+
+	while : ; do
+		openRTSP -V -u $rtsp_username $rtsp_password \
+			-w $rtsp_width -h $rtsp_height -f $rtsp_fps \
+			-d $clip_duration -v $clip_format -H \
+			-t rtsp://[::1]/ch1 > "$tmpfile" 2>/dev/null
+		while [ -f "$lockfile" ]; do
+			age=$(( $(date +%s) - $(date +%s -r "$lockfile") ))
+			[ $age -gt 100 ] && rm "$lockfile"
+			echo -n "."
+			sleep 1
+		done
+		mv -f "$tmpfile" "$clipfile"
+	done &
+}
+
+# FIXME: $0 does not work here
+stop() {
+	stopping
+	pid=$(pidof -o %PPID -s S96videocache)
+	[ -z "$pid" ] && quit "Nothing to stop"
+	while [ -n "$pid" ]; do
+		kill -9 $pid > /dev/null
+		pid=$(pidof -o %PPID -s S96videocache)
+	done
+	rm -f $clipfile $lockfile
+	inotifyd rmlater $tmpfile
+	ok
+}
+
+case "$1" in
+	start|stop)
+		$1
+		;;
+	restart)
+		stop || true
+		sleep 1
+		start
+		;;
+	*)
+		die "Usage $0 <start|stop>"
+		;;
+esac
+
+exit 0
