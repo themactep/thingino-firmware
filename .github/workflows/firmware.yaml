@@ -71,6 +71,28 @@ jobs:
           ref: "master"
           fetch-depth: "1"
 
+      - name: Create release tag
+        continue-on-error: true
+        run: |
+          TAG_NAME="${{ env.TAG_NAME }}"
+          if ! gh api repos/${{ github.repository }}/git/ref/tags/$TAG_NAME &>/dev/null; then
+            git tag "$TAG_NAME"
+            git push origin "$TAG_NAME"
+          else
+            echo "Tag $TAG_NAME already exists."
+          fi
+
+      - name: Create release
+        continue-on-error: true
+        run: |
+          TAG_NAME="${{ env.TAG_NAME }}"
+          if ! gh release view "$TAG_NAME" --repo "${{ github.repository }}" &>/dev/null; then
+            echo "Release $TAG_NAME does not exist. Creating pre-release."
+            gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "pre-release: \`\`\`$TAG_NAME\`\`\` is currently being built, please wait..." --prerelease
+            else
+            echo "Release $TAG_NAME already exists."
+          fi
+
       - name: Send build start notifcation via Telegram
         if: env.TG_DISABLED == 'false'
         run: |
@@ -276,28 +298,6 @@ jobs:
             ${{ env.FULL_FW_SHA }}
             ${{ env.UPDATE_FW }}
             ${{ env.UPDATE_FW_SHA }}
-
-      - name: Create release tag
-        continue-on-error: true
-        run: |
-          TAG_NAME="${{ env.TAG_NAME }}"
-          if ! gh api repos/${{ github.repository }}/git/ref/tags/$TAG_NAME &>/dev/null; then
-            git tag "$TAG_NAME"
-            git push origin "$TAG_NAME"
-          else
-            echo "Tag $TAG_NAME already exists."
-          fi
-
-      - name: Create release
-        continue-on-error: true
-        run: |
-          TAG_NAME="${{ env.TAG_NAME }}"
-          if ! gh release view "$TAG_NAME" --repo "${{ github.repository }}" &>/dev/null; then
-            echo "Release $TAG_NAME does not exist. Creating pre-release."
-            gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "pre-release: \`\`\`$TAG_NAME\`\`\` is currently being built, please wait..." --prerelease  
-            else
-            echo "Release $TAG_NAME already exists."
-          fi
 
       - name: Upload ${{ matrix.thingino-version }} to release
         uses: softprops/action-gh-release@v2.1.0
