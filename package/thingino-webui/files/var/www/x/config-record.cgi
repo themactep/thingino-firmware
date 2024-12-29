@@ -61,6 +61,7 @@ fi
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <% field_select "record_mount" "Record storage directory" "$MOUNTS" %>
+<p><a href="tool-file-manager.cgi?cd=/mnt" id="link-fm">Open in File Manager</a></p>
 <div class="row g-1">
 <div class="col-9"><% field_text "record_filename" "File name template" "$STR_SUPPORTS_STRFTIME" %></div>
 <div class="col-3"><% field_select "record_videoformat" "Format" "mov, mp4" "also extention" %></div>
@@ -92,5 +93,11 @@ fi
 <h4 class="mb-3">Debug info</h4>
 <% ex "cat $config_file" %>
 </div>
+
+<script>
+$('#link-fm').addEventListener('click', ev => {
+	ev.target.href = 'tool-file-manager.cgi?cd=' + $('#record_mount').value
+})
+</script>
 
 <%in _footer.cgi %>
