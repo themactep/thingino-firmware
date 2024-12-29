@@ -5,7 +5,7 @@
 
 target=$GET_to
 case "$target" in
-	email | ftp | mqtt | send2telegram | webhook | yadisk)
+	email | ftp | mqtt | telegram | webhook | yadisk)
 		send2$target $opts >/dev/null &
 		json_ok "Sent to $target"
 		;;
