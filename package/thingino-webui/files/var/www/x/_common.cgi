@@ -628,7 +628,7 @@ update_caminfo() {
 	soc_model=$(soc -m)
 
 	# Firmware
-	uboot_version=$(get ver)
+	uboot_version=$(fw_printenv -n ver)
 	default_for uboot_version $(strings /dev/mtdblock0 | grep '^U-Boot \d' | head -1)
 	fw_version=$(grep "^VERSION" /etc/os-release | cut -d= -f2 | tr -d /\"/)
 	fw_build=$(grep "^GITHUB_VERSION" /etc/os-release | cut -d= -f2 | tr -d /\"/)
@@ -652,7 +652,7 @@ update_caminfo() {
 		network_gateway=$(ip r | sed -nE "/default/s/.+ via ([0-9\.]+).+?/\1/p")
 	else
 		network_default_interface=$(ip r | sed -nE 's/.+dev (\w+).+?/\1/p' | head -n 1)
-		network_gateway="" # $(get gatewayip) # FIXME: Why do we need this?
+		network_gateway="" # $(fw_printenv -n gatewayip) # FIXME: Why do we need this?
 	fi
 	network_macaddr=$(cat /sys/class/net/$network_default_interface/address)
 	network_address=$(ip r | sed -nE "/$network_default_interface/s/.+src ([0-9\.]+).+?/\1/p" | uniq)
@@ -708,7 +708,7 @@ include() {
 }
 
 # read from env
-wlanap_enabled=$(get wlanap_enabled)
+wlanap_enabled=$(fw_printenv -n wlanap_enabled)
 
 read_from_env "day_night"
 

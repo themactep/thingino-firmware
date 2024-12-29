@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # read IRCUT pins from bootloader environment
-gpio_ircut=$(get gpio_ircut)
+gpio_ircut=$(fw_printenv -n gpio_ircut)
 pin1=$(echo $gpio_ircut | awk '{print $1}')
 pin2=$(echo $gpio_ircut | awk '{print $2}')
 

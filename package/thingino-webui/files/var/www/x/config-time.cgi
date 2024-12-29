@@ -90,7 +90,7 @@ done; unset i; unset x
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "get timezone" %>
+<% ex "fw_printenv -n timezone" %>
 <% ex "cat /etc/timezone" %>
 <% ex "cat /etc/TZ" %>
 <% ex "echo \$TZ" %>

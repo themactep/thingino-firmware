@@ -91,7 +91,7 @@ touch $RECORD_FLAG
 
 # FIXME: disable LED until LEDD is ready
 #if [ -n "$record_led" ]; then
-#	record_led_pin=$(get $record_led | sed s/[^0-9]//g)
+#	record_led_pin=$(fw_printenv -n $record_led | sed s/[^0-9]//g)
 #	if [ -n "$record_led_pin" ]; then
 #		LEDD_FLAG="/run/ledd/$record_led_pin"
 #		echo "${record_blink:-1}" > $LEDD_FLAG

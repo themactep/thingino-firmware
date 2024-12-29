@@ -23,7 +23,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	fi
 fi
 
-hostname=$(get hostname)
+hostname=$(fw_printenv -n hostname)
 default_for hostname "thingino-"
 %>
 <%in _header.cgi %>

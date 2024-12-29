@@ -56,9 +56,9 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 fi
 
 # read data from env
-wlan_mac="$(get wlanmac)"
-wlan_pass="$(get wlanpass)"
-wlan_ssid="$(get wlanssid)"
+wlan_mac="$(fw_printenv -n wlanmac)"
+wlan_pass="$(fw_printenv -n wlanpass)"
+wlan_ssid="$(fw_printenv -n wlanssid)"
 read_from_env "wlanap"
 
 # defaults
