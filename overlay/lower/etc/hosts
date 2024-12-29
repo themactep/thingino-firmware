@@ -6,3 +6,6 @@ ff02::2		ip6-allrouters
 
 # ipv4
 127.0.0.1	localhost
+
+# telegram
+149.154.167.220  api.telegram.org
