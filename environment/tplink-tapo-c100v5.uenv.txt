@@ -19,4 +19,4 @@ gpio_white=50o
 gpio_wlan=51
 pwm_ch_ir850=0
 pwm_ch_white=1
-wlandev=hawk_usb
+wlandev=wq9001
