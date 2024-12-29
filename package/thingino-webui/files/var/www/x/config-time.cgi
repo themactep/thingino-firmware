@@ -4,7 +4,7 @@
 plugin="time"
 page_title="Time"
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/time.conf"
 include $config_file
 
 ntpd_static_config=/etc/default/ntp.conf

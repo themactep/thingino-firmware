@@ -5,11 +5,11 @@ plugin="admin"
 page_title="Admin profile"
 params="name email telegram discord"
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/admin.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "$plugin" "$params"
+	read_from_post "admin" "$params"
 
 	# add @ to Discord and Telegram usernames, if missed
 	[ -n "$admin_discord" ] && [ "${admin_discord:0:1}" != "@" ] && admin_discord="@$admin_discord"
@@ -18,7 +18,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp -u)
 		for p in $params; do
-			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
+			echo "admin_$p=\"$(eval echo \$admin_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 
