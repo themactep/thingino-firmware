@@ -9,6 +9,9 @@ net_dev="wlan0"  # default device
 if [ "$(fw_printenv -n wlandev)" = "hi3881" ]; then
 	net_dev="ap0"
 	sed -i 's/wlan0/ap0/g' /etc/udhcpd-portal.conf
+elif [ "$(fw_printenv -n wlandev)" = "wq9001" ]; then
+	net_dev="wlan1"
+	sed -i 's/wlan0/wlan1/g' /etc/udhcpd-portal.conf
 fi
 
 timeout() {
