@@ -9,3 +9,4 @@ ff02::2		ip6-allrouters
 
 # telegram
 149.154.167.220  api.telegram.org
+2001:67c:4e8:f004::9  api.telegram.org
