@@ -7,17 +7,17 @@ page_title="Motors"
 
 # read data from env
 # fw_printenv | grep -E '(motor|homing)' | xargs -i eval '{}'
-gpio_motor_h=$(get gpio_motor_h)
-gpio_motor_v=$(get gpio_motor_v)
-motor_maxstep_h=$(get motor_maxstep_h)
-motor_maxstep_v=$(get motor_maxstep_v)
-motor_speed_h=$(get motor_speed_h)
-motor_speed_v=$(get motor_speed_v)
-motor_pos_0=$(get motor_pos_0)
-disable_homing=$(get disable_homing)
+gpio_motor_h=$(fw_printenv -n gpio_motor_h)
+gpio_motor_v=$(fw_printenv -n gpio_motor_v)
+motor_maxstep_h=$(fw_printenv -n motor_maxstep_h)
+motor_maxstep_v=$(fw_printenv -n motor_maxstep_v)
+motor_speed_h=$(fw_printenv -n motor_speed_h)
+motor_speed_v=$(fw_printenv -n motor_speed_v)
+motor_pos_0=$(fw_printenv -n motor_pos_0)
+disable_homing=$(fw_printenv -n disable_homing)
 
 # FIXME: deprecate after splitting to per-motor
-motor_speed=$(get motor_speed)
+motor_speed=$(fw_printenv -n motor_speed)
 default_for motor_speed_h $motor_speed
 default_for motor_speed_v $motor_speed
 

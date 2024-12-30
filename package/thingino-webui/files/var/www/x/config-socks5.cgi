@@ -5,13 +5,13 @@ plugin="socks5"
 page_title="SOCKS5 proxy"
 params="enabled host port username password"
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/socks5.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	tmp_file=$(mktemp)
 	for v in $params; do
-		eval echo "${plugin}_$v=\\\"\$POST_${plugin}_$v\\\"" >>$tmp_file
+		eval echo "socks5_$v=\\\"\$POST_socks5_$v\\\"" >>$tmp_file
 	done
 	mv $tmp_file $config_file
 	redirect_to $SCRIPT_NAME

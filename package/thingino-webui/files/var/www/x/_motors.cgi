@@ -24,8 +24,8 @@ function runMotorCmd(args) {
 }
 
 function moveMotor(dir, steps = 100, d = 'g') {
-	const x_max=<% echo -n $(get motor_maxstep_h) %>;
-	const y_max=<% echo -n $(get motor_maxstep_v) %>;
+	const x_max=<% echo -n $(fw_printenv -n motor_maxstep_h) %>;
+	const y_max=<% echo -n $(fw_printenv -n motor_maxstep_v) %>;
 	const step = x_max / steps;
 	if (dir == 'homing') {
 		runMotorCmd("d=r");

@@ -167,6 +167,10 @@ body:before {
 	filter: grayscale(1) contrast(100) brightness(1)
 }
 
+.icon-sm {
+	max-width: 1.5rem;
+}
+
 .input-color {
 	height: 2.4rem;
 }

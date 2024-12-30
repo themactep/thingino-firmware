@@ -1,11 +1,13 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
+. ./_json.sh
+
 target=$GET_to
 case "$target" in
 	email | ftp | mqtt | telegram | webhook | yadisk)
-		send2$target $opts >/dev/null
-		redirect_back "success" "Sent to $target"
+		send2$target $opts >/dev/null &
+		json_ok "Sent to $target"
 		;;
 	termbin)
 		case $GET_file in

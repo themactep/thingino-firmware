@@ -19,7 +19,7 @@ generate() {
 
 restore() {
 	info "Restore the dropbear key"
-	run "echo $backup | base64 -d | gzip -d > $DATA_FILE"
+	run "echo $backup | base64 -d > $DATA_FILE"
 	read_file
 }
 
@@ -32,7 +32,7 @@ read_env() {
 read_file() {
 	if [ -f "$DATA_FILE" ]; then
 		info "Read dropbear key from file"
-		b64=$(gzip -c $DATA_FILE | base64 | tr -d '\n')
+		b64=$(echo $DATA_FILE | base64 | tr -d '\n')
 	fi
 	[ -z "$b64" ] && info "No dropbear key in file"
 }

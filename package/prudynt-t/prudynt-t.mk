@@ -58,7 +58,9 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	sed -i 's/;.*$$/;/' $(TARGET_DIR)/etc/prudynt.cfg
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S95prudynt $(TARGET_DIR)/etc/init.d/S95prudynt
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S96record $(TARGET_DIR)/etc/init.d/S96record
+	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S96vbuffer $(TARGET_DIR)/etc/init.d/S96vbuffer
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/record $(TARGET_DIR)/usr/sbin/record
+	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/rmlater $(TARGET_DIR)/usr/sbin/rmlater
 	$(INSTALL) -d -m 0755 $(TARGET_DIR)/usr/share/images
 	$(INSTALL) -m 0644 -D $(@D)/res/thingino_logo_1.bgra $(TARGET_DIR)/usr/share/images/thingino_logo_1.bgra
 	$(INSTALL) -m 0644 -D $(@D)/res/thingino_logo_2.bgra $(TARGET_DIR)/usr/share/images/thingino_logo_2.bgra

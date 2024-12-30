@@ -6,12 +6,12 @@
 
 case "$type" in
 	ir850 | ir940 | white)
-		pin=$(get gpio_$type)
+		pin=$(fw_printenv -n gpio_$type)
 		;;
 	*)
 		# select first non-empty pin of available
 		for type in ir850 ir940 white; do
-			pin=$(get gpio_$type)
+			pin=$(fw_printenv -n gpio_$type)
 			[ -n "$pin" ] && break
 		done
 		# set most common type for error message below
