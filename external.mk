@@ -1,5 +1,9 @@
 $(info --- FILE: external.mk ---)
 
+SIZE_32M := 33554432
+SIZE_16M := 16777216
+SIZE_8M := 8388608
+
 ifeq ($(BR2_SOC_INGENIC_DUMMY),y)
 	SOC_MODEL := t31x
 	SOC_RAM := 128
