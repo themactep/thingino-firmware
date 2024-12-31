@@ -1,11 +1,15 @@
 WIFI_RTL8189FS_SITE_METHOD = git
 ifeq ($(LINUX_VERSION_4_4),y)
-WIFI_RTL8189FS_SITE = https://github.com/jwrdegoede/rtl8189ES_linux
+    WIFI_RTL8189FS_SITE = https://github.com/jwrdegoede/rtl8189ES_linux
+    WIFI_RTL8189FS_SITE_BRANCH = rtl8189fs
+    WIFI_RTL8189FS_VERSION = 52d418e3df1bd81fc61fd21f51d744cb956a79b2
+    # $(shell git ls-remote $(WIFI_RTL8189FS_SITE) $(WIFI_RTL8189FS_SITE_BRANCH) | head -1 | cut -f1)
 else
-WIFI_RTL8189FS_SITE = https://github.com/openipc/realtek-wlan
+    WIFI_RTL8189FS_SITE = https://github.com/openipc/realtek-wlan
+    WIFI_RTL8189FS_SITE_BRANCH = rtl8189fs
+    WIFI_RTL8189FS_VERSION = f0a677fd13944f5f6a8d256c29a46b301084121e
+    # $(shell git ls-remote $(WIFI_RTL8189FS_SITE) $(WIFI_RTL8189FS_SITE_BRANCH) | head -1 | cut -f1)
 endif
-WIFI_RTL8189FS_SITE_BRANCH = rtl8189fs
-WIFI_RTL8189FS_VERSION = $(shell git ls-remote $(WIFI_RTL8189FS_SITE) $(WIFI_RTL8189FS_SITE_BRANCH) | head -1 | cut -f1)
 
 WIFI_RTL8189FS_LICENSE = GPL-2.0
 WIFI_RTL8189FS_LICENSE_FILES = COPYING
