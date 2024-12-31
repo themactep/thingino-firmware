@@ -6,11 +6,15 @@ ifeq ($(__BASH_MAKE_COMPLETION__),1)
 endif
 
 ifneq ($(shell command -v gawk >/dev/null; echo $$?),0)
-$(error Please run `make bootstrap` to install prerequisites.)
+$(error Please install gawk)
+endif
+
+ifneq ($(shell command -v mkimage >/dev/null; echo $$?),0)
+$(error Please install mkimage from u-boot-tools)
 endif
 
 ifneq ($(findstring $(empty) $(empty),$(CURDIR)),)
-$(error Current directory path "$(CURDIR)" contains spaces. Please remove spaces from the path and try again.)
+$(error Current directory path "$(CURDIR)" cannot contain spaces)
 endif
 
 # Camera IP address
@@ -146,7 +150,7 @@ update:
 	git pull --rebase --autostash
 	git submodule update
 
-# install prerequisites
+# install what's needed
 bootstrap:
 	$(SCRIPTS_DIR)/dep_check.sh
 
@@ -207,14 +211,14 @@ defconfig: prepare_config
 select-device:
 	$(info -------------------> select-device)
 
-# Call configurator UI
+# configurator UI
 menuconfig: $(OUTPUT_DIR)/.config
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) menuconfig
 
 nconfig: $(OUTPUT_DIR)/.config
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) nconfig
 
-# Permanently save changes to the defconfig
+# permanently save changes to the defconfig
 saveconfig:
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) savedefconfig
 
@@ -283,10 +287,11 @@ source: defconfig
 toolchain: defconfig
 	$(BR2_MAKE) sdk
 
+# flash compiled update image to the camera
 update_ota: $(FIRMWARE_BIN_NOBOOT)
 	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_NOBOOT) $(CAMERA_IP_ADDRESS)
 
-# upgrade firmware using /tmp/ directory of the camera
+# flash compiled full image to the camera
 upgrade_ota: $(FIRMWARE_BIN_FULL)
 	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_FULL) $(CAMERA_IP_ADDRESS)
 
