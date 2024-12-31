@@ -620,40 +620,34 @@ else ifeq ($(BR2_SOC_INGENIC_T41),y)
 endif
 
 ifeq ($(FLASH_SIZE_8),y)
-	$(info FLASH_SIZE_8=$(FLASH_SIZE_8))
 	FLASH_SIZE := $(SIZE_8M)
 else ifeq ($(FLASH_SIZE_16),y)
-	$(info FLASH_SIZE_16=$(FLASH_SIZE_16))
 	FLASH_SIZE := $(SIZE_16M)
 else ifeq ($(FLASH_SIZE_32),y)
-	$(info FLASH_SIZE_32=$(FLASH_SIZE_32))
 	FLASH_SIZE := $(SIZE_32M)
 else
 	FLASH_SIZE := $(SIZE_8M)
 endif
+
 $(info FLASH_SIZE=$(FLASH_SIZE))
 
 ifeq ($(BR2_XBURST_1),y)
-	$(info Building for XBURST 1 architecture)
 	INGENIC_ARCH := xburst1
 else ifeq ($(BR2_XBURST_2),y)
-	$(info Building for XBURST 2 architecture)
 	INGENIC_ARCH := xburst2
 endif
+$(info Building for architecture $(INGENIC_ARCH))
 
 # default to older kernel if none set
 ifneq ($(KERNEL_VERSION_3)$(KERNEL_VERSION_4),y)
-	$(info Defaulting to kernel 3.x)
 	KERNEL_VERSION_3 := y
 endif
 
 ifeq ($(KERNEL_VERSION_3),y)
-	$(info Building for kernel 3.x)
 	KERNEL_VERSION := 3.10
 	KERNEL_SITE = https://github.com/gtxaspec/thingino-linux
 	KERNEL_BRANCH := ingenic-t31
 else ifeq ($(KERNEL_VERSION_4),y)
-	$(info Building for kernel 4.x)
 	KERNEL_VERSION := 4.4
 
 	ifeq ($(BR2_SOC_INGENIC_T40),y)
