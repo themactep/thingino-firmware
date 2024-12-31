@@ -32,7 +32,7 @@ read_env() {
 read_file() {
 	if [ -f "$DATA_FILE" ]; then
 		info "Read dropbear key from file"
-		b64=$(echo $DATA_FILE | base64 | tr -d '\n')
+		b64=$(cat $DATA_FILE | base64 | tr -d '\n')
 	fi
 	[ -z "$b64" ] && info "No dropbear key in file"
 }
