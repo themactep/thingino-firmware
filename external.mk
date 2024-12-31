@@ -1,219 +1,221 @@
 $(info --- FILE: external.mk ---)
 
 ifeq ($(BR2_SOC_INGENIC_DUMMY),y)
-SOC_MODEL := t31x
-BR2_SOC_INGENIC_T31=y
-UBOOT_BOARDNAME := "isvp_t31_sfcnor_ddr128M"
+	SOC_MODEL := t31x
+	SOC_RAM := 128
+	BR2_SOC_INGENIC_T31 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t31_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T10L),y)
-SOC_MODEL := t10l
-SOC_RAM := 64
-BR2_SOC_INGENIC_T10 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t10_sfcnor_lite"
+	SOC_MODEL := t10l
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T10 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t10_sfcnor_lite"
 else ifeq ($(BR2_SOC_INGENIC_T10N),y)
-SOC_MODEL := t10n
-SOC_RAM := 64
-BR2_SOC_INGENIC_T10 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t10_sfcnor"
+	SOC_MODEL := t10n
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T10 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t10_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T10A),y)
-SOC_MODEL := t10a
-SOC_RAM := 64
-BR2_SOC_INGENIC_T10 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t10_sfcnor"
+	SOC_MODEL := t10a
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T10 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t10_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T20L),y)
-SOC_MODEL := t20l
-SOC_RAM := 64
-BR2_SOC_INGENIC_T20 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t20_sfcnor_lite"
+	SOC_MODEL := t20l
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T20 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t20_sfcnor_lite"
 else ifeq ($(BR2_SOC_INGENIC_T20N),y)
-SOC_MODEL := t20n
-SOC_RAM := 64
-BR2_SOC_INGENIC_T20 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t20_sfcnor"
+	SOC_MODEL := t20n
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T20 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t20_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T20X),y)
-SOC_MODEL := t20x
-SOC_RAM := 128
-BR2_SOC_INGENIC_T20 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t20_sfcnor_ddr128M"
+	SOC_MODEL := t20x
+	SOC_RAM := 128
+	BR2_SOC_INGENIC_T20 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t20_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T21L),y)
-SOC_MODEL := t21l
-SOC_RAM := 64
-BR2_SOC_INGENIC_T21 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t21_sfcnor"
+	SOC_MODEL := t21l
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T21 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t21_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T21N),y)
-SOC_MODEL := t21n
-SOC_RAM := 64
-BR2_SOC_INGENIC_T21 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t21_sfcnor"
+	SOC_MODEL := t21n
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T21 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t21_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T21X),y)
-SOC_MODEL := t21x
-SOC_RAM := 128
-BR2_SOC_INGENIC_T21 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t21_sfcnor"
+	SOC_MODEL := t21x
+	SOC_RAM := 128
+	BR2_SOC_INGENIC_T21 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t21_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T21Z),y)
-SOC_MODEL := t21zn
-SOC_RAM := 64
-BR2_SOC_INGENIC_T21 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t21_sfcnor"
+	SOC_MODEL := t21zn
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T21 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t21_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T21ZL),y)
-SOC_MODEL := t21zl
-SOC_RAM := 64
-BR2_SOC_INGENIC_T21 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t21_sfcnor"
+	SOC_MODEL := t21zl
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T21 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t21_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T23N),y)
-SOC_MODEL := t23n
-SOC_RAM := 64
-BR2_SOC_INGENIC_T23 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t23n_sfcnor"
+	SOC_MODEL := t23n
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T23 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t23n_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T23ZN),y)
-SOC_MODEL := t23zn
-SOC_RAM := 64
-BR2_SOC_INGENIC_T23 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t23n_sfcnor"
+	SOC_MODEL := t23zn
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T23 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t23n_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T30L),y)
-SOC_MODEL := t30l
-SOC_RAM := 64
-BR2_SOC_INGENIC_T30 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t30_sfcnor_lite"
+	SOC_MODEL := t30l
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T30 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t30_sfcnor_lite"
 else ifeq ($(BR2_SOC_INGENIC_T30N),y)
-SOC_MODEL := t30n
-SOC_RAM := 64
-BR2_SOC_INGENIC_T30 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t30_sfcnor"
+	SOC_MODEL := t30n
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T30 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t30_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T30X),y)
-SOC_MODEL := t30x
-SOC_RAM := 128
-BR2_SOC_INGENIC_T30 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t30_sfcnor_ddr128M"
+	SOC_MODEL := t30x
+	SOC_RAM := 128
+	BR2_SOC_INGENIC_T30 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t30_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T30A),y)
-SOC_MODEL := t30a
-SOC_RAM := 128
-BR2_SOC_INGENIC_T30 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t30a_sfcnor_ddr128M"
+	SOC_MODEL := t30a
+	SOC_RAM := 128
+	BR2_SOC_INGENIC_T30 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t30a_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T31L),y)
-SOC_MODEL := t31l
-SOC_RAM := 64
-BR2_SOC_INGENIC_T31 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t31_sfcnor_lite"
+	SOC_MODEL := t31l
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T31 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t31_sfcnor_lite"
 else ifeq ($(BR2_SOC_INGENIC_T31LC),y)
-SOC_MODEL := t31lc
-SOC_RAM := 64
-BR2_SOC_INGENIC_T31 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t31lc_sfcnor"
+	SOC_MODEL := t31lc
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T31 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t31lc_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T31N),y)
-SOC_MODEL := t31n
-SOC_RAM := 64
-BR2_SOC_INGENIC_T31 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t31_sfcnor"
+	SOC_MODEL := t31n
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T31 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t31_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T31X),y)
-SOC_MODEL := t31x
-SOC_RAM := 128
-BR2_SOC_INGENIC_T31 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t31_sfcnor_ddr128M"
+	SOC_MODEL := t31x
+	SOC_RAM := 128
+	BR2_SOC_INGENIC_T31 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t31_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T31A),y)
-SOC_MODEL := t31a
-SOC_RAM := 128
-BR2_SOC_INGENIC_T31 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t31a_sfcnor_ddr128M"
+	SOC_MODEL := t31a
+	SOC_RAM := 128
+	BR2_SOC_INGENIC_T31 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t31a_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T31AL),y)
-SOC_MODEL := t31al
-SOC_RAM := 128
-BR2_SOC_INGENIC_T31 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t31al_sfcnor_ddr128M"
+	SOC_MODEL := t31al
+	SOC_RAM := 128
+	BR2_SOC_INGENIC_T31 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t31al_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T31ZL),y)
-SOC_MODEL := t31zl
-SOC_RAM := 64
-BR2_SOC_INGENIC_T31 := y
-BR2_XBURST_1 := y
-UBOOT_BOARDNAME := "isvp_t31_sfcnor_lite"
+	SOC_MODEL := t31zl
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T31 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t31_sfcnor_lite"
 else ifeq ($(BR2_SOC_INGENIC_T31ZX),y)
-SOC_MODEL := t31zx
-SOC_RAM := 128
-BR2_XBURST_1 := y
-BR2_SOC_INGENIC_T31 := y
-UBOOT_BOARDNAME := "isvp_t31_sfcnor_ddr128M"
+	SOC_MODEL := t31zx
+	SOC_RAM := 128
+	BR2_XBURST_1 := y
+	BR2_SOC_INGENIC_T31 := y
+	UBOOT_BOARDNAME := "isvp_t31_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T40N),y)
-SOC_MODEL := t40n
-SOC_RAM := 128
-BR2_SOC_INGENIC_T40 := y
-BR2_XBURST_2 := y
-UBOOT_BOARDNAME := "isvp_t40n_sfcnor"
+	SOC_MODEL := t40n
+	SOC_RAM := 128
+	BR2_SOC_INGENIC_T40 := y
+	BR2_XBURST_2 := y
+	UBOOT_BOARDNAME := "isvp_t40n_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40NN),y)
-SOC_MODEL := t40nn
-SOC_RAM := 128
-BR2_XBURST_2 := y
-BR2_SOC_INGENIC_T40 := y
-UBOOT_BOARDNAME := "isvp_t40n_sfcnor"
+	SOC_MODEL := t40nn
+	SOC_RAM := 128
+	BR2_XBURST_2 := y
+	BR2_SOC_INGENIC_T40 := y
+	UBOOT_BOARDNAME := "isvp_t40n_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40XP),y)
-SOC_MODEL := t40xp
-SOC_RAM := 256
-BR2_SOC_INGENIC_T40 := y
-BR2_XBURST_2 := y
-UBOOT_BOARDNAME := "isvp_t40xp_sfcnor"
+	SOC_MODEL := t40xp
+	SOC_RAM := 256
+	BR2_SOC_INGENIC_T40 := y
+	BR2_XBURST_2 := y
+	UBOOT_BOARDNAME := "isvp_t40xp_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40A),y)
-SOC_MODEL := t40a
-SOC_RAM := 128
-BR2_SOC_INGENIC_T40 := y
-BR2_XBURST_2 := y
-UBOOT_BOARDNAME := "isvp_t40a_sfcnor"
+	SOC_MODEL := t40a
+	SOC_RAM := 128
+	BR2_SOC_INGENIC_T40 := y
+	BR2_XBURST_2 := y
+	UBOOT_BOARDNAME := "isvp_t40a_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T41LQ),y)
-SOC_MODEL := t41lq
-SOC_RAM := 64
-BR2_SOC_INGENIC_T41 := y
-BR2_XBURST_2 := y
-UBOOT_BOARDNAME := "isvp_t41_sfcnor"
+	SOC_MODEL := t41lq
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T41 := y
+	BR2_XBURST_2 := y
+	UBOOT_BOARDNAME := "isvp_t41_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T41NQ),y)
-SOC_MODEL := t41nq
-SOC_RAM := 128
-BR2_SOC_INGENIC_T41 := y
-BR2_XBURST_2 := y
-UBOOT_BOARDNAME := "isvp_t41_sfcnor"
+	SOC_MODEL := t41nq
+	SOC_RAM := 128
+	BR2_SOC_INGENIC_T41 := y
+	BR2_XBURST_2 := y
+	UBOOT_BOARDNAME := "isvp_t41_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T41ZL),y)
-SOC_MODEL := t41zl
-SOC_RAM := 64
-BR2_SOC_INGENIC_T41 := y
-BR2_XBURST_2 := y
-UBOOT_BOARDNAME := "isvp_t41_sfcnor"
+	SOC_MODEL := t41zl
+	SOC_RAM := 64
+	BR2_SOC_INGENIC_T41 := y
+	BR2_XBURST_2 := y
+	UBOOT_BOARDNAME := "isvp_t41_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T41ZN),y)
-SOC_MODEL := t41zn
-SOC_RAM := 128
-BR2_SOC_INGENIC_T41 := y
-BR2_XBURST_2 := y
-UBOOT_BOARDNAME := "isvp_t41_sfcnor"
+	SOC_MODEL := t41zn
+	SOC_RAM := 128
+	BR2_SOC_INGENIC_T41 := y
+	BR2_XBURST_2 := y
+	UBOOT_BOARDNAME := "isvp_t41_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T41ZX),y)
-SOC_MODEL := t41zx
-SOC_RAM := 256
-BR2_SOC_INGENIC_T41 := y
-BR2_XBURST_2 := y
-UBOOT_BOARDNAME := "isvp_t41_sfcnor"
+	SOC_MODEL := t41zx
+	SOC_RAM := 256
+	BR2_SOC_INGENIC_T41 := y
+	BR2_XBURST_2 := y
+	UBOOT_BOARDNAME := "isvp_t41_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T41A),y)
-SOC_MODEL := t41a
-SOC_RAM := 512
-BR2_SOC_INGENIC_T41 := y
-BR2_XBURST_2 := y
-UBOOT_BOARDNAME := "isvp_t41_sfcnor"
+	SOC_MODEL := t41a
+	SOC_RAM := 512
+	BR2_SOC_INGENIC_T41 := y
+	BR2_XBURST_2 := y
+	UBOOT_BOARDNAME := "isvp_t41_sfcnor"
 endif
 
 # FIXME requires U=Boot >= 2018.05
@@ -221,443 +223,443 @@ endif
 
 # Image sensor
 ifeq ($(BR2_SENSOR_DUMMY),y)
-SENSOR_MODEL :=
+	SENSOR_MODEL :=
 else ifeq ($(BR2_SENSOR_AR1337),y)
-SENSOR_MODEL := ar1337
+	SENSOR_MODEL := ar1337
 else ifeq ($(BR2_SENSOR_BF3A03),y)
-SENSOR_MODEL := bf3a03
+	SENSOR_MODEL := bf3a03
 else ifeq ($(BR2_SENSOR_C2399),y)
-SENSOR_MODEL := c2399
+	SENSOR_MODEL := c2399
 else ifeq ($(BR2_SENSOR_C23A98),y)
-SENSOR_MODEL := c23a98
+	SENSOR_MODEL := c23a98
 else ifeq ($(BR2_SENSOR_C3390),y)
-SENSOR_MODEL := c3390
+	SENSOR_MODEL := c3390
 else ifeq ($(BR2_SENSOR_C4390),y)
-SENSOR_MODEL := c4390
+	SENSOR_MODEL := c4390
 else ifeq ($(BR2_SENSOR_CV2001),y)
-SENSOR_MODEL := cv2001
+	SENSOR_MODEL := cv2001
 else ifeq ($(BR2_SENSOR_CV3001),y)
-SENSOR_MODEL := cv3001
+	SENSOR_MODEL := cv3001
 else ifeq ($(BR2_SENSOR_CV4001),y)
-SENSOR_MODEL := cv4001
+	SENSOR_MODEL := cv4001
 else ifeq ($(BR2_SENSOR_GC0328),y)
-SENSOR_MODEL := gc0328
+	SENSOR_MODEL := gc0328
 else ifeq ($(BR2_SENSOR_GC032A),y)
-SENSOR_MODEL := gc032a
+	SENSOR_MODEL := gc032a
 else ifeq ($(BR2_SENSOR_GC1034),y)
-SENSOR_MODEL := gc1034
+	SENSOR_MODEL := gc1034
 else ifeq ($(BR2_SENSOR_GC1054),y)
-SENSOR_MODEL := gc1054
+	SENSOR_MODEL := gc1054
 else ifeq ($(BR2_SENSOR_GC1084),y)
-SENSOR_MODEL := gc1084
+	SENSOR_MODEL := gc1084
 else ifeq ($(BR2_SENSOR_GC2023),y)
-SENSOR_MODEL := gc2023
+	SENSOR_MODEL := gc2023
 else ifeq ($(BR2_SENSOR_GC2033),y)
-SENSOR_MODEL := gc2033
+	SENSOR_MODEL := gc2033
 else ifeq ($(BR2_SENSOR_GC2053),y)
-SENSOR_MODEL := gc2053
+	SENSOR_MODEL := gc2053
 else ifeq ($(BR2_SENSOR_GC2063),y)
-SENSOR_MODEL := gc2063
+	SENSOR_MODEL := gc2063
 else ifeq ($(BR2_SENSOR_GC2083),y)
-SENSOR_MODEL := gc2083
+	SENSOR_MODEL := gc2083
 else ifeq ($(BR2_SENSOR_GC2093),y)
-SENSOR_MODEL := gc2093
+	SENSOR_MODEL := gc2093
 else ifeq ($(BR2_SENSOR_GC3003),y)
-SENSOR_MODEL := gc3003
+	SENSOR_MODEL := gc3003
 else ifeq ($(BR2_SENSOR_GC3003A),y)
-SENSOR_MODEL := gc3003a
+	SENSOR_MODEL := gc3003a
 else ifeq ($(BR2_SENSOR_GC4023),y)
-SENSOR_MODEL := gc4023
+	SENSOR_MODEL := gc4023
 else ifeq ($(BR2_SENSOR_GC4653),y)
-SENSOR_MODEL := gc4653
+	SENSOR_MODEL := gc4653
 else ifeq ($(BR2_SENSOR_GC4C33),y)
-SENSOR_MODEL := gc4c33
+	SENSOR_MODEL := gc4c33
 else ifeq ($(BR2_SENSOR_GC5035),y)
-SENSOR_MODEL := gc5035
+	SENSOR_MODEL := gc5035
 else ifeq ($(BR2_SENSOR_GC5603),y)
-SENSOR_MODEL := gc5603
+	SENSOR_MODEL := gc5603
 else ifeq ($(BR2_SENSOR_IMX298),y)
-SENSOR_MODEL := imx298
+	SENSOR_MODEL := imx298
 else ifeq ($(BR2_SENSOR_IMX307),y)
-SENSOR_MODEL := imx307
+	SENSOR_MODEL := imx307
 else ifeq ($(BR2_SENSOR_IMX327),y)
-SENSOR_MODEL := imx327
+	SENSOR_MODEL := imx327
 else ifeq ($(BR2_SENSOR_IMX335),y)
-SENSOR_MODEL := imx335
+	SENSOR_MODEL := imx335
 else ifeq ($(BR2_SENSOR_JXF22),y)
-SENSOR_MODEL := jxf22
+	SENSOR_MODEL := jxf22
 else ifeq ($(BR2_SENSOR_JXF23),y)
-SENSOR_MODEL := jxf23
+	SENSOR_MODEL := jxf23
 else ifeq ($(BR2_SENSOR_JXF28P),y)
-SENSOR_MODEL := jxf28p
+	SENSOR_MODEL := jxf28p
 else ifeq ($(BR2_SENSOR_JXF32),y)
-SENSOR_MODEL := jxf32
+	SENSOR_MODEL := jxf32
 else ifeq ($(BR2_SENSOR_JXF35),y)
-SENSOR_MODEL := jxf35
+	SENSOR_MODEL := jxf35
 else ifeq ($(BR2_SENSOR_JXF352),y)
-SENSOR_MODEL := jxf352
+	SENSOR_MODEL := jxf352
 else ifeq ($(BR2_SENSOR_JXF355P),y)
-SENSOR_MODEL := jxf355p
+	SENSOR_MODEL := jxf355p
 else ifeq ($(BR2_SENSOR_JXF37),y)
-SENSOR_MODEL := jxf37
+	SENSOR_MODEL := jxf37
 else ifeq ($(BR2_SENSOR_JXF37P),y)
-SENSOR_MODEL := jxf37p
+	SENSOR_MODEL := jxf37p
 else ifeq ($(BR2_SENSOR_JXF38P),y)
-SENSOR_MODEL := jxf38p
+	SENSOR_MODEL := jxf38p
 else ifeq ($(BR2_SENSOR_JXF51),y)
-SENSOR_MODEL := jxf51
+	SENSOR_MODEL := jxf51
 else ifeq ($(BR2_SENSOR_JXF53),y)
-SENSOR_MODEL := jxf53
+	SENSOR_MODEL := jxf53
 else ifeq ($(BR2_SENSOR_JXH42),y)
-SENSOR_MODEL := jxh42
+	SENSOR_MODEL := jxh42
 else ifeq ($(BR2_SENSOR_JXH61P),y)
-SENSOR_MODEL := jxh61p
+	SENSOR_MODEL := jxh61p
 else ifeq ($(BR2_SENSOR_JXH62),y)
-SENSOR_MODEL := jxh62
+	SENSOR_MODEL := jxh62
 else ifeq ($(BR2_SENSOR_JXH63),y)
-SENSOR_MODEL := jxh63
+	SENSOR_MODEL := jxh63
 else ifeq ($(BR2_SENSOR_JXH66),y)
-SENSOR_MODEL := jxh66
+	SENSOR_MODEL := jxh66
 else ifeq ($(BR2_SENSOR_JXK03),y)
-SENSOR_MODEL := jxk03
+	SENSOR_MODEL := jxk03
 else ifeq ($(BR2_SENSOR_JXK04),y)
-SENSOR_MODEL := jxk04
+	SENSOR_MODEL := jxk04
 else ifeq ($(BR2_SENSOR_JXK05),y)
-SENSOR_MODEL := jxk05
+	SENSOR_MODEL := jxk05
 else ifeq ($(BR2_SENSOR_JXK06),y)
-SENSOR_MODEL := jxk06
+	SENSOR_MODEL := jxk06
 else ifeq ($(BR2_SENSOR_JXQ03),y)
-SENSOR_MODEL := jxq03
+	SENSOR_MODEL := jxq03
 else ifeq ($(BR2_SENSOR_JXQ03P),y)
-SENSOR_MODEL := jxq03p
+	SENSOR_MODEL := jxq03p
 else ifeq ($(BR2_SENSOR_MIS2006),y)
-SENSOR_MODEL := mis2006
+	SENSOR_MODEL := mis2006
 else ifeq ($(BR2_SENSOR_MIS2008),y)
-SENSOR_MODEL := mis2008
+	SENSOR_MODEL := mis2008
 else ifeq ($(BR2_SENSOR_MIS4001),y)
-SENSOR_MODEL := mis4001
+	SENSOR_MODEL := mis4001
 else ifeq ($(BR2_SENSOR_MIS5001),y)
-SENSOR_MODEL := mis5001
+	SENSOR_MODEL := mis5001
 else ifeq ($(BR2_SENSOR_OS02B10),y)
-SENSOR_MODEL := os02b10
+	SENSOR_MODEL := os02b10
 else ifeq ($(BR2_SENSOR_OS02D20),y)
-SENSOR_MODEL := os02d20
+	SENSOR_MODEL := os02d20
 else ifeq ($(BR2_SENSOR_OS02G10),y)
-SENSOR_MODEL := os02g10
+	SENSOR_MODEL := os02g10
 else ifeq ($(BR2_SENSOR_OS02K10),y)
-SENSOR_MODEL := os02k10
+	SENSOR_MODEL := os02k10
 else ifeq ($(BR2_SENSOR_OS03B10),y)
-SENSOR_MODEL := os03b10
+	SENSOR_MODEL := os03b10
 else ifeq ($(BR2_SENSOR_OS04B10),y)
-SENSOR_MODEL := os04b10
+	SENSOR_MODEL := os04b10
 else ifeq ($(BR2_SENSOR_OS04C10),y)
-SENSOR_MODEL := os04c10
+	SENSOR_MODEL := os04c10
 else ifeq ($(BR2_SENSOR_OS04L10),y)
-SENSOR_MODEL := os04l10
+	SENSOR_MODEL := os04l10
 else ifeq ($(BR2_SENSOR_OS05A10),y)
-SENSOR_MODEL := os05a10
+	SENSOR_MODEL := os05a10
 else ifeq ($(BR2_SENSOR_OS05A20),y)
-SENSOR_MODEL := os05a20
+	SENSOR_MODEL := os05a20
 else ifeq ($(BR2_SENSOR_OV2735B),y)
-SENSOR_MODEL := ov2735b
+	SENSOR_MODEL := ov2735b
 else ifeq ($(BR2_SENSOR_OV2740),y)
-SENSOR_MODEL := ov2740
+	SENSOR_MODEL := ov2740
 else ifeq ($(BR2_SENSOR_OV2745),y)
-SENSOR_MODEL := ov2745
+	SENSOR_MODEL := ov2745
 else ifeq ($(BR2_SENSOR_OV5648),y)
-SENSOR_MODEL := ov5648
+	SENSOR_MODEL := ov5648
 else ifeq ($(BR2_SENSOR_OV5695),y)
-SENSOR_MODEL := ov5695
+	SENSOR_MODEL := ov5695
 else ifeq ($(BR2_SENSOR_OV8856),y)
-SENSOR_MODEL := ov8856
+	SENSOR_MODEL := ov8856
 else ifeq ($(BR2_SENSOR_OV9712),y)
-SENSOR_MODEL := ov9712
+	SENSOR_MODEL := ov9712
 else ifeq ($(BR2_SENSOR_OV9732),y)
-SENSOR_MODEL := ov9732
+	SENSOR_MODEL := ov9732
 else ifeq ($(BR2_SENSOR_OV9750),y)
-SENSOR_MODEL := ov9750
+	SENSOR_MODEL := ov9750
 else ifeq ($(BR2_SENSOR_PS5258),y)
-SENSOR_MODEL := ps5258
+	SENSOR_MODEL := ps5258
 else ifeq ($(BR2_SENSOR_PS5260),y)
-SENSOR_MODEL := ps5260
+	SENSOR_MODEL := ps5260
 else ifeq ($(BR2_SENSOR_PS5268),y)
-SENSOR_MODEL := ps5268
+	SENSOR_MODEL := ps5268
 else ifeq ($(BR2_SENSOR_PS5270),y)
-SENSOR_MODEL := ps5270
+	SENSOR_MODEL := ps5270
 else ifeq ($(BR2_SENSOR_PS5520),y)
-SENSOR_MODEL := ps5520
+	SENSOR_MODEL := ps5520
 else ifeq ($(BR2_SENSOR_SC1235),y)
-SENSOR_MODEL := sc1235
+	SENSOR_MODEL := sc1235
 else ifeq ($(BR2_SENSOR_SC1346),y)
-SENSOR_MODEL := sc1346
+	SENSOR_MODEL := sc1346
 else ifeq ($(BR2_SENSOR_SC1A4T),y)
-SENSOR_MODEL := sc1a4t
+	SENSOR_MODEL := sc1a4t
 else ifeq ($(BR2_SENSOR_SC200AI),y)
-SENSOR_MODEL := sc200ai
+	SENSOR_MODEL := sc200ai
 else ifeq ($(BR2_SENSOR_SC201CS),y)
-SENSOR_MODEL := sc201cs
+	SENSOR_MODEL := sc201cs
 else ifeq ($(BR2_SENSOR_SC202CS),y)
-SENSOR_MODEL := sc202cs
+	SENSOR_MODEL := sc202cs
 else ifeq ($(BR2_SENSOR_SC2210),y)
-SENSOR_MODEL := sc2210
+	SENSOR_MODEL := sc2210
 else ifeq ($(BR2_SENSOR_SC2232),y)
-SENSOR_MODEL := sc2232
+	SENSOR_MODEL := sc2232
 else ifeq ($(BR2_SENSOR_SC2232H),y)
-SENSOR_MODEL := sc2232h
+	SENSOR_MODEL := sc2232h
 else ifeq ($(BR2_SENSOR_SC2235),y)
-SENSOR_MODEL := sc2235
+	SENSOR_MODEL := sc2235
 else ifeq ($(BR2_SENSOR_SC2239),y)
-SENSOR_MODEL := sc2239
+	SENSOR_MODEL := sc2239
 else ifeq ($(BR2_SENSOR_SC2239P),y)
-SENSOR_MODEL := sc2239p
+	SENSOR_MODEL := sc2239p
 else ifeq ($(BR2_SENSOR_SC223A),y)
-SENSOR_MODEL := sc223a
+	SENSOR_MODEL := sc223a
 else ifeq ($(BR2_SENSOR_SC230AI),y)
-SENSOR_MODEL := sc230ai
+	SENSOR_MODEL := sc230ai
 else ifeq ($(BR2_SENSOR_SC2300),y)
-SENSOR_MODEL := sc2300
+	SENSOR_MODEL := sc2300
 else ifeq ($(BR2_SENSOR_SC2310),y)
-SENSOR_MODEL := sc2310
+	SENSOR_MODEL := sc2310
 else ifeq ($(BR2_SENSOR_SC2315E),y)
-SENSOR_MODEL := sc2315e
+	SENSOR_MODEL := sc2315e
 else ifeq ($(BR2_SENSOR_SC2332),y)
-SENSOR_MODEL := sc2332
+	SENSOR_MODEL := sc2332
 else ifeq ($(BR2_SENSOR_SC2335),y)
-SENSOR_MODEL := sc2335
+	SENSOR_MODEL := sc2335
 else ifeq ($(BR2_SENSOR_SC2336),y)
-SENSOR_MODEL := sc2336
+	SENSOR_MODEL := sc2336
 else ifeq ($(BR2_SENSOR_SC2336P),y)
-SENSOR_MODEL := sc2336p
+	SENSOR_MODEL := sc2336p
 else ifeq ($(BR2_SENSOR_SC301IOT),y)
-SENSOR_MODEL := sc301IoT
+	SENSOR_MODEL := sc301IoT
 else ifeq ($(BR2_SENSOR_SC3235),y)
-SENSOR_MODEL := sc3235
+	SENSOR_MODEL := sc3235
 else ifeq ($(BR2_SENSOR_SC3335),y)
-SENSOR_MODEL := sc3335
+	SENSOR_MODEL := sc3335
 else ifeq ($(BR2_SENSOR_SC3336),y)
-SENSOR_MODEL := sc3336
+	SENSOR_MODEL := sc3336
 else ifeq ($(BR2_SENSOR_SC3338),y)
-SENSOR_MODEL := sc3338
+	SENSOR_MODEL := sc3338
 else ifeq ($(BR2_SENSOR_SC401AI),y)
-SENSOR_MODEL := sc401ai
+	SENSOR_MODEL := sc401ai
 else ifeq ($(BR2_SENSOR_SC4236),y)
-SENSOR_MODEL := sc4236
+	SENSOR_MODEL := sc4236
 else ifeq ($(BR2_SENSOR_SC4236H),y)
-SENSOR_MODEL := sc4236h
+	SENSOR_MODEL := sc4236h
 else ifeq ($(BR2_SENSOR_SC4238),y)
-SENSOR_MODEL := sc4238
+	SENSOR_MODEL := sc4238
 else ifeq ($(BR2_SENSOR_SC4335),y)
-SENSOR_MODEL := sc4335
+	SENSOR_MODEL := sc4335
 else ifeq ($(BR2_SENSOR_SC4336),y)
-SENSOR_MODEL := sc4336
+	SENSOR_MODEL := sc4336
 else ifeq ($(BR2_SENSOR_SC4336P),y)
-SENSOR_MODEL := sc4336p
+	SENSOR_MODEL := sc4336p
 else ifeq ($(BR2_SENSOR_SC450AI),y)
-SENSOR_MODEL := sc450ai
+	SENSOR_MODEL := sc450ai
 else ifeq ($(BR2_SENSOR_SC500AI),y)
-SENSOR_MODEL := sc500ai
+	SENSOR_MODEL := sc500ai
 else ifeq ($(BR2_SENSOR_SC5235),y)
-SENSOR_MODEL := sc5235
+	SENSOR_MODEL := sc5235
 else ifeq ($(BR2_SENSOR_SP1405),y)
-SENSOR_MODEL := sp1405
+	SENSOR_MODEL := sp1405
 else ifeq ($(BR2_SENSOR_TP2850),y)
-SENSOR_MODEL := tp2850
+	SENSOR_MODEL := tp2850
 endif
 
 # Default ISP clock speed
 ifeq ($(BR2_ISP_CLK_90MHZ),y)
-ISP_CLK := 90000000
+	ISP_CLK := 90000000
 else ifeq ($(BR2_ISP_CLK_100MHZ),y)
-ISP_CLK := 100000000
+	ISP_CLK := 100000000
 else ifeq ($(BR2_ISP_CLK_125MHZ),y)
-ISP_CLK := 125000000
+	ISP_CLK := 125000000
 else ifeq ($(BR2_ISP_CLK_150MHZ),y)
-ISP_CLK := 150000000
+	ISP_CLK := 150000000
 else ifeq ($(BR2_ISP_CLK_175MHZ),y)
-ISP_CLK := 175000000
+	ISP_CLK := 175000000
 else ifeq ($(BR2_ISP_CLK_200MHZ),y)
-ISP_CLK := 200000000
+	ISP_CLK := 200000000
 else ifeq ($(BR2_ISP_CLK_220MHZ),y)
-ISP_CLK := 220000000
+	ISP_CLK := 220000000
 else ifeq ($(BR2_ISP_CLK_225MHZ),y)
-ISP_CLK := 225000000
+	ISP_CLK := 225000000
 else ifeq ($(BR2_ISP_CLK_250MHZ),y)
-ISP_CLK := 250000000
+	ISP_CLK := 250000000
 else ifeq ($(BR2_ISP_CLK_300MHZ),y)
-ISP_CLK := 300000000
+	ISP_CLK := 300000000
 else
-ISP_CLK := 100000000
+	ISP_CLK := 100000000
 endif
 
 AVPU_CLK := 400000000
 ifeq ($(BR2_AVPU_CLK_400MHZ),y)
-AVPU_CLK := 400000000
+	AVPU_CLK := 400000000
 else ifeq ($(BR2_AVPU_CLK_450MHZ),y)
-AVPU_CLK := 450000000
+	AVPU_CLK := 450000000
 else ifeq ($(BR2_AVPU_CLK_500MHZ),y)
-AVPU_CLK := 500000000
+	AVPU_CLK := 500000000
 else ifeq ($(BR2_AVPU_CLK_550MHZ),y)
-AVPU_CLK := 550000000
+	AVPU_CLK := 550000000
 else ifeq ($(BR2_AVPU_CLK_600MHZ),y)
-AVPU_CLK := 600000000
+	AVPU_CLK := 600000000
 else ifeq ($(BR2_AVPU_CLK_650MHZ),y)
-AVPU_CLK := 650000000
+	AVPU_CLK := 650000000
 else ifeq ($(BR2_AVPU_CLK_700MHZ),y)
-AVPU_CLK := 700000000
+	AVPU_CLK := 700000000
 endif
 
 AVPU_CLK_SRC :=
 ifeq ($(BR2_AVPU_MPLL),y)
-AVPU_CLK_SRC := clk_name=mpll
+	AVPU_CLK_SRC := clk_name=mpll
 endif
 ifeq ($(BR2_AVPU_VPLL),y)
-AVPU_CLK_SRC := clk_name=vpll
+	AVPU_CLK_SRC := clk_name=vpll
 endif
 ifeq ($(BR2_AVPU_INTERNAL),y)
-AVPU_CLK_SRC :=
+	AVPU_CLK_SRC :=
 endif
 
 ISP_CLKA_CLK := 400000000
 ifeq ($(BR2_ISP_CLKA_400MHZ),y)
-ISP_CLKA_CLK := 400000000
+	ISP_CLKA_CLK := 400000000
 else ifeq ($(BR2_ISP_CLKA_450MHZ),y)
-ISP_CLKA_CLK := 450000000
+	ISP_CLKA_CLK := 450000000
 else ifeq ($(BR2_ISP_CLKA_500MHZ),y)
-ISP_CLKA_CLK := 500000000
+	ISP_CLKA_CLK := 500000000
 else ifeq ($(BR2_ISP_CLKA_550MHZ),y)
-ISP_CLKA_CLK := 550000000
+	ISP_CLKA_CLK := 550000000
 else ifeq ($(BR2_ISP_CLKA_600MHZ),y)
-ISP_CLKA_CLK := 600000000
+	ISP_CLKA_CLK := 600000000
 else ifeq ($(BR2_ISP_CLKA_650MHZ),y)
-ISP_CLKA_CLK := 650000000
+	ISP_CLKA_CLK := 650000000
 else ifeq ($(BR2_ISP_CLKA_700MHZ),y)
-ISP_CLKA_CLK := 700000000
+	ISP_CLKA_CLK := 700000000
 endif
 
 ISP_CLK_SRC :=
 ifeq ($(BR2_ISP_CLK_SCLKA),y)
-ISP_CLK_SRC := clk_name=sclka
+	ISP_CLK_SRC := clk_name=sclka
 endif
 ISP_CLKA_SRC :=
 ifeq ($(BR2_ISP_CLKA_SCLKA),y)
-ISP_CLKA_CLK_SRC := clka_name=sclka
+	ISP_CLKA_CLK_SRC := clka_name=sclka
 endif
 
 ISP_MEMOPT :=
 ifeq ($(BR2_ISP_MEMOPT_0),y)
-ISP_MEMOPT :=
+	ISP_MEMOPT :=
 endif
 ifeq ($(BR2_ISP_MEMOPT_1),y)
-ISP_MEMOPT := isp_memopt=1
+	ISP_MEMOPT := isp_memopt=1
 endif
 ifeq ($(BR2_ISP_MEMOPT_2),y)
-ISP_MEMOPT := isp_memopt=2
+	ISP_MEMOPT := isp_memopt=2
 endif
 ifeq ($(BR2_ISP_MEMOPT_3),y)
-ISP_MEMOPT := isp_memopt=3
+	ISP_MEMOPT := isp_memopt=3
 endif
 
 ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM :=
 ifeq ($(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM),y)
-ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM := isp_day_night_switch_drop_frame_num=$(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE)
+	ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM := isp_day_night_switch_drop_frame_num=$(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE)
 endif
 
 ISP_CH0_PRE_DEQUEUE_TIME :=
 ifeq ($(BR2_ISP_CH0_PRE_DEQUEUE_TIME),y)
-ISP_CH0_PRE_DEQUEUE_TIME := isp_ch0_pre_dequeue_time=$(BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE)
+	ISP_CH0_PRE_DEQUEUE_TIME := isp_ch0_pre_dequeue_time=$(BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE)
 endif
 
 ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS :=
 ifeq ($(BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS),y)
-ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS := isp_ch0_pre_dequeue_interrupt_process=$(BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_VALUE)
+	ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS := isp_ch0_pre_dequeue_interrupt_process=$(BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_VALUE)
 endif
 
 ISP_CH0_PRE_DEQUEUE_VALID_LINES :=
 ifeq ($(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES),y)
-ISP_CH0_PRE_DEQUEUE_VALID_LINES := isp_ch0_pre_dequeue_valid_lines=$(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE)
+	ISP_CH0_PRE_DEQUEUE_VALID_LINES := isp_ch0_pre_dequeue_valid_lines=$(BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE)
 endif
 
 ifeq ($(BR2_SOC_INGENIC_T10),y)
-SOC_FAMILY := t10
-SDK_VERSION := 3.12.0
-KERNEL_BRANCH := ingenic-t31
+	SOC_FAMILY := t10
+	SDK_VERSION := 3.12.0
+	KERNEL_BRANCH := ingenic-t31
 else ifeq ($(BR2_SOC_INGENIC_T20),y)
-SOC_FAMILY := t20
-SDK_VERSION := 3.12.0
-KERNEL_BRANCH := ingenic-t31
+	SOC_FAMILY := t20
+	SDK_VERSION := 3.12.0
+	KERNEL_BRANCH := ingenic-t31
 else ifeq ($(BR2_SOC_INGENIC_T21),y)
-SOC_FAMILY := t21
-SDK_VERSION := 1.0.33
-KERNEL_BRANCH := ingenic-t31
+	SOC_FAMILY := t21
+	SDK_VERSION := 1.0.33
+	KERNEL_BRANCH := ingenic-t31
 else ifeq ($(BR2_SOC_INGENIC_T23),y)
-SOC_FAMILY := t23
-SDK_VERSION := 1.1.0
-KERNEL_BRANCH := ingenic-t31
+	SOC_FAMILY := t23
+	SDK_VERSION := 1.1.0
+	KERNEL_BRANCH := ingenic-t31
 else ifeq ($(BR2_SOC_INGENIC_T30),y)
-SOC_FAMILY := t30
-SDK_VERSION := 1.0.5
-KERNEL_BRANCH := ingenic-t31
+	SOC_FAMILY := t30
+	SDK_VERSION := 1.0.5
+	KERNEL_BRANCH := ingenic-t31
 else ifeq ($(BR2_SOC_INGENIC_T31),y)
-SOC_FAMILY := t31
-SDK_VERSION := 1.1.6
-KERNEL_BRANCH := ingenic-t31
+	SOC_FAMILY := t31
+	SDK_VERSION := 1.1.6
+	KERNEL_BRANCH := ingenic-t31
 else ifeq ($(BR2_SOC_INGENIC_T40),y)
-SOC_FAMILY := t40
-SDK_VERSION := 1.2.0
-KERNEL_BRANCH := ingenic-t40
+	SOC_FAMILY := t40
+	SDK_VERSION := 1.2.0
+	KERNEL_BRANCH := ingenic-t40
 else ifeq ($(BR2_SOC_INGENIC_T41),y)
-SOC_FAMILY := t41
-SDK_VERSION := 1.2.0
-KERNEL_BRANCH := ingenic-t41
+	SOC_FAMILY := t41
+	SDK_VERSION := 1.2.0
+	KERNEL_BRANCH := ingenic-t41
 endif
 
 ifeq ($(FLASH_SIZE_8),y)
-$(info FLASH_SIZE_8=$(FLASH_SIZE_8))
-FLASH_SIZE := $(SIZE_8M)
+	$(info FLASH_SIZE_8=$(FLASH_SIZE_8))
+	FLASH_SIZE := $(SIZE_8M)
 else ifeq ($(FLASH_SIZE_16),y)
-$(info FLASH_SIZE_16=$(FLASH_SIZE_16))
-FLASH_SIZE := $(SIZE_16M)
+	$(info FLASH_SIZE_16=$(FLASH_SIZE_16))
+	FLASH_SIZE := $(SIZE_16M)
 else ifeq ($(FLASH_SIZE_32),y)
-$(info FLASH_SIZE_32=$(FLASH_SIZE_32))
-FLASH_SIZE := $(SIZE_32M)
+	$(info FLASH_SIZE_32=$(FLASH_SIZE_32))
+	FLASH_SIZE := $(SIZE_32M)
 else
-FLASH_SIZE := $(SIZE_8M)
+	FLASH_SIZE := $(SIZE_8M)
 endif
 $(info FLASH_SIZE=$(FLASH_SIZE))
 
 ifeq ($(BR2_XBURST_1),y)
-$(info Building for XBURST 1 architecture)
-INGENIC_ARCH := xburst1
+	$(info Building for XBURST 1 architecture)
+	INGENIC_ARCH := xburst1
 else ifeq ($(BR2_XBURST_2),y)
-$(info Building for XBURST 2 architecture)
-INGENIC_ARCH := xburst2
+	$(info Building for XBURST 2 architecture)
+	INGENIC_ARCH := xburst2
 endif
 
 # default to older kernel if none set
 ifneq ($(KERNEL_VERSION_3)$(KERNEL_VERSION_4),y)
-$(info Defaulting to kernel 3.x)
-KERNEL_VERSION_3 := y
+	$(info Defaulting to kernel 3.x)
+	KERNEL_VERSION_3 := y
 endif
 
 ifeq ($(KERNEL_VERSION_3),y)
-$(info Building for kernel 3.x)
-KERNEL_VERSION := 3.10
-KERNEL_SITE = https://github.com/gtxaspec/thingino-linux
-KERNEL_BRANCH := ingenic-t31
+	$(info Building for kernel 3.x)
+	KERNEL_VERSION := 3.10
+	KERNEL_SITE = https://github.com/gtxaspec/thingino-linux
+	KERNEL_BRANCH := ingenic-t31
 else ifeq ($(KERNEL_VERSION_4),y)
-$(info Building for kernel 4.x)
-KERNEL_VERSION := 4.4
+	$(info Building for kernel 4.x)
+	KERNEL_VERSION := 4.4
 
-ifeq ($(BR2_SOC_INGENIC_T40),y)
-KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
-KERNEL_BRANCH := ingenic-t40
-else ifeq ($(BR2_SOC_INGENIC_T41),y)
-KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
-KERNEL_BRANCH := ingenic-t41
-else
-KERNEL_SITE := https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94
-KERNEL_BRANCH := stable
-endif
+	ifeq ($(BR2_SOC_INGENIC_T40),y)
+		KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+		KERNEL_BRANCH := ingenic-t40
+	else ifeq ($(BR2_SOC_INGENIC_T41),y)
+		KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+		KERNEL_BRANCH := ingenic-t41
+	else
+		KERNEL_SITE := https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94
+		KERNEL_BRANCH := stable
+	endif
 endif
 
 KERNEL_HASH = $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
@@ -667,11 +669,11 @@ $(info THINGINO_KERNEL=$(THINGINO_KERNEL))
 
 THINGINO_UBOOT_REPO = https://github.com/gtxaspec/ingenic-u-boot-$(INGENIC_ARCH)
 ifeq ($(BR2_SOC_INGENIC_T40),y)
-THINGINO_UBOOT_REPO_BRANCH := t40
+	THINGINO_UBOOT_REPO_BRANCH := t40
 else ifeq ($(BR2_SOC_INGENIC_T41),y)
-THINGINO_UBOOT_REPO_BRANCH := t41
+	THINGINO_UBOOT_REPO_BRANCH := t41
 else
-THINGINO_UBOOT_REPO_BRANCH := master
+	THINGINO_UBOOT_REPO_BRANCH := master
 endif
 
 THINGINO_UBOOT_REPO_VERSION = $(shell git ls-remote $(THINGINO_UBOOT_REPO) $(THINGINO_UBOOT_REPO_BRANCH) | head -1 | cut -f1)
@@ -680,9 +682,9 @@ $(info THINGINO_UBOOT_REPO_BRANCH=$(THINGINO_UBOOT_REPO_BRANCH))
 $(info THINGINO_UBOOT_REPO_VERSION=$(THINGINO_UBOOT_REPO_VERSION))
 
 ifeq ($(BR2_PACKAGE_RAPTOR_IPC),y)
-STREAMER := raptor
+	STREAMER := raptor
 else ifeq ($(BR2_PACKAGE_PRUDYNT_T),y)
-STREAMER := prudynt
+	STREAMER := prudynt
 endif
 
 SOC_MODEL_LESS_Z = $(subst z,,$(SOC_MODEL))
@@ -693,32 +695,32 @@ $(info SOC_FAMILY_CAPS:     $(SOC_FAMILY_CAPS))
 
 # Determine project C library, set SDK C library and toolchain version
 ifeq ($(BR2_TOOLCHAIN_USES_GLIBC),y)
-BR2_LIBC_NAME := glibc
-SDK_LIBC_NAME := glibc
+	BR2_LIBC_NAME := glibc
+	SDK_LIBC_NAME := glibc
 else ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
-BR2_LIBC_NAME := uclibc
-SDK_LIBC_NAME := uclibc
+	BR2_LIBC_NAME := uclibc
+	SDK_LIBC_NAME := uclibc
 else ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
-BR2_LIBC_NAME := musl
-SDK_LIBC_NAME := uclibc
+	BR2_LIBC_NAME := musl
+	SDK_LIBC_NAME := uclibc
 else
-# default to uClibc libs
-BR2_LIBC_NAME := unknown
-SDK_LIBC_NAME := uclibc
+	# default to uClibc libs
+	BR2_LIBC_NAME := unknown
+	SDK_LIBC_NAME := uclibc
 endif
 
 ifeq ($(BR2_SOC_INGENIC_T10)$(BR2_SOC_INGENIC_T20)$(BR2_SOC_INGENIC_T21)$(BR2_SOC_INGENIC_T30),y)
-SDK_LIBC_VERSION := 4.7.2
+	SDK_LIBC_VERSION := 4.7.2
 else
-SDK_LIBC_VERSION := 5.4.0
+	SDK_LIBC_VERSION := 5.4.0
 endif
 
 ifeq ($(BR2_SOC_INGENIC_T31),y)
-ifeq ($(KERNEL_VERSION_4),y)
-SDK_LIBC_VERSION := 4.7.2
-SDK_LIBC_NAME := uclibc
-SDK_VERSION := 1.1.5.2
-endif
+	ifeq ($(KERNEL_VERSION_4),y)
+		SDK_LIBC_VERSION := 4.7.2
+		SDK_LIBC_NAME := uclibc
+		SDK_VERSION := 1.1.5.2
+	endif
 endif
 
 $(info Building using $(BR2_LIBC_NAME) with $(SDK_LIBC_NAME) libs for GCC $(SDK_LIBC_VERSION) toolchain from $(SDK_VERSION) SDK)
