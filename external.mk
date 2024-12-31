@@ -3,217 +3,217 @@ $(info --- FILE: external.mk ---)
 ifeq ($(BR2_SOC_INGENIC_DUMMY),y)
 SOC_MODEL := t31x
 BR2_SOC_INGENIC_T31=y
-UBOOT_BOARDNAME="isvp_t31_sfcnor_ddr128M"
+UBOOT_BOARDNAME := "isvp_t31_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T10L),y)
 SOC_MODEL := t10l
 SOC_RAM := 64
-BR2_SOC_INGENIC_T10=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t10_sfcnor_lite"
+BR2_SOC_INGENIC_T10 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t10_sfcnor_lite"
 else ifeq ($(BR2_SOC_INGENIC_T10N),y)
 SOC_MODEL := t10n
 SOC_RAM := 64
-BR2_SOC_INGENIC_T10=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t10_sfcnor"
+BR2_SOC_INGENIC_T10 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t10_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T10A),y)
 SOC_MODEL := t10a
 SOC_RAM := 64
-BR2_SOC_INGENIC_T10=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t10_sfcnor"
+BR2_SOC_INGENIC_T10 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t10_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T20L),y)
 SOC_MODEL := t20l
 SOC_RAM := 64
-BR2_SOC_INGENIC_T20=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t20_sfcnor_lite"
+BR2_SOC_INGENIC_T20 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t20_sfcnor_lite"
 else ifeq ($(BR2_SOC_INGENIC_T20N),y)
 SOC_MODEL := t20n
 SOC_RAM := 64
-BR2_SOC_INGENIC_T20=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t20_sfcnor"
+BR2_SOC_INGENIC_T20 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t20_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T20X),y)
 SOC_MODEL := t20x
 SOC_RAM := 128
-BR2_SOC_INGENIC_T20=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t20_sfcnor_ddr128M"
+BR2_SOC_INGENIC_T20 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t20_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T21L),y)
 SOC_MODEL := t21l
 SOC_RAM := 64
-BR2_SOC_INGENIC_T21=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t21_sfcnor"
+BR2_SOC_INGENIC_T21 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t21_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T21N),y)
 SOC_MODEL := t21n
 SOC_RAM := 64
-BR2_SOC_INGENIC_T21=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t21_sfcnor"
+BR2_SOC_INGENIC_T21 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t21_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T21X),y)
 SOC_MODEL := t21x
 SOC_RAM := 128
-BR2_SOC_INGENIC_T21=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t21_sfcnor"
+BR2_SOC_INGENIC_T21 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t21_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T21Z),y)
 SOC_MODEL := t21zn
 SOC_RAM := 64
-BR2_SOC_INGENIC_T21=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t21_sfcnor"
+BR2_SOC_INGENIC_T21 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t21_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T21ZL),y)
 SOC_MODEL := t21zl
 SOC_RAM := 64
-BR2_SOC_INGENIC_T21=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t21_sfcnor"
+BR2_SOC_INGENIC_T21 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t21_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T23N),y)
 SOC_MODEL := t23n
 SOC_RAM := 64
-BR2_SOC_INGENIC_T23=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t23n_sfcnor"
+BR2_SOC_INGENIC_T23 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t23n_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T23ZN),y)
 SOC_MODEL := t23zn
 SOC_RAM := 64
-BR2_SOC_INGENIC_T23=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t23n_sfcnor"
+BR2_SOC_INGENIC_T23 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t23n_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T30L),y)
 SOC_MODEL := t30l
 SOC_RAM := 64
-BR2_SOC_INGENIC_T30=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t30_sfcnor_lite"
+BR2_SOC_INGENIC_T30 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t30_sfcnor_lite"
 else ifeq ($(BR2_SOC_INGENIC_T30N),y)
 SOC_MODEL := t30n
 SOC_RAM := 64
-BR2_SOC_INGENIC_T30=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t30_sfcnor"
+BR2_SOC_INGENIC_T30 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t30_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T30X),y)
 SOC_MODEL := t30x
 SOC_RAM := 128
-BR2_SOC_INGENIC_T30=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t30_sfcnor_ddr128M"
+BR2_SOC_INGENIC_T30 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t30_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T30A),y)
 SOC_MODEL := t30a
 SOC_RAM := 128
-BR2_SOC_INGENIC_T30=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t30a_sfcnor_ddr128M"
+BR2_SOC_INGENIC_T30 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t30a_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T31L),y)
 SOC_MODEL := t31l
 SOC_RAM := 64
-BR2_SOC_INGENIC_T31=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t31_sfcnor_lite"
+BR2_SOC_INGENIC_T31 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t31_sfcnor_lite"
 else ifeq ($(BR2_SOC_INGENIC_T31LC),y)
 SOC_MODEL := t31lc
 SOC_RAM := 64
-BR2_SOC_INGENIC_T31=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t31lc_sfcnor"
+BR2_SOC_INGENIC_T31 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t31lc_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T31N),y)
 SOC_MODEL := t31n
 SOC_RAM := 64
-BR2_SOC_INGENIC_T31=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t31_sfcnor"
+BR2_SOC_INGENIC_T31 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t31_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T31X),y)
 SOC_MODEL := t31x
 SOC_RAM := 128
-BR2_SOC_INGENIC_T31=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t31_sfcnor_ddr128M"
+BR2_SOC_INGENIC_T31 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t31_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T31A),y)
 SOC_MODEL := t31a
 SOC_RAM := 128
-BR2_SOC_INGENIC_T31=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t31a_sfcnor_ddr128M"
+BR2_SOC_INGENIC_T31 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t31a_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T31AL),y)
 SOC_MODEL := t31al
 SOC_RAM := 128
-BR2_SOC_INGENIC_T31=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t31al_sfcnor_ddr128M"
+BR2_SOC_INGENIC_T31 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t31al_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T31ZL),y)
 SOC_MODEL := t31zl
 SOC_RAM := 64
-BR2_SOC_INGENIC_T31=y
-BR2_XBURST_1=y
-UBOOT_BOARDNAME="isvp_t31_sfcnor_lite"
+BR2_SOC_INGENIC_T31 := y
+BR2_XBURST_1 := y
+UBOOT_BOARDNAME := "isvp_t31_sfcnor_lite"
 else ifeq ($(BR2_SOC_INGENIC_T31ZX),y)
 SOC_MODEL := t31zx
 SOC_RAM := 128
-BR2_XBURST_1=y
-BR2_SOC_INGENIC_T31=y
+BR2_XBURST_1 := y
+BR2_SOC_INGENIC_T31 := y
 UBOOT_BOARDNAME := "isvp_t31_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T40N),y)
 SOC_MODEL := t40n
 SOC_RAM := 128
-BR2_SOC_INGENIC_T40=y
-BR2_XBURST_2=y
-UBOOT_BOARDNAME="isvp_t40n_sfcnor"
+BR2_SOC_INGENIC_T40 := y
+BR2_XBURST_2 := y
+UBOOT_BOARDNAME := "isvp_t40n_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40NN),y)
 SOC_MODEL := t40nn
 SOC_RAM := 128
-BR2_XBURST_2=y
-BR2_SOC_INGENIC_T40=y
-UBOOT_BOARDNAME="isvp_t40n_sfcnor"
+BR2_XBURST_2 := y
+BR2_SOC_INGENIC_T40 := y
+UBOOT_BOARDNAME := "isvp_t40n_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40XP),y)
 SOC_MODEL := t40xp
 SOC_RAM := 256
-BR2_SOC_INGENIC_T40=y
-BR2_XBURST_2=y
-UBOOT_BOARDNAME="isvp_t40xp_sfcnor"
+BR2_SOC_INGENIC_T40 := y
+BR2_XBURST_2 := y
+UBOOT_BOARDNAME := "isvp_t40xp_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40A),y)
 SOC_MODEL := t40a
 SOC_RAM := 128
-BR2_SOC_INGENIC_T40=y
-BR2_XBURST_2=y
-UBOOT_BOARDNAME="isvp_t40a_sfcnor"
+BR2_SOC_INGENIC_T40 := y
+BR2_XBURST_2 := y
+UBOOT_BOARDNAME := "isvp_t40a_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T41LQ),y)
 SOC_MODEL := t41lq
 SOC_RAM := 64
-BR2_SOC_INGENIC_T41=y
-BR2_XBURST_2=y
-UBOOT_BOARDNAME="isvp_t41_sfcnor"
+BR2_SOC_INGENIC_T41 := y
+BR2_XBURST_2 := y
+UBOOT_BOARDNAME := "isvp_t41_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T41NQ),y)
 SOC_MODEL := t41nq
 SOC_RAM := 128
-BR2_SOC_INGENIC_T41=y
-BR2_XBURST_2=y
-UBOOT_BOARDNAME="isvp_t41_sfcnor"
+BR2_SOC_INGENIC_T41 := y
+BR2_XBURST_2 := y
+UBOOT_BOARDNAME := "isvp_t41_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T41ZL),y)
 SOC_MODEL := t41zl
 SOC_RAM := 64
-BR2_SOC_INGENIC_T41=y
-BR2_XBURST_2=y
-UBOOT_BOARDNAME="isvp_t41_sfcnor"
+BR2_SOC_INGENIC_T41 := y
+BR2_XBURST_2 := y
+UBOOT_BOARDNAME := "isvp_t41_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T41ZN),y)
 SOC_MODEL := t41zn
 SOC_RAM := 128
-BR2_SOC_INGENIC_T41=y
-BR2_XBURST_2=y
-UBOOT_BOARDNAME="isvp_t41_sfcnor"
+BR2_SOC_INGENIC_T41 := y
+BR2_XBURST_2 := y
+UBOOT_BOARDNAME := "isvp_t41_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T41ZX),y)
 SOC_MODEL := t41zx
 SOC_RAM := 256
-BR2_SOC_INGENIC_T41=y
-BR2_XBURST_2=y
-UBOOT_BOARDNAME="isvp_t41_sfcnor"
+BR2_SOC_INGENIC_T41 := y
+BR2_XBURST_2 := y
+UBOOT_BOARDNAME := "isvp_t41_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T41A),y)
 SOC_MODEL := t41a
 SOC_RAM := 512
-BR2_SOC_INGENIC_T41=y
-BR2_XBURST_2=y
-UBOOT_BOARDNAME="isvp_t41_sfcnor"
+BR2_SOC_INGENIC_T41 := y
+BR2_XBURST_2 := y
+UBOOT_BOARDNAME := "isvp_t41_sfcnor"
 endif
 
 # FIXME requires U=Boot >= 2018.05
@@ -627,36 +627,36 @@ $(info FLASH_SIZE=$(FLASH_SIZE))
 
 ifeq ($(BR2_XBURST_1),y)
 $(info Building for XBURST 1 architecture)
-INGENIC_ARCH = xburst1
+INGENIC_ARCH := xburst1
 else ifeq ($(BR2_XBURST_2),y)
 $(info Building for XBURST 2 architecture)
-INGENIC_ARCH = xburst2
+INGENIC_ARCH := xburst2
 endif
 
 # default to older kernel if none set
 ifneq ($(KERNEL_VERSION_3)$(KERNEL_VERSION_4),y)
 $(info Defaulting to kernel 3.x)
-KERNEL_VERSION_3=y
+KERNEL_VERSION_3 := y
 endif
 
 ifeq ($(KERNEL_VERSION_3),y)
 $(info Building for kernel 3.x)
-KERNEL_VERSION = 3.10
+KERNEL_VERSION := 3.10
 KERNEL_SITE = https://github.com/gtxaspec/thingino-linux
-KERNEL_BRANCH = ingenic-t31
+KERNEL_BRANCH := ingenic-t31
 else ifeq ($(KERNEL_VERSION_4),y)
 $(info Building for kernel 4.x)
-KERNEL_VERSION = 4.4
+KERNEL_VERSION := 4.4
 
 ifeq ($(BR2_SOC_INGENIC_T40),y)
-KERNEL_SITE = https://github.com/gtxaspec/thingino-linux
-KERNEL_BRANCH = ingenic-t40
+KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+KERNEL_BRANCH := ingenic-t40
 else ifeq ($(BR2_SOC_INGENIC_T41),y)
-KERNEL_SITE = https://github.com/gtxaspec/thingino-linux
-KERNEL_BRANCH = ingenic-t41
+KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+KERNEL_BRANCH := ingenic-t41
 else
-KERNEL_SITE = https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94
-KERNEL_BRANCH = stable
+KERNEL_SITE := https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94
+KERNEL_BRANCH := stable
 endif
 endif
 
@@ -667,11 +667,11 @@ $(info THINGINO_KERNEL=$(THINGINO_KERNEL))
 
 THINGINO_UBOOT_REPO = https://github.com/gtxaspec/ingenic-u-boot-$(INGENIC_ARCH)
 ifeq ($(BR2_SOC_INGENIC_T40),y)
-THINGINO_UBOOT_REPO_BRANCH = t40
+THINGINO_UBOOT_REPO_BRANCH := t40
 else ifeq ($(BR2_SOC_INGENIC_T41),y)
-THINGINO_UBOOT_REPO_BRANCH = t41
+THINGINO_UBOOT_REPO_BRANCH := t41
 else
-THINGINO_UBOOT_REPO_BRANCH = master
+THINGINO_UBOOT_REPO_BRANCH := master
 endif
 
 THINGINO_UBOOT_REPO_VERSION = $(shell git ls-remote $(THINGINO_UBOOT_REPO) $(THINGINO_UBOOT_REPO_BRANCH) | head -1 | cut -f1)
