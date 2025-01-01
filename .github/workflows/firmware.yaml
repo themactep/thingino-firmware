@@ -215,6 +215,7 @@ jobs:
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-
             ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
             ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-
+            ${{ runner.os }}-ccache-shared-v1-
 
       - name: Restore Buildroot DL cache
         uses: actions/cache/restore@v4
