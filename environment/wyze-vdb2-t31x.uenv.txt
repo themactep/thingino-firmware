@@ -24,4 +24,3 @@ osmem=86M@0x0
 rmem=42M@0x5600000
 wlandev=atbm6031
 wlandevopts=atbm_printk_mask=0
-
