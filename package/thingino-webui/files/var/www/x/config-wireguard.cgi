@@ -1,15 +1,14 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="wireguard"
-page_title="WireGuard"
-
 [ -f /bin/wg ] || redirect_to "/" "danger" "Your camera does not seem to support WireGuard"
 
-read_from_env "wg"
-
+plugin="wireguard"
+page_title="WireGuard"
 WG_DEV="wg0"
 WG_CTL="/etc/init.d/S42wireguard"
+
+read_from_env "wg"
 
 if ip link show $WG_DEV 2>&1 | grep -q 'UP' ; then
 	wg_state="up"
@@ -38,7 +37,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	redirect_to $SCRIPT_NAME
 fi
 %>
-
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
