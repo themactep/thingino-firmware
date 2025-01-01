@@ -226,7 +226,7 @@ clean:
 	rm -rf $(OUTPUT_DIR)/target
 
 # rebuild from scratch
-cleanbuild: distclean all
+cleanbuild: distclean fast
 
 # remove all build files
 distclean:
