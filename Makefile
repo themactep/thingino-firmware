@@ -33,9 +33,6 @@ TFTP_IP_ADDRESS ?= 192.168.1.254
 # export BR2_DL_DIR = /path/to/your/local/storage
 BR2_DL_DIR ?= $(HOME)/dl
 
-# directory for extracting Buildroot sources
-SRC_DIR ?= $(HOME)/src
-
 # working directory
 OUTPUT_DIR ?= $(HOME)/output/$(CAMERA)
 STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
@@ -322,10 +319,6 @@ $(OUTPUT_DIR):
 
 # configure build
 $(OUTPUT_DIR)/.config: defconfig
-
-# create source directory
-$(SRC_DIR):
-	mkdir -p $(SRC_DIR)
 
 # download bootloader
 $(U_BOOT_BIN):
