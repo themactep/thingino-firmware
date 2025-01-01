@@ -6,7 +6,7 @@ plugin_name="Timelapse"
 page_title="Timelapse"
 params="enabled interval storage filename"
 
-CRONTABS="/etc/crontabs/root"
+CRONTABS="/etc/cron/crontabs/root"
 MOUNTS=$(awk '/nfs|fat/{print $2}' /etc/mtab)
 
 config_file="$ui_config_dir/timelapse.conf"

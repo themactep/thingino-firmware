@@ -3,7 +3,7 @@
 <%
 page_title="Day/Night Mode Control"
 
-CRONTABS="/etc/crontabs/root"
+CRONTABS="/etc/cron/crontabs/root"
 
 grep -q '^[^#].*daynight$' $CRONTABS && daynight_enabled=true
 default_for daynight_enabled false
