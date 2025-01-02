@@ -19,7 +19,7 @@ start() {
 	[ "true" = "$motion_send2email"    ] && send2email
 	[ "true" = "$motion_send2ftp"      ] && send2ftp
 	[ "true" = "$motion_send2mqtt"     ] && send2mqtt
-	[ "true" = "$motion_send2telegram" ] && send2telegram
+	[ "true" = "$motion_send2telegram" ] && send2telegram motion
 	[ "true" = "$motion_send2webhook"  ] && send2webhook
 	[ "true" = "$motion_send2yadisk"   ] && send2yadisk
 	[ "true" = "$motion_playonspeaker" ] && playonspeaker

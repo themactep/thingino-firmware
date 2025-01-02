@@ -5,13 +5,11 @@ plugin="telegram"
 . /sbin/common-plugins
 
 show_help() {
-	echo "Usage: $0 [-t token] [-c channel] [-m message] [-p photo] [-s] [-b] [-v] [-h]
+	echo "Usage: $0 [arguments]
   -t token    Telegram bot token. See https://t.me/botfather if you need one.
   -c channel  Telegram channel ID. See https://gist.github.com/mraaroncruz/e76d19f7d61d59419002db54030ebe35
-  -m message  Message text.
-  -p photo    Path to photo file.
-    -i          Send inline.
-    -a          Send as attachment.
+  -m message  Send message.
+  -f file     Send file.
   -s          Disable notification.
   -v          Verbose output.
   -h          Show this help.
@@ -19,60 +17,109 @@ show_help() {
 	quit_clean 0
 }
 
-# default values
-telegram_disable_notification=false
-
 # override config values with command line arguments
-while getopts ac:im:p:st:vh flag; do
+while getopts c:f:m:st:vh flag; do
 	case "$flag" in
-		a) telegram_as_attachment="true" ;;
 		c) telegram_channel=$OPTARG ;;
-		i) telegram_as_photo="true" ;;
 		m) telegram_message=$OPTARG ;;
-		p) telegram_photo=$OPTARG ;;
-		s) telegram_disable_notification=true ;;
+		f) telegram_file=$OPTARG ;;
+		s) telegram_silent="true" ;;
 		t) telegram_token=$OPTARG ;;
 		v) verbose="true" ;;
-		h | *) show_help ;;
+		h) show_help ;;
 	esac
 done
 
+shift $((OPTIND - 1))
+
+if [ $# -ne 0 ]; then
+	case "$1" in
+		snap)
+			telegram_file="$(mktemp -u /tmp/snapshot-XXXXXX).jpg"
+			clone_snapshot "$telegram_file"
+			;;
+		motion)
+			send_buffer="true"
+			telegram_file="/tmp/vbuffer.mov"
+			lockfile="/tmp/vbuffer.lock"
+
+			# check file age
+			now=$(date +%s)
+			ts=$(stat -c%X $telegram_file)
+			if [ $((now - ts)) -gt 10 ]; then
+				[ -f $telegram_file ] && rm $telegram_file
+				die "Stale video"
+			fi
+			unset now ts
+			;;
+	esac
+fi
+
 [ "false" = "$telegram_enabled" ] && die "Sending to Telegram is disabled."
+
 # validate mandatory values
 [ -z "$telegram_token" ] && die "Telegram token not found"
 [ -z "$telegram_channel" ] && die "Telegram channel not found"
 
-if [ -z "$telegram_message" ]; then
-	telegram_message="$(echo "$telegram_caption" | sed "s/%hostname/$(hostname -s)/;s/%datetime/$(date +"%F %T")/")"
-
-	if [ -z "$telegram_photo" ]; then
-		attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-		clone_snapshot $attachment
-
-		telegram_photo=$attachment
-	fi
-fi
-
-build_cmd "$CURL"
+build_cmd "$CURL -H 'Content-Type: multipart/form-data' -F 'chat_id=$telegram_channel'"
 [ "true" = "$telegram_socks5_enabled" ] && use_socks5
-build_cmd "-H 'Content-Type: multipart/form-data'"
-build_cmd "-F 'chat_id=$telegram_channel'"
-build_cmd "-F 'disable_notification=$telegram_disable_notification'"
+[ "true" = "$telegram_silent" ] && build_cmd "-F 'disable_notification=true'"
 build_cmd "--url https://api.telegram.org/bot$telegram_token/"
+# no further modifications to command after this point
 
-if [ -n "$attachment" ]; then
-	if [ "true" = "$telegram_as_attachment" ]; then
-		log_and_run "${command}sendDocument -F 'document=@$telegram_photo' -F 'caption=$telegram_message'"
-	elif [ "true" = "$telegram_as_photo" ]; then
-		log_and_run "${command}sendPhoto -F 'photo=@$telegram_photo' -F 'caption=$telegram_message'"
-	else
-		log_and_run "${command}sendMessage -F 'text=Please select a method of sending (inline photo or file attachmnet).'"
-	fi
+# "custom caption"
+parse_caption() {
+	echo "$telegram_caption" | \
+		sed "s/%hostname/$(hostname -s)/;s/%datetime/$(date @$(stat -c%Z $1))/"
+}
+
+# "file" "caption"
+send_video() {
+	local caption inode n
+
+	inode=$(stat -c%i $1)
+	caption=$(parse_caption $1)
+
+	touch $lockfile
+	# https://core.telegram.org/bots/api#sendvideo
+	log_and_run "${command}sendVideo -F 'video=@$1' -F 'caption=$caption'"
+	[ -f $lockfile ] && rm $lockfile
+
+	# wait for the next file
+	while [ $inode -eq $(stat -c%i $1) ]; do
+		n=$((n + 1))
+		[ "$n" -le 10 ] || die "Give up after $n attempts."
+		sleep 1
+	done
+}
+
+if [ -f "$telegram_file" ]; then
+	[ -f "$telegram_file" ] || die "File $telegram_file not found"
+	magic=$(xxd -p -l10 $telegram_file)
+	case "$magic" in
+	"ffd8ffe000104a464946")
+		caption=$(parse_caption $telegram_file)
+		# https://core.telegram.org/bots/api#sendphoto
+		log_and_run "${command}sendPhoto -F 'photo=@$telegram_file' -F 'text=$caption'"
+		[ "true" = "$delete_tempfile" ] && [ -f "$telegram_file" ] && rm "$telegram_file"
+		;;
+	"000000016d6461740000")
+		if [ "true" = "$send_buffer" ]; then
+			send_video "$telegram_file"
+		fi
+		send_video "$telegram_file"
+		;;
+	*)
+		caption=$(parse_caption $telegram_file)
+		# https://core.telegram.org/bots/api#senddocument
+		log_and_run "${command}sendDocument -F 'document=@$1' -F 'text=$caption'"
+		;;
+	esac
 else
+	[ -z "$telegram_message" ] && die "Nothing to send"
+	# https://core.telegram.org/bots/api#sendmessage
 	log_and_run "${command}sendMessage -F 'text=$telegram_message'"
 fi
 
-[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 [ "true" = "$verbose" ] && cat $LOG_FILE
-
 quit_clean 0
