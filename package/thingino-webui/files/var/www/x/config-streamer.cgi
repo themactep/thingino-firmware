@@ -65,16 +65,11 @@ default_for rtsp_password "thingino"
 
 <div class="row row-cols-1 row-cols-lg-2">
 <div class="col mb-3">
-<div id="preview-wrapper" class="position-relative">
-<div class="mb-2">
 
 <div class="btn-toolbar" role="toolbar">
-<div class="btn-group" role="group">
+<div class="btn-group mb-3" role="group">
 <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#mdPreview"
- title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm"></button>
-</div>
-
-<div class="btn-group" role="group">
+title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm"></button>
 <input type="radio" class="btn-check" name="stream2_jpeg_channel" id="stream2_jpeg_channel_0" value="0" checked>
 <label class="btn btn-outline-primary" for="stream2_jpeg_channel_0">Main stream</label>
 <input type="radio" class="btn-check" name="stream2_jpeg_channel" id="stream2_jpeg_channel_1" value="1">
@@ -82,9 +77,8 @@ default_for rtsp_password "thingino"
 </div>
 </div>
 
-</div>
 <p><img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Stream Preview"></p>
-</div>
+
 <div class="d-flex flex-wrap align-content-around gap-1">
 <button type="button" class="btn btn-secondary" id="restart-prudynt">Restart streamer</button>
 <button type="button" class="btn btn-secondary" id="save-prudynt-config">Save config</button>
