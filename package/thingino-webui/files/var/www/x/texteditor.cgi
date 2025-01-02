@@ -89,7 +89,7 @@ page_title="Text editor"
 <h4>Changes against previous version</h4>
 <%
 # it's ugly but shows non-printed characters (^M/^I)
-_n=$(basename $editor_file)
+_n=$(basename "$editor_file")
 cat -t $editor_file >/tmp/$_n.np
 cat -t ${editor_file}.backup >/tmp/$_n.backup.np
 pre "$(diff -s -d -U0 /tmp/$_n.backup.np -L $backup_file /tmp/$_n.np -L $editor_file)"
