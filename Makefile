@@ -227,7 +227,7 @@ defconfig: prepare_config
 select-device:
 	$(info -------------------------------- $@)
 
-# configurator UI
+# call configurator
 menuconfig: $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) menuconfig
@@ -257,6 +257,7 @@ distclean:
 	$(info -------------------------------- $@)
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
+# assemble final images
 delete_bin_full:
 	if [ -f $(FIRMWARE_BIN_FULL) ]; then rm $(FIRMWARE_BIN_FULL); fi
 
@@ -275,6 +276,7 @@ pack: pack_full pack_update
 	$(info -------------------------------- $@)
 	@$(FIGLET) $(CAMERA)
 
+# rebuild a package
 pack_full: $(FIRMWARE_BIN_FULL)
 	$(info FIRMWARE_BIN_FULL_SIZE:   $(FIRMWARE_BIN_FULL_SIZE))
 	$(info FIRMWARE_FULL_SIZE:       $(FIRMWARE_FULL_SIZE))
@@ -374,7 +376,7 @@ $(CONFIG_BIN):
 		--output=$(CONFIG_BIN) \
 		--pad=$(CONFIG_PARTITION_SIZE)
 
-# rebuild Linux kernel
+# rebuild kernel
 $(KERNEL_BIN):
 	$(info -------------------------------- $@)
 	$(info KERNEL_BIN:            $@)
