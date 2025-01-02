@@ -90,6 +90,7 @@ else
 U_BOOT_BIN = $(OUTPUT_DIR)/images/$(patsubst "%",%,$(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME))
 endif
 
+CONFIG_BIN := $(OUTPUT_DIR)/images/config.jffs2
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
@@ -106,12 +107,14 @@ FIRMWARE_BIN_NOBOOT := $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_NOBOOT)
 U_BOOT_BIN_SIZE = $(shell stat -c%s $(U_BOOT_BIN))
 KERNEL_BIN_SIZE = $(shell stat -c%s $(KERNEL_BIN))
 ROOTFS_BIN_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
+CONFIG_BIN_SIZE = $(shell stat -c%s $(CONFIG_BIN))
 OVERLAY_BIN_SIZE = $(shell stat -c%s $(OVERLAY_BIN))
 
 FIRMWARE_BIN_FULL_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_FULL))
 FIRMWARE_BIN_NOBOOT_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_NOBOOT))
 
 U_BOOT_BIN_SIZE_ALIGNED = $(shell echo $$((($(U_BOOT_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
+CONFIG_BIN_SIZE_ALIGNED = $(shell echo $$((($(CONFIG_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 KERNEL_BIN_SIZE_ALIGNED = $(shell echo $$((($(KERNEL_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 ROOTFS_BIN_SIZE_ALIGNED = $(shell echo $$((($(ROOTFS_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 OVERLAY_BIN_SIZE_ALIGNED = $(shell echo $$((($(OVERLAY_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
@@ -119,6 +122,7 @@ OVERLAY_BIN_SIZE_ALIGNED = $(shell echo $$((($(OVERLAY_BIN_SIZE) + $(ALIGN_BLOCK
 # fixed size partitions
 U_BOOT_PARTITION_SIZE := $(SIZE_256K)
 U_BOOT_ENV_PARTITION_SIZE := $(SIZE_64K)
+CONFIG_PARTITION_SIZE := $(SIZE_64K)
 KERNEL_PARTITION_SIZE = $(KERNEL_BIN_SIZE_ALIGNED)
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
 
@@ -134,6 +138,7 @@ OVERLAY_MINUMUM_SIZE := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
 # partition offsets
 U_BOOT_OFFSET := 0
 U_BOOT_ENV_OFFSET = $(shell echo $$(($(U_BOOT_OFFSET) + $(U_BOOT_PARTITION_SIZE))))
+#CONFIG_OFFSET = $(shell echo $$(($(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_PARTITION_SIZE))))
 KERNEL_OFFSET = $(shell echo $$(($(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_PARTITION_SIZE))))
 ROOTFS_OFFSET = $(shell echo $$(($(KERNEL_OFFSET) + $(KERNEL_PARTITION_SIZE))))
 OVERLAY_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
@@ -328,6 +333,14 @@ $(OUTPUT_DIR)/.config: defconfig
 $(U_BOOT_BIN):
 	$(info U_BOOT_BIN $(U_BOOT_BIN) not found!)
 	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL_LESS_Z).bin
+
+# create config partition image
+$(CONFIG_BIN):
+	$(info -------------------------------- $@)
+	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --squash \
+		--root=$(BR2_EXTERNAL)/overlay/upper/ \
+		--output=$(CONFIG_BIN) \
+		--pad=$(CONFIG_PARTITION_SIZE)
 
 # rebuild Linux kernel
 $(KERNEL_BIN):
