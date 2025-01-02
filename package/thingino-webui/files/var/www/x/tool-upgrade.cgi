@@ -4,7 +4,6 @@
 page_title="Flash Operations"
 tools_action="sysupgrade"
 tools_upgrade_option="-p"
-upgrade_file_or_url=""
 
 if [ "$REQUEST_METHOD" = "POST" ]; then
     if [ -n "$HASERL_firmware_path" ]; then
@@ -193,11 +192,7 @@ async function handleUpgrade(ev) {
             }
             if (startIndex < chunk.length) yield chunk.substr(startIndex);
         } finally {
-            if ('true' === el.dataset.reboot) {
-                window.location.href = '/x/reboot.cgi';
-            } else {
-                el.innerHTML += '\n--- finished ---\n';
-            }
+            el.innerHTML += '\n--- sysupgrade exit! ---\n';
             if (submitButton) submitButton.disabled = false;
         }
     }
@@ -206,7 +201,7 @@ async function handleUpgrade(ev) {
     let lines = [];
 
     for await (let line of makeTextFileLineIterator('/x/run.cgi?cmd=' + btoa(el.dataset.cmd))) {
-        line = line.trimEnd() + '</span>';  // Add closing span just in case
+        line = line.trimEnd() + '</span>';
 
         line = line
             .replace(/\[38;5;(\d+)m/g, '</span><span style="color: var(--ansi-$1);">')
@@ -214,6 +209,11 @@ async function handleUpgrade(ev) {
             .replace(/\[0m/g, '</span>')
             .replace(/\x1B/g, '')
             .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+
+        if (line.startsWith('Rebooting in 5 seconds')) {
+            window.location.href = '/x/reboot.cgi';
+            return;
+        }
 
         if (line.includes('Writing kb:') ||
             line.includes('Verifying kb:') ||
