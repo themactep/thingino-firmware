@@ -34,7 +34,13 @@ TFTP_IP_ADDRESS ?= 192.168.1.254
 BR2_DL_DIR ?= $(HOME)/dl
 
 # working directory
+GIT_BRANCH := $(shell git branch --show-current)
+ifeq ($(GIT_BRANCH),master)
 OUTPUT_DIR ?= $(HOME)/output/$(CAMERA)
+else
+OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)/$(CAMERA)
+endif
+
 STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
 STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
 
