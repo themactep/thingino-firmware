@@ -28,6 +28,10 @@ SDCARD_DEVICE ?= /dev/sdf
 # TFTP server IP address to upload compiled images to
 TFTP_IP_ADDRESS ?= 192.168.1.254
 
+# project directories
+BR2_EXTERNAL := $(CURDIR)
+SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
+
 # Buildroot downloads directory
 # can be reused from environment, just export the value:
 # export BR2_DL_DIR = /path/to/your/local/storage
@@ -43,10 +47,6 @@ endif
 
 STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
 STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
-
-# project directories
-BR2_EXTERNAL := $(CURDIR)
-SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
@@ -81,14 +81,14 @@ ALIGN_BLOCK := $(SIZE_64K)
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 
-U_BOOT_ENV_FINAL_TXT = $(OUTPUT_DIR)/uenv.txt
-export U_BOOT_ENV_FINAL_TXT
-
 ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
 U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-lzo-with-spl.bin
 else
 U_BOOT_BIN = $(OUTPUT_DIR)/images/$(patsubst "%",%,$(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME))
 endif
+
+U_BOOT_ENV_FINAL_TXT = $(OUTPUT_DIR)/uenv.txt
+export U_BOOT_ENV_FINAL_TXT
 
 CONFIG_BIN := $(OUTPUT_DIR)/images/config.jffs2
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
