@@ -235,11 +235,11 @@ field_gpio() {
 
 if [ $(is_pwm_pin "$pin") ]; then
 	echo "<div class=\"row\"><label class=\"form-label col-9\" for=\"${name}_pwn_ch\">GPIO PWM channel</label>
-<div class=\"col\"><input type=\"text\" class=\"form-control text-end\" id=\"${name}_pwm_ch\" name=\"${name}_pwm_ch\"
- pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pwm\"></div></div><div class=\"row\"><label
- class=\"form-label col-9\" for=\"${name}_pwm_lvl\">GPIO PWM level</label><div class=\"col\"><input type=\"text\"
- class=\"form-control text-end\" id=\"${name}_pwm_lvl\" name=\"${name}_pwm_lvl\" pattern=\"[0-9]{1,3}\"
- title=\"empty or a number\" value=\"$pwm\"></div></div>"
+	<div class=\"col\"><input type=\"text\" class=\"form-control text-end\" id=\"${name}_pwm_ch\" name=\"${name}_pwm_ch\"
+	 pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pwm\"></div></div><div class=\"row\"><label
+	 class=\"form-label col-9\" for=\"${name}_pwm_lvl\">GPIO PWM level</label><div class=\"col\"><input type=\"text\"
+	 class=\"form-control text-end\" id=\"${name}_pwm_lvl\" name=\"${name}_pwm_lvl\" pattern=\"[0-9]{1,3}\"
+	 title=\"empty or a number\" value=\"$pwm\"></div></div>"
 else
 	echo "<div class=\"text-warning\">NOT A PWM PIN</div>"
 fi
