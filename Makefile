@@ -349,12 +349,15 @@ buildroot/Makefile:
 	git submodule update --depth 1 --recursive
 
 # create output directory
-$(OUTPUT_DIR):
-	mkdir -p $(OUTPUT_DIR)
+$(OUTPUT_DIR)/.keep:
+	$(info -------------------------------- $@)
+	test -d $(OUTPUT_DIR) || mkdir -p $(OUTPUT_DIR)
+	touch $@
+
+# configure buildroot for a particular board
+$(OUTPUT_DIR)/.config: $(OUTPUT_DIR)/.keep defconfig
 	$(info -------------------------------- $@)
 
-# configure build
-$(OUTPUT_DIR)/.config: defconfig
 	$(info -------------------------------- $@)
 
 # download bootloader
