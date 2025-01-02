@@ -151,24 +151,30 @@ OVERLAY_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PAR
 	prepare_config reconfig sdk toolchain update upload_tftp upgrade_ota br-%
 
 all: build pack
+	$(info -------------------------------- $@)
 	@$(FIGLET) "FINE"
 
 # update repo and submodules
 update:
+	$(info -------------------------------- $@)
 	git pull --rebase --autostash
 	git submodule update
 
 # install what's needed
 bootstrap:
+	$(info -------------------------------- $@)
 	$(SCRIPTS_DIR)/dep_check.sh
 
 build: defconfig
+	$(info -------------------------------- $@)
 	$(BR2_MAKE) all
 
 build_fast: defconfig
+	$(info -------------------------------- $@)
 	$(BR2_MAKE) -j$(shell nproc) all
 
 fast: build_fast pack
+	$(info -------------------------------- $@)
 	@$(FIGLET) "FINE"
 
 ### Configuration
@@ -177,6 +183,7 @@ FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(MODULE_CO
 
 # Assemble config from bits and pieces
 prepare_config: buildroot/Makefile
+	$(info -------------------------------- $@)
 	# create output directory
 	$(info * make OUTPUT_DIR $(OUTPUT_DIR))
 	mkdir -p $(OUTPUT_DIR)
@@ -205,6 +212,7 @@ endif
 
 # Configure buildroot for a particular board
 defconfig: prepare_config
+	$(info -------------------------------- $@)
 	@$(FIGLET) $(CAMERA)
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
@@ -217,30 +225,36 @@ defconfig: prepare_config
 	fi
 
 select-device:
-	$(info -------------------> select-device)
+	$(info -------------------------------- $@)
 
 # configurator UI
 menuconfig: $(OUTPUT_DIR)/.config
+	$(info -------------------------------- $@)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) menuconfig
 
 nconfig: $(OUTPUT_DIR)/.config
+	$(info -------------------------------- $@)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) nconfig
 
 # permanently save changes to the defconfig
 saveconfig:
+	$(info -------------------------------- $@)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) savedefconfig
 
 ### Files
 
 # remove target/ directory
 clean:
+	$(info -------------------------------- $@)
 	rm -rf $(OUTPUT_DIR)/target
 
 # rebuild from scratch
 cleanbuild: distclean fast
+	$(info -------------------------------- $@)
 
 # remove all build files
 distclean:
+	$(info -------------------------------- $@)
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
 delete_bin_full:
@@ -258,6 +272,7 @@ create_overlay: $(U_BOOT_BIN)
 		--output=$(OVERLAY_BIN) --pad=$(OVERLAY_SIZE)
 
 pack: pack_full pack_update
+	$(info -------------------------------- $@)
 	@$(FIGLET) $(CAMERA)
 
 pack_full: $(FIRMWARE_BIN_FULL)
@@ -276,61 +291,75 @@ reconfig:
 	rm -rvf $(OUTPUT_DIR)/.config
 
 rebuild-%: defconfig
+	$(info -------------------------------- $@)
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
 
 # build toolchain fast
 sdk: defconfig
+	$(info -------------------------------- $@)
 	$(BR2_MAKE) -j$(shell nproc) sdk
 
 source: defconfig
+	$(info -------------------------------- $@)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source
 
 # build toolchain
 toolchain: defconfig
+	$(info -------------------------------- $@)
 	$(BR2_MAKE) sdk
 
 # flash new uboot image to the camera
 upboot_ota: $(U_BOOT_BIN)
+	$(info -------------------------------- $@)
 	$(SCRIPTS_DIR)/fw_ota.sh $(U_BOOT_BIN) $(CAMERA_IP_ADDRESS)
 
 # flash compiled update image to the camera
 update_ota: $(FIRMWARE_BIN_NOBOOT)
+	$(info -------------------------------- $@)
 	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_NOBOOT) $(CAMERA_IP_ADDRESS)
 
 # flash compiled full image to the camera
 upgrade_ota: $(FIRMWARE_BIN_FULL)
+	$(info -------------------------------- $@)
 	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_FULL) $(CAMERA_IP_ADDRESS)
 
 # upload firmware to tftp server
 upload_tftp: $(FIRMWARE_BIN_FULL)
+	$(info -------------------------------- $@)
 	busybox tftp -l $(FIRMWARE_BIN_FULL) -r $(FIRMWARE_NAME_FULL) -p $(TFTP_IP_ADDRESS)
 
 ### Buildroot
 
 # delete all build/{package} and per-package/{package} files
 br-%-dirclean:
+	$(info -------------------------------- $@)
 	rm -rf $(OUTPUT_DIR)/per-package/$(subst -dirclean,,$(subst br-,,$@)) \
 		$(OUTPUT_DIR)/build/$(subst -dirclean,,$(subst br-,,$@))* \
 		$(OUTPUT_DIR)/target
 	#  \ sed -i /^$(subst -dirclean,,$(subst br-,,$@))/d $(OUTPUT_DIR)/build/packages-file-list.txt
 
 br-%: defconfig
+	$(info -------------------------------- $@)
 	$(BR2_MAKE) $(subst br-,,$@)
 
 # checkout buidroot submodule
 buildroot/Makefile:
+	$(info -------------------------------- $@)
 	git submodule init
 	git submodule update --depth 1 --recursive
 
 # create output directory
 $(OUTPUT_DIR):
 	mkdir -p $(OUTPUT_DIR)
+	$(info -------------------------------- $@)
 
 # configure build
 $(OUTPUT_DIR)/.config: defconfig
+	$(info -------------------------------- $@)
 
 # download bootloader
 $(U_BOOT_BIN):
+	$(info -------------------------------- $@)
 	$(info U_BOOT_BIN $(U_BOOT_BIN) not found!)
 	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL_LESS_Z).bin
 
@@ -344,6 +373,7 @@ $(CONFIG_BIN):
 
 # rebuild Linux kernel
 $(KERNEL_BIN):
+	$(info -------------------------------- $@)
 	$(info KERNEL_BIN:            $@)
 	$(info KERNEL_BIN_SIZE:       $(KERNEL_BIN_SIZE))
 	$(info KERNEL_PARTITION_SIZE: $(KERNEL_PARTITON_SIZE))
@@ -352,6 +382,7 @@ $(KERNEL_BIN):
 
 # rebuild rootfs
 $(ROOTFS_BIN):
+	$(info -------------------------------- $@)
 	$(info ROOTFS_BIN:            $@)
 	$(info ROOTFS_BIN_SIZE:       $(ROOTFS_BIN_SIZE))
 	$(info ROOTFS_PARTITION_SIZE: $(ROOTFS_PARTITION_SIZE))
@@ -359,6 +390,7 @@ $(ROOTFS_BIN):
 
 # create .tar file of rootfs
 $(ROOTFS_TAR):
+	$(info -------------------------------- $@)
 	$(info ROOTFS_TAR:          $@)
 	$(BR2_MAKE) all
 
@@ -389,6 +421,7 @@ $(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
 	dd if=$(ROOTFS_BIN) bs=$(ROOTFS_BIN_SIZE) seek=$(KERNEL_PARTITION_SIZE)B count=1 of=$@ conv=notrunc status=none
 	dd if=$(OVERLAY_BIN) bs=$(OVERLAY_BIN_SIZE) seek=$(OVERLAY_OFFSET_NOBOOT)B count=1 of=$@ conv=notrunc status=none
 help:
+	$(info -------------------------------- $@)
 	@echo "\n\
 	Usage:\n\
 	  make bootstrap      install system deps\n\
