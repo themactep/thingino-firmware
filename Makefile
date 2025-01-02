@@ -258,11 +258,6 @@ distclean:
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
 # assemble final images
-delete_bin_full:
-	if [ -f $(FIRMWARE_BIN_FULL) ]; then rm $(FIRMWARE_BIN_FULL); fi
-
-delete_bin_update:
-	if [ -f $(FIRMWARE_BIN_NOBOOT) ]; then rm $(FIRMWARE_BIN_NOBOOT); fi
 
 create_overlay: $(U_BOOT_BIN)
 	if [ $(OVERLAY_SIZE) -lt $(OVERLAY_MINUMUM_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
@@ -288,9 +283,6 @@ pack_update: $(FIRMWARE_BIN_NOBOOT)
 	$(info FIRMWARE_NOBOOT_SIZE:     $(FIRMWARE_NOBOOT_SIZE))
 	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(FIRMWARE_NOBOOT_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
 	@sha256sum $(FIRMWARE_BIN_NOBOOT) | awk '{print $$1 "  " filename}' filename=$$(basename $(FIRMWARE_BIN_NOBOOT)) > $(FIRMWARE_BIN_NOBOOT).sha256sum
-
-reconfig:
-	rm -rvf $(OUTPUT_DIR)/.config
 
 rebuild-%: defconfig
 	$(info -------------------------------- $@)
@@ -362,11 +354,8 @@ $(OUTPUT_DIR)/.config: $(OUTPUT_DIR)/.keep defconfig
 
 	$(info -------------------------------- $@)
 
-# download bootloader
 $(U_BOOT_BIN):
 	$(info -------------------------------- $@)
-	$(info U_BOOT_BIN $(U_BOOT_BIN) not found!)
-	$(WGET) -O $@ $(U_BOOT_GITHUB_URL)/u-boot-$(SOC_MODEL_LESS_Z).bin
 
 # create config partition image
 $(CONFIG_BIN):
@@ -379,30 +368,20 @@ $(CONFIG_BIN):
 # rebuild kernel
 $(KERNEL_BIN):
 	$(info -------------------------------- $@)
-	$(info KERNEL_BIN:            $@)
-	$(info KERNEL_BIN_SIZE:       $(KERNEL_BIN_SIZE))
-	$(info KERNEL_PARTITION_SIZE: $(KERNEL_PARTITON_SIZE))
 	$(BR2_MAKE) linux-rebuild
 #	mv -vf $(OUTPUT_DIR)/images/uImage $@
 
 # rebuild rootfs
 $(ROOTFS_BIN):
 	$(info -------------------------------- $@)
-	$(info ROOTFS_BIN:            $@)
-	$(info ROOTFS_BIN_SIZE:       $(ROOTFS_BIN_SIZE))
-	$(info ROOTFS_PARTITION_SIZE: $(ROOTFS_PARTITION_SIZE))
 	$(BR2_MAKE) all
 
 # create .tar file of rootfs
 $(ROOTFS_TAR):
 	$(info -------------------------------- $@)
-	$(info ROOTFS_TAR:          $@)
 	$(BR2_MAKE) all
 
 $(OVERLAY_BIN): create_overlay
-	$(info OVERLAY_BIN:         $@)
-	$(info OVERLAY_BIN_SIZE:    $(OVERLAY_BIN_SIZE))
-	$(info OVERLAY_OFFSET:      $(OVERLAY_OFFSET))
 
 $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
 	$(info $(shell printf "%-10s | %8s | %9s | %9s |" PARTITION SIZE OFFSET END))
