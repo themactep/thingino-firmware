@@ -376,18 +376,20 @@ help:
 	  make defconfig      (re)create config file\n\
 	  make                build and pack everything\n\
 	  make build          build kernel and rootfs\n\
-	  make cleanbuild     build everything from scratch\n\
-	  make pack_full      create a full firmware image\n\
-	  make pack_update    create an update firmware image (no bootloader)\n\
+	  make cleanbuild     build everything from scratch, fast\n\
+	  make pack           create firmware images\n\
 	  make clean          clean before reassembly\n\
 	  make distclean      start building from scratch\n\
 	  make rebuild-<pkg>  perform a clean package rebuild for <pkg>\n\
 	  make help           print this help\n\
 	  \n\
-	  make upgrade_ota IP=192.168.1.10\n\
-	                      upload the full firmware file to the camera\n\
+	  make upboot_ota IP=192.168.1.10\n\
+	                      upload bootloader to the camera\n\
 	                        over network, and flash it\n\n\
 	  make update_ota IP=192.168.1.10\n\
-	                      upload the update firmware file to the camera\n\
+	                      upload kernel and roofts to the camera\n\
+	                        over network, and flash them\n\n\
+	  make upgrade_ota IP=192.168.1.10\n\
+	                      upload full firmware image to the camera\n\
 	                        over network, and flash it\n\n\
 	"
