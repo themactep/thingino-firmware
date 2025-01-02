@@ -53,9 +53,7 @@ alert_delete() {
 alert_read() {
 	[ -f "$alert_file" ] || return
 	[ -s "$alert_file" ] || return
-	local c
-	local m
-	local l
+	local c l m
 	IFS=$'\n'
 	for l in $(cat "$alert_file"); do
 		c="$(echo $l | cut -d':' -f1)"
@@ -114,9 +112,10 @@ button_send2tb() {
 
 # button_submit "text" "type" "extras"
 button_submit() {
-	local t="${1:-Save changes}"
-	local c="${2:-primary}"
-	local x="${3:- }"
+	local c t x
+	t="${1:-Save changes}"
+	c="${2:-primary}"
+	x="${3:- }"
 	echo "<div class=\"mt-3\"><input type=\"submit\" class=\"btn btn-$c\"$x value=\"$t\"></div>"
 }
 
@@ -195,40 +194,31 @@ field_file() {
 
 # field_gpio "name" "label"
 field_gpio() {
-	local name=$1
+	local active_suffix is_active is_active_low lit_on_boot name pin pin_off pin_status pin_on pwm var_pin var_pwm
+	name=$1
 
-	local var_pin="${name}_pin"
-	local pin
+	var_pin="${name}_pin"
 	eval pin=\$$var_pin
 	[ -z "$pin" ] && return
 
-	local var_pwm="${name}_pwm"
-	local pwm
+	var_pwm="${name}_pwm"
 	eval pwm=\$$var_pwm
 
 	[ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
 
-	local active_suffix
-	local is_active_low
-	local pin_off
-	local pin_on
 	active_suffix=${pin:0-1}
 	case "$active_suffix" in
 		o) pin_on=0; pin_off=1; is_active_low=" checked" ;;
 		O) pin_on=1; pin_off=0 ;;
 	esac
 	pin=${pin:0:-1}
-
-	local pin_status
-	local is_active
 	pin_status=$(gpio read $pin)
 	[ "$pin_status" -eq "$pin_on" ] && is_active=" checked"
 
-	local lit_on_boot
 	echo $DEFAULT_PINS | grep -E "\b$pin$active_suffix\b" > /dev/null && lit_on_boot=" checked"
 
 	echo "<div class=\"col\">
-	<div class=\"card h-100 gpio ${name}\">
+	<div class=\"card h-100 gpio $name\">
 	<div class=\"card-header\">$2
 	<div class=\"switch float-end\">
 	<button type=\"button\" class=\"btn btn-sm btn-outline-secondary m-0 led-status\" id=\"${name}_toggle\" $is_active>Test</button>
@@ -267,14 +257,15 @@ field_hidden() {
 
 # field_number "name" "label" "range" "hint"
 field_number() {
-	local n=$1
-	local r=$3 # min,max,step,button
-	local mn=$(echo "$r" | cut -d, -f1)
-	local mx=$(echo "$r" | cut -d, -f2)
-	local st=$(echo "$r" | cut -d, -f3)
-	local ab=$(echo "$r" | cut -d, -f4)
-	local v=$(t_value "$n")
-	local vr=$v
+	local ab mn mx n r st v vr
+	n=$1
+	r=$3 # min,max,step,button
+	mn=$(echo "$r" | cut -d, -f1)
+	mx=$(echo "$r" | cut -d, -f2)
+	st=$(echo "$r" | cut -d, -f3)
+	ab=$(echo "$r" | cut -d, -f4)
+	v=$(t_value "$n")
+	vr=$v
 	[ -n "$ab" ] && [ "$ab" = "$v" ] && vr=$(((mn + mx) / 2))
 	echo "<div class=\"mb-2 number\">
 	<label class=\"form-label\" for=\"$n\">$2</label>
@@ -305,14 +296,15 @@ field_password() {
 
 # field_range "name" "label" "range" "hint"
 field_range() {
-	local n=$1
-	local r=$3 # min,max,step,button
-	local mn=$(echo "$r" | cut -d, -f1)
-	local mx=$(echo "$r" | cut -d, -f2)
-	local st=$(echo "$r" | cut -d, -f3)
-	local ab=$(echo "$r" | cut -d, -f4)
-	local v=$(t_value "$n")
-	local vr=$v
+	local ab mn mx n r st v vr
+	n=$1
+	r=$3 # min,max,step,button
+	mn=$(echo "$r" | cut -d, -f1)
+	mx=$(echo "$r" | cut -d, -f2)
+	st=$(echo "$r" | cut -d, -f3)
+	ab=$(echo "$r" | cut -d, -f4)
+	v=$(t_value "$n")
+	vr=$v
 	[ -z "$vr" -o "$ab" = "$vr" ] && vr=$(((mn + mx) / 2))
 	echo "<div class=\"mb-2 range\" id=\"${n}_wrap\">
 	<label class=\"form-label\" for=\"$n\">$2</label>
@@ -354,12 +346,13 @@ field_select() {
 
 # field_swith "name" "label" "hint" "options"
 field_switch() {
-	local v=$(t_value "$1")
+	local o o1 o2 v
+	v=$(t_value "$1")
 	default_for v "false"
-	local o=$4
+	o=$4
 	default_for o "true,false"
-	local o1=$(echo "$o" | cut -d, -f1)
-	local o2=$(echo "$o" | cut -d, -f2)
+	o1=$(echo "$o" | cut -d, -f1)
+	o2=$(echo "$o" | cut -d, -f2)
 	echo "<div class=\"mb-2 boolean\" id=\"$1_wrap\">
 	<span class=\"form-check form-switch\">
 	<input type=\"hidden\" id=\"$1-false\" name=\"$1\" value=\"$o2\">
@@ -372,9 +365,10 @@ field_switch() {
 
 # field_text "name" "label" "hint" "placeholder" "extra"
 field_text() {
-	local v="$(t_value "$1")"
-	local h="$3"
-	local p="$4"
+	local h p v
+	v="$(t_value "$1")"
+	h="$3"
+	p="$4"
 	echo "<div class=\"mb-2 string\" id=\"$1_wrap\">
 	<label for=\"$1\" class=\"form-label\">$2</label>
 	<input type=\"text\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"$p\"$5>"
@@ -457,8 +451,7 @@ log() {
 }
 
 menu() {
-	local i
-	local n
+	local i n
 	for i in $(ls -1 $1-*); do
 		if [ "plugin" = "$1" ]; then
 			# get plugin name
@@ -589,8 +582,9 @@ signature() {
 }
 
 tab_lap() {
-	local c=""
-	local s="false"
+	local c s
+	c=""
+	s="false"
 	[ -n "$3" ] && s="true" && c=" active"
 	echo "<li class=\"nav-item\" role=\"presentation\"><button role=\"tab\" id=\"#$1-tab\" class=\"nav-link$c\" data-bs-toggle=\"tab\" data-bs-target=\"#$1-tab-pane\" aria-controls=\"$1-tab-pane\" aria-selected=\"$s\">$2</button></li>"
 }
@@ -600,14 +594,16 @@ t_value() {
 }
 
 update_caminfo() {
-	local tmpfile="$ui_tmp_dir/sysinfo.tmp"
+	local tmpfile f v
+
+	tmpfile="$ui_tmp_dir/sysinfo.tmp"
 	:>$tmpfile
 	# add all web-related config files
 	# do not include ntp
-	for _f in admin email ftp motion socks5 speaker telegram webhook yadisk; do
-		[ -f "$ui_config_dir/$_f.conf" ] || continue
-		cat "$ui_config_dir/$_f.conf" >>$tmpfile
-	done; unset _f
+	for f in admin email ftp motion socks5 speaker telegram webhook yadisk; do
+		[ -f "$ui_config_dir/$f.conf" ] || continue
+		cat "$ui_config_dir/$f.conf" >>$tmpfile
+	done
 
 	# Hardware
 
@@ -674,9 +670,7 @@ update_caminfo() {
 	rtsp_endpoint_ch1=$(prudyntcfg get stream1.rtsp_endpoint | tr -d '"')
 
 	# create a sourceable file
-	local variables="flash_size flash_size_mb flash_type fw_version fw_build network_address network_cidr network_default_interface network_dhcp network_dns_1 network_dns_2 network_gateway network_hostname network_interfaces network_macaddr network_netmask overlay_root rtsp_endpoint_ch0 rtsp_endpoint_ch1 soc_family soc_model sensor_fps_max sensor_fps_min sensor_model tz_data tz_name uboot_version ui_password"
-	local v
-	for v in $variables; do
+	for v in flash_size flash_size_mb flash_type fw_version fw_build network_address network_cidr network_default_interface network_dhcp network_dns_1 network_dns_2 network_gateway network_hostname network_interfaces network_macaddr network_netmask overlay_root rtsp_endpoint_ch0 rtsp_endpoint_ch1 soc_family soc_model sensor_fps_max sensor_fps_min sensor_model tz_data tz_name uboot_version ui_password; do
 		eval "echo $v=\'\$$v\'>>$tmpfile"
 	done
 	# sort content alphabetically
