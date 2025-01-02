@@ -210,10 +210,11 @@ async function handleUpgrade(ev) {
             .replace(/\x1B/g, '')
             .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
 
-        if (line.startsWith('Rebooting in 5 seconds')) {
-            window.location.href = '/x/reboot.cgi';
-            return;
-        }
+        //FIXME: this won't work, there's no reboot.cgi left on the flash after sysupgrade...
+        //if (line.startsWith('Rebooting in 5 seconds')) {
+        //    window.location.href = '/x/reboot.cgi';
+        //    return;
+        //}
 
         if (line.includes('Writing kb:') ||
             line.includes('Verifying kb:') ||
