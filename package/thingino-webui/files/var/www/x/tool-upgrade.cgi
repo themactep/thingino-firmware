@@ -50,9 +50,17 @@ get_mtd_partitions() {
 }
 %>
 <%in _header.cgi %>
+<style>
+:root {
+    /* Basic colors */
+    --ansi-70: #5faf00;  /* Green */
+    --ansi-66: #5f8787;  /* Cyan-ish */
+    --ansi-144: #afaf87; /* Light grey */
+}
+</style>
 <div class="container g-4 mb-4">
   <div class="row">
-    <div class="col col-md-6">
+    <div class="col-12 col-md-6">
       <div class="mb-4">
         <h5>Backup</h5>
         <p>Click "Generate archive" to download a tar archive of the current configuration files.</p>
@@ -81,8 +89,10 @@ get_mtd_partitions() {
       </div>
     </div>
 
-    <div class="col col-md-6">
-      <div id="output-wrapper"></div>
+    <div class="col-12 col-md-6">
+      <div id="output-wrapper" style="display: none; height: 600px; max-height: 600px; overflow-y: auto; padding: 1rem;">
+        <pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word;"></pre>
+      </div>
     </div>
   </div>
 </div>
@@ -102,11 +112,15 @@ async function handleUpgrade(ev) {
         return;
     }
 
+    wr.style.display = 'block';
     wr.innerHTML = '';
     let cmd = '/sbin/sysupgrade';
 
     if (hasFile) {
         const uploadStatus = document.createElement('pre');
+        uploadStatus.style.margin = '0';
+        uploadStatus.style.whiteSpace = 'pre-wrap';
+        uploadStatus.style.wordWrap = 'break-word';
         uploadStatus.textContent = 'Uploading firmware file...';
         wr.appendChild(uploadStatus);
 
@@ -137,9 +151,13 @@ async function handleUpgrade(ev) {
     const el = document.createElement('pre');
     el.id = "output";
     el.dataset.cmd = cmd;
+    el.style.margin = '0';
+    el.style.whiteSpace = 'pre-wrap';
+    el.style.wordWrap = 'break-word';
 
     const h6 = document.createElement('h6');
     h6.textContent = `# ${cmd}`;
+    h6.style.margin = '0 0 1rem 0';
 
     if (wr) {
         wr.innerHTML = '';
@@ -184,18 +202,38 @@ async function handleUpgrade(ev) {
         }
     }
 
-    let lineCount = 0;
-    const maxLines = 40;
+    let lastProgressLine = '';
+    let lines = [];
+
     for await (let line of makeTextFileLineIterator('/x/run.cgi?cmd=' + btoa(el.dataset.cmd))) {
-        const re1 = /\u001b\[1;(\d+)m/;
-        const re2 = /\u001b\[0m/;
-        line = line.replace(re1, '<span class="ansi-$1">').replace(re2, '</span>');
-        el.innerHTML += line + '\n';
-        lineCount++;
-        if (lineCount > maxLines) {
-            const lines = el.innerHTML.split('\n');
-            el.innerHTML = lines.slice(lines.length - maxLines).join('\n');
+        line = line.trimEnd() + '</span>';  // Add closing span just in case
+
+        line = line
+            .replace(/\[38;5;(\d+)m/g, '</span><span style="color: var(--ansi-$1);">')
+            .replace(/\[(\d+)m/g, '</span><span class="ansi-$1">')
+            .replace(/\[0m/g, '</span>')
+            .replace(/\x1B/g, '')
+            .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+
+        if (line.includes('Writing kb:') ||
+            line.includes('Verifying kb:') ||
+            line.match(/^[#O-]+\s+\d+\.?\d*%/) ||
+            line.match(/^#+\s+\d+\.?\d*%/) ||
+            line.match(/^#[#O=\-]+.*/) ||
+            line.match(/^Erasing block: \d+\/\d+ \(\d+%\)/)) {
+            if (lastProgressLine) {
+                lines[lines.length - 1] = line;
+            } else {
+                lines.push(line);
+            }
+            lastProgressLine = line;
+        } else if (line.trim()) {
+            lastProgressLine = '';
+            lines.push(line);
         }
+
+        el.innerHTML = lines.join('\n');
+        wr.scrollTop = wr.scrollHeight;
     }
 }
 
