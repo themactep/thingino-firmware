@@ -78,7 +78,7 @@ get_mtd_partitions() {
 
       <div class="mb-4">
         <h5>Flash new firmware image</h5>
-        <p>Upload a sysupgrade-compatible image here to replace the running firmware.</p>
+        <p>Upload a sysupgrade-compatible image here to replace the current firmware. If no image is selected, the system will automatically download the latest compatible image for this device from the GitHub repository</p>
         <div id="firmware-upload-form">
           <input type="file" class="form-control" id="firmware-image" name="firmware">
           <div class="mt-2">
