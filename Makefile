@@ -278,6 +278,10 @@ source: defconfig
 toolchain: defconfig
 	$(BR2_MAKE) sdk
 
+# flash new uboot image to the camera
+upboot_ota: $(U_BOOT_BIN)
+	$(SCRIPTS_DIR)/fw_ota.sh $(U_BOOT_BIN) $(CAMERA_IP_ADDRESS)
+
 # flash compiled update image to the camera
 update_ota: $(FIRMWARE_BIN_NOBOOT)
 	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_NOBOOT) $(CAMERA_IP_ADDRESS)
