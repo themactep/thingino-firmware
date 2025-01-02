@@ -427,7 +427,7 @@ is_ap() {
 }
 
 is_pwm_pin() {
-	$(pwm-ctrl -l | awk "/^GPIO $1/{print \$4}" | sed s/PWM//)
+	pwm-ctrl -l | awk "/^GPIO $1/{print \$4}" | sed s/PWM//
 }
 
 is_recording() {
