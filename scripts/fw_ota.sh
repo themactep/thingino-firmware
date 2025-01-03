@@ -11,6 +11,19 @@ cleanup() {
 # Trap to execute cleanup function on script exit
 trap cleanup EXIT
 
+# Downloads and installs the sysupgrade script
+install_sysupgrade() {
+	echo "Downloading and installing latest sysupgrade utility..."
+	if ssh $SSH_OPTS root@"$CAMERA_IP_ADDRESS" "\
+		curl -L https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/sysupgrade -o /usr/sbin/sysupgrade && \
+		chmod +x /usr/sbin/sysupgrade"; then
+		echo "Sysupgrade utility installed successfully."
+	else
+		echo "Failed to install sysupgrade utility."
+	exit 1
+	fi
+}
+
 # Validates input parameters and sets up SSH connection sharing, single authentication request
 initialize_ssh_connection() {
 	FIRMWARE_BIN="$1"
@@ -55,6 +68,7 @@ flash_firmware() {
 
 main() {
 	initialize_ssh_connection "$@"
+	install_sysupgrade
 	transfer_and_verify_firmware
 	flash_firmware
 }
