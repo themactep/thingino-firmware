@@ -1,3 +1,4 @@
+# NAME: Litokam M1 (T31L, SC3336, ATBM6012b)
 # MODULE: t31l_sc3336_atbm6012b
 BR2_ISP_PARAMS="isp_ch0_pre_dequeue_time=10 isp_ch0_pre_dequeue_interrupt_process=0 isp_ch0_pre_dequeue_valid_lines=540 isp_day_night_switch_drop_frame_num=6"
 BR2_SENSOR_PARAMS="shvflip=1"
