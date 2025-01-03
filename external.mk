@@ -296,22 +296,31 @@ export SOC_RAM
 
 # default to older kernel if none set
 ifneq ($(KERNEL_VERSION_3)$(KERNEL_VERSION_4),y)
-	KERNEL_VERSION_3 := y
+	ifeq ($(BR2_SOC_INGENIC_T40),y)
+		KERNEL_VERSION_4 := y
+	else ifeq ($(BR2_SOC_INGENIC_T41),y)
+		KERNEL_VERSION_4 := y
+	else
+		KERNEL_VERSION_3 := y
+	endif
 endif
 
-ifeq ($(KERNEL_VERSION_3),y)
-	KERNEL_VERSION := 3.10
-	KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
-	KERNEL_BRANCH := ingenic-t31
-else ifeq ($(KERNEL_VERSION_4),y)
+ifeq ($(BR2_SOC_INGENIC_T41),y)
+	# Could be 3.10 also?
 	KERNEL_VERSION := 4.4
-	ifeq ($(BR2_SOC_INGENIC_T41),y)
+	KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+	KERNEL_BRANCH := ingenic-t41
+else ifeq ($(BR2_SOC_INGENIC_T40),y)
+	KERNEL_VERSION := 4.4
+	KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+	KERNEL_BRANCH := ingenic-t40
+else ifeq ($(BR2_SOC_INGENIC_T31),y)
+	ifeq ($(KERNEL_VERSION_3),y)
+		KERNEL_VERSION := 3.10
 		KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
-		KERNEL_BRANCH := ingenic-t41
-	else ifeq ($(BR2_SOC_INGENIC_T40),y)
-		KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
-		KERNEL_BRANCH := ingenic-t40
-	else
+		KERNEL_BRANCH := ingenic-t31
+	else ifeq ($(KERNEL_VERSION_4),y)
+		KERNEL_VERSION := 4.4
 		KERNEL_SITE := https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94
 		KERNEL_BRANCH := stable
 	endif
