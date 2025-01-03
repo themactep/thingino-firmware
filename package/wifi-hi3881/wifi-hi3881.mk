@@ -38,11 +38,11 @@ LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $
 define WIFI_HI3881_INSTALL_CONFIGS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
 	touch $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/modules.builtin.modinfo
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc $(@D)/firmware/wifi_cfg/fcc/wifi_cfg
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/wifi
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/wifi $(@D)/firmware/wifi_cfg/fcc/wifi_cfg
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/firmware
 	$(INSTALL) -m 644 $(@D)/firmware/hi3881_fw.bin $(TARGET_DIR)/lib/firmware/hi3881_fw.bin
-	sed -i 's|ADDR_FILE_FILES=1,0xe4800,/vendor/firmware/hisilicon/hi3881_fw.bin;|ADDR_FILE_FILES=1,0xe4800,/lib/firmware/hi3881_fw.bin;|' $(TARGET_DIR)/etc/wifi_cfg
+	sed -i 's|ADDR_FILE_FILES=1,0xe4800,/vendor/firmware/hisilicon/hi3881_fw.bin;|ADDR_FILE_FILES=1,0xe4800,/lib/firmware/hi3881_fw.bin;|' $(TARGET_DIR)/usr/share/wifi/wifi_cfg
 endef
 
 WIFI_HI3881_POST_INSTALL_TARGET_HOOKS += WIFI_HI3881_INSTALL_CONFIGS

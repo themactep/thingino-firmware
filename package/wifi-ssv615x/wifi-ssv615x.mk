@@ -26,9 +26,9 @@ define WIFI_SSV615X_LINUX_CONFIG_FIXUPS
 endef
 
 define WIFI_SSV615X_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc $(WIFI_SSV615X_PKGDIR)/files/ssv6155-usb-40M.cfg
-        $(INSTALL) -m 644 -t $(TARGET_DIR)/etc $(WIFI_SSV615X_PKGDIR)/files/ssv6006c-wifi.cfg
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/wifi
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/wifi $(WIFI_SSV615X_PKGDIR)/files/ssv6155-usb-40M.cfg
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/wifi $(WIFI_SSV615X_PKGDIR)/files/ssv6006c-wifi.cfg
 endef
 
 $(eval $(kernel-module))

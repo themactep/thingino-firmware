@@ -82,7 +82,7 @@ start() {
 
 	if [ -n "$wlanmac" ] && [ "hi3881" = "$wlandev" ]; then
 		info "Preset MAC address to $wlanmac"
-		sed -i "s/CFG_MAC=[^;]*;/CFG_MAC=$wlanmac;/" /etc/wifi_cfg
+		sed -i "s/CFG_MAC=[^;]*;/CFG_MAC=$wlanmac;/" /usr/share/wifi/wifi_cfg
 	fi
 
 	if grep -q "^$wlandev\b" /proc/modules; then

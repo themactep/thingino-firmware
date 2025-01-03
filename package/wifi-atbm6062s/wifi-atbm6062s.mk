@@ -31,8 +31,8 @@ LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $
 define WIFI_ATBM6062S_INSTALL_CONFIGS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)
 	touch $(TARGET_DIR)/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)/modules.builtin.modinfo
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc $(WIFI_ATBM_WIFI_PKGDIR)/files/*.txt
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/wifi
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/wifi $(WIFI_ATBM_WIFI_PKGDIR)/files/*.txt
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/firmware
 	$(INSTALL) -m 644 $(@D)/firmware/cronus_SDIO_NoBLE_SDIO_svn19514_24M_wifi6phy_DCDC.bin $(TARGET_DIR)/lib/firmware/$(call qstrip,$(ATBM6062S_MODULE_NAME))_fw.bin
 endef
