@@ -13,14 +13,23 @@ trap cleanup EXIT
 
 # Downloads and installs the sysupgrade script
 install_sysupgrade() {
-	echo "Downloading and installing latest sysupgrade utility..."
-	if ssh $SSH_OPTS root@"$CAMERA_IP_ADDRESS" "\
-		curl -L https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/sysupgrade -o /usr/sbin/sysupgrade && \
-		chmod +x /usr/sbin/sysupgrade"; then
+	local TEMP_FILE=$(mktemp /tmp/sysupgrade.XXXXXX)
+
+	echo "Downloading latest sysupgrade utility..."
+	if ! wget -q -O "$TEMP_FILE" https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/sysupgrade; then
+		echo "Failed to download sysupgrade utility"
+		rm -f "$TEMP_FILE"
+		exit 1
+	fi
+
+	echo "Transferring sysupgrade utility to device..."
+	if ssh $SSH_OPTS root@"$CAMERA_IP_ADDRESS" "cat > /usr/sbin/sysupgrade && chmod +x /usr/sbin/sysupgrade" < "$TEMP_FILE"; then
 		echo "Sysupgrade utility installed successfully."
+		rm -f "$TEMP_FILE"
 	else
-		echo "Failed to install sysupgrade utility."
-	exit 1
+		echo "Failed to install sysupgrade utility"
+		rm -f "$TEMP_FILE"
+		exit 1
 	fi
 }
 
