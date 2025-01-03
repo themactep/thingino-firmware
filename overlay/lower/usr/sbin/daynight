@@ -7,13 +7,13 @@ STOP_FILE=/tmp/daynight.stop
 MODE_FILE=/tmp/nightmode.txt
 [ -f $MODE_FILE ] || echo "day" > $MODE_FILE
 
-day_night_max=$(get day_night_max)
-day_night_min=$(get day_night_min)
-day_night_color=$(get day_night_color)
-day_night_ircut=$(get day_night_ircut)
-day_night_ir850=$(get day_night_ir850)
-day_night_ir940=$(get day_night_ir940)
-day_night_white=$(get day_night_white)
+day_night_max=$(fw_printenv -n day_night_max)
+day_night_min=$(fw_printenv -n day_night_min)
+day_night_color=$(fw_printenv -n day_night_color)
+day_night_ircut=$(fw_printenv -n day_night_ircut)
+day_night_ir850=$(fw_printenv -n day_night_ir850)
+day_night_ir940=$(fw_printenv -n day_night_ir940)
+day_night_white=$(fw_printenv -n day_night_white)
 
 is_disabled() {
 	[ -f "$STOP_FILE" ]

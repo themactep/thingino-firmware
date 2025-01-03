@@ -21,10 +21,10 @@ default_for rtsp_port "554"
 onvif_port=$(awk -F'=' '/^port=/{print $2}' /etc/onvif.conf)
 default_for onvif_port "80"
 
-rtsp_endpoint_ch0=$(prudyntcfg get stream0.rtsp_endpoint)
+rtsp_endpoint_ch0=$(prudyntcfg get stream0.rtsp_endpoint | tr -d '"')
 default_for rtsp_endpoint_ch0 "ch0"
 
-rtsp_endpoint_ch1=$(prudyntcfg get stream1.rtsp_endpoint)
+rtsp_endpoint_ch1=$(prudyntcfg get stream1.rtsp_endpoint | tr -d '"')
 default_for rtsp_endpoint_ch1 "ch1"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then

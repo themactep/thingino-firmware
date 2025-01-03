@@ -48,7 +48,8 @@ default_for rtsp_password "thingino"
 <%in _header.cgi %>
 
 <nav class="navbar navbar-expand-lg mb-4 p-1">
-<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbStreamer" aria-controls="nbStreamer" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbStreamer"
+ aria-controls="nbStreamer" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
 <div class="collapse navbar-collapse" id="nbStreamer">
 <ul class="navbar-nav nav-underline" role="tablist">
 <li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab1-pane" class="nav-link active" aria-current="page">Common</a></li>
@@ -64,16 +65,11 @@ default_for rtsp_password "thingino"
 
 <div class="row row-cols-1 row-cols-lg-2">
 <div class="col mb-3">
-<div id="preview-wrapper" class="position-relative">
-<div class="mb-2">
 
 <div class="btn-toolbar" role="toolbar">
-<div class="btn-group" role="group">
+<div class="btn-group mb-3" role="group">
 <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#mdPreview"
- title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid" style="height:1.5rem"></button>
-</div>
-
-<div class="btn-group" role="group">
+title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm"></button>
 <input type="radio" class="btn-check" name="stream2_jpeg_channel" id="stream2_jpeg_channel_0" value="0" checked>
 <label class="btn btn-outline-primary" for="stream2_jpeg_channel_0">Main stream</label>
 <input type="radio" class="btn-check" name="stream2_jpeg_channel" id="stream2_jpeg_channel_1" value="1">
@@ -81,9 +77,8 @@ default_for rtsp_password "thingino"
 </div>
 </div>
 
-</div>
 <p><img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Stream Preview"></p>
-</div>
+
 <div class="d-flex flex-wrap align-content-around gap-1">
 <button type="button" class="btn btn-secondary" id="restart-prudynt">Restart streamer</button>
 <button type="button" class="btn btn-secondary" id="save-prudynt-config">Save config</button>
@@ -149,8 +144,11 @@ default_for rtsp_password "thingino"
 <div class="tab-pane fade" id="tab<%= $((i+2)) %>osd-pane" role="tabpanel" aria-labelledby="tab<%= $((i+2)) %>osd">
 <% field_switch "osd${i}_enabled" "OSD enabled" %>
 <div class="row g-1"><div class="col-7"><label class="form-label" for="fontname<%= $i %>">Font</label>
-<div class="input-group mb-3"><button class="btn btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#mdFont" title="Upload a font">
-<img src="/a/upload.svg" alt="Upload" class="img-fluid" style="height:20px"></button><select class="form-select" id="fontname<%= $i %>">
+<div class="input-group mb-3">
+<button class="btn btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#mdFont" title="Upload a font">
+<img src="/a/upload.svg" alt="Upload" class="img-fluid icon-sm">
+</button>
+<select class="form-select" id="fontname<%= $i %>">
 <% for f in $FONTS; do %><option><%= $f %></option><% done %></select></div></div>
 <div class="col-5"><% field_range "fontsize${i}" "Font size" "10,80,1" %></div>
 </div>

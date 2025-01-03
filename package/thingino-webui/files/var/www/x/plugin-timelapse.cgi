@@ -6,7 +6,7 @@ plugin_name="Timelapse"
 page_title="Timelapse"
 params="enabled interval storage filename"
 
-CRONTABS="/etc/crontabs/root"
+CRONTABS="/etc/cron/crontabs/root"
 MOUNTS=$(awk '/nfs|fat/{print $2}' /etc/mtab)
 
 config_file="$ui_config_dir/timelapse.conf"
@@ -57,6 +57,7 @@ defaults
 <div class="row">
 <div class="col col-xl-4">
 <% field_select "timelapse_storage" "Storage directory" "$MOUNTS" %>
+<p><a href="tool-file-manager.cgi?cd=/mnt" id="link-fm">Open in File Manager</a></p>
 <div class="row g-1">
 <div class="col-9"><% field_text "timelapse_filename" "Filename template" "$STR_SUPPORTS_STRFTIME" %></div>
 <div class="col-3"><% field_text "timelapse_interval" "Interval" "minutes" %></div>
@@ -77,5 +78,11 @@ defaults
 <% ex "cat $config_file" %>
 <% ex "crontab -l" %>
 </div>
+
+<script>
+$('#link-fm').addEventListener('click', ev => {
+	ev.target.href = 'tool-file-manager.cgi?cd=' + $('#timelapse_storage').value
+})
+</script>
 
 <%in _footer.cgi %>

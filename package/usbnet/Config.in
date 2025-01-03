@@ -7,31 +7,51 @@ config BR2_PACKAGE_USBNET_ASIX
 	bool "ASIX AX8817X USB"
 	depends on BR2_PACKAGE_USBNET
 	help
-	  Enables ASIX AX88xxx USB 2.0 core driver
+         Select this option to enable support for USB network adapters based on
+         the ASIX AX88xxx family of USB 2.0 chipsets. These chipsets are found
+         in many popular USB-to-Ethernet adapters.
 
 config BR2_PACKAGE_USBNET_ASIX_179_178A
 	bool "ASIX AX88179_178A USB"
 	depends on BR2_PACKAGE_USBNET
 	help
-	  Enables ASIX AX88179_178A USB 3.0 driver
+          Select this option to enable support for USB network adapters based on
+          the ASIX AX88179/178A USB 3.0 chipsets. These chipsets are found in
+          USB 3.0 to Gigabit Ethernet adapters.
 
 config BR2_PACKAGE_USBNET_CDC_ETHER
 	bool "CDC_ETHER"
 	depends on BR2_PACKAGE_USBNET
 	help
-	  Enables CDC Ethernet over USB
+         Select this option to enable support for CDC-Ethernet (Communications
+         Device Class), a standard USB protocol for Ethernet networking over USB.
+         This allows communication with devices that implement the CDC-Ethernet
+         protocol, such as USB network adapters and embedded devices. CDC-Ethernet
+         is widely supported across operating systems as a standard way to
+         provide network connectivity over USB.
 
 config BR2_PACKAGE_USBNET_USB_DIRECT_NCM
 	bool "CDC-NCM"
 	depends on BR2_PACKAGE_USBNET
 	help
-	  Enable CDC_NCM Support over USB, provides a network ip via DHCPD to the connected device.
+         Select this option to enable support for CDC-NCM (Network Control Model),
+         a USB protocol that provides high-speed Ethernet networking. When enabled,
+         this device acts as a DHCP server and assigns IP addresses to other
+         devices that connect to it over USB. CDC-NCM is commonly used in modern
+         cellular modems and offers better performance than older protocols
+         like RNDIS.
 
 config BR2_PACKAGE_USBNET_USB_DIRECT_NCM_CLIENT
 	bool "CDC-NCM-CLIENT"
 	depends on BR2_PACKAGE_USBNET
 	help
-	  Enable CDC_NCM Support over USB, working as a client device.
+         Select this option to enable CDC-NCM (Network Control Model) client mode.
+         When enabled, this device will operate as a client that receives an IP
+         address when connected to a CDC-NCM host device. For example, when
+         connected to a router or gateway operating in CDC-NCM host mode, this
+         device will obtain network connectivity from that host. This is the
+         opposite of CDC-NCM host mode where this device provides addresses to
+         others.
 
 #config BR2_PACKAGE_USBNET_USB_DIRECT_ECM
 #	bool "CDC-ECM"
@@ -43,16 +63,26 @@ config BR2_PACKAGE_USBNET_R8152
 	bool "Realtek 8152"
 	depends on BR2_PACKAGE_USBNET
 	help
-	  Enables support for Realtek RTL8152 based USB 2.0 network adapters
+         Select this option to enable support for USB network adapters based on
+         the Realtek RTL8152/RTL8153 chipsets.
 
 config BR2_PACKAGE_USBNET_RNDIS
 	bool "RNDIS"
 	depends on BR2_PACKAGE_USBNET
 	help
-	  Enables RNDIS over USB
+         Select this option to enable support for RNDIS (Remote Network
+         Driver Interface Specification) over USB. This allows Ethernet-style
+         networking with USB devices that support the RNDIS protocol, such as
+         smartphones in USB tethering mode or cellular modems that expose an
+         RNDIS interface.
 
 config BR2_PACKAGE_USBNET_WWAN_SERIAL
 	bool "WWAN via USB SERIAL"
 	depends on BR2_PACKAGE_USBNET
+	select BR2_PACKAGE_PPPD
 	help
-	  Enables WWAN via USB SERIAL support
+          Select this option to enable support for Wireless WAN (WWAN) devices
+          that connect via USB serial interfaces, such as LTE/4G modems.
+          This automatically enables the Point-to-Point Protocol daemon (pppd)
+          which is required for establishing cellular data connections with
+          these devices.

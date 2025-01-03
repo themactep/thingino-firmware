@@ -1,4 +1,4 @@
 # NAME: T31N, JXF37
 # FRAG: soc toolchain ccache brand rootfs kernel system target uboot
-BR2_SOC_INGENIC_T31N=y
 BR2_SENSOR_JXF37=y
+BR2_SOC_INGENIC_T31N=y

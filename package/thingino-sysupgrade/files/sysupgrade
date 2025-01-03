@@ -168,7 +168,7 @@ stop_services() {
 	say "Stop services"
 	for i in $(find /etc/init.d/ -name "[KS]*" -executable | sort -nr); do
 		case "$(basename $i)" in
-			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S42wifiap | S42wireguard | S50dropbear | S97sysupgrade)
+			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S42wifiap | S42wireguard | S50dropbear | S50httpd | S97sysupgrade)
 				continue
 				;;
 			*)
@@ -295,6 +295,11 @@ case "$(xxd -l 4 -p $fw_file)" in
 	"$ROOTFS_MAGIC") die "We cannot flash only rootfs" ;;
 	*) die "Unknown file" ;;
 esac
+
+file_size=$(stat -c%s $fw_file)
+part_size="$((0x$(awk "/^$mtd_dev/{print \$2}" /proc/mtd)))"
+[ "$file_size" -gt $part_size ] && \
+	die "File $fw_file ($file_size) is larger than $mtd_dev partition ($part_size)!"
 
 if [ "true" = "$bootloader_only" ]; then
 	[ "mtd5" = "$mtd_dev" ] || die "Userland image does not have a bootloader!"

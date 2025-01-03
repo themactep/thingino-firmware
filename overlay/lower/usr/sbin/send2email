@@ -2,6 +2,8 @@
 
 plugin="email"
 
+EMAIL_FORMAT='^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+
 . /sbin/common-plugins
 
 show_help() {
@@ -37,12 +39,13 @@ done
 [ -z "$email_from_address" ] && die "Sender's email address not found"
 [ -z "$email_to_address" ] && die "Recipient's email address not found"
 
+echo "$email_from_address" | grep -E -q $EMAIL_FORMAT || die "Invalid sender email address format"
+echo "$email_to_address" | grep -E -q $EMAIL_FORMAT || die "Invalid recipient email address format"
+
 # assign default values if not set
 [ -z "$email_from_name" ] && email_from_name="Thingino Camera"
 [ -z "$email_to_name" ] && email_to_name="Thingino Camera Admin"
 [ -z "$email_subject" ] && email_subject="Snapshot from Thingino Camera"
-
-# TODO: email address format validation
 
 build_cmd "$CURL --mail-from $email_from_address --mail-rcpt $email_to_address"
 [ "true" = "$verbose" ] && build_cmd "--verbose"

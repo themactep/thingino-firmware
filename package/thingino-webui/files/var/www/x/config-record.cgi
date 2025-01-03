@@ -9,7 +9,7 @@ params="blink debug diskusage duration enabled filename led loop mount videoform
 MOUNTS=$(awk '/nfs|fat/{print $2}' /etc/mtab)
 RECORD_CTL="/etc/init.d/S96record"
 RECORD_FILENAME_FB="thingino/%F/%FT%H%M"
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/record.conf"
 include $config_file
 
 # defaults
@@ -25,7 +25,7 @@ default_for record_filename "$RECORD_FILENAME_FB"
 [ "/" = "${record_filename:0-1}" ] && record_filename="$RECORD_FILENAME_FB"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "$plugin" "$params"
+	read_from_post "record" "$params"
 
 	# normalize
 	[ "/" = "${record_filename:0:1}" ] && record_filename="${record_filename:1}"
@@ -37,7 +37,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
 		for p in $params; do
-			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
+			echo "record_$p=\"$(eval echo \$record_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 
@@ -61,6 +61,7 @@ fi
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <% field_select "record_mount" "Record storage directory" "$MOUNTS" %>
+<p><a href="tool-file-manager.cgi?cd=/mnt" id="link-fm">Open in File Manager</a></p>
 <div class="row g-1">
 <div class="col-9"><% field_text "record_filename" "File name template" "$STR_SUPPORTS_STRFTIME" %></div>
 <div class="col-3"><% field_select "record_videoformat" "Format" "mov, mp4" "also extention" %></div>
@@ -92,5 +93,11 @@ fi
 <h4 class="mb-3">Debug info</h4>
 <% ex "cat $config_file" %>
 </div>
+
+<script>
+$('#link-fm').addEventListener('click', ev => {
+	ev.target.href = 'tool-file-manager.cgi?cd=' + $('#record_mount').value
+})
+</script>
 
 <%in _footer.cgi %>

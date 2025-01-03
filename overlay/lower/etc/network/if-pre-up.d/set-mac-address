@@ -11,7 +11,7 @@ if [ -n "$nfsip" ] && ip route get "$nfsip" | grep -q "dev $IFACE"; then
 	info "Skipping MAC address setup for $IFACE, used for NFS from $nfsip"
 elif [ -d /sys/class/net/eth0 ] && ! readlink -f /sys/class/net/eth0/device | grep -q "usb"; then
 	info "Setting eth0 MAC address from environment"
-	MAC_ADDR=$(get ethaddr)
+	MAC_ADDR=$(fw_printenv -n ethaddr)
 	[ -n "$MAC_ADDR" ] && /sbin/ip link set dev "$IFACE" address "$MAC_ADDR"
 else
 	info "eth0 does not exist or is a USB device, skipping MAC address setup"

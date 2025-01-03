@@ -1,0 +1,6 @@
+# NAME: T31X, SC3235, SYN43438
+# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_SYN43438=y
+BR2_SENSOR_SC3235=y
+BR2_SOC_INGENIC_T31X=y

@@ -71,6 +71,28 @@ jobs:
           ref: "master"
           fetch-depth: "1"
 
+      - name: Create release tag
+        continue-on-error: true
+        run: |
+          TAG_NAME="${{ env.TAG_NAME }}"
+          if ! gh api repos/${{ github.repository }}/git/ref/tags/$TAG_NAME &>/dev/null; then
+            git tag "$TAG_NAME"
+            git push origin "$TAG_NAME"
+          else
+            echo "Tag $TAG_NAME already exists."
+          fi
+
+      - name: Create release
+        continue-on-error: true
+        run: |
+          TAG_NAME="${{ env.TAG_NAME }}"
+          if ! gh release view "$TAG_NAME" --repo "${{ github.repository }}" &>/dev/null; then
+            echo "Release $TAG_NAME does not exist. Creating pre-release."
+            gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "pre-release: \`\`\`$TAG_NAME\`\`\` is currently being built, please wait..." --prerelease
+            else
+            echo "Release $TAG_NAME already exists."
+          fi
+
       - name: Send build start notifcation via Telegram
         if: env.TG_DISABLED == 'false'
         run: |
@@ -193,6 +215,7 @@ jobs:
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-
             ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
             ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-
+            ${{ runner.os }}-ccache-shared-v1-
 
       - name: Restore Buildroot DL cache
         uses: actions/cache/restore@v4
@@ -229,7 +252,7 @@ jobs:
           apt-get install -y --no-install-recommends --no-install-suggests python3-numpy python3-matplotlib
           BOARD=${{ matrix.thingino-version }} make br-graph-build
 
-      - name: Locate built firmware artifacts
+      - name: Validate compiled firmware artifacts
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
           FW_PATH=${HOME}/output/${DYNAMIC_PART}/images/
@@ -277,29 +300,7 @@ jobs:
             ${{ env.UPDATE_FW }}
             ${{ env.UPDATE_FW_SHA }}
 
-      - name: Create release tag
-        continue-on-error: true
-        run: |
-          TAG_NAME="${{ env.TAG_NAME }}"
-          if ! gh api repos/${{ github.repository }}/git/ref/tags/$TAG_NAME &>/dev/null; then
-            git tag "$TAG_NAME"
-            git push origin "$TAG_NAME"
-          else
-            echo "Tag $TAG_NAME already exists."
-          fi
-
-      - name: Create release
-        continue-on-error: true
-        run: |
-          TAG_NAME="${{ env.TAG_NAME }}"
-          if ! gh release view "$TAG_NAME" --repo "${{ github.repository }}" &>/dev/null; then
-            echo "Release $TAG_NAME does not exist. Creating pre-release."
-            gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "pre-release: \`\`\`$TAG_NAME\`\`\` is currently being built, please wait..." --prerelease  
-            else
-            echo "Release $TAG_NAME already exists."
-          fi
-
-      - name: Upload ${{ matrix.thingino-version }} to release
+      - name: Post compiled firmware artifacts to release
         uses: softprops/action-gh-release@v2.1.0
         with:
           tag_name: ${{ env.TAG_NAME }}
@@ -310,7 +311,7 @@ jobs:
             ${{ env.FULL_FW_SHA }}
             ${{ env.UPDATE_FW_SHA }}
 
-      - name: Package binaries for notify
+      - name: Package binaries for notification
         run: |
           7zz a -t7z -mx=9 -mmt=on /tmp/thingino-${{ matrix.thingino-version }}.7z ${{ env.FULL_FW }} ${{ env.FULL_FW_SHA }}
 

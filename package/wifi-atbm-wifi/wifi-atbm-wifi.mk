@@ -1,7 +1,8 @@
 WIFI_ATBM_WIFI_SITE_METHOD = git
 WIFI_ATBM_WIFI_SITE = https://github.com/gtxaspec/atbm-wifi
 WIFI_ATBM_WIFI_SITE_BRANCH = master
-WIFI_ATBM_WIFI_VERSION = $(shell git ls-remote $(WIFI_ATBM_WIFI_SITE) $(WIFI_ATBM_WIFI_SITE_BRANCH) | head -1 | cut -f1)
+WIFI_ATBM_WIFI_VERSION = 6967d7a74d3518edde37f992a9a2d8487cd8ab12
+# $(shell git ls-remote $(WIFI_ATBM_WIFI_SITE) $(WIFI_ATBM_WIFI_SITE_BRANCH) | head -1 | cut -f1)
 
 WIFI_ATBM_WIFI_LICENSE = GPL-2.0
 

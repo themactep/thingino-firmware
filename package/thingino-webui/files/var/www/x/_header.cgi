@@ -11,6 +11,7 @@ Pragma: no-cache
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title><% html_title %></title>
+
 <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
 <link rel="stylesheet" href="/a/bootstrap.min.css">
 <link rel="stylesheet" href="/a/main.css?ts=<%= $assets_ts %>">
@@ -23,36 +24,51 @@ Pragma: no-cache
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
 <div class="container">
 <a class="navbar-brand" href="/"><img alt="Image: thingino logo" width="150" src="/a/logo.svg"></a>
-<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbMain" aria-controls="nbMain" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbMain"
+aria-controls="nbMain" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+
 <div class="collapse navbar-collapse justify-content-end" id="nbMain">
 <ul class="navbar-nav">
-<li class="nav-item dropdown"><a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddInfo" role="button">Information</a>
+<li class="nav-item dropdown">
+<a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddInfo" role="button">Information</a>
 <ul aria-labelledby="ddInfo" class="dropdown-menu">
 <li><a class="dropdown-item" href="info.cgi">Commands and logs</a></li>
 <li><a class="dropdown-item" href="info-diagnostic.cgi">Share diagnostic info</a></li>
-</ul></li>
-<li class="nav-item dropdown"><a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddSettings" role="button">Settings</a>
+</ul>
+</li>
+<li class="nav-item dropdown">
+<a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddSettings" role="button">Settings</a>
 <ul aria-labelledby="ddSettings" class="dropdown-menu">
 <% menu "config" %>
 <li><hr class="dropdown-divider"></li>
 <li><a class="dropdown-item" href="reset.cgi">Reset...</a></li>
-</ul></li>
-<li class="nav-item dropdown"><a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddTools" role="button">Tools</a>
+</ul>
+</li>
+<li class="nav-item dropdown">
+<a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddTools" role="button">Tools</a>
 <ul aria-labelledby="ddTools" class="dropdown-menu">
 <% menu "tool" %>
 <li><a href="reboot.cgi" class="dropdown-item bg-danger confirm">⏼ Reboot</a></li>
-</ul></li>
-<li class="nav-item dropdown"><a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddServices" role="button">Services</a>
+</ul>
+</li>
+<li class="nav-item dropdown">
+<a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddServices" role="button">Services</a>
 <ul aria-labelledby="ddServices" class="dropdown-menu">
 <% menu "plugin" %>
-</ul></li>
-<li class="nav-item"><a class="nav-link" href="preview.cgi">Preview</a></li>
-<li class="nav-item dropdown"><a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddHelp" role="button">Help</a>
+</ul>
+</li>
+<li class="nav-item">
+<a class="nav-link" href="preview.cgi">Preview</a>
+</li>
+<li class="nav-item dropdown">
+<a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddHelp" role="button">Help</a>
 <ul aria-labelledby="ddHelp" class="dropdown-menu dropdown-menu-lg-end">
 <li><a class="dropdown-item" href="https://thingino.com/">About thingino</a></li>
-</ul></li>
+</ul>
+</li>
 </ul>
 </div>
+
 </div>
 </nav>
 
@@ -72,15 +88,20 @@ Pragma: no-cache
 </div>
 <div class="col col-2 col-md-2 col-lg-1">
 <% if is_recording; then %>
-<a href="config-record.cgi" id="recording" class="link-underline link-underline-opacity-0 icon blink me-2" data-bs-toggle="tooltip" data-bs-title="Recording in progress">⏺</a>
+<a href="config-record.cgi" id="recording" class="link-underline link-underline-opacity-0 icon blink me-2"
+data-bs-toggle="tooltip" data-bs-title="Recording in progress">⏺</a>
 <% else %>
-<a href="config-record.cgi" id="recording" class="link-underline link-underline-opacity-0 icon me-2" data-bs-toggle="tooltip" data-bs-title="Recording stopped">⏹</a>
+<a href="config-record.cgi" id="recording" class="link-underline link-underline-opacity-0 icon me-2"
+data-bs-toggle="tooltip" data-bs-title="Recording stopped">⏹</a>
 <% fi %>
 <a href="config-daynight.cgi" class="gain link-underline link-underline-opacity-0 link-underline-opacity-75-hover"
- data-bs-toggle="tooltip" data-bs-title="Sensor gain value. If the Day/Night script is enabled, the camera will switch to Day mode when the gain falls below <%= $day_night_min %>, and to Night mode if the gain rises above <%= $day_night_max %>. Click on the link to set the thresholds."></a>
+ data-bs-toggle="tooltip" data-bs-title="Sensor gain value. If the Day/Night script is enabled, the camera will switch
+ to Day mode when the gain falls below <%= $day_night_min %>, and to Night mode if the gain rises above <%= $day_night_max %>.
+ Click on the link to set the thresholds."></a>
 </div>
 <div class="col col-12 col-md-7 col-lg-6 col-xl-5"><%= $(signature) %></div>
-<div class="col col-12 col-md-12 col-lg-3 col-xl-4 text-end"><a href="/x/config-time.cgi" id="time-now" class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover"></a></div>
+<div class="col col-12 col-md-12 col-lg-3 col-xl-4 text-end"><a href="/x/config-time.cgi" id="time-now"
+class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover"></a></div>
 </div>
 
 <% if ! is_ap && [ -z "$network_gateway" ]; then %>

@@ -3,7 +3,7 @@
 <%
 page_title="Day/Night Mode Control"
 
-CRONTABS="/etc/crontabs/root"
+CRONTABS="/etc/cron/crontabs/root"
 
 grep -q '^[^#].*daynight$' $CRONTABS && daynight_enabled=true
 default_for daynight_enabled false
@@ -11,25 +11,25 @@ default_for daynight_enabled false
 daynight_interval=$(awk -F'[/ ]' '/daynight$/{print $2}' $CRONTABS)
 default_for daynight_interval 1
 
-day_night_max=$(get day_night_max)
+day_night_max=$(fw_printenv -n day_night_max)
 default_for day_night_max 15000
 
-day_night_min=$(get day_night_min)
+day_night_min=$(fw_printenv -n day_night_min)
 default_for day_night_min 5000
 
-day_night_color=$(get day_night_color)
+day_night_color=$(fw_printenv -n day_night_color)
 default_for day_night_color false
 
-day_night_ircut=$(get day_night_ircut)
+day_night_ircut=$(fw_printenv -n day_night_ircut)
 default_for day_night_ircut false
 
-day_night_ir850=$(get day_night_ir850)
+day_night_ir850=$(fw_printenv -n day_night_ir850)
 default_for day_night_ir850 false
 
-day_night_ir940=$(get day_night_ir940)
+day_night_ir940=$(fw_printenv -n day_night_ir940)
 default_for day_night_ir940 false
 
-day_night_white=$(get day_night_white)
+day_night_white=$(fw_printenv -n day_night_white)
 default_for day_night_white false
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
@@ -83,10 +83,10 @@ fi
 
 	<h5>Actions to perform</h5>
 	<% field_checkbox "day_night_color" "Change color mode" %>
-	<% get gpio_ircut >/dev/null && field_checkbox "day_night_ircut" "Flip IR cut filter" %>
-	<% get gpio_ir850 >/dev/null && field_checkbox "day_night_ir850" "Toggle IR 850 nm" %>
-	<% get gpio_ir940 >/dev/null && field_checkbox "day_night_ir940" "Toggle IR 940 nm" %>
-	<% get gpio_white >/dev/null && field_checkbox "day_night_white" "Toggle white light" %>
+	<% fw_printenv -n gpio_ircut >/dev/null && field_checkbox "day_night_ircut" "Flip IR cut filter" %>
+	<% fw_printenv -n gpio_ir850 >/dev/null && field_checkbox "day_night_ir850" "Toggle IR 850 nm" %>
+	<% fw_printenv -n gpio_ir940 >/dev/null && field_checkbox "day_night_ir940" "Toggle IR 940 nm" %>
+	<% fw_printenv -n gpio_white >/dev/null && field_checkbox "day_night_white" "Toggle white light" %>
 </div>
 
 <div class="col-sm-6 col-xl-3 col-xxl-4 mb-3">

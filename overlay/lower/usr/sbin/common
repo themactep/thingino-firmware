@@ -16,6 +16,8 @@ fi
 
 CURL="curl $curl_verbosity --connect-timeout $curl_timeout --max-time $curl_timeout"
 
+debug=$(fw_printenv -n debug)
+
 build_cmd() {
 	command="$command $1"
 }
@@ -23,6 +25,11 @@ build_cmd() {
 die() {
 	log "$1"
 	quit_clean ${2:-1}
+}
+
+info() {
+	echo "$1" | log
+	is_debug_mode && echo_c 66 "$1"
 }
 
 is_debug_mode() {

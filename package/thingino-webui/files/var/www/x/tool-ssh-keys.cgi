@@ -1,88 +1,71 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-page_title="SSH key"
+page_title="SSH Host key"
 
-function readKey() {
-	if [ -n "$(get sshkey_${1})" ]; then
-		alert_save "$(get sshkey_${1})" "secondary" "style=\"overflow-wrap: anywhere;\""
-	fi
-}
-
-function saveKey() {
-	if [ -n "$(get sshkey_${1})" ]; then
-		alert_save "danger" "${1} key already in backup. You need to delete it before saving a new key."
-	else
-		fw_setenv sshkey_${1} $(gzip -c /etc/dropbear/dropbear_${1}_host_key - 2>/dev/null | base64 | tr -d '\n')
-	fi
-}
-
-function restoreKey() {
-	if [ -z "$(get sshkey_${1})" ]; then
-		alert_save "danger" "${1} key is not in the environment."
-	else
-		get sshkey_${1} | base64 -d | gzip -d > /etc/dropbear/dropbear_${1}_host_key
-		alert_save "success" "${1} key restored from environment."
-	fi
-}
-
-function deleteKey() {
-	if [ -z "$(get sshkey_${1})" ]; then
-		alert_save "danger" "${1} Cannot find saved SSH key."
-	else
-		fw_setenv sshkey_${1}
-		alert_save "success" "${1} key deleted from environment."
-	fi
-}
+key_file="/etc/dropbear/dropbear_ed25519_host_key"
+envname="sshkey_ed25519"
+backup=$(fw_printenv -n $envname)
+keyb64=$(base64 < $key_file | tr -d '\n')
 
 case "$POST_action" in
 	backup)
-		saveKey "ed25519"
-		redirect_back
+		if [ -z "$backup" ]; then
+			fw_setenv $envname $keyb64
+			redirect_back
+		fi
+		set_error_flag "The key is already in the backup. You must delete it before saving a new key."
 		;;
 	restore)
-		restoreKey "ed25519"
-		redirect_back
+		if [ -n "$backup" ]; then
+			echo $backup | base64 -d > $key_file
+			redirect_back
+		fi
+		set_error_flag "The key is not in the backup."
 		;;
 	delete)
-		deleteKey "ed25519"
-		redirect_back
+		if [ -n "$backup" ]; then
+			fw_setenv $envname
+			redirect_back
+		fi
+		set_error_flag "The key is not in the backup."
 		;;
-	*)
+esac
 %>
 <%in _header.cgi %>
 
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+<div class="row row-cols-1 row-cols-lg-3 g-4 mb-4">
 <div class="col">
-<h3>Key Backup</h3>
-
-<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+<h3>Backup</h3>
+<form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_hidden "action" "backup" %>
-<p>You can back up your existing SSH key into firmware environment and restore them later, after overlay wiping.</p>
-<% button_submit "Backup SSH key" "danger" %>
+<p>Back up your existing SSH host key in the firmware environment to restore it later after the overlay wipe.</p>
+<% button_submit "Back up SSH Host key" "danger" %>
 </form>
 </div>
 <div class="col">
-<h3>Key Restore</h3>
-<p>Restoring previously saved SSH key from firmware environment will let you keep exsiting client's authentication.</p>
-
-<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+<h3>Restore</h3>
+<p>Restore the previously saved SSH host key from backup allows you to maintain the existing client authentication.</p>
+<form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_hidden "action" "restore" %>
-<% button_submit "Restore SSH key from backup" "danger" %>
+<% button_submit "Restore SSH Host key from backup" "danger" %>
 </form>
 </div>
 <div class="col">
-<h3>Key Delete</h3>
-<p>You can delete saved key from firmware environment, e.g. to replace them with a new key.</p>
-
-<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+<h3>Delete</h3>
+<p>You can delete the stored SSH host key from the backup, for example, to replace it with a new version of the key.</p>
+<form action="<%= $SCRIPT_NAME %>" method="post">
 <% field_hidden "action" "delete" %>
-<% button_submit "Delete SSH key backup." "danger" %>
+<% button_submit "Delete SSH Host key backup" "danger" %>
 </form>
 </div>
 </div>
 
-<% readKey "ed25519" %>
+<div class="alert alert-dark ui-debug d-none">
+<h4 class="mb-3">Debug info</h4>
+<% ex "fw_printenv -n $envname" %>
+<h5>Key on disk</h5>
+<% ex "base64 < $key_file | tr -d '\n'" %>
+</div>
 
 <%in _footer.cgi %>
-<% esac %>

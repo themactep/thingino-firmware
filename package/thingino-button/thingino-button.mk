@@ -1,7 +1,8 @@
 THINGINO_BUTTON_SITE_METHOD = git
 THINGINO_BUTTON_SITE = https://github.com/gtxaspec/thingino-button
 THINGINO_BUTTON_SITE_BRANCH = master
-THINGINO_BUTTON_VERSION = $(shell git ls-remote $(THINGINO_BUTTON_SITE) $(THINGINO_BUTTON_SITE_BRANCH) | head -1 | cut -f1)
+THINGINO_BUTTON_VERSION = 6a88c8e5fc203ceabc721ad03e2e1be8deb81c80
+# $(shell git ls-remote $(THINGINO_BUTTON_SITE) $(THINGINO_BUTTON_SITE_BRANCH) | head -1 | cut -f1)
 
 define THINGINO_BUTTON_BUILD_CMDS
 	$(MAKE) $(TARGET_CONFIGURE_OPTS) -C $(@D) thingino-button

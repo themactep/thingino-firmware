@@ -1,26 +1,30 @@
 PRUDYNT_T_SITE_METHOD = git
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
-PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
-PRUDYNT_T_SITE_BRANCH = master
+	PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
+	PRUDYNT_T_SITE_BRANCH = master
+	#PRUDYNT_T_VERSION = 6eab9c0ef6fac8eb80f10ce489bca18295d84729
+	PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
 else
-PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
-PRUDYNT_T_SITE_BRANCH = prudynt-t-old
+	PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
+	PRUDYNT_T_SITE_BRANCH = prudynt-t-old
+	#PRUDYNT_T_VERSION = 5daadef8f84596fd39343a5a794ebfd419c225fb
+	PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
 endif
-PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
+
 
 PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-fonts ingenic-lib faac thingino-opus
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
-PRUDYNT_T_DEPENDENCIES += libwebsockets libschrift
+	PRUDYNT_T_DEPENDENCIES += libwebsockets libschrift
 else
-PRUDYNT_T_DEPENDENCIES += thingino-freetype
+	PRUDYNT_T_DEPENDENCIES += thingino-freetype
 endif
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
-PRUDYNT_T_DEPENDENCIES += ingenic-musl
+	PRUDYNT_T_DEPENDENCIES += ingenic-musl
 endif
 
 PRUDYNT_CFLAGS += -DPLATFORM_$(shell echo $(SOC_FAMILY) | tr a-z A-Z)
 ifeq ($(KERNEL_VERSION_4),y)
-PRUDYNT_CFLAGS += -DKERNEL_VERSION_4
+	PRUDYNT_CFLAGS += -DKERNEL_VERSION_4
 endif
 
 PRUDYNT_CFLAGS += \
@@ -58,7 +62,9 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	sed -i 's/;.*$$/;/' $(TARGET_DIR)/etc/prudynt.cfg
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S95prudynt $(TARGET_DIR)/etc/init.d/S95prudynt
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S96record $(TARGET_DIR)/etc/init.d/S96record
+	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/S96vbuffer $(TARGET_DIR)/etc/init.d/S96vbuffer
 	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/record $(TARGET_DIR)/usr/sbin/record
+	$(INSTALL) -m 0755 -D $(PRUDYNT_T_PKGDIR)/files/rmlater $(TARGET_DIR)/usr/sbin/rmlater
 	$(INSTALL) -d -m 0755 $(TARGET_DIR)/usr/share/images
 	$(INSTALL) -m 0644 -D $(@D)/res/thingino_logo_1.bgra $(TARGET_DIR)/usr/share/images/thingino_logo_1.bgra
 	$(INSTALL) -m 0644 -D $(@D)/res/thingino_logo_2.bgra $(TARGET_DIR)/usr/share/images/thingino_logo_2.bgra

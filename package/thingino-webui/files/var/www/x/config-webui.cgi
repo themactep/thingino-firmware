@@ -5,17 +5,17 @@ plugin="webui"
 plugin_name="User interface settings"
 page_title="Web Interface Settings"
 
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/webui.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	params="theme"
-	read_from_post "$plugin" "$params"
+	read_from_post "webui" "$params"
 
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp)
 		for p in $params; do
-			echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
+			echo "webui_$p=\"$(eval echo \$webui_$p)\"" >>$tmp_file
 		done; unset p
 		mv $tmp_file $config_file
 
