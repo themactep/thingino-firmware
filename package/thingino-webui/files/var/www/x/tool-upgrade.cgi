@@ -81,7 +81,7 @@ get_mtd_partitions() {
         <div id="firmware-upload-form">
           <input type="file" class="form-control" id="firmware-image" name="firmware">
           <div class="mt-2">
-            <% field_select "tools_upgrade_option" "Upgrade Option" "PartialUpgrade,FullUpgrade,UpgradeBootloader" %>
+            <% field_select "tools_upgrade_option" "Upgrade Option" "Partial,Full,Bootloader" %>
           </div>
           <button type="button" class="btn btn-primary mt-2" onclick="handleUpgrade()">Flash image</button>
         </div>
@@ -142,9 +142,9 @@ async function handleUpgrade(ev) {
         }
     } else {
         const option = $('#tools_upgrade_option').value;
-        if (option === 'FullUpgrade') cmd += ' -f';
-        else if (option === 'PartialUpgrade') cmd += ' -p';
-        else if (option === 'UpgradeBootloader') cmd += ' -b';
+        if (option === 'Full') cmd += ' -f';
+        else if (option === 'Partial') cmd += ' -p';
+        else if (option === 'Bootloader') cmd += ' -b';
     }
 
     const el = document.createElement('pre');
