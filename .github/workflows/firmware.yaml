@@ -383,15 +383,17 @@ jobs:
                   )
                 | "\(.sha[0:7]) \(.commit.message | gsub("\n"; " "))"')
 
-          RELEASE_NOTES="### Changes in this release:\n"
-
-          while IFS= read -r commit; do
-            if [ -n "$commit" ]; then
-              RELEASE_NOTES="${RELEASE_NOTES}- ${commit}\n"
-            fi
-          done <<< "$COMMITS"
-
-          echo -e "$RELEASE_NOTES" > release_notes.md
+          if [ -z "$COMMITS" ]; then
+            echo "### No changes, nightly rebuild" > release_notes.md
+          else
+            RELEASE_NOTES="### Changes in this release:\n"
+            while IFS= read -r commit; do
+              if [ -n "$commit" ]; then
+                RELEASE_NOTES="${RELEASE_NOTES}- ${commit}\n"
+              fi
+            done <<< "$COMMITS"
+            echo -e "$RELEASE_NOTES" > release_notes.md
+          fi
           echo "RELEASE_NOTES_FILE=$(pwd)/release_notes.md" >> $GITHUB_ENV
 
       - name: Get release ID and Mark as Latest
