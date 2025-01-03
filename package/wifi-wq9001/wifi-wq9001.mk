@@ -25,7 +25,7 @@ define WIFI_WQ9001_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_SET_OPT,CONFIG_MAC80211_RC_DEFAULT,"minstrel_ht")
 endef
 
-define WIFI_WQ9001_INSTALL_TARGET_CMDS
+define WIFI_WQ9001_INSTALL_TARGET_HOOKS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/wifi
 	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/wifi/WQ9001_WiFi_Mapfile.dat $(@D)/cal/WQ9001_WiFi_Mapfile.dat
 endef
