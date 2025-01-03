@@ -189,8 +189,8 @@ else ifeq ($(BR2_SOC_INGENIC_T31ZX),y)
 	SOC_FAMILY := t31
 	SOC_MODEL := t31zx
 	SOC_RAM := 128
-	BR2_XBURST_1 := y
 	BR2_SOC_INGENIC_T31 := y
+	BR2_XBURST_1 := y
 	UBOOT_BOARDNAME := "isvp_t31_sfcnor_ddr128M"
 else ifeq ($(BR2_SOC_INGENIC_T40N),y)
 	SOC_FAMILY := t40
@@ -203,8 +203,8 @@ else ifeq ($(BR2_SOC_INGENIC_T40NN),y)
 	SOC_FAMILY := t40
 	SOC_MODEL := t40nn
 	SOC_RAM := 128
-	BR2_XBURST_2 := y
 	BR2_SOC_INGENIC_T40 := y
+	BR2_XBURST_2 := y
 	UBOOT_BOARDNAME := "isvp_t40n_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T40XP),y)
 	SOC_FAMILY := t40
@@ -271,6 +271,8 @@ ifeq ($(BR2_XBURST_1),y)
 	INGENIC_ARCH := xburst1
 else ifeq ($(BR2_XBURST_2),y)
 	INGENIC_ARCH := xburst2
+else
+	INGENIC_ARCH := xburst1
 endif
 
 $(info Building for architecture $(INGENIC_ARCH))
@@ -283,6 +285,7 @@ $(info SOC_RAM: $(SOC_RAM))
 
 export BR2_XBURST_1
 export BR2_XBURST_2
+export INGENIC_ARCH
 export SOC_VENDOR
 export SOC_FAMILY
 export SOC_FAMILY_CAPS
@@ -324,6 +327,10 @@ else ifeq ($(BR2_SOC_INGENIC_T31),y)
 		KERNEL_SITE := https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94
 		KERNEL_BRANCH := stable
 	endif
+else
+	KERNEL_VERSION := 3.10
+	KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+	KERNEL_BRANCH := ingenic-t31
 endif
 
 KERNEL_HASH := $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)
@@ -806,6 +813,8 @@ export BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME
 ifeq ($(BR2_PACKAGE_RAPTOR_IPC),y)
 	STREAMER := raptor
 else ifeq ($(BR2_PACKAGE_PRUDYNT_T),y)
+	STREAMER := prudynt
+else
 	STREAMER := prudynt
 endif
 
