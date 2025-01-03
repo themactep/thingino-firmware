@@ -8,6 +8,7 @@ day_night_white=true
 disable_eth=true
 enable_updates=true
 gpio_button=14
+gpio_ir850=50
 gpio_ircut=10 11
 gpio_led_w=9
 gpio_mmc_cd=49
