@@ -4,6 +4,8 @@
 
 RECORD_FLAG="/tmp/record.$$"
 
+trap 'rm -f /tmp/record.*; exit' INT TERM EXIT
+
 get_free_space() {
 	available_space=$(df -k "$record_mount" | sed 1d | tr -d '\n' | awk 'END{print $4}') # in KiB
 	echo "Space available: $available_space KiB"
