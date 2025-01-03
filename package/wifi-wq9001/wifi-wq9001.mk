@@ -1,7 +1,7 @@
 WIFI_WQ9001_SITE_METHOD = git
 WIFI_WQ9001_SITE = https://github.com/gtxaspec/wq9001-wifi
 WIFI_WQ9001_SITE_BRANCH = master
-WIFI_WQ9001_VERSION = 51b883d3a17fb8741b13e9364f2575e707344aed
+WIFI_WQ9001_VERSION = 3a625d7795e78b8c31b5b2e1d04369b5545b2fe1
 # $(shell git ls-remote $(WIFI_WQ9001_SITE) $(WIFI_WQ9001_SITE_BRANCH) | head -1 | cut -f1)
 
 WIFI_WQ9001_LICENSE = GPL-2.0
@@ -27,7 +27,7 @@ endef
 
 define WIFI_WQ9001_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/wifi
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/wifi/WQ9001_WiFi_Mapfile.dat $(WIFI_WQ9001_PKGDIR)/files/WQ9001_WiFi_Mapfile.dat
+	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/wifi/WQ9001_WiFi_Mapfile.dat $(@D)/cal/WQ9001_WiFi_Mapfile.dat
 endef
 
 $(eval $(kernel-module))
