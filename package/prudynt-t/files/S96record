@@ -6,31 +6,74 @@ WEBUI_CONF=/etc/webui/record.conf
 
 . /etc/init.d/rc.common
 
+LOCK_FILE="/tmp/record.lock"
+
 read_config() {
 	sed -nE "s/^.*$1:\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
 }
 
 start() {
-	starting
-	pidof $DAEMON > /dev/null && quit "$DAEMON is already running"
+    starting
 
-	is_streamer_disabled && quit "Streamer disabled"
-	is_streamer_running || quit "Streamer is not running"
-	[ -f $WEBUI_CONF ] || quit "Not configured"
-	. $WEBUI_CONF
-	[ "true" = "$record_enabled" ] || quit "Disabled in $WEBUI_CONF"
-	[ -d "$record_mount" ] || quit "Storage is not mounted"
-	record_path=$(dirname "$record_mount/$(date +"$record_filename")")
-	[ -d "$record_path" ] || mkdir -p $record_path
-	[ -w "$record_path" ] || quit "No access to $record_path"
-	start_daemon_with_pid
+    # Check if the lock file exists and the process is running
+    if [ -f "$LOCK_FILE" ]; then
+        existing_pid=$(cat "$LOCK_FILE")
+        if [ -n "$existing_pid" ] && kill -0 "$existing_pid" 2>/dev/null; then
+            quit "Another instance of the record script is already running (PID: $existing_pid)."
+        else
+            echo "Stale lock file found. Cleaning up."
+            rm -f /tmp/record.*
+        fi
+    fi
+
+    # Write current PID to the lock file
+    echo $$ > "$LOCK_FILE"
+
+    pidof $DAEMON > /dev/null && quit "$DAEMON is already running"
+
+    is_streamer_disabled && quit "Streamer disabled"
+    is_streamer_running || quit "Streamer is not running"
+    [ -f $WEBUI_CONF ] || quit "Not configured"
+    . $WEBUI_CONF
+    [ "true" = "$record_enabled" ] || quit "Disabled in $WEBUI_CONF"
+    [ -d "$record_mount" ] || quit "Storage is not mounted"
+    record_path=$(dirname "$record_mount/$(date +"$record_filename")")
+    [ -d "$record_path" ] || mkdir -p $record_path
+    [ -w "$record_path" ] || quit "No access to $record_path"
+
+    # Start the daemon and capture its PID
+    start_daemon_with_pid
+    daemon_pid=$(cat "$PIDFILE")
+
+    # Verify if the PID was successfully captured
+    if [ -n "$daemon_pid" ] && kill -0 "$daemon_pid" 2>/dev/null; then
+        echo "$daemon_pid" > "$LOCK_FILE"
+    else
+        echo "Failed to start daemon or capture PID."
+        exit 1
+    fi
 }
 
+
 stop() {
-	stopping
-	is_streamer_disabled && quit "Streamer disabled"
-	find /tmp/ -name "record.*" -maxdepth 0 -exec rm {} \;
-	stop_daemon_with_pid
+    stopping
+
+    # Check if the lock file exists
+    if [ ! -f "$LOCK_FILE" ]; then
+        echo "No lock file found. The process may not be running."
+        return 0
+    fi
+
+    # Retrieve the PID from the lock file
+    pid=$(cat "$LOCK_FILE")
+
+    # Check if the PID is valid and belongs to the running script
+    if kill -0 "$pid" 2>/dev/null; then
+        echo "Stopping process with PID $pid.  Process will end after next recording interval concludes."
+        kill "$pid"
+    else
+        echo "No valid process found for PID $pid. Cleaning up."
+    fi
 }
 
 case "$1" in
