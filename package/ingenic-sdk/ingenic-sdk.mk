@@ -82,9 +82,10 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_MODULES_PATH)
 	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
 
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/sensor
-	$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_MODEL).bin $(TARGET_DIR)/etc/sensor/$(SENSOR_CONFIG_NAME)
-	echo $(SENSOR_MODEL) > $(TARGET_DIR)/etc/sensor/model
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/sensor
+	$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_MODEL).bin $(TARGET_DIR)/usr/share/sensor/$(SENSOR_CONFIG_NAME)
+	echo $(SENSOR_MODEL) > $(TARGET_DIR)/usr/share/sensor/model
+	ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/modules.d
 
