@@ -123,6 +123,7 @@ handle_payload() {
 		download "$sha_url" "$sha_file" || die "Cannot download checksum file."
 
 		say "Verifying downloaded file"
+		sed -i '/^#/d' $sha_file
 		sha256sum -c $sha_file || die "Checksum does not match!"
 
 		rm $sha_file
