@@ -147,6 +147,11 @@ OVERLAY_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
 # special case with no uboot nor env
 OVERLAY_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PARTITION_SIZE))))
 
+# repo data
+GIT_BRANCH="$(shell git branch | grep '^*' | awk '{print $$2}')"
+GIT_HASH="$(shell git show -s --format=%H | cut -c1-7)"
+GIT_DATE="$(shell git show -s --format=%ci)"
+
 .PHONY: all bootstrap build build_fast clean cleanbuild \
 	defconfig distclean fast help pack prepare_config sdk \
 	toolchain update upboot-ota upload_tftp upgrade_ota br-%
@@ -275,10 +280,18 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" ROOTFS $(ROOTFS_BIN_SIZE) $(ROOTFS_OFFSET) $$(($(ROOTFS_OFFSET) + $(ROOTFS_BIN_SIZE)))))
 	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" OVERLAY $(OVERLAY_BIN_SIZE) $(OVERLAY_OFFSET) $$(($(OVERLAY_OFFSET) + $(OVERLAY_BIN_SIZE)))))
 	$(info  )
-	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FIRMWARE_FULL_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
-	sha256sum $(FIRMWARE_BIN_FULL) | awk '{print $$1 "  " filename}' filename="$(FIRMWARE_NAME_FULL)" > $(FIRMWARE_BIN_FULL).sha256sum
-	@if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(FIRMWARE_NOBOOT_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
-	sha256sum $(FIRMWARE_BIN_NOBOOT) | awk '{print $$1 "  " filename}' filename="$(FIRMWARE_NAME_NOBOOT)" > $(FIRMWARE_BIN_NOBOOT).sha256sum
+
+	if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FIRMWARE_FULL_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
+	rm -f $(FIRMWARE_BIN_FULL).sha256sum
+	echo "$(shell echo \# $(CAMERA))" >> $(FIRMWARE_BIN_FULL).sha256sum
+	echo "# ${GIT_BRANCH}+${GIT_HASH}, ${GIT_DATE}" >> "$(FIRMWARE_BIN_FULL).sha256sum"
+	sha256sum $(FIRMWARE_BIN_FULL) | awk '{print $$1 "  " filename}' filename="$(FIRMWARE_NAME_FULL)" >> $(FIRMWARE_BIN_FULL).sha256sum
+
+	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(FIRMWARE_NOBOOT_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
+	rm -f $(FIRMWARE_BIN_NOBOOT).sha256sum
+	echo "$(shell echo \# $(CAMERA))" >> $(FIRMWARE_BIN_NOBOOT).sha256sum
+	echo "# ${GIT_BRANCH}+${GIT_HASH}, ${GIT_DATE}" >> "$(FIRMWARE_BIN_NOBOOT).sha256sum"
+	sha256sum $(FIRMWARE_BIN_NOBOOT) | awk '{print $$1 "  " filename}' filename="$(FIRMWARE_NAME_NOBOOT)" >> $(FIRMWARE_BIN_NOBOOT).sha256sum
 
 # rebuild a package
 rebuild-%: defconfig
