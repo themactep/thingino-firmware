@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DAEMON_ARGS="-f -c /etc/crontabs"
+DAEMON_ARGS="-f -c /etc/cron/crontabs"
 
 . /etc/init.d/rc.common
 

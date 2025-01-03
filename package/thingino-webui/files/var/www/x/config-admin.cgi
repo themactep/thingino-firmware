@@ -32,7 +32,8 @@ fi
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
 <div class="col">
-<p class="alert alert-info">Full name and email address of the admin record will be used as sender identity for emails originating from this camera.</p>
+<p class="alert alert-info">Full name and email address of the admin record
+will be used as sender identity for emails originating from this camera.</p>
 </div>
 <div class="col">
 <% field_hidden "action" "update" %>

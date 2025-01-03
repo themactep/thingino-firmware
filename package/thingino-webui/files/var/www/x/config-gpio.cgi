@@ -163,7 +163,6 @@ IR cut filter
 <h4 class="mb-3">Debug info</h4>
 <% ex "fw_printenv | grep -E ^\(gpio\|pwm_ch\)_" %>
 <% ex "pwm-ctrl -l | grep ^GPIO" %>
-<% ex "cat /rom/etc/uenv.txt" %>
 </div>
 
 <div class="modal fade" id="helpModal" tabindex="-1">

@@ -215,6 +215,7 @@ jobs:
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-
             ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
             ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-
+            ${{ runner.os }}-ccache-shared-v1-
 
       - name: Restore Buildroot DL cache
         uses: actions/cache/restore@v4
@@ -251,7 +252,7 @@ jobs:
           apt-get install -y --no-install-recommends --no-install-suggests python3-numpy python3-matplotlib
           BOARD=${{ matrix.thingino-version }} make br-graph-build
 
-      - name: Locate built firmware artifacts
+      - name: Validate compiled firmware artifacts
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
           FW_PATH=${HOME}/output/${DYNAMIC_PART}/images/
@@ -299,7 +300,7 @@ jobs:
             ${{ env.UPDATE_FW }}
             ${{ env.UPDATE_FW_SHA }}
 
-      - name: Upload ${{ matrix.thingino-version }} to release
+      - name: Post compiled firmware artifacts to release
         uses: softprops/action-gh-release@v2.1.0
         with:
           tag_name: ${{ env.TAG_NAME }}
@@ -310,7 +311,7 @@ jobs:
             ${{ env.FULL_FW_SHA }}
             ${{ env.UPDATE_FW_SHA }}
 
-      - name: Package binaries for notify
+      - name: Package binaries for notification
         run: |
           7zz a -t7z -mx=9 -mmt=on /tmp/thingino-${{ matrix.thingino-version }}.7z ${{ env.FULL_FW }} ${{ env.FULL_FW_SHA }}
 
@@ -332,7 +333,7 @@ jobs:
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
             export TG_TOPIC=""
           fi
-          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC error $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC error $TAG_NAME "Github CI build failed!" ${{ github.run_id }} ${{ github.repository }}
 
   notify-completion:
     needs: [buildroot, notify-begin]
@@ -382,15 +383,17 @@ jobs:
                   )
                 | "\(.sha[0:7]) \(.commit.message | gsub("\n"; " "))"')
 
-          RELEASE_NOTES="### Changes in this release:\n"
-
-          while IFS= read -r commit; do
-            if [ -n "$commit" ]; then
-              RELEASE_NOTES="${RELEASE_NOTES}- ${commit}\n"
-            fi
-          done <<< "$COMMITS"
-
-          echo -e "$RELEASE_NOTES" > release_notes.md
+          if [ -z "$COMMITS" ]; then
+            echo "### No changes, nightly rebuild" > release_notes.md
+          else
+            RELEASE_NOTES="### Changes in this release:\n"
+            while IFS= read -r commit; do
+              if [ -n "$commit" ]; then
+                RELEASE_NOTES="${RELEASE_NOTES}- ${commit}\n"
+              fi
+            done <<< "$COMMITS"
+            echo -e "$RELEASE_NOTES" > release_notes.md
+          fi
           echo "RELEASE_NOTES_FILE=$(pwd)/release_notes.md" >> $GITHUB_ENV
 
       - name: Get release ID and Mark as Latest

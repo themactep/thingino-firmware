@@ -1,7 +1,8 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/themactep/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = master
-INGENIC_SDK_VERSION = $(shell git ls-remote $(INGENIC_SDK_SITE) $(INGENIC_SDK_SITE_BRANCH) | head -1 | cut -f1)
+INGENIC_SDK_VERSION = 0cefde6e7e320c417c6cbf023010986ec859f8c1
+# $(shell git ls-remote $(INGENIC_SDK_SITE) $(INGENIC_SDK_SITE_BRANCH) | head -1 | cut -f1)
 
 INGENIC_SDK_LICENSE = GPL-3.0
 INGENIC_SDK_LICENSE_FILES = LICENSE
@@ -81,9 +82,10 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_MODULES_PATH)
 	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
 
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/sensor
-	$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_MODEL).bin $(TARGET_DIR)/etc/sensor/$(SENSOR_CONFIG_NAME)
-	echo $(SENSOR_MODEL) > $(TARGET_DIR)/etc/sensor/model
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/sensor
+	$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_MODEL).bin $(TARGET_DIR)/usr/share/sensor/$(SENSOR_CONFIG_NAME)
+	echo $(SENSOR_MODEL) > $(TARGET_DIR)/usr/share/sensor/model
+	ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/modules.d
 

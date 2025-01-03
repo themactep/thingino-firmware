@@ -8,7 +8,9 @@
 <div id="uptime" class="text-secondary"></div>
 </div>
 <div class="col col-sm-7 mb-2">
-<div class="text-sm-end">Powered by <a href="https://thingino.com/">thingino</a>.</div>
+<div class="text-sm-end">
+<p>Powered by <a href="https://thingino.com/">Thingino</a>.</p>
+</div>
 </div>
 </div>
 </div>

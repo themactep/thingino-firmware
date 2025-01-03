@@ -1,7 +1,8 @@
 WIFI_HI3881_SITE_METHOD = git
 WIFI_HI3881_SITE = https://github.com/themactep/wifi-hi3881
 WIFI_HI3881_SITE_BRANCH = master
-WIFI_HI3881_VERSION = $(shell git ls-remote $(WIFI_HI3881_SITE) $(WIFI_HI3881_SITE_BRANCH) | head -1 | cut -f1)
+WIFI_HI3881_VERSION = 867943faad79bb80d83739c731cf7dbac6f8d644
+# $(shell git ls-remote $(WIFI_HI3881_SITE) $(WIFI_HI3881_SITE_BRANCH) | head -1 | cut -f1)
 
 WIFI_HI3881_LICENSE = GPL-2.0
 

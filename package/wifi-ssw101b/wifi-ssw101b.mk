@@ -1,7 +1,8 @@
 WIFI_SSW101B_SITE_METHOD = git
 WIFI_SSW101B_SITE = https://github.com/gtxaspec/atbm-wifi
 WIFI_SSW101B_SITE_BRANCH = main
-WIFI_SSW101B_VERSION = $(shell git ls-remote $(WIFI_SSW101B_SITE) $(WIFI_SSW101B_SITE_BRANCH) | head -1 | cut -f1)
+WIFI_SSW101B_VERSION = 6967d7a74d3518edde37f992a9a2d8487cd8ab12
+# $(shell git ls-remote $(WIFI_SSW101B_SITE) $(WIFI_SSW101B_SITE_BRANCH) | head -1 | cut -f1)
 
 SSW101B_LICENSE = GPL-2.0
 

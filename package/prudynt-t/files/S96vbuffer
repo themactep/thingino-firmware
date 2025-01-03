@@ -8,13 +8,13 @@ plugin="vbuffer"
 # "parameter" "default"
 read_config() {
 	sed -nE "s/^.*$1\s*[:=]\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
-	[ -z $_ ] || echo $2
+	[ -z "$_" ] || echo "$2"
 }
 
 # "parameter" "default"
 read_logcat() {
 	logcat | grep 'VBMCreatePool()-1: w=' | head -1 | awk -F '[= ]' "{print \$$1}"
-	[ -z $_ ] || echo $2
+	[ -z "$_" ] || echo "$2"
 }
 
 rtsp_username=$(read_config "username" "thingino")
@@ -30,10 +30,11 @@ tmpfile=/tmp/$plugin.tmp
 
 start() {
 	starting
-	# FIXME: hangs on start, probably conflict in sourced files
-#	singleton
+	pidof -o $$ S96vbuffer > /dev/null && quit "is already running"
+
+	is_streamer_disabled && quit "Streamer disabled"
+	is_streamer_running || quit "Streamer is not running"
 	command -v openRTSP >/dev/null || die "openRTSP not found"
-	[ "true" = $(prudyntcfg get motion.enabled) ] || die "Motion guard is not enabled"
 	ok
 
 	while : ; do

@@ -8,47 +8,46 @@ on_exit() {
 trap 'on_exit "$@"' EXIT
 
 mount -t proc proc /proc || exit 1
+grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline && exit 0
 grep -q overlay /proc/filesystems || exit 1
 
-if ! grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline; then
-	if grep -q ubifs /proc/cmdline; then
-		mount -t ubifs -o noatime ubi0:rootfs_data /overlay
-	else
-		mtdblkdev=$(awk -F ':' '/rootfs_data/ {print $1}' /proc/mtd | sed 's/mtd/mtdblock/')
-		mtdchrdev=$(grep 'rootfs_data' /proc/mtd | cut -d: -f1)
+if grep -q ubifs /proc/cmdline; then
+	mount -t ubifs -o noatime ubi0:rootfs_data /overlay
+else
+	mtdblkdev=$(awk -F ':' '/rootfs_data/ {print $1}' /proc/mtd | sed 's/mtd/mtdblock/')
+	mtdchrdev=$(grep 'rootfs_data' /proc/mtd | cut -d: -f1)
 
-		mount -t jffs2 -o noatime /dev/$mtdblkdev /overlay
+	mount -t jffs2 -o noatime /dev/$mtdblkdev /overlay
 
-		if [ $? -ne 0 ] || dmesg | grep -q "jffs2.*: Magic bitmask.*not found"; then
-			echo "Init: Invalid JFFS2 blocks detected. Formatting required."
-			umount /overlay
-			flash_eraseall -j /dev/$mtdchrdev
-			mount -t jffs2 -o noatime /dev/$mtdblkdev /overlay || mount -t tmpfs -o noatime tmpfs /overlay || exit 1
+	if [ $? -ne 0 ] || dmesg | grep -q "jffs2.*: Magic bitmask.*not found"; then
+		echo "Init: Invalid JFFS2 blocks detected. Formatting required."
+		umount /overlay
+		flash_eraseall -j /dev/$mtdchrdev
+		mount -t jffs2 -o noatime /dev/$mtdblkdev /overlay || mount -t tmpfs -o noatime tmpfs /overlay || exit 1
 
-			if ! grep -q $mtdblkdev /proc/mounts; then
-				echo "Init: ERROR: Failed to mount Overlay!"
-				exit 1
-			fi
+		if ! grep -q $mtdblkdev /proc/mounts; then
+			echo "Init: ERROR: Failed to mount Overlay!"
+			exit 1
 		fi
 	fi
-
-	if grep -q overlayfs /proc/filesystems; then
-		mount -t overlayfs overlayfs -o noatime,lowerdir=/,upperdir=/overlay,ro /mnt || {
-			umount /overlay
-			exit 1
-		}
-	else
-		overlay_rootdir=/overlay/root
-		overlay_workdir=/overlay/work
-		mkdir -p $overlay_rootdir $overlay_workdir
-		mount -t overlay overlay -o noatime,lowerdir=/,upperdir=$overlay_rootdir,workdir=$overlay_workdir /mnt || {
-			umount /overlay
-			exit 1
-		}
-	fi
-
-	pivot_root /mnt /mnt/rom
-	mount -o noatime,move /rom/proc /proc
-	mount -o noatime,move /rom/dev /dev
-	mount -o noatime,move /rom/overlay /overlay
 fi
+
+if grep -q overlayfs /proc/filesystems; then
+	mount -t overlayfs overlayfs -o noatime,lowerdir=/,upperdir=/overlay,ro /mnt || {
+		umount /overlay
+		exit 1
+	}
+else
+	overlay_rootdir=/overlay/root
+	overlay_workdir=/overlay/work
+	mkdir -p $overlay_rootdir $overlay_workdir
+	mount -t overlay overlay -o noatime,lowerdir=/,upperdir=$overlay_rootdir,workdir=$overlay_workdir /mnt || {
+		umount /overlay
+		exit 1
+	}
+fi
+
+pivot_root /mnt /mnt/rom
+mount -o noatime,move /rom/proc /proc
+mount -o noatime,move /rom/dev /dev
+mount -o noatime,move /rom/overlay /overlay

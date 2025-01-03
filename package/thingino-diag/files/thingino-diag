@@ -5,9 +5,10 @@
 show_help() {
 	echo -e "Thingino Diagnostics Script\n"
 	echo -e "Generate diagnostics log shared via termbin.com\n"
-	echo "Usage: $0 [-l]"
+	echo "Usage: $0 [-l [path]]"
 	echo "Where:"
-	echo "  -l    Save the log to a local file instead."
+	echo "  -l    Save the log to a local file instead of uploading."
+	echo "        Optional: specify a custom path (default: /tmp)"
 	exit 0
 }
 
@@ -34,10 +35,20 @@ inforun() {
 }
 
 local_file=""
-while getopts ":lh" opt; do
+output_path="/tmp"
+while getopts ":l:h" opt; do
 	case $opt in
 		l)
 			local_file="yes"
+			[ -n "$OPTARG" ] && output_path="$OPTARG"
+			if [ ! -d "$output_path" ]; then
+				echo_c 160 "Error: Directory $output_path does not exist" >&2
+				exit 1
+			fi
+			if [ ! -w "$output_path" ]; then
+				echo_c 160 "Error: Directory $output_path is not writable" >&2
+				exit 1
+			fi
 			;;
 		h)
 			show_help
@@ -64,7 +75,7 @@ Please review their use policy at https://www.termbin.com/\n"
 fi
 
 if [ -n "$local_file" ]; then
-	output_file="/tmp/thingino-diag-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 4).log"
+	output_file="$output_path/thingino-diag-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 4).log"
 else
 	output_file=$(mktemp)
 fi
@@ -108,7 +119,7 @@ fi
 	header "streamer"
 	awk -F':' '{if (/password/) print $1 " REDACTED"; else print}' /etc/prudynt.cfg
 
-	infocat "/etc/crontabs/root" "crontab"
+	infocat "/etc/cron/crontabs/root" "crontab"
 } > "$output_file"
 
 if [ -z "$local_file" ]; then

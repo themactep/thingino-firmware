@@ -27,38 +27,27 @@ fi
 # default to output high
 [ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
 
-case ${pin:(-1)} in
-	o)
-		pin_on=0
-		pin_off=1
-		;;
-	O | *)
-		pin_on=1
-		pin_off=0
-		;;
-esac
+if [ "o" = "${pin:(-1)}" ]; then
+	pin_on=0
+	pin_off=1
+else
+	pin_on=1
+	pin_off=0
+fi
 pin=${pin:0:(-1)}
 
 case "$mode" in
 	0 | off)
-		echo "gpio set $pin $pin_off > /dev/null" >&2
-		gpio set $pin $pin_off > /dev/null
+		gpio set $pin $pin_off
 		;;
 	1 | on)
-		echo "gpio set $pin $pin_on > /dev/null" >&2
-		gpio set $pin $pin_on > /dev/null
+		gpio set $pin $pin_on
 		;;
 	~ | toggle)
-		echo "gpio toggle $pin > /dev/null" >&2
-		gpio toggle $pin > /dev/null
+		gpio toggle $pin
 		;;
-	status)
-		echo "gpio value $pin" >&2
-		gpio value $pin
-		;;
-	\? | read)
-		echo "gpio value $pin | tr -d '\n'" >&2
-		gpio value $pin | tr -d '\n'
+	\? | read | status)
+		[ "$(gpio value $pin | tr -d '\n')" = "$pin_on" ] && echo -n "1" || echo -n "0"
 		;;
 	*)
 		echo -e "Unknown mode" >&2

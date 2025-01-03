@@ -2,9 +2,9 @@ day_night_color=true
 day_night_ir850=false
 day_night_ir940=true
 day_night_ircut=true
-day_night_white=false
 day_night_max=15000
 day_night_min=500
+day_night_white=false
 disable_eth=true
 disable_sd=false
 enable_updates=true
@@ -18,10 +18,9 @@ gpio_led_y=38O
 gpio_mmc_cd=48
 gpio_mmc_power=47o 54o
 gpio_speaker=58
-gpio_wlan=57O
 gpio_sub1g=59
+gpio_wlan=57O
 osmem=86M@0x0
 rmem=42M@0x5600000
 wlandev=atbm6031
 wlandevopts=atbm_printk_mask=0
-

@@ -3,7 +3,7 @@
 <%
 page_title="Day/Night Mode Control"
 
-CRONTABS="/etc/crontabs/root"
+CRONTABS="/etc/cron/crontabs/root"
 
 grep -q '^[^#].*daynight$' $CRONTABS && daynight_enabled=true
 default_for daynight_enabled false
@@ -77,7 +77,7 @@ fi
 <div class="row mb-4">
 
 <div class="col-sm-6 col-xl-3 col-xxl-3 mb-3">
-	<p>Run with <a href="info-cron.cgi">cron</a> every <input type="text" id="daynight_interval"
+	<p>Run with <a href="info.cgi?crontab">cron</a> every <input type="text" id="daynight_interval"
 		name="daynight_interval" value="<%= $daynight_interval %>" pattern="[0-9]{1,}" title="numeric value"
 		class="form-control text-end" data-min="1" data-max="60" data-step="1"> min.</p>
 
