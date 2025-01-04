@@ -21,4 +21,4 @@ gpio_wlan=40o
 motor_maxstep_h=3700
 motor_maxstep_v=1000
 wlandev=ssv6155
-wlandevopts=stacfgpath=/etc/ssv6006c-wifi.cfg
+wlandevopts=stacfgpath=/usr/share/wifi/ssv6006c-wifi.cfg

@@ -1,0 +1,8 @@
+config BR2_PACKAGE_WIFI_TXW901U
+	bool "TAIXIN SEMI TXW901U"
+	select BR2_LINUX_KERNEL
+	select BR2_PACKAGE_THINGINO_KOPT_DWC2
+	select BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
+	help
+	  TaiXin Semiconductor TXW901-USB wireless driver
+	  https://www.taixin-semi.com/

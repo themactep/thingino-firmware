@@ -1,7 +1,7 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/themactep/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = master
-INGENIC_SDK_VERSION = 0cefde6e7e320c417c6cbf023010986ec859f8c1
+INGENIC_SDK_VERSION = af0fbc00856414ca22b8d1631e7d4f23d8f3ab54
 # $(shell git ls-remote $(INGENIC_SDK_SITE) $(INGENIC_SDK_SITE_BRANCH) | head -1 | cut -f1)
 
 INGENIC_SDK_LICENSE = GPL-3.0

@@ -19,4 +19,4 @@ gpio_wlan=8O
 osmem=78M@0x0
 rmem=50M@0x4E00000
 wlandev=ssv6158
-wlandevopts=stacfgpath=/etc/ssv6x5x-wifi.cfg
+wlandevopts=stacfgpath=/usr/share/wifi/ssv6x5x-wifi.cfg
