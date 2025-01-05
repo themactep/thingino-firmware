@@ -1,3 +1,0 @@
-config BR2_PACKAGE_WIFI_SYN43438
-	bool "Broadcom/Synaptics 43438 (BRCM43430 Rev. 2)"
-	select BR2_LINUX_KERNEL
