@@ -20,7 +20,7 @@ if [ $# -lt 4 ]; then
 	echo "  completed <BUILD_NAME> <JOB_ID> <REPOSITORY> <COMMIT_HASH> <BRANCH> <TAG_NAME> <TIME> <PROFILE_NAME> <FILE_PATH>"
 	echo "      Send a 'build completed with binaries' message, optionally attaching a file."
 	echo
-	echo "  error <BUILD_NAME> <ERROR_MESSAGE> <JOB_ID> <REPOSITORY>"
+	echo "  error <BUILD_NAME> <ERROR_MESSAGE> <JOB_ID> <PROFILE_NAME> <REPOSITORY>"
 	echo "      Send a 'build failed' message."
 	exit 1
 fi
@@ -167,9 +167,10 @@ case "$MESSAGE_TYPE" in
 	error)
 		ERROR_MESSAGE="$1"
 		JOB_ID="$2"
-		REPOSITORY="$3"
+		PROFILE_NAME="$3"
+		REPOSITORY="$4"
 		JOB_LINK="https://github.com/${REPOSITORY}/actions/runs/${JOB_ID}"
-		MESSAGE="${BUILD_NAME} build failed:\nError: ${ERROR_MESSAGE}\nJob: [${JOB_ID}](${JOB_LINK})\n\n$TG_ERROR_ICON $TG_FOOTER"
+		MESSAGE="${BUILD_NAME} build failed:\nProfile: [${PROFILE_NAME}]\nError: ${ERROR_MESSAGE}\nJob: [${JOB_ID}](${JOB_LINK})\n\n$TG_ERROR_ICON $TG_FOOTER"
 		MESSAGE=$(escape_markdown "$MESSAGE")
 		send_message "$MESSAGE" "$TG_TOPIC"
 		;;
