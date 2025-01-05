@@ -129,7 +129,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git lzop make gawk procps rsync unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git lzop make gawk procps rsync u-boot-tools unzip wget
 
       - name: Set timezone
         run: |
@@ -238,7 +238,7 @@ jobs:
             TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
             export TG_TOPIC=""
           fi
-          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC error $TAG_NAME ${{ github.run_id }} ${{ matrix.toolchain-version }} ${{ github.repository }}
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC error $TAG_NAME "CI Failed!" ${{ github.run_id }} ${{ matrix.toolchain-version }} ${{ github.repository }}
 
   notify-completion:
     needs: [build-toolchain, notify-begin]
