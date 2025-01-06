@@ -8,6 +8,7 @@ fi
 devicenode="/dev/$MDEV"
 mountpoint="/mnt/$MDEV"
 
+diag="$mountpoint/.diag"
 run="$mountpoint/run.sh"
 run_once="$mountpoint/runonce.sh"
 run_once_flag="${run_once/.sh/.done}"
@@ -68,6 +69,7 @@ do_mount() {
 		return 1
 	fi
 
+	[ -f "$diag" ] && do_run_diag
 	[ -f "$run_once" ] && do_run_once
 	[ -f "$run" ] && do_run_always
 }
@@ -94,6 +96,15 @@ do_run_always() {
 	else
 		log "Failed to execute $run script."
 	fi
+}
+
+do_run_diag() {
+	thingino-diag -l $mountpoint
+	sync
+	do_umount
+	iac -f /usr/share/sounds/th-chime_2.pcm
+	iac -f /usr/share/sounds/th-chime_2.pcm
+	iac -f /usr/share/sounds/th-chime_2.pcm
 }
 
 do_run_once() {
