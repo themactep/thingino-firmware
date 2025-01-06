@@ -15,4 +15,4 @@ gpio_wlan=48O
 osmem=80M@0x0
 rmem=48M@0x5000000
 wlandev=bcmdhd
-wlandevopts=gpio_wl_reg_on=48 gpio_wl_host_wake=39 firmware_path=/usr/lib/firmware/fw_bcm43436b0.bin nvram_path=/usr/lib/firmware/nv_bcm43436b0.txt op_mode=2
+wlandevopts=gpio_wl_reg_on=48 gpio_wl_host_wake=39 firmware_path=/usr/lib/firmware/ nvram_path=/usr/lib/firmware/nv_bcm4343.txt op_mode=2
