@@ -208,9 +208,8 @@ jobs:
         if: always()
         with:
           path: ~/.ccache
-          key: ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}-${{ github.run_id }}
+          key: ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
           restore-keys: |
-            ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-
 
