@@ -137,7 +137,7 @@ jobs:
         if: always()
         with:
           path: ~/.ccache
-          key: ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}-${{ github.run_id }}
+          key: ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
 
       - name: Send error notification
         if: ${{ env.TG_DISABLED == 'false' && failure() }}
