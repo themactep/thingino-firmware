@@ -1,8 +1,8 @@
 name: toolchain
 on:
   schedule:
-    # 00:15 PST / Sunday
-    - cron:  '15 07 * * 0'
+    # 00:15 PST / Monday
+    - cron:  '15 07 * * 1'
   workflow_dispatch:
     inputs:
       tg_disabled:
