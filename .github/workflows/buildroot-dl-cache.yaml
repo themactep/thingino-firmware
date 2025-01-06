@@ -135,7 +135,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ~/dl
-          key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}-${{ github.run_id }}
+          key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
 
       - name: Send error notification
         if: ${{ env.TG_DISABLED == 'false' && failure() }}
