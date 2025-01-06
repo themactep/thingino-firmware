@@ -36,11 +36,12 @@ inforun() {
 
 local_file=""
 output_path="/tmp"
-while getopts ":l:h" opt; do
+while getopts ":lh" opt; do
 	case $opt in
 		l)
 			local_file="yes"
-			[ -n "$OPTARG" ] && output_path="$OPTARG"
+			shift $((OPTIND-1))
+			output_path="${1:-/tmp}"
 			if [ ! -d "$output_path" ]; then
 				echo_c 160 "Error: Directory $output_path does not exist" >&2
 				exit 1
