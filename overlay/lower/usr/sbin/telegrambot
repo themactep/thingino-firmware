@@ -177,8 +177,11 @@ while :; do
 
 		[ -z "$(json_data "$.result[@.update_id=$update_id].*.entities")" ] && continue
 		entities=$(json_data "$.result[@.update_id=$update_id].*.entities[*]")
+
 		IFS=$'\n'
+
 		for entity in $entities; do
+			sender=$(json_data "$.result[@.update_id=$update_id].*.from.username")
 			chat_id=$(json_data "$.result[@.update_id=$update_id].*.chat.id")
 			chat_type=$(json_data "$.result[@.update_id=$update_id].*.chat.type")
 			message_id=$(json_data "$.result[@.update_id=$update_id].*.message_id")
@@ -203,6 +206,12 @@ while :; do
 			# - text_mention” (for users without usernames)
 			# - custom_emoji (for inline custom emoji stickers)
 
+			# check sender against whitelist
+			if ! echo "$telegrambot_whitelist" | grep -qw "$sender"; then
+				echo "You are not my daddy, @$sender!"
+				continue
+			fi
+
 			if [ "bot_command" = "$(jsonfilter -s "$entity" -e "$.type")" ]; then
 				bot_command="${message_text:$(jsonfilter -s "$entity" -e "$.offset"):$(jsonfilter -s "$entity" -e "$.length")}"
 
@@ -226,9 +235,14 @@ while :; do
 			[ "reboot" = "$bot_command" ] && save_offset
 			message="Command $bot_command not found."
 			for i in $(seq 0 9); do
-				[ "/$(eval echo \$telegrambot_command_$i)" = "$bot_command" ] || continue
-				script="$(eval echo \$telegrambot_script_$i | sed "s/\$chat_id/$chat_id/")"
-				message="$($script || echo -e "Execution failed! Please review the command:\n$script")"
+                                [ "/$(eval echo \$telegrambot_command_$i)" = "$bot_command" ] || continue
+                                script="$(eval echo \$telegrambot_script_$i | sed "s/\$chat_id/$chat_id/")"
+                                result=$(eval $script 2>&1)
+                                if [ $? -eq 0 ]; then
+                                        message="$result"
+                                else
+                                        message="Execution failed! Please review the command:\n$script\n\nOutput:\n$result"
+                                fi
 				break
 			done
 			[ -n "$message" ] && send_message "$chat_id" "${message//\"/\\\"}" "$message_id"

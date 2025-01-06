@@ -196,6 +196,11 @@ body:before {
 	background-color: #eeeeee;
 }
 
+.link {
+	color: #f80;
+	cursor: pointer;
+}
+
 #daynight_interval {
 	display: inline-block;
 	margin: auto 0.25rem;

@@ -5,7 +5,7 @@ plugin="telegrambot"
 plugin_name="Telegram Bot"
 page_title="Telegram Bot"
 
-params="enabled token"
+params="enabled token users"
 for i in $(seq 0 9); do
 	params="$params command_$i description_$i script_$i"
 done
@@ -20,11 +20,14 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		error_if_empty "$telegrambot_token" "Telegram token cannot be empty."
 	fi
 
+	telegrambot_users="${telegrambot_users//[,;]/ }"
+
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp -u)
 		for p in $params; do
 			echo "telegrambot_$p=\"$(eval echo \$telegrambot_$p)\"" >>$tmp_file
-		done; unset p
+		done
+		unset p
 		mv $tmp_file $config_file
 
 		update_caminfo
@@ -46,12 +49,10 @@ default_for telegrambot_caption "%hostname, %datetime"
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_switch "telegrambot_enabled" "Enable Telegram Bot" %>
 
-<div class="row row-cols-3 mb-3">
-<div class="col">
-<div class="input-group mb-3">
-<input type="text" id="telegrambot_token" name="telegrambot_token" value="<%= $telegrambot_token %>" class="form-control" placeholder="Bot Token" aria-label="Your Telegram Bot authentication token.">
-<span class="input-group-text p-0"><button type="button" class="btn" data-bs-toggle="modal" data-bs-target="#helpModal">Help</button></span>
-</div>
+<div class="row mb-3">
+<div class="col col-lg-6">
+<% field_text "telegrambot_token" "Bot Token" "click <span class=\"link\" data-bs-toggle=\"modal\" data-bs-target=\"#helpModal\">here</span> for help" %>
+<% field_text "telegrambot_users" "Respond only to these users" "whitespace separated list" %>
 </div>
 </div>
 
