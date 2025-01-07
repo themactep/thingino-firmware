@@ -1,7 +1,7 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/themactep/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = master
-INGENIC_SDK_VERSION = af0fbc00856414ca22b8d1631e7d4f23d8f3ab54
+INGENIC_SDK_VERSION = a3bebcdd744587807c1b6149cdc218debe9205e6
 # $(shell git ls-remote $(INGENIC_SDK_SITE) $(INGENIC_SDK_SITE_BRANCH) | head -1 | cut -f1)
 
 INGENIC_SDK_LICENSE = GPL-3.0
@@ -95,7 +95,7 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 		echo tx_isp_$(SOC_FAMILY) isp_clk=$(ISP_CLK) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
 	fi
 
-	if [ "$(SOC_FAMILY)" = "t31" ]; then \
+	if [ "$(SOC_FAMILY)" = "t31" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
 		echo "avpu $(AVPU_CLK_SRC) avpu_clk=$(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/avpu; \
 	fi
 
