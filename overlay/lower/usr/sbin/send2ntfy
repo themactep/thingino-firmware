@@ -58,11 +58,7 @@ done
 [ -z "$ntfy_message"  ] && ntfy_message=""
 [ -z "$ntfy_markdown" ] && ntfy_markdown="false"
 
-build_cmd "$CURL"
-build_cmd "-H p:$ntfy_msg_priority"
-
-# SOCK5 proxy, if needed
-[ "true" = "$ntfy_socks5_enabled" ] && use_socks5
+command="$CURL -H p:$ntfy_msg_priority"
 
 [ -n "$ntfy_username" ] && [ -n "$ntfy_password" ] && \
 	build_cmd "-u $ntfy_username:$ntfy_password"
@@ -70,9 +66,7 @@ build_cmd "-H p:$ntfy_msg_priority"
 if [ "true" = "$ntfy_attach_snapshot" ]; then
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
 	clone_snapshot $attachment
-
-	build_cmd "-T \"$attachment\""
-	build_cmd "-H \"Filename: snapshot.jpg\""
+	build_cmd "-T \"$attachment\" -H \"Filename: snapshot.jpg\""
 fi
 
 to_payload() { json="$json,\n\"$1\": \"$2\""; }

@@ -4,7 +4,7 @@
 plugin="webhook"
 plugin_name="Send to Webhook"
 page_title="Send to Webhook"
-params="enabled attach_snapshot payload socks5_enabled url"
+params="enabled attach_snapshot payload url"
 
 config_file="$ui_config_dir/webhook.conf"
 include $config_file
@@ -39,7 +39,6 @@ default_for webhook_attach_snapshot "true"
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <% field_text "webhook_url" "Webhook URL" %>
-<% field_switch "webhook_socks5_enabled" "Use SOCKS5" "$STR_CONFIGURE_SOCKS" %>
 </div>
 <div class="col">
 <% field_textarea "webhook_payload" "Payload" %>

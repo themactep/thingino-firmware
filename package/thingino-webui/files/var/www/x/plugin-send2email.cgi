@@ -71,7 +71,6 @@ fi
 <% field_text "email_subject" "Email subject" %>
 <% field_textarea "email_body" "Email text" "Line breaks will be replaced with whitespaces." %>
 <% field_switch "email_attach_snapshot" "Attach snapshot" %>
-<% # field_switch "email_socks5_enabled" "Use SOCKS5" "$STR_CONFIGURE_SOCKS" %>
 </div>
 </div>
 <% button_submit %>

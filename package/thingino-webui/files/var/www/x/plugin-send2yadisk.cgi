@@ -4,7 +4,7 @@
 plugin="yadisk"
 plugin_name="Send to Yandex Disk"
 page_title="Send to Yandex Disk"
-params="enabled username password path socks5_enabled"
+params="enabled username password path"
 
 config_file="$ui_config_dir/yadisk.conf"
 include $config_file
@@ -42,7 +42,6 @@ fi
 </div>
 <div class="col">
 <% field_text "yadisk_path" "Yandex Disk path" "$STR_SUPPORTS_STRFTIME" %>
-<% field_switch "yadisk_socks5_enabled" "Use SOCKS5" "$STR_CONFIGURE_SOCKS5" %>
 </div>
 <div class="col">
 <div class="alert alert-info">

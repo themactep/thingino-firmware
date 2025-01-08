@@ -53,12 +53,7 @@ url="$url@$ftp_host:$ftp_port"
 [ -n "$ftp_path" ] && url="$url/${ftp_path// /%20}"
 url="$url/$(date +"$ftp_template")"
 
-build_cmd "$CURL"
-[ "true" = "$ftp_socks5_enabled" ] && use_socks5
-build_cmd "--url $url"
-build_cmd "--upload-file $ftp_file"
-build_cmd "--ftp-create-dirs"
-
+command="$CURL --url $url --upload-file $ftp_file --ftp-create-dirs"
 log_and_run "$command"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"

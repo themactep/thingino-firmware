@@ -4,7 +4,7 @@
 plugin="telegram"
 plugin_name="Send to Telegram"
 page_title="Send to Telegram"
-params="enabled token as_attachment as_photo channel caption socks5_enabled"
+params="enabled token as_attachment as_photo channel caption"
 
 config_file="$ui_config_dir/telegram.conf"
 include $config_file
@@ -45,7 +45,6 @@ fi
 <span class="input-group-text p-0"><button type="button" class="btn" data-bs-toggle="modal" data-bs-target="#helpModal">Help</button></span>
 </div>
 <% field_text "telegram_channel" "Chat ID" "ID of the channel to post images to." "-100xxxxxxxxxxxx" %>
-<% field_switch "telegram_socks5_enabled" "Use SOCKS5" "$STR_CONFIGURE_SOCKS" %>
 </div>
 <div class="col">
 <% field_text "telegram_caption" "Photo caption" "Available variables: %hostname, %datetime." %>

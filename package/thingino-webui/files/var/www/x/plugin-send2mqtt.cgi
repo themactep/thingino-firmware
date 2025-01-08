@@ -73,7 +73,6 @@ fi
 <% field_text "mqtt_username" "MQTT broker username" %>
 <% field_password "mqtt_password" "MQTT broker password" %>
 <% field_switch "mqtt_use_ssl" "Use SSL" %>
-<% field_switch "mqtt_socks5_enabled" "Use SOCKS5" "$STR_CONFIGURE_SOCKS" %>
 </div>
 <div class="col">
 <% field_text "mqtt_topic" "MQTT topic" %>

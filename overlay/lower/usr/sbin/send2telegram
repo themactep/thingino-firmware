@@ -61,8 +61,7 @@ fi
 [ -z "$telegram_token" ] && die "Telegram token not found"
 [ -z "$telegram_channel" ] && die "Telegram channel not found"
 
-build_cmd "$CURL -H 'Content-Type: multipart/form-data' -F 'chat_id=$telegram_channel'"
-[ "true" = "$telegram_socks5_enabled" ] && use_socks5
+command="$CURL -H 'Content-Type: multipart/form-data' -F 'chat_id=$telegram_channel'"
 [ "true" = "$telegram_silent" ] && build_cmd "-F 'disable_notification=true'"
 build_cmd "--url https://api.telegram.org/bot$telegram_token/"
 # no further modifications to command after this point

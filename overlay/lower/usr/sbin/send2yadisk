@@ -36,12 +36,10 @@ done
 if [ -z "$yadisk_file" ]; then
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
 	clone_snapshot $attachment
-
 	yadisk_file=$attachment
 fi
 
-build_cmd "$CURL --user '${yadisk_username}:$yadisk_password'"
-[ "true" = "$yadisk_socks5_enabled" ] && use_socks5
+command="$CURL --user '${yadisk_username}:$yadisk_password'"
 
 url="https://webdav.yandex.ru"
 yadisk_path=$(date +"$yadisk_path")
@@ -59,9 +57,7 @@ for subdir in ${subdirs//\// }; do
 done
 
 # upload file
-build_cmd "--request PUT"
-build_cmd "--upload-file $yadisk_file"
-build_cmd "--url $url/$yadisk_path/$(TZ=$(cat /etc/TZ) date +"%G%m%d-%H%M%S").jpg"
+build_cmd "--request PUT --upload-file $yadisk_file --url $url/$yadisk_path/$(TZ=$(cat /etc/TZ) date +"%G%m%d-%H%M%S").jpg"
 
 log_and_run "$command"
 

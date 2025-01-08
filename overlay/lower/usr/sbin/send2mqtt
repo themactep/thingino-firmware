@@ -44,7 +44,6 @@ build_cmd "mosquitto_pub -h $mqtt_host -p $mqtt_port -i $mqtt_client_id"
 # MQTT credentials, if given
 [ -n "$mqtt_username" ] && build_cmd "-u $mqtt_username"
 [ -n "$mqtt_password" ] && build_cmd "-P $mqtt_password"
-[ "true" = "$mqtt_socks5_enabled" ] && use_socks5
 
 if [ "true" = "$mqtt_send_snap" ]; then
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg

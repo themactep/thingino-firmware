@@ -4,7 +4,7 @@
 plugin="ftp"
 plugin_name="Send to FTP"
 page_title="Send to FTP"
-params="enabled host user password path port socks5_enabled template"
+params="enabled host user password path port template"
 
 config_file="$ui_config_dir/ftp.conf"
 include $config_file
@@ -53,7 +53,6 @@ fi
 </div>
 <% field_text "ftp_user" " FTP username" %>
 <% field_password "ftp_password" "FTP password" %>
-<% field_switch "ftp_socks5_enabled" "Use SOCKS5" "$STR_CONFIGURE_SOCKS" %>
 </div>
 <div class="col">
 <% field_text "ftp_path" "Path on FTP server" "relative to FTP root directory" %>

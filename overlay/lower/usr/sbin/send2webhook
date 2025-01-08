@@ -26,13 +26,10 @@ done
 # validate mandatory values
 [ -z "$webhook_url" ] && die "Webhook URL not found"
 
-build_cmd "$CURL"
-[ "true" = "$webhook_socks5_enabled" ] && use_socks5
-
+command="$CURL"
 if [ "true" = "$webhook_attach_snapshot" ]; then
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
 	clone_snapshot $attachment
-
 	build_cmd "-F 'image=@$attachment'"
 fi
 build_cmd "--url \"$webhook_url\""
