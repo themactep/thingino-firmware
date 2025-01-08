@@ -233,7 +233,7 @@ else ifeq ($(BR2_SOC_INGENIC_T41NQ),y)
 	SOC_RAM := 128
 	BR2_SOC_INGENIC_T41 := y
 	BR2_XBURST_2 := y
-	UBOOT_BOARDNAME := "isvp_t41_sfcnor"
+	UBOOT_BOARDNAME := "isvp_t41nq_sfc_nor"
 else ifeq ($(BR2_SOC_INGENIC_T41ZL),y)
 	SOC_FAMILY := t41
 	SOC_MODEL := t41zl
@@ -309,10 +309,15 @@ ifneq ($(KERNEL_VERSION_3)$(KERNEL_VERSION_4),y)
 endif
 
 ifeq ($(BR2_SOC_INGENIC_T41),y)
-	# Could be 3.10 also?
+	ifeq ($(KERNEL_VERSION_3),y)
+	KERNEL_VERSION := 3.10
+	KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+	KERNEL_BRANCH := ingenic-t41-3.10.14
+	else
 	KERNEL_VERSION := 4.4
 	KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
-	KERNEL_BRANCH := ingenic-t41
+	KERNEL_BRANCH := ingenic-t41-4.4.94
+	endif
 else ifeq ($(BR2_SOC_INGENIC_T40),y)
 	KERNEL_VERSION := 4.4
 	KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
@@ -408,6 +413,8 @@ else ifeq ($(BR2_SENSOR_GC5035),y)
 	SENSOR_MODEL := gc5035
 else ifeq ($(BR2_SENSOR_GC5603),y)
 	SENSOR_MODEL := gc5603
+else ifeq ($(BR2_SENSOR_GC8023),y)
+	SENSOR_MODEL := gc8023
 else ifeq ($(BR2_SENSOR_IMX298),y)
 	SENSOR_MODEL := imx298
 else ifeq ($(BR2_SENSOR_IMX307),y)

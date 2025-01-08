@@ -1,0 +1,5 @@
+# NAME: T41NQ, GC8023, ETH
+# FRAG: soc-xburst2 toolchain-xburst2 ccache brand rootfs kernel system target uboot
+BR2_ETHERNET=y
+BR2_SENSOR_GC8023=y
+BR2_SOC_INGENIC_T41NQ=y
