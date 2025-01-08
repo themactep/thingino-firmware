@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@100..900&display=swap");
-
 @media (max-width: 575.98px) {
 	body:before {
 		content: "xs"
@@ -64,33 +62,8 @@ body:before {
 	z-index: -1;
 }
 
-.montserrat-regular {
-	font-family: "Montserrat", serif;
-	font-optical-sizing: auto;
-	font-weight: 400;
-	font-style: normal;
-}
-
 :root {
 	--bs-font-sans-serif: "Montserrat", sans-serif;
-}
-
-.arrow-1, .arrow-2 {
-	display: flex;
-	height: 30px;
-	width: 100%;
-}
-
-.arrow-1 {
-	rotate: 180deg;
-}
-
-.arrow:before {
-	animation: a1 3s normal forwards ease-in-out;
-	background: var(--bs-secondary-bg);
-	clip-path: polygon(0 10px, calc(100% - 15px) 10px, calc(100% - 15px) 0, 100% 50%, calc(100% - 15px) 100%, calc(100% - 15px) calc(100% - 10px), 0 calc(100% - 10px));
-	content: "";
-	width: 15px;
 }
 
 .blink {

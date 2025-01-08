@@ -3,48 +3,47 @@
 <%
 plugin="network"
 page_title="Network settings"
-params="address dhcp dns_1 dns_2 gateway netmask interface"
+
+IFACES="eth0 wlan0 usb0"
+
+PARAMS="hostname
+eth0_mac_address eth0_enabled eth0_dhcp eth0_address
+eth0_netmask eth0_gateway eth0_broadcast eth0_dns1 eth0_dns2
+wlan0_mac_address wlan0_enabled wlan0_dhcp wlan0_address
+wlan0_netmask wlan0_gateway wlan0_broadcast wlan0_dns1 wlan0_dns2
+usb0_mac_address usb0_enabled usb0_dhcp usb0_address
+usb0_netmask usb0_gateway usb0_broadcast usb0_dns1 usb0_dns2
+"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	case "$POST_action" in
-		changemac)
-			if echo "$POST_mac_address" | grep -Eiq '^([0-9a-f]{2}[:-]){5}([0-9a-f]{2})$'; then
-				fw_setenv ethaddr $POST_mac_address
-				update_caminfo
-				redirect_to "reboot.cgi"
-			else
-				redirect_back "warning" "$POST_mac_address is as invalid MAC address."
-			fi
-			;;
-		update)
-			read_from_post "$plugin" "$params"
+	for p in $PARAMS; do
+		eval $p=\$POST_$p
+	done
 
-			network_interface=$POST_network_interface
-			error_if_empty "$network_interface" "Network interface cannot be empty."
+	network_interface=$POST_network_interface
+	error_if_empty "$network_interface" "Network interface cannot be empty."
 
-			if [ "false" = "$network_dhcp" ]; then
-				network_mode="static"
-				error_if_empty "$network_address" "IP address cannot be empty."
-				error_if_empty "$network_netmask" "Networking mask cannot be empty."
-			else
-				network_mode="dhcp"
-			fi
+	if [ "false" = "$network_dhcp" ]; then
+		network_mode="static"
+		error_if_empty "$network_address" "IP address cannot be empty."
+		error_if_empty "$network_netmask" "Networking mask cannot be empty."
+	else
+		network_mode="dhcp"
+	fi
 
-			if [ -z "$error" ]; then
-				command="setnetiface -i $network_interface -m $network_mode -h \"$(hostname -s)\""
-				if [ "dhcp" != "$network_mode" ]; then
-					command="$command -a $network_address -n $network_netmask"
-					[ -n "$network_gateway" ] && command="$command -g $network_gateway"
-					[ -n "$network_dns_1" ] && command="$command -d $network_dns_1"
-					[ -n "$network_dns_2" ] && command="$command,$network_dns_2"
-				fi
-				echo "$command" >>/tmp/webui.log
-				eval "$command" >/dev/null 2>&1
-				update_caminfo
-				redirect_back "success" "Network settings updated."
-			fi
-			;;
-	esac
+	if [ -z "$error" ]; then
+		command="setnetiface -i $network_interface -m $network_mode -h \"$(hostname -s)\""
+		if [ "dhcp" != "$network_mode" ]; then
+			command="$command -a $network_address -n $network_netmask"
+			[ -n "$network_gateway" ] && command="$command -g $network_gateway"
+			[ -n "$network_dns_1" ] && command="$command -d $network_dns_1"
+			[ -n "$network_dns_2" ] && command="$command,$network_dns_2"
+		fi
+		echo "$command" >>/tmp/webui.log
+		eval "$command" >/dev/null 2>&1
+		update_caminfo
+		redirect_back "success" "Network settings updated."
+	fi
 fi
 %>
 <%in _header.cgi %>

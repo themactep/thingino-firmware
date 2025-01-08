@@ -13,9 +13,21 @@ Pragma: no-cache
 <title><% html_title %></title>
 
 <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+
+<% if [ "isolated" = "$network_mode" ]; then %>
 <link rel="stylesheet" href="/a/bootstrap.min.css">
-<link rel="stylesheet" href="/a/main.css?ts=<%= $assets_ts %>">
 <script src="/a/bootstrap.bundle.min.js"></script>
+<% else %>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+ integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+ integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<% fi %>
+
+<link rel="stylesheet" href="/a/main.css?ts=<%= $assets_ts %>">
 <script src="/a/main.js?ts=<%= $assets_ts %>"></script>
 </head>
 
@@ -109,13 +121,6 @@ class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover">
 <p class="mb-0">No Internet connection. Please <a href="config-network.cgi">check your network settings</a>.</p>
 </div>
 <% fi %>
-
-<% if [ "true" = "$telegram_socks5_enabled" ] || [ "true" = "$yadisk_socks5_enabled" ]; then
-if [ -z "$socks5_host" ] || [ -z "$socks5_port" ]; then %>
-<div class="alert alert-danger">
-<p class="mb-0">You want to use SOCKS5 proxy but it is not configured! Please <a href="config-socks5.cgi">configure the proxy</a>.</p>
-</div>
-<% fi; fi %>
 
 <% if [ "$(cat /etc/TZ)" != "$TZ" ]; then %>
 <div class="alert alert-danger">

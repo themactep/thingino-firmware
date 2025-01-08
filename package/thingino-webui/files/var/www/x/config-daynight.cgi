@@ -76,10 +76,18 @@ fi
 <% field_switch "daynight_enabled" "Enable Day/Night script" %>
 <div class="row mb-4">
 
-<div class="col-sm-6 col-xl-3 col-xxl-3 mb-3">
+<div class="col">
+	<h3 class="alert alert-warning text-center">Gain <span class="gain"></span></h3>
+	<% field_number "day_night_min" "Switch to Day mode when gain drops below" %>
+	<% field_number "day_night_max" "Switch to Night mode when gain raises above" %>
+</div>
+
+<div class="col mb-3">
+	<h3>By Illumination</h3>
+	<% field_switch "daynight_enabled" "Enable Day/Night script" %>
 	<p>Run with <a href="info.cgi?crontab">cron</a> every <input type="text" id="daynight_interval"
-		name="daynight_interval" value="<%= $daynight_interval %>" pattern="[0-9]{1,}" title="numeric value"
-		class="form-control text-end" data-min="1" data-max="60" data-step="1"> min.</p>
+	name="daynight_interval" value="<%= $daynight_interval %>" pattern="[0-9]{1,}" title="numeric value"
+	class="form-control text-end" data-min="1" data-max="60" data-step="1"> min.</p>
 
 	<h5>Actions to perform</h5>
 	<% field_checkbox "day_night_color" "Change color mode" %>
@@ -89,13 +97,25 @@ fi
 	<% fw_printenv -n gpio_white >/dev/null && field_checkbox "day_night_white" "Toggle white light" %>
 </div>
 
-<div class="col-sm-6 col-xl-3 col-xxl-4 mb-3">
-	<h3 class="alert alert-warning text-center">Gain <span class="gain"></span></h3>
-	<% field_number "day_night_min" "Switch to Day mode when gain drops below" %>
-	<% field_number "day_night_max" "Switch to Night mode when gain raises above" %>
+<div class="col">
+	<h3>By Sunset and Sunrise</h3>
+	<% field_switch "dusk2dawn_enabled" "Enable dusk2dawn script" %>
+	<p>Run with <a href="info.cgi?crontab">cron</a> daily at <input type="text" id="dusk2dawn_runat"
+	name="dusk2dawn_runat" value="<%= $dusk2dawn_runat %>" pattern="[0-9]{1,2}:[0-9]{2}"
+	title="numeric value" class="form-control text-end" style="width: 4rem">.</p>
+
+	<div class="row">
+	<div class="col"><% field_text "dusk2dawn_lat" "Latitude"  %></div>
+	<div class="col"><% field_text "dusk2dawn_lng" "Longitude" %></div>
+	</div>
+	<p><a href="https://my-coordinates.com/">Find your coordinates</a></p>
+	<div class="row">
+	<div class="col"><% field_text "dusk2dawn_offset_sr" "Sunrise offset, minutes" %></div>
+	<div class="col"><% field_text "dusk2dawn_offset_ss" "Sunset offset, minutes" %></div>
+</div>
 </div>
 
-<div class="col-xl-6 col-xxl-5">
+<div class="col">
 <div class="alert alert-info">
 <p>The day/night mode is controlled by the brightness of the scene.
 Changes in illumination affect the gain required to normalise a darkened image - the darker the scene, the higher the gain value.

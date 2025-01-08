@@ -9,33 +9,27 @@ tools_packet_size="56" # 56-1500 for ping, 38-32768 for trace
 tools_duration="5"
 %>
 <%in _header.cgi %>
-<div class="row g-4 mb-4">
-<div class="col col-md-4">
-<form>
-<% field_select "tools_action" "Action" "ping,trace" %>
-<% field_text "tools_target" "Target" "FQDN or IP address" %>
+<div class="row g-1">
+<div class="col"><% field_select "tools_action" "Action" "ping,trace" %></div>
+<div class="col"><% field_text "tools_target" "Target" "FQDN or IP address" %></div>
+</div>
 <div class="row g-1">
 <div class="col"><% field_select "tools_interface" "Interface" "auto,${interfaces}" %></div>
 <div class="col"><% field_number "tools_packet_size" "Packet size" "56,65535,1" "Bytes" %></div>
 <div class="col"><% field_number "tools_duration" "# of packets" "1,30,1" %></div>
 </div>
-<% button_submit "Run test" %>
-</form>
-</div>
-<div class="col col-md-8">
+<button type="button" class="btn btn-primary mb-4" id="run">Run test</button>
 <div id="output-wrapper"></div>
-</div>
-</div>
 
 <script>
-$('form').onsubmit = (ev) => {
+$('#run').addEventListener('click', ev => {
 	const tgt = $('#tools_target').value;
 	const pkgsize = $('#tools_packet_size').value;
 	const iface = $('#tools_interface').value;
 	const duration = $('#tools_duration').value;
 
 	ev.preventDefault();
-	$('form input[type=submit]').disabled = true;
+	ev.target.disabled = true;
 
 	if ($('#tools_action').value == 'ping') {
 		cmd = `ping -s ${pkgsize}`;
@@ -89,7 +83,7 @@ $('form').onsubmit = (ev) => {
 			} else {
 				el.innerHTML += '\n--- finished ---\n';
 			}
-			$('form input[type=submit]').disabled = false;
+			ev.target.disabled = false
 		}
 	}
 	async function run() {
@@ -100,7 +94,8 @@ $('form').onsubmit = (ev) => {
 			el.innerHTML += line + '\n';
 		}
 	}
-	run();
-}
+
+	run()
+})
 </script>
 <%in _footer.cgi %>

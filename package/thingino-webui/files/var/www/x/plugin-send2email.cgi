@@ -4,7 +4,7 @@
 plugin="email"
 plugin_name="Send to email"
 page_title="Send to email"
-params="enabled attach_snapshot from_name from_address insecure_ssl to_name to_address subject body smtp_host smtp_port smtp_username smtp_password smtp_use_ssl socks5_enabled"
+params="enabled attach_snapshot attach_video from_name from_address insecure_ssl to_name to_address subject body smtp_host smtp_port smtp_username smtp_password smtp_use_ssl"
 
 config_file="$ui_config_dir/email.conf"
 include $config_file
@@ -38,7 +38,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 else
 	# Default values
 	default_for email_insecure_ssl false
-	default_for email_attach_snapshot true
+	default_for email_attach_snapshot false
+	default_for email_attach_video true
 	default_for email_smtp_port 25
 	default_for email_from_name "Camera $network_hostname"
 	default_for email_to_name "Camera admin"
@@ -70,7 +71,19 @@ fi
 <div class="col">
 <% field_text "email_subject" "Email subject" %>
 <% field_textarea "email_body" "Email text" "Line breaks will be replaced with whitespaces." %>
-<% field_switch "email_attach_snapshot" "Attach snapshot" %>
+
+<p class="label">Attachment</p>
+<div class="btn-group" role="group" aria-label="Send attachment">
+<input type="radio" class="btn-check" name="email_attach" id="email_attach_nothing" autocomplete="off">
+<label class="btn btn-outline-primary" for="email_attach_nothing">Nothing</label>
+<input type="radio" class="btn-check" name="email_attach" id="email_attach_snapshot" autocomplete="off">
+<label class="btn btn-outline-primary" for="email_attach_snapshot">Snapshot</label>
+<input type="radio" class="btn-check" name="email_attach" id="email_attach_video" autocomplete="off">
+<label class="btn btn-outline-primary" for="email_attach_video">Video</label>
+</div>
+
+<% # field_switch "email_attach_snapshot" "Attach snapshot" %>
+<% # field_switch "email_attach_video" "Attach video" %>
 </div>
 </div>
 <% button_submit %>

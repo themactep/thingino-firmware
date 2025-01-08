@@ -598,7 +598,7 @@ update_caminfo() {
 	:>$tmpfile
 	# add all web-related config files
 	# do not include ntp
-	for f in admin email ftp motion socks5 speaker telegram webhook yadisk; do
+	for f in admin email ftp motion speaker telegram webhook yadisk; do
 		[ -f "$ui_config_dir/$f.conf" ] || continue
 		cat "$ui_config_dir/$f.conf" >>$tmpfile
 	done
@@ -710,7 +710,6 @@ assets_ts=$(date +%Y%m%d%H%M)
 include $sysinfo_file
 
 include /etc/webui/mqtt.conf
-include /etc/webui/socks5.conf
 include /etc/webui/speaker.conf
 include /etc/webui/telegram.conf
 include /etc/webui/webhook.conf
