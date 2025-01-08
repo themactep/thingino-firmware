@@ -8,9 +8,9 @@ if [ -z "$plugin" ]; then
 	quit_clean 2
 fi
 
-CONFIG_FILE="/etc/webui/${plugin}.conf"
+CONFIG_FILE="/etc/webui/$plugin.conf"
 
-log "Plugin ${plugin} initialized"
+log "Plugin $plugin initialized"
 
 [ -f "$CONFIG_FILE" ] && . $CONFIG_FILE
 
