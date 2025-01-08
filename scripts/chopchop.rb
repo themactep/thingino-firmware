@@ -130,9 +130,10 @@ def extract_all
       puts "Size #{mtdpart_size} is in megabytes. Converting to bytes."
       mtdpart_size = mtdpart_size.chop.to_i * 1024 * 1024
     when '-'
+      full_length
       puts 'Size is not set. Calculating from filesize and pointer.'
-      puts "Binary file size: #{full_length}"
-      mtdpart_size = full_length - offset
+      puts "Binary file size: #{@full_length}"
+      mtdpart_size = @full_length - offset
     end
 
     case offset[-1]
