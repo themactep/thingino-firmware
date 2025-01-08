@@ -105,7 +105,7 @@ Content-type: text/html; charset=UTF-8
 Cache-Control: no-store
 Pragma: no-cache
 Date: $(TZ=GMT0 date +"%a, %d %b %Y %T %Z" | tr -d '\n')
-Server: Tingino Portal
+Server: Thingino Portal
 $http_redirect
 "
 	[ -n "$http_redirect" ] && exit 0
