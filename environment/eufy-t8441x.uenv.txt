@@ -1,0 +1,24 @@
+day_night_color=true
+day_night_ir850=true
+day_night_ir940=false
+day_night_ircut=true
+day_night_max=15000
+day_night_min=500
+day_night_white=true
+disable_eth=true
+enable_updates=true
+gpio_button=8
+gpio_default=25ID 26ID 61o 62o
+gpio_ir850=7O
+gpio_ircut=49 50
+gpio_led_b=61O
+gpio_led_r=62O
+gpio_mmc_cd=58
+gpio_mmc_power=17O
+gpio_speaker=63
+gpio_white=59O
+gpio_wlan=48O
+osmem=64M@0x0
+rmem=64M@0x4000000
+wlandev=bcmdhd
+wlandevopts=gpio_wl_reg_on=48 gpio_wl_host_wake=39 firmware_path=/usr/lib/firmware/ nvram_path=/usr/lib/firmware/nv_bcm4343.txt op_mode=2
