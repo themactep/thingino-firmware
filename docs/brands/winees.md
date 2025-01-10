@@ -1,21 +1,30 @@
 Winees
 ------
+- https://iwinees.com/
+- https://www.aidot.com/our-brands/winees.html
+- https://www.amazon.com/stores/WINEES/page/A1DE20A1-0B0C-413A-8E68-5149CCE547CD
 
-| FCCID            | Name                                           | SoC  | WiFi     |
-|------------------|------------------------------------------------|------|----------|
-| 2AYZ8WP32OO2114  | Spotlight Cam WP32OO2114                       |      |          |
-| 2AYZ8WP05001132  | Floodlight Cam Pro F3 WP05001132               |      |          |
-| 2AYZ8WP25002134  | Winees Spotlinght Battery Cam with Solar Panel | T23? | MT7931   |
-| 2AYZ8WP0500137   | Dual lens smart floodlight camera FF002        |      |          |
-| 2AYZ8WP25002     | Winees Battery Cam With Solar Panel            | T41? | MT7682   |
-| 2AYZ8WP320032266 | Mini spotlight Camera                          |      |          |
-| 2AYZ8WP01007226  | Winees M2X Indoor PTZ Cam                      | T31? | ATBM6032 |
-| 2AYZ8WP32001326  | Spotlight camera                               |      |          |
-| 2AYZ8WP27        | Smart Wif Video Doorbell                       |      |          |
-| 2AYZ8WP2700237   | Winees F1X Spotlight Cam                       |      |          |
-| 2AYZ8WP27001127  | 4MP Wi-Fi Spotlight Camera Outdoor             |      |          |
-| 2AYZ8WP01006     | Indoor Camera                                  |      |          |
-| 2AYZ8WP280013267 | Winees Spotlight Cam                           |      |          |
-| 2AYZ8WP02004527  | WIFI VIDEO DOORBELL                            |      |          |
-| 2AYZ8WP01004     | Wireless IP Camera                             |      |          |
-| 2AYZ8WP01002     | Indoor Camera                                  |      |          |
+### FCC
+- Linkzone Technology Co., Limited (2AYZ8)
+- 2A347
+
+| FCCID            | SKU                  | Model          | Name                                                                                        | SoC  | WiFi   | Link                                                                                                                |
+|------------------|----------------------|----------------|---------------------------------------------------------------------------------------------|------|--------|---------------------------------------------------------------------------------------------------------------------|
+|                  | WP25003-LS101-US-1-1 | Winees L1      | L1 Solar Security Cameras Wireless Outdoor with WiFi Camera for Human/Pet/Motion Detection  |      |        | https://iwinees.com/l1-solar-security-cameras-wireless-outdoor-with-wifi-camera-for-human-pet-motion-detection.html |
+| 2AYZ8WP01002     |                      |                | Indoor Camera                                                                               |      |        |                                                                                                                     |
+| 2AYZ8WP01004     |                      |                | Wireless IP Camera                                                                          |      |        |                                                                                                                     |
+| 2AYZ8WP01006     | WP01006-2KR-W-US     | Winees M2      | M2 2K WiFi Camera with 2-Way Audio, Night Vision for Human/Pet, Works with Alexa            |      |        | https://iwinees.com/m2-2k-wifi-camera-with-2-way-audio-night-vision-for-human-pet-works-with-alexa.html             |
+| 2AYZ8WP01007226  | WP01007-FHD-W-US     | Winees M2X     | M2X Indoor Security Camera 2K with WiFi Camera for Human/Pet/Motion Detection               |      |        | https://iwinees.com/m2x-indoor-security-camera-2k-with-wifi-camera-for-human-pet-motion-detection.html              |
+| 2AYZ8WP0500137   | WP05001-FF002-NA-1   | Winees F2      | F2 Dual Lens 2K Floodlight Camera                                                           |      |        | https://iwinees.com/winees-f2-pro-dual-lens-2k-floodlight-camera.html                                               |
+|                  | WP05001-F2PRO-NA-1   | Winees F2 Pro  | F2 PRO Dual Lens 2K Floodlight Camera                                                       |      |        | https://iwinees.com/winees-f2-pro-dual-lens-2k-floodlight-camera.html                                               |
+| 2AYZ8WP02004527  |                      |                | Wi-Fi Video Doorbell                                                                        |      |        |                                                                                                                     |
+| 2AYZ8WP25002     |                      |                | Battery Cam With Solar Panel                                                                | T41? | MT7682 |                                                                                                                     |
+| 2AYZ8WP25002134  |                      |                | Spotlight Battery Cam with Solar Panel                                                      | T23? | MT7931 |                                                                                                                     |
+| 2AYZ8WP05001132  | WP05001-FF003-NA-1   | Winees F3      | F3 PRO Dual Lens 2K Floodlight Camera                                                       |      |        | https://iwinees.com/winees-f2-pro-dual-lens-2k-floodlight-camera.html                                               |
+| 2AYZ8WP27        |                      |                | Smart Wif Video Doorbell                                                                    |      |        |                                                                                                                     |
+| 2AYZ8WP27001127  |                      |                | 4MP Wi-Fi Spotlight Camera Outdoor                                                          |      |        |                                                                                                                     |
+| 2AYZ8WP2700237   |                      |                | F1X Spotlight Cam                                                                           |      |        |                                                                                                                     |
+| 2AYZ8WP280013267 | WP28001-2KR-WB-NA-W  | Winees F1      | F1 Smart Wired Outdoor Security Camera with Spotlight, 2K HD, 360° View, Color Night Vision |      |        | https://iwinees.com/winees-smart-outdoor-spotlight-camera-2k-hd-360-view-color-night-vision.html                    |
+| 2AYZ8WP32OO2114  |                      |                | Spotlight Cam                                                                               |      |        |                                                                                                                     |
+| 2AYZ8WP32001326  | WP32001-2KR-W-US     | Winees M3 Plus | M3 Plus 4MP Outdoor Security Camera with 4CCT Spotlight                                     |      |        | https://iwinees.com/m3-plus-4mp-outdoor-security-camera-with-4cct-spotlight.html                                    |
+| 2AYZ8WP320032266 |                      |                | Mini Spotlight Camera                                                                       |      |        |                                                                                                                     |
