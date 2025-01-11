@@ -174,7 +174,7 @@ body:before {
 	cursor: pointer;
 }
 
-#daynight_interval {
+#day_night_interval {
 	display: inline-block;
 	margin: auto 0.25rem;
 	max-width: 3rem;
