@@ -11,8 +11,8 @@ read_from_env "day_night"
 read_from_env "dusk2dawn"
 
 # read settings from crontab
-#grep -q "^\[^#\].*$DAYNIGHT\$" $CRONTABS && day_night_enabled=true
-#day_night_interval=$(awk -F'[/ ]' "/$DAYNIGHT\$/{print \$2}" $CRONTABS)
+grep -q "^[^#].*$DAYNIGHT\$" $CRONTABS && day_night_enabled=true
+day_night_interval=$(awk -F'[/ ]' "/$DAYNIGHT\$/{print \$2}" $CRONTABS)
 
 # populate defaults
 default_for day_night_enabled "false"
