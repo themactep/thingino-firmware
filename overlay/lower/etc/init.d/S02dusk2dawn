@@ -1,0 +1,23 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+CRONTABS="/etc/cron/crontabs/root"
+
+case "$1" in
+	start)
+		starting
+		grep -q dusk2dawn $CRONTABS && quit "already in crontab"
+		printf "# run dusk2dawn nightly at 0:00\n0 0 * * * dusk2dawn\n" >> $CRONTABS
+		ok
+		;;
+	stop)
+		stopping
+		ok
+		;;
+	*)
+		die "Usage: $0 {start|stop}"
+		;;
+esac
+
+exit 0
