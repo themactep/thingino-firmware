@@ -2,15 +2,37 @@
 
 . /sbin/common
 
+pidof -o $$ record > /dev/null && quit "is already running"
+
 RECORD_FLAG="/tmp/record.$$"
 
 get_free_space() {
 	available_space=$(df -k "$record_mount" | sed 1d | tr -d '\n' | awk 'END{print $4}') # in KiB
-	echo "Space available: $available_space KiB"
+	log "Space available: $available_space KiB"
 }
 
+get_occupied_space() {
+        local root=$(parse_target "$record_mount/${record_filename//\/%*}")
+        occupied_space=$(du -s "$root" | awk '{print $1}') # in KiB
+	log "Space occupied: $occupied_space KiB"
+}
+
+# "parameter" "default"
 read_config() {
 	sed -nE "s/^.*$1\s*[:=]\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
+	[ -z "$_" ] || echo "$2"
+}
+
+# "default"
+read_fps() {
+	logcat | grep "fps" | head -1 | awk -F '[=,]' '{print $2}'
+	[ -z "$_" ] || echo "$1"
+}
+
+# "parameter" "default"
+read_size() {
+	logcat | grep "VBMCreatePool()-${stream_number}: w=" | head -1 | awk -F '[= ]' "{print \$$1}"
+	[ -z "$_" ] || echo "$2"
 }
 
 has_files() {
@@ -18,11 +40,11 @@ has_files() {
 }
 
 show_help() {
-	echo "Usage: $0 [<params>]
+	log "Usage: $0 [<params>]
 Where params are:
   -u <string>  RTSP username
   -p <string>  RTSP password
-  -e <int>     RTSP endpoint
+  -c <int>     RTSP stream number
   -h <int>     Frame height
   -w <int>     Frame width
   -f <int>     Frames per second
@@ -30,9 +52,8 @@ Where params are:
   -v <str>     Record video format
   -m <path>    Mount point for storing files
   -n <string>  File name template (supports strftime format)
-  -l           Loop recording, delete oldest files to give space
+  -d <int>     Maximum disk usage, GiB
   -x           One-time run
-  -d <int>     Maximum disk usage, percentage
 "
 }
 
@@ -54,22 +75,19 @@ else
 	[ "${#1}" -eq 0 ] && die "Config file $RECORD_WEBUI_CONF not found"
 fi
 
-rtsp_endpoint="ch0"
-
-while getopts "d:e:f:h:lm:n:p:t:u:v:w:xz:" flag; do
+while getopts "c:d:f:h:m:n:p:t:u:v:w:xz:" flag; do
 	case "$flag" in
-		d) record_diskusage=$OPTARG ;;
-		e) rtsp_endpoint=$OPTARG ;;
-		f) stream0_fps=$OPTARG ;;
-		h) stream0_height=$OPTARG ;;
-		l) record_loop="true" ;;
+		c) stream_number=$OPTARG ;;
+		d) record_limit=$OPTARG ;;
+		f) stream_fps=$OPTARG ;;
+		h) stream_height=$OPTARG ;;
 		m) record_mount=$OPTARG ;;
 		n) record_filename=$OPTARG ;;
 		p) rtsp_password=$OPTARG ;;
 		t) record_duration=$OPTARG ;;
 		u) rtsp_username=$OPTARG ;;
-		v) record_videoformat=$OPTARG ;;
-		w) stream0_width=$OPTARG ;;
+		v) record_videofmt=$OPTARG ;;
+		w) stream_width=$OPTARG ;;
 		x) one_time="true" ;;
 		*) show_help && exit ;;
 	esac
@@ -78,23 +96,40 @@ shift "$((OPTIND - 1))"
 
 record_mount=${record_mount%/}
 
-[ -z "$record_mount"       ] && die "Mountpoint record_mount is not set"
-mountpoint "$record_mount"   || die "Mountpoint $record_mount is not mounted"
-[ -w "$record_mount"       ] || die "Mountpoint $record_mount is not writable"
-[ -z "$record_diskusage"   ] && record_diskusage=95
-[ -z "$record_duration"    ] && record_duration=10
-[ -z "$record_filename"    ] && record_filename="thingino/%Y-%m-%d/%Y-%m-%dT%H-%M-%S"
-[ -z "$record_videoformat" ] && record_videoformat="mp4"
-rtsp_username=$(read_config username); [ -z "$rtsp_username" ] && rtsp_username="thingino"
-rtsp_password=$(read_config password); [ -z "$rtsp_password" ] && rtsp_password="thingino"
-[ -z "$stream0_fps"        ] && stream0_fps=$(logcat | awk -F'[=,]' '/i_fps_num/{print $2}' | tail -1 | tr -d '\n')
-[ -z "$stream0_height"     ] && stream0_height=$(logcat | awk '/\[chn0\]:/{print $9}' | tail -1 | tr -d '\n')
-[ -z "$stream0_width"      ] && stream0_width=$(logcat | awk '/\[chn0\]:/{print $6}' | tail -1 | tr -d '\n')
+[ -z "$record_mount"     ] && hesitate "Mountpoint record_mount is not set"
+mountpoint "$record_mount" || hesitate "Mountpoint $record_mount is not mounted"
+[ -w "$record_mount"     ] || hesitate "Mountpoint $record_mount is not writable"
+[ -z "$record_duration"  ] && record_duration=10
+[ -z "$record_filename"  ] && record_filename="%hostname/%Y/%m/%d/%H-%M-%S"
+[ -z "$record_videofmt"  ] && record_videofmt="mp4"
+rtsp_username=$(read_config "username" "thingino")
+rtsp_password=$(read_config "password" "thingino")
+[ -z "$stream_number"    ] && stream_number=0
+# FIXME: based on default stream endpoint name, won't work on custom endpoints
+stream_endpoint="ch$stream_number"
+[ -z "$stream_fps"       ] && stream_fps=$(read_fps "25")
+[ -z "$stream_height"    ] && stream_height=$(read_size "7" "1080")
+[ -z "$stream_width"     ] && stream_width=$(read_size "5" "1920")
 
-case "$record_videoformat" in
+log "
+stream_number: $stream_number
+stream_endpoint: $stream_endpoint
+stream_fps: $stream_fps
+stream_height: $stream_height
+stream_width: $stream_width
+"
+
+[ -z "$stream_number"   ] && die "Cannot determine stream humber"
+[ -z "$stream_endpoint" ] && die "Cannot determine stream endpoint"
+[ -z "$stream_fps"      ] && die "Cannot determine stream fps"
+[ -z "$stream_height"   ] && die "Cannot determine stream height"
+[ -z "$stream_width"    ] && die "Cannot determine stream width"
+
+case "$record_videofmt" in
+	avi) vformat="-i" ;;
 	mov) vformat="-q -y -H" ;;
 	mp4) vformat="-4 -y -H" ;;
-	  *) die "Unknown video format $record_videoformat"
+	  *) die "Unknown video format $record_videofmt"
 esac
 
 touch $RECORD_FLAG
@@ -108,43 +143,46 @@ touch $RECORD_FLAG
 #	fi
 #fi
 
-required_space=$((120 * record_duration))
-min_free_space=$(($(df | grep "$record_mount" | awk '{print $2}') * (100 - record_diskusage) / 100 ))
-[ "$min_free_space" -gt "$required_space" ] && required_space=$min_free_space
+record_limit_kb=$((record_limit * 1024 * 1024)) # GiB to KiB
+required_space=$((120 * record_duration)) # KiB
 
 while :; do
 	[ -f $RECORD_FLAG ] || break
-	parsed_target=$(date +"$record_mount/$record_filename.$record_videoformat")
+
+	target_template=$(parse_target "$record_mount/$record_filename.$record_videofmt")
+	parsed_target=$(date +"$target_template")
 	parsed_target_path=$(dirname "$parsed_target")
-	[ -d "$parsed_target_path" ] || mkdir -p "$parsed_target_path"
+	if [ ! -d "$parsed_target_path" ]; then
+		log "Making directory $parsed_target_path"
+		mkdir -p "$parsed_target_path" || die "Cannot create directory $parsed_target_path"
+	fi
 
-	echo "Space required: $required_space KiB"
 	get_free_space
+	get_occupied_space
+	log "Space limit: $record_limit_kb KiB"
+	log "Space required: $required_space KiB"
 	if [ "$available_space" -le "$required_space" ]; then
-		echo "Out of space!"
-		[ "true" = "$record_loop" ] || die "Not in a rolling recording mode!"
-
-		while [ "$available_space" -le "$required_space" ]; do
+		while [ "$available_space" -le "$required_space" ] || [ "$((occupied_space + required_space))" -gt "$record_limit_kb" ]; do
 			oldest_file="$(find "$record_mount" -type f -exec ls -ltr {} + | head -n1 | awk '{print $9}')"
 			oldest_file_dir="$(dirname $oldest_file)"
 			rm -v "$oldest_file"
-			[ -z "$(ls -A1 $oldest_file_dir)" ] && rm -rv "$oldest_file_dir"
+			[ -z "$(ls -A1 "$oldest_file_dir")" ] && rm -rv "$oldest_file_dir"
 
 			get_free_space
+			get_occupied_space
 			has_files "$record_mount" || die "$record_mount is empty yet no space!"
 		done
 	fi
 
-	echo "Running openRTSP -u $rtsp_username $rtsp_password -w $stream0_width -h $stream0_height" \
-		"-f $stream0_fps -d $record_duration $vformat -b 1048576 -t rtsp://127.0.0.1/$rtsp_endpoint  > $parsed_target"
-	openRTSP -u $rtsp_username $rtsp_password -w $stream0_width -h $stream0_height -f $stream0_fps \
-		-d $record_duration $vformat -b 1048576 -t rtsp://127.0.0.1/ch0  > $parsed_target 2> /dev/null
+	log "Running openRTSP -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps -d $record_duration $vformat -b 1048576 -t rtsp://127.0.0.1/$stream_endpoint  > $parsed_target"
+	openRTSP -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps \
+		-d $record_duration $vformat -b 1048576 -t rtsp://127.0.0.1/$stream_endpoint > $parsed_target 2> /dev/null
 
 	[ "true" = "$one_time" ] && rm $RECORD_FLAG
 done
 
-echo "Cannot find recording flag $RECORD_FLAG"
+log "Cannot find recording flag $RECORD_FLAG"
 [ -n "$LEDD_FLAG" ] && [ -f "$LEDD_FLAG" ] && rm $LEDD_FLAG
-echo "Exit"
+log "Exit"
 
 exit 0
