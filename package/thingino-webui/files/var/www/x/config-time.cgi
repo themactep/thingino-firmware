@@ -4,9 +4,6 @@
 plugin="time"
 page_title="Time"
 
-config_file="$ui_config_dir/time.conf"
-include $config_file
-
 ntpd_static_config=/etc/default/ntp.conf
 ntpd_working_config=/tmp/ntp.conf
 ntpd_sync_status=/run/sync_status
