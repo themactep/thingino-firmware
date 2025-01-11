@@ -36,6 +36,16 @@ Where params are:
 "
 }
 
+hesitate() {
+	log "$1"
+	sleep 5
+	exit 0
+}
+
+parse_target() {
+	echo "$1" | sed "s/%hostname/$(hostname -s)/g"
+}
+
 RECORD_WEBUI_CONF=/etc/webui/record.conf
 if [ -f $RECORD_WEBUI_CONF ]; then
 	cat $RECORD_WEBUI_CONF

@@ -62,7 +62,7 @@ fi
 <div class="col-2"><a href="tool-file-manager.cgi?cd=/mnt" id="link-fm">Open in File Manager</a></div>
 </div>
 <div class="row g-1">
-<div class="col-8"><% field_text "record_filename" "File name template" "$STR_SUPPORTS_STRFTIME" %></div>
+<div class="col-8"><% field_text "record_filename" "File name template" "$STR_SUPPORTS_STRFTIME and %hostname" %></div>
 <div class="col-2"><% field_number "record_duration" "Duration" "" "seconds" %></div>
 <div class="col-2"><% field_select "record_videoformat" "Format" "mov, mp4" "also extention" %></div>
 </div>
