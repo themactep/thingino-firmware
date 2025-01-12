@@ -1,6 +1,7 @@
 menu "SSV6X5X"
 
 config BR2_PACKAGE_WIFI_SSV6X5X
+	select BR2_LINUX_KERNEL
 	bool "Enable SSV6X5X WiFi support"
 	default n
 	help
