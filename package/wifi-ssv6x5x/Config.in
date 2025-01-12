@@ -1,5 +1,68 @@
+menu "SSV6X5X"
+
 config BR2_PACKAGE_WIFI_SSV6X5X
-	bool "SSV6x5x"
-	select BR2_LINUX_KERNEL
+	bool "Enable SSV6X5X WiFi support"
+	default n
 	help
-	  SV6X5X wireless driver
+		Enable support for SSV6X5X USB based WiFi chips. You must select a specific chip model.
+
+if BR2_PACKAGE_WIFI_SSV6X5X
+
+choice
+	prompt "Select SSV6X5X Chip Model"
+	help
+		Select the specific SSV6X5X WiFi chip model for your build.
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SSV6051P
+	bool "SSV6051P (PID: 6000)"
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SV6115
+	bool "SV6115 (PID: 6011)"
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SV6151P
+	bool "SV6151P (PID: 6000)"
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SV6152P
+	bool "SV6152P (PID: 6000)"
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SV6155P
+	bool "SV6155P (PID: 6000)"
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SV6156P
+	bool "SV6156P (PID: 6000)"
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SV6158
+	bool "SV6158 (PID: 6000)"
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SV6166F
+	bool "SV6166F (PID: 6000)"
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SV6167Q
+	bool "SV6167Q (PID: 6000)"
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SV6245
+	bool "SV6245 (PID: 6000)"
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SV6255P
+	bool "SV6255P (PID: 6000)"
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SV6256P
+	bool "SV6256P (PID: 6000)"
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SV6267Q
+	bool "SV6267Q (PID: 6000)"
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SV6318
+	bool "SV6318 (PID: 6011)"
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SV6355
+	bool "SV6355 (PID: 6011)"
+
+config BR2_PACKAGE_WIFI_SSV6X5X_SV6358
+	bool "SV6358 (PID: 6011)"
+
+endchoice
+
+endif
+
+endmenu
