@@ -198,7 +198,7 @@ check_upgrade_partitions
 ORIGINAL_ARG="$@"
 while getopts "bd:fhpx" flag; do
 	case "$flag" in
-		b) upgrade="boot" ;;
+		b) upgrade="boot"; url="$GITHUB_URL" ;;
 		d) requested_date=$OPTARG ;;
 		f) upgrade="full"; url="$GITHUB_URL" ;;
 		p) upgrade="part"; url="$GITHUB_URL" ;;
