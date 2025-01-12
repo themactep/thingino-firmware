@@ -7,7 +7,7 @@ index ec26a83..28ed06d 100644
  //#define DRM_1024
  
 -#define MAX_CHANNELS 64
-+#define MAX_CHANNELS 1
++#define MAX_CHANNELS 2
  
  #ifdef DRM
  #ifdef DRM_1024
