@@ -40,6 +40,10 @@ check_free_space() {
 	[ "$dl_size" -gt "$flash_size" ] && die "Firmware is larger than flash chip: $dl_size > $flash_size"
 }
 
+check_upgrade_partitions() {
+	grep -q "mtd[56]" /proc/mtd || die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
+}
+
 cleanup() {
 	say "Clean up temporary files."
 	rm -rf $workdir
@@ -187,8 +191,7 @@ update_self() {
 	chmod +x /sbin/$stage2app
 }
 
-# mandate virtual partitions
-grep -q "mtd[56]" /proc/mtd || die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
+check_upgrade_partitions
 
 ORIGINAL_ARG="$@"
 while getopts "bd:fhpx" flag; do
