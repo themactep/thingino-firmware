@@ -2,7 +2,7 @@
 
 . /sbin/common
 
-pidof -o $$ record > /dev/null && quit "is already running"
+pidof -o $$ record > /dev/null && die "is already running"
 
 RECORD_FLAG="/tmp/record.$$"
 
@@ -174,9 +174,9 @@ while :; do
 		done
 	fi
 
-	log "Running openRTSP -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps -d $record_duration $vformat -b 1048576 -t rtsp://127.0.0.1/$stream_endpoint  > $parsed_target"
+	log "Running openRTSP -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps -d $record_duration $vformat -b 1048576 -t rtsp://[::1]/$stream_endpoint  > $parsed_target"
 	openRTSP -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps \
-		-d $record_duration $vformat -b 1048576 -t rtsp://127.0.0.1/$stream_endpoint > $parsed_target 2> /dev/null
+		-d $record_duration $vformat -b 1048576 -t rtsp://[::1]/$stream_endpoint > $parsed_target 2> /dev/null
 
 	[ "true" = "$one_time" ] && rm $RECORD_FLAG
 done
