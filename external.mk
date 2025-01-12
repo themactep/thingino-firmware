@@ -1,5 +1,7 @@
 $(info --- FILE: external.mk ---)
 
+SIZE_256M := 268435456
+SIZE_128M := 134217728
 SIZE_32M := 33554432
 SIZE_16M := 16777216
 SIZE_8M := 8388608
@@ -764,6 +766,10 @@ else ifeq ($(FLASH_SIZE_16),y)
 	FLASH_SIZE := $(SIZE_16M)
 else ifeq ($(FLASH_SIZE_32),y)
 	FLASH_SIZE := $(SIZE_32M)
+else ifeq ($(FLASH_SIZE_128),y)
+	FLASH_SIZE := $(SIZE_128M)
+else ifeq ($(FLASH_SIZE_256),y)
+	FLASH_SIZE := $(SIZE_256M)
 else
 	FLASH_SIZE := $(SIZE_8M)
 endif

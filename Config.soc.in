@@ -658,13 +658,25 @@ endmenu
 source "$BR2_EXTERNAL_THINGINO_PATH/Config.sensor.in"
 
 choice
+	prompt "Flash chip type"
+config FLASH_NOR
+	bool "NOR"
+config FLASH_NAND
+	bool "NAND"
+endchoice
+
+choice
 	prompt "Flash chip size"
 config FLASH_SIZE_8
-	bool "8MB (64KBit)"
+	bool "8MB (64MBit)"
 config FLASH_SIZE_16
-	bool "16MB (128KBit)"
+	bool "16MB (128MBit)"
 config FLASH_SIZE_32
-	bool "32MB (256KBit)"
+	bool "32MB (256MBit)"
+config FLASH_SIZE_128
+	bool "128MB"
+config FLASH_SIZE_256
+	bool "256MB"
 endchoice
 
 choice
