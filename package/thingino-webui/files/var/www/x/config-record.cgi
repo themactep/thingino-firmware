@@ -3,12 +3,12 @@
 <%
 plugin="record"
 page_title="Video Recording"
-params="duration enabled filename limit mount videoformat"
+params="duration enabled filename limit mount videofmt"
 
 # constants
 MOUNTS=$(awk '/cif|fat|nfs|smb/{print $2}' /etc/mtab)
 RECORD_CTL="/etc/init.d/S96record"
-RECORD_FILENAME_FB="thingino/%F/%FT%H%M"
+RECORD_FILENAME_FB="%hostname/%Y/%m/%d/%H/%M-%S"
 config_file="$ui_config_dir/record.conf"
 include $config_file
 
@@ -16,7 +16,7 @@ include $config_file
 default_for record_duration 60
 default_for record_enabled "false"
 default_for record_led $(fw_printenv | awk -F= '/^gpio_led/{print $1;exit}')
-default_for record_videoformat "mp4"
+default_for $record_videofmt "mp4"
 default_for record_filename "$RECORD_FILENAME_FB"
 [ "/" = "${record_filename:0-1}" ] && record_filename="$RECORD_FILENAME_FB"
 
@@ -64,7 +64,7 @@ fi
 <div class="row g-1">
 <div class="col-8"><% field_text "record_filename" "File name template" "$STR_SUPPORTS_STRFTIME and %hostname" %></div>
 <div class="col-2"><% field_number "record_duration" "Duration" "" "seconds" %></div>
-<div class="col-2"><% field_select "record_videoformat" "Format" "mov, mp4" "also extention" %></div>
+<div class="col-2"><% field_select "record_videofmt" "Format" "mov, mp4" "also extension" %></div>
 </div>
 </div>
 
