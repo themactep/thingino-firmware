@@ -30,14 +30,19 @@ check_network() {
 }
 
 check_free_space() {
-	local dl_size=$(curl -sIL $1 | awk '/Content-Length/{fs=$2}END{print fs}')
-	local free_space=$(df -m /tmp | tail -1 | awk '{print $4}')
-	local flash_size=$((0x$(awk '/^mtd6/{print $2}' /proc/mtd)))
-	local offset="${2:-0}"
+	local dl_size flash_size free_space offset
+	dl_size=$(curl -sIL $1 | awk '/Content-Length/{fs=$2}END{print fs}')
+	free_space=$(df -m /tmp | tail -1 | awk '{print $4}')
+	flash_size=$((0x$(awk '/^mtd6/{print $2}' /proc/mtd)))
+	offset="${2:-0}"
 	dl_size=$((dl_size - offset))
 	free_space=$((free_space * 1024 * 1024))
 	[ "$dl_size" -gt "$free_space" ] && die "Not enough free space to download firmware: $dl_size > $free_space"
 	[ "$dl_size" -gt "$flash_size" ] && die "Firmware is larger than flash chip: $dl_size > $flash_size"
+}
+
+check_upgrade_partitions() {
+	grep -q "mtd[56]" /proc/mtd || die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
 }
 
 cleanup() {
@@ -77,6 +82,7 @@ expand_bb() {
 }
 
 extract_bootloader() {
+	[ "$U_BOOT_MAGIC" = "$(xxd -l 4 -p $1)" ] || die "$1 image does not start with a bootloader!"
 	truncate -s 256K $1
 }
 
@@ -187,13 +193,12 @@ update_self() {
 	chmod +x /sbin/$stage2app
 }
 
-# mandate virtual partitions
-grep -q "mtd[56]" /proc/mtd || die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
+check_upgrade_partitions
 
 ORIGINAL_ARG="$@"
 while getopts "bd:fhpx" flag; do
 	case "$flag" in
-		b) bootloader_only="true" ;;
+		b) upgrade="boot"; url="$GITHUB_URL" ;;
 		d) requested_date=$OPTARG ;;
 		f) upgrade="full"; url="$GITHUB_URL" ;;
 		p) upgrade="part"; url="$GITHUB_URL" ;;
@@ -204,7 +209,7 @@ done
 shift "$((OPTIND - 1))"
 
 if [ -n "$requested_date" ]; then
-	if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ]; then
+	if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ] || [ "boot" = "$upgrade" ]; then
 		release_date=$(date -d "$requested_date" +%F) || die "Invalid date: $requested_date"
 	else
 		say "Release date only works with upgrades from GitHub"
@@ -247,6 +252,7 @@ if [ "$(dirname $self)" != "$workdir" ]; then
 		say "Skip self-update"
 		cp "$self" "$workdir/$stage1app"
 	fi
+
 	say "Re-running script from $workdir"
 	exec $workdir/$stage1app $ORIGINAL_ARG
 fi
@@ -297,17 +303,17 @@ case "$(xxd -l 4 -p $fw_file)" in
 	*) die "Unknown file" ;;
 esac
 
-file_size=$(stat -c%s $fw_file)
-part_size="$((0x$(awk "/^$mtd_dev/{print \$2}" /proc/mtd)))"
-[ "$file_size" -gt $part_size ] && \
-	die "File $fw_file ($file_size) is larger than $mtd_dev partition ($part_size)!"
-
-if [ "true" = "$bootloader_only" ]; then
-	[ "mtd5" = "$mtd_dev" ] || die "Userland image does not have a bootloader!"
+# upgrade bootloader only
+if [ "boot" = "$upgrade" ]; then
 	extract_bootloader "$fw_file"
 	flashcp -v $fw_file /dev/mtd0
 	exit 0
 fi
+
+file_size=$(stat -c%s $fw_file)
+part_size="$((0x$(awk "/^$mtd_dev/{print \$2}" /proc/mtd)))"
+[ "$file_size" -gt $part_size ] && \
+	die "File $fw_file ($file_size) is larger than $mtd_dev partition ($part_size)!"
 
 stop_services
 remove_snapshot
