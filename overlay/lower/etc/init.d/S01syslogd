@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DAEMON_ARGS="-n -C64 -t"
+DAEMON_ARGS="-n -C64 -t -D"
 
 . /etc/init.d/rc.common
 
