@@ -23,4 +23,4 @@ gpio_speaker=63
 gpio_wlan=122O
 motor_maxstep_h=4200
 motor_maxstep_v=1200
-wlandev=ssv6255
+wlandev=ssv6x5x
