@@ -5,7 +5,7 @@ IFS_ORIG=$IFS
 STR_EIGHT_OR_MORE_CHARS=" pattern=\".{8,}\" title=\"8 characters or longer\""
 STR_NOT_SUPPORTED="not supported on this system"
 STR_PASSWORD_TO_PSK="Plain-text password will be automatically converted to a PSK upon submission"
-STR_SUPPORTS_STRFTIME="Supports <a href=\"https://strftime.net/\" target=\"_blank\">strftime</a> format."
+STR_SUPPORTS_STRFTIME="Supports <a href=\"https://strftime.net/\" target=\"_blank\">strftime</a> format"
 
 pagename=$(basename "$SCRIPT_NAME")
 pagename="${pagename%%.*}"
@@ -435,6 +435,10 @@ is_recording() {
 
 is_valid_mac() {
 	echo "$1" | grep -Eiq '^([0-9a-f]{2}[:-]){5}([0-9a-f]{2})$'
+}
+
+is_isolated() {
+	true
 }
 
 link_to() {
