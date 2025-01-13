@@ -1,7 +1,7 @@
 name: toolchain
 on:
   schedule:
-    # 00:15 PST / Monday
+    # 23:15 PST / Sunday
     - cron:  '15 07 * * 1'
   workflow_dispatch:
     inputs:
@@ -171,6 +171,9 @@ jobs:
         with:
           path: ~/dl
           key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-
+            ${{ runner.os }}-ccache-shared-v1-
 
       - name: Prepare buildroot cache
         if: ${{ github.event.inputs.debug_enabled != 'true' }}

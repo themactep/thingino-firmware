@@ -1,8 +1,8 @@
 name: build-cache
 on:
   schedule:
-    # 23:15 PST / Sunday
-    - cron:  '15 06 * * 0'
+    # 22:30 PST / Sunday
+    - cron:  '30 06 * * 1'
   workflow_dispatch:
     inputs:
       tg_disabled:
@@ -127,6 +127,9 @@ jobs:
         with:
           path: ~/dl
           key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-
+            ${{ runner.os }}-ccache-shared-v1-
 
       - name: Generate buildroot cache
         run: |

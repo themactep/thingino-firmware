@@ -1,8 +1,8 @@
 name: buildroot-dl-cache
 on:
   schedule:
-    # 23:00 PST / Sunday
-    - cron:  '00 06 * * 0'
+    # 22:00 PST / Sunday
+    - cron:  '00 06 * * 1'
   workflow_dispatch:
     inputs:
       tg_disabled:
