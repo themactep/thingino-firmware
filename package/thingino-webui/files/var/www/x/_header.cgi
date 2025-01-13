@@ -14,7 +14,7 @@ Pragma: no-cache
 
 <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
 
-<% if [ "isolated" = "$network_mode" ]; then %>
+<% if is_isolated; then %>
 <link rel="stylesheet" href="/a/bootstrap.min.css">
 <script src="/a/bootstrap.bundle.min.js"></script>
 <% else %>
