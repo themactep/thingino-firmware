@@ -30,11 +30,6 @@ on:
         description: 'Debug: Generate dummy image files'
         required: false
         default: false
-      no_release:
-        type: boolean
-        description: 'Don't post artifacts to release'
-        required: false
-        default: false
 
 env:
   BR2_DL_DIR: ~/dl
