@@ -30,8 +30,9 @@ infocat() {
 }
 
 inforun() {
-	[ -n "$2" ] && header "$2"
-	eval $1
+	tmp=$(mktemp) || exit 1
+	eval "$1" >"$tmp" && [ -s "$tmp" ] && { [ -n "$2" ] && header "$2"; cat "$tmp"; }
+	rm -f "$tmp"
 }
 
 local_file=""
