@@ -87,12 +87,12 @@ if [ -f "$telegram_file" ]; then
 	[ -f "$telegram_file" ] || die "File $telegram_file not found"
 	magic=$(xxd -p -l10 $telegram_file)
 	case "$magic" in
-	"ffd8ffe000104a464946")
+	ffd8f*)
 		# https://core.telegram.org/bots/api#sendphoto
 		log_and_run "${command}sendPhoto -F 'photo=@$telegram_file' -F 'text=$(parse_caption $telegram_file)'"
 		[ "true" = "$delete_tempfile" ] && [ -f "$telegram_file" ] && rm "$telegram_file"
 		;;
-	"000000016d6461740000")
+	000000016d6461740000)
 		inode=$(stat -c%i $telegram_file)
 		[ "true" = "$send_buffer" ]  && send_video "$telegram_file"
 		# wait for the next file
