@@ -1,4 +1,4 @@
-#!/bin/sh
+my#!/bin/sh
 
 plugin="telegrambot"
 
@@ -207,7 +207,7 @@ while :; do
 			# - custom_emoji (for inline custom emoji stickers)
 
 			# check sender against whitelist
-			if ! echo "$telegrambot_whitelist" | grep -qw "$sender"; then
+			if ! echo "$telegrambot_users" | grep -qw "$sender"; then
 				echo "You are not my daddy, @$sender!"
 				continue
 			fi
