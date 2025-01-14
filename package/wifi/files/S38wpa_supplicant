@@ -16,6 +16,7 @@ ssid_changed() {
 start() {
 	starting
 	ssid="$(fw_printenv -n wlanssid)"
+	bssid="$(fw_printenv -n wlanbssid)"
 	pass="$(fw_printenv -n wlanpass)"
 	wlanap="$(fw_printenv -n wlanap_enabled)"
 
@@ -30,9 +31,8 @@ start() {
 
 	iface_exists "wlan0" || quit "No wireless interface"
 
-	if [ -z "$ssid" ] || [ -z "$pass" ]; then
-		quit "WiFi credentials missing"
-	fi
+	[ -z "$pass" ] && quit "WiFi password missing"
+	[ -z "${ssid}${bssid}" ] && quit "WiFi network missing"
 
 	if grep -q "^#auto wlan0" $WLAN_INT_FILE; then
 		quit "wlan0 manually disabled"
@@ -41,7 +41,11 @@ start() {
 	if [ ! -f "$CONFIG" ] || ssid_changed; then
 		wpa_passphrase "$ssid" "dummy_password" > $CONFIG
 		sed -i "s/psk=.*$/psk=${pass}/" $CONFIG
-		sed -i '/ssid/a \\tscan_ssid=1' $CONFIG
+		if [ -n "$bssid" ]; then
+			sed -i "s/^\s*ssid=.*$/\tbssid=$bssid/" $CONFIG
+		else
+			sed -i '/}/i\\tscan_ssid=1' $CONFIG
+		fi
 	fi
 
 	[ "$wlanap" = "true" ] && quit "WLAN AP enabled"

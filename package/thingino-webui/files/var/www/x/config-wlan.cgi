@@ -18,14 +18,19 @@ convert_psk() {
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	read_from_post "wlan" "mac pass ssid"
+	read_from_post "wlan" "bssid mac pass ssid"
 	read_from_post "wlanap" "enabled pass ssid"
 
 	# normalize values
 	wlan_mac="${wlan_mac//-/:}"
+	wlan_bssid="${wlan_bssid//-/:}"
 
 	# validate values for WLAN
 	check_mac_address "$wlan_mac" || set_error_flag "Invalid MAC address format."
+	if [ -n "$wlan_bssid" ]; then
+		check_mac_address "$wlan_bssid" || set_error_flag "Invalid WLAN BSSID format."
+	fi
+
 	error_if_empty "$wlan_ssid" "WLAN SSID cannot be empty."
 	error_if_empty "$wlan_pass" "WLAN Password cannot be empty."
 	[ ${#wlan_pass} -lt 8 ] && set_error_flag "WLAN Password cannot be shorter than 8 characters."
@@ -46,6 +51,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			echo "wlanmac=$wlan_mac"
 			echo "wlanpass=$wlan_pass"
 			echo "wlanssid=$wlan_ssid"
+			echo "wlanbssid=$wlan_bssid"
 			echo "wlanap_enabled=$wlanap_enabled"
 			echo "wlanap_pass=$wlanap_pass"
 			echo "wlanap_ssid=$wlanap_ssid"
@@ -59,6 +65,7 @@ fi
 wlan_mac="$(fw_printenv -n wlanmac)"
 wlan_pass="$(fw_printenv -n wlanpass)"
 wlan_ssid="$(fw_printenv -n wlanssid)"
+wlan_bssid="$(fw_printenv -n wlanbssid)"
 read_from_env "wlanap"
 
 # defaults
@@ -83,7 +90,10 @@ default_for wlanap_ssid "thingino-ap"
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <div class="tab-content" id="wlan-tabs">
 <div class="tab-pane fade show active" id="tab1-pane" role="tabpanel" aria-labelledby="tab1">
-<% field_text "wlan_ssid" "Wi-Fi Network SSID" %>
+<div class="row g-1">
+<div class="col"><% field_text "wlan_ssid" "Wireless Network Name (SSID)" %></div>
+<div class="col"><% field_text "wlan_bssid" "Access Point MAC Address (BSSID)" %></div>
+</div>
 <% field_text "wlan_pass" "Wi-Fi Network Password" "$STR_PASSWORD_TO_PSK" "" "$STR_EIGHT_OR_MORE_CHARS" %>
 <% field_text "wlan_mac" "Wi-Fi device MAC address" %>
 </div>
