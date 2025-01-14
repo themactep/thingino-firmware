@@ -92,7 +92,7 @@ default_for wlanap_ssid "thingino-ap"
 <div class="tab-pane fade show active" id="tab1-pane" role="tabpanel" aria-labelledby="tab1">
 <div class="row g-1">
 <div class="col"><% field_text "wlan_ssid" "Wireless Network Name (SSID)" %></div>
-<div class="col"><% field_text "wlan_bssid" "Access Point MAC Address (BSSID)" %></div>
+<div class="col"><% field_text "wlan_bssid" "Access Point MAC Address (BSSID)" "Only if SSID broadcast is enabled!" %></div>
 </div>
 <% field_text "wlan_pass" "Wi-Fi Network Password" "$STR_PASSWORD_TO_PSK" "" "$STR_EIGHT_OR_MORE_CHARS" %>
 <% field_text "wlan_mac" "Wi-Fi device MAC address" %>
