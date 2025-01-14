@@ -39,15 +39,16 @@ alias ver=". /etc/profile"
 if [ "$PS1" ]; then
 	[ -f /etc/os-release ] && . /etc/os-release
 	[ -f /etc/banner ] && echo -e "$(cat /etc/banner)"
-	printf "%65s\n" "$network_hostname"
-	printf "\e[38;5;240m%65s\e[0m\n" "$IMAGE_ID, $BUILD_ID"
+	printf "\e[38;5;244m%65s\e[0m\n" "$IMAGE_ID"
+	printf "\e[38;5;244m%65s\e[0m\n" "$BUILD_ID"
+	printf "\n%65s\n" "$mac as ${if4:-$if6}"
 	[ -n "$ip6" ] && printf "%65s\n" "$ip6 (IPv6)"
 	[ -n "$ip4" ] && printf "%65s\n" "$ip4 (IPv4)"
 	[ -z "$ip4$ip6" ] && printf "%65s\n" "No IP address"
-	printf "%65s\n\n" "${if4:-$if6} [$mac]"
+	printf "\n\e[38;5;130m%65s\e[0m\n\n" "$(uptime)"
 
 	if [ "$(id -u)" -eq 0 ]; then
-		export PS1="\[\e[38;5;172m\]\u\[\e[m\]@\[\e[38;5;153m\]\h\[\e[m\]\[\e[38;5;214m\] \W\[\e[m\]\\# "
+		export PS1="\[\e[38;5;208m\]\u\[\e[m\]@\[\e[38;5;153m\]\h\[\e[m\]\[\e[38;5;214m\] \W\[\e[m\]\\# "
 	else
 		export PS1='\u@\h:\w\$ '
 	fi
