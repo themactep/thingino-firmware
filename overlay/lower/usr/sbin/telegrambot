@@ -1,5 +1,4 @@
-my#!/bin/sh
-
+#!/bin/sh
 plugin="telegrambot"
 
 command -v jsonfilter > /dev/null || die "$plugin is not supported on this platform, missing jsonfilter."
