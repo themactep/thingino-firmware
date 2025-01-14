@@ -108,7 +108,7 @@ fi
 	inforun "gpio list" "GPIO"
 
 	header "ENV"
-	fw_printenv | awk -F'=' '{if (/ethaddr|gatewayip|ipaddr|root_pw_hash|pwbackup|serverip|ssh_authorized_keys|sshkey|wlanmac|wlanpass|wg_dns|wg_address|wg_endpoint|wg_peerpub|wg_peerpsk|wg_allowed/) print $1 "=REDACTED"; else print}' | sort
+	fw_printenv | awk -F'=' '{if (/ethaddr|gatewayip|ipaddr|root_pw_hash|pwbackup|serverip|ssh_authorized_keys|sshkey|wlanssid|wlanmac|wlanpass|wg_dns|wg_address|wg_endpoint|wg_peerpub|wg_peerpsk|wg_allowed/) print $1 "=REDACTED"; else print}' | sort
 
 	infocat "/proc/cmdline" "CMDLINE"
 	infocat "/proc/jz/clock/clocks" "CLOCKS"
@@ -120,7 +120,7 @@ fi
 	inforun "sensor -a" "sensor"
 
 	header "streamer"
-	awk -F':' '{if (/password/) print $1 " REDACTED"; else print}' /etc/prudynt.cfg
+	awk '{if ($0 ~ /password[[:space:]]*=/) sub(/=.*/, "= \"REDACTED\";"); print}'  /etc/prudynt.cfg
 
 	infocat "/etc/cron/crontabs/root" "crontab"
 } > "$output_file"
