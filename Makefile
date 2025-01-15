@@ -37,6 +37,13 @@ SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 # export BR2_DL_DIR = /path/to/your/local/storage
 BR2_DL_DIR ?= $(HOME)/dl
 
+#ifeq ($(BOARD),)
+#$(error No camera config provided)
+#else
+#CAMERA:=$(BOARD)
+#$(info Building for CAMERA: $(CAMERA))
+#endif
+
 # working directory
 GIT_BRANCH := $(shell git branch --show-current)
 ifeq ($(GIT_BRANCH),master)
@@ -44,12 +51,10 @@ OUTPUT_DIR ?= $(HOME)/output/$(CAMERA)
 else
 OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)/$(CAMERA)
 endif
+$(info OUTPUT_DIR: $(OUTPUT_DIR))
 
 STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
 STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
-
-# make command for buildroot
-BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
 
 # handle the board
 include $(BR2_EXTERNAL)/board.mk
@@ -161,9 +166,19 @@ BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$
 	defconfig distclean fast help pack release sdk \
 	toolchain update upboot-ota upload_tftp upgrade_ota br-%
 
-all: build pack
+all: defconfig build pack
 	$(info -------------------------------- $@)
-	@$(FIGLET) "FINE"
+
+fast: defconfig build_fast pack
+	$(info -------------------------------- $@)
+
+# rebuild from scratch
+cleanbuild: distclean defconfig build_fast pack
+	$(info -------------------------------- $@)
+
+release: RELEASE=1
+release: distclean defconfig build_fast pack
+	$(info -------------------------------- $@)
 
 # update repo and submodules
 update:
@@ -176,20 +191,11 @@ bootstrap:
 	$(info -------------------------------- $@)
 	$(SCRIPTS_DIR)/dep_check.sh
 
-build: defconfig
+build:
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) all
 
-build_fast: defconfig
-	$(info -------------------------------- $@)
-	$(BR2_MAKE) -j$(shell nproc) all
-
-fast: build_fast pack
-	$(info -------------------------------- $@)
-	@$(FIGLET) "FINE"
-
-release: RELEASE=1
-release: defconfig
+build_fast:
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) -j$(shell nproc) all
 
@@ -258,10 +264,6 @@ clean:
 	$(info -------------------------------- $@)
 	rm -rf $(OUTPUT_DIR)/target
 
-# rebuild from scratch
-cleanbuild: distclean fast
-	$(info -------------------------------- $@)
-
 # remove all build files
 distclean:
 	$(info -------------------------------- $@)
@@ -296,6 +298,7 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	echo "$(shell echo \# $(CAMERA))" >> $(FIRMWARE_BIN_NOBOOT).sha256sum
 	echo "# ${GIT_BRANCH}+${GIT_HASH}, ${GIT_DATE}" >> "$(FIRMWARE_BIN_NOBOOT).sha256sum"
 	sha256sum $(FIRMWARE_BIN_NOBOOT) | awk '{print $$1 "  " filename}' filename="$(FIRMWARE_NAME_NOBOOT)" >> $(FIRMWARE_BIN_NOBOOT).sha256sum
+	@$(FIGLET) "FINE"
 
 # rebuild a package
 rebuild-%: defconfig
