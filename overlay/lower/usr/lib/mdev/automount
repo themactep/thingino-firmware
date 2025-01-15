@@ -99,6 +99,7 @@ do_run_always() {
 }
 
 do_run_diag() {
+	rm -f $mountpoint/.diag
 	thingino-diag -l $mountpoint
 	sync
 	do_umount
