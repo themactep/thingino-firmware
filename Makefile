@@ -152,8 +152,13 @@ GIT_BRANCH="$(shell git branch | grep '^*' | awk '{print $$2}')"
 GIT_HASH="$(shell git show -s --format=%H | cut -c1-7)"
 GIT_DATE="$(shell git show -s --format=%ci)"
 
+RELEASE = 0
+
+# make command for buildroot
+BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
+
 .PHONY: all bootstrap build build_fast clean cleanbuild \
-	defconfig distclean fast help pack prepare_config sdk \
+	defconfig distclean fast help pack release sdk \
 	toolchain update upboot-ota upload_tftp upgrade_ota br-%
 
 all: build pack
@@ -183,13 +188,19 @@ fast: build_fast pack
 	$(info -------------------------------- $@)
 	@$(FIGLET) "FINE"
 
+release: RELEASE=1
+release: defconfig
+	$(info -------------------------------- $@)
+	$(BR2_MAKE) -j$(shell nproc) all
+
 ### Configuration
 
 FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(MODULE_CONFIG_REAL))
 
-# Assemble config from bits and pieces
-prepare_config: buildroot/Makefile
+# Configure buildroot for a particular board
+defconfig: buildroot/Makefile
 	$(info -------------------------------- $@)
+	@$(FIGLET) $(CAMERA)
 	# create output directory
 	$(info * make OUTPUT_DIR $(OUTPUT_DIR))
 	mkdir -p $(OUTPUT_DIR)
@@ -199,9 +210,9 @@ prepare_config: buildroot/Makefile
 	# gather fragments of a new config
 	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(MODULE_CONFIG_REAL))
 	for i in $(FRAGMENTS); do \
-	echo "** add configs/fragments/$$i.fragment"; \
-	cat configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
-	echo >>$(OUTPUT_DIR)/.config; \
+		echo "** add configs/fragments/$$i.fragment"; \
+		cat configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
+		echo >>$(OUTPUT_DIR)/.config; \
 	done
 	# add module configuration
 	cat $(MODULE_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
@@ -209,22 +220,15 @@ ifneq ($(CAMERA_CONFIG_REAL),$(MODULE_CONFIG_REAL))
 	# add camera configuration
 	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
 endif
-	# Add local.fragment to the final config
-	if [ -f local.fragment ]; then cat local.fragment >>$(OUTPUT_DIR)/.config; fi
-	# Add local.mk to the building directory to override settings
-	if [ -f $(BR2_EXTERNAL)/local.mk ]; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
+	@if [ $(RELEASE) -eq 1 ]; then $(FIGLET) "RELEASE"; else $(FIGLET) "DEVELOPMENT"; fi
+	if [ $(RELEASE) -ne 1 ] && [ -f local.fragment ]; then cat local.fragment >>$(OUTPUT_DIR)/.config; fi
+	if [ $(RELEASE) -ne 1 ] && [ -f $(BR2_EXTERNAL)/local.mk ]; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
 	if [ ! -L $(OUTPUT_DIR)/thingino ]; then ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; fi
-
-
-# Configure buildroot for a particular board
-defconfig: prepare_config
-	$(info -------------------------------- $@)
-	@$(FIGLET) $(CAMERA)
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 	if [ -f $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) ]; then \
 	grep -v '^#' $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) | tee $(U_BOOT_ENV_FINAL_TXT); fi
-	if [ -f $(BR2_EXTERNAL)/local.uenv.txt ]; then \
+	if [ $(RELEASE) -ne 1 ] && [ -f $(BR2_EXTERNAL)/local.uenv.txt ]; then \
 		grep -v '^#' $(BR2_EXTERNAL)/local.uenv.txt | while read line; do \
 			grep -F -x -q "$$line" $(U_BOOT_ENV_FINAL_TXT) || echo "$$line" >> $(U_BOOT_ENV_FINAL_TXT); \
 		done; \
@@ -424,6 +428,7 @@ help:
 	  make                build and pack everything\n\
 	  make build          build kernel and rootfs\n\
 	  make cleanbuild     build everything from scratch, fast\n\
+	  make release        build without local fragments\n\
 	  make pack           create firmware images\n\
 	  make clean          clean before reassembly\n\
 	  make distclean      start building from scratch\n\
