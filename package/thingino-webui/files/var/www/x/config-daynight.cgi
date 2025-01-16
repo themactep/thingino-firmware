@@ -26,14 +26,13 @@ default_for day_night_ir940 "false"
 default_for day_night_white "false"
 default_for dusk2dawn_offset_sr 0
 default_for dusk2dawn_offset_ss 0
-default_for dusk2dawn_runat "0:00"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
 	# read values from POST
-	read_from_post "day_night" "enabled interval min color ircut ir850 ir940 white"
-	read_from_post "dusk2dawn" "enabled runat lat lng offset_sr offset_ss"
+	read_from_post "day_night" "color enabled interval ir850 ir940 ircut max min white"
+	read_from_post "dusk2dawn" "enabled lat lng offset_sr offset_ss"
 
 	# validate mandatory values
 	if [ "true" = "$day_night_enabled" ]; then
@@ -48,21 +47,20 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	if [ -z "$error" ]; then
 		save2env "
+day_night_color $day_night_color
 day_night_enabled $day_night_enabled
 day_night_interval $day_night_interval
-day_night_min $day_night_min
-day_night_max $day_night_max
-day_night_color $day_night_color
-day_night_ircut $day_night_ircut
 day_night_ir850 $day_night_ir850
 day_night_ir940 $day_night_ir940
+day_night_ircut $day_night_ircut
+day_night_max $day_night_max
+day_night_min $day_night_min
 day_night_white $day_night_white
 dusk2dawn_enabled $dusk2dawn_enabled
 dusk2dawn_lat $dusk2dawn_lat
 dusk2dawn_lng $dusk2dawn_lng
 dusk2dawn_offset_sr $dusk2dawn_offset_sr
 dusk2dawn_offset_ss $dusk2dawn_offset_ss
-dusk2dawn_runat $dusk2dawn_runat
 "
 		# update crontab
 		tmpfile=$(mktemp -u)
@@ -85,7 +83,7 @@ fi
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-3">
-<div class="row mb-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4 mb-4">
 
 <div class="col">
 	<h3 class="alert alert-warning text-center">Gain <span class="gain"></span></h3>
