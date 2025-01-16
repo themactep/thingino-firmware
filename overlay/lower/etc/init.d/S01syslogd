@@ -1,6 +1,9 @@
 #!/bin/sh
 
+RSYSLOG_IP=$(fw_printenv -n rsyslog_ip)
+
 DAEMON_ARGS="-n -C64 -t -D"
+[ -z "$RSYSLOG_IP" ] || DAEMON_ARGS="$DAEMON_ARGS -R $RSYSLOG_IP"
 
 . /etc/init.d/rc.common
 
