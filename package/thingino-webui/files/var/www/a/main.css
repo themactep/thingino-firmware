@@ -286,6 +286,16 @@ pre.list b {
 	width: 8em;
 }
 
+input[type="text"],
+input[type="password"],
+input[type="number"],
+select
+{
+	font-family: var(--bs-font-monospace);
+	font-size: 1rem;
+	color: lightpink;
+}
+
 textarea {
 	font-family: var(--bs-font-monospace);
 	text-wrap: auto;
