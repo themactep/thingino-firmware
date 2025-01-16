@@ -5,45 +5,59 @@ plugin="network"
 . /sbin/common-plugins
 
 # $(date) $network_mode $network_interface $network_address
-TEMPLATE_COMMON="iface %s inet %s\n"
+TEMPLATE_COMMON="
+iface %s inet %s
+"
 
-TEMPLATE_IPV6="    dhcp-v6-enabled true\n"
+TEMPLATE_MAC="
+	hwaddress ether \$(fw_printenv -n ethaddr)
+"
 
 # $network_address $network_netmask
-TEMPLATE_STATIC="    address %s\n    netmask %s\n"
+TEMPLATE_STATIC="
+	address %s
+	netmask %s
+"
+
+TEMPLATE_IPV6="
+	dhcp-v6-enabled true
+"
 
 # ppp_gpio=61
 # $ppp_gpio $ppp_gpio $ppp_gpio $ppp_gpio $ppp_gpio
-TEMPLATE_PPP="    # PPP
-    pre-up echo %s > /sys/class/gpio/export
-    pre-up echo out > /sys/class/gpio/gpio%s/direction
-    pre-up echo 0 > /sys/class/gpio/gpio%s/value
-    pre-up sleep 7
-    post-down echo 1 > /sys/class/gpio/gpio%s/value
-    post-down echo %s > /sys/class/gpio/unexport
+TEMPLATE_PPP="
+	# PPP
+	pre-up echo %s > /sys/class/gpio/export
+	pre-up echo out > /sys/class/gpio/gpio%s/direction
+	pre-up echo 0 > /sys/class/gpio/gpio%s/value
+	pre-up sleep 7
+	post-down echo 1 > /sys/class/gpio/gpio%s/value
+	post-down echo %s > /sys/class/gpio/unexport
 "
 
 # usb_vendor=0x2c7c; usb_product=0x6026
 # $usb_vendor $usb_product
-TEMPLATE_USB="    # USB
-    pre-up echo 9 > /sys/class/gpio/export
-    pre-up echo out > /sys/class/gpio/gpio9/direction
-    pre-up echo 0 > /sys/class/gpio/gpio9/value
-    pre-up modprobe usbserial vendor=%s product=%s
-    pre-up modprobe rndis_host
-    pre-up sleep 10
-    post-down echo 1 > /sys/class/gpio/gpio9/value
-    post-down echo 9 > /sys/class/gpio/unexport
+TEMPLATE_USB="
+	# USB
+	pre-up echo 9 > /sys/class/gpio/export
+	pre-up echo out > /sys/class/gpio/gpio9/direction
+	pre-up echo 0 > /sys/class/gpio/gpio9/value
+	pre-up modprobe usbserial vendor=%s product=%s
+	pre-up modprobe rndis_host
+	pre-up sleep 10
+	post-down echo 1 > /sys/class/gpio/gpio9/value
+	post-down echo 9 > /sys/class/gpio/unexport
 "
 
 # network_interface=wg0
 # $network_interface $network_interface $network_interface
-TEMPLATE_WIREGUARD="    # WireGuard
-    # +static
-    pre-up modprobe wireguard
-    pre-up ip link add dev %s type wireguard
-    pre-up wg setconf %s /etc/wireguard.conf
-    post-down ip link del dev %s
+TEMPLATE_WIREGUARD="
+	# WireGuard
+	# +static
+	pre-up modprobe wireguard
+	pre-up ip link add dev %s type wireguard
+	pre-up wg setconf %s /etc/wireguard.conf
+	post-down ip link del dev %s
 "
 
 show_help() {
@@ -72,132 +86,79 @@ For static mode:
 ## override config values with command line arguments
 while getopts a:d:D:g:h:i:k:m:n:p:r:s:t:v flag; do
 	case "$flag" in
-		a)
-			network_address=$OPTARG
-			;;
-		d)
-			network_nameservers=$OPTARG
-			;;
-		g)
-			network_gateway=$OPTARG
-			;;
-		h)
-			network_hostname=$OPTARG
-			;;
-		i)
-			network_interface=$OPTARG
-			;;
-		n)
-			network_netmask=$OPTARG
-			;;
-		m)
-			network_mode=$OPTARG
-			;;
-		p)
-			network_password=$OPTARG
-			;;
-		r)
-			network_device=$OPTARG
-			;;
-		s)
-			network_ssid=$OPTARG
-			;;
-		v)
-			verbose=1
-			;;
-		*) ;;
+		a) network_address=$OPTARG ;;
+		d) network_nameservers=$OPTARG ;;
+		g) network_gateway=$OPTARG ;;
+		h) network_hostname=$OPTARG ;;
+		i) network_interface=$OPTARG ;;
+		n) network_netmask=$OPTARG ;;
+		m) network_mode=$OPTARG ;;
+		p) network_password=$OPTARG ;;
+		r) network_device=$OPTARG ;;
+		s) network_ssid=$OPTARG ;;
+		v) verbose=1 ;;
+		*) show_help && exit 0 ;;
 	esac
 done
 
-if [ $# -eq 0 ]; then
-	show_help
-	quit_clean 1
-fi
-
 ## validate mandatory values
-if [ -z "$network_interface" ]; then
-	log "Network interface is not set"
-	quit_clean 11
+[ -z "$network_interface" ] && die "Network interface is not set"
+[ -z "$network_mode" ] && die "Network mode is not set"
+if [ "static" = "$network_mode" ]; then
+	[ -z "$network_address" ] && die "Interface IP address is not set"
+	[ -z "$network_netmask" ] && die "Netmask is not set"
 fi
 
-if [ -z "$network_mode" ]; then
-	log "Network mode is not set"
-	quit_clean 15
-fi
+tempfile=$(mktemp)
+
+printf "auto %s\n" "$network_interface" >> $tempfile
+printf "$TEMPLATE_COMMON" "$network_interface" "$network_mode" >> $tempfile
+
+[ "eth0" = "$network_interface" ] && printf "$TEMPLATE_IPV6" >> $tempfile
 
 if [ "static" = "$network_mode" ]; then
-	if [ -z "$network_address" ]; then
-		log "Interface IP address is not set"
-		quit_clean 16
-	fi
-
-	if [ -z "$network_netmask" ]; then
-		log "Netmask is not set"
-		quit_clean 17
-	fi
-fi
-
-tmp_config_file="/tmp/$plugin.conf"
-: > "$tmp_config_file"
-
-printf "auto %s\n" $network_interface >> "$tmp_config_file"
-printf "$TEMPLATE_COMMON" $network_interface $network_mode >> "$tmp_config_file"
-
-if [ "eth0" = "$network_interface" ]; then
-	printf "$TEMPLATE_IPV6" >> "$tmp_config_file"
-fi
-
-if [ "static" = "$network_mode" ]; then
-	printf "$TEMPLATE_STATIC" "$network_address" "$network_netmask" >> "$tmp_config_file"
+	printf "$TEMPLATE_STATIC" "$network_address" "$network_netmask" >> $tempfile
 
 	# skip gateway if empty
-	if [ -n "$network_gateway" ]; then
-		echo "    gateway $network_gateway" >> "$tmp_config_file"
-	fi
+	[ -n "$network_gateway" ] && echo -e "\tgateway $network_gateway" >> $tempfile
 
 	# skip dns servers if empty
 	if [ -n "$network_nameservers" ]; then
-		echo -n "    pre-up echo -e \"" >> "$tmp_config_file"
+		echo -en "\tpre-up echo -e \"" >> $tempfile
 		for dns in ${network_nameservers//,/ }; do
-			echo -n "nameserver ${dns}\n" >> "$tmp_config_file"
+			echo -n "nameserver $dns\n" >> $tempfile
 		done
 		unset dns
-		echo "\" >/tmp/resolv.conf" >> "$tmp_config_file"
+		echo "\" >/tmp/resolv.conf" >> $tempfile
 	fi
 fi
 
 if [ "wlan0" = "$network_interface" ]; then
 	# update env parameters only if not empty
-	tmp_env_file=$(mktemp)
-	: > $tmp_env_file
-	if [ -n "$network_device" ]; then
-		printf "wlandev %s\n" "$network_device" >> "$tmp_env_file"
-	fi
-	if [ -n "$network_ssid" ]; then
-		printf "wlanssid %s\n" "$network_ssid" >> "$tmp_env_file"
-	fi
-	if [ -n "$network_password" ]; then
-		printf "wlanpass %s\n" "$network_password" >> "$tmp_env_file"
-	fi
-	fw_setenv -s "$tmp_env_file"
+	tempenv=$(mktemp)
+	[ -n "$network_device" ] && printf "wlandev %s\n" "$network_device" >> $tempenv
+	[ -n "$network_ssid" ] && printf "wlanssid %s\n" "$network_ssid" >> $tempenv
+	[ -n "$network_password" ] && printf "wlanpass %s\n" "$network_password" >> $tempenv
+	fw_setenv -s $tempenv
+	rm $tempenv
 fi
 
 # TODO: preset ppp_gpio
 if [ "ppp0" = "$network_interface" ]; then
-	printf "$TEMPLATE_PPP" "$ppp_gpio" "$ppp_gpio" "$ppp_gpio" "$ppp_gpio" "$ppp_gpio" >> "$tmp_config_file"
+	printf "$TEMPLATE_PPP" "$ppp_gpio" "$ppp_gpio" "$ppp_gpio" "$ppp_gpio" "$ppp_gpio" >> $tempfile
 fi
 
 # TODO: preset usb_vendor usb_product
 if [ "usb0" = "$network_interface" ]; then
-	printf "$TEMPLATE_USB" "$usb_vendor" "$usb_product" >> "$tmp_config_file"
+	printf "$TEMPLATE_USB" "$usb_vendor" "$usb_product" >> $tempfile
 fi
 
 if [ "wg0" = "$network_interface" ]; then
-	printf "$TEMPLATE_WIREGUARD" "$network_interface" "$network_interface" "$network_interface" >> "$tmp_config_file"
+	printf "$TEMPLATE_WIREGUARD" "$network_interface" "$network_interface" "$network_interface" >> $tempfile
 fi
 
 iface_file="/etc/network/interfaces.d/$network_interface"
-mv "$tmp_config_file" "$iface_file"
+mv "$tempfile" "$iface_file"
 cat "$iface_file"
 
 if [ -n "$network_hostname" ]; then
@@ -209,8 +170,6 @@ if [ -n "$network_hostname" ]; then
 	fi
 fi
 
-update_caminfo
-generate_signature
 touch /tmp/network-restart.txt
 
 quit_clean 0
