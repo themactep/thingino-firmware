@@ -159,6 +159,8 @@ GIT_DATE="$(shell git show -s --format=%ci)"
 
 RELEASE = 0
 
+CAMERA_UENV_FILE := $(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config)
+
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
 
@@ -204,7 +206,7 @@ build_fast:
 FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(MODULE_CONFIG_REAL))
 
 # Configure buildroot for a particular board
-defconfig: buildroot/Makefile
+defconfig: buildroot/Makefile $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
 	@$(FIGLET) $(CAMERA)
 	# create output directory
@@ -232,8 +234,7 @@ endif
 	if [ ! -L $(OUTPUT_DIR)/thingino ]; then ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; fi
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
-	if [ -f $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) ]; then \
-	grep -v '^#' $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) | tee $(U_BOOT_ENV_FINAL_TXT); fi
+	if [ -f $(BR2_EXTERNAL)$(CAMERA_UENV_FILE) ]; then grep -v '^#' $(BR2_EXTERNAL)$(UENV_FILE) | tee $(U_BOOT_ENV_FINAL_TXT); fi
 	if [ $(RELEASE) -ne 1 ] && [ -f $(BR2_EXTERNAL)/local.uenv.txt ]; then \
 		grep -v '^#' $(BR2_EXTERNAL)/local.uenv.txt | while read line; do \
 			grep -F -x -q "$$line" $(U_BOOT_ENV_FINAL_TXT) || echo "$$line" >> $(U_BOOT_ENV_FINAL_TXT); \
