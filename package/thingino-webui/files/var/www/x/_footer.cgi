@@ -9,7 +9,8 @@
 </div>
 <div class="col col-sm-7 mb-2">
 <div class="text-sm-end">
-<p>Powered by <a href="https://thingino.com/">Thingino</a>.</p>
+<p>Powered by <a href="https://thingino.com/">Thingino</a>
+<span class="d-block text-secondary"><%= $BUILD_ID %></span></p>
 </div>
 </div>
 </div>

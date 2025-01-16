@@ -628,8 +628,6 @@ update_caminfo() {
 	# Firmware
 	uboot_version=$(fw_printenv -n ver)
 	default_for uboot_version $(strings /dev/mtdblock0 | grep '^U-Boot \d' | head -1)
-	fw_version=$(grep "^VERSION" /etc/os-release | cut -d= -f2 | tr -d /\"/)
-	fw_build=$(grep "^GITHUB_VERSION" /etc/os-release | cut -d= -f2 | tr -d /\"/)
 
 	# WebUI version
 	ui_password=$(grep root /etc/shadow|cut -d: -f2)
@@ -672,7 +670,7 @@ update_caminfo() {
 	rtsp_endpoint_ch1=$(prudyntcfg get stream1.rtsp_endpoint | tr -d '"')
 
 	# create a sourceable file
-	for v in flash_size flash_size_mb flash_type fw_version fw_build network_address network_cidr network_default_interface network_dhcp network_dns_1 network_dns_2 network_gateway network_hostname network_interfaces network_macaddr network_netmask overlay_root rtsp_endpoint_ch0 rtsp_endpoint_ch1 soc_family soc_model sensor_fps_max sensor_fps_min sensor_model tz_data tz_name uboot_version ui_password; do
+	for v in flash_size flash_size_mb flash_type network_address network_cidr network_default_interface network_dhcp network_dns_1 network_dns_2 network_gateway network_hostname network_interfaces network_macaddr network_netmask overlay_root rtsp_endpoint_ch0 rtsp_endpoint_ch1 soc_family soc_model sensor_fps_max sensor_fps_min sensor_model tz_data tz_name uboot_version ui_password; do
 		eval "echo $v=\'\$$v\'>>$tmpfile"
 	done
 	# sort content alphabetically
@@ -702,6 +700,8 @@ include() {
 	[ -f "$1" ] || touch $1
 	[ -f "$1" ] && . "$1"
 }
+
+[ -f /etc/os-release ] && . /etc/os-release
 
 # read from env
 wlanap_enabled=$(fw_printenv -n wlanap_enabled)
