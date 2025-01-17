@@ -4,27 +4,35 @@ plugin="timelapse"
 
 . /sbin/common-plugins
 
-snapshot=/tmp/snapshot.jpg
-
 [ "false" = "$timelapse_enabled" ] && die "Timelapse is disabled."
-[ -z "$timelapse_storage" ] && die "Timelapse storage cannot be empty."
-[ -z "$timelapse_filename" ] && timelapse_filename="%Y%m%d%H%M.jpg"
+
+# drop trailing slashes
+timelapse_mount=${timelapse_mount%/}
+timelapse_device_path=${timelapse_device_path%/}
+
+# wait for mount point
+[ -z "$timelapse_mount" ] && hesitate "timelapse_mount is not set"
+mountpoint -q "$timelapse_mount" || hesitate "$timelapse_mount is not mounted"
+[ -w "$timelapse_mount" ] || hesitate "$timelapse_mount is not writable"
+
+# storage directory
+timelapse_storage="$timelapse_mount/$timelapse_device_path"
+if [ ! -d "$timelapse_storage" ]; then
+	log "Creating $timelapse_storage"
+	mkdir -vp "$timelapse_storage" || die "Cannot create directory $timelapse_storage"
+fi
+[ -w "$timelapse_storage" ] || die "Cannot write to $timelapse_storage"
+
+[ -z "$timelapse_depth" ] && timelapse_depth=7
+[ -z "$timelapse_filename" ] && timelapse_filename="%Y/%m/%d/%H%M.jpg"
 [ -z "$timelapse_interval" ] && timelapse_interval=1
 
-target="$timelapse_storage/$(date +"$timelapse_filename")"
-targetdir="$(dirname "$target")"
-mkdir -p "$targetdir"
-[ -w "$targetdir" ] || die "Cannot write to $targetdir"
+# delete older files
+find "$timelapse_storage" -type f -name '*.jpg' -mtime +$timelapse_depth -exec rm {} \;
 
-converter="$targetdir/convert2video.sh"
-if [ ! -f "$converter" ]; then
-	echo "#/bin/sh
-ffmpeg -r 10 -f image2 -pattern_type glob -i '*.jpg' -vcodec libx264 -an timelapse.mp4
-" > "$converter"
-	chmod +x "$converter"
-fi
+# delete empty directories
+find "$timelapse_storage" -empty -type d -mindepth 1 -exec rm -r {} \;
 
-[ -f "$snapshot" ] || die "Cannot find a snapshot"
-cp -v "$snapshot" "$target"
+clone_snapshot "$timelapse_storage/$(date +"$timelapse_filename")"
 
 exit 0

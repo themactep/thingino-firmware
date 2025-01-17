@@ -16,6 +16,8 @@ fi
 
 CURL="curl $curl_verbosity --connect-timeout $curl_timeout --max-time $curl_timeout"
 
+SNAPSHOT_FILE=/tmp/snapshot.jpg
+
 debug=$(fw_printenv -n debug)
 
 build_cmd() {
@@ -92,9 +94,30 @@ singleton() {
 	log "Create lock file $LOCK_FILE"
 }
 
-use_socks5() {
-	[ -f $SOCKS5_CONFIG ] || return
-	. $SOCKS5_CONFIG
-	build_cmd "--proxy-user $socks5_login:$socks5_password --socks5-hostname $socks5_host:$socks5_port"
-	#"--proxy socks5h://$socks5_login:$socks5_password@$socks5_host:$socks5_port"
+# "target"
+clone_snapshot() {
+	[ -f "$SNAPSHOT_FILE" ] || die "Cannot find a snapshot"
+	delete_tempfile="true"
+	create_directory_for "$1"
+	cp "$SNAPSHOT_FILE" "$1"
+}
+
+# "filename"
+create_directory_for() {
+	dir="$(dirname "$1")"
+	[ -d "$dir" ] || mkdir -p "$dir"
+	[ -d "$dir" ] || die "Cannot create directory $dir"
+	[ -w "$dir" ] || die "Cannot write to $dir"
+}
+
+# "message"
+hesitate() {
+	log "$1"
+	sleep 5
+	exit 0
+}
+
+# "template"
+parse_target() {
+	echo "$1" | sed "s/%hostname/$(hostname -s)/g"
 }

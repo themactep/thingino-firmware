@@ -13,10 +13,3 @@ CONFIG_FILE="/etc/webui/$plugin.conf"
 log "Plugin $plugin initialized"
 
 [ -f "$CONFIG_FILE" ] && . $CONFIG_FILE
-
-clone_snapshot() {
-	snapshot=/tmp/snapshot.jpg
-	[ -f "$snapshot" ] || die "Cannot find a snapshot"
-	delete_tempfile="true"
-	cp $snapshot $1
-}

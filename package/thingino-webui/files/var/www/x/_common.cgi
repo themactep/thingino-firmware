@@ -2,6 +2,8 @@
 <%
 IFS_ORIG=$IFS
 
+CRONTABS="/etc/cron/crontabs/root"
+
 STR_EIGHT_OR_MORE_CHARS=" pattern=\".{8,}\" title=\"8 characters or longer\""
 STR_NOT_SUPPORTED="not supported on this system"
 STR_PASSWORD_TO_PSK="Plain-text password will be automatically converted to a PSK upon submission"

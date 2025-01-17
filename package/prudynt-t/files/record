@@ -6,14 +6,17 @@ pidof -o $$ record > /dev/null && die "is already running"
 
 RECORD_FLAG="/tmp/record.$$"
 
+log() {
+	echo "$1" >&2
+}
+
 get_free_space() {
 	available_space=$(df -k "$record_mount" | sed 1d | tr -d '\n' | awk 'END{print $4}') # in KiB
 	log "Space available: $available_space KiB"
 }
 
 get_occupied_space() {
-        local root=$(parse_target "$record_mount/${record_filename//\/%*}")
-        occupied_space=$(du -s "$root" | awk '{print $1}') # in KiB
+        occupied_space=$(du -s "$record_storage" | awk '{print $1}') # in KiB
 	log "Space occupied: $occupied_space KiB"
 }
 
@@ -51,20 +54,11 @@ Where params are:
   -t <int>     Duration in seconds
   -v <str>     Record video format
   -m <path>    Mount point for storing files
+  -s <path>    Subdirectory for the device
   -n <string>  File name template (supports strftime format)
   -d <int>     Maximum disk usage, GiB
   -x           One-time run
 "
-}
-
-hesitate() {
-	log "$1"
-	sleep 5
-	exit 0
-}
-
-parse_target() {
-	echo "$1" | sed "s/%hostname/$(hostname -s)/g"
 }
 
 RECORD_WEBUI_CONF=/etc/webui/record.conf
@@ -75,7 +69,7 @@ else
 	[ "${#1}" -eq 0 ] && die "Config file $RECORD_WEBUI_CONF not found"
 fi
 
-while getopts "c:d:f:h:m:n:p:t:u:v:w:xz:" flag; do
+while getopts "c:d:f:h:m:n:p:s:t:u:v:w:xz:" flag; do
 	case "$flag" in
 		c) stream_number=$OPTARG ;;
 		d) record_limit=$OPTARG ;;
@@ -84,6 +78,7 @@ while getopts "c:d:f:h:m:n:p:t:u:v:w:xz:" flag; do
 		m) record_mount=$OPTARG ;;
 		n) record_filename=$OPTARG ;;
 		p) rtsp_password=$OPTARG ;;
+		s) record_device_path=$OPTARG ;;
 		t) record_duration=$OPTARG ;;
 		u) rtsp_username=$OPTARG ;;
 		v) record_videofmt=$OPTARG ;;
@@ -95,9 +90,10 @@ done
 shift "$((OPTIND - 1))"
 
 record_mount=${record_mount%/}
+record_device_path=${record_device_path%/}
 
 [ -z "$record_mount"     ] && hesitate "Mountpoint record_mount is not set"
-mountpoint "$record_mount" || hesitate "Mountpoint $record_mount is not mounted"
+mountpoint -q "$record_mount" || hesitate "Mountpoint $record_mount is not mounted"
 [ -w "$record_mount"     ] || hesitate "Mountpoint $record_mount is not writable"
 [ -z "$record_duration"  ] && record_duration=10
 [ -z "$record_filename"  ] && record_filename="%hostname/%Y/%m/%d/%H-%M-%S"
@@ -143,40 +139,44 @@ touch $RECORD_FLAG
 #	fi
 #fi
 
+record_storage="$record_mount/$record_device_path"
+if [ ! -d "$record_storage" ]; then
+	log "Creating $record_storage"
+	mkdir -p "$record_storage" || die "Cannot create directory $record_storage"
+fi
+[ -w "$record_storage" ] || die "Cannot write to $record_storage"
+
 record_limit_kb=$((record_limit * 1024 * 1024)) # GiB to KiB
 required_space=$((120 * record_duration)) # KiB
 
 while :; do
 	[ -f $RECORD_FLAG ] || break
 
-	target_template=$(parse_target "$record_mount/$record_filename.$record_videofmt")
-	parsed_target=$(date +"$target_template")
-	parsed_target_path=$(dirname "$parsed_target")
-	if [ ! -d "$parsed_target_path" ]; then
-		log "Making directory $parsed_target_path"
-		mkdir -p "$parsed_target_path" || die "Cannot create directory $parsed_target_path"
-	fi
-
 	get_free_space
 	get_occupied_space
 	log "Space limit: $record_limit_kb KiB"
 	log "Space required: $required_space KiB"
+
 	if [ "$available_space" -le "$required_space" ]; then
+		log "Not enough space: $required_space > $available_space"
 		while [ "$available_space" -le "$required_space" ] || [ "$((occupied_space + required_space))" -gt "$record_limit_kb" ]; do
-			oldest_file="$(find "$record_mount" -type f -exec ls -ltr {} + | head -n1 | awk '{print $9}')"
+			oldest_file="$(find "$record_storage" -type f -exec ls -ltr {} + | head -n1 | awk '{print $9}')"
 			oldest_file_dir="$(dirname $oldest_file)"
 			rm -v "$oldest_file"
 			[ -z "$(ls -A1 "$oldest_file_dir")" ] && rm -rv "$oldest_file_dir"
 
 			get_free_space
 			get_occupied_space
-			has_files "$record_mount" || die "$record_mount is empty yet no space!"
+			has_files "$record_storage" || die "$record_mount is empty yet no space!"
 		done
 	fi
 
-	log "Running openRTSP -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps -d $record_duration $vformat -b 1048576 -t rtsp://[::1]/$stream_endpoint  > $parsed_target"
+	record_file="$record_storage/$(date +"$record_filename").$record_videofmt"
+	create_directory_for "$record_file"
+
+	log "openRTSP -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps -d $record_duration $vformat -b 1048576 -t rtsp://[::1]/$stream_endpoint > $record_file"
 	openRTSP -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps \
-		-d $record_duration $vformat -b 1048576 -t rtsp://[::1]/$stream_endpoint > $parsed_target 2> /dev/null
+		-d $record_duration $vformat -b 1048576 -t rtsp://[::1]/$stream_endpoint > "$record_file" 2> /dev/null
 
 	[ "true" = "$one_time" ] && rm $RECORD_FLAG
 done
