@@ -9,7 +9,7 @@ config_file="$ui_config_dir/webui.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	params="theme"
+	params="paranoid theme ws_token"
 	read_from_post "webui" "$params"
 
 	if [ -z "$error" ]; then
@@ -43,9 +43,10 @@ ui_username="$USER"
 <input type="text" id="ui_username" name="ui_username" value="<%= $ui_username %>" class="form-control" autocomplete="username" disabled>
 </div>
 <% field_password "ui_password_new" "Password" %>
+<% field_select "webui_theme" "Theme" "light,dark,auto" %>
+<% field_switch "webui_paranoid" "Paranoid mode" "Isolated from internet by air gap, firewall, VLAN etc." %>
 </div>
 <div class="col">
-<% field_select "webui_theme" "Theme" "light,dark,auto" %>
 </div>
 <div class="col">
 <% field_password "ws_token" "Websockets security token" "FIXME: a stub" %>

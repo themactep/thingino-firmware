@@ -438,7 +438,7 @@ is_valid_mac() {
 }
 
 is_isolated() {
-	true
+	[ "true" = "$webui_paranoid" ]
 }
 
 link_to() {

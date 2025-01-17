@@ -11,9 +11,7 @@ Pragma: no-cache
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title><% html_title %></title>
-
 <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
-
 <% if is_isolated; then %>
 <link rel="stylesheet" href="/a/bootstrap.min.css">
 <script src="/a/bootstrap.bundle.min.js"></script>
@@ -26,13 +24,11 @@ Pragma: no-cache
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
  integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <% fi %>
-
 <link rel="stylesheet" href="/a/main.css?ts=<%= $assets_ts %>">
 <script src="/a/main.js?ts=<%= $assets_ts %>"></script>
 </head>
 
-<body id="page-<%= $pagename %>" class="<%= ${webui_level:-user} %>">
-
+<body id="page-<%= $pagename %>"<% is_isolated && echo -n ' class="paranoid"' %>>
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
 <div class="container">
 <a class="navbar-brand" href="/"><img alt="Image: thingino logo" width="150" src="/a/logo.svg"></a>
