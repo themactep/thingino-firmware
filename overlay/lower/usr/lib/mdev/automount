@@ -75,7 +75,7 @@ do_mount() {
 }
 
 do_umount() {
-	stop_recording
+	lsof | awk '/\/mnt\/mmcblk0p1/{print $1}' | xargs kill -9
 
 	if grep -qs "^$devicenode " /proc/mounts; then
 		if umount "$mountpoint"; then
@@ -120,12 +120,6 @@ do_run_once() {
 	else
 		log "Failed to execute $run_once script."
 	fi
-}
-
-stop_recording() {
-	while pidof openRTSP > /dev/null; do
-		killall openRTSP
-	done
 }
 
 case "$ACTION" in
