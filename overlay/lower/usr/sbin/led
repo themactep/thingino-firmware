@@ -7,7 +7,7 @@ GPIO_B=$(fw_printenv -n gpio_led_b)
 # color, pin, state
 setLED() {
 	if [ -z "$2" ]; then
-		echo "[INFO] Status Lights: GPIO_$1 is not set in $0" > /dev/kmsg
+		logger -p daemon.info -t led Status Lights: GPIO_$1 is not set in $0
 	else
 		gpio set "$2" "$3"
 	fi
