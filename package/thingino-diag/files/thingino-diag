@@ -95,8 +95,8 @@ fi
 	inforun "ps" "PS"
 	inforun "df -h" "DF"
 	inforun "ipcs" "IPC"
+	inforun "find /sys -path '*mmc*vendor' -type f -exec sh -c 'echo \"Vendor: \$1\"; cat \"\$1\"; dev=\"\${1/vendor/device}\"; [ -f \"\$dev\" ] && { echo \"Device: \$dev\"; cat \"\$dev\"; }' _ {} \;" "MMC"
 	inforun "lsmod" "KMOD"
-	inforun "find /sys -path '*mmc*vendor' -type f -exec sh -c 'echo \"Path: \$1\"; cat \"\$1\"; dev=\"\${1/vendor/device}\"; [ -f \"\$dev\" ] && { echo \"Device: \$dev\"; cat \"\$dev\"; }' _ {} \;" "MMC"
 
 	header "KMOD-2"
 	for file in /etc/modules.d/*; do echo "== $file =="; cat "$file"; done
