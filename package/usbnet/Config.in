@@ -31,7 +31,7 @@ config BR2_PACKAGE_USBNET_CDC_ETHER
          provide network connectivity over USB.
 
 config BR2_PACKAGE_USBNET_USB_DIRECT_NCM
-	bool "CDC-NCM"
+	bool "USB Direct NCM"
 	depends on BR2_PACKAGE_USBNET
 	help
          Select this option to enable support for CDC-NCM (Network Control Model),
@@ -42,7 +42,7 @@ config BR2_PACKAGE_USBNET_USB_DIRECT_NCM
          like RNDIS.
 
 config BR2_PACKAGE_USBNET_USB_DIRECT_NCM_CLIENT
-	bool "CDC-NCM-CLIENT"
+	bool "USB Direct NCM-CLIENT"
 	depends on BR2_PACKAGE_USBNET
 	help
          Select this option to enable CDC-NCM (Network Control Model) client mode.
@@ -58,6 +58,16 @@ config BR2_PACKAGE_USBNET_USB_DIRECT_NCM_CLIENT
 #	depends on BR2_PACKAGE_USBNET
 #	help
 #	  Enables CDC_ECM
+
+config BR2_PACKAGE_USBNET_CDC_NCM
+	bool "CDC-NCM"
+	depends on BR2_PACKAGE_USBNET
+	help
+          USB CDC Network Control Model (NCM) driver. This enables support
+          for USB Ethernet devices that use the NCM protocol, which offers
+          higher throughput than CDC-ECM by supporting bundling of multiple
+          packets. Common devices include modern USB network adapters and
+          mobile broadband modems that implement the NCM standard.
 
 config BR2_PACKAGE_USBNET_R8152
 	bool "Realtek 8152"
