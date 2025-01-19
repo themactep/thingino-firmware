@@ -35,23 +35,23 @@ val="$(urldecode "$val")"
 case "$cmd" in
 	color)
 		command="color $val"
-		color $val
+		ret=$(color $val)
 		;;
 	daynight)
 		command="daynight $val"
-		daynight $val
+		ret=$(daynight $val)
 		;;
 	ir850 | ir940 | white)
 		command="irled ${val:-read} $cmd"
-		irled ${val:-read} $cmd
+		ret=$(irled ${val:-read} $cmd)
 		;;
 	ircut)
 		command="ircut $val"
-		ircut $val
+		ret=$(ircut $val)
 		;;
 esac
 
-payload="{\"time\":\"$(date +%s)\",\"command\":\"$command\""
+payload="{\"time\":\"$(date +%s)\",\"command\":\"$command\",\"result\":\"$ret\""
 
 daynight=$(daynight read)
 [ -z "$daynight" ] || payload="$payload,\"daynight\":\"$daynight\""
