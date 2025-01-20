@@ -13,6 +13,10 @@ for i in $IFACES; do
 	done
 done
 
+disable_iface() {
+	sed -i "s/^auto /#auto /" /etc/network/interfaces.d/$1
+}
+
 hostname_in_env() {
 	fw_printenv -n hostname
 }
@@ -29,9 +33,88 @@ hostname_in_release() {
 	echo $HOSTNAME
 }
 
+iface_broadcast() {
+	ifconfig $1 | sed -En "s/.*Bcast:([0-9\.]+).*/\1/p"
+}
+
+iface_cidr() {
+	ip r | sed -nE "/$1/s/^[0-9\.]+(\/[0-9]+).+?/\1/p"
+}
+
+iface_gateway() {
+	ip r | grep $1 | awk '/via/{print $3}'
+}
+
+iface_ip_actual() {
+	ip r | sed -nE "/$1/s/.+src ([0-9\.]+).+?/\1/p" | uniq
+}
+
+iface_ip_in_etc() {
+	cat /etc/network/interfaces.d/$1 | sed -nE "s/.*address ([0-9\.]+).*/\1/p"
+}
+
+iface_macaddr() {
+	cat /sys/class/net/$1/address
+}
+
+iface_netmask() {
+	 # FIXME: Maybe convert from $network_cidr?
+	ifconfig $1 | grep "Mask:" | cut -d: -f4
+}
+
 iface_up() {
 	local endpoint="/sys/class/net/$1/operstate"
 	[ -f $endpoint ] && [ "up" = "$(cat $endpoint)" ] && echo "true"
+}
+
+is_iface_dhcp() {
+	cat /etc/network/interfaces.d/$1 | grep '^iface' | grep -q 'dhcp'
+}
+
+setup_iface() {
+	local interface mode address netmask gateway broadcast
+	interface=$1
+	mode=${2:-dhcp}
+	address=$3
+	netmask=$4
+	gateway=$5
+	broadcast=$6
+
+	[ -z "$interface" ] && set_error_flag "Network interface is not set"
+        [ -z "$mode" ] && set_error_flag "Network mode is not set"
+	if [ "static" = "$mode" ]; then
+		[ -z "$address" ] && die "Interface IP address is not set"
+		[ -z "$netmask" ] && die "Netmask is not set"
+	fi
+
+	{
+		echo -e "auto $interface"
+		echo -e "iface $interface inet $mode"
+		if [ "static" = "$mode" ]; then
+			echo -e "\taddress $address"
+			echo -e "\tnetmask $netmask"
+			[ -n "$gateway" ] && echo -e "\tgateway $gateway"
+			[ -n "$broadcast" ] && echo -e "\tbroadcast $broadcast"
+		fi
+		echo -e "\tdhcp-v6-enabled true"
+	} > "/etc/network/interfaces.d/$interface"
+	touch /tmp/network-restart.txt
+}
+
+setup_wireless_network() {
+	local device ssid password
+	device=$1
+	ssid=$2
+	password=$3
+
+	temp_env=$(mktemp)
+	{
+		[ -n "$device" ] && echo "wlandev $device"
+		[ -n "$ssid" ] && echo "wlanssid $ssid"
+		[ -n "$password" ] && echo "wlanpass $password"
+	} > "$temp_env"
+	fw_setenv -s "$temp_env"
+	rm "$temp_env"
 }
 
 hostname=$(hostname -s)
@@ -39,54 +122,50 @@ dns_1=$(grep nameserver /etc/resolv.conf | sed -n 1p | cut -d' ' -f2)
 dns_2=$(grep nameserver /etc/resolv.conf | sed -n 2p | cut -d' ' -f2)
 
 eth0_enabled=$(iface_up eth0)
-eth0_macaddr=$(cat /sys/class/net/eth0/address)
-if cat /etc/network/interfaces.d/eth0 | grep '^iface' | grep -q 'dhcp'; then
-	eth0_dhcp="true"
-else
-	eth0_address=$(ip r | sed -nE "/eth0/s/.+src ([0-9\.]+).+?/\1/p" | uniq)
-	eth0_cidr=$(ip r | sed -nE "/eth0/s/^[0-9\.]+(\/[0-9]+).+?/\1/p")
-	eth0_netmask=$(ifconfig eth0 | grep "Mask:" | cut -d: -f4) # FIXME: Maybe convert from $network_cidr?
-	eth0_broadcast=$(ifconfig eth0 | sed -En "s/.*Bcast:([0-9\.]+).*/\1/p")
-	eth0_gateway=$(ip r | grep eth0 | awk '/via/{print $3}')
-fi
+eth0_macaddr=$(iface_macaddr eth0)
+[ -z "$eth0_macaddr" ] && eth0_macaddr=$(fw_printenv -n ethaddr)
+is_iface_dhcp eth0 && eth0_dhcp="true"
+eth0_address=$(iface_ip_in_etc eth0)
+[ -z "$eth0_address" ] && eth0_address=$(fw_printenv -n ipaddr)
+[ -z "$eth0_address" ] && eth0_address=$(iface_ip_actual eth0)
+eth0_cidr=$(iface_cidr eth0)
+eth0_netmask=$(iface_netmask eth0)
+eth0_broadcast=$(iface_broadcast eth0)
+eth0_gateway=$(iface_gateway eth0)
 
 wlan0_enabled=$(iface_up wlan0)
-wlan0_macaddr=$(cat /sys/class/net/wlan0/address)
-if cat /etc/network/interfaces.d/wlan0 | grep '^iface' | grep -q 'dhcp'; then
-	wlan0_dhcp="true"
-else
-	wlan0_address=$(ip r | sed -nE "/wlan0/s/.+src ([0-9\.]+).+?/\1/p" | uniq)
-	wlan0_cidr=$(ip r | sed -nE "/wlan0/s/^[0-9\.]+(\/[0-9]+).+?/\1/p")
-	wlan0_netmask=$(ifconfig wlan0 | grep "Mask:" | cut -d: -f4) # FIXME: Maybe convert from $network_cidr?
-	wlan0_broadcast=$(ifconfig wlan0 | sed -En "s/.*Bcast:([0-9\.]+).*/\1/p")
-	wlan0_gateway=$(ip r | grep wlan0 | awk '/via/{print $3}')
-fi
+wlan0_macaddr=$(iface_macaddr wlan0)
+[ -z "$wlan0_macaddr" ] && wlan0_macaddr=$(fw_printenv -n wlanmac)
+is_iface_dhcp wlan0 && wlan0_dhcp="true"
+wlan0_address=$(iface_ip_in_etc wlan0)
+[ -z "$wlan0_address" ] && wlan0_address=$(fw_printenv -n wlanaddr)
+[ -z "$wlan0_address" ] && wlan0_address=$(iface_ip_actual wlan0)
+wlan0_cidr=$(iface_cidr wlan0)
+wlan0_netmask=$(iface_netmask wlan0)
+wlan0_broadcast=$(iface_broadcast wlan0)
+wlan0_gateway=$(iface_gateway wlan0)
 
 usb0_enabled=$(iface_up usb0)
-usb0_macaddr=$(cat /sys/class/net/usb0/address)
-if cat /etc/network/interfaces.d/usb0 | grep '^iface' | grep -q 'dhcp'; then
-	usb0_dhcp="true"
-else
-	usb0_address=$(ip r | sed -nE "/usb0/s/.+src ([0-9\.]+).+?/\1/p" | uniq)
-	usb0_cidr=$(ip r | sed -nE "/usb0/s/^[0-9\.]+(\/[0-9]+).+?/\1/p")
-	usb0_netmask=$(ifconfig usb0 | grep "Mask:" | cut -d: -f4) # FIXME: Maybe convert from $network_cidr?
-	usb0_broadcast=$(ifconfig usb0 | sed -En "s/.*Bcast:([0-9\.]+).*/\1/p")
-	usb0_gateway=$(ip r | grep usb0 | awk '/via/{print $3}')
-fi
+usb0_macaddr=$(iface_macaddr usb0)
+is_iface_dhcp usb0 && usb0_dhcp="true"
+usb0_address=$(iface_ip_in_etc usb0)
+[ -z "$usb0_address" ] && usb0_address=$(fw_printenv -n usbaddr)
+[ -z "$usb0_address" ] && usb0_address=$(iface_ip_actual usb0)
+usb0_cidr=$(iface_cidr usb0)
+usb0_netmask=$(iface_netmask usb0)
+usb0_broadcast=$(iface_broadcast usb0)
+usb0_gateway=$(iface_gateway usb0)
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	for p in $PARAMS; do
 		eval $p=\$POST_$p
 	done
 
-#	network_interface=$POST_network_interface
-#	error_if_empty "$network_interface" "Network interface cannot be empty."
-
 	if [ "true" = "$eth0_enabled" ]; then
 		if [ "false" = "$eth0_dhcp" ]; then
 			eth0_mode="static"
-			error_if_empty "$eth0_address" "IP address cannot be empty."
-			error_if_empty "$eth0_netmask" "Networking mask cannot be empty."
+			error_if_empty "$eth0_address" "eth0 IP address cannot be empty."
+			error_if_empty "$eth0_netmask" "eth0 networking mask cannot be empty."
 		else
 			eth0_mode="dhcp"
 		fi
@@ -95,8 +174,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ "true" = "$wlan0_enabled" ]; then
 		if [ "false" = "$wlan0_dhcp" ]; then
 			wlan0_mode="static"
-			error_if_empty "$wlan0_address" "IP address cannot be empty."
-			error_if_empty "$wlan0_netmask" "Networking mask cannot be empty."
+			error_if_empty "$wlan0_address" "wlan0 IP address cannot be empty."
+			error_if_empty "$wlan0_netmask" "wlan0 networking mask cannot be empty."
 		else
 			wlan0_mode="dhcp"
 		fi
@@ -105,62 +184,40 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ "true" = "$usb0_enabled" ]; then
 		if [ "false" = "$usb0_dhcp" ]; then
 			usb0_mode="static"
-			error_if_empty "$usb0_address" "IP address cannot be empty."
-			error_if_empty "$usb0_netmask" "Networking mask cannot be empty."
+			error_if_empty "$usb0_address" "usb0 IP address cannot be empty."
+			error_if_empty "$usb0_netmask" "usb0 networking mask cannot be empty."
 		else
 			usb0_mode="dhcp"
 		fi
 	fi
 
-	[ -z "$POST_hostname" ] && set_error_flag "Hostname cannot be empty"
-
 	# validate hostname as per RFC952, RFC1123
+	[ -z "$POST_hostname" ] && set_error_flag "Hostname cannot be empty"
 	echo "$POST_hostname" | grep ' ' && set_error_flag "Hostname cannot contain whitespaces"
 	bad_chars=$(echo "$POST_hostname" | sed 's/[0-9A-Z\.-]//ig')
-	[ -z "$bad_chars" ] || set_error_flag "Hostname only allowed to contain alphabetic characters, numeric characters, hyphen and period. Please get rid of this: ${bad_chars}"
+	[ -z "$bad_chars" ] || set_error_flag "Only alphanumeric characters, hyphen and period are allowed. Please get rid of this: $bad_chars"
+
+	# validate dns servers
+	dns_1=$POST_dns_1
+	dns_2=$POST_dns_2
+	[ -z "$dns_1" ] && dns_1=$dns_2
+	[ -z "$dns_1" ] && set_error_flag "At least one DNS server required"
+
+	# validate wireless network
+	if [ "true" = "$wlan0_enabled" ]; then
+		[ -z "$POST_wlan0_ssid" ] && set_error_flag "WLAN SSID cannot be empty"
+		[ -z "$POST_wlan0_password" ] && set_error_flag "WLAN password cannot be empty"
+	 fi
 
 	if [ -z "$error" ]; then
-		if [ "true" = "$eth0_enabled" ]; then
-			command="setnetiface -i eth0 -m $eth0_mode -h \"$(hostname -s)\""
-			if [ "dhcp" != "$eth0_mode" ]; then
-				command="$command -a $eth0_address -n $eth0_netmask"
-				[ -n "$eth0_gateway" ] && command="$command -g $eth0_gateway"
-				[ -n "$eth0_dns_1" ] && command="$command -d $eth0_dns_1"
-				[ -n "$eth0_dns_2" ] && command="$command,$eth0_dns_2"
-			fi
-			echo "$command" >>/tmp/webui.log
-			eval "$command" >/dev/null 2>&1
-		else
-			sed -i 's/^auto /#auto /' /etc/network/interfaces.d/eth0
-		fi
+		setup_iface eth0 "$eth0_mode" "$eth0_address" "$eth0_netmask" "$eth0_gateway" "$eth0_broadcast"
+		[ "true" = "$eth0_enabled" ] || disable_iface eth0
 
-		if [ "true" = "$wlan0_enabled" ]; then
-			command="setnetiface -i wlan0 -m $wlan0_mode -h \"$(hostname -s)\""
-			if [ "dhcp" != "$wlan0_mode" ]; then
-				command="$command -a $wlan0_address -n $wlan0_netmask"
-				[ -n "$wlan0_gateway" ] && command="$command -g $wlan0_gateway"
-				[ -n "$wlan0_dns_1" ] && command="$command -d $wlan0_dns_1"
-				[ -n "$wlan0_dns_2" ] && command="$command,$wlan0_dns_2"
-			fi
-			echo "$command" >>/tmp/webui.log
-			eval "$command" >/dev/null 2>&1
-		else
-			sed -i 's/^auto /#auto /' /etc/network/interfaces.d/wlan0
-		fi
+		setup_iface wlan0 "$wlan0_mode" "$wlan0_address" "$wlan0_netmask" "$wlan0_gateway" "$wlan0_broadcast"
+		[ "true" = "$wlan0_enabled" ] || disable_iface wlan0
 
-		if [ "true" = "$usb0_enabled" ]; then
-			command="setnetiface -i usb0 -m $usb0_mode -h \"$(hostname -s)\""
-			if [ "dhcp" != "$usb0_mode" ]; then
-				command="$command -a $usb0_address -n $usb0_netmask"
-				[ -n "$usb0_gateway" ] && command="$command -g $usb0_gateway"
-				[ -n "$usb0_dns_1" ] && command="$command -d $usb0_dns_1"
-				[ -n "$usb0_dns_2" ] && command="$command,$usb0_dns_2"
-			fi
-			echo "$command" >>/tmp/webui.log
-			eval "$command" >/dev/null 2>&1
-		else
-			sed -i 's/^auto /#auto /' /etc/network/interfaces.d/usb0
-		fi
+		setup_iface usb0 "$usb0_mode" "$usb0_address" "$usb0_netmask" "$usb0_gateway" "$usb0_broadcast"
+		[ "true" = "$usb0_enabled" ] || disable_iface usb0
 
 		hostname=$POST_hostname
 		[ "$hostname" = "$(hostname_in_env)" ] || fw_setenv hostname "$hostname"
@@ -168,6 +225,13 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		[ "$hostname" = "$(hostname_in_hosts)" ] || sed -i "/^127.0.1.1/s/\t.*$/\t$hostname/" /etc/hosts
 		[ "$hostname" = "$(hostname_in_release)" ] || sed -i "/^HOSTNAME/s/=.*$/=$hostname/" /etc/os-release
 		hostname "$hostname"
+
+		{
+			[ -n "$dns_1" ] && echo "nameserver $dns_1"
+			[ -n "$dns_2" ] && echo "nameserver $dns_2"
+		} > /etc/resolv.conf
+
+		setup_wireless_network wlan0 "$POST_wlan0_ssid" "$POST_wlan0_password"
 
 		update_caminfo
 		redirect_back "success" "Network settings updated."
@@ -185,15 +249,17 @@ fi
 </div>
 <% for i in $IFACES; do %>
 <div class="col">
-<div class="card">
+<div class="card <%= $i %>">
 <div class="card-header"><% field_switch "${i}_enabled" "${i} enabled" %></div>
 <div class="card-body">
 <% field_text "${i}_macaddr" "MAC Address" %>
 <% field_switch "${i}_dhcp" "Use DHCP" %>
+<div class="static">
 <% field_text "${i}_address" "IP Address" %>
 <% field_text "${i}_netmask" "Netmask" %>
 <% field_text "${i}_gateway" "Gateway" %>
 <% field_text "${i}_broadcast" "Broadcast" %>
+</div>
 </div>
 </div>
 </div>
@@ -203,6 +269,35 @@ fi
 <% field_hidden "action" "update" %>
 <% button_submit %>
 </form>
+
+<script>
+function toggleDhcp(iface) {
+	const c = $('#' + iface + '_dhcp[type=checkbox]').checked;
+	const ids = [
+		iface + '_address',
+		iface + '_netmask',
+		iface + '_gateway',
+		iface + '_broadcast',
+	];
+	ids.forEach(id => { $('#' + id).disabled = c });
+}
+
+function toggleIface(iface) {
+	const ids = [];
+	if ($('#' + iface + '_enabled[type=checkbox]').checked) {
+		$('.' + iface + ' .card-body').style.visibility = 'visible';
+	} else {
+		$('.' + iface + ' .card-body').style.visibility = 'hidden';
+	}
+}
+
+[ 'eth0', 'wlan0', 'usb0' ].forEach(iface => {
+	$('#' + iface + '_dhcp').addEventListener('change', ev => toggleDhcp(iface));
+	$('#' + iface + '_enabled').addEventListener('change', ev => toggleIface(iface));
+	toggleDhcp(iface);
+	toggleIface(iface);
+});
+</script>
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
@@ -222,28 +317,5 @@ fi
 <% ex "ip address" %>
 <% ex "ip route list" %>
 </div>
-
-<script>
-function toggleDhcp() {
-	const c = $('#network_dhcp[type=checkbox]').checked;
-	const ids = ['network_address','network_netmask','network_gateway','network_dns_1','network_dns_2'];
-	ids.forEach(id => { $(`#${id}`).disabled = c });
-}
-
-function toggleIface() {
-	const ids = [];
-	if ($('#network_interface').value == 'wlan0') {
-		ids.forEach(id => $(`#${id}_wrap`).classList.remove('d-none'));
-	} else {
-		ids.forEach(id => $(`#${id}_wrap`).classList.add('d-none'));
-	}
-}
-
-$('#network_interface').onchange = toggleIface;
-$('#network_dhcp[type=checkbox]').onchange = toggleDhcp;
-
-toggleIface();
-toggleDhcp();
-</script>
 
 <%in _footer.cgi %>
