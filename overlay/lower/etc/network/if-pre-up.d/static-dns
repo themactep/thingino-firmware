@@ -1,0 +1,17 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+if grep -q static /etc/network/interfaces.d/$IFACE; then
+	info "Static IP address for $IFACE"
+	if [ -f /etc/default/resolv.conf ]; then
+		info "Adding static DNS servers for $IFACE"
+		cat /etc/default/resolv.conf >> /tmp/resolv.conf
+	else
+		info "No static DNS servers for $IFACE"
+	fi
+else
+	info "Dynamic IP address for $IFACE"
+fi
+
+exit 0

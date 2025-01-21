@@ -71,6 +71,17 @@ is_iface_dhcp() {
 	cat /etc/network/interfaces.d/$1 | grep '^iface' | grep -q 'dhcp'
 }
 
+setup_dns() {
+	[ -d "/etc/default" ] || mkdir -p /etc/default
+	local ip
+	{
+		echo "# set from web ui"
+		for ip in $1 $2; do
+			echo "nameserver $ip"
+		done
+	} > /etc/default/resolv.conf
+}
+
 setup_iface() {
 	local interface mode address netmask gateway broadcast
 	interface=$1
@@ -118,8 +129,13 @@ setup_wireless_network() {
 }
 
 hostname=$(hostname -s)
+
 dns_1=$(grep nameserver /etc/resolv.conf | sed -n 1p | cut -d' ' -f2)
 dns_2=$(grep nameserver /etc/resolv.conf | sed -n 2p | cut -d' ' -f2)
+if [ -f /etc/default/resolv.conf ]; then
+	[ -z "$dns_1" ] && dns_1=$(grep nameserver /etc/default/resolv.conf | sed -n 1p | cut -d' ' -f2)
+	[ -z "$dns_2" ] && dns_2=$(grep nameserver /etc/default/resolv.conf | sed -n 2p | cut -d' ' -f2)
+fi
 
 eth0_enabled=$(iface_up eth0)
 eth0_macaddr=$(iface_macaddr eth0)
@@ -226,10 +242,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		[ "$hostname" = "$(hostname_in_release)" ] || sed -i "/^HOSTNAME/s/=.*$/=$hostname/" /etc/os-release
 		hostname "$hostname"
 
-		{
-			[ -n "$dns_1" ] && echo "nameserver $dns_1"
-			[ -n "$dns_2" ] && echo "nameserver $dns_2"
-		} > /etc/resolv.conf
+		[ -z "$dns_1$dns_2" ] || setup_dns "$dns_1" "$dns_2"
 
 		setup_wireless_network wlan0 "$POST_wlan0_ssid" "$POST_wlan0_password"
 
