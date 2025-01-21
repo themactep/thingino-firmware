@@ -26,9 +26,10 @@ set_motors_speed() {
 }
 
 position_motors() {
-	local x=$((motor_maxstep_h / 2))
-	local y=$((motor_maxstep_v / 2))
-	local motor_pos_0=$(fw_printenv -n motor_pos_0)
+	local x y motor_pos_0
+	x=$((motor_maxstep_h / 2))
+	y=$((motor_maxstep_v / 2))
+	motor_pos_0=$(fw_printenv -n motor_pos_0)
 	if [ -n "$motor_pos_0" ]; then
 		x=$(echo $motor_pos_0 | cut -d, -f1)
 		y=$(echo $motor_pos_0 | cut -d, -f2)
