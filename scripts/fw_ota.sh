@@ -16,7 +16,8 @@ install_sysupgrade() {
 	local TEMP_FILE=$(mktemp /tmp/sysupgrade.XXXXXX)
 
 	echo "Downloading latest sysupgrade utility..."
-	if ! wget -O "$TEMP_FILE" https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/sysupgrade; then
+	if ! curl -o "$TEMP_FILE" --connect-timeout 5 --max-time 30 \
+	    https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/sysupgrade; then
 		echo "Failed to download sysupgrade utility"
 		rm -f "$TEMP_FILE"
 		exit 1
