@@ -36,17 +36,45 @@ config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
 	help
 	  Enable native wired Ethernet support on the SoC.
 
+if BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
+
+choice
+	prompt "MAC Version"
+	default BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V12
+
 config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V12
 	bool "JZ_MAC V12"
-	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
 	help
 	  Enable the Ingenic ethernet V12 driver
 
 config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13
 	bool "JZ_MAC V13"
-	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
 	help
 	  Enable the Ingenic ethernet V13 driver
+endchoice
+
+choice
+	prompt "MAC Clock Rate"
+	depends on BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13
+	default BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_CLK_50MHZ
+
+config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_CLK_25MHZ
+	bool "25 MHz"
+	help
+	  Select 25 MHz clock for internal PHY
+
+config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_CLK_50MHZ
+	bool "50 MHz"
+	help
+	  Select 50 MHz clock for external PHY
+endchoice
+
+config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_CLK_VALUE
+	int
+	default 25000000 if BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_CLK_25MHZ
+	default 50000000
+
+endif
 
 config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_INTERNAL_PHY
 	bool "JZ_MAC Internal PHY"
