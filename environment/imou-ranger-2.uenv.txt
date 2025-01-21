@@ -1,0 +1,25 @@
+day_night_color=true
+day_night_ir850=true
+day_night_ir940=false
+day_night_ircut=true
+day_night_max=15000
+day_night_min=500
+day_night_white=false
+disable_eth=true
+enable_updates=true
+gpio_button=7
+gpio_default=10o 11o
+gpio_ircut=52 53
+gpio_led_g=11
+gpio_led_r=10
+gpio_mmc_cd=57
+gpio_mmc_power=58o
+gpio_motor_h=61 59 56 55
+gpio_motor_v=60 62 63 64
+motor_maxstep_h=3000
+motor_maxstep_v=1000
+gpio_speaker=9O
+gpio_wlan=8O
+serialport=ttyS0
+wlandev=ssv6x5x
+wlandevopts=stacfgpath=/usr/share/wifi/ssv6155-usb-40M.cfg
