@@ -204,10 +204,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	[ -z "$dns_1" ] && set_error_flag "At least one DNS server required"
 
 	# validate wireless network
-	if [ "true" = "$wlan0_enabled" ]; then
-		[ -z "$POST_wlan0_ssid" ] && set_error_flag "WLAN SSID cannot be empty"
-		[ -z "$POST_wlan0_password" ] && set_error_flag "WLAN password cannot be empty"
-	 fi
+#	if [ "true" = "$wlan0_enabled" ]; then
+#		[ -z "$POST_wlan0_ssid" ] && set_error_flag "WLAN SSID cannot be empty"
+#		[ -z "$POST_wlan0_password" ] && set_error_flag "WLAN password cannot be empty"
+#	fi
 
 	if [ -z "$error" ]; then
 		setup_iface eth0 "$eth0_mode" "$eth0_address" "$eth0_netmask" "$eth0_gateway" "$eth0_broadcast"
