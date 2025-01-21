@@ -92,8 +92,8 @@ else
 U_BOOT_BIN = $(OUTPUT_DIR)/images/$(patsubst "%",%,$(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME))
 endif
 
-U_BOOT_ENV_FINAL_TXT = $(OUTPUT_DIR)/uenv.txt
-export U_BOOT_ENV_FINAL_TXT
+UB_ENV_FINAL_TXT = $(OUTPUT_DIR)/uenv.txt
+export UB_ENV_FINAL_TXT
 
 CONFIG_BIN := $(OUTPUT_DIR)/images/config.jffs2
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
@@ -126,13 +126,13 @@ OVERLAY_BIN_SIZE_ALIGNED = $(shell echo $$((($(OVERLAY_BIN_SIZE) + $(ALIGN_BLOCK
 
 # fixed size partitions
 U_BOOT_PARTITION_SIZE := $(SIZE_256K)
-U_BOOT_ENV_PARTITION_SIZE := $(SIZE_64K)
+UB_ENV_PARTITION_SIZE := $(SIZE_64K)
 CONFIG_PARTITION_SIZE := $(SIZE_64K)
 KERNEL_PARTITION_SIZE = $(KERNEL_BIN_SIZE_ALIGNED)
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
 
 FIRMWARE_FULL_SIZE = $(FLASH_SIZE)
-FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE) - $(U_BOOT_ENV_PARTITION_SIZE))))
+FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE) - $(UB_ENV_PARTITION_SIZE))))
 
 # dynamic partitions
 OVERLAY_PARTITION_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(OVERLAY_OFFSET))))
@@ -142,10 +142,10 @@ OVERLAY_LLIMIT := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
 
 # partition offsets
 U_BOOT_OFFSET := 0
-U_BOOT_ENV_OFFSET = $(shell echo $$(($(U_BOOT_OFFSET) + $(U_BOOT_PARTITION_SIZE))))
-#CONFIG_OFFSET = $(shell echo $$(($(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_PARTITION_SIZE))))
+UB_ENV_OFFSET = $(shell echo $$(($(U_BOOT_OFFSET) + $(U_BOOT_PARTITION_SIZE))))
+#CONFIG_OFFSET = $(shell echo $$(($(UB_ENV_OFFSET) + $(UB_ENV_PARTITION_SIZE))))
 #KERNEL_OFFSET = $(shell echo $$(($(CONFIG_OFFSET) + $(CONFIG_PARTITION_SIZE))))
-KERNEL_OFFSET = $(shell echo $$(($(U_BOOT_ENV_OFFSET) + $(U_BOOT_ENV_PARTITION_SIZE))))
+KERNEL_OFFSET = $(shell echo $$(($(UB_ENV_OFFSET) + $(UB_ENV_PARTITION_SIZE))))
 ROOTFS_OFFSET = $(shell echo $$(($(KERNEL_OFFSET) + $(KERNEL_PARTITION_SIZE))))
 OVERLAY_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
 
@@ -191,11 +191,11 @@ bootstrap:
 	$(info -------------------------------- $@)
 	$(SCRIPTS_DIR)/dep_check.sh
 
-build: $(U_BOOT_ENV_FINAL_TXT)
+build: $(UB_ENV_FINAL_TXT)
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) all
 
-build_fast: $(U_BOOT_ENV_FINAL_TXT)
+build_fast: $(UB_ENV_FINAL_TXT)
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) -j$(shell nproc) all
 
@@ -363,7 +363,7 @@ $(OUTPUT_DIR)/.config: $(OUTPUT_DIR)/.keep defconfig
 	$(info -------------------------------- $@)
 	$(FIGLET) "$(BOARD)"
 
-$(U_BOOT_ENV_FINAL_TXT): $(OUTPUT_DIR)/.config
+$(UB_ENV_FINAL_TXT): $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
 	if [ -f $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) ]; then \
 		grep -v '^#' $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) | tee $@; \
@@ -371,6 +371,8 @@ $(U_BOOT_ENV_FINAL_TXT): $(OUTPUT_DIR)/.config
 	if [ $(RELEASE) -ne 1 ] && [ -f $(BR2_EXTERNAL)/local.uenv.txt ]; then \
 		grep -v '^#' $(BR2_EXTERNAL)/local.uenv.txt | while read line; do grep -F -x -q "$$line" $@ || echo "$$line" >> $@; done; \
 	fi
+	sort -u -o $@ $@
+	sed -i '/^\s*$$/d' $@
 
 $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
 	$(info -------------------------------- $@)
