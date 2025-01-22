@@ -1,16 +1,15 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="development"
 page_title="Development"
 params="enabled nfs_ip nfs_share"
 
-read_from_env $plugin
+read_from_env "development"
 [ -z "$development_nfs_share" ] && development_nfs_share="/srv/nfs/www"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
-	read_from_post "$plugin" "$params"
+	read_from_post "development" "$params"
 
 
 	[ -z "$development_nfs_ip" ] && set_error_flag "NFS server IP cannot be empty."
@@ -19,7 +18,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		tmpfile=$(mktemp)
 		for p in $params; do
-			eval "echo ${plugin}_${p}=\$${plugin}_${p}" >> $tmpfile
+			eval "echo development_$p=\$development_$p" >> $tmpfile
 		done; unset p
 		fw_setenv -s $tmpfile
 		update_caminfo

@@ -1,7 +1,6 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="admin"
 page_title="Admin profile"
 params="name email telegram discord"
 

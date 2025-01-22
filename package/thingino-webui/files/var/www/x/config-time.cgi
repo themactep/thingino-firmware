@@ -1,7 +1,6 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="time"
 page_title="Time"
 
 ntpd_static_config=/etc/default/ntp.conf

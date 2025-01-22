@@ -3,7 +3,6 @@
 <%
 [ -f /bin/wg ] || redirect_to "/" "danger" "Your camera does not seem to support WireGuard"
 
-plugin="wg"
 page_title="WireGuard VPN"
 params="address allowed dns enabled endpoint keepalive mtu peerpsk peerpub port privkey"
 WG_DEV="wg0"

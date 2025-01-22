@@ -1,9 +1,7 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="webui"
-plugin_name="User interface settings"
-page_title="Web Interface Settings"
+page_title="Web Interface"
 
 config_file="$ui_config_dir/webui.conf"
 include $config_file

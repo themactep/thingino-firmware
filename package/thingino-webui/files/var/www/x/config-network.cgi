@@ -1,8 +1,7 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="network"
-page_title="Network settings"
+page_title="Network"
 
 IFACES="eth0 wlan0 usb0"
 PARAMS="hostname dns1 dns2"

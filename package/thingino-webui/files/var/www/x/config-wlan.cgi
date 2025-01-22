@@ -1,7 +1,6 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="wlan"
 page_title="Wireless Networking"
 
 # ssid, pass
