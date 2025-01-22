@@ -1,5 +1,8 @@
-IR LEDs (Infrared Ray Light-Emitting Diode Array)
--------------------------------------------------
+IR LEDs
+=======
+
+Infrared Ray Light-Emitting Diode Array
+---------------------------------------
 
 Many older image sensors cannot see well in dark environment, so they need
 help at nighttime, a light source to highlight the scenery. Luckily, the
