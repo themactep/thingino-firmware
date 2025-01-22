@@ -1,9 +1,8 @@
 WIFI_AIC8800_SITE_METHOD = git
-WIFI_AIC8800_SITE = https://github.com/openipc/aic8800
+WIFI_AIC8800_SITE = https://github.com/gtxaspec/aic8800-wifi
 WIFI_AIC8800_SITE_BRANCH = master
-WIFI_AIC8800_VERSION = 0e218ed686ee04a3006bb142ca70450dfa72f4d2
-# $(shell git ls-remote $(WIFI_AIC8800_SITE) $(WIFI_AIC8800_SITE_BRANCH) | head -1 | cut -f1)
-
+WIFI_AIC8800_VERSION = bcd6fe15f7e7590f93c8f845c05f97267d73ccd8
+#WIFI_AIC8800_VERSION = $(shell git ls-remote $(WIFI_AIC8800_SITE) $(WIFI_AIC8800_SITE_BRANCH) | head -1 | cut -f1)
 WIFI_AIC8800_LICENSE = GPL-2.0
 
 define WIFI_AIC8800_LINUX_CONFIG_FIXUPS
@@ -21,14 +20,68 @@ define WIFI_AIC8800_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_SET_OPT,CONFIG_MAC80211_RC_DEFAULT,"minstrel_ht")
 endef
 
+# USB driver path
+ifeq ($(BR2_PACKAGE_WIFI_AIC8800_USB),y)
+WIFI_AIC8800_MODULE_SUBDIRS = USB/driver_fw/drivers/aic8800
+endif
+
+# SDIO driver path
+ifeq ($(BR2_PACKAGE_WIFI_AIC8800_SDIO),y)
+WIFI_AIC8800_MODULE_SUBDIRS = SDIO/driver_fw/driver/aic8800
+endif
+
+# PCIE driver paths
+ifeq ($(BR2_PACKAGE_WIFI_AIC8800_PCIE),y)
+ifeq ($(BR2_PACKAGE_WIFI_AIC8800_PCIE_8800D80),y)
+WIFI_AIC8800_MODULE_SUBDIRS = PCIE/driver_fw/driver/aic8800/aic8800_fdrv
+endif
+ifeq ($(BR2_PACKAGE_WIFI_AIC8800_PCIE_8800D80X2),y)
+WIFI_AIC8800_MODULE_SUBDIRS = PCIE/driver_fw/driver/aic8800d80x2/aic8800_fdrv
+endif
+endif
+
 define WIFI_AIC8800_INSTALL_FIRMWARE
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/firmware/aic8800D80
-	$(INSTALL) -m 644 $(@D)/fw/aic8800D80/fw_patch_table_8800d80_u02.bin $(TARGET_DIR)/lib/firmware/aic8800D80/fw_patch_table_8800d80_u02.bin
-	$(INSTALL) -m 644 $(@D)/fw/aic8800D80/fw_adid_8800d80_u02.bin $(TARGET_DIR)/lib/firmware/aic8800D80/fw_adid_8800d80_u02.bin
-	$(INSTALL) -m 644 $(@D)/fw/aic8800D80/fw_patch_8800d80_u02.bin $(TARGET_DIR)/lib/firmware/aic8800D80/fw_patch_8800d80_u02.bin
-	$(INSTALL) -m 644 $(@D)/fw/aic8800D80/fw_patch_8800d80_u02_ext0.bin $(TARGET_DIR)/lib/firmware/aic8800D80/fw_patch_8800d80_u02_ext0.bin
-	$(INSTALL) -m 644 $(@D)/fw/aic8800D80/fmacfw_8800d80_u02.bin $(TARGET_DIR)/lib/firmware/aic8800D80/fmacfw_8800d80_u02.bin
-	$(INSTALL) -m 644 $(@D)/fw/aic8800D80/aic_userconfig_8800d80.txt $(TARGET_DIR)/lib/firmware/aic8800D80/aic_userconfig_8800d80.txt
+	# USB Models
+	if [ "$(BR2_PACKAGE_WIFI_AIC8800_USB_8800)" = "y" ]; then \
+		$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/firmware/aic8800; \
+		$(INSTALL) -m 644 $(@D)/USB/driver_fw/fw/aic8800/* $(TARGET_DIR)/lib/firmware/aic8800/; \
+	fi
+	if [ "$(BR2_PACKAGE_WIFI_AIC8800_USB_8800D80)" = "y" ]; then \
+		$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/firmware/aic8800D80; \
+		$(INSTALL) -m 644 $(@D)/USB/driver_fw/fw/aic8800D80/* $(TARGET_DIR)/lib/firmware/aic8800D80/; \
+	fi
+	if [ "$(BR2_PACKAGE_WIFI_AIC8800_USB_8800D80X2)" = "y" ]; then \
+		$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/firmware/aic8800D80X2; \
+		$(INSTALL) -m 644 $(@D)/USB/driver_fw/fw/aic8800D80X2/* $(TARGET_DIR)/lib/firmware/aic8800D80X2/; \
+	fi
+	if [ "$(BR2_PACKAGE_WIFI_AIC8800_USB_8800DC)" = "y" ]; then \
+		$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/firmware/aic8800DC; \
+		$(INSTALL) -m 644 $(@D)/USB/driver_fw/fw/aic8800DC/* $(TARGET_DIR)/lib/firmware/aic8800DC/; \
+	fi
+
+	# SDIO Models
+	if [ "$(BR2_PACKAGE_WIFI_AIC8800_SDIO_8800)" = "y" ]; then \
+		$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/firmware/aic8800; \
+		$(INSTALL) -m 644 $(@D)/SDIO/driver_fw/fw/aic8800/* $(TARGET_DIR)/lib/firmware/aic8800/; \
+	fi
+	if [ "$(BR2_PACKAGE_WIFI_AIC8800_SDIO_8800D80)" = "y" ]; then \
+		$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/firmware/aic8800D80; \
+		$(INSTALL) -m 644 $(@D)/SDIO/driver_fw/fw/aic8800D80/* $(TARGET_DIR)/lib/firmware/aic8800D80/; \
+	fi
+	if [ "$(BR2_PACKAGE_WIFI_AIC8800_SDIO_8800DC)" = "y" ]; then \
+		$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/firmware/aic8800DC; \
+		$(INSTALL) -m 644 $(@D)/SDIO/driver_fw/fw/aic8800DC/* $(TARGET_DIR)/lib/firmware/aic8800DC/; \
+	fi
+
+	# PCIE Models
+	if [ "$(BR2_PACKAGE_WIFI_AIC8800_PCIE_8800D80)" = "y" ]; then \
+		$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/firmware/aic8800D80; \
+		$(INSTALL) -m 644 $(@D)/PCIE/driver_fw/fw/aic8800D80/* $(TARGET_DIR)/lib/firmware/aic8800D80/; \
+	fi
+	if [ "$(BR2_PACKAGE_WIFI_AIC8800_PCIE_8800D80X2)" = "y" ]; then \
+		$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/firmware/aic8800D80X2; \
+		$(INSTALL) -m 644 $(@D)/PCIE/driver_fw/fw/aic8800D80X2/* $(TARGET_DIR)/lib/firmware/aic8800D80X2/; \
+	fi
 endef
 
 WIFI_AIC8800_POST_INSTALL_TARGET_HOOKS += WIFI_AIC8800_INSTALL_FIRMWARE

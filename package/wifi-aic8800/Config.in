@@ -1,5 +1,83 @@
+menu "AIC8800"
 config BR2_PACKAGE_WIFI_AIC8800
-	bool "AIC8800"
+	bool "AIC8800 wireless support"
 	select BR2_LINUX_KERNEL
 	help
-	  AIC8800 wireless driver
+	AIC8800 wireless driver
+
+if BR2_PACKAGE_WIFI_AIC8800
+	choice
+		prompt "Interface type"
+		default BR2_PACKAGE_WIFI_AIC8800_USB
+		config BR2_PACKAGE_WIFI_AIC8800_USB
+			bool "USB"
+			help
+			Enable USB support for AIC8800 wireless driver
+		config BR2_PACKAGE_WIFI_AIC8800_SDIO
+			bool "SDIO"
+			help
+			Enable SDIO support for AIC8800 wireless driver
+		config BR2_PACKAGE_WIFI_AIC8800_PCIE
+			bool "PCIE"
+			help
+			Enable PCIE support for AIC8800 wireless driver
+	endchoice
+
+	if BR2_PACKAGE_WIFI_AIC8800_USB
+		choice
+			prompt "USB Model"
+			default BR2_PACKAGE_WIFI_AIC8800_USB_8800
+			config BR2_PACKAGE_WIFI_AIC8800_USB_8800
+				bool "AIC8800"
+				help
+				Standard AIC8800 model
+			config BR2_PACKAGE_WIFI_AIC8800_USB_8800D80
+				bool "AIC8800D80"
+				help
+				AIC8800D80 model with 80MHz bandwidth
+			config BR2_PACKAGE_WIFI_AIC8800_USB_8800D80X2
+				bool "AIC8800D80X2"
+				help
+				AIC8800D80X2 dual radio model
+			config BR2_PACKAGE_WIFI_AIC8800_USB_8800DC
+				bool "AIC8800DC"
+				help
+				AIC8800DC model with single band 2.4GHz
+		endchoice
+	endif
+
+	if BR2_PACKAGE_WIFI_AIC8800_SDIO
+		choice
+			prompt "SDIO Model"
+			default BR2_PACKAGE_WIFI_AIC8800_SDIO_8800
+			config BR2_PACKAGE_WIFI_AIC8800_SDIO_8800
+				bool "AIC8800"
+				help
+				Standard AIC8800 model
+			config BR2_PACKAGE_WIFI_AIC8800_SDIO_8800D80
+				bool "AIC8800D80"
+				help
+				AIC8800D80 model with 80MHz bandwidth
+			config BR2_PACKAGE_WIFI_AIC8800_SDIO_8800DC
+				bool "AIC8800DC"
+				help
+				AIC8800DC model with single band 2.4GHz
+		endchoice
+	endif
+
+	if BR2_PACKAGE_WIFI_AIC8800_PCIE
+		choice
+			prompt "PCIE Model"
+			default BR2_PACKAGE_WIFI_AIC8800_PCIE_8800D80
+			config BR2_PACKAGE_WIFI_AIC8800_PCIE_8800D80
+				bool "AIC8800D80"
+				help
+				AIC8800D80 model with 80MHz bandwidth
+			config BR2_PACKAGE_WIFI_AIC8800_PCIE_8800D80X2
+				bool "AIC8800D80X2"
+				help
+				AIC8800D80X2 dual radio model
+		endchoice
+	endif
+endif
+endmenu
