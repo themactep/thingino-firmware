@@ -89,28 +89,24 @@ fi
 	inforun "grep -a \"Thingino\" /dev/mtd0"
 	infocat "/etc/os-release" "THINGINO"
 	inforun "soc;soc -w" "SOC"
-	inforun "dmesg" "DMESG"
-	inforun "logread" "SYSLOG"
-	inforun "logcat" "LOGCAT"
-	inforun "ps" "PS"
-	inforun "df -h" "DF"
-	inforun "ipcs" "IPC"
-	inforun "find /sys -path '*mmc*vendor' -type f -exec sh -c 'echo \"Vendor: \$1\"; cat \"\$1\"; dev=\"\${1/vendor/device}\"; [ -f \"\$dev\" ] && { echo \"Device: \$dev\"; cat \"\$dev\"; }' _ {} \;" "MMC"
-	inforun "lsmod" "KMOD"
-
-	header "KMOD-2"
-	for file in /etc/modules.d/*; do echo "== $file =="; cat "$file"; done
-
-	inforun "lsusb" "USB"
-	inforun "free -h" "MEMORY"
-	inforun "lsof" "LSOF"
-	inforun "mount" "MOUNT"
-	inforun "gpio list" "GPIO"
 
 	header "ENV"
 	fw_printenv | awk -F'=' '{if (/ethaddr|gatewayip|ipaddr|root_pw_hash|pwbackup|serverip|ssh_authorized_keys|sshkey|wlanssid|wlanmac|wlanpass|wg_dns|wg_address|wg_endpoint|wg_peerpub|wg_peerpsk|wg_allowed/) print $1 "=REDACTED"; else print}' | sort
 
 	infocat "/proc/cmdline" "CMDLINE"
+	inforun "gpio list" "GPIO"
+	inforun "df -h" "DF"
+	inforun "ipcs" "IPC"
+	inforun "find /sys -path '*mmc*vendor' -type f -exec sh -c 'echo \"Vendor: \$1\"; cat \"\$1\"; dev=\"\${1/vendor/device}\"; [ -f \"\$dev\" ] && { echo \"Device: \$dev\"; cat \"\$dev\"; }' _ {} \;" "MMC"
+
+	inforun "lsmod" "KMOD"
+	header "KMOD-2"
+	for file in /etc/modules.d/*; do echo "== $file =="; cat "$file"; done
+
+	inforun "lsusb" "USB"
+	inforun "free -h" "MEMORY"
+	inforun "mount" "MOUNT"
+
 	infocat "/proc/jz/clock/clocks" "CLOCKS"
 	infocat "/proc/jz/isp/isp-fs" "isp-fs"
 	infocat "/proc/jz/isp/isp-m0" "isp-m0"
@@ -118,6 +114,12 @@ fi
 	infocat "/tmp/continuous_mem_info" "libimp meminfo"
 
 	inforun "sensor -a" "sensor"
+
+	inforun "ps" "PS"
+	inforun "lsof" "LSOF"
+	inforun "dmesg" "DMESG"
+	inforun "logcat" "LOGCAT"
+	inforun "logread" "SYSLOG"
 
 	header "streamer"
 	awk '{if ($0 ~ /password[[:space:]]*=/) sub(/=.*/, "= \"REDACTED\";"); print}'  /etc/prudynt.cfg
