@@ -121,7 +121,7 @@ class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover">
 <% if [ "$(cat /etc/TZ)" != "$TZ" ]; then %>
 <div class="alert alert-danger">
 <p>$TZ variable in system environment needs updating!</p>
-<span class="d-flex gap-3">
+<span class="d-flex flex-wrap gap-3">
 <a class="btn btn-danger" href="reboot.cgi">Reboot camera</a>
 <a class="btn btn-primary" href="config-time.cgi">See timezone settings</a>
 </span>
@@ -131,7 +131,7 @@ class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover">
 <% if [ -f /tmp/network-restart.txt ]; then %>
 <div class="alert alert-danger">
 <p>Network settings have been updated. Restart to apply changes.</p>
-<span class="d-flex gap-3">
+<span class="d-flex flex-wrap gap-3">
 <a class="btn btn-danger" href="reboot.cgi">Reboot camera</a>
 <a class="btn btn-primary" href="config-network.cgi">See network settings</a>
 </span>

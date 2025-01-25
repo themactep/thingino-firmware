@@ -33,6 +33,7 @@ hostname_in_release() {
 }
 
 iface_broadcast() {
+	[ -d /sys/class/net/$1 ] || return
 	ifconfig $1 | sed -En "s/.*Bcast:([0-9\.]+).*/\1/p"
 }
 
@@ -53,11 +54,13 @@ iface_ip_in_etc() {
 }
 
 iface_macaddr() {
+	[ -f /sys/class/net/$1/address ] || return
 	cat /sys/class/net/$1/address
 }
 
 iface_netmask() {
 	 # FIXME: Maybe convert from $network_cidr?
+	[ -d /sys/class/net/$1 ] || return
 	ifconfig $1 | grep "Mask:" | cut -d: -f4
 }
 
@@ -112,14 +115,12 @@ setup_iface() {
 }
 
 setup_wireless_network() {
-	local device ssid password
-	device=$1
-	ssid=$2
-	password=$3
+	local ssid password
+	ssid=$1
+	password=$2
 
 	temp_env=$(mktemp)
 	{
-		[ -n "$device" ] && echo "wlandev $device"
 		[ -n "$ssid" ] && echo "wlanssid $ssid"
 		[ -n "$password" ] && echo "wlanpass $password"
 	} > "$temp_env"
@@ -218,11 +219,11 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	[ -z "$dns_1" ] && dns_1=$dns_2
 	[ -z "$dns_1" ] && set_error_flag "At least one DNS server required"
 
-	# validate wireless network
-#	if [ "true" = "$wlan0_enabled" ]; then
-#		[ -z "$POST_wlan0_ssid" ] && set_error_flag "WLAN SSID cannot be empty"
-#		[ -z "$POST_wlan0_password" ] && set_error_flag "WLAN password cannot be empty"
-#	fi
+	# validate wireless network credentials if not empty
+	if [ "true" = "$wlan0_enabled" ] && [ -n "$POST_wlan0_ssid$POST_wlan0_password" ]; then
+		[ -z "$POST_wlan0_ssid" ] && set_error_flag "WLAN SSID cannot be empty"
+		[ -z "$POST_wlan0_password" ] && set_error_flag "WLAN password cannot be empty"
+	fi
 
 	if [ -z "$error" ]; then
 		setup_iface eth0 "$eth0_mode" "$eth0_address" "$eth0_netmask" "$eth0_gateway" "$eth0_broadcast"
@@ -243,7 +244,9 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 		[ -z "$dns_1$dns_2" ] || setup_dns "$dns_1" "$dns_2"
 
-		setup_wireless_network wlan0 "$POST_wlan0_ssid" "$POST_wlan0_password"
+		# update wireless network credentials if not empty
+		[ "true" = "$wlan0_enabled" ] && [ -n "$POST_wlan0_ssid$POST_wlan0_password" ] && \
+			setup_wireless_network "$POST_wlan0_ssid" "$POST_wlan0_password"
 
 		update_caminfo
 		redirect_back "success" "Network settings updated."
@@ -253,7 +256,7 @@ fi
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4 g-3">
 <div class="col">
 <% field_text "hostname" "Hostname" %>
 <% field_text "dns_1" "DNS 1" %>
@@ -264,7 +267,12 @@ fi
 <div class="card <%= $i %>">
 <div class="card-header"><% field_switch "${i}_enabled" "${i} enabled" %></div>
 <div class="card-body">
-<% field_text "${i}_macaddr" "MAC Address" %>
+
+<div class="input-group mb-3">
+<input type="text" id="<%= $i %>_macaddr" name="<%= $i %>_macaddr" class="form-control" value="<% eval echo \$${i}_macaddr %>">
+<button class="btn btn-secondary generate-mac-address" type="button" data-iface="<%= $i %>" title="Generate MAC address"><img src="/a/generate.svg" alt="" class="img-fluid"></button>
+</div>
+
 <% field_switch "${i}_dhcp" "Use DHCP" %>
 <div class="static">
 <% field_text "${i}_address" "IP Address" %>
@@ -272,6 +280,10 @@ fi
 <% field_text "${i}_gateway" "Gateway" %>
 <% field_text "${i}_broadcast" "Broadcast" %>
 </div>
+<% if [ "wlan0" = "$i" ]; then %>
+<% field_text "wlan0_ssid" "SSID" %>
+<% field_text "wlan0_password" "Password" %>
+<% fi %>
 </div>
 </div>
 </div>
@@ -303,12 +315,37 @@ function toggleIface(iface) {
 	}
 }
 
+function generateMacAddress(iface) {
+	let mac = "";
+	for (let i = 1; i <= 6; i++) {
+		let b = ((Math.random() * 255) >>> 0);
+		if (i === 1) {
+			b = b | 2;
+			b = b & ~1;
+		}
+		mac += b.toString(16).toUpperCase().padStart(2, '0');
+		if (i < 6) mac += ":";
+	}
+	return mac;
+}
+
 [ 'eth0', 'wlan0', 'usb0' ].forEach(iface => {
 	$('#' + iface + '_dhcp').addEventListener('change', ev => toggleDhcp(iface));
 	$('#' + iface + '_enabled').addEventListener('change', ev => toggleIface(iface));
 	toggleDhcp(iface);
 	toggleIface(iface);
 });
+
+$$('.generate-mac-address').forEach(el => el.addEventListener('click', ev => {
+	ev.preventDefault();
+	const iface = ev.target.dataset.iface;
+	const input = $('#' + iface + '_macaddr');
+	if (input.value != "") {
+		alert("There's a value in MAC address field. Please empty the field and try again.");
+	} else {
+		input.value = generateMacAddress(iface);
+	}
+}));
 </script>
 
 <div class="alert alert-dark ui-debug d-none">
@@ -328,6 +365,9 @@ function toggleIface(iface) {
 <% ex "ifconfig" %>
 <% ex "ip address" %>
 <% ex "ip route list" %>
+<% ex "fw_printenv -n wlandev" %>
+<% ex "fw_printenv -n wlanssid" %>
+<% ex "fw_printenv -n wlanpass" %>
 </div>
 
 <%in _footer.cgi %>
