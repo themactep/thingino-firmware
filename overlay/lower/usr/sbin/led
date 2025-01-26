@@ -4,6 +4,14 @@ GPIO_R=$(fw_printenv -n gpio_led_r)
 GPIO_G=$(fw_printenv -n gpio_led_g)
 GPIO_B=$(fw_printenv -n gpio_led_b)
 
+[ "o" = "${GPIO_R:0-1}" ] && GPIO_R_HI=0 || GPIO_R_HI=1
+[ "o" = "${GPIO_G:0-1}" ] && GPIO_G_HI=0 || GPIO_G_HI=1
+[ "o" = "${GPIO_B:0-1}" ] && GPIO_B_HI=0 || GPIO_B_HI=1
+
+[ "$GPIO_R_HI" -eq 1 ] && GPIO_R_LO=0 || GPIO_R_LO=1
+[ "$GPIO_G_HI" -eq 1 ] && GPIO_G_LO=0 || GPIO_G_LO=1
+[ "$GPIO_B_HI" -eq 1 ] && GPIO_B_LO=0 || GPIO_B_LO=1
+
 # color, pin, state
 setLED() {
 	if [ -z "$2" ]; then
@@ -21,14 +29,15 @@ setRGB() {
 }
 
 case "$1" in
-	b*) setRGB 0 0 1 ;;
-	c*) setRGB 0 1 1 ;;
-	g*) setRGB 0 1 0 ;;
-	m* | p*) setRGB 1 0 1 ;;
-	r*) setRGB 1 0 0 ;;
-	w*) setRGB 1 1 1 ;;
-	y*) setRGB 1 1 0 ;;
-	off) setRGB 0 0 0 ;;
+	b*) setRGB $GPIO_R_LO $GPIO_G_LO $GPIO_B_HI ;;
+	c*) setRGB $GPIO_R_LO $GPIO_G_HI $GPIO_B_HI ;;
+	g*) setRGB $GPIO_R_LO $GPIO_G_HI $GPIO_B_LO ;;
+	m*) setRGB $GPIO_R_HI $GPIO_G_LO $GPIO_B_HI ;;
+	p*) setRGB $GPIO_R_HI $GPIO_G_LO $GPIO_B_HI ;;
+	r*) setRGB $GPIO_R_HI $GPIO_G_LO $GPIO_B_LO ;;
+	w*) setRGB $GPIO_R_HI $GPIO_G_HI $GPIO_B_HI ;;
+	y*) setRGB $GPIO_R_HI $GPIO_G_HI $GPIO_B_LO ;;
+	off) setRGB $GPIO_R_LO $GPIO_G_LO $GPIO_B_LO ;;
 	*) echo -e "Usage: $0 <off|red|green|blue|yellow|magenta|cyan|white>" >&2 ;;
 esac
 
