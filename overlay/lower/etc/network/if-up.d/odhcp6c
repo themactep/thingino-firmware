@@ -3,9 +3,17 @@
 PIDFILE="/var/run/odhcp6c_$IFACE.pid"
 TIMEOUT=10
 
-# run this script only for interfaces that have the dhcp-v6-enabled option set,
-# or if IPv6 is globally enabled (not disabled)
-[ "$(sysctl -n net.ipv6.conf.all.disable_ipv6)" -ne 0 ] || [ "$IF_DHCP_V6_ENABLED" != "true" ] && exit 0
+if [ "$(sysctl -n net.ipv6.conf.all.disable_ipv6)" -eq 1 ]; then
+	echo "IPv6 is disabled globally, exiting."
+	exit 0
+fi
+
+if [ "true" = "$IF_DHCP_V6_ENABLED" ]; then
+	echo "DHCPv6 is enabled on $IFACE, continuing."
+else
+	echo "DHCPv6 is disabled on $IFACE, exiting."
+	exit 0
+fi
 
 do_start() {
 	TMP_LOG=/tmp/odhcp6c.log
