@@ -8,8 +8,10 @@ BOOTLOADER=$(echo $BR2_TARGET_UBOOT_BOARDNAME | tr -d '"')
 cd $BR2_EXTERNAL
 GIT_BRANCH=$(git branch | grep ^* | awk '{print $2}')
 GIT_HASH=$(git show -s --format=%H)
-GIT_TIME=$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S UTC' --format="%cd")
-BUILD_ID="${GIT_BRANCH}+${GIT_HASH:0:7}, ${GIT_TIME}"
+GIT_TIME=$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S +0000' --format="%cd")
+BUILD_TIME="$(env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z')"
+BUILD_ID="${GIT_BRANCH}+${GIT_HASH:0:7}, ${BUILD_TIME}"
+COMMIT_ID="${GIT_BRANCH}+${GIT_HASH:0:7}, ${GIT_TIME}"
 cd -
 
 FILE=${TARGET_DIR}/usr/lib/os-release
@@ -32,6 +34,8 @@ sed 's/^/BUILDROOT_/' $FILE > $tmpfile
 	echo "ARCHITECTURE=mips"
 	echo "IMAGE_ID=${IMAGE_ID}"
 	echo "BUILD_ID=\"${BUILD_ID}\""
+	echo "BUILD_TIME=\"${BUILD_TIME}\""
+	echo "COMMIT_ID=\"${COMMIT_ID}\""
 	echo "BOOTLOADER=$BOOTLOADER"
 	echo "HOSTNAME=ing-${HOSTNAME}"
 	date +TIME_STAMP=%s

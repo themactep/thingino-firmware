@@ -155,7 +155,8 @@ OVERLAY_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PAR
 # repo data
 GIT_BRANCH="$(shell git branch | grep '^*' | awk '{print $$2}')"
 GIT_HASH="$(shell git show -s --format=%H | cut -c1-7)"
-GIT_DATE="$(shell git show -s --format=%ci)"
+GIT_DATE="$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S UTC' --format="%cd")"
+BUILD_DATE="$(shell env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z')"
 
 RELEASE = 0
 
@@ -283,13 +284,13 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FIRMWARE_FULL_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
 	rm -f $(FIRMWARE_BIN_FULL).sha256sum
 	echo "$(shell echo \# $(CAMERA))" >> $(FIRMWARE_BIN_FULL).sha256sum
-	echo "# ${GIT_BRANCH}+${GIT_HASH}, ${GIT_DATE}" >> "$(FIRMWARE_BIN_FULL).sha256sum"
+	echo "# ${GIT_BRANCH}+${GIT_HASH}, ${BUILD_DATE}" >> "$(FIRMWARE_BIN_FULL).sha256sum"
 	sha256sum $(FIRMWARE_BIN_FULL) | awk '{print $$1 "  " filename}' filename="$(FIRMWARE_NAME_FULL)" >> $(FIRMWARE_BIN_FULL).sha256sum
 
 	if [ $(FIRMWARE_BIN_NOBOOT_SIZE) -gt $(FIRMWARE_NOBOOT_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
 	rm -f $(FIRMWARE_BIN_NOBOOT).sha256sum
 	echo "$(shell echo \# $(CAMERA))" >> $(FIRMWARE_BIN_NOBOOT).sha256sum
-	echo "# ${GIT_BRANCH}+${GIT_HASH}, ${GIT_DATE}" >> "$(FIRMWARE_BIN_NOBOOT).sha256sum"
+	echo "# ${GIT_BRANCH}+${GIT_HASH}, ${BUILD_DATE}" >> "$(FIRMWARE_BIN_NOBOOT).sha256sum"
 	sha256sum $(FIRMWARE_BIN_NOBOOT) | awk '{print $$1 "  " filename}' filename="$(FIRMWARE_NAME_NOBOOT)" >> $(FIRMWARE_BIN_NOBOOT).sha256sum
 	@$(FIGLET) "FINE"
 

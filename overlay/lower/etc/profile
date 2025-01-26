@@ -57,3 +57,5 @@ fi
 for i in /etc/profile.d/*; do
 	[ -r "$i" ] && . $i
 done; unset i
+
+resize > /dev/null
