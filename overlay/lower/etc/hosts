@@ -1,5 +1,6 @@
 # ipv6
 ::1		localhost.localdomain localhost ip6-localhost ip6-loopback
+
 # multicast
 ff02::1		ip6-allnodes
 ff02::2		ip6-allrouters
@@ -7,6 +8,14 @@ ff02::2		ip6-allrouters
 # ipv4
 127.0.0.1	localhost
 
+# github
+140.82.112.3	github.com
+140.82.112.4	github.com
+185.199.108.133	raw.githubusercontent.com objects.githubusercontent.com
+185.199.109.133	raw.githubusercontent.com objects.githubusercontent.com
+185.199.110.133	raw.githubusercontent.com objects.githubusercontent.com
+185.199.111.133	raw.githubusercontent.com objects.githubusercontent.com
+
 # telegram
-149.154.167.220  api.telegram.org
-2001:67c:4e8:f004::9  api.telegram.org
+149.154.167.220		api.telegram.org
+2001:67c:4e8:f004::9	api.telegram.org
