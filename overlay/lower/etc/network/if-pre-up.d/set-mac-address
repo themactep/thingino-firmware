@@ -2,19 +2,28 @@
 
 . /etc/init.d/rc.common
 
+skip="Skip MAC address setup"
+
+[ "eth0" = "$IFACE" ] || \
+	quit "$skip $IFACE is not eth0"
+
 nfsip=$(sed -n '/^[^ ]*:.* \/ nfs.*[ ,]addr=\([0-9.]\+\).*/s//\1/p' /proc/mounts)
 
-[ "$IFACE" != "eth0" ] && exit 0
+[ -n "$nfsip" ] && ip route get "$nfsip" | grep -q "dev eth0" && \
+	quit "$skip, $IFACE used for NFS from $nfsip"
 
-# Check if the interface is not a USB device, then set the MAC address, unless using nfsroot
-if [ -n "$nfsip" ] && ip route get "$nfsip" | grep -q "dev $IFACE"; then
-	info "Skipping MAC address setup for $IFACE, used for NFS from $nfsip"
-elif [ -d /sys/class/net/eth0 ] && ! readlink -f /sys/class/net/eth0/device | grep -q "usb"; then
-	info "Setting eth0 MAC address from environment"
-	MAC_ADDR=$(fw_printenv -n ethaddr)
-	[ -n "$MAC_ADDR" ] && /sbin/ip link set dev "$IFACE" address "$MAC_ADDR"
-else
-	info "eth0 does not exist or is a USB device, skipping MAC address setup"
-fi
+[ -d /sys/class/net/eth0 ] || \
+	quit "$skip, eth0 does not exist"
 
-exit 0
+readlink -f /sys/class/net/eth0/device | grep -q "usb" && \
+	quit "$skip, eth0 is a USB device"
+
+MAC_ADDR=$(fw_printenv -n ethaddr)
+
+[ -z "$MAC_ADDR" ] && \
+	quit "$skip, ethaddr not found in U-Boot environment"
+
+/sbin/ip link set dev eth0 address "$MAC_ADDR" && \
+	quit "Set eth0 MAC address from environment: $MAC_ADDR"
+
+die "Failed to set eth0 MAC address from environment: $MAC_ADDR"
