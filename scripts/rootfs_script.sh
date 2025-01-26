@@ -8,7 +8,7 @@ BOOTLOADER=$(echo $BR2_TARGET_UBOOT_BOARDNAME | tr -d '"')
 cd $BR2_EXTERNAL
 GIT_BRANCH=$(git branch | grep ^* | awk '{print $2}')
 GIT_HASH=$(git show -s --format=%H)
-GIT_TIME=$(git show -s --format=%ci)
+GIT_TIME=$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S UTC' --format="%cd")
 BUILD_ID="${GIT_BRANCH}+${GIT_HASH:0:7}, ${GIT_TIME}"
 cd -
 
