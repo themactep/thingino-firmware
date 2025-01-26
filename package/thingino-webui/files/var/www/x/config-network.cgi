@@ -5,7 +5,7 @@ page_title="Network"
 
 IFACES="eth0 wlan0 usb0"
 PARAMS="hostname dns1 dns2"
-SUBPARAMS="enabled dhcp address macaddr netmask gateway broadcast"
+SUBPARAMS="enabled dhcp ipv6 address macaddr netmask gateway broadcast"
 for i in $IFACES; do
 	for p in $SUBPARAMS; do
 		PARAMS="$PARAMS ${i}_$p"
@@ -53,6 +53,10 @@ iface_ip_in_etc() {
 	cat /etc/network/interfaces.d/$1 | sed -nE "s/.*address ([0-9\.]+).*/\1/p"
 }
 
+iface_ipv6() {
+	cat /etc/network/interfaces.d/$1 | grep -q 'dhcp-v6-enabled true' && echo "true"
+}
+
 iface_macaddr() {
 	[ -f /sys/class/net/$1/address ] || return
 	cat /sys/class/net/$1/address
@@ -92,9 +96,10 @@ setup_iface() {
 	netmask=$4
 	gateway=$5
 	broadcast=$6
+	ipv6=${7:-false}
 
 	[ -z "$interface" ] && set_error_flag "Network interface is not set"
-        [ -z "$mode" ] && set_error_flag "Network mode is not set"
+	[ -z "$mode" ] && set_error_flag "Network mode is not set"
 	if [ "static" = "$mode" ]; then
 		[ -z "$address" ] && die "Interface IP address is not set"
 		[ -z "$netmask" ] && die "Netmask is not set"
@@ -109,7 +114,7 @@ setup_iface() {
 			[ -n "$gateway" ] && echo -e "\tgateway $gateway"
 			[ -n "$broadcast" ] && echo -e "\tbroadcast $broadcast"
 		fi
-		echo -e "\tdhcp-v6-enabled true"
+		echo -e "\tdhcp-v6-enabled $ipv6"
 	} > "/etc/network/interfaces.d/$interface"
 	touch /tmp/network-restart.txt
 }
@@ -148,6 +153,7 @@ eth0_cidr=$(iface_cidr eth0)
 eth0_netmask=$(iface_netmask eth0)
 eth0_broadcast=$(iface_broadcast eth0)
 eth0_gateway=$(iface_gateway eth0)
+eth0_ipv6=$(iface_ipv6 eth0)
 
 wlan0_enabled=$(iface_up wlan0)
 wlan0_macaddr=$(iface_macaddr wlan0)
@@ -160,6 +166,7 @@ wlan0_cidr=$(iface_cidr wlan0)
 wlan0_netmask=$(iface_netmask wlan0)
 wlan0_broadcast=$(iface_broadcast wlan0)
 wlan0_gateway=$(iface_gateway wlan0)
+wlan0_ipv6=$(iface_ipv6 wlan0)
 
 usb0_enabled=$(iface_up usb0)
 usb0_macaddr=$(iface_macaddr usb0)
@@ -171,6 +178,7 @@ usb0_cidr=$(iface_cidr usb0)
 usb0_netmask=$(iface_netmask usb0)
 usb0_broadcast=$(iface_broadcast usb0)
 usb0_gateway=$(iface_gateway usb0)
+usb0_ipv6=$(iface_ipv6 usb0)
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	for p in $PARAMS; do
@@ -280,6 +288,8 @@ fi
 <% field_text "${i}_gateway" "Gateway" %>
 <% field_text "${i}_broadcast" "Broadcast" %>
 </div>
+<% field_switch "${i}_ipv6" "Use IPv6 (DHCPv6)" %>
+
 <% if [ "wlan0" = "$i" ]; then %>
 <% field_text "wlan0_ssid" "SSID" %>
 <% field_text "wlan0_password" "Password" %>
