@@ -65,8 +65,8 @@ iface_netmask() {
 }
 
 iface_up() {
-	local endpoint="/sys/class/net/$1/operstate"
-	[ -f $endpoint ] && [ "up" = "$(cat $endpoint)" ] && echo "true"
+	local endpoint="/sys/class/net/$1/carrier"
+	[ -f $endpoint ] && [ "$(cat $endpoint)" -eq 1 ] && echo "true"
 }
 
 is_iface_dhcp() {
