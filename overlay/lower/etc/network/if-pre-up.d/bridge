@@ -3,7 +3,7 @@
 # Configuration of the bridge should be done in /etc/network/interfaces.d/bridgeX
 # Read more at https://wiki.debian.org/BridgeNetworkConnections
 
-[ ! -x /usr/sbin/brctl ] && exit 0
+[ -x /sbin/brctl ] || exit 0
 
 case "$IF_BRIDGE_PORTS" in
 	"")

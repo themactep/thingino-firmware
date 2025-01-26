@@ -1,6 +1,7 @@
 #!/bin/sh
 
+[ -x /sbin/vconfig ] || exit 0
+
 [ -z "$IF_VLAN_RAW_DEVICE" ] && [ -z "$(echo $IFACE | grep '.\+\.[0-9]\+$')" ] && exit 0
-[ ! -x /sbin/vconfig ] && exit 0
 
 vconfig rem $IFACE

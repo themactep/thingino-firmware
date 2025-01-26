@@ -31,7 +31,7 @@ case "$IFACE" in
 esac
 
 if [ -n "$IF_VLAN_RAW_DEVICE" ]; then
-	[ ! -x /sbin/vconfig ] && exit 0
+	[ -x /sbin/vconfig ] || exit 0
 
 	if ! ip link show dev "$IF_VLAN_RAW_DEVICE" > /dev/null; then
 		echo "$IF_VLAN_RAW_DEVICE does not exist, unable to create $IFACE"
