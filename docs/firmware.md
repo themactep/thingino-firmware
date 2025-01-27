@@ -1,16 +1,14 @@
 Firmware
 ========
 
-Dumping the original firmware
------------------------------
-
 IP camera firmware resides in a flash chip on the camera board. It can be dumped
 in several ways, depending on the camera model and the access level to the
 camera's hardware and software.
 
-### Reading firmware with a programmer, off-board
+Dumping the original firmware with a programmer, off-board
+----------------------------------------------------------
 
-Prerequisites:
+### Prerequisites:
 - Soldering iron and soldering skills
 - CH341A programmer
 - 208-mil SOIC8 test adapter
@@ -27,9 +25,10 @@ snander -r firmware2.bin
 md5sum firmware1.bin firmware2.bin
 ```
 
-### Reading firmware with a programmer, in-circuit
+Dumping the original firmware with a programmer, in-circuit
+-----------------------------------------------------------
 
-Prerequisites:
+### Prerequisites:
 - CH341A programmer
 - SOIC8 test clip or pogo-pin jig
 - snander utility
@@ -43,9 +42,10 @@ snander -r firmware2.bin
 md5sum firmware1.bin firmware2.bin
 ```
 
-### Dumping the firmware via SD card from Linux
+Dumping the original firmware via SD card from Linux
+----------------------------------------------------
 
-Prerequisites:
+### Prerequisites:
 - Access to the system shell
 - SD card slot on the camera
 
@@ -66,9 +66,10 @@ then combine these files on your computer
 cat mtd0.bin mtd1.bin mtd2.bin mtd3.bin ... mtdN.bin > firmware.bin
 ```
 
-### Dumping the firmware via SD card from U-Boot
+Dumping the original firmware via SD card from U-Boot
+-----------------------------------------------------
 
-Prerequisites:
+### Prerequisites:
 - UART connection
 - Access to the U-Boot shell
 - SD card slot on the camera
@@ -99,9 +100,10 @@ Note: Adjust the flash size value in the U-Boot command for cameras with flash
 sizes different from 16MB. Also, update the size parameters in the `mmc write`
 and `dd` commands accordingly.
 
-### Dumping the firmware via TFTP
+Dumping the original firmware via TFTP
+--------------------------------------
 
-Prerequisites:
+### Prerequisites:
 - UART connection
 - Access to the U-Boot shell
 - Ethernet connection
@@ -129,9 +131,10 @@ Note: Use IP addresses that are appropriate for your network configuration.
 Adjust the flash size value in the U-Boot command for cameras with flash
 sizes different from 16MB.
 
-### Dumping the firmware via UART log from U-Boot
+Dumping the original firmware via UART log from U-Boot
+------------------------------------------------------
 
-Prerequisites:
+### Prerequisites:
 - UART connection
 - Access to the U-Boot shell
 
