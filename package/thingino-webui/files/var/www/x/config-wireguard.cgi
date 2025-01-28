@@ -55,7 +55,7 @@ fi
 WireGuard is a fast and simple general purpose VPN.</p>
 <p>This interface supports the simple use case of connecting a single tunnel to a peer (server),
 and routing traffic from the camera, to a set of CIDRs (networks) through that server.</p>
-<% wiki_page "WireGuard-VPN" %>
+<% wiki_page "VPN:-Wireguard" %>
 </div>
 </div>
 </div>
