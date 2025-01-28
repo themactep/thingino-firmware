@@ -400,7 +400,7 @@ $(CONFIG_BIN):
 		-F -b 1024 \
 		-d $(BR2_EXTERNAL)/overlay/config/ \
 		-L config $(CONFIG_BIN) 64K
-	dd if=/dev/zero of=$(CONFIG_BIN) bs=1024 count=64 conv=notrunc
+	truncate -s 65536 $(CONFIG_BIN)
 
 # rebuild kernel
 $(KERNEL_BIN):
