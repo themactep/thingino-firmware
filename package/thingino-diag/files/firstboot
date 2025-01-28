@@ -25,8 +25,8 @@ wipe() {
 	fi
 
 
-	if grep -q " /config " /proc/mounts; then
-		umount -f /config
+	if grep -q " /etc/config " /proc/mounts; then
+		umount -f /etc/config
 	fi
 
 	mkfs.ext2 -F -b 1024 -i 8192 -m 0 -L config $configfs_data_dev
