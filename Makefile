@@ -95,7 +95,7 @@ endif
 UB_ENV_FINAL_TXT = $(OUTPUT_DIR)/uenv.txt
 export UB_ENV_FINAL_TXT
 
-CONFIG_BIN := $(OUTPUT_DIR)/images/config.jffs2
+CONFIG_BIN := $(OUTPUT_DIR)/images/config.ext2
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
@@ -396,10 +396,11 @@ $(U_BOOT_BIN):
 # create config partition image
 $(CONFIG_BIN):
 	$(info -------------------------------- $@)
-	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --squash \
-		--root=$(BR2_EXTERNAL)/overlay/upper/ \
-		--output=$(CONFIG_BIN) \
-		--pad=$(CONFIG_PARTITION_SIZE)
+	$(OUTPUT_DIR)/host/sbin/mkfs.ext2 \
+		-F -b 1024 \
+		-d $(BR2_EXTERNAL)/overlay/upper/ \
+		-L config $(CONFIG_BIN) 64K
+	dd if=/dev/zero of=$(CONFIG_BIN) bs=1024 count=64 conv=notrunc
 
 # rebuild kernel
 $(KERNEL_BIN):
