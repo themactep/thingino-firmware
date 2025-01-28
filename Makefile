@@ -143,9 +143,9 @@ OVERLAY_LLIMIT := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
 # partition offsets
 U_BOOT_OFFSET := 0
 UB_ENV_OFFSET = $(shell echo $$(($(U_BOOT_OFFSET) + $(U_BOOT_PARTITION_SIZE))))
-#CONFIG_OFFSET = $(shell echo $$(($(UB_ENV_OFFSET) + $(UB_ENV_PARTITION_SIZE))))
-#KERNEL_OFFSET = $(shell echo $$(($(CONFIG_OFFSET) + $(CONFIG_PARTITION_SIZE))))
-KERNEL_OFFSET = $(shell echo $$(($(UB_ENV_OFFSET) + $(UB_ENV_PARTITION_SIZE))))
+CONFIG_OFFSET = $(shell echo $$(($(UB_ENV_OFFSET) + $(UB_ENV_PARTITION_SIZE))))
+KERNEL_OFFSET = $(shell echo $$(($(CONFIG_OFFSET) + $(CONFIG_PARTITION_SIZE))))
+#KERNEL_OFFSET = $(shell echo $$(($(UB_ENV_OFFSET) + $(UB_ENV_PARTITION_SIZE))))
 ROOTFS_OFFSET = $(shell echo $$(($(KERNEL_OFFSET) + $(KERNEL_PARTITION_SIZE))))
 OVERLAY_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
 
@@ -398,7 +398,7 @@ $(CONFIG_BIN):
 	$(info -------------------------------- $@)
 	$(OUTPUT_DIR)/host/sbin/mkfs.ext2 \
 		-F -b 1024 \
-		-d $(BR2_EXTERNAL)/overlay/upper/ \
+		-d $(BR2_EXTERNAL)/overlay/config/ \
 		-L config $(CONFIG_BIN) 64K
 	dd if=/dev/zero of=$(CONFIG_BIN) bs=1024 count=64 conv=notrunc
 
