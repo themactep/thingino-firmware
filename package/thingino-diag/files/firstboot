@@ -18,6 +18,18 @@ wipe() {
 		exit 1
 	fi
 
+	configfs_data_dev=$(awk '$4 ~ /"config"/ {gsub(":","",$1); print "/dev/mtdblock" substr($1,4)}' /proc/mtd)
+	if [ -z "$configfs_data_dev" ]; then
+		echo "Config partition not found!"
+		exit 1
+	fi
+
+
+	if grep -q " /config " /proc/mounts; then
+		umount -f /config
+	fi
+
+	mkfs.ext2 -F -b 1024 -i 8192 -m 0 -L config $configfs_data_dev
 	flash_eraseall -j "/dev/${rootfs_data_dev}"
 	[ "$erase_mtd1" = true ] && flash_eraseall /dev/mtd1
 	echo "Erase completed. Rebooting..."
