@@ -16,6 +16,7 @@ show_help() {
 	quit_clean 0
 }
 
+verbosity="--silent"
 # override config values with command line arguments
 while getopts d:f:P:u:vh flag; do
 	case "$flag" in
@@ -23,12 +24,10 @@ while getopts d:f:P:u:vh flag; do
 		f) yadisk_file=$OPTARG ;;
 		P) yadisk_password=$OPTARG ;;
 		u) yadisk_username=$OPTARG ;;
-		v) verbose="true" ;;
+		v) verbosity="--verbose" ;;
 		h | *) show_help ;;
 	esac
 done
-
-[ "false" = "$yadisk_enabled" ] && die "Sending to Yandex Disk is disabled."
 
 [ -z "$yadisk_username" ] && die "Yandex Disk username not found"
 [ -z "$yadisk_password" ] && die "Yandex Disk password not found"
@@ -39,7 +38,7 @@ if [ -z "$yadisk_file" ]; then
 	yadisk_file=$attachment
 fi
 
-command="$CURL --user '${yadisk_username}:$yadisk_password'"
+command="$CURL $verbosity --user '${yadisk_username}:$yadisk_password'"
 
 url="https://webdav.yandex.ru"
 yadisk_path=$(date +"$yadisk_path")
@@ -62,6 +61,5 @@ build_cmd "--request PUT --upload-file $yadisk_file --url $url/$yadisk_path/$(TZ
 log_and_run "$command"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
-[ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 quit_clean 0

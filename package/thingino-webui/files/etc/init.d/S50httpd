@@ -14,6 +14,12 @@ else
 	DAEMON_ARGS="-f -c $HTTP_CONF -r Authentication"
 fi
 
+if [ "$(fw_printenv -n debug)" -gt 1 ]; then
+	sed -i 's/^\/x:root/#\/x:root/' $HTTP_CONF
+else
+	sed -i 's/^#\/x:root/\/x:root/' $HTTP_CONF
+fi
+
 start() {
 	starting
 	[ -f $DAEMON_FULL ] || quit "Disabled"

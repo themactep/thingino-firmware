@@ -19,6 +19,7 @@ show_help() {
 	quit_clean 0
 }
 
+verbosity="--silent"
 # override config values with command line arguments
 while getopts b:f:ks:t:vh flag; do
 	case "$flag" in
@@ -27,12 +28,11 @@ while getopts b:f:ks:t:vh flag; do
 		k) email_insecure_ssl="true" ;;
 		s) email_subject=$OPTARG ;;
 		t) email_to_address=$OPTARG ;;
-		v) verbose="true" ;;
+		v) verbosity="--verbose" ;;
 		h | *) show_help ;;
 	esac
 done
 
-[ "false" = "$email_enabled" ] && die "Sending to email is disabled."
 # validate mandatory values
 [ -z "$email_smtp_host" ] && die "SMTP host not found in config"
 [ -z "$email_smtp_port" ] && die "SMTP port not found in config"
@@ -47,11 +47,11 @@ echo "$email_to_address" | grep -E -q $EMAIL_FORMAT || die "Invalid recipient em
 [ -z "$email_to_name" ] && email_to_name="Thingino Camera Admin"
 [ -z "$email_subject" ] && email_subject="Snapshot from Thingino Camera"
 
-build_cmd "$CURL --mail-from $email_from_address --mail-rcpt $email_to_address"
-[ "true" = "$verbose" ] && build_cmd "--verbose"
+build_cmd "$CURL $verbosity --mail-from $email_from_address --mail-rcpt $email_to_address"
 
 [ -n "$email_smtp_username" ] && [ -n "$email_smtp_password" ] && \
 	build_cmd "--user '$email_smtp_username:$email_smtp_password'"
+
 if [ "true" = "$email_smtp_use_ssl" ]; then
 	build_cmd "--url smtps://$email_smtp_host:$email_smtp_port --ssl"
 	[ "true" = "$email_insecure_ssl" ] && build_cmd "--insecure"
@@ -59,35 +59,24 @@ else
 	build_cmd "--url smtp://$email_smtp_host:$email_smtp_port"
 fi
 
+build_cmd "-H 'From: \"$email_from_name\" <$email_from_address>'"
+build_cmd "-H 'To: \"$email_to_name\" <$email_to_address>'"
+build_cmd "-H 'Subject: $email_subject'"
+build_cmd "-F '=(;type=multipart/mixed'"
+build_cmd "-F '=$email_body;type=text/plain'"
 if [ "true" = "$email_attach_snapshot" ]; then
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
 	clone_snapshot $attachment
-
-	email_body="$(date -R)"
-	build_cmd "-H 'Subject: $email_subject'"
-	build_cmd "-H 'From: \"$email_from_name\" <$email_from_address>'"
-	build_cmd "-H 'To: \"$email_to_name\" <$email_to_address>'"
-	build_cmd "-F '=(;type=multipart/mixed'"
-	build_cmd "-F '=$email_body;type=text/plain'"
-	build_cmd "-F 'file=@$attachment;type=image/jpeg;encoder=base64'"
-	build_cmd "-F '=)'"
-else
-	email_file="/tmp/email.$$.txt"
-	{
-		echo "From: $email_from_name <$email_from_address>"
-		echo "To: $email_to_name <$email_to_address>"
-		echo "Subject: $email_subject"
-		echo "Date: $(date -R)"
-		echo ""
-		echo "$email_body"
-	} >> $email_file
-	build_cmd "--upload-file $email_file"
+	build_cmd "-F 'snapshot=@$attachment;type=image/jpeg;encoder=base64'"
 fi
+if [ "true" = "$email_attach_video" ]; then
+	attachment=$VBUFFER_FILE
+	build_cmd "-F 'video=@$attachment;type=video/quicktime;encoder=base64'"
+fi
+build_cmd "-F '=)'"
 
 log_and_run "$command"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
-
-[ -f "$email_file" ] && rm -f $email_file
 
 quit_clean 0

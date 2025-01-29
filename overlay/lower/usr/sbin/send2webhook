@@ -5,7 +5,9 @@ plugin="webhook"
 . /sbin/common-plugins
 
 show_help() {
-	echo "Usage: $0 [-u url] [-v] [-h]
+	echo "Usage: $0 [-m message] [-s] [-u url] [-v] [-h]
+  -m message  Message to send to webhook.
+  -s          Attach snapshot to the webhook.
   -u url      Webhook URL.
   -v          Verbose output.
   -h          Show this help.
@@ -14,29 +16,30 @@ show_help() {
 }
 
 # override config values with command line arguments
-while getopts u:vh flag; do
+verbosity="--silent"
+while getopts p:su:vh flag; do
 	case "$flag" in
+		m) webhook_message=$OPTARG ;;
+		s) webhook_attach_snapshot="true" ;;
 		u) webhook_url=$OPTARG ;;
-		v) verbose="true" ;;
+		v) verbosity="--verbose" ;;
 		h | *) show_help ;;
 	esac
 done
 
-[ "false" = "$webhook_enabled" ] && die "Sending to webhook is disabled."
 # validate mandatory values
 [ -z "$webhook_url" ] && die "Webhook URL not found"
 
-command="$CURL"
 if [ "true" = "$webhook_attach_snapshot" ]; then
 	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
 	clone_snapshot $attachment
-	build_cmd "-F 'image=@$attachment'"
+	data="-F 'message=$webhook_message' -F 'image=@$attachment'"
+else
+	data="-d '$webhook_message'"
 fi
-build_cmd "--url \"$webhook_url\""
 
-log_and_run "$command"
+log_and_run "$CURL $verbosity $data --url $webhook_url"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
-[ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 quit_clean 0

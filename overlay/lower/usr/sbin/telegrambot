@@ -8,8 +8,6 @@ singleton
 
 is_debug_mode && echo_c 208 "Running in debug mode"
 
-[ "true" = "$telegrambot_enabled" ] || die "Telegram Bot is not enabled in $CONFIG_FILE."
-
 API_URL="https://api.telegram.org/bot$telegrambot_token"
 MSG_TIMEOUT=5
 JSDATA_FILE="/tmp/$plugin.json"

@@ -15,24 +15,26 @@ show_help() {
 	quit_clean 0
 }
 
+verbosity="--quiet"
 # override config values with command line arguments
 while getopts m:st:vh flag; do
 	case "$flag" in
 		m) mqtt_message=$OPTARG ;;
 		s) mqtt_send_snap="true" ;;
 		t) mqtt_topic=$OPTARG ;;
-		v) verbose="true" ;;
+		v) verbosity="-d" ;;
 		h | *) show_help ;;
 	esac
 done
 
-[ "false" = "$mqtt_enabled" ] && die "Sending to MQTT broker is disabled."
 # validate mandatory values
 [ -z "$mqtt_host" ] && die "MQTT broker host not found in config"
 [ -z "$mqtt_port" ] && die "MQTT broker port not found in config"
 [ -z "$mqtt_topic" ] && die "MQTT topic not found"
 [ -z "$mqtt_message" ] && die "MQTT message template not found"
-[ "true" = "$mqtt_send_snap" ] && [ -z "$mqtt_snap_topic" ] && die "MQTT topic for sending snapshot not found in config"
+
+[ "true" = "$mqtt_send_snap" ] && [ -z "$mqtt_snap_topic" ] && \
+	die "MQTT topic for sending snapshot not found in config"
 
 # assign default values if not set
 [ -z "$mqtt_client_id" ] && mqtt_client_id="$network_hostname"
@@ -52,9 +54,9 @@ if [ "true" = "$mqtt_send_snap" ]; then
 else
 	build_cmd "-t $mqtt_topic -m \"$mqtt_message\""
 fi
+
 log_and_run "$command"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
-[ "true" = "$verbose" ] && cat $LOG_FILE
 
 quit_clean 0

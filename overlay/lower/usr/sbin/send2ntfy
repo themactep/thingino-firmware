@@ -22,6 +22,7 @@ show_help() {
 	quit_clean 0
 }
 
+verbosity="--silent"
 # override config values with command line arguments
 while getopts a:c:f:i:l:m:n:p:s:t:u:vh flag; do
 	case "$flag" in
@@ -34,12 +35,11 @@ while getopts a:c:f:i:l:m:n:p:s:t:u:vh flag; do
 		t) ntfy_topic=$OPTARG ;;
 		u) ntfy_username=$OPTARG ;;
 		w) ntfy_password=$OPTARG ;;
-		v) verbose="true" ;;
+		v) verbosity="--verbose" ;;
 		h | *) show_help ;;
 	esac
 done
 
-[ "false" = "$ntfy_enabled" ] && die "Sending to NTFY is disabled."
 # validate mandatory values
 [ -z "$ntfy_topic" ] && die "NTFY topic is not set."
 
@@ -58,7 +58,7 @@ done
 [ -z "$ntfy_message"  ] && ntfy_message=""
 [ -z "$ntfy_markdown" ] && ntfy_markdown="false"
 
-command="$CURL -H p:$ntfy_msg_priority"
+command="$CURL $verbosity -H p:$ntfy_msg_priority"
 
 [ -n "$ntfy_username" ] && [ -n "$ntfy_password" ] && \
 	build_cmd "-u $ntfy_username:$ntfy_password"
@@ -91,6 +91,5 @@ build_cmd "-d '$json' ntfy.sh"
 log_and_run "$command"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
-[ "true" = "$verbose" ] && cat $LOG_FILE
 
 quit_clean 0

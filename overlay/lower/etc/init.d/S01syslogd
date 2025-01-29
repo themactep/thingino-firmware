@@ -1,9 +1,14 @@
 #!/bin/sh
 
-RSYSLOG_IP=$(fw_printenv -n rsyslog_ip)
+DAEMON_ARGS="-n -C64 -t -D $RSYSLOG_ADDRESS"
 
-DAEMON_ARGS="-n -C64 -t -D"
-[ -z "$RSYSLOG_IP" ] || DAEMON_ARGS="$DAEMON_ARGS -R $RSYSLOG_IP"
+RSYSLOG_IP=$(fw_printenv -n rsyslog_ip)
+RSYSLOG_PORT=$(fw_printenv -n rsyslog_port)
+if [ -n "$RSYSLOG_IP" ]; then
+	DAEMON_ARGS="$DAEMON_ARGS -R $RSYSLOG_IP"
+	[ -n "$RSYSLOG_PORT" ] && DAEMON_ARGS="$DAEMON_ARGS:$RSYSLOG_PORT"
+	[ "true" = "$(fw_printenv -n rsyslog_local)" ] && DAEMON_ARGS="$DAEMON_ARGS -L"
+fi
 
 . /etc/init.d/rc.common
 

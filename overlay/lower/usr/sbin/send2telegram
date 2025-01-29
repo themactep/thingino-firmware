@@ -27,6 +27,7 @@ check_file_age() {
 	die "Stale video"
 }
 
+verbosity="--silent"
 # override config values with command line arguments
 while getopts c:f:m:st:vh flag; do
 	case "$flag" in
@@ -35,7 +36,7 @@ while getopts c:f:m:st:vh flag; do
 		f) telegram_file=$OPTARG ;;
 		s) telegram_silent="true" ;;
 		t) telegram_token=$OPTARG ;;
-		v) verbose="true" ;;
+		v) verbosity="--verbose" ;;
 		h) show_help ;;
 	esac
 done
@@ -61,13 +62,11 @@ if [ $# -ne 0 ]; then
 	esac
 fi
 
-[ "false" = "$telegram_enabled" ] && die "Sending to Telegram is disabled."
-
 # validate mandatory values
 [ -z "$telegram_token" ] && die "Telegram token not found"
 [ -z "$telegram_channel" ] && die "Telegram channel not found"
 
-command="$CURL -H 'Content-Type: multipart/form-data' -F 'chat_id=$telegram_channel'"
+command="$CURL $verbosity -H 'Content-Type: multipart/form-data' -F 'chat_id=$telegram_channel'"
 [ "true" = "$telegram_silent" ] && build_cmd "-F 'disable_notification=true'"
 build_cmd "--url https://api.telegram.org/bot$telegram_token/"
 # no further modifications to command after this point
@@ -94,7 +93,7 @@ if [ -f "$telegram_file" ]; then
 		;;
 	000000016d6461740000)
 		inode=$(stat -c%i $telegram_file)
-		[ "true" = "$send_buffer" ]  && send_video "$telegram_file"
+		[ "true" = "$send_buffer" ] && send_video "$telegram_file"
 		# wait for the next file
 		while [ $inode -eq $(stat -c%i $telegram_file) ]; do
 			n=$((n + 1))
@@ -114,5 +113,4 @@ else
 	log_and_run "${command}sendMessage -F 'text=$telegram_message'"
 fi
 
-[ "true" = "$verbose" ] && cat $LOG_FILE
 quit_clean 0

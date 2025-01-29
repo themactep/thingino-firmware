@@ -18,8 +18,9 @@ show_help() {
 	quit_clean 0
 }
 
+verbosity="--silent"
 # override config values with command line arguments
-while getopts d:f:p:P:s:u:vh flag; do
+while getopts d:f:p:P:s:u:vVh flag; do
 	case "$flag" in
 		d) ftp_path=$OPTARG ;;
 		f) ftp_file=$OPTARG ;;
@@ -27,12 +28,12 @@ while getopts d:f:p:P:s:u:vh flag; do
 		P) ftp_password=$OPTARG ;;
 		s) ftp_host=$OPTARG ;;
 		u) ftp_user=$OPTARG ;;
-		v) verbose="true" ;;
+		v) verbosity="--verbose" ;;
+		V) ftp_sendvideo="true" ;;
 		h | *) show_help ;;
 	esac
 done
 
-[ "false" = "$ftp_enabled" ] && die "Sending to FTP is disabled."
 # validate mandatory values
 [ -z "$ftp_host" ] && die "FTP host not found"
 
@@ -41,8 +42,14 @@ done
 [ -z "$ftp_user" ] && ftp_user="anonymous" && ftp_password="anonymous"
 
 if [ -z "$ftp_file" ]; then
-	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	clone_snapshot $attachment
+	if [ "true" = "$ftp_sendvideo" ]; then
+		attachment="/tmp/vbuffer.mov"
+		ftp_filename=$(date +"$ftp_template").mov
+	else
+		attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
+		clone_snapshot $attachment
+		ftp_filename=$(date +"$ftp_template").jpg
+	fi
 
 	ftp_file=$attachment
 fi
@@ -51,12 +58,10 @@ url="ftp://"
 [ -n "$ftp_user" ] && [ -n "$ftp_password" ] && url="$url$ftp_user:$ftp_password"
 url="$url@$ftp_host:$ftp_port"
 [ -n "$ftp_path" ] && url="$url/${ftp_path// /%20}"
-url="$url/$(date +"$ftp_template")"
+url="$url/$ftp_filename"
 
-command="$CURL --url $url --upload-file $ftp_file --ftp-create-dirs"
-log_and_run "$command"
+log_and_run "$CURL $verbosity --url $url --upload-file $ftp_file --ftp-create-dirs"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
-[ "true" = "$verbose" ] && cat "$LOG_FILE"
 
 quit_clean 0
