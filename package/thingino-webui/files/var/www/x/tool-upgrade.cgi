@@ -76,14 +76,20 @@ get_mtd_partitions() {
       </div>
 
       <div class="mb-4">
+        <h5>OTA (Over The Air) Update</h5>
+        <p>Click to perform a full upgrade of the latest firmware version from the Thingino GitHub repository</p>
+        <button type="button" class="btn btn-primary" onclick="handleOTAUpgrade()">Download & Upgrade</button>
+      </div>
+
+      <div class="mb-4">
         <h5>Flash new firmware image</h5>
-        <p>Upload a sysupgrade-compatible image here to replace the current firmware. If no image is selected, the system will automatically download the latest compatible image for this device from the GitHub repository</p>
+        <p>Upload a sysupgrade-compatible image here to replace the current firmware</p>
         <div id="firmware-upload-form">
-          <input type="file" class="form-control" id="firmware-image" name="firmware">
+          <input type="file" class="form-control" id="firmware-image" name="firmware" onchange="updateFlashButton()">
           <div class="mt-2">
             <% field_select "tools_upgrade_option" "Upgrade Option" "Partial,Full,Bootloader" %>
           </div>
-          <button type="button" class="btn btn-primary mt-2" onclick="handleUpgrade()">Flash image</button>
+          <button type="button" class="btn btn-primary mt-2" onclick="handleUpgrade()" id="flash-button" disabled>Flash image</button>
         </div>
       </div>
     </div>
@@ -97,55 +103,20 @@ get_mtd_partitions() {
 </div>
 
 <script>
-async function handleUpgrade(ev) {
-    if (ev) ev.preventDefault();
+function updateFlashButton() {
+    const fileInput = document.getElementById('firmware-image');
+    const flashButton = document.getElementById('flash-button');
+    flashButton.disabled = !(fileInput && fileInput.files && fileInput.files.length > 0);
+}
 
-    const fileInput = $('#firmware-image');
-    const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
-    const submitButton = document.querySelector('#firmware-upload-form button');
-    if (submitButton) submitButton.disabled = true;
-
-    const wr = $('#output-wrapper');
-    if (!wr) {
-        if (submitButton) submitButton.disabled = false;
-        return;
-    }
+async function handleOTAUpgrade() {
+    const wr = document.getElementById('output-wrapper');
+    if (!wr) return;
 
     wr.style.display = 'block';
     wr.innerHTML = '';
-    let cmd = '/sbin/sysupgrade';
 
-    if (hasFile) {
-        const uploadStatus = document.createElement('pre');
-        uploadStatus.style.margin = '0';
-        uploadStatus.style.whiteSpace = 'pre-wrap';
-        uploadStatus.style.wordWrap = 'break-word';
-        uploadStatus.textContent = 'Uploading firmware file...';
-        wr.appendChild(uploadStatus);
-
-        const formData = new FormData();
-        formData.append('firmware', fileInput.files[0]);
-
-        try {
-            const response = await fetch(window.location.pathname, {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) throw new Error(`Upload failed: ${response.statusText}`);
-            cmd += ` /tmp/fw-web.bin`;
-            wr.innerHTML = '';
-        } catch (error) {
-            uploadStatus.textContent = 'Upload failed: ' + error.message;
-            if (submitButton) submitButton.disabled = false;
-            return;
-        }
-    } else {
-        const option = $('#tools_upgrade_option').value;
-        if (option === 'Full') cmd += ' -f';
-        else if (option === 'Partial') cmd += ' -p';
-        else if (option === 'Bootloader') cmd += ' -b';
-    }
+    const cmd = '/sbin/sysupgrade -p';  // Using partial upgrade for OTA
 
     const el = document.createElement('pre');
     el.id = "output";
@@ -158,15 +129,81 @@ async function handleUpgrade(ev) {
     h6.textContent = `# ${cmd}`;
     h6.style.margin = '0 0 1rem 0';
 
-    if (wr) {
-        wr.innerHTML = '';
-        wr.appendChild(h6);
-        wr.appendChild(el);
-    } else {
+    wr.appendChild(h6);
+    wr.appendChild(el);
+
+    await streamOutput(el, cmd);
+}
+
+async function handleUpgrade(ev) {
+    if (ev) ev.preventDefault();
+
+    const fileInput = document.getElementById('firmware-image');
+    if (!fileInput || !fileInput.files || !fileInput.files.length) {
+        return; // Early return if no file selected
+    }
+
+    const submitButton = document.querySelector('#firmware-upload-form button');
+    if (submitButton) submitButton.disabled = true;
+
+    const wr = document.getElementById('output-wrapper');
+    if (!wr) {
         if (submitButton) submitButton.disabled = false;
         return;
     }
 
+    wr.style.display = 'block';
+    wr.innerHTML = '';
+    let cmd = '/sbin/sysupgrade';
+
+    const uploadStatus = document.createElement('pre');
+    uploadStatus.style.margin = '0';
+    uploadStatus.style.whiteSpace = 'pre-wrap';
+    uploadStatus.style.wordWrap = 'break-word';
+    uploadStatus.textContent = 'Uploading firmware file...';
+    wr.appendChild(uploadStatus);
+
+    const formData = new FormData();
+    formData.append('firmware', fileInput.files[0]);
+
+    try {
+        const response = await fetch(window.location.pathname, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) throw new Error(`Upload failed: ${response.statusText}`);
+        cmd += ` /tmp/fw-web.bin`;
+        wr.innerHTML = '';
+    } catch (error) {
+        uploadStatus.textContent = 'Upload failed: ' + error.message;
+        if (submitButton) submitButton.disabled = false;
+        return;
+    }
+
+    const option = document.getElementById('tools_upgrade_option').value;
+    if (option === 'Full') cmd += ' -f';
+    else if (option === 'Partial') cmd += ' -p';
+    else if (option === 'Bootloader') cmd += ' -b';
+
+    const el = document.createElement('pre');
+    el.id = "output";
+    el.dataset.cmd = cmd;
+    el.style.margin = '0';
+    el.style.whiteSpace = 'pre-wrap';
+    el.style.wordWrap = 'break-word';
+
+    const h6 = document.createElement('h6');
+    h6.textContent = `# ${cmd}`;
+    h6.style.margin = '0 0 1rem 0';
+
+    wr.appendChild(h6);
+    wr.appendChild(el);
+
+    await streamOutput(el, cmd);
+}
+
+async function streamOutput(el, cmd) {
     async function* makeTextFileLineIterator(url) {
         const td = new TextDecoder('utf-8');
         const response = await fetch(url);
@@ -193,14 +230,18 @@ async function handleUpgrade(ev) {
             if (startIndex < chunk.length) yield chunk.substr(startIndex);
         } finally {
             el.innerHTML += '\n--- sysupgrade exit! ---\n';
-            if (submitButton) submitButton.disabled = false;
+            // Only re-enable the flash button if we're in the manual upload flow
+            if (cmd.includes('/tmp/fw-web.bin')) {
+                const submitButton = document.getElementById('flash-button');
+                if (submitButton) submitButton.disabled = false;
+            }
         }
     }
 
     let lastProgressLine = '';
     let lines = [];
 
-    for await (let line of makeTextFileLineIterator('/x/run.cgi?cmd=' + btoa(el.dataset.cmd))) {
+    for await (let line of makeTextFileLineIterator('/x/run.cgi?cmd=' + btoa(cmd))) {
         line = line.trimEnd() + '</span>';
 
         line = line
@@ -208,13 +249,7 @@ async function handleUpgrade(ev) {
             .replace(/\[(\d+)m/g, '</span><span class="ansi-$1">')
             .replace(/\[0m/g, '</span>')
             .replace(/\x1B/g, '')
-            .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
-
-        //FIXME: this won't work, there's no reboot.cgi left on the flash after sysupgrade...
-        //if (line.startsWith('Rebooting in 5 seconds')) {
-        //    window.location.href = '/x/reboot.cgi';
-        //    return;
-        //}
+            .replace(/[\x00-\x1F\x7F-\x9F]/g, '');
 
         if (line.includes('Writing kb:') ||
             line.includes('Verifying kb:') ||
@@ -234,7 +269,8 @@ async function handleUpgrade(ev) {
         }
 
         el.innerHTML = lines.join('\n');
-        wr.scrollTop = wr.scrollHeight;
+        const wr = document.getElementById('output-wrapper');
+        if (wr) wr.scrollTop = wr.scrollHeight;
     }
 }
 
