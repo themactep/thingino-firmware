@@ -58,17 +58,20 @@ copy_photo() {
 	[ -f "$SNAPSHOT_FILE" ] || die "Snapshot not found"
 	photo2=$(mktemp -u)
 	cp "$SNAPSHOT_FILE" "$photo2"
+	garbage="$garbage $photo2"
 }
 
 copy_video() {
 	[ -f "$VBUFFER_FILE" ] || die "Video buffer not found"
 	video2=$(mktemp -u)
 	cp "$VBUFFER_FILE" "$video2"
+	garbage="$garbage $video2"
 }
 
 remove_tempfiles() {
-	[ -f "$photo2" ] && rm "$photo2"
-	[ -f "$video2" ] && rm "$video2"
+	for f in $garbage; do
+		[ -f "$f" ] && rm "$f"
+	done
 }
 
 # validate mandatory values
@@ -82,11 +85,23 @@ build_cmd "--url https://api.telegram.org/bot$telegram_token/"
 if [ "true" = "$telegram_attach_video" ] && [ "true" = "$telegram_attach_photo" ]; then
 	# https://core.telegram.org/bots/api#sendmediagroup
 	copy_photo
-	copy_video
 	caption=$(parse_caption $photo2)
+	command="${command}sendMediaGroup -F 'snap=@$photo2'"
 	[ -n "$telegram_message" ] && caption="$caption - $telegram_message"
-	media='[{"type":"photo","media":"attach://snap","caption":"'$caption'"},{"type":"video","media":"attach://video"}]'
-	command="${command}sendMediaGroup -F 'snap=@$photo2' -F 'video=@$video2' -F 'media=$media'"
+	media='[{"type":"photo","media":"attach://snap","caption":"'$caption'"},'
+	inode=$(stat -c%i $VBUFFER_FILE)
+	copy_video
+	command="$command -F 'video1=@$video2'"
+	media=$media'{"type":"video","media":"attach://video1"},'
+	while [ $inode -eq $(stat -c%i $VBUFFER_FILE) ]; do
+		n=$((n + 1))
+		[ "$n" -le 10 ] || die "Give up after $n attempts."
+		sleep 1
+	done
+	copy_video
+	command="$command -F 'video2=@$video2'"
+	media=$media'{"type":"video","media":"attach://video2"}]'
+	command="$command -F 'media=$media'"
 elif [ "true" = "$telegram_attach_video" ]; then
 	# https://core.telegram.org/bots/api#sendvideo
 	copy_video
