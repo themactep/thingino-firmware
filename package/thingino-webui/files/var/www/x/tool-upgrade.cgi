@@ -4,6 +4,8 @@
 page_title="Flash Operations"
 tools_action="sysupgrade"
 tools_upgrade_option="-p"
+ota_upgrade_option="Partial"
+tools_upgrade_option="Partial"
 
 if [ "$REQUEST_METHOD" = "POST" ]; then
     if [ -n "$HASERL_firmware_path" ]; then
@@ -56,6 +58,11 @@ get_mtd_partitions() {
     --ansi-66: #5f8787;  /* Cyan-ish */
     --ansi-144: #afaf87; /* Light grey */
 }
+
+/* FIXME: Hide hint texts? Ask Paul about this. */
+span.hint.text-secondary {
+    display: none;
+}
 </style>
 <div class="container g-4 mb-4">
   <div class="row">
@@ -77,8 +84,11 @@ get_mtd_partitions() {
 
       <div class="mb-4">
         <h5>OTA (Over The Air) Update</h5>
-        <p>Click to perform a full upgrade of the latest firmware version from the Thingino GitHub repository</p>
-        <button type="button" class="btn btn-primary" onclick="handleOTAUpgrade()">Download & Upgrade</button>
+        <p>Click to perform an upgrade of the latest firmware version from the Thingino GitHub repository</p>
+        <div class="mt-2">
+            <% field_select "ota_upgrade_option" "Upgrade Option" "Partial,Full,Bootloader" "Partial" %>
+        </div>
+        <button type="button" class="btn btn-primary mt-2" onclick="handleOTAUpgrade()">Download & Upgrade</button>
       </div>
 
       <div class="mb-4">
@@ -87,7 +97,7 @@ get_mtd_partitions() {
         <div id="firmware-upload-form">
           <input type="file" class="form-control" id="firmware-image" name="firmware" onchange="updateFlashButton()">
           <div class="mt-2">
-            <% field_select "tools_upgrade_option" "Upgrade Option" "Partial,Full,Bootloader" %>
+            <% field_select "tools_upgrade_option" "Upgrade Option" "Partial,Full,Bootloader" "Partial" %>
           </div>
           <button type="button" class="btn btn-primary mt-2" onclick="handleUpgrade()" id="flash-button" disabled>Flash image</button>
         </div>
@@ -116,7 +126,14 @@ async function handleOTAUpgrade() {
     wr.style.display = 'block';
     wr.innerHTML = '';
 
-    const cmd = '/sbin/sysupgrade -p';  // Using partial upgrade for OTA
+    let cmd = '/sbin/sysupgrade -p';  // Default to partial upgrade
+
+    const option = document.getElementById('ota_upgrade_option').value;
+    if (option === 'Full') {
+        cmd = '/sbin/sysupgrade -f';
+    } else if (option === 'Bootloader') {
+        cmd = '/sbin/sysupgrade -b';
+    }
 
     const el = document.createElement('pre');
     el.id = "output";
