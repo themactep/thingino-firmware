@@ -17,16 +17,6 @@ show_help() {
 	quit_clean 0
 }
 
-# file
-check_file_age() {
-	local now ts
-	now=$(date +%s)
-	ts=$(stat -c%X $1)
-	[ $((now - ts)) -gt 10 ] || return
-	[ -f $1 ] && rm $1
-	die "Stale video"
-}
-
 verbosity="--silent"
 # override config values with command line arguments
 while getopts c:f:m:st:vh flag; do
@@ -46,21 +36,40 @@ shift $((OPTIND - 1))
 if [ $# -ne 0 ]; then
 	case "$1" in
 		clip)
-			telegram_file="/tmp/vbuffer.mov"
-			lockfile="/tmp/vbuffer.lock"
+			telegram_attach_photo="false"
+			telegram_attach_video="true"
 			;;
 		motion)
-			telegram_file="/tmp/vbuffer.mov"
-			lockfile="/tmp/vbuffer.lock"
-			check_file_age "$telegram_file"
-			send_buffer="true"
+			telegram_attach_photo="true"
+			telegram_attach_video="true"
 			;;
 		snap)
-			telegram_file="$(mktemp -u /tmp/snapshot-XXXXXX).jpg"
-			clone_snapshot "$telegram_file"
+			telegram_attach_photo="true"
+			telegram_attach_video="false"
 			;;
 	esac
 fi
+
+parse_caption() {
+	echo "$telegram_caption" | sed "s/%hostname/$(hostname -s)/;s/%datetime/$(date @$(stat -c%Z $1))/"
+}
+
+copy_photo() {
+	[ -f "$SNAPSHOT_FILE" ] || die "Snapshot not found"
+	photo2=$(mktemp -u)
+	cp "$SNAPSHOT_FILE" "$photo2"
+}
+
+copy_video() {
+	[ -f "$VBUFFER_FILE" ] || die "Video buffer not found"
+	video2=$(mktemp -u)
+	cp "$VBUFFER_FILE" "$video2"
+}
+
+remove_tempfiles() {
+	[ -f "$photo2" ] && rm "$photo2"
+	[ -f "$video2" ] && rm "$video2"
+}
 
 # validate mandatory values
 [ -z "$telegram_token" ] && die "Telegram token not found"
@@ -70,47 +79,40 @@ command="$CURL $verbosity -H 'Content-Type: multipart/form-data' -F 'chat_id=$te
 [ "true" = "$telegram_silent" ] && build_cmd "-F 'disable_notification=true'"
 build_cmd "--url https://api.telegram.org/bot$telegram_token/"
 # no further modifications to command after this point
-
-parse_caption() {
-	echo "$telegram_caption" | sed "s/%hostname/$(hostname -s)/;s/%datetime/$(date @$(stat -c%Z $1))/"
-}
-
-send_video() {
-	touch $lockfile
+if [ "true" = "$telegram_attach_video" ] && [ "true" = "$telegram_attach_photo" ]; then
+	# https://core.telegram.org/bots/api#sendmediagroup
+	copy_photo
+	copy_video
+	caption=$(parse_caption $photo2)
+	[ -n "$telegram_message" ] && caption="$caption - $telegram_message"
+	media='[{"type":"photo","media":"attach://snap","caption":"'$caption'"},{"type":"video","media":"attach://video"}]'
+	command="${command}sendMediaGroup -F 'snap=@$photo2' -F 'video=@$video2' -F 'media=$media'"
+elif [ "true" = "$telegram_attach_video" ]; then
 	# https://core.telegram.org/bots/api#sendvideo
-	log_and_run "${command}sendVideo -F 'video=@$1' -F 'caption=$(parse_caption $1)'"
-	[ -f $lockfile ] && rm $lockfile
-}
-
-if [ -f "$telegram_file" ]; then
-	[ -f "$telegram_file" ] || die "File $telegram_file not found"
-	magic=$(xxd -p -l10 $telegram_file)
-	case "$magic" in
-	ffd8f*)
-		# https://core.telegram.org/bots/api#sendphoto
-		log_and_run "${command}sendPhoto -F 'photo=@$telegram_file' -F 'text=$(parse_caption $telegram_file)'"
-		[ "true" = "$delete_tempfile" ] && [ -f "$telegram_file" ] && rm "$telegram_file"
-		;;
-	000000016d6461740000)
-		inode=$(stat -c%i $telegram_file)
-		[ "true" = "$send_buffer" ] && send_video "$telegram_file"
-		# wait for the next file
-		while [ $inode -eq $(stat -c%i $telegram_file) ]; do
-			n=$((n + 1))
-			[ "$n" -le 10 ] || die "Give up after $n attempts."
-			sleep 1
-		done
-		send_video "$telegram_file"
-		;;
-	*)
-		# https://core.telegram.org/bots/api#senddocument
-		log_and_run "${command}sendDocument -F 'document=@$1' -F 'text=$(parse_caption $telegram_file)'"
-		;;
-	esac
-else
-	[ -z "$telegram_message" ] && die "Nothing to send"
+	copy_video
+	caption=$(parse_caption $video2)
+	[ -n "$telegram_message" ] && caption="$caption - $telegram_message"
+	command="${command}sendVideo -F 'video=@$video2' -F 'caption=$caption'"
+elif [ "true" = "$telegram_attach_photo" ]; then
+	# https://core.telegram.org/bots/api#sendphoto
+	copy_photo
+	caption=$(parse_caption $photo2)
+	[ -n "$telegram_message" ] && caption="$caption - $telegram_message"
+	command="${command}sendPhoto -F 'photo=@$photo2' -F 'caption=$caption'"
+elif [ -n "$telegram_message" ]; then
 	# https://core.telegram.org/bots/api#sendmessage
-	log_and_run "${command}sendMessage -F 'text=$telegram_message'"
+	command="${command}sendMessage -F 'text=$telegram_message'"
+elif [ -n "$telegram_file" ] && [ -f "$telegram_file" ]; then
+	# https://core.telegram.org/bots/api#senddocument
+	caption=$(parse_caption $telegram_file)
+	[ -n "$telegram_message" ] && caption="$caption - $telegram_message"
+	command="${command}sendDocument -F 'document=@$1' -F 'caption=$caption'"
+else
+	die "Nothing to send"
 fi
+
+run "$command"
+
+remove_tempfiles
 
 quit_clean 0
