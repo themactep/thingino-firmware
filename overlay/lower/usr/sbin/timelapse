@@ -4,8 +4,6 @@ plugin="timelapse"
 
 . /sbin/common-plugins
 
-[ "false" = "$timelapse_enabled" ] && die "Timelapse is disabled."
-
 # drop trailing slashes
 timelapse_mount=${timelapse_mount%/}
 timelapse_device_path=${timelapse_device_path%/}

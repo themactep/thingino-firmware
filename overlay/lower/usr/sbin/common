@@ -1,22 +1,16 @@
 #!/bin/sh
 
+[ "$0" = "-sh" ] && echo "Do not run directly!" && exit 1
+
 PID=$$
-LOCK_FILE="/run/process-${PID}.pid"
+LOCK_FILE="/run/process-$PID.pid"
 LOG_FILE=/tmp/webui.log
 LOG_SIZE_LIMIT=50000
 
-SOCKS5_CONFIG=/etc/webui/socks5.conf
-
-curl_timeout=100
-if [ "true" = "$verbose" ]; then
-	curl_verbosity="--verbose"
-else
-	curl_verbosity="--silent"
-fi
-
-CURL="curl $curl_verbosity --connect-timeout $curl_timeout --max-time $curl_timeout"
+CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3"
 
 SNAPSHOT_FILE=/tmp/snapshot.jpg
+VBUFFER_FILE=/tmp/vbuffer.mov
 
 debug=$(fw_printenv -n debug)
 
