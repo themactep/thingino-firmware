@@ -2,7 +2,7 @@
 
 plugin="mqtt"
 
-. /sbin/common-plugins
+. /sbin/common
 
 show_help() {
 	echo "Usage: $0 [-t topic] [-m message] [-s] [-v] [-h]

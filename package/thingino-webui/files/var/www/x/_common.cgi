@@ -463,10 +463,7 @@ menu() {
 			# get plugin description
 			n="$(sed -r -n '/^plugin_name=/s/plugin_name="(.*)"/\1/p' $i)"
 
-			# check if plugin is enabled
-			echo -n "<li><a class=\"dropdown-item"
-			grep -q -s "^${p}_enabled=\"true\"" $ui_config_dir/$p.conf && echo -n " plugin-enabled"
-			echo "\" href=\"$i\">$n</a></li>"
+			echo -n "<li><a class=\"dropdown-item\" href=\"$i\">$n</a></li>"
 		else
 			# FIXME: dirty hack
 			[ "$i" = "config-developer.cgi" ] && [ ! -f /etc/init.d/S44devmounts ] && continue

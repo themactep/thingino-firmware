@@ -36,10 +36,12 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	error_if_empty "$record_filename" "Record filename cannot be empty."
 
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp)
+		tmp_file=$(mktemp -u)
+		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
 		for p in $params; do
-			echo "record_$p=\"$(eval echo \$record_$p)\"" >>$tmp_file
-		done; unset p
+			sed -i -r "/^record_$p=/d" "$tmp_file"
+			echo "record_$p=\"$(eval echo \$record_$p)\"" >> "$tmp_file"
+		done
 		mv $tmp_file $config_file
 
 		if [ -f "$RECORD_CTL" ]; then
@@ -95,6 +97,7 @@ defaults
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "cat $config_file" %>
+<% ex "fw_printenv | grep ^record_" %>
 </div>
 
 <script>

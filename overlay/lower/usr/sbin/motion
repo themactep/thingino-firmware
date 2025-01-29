@@ -2,7 +2,7 @@
 
 plugin="motion"
 
-. /sbin/common-plugins
+. /sbin/common
 singleton
 
 MOTION_ALARM="/run/motion/motion_alarm"

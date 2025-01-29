@@ -4,24 +4,29 @@
 plugin="mqtt"
 plugin_name="Send to MQTT"
 page_title="Send to MQTT"
-params="enabled host port client_id username password topic message send_snap snap_topic use_ssl"
+params="host port client_id username password topic message send_snap snap_topic use_ssl"
 
 [ -f /usr/bin/mosquitto_pub ] || redirect_to "/" "danger" "MQTT client is not a part of your firmware."
 
 config_file="$ui_config_dir/mqtt.conf"
 include $config_file
 
+defaults() {
+	default_for mqtt_client_id "${network_macaddr//:/}"
+	default_for mqtt_port "1883"
+	default_for mqtt_topic "thingino/$mqtt_client_id"
+	default_for mqtt_message ""
+}
+
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	read_from_post "mqtt" "$params"
 
-	if [ "true" = "$mqtt_enabled" ]; then
-		error_if_empty "$mqtt_host" "MQTT broker host cannot be empty."
-		error_if_empty "$mqtt_port" "MQTT port cannot be empty."
-		# error_if_empty "$mqtt_username" "MQTT username cannot be empty."
-		# error_if_empty "$mqtt_password" "MQTT password cannot be empty."
-		error_if_empty "$mqtt_topic" "MQTT topic cannot be empty."
-		error_if_empty "$mqtt_message" "MQTT message cannot be empty."
-	fi
+	error_if_empty "$mqtt_host" "MQTT broker host cannot be empty."
+	error_if_empty "$mqtt_port" "MQTT port cannot be empty."
+	# error_if_empty "$mqtt_username" "MQTT username cannot be empty."
+	# error_if_empty "$mqtt_password" "MQTT password cannot be empty."
+	error_if_empty "$mqtt_topic" "MQTT topic cannot be empty."
+	error_if_empty "$mqtt_message" "MQTT message cannot be empty."
 
 	if [ "${mqtt_topic:0:1}" = "/" ] || [ "${mqtt_snap_topic:0:1}" = "/" ]; then
 		set_error_flag "MQTT topic should not start with a slash."
@@ -39,30 +44,25 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		set_error_flag "MQTT topic for snapshot should not be empty."
 	fi
 
+	defaults
+
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp)
+		tmp_file=$(mktemp -u)
+		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
 		for p in $params; do
-			echo "mqtt_$p=\"$(eval echo \$mqtt_$p)\"" >>$tmp_file
-		done; unset p
+			sed -i -r "/^mqtt_$p=/d" "$tmp_file"
+			echo "mqtt_$p=\"$(eval echo \$mqtt_$p)\"" >> "$tmp_file"
+		done
 		mv $tmp_file $config_file
-
-		update_caminfo
-		redirect_back "success" "$plugin_name config updated."
 	fi
-
 	redirect_to $SCRIPT_NAME
-else
-	# Default values
-	default_for mqtt_client_id "${network_macaddr//:/}"
-	default_for mqtt_port "1883"
-	default_for mqtt_topic "thingino/$mqtt_client_id"
-	default_for mqtt_message ""
 fi
+
+defaults
 %>
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_switch "mqtt_enabled" "Enable MQTT client" %>
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
 <div class="col">
 <% field_text "mqtt_client_id" "MQTT client ID" %>

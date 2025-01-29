@@ -4,7 +4,7 @@
 plugin="ssh"
 plugin_name="Send to SSH"
 page_title="Send to SSH"
-params="enabled host username port command"
+params="host username port command"
 
 config_file="$ui_config_dir/ssh.conf"
 include $config_file
@@ -12,20 +12,18 @@ include $config_file
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	read_from_post "ssh" "$params"
 
-	if [ "true" = "$ssh_enabled" ]; then
-		error_if_empty "$ssh_host" "SSH address cannot be empty."
-	fi
+	error_if_empty "$ssh_host" "SSH address cannot be empty."
 
 	if [ -z "$error" ]; then
-		tmpfile=$(mktemp -u)
+		tmp_file=$(mktemp -u)
+		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
 		for p in $params; do
-			echo "ssh_$p=\"$(eval echo \$ssh_$p)\"" >>$tmpfile
-		done; unset p
-		mv $tmpfile $config_file
-
-		update_caminfo
-		redirect_back "success" "$plugin_name config updated."
+			sed -i -r "/^ssh_$p=/d" "$tmp_file"
+			echo "ssh_$p=\"$(eval echo \$ssh_$p)\"" >> "$tmp_file"
+		done
+		mv $tmp_file $config_file
 	fi
+	redirect_to $SCRIPT_NAME
 fi
 
 default_for ssh_port "22"
@@ -34,7 +32,6 @@ default_for ssh_username "root"
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_switch "ssh_enabled" "Enable sending to SSH server" %>
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
 <div class="col">
 <div class="row g-1">

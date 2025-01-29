@@ -4,37 +4,40 @@
 plugin="yadisk"
 plugin_name="Send to Yandex Disk"
 page_title="Send to Yandex Disk"
-params="enabled username password path"
+params="username password path"
 
 config_file="$ui_config_dir/yadisk.conf"
 include $config_file
 
+defaults() {
+	#
+}
+
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	read_from_post "yadisk" "$params"
 
-	if [ "true" = "$email_enabled" ]; then
-		error_if_empty "$yadisk_username" "Yandex Disk username cannot be empty."
-		error_if_empty "$yadisk_password" "Yandex Disk password cannot be empty."
-	fi
+	error_if_empty "$yadisk_username" "Yandex Disk username cannot be empty."
+	error_if_empty "$yadisk_password" "Yandex Disk password cannot be empty."
+
+	defaults
 
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp -u)
+		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
 		for p in $params; do
-			echo "yadisk_$p=\"$(eval echo \$yadisk_$p)\"" >>$tmp_file
-		done; unset p
+			sed -i -r "/^yadisk_$p=/d" "$tmp_file"
+			echo "yadisk_$p=\"$(eval echo \$yadisk_$p)\"" >> "$tmp_file"
+		done
 		mv $tmp_file $config_file
-
-		update_caminfo
-		redirect_back "success" "$plugin_name config updated."
 	fi
-
 	redirect_to $SCRIPT_NAME
 fi
+
+defaults
 %>
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_switch "yadisk_enabled" "Enable sending to Yandex Disk" %>
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <% field_text "yadisk_username" "Yandex Disk username" %>

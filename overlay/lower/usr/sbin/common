@@ -115,3 +115,8 @@ hesitate() {
 parse_target() {
 	echo "$1" | sed "s/%hostname/$(hostname -s)/g"
 }
+
+if [ -n "$plugin" ]; then
+	CONFIG_FILE="/etc/webui/$plugin.conf"
+	[ -f "$CONFIG_FILE" ] && . $CONFIG_FILE
+fi

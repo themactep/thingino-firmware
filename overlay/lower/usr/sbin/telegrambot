@@ -3,7 +3,7 @@ plugin="telegrambot"
 
 command -v jsonfilter > /dev/null || die "$plugin is not supported on this platform, missing jsonfilter."
 
-. /sbin/common-plugins
+. /sbin/common
 singleton
 
 is_debug_mode && echo_c 208 "Running in debug mode"

@@ -2,7 +2,7 @@
 
 plugin="ftp"
 
-. /sbin/common-plugins
+. /sbin/common
 
 show_help() {
 	echo "Usage: $0 [-s host] [-p port] [-u username] [-P password] [-d path] [-f file] [-v] [-h]
