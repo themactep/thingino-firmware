@@ -199,9 +199,9 @@ async function handleUpgrade(ev) {
     }
 
     const option = document.getElementById('tools_upgrade_option').value;
-    if (option === 'Full') cmd += ' -f';
-    else if (option === 'Partial') cmd += ' -p';
-    else if (option === 'Bootloader') cmd += ' -b';
+    if (option === 'Full') cmd += ' -x -f';
+    else if (option === 'Partial') cmd += ' -x -p';
+    else if (option === 'Bootloader') cmd += ' -x -b';
 
     const el = document.createElement('pre');
     el.id = "output";
