@@ -13,11 +13,10 @@ pagename=$(basename "$SCRIPT_NAME")
 pagename="${pagename%%.*}"
 
 # files
-alert_file=$ui_tmp_dir/alert.txt
-signature_file=$ui_tmp_dir/signature.txt
+alert_file=/tmp/alert.txt
+signature_file=/tmp/signature.txt
 sysinfo_file=/tmp/sysinfo.txt
 ui_config_dir=/etc/webui
-ui_tmp_dir=/tmp/webui
 webui_log=/tmp/webui.log
 
 # read from files
@@ -29,7 +28,6 @@ ensure_dir() {
 	mkdir -p "$1"
 }
 
-ensure_dir $ui_tmp_dir
 ensure_dir $ui_config_dir
 
 # name, text
@@ -596,7 +594,7 @@ t_value() {
 update_caminfo() {
 	local tmpfile f v
 
-	tmpfile="$ui_tmp_dir/sysinfo.tmp"
+	tmpfile=/tmp/sysinfo.tmp
 	:>$tmpfile
 	# add all web-related config files
 	# do not include ntp
