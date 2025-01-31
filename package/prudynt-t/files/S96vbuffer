@@ -62,7 +62,6 @@ stop() {
 		pid=$(pidof -o %PPID -s S96vbuffer)
 	done
 	rm -f $clipfile $lockfile
-	# inotifyd rmlater $tmpfile
 	[ -f "$tmpfile" ] && sleep 5 && rm $tmpfile
 	ok
 }
