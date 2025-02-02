@@ -307,13 +307,10 @@ $(info Kernel version set to 4)
 else
 $(info No kernel version set, determining from SOC)
 	ifeq ($(BR2_SOC_INGENIC_T41),y)
-		$(info SOC is T41, setting kernel to 4)
 		KERNEL_VERSION_4 := y
 	else ifeq ($(BR2_SOC_INGENIC_T40),y)
-		$(info SOC is T40, setting kernel to 4)
 		KERNEL_VERSION_4 := y
 	else
-		$(info SOC is not T4x, setting kernel to 3)
 		KERNEL_VERSION_3 := y
 	endif
 endif
