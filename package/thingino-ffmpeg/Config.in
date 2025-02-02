@@ -1,7 +1,8 @@
 config BR2_PACKAGE_THINGINO_FFMPEG
 	bool "Thingino FFmpeg"
 	help
-	  Feature-reduced FFmpeg binary specifically configured to perform recording on thingino devices
+	  Feature-reduced FFmpeg binary specifically configured
+	  to perform recording on thingino devices.
 	  FFmpeg is a complete, cross-platform solution to record,
 	  convert and stream audio and video.
 	  http://www.ffmpeg.org
