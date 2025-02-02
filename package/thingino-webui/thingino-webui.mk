@@ -8,16 +8,14 @@ define THINGINO_WEBUI_BUILD_CMDS
 endef
 
 define THINGINO_WEBUI_INSTALL_TARGET_CMDS
-	if grep -q "^BR2_PACKAGE_HTTPD=y" $(BR2_CONFIG); then \
+	if grep -q "^BR2_PACKAGE_NGINX=y" $(BR2_CONFIG); then \
+		$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/nginx; \
+		$(INSTALL) -m 0644 -t $(TARGET_DIR)/etc/nginx $(THINGINO_WEBUI_PKGDIR)/files/nginx.conf; \
+	else \
 		$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc; \
 		$(INSTALL) -m 0644 -t $(TARGET_DIR)/etc $(THINGINO_WEBUI_PKGDIR)/files/httpd.conf; \
 		$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/init.d; \
 		$(INSTALL) -m 0755 -t $(TARGET_DIR)/etc/init.d $(THINGINO_WEBUI_PKGDIR)/files/S50httpd; \
-	fi
-
-	if grep -q "^BR2_PACKAGE_NGINX=y" $(BR2_CONFIG); then \
-		$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/nginx; \
-		$(INSTALL) -m 0644 -t $(TARGET_DIR)/etc/nginx $(THINGINO_WEBUI_PKGDIR)/files/nginx.conf; \
 	fi
 
 	if grep -q "^BR2_THINGINO_DEV_PACKAGES=y" $(BR2_CONFIG); then \
