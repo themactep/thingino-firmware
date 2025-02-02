@@ -555,6 +555,15 @@ sanitize4web() {
 	eval $n=$(echo \${$n//\$/\\\$})
 }
 
+"param" "value"
+save2config() {
+	local tmpfile=$(mktemp -u)
+	[ -f /etc/web.config ] && cp /etc/web.config $tmpfile
+	sed -i -r "/^$1=.*/d" $tmpfile
+	echo "$1=\"$2\"" >> $tmpfile
+	mv $tmpfile etc/web.config
+}
+
 save2env() {
 	local tmpfile=$(mktemp -u)
 	echo -e "$*" >> $tmpfile
