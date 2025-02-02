@@ -4,7 +4,7 @@ plugin="email"
 
 EMAIL_FORMAT='^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
 
-. /sbin/common-plugins
+. /sbin/common
 
 show_help() {
 	echo "Usage: $0 [-f address] [-t address] [-s subject] [-b body] [-v] [-h]

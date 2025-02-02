@@ -4,7 +4,7 @@
 plugin="timelapse"
 plugin_name="Timelapse"
 page_title="Timelapse"
-params="depth device_path enabled filename interval mount"
+params="depth device_path filename interval mount"
 
 MOUNTS=$(awk '/cif|fat|nfs|smb/{print $2}' /etc/mtab)
 TIMELAPSE_FILENAME_FB="%Y%m%d/%Y%m%dT%H%M%S.jpg"
@@ -13,7 +13,6 @@ include $config_file
 
 # defaults
 defaults() {
-	default_for timelapse_enabled "false"
 	default_for timelapse_device_path "$(hostname)/timelapses"
 	default_for timelapse_filename "$TIMELAPSE_FILENAME_FB"
 	default_for timelapse_interval 1
@@ -32,10 +31,12 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	error_if_empty "$timelapse_filename" "Timelapse filename cannot be empty."
 
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp)
+		tmp_file=$(mktemp -u)
+		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
 		for p in $params; do
-			echo "timelapse_$p=\"$(eval echo \$timelapse_$p)\"" >>$tmp_file
-		done; unset p
+			sed -i -r "/^timelapse_$p=/d" "$tmp_file"
+			echo "timelapse_$p=\"$(eval echo \$timelapse_$p)\"" >> "$tmp_file"
+		done
 		mv $tmp_file $config_file
 
 		# update crontab

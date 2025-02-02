@@ -205,7 +205,7 @@ build_fast: $(UB_ENV_FINAL_TXT)
 FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(MODULE_CONFIG_REAL))
 
 # Configure buildroot for a particular board
-defconfig: buildroot/Makefile $(OUTPUT_DIR)/.config
+defconfig: buildroot/Makefile
 	$(info -------------------------------- $@)
 	@$(FIGLET) $(CAMERA)
 	# create output directory

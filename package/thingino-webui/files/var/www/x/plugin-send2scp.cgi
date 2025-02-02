@@ -4,7 +4,7 @@
 plugin="scp"
 plugin_name="Send via scp"
 page_title="Send via scp"
-params="enabled host port user path template command"
+params="host port user path template command"
 
 SCP_KEY="/root/.ssh/id_dropbear"
 [ -f $SCP_KEY ] || dropbearkey -t ed25519 -f $SCP_KEY
@@ -15,22 +15,20 @@ include $config_file
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	read_from_post "scp" "$params"
 
-	if [ "true" = "$scp_enabled" ]; then
-		error_if_empty "$scp_host" "Target host address cannot be empty."
-	fi
+	error_if_empty "$scp_host" "Target host address cannot be empty."
 
 	default_for scp_template "$network_hostname-%Y%m%d-%H%M%S.jpg"
 
 	if [ -z "$error" ]; then
-		tmpfile=$(mktemp -u)
+		tmp_file=$(mktemp -u)
+		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
 		for p in $params; do
-			echo "scp_$p=\"$(eval echo \$scp_$p)\"" >>$tmpfile
-		done; unset p
-		mv $tmpfile $config_file
-
-		update_caminfo
-		redirect_back "success" "$plugin_name config updated."
+			sed -i -r "/^scp_$p=/d" "$tmp_file"
+			echo "scp_$p=\"$(eval echo \$scp_$p)\"" >> "$tmp_file"
+		done
+		mv $tmp_file $config_file
 	fi
+	redirect_to $SCRIPT_NAME
 fi
 
 default_for scp_port "22"
@@ -40,7 +38,6 @@ default_for scp_template "$network_hostname-%Y%m%d-%H%M%S.jpg"
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_switch "scp_enabled" "Enable sending to the remote host via scp" %>
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
 <div class="col">
 <div class="row g-1">

@@ -15,7 +15,6 @@ grep -q "^[^#].*$DAYNIGHT\$" $CRONTABS && day_night_enabled=true
 day_night_interval=$(awk -F'[/ ]' "/$DAYNIGHT\$/{print \$2}" $CRONTABS)
 
 # populate defaults
-default_for day_night_enabled "false"
 default_for day_night_interval 1
 default_for day_night_max 15000
 default_for day_night_min 5000
@@ -31,8 +30,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
 	# read values from POST
-	read_from_post "day_night" "color enabled interval ir850 ir940 ircut max min white"
-	read_from_post "dusk2dawn" "enabled lat lng offset_sr offset_ss"
+	read_from_post "day_night" "color interval ir850 ir940 ircut max min white"
+	read_from_post "dusk2dawn" "lat lng offset_sr offset_ss"
 
 	# validate mandatory values
 	if [ "true" = "$day_night_enabled" ]; then

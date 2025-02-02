@@ -2,7 +2,7 @@
 
 plugin="ntfy"
 
-. /sbin/common-plugins
+. /sbin/common
 
 show_help() {
 	echo "Usage: $0 [-p priority] [-t title] [-m message] [-u user] [-w password] [-i bool] [-v] [-h]

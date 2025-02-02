@@ -13,11 +13,10 @@ pagename=$(basename "$SCRIPT_NAME")
 pagename="${pagename%%.*}"
 
 # files
-alert_file=$ui_tmp_dir/alert.txt
-signature_file=$ui_tmp_dir/signature.txt
+alert_file=/tmp/alert.txt
+signature_file=/tmp/signature.txt
 sysinfo_file=/tmp/sysinfo.txt
 ui_config_dir=/etc/webui
-ui_tmp_dir=/tmp/webui
 webui_log=/tmp/webui.log
 
 # read from files
@@ -29,7 +28,6 @@ ensure_dir() {
 	mkdir -p "$1"
 }
 
-ensure_dir $ui_tmp_dir
 ensure_dir $ui_config_dir
 
 # name, text
@@ -465,10 +463,7 @@ menu() {
 			# get plugin description
 			n="$(sed -r -n '/^plugin_name=/s/plugin_name="(.*)"/\1/p' $i)"
 
-			# check if plugin is enabled
-			echo -n "<li><a class=\"dropdown-item"
-			grep -q -s "^${p}_enabled=\"true\"" $ui_config_dir/$p.conf && echo -n " plugin-enabled"
-			echo "\" href=\"$i\">$n</a></li>"
+			echo -n "<li><a class=\"dropdown-item\" href=\"$i\">$n</a></li>"
 		else
 			# FIXME: dirty hack
 			[ "$i" = "config-developer.cgi" ] && [ ! -f /etc/init.d/S44devmounts ] && continue
@@ -596,7 +591,7 @@ t_value() {
 update_caminfo() {
 	local tmpfile f v
 
-	tmpfile="$ui_tmp_dir/sysinfo.tmp"
+	tmpfile=/tmp/sysinfo.tmp
 	:>$tmpfile
 	# add all web-related config files
 	# do not include ntp

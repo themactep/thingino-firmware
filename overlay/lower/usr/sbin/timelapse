@@ -2,7 +2,7 @@
 
 plugin="timelapse"
 
-. /sbin/common-plugins
+. /sbin/common
 
 # drop trailing slashes
 timelapse_mount=${timelapse_mount%/}

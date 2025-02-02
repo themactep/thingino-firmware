@@ -8,13 +8,25 @@ ssid="$(fw_printenv -n wlanssid)"
 pass="$(fw_printenv -n wlanpass)"
 wlanap="$(fw_printenv -n wlanap_enabled)"
 
-if ! iface_exists "eth0" && ! iface_exists "usb0" && ([ -z "$ssid" ] || [ -z "$pass" ]) && ([ -z "$wlanap" ] || [ "$wlanap" = "false" ]) && ip link show wlan0 &> /dev/null; then
+no_iface() {
+	[ -z "$(ip link show $1 2> /dev/null)" ]
+}
+
+no_wlan_ap() {
+	[ -z "$wlanap" ] || [ "$wlanap" = "false" ]
+}
+
+no_wlan_creds() {
+	[ -z "$ssid" ] || [ -z "$pass" ]
+}
+
+if no_iface eth0 && no_iface usb0 && iface_exists wlan0 && no_wlan_ap && no_wlan_creds; then
 	DAEMON_ARGS="-f -c $PORTAL_CONF"
 else
 	DAEMON_ARGS="-f -c $HTTP_CONF -r Authentication"
 fi
 
-if [ "$(fw_printenv -n debug)" -gt 1 ]; then
+if [ "0$(fw_printenv -n debug)" -gt 1 ]; then
 	sed -i 's/^\/x:root/#\/x:root/' $HTTP_CONF
 else
 	sed -i 's/^#\/x:root/\/x:root/' $HTTP_CONF

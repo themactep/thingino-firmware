@@ -4,40 +4,42 @@
 plugin="telegram"
 plugin_name="Send to Telegram"
 page_title="Send to Telegram"
-params="enabled token as_attachment as_photo channel caption"
+params="token attach_snapshot attach_video channel caption"
 
 config_file="$ui_config_dir/telegram.conf"
 include $config_file
 
+defaults() {
+	default_for telegram_attach_snapshot "true"
+	default_for telegram_attach_video "true"
+	default_for telegram_caption "%hostname, %datetime"
+}
+
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	read_from_post "telegram" "$params"
 
-	if [ "true" = "$telegram_enabled" ]; then
-		error_if_empty "$telegram_token" "Telegram token cannot be empty."
-		error_if_empty "$telegram_channel" "Telegram channel cannot be empty."
-	fi
+	error_if_empty "$telegram_token" "Telegram token cannot be empty."
+	error_if_empty "$telegram_channel" "Telegram channel cannot be empty."
+
+	defaults
 
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp -u)
+		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
 		for p in $params; do
-			echo "telegram_$p=\"$(eval echo \$telegram_$p)\"" >>$tmp_file
-		done; unset p
+			sed -i -r "/^telegram_$p=/d" "$tmp_file"
+			echo "telegram_$p=\"$(eval echo \$telegram_$p)\"" >> "$tmp_file"
+		done
 		mv $tmp_file $config_file
-
-		update_caminfo
-		redirect_back "success" "$plugin_name config updated."
 	fi
-
 	redirect_to $SCRIPT_NAME
-else
-	# Default values
-	default_for telegram_caption "%hostname, %datetime"
 fi
+
+defaults
 %>
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_switch "telegram_enabled" "Enable sending to Telegram" %>
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <div class="input-group mb-3">
@@ -47,9 +49,10 @@ fi
 <% field_text "telegram_channel" "Chat ID" "ID of the channel to post images to." "-100xxxxxxxxxxxx" %>
 </div>
 <div class="col">
-<% field_text "telegram_caption" "Photo caption" "Available variables: %hostname, %datetime." %>
-<% field_switch "telegram_as_attachment" "Send as attachment." %>
-<% field_switch "telegram_as_photo" "Send as photo." %>
+<% field_text "telegram_caption" "Photo caption" "Available variables: %hostname, %datetime" %>
+<p class="label">Attachment</p>
+<% field_switch "telegram_attach_snapshot" "Attach snapshot" %>
+<% field_switch "telegram_attach_video" "Attach video" %>
 </div>
 </div>
 <% button_submit %>

@@ -2,7 +2,7 @@
 
 plugin="dusk2dawn"
 
-. /sbin/common-plugins
+. /sbin/common
 
 API_URL="https://api.sunrise-sunset.org/json"
 CRONTABS=/etc/cron/crontabs/root

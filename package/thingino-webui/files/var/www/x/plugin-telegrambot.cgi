@@ -24,17 +24,15 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	if [ -z "$error" ]; then
 		tmp_file=$(mktemp -u)
+		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
 		for p in $params; do
-			echo "telegrambot_$p=\"$(eval echo \$telegrambot_$p)\"" >>$tmp_file
+			sed -i -r "/^telegrambot_$p=/d" "$tmp_file"
+			echo "telegrambot_$p=\"$(eval echo \$telegrambot_$p)\"" >> "$tmp_file"
 		done
-		unset p
 		mv $tmp_file $config_file
 
-		update_caminfo
 		/etc/init.d/S93telegrambot restart >/dev/null
-		redirect_back "success" "$plugin_name config updated."
 	fi
-
 	redirect_to $SCRIPT_NAME
 fi
 

@@ -6,6 +6,7 @@ tools_action="sysupgrade"
 tools_upgrade_option="-p"
 ota_upgrade_option="Partial"
 tools_upgrade_option="Partial"
+mtdblock_partition="mtd0"
 
 if [ "$REQUEST_METHOD" = "POST" ]; then
     if [ -n "$HASERL_firmware_path" ]; then

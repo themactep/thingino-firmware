@@ -84,7 +84,8 @@ Please note, there is no audio on this page. Open the RTSP stream in a player to
 <script>
 <%
 for i in email ftp mqtt telegram webhook yadisk; do
-	[ "true" = $(eval echo \$${i}_enabled) ] && continue
+	continue
+#	[ "true" = $(eval echo \$${i}_enabled) ] && continue
 %>
 {
 	let a = document.createElement('a')

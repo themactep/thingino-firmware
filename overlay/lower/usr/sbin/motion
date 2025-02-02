@@ -2,7 +2,7 @@
 
 plugin="motion"
 
-. /sbin/common-plugins
+. /sbin/common
 singleton
 
 MOTION_ALARM="/run/motion/motion_alarm"
@@ -16,13 +16,13 @@ start() {
 
 	touch $MOTION_ALARM
 
-	[ "true" = "$motion_send2email"    ] && send2email
-	[ "true" = "$motion_send2ftp"      ] && send2ftp
-	[ "true" = "$motion_send2mqtt"     ] && send2mqtt
-	[ "true" = "$motion_send2telegram" ] && send2telegram motion
-	[ "true" = "$motion_send2webhook"  ] && send2webhook
-	[ "true" = "$motion_send2yadisk"   ] && send2yadisk
-	[ "true" = "$motion_playonspeaker" ] && playonspeaker
+	[ "true" = "$motion_send2email"    ] && send2email &
+	[ "true" = "$motion_send2ftp"      ] && send2ftp &
+	[ "true" = "$motion_send2mqtt"     ] && send2mqtt &
+	[ "true" = "$motion_send2telegram" ] && send2telegram motion &
+	[ "true" = "$motion_send2webhook"  ] && send2webhook &
+	[ "true" = "$motion_send2yadisk"   ] && send2yadisk &
+	[ "true" = "$motion_playonspeaker" ] && playonspeaker &
 }
 
 stop() {
