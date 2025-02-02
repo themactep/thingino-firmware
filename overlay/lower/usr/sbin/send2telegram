@@ -56,14 +56,14 @@ parse_caption() {
 
 copy_photo() {
 	[ -f "$SNAPSHOT_FILE" ] || die "Snapshot not found"
-	photo2=$(mktemp -u)
+	photo2=$(mktemp -u).jpg
 	cp "$SNAPSHOT_FILE" "$photo2"
 	garbage="$garbage $photo2"
 }
 
 copy_video() {
 	[ -f "$VBUFFER_FILE" ] || die "Video buffer not found"
-	video2=$(mktemp -u)
+	video2=$(mktemp -u).mov
 	cp "$VBUFFER_FILE" "$video2"
 	garbage="$garbage $video2"
 }
