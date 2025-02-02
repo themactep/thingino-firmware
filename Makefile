@@ -205,34 +205,9 @@ build_fast: $(UB_ENV_FINAL_TXT)
 FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(MODULE_CONFIG_REAL))
 
 # Configure buildroot for a particular board
-defconfig: buildroot/Makefile
+defconfig: buildroot/Makefile $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
 	@$(FIGLET) $(CAMERA)
-	# create output directory
-	$(info * make OUTPUT_DIR $(OUTPUT_DIR))
-	mkdir -p $(OUTPUT_DIR)
-	# delete older config
-	$(info * remove existing .config file)
-	rm -rvf $(OUTPUT_DIR)/.config
-	# gather fragments of a new config
-	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(MODULE_CONFIG_REAL))
-	for i in $(FRAGMENTS); do \
-		echo "** add configs/fragments/$$i.fragment"; \
-		cat configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
-		echo >>$(OUTPUT_DIR)/.config; \
-	done
-	# add module configuration
-	cat $(MODULE_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
-ifneq ($(CAMERA_CONFIG_REAL),$(MODULE_CONFIG_REAL))
-	# add camera configuration
-	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
-endif
-	@if [ $(RELEASE) -eq 1 ]; then $(FIGLET) "RELEASE"; else $(FIGLET) "DEVELOPMENT"; fi
-	if [ $(RELEASE) -ne 1 ] && [ -f local.fragment ]; then cat local.fragment >>$(OUTPUT_DIR)/.config; fi
-	if [ $(RELEASE) -ne 1 ] && [ -f $(BR2_EXTERNAL)/local.mk ]; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
-	if [ ! -L $(OUTPUT_DIR)/thingino ]; then ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; fi
-	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 
 select-device:
 	$(info -------------------------------- $@)
@@ -360,9 +335,31 @@ $(OUTPUT_DIR)/.keep:
 	touch $@
 
 # configure buildroot for a particular board
-$(OUTPUT_DIR)/.config: $(OUTPUT_DIR)/.keep defconfig
+$(OUTPUT_DIR)/.config: $(OUTPUT_DIR)/.keep
 	$(info -------------------------------- $@)
 	$(FIGLET) "$(BOARD)"
+	# delete older config
+	$(info * remove existing .config file)
+	rm -rvf $(OUTPUT_DIR)/.config
+	# gather fragments of a new config
+	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(MODULE_CONFIG_REAL))
+	for i in $(FRAGMENTS); do \
+		echo "** add configs/fragments/$$i.fragment"; \
+		cat configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
+		echo >>$(OUTPUT_DIR)/.config; \
+	done
+	# add module configuration
+	cat $(MODULE_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+ifneq ($(CAMERA_CONFIG_REAL),$(MODULE_CONFIG_REAL))
+	# add camera configuration
+	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+endif
+	@if [ $(RELEASE) -eq 1 ]; then $(FIGLET) "RELEASE"; else $(FIGLET) "DEVELOPMENT"; fi
+	if [ $(RELEASE) -ne 1 ] && [ -f local.fragment ]; then cat local.fragment >>$(OUTPUT_DIR)/.config; fi
+	if [ $(RELEASE) -ne 1 ] && [ -f $(BR2_EXTERNAL)/local.mk ]; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
+	if [ ! -L $(OUTPUT_DIR)/thingino ]; then ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; fi
+	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 
 $(UB_ENV_FINAL_TXT): $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
