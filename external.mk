@@ -300,25 +300,33 @@ export SOC_RAM
 #
 
 # default to older kernel if none set
-ifneq ($(KERNEL_VERSION_3)$(KERNEL_VERSION_4),y)
-	ifeq ($(BR2_SOC_INGENIC_T40),y)
+ifeq ($(KERNEL_VERSION_3),y)
+$(info Kernel version set to 3)
+else ifeq ($(KERNEL_VERSION_4),y)
+$(info Kernel version set to 4)
+else
+$(info No kernel version set, determining from SOC)
+	ifeq ($(BR2_SOC_INGENIC_T41),y)
+		$(info SOC is T41, setting kernel to 4)
 		KERNEL_VERSION_4 := y
-	else ifeq ($(BR2_SOC_INGENIC_T41),y)
+	else ifeq ($(BR2_SOC_INGENIC_T40),y)
+		$(info SOC is T40, setting kernel to 4)
 		KERNEL_VERSION_4 := y
 	else
+		$(info SOC is not T4x, setting kernel to 3)
 		KERNEL_VERSION_3 := y
 	endif
 endif
 
 ifeq ($(BR2_SOC_INGENIC_T41),y)
 	ifeq ($(KERNEL_VERSION_3),y)
-	KERNEL_VERSION := 3.10
-	KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
-	KERNEL_BRANCH := ingenic-t41-3.10.14
+		KERNEL_VERSION := 3.10
+		KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+		KERNEL_BRANCH := ingenic-t41-3.10.14
 	else
-	KERNEL_VERSION := 4.4
-	KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
-	KERNEL_BRANCH := ingenic-t41-4.4.94
+		KERNEL_VERSION := 4.4
+		KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+		KERNEL_BRANCH := ingenic-t41-4.4.94
 	endif
 else ifeq ($(BR2_SOC_INGENIC_T40),y)
 	KERNEL_VERSION := 4.4
@@ -354,6 +362,8 @@ export KERNEL_HASH
 export KERNEL_SITE
 export KERNEL_TARBALL_URL
 export KERNEL_VERSION
+export KERNEL_VERSION_3
+export KERNEL_VERSION_4
 
 #
 # IMAGE SENSOR
