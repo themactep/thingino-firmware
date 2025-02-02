@@ -59,8 +59,8 @@ STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
 # handle the board
 include $(BR2_EXTERNAL)/board.mk
 
-# include device tree makefile
-include $(BR2_EXTERNAL)/external.mk
+# include thingino makefile
+include $(BR2_EXTERNAL)/thingino.mk
 
 # hardcoded variables
 WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=5
