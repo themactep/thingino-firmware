@@ -876,8 +876,3 @@ export BR2_THINGINO_DEVICE_TYPE_IPCAM
 export BR2_THINGINO_DEVICE_TYPE_IPCAM_PAN_TILT
 export BR2_THINGINO_DEVICE_TYPE_IPCAM_PAN_TILT_ZOOM
 export BR2_THINGINO_DEVICE_TYPE_WEBCAM
-
-ifneq ($(BR2_SOC_INGENIC_DUMMY),y)
-# include makefiles from packages
-include $(sort $(wildcard $(BR2_EXTERNAL)/package/*/*.mk))
-endif

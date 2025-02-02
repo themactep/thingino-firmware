@@ -45,3 +45,8 @@ $(info SDK_LIBC_VERSION: $(SDK_LIBC_VERSION))
 $(info BR2_LIBC_NAME: $(BR2_LIBC_NAME))
 
 $(info Building using $(BR2_LIBC_NAME) with $(SDK_LIBC_NAME) libs for GCC $(SDK_LIBC_VERSION) toolchain from $(SDK_VERSION) SDK)
+
+ifneq ($(BR2_SOC_INGENIC_DUMMY),y)
+# include makefiles from packages
+include $(sort $(wildcard $(BR2_EXTERNAL)/package/*/*.mk))
+endif
