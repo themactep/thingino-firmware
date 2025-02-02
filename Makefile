@@ -59,8 +59,8 @@ STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
 # handle the board
 include $(BR2_EXTERNAL)/board.mk
 
-# include device tree makefile
-include $(BR2_EXTERNAL)/external.mk
+# include thingino makefile
+include $(BR2_EXTERNAL)/thingino.mk
 
 # hardcoded variables
 WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=5
@@ -75,6 +75,7 @@ SIZE_32M := 33554432
 SIZE_16M := 16777216
 SIZE_8M := 8388608
 SIZE_256K := 262144
+SIZE_192K := 196608
 SIZE_128K := 131072
 SIZE_64K := 65536
 SIZE_32K := 32768
@@ -95,11 +96,12 @@ endif
 UB_ENV_FINAL_TXT = $(OUTPUT_DIR)/uenv.txt
 export UB_ENV_FINAL_TXT
 
+UB_ENV_BIN = $(OUTPUT_DIR)/images/u-boot-env.bin
 CONFIG_BIN := $(OUTPUT_DIR)/images/config.ext2
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
-OVERLAY_BIN := $(OUTPUT_DIR)/images/overlay.jffs2
+OVERLY_BIN := $(OUTPUT_DIR)/images/overlay.jffs2
 
 # create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
 FIRMWARE_NAME_FULL = thingino-$(CAMERA).bin
@@ -110,35 +112,36 @@ FIRMWARE_BIN_NOBOOT := $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_NOBOOT)
 
 # file sizes
 U_BOOT_BIN_SIZE = $(shell stat -c%s $(U_BOOT_BIN))
+UB_ENV_BIN_SIZE = $(shell stat -c%s $(UB_ENV_BIN))
+CONFIG_BIN_SIZE = $(shell stat -c%s $(CONFIG_BIN))
 KERNEL_BIN_SIZE = $(shell stat -c%s $(KERNEL_BIN))
 ROOTFS_BIN_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
-CONFIG_BIN_SIZE = $(shell stat -c%s $(CONFIG_BIN))
-OVERLAY_BIN_SIZE = $(shell stat -c%s $(OVERLAY_BIN))
+OVERLY_BIN_SIZE = $(shell stat -c%s $(OVERLY_BIN))
 
 FIRMWARE_BIN_FULL_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_FULL))
 FIRMWARE_BIN_NOBOOT_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_NOBOOT))
 
 U_BOOT_BIN_SIZE_ALIGNED = $(shell echo $$((($(U_BOOT_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
+UB_ENV_BIN_SIZE_ALIGNED = $(shell echo $$((($(UB_ENV_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 CONFIG_BIN_SIZE_ALIGNED = $(shell echo $$((($(CONFIG_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 KERNEL_BIN_SIZE_ALIGNED = $(shell echo $$((($(KERNEL_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 ROOTFS_BIN_SIZE_ALIGNED = $(shell echo $$((($(ROOTFS_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
-OVERLAY_BIN_SIZE_ALIGNED = $(shell echo $$((($(OVERLAY_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
+OVERLY_BIN_SIZE_ALIGNED = $(shell echo $$((($(OVERLY_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 
 # fixed size partitions
-U_BOOT_PARTITION_SIZE := $(SIZE_256K)
+U_BOOT_PARTITION_SIZE := $(SIZE_192K)
 UB_ENV_PARTITION_SIZE := $(SIZE_64K)
 CONFIG_PARTITION_SIZE := $(SIZE_64K)
 KERNEL_PARTITION_SIZE = $(KERNEL_BIN_SIZE_ALIGNED)
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
 
 FIRMWARE_FULL_SIZE = $(FLASH_SIZE)
-FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE) - $(UB_ENV_PARTITION_SIZE))))
+FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE) - $(UB_ENV_PARTITION_SIZE) - $(CONFIG_PARTITION_SIZE))))
 
 # dynamic partitions
-OVERLAY_PARTITION_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(OVERLAY_OFFSET))))
-OVERLAY_PARTITION_SIZE_NOBOOT = $(shell echo $$(($(FIRMWARE_NOBOOT_SIZE) - $(OVERLAY_OFFSET_NOBOOT))))
-OVERLAY_ERASEBLOCK_SIZE := $(shell echo $$(($(ALIGN_BLOCK) * 1)))
-OVERLAY_LLIMIT := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
+OVERLY_PARTITION_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(OVERLY_OFFSET))))
+OVERLY_ERASEBLOCK_SIZE := $(shell echo $$(($(ALIGN_BLOCK) * 1)))
+OVERLY_LLIMIT := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
 
 # partition offsets
 U_BOOT_OFFSET := 0
@@ -147,10 +150,10 @@ CONFIG_OFFSET = $(shell echo $$(($(UB_ENV_OFFSET) + $(UB_ENV_PARTITION_SIZE))))
 KERNEL_OFFSET = $(shell echo $$(($(CONFIG_OFFSET) + $(CONFIG_PARTITION_SIZE))))
 #KERNEL_OFFSET = $(shell echo $$(($(UB_ENV_OFFSET) + $(UB_ENV_PARTITION_SIZE))))
 ROOTFS_OFFSET = $(shell echo $$(($(KERNEL_OFFSET) + $(KERNEL_PARTITION_SIZE))))
-OVERLAY_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
+OVERLY_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
 
 # special case with no uboot nor env
-OVERLAY_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PARTITION_SIZE))))
+OVERLY_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PARTITION_SIZE))))
 
 # repo data
 GIT_BRANCH="$(shell git branch | grep '^*' | awk '{print $$2}')"
@@ -163,9 +166,8 @@ RELEASE = 0
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
 
-.PHONY: all bootstrap build build_fast clean cleanbuild \
-	defconfig distclean fast help pack release sdk \
-	toolchain update upboot-ota upload_tftp upgrade_ota br-%
+.PHONY: all bootstrap build build_fast clean cleanbuild defconfig distclean fast \
+	help pack release sdk toolchain update upboot-ota upload_tftp upgrade_ota br-%
 
 all: defconfig build pack
 	$(info -------------------------------- $@)
@@ -205,34 +207,9 @@ build_fast: $(UB_ENV_FINAL_TXT)
 FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(MODULE_CONFIG_REAL))
 
 # Configure buildroot for a particular board
-defconfig: buildroot/Makefile
+defconfig: buildroot/Makefile $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
 	@$(FIGLET) $(CAMERA)
-	# create output directory
-	$(info * make OUTPUT_DIR $(OUTPUT_DIR))
-	mkdir -p $(OUTPUT_DIR)
-	# delete older config
-	$(info * remove existing .config file)
-	rm -rvf $(OUTPUT_DIR)/.config
-	# gather fragments of a new config
-	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(MODULE_CONFIG_REAL))
-	for i in $(FRAGMENTS); do \
-		echo "** add configs/fragments/$$i.fragment"; \
-		cat configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
-		echo >>$(OUTPUT_DIR)/.config; \
-	done
-	# add module configuration
-	cat $(MODULE_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
-ifneq ($(CAMERA_CONFIG_REAL),$(MODULE_CONFIG_REAL))
-	# add camera configuration
-	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
-endif
-	@if [ $(RELEASE) -eq 1 ]; then $(FIGLET) "RELEASE"; else $(FIGLET) "DEVELOPMENT"; fi
-	if [ $(RELEASE) -ne 1 ] && [ -f local.fragment ]; then cat local.fragment >>$(OUTPUT_DIR)/.config; fi
-	if [ $(RELEASE) -ne 1 ] && [ -f $(BR2_EXTERNAL)/local.mk ]; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
-	if [ ! -L $(OUTPUT_DIR)/thingino ]; then ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; fi
-	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 
 select-device:
 	$(info -------------------------------- $@)
@@ -269,16 +246,20 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	@$(FIGLET) $(CAMERA)
 	$(info ALIGNMENT: $(ALIGN_BLOCK))
 	$(info  )
-	$(info $(shell printf "%-10s | %8s | %9s | %9s |" PARTITION SIZE OFFSET END))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" U_BOOT $(U_BOOT_BIN_SIZE) $(U_BOOT_OFFSET) $$(($(U_BOOT_OFFSET) + $(U_BOOT_BIN_SIZE)))))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" KERNEL $(KERNEL_BIN_SIZE) $(KERNEL_OFFSET) $$(($(KERNEL_OFFSET) + $(KERNEL_BIN_SIZE)))))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" ROOTFS $(ROOTFS_BIN_SIZE) $(ROOTFS_OFFSET) $$(($(ROOTFS_OFFSET) + $(ROOTFS_BIN_SIZE)))))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" OVERLAY $(OVERLAY_BIN_SIZE) $(OVERLAY_OFFSET) $$(($(OVERLAY_OFFSET) + $(OVERLAY_BIN_SIZE)))))
+	$(info $(shell printf "%-7s | %8s | %8s | %8s | %8s | %8s | %8s |" NAME OFFSET PT_SIZE CONTENT ALIGNED END LOSS))
+	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" U_BOOT $(U_BOOT_OFFSET) $(U_BOOT_PARTITION_SIZE) $(U_BOOT_BIN_SIZE) $(U_BOOT_BIN_SIZE_ALIGNED) $$(($(U_BOOT_OFFSET) + $(U_BOOT_BIN_SIZE_ALIGNED))) $$(($(U_BOOT_PARTITION_SIZE) - $(U_BOOT_BIN_SIZE_ALIGNED))) ))
+	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" UB_ENV $(UB_ENV_OFFSET) $(UB_ENV_PARTITION_SIZE) $(UB_ENV_BIN_SIZE) $(UB_ENV_BIN_SIZE_ALIGNED) $$(($(UB_ENV_OFFSET) + $(UB_ENV_BIN_SIZE_ALIGNED))) $$(($(UB_ENV_PARTITION_SIZE) - $(UB_ENV_BIN_SIZE_ALIGNED))) ))
+	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" CONFIG $(CONFIG_OFFSET) $(CONFIG_PARTITION_SIZE) $(CONFIG_BIN_SIZE) $(CONFIG_BIN_SIZE_ALIGNED) $$(($(CONFIG_OFFSET) + $(CONFIG_BIN_SIZE_ALIGNED))) $$(($(CONFIG_PARTITION_SIZE) - $(CONFIG_BIN_SIZE_ALIGNED))) ))
+	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" KERNEL $(KERNEL_OFFSET) $(KERNEL_PARTITION_SIZE) $(KERNEL_BIN_SIZE) $(KERNEL_PARTITION_SIZE) $$(($(KERNEL_OFFSET) + $(KERNEL_PARTITION_SIZE))) $$(($(KERNEL_PARTITION_SIZE) - $(KERNEL_PARTITION_SIZE))) ))
+	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" ROOTFS $(ROOTFS_OFFSET) $(ROOTFS_PARTITION_SIZE) $(ROOTFS_BIN_SIZE) $(ROOTFS_PARTITION_SIZE) $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))) $$(($(ROOTFS_PARTITION_SIZE) - $(ROOTFS_PARTITION_SIZE))) ))
+	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" OVERLAY $(OVERLY_OFFSET) $(OVERLY_PARTITION_SIZE) $(OVERLY_BIN_SIZE) $(OVERLY_BIN_SIZE_ALIGNED) $$(($(OVERLY_OFFSET) + $(OVERLY_BIN_SIZE_ALIGNED))) $$(($(OVERLY_PARTITION_SIZE) - $(OVERLY_BIN_SIZE_ALIGNED))) ))
 	$(info  )
-	$(info $(shell printf "%-10s | %8s | %9s | %9s |" PARTITION SIZE OFFSET END))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" KERNEL $(KERNEL_BIN_SIZE) $(KERNEL_OFFSET) $$(($(KERNEL_OFFSET) + $(KERNEL_BIN_SIZE)))))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" ROOTFS $(ROOTFS_BIN_SIZE) $(ROOTFS_OFFSET) $$(($(ROOTFS_OFFSET) + $(ROOTFS_BIN_SIZE)))))
-	$(info $(shell printf "%-10s | %8d | 0x%07X | 0x%07X |" OVERLAY $(OVERLAY_BIN_SIZE) $(OVERLAY_OFFSET) $$(($(OVERLAY_OFFSET) + $(OVERLAY_BIN_SIZE)))))
+	$(info $(shell printf "%-7s | %8s | %8s | %8s | %8s | %8s | %8s |" NAME OFFSET PT_SIZE CONTENT ALIGNED END LOSS))
+	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" U_BOOT $(U_BOOT_OFFSET) $(U_BOOT_PARTITION_SIZE) $(U_BOOT_BIN_SIZE) $(U_BOOT_BIN_SIZE_ALIGNED) $$(($(U_BOOT_OFFSET) + $(U_BOOT_BIN_SIZE_ALIGNED))) $$(($(U_BOOT_PARTITION_SIZE) - $(U_BOOT_BIN_SIZE_ALIGNED))) ))
+	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" ENV $(UB_ENV_OFFSET) $(UB_ENV_PARTITION_SIZE) $(UB_ENV_BIN_SIZE) $(UB_ENV_BIN_SIZE_ALIGNED) $$(($(UB_ENV_OFFSET) + $(UB_ENV_BIN_SIZE_ALIGNED))) $$(($(UB_ENV_PARTITION_SIZE) - $(UB_ENV_BIN_SIZE_ALIGNED))) ))
+	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" KERNEL $(KERNEL_OFFSET) $(KERNEL_PARTITION_SIZE) $(KERNEL_BIN_SIZE) $(KERNEL_PARTITION_SIZE) $$(($(KERNEL_OFFSET) + $(KERNEL_PARTITION_SIZE))) $$(($(KERNEL_PARTITION_SIZE) - $(KERNEL_PARTITION_SIZE))) ))
+	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" ROOTFS $(ROOTFS_OFFSET) $(ROOTFS_PARTITION_SIZE) $(ROOTFS_BIN_SIZE) $(ROOTFS_PARTITION_SIZE) $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))) $$(($(ROOTFS_PARTITION_SIZE) - $(ROOTFS_PARTITION_SIZE))) ))
+	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" OVERLAY $(OVERLY_OFFSET) $(OVERLY_PARTITION_SIZE) $(OVERLY_BIN_SIZE) $(OVERLY_BIN_SIZE_ALIGNED) $$(($(OVERLY_OFFSET) + $(OVERLY_BIN_SIZE_ALIGNED))) $$(($(OVERLY_PARTITION_SIZE) - $(OVERLY_BIN_SIZE_ALIGNED))) ))
 	$(info  )
 
 	if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FIRMWARE_FULL_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
@@ -360,9 +341,31 @@ $(OUTPUT_DIR)/.keep:
 	touch $@
 
 # configure buildroot for a particular board
-$(OUTPUT_DIR)/.config: $(OUTPUT_DIR)/.keep defconfig
+$(OUTPUT_DIR)/.config: $(OUTPUT_DIR)/.keep
 	$(info -------------------------------- $@)
 	$(FIGLET) "$(BOARD)"
+	# delete older config
+	$(info * remove existing .config file)
+	rm -rvf $(OUTPUT_DIR)/.config
+	# gather fragments of a new config
+	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(MODULE_CONFIG_REAL))
+	for i in $(FRAGMENTS); do \
+		echo "** add configs/fragments/$$i.fragment"; \
+		cat configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
+		echo >>$(OUTPUT_DIR)/.config; \
+	done
+	# add module configuration
+	cat $(MODULE_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+ifneq ($(CAMERA_CONFIG_REAL),$(MODULE_CONFIG_REAL))
+	# add camera configuration
+	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+endif
+	@if [ $(RELEASE) -eq 1 ]; then $(FIGLET) "RELEASE"; else $(FIGLET) "DEVELOPMENT"; fi
+	if [ $(RELEASE) -ne 1 ] && [ -f local.fragment ]; then cat local.fragment >>$(OUTPUT_DIR)/.config; fi
+	if [ $(RELEASE) -ne 1 ] && [ -f $(BR2_EXTERNAL)/local.mk ]; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
+	if [ ! -L $(OUTPUT_DIR)/thingino ]; then ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; fi
+	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 
 $(UB_ENV_FINAL_TXT): $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
@@ -375,23 +378,28 @@ $(UB_ENV_FINAL_TXT): $(OUTPUT_DIR)/.config
 	sort -u -o $@ $@
 	sed -i '/^\s*$$/d' $@
 
-$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
+$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLY_BIN)
 	$(info -------------------------------- $@)
 	dd if=/dev/zero bs=$(SIZE_8M) skip=0 count=1 status=none | tr '\000' '\377' > $@
 	dd if=$(U_BOOT_BIN) bs=$(U_BOOT_BIN_SIZE) seek=$(U_BOOT_OFFSET)B count=1 of=$@ conv=notrunc status=none
+	dd if=$(CONFIG_BIN) bs=$(CONFIG_BIN_SIZE) seek=$(CONFIG_OFFSET)B count=1 of=$@ conv=notrunc status=none
 	dd if=$(KERNEL_BIN) bs=$(KERNEL_BIN_SIZE) seek=$(KERNEL_OFFSET)B count=1 of=$@ conv=notrunc status=none
 	dd if=$(ROOTFS_BIN) bs=$(ROOTFS_BIN_SIZE) seek=$(ROOTFS_OFFSET)B count=1 of=$@ conv=notrunc status=none
-	dd if=$(OVERLAY_BIN) bs=$(OVERLAY_BIN_SIZE) seek=$(OVERLAY_OFFSET)B count=1 of=$@ conv=notrunc status=none
+	dd if=$(OVERLY_BIN) bs=$(OVERLY_BIN_SIZE) seek=$(OVERLY_OFFSET)B count=1 of=$@ conv=notrunc status=none
 
-$(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLAY_BIN)
+$(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLY_BIN)
 	$(info -------------------------------- $@)
 	dd if=/dev/zero bs=$(FIRMWARE_NOBOOT_SIZE) skip=0 count=1 status=none | tr '\000' '\377' > $@
 	dd if=$(KERNEL_BIN) bs=$(KERNEL_BIN_SIZE) seek=0 count=1 of=$@ conv=notrunc status=none
 	dd if=$(ROOTFS_BIN) bs=$(ROOTFS_BIN_SIZE) seek=$(KERNEL_PARTITION_SIZE)B count=1 of=$@ conv=notrunc status=none
-	dd if=$(OVERLAY_BIN) bs=$(OVERLAY_BIN_SIZE) seek=$(OVERLAY_OFFSET_NOBOOT)B count=1 of=$@ conv=notrunc status=none
+	dd if=$(OVERLY_BIN) bs=$(OVERLY_BIN_SIZE) seek=$(OVERLY_OFFSET_NOBOOT)B count=1 of=$@ conv=notrunc status=none
 
 $(U_BOOT_BIN):
 	$(info -------------------------------- $@)
+
+$(UB_ENV_BIN):
+	$(info -------------------------------- $@)
+	$(OUTPUT_DIR)/host/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(UB_ENV_FINAL_TXT)
 
 # create config partition image
 $(CONFIG_BIN):
@@ -418,15 +426,15 @@ $(ROOTFS_TAR):
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) all
 
-$(OVERLAY_BIN): $(U_BOOT_BIN)
+$(OVERLY_BIN): $(U_BOOT_BIN)
 	$(info -------------------------------- $@)
-	if [ $(OVERLAY_PARTITION_SIZE) -lt $(OVERLAY_LLIMIT) ]; then $(FIGLET) "OVERLAY IS TOO SMALL"; fi
-	if [ -f $(OVERLAY_BIN) ]; then rm $(OVERLAY_BIN); fi
+	if [ $(OVERLY_PARTITION_SIZE) -lt $(OVERLY_LLIMIT) ]; then $(FIGLET) "OVERLAY IS TOO SMALL"; fi
+	if [ -f $(OVERLY_BIN) ]; then rm $(OVERLY_BIN); fi
 	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --squash \
 		--root=$(BR2_EXTERNAL)/overlay/upper/ \
-		--output=$(OVERLAY_BIN) \
-		--pad=$(OVERLAY_PARTITION_SIZE) \
-		--eraseblock=$(OVERLAY_ERASEBLOCK_SIZE)
+		--output=$(OVERLY_BIN) \
+		--pad=$(OVERLY_PARTITION_SIZE) \
+		--eraseblock=$(OVERLY_ERASEBLOCK_SIZE)
        #	--pagesize=$(ALIGN_BLOCK)
 
 help:
@@ -434,6 +442,7 @@ help:
 	@echo "\n\
 	Usage:\n\
 	  make bootstrap      install system deps\n\
+	  make update         update local repo from GitHub\n\
 	  make                build and pack everything\n\
 	  make build          build kernel and rootfs\n\
 	  make cleanbuild     build everything from scratch, fast\n\

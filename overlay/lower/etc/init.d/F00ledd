@@ -5,7 +5,6 @@ DAEMON_ARGS="0.05 $LINK_FILE"
 
 . /etc/init.d/rc.common
 
-
 start() {
 	starting
 	start_daemon
