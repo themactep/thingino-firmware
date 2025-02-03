@@ -8,6 +8,11 @@ ROOTFS_MAGIC="68737173"
 GITHUB_URL="https://github.com"
 PAD="\t\t\t    "
 
+SIZE_64K=65536
+SIZE_256K=262144
+SIZE_320K=327680
+SIZE_384K=393216
+
 workdir="/tmp/sysupgrade"
 stage1app="sysupgrade"
 stage2app="sysupgrade-stage2"
@@ -22,7 +27,12 @@ bye() {
 	die "\n\n\tMaybe next time..."
 }
 
+report_size() {
+	printf "%-20s %8d\n" "$1" $2
+}
+
 check_network() {
+	echo "Check connection to $url"
 	curl -m 5 -I $1 >/dev/null 2>&1 && return
 	red "No internet?\n"
 	ip a
@@ -30,19 +40,53 @@ check_network() {
 }
 
 check_free_space() {
-	local dl_size flash_size free_space offset
+	local dl_size dl_size_offsetted flash_size free_space offset
+
 	dl_size=$(curl -sIL $1 | awk '/Content-Length/{fs=$2}END{print fs}')
-	free_space=$(df -m /tmp | tail -1 | awk '{print $4}')
-	flash_size=$((0x$(awk '/^mtd6/{print $2}' /proc/mtd)))
+	[ -z "$dl_size" ] && die "Cannot get remote file size"
+	[ "$dl_size" -le 0 ] && die "Remote file size is zero"
+	report_size "Remote file size" $dl_size
+
 	offset="${2:-0}"
-	dl_size=$((dl_size - offset))
-	free_space=$((free_space * 1024 * 1024))
-	[ "$dl_size" -gt "$free_space" ] && die "Not enough free space to download firmware: $dl_size > $free_space"
-	[ "$dl_size" -gt "$flash_size" ] && die "Firmware is larger than flash chip: $dl_size > $flash_size"
+	report_size "Remote file offset" $offset
+	[ "$dl_size" -le $offset ] && die "Remote file size is less than offset"
+
+	flash_size=$(full_upgrade_partition_size)
+	[ "$dl_size" -gt $flash_size ] && die "Firmware is larger than flash chip: $dl_size > $flash_size"
+	report_size "Full flash size" $flash_size
+
+	free_space=$(available_free_space)
+	report_size "Available space" $free_space
+
+	dl_size_offsetted=$((dl_size - offset))
+	report_size "Download size" $dl_size_offsetted
+
+	[ "$dl_size_offsetted" -gt $free_space ] && die "Not enough free space to download firmware"
+}
+
+available_free_space() {
+	echo $(($(df -m /tmp | awk 'NR==2{print $4}') * 1024 * 1024))
+}
+
+full_upgrade_partition_name() {
+	awk -F: '/"all"$/{print $1}' /proc/mtd
+}
+
+full_upgrade_partition_size() {
+	echo $(($(awk '/"all"$/{print "0x" $2}' /proc/mtd)))
+}
+
+partial_upgrade_partition_name() {
+	awk -F: '/"upgrade"$/{print $1}' /proc/mtd
+}
+
+partial_upgrade_partition_size() {
+	echo $(($(awk '/"upgrade"$/{print "0x" $2}' /proc/mtd)))
 }
 
 check_upgrade_partitions() {
-	grep -q "mtd[56]" /proc/mtd || die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
+	grep -q '"all"' /proc/mtd || \
+		die "Please run 'fw_setenv enable_updates true' then reboot the camera. Re-run upgrade after reboot."
 }
 
 cleanup() {
@@ -71,9 +115,7 @@ die() {
 download() {
 	local file="$2"
 	[ -z "$file" ] && file="$fw_file"
-	if ! curl -fL# --url "$1" -o "$file" $3; then
-		return 1  # Return an error code instead of exiting
-	fi
+	curl -fL# --url "$1" -o "$file" $3 || return 1
 }
 
 expand_bb() {
@@ -88,7 +130,7 @@ extract_bootloader() {
 
 handle_payload() {
 	if [ "local" = "$upgrade" ]; then
-		say "Upgrading from a provided file"
+		say "Upgrade from a provided file"
 		if echo "$1" | grep -qE '^https?://'; then
 			say "Download firmware from\n$1"
 			check_free_space $1
@@ -97,7 +139,7 @@ handle_payload() {
 			[ -f "$fw_file" ] || die "Cannot find $fw_file"
 		fi
 	else
-		say "Upgrading from GitHub"
+		say "Upgrade from GitHub"
 		data=/etc/os-release
 		profile=$(awk -F= '/^IMAGE_ID=/ {print $2}' $data)
 		[ -z "$profile" ] && die "Building profile is not set in $data"
@@ -111,7 +153,11 @@ handle_payload() {
 		fi
 		bin_url="$gh_url/thingino-$profile.bin"
 		if [ "part" = "$upgrade" ]; then
-			offset=327680
+			case "$(partial_upgrade_partition_name)" in
+				mtd5) offset=$SIZE_320K ;;
+				mtd6) offset=$SIZE_384K ;;
+				*) die "Unknown partial upgrade partition name" ;;
+			esac
 			bin_file="thingino-$profile-update.bin"
 		else
 			offset=0
@@ -122,17 +168,19 @@ handle_payload() {
 
 		check_free_space $bin_url $offset
 
-		#\n- $bin_url\n- $sha_url"
-		say "Downloading firmware from:\n$bin_url"
+		say "Download firmware from $bin_url"
 		download "$bin_url" "$bin_file" "-C $offset" || die "Cannot download firmware from specified URL."
-		say "Downloading checksum from:\n$sha_url"
+		say "Download checksum from $sha_url"
 		download "$sha_url" "$sha_file" || die "Cannot download checksum file."
 
-		say "Verifying downloaded file"
+		say "Verify downloaded file"
 		sed -i '/^#/d' $sha_file
 		sha256sum -c $sha_file || die "Checksum does not match!"
 
-		rm $sha_file
+		say "Clean up"
+		rm -v $sha_file
+
+		say "Relocate downloaded file"
 		mv -v "$bin_file" "$fw_file" || die "Cannot move $bin_file to $fw_file"
 	fi
 }
@@ -218,7 +266,7 @@ fi
 
 # work in $workdir
 if [ ! -d $workdir ]; then
-	say "Creating $workdir directory"
+	say "Create $workdir directory"
 	mkdir -p $workdir || die "Cannot create $workdir directory"
 fi
 
@@ -246,14 +294,14 @@ cd $workdir || die "Cannot change directory to $workdir"
 
 if [ "$(dirname $self)" != "$workdir" ]; then
 	if [ "true" = "$selfupdate" ]; then
-		say "Updating self"
+		say "Update self"
 		update_self
 	else
 		say "Skip self-update"
 		cp "$self" "$workdir/$stage1app"
 	fi
 
-	say "Re-running script from $workdir"
+	say "Re-run script from $workdir"
 	exec $workdir/$stage1app $ORIGINAL_ARG
 fi
 
@@ -280,11 +328,7 @@ $PAD|____/ |_| \___/|_|
 		echo -n "$i"
 		[ "$i" -gt 0 ] && echo -n " .. "
 		read -t 1 -n 1 keypress
-		if [ $? -eq 0 ]; then
-			if [ "$keypress" = "" ]; then
-				break
-			fi
-		fi
+		[ $? -eq 0 ] && [ "" = "$keypress" ] && break
 		i=$((i-1))
 	done
 	clear
@@ -296,13 +340,6 @@ trap cleanup 2 6 15
 
 handle_payload "$@"
 
-case "$(xxd -l 4 -p $fw_file)" in
-	"$U_BOOT_MAGIC") [ "$(stat -c%s $fw_file)" -le 262144 ] && mtd_dev="mtd0" || mtd_dev="mtd6" ;;
-	"$KERNEL_MAGIC") mtd_dev="mtd5" ;;
-	"$ROOTFS_MAGIC") die "We cannot flash only rootfs" ;;
-	*) die "Unknown file" ;;
-esac
-
 # upgrade bootloader only
 if [ "boot" = "$upgrade" ]; then
 	extract_bootloader "$fw_file"
@@ -310,8 +347,30 @@ if [ "boot" = "$upgrade" ]; then
 	exit 0
 fi
 
+# FIXME: Do we really need that if we have already flashed bootloader above?
+# [ "$(stat -c%s $fw_file)" -le $SIZE_256K ]
+
+case "$(xxd -l 4 -p "$fw_file")" in
+	"$U_BOOT_MAGIC")
+		echo "Bootloader detected"
+	 	mtd_dev=$(full_upgrade_partition_name)
+		part_size=$(full_upgrade_partition_size)
+		;;
+	"$KERNEL_MAGIC")
+		echo "Kernel detected"
+		mtd_dev=$(partial_upgrade_partition_name)
+		part_size=$(partial_upgrade_partition_size)
+		;;
+	"$ROOTFS_MAGIC")
+		echo "RootFS detected"
+		die "We cannot flash only rootfs"
+		;;
+	*)
+		die "Unknown file"
+		;;
+esac
+
 file_size=$(stat -c%s $fw_file)
-part_size="$((0x$(awk "/^$mtd_dev/{print \$2}" /proc/mtd)))"
 [ "$file_size" -gt $part_size ] && \
 	die "File $fw_file ($file_size) is larger than $mtd_dev partition ($part_size)!"
 
@@ -323,7 +382,7 @@ clone_app /bin/busybox
 clone_app /sbin/$stage2app
 for a in $bbapplets; do expand_bb $a; done
 
-say "Switching to Stage 2.\n"
+say "Switch to Stage 2.\n"
 if ! PATH="/tmp/sysupgrade" exec $workdir/busybox sh $workdir/$stage2app "$fw_file" "$mtd_dev"; then
 	red "Error: Failed to execute $workdir/$stage2app"
 	cleanup
