@@ -6,6 +6,8 @@ command -v jsonfilter > /dev/null || die "$plugin is not supported on this platf
 . /sbin/common
 singleton
 
+[ -z "$telegrambot_token" ] && exit 0
+
 is_debug_mode && echo_c 208 "Running in debug mode"
 
 API_URL="https://api.telegram.org/bot$telegrambot_token"
