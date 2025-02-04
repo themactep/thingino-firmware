@@ -1,8 +1,6 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="mqtt"
-plugin_name="Send to MQTT"
 page_title="Send to MQTT"
 params="host port client_id username password topic message send_snap snap_topic use_ssl"
 

@@ -11,16 +11,14 @@ fi
 <div class="row g-4 mb-4">
 <div class="col col-12 col-xl-6">
 <% if [ -z "$result" ]; then %>
-<div class="alert alert-warning">
 <p>The button below generates a massive log that needs to be further shared with developers to help them diagnose problems.
 That log may contain sensitive or personal information, so be sure to review the result before sharing the link!</p>
 <p>We use the termbin.com service to share the log. Please review their <a href="https://www.termbin.com/" target="_blank">acceptable use policy</a>.</p>
-<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<p class="boolean form-check"><input type="checkbox" name="iagree" id="iagree" value="true" class="form-check-input">
-<label for="iagree" class="form-label">I've read and understood the information above. I want to proceed.</label></p>
-<p class="mb-0"><input type="submit" class="btn btn-primary" value="Generate the diagnostic log"></p>
+<form action="<%= $SCRIPT_NAME %>" method="post">
+<p><label><input type="checkbox" name="iagree" id="iagree" value="true" class="form-check-input me-1">
+I've read and understood the information above. I want to proceed.</label></p>
+<p><input type="submit" class="btn btn-primary" value="Generate the diagnostic log"></p>
 </form>
-</div>
 <% else %>
 <% if [ "https://" = "${result:0:8}" ]; then %>
 <h3 class="mb-4"><a href="<%= $result %>"><%= $result %></a></h3>

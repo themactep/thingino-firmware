@@ -1,8 +1,6 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="email"
-plugin_name="Send to email"
 page_title="Send to email"
 params="attach_snapshot attach_video from_name from_address insecure_ssl to_name to_address subject body smtp_host smtp_port smtp_username smtp_password smtp_use_ssl"
 

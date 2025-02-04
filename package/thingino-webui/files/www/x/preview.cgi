@@ -89,7 +89,7 @@ for i in email ftp mqtt telegram webhook yadisk; do
 %>
 {
 	let a = document.createElement('a')
-	a.href = 'plugin-send2<%= $i %>.cgi'
+	a.href = 'tool-send2<%= $i %>.cgi'
 	a.classList.add('btn','btn-outline-danger','mb-2')
 	a.title = 'Configure sent2<%= $i%> plugin'
 	a.append($('button[data-sendto=<%= $i %>] img'))

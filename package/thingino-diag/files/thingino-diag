@@ -13,14 +13,10 @@ show_help() {
 }
 
 header() {
-	local border="=============================================="
-	local width=46
-	local text="$1"
-	local text_length=${#text}
-	local padding=$(((width - text_length - 2) / 2))
-	local left_border=${border:0:padding}
-	local right_border=${border:0:(width - padding - text_length - 2)}
-	echo -e "$border\n$left_border $text $right_border\n$border"
+        local len=$((73 - ${#1}))
+        echo -en "\n\n===[ $1 ]"
+        for i in $(seq 1 $len); do echo -n "="; done
+        echo -e "\n\n"
 }
 
 infocat() {

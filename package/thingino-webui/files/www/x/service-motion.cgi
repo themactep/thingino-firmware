@@ -1,9 +1,7 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="motion"
-plugin_name="Motion guard"
-page_title="Motion guard"
+page_title="Motion Guard"
 params="send2email send2ftp send2mqtt send2telegram send2webhook send2yadisk"
 
 config_file="$ui_config_dir/motion.conf"
@@ -18,12 +16,12 @@ include $config_file
 <% field_range "motion_cooldown_time" "Delay between alerts, sec." "5,30,1" %>
 </div>
 <div class="col">
-<% field_checkbox "motion_send2email" "Send to email address" "<a href=\"plugin-send2email.cgi\">Configure sending to email</a>" %>
-<% field_checkbox "motion_send2telegram" "Send to Telegram" "<a href=\"plugin-send2telegram.cgi\">Configure sending to Telegram</a>" %>
-<% field_checkbox "motion_send2mqtt" "Send to MQTT" "<a href=\"plugin-send2mqtt.cgi\">Configure sending to MQTT</a>" %>
-<% field_checkbox "motion_send2webhook" "Send to webhook" "<a href=\"plugin-send2webhook.cgi\">Configure sending to a webhook</a>" %>
-<% field_checkbox "motion_send2ftp" "Upload to FTP" "<a href=\"plugin-send2ftp.cgi\">Configure uploading to FTP</a>" %>
-<% field_checkbox "motion_send2yadisk" "Upload to Yandex Disk" "<a href=\"plugin-send2yadisk.cgi\">Configure sending to Yandex Disk</a>" %>
+<% field_checkbox "motion_send2email" "Send to email address" "<a href=\"tool-send2email.cgi\">Configure sending to email</a>" %>
+<% field_checkbox "motion_send2telegram" "Send to Telegram" "<a href=\"tool-send2telegram.cgi\">Configure sending to Telegram</a>" %>
+<% field_checkbox "motion_send2mqtt" "Send to MQTT" "<a href=\"tool-send2mqtt.cgi\">Configure sending to MQTT</a>" %>
+<% field_checkbox "motion_send2webhook" "Send to webhook" "<a href=\"tool-send2webhook.cgi\">Configure sending to a webhook</a>" %>
+<% field_checkbox "motion_send2ftp" "Upload to FTP" "<a href=\"tool-send2ftp.cgi\">Configure uploading to FTP</a>" %>
+<% field_checkbox "motion_send2yadisk" "Upload to Yandex Disk" "<a href=\"tool-send2yadisk.cgi\">Configure sending to Yandex Disk</a>" %>
 </div>
 <div class="col">
 <div class="alert alert-info">

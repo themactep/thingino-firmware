@@ -197,11 +197,6 @@ body:before {
 	color: #ff8800;
 }
 
-.plugin-enabled {
-	border-left: 5px solid green;
-	margin-left: -5px;
-}
-
 .preview canvas {
 	width: 100%;
 	height: auto;
@@ -324,6 +319,7 @@ textarea.nowrap {
 
 #frame {
 	border: rgba(128, 128, 128, 0.5) 1px solid;
+	text-align: center;
 }
 
 #page-texteditor .tab-pane {
@@ -345,3 +341,8 @@ pre#output[data-cmd] {
 .gpio_ir850 > .input-group > .switch { background: violet; }
 .gpio_ir940 > .input-group > .switch { background: darkviolet; }
 .gpio_white > .input-group > .switch { background: white; }
+
+li.enabled {
+	border-left: 5px solid green;
+	margin-left: -5px;
+}

@@ -1,8 +1,6 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="ftp"
-plugin_name="Send to FTP"
 page_title="Send to FTP"
 params="host password path port send_video template user"
 

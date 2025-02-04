@@ -1,9 +1,7 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="record"
-plugin_name="Video Recording"
-page_title="Video Recording"
+page_title="Video Recorder"
 params="device_path duration enabled filename limit mount videofmt"
 
 # constants
@@ -52,7 +50,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			fi
 		fi
 		update_caminfo
-		redirect_back "success" "$plugin_name config updated."
 	fi
 	redirect_to $SCRIPT_NAME
 fi
@@ -62,7 +59,7 @@ defaults
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_switch "record_enabled" "Enable Recording" %>
+<% field_switch "record_enabled" "Enable Recorder" %>
 <div class="row row-cols-1 row-cols-md-2">
 
 <div class="col">

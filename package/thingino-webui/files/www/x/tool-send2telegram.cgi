@@ -1,8 +1,6 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="telegram"
-plugin_name="Send to Telegram"
 page_title="Send to Telegram"
 params="token attach_snapshot attach_video channel caption"
 

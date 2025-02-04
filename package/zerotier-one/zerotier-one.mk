@@ -30,7 +30,7 @@ define ZEROTIER_ONE_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d/ $(ZEROTIER_ONE_PKGDIR)/files/S90zerotier
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/www/x
-	$(INSTALL) -m 755 -t $(TARGET_DIR)/var/www/x/ $(ZEROTIER_ONE_PKGDIR)/files/plugin-zerotier.cgi
+	$(INSTALL) -m 755 -t $(TARGET_DIR)/var/www/x/ $(ZEROTIER_ONE_PKGDIR)/files/service-zerotier.cgi
 endef
 
 $(eval $(generic-package))
