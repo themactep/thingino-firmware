@@ -5,7 +5,7 @@ page_title="Network"
 
 IFACES="eth0 wlan0 usb0"
 PARAMS="hostname dns1 dns2"
-SUBPARAMS="enabled dhcp ipv6 address macaddr netmask gateway broadcast"
+SUBPARAMS="enabled dhcp ipv6 address mac netmask gateway broadcast"
 for i in $IFACES; do
 	for p in $SUBPARAMS; do
 		PARAMS="$PARAMS ${i}_$p"
@@ -68,7 +68,7 @@ iface_ipv6() {
 	cat /etc/network/interfaces.d/$1 | grep -q 'dhcp-v6-enabled true' && echo "true"
 }
 
-iface_macaddr() {
+iface_mac() {
 	[ -f /sys/class/net/$1/address ] || return
 	cat /sys/class/net/$1/address
 }
@@ -157,8 +157,8 @@ if [ -f /etc/default/resolv.conf ]; then
 fi
 
 eth0_enabled=$(iface_up eth0)
-eth0_macaddr=$(iface_macaddr eth0)
-[ -z "$eth0_macaddr" ] && eth0_macaddr=$(fw_printenv -n ethaddr)
+eth0_mac=$(iface_mac eth0)
+[ -z "$eth0_mac" ] && eth0_mac=$(fw_printenv -n ethaddr)
 is_iface_dhcp eth0 && eth0_dhcp="true"
 eth0_address=$(iface_ip_in_etc eth0)
 [ -z "$eth0_address" ] && eth0_address=$(fw_printenv -n ipaddr)
@@ -170,7 +170,8 @@ eth0_gateway=$(iface_gateway eth0)
 eth0_ipv6=$(iface_ipv6 eth0)
 
 usb0_enabled=$(iface_up usb0)
-usb0_macaddr=$(iface_macaddr usb0)
+usb0_mac=$(iface_mac usb0)
+[ -z "$usb0_mac" ] && usb0_mac=$(fw_printenv -n usbmac)
 is_iface_dhcp usb0 && usb0_dhcp="true"
 usb0_address=$(iface_ip_in_etc usb0)
 [ -z "$usb0_address" ] && usb0_address=$(fw_printenv -n usbaddr)
@@ -182,8 +183,8 @@ usb0_gateway=$(iface_gateway usb0)
 usb0_ipv6=$(iface_ipv6 usb0)
 
 wlan0_enabled=$(iface_up wlan0)
-wlan0_macaddr=$(iface_macaddr wlan0)
-[ -z "$wlan0_macaddr" ] && wlan0_macaddr=$(fw_printenv -n wlanmac)
+wlan0_mac=$(iface_mac wlan0)
+[ -z "$wlan0_mac" ] && wlan0_mac=$(fw_printenv -n wlanmac)
 is_iface_dhcp wlan0 && wlan0_dhcp="true"
 wlan0_address=$(iface_ip_in_etc wlan0)
 [ -z "$wlan0_address" ] && wlan0_address=$(fw_printenv -n wlanaddr)
@@ -202,9 +203,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	for p in $PARAMS; do
 		eval $p=\$POST_$p
 	done
-
-#	read_from_post "wlan0" "bssid mac pass ssid"
-#	read_from_post "wlanap" "enabled pass ssid"
 
 	if [ "true" = "$eth0_enabled" ]; then
 		if [ "false" = "$eth0_dhcp" ]; then
@@ -267,12 +265,15 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	if [ -z "$error" ]; then
 		setup_iface eth0 "$eth0_mode" "$eth0_address" "$eth0_netmask" "$eth0_gateway" "$eth0_broadcast"
+		fw_setenv ethaddr $eth0_mac
 		[ "true" = "$eth0_enabled" ] || disable_iface eth0
 
 		setup_iface wlan0 "$wlan0_mode" "$wlan0_address" "$wlan0_netmask" "$wlan0_gateway" "$wlan0_broadcast"
+		fw_setenv wlanmac $wlan0_mac
 		[ "true" = "$wlan0_enabled" ] || disable_iface wlan0
 
 		setup_iface usb0 "$usb0_mode" "$usb0_address" "$usb0_netmask" "$usb0_gateway" "$usb0_broadcast"
+		fw_setenv usbmac $usb0_mac
 		[ "true" = "$usb0_enabled" ] || disable_iface usb0
 
 		hostname=$POST_hostname
@@ -333,7 +334,7 @@ fi
 <div class="card-body">
 
 <div class="input-group mb-3">
-<input type="text" id="<%= $i %>_macaddr" name="<%= $i %>_macaddr" class="form-control" value="<% eval echo \$${i}_macaddr %>">
+<input type="text" id="<%= $i %>_mac" name="<%= $i %>_mac" class="form-control" value="<% eval echo \$${i}_mac %>">
 <button class="btn btn-secondary generate-mac-address" type="button" data-iface="<%= $i %>" title="Generate MAC address"><img src="/a/generate.svg" alt="" class="img-fluid"></button>
 </div>
 
@@ -400,7 +401,7 @@ function generateMacAddress(iface) {
 $$('.generate-mac-address').forEach(el => el.addEventListener('click', ev => {
 	ev.preventDefault();
 	const iface = ev.target.dataset.iface;
-	const input = $('#' + iface + '_macaddr');
+	const input = $('#' + iface + '_mac');
 	if (input.value != "") {
 		alert("There's a value in MAC address field. Please empty the field and try again.");
 	} else {
@@ -426,9 +427,7 @@ $$('.generate-mac-address').forEach(el => el.addEventListener('click', ev => {
 <% ex "ifconfig" %>
 <% ex "ip address" %>
 <% ex "ip route list" %>
-<% ex "fw_printenv -n wlandev" %>
-<% ex "fw_printenv -n wlanssid" %>
-<% ex "fw_printenv -n wlanpass" %>
+<% ex "fw_printenv | grep wlan" %>
 </div>
 
 <%in _footer.cgi %>
