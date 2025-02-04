@@ -4,7 +4,7 @@
 plugin="timelapse"
 plugin_name="Timelapse"
 page_title="Timelapse"
-params="depth device_path filename interval mount"
+params="depth device_path enabled filename interval mount"
 
 MOUNTS=$(awk '/cif|fat|nfs|smb/{print $2}' /etc/mtab)
 TIMELAPSE_FILENAME_FB="%Y%m%d/%Y%m%dT%H%M%S.jpg"
