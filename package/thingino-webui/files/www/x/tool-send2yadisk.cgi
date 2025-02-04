@@ -1,8 +1,6 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="yadisk"
-plugin_name="Send to Yandex Disk"
 page_title="Send to Yandex Disk"
 params="username password path"
 

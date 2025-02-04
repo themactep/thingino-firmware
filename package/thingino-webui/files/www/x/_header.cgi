@@ -62,7 +62,7 @@ aria-controls="nbMain" aria-label="Toggle navigation"><span class="navbar-toggle
 <li class="nav-item dropdown">
 <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddServices" role="button">Services</a>
 <ul aria-labelledby="ddServices" class="dropdown-menu">
-<% menu "plugin" %>
+<% menu "service" %>
 </ul>
 </li>
 <li class="nav-item">

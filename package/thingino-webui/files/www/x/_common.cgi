@@ -450,27 +450,40 @@ log() {
 }
 
 menu() {
-	local i n
+	local css i name
+	local CSS_ENABLED=" class=\"enabled\""
 	for i in $(ls -1 $1-*); do
-		if [ "plugin" = "$1" ]; then
-			# get plugin name
-			p="$(sed -r -n '/^plugin=/s/plugin="(.*)"/\1/p' $i)"
-
-			# hide unsupported plugins
-			[ "$p" = "mqtt" ] && [ ! -f /bin/mosquitto_pub ] && continue
-			[ "$p" = "telegrambot" ] && [ ! -f /bin/jsonfilter ] && continue
-			[ "$p" = "zerotier" ] && [ ! -f /sbin/zerotier-cli ] && continue
-			# get plugin description
-			n="$(sed -r -n '/^plugin_name=/s/plugin_name="(.*)"/\1/p' $i)"
-
-			echo -n "<li><a class=\"dropdown-item\" href=\"$i\">$n</a></li>"
-		else
-			# FIXME: dirty hack
-			[ "$i" = "config-developer.cgi" ] && [ ! -f /etc/init.d/S44devmounts ] && continue
-
-			n="$(sed -r -n '/page_title=/s/^.*page_title="(.*)",*$/\1/p' $i)"
-			echo -n "<li><a class=\"dropdown-item\" href=\"$i\">$n</a></li>"
+		css=""
+		name=$(echo $i | sed -r -n "s/$1-(.*).cgi/\1/p")
+		if [ "service" = "$1" ]; then
+			case "$name" in
+				motion)
+					prudyntcfg get motion.enabled | grep -q true && css=$CSS_ENABLED
+					;;
+				mqtt)
+					[ -f /bin/mosquitto_pub ] || continue
+					;;
+				telegrambot)
+					[ -f /bin/jsonfilter    ] || continue
+					pidof telegrambot > /dev/null && css=$CSS_ENABLED
+					;;
+				timelapse)
+					crontab -l | grep -v '^#' | grep -q timelapse && css=$CSS_ENABLED
+					;;
+				videorec)
+					pidof record > /dev/null && css=$CSS_ENABLED
+					;;
+				zerotier)
+					[ -f /sbin/zerotier-cli ] || continue
+					;;
+			esac
+		elif [ "config" = "$1" ]; then
+			[ "$name" = "developer" ] && [ ! -f /etc/init.d/S44devmounts ] && continue
 		fi
+
+		echo -n "<li$css><a class=\"dropdown-item\" href=\"$i\">" \
+			$(sed -r -n '/page_title=/s/^.*page_title="(.*)",*$/\1/p' $i) \
+			"</a></li>"
 	done
 }
 

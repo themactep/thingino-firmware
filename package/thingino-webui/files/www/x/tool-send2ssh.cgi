@@ -1,8 +1,6 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="ssh"
-plugin_name="Send to SSH"
 page_title="Send to SSH"
 params="host username port command"
 

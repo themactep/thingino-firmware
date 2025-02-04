@@ -1,11 +1,9 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="zerotier"
-plugin_name="ZeroTier"
 page_title="ZeroTier"
 params="enabled nwid"
-config_file="$ui_config_dir/$plugin.conf"
+config_file="$ui_config_dir/zerotier.conf"
 service_file=/etc/init.d/S90zerotier
 zt_cli_bin=/usr/sbin/zerotier-cli
 zt_one_bin=/usr/sbin/zerotier-one
@@ -22,7 +20,7 @@ include $config_file
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	case "$POST_action" in
 		create)
-			read_from_post "$plugin" "$params"
+			read_from_post "zerotier" "$params"
 
 			if [ "true" = "$zerotier_enabled" ]; then
 				error_if_empty "$zerotier_nwid" "ZeroTier Network ID cannot be empty."
@@ -32,12 +30,12 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			if [ -z "$error" ]; then
 				tmp_file=$(mktemp -u)
 				for p in $params; do
-					echo "${plugin}_$p=\"$(eval echo \$${plugin}_$p)\"" >>$tmp_file
+					echo "zerotier_$p=\"$(eval echo \$zerotier_$p)\"" >>$tmp_file
 				done; unset p
 				mv $tmp_file $config_file
 
 				update_caminfo
-				redirect_back "success" "$plugin_name config updated."
+				redirect_back "success" "Zerotier config updated."
 			fi
 			;;
 		start|open)

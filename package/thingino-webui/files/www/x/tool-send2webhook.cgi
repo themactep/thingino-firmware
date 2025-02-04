@@ -1,8 +1,6 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="webhook"
-plugin_name="Send to Webhook"
 page_title="Send to Webhook"
 params="attach_snapshot payload url"
 

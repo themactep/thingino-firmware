@@ -1,9 +1,7 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="timelapse"
-plugin_name="Timelapse"
-page_title="Timelapse"
+page_title="Timelapse Recorder"
 params="depth device_path enabled filename interval mount"
 
 MOUNTS=$(awk '/cif|fat|nfs|smb/{print $2}' /etc/mtab)
@@ -49,7 +47,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		mv $tmpfile $CRONTABS
 
 		update_caminfo
-		redirect_back "success" "$plugin_name config updated."
 	fi
 	redirect_to $SCRIPT_NAME
 fi
@@ -59,7 +56,7 @@ defaults
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_switch "timelapse_enabled" "Enable timelapse" %>
+<% field_switch "timelapse_enabled" "Enable Recorder" %>
 <div class="row">
 
 <div class="col col-xl-4">

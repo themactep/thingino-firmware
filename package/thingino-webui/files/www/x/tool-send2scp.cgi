@@ -1,8 +1,6 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-plugin="scp"
-plugin_name="Send via scp"
 page_title="Send via scp"
 params="host port user path template command"
 
