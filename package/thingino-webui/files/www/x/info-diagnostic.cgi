@@ -4,10 +4,7 @@
 page_title="Diagnostic log"
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	[ "true" = "$POST_iagree" ] || set_error_flag "You must explicitly give your consent."
-
-	if [ -z "$error" ]; then
-		result=$(yes yes | thingino-diag | tail -1)
-	fi
+	[ -z "$error" ] && result=$(yes yes | thingino-diag | tail -1)
 fi
 %>
 <%in _header.cgi %>
@@ -19,8 +16,9 @@ fi
 That log may contain sensitive or personal information, so be sure to review the result before sharing the link!</p>
 <p>We use the termbin.com service to share the log. Please review their <a href="https://www.termbin.com/" target="_blank">acceptable use policy</a>.</p>
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_checkbox "iagree" "I've read and understood the information above. I want to proceed." %>
-<% button_submit "Generate the diagnostic log" %>
+<p class="boolean form-check"><input type="checkbox" name="iagree" id="iagree" value="true" class="form-check-input">
+<label for="iagree" class="form-label">I've read and understood the information above. I want to proceed.</label></p>
+<p class="mb-0"><input type="submit" class="btn btn-primary" value="Generate the diagnostic log"></p>
 </form>
 </div>
 <% else %>

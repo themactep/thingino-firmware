@@ -127,6 +127,7 @@ endmenu
 
 menuconfig BR2_THINGINO_DEV_PACKAGES
 	bool "Development Packages"
+	select BR2_PACKAGE_THINGINO_KOPT
 	select BR2_PACKAGE_THINGINO_KOPT_DEVELOP
 	help
 	  Thingino Development Packages
