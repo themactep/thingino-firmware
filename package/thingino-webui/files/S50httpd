@@ -35,13 +35,13 @@ fi
 start() {
 	starting
 	[ -f $DAEMON_FULL ] || quit "Disabled"
-	start_daemon_with_pid
+	start_daemon
 }
 
 stop() {
 	stopping
 	[ -f $DAEMON_FULL ] || quit "Disabled"
-	stop_daemon_with_pid
+	stop_daemon
 }
 
 case "$1" in

@@ -32,7 +32,6 @@ for i in $(find /etc/init.d/ -name "S*" -executable | sort -n); do
 	#execute_and_log "$i" &
 	#wait
 	/bin/sh -c "$i start"
-	# | log
 done
 
 service stop ledd

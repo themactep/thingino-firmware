@@ -11,7 +11,6 @@ echo_c 196 "\n\nGoing to reboot!\n"
 for letter in F K S; do
 	for i in $(find /etc/init.d/ -name "${letter}*" -executable | sort -r); do
 		/bin/sh -c "$i stop"
-		# | log
 	done
 done
 

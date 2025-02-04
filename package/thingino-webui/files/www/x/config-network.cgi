@@ -12,6 +12,17 @@ for i in $IFACES; do
 	done
 done
 
+# ssid, pass
+convert_psk() {
+	if [ ${#2} -lt 64 ]; then
+		local tmpfile=$(mktemp -u)
+		wpa_passphrase "$1" "$2" > $tmpfile
+		grep '^\s*psk=' $tmpfile | cut -d= -f2 | tail -n 1
+	else
+		echo "$2"
+	fi
+}
+
 disable_iface() {
 	sed -i "s/^auto /#auto /" /etc/network/interfaces.d/$1
 }
@@ -120,14 +131,17 @@ setup_iface() {
 }
 
 setup_wireless_network() {
-	local ssid password
+	local ssid bssid pass psk
 	ssid=$1
-	password=$2
+	bssid=$2
+	pass=$3
+	psk=$(convert_psk "$ssid" "$pass")
 
 	temp_env=$(mktemp)
 	{
 		[ -n "$ssid" ] && echo "wlanssid $ssid"
-		[ -n "$password" ] && echo "wlanpass $password"
+		[ -n "$bssid" ] && echo "wlanbssid $bssid"
+		[ -n "$psk" ] && echo "wlanpass $psk"
 	} > "$temp_env"
 	fw_setenv -s "$temp_env"
 	rm "$temp_env"
@@ -155,19 +169,6 @@ eth0_broadcast=$(iface_broadcast eth0)
 eth0_gateway=$(iface_gateway eth0)
 eth0_ipv6=$(iface_ipv6 eth0)
 
-wlan0_enabled=$(iface_up wlan0)
-wlan0_macaddr=$(iface_macaddr wlan0)
-[ -z "$wlan0_macaddr" ] && wlan0_macaddr=$(fw_printenv -n wlanmac)
-is_iface_dhcp wlan0 && wlan0_dhcp="true"
-wlan0_address=$(iface_ip_in_etc wlan0)
-[ -z "$wlan0_address" ] && wlan0_address=$(fw_printenv -n wlanaddr)
-[ -z "$wlan0_address" ] && wlan0_address=$(iface_ip_actual wlan0)
-wlan0_cidr=$(iface_cidr wlan0)
-wlan0_netmask=$(iface_netmask wlan0)
-wlan0_broadcast=$(iface_broadcast wlan0)
-wlan0_gateway=$(iface_gateway wlan0)
-wlan0_ipv6=$(iface_ipv6 wlan0)
-
 usb0_enabled=$(iface_up usb0)
 usb0_macaddr=$(iface_macaddr usb0)
 is_iface_dhcp usb0 && usb0_dhcp="true"
@@ -180,14 +181,35 @@ usb0_broadcast=$(iface_broadcast usb0)
 usb0_gateway=$(iface_gateway usb0)
 usb0_ipv6=$(iface_ipv6 usb0)
 
+wlan0_enabled=$(iface_up wlan0)
+wlan0_macaddr=$(iface_macaddr wlan0)
+[ -z "$wlan0_macaddr" ] && wlan0_macaddr=$(fw_printenv -n wlanmac)
+is_iface_dhcp wlan0 && wlan0_dhcp="true"
+wlan0_address=$(iface_ip_in_etc wlan0)
+[ -z "$wlan0_address" ] && wlan0_address=$(fw_printenv -n wlanaddr)
+[ -z "$wlan0_address" ] && wlan0_address=$(iface_ip_actual wlan0)
+wlan0_cidr=$(iface_cidr wlan0)
+wlan0_netmask=$(iface_netmask wlan0)
+wlan0_broadcast=$(iface_broadcast wlan0)
+wlan0_gateway=$(iface_gateway wlan0)
+wlan0_ipv6=$(iface_ipv6 wlan0)
+# wireless network credentials
+wlan0_ssid="$(fw_printenv -n wlanssid)"
+wlan0_bssid="$(fw_printenv -n wlanbssid)"
+wlan0_pass="$(fw_printenv -n wlanpass)"
+
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	for p in $PARAMS; do
 		eval $p=\$POST_$p
 	done
 
+#	read_from_post "wlan0" "bssid mac pass ssid"
+#	read_from_post "wlanap" "enabled pass ssid"
+
 	if [ "true" = "$eth0_enabled" ]; then
 		if [ "false" = "$eth0_dhcp" ]; then
 			eth0_mode="static"
+			check_mac_address "$eth0_mac" || set_error_flag "eth0 MAC address format is invalid."
 			error_if_empty "$eth0_address" "eth0 IP address cannot be empty."
 			error_if_empty "$eth0_netmask" "eth0 networking mask cannot be empty."
 		else
@@ -198,6 +220,14 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ "true" = "$wlan0_enabled" ]; then
 		if [ "false" = "$wlan0_dhcp" ]; then
 			wlan0_mode="static"
+
+			# normalize values
+			wlan0_mac="${wlan0_mac//-/:}"
+			wlan0_bssid="${wlan0_bssid//-/:}"
+			check_mac_address "$wlan0_mac" || set_error_flag "wlan0 MAC address format is invalid."
+			if [ -n "$wlan_bssid" ]; then
+				check_mac_address "$wlan0_bssid" || set_error_flag "wlan0 BSSID format is invalid."
+			fi
 			error_if_empty "$wlan0_address" "wlan0 IP address cannot be empty."
 			error_if_empty "$wlan0_netmask" "wlan0 networking mask cannot be empty."
 		else
@@ -208,6 +238,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ "true" = "$usb0_enabled" ]; then
 		if [ "false" = "$usb0_dhcp" ]; then
 			usb0_mode="static"
+			check_mac_address "$usb0_mac" || set_error_flag "usb0 MAC address format is invalid."
 			error_if_empty "$usb0_address" "usb0 IP address cannot be empty."
 			error_if_empty "$usb0_netmask" "usb0 networking mask cannot be empty."
 		else
@@ -228,9 +259,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	[ -z "$dns_1" ] && set_error_flag "At least one DNS server required"
 
 	# validate wireless network credentials if not empty
-	if [ "true" = "$wlan0_enabled" ] && [ -n "$POST_wlan0_ssid$POST_wlan0_password" ]; then
-		[ -z "$POST_wlan0_ssid" ] && set_error_flag "WLAN SSID cannot be empty"
-		[ -z "$POST_wlan0_password" ] && set_error_flag "WLAN password cannot be empty"
+	if [ "true" = "$wlan0_enabled" ] && [ -n "$wlan0_ssid$wlan0_pass" ]; then
+		[ -z "$wlan0_ssid" ] && set_error_flag "wlan0 SSID cannot be empty"
+		[ -z "$wlan0_pass" ] && set_error_flag "wlan0 password cannot be empty"
+		[ ${#wlan0_pass} -lt 8 ] && set_error_flag "wlan0 password cannot be shorter than 8 characters."
 	fi
 
 	if [ -z "$error" ]; then
@@ -253,8 +285,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		[ -z "$dns_1$dns_2" ] || setup_dns "$dns_1" "$dns_2"
 
 		# update wireless network credentials if not empty
-		[ "true" = "$wlan0_enabled" ] && [ -n "$POST_wlan0_ssid$POST_wlan0_password" ] && \
-			setup_wireless_network "$POST_wlan0_ssid" "$POST_wlan0_password"
+		[ "true" = "$wlan0_enabled" ] && [ -n "$wlan0_ssid$wlan0_pass" ] && \
+			setup_wireless_network "$wlan0_ssid" "$wlan0_bssid" "$wlan0_pass"
 
 		update_caminfo
 		redirect_back "success" "Network settings updated."
@@ -264,12 +296,36 @@ fi
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+
 <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4 g-3">
+
 <div class="col">
 <% field_text "hostname" "Hostname" %>
 <% field_text "dns_1" "DNS 1" %>
 <% field_text "dns_2" "DNS 2" %>
+
+<nav class="navbar navbar-expand p-1">
+<ul class="navbar-nav nav-underline" role="tablist">
+<li class="nav-item"><a href="#" data-bs-toggle="tab" id="tab1" data-bs-target="#tab1-pane" class="nav-link active">Wi-Fi Network</a></li>
+<li class="nav-item"><a href="#" data-bs-toggle="tab" id="tab2" data-bs-target="#tab2-pane" class="nav-link">Wi-Fi AP</a></li>
+</ul>
+</nav>
+<div class="tab-content" id="wlan-tabs">
+<div class="tab-pane fade show active" id="tab1-pane" role="tabpanel" aria-labelledby="tab1">
+<div class="row g-1">
+<% field_text "wlan0_ssid" "Wireless Network Name (SSID)" %>
+<% field_text "wlan0_bssid" "Access Point MAC Address (BSSID)" "Only if SSID broadcast is enabled!" %>
+<% field_text "wlan0_pass" "Wi-Fi Network Password" "$STR_PASSWORD_TO_PSK" "" "$STR_EIGHT_OR_MORE_CHARS" %>
 </div>
+</div>
+<div class="tab-pane fade" id="tab2-pane" role="tabpanel" aria-labelledby="tab2">
+<% field_text "wlanap_ssid" "Wi-Fi AP SSID" %>
+<% field_text "wlanap_pass" "Wi-Fi AP Password" "$STR_PASSWORD_TO_PSK" "" "$STR_EIGHT_OR_MORE_CHARS" %>
+<% field_switch "wlanap_enabled" "Enable Wi-Fi AP" %>
+</div>
+</div>
+</div>
+
 <% for i in $IFACES; do %>
 <div class="col">
 <div class="card <%= $i %>">
@@ -289,11 +345,6 @@ fi
 <% field_text "${i}_broadcast" "Broadcast" %>
 </div>
 <% field_switch "${i}_ipv6" "Use IPv6 (DHCPv6)" %>
-
-<% if [ "wlan0" = "$i" ]; then %>
-<% field_text "wlan0_ssid" "SSID" %>
-<% field_text "wlan0_password" "Password" %>
-<% fi %>
 </div>
 </div>
 </div>
