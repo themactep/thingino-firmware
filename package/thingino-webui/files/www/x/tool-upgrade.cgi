@@ -85,7 +85,7 @@ span.hint.text-secondary {
 
       <div class="mb-4">
         <h5>OTA (Over The Air) Update</h5>
-        <p>Click to perform an upgrade of the latest firmware version from the Thingino GitHub repository</p>
+        <p>Click to perform an upgrade to the latest firmware version from the Thingino GitHub repository</p>
         <div class="mt-2">
             <% field_select "ota_upgrade_option" "Upgrade Option" "Partial,Full,Bootloader" "Partial" %>
         </div>
