@@ -85,8 +85,7 @@ gpio_control() {
 }
 
 iface_default() {
-	ipv4_iface=$(ip -4 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)
-	[ -n "$ipv4_iface" ] && echo "$ipv4_iface" || ip -6 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1
+	ip -4 r | awk '{print $3; exit}' || ip -6 r | awk '{print $3; exit}'
 }
 
 iface_exists() {
