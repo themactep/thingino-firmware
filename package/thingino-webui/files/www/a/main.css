@@ -64,6 +64,9 @@ body:before {
 
 :root {
 	--bs-font-sans-serif: "Montserrat", sans-serif;
+	--ansi-70: #5faf00;
+	--ansi-66: #5f8787;
+	--ansi-144: #afaf87;
 }
 
 .blink {

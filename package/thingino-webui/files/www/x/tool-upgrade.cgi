@@ -53,12 +53,6 @@ get_mtd_partitions() {
 %>
 <%in _header.cgi %>
 <style>
-:root {
-    /* Basic colors */
-    --ansi-70: #5faf00;  /* Green */
-    --ansi-66: #5f8787;  /* Cyan-ish */
-    --ansi-144: #afaf87; /* Light grey */
-}
 
 /* FIXME: Hide hint texts? Ask Paul about this. */
 span.hint.text-secondary {
