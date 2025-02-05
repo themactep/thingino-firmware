@@ -3,7 +3,7 @@
 <%
 page_title="RTSP/ONVIF Access"
 
-prudynt_config=/etc/prudynt.cfg
+prudynt_config=/etc/config/prudynt.cfg
 onvif_config=/etc/onvif.conf
 onvif_discovery=/etc/init.d/S96onvif_discovery
 onvif_notify=/etc/init.d/S97onvif_notify

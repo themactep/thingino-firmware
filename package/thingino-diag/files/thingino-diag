@@ -118,7 +118,7 @@ fi
 	inforun "logread" "SYSLOG"
 
 	header "streamer"
-	awk '{if ($0 ~ /password[[:space:]]*=/) sub(/=.*/, "= \"REDACTED\";"); print}'  /etc/prudynt.cfg
+	awk '{if ($0 ~ /password[[:space:]]*=/) sub(/=.*/, "= \"REDACTED\";"); print}'  /etc/config/prudynt.cfg
 
 	infocat "/etc/cron/crontabs/root" "crontab"
 } > "$output_file"
