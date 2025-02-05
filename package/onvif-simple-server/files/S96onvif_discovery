@@ -31,10 +31,11 @@ is_onvif_disabled() {
 }
 
 update_config() {
-	local file=$1
-	local key=$2
-	local value=$3
-	local current=$(awk -F= -v key="$key" '$1==key {print $2}' $file)
+	local current file key value
+	file=$1
+	key=$2
+	value=$3
+	current=$(awk -F= -v key="$key" '$1==key {print $2}' $file)
 	[ -z "$value" ] && value="0"
 	[ "$current" = "$value" ] && return
 	sed -i "s/^$key=.*/$key=$value/" $file
