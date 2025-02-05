@@ -54,6 +54,8 @@ endif
 $(info OUTPUT_DIR: $(OUTPUT_DIR))
 export OUTPUT_DIR
 
+CONFIG_PARTITION_DIR = $(OUTPUT_DIR)/config
+
 STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
 STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
 
@@ -342,8 +344,14 @@ $(OUTPUT_DIR)/.keep:
 	test -d $(OUTPUT_DIR) || mkdir -p $(OUTPUT_DIR)
 	touch $@
 
+# create config partition directory
+$(CONFIG_PARTITION_DIR)/.keep:
+	$(info -------------------------------- $@)
+	test -d $(CONFIG_PARTITION_DIR) || mkdir -p $(CONFIG_PARTITION_DIR)
+	touch $@
+
 # configure buildroot for a particular board
-$(OUTPUT_DIR)/.config: $(OUTPUT_DIR)/.keep
+$(OUTPUT_DIR)/.config: $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.keep
 	$(info -------------------------------- $@)
 	$(FIGLET) "$(BOARD)"
 	# delete older config
