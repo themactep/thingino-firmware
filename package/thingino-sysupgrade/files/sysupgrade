@@ -45,21 +45,21 @@ check_free_space() {
 	dl_size=$(curl -sIL $1 | awk '/Content-Length/{fs=$2}END{print fs}')
 	[ -z "$dl_size" ] && die "Cannot get remote file size"
 	[ "$dl_size" -le 0 ] && die "Remote file size is zero"
-	report_size "Remote file size" $dl_size
+	report_size "Remote file size" "$dl_size"
 
 	offset="${2:-0}"
-	report_size "Remote file offset" $offset
+	report_size "Remote file offset" "$offset"
 	[ "$dl_size" -le $offset ] && die "Remote file size is less than offset"
 
 	flash_size=$(full_upgrade_partition_size)
 	[ "$dl_size" -gt $flash_size ] && die "Firmware is larger than flash chip: $dl_size > $flash_size"
-	report_size "Full flash size" $flash_size
+	report_size "Full flash size" "$flash_size"
 
 	free_space=$(available_free_space)
-	report_size "Available space" $free_space
+	report_size "Available space" "$free_space"
 
 	dl_size_offsetted=$((dl_size - offset))
-	report_size "Download size" $dl_size_offsetted
+	report_size "Download size" "$dl_size_offsetted"
 
 	[ "$dl_size_offsetted" -gt $free_space ] && die "Not enough free space to download firmware"
 }
@@ -133,7 +133,7 @@ handle_payload() {
 		say "Upgrade from a provided file"
 		if echo "$1" | grep -qE '^https?://'; then
 			say "Download firmware from\n$1"
-			check_free_space $1
+			check_free_space "$1"
 			download $1 || die "Cannot download $1 to $fw_file"
 		else
 			[ -f "$fw_file" ] || die "Cannot find $fw_file"
@@ -166,7 +166,7 @@ handle_payload() {
 		sha_url="$gh_url/$bin_file.sha256sum"
 		sha_file=$(basename $sha_url)
 
-		check_free_space $bin_url $offset
+		check_free_space "$bin_url" "$offset"
 
 		say "Download firmware from $bin_url"
 		download "$bin_url" "$bin_file" "-C $offset" || die "Cannot download firmware from specified URL."
