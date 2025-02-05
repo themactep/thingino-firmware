@@ -1,0 +1,46 @@
+--- a/networking/libiproute/iplink.c        2025-01-05 04:12:08.545455041 -0400
++++ b/networking/libiproute/iplink.c        2025-01-05 04:11:05.624714131 -0400
+@@ -416,12 +416,18 @@
+ 				flag = CAN_CTRLMODE_ONE_SHOT;
+ 			else if (key == ARG_berr_reporting)
+ 				flag = CAN_CTRLMODE_BERR_REPORTING;
++#ifdef CAN_CTRLMODE_FD
+ 			else if (key == ARG_fd)
+ 				flag = CAN_CTRLMODE_FD;
++#endif
++#ifdef CAN_CTRLMODE_FD_NON_ISO
+ 			else if (key == ARG_fd_non_iso)
+ 				flag = CAN_CTRLMODE_FD_NON_ISO;
++#endif
++#ifdef CAN_CTRLMODE_PRESUME_ACK
+ 			else if (key == ARG_presume_ack)
+ 				flag = CAN_CTRLMODE_PRESUME_ACK;
++#endif
+ 			else
+ #if defined(CAN_CTRLMODE_CC_LEN8_DLC)
+ 				flag = CAN_CTRLMODE_CC_LEN8_DLC;
+@@ -440,6 +446,7 @@
+ 			addattr_l(&req.n, sizeof(req), IFLA_CAN_RESTART, &val, sizeof(val));
+ 			break;
+ 		}
++#ifdef IFLA_CAN_RESTART_MS
+ 		case ARG_restart_ms: {
+ 			uint32_t val;
+ 			NEXT_ARG();
+@@ -447,6 +454,8 @@
+ 			addattr_l(&req.n, sizeof(req), IFLA_CAN_RESTART_MS, &val, sizeof(val));
+ 			break;
+ 		}
++#endif
++#ifdef IFLA_CAN_TERMINATION
+ 		case ARG_termination: {
+ 			uint16_t val;
+ 			NEXT_ARG();
+@@ -454,6 +463,7 @@
+ 			addattr_l(&req.n, sizeof(req), IFLA_CAN_TERMINATION, &val, sizeof(val));
+ 			break;
+ 		}
++#endif
+ 		default:
+ 			break;
+ 		}
