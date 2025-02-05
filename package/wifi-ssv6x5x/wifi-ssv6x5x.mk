@@ -33,8 +33,6 @@ ifneq ($(filter y,$(SSV6X5X_PID6011_CHIPS)),)
 	WIFI_SSV6X5X_VERSION = caac9e093548e1a8ff0d5d9b391b52062b23d830
 endif
 
-$(info SSV6X5X branch is $(WIFI_SSV6X5X_SITE_BRANCH))
-
 # $(shell git ls-remote $(WIFI_SSV6X5X_SITE) $(WIFI_SSV6X5X_SITE_BRANCH) | head -1 | cut -f1)
 
 WIFI_SSV6X5X_LICENSE = GPL-2.0
