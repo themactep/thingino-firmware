@@ -7,6 +7,9 @@ echo_c 196 "\n\nGoing to reboot!\n"
 # Kill watchdog to trigger hw timer
 /etc/init.d/K99watchdog kill
 
+echo "Syncing filesystem..."
+/bin/sync
+
 # Run init scripts in the desired order: F, K, S with reversed numerical order within each group.
 for letter in F K S; do
 	for i in $(find /etc/init.d/ -name "${letter}*" -executable | sort -r); do
