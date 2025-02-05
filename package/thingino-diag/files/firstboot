@@ -29,7 +29,7 @@ wipe() {
 		umount -f /etc/config
 	fi
 
-	mkfs.ext2 -F -b 1024 -i 8192 -m 0 -L config $configfs_data_dev
+	mkfs.vfat -v -n CONFIG $configfs_data_dev
 	flash_eraseall -j "/dev/${rootfs_data_dev}"
 	[ "$erase_mtd1" = true ] && flash_eraseall /dev/mtd1
 	echo "Erase completed. Rebooting..."

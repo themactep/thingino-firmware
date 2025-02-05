@@ -101,7 +101,7 @@ UB_ENV_FINAL_TXT = $(OUTPUT_DIR)/uenv.txt
 export UB_ENV_FINAL_TXT
 
 UB_ENV_BIN = $(OUTPUT_DIR)/images/u-boot-env.bin
-CONFIG_BIN := $(OUTPUT_DIR)/images/config.ext2
+CONFIG_BIN := $(OUTPUT_DIR)/images/config.fat12
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
@@ -415,12 +415,17 @@ $(UB_ENV_BIN):
 # create config partition image
 $(CONFIG_BIN):
 	$(info -------------------------------- $@)
-	$(OUTPUT_DIR)/host/sbin/mkfs.ext2 \
-		-F -b 1024 \
-		-d $(CONFIG_PARTITION_DIR) \
-		-L config $(CONFIG_BIN) 64K
-	$(OUTPUT_DIR)/host/sbin/debugfs -w -R 'rmdir lost+found' $(CONFIG_BIN)
-	truncate -s 65536 $(CONFIG_BIN)
+#	$(OUTPUT_DIR)/host/sbin/mkfs.ext2 \
+#		-F -b 1024 \
+#		-d $(CONFIG_PARTITION_DIR) \
+#		-L config $(CONFIG_BIN) 64K
+#	$(OUTPUT_DIR)/host/sbin/debugfs -w -R 'rmdir lost+found' $(CONFIG_BIN)
+#	truncate -s 65536 $(CONFIG_BIN)
+	$(OUTPUT_DIR)/host/sbin/mkfs.vfat \
+		-F 12 -S 512 -s 1 -f 2 -r 112 \
+		-n "CONFIG" --invariant \
+		-C $(CONFIG_BIN) 64
+	$(OUTPUT_DIR)/host/bin/mcopy -i $(CONFIG_BIN) -s $(CONFIG_PARTITION_DIR)/* ::
 # FIXME: future, copy files from overlay/config to CONFIG_PARTITION_DIR before creating image
 
 # rebuild kernel

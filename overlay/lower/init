@@ -13,11 +13,11 @@ grep -q overlay /proc/filesystems || exit 1
 
 configfs_dev=$(awk '$4 ~ /"config"/ {gsub(":","",$1); print "/dev/mtdblock" substr($1,4)}' /proc/mtd)
 if [ -n "$configfs_dev" ]; then
-	mount -t ext2 "$configfs_dev" /etc/config
+	mount -t exfat "$configfs_dev" /etc/config
 	if ! grep -q " /etc/config " /proc/mounts; then
 		echo "Init: Invalid config partition detected. Formatting..."
-		mkfs.ext2 -F -b 1024 -i 8192 -m 0 -L config "$configfs_dev"
-		mount -t ext2 "$configfs_dev" /etc/config
+		mkfs.vfat -v -n CONFIG "$configfs_dev"
+		mount -t exfat "$configfs_dev" /etc/config
 		grep -q " /etc/config " /proc/mounts || \
 			echo "Init: ERROR: Failed to mount config partition after format!"
 	fi
