@@ -88,10 +88,10 @@ ALIGN_BLOCK := $(SIZE_64K)
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 
-ifeq ($(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME),)
+ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME),)
 U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-lzo-with-spl.bin
 else
-U_BOOT_BIN = $(OUTPUT_DIR)/images/$(patsubst "%",%,$(BR2_TARGET_UBOOT_FORMAT_CUSTOM_NAME))
+U_BOOT_BIN = $(OUTPUT_DIR)/images/$(patsubst "%",%,$(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME))
 endif
 
 UB_ENV_FINAL_TXT = $(OUTPUT_DIR)/uenv.txt
