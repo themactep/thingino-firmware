@@ -1,12 +1,12 @@
 #!/bin/sh
 plugin="telegrambot"
 
-command -v jsonfilter > /dev/null || die "$plugin is not supported on this platform, missing jsonfilter."
+command -v jsonfilter > /dev/null || die "Missing jsonfilter"
 
 . /sbin/common
 singleton
 
-[ -z "$telegrambot_token" ] && exit 0
+[ -z "$telegrambot_token" ] && die "Telegram Bot token is not set"
 
 is_debug_mode && echo_c 208 "Running in debug mode"
 
