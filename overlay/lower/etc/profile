@@ -9,8 +9,11 @@ export SOC=$(soc -f)
 network_hostname=$(hostname -s)
 ifaces=$(ifconfig | awk '/^[^( |lo)]/{print $1}')
 
-if4=$(ip -4 r | awk '{print $3; exit}')
-if6=$(ip -6 r | awk '{print $3; exit}')
+if4=$(ip -4 r | awk '/default/{print $5; exit}')
+[ -z "$if4" ] && if4=$(ip -4 r | awk '{print $3; exit}')
+
+if6=$(ip -6 r | awk '/default/{print $3; exit}')
+[ -z "$if5" ] && if6=$(ip -6 r | awk '{print $3; exit}')
 
 [ -n "$if4" ] && {
 	grep -q 'inet\|dhcp' /etc/network/interfaces.d/$if4 && dhcp="true"

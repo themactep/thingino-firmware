@@ -85,7 +85,12 @@ gpio_control() {
 }
 
 iface_default() {
-	ip -4 r | awk '{print $3; exit}' || ip -6 r | awk '{print $3; exit}'
+	local iface
+	[ -z "$iface" ] && iface=$(ip -4 r | awk '/default/{print $5; exit}')
+        [ -z "$iface" ] && iface=$(ip -4 r | awk '{print $3; exit}')
+	[ -z "$iface" ] && iface=$(ip -6 r | awk '/default/{print $5; exit}')
+        [ -z "$iface" ] && iface=$(ip -6 r | awk '{print $3; exit}')
+	echo "$iface"
 }
 
 iface_exists() {
