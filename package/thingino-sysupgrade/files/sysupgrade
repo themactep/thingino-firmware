@@ -28,7 +28,7 @@ bye() {
 }
 
 report_size() {
-	printf "%-20s %8d\n" "$1" $2
+	printf "%-20s %8s\n" "$1" "$2"
 }
 
 check_network() {
