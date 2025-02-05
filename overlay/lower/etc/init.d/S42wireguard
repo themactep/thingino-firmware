@@ -20,17 +20,26 @@ case "$1" in
 
 		echo '[Interface]' >> $wgconf
 		echo "PrivateKey=$(fw_printenv -n wg_privkey)" >> $wgconf
-		v=$(fw_printenv -n wg_port) ; if [ -n "$v" ] ; then echo "ListenPort=${v}" >> $wgconf ; fi
+
+		v=$(fw_printenv -n wg_port)
+		[ -n "$v" ] && echo "ListenPort=$v" >> $wgconf
 
 		echo '[Peer]' >> $wgconf
 		echo "Endpoint=$(fw_printenv -n wg_endpoint)" >> $wgconf
 		echo "PublicKey=$(fw_printenv -n wg_peerpub)" >> $wgconf
 
-		v=$(fw_printenv -n wg_peerpsk) ; if [ -n "$v" ] ; then echo "PresharedKey=${v}" >> $wgconf ; fi
-		v=$(fw_printenv -n wg_allowed) ; if [ -n "$v" ] ; then echo "AllowedIPs=${v}" >> $wgconf ; fi
-		v=$(fw_printenv -n wg_keepalive) ; if [ -n "$v" ] ; then echo "PersistentKeepalive=${v}" >> $wgconf ; fi
+		v=$(fw_printenv -n wg_peerpsk)
+		[ -n "$v" ] && echo "PresharedKey=$v" >> $wgconf
 
-		mtu=$(fw_printenv -n wg_mtu) ; if [ -n "$mtu" ] ; then link_mtu="mtu ${mtu}" ; fi
+		v=$(fw_printenv -n wg_allowed)
+		[ -n "$v" ] && echo "AllowedIPs=$v" >> $wgconf
+
+		v=$(fw_printenv -n wg_keepalive)
+		[ -n "$v" ] && echo "PersistentKeepalive=$v" >> $wgconf
+
+		mtu=$(fw_printenv -n wg_mtu)
+		[ -n "$mtu" ] && link_mtu="mtu $mtu"
+
 		run "ip link add dev $DEV type wireguard"
 		run "wg setconf $DEV $wgconf"
 		run "ip address add ${IP} dev $DEV"
