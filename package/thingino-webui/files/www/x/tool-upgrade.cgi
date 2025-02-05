@@ -1,4 +1,4 @@
-#!/bin/haserl --upload-limit=102400 --upload-dir=/tmp
+#!/bin/haserl --upload-limit=43008 --upload-dir=/tmp
 <%in _common.cgi %>
 <%
 page_title="Flash Operations"
