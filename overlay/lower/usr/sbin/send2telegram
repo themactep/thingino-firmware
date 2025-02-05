@@ -63,7 +63,8 @@ copy_photo() {
 
 copy_video() {
 	[ -f "$VBUFFER_FILE" ] || die "Video buffer not found"
-	video2=$(mktemp -u).mov
+	local ext=${VBUFFER_FILE##*.}
+	video2=$(mktemp -u).$ext
 	cp "$VBUFFER_FILE" "$video2"
 	garbage="$garbage $video2"
 }
