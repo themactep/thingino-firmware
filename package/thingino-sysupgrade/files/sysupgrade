@@ -233,6 +233,11 @@ stop_services() {
 	done
 }
 
+unmount_config() {
+	say "Unmount config"
+	umount /etc/config
+}
+
 update_self() {
 	local GH_DL_URL="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/"
 	download "$GH_DL_URL$stage1app" "$workdir/$stage1app"
@@ -377,6 +382,7 @@ file_size=$(stat -c%s $fw_file)
 stop_services
 remove_snapshot
 flush_memory
+unmount_config
 
 clone_app /bin/busybox
 clone_app /sbin/$stage2app
