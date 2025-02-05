@@ -2,8 +2,6 @@
 
 . /etc/init.d/rc.common
 
-CRONTABS="/etc/cron/crontabs/root"
-
 case "$1" in
 	start)
 		starting

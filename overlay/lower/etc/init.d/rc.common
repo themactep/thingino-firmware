@@ -7,6 +7,8 @@ fi
 
 debug=$(fw_printenv -n debug)
 
+CRONTABS="/etc/cron/crontabs/root"
+
 DAEMON=${DAEMON:-$0}
 DAEMON_ARGS=${DAEMON_ARGS:-}
 DAEMON_PATH="/bin"
