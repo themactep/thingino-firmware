@@ -13,12 +13,8 @@ start() {
 		state=${gpionum#$num}
 
 		case "$state" in
-			O)
-				gpio_cmd="high"
-				;;
-			o)
-				gpio_cmd="low"
-				;;
+			O) gpio_cmd="high" ;;
+			o) gpio_cmd="low" ;;
 		esac
 
 		info "Set GPIO $num $gpio_cmd"
