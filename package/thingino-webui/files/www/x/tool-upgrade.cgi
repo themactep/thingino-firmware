@@ -12,7 +12,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
     if [ -n "$HASERL_firmware_path" ]; then
         mv "$HASERL_firmware_path" /tmp/fw-web.bin
         echo "Content-Type: application/json"
-        echo ""
+        echo
         echo '{"success": true}'
         exit 0
     fi
@@ -23,7 +23,7 @@ if [ "$QUERY_STRING" = "action=generate_backup" ]; then
     current_date=$(date +%Y-%m-%d)
     echo "Content-Type: application/octet-stream"
     echo "Content-Disposition: attachment; filename=backup-${host}-${current_date}.tar.gz"
-    echo ""
+    echo
     tar -cf - /etc | gzip
     exit 0
 fi
@@ -34,12 +34,12 @@ if [ ! -z "$QUERY_STRING" ]; then
         if [ -n "$partition" ] && [ -e "/dev/$partition" ]; then
             echo "Content-Type: application/octet-stream"
             echo "Content-Disposition: attachment; filename=$partition.bin"
-            echo ""
+            echo
             cat "/dev/$partition"
             exit 0
         else
             echo "Content-Type: text/plain"
-            echo ""
+            echo
             echo "Error: Invalid or missing partition."
             exit 1
         fi
