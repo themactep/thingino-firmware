@@ -24,6 +24,14 @@ check_result() {
 	[ "$res" -eq 0 ] && ok || fail
 }
 
+decrement_mac() {
+	local last_byte_dec mac
+	mac=$(fw_printenv -n ethaddr)
+	last_byte_dec=$((0x${mac##*:} - 1))
+	[ $last_byte_dec -lt 0 ] && die "Error: MAC address cannot be decremented below 00"
+	ethaddr=$(printf "%s:%02x" "${mac%:*}" "$last_byte_dec")
+}
+
 die() {
 	if [ -n "$1" ]; then
 		echo "$1" | log
