@@ -55,6 +55,7 @@ $(info OUTPUT_DIR: $(OUTPUT_DIR))
 export OUTPUT_DIR
 
 CONFIG_PARTITION_DIR = $(OUTPUT_DIR)/config
+export CONFIG_PARTITION_DIR
 
 STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
 STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
@@ -416,9 +417,10 @@ $(CONFIG_BIN):
 	$(info -------------------------------- $@)
 	$(OUTPUT_DIR)/host/sbin/mkfs.ext2 \
 		-F -b 1024 \
-		-d $(BR2_EXTERNAL)/overlay/config/ \
+		-d $(CONFIG_PARTITION_DIR) \
 		-L config $(CONFIG_BIN) 64K
 	truncate -s 65536 $(CONFIG_BIN)
+# FIXME: future, copy files from overlay/config to CONFIG_PARTITION_DIR before creating image
 
 # rebuild kernel
 $(KERNEL_BIN):
