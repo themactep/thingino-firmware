@@ -11,7 +11,8 @@ case "$1" in
 	force | start)
 		starting
 		# "force" is for testing, to start wireguard on demand without having it enabled at boot
-		[ "xtrue" = "x$(fw_printenv -n wg_enabled)" -o "force" = "$1" ] || quit "Disabled"
+		[ "xtrue" = "x$(fw_printenv -n wg_enabled)" ] || quit "Disabled"
+		[ "force" = "$1" ] || quit "Disabled"
 		ip link show $DEV 2>&1 | grep -q 'UP' && die "WireGuard interface $DEV already running"
 
 		rm -f /tmp/wgconf_*
