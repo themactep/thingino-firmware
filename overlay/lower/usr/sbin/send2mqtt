@@ -55,7 +55,7 @@ else
 	build_cmd "-t $mqtt_topic -m \"$mqtt_message\""
 fi
 
-log_and_run "$command"
+$command
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 

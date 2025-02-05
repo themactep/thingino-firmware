@@ -126,7 +126,7 @@ else
 	die "Nothing to send"
 fi
 
-run "$command"
+$command
 
 remove_tempfiles
 
