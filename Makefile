@@ -419,6 +419,7 @@ $(CONFIG_BIN):
 		-F -b 1024 \
 		-d $(CONFIG_PARTITION_DIR) \
 		-L config $(CONFIG_BIN) 64K
+	$(OUTPUT_DIR)/host/sbin/debugfs -w -R 'rmdir lost+found' $(CONFIG_BIN)
 	truncate -s 65536 $(CONFIG_BIN)
 # FIXME: future, copy files from overlay/config to CONFIG_PARTITION_DIR before creating image
 
