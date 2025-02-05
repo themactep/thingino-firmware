@@ -1,0 +1,20 @@
+#!/bin/sh
+
+. /etc/init.d/rc.common
+
+case "$1" in
+	start)
+		starting
+		[ -d /etc/config/lost+found ] && rm -rf /etc/config/lost+found/
+		check_result
+		;;
+	stop)
+		stopping
+		ok
+		;;
+	*)
+		die "Usage: $0 {start|stop}"
+		;;
+esac
+
+exit 0
