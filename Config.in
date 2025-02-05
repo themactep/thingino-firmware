@@ -45,6 +45,7 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_JSONFILTER
 	select BR2_PACKAGE_THINGINO_ETHERNET if BR2_ETHERNET
 	select BR2_PACKAGE_THINGINO_KOPT
+	select BR2_PACKAGE_THINGINO_UBOOT
 	select BR2_PACKAGE_THINGINO_WEBUI
 	select BR2_PACKAGE_WPA_SUPPLICANT_DEBUG_SYSLOG if BR2_PACKAGE_WPA_SUPPLICANT
 	help
@@ -70,6 +71,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mmc/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-portal/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sounds/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sysupgrade/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-uboot/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wolfssl/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat-mini/Config.in"

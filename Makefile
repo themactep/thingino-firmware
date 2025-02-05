@@ -52,6 +52,7 @@ else
 OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)/$(CAMERA)
 endif
 $(info OUTPUT_DIR: $(OUTPUT_DIR))
+export OUTPUT_DIR
 
 STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
 STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
@@ -372,9 +373,6 @@ $(UB_ENV_FINAL_TXT): $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
 	if [ -f $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) ]; then \
 		grep -v '^#' $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) | tee $@; \
-		if [ -f $(BR2_EXTERNAL)/environment/master.uenv.txt ]; then \
-			grep -v '^#' $(BR2_EXTERNAL)/environment/master.uenv.txt | while read line; do grep -F -x -q "$$line" $@ || echo "$$line" >> $@; done; \
-		fi; \
 		if [ $(RELEASE) -ne 1 ] && [ -f $(BR2_EXTERNAL)/local.uenv.txt ]; then \
 			grep -v '^#' $(BR2_EXTERNAL)/local.uenv.txt | while read line; do grep -F -x -q "$$line" $@ || echo "$$line" >> $@; done; \
 		fi; \
