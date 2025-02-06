@@ -88,7 +88,7 @@ to_payload "call", "$ntfy_call"
 json="$json\n}"
 build_cmd "-d '$json' ntfy.sh"
 
-$command
+sh -c "$command" || die "Failed to send NTFY message"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 

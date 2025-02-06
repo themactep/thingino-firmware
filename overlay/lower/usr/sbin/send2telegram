@@ -127,7 +127,7 @@ else
 	die "Nothing to send"
 fi
 
-$command
+sh -c "$command" || die "Failed to send message to Telegram"
 
 remove_tempfiles
 

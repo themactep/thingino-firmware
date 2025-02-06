@@ -38,7 +38,9 @@ else
 	data="-d '$webhook_message'"
 fi
 
-$CURL $verbosity $data --url $webhook_url
+command="$CURL $verbosity $data --url $webhook_url"
+
+sh -c "$command" || die "Failed to send webhook message"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 

@@ -55,7 +55,7 @@ else
 	build_cmd "-t $mqtt_topic -m \"$mqtt_message\""
 fi
 
-$command
+sh -c "$command" || die "Failed to send MQTT message"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 

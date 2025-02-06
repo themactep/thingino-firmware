@@ -51,14 +51,14 @@ subdir="${subdir// /%20}" # convert each space into %20
 for subdir in ${subdirs//\// }; do
 	subdir="${subdirs%%/*}"  # leftmost directory
 	suburl="$suburl/$subdir"
-	[ -n "$subdir" ] && $command --request MKCOL $url$suburl
+	[ -n "$subdir" ] && sh -c "$command --request MKCOL $url$suburl"
 	subdirs="${subdirs#*/}" # remove the processed directory
 done
 
 # upload file
 build_cmd "--request PUT --upload-file $yadisk_file --url $url/$yadisk_path/$(TZ=$(cat /etc/TZ) date +"%G%m%d-%H%M%S").jpg"
 
-$command
+sh -c "$command" || die "Failed to upload file to Yandex Disk"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 

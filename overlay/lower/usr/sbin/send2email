@@ -75,7 +75,7 @@ if [ "true" = "$email_attach_video" ]; then
 fi
 build_cmd "-F '=)'"
 
-$command
+sh -c "$command" || die "Failed to send email"
 
 [ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 
