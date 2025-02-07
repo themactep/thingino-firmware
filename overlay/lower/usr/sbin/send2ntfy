@@ -46,7 +46,7 @@ done
 
 [ -z "$ntfy_topic" ] && die "NTFY topic is not set."
 
-command="curl -X POST $verbosity -H p:${ntfy_priority:-3}"
+command="curl $verbosity -H p:${ntfy_priority:-3}"
 [ -n "$ntfy_title" ] && command="$command -H 'Title: $ntfy_title'"
 [ -n "$ntfy_tags" ] || command="$command -H 'Tags: $ntfy_tags'"
 [ -n "$ntfy_delay" ] && command="$command -H 'Delay: $ntfy_delay'"
