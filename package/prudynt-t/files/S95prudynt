@@ -8,7 +8,7 @@ SNAPSHOT="/tmp/snapshot.jpg"
 start() {
 	starting
 	is_streamer_disabled && quit "Streamer disabled"
-	start_daemon_with_pid
+	start_daemon
 }
 
 stop() {

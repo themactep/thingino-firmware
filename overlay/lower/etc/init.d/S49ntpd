@@ -26,7 +26,7 @@ start() {
 		info "make a work config from default config"
 		run "cp $DEF_CONF $TMP_CONF"
 	fi
-	start_daemon_with_pid
+	start_daemon
 }
 
 stop() {

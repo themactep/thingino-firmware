@@ -4,7 +4,7 @@
 
 start() {
 	starting
-	start_daemon_with_pid
+	start_daemon
 }
 
 stop() {

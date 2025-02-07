@@ -19,7 +19,7 @@ start() {
 	[ -f $WEBUI_CONF ] || quit "Not configured"
 	. $WEBUI_CONF
 	[ "true" = "$record_enabled" ] || quit "Disabled in $WEBUI_CONF"
-	start_daemon_with_pid
+	start_daemon
 }
 
 stop() {

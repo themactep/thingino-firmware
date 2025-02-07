@@ -11,7 +11,7 @@ DAEMON_ARGS="-k -K 300 -b /etc/issue.net -R"
 start() {
 	umask 077
 	starting
-	start_daemon_with_pid
+	start_daemon
 }
 
 stop() {

@@ -22,7 +22,7 @@ start() {
 	is_streamer_disabled && quit "Streamer disabled"
 	is_onvif_disabled && quit "ONVIF disabled"
 	[ -d "$MOTION" ] || mkdir -p $MOTION
-	start_daemon_with_pid
+	start_daemon
 }
 
 stop() {

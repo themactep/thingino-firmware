@@ -195,18 +195,12 @@ run() {
 }
 
 start_daemon() {
-	local command="${COMMAND:-$DAEMON_FULL}"
-	[ -n "$DAEMON_ARGS" ] && command="$command $DAEMON_ARGS"
-	command="${command/ / -- }"
-	run "start-stop-daemon -b -S -x $command"
-	check_result
-}
-
-start_daemon_with_pid() {
-	local command="${COMMAND:-$DAEMON_FULL}"
-	[ -n "$DAEMON_ARGS" ] && command="$command $DAEMON_ARGS"
-	command="${command/ / -- }"
-	run "start-stop-daemon -b -m -S -p $PIDFILE -x $command"
+	local command="${COMMAND:-$DAEMON_FULL} -- $DAEMON_ARGS"
+	if [ -n "$PIDFILE" ] && [ -f "$PIDFILE" ]; then
+		start-stop-daemon -b -S -m -p $PIDFILE -x $command 2>&1
+	else
+		start-stop-daemon -b -S -x $command 2>&1
+	fi
 	check_result
 }
 
