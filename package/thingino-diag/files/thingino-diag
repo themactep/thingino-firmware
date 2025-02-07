@@ -99,7 +99,8 @@ fi
 	header "KMOD-2"
 	for file in /etc/modules.d/*; do echo "== $file =="; cat "$file"; done
 
-	inforun "lsusb" "USB"
+	[ -d /sys/bus/usb/devices/ ] && inforun "lsusb" "USB"
+
 	inforun "free -h" "MEMORY"
 	inforun "mount" "MOUNT"
 
