@@ -32,23 +32,30 @@ if6=$(ip -6 r | awk '/default/{print $3; exit}')
 	}')
 }
 
-mac=$(cat /sys/class/net/${if4:-$if6}/address)
+[ -n "${if4:-$if6}" ] && mac=$(cat /sys/class/net/${if4:-$if6}/address)
 
 ip_address=""
 
 alias tb="send2termbin"
 alias ver=". /etc/profile"
 
+R65OR="\e[38;5;130m%65s\e[0m\n"
+R65GD="\e[38;5;244m%65s\e[0m\n"
+R65GL="\e[38;5;251m%65s\e[0m\n"
+
 if [ "$PS1" ]; then
 	[ -f /etc/os-release ] && . /etc/os-release
 	[ -f /etc/banner ] && echo -e "$(cat /etc/banner)"
-	printf "\e[38;5;244m%65s\e[0m\n" "$IMAGE_ID"
-	printf "\e[38;5;244m%65s\e[0m\n" "$BUILD_ID"
-	printf "\n%65s\n" "$mac as ${if4:-$if6}"
-	[ -n "$ip6" ] && printf "%65s\n" "$ip6 (IPv6)"
-	[ -n "$ip4" ] && printf "%65s\n" "$ip4 (IPv4)"
-	[ -z "$ip4$ip6" ] && printf "%65s\n" "No IP address"
-	printf "\n\e[38;5;130m%65s\e[0m\n\n" "$(uptime)"
+	printf $R65GD "$IMAGE_ID"
+	printf $R65GD "$BUILD_ID"
+	echo
+	[ -n "$mac" ] && printf $R65GL "$mac as ${if4:-$if6}"
+	[ -n "$ip6" ] && printf $R65GL "$ip6 (IPv6)"
+	[ -n "$ip4" ] && printf $R65GL "$ip4 (IPv4)"
+	[ -z "$ip4$ip6" ] && printf $R65GL "No IP address"
+	echo
+	printf $R65OR "$(uptime)"
+	echo
 
 	if [ "$(id -u)" -eq 0 ]; then
 		export PS1="\[\e[38;5;208m\]\u\[\e[m\]@\[\e[38;5;153m\]\h\[\e[m\]\[\e[38;5;214m\] \W\[\e[m\]\\# "
