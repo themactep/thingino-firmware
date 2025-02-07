@@ -17,7 +17,7 @@ show_help() {
 
 # override config values with command line arguments
 verbosity="--silent"
-while getopts p:su:vh flag; do
+while getopts m:su:vh flag; do
 	case "$flag" in
 		m) webhook_message=$OPTARG ;;
 		s) webhook_attach_snapshot="true" ;;
