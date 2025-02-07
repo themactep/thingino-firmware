@@ -7,6 +7,7 @@ plugin="ntfy"
 show_help() {
 	echo "Usage: $0 [options]
 Where:
+  -s host      NTFY host.
   -u username  Username.
   -w password  Password.
   -t topic     Topic.
@@ -20,7 +21,7 @@ Where:
   -v           Verbose output.
   -h           Show this help.
 "
-	quit_clean 0
+	exit 0
 }
 
 verbosity="--silent"
@@ -34,6 +35,7 @@ while getopts a:c:f:i:l:m:n:p:s:t:u:vh flag; do
 		m) ntfy_message=$OPTARG ;;
 		n) ntfy_title=$OPTARG ;;
 		p) ntfy_priority=$OPTARG ;;
+		s) ntfy_host=$OPTARG ;;
 		t) ntfy_topic=$OPTARG ;;
 		u) ntfy_username=$OPTARG ;;
 		w) ntfy_password=$OPTARG ;;
@@ -57,8 +59,8 @@ command="curl -X POST $verbosity -H p:${ntfy_priority:-3}"
 [ -n "$ntfy_actions" ] && command="$command -H 'Actions: $ntfy_actions'"
 [ -n "$ntfy_call" ] && [ -n "$ntfy_twilio_token" ] && command="$command -H 'Call: $ntfy_call' -u :$ntfy_twilio_token"
 [ -n "$ntfy_message" ] && command="$command -d '$ntfy_message'"
-command="$command ntfy.sh/$ntfy_topic"
+command="$command ${ntfy_host:-ntfy.sh}/$ntfy_topic"
 
 sh -c "$command" || die "Failed to send NTFY message"
 
-quit_clean 0
+exit 0
