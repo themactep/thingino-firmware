@@ -5,7 +5,8 @@ plugin="ntfy"
 . /sbin/common
 
 show_help() {
-	echo "Usage: $0 [-p priority] [-t title] [-m message] [-u user] [-w password] [-i bool] [-v] [-h]
+	echo "Usage: $0 [options]
+Where:
   -u username  Username.
   -w password  Password.
   -t topic     Topic.
@@ -28,6 +29,7 @@ while getopts a:c:f:i:l:m:n:p:s:t:u:vh flag; do
 	case "$flag" in
 		a) ntfy_attach=$OPTARG ;;
 		c) ntfy_click=$OPTARG ;;
+		f) ntfy_filename=$OPTARG ;;
 		i) ntfy_icon=$OPTARG ;;
 		m) ntfy_message=$OPTARG ;;
 		n) ntfy_title=$OPTARG ;;
@@ -40,56 +42,23 @@ while getopts a:c:f:i:l:m:n:p:s:t:u:vh flag; do
 	esac
 done
 
-# validate mandatory values
 [ -z "$ntfy_topic" ] && die "NTFY topic is not set."
 
-# default values
-[ -z "$ntfy_priority" ] && ntfy_priority=3   # integer 1 to 5
-[ -z "$ntfy_attach"   ] && ntfy_attach=""    # url
-[ -z "$ntfy_click"    ] && ntfy_click=""     # url
-[ -z "$ntfy_icon"     ] && ntfy_icon=""      # url
-[ -z "$ntfy_filename" ] && ntfy_filename=""  # filename of attachment
-[ -z "$ntfy_delay"    ] && ntfy_delay=""     # relative time or timestamp
-[ -z "$ntfy_email"    ] && ntfy_email=""     # email address
-[ -z "$ntfy_call"     ] && ntfy_call=""      # phone number or yes
-[ -z "$ntfy_tags"     ] && ntfy_tags="[]"    # text array
-[ -z "$ntfy_actions"  ] && ntfy_actions="{}" # json array: "actions": [{ "action": "view", "label": "Admin panel", "url": "https://filesrv.lan/admin" }]
-[ -z "$ntfy_title"    ] && ntfy_title=""
-[ -z "$ntfy_message"  ] && ntfy_message=""
-[ -z "$ntfy_markdown" ] && ntfy_markdown="false"
-
-command="$CURL $verbosity -H p:$ntfy_msg_priority"
-
-[ -n "$ntfy_username" ] && [ -n "$ntfy_password" ] && \
-	build_cmd "-u $ntfy_username:$ntfy_password"
-
-if [ "true" = "$ntfy_attach_snapshot" ]; then
-	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	clone_snapshot $attachment
-	build_cmd "-T \"$attachment\" -H \"Filename: snapshot.jpg\""
-fi
-
-to_payload() { json="$json,\n\"$1\": \"$2\""; }
-
-json="{\"topic\": \"$ntfy_topic\""
-to_payload "message", "$ntfy_message"
-to_payload "title", "$ntfy_title"
-to_payload "tags", "$ntfy_tags"
-to_payload "priority", "$ntfy_priority"
-to_payload "action", "$ntfy_actions"
-to_payload "click", "$ntfy_click"
-to_payload "attach", "$ntfy_attach"
-to_payload "markdown", "$ntfy_markdown"
-to_payload "icon", "$ntfy_icon"
-to_payload "filename", "$ntfy_filename"
-to_payload "delay", "$ntfy_delay"
-to_payload "email", "$ntfy_email"
-to_payload "call", "$ntfy_call"
-json="$json\n}"
-build_cmd "-d '$json' ntfy.sh"
+command="curl -X POST $verbosity -H p:${ntfy_priority:-3}"
+[ -n "$ntfy_title" ] && command="$command -H 'Title: $ntfy_title'"
+[ -n "$ntfy_tags" ] || command="$command -H 'Tags: $ntfy_tags'"
+[ -n "$ntfy_delay" ] && command="$command -H 'Delay: $ntfy_delay'"
+[ -n "$ntfy_username" ] && [ -n "$ntfy_password" ] && command="$command -u $ntfy_username:$ntfy_password"
+[ -n "$ntfy_filename" ] && [ -f "$ntfy_filename" ] && command="$command -T $ntfy_filename -H 'Filename: $ntfy_filename'"
+[ -n "$ntfy_attach" ] && command="$command -H 'Attach: $ntfy_attach'"
+[ -n "$ntfy_click" ] && command="$command -H 'Click: $ntfy_click'"
+[ -n "$ntfy_icon" ] && command="$command -H 'Icon: $ntfy_icon'"
+[ -n "$ntfy_email" ] && command="$command -H 'Email: $ntfy_email'"
+[ -n "$ntfy_actions" ] && command="$command -H 'Actions: $ntfy_actions'"
+[ -n "$ntfy_call" ] && [ -n "$ntfy_twilio_token" ] && command="$command -H 'Call: $ntfy_call' -u :$ntfy_twilio_token"
+[ -n "$ntfy_message" ] && command="$command -d '$ntfy_message'"
+command="$command ntfy.sh/$ntfy_topic"
 
 sh -c "$command" || die "Failed to send NTFY message"
-
-[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
 
 quit_clean 0
