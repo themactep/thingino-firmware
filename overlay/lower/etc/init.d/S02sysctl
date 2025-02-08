@@ -5,9 +5,10 @@
 case "$1" in
 	start)
 		starting
-		for file in $(find /etc/ -path '*/sysctl\.*' -name '*.conf'); do
-			run "sysctl -p $file"
-		done
+#		for file in $(find /etc/ -path '*/sysctl\.*' -name '*.conf'); do
+#		sysctl -q -p $file
+#		done
+		sysctl -q -p
 		check_result
 		;;
 	stop)
