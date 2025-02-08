@@ -107,6 +107,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/exfat-nofuse/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/jsonfilter/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libschrift/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mosquitto/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-tailscale/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wpa_supplicant/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wyze-accessory/Config.in"
@@ -115,8 +116,8 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/zerotier-one/Config.in"
 config BR2_PACKAGE_IFUPDOWN_SCRIPTS
 	bool "ifupdown-scripts"
 
-config BR2_PACKAGE_MOSQUITTO
-	bool "mosquitto"
+config BR2_PACKAGE_THINGINO_MOSQUITTO
+	bool "thingino-mosquitto"
 
 config BR2_PACKAGE_NGINX
 	bool "nginx"
