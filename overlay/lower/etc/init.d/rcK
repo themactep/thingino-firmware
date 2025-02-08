@@ -1,7 +1,5 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
-
 echo_c 196 "\n\nGoing to reboot!\n"
 
 # Kill watchdog to trigger hw timer

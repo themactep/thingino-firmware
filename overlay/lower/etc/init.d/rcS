@@ -6,7 +6,8 @@ export SENSOR=$(cat /etc/sensor/model)
 export SOC=$(soc -f)
 export TZ=$(cat /etc/TZ)
 
-rm -f /var/run/boot; sleep 0.1
+rm -f /var/run/boot
+sleep 0.1
 echo 0.5 > /var/run/boot
 
 execute_and_log() {
@@ -22,15 +23,12 @@ execute_and_log() {
 	logger_pid=$!
 
 	/bin/sh -c "$script start" > /tmp/initlogpipe 2>&1
-	# check_result
 
 	rm -f /tmp/initlogpipe
 }
 
 # Run init scripts in numerical order
 for i in $(find /etc/init.d/ -name "S*" -executable | sort -n); do
-	#execute_and_log "$i" &
-	#wait
 	/bin/sh -c "$i start"
 done
 
