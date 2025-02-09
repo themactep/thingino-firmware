@@ -423,7 +423,7 @@ $(UB_ENV_BIN):
 	$(OUTPUT_DIR)/host/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(UB_ENV_FINAL_TXT)
 
 # create config partition image
-$(CONFIG_BIN):
+$(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 	$(info -------------------------------- $@)
 #	$(OUTPUT_DIR)/host/sbin/mkfs.ext2 \
 #		-F -b 1024 \
