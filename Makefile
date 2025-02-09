@@ -427,7 +427,7 @@ $(UB_ENV_BIN):
 # create config partition image
 $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 	$(info -------------------------------- $@)
-	$(HOST_DIR)/host/sbin/mkfs.jffs2 --little-endian --squash \
+	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash \
 		--root=$(CONFIG_PARTITION_DIR)/ \
 		--output=$(CONFIG_BIN) \
 		--pad=$(CONFIG_PARTITION_SIZE) \
