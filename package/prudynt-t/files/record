@@ -22,7 +22,7 @@ get_occupied_space() {
 
 # "parameter" "default"
 read_config() {
-	sed -nE "s/^.*$1\s*[:=]\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/config/prudynt.cfg | head -1
+	sed -nE "s/^.*$1\s*[:=]\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
 	[ -z "$_" ] || echo "$2"
 }
 

@@ -35,7 +35,7 @@ case "$soc_family" in
 	  *) modes="$modes SMART" ;;
 esac
 
-prudynt_config=/etc/config/prudynt.cfg
+prudynt_config=/etc/prudynt.cfg
 onvif_config=/etc/onvif.conf
 onvif_discovery=/etc/init.d/S96onvif_discovery
 onvif_notify=/etc/init.d/S97onvif_notify
@@ -82,7 +82,7 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <div class="d-flex flex-wrap align-content-around gap-1">
 <button type="button" class="btn btn-secondary" id="restart-prudynt">Restart streamer</button>
 <button type="button" class="btn btn-secondary" id="save-prudynt-config">Save config</button>
-<a class="btn btn-secondary" href="tool-file-manager.cgi?dl=/etc/config/prudynt.cfg">Download config</a>
+<a class="btn btn-secondary" href="tool-file-manager.cgi?dl=/etc/prudynt.cfg">Download config</a>
 </div>
 </div>
 <div class="col mb-3">

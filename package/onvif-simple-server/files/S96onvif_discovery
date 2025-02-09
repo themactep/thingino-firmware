@@ -4,7 +4,7 @@ DAEMON=wsd_simple_server
 ONVIF_CONFIG=/etc/onvif.conf
 ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
 OS_RELEASE=/etc/os-release
-PRUDYNT_CONFIG=/etc/config/prudynt.cfg
+PRUDYNT_CONFIG=/etc/prudynt.cfg
 
 . /etc/init.d/rc.common
 

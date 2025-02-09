@@ -174,7 +174,7 @@ BEGIN {
 	}
     
 	for (i=ARGC;i>2;i--){ARGC--}
-	ARGV[1]="/etc/config/prudynt.cfg";
+	ARGV[1]="/etc/prudynt.cfg";
 }
 {if(o<256){if(o<128){_p()};_e($0)}}
 END{

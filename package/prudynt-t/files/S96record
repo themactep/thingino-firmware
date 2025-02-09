@@ -7,7 +7,7 @@ WEBUI_CONF=/etc/webui/record.conf
 . /etc/init.d/rc.common
 
 read_config() {
-	sed -nE "s/^.*$1:\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/config/prudynt.cfg | head -1
+	sed -nE "s/^.*$1:\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
 }
 
 start() {
