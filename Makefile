@@ -54,6 +54,8 @@ endif
 $(info OUTPUT_DIR: $(OUTPUT_DIR))
 export OUTPUT_DIR
 
+HOST_DIR = $(OUTPUT_DIR)/host
+
 CONFIG_PARTITION_DIR = $(OUTPUT_DIR)/config
 export CONFIG_PARTITION_DIR
 
@@ -420,22 +422,22 @@ $(U_BOOT_BIN):
 
 $(UB_ENV_BIN):
 	$(info -------------------------------- $@)
-	$(OUTPUT_DIR)/host/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(UB_ENV_FINAL_TXT)
+	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(UB_ENV_FINAL_TXT)
 
 # create config partition image
 $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 	$(info -------------------------------- $@)
-#	$(OUTPUT_DIR)/host/sbin/mkfs.ext2 \
+#	$(HOST_DIR)/sbin/mkfs.ext2 \
 #		-F -b 1024 \
 #		-d $(CONFIG_PARTITION_DIR) \
 #		-L config $(CONFIG_BIN) 64K
-#	$(OUTPUT_DIR)/host/sbin/debugfs -w -R 'rmdir lost+found' $(CONFIG_BIN)
+#	$(HOST_DIR)/sbin/debugfs -w -R 'rmdir lost+found' $(CONFIG_BIN)
 #	truncate -s 65536 $(CONFIG_BIN)
-	$(OUTPUT_DIR)/host/sbin/mkfs.vfat \
+	$(HOST_DIR)/sbin/mkfs.vfat \
 		-F 12 -S 512 -s 1 -f 2 -r 112 \
 		-n "CONFIG" --invariant \
 		-C $(CONFIG_BIN) 64
-	$(OUTPUT_DIR)/host/bin/mcopy -i $(CONFIG_BIN) -s $(CONFIG_PARTITION_DIR)/* ::
+	$(HOST_DIR)/bin/mcopy -i $(CONFIG_BIN) -s $(CONFIG_PARTITION_DIR)/* ::
 # FIXME: future, copy files from overlay/config to CONFIG_PARTITION_DIR before creating image
 
 # rebuild kernel
@@ -458,7 +460,7 @@ $(OVERLY_BIN): $(U_BOOT_BIN)
 	$(info -------------------------------- $@)
 	if [ $(OVERLY_PARTITION_SIZE) -lt $(OVERLY_LLIMIT) ]; then $(FIGLET) "OVERLAY IS TOO SMALL"; fi
 	if [ -f $(OVERLY_BIN) ]; then rm $(OVERLY_BIN); fi
-	$(OUTPUT_DIR)/host/sbin/mkfs.jffs2 --little-endian --squash \
+	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash \
 		--root=$(BR2_EXTERNAL)/overlay/upper/ \
 		--output=$(OVERLY_BIN) \
 		--pad=$(OVERLY_PARTITION_SIZE) \
