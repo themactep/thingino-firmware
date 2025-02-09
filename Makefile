@@ -371,10 +371,14 @@ ifneq ($(CAMERA_CONFIG_REAL),$(MODULE_CONFIG_REAL))
 	# add camera configuration
 	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
 endif
-	@if [ $(RELEASE) -eq 1 ]; then $(FIGLET) "RELEASE"; else $(FIGLET) "DEVELOPMENT"; fi
-	if [ $(RELEASE) -ne 1 ] && [ -f local.fragment ]; then cat local.fragment >>$(OUTPUT_DIR)/.config; fi
-	if [ $(RELEASE) -ne 1 ] && [ -f $(BR2_EXTERNAL)/local.mk ]; then cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; fi
-	if [ ! -L $(OUTPUT_DIR)/thingino ]; then ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; fi
+	if [ $(RELEASE) -eq 1 ]; then \
+		$(FIGLET) "RELEASE"; \
+	else \
+		$(FIGLET) "DEVELOPMENT"; \
+		[ -f $(BR2_EXTERNAL)/local.fragment ] && cat $(BR2_EXTERNAL)/local.fragment >>$(OUTPUT_DIR)/.config; \
+		[ -f $(BR2_EXTERNAL)/local.mk ] && cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; \
+	fi
+	[ -L $(OUTPUT_DIR)/thingino ] || ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 
