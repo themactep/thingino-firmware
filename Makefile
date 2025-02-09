@@ -375,10 +375,16 @@ endif
 		$(FIGLET) "RELEASE"; \
 	else \
 		$(FIGLET) "DEVELOPMENT"; \
-		[ -f $(BR2_EXTERNAL)/local.fragment ] && cat $(BR2_EXTERNAL)/local.fragment >>$(OUTPUT_DIR)/.config; \
-		[ -f $(BR2_EXTERNAL)/local.mk ] && cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; \
+		if [ -f $(BR2_EXTERNAL)/local.fragment ]; then \
+			cat $(BR2_EXTERNAL)/local.fragment >>$(OUTPUT_DIR)/.config; \
+		fi; \
+		if [ -f $(BR2_EXTERNAL)/local.mk ]; then \
+			cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; \
+		fi; \
 	fi
-	[ -L $(OUTPUT_DIR)/thingino ] || ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino
+	if [ ! -L $(OUTPUT_DIR)/thingino ]; then \
+		ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; \
+	fi
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 
