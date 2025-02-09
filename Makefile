@@ -103,7 +103,7 @@ UB_ENV_FINAL_TXT = $(OUTPUT_DIR)/uenv.txt
 export UB_ENV_FINAL_TXT
 
 UB_ENV_BIN = $(OUTPUT_DIR)/images/u-boot-env.bin
-CONFIG_BIN := $(OUTPUT_DIR)/images/config.fat12
+CONFIG_BIN := $(OUTPUT_DIR)/images/config.jffs2
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
@@ -137,7 +137,7 @@ OVERLY_BIN_SIZE_ALIGNED = $(shell echo $$((($(OVERLY_BIN_SIZE) + $(ALIGN_BLOCK) 
 # fixed size partitions
 U_BOOT_PARTITION_SIZE := $(SIZE_256K)
 UB_ENV_PARTITION_SIZE := $(SIZE_64K)
-CONFIG_PARTITION_SIZE := $(SIZE_64K)
+CONFIG_PARTITION_SIZE := $(SIZE_192K)
 KERNEL_PARTITION_SIZE = $(KERNEL_BIN_SIZE_ALIGNED)
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
 
@@ -427,18 +427,11 @@ $(UB_ENV_BIN):
 # create config partition image
 $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 	$(info -------------------------------- $@)
-#	$(HOST_DIR)/sbin/mkfs.ext2 \
-#		-F -b 1024 \
-#		-d $(CONFIG_PARTITION_DIR) \
-#		-L config $(CONFIG_BIN) 64K
-#	$(HOST_DIR)/sbin/debugfs -w -R 'rmdir lost+found' $(CONFIG_BIN)
-#	truncate -s 65536 $(CONFIG_BIN)
-	$(HOST_DIR)/sbin/mkfs.vfat \
-		-F 12 -S 512 -s 1 -f 2 -r 112 \
-		-n "CONFIG" --invariant \
-		-C $(CONFIG_BIN) 64
-	$(HOST_DIR)/bin/mcopy -i $(CONFIG_BIN) -s $(CONFIG_PARTITION_DIR)/* ::
-# FIXME: future, copy files from overlay/config to CONFIG_PARTITION_DIR before creating image
+	$(HOST_DIR)/host/sbin/mkfs.jffs2 --little-endian --squash \
+		--root=$(CONFIG_PARTITION_DIR)/ \
+		--output=$(CONFIG_BIN) \
+		--pad=$(CONFIG_PARTITION_SIZE) \
+		--eraseblock=$(OVERLY_ERASEBLOCK_SIZE)
 
 # rebuild kernel
 $(KERNEL_BIN):

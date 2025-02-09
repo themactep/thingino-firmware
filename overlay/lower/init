@@ -13,12 +13,12 @@ grep -q overlay /proc/filesystems || exit 1
 
 configfs_dev=$(awk '$4 ~ /"config"/ {gsub(":","",$1); print "/dev/mtdblock" substr($1,4)}' /proc/mtd)
 if [ -n "$configfs_dev" ]; then
-	mount -t exfat "$configfs_dev" /etc/config
-	if ! grep -q " /etc/config " /proc/mounts; then
+	mount -t jffs2 "$configfs_dev" /config
+	if ! grep -q " /config " /proc/mounts; then
 		echo "Init: Invalid config partition detected. Formatting..."
-		mkfs.vfat -v -n CONFIG "$configfs_dev"
-		mount -t exfat "$configfs_dev" /etc/config
-		grep -q " /etc/config " /proc/mounts || \
+		flash_eraseall -j "$configfs_dev"
+		mount -t jffs2 "$configfs_dev" /config
+		grep -q " /config " /proc/mounts || \
 			echo "Init: ERROR: Failed to mount config partition after format!"
 	fi
 fi
@@ -64,4 +64,6 @@ pivot_root /mnt /mnt/rom
 mount -o noatime,move /rom/proc /proc
 mount -o noatime,move /rom/dev /dev
 mount -o noatime,move /rom/overlay /overlay
-mount -o noatime,move /rom/etc/config /etc/config
+mount -o noatime,move /rom/config /config
+
+#mount -t overlayfs overlayfs -o rw,noatime,lowerdir=/rom/etc,upperdir=/config /etc

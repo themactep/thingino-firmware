@@ -25,11 +25,11 @@ wipe() {
 	fi
 
 
-	if grep -q " /etc/config " /proc/mounts; then
-		umount -f /etc/config
-	fi
+#	if grep -q " /etc/config " /proc/mounts; then
+#		umount -f /etc/config
+#	fi
 
-	mkfs.vfat -v -n CONFIG $configfs_data_dev
+	flash_eraseall -j "/dev/${configfs_data_dev}"
 	flash_eraseall -j "/dev/${rootfs_data_dev}"
 	[ "$erase_mtd1" = true ] && flash_eraseall /dev/mtd1
 	echo "Erase completed. Rebooting..."
