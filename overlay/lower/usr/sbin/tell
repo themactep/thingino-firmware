@@ -3,8 +3,8 @@
 if [ -z "$1" ]; then
 	echo "Usage: $0 \"phrase to say\"
 Shortcuts:
- %ip     Tell IP address
- %time   Tell recent time
+	%ip     Tell IP address
+	%time   Tell recent time
 "
 	exit 1
 fi
@@ -20,6 +20,7 @@ case "$1" in
 		phrase="$*" ;;
 esac
 
-curl --silent --get --url "https://thingino.com/say" --data-urlencode q="$phrase" | iac -s
+curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --silent \
+--get --url https://thingino.com/say --data-urlencode q="$phrase" | iac -s
 
 exit 0
