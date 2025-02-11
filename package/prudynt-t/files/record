@@ -1,13 +1,19 @@
 #!/bin/sh
 
-. /sbin/common
+die() { echo -e "\e[38;5;160m$@\e[0m" >&2; exit 1; }
+log() { echo "$1" >&2; }
 
-pidof -o $$ record > /dev/null && die "is already running"
+create_directory_for() {
+	dir="$(dirname "$1")"
+	[ -d "$dir" ] || mkdir -p "$dir"
+	[ -d "$dir" ] || die "Cannot create directory $dir"
+	[ -w "$dir" ] || die "Cannot write to $dir"
+}
 
-RECORD_FLAG="/tmp/record.$$"
-
-log() {
+hesitate() {
 	echo "$1" >&2
+	sleep 5
+	exit 0
 }
 
 get_free_space() {
@@ -38,6 +44,14 @@ read_size() {
 	[ -z "$_" ] || echo "$2"
 }
 
+# "path"
+remove_oldest_file_in() {
+	oldest_file="$(find "$1" -type f -exec ls -ltr {} + | head -n1 | awk '{print $9}')"
+	oldest_file_dir="$(dirname $oldest_file)"
+	rm -v "$oldest_file"
+	[ -z "$(ls -A1 "$oldest_file_dir")" ] && rm -rv "$oldest_file_dir"
+}
+
 has_files() {
 	[ "$(find "$1" -type f | wc -l)" -gt 0 ]
 }
@@ -45,21 +59,28 @@ has_files() {
 show_help() {
 	log "Usage: $0 [<params>]
 Where params are:
-  -u <string>  RTSP username
-  -p <string>  RTSP password
-  -c <int>     RTSP stream number
-  -h <int>     Frame height
-  -w <int>     Frame width
-  -f <int>     Frames per second
-  -t <int>     Duration in seconds
-  -v <str>     Record video format
-  -m <path>    Mount point for storing files
-  -s <path>    Subdirectory for the device
-  -n <string>  File name template (supports strftime format)
-  -d <int>     Maximum disk usage, GiB
-  -x           One-time run
+	-u <string>  RTSP username
+	-p <string>  RTSP password
+	-c <int>     RTSP stream number
+	-h <int>     Frame height
+	-w <int>     Frame width
+	-f <int>     Frames per second
+	-t <int>     Duration in seconds
+	-v <str>     Record video format
+	-m <path>    Mount point for storing files
+	-s <path>    Subdirectory for the device
+	-n <string>  File name template (supports strftime format)
+	-d <int>     Maximum disk usage, GiB
+	-x           One-time run
 "
 }
+
+pidof -o $$ record > /dev/null && die "is already running"
+
+CONFIG_FILE="/etc/webui/record.conf"
+[ -f "$CONFIG_FILE" ] && . $CONFIG_FILE
+
+RECORD_FLAG="/tmp/record.$$"
 
 RECORD_WEBUI_CONF=/etc/webui/record.conf
 if [ -f $RECORD_WEBUI_CONF ]; then
@@ -130,15 +151,6 @@ esac
 
 touch $RECORD_FLAG
 
-# FIXME: disable LED until LEDD is ready
-#if [ -n "$record_led" ]; then
-#	record_led_pin=$(fw_printenv -n $record_led | sed s/[^0-9]//g)
-#	if [ -n "$record_led_pin" ]; then
-#		LEDD_FLAG="/run/ledd/$record_led_pin"
-#		echo "${record_blink:-1}" > $LEDD_FLAG
-#	fi
-#fi
-
 record_storage="$record_mount/$record_device_path"
 if [ ! -d "$record_storage" ]; then
 	log "Creating $record_storage"
@@ -147,7 +159,7 @@ fi
 [ -w "$record_storage" ] || die "Cannot write to $record_storage"
 
 record_limit_kb=$((record_limit * 1024 * 1024)) # GiB to KiB
-required_space=$((120 * record_duration)) # KiB
+required_space=$((100 * record_duration)) # KiB
 
 while :; do
 	[ -f $RECORD_FLAG ] || break
@@ -159,12 +171,18 @@ while :; do
 
 	if [ "$available_space" -le "$required_space" ]; then
 		log "Not enough space: $required_space > $available_space"
-		while [ "$available_space" -le "$required_space" ] || [ "$((occupied_space + required_space))" -gt "$record_limit_kb" ]; do
-			oldest_file="$(find "$record_storage" -type f -exec ls -ltr {} + | head -n1 | awk '{print $9}')"
-			oldest_file_dir="$(dirname $oldest_file)"
-			rm -v "$oldest_file"
-			[ -z "$(ls -A1 "$oldest_file_dir")" ] && rm -rv "$oldest_file_dir"
+		while [ "$available_space" -le "$required_space" ]; do
+			remove_oldest_file_in "$record_storage"
+			get_free_space
+			get_occupied_space
+			has_files "$record_storage" || die "$record_mount is empty yet no space!"
+		done
+	fi
 
+	if [ "$record_limit_kb" -gt 0 ]; then
+		while [ "$((occupied_space + required_space))" -gt "$record_limit_kb" ]; do
+			log "Occupied space $occupied_space KiB exceeds limit $record_limit_kb KiB"
+			remove_oldest_file_in "$record_storage"
 			get_free_space
 			get_occupied_space
 			has_files "$record_storage" || die "$record_mount is empty yet no space!"
