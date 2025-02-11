@@ -1,22 +1,39 @@
 #!/bin/sh
 
-plugin="timelapse"
+SNAPSHOT_FILE=/tmp/snapshot.jpg
 
-. /sbin/common
+CONFIG_FILE="/etc/webui/timelapse.conf"
+[ -f "$CONFIG_FILE" ] && . $CONFIG_FILE
+
+die() { printf "\e[38;5;124m%s\e[0m\n" "$1" >&2; exit 1; }
+
+create_directory_for() {
+	dir="$(dirname "$1")"
+	[ -d "$dir" ] || mkdir -p "$dir"
+	[ -d "$dir" ] || die "Cannot create directory $dir"
+	[ -w "$dir" ] || die "Cannot write to $dir"
+}
+
+hesitate() {
+	echo "$1" >&2
+	sleep 5
+	exit 0
+}
 
 # drop trailing slashes
 timelapse_mount=${timelapse_mount%/}
 timelapse_device_path=${timelapse_device_path%/}
 
+[ -z "$timelapse_mount" ] && die "'timelapse_mount' is not set"
+
 # wait for mount point
-[ -z "$timelapse_mount" ] && hesitate "timelapse_mount is not set"
 mountpoint -q "$timelapse_mount" || hesitate "$timelapse_mount is not mounted"
 [ -w "$timelapse_mount" ] || hesitate "$timelapse_mount is not writable"
 
 # storage directory
 timelapse_storage="$timelapse_mount/$timelapse_device_path"
 if [ ! -d "$timelapse_storage" ]; then
-	log "Creating $timelapse_storage"
+	echo "Creating $timelapse_storage" >&2
 	mkdir -vp "$timelapse_storage" || die "Cannot create directory $timelapse_storage"
 fi
 [ -w "$timelapse_storage" ] || die "Cannot write to $timelapse_storage"
@@ -31,6 +48,7 @@ find "$timelapse_storage" -type f -name '*.jpg' -mtime +$timelapse_depth -exec r
 # delete empty directories
 find "$timelapse_storage" -empty -type d -mindepth 1 -exec rm -r {} \;
 
-clone_snapshot "$timelapse_storage/$(date +"$timelapse_filename")"
+create_directory_for "$timelapse_storage/$(date +"$timelapse_filename")"
+cp -f "$SNAPSHOT_FILE" "$timelapse_storage/$(date +"$timelapse_filename")"
 
 exit 0
