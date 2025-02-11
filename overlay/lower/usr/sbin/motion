@@ -1,9 +1,8 @@
 #!/bin/sh
 
-plugin="motion"
+pidof -o %PPID motion > /dev/null && exit
 
 . /sbin/common
-singleton
 
 MOTION_ALARM="/run/motion/motion_alarm"
 MOTION_ALARM_DIR=$(dirname $MOTION_ALARM)
