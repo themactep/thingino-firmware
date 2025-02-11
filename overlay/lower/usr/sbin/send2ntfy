@@ -1,31 +1,34 @@
-#!/bin/sh
+#!/bin/env sh
 
-plugin="ntfy"
+SNAPSHOT_FILE=/tmp/snapshot.jpg
+VBUFFER_FILE=/tmp/vbuffer.mov
 
-. /sbin/common
+CONFIG_FILE="/etc/webui/ntfy.conf"
+[ -f "$CONFIG_FILE" ] && . $CONFIG_FILE
+
+die() { printf "\e[38;5;124m%s\e[0m\n" "$1" >&2; exit 1; }
 
 show_help() {
 	echo "Usage: $0 [options]
 Where:
-  -s host      NTFY host.
-  -u username  Username.
-  -w password  Password.
-  -t topic     Topic.
-  -p N         Priority. 1-lowest, 5-highest.
-  -n title     Message title.
-  -m message   Message body.
-  -f [file]    Attach file.
-  -a URL       Attachment URL.
-  -c URL       Click URL.
-  -i URL       Icon URL.
-  -v           Verbose output.
-  -h           Show this help.
+	-a URL       Attachment URL.
+	-c URL       Click URL.
+	-f file      Attach file.
+	-i URL       Icon URL.
+	-m message   Message body.
+	-n title     Message title.
+	-p N         Priority. 1-lowest, 5-highest.
+	-s host      NTFY host.
+	-t topic     Topic.
+	-u username  Username.
+	-w password  Password.
+	-v           Verbose output.
+	-h           Show this help.
 "
 	exit 0
 }
 
 verbosity="--silent"
-# override config values with command line arguments
 while getopts a:c:f:i:l:m:n:p:s:t:u:vh flag; do
 	case "$flag" in
 		a) ntfy_attach=$OPTARG ;;
@@ -46,7 +49,8 @@ done
 
 [ -z "$ntfy_topic" ] && die "NTFY topic is not set."
 
-command="curl $verbosity -H p:${ntfy_priority:-3}"
+command="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 $verbosity"
+command="$command -H p:${ntfy_priority:-3}"
 [ -n "$ntfy_title" ] && command="$command -H 'Title: $ntfy_title'"
 [ -n "$ntfy_tags" ] || command="$command -H 'Tags: $ntfy_tags'"
 [ -n "$ntfy_delay" ] && command="$command -H 'Delay: $ntfy_delay'"
