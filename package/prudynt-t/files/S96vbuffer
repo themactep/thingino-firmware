@@ -1,7 +1,5 @@
 #!/bin/sh
 
-plugin="vbuffer"
-
 . /sbin/common
 . /etc/init.d/rc.common
 
@@ -24,9 +22,9 @@ rtsp_height=$(read_logcat "7" "360")
 rtsp_fps=25
 clip_duration=5
 clip_format="-q"
-clipfile="/tmp/$plugin.mov"
-lockfile=/tmp/$plugin.lock
-tmpfile=/tmp/$plugin.tmp
+clipfile="/tmp/vbuffer.mov"
+lockfile=/tmp/vbuffer.lock
+tmpfile=/tmp/vbuffer.tmp
 
 start() {
 	starting
