@@ -1,8 +1,5 @@
 #!/bin/sh
-for x in $(seq 0 15); do
-	for i in $(seq 1 16); do
-		n=$((16 * x + i))
-		echo -en "\e[38;5;${n}m$(printf " %03d" $n)\e[0m"
-	done
-	echo
+for n in $(seq 1 256); do
+printf "\e[38;5;%dm %03d\e[0m" $n $n
+[ $((n % 16)) -eq 0 ] && echo
 done
