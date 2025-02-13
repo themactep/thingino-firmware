@@ -11,13 +11,14 @@ mount -t proc proc /proc || exit 1
 grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline && exit 0
 grep -q overlay /proc/filesystems || exit 1
 
-configfs_dev=$(awk '$4 ~ /"config"/ {gsub(":","",$1); print "/dev/mtdblock" substr($1,4)}' /proc/mtd)
+configfs_dev=$(awk -F ':' '/config/ {print $1}' /proc/mtd)
+configfs_blk=$(awk '$4 ~ /"config"/ {gsub(":","",$1); print "/dev/mtdblock" substr($1,4)}' /proc/mtd)
 if [ -n "$configfs_dev" ]; then
-	mount -t jffs2 "$configfs_dev" /config
+	mount -t jffs2 "$configfs_blk" /config
 	if ! grep -q " /config " /proc/mounts; then
 		echo "Init: Invalid config partition detected. Formatting..."
-		flash_eraseall -j "$configfs_dev"
-		mount -t jffs2 "$configfs_dev" /config
+		flash_eraseall -j /dev/$configfs_dev
+		mount -t jffs2 "$configfs_blk" /config
 		grep -q " /config " /proc/mounts || \
 			echo "Init: ERROR: Failed to mount config partition after format!"
 	fi
