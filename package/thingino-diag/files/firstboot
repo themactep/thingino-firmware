@@ -18,7 +18,7 @@ wipe() {
 		exit 1
 	fi
 
-	configfs_data_dev=$(awk '$4 ~ /"config"/ {gsub(":","",$1); print "/dev/mtdblock" substr($1,4)}' /proc/mtd)
+	configfs_data_dev=$(awk '$4 ~ /"config"/ {gsub(":","",$1); print "/dev/mtd" substr($1,4)}' /proc/mtd)
 	if [ -z "$configfs_data_dev" ]; then
 		echo "Config partition not found!"
 		exit 1
@@ -29,7 +29,7 @@ wipe() {
 #		umount -f /etc/config
 #	fi
 
-	flash_eraseall -j "/dev/${configfs_data_dev}"
+	flash_eraseall -j "${configfs_data_dev}"
 	flash_eraseall -j "/dev/${rootfs_data_dev}"
 	[ "$erase_mtd1" = true ] && flash_eraseall /dev/mtd1
 	echo "Erase completed. Rebooting..."
