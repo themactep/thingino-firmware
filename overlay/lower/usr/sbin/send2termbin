@@ -1,22 +1,20 @@
-#!/bin/sh
+#!/bin/env sh
 
-. /sbin/common
+die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
 
 if [ -t 0 ]; then
 	[ -z "$1" ] && die "Usage: $0 <command>"
 
 	file=$(mktemp)
-	sh -c "$*" > $file 2>&1
+	sh -c "$*" > "$file" 2>&1
 else
 	file=$(mktemp)
-	cat - > $file
+	cat - > "$file"
 fi
 
 [ -s "$file" ] || die "File $file is empty"
 
-url=$(cat "$file" | curl -s -T - telnet://termbin.com:9999)
-echo $url
-
-rm -f $file
+curl -s -T - telnet://termbin.com:9999 < "$file"
+rm -f "$file"
 
 exit 0

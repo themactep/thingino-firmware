@@ -1,12 +1,12 @@
 #!/bin/env sh
 
-SNAPSHOT_FILE=/tmp/snapshot.jpg
-VBUFFER_FILE=/tmp/vbuffer.mov
+SNAPSHOT_FILE="/tmp/snapshot.jpg"
+VBUFFER_FILE="/tmp/vbuffer.mov"
 
 CONFIG_FILE="/etc/webui/ntfy.conf"
-[ -f "$CONFIG_FILE" ] && . $CONFIG_FILE
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
-die() { printf "\e[38;5;124m%s\e[0m\n" "$1" >&2; exit 1; }
+die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
 
 show_help() {
 	echo "Usage: $0 [options]

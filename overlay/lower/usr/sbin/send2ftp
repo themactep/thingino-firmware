@@ -1,25 +1,29 @@
-#!/bin/sh
+#!/bin/env sh
 
-plugin="ftp"
+SNAPSHOT_FILE="/tmp/snapshot.jpg"
+VBUFFER_FILE="/tmp/vbuffer.mov"
 
-. /sbin/common
+CONFIG_FILE="/etc/webui/ftp.conf"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+
+die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
 
 show_help() {
-	echo "Usage: $0 [-s host] [-p port] [-u username] [-P password] [-d path] [-f file] [-v] [-h]
-  -s host     FTP server FQDN or IP address.
-  -p port     FTP server port.
-  -d path     Directory on server, relative to FTP root.
-  -f file     File to upload.
-  -u username FTP username.
-  -P password FTP password.
-  -v          Verbose output.
-  -h          Show this help.
+	echo "Usage: $0 [options]
+Where:
+	-s host     FTP server FQDN or IP address.
+	-p port     FTP server port.
+	-d path     Directory on server, relative to FTP root.
+	-f file     File to upload.
+	-u username FTP username.
+	-P password FTP password.
+	-v          Verbose output.
+	-h          Show this help.
 "
-	quit_clean 0
+	exit 0
 }
 
 verbosity="--silent"
-# override config values with command line arguments
 while getopts d:f:p:P:s:u:vVh flag; do
 	case "$flag" in
 		d) ftp_path=$OPTARG ;;
@@ -34,20 +38,19 @@ while getopts d:f:p:P:s:u:vVh flag; do
 	esac
 done
 
-# validate mandatory values
 [ -z "$ftp_host" ] && die "FTP host not found"
 
-# assign default values if not set
 [ -z "$ftp_port" ] && ftp_port=21
 [ -z "$ftp_user" ] && ftp_user="anonymous" && ftp_password="anonymous"
 
 if [ -z "$ftp_file" ]; then
 	if [ "true" = "$ftp_sendvideo" ]; then
-		attachment="/tmp/vbuffer.mov"
+		attachment=$(mktemp -u).mov
+		cp -f "$VBUFFER_FILE" "$attachment"
 		ftp_filename=$(date +"$ftp_template").mov
 	else
-		attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-		clone_snapshot $attachment
+		attachment=$(mktemp -u).jpg
+		cp -f "$SNAPSHOT_FILE" "$attachment"
 		ftp_filename=$(date +"$ftp_template").jpg
 	fi
 
@@ -60,10 +63,11 @@ url="$url@$ftp_host:$ftp_port"
 [ -n "$ftp_path" ] && url="$url/${ftp_path// /%20}"
 url="$url/$ftp_filename"
 
-command="$CURL $verbosity --url $url --upload-file $ftp_file --ftp-create-dirs"
+command="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 $verbosity"
+command="$command --url $url --upload-file $ftp_file --ftp-create-dirs"
 
 sh -c "$command" || die "Failed to upload file to FTP server"
 
-[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
+[ -f "$attachment" ] && rm "$attachment"
 
-quit_clean 0
+exit 0

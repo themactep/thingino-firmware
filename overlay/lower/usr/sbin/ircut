@@ -1,55 +1,40 @@
 #!/bin/sh
 
-# read IRCUT pins from bootloader environment
-gpio_ircut=$(fw_printenv -n gpio_ircut)
-pin1=$(echo $gpio_ircut | awk '{print $1}')
-pin2=$(echo $gpio_ircut | awk '{print $2}')
+die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
+info() { printf "\e[38;5;46m%s\e[0m\n" "$1" >&2; }
 
-if [ -z "$pin1" ]; then
-	echo -e "Please define IRCUT pin\nfw_setenv gpio_ircut <pin>" >&2
-	exit 1
+gpio_ircut=$(fw_printenv -n gpio_ircut)
+
+pin1=$(echo $gpio_ircut | awk '{print $1}')
+if [ -n "$pin1" ]; then
+	[ "$pin1" = "${pin1//[^0-9]/}" ] && pin1="${pin1}O"
+	case ${pin1:(-1)} in
+		o) pin1_on=0; pin1_off=1 ;;
+		O) pin1_on=1; pin1_off=0 ;;
+	esac
+	pin1=${pin1:0:(-1)}
+else
+	die "Please define IRCUT pins in bootloader environment"
 fi
 
-# default to output high
-[ "$pin1" = "${pin1//[^0-9]/}" ] && pin1="${pin1}O"
-
-case ${pin1:(-1)} in
-	o)
-		pin1_on=0
-		pin1_off=1
-		;;
-	O | *)
-		pin1_on=1
-		pin1_off=0
-		;;
-esac
-pin1=${pin1:0:(-1)}
-
+pin2=$(echo $gpio_ircut | awk '{print $2}')
 if [ -n "$pin2" ]; then
-	# default to output high
 	[ "$pin2" = "${pin2//[^0-9]/}" ] && pin2="${pin2}O"
-
 	case ${pin2:(-1)} in
-		o)
-			pin2_on=0
-			pin2_off=1
-			;;
-		O | *)
-			pin2_on=1
-			pin2_off=0
-			;;
+		o) pin2_on=0; pin2_off=1 ;;
+		O) pin2_on=1; pin2_off=0 ;;
 	esac
 	pin2=${pin2:0:(-1)}
 fi
 
-MODE_FILE=/tmp/ircutmode.txt
-[ -f $MODE_FILE ] || touch $MODE_FILE
+MODE_FILE="/tmp/ircutmode.txt"
+[ -f "$MODE_FILE" ] || touch "$MODE_FILE"
 
 report_ir_filter() {
-	case "$(cat $MODE_FILE 2> /dev/null)" in
-		0) echo "IRCUT filter is removed" >&2 ;;
-		1) echo "IRCUT filter is set" >&2 ;;
-		*) echo "IRCUT filter is in unknown state" >&2 ;;
+	case "$(cat "$MODE_FILE")" in
+		0) info "IRCUT filter is removed" ;;
+		1) info "IRCUT filter is set" ;;
+		*) info "IRCUT filter is in unknown state" ;;
 	esac
 }
 
@@ -60,7 +45,7 @@ ir_filter_off() {
 		usleep 10000
 		gpio set "$pin2" "$pin2_off" > /dev/null
 	fi
-	echo 0 > $MODE_FILE
+	echo "0" > "$MODE_FILE"
 }
 
 ir_filter_on() {
@@ -70,7 +55,7 @@ ir_filter_on() {
 		usleep 10000
 		gpio set "$pin1" "$pin1_off" > /dev/null
 	fi
-	echo 1 > $MODE_FILE
+	echo "1" > "$MODE_FILE"
 }
 
 case "$1" in
@@ -83,22 +68,17 @@ case "$1" in
 		report_ir_filter
 		;;
 	~ | toggle)
-		if [ "$(cat $MODE_FILE 2> /dev/null)" -eq 0 ]; then
-			ir_filter_on
-		else
-			ir_filter_off
-		fi
+		[ "$(cat "$MODE_FILE")" -eq 0 ] && ir_filter_on || ir_filter_off
 		report_ir_filter
 		;;
 	status)
 		report_ir_filter
 		;;
 	\? | read)
-		cat $MODE_FILE | tr -d '\n'
+		cat "$MODE_FILE" | tr -d '\n'
 		;;
 	*)
-		echo -e "Usage: $0 [on|off|toggle|status]" >&2
-		exit 1
+		die "Usage: $0 [on|off|toggle|status]"
 		;;
 esac
 

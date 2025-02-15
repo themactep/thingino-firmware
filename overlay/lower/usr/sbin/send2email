@@ -1,31 +1,38 @@
-#!/bin/sh
-
-plugin="email"
+#!/bin/env sh
 
 EMAIL_FORMAT='^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+SNAPSHOT_FILE="/tmp/snapshot.jpg"
+VBUFFER_FILE="/tmp/vbuffer.mov"
 
-. /sbin/common
+CONFIG_FILE="/etc/webui/email.conf"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+
+die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
 
 show_help() {
-	echo "Usage: $0 [-f address] [-t address] [-s subject] [-b body] [-v] [-h]
-  -f address  Sender's email address
-  -t address  Recipient's email address
-  -s subject  Subject line.
-  -b body     Letter body.
-  -k          Ignore SSL certificate validity.
-  -v          Verbose output.
-  -h          Show this help.
+	echo "Usage: $0 [options]
+Where:
+	-f address  Sender's email address
+	-t address  Recipient's email address
+	-n host     SMTP server host.
+	-p port     SMTP server port.
+	-s subject  Subject line.
+	-b body     Letter body.
+	-k          Ignore SSL certificate validity.
+	-v          Verbose output.
+	-h          Show this help.
 "
-	quit_clean 0
+	exit 0
 }
 
 verbosity="--silent"
-# override config values with command line arguments
-while getopts b:f:ks:t:vh flag; do
+while getopts b:f:kn:p:s:t:vh flag; do
 	case "$flag" in
 		b) email_body=$OPTARG ;;
 		f) email_from_address=$OPTARG ;;
 		k) email_insecure_ssl="true" ;;
+		n) email_smtp_host=$OPTARG ;;
+		p) email_smtp_port=$OPTARG ;;
 		s) email_subject=$OPTARG ;;
 		t) email_to_address=$OPTARG ;;
 		v) verbosity="--verbose" ;;
@@ -33,50 +40,53 @@ while getopts b:f:ks:t:vh flag; do
 	esac
 done
 
-# validate mandatory values
-[ -z "$email_smtp_host" ] && die "SMTP host not found in config"
-[ -z "$email_smtp_port" ] && die "SMTP port not found in config"
+[ -z "$email_smtp_host" ] && die "SMTP host not found"
+[ -z "$email_smtp_port" ] && email_smtp_port=25
 [ -z "$email_from_address" ] && die "Sender's email address not found"
 [ -z "$email_to_address" ] && die "Recipient's email address not found"
+[ -z "$email_body" ] && die "Email body not found"
 
 echo "$email_from_address" | grep -E -q $EMAIL_FORMAT || die "Invalid sender email address format"
 echo "$email_to_address" | grep -E -q $EMAIL_FORMAT || die "Invalid recipient email address format"
 
-# assign default values if not set
 [ -z "$email_from_name" ] && email_from_name="Thingino Camera"
 [ -z "$email_to_name" ] && email_to_name="Thingino Camera Admin"
 [ -z "$email_subject" ] && email_subject="Snapshot from Thingino Camera"
 
-build_cmd "$CURL $verbosity --mail-from $email_from_address --mail-rcpt $email_to_address"
+command="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 $verbosity"
+command="$command --mail-from $email_from_address --mail-rcpt $email_to_address"
 
 [ -n "$email_smtp_username" ] && [ -n "$email_smtp_password" ] && \
-	build_cmd "--user '$email_smtp_username:$email_smtp_password'"
+	command="$command --user '$email_smtp_username:$email_smtp_password'"
 
 if [ "true" = "$email_smtp_use_ssl" ]; then
-	build_cmd "--url smtps://$email_smtp_host:$email_smtp_port --ssl"
-	[ "true" = "$email_insecure_ssl" ] && build_cmd "--insecure"
+	command="$command --url smtps://$email_smtp_host:$email_smtp_port --ssl"
+	[ "true" = "$email_insecure_ssl" ] && command="$command --insecure"
 else
-	build_cmd "--url smtp://$email_smtp_host:$email_smtp_port"
+	command="$command --url smtp://$email_smtp_host:$email_smtp_port"
 fi
 
-build_cmd "-H 'From: \"$email_from_name\" <$email_from_address>'"
-build_cmd "-H 'To: \"$email_to_name\" <$email_to_address>'"
-build_cmd "-H 'Subject: $email_subject'"
-build_cmd "-F '=(;type=multipart/mixed'"
-build_cmd "-F '=$email_body;type=text/plain'"
+email_body=${email_body//"/\\"}
+command="$command -H 'From: \"$email_from_name\" <$email_from_address>' -H 'To: \"$email_to_name\" <$email_to_address>'"
+command="$command -H 'Subject: $email_subject' -F '=(;type=multipart/mixed' -F \"=${email_body};type=text/plain\""
+
 if [ "true" = "$email_attach_snapshot" ]; then
-	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	clone_snapshot $attachment
-	build_cmd "-F 'snapshot=@$attachment;type=image/jpeg;encoder=base64'"
+	photo_attachment=$(mktemp -u).jpg
+	cp -f "$SNAPSHOT_FILE" "$photo_attachment"
+	command="$command -F 'snapshot=@$photo_attachment;type=image/jpeg;encoder=base64'"
 fi
+
 if [ "true" = "$email_attach_video" ]; then
-	attachment=$VBUFFER_FILE
-	build_cmd "-F 'video=@$attachment;type=video/quicktime;encoder=base64'"
+	video_attachment=$(mktemp -u).mov
+	cp -f "$VBUFFER_FILE" "$video_attachment"
+	command="$command -F 'video=@$video_attachment;type=video/quicktime;encoder=base64'"
 fi
-build_cmd "-F '=)'"
+
+command="$command -F '=)'"
 
 sh -c "$command" || die "Failed to send email"
 
-[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
+[ -f "$photo_attachment" ] && rm "$photo_attachment"
+[ -f "$video_attachment" ] && rm "$video_attachment"
 
-quit_clean 0
+exit 0

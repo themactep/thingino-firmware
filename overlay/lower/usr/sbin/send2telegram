@@ -1,20 +1,25 @@
-#!/bin/sh
+#!/bin/env sh
 
-plugin="telegram"
+SNAPSHOT_FILE="/tmp/snapshot.jpg"
+VBUFFER_FILE="/tmp/vbuffer.mov"
 
-. /sbin/common
+CONFIG_FILE="/etc/webui/telegram.conf"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+
+die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
 
 show_help() {
-	echo "Usage: $0 [arguments] [clip|motion|snap]
-  -t token    Telegram bot token. See https://t.me/botfather if you need one.
-  -c channel  Telegram channel ID. See https://gist.github.com/mraaroncruz/e76d19f7d61d59419002db54030ebe35
-  -m message  Send message.
-  -f file     Send file.
-  -s          Disable notification.
-  -v          Verbose output.
-  -h          Show this help.
+	echo "Usage: $0 [options] [clip|motion|snap]
+Where:
+	-c channel  Telegram channel ID. See https://gist.github.com/mraaroncruz/e76d19f7d61d59419002db54030ebe35
+	-f file     Send file.
+	-m message  Send message.
+	-s          Disable notification.
+	-t token    Telegram bot token. See https://t.me/botfather if you need one.
+	-v          Verbose output.
+	-h          Show this help.
 "
-	quit_clean 0
+	exit 0
 }
 
 verbosity="--silent"
@@ -57,7 +62,7 @@ parse_caption() {
 copy_photo() {
 	[ -f "$SNAPSHOT_FILE" ] || die "Snapshot not found"
 	photo2=$(mktemp -u).jpg
-	cp "$SNAPSHOT_FILE" "$photo2"
+	cp -f "$SNAPSHOT_FILE" "$photo2"
 	garbage="$garbage $photo2"
 }
 
@@ -65,7 +70,7 @@ copy_video() {
 	[ -f "$VBUFFER_FILE" ] || die "Video buffer not found"
 	local ext=${VBUFFER_FILE##*.}
 	video2=$(mktemp -u).$ext
-	cp "$VBUFFER_FILE" "$video2"
+	cp -f "$VBUFFER_FILE" "$video2"
 	garbage="$garbage $video2"
 }
 
@@ -75,13 +80,13 @@ remove_tempfiles() {
 	done
 }
 
-# validate mandatory values
 [ -z "$telegram_token" ] && die "Telegram token not found"
 [ -z "$telegram_channel" ] && die "Telegram channel not found"
 
-command="$CURL $verbosity -H 'Content-Type: multipart/form-data' -F 'chat_id=$telegram_channel'"
-[ "true" = "$telegram_silent" ] && build_cmd "-F 'disable_notification=true'"
-build_cmd "--url https://api.telegram.org/bot$telegram_token/"
+command="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 $verbosity"
+command="$command -H 'Content-Type: multipart/form-data' -F 'chat_id=$telegram_channel'"
+[ "true" = "$telegram_silent" ] && command="$command -F 'disable_notification=true'"
+command="$command --url https://api.telegram.org/bot$telegram_token/"
 # no further modifications to command after this point
 if [ "true" = "$telegram_attach_video" ] && [ "true" = "$telegram_attach_photo" ]; then
 	# https://core.telegram.org/bots/api#sendmediagroup
@@ -131,4 +136,4 @@ sh -c "$command" || die "Failed to send message to Telegram"
 
 remove_tempfiles
 
-quit_clean 0
+exit 0

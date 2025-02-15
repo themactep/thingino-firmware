@@ -4,13 +4,13 @@
 
 PID=$$
 LOCK_FILE="/run/process-$PID.pid"
-LOG_FILE=/tmp/webui.log
+LOG_FILE="/tmp/webui.log"
 LOG_SIZE_LIMIT=50000
 
 CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3"
 
-SNAPSHOT_FILE=/tmp/snapshot.jpg
-VBUFFER_FILE=/tmp/vbuffer.mov
+SNAPSHOT_FILE="/tmp/snapshot.jpg"
+VBUFFER_FILE="/tmp/vbuffer.mov"
 
 debug=$(fw_printenv -n debug)
 

@@ -1,4 +1,7 @@
 #!/bin/sh
+
+die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
+
 # set parameters from cli, if empty
 [ -z "$mode" ] && mode=$1
 
@@ -40,8 +43,7 @@ case "$1" in
 		cat $MODE_FILE | tr -d '\n'
 		;;
 	*)
-		echo -e "Usage: $0 [on|off|toggle|status|read]" >&2
-		exit 1
+		die "Usage: $0 [on|off|toggle|status|read]"
 		;;
 esac
 

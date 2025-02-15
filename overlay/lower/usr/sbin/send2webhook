@@ -1,21 +1,25 @@
-#!/bin/sh
+#!/bin/env sh
 
-plugin="webhook"
+SNAPSHOT_FILE="/tmp/snapshot.jpg"
+VBUFFER_FILE="/tmp/vbuffer.mov"
 
-. /sbin/common
+CONFIG_FILE="/etc/webui/webhook.conf"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+
+die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
 
 show_help() {
-	echo "Usage: $0 [-m message] [-s] [-u url] [-v] [-h]
-  -m message  Message to send to webhook.
-  -s          Attach snapshot to the webhook.
-  -u url      Webhook URL.
-  -v          Verbose output.
-  -h          Show this help.
+	echo "Usage: $0 [options]
+Where:
+	-m message  Message to send to webhook.
+	-s          Attach snapshot to the webhook.
+	-u url      Webhook URL.
+	-v          Verbose output.
+	-h          Show this help.
 "
-	quit_clean 0
+	exit 0
 }
 
-# override config values with command line arguments
 verbosity="--silent"
 while getopts m:su:vh flag; do
 	case "$flag" in
@@ -27,21 +31,21 @@ while getopts m:su:vh flag; do
 	esac
 done
 
-# validate mandatory values
 [ -z "$webhook_url" ] && die "Webhook URL not found"
 
 if [ "true" = "$webhook_attach_snapshot" ]; then
-	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	clone_snapshot $attachment
+	attachment=$(mktemp -u).jpg
+	cp -f "$SNAPSHOT_FILE" "$attachment"
 	data="-F 'message=$webhook_message' -F 'image=@$attachment'"
 else
 	data="-d '$webhook_message'"
 fi
 
-command="$CURL $verbosity $data --url $webhook_url"
+command="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 $verbosity"
+command="$command $data --url $webhook_url"
 
 sh -c "$command" || die "Failed to send webhook message"
 
-[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
+[ -f "$attachment" ] && rm "$attachment"
 
-quit_clean 0
+exit 0

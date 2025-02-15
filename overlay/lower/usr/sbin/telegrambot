@@ -1,10 +1,15 @@
-#!/bin/sh
-plugin="telegrambot"
+#!/bin/env sh
+
+die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
+
+pidof -o %PPID $(basename $0) > /dev/null && die "is already running"
 
 command -v jsonfilter > /dev/null || die "Missing jsonfilter"
 
-. /sbin/common
-singleton
+CONFIG_FILE="/etc/webui/telegrambot.conf"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+
+. /usr/share/common
 
 [ -z "$telegrambot_token" ] && die "Telegram Bot token is not set"
 
@@ -12,9 +17,9 @@ is_debug_mode && echo_c 208 "Running in debug mode"
 
 API_URL="https://api.telegram.org/bot$telegrambot_token"
 MSG_TIMEOUT=5
-JSDATA_FILE="/tmp/$plugin.json"
-OFFSET_TEMP="/tmp/$plugin.offset"
-OFFSET_STOR="/etc/webui/$plugin.offset"
+JSDATA_FILE="/tmp/telegrambot.json"
+OFFSET_TEMP="/tmp/telegrambot.offset"
+OFFSET_STOR="/etc/webui/telegrambot.offset"
 IFS_ORIG=$IFS
 
 bot_keyboard=""
@@ -233,10 +238,10 @@ while :; do
 		if [ -n "$bot_command" ]; then
 			[ "reboot" = "$bot_command" ] && save_offset
 			for i in $(seq 0 9); do
-                                [ "/$(eval echo \$telegrambot_command_$i)" = "$bot_command" ] || continue
-                                script="$(eval echo \$telegrambot_script_$i | sed "s/\$chat_id/$chat_id/")"
-                                message=$(eval $script)
-                                [ $? -eq 0 ] || message="Execution failed! Please review the command:\n$script\n\nOutput:\n$result"
+				[ "/$(eval echo \$telegrambot_command_$i)" = "$bot_command" ] || continue
+				script="$(eval echo \$telegrambot_script_$i | sed "s/\$chat_id/$chat_id/")"
+				message=$(eval $script)
+				[ $? -eq 0 ] || message="Execution failed! Please review the command:\n$script\n\nOutput:\n$result"
 				break
 			done
 			[ -n "$message" ] && send_message "$chat_id" "${message//\"/\\\"}" "$message_id"
@@ -244,4 +249,4 @@ while :; do
 	done
 done
 
-quit_clean 0
+exit 0

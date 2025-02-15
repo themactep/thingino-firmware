@@ -1,40 +1,83 @@
 #!/bin/sh
 
-pidof -o %PPID motion > /dev/null && exit
+die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
 
-. /sbin/common
+pidof -o %PPID $(basename $0) > /dev/null && die "is already running"
+
+CONFIG_FILE="/etc/webui/motion.conf"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
 MOTION_ALARM="/run/motion/motion_alarm"
-MOTION_ALARM_DIR=$(dirname $MOTION_ALARM)
-[ -d $MOTION_ALARM_DIR ] || mkdir -p $MOTION_ALARM_DIR
+MOTION_ALARM_DIR=$(dirname "$MOTION_ALARM")
+[ -d "$MOTION_ALARM_DIR" ] || mkdir -p "$MOTION_ALARM_DIR"
 
 MOTION_STOP_FILE="/run/motors.pid"
 
 start() {
-	[ -f $MOTION_STOP_FILE ] && exit 0
+	echo "Start motion"
+	if [ -f "$MOTION_STOP_FILE" ]; then
+		echo "Motor motion file present. Exiting."
+		exit 1
+	fi
 
-	touch $MOTION_ALARM
+	echo "Set $MOTION_ALARM"
+	touch "$MOTION_ALARM"
 
-	[ "true" = "$motion_send2email"    ] && send2email &
-	[ "true" = "$motion_send2ftp"      ] && send2ftp &
-	[ "true" = "$motion_send2mqtt"     ] && send2mqtt &
-	[ "true" = "$motion_send2telegram" ] && send2telegram motion &
-	[ "true" = "$motion_send2webhook"  ] && send2webhook &
-	[ "true" = "$motion_send2yadisk"   ] && send2yadisk &
-	[ "true" = "$motion_playonspeaker" ] && playonspeaker &
+	if [ "true" = "$motion_send2email" ]; then
+		echo "Send alert to email"
+		send2email &
+	fi
+
+	if [ "true" = "$motion_send2ftp" ]; then
+		echo "Send alert to FTP"
+		send2ftp &
+	fi
+
+	if [ "true" = "$motion_send2mqtt" ]; then
+		echo "Send alert to MQTT"
+		send2mqtt &
+	fi
+
+	if [ "true" = "$motion_send2telegram" ]; then
+		echo "Send alert to Telegram"
+		send2telegram motion &
+	fi
+
+	if [ "true" = "$motion_send2webhook" ]; then
+		echo "Send alert to WebHook"
+		send2webhook &
+	fi
+
+	if [ "true" = "$motion_send2yadisk" ]; then
+		echo "Send alert to Yandex Disk"
+		send2yadisk &
+	fi
+
+	if [ "true" = "$motion_playonspeaker" ]; then
+		echo "Send alert to play on speaker"
+		playonspeaker &
+	fi
 }
 
 stop() {
-	[ -f $MOTION_ALARM ] && rm -f $MOTION_ALARM
+	echo "Stop motion"
+
+	if [ -f "$MOTION_ALARM" ]; then
+		echo "Remove $MOTION_ALARM"
+		rm -f "$MOTION_ALARM"
+	fi
 }
 
 case "$1" in
-	start | stop)
-		$1
+	start)
+		start
+		;;
+	stop)
+		stop
 		;;
 	*)
 		start
 		;;
 esac
 
-quit_clean 0
+exit 0

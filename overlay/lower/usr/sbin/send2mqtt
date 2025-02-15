@@ -1,22 +1,26 @@
-#!/bin/sh
+#!/bin/env sh
 
-plugin="mqtt"
+SNAPSHOT_FILE="/tmp/snapshot.jpg"
+VBUFFER_FILE="/tmp/vbuffer.mov"
 
-. /sbin/common
+CONFIG_FILE="/etc/webui/mqtt.conf"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+
+die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
 
 show_help() {
-	echo "Usage: $0 [-t topic] [-m message] [-s] [-v] [-h]
-  -t topic    MQTT topic.
-  -m message  Message playload.
-  -s          Send a snapshot.
-  -v          Verbose output.
-  -h          Show this help.
+	echo "Usage: $0 [options]
+Where:
+	-t topic    MQTT topic.
+	-m message  Message playload.
+	-s          Send a snapshot.
+	-v          Verbose output.
+	-h          Show this help.
 "
-	quit_clean 0
+	exit 0
 }
 
 verbosity="--quiet"
-# override config values with command line arguments
 while getopts m:st:vh flag; do
 	case "$flag" in
 		m) mqtt_message=$OPTARG ;;
@@ -27,7 +31,6 @@ while getopts m:st:vh flag; do
 	esac
 done
 
-# validate mandatory values
 [ -z "$mqtt_host" ] && die "MQTT broker host not found in config"
 [ -z "$mqtt_port" ] && die "MQTT broker port not found in config"
 [ -z "$mqtt_topic" ] && die "MQTT topic not found"
@@ -36,27 +39,24 @@ done
 [ "true" = "$mqtt_send_snap" ] && [ -z "$mqtt_snap_topic" ] && \
 	die "MQTT topic for sending snapshot not found in config"
 
-# assign default values if not set
 [ -z "$mqtt_client_id" ] && mqtt_client_id="$network_hostname"
 
-# parse strftime templates
 mqtt_message=$(date +"$mqtt_message")
 
-build_cmd "mosquitto_pub -h $mqtt_host -p $mqtt_port -i $mqtt_client_id"
-# MQTT credentials, if given
-[ -n "$mqtt_username" ] && build_cmd "-u $mqtt_username"
-[ -n "$mqtt_password" ] && build_cmd "-P $mqtt_password"
+command="mosquitto_pub -h $mqtt_host -p $mqtt_port -i $mqtt_client_id"
+[ -n "$mqtt_username" ] && command="$command -u $mqtt_username"
+[ -n "$mqtt_password" ] && command="$command -P $mqtt_password"
 
 if [ "true" = "$mqtt_send_snap" ]; then
-	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	clone_snapshot $attachment
-	build_cmd "-t $mqtt_snap_topic -f \"$attachment\""
+	attachment=$(mktemp -u).jpg
+	cp -f "$SNAPSHOT_FILE" "$attachment"
+	command="$command -t $mqtt_snap_topic -f \"$attachment\""
 else
-	build_cmd "-t $mqtt_topic -m \"$mqtt_message\""
+	command="$command -t $mqtt_topic -m \"$mqtt_message\""
 fi
 
 sh -c "$command" || die "Failed to send MQTT message"
 
-[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
+[ -f "$attachment" ] && rm "$attachment"
 
-quit_clean 0
+exit 0

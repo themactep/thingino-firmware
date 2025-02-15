@@ -1,23 +1,27 @@
-#!/bin/sh
+#!/bin/env sh
 
-plugin="yadisk"
+SNAPSHOT_FILE="/tmp/snapshot.jpg"
+VBUFFER_FILE="/tmp/vbuffer.mov"
 
-. /sbin/common
+CONFIG_FILE="/etc/webui/yadisk.conf"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+
+die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
 
 show_help() {
-	echo "Usage: $0 [-u username] [-P password] [-v] [-h]
-  -d path     Directory on server.
-  -f file     File to upload.
-  -u username Yandex Disk username.
-  -P password Yandex Disk username.
-  -v          Verbose output.
-  -h          Show this help.
+	echo "Usage: $0 [options]
+Where:
+	-d path     Directory on server.
+	-f file     File to upload.
+	-u username Yandex Disk username.
+	-P password Yandex Disk username.
+	-v          Verbose output.
+	-h          Show this help.
 "
-	quit_clean 0
+	exit 0
 }
 
 verbosity="--silent"
-# override config values with command line arguments
 while getopts d:f:P:u:vh flag; do
 	case "$flag" in
 		d) yadisk_path=$OPTARG ;;
@@ -33,12 +37,13 @@ done
 [ -z "$yadisk_password" ] && die "Yandex Disk password not found"
 
 if [ -z "$yadisk_file" ]; then
-	attachment=$(mktemp -u /tmp/snapshot-XXXXXX).jpg
-	clone_snapshot $attachment
+	attachment=$(mktemp -u).jpg
+	cp -f "$SNAPSHOT_FILE" "$attachment"
 	yadisk_file=$attachment
 fi
 
-command="$CURL $verbosity --user '${yadisk_username}:$yadisk_password'"
+command="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 $verbosity"
+command="$command --user '${yadisk_username}:$yadisk_password'"
 
 url="https://webdav.yandex.ru"
 yadisk_path=$(date +"$yadisk_path")
@@ -55,11 +60,10 @@ for subdir in ${subdirs//\// }; do
 	subdirs="${subdirs#*/}" # remove the processed directory
 done
 
-# upload file
-build_cmd "--request PUT --upload-file $yadisk_file --url $url/$yadisk_path/$(TZ=$(cat /etc/TZ) date +"%G%m%d-%H%M%S").jpg"
+command="$command --request PUT --upload-file $yadisk_file --url $url/$yadisk_path/$(TZ=$(cat /etc/TZ) date +"%G%m%d-%H%M%S").jpg"
 
 sh -c "$command" || die "Failed to upload file to Yandex Disk"
 
-[ "true" = "$delete_tempfile" ] && [ -f "$attachment" ] && rm "$attachment"
+[ -f "$attachment" ] && rm "$attachment"
 
-quit_clean 0
+exit 0

@@ -3,16 +3,13 @@
 PID="/run/blink.pid"
 echo $$ > $PID
 
-cleanup() {
-	[ -f $PID ] && rm $PID
-	exit 0
-}
+die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
+
+cleanup() { [ -f $PID ] && rm $PID; exit 0; }
+
 trap cleanup 1 2 3 6 15
 
-if [ -z "$1" ]; then
-	echo "Usage: blink <pin> [interval, sec.]"
-	exit 1
-fi
+[ -z "$1" ] && die "Usage: blink <pin> [interval, sec.]"
 
 interval=${2:-1}
 if [ "$interval" -eq 0 ]; then

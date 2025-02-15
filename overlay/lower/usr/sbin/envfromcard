@@ -1,16 +1,14 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
 
 ENV_FILE="/mnt/mmcblk0p1/uenv.txt"
-
 [ -f "$ENV_FILE" ] || die "$ENV_FILE is missing"
 
 tmpfile=$(mktemp)
 sed 's/=/ /' $ENV_FILE >> $tmpfile
 fw_setenv -s $tmpfile
 rm $tmpfile
-
 fw_printenv
 
 exit 0
