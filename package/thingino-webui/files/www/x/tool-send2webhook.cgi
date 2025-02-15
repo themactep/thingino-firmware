@@ -2,7 +2,7 @@
 <%in _common.cgi %>
 <%
 page_title="Send to Webhook"
-params="attach_snapshot payload url"
+params="attach_snapshot message url"
 
 config_file="$ui_config_dir/webhook.conf"
 include $config_file
@@ -40,7 +40,7 @@ defaults
 <% field_text "webhook_url" "Webhook URL" %>
 </div>
 <div class="col">
-<% field_textarea "webhook_payload" "Payload" %>
+<% field_textarea "webhook_message" "Message" %>
 <% field_switch "webhook_attach_snapshot" "Attach Snapshot" %>
 </div>
 </div>
