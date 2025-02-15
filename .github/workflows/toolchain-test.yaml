@@ -1,0 +1,276 @@
+name: toolchain-test
+on:
+  workflow_dispatch:
+    inputs:
+      tg_disabled:
+        type: boolean
+        description: 'Disable Telegram notifications'
+        required: false
+        default: false
+      tg_scratch:
+        type: boolean
+        description: 'Use TG scratch channel'
+        required: false
+        default: false
+      latest_only:
+        type: boolean
+        description: 'Only build latest default toolchain'
+        required: false
+        default: false
+      debug_enabled:
+        type: boolean
+        description: 'Debug: Generate dummy image files'
+        required: false
+        default: false
+
+env:
+  BR2_DL_DIR: ~/dl
+  FORCE_UNSAFE_CONFIGURE: 1
+  TAG_NAME: toolchain-arm64
+  TERM: linux
+  TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
+  TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_MULTI}}
+  TG_TOPIC: ${{secrets.TELEGRAM_CHANNEL_THINGINO_MULTI_TOPIC_FIRMWARE}}
+  TG_CHANNEL_SCRATCH: ${{secrets.TELEGRAM_CHANNEL_THINGINO_SCRATCH}}
+  TZ: UTC
+
+jobs:
+  notify-begin:
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      start_time: ${{ steps.set_output.outputs.time }}
+      tg_disabled: ${{ steps.set_env.outputs.tg_disabled }}
+    steps:
+      - name: Set timezone
+        run: |
+          sudo timedatectl set-timezone ${{ env.TZ }}
+
+      - name: Save workflow start time to ENV
+        id: set_output
+        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
+
+      - name: Configure Environment Variables
+        run: |
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+          echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: "master"
+          fetch-depth: "1"
+
+      - name: Send build start notifcation via Telegram
+        if: env.TG_DISABLED == 'false'
+        run: |
+          if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
+            TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+            export TG_TOPIC=""
+          fi
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC start $TAG_NAME ${{ github.run_id }} ${{ github.repository }}
+
+  generate-matrix:
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set timezone
+        run: |
+          sudo timedatectl set-timezone ${{ env.TZ }}
+
+      - name: Configure GH workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: "master"
+          fetch-depth: "1"
+
+      - name: Generate toolchain matrix
+        id: set-matrix
+        run: |
+          if [[ "${{ github.event.inputs.latest_only }}" == 'true' ]]; then
+            CONFIGS=$(find configs/github/ -type f | sort | awk -F '/' '{print $(NF)}' | grep 'gcc14')
+          else
+            CONFIGS=$(find configs/github/ -type f | sort | awk -F '/' '{print $(NF)}' | grep 'toolchain_xburst')
+          fi
+          JSON_MATRIX="{\"toolchain-version\": ["
+          for CONFIG in $CONFIGS; do
+            JSON_MATRIX+="\"${CONFIG}\","
+          done
+          JSON_MATRIX="${JSON_MATRIX%,}]}"
+          echo "Matrix: $JSON_MATRIX"
+          echo "matrix=$JSON_MATRIX" >> $GITHUB_OUTPUT
+
+  build-toolchain:
+    name: ${{ matrix.toolchain-version }}
+    needs: [generate-matrix, notify-begin]
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      # Feed the hash of the commit we are building into the notify-completion release-notes step
+      GIT_HASH: ${{ steps.env.outputs.git_hash }}
+      TAG_NAME: ${{ steps.env.outputs.tag_name }}
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: debian:bullseye
+    strategy:
+      fail-fast: false
+      matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
+    steps:
+      - name: Update package manager sources
+        run: |
+          apt-get update
+
+      - name: Install build dependencies
+        run: |
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git lzop make gawk procps rsync u-boot-tools unzip wget
+
+      - name: Set timezone
+        run: |
+          ln -sf /usr/share/zoneinfo/${{ env.TZ }} /etc/localtime
+          echo ${{ env.TZ }} > /etc/timezone
+          DEBIAN_FRONTEND=noninteractive dpkg-reconfigure -f noninteractive tzdata
+
+      - name: Setup gh workspace to container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Checkout repository source
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+          ref: "master"
+          fetch-depth: "1"
+
+      - name: Configure environment variables
+        id: env
+        run: |
+          echo "WEEK_NUMBER=$(date +%U)" >> $GITHUB_ENV
+          echo "CURRENT_YEAR=$(date +%Y)" >> $GITHUB_ENV
+          echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_ENV
+          echo "GIT_BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+
+          echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Setup cache directories
+        run: |
+          mkdir -p ~/.ccache
+          mkdir -p ~/dl
+
+      - name: Restore Buildroot DL cache
+        uses: actions/cache/restore@v4
+        if: always()
+        with:
+          path: ~/dl
+          key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-
+            ${{ runner.os }}-ccache-shared-v1-
+
+      - name: Prepare buildroot cache
+        if: ${{ github.event.inputs.debug_enabled != 'true' }}
+        run: |
+          BOARD=${{ matrix.toolchain-version }} make source
+          TIME=$(date -d @${SECONDS} +%M:%S)
+          echo "TIME=${TIME}" >> ${GITHUB_ENV}
+
+      - name: Build toolchain
+        if: ${{ github.event.inputs.debug_enabled != 'true' }}
+        run: |
+          BOARD=${{ matrix.toolchain-version }} make sdk
+
+      - name: Generate debug dummy toolchin for workflow testing
+        if: ${{ github.event.inputs.debug_enabled == 'true' }}
+        run: |
+          DYNAMIC_PART="${{ matrix.toolchain-version }}"
+          mkdir -p ${HOME}/output/${DYNAMIC_PART}/images/
+          echo "debug" > ${HOME}/output/${DYNAMIC_PART}/images/mipsel-thingino-linux-dummy_sdk-buildroot.tar.gz
+          echo "TIME=7:77" >> ${GITHUB_ENV}
+
+      - name: Rename toolchain package for release
+        run: |
+          INGTC=$(find ${HOME}/output/${{ matrix.toolchain-version }}*/images/ -name "mipsel-thingino-linux-*_sdk-buildroot.tar.gz" | head -n 1)
+          if [[ -n "$INGTC" ]]; then
+            DIR_PATH=$(dirname "$INGTC")
+            INGTC_FINAL="${DIR_PATH}/thingino-${{ matrix.toolchain-version }}-linux-mipsel.tar.gz"
+            mv "$INGTC" "$INGTC_FINAL"
+            echo "INGTC=$INGTC_FINAL" >> $GITHUB_ENV
+          else
+            echo "Matching file not found."
+            exit 1
+          fi
+
+      - name: Upload toolchain artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: thingino-${{ matrix.toolchain-version }}-linux-mipsel.tar.gz
+          path: ${{ env.INGTC }}
+
+      - name: Upload toolchain to release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2.1.0
+        with:
+          make_latest: false
+          tag_name: ${{ env.TAG_NAME }}
+          files: ${{ env.INGTC }}
+
+
+      - name: Send firmware completion notifications
+        if: ${{ env.TG_DISABLED == 'false' && (env.INGTC) }}
+        run: |
+          if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
+            TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+            export TG_TOPIC=""
+          fi
+          if [ -n "${{ env.INGTC  }}" ]; then
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC completed $TAG_NAME ${{ github.run_id }} ${{ github.repository }} ${GIT_HASH} ${GIT_BRANCH} ${TAG_NAME} ${TIME} ${{ matrix.toolchain-version }}
+          fi
+
+      - name: Send error notification
+        if: ${{ env.TG_DISABLED == 'false' && failure() }}
+        run: |
+          if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
+            TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+            export TG_TOPIC=""
+          fi
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC error $TAG_NAME "CI Failed!" ${{ github.run_id }} ${{ matrix.toolchain-version }} ${{ github.repository }}
+
+  notify-completion:
+    needs: [build-toolchain, notify-begin]
+    runs-on: ubuntu-24.04-arm
+    if: always()
+    steps:
+      - name: Set timezone
+        run: |
+          sudo timedatectl set-timezone ${{ env.TZ }}
+
+      - name: Configure Environment
+        run: |
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+          echo "GIT_HASH=${{ needs.build-toolchain.outputs.git_hash }}" >> $GITHUB_ENV
+          echo "TAG_NAME=${{ needs.build-toolchain.outputs.tag_name }}" >> $GITHUB_ENV
+
+      - name: Checkout repository source
+        uses: actions/checkout@v4
+        with:
+          submodules: 'false'
+          ref: "master"
+
+      - name: Send notify completion summary
+        if: ${{ env.TG_DISABLED == 'false' }}
+        run: |
+          if [[ "${{ github.event.inputs.tg_scratch }}" == 'true' ]]; then
+            TG_CHANNEL=${{ env.TG_CHANNEL_SCRATCH }}
+            export TG_TOPIC=""
+          fi
+          START_TIME=${{ needs.notify-begin.outputs.start_time }}
+          END_TIME=$(date -u +%s)
+          ELAPSED=$((END_TIME - START_TIME))
+          ELAPSED_MIN=$((ELAPSED / 60))
+          ELAPSED_SEC=$((ELAPSED % 60))
+          .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC finish ${{ github.workflow }} "${ELAPSED_MIN}m ${ELAPSED_SEC}s" ${{ github.run_id }} ${{ github.repository }}
