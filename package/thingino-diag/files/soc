@@ -75,15 +75,15 @@ print_soc_model() {
 		0x00404444) soc="t40a" ;;
 		0x00407777) soc="t40xp" ;;
 		0x00408888) soc="t40nn" ;;
-		0x00411111) soc="t41n" ;;
-		0x00413333) soc="t41l" ;;
-		0x00414444) soc="t41a" ;;
-		0x00415555) soc="t41zl" ;;
-		0x00416666) soc="t41zx" ;;
-		0x00417777) soc="t41zn" ;;
-		0x00418888) soc="t41lc" ;;
-		0x00419999) soc="t41lq" ;;
-		0x0041AAAA) soc="t41nq" ;;
+		0x00401111) soc="t41n" ;;
+		0x00403333) soc="t41l" ;;
+		0x00404444) soc="t41a" ;;
+		0x00405555) soc="t41zl" ;;
+		0x00406666) soc="t41zx" ;;
+		0x00407777) soc="t41zn" ;;
+		0x00408888) soc="t41lc" ;;
+		0x00409999) soc="t41lq" ;;
+		0x0040AAAA) soc="t41nq" ;;
 		# 0x0041????) soc="t41xq" ;;
 		*)
 			echo "Unknown SoC: $cpu_sig"
