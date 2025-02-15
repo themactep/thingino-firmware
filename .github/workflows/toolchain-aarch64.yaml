@@ -1,4 +1,4 @@
-name: toolchain-test
+name: toolchain-aarch64
 on:
   workflow_dispatch:
     inputs:
@@ -26,7 +26,7 @@ on:
 env:
   BR2_DL_DIR: ~/dl
   FORCE_UNSAFE_CONFIGURE: 1
-  TAG_NAME: toolchain-arm64
+  TAG_NAME: toolchain-aarch64
   TERM: linux
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
   TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_MULTI}}
@@ -197,7 +197,7 @@ jobs:
           INGTC=$(find ${HOME}/output/${{ matrix.toolchain-version }}*/images/ -name "mipsel-thingino-linux-*_sdk-buildroot.tar.gz" | head -n 1)
           if [[ -n "$INGTC" ]]; then
             DIR_PATH=$(dirname "$INGTC")
-            INGTC_FINAL="${DIR_PATH}/thingino-${{ matrix.toolchain-version }}-linux-mipsel.tar.gz"
+            INGTC_FINAL="${DIR_PATH}/thingino-toolchain_aarch64_${{ matrix.toolchain-version }}-linux-mipsel.tar.gz"
             mv "$INGTC" "$INGTC_FINAL"
             echo "INGTC=$INGTC_FINAL" >> $GITHUB_ENV
           else
@@ -208,7 +208,7 @@ jobs:
       - name: Upload toolchain artifact
         uses: actions/upload-artifact@v4
         with:
-          name: thingino-${{ matrix.toolchain-version }}-linux-mipsel.tar.gz
+          name: thingino-toolchain_aarch64_${{ matrix.toolchain-version }}-linux-mipsel.tar.gz
           path: ${{ env.INGTC }}
 
       - name: Upload toolchain to release
