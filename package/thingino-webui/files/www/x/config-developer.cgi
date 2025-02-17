@@ -11,7 +11,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	# parse values from parameters
 	read_from_post "development" "$params"
 
-
 	[ -z "$development_nfs_ip" ] && set_error_flag "NFS server IP cannot be empty."
 	[ -z "$development_nfs_share" ] && set_error_flag "NFS share cannot be empty."
 

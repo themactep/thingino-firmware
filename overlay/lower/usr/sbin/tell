@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if [ -z "$1" ]; then
-	echo "Usage: $0 \"phrase to say\"
+	echo "Usage: $0 \"<phrase to say>\"
 Shortcuts:
 	%ip     Tell IP address
 	%time   Tell recent time
