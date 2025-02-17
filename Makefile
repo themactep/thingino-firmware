@@ -138,7 +138,7 @@ EXTRAS_BIN_SIZE_ALIGNED = $(shell echo $$((($(EXTRAS_BIN_SIZE) + $(ALIGN_BLOCK) 
 # fixed size partitions
 U_BOOT_PARTITION_SIZE := $(SIZE_256K)
 UB_ENV_PARTITION_SIZE := $(SIZE_64K)
-CONFIG_PARTITION_SIZE := $(SIZE_320K)
+CONFIG_PARTITION_SIZE := $(SIZE_192K)
 KERNEL_PARTITION_SIZE = $(KERNEL_BIN_SIZE_ALIGNED)
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
 
@@ -432,7 +432,7 @@ $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 	rm -f $(CONFIG_PARTITION_DIR)/.*keep
 	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash \
 		--output=$(CONFIG_BIN) --root=$(CONFIG_PARTITION_DIR)/ \
-		--pad=$(CONFIG_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
+		--pad=$(CONFIG_PARTITION_SIZE)
 
 # create extras partition image
 $(EXTRAS_BIN): $(U_BOOT_BIN)
@@ -442,7 +442,7 @@ $(EXTRAS_BIN): $(U_BOOT_BIN)
 	rsync -va $(OUTPUT_DIR)/target/opt/ $(OUTPUT_DIR)/extras/ && rm -rf $(OUTPUT_DIR)/target/opt/*
 	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash \
 		--output=$(EXTRAS_BIN) --root=$(OUTPUT_DIR)/extras/ \
-		--pad=$(EXTRAS_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
+		--pad=$(EXTRAS_PARTITION_SIZE)
 
 # rebuild kernel
 $(KERNEL_BIN):
