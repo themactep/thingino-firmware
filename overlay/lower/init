@@ -1,70 +1,63 @@
 #!/bin/sh
 
+die() { printf "\e[38;5;160mInit: [ERROR] %s\e[0m\n" "$1" >&2; exit 1; }
+
 on_exit() {
 	mountpoint -q /proc && umount /proc
 	exec /sbin/init "$@"
 }
 
+format_overlay() {
+	dmesg | grep -q "jffs2.*: Magic bitmask.*not found" || return 0
+	echo -e "\e[38;5;208mInit: Invalid JFFS2 blocks detected. Formatting required.\e[0m" >&2
+	umount /overlay
+	flash_eraseall -j /dev/$configfs_dev
+	mount_overlay || return 1
+}
+
+mount_jffs2() {
+	local name mtd blk target
+
+	name=$1
+	[ -z "$name" ] && die "Missing partition name!"
+
+	target=$2
+	[ -z "$target" ] && target="/$name"
+
+	mtd=$(awk -F: "/$name/{print \$1}" /proc/mtd)
+	[ -z "$mtd" ] && die "Partition $name not found!"
+
+	blk=$(awk -F: "/$name/{print \$1}" /proc/mtd | sed 's/mtd/mtdblock/')
+	if [ ! -e "/dev/$blk" ]; then
+		echo "Init: [WARNING] $name not found. Creating..."
+		flash_eraseall -j /dev/$mtd
+	fi
+
+	mount -t jffs2 -o noatime /dev/$blk $target || \
+		die "Failed to mount /dev/$blk as $target!"
+}
+
 trap 'on_exit "$@"' EXIT
 
-mount -t proc proc /proc || exit 1
-grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline && exit 0
-grep -q overlay /proc/filesystems || exit 1
+# Mount /proc
+mount -t proc proc /proc || \
+	die "Failed to mount /proc!"
 
-configfs_dev=$(awk -F ':' '/config/ {print $1}' /proc/mtd)
-configfs_blk=$(awk '$4 ~ /"config"/ {gsub(":","",$1); print "/dev/mtdblock" substr($1,4)}' /proc/mtd)
-if [ -n "$configfs_dev" ]; then
-	mount -t jffs2 "$configfs_blk" /config
-	if ! grep -q " /config " /proc/mounts; then
-		echo "Init: Invalid config partition detected. Formatting..."
-		flash_eraseall -j /dev/$configfs_dev
-		mount -t jffs2 "$configfs_blk" /config
-		grep -q " /config " /proc/mounts || \
-			echo "Init: ERROR: Failed to mount config partition after format!"
-	fi
-fi
+# Skip if rootfs is NFS, MMC or RAM
+grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline && \
+	die "Not an MTD RootFS!"
 
-if grep -q ubifs /proc/cmdline; then
-	mount -t ubifs -o noatime ubi0:rootfs_data /overlay
-else
-	mtdblkdev=$(awk -F ':' '/rootfs_data/ {print $1}' /proc/mtd | sed 's/mtd/mtdblock/')
-	mtdchrdev=$(grep 'rootfs_data' /proc/mtd | cut -d: -f1)
+# Mount persisted overlay partition
+mount_jffs2 config /overlay
+grep -q overlayfs /proc/filesystems || die "OverlayFS not supported!"
+mount -t overlayfs overlay -o noatime,lowerdir=/,upperdir=/overlay /mnt || \
+	die "Failed to mount overlay!"
 
-	mount -t jffs2 -o noatime /dev/$mtdblkdev /overlay
-
-	if [ $? -ne 0 ] || dmesg | grep -q "jffs2.*: Magic bitmask.*not found"; then
-		echo "Init: Invalid JFFS2 blocks detected. Formatting required."
-		umount /overlay
-		flash_eraseall -j /dev/$mtdchrdev
-		mount -t jffs2 -o noatime /dev/$mtdblkdev /overlay || \
-			mount -t tmpfs -o noatime tmpfs /overlay || exit 1
-
-		if ! grep -q $mtdblkdev /proc/mounts; then
-			echo "Init: ERROR: Failed to mount Overlay!"
-			exit 1
-		fi
-	fi
-fi
-
-if grep -q overlayfs /proc/filesystems; then
-	mount -t overlayfs overlayfs -o noatime,lowerdir=/,upperdir=/overlay,ro /mnt || {
-		umount /overlay
-		exit 1
-	}
-else
-	overlay_rootdir=/overlay/root
-	overlay_workdir=/overlay/work
-	mkdir -p $overlay_rootdir $overlay_workdir
-	mount -t overlay overlay -o noatime,lowerdir=/,upperdir=$overlay_rootdir,workdir=$overlay_workdir /mnt || {
-		umount /overlay
-		exit 1
-	}
-fi
-
-pivot_root /mnt /mnt/rom
+# Pivot root to overlay
+pivot_root /mnt /mnt/rom || die "Failed to pivot_root!"
 mount -o noatime,move /rom/proc /proc
 mount -o noatime,move /rom/dev /dev
 mount -o noatime,move /rom/overlay /overlay
-mount -o noatime,move /rom/config /config
 
-#mount -t overlayfs overlayfs -o rw,noatime,lowerdir=/rom/etc,upperdir=/config /etc
+# Mount writable rootfs_data into /opt
+mount_jffs2 rootfs_data /opt

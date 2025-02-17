@@ -108,7 +108,7 @@ CONFIG_BIN := $(OUTPUT_DIR)/images/config.jffs2
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
-OVERLY_BIN := $(OUTPUT_DIR)/images/overlay.jffs2
+EXTRAS_BIN := $(OUTPUT_DIR)/images/extras.jffs2
 
 # create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
 FIRMWARE_NAME_FULL = thingino-$(CAMERA).bin
@@ -123,7 +123,7 @@ UB_ENV_BIN_SIZE = $(shell stat -c%s $(UB_ENV_BIN))
 CONFIG_BIN_SIZE = $(shell stat -c%s $(CONFIG_BIN))
 KERNEL_BIN_SIZE = $(shell stat -c%s $(KERNEL_BIN))
 ROOTFS_BIN_SIZE = $(shell stat -c%s $(ROOTFS_BIN))
-OVERLY_BIN_SIZE = $(shell stat -c%s $(OVERLY_BIN))
+EXTRAS_BIN_SIZE = $(shell stat -c%s $(EXTRAS_BIN))
 
 FIRMWARE_BIN_FULL_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_FULL))
 FIRMWARE_BIN_NOBOOT_SIZE = $(shell stat -c%s $(FIRMWARE_BIN_NOBOOT))
@@ -133,12 +133,12 @@ UB_ENV_BIN_SIZE_ALIGNED = $(shell echo $$((($(UB_ENV_BIN_SIZE) + $(ALIGN_BLOCK) 
 CONFIG_BIN_SIZE_ALIGNED = $(shell echo $$((($(CONFIG_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 KERNEL_BIN_SIZE_ALIGNED = $(shell echo $$((($(KERNEL_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 ROOTFS_BIN_SIZE_ALIGNED = $(shell echo $$((($(ROOTFS_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
-OVERLY_BIN_SIZE_ALIGNED = $(shell echo $$((($(OVERLY_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
+EXTRAS_BIN_SIZE_ALIGNED = $(shell echo $$((($(EXTRAS_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 
 # fixed size partitions
 U_BOOT_PARTITION_SIZE := $(SIZE_256K)
 UB_ENV_PARTITION_SIZE := $(SIZE_64K)
-CONFIG_PARTITION_SIZE := $(SIZE_192K)
+CONFIG_PARTITION_SIZE := $(SIZE_320K)
 KERNEL_PARTITION_SIZE = $(KERNEL_BIN_SIZE_ALIGNED)
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
 
@@ -146,9 +146,8 @@ FIRMWARE_FULL_SIZE = $(FLASH_SIZE)
 FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE) - $(UB_ENV_PARTITION_SIZE) - $(CONFIG_PARTITION_SIZE))))
 
 # dynamic partitions
-OVERLY_PARTITION_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(OVERLY_OFFSET))))
-OVERLY_ERASEBLOCK_SIZE := $(shell echo $$(($(ALIGN_BLOCK) * 1)))
-OVERLY_LLIMIT := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
+EXTRAS_PARTITION_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(EXTRAS_OFFSET))))
+EXTRAS_LLIMIT := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
 
 # partition offsets
 U_BOOT_OFFSET := 0
@@ -156,10 +155,10 @@ UB_ENV_OFFSET = $(shell echo $$(($(U_BOOT_OFFSET) + $(U_BOOT_PARTITION_SIZE))))
 CONFIG_OFFSET = $(shell echo $$(($(UB_ENV_OFFSET) + $(UB_ENV_PARTITION_SIZE))))
 KERNEL_OFFSET = $(shell echo $$(($(CONFIG_OFFSET) + $(CONFIG_PARTITION_SIZE))))
 ROOTFS_OFFSET = $(shell echo $$(($(KERNEL_OFFSET) + $(KERNEL_PARTITION_SIZE))))
-OVERLY_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
+EXTRAS_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
 
 # special case with no uboot nor env
-OVERLY_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PARTITION_SIZE))))
+EXTRAS_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PARTITION_SIZE))))
 
 # repo data
 GIT_BRANCH="$(shell git branch | grep '^*' | awk '{print $$2}')"
@@ -258,7 +257,7 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" CONFIG $(CONFIG_OFFSET) $(CONFIG_PARTITION_SIZE) $(CONFIG_BIN_SIZE) $(CONFIG_BIN_SIZE_ALIGNED) $$(($(CONFIG_OFFSET) + $(CONFIG_BIN_SIZE_ALIGNED))) $$(($(CONFIG_PARTITION_SIZE) - $(CONFIG_BIN_SIZE_ALIGNED))) ))
 	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" KERNEL $(KERNEL_OFFSET) $(KERNEL_PARTITION_SIZE) $(KERNEL_BIN_SIZE) $(KERNEL_PARTITION_SIZE) $$(($(KERNEL_OFFSET) + $(KERNEL_PARTITION_SIZE))) $$(($(KERNEL_PARTITION_SIZE) - $(KERNEL_PARTITION_SIZE))) ))
 	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" ROOTFS $(ROOTFS_OFFSET) $(ROOTFS_PARTITION_SIZE) $(ROOTFS_BIN_SIZE) $(ROOTFS_PARTITION_SIZE) $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))) $$(($(ROOTFS_PARTITION_SIZE) - $(ROOTFS_PARTITION_SIZE))) ))
-	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" OVERLAY $(OVERLY_OFFSET) $(OVERLY_PARTITION_SIZE) $(OVERLY_BIN_SIZE) $(OVERLY_BIN_SIZE_ALIGNED) $$(($(OVERLY_OFFSET) + $(OVERLY_BIN_SIZE_ALIGNED))) $$(($(OVERLY_PARTITION_SIZE) - $(OVERLY_BIN_SIZE_ALIGNED))) ))
+	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" OVERLAY $(EXTRAS_OFFSET) $(EXTRAS_PARTITION_SIZE) $(EXTRAS_BIN_SIZE) $(EXTRAS_BIN_SIZE_ALIGNED) $$(($(EXTRAS_OFFSET) + $(EXTRAS_BIN_SIZE_ALIGNED))) $$(($(EXTRAS_PARTITION_SIZE) - $(EXTRAS_BIN_SIZE_ALIGNED))) ))
 	$(info  )
 	$(info $(shell printf "%-7s | %8s | %8s | %8s | %8s | %8s | %8s |" NAME OFFSET PT_SIZE CONTENT ALIGNED END LOSS))
 	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" U_BOOT $(U_BOOT_OFFSET) $(U_BOOT_PARTITION_SIZE) $(U_BOOT_BIN_SIZE) $(U_BOOT_BIN_SIZE_ALIGNED) $$(($(U_BOOT_OFFSET) + $(U_BOOT_BIN_SIZE_ALIGNED))) $$(($(U_BOOT_PARTITION_SIZE) - $(U_BOOT_BIN_SIZE_ALIGNED))) ))
@@ -266,7 +265,7 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" CONFIG $(CONFIG_OFFSET) $(CONFIG_PARTITION_SIZE) $(CONFIG_BIN_SIZE) $(CONFIG_BIN_SIZE_ALIGNED) $$(($(CONFIG_OFFSET) + $(CONFIG_BIN_SIZE_ALIGNED))) $$(($(CONFIG_PARTITION_SIZE) - $(CONFIG_BIN_SIZE_ALIGNED))) ))
 	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" KERNEL $(KERNEL_OFFSET) $(KERNEL_PARTITION_SIZE) $(KERNEL_BIN_SIZE) $(KERNEL_PARTITION_SIZE) $$(($(KERNEL_OFFSET) + $(KERNEL_PARTITION_SIZE))) $$(($(KERNEL_PARTITION_SIZE) - $(KERNEL_PARTITION_SIZE))) ))
 	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" ROOTFS $(ROOTFS_OFFSET) $(ROOTFS_PARTITION_SIZE) $(ROOTFS_BIN_SIZE) $(ROOTFS_PARTITION_SIZE) $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))) $$(($(ROOTFS_PARTITION_SIZE) - $(ROOTFS_PARTITION_SIZE))) ))
-	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" OVERLAY $(OVERLY_OFFSET) $(OVERLY_PARTITION_SIZE) $(OVERLY_BIN_SIZE) $(OVERLY_BIN_SIZE_ALIGNED) $$(($(OVERLY_OFFSET) + $(OVERLY_BIN_SIZE_ALIGNED))) $$(($(OVERLY_PARTITION_SIZE) - $(OVERLY_BIN_SIZE_ALIGNED))) ))
+	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" OVERLAY $(EXTRAS_OFFSET) $(EXTRAS_PARTITION_SIZE) $(EXTRAS_BIN_SIZE) $(EXTRAS_BIN_SIZE_ALIGNED) $$(($(EXTRAS_OFFSET) + $(EXTRAS_BIN_SIZE_ALIGNED))) $$(($(EXTRAS_PARTITION_SIZE) - $(EXTRAS_BIN_SIZE_ALIGNED))) ))
 	$(info  )
 
 	if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FIRMWARE_FULL_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
@@ -402,21 +401,21 @@ $(UB_ENV_FINAL_TXT): $(OUTPUT_DIR)/.config
 	sort -u -o $@ $@
 	sed -i '/^\s*$$/d' $@
 
-$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLY_BIN)
+$(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(EXTRAS_BIN)
 	$(info -------------------------------- $@)
 	dd if=/dev/zero bs=$(SIZE_8M) skip=0 count=1 status=none | tr '\000' '\377' > $@
 	dd if=$(U_BOOT_BIN) bs=$(U_BOOT_BIN_SIZE) seek=$(U_BOOT_OFFSET)B count=1 of=$@ conv=notrunc status=none
 	dd if=$(CONFIG_BIN) bs=$(CONFIG_BIN_SIZE) seek=$(CONFIG_OFFSET)B count=1 of=$@ conv=notrunc status=none
 	dd if=$(KERNEL_BIN) bs=$(KERNEL_BIN_SIZE) seek=$(KERNEL_OFFSET)B count=1 of=$@ conv=notrunc status=none
 	dd if=$(ROOTFS_BIN) bs=$(ROOTFS_BIN_SIZE) seek=$(ROOTFS_OFFSET)B count=1 of=$@ conv=notrunc status=none
-	dd if=$(OVERLY_BIN) bs=$(OVERLY_BIN_SIZE) seek=$(OVERLY_OFFSET)B count=1 of=$@ conv=notrunc status=none
+	dd if=$(EXTRAS_BIN) bs=$(EXTRAS_BIN_SIZE) seek=$(EXTRAS_OFFSET)B count=1 of=$@ conv=notrunc status=none
 
-$(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN) $(OVERLY_BIN)
+$(FIRMWARE_BIN_NOBOOT): $(KERNEL_BIN) $(ROOTFS_BIN) $(EXTRAS_BIN)
 	$(info -------------------------------- $@)
 	dd if=/dev/zero bs=$(FIRMWARE_NOBOOT_SIZE) skip=0 count=1 status=none | tr '\000' '\377' > $@
 	dd if=$(KERNEL_BIN) bs=$(KERNEL_BIN_SIZE) seek=0 count=1 of=$@ conv=notrunc status=none
 	dd if=$(ROOTFS_BIN) bs=$(ROOTFS_BIN_SIZE) seek=$(KERNEL_PARTITION_SIZE)B count=1 of=$@ conv=notrunc status=none
-	dd if=$(OVERLY_BIN) bs=$(OVERLY_BIN_SIZE) seek=$(OVERLY_OFFSET_NOBOOT)B count=1 of=$@ conv=notrunc status=none
+	dd if=$(EXTRAS_BIN) bs=$(EXTRAS_BIN_SIZE) seek=$(EXTRAS_OFFSET_NOBOOT)B count=1 of=$@ conv=notrunc status=none
 
 $(U_BOOT_BIN):
 	$(info -------------------------------- $@)
@@ -428,11 +427,22 @@ $(UB_ENV_BIN):
 # create config partition image
 $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 	$(info -------------------------------- $@)
+	rsync -a --exclude=.gitkeep --exclude=.empty $(BR2_EXTERNAL)/overlay/config/ $(CONFIG_PARTITION_DIR)/
+	rsync -a --exclude=.gitkeep --exclude=.empty $(BR2_EXTERNAL)/overlay/upper/ $(CONFIG_PARTITION_DIR)/
+	rm -f $(CONFIG_PARTITION_DIR)/.*keep
 	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash \
-		--root=$(CONFIG_PARTITION_DIR)/ \
-		--output=$(CONFIG_BIN) \
-		--pad=$(CONFIG_PARTITION_SIZE) \
-		--eraseblock=$(OVERLY_ERASEBLOCK_SIZE)
+		--output=$(CONFIG_BIN) --root=$(CONFIG_PARTITION_DIR)/ \
+		--pad=$(CONFIG_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
+
+# create extras partition image
+$(EXTRAS_BIN): $(U_BOOT_BIN)
+	$(info -------------------------------- $@)
+	if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(FIGLET) "EXTRAS PARTITION IS TOO SMALL"; fi
+	if [ -f $(EXTRAS_BIN) ]; then rm $(EXTRAS_BIN); fi
+	rsync -va $(OUTPUT_DIR)/target/opt/ $(OUTPUT_DIR)/extras/ && rm -rf $(OUTPUT_DIR)/target/opt/*
+	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash \
+		--output=$(EXTRAS_BIN) --root=$(OUTPUT_DIR)/extras/ \
+		--pad=$(EXTRAS_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
 
 # rebuild kernel
 $(KERNEL_BIN):
@@ -449,17 +459,6 @@ $(ROOTFS_BIN):
 $(ROOTFS_TAR):
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) all
-
-$(OVERLY_BIN): $(U_BOOT_BIN)
-	$(info -------------------------------- $@)
-	if [ $(OVERLY_PARTITION_SIZE) -lt $(OVERLY_LLIMIT) ]; then $(FIGLET) "OVERLAY IS TOO SMALL"; fi
-	if [ -f $(OVERLY_BIN) ]; then rm $(OVERLY_BIN); fi
-	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash \
-		--root=$(BR2_EXTERNAL)/overlay/upper/ \
-		--output=$(OVERLY_BIN) \
-		--pad=$(OVERLY_PARTITION_SIZE) \
-		--eraseblock=$(OVERLY_ERASEBLOCK_SIZE)
-       #	--pagesize=$(ALIGN_BLOCK)
 
 help:
 	$(info -------------------------------- $@)
