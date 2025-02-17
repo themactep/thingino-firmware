@@ -8,10 +8,9 @@ ROOTFS_MAGIC="68737173"
 GITHUB_URL="https://github.com"
 PAD="\t\t\t    "
 
-SIZE_64K=65536
 SIZE_256K=262144
 SIZE_320K=327680
-SIZE_384K=393216
+SIZE_512K=524288
 
 workdir="/tmp/sysupgrade"
 stage1app="sysupgrade"
@@ -155,7 +154,7 @@ handle_payload() {
 		if [ "part" = "$upgrade" ]; then
 			case "$(partial_upgrade_partition_name)" in
 				mtd5) offset=$SIZE_320K ;;
-				mtd6) offset=$SIZE_384K ;;
+				mtd6) offset=$SIZE_512K ;;
 				*) die "Unknown partial upgrade partition name" ;;
 			esac
 			bin_file="thingino-$profile-update.bin"
