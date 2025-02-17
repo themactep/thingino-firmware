@@ -427,9 +427,9 @@ $(UB_ENV_BIN):
 # create config partition image
 $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 	$(info -------------------------------- $@)
-	rsync -a --exclude=.gitkeep --exclude=.empty $(BR2_EXTERNAL)/overlay/config/ $(CONFIG_PARTITION_DIR)/
-	rsync -a --exclude=.gitkeep --exclude=.empty $(BR2_EXTERNAL)/overlay/upper/ $(CONFIG_PARTITION_DIR)/
-	rm -f $(CONFIG_PARTITION_DIR)/.*keep
+	rsync -a $(BR2_EXTERNAL)/overlay/config/ $(CONFIG_PARTITION_DIR)/
+	rsync -a $(BR2_EXTERNAL)/overlay/upper/ $(CONFIG_PARTITION_DIR)/
+	find $(CONFIG_PARTITION_DIR) -name ".*keep" -o -name ".empty" -delete
 	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash \
 		--output=$@ --root=$(CONFIG_PARTITION_DIR)/ \
 		--pad=$(CONFIG_PARTITION_SIZE)
