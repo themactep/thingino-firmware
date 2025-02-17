@@ -431,17 +431,17 @@ $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 	rsync -a --exclude=.gitkeep --exclude=.empty $(BR2_EXTERNAL)/overlay/upper/ $(CONFIG_PARTITION_DIR)/
 	rm -f $(CONFIG_PARTITION_DIR)/.*keep
 	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash \
-		--output=$(CONFIG_BIN) --root=$(CONFIG_PARTITION_DIR)/ \
+		--output=$@ --root=$(CONFIG_PARTITION_DIR)/ \
 		--pad=$(CONFIG_PARTITION_SIZE)
 
 # create extras partition image
 $(EXTRAS_BIN): $(U_BOOT_BIN)
 	$(info -------------------------------- $@)
 	if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(FIGLET) "EXTRAS PARTITION IS TOO SMALL"; fi
-	if [ -f $(EXTRAS_BIN) ]; then rm $(EXTRAS_BIN); fi
+	if [ -f $@ ]; then rm $@; fi
 	rsync -va $(OUTPUT_DIR)/target/opt/ $(OUTPUT_DIR)/extras/ && rm -rf $(OUTPUT_DIR)/target/opt/*
 	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash \
-		--output=$(EXTRAS_BIN) --root=$(OUTPUT_DIR)/extras/ \
+		--output=$@ --root=$(OUTPUT_DIR)/extras/ \
 		--pad=$(EXTRAS_PARTITION_SIZE)
 
 # rebuild kernel
