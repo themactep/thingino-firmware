@@ -91,9 +91,6 @@ span.hint.text-secondary {
         <p>Upload a sysupgrade-compatible image here to replace the current firmware</p>
         <div id="firmware-upload-form">
           <input type="file" class="form-control" id="firmware-image" name="firmware" onchange="updateFlashButton()">
-          <div class="mt-2">
-            <% field_select "tools_upgrade_option" "Upgrade Option" "Partial,Full,Bootloader" "Partial" %>
-          </div>
           <button type="button" class="btn btn-primary mt-2" onclick="handleUpgrade()" id="flash-button" disabled>Flash image</button>
         </div>
       </div>
