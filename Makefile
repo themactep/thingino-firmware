@@ -238,7 +238,7 @@ saveconfig:
 # remove target/ directory
 clean:
 	$(info -------------------------------- $@)
-	rm -rf $(OUTPUT_DIR)/target
+	if [ -d "$(OUTPUT_DIR)/target" ]; then rm -rf $(OUTPUT_DIR)/target; fi
 
 # remove all build files
 distclean:
