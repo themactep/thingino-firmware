@@ -36,19 +36,19 @@ case "$1" in
 
 		mac_address=$(ip link show $net_dev | awk '/ether/ {print $2}')
 		last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
-		ssid=$(fw_printenv -n wlanap_ssid)
 
-		if [ -n "$ssid" ]; then
-			sed -i '/ssid=/ s/ssid="[^"]*"/ssid="'"$ssid"'"/' /etc/wpa-ap.conf
+		wlanap_ssid=$(fw_printenv -n wlanap_ssid)
+		if [ -n "$wlanap_ssid" ]; then
+			sed -i '/ssid=/ s/ssid="[^"]*"/ssid="'"$wlanap_ssid"'"/' /etc/wpa-ap.conf
 		else
 			sed -i '/ssid=/ s/ssid="[^"]*"/ssid="THINGINO-'"$last_two"'"/' /etc/wpa-ap.conf
 		fi
 
-		pass=$(fw_printenv -n wlanap_pass)
-		[ ${#pass} -lt 8 ] && pass="thingino"
+		wlanap_pass=$(fw_printenv -n wlanap_pass)
+		[ ${#wlanap_pass} -lt 8 ] && wlanap_pass="thingino"
 
-		[[ ${#pass} -eq 64 && "$pass" =~ ^[0-9a-fA-F]{64}$ ]] && quote='' || quote='"'
-		sed -i '/psk=/ s/psk=["]*[^"]*["]*/psk='"$quote$pass$quote"'/' /etc/wpa-ap.conf
+		[[ ${#wlanap_pass} -eq 64 && "$wlanap_pass" =~ ^[0-9a-fA-F]{64}$ ]] && quote='' || quote='"'
+		sed -i '/psk=/ s/psk=["]*[^"]*["]*/psk='"$quote$wlanap_pass$quote"'/' /etc/wpa-ap.conf
 
 		start-stop-daemon -S -x /sbin/wpa_supplicant -- -i $net_dev -B -c /etc/wpa-ap.conf 2>&1 | log
 		check_result
