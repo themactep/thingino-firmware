@@ -14,6 +14,7 @@ case "$1" in
 		stop_daemon
 		;;
 	*)
-		die "Usage: $0 {start|stop}"
+		echo "Usage: $0 {start|stop}"
+		exit 1
 		;;
 esac

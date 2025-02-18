@@ -11,13 +11,11 @@ case "$1" in
 		;;
 	stop)
 		stopping
-		if [ -f "/tmp/upgrade.me" ]; then
-			sysupgrade -p
-		fi
-		ok
+		[ -f "/tmp/upgrade.me" ] && sysupgrade -p
 		;;
 	*)
-		die "Usage: $0 {start|stop}"
+		echo "Usage: $0 {start|stop}"
+		exit 1
 		;;
 esac
 

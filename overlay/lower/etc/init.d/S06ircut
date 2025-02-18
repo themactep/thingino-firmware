@@ -13,14 +13,13 @@ case "$1" in
 			ircut on > /dev/null 2>&1
 		}
 		ok
-		# daynight
 		;;
 	stop)
-		stopping
-		ok
+		true
 		;;
 	*)
-		die "Usage: $0 {start|stop}"
+		echo "Usage: $0 {start|stop}"
+		exit 1
 		;;
 esac
 
