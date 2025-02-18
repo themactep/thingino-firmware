@@ -19,8 +19,7 @@ case "$1" in
 	start)
 		starting
 		load_modules /etc/modules
-		[ -d /etc/modules.d ] || quit
-		for conf in /etc/modules.d/*; do
+		[ -d /etc/modules.d ] && for conf in /etc/modules.d/*; do
 			load_modules $conf
 		done
 		check_result
