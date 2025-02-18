@@ -116,9 +116,6 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/zerotier-one/Config.in"
 config BR2_PACKAGE_IFUPDOWN_SCRIPTS
 	bool "ifupdown-scripts"
 
-config BR2_PACKAGE_THINGINO_MOSQUITTO
-	bool "thingino-mosquitto"
-
 config BR2_PACKAGE_NGINX
 	bool "nginx"
 	select BR2_PACKAGE_NGINX_HTTP
