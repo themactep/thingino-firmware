@@ -14,10 +14,6 @@ elif [ "$(fw_printenv -n wlandev)" = "wq9001" ]; then
 	sed -i 's/wlan0/wlan1/g' /etc/udhcpd-portal.conf
 fi
 
-timeout() {
-	sleep 600 && $0 stop
-}
-
 case "$1" in
 	start)
 		starting
@@ -47,8 +43,6 @@ case "$1" in
 
 		start-stop-daemon -S -x /sbin/wpa_supplicant -- -i $net_dev -B -c /etc/wpa-portal_ap.conf 2>&1 | log
 		check_result
-
-		timeout &
 		;;
 	stop)
 		stopping
