@@ -114,6 +114,7 @@ die() {
 download() {
 	local file="$2"
 	[ -z "$file" ] && file="$fw_file"
+	echo "Downloading from $1 to $file"
 	curl -fL# --url "$1" -o "$file" $3 || return 1
 }
 
