@@ -267,11 +267,11 @@ async function streamOutput(el, cmd) {
 	}
 }
 
-$('#button-backup').addEventListener('click', ev -> {
+$('#button-backup').addEventListener('click', ev => {
 	window.location.href = `${window.location.pathname}?action=generate_backup`
 })
 
-$('#button-mtdblock').addEventListener('click', ev -> {
+$('#button-mtdblock').addEventListener('click', ev => {
 	const partition = $('#mtdblock_partition').value;
 	if (partition) {
 		window.location.href = `${window.location.pathname}?partition=${partition}`
