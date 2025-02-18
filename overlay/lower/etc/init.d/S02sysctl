@@ -5,9 +5,6 @@
 case "$1" in
 	start)
 		starting
-#		for file in $(find /etc/ -path '*/sysctl\.*' -name '*.conf'); do
-#		sysctl -q -p $file
-#		done
 		sysctl -q -p || die "Failed to apply sysctl settings"
 		check_result
 		;;
