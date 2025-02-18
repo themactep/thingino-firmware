@@ -165,25 +165,22 @@ while :; do
 	[ -f $RECORD_FLAG ] || break
 
 	get_free_space
-	get_occupied_space
-	log "Space limit: $record_limit_kb KiB"
-	log "Space required: $required_space KiB"
-
 	if [ "$available_space" -le "$required_space" ]; then
+		log "Space required: $required_space KiB"
 		log "Not enough space: $required_space > $available_space"
 		while [ "$available_space" -le "$required_space" ]; do
 			remove_oldest_file_in "$record_storage"
 			get_free_space
-			get_occupied_space
 			has_files "$record_storage" || die "$record_mount is empty yet no space!"
 		done
 	fi
 
 	if [ "$record_limit_kb" -gt 0 ]; then
+		log "Space limit: $record_limit_kb KiB"
+		get_occupied_space
 		while [ "$((occupied_space + required_space))" -gt "$record_limit_kb" ]; do
 			log "Occupied space $occupied_space KiB exceeds limit $record_limit_kb KiB"
 			remove_oldest_file_in "$record_storage"
-			get_free_space
 			get_occupied_space
 			has_files "$record_storage" || die "$record_mount is empty yet no space!"
 		done
