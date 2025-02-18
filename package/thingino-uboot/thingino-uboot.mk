@@ -548,13 +548,26 @@ endef
 
 ifeq ($(BR2_PACKAGE_THINGINO_UBOOT)$(BR_BUILDING),yy)
 
+ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC),y)
+	UBOOT_FLASH_CONTROLLER := "jz_sfc"
+else ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC_NAND),y)
+	UBOOT_FLASH_CONTROLLER := "sfc_nand"
+else ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC0),y)
+	UBOOT_FLASH_CONTROLLER := "sfc0"
+else ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC1),y)
+	UBOOT_FLASH_CONTROLLER := "sfc1"
+else ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_CUSTOM),y)
+	UBOOT_FLASH_CONTROLLER := $(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_CUSTOM_STRING)
+endif
+
 define THINGINO_GENERATE_UBOOT_ENV
-       @env BR2_PACKAGE_THINGINO_UBOOT_ROOT='$(value BR2_PACKAGE_THINGINO_UBOOT_ROOT)' sh -c 'grep -q "^root=" $(OUTPUT_DIR)/uenv.txt || echo "root=$$BR2_PACKAGE_THINGINO_UBOOT_ROOT" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
-       @env BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE='$(value BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE)' sh -c 'grep -q "^rootfstype=" $(OUTPUT_DIR)/uenv.txt || echo "rootfstype=$$BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
-       @env BR2_PACKAGE_THINGINO_UBOOT_INIT='$(value BR2_PACKAGE_THINGINO_UBOOT_INIT)' sh -c 'grep -q "^init=" $(OUTPUT_DIR)/uenv.txt || echo "init=$$BR2_PACKAGE_THINGINO_UBOOT_INIT" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
-       @env BR2_PACKAGE_THINGINO_UBOOT_MTDPARTS='$(value BR2_PACKAGE_THINGINO_UBOOT_MTDPARTS)' sh -c 'grep -q "^mtdparts=" $(OUTPUT_DIR)/uenv.txt || echo "mtdparts=$$BR2_PACKAGE_THINGINO_UBOOT_MTDPARTS" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
-       @env BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS='$(value BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS)' sh -c 'grep -q "^bootargs=" $(OUTPUT_DIR)/uenv.txt || echo "bootargs=$$BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
-       @env BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD='$(value BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD)' sh -c 'grep -q "^bootcmd=" $(OUTPUT_DIR)/uenv.txt || echo "bootcmd=$$BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
+	@env BR2_PACKAGE_THINGINO_UBOOT_ROOT='$(value BR2_PACKAGE_THINGINO_UBOOT_ROOT)' sh -c 'grep -q "^root=" $(OUTPUT_DIR)/uenv.txt || echo "root=$$BR2_PACKAGE_THINGINO_UBOOT_ROOT" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
+	@env BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE='$(value BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE)' sh -c 'grep -q "^rootfstype=" $(OUTPUT_DIR)/uenv.txt || echo "rootfstype=$$BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
+	@env BR2_PACKAGE_THINGINO_UBOOT_INIT='$(value BR2_PACKAGE_THINGINO_UBOOT_INIT)' sh -c 'grep -q "^init=" $(OUTPUT_DIR)/uenv.txt || echo "init=$$BR2_PACKAGE_THINGINO_UBOOT_INIT" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
+	@env BR2_PACKAGE_THINGINO_UBOOT_MTDPARTS='$(value BR2_PACKAGE_THINGINO_UBOOT_MTDPARTS)' sh -c 'grep -q "^mtdparts=" $(OUTPUT_DIR)/uenv.txt || echo "mtdparts=$$BR2_PACKAGE_THINGINO_UBOOT_MTDPARTS" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
+	@env BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS='$(value BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS)' sh -c 'grep -q "^bootargs=" $(OUTPUT_DIR)/uenv.txt || echo "bootargs=$$BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
+	@env BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD='$(value BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD)' sh -c 'grep -q "^bootcmd=" $(OUTPUT_DIR)/uenv.txt || echo "bootcmd=$$BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
+	@sed -i "s|\$$(UBOOT_FLASH_CONTROLLER)|$(UBOOT_FLASH_CONTROLLER)|g" $(OUTPUT_DIR)/uenv.txt
 endef
 THINGINO_UBOOT_PRE_BUILD_HOOKS += THINGINO_GENERATE_UBOOT_ENV
 

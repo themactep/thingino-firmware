@@ -719,36 +719,66 @@ endif # BR2_PACKAGE_THINGINO_UBOOT
 menu "Boot Configuration"
 
 config BR2_PACKAGE_THINGINO_UBOOT_ROOT
-    string "Root device"
-    help
-      Define the root device to be used during boot.
+	string "Root device"
+	help
+	  Define the root device to be used during boot.
 
 config BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE
-    string "Root filesystem type"
-    help
-      Specify the filesystem type for the root partition (e.g., ext4, squashfs).
+	string "Root filesystem type"
+	help
+	  Specify the filesystem type for the root partition (e.g., ext4, squashfs).
 
 config BR2_PACKAGE_THINGINO_UBOOT_INIT
-    string "Init program"
-    help
-      Define the init program to be executed (e.g., /sbin/init).
+	string "Init program"
+	help
+	  Define the init program to be executed (e.g., /sbin/init).
 
-config BR2_PACKAGE_THINGINO_UBOOT_MTDPARTS
-    string "MTD partition layout"
-    help
-      Define the partition layout for MTD devices.
+menu "Flash Controller Prefix"
 
-config BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS
-    string "Boot arguments"
-    help
-      Define additional kernel command-line arguments.
+choice
+	prompt "Select Flash Controller Prefix"
+	default BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC
 
-config BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD
-    string "Boot command"
-    help
-      Define the default boot command executed by U-Boot.
+config BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC
+	bool "jz_sfc"
+
+config BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC_NAND
+	bool "sfc_nand"
+
+config BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC0
+	bool "sfc0"
+
+config BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_SFC1
+	bool "sfc1"
+
+config BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_CUSTOM
+	bool "Custom"
+endchoice
+
+config BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_CUSTOM_STRING
+	string "Custom Flash Controller Prefix"
+	depends on BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_CUSTOM
+	help
+	  Enter a custom string for the flash controller prefix.
 
 endmenu
 
+
+config BR2_PACKAGE_THINGINO_UBOOT_MTDPARTS
+	string "MTD partition layout"
+	help
+	  Define the partition layout for MTD devices.
+
+config BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS
+	string "Boot arguments"
+	help
+	  Define additional kernel command-line arguments.
+
+config BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD
+	string "Boot command"
+	help
+	  Define the default boot command executed by U-Boot.
+
+endmenu
 
 endmenu
