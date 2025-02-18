@@ -28,7 +28,7 @@ case "$1" in
 		ip route add ${CNET}.0/24 dev $net_dev > /dev/null 2>&1
 
 		cp /etc/dnsd-ap.conf /tmp/dnsd.conf
-		hostname=$(fw_printenv -n hostname)
+		hostname=$(hostname)
 		grep $hostname /tmp/dnsd.conf > /dev/null || echo $hostname.local ${CNET}.1 >> /tmp/dnsd.conf
 
 		start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd-ap.conf 2>&1
