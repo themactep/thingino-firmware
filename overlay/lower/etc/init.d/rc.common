@@ -73,14 +73,9 @@ gpio_control() {
 	state=${gpio_power#$num}
 
 	case "$state" in
-		O)
-			gpio_cmd="high"
-			;;
-		o)
-			gpio_cmd="low"
-			;;
-		*)
-			warn "Invalid state for GPIO $gpio_name: $state"
+		O)	gpio_cmd="high" ;;
+		o)	gpio_cmd="low" ;;
+		*)	warn "Invalid state for GPIO $gpio_name: $state"
 			return 2  # invalid state
 			;;
 	esac
@@ -97,9 +92,9 @@ gpio_control() {
 iface_default() {
 	local iface
 	[ -z "$iface" ] && iface=$(ip -4 r | awk '/default/{print $5; exit}')
-        [ -z "$iface" ] && iface=$(ip -4 r | awk '{print $3; exit}')
+	[ -z "$iface" ] && iface=$(ip -4 r | awk '{print $3; exit}')
 	[ -z "$iface" ] && iface=$(ip -6 r | awk '/default/{print $5; exit}')
-        [ -z "$iface" ] && iface=$(ip -6 r | awk '{print $3; exit}')
+	[ -z "$iface" ] && iface=$(ip -6 r | awk '{print $3; exit}')
 	echo "$iface"
 }
 
@@ -199,6 +194,11 @@ run() {
 	eval "$*" 2>&1 | log
 }
 
+set_gpio() {
+	info "Set GPIO $1 to F$2 D$3"
+	gpio-diag $1 func $2 drive $3
+}
+
 start_daemon() {
 	local command="${COMMAND:-$DAEMON_FULL} -- $DAEMON_ARGS"
 	if [ -n "$PIDFILE" ] && [ -f "$PIDFILE" ]; then
@@ -213,11 +213,6 @@ starting() {
 	echo "Starting ${1:-$DAEMON_SHORT}" | log
 	echo -n "Starting ${1:-$DAEMON_SHORT}"
 	is_debug_mode && echo " ..." || echo -n ": "
-}
-
-set_gpio() {
-	info "Set GPIO $1 to F$2 D$3"
-	gpio-diag $1 func $2 drive $3
 }
 
 stop_daemon() {

@@ -1,5 +1,5 @@
 Image Sensor
-------------
+============
 
 Image sensor is one of the crucial components of any video camera.
 It is an array of sensors that register light and transform it into a

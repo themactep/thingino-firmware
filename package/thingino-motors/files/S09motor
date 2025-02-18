@@ -52,12 +52,12 @@ start() {
 	motor_speed=$(fw_printenv -n motor_speed)
 
 	# Check if motors are supported
-	[ -z "$motors_app"      ] && die " No motors app found"
-	[ -z "$gpio_motor_h"    ] && die " Pan motor GPIO pins are not set"
+	[ -z "$motors_app" ] && die " No motors app found"
+	[ -z "$gpio_motor_h" ] && die " Pan motor GPIO pins are not set"
 	[ -z "$gpio_motor_switch" ] && [ -z "$gpio_motor_v" ] && die " Tilt motor GPIO pins are not set"
 	[ -z "$motor_maxstep_h" ] && die " Pan motor Steps are not set"
 	[ -z "$motor_maxstep_v" ] && die " Tilt motor Steps are not set"
-	[ -z "$motor_speed"     ] && motor_speed=900
+	[ -z "$motor_speed" ] && motor_speed=900
 
 	[ "$gpio_motor_invert" = "true" ] && gpio_motor_invert_opt="invert_gpio_dir=1"
 
