@@ -90,8 +90,11 @@ aria-controls="nbMain" aria-label="Toggle navigation"><span class="navbar-toggle
 <div class="progress" role="progressbar" aria-label="Buffers" id="pb-memory-buffers"><div class="progress-bar"></div></div>
 <div class="progress" role="progressbar" aria-label="Cached" id="pb-memory-cached"><div class="progress-bar"></div></div>
 </div>
-<div class="progress-stacked overlay">
+<div class="progress-stacked overlay my-1">
 <div class="progress" role="progressbar" id="pb-overlay-used"><div class="progress-bar"></div></div>
+</div>
+<div class="progress-stacked extras my-1">
+<div class="progress" role="progressbar" id="pb-extras-used"><div class="progress-bar"></div></div>
 </div>
 </div>
 <div class="col col-2 col-md-2 col-lg-1">

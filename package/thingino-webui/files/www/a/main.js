@@ -78,6 +78,9 @@ function heartbeat() {
 			$('.progress-stacked.overlay').title = 'Free overlay: ' + json.overlay_free + 'KiB'
 			setProgressBar('#pb-overlay-used', json.overlay_used, json.overlay_total, 'Overlay Usage');
 
+			$('.progress-stacked.extras').title = 'Free extras: ' + json.extras_free + 'KiB'
+			setProgressBar('#pb-extras-used', json.extras_used, json.extras_total, 'Extras Usage');
+
 			if (json.daynight_value !== '-1')
 				$$('.gain').forEach(el => el.textContent = '☀️ ' + json.daynight_value);
 
