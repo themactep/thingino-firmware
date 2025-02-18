@@ -3,13 +3,15 @@
 # Configuration of the bridge should be done in /etc/network/interfaces.d/bridgeX
 # Read more at https://wiki.debian.org/BridgeNetworkConnections
 
-[ -x /sbin/brctl ] || exit 0
+quit() { echo "$1"; exit 0; }
+
+[ -x /sbin/brctl ] || \
+	quit "No bridge ports control utility"
+
+[ -z "$IF_BRIDGE_PORTS" ] && \
+	quit "No bridge ports defined"
 
 case "$IF_BRIDGE_PORTS" in
-	"")
-		exit 0
-		;;
-
 	none)
 		INTERFACES=""
 		;;

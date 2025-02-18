@@ -8,7 +8,7 @@ case "$1" in
 #		for file in $(find /etc/ -path '*/sysctl\.*' -name '*.conf'); do
 #		sysctl -q -p $file
 #		done
-		sysctl -q -p
+		sysctl -q -p || die "Failed to apply sysctl settings"
 		check_result
 		;;
 	stop)

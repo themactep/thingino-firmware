@@ -1,7 +1,11 @@
 #!/bin/sh
 
-[ -x /sbin/vconfig ] || exit 0
+quit() { echo "$1"; exit 0; }
 
-[ -z "$IF_VLAN_RAW_DEVICE" ] && [ -z "$(echo $IFACE | grep '.\+\.[0-9]\+$')" ] && exit 0
+[ -x /sbin/vconfig ] || \
+	quit "No VLAN support"
+
+[ -z "$IF_VLAN_RAW_DEVICE" ] && [ -z "$(echo $IFACE | grep '.\+\.[0-9]\+$')" ] && \
+	quit "$IFACE: No VLAN"
 
 vconfig rem $IFACE
