@@ -56,34 +56,37 @@ get_mtd_partitions() {
 <div class="row row-cols-1 row-cols-lg-3 g-4 mb-4">
 <div class="col">
 
-<h5>Backup</h5>
+<div class="alert alert-success">
+<h4>Backup</h4>
 <p>Click "Generate archive" button to download a tar archive of the current configuration files.</p>
 <button class="btn btn-primary" id="button-backup">Generate archive</button>
+</div>
 
-<h5>Save mtdblock contents</h5>
+<div class="alert alert-info">
+<h4>Save mtdblock contents</h4>
 <p>Click "Save mtdblock" to download the specified mtdblock file. (NOTE: THIS FEATURE IS FOR PROFESSIONALS!)</p>
 <% field_select "mtdblock_partition" "Choose mtdblock" "$(get_mtd_partitions)" %>
 <button type="button" class="btn btn-primary" id="button-mtdblock">Save mtdblock</button>
-
-<h5>OTA (Over The Air) Update</h5>
-<p>Click to perform an upgrade to the latest firmware release from the Thingino GitHub repository.</p>
-<% field_select "ota_upgrade_option" "Upgrade Option" "Partial,Full,Bootloader" "Partial" %>
-<button type="button" class="btn btn-primary" id="button-upgrade">Download & Upgrade</button>
-
-<h5>Flash new firmware image</h5>
-<p>Upload a sysupgrade-compatible image here to replace the current firmware</p>
-<div id="firmware-upload-form">
-<input type="file" class="form-control" id="firmware-image" name="firmware" onchange="updateFlashButton()">
-<button type="button" class="btn btn-primary mt-2" id="button-upload" disabled>Flash image</button>
 </div>
+
+<div class="alert alert-warning">
+<h4>OTA (Over The Air) Update</h4>
+<p>Click to perform an upgrade to the latest firmware release from the Thingino GitHub repository.</p>
+<% field_select "ota_upgrade_option" "Upgrade Option" "Partial,Full,Bootloader" %>
+<button type="button" class="btn btn-primary" id="button-upgrade">Download & Upgrade</button>
+</div>
+
+<div class="alert alert-danger">
+<h4>Flash new firmware image</h4>
+<p>Upload a sysupgrade-compatible image here to replace the current firmware</p>
+<input type="file" class="form-control" id="firmware-image" name="firmware"">
+<button type="button" class="btn btn-primary mt-2" id="button-upload" disabled>Flash image</button>
 
 </div>
 <div class="col">
-
 <div id="output-wrapper" style="display: none; height: 600px; max-height: 600px; overflow-y: auto; padding: 1rem;">
 <pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word;"></pre>
 </div>
-
 </div>
 </div>
 
@@ -136,12 +139,12 @@ async function handleUpgrade(ev) {
 		return; // Early return if no file selected
 	}
 
-	const submitButton = $('#firmware-upload-form button');
+	const submitButton = $('#button-upload');
 	if (submitButton) submitButton.disabled = true;
 
 	const wr = $('#output-wrapper');
 	if (!wr) {
-	if (submitButton) submitButton.disabled = false;
+		if (submitButton) submitButton.disabled = false;
 		return;
 	}
 
@@ -280,8 +283,8 @@ $('#button-mtdblock').addEventListener('click', ev => {
 	}
 })
 
+$('#firmware-image').addEventListener('change', updateFlashButton)
 $('#button-upgrade').addEventListener('click', handleOTAUpgrade)
-
 $('#button-upload').addEventListener('click', handleUpgrade)
 
 </script>
