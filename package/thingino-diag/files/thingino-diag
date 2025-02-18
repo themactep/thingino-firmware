@@ -1,14 +1,21 @@
 #!/bin/sh
 
-. /sbin/common
+alert() { echo "\e[38;5;12m$1\e[0m"; }
+bold() { echo "\e[38;5;208m$1\e[0m"; }
+die() { printf "\e[38;5;124m%s\e[0m\n" "$1" >&2; exit 1; }
+info() { echo "\e[38;5;160m$1\e[0m" >&2; }
+
+PRUDYNT_CONFIG_FILE="/etc/prudynt.cfg"
 
 show_help() {
-	echo -e "Thingino Diagnostics Script\n"
-	echo -e "Generate diagnostics log shared via termbin.com\n"
-	echo "Usage: $0 [-l [path]]"
-	echo "Where:"
-	echo "  -l    Save the log to a local file instead of uploading."
-	echo "        Optional: specify a custom path (default: /tmp)"
+	echo -e "Thingino Diagnostics Script
+Generate diagnostics log shared via termbin.com
+
+Usage: $0 [-l [path]]
+Where:
+	-l	Save the log to a local file instead of uploading.
+		Optional: specify a custom path (default: /tmp)
+"
 	exit 0
 }
 
@@ -39,37 +46,29 @@ while getopts ":lh" opt; do
 			local_file="yes"
 			shift $((OPTIND-1))
 			output_path="${1:-/tmp}"
-			if [ ! -d "$output_path" ]; then
-				echo_c 160 "Error: Directory $output_path does not exist" >&2
-				exit 1
-			fi
-			if [ ! -w "$output_path" ]; then
-				echo_c 160 "Error: Directory $output_path is not writable" >&2
-				exit 1
-			fi
+			[ -d "$output_path" ] || die "Error: Directory $output_path does not exist"
+			[ -w "$output_path" ] || die "Error: Directory $output_path is not writable"
 			;;
 		h)
 			show_help
 			;;
 		\?)
-			echo_c 160 "Invalid option: -$OPTARG" >&2
+			info "Invalid option: -$OPTARG"
 			show_help
 			;;
 	esac
 done
 
 if is_interactive_shell; then
-	echo_c 208 "Thingino Diagnostics"
-	[ -z "$local_file" ] && echo_c 11 "This script requires network access."
-	echo -e "\nThis script generates a log file for sharing with developers \
-for diagnostic issues.\nThe log may contain sensitive or personal information, \
-make sure to review it before sending the link!\nWe use termbin to share the log. \
-Please review their use policy at https://www.termbin.com/\n"
+	bold "Thingino Diagnostics"
+	[ -z "$local_file" ] && alert "This script requires network access."
+	echo "
+This script generates a log file for sharing with developers for diagnostic issues.
+The log may contain sensitive information, please review it before sharing the link!
+We use termbin to share the log. Review their use policy at https://www.termbin.com/
+"
 	read -p "Do you wish to proceed? (yes/no): " response
-	if [ "yes" != "$response" ]; then
-		echo_c 160 "Operation aborted by the user."
-		exit 1
-	fi
+	[ "yes" = "$response" ] || die "Operation aborted by the user."
 fi
 
 if [ -n "$local_file" ]; then
@@ -97,7 +96,10 @@ fi
 
 	inforun "lsmod" "KMOD"
 	header "KMOD-2"
-	for file in /etc/modules.d/*; do echo "== $file =="; cat "$file"; done
+	for file in /etc/modules.d/*; do
+		echo "== $file =="
+		cat "$file"
+	done
 
 	[ -d /sys/bus/usb/devices/ ] && inforun "lsusb" "USB"
 
@@ -119,20 +121,21 @@ fi
 	inforun "logread" "SYSLOG"
 
 	header "streamer"
-	awk '{if ($0 ~ /password[[:space:]]*=/) sub(/=.*/, "= \"REDACTED\";"); print}'  /etc/prudynt.cfg
+	awk '{if ($0 ~ /password[[:space:]]*=/) sub(/=.*/, "= \"REDACTED\";"); print}' $PRUDYNT_CONFIG_FILE
 
 	infocat "/etc/cron/crontabs/root" "crontab"
 } > "$output_file"
 
 if [ -z "$local_file" ]; then
-	url=$(cat "$output_file" | send2termbin)
+	url=$(send2termbin < $output_file)
 	rm -f "$output_file"
 
 	[ -z "$url" ] && die "\nThere was an error."
 
-	echo -e "\nYour diagnostics log link:\n$url"
+	echo "Your diagnostics log link:"
+	info "$url"
 else
-	echo "Diagnostics log saved locally at $output_file"
+	info "Diagnostics log saved locally at $output_file"
 fi
 
 exit 0
