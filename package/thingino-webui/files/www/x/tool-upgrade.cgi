@@ -53,9 +53,8 @@ get_mtd_partitions() {
 %>
 <%in _header.cgi %>
 
-<div class="row row-cols-1 row-cols-lg-3 g-4 mb-4">
-<div class="col">
-
+<div class="row g-4">
+<div class="col col-lg-4">
 <div class="alert alert-success">
 <h4>Backup</h4>
 <p>Click "Generate archive" button to download a tar archive of the current configuration files.</p>
@@ -80,23 +79,17 @@ get_mtd_partitions() {
 <h4>Flash new firmware image</h4>
 <p>Upload a sysupgrade-compatible image here to replace the current firmware</p>
 <input type="file" class="form-control" id="firmware-image" name="firmware"">
-<button type="button" class="btn btn-primary mt-2" id="button-upload" disabled>Flash image</button>
-
+<button type="button" class="btn btn-primary mt-2" id="button-upload">Flash image</button>
 </div>
-<div class="col">
-<div id="output-wrapper" style="display: none; height: 600px; max-height: 600px; overflow-y: auto; padding: 1rem;">
-<pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word;"></pre>
+</div>
+<div class="col col-lg-8">
+<div id="output-wrapper" class="p-1" style="height:60rem;max-height:60rem;overflow-y:auto">
+<pre class="m-0 h-100" style="white-space:pre-wrap;word-wrap:break-word;"></pre>
 </div>
 </div>
 </div>
 
 <script>
-function updateFlashButton() {
-	const fileInput = $('#firmware-image');
-	const flashButton = $('#button-upgrade');
-	flashButton.disabled = !(fileInput && fileInput.files && fileInput.files.length > 0);
-}
-
 async function handleOTAUpgrade() {
 	const wr = $('#output-wrapper');
 	if (!wr) return;
@@ -104,25 +97,25 @@ async function handleOTAUpgrade() {
 	wr.style.display = 'block';
 	wr.innerHTML = '';
 
-	let cmd;
+	let cmd='/sbin/sysupgrade ';
 	const option = $('#ota_upgrade_option').value;
 	if (option === 'Full') {
-		cmd = '/sbin/sysupgrade -f';
+		cmd += '-f';
 	} else if (option === 'Bootloader') {
-		cmd = '/sbin/sysupgrade -b';
+		cmd += '-b';
 	} else {
-		cmd = '/sbin/sysupgrade -p';
+		cmd += '-p';
 	}
 
 	const el = document.createElement('pre');
-	el.id = "output";
+	el.id = 'output';
 	el.dataset.cmd = cmd;
 	el.style.margin = '0';
 	el.style.whiteSpace = 'pre-wrap';
 	el.style.wordWrap = 'break-word';
 
 	const h6 = document.createElement('h6');
-	h6.textContent = `# ${cmd}`;
+	h6.textContent = '# ' + cmd;
 	h6.style.margin = '0 0 1rem 0';
 
 	wr.appendChild(h6);
@@ -168,8 +161,8 @@ async function handleUpgrade(ev) {
 		    body: formData
 		});
 
-		if (!response.ok) throw new Error(`Upload failed: ${response.statusText}`);
-		cmd += ` /tmp/fw-web.bin`;
+		if (!response.ok) throw new Error('Upload failed: ' + response.statusText);
+		cmd += ' /tmp/fw-web.bin';
 		wr.innerHTML = '';
 	} catch (error) {
 		uploadStatus.textContent = 'Upload failed: ' + error.message;
@@ -177,20 +170,15 @@ async function handleUpgrade(ev) {
 		return;
 	}
 
-	const option = $('#tools_upgrade_option').value;
-	if (option === 'Full') cmd += ' -x -f';
-	else if (option === 'Partial') cmd += ' -x -p';
-	else if (option === 'Bootloader') cmd += ' -x -b';
-
 	const el = document.createElement('pre');
-	el.id = "output";
+	el.id = 'output';
 	el.dataset.cmd = cmd;
 	el.style.margin = '0';
 	el.style.whiteSpace = 'pre-wrap';
 	el.style.wordWrap = 'break-word';
 
 	const h6 = document.createElement('h6');
-	h6.textContent = `# ${cmd}`;
+	h6.textContent = '# ' + cmd;
 	h6.style.margin = '0 0 1rem 0';
 
 	wr.appendChild(h6);
@@ -227,10 +215,8 @@ async function streamOutput(el, cmd) {
 		} finally {
 			el.innerHTML += '\n--- sysupgrade exit! ---\n';
 			// Only re-enable the flash button if we are in the manual upload flow
-			if (cmd.includes('/tmp/fw-web.bin')) {
-				const submitButton = $('#button-upload');
-				if (submitButton) submitButton.disabled = false;
-			}
+			if (cmd.includes('/tmp/fw-web.bin'))
+				$('#button-upload').disabled = false;
 		}
 	}
 
@@ -271,21 +257,25 @@ async function streamOutput(el, cmd) {
 }
 
 $('#button-backup').addEventListener('click', ev => {
-	window.location.href = `${window.location.pathname}?action=generate_backup`
+	window.location.href = window.location.pathname + '?action=generate_backup'
 })
 
 $('#button-mtdblock').addEventListener('click', ev => {
 	const partition = $('#mtdblock_partition').value;
 	if (partition) {
-		window.location.href = `${window.location.pathname}?partition=${partition}`
+		window.location.href = window.location.pathname + '?partition=' + partition
 	} else {
 		alert('Please select an mtdblock partition.')
 	}
 })
 
-$('#firmware-image').addEventListener('change', updateFlashButton)
 $('#button-upgrade').addEventListener('click', handleOTAUpgrade)
+
 $('#button-upload').addEventListener('click', handleUpgrade)
 
+$('#firmware-image').addEventListener('change', ev => $('#button-upload').disabled = (ev.target.files.length == 0))
+
+$('#button-upload').disabled = true
 </script>
+
 <%in _footer.cgi %>
