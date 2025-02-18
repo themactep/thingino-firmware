@@ -734,7 +734,7 @@ config BR2_THINGINO_DEVICE_TYPE_WEBCAM
 
 endchoice
 
-menu "Environment Config"
+menu "U-Boot Environment Config"
 config U_BOOT_ENV_TXT
 	string "Path to U-Boot environment text file"
 	help
