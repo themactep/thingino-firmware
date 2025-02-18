@@ -64,7 +64,8 @@ case "$1" in
 		kill -9 $(pidof -s S41portal -o $$)
 		;;
 	*)
-		die "Usage: $0 {start|stop}"
+		echo "Usage: $0 {start|stop}"
+		exit 1
 		;;
 esac
 
