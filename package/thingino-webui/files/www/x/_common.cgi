@@ -716,6 +716,7 @@ update_caminfo() {
 	for v in flash_size flash_size_mb flash_type network_address network_cidr network_default_interface network_dhcp network_dns_1 network_dns_2 network_gateway network_hostname network_interfaces network_macaddr network_netmask overlay_root rtsp_endpoint_ch0 rtsp_endpoint_ch1 soc_family soc_model sensor_fps_max sensor_fps_min sensor_model tz_data tz_name uboot_version ui_password; do
 		eval "echo $v=\'\$$v\'>>$tmpfile"
 	done
+
 	# sort content alphabetically
 	sort <$tmpfile | sed /^$/d >$sysinfo_file && rm $tmpfile && unset tmpfile
 
@@ -734,8 +735,9 @@ include() {
 
 assets_ts=$(date +%Y%m%d%H%M)
 
-[ -f $sysinfo_file ] || update_caminfo
-include $sysinfo_file
+[ -f "$sysinfo_file" ] || update_caminfo
+
+include "$sysinfo_file"
 
 check_password
 %>

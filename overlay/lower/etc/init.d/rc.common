@@ -160,6 +160,11 @@ is_usb_console() {
 	[ "true" = "$(fw_printenv -n usb_console)" ]
 }
 
+kill_daemon() {
+	run "start-stop-daemon -K -s SIGKILL -n $DAEMON_SHORT"
+	check_result
+}
+
 log() {
 	logger -p daemon.info -t ${DAEMON_SHORT}[$$] <&0
 }
@@ -210,14 +215,14 @@ starting() {
 	is_debug_mode && echo " ..." || echo -n ": "
 }
 
+set_gpio() {
+	info "Set GPIO $1 to F$2 D$3"
+	gpio-diag $1 func $2 drive $3
+}
+
 stop_daemon() {
 	#FIXME do we need -s KILL?
 	run "start-stop-daemon -K -n $DAEMON_SHORT"
-	check_result
-}
-
-kill_daemon() {
-	run "start-stop-daemon -K -s SIGKILL -n $DAEMON_SHORT"
 	check_result
 }
 
@@ -243,7 +248,3 @@ warn() {
 	echo "$1" | log
 }
 
-set_gpio() {
-	info "Set GPIO $1 to F$2 D$3"
-	gpio-diag $1 func $2 drive $3
-}
