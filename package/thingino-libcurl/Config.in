@@ -1,3 +1,4 @@
+menu "thingino-libcurl"
 config BR2_PACKAGE_THINGINO_LIBCURL
 	bool "thingino-libcurl"
 	help
@@ -133,3 +134,4 @@ config BR2_PACKAGE_THINGINO_LIBCURL_TLS_NONE
 endchoice
 
 endif
+endmenu
