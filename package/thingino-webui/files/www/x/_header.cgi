@@ -96,10 +96,10 @@ aria-controls="nbMain" aria-label="Toggle navigation"><span class="navbar-toggle
 </div>
 <div class="col col-2 col-md-2 col-lg-1">
 <% if pidof record > /dev/null; then %>
-<a href="config-record.cgi" id="recording" class="link-underline link-underline-opacity-0 icon blink me-2"
+<a href="service-videorec.cgi" id="recording" class="link-underline link-underline-opacity-0 icon blink me-2"
 data-bs-toggle="tooltip" data-bs-title="Recording in progress">⏺</a>
 <% else %>
-<a href="config-record.cgi" id="recording" class="link-underline link-underline-opacity-0 icon me-2"
+<a href="service-videorec.cgi" id="recording" class="link-underline link-underline-opacity-0 icon me-2"
 data-bs-toggle="tooltip" data-bs-title="Recording stopped">⏹</a>
 <% fi %>
 <a href="config-daynight.cgi" class="gain link-underline link-underline-opacity-0 link-underline-opacity-75-hover"
