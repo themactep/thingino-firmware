@@ -661,6 +661,8 @@ endmenu
 
 source "$BR2_EXTERNAL_THINGINO_PATH/Config.sensor.in"
 
+menu "Flash Chip Config"
+
 choice
 	prompt "Flash chip type"
 config FLASH_NOR
@@ -683,11 +685,14 @@ config FLASH_SIZE_256
 	bool "256MB"
 endchoice
 
+endmenu
+
 choice
 	prompt "Kernel version"
 	default KERNEL_VERSION_4 if BR2_SOC_FAMILY_INGENIC_T41 || BR2_SOC_FAMILY_INGENIC_T40
 config KERNEL_VERSION_3
 	bool "Kernel 3.10.14"
+	depends on BR2_SOC_FAMILY_INGENIC_T10 ||BR2_SOC_FAMILY_INGENIC_T20 || BR2_SOC_FAMILY_INGENIC_T21 || BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_T41
 config KERNEL_VERSION_4
 	bool "Kernel 4.4.94"
 	depends on BR2_SOC_FAMILY_INGENIC_T41 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T31
@@ -729,8 +734,10 @@ config BR2_THINGINO_DEVICE_TYPE_WEBCAM
 
 endchoice
 
+menu "Environment Config"
 config U_BOOT_ENV_TXT
 	string "Path to U-Boot environment text file"
 	help
 	  Path to the U-Boot environment configuration file used to configure
 	  the ENV on the device
+endmenu
