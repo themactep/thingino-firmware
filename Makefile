@@ -1,6 +1,8 @@
 # Thingino Firmware
 # https://github.com/themactep/thingino-firmware
 
+HOST_ARCH := $(shell uname -m)
+
 ifeq ($(__BASH_MAKE_COMPLETION__),1)
 	exit
 endif
@@ -15,6 +17,10 @@ endif
 
 ifneq ($(findstring $(empty) $(empty),$(CURDIR)),)
 $(error Current directory path "$(CURDIR)" cannot contain spaces)
+endif
+
+ifeq ($(filter x86_64 aarch64,$(HOST_ARCH)),)
+$(error ❌ Unsupported architecture: $(HOST_ARCH). Only x86_64 and aarch64 are supported.)
 endif
 
 # Camera IP address
