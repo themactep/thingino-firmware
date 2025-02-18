@@ -2,10 +2,9 @@
 <%in _common.cgi %>
 <%
 page_title="Send to email"
-params="attach_snapshot attach_video from_name from_address insecure_ssl to_name to_address subject body smtp_host smtp_port smtp_username smtp_password smtp_use_ssl"
 
-config_file="$ui_config_dir/email.conf"
-include $config_file
+# read values from configs
+. $WEB_CONFIG_FILE
 
 defaults() {
 	default_for email_attach_snapshot "false"
@@ -18,7 +17,9 @@ defaults() {
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "email" "$params"
+	error=""
+
+	read_from_post "email" "attach_snapshot attach_video from_name from_address insecure_ssl to_name to_address subject body smtp_host smtp_port smtp_username smtp_password smtp_use_ssl"
 
 	# normalize
 	email_body="$(echo "$email_body" | tr "\r?\n" " ")"
@@ -32,13 +33,22 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp -u)
-		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
-		for p in $params; do
-			sed -i -r "/^email_$p=/d" "$tmp_file"
-			echo "email_$p=\"$(eval echo \$email_$p)\"" >> "$tmp_file"
-		done
-		mv $tmp_file $config_file
+		save2config "
+email_attach_snapshot=\"$email_attach_snapshot\"
+email_attach_video=\"$email_attach_video\"
+email_from_name=\"$email_from_name\"
+email_from_address=\"$email_from_address\"
+email_insecure_ssl=\"$email_insecure_ssl\"
+email_to_name=\"$email_to_name\"
+email_to_address=\"$email_to_address\"
+email_subject=\"$email_subject\"
+email_body=\"$email_body\"
+email_smtp_host=\"$email_smtp_host\"
+email_smtp_port=\"$email_smtp_port\"
+email_smtp_username=\"$email_smtp_username\"
+email_smtp_password=\"$email_smtp_password\"
+email_smtp_use_ssl=\"$email_smtp_use_ssl\"
+"
 	fi
 	redirect_to $SCRIPT_NAME
 fi
@@ -80,7 +90,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "cat $config_file" %>
+<% ex "grep ^email_ $WEB_CONFIG_FILE" %>
 </div>
 
 <script>

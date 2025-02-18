@@ -9,6 +9,9 @@ STR_NOT_SUPPORTED="not supported on this system"
 STR_PASSWORD_TO_PSK="Plain-text password will be automatically converted to a PSK upon submission"
 STR_SUPPORTS_STRFTIME="Supports <a href=\"https://strftime.net/\" target=\"_blank\">strftime</a> format"
 
+WEB_CONFIG_FILE="/etc/web.conf"
+[ -f "$WEB_CONFIG_FILE" ] || touch "$WEB_CONFIG_FILE"
+
 pagename=$(basename "$SCRIPT_NAME")
 pagename="${pagename%%.*}"
 
@@ -16,7 +19,6 @@ pagename="${pagename%%.*}"
 alert_file=/tmp/alert.txt
 signature_file=/tmp/signature.txt
 sysinfo_file=/tmp/sysinfo.txt
-ui_config_dir=/etc/webui
 webui_log=/tmp/webui.log
 
 # read from files
@@ -27,8 +29,6 @@ ensure_dir() {
 	echo "Directory $1 does not exist. Creating" >> $webui_log
 	mkdir -p "$1"
 }
-
-ensure_dir $ui_config_dir
 
 # name, text
 error_if_empty() {
@@ -377,7 +377,7 @@ field_text() {
 
 # field_textarea "name" "label" "hint"
 field_textarea() {
-	local v=$(t_value "$1")
+	local v="$(t_value "$1")"
 	echo "<div class=\"mb-2 textarea\" id=\"$1_wrap\">
 	<label for=\"$1\" class=\"form-label\">$2</label>
 	<textarea id=\"$1\" name=\"$1\" class=\"form-control\">$v</textarea>"
@@ -403,7 +403,7 @@ html_title() {
 }
 
 html_theme() {
-	test -f /etc/webui/web.conf && webui_theme=$(awk -F= '/webui_theme/{print $2}' /etc/webui/webui.conf | tr -d '"')
+	test -f "$WEB_CONFIG_FILE" && webui_theme=$(awk -F= '/webui_theme/{print $2}' "$WEB_CONFIG_FILE" | tr -d '"')
 	case "$webui_theme" in
 		dark | light)
 			echo -n $webui_theme
@@ -512,6 +512,26 @@ progressbar() {
 	echo "<div class=\"progress\" role=\"progressbar\" aria-valuenow=\"$1\" aria-valuemin=\"0\" aria-valuemax=\"100\"><div class=\"progress-bar progress-bar-striped progress-bar-animated bg-$c\" style=\"width:$1%\"></div></div>"
 }
 
+read_from_config() {
+	awk -F= "/^$1/{print \$2}" $WEB_CONFIG_FILE
+}
+
+read_from_env() {
+	local tmpfile=$(mktemp -u)
+	fw_printenv | grep ^$1_ | sed -E "s/=(.+)$/=\"\\1\"/" > $tmpfile
+	. $tmpfile
+	rm $tmpfile
+}
+
+# read_from_post "plugin" "params"
+read_from_post() {
+	local p
+	for p in $2; do
+		eval $1_$p=\$POST_$1_$p
+		sanitize "$1_$p"
+	done
+}
+
 # redirect_back "flash class" "flash text"
 redirect_back() {
 	redirect_to "${HTTP_REFERER:-/}" "$1" "$2"
@@ -568,13 +588,27 @@ sanitize4web() {
 	eval $n=$(echo \${$n//\$/\\\$})
 }
 
-"param" "value"
+# list of "param=value" lines
 save2config() {
-	local tmpfile=$(mktemp -u)
-	[ -f /etc/web.config ] && cp /etc/web.config $tmpfile
-	sed -i -r "/^$1=.*/d" $tmpfile
-	echo "$1=\"$2\"" >> $tmpfile
-	mv $tmpfile etc/web.config
+	local tmp1file tmp2file name value
+
+	tmp2file="$(mktemp -u)"
+	echo "$1" > "$tmp2file"
+
+	tmp1file="$(mktemp -u)"
+	cp "$WEB_CONFIG_FILE" "$tmp1file"
+	while read -r line; do
+		[ -z "$line" ] && continue
+		name="${line%%=*}"
+		value="${line#*=}"
+		sed -i -r "/^$name=.*/d" "$tmp1file"
+		[ -z "$value" ] || echo "$line" >> "$tmp1file"
+	done < "$tmp2file"
+
+	sort -o -u "$tmp1file" "$tmpfile"
+	sed -i '/^$/d' "$tmp1file"
+	mv "$tmp1file" "$WEB_CONFIG_FILE"
+	rm "$tmp2file"
 }
 
 save2env() {
@@ -615,12 +649,6 @@ update_caminfo() {
 
 	tmpfile=/tmp/sysinfo.tmp
 	:>$tmpfile
-	# add all web-related config files
-	# do not include ntp
-	for f in admin email ftp motion speaker telegram webhook yadisk; do
-		[ -f "$ui_config_dir/$f.conf" ] || continue
-		cat "$ui_config_dir/$f.conf" >>$tmpfile
-	done
 
 	# Hardware
 
@@ -695,22 +723,6 @@ update_caminfo() {
 	generate_signature
 }
 
-read_from_env() {
-	local tmpfile=$(mktemp -u)
-	fw_printenv | grep ^$1_ | sed -E "s/=(.+)$/=\"\\1\"/" > $tmpfile
-	. $tmpfile
-	rm $tmpfile
-}
-
-# read_from_post "plugin" "params"
-read_from_post() {
-	local p
-	for p in $2; do
-		eval $1_$p=\$POST_$1_$p
-		sanitize "$1_$p"
-	done
-}
-
 include() {
 	[ -f "$1" ] || touch $1
 	[ -f "$1" ] && . "$1"
@@ -718,22 +730,12 @@ include() {
 
 [ -f /etc/os-release ] && . /etc/os-release
 
-# read from env
-wlanap_enabled=$(fw_printenv -n wlanap_enabled)
-
-read_from_env "day_night"
+[ "100.64.1.1" = $(ifconfig wlan0|sed -En 's/^\s*inet addr:([0-9.]+)\s.*/\1/p') ] && wlanap_enabled="true" || wlanap_enabled="false"
 
 assets_ts=$(date +%Y%m%d%H%M)
 
 [ -f $sysinfo_file ] || update_caminfo
 include $sysinfo_file
-
-include /etc/webui/mqtt.conf
-include /etc/webui/speaker.conf
-include /etc/webui/telegram.conf
-include /etc/webui/webhook.conf
-include /etc/webui/webui.conf
-include /etc/webui/yadisk.conf
 
 check_password
 %>

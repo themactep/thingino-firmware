@@ -3,7 +3,7 @@
 SNAPSHOT_FILE="/tmp/snapshot.jpg"
 VBUFFER_FILE="/tmp/vbuffer.mov"
 
-CONFIG_FILE="/etc/webui/ntfy.conf"
+CONFIG_FILE="/etc/web.conf"
 [ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
 die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }

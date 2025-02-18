@@ -7,7 +7,7 @@ for i in $(seq 0 9); do
 	params="$params command_$i description_$i script_$i"
 done
 
-config_file="$ui_config_dir/telegrambot.conf"
+config_file="/etc/webui/telegrambot.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then

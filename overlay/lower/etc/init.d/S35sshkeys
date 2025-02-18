@@ -1,70 +1,21 @@
 #!/bin/sh
 
-DATA_FILE="/etc/dropbear/dropbear_ed25519_host_key"
-ENV_VAR="sshkey_ed25519"
+DROPBEAR_KEY_FILE="/etc/dropbear/dropbear_ed25519_host_key"
 
 . /etc/init.d/rc.common
-
-back_up() {
-	info "Back up dropbear key"
-	run "fw_setenv $ENV_VAR $b64"
-	read_env
-}
-
-generate() {
-	info "Generate a dropbear key"
-	run "dropbearkey -t ed25519 -f $DATA_FILE"
-	read_file
-}
-
-restore() {
-	if [ ${#backup} -gt 112 ]; then
-		info "Restore the dropbear key (gzip+base64)"
-		run "echo $backup | base64 -d | gzip -d > $DATA_FILE"
-	else
-		info "Restore the dropbear key (base64)"
-		run "echo $backup | base64 -d > $DATA_FILE"
-	fi
-	read_file
-}
-
-read_env() {
-	info "Read backup dropbear key from environment"
-	backup=$(fw_printenv -n $ENV_VAR)
-	[ -z "$backup" ] && info "Nothing in backup"
-}
-
-read_file() {
-	if [ -f "$DATA_FILE" ]; then
-		info "Read dropbear key from file"
-		b64=$(base64 < $DATA_FILE | tr -d '\n')
-	fi
-	[ -z "$b64" ] && info "No dropbear key in file"
-}
 
 case "$1" in
 	start)
 		starting
-		read_file
-		read_env
-		[ -z "$b64" ] && [ -z "$backup" ] && generate
-		[ -n "$b64" ] && [ -z "$backup" ] && back_up
-		if [ "$b64" = "$backup" ]; then
-			info "Same dropbear key"
-		else
-			restore
-		fi
+		test -f $DROPBEAR_KEY_FILE || dropbearkey -t ed25519 -f $DROPBEAR_KEY_FILE
 		ok
 		;;
 	stop)
-		stopping
-		read_file
-		read_env
-		[ "$b64" = "$backup" ] || back_up
-		ok
+		true
 		;;
 	*)
-		die "Usage: $0 {start|stop}"
+		echo "Usage: $0 {start|stop}"
+		exit 1
 		;;
 esac
 

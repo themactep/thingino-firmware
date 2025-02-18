@@ -3,16 +3,18 @@
 <%
 page_title="Day/Night Mode Control"
 
-CRONTABS="/etc/cron/crontabs/root"
-DAYNIGHT="daynight"
+DAYNIGHT_APP="daynight"
 
-# read settings from env
-read_from_env "day_night"
-read_from_env "dusk2dawn"
+# dump existing settings from env on the first run
+grep -q ^day_night $WEB_CONFIG_FILE || save2config "$(fw_printenv | grep ^day_night)"
+grep -q ^dusk2dawn $WEB_CONFIG_FILE || save2config "$(fw_printenv | grep ^dusk2dawn)"
+
+# read values from configs
+. $WEB_CONFIG_FILE
 
 # read settings from crontab
-grep -q "^[^#].*$DAYNIGHT\$" $CRONTABS && day_night_enabled=true
-day_night_interval=$(awk -F'[/ ]' "/$DAYNIGHT\$/{print \$2}" $CRONTABS)
+grep -q "^[^#].*$DAYNIGHT_APP\$" $CRONTABS && day_night_enabled=true
+day_night_interval=$(awk -F'[/ ]' "/$DAYNIGHT_APP\$/{print \$2}" $CRONTABS)
 
 # populate defaults
 default_for day_night_interval 1
@@ -45,36 +47,35 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	fi
 
 	if [ -z "$error" ]; then
-		save2env "
-day_night_color $day_night_color
-day_night_enabled $day_night_enabled
-day_night_interval $day_night_interval
-day_night_ir850 $day_night_ir850
-day_night_ir940 $day_night_ir940
-day_night_ircut $day_night_ircut
-day_night_max $day_night_max
-day_night_min $day_night_min
-day_night_white $day_night_white
-dusk2dawn_enabled $dusk2dawn_enabled
-dusk2dawn_lat $dusk2dawn_lat
-dusk2dawn_lng $dusk2dawn_lng
-dusk2dawn_offset_sr $dusk2dawn_offset_sr
-dusk2dawn_offset_ss $dusk2dawn_offset_ss
+		save2config "
+day_night_color=$day_night_color
+day_night_enabled=$day_night_enabled
+day_night_interval=$day_night_interval
+day_night_ir850=$day_night_ir850
+day_night_ir940=$day_night_ir940
+day_night_ircut=$day_night_ircut
+day_night_max=$day_night_max
+day_night_min=$day_night_min
+day_night_white=$day_night_white
+dusk2dawn_enabled=$dusk2dawn_enabled
+dusk2dawn_lat=$dusk2dawn_lat
+dusk2dawn_lng=$dusk2dawn_lng
+dusk2dawn_offset_sr=$dusk2dawn_offset_sr
+dusk2dawn_offset_ss=$dusk2dawn_offset_ss
 "
 		# update crontab
 		tmpfile=$(mktemp -u)
 		cat $CRONTABS > $tmpfile
-		sed -i "/$DAYNIGHT/d" $tmpfile
-		echo "# run $DAYNIGHT every $day_night_interval minutes" >> $tmpfile
+		sed -i "/$DAYNIGHT_APP/d" $tmpfile
+		echo "# run $DAYNIGHT_APP every $day_night_interval minutes" >> $tmpfile
 		[ "true" = "$day_night_enabled" ] || echo -n "#" >> $tmpfile
-		echo "*/$day_night_interval * * * * $DAYNIGHT" >> $tmpfile
+		echo "*/$day_night_interval * * * * $DAYNIGHT_APP" >> $tmpfile
 		mv $tmpfile $CRONTABS
 
 		if [ "true" = "$dusk2dawn_enabled" ]; then
 			dusk2dawn > /dev/null
 		fi
 
-		update_caminfo
 		redirect_back "success" "Data updated"
 	fi
 fi
@@ -85,38 +86,38 @@ fi
 <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4 mb-4">
 
 <div class="col">
-	<h3 class="alert alert-warning text-center">Gain <span class="gain"></span></h3>
-	<% field_number "day_night_min" "Switch to Day mode when gain drops below" %>
-	<% field_number "day_night_max" "Switch to Night mode when gain raises above" %>
+<h3 class="alert alert-warning text-center">Gain <span class="gain"></span></h3>
+<% field_number "day_night_min" "Switch to Day mode when gain drops below" %>
+<% field_number "day_night_max" "Switch to Night mode when gain raises above" %>
 </div>
 
 <div class="col mb-3">
-	<h3>By Illumination</h3>
-	<% field_switch "day_night_enabled" "Enable Day/Night script" %>
-	<p>Run with <a href="info.cgi?crontab">cron</a> every <input type="text" id="day_night_interval"
-	name="day_night_interval" value="<%= $day_night_interval %>" pattern="[0-9]{1,}" title="numeric value"
-	class="form-control text-end" data-min="1" data-max="60" data-step="1"> min.</p>
+<h3>By Illumination</h3>
+<% field_switch "day_night_enabled" "Enable Day/Night script" %>
+<p>Run with <a href="info.cgi?crontab">cron</a> every <input type="text" id="day_night_interval"
+name="day_night_interval" value="<%= $day_night_interval %>" pattern="[0-9]{1,}" title="numeric value"
+class="form-control text-end" data-min="1" data-max="60" data-step="1"> min.</p>
 
-	<h5>Actions to perform</h5>
-	<% field_checkbox "day_night_color" "Change color mode" %>
-	<% fw_printenv -n gpio_ircut >/dev/null && field_checkbox "day_night_ircut" "Flip IR cut filter" %>
-	<% fw_printenv -n gpio_ir850 >/dev/null && field_checkbox "day_night_ir850" "Toggle IR 850 nm" %>
-	<% fw_printenv -n gpio_ir940 >/dev/null && field_checkbox "day_night_ir940" "Toggle IR 940 nm" %>
-	<% fw_printenv -n gpio_white >/dev/null && field_checkbox "day_night_white" "Toggle white light" %>
+<h5>Actions to perform</h5>
+<% field_checkbox "day_night_color" "Change color mode" %>
+<% fw_printenv -n gpio_ircut >/dev/null && field_checkbox "day_night_ircut" "Flip IR cut filter" %>
+<% fw_printenv -n gpio_ir850 >/dev/null && field_checkbox "day_night_ir850" "Toggle IR 850 nm" %>
+<% fw_printenv -n gpio_ir940 >/dev/null && field_checkbox "day_night_ir940" "Toggle IR 940 nm" %>
+<% fw_printenv -n gpio_white >/dev/null && field_checkbox "day_night_white" "Toggle white light" %>
 </div>
 
 <div class="col">
-	<h3>By Sun</h3>
-	<% field_switch "dusk2dawn_enabled" "Enable Sun tracking" %>
-	<div class="row g-1">
-		<div class="col"><% field_text "dusk2dawn_lat" "Latitude"  %></div>
-		<div class="col"><% field_text "dusk2dawn_lng" "Longitude" %></div>
-	</div>
-	<p><a href="https://my-coordinates.com/">Find your coordinates</a></p>
-	<div class="row g-1">
-		<div class="col"><% field_text "dusk2dawn_offset_sr" "Sunrise offset" "minutes" %></div>
-		<div class="col"><% field_text "dusk2dawn_offset_ss" "Sunset offset" "minutes" %></div>
-	</div>
+<h3>By Sun</h3>
+<% field_switch "dusk2dawn_enabled" "Enable Sun tracking" %>
+<div class="row g-1">
+<div class="col"><% field_text "dusk2dawn_lat" "Latitude"  %></div>
+<div class="col"><% field_text "dusk2dawn_lng" "Longitude" %></div>
+</div>
+<p><a href="https://my-coordinates.com/">Find your coordinates</a></p>
+<div class="row g-1">
+<div class="col"><% field_text "dusk2dawn_offset_sr" "Sunrise offset" "minutes" %></div>
+<div class="col"><% field_text "dusk2dawn_offset_ss" "Sunset offset" "minutes" %></div>
+</div>
 </div>
 
 <div class="col">
@@ -135,8 +136,8 @@ Switching between modes is triggered by changes in the gain beyond the threshold
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "fw_printenv | grep day_night | sort" %>
-<% ex "fw_printenv | grep dusk2dawn | sort" %>
+<% ex "grep ^day_night_ $WEB_CONFIG_FILE" %>
+<% ex "grep ^dusk2dawn_ $WEB_CONFIG_FILE" %>
 <% ex "crontab -l" %>
 </div>
 

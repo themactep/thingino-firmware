@@ -277,7 +277,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		[ "true" = "$usb0_enabled" ] || disable_iface usb0
 
 		hostname=$POST_hostname
-		[ "$hostname" = "$(hostname_in_env)" ] || fw_setenv hostname "$hostname"
 		[ "$hostname" = "$(hostname_in_etc)" ] || echo "$hostname" > /etc/hostname
 		[ "$hostname" = "$(hostname_in_hosts)" ] || sed -i "/^127.0.1.1/s/\t.*$/\t$hostname/" /etc/hosts
 		[ "$hostname" = "$(hostname_in_release)" ] || sed -i "/^HOSTNAME/s/=.*$/=$hostname/" /etc/os-release
@@ -412,7 +411,6 @@ $$('.generate-mac-address').forEach(el => el.addEventListener('click', ev => {
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "fw_printenv -n hostname" %>
 <% ex "hostname" %>
 <% ex "cat /etc/hostname" %>
 <% ex "echo \$HOSTNAME" %>

@@ -2,12 +2,11 @@
 <%in _common.cgi %>
 <%
 page_title="Send to MQTT"
-params="host port client_id username password topic message send_snap snap_topic use_ssl"
 
 [ -f /usr/bin/mosquitto_pub ] || redirect_to "/" "danger" "MQTT client is not a part of your firmware."
 
-config_file="$ui_config_dir/mqtt.conf"
-include $config_file
+# read values from configs
+. $WEB_CONFIG_FILE
 
 defaults() {
 	default_for mqtt_client_id "${network_macaddr//:/}"
@@ -17,7 +16,9 @@ defaults() {
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "mqtt" "$params"
+	error=""
+
+	read_from_post "mqtt" "host port client_id username password topic message send_snap snap_topic use_ssl"
 
 	error_if_empty "$mqtt_host" "MQTT broker host cannot be empty."
 	error_if_empty "$mqtt_port" "MQTT port cannot be empty."
@@ -45,13 +46,18 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp -u)
-		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
-		for p in $params; do
-			sed -i -r "/^mqtt_$p=/d" "$tmp_file"
-			echo "mqtt_$p=\"$(eval echo \$mqtt_$p)\"" >> "$tmp_file"
-		done
-		mv $tmp_file $config_file
+		save2config "
+mqtt_client_id=\"$mqtt_client_id\"
+mqtt_host=\"$mqtt_host\"
+mqtt_message=\"$mqtt_message\"
+mqtt_password=\"$mqtt_password\"
+mqtt_port=\"$mqtt_port\"
+mqtt_send_snap=\"$mqtt_send_snap\"
+mqtt_snap_topic=\"$mqtt_snap_topic\"
+mqtt_topic=\"$mqtt_topic\"
+mqtt_use_ssl=\"$mqtt_use_ssl\"
+mqtt_username=\"$mqtt_username\"
+"
 	fi
 	redirect_to $SCRIPT_NAME
 fi
@@ -84,7 +90,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "cat $config_file" %>
+<% ex "grep ^mqtt_ $WEB_CONFIG_FILE" %>
 </div>
 
 <script>

@@ -2,10 +2,9 @@
 <%in _common.cgi %>
 <%
 page_title="Send to FTP"
-params="host password path port send_video template user"
 
-config_file="$ui_config_dir/ftp.conf"
-include $config_file
+# read values from configs
+. $WEB_CONFIG_FILE
 
 defaults() {
 	default_for "ftp_port" "21"
@@ -15,7 +14,9 @@ defaults() {
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "ftp" "$params"
+	error=""
+
+	read_from_post "ftp" "host password path port send_video template user"
 
 	[ "true" = "$ftp_send2ftp"  ] && error_if_empty "$ftp_ftphost" "FTP address cannot be empty."
 	[ "true" = "$ftp_send2tftp" ] && error_if_empty "$ftp_tftphost" "TFTP address cannot be empty."
@@ -24,13 +25,15 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp -u)
-		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
-		for p in $params; do
-			sed -i -r "/^ftp_$p=/d" "$tmp_file"
-			echo "ftp_$p=\"$(eval echo \$ftp_$p)\"" >> "$tmp_file"
-		done
-		mv $tmp_file $config_file
+		save2config "
+ftp_host=\"$ftp_host\"
+ftp_password=\"$ftp_password\"
+ftp_path=\"$ftp_path\"
+ftp_port=\"$ftp_port\"
+ftp_send_video=\"$ftp_send_video\"
+ftp_template=\"$ftp_template\"
+ftp_user=\"$ftp_user\"
+"
 	fi
 	redirect_to $SCRIPT_NAME
 fi
@@ -60,7 +63,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "cat $config_file" %>
+<% ex "grep ^ftp_ $WEB_CONFIG_FILE" %>
 </div>
 
 <%in _footer.cgi %>

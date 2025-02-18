@@ -6,7 +6,7 @@ params="depth device_path enabled filename interval mount"
 
 MOUNTS=$(awk '/cif|fat|nfs|smb/{print $2}' /etc/mtab)
 TIMELAPSE_FILENAME_FB="%Y%m%d/%Y%m%dT%H%M%S.jpg"
-config_file="$ui_config_dir/timelapse.conf"
+config_file="/etc/webui/timelapse.conf"
 include $config_file
 
 # defaults

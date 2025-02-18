@@ -37,14 +37,12 @@ generate() {
 
 	hostname="${os_hostname}-$mac_suffix"
 	info "Generated hostname: $hostname"
-
-	run "fw_setenv hostname $hostname"
 }
 
 case "$1" in
 	start)
 		starting
-		hostname=$(fw_printenv -n hostname)
+		hostname=$(hostname)
 		[ -z "$hostname" ] && generate
 		set_hostname
 		update_hosts
@@ -54,11 +52,11 @@ case "$1" in
 		ok
 		;;
 	stop)
-		stopping
-		ok
+		true
 		;;
 	*)
-		die "Usage: $0 {start|stop}"
+		echo "Usage: $0 {start|stop}"
+		exit 1
 		;;
 esac
 

@@ -8,7 +8,7 @@ params="device_path duration enabled filename limit mount videofmt"
 MOUNTS=$(awk '/cif|fat|nfs|smb/{print $2}' /etc/mtab)
 RECORD_CTL="/etc/init.d/S96record"
 RECORD_FILENAME_FB="%Y%m%d/%Y%m%dT%H%M%S"
-config_file="$ui_config_dir/record.conf"
+config_file="/etc/webui/record.conf"
 include $config_file
 
 # defaults

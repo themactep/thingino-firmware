@@ -3,28 +3,24 @@
 <%
 page_title="Web Interface"
 
-config_file="$ui_config_dir/webui.conf"
-include $config_file
+# read values from configs
+. $WEB_CONFIG_FILE
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	params="paranoid theme ws_token"
-	read_from_post "webui" "$params"
+	error=""
+
+	read_from_post "webui" "paranoid theme ws_token"
 
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp)
-		for p in $params; do
-			echo "webui_$p=\"$(eval echo \$webui_$p)\"" >>$tmp_file
-		done; unset p
-		mv $tmp_file $config_file
-
+		save2config "
+webui_paranoid=$webui_paranoid
+webui_theme=$webui_theme
+webui_ws_token=$webui_ws_token
+"
 		new_password="$POST_ui_password_new"
-		if [ -n "$new_password" ]; then
-			echo "root:$new_password" | chpasswd -c sha512
-			pwbackup save
-		fi
+		[ -n "$new_password" ] && echo "root:$new_password" | chpasswd -c sha512 >/dev/null
 
-		update_caminfo
-		redirect_back "success" "Data updated."
+		redirect_back "success" "Data updated"
 	fi
 fi
 
@@ -55,8 +51,8 @@ ui_username="$USER"
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
+<% ex "grep ^webui_ $WEB_CONFIG_FILE" %>
 <% ex "cat /etc/httpd.conf" %>
-<% ex "cat $config_file" %>
 </div>
 
 <%in _footer.cgi %>

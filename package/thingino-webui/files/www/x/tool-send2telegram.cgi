@@ -2,10 +2,9 @@
 <%in _common.cgi %>
 <%
 page_title="Send to Telegram"
-params="token attach_snapshot attach_video channel caption"
 
-config_file="$ui_config_dir/telegram.conf"
-include $config_file
+# read values from configs
+. $WEB_CONFIG_FILE
 
 defaults() {
 	default_for telegram_attach_snapshot "true"
@@ -14,7 +13,9 @@ defaults() {
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "telegram" "$params"
+	error=""
+
+	read_from_post "telegram" "token attach_snapshot attach_video channel caption"
 
 	error_if_empty "$telegram_token" "Telegram token cannot be empty."
 	error_if_empty "$telegram_channel" "Telegram channel cannot be empty."
@@ -22,13 +23,13 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp -u)
-		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
-		for p in $params; do
-			sed -i -r "/^telegram_$p=/d" "$tmp_file"
-			echo "telegram_$p=\"$(eval echo \$telegram_$p)\"" >> "$tmp_file"
-		done
-		mv $tmp_file $config_file
+		save2config "
+telegram_attach_snapshot=\"$telegram_attach_snapshot\"
+telegram_attach_video=\"$telegram_attach_video\"
+telegram_caption=\"$telegram_caption\"
+telegram_channel=\"$telegram_channel\"
+telegram_token=\"$telegram_token\"
+"
 	fi
 	redirect_to $SCRIPT_NAME
 fi
@@ -58,7 +59,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "cat $config_file" %>
+<% ex "grep ^telegram_ $WEB_CONFIG_FILE" %>
 </div>
 
 <%in _tg_bot.cgi %>

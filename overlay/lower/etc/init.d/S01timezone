@@ -2,25 +2,20 @@
 
 . /etc/init.d/rc.common
 
-TZ_ENV_VAR=timezone
 TZNAME_FILE="/etc/timezone"
 TZCODE_FILE="/etc/TZ"
 TZJSON_FILE="/usr/share/tz.json.gz"
 
 set_timezone() {
-	tzname=$(fw_printenv -n $TZ_ENV_VAR)
-	[ -z "$tzname" ] && quit "Timezone is not set"
-	if [ ! -f $TZNAME_FILE ] || [ "$tzname" != "$(cat $TZNAME_FILE)" ]; then
-		run "echo $tzname > $TZNAME_FILE"
-	fi
-
+	test -f "$TZNAME_FILE" || echo "Etc/GMT" > "$TZNAME_FILE"
+	tzname=$(cat "$TZNAME_FILE")
 	[ -f "$TZJSON_FILE" ] || die "$TZJSON_FILE not found"
-	tz=$(zcat $TZJSON_FILE | jsonfilter -e "$[@.n='$tzname']".v)
+	tz=$(zcat "$TZJSON_FILE" | jsonfilter -e "$[@.n='$tzname']".v)
 	[ -z "$tz" ] && die "Timezone $tzname not found in $TZJSON_FILE"
 
-	if [ ! -f $TZCODE_FILE ] || [ "$tz" != "$(cat $TZCODE_FILE)" ]; then
-		run "echo $tz > $TZCODE_FILE"
-	fi
+	test -f "$TZCODE_FILE" || echo "GMT0" > "$TZCODE_FILE"
+	[ "$tz" = "$(cat $TZCODE_FILE)" ] || echo "$tz" > "$TZCODE_FILE"
+
 	run "export TZ=$tz"
 }
 
@@ -31,11 +26,11 @@ case "$1" in
 		ok
 		;;
 	stop)
-		stopping
-		ok
+		true
 		;;
 	*)
-		die "Usage: $0 {start|stop}"
+		echo "Usage: $0 {start|stop}"
+		exit 1
 		;;
 esac
 

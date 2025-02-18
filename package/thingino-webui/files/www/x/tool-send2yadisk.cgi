@@ -2,17 +2,18 @@
 <%in _common.cgi %>
 <%
 page_title="Send to Yandex Disk"
-params="username password path"
 
-config_file="$ui_config_dir/yadisk.conf"
-include $config_file
+# read values from configs
+. $WEB_CONFIG_FILE
 
 defaults() {
-	#
+	true
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "yadisk" "$params"
+	error=""
+
+	read_from_post "yadisk" "username password path"
 
 	error_if_empty "$yadisk_username" "Yandex Disk username cannot be empty."
 	error_if_empty "$yadisk_password" "Yandex Disk password cannot be empty."
@@ -20,13 +21,11 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp -u)
-		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
-		for p in $params; do
-			sed -i -r "/^yadisk_$p=/d" "$tmp_file"
-			echo "yadisk_$p=\"$(eval echo \$yadisk_$p)\"" >> "$tmp_file"
-		done
-		mv $tmp_file $config_file
+		save2config "
+yadisk_username=\"$yadisk_username\"
+yadisk_password=\"$yadisk_password\"
+yadisk_path=\"$yadisk_path\"
+"
 	fi
 	redirect_to $SCRIPT_NAME
 fi
@@ -57,7 +56,7 @@ Learn how to create it on <a href="https://yandex.com/support/id/authorization/a
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "cat $config_file" %>
+<% ex "grep ^yadisk_ $WEB_CONFIG_FILE" %>
 </div>
 
 <%in _footer.cgi %>

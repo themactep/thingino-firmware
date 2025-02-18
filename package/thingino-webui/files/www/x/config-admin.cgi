@@ -2,28 +2,33 @@
 <%in _common.cgi %>
 <%
 page_title="Admin profile"
-params="name email telegram discord"
 
-config_file="$ui_config_dir/admin.conf"
-include $config_file
+# read values from configs
+. $WEB_CONFIG_FILE
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "admin" "$params"
+	error=""
+
+	read_from_post "admin" "name email telegram discord"
 
 	# add @ to Discord and Telegram usernames, if missed
-	[ -n "$admin_discord" ] && [ "${admin_discord:0:1}" != "@" ] && admin_discord="@$admin_discord"
-	[ -n "$admin_telegram" ] && [ "${admin_telegram:0:1}" != "@" ] && admin_telegram="@$admin_telegram"
+	if [ -n "$admin_discord" ]; then
+		[ "${admin_discord:0:1}" = "@" ] || admin_discord="@$admin_discord"
+	fi
+
+	if [ -n "$admin_telegram" ]; then
+		[ "${admin_telegram:0:1}" = "@" ] || admin_telegram="@$admin_telegram"
+	fi
 
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp -u)
-		for p in $params; do
-			echo "admin_$p=\"$(eval echo \$admin_$p)\"" >>$tmp_file
-		done; unset p
-		mv $tmp_file $config_file
-
-		update_caminfo
-		redirect_back "success" "Data updated"
+		save2config "
+admin_name=$admin_name
+admin_email=$admin_email
+admin_telegram=$admin_telegram
+admin_discord=$admin_discord
+"
 	fi
+	redirect_to $SCRIPT_NAME
 fi
 %>
 <%in _header.cgi %>
@@ -49,7 +54,7 @@ will be used as sender identity for emails originating from this camera.</p>
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "cat $config_file" %>
+<% ex "grep ^admin_ $WEB_CONFIG_FILE" %>
 </div>
 
 <%in _footer.cgi %>

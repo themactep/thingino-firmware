@@ -7,7 +7,7 @@ params="host port user path template command"
 SCP_KEY="/root/.ssh/id_dropbear"
 [ -f $SCP_KEY ] || dropbearkey -t ed25519 -f $SCP_KEY
 
-config_file="$ui_config_dir/scp.conf"
+config_file="/etc/webui/scp.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then

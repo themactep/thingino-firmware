@@ -4,7 +4,7 @@
 page_title="Send to SSH"
 params="host username port command"
 
-config_file="$ui_config_dir/ssh.conf"
+config_file="/etc/webui/ssh.conf"
 include $config_file
 
 if [ "POST" = "$REQUEST_METHOD" ]; then

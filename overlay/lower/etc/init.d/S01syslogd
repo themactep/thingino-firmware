@@ -2,12 +2,20 @@
 
 DAEMON_ARGS="-n -C64 -t -D $RSYSLOG_ADDRESS"
 
-RSYSLOG_IP=$(fw_printenv -n rsyslog_ip)
-RSYSLOG_PORT=$(fw_printenv -n rsyslog_port)
-if [ -n "$RSYSLOG_IP" ]; then
-	DAEMON_ARGS="$DAEMON_ARGS -R $RSYSLOG_IP"
+WEB_CONF=/etc/web.conf
+
+RSYSLOG_HOST=$(awk -F= '/^rsyslog_host=/{print $2}' $WEB_CONF)
+
+RSYSLOG_PORT=$(awk -F= '/^rsyslog_port=/{print $2}' $WEB_CONF)
+[ -z "$RSYSLOG_PORT" ] && RSYSLOG_PORT=514
+
+RSYSLOG_LOCAL=$(awk -F= '/^rsyslog_local=/{print $2}' $WEB_CONF)
+[ -z "$RSYSLOG_LOCAL" ] && RSYSLOG_LOCAL="true"
+
+if [ -n "$RSYSLOG_HOST" ]; then
+	DAEMON_ARGS="$DAEMON_ARGS -R $RSYSLOG_HOST"
 	[ -n "$RSYSLOG_PORT" ] && DAEMON_ARGS="$DAEMON_ARGS:$RSYSLOG_PORT"
-	[ "true" = "$(fw_printenv -n rsyslog_local)" ] && DAEMON_ARGS="$DAEMON_ARGS -L"
+	[ "true" = "$RSYSLOG_LOCAL" ] && DAEMON_ARGS="$DAEMON_ARGS -L"
 fi
 
 . /etc/init.d/rc.common
@@ -32,7 +40,8 @@ case "$1" in
 		start
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart}"
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
 		;;
 esac
 
