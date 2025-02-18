@@ -1,28 +1,27 @@
 #!/bin/sh
 
-. /sbin/common
+die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
+info() { printf "\e[38;5;46m%s\e[0m\n" "$1" >&2; }
+
+pidof -o %PPID $(basename $0) > /dev/null && die "is already running"
 
 format_partition() {
 	unmount_partition $1
-	echo_c 36 "Format partition"
-	echo_c 144 "$MKFS -n thingino $1"
+	info "Format partition"
 	$MKFS -n thingino $1 2>&1 || die "Cannot format $1 to $POST_fstype"
 }
 
 mount_partitions() {
-	echo_c 36 "Mount partition"
-	echo_c 144 "echo /sbin/mdev > /proc/sys/kernel/hotplug"
+	info "Mount partition"
 	echo /sbin/mdev > /proc/sys/kernel/hotplug
-	echo_c 144 "mdev -s"
 	mdev -s || die "Cannot re-mount SD card"
 }
 
 unmount_partition() {
-	echo_c 36 "Unmount partition"
+	info "Unmount partition"
 	local limit=5
 	while mountpoint -q $1; do
 		[ "$limit" -gt 0 ] || die "Cannot unmount $1"
-		echo_c 144 "umount -l $1"
 		umount -l $1 2>&1
 		sleep 0.5
 		limit=$((limit-1))
@@ -30,16 +29,16 @@ unmount_partition() {
 }
 
 reinsert_sdcard() {
-	echo_c 36 "Reinsert card"
-	echo_c 144 "echo \"\" > /proc/sys/kernel/hotplug"
+	info "Reinsert card"
 	echo "" > /proc/sys/kernel/hotplug
-	echo_c 144 "mmc 0 -r; sleep 1; mmc 0; sleep 1"
-	mmc 0 -r; sleep 1; mmc 0; sleep 1
+	mmc 0 -r
+	sleep 1
+	mmc 0
+	sleep 1
 }
 
 repartition_sdcard() {
-	echo_c 36 "Repartition card"
-	echo_c 144 "echo -e 'o\nn\np\n1\n\n\nt\n$FSTYPE\nw' | fdisk $1"
+	info "Repartition card"
 	echo -e "o\nn\np\n1\n\n\nt\n$FSTYPE\nw" | fdisk $1 2>&1 || die "Cannot create a partition on $1"
 }
 
