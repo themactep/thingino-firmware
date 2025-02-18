@@ -81,12 +81,10 @@ gpio_control() {
 	esac
 
 	info "Set GPIO $num $gpio_cmd"
-	if gpio $gpio_cmd $num 2>&1 | log; then
-		return 0  # success
-	else
-		warn "Failed to set GPIO $num $gpio_cmd"
-		return 3  # failure
-	fi
+	gpio $gpio_cmd $num 2>&1 | log && return 0  # success
+
+	warn "Failed to set GPIO $num $gpio_cmd"
+	return 3  # failure
 }
 
 iface_default() {

@@ -6,23 +6,21 @@ TZNAME_FILE="/etc/timezone"
 TZCODE_FILE="/etc/TZ"
 TZJSON_FILE="/usr/share/tz.json.gz"
 
-set_timezone() {
-	test -f "$TZNAME_FILE" || echo "Etc/GMT" > "$TZNAME_FILE"
-	tzname=$(cat "$TZNAME_FILE")
-	[ -f "$TZJSON_FILE" ] || die "$TZJSON_FILE not found"
-	tz=$(zcat "$TZJSON_FILE" | jsonfilter -e "$[@.n='$tzname']".v)
-	[ -z "$tz" ] && die "Timezone $tzname not found in $TZJSON_FILE"
-
-	test -f "$TZCODE_FILE" || echo "GMT0" > "$TZCODE_FILE"
-	[ "$tz" = "$(cat $TZCODE_FILE)" ] || echo "$tz" > "$TZCODE_FILE"
-
-	run "export TZ=$tz"
-}
-
 case "$1" in
 	start)
 		starting
-		set_timezone
+
+		test -f "$TZNAME_FILE" || echo "Etc/GMT" > "$TZNAME_FILE"
+		tzname=$(cat "$TZNAME_FILE")
+		[ -f "$TZJSON_FILE" ] || die "$TZJSON_FILE not found"
+		tz=$(zcat "$TZJSON_FILE" | jsonfilter -e "$[@.n='$tzname']".v)
+		[ -z "$tz" ] && die "Timezone $tzname not found in $TZJSON_FILE"
+
+		test -f "$TZCODE_FILE" || echo "GMT0" > "$TZCODE_FILE"
+		[ "$tz" = "$(cat $TZCODE_FILE)" ] || echo "$tz" > "$TZCODE_FILE"
+
+		run "export TZ=$tz"
+
 		ok
 		;;
 	stop)

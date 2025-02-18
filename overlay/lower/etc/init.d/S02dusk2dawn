@@ -5,8 +5,15 @@
 case "$1" in
 	start)
 		starting
-		grep -q dusk2dawn $CRONTABS && quit "already in crontab"
-		printf "# run dusk2dawn nightly at 0:00\n0 0 * * * dusk2dawn\n" >> $CRONTABS
+
+		[ -x /sbin/dusk2dawn ] || die "dusk2dawn not found"
+
+		if grep -q dusk2dawn $CRONTABS; then
+			info "already in crontab"
+		else
+			printf "# run dusk2dawn nightly at 0:00\n0 0 * * * dusk2dawn\n" >> $CRONTABS
+			info "dusk2dawn added to crontab"
+		fi
 		ok
 		;;
 	stop)

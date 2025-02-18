@@ -2,31 +2,38 @@
 
 DAEMON_ARGS="-n -S /etc/ntpd_callback"
 
-DEF_CONF="/etc/default/ntp.conf"
-TMP_CONF="/tmp/ntp.conf"
+DEFAULT_CONFIG="/etc/default/ntp.conf"
+WORKING_CONFIG="/tmp/ntp.conf"
 
 . /etc/init.d/rc.common
+
+sync_time() {
+	echo "NTP: Sync time"
+	ntpd -q -n -N &
+}
 
 start() {
 	starting
 	if [ "true" = "$(fw_printenv -n wlanap_enabled)" ]; then
-		touch $TMP_CONF
+		touch "$WORKING_CONFIG"
 		DAEMON_ARGS="-n -l"
 	fi
 
-	if [ -f $TMP_CONF ]; then
-		info "work config found"
+	if [ -f "$WORKING_CONFIG" ]; then
+		info "NTP: working configuration found"
 	else
-		if [ -f $DEF_CONF ]; then
-			info "default config found"
+		if [ -f "$DEFAULT_CONFIG" ]; then
+			info "NTP: default configuration found"
 		else
-			info "restore default config from ROM"
-			run "cp /rom$DEF_CONF $DEF_CONF"
+			info "NTP: restore default config from ROM"
+			run "cp /rom$DEFAULT_CONFIG $DEFAULT_CONFIG"
 		fi
-		info "make a work config from default config"
-		run "cp $DEF_CONF $TMP_CONF"
+
+		info "NTP: use default configuration"
+		run "cp $DEFAULT_CONFIG $WORKING_CONFIG"
 	fi
 	start_daemon
+	sync_time
 }
 
 stop() {
