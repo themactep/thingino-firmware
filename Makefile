@@ -178,7 +178,8 @@ RELEASE = 0
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
 
 .PHONY: all bootstrap build build_fast clean cleanbuild defconfig distclean fast \
-	help pack release sdk toolchain update upboot-ota upload_tftp upgrade_ota br-%
+	help pack release remove_bins repack sdk toolchain update upboot-ota \
+	upload_tftp upgrade_ota br-%
 
 all: defconfig build pack
 	$(info -------------------------------- $@)
@@ -291,6 +292,13 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 rebuild-%: defconfig
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
+
+remove_bins:
+	$(info -------------------------------- $@)
+	rm -f $(KERNEL_BIN) $(ROOTFS_BIN) $(EXTRAS_BIN)
+
+repack: remove_bins pack
+	$(info -------------------------------- $@)
 
 # build toolchain fast
 sdk: defconfig
