@@ -98,21 +98,9 @@ config BR2_PACKAGE_THINGINO_KOPT_MMC0
 
 config BR2_PACKAGE_THINGINO_KOPT_MMC0_1BIT
 	bool "MMC0 1-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC0 && BR2_SOC_FAMILY_INGENIC_T23
+	depends on BR2_PACKAGE_THINGINO_KOPT_MMC0 && (BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31)
 	help
 	  Force 1 bit mode for MMC0 on T23 based SoCs
-
-config BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT
-	bool "MMC0 PB 4-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC0
-	help
-	  Enables 4 bit support for MMC0 on GPIO PB
-
-config BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_8BIT
-	bool "MMC0 PB 8-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC0
-	help
-	  Enables 8 bit support for MMC0 on GPIO PB
 
 config BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT
 	bool "Boot from MMC"
@@ -120,43 +108,68 @@ config BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT
 	help
 	  Enables booting the rootfs from an MMC card
 
+if BR2_PACKAGE_THINGINO_KOPT_MMC0
+
+choice
+	prompt "MMC0 PB Mode"
+	default BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT
+
+config BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT
+	bool "MMC0 PB 4-Bit"
+	help
+	  Enables 4-bit support for MMC0 on GPIO PB.
+
+config BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_8BIT
+	bool "MMC0 PB 8-Bit"
+	help
+	  Enables 8-bit support for MMC0 on GPIO PB.
+
+endchoice
+
+endif
+
 config BR2_PACKAGE_THINGINO_KOPT_MMC1
 	bool "Enable MMC1"
 	depends on BR2_PACKAGE_THINGINO_KOPT_MMC
 	help
 	  Enables the MMC1 on the SoC, typically used for SDIO WiFi modules.
 
+if BR2_PACKAGE_THINGINO_KOPT_MMC1
+
+choice
+	prompt "MMC1 Mode Selection"
+	default BR2_PACKAGE_THINGINO_KOPT_MMC1_PA_4BIT
+
 config BR2_PACKAGE_THINGINO_KOPT_MMC1_PA_4BIT
 	bool "MMC1 PA 4-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
 	help
-	  Enables 4 bit support for MMC1 on GPIO PA
+	  Enables 4-bit support for MMC1 on GPIO PA.
 
 config BR2_PACKAGE_THINGINO_KOPT_MMC1_PB_4BIT
 	bool "MMC1 PB 4-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
 	help
-	  Enables 4 bit support for MMC1 on GPIO PB
+	  Enables 4-bit support for MMC1 on GPIO PB.
 
 config BR2_PACKAGE_THINGINO_KOPT_MMC1_PB_8BIT
 	bool "MMC1 PB 8-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
 	help
-	  Enables 8 bit support for MMC1 on GPIO PB
+	  Enables 8-bit support for MMC1 on GPIO PB.
 
 config BR2_PACKAGE_THINGINO_KOPT_MMC1_PC_4BIT
 	bool "MMC1 PC 4-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
 	depends on BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20 || BR2_SOC_FAMILY_INGENIC_T21
 	help
-	  Enables 4 bit support for MMC1 on GPIO PC
+	  Enables 4-bit support for MMC1 on GPIO PC.
 
 config BR2_PACKAGE_THINGINO_KOPT_MMC1_PD_4BIT
 	bool "MMC1 PD 4-Bit"
-	depends on BR2_PACKAGE_THINGINO_KOPT_MMC1
 	depends on BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20
 	help
-	  Enables 4 bit support for MMC1 on GPIO PD
+	  Enables 4-bit support for MMC1 on GPIO PD.
+
+endchoice
+
+endif
 
 config BR2_PACKAGE_THINGINO_KOPT_NETFILTER
 	bool "Netfilter"
@@ -206,9 +219,14 @@ config BR2_PACKAGE_THINGINO_KOPT_DWC2
 	help
 	  Enable the DWC2 USB driver
 
+if BR2_PACKAGE_THINGINO_KOPT_DWC2
+
+choice
+	prompt "DWC2 USB Mode Selection"
+	default BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
+
 config BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
 	bool "Full USB support with OTG"
-	depends on BR2_PACKAGE_THINGINO_KOPT_DWC2
 	select BR2_PACKAGE_USBNET
 	select BR2_PACKAGE_USBNET_CDC_ETHER
 	select BR2_PACKAGE_USBNET_CDC_NCM
@@ -219,10 +237,13 @@ config BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
 
 config BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
 	bool "USB Wi-Fi Module Only"
-	depends on BR2_PACKAGE_THINGINO_KOPT_DWC2
 	help
-	  Enable the DWC2 USB driver with WiFi only support.
+	  Enable the DWC2 USB driver with WiFi-only support.
 	  Recommended for devices that use WiFi chipsets internally connected via USB.
+
+endchoice
+
+endif
 
 config BR2_PACKAGE_THINGINO_KOPT_I2C
 	bool "I2C Support"
