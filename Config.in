@@ -159,6 +159,11 @@ config BR2_PACKAGE_SELECT_STRACE
 	  Allows you to track what system calls a program makes
 	  while it is running.
 
+config BR2_THINGINO_SINFO
+	bool "sinfo"
+	help
+	  A useful diagnostic kernel module for detecting I2C based sensors
+
 config BR2_PACKAGE_SELECT_VALGRIND
 	bool "valgrind"
 	select BR2_PACKAGE_VALGRIND
