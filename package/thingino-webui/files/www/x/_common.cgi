@@ -669,8 +669,8 @@ update_caminfo() {
 	soc_model=$(soc -m)
 
 	# Firmware
-	uboot_version=$(fw_printenv -n ver)
-	default_for uboot_version $(strings /dev/mtdblock0 | grep '^U-Boot \d' | head -1)
+	# uboot_version=$(fw_printenv -n ver)
+	# default_for uboot_version $(strings /dev/mtdblock0 | grep '^U-Boot \d' | head -1)
 
 	# WebUI version
 	ui_password=$(grep root /etc/shadow|cut -d: -f2)
@@ -709,8 +709,8 @@ update_caminfo() {
 	fi
 
 	# prudynt values
-	rtsp_endpoint_ch0=$(prudyntcfg get stream0.rtsp_endpoint | tr -d '"')
-	rtsp_endpoint_ch1=$(prudyntcfg get stream1.rtsp_endpoint | tr -d '"')
+	#rtsp_endpoint_ch0=$(prudyntcfg get stream0.rtsp_endpoint | tr -d '"')
+	#rtsp_endpoint_ch1=$(prudyntcfg get stream1.rtsp_endpoint | tr -d '"')
 
 	# create a sourceable file
 	for v in flash_size flash_size_mb flash_type network_address network_cidr network_default_interface network_dhcp network_dns_1 network_dns_2 network_gateway network_hostname network_interfaces network_macaddr network_netmask overlay_root rtsp_endpoint_ch0 rtsp_endpoint_ch1 soc_family soc_model sensor_fps_max sensor_fps_min sensor_model tz_data tz_name uboot_version ui_password; do
