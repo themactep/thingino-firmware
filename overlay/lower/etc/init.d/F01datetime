@@ -9,8 +9,7 @@ case "$1" in
 		quit "Set time to $date (fail-safe)"
 		;;
 	stop)
-		stopping
-		ok
+		true
 		;;
 	*)
 		echo "Usage: $0 {start|stop}"

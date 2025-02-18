@@ -49,8 +49,7 @@ case "$1" in
 		start
 		;;
 	stop)
-		stopping
-		ok
+		true
 		;;
 	reload | restart)
 		stop
