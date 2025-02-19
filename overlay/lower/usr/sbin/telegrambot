@@ -9,11 +9,7 @@ command -v jsonfilter > /dev/null || die "Missing jsonfilter"
 CONFIG_FILE="/etc/web.conf"
 [ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
-. /usr/share/common
-
 [ -z "$telegrambot_token" ] && die "Telegram Bot token is not set"
-
-is_debug_mode && echo_c 208 "Running in debug mode"
 
 API_URL="https://api.telegram.org/bot$telegrambot_token"
 MSG_TIMEOUT=5
@@ -24,6 +20,8 @@ IFS_ORIG=$IFS
 
 bot_keyboard=""
 bot_commands=""
+
+[ "-v" = "$1" ] && verbosity="--verbose" || verbosity="--silent"
 
 ### Common methods
 build_menu() {
@@ -60,13 +58,17 @@ json_data() {
 
 api_call() {
 	[ -f $JSDATA_FILE ] && rm $JSDATA_FILE
-	is_debug_mode && echo_c 11 "$1"
+	echo_c 11 "$1"
 	local tmpfile=$(mktemp -u)
 	echo "$2" > $tmpfile
-	is_debug_mode && echo_c 14 "$(cat $tmpfile)"
-	$CURL --url "$API_URL/$1" -H "Content-Type: application/json" --data-binary "@$tmpfile" --output $JSDATA_FILE
+	echo_c 14 "$(cat $tmpfile)"
+	curl $verbosity --show-error --fail \
+		--connect-timeout 10 --max-time 30 --retry 3 \
+		--url "$API_URL/$1" -H "Content-Type: application/json" \
+		--data-binary "@$tmpfile" \
+		--output $JSDATA_FILE
 	rm $tmpfile
-	is_debug_mode && echo_c 13 "$(cat $JSDATA_FILE)"
+	echo_c 13 "$(cat $JSDATA_FILE)"
 }
 
 ### Bot actions
@@ -222,10 +224,10 @@ while :; do
 				# split command by '@' to $command and $mention
 				mention=${bot_command##*@}
 				if [ "$bot_command" = "$mention" ]; then
-					is_debug_mode && echo "Command $bot_command is global"
+					echo "Command $bot_command is global"
 				else
 					if [ -n "$mention" ] && [ "$ME" != "@$mention" ]; then
-						is_debug_mode && echo "Command $bot_command is not for $ME but for $mention"
+						echo "Command $bot_command is not for $ME but for $mention"
 						unset bot_command
 					else
 						bot_command=${bot_command%%@*}
