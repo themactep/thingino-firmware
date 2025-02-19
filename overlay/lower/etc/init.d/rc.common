@@ -5,7 +5,9 @@ if [ "$0" = "-sh" ]; then
 	return
 fi
 
-debug=$(fw_printenv -n debug)
+WEB_CONFIG_FILE="/etc/web.conf"
+[ -f $WEB_CONFIG_FILE ] || touch $WEB_CONFIG_FILE
+. $WEB_CONFIG_FILE
 
 CRONTABS="/etc/cron/crontabs/root"
 
@@ -38,6 +40,14 @@ die() {
 		echo_c 124 "$1"
 	fi
 	exit 1
+}
+
+dump_from_env() {
+	local tmpfile=$(mktemp)
+	cat $WEB_CONFIG_FILE >> $tmpfile
+	fw_printenv | grep $1 | sed -E 's/=(.*)$/="\1"/' >> $tmpfile
+	sort -u $tmpfile > $WEB_CONFIG_FILE
+	. $WEB_CONFIG_FILE
 }
 
 ensure_dir() {

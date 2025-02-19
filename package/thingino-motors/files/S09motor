@@ -5,6 +5,8 @@ DAEMON_ARGS="-d -p"
 
 . /etc/init.d/rc.common
 
+[ -z "$gpio_motor_h" ] && dump_from_env "motor"
+
 set_motor_phases() {
 	[ "$(echo $2 | wc -w)" -lt 4 ] && die "Missing phase for ${1}motor"
 
@@ -29,7 +31,6 @@ position_motors() {
 	local x y motor_pos_0
 	x=$((motor_maxstep_h / 2))
 	y=$((motor_maxstep_v / 2))
-	motor_pos_0=$(fw_printenv -n motor_pos_0)
 	if [ -n "$motor_pos_0" ]; then
 		x=$(echo $motor_pos_0 | cut -d, -f1)
 		y=$(echo $motor_pos_0 | cut -d, -f2)
@@ -43,13 +44,6 @@ start() {
 	starting
 
 	motors_app=$(which motors)
-	gpio_motor_h=$(fw_printenv -n gpio_motor_h)
-	gpio_motor_v=$(fw_printenv -n gpio_motor_v)
-	gpio_motor_invert=$(fw_printenv -n gpio_motor_invert)
-	gpio_motor_switch=$(fw_printenv -n gpio_motor_switch)
-	motor_maxstep_h=$(fw_printenv -n motor_maxstep_h)
-	motor_maxstep_v=$(fw_printenv -n motor_maxstep_v)
-	motor_speed=$(fw_printenv -n motor_speed)
 
 	# Check if motors are supported
 	[ -z "$motors_app" ] && die " No motors app found"
@@ -87,7 +81,7 @@ start() {
 
 	set_motors_speed $motor_speed
 
-	if [ "true" = "$(fw_printenv -n disable_homing)" ]; then
+	if [ "true" = "$motor_disable_homing" ]; then
 		warn "Homing disabled"
 	else
 		home_motors
