@@ -4,7 +4,7 @@ die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
 
 pidof -o %PPID $(basename $0) > /dev/null && die "is already running"
 
-CONFIG_FILE="/etc/webui/motion.conf"
+CONFIG_FILE="/etc/web.conf"
 [ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
 MOTION_ALARM="/run/motion/motion_alarm"
