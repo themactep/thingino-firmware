@@ -1,5 +1,38 @@
+menu "Image Sensor Selection"
+
+choice
+	prompt "Image Sensor Quantity"
+	default BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_1
+
+config BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_1
+	bool "1 Sensor"
+	help
+	  Use a single image sensor.
+
+config BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_2
+	bool "2 Sensors"
+	depends on BR2_THINGINO_DEV_EXPERIMENTAL
+	help
+	  Use two image sensors.
+
+config BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_3
+	bool "3 Sensors"
+	depends on BR2_THINGINO_DEV_EXPERIMENTAL
+	help
+	  Use three image sensors.
+
+config BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_4
+	bool "4 Sensors"
+	depends on BR2_THINGINO_DEV_EXPERIMENTAL
+	help
+	  Use four image sensors.
+endchoice
+
 choice BR2_SENSOR_NAME
 	prompt "Image Sensor Model"
+	depends on BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_1 || BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_4
+	help
+	  Select the sensor model for your device
 
 config BR2_SENSOR_DUMMY
 	bool "Dummy (no sensor)"
@@ -246,6 +279,29 @@ config BR2_SENSOR_SP1405
 config BR2_SENSOR_TP2850
 	bool "TP2850"
 endchoice
+
+choice BR2_SENSOR_NAME_2
+	prompt "Image Sensor Model (Sensor 2)"
+	depends on BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_4
+	help
+	  Select the sensor model for your device
+endchoice
+
+choice BR2_SENSOR_NAME_3
+	prompt "Image Sensor Model (Sensor 3)"
+	depends on BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_4
+	help
+	  Select the sensor model for your device
+endchoice
+
+choice BR2_SENSOR_NAME_4
+	prompt "Image Sensor Model (Sensor 4)"
+	depends on BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_4
+	help
+	  Select the sensor model for your device
+endchoice
+
+endmenu
 
 menu "ISP Module Config"
 config BR2_SENSOR_PARAMS
