@@ -4,7 +4,7 @@ const ThreadAudio = 4;
 const ThreadOSD = 8;
 
 let max = 0;
-let HeartBeatInterval = 1000;
+let HeartBeatInterval = 30 * 1000;
 
 function $(n) {
 	return document.querySelector(n)
@@ -65,9 +65,9 @@ function heartbeat() {
 		.then((response) => response.json())
 		.then((json) => {
 			if (json.time_now !== '') {
-				let options = {timeZone: json.timezone.replaceAll(' ', '_')};
+				let options = {hour: "2-digit", minute: "2-digit", timeZone: json.timezone.replaceAll(' ', '_')};
 				const d = new Date(json.time_now * 1000);
-				$('#time-now').textContent = d.toLocaleString(navigator.language, options) + ' ' + json.timezone;
+				$('#time-now').textContent = d.toDateString() + ' ' + d.toLocaleString(navigator.language, options) + ' ' + json.timezone;
 			}
 
 			$('.progress-stacked.memory').title = 'Free memory: ' + json.mem_free + 'KiB'
