@@ -44,7 +44,7 @@ generate() {
 case "$1" in
 	start)
 		starting
-		hostname=$(fw_setenv -n hostname)
+		hostname=$(fw_printenv -n hostname)
 		[ -z "$hostname" ] && generate
 		set_hostname
 		update_hosts
