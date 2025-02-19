@@ -37,12 +37,14 @@ generate() {
 
 	hostname="${os_hostname}-$mac_suffix"
 	info "Generated hostname: $hostname"
+
+	run "fw_setenv hostname $hostname"
 }
 
 case "$1" in
 	start)
 		starting
-		hostname=$(hostname)
+		hostname=$(fw_setenv -n hostname)
 		[ -z "$hostname" ] && generate
 		set_hostname
 		update_hosts
