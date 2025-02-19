@@ -34,6 +34,8 @@ endif
 
 choice
 	prompt "SoC Model"
+	help
+	  Select the Ingenic SoC model for your device
 config BR2_SOC_INGENIC_DUMMY
 	bool "Dummy (for toolchain)"
 config BR2_SOC_INGENIC_T10L
@@ -685,10 +687,58 @@ config FLASH_SIZE_256
 	bool "256MB"
 endchoice
 
+choice
+	prompt "Flash Alignment Size"
+	default BR2_THINGINO_ALIGN_SIZE_32K
+	depends on BR2_THINGINO_DEV_EXPERIMENTAL
+	help
+	  Choose the alignment size for memory or storage allocation.
+	  This setting determines the block size used for operations
+	  such as partition alignment, erase block sizing, or memory
+	  page allocation.
+
+	  The selected size should match the hardware requirements to
+	  avoid misalignment issues.
+
+config BR2_THINGINO_ALIGN_SIZE_320K
+	bool "320K (327680 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_256K
+	bool "256K (262144 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_224K
+	bool "224K (229376 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_192K
+	bool "192K (196608 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_128K
+	bool "128K (131072 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_64K
+	bool "64K (65536 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_32K
+	bool "32K (32768 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_16K
+	bool "16K (16384 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_8K
+	bool "8K (8192 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_4K
+	bool "4K (4096 bytes)"
+
+endchoice
+
+
 endmenu
 
 choice
 	prompt "Kernel version"
+	help
+	  Select the desired  kernel version
 	default KERNEL_VERSION_4 if BR2_SOC_FAMILY_INGENIC_T41 || BR2_SOC_FAMILY_INGENIC_T40
 config KERNEL_VERSION_3
 	bool "Kernel 3.10.14"
@@ -701,6 +751,8 @@ endchoice
 choice
 	prompt "Device type"
 	default BR2_THINGINO_DEVICE_TYPE_IPCAM
+	help
+	  Select the device type
 
 config BR2_THINGINO_DEVICE_TYPE_IPCAM
 	bool "IPCamera"
