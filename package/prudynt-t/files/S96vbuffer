@@ -30,6 +30,8 @@ start() {
 	starting
 	pidof -o $$ S96vbuffer > /dev/null && quit "is already running"
 
+	[ "true" = "$motion_enabled" ] || quit "Motion guard disabled"
+
 	is_streamer_disabled && quit "Streamer disabled"
 	is_streamer_running || quit "Streamer is not running"
 	command -v openRTSP >/dev/null || die "openRTSP not found"
