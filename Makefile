@@ -451,7 +451,7 @@ $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 	find $(CONFIG_PARTITION_DIR) -name ".*keep" -o -name ".empty" -delete
 	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash \
 		--output=$@ --root=$(CONFIG_PARTITION_DIR)/ \
-		--pad=$(CONFIG_PARTITION_SIZE)
+		--pad=$(CONFIG_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
 
 # create extras partition image
 $(EXTRAS_BIN): $(U_BOOT_BIN)
@@ -461,7 +461,7 @@ $(EXTRAS_BIN): $(U_BOOT_BIN)
 	rsync -va $(OUTPUT_DIR)/target/opt/ $(OUTPUT_DIR)/extras/ && rm -rf $(OUTPUT_DIR)/target/opt/*
 	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash \
 		--output=$@ --root=$(OUTPUT_DIR)/extras/ \
-		--pad=$(EXTRAS_PARTITION_SIZE)
+		--pad=$(EXTRAS_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
 
 # rebuild kernel
 $(KERNEL_BIN):
