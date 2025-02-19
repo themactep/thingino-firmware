@@ -6,26 +6,32 @@ page_title="Web Interface"
 # read values from configs
 . $WEB_CONFIG_FILE
 
+defaults() {
+	default_for ui_username "$USER"
+}
+
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
 	read_from_post "webui" "paranoid theme ws_token"
 
+	defaults
+
 	if [ -z "$error" ]; then
 		save2config "
-webui_paranoid=$webui_paranoid
-webui_theme=$webui_theme
-webui_ws_token=$webui_ws_token
+webui_paranoid=\"$webui_paranoid\"
+webui_theme=\"$webui_theme\"
+webui_ws_token=\"$webui_ws_token\"
 "
 		new_password="$POST_ui_password_new"
 		[ -n "$new_password" ] && echo "root:$new_password" | chpasswd -c sha512 >/dev/null
 
 		redirect_back "success" "Data updated"
 	fi
+	redirect_to $SCRIPT_NAME
 fi
 
-# data for form fields
-ui_username="$USER"
+defaults
 %>
 <%in _header.cgi %>
 

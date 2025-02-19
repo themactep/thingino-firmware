@@ -2,30 +2,36 @@
 <%in _common.cgi %>
 <%
 page_title="Send to SSH"
-params="host username port command"
 
-config_file="/etc/webui/ssh.conf"
-include $config_file
+# read values from configs
+. $WEB_CONFIG_FILE
+
+defaults() {
+	default_for ssh_port "22"
+	default_for ssh_username "root"
+}
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "ssh" "$params"
+	error=""
+
+	read_from_post "ssh" "host username port command"
 
 	error_if_empty "$ssh_host" "SSH address cannot be empty."
 
+	defaults
+
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp -u)
-		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
-		for p in $params; do
-			sed -i -r "/^ssh_$p=/d" "$tmp_file"
-			echo "ssh_$p=\"$(eval echo \$ssh_$p)\"" >> "$tmp_file"
-		done
-		mv $tmp_file $config_file
+		save2config "
+ssh_host=\"$ssh_host
+ssh_port=\"$ssh_port\"
+ssh_username=\"$ssh_username\"
+ssh_command=\"$ssh_command\"
+"
 	fi
 	redirect_to $SCRIPT_NAME
 fi
 
-default_for ssh_port "22"
-default_for ssh_username "root"
+defaults
 %>
 <%in _header.cgi %>
 
@@ -45,7 +51,7 @@ default_for ssh_username "root"
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "cat $config_file" %>
+<% ex "grep ^ssh_ $WEB_CONFIG_FILE" %>
 </div>
 
 <%in _footer.cgi %>

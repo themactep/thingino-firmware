@@ -2,36 +2,42 @@
 <%in _common.cgi %>
 <%
 page_title="Send via scp"
-params="host port user path template command"
 
 SCP_KEY="/root/.ssh/id_dropbear"
 [ -f $SCP_KEY ] || dropbearkey -t ed25519 -f $SCP_KEY
 
-config_file="/etc/webui/scp.conf"
-include $config_file
+# read values from configs
+. $WEB_CONFIG_FILE
+
+defaults() {
+	default_for scp_port "22"
+	default_for scp_user "root"
+	default_for scp_template "$network_hostname-%Y%m%d-%H%M%S.jpg"
+}
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "scp" "$params"
+	error=""
+
+	read_from_post "scp" "host port user path template command"
 
 	error_if_empty "$scp_host" "Target host address cannot be empty."
 
-	default_for scp_template "$network_hostname-%Y%m%d-%H%M%S.jpg"
+	defaults
 
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp -u)
-		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
-		for p in $params; do
-			sed -i -r "/^scp_$p=/d" "$tmp_file"
-			echo "scp_$p=\"$(eval echo \$scp_$p)\"" >> "$tmp_file"
-		done
-		mv $tmp_file $config_file
+		save2config "
+scp_host=\"$scp_host\"
+scp_port=\"$scp_port\"
+scp_user=\"$scp_user\"
+scp_path=\"$scp_path\"
+scp_template=\"$scp_template\"
+scp_command=\"$scp_command\"
+"
 	fi
 	redirect_to $SCRIPT_NAME
 fi
 
-default_for scp_port "22"
-default_for scp_user "root"
-default_for scp_template "$network_hostname-%Y%m%d-%H%M%S.jpg"
+defaults
 %>
 <%in _header.cgi %>
 
@@ -57,7 +63,7 @@ default_for scp_template "$network_hostname-%Y%m%d-%H%M%S.jpg"
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "cat $config_file" %>
+<% ex "grep ^scp_ $WEB_CONFIG_FILE" %>
 <% ex "xxd $SCP_KEY" %>
 </div>
 

@@ -2,16 +2,14 @@
 <%in _common.cgi %>
 <%
 page_title="Video Recorder"
-params="device_path duration enabled filename limit mount videofmt"
 
-# constants
 MOUNTS=$(awk '/cif|fat|nfs|smb/{print $2}' /etc/mtab)
 RECORD_CTL="/etc/init.d/S96record"
 RECORD_FILENAME_FB="%Y%m%d/%Y%m%dT%H%M%S"
-config_file="/etc/webui/record.conf"
-include $config_file
 
-# defaults
+# read values from configs
+. $WEB_CONFIG_FILE
+
 defaults() {
 	default_for record_enabled "false"
 	default_for record_device_path "$(hostname)/records"
@@ -23,7 +21,10 @@ defaults() {
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "record" "$params"
+	error=""
+
+	read_from_post "record" "device_path duration enabled filename limit mount videofmt"
+
 	defaults
 
 	# normalize
@@ -34,14 +35,15 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	error_if_empty "$record_filename" "Record filename cannot be empty."
 
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp -u)
-		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
-		for p in $params; do
-			sed -i -r "/^record_$p=/d" "$tmp_file"
-			echo "record_$p=\"$(eval echo \$record_$p)\"" >> "$tmp_file"
-		done
-		mv $tmp_file $config_file
-
+		save2config "
+record_device_path=\"$record_device_path\"
+record_duration=\"$record_duration\"
+record_enabled=\"$record_enabled\"
+record_filename=\"$record_filename\"
+record_limit=\"$record_limit\"
+record_mount=\"$record_mount\"
+record_videofmt=\"$record_videofmt\"
+"
 		if [ -f "$RECORD_CTL" ]; then
 			if [ "true" = "$record_enabled" ]; then
 				$RECORD_CTL start > /dev/null
@@ -93,8 +95,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "cat $config_file" %>
-<% ex "fw_printenv | grep ^record_" %>
+<% ex "grep ^record_ $WEB_CONFIG_FILE" %>
 </div>
 
 <script>

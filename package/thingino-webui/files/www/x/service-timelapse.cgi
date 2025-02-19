@@ -2,14 +2,13 @@
 <%in _common.cgi %>
 <%
 page_title="Timelapse Recorder"
-params="depth device_path enabled filename interval mount"
 
 MOUNTS=$(awk '/cif|fat|nfs|smb/{print $2}' /etc/mtab)
 TIMELAPSE_FILENAME_FB="%Y%m%d/%Y%m%dT%H%M%S.jpg"
-config_file="/etc/webui/timelapse.conf"
-include $config_file
 
-# defaults
+# read values from configs
+. $WEB_CONFIG_FILE
+
 defaults() {
 	default_for timelapse_device_path "$(hostname)/timelapses"
 	default_for timelapse_filename "$TIMELAPSE_FILENAME_FB"
@@ -18,7 +17,10 @@ defaults() {
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "timelapse" "$params"
+	error=""
+
+	read_from_post "timelapse" "depth device_path enabled filename interval mount"
+
 	defaults
 
 	# normalize
@@ -29,14 +31,14 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	error_if_empty "$timelapse_filename" "Timelapse filename cannot be empty."
 
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp -u)
-		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
-		for p in $params; do
-			sed -i -r "/^timelapse_$p=/d" "$tmp_file"
-			echo "timelapse_$p=\"$(eval echo \$timelapse_$p)\"" >> "$tmp_file"
-		done
-		mv $tmp_file $config_file
-
+		save2config "
+timelapse_depth=\"$timelapse_depth\"
+timelapse_device_path=\"$timelapse_device_path\"
+timelapse_enabled=\"$timelapse_enabled\"
+timelapse_filename=\"$timelapse_filename\"
+timelapse_interval=\"$timelapse_interval\"
+timelapse_mount=\"$timelapse_interval_mount\"
+"
 		# update crontab
 		tmpfile=$(mktemp -u)
 		cat $CRONTABS > $tmpfile
@@ -46,7 +48,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		echo "*/$timelapse_interval * * * * timelapse" >> $tmpfile
 		mv $tmpfile $CRONTABS
 
-		update_caminfo
 	fi
 	redirect_to $SCRIPT_NAME
 fi
@@ -86,7 +87,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "cat $config_file" %>
+<% ex "grep ^timelapse_ $WEB_CONFIG_FILE" %>
 <% ex "crontab -l" %>
 </div>
 
