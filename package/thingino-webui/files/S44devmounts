@@ -1,39 +1,22 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
-
+MOUNT_SHARE=
 MOUNT_POINT="/var/www"
 
 start() {
-	starting
-
-	[ "true" = "$(fw_printenv -n development_enabled)" ] || quit "Not in development mode"
-
-	local nfs_ip nfs_share
-	nfs_ip=$(fw_printenv -n development_nfs_ip)
-	[ -z "$nfs_ip" ] && quit "Remote machine IP is not set"
-	info "Remote machine is $nfs_ip"
-
-	nfs_share=$(fw_printenv -n development_nfs_share)
-	[ -z "$nfs_share" ] && nfs_share="/srv/nfs/www"
+	echo "$0: Mounting $MOUNT_SHARE to $MOUNT_POINT"
 	mountpoint -q $MOUNT_POINT && quit "Already mounted"
-	{
-		rm -r $MOUNT_POINT
-		mkdir $MOUNT_POINT
-		mount -t nfs -o nolock,tcp,nfsvers=3 $nfs_ip:$nfs_share $MOUNT_POINT
-	}
-	check_result
+	rm -r $MOUNT_POINT
+	mkdir $MOUNT_POINT
+	mount -t nfs -o nolock,tcp,nfsvers=3 $MOUNT_SHARE $MOUNT_POINT
 }
 
 stop() {
-	stopping
+	echo "$0: Unmounting $MOUNT_POINT"
 	mountpoint -q $MOUNT_POINT || quit "Nothing to unmount"
-	{
-		umount $MOUNT_POINT
-		rm -r /overlay$MOUNT_POINT
-		mount -o remount /
-	}
-	check_result
+	umount $MOUNT_POINT
+	rm -r /overlay$MOUNT_POINT
+	mount -o remount /
 }
 
 case "$1" in
