@@ -2,13 +2,9 @@
 
 # http://www.live555.com/openRTSP/
 
-WEBUI_CONF=/etc/webui/record.conf
+WEBUI_CONF=/etc/web.conf
 
 . /etc/init.d/rc.common
-
-read_config() {
-	sed -nE "s/^.*$1:\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
-}
 
 start() {
 	starting
@@ -24,9 +20,9 @@ start() {
 
 stop() {
 	stopping
-	is_streamer_disabled && quit "Streamer disabled"
-	find /tmp/ -name "record.*" -maxdepth 0 -exec rm {} \;
-	stop_daemon_with_pid
+	pidof prudynt > /dev/null || quit "$DAEMON is not running"
+	find /tmp/ -name "record.*" -maxdepth 0 -delete
+	stop_daemon
 }
 
 case "$1" in
