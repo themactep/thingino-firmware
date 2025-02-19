@@ -4,50 +4,72 @@
 [ -f /bin/wg ] || redirect_to "/" "danger" "Your camera does not seem to support WireGuard"
 
 page_title="WireGuard VPN"
-params="address allowed dns enabled endpoint keepalive mtu peerpsk peerpub port privkey"
+
+# read values from configs
+. $WEB_CONFIG_FILE
+
 WG_DEV="wg0"
 
-read_from_env "wg"
+defaults() {
+	true
+}
 
-is_wg_up() {
+is_wireguard_up() {
 	ip link show $WG_DEV | grep -q UP
 }
 
-wg_status() {
-	is_wg_up && echo -n "on" || echo -n "off"
+wireguard_status() {
+	is_wireguard_up && echo -n "on" || echo -n "off"
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	tempfile=$(mktemp -u)
-	for p in $params; do
-		eval echo "wg_$p=\\\"\$POST_wg_$p\\\"" >> $tempfile
-	done
-	fw_setenv -s $tempfile
+	error=""
 
+	read_from_post "wireguard" "address allowed dns enabled endpoint keepalive mtu peerpsk peerpub port privkey"
+
+	defaults
+
+	if [ -z "$error" ]; then
+		save2config "
+wireguard_address=\"$wireguard_address\"
+wireguard_allowed=\"$wireguard_allowed\"
+wireguard_dns=\"$wireguard_dns\"
+wireguard_enabled=\"$wireguard_enabled\"
+wireguard_endpoint=\"$wireguard_endpoint\"
+wireguard_keepalive=\"$wireguard_keepalive\"
+wireguard_mtu=\"$wireguard_mtu\"
+wireguard_peerpsk=\"$wireguard_peerpsk\"
+wireguard_peerpub=\"$wireguard_peerpub\"
+wireguard_port=\"$wireguard_port\"
+wireguard_privkey=\"$wireguard_privkey\"
+"
+	fi
 	redirect_to $SCRIPT_NAME
 fi
+
+defaults
 %>
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_switch "wg_enabled" "Enable WireGuard" %>
+<% field_switch "wireguard_enabled" "Enable WireGuard" %>
 
 <div class="row">
 <div class="col col-12 col-lg-6 col-xxl-4 order-2 order-xxl-1">
 <h5>Interface</h5>
-<% field_password "wg_privkey" "Private Key" %>
-<% field_password "wg_peerpsk" "Pre-Shared Key" %>
-<% field_text "wg_address" "FQDN or IP address" %>
-<% field_text "wg_port" "port" %>
-<% field_text "wg_dns" "DNS" %>
+<% field_password "wireguard_privkey" "Private Key" %>
+<% field_password "wireguard_peerpsk" "Pre-Shared Key" %>
+<% field_text "wireguard_address" "FQDN or IP address" %>
+<% field_text "wireguard_port" "port" %>
+<% field_text "wireguard_dns" "DNS" %>
 </div>
 <div class="col col-12 col-lg-6 col-xxl-4 order-3 order-xxl-2">
 <h5>Peer</h5>
-<% field_text "wg_endpoint" "Endpoint host:port" %>
-<% field_text "wg_peerpub" "Peer Public Key" %>
-<% field_text "wg_mtu" "MTU" %>
-<% field_text "wg_keepalive" "Persistent Keepalive" %>
-<% field_text "wg_allowed" "Allowed CIDRs" %>
+<% field_text "wireguard_endpoint" "Endpoint host:port" %>
+<% field_text "wireguard_peerpub" "Peer Public Key" %>
+<% field_text "wireguard_mtu" "MTU" %>
+<% field_text "wireguard_keepalive" "Persistent Keepalive" %>
+<% field_text "wireguard_allowed" "Allowed CIDRs" %>
 </div>
 <div class="col col-12 col-lg-12 col-xxl-4 order-1 order-xxl-3">
 <div class="alert alert-info">
@@ -64,7 +86,7 @@ and routing traffic from the camera, to a set of CIDRs (networks) through that s
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_hidden "action" "startstop" %>
-<% button_submit "$wg_action WireGuard" "danger" %>
+<% button_submit "$wireguard_action WireGuard" "danger" %>
 </form>
 
 <div id="wg-ctrl" class="alert">
@@ -76,7 +98,7 @@ and routing traffic from the camera, to a set of CIDRs (networks) through that s
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "fw_printenv | grep '^wg_' | sed -Ee 's/(key|psk)=.*$/\1=[__redacted__]/' | sort" %>
+<% ex "grep '^wireguard_' $WEB_CONFIG_FILE | sed -Ee 's/(key|psk)=.*$/\1=[__redacted__]/' | sort" %>
 <% ex "wg show $WG_DEV 2>&1 | grep -A5 endpoint" %>
 </div>
 
@@ -89,7 +111,7 @@ async function switchWireGuard(state) {
 		});
 }
 
-let wgStatus = <% is_wg_up && echo -n 1 || echo -n 0 %>;
+let wgStatus = <% is_wireguard_up && echo -n 1 || echo -n 0 %>;
 if (wgStatus == 1) {
 	$('#wg-ctrl').classList.add("alert-danger");
 	$('#wg-ctrl .btn').classList.add("btn-danger");

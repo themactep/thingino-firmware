@@ -3,27 +3,32 @@
 <%
 page_title="Remote Logging"
 
+# read values from configs
+. $WEB_CONFIG_FILE
+
+defaults() {
+	default_for rsyslog_port "514"
+	default_for rsyslog_local "false"
+}
+
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
 	read_from_post "rsyslog" "ip port local"
 
+	defaults
+
 	if [ -z "$error" ]; then
-		tmpfile=$(mktemp -u)
-		{
-			echo "rsyslog_ip=$rsyslog_ip"
-			echo "rsyslog_port=$rsyslog_port"
-			echo "rsyslog_local=$rsyslog_local"
-		} > $tmpfile
-		fw_setenv -s $tmpfile
+		save2config "
+rsyslog_ip=\"$rsyslog_ip\"
+rsyslog_port=\"$rsyslog_port\"
+rsyslog_local=\"$rsyslog_local\"
+"
 	fi
 	redirect_to $SCRIPT_NAME
 fi
 
-read_from_env "rsyslog"
-
-default_for rsyslog_port "514"
-default_for rsyslog_local "false"
+defaults
 %>
 <%in _header.cgi %>
 
@@ -42,7 +47,7 @@ default_for rsyslog_local "false"
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "fw_printenv | grep rsyslog | sort" %>
+<% ex "grep ^rsyslog_ $WEB_CONFIG_FILE" %>
 </div>
 
 <%in _footer.cgi %>
