@@ -3,7 +3,7 @@
 <%
 page_title="ZeroTier"
 params="enabled nwid"
-config_file="$ui_config_dir/zerotier.conf"
+config_file="/etc/webui/zerotier.conf"
 service_file=/etc/init.d/S90zerotier
 zt_cli_bin=/usr/sbin/zerotier-cli
 zt_one_bin=/usr/sbin/zerotier-one
