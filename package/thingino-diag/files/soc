@@ -52,7 +52,7 @@ print_soc_model() {
 		0x00213333) soc="t21l" ;;
 		0x00215555) soc="t21z" ;;
 		0x00231111) soc="t23n" ;;
-		0x00236666) soc="t23zn" ;;
+		0x00237777) soc="t23zn" ;;
 		0x00301111) soc="t30n" ;;
 		0x00302222) soc="t30x" ;;
 		0x00303333) soc="t30al" ;;
@@ -94,7 +94,7 @@ print_soc_model() {
 }
 
 show_usage() {
-	echo -e "Usage: $0 [-f|-m|-w]\n\t-m\tSoC model\n\t-f\tSoC family\n\t-w\traw info for wiki\n"
+	echo -e "Usage: $0 [-c|-f|-m|-w]\n\t-m\tSoC model\n\t-f\tSoC family\n\t-w\traw info for wiki\n"
 }
 
 case "$1" in
