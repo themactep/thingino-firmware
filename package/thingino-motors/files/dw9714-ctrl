@@ -4,17 +4,17 @@
 # Takes an argument from 0 to 100 to set the focus position percentage
 
 if [ "$#" -ne 1 ]; then
-  echo "Usage: $0 <focus_percentage>"
-  echo "<focus_percentage> should be an integer from 0 to 100"
-  exit 1
+	echo "Usage: $0 <focus_percentage>"
+	echo "<focus_percentage> should be an integer from 0 to 100"
+	exit 1
 fi
 
 FOCUS_PERCENTAGE=$1
 
 # Validate input
 if [ "$FOCUS_PERCENTAGE" -lt 0 ] || [ "$FOCUS_PERCENTAGE" -gt 100 ]; then
-  echo "Error: focus_percentage must be between 0 and 100."
-  exit 1
+	echo "Error: focus_percentage must be between 0 and 100."
+	exit 1
 fi
 
 # Translate focus percentage from 0-100 to 0-50
