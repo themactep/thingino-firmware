@@ -25,8 +25,6 @@ webui_ws_token=\"$webui_ws_token\"
 "
 		new_password="$POST_ui_password_new"
 		[ -n "$new_password" ] && echo "root:$new_password" | chpasswd -c sha512 >/dev/null
-
-		redirect_back "success" "Data updated"
 	fi
 	redirect_to $SCRIPT_NAME
 fi
