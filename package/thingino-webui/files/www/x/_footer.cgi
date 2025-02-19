@@ -30,6 +30,5 @@ $('#debug').addEventListener('change', ev => {
 });
 </script>
 
-<%in _debug.cgi %>
 </body>
 </html>
