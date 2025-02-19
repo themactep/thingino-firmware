@@ -13,7 +13,7 @@ BR2_PACKAGE_THINGINO_UBOOT_ROOT="/dev/mtdblock4"
 BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE="squashfs"
 BR2_PACKAGE_THINGINO_UBOOT_INIT="/init"
 BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC=y
-BR2_PACKAGE_THINGINO_UBOOT_MTDPARTS="setenv mtdparts mtdparts=$(UBOOT_FLASH_CONTROLLER):256k(boot),64k(env),192k(config),${kern_size_dec}(kernel),${rootfs_size}(rootfs),-(rootfs_data)${update}"
+BR2_PACKAGE_THINGINO_UBOOT_MTDPARTS="setenv mtdparts mtdparts=$(UBOOT_FLASH_CONTROLLER):256k(boot),32k(env),224k(config),${kern_size_dec}(kernel),${rootfs_size}(rootfs),-(rootfs_data)${update}"
 BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS="setenv bootargs mem=${osmem} rmem=${rmem} console=${serialport},${baudrate}n8 panic=${panic_timeout} root=${root} rootfstype=${rootfstype} init=${init} \\${mtdparts}"
 BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD="sf probe-alt;sq probe-alt;run mtdparts;run mtdparts;run bootargs;sf read ${baseaddr} ${kern_addr} ${kern_size};bootm ${baseaddr}"
 
