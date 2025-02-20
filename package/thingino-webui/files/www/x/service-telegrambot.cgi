@@ -2,32 +2,63 @@
 <%in _common.cgi %>
 <%
 page_title="Telegram Bot"
-params="enabled token users"
-for i in $(seq 0 9); do
-	params="$params command_$i description_$i script_$i"
-done
 
 # read values from configs
 . $WEB_CONFIG_FILE
 
+defaults() {
+	true
+}
+
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "telegrambot" "$params"
+	read_from_post "telegrambot" "enabled token users command_0 command_1 command_2 command_3 command_4 command_5 command_6 command_7 command_8 command_9 description_0 description_1 description_2 description_3 description_4 description_5 description_6 description_7 description_8 description_9 script_0 script_1 script_2 script_3 script_4 script_5 script_6 script_7 script_8 script_9"
+
+	for i in $(seq 0 9); do
+		sanitize telegrambot_command_$i
+	done
+
+	telegrambot_users="${telegrambot_users//[,;]/ }"
 
 	if [ "true" = "$telegrambot_enabled" ]; then
 		error_if_empty "$telegrambot_token" "Telegram token cannot be empty."
 	fi
 
-	telegrambot_users="${telegrambot_users//[,;]/ }"
-
 	if [ -z "$error" ]; then
-		tmp_file=$(mktemp -u)
-		[ -f "$config_file" ] && cp "$config_file" "$tmp_file"
-		for p in $params; do
-			sed -i -r "/^telegrambot_$p=/d" "$tmp_file"
-			echo "telegrambot_$p=\"$(eval echo \$telegrambot_$p)\"" >> "$tmp_file"
-		done
-		mv $tmp_file $config_file
-
+		save2config "
+telegrambot_enabled=\"$telegrambot_enabled\"
+telegrambot_token=\"$telegrambot_token\"
+telegrambot_users=\"$telegrambot_users\"
+telegrambot_command_0=\"$telegrambot_command_0\"
+telegrambot_command_1=\"$telegrambot_command_1\"
+telegrambot_command_2=\"$telegrambot_command_2\"
+telegrambot_command_3=\"$telegrambot_command_3\"
+telegrambot_command_4=\"$telegrambot_command_4\"
+telegrambot_command_5=\"$telegrambot_command_5\"
+telegrambot_command_6=\"$telegrambot_command_6\"
+telegrambot_command_7=\"$telegrambot_command_7\"
+telegrambot_command_8=\"$telegrambot_command_8\"
+telegrambot_command_9=\"$telegrambot_command_9\"
+telegrambot_description_0=\"$telegrambot_description_0\"
+telegrambot_description_1=\"$telegrambot_description_1\"
+telegrambot_description_2=\"$telegrambot_description_2\"
+telegrambot_description_3=\"$telegrambot_description_3\"
+telegrambot_description_4=\"$telegrambot_description_4\"
+telegrambot_description_5=\"$telegrambot_description_5\"
+telegrambot_description_6=\"$telegrambot_description_6\"
+telegrambot_description_7=\"$telegrambot_description_7\"
+telegrambot_description_8=\"$telegrambot_description_8\"
+telegrambot_description_9=\"$telegrambot_description_9\"
+telegrambot_script_0=\"$telegrambot_script_0\"
+telegrambot_script_1=\"$telegrambot_script_1\"
+telegrambot_script_2=\"$telegrambot_script_2\"
+telegrambot_script_3=\"$telegrambot_script_3\"
+telegrambot_script_4=\"$telegrambot_script_4\"
+telegrambot_script_5=\"$telegrambot_script_5\"
+telegrambot_script_6=\"$telegrambot_script_6\"
+telegrambot_script_7=\"$telegrambot_script_7\"
+telegrambot_script_8=\"$telegrambot_script_8\"
+telegrambot_script_9=\"$telegrambot_script_9\"
+"
 		/etc/init.d/S93telegrambot restart >/dev/null
 	fi
 	redirect_to $SCRIPT_NAME
