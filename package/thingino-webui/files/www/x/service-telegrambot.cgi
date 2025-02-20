@@ -19,7 +19,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	read_from_post "telegrambot" "$params"
 
 	for i in $(seq 0 9); do
-		sanitize telegrambot_command_$i
+		sanitize "telegrambot_command_$i"
 	done
 
 	telegrambot_users="${telegrambot_users//[,;]/ }"
@@ -112,7 +112,7 @@ default_for telegrambot_caption "%hostname, %datetime"
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "cat $config_file" %>
+<% ex "grep ^telegrambot_ $WEB_CONFIG_FILE" %>
 </div>
 
 <%in _tg_bot.cgi %>
