@@ -6,12 +6,17 @@ page_title="Telegram Bot"
 # read values from configs
 . $WEB_CONFIG_FILE
 
+params="enabled token users"
+for i in $(seq 0 9); do
+	params="$params command_$i description_$i script_$i"
+done
+
 defaults() {
 	true
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	read_from_post "telegrambot" "enabled token users command_0 command_1 command_2 command_3 command_4 command_5 command_6 command_7 command_8 command_9 description_0 description_1 description_2 description_3 description_4 description_5 description_6 description_7 description_8 description_9 script_0 script_1 script_2 script_3 script_4 script_5 script_6 script_7 script_8 script_9"
+	read_from_post "telegrambot" "$params"
 
 	for i in $(seq 0 9); do
 		sanitize telegrambot_command_$i
@@ -66,7 +71,7 @@ fi
 
 for p in $params; do
 	sanitize4web "telegrambot_$p"
-done; unset p
+done
 
 default_for telegrambot_caption "%hostname, %datetime"
 %>
