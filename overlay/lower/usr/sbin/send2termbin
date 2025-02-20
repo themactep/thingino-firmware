@@ -14,7 +14,7 @@ fi
 
 [ -s "$file" ] || die "File $file is empty"
 
-curl -s -T - telnet://termbin.com:9999 < "$file"
+curl -s -T - telnet://tb.thingino.com:9999 < "$file"
 rm -f "$file"
 
 exit 0

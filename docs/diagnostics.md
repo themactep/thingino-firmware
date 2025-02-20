@@ -15,8 +15,8 @@ Alternatively, you can run the following command on the command line:
 ```bash
 thingino-diag
 ```
-This will generate a diagnostics report and send it to termbin.com server for
-temporary storage. You will be presented with a URL to the report for sharing.
+This will generate a diagnostics report and send it to tb.thingino.com server
+for temporary storage. You will be presented with a URL of the report for sharing.
 
 ### Saving to a File
 

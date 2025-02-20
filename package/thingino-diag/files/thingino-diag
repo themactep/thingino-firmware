@@ -9,7 +9,7 @@ PRUDYNT_CONFIG_FILE="/etc/prudynt.cfg"
 
 show_help() {
 	echo -e "Thingino Diagnostics Script
-Generate diagnostics log shared via termbin.com
+Generate diagnostics log shared via tb.thingino.com
 
 Usage: $0 [-l [path]]
 Where:
@@ -65,7 +65,7 @@ if [ -t 0 ]; then
 	echo "
 This script generates a log file for sharing with developers for diagnostic issues.
 The log may contain sensitive information, please review it before sharing the link!
-We use termbin to share the log. Review their use policy at https://www.termbin.com/
+We use a self-hosted fiche server to share the log. Files are stored for 1 week.
 "
 	read -p "Do you wish to proceed? (yes/no): " response
 	[ "yes" = "$response" ] || die "Operation aborted by the user."
