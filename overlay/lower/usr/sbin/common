@@ -32,10 +32,6 @@ is_debug_mode() {
 	[ $((0 + debug)) -gt 0 ] || [ "true" = "$debug" ]
 }
 
-is_interactive_shell() {
-	tty > /dev/null
-}
-
 tag() {
 	echo "$(ts) [$PID:$plugin]"
 }
