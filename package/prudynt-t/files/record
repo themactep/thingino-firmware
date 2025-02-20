@@ -77,18 +77,10 @@ Where params are:
 
 pidof -o $$ record > /dev/null && die "is already running"
 
-CONFIG_FILE="/etc/webui/record.conf"
+CONFIG_FILE="/etc/web.conf"
 [ -f "$CONFIG_FILE" ] && . $CONFIG_FILE
 
 RECORD_FLAG="/tmp/record.$$"
-
-RECORD_WEBUI_CONF=/etc/webui/record.conf
-if [ -f $RECORD_WEBUI_CONF ]; then
-	cat $RECORD_WEBUI_CONF
-	. $RECORD_WEBUI_CONF
-else
-	[ "${#1}" -eq 0 ] && die "Config file $RECORD_WEBUI_CONF not found"
-fi
 
 while getopts "c:d:f:h:m:n:p:s:t:u:v:w:xz:" flag; do
 	case "$flag" in
