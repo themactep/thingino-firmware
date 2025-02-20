@@ -12,6 +12,7 @@ case "$target" in
 			true | false)
 				sed -i "/^motion_send2$target/d" $WEB_CONFIG_FILE
 				echo "motion_send2$target=\"$state\"" >> $WEB_CONFIG_FILE
+
 				json_ok "{\"target\":\"$target\",\"status\":$state}"
 				;;
 			*)
@@ -25,3 +26,4 @@ case "$target" in
 esac
 
 /etc/init.d/S95prudynt restart >/dev/null
+/etc/init.d/S96vbuffer restart >/dev/null
