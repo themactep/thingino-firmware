@@ -69,13 +69,14 @@ elif post_request; then
 		http_header="HTTP/1.1 303 See Other"
 		http_redirect="Location: $SCRIPT_NAME"
 		tempfile=$(mktemp -u)
-		printf "hostname %s\ntimezone %s\n" "$hostname" "$timezone" >> "$tempfile"
+		printf "hostname %s\n" "$hostname" >> "$tempfile"
 		if [ "true" = "$wlanap_enabled" ]; then
 			printf "wlanap_enabled %s\nwlanap_ssid %s\nwlanap_pass %s\n" "$wlanap_enabled" "$wlanap_ssid" "$wlanap_pass" >> "$tempfile"
 		else
 			printf "wlanssid %s\nwlanpass %s\n" "$wlanssid" "$wlanpass" >> "$tempfile"
 		fi
 		fw_setenv -s $tempfile
+		echo "$timezone" > /etc/timezone
 		echo "root:$rootpass" | chpasswd -c sha512
 		echo "$rootpkey" | tr -d '\r' | sed 's/^ //g' > /root/.ssh/authorized_keys
 		sed -i "s/^ifs=.*$/ifs=wlan0/" /etc/onvif.conf
@@ -86,7 +87,7 @@ elif post_request; then
 	fi
 
 elif get_request; then
-	hostname=$(from_env hostname)
+	hostname=$(hostname)
 	wlanap_enabled=$(from_env wlanap_enabled)
 	wlanap_pass=$(from_env wlanap_pass)
 	wlanap_ssid=$(from_env wlanap_ssid)
