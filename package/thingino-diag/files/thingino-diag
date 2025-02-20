@@ -59,7 +59,7 @@ while getopts ":lh" opt; do
 	esac
 done
 
-if is_interactive_shell; then
+if [ -t 0 ]; then
 	bold "Thingino Diagnostics"
 	[ -z "$local_file" ] && alert "This script requires network access."
 	echo "
