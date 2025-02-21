@@ -255,7 +255,10 @@ while getopts "bd:fhpx" flag; do
 		b) upgrade="boot"; url="$GITHUB_URL" ;;
 		d) requested_date=$OPTARG ;;
 		f) upgrade="full"; url="$GITHUB_URL" ;;
-		p) upgrade="part"; url="$GITHUB_URL" ;;
+		p)
+			echo "Partial upgrades disabled until further notice. Please perform a full upgrade instead."
+			exit 1
+			upgrade="part"; url="$GITHUB_URL" ;;
 		x) selfupdate="false" ;;
 		h | *) show_help ;;
 	esac
