@@ -135,7 +135,7 @@ check_mac_address() {
 check_password() {
 	local safepage="/x/config-webui.cgi"
 	[ -z "$REQUEST_URI" ] || [ "$REQUEST_URI" = "$safepage" ] && return
-	if [ ! -f /etc/shadow- ] || [ -z $(grep root /etc/shadow- | cut -d: -f2) ]; then
+	if [ ! -f /etc/shadow- ] || [ -z $(awk -F: '/^root/{print $2}' /etc/shadow-) ]; then
 		redirect_to "$safepage" "danger" "You must set your own secure password!"
 	fi
 }
@@ -673,7 +673,7 @@ update_caminfo() {
 	# default_for uboot_version $(strings /dev/mtdblock0 | grep '^U-Boot \d' | head -1)
 
 	# WebUI version
-	ui_password=$(grep root /etc/shadow|cut -d: -f2)
+	ui_password=$(awk -F: '/^root/{print $2}' /etc/shadow-)
 
 	# Network
 	network_dhcp="false"

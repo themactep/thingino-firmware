@@ -21,8 +21,8 @@ show_help() {
 	-d date     Date (default: today).
 	-v          Verbose output.
 	-h          Show this help.
-"
-	exit 0
+" >&2
+	exit 1
 }
 
 time_for_cron() {

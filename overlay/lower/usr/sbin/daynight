@@ -4,10 +4,10 @@ die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
 
 pidof -o %PPID $(basename $0) > /dev/null && die "is already running"
 
-STOP_FILE=/tmp/daynight.stop
+STOP_FILE="/tmp/daynight.stop"
 
-MODE_FILE=/tmp/nightmode.txt
-[ -f $MODE_FILE ] || echo "day" > $MODE_FILE
+MODE_FILE="/tmp/nightmode.txt"
+[ -f "$MODE_FILE" ] || echo "day" > "$MODE_FILE"
 
 . /etc/web.conf
 
@@ -60,7 +60,7 @@ switch_to_night() {
 # determine luminance of the scene
 value=$(imp-control gettotalgain)
 reversed=1
-state=$(cat $MODE_FILE 2>/dev/null)
+state=$(cat "$MODE_FILE" 2>/dev/null)
 
 case "$1" in
 	night)

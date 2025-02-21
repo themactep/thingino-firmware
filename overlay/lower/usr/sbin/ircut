@@ -30,6 +30,11 @@ fi
 MODE_FILE="/tmp/ircutmode.txt"
 [ -f "$MODE_FILE" ] || touch "$MODE_FILE"
 
+show_help() {
+	echo "Usage: $0 [on|off|toggle|status]" >&2
+	exit 1
+}
+
 report_ir_filter() {
 	case "$(cat "$MODE_FILE")" in
 		0) info "IRCUT filter is removed" ;;
@@ -78,7 +83,7 @@ case "$1" in
 		cat "$MODE_FILE" | tr -d '\n'
 		;;
 	*)
-		die "Usage: $0 [on|off|toggle|status]"
+		show_help
 		;;
 esac
 

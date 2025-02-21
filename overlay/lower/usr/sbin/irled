@@ -1,6 +1,15 @@
 #!/bin/sh
 
-die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
+show_help() {
+	echo "Usage: $0 <mode> <type>
+Where:
+	mode	on|off
+	type	ir850|ir940|white
+" >&2
+	exit 1
+}
+
+[ "$#" -lt 1 ] && show_help
 
 # set parameters from cli, if empty
 [ -z "$mode" ] && mode=$1
@@ -21,7 +30,11 @@ case "$type" in
 		;;
 esac
 
-[ -z "$pin" ] && die "Please define LED GPIO pin\nfw_setenv gpio_$type <pin>"
+if [ -z "$pin" ]; then
+	echo "Please define LED GPIO pin"
+	echo "fw_setenv gpio_$type <pin>"
+	exit 1
+fi
 
 # default to output high
 [ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
@@ -45,7 +58,8 @@ case "$mode" in
 		[ "$(gpio value $pin | tr -d '\n')" = "$pin_on" ] && echo -n "1" || echo -n "0"
 		;;
 	*)
-		die "Unknown mode"
+		echo "Error: Unknown mode" >&2
+		exit 1
 		;;
 esac
 

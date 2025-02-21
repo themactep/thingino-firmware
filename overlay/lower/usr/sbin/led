@@ -1,5 +1,13 @@
 #!/bin/sh
 
+show_help() {
+	echo "Usage: $0 [<color>|off]
+Where:
+	color	red|green|blue|yellow|magenta|cyan|white
+" >&2
+	exit 1
+}
+
 GPIO_R=$(fw_printenv -n gpio_led_r)
 GPIO_G=$(fw_printenv -n gpio_led_g)
 GPIO_B=$(fw_printenv -n gpio_led_b)
@@ -38,7 +46,7 @@ case "$1" in
 	w*) setRGB $GPIO_R_HI $GPIO_G_HI $GPIO_B_HI ;;
 	y*) setRGB $GPIO_R_HI $GPIO_G_HI $GPIO_B_LO ;;
 	off) setRGB $GPIO_R_LO $GPIO_G_LO $GPIO_B_LO ;;
-	*) echo -e "Usage: $0 <off|red|green|blue|yellow|magenta|cyan|white>" >&2 ;;
+	*) show_help ;;
 esac
 
 exit 0
