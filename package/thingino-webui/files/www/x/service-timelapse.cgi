@@ -37,7 +37,7 @@ timelapse_device_path=\"$timelapse_device_path\"
 timelapse_enabled=\"$timelapse_enabled\"
 timelapse_filename=\"$timelapse_filename\"
 timelapse_interval=\"$timelapse_interval\"
-timelapse_mount=\"$timelapse_interval_mount\"
+timelapse_mount=\"$timelapse_mount\"
 "
 		# update crontab
 		tmpfile=$(mktemp -u)
