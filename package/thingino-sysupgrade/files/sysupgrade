@@ -234,7 +234,9 @@ stop_services() {
 }
 
 unmount_config() {
-	mountpoint -q /etc/config && say "Unmount config" && umount /etc/config
+	mountpoint -q /etc/config || return 0
+	say "Unmount config"
+	umount /etc/config
 }
 
 update_self() {
