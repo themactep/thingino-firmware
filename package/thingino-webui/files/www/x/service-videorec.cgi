@@ -17,7 +17,6 @@ defaults() {
 	[ "/" = "${record_filename:0-1}" ] && record_filename="$RECORD_FILENAME_FB"
 	default_for $record_videofmt "mp4"
 	default_for record_duration 60
-	default_for record_led $(fw_printenv | awk -F= '/^gpio_led/{print $1;exit}')
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
