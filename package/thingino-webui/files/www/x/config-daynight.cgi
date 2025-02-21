@@ -48,20 +48,20 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	if [ -z "$error" ]; then
 		save2config "
-day_night_color=$day_night_color
-day_night_enabled=$day_night_enabled
-day_night_interval=$day_night_interval
-day_night_ir850=$day_night_ir850
-day_night_ir940=$day_night_ir940
-day_night_ircut=$day_night_ircut
-day_night_max=$day_night_max
-day_night_min=$day_night_min
-day_night_white=$day_night_white
-dusk2dawn_enabled=$dusk2dawn_enabled
-dusk2dawn_lat=$dusk2dawn_lat
-dusk2dawn_lng=$dusk2dawn_lng
-dusk2dawn_offset_sr=$dusk2dawn_offset_sr
-dusk2dawn_offset_ss=$dusk2dawn_offset_ss
+day_night_color=\"$day_night_color\"
+day_night_enabled=\"$day_night_enabled\"
+day_night_interval=\"$day_night_interval\"
+day_night_ir850=\"$day_night_ir850\"
+day_night_ir940=\"$day_night_ir940\"
+day_night_ircut=\"$day_night_ircut\"
+day_night_max=\"$day_night_max\"
+day_night_min=\"$day_night_min\"
+day_night_white=\"$day_night_white\"
+dusk2dawn_enabled=\"$dusk2dawn_enabled\"
+dusk2dawn_lat=\"$dusk2dawn_lat\"
+dusk2dawn_lng=\"$dusk2dawn_lng\"
+dusk2dawn_offset_sr=\"$dusk2dawn_offset_sr\"
+dusk2dawn_offset_ss=\"$dusk2dawn_offset_ss\"
 "
 		# update crontab
 		tmpfile=$(mktemp -u)
