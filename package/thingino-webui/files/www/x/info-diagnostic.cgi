@@ -13,7 +13,7 @@ fi
 <% if [ -z "$result" ]; then %>
 <p>The button below generates a massive log that needs to be further shared with developers to help them diagnose problems.
 That log may contain sensitive or personal information, so be sure to review the result before sharing the link!</p>
-<p>We use a self-hosted fiche server to share the log. Files are stored for 1 week." target="_blank">acceptable use policy</a>.</p>
+<p>We use a self-hosted fiche server to share the log. Files are stored for 1 week.</p>
 <form action="<%= $SCRIPT_NAME %>" method="post">
 <p><label><input type="checkbox" name="iagree" id="iagree" value="true" class="form-check-input me-1">
 I've read and understood the information above. I want to proceed.</label></p>
@@ -24,7 +24,7 @@ I've read and understood the information above. I want to proceed.</label></p>
 <h3 class="mb-4"><a href="<%= $result %>"><%= $result %></a></h3>
 <p>Please review the link and share it with the developers.</p>
 <% else %>
-<h3 class="text-danger"><%= $result %></h3>
+<span class="cb"><%= $result %></span>
 <% fi %>
 <% fi %>
 </div>

@@ -1,14 +1,11 @@
 #!/bin/sh
 
-alert() { echo "\e[38;5;12m$1\e[0m"; }
-bold() { echo "\e[38;5;208m$1\e[0m"; }
-die() { printf "\e[38;5;124m%s\e[0m\n" "$1" >&2; exit 1; }
-info() { echo "\e[38;5;160m$1\e[0m" >&2; }
+die() { echo "$1" >&2; exit 1; }
 
 PRUDYNT_CONFIG_FILE="/etc/prudynt.cfg"
 
 show_help() {
-	echo -e "Thingino Diagnostics Script
+	echo "Thingino Diagnostics Script
 Generate diagnostics log shared via tb.thingino.com
 
 Usage: $0 [-l [path]]
@@ -53,15 +50,15 @@ while getopts ":lh" opt; do
 			show_help
 			;;
 		\?)
-			info "Invalid option: -$OPTARG"
+			echo "Invalid option: -$OPTARG"
 			show_help
 			;;
 	esac
 done
 
 if [ -t 0 ]; then
-	bold "Thingino Diagnostics"
-	[ -z "$local_file" ] && alert "This script requires network access."
+	echo "Thingino Diagnostics"
+	[ -z "$local_file" ] && echo "This script requires network access."
 	echo "
 This script generates a log file for sharing with developers for diagnostic issues.
 The log may contain sensitive information, please review it before sharing the link!
@@ -133,9 +130,9 @@ if [ -z "$local_file" ]; then
 	[ -z "$url" ] && die "\nThere was an error."
 
 	echo "Your diagnostics log link:"
-	info "$url"
+	echo "$url"
 else
-	info "Diagnostics log saved locally at $output_file"
+	echo "Diagnostics log saved locally at $output_file"
 fi
 
 exit 0
