@@ -22,10 +22,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	if [ -z "$error" ]; then
 		save2config "
-admin_name=$admin_name
-admin_email=$admin_email
-admin_telegram=$admin_telegram
-admin_discord=$admin_discord
+admin_name=\"$admin_name\"
+admin_email=\"$admin_email\"
+admin_telegram=\"$admin_telegram\"
+admin_discord=\"$admin_discord\"
 "
 	fi
 	redirect_to $SCRIPT_NAME
