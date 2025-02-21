@@ -16,3 +16,4 @@
 /toolchain/
 /.vscode
 /build.log
+*.swp
