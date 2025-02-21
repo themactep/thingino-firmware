@@ -112,8 +112,8 @@ setup_iface() {
 	[ -z "$interface" ] && set_error_flag "Network interface is not set"
 	[ -z "$mode" ] && set_error_flag "Network mode is not set"
 	if [ "static" = "$mode" ]; then
-		[ -z "$address" ] && die "Interface IP address is not set"
-		[ -z "$netmask" ] && die "Netmask is not set"
+		[ -z "$address" ] && set_error_flag "Interface IP address is not set"
+		[ -z "$netmask" ] && set_error_flag "Netmask is not set"
 	fi
 
 	{
