@@ -49,9 +49,18 @@ grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline && \
 
 # Mount persisted overlay partition
 mount_jffs2 config /overlay
-grep -q overlayfs /proc/filesystems || die "OverlayFS not supported!"
-mount -t overlayfs overlay -o noatime,lowerdir=/,upperdir=/overlay /mnt || \
-	die "Failed to mount overlay!"
+
+grep -q overlayfs /proc/filesystems && overlay_type="overlayfs" || overlay_type="overlay"
+if [ "$overlay_type" = "overlayfs" ]; then
+	mount -t overlayfs overlay -o noatime,lowerdir=/,upperdir=/overlay /mnt || \
+		die "Failed to mount overlay!"
+else
+	overlay_rootdir=/overlay/root
+	overlay_workdir=/overlay/work
+	mkdir -p "$overlay_rootdir" "$overlay_workdir"
+	mount -t overlay overlay -o noatime,lowerdir=/,upperdir="$overlay_rootdir",workdir="$overlay_workdir" /mnt || \
+		die "Failed to mount overlay!"
+fi
 
 # Pivot root to overlay
 pivot_root /mnt /mnt/rom || die "Failed to pivot_root!"
