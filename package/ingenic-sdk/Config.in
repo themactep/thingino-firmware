@@ -2,5 +2,6 @@ config BR2_PACKAGE_INGENIC_SDK
 	bool "Ingenic SDK"
 	default y
 	select BR2_LINUX_KERNEL
+	depends on !BR2_SOC_FAMILY_INGENIC_T41
 	help
 	  Code from Ingenic SDK
