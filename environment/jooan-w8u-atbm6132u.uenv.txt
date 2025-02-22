@@ -1,0 +1,26 @@
+day_night_color=true
+day_night_ir850=true
+day_night_ir940=true
+day_night_ircut=true
+day_night_max=15000
+day_night_min=500
+day_night_white=true
+disable_eth=true
+enable_updates=true
+#gpio_button=
+#gpio_button_call=
+#gpio_default=
+#gpio_ir850=
+#gpio_ircut=
+#gpio_led_r=
+#gpio_white=
+#gpio_mmc_cd=
+#gpio_motor_h=
+#gpio_motor_v=
+#gpio_speaker=63
+#gpio_wlan=
+#motor_maxstep_h=
+#motor_maxstep_v=
+wlandev=atbm6132u
+
+# stock pins 6 49 50 57 58 59 60 62 63
