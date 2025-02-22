@@ -1,15 +1,19 @@
 #!/bin/sh
 
-die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
+die() { echo "$1" >&2; exit 1; }
 
 pidof -o %PPID $(basename $0) > /dev/null && die "is already running"
+
+. /etc/web.conf
+if [ -z "$day_night_color" ]; then
+	fw_printenv | grep ^day_night_ | sed -E 's/=(.*)$/="\1"/' >> /etc/web.conf
+	. /etc/web.conf
+fi
 
 STOP_FILE="/tmp/daynight.stop"
 
 MODE_FILE="/tmp/nightmode.txt"
 [ -f "$MODE_FILE" ] || echo "day" > "$MODE_FILE"
-
-. /etc/web.conf
 
 is_disabled() {
 	[ -f "$STOP_FILE" ]
@@ -37,24 +41,24 @@ controls_white() {
 
 switch_to_day() {
 	is_disabled && return
-	echo "switch to day"
 	controls_ircut && ircut on
 	controls_ir850 && irled off ir850
 	controls_ir940 && irled off ir940
 	controls_white && irled off white
 	controls_color && color on
-	echo "day" > $MODE_FILE
+	echo "day" > "$MODE_FILE"
+	echo "switched to day"
 }
 
 switch_to_night() {
 	is_disabled && return
-	echo "switch to night"
 	controls_color && color off
 	controls_ircut && ircut off
 	controls_ir850 && irled on ir850
 	controls_ir940 && irled on ir940
 	controls_white && irled on white
-	echo "night" > $MODE_FILE
+	echo "night" > "$MODE_FILE"
+	echo "switched to night"
 }
 
 # determine luminance of the scene

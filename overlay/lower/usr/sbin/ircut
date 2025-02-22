@@ -1,9 +1,13 @@
 #!/bin/sh
 
-die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
-info() { printf "\e[38;5;46m%s\e[0m\n" "$1" >&2; }
+die() { echo "$1" >&2; exit 1; }
 
-gpio_ircut=$(fw_printenv -n gpio_ircut)
+. /etc/web.conf
+
+if [ -z "$gpio_ircut" ]; then
+	fw_printenv gpio_ircut | sed -E 's/=(.*)$/="\1"/' >> /etc/web.conf
+	. /etc/web.conf
+fi
 
 pin1=$(echo $gpio_ircut | awk '{print $1}')
 if [ -n "$pin1" ]; then
@@ -30,19 +34,6 @@ fi
 MODE_FILE="/tmp/ircutmode.txt"
 [ -f "$MODE_FILE" ] || touch "$MODE_FILE"
 
-show_help() {
-	echo "Usage: $0 [on|off|toggle|status]" >&2
-	exit 1
-}
-
-report_ir_filter() {
-	case "$(cat "$MODE_FILE")" in
-		0) info "IRCUT filter is removed" ;;
-		1) info "IRCUT filter is set" ;;
-		*) info "IRCUT filter is in unknown state" ;;
-	esac
-}
-
 ir_filter_off() {
 	gpio set "$pin1" "$pin1_off" > /dev/null
 	if [ -n "$pin2" ]; then
@@ -66,24 +57,30 @@ ir_filter_on() {
 case "$1" in
 	0 | off | night)
 		ir_filter_off
-		report_ir_filter
 		;;
 	1 | on | day)
 		ir_filter_on
-		report_ir_filter
 		;;
 	~ | toggle)
-		[ "$(cat "$MODE_FILE")" -eq 0 ] && ir_filter_on || ir_filter_off
-		report_ir_filter
+		if [ "$(cat "$MODE_FILE")" -eq 0 ]; then
+			ir_filter_on
+		else
+			ir_filter_off
+		fi
 		;;
 	status)
-		report_ir_filter
+		case "$(cat "$MODE_FILE")" in
+			0) echo "IRCUT filter is removed" ;;
+			1) echo "IRCUT filter is set" ;;
+			*) echo "IRCUT filter is in unknown state" ;;
+		esac
 		;;
 	\? | read)
 		cat "$MODE_FILE" | tr -d '\n'
 		;;
 	*)
-		show_help
+		echo "Usage: $0 [on|off|toggle|status|read]" >&2
+		exit 1
 		;;
 esac
 

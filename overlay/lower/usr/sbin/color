@@ -1,52 +1,43 @@
 #!/bin/sh
 
-# set parameters from cli, if empty
-[ -z "$mode" ] && mode=$1
-
-MODE_FILE=/tmp/colormode.txt
+MODE_FILE="/tmp/colormode.txt"
 [ -f "$MODE_FILE" ] || touch "$MODE_FILE"
 
 # NB! ISP mode is set backwards: 0 - color, 1 - monochrome
 
-show_help() {
-	echo "Usage: $0 [on|off|toggle|status|read]" >&2
-	exit 1
-}
-
 switch_to_color() {
 	imp-control ispmode 0
-	echo "Switched to full-color mode"
 	echo "1" > "$MODE_FILE"
 }
 
 switch_to_monochrome() {
 	imp-control ispmode 1
-	echo "Switched to monochrome mode"
 	echo "0" > "$MODE_FILE"
 }
 
 case "$1" in
-	0 | off)
+	0 | off | night)
 		switch_to_monochrome
 		;;
-	1 | on)
+	1 | on | day)
 		switch_to_color
 		;;
 	~ | toggle)
-		if [ "$(cat $MODE_FILE 2> /dev/null)" -eq 1 ]; then
+		if [ "$(cat "$MODE_FILE")" -eq 1 ]; then
 			switch_to_monochrome
 		else
 			switch_to_color
 		fi
 		;;
 	status)
-		cat $MODE_FILE
+		cat "$MODE_FILE"
 		;;
 	\? | read)
-		cat $MODE_FILE | tr -d '\n'
+		cat "$MODE_FILE" | tr -d '\n'
 		;;
 	*)
-		show_help
+		echo "Usage: $0 [on|off|toggle|status|read]" >&2
+		exit 1
 		;;
 esac
 
