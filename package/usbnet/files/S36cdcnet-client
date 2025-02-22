@@ -3,9 +3,16 @@
 . /etc/init.d/rc.common
 
 start() {
-	decrement_mac
+	usbmac=$(fw_printenv -n usbmac)
+	if [ -z "$usbmac" ]; then
+		decrement_mac
+		daddr=$ethaddr
+	else 
+		daddr=$usbmac
+	fi
+
 	starting
-	modprobe g_ncm iManufacturer=thingino host_addr=$(fw_printenv -n ethaddr) dev_addr=$ethaddr iProduct="NCM CDC Ethernet Gadget"
+	modprobe g_ncm iManufacturer=thingino host_addr=$(fw_printenv -n ethaddr) dev_addr=$daddr iProduct="NCM CDC Ethernet Gadget"
 	usb-role -m device
 }
 
