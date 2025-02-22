@@ -349,3 +349,8 @@ li.enabled {
 	border-left: 5px solid green;
 	margin-left: -5px;
 }
+
+.running {
+ background-color:rgba(0,200,100,0.7) !important;
+ oultine:2px solid green;
+}
