@@ -4,7 +4,7 @@ day_night_ir940=false
 day_night_ircut=true
 day_night_max=15000
 day_night_min=500
-day_night_white=false
+day_night_white=true
 disable_eth=true
 enable_updates=true
 gpio_button=62
@@ -25,5 +25,3 @@ motor_maxstep_h=4000
 motor_maxstep_v=1200
 wlandev=atbm6132u
 wlandevopts=atbm_printk_mask=0
-
-#59o 60o 61i 62i 63O
