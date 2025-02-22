@@ -9,7 +9,7 @@ disable_eth=true
 enable_updates=true
 #gpio_button=
 #gpio_button_call=
-#gpio_default=
+gpio_default=6O 49o 50o 57i 58o 59o 60o 62i 63o
 #gpio_ir850=
 #gpio_ircut=
 #gpio_led_r=
@@ -22,5 +22,3 @@ enable_updates=true
 #motor_maxstep_h=
 #motor_maxstep_v=
 wlandev=atbm6132u
-
-# stock pins 6 49 50 57 58 59 60 62 63
