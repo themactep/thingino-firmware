@@ -45,7 +45,6 @@ which motors > /dev/null && has_motors="true"
 <button type="button" class="btn btn-dark border mb-2" title="Zoom" data-bs-toggle="modal" data-bs-target="#mdPreview">
 <img src="/a/zoom.svg" alt="Zoom" class="img-fluid"></button>
 </div>
-
 </div>
 <div class="col-lg-10">
 <div id="frame" class="position-relative mb-2">
@@ -138,6 +137,10 @@ ws.onopen = () => {
 ws.onclose = () => { console.log('WebSocket connection closed'); }
 ws.onerror = (err) => { console.error('WebSocket error', err); }
 ws.onmessage = (ev) => {
+	if (ws.toggler) {
+		ws.toggler.classList.toggleClass('running');
+		ws.toggler = false;
+	}
 	if (typeof ev.data == 'string') {
 		if (ev.data == '') {
 			console.log('Empty response')
@@ -167,11 +170,20 @@ ws.onmessage = (ev) => {
 					`rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
 		}
 	} else if (ev.data instanceof ArrayBuffer) {
-		updatePreview(ev.data);
+			updatePreview(ev.data);
 	}
 }
 
-function sendToWs(payload) {
+function sendToWs(el,ev) {
+	let payload = ""
+	if (el.id == "motion") {
+		payload = '{"motion":{"enabled":' + ev.target.checked + '}}' 	
+	}
+        if (el.id == "rotate") {
+		payload = '{"image":{"hflip":' + ev.target.checked + ',"vflip":' + ev.target.checked + '}}';
+	}
+        ws.toggler =      $(`label[for="${el.id}"]`);
+	ws.toggler.classList.toggle('running');                                  
 	payload = payload.replace(/}$/, ',"action":{"save_config":null}}')
 	console.log(ts(), '===>', payload);
 	ws.send(payload);
@@ -180,12 +192,15 @@ function sendToWs(payload) {
 async function toggleButton(el) {
 	if (!el) return;
 	const url = '/x/json-imp.cgi?' + new URLSearchParams({'cmd': el.id, 'val': (el.checked ? 1 : 0)}).toString();
+	const lab =     $(`label[for="${el.id}"]`); 
+	lab.classList.toggle('running');
 	console.log(url)
 	await fetch(url)
 		.then(res => res.json())
 		.then(data => {
 			console.log(data.message)
 			el.checked = data.message[el.id] == 1
+			lab.classList.toggle('running');
 		})
 }
 
@@ -205,8 +220,7 @@ async function toggleDayNight(mode = 'read') {
 		})
 }
 
-$("#motion").addEventListener('change', ev => sendToWs('{"motion":{"enabled":' + ev.target.checked + '}}'));
-$('#rotate').addEventListener('change', ev => sendToWs('{"image":{"hflip":' + ev.target.checked + ',"vflip":' + ev.target.checked + '}}'));
+$$("#motion, #rotate").forEach(el => el.addEventListener('change', ev => sendToWs(el,ev)));
 $("#daynight").addEventListener('change', ev => ev.target.checked ? toggleDayNight('night') : toggleDayNight('day'));
 $$("#color, #ircut, #ir850, #ir940, #white").forEach(el => el.addEventListener('change', ev => toggleButton(el)));
 
