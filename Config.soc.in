@@ -677,14 +677,26 @@ choice
 	prompt "Flash chip size"
 config FLASH_SIZE_8
 	bool "8MB (64MBit)"
+	depends on FLASH_NOR
 config FLASH_SIZE_16
 	bool "16MB (128MBit)"
+	depends on FLASH_NOR
 config FLASH_SIZE_32
 	bool "32MB (256MBit)"
+	depends on FLASH_NOR
+	select BR2_PACKAGE_THINGINO_UBOOT_ENABLE_BAR if !FLASH_NAND
 config FLASH_SIZE_128
+	depends on FLASH_NAND
 	bool "128MB"
 config FLASH_SIZE_256
+	depends on FLASH_NAND
 	bool "256MB"
+config FLASH_SIZE_512
+	depends on FLASH_NAND
+	bool "512MB"
+config FLASH_SIZE_1G
+	depends on FLASH_NAND
+	bool "1GB"
 endchoice
 
 choice
