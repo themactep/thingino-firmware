@@ -285,6 +285,9 @@ choice BR2_SENSOR_NAME_2
 	depends on BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_4
 	help
 	  Select the sensor model for your device
+
+config BR2_SENSOR_2_DUMMY
+	bool "Dummy (no sensor)"
 endchoice
 
 choice BR2_SENSOR_NAME_3
@@ -292,6 +295,9 @@ choice BR2_SENSOR_NAME_3
 	depends on BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_4
 	help
 	  Select the sensor model for your device
+
+config BR2_SENSOR_3_DUMMY
+	bool "Dummy (no sensor)"
 endchoice
 
 choice BR2_SENSOR_NAME_4
@@ -299,6 +305,10 @@ choice BR2_SENSOR_NAME_4
 	depends on BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_4
 	help
 	  Select the sensor model for your device
+
+config BR2_SENSOR_4_DUMMY
+	bool "Dummy (no sensor)"
+
 endchoice
 
 endmenu
