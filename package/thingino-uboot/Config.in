@@ -708,6 +708,12 @@ config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_DTS_PATH
 
 endif
 
+config BR2_PACKAGE_THINGINO_UBOOT_ENABLE_BAR
+	bool "Enable SPI Flash BAR"
+	help
+	  Define this option to use the Bank addr/Extended addr
+	  support on SPI NOR flash chips which have sizes > 16Mbytes.
+
 config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_MAKEOPTS
 	string "Custom make options"
 	help

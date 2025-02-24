@@ -1,4 +1,5 @@
 # FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+# MODULE: t31al_gc2053_atbm6031
 BR2_SOC_INGENIC_T31X=y
 BR2_SENSOR_GC2053=y
 BR2_PACKAGE_WIFI=y
@@ -24,3 +25,4 @@ BR2_THINGINO_MOTORS_TCU=y
 BR2_THINGINO_SDCARD=y
 BR2_THINGINO_PWM_ENABLE=y
 U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/wyze-c3-t31x-atbm.uenv.txt"
+FLASH_SIZE_128=y

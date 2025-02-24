@@ -1,5 +1,7 @@
 $(info --- FILE: thingino.mk)
 
+SIZE_1G := 1073741824
+SIZE_512M := 536870912
 SIZE_256M := 268435456
 SIZE_128M := 134217728
 SIZE_32M := 33554432
@@ -757,6 +759,10 @@ else ifeq ($(FLASH_SIZE_128),y)
 	FLASH_SIZE := $(SIZE_128M)
 else ifeq ($(FLASH_SIZE_256),y)
 	FLASH_SIZE := $(SIZE_256M)
+else ifeq ($(FLASH_SIZE_512),y)
+	FLASH_SIZE := $(SIZE_512M)
+else ifeq ($(FLASH_SIZE_1G),y)
+	FLASH_SIZE := $(SIZE_1G)
 else
 	FLASH_SIZE := $(SIZE_8M)
 endif
