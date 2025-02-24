@@ -1,0 +1,40 @@
+#!/bin/sh
+
+ENV_DUMP_FILE="/tmp/environment"
+
+dump_env() {
+	fw_printenv | sort | sed -E 's/=(.*)$/="\1"/' > "$1"
+}
+
+start() {
+	echo "Checking U-Boot environment dump file $ENV_DUMP_FILE"
+
+	if [ -f $ENV_DUMP_FILE ]; then
+		tmpfile=$(mktemp)
+		dump_env "$tmpfile"
+
+		if ! cmp -s "$ENV_DUMP_FILE" "$tmpfile"; then
+			echo "U-Boot environment changed, updating $ENV_DUMP_FILE"
+			mv "$tmpfile" "$ENV_DUMP_FILE"
+		else
+			echo "U-Boot environment unchanged"
+			rm "$tmpfile"
+		fi
+	else
+		echo "U-Boot environment dump file not found, creating $ENV_DUMP_FILE"
+		dump_env "$ENV_DUMP_FILE"
+	fi
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		true
+		;;
+	*)
+		echo "Usage: $0 {start|stop}"
+		exit 1
+		;;
+esac
