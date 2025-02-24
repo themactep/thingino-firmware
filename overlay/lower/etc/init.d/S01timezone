@@ -9,15 +9,29 @@ TZJSON_FILE="/usr/share/tz.json.gz"
 start() {
 	starting
 
-	test -f "$TZNAME_FILE" || echo "Etc/GMT" > "$TZNAME_FILE"
+	if [ ! -f "$TZNAME_FILE" ]; then
+		echo "Etc/GMT" > "$TZNAME_FILE"
+	fi
 	tzname=$(cat "$TZNAME_FILE")
 
-	[ -f "$TZJSON_FILE" ] || die "$TZJSON_FILE not found"
-	tz=$(zcat "$TZJSON_FILE" | jsonfilter -e "$[@.n='$tzname']".v)
-	[ -z "$tz" ] && die "Timezone $tzname not found in $TZJSON_FILE"
+	if [ ! -f "$TZJSON_FILE" ]; then
+		echo "$TZJSON_FILE not found"
+		exit 1
+	fi
 
-	test -f "$TZCODE_FILE" || echo "GMT0" > "$TZCODE_FILE"
-	[ "$tz" = "$(cat $TZCODE_FILE)" ] || echo "$tz" > "$TZCODE_FILE"
+	tz=$(zcat "$TZJSON_FILE" | jsonfilter -e "$[@.n='$tzname']".v)
+	if [ -z "$tz" ]; then
+		echo "Timezone $tzname not found in $TZJSON_FILE"
+		exit 1
+	fi
+
+	if [ ! -f "$TZCODE_FILE" ]; then
+		echo "GMT0" > "$TZCODE_FILE"
+	fi
+
+	if [ "$tz" != "$(cat $TZCODE_FILE)" ]; then
+		echo "$tz" > "$TZCODE_FILE"
+	fi
 
 	TZ="$tz"
 	export TZ
