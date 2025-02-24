@@ -1,9 +1,18 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+ENV_DUMP_FILE="/tmp/environment"
+[ -f "$ENV_DUMP_FILE" ] && . "$ENV_DUMP_FILE"
+
+CONFIG_FILE="/etc/web.conf"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+
+OS_RELEASE_FILE="/etc/os-release"
+USB_SCRIPT="/etc/init.d/F02failsafe-usb"
 
 start() {
-	is_usb_console && [ -f /etc/init.d/F02failsafe-usb ] && exit 0
+	if [ "true" = "$usb_console" ] && [ -f "$USB_SCRIPT" ]; then
+		exit 0
+	fi
 
 	echo_c 104 "\nPress the [f] key to enter failsafe mode\n"
 
@@ -11,16 +20,16 @@ start() {
 	key=$(dd bs=1 count=1 2>/dev/null)
 	stty sane
 
-	if [ "$key" = "f" ]; then
-		echo_c 118 "Failsafe mode..."
+	if [ "f" = "$key" ]; then
 		touch /tmp/.fs
 		. /etc/profile
 		exec setsid /sbin/getty -n -l /bin/sh -L console 0 vt100
+		echo_c 118 "Failsafe mode..."
 	fi
 
-	if [ -f "$FILE_OS_RELEASE" ]; then
-		. "$FILE_OS_RELEASE"
-		echo_c 208 "Thingino $IMAGE_ID [$BUILD_ID]\n"
+	if [ -f "$OS_RELEASE_FILE" ]; then
+		. "$OS_RELEASE_FILE"
+		echo_c 208 "Thingino firmware built for $IMAGE_ID\n[$BUILD_ID]\n"
 	fi
 
 	/etc/init.d/rcS
