@@ -250,7 +250,14 @@ saveconfig:
 # remove target/ directory
 clean:
 	$(info -------------------------------- $@)
-	if [ -d "$(OUTPUT_DIR)/target" ]; then rm -rf $(OUTPUT_DIR)/target; fi
+	rm -rf $(OUTPUT_DIR)/target
+	rm -rf $(OUTPUT_DIR)/config
+	rm -rf $(OUTPUT_DIR)/extras
+	rm -f $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_FULL).sha256sum
+	rm -f $(FIRMWARE_BIN_NOBOOT) $(FIRMWARE_BIN_NOBOOT).sha256sum
+	rm -f $(ROOTFS_BIN) $(ROOTFS_TAR) $(EXTRAS_BIN) $(CONFIG_BIN)
+#	$(UB_ENV_BIN) $(KERNEL_BIN)
+
 
 # remove all build files
 distclean:
@@ -453,9 +460,7 @@ $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 	rsync -a $(BR2_EXTERNAL)/overlay/config/ $(CONFIG_PARTITION_DIR)/
 	rsync -a $(BR2_EXTERNAL)/overlay/upper/ $(CONFIG_PARTITION_DIR)/
 	find $(CONFIG_PARTITION_DIR) -name ".*keep" -o -name ".empty" -delete
-	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash \
-		--output=$@ --root=$(CONFIG_PARTITION_DIR)/ \
-		--pad=$(CONFIG_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
+	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(CONFIG_PARTITION_DIR)/ --pad=$(CONFIG_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
 
 # create extras partition image
 $(EXTRAS_BIN): $(U_BOOT_BIN)
@@ -463,9 +468,7 @@ $(EXTRAS_BIN): $(U_BOOT_BIN)
 	if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(FIGLET) "EXTRAS PARTITION IS TOO SMALL"; fi
 	if [ -f $@ ]; then rm $@; fi
 	rsync -va $(OUTPUT_DIR)/target/opt/ $(OUTPUT_DIR)/extras/ && rm -rf $(OUTPUT_DIR)/target/opt/*
-	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash \
-		--output=$@ --root=$(OUTPUT_DIR)/extras/ \
-		--pad=$(EXTRAS_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
+	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/extras/ --pad=$(EXTRAS_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
 
 # rebuild kernel
 $(KERNEL_BIN):
