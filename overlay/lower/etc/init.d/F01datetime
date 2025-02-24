@@ -1,12 +1,26 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+OS_RELEASE_FILE="/etc/os-release"
+
+start() {
+	echo "Setting initial system time"
+
+	if [ ! -f "$OS_RELEASE_FILE" ]; then
+		echo "- No release file found, not setting system clock"
+		exit 1
+	fi
+
+	if date -u -s "@$(stat -c%X "$OS_RELEASE_FILE")" >/dev/null; then
+		echo "- $(date) (fail-safe)"
+	else
+		echo "- Failed to set time"
+		exit 1
+	fi
+}
 
 case "$1" in
 	start)
-		starting
-		date=$(date -s @$(stat -c%X /etc/os-release))
-		quit "Set time to $date (fail-safe)"
+		start
 		;;
 	stop)
 		true
