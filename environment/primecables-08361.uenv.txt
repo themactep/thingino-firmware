@@ -11,4 +11,4 @@ gpio_sda=48i
 gpio_speaker=63O
 motor_maxstep_h=3982
 motor_maxstep_v=1024
-wlandev=8188fu
+wlan_module=8188fu

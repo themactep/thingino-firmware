@@ -10,4 +10,4 @@ gpio_motor_v=40 46 45 39
 gpio_speaker=63O
 motor_maxstep_h 3920
 motor_maxstep_v 400
-wlandev=8188fu
+wlan_module=8188fu

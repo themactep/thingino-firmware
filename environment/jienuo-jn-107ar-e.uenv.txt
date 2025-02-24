@@ -1,0 +1,12 @@
+gpio_default=18O 57i 58i 59i
+gpio_ircut=58 57
+gpio_mmc_cd=59
+wlan_module=rtl8137bu
+
+# set gpio strength: 32-2
+# set gpio strength: 33-2
+# set gpio strength: 34-2
+# set gpio strength: 35-2
+# set gpio strength: 36-2
+# set gpio strength: 37-2
+# set gpio pull: 59-90

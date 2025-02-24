@@ -1,2 +1,2 @@
-# Platform ENV settings 
+# Platform ENV settings
 enable_updates=true

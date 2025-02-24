@@ -12,4 +12,4 @@ gpio_wlan=60O
 ispmem=8M@0x2000000
 osmem=32M@0x0
 rmem=24M@0x2800000
-wlandev=8189fs
+wlan_module=8189fs

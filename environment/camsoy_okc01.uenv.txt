@@ -7,4 +7,4 @@ gpio_mmc_cd=61
 gpio_mmc_power=62
 gpio_scl=58
 gpio_sda=57
-wlandev=hi3881
+wlan_module=hi3881

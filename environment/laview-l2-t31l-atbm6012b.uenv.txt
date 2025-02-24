@@ -15,5 +15,5 @@ osmem=32M@0x0
 pwm_ch_ir850=2
 pwm_ch_white=3
 rmem=32M@0x2000000
-wlandev=atbm6012b
-wlandevopts=atbm_printk_mask=0
+wlan_module=atbm6012b
+wlan_module_opts=atbm_printk_mask=0

@@ -15,7 +15,7 @@ gpio_white=89
 gpio_wlan=57O
 osmem=86M@0x0
 rmem=42M@0x5600000
-wlandev=8189fs
+wlan_module=8189fs
 
 # 18O 38o 39o 40i 45i 46i 48O 57i 58i 59i 60O 62O 63O 64i 72O 73O
 # 102o 103o 104o 105o 108o 109o 110o 114o

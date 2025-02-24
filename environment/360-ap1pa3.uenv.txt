@@ -19,5 +19,5 @@ motor_maxstep_v=2500
 motor_speed=700
 osmem=80M@0x0
 rmem=48M@0x5000000
-wlandev=atbm6031
-wlandevopts=atbm_printk_mask=0
+wlan_module=atbm6031
+wlan_module_opts=atbm_printk_mask=0

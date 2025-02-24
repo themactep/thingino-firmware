@@ -9,4 +9,4 @@ gpio_scl=13 58
 gpio_sda=12 57
 gpio_speaker=63
 gpio_wlan=
-wlandev=mt7601sta
+wlan_module=mt7601sta

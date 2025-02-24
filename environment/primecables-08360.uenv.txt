@@ -6,4 +6,4 @@ gpio_ircut=79 80
 gpio_led_b=73o
 gpio_mmc_cd=52
 gpio_speaker=63o
-wlandev=8188fu
+wlan_module=8188fu

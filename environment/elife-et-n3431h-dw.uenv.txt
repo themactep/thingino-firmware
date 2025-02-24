@@ -14,5 +14,5 @@ motor_maxstep_h=4200
 motor_maxstep_v=1600
 osmem=80M@0x0
 rmem=48M@0x5000000
-wlandev=ssv6x5x
-wlandevopts=stacfgpath=/usr/share/wifi/ssv6155-usb-40M.cfg
+wlan_module=ssv6x5x
+wlan_module_opts=stacfgpath=/usr/share/wifi/ssv6155-usb-40M.cfg

@@ -14,5 +14,5 @@ motor_maxstep_h=4050
 motor_maxstep_v=1150
 osmem=42M@0x0
 rmem=22M@0x2A00000
-wlandev=atbm6062u
-wlandevopts=atbm_printk_mask=0
+wlan_module=atbm6062u
+wlan_module_opts=atbm_printk_mask=0

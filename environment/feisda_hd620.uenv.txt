@@ -12,4 +12,4 @@ motor_maxstep_h=3180
 motor_maxstep_v=1140
 osmem=64M@0x0
 rmem=64M@0x4000000
-wlandev=8188fu
+wlan_module=8188fu

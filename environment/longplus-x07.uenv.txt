@@ -1,0 +1,24 @@
+disable_eth=true
+gpio_button=52
+gpio_default=9o 10o 25ID 26IDU 47o 48o 52i 59i
+gpio_ir850=9
+gpio_ircut=47 48
+gpio_led_w=10
+gpio_mmc_cd=59
+gpio_mmc_power=
+gpio_motor_h=
+gpio_motor_v=
+gpio_speaker=63
+gpio_wlan=
+motor_maxstep_h=3830
+motor_maxstep_v=1200
+motor_midstep_h=1915
+motor_midstep_v=950
+motor_speed=50
+osmem=32M@0x0
+rmem=32M@0x2000000
+wlan_module=8189fs
+
+# adc_night=1200
+# adc_day=550
+# networkmtu=1480
