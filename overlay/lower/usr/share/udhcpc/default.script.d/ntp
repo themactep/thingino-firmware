@@ -1,8 +1,24 @@
 #!/bin/sh
 
+. /etc/init.d/rc.common
+
+setup_ntp_from_dhcp() {
+	echo "Use DHCP provided NTP servers: $ntpsrv"
+
+	if [ -f "$NTP_WORKING_FILE" ] && [ '444' = "$(stat -c%a $NTP_WORKING_FILE)" ]; then
+		echo "$NTP_WORKING_FILE is read-only, skipping update"
+	else
+		echo "Add DHCP provided NTP servers to $NTP_WORKING_FILE"
+		echo $ntpsrv | tr ' ' '\n' | sed 's/^/server /; s/$/ iburst	#added by DHCP/' > $NTP_WORKING_FILE
+	fi
+}
+
 case "$1" in
-	renew | rebound)
-		ntpd -q -N -n
+	bound)
+		[ -n "$ntpsrv" ] && setup_ntp_from_dhcp
+		;;
+	renew)
+		[ -n "$ntpsrv" ] && setup_ntp_from_dhcp
 		;;
 esac
 
