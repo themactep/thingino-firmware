@@ -32,7 +32,7 @@ generate() {
 	os_hostname=$(sed -n 's/^HOSTNAME=//p' /etc/os-release)
 	info "OS hostname: $os_hostname"
 
-	mac_suffix=$(fw_printenv -n wlanmac | sed -E 's/://g;s/.*(.{4})$/\1/')
+	mac_suffix=$(fw_printenv -n wlan_mac | sed -E 's/://g;s/.*(.{4})$/\1/')
 	info "MAC suffix: $mac_suffix"
 
 	hostname="${os_hostname}-$mac_suffix"
