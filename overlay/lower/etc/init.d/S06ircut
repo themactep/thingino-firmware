@@ -2,17 +2,17 @@
 
 . /etc/init.d/rc.common
 
+start() {
+	starting
+	ircut off > /dev/null 2>&1
+	sleep 0.5
+	ircut on > /dev/null 2>&1
+	ok
+}
+
 case "$1" in
 	start)
-		starting
-		{
-			info "IRCUT filter engaged"
-			ircut off > /dev/null 2>&1
-			sleep 0.5
-			info "IRCUT filter disengaged"
-			ircut on > /dev/null 2>&1
-		}
-		ok
+		start
 		;;
 	stop)
 		true

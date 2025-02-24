@@ -2,16 +2,24 @@
 
 . /etc/init.d/rc.common
 
+start() {
+	starting
+	[ "true" = "$(fw_printenv -n sysupgrade_complete)" ] && ok && quit
+	run "fw_setenv sysupgrade_complete true"
+	# play_sound thingino.pcm
+}
+
+stop() {
+	stopping
+	[ -f "/tmp/upgrade.me" ] && sysupgrade -p
+}
+
 case "$1" in
 	start)
-		starting
-		[ "true" = "$(fw_printenv -n sysupgrade_complete)" ] && ok && quit
-		run "fw_setenv sysupgrade_complete true"
-		# play_sound thingino.pcm
+		start
 		;;
 	stop)
-		stopping
-		[ -f "/tmp/upgrade.me" ] && sysupgrade -p
+		stop
 		;;
 	*)
 		echo "Usage: $0 {start|stop}"

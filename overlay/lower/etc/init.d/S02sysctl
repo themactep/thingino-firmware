@@ -2,11 +2,15 @@
 
 . /etc/init.d/rc.common
 
+start() {
+	starting
+	sysctl -q -p || die "Failed to apply sysctl settings"
+	check_result
+}
+
 case "$1" in
 	start)
-		starting
-		sysctl -q -p || die "Failed to apply sysctl settings"
-		check_result
+		start
 		;;
 	stop)
 		true
