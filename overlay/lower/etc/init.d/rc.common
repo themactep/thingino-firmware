@@ -6,10 +6,10 @@ if [ "$0" = "-sh" ]; then
 fi
 
 ENV_DUMP_FILE="/tmp/environment"
-[ -f "$ENV_DUMP_FILE" ] || . "$ENV_DUMP_FILE"
+[ -f "$ENV_DUMP_FILE" ] && . "$ENV_DUMP_FILE"
 
 CONFIG_FILE="/etc/web.conf"
-[ -f "$CONFIG_FILE" ] || . "$CONFIG_FILE"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
 CRONTABS="/etc/cron/crontabs/root"
 
