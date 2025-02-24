@@ -60,7 +60,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "grep ^ftp_ $WEB_CONFIG_FILE" %>
+<% ex "grep ^ftp_ $CONFIG_FILE" %>
 </div>
 
 <%in _footer.cgi %>

@@ -53,7 +53,7 @@ Learn how to create it on <a href="https://yandex.com/support/id/authorization/a
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "grep ^yadisk_ $WEB_CONFIG_FILE" %>
+<% ex "grep ^yadisk_ $CONFIG_FILE" %>
 </div>
 
 <%in _footer.cgi %>

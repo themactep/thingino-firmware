@@ -87,7 +87,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "grep ^mqtt_ $WEB_CONFIG_FILE" %>
+<% ex "grep ^mqtt_ $CONFIG_FILE" %>
 </div>
 
 <script>

@@ -60,7 +60,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "grep ^scp_ $WEB_CONFIG_FILE" %>
+<% ex "grep ^scp_ $CONFIG_FILE" %>
 <% ex "xxd $SCP_KEY" %>
 </div>
 

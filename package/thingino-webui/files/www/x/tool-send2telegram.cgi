@@ -56,7 +56,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "grep ^telegram_ $WEB_CONFIG_FILE" %>
+<% ex "grep ^telegram_ $CONFIG_FILE" %>
 </div>
 
 <%in _tg_bot.cgi %>

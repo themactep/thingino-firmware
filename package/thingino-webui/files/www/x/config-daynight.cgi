@@ -129,8 +129,8 @@ Switching between modes is triggered by changes in the gain beyond the threshold
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "grep ^day_night_ $WEB_CONFIG_FILE" %>
-<% ex "grep ^dusk2dawn_ $WEB_CONFIG_FILE" %>
+<% ex "grep ^day_night_ $CONFIG_FILE" %>
+<% ex "grep ^dusk2dawn_ $CONFIG_FILE" %>
 <% ex "crontab -l" %>
 </div>
 

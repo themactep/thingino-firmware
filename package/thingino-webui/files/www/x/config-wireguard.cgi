@@ -95,7 +95,7 @@ and routing traffic from the camera, to a set of CIDRs (networks) through that s
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "grep '^wireguard_' $WEB_CONFIG_FILE | sed -Ee 's/(key|psk)=.*$/\1=[__redacted__]/' | sort" %>
+<% ex "grep '^wireguard_' $CONFIG_FILE | sed -Ee 's/(key|psk)=.*$/\1=[__redacted__]/' | sort" %>
 <% ex "wg show $WG_DEV 2>&1 | grep -A5 endpoint" %>
 </div>
 

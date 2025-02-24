@@ -143,8 +143,8 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "grep ^gpio_motor_ $WEB_CONFIG_FILE" %>
-<% ex "grep ^motor_ $WEB_CONFIG_FILE" %>
+<% ex "grep ^gpio_motor_ $CONFIG_FILE" %>
+<% ex "grep ^motor_ $CONFIG_FILE" %>
 <pre>
 motor_disable_homing: <%= $motor_disable_homing %>
 </pre>

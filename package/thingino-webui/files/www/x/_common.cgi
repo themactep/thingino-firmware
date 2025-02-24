@@ -406,7 +406,7 @@ html_title() {
 }
 
 html_theme() {
-	test -f "$WEB_CONFIG_FILE" && webui_theme=$(awk -F= '/webui_theme/{print $2}' "$WEB_CONFIG_FILE" | tr -d '"')
+	test -f "$CONFIG_FILE" && webui_theme=$(awk -F= '/webui_theme/{print $2}' "$CONFIG_FILE" | tr -d '"')
 	case "$webui_theme" in
 		dark | light)
 			echo -n $webui_theme
@@ -516,7 +516,7 @@ progressbar() {
 }
 
 read_from_config() {
-	awk -F= "/^$1/{print \$2}" $WEB_CONFIG_FILE
+	awk -F= "/^$1/{print \$2}" $CONFIG_FILE
 }
 
 read_from_env() {
@@ -586,6 +586,7 @@ sanitize() {
 
 sanitize4web() {
 	local n=$1
+	[ -z "$n" ] && return
 	# convert html entities
 	eval $n=$(echo \${$n//\\\"/\&quot\;})
 	eval $n=$(echo \${$n//\$/\\\$})
@@ -599,7 +600,7 @@ save2config() {
 	echo "$1" > "$tmp2file"
 
 	tmp1file="$(mktemp -u)"
-	cp "$WEB_CONFIG_FILE" "$tmp1file"
+	cp "$CONFIG_FILE" "$tmp1file"
 	while read -r line; do
 		[ -z "$line" ] && continue
 		name="${line%%=*}"
@@ -610,7 +611,7 @@ save2config() {
 
 	sort -o -u "$tmp1file" "$tmpfile"
 	sed -i '/^$/d' "$tmp1file"
-	mv "$tmp1file" "$WEB_CONFIG_FILE"
+	mv "$tmp1file" "$CONFIG_FILE"
 	rm "$tmp2file"
 }
 
