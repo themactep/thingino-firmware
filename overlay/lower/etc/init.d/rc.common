@@ -5,9 +5,11 @@ if [ "$0" = "-sh" ]; then
 	return
 fi
 
-WEB_CONFIG_FILE="/etc/web.conf"
-[ -f $WEB_CONFIG_FILE ] || touch $WEB_CONFIG_FILE
-. $WEB_CONFIG_FILE
+ENV_DUMP_FILE="/tmp/environment"
+[ -f "$ENV_DUMP_FILE" ] || . "$ENV_DUMP_FILE"
+
+CONFIG_FILE="/etc/web.conf"
+[ -f "$CONFIG_FILE" ] || . "$CONFIG_FILE"
 
 CRONTABS="/etc/cron/crontabs/root"
 
@@ -28,7 +30,7 @@ check_result() {
 
 decrement_mac() {
 	local last_byte_dec mac
-	mac=$(fw_printenv -n ethaddr)
+	mac=$ethaddr
 	last_byte_dec=$((0x${mac##*:} - 1))
 	[ $last_byte_dec -lt 0 ] && die "Error: MAC address cannot be decremented below 00"
 	ethaddr=$(printf "%s:%02x" "${mac%:*}" "$last_byte_dec")
@@ -138,7 +140,7 @@ info() {
 }
 
 is_boot_complete() {
-	[ "true" = "$(fw_printenv -n boot_complete)" ]
+	[ "true" = "$boot_complete" ]
 }
 
 is_debug_mode() {
@@ -146,7 +148,7 @@ is_debug_mode() {
 }
 
 is_streamer_disabled() {
-	[ "true" = "$(fw_printenv -n disable_streamer)" ] || [ -f /run/portal_mode ]
+	[ "true" = "$disable_streamer" ] || [ -f /run/portal_mode ]
 }
 
 is_streamer_running() {
@@ -160,7 +162,7 @@ is_gateway_reachable() {
 }
 
 is_usb_console() {
-	[ "true" = "$(fw_printenv -n usb_console)" ]
+	[ "true" = "$usb_console" ]
 }
 
 kill_daemon() {
