@@ -2,7 +2,8 @@
 
 die() { echo "$1" >&2; exit 1; }
 
-. /etc/web.conf
+CONFIG_FILE="/etc/web.conf"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
 if [ -z "$gpio_ircut" ]; then
 	fw_printenv gpio_ircut | sed -E 's/=(.*)$/="\1"/' >> /etc/web.conf

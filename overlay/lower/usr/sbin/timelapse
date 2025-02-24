@@ -5,7 +5,7 @@ SNAPSHOT_FILE="/tmp/snapshot.jpg"
 CONFIG_FILE="/etc/web.conf"
 [ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
-die() { printf "\e[38;5;160m%s\e[0m\n" "$1" >&2; exit 1; }
+die() { echo "$1" >&2; exit 1; }
 
 create_directory_for() {
 	dir="$(dirname "$1")"

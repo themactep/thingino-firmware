@@ -1,14 +1,12 @@
 #!/bin/sh
 
-die() { echo "$1" >&2; exit 1; }
-
-pidof -o %PPID $(basename $0) > /dev/null && die "is already running"
-
-. /etc/web.conf
-if [ -z "$day_night_color" ]; then
-	fw_printenv | grep ^day_night_ | sed -E 's/=(.*)$/="\1"/' >> /etc/web.conf
-	. /etc/web.conf
+if pidof -o %PPID $(basename $0) > /dev/null; then
+	echo "is already running" >&2
+	exit 1
 fi
+
+CONFIG_FILE="/etc/web.conf"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
 STOP_FILE="/tmp/daynight.stop"
 
@@ -47,7 +45,7 @@ switch_to_day() {
 	controls_white && irled off white
 	controls_color && color on
 	echo "day" > "$MODE_FILE"
-	echo "switched to day"
+	echo "switched to day" >&2
 }
 
 switch_to_night() {
@@ -58,13 +56,13 @@ switch_to_night() {
 	controls_ir940 && irled on ir940
 	controls_white && irled on white
 	echo "night" > "$MODE_FILE"
-	echo "switched to night"
+	echo "switched to night" >&2
 }
 
 # determine luminance of the scene
 value=$(imp-control gettotalgain)
 if [ -z "$value" ] || [ "error" = "$value" ]; then
-	echo "Cannot get the value"
+	echo "Cannot get the value" >&2
 	exit 1
 fi
 
@@ -97,7 +95,7 @@ case "$1" in
 			elif [ "$value" -gt "$day_night_max" ] && [ "night" != "$state" ]; then
 				switch_to_night
 			else
-				echo "within limits"
+				echo "within limits" >&2
 			fi
 		else
 			if [ "$value" -gt "$day_night_max" ] && [ "night" != "$state" ]; then
@@ -105,7 +103,7 @@ case "$1" in
 			elif [ "$value" -lt "$day_night_min" ] && [ "day" != "$state" ]; then
 				switch_to_day
 			else
-				echo "within limits"
+				echo "within limits" >&2
 			fi
 		fi
 		;;
