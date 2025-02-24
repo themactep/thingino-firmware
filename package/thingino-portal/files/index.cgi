@@ -1,7 +1,7 @@
 #!/bin/haserl
 <%
-image_id=$(awk -F'=' '/IMAGE_ID/{print $2}' /etc/os-release)
-build_id=$(awk -F'=' '/BUILD_ID/{print $2}' /etc/os-release | tr -d '"')
+image_id=$(awk -F= '/IMAGE_ID/{print $2}' /etc/os-release)
+build_id=$(awk -F= '/BUILD_ID/{print $2}' /etc/os-release | tr -d '"')
 timestamp=$(date +%s)
 ttl_in_sec=600
 
@@ -94,8 +94,6 @@ elif get_request; then
 	wlanmac=$(from_env wlanmac)
 	wlanpass=$(from_env wlanpass)
 	wlanssid=$(from_env wlanssid)
-
-	[ -z "$hostname" ] && hostname=$(hostname | tr -d '\n')
 
 	http_header="HTTP/1.1 200 OK"
 	http_redirect=""
