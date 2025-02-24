@@ -66,13 +66,6 @@ fail() {
 	echo "FAIL" | log
 }
 
-get_vars_from_env() {
-	local tmpfile=$(mktemp)
-	fw_printenv | grep ^${1}_ > $tmpfile
-	. $tmpfile
-	rm $tmpfile
-}
-
 gpio_control() {
 	gpio_name="$1"
 	gpio_power="$(fw_printenv -n "$gpio_name")"
