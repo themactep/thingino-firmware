@@ -21,32 +21,68 @@ timeout() {
 start() {
 	echo "Starting captive portal"
 
-	[ -f /run/portal_mode ] && quit "Already running"
+	if [ -f /run/portal_mode ]; then
+		echo "Already running"
+		exit 0
+	fi
 
-	(iface_exists "eth0" || iface_exists "usb0") && quit "Wired interface found"
+	if iface_exists "eth0"; then
+		echo "Ethernet interface found"
+		exit 0
+	fi
 
-	iface_exists "$portal_device" || quit "Wireless port not found"
+	if iface_exists "usb0"; then
+		echo "USB interface found"
+		exit 0
+	fi
+
+	if ! iface_exists "$portal_device"; then
+		echo "Wireless port not found"
+		exit 0
+	fi
 
 	# quit if credentials are set
-	[ -n "$wlan_ssid" ] && [ -n "$wlan_pass" ] && quit "WLAN already configured"
+	if [ -n "$wlan_ssid" ] && [ -n "$wlan_pass" ]; then
+		echo "WLAN already configured"
+		exit 0
+	fi
 
-	[ "true" = "$wlanap_enabled" ] && quit "WLAN AP enabled"
+	if [ "true" = "$wlanap_enabled" ]; then
+		echo "WLAN AP enabled"
+		exit 0
+	fi
 
+	echo "Run The Portal"
 	touch /run/portal_mode
 	touch /run/udhcpd.leases
 
+	echo "- Assign ${CNET}.1 to $portal_device"
 	ip a add dev $portal_device ${CNET}.1/24
-	ip link set $portal_device up
-	ip route add ${CNET}.0/24 dev $portal_device > /dev/null 2>&1
 
-	start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd-portal.conf 2>&1
+	echo "- Bring $portal_device interface up"
+	ip link set $portal_device up
+
+	echo "- Add route ${CNET}.0/24 to $portal_device"
+	ip route add ${CNET}.0/24 dev $portal_device
+
+	echo "- Starting DHCP server"
+	start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd-portal.conf
+
+	echo "- Starting DNS server"
 	start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /etc/dnsd-portal.conf -d
 
+	echo "- Read MAC address"
 	mac_address=$(ip link show $portal_device | awk '/ether/ {print $2}')
+
+	echo "- Update SSID with last two octets of MAC address"
 	last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
+
+	echo "- Update SSID name in wpa_supplicant config"
 	sed -i "/ssid=\"THINGINO-\"$/ s/\"$/$last_two\"/" /etc/wpa-portal_ap.conf
 
-	start-stop-daemon -S -x /sbin/wpa_supplicant -- -i $portal_device -B -c /etc/wpa-portal_ap.conf 2>&1
+	echo "- Starting wpa_supplicant"
+	start-stop-daemon -S -x /sbin/wpa_supplicant -- -i $portal_device \
+		-B -c /etc/wpa-portal_ap.conf
 
 	timeout &
 }
@@ -54,7 +90,10 @@ start() {
 stop() {
 	echo "Stopping captive portal"
 
-	[ -f /run/portal_mode ] || quit "Not running"
+	if [ ! -f /run/portal_mode ]; then
+		echo "Not running"
+		exit 0
+	fi
 
 	start-stop-daemon -K -q -x /sbin/udhcpd
 	start-stop-daemon -K -q -x /sbin/dnsd
@@ -64,7 +103,7 @@ stop() {
 	ip link set $portal_device down
 	rm /run/portal_mode
 
-	kill -9 $(pidof -s S41portal -o $$)
+	kill -9 "$(pidof -s S41portal -o $$)"
 }
 
 case "$1" in
