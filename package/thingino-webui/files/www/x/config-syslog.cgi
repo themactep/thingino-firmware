@@ -3,9 +3,6 @@
 <%
 page_title="Remote Logging"
 
-# read values from configs
-. $WEB_CONFIG_FILE
-
 defaults() {
 	default_for rsyslog_port "514"
 	default_for rsyslog_local "false"

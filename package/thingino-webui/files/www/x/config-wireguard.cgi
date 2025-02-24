@@ -5,9 +5,6 @@
 
 page_title="WireGuard VPN"
 
-# read values from configs
-. $WEB_CONFIG_FILE
-
 WG_DEV="wg0"
 
 defaults() {

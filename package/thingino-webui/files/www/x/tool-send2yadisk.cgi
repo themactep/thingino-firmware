@@ -3,9 +3,6 @@
 <%
 page_title="Send to Yandex Disk"
 
-# read values from configs
-. $WEB_CONFIG_FILE
-
 defaults() {
 	true
 }

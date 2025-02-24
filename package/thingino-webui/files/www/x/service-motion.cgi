@@ -2,9 +2,6 @@
 <%in _common.cgi %>
 <%
 page_title="Motion Guard"
-
-# read values from configs
-. $WEB_CONFIG_FILE
 %>
 <%in _header.cgi %>
 

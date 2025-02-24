@@ -3,9 +3,6 @@
 <%
 page_title="Send to email"
 
-# read values from configs
-. $WEB_CONFIG_FILE
-
 defaults() {
 	default_for email_attach_snapshot "false"
 	default_for email_attach_video "true"

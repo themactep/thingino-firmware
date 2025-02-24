@@ -3,9 +3,6 @@
 <%
 page_title="Admin profile"
 
-# read values from configs
-. $WEB_CONFIG_FILE
-
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 

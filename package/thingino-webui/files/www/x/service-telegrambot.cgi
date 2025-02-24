@@ -3,9 +3,6 @@
 <%
 page_title="Telegram Bot"
 
-# read values from configs
-. $WEB_CONFIG_FILE
-
 params="enabled token users"
 for i in $(seq 0 9); do
 	params="$params command_$i description_$i script_$i"

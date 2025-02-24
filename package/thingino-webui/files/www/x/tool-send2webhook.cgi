@@ -3,9 +3,6 @@
 <%
 page_title="Send to Webhook"
 
-# read values from configs
-. $WEB_CONFIG_FILE
-
 defaults() {
 	default_for webhook_attach_snapshot "true"
 }

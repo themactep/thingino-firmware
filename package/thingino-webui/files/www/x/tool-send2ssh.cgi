@@ -3,9 +3,6 @@
 <%
 page_title="Send to SSH"
 
-# read values from configs
-. $WEB_CONFIG_FILE
-
 defaults() {
 	default_for ssh_port "22"
 	default_for ssh_username "root"

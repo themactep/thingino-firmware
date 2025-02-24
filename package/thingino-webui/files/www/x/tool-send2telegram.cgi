@@ -3,9 +3,6 @@
 <%
 page_title="Send to Telegram"
 
-# read values from configs
-. $WEB_CONFIG_FILE
-
 defaults() {
 	default_for telegram_attach_snapshot "true"
 	default_for telegram_attach_video "true"

@@ -3,9 +3,6 @@
 <%
 page_title="Web Interface"
 
-# read values from configs
-. $WEB_CONFIG_FILE
-
 defaults() {
 	default_for ui_username "$USER"
 }

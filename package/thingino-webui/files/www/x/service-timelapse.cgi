@@ -6,9 +6,6 @@ page_title="Timelapse Recorder"
 MOUNTS=$(awk '/cif|fat|nfs|smb/{print $2}' /etc/mtab)
 TIMELAPSE_FILENAME_FB="%Y%m%d/%Y%m%dT%H%M%S.jpg"
 
-# read values from configs
-. $WEB_CONFIG_FILE
-
 defaults() {
 	default_for timelapse_device_path "$(hostname)/timelapses"
 	default_for timelapse_filename "$TIMELAPSE_FILENAME_FB"

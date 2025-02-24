@@ -5,9 +5,6 @@ page_title="Motors"
 
 [ -f /bin/motors ] || redirect_to "/" "danger" "Your camera does not seem to support motors"
 
-# read values from configs
-. $WEB_CONFIG_FILE
-
 # dump env to config if not present
 [ -z "$gpio_motor_h" ] && dump_from_env "motor"
 

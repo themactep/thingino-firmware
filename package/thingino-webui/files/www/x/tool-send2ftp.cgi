@@ -3,9 +3,6 @@
 <%
 page_title="Send to FTP"
 
-# read values from configs
-. $WEB_CONFIG_FILE
-
 defaults() {
 	default_for "ftp_port" "21"
 	default_for "ftp_template" "${network_hostname}-%Y%m%d-%H%M%S"
