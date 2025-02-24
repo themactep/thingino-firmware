@@ -1,91 +1,61 @@
 #!/bin/sh
-# udhcpc script edited by Tim Riker <Tim@Rikers.org>
+# inspired by original udhcpc script
+# https://github.com/buildroot/buildroot/blob/master/package%2Fbusybox%2Fudhcpc.script
+# https://udhcp.busybox.net/README.udhcpc
 
-[ -z "$1" ] && echo "Error: should be called from udhcpc" && exit 1
-RESOLV_CONF="/tmp/resolv.conf"
-NTP_DEFAULT="/etc/default/ntp.conf"
-NTP_CONF="/tmp/ntp.conf"
+. /etc/init.d/rc.common
 
-NETMASK=""
-[ -n "$subnet" ] && NETMASK="/$subnet"
+[ -z "$1" ] && die "Error: should be called from udhcpc"
 
-BROADCAST="broadcast +"
-[ -n "$broadcast" ] && BROADCAST="broadcast $broadcast"
+[ -d /sys/class/net/$interface ] || die "$interface not found"
 
-# Define default metrics for interface types
-DEFAULT_METRIC=100
-WIRELESS_METRIC=200
-WIRED_METRIC=100
+setup_routers() {
+	while route del default gw 0.0.0.0 dev $interface 2> /dev/null; do
+		echo "Default route deleted"
+	done
 
-# Function to determine the interface type
-get_interface_type() {
-case "$1" in
-	wlan*|wlp*|wls*) echo "wireless" ;;
-	eth*|enp*|ens*|usb*|enx*) echo "wired" ;;
-	*) echo "unknown" ;;
-esac
+	for i in $router ; do
+		if [ "255.255.255.255" = "$subnet" ]; then
+			echo "Set route via $i"
+			ip route add $i dev $interface
+		fi
+
+		case "$interface" in
+			wlan* | wlp* | wls*) metric=200 ;;
+			eth* | enp* | ens* | enx* | usb*) metric=100 ;;
+			*) metric=100 ;;
+		esac
+		echo "Set default route via $i with metric $metric"
+		route add default gw $i dev $interface metric $metric
+	done
 }
 
 case "$1" in
 	deconfig)
+		echo "Flush interface $interface"
 		ip -4 addr flush dev $interface up
+
+		echo "Set up interface $interface"
 		ip link set dev $interface up
 		;;
+	bound)
+		echo "Assign $ip/$subnet with broadcast ${broadcast:-+}"
+		ip addr add $ip/$subnet broadcast ${broadcast:-+} dev $interface
+		[ -n "$router" ] && setup_routers
+		;;
 
-	renew | bound)
-		echo "Setting IP address $ip on $interface"
-		ip addr add $ip$NETMASK $BROADCAST dev $interface
-		if [ -n "$router" ]; then
-			echo "Deleting routers"
-			while route del default gw 0.0.0.0 dev $interface; do
-				:
-			done
-
-			for i in $router; do
-				echo "Adding router $i"
-				if [ "$subnet" = "255.255.255.255" ]; then
-					ip route add $i dev $interface
-				fi
-				# Set different metrics based on interface type
-				IF_TYPE=$(get_interface_type $interface)
-				case "$IF_TYPE" in
-					wireless)
-						route add default gw $i dev $interface metric $WIRELESS_METRIC
-						;;
-					wired)
-						route add default gw $i dev $interface metric $WIRED_METRIC
-						;;
-					*)
-						route add default gw $i dev $interface metric $DEFAULT_METRIC
-						;;
-				esac
-			done
-		fi
-
-		if test -L $RESOLV_CONF; then
-			test -e $RESOLV_CONF || touch $RESOLV_CONF
-		fi
-
-		realconf=$(readlink -f $RESOLV_CONF 2>/dev/null || echo $RESOLV_CONF)
-		echo "Recreating $realconf"
-		tmpfile=$(mktemp)
-		[ -n "$domain" ] && echo "search $domain" >>$tmpfile
-		for i in $dns; do
-			echo "Adding DNS server $i"
-			echo "nameserver $i" >>$tmpfile
-		done
-		mv $tmpfile $realconf
-
-		cp $NTP_DEFAULT $NTP_CONF
-		if [ -n "$ntpsrv" ] && [ "$(stat -c%a $NTP_CONF)" != '444' ]; then
-			echo $ntpsrv | tr ' ' '\n' | sed 's/^/server /; s/$/ iburst	#added by DHCP/' > $NTP_CONF
-			/etc/init.d/S49ntpd reload
-		fi
+	renew)
+		[ -n "$router" ] && setup_routers
+		;;
+	nak)
+		echo "Oops, got a NAK from the DHCP server"
+		echo "Message: $message"
 		;;
 esac
 
 for hook in "$0.d/"*; do
-	[ -f "$hook" ] && [ -x "$hook" ] && $hook $1
+	[ -f "$hook" ] || continue
+	[ -x "$hook" ] && $hook $1
 done
 
 exit 0
