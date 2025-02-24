@@ -2,15 +2,20 @@
 
 die() { echo "$1" >&2; exit 1; }
 
+ENV_DUMP_FILE="/tmp/environment"
+[ -f "$ENV_DUMP_FILE" ] && . "$ENV_DUMP_FILE"
+
 CONFIG_FILE="/etc/web.conf"
 [ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
-if [ -z "$gpio_ircut" ]; then
-	fw_printenv gpio_ircut | sed -E 's/=(.*)$/="\1"/' >> /etc/web.conf
-	. /etc/web.conf
+pin1=$gpio_ircut_1
+pin2=$gpio_ircut_2
+# Backward compatibility
+if [ -z "$pin1$pin2" ] && [ -n "$gpio_ircut" ]; then
+	pin1=${gpio_ircut%% *}
+	pin2=${gpio_ircut##* }
 fi
 
-pin1=$(echo $gpio_ircut | awk '{print $1}')
 if [ -n "$pin1" ]; then
 	[ "$pin1" = "${pin1//[^0-9]/}" ] && pin1="${pin1}O"
 	case ${pin1:(-1)} in
@@ -22,7 +27,6 @@ else
 	die "Please define IRCUT pins in bootloader environment"
 fi
 
-pin2=$(echo $gpio_ircut | awk '{print $2}')
 if [ -n "$pin2" ]; then
 	[ "$pin2" = "${pin2//[^0-9]/}" ] && pin2="${pin2}O"
 	case ${pin2:(-1)} in
