@@ -1,6 +1,8 @@
 #!/bin/sh
 
-DAEMON_ARGS="-T 60 /dev/watchdog"
+DAEMON="watchdog"
+DAEMON_ARGS="-T ${watchdog_timeout:-60} ${watchdog_device:-/dev/watchdog}"
+PIDFILE="/var/run/$DAEMON.pid"
 
 . /etc/init.d/rc.common
 
