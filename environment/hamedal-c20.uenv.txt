@@ -1,6 +1,5 @@
 disable_eth=true
 disable_sd=true
-enable_updates=true
 gpio_button_audio_mute=35
 gpio_button_video_mute=34
 gpio_button_vol_down=33

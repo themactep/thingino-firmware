@@ -1,8 +1,5 @@
-day_night_max=15000
-day_night_min=500
 disable_eth=false
 disable_sd=false
-enable_updates=true
 gpio_button=6
 gpio_default=6I 14O 52o 53o 54o 51o 57o 58o 61o 62o 63o 64o 49O 50O
 gpio_ir850=50o

@@ -1,7 +1,6 @@
 osmem=39M@0x0
 rmem=25M@0x2700000
 disable_eth=true
-enable_updates=true
 gpio_button=18
 gpio_default=6O 7o 8O 9o 10o 11o 14I 17I 18O 49I 50o 51o 52o 53o 54o 60O 61o 62o 63o 64o
 gpio_ir850=50

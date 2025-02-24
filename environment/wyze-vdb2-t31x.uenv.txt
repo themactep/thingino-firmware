@@ -1,13 +1,5 @@
-day_night_color=true
-day_night_ir850=false
-day_night_ir940=true
-day_night_ircut=true
-day_night_max=15000
-day_night_min=500
-day_night_white=false
 disable_eth=true
 disable_sd=false
-enable_updates=true
 gpio_button=6
 gpio_button_chime=7
 gpio_default=25ID 26IDU 38o 39o
