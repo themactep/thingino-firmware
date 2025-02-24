@@ -1,0 +1,57 @@
+#!/bin/sh
+
+CONFIG_FILE="/etc/web.conf"
+if [ ! -f "$CONFIG_FILE" ]; then
+	echo "$CONFIG_FILE not found!" >&2
+	exit 1
+fi
+
+show_help() {
+	local app=$(basename $0)
+	echo "Thingino System Config Tool
+Usage: 
+ $app g <param>           - Get parameter value
+ $app s <param> <value>   - Set parameter value
+ $app d <param>           - Delete parameter
+ $app l [<filter>]        - List parameters matching filter
+" >&2
+	exit 1
+}
+
+backup() {
+	cp "$CONFIG_FILE" "/tmp/$(basename $CONFIG_FILE).$(date +%s).bak"
+}
+
+case "$1" in
+	g*)
+		[ -z "$2" ] && show_help
+		awk -F= "/^$2=/{gsub(/\"/,\"\",\$2);print \$2}" "$CONFIG_FILE"
+		;;
+	s*)
+		[ -z "$3" ] && show_help
+		backup
+		value="$(echo "$3" | sed 's/"/\"/g')"
+		if grep -q "^$2=" "$CONFIG_FILE"; then
+			sed -i "/^$2=/c$2=\"$value\"" "$CONFIG_FILE"
+		else
+			tmpfile=$(mktemp)
+			cat "$CONFIG_FILE" > "$tmpfile"
+			echo "$2=\"$value\"" >> "$tmpfile"
+			sed -i "/^\s*$/d" "$tmpfile"
+			sort -u < "$tmpfile" > "$CONFIG_FILE"
+		fi
+		;;
+	d*)
+		[ -z "$2" ] && show_help
+		backup
+		sed -i "/^$2=/d" "$CONFIG_FILE"
+		;;
+	l*)
+		grep "$2" "$CONFIG_FILE"
+		;;
+	*)
+		show_help
+		;;
+esac
+
+exit 0
