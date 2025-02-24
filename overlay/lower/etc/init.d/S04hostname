@@ -48,7 +48,7 @@ case "$1" in
 		update_hosts
 		#update_os_release
 		update_hostname
-		run "export HOSTNAME=\"$hostname\""
+		export HOSTNAME="$hostname"
 		ok
 		;;
 	stop)
