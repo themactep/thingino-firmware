@@ -6,13 +6,15 @@ DAEMON_ARGS="0.05 $LINK_FILE"
 . /etc/init.d/rc.common
 
 start() {
-	starting
+	echo "Starting LED daemon..."
+
 	start_daemon
 	touch $LINK_FILE
 }
 
 stop() {
-	stopping
+	echo "Stopping LED daemon..."
+
 	rm -f $LINK_FILE
 	stop_daemon
 }
