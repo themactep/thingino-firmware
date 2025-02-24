@@ -1,6 +1,1 @@
-root=/dev/mtdblock4
-rootfstype=squashfs
-init=/init
-mtdparts=setenv mtdparts mtdparts=jz_sfc:256k(boot),64k(env),64k(config),${kern_size}(kernel),${rootfs_size}(rootfs),-(rootfs_data)$update
-bootargs=setenv bootargs mem=${osmem} rmem=${rmem} console=${serialport},${baudrate}n8 panic=${panic_timeout} root=${root} rootfstype=${rootfstype} init=${init} \\${mtdparts}
-bootcmd=sf probe;sq probe;run mtdparts;run mtdparts;run bootargs;sf read ${baseaddr} 0x${kern_addr} 0x${kern_len};bootm ${baseaddr}
+# Platform ENV settings 
