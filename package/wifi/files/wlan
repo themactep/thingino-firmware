@@ -2,8 +2,10 @@
 
 . /etc/init.d/rc.common
 
-wlandev=$(fw_printenv -n wlandev)
-[ -z "$wlandev" ] && die "wlandev is empty, exit."
+if [ -z "$wlan_module" ]; then
+	echo "wlan_module is empty, exit."
+	exit 1
+fi
 
 ATBM_CMD_FILE=$(find /sys/module/atbm*/atbmfs -name atbm_cmd 2>/dev/null)
 SSV_CMD_FILE="/proc/ssv/phy0/ssv_cmd"
@@ -26,10 +28,17 @@ check_interface() {
 }
 
 cli() {
-	case "$wlandev" in
-		ssv*) CMD_FILE="$SSV_CMD_FILE" ;;
-		atbm*) CMD_FILE="$ATBM_CMD_FILE" ;;
-		*) die "Error: CLI is not supported on $wlandev." ;;
+	case "$wlan_module" in
+		atbm*)
+			CMD_FILE="$ATBM_CMD_FILE"
+			;;
+		ssv*)
+			CMD_FILE="$SSV_CMD_FILE"
+			;;
+		*)
+			echo "Error: CLI is not supported on $wlan_module."
+			exit 1
+			;;
 	esac
 
 	if [ -z "$1" ]; then
@@ -39,7 +48,7 @@ cli() {
 		exit 0
 	fi
 
-	[ -f "$CMD_FILE" ] || die "Error: Command file not found for $wlandev."
+	[ -f "$CMD_FILE" ] || die "Error: Command file not found for $wlan_module."
 
 	echo "$*" > "$CMD_FILE"
 	cat "$CMD_FILE"
@@ -48,44 +57,50 @@ cli() {
 rssi() {
 	check_interface wlan0
 
-	case "$wlandev" in
-		ssv*)
-			echo "rf rssi" > $SSV_CMD_FILE
-			cat $SSV_CMD_FILE | sed -n 's/.*ofdm RSSI \(-[0-9]*\).*/\1/p'
+	case "$wlan_module" in
+		aic*)
+			echo "AICSemi not supported yet."
 			;;
 		atbm*)
 			iwpriv wlan0 common get_rssi | sed -n 's/.*rssi=\(-[0-9]*\).*/\1/p'
 			;;
-		mt7*|rtl*|818*|87*|88*)
-			iwconfig wlan0 | sed -n 's/.*Signal level[=:] *\(-\?[0-9]\+\) *dBm.*/\1/p; s/.*Signal level[=:] *\([0-9]\+\)\/100.*/-\1/p'
-			;;
 		bcm*|syn*)
 			echo "Broadcom not supported yet."
-			;;
-		aic*)
-			echo "AICSemi not supported yet."
 			;;
 		hi*)
 			echo "HiSilicon not supported yet."
 			;;
+		mt7*|rtl*|818*|87*|88*)
+			iwconfig wlan0 | sed -n 's/.*Signal level[=:] *\(-\?[0-9]\+\) *dBm.*/\1/p; s/.*Signal level[=:] *\([0-9]\+\)\/100.*/-\1/p'
+			;;
+		ssv*)
+			echo "rf rssi" > $SSV_CMD_FILE
+			cat $SSV_CMD_FILE | sed -n 's/.*ofdm RSSI \(-[0-9]*\).*/\1/p'
+			;;
 		*)
-			echo "Unknown wireless device type $wlandev."
+			echo "Unknown wireless device type $wlan_module."
 			;;
 	esac
 
 }
 
 show_info() {
-	case "$wlandev" in
-		atbm*) iwpriv wlan0 common get_ap_info ;;
-		mt7*|rtl*|818*|87*|88*) iwconfig wlan0 ;;
-		*) echo "Not supported on $wlandev" ;;
+	case "$wlan_module" in
+		atbm*)
+			iwpriv wlan0 common get_ap_info
+			;;
+		mt7*|rtl*|818*|87*|88*)
+			iwconfig wlan0
+			;;
+		*)
+			echo "Not supported on $wlan_module"
+			;;
 	esac
 }
 
 setup() {
 	echo_c 208 "Thingino Wi-Fi setup"
-	echo "Wi-Fi driver: $(echo_c 10 $wlandev)"
+	echo "Wi-Fi driver: $(echo_c 10 $wlan_module)"
 	read -r -p "Enter Wi-Fi SSID: " ssid
 	while :; do
 		read -r -p "Enter Wi-Fi Password: " password
@@ -93,8 +108,8 @@ setup() {
 		echo_c 160 "Passwords is not between 8 and 64 characters. Please try again."
 	done
 
-	fw_setenv wlanssid "$ssid"
-	fw_setenv wlanpass "$password"
+	fw_setenv wlan_ssid "$ssid"
+	fw_setenv wlan_pass "$password"
 
 	echo_c 40 "Wi-Fi settings updated. Please restart for changes to take effect.\n"
 }
@@ -102,7 +117,7 @@ setup() {
 temp() {
 	check_interface wlan0
 
-	case "$wlandev" in
+	case "$wlan_module" in
 		aic*)
 			echo "AICSemi is not supported."
 			;;
@@ -125,17 +140,22 @@ temp() {
 			echo "SSV not supported yet."
 			;;
 		*)
-			echo "Unknown wireless device $wlandev."
+			echo "Unknown wireless device $wlan_module."
 			;;
 	esac
 }
 
 case "$entry_command" in
-	wlancli) cli "$@" ;;
-	wlaninfo) exec wlan info ;;
-	wlanrssi) exec wlan rssi ;;
-	wlansetup) exec wlan setup ;;
-	wlantemp) exec wlan temp ;;
+	wlancli)
+		cli "$@" ;;
+	wlaninfo)
+		exec wlan info ;;
+	wlanrssi)
+		exec wlan rssi ;;
+	wlansetup)
+		exec wlan setup ;;
+	wlantemp)
+		exec wlan temp ;;
 	*)
 		# main case selection for wlan command if no specific entry_command match
 		case "$1" in

@@ -27,10 +27,6 @@ disable_iface() {
 	sed -i "s/^auto /#auto /" /etc/network/interfaces.d/$1
 }
 
-hostname_in_env() {
-	fw_printenv -n hostname
-}
-
 hostname_in_etc() {
 	cat /etc/hostname
 }
@@ -139,9 +135,9 @@ setup_wireless_network() {
 
 	temp_env=$(mktemp)
 	{
-		[ -n "$ssid" ] && echo "wlanssid $ssid"
-		[ -n "$bssid" ] && echo "wlanbssid $bssid"
-		[ -n "$psk" ] && echo "wlanpass $psk"
+		[ -n "$ssid" ] && echo "wlan_ssid $ssid"
+		[ -n "$bssid" ] && echo "wlan_bssid $bssid"
+		[ -n "$psk" ] && echo "wlan_pass $psk"
 	} > "$temp_env"
 	fw_setenv -s "$temp_env"
 	rm "$temp_env"
@@ -158,11 +154,11 @@ fi
 
 eth0_enabled=$(iface_up eth0)
 eth0_mac=$(iface_mac eth0)
-[ -z "$eth0_mac" ] && eth0_mac=$(fw_printenv -n ethaddr)
+[ -z "$eth0_mac" ] && eth0_mac="$ethaddr"
 is_iface_dhcp eth0 && eth0_dhcp="true"
 [ -z "$eth0_address" ] && eth0_address=$(iface_ip_actual eth0)
 [ -z "$eth0_address" ] && eth0_address=$(iface_ip_in_etc eth0)
-[ -z "$eth0_address" ] && eth0_address=$(fw_printenv -n ipaddr)
+[ -z "$eth0_address" ] && eth0_address="$ipaddr"
 eth0_cidr=$(iface_cidr eth0)
 eth0_netmask=$(iface_netmask eth0)
 eth0_broadcast=$(iface_broadcast eth0)
@@ -171,11 +167,11 @@ eth0_ipv6=$(iface_ipv6 eth0)
 
 usb0_enabled=$(iface_up usb0)
 usb0_mac=$(iface_mac usb0)
-[ -z "$usb0_mac" ] && usb0_mac=$(fw_printenv -n usbmac)
+[ -z "$usb0_mac" ] && usb0_mac="$usbmac"
 is_iface_dhcp usb0 && usb0_dhcp="true"
 [ -z "$usb0_address" ] && usb0_address=$(iface_ip_actual usb0)
 [ -z "$usb0_address" ] && usb0_address=$(iface_ip_in_etc usb0)
-[ -z "$usb0_address" ] && usb0_address=$(fw_printenv -n usbaddr)
+[ -z "$usb0_address" ] && usb0_address="$usbaddr"
 usb0_cidr=$(iface_cidr usb0)
 usb0_netmask=$(iface_netmask usb0)
 usb0_broadcast=$(iface_broadcast usb0)
@@ -184,20 +180,20 @@ usb0_ipv6=$(iface_ipv6 usb0)
 
 wlan0_enabled=$(iface_up wlan0)
 wlan0_mac=$(iface_mac wlan0)
-[ -z "$wlan0_mac" ] && wlan0_mac=$(fw_printenv -n wlanmac)
+[ -z "$wlan0_mac" ] && wlan0_mac="$wlan_mac"
 is_iface_dhcp wlan0 && wlan0_dhcp="true"
 [ -z "$wlan0_address" ] && wlan0_address=$(iface_ip_actual wlan0)
 [ -z "$wlan0_address" ] && wlan0_address=$(iface_ip_in_etc wlan0)
-[ -z "$wlan0_address" ] && wlan0_address=$(fw_printenv -n wlanaddr)
+[ -z "$wlan0_address" ] && wlan0_address="$wlan_addr"
 wlan0_cidr=$(iface_cidr wlan0)
 wlan0_netmask=$(iface_netmask wlan0)
 wlan0_broadcast=$(iface_broadcast wlan0)
 wlan0_gateway=$(iface_gateway wlan0)
 wlan0_ipv6=$(iface_ipv6 wlan0)
 # wireless network credentials
-wlan0_ssid="$(fw_printenv -n wlanssid)"
-wlan0_bssid="$(fw_printenv -n wlanbssid)"
-wlan0_pass="$(fw_printenv -n wlanpass)"
+wlan0_ssid="$wlan_ssid"
+wlan0_bssid="$wlan_bssid"
+wlan0_pass="$wlan_pass"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	for p in $PARAMS; do
@@ -265,15 +261,15 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	if [ -z "$error" ]; then
 		setup_iface eth0 "$eth0_mode" "$eth0_address" "$eth0_netmask" "$eth0_gateway" "$eth0_broadcast"
-		fw_setenv ethaddr $eth0_mac
+		fw_setenv ethaddr "$eth0_mac"
 		[ "true" = "$eth0_enabled" ] || disable_iface eth0
 
 		setup_iface wlan0 "$wlan0_mode" "$wlan0_address" "$wlan0_netmask" "$wlan0_gateway" "$wlan0_broadcast"
-		fw_setenv wlanmac $wlan0_mac
+		fw_setenv wlan_mac "$wlan0_mac"
 		[ "true" = "$wlan0_enabled" ] || disable_iface wlan0
 
 		setup_iface usb0 "$usb0_mode" "$usb0_address" "$usb0_netmask" "$usb0_gateway" "$usb0_broadcast"
-		fw_setenv usbmac $usb0_mac
+		fw_setenv usbmac "$usb0_mac"
 		[ "true" = "$usb0_enabled" ] || disable_iface usb0
 
 		hostname=$POST_hostname

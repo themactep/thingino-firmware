@@ -2,12 +2,8 @@
 
 . /etc/init.d/rc.common
 
-HTTP_CONF="/etc/httpd.conf"
+HTTPD_CONF="/etc/httpd.conf"
 PORTAL_CONF="/etc/httpd-portal.conf"
-
-wlan_ssid="$(fw_printenv -n wlanssid)"
-wlan_pass="$(fw_printenv -n wlanpass)"
-wlanap_enabled="$(fw_printenv -n wlanap_enabled)"
 
 no_iface() {
 	[ -z "$(ip link show $1 2> /dev/null)" ]
@@ -24,30 +20,35 @@ no_wlan_creds() {
 if no_iface eth0 && no_iface usb0 && iface_exists wlan0 && no_wlan_ap && no_wlan_creds; then
 	DAEMON_ARGS="-f -c $PORTAL_CONF"
 else
-	DAEMON_ARGS="-f -c $HTTP_CONF -r Authentication"
+	DAEMON_ARGS="-f -c $HTTPD_CONF -r Authentication"
 fi
 
 if [ "0$(fw_printenv -n debug)" -gt 1 ]; then
-	sed -i 's/^\/x:root/#\/x:root/' $HTTP_CONF
+	sed -i 's/^\/x:root/#\/x:root/' $HTTPD_CONF
 else
-	sed -i 's/^#\/x:root/\/x:root/' $HTTP_CONF
+	sed -i 's/^#\/x:root/\/x:root/' $HTTPD_CONF
 fi
 
 start() {
-	starting
+	echo "Starting WLAN AP"
+
 	[ -f $DAEMON_FULL ] || quit "Disabled"
 	start_daemon
 }
 
 stop() {
-	stopping
+	echo "Stopping WLAN AP"
+
 	[ -f $DAEMON_FULL ] || quit "Disabled"
 	stop_daemon
 }
 
 case "$1" in
-	start | stop)
-		$1
+	start)
+		start
+		;;
+	stop)
+		stop
 		;;
 	reload | restart)
 		stop
