@@ -5,13 +5,13 @@
 start() {
 	echo "Starting network..."
 
-	ifup -v -a || die "Failed to bring up network"
+	ifup -v -a
 }
 
 stop() {
 	echo "Stopping network..."
 
-	ifdown -v -a || die "Failed to bring down network"
+	ifdown -v -a
 }
 
 case "$1" in

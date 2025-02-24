@@ -45,6 +45,8 @@ start() {
 	if [ -n "$wlan_ssid" ] && [ -n "$wlan_pass" ]; then
 		echo "WLAN already configured"
 		exit 0
+	else
+		echo "WLAN not configured"
 	fi
 
 	if [ "true" = "$wlanap_enabled" ]; then

@@ -6,10 +6,18 @@ if [ "$0" = "-sh" ]; then
 fi
 
 ENV_DUMP_FILE="/tmp/environment"
-[ -f "$ENV_DUMP_FILE" ] && . "$ENV_DUMP_FILE"
+if [ -f "$ENV_DUMP_FILE" ]; then
+        echo "Evaluating $ENV_DUMP_FILE"
+        . "$ENV_DUMP_FILE"
+fi
 
 CONFIG_FILE="/etc/web.conf"
-[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+if [ -f "$CONFIG_FILE" ]; then
+        echo "Evaluating $CONFIG_FILE"
+        . "$CONFIG_FILE"
+fi
+
+. /usr/share/common
 
 PID=$$
 LOCK_FILE="/run/process-$PID.pid"
