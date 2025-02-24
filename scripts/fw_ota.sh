@@ -1,92 +1,68 @@
 #!/bin/bash
 
-SSH_CONTROL_PATH="/tmp/ssh_mux_%h_%p_%r"
-SSH_OPTS="-o ConnectTimeout=10 -o ServerAliveInterval=2 -o ControlMaster=auto -o ControlPath=$SSH_CONTROL_PATH -o ControlPersist=600 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+die() { echo -e "\e[38;5;160m$1\e[0m" >&2; exit 1; }
 
-# Cleanup function to close SSH master connection
+[ "$#" -ne 2 ] && die "Usage: $0 FIRMWARE_FILE IP_ADDRESS"
+
 cleanup() {
-	ssh -O exit $SSH_OPTS root@"$CAMERA_IP_ADDRESS" 2>/dev/null
+	ssh -O exit $SSH_OPTS $REMOTE_HOST 2>/dev/null;
 }
 
-# Trap to execute cleanup function on script exit
+remote_copy() {
+	echo -e "\e[38;5;122mscp -O $SSH_OPTS $1 $2\e[0m" >&2
+	scp -O $SSH_OPTS "$1" "$2"
+}
+
+remote_run() {
+	echo -e "\e[38;5;118mssh $SSH_OPTS $1\e[0m" >&2
+	ssh $SSH_OPTS $REMOTE_HOST "$1"
+}
+
 trap cleanup EXIT
 
-# Downloads and installs the sysupgrade script
-install_sysupgrade() {
-	local TEMP_FILE=$(mktemp /tmp/sysupgrade.XXXXXX)
+CAMERA_IP_ADDRESS="$2"
 
-	echo "Downloading latest sysupgrade utility..."
-	if ! curl -o "$TEMP_FILE" --connect-timeout 5 --max-time 30 \
-	    https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/sysupgrade; then
-		echo "Failed to download sysupgrade utility"
-		rm -f "$TEMP_FILE"
-		exit 1
-	fi
+LOCAL_FW_FILE="$1"
+LOCAL_SCRIPT="$(dirname "$0")/../package/thingino-sysupgrade/files/sysupgrade"
 
-	echo "Transferring sysupgrade utility to device..."
-	if ssh $SSH_OPTS root@"$CAMERA_IP_ADDRESS" "cat > /usr/sbin/sysupgrade && chmod +x /usr/sbin/sysupgrade" < "$TEMP_FILE"; then
-		echo "Sysupgrade utility installed successfully."
-		rm -f "$TEMP_FILE"
-	else
-		echo "Failed to install sysupgrade utility"
-		rm -f "$TEMP_FILE"
-		exit 1
-	fi
-}
+REMOTE_FW_FILE="/tmp/fw.bin"
+REMOTE_HOST="root@$CAMERA_IP_ADDRESS"
+REMOTE_SCRIPT="/tmp/sup"
 
-# Validates input parameters and sets up SSH connection sharing, single authentication request
-initialize_ssh_connection() {
-	FIRMWARE_BIN="$1"
-	CAMERA_IP_ADDRESS="$2"
+SSH_OPTS="-o ConnectTimeout=10 -o ServerAliveInterval=2 \
+-o ControlMaster=auto -o ControlPath=/tmp/ssh_mux_%h_%p_%r \
+-o ControlPersist=600 -o StrictHostKeyChecking=no \
+-o UserKnownHostsFile=/dev/null"
 
-	echo "Initializing SSH connection to device..."
-	if ssh -fN $SSH_OPTS root@"$CAMERA_IP_ADDRESS"; then
-		echo "SSH connection initialized."
-	else
-		echo "Failed to initialize ssh connection"
-		exit 1
-	fi
-}
+echo "Initializing SSH connection to $REMOTE_HOST..."
+ssh -fN $SSH_OPTS $REMOTE_HOST || \
+	die "Failed to initialize ssh connection"
 
-# Transfers firmware file and verifies SHA256 checksum
-transfer_and_verify_firmware() {
-	echo "Transferring firmware file to the device..."
-	LOCAL_SHA256=$(sha256sum "$FIRMWARE_BIN" | cut -d' ' -f1)
-	if timeout 300 ssh $SSH_OPTS root@"$CAMERA_IP_ADDRESS" "\
-		cat >/tmp/fwupdate.bin; \
-		REMOTE_SHA256=\$(sha256sum /tmp/fwupdate.bin | cut -d' ' -f1); \
-		if [ \"\$REMOTE_SHA256\" != \"$LOCAL_SHA256\" ]; then \
-			echo 'SHA256 checksum does not match, exiting...'; \
-			exit 1; \
-		fi" < "$FIRMWARE_BIN"; then
-		echo "Firmware file transferred and SHA256 checksum verified."
-	else
-		echo "The firmware transfer process timed out or failed."
-		exit 1
-	fi
-}
+echo "SSH connection initialized."
 
-# Flashes the firmware to the specified device partition and reboots
-flash_firmware() {
-	if ssh $SSH_OPTS root@"$CAMERA_IP_ADDRESS" "sysupgrade -x /tmp/fwupdate.bin" 2>&1 | tee /dev/tty | grep -q "Rebooting"; then
-		echo "Firmware flashed successfully. Device is rebooting."
-	else
-		echo "Firmware flashing failed."
-		exit 1
-	fi
-}
+echo "Transferring sysupgrade utility to device..."
+remote_copy $LOCAL_SCRIPT $REMOTE_HOST:$REMOTE_SCRIPT || \
+	die "Failed to transfer sysupgrade utility"
 
-main() {
-	initialize_ssh_connection "$@"
-	install_sysupgrade
-	transfer_and_verify_firmware
-	flash_firmware
-}
+remote_run "chmod +x $REMOTE_SCRIPT" || \
+	die "Failed to set execute permissions on sysupgrade utility"
 
+echo "Sysupgrade utility installed successfully."
 
-if [ "$#" -ne 2 ]; then
-	echo "Usage: $0 FIRMWARE_FILE IP_ADDRESS"
-	exit 1
-else
-	main "$@"
-fi
+echo "Transferring firmware file to the device..."
+remote_copy $LOCAL_FW_FILE $REMOTE_HOST:$REMOTE_FW_FILE || \
+	die "The firmware transfer process timed out or failed."
+
+hash_l=$(sha256sum "$LOCAL_FW_FILE" | cut -d' ' -f1)
+hash_r=$(remote_run "sha256sum $REMOTE_FW_FILE | cut -d' ' -f1")
+[ "$hash_l" != "$hash_r" ] && \
+	die "SHA256 checksum does not match, exiting..."
+
+echo "Firmware file transferred and SHA256 checksum verified."
+
+remote_run "$REMOTE_SCRIPT -x $REMOTE_FW_FILE" 2>&1 | tee /dev/tty | grep -q "Rebooting" || \
+	die "Failed to flash firmware"
+
+echo "Firmware flashed successfully. Device is rebooting."
+
+exit 0
