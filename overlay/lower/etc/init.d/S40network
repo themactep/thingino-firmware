@@ -4,13 +4,13 @@
 
 start() {
 	starting
-	run "ifup -v -a"
+	ifup -v -a || die "Failed to bring up network"
 	check_result
 }
 
 stop() {
 	stopping
-	run "ifdown -v -a"
+	ifdown -v -a || die "Failed to bring down network"
 	check_result
 }
 
