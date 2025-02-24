@@ -167,12 +167,12 @@ to it using your password <b><%= $wlanap_pass %></b>, then open the web interfac
 <div class="invalid-feedback">Please enter hostname</div>
 </div>
 <div class="mb-2">
-<label class="form-label">User <b>root</b> Password</label>
+<label class="form-label">Create a password for user <b>root</b></label>
 <input class="form-control bg-light text-dark" type="text" name="rootpass" id="rootpass" value="<%= $rootpass %>" required autocapitalize="none">
 <div class="invalid-feedback">Please enter password</div>
 </div>
 <div class="mb-2">
-<label class="form-label"><a data-bs-toggle="collapse" href="#collapse-rootpkey" role="button" aria-expanded="false" aria-controls="collapse-rootpkey">User <b>root</b> Public SSH Key</a> <span class="small">(optional)</span></label>
+<label class="form-label"><a data-bs-toggle="collapse" href="#collapse-rootpkey" role="button" aria-expanded="false" aria-controls="collapse-rootpkey">Public SSH Key for user <b>root</b></a> <span class="small">(optional)</span></label>
 <div class="collapse" id="collapse-rootpkey">
 <textarea class="form-control bg-light text-dark text-break" name="rootpkey" id="rootpkey" rows="3"><%= $rootpkey %></textarea>
 </div>
