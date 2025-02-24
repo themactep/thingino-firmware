@@ -3,9 +3,6 @@
 DAEMON="dusk2dawn"
 CRONTABS="/etc/cron/crontabs/root"
 
-CONFIG_FILE="/etc/web.conf"
-[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
-
 start() {
 	echo "Setting $DAEMON..."
 
