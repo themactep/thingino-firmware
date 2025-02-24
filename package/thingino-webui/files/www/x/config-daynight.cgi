@@ -5,13 +5,6 @@ page_title="Day/Night Mode Control"
 
 DAYNIGHT_APP="daynight"
 
-# dump existing settings from env on the first run
-grep -q ^day_night $WEB_CONFIG_FILE || save2config "$(fw_printenv | grep ^day_night)"
-grep -q ^dusk2dawn $WEB_CONFIG_FILE || save2config "$(fw_printenv | grep ^dusk2dawn)"
-
-# read values from configs
-. $WEB_CONFIG_FILE
-
 # read settings from crontab
 grep -q "^[^#].*$DAYNIGHT_APP\$" $CRONTABS && day_night_enabled=true
 day_night_interval=$(awk -F'[/ ]' "/$DAYNIGHT_APP\$/{print \$2}" $CRONTABS)
