@@ -39,17 +39,23 @@ generate() {
 	info "Generated hostname: $hostname"
 }
 
+start() {
+	starting
+
+	hostname=$(hostname)
+	[ -z "$hostname" ] && generate
+	set_hostname
+	update_hosts
+	#update_os_release
+	update_hostname
+	HOSTNAME="$hostname"
+	export HOSTNAME
+	ok
+}
+
 case "$1" in
 	start)
-		starting
-		hostname=$(hostname)
-		[ -z "$hostname" ] && generate
-		set_hostname
-		update_hosts
-		#update_os_release
-		update_hostname
-		export HOSTNAME="$hostname"
-		ok
+		start
 		;;
 	stop)
 		true
