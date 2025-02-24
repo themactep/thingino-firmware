@@ -327,6 +327,7 @@ endchoice
 
 choice
 	prompt "ISP Reserved RAM"
+	depends on BR2_THINGINO_DEV_EXPERIMENTAL
 	default BR2_RMEM_32
 	help
 	  Specify reserved memory for the ISP in MB.
@@ -668,9 +669,9 @@ menu "Flash Chip Config"
 choice
 	prompt "Flash chip type"
 config FLASH_NOR
-	bool "NOR"
+	bool "SPI NOR"
 config FLASH_NAND
-	bool "NAND"
+	bool "SPI NAND"
 endchoice
 
 choice
