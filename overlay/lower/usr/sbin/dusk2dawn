@@ -66,7 +66,6 @@ fi
 tz="$(cat /etc/timezone | tr ' ' '_')"
 
 command="$CURL $verbosity --output - --url $API_URL?formatted=0&date=$dusk2dawn_date&lat=$dusk2dawn_lat&lng=$dusk2dawn_lng&tzid=$tz"
-# cannot use log_and_run here because need a clear output
 log "$command"
 json=$($command)
 [ "true" = "$verbose" ] && echo "$json"
