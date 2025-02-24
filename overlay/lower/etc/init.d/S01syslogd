@@ -1,21 +1,18 @@
 #!/bin/sh
 
+DAEMON="syslogd"
 DAEMON_ARGS="-n -C64 -t -D $RSYSLOG_ADDRESS"
+PIDFILE="/run/$DAEMON.pid"
 
-WEB_CONF=/etc/web.conf
+CONFIG_FILE="/etc/web.conf"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
-RSYSLOG_HOST=$(awk -F= '/^rsyslog_host=/{print $2}' $WEB_CONF)
+if [ -n "$rsyslog_host" ]; then
+	DAEMON_ARGS="$DAEMON_ARGS -R $rsyslog_host:${rsyslog_port:-514}"
+fi
 
-RSYSLOG_PORT=$(awk -F= '/^rsyslog_port=/{print $2}' $WEB_CONF)
-[ -z "$RSYSLOG_PORT" ] && RSYSLOG_PORT=514
-
-RSYSLOG_LOCAL=$(awk -F= '/^rsyslog_local=/{print $2}' $WEB_CONF)
-[ -z "$RSYSLOG_LOCAL" ] && RSYSLOG_LOCAL="true"
-
-if [ -n "$RSYSLOG_HOST" ]; then
-	DAEMON_ARGS="$DAEMON_ARGS -R $RSYSLOG_HOST"
-	[ -n "$RSYSLOG_PORT" ] && DAEMON_ARGS="$DAEMON_ARGS:$RSYSLOG_PORT"
-	[ "true" = "$RSYSLOG_LOCAL" ] && DAEMON_ARGS="$DAEMON_ARGS -L"
+if [ "true" = "$rsyslog_local" ]; then
+	DAEMON_ARGS="$DAEMON_ARGS -L"
 fi
 
 . /etc/init.d/rc.common
