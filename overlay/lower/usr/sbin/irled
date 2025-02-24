@@ -1,5 +1,11 @@
 #!/bin/sh
 
+ENV_DUMP_FILE="/tmp/environment"
+[ -f "$ENV_DUMP_FILE" ] && . "$ENV_DUMP_FILE"
+
+CONFIG_FILE="/etc/web.conf"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+
 show_help() {
 	echo "Usage: $0 <mode> <type>
 Where:
@@ -16,23 +22,25 @@ Where:
 [ -z "$type" ] && type=$2
 
 case "$type" in
-	ir850 | ir940 | white)
-		pin=$(fw_printenv -n gpio_$type)
+	ir850)
+		pin=$gpio_ir850
+		;;
+	ir940)
+		pin=$gpio_ir940
+		;;
+	white)
+		pin=$gpio_white
 		;;
 	*)
 		# select first non-empty pin of available
-		for type in ir850 ir940 white; do
-			pin=$(fw_printenv -n gpio_$type)
-			[ -n "$pin" ] && break
-		done
-		# set most common type for error message below
-		type=ir850
+		[ -z "$pin" ] && pin=$gpio_ir850
+		[ -z "$pin" ] && pin=$gpio_ir940
+		[ -z "$pin" ] && pin=$gpio_white
 		;;
 esac
 
 if [ -z "$pin" ]; then
 	echo "Please define LED GPIO pin"
-	echo "fw_setenv gpio_$type <pin>"
 	exit 1
 fi
 
