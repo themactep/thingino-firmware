@@ -1,20 +1,27 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+CRONTABS="/etc/cron/crontabs/root"
+APP_NAME="dusk2dawn"
+
+start() {
+	echo "Starting dusk2dawn"
+
+	if [ ! -x /sbin/$APP_NAME ]; then
+		echo "$APP_NAME not found" >&2
+		exit 1
+	fi
+
+	if grep -q $APP_NAME $CRONTABS; then
+		echo "already in crontab" >&2
+	else
+		printf "# run %s nightly at 0:00\n0 0 * * * %s\n" $APP_NAME $APP_NAME >> $CRONTABS
+		echo "$APP_NAME added to crontab" >&2
+	fi
+}
 
 case "$1" in
 	start)
-		starting
-
-		[ -x /sbin/dusk2dawn ] || die "dusk2dawn not found"
-
-		if grep -q dusk2dawn $CRONTABS; then
-			info "already in crontab"
-		else
-			printf "# run dusk2dawn nightly at 0:00\n0 0 * * * dusk2dawn\n" >> $CRONTABS
-			info "dusk2dawn added to crontab"
-		fi
-		ok
+		start
 		;;
 	stop)
 		true

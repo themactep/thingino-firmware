@@ -2,29 +2,33 @@
 
 . /etc/init.d/rc.common
 
+start() {
+	is_usb_console && [ -f /etc/init.d/F02failsafe-usb ] && exit 0
+
+	echo_c 104 "\nPress the [f] key to enter failsafe mode\n"
+
+	stty -icanon min 0 time 20 -echo
+	key=$(dd bs=1 count=1 2>/dev/null)
+	stty sane
+
+	if [ "$key" = "f" ]; then
+		echo_c 118 "Failsafe mode..."
+		touch /tmp/.fs
+		. /etc/profile
+		exec setsid /sbin/getty -n -l /bin/sh -L console 0 vt100
+	fi
+
+	if [ -f "$FILE_OS_RELEASE" ]; then
+		. "$FILE_OS_RELEASE"
+		echo_c 208 "Thingino $IMAGE_ID [$BUILD_ID]\n"
+	fi
+
+	/etc/init.d/rcS
+}
+
 case "$1" in
 	start)
-		is_usb_console && [ -f /etc/init.d/F02failsafe-usb ] && exit
-
-		echo_c 104 "\nPress the [f] key to enter failsafe mode\n"
-
-		stty -icanon min 0 time 20 -echo
-		key=$(dd bs=1 count=1 2>/dev/null)
-		stty sane
-
-		if [ "$key" = "f" ]; then
-			echo_c 118 "Failsafe mode..."
-			touch /tmp/.fs
-			. /etc/profile
-			exec setsid /sbin/getty -n -l /bin/sh -L console 0 vt100
-		fi
-
-		if [ -f "$FILE_OS_RELEASE" ]; then
-			. "$FILE_OS_RELEASE"
-			echo_c 208 "Thingino $IMAGE_ID [$BUILD_ID]\n"
-		fi
-
-		/etc/init.d/rcS
+		start
 		;;
 	stop)
 		true
