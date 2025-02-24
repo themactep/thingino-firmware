@@ -3,9 +3,13 @@
 
 GPIO_MAX=95
 
+CONFIG_FILE="/etc/web.conf"
+
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+
 # exclude pins already set in the environment
 EXCLUDE="55 56"
-EXCLUDE="$EXCLUDE $(fw_printenv | awk -F= '/^gpio_/ { gsub("[diouDIOU]","") ; print $2 }' | tr ' ' "\n" | sort -g | uniq | xargs)"
+EXCLUDE="$EXCLUDE $(awk -F= '/^gpio_/ { gsub("[diouDIOU]","") ; print $2 }' $CONFIG_FILE | tr -d '"' | sort -g | uniq | xargs)"
 [ "$#" -gt 0 ] && EXCLUDE="$EXCLUDE $*"
 
 echo "Excluded pins: $EXCLUDE"
