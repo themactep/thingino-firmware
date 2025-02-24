@@ -97,7 +97,7 @@ async function handleOTAUpgrade() {
 	wr.style.display = 'block';
 	wr.innerHTML = '';
 
-	let cmd='/sbin/sysupgrade ';
+	let cmd='touch /tmp/webupgrade;/sbin/sysupgrade ';
 	const option = $('#ota_upgrade_option').value;
 	if (option === 'Full') {
 		cmd += '-f';
