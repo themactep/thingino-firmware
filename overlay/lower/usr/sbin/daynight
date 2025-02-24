@@ -62,7 +62,7 @@ switch_to_night() {
 # determine luminance of the scene
 value=$(imp-control gettotalgain)
 if [ -z "$value" ] || [ "error" = "$value" ]; then
-	echo "Cannot get the value" >&2
+	echo "failed to get luminance" >&2
 	exit 1
 fi
 

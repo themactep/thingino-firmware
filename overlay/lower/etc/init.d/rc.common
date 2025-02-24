@@ -11,6 +11,13 @@ ENV_DUMP_FILE="/tmp/environment"
 CONFIG_FILE="/etc/web.conf"
 [ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
+PID=$$
+LOCK_FILE="/run/process-$PID.pid"
+LOG_FILE=/tmp/webui.log
+LOG_SIZE_LIMIT=50000
+
+CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3"
+
 CRONTABS="/etc/cron/crontabs/root"
 
 DAEMON=${DAEMON:-$0}
@@ -20,13 +27,8 @@ DAEMON_SHORT=$(basename "${DAEMON%% *}" | sed -r 's/^[FKS]\d{2}//')
 DAEMON_FULL="$(which $DAEMON_SHORT)"
 PIDFILE="/run/$DAEMON_SHORT.pid"
 
-[ -r "/etc/default/$DAEMON_SHORT" ] && . "/etc/default/$DAEMON_SHORT"
-
-check_result() {
-	local res=$?
-#	is_debug_mode && return
-	[ "$res" -eq 0 ] && ok || fail
-}
+DAEMON_CONFIG="/etc/default/$DAEMON_SHORT"
+[ -r "$DAEMON_CONFIG" ] && . "$DAEMON_CONFIG"
 
 decrement_mac() {
 	local mac last_byte_dec
@@ -47,14 +49,6 @@ die() {
 	exit 1
 }
 
-dump_from_env() {
-	local tmpfile=$(mktemp)
-	cat $WEB_CONFIG_FILE >> $tmpfile
-	fw_printenv | grep $1 | sed -E 's/=(.*)$/="\1"/' >> $tmpfile
-	sort -u $tmpfile > $WEB_CONFIG_FILE
-	. $WEB_CONFIG_FILE
-}
-
 ensure_dir() {
 	[ -d "$1" ] || mkdir -p "$1"
 }
@@ -64,14 +58,9 @@ ensure_file() {
 	[ -f "$1" ] || touch "$1"
 }
 
-fail() {
-	echo_c 124 "FAIL"
-	echo "FAIL" | log
-}
-
 gpio_control() {
 	gpio_name="$1"
-	gpio_power="$(fw_printenv -n "$gpio_name")"
+	gpio_power="$(grep ^${gpio_name}= $CONFIG_FILE | cut -d= -f2)"
 
 	if [ -z "$gpio_power" ]; then
 		return 1  # no value
@@ -83,20 +72,21 @@ gpio_control() {
 	case "$state" in
 		O)	gpio_cmd="high" ;;
 		o)	gpio_cmd="low" ;;
-		*)	warn "Invalid state for GPIO $gpio_name: $state"
+		*)	echo "Invalid state for GPIO $gpio_name: $state"
 			return 2  # invalid state
 			;;
 	esac
 
-	info "Set GPIO $num $gpio_cmd"
-	gpio $gpio_cmd $num 2>&1 | log && return 0  # success
+	echo "Set GPIO $num $gpio_cmd"
+	gpio $gpio_cmd $num 2>&1 && return 0  # success
 
-	warn "Failed to set GPIO $num $gpio_cmd"
+	echo "Failed to set GPIO $num $gpio_cmd"
 	return 3  # failure
 }
 
 iface_default() {
 	local iface
+
 	[ -z "$iface" ] && iface=$(ip -4 r | awk '/default/{print $5; exit}')
 	[ -z "$iface" ] && iface=$(ip -4 r | awk '{print $3; exit}')
 	[ -z "$iface" ] && iface=$(ip -6 r | awk '/default/{print $5; exit}')
@@ -108,31 +98,26 @@ iface_exists() {
 	iface="$1"
 
 	if [ -z "$iface" ]; then
-		echo "Interface parameter missing." 2>&1 | log
+		echo "Interface parameter missing." 2>&1
 		return 1
 	fi
 
 	if ip link show $iface &> /dev/null; then
 		if [ "eth0" = $iface ] && ! is_gateway_reachable; then
-			echo "eth0 has no local connection" 2>&1 | log
+			echo "eth0 has no local connection" 2>&1
 			return 1
 		fi
 
-		echo "Interface '$iface' exists." 2>&1 | log
+		# echo "Interface '$iface' exists." 2>&1
 		return 0
 	else
-		echo "Interface '$iface' does not exist." 2>&1 | log
+		echo "Interface '$iface' does not exist." 2>&1
 		return 1
 	fi
 }
 
 indent_output() {
 	awk '{print " "$0}'
-}
-
-info() {
-	echo "$1" | log
-	is_debug_mode && echo_c 66 "$1"
 }
 
 is_boot_complete() {
@@ -161,91 +146,91 @@ is_usb_console() {
 	[ "true" = "$usb_console" ]
 }
 
-kill_daemon() {
-	run "start-stop-daemon -K -s SIGKILL -n $DAEMON_SHORT"
-	check_result
-}
-
 log() {
 	logger -p daemon.info -t ${DAEMON_SHORT}[$$] <&0
 }
 
-ok() {
-	echo_c 70 "OK"
-	echo "OK" | log
-}
-
 play_sound() {
-	iac -f /usr/share/sounds/$1 | log
+	iac -f /usr/share/sounds/$1
 }
 
 print_release() {
 	[ -f /etc/os-release ] || return
 	. /etc/os-release
 	echo_c 208 "Thingino $IMAGE_ID [$BUILD_ID]\n"
-	echo "Thingino $IMAGE_ID [$BUILD_ID]" | log
+	echo "Thingino $IMAGE_ID [$BUILD_ID]"
 }
 
 quit() {
 	if [ -n "$1" ]; then
-		echo "$1" | log
+		echo "$1"
 		echo_c 66 "$1"
 	fi
 	exit 0
 }
 
 run() {
-	echo "$*" | log
+	echo "$*"
 	is_debug_mode && echo_c 144 "$*"
-	eval "$*" 2>&1 | log
+	eval "$*"
 }
 
 set_gpio() {
-	info "Set GPIO $1 to F$2 D$3"
+	echo "Set GPIO $1 to F$2 D$3"
 	gpio-diag $1 func $2 drive $3
 }
 
 start_daemon() {
-	local command="${COMMAND:-$DAEMON_FULL} -- $DAEMON_ARGS"
+	local command
+
+	command="${COMMAND:-$DAEMON_FULL} -- $DAEMON_ARGS"
 	if [ -n "$PIDFILE" ] && [ -f "$PIDFILE" ]; then
 		start-stop-daemon -b -S -m -p $PIDFILE -x $command 2>&1
 	else
 		start-stop-daemon -b -S -x $command 2>&1
 	fi
-	check_result
 }
 
 starting() {
-	echo "Starting ${1:-$DAEMON_SHORT}" | log
-	echo -n "Starting ${1:-$DAEMON_SHORT}"
-	is_debug_mode && echo " ..." || echo -n ": "
+	echo "Starting ${1:-$DAEMON_SHORT}..."
 }
 
 stop_daemon() {
-	#FIXME do we need -s KILL?
-	run "start-stop-daemon -K -n $DAEMON_SHORT"
-	check_result
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p $PIDFILE
+		rm "$PIDFILE"
+	fi
+
+	sleep 0.5
+
+	if pidof $DAEMON > /dev/null; then
+		start-stop-daemon -K -n $DAEMON
+	fi
+
+	sleep 0.5
+
+	if pidof $DAEMON > /dev/null; then
+		start-stop-daemon -K -s SIGKILL -n $DAEMON
+	fi
 }
 
 stop_daemon_process() {
-	start-stop-daemon -K -x $DAEMON_FULL 2>&1 | log
-	check_result
-}
-
-stop_daemon_with_pid() {
-	run "start-stop-daemon -K -p $PIDFILE"
-	check_result
-	[ -f $PIDFILE ] && rm -f $PIDFILE
+	start-stop-daemon -K -x $DAEMON_FULL 2>&1
 }
 
 stopping() {
-	echo "Stopping ${1:-$DAEMON_SHORT}" | log
-	echo -n "Stopping ${1:-$DAEMON_SHORT}"
-	is_debug_mode && echo " ..." || echo -n ": "
+	echo "Stopping ${1:-$DAEMON_SHORT}..."
 }
 
-warn() {
-	echo_c 166 "$1"
-	echo "$1" | log
+tag() {
+	echo "$(ts) [$PID:$plugin]"
 }
 
+ts() {
+	date +"%F %T"
+}
+
+# "template"
+parse_target() {
+	echo "$1" | sed "s/%hostname/$(hostname -s)/g"
+}
