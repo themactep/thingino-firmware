@@ -8,38 +8,33 @@ PIDFILE="/var/run/$DAEMON.pid"
 
 start() {
 	starting
-	[ "true" = "$(fw_printenv -n disable_watchdog)" ] && quit "Disabled"
+
+	if [ "true" = "$watchdog_disabled" ]; then
+		echo "$DAEMON is disabled"
+		exit 1
+	fi
+
 	start_daemon
 }
 
 stop() {
 	stopping
-	stop_daemon
-}
 
-kill() {
-	stopping
-	kill_daemon
+	stop_daemon
 }
 
 case "$1" in
 	start)
 		start
 		;;
-	stop)
+	stop | kill)
 		stop
 		;;
-
 	reload | restart)
 		stop
 		sleep 1
 		start
 		;;
-
-	kill)
-		kill
-		;;
-
 	*)
 		echo "Usage: $0 {start|stop|restart}"
 		exit 1

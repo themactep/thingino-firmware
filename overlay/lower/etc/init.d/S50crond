@@ -15,7 +15,7 @@ stop() {
 	echo "Stopping crond..."
 
 	[ -f $DAEMON_FULL ] || quit "Disabled"
-	stop_daemon_with_pid
+	stop_daemon
 }
 
 case "$1" in

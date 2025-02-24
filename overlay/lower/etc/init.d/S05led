@@ -3,12 +3,10 @@
 . /etc/init.d/rc.common
 
 set_pin() {
-	if [ "$(gpio value $1)" -eq $2 ]; then
-		info "Pin $1 is already set to $2"
-	else
-		info "Switch pin $1 to $2"
-		run "gpio set $1 $2"
+	if [ "$(gpio value $1)" -ne $2 ]; then
+		gpio set $1 $2
 	fi
+	echo "GPIO $1 is $(gpio value $1)"
 }
 
 start() {
@@ -19,14 +17,21 @@ start() {
 		exit 1
 	fi
 
-	for pin_raw in $(awk -F= '/^gpio_led_/{gsub(/"/, "", $2); print $2}' /tmp/environment); do
+	LED_PINS=$(awk -F= '/^gpio_led_/{gsub(/"/, "", $2); print $2}' "$ENV_DUMP_FILE")
+
+	if [ -z "$LED_PINS" ]; then
+		echo "No LED pins defined"
+		exit 1
+	fi
+
+	for pin_raw in $LED_PINS; do
 		[ "$pin_raw" = "${pin_raw//[^0-9]/}" ] && pin_raw="${pin_raw}O"
 		pin="${pin_raw:0:-1}"
 		suffix="${pin_raw:0-1}"
 		case "$suffix" in
 			o) pin_on=0; pin_off=1 ;;
 			O) pin_on=1; pin_off=0 ;;
-			*) die "Unknown suffix!" ;;
+			*) echo "Unknown suffix ${suffix}!" ;;
 		esac
 
 		if echo "$gpio_default" | grep -E "\b$pin_raw\b" > /dev/null; then

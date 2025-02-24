@@ -2,9 +2,24 @@
 
 . /etc/init.d/rc.common
 
-export SENSOR=$(cat /etc/sensor/model)
-export SOC=$(soc -f)
-export TZ=$(cat /etc/TZ)
+SOC=$(soc -f)
+export SOC
+
+SENSOR_FILE="/etc/sensor/model"
+if [ -f "$SENSOR_FILE" ]; then
+        SENSOR="$(cat "$SENSOR_FILE")"
+        export SENSOR
+else
+        echo "Cannot find $SENSOR_FILE"
+fi
+
+TZCODE_FILE="/etc/TZ"
+if [ -f "$TZCODE_FILE" ]; then
+        TZ="$(cat $TZCODE_FILE)"
+        export TZ
+else
+        echo "Cannot find $TZCODE_FILE"
+fi
 
 rm -f /var/run/boot
 

@@ -21,16 +21,16 @@ start() {
 	fi
 
 	if [ -f "$WORKING_CONFIG" ]; then
-		info "NTP: working configuration found"
+		echo "NTP: working configuration found"
 	else
 		if [ -f "$DEFAULT_CONFIG" ]; then
-			info "NTP: default configuration found"
+			echo "NTP: default configuration found"
 		else
-			info "NTP: restore default config from ROM"
+			echo "NTP: restore default config from ROM"
 			cp "/rom$DEFAULT_CONFIG" "$DEFAULT_CONFIG"
 		fi
 
-		info "NTP: use default configuration"
+		echo "NTP: use default configuration"
 		cp "$DEFAULT_CONFIG" "$WORKING_CONFIG"
 	fi
 	start_daemon
@@ -40,7 +40,7 @@ start() {
 stop() {
 	echo "Stopping NTP daemon..."
 
-	stop_daemon_with_pid
+	stop_daemon
 }
 
 case "$1" in

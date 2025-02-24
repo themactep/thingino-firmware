@@ -13,7 +13,7 @@ start() {
 stop() {
 	echo "Stopping mdnsd..."
 
-	stop_daemon_with_pid
+	stop_daemon
 }
 
 case "$1" in

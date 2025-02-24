@@ -3,15 +3,15 @@
 . /etc/init.d/rc.common
 
 start() {
-	starting
+	echo "Starting network..."
+
 	ifup -v -a || die "Failed to bring up network"
-	check_result
 }
 
 stop() {
-	stopping
+	echo "Stopping network..."
+
 	ifdown -v -a || die "Failed to bring down network"
-	check_result
 }
 
 case "$1" in

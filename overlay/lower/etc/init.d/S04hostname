@@ -7,40 +7,40 @@ FILE_HOSTS=/etc/hosts
 FILE_OS_RELEASE=/etc/os-release
 
 set_hostname() {
-	[ "$hostname" = "$(hostname)" ] || run "hostname $hostname"
-	info "Hostname is $(hostname)"
+	[ "$hostname" = "$(hostname)" ] || hostname "$hostname"
+	echo "Hostname is $(hostname)"
 }
 
 update_hostname() {
 	[ "$(cat $FILE_HOSTNAME)" = "$hostname" ] && return
-	run "echo $hostname > $FILE_HOSTNAME"
+	echo $hostname > $FILE_HOSTNAME
 }
 
 update_hosts() {
 	local ip="127.0.1.1"
 	[ "$(sed -nE "s/^$ip\s+(.*)$/\1/p" $FILE_HOSTS)" = "$hostname" ] && return
-	run "sed -i /^$ip/d $FILE_HOSTS"
-	run "echo -e $ip\\\t$hostname >> $FILE_HOSTS"
+	sed -i /^$ip/d $FILE_HOSTS
+	echo -e "$ip\\\t$hostname" >> $FILE_HOSTS
 }
 
 update_os_release() {
 	[ "$(sed -nE "s/^hostname=(.*)$/\1/p" $FILE_OS_RELEASE)" = "$hostname" ] && return
-	run "sed -i \"/^hostname/s/=.*$/=$hostname/\" $FILE_OS_RELEASE"
+	sed -i "/^hostname/s/=.*$/=$hostname/" $FILE_OS_RELEASE
 }
 
 generate() {
 	os_hostname=$(sed -n 's/^HOSTNAME=//p' /etc/os-release)
-	info "OS hostname: $os_hostname"
+	echo "OS hostname: $os_hostname"
 
-	mac_suffix=$(fw_printenv -n wlan_mac | sed -E 's/://g;s/.*(.{4})$/\1/')
-	info "MAC suffix: $mac_suffix"
+	mac_suffix=$(echo $wlan_mac | sed -E 's/://g;s/.*(.{4})$/\1/')
+	echo "MAC suffix: $mac_suffix"
 
 	hostname="${os_hostname}-$mac_suffix"
-	info "Generated hostname: $hostname"
+	echo "Generated hostname: $hostname"
 }
 
 start() {
-	starting
+	echo "Setting hostname"
 
 	hostname=$(hostname)
 	[ -z "$hostname" ] && generate
@@ -50,7 +50,6 @@ start() {
 	update_hostname
 	HOSTNAME="$hostname"
 	export HOSTNAME
-	ok
 }
 
 case "$1" in

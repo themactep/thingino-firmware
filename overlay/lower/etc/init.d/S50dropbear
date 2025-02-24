@@ -32,7 +32,7 @@ start() {
 stop() {
 	echo "Stopping dropbear sshd..."
 
-	stop_daemon_with_pid
+	stop_daemon
 }
 
 case "$1" in

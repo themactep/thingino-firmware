@@ -19,11 +19,13 @@ fi
 
 start() {
 	starting
+
 	start_daemon
 }
 
 stop() {
 	stopping
+
 	stop_daemon_with_pid
 }
 

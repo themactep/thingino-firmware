@@ -3,21 +3,19 @@
 . /etc/init.d/rc.common
 
 start() {
-	starting
+	echo "Starting rc.local"
 
 	[ -x /etc/rc.local ] || quit "Nothing to run"
 	#( ( nohup /etc/rc.local >/dev/null 2>&1 </dev/null & ) & )
 	start-stop-daemon -b -S -x /usr/bin/env -- /bin/sh \
 		-c "/etc/rc.local 2>&1 | logger -p daemon.info -t $0"
-	check_result
 }
 
 stop() {
-	stopping
+	echo "Stopping rc.local"
 
 	[ -x /etc/rc.local.stop ] || quit "Nothing to run"
 	/etc/rc.local.stop
-	check_result
 }
 
 case "$1" in

@@ -1,18 +1,38 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+ENV_DUMP_FILE="/tmp/environment"
+[ -f "$ENV_DUMP_FILE" ] && . "$ENV_DUMP_FILE"
+
+die() {
+	echo "$1"
+	exit 1
+}
+
+start() {
+	echo "Configuring USB..."
+
+	if [ -z "$gpio_usb_en" ]; then
+		echo "USB power GPIO is not set"
+		exit 0
+	fi
+
+	if [ "$gpio_usb_en" = "${gpio_usb_en//[^0-9]/}" ]; then
+		gpio_usb_en="${gpio_usb_en}O"
+	fi
+
+	pin="${gpio_usb_en:0:-1}"
+	case "${gpio_usb_en#$pin}" in
+		o) gpio set $pin 0 || die "Failed to set USB power GPIO $pin to $state" ;;
+		O) gpio set $pin 1 || die "Failed to set USB power GPIO $pin to $state" ;;
+		*) die "Invalid state $state" ;;
+	esac
+
+	echo "Set USB power GPIO $pin to $state"
+}
 
 case "$1" in
 	start)
-		starting
-		gpio_control "gpio_usb_en"
-		case "$?" in
-			0) ok ;;
-			1) quit "GPIO power is not set" ;;
-			2) die "GPIO is in invalid state" ;;
-			3) die "GPIO command failed" ;;
-			*) die "Unknown exit code $?" ;;
-		esac
+		start
 		;;
 	stop)
 		true

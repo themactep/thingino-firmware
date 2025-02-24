@@ -1,13 +1,11 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
-
 start() {
-	starting
+	echo "Configuring IR-CUT..."
+
 	ircut off > /dev/null 2>&1
 	sleep 0.5
 	ircut on > /dev/null 2>&1
-	ok
 }
 
 case "$1" in

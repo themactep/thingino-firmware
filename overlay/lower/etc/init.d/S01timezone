@@ -35,8 +35,6 @@ start() {
 
 	TZ="$tz"
 	export TZ
-
-	ok
 }
 
 case "$1" in

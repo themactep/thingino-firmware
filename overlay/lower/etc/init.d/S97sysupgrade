@@ -3,16 +3,16 @@
 . /etc/init.d/rc.common
 
 start() {
-	echo "Check sysupgrade"
+	echo "Checking sysupgrade..."
 
-	[ "true" = "$sysupgrade_complete" ] && ok && quit
+	[ "true" = "$sysupgrade_complete" ] && exit 0
 
 	fw_setenv sysupgrade_complete true
 	# play_sound thingino.pcm
 }
 
 stop() {
-	echo "Check sysupgrade"
+	echo "Checking for upgrade..."
 
 	[ -f "/tmp/upgrade.me" ] && sysupgrade -p
 }
