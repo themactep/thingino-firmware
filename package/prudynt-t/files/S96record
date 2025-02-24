@@ -2,7 +2,7 @@
 
 # http://www.live555.com/openRTSP/
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 start() {
 	starting

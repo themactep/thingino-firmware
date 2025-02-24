@@ -3,7 +3,7 @@
 DAEMON="motors-daemon"
 DAEMON_ARGS="-d -p"
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 set_motor_phases() {
 	if [ "$(echo $2 | wc -w)" -lt 4 ]; then

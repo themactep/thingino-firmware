@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /sbin/common
+. /usr/share/common
 
 gpiodir=/sys/class/gpio
 

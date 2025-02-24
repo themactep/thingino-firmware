@@ -15,7 +15,7 @@ if [ "true" = "$rsyslog_local" ]; then
 	DAEMON_ARGS="$DAEMON_ARGS -L"
 fi
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 start() {
 	starting

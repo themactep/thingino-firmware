@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 COMMAND="/bin/env -- LD_PRELOAD=/lib/libimp_control.so $DAEMON_FULL"
 SNAPSHOT="/tmp/snapshot.jpg"

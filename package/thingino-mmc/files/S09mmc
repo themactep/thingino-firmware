@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 MMC_MODULE="jzmmc_v12"
 MMC_GPIO_CD=$(fw_printenv -n gpio_mmc_cd)

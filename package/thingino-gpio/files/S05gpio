@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 GPIO_FILE="/etc/gpio.conf"
 [ -f "$GPIO_FILE" ] || die "GPIO configuration file not found: $GPIO_FILE"

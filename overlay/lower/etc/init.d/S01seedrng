@@ -4,7 +4,7 @@ DAEMON="seedrng"
 DAEMON_ARGS="-d /etc/seedrng"
 PIDFILE="/run/$DAEMON.pid"
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 start() {
 	echo "Starting seedrng..."

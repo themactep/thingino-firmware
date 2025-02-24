@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 FILE_HOSTNAME=/etc/hostname
 FILE_HOSTS=/etc/hosts

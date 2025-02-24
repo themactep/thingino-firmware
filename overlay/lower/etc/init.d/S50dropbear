@@ -8,7 +8,7 @@ DAEMON_ARGS="-k -K 300 -b /etc/issue.net -R"
 
 DROPBEAR_KEY_FILE="/etc/dropbear/dropbear_ed25519_host_key"
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 start() {
 	echo "Starting dropbear sshd"

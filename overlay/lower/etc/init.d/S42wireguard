@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 DEV="wg0"
 IP="$(fw_printenv -n wg_address)"

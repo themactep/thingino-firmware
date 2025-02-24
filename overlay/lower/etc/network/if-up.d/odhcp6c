@@ -3,6 +3,8 @@
 PIDFILE="/var/run/odhcp6c_$IFACE.pid"
 TIMEOUT=10
 
+. /usr/share/common
+
 if [ "$(sysctl -n net.ipv6.conf.all.disable_ipv6)" -eq 1 ]; then
 	echo "$IFACE: IPv6 disabled globally"
 	exit 0

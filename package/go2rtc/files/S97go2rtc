@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 DAEMON_ARGS="-d -c /etc/go2rtc.yaml"
 

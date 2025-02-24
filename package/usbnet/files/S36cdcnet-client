@@ -1,13 +1,13 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 start() {
 	usbmac=$(fw_printenv -n usbmac)
 	if [ -z "$usbmac" ]; then
 		decrement_mac
 		daddr=$ethaddr
-	else 
+	else
 		daddr=$usbmac
 	fi
 

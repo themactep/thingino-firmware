@@ -3,7 +3,7 @@
 LINK_FILE="/var/run/boot"
 DAEMON_ARGS="0.05 $LINK_FILE"
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 start() {
 	echo "Starting LED daemon..."

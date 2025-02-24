@@ -7,26 +7,32 @@ fi
 
 ENV_DUMP_FILE="/tmp/environment"
 if [ -f "$ENV_DUMP_FILE" ]; then
-        echo "Evaluating $ENV_DUMP_FILE"
+#        echo "Evaluating $ENV_DUMP_FILE"
         . "$ENV_DUMP_FILE"
 fi
 
 CONFIG_FILE="/etc/web.conf"
 if [ -f "$CONFIG_FILE" ]; then
-        echo "Evaluating $CONFIG_FILE"
+#        echo "Evaluating $CONFIG_FILE"
         . "$CONFIG_FILE"
 fi
 
-. /usr/share/common
-
 PID=$$
-LOCK_FILE="/run/process-$PID.pid"
-LOG_FILE=/tmp/webui.log
-LOG_SIZE_LIMIT=50000
-
-CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3"
 
 CRONTABS="/etc/cron/crontabs/root"
+CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3"
+FILE_HOSTNAME="/etc/hostname"
+FILE_HOSTS="/etc/hosts"
+FILE_OS_RELEASE="/etc/os-release"
+LOG_FILE=/tmp/webui.log
+LOG_SIZE_LIMIT=50000
+NTP_DEFAULT_FILE="/etc/default/ntp.conf"
+NTP_WORKING_FILE="/tmp/ntp.conf"
+RESOLV_DEFAULT_FILE="/etc/default/resolv.conf"
+RESOLV_FILE="/etc/resolv.conf"
+RESOLV_WORKING_FILE="/tmp/resolv.conf"
+SNAPSHOT_FILE="/tmp/snapshot.jpg"
+VBUFFER_FILE="/tmp/vbuffer.mov"
 
 DAEMON=${DAEMON:-$0}
 DAEMON_ARGS=${DAEMON_ARGS:-}
@@ -35,27 +41,35 @@ DAEMON_SHORT=$(basename "${DAEMON%% *}" | sed -r 's/^[FKS]\d{2}//')
 DAEMON_FULL="$(which $DAEMON_SHORT)"
 PIDFILE="/run/$DAEMON_SHORT.pid"
 
+LOCK_FILE="/run/process-$PID.pid"
+
 DAEMON_CONFIG="/etc/default/$DAEMON_SHORT"
-[ -r "$DAEMON_CONFIG" ] && . "$DAEMON_CONFIG"
+if [ -r "$DAEMON_CONFIG" ]; then
+#        echo "Evaluating $DAEMON_CONFIG"
+	. "$DAEMON_CONFIG"
+fi
 
 decrement_mac() {
 	local mac last_byte_dec
 
 	mac=$ethaddr
-	[ -z "$mac" ] && die "Error: MAC address not found in $CONFIG_FILE"
+	if [ -z "$mac" ]; then
+		echo "Error: MAC address not found in $CONFIG_FILE"
+		exit 1
+	fi
 
 	last_byte_dec=$((0x${mac##*:} - 1))
-	[ $last_byte_dec -lt 0 ] && die "Error: MAC address cannot be decremented below 00"
+	if [ $last_byte_dec -lt 0 ]; then
+		echo "Error: MAC address cannot be decremented below 00"
+		exit 1
+	fi
 	ethaddr=$(printf "%s:%02x" "${mac%:*}" "$last_byte_dec")
 }
 
-die() {
-	if [ -n "$1" ]; then
-		echo "$1"
-		echo_c 124 "$1"
-	fi
-	exit 1
-}
+die()  { echo "$1" >&2; exit 1; }
+quit() { echo "$1" >&2; exit 0; }
+
+set_to_system() { sed -i "s/^$1=.*/$1=$2/" $SYSTEM_CONFIG; }
 
 ensure_dir() {
 	[ -d "$1" ] || mkdir -p "$1"
@@ -100,6 +114,11 @@ iface_default() {
 	[ -z "$iface" ] && iface=$(ip -6 r | awk '/default/{print $5; exit}')
 	[ -z "$iface" ] && iface=$(ip -6 r | awk '{print $3; exit}')
 	echo "$iface"
+}
+
+iface_default2() {
+	ipv4_iface=$(ip -4 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)
+	[ -n "$ipv4_iface" ] && echo "$ipv4_iface" || ip -6 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1
 }
 
 iface_exists() {
@@ -158,29 +177,30 @@ log() {
 	logger -p daemon.info -t ${DAEMON_SHORT}[$$] <&0
 }
 
+log_to_file() {
+	# poor man's logrotate
+	if [ -f $LOG_FILE ] && [ "$(stat -c%s $LOG_FILE)" -gt $LOG_SIZE_LIMIT ]; then
+		# redundant, but calling log() from within log() is wrong!
+		echo "$(tag) Rotate log file" >> $LOG_FILE
+		mv "$LOG_FILE" "${LOG_FILE}.1"
+		echo "$(tag) Log file rotated." >> $LOG_FILE
+	fi
+	echo -e "$(tag) $1" >> $LOG_FILE
+	echo -e "$1" >&2
+}
+
 play_sound() {
 	iac -f /usr/share/sounds/$1
 }
 
 print_release() {
-	[ -f /etc/os-release ] || return
-	. /etc/os-release
+	if [ ! -f "$FILE_OS_RELEASE" ]; then
+		echo "$FILE_OS_RELEASE not found"
+		return
+	fi
+	. "$FILE_OS_RELEASE"
 	echo_c 208 "Thingino $IMAGE_ID [$BUILD_ID]\n"
 	echo "Thingino $IMAGE_ID [$BUILD_ID]"
-}
-
-quit() {
-	if [ -n "$1" ]; then
-		echo "$1"
-		echo_c 66 "$1"
-	fi
-	exit 0
-}
-
-run() {
-	echo "$*"
-	is_debug_mode && echo_c 144 "$*"
-	eval "$*"
 }
 
 set_gpio() {

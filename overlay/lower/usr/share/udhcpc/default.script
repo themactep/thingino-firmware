@@ -3,7 +3,7 @@
 # https://github.com/buildroot/buildroot/blob/master/package%2Fbusybox%2Fudhcpc.script
 # https://udhcp.busybox.net/README.udhcpc
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 [ -z "$1" ] && die "Error: should be called from udhcpc"
 

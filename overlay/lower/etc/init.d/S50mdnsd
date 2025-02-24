@@ -2,7 +2,7 @@
 
 DAEMON_ARGS="-i $(ip addr show | awk '/inet.*brd/{print $NF}' | head -1) -s"
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 start() {
 	echo "Starting mdnsd..."

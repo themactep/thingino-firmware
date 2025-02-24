@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 TZNAME_FILE="/etc/timezone"
 TZCODE_FILE="/etc/TZ"

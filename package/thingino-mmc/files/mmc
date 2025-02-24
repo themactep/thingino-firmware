@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /sbin/common
+. /usr/share/common
 
 [ -z "$1" ] && die "Usage: $0 <mmc port> [-r]"
 

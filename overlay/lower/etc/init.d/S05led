@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 set_pin() {
 	if [ "$(gpio value $1)" -ne $2 ]; then

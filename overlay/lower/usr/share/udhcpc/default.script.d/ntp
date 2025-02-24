@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 setup_ntp_from_dhcp() {
 	echo "Use DHCP provided NTP servers: $ntpsrv"

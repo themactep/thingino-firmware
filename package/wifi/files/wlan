@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 if [ -z "$wlan_module" ]; then
 	echo "wlan_module is empty, exit."

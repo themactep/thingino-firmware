@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 HTTPD_CONF="/etc/httpd.conf"
 PORTAL_CONF="/etc/httpd-portal.conf"

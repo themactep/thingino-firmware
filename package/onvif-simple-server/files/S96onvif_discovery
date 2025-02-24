@@ -6,7 +6,7 @@ ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
 OS_RELEASE=/etc/os-release
 PRUDYNT_CONFIG=/etc/prudynt.cfg
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 iface="$(iface_default)"
 
