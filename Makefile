@@ -20,7 +20,7 @@ $(error Current directory path "$(CURDIR)" cannot contain spaces)
 endif
 
 ifeq ($(filter x86_64 aarch64,$(HOST_ARCH)),)
-$(error ❌ Unsupported architecture: $(HOST_ARCH). Only x86_64 and aarch64 are supported.)
+$(error Unsupported architecture: $(HOST_ARCH). Only x86_64 and aarch64 are supported.)
 endif
 
 # Camera IP address
