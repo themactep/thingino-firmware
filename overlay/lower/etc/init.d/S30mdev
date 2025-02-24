@@ -1,13 +1,17 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+MDEV="/sbin/mdev"
+
+start() {
+	echo "Configuring mdev..."
+
+	echo $MDEV > /proc/sys/kernel/hotplug
+	$MDEV -s
+}
 
 case "$1" in
 	start)
-		starting
-		run "echo /sbin/mdev > /proc/sys/kernel/hotplug"
-		run "/sbin/mdev -s"
-		check_result
+		start
 		;;
 	stop)
 		true

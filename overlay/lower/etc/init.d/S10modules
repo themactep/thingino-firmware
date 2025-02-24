@@ -10,19 +10,23 @@ load_modules() {
 		case "$module" in
 			"" | "#"*) continue ;;
 		esac
-		info "Loading $module $args"
-		run "modprobe $module $args"
+		echo "Loading $module $args"
+		modprobe $module $args
 	done < $file
+}
+
+start() {
+	echo "Loading kernel modules..."
+
+	load_modules /etc/modules
+	[ -d /etc/modules.d ] && for conf in /etc/modules.d/*; do
+		load_modules $conf
+	done
 }
 
 case "$1" in
 	start)
-		starting
-		load_modules /etc/modules
-		[ -d /etc/modules.d ] && for conf in /etc/modules.d/*; do
-			load_modules $conf
-		done
-		check_result
+		start
 		;;
 	stop)
 		true

@@ -3,14 +3,17 @@
 . /etc/init.d/rc.common
 
 start() {
-	starting
-	[ "true" = "$(fw_printenv -n sysupgrade_complete)" ] && ok && quit
-	run "fw_setenv sysupgrade_complete true"
+	echo "Check sysupgrade"
+
+	[ "true" = "$sysupgrade_complete" ] && ok && quit
+
+	fw_setenv sysupgrade_complete true
 	# play_sound thingino.pcm
 }
 
 stop() {
-	stopping
+	echo "Check sysupgrade"
+
 	[ -f "/tmp/upgrade.me" ] && sysupgrade -p
 }
 

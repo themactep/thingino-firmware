@@ -11,7 +11,7 @@ DROPBEAR_KEY_FILE="/etc/dropbear/dropbear_ed25519_host_key"
 . /etc/init.d/rc.common
 
 start() {
-	starting
+	echo "Starting dropbear sshd"
 
 	if [ -L /etc/dropbear -a "$(readlink /etc/dropbear)" = "/var/run/dropbear" ]; then
 		if rm -f /etc/dropbear >/dev/null 2>&1; then
@@ -30,7 +30,8 @@ start() {
 }
 
 stop() {
-	stopping
+	echo "Stopping dropbear sshd..."
+
 	stop_daemon_with_pid
 }
 

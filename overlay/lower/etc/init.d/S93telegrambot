@@ -3,12 +3,14 @@
 . /etc/init.d/rc.common
 
 start() {
-	starting
+	echo "Starting Telegram bot daemon..."
+
 	start_daemon
 }
 
 stop() {
-	stopping
+	echo "Stopping Telegram bot daemon..."
+
 	stop_daemon_with_pid
 }
 

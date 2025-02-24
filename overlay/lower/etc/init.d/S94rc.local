@@ -4,6 +4,7 @@
 
 start() {
 	starting
+
 	[ -x /etc/rc.local ] || quit "Nothing to run"
 	#( ( nohup /etc/rc.local >/dev/null 2>&1 </dev/null & ) & )
 	start-stop-daemon -b -S -x /usr/bin/env -- /bin/sh \
@@ -13,8 +14,9 @@ start() {
 
 stop() {
 	stopping
+
 	[ -x /etc/rc.local.stop ] || quit "Nothing to run"
-	run "/etc/rc.local.stop"
+	/etc/rc.local.stop
 	check_result
 }
 

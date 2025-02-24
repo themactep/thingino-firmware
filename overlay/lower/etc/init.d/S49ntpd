@@ -13,8 +13,9 @@ sync_time() {
 }
 
 start() {
-	starting
-	if [ "true" = "$(fw_printenv -n wlanap_enabled)" ]; then
+	echo "Starting NTP daemon..."
+
+	if [ "true" = "$wlanap_enabled" ]; then
 		touch "$WORKING_CONFIG"
 		DAEMON_ARGS="-n -l"
 	fi
@@ -26,18 +27,19 @@ start() {
 			info "NTP: default configuration found"
 		else
 			info "NTP: restore default config from ROM"
-			run "cp /rom$DEFAULT_CONFIG $DEFAULT_CONFIG"
+			cp "/rom$DEFAULT_CONFIG" "$DEFAULT_CONFIG"
 		fi
 
 		info "NTP: use default configuration"
-		run "cp $DEFAULT_CONFIG $WORKING_CONFIG"
+		cp "$DEFAULT_CONFIG" "$WORKING_CONFIG"
 	fi
 	start_daemon
 	sync_time
 }
 
 stop() {
-	stopping
+	echo "Stopping NTP daemon..."
+
 	stop_daemon_with_pid
 }
 

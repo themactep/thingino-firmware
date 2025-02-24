@@ -5,12 +5,14 @@ DAEMON_ARGS="-i $(ip addr show | awk '/inet.*brd/{print $NF}' | head -1) -s"
 . /etc/init.d/rc.common
 
 start() {
-	starting
+	echo "Starting mdnsd..."
+
 	start_daemon
 }
 
 stop() {
-	stopping
+	echo "Stopping mdnsd..."
+
 	stop_daemon_with_pid
 }
 

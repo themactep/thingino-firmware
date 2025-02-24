@@ -5,13 +5,15 @@ DAEMON_ARGS="-f -c /etc/cron/crontabs"
 . /etc/init.d/rc.common
 
 start() {
-	starting
+	echo "Starting crond..."
+
 	[ -f $DAEMON_FULL ] || quit "Disabled"
 	start_daemon
 }
 
 stop() {
-	stopping
+	echo "Stopping crond..."
+
 	[ -f $DAEMON_FULL ] || quit "Disabled"
 	stop_daemon_with_pid
 }

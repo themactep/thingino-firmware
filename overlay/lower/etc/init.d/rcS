@@ -7,7 +7,9 @@ export SOC=$(soc -f)
 export TZ=$(cat /etc/TZ)
 
 rm -f /var/run/boot
+
 sleep 0.1
+
 echo 0.5 > /var/run/boot
 
 execute_and_log() {
