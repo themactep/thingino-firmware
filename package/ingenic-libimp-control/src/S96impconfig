@@ -11,13 +11,12 @@ check_imp() {
 		*) isp_path="/proc/jz/isp/isp-fs" ;;
 	esac
 
-	info "Connect to libimp-control"
+	echo "Connect to libimp-control"
 	local i=10
 	while [ "$i" -gt 0 ]; do
 		if grep -Eq "running|Software" $isp_path; then
-			run "imp-control getdeviceid > /dev/null"
+			imp-control getdeviceid > /dev/null
 			echo -n " "
-			check_result
 			return
 		fi
 		i=$((i-1))
@@ -32,9 +31,8 @@ restore_config() {
 	[ -f "$config" ] || quit "Nothing to restore"
 
 	while read -r line; do
-		run "imp-control $line > /dev/null"
+		imp-control $line > /dev/null
 	done < $config
-	check_result
 }
 
 start() {

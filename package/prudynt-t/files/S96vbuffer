@@ -1,6 +1,5 @@
 #!/bin/sh
 
-. /sbin/common
 . /etc/init.d/rc.common
 
 # "parameter" "default"
@@ -27,7 +26,8 @@ lockfile="/tmp/vbuffer.lock"
 tmpfile="/tmp/vbuffer.tmp"
 
 start() {
-	starting
+	echo "Starting vbuffer"
+
 	pidof -o $$ S96vbuffer > /dev/null && quit "is already running"
 
 	[ "true" = "$(prudyntcfg get motion.enabled)" ] || \
@@ -36,7 +36,6 @@ start() {
 	is_streamer_disabled && quit "Streamer disabled"
 	is_streamer_running || quit "Streamer is not running"
 	command -v openRTSP >/dev/null || die "openRTSP not found"
-	ok
 
 	while : ; do
 		openRTSP -V -u $rtsp_username $rtsp_password \
@@ -55,7 +54,8 @@ start() {
 
 # FIXME: $0 does not work here
 stop() {
-	stopping
+	echo "Stopping vbuffer"
+
 	pid=$(pidof -o %PPID -s S96vbuffer)
 	[ -z "$pid" ] && quit "Nothing to stop"
 	while [ -n "$pid" ]; do
@@ -64,12 +64,14 @@ stop() {
 	done
 	rm -f $clipfile $lockfile
 	[ -f "$tmpfile" ] && sleep 5 && rm $tmpfile
-	ok
 }
 
 case "$1" in
-	start|stop)
-		$1
+	start)
+		start
+		;;
+	stop)
+		stop
 		;;
 	restart)
 		stop || true

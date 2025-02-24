@@ -10,7 +10,7 @@ MMC_GPIO_PWR=$(fw_printenv -n gpio_mmc_power)
 [ -z "$MMC_GPIO_CD" ] && MMC_GPIO_CD="59"
 
 set_gpio() {
-	info "Set GPIO $1 to F$2 D$3"
+	echo "Set GPIO $1 to F$2 D$3"
 	gpio-diag $1 func $2 drive $3
 }
 
@@ -23,12 +23,12 @@ set_power() {
 
 		case "${gpio#??}" in
 			"O")
-				info "Set GPIO "${gpio%[oO]}" high"
-				run "gpio set "${gpio%[oO]}" 1"
+				echo "Set GPIO "${gpio%[oO]}" high"
+				gpio set "${gpio%[oO]}" 1
 				;;
 			"o")
-				info "Set GPIO "${gpio%[oO]}" low"
-				run "gpio set "${gpio%[oO]}" 0"
+				echo "Set GPIO "${gpio%[oO]}" low"
+				gpio set "${gpio%[oO]}" 0
 				;;
 		esac
 	done
@@ -36,25 +36,24 @@ set_power() {
 
 load_module() {
 	grep -q "$MMC_MODULE" /proc/modules && die "$MMC_MODULE is already loaded"
-	info "Load $MMC_MODULE $MMC_PARAM"
+	echo "Load $MMC_MODULE $MMC_PARAM"
 	modprobe $MMC_MODULE $MMC_PARAM || die "Failed to load module!"
 	set_power
 }
 
 start() {
+	echo "Starting MMC"
+
 	MMC_PARAM="cd_gpio_pin=$MMC_GPIO_CD"
 	load_module
 }
 
 case "$1" in
 	start)
-		starting
 		start
-		check_result
 		;;
 	stop)
-		stopping
-		ok
+		true
 		;;
 	reload | restart)
 		stop

@@ -33,11 +33,6 @@ list_pins() {
 	cat /sys/kernel/debug/gpio
 }
 
-log_and_run() {
-	[ -n "$DEBUG" ] && echo -e "$1"
-	eval "$1"
-}
-
 claim_pin() {
 	export_pin
 	echo $pin > /proc/gpio_claim/gpio

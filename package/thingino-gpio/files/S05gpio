@@ -2,12 +2,17 @@
 
 . /etc/init.d/rc.common
 
+GPIO_FILE="/etc/gpio.conf"
+[ -f "$GPIO_FILE" ] || die "GPIO configuration file not found: $GPIO_FILE"
+
 VALID_STATES="high low input"
 
 # TODO: Set the maximum GPIO number by SOC model
 MAX_GPIO=192
 
 start() {
+	echo " Setting GPIOs"
+
 	while IFS= read -r line; do
 		# Skip empty lines and comments
 		[ -z "$line" ] || echo "$line" | grep -q '^#' && continue
@@ -17,26 +22,27 @@ start() {
 		gpionum=$1
 		state=$(echo "$2" | tr A-Z a-z)
 		case "$VALID_STATES" in
-			*"$state"*) : ;;
-			*) info "Invalid state: $state in line: $line"; return 1 ;;
+			*"$state"*)
+				# pin is in valid range
+				if [ "$gpionum" -lt 0 ] || [ "$gpionum" -gt $MAX_GPIO ]; then
+					echo "Invalid GPIO number: $gpionum in line: $line"
+				else
+					gpio "$state" "$gpionum"
+					echo "GPIO $gpionum set to $state"
+
+					[ -n "$3" ] && echo "Description: $3"
+				fi
+				;;
+			*)
+				echo "Invalid state: $state in line: $line"
+				;;
 		esac
-
-		# pin is in valid range
-		if [ "$gpionum" -lt 0 ] || [ "$gpionum" -gt $MAX_GPIO ]; then
-			info "Invalid GPIO number: $gpionum in line: $line"
-			return 1
-		fi
-
-		run "gpio \"$state\" \"$gpionum\""
-		[ -n "$3" ] && info "Description: $3"
-	done < /etc/gpio.conf
+	done < $GPIO_FILE
 }
 
 case "$1" in
 	start)
-		starting
 		start
-		ok
 		;;
 	stop)
 		true

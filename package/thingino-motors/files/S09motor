@@ -5,10 +5,11 @@ DAEMON_ARGS="-d -p"
 
 . /etc/init.d/rc.common
 
-[ -z "$gpio_motor_h" ] && dump_from_env "motor"
-
 set_motor_phases() {
-	[ "$(echo $2 | wc -w)" -lt 4 ] && die "Missing phase for ${1}motor"
+	if [ "$(echo $2 | wc -w)" -lt 4 ]; then
+		echo "Missing phase for ${1}motor"
+		exit 1
+	fi
 
 	local i=1
 	for gpio in $2; do
@@ -18,17 +19,18 @@ set_motor_phases() {
 }
 
 home_motors() {
-	info "Home motors"
+	echo "Home motors"
 	motors -r > /dev/null 2>&1
 }
 
 set_motors_speed() {
-	info "Set motors speed to $motor_speed"
+	echo "Set motors speed to $motor_speed"
 	motors -s $1 > /dev/null 2>&1
 }
 
 position_motors() {
 	local x y motor_pos_0
+
 	x=$((motor_maxstep_h / 2))
 	y=$((motor_maxstep_v / 2))
 	if [ -n "$motor_pos_0" ]; then
@@ -36,43 +38,76 @@ position_motors() {
 		y=$(echo $motor_pos_0 | cut -d, -f2)
 	fi
 
-	info "Move to $x,$y"
+	echo "Move to $x,$y"
 	motors -d h -x $x -y $y > /dev/null 2>&1
 }
 
 start() {
-	starting
+	echo " Setting up motors"
 
 	motors_app=$(which motors)
 
 	# Check if motors are supported
-	[ -z "$motors_app" ] && die " No motors app found"
-	[ -z "$gpio_motor_h" ] && die " Pan motor GPIO pins are not set"
-	[ -z "$gpio_motor_switch" ] && [ -z "$gpio_motor_v" ] && die " Tilt motor GPIO pins are not set"
-	[ -z "$motor_maxstep_h" ] && die " Pan motor Steps are not set"
-	[ -z "$motor_maxstep_v" ] && die " Tilt motor Steps are not set"
-	[ -z "$motor_speed" ] && motor_speed=900
+	if [ -z "$motors_app" ]; then
+		echo " No motors app found"
+		exit 1
+	fi
 
-	[ "$gpio_motor_invert" = "true" ] && gpio_motor_invert_opt="invert_gpio_dir=1"
+	if [ -z "$gpio_motor_h" ]; then
+		echo " Pan motor GPIO pins are not set"
+		exit 1
+	fi
 
-	[ -n "$gpio_motor_switch" ] && direction_select_gpio="shared_gpio_mode=0 direction_select_gpio=$gpio_motor_switch"
+	if [ -z "$gpio_motor_switch" ] && [ -z "$gpio_motor_v" ]; then
+		echo " Tilt motor GPIO pins are not set"
+		exit 1
+	fi
+
+	if [ -z "$motor_maxstep_h" ]; then
+		echo" Pan motor Steps are not set"
+		exit 1
+	fi
+
+	if [ -z "$motor_maxstep_v" ]; then
+		echo" Tilt motor Steps are not set"
+		exit 1
+	fi
+
+	if [ -z "$motor_speed" ]; then
+		motor_speed=900
+	fi
+
+	if [ "true" = "$gpio_motor_invert" ]; then
+		gpio_motor_invert_opt="invert_gpio_dir=1"
+	fi
+
+	if [ -n "$gpio_motor_switch" ]; then
+		direction_select_gpio="shared_gpio_mode=0 direction_select_gpio=$gpio_motor_switch"
+	fi
 
 	if grep -qE "^motor" /proc/modules; then
-		info "Module motor already loaded."
+		echo "Module motor already loaded."
 	else
-		info "Set GPIO per motor phase"
+		echo "Set GPIO per motor phase"
 		set_motor_phases "h" "$gpio_motor_h"
-		[ -z "$gpio_motor_switch" ] && set_motor_phases "v" "$gpio_motor_v"
+		if [ -z "$gpio_motor_switch" ]; then
+			set_motor_phases "v" "$gpio_motor_v"
+		fi
 
-		info "Load module with parameters"
+		echo "Load module with parameters"
 
 		modprobe_args="hmaxstep=$motor_maxstep_h vmaxstep=$motor_maxstep_v \
 			hst1=$hst1 hst2=$hst2 hst3=$hst3 hst4=$hst4 \
 			$gpio_motor_invert_opt $direction_select_gpio"
 
-		[ -z "$gpio_motor_switch" ] && modprobe_args="$modprobe_args vst1=$vst1 vst2=$vst2 vst3=$vst3 vst4=$vst4"
+		if [ -z "$gpio_motor_switch" ]; then
+			modprobe_args="$modprobe_args vst1=$vst1 vst2=$vst2 vst3=$vst3 vst4=$vst4"
+		fi
 
-		modprobe motor $modprobe_args || die "Failed to load motor module"
+		if ! modprobe motor $modprobe_args; then
+			echo "Failed to load motor module"
+			exit 1
+		fi
 	fi
 
 	start_daemon
@@ -82,7 +117,7 @@ start() {
 	set_motors_speed $motor_speed
 
 	if [ "true" = "$motor_disable_homing" ]; then
-		warn "Homing disabled"
+		echo "Homing disabled"
 	else
 		home_motors
 		position_motors
@@ -90,16 +125,19 @@ start() {
 }
 
 stop() {
-	stopping
+	echo " Stopping motors"
+
 	stop_daemon
 	# FIXME: motor.ko crashes on upload
 	# rmmod motor || die "Failed to unload motor module."
-	ok
 }
 
 case "$1" in
-	start | stop)
-		$1
+	start)
+		start
+		;;
+	stop)
+		stop
 		;;
 	restart | reload)
 		stop

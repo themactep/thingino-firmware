@@ -14,8 +14,8 @@ start() {
 stop() {
 	stopping
 	is_streamer_disabled && quit "Streamer disabled"
-	[ -f "$SNAPSHOT" ] && run "rm $SNAPSHOT"
-	stop_daemon_with_pid
+	[ -f "$SNAPSHOT" ] && rm $SNAPSHOT
+	stop_daemon
 }
 
 case "$1" in

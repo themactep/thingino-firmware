@@ -2,31 +2,30 @@
 
 . /etc/init.d/rc.common
 
+modulename="rndis_host"
+
 start() {
-	gpionum="$(fw_printenv -n gpio_usbnet)"
-	modulename="rndis_host"
+	echo "Starting USB NET"
 
-	starting
-
-	if [ -n "$gpionum" ]; then
-		num=${gpionum%[oO]}
-		state=${gpionum#$num}
+	if [ -n "$gpio_usbnet" ]; then
+		num=${gpio_usbnet%[oO]}
+		state=${gpio_usbnet#$num}
 
 		case "$state" in
 			O) gpio_cmd="high" ;;
 			o) gpio_cmd="low" ;;
 		esac
 
-		info "Set GPIO $num $gpio_cmd"
-		run "gpio $gpio_cmd $num"
+		echo "Set GPIO $num $gpio_cmd"
+		gpio $gpio_cmd $num
 	fi
 
-	info "Load usbserial module"
-	run "modprobe usbserial"
+	echo "Load usbserial module"
+	modprobe usbserial
 
 	if ! grep -q ^$modulename /proc/modules; then
-		info "Load $modulename module"
-		run "modprobe $modulename"
+		echo "Load $modulename module"
+		modprobe $modulename
 	fi
 }
 

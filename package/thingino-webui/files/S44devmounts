@@ -4,7 +4,8 @@ MOUNT_SHARE=
 MOUNT_POINT="/var/www"
 
 start() {
-	echo "$0: Mounting $MOUNT_SHARE to $MOUNT_POINT"
+	echo "Mounting $MOUNT_SHARE to $MOUNT_POINT"
+
 	mountpoint -q $MOUNT_POINT && quit "Already mounted"
 	rm -r $MOUNT_POINT
 	mkdir $MOUNT_POINT
@@ -12,7 +13,8 @@ start() {
 }
 
 stop() {
-	echo "$0: Unmounting $MOUNT_POINT"
+	echo "Unmounting $MOUNT_POINT"
+
 	mountpoint -q $MOUNT_POINT || quit "Nothing to unmount"
 	umount $MOUNT_POINT
 	rm -r /overlay$MOUNT_POINT
@@ -20,8 +22,11 @@ stop() {
 }
 
 case "$1" in
-	start | stop)
-		$1
+	start)
+		start
+		;;
+	stop)
+		stop
 		;;
 	reload | restart)
 		stop

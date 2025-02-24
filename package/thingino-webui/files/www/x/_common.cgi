@@ -9,8 +9,11 @@ STR_NOT_SUPPORTED="not supported on this system"
 STR_PASSWORD_TO_PSK="Plain-text password will be automatically converted to a PSK upon submission"
 STR_SUPPORTS_STRFTIME="Supports <a href=\"https://strftime.net/\" target=\"_blank\">strftime</a> format"
 
-WEB_CONFIG_FILE="/etc/web.conf"
-[ -f "$WEB_CONFIG_FILE" ] || touch "$WEB_CONFIG_FILE"
+ENV_DUMP_FILE="/tmp/environment"
+[ -f "$ENV_DUMP_FILE" ] && . "$ENV_DUMP_FILE"
+
+CONFIG_FILE="/etc/web.conf"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
 pagename=$(basename "$SCRIPT_NAME")
 pagename="${pagename%%.*}"

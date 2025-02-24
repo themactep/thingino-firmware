@@ -2,8 +2,6 @@
 
 # http://www.live555.com/openRTSP/
 
-WEBUI_CONF=/etc/web.conf
-
 . /etc/init.d/rc.common
 
 start() {
@@ -12,9 +10,7 @@ start() {
 
 	is_streamer_disabled && quit "Streamer disabled"
 	is_streamer_running || quit "Streamer is not running"
-	[ -f $WEBUI_CONF ] || quit "Not configured"
-	. $WEBUI_CONF
-	[ "true" = "$record_enabled" ] || quit "Disabled in $WEBUI_CONF"
+	[ "true" = "$record_enabled" ] || quit "Disabled"
 	start_daemon
 }
 

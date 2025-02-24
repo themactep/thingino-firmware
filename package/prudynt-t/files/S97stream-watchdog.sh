@@ -13,7 +13,7 @@ RESTART_COUNT=0
 PID_FILE="/run/rtsp_watchdog.pid"  # PID file to store the background process ID
 
 # Handle signals
-trap 'info "Stream Watchdog: Stopping watchdog..."; cleanup; exit 0' INT TERM
+trap 'echo "Stream Watchdog: Stopping watchdog..."; cleanup; exit 0' INT TERM
 
 cleanup() {
 	# Kill any background processes and cleanup resources
@@ -30,28 +30,28 @@ watch() {
 
 			wait $PID
 			if [ $? -eq 0 ]; then
-				info "Stream Watchdog: Stream stream is active."
+				echo "Stream Watchdog: Stream stream is active."
 				SUCCESS=true
 				RESTART_COUNT=0  # Reset the restart count after a successful check
 				break
 			else
-				info "Stream Watchdog: Attempt $i failed. Retrying in $RETRY_DELAY seconds..."
+				echo "Stream Watchdog: Attempt $i failed. Retrying in $RETRY_DELAY seconds..."
 				sleep $RETRY_DELAY  # Delay before retrying
 			fi
 		done
 
 		if ! $SUCCESS; then
-			info "Stream Watchdog: Stream stream is down, restarting server..."
+			echo "Stream Watchdog: Stream stream is down, restarting server..."
 			service restart prudynt
 
 			RESTART_COUNT=$((RESTART_COUNT+1))
 
 			# Delay before checking the stream again after a restart
-			info "Stream Watchdog: Waiting $RESTART_DELAY seconds before rechecking..."
+			echo "Stream Watchdog: Waiting $RESTART_DELAY seconds before rechecking..."
 			sleep $RESTART_DELAY
 
 			if [ $RESTART_COUNT -ge $RESTART_LIMIT ]; then
-				info "Stream Watchdog: Restart limit reached, noting to log..."
+				echo "Stream Watchdog: Restart limit reached, noting to log..."
 				# ALERT!
 				RESTART_COUNT=0  # Reset the count after escalation
 			fi
@@ -75,13 +75,13 @@ stop() {
 		PID=$(cat "$PID_FILE")
 		if kill -0 "$PID" 2>/dev/null; then
 			kill "$PID"
-			info "Stream Watchdog: Watchdog process stopped."
+			echo "Stream Watchdog: Watchdog process stopped."
 			rm -f "$PID_FILE"  # Clean up the PID file
 		else
-			info "Stream Watchdog: No running watchdog process found."
+			echo "Stream Watchdog: No running watchdog process found."
 		fi
 	else
-		info "Stream Watchdog: PID file not found."
+		echo "Stream Watchdog: PID file not found."
 	fi
 }
 

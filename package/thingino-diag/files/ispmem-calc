@@ -105,7 +105,7 @@ read -n 1 -p "Would you like to set this configuration? [y/n] " run_command
 if [ "$run_command" = "y" ]; then
 	eval "$command"
 	echo -e "\nConfiguration set, please reboot for changes to take effect."
-	echo "Memory configuration changed: osmem=${osmem}M@0x0 rmem=${rmem}M@$rmem_offset" | log
+	echo "Memory configuration changed: osmem=${osmem}M@0x0 rmem=${rmem}M@$rmem_offset"
 else
 	echo -e "\nQuitting, no changes made."
 fi

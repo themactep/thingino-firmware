@@ -29,8 +29,11 @@ check_result() {
 }
 
 decrement_mac() {
-	local last_byte_dec mac
+	local mac last_byte_dec
+
 	mac=$ethaddr
+	[ -z "$mac" ] && die "Error: MAC address not found in $CONFIG_FILE"
+
 	last_byte_dec=$((0x${mac##*:} - 1))
 	[ $last_byte_dec -lt 0 ] && die "Error: MAC address cannot be decremented below 00"
 	ethaddr=$(printf "%s:%02x" "${mac%:*}" "$last_byte_dec")
@@ -38,7 +41,7 @@ decrement_mac() {
 
 die() {
 	if [ -n "$1" ]; then
-		echo "$1" | log
+		echo "$1"
 		echo_c 124 "$1"
 	fi
 	exit 1
