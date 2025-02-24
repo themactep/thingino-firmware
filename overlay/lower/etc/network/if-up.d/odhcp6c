@@ -5,6 +5,11 @@ TIMEOUT=10
 
 . /usr/share/common
 
+if [ ! -d "/sys/class/net/$IFACE" ]; then
+	echo "$IFACE not found"
+	exit 0
+fi
+
 if [ "$(sysctl -n net.ipv6.conf.all.disable_ipv6)" -eq 1 ]; then
 	echo "$IFACE: IPv6 disabled globally"
 	exit 0
@@ -17,12 +22,15 @@ else
 	exit 0
 fi
 
-do_start() {
-	TMP_LOG=/tmp/odhcp6c.log
+start_post_up() {
+	echo "$IFACE: starting odhcp6c"
+
+	TMP_LOG="/tmp/odhcp6c.log"
+
 	/sbin/odhcp6c -p "$PIDFILE" -t120 -S15 "$IFACE" > "$TMP_LOG" 2>&1 &
 
 	while [ "$TIMEOUT" -gt 0 ]; do
-		if grep -q "Adding address" "$TMP_LOG"; then
+		if [ -f "$TMP_LOG" ] && grep -q "Adding address" "$TMP_LOG"; then
 			echo "$IFACE: DHCPv6 configured"
 			rm -f "$TMP_LOG"
 			return 0
@@ -36,10 +44,20 @@ do_start() {
 	return 1
 }
 
-do_stop() {
+stop_pre_down() {
+	echo "$IFACE: stopping odhcp6c"
+
 	if [ -f "$PIDFILE" ]; then
-		kill "$(cat "$PIDFILE")"
+		pid=$(cat $PIDFILE)
+		echo "Running service PID: $pid"
+
+		echo "kill -9 $pid"
+		kill -9 $pid
+
+		echo "rm -f $PIDFILE"
 		rm -f "$PIDFILE"
+	else
+		echo "Nothing to stop"
 	fi
 }
 
@@ -47,8 +65,7 @@ case "$MODE" in
 	start)
 		case "$PHASE" in
 			post-up)
-				echo "$IFACE: starting odhcp6c"
-				do_start
+				start_post_up
 				;;
 		esac
 		;;
@@ -56,8 +73,7 @@ case "$MODE" in
 	stop)
 		case "$PHASE" in
 			pre-down)
-				echo "$IFACE: stopping odhcp6c"
-				do_stop
+				stop_pre_down
 				;;
 		esac
 		;;
