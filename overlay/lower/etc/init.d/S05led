@@ -12,8 +12,14 @@ set_pin() {
 }
 
 start() {
-	DEFAULT_PINS=$(fw_printenv -n gpio_default)
-	for pin_raw in $(fw_printenv | grep ^gpio_led_ | awk -F= '{print $2}'); do
+	echo "Configuring LEDs..."
+
+	if [ -x /sbin/gpio ]; then
+		echo "gpio tool not found"
+		exit 1
+	fi
+
+	for pin_raw in $(awk -F= '/^gpio_led_/{gsub(/"/, "", $2); print $2}' /tmp/environment); do
 		[ "$pin_raw" = "${pin_raw//[^0-9]/}" ] && pin_raw="${pin_raw}O"
 		pin="${pin_raw:0:-1}"
 		suffix="${pin_raw:0-1}"
@@ -23,7 +29,7 @@ start() {
 			*) die "Unknown suffix!" ;;
 		esac
 
-		if echo "$DEFAULT_PINS" | grep -E "\b$pin_raw\b" > /dev/null; then
+		if echo "$gpio_default" | grep -E "\b$pin_raw\b" > /dev/null; then
 			set_pin $pin $pin_on
 		else
 			set_pin $pin $pin_off
@@ -33,9 +39,7 @@ start() {
 
 case "$1" in
 	start)
-		starting
 		start
-		ok
 		;;
 	stop)
 		true
