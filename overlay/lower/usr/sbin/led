@@ -1,5 +1,11 @@
 #!/bin/sh
 
+ENV_DUMP_FILE="/tmp/environment"
+[ -f "$ENV_DUMP_FILE" ] && . "$ENV_DUMP_FILE"
+
+CONFIG_FILE="/etc/web.conf"
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+
 show_help() {
 	echo "Usage: $0 [<color>|off]
 Where:
@@ -8,9 +14,9 @@ Where:
 	exit 1
 }
 
-GPIO_R=$(fw_printenv -n gpio_led_r)
-GPIO_G=$(fw_printenv -n gpio_led_g)
-GPIO_B=$(fw_printenv -n gpio_led_b)
+GPIO_R=$gpio_led_r
+GPIO_G=$gpio_led_g
+GPIO_B=$gpio_led_b
 
 [ "o" = "${GPIO_R:0-1}" ] && GPIO_R_HI=0 || GPIO_R_HI=1
 [ "o" = "${GPIO_G:0-1}" ] && GPIO_G_HI=0 || GPIO_G_HI=1
