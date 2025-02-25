@@ -612,6 +612,48 @@ export SENSOR_MODEL
 # ISP
 #
 
+# ISP kernel reserved memory allocations
+FOUND_RMEM := $(subst BR2_THINGINO_RMEM_,,$(strip \
+	$(foreach v,$(filter BR2_THINGINO_RMEM_%,$(filter-out BR2_THINGINO_RMEM_CHOICE,$(.VARIABLES))), \
+		$(if $(filter y,$($(v))),$(v)) \
+	)))
+
+# Set the default RMEM size based on SOC ram size if no explicit value found
+# These values match the default values found in uboot by the soc ram size
+ifeq ($(FOUND_RMEM),)
+	ifeq ($(SOC_RAM),64)
+		ISP_RMEM := 23
+	else ifeq ($(SOC_RAM),128)
+		ISP_RMEM := 29
+	endif
+else
+	ISP_RMEM := $(FOUND_RMEM)
+endif
+
+export ISP_RMEM
+
+FOUND_ISPMEM := $(subst BR2_THINGINO_ISPMEM_,,$(strip \
+	$(foreach v,$(filter BR2_THINGINO_ISPMEM_%,$(filter-out BR2_THINGINO_ISPMEM_CHOICE,$(.VARIABLES))), \
+		$(if $(filter y,$($(v))),$(v)) \
+	)))
+
+ifeq ($(FOUND_ISPMEM),)
+	ISP_ISPMEM := 8
+else
+	ISP_ISPMEM := $(FOUND_ISPMEM)
+endif
+
+export ISP_ISPMEM
+
+ISP_NMEM := $(or \
+	$(subst BR2_NMEM_,,$(strip \
+		$(foreach v,$(filter BR2_NMEM_%,$(filter-out BR2_NMEM_CHOICE,$(.VARIABLES))), \
+			$(if $(filter y,$($(v))),$(v)) \
+		) \
+	)),32)
+
+export ISP_NMEM
+
 # Default ISP clock speed
 ifeq ($(BR2_ISP_CLK_90MHZ),y)
 	ISP_CLK := 90000000

@@ -23,14 +23,15 @@ config BR2_SOC_FAMILY_INGENIC_T41
 	bool
 	default y if BR2_SOC_INGENIC_T41LQ || BR2_SOC_INGENIC_T41NQ || BR2_SOC_INGENIC_T41ZL || BR2_SOC_INGENIC_T41ZN || BR2_SOC_INGENIC_T41ZX || BR2_SOC_INGENIC_T41A
 
-if FALSE
 config BR2_SOC_FAMILY_64MB
 	bool
 	default y if BR2_SOC_INGENIC_T10L || BR2_SOC_INGENIC_T10N || BR2_SOC_INGENIC_T10A || BR2_SOC_INGENIC_T20L || BR2_SOC_INGENIC_T20N || BR2_SOC_INGENIC_T21L || BR2_SOC_INGENIC_T21N || BR2_SOC_INGENIC_T21Z || BR2_SOC_INGENIC_T21ZL || BR2_SOC_INGENIC_T21Z || BR2_SOC_INGENIC_T21ZL || BR2_SOC_INGENIC_T23N || BR2_SOC_INGENIC_T23ZN || BR2_SOC_INGENIC_T30L || BR2_SOC_INGENIC_T30N || BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL
 config BR2_SOC_FAMILY_128MB
 	bool
 	default y if BR2_SOC_INGENIC_T20X || BR2_SOC_INGENIC_T21X || BR2_SOC_INGENIC_T30X || BR2_SOC_INGENIC_T30A || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31ZX
-endif
+config BR2_SOC_FAMILY_256MB
+	bool
+	default y if BR2_SOC_INGENIC_T40X || BR2_SOC_INGENIC_T40A || BR2_SOC_INGENIC_T41ZX || BR2_SOC_INGENIC_T41A
 
 choice
 	prompt "SoC Model"
@@ -326,271 +327,806 @@ config BR2_ISP_CLKA_700MHZ
 endchoice
 
 choice
-	prompt "ISP Reserved RAM"
-	depends on BR2_THINGINO_DEV_EXPERIMENTAL
-	default BR2_RMEM_32
+	prompt "ISP Reserved RAM (rmem)"
+	default BR2_THINGINO_RMEM_23 if BR2_SOC_FAMILY_64MB
+	default BR2_THINGINO_RMEM_29 if BR2_SOC_FAMILY_128MB
 	help
 	  Specify reserved memory for the ISP in MB.
 
-config BR2_RMEM_0
+config BR2_THINGINO_RMEM_0
 	bool "0 MB"
-config BR2_RMEM_1
+config BR2_THINGINO_RMEM_1
 	bool "1 MB"
-config BR2_RMEM_2
+config BR2_THINGINO_RMEM_2
 	bool "2 MB"
-config BR2_RMEM_3
+config BR2_THINGINO_RMEM_3
 	bool "3 MB"
-config BR2_RMEM_4
+config BR2_THINGINO_RMEM_4
 	bool "4 MB"
-config BR2_RMEM_5
+config BR2_THINGINO_RMEM_5
 	bool "5 MB"
-config BR2_RMEM_6
+config BR2_THINGINO_RMEM_6
 	bool "6 MB"
-config BR2_RMEM_7
+config BR2_THINGINO_RMEM_7
 	bool "7 MB"
-config BR2_RMEM_8
+config BR2_THINGINO_RMEM_8
 	bool "8 MB"
-config BR2_RMEM_9
+config BR2_THINGINO_RMEM_9
 	bool "9 MB"
-config BR2_RMEM_10
+config BR2_THINGINO_RMEM_10
 	bool "10 MB"
-config BR2_RMEM_11
+config BR2_THINGINO_RMEM_11
 	bool "11 MB"
-config BR2_RMEM_12
+config BR2_THINGINO_RMEM_12
 	bool "12 MB"
-config BR2_RMEM_13
+config BR2_THINGINO_RMEM_13
 	bool "13 MB"
-config BR2_RMEM_14
+config BR2_THINGINO_RMEM_14
 	bool "14 MB"
-config BR2_RMEM_15
+config BR2_THINGINO_RMEM_15
 	bool "15 MB"
-config BR2_RMEM_16
+config BR2_THINGINO_RMEM_16
 	bool "16 MB"
-config BR2_RMEM_17
+config BR2_THINGINO_RMEM_17
 	bool "17 MB"
-config BR2_RMEM_18
+config BR2_THINGINO_RMEM_18
 	bool "18 MB"
-config BR2_RMEM_19
+config BR2_THINGINO_RMEM_19
 	bool "19 MB"
-config BR2_RMEM_20
+config BR2_THINGINO_RMEM_20
 	bool "20 MB"
-config BR2_RMEM_21
+config BR2_THINGINO_RMEM_21
 	bool "21 MB"
-config BR2_RMEM_22
+config BR2_THINGINO_RMEM_22
 	bool "22 MB"
-config BR2_RMEM_23
+config BR2_THINGINO_RMEM_23
 	bool "23 MB"
-config BR2_RMEM_24
+config BR2_THINGINO_RMEM_24
 	bool "24 MB"
-config BR2_RMEM_25
+config BR2_THINGINO_RMEM_25
 	bool "25 MB"
-config BR2_RMEM_26
+config BR2_THINGINO_RMEM_26
 	bool "26 MB"
-config BR2_RMEM_27
+config BR2_THINGINO_RMEM_27
 	bool "27 MB"
-config BR2_RMEM_28
+config BR2_THINGINO_RMEM_28
 	bool "28 MB"
-config BR2_RMEM_29
+config BR2_THINGINO_RMEM_29
 	bool "29 MB"
-config BR2_RMEM_30
+config BR2_THINGINO_RMEM_30
 	bool "30 MB"
-config BR2_RMEM_31
+config BR2_THINGINO_RMEM_31
 	bool "31 MB"
-config BR2_RMEM_32
+config BR2_THINGINO_RMEM_32
 	bool "32 MB"
-config BR2_RMEM_33
+config BR2_THINGINO_RMEM_33
 	bool "33 MB"
-config BR2_RMEM_34
+config BR2_THINGINO_RMEM_34
 	bool "34 MB"
-config BR2_RMEM_35
+config BR2_THINGINO_RMEM_35
 	bool "35 MB"
-config BR2_RMEM_36
+config BR2_THINGINO_RMEM_36
 	bool "36 MB"
-config BR2_RMEM_37
+config BR2_THINGINO_RMEM_37
 	bool "37 MB"
-config BR2_RMEM_38
+config BR2_THINGINO_RMEM_38
 	bool "38 MB"
-config BR2_RMEM_39
+config BR2_THINGINO_RMEM_39
 	bool "39 MB"
-config BR2_RMEM_40
+config BR2_THINGINO_RMEM_40
 	bool "40 MB"
-config BR2_RMEM_41
+config BR2_THINGINO_RMEM_41
 	bool "41 MB"
-config BR2_RMEM_42
+config BR2_THINGINO_RMEM_42
 	bool "42 MB"
-config BR2_RMEM_43
+config BR2_THINGINO_RMEM_43
 	bool "43 MB"
-config BR2_RMEM_44
+config BR2_THINGINO_RMEM_44
 	bool "44 MB"
-config BR2_RMEM_45
+config BR2_THINGINO_RMEM_45
 	bool "45 MB"
-config BR2_RMEM_46
+config BR2_THINGINO_RMEM_46
 	bool "46 MB"
-config BR2_RMEM_47
+config BR2_THINGINO_RMEM_47
 	bool "47 MB"
-config BR2_RMEM_48
+config BR2_THINGINO_RMEM_48
 	bool "48 MB"
-config BR2_RMEM_49
+config BR2_THINGINO_RMEM_49
 	bool "49 MB"
-config BR2_RMEM_50
+config BR2_THINGINO_RMEM_50
 	bool "50 MB"
-config BR2_RMEM_51
+config BR2_THINGINO_RMEM_51
 	bool "51 MB"
-config BR2_RMEM_52
+config BR2_THINGINO_RMEM_52
 	bool "52 MB"
-config BR2_RMEM_53
+config BR2_THINGINO_RMEM_53
 	bool "53 MB"
-config BR2_RMEM_54
+config BR2_THINGINO_RMEM_54
 	bool "54 MB"
-config BR2_RMEM_55
+config BR2_THINGINO_RMEM_55
 	bool "55 MB"
-config BR2_RMEM_56
+config BR2_THINGINO_RMEM_56
 	bool "56 MB"
-config BR2_RMEM_57
+config BR2_THINGINO_RMEM_57
 	bool "57 MB"
-config BR2_RMEM_58
+config BR2_THINGINO_RMEM_58
 	bool "58 MB"
-config BR2_RMEM_59
+config BR2_THINGINO_RMEM_59
 	bool "59 MB"
-config BR2_RMEM_60
+config BR2_THINGINO_RMEM_60
 	bool "60 MB"
-config BR2_RMEM_61
+config BR2_THINGINO_RMEM_61
 	bool "61 MB"
-config BR2_RMEM_62
+config BR2_THINGINO_RMEM_62
 	bool "62 MB"
-config BR2_RMEM_63
+config BR2_THINGINO_RMEM_63
 	bool "63 MB"
-config BR2_RMEM_64
+config BR2_THINGINO_RMEM_64
 	bool "64 MB"
-config BR2_RMEM_65
+config BR2_THINGINO_RMEM_65
 	bool "65 MB"
-config BR2_RMEM_66
+config BR2_THINGINO_RMEM_66
 	bool "66 MB"
-config BR2_RMEM_67
+config BR2_THINGINO_RMEM_67
 	bool "67 MB"
-config BR2_RMEM_68
+config BR2_THINGINO_RMEM_68
 	bool "68 MB"
-config BR2_RMEM_69
+config BR2_THINGINO_RMEM_69
 	bool "69 MB"
-config BR2_RMEM_70
+config BR2_THINGINO_RMEM_70
 	bool "70 MB"
-config BR2_RMEM_71
+config BR2_THINGINO_RMEM_71
 	bool "71 MB"
-config BR2_RMEM_72
+config BR2_THINGINO_RMEM_72
 	bool "72 MB"
-config BR2_RMEM_73
+config BR2_THINGINO_RMEM_73
 	bool "73 MB"
-config BR2_RMEM_74
+config BR2_THINGINO_RMEM_74
 	bool "74 MB"
-config BR2_RMEM_75
+config BR2_THINGINO_RMEM_75
 	bool "75 MB"
-config BR2_RMEM_76
+config BR2_THINGINO_RMEM_76
 	bool "76 MB"
-config BR2_RMEM_77
+config BR2_THINGINO_RMEM_77
 	bool "77 MB"
-config BR2_RMEM_78
+config BR2_THINGINO_RMEM_78
 	bool "78 MB"
-config BR2_RMEM_79
+config BR2_THINGINO_RMEM_79
 	bool "79 MB"
-config BR2_RMEM_80
+config BR2_THINGINO_RMEM_80
 	bool "80 MB"
-config BR2_RMEM_81
+config BR2_THINGINO_RMEM_81
 	bool "81 MB"
-config BR2_RMEM_82
+config BR2_THINGINO_RMEM_82
 	bool "82 MB"
-config BR2_RMEM_83
+config BR2_THINGINO_RMEM_83
 	bool "83 MB"
-config BR2_RMEM_84
+config BR2_THINGINO_RMEM_84
 	bool "84 MB"
-config BR2_RMEM_85
+config BR2_THINGINO_RMEM_85
 	bool "85 MB"
-config BR2_RMEM_86
+config BR2_THINGINO_RMEM_86
 	bool "86 MB"
-config BR2_RMEM_87
+config BR2_THINGINO_RMEM_87
 	bool "87 MB"
-config BR2_RMEM_88
+config BR2_THINGINO_RMEM_88
 	bool "88 MB"
-config BR2_RMEM_89
+config BR2_THINGINO_RMEM_89
 	bool "89 MB"
-config BR2_RMEM_90
+config BR2_THINGINO_RMEM_90
 	bool "90 MB"
-config BR2_RMEM_91
+config BR2_THINGINO_RMEM_91
 	bool "91 MB"
-config BR2_RMEM_92
+config BR2_THINGINO_RMEM_92
 	bool "92 MB"
-config BR2_RMEM_93
+config BR2_THINGINO_RMEM_93
 	bool "93 MB"
-config BR2_RMEM_94
+config BR2_THINGINO_RMEM_94
 	bool "94 MB"
-config BR2_RMEM_95
+config BR2_THINGINO_RMEM_95
 	bool "95 MB"
-config BR2_RMEM_96
+config BR2_THINGINO_RMEM_96
 	bool "96 MB"
-config BR2_RMEM_97
+config BR2_THINGINO_RMEM_97
 	bool "97 MB"
-config BR2_RMEM_98
+config BR2_THINGINO_RMEM_98
 	bool "98 MB"
-config BR2_RMEM_99
+config BR2_THINGINO_RMEM_99
 	bool "99 MB"
-config BR2_RMEM_100
+config BR2_THINGINO_RMEM_100
 	bool "100 MB"
-config BR2_RMEM_101
+config BR2_THINGINO_RMEM_101
 	bool "101 MB"
-config BR2_RMEM_102
+config BR2_THINGINO_RMEM_102
 	bool "102 MB"
-config BR2_RMEM_103
+config BR2_THINGINO_RMEM_103
 	bool "103 MB"
-config BR2_RMEM_104
+config BR2_THINGINO_RMEM_104
 	bool "104 MB"
-config BR2_RMEM_105
+config BR2_THINGINO_RMEM_105
 	bool "105 MB"
-config BR2_RMEM_106
+config BR2_THINGINO_RMEM_106
 	bool "106 MB"
-config BR2_RMEM_107
+config BR2_THINGINO_RMEM_107
 	bool "107 MB"
-config BR2_RMEM_108
+config BR2_THINGINO_RMEM_108
 	bool "108 MB"
-config BR2_RMEM_109
+config BR2_THINGINO_RMEM_109
 	bool "109 MB"
-config BR2_RMEM_110
+config BR2_THINGINO_RMEM_110
 	bool "110 MB"
-config BR2_RMEM_111
+config BR2_THINGINO_RMEM_111
 	bool "111 MB"
-config BR2_RMEM_112
+config BR2_THINGINO_RMEM_112
 	bool "112 MB"
-config BR2_RMEM_113
+config BR2_THINGINO_RMEM_113
 	bool "113 MB"
-config BR2_RMEM_114
+config BR2_THINGINO_RMEM_114
 	bool "114 MB"
-config BR2_RMEM_115
+config BR2_THINGINO_RMEM_115
 	bool "115 MB"
-config BR2_RMEM_116
+config BR2_THINGINO_RMEM_116
 	bool "116 MB"
-config BR2_RMEM_117
+config BR2_THINGINO_RMEM_117
 	bool "117 MB"
-config BR2_RMEM_118
+config BR2_THINGINO_RMEM_118
 	bool "118 MB"
-config BR2_RMEM_119
+config BR2_THINGINO_RMEM_119
 	bool "119 MB"
-config BR2_RMEM_120
+config BR2_THINGINO_RMEM_120
 	bool "120 MB"
-config BR2_RMEM_121
+config BR2_THINGINO_RMEM_121
 	bool "121 MB"
-config BR2_RMEM_122
+config BR2_THINGINO_RMEM_122
 	bool "122 MB"
-config BR2_RMEM_123
+config BR2_THINGINO_RMEM_123
 	bool "123 MB"
-config BR2_RMEM_124
+config BR2_THINGINO_RMEM_124
 	bool "124 MB"
-config BR2_RMEM_125
+config BR2_THINGINO_RMEM_125
 	bool "125 MB"
-config BR2_RMEM_126
+config BR2_THINGINO_RMEM_126
 	bool "126 MB"
-config BR2_RMEM_127
+config BR2_THINGINO_RMEM_127
 	bool "127 MB"
-config BR2_RMEM_128
+config BR2_THINGINO_RMEM_128
 	bool "128 MB"
 endchoice
+
+choice
+	prompt "ISP Reserved RAM (ispmem)"
+	depends on BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20
+	default BR2_THINGINO_ISPMEM_8
+	help
+	  Specify reserved memory for the ISP in MB.
+
+config BR2_THINGINO_ISPMEM_0
+	bool "0 MB"
+config BR2_THINGINO_ISPMEM_1
+	bool "1 MB"
+config BR2_THINGINO_ISPMEM_2
+	bool "2 MB"
+config BR2_THINGINO_ISPMEM_3
+	bool "3 MB"
+config BR2_THINGINO_ISPMEM_4
+	bool "4 MB"
+config BR2_THINGINO_ISPMEM_5
+	bool "5 MB"
+config BR2_THINGINO_ISPMEM_6
+	bool "6 MB"
+config BR2_THINGINO_ISPMEM_7
+	bool "7 MB"
+config BR2_THINGINO_ISPMEM_8
+	bool "8 MB"
+config BR2_THINGINO_ISPMEM_9
+	bool "9 MB"
+config BR2_THINGINO_ISPMEM_10
+	bool "10 MB"
+config BR2_THINGINO_ISPMEM_11
+	bool "11 MB"
+config BR2_THINGINO_ISPMEM_12
+	bool "12 MB"
+config BR2_THINGINO_ISPMEM_13
+	bool "13 MB"
+config BR2_THINGINO_ISPMEM_14
+	bool "14 MB"
+config BR2_THINGINO_ISPMEM_15
+	bool "15 MB"
+config BR2_THINGINO_ISPMEM_16
+	bool "16 MB"
+config BR2_THINGINO_ISPMEM_17
+	bool "17 MB"
+config BR2_THINGINO_ISPMEM_18
+	bool "18 MB"
+config BR2_THINGINO_ISPMEM_19
+	bool "19 MB"
+config BR2_THINGINO_ISPMEM_20
+	bool "20 MB"
+config BR2_THINGINO_ISPMEM_21
+	bool "21 MB"
+config BR2_THINGINO_ISPMEM_22
+	bool "22 MB"
+config BR2_THINGINO_ISPMEM_23
+	bool "23 MB"
+config BR2_THINGINO_ISPMEM_24
+	bool "24 MB"
+config BR2_THINGINO_ISPMEM_25
+	bool "25 MB"
+config BR2_THINGINO_ISPMEM_26
+	bool "26 MB"
+config BR2_THINGINO_ISPMEM_27
+	bool "27 MB"
+config BR2_THINGINO_ISPMEM_28
+	bool "28 MB"
+config BR2_THINGINO_ISPMEM_29
+	bool "29 MB"
+config BR2_THINGINO_ISPMEM_30
+	bool "30 MB"
+config BR2_THINGINO_ISPMEM_31
+	bool "31 MB"
+config BR2_THINGINO_ISPMEM_32
+	bool "32 MB"
+config BR2_THINGINO_ISPMEM_33
+	bool "33 MB"
+config BR2_THINGINO_ISPMEM_34
+	bool "34 MB"
+config BR2_THINGINO_ISPMEM_35
+	bool "35 MB"
+config BR2_THINGINO_ISPMEM_36
+	bool "36 MB"
+config BR2_THINGINO_ISPMEM_37
+	bool "37 MB"
+config BR2_THINGINO_ISPMEM_38
+	bool "38 MB"
+config BR2_THINGINO_ISPMEM_39
+	bool "39 MB"
+config BR2_THINGINO_ISPMEM_40
+	bool "40 MB"
+config BR2_THINGINO_ISPMEM_41
+	bool "41 MB"
+config BR2_THINGINO_ISPMEM_42
+	bool "42 MB"
+config BR2_THINGINO_ISPMEM_43
+	bool "43 MB"
+config BR2_THINGINO_ISPMEM_44
+	bool "44 MB"
+config BR2_THINGINO_ISPMEM_45
+	bool "45 MB"
+config BR2_THINGINO_ISPMEM_46
+	bool "46 MB"
+config BR2_THINGINO_ISPMEM_47
+	bool "47 MB"
+config BR2_THINGINO_ISPMEM_48
+	bool "48 MB"
+config BR2_THINGINO_ISPMEM_49
+	bool "49 MB"
+config BR2_THINGINO_ISPMEM_50
+	bool "50 MB"
+config BR2_THINGINO_ISPMEM_51
+	bool "51 MB"
+config BR2_THINGINO_ISPMEM_52
+	bool "52 MB"
+config BR2_THINGINO_ISPMEM_53
+	bool "53 MB"
+config BR2_THINGINO_ISPMEM_54
+	bool "54 MB"
+config BR2_THINGINO_ISPMEM_55
+	bool "55 MB"
+config BR2_THINGINO_ISPMEM_56
+	bool "56 MB"
+config BR2_THINGINO_ISPMEM_57
+	bool "57 MB"
+config BR2_THINGINO_ISPMEM_58
+	bool "58 MB"
+config BR2_THINGINO_ISPMEM_59
+	bool "59 MB"
+config BR2_THINGINO_ISPMEM_60
+	bool "60 MB"
+config BR2_THINGINO_ISPMEM_61
+	bool "61 MB"
+config BR2_THINGINO_ISPMEM_62
+	bool "62 MB"
+config BR2_THINGINO_ISPMEM_63
+	bool "63 MB"
+config BR2_THINGINO_ISPMEM_64
+	bool "64 MB"
+config BR2_THINGINO_ISPMEM_65
+	bool "65 MB"
+config BR2_THINGINO_ISPMEM_66
+	bool "66 MB"
+config BR2_THINGINO_ISPMEM_67
+	bool "67 MB"
+config BR2_THINGINO_ISPMEM_68
+	bool "68 MB"
+config BR2_THINGINO_ISPMEM_69
+	bool "69 MB"
+config BR2_THINGINO_ISPMEM_70
+	bool "70 MB"
+config BR2_THINGINO_ISPMEM_71
+	bool "71 MB"
+config BR2_THINGINO_ISPMEM_72
+	bool "72 MB"
+config BR2_THINGINO_ISPMEM_73
+	bool "73 MB"
+config BR2_THINGINO_ISPMEM_74
+	bool "74 MB"
+config BR2_THINGINO_ISPMEM_75
+	bool "75 MB"
+config BR2_THINGINO_ISPMEM_76
+	bool "76 MB"
+config BR2_THINGINO_ISPMEM_77
+	bool "77 MB"
+config BR2_THINGINO_ISPMEM_78
+	bool "78 MB"
+config BR2_THINGINO_ISPMEM_79
+	bool "79 MB"
+config BR2_THINGINO_ISPMEM_80
+	bool "80 MB"
+config BR2_THINGINO_ISPMEM_81
+	bool "81 MB"
+config BR2_THINGINO_ISPMEM_82
+	bool "82 MB"
+config BR2_THINGINO_ISPMEM_83
+	bool "83 MB"
+config BR2_THINGINO_ISPMEM_84
+	bool "84 MB"
+config BR2_THINGINO_ISPMEM_85
+	bool "85 MB"
+config BR2_THINGINO_ISPMEM_86
+	bool "86 MB"
+config BR2_THINGINO_ISPMEM_87
+	bool "87 MB"
+config BR2_THINGINO_ISPMEM_88
+	bool "88 MB"
+config BR2_THINGINO_ISPMEM_89
+	bool "89 MB"
+config BR2_THINGINO_ISPMEM_90
+	bool "90 MB"
+config BR2_THINGINO_ISPMEM_91
+	bool "91 MB"
+config BR2_THINGINO_ISPMEM_92
+	bool "92 MB"
+config BR2_THINGINO_ISPMEM_93
+	bool "93 MB"
+config BR2_THINGINO_ISPMEM_94
+	bool "94 MB"
+config BR2_THINGINO_ISPMEM_95
+	bool "95 MB"
+config BR2_THINGINO_ISPMEM_96
+	bool "96 MB"
+config BR2_THINGINO_ISPMEM_97
+	bool "97 MB"
+config BR2_THINGINO_ISPMEM_98
+	bool "98 MB"
+config BR2_THINGINO_ISPMEM_99
+	bool "99 MB"
+config BR2_THINGINO_ISPMEM_100
+	bool "100 MB"
+config BR2_THINGINO_ISPMEM_101
+	bool "101 MB"
+config BR2_THINGINO_ISPMEM_102
+	bool "102 MB"
+config BR2_THINGINO_ISPMEM_103
+	bool "103 MB"
+config BR2_THINGINO_ISPMEM_104
+	bool "104 MB"
+config BR2_THINGINO_ISPMEM_105
+	bool "105 MB"
+config BR2_THINGINO_ISPMEM_106
+	bool "106 MB"
+config BR2_THINGINO_ISPMEM_107
+	bool "107 MB"
+config BR2_THINGINO_ISPMEM_108
+	bool "108 MB"
+config BR2_THINGINO_ISPMEM_109
+	bool "109 MB"
+config BR2_THINGINO_ISPMEM_110
+	bool "110 MB"
+config BR2_THINGINO_ISPMEM_111
+	bool "111 MB"
+config BR2_THINGINO_ISPMEM_112
+	bool "112 MB"
+config BR2_THINGINO_ISPMEM_113
+	bool "113 MB"
+config BR2_THINGINO_ISPMEM_114
+	bool "114 MB"
+config BR2_THINGINO_ISPMEM_115
+	bool "115 MB"
+config BR2_THINGINO_ISPMEM_116
+	bool "116 MB"
+config BR2_THINGINO_ISPMEM_117
+	bool "117 MB"
+config BR2_THINGINO_ISPMEM_118
+	bool "118 MB"
+config BR2_THINGINO_ISPMEM_119
+	bool "119 MB"
+config BR2_THINGINO_ISPMEM_120
+	bool "120 MB"
+config BR2_THINGINO_ISPMEM_121
+	bool "121 MB"
+config BR2_THINGINO_ISPMEM_122
+	bool "122 MB"
+config BR2_THINGINO_ISPMEM_123
+	bool "123 MB"
+config BR2_THINGINO_ISPMEM_124
+	bool "124 MB"
+config BR2_THINGINO_ISPMEM_125
+	bool "125 MB"
+config BR2_THINGINO_ISPMEM_126
+	bool "126 MB"
+config BR2_THINGINO_ISPMEM_127
+	bool "127 MB"
+config BR2_THINGINO_ISPMEM_128
+	bool "128 MB"
+endchoice
+
+choice
+	prompt "Neural Network Reserved RAM (nmem)"
+#	depends on BR2_THINGINO_DEV_EXPERIMENTAL
+	depends on BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Specify reserved memory for the Neural Network module in MB.
+
+config BR2_THINGINO_NMEM_0
+	bool "0 MB"
+config BR2_THINGINO_NMEM_1
+	bool "1 MB"
+config BR2_THINGINO_NMEM_2
+	bool "2 MB"
+config BR2_THINGINO_NMEM_3
+	bool "3 MB"
+config BR2_THINGINO_NMEM_4
+	bool "4 MB"
+config BR2_THINGINO_NMEM_5
+	bool "5 MB"
+config BR2_THINGINO_NMEM_6
+	bool "6 MB"
+config BR2_THINGINO_NMEM_7
+	bool "7 MB"
+config BR2_THINGINO_NMEM_8
+	bool "8 MB"
+config BR2_THINGINO_NMEM_9
+	bool "9 MB"
+config BR2_THINGINO_NMEM_10
+	bool "10 MB"
+config BR2_THINGINO_NMEM_11
+	bool "11 MB"
+config BR2_THINGINO_NMEM_12
+	bool "12 MB"
+config BR2_THINGINO_NMEM_13
+	bool "13 MB"
+config BR2_THINGINO_NMEM_14
+	bool "14 MB"
+config BR2_THINGINO_NMEM_15
+	bool "15 MB"
+config BR2_THINGINO_NMEM_16
+	bool "16 MB"
+config BR2_THINGINO_NMEM_17
+	bool "17 MB"
+config BR2_THINGINO_NMEM_18
+	bool "18 MB"
+config BR2_THINGINO_NMEM_19
+	bool "19 MB"
+config BR2_THINGINO_NMEM_20
+	bool "20 MB"
+config BR2_THINGINO_NMEM_21
+	bool "21 MB"
+config BR2_THINGINO_NMEM_22
+	bool "22 MB"
+config BR2_THINGINO_NMEM_23
+	bool "23 MB"
+config BR2_THINGINO_NMEM_24
+	bool "24 MB"
+config BR2_THINGINO_NMEM_25
+	bool "25 MB"
+config BR2_THINGINO_NMEM_26
+	bool "26 MB"
+config BR2_THINGINO_NMEM_27
+	bool "27 MB"
+config BR2_THINGINO_NMEM_28
+	bool "28 MB"
+config BR2_THINGINO_NMEM_29
+	bool "29 MB"
+config BR2_THINGINO_NMEM_30
+	bool "30 MB"
+config BR2_THINGINO_NMEM_31
+	bool "31 MB"
+config BR2_THINGINO_NMEM_32
+	bool "32 MB"
+config BR2_THINGINO_NMEM_33
+	bool "33 MB"
+config BR2_THINGINO_NMEM_34
+	bool "34 MB"
+config BR2_THINGINO_NMEM_35
+	bool "35 MB"
+config BR2_THINGINO_NMEM_36
+	bool "36 MB"
+config BR2_THINGINO_NMEM_37
+	bool "37 MB"
+config BR2_THINGINO_NMEM_38
+	bool "38 MB"
+config BR2_THINGINO_NMEM_39
+	bool "39 MB"
+config BR2_THINGINO_NMEM_40
+	bool "40 MB"
+config BR2_THINGINO_NMEM_41
+	bool "41 MB"
+config BR2_THINGINO_NMEM_42
+	bool "42 MB"
+config BR2_THINGINO_NMEM_43
+	bool "43 MB"
+config BR2_THINGINO_NMEM_44
+	bool "44 MB"
+config BR2_THINGINO_NMEM_45
+	bool "45 MB"
+config BR2_THINGINO_NMEM_46
+	bool "46 MB"
+config BR2_THINGINO_NMEM_47
+	bool "47 MB"
+config BR2_THINGINO_NMEM_48
+	bool "48 MB"
+config BR2_THINGINO_NMEM_49
+	bool "49 MB"
+config BR2_THINGINO_NMEM_50
+	bool "50 MB"
+config BR2_THINGINO_NMEM_51
+	bool "51 MB"
+config BR2_THINGINO_NMEM_52
+	bool "52 MB"
+config BR2_THINGINO_NMEM_53
+	bool "53 MB"
+config BR2_THINGINO_NMEM_54
+	bool "54 MB"
+config BR2_THINGINO_NMEM_55
+	bool "55 MB"
+config BR2_THINGINO_NMEM_56
+	bool "56 MB"
+config BR2_THINGINO_NMEM_57
+	bool "57 MB"
+config BR2_THINGINO_NMEM_58
+	bool "58 MB"
+config BR2_THINGINO_NMEM_59
+	bool "59 MB"
+config BR2_THINGINO_NMEM_60
+	bool "60 MB"
+config BR2_THINGINO_NMEM_61
+	bool "61 MB"
+config BR2_THINGINO_NMEM_62
+	bool "62 MB"
+config BR2_THINGINO_NMEM_63
+	bool "63 MB"
+config BR2_THINGINO_NMEM_64
+	bool "64 MB"
+config BR2_THINGINO_NMEM_65
+	bool "65 MB"
+config BR2_THINGINO_NMEM_66
+	bool "66 MB"
+config BR2_THINGINO_NMEM_67
+	bool "67 MB"
+config BR2_THINGINO_NMEM_68
+	bool "68 MB"
+config BR2_THINGINO_NMEM_69
+	bool "69 MB"
+config BR2_THINGINO_NMEM_70
+	bool "70 MB"
+config BR2_THINGINO_NMEM_71
+	bool "71 MB"
+config BR2_THINGINO_NMEM_72
+	bool "72 MB"
+config BR2_THINGINO_NMEM_73
+	bool "73 MB"
+config BR2_THINGINO_NMEM_74
+	bool "74 MB"
+config BR2_THINGINO_NMEM_75
+	bool "75 MB"
+config BR2_THINGINO_NMEM_76
+	bool "76 MB"
+config BR2_THINGINO_NMEM_77
+	bool "77 MB"
+config BR2_THINGINO_NMEM_78
+	bool "78 MB"
+config BR2_THINGINO_NMEM_79
+	bool "79 MB"
+config BR2_THINGINO_NMEM_80
+	bool "80 MB"
+config BR2_THINGINO_NMEM_81
+	bool "81 MB"
+config BR2_THINGINO_NMEM_82
+	bool "82 MB"
+config BR2_THINGINO_NMEM_83
+	bool "83 MB"
+config BR2_THINGINO_NMEM_84
+	bool "84 MB"
+config BR2_THINGINO_NMEM_85
+	bool "85 MB"
+config BR2_THINGINO_NMEM_86
+	bool "86 MB"
+config BR2_THINGINO_NMEM_87
+	bool "87 MB"
+config BR2_THINGINO_NMEM_88
+	bool "88 MB"
+config BR2_THINGINO_NMEM_89
+	bool "89 MB"
+config BR2_THINGINO_NMEM_90
+	bool "90 MB"
+config BR2_THINGINO_NMEM_91
+	bool "91 MB"
+config BR2_THINGINO_NMEM_92
+	bool "92 MB"
+config BR2_THINGINO_NMEM_93
+	bool "93 MB"
+config BR2_THINGINO_NMEM_94
+	bool "94 MB"
+config BR2_THINGINO_NMEM_95
+	bool "95 MB"
+config BR2_THINGINO_NMEM_96
+	bool "96 MB"
+config BR2_THINGINO_NMEM_97
+	bool "97 MB"
+config BR2_THINGINO_NMEM_98
+	bool "98 MB"
+config BR2_THINGINO_NMEM_99
+	bool "99 MB"
+config BR2_THINGINO_NMEM_100
+	bool "100 MB"
+config BR2_THINGINO_NMEM_101
+	bool "101 MB"
+config BR2_THINGINO_NMEM_102
+	bool "102 MB"
+config BR2_THINGINO_NMEM_103
+	bool "103 MB"
+config BR2_THINGINO_NMEM_104
+	bool "104 MB"
+config BR2_THINGINO_NMEM_105
+	bool "105 MB"
+config BR2_THINGINO_NMEM_106
+	bool "106 MB"
+config BR2_THINGINO_NMEM_107
+	bool "107 MB"
+config BR2_THINGINO_NMEM_108
+	bool "108 MB"
+config BR2_THINGINO_NMEM_109
+	bool "109 MB"
+config BR2_THINGINO_NMEM_110
+	bool "110 MB"
+config BR2_THINGINO_NMEM_111
+	bool "111 MB"
+config BR2_THINGINO_NMEM_112
+	bool "112 MB"
+config BR2_THINGINO_NMEM_113
+	bool "113 MB"
+config BR2_THINGINO_NMEM_114
+	bool "114 MB"
+config BR2_THINGINO_NMEM_115
+	bool "115 MB"
+config BR2_THINGINO_NMEM_116
+	bool "116 MB"
+config BR2_THINGINO_NMEM_117
+	bool "117 MB"
+config BR2_THINGINO_NMEM_118
+	bool "118 MB"
+config BR2_THINGINO_NMEM_119
+	bool "119 MB"
+config BR2_THINGINO_NMEM_120
+	bool "120 MB"
+config BR2_THINGINO_NMEM_121
+	bool "121 MB"
+config BR2_THINGINO_NMEM_122
+	bool "122 MB"
+config BR2_THINGINO_NMEM_123
+	bool "123 MB"
+config BR2_THINGINO_NMEM_124
+	bool "124 MB"
+config BR2_THINGINO_NMEM_125
+	bool "125 MB"
+config BR2_THINGINO_NMEM_126
+	bool "126 MB"
+config BR2_THINGINO_NMEM_127
+	bool "127 MB"
+config BR2_THINGINO_NMEM_128
+	bool "128 MB"
+endchoice
+
 
 config BR2_THINGINO_GPIO_LIST
 	string "GPIO Enable List"

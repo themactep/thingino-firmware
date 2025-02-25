@@ -568,6 +568,28 @@ else ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_CUSTOM),y)
 	UBOOT_FLASH_CONTROLLER := $(BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_CUSTOM_STRING)
 endif
 
+define RMEM_SET_VALUE
+	if [ -n "$(ISP_RMEM)" ]; then \
+		if [ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ]; then \
+			osmem=$$(( $(SOC_RAM) - $(ISP_RMEM) - $(ISP_ISPMEM) )) && \
+			ispmem_offset=$$(( ($(SOC_RAM) - $(ISP_RMEM) - $(ISP_ISPMEM)) * 0x100000 )) && \
+			rmem_offset=$$(( ($(SOC_RAM) - $(ISP_RMEM)) * 0x100000 )) && \
+			grep -q "^osmem=$${osmem}M@0x0" $(OUTPUT_DIR)/uenv.txt || echo "osmem=$${osmem}M@0x0" >> $(OUTPUT_DIR)/uenv.txt && \
+			grep -q "^ispmem=$(ISP_ISPMEM)M@$$(printf '0x%x' $$ispmem_offset)" $(OUTPUT_DIR)/uenv.txt || echo "ispmem=$(ISP_ISPMEM)M@$$(printf '0x%x' $$ispmem_offset)" >> $(OUTPUT_DIR)/uenv.txt && \
+			grep -q "^rmem=$(ISP_RMEM)M@$$(printf '0x%x' $$rmem_offset)" $(OUTPUT_DIR)/uenv.txt || echo "rmem=$(ISP_RMEM)M@$$(printf '0x%x' $$rmem_offset)" >> $(OUTPUT_DIR)/uenv.txt; \
+		else \
+			osmem=$$(( $(SOC_RAM) - $(ISP_RMEM) )) && \
+			rmem_offset=$$(( ($(SOC_RAM) - $(ISP_RMEM)) * 0x100000 )) && \
+			grep -q "^osmem=$${osmem}M@0x0" $(OUTPUT_DIR)/uenv.txt || echo "osmem=$${osmem}M@0x0" >> $(OUTPUT_DIR)/uenv.txt && \
+			grep -q "^rmem=$(ISP_RMEM)M@$$(printf '0x%x' $$rmem_offset)" $(OUTPUT_DIR)/uenv.txt || echo "rmem=$(ISP_RMEM)M@$$(printf '0x%x' $$rmem_offset)" >> $(OUTPUT_DIR)/uenv.txt; \
+		fi; \
+	else \
+		echo "No ISP_RMEM value set"; \
+	fi
+endef
+
+THINGINO_UBOOT_PRE_BUILD_HOOKS += RMEM_SET_VALUE
+
 define THINGINO_GENERATE_UBOOT_ENV
 	@env BR2_PACKAGE_THINGINO_UBOOT_ROOT='$(value BR2_PACKAGE_THINGINO_UBOOT_ROOT)' sh -c 'grep -q "^root=" $(OUTPUT_DIR)/uenv.txt || echo "root=$$BR2_PACKAGE_THINGINO_UBOOT_ROOT" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
 	@env BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE='$(value BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE)' sh -c 'grep -q "^rootfstype=" $(OUTPUT_DIR)/uenv.txt || echo "rootfstype=$$BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
@@ -576,6 +598,8 @@ define THINGINO_GENERATE_UBOOT_ENV
 	@env BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS='$(value BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS)' sh -c 'grep -q "^bootargs=" $(OUTPUT_DIR)/uenv.txt || echo "bootargs=$$BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
 	@env BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD='$(value BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD)' sh -c 'grep -q "^bootcmd=" $(OUTPUT_DIR)/uenv.txt || echo "bootcmd=$$BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
 	@sed -i "s|\$$(UBOOT_FLASH_CONTROLLER)|$(UBOOT_FLASH_CONTROLLER)|g" $(OUTPUT_DIR)/uenv.txt
+	@sed -i "s|\$$(UBOOT_NMEM)|$(UBOOT_NMEM)|g" $(OUTPUT_DIR)/uenv.txt
+	@sh -c '[ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ] && sed -i "s|\$$(UBOOT_ISPMEM)| ispmem=$$\{ispmem\} |g" $(OUTPUT_DIR)/uenv.txt || sed -i "s|\$$(UBOOT_ISPMEM)| |g" $(OUTPUT_DIR)/uenv.txt'
 endef
 THINGINO_UBOOT_PRE_BUILD_HOOKS += THINGINO_GENERATE_UBOOT_ENV
 
