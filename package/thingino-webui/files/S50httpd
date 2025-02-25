@@ -30,14 +30,14 @@ else
 fi
 
 start() {
-	echo "Starting WLAN AP"
+	echo "Starting HTTPD"
 
 	[ -f $DAEMON_FULL ] || quit "Disabled"
 	start_daemon
 }
 
 stop() {
-	echo "Stopping WLAN AP"
+	echo "Stopping HTTPD"
 
 	[ -f $DAEMON_FULL ] || quit "Disabled"
 	stop_daemon
