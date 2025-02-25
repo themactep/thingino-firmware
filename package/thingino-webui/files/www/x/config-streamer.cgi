@@ -3,6 +3,12 @@
 <%
 page_title="Streamer"
 
+if [ "restart" = "$GET_do" ]; then
+	/etc/init.d/S95prudynt restart >/dev/null
+	sleep 3
+	redirect_to $SCRIPT_NAME
+fi
+
 OSD_FONT_PATH="/usr/share/fonts"
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
@@ -83,7 +89,7 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <p><img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Stream Preview"></p>
 
 <div class="d-flex flex-wrap align-content-around gap-1">
-<button type="button" class="btn btn-secondary" id="restart-prudynt">Restart streamer</button>
+<a class="btn btn-secondary" href="<%= $SCRIPT_NAME %>?do=restart">Restart streamer</a>
 <button type="button" class="btn btn-secondary" id="save-prudynt-config">Save config</button>
 <a class="btn btn-secondary" href="tool-file-manager.cgi?dl=/etc/prudynt.cfg">Download config</a>
 </div>
@@ -440,14 +446,6 @@ ws.onmessage = (ev) => {
 	}
 }
 
-function restartPrudynt() {
-	sendToWs('{"action":{"restart_thread":10}}');
-}
-
-function savePrudyntConfig() {
-	sendToWs('{"action":{"save_config":null}}');
-}
-
 function sendToWs(payload) {
 	console.log(ts(), '===>', payload);
 	ws.send(payload);
@@ -608,12 +606,8 @@ $('#stream2_jpeg_channel_1').addEventListener('click', ev => {
 	sendToWs('{"stream2":{"jpeg_channel":1},"action":{"restart_thread":11}}');
 });
 
-$('#restart-prudynt').addEventListener('click', ev => {
-	restartPrudynt();
-});
-
 $('#save-prudynt-config').addEventListener('click', ev => {
-	savePrudyntConfig();
+	sendToWs('{"action":{"save_config":null}}');
 });
 
 for (const i in [0, 1]) {
