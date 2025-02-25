@@ -277,7 +277,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 		hostname=$POST_hostname
 		[ "$hostname" = "$(hostname_in_etc)" ] || echo "$hostname" > /etc/hostname
-		[ "$hostname" = "$(hostname_in_hosts)" ] || sed -i "/^127.0.1.1/s/\t.*$/\t$hostname/" /etc/hosts
+		[ "$hostname" = "$(hostname_in_hosts)" ] || sed -i "/^127.0.1.1/c127.0.1.1\t$hostname" /etc/hosts
 		[ "$hostname" = "$(hostname_in_release)" ] || sed -i "/^HOSTNAME/s/=.*$/=$hostname/" /etc/os-release
 		hostname "$hostname"
 
