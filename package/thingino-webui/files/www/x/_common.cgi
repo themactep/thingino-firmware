@@ -519,13 +519,6 @@ read_from_config() {
 	awk -F= "/^$1/{print \$2}" $CONFIG_FILE
 }
 
-read_from_env() {
-	local tmpfile=$(mktemp -u)
-	fw_printenv | grep ^$1_ | sed -E "s/=(.+)$/=\"\\1\"/" > $tmpfile
-	. $tmpfile
-	rm $tmpfile
-}
-
 # read_from_post "plugin" "params"
 read_from_post() {
 	local p
@@ -615,11 +608,17 @@ save2config() {
 	rm "$tmp2file"
 }
 
+refresh_env_dump {
+	fw_printenv > $ENV_DUMP_FILE
+	. $ENV_DUMP_FILE
+}
+
 save2env() {
 	local tmpfile=$(mktemp -u)
 	echo -e "$*" >> $tmpfile
 	fw_setenv -s $tmpfile
 	rm $tmpfile
+	refresh_env_dump
 }
 
 set_error_flag() {

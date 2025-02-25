@@ -133,14 +133,15 @@ setup_wireless_network() {
 	pass=$3
 	psk=$(convert_psk "$ssid" "$pass")
 
-	temp_env=$(mktemp)
+	tempfile=$(mktemp)
 	{
 		[ -n "$ssid" ] && echo "wlan_ssid $ssid"
 		[ -n "$bssid" ] && echo "wlan_bssid $bssid"
 		[ -n "$psk" ] && echo "wlan_pass $psk"
-	} > "$temp_env"
-	fw_setenv -s "$temp_env"
-	rm "$temp_env"
+	} > $tempfile
+	fw_setenv -s $tempfile
+	rm $tempfile
+	refresh_env_dump
 }
 
 hostname=$(hostname -s)
@@ -271,6 +272,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		setup_iface usb0 "$usb0_mode" "$usb0_address" "$usb0_netmask" "$usb0_gateway" "$usb0_broadcast"
 		fw_setenv usbmac "$usb0_mac"
 		[ "true" = "$usb0_enabled" ] || disable_iface usb0
+
+		refresh_env_dump
 
 		hostname=$POST_hostname
 		[ "$hostname" = "$(hostname_in_etc)" ] || echo "$hostname" > /etc/hostname
