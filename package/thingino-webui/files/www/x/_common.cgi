@@ -27,12 +27,6 @@ webui_log=/tmp/webui.log
 # read from files
 ws_token="$(cat /run/prudynt_websocket_token)"
 
-ensure_dir() {
-	[ -d "$1" ] && return
-	echo "Directory $1 does not exist. Creating" >> $webui_log
-	mkdir -p "$1"
-}
-
 # name, text
 error_if_empty() {
 	[ -z "$1" ] && set_error_flag "$2"
