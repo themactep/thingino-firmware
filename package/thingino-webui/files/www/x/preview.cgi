@@ -22,22 +22,22 @@ which motors > /dev/null && has_motors="true"
 <input type="checkbox" class="btn-check" name="color" id="color" value="1">
 <label class="btn btn-dark border mb-2" for="color" title="Color mode"><img src="/a/color.svg" alt="Color mode" class="img-fluid"></label>
 
-<% if fw_printenv -n gpio_ircut >/dev/null; then %>
+<% if [ -n "$gpio_ircut" ]; then %>
 <input type="checkbox" class="btn-check" name="ircut" id="ircut" value="1">
 <label class="btn btn-dark border mb-2" for="ircut" title="IR filter"><img src="/a/ircut_filter.svg" alt="IR filter" class="img-fluid"></label>
 <% fi %>
 
-<% if fw_printenv -n gpio_ir850 >/dev/null; then %>
+<% if [ -n "$gpio_ir850" ]; then %>
 <input type="checkbox" class="btn-check" name="ir850" id="ir850" value="1">
 <label class="btn btn-dark border mb-2" for="ir850" title="IR LED 850 nm"><img src="/a/light_850nm.svg" alt="850nm LED" class="img-fluid"></label>
 <% fi %>
 
-<% if fw_printenv -n gpio_ir940 >/dev/null; then %>
+<% if [ -n "$gpio_ir940" ]; then %>
 <input type="checkbox" class="btn-check" name="ir940" id="ir940" value="1">
 <label class="btn btn-dark border mb-2" for="ir940" title="IR LED 940 nm"><img src="/a/light_940nm.svg" alt="940nm LED" class="img-fluid"></label>
 <% fi %>
 
-<% if fw_printenv -n gpio_white >/dev/null; then %>
+<% if [ -n "$gpio_white" ]; then %>
 <input type="checkbox" class="btn-check" name="white" id="white" value="1">
 <label class="btn btn-dark border mb-2" for="white" title="White LED"><img src="/a/light_white.svg" alt="White light" class="img-fluid"></label>
 <% fi %>

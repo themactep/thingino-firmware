@@ -6,7 +6,7 @@
 
 [ -z "$n" ] && json_error "Required parameter '$n' is not set"
 
-pin=$(fw_printenv -n $n)
+eval pin=\$$n
 [ -z "$pin" ] && json_error "GPIO is not found"
 
 if [ "$s" -eq 0 ] || [ "$s" -eq 1 ]; then

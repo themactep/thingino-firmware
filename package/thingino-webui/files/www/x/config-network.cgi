@@ -424,7 +424,7 @@ $$('.generate-mac-address').forEach(el => el.addEventListener('click', ev => {
 <% ex "ifconfig" %>
 <% ex "ip address" %>
 <% ex "ip route list" %>
-<% ex "fw_printenv | grep wlan" %>
+<% ex "grep wlan $ENV_DUMP_FILE" %>
 </div>
 
 <%in _footer.cgi %>
