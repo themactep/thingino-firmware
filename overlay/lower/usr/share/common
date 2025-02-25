@@ -225,20 +225,23 @@ starting() {
 
 stop_daemon() {
 	if [ -f "$PIDFILE" ]; then
+		echo "- Stopping by PID from $PIDFILE"
 		start-stop-daemon -K -p $PIDFILE
 		rm "$PIDFILE"
 	fi
 
 	sleep 0.5
 
-	if pidof $DAEMON > /dev/null; then
-		start-stop-daemon -K -n $DAEMON
+	if pidof $DAEMON_SHORT > /dev/null; then
+		echo "- Killing by PID"
+		start-stop-daemon -K -n $DAEMON_SHORT
 	fi
 
 	sleep 0.5
 
-	if pidof $DAEMON > /dev/null; then
-		start-stop-daemon -K -s SIGKILL -n $DAEMON
+	if pidof $DAEMON_SHORT > /dev/null; then
+		echo "- Killing by name"
+		start-stop-daemon -K -s SIGKILL -n $DAEMON_SHORT
 	fi
 }
 
