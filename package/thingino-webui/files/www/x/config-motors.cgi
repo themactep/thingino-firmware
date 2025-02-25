@@ -116,7 +116,7 @@ defaults
 <div class="col"><% field_number "motor_speed_h" "Max. speed"%></div>
 <div class="col"><% field_number "motor_maxstep_h" "Max. steps" %></div>
 <div class="col"><% field_number "motor_pos_0_x" "Position on boot" %></div>
-<a href="#" class="mb-4" class="read-motors">Pick up the recent position</a>
+<a href="#" class="mb-4 read-motors">Pick up the recent position</a>
 </div>
 </div>
 <div class="col">
@@ -132,7 +132,7 @@ defaults
 <div class="col"><% field_number "motor_speed_v" "Max. speed"%></div>
 <div class="col"><% field_number "motor_maxstep_v" "Max. steps" %></div>
 <div class="col"><% field_number "motor_pos_0_y" "Position on boot" %></div>
-<a href="#" class="mb-4" class="read-motors">Pick up the recent position</a>
+<a href="#" class="mb-4 read-motors">Pick up the recent position</a>
 </div>
 </div>
 <div class="col">
