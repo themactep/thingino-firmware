@@ -5,66 +5,73 @@ if [ -z "$MDEV" ]; then
 	exit 1
 fi
 
-devicenode="/dev/$MDEV"
-mountpoint="/mnt/$MDEV"
+device_node="/dev/$MDEV"
+echo "Device node: $device_node"
 
-diag="$mountpoint/.diag"
-run="$mountpoint/run.sh"
-run_once="$mountpoint/runonce.sh"
+mount_point="/mnt/$MDEV"
+echo "Mount point: $mount_point"
+
+diag="$mount_point/.diag"
+run="$mount_point/run.sh"
+run_once="$mount_point/runonce.sh"
 run_once_flag="${run_once/.sh/.done}"
 
-log() {
-	logger -p daemon.info -t automount[$$] -s "$1"
-}
+#log() {
+#	logger -p daemon.info -t automount[$$] -s "$1"
+#}
 
 cleanup() {
-	if [ -d "$mountpoint" ]; then
-		if rm -r "$mountpoint"; then
-			log "Removed $mountpoint mountpoint."
+	if [ -d "$mount_point" ]; then
+		if rm -r "$mount_point"; then
+			echo "Removed mount point $mount_point"
 		else
-			log "Failed to remove $mountpoint mountpoint."
+			echo "Failed to remove mount point $mount_point"
 		fi
 	else
-		log "No $mountpoint mountpoint found."
+		echo "No mount point $mount_point found"
 	fi
 }
 
 do_fsck() {
-	res=$(fsck -V -y "$devicenode" 2>&1)
+	res=$(fsck -V -y "$device_node" 2>&1)
 	fsck_status=$?
 
 	echo "$res" | while IFS= read -r line; do
-		log "$line"
+		echo "$line"
 	done
 
 	if [ "$fsck_status" -eq 0 ]; then
-		log "fsck check succeeded on $devicenode"
+		echo "fsck check succeeded on $device_node"
 	else
-		log "fsck check failed on $devicenode."
+		echo "fsck check failed on $device_node"
 
-		if [ "$fsck_status" -eq 8 ] || [ "$fsck_status" -eq 16 ] || [ "$fsck_status" -eq 32 ] || [ "$fsck_status" -eq 128 ]; then
-			log "Critical fsck error with exit status $fsck_status, mounting process aborted."
+		if [ "$fsck_status" -eq 8 ] || [ "$fsck_status" -eq 16 ] || \
+		  [ "$fsck_status" -eq 32 ] || [ "$fsck_status" -eq 128 ]; then
+			echo "Critical fsck error with exit status $fsck_status, mounting process aborted"
 			return 1
 		else
-			log "Non-critical fsck error with exit status $fsck_status, continuing."
+			echo "Non-critical fsck error with exit status $fsck_status, continuing"
 		fi
 	fi
 }
 
 do_mount() {
-	if mkdir -p "$mountpoint"; then
-		log "Created $mountpoint mountpoint."
+	if mkdir -p "$mount_point"; then
+		echo "Created mount point $mount_point"
 	else
-		log "Cannot create $mountpoint mountpoint."
+		echo "Cannot create mount point $mount_point"
 		return 1
 	fi
 
-#	do_fsck || return 1
+	if ! do_fsck; then
+		echo "Failed to fsck $device_node"
+		return 1
+	fi
 
-	if mount -t auto -o noatime,sync "$devicenode" "$mountpoint"; then
-		log "Mounted $devicenode to $mountpoint mountpoint."
+	if mount -t auto -o noatime,sync "$device_node" "$mount_point"; then
+		echo "Mounted $device_node to $mount_point"
 	else
-		log "Failed to mount $devicenode to $mountpoint mountpoint."
+		echo "Failed to mount $device_node to $mount_point"
 		cleanup
 		return 1
 	fi
@@ -75,16 +82,21 @@ do_mount() {
 }
 
 do_umount() {
-	lsof | awk '/\/mnt\/mmcblk0p1/{print $1}' | xargs kill -9
+	if lsof | grep -q "$mount_point"; then
+		echo "Killing processes that are using $mount_point"
+		lsof | awk "/$mount_point/{print \$1}" | xargs kill -9
+	else
+		echo "No processes are using $mount_point"
+	fi
 
-	if grep -qs "^$devicenode " /proc/mounts; then
-		if umount "$mountpoint"; then
-			log "Unmounted $mountpoint mountpoint."
+	if grep -qs "^$device_node " /proc/mounts; then
+		if umount -l "$mount_point"; then
+			echo "Unmounted $mount_point"
 		else
-			log "Failed to unmount $mountpoint mountpoint."
+			echo "Failed to unmount $mount_point"
 		fi
 	else
-		log "$devicenode is not mounted."
+		echo "$device_node is not mounted"
 	fi
 
 	cleanup
@@ -92,15 +104,15 @@ do_umount() {
 
 do_run_always() {
 	if sh $run; then
-		log "Executed $run script."
+		echo "Executed $run script"
 	else
-		log "Failed to execute $run script."
+		echo "Failed to execute $run script"
 	fi
 }
 
 do_run_diag() {
-	rm -f $mountpoint/.diag
-	thingino-diag -l $mountpoint
+	rm -f $mount_point/.diag
+	thingino-diag -l $mount_point
 	sync
 	do_umount
 	iac -f /usr/share/sounds/th-chime_1.pcm
@@ -112,15 +124,15 @@ do_run_diag() {
 
 do_run_once() {
 	if [ -f "$run_once_flag" ]; then
-		log "Stop flag $run_once_flag exists."
+		echo "Stop flag $run_once_flag exists"
 		return 1
 	fi
 
 	if sh "$run_once"; then
 		touch "$run_once_flag"
-		log "Executed $run_once script."
+		echo "Executed $run_once script"
 	else
-		log "Failed to execute $run_once script."
+		echo "Failed to execute $run_once script"
 	fi
 }
 
