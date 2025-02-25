@@ -163,8 +163,7 @@ ws.onmessage = (ev) => {
 		if (msg.rtsp) {
 			const r = msg.rtsp;
 			if (r.username && r.password && r.port)
-				$('#playrtsp').innerHTML = 'mpv --profile=fast ' +
-					`rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
+				$('#playrtsp').innerHTML = `mpv rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
 		}
 	} else if (ev.data instanceof ArrayBuffer) {
 		updatePreview(ev.data);
