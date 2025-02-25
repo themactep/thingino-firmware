@@ -608,8 +608,8 @@ save2config() {
 	rm "$tmp2file"
 }
 
-refresh_env_dump {
-	fw_printenv > $ENV_DUMP_FILE
+refresh_env_dump() {
+	fw_printenv | sort | sed -E 's/=(.*)$/="\1"/' > "$ENV_DUMP_FILE"
 	. $ENV_DUMP_FILE
 }
 
