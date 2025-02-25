@@ -227,7 +227,7 @@ stop_daemon() {
 	if [ -f "$PIDFILE" ]; then
 		echo "- Stopping by PID from $PIDFILE"
 		start-stop-daemon -K -p $PIDFILE
-		rm "$PIDFILE"
+		[ -f "$PIDFILE" ] && rm "$PIDFILE"
 	fi
 
 	sleep 0.5
