@@ -24,7 +24,7 @@ prompt() {
 	echo -e "<b># $1</b>"
 }
 
-export PATH=/usr/local/bin:/usr/local/sbin:/bin:/usr/bin:/usr/sbin
+export PATH=/bin:/sbin
 cd /tmp || return
 prompt "$c\n"
 eval $c 2>&1
