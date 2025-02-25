@@ -208,7 +208,7 @@ async function toggleDayNight(mode = 'read') {
 $("#motion").addEventListener('change', ev => sendToWs('{"motion":{"enabled":' + ev.target.checked + '}}'));
 $('#rotate').addEventListener('change', ev => sendToWs('{"image":{"hflip":' + ev.target.checked + ',"vflip":' + ev.target.checked + '}}'));
 $("#daynight").addEventListener('change', ev => ev.target.checked ? toggleDayNight('night') : toggleDayNight('day'));
-$$("#color, #ircut, #ir850, #ir940, #white").forEach(el => el.addEventListener('change', ev => toggleButton(el)));
+$$("#color, #ircut, #ir850, #ir940, #white").forEach(el => el.addEventListener('change', ev => toggleButton(el));
 
 toggleDayNight();
 </script>
