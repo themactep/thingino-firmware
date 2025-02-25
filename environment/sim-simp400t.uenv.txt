@@ -11,7 +11,5 @@ gpio_speaker=63
 gpio_wlan=11O
 motor_maxstep_h=4200
 motor_maxstep_v=1800
-osmem=80M@0x0
-rmem=48M@0x5000000
 wlan_module=ssv6155
 wlan_module_opts=stacfgpath=/usr/share/wifi/ssv6155-usb-40M.cfg

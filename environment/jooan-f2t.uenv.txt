@@ -7,5 +7,3 @@ gpio_ir850=89o
 gpio led_r=90o
 gpio_led_b=49o
 gpio_speaker=63o
-osmem=86M@0x0
-rmem=42M@0x5600000

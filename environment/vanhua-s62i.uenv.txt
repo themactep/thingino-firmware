@@ -5,5 +5,3 @@ gpio_ir850=67
 gpio_ircut=118 119
 gpio_led_r=69
 gpio_white=66
-osmem=64M@0x0
-rmem=64M@0x4000000

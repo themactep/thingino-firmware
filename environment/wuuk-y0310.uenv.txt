@@ -8,7 +8,5 @@ gpio_led_r=17
 gpio_mmc_cd=49
 gpio_speaker=7
 gpio_wlan=8O
-osmem=78M@0x0
-rmem=50M@0x4E00000
 wlan_module=ssv6158
 wlan_module_opts=stacfgpath=/usr/share/wifi/ssv6x5x-wifi.cfg

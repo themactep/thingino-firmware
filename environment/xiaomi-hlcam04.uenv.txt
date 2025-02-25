@@ -11,7 +11,5 @@ gpio_mmc_cd=59
 gpio_mmc_power=48o
 gpio_speaker=63
 gpio_wlan=57O
-osmem=40M@0x0
-rmem=24M@0x2800000
 wlan_module=atbm6031
 wlan_module_opts=atbm_printk_mask=0

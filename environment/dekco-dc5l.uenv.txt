@@ -12,6 +12,4 @@ gpio_white=47
 gpio_wlan=43o
 motor_maxstep_h=3700
 motor_maxstep_v=1000
-osmem=32M@0x0
-rmem=32M@0x2000000
 wlan_module=8188fu

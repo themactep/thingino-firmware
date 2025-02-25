@@ -10,7 +10,5 @@ gpio_mmc_power=17O
 gpio_speaker=63
 gpio_white=59O
 gpio_wlan=48O
-osmem=64M@0x0
-rmem=64M@0x4000000
 wlan_module=bcmdhd
 wlan_module_opts=gpio_wl_reg_on=48 gpio_wl_host_wake=39 firmware_path=/usr/lib/firmware/ nvram_path=/usr/lib/firmware/nv_bcm4343.txt op_mode=2

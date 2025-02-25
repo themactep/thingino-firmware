@@ -11,7 +11,4 @@ gpio_mmc_power=48o
 gpio_speaker=63
 gpio_usb_en=47O
 gpio_wlan=62O
-ispmem=11M@0x7400000
-osmem=94M@0x0
-rmem=22M@0x5E00000
 wlan_module=8189fs

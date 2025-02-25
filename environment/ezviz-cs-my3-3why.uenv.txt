@@ -11,6 +11,4 @@ gpio_speaker=9O
 gpio_wlan=7o
 motor_maxstep_h=-1
 motor_maxstep_v=1000
-osmem=84M@0x0
-rmem=44M@0x5400000
 wlan_module=8188fu

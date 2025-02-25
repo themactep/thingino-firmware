@@ -9,6 +9,4 @@ gpio_mmc_cd=61
 gpio_speaker=63o
 gpio_white=60O
 gpio_wlan=6
-osmem=52M@0x0
-rmem=12M@0x3400000
 wlan_module=ssv6x5x

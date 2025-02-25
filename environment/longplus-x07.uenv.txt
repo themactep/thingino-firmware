@@ -15,8 +15,6 @@ motor_maxstep_v=1200
 motor_midstep_h=1915
 motor_midstep_v=950
 motor_speed=50
-osmem=32M@0x0
-rmem=32M@0x2000000
 wlan_module=8189fs
 
 # adc_night=1200

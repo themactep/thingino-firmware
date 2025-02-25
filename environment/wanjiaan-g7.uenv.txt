@@ -5,5 +5,3 @@ gpio_ir850=49
 gpio_ircut=58 57
 gpio_mmc_cd=59
 gpio_white=50
-osmem=80M@0x0
-rmem=48M@0x5000000
