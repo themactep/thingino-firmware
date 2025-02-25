@@ -40,12 +40,15 @@ case "$type" in
 esac
 
 if [ -z "$pin" ]; then
-	echo "Please define LED GPIO pin"
+	echo "Please define LED GPIO pin" >&2
 	exit 1
 fi
 
 # default to output high
-[ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
+if [ "$pin" = "${pin//[^0-9]/}" ]; then
+	pin="${pin}O"
+fi
+
 case ${pin:(-1)} in
 	o) pin_on=0; pin_off=1 ;;
 	O) pin_on=1; pin_off=0 ;;
