@@ -55,9 +55,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		fi
 
 		/etc/init.d/S95prudynt restart >/dev/null
-		update_caminfo
-		redirect_to $SCRIPT_NAME
 	fi
+	redirect_to $SCRIPT_NAME
 fi
 %>
 <%in _header.cgi %>
