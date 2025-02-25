@@ -212,4 +212,8 @@ $$("#color, #ircut, #ir850, #ir940, #white").forEach(el => el.addEventListener('
 toggleDayNight();
 </script>
 
+<div class="alert alert-dark ui-debug d-none">
+<h4 class="mb-3">Debug info</h4>
+</div>
+
 <%in _footer.cgi %>
