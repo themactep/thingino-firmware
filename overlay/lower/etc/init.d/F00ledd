@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LINK_FILE="/var/run/boot"
+LINK_FILE="/run/boot"
 DAEMON_ARGS="0.05 $LINK_FILE"
 
 . /usr/share/common

@@ -21,11 +21,11 @@ else
         echo "Cannot find $TZCODE_FILE"
 fi
 
-rm -f /var/run/boot
+rm -f /run/boot
 
 sleep 0.1
 
-echo 0.5 > /var/run/boot
+echo 0.5 > /run/boot
 
 execute_and_log() {
 	script="$1"
