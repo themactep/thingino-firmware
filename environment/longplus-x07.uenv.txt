@@ -1,6 +1,6 @@
 disable_eth=true
 gpio_button=52
-gpio_default=9o 10o 25ID 26IDU 47o 48o 52i 59i
+gpio_default=9o 10o 47o 48o 49o 50o 52i 53o 57o 58o 59i 60o 61o 62o 63o
 gpio_ir850=9
 gpio_ircut=48 47
 gpio_led_w=10
@@ -11,7 +11,3 @@ gpio_speaker=63
 motor_maxstep_h=4150
 motor_maxstep_v=1500
 wlan_module=8189fs
-
-# adc_night=1200
-# adc_day=550
-# networkmtu=1480
