@@ -10,9 +10,6 @@ gpio_motor_v=58 57 50 49
 gpio_speaker=63
 motor_maxstep_h=4150
 motor_maxstep_v=1500
-motor_midstep_h=2075
-motor_midstep_v=750
-motor_speed=50
 wlan_module=8189fs
 
 # adc_night=1200
