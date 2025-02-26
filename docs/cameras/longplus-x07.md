@@ -5,13 +5,13 @@ https://longplus.com/products/longplus-b1-wi-fi-security-camera-for-home-securit
 
 ### Hardware
 
-- SoC: Ingenic T31N (64 MiB)
+- SoC: Ingenic T31N (64 MB)
 - Image Sensor:
 	- GC2063 (2MP)
 	- JXF23 (2MP)
 	- MIS2008 (2MP)
 - Wi-Fi Module: RTL8189FTV (SDIO)
-- Flash Chip: 128 Mib SPI NOR (16MiB)
+- Flash Chip: NOR 16MB
 - Power: 5V DC microUSB
 
 ### Installation
@@ -20,12 +20,12 @@ https://longplus.com/products/longplus-b1-wi-fi-security-camera-for-home-securit
 2. Undo two screws holding the PCB to get access to the flash chip on the front side of the PCB.
 3. Clip the flash chip and use a CH341A programmer to install the firmware.
 
-#### UART
+### UART
 
 UART contacts are available as 1.27mm pitch holes near the vertical motor
 terminals, marked `R`, `T`, and `G`.
 
-#### Motors
+### Motors
 
 Motor terminals are 1.5mm pitch JST-ZH 5-pin connectors.
 
