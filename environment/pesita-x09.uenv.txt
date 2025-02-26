@@ -1,0 +1,13 @@
+disable_eth=true
+gpio_button=52
+gpio_default=9o 10o 47o 48o 49o 50o 52i 53o 57o 58o 59i 60o 61o 62o 63o
+gpio_ir850=9
+gpio_ircut=48 47
+gpio_led_w=10
+gpio_mmc_cd=59
+gpio_motor_h=60 61 62 53
+gpio_motor_v=58 57 50 49
+gpio_speaker=63
+motor_maxstep_h=4130
+motor_maxstep_v=1260
+wlan_module=8189fs
