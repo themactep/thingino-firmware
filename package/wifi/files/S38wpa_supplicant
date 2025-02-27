@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
+. /usr/share/common
 
 IFACE=wlan0
 CONFIG="/etc/$DAEMON_SHORT.conf"
@@ -15,10 +15,10 @@ ssid_changed() {
 
 start() {
 	starting
-	ssid="$(fw_printenv -n wlanssid)"
-	bssid="$(fw_printenv -n wlanbssid)"
-	pass="$(fw_printenv -n wlanpass)"
-	wlanap="$(fw_printenv -n wlanap_enabled)"
+	ssid="$wlan_ssid"
+	bssid="$wlan_bssid"
+	pass="$wlan_pass"
+	wlanap="$wlanap_enabled"
 
 	# convert plain-text password no matter what
 	if [ -n "$pass" ] && [ ${#pass} -lt 64 ]; then
@@ -51,7 +51,6 @@ start() {
 	[ "$wlanap" = "true" ] && quit "WLAN AP enabled"
 
 	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1 | log
-	check_result
 }
 
 stop() {

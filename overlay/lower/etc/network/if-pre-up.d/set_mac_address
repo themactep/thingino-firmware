@@ -1,0 +1,20 @@
+#!/bin/sh
+
+. /usr/share/common
+
+nfsip=$(sed -n '/^[^ ]*:.* \/ nfs.*[ ,]addr=\([0-9.]\+\).*/s//\1/p' /proc/mounts)
+
+[ "$IFACE" != "eth0" ] && exit 0
+
+# Check if the interface is not a USB device, then set the MAC address, unless using nfsroot
+if [ -n "$nfsip" ] && ip route get "$nfsip" | grep -q "dev $IFACE"; then
+	echo "Skipping MAC address setup for $IFACE, used for NFS from $nfsip"
+elif [ -d /sys/class/net/eth0 ] && ! readlink -f /sys/class/net/eth0/device | grep -q "usb"; then
+	echo "Setting eth0 MAC address from environment"
+	MAC_ADDR="$ethaddr"
+	[ -n "$MAC_ADDR" ] && /sbin/ip link set dev "$IFACE" address "$MAC_ADDR"
+else
+	echo "eth0 does not exist or is a USB device, skipping MAC address setup"
+fi
+
+exit 0

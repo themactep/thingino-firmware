@@ -1,0 +1,15 @@
+#!/bin/sh
+
+. /usr/share/common
+
+if [ "$IFACE" = "wlan0" ]; then
+	if [ -z "$wlan_ssid" ] || [ -z "$wlan_pass" ]; then
+		echo "wlan0 disabled, no SSID/pass"
+		exit 1
+	elif [ "$disable_wlan" = "true" ]; then
+		echo "WLAN manually disabled."
+		exit 1
+	fi
+fi
+
+exit 0

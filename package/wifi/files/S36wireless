@@ -1,18 +1,15 @@
 #!/bin/sh
 
-. /etc/init.d/rc.common
-
-SOC_FAMILY=$(/usr/sbin/soc -f)
-SOC_MODEL=$(/usr/sbin/soc -m)
+. /usr/share/common
 
 init() {
-	[ "$(fw_printenv -n disable_wlan)" = "true" ] && quit "WLAN disabled"
-	wlandev="$(fw_printenv -n wlandev)"
-	[ -z "$wlandev" ] && quit "wlandev is not set"
+	[ "$disable_wlan" = "true" ] && quit "WLAN disabled"
+	wlan_module="$wlan_module"
+	[ -z "$wlan_module" ] && quit "wlan_module is not set"
 
-	pin_raw="$(fw_printenv -n gpio_wlan)"
+	pin_raw="$gpio_wlan"
 	if [ -z "$pin_raw" ]; then
-		info "gpio_wlan is not set"
+		echo "gpio_wlan is not set"
 	else
 		[ "$pin_raw" = "${pin_raw//[^0-9]/}" ] && pin_raw="${pin_raw}O"
 		pin="${pin_raw:0:-1}"
@@ -24,8 +21,8 @@ init() {
 		esac
 	fi
 
-	wlanmac="$(fw_printenv -n wlanmac)"
-	wlandevopts=$(fw_printenv -n wlandevopts)
+	wlan_mac="$wlan_mac"
+	wlan_module_opts="$wlan_module_opts"
 }
 
 start() {
@@ -33,30 +30,30 @@ start() {
 	init
 
 	if [ -z "$pin" ]; then
-		info "GPIO pin for wireless module is not set"
+		echo "GPIO pin for wireless module is not set"
 	else
-		info "Set GPIO $pin to $pin_on"
-		run "gpio set $pin $pin_on"
+		echo "Set GPIO $pin to $pin_on"
+		gpio set $pin $pin_on
 
-		if [ "bcmdhd" = "$wlandev" ]; then
-			info "Unexport GPIO pin $pin"
-			run "gpio unexport $pin"
+		if [ "bcmdhd" = "$wlan_module" ]; then
+			echo "Unexport GPIO pin $pin"
+			gpio unexport $pin
 		fi
 	fi
 
-	case "$wlandev" in
+	case "$wlan_module" in
 		8189es | 8189fs | atbm6031 | b43 | bcmdhd | hi3881 | ssv6158)
 			# Check if MDIO directory exists
 			if [ -d /proc/jz/mdio ]; then
-				info "GMAC is enabled, disabling MSC1..."
+				echo "GMAC is enabled, disabling MSC1..."
 			else
 				case "$SOC_FAMILY" in
 					t10 | t20 | t21 | t30 | t40 | t41)
-						info "Skip GPIO setup for $SOC_MODEL"
+						echo "Skip GPIO setup for $SOC_MODEL"
 						;;
 					t23 | t31)
 						if [ "$SOC_MODEL" = "t31a" ]; then
-							info "Skip GPIO setup for $SOC_MODEL"
+							echo "Skip GPIO setup for $SOC_MODEL"
 							return 1
 						else
 							set_gpio pb08 1 2
@@ -72,24 +69,24 @@ start() {
 						;;
 				esac
 
-				info "Send INSERT to MMC1"
-				run "mmc 1"
+				echo "Send INSERT to MMC1"
+				mmc 1
 			fi
 			;;
 		*)
 			;; # MMC1 is not SDIO
 	esac
 
-	if [ -n "$wlanmac" ] && [ "hi3881" = "$wlandev" ]; then
-		info "Preset MAC address to $wlanmac"
-		sed -i "s/CFG_MAC=[^;]*;/CFG_MAC=$wlanmac;/" /usr/share/wifi/wifi_cfg
+	if [ -n "$wlan_mac" ] && [ "hi3881" = "$wlan_module" ]; then
+		echo "Preset MAC address to $wlan_mac"
+		sed -i "s/CFG_MAC=[^;]*;/CFG_MAC=$wlan_mac;/" /usr/share/wifi/wifi_cfg
 	fi
 
-	if grep -q "^$wlandev\b" /proc/modules; then
-		info "Module $wlandev is already loaded"
+	if grep -q "^$wlan_module\b" /proc/modules; then
+		echo "Module $wlan_module is already loaded"
 	else
-		info "Loading $wlandev module with parameters $wlandevopts"
-		run "modprobe $wlandev $wlandevopts"
+		echo "Loading $wlan_module module with parameters $wlan_module_opts"
+		modprobe $wlan_module $wlan_module_opts
 	fi
 
 	m=50 # limit to 5 seconds
@@ -99,20 +96,18 @@ start() {
 		sleep 0.1
 	done
 
-	if [ -n "$wlanmac" ] && [ "hi3881" != "$wlandev" ]; then
-		info "Set MAC address to $wlanmac"
-		run "ip link set dev wlan0 address $wlanmac"
+	if [ -n "$wlan_mac" ] && [ "hi3881" != "$wlan_module" ]; then
+		echo "Set MAC address to $wlan_mac"
+		ip link set dev wlan0 address $wlan_mac
 	fi
-	ok
 }
 
 stop() {
 	stopping
 	init
-	run "ifdown wlan0"
-	run "rmmod -f $wlandev"
-	[ -z "$pin" ] || run "gpio set $pin $pin_off"
-	ok
+	ifdown wlan0
+	rmmod -f $wlan_module
+	[ -z "$pin" ] || gpio set $pin $pin_off
 }
 
 case "$1" in

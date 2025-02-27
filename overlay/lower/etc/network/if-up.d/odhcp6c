@@ -22,7 +22,28 @@ else
 	exit 0
 fi
 
+# Check for DHCPv6 presence before starting
+check_dhcpv6_presence() {
+	echo "$IFACE: Testing for DHCPv6 presence"
+	# Ping DHCPv6 multicast address with timeout
+	ping6 -c 1 -W 2 ff02::1:2%$IFACE > /dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		echo "$IFACE: No DHCPv6 server detected"
+		return 1
+	else
+		echo "$IFACE: DHCPv6 infrastructure detected"
+		return 0
+	fi
+}
+
 start_post_up() {
+	# First check if DHCPv6 is available
+	check_dhcpv6_presence
+	if [ $? -ne 0 ]; then
+		echo "$IFACE: Skipping DHCPv6 client startup due to no server"
+		return 0
+	fi
+
 	echo "$IFACE: starting odhcp6c"
 
 	TMP_LOG="/tmp/odhcp6c.log"

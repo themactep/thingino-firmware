@@ -1,0 +1,34 @@
+#!/bin/sh
+
+. /usr/share/common
+
+# Check if the interface's config file exists
+if [ ! -f /etc/network/interfaces.d/$IFACE ]; then
+	echo "No configuration file for $IFACE"
+	exit 0
+fi
+
+# Check if the interface is configured with a static IP
+if grep -q static /etc/network/interfaces.d/$IFACE; then
+	echo "Static IP address for $IFACE"
+	if [ -f /etc/default/resolv.conf ]; then
+		echo "Adding static DNS servers for $IFACE"
+		# create or append DNS entries without duplicating
+		if [ ! -f /tmp/resolv.conf ]; then
+			cp /etc/default/resolv.conf /tmp/resolv.conf
+		else
+			# append entries that don't exist already
+			grep -v '^#' /etc/default/resolv.conf | while read line; do
+				if ! grep -q "^$line$" /tmp/resolv.conf; then
+					echo "$line" >> /tmp/resolv.conf
+				fi
+			done
+		fi
+	else
+		echo "No static DNS servers for $IFACE"
+	fi
+else
+	echo "Dynamic IP address for $IFACE"
+fi
+
+exit 0
