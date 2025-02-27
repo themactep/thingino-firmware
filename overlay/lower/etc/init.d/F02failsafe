@@ -14,6 +14,15 @@ start() {
 		exit 0
 	fi
 
+	# Always enter failsafe if enable_failsafe is true
+	if [ "true" = "$enable_failsafe" ]; then
+		echo_c 118 "Automatically entering failsafe mode..."
+		touch /tmp/.fs
+		. /etc/profile
+		exec setsid /sbin/getty -n -l /bin/sh -L console 0 vt100
+		return
+	fi
+
 	echo_c 104 "\nPress the [f] key to enter failsafe mode\n"
 
 	stty -icanon min 0 time 20 -echo
