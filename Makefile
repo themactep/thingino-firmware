@@ -418,8 +418,13 @@ endif
 $(UB_ENV_FINAL_TXT): $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
 	touch $@
+	if [ -f $(BR2_EXTERNAL)/environment/master.uenv.txt ]; then \
+		grep -v '^#' $(BR2_EXTERNAL)/environment/master.uenv.txt | tee $@; \
+	fi
 	if [ -f $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) ]; then \
-		grep -v '^#' $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) | tee $@; \
+		grep -v '^#' $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) | while read line; do \
+			grep -F -x -q "$$line" $@ || echo "$$line" >> $@; \
+		done; \
 		if [ $(RELEASE) -ne 1 ]; then \
 			if [ -f $(BR2_EXTERNAL)/local.uenv.txt ]; then \
 				grep -v '^#' $(BR2_EXTERNAL)/local.uenv.txt | while read line; do \
