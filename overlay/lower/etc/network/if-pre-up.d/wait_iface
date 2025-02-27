@@ -360,7 +360,14 @@ WiFi BSSID: $wlan_bssid
 		echo "WiFi GPIO: $gpio_wlan"
 		for pin_raw in $gpio_wlan; do
 			[ "$pin_raw" = "${pin_raw//[^0-9]/}" ] && pin_raw="${pin_raw}O"
-			gpio set "${pin_raw:0:-1}" "${pin_raw:0-1}"
+			pin="${pin_raw:0:-1}"
+			suffix="${pin_raw:0-1}"
+			case "$suffix" in
+				o) state=0 ;;
+				O) state=1 ;;
+				*) echo "Unknown suffix ${suffix}!" ;;
+			esac
+			gpio set "${pin}" "${state}"
 		done
 	fi
 	echo "WiFi options: $wlan_module_opts"
