@@ -660,11 +660,14 @@ FOUND_RMEM := $(subst BR2_THINGINO_RMEM_,,$(strip \
 
 # Set the default RMEM size based on SOC ram size if no explicit value found
 # These values match the default values found in uboot by the soc ram size
+# Default values should match what's in Config.soc.in since we can't use the BR2 variables directly
 ifeq ($(FOUND_RMEM),)
 	ifeq ($(SOC_RAM),64)
 		ISP_RMEM := 23
 	else ifeq ($(SOC_RAM),128)
 		ISP_RMEM := 29
+	else ifeq ($(SOC_RAM),256)
+		ISP_RMEM := 64
 	else
 		ISP_RMEM := 32
 	endif
@@ -693,7 +696,15 @@ FOUND_NMEM := $(subst BR2_THINGINO_NMEM_,,$(strip \
 	)))
 
 ifeq ($(FOUND_NMEM),)
-	ISP_NMEM := 16
+	ifeq ($(SOC_RAM),64)
+		ISP_NMEM := 23
+	else ifeq ($(SOC_RAM),128)
+		ISP_NMEM := 29
+	else ifeq ($(SOC_RAM),256)
+		ISP_NMEM := 64
+	else
+		ISP_NMEM := 16
+	endif
 else
 	ISP_NMEM := $(FOUND_NMEM)
 endif
