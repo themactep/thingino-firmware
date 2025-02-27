@@ -106,7 +106,6 @@ stop() {
 	stopping
 	init
 	ifdown wlan0
-	rmmod -f $wlan_module
 	[ -z "$pin" ] || gpio set $pin $pin_off
 }
 
