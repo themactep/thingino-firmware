@@ -104,9 +104,7 @@ start() {
 
 stop() {
 	stopping
-	init
 	ifdown wlan0
-	[ -z "$pin" ] || gpio set $pin $pin_off
 }
 
 case "$1" in
