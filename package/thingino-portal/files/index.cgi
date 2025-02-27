@@ -69,7 +69,8 @@ elif post_request; then
 		http_header="HTTP/1.1 303 See Other"
 		http_redirect="Location: $SCRIPT_NAME"
 		tempfile=$(mktemp -u)
-		printf "hostname %s\n" "$hostname" >> "$tempfile"
+		hostname "$hostname" > /etc/hostname
+
 		if [ "true" = "$wlanap_enabled" ]; then
 			printf "wlanap_enabled %s\nwlanap_ssid %s\nwlanap_pass %s\n" "$wlanap_enabled" "$wlanap_ssid" "$wlanap_pass" >> "$tempfile"
 		else

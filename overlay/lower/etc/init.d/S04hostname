@@ -39,11 +39,50 @@ generate() {
 	echo "Generated hostname: $hostname"
 }
 
+get_default_hostname() {
+	local id=$(sed -n 's/^ID=//p' /etc/os-release)
+	local soc_type=$(soc)
+	echo "${id}-${soc_type}"
+}
+
+is_user_modified_hostname() {
+	local current="$1"
+	local default_hostname=$(get_default_hostname)
+	local os_hostname=$(sed -n 's/^HOSTNAME=//p' /etc/os-release)
+
+	# Check if hostname is blank or "(none)" - these should be replaced
+	if [ -z "$current" ] || [ "$current" = "(none)" ]; then
+		return 1
+	fi
+
+	# Check if it's the default hostname based on ID and soc from buildroot
+	if [ "$current" = "$default_hostname" ]; then
+		return 1
+	fi
+
+	# Check if it matches our auto-generated pattern (os_hostname-xxxx)
+	if echo "$current" | grep -q "^${os_hostname}-[0-9a-fA-F]\{4\}$"; then
+		return 1
+	fi
+
+	# Otherwise, it's custom!
+	return 0
+}
+
 start() {
 	echo "Setting hostname"
 
-	hostname=$(hostname)
-	[ -z "$hostname" ] && generate
+	current_hostname=$(hostname)
+
+	if is_user_modified_hostname "$current_hostname"; then
+		# User has modified hostname, keep it
+		hostname="$current_hostname"
+		echo "Using custom hostname: $hostname"
+	else
+		# Use generated hostname
+		generate
+	fi
+
 	set_hostname
 	update_hosts
 	#update_os_release
