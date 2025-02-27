@@ -266,6 +266,41 @@ else ifeq ($(BR2_SOC_INGENIC_T41A),y)
 	BR2_SOC_INGENIC_T41 := y
 	BR2_XBURST_2 := y
 	UBOOT_BOARDNAME := "isvp_t41_sfcnor"
+else ifeq ($(BR2_SOC_INGENIC_A1N),y)
+	SOC_FAMILY := a1
+	SOC_MODEL := a1n
+	SOC_RAM := 256
+	BR2_SOC_INGENIC_A1 := y
+	BR2_XBURST_2 := y
+	UBOOT_BOARDNAME := "isvp_a1n_sfcnor"
+else ifeq ($(BR2_SOC_INGENIC_A1NT),y)
+	SOC_FAMILY := a1
+	SOC_MODEL := a1nt
+	SOC_RAM := 256
+	BR2_SOC_INGENIC_A1 := y
+	BR2_XBURST_2 := y
+	UBOOT_BOARDNAME := "isvp_a1nt_sfcnor"
+else ifeq ($(BR2_SOC_INGENIC_A1X),y)
+	SOC_FAMILY := a1
+	SOC_MODEL := a1x
+	SOC_RAM := 256
+	BR2_SOC_INGENIC_A1 := y
+	BR2_XBURST_2 := y
+	UBOOT_BOARDNAME := "isvp_a1x_sfcnor"
+else ifeq ($(BR2_SOC_INGENIC_A1L),y)
+	SOC_FAMILY := a1
+	SOC_MODEL := a1l
+	SOC_RAM := 128
+	BR2_SOC_INGENIC_A1 := y
+	BR2_XBURST_2 := y
+	UBOOT_BOARDNAME := "isvp_a1l_sfcnor"
+else ifeq ($(BR2_SOC_INGENIC_A1A),y)
+	SOC_FAMILY := a1
+	SOC_MODEL := a1a
+	SOC_RAM := 512
+	BR2_SOC_INGENIC_A1 := y
+	BR2_XBURST_2 := y
+	UBOOT_BOARDNAME := "isvp_a1a_sfcnor"
 endif
 
 SOC_FAMILY_CAPS := $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
@@ -279,6 +314,7 @@ else
 	INGENIC_ARCH := xburst1
 endif
 
+export BR2_SOC_INGENIC_A1
 export BR2_SOC_INGENIC_T10
 export BR2_SOC_INGENIC_T20
 export BR2_SOC_INGENIC_T21
@@ -304,7 +340,7 @@ export SOC_RAM
 ifneq ($(KERNEL_VERSION_3)$(KERNEL_VERSION_4),y)
 	ifeq ($(BR2_SOC_INGENIC_T41),y)
 		KERNEL_VERSION_4 := y
-	else ifeq ($(BR2_SOC_INGENIC_T40),y)
+	else ifeq ($(BR2_SOC_INGENIC_T40)$(BR2_SOC_INGENIC_A1),y)
 		KERNEL_VERSION_4 := y
 	else
 		KERNEL_VERSION_3 := y
@@ -325,6 +361,10 @@ else ifeq ($(BR2_SOC_INGENIC_T40),y)
 	KERNEL_VERSION := 4.4
 	KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
 	KERNEL_BRANCH := ingenic-t40
+else ifeq ($(BR2_SOC_INGENIC_A1),y)
+	KERNEL_VERSION := 4.4
+	KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+	KERNEL_BRANCH := ingenic-a1
 else ifeq ($(BR2_SOC_INGENIC_T31),y)
 	ifeq ($(KERNEL_VERSION_3),y)
 		KERNEL_VERSION := 3.10
@@ -883,6 +923,8 @@ else ifeq ($(BR2_SOC_INGENIC_T40),y)
 	SDK_VERSION := 1.2.0
 else ifeq ($(BR2_SOC_INGENIC_T41),y)
 	SDK_VERSION := 1.2.0
+else ifeq ($(BR2_SOC_INGENIC_A1),y)
+	SDK_VERSION := 1.6.2
 endif
 
 # Determine project C library, set SDK C library and toolchain version
@@ -911,7 +953,7 @@ else ifeq ($(BR2_SOC_INGENIC_T31),y)
 	else
 		SDK_LIBC_VERSION := 5.4.0
 	endif
-else ifeq ($(BR2_SOC_INGENIC_T40)$(BR2_SOC_INGENIC_T41),y)
+else ifeq ($(BR2_SOC_INGENIC_T40)$(BR2_SOC_INGENIC_T41)$(BR2_SOC_INGENIC_A1),y)
 	SDK_LIBC_VERSION := 7.2.0
 else
 	SDK_LIBC_VERSION := 5.4.0
