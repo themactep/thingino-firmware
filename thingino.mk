@@ -272,35 +272,35 @@ else ifeq ($(BR2_SOC_INGENIC_A1N),y)
 	SOC_RAM := 256
 	BR2_SOC_INGENIC_A1 := y
 	BR2_XBURST_2 := y
-	UBOOT_BOARDNAME := "isvp_a1n_sfcnor"
+	UBOOT_BOARDNAME := "isvp_a1_n_lzma_sfc0nor"
 else ifeq ($(BR2_SOC_INGENIC_A1NT),y)
 	SOC_FAMILY := a1
 	SOC_MODEL := a1nt
 	SOC_RAM := 256
 	BR2_SOC_INGENIC_A1 := y
 	BR2_XBURST_2 := y
-	UBOOT_BOARDNAME := "isvp_a1nt_sfcnor"
+	UBOOT_BOARDNAME := "isvp_a1_nt_lzma_sfc0nor"
 else ifeq ($(BR2_SOC_INGENIC_A1X),y)
 	SOC_FAMILY := a1
 	SOC_MODEL := a1x
 	SOC_RAM := 256
 	BR2_SOC_INGENIC_A1 := y
 	BR2_XBURST_2 := y
-	UBOOT_BOARDNAME := "isvp_a1x_sfcnor"
+	UBOOT_BOARDNAME := "isvp_a1_x_lzma_sfc0nor"
 else ifeq ($(BR2_SOC_INGENIC_A1L),y)
 	SOC_FAMILY := a1
 	SOC_MODEL := a1l
 	SOC_RAM := 128
 	BR2_SOC_INGENIC_A1 := y
 	BR2_XBURST_2 := y
-	UBOOT_BOARDNAME := "isvp_a1l_sfcnor"
+	UBOOT_BOARDNAME := "isvp_a1_l_lzma_sfc0nor"
 else ifeq ($(BR2_SOC_INGENIC_A1A),y)
 	SOC_FAMILY := a1
 	SOC_MODEL := a1a
 	SOC_RAM := 512
 	BR2_SOC_INGENIC_A1 := y
 	BR2_XBURST_2 := y
-	UBOOT_BOARDNAME := "isvp_a1a_sfcnor"
+	UBOOT_BOARDNAME := "isvp_a1_a_lzma_sfc0nor"
 endif
 
 SOC_FAMILY_CAPS := $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
@@ -665,6 +665,8 @@ ifeq ($(FOUND_RMEM),)
 		ISP_RMEM := 23
 	else ifeq ($(SOC_RAM),128)
 		ISP_RMEM := 29
+	else
+		ISP_RMEM := 32
 	endif
 else
 	ISP_RMEM := $(FOUND_RMEM)
@@ -685,12 +687,16 @@ endif
 
 export ISP_ISPMEM
 
-ISP_NMEM := $(or \
-	$(subst BR2_NMEM_,,$(strip \
-		$(foreach v,$(filter BR2_NMEM_%,$(filter-out BR2_NMEM_CHOICE,$(.VARIABLES))), \
-			$(if $(filter y,$($(v))),$(v)) \
-		) \
-	)),32)
+FOUND_NMEM := $(subst BR2_THINGINO_NMEM_,,$(strip \
+	$(foreach v,$(filter BR2_THINGINO_NMEM_%,$(filter-out BR2_THINGINO_NMEM_CHOICE,$(.VARIABLES))), \
+		$(if $(filter y,$($(v))),$(v)) \
+	)))
+
+ifeq ($(FOUND_NMEM),)
+	ISP_NMEM := 16
+else
+	ISP_NMEM := $(FOUND_NMEM)
+endif
 
 export ISP_NMEM
 
