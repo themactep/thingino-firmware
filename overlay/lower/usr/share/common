@@ -31,6 +31,8 @@ NTP_WORKING_FILE="/tmp/ntp.conf"
 RESOLV_DEFAULT_FILE="/etc/default/resolv.conf"
 RESOLV_FILE="/etc/resolv.conf"
 RESOLV_WORKING_FILE="/tmp/resolv.conf"
+SOC_FAMILY=$(soc -f)
+SOC_MODEL=$(soc -m)
 SNAPSHOT_FILE="/tmp/snapshot.jpg"
 VBUFFER_FILE="/tmp/vbuffer.mov"
 
