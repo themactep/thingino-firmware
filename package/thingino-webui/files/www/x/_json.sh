@@ -1,3 +1,5 @@
+. /usr/share/common
+
 http_200() {
 	echo "HTTP/1.1 200 OK"
 }
