@@ -12,7 +12,7 @@ set_pin() {
 start() {
 	echo "Configuring LEDs..."
 
-	if [ -x /sbin/gpio ]; then
+	if [ ! -x /sbin/gpio ]; then
 		echo "gpio tool not found"
 		exit 1
 	fi
