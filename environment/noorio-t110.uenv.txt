@@ -1,2 +1,4 @@
 disable_eth=true
+gpio_motor_h=83 77 72 76
+gpio_motor_v=82 79 81 80
 wlan_module=aic8800_fdrv
