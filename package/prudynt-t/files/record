@@ -19,10 +19,14 @@ hesitate() {
 fix_duration() {
     if [ "$1" -eq 60 ]; then
         echo $(expr "$1" - $(date +%S))
+    elif [ $(expr "$1" % 60) -eq 0 ]; then
+        m_inc=$(expr "$1" / 60)
+        mpart=$(expr "$m_inc" - $(expr $(date +%M) % "$m_inc"))
+        echo $(expr "$mpart" "*" 60)
     else
         echo "$1"
     fi
-    #to do - handle cases different than 60 second durations
+    #to do - handle cases different than 60 second durations or videos longer than an hour
 }
 
 get_free_space() {
