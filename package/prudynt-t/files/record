@@ -32,6 +32,15 @@ read_config() {
 	[ -z "$_" ] || echo "$2"
 }
 
+fix_duration() {
+    if [ "$1" -eq 60 ]; then
+        echo $(expr "$1" - $(date +%S))
+    else
+        echo "$1"
+    fi
+    #to do - handle cases different than 60 second durations
+}
+
 # "default"
 read_fps() {
 	logcat | grep "fps" | head -1 | awk -F '[=,]' '{print $2}'
@@ -77,10 +86,18 @@ Where params are:
 
 pidof -o $$ record > /dev/null && die "is already running"
 
-CONFIG_FILE="/etc/web.conf"
+CONFIG_FILE="/etc/webui/record.conf"
 [ -f "$CONFIG_FILE" ] && . $CONFIG_FILE
 
 RECORD_FLAG="/tmp/record.$$"
+
+RECORD_WEBUI_CONF=/etc/webui/record.conf
+if [ -f $RECORD_WEBUI_CONF ]; then
+	cat $RECORD_WEBUI_CONF
+	. $RECORD_WEBUI_CONF
+else
+	[ "${#1}" -eq 0 ] && die "Config file $RECORD_WEBUI_CONF not found"
+fi
 
 while getopts "c:d:f:h:m:n:p:s:t:u:v:w:xz:" flag; do
 	case "$flag" in
@@ -178,12 +195,16 @@ while :; do
 		done
 	fi
 
+
+
 	record_file="$record_storage/$(date +"$record_filename").$record_videofmt"
 	create_directory_for "$record_file"
 
-	log "openRTSP -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps -d $record_duration $vformat -b 1048576 -t rtsp://[::1]/$stream_endpoint > $record_file"
+	real_duration=$(fix_duration $record_duration)
+
+	log "openRTSP -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps -d $real_duration $vformat -b 1048576 -t rtsp://[::1]/$stream_endpoint > $record_file"
 	openRTSP -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps \
-		-d $record_duration $vformat -b 1048576 -t rtsp://[::1]/$stream_endpoint > "$record_file" 2> /dev/null
+		-d $real_duration $vformat -b 1048576 -t rtsp://[::1]/$stream_endpoint > "$record_file" 2> /dev/null
 
 	[ "true" = "$one_time" ] && rm $RECORD_FLAG
 done
