@@ -1,2 +1,2 @@
 disable_eth=true
-wlan_module=aic8800
+wlan_module=aic8800_fdrv
