@@ -1,0 +1,2 @@
+disable_eth=true
+wlan_module=aic8800
