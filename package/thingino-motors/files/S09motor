@@ -65,12 +65,12 @@ start() {
 	fi
 
 	if [ -z "$motor_maxstep_h" ]; then
-		echo"- Pan motor Steps are not set"
+		echo "- Pan motor Steps are not set"
 		exit 1
 	fi
 
 	if [ -z "$motor_maxstep_v" ]; then
-		echo"- Tilt motor Steps are not set"
+		echo "- Tilt motor Steps are not set"
 		exit 1
 	fi
 
