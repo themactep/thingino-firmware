@@ -13,16 +13,6 @@ DROPBEAR_KEY_FILE="/etc/dropbear/dropbear_ed25519_host_key"
 start() {
 	echo "Starting dropbear sshd"
 
-	if [ -L /etc/dropbear -a "$(readlink /etc/dropbear)" = "/var/run/dropbear" ]; then
-		if rm -f /etc/dropbear >/dev/null 2>&1; then
-			mkdir -p /etc/dropbear
-		else
-			echo "No persistent location to store SSH host keys. New keys will be"
-			echo "generated at each boot. Are you sure this is what you want to do?"
-			mkdir -p "$(readlink /etc/dropbear)"
-		fi
-	fi
-
 	umask 077
 	test -f $DROPBEAR_KEY_FILE || dropbearkey -t ed25519 -f $DROPBEAR_KEY_FILE
 

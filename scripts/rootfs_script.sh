@@ -14,6 +14,10 @@ BUILD_ID="${GIT_BRANCH}+${GIT_HASH:0:7}, ${BUILD_TIME}"
 COMMIT_ID="${GIT_BRANCH}+${GIT_HASH:0:7}, ${GIT_TIME}"
 cd -
 
+# Take care of dropbear
+rm ${TARGET_DIR}/etc/dropbear
+mkdir -p ${TARGET_DIR}/etc/dropbear
+
 FILE=${TARGET_DIR}/usr/lib/os-release
 # prefix exiting buildroot entires
 tmpfile=$(mktemp)
