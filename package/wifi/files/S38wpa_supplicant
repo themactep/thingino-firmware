@@ -27,8 +27,13 @@ start() {
 
 	iface_exists "wlan0" || quit "No wireless interface"
 
-	[ -z "$wlan_pass" ] && quit "WiFi password missing"
-	[ -z "${wlan_ssid}${wlan_bssid}" ] && quit "WiFi network missing"
+	if [ -z "$wlan_pass" ]; then
+		quit "WiFi password missing"
+	fi
+
+	if [ -z "${wlan_ssid}${wlan_bssid}" ]; then
+		quit "WiFi network missing"
+	fi
 
 	if grep -q "^#auto wlan0" $WLAN_INT_FILE; then
 		quit "wlan0 manually disabled"
