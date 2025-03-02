@@ -37,7 +37,7 @@ update_os_release() {
 }
 
 generate() {
-	os_hostname=$(sed -n 's/^HOSTNAME=//p' /etc/os-release)
+	os_hostname=$(sed -n 's/^HOSTNAME=//p' $FILE_OS_RELEASE)
 	echo "OS hostname: $os_hostname"
 
 	mac_suffix=$(echo $wlan_mac | sed -E 's/://g;s/.*(.{4})$/\1/')
@@ -48,15 +48,19 @@ generate() {
 }
 
 get_default_hostname() {
-	local id=$(sed -n 's/^ID=//p' /etc/os-release)
-	local soc_type=$(soc)
+	local id soc_type
+
+	id=$(sed -n 's/^ID=//p' $FILE_OS_RELEASE)
+	soc_type=$(soc)
 	echo "${id}-${soc_type}"
 }
 
 is_user_modified_hostname() {
-	local current="$1"
-	local default_hostname=$(get_default_hostname)
-	local os_hostname=$(sed -n 's/^HOSTNAME=//p' /etc/os-release)
+	local current default_hostname os_hostname
+
+	current="$1"
+	default_hostname=$(get_default_hostname)
+	os_hostname=$(sed -n 's/^HOSTNAME=//p' $FILE_OS_RELEASE)
 
 	# Check if hostname is blank or "(none)" - these should be replaced
 	if [ -z "$current" ] || [ "$current" = "(none)" ]; then
