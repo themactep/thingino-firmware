@@ -1210,6 +1210,7 @@ config BR2_THINGINO_MOTORS_SPI
 config BR2_THINGINO_SDCARD
 	bool "SD/MMC Card"
 	select BR2_PACKAGE_THINGINO_KOPT_MMC
+	select BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE
 	help
 	  The hardware has an SD/MMC card slot.
 
@@ -1362,6 +1363,9 @@ menu "U-Boot Environment Config"
 config U_BOOT_ENV_TXT
 	string "Path to U-Boot environment text file"
 	help
-	  Path to the U-Boot environment configuration file used to configure
-	  the ENV on the device
+	  Specify the path to your U-Boot environment configuration file.
+	  This file contains key-value pairs that will be written to the
+	  device's environment storage area during installation.
+	  The U-Boot environment variables control gpios, WLAN device selection,
+	  and other system configuration settings.
 endmenu
