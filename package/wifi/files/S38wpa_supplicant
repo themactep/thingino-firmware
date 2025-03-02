@@ -13,6 +13,11 @@ password_changed() {
 	[ "$old_pass" != "$wlan_pass" ]
 }
 
+ssid_changed() {
+	old_ssid=$(awk -F= '/^\s*ssid=/{gsub(/^"|"$/, "", $2); print $2}' $CONFIG)
+	[ "$old_ssid" != "$wlan_ssid" ]
+}
+
 start() {
 	starting
 
@@ -39,7 +44,7 @@ start() {
 		quit "wlan0 manually disabled"
 	fi
 
-	if [ ! -f "$CONFIG" ] || ssid_changed; then
+	if [ ! -f "$CONFIG" ] || ssid_changed || password_changed; then
 		wpa_passphrase "$wlan_ssid" "dummy_password" > $CONFIG
 		sed -i "s/psk=.*$/psk=${wlan_pass}/" $CONFIG
 		if [ -n "$wlan_bssid" ]; then
