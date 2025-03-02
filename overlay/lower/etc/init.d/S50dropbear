@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DAEMON_ARGS="-k -K 300 -b /etc/issue.net -R"
+DAEMON_ARGS="-k -K 300 -R"
 # -k              Disable remote port forwarding
 # -K <keepalive>  (0 is never, default 0, in seconds)
 # -b bannerfile   Display the contents of bannerfile before user login
