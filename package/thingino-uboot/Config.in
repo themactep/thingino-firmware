@@ -714,6 +714,15 @@ config BR2_PACKAGE_THINGINO_UBOOT_ENABLE_BAR
 	  Define this option to use the Bank addr/Extended addr
 	  support on SPI NOR flash chips which have sizes > 16Mbytes.
 
+config BR2_PACKAGE_THINGINO_UBOOT_EXTERNAL_ENV_ENABLE
+	bool "Enable ENV config from Buildroot"
+	help
+	  Enable this option to have Buildroot inject environment variables
+	  into U-Boot based on the Buildroot configuration files for the
+	  selected device. This allows device-specific boot parameters to
+	  be managed through the Buildroot configuration system rather
+	  than hardcoded in U-Boot.
+
 config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_MAKEOPTS
 	string "Custom make options"
 	help
