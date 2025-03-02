@@ -115,7 +115,7 @@ data-bs-toggle="tooltip" data-bs-title="Recording stopped">⏹</a>
 class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover"></a></div>
 </div>
 
-<% if ! is_ap && [ -z "$network_gateway" ]; then %>
+<% if ! [ "true" = "$wlanap_enabled" ] && [ -z "$network_gateway" ]; then %>
 <div class="alert alert-warning">
 <p class="mb-0">No Internet connection. Please <a href="config-network.cgi">check your network settings</a>.</p>
 </div>
