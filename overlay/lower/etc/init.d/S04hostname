@@ -73,7 +73,7 @@ is_user_modified_hostname() {
 	fi
 
 	# Check if it matches our auto-generated pattern (os_hostname-xxxx)
-	if echo "$current" | grep -q "^${os_hostname}-[0-9a-fA-F]\{4\}$"; then
+	if echo "$current" | grep -i -q "^${os_hostname}-[0-9a-f]\{4\}$"; then
 		return 1
 	fi
 
