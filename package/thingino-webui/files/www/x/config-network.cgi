@@ -135,9 +135,9 @@ setup_wireless_network() {
 
 	tempfile=$(mktemp)
 	{
-		[ -n "$ssid" ] && echo "wlan_ssid $ssid"
+		[ -n "$ssid"  ] && echo "wlan_ssid $ssid"
 		[ -n "$bssid" ] && echo "wlan_bssid $bssid"
-		[ -n "$psk" ] && echo "wlan_pass $psk"
+		[ -n "$psk"   ] && echo "wlan_pass $psk"
 	} > $tempfile
 	fw_setenv -s $tempfile
 	rm $tempfile
@@ -219,9 +219,11 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			# normalize values
 			wlan0_mac="${wlan0_mac//-/:}"
 			wlan0_bssid="${wlan0_bssid//-/:}"
-			check_mac_address "$wlan0_mac" || set_error_flag "wlan0 MAC address format is invalid."
+			check_mac_address "$wlan0_mac" || \
+				set_error_flag "wlan0 MAC address format is invalid."
 			if [ -n "$wlan_bssid" ]; then
-				check_mac_address "$wlan0_bssid" || set_error_flag "wlan0 BSSID format is invalid."
+				check_mac_address "$wlan0_bssid" || \
+					set_error_flag "wlan0 BSSID format is invalid."
 			fi
 			error_if_empty "$wlan0_address" "wlan0 IP address cannot be empty."
 			error_if_empty "$wlan0_netmask" "wlan0 networking mask cannot be empty."
@@ -233,7 +235,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ "true" = "$usb0_enabled" ]; then
 		if [ "false" = "$usb0_dhcp" ]; then
 			usb0_mode="static"
-			check_mac_address "$usb0_mac" || set_error_flag "usb0 MAC address format is invalid."
+			check_mac_address "$usb0_mac" || \
+				set_error_flag "usb0 MAC address format is invalid."
 			error_if_empty "$usb0_address" "usb0 IP address cannot be empty."
 			error_if_empty "$usb0_netmask" "usb0 networking mask cannot be empty."
 		else
@@ -242,10 +245,13 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	fi
 
 	# validate hostname as per RFC952, RFC1123
-	[ -z "$POST_hostname" ] && set_error_flag "Hostname cannot be empty"
-	echo "$POST_hostname" | grep ' ' && set_error_flag "Hostname cannot contain whitespaces"
+	[ -z "$POST_hostname" ] && \
+		set_error_flag "Hostname cannot be empty"
+	echo "$POST_hostname" | grep ' ' && \
+		set_error_flag "Hostname cannot contain whitespaces"
 	bad_chars=$(echo "$POST_hostname" | sed 's/[0-9A-Z\.-]//ig')
-	[ -z "$bad_chars" ] || set_error_flag "Only alphanumeric characters, hyphen and period are allowed. Please get rid of this: $bad_chars"
+	[ -z "$bad_chars" ] || \
+		set_error_flag "Only alphanumeric characters, hyphen and period are allowed, not $bad_chars"
 
 	# validate dns servers
 	dns_1=$POST_dns_1
@@ -253,11 +259,23 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	[ -z "$dns_1" ] && dns_1=$dns_2
 	[ -z "$dns_1" ] && set_error_flag "At least one DNS server required"
 
+	# read data from POST
+	wlan0_ssid="$POST_wlan0_ssid"
+	wlan0_pass="$POST_wlan0_pass"
+	wlan0_bssid="$POST_wlan0_bssid"
+
+	# TODO: handle WLAN AP settings
+	wlanap_ssid="$POST_wlanap_ssid"
+	wlanap_pass="$POST_wlanap_pass"
+
 	# validate wireless network credentials if not empty
 	if [ "true" = "$wlan0_enabled" ] && [ -n "$wlan0_ssid$wlan0_pass" ]; then
-		[ -z "$wlan0_ssid" ] && set_error_flag "wlan0 SSID cannot be empty"
-		[ -z "$wlan0_pass" ] && set_error_flag "wlan0 password cannot be empty"
-		[ ${#wlan0_pass} -lt 8 ] && set_error_flag "wlan0 password cannot be shorter than 8 characters."
+		[ -z "$wlan0_ssid" ] && \
+			set_error_flag "wlan0 SSID cannot be empty"
+		[ -z "$wlan0_pass" ] && \
+			set_error_flag "wlan0 password cannot be empty"
+		[ ${#wlan0_pass} -lt 8 ] && \
+			set_error_flag "wlan0 password cannot be shorter than 8 characters."
 	fi
 
 	if [ -z "$error" ]; then
@@ -276,12 +294,16 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		refresh_env_dump
 
 		hostname=$POST_hostname
-		[ "$hostname" = "$(hostname_in_etc)" ] || echo "$hostname" > /etc/hostname
-		[ "$hostname" = "$(hostname_in_hosts)" ] || sed -i "/^127.0.1.1/c127.0.1.1\t$hostname" /etc/hosts
-		[ "$hostname" = "$(hostname_in_release)" ] || sed -i "/^HOSTNAME/s/=.*$/=$hostname/" /etc/os-release
+		[ "$hostname" = "$(hostname_in_etc)" ] || \
+			echo "$hostname" > /etc/hostname
+		[ "$hostname" = "$(hostname_in_hosts)" ] || \
+			sed -i "/^127.0.1.1/c127.0.1.1\t$hostname" /etc/hosts
+		[ "$hostname" = "$(hostname_in_release)" ] || \
+			sed -i "/^HOSTNAME/s/=.*$/=$hostname/" /etc/os-release
 		hostname "$hostname"
 
-		[ -z "$dns_1$dns_2" ] || setup_dns "$dns_1" "$dns_2"
+		[ -z "$dns_1$dns_2" ] || \
+			setup_dns "$dns_1" "$dns_2"
 
 		# update wireless network credentials if not empty
 		[ "true" = "$wlan0_enabled" ] && [ -n "$wlan0_ssid$wlan0_pass" ] && \
