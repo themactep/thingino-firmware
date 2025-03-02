@@ -69,4 +69,5 @@ mount -o noatime,move /rom/dev /dev
 mount -o noatime,move /rom/overlay /overlay
 
 # Mount writable rootfs_data into /opt
-mount_jffs2 rootfs_data /opt
+mount_jffs2 rootfs_data /rom/opt
+mount -o noatime,move /rom/opt /opt
