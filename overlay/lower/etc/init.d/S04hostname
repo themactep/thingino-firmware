@@ -7,24 +7,32 @@ FILE_HOSTS=/etc/hosts
 FILE_OS_RELEASE=/etc/os-release
 
 set_hostname() {
-	[ "$hostname" = "$(hostname)" ] || hostname "$hostname"
+	if [ "$(hostname)" != "$hostname" ]; then
+		hostname "$hostname"
+	fi
 	echo "Hostname is $(hostname)"
 }
 
 update_hostname() {
-	[ "$(cat $FILE_HOSTNAME)" = "$hostname" ] && return
+	if [ "$(cat $FILE_HOSTNAME)" = "$hostname" ]; then
+		return
+	fi
 	echo $hostname > $FILE_HOSTNAME
 }
 
 update_hosts() {
 	local ip="127.0.1.1"
-	[ "$(sed -nE "s/^$ip\s+(.*)$/\1/p" $FILE_HOSTS)" = "$hostname" ] && return
+	if [ "$(sed -nE "s/^$ip\s+(.*)$/\1/p" $FILE_HOSTS)" = "$hostname" ]; then
+		return
+	fi
 	sed -i /^$ip/d $FILE_HOSTS
 	echo -e "$ip\\\t$hostname" >> $FILE_HOSTS
 }
 
 update_os_release() {
-	[ "$(sed -nE "s/^hostname=(.*)$/\1/p" $FILE_OS_RELEASE)" = "$hostname" ] && return
+	if [ "$(sed -nE "s/^hostname=(.*)$/\1/p" $FILE_OS_RELEASE)" = "$hostname" ]; then
+		return
+	fi
 	sed -i "/^hostname/s/=.*$/=$hostname/" $FILE_OS_RELEASE
 }
 
