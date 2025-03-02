@@ -10,7 +10,7 @@ DAEMON_ARGS="-i $IFACE -c $CONFIG -P $PIDFILE -B"
 
 ssid_changed() {
 	current_ssid=$(grep '^ssid=' $CONFIG | cut -d= -f2- | tr -d '"')
-	[ "$ssid" != "$current_ssid" ]
+	[ "$wlan_ssid" != "$current_ssid" ]
 }
 
 start() {
@@ -51,7 +51,7 @@ start() {
 
 stop() {
 	stopping
-	stop_daemon_with_pid
+	stop_daemon
 }
 
 case "$1" in
