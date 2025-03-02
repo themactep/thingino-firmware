@@ -620,8 +620,8 @@ define THINGINO_GENERATE_UBOOT_ENV
 	@env BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS='$(value BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS)' sh -c 'grep -q "^bootargs=" $(OUTPUT_DIR)/uenv.txt || echo "bootargs=$$BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
 	@env BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD='$(value BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD)' sh -c 'grep -q "^bootcmd=" $(OUTPUT_DIR)/uenv.txt || echo "bootcmd=$$BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
 	@sed -i "s|\$$(UBOOT_FLASH_CONTROLLER)|$(UBOOT_FLASH_CONTROLLER)|g" $(OUTPUT_DIR)/uenv.txt
-	@sh -c '[ "$(SOC_FAMILY)" = "t40" -o "$(SOC_FAMILY)" = "t41" ] && sed -i "s|\$$(UBOOT_NMEM)|nmem=$$\{nmem\} |g" $(OUTPUT_DIR)/uenv.txt || sed -i "s|\$$(UBOOT_NMEM)| |g" $(OUTPUT_DIR)/uenv.txt'
-	@sh -c '[ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ] && sed -i "s|\$$(UBOOT_ISPMEM)| ispmem=$$\{ispmem\} |g" $(OUTPUT_DIR)/uenv.txt || sed -i "s|\$$(UBOOT_ISPMEM)||g" $(OUTPUT_DIR)/uenv.txt'
+	@sh -c '[ "$(SOC_FAMILY)" = "t40" -o "$(SOC_FAMILY)" = "t41" ] && sed -i "s|\$$(UBOOT_NMEM)|nmem=$$\{nmem\} |g" $(OUTPUT_DIR)/uenv.txt || sed -i "s|\$$(UBOOT_NMEM)||g" $(OUTPUT_DIR)/uenv.txt'
+	@sh -c '[ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ] && sed -i "s|\$$(UBOOT_ISPMEM)| ispmem=$$\{ispmem\} |g" $(OUTPUT_DIR)/uenv.txt || sed -i "s|\$$(UBOOT_ISPMEM)| |g" $(OUTPUT_DIR)/uenv.txt'
 endef
 THINGINO_UBOOT_PRE_BUILD_HOOKS += THINGINO_GENERATE_UBOOT_ENV
 
