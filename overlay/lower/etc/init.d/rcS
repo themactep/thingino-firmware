@@ -51,4 +51,6 @@ done
 
 service stop ledd
 
+# TODO: set indicator LED to the state defined by user.
+
 exit 0
