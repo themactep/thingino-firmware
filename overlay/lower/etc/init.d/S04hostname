@@ -38,6 +38,8 @@ update_os_release() {
 
 generate() {
 	os_hostname=$(sed -n 's/^HOSTNAME=//p' $FILE_OS_RELEASE)
+	[ -z "$os_hostname" ] && os_hostname=$(cat /proc/sys/kernel/hostname)
+	[ -z "$os_hostname" ] && os_hostname="thingino-$(soc -m)"
 	echo "OS hostname: $os_hostname"
 
 	mac_suffix=$(echo $wlan_mac | sed -E 's/://g;s/.*(.{4})$/\1/')
