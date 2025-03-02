@@ -2,27 +2,29 @@
 
 . /usr/share/common
 
-init() {
-	[ "$disable_wlan" = "true" ] && quit "WLAN disabled"
-	wlan_module="$wlan_module"
-	[ -z "$wlan_module" ] && quit "wlan_module is not set"
+IFACE=wlan0
 
-	pin_raw="$gpio_wlan"
-	if [ -z "$pin_raw" ]; then
+init() {
+	if [ "true" = "$disable_wlan" ]; then
+		quit "WLAN disabled"
+	fi
+
+	if [ -z "$wlan_module" ]; then
+		quit "wlan_module is not set"
+	fi
+
+	if [ -z "$gpio_wlan" ]; then
 		echo "gpio_wlan is not set"
 	else
-		[ "$pin_raw" = "${pin_raw//[^0-9]/}" ] && pin_raw="${pin_raw}O"
-		pin="${pin_raw:0:-1}"
-		suffix="${pin_raw:0-1}"
+		[ "$gpio_wlan" = "${gpio_wlan//[^0-9]/}" ] && gpio_wlan="${gpio_wlan}O"
+		pin="${gpio_wlan:0:-1}"
+		suffix="${gpio_wlan:0-1}"
 		case "$suffix" in
 			o) pin_on=0; pin_off=1 ;;
 			O) pin_on=1; pin_off=0 ;;
 			*) die "Unknown suffix!"
 		esac
 	fi
-
-	wlan_mac="$wlan_mac"
-	wlan_module_opts="$wlan_module_opts"
 }
 
 start() {
@@ -52,7 +54,7 @@ start() {
 						echo "Skip GPIO setup for $SOC_MODEL"
 						;;
 					t23 | t31)
-						if [ "$SOC_MODEL" = "t31a" ]; then
+						if [ "t31a" = "$SOC_MODEL" ]; then
 							echo "Skip GPIO setup for $SOC_MODEL"
 							return 1
 						else
@@ -91,25 +93,28 @@ start() {
 
 	m=50 # limit to 5 seconds
 	while [ "$m" -gt 0 ]; do
-		grep -q wlan0 /proc/net/wireless && break
+		grep -q $IFACE /proc/net/wireless && break
 		m=$((m-1))
 		sleep 0.1
 	done
 
 	if [ -n "$wlan_mac" ] && [ "hi3881" != "$wlan_module" ]; then
 		echo "Set MAC address to $wlan_mac"
-		ip link set dev wlan0 address $wlan_mac
+		ip link set dev $IFACE address $wlan_mac
 	fi
 }
 
 stop() {
 	stopping
-	ifdown wlan0
+	ifdown $IFACE
 }
 
 case "$1" in
-	start | stop)
-		$1
+	start)
+		start
+		;;
+	stop)
+		stop
 		;;
 	*)
 		die "Usage: $0 {start|stop}"
