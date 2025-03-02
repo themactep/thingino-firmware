@@ -6,6 +6,11 @@ if [ -z "$1" ]; then
 	exit 1
 fi
 
+if [ ! -d /sys/class/net/$interface ]; then
+	echo "$interface not found"
+	exit 1
+fi
+
 NETMASK=""
 [ -n "$subnet" ] && NETMASK="/$subnet"
 
