@@ -4,7 +4,7 @@
 
 WIREGUARD_INTERFACE="wg0"
 
-[ -n "$wireguard_address" ] || die "No WireGuard IP address configured"
+[ -n "$wg_address" ] || die "No WireGuard IP address configured"
 
 RESOLV_CONF="/tmp/resolv.conf"
 RESOLV_BAK="${RESOLV_CONF}.bak"
@@ -14,7 +14,7 @@ start() {
 	# "force" is for testing, to start WireGuard on demand without having it enabled at boot
 	# "start" is for the normal boot process
 
-	[ "true" != "$wireguard_enabled" ] && [ "force" != "$1" ] && quit "Disabled"
+	[ "true" != "$wg_enabled" ] && [ "force" != "$1" ] && quit "Disabled"
 
 	ip link show $WIREGUARD_INTERFACE 2>&1 | grep -q 'UP' && \
 		die "WireGuard interface $WIREGUARD_INTERFACE already running"
@@ -24,34 +24,34 @@ start() {
 	tmp_file=$(mktemp -u)
 	{
 		echo '[Interface]'
-		echo "PrivateKey=$wireguard_privkey"
-		[ -n "$wireguard_port" ] && echo "ListenPort=$wireguard_port"
+		echo "PrivateKey=$wg_privkey"
+		[ -n "$wg_port" ] && echo "ListenPort=$wireguard_port"
 		echo '[Peer]'
-		echo "Endpoint=$wireguard_endpoint"
-		echo "PublicKey=$wireguard_peerpub"
-		[ -n "$wireguard_peerpsk" ] && echo "PresharedKey=$wireguard_peerpsk"
-		[ -n "$wireguard_allowed" ] && echo "AllowedIPs=$wireguard_allowed"
-		[ -n "$wireguard_keepalive" ] && echo "PersistentKeepalive=$wireguard_keepalive"
+		echo "Endpoint=$wg_endpoint"
+		echo "PublicKey=$wg_peerpub"
+		[ -n "$wg_peerpsk" ] && echo "PresharedKey=$wg_peerpsk"
+		[ -n "$wg_allowed" ] && echo "AllowedIPs=$wg_allowed"
+		[ -n "$wg_keepalive" ] && echo "PersistentKeepalive=$wg_keepalive"
 	} >> "$tmp_file"
 	wg setconf $WIREGUARD_INTERFACE "$tmp_file"
 	rm "$tmp_file"
 
-	ip address add $wireguard_address dev $WIREGUARD_INTERFACE
+	ip address add $wg_address dev $WIREGUARD_INTERFACE
 
-	[ -n "$wireguard_mtu" ] && link_mtu="mtu $wireguard_mtu"
+	[ -n "$wg_mtu" ] && link_mtu="mtu $wg_mtu"
 	ip link set $link_mtu up dev $WIREGUARD_INTERFACE
 
-	if [ -n "$wireguard_dns" ] ; then
+	if [ -n "$wg_dns" ] ; then
 		tmp_file=$(mktemp)
 		grep -v nameserver $RESOLV_CONF >> "$tmp_file"
-		for x in $(echo $wireguard_dns | tr "," " ") ; do
+		for x in $(echo $wg_dns | tr "," " ") ; do
 			echo "nameserver $x" >> "$tmp_file"
 		done
 		mv $RESOLV_CONF $RESOLV_BAK
 		mv "$tmp_file" $RESOLV_CONF
 	fi
 
-	for r in $(echo "$wireguard_allowed" | tr "," " ") ; do
+	for r in $(echo "$wg_allowed" | tr "," " ") ; do
 		ip route add $r dev $WIREGUARD_INTERFACE
 	done
 }
@@ -64,7 +64,7 @@ stop() {
 	done
 
 	ip link set down $WIREGUARD_INTERFACE
-	ip address del $wireguard_address dev $WIREGUARD_INTERFACE
+	ip address del $wg_address dev $WIREGUARD_INTERFACE
 	[ -s $RESOLV_BAK ] && mv $RESOLV_BAK $RESOLV_CONF
 }
 
