@@ -9,7 +9,7 @@ config BR2_PACKAGE_PRUDYNT_T
 	select BR2_PACKAGE_THINGINO_FONTS
 	select BR2_PACKAGE_THINGINO_OPUS
 	select BR2_PACKAGE_FAAC
-	depends on !BR2_SOC_FAMILY_INGENIC_T41
+	depends on !(BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41)
 	help
 	  Video streamer for Ingenic T-series.
 
