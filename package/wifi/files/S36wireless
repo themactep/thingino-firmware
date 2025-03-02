@@ -100,7 +100,9 @@ start() {
 
 	if [ -n "$wlan_mac" ] && [ "hi3881" != "$wlan_module" ]; then
 		echo "Set MAC address to $wlan_mac"
+		ip link set dev $IFACE down
 		ip link set dev $IFACE address $wlan_mac
+                ip link set dev $IFACE up
 	fi
 }
 
