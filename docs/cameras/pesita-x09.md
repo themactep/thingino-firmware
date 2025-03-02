@@ -9,8 +9,8 @@ https://www.amazon.ca/dp/B0B6J5TZJB
 - Image Sensor:
 	- JXF23 (2MP)
 - Wi-Fi Module: RTL8189FTV (SDIO)
-- Flash Chip: NOR 16MB
-- Power: 5V DC microUSB
+- Flash Chip: NOR 16MB (NOR 25Q128)
+- Power: 5V DC (microUSB port)
 
 ### Installation
 
@@ -32,7 +32,7 @@ https://www.amazon.ca/dp/B0B6J5TZJB
    setenv baseaddr 0x82000000;
    setenv partsize 0x1000000;
    mw.b ${baseaddr} 0xff ${partsize};
-   fatload mmc 0:1 ${baseaddr} autoupdate-full.bin;
+   fatload mmc 0:1 ${baseaddr} thingino-pesita_x09_t31n_jxf23.bin;
    sf probe 0;
    sf erase 0x0 ${partsize};
    sf write ${baseaddr} 0x0 ${filesize};

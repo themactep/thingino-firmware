@@ -11,8 +11,8 @@ https://longplus.com/products/longplus-b1-wi-fi-security-camera-for-home-securit
 	- JXF23 (2MP)
 	- MIS2008 (2MP)
 - Wi-Fi Module: RTL8189FTV (SDIO)
-- Flash Chip: NOR 16MB
-- Power: 5V DC microUSB
+- Flash Chip: NOR 16MB (25Q128)
+- Power: 5V DC (microUSB port)
 
 ### Installation
 
