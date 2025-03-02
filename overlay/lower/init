@@ -55,9 +55,10 @@ if [ "$overlay_type" = "overlayfs" ]; then
 	mount -t overlayfs overlay -o noatime,lowerdir=/,upperdir=/overlay /mnt || \
 		die "Failed to mount overlay!"
 else
-	overlay_rootdir=/overlay/root
-	overlay_workdir=/overlay/work
-	mkdir -p "$overlay_rootdir" "$overlay_workdir"
+	overlay_rootdir="/overlay/root"
+	overlay_workdir="/overlay/work"
+	mkdir -p "$overlay_rootdir" || die "Failed to create overlay rootdir!"
+	mkdir -p "$overlay_workdir" || die "Failed to create overlay workdir!"
 	mount -t overlay overlay -o noatime,lowerdir=/,upperdir="$overlay_rootdir",workdir="$overlay_workdir" /mnt || \
 		die "Failed to mount overlay!"
 fi
@@ -69,5 +70,5 @@ mount -o noatime,move /rom/dev /dev
 mount -o noatime,move /rom/overlay /overlay
 
 # Mount writable rootfs_data into /opt
-mount_jffs2 rootfs_data /rom/opt
-mount -o noatime,move /rom/opt /opt
+mount_jffs2 rootfs_data /rom/opt || die "Failed to mount rootfs_data"
+mount -o noatime,move /rom/opt /opt || die "Failed to mount /opt"
