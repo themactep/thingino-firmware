@@ -1,5 +1,4 @@
 disable_eth=true
-disable_sd=true
 gpio_button=46
 gpio_button_chime=40
 gpio_default=18O 38o 39o 40i 45i 46i 48O 49o 57i 58i 59i 60O 62O 63O 64i 72O 73O
