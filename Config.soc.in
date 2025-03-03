@@ -1182,6 +1182,7 @@ config BR2_THINGINO_AUDIO_PARAMS
 
 config BR2_ETHERNET
 	bool "Ethernet port"
+        select BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE
 	help
 	  Enable Ethernet networking.
 
