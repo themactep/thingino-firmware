@@ -1,4 +1,3 @@
-disable_eth=false
 gpio_default=18O
 gpio_mmc_cd=-1
 gpio_ircut=72

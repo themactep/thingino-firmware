@@ -1,4 +1,3 @@
-disable_eth=false
 gpio_button=14
 gpio_default=49i 63i 62i 61i 54i 53i 52i 59i 57i 58i
 gpio_ir850=11

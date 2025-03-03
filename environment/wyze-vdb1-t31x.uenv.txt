@@ -1,4 +1,3 @@
-disable_eth=true
 gpio_button=6
 gpio_button_chime=7
 gpio_default=6i 7i 18O 38o 39o 49o 52o 53o 57O 59o 60o 61O 62O
