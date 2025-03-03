@@ -2,6 +2,10 @@
 
 echo "Run as $0 $*"
 
+# Releases older that the timestamp below
+# are not eligible for partial updates.
+RUBICON="1740787200" # 2025-03-01
+
 KERNEL_MAGIC="27051956"
 U_BOOT_MAGIC="06050403"
 ROOTFS_MAGIC="68737173"
@@ -256,15 +260,33 @@ check_upgrade_partitions
 ORIGINAL_ARG="$@"
 while getopts "bd:fhpx" flag; do
 	case "$flag" in
-		b) upgrade="boot"; url="$GITHUB_URL" ;;
-		d) requested_date=$OPTARG ;;
-		f) upgrade="full"; url="$GITHUB_URL" ;;
+		b)
+			upgrade="boot"
+			url="$GITHUB_URL"
+			;;
+		d)
+			requested_date=$OPTARG
+			;;
+		f)
+			upgrade="full"
+			url="$GITHUB_URL"
+			;;
 		p)
-			echo "Partial upgrades disabled until further notice. Please perform a full upgrade instead."
-			exit 1
-			upgrade="part"; url="$GITHUB_URL" ;;
-		x) selfupdate="false" ;;
-		h | *) show_help ;;
+			BUILD_DATE=$(sed -En 's/^BUILD_TIME="(.+) \+0000"/\1/p' /etc/os-release)
+			if [ $(date +%s -d "$BUILD_DATE") -lt $RUBICON ]; then
+				echo "Your firmware is too old for a partial upgrade due to breaking changes."
+				echo "Please back up your changes and perform a full upgrade instead."
+				exit 1
+			fi
+			upgrade="part"
+			url="$GITHUB_URL"
+			;;
+		x)
+			selfupdate="false"
+			;;
+		h | *)
+			show_help
+			;;
 	esac
 done
 shift "$((OPTIND - 1))"
