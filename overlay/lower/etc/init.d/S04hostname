@@ -25,8 +25,7 @@ update_hosts() {
 	if [ "$(sed -nE "s/^$ip\s+(.*)$/\1/p" $FILE_HOSTS)" = "$hostname" ]; then
 		return
 	fi
-	sed -i /^$ip/d $FILE_HOSTS
-	echo -e "$ip\\\t$hostname" >> $FILE_HOSTS
+	sed -i "/^$ip/c$ip\t$hostname" $FILE_HOSTS
 }
 
 update_os_release() {

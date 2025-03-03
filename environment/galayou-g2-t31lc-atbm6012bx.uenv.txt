@@ -1,4 +1,3 @@
-disable_eth=true
 gpio_button=14
 gpio_default=10o 11o 18O 49i 51o 52o 53o 54o 60O 61o 62o 63o 64o
 gpio_default_net=

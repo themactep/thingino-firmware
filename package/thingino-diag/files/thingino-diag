@@ -123,6 +123,8 @@ fi
 	infocat "/etc/cron/crontabs/root" "crontab"
 } > "$output_file"
 
+sed -E -i 's/(openRTSP -V -u) (\w*) (\w*) (.*)$/\1 REDACTED REDACTED \4/' $output_file
+
 if [ -z "$local_file" ]; then
 	url=$(send2termbin < $output_file)
 	rm -f "$output_file"

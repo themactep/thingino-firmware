@@ -1,4 +1,3 @@
-disable_eth=true
 gpio_button=6
 gpio_default=25ID 26IDU 58o 58O
 gpio_ir850=60
