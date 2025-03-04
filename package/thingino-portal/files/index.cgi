@@ -1,13 +1,12 @@
 #!/bin/haserl
 <%
-image_id=$(awk -F= '/IMAGE_ID/{print $2}' /etc/os-release)
-build_id=$(awk -F= '/BUILD_ID/{print $2}' /etc/os-release | tr -d '"')
+. /usr/share/common
+
+image_id=$(awk -F= '/IMAGE_ID/{print $2}' $FILE_OS_RELEASE)
+build_id=$(awk -F= '/BUILD_ID/{print $2}' $FILE_OS_RELEASE | tr -d '"')
+hostname=$(hostname)
 timestamp=$(date +%s)
 ttl_in_sec=600
-
-from_env() {
-	fw_printenv -n "$1" | tr -d '\n'
-}
 
 get_request() {
 	[ "GET" = "$REQUEST_METHOD" ]
@@ -88,14 +87,6 @@ elif post_request; then
 	fi
 
 elif get_request; then
-	hostname=$(hostname)
-	wlanap_enabled=$(from_env wlanap_enabled)
-	wlanap_pass=$(from_env wlanap_pass)
-	wlanap_ssid=$(from_env wlanap_ssid)
-	wlan_mac=$(from_env wlan_mac)
-	wlan_pass=$(from_env wlan_pass)
-	wlan_ssid=$(from_env wlan_ssid)
-
 	http_header="HTTP/1.1 200 OK"
 	http_redirect=""
 fi
@@ -157,7 +148,7 @@ to it using your password <b><%= $wlanap_pass %></b>, then open the web interfac
 
 <% elif get_request || post_request_to_edit; then %>
 
-<p class="alert alert-warning text-center">Your MAC address is <% from_env "wlan_mac" %></p>
+<p class="alert alert-warning text-center">Your MAC address is <%= $wlan_mac %></p>
 <% if [ -n "$error_message" ]; then %>
 <p class="alert alert-danger"><%= $error_message %></p>
 <% fi %>
