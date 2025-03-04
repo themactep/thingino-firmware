@@ -68,7 +68,6 @@ read_size() {
 }
 
 # "path"
-#!/bin/ash
 
 remove_oldest_file_in() {
     [ -z "$del_count" ] && del_count=10
