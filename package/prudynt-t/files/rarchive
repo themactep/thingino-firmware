@@ -1,0 +1,75 @@
+#!/bin/sh
+. /sbin/record.common
+
+pidof -o $$ rarchive > /dev/null && rm /tmp/rarchive.* 
+
+CONFIG_FILE="/etc/web.conf"                                               
+[ -f "$CONFIG_FILE" ] && . $CONFIG_FILE
+
+RECORD_FLAG="/tmp/rarchive.$$"
+
+record_mount=${record_mount%/}
+record_device_path=${record_device_path%/}
+
+[ -z "$record_mount"     ] && hesitate "Mountpoint record_mount is not set"
+mountpoint -q "$record_mount" || hesitate "Mountpoint $record_mount is not mounted"
+[ -w "$record_mount"     ] || hesitate "Mountpoint $record_mount is not writable"
+[ -z "$record_duration"  ] && record_duration=10
+[ -z "$record_filename"  ] && record_filename="%hostname/%Y/%m/%d/%H-%M-%S"
+
+touch $RECORD_FLAG
+
+stream_align_minutes="true"
+record_storage="$record_mount/$record_device_path"
+if [ ! -d "$record_storage" ]; then
+	log "Creating $record_storage"
+	mkdir -p "$record_storage" || die "Cannot create directory $record_storage"
+fi
+[ -w "$record_storage" ] || die "Cannot write to $record_storage"
+
+record_limit_kb=$((record_limit * 1024 * 1024)) # GiB to KiB
+required_space=$((100 * record_duration)) # KiB
+
+check_so=0
+
+while :; do
+	[ -f $RECORD_FLAG ] || break
+	get_free_space
+	if [ "$available_space" -le "$required_space" ]; then
+		log "Space required: $required_space KiB"
+		log "Not enough space: $required_space > $available_space"
+		while [ "$available_space" -le "$required_space" ]; do
+			remove_oldest_file_in "$record_storage"
+			get_free_space
+			has_files "$record_storage" || die "$record_mount is empty yet no space!"
+		done
+	fi
+
+if [ "$check_so" -le 0 ]; then
+    if [ "$record_limit_kb" -gt 0 ]; then       
+        log "Space limit: $record_limit_kb KiB"
+        get_occupied_space                                                                   
+        if [ "$((occupied_space + (required_space * 100)))" -lt "$record_limit_kb" ]; then
+   		log "lots of space - skipping check for 60 runs"
+	         check_so=60
+        fi                                               
+        while [ "$((occupied_space + required_space))" -gt "$record_limit_kb" ]; do
+            log "Occupied space $occupied_space KiB exceeds limit $record_limit_kb KiB"
+            remove_oldest_file_in "$record_storage"                            
+            get_occupied_space                      
+            has_files "$record_storage" || die "$record_mount is empty yet no space!"
+        done                                                      
+    fi                                         
+else                                 
+  check_so=$((check_so - 1))
+
+fi
+                                          
+  sleep  $((record_duration))                         
+done
+
+log "Cannot find recording flag $RECORD_FLAG"
+[ -n "$LEDD_FLAG" ] && [ -f "$LEDD_FLAG" ] && rm $LEDD_FLAG
+log "Exit"
+
+exit 0
