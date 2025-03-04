@@ -1,0 +1,121 @@
+#!/bin/sh
+
+die() { echo -e "\e[38;5;160m$@\e[0m" >&2; exit 1; }
+log() { echo $(cat /proc/uptime) "$1" >&2; }
+
+# Function to clean up the subprocess                                                                 
+cleanup() {                                                                                                         
+    if [ -n "$archive_pid" ] && kill -0 "$archive_pid" 2>/dev/null; then
+        echo "Parent exiting, killing subprocess $archive_pid..."                  
+        kill -TERM "$archive_pid"                                          
+    fi                                                                             
+}    
+
+create_directory_for() {
+	dir="$(dirname "$1")"
+	[ -d "$dir" ] || mkdir -p "$dir"
+	[ -d "$dir" ] || die "Cannot create directory $dir"
+	[ -w "$dir" ] || die "Cannot write to $dir"
+}
+
+hesitate() {
+	echo "$1" >&2
+	sleep 5
+	exit 0
+}
+
+get_free_space() {
+	available_space=$(df -k "$record_mount" | sed 1d | tr -d '\n' | awk 'END{print $4}') # in KiB
+	log "Space available: $available_space KiB"
+}
+
+get_occupied_space() {
+        occupied_space=$(du -s "$record_storage" | awk '{print $1}') # in KiB
+	log "Space occupied: $occupied_space KiB"
+}
+
+# "parameter" "default"
+read_config() {
+	sed -nE "s/^.*$1\s*[:=]\s*\"?([^\"]+)\"?;.*$/\1/p" /etc/prudynt.cfg | head -1
+	[ -z "$_" ] || echo "$2"
+}
+
+fix_duration() {
+    if [ -z "$align_minutes" ]; then
+    	echo "$1"
+    elif [ "$1" -eq 60 ]; then
+        echo $(expr "$1" - $(date +%S))
+    elif [ $(expr "$1" % 60) -eq 0 ]; then
+        m_inc=$(expr "$1" / 60)
+        mpart=$(expr "$m_inc" - $(expr $(date +%M) % "$m_inc"))
+        echo $(expr "$mpart" "*" 60)
+    else
+        echo "$1"
+    fi
+    #to do - handle cases different than 60 second durations
+}
+
+# "default"
+read_fps() {
+	logcat | grep "fps" | head -1 | awk -F '[=,]' '{print $2}'
+	[ -z "$_" ] || echo "$1"
+}
+
+# "parameter" "default"
+read_size() {
+	logcat | grep "VBMCreatePool()-${stream_number}: w=" | head -1 | awk -F '[= ]' "{print \$$1}"
+	[ -z "$_" ] || echo "$2"
+}
+
+# "path"
+#!/bin/ash
+
+remove_oldest_file_in() {
+    [ -z "$del_count" ] && del_count=10
+
+    log "started removing old files started"
+    # Find oldest files, limited to del_count
+    oldest_files=$(find "$1" -type f -exec ls -ltr {} + | head -n"$del_count" | awk '{print $9}')
+
+    # Check if any files were found
+    if [ -z "$oldest_files" ]; then
+        echo "No files found to delete in $1" >&2
+        return 1
+    fi
+
+    echo "$oldest_files" | while IFS= read -r oldest_file; do
+        if [ -n "$oldest_file" ]; then
+            oldest_file_dir=$(dirname "$oldest_file")
+            rm -v "$oldest_file"
+            # Remove directory if empty
+            if [ -z "$(ls -A "$oldest_file_dir" 2>/dev/null)" ]; then
+                rm -rv "$oldest_file_dir"
+            fi
+        fi
+    done
+
+    log "remove_oldest_file_in finished "
+}
+
+has_files() {
+	[ "$(find "$1" -type f | wc -l)" -gt 0 ]
+}
+
+show_help() {
+	log "Usage: $0 [<params>]
+Where params are:
+	-u <string>  RTSP username
+	-p <string>  RTSP password
+	-c <int>     RTSP stream number
+	-h <int>     Frame height
+	-w <int>     Frame width
+	-f <int>     Frames per second
+	-t <int>     Duration in seconds
+	-v <str>     Record video format
+	-m <path>    Mount point for storing files
+	-s <path>    Subdirectory for the device
+	-n <string>  File name template (supports strftime format)
+	-d <int>     Maximum disk usage, GiB
+	-x           One-time run
+"
+}
