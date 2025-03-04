@@ -272,10 +272,12 @@ while getopts "bd:fhpx" flag; do
 			url="$GITHUB_URL"
 			;;
 		p)
-			BUILD_DATE=$(sed -En 's/^BUILD_TIME="(.+) \+0000"/\1/p' /etc/os-release)
-			if [ $(date +%s -d "$BUILD_DATE") -lt $RUBICON ]; then
-				echo "Your firmware is too old for a partial upgrade due to breaking changes."
-				echo "Please back up your changes and perform a full upgrade instead."
+			RELEASE_DATE_TIME=$(sed -En 's/^BUILD_TIME="(.+) \+0000"/\1/p' /etc/os-release)
+			RELEASE_TIMESTAMP=$(date -ud "$RELEASE_DATE_TIME" +%s)
+			if [ "$RELEASE_TIMESTAMP" -lt $RUBICON ]; then
+				echo "Build time: $RELEASE_DATE_TIME ($RELEASE_TIMESTAMP < $RUBICON)"
+				echo "Your firmware build date is too old for a partial upgrade due to breaking changes."
+				echo "Please back up your configuration and perform a full upgrade instead."
 				exit 1
 			fi
 			upgrade="part"
