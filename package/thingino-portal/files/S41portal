@@ -18,8 +18,12 @@ timeout() {
 	sleep 600 && $0 stop
 }
 
+timestamp() {
+	date -u +"%Y-%m-%d %H:%M:%S"
+}
+
 start() {
-	echo "Starting captive portal"
+	echo "Starting captive portal at $(timestamp)"
 
 	if [ -f /run/portal_mode ]; then
 		echo "Already running"
@@ -90,7 +94,7 @@ start() {
 }
 
 stop() {
-	echo "Stopping captive portal"
+	echo "Stopping captive portal at $(timestamp)"
 
 	if [ ! -f /run/portal_mode ]; then
 		echo "Not running"
