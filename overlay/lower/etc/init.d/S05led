@@ -31,7 +31,7 @@ start() {
 		case "$suffix" in
 			o) pin_on=0; pin_off=1 ;;
 			O) pin_on=1; pin_off=0 ;;
-			*) echo "- Unknown suffix ${suffix}!" ;;
+			*) echo "- Pin ${pin} has unknown suffix ${suffix}!" ;;
 		esac
 
 		if echo "$gpio_default" | grep -E "\b$pin_raw\b" > /dev/null; then
