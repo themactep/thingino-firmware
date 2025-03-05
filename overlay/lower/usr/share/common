@@ -52,9 +52,8 @@ if [ -r "$DAEMON_CONFIG" ]; then
 	. "$DAEMON_CONFIG"
 fi
 
-log() { echo "$1" >&2; }
-die() { log "$1"; exit 1; }
-quit() { log "$1"; exit 0; }
+die()  { echo "$1" >&2; exit 1; }
+quit() { echo "$1" >&2; exit 0; }
 
 decrement_mac() {
 	local mac last_byte_dec
@@ -158,10 +157,9 @@ is_gateway_reachable() {
 	ping -6 -c 1 -W 1 -I $iface $(ip -6 route | grep $iface | grep default | awk '{print $3}') > /dev/null 2>&1
 }
 
-# FIXME: hangs
-#log() {
-#	logger -p daemon.info -t ${DAEMON_SHORT}[$$] <&0
-#}
+log() {
+	logger -p daemon.info -t ${DAEMON_SHORT}[$$] <&0
+}
 
 log_to_file() {
 	# poor man's logrotate
