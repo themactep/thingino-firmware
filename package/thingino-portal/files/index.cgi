@@ -77,6 +77,8 @@ elif post_request; then
 			printf "wlan_ssid %s\nwlan_pass %s\n" "$wlan_ssid" "$wlan_pass" >> "$tempfile"
 		fi
 		fw_setenv -s $tempfile
+		rm -f $tempfile
+		refresh_env_dump
 
 		# update timezone
 		echo "$timezone" > /etc/timezone
