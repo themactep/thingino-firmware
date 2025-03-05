@@ -7,15 +7,15 @@ start() {
 	echo "Setting $DAEMON..."
 
 	if [ ! -x /sbin/$DAEMON ]; then
-		echo "$DAEMON not found"
+		echo "- $DAEMON not found"
 		exit 1
 	fi
 
 	if grep -q $DAEMON $CRONTABS; then
-		echo "$DAEMON already in crontab"
+		echo "- $DAEMON already in crontab"
 	else
 		printf "# run $DAEMON nightly at 0:00\n0 0 * * * $DAEMON\n" >> $CRONTABS
-		echo "$DAEMON added to crontab"
+		echo "- $DAEMON added to crontab"
 	fi
 }
 

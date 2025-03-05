@@ -8,7 +8,7 @@ WORKING_CONFIG="/tmp/ntp.conf"
 . /usr/share/common
 
 sync_time() {
-	echo "NTP: Sync time"
+	echo "- Sync time"
 	ntpd -q -n -N &
 }
 
@@ -21,16 +21,16 @@ start() {
 	fi
 
 	if [ -f "$WORKING_CONFIG" ]; then
-		echo "NTP: working configuration found"
+		echo "- working configuration found"
 	else
 		if [ -f "$DEFAULT_CONFIG" ]; then
-			echo "NTP: default configuration found"
+			echo "- default configuration found"
 		else
-			echo "NTP: restore default config from ROM"
+			echo "- restore default config from ROM"
 			cp "/rom$DEFAULT_CONFIG" "$DEFAULT_CONFIG"
 		fi
 
-		echo "NTP: use default configuration"
+		echo "- use default configuration"
 		cp "$DEFAULT_CONFIG" "$WORKING_CONFIG"
 	fi
 	start_daemon

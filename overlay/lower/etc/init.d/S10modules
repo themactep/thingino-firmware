@@ -10,7 +10,7 @@ load_modules() {
 		case "$module" in
 			"" | "#"*) continue ;;
 		esac
-		echo "Loading $module $args"
+		echo "- Loading $module $args"
 		modprobe $module $args
 	done < $file
 }

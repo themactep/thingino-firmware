@@ -4,9 +4,9 @@ start() {
 	echo "Applying sysctl settings..."
 
 	if sysctl -q -p; then
-		echo "Sysctl settings applied"
+		echo "- Sysctl settings applied"
 	else
-		echo "Failed to apply sysctl settings"
+		echo "- Failed to apply sysctl settings"
 		exit 1
 	fi
 }

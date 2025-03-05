@@ -9,10 +9,9 @@ start() {
 
 	if [ -f "$RESOLV_DEFAULT_FILE" ]; then
 		cat "$RESOLV_DEFAULT_FILE" > "$RESOLV_WORKING_FILE"
-		echo "Using default DNS servers"
-		cat "$RESOLV_FILE"
+		echo "- Using default DNS servers"
 	else
-		echo "No static DNS servers found"
+		echo "- No static DNS servers found"
 	fi
 }
 

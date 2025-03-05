@@ -12,7 +12,7 @@ start() {
 	echo "Configuring USB..."
 
 	if [ -z "$gpio_usb_en" ]; then
-		echo "USB power GPIO is not set"
+		echo "- USB power GPIO is not set"
 		exit 0
 	fi
 
@@ -22,12 +22,12 @@ start() {
 
 	pin="${gpio_usb_en:0:-1}"
 	case "${gpio_usb_en#$pin}" in
-		o) gpio set $pin 0 || die "Failed to set USB power GPIO $pin to $state" ;;
-		O) gpio set $pin 1 || die "Failed to set USB power GPIO $pin to $state" ;;
-		*) die "Invalid state $state" ;;
+		o) gpio set $pin 0 || die "- Failed to set USB power GPIO $pin to $state" ;;
+		O) gpio set $pin 1 || die "- Failed to set USB power GPIO $pin to $state" ;;
+		*) die "- Invalid state $state" ;;
 	esac
 
-	echo "Set USB power GPIO $pin to $state"
+	echo "- Set USB power GPIO $pin to $state"
 }
 
 case "$1" in

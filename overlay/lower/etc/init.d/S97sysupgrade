@@ -5,16 +5,20 @@
 start() {
 	echo "Checking sysupgrade..."
 
-	[ "true" = "$sysupgrade_complete" ] && exit 0
-
-	fw_setenv sysupgrade_complete true
-	# play_sound thingino.pcm
+	if [ "true" != "$sysupgrade_complete" ]; then
+		echo "- Mark sysupgradec complete"
+		fw_setenv sysupgrade_complete true
+		# play_sound thingino.pcm
+	fi
 }
 
 stop() {
 	echo "Checking for upgrade..."
 
-	[ -f "/tmp/upgrade.me" ] && sysupgrade -p
+	if [ -f "/tmp/upgrade.me" ]; then
+		echo "- Running sysupgrade..."
+		sysupgrade -p
+	fi
 }
 
 case "$1" in
