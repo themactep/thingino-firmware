@@ -4,8 +4,8 @@
 
 pidof -o %PPID $(basename $0) > /dev/null && die "is already running"
 
-command -v jsonfilter > /dev/null || die "Missing jsonfilter"
 
+ensure_command "jsonfilter"
 
 [ -z "$telegrambot_token" ] && die "Telegram Bot token is not set"
 
