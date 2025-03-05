@@ -1,27 +1,13 @@
 # Thingino Firmware
 # https://github.com/themactep/thingino-firmware
 
-HOST_ARCH := $(shell uname -m)
-
 ifeq ($(__BASH_MAKE_COMPLETION__),1)
 	exit
 endif
 
-ifneq ($(shell command -v gawk >/dev/null; echo $$?),0)
-$(error Please install gawk)
-endif
-
-ifneq ($(shell command -v mkimage >/dev/null; echo $$?),0)
-$(error Please install mkimage from u-boot-tools)
-endif
-
-ifneq ($(findstring $(empty) $(empty),$(CURDIR)),)
-$(error Current directory path "$(CURDIR)" cannot contain spaces)
-endif
-
-ifeq ($(filter x86_64 aarch64,$(HOST_ARCH)),)
-$(error Unsupported architecture: $(HOST_ARCH). Only x86_64 and aarch64 are supported.)
-endif
+# Run dependency check before doing anything
+_dep_check := $(shell $(CURDIR)/scripts/dep_check.sh)
+$(info $(_dep_check))
 
 # Camera IP address
 # shortened to just IP for convenience of running from command line
