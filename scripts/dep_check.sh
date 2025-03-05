@@ -77,7 +77,7 @@ else
 fi
 
 if [ -f ".prereqs.done" ]; then
-	echo "dep_check.sh: dependancies OK, continue..."
+	echo "dep_check.sh: dependencies OK, continue..."
 	exit 0
 fi
 
