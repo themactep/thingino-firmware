@@ -10,8 +10,3 @@ gpio_wlan=61O
 motor_maxstep_h=4800
 motor_maxstep_v=3600
 wlan_module=8733bu
-
-
-
-
-
