@@ -1,12 +1,17 @@
+gpio_button=11
 gpio_default=57o 58o 49O 61O
 gpio_ircut=57 58
-gpio_white=49O
+gpio_mmc_cd=59
 gpio_motor_v=9 7 8 6
 gpio_motor_h=10 16 14 17
+gpio_speaker=63O
+gpio_white=49O
+gpio_wlan=61O
 motor_maxstep_h=4800
 motor_maxstep_v=3600
-gpio_speaker=63O
-gpio_wlan=61O
 wlan_module=8733bu
-gpio_mmc_cd=59
-gpio_button=11
+
+
+
+
+
