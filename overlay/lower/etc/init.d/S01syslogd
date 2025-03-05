@@ -4,8 +4,7 @@ DAEMON="syslogd"
 DAEMON_ARGS="-n -C64 -t -D $RSYSLOG_ADDRESS"
 PIDFILE="/run/$DAEMON.pid"
 
-CONFIG_FILE="/etc/web.conf"
-[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+. /usr/share/common
 
 if [ -n "$rsyslog_host" ]; then
 	DAEMON_ARGS="$DAEMON_ARGS -R $rsyslog_host:${rsyslog_port:-514}"
@@ -14,8 +13,6 @@ fi
 if [ "true" = "$rsyslog_local" ]; then
 	DAEMON_ARGS="$DAEMON_ARGS -L"
 fi
-
-. /usr/share/common
 
 start() {
 	starting

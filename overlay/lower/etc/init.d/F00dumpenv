@@ -1,6 +1,6 @@
 #!/bin/sh
 
-ENV_DUMP_FILE="/tmp/environment"
+. /usr/share/common
 
 dump_env() {
 	fw_printenv | sort | sed -E 's/=(.*)$/="\1"/' > "$1"

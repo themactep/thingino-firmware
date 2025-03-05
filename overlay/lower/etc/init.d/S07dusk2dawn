@@ -1,7 +1,8 @@
 #!/bin/sh
 
 DAEMON="dusk2dawn"
-CRONTABS="/etc/cron/crontabs/root"
+
+. /usr/share/common
 
 start() {
 	echo "Setting $DAEMON..."

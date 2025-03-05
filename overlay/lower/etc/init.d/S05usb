@@ -1,12 +1,6 @@
 #!/bin/sh
 
-ENV_DUMP_FILE="/tmp/environment"
-[ -f "$ENV_DUMP_FILE" ] && . "$ENV_DUMP_FILE"
-
-die() {
-	echo "$1"
-	exit 1
-}
+. /usr/share/common
 
 start() {
 	echo "Configuring USB..."
