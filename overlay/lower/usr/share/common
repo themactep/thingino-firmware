@@ -188,6 +188,10 @@ print_release() {
 	echo "Thingino $IMAGE_ID [$BUILD_ID]"
 }
 
+refresh_env_dump() {
+	w_printenv | sort | sed -E 's/=(.*)$/="\1"/' > "$ENV_DUMP_FILE"
+}
+
 set_gpio() {
 	echo "Set GPIO $1 to F$2 D$3"
 	gpio-diag $1 func $2 drive $3
