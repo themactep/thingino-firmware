@@ -231,8 +231,7 @@ stop_services() {
 				continue
 				;;
 			S50httpd)
-				[ -f "/tmp/webupgrade" ] && continue
-				sh -c "$i stop"
+				[ -f "/tmp/webupgrade" ] || sh -c "$i stop"
 				;;
 			*)
 				sh -c "$i stop"
