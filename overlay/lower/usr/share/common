@@ -158,9 +158,10 @@ is_gateway_reachable() {
 	ping -6 -c 1 -W 1 -I $iface $(ip -6 route | grep $iface | grep default | awk '{print $3}') > /dev/null 2>&1
 }
 
-log() {
-	logger -p daemon.info -t ${DAEMON_SHORT}[$$] <&0
-}
+# FIXME: hangs
+#log() {
+#	logger -p daemon.info -t ${DAEMON_SHORT}[$$] <&0
+#}
 
 log_to_file() {
 	# poor man's logrotate
