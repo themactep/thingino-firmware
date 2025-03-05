@@ -291,16 +291,16 @@ teardown_interface() {
 		bound)
 			teardown_interface "$1"
 			setup_interface "$1"
-			;;
-		informed | updated | rebound | ra-updated)
+		;;
+		informed|updated|rebound|ra-updated)
 			setup_interface "$1"
-			;;
-		stopped | unbound)
+		;;
+		stopped|unbound)
 			teardown_interface "$1"
-			;;
+		;;
 		started)
 			teardown_interface "$1"
-			;;
+		;;
 	esac
 
 	# Execute user-defined rules if present

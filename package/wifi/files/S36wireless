@@ -32,11 +32,11 @@ start() {
 			suffix="${pin_raw:0-1}"
 
 			# convert suffix to binary state
-			case "$suffix" in
+		case "$suffix" in
 				o) state=0 ;;
 				O) state=1 ;;
 				*) echo_warning "Unknown suffix ${suffix}!" ;;
-			esac
+		esac
 
 			echo_info "Set GPIO $pin to $state"
 			gpio set "${pin}" "${state}"
@@ -51,32 +51,32 @@ start() {
 	if echo "$SDIO_MODULES" | grep -q "$wlan_module"; then
 		echo_info "$wlan_module is an SDIO module"
 
-		# Check if MDIO directory exists
-		if [ -d /proc/jz/mdio ]; then
+			# Check if MDIO directory exists
+			if [ -d /proc/jz/mdio ]; then
 			echo_info "GMAC is enabled, disabling MSC1..."
-		else
-			case "$SOC_FAMILY" in
-				t10 | t20 | t21 | t30 | t40 | t41)
+			else
+				case "$SOC_FAMILY" in
+					t10 | t20 | t21 | t30 | t40 | t41)
 					echo_info "Skip GPIO setup for $SOC_MODEL"
-					;;
-				t23 | t31)
-					if [ "t31a" = "$SOC_MODEL" ]; then
+						;;
+					t23 | t31)
+						if [ "t31a" = "$SOC_MODEL" ]; then
 						echo_info "Skip GPIO setup for $SOC_MODEL"
-						return 1
-					else
+							return 1
+						else
 						echo_info "Set GPIO pins with /sbin/mmc_gpio"
 						/sbin/mmc_gpio
-					fi
-					;;
-				*)
+						fi
+						;;
+					*)
 					echo_error "Unsupported SOC type: $SOC_FAMILY"
 					exit 1
-					;;
-			esac
+						;;
+				esac
 
 			echo_info "Send INSERT to MMC1"
-			mmc 1
-		fi
+				mmc 1
+			fi
 	else
 		echo_warning "MMC1 is not SDIO"
 	fi
@@ -103,7 +103,7 @@ start() {
 	if [ -n "$wlan_mac" ] && [ "hi3881" != "$wlan_module" ]; then
 		if ip link | grep -q $IFACE >/dev/null; then
 			echo_info "Bring interface $IFACE down"
-			ip link set dev $IFACE down
+		ip link set dev $IFACE down
 		fi
 
 		echo_info "Set MAC address to $wlan_mac"
