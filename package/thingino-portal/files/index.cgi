@@ -64,22 +64,33 @@ elif post_request; then
         badchars=$(echo "$hostname" | sed 's/[0-9A-Z\.-]//ig')
 	[ -z "$badchars" ] || set_error "Hostname cannot contain $badchars"
 
-	if post_request_to_save; then
-		http_header="HTTP/1.1 303 See Other"
-		http_redirect="Location: $SCRIPT_NAME"
-		tempfile=$(mktemp -u)
-		hostname "$hostname" > /etc/hostname
+	if [ -z "$error_message" ] && post_request_to_save; then
+		# update hostname
+		hostname "$hostname"
+		echo "$hostname"> /etc/hostname
 
+		# update wlan settings in environment
+		tempfile=$(mktemp -u)
 		if [ "true" = "$wlanap_enabled" ]; then
 			printf "wlanap_enabled %s\nwlanap_ssid %s\nwlanap_pass %s\n" "$wlanap_enabled" "$wlanap_ssid" "$wlanap_pass" >> "$tempfile"
 		else
 			printf "wlan_ssid %s\nwlan_pass %s\n" "$wlan_ssid" "$wlan_pass" >> "$tempfile"
 		fi
 		fw_setenv -s $tempfile
+
+		# update timezone
 		echo "$timezone" > /etc/timezone
+
+		# update root password
 		echo "root:$rootpass" | chpasswd -c sha512
 		echo "$rootpkey" | tr -d '\r' | sed 's/^ //g' > /root/.ssh/authorized_keys
+
+		# update interface for onvif
 		sed -i "s/^ifs=.*$/ifs=wlan0/" /etc/onvif.conf
+
+		# done
+		http_header="HTTP/1.1 303 See Other"
+		http_redirect="Location: $SCRIPT_NAME"
 		reboot -d 2 &
 	else
 		http_header="HTTP/1.1 200 OK"
