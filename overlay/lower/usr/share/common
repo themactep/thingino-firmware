@@ -7,20 +7,21 @@ fi
 
 ENV_DUMP_FILE="/tmp/environment"
 if [ -f "$ENV_DUMP_FILE" ]; then
-#        echo "Evaluating $ENV_DUMP_FILE"
-        . "$ENV_DUMP_FILE"
+#	echo "Evaluating $ENV_DUMP_FILE"
+	. "$ENV_DUMP_FILE"
 fi
 
 CONFIG_FILE="/etc/web.conf"
 if [ -f "$CONFIG_FILE" ]; then
-#        echo "Evaluating $CONFIG_FILE"
-        . "$CONFIG_FILE"
+#	echo "Evaluating $CONFIG_FILE"
+	. "$CONFIG_FILE"
 fi
 
 PID=$$
 
 CRONTABS="/etc/cron/crontabs/root"
 CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3"
+EMAIL_FORMAT='^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
 FILE_HOSTNAME="/etc/hostname"
 FILE_HOSTS="/etc/hosts"
 FILE_OS_RELEASE="/etc/os-release"
@@ -47,12 +48,13 @@ LOCK_FILE="/run/process-$PID.pid"
 
 DAEMON_CONFIG="/etc/default/$DAEMON_SHORT"
 if [ -r "$DAEMON_CONFIG" ]; then
-#        echo "Evaluating $DAEMON_CONFIG"
+#	echo "Evaluating $DAEMON_CONFIG"
 	. "$DAEMON_CONFIG"
 fi
 
-die()  { echo "$1" >&2; exit 1; }
-quit() { echo "$1" >&2; exit 0; }
+log() { echo "$1" >&2; }
+die() { log "$1"; exit 1; }
+quit() { log "$1"; exit 0; }
 
 decrement_mac() {
 	local mac last_byte_dec
