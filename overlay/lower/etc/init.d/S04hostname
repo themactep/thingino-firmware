@@ -2,104 +2,73 @@
 
 . /usr/share/common
 
-FILE_HOSTNAME=/etc/hostname
-FILE_HOSTS=/etc/hosts
-FILE_OS_RELEASE=/etc/os-release
-
-set_hostname() {
-	if [ "$(hostname)" != "$hostname" ]; then
-		hostname "$hostname"
-	fi
-	echo "Hostname is $(hostname)"
+default_hostname() {
+	echo "$(sed -n 's/^ID=//p' $FILE_OS_RELEASE)-$(soc -m)"
 }
 
-update_hostname() {
-	if [ "$(cat $FILE_HOSTNAME)" = "$hostname" ]; then
-		return
-	fi
-	echo $hostname > $FILE_HOSTNAME
-}
-
-update_hosts() {
-	local ip="127.0.1.1"
-	if [ "$(sed -nE "s/^$ip\s+(.*)$/\1/p" $FILE_HOSTS)" = "$hostname" ]; then
-		return
-	fi
-	sed -i "/^$ip/c$ip\t$hostname" $FILE_HOSTS
-}
-
-update_os_release() {
-	if [ "$(sed -nE "s/^hostname=(.*)$/\1/p" $FILE_OS_RELEASE)" = "$hostname" ]; then
-		return
-	fi
-	sed -i "/^hostname/s/=.*$/=$hostname/" $FILE_OS_RELEASE
-}
-
-generate() {
-	os_hostname=$(sed -n 's/^HOSTNAME=//p' $FILE_OS_RELEASE)
-	[ -z "$os_hostname" ] && os_hostname=$(cat /proc/sys/kernel/hostname)
-	[ -z "$os_hostname" ] && os_hostname="thingino-$(soc -m)"
-	echo "OS hostname: $os_hostname"
-
-	mac_suffix=$(echo $wlan_mac | sed -E 's/://g;s/.*(.{4})$/\1/')
-	echo "MAC suffix: $mac_suffix"
-
-	hostname="${os_hostname}-$mac_suffix"
-	echo "Generated hostname: $hostname"
-}
-
-get_default_hostname() {
-	local id soc_type
-
-	id=$(sed -n 's/^ID=//p' $FILE_OS_RELEASE)
-	soc_type=$(soc)
-	echo "${id}-${soc_type}"
+mac_suffix() {
+	echo $wlan_mac | sed -E 's/://g;s/.*(.{4})$/\1/'
 }
 
 is_user_modified_hostname() {
-	local current default_hostname os_hostname
+	local hostname default_hostname os_hostname
 
-	current="$1"
-	default_hostname=$(get_default_hostname)
-	os_hostname=$(sed -n 's/^HOSTNAME=//p' $FILE_OS_RELEASE)
+	hostname="$(hostname)"
 
-	# Check if hostname is blank or "(none)" - these should be replaced
-	if [ -z "$current" ] || [ "$current" = "(none)" ]; then
+	if [ -z "$hostname" ]; then
+		echo "- Hostname is blank or and should be generated"
 		return 1
 	fi
 
-	# Check if it's the default hostname based on ID and soc from buildroot
-	if [ "$current" = "$default_hostname" ]; then
+	if [ "(none)" = "$hostname" ]; then
+		echo "- Hostname is '(none)' and should be generated"
 		return 1
 	fi
 
-	# Check if it matches our auto-generated pattern (os_hostname-xxxx)
-	if echo "$current" | grep -i -q "^${os_hostname}-[0-9a-f]\{4\}$"; then
+	if [ "$(default_hostname)" = "$hostname" ]; then
+		echo "- Hostname $hostname is default and should be generated"
 		return 1
 	fi
 
-	# Otherwise, it's custom!
+	if echo "$hostname" | grep -i -q "^$(default_hostname)-[0-9a-f]\{4\}$"; then
+		echo "- Hostname $hostname is auto-generated and should be regenerated if the MAC address has changed"
+		return 1
+	fi
+
+	echo "- Hostname $hostname is custom, skipping generation"
 	return 0
+}
+
+generate() {
+	hostname="$(default_hostname)-$(mac_suffix)"
+	echo "- Generated name: $hostname"
+
+	if [ "$(hostname)" != "$hostname" ]; then
+		echo "- Setting hostname to $hostname"
+		hostname "$hostname"
+	fi
+
+	# Do not change hostname in $FILE_OS_RELEASE!
+
+	ip="127.0.1.1"
+	if [ "$(sed -nE "s/^$ip\s+(.*)$/\1/p" $FILE_HOSTS)" != "$hostname" ]; then
+		echo "- Setting hostname in $FILE_HOSTS"
+		sed -i "/^$ip/c$ip\t$hostname" $FILE_HOSTS
+	fi
+
+	if [ "$(cat $FILE_HOSTNAME)" != "$hostname" ]; then
+		echo "- Saving hostname in $FILE_HOSTNAME"
+		echo $hostname > $FILE_HOSTNAME
+	fi
 }
 
 start() {
 	echo "Setting hostname"
 
-	current_hostname=$(hostname)
+	is_user_modified_hostname || generate
 
-	if is_user_modified_hostname "$current_hostname"; then
-		# User has modified hostname, keep it
-		hostname="$current_hostname"
-		echo "Using custom hostname: $hostname"
-	else
-		# Use generated hostname
-		generate
-	fi
-
-	set_hostname
-	update_hosts
-	#update_os_release
-	update_hostname
+	hostname=$(hostname)
+	echo "- Hostname set to $hostname"
 	HOSTNAME="$hostname"
 	export HOSTNAME
 }
@@ -110,6 +79,9 @@ case "$1" in
 		;;
 	stop)
 		true
+		;;
+	reset)
+		generate
 		;;
 	*)
 		echo "Usage: $0 {start|stop}"

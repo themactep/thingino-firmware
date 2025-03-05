@@ -1,13 +1,11 @@
 #!/bin/env sh
 
-die() { echo "$1" >&2; exit 1; }
+. /usr/share/common
 
 pidof -o %PPID $(basename $0) > /dev/null && die "is already running"
 
-command -v jsonfilter > /dev/null || die "Missing jsonfilter"
 
-CONFIG_FILE="/etc/web.conf"
-[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+ensure_command "jsonfilter"
 
 [ -z "$telegrambot_token" ] && die "Telegram Bot token is not set"
 

@@ -11,10 +11,14 @@ DROPBEAR_KEY_FILE="/etc/dropbear/dropbear_ed25519_host_key"
 . /usr/share/common
 
 start() {
-	echo "Starting dropbear sshd"
+	echo "Starting dropbear sshd..."
 
 	umask 077
-	test -f $DROPBEAR_KEY_FILE || dropbearkey -t ed25519 -f $DROPBEAR_KEY_FILE
+
+	if [ ! -f $DROPBEAR_KEY_FILE ]; then
+		echo "- Generating ed25519 host key..."
+		dropbearkey -t ed25519 -f $DROPBEAR_KEY_FILE
+	fi
 
 	start_daemon
 }

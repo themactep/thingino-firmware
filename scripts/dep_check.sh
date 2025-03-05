@@ -1,5 +1,47 @@
 #!/bin/sh
 
+preinit_check() {
+# Check for gawk
+if ! command -v gawk >/dev/null 2>&1; then
+echo "Please install gawk"
+exit 1
+fi
+
+# Check for mkimage from u-boot-tools
+if ! command -v mkimage >/dev/null 2>&1; then
+echo "Please install mkimage from u-boot-tools"
+exit 1
+fi
+
+# Check if the current directory path contains spaces.
+case "$PWD" in
+*" "*)
+	echo "Current directory path \"$PWD\" cannot contain spaces"
+	exit 1
+	;;
+esac
+
+# Check for supported architecture.
+host_arch=$(uname -m)
+if [ "$host_arch" != "x86_64" ] && [ "$host_arch" != "aarch64" ]; then
+echo "Unsupported architecture: $host_arch. Only x86_64 and aarch64 are supported."
+exit 1
+fi
+
+# Check dd (coreutils)
+req=9.0
+dd --version 2>&1 | head -n1 | grep -oE '[0-9]+\.[0-9]+' | {
+	read cur_ver || { echo "Unable to determine dd version" >&2; exit 1; }
+	if [ "$(printf '%s\n' "$req" "$cur_ver" | sort -V | head -n1)" != "$req" ]; then
+		echo "dd version $cur_ver is less than required $req.  Please update the coreutils for your distribution." >&2
+		exit 1
+	fi
+}
+
+echo "All preinit checks passed."
+
+}
+
 check_glibc_version() {
 	min_version="2.31"
 	# Check if running on Alpine with musl
@@ -33,6 +75,17 @@ if command -v sudo >/dev/null 2>&1; then
 else
 	install_cmd=""
 fi
+
+if [ -f ".prereqs.done" ]; then
+	echo "dep_check.sh: dependencies OK, continue..."
+	exit 0
+fi
+
+#pre init check
+preinit_check
+
+# Check glibc version
+check_glibc_version
 
 if [ -f /etc/os-release ]; then
 	. /etc/os-release
@@ -97,9 +150,6 @@ else
 	echo "Could not determine the operating system."
 	exit 1
 fi
-
-# Check glibc version
-check_glibc_version
 
 # Check installed packages based on the package manager
 packages_to_install=""
@@ -174,4 +224,7 @@ if [ -n "$packages_to_install" ]; then
 	fi
 else
 	echo "All packages are installed."
+	if [ ! -f ".prereqs.done" ]; then
+		touch .prereqs.done
+	fi
 fi

@@ -55,6 +55,10 @@ if [ -f "${TARGET_DIR}/lib/libstdc++.so.6.0.33-gdb.py" ]; then
 	rm -vf ${TARGET_DIR}/lib/libstdc++.so.6.0.33-gdb.py
 fi
 
+if [ -f "${TARGET_DIR}/etc/init.d/S50dropbear" ]; then
+	mv ${TARGET_DIR}/etc/init.d/S50dropbear ${TARGET_DIR}/etc/init.d/S30dropbear
+fi
+
 if grep -q ^BR2_TOOLCHAIN_USES_MUSL $BR2_CONFIG; then
 	ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/lib/ld-uClibc.so.0
 	ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/usr/bin/ldd

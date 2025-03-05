@@ -1,16 +1,16 @@
 #!/bin/sh
 
-OS_RELEASE_FILE="/etc/os-release"
+. /usr/share/common
 
 start() {
 	echo "Setting initial system time"
 
-	if [ ! -f "$OS_RELEASE_FILE" ]; then
+	if [ ! -f "$FILE_OS_RELEASE" ]; then
 		echo "- No release file found, not setting system clock"
 		exit 1
 	fi
 
-	if date -u -s "@$(stat -c%X "$OS_RELEASE_FILE")" >/dev/null; then
+	if date -u -s "@$(stat -c%X "$FILE_OS_RELEASE")" >/dev/null; then
 		echo "- $(date) (fail-safe)"
 	else
 		echo "- Failed to set time"

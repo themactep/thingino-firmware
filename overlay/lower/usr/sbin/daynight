@@ -1,12 +1,11 @@
 #!/bin/sh
 
+. /usr/share/common
 if pidof -o %PPID $(basename $0) > /dev/null; then
 	echo "is already running" >&2
 	exit 1
 fi
 
-CONFIG_FILE="/etc/web.conf"
-[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
 STOP_FILE="/tmp/daynight.stop"
 

@@ -1,10 +1,6 @@
 #!/bin/sh
 
-ENV_DUMP_FILE="/tmp/environment"
-[ -f "$ENV_DUMP_FILE" ] && . "$ENV_DUMP_FILE"
-
-CONFIG_FILE="/etc/web.conf"
-[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+. /usr/share/common
 
 show_help() {
 	echo "Usage: $0 [<color>|off]

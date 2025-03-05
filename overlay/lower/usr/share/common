@@ -7,20 +7,21 @@ fi
 
 ENV_DUMP_FILE="/tmp/environment"
 if [ -f "$ENV_DUMP_FILE" ]; then
-#        echo "Evaluating $ENV_DUMP_FILE"
-        . "$ENV_DUMP_FILE"
+#	echo "Evaluating $ENV_DUMP_FILE"
+	. "$ENV_DUMP_FILE"
 fi
 
 CONFIG_FILE="/etc/web.conf"
 if [ -f "$CONFIG_FILE" ]; then
-#        echo "Evaluating $CONFIG_FILE"
-        . "$CONFIG_FILE"
+#	echo "Evaluating $CONFIG_FILE"
+	. "$CONFIG_FILE"
 fi
 
 PID=$$
 
 CRONTABS="/etc/cron/crontabs/root"
 CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3"
+EMAIL_FORMAT='^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
 FILE_HOSTNAME="/etc/hostname"
 FILE_HOSTS="/etc/hosts"
 FILE_OS_RELEASE="/etc/os-release"
@@ -47,7 +48,7 @@ LOCK_FILE="/run/process-$PID.pid"
 
 DAEMON_CONFIG="/etc/default/$DAEMON_SHORT"
 if [ -r "$DAEMON_CONFIG" ]; then
-#        echo "Evaluating $DAEMON_CONFIG"
+#	echo "Evaluating $DAEMON_CONFIG"
 	. "$DAEMON_CONFIG"
 fi
 
@@ -69,6 +70,10 @@ decrement_mac() {
 		exit 1
 	fi
 	ethaddr=$(printf "%s:%02x" "${mac%:*}" "$last_byte_dec")
+}
+
+ensure_command() {
+	command -v "$1" > /dev/null || die "Missing $1"
 }
 
 gpio_control() {
@@ -180,6 +185,10 @@ print_release() {
 	. "$FILE_OS_RELEASE"
 	echo_c 208 "Thingino $IMAGE_ID [$BUILD_ID]\n"
 	echo "Thingino $IMAGE_ID [$BUILD_ID]"
+}
+
+refresh_env_dump() {
+	w_printenv | sort | sed -E 's/=(.*)$/="\1"/' > "$ENV_DUMP_FILE"
 }
 
 set_gpio() {

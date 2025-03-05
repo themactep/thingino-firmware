@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /usr/share/common
+
 if [ "$#" -ne 2 ]; then
 	echo "Usage: $0 <action> <servicename>
 Where actions:

@@ -1,12 +1,7 @@
 #!/bin/sh
 
-ENV_DUMP_FILE="/tmp/environment"
-[ -f "$ENV_DUMP_FILE" ] && . "$ENV_DUMP_FILE"
+. /usr/share/common
 
-CONFIG_FILE="/etc/web.conf"
-[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
-
-OS_RELEASE_FILE="/etc/os-release"
 USB_SCRIPT="/etc/init.d/F02failsafe-usb"
 
 start() {
@@ -36,8 +31,8 @@ start() {
 		echo_c 118 "Failsafe mode..."
 	fi
 
-	if [ -f "$OS_RELEASE_FILE" ]; then
-		. "$OS_RELEASE_FILE"
+	if [ -f "$FILE_OS_RELEASE" ]; then
+		. "$FILE_OS_RELEASE"
 		echo_c 208 "Thingino firmware built for $IMAGE_ID\n[$BUILD_ID]\n"
 	fi
 

@@ -1,15 +1,13 @@
 #!/bin/sh
 
-die() { echo "$1" >&2; exit 1; }
+. /usr/share/common
 
-ENV_DUMP_FILE="/tmp/environment"
-[ -f "$ENV_DUMP_FILE" ] && . "$ENV_DUMP_FILE"
-
-CONFIG_FILE="/etc/web.conf"
-[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+MODE_FILE="/tmp/ircutmode.txt"
+[ -f "$MODE_FILE" ] || touch "$MODE_FILE"
 
 pin1=$gpio_ircut_1
 pin2=$gpio_ircut_2
+
 # Backward compatibility
 if [ -z "$pin1$pin2" ] && [ -n "$gpio_ircut" ]; then
 	pin1=${gpio_ircut%% *}
@@ -35,9 +33,6 @@ if [ -n "$pin2" ]; then
 	esac
 	pin2=${pin2:0:(-1)}
 fi
-
-MODE_FILE="/tmp/ircutmode.txt"
-[ -f "$MODE_FILE" ] || touch "$MODE_FILE"
 
 ir_filter_off() {
 	gpio set "$pin1" "$pin1_off" > /dev/null

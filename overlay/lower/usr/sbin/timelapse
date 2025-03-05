@@ -1,11 +1,6 @@
 #!/bin/sh
 
-SNAPSHOT_FILE="/tmp/snapshot.jpg"
-
-CONFIG_FILE="/etc/web.conf"
-[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
-
-die() { echo "$1" >&2; exit 1; }
+. /usr/share/common
 
 create_directory_for() {
 	dir="$(dirname "$1")"

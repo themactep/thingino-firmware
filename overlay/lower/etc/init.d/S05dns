@@ -1,18 +1,15 @@
 #!/bin/sh
 
-RESOLV_FILE="/etc/resolv.conf"
-RESOLV_DEFAULT_FILE="/etc/default/resolv.conf"
-RESOLV_WORKING_FILE="/tmp/resolv.conf"
+. /usr/share/common
 
 start() {
 	echo "Configuring DNS..."
 
 	if [ -f "$RESOLV_DEFAULT_FILE" ]; then
 		cat "$RESOLV_DEFAULT_FILE" > "$RESOLV_WORKING_FILE"
-		echo "Using default DNS servers"
-		cat "$RESOLV_FILE"
+		echo "- Using default DNS servers"
 	else
-		echo "No static DNS servers found"
+		echo "- No static DNS servers found"
 	fi
 }
 
