@@ -2,25 +2,30 @@
 
 . /usr/share/common
 
-WIREGUARD_INTERFACE="wg0"
-
 [ -n "$wireguard_address" ] || die "No WireGuard IP address configured"
 
-RESOLV_CONF="/tmp/resolv.conf"
-RESOLV_BAK="${RESOLV_CONF}.bak"
+WIREGUARD_INTERFACE="wg0"
+RESOLV_BAK="${RESOLV_WORKING_FILE}.bak"
 
 start() {
 	echo "Starting WireGuard"
 	# "force" is for testing, to start WireGuard on demand without having it enabled at boot
 	# "start" is for the normal boot process
 
-	[ "true" != "$wireguard_enabled" ] && [ "force" != "$1" ] && quit "Disabled"
+	if [ "true" != "$wireguard_enabled" ] && [ "force" != "$1" ]; then
+		echo "- WireGuard disabled"
+		exit 1
+	fi
 
-	ip link show $WIREGUARD_INTERFACE 2>&1 | grep -q 'UP' && \
-		die "WireGuard interface $WIREGUARD_INTERFACE already running"
+	if ip link show $WIREGUARD_INTERFACE 2>&1 | grep -q 'UP'; then
+		echo "- WireGuard interface $WIREGUARD_INTERFACE already up"
+		exit 1
+	fi
 
+	echo "Create WireGuard network interface"
 	ip link add dev $WIREGUARD_INTERFACE type wireguard
 
+	echo "- Create WireGuard configuration"
 	tmp_file=$(mktemp -u)
 	{
 		echo '[Interface]'
@@ -33,25 +38,40 @@ start() {
 		[ -n "$wireguard_allowed" ] && echo "AllowedIPs=$wireguard_allowed"
 		[ -n "$wireguard_keepalive" ] && echo "PersistentKeepalive=$wireguard_keepalive"
 	} >> "$tmp_file"
-	wg setconf $WIREGUARD_INTERFACE "$tmp_file"
+
+	echo "- Apply WireGuard configuration"
+	wg setconf "$WIREGUARD_INTERFACE" "$tmp_file"
+
+	echo "- Clean up"
 	rm "$tmp_file"
 
+	echo "- Assign IP address to WireGuard interface"
 	ip address add $wireguard_address dev $WIREGUARD_INTERFACE
 
-	[ -n "$wireguard_mtu" ] && link_mtu="mtu $wireguard_mtu"
+	if [ -n "$wireguard_mtu" ]; then
+		link_mtu="mtu $wireguard_mtu"
+	fi
+
+	echo "- Start WireGuard interface"
 	ip link set $link_mtu up dev $WIREGUARD_INTERFACE
 
 	if [ -n "$wireguard_dns" ] ; then
+		echo "- Create custom resolver configuration"
 		tmp_file=$(mktemp)
-		grep -v nameserver $RESOLV_CONF >> "$tmp_file"
+		grep -v nameserver $RESOLV_WORKING_FILE >> "$tmp_file"
 		for x in $(echo $wireguard_dns | tr "," " ") ; do
 			echo "nameserver $x" >> "$tmp_file"
 		done
-		mv $RESOLV_CONF $RESOLV_BAK
-		mv "$tmp_file" $RESOLV_CONF
+
+		echo "- Back up existing resolver configuration"
+		mv "$RESOLV_WORKING_FILE" "$RESOLV_BAK"
+
+		echo "- Set up custom resolver configuration"
+		mv "$tmp_file" "$RESOLV_WORKING_FILE"
 	fi
 
 	for r in $(echo "$wireguard_allowed" | tr "," " ") ; do
+		echo "- Add routing to $r"
 		ip route add $r dev $WIREGUARD_INTERFACE
 	done
 }
@@ -60,12 +80,20 @@ stop() {
 	echo "Stopping WireGuard"
 
 	for r in $(ip route | awk '/dev wg/{print $1}') ; do
+		echo "- Remove routing to $r"
 		route del $r dev $WIREGUARD_INTERFACE
 	done
 
+	echo "- Stop WireGuard interface"
 	ip link set down $WIREGUARD_INTERFACE
+
+	echo "- Remove WireGuard interface"
 	ip address del $wireguard_address dev $WIREGUARD_INTERFACE
-	[ -s $RESOLV_BAK ] && mv $RESOLV_BAK $RESOLV_CONF
+
+	if [ -s "$RESOLV_BAK" ]; then
+		echo "- Restore original resolver configuration"
+		mv "$RESOLV_BAK" "$RESOLV_WORKING_FILE"
+	fi
 }
 
 case "$1" in
