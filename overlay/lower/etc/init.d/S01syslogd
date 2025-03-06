@@ -7,10 +7,12 @@ PIDFILE="/run/$DAEMON.pid"
 . /usr/share/common
 
 if [ -n "$rsyslog_host" ]; then
+	echo "- Adding remote logging to $rsyslog_host:${rsyslog_port:-514}" >&2
 	DAEMON_ARGS="$DAEMON_ARGS -R $rsyslog_host:${rsyslog_port:-514}"
 fi
 
 if [ "true" = "$rsyslog_local" ]; then
+	echo "- Adding local logging" >&2
 	DAEMON_ARGS="$DAEMON_ARGS -L"
 fi
 
