@@ -1,19 +1,19 @@
 #!/bin/sh
 
 if [ "$0" = "-sh" ]; then
-	echo "Do not run directly!"
+	echo "Do not run directly!" >&2
 	return
 fi
 
 ENV_DUMP_FILE="/tmp/environment"
 if [ -f "$ENV_DUMP_FILE" ]; then
-#	echo "Evaluating $ENV_DUMP_FILE"
+	echo "Evaluating $ENV_DUMP_FILE" >&2
 	. "$ENV_DUMP_FILE"
 fi
 
 CONFIG_FILE="/etc/web.conf"
 if [ -f "$CONFIG_FILE" ]; then
-#	echo "Evaluating $CONFIG_FILE"
+	echo "Evaluating $CONFIG_FILE" >&2
 	. "$CONFIG_FILE"
 fi
 
@@ -48,32 +48,37 @@ LOCK_FILE="/run/process-$PID.pid"
 
 DAEMON_CONFIG="/etc/default/$DAEMON_SHORT"
 if [ -r "$DAEMON_CONFIG" ]; then
-#	echo "Evaluating $DAEMON_CONFIG"
+	echo "Evaluating $DAEMON_CONFIG" >&2
 	. "$DAEMON_CONFIG"
 fi
-
-die()  { echo "$1" >&2; exit 1; }
-quit() { echo "$1" >&2; exit 0; }
 
 decrement_mac() {
 	local mac last_byte_dec
 
 	mac=$ethaddr
 	if [ -z "$mac" ]; then
-		echo "Error: MAC address not found in $CONFIG_FILE"
+		echo "Error: MAC address not found in $CONFIG_FILE" >&2
 		exit 1
 	fi
 
 	last_byte_dec=$((0x${mac##*:} - 1))
 	if [ $last_byte_dec -lt 0 ]; then
-		echo "Error: MAC address cannot be decremented below 00"
+		echo "Error: MAC address cannot be decremented below 00" >&2
 		exit 1
 	fi
 	ethaddr=$(printf "%s:%02x" "${mac%:*}" "$last_byte_dec")
 }
 
+die() {
+	echo "$1" >&2
+	exit 1
+}
+
 ensure_command() {
-	command -v "$1" > /dev/null || die "Missing $1"
+	if command -v "$1" > /dev/null; then
+		echo "Missing $1" >&2
+		exit 1
+	fi
 }
 
 gpio_control() {
@@ -88,17 +93,22 @@ gpio_control() {
 	state=${gpio_power#$num}
 
 	case "$state" in
-		O)	gpio_cmd="high" ;;
-		o)	gpio_cmd="low" ;;
-		*)	echo "Invalid state for GPIO $gpio_name: $state"
+		O)
+			gpio_cmd="high"
+			;;
+		o)
+			gpio_cmd="low"
+			;;
+		*)
+			echo "Invalid state for GPIO $gpio_name: $state" >&2
 			return 2  # invalid state
 			;;
 	esac
 
-	echo "Set GPIO $num $gpio_cmd"
+	echo "Set GPIO $num $gpio_cmd" >&2
 	gpio $gpio_cmd $num 2>&1 && return 0  # success
 
-	echo "Failed to set GPIO $num $gpio_cmd"
+	echo "Failed to set GPIO $num $gpio_cmd" >&2
 	return 3  # failure
 }
 
@@ -109,32 +119,39 @@ iface_default() {
 	[ -z "$iface" ] && iface=$(ip -4 r | awk '{print $3; exit}')
 	[ -z "$iface" ] && iface=$(ip -6 r | awk '/default/{print $5; exit}')
 	[ -z "$iface" ] && iface=$(ip -6 r | awk '{print $3; exit}')
+
+	# to stdout
 	echo "$iface"
 }
 
 iface_default2() {
 	ipv4_iface=$(ip -4 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1)
-	[ -n "$ipv4_iface" ] && echo "$ipv4_iface" || ip -6 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1
+	if [ -n "$ipv4_iface" ]; then
+		# to stdout
+		echo "$ipv4_iface"
+	else
+		ip -6 r | sed -nE '/default/s/.+dev (\w+).+?/\1/p' | head -n 1
+	fi
 }
 
 iface_exists() {
 	iface="$1"
 
 	if [ -z "$iface" ]; then
-		echo "Interface parameter missing." 2>&1
+		echo "Interface parameter missing." >&2
 		return 1
 	fi
 
 	if ip link show $iface &> /dev/null; then
 		if [ "eth0" = $iface ] && ! is_gateway_reachable; then
-			echo "eth0 has no local connection" 2>&1
+			echo "eth0 has no local connection" >&2
 			return 1
 		fi
 
-		# echo "Interface '$iface' exists." 2>&1
+		# echo "Interface '$iface' exists." >&2
 		return 0
 	else
-		echo "Interface '$iface' does not exist." 2>&1
+		echo "Interface '$iface' does not exist." >&2
 		return 1
 	fi
 }
@@ -169,7 +186,11 @@ log_to_file() {
 		mv "$LOG_FILE" "${LOG_FILE}.1"
 		echo "$(tag) Log file rotated." >> $LOG_FILE
 	fi
+
+	# log to file
 	echo -e "$(tag) $1" >> $LOG_FILE
+
+	# log to console
 	echo -e "$1" >&2
 }
 
@@ -179,21 +200,40 @@ play_sound() {
 
 print_release() {
 	if [ ! -f "$FILE_OS_RELEASE" ]; then
-		echo "$FILE_OS_RELEASE not found"
-		return
+		echo "$FILE_OS_RELEASE not found" >&2
+		return 1
 	fi
+
 	. "$FILE_OS_RELEASE"
+
+	# to stdout
 	echo_c 208 "Thingino $IMAGE_ID [$BUILD_ID]\n"
 	echo "Thingino $IMAGE_ID [$BUILD_ID]"
 }
 
+quit() {
+	echo "$1" >&2
+	exit 0
+}
+
 refresh_env_dump() {
-	w_printenv | sort | sed -E 's/=(.*)$/="\1"/' > "$ENV_DUMP_FILE"
+	fw_printenv | sort | sed -E 's/=(.*)$/="\1"/' > "$ENV_DUMP_FILE"
 }
 
 set_gpio() {
-	echo "Set GPIO $1 to F$2 D$3"
+	echo "Set GPIO $1 to F$2 D$3" >&2
 	gpio-diag $1 func $2 drive $3
+}
+
+singleton() {
+	local name
+
+	name=$(basename $1)
+	pids=$(pidof -o %PPID $name > /dev/null)
+	if [ -n "$pids" ] ; then
+		echo "$name is already running with PIDs $pids. Exiting." >&2
+		exit 1
+	fi
 }
 
 start_daemon() {
@@ -213,23 +253,25 @@ starting() {
 
 stop_daemon() {
 	if [ -f "$PIDFILE" ]; then
-		echo "- Stopping by PID from $PIDFILE"
+		echo "- Stopping $DAEMON_SHORT by PID from $PIDFILE"
 		start-stop-daemon -K -p $PIDFILE
 		[ -f "$PIDFILE" ] && rm "$PIDFILE"
 	fi
+
 	sleep 0.2
 	if pidof $DAEMON_SHORT > /dev/null; then
-		echo "- Killing by PID"
+		echo "- Killing $DAEMON_SHORT by PID"
 		start-stop-daemon -K -n $DAEMON_SHORT
 	fi
+
 	sleep 0.2
 	if pidof $DAEMON_SHORT > /dev/null; then
-		echo "- Killing by name"
+		echo "- Killing $DAEMON_SHORT by name"
 		start-stop-daemon -K -s SIGKILL -n $DAEMON_SHORT
 	fi
 	sleep 0.2
 	if pidof $DAEMON_SHORT > /dev/null; then
-		echo "- Killing by full process name"
+		echo "- Killing $DAEMON_SHORT by full process name $DAEMON_FULL"
 		start-stop-daemon -K -x $DAEMON_FULL
 	fi
 }
