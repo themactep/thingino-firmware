@@ -87,22 +87,26 @@ button_refresh() {
 }
 
 button_restore_from_rom() {
-	local file=$1
-	[ -f "/rom/$file" ] || return
-	if [ -z "$(diff "/rom/$file" "$file")" ]; then
+	[ -f "/rom/$1" ] || return 1
+
+	if [ -z "$(diff "/rom/$1" "$1")" ]; then
 		echo "<p class=\"small fst-italic\">File matches the version in ROM.</p>"
-		return
+		return 1
 	fi
-	echo "<p><a class=\"btn btn-danger\" href=\"restore.cgi?f=$file\">Replace $file with its version from ROM</a></p>"
+
+	echo "<p><a class=\"btn btn-danger\" href=\"restore.cgi?f=$1\">Replace $1 with its version from ROM</a></p>"
 }
 
 button_send2tb() {
-	echo "<p class=\"mb-4\"><a class=\"text-warning\" href=\"send.cgi?to=termbin&payload=$(echo "$1" | base64)\" target=\"_blank\">Share via TermBin</a></p>"
+	echo "<p class=\"mb-4\"><a class=\"text-warning\"" \
+	 "href=\"send.cgi?to=termbin&payload=$(echo "$1" | base64)\"" \
+	 "target=\"_blank\">Share via TermBin</a></p>"
 }
 
 # button_submit "text" "type" "extras"
 button_submit() {
 	local c t x
+
 	t="${1:-Save changes}"
 	c="${2:-primary}"
 	x="${3:- }"
@@ -111,7 +115,12 @@ button_submit() {
 
 button_sync_time() {
 	local text
-	is_ap && text="Set time from the browser" || text="Synchronize time from NTP server"
+
+	if [ "true" = "$wlanap_enabled" ]; then
+		text="Set time from the browser"
+	else
+		text="Synchronize time from NTP server"
+	fi
 	echo "<button id=\"sync-time\" type=\"button\" class=\"btn btn-secondary mb-3\">$text</button>"
 }
 
@@ -124,10 +133,12 @@ check_mac_address() {
 }
 
 check_password() {
-	local safepage="/x/config-webui.cgi"
-	[ -z "$REQUEST_URI" ] || [ "$REQUEST_URI" = "$safepage" ] && return
+	local safe_page
+
+	safe_page="/x/config-webui.cgi"
+	[ -z "$REQUEST_URI" ] || [ "$REQUEST_URI" = "$safe_page" ] && return
 	if [ ! -f /etc/shadow- ] || [ -z $(awk -F: '/^root/{print $2}' /etc/shadow-) ]; then
-		redirect_to "$safepage" "danger" "You must set your own secure password!"
+		redirect_to "$safe_page" "danger" "You must set your own secure password!"
 	fi
 }
 
@@ -149,35 +160,37 @@ if_else() {
 
 ex() {
 	echo "<div class=\"${2:-ex}\"><h6># $1</h6><pre class=\"small\">"
-	# NB! $() forks process and stalls output.
+	# NB! $() forks process and stalls output
 	eval "$1" | sed "s/&/\&amp;/g;s/</\&lt;/g;s/>/\&gt;/g;s/\"/\&quot;/g"
 	echo "</pre></div>"
 }
 
 # field_checkbox "name" "label" "hint"
 field_checkbox() {
-	local v=$(t_value "$1")
+	local v
+
+	v=$(t_value "$1")
 	default_for v "false"
-	echo "<p class=\"boolean form-check\">
-	<input type=\"hidden\" id=\"$1-false\" name=\"$1\" value=\"false\">
-	<input type=\"checkbox\" name=\"$1\" id=\"$1\" value=\"true\" class=\"form-check-input\"$(checked_if "true" "$v")>
-	<label for=\"$1\" class=\"form-label\">$2</label>"
+	echo "<p class=\"boolean form-check\">" \
+	 "<input type=\"hidden\" id=\"$1-false\" name=\"$1\" value=\"false\">" \
+	 "<input type=\"checkbox\" name=\"$1\" id=\"$1\" value=\"true\"" \
+	 " class=\"form-check-input\"$(checked_if "true" "$v")>" \
+	 "<label for=\"$1\" class=\"form-label\">$2</label>"
 	[ -n "$3" ] && echo "<span class=\"hint text-secondary d-block mb-2\">$3</span>"
 	echo "</p>"
 }
 
 field_color() {
-	echo "<p id=\"$1_wrap\" class=\"file\">
-	<label for=\"$1\" class=\"form-label\">$2</label>
-	<input type=\"color\" id=\"$1\" name=\"$1\" class=\"form-control input-color\">
-	</p>"
+	echo "<p id=\"$1_wrap\" class=\"file\">" \
+	 "<label for=\"$1\" class=\"form-label\">$2</label>" \
+	 "<input type=\"color\" id=\"$1\" name=\"$1\" class=\"form-control input-color\"></p>"
 }
 
 # field_file "name" "label" "hint"
 field_file() {
-	echo "<p id=\"$1_wrap\" class=\"file\">
-	<label for=\"$1\" class=\"form-label\">$2</label>
-	<input type=\"file\" id=\"$1\" name=\"$1\" class=\"form-control\">"
+	echo "<p id=\"$1_wrap\" class=\"file\">" \
+	 "<label for=\"$1\" class=\"form-label\">$2</label>" \
+	 "<input type=\"file\" id=\"$1\" name=\"$1\" class=\"form-control\">"
 	[ -n "$3" ] && echo "<span class=\"hint text-secondary\">$3</span>"
 	echo "</p>"
 }
@@ -185,6 +198,7 @@ field_file() {
 # field_gpio "name" "label"
 field_gpio() {
 	local active_suffix is_active is_active_low lit_on_boot name pin pin_off pin_status pin_on pwm var_pin var_pwm
+
 	name=$1
 
 	var_pin="${name}_pin"
@@ -207,37 +221,31 @@ field_gpio() {
 
 	echo $DEFAULT_PINS | grep -E "\b$pin$active_suffix\b" > /dev/null && lit_on_boot=" checked"
 
-	echo "<div class=\"col\">
-	<div class=\"card h-100 gpio $name\">
-	<div class=\"card-header\">$2
-	<div class=\"switch float-end\">
-	<button type=\"button\" class=\"btn btn-sm btn-outline-secondary m-0 led-status\" id=\"${name}_toggle\" $is_active>Test</button>
-	</div>
-	</div>
-	<div class=\"card-body\">
-	<div class=\"row\">
-	<label class=\"form-label col-9\" for=\"${name}_pin\">GPIO pin #</label>
-	<div class=\"col\">
-	<input type=\"text\" class=\"form-control text-end\" id=\"${name}_pin\" name=\"${name}_pin\" pattern=\"[0-9]{1,3}\" title=\"a number\" value=\"$pin\" required>
-	</div>
-	</div>
-"
+	echo "<div class=\"col\"><div class=\"card h-100 gpio $name\"><div class=\"card-header\">$2" \
+	 "<div class=\"switch float-end\"><button class=\"btn btn-sm btn-outline-secondary m-0 led-status\"" \
+	 " type=\"button\" id=\"${name}_toggle\" $is_active>Test</button></div></div><div class=\"card-body\">" \
+	 "<div class=\"row\"><label class=\"form-label col-9\" for=\"${name}_pin\">GPIO pin #</label>" \
+	 "<div class=\"col\"><input type=\"text\" class=\"form-control text-end\" id=\"${name}_pin\"" \
+	 " name=\"${name}_pin\" pattern=\"[0-9]{1,3}\" title=\"a number\" value=\"$pin\" required>" \
+	 "</div></div>"
 
 if [ $(is_pwm_pin "$pin") ]; then
-	echo "<div class=\"row\"><label class=\"form-label col-9\" for=\"${name}_pwn_ch\">GPIO PWM channel</label>
-	<div class=\"col\"><input type=\"text\" class=\"form-control text-end\" id=\"${name}_pwm_ch\" name=\"${name}_pwm_ch\"
-	 pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pwm\"></div></div><div class=\"row\"><label
-	 class=\"form-label col-9\" for=\"${name}_pwm_lvl\">GPIO PWM level</label><div class=\"col\"><input type=\"text\"
-	 class=\"form-control text-end\" id=\"${name}_pwm_lvl\" name=\"${name}_pwm_lvl\" pattern=\"[0-9]{1,3}\"
-	 title=\"empty or a number\" value=\"$pwm\"></div></div>"
+	echo "<div class=\"row\">" \
+	 "<label class=\"form-label col-9\" for=\"${name}_pwn_ch\">GPIO PWM channel</label><div class=\"col\">" \
+	 "<input type=\"text\" class=\"form-control text-end\" id=\"${name}_pwm_ch\" name=\"${name}_pwm_ch\"" \
+	 " pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pwm\"></div></div><div class=\"row\">" \
+	 "<label class=\"form-label col-9\" for=\"${name}_pwm_lvl\">GPIO PWM level</label><div class=\"col\">" \
+	 "<input type=\"text\" class=\"form-control text-end\" id=\"${name}_pwm_lvl\" name=\"${name}_pwm_lvl\"" \
+	 " pattern=\"[0-9]{1,3}\" title=\"empty or a number\" value=\"$pwm\"></div></div>"
 else
 	echo "<div class=\"text-warning\">NOT A PWM PIN</div>"
 fi
-	echo "<div class=\"row\"><label class=\"form-label col-9\" for=\"${name}_inv\">Active low</label>
-	<div class=\"col\"><input class=\"form-check-input\" type=\"checkbox\" id=\"${name}_inv\" name=\"${name}_inv\"
-	 value=\"true\"$is_active_low$is_disabled></div></div><div class=\"row mb-0\"> <label class=\"form-label col-9\"
-	 for=\"${name}_lit\">Lit on boot</label> <div class=\"col\"> <input class=\"form-check-input\" type=\"checkbox\"
-	 id=\"${name}_lit\" name=\"${name}_lit\" value=\"true\"$lit_on_boot$is_disabled> </div> </div> </div> </div> </div>"
+	echo "<div class=\"row\"><label class=\"form-label col-9\" for=\"${name}_inv\">Active low</label>" \
+	 "<div class=\"col\"><input class=\"form-check-input\" type=\"checkbox\" id=\"${name}_inv\"" \
+	 " name=\"${name}_inv\" value=\"true\"$is_active_low$is_disabled></div></div><div class=\"row mb-0\">" \
+	 "<label class=\"form-label col-9\" for=\"${name}_lit\">Lit on boot</label><div class=\"col\">" \
+	 "<input class=\"form-check-input\" type=\"checkbox\" id=\"${name}_lit\" name=\"${name}_lit\"" \
+	 " value=\"true\"$lit_on_boot$is_disabled></div></div></div></div></div>"
 }
 
 # field_hidden "name" "value"
@@ -248,6 +256,7 @@ field_hidden() {
 # field_number "name" "label" "range" "hint"
 field_number() {
 	local ab mn mx n r st v vr
+
 	n=$1
 	r=$3 # min,max,step,button
 	mn=$(echo "$r" | cut -d, -f1)
@@ -257,29 +266,28 @@ field_number() {
 	v=$(t_value "$n")
 	vr=$v
 	[ -n "$ab" ] && [ "$ab" = "$v" ] && vr=$(((mn + mx) / 2))
-	echo "<div class=\"mb-2 number\">
-	<label class=\"form-label\" for=\"$n\">$2</label>
-	<span class=\"input-group\">"
+	echo "<div class=\"mb-2 number\"><label class=\"form-label\" for=\"$n\">$2</label><span class=\"input-group\">"
 	# NB! no name on checkbox, since we don't want its data submitted
-	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"${n}-auto\">$ab
-	<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")>
-	</label>"
-	echo "<input type=\"text\" id=\"$n\" name=\"$n\" class=\"form-control text-end\" value=\"$vr\"
-	pattern=\"[0-9]{1,}\" title=\"numeric value\" data-min=\"$mn\" data-max=\"$mx\" data-step=\"$st\">
-	</span>"
+	if [ -n "$ab" ]; then
+		echo "<label class=\"input-group-text\" for=\"${n}-auto\">$ab <input type=\"checkbox\"" \
+		 " class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\"" \
+		 " data-value=\"$vr\" $(checked_if "$ab" "$v")></label>"
+	fi
+	echo "<input type=\"text\" id=\"$n\" name=\"$n\" class=\"form-control text-end\" value=\"$vr\"" \
+	 " pattern=\"[0-9]{1,}\" title=\"numeric value\" data-min=\"$mn\" data-max=\"$mx\" data-step=\"$st\"></span>"
 	[ -n "$4" ] && echo "<span class=\"hint text-secondary\">$4</span>"
 	echo "</div>"
 }
 
 # field_password "name" "label" "hint"
 field_password() {
-	local v=$(t_value "$1")
-	echo "<div class=\"mb-2 password\" id=\"$1_wrap\">
-	<label for=\"$1\" class=\"form-label\">$2</label>
-	<span class=\"input-group\">
-	<input type=\"password\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"K3wLHaZk3R!\">
-	<label class=\"input-group-text\"><input type=\"checkbox\" class=\"form-check-input me-1\" data-for=\"$1\"> show</label>
-	</span>"
+	local v
+
+	v=$(t_value "$1")
+	echo "<div class=\"mb-2 password\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$2</label>" \
+	 "<span class=\"input-group\"><input type=\"password\" id=\"$1\" name=\"$1\" class=\"form-control\"" \
+	 " value=\"$v\" placeholder=\"K3wLHaZk3R!\"><label class=\"input-group-text\"><input type=\"checkbox\"" \
+	 " class=\"form-check-input me-1\" data-for=\"$1\"> show</label></span>"
 	[ -n "$3" ] && echo "<span class=\"hint text-secondary\">$3</span>"
 	echo "</div>"
 }
@@ -287,6 +295,7 @@ field_password() {
 # field_range "name" "label" "range" "hint"
 field_range() {
 	local ab mn mx n r st v vr
+
 	n=$1
 	r=$3 # min,max,step,button
 	mn=$(echo "$r" | cut -d, -f1)
@@ -296,28 +305,30 @@ field_range() {
 	v=$(t_value "$n")
 	vr=$v
 	[ -z "$vr" -o "$ab" = "$vr" ] && vr=$(((mn + mx) / 2))
-	echo "<div class=\"mb-2 range\" id=\"${n}_wrap\">
-	<label class=\"form-label\" for=\"$n\">$2</label>
-	<span class=\"input-group\">"
+	echo "<div class=\"mb-2 range\" id=\"${n}_wrap\"><label class=\"form-label\" for=\"$n\">$2</label>" \
+	 "<span class=\"input-group\">"
 	# NB! no name on checkbox, since we don't want its data submitted
-	[ -n "$ab" ] && echo "<label class=\"input-group-text\" for=\"$n-auto\">$ab
-	<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")>
-	</label>"
+	if [ -n "$ab" ]; then
+		echo "<label class=\"input-group-text\" for=\"$n-auto\">$ab <input type=\"checkbox\"" \
+		 " class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\"" \
+		 " data-value=\"$vr\" $(checked_if "$ab" "$v")></label>"
+	fi
 	echo "<span class=\"input-group-text range-value text-end\" id=\"$n-show\">$v</span>"
 	# Input that holds the submitting value.
-	echo "<input type=\"range\" id=\"$n\" name=\"$n\" value=\"$vr\" min=\"$mn\" max=\"$mx\" step=\"$st\" class=\"form-control form-range\">
-	</span>"
+	echo "<input type=\"range\" id=\"$n\" name=\"$n\" value=\"$vr\" min=\"$mn\" max=\"$mx\" step=\"$st\"" \
+	 " class=\"form-control form-range\"></span>"
 	[ -n "$4" ] && echo "<span class=\"hint text-secondary\">$4</span>"
 	echo "</div>"
 }
 
 # field_select "name" "label" "options" "hint" "units"
 field_select() {
-	local o=$3
+	local o n v
+
+	o=$3
 	o=${o//,/ }
-	echo "<div class=\"mb-2 select\" id=\"$1_wrap\">
-	<label for=\"$1\" class=\"form-label\">$2</label>
-	<select class=\"form-select\" id=\"$1\" name=\"$1\">"
+	echo "<div class=\"mb-2 select\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$2</label>" \
+	 "<select class=\"form-select\" id=\"$1\" name=\"$1\">"
 	[ -z "$(t_value "$1")" ] && echo "<option value=\"\">- Select -</option>"
 	for o in $o; do
 		v="${o%:*}"
@@ -337,18 +348,18 @@ field_select() {
 # field_swith "name" "label" "hint" "options"
 field_switch() {
 	local o o1 o2 v
+
 	v=$(t_value "$1")
 	default_for v "false"
 	o=$4
 	default_for o "true,false"
 	o1=$(echo "$o" | cut -d, -f1)
 	o2=$(echo "$o" | cut -d, -f2)
-	echo "<div class=\"mb-2 boolean\" id=\"$1_wrap\">
-	<span class=\"form-check form-switch\">
-	<input type=\"hidden\" id=\"$1-false\" name=\"$1\" value=\"$o2\">
-	<input type=\"checkbox\" id=\"$1\" name=\"$1\" value=\"$o1\" role=\"switch\" class=\"form-check-input\"$(checked_if "$o1" "$v")>
-	<label for=\"$1\" class=\"form-check-label\">$2</label>
-	</span>"
+	echo "<div class=\"mb-2 boolean\" id=\"$1_wrap\"><span class=\"form-check form-switch\">" \
+	 "<input type=\"hidden\" id=\"$1-false\" name=\"$1\" value=\"$o2\">" \
+	 "<input type=\"checkbox\" id=\"$1\" name=\"$1\" value=\"$o1\" role=\"switch\"" \
+	 " class=\"form-check-input\"$(checked_if "$o1" "$v")>" \
+	 "<label for=\"$1\" class=\"form-check-label\">$2</label></span>"
 	[ -n "$3" ] && echo "<span class=\"hint text-secondary\">$3</span>"
 	echo "</div>"
 }
@@ -356,33 +367,31 @@ field_switch() {
 # field_text "name" "label" "hint" "placeholder" "extra"
 field_text() {
 	local h p v
+
 	v="$(t_value "$1")"
 	h="$3"
 	p="$4"
-	echo "<div class=\"mb-2 string\" id=\"$1_wrap\">
-	<label for=\"$1\" class=\"form-label\">$2</label>
-	<input type=\"text\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"$p\"$5>"
+	echo "<div class=\"mb-2 string\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$2</label>" \
+	 "<input type=\"text\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"$p\"$5>"
 	[ -n "$h" ] && echo "<span class=\"hint text-secondary\">$h</span>"
 	echo "</div>"
 }
 
 # field_textarea "name" "label" "hint"
 field_textarea() {
-	local v="$(t_value "$1")"
-	echo "<div class=\"mb-2 textarea\" id=\"$1_wrap\">
-	<label for=\"$1\" class=\"form-label\">$2</label>
-	<textarea id=\"$1\" name=\"$1\" class=\"form-control\">$v</textarea>"
+	local v
+
+	v="$(t_value "$1")"
+	echo "<div class=\"mb-2 textarea\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$2</label>" \
+	 "<textarea id=\"$1\" name=\"$1\" class=\"form-control\">$v</textarea>"
 	[ -n "$3" ] && echo "<span class=\"hint text-secondary\">$3</span>"
 	echo "</div>"
 }
 
 # field_textedit "name" "file" "label"
 field_textedit() {
-	local v=$(cat "$2")
-	echo "<div class=\"mb-2 textarea\" id=\"$1_wrap\">
-	<label for=\"$1\" class=\"form-label\">$3</label>
-	<textarea id=\"$1\" name=\"$1\" class=\"form-control\">$v</textarea>
-	</div>"
+	echo "<div class=\"mb-2 textarea\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$3</label>" \
+	 "<textarea id=\"$1\" name=\"$1\" class=\"form-control\">$(cat "$2")</textarea></div>"
 }
 
 http_header() {
@@ -412,10 +421,6 @@ html_theme() {
 	esac
 }
 
-is_ap() {
-	[ "true" = "$wlanap_enabled" ]
-}
-
 is_pwm_pin() {
 	pwm-ctrl -l | awk "/^GPIO $1/{print \$4}" | sed s/PWM//
 }
@@ -433,7 +438,8 @@ link_to() {
 }
 
 wiki_page() {
-	echo "<p class=\"mb-0\"><a class=\"text-info\" href=\"https://github.com/themactep/thingino-firmware/wiki/$1\">Thingino Wiki</a></p>"
+	echo "<p class=\"mb-0\"><a class=\"text-info\"" \
+	" href=\"https://github.com/themactep/thingino-firmware/wiki/$1\">Thingino Wiki</a></p>"
 }
 
 log() {
@@ -500,7 +506,9 @@ pre() {
 progressbar() {
 	local c="primary"
 	[ "$1" -ge "75" ] && c="danger"
-	echo "<div class=\"progress\" role=\"progressbar\" aria-valuenow=\"$1\" aria-valuemin=\"0\" aria-valuemax=\"100\"><div class=\"progress-bar progress-bar-striped progress-bar-animated bg-$c\" style=\"width:$1%\"></div></div>"
+	echo "<div class=\"progress\" role=\"progressbar\" aria-valuenow=\"$1\" aria-valuemin=\"0\"" \
+	 " aria-valuemax=\"100\"><div class=\"progress-bar progress-bar-striped progress-bar-animated bg-$c\"" \
+	 " style=\"width:$1%\"></div></div>"
 }
 
 read_from_config() {
@@ -628,7 +636,9 @@ tab_lap() {
 	c=""
 	s="false"
 	[ -n "$3" ] && s="true" && c=" active"
-	echo "<li class=\"nav-item\" role=\"presentation\"><button role=\"tab\" id=\"#$1-tab\" class=\"nav-link$c\" data-bs-toggle=\"tab\" data-bs-target=\"#$1-tab-pane\" aria-controls=\"$1-tab-pane\" aria-selected=\"$s\">$2</button></li>"
+	echo "<li class=\"nav-item\" role=\"presentation\"><button role=\"tab\" id=\"#$1-tab\"" \
+	 " class=\"nav-link$c\" data-bs-toggle=\"tab\" data-bs-target=\"#$1-tab-pane\"" \
+	 " aria-controls=\"$1-tab-pane\" aria-selected=\"$s\">$2</button></li>"
 }
 
 t_value() {
@@ -722,7 +732,11 @@ include() {
 
 [ -f /etc/os-release ] && . /etc/os-release
 
-[ "100.64.1.1" = $(ifconfig wlan0|sed -En 's/^\s*inet addr:([0-9.]+)\s.*/\1/p') ] && wlanap_enabled="true" || wlanap_enabled="false"
+if [ "100.64.1.1" = $(ifconfig wlan0 | sed -En 's/^\s*inet addr:([0-9.]+)\s.*/\1/p') ]; then
+	wlanap_enabled="true"
+else
+	wlanap_enabled="false"
+fi
 
 assets_ts=$(date +%Y%m%d%H%M)
 
