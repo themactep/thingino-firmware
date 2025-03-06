@@ -1,61 +1,122 @@
 #!/bin/sh
 
 . /usr/share/common
-if pidof -o %PPID $(basename $0) > /dev/null; then
-	echo "is already running" >&2
-	exit 1
-fi
 
-
-STOP_FILE="/tmp/daynight.stop"
+singleton $0
 
 MODE_FILE="/tmp/nightmode.txt"
 [ -f "$MODE_FILE" ] || echo "day" > "$MODE_FILE"
 
-is_disabled() {
-	[ -f "$STOP_FILE" ]
-}
-
 controls_color() {
-	[ "true" = "$day_night_color" ]
+	if [ "true" != "$day_night_color" ]; then
+		echo "- Color not enabled" >&2
+		return 1
+	fi
 }
 
 controls_ircut() {
-	[ "true" = "$day_night_ircut" ]
+	if [ "true" != "$day_night_ircut" ]; then
+		echo "- IR-CUT filter not enabled" >&2
+		return 1
+	fi
 }
 
 controls_ir850() {
-	[ "true" = "$day_night_ir850" ]
+	if [ "true" != "$day_night_ir850" ]; then
+		echo "- IR LED 850mn not enabled" >&2
+		return 1
+	fi
+
+	if [ -z "$gpio_ir850" ]; then
+		echo "- IR LED 850mn not configured" >&2
+		return 1
+	fi
 }
 
 controls_ir940() {
-	[ "true" = "$day_night_ir940" ]
+	if [ "true" != "$day_night_ir940" ]; then
+		echo "- IR LED 940mn not enabled" >&2
+		return 1
+	fi
+
+	if [ -z "$gpio_ir940" ]; then
+		echo "- IR LED 940mn not configured" >&2
+		return 1
+	fi
 }
 
 controls_white() {
-	[ "true" = "$day_night_white" ]
+	if [ "true" != "$day_night_white" ]; then
+		echo "- White Light not enabled" >&2
+		return 1
+	fi
+
+	if [ -z "$gpio_white" ]; then
+		echo "- White Light not configured" >&2
+		return 1
+	fi
 }
 
 switch_to_day() {
-	is_disabled && return
-	controls_ircut && ircut on
-	controls_ir850 && irled off ir850
-	controls_ir940 && irled off ir940
-	controls_white && irled off white
-	controls_color && color on
+	echo "Switching to day mode..." >&2
+
+	if controls_ircut; then
+		echo "- set IR-CUT filter" >&2
+		ircut on &
+	fi
+
+	if controls_ir850; then
+		echo "- turn IR LED 850mn OFF" >&2
+		irled off ir850 &
+	fi
+
+	if controls_ir940; then
+		echo "- turn IR LED 940mn OFF" >&2
+		irled off ir940 &
+	fi
+
+	if controls_white; then
+		echo "- turn White Light OFF" >&2
+		irled off white &
+	fi
+
+	if controls_color; then
+		echo "- switch to color mode" >&2
+		color on &
+	fi
+
 	echo "day" > "$MODE_FILE"
-	echo "switched to day" >&2
 }
 
 switch_to_night() {
-	is_disabled && return
-	controls_color && color off
-	controls_ircut && ircut off
-	controls_ir850 && irled on ir850
-	controls_ir940 && irled on ir940
-	controls_white && irled on white
+	echo "Switched to night mode" >&2
+
+	if controls_color; then
+		echo "- switch to monocrome mode" >&2
+        	color off &
+	fi
+
+	if controls_ircut; then
+		echo "- remove IR-CUT filter" >&2
+        	ircut off &
+	fi
+
+	if controls_ir850; then
+		echo "- turn IR LED 850mn ON" >&2
+                irled on ir850 &
+	fi
+
+	if controls_ir940; then
+		echo "- turn IR LED 940mn ON" >&2
+                irled on ir940 &
+	fi
+
+	if controls_white; then
+		echo "- turn White Light ON" >&2
+                irled on white &
+	fi
+
 	echo "night" > "$MODE_FILE"
-	echo "switched to night" >&2
 }
 
 # determine luminance of the scene
@@ -86,7 +147,15 @@ case "$1" in
 		echo $state
 		;;
 	*)
-		echo "$day_night_min - $value - $day_night_max" >&2
+		echo "day_night_min: $day_night_min" >&2
+		echo "day_night_max: $day_night_max" >&2
+		echo "state: $state" >&2
+		if [ "day" = "$state" ]; then
+			echo "active range: 0-$day_night_max" >&2
+		else
+			echo "active range: $day_night_min-Infinity" >&2
+		fi
+		echo "value: $value" >&2
 
 		if [ "$reversed" -eq 0 ]; then
 			if [ "$value" -lt "$day_night_min" ] && [ "day" != "$state" ]; then
