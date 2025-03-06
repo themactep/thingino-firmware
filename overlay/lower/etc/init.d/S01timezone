@@ -2,10 +2,6 @@
 
 . /usr/share/common
 
-TZNAME_FILE="/etc/timezone"
-TZCODE_FILE="/etc/TZ"
-TZJSON_FILE="/usr/share/tz.json.gz"
-
 start() {
 	starting
 

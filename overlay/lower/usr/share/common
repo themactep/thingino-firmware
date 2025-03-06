@@ -35,6 +35,9 @@ RESOLV_WORKING_FILE="/tmp/resolv.conf"
 SOC_FAMILY=$(soc -f)
 SOC_MODEL=$(soc -m)
 SNAPSHOT_FILE="/tmp/snapshot.jpg"
+TZNAME_FILE="/etc/timezone"
+TZCODE_FILE="/etc/TZ"
+TZJSON_FILE="/usr/share/tz.json.gz"
 VBUFFER_FILE="/tmp/vbuffer.mov"
 
 DAEMON=${DAEMON:-$0}
