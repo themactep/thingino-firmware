@@ -7,13 +7,13 @@ fi
 
 ENV_DUMP_FILE="/tmp/environment"
 if [ -f "$ENV_DUMP_FILE" ]; then
-	echo "Evaluating $ENV_DUMP_FILE" >&2
+#	echo "Evaluating $ENV_DUMP_FILE" >&2
 	. "$ENV_DUMP_FILE"
 fi
 
 CONFIG_FILE="/etc/web.conf"
 if [ -f "$CONFIG_FILE" ]; then
-	echo "Evaluating $CONFIG_FILE" >&2
+#	echo "Evaluating $CONFIG_FILE" >&2
 	. "$CONFIG_FILE"
 fi
 
@@ -48,7 +48,7 @@ LOCK_FILE="/run/process-$PID.pid"
 
 DAEMON_CONFIG="/etc/default/$DAEMON_SHORT"
 if [ -r "$DAEMON_CONFIG" ]; then
-	echo "Evaluating $DAEMON_CONFIG" >&2
+#	echo "Evaluating $DAEMON_CONFIG" >&2
 	. "$DAEMON_CONFIG"
 fi
 
