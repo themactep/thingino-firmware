@@ -143,4 +143,4 @@ class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover">
 
 <h2><%= $page_title %></h2>
 
-<% alert_read %>
+<% alerts_read %>

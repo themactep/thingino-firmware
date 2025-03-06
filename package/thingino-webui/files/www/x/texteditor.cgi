@@ -21,7 +21,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			;;
 		save)
 			if [ -z "$editor_text" ]; then
-				alert_save "warning" "Empty payload. File not saved!"
+				alert_append "warning" "Empty payload. File not saved!"
 			else
 				if [ -n "$editor_backup" ]; then
 					cp "$editor_file" "$backup_file"
@@ -33,7 +33,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			fi
 			;;
 		*)
-			alert_save "danger" "UNKNOWN ACTION: $POST_action"
+			alert_append "danger" "UNKNOWN ACTION: $POST_action"
 			;;
 	esac
 else

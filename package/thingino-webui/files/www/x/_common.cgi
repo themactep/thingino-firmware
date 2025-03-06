@@ -19,7 +19,9 @@ pagename=$(basename "$SCRIPT_NAME")
 pagename="${pagename%%.*}"
 
 # files
-alert_file=/tmp/alert.txt
+alerts_dir=/tmp/alerts
+[ -d "$alerts_dir" ] || mkdir -p "$alerts_dir"
+
 signature_file=/tmp/signature.txt
 sysinfo_file=/tmp/sysinfo.txt
 webui_log=/tmp/webui.log
@@ -39,32 +41,24 @@ default_for() {
 }
 
 alert_append() {
-	echo "$1:$2" >> "$alert_file"
+	echo "$2" >> "$alerts_dir/$1.txt"
 }
 
-alert_delete() {
-	: > "$alert_file"
-}
+alerts_read() {
+	[ -d "$alerts_dir" ] || return
+	[ -z "$(ls -A $alerts_dir)" ] && return
 
-alert_read() {
-	[ -f "$alert_file" ] || return
-	[ -s "$alert_file" ] || return
-	local c l m
 	IFS=$'\n'
-	for l in $(cat "$alert_file"); do
-		c="$(echo $l | cut -d':' -f1)"
-		m="$(echo $l | cut -d':' -f2-)"
-		echo "<div class=\"alert alert-$c alert-dismissible fade show\" role=\"alert\">$m
-		<button type=\"button\" class=\"btn btn-close\" data-bs-dismiss=\"alert\" aria-label=\"Close\"></button>
-		</div>"
+	for file in $(ls -1 $alerts_dir/*.txt); do
+		echo "<div class=\"alert alert-$(basename $file .txt) alert-dismissible fade show\" role=\"alert\">"
+		for line in $(cat $file); do
+			echo "<p>$line</p>"
+		done
+		echo "<button type=\"button\" class=\"btn btn-close\" data-bs-dismiss=\"alert\"" \
+		 " aria-label=\"Close\"></button></div>"
+		rm $file
 	done
 	IFS=$IFS_ORIG
-	alert_delete
-}
-
-alert_save() {
-	alert_delete
-	alert_append "$1" "$2"
 }
 
 # time_gmt "format" "date"
@@ -529,7 +523,7 @@ redirect_back() {
 
 # redirect_to "url" "flash class" "flash text"
 redirect_to() {
-	[ -n "$3" ] && alert_save "$2" "$3"
+	[ -n "$3" ] && alert_append "$2" "$3"
 	echo "HTTP/1.1 303 See Other
 Content-type: text/html; charset=UTF-8
 Cache-Control: no-store
