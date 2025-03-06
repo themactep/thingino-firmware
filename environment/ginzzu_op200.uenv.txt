@@ -11,5 +11,5 @@ gpio_speaker=63O
 gpio_wlan=40o
 motor_maxstep_h=3700
 motor_maxstep_v=1000
-wlan_module=ssv6155
+wlan_module=ssv6x5x
 wlan_module_opts=stacfgpath=/usr/share/wifi/ssv6006c-wifi.cfg
