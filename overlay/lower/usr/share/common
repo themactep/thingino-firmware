@@ -75,7 +75,7 @@ die() {
 }
 
 ensure_command() {
-	if command -v "$1" > /dev/null; then
+	if ! command -v "$1" > /dev/null; then
 		echo "Missing $1" >&2
 		exit 1
 	fi
