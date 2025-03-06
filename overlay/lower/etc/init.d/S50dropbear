@@ -1,11 +1,6 @@
 #!/bin/sh
 
 DAEMON_ARGS="-k -K 300 -R"
-# -k              Disable remote port forwarding
-# -K <keepalive>  (0 is never, default 0, in seconds)
-# -b bannerfile   Display the contents of bannerfile before user login
-# -R              Create hostkeys as required
-
 DROPBEAR_KEY_FILE="/etc/dropbear/dropbear_ed25519_host_key"
 
 . /usr/share/common
@@ -16,7 +11,6 @@ start() {
 	umask 077
 
 	if [ ! -f $DROPBEAR_KEY_FILE ]; then
-		echo "- Generating ed25519 host key..."
 		dropbearkey -t ed25519 -f $DROPBEAR_KEY_FILE
 	fi
 
