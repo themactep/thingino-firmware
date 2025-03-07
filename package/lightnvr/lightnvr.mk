@@ -1,0 +1,13 @@
+LIGHTNVR_SITE_METHOD = git
+LIGHTNVR_SITE = https://github.com/opensensor/lightNVR
+LIGHTNVR_SITE_BRANCH = main
+LIGHTNVR_VERSION = $(shell git ls-remote $(LIGHTNVR_SITE) $(LIGHTNVR_SITE_BRANCH) | head -1 | cut -f1)
+
+LIGHTNVR_LICENSE = GPL-2.0
+LIGHTNVR_LICENSE_FILES = COPYING
+
+LIGHTNVR_INSTALL_STAGING = YES
+
+LIGHTNVR_DEPENDENCIES = ffmpeg sqlite
+
+$(eval $(cmake-package))

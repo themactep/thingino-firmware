@@ -1,0 +1,8 @@
+config BR2_PACKAGE_LIGHTNVR
+	bool "lightnvr"
+	select BR2_PACKAGE_FFMPEG
+	select BR2_PACKAGE_FFMPEG_SWSCALE
+	select BR2_PACKAGE_SQLITE
+	default n
+	help
+	  Experimental NVR for Ingenic SoC's

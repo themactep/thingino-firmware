@@ -113,6 +113,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-tailscale/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wpa_supplicant/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wyze-accessory/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/zerotier-one/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/lightnvr/Config.in"
 
 config BR2_PACKAGE_IFUPDOWN_SCRIPTS
 	bool "ifupdown-scripts"
