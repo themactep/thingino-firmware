@@ -268,3 +268,9 @@ config BR2_PACKAGE_THINGINO_KOPT_USB_MASS_STORAGE
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
 	  Enables USB Mass Storage device class support.
+
+config BR2_PACKAGE_THINGINO_KOPT_EXTFS
+	bool "EXT2/EXT4 Filesystem Support"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enables EXT2 and EXT4 filesystem support with all dependencies.
