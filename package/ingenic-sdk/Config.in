@@ -1,6 +1,5 @@
 config BR2_PACKAGE_INGENIC_SDK
 	bool "Ingenic SDK"
-	depends on !(BR2_SOC_FAMILY_INGENIC_A1)
 	default y
 	select BR2_LINUX_KERNEL
 	help
