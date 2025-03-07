@@ -957,6 +957,8 @@ ifeq ($(BR2_SOC_INGENIC_T40),y)
 	UBOOT_REPO_BRANCH := t40
 else ifeq ($(BR2_SOC_INGENIC_T41),y)
 	UBOOT_REPO_BRANCH := t41
+else ifeq ($(BR2_SOC_INGENIC_A1),y)
+	UBOOT_REPO_BRANCH := a1
 else
 	UBOOT_REPO_BRANCH := master
 endif
