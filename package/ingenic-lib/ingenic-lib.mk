@@ -1,7 +1,7 @@
 INGENIC_LIB_SITE_METHOD = git
 INGENIC_LIB_SITE = https://github.com/gtxaspec/ingenic-lib
 INGENIC_LIB_SITE_BRANCH = master
-INGENIC_LIB_VERSION = a6d2b52dcd4dfa55d16a5cc78bb4af1d7015cee1
+INGENIC_LIB_VERSION = 9e746239c1d72e1c3c0b398f6dbacfa0252cbb6b
 # $(shell git ls-remote $(INGENIC_LIB_SITE) $(INGENIC_LIB_SITE_BRANCH) | head -1 | cut -f1)
 INGENIC_LIB_INSTALL_STAGING = YES
 
