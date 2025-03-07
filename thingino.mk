@@ -340,35 +340,35 @@ else ifeq ($(BR2_SOC_INGENIC_A1N),y)
 	SOC_RAM := 256
 	BR2_SOC_INGENIC_A1 := y
 	BR2_XBURST_2 := y
-	UBOOT_BOARDNAME := "isvp_a1_n_lzma_sfc0nor"
+	UBOOT_BOARDNAME := "isvp_a1_n_sfc0nor"
 else ifeq ($(BR2_SOC_INGENIC_A1NT),y)
 	SOC_FAMILY := a1
 	SOC_MODEL := a1nt
 	SOC_RAM := 256
 	BR2_SOC_INGENIC_A1 := y
 	BR2_XBURST_2 := y
-	UBOOT_BOARDNAME := "isvp_a1_nt_lzma_sfc0nor"
+	UBOOT_BOARDNAME := "isvp_a1_nt_sfc0nor"
 else ifeq ($(BR2_SOC_INGENIC_A1X),y)
 	SOC_FAMILY := a1
 	SOC_MODEL := a1x
 	SOC_RAM := 256
 	BR2_SOC_INGENIC_A1 := y
 	BR2_XBURST_2 := y
-	UBOOT_BOARDNAME := "isvp_a1_x_lzma_sfc0nor"
+	UBOOT_BOARDNAME := "isvp_a1_x_sfc0nor"
 else ifeq ($(BR2_SOC_INGENIC_A1L),y)
 	SOC_FAMILY := a1
 	SOC_MODEL := a1l
 	SOC_RAM := 128
 	BR2_SOC_INGENIC_A1 := y
 	BR2_XBURST_2 := y
-	UBOOT_BOARDNAME := "isvp_a1_l_lzma_sfc0nor"
+	UBOOT_BOARDNAME := "isvp_a1_l_sfc0nor"
 else ifeq ($(BR2_SOC_INGENIC_A1A),y)
 	SOC_FAMILY := a1
 	SOC_MODEL := a1a
 	SOC_RAM := 512
 	BR2_SOC_INGENIC_A1 := y
 	BR2_XBURST_2 := y
-	UBOOT_BOARDNAME := "isvp_a1_a_lzma_sfc0nor"
+	UBOOT_BOARDNAME := "isvp_a1_a_sfc0nor"
 endif
 
 SOC_FAMILY_CAPS := $(shell echo $(SOC_FAMILY) | tr a-z A-Z)
