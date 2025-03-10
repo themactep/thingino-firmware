@@ -1,8 +1,12 @@
-THINGINO_FFMPEG_VERSION = 7.1
+THINGINO_FFMPEG_VERSION = 7.1.1
 THINGINO_FFMPEG_SOURCE = ffmpeg-$(THINGINO_FFMPEG_VERSION).tar.xz
 THINGINO_FFMPEG_SITE = http://ffmpeg.org/releases
 
+ifeq ($(BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR),y)
+THINGINO_FFMPEG_INSTALL_STAGING = YES
+else
 THINGINO_FFMPEG_INSTALL_STAGING = NO
+endif
 
 THINGINO_FFMPEG_LICENSE = LGPL-2.1+, libjpeg license
 THINGINO_FFMPEG_LICENSE_FILES = LICENSE.md COPYING.LGPLv2.1
@@ -69,6 +73,7 @@ THINGINO_FFMPEG_CONF_OPTS = \
 	--enable-muxer=segment \
 	--enable-bsf=aac_adtstoasc \
 	--enable-decoder=aac \
+	--disable-static \
 	--enable-shared \
 	--disable-doc \
 	--disable-podpages \
