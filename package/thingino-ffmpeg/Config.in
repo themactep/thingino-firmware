@@ -6,3 +6,13 @@ config BR2_PACKAGE_THINGINO_FFMPEG
 	  FFmpeg is a complete, cross-platform solution to record,
 	  convert and stream audio and video.
 	  http://www.ffmpeg.org
+
+config BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR
+	bool "Thingino FFMpeg for lightnvr"
+	depends on BR2_PACKAGE_LIGHTNVR
+	help
+	  Feature-reduced FFmpeg binary specifically configured
+	  to perform recording on thingino devices.
+	  FFmpeg is a complete, cross-platform solution to record,
+	  convert and stream audio and video.
+	  http://www.ffmpeg.org

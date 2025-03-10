@@ -48,6 +48,54 @@ THINGINO_FFMPEG_CONF_OPTS = \
 	--extra-cxxflags="-Os -flto-partition=none" \
 	--extra-ldflags="-z max-page-size=0x1000 -flto-partition=none -Wl,--gc-sections"
 
+# Override with lightnvr-specific options if that package is selected
+ifeq ($(BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR),y)
+# Add lightnvr as a dependency
+THINGINO_FFMPEG_DEPENDENCIES += lightnvr
+
+THINGINO_FFMPEG_CONF_OPTS = \
+	--prefix=/usr \
+	--enable-mipsfpu \
+	--enable-cross-compile \
+	--disable-everything \mak
+	--disable-cuda \
+	--disable-cuda-llvm \
+	--enable-gpl \
+	--enable-version3 \
+	--enable-avformat \
+	--enable-avcodec \
+	--enable-network \
+	--enable-protocol=http,tcp,udp,file \
+	--enable-parser=h264,hevc,aac,opus \
+	--enable-demuxer=rtsp,mov,m4a,mpegts,h264 \
+	--enable-muxer=mp4,opus,mpegts,hls \
+	--enable-muxer=segment \
+	--enable-bsf=aac_adtstoasc \
+	--enable-decoder=aac \
+	--enable-shared \
+	--disable-doc \
+	--disable-podpages \
+	--disable-htmlpages \
+	--disable-manpages \
+	--disable-txtpages \
+	--disable-iconv \
+	--disable-zlib \
+	--disable-swscale \
+	--disable-avdevice \
+	--disable-postproc \
+	--disable-debug \
+	--disable-ffprobe \
+	--disable-ffmpeg \
+	--enable-small \
+	--disable-encoders \
+	--disable-runtime-cpudetect \
+	--disable-swresample \
+	--program-suffix="-lightnvr" \
+	--extra-cflags="-Os -flto-partition=none" \
+	--extra-cxxflags="-Os -flto-partition=none" \
+	--extra-ldflags="-z max-page-size=0x1000 -flto-partition=none -Wl,--gc-sections"
+endif
+
 THINGINO_FFMPEG_DEPENDENCIES += host-pkgconf host-upx
 
 # Default to --cpu=generic for MIPS architecture, in order to avoid a
