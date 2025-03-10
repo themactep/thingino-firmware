@@ -50,9 +50,6 @@ THINGINO_FFMPEG_CONF_OPTS = \
 
 # Override with lightnvr-specific options if that package is selected
 ifeq ($(BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR),y)
-# Add lightnvr as a dependency
-THINGINO_FFMPEG_DEPENDENCIES += lightnvr
-
 THINGINO_FFMPEG_CONF_OPTS = \
 	--prefix=/usr \
 	--enable-mipsfpu \
@@ -65,9 +62,9 @@ THINGINO_FFMPEG_CONF_OPTS = \
 	--enable-avformat \
 	--enable-avcodec \
 	--enable-network \
-	--enable-protocol=http,tcp,udp,file \
+	--enable-protocol=http,tcp,udp,file,rtsp,rtp \
 	--enable-parser=h264,hevc,aac,opus \
-	--enable-demuxer=rtsp,mov,m4a,mpegts,h264 \
+	--enable-demuxer=rtsp,rtp,mov,m4a,mpegts,h264 \
 	--enable-muxer=mp4,opus,mpegts,hls \
 	--enable-muxer=segment \
 	--enable-bsf=aac_adtstoasc \
@@ -90,13 +87,16 @@ THINGINO_FFMPEG_CONF_OPTS = \
 	--disable-encoders \
 	--disable-runtime-cpudetect \
 	--disable-swresample \
-	--program-suffix="-lightnvr" \
 	--extra-cflags="-Os -flto-partition=none" \
 	--extra-cxxflags="-Os -flto-partition=none" \
 	--extra-ldflags="-z max-page-size=0x1000 -flto-partition=none -Wl,--gc-sections"
 endif
 
+ifeq ($(BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR),y)
+THINGINO_FFMPEG_DEPENDENCIES += host-pkgconf
+else
 THINGINO_FFMPEG_DEPENDENCIES += host-pkgconf host-upx
+endif
 
 # Default to --cpu=generic for MIPS architecture, in order to avoid a
 # warning from ffmpeg's configure script.
@@ -145,7 +145,8 @@ define THINGINO_FFMPEG_UPX_INSTALL
 		$(HOST_DIR)/bin/upx --best --lzma $(TARGET_DIR)/usr/bin/ffmpeg
 endef
 
+ifneq ($(BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR),y)
 THINGINO_FFMPEG_POST_INSTALL_TARGET_HOOKS += THINGINO_FFMPEG_UPX_INSTALL
-
+endif
 
 $(eval $(autotools-package))

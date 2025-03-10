@@ -9,7 +9,6 @@ config BR2_PACKAGE_THINGINO_FFMPEG
 
 config BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR
 	bool "Thingino FFMpeg for lightnvr"
-	depends on BR2_PACKAGE_LIGHTNVR
 	help
 	  Feature-reduced FFmpeg binary specifically configured
 	  to perform recording on thingino devices.
