@@ -57,7 +57,7 @@ THINGINO_FFMPEG_CONF_OPTS = \
 	--prefix=/usr \
 	--enable-mipsfpu \
 	--enable-cross-compile \
-	--disable-everything \mak
+	--disable-everything \
 	--disable-cuda \
 	--disable-cuda-llvm \
 	--enable-gpl \
