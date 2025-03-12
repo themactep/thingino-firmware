@@ -1,0 +1,3 @@
+gpio_buzzer=144
+gpio_pin3=78
+gpio_pin4=79
