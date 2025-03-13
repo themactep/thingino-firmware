@@ -36,7 +36,7 @@ print_soc_family() {
 
 print_soc_model() {
 	read_registers
-	if [ "$cpuid" -eq $((0x40)) ] || [ "$cpuid" -eq $((0x41)) ]; then
+	if [ "$cpuid" -eq $((0x40)) ] || [ "$cpuid" -eq $((0x41)) ] || [ "$cpuid" -eq $((0x01)) ]; then
 		type=$type2
 	else
 		type=$type1
@@ -85,6 +85,11 @@ print_soc_model() {
 		0x00409999) soc="t41lq" ;;
 		0x0040AAAA) soc="t41nq" ;;
 		# 0x0041????) soc="t41xq" ;;
+		0x00011111) soc="a1n" ;;
+		0x00012222) soc="a1x" ;;
+		0x00013333) soc="a1l" ;;
+		0x00014444) soc="a1a" ;;
+		0x00015555) soc="a1nt" ;;
 		*)
 			echo "Unknown SoC: $cpu_sig"
 			exit 1
