@@ -1,9 +1,9 @@
 gpio_button=107
-gpio_default=105o 106o
+gpio_default=105O 106O
 gpio_ir940=66
 gpio_ircut=119 118
-gpio_led_b=105
-gpio_led_y=106
+gpio_led_b=105o
+gpio_led_y=106o
 gpio_mmc_cd=70
 gpio_mmc_power=71
 #gpio_mmc_power=58
