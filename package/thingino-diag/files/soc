@@ -25,77 +25,79 @@ print_wiki_line() {
 		"$cpuid_raw" "$cpuid" "$cppsr_raw" "$cppsr" "$subrm_raw" "$subrm" "$type1_raw" "$type1" "$type2_raw" "$type2"
 }
 
-print_soc_family() {
-	read_registers
-	case "$cpuid" in
-		5) cpuid=0x10 ;;
-		8192) cpuid=0x20 ;;
-	esac
-	printf 't%X\n' $cpuid
-}
-
 print_soc_model() {
 	read_registers
-	if [ "$cpuid" -eq $((0x40)) ] || [ "$cpuid" -eq $((0x41)) ] || [ "$cpuid" -eq $((0x01)) ]; then
-		type=$type2
+
+	if [ "$cpuid" -eq $((0x40)) ]; then # Identify based only on cpuid and type2
+		case "$type2" in
+			$((0x1111))) soc="t40n" ;;
+			$((0x7777))) soc="t40xp" ;;
+			$((0x8888))) soc="t40nn" ;;
+			#$((0x1111))) soc="t41n" ;; # overlap with t40nn, verify on chip
+			$((0x3333))) soc="t41l" ;;
+			$((0x4444))) soc="t41a" ;;
+			$((0x5555))) soc="t41zl" ;;
+			$((0x6666))) soc="t41zx" ;;
+			#$((0x7777))) soc="t41zn" ;; # overlap with t40xp
+			#$((0x????))) soc="t41zm" ;; # verify on chip
+			#$((0x????))) soc="t41zg" ;; # verify on chip
+			$((0x9999))) soc="t41lq" ;;
+			$((0xAAAA))) soc="t41nq" ;;
+			*) soc="unknown_t4x" ;;
+		esac
+	elif [ "$cpuid" -eq $((0x1)) ]; then
+		case "$type2" in
+			$((0x1111))) soc="a1n" ;;
+			$((0x5555))) soc="a1nt" ;;
+			$((0x2222))) soc="a1x" ;;
+			$((0x3333))) soc="a1l" ;;
+			$((0x4444))) soc="a1a" ;;
+			*) soc="unknown_a1x" ;;
+		esac
 	else
+		# For all other chips, use type1
 		type=$type1
+
+		cpu_sig=$(printf '0x%08X' $(((cpuid << 16) | type)))
+		case "$cpu_sig" in
+			0x00050000) soc="t10" ;;
+			0x20001111) soc="t20n" ;;
+			0x20002222) soc="t20x" ;;
+			0x20003333) soc="t20l" ;;
+			0x00211111) soc="t21n" ;;
+			0x00213333) soc="t21l" ;;
+			0x00215555) soc="t21z" ;;
+			0x00231111) soc="t23n" ;;
+			0x00237777) soc="t23zn" ;;
+			0x00301111) soc="t30n" ;;
+			0x00302222) soc="t30x" ;;
+			0x00303333) soc="t30al" ;;
+			0x00304444) soc="t30a" ;;
+			0x00305555) soc="t30z" ;;
+			0x00311111) soc="t31n" ;;
+			0x00312222) soc="t31x" ;;
+			0x00313333) soc="t31l" ;;
+			0x00314444) soc="t31a" ;;
+			0x00315555) soc="t31zl" ;;
+			0x00316666) soc="t31zx" ;;
+			0x0031CCCC) soc="t31al" ;;
+			0x0031DDDD) soc="t31zc" ;;
+			0x0031EEEE) soc="t31lc" ;;
+			*)
+				echo "Unknown SoC signature: $cpu_sig" >&2
+				soc="unknown"
+				;;
+		esac
 	fi
-	cpu_sig=$(printf '0x%08X' $(((cpuid << 16) | type)))
-	case "$cpu_sig" in
-		0x00050000) soc="t10" ;;
-		0x20001111) soc="t20n" ;;
-		0x20002222) soc="t20x" ;;
-		0x20003333) soc="t20l" ;;
-		# 0x2000????) soc="t20m" ;;
-		0x00211111) soc="t21n" ;;
-		0x00213333) soc="t21l" ;;
-		0x00215555) soc="t21z" ;;
-		0x00231111) soc="t23n" ;;
-		0x00237777) soc="t23zn" ;;
-		0x00301111) soc="t30n" ;;
-		0x00302222) soc="t30x" ;;
-		0x00303333) soc="t30al" ;;
-		0x00304444) soc="t30a" ;;
-		0x00305555) soc="t30z" ;;
-		0x00311111) soc="t31n" ;;
-		0x00312222) soc="t31x" ;;
-		0x00313333) soc="t31l" ;;
-		0x00314444) soc="t31a" ;;
-		0x00315555) soc="t31zl" ;;
-		0x00316666) soc="t31zx" ;;
-		# 0x00317777) soc="t31??" ;;
-		# 0x00318888) soc="t31??" ;;
-		# 0x00319999) soc="t31??" ;;
-		# 0x0031AAAA) soc="t31??" ;;
-		0x0031CCCC) soc="t31al" ;;
-		0x0031DDDD) soc="t31zc" ;;
-		0x0031EEEE) soc="t31lc" ;;
-		0x00401111) soc="t40n" ;;
-		0x00404444) soc="t40a" ;;
-		0x00407777) soc="t40xp" ;;
-		0x00408888) soc="t40nn" ;;
-		0x00401111) soc="t41n" ;;
-		0x00403333) soc="t41l" ;;
-		0x00404444) soc="t41a" ;;
-		0x00405555) soc="t41zl" ;;
-		0x00406666) soc="t41zx" ;;
-		0x00407777) soc="t41zn" ;;
-		0x00408888) soc="t41lc" ;;
-		0x00409999) soc="t41lq" ;;
-		0x0040AAAA) soc="t41nq" ;;
-		# 0x0041????) soc="t41xq" ;;
-		0x00011111) soc="a1n" ;;
-		0x00012222) soc="a1x" ;;
-		0x00013333) soc="a1l" ;;
-		0x00014444) soc="a1a" ;;
-		0x00015555) soc="a1nt" ;;
-		*)
-			echo "Unknown SoC: $cpu_sig"
-			exit 1
-			;;
-	esac
+
 	echo $soc
+}
+
+print_soc_family() {
+	model=$(print_soc_model)
+
+	family=$(echo "$model" | sed 's/\([at][0-9]*\).*/\1/')
+	echo $family
 }
 
 show_usage() {
