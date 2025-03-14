@@ -1,0 +1,6 @@
+# NAME: Vanhua Z66SI (T41NQ, IMX664, ETH)
+# MODULE: t41nq_imx664_eth
+BR2_THINGINO_RMEM_46=y
+BR2_THINGINO_NMEM_8=y
+FLASH_SIZE_16=y
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/vanhua-s66si.uenv.txt"
