@@ -1,0 +1,11 @@
+//RTL8188F_MAC_PHY_ForMPChip_v009
+#[v1][Exact]#
+#[2.4G][A]#
+[1Tx] 0xe08    0x0000ff00         0 0 19 0 // TXAGC codeword (H-byte->L-byte)={1M}
+[1Tx] 0x86c    0xffffff00         18 18 19  0 // TXAGC codeword (H-byte->L-byte)={11M 5.5M 2M}
+[1Tx] 0xe00    0xffffffff         18 19 19 19 // TXAGC codeword (H-byte->L-byte)={18M 12M 9M 6M}
+[1Tx] 0xe04    0xffffffff         15 16 17 18 // TXAGC codeword (H-byte->L-byte)={54M 48M 36M 24M}
+[1Tx] 0xe10    0xffffffff         16 18 19 19 // TXAGC codeword (H-byte->L-byte)=HT_{MCS3 MCS2 MCS1 MCS0}
+[1Tx] 0xe14    0xffffffff         14 14 15 16 // TXAGC codeword (H-byte->L-byte)=HT_{MCS7 MCS6 MCS5 MCS4}
+#[END]#
+0xffff 0xffff
