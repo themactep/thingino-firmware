@@ -1,6 +1,20 @@
 #!/bin/sh
 
 preinit_check() {
+echo "Running dependencies check..."
+
+# Checkg or whiptail
+if ! command -v whiptail >/dev/null 2>&1; then
+echo "'dialog' is not installed. It is required for this script to run."
+exit 1
+fi
+
+# Checkg or dialog
+if ! command -v dialog >/dev/null 2>&1; then
+echo "'dialog' is not installed. It is required for this script to run."
+exit 1
+fi
+
 # Check for gawk
 if ! command -v gawk >/dev/null 2>&1; then
 echo "Error: Please install gawk"
@@ -24,8 +38,9 @@ esac
 # Check for supported architecture.
 host_arch=$(uname -m)
 if [ "$host_arch" != "x86_64" ] && [ "$host_arch" != "aarch64" ]; then
-echo "Unsupported architecture: $host_arch. Only x86_64 and aarch64 are supported."
-exit 1
+	echo "Unsupported architecture: $host_arch. Only x86_64 and aarch64 are supported."
+else
+	echo "Host architecture is $host_arch"
 fi
 
 # Check dd (coreutils)
@@ -35,6 +50,8 @@ dd --version 2>&1 | head -n1 | grep -oE '[0-9]+\.[0-9]+' | {
 	if [ "$(printf '%s\n' "$req" "$cur_ver" | sort -V | head -n1)" != "$req" ]; then
 		echo "dd version $cur_ver is less than required $req.  Please update the coreutils for your distribution."
 		exit 1
+	else
+		echo "dd version is $cur_ver, which is >= $req"
 	fi
 }
 
@@ -42,7 +59,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-echo "All preinit checks passed."
+echo "All preinit checks passed"
 
 }
 
@@ -56,10 +73,10 @@ check_glibc_version() {
 
 	current_version=$(ldd --version | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
 	if [ "$(printf '%s\n' "$min_version" "$current_version" | sort -V | head -n1)" = "$min_version" ]; then
-		echo "glibc version is $current_version, which is >= $min_version."
+		echo "glibc version is $current_version, which is >= $min_version"
 	else
-		echo "glibc version is $current_version, which is less than $min_version."
-		echo "GLIBC Upgrade required, which usually means you need to upgrade the Operating System."
+		echo "glibc version is $current_version, which is less than $min_version"
+		echo "GLIBC Upgrade required, which usually means you need to upgrade the Operating System"
 		exit 1
 	fi
 }
@@ -164,35 +181,35 @@ for pkg in $packages; do
 			if ! $pkg_check_command "$pkg" 2>/dev/null | grep -q "install ok installed"; then
 				packages_to_install="$packages_to_install $pkg"
 			else
-				echo "Package $pkg is installed."
+				echo "Package $pkg is installed"
 			fi
 			;;
 		rpm)
 			if ! $pkg_check_command "$pkg" >/dev/null 2>&1; then
 				packages_to_install="$packages_to_install $pkg"
 			else
-				echo "Package $pkg is installed."
+				echo "Package $pkg is installed"
 			fi
 			;;
 		pacman)
 			if ! $pkg_check_command "$pkg" >/dev/null 2>&1; then
 				packages_to_install="$packages_to_install $pkg"
 			else
-				echo "Package $pkg is installed."
+				echo "Package $pkg is installed"
 			fi
 			;;
 		apk)
 			if ! $pkg_check_command "$pkg" >/dev/null 2>&1; then
 				packages_to_install="$packages_to_install $pkg"
 			else
-				echo "Package $pkg is installed."
+				echo "Package $pkg is installed"
 			fi
 			;;
 		zypper)
 			if ! $pkg_check_command "$pkg" >/dev/null 2>&1; then
 				packages_to_install="$packages_to_install $pkg"
 			else
-				echo "Package $pkg is installed."
+				echo "Package $pkg is installed"
 			fi
 			;;
 		*)
@@ -227,7 +244,7 @@ if [ -n "$packages_to_install" ]; then
 		exit 1
 	fi
 else
-	echo "All packages are installed."
+	echo "All required packages are installed"
 	if [ ! -f ".prereqs.done" ]; then
 		touch .prereqs.done
 	fi
