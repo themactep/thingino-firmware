@@ -22,7 +22,7 @@ page_title="Reset things"
  That means that most of customization will be lost!</p>
 <form action="firmware-reset.cgi" method="post">
 <input type="hidden" name="action" value="wipeoverlay">
-<input type="hidden" name="cmd" value="<% echo "flash_eraseall -j /dev/mtd4" | base64 %>">
+<input type="hidden" name="cmd" value="<% echo "flash_eraseall -j /dev/mtd2" | base64 %>">
 <% button_submit "Wipe overlay" "danger" %>
 </form>
 </div>
