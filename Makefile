@@ -6,8 +6,10 @@ ifeq ($(__BASH_MAKE_COMPLETION__),1)
 endif
 
 # Run dependency check before doing anything
-_dep_check := $(shell $(CURDIR)/scripts/dep_check.sh)
-$(info $(_dep_check))
+_dep_check := $(shell $(CURDIR)/scripts/dep_check.sh>&2; echo $$?)
+ifneq ($(lastword $(_dep_check)),0)
+   $(error Dependency check failed)
+endif
 
 # Camera IP address
 # shortened to just IP for convenience of running from command line

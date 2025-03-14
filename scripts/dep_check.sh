@@ -3,20 +3,20 @@
 preinit_check() {
 # Check for gawk
 if ! command -v gawk >/dev/null 2>&1; then
-echo "Please install gawk"
+echo "Error: Please install gawk"
 exit 1
 fi
 
 # Check for mkimage from u-boot-tools
 if ! command -v mkimage >/dev/null 2>&1; then
-echo "Please install mkimage from u-boot-tools"
+echo "Error: Please install mkimage from u-boot-tools"
 exit 1
 fi
 
 # Check if the current directory path contains spaces.
 case "$PWD" in
 *" "*)
-	echo "Current directory path \"$PWD\" cannot contain spaces"
+	echo "Error: Current directory path \"$PWD\" cannot contain spaces"
 	exit 1
 	;;
 esac
@@ -33,10 +33,14 @@ req=9.0
 dd --version 2>&1 | head -n1 | grep -oE '[0-9]+\.[0-9]+' | {
 	read cur_ver || { echo "Unable to determine dd version" >&2; exit 1; }
 	if [ "$(printf '%s\n' "$req" "$cur_ver" | sort -V | head -n1)" != "$req" ]; then
-		echo "dd version $cur_ver is less than required $req.  Please update the coreutils for your distribution." >&2
+		echo "dd version $cur_ver is less than required $req.  Please update the coreutils for your distribution."
 		exit 1
 	fi
 }
+
+if [ $? -ne 0 ]; then
+	exit 1
+fi
 
 echo "All preinit checks passed."
 
@@ -220,7 +224,7 @@ if [ -n "$packages_to_install" ]; then
 		install_packages $packages_to_install
 	else
 		echo "Installation aborted by the user."
-		exit 0
+		exit 1
 	fi
 else
 	echo "All packages are installed."
