@@ -10,3 +10,9 @@ config BR2_PACKAGE_ONVIF_SIMPLE_SERVER
 	  server intended for use in resource-constrained devices
 
 	  https://github.com/roleoroleo/onvif_simple_server
+
+config BR2_PACKAGE_ONVIF_SIMPLE_SERVER_ZLIB
+	bool "Use ZLIB for templates"
+	depends on BR2_PACKAGE_ONVIF_SIMPLE_SERVER
+	help
+	  Enable support for compressed template files (.gz).

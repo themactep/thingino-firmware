@@ -17,6 +17,11 @@ else
 ONVIF_SIMPLE_SERVER_DEPENDENCIES = libtomcrypt
 endif
 
+ifeq ($(BR2_PACKAGE_ONVIF_SIMPLE_SERVER_ZLIB),y)
+ONVIF_SIMPLE_SERVER_DEPENDENCIES = zlib
+MAKE_OPTS += USE_ZLIB
+endif
+
 # username | uid | group | gid | password | home | shell | groups | comment
 define ONVIF_SIMPLE_SERVER_USERS
 thingino -1 thingino -1 =thingino - - - Streaming Service
