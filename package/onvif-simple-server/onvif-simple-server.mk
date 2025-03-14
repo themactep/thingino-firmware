@@ -18,8 +18,8 @@ ONVIF_SIMPLE_SERVER_DEPENDENCIES = libtomcrypt
 endif
 
 ifeq ($(BR2_PACKAGE_ONVIF_SIMPLE_SERVER_ZLIB),y)
-ONVIF_SIMPLE_SERVER_DEPENDENCIES = zlib
-MAKE_OPTS += USE_ZLIB
+ONVIF_SIMPLE_SERVER_DEPENDENCIES += zlib
+MAKE_OPTS += USE_ZLIB=y
 endif
 
 # username | uid | group | gid | password | home | shell | groups | comment
