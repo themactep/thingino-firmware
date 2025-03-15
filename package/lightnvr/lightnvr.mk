@@ -14,7 +14,7 @@ define LIGHTNVR_INSTALL_CONFIGS
 	$(INSTALL) -d $(TARGET_DIR)/var/nvr
 	cp -r $(@D)/web $(TARGET_DIR)/var/nvr/
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
-	$(INSTALL) -m 644 $(@D)/config/lightnvr.ini $(TARGET_DIR)/etc/lightnvr.ini
+	$(INSTALL) -m 644 $(@D)/config/lightnvr.ini $(TARGET_DIR)/etc/lightnvr/lightnvr.ini
 endef
 LIGHTNVR_POST_INSTALL_TARGET_HOOKS += LIGHTNVR_INSTALL_CONFIGS
 
