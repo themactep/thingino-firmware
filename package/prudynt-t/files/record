@@ -16,13 +16,28 @@ hesitate() {
 	exit 0
 }
 
+cleanup() {                                                                                                         
+    if [ -n "$archive_pid" ] && kill -0 "$archive_pid" 2>/dev/null; then
+        echo "Parent exiting, killing subprocess $archive_pid..."                  
+        kill -TERM "$archive_pid"                                          
+    fi                                                                             
+}
+
 fix_duration() {
-    if [ "$1" -eq 60 ]; then
-        echo $(expr "$1" - $(date +%S))
-    elif [ $(expr "$1" % 60) -eq 0 ]; then
-        m_inc=$(expr "$1" / 60)
-        mpart=$(expr "$m_inc" - $(expr $(date +%M) % "$m_inc"))
-        echo $(expr "$mpart" "*" 60)
+  if [ -z "$align_minutes" ]; then
+        echo "$1"
+    elif [ "$1" -eq 60 ]; then
+        n_ms=$(uptime | cut -d'.' -f2)  # e.g., 67 (from 12345.67)
+        s=$(date +%S)                   # e.g., 05
+        if [ "$n_ms" -lt "$base_ms" ]; then
+            s=$((s - 1))
+            n_ms=$((n_ms + 100)) 
+        fi
+        echo "$(( $1 - s )).$(( n_ms - base_ms ))"
+    elif [ $(( $1 % 60 )) -eq 0 ]; then
+        m_inc=$(( $1 / 60 ))
+        mpart=$(( m_inc - ( $(date +%M) % m_inc ) ))
+        echo $(( mpart * 60 ))
     else
         echo "$1"
     fi
@@ -59,15 +74,119 @@ read_size() {
 
 # "path"
 remove_oldest_file_in() {
-	oldest_file="$(find "$1" -type f -exec ls -ltr {} + | head -n1 | awk '{print $9}')"
-	oldest_file_dir="$(dirname $oldest_file)"
-	rm -v "$oldest_file"
-	[ -z "$(ls -A1 "$oldest_file_dir")" ] && rm -rv "$oldest_file_dir"
+	[ -z "$del_count" ] && del_count=10
+	log "started removing old files started"
+	oldest_files=$(find "$1" -type f -exec ls -ltr {} + | head -n"$del_count" | awk '{print $9}')
+	if [ -z "$oldest_files" ]; then
+        	echo "No files found to delete in $1" >&2
+        	return 1
+    	fi
+    	echo "$oldest_files" | while IFS= read -r oldest_file; do
+        if [ -n "$oldest_file" ]; then
+            oldest_file_dir=$(dirname "$oldest_file")
+            rm -v "$oldest_file"
+            if [ -z "$(ls -A "$oldest_file_dir" 2>/dev/null)" ]; then
+                rm -rv "$oldest_file_dir"
+		#support going up a further directory (record_dir_count = /% |<- count slashes from /%/% 
+		if [ "$record_dir_count" -gt 1 ]; then
+                    parent_dir=$(dirname "$oldest_file_dir")
+                    if [ -n "$parent_dir" ] && [ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]; then
+                        rm -rv "$parent_dir"
+                    fi
+                fi   
+            fi
+        fi
+	done
+	log "remove_oldest_file_in finished "
 }
 
 has_files() {
 	[ "$(find "$1" -type f | wc -l)" -gt 0 ]
 }
+
+uptimecs()
+{
+echo $(cat /proc/uptime | cut -d' ' -f1 | cut -d'.' -f2)
+}
+
+
+find_cs()
+{
+	u1=$(uptimecs)
+	s1=$(date +%S)
+	s2="$s1"
+	while [ "$s2" = "$s1" ]; do
+    		sleep 0.05
+    		s2=$(date +%S)
+    		u2=$(uptimecs)
+	done
+	log "offset is  $u2"
+	echo "$u2" 
+}
+
+
+if [ -n "$align_minutes" ]; then
+	offset_cs=$(find_cs)
+fi
+
+fix_duration() {
+    if [ -z "$align_minutes" ]; then
+        	echo "$1"
+	elif [ "$1" -eq 60 ]; then
+		n_cs=$(uptimecs)  
+		s=$(date +%S)                   
+		bonus_cs=0
+		if [ "$n_cs" -gt "$offset_cs" ]; then 
+			s=$((s - 1))
+			bonus_cs=100
+		fi
+		echo "$(( $1 - s )).$(( bonus_cs +offset_cs - n_cs ))"
+	elif [ $(( $1 % 60 )) -eq 0 ]; then
+		m_inc=$(( $1 / 60 ))
+		mpart=$(( m_inc - ( $(date +%M) % m_inc ) ))
+		echo $(( mpart * 60 ))
+	else
+        	echo "$1"
+	fi
+}
+
+
+
+fmanager() {         
+    check_so=0
+    while :; do           
+        get_free_space                                       
+        if [ "$available_space" -le "$required_space" ]; then
+            log "Space required: $required_space KiB"                 
+            log "Not enough space: $required_space > $available_space"
+            while [ "$available_space" -le "$required_space" ]; do
+                remove_oldest_file_in "$record_storage"
+                get_free_space                                                           
+                has_files "$record_storage" || die "$record_mount is empty yet no space!"
+            done
+        fi
+        if [ "$check_so" -le 0 ]; then           
+            if [ "$record_limit_kb" -gt 0 ]; then      
+                log "Space limit: $record_limit_kb KiB"
+                get_occupied_space                                                                
+                if [ "$((occupied_space + (required_space * 100)))" -lt "$record_limit_kb" ]; then
+                    log "lots of space - skipping check for 60 runs"
+                    check_so=60
+                fi                                                                         
+                while [ "$((occupied_space + required_space))" -gt "$record_limit_kb" ]; do    
+                    log "Occupied space $occupied_space KiB exceeds limit $record_limit_kb KiB"
+                    remove_oldest_file_in "$record_storage"
+                    get_occupied_space                                                       
+                    has_files "$record_storage" || die "$record_mount is empty yet no space!"
+                done
+            fi
+        else                        
+            check_so=$((check_so - 1))
+        fi                           
+        sleep $((record_duration))
+    done
+}
+
 
 show_help() {
 	log "Usage: $0 [<params>]
@@ -132,6 +251,7 @@ stream_endpoint="ch$stream_number"
 [ -z "$stream_fps"       ] && stream_fps=$(read_fps "25")
 [ -z "$stream_height"    ] && stream_height=$(read_size "7" "1080")
 [ -z "$stream_width"     ] && stream_width=$(read_size "5" "1920")
+[ -z "$align_minutes"    ] && align_minutes=true  
 
 log "
 stream_number: $stream_number
@@ -141,7 +261,7 @@ stream_height: $stream_height
 stream_width: $stream_width
 "
 
-[ -z "$stream_number"   ] && die "Cannot determine stream humber"
+[ -z "$stream_number"   ] && die "Cannot determine stream number"
 [ -z "$stream_endpoint" ] && die "Cannot determine stream endpoint"
 [ -z "$stream_fps"      ] && die "Cannot determine stream fps"
 [ -z "$stream_height"   ] && die "Cannot determine stream height"
@@ -166,43 +286,56 @@ fi
 record_limit_kb=$((record_limit * 1024 * 1024)) # GiB to KiB
 required_space=$((100 * record_duration)) # KiB
 
+record_dir_count=0
+after_percent="${record_filename#*%}"
+record_dir_count=$(echo "$after_percent" | tr -cd '/' | wc -c)
+
+# align_minutes initialization
+if [ -n "$align_minutes" ]; then
+    base_ms=$(find_ms)
+fi
+
+if [ -z "$one_time" ]; then
+	#if we are not running a one-off, then we start a subprocess to manage file cleanup
+	fmanager & 
+	archive_pid=$!
+	log "Spun up rarchive $archive_pid"
+	trap cleanup EXIT
+else
+    get_free_space                                                             
+    if [ "$available_space" -le "$required_space" ]; then                      
+        log "Space required: $required_space KiB"                                        
+        log "Not enough space: $required_space > $available_space"                       
+        while [ "$available_space" -le "$required_space" ]; do                           
+            remove_oldest_file_in "$record_storage"                                  
+            get_free_space                                                           
+            has_files "$record_storage" || die "$record_mount is empty yet no space!"                                                                                               
+        done                                                                                  
+    fi      
+    if [ "$record_limit_kb" -gt 0 ]; then                                                        
+        log "Space limit: $record_limit_kb KiB"                                                  
+        get_occupied_space                                                                       
+        while [ "$((occupied_space + required_space))" -gt "$record_limit_kb" ]; do              
+            log "Occupied space $occupied_space KiB exceeds limit $record_limit_kb KiB"          
+            remove_oldest_file_in "$record_storage"                                              
+            get_occupied_space                                                                   
+            has_files "$record_storage" || die "$record_mount is empty yet no space!"            
+        done                                                                                     
+    fi         
+fi
+
 while :; do
-	[ -f $RECORD_FLAG ] || break
+    [ -f $RECORD_FLAG ] || break
 
-	get_free_space
-	if [ "$available_space" -le "$required_space" ]; then
-		log "Space required: $required_space KiB"
-		log "Not enough space: $required_space > $available_space"
-		while [ "$available_space" -le "$required_space" ]; do
-			remove_oldest_file_in "$record_storage"
-			get_free_space
-			has_files "$record_storage" || die "$record_mount is empty yet no space!"
-		done
-	fi
+    record_file="$record_storage/$(date +"$record_filename").$record_videofmt"
+    create_directory_for "$record_file"
 
-	if [ "$record_limit_kb" -gt 0 ]; then
-		log "Space limit: $record_limit_kb KiB"
-		get_occupied_space
-		while [ "$((occupied_space + required_space))" -gt "$record_limit_kb" ]; do
-			log "Occupied space $occupied_space KiB exceeds limit $record_limit_kb KiB"
-			remove_oldest_file_in "$record_storage"
-			get_occupied_space
-			has_files "$record_storage" || die "$record_mount is empty yet no space!"
-		done
-	fi
+    real_duration=$(fix_duration $record_duration)
+    log "openRTSP -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps -d $real_duration $vformat -b 1048576 -t rtsp://[::1]/$stream_endpoint > $record_file"
+    timeout -s SIGHUP $((record_duration + 5)) openRTSP -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps \
+        -d $real_duration $vformat -b 1048576 -t rtsp://[::1]/$stream_endpoint > "$record_file" 2> /dev/null
 
-	record_file="$record_storage/$(date +"$record_filename").$record_videofmt"
-	create_directory_for "$record_file"
-
-	real_duration=$(fix_duration $record_duration)
-
-	log "openRTSP -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps -d $real_duration $vformat -b 1048576 -t rtsp://[::1]/$stream_endpoint > $record_file"
-	timeout $((real_duration + 5)) openRTSP -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps \
-		-d $real_duration $vformat -b 1048576 -t rtsp://[::1]/$stream_endpoint > "$record_file" 2> /dev/null
-
-
-
-	[ "true" = "$one_time" ] && rm $RECORD_FLAG
+    [ "true" = "$one_time" ] && rm $RECORD_FLAG
 done
 
 log "Cannot find recording flag $RECORD_FLAG"
