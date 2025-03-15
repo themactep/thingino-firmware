@@ -129,7 +129,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git lzop make gawk procps rsync u-boot-tools unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cmake cpio curl ca-certificates dialog file flex git gh make gawk jq libncurses-dev procps rsync tzdata u-boot-tools unzip wget whiptail
 
       - name: Set timezone
         run: |
