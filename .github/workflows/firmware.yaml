@@ -166,7 +166,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests 7zip build-essential bc cmake cpio curl ca-certificates dialog file git gh make gawk jq procps rsync tzdata u-boot-tools unzip wget whiptail
+          apt-get install -y --no-install-recommends --no-install-suggests 7zip build-essential bc bison cmake cpio curl ca-certificates dialog file flex git gh make gawk jq libncurses-dev procps rsync tzdata u-boot-tools unzip wget whiptail
 
       - name: Set timezone
         run: |
