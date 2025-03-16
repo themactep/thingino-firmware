@@ -175,14 +175,14 @@ jobs:
       - name: Prepare buildroot cache
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
         run: |
-          BOARD=${{ matrix.toolchain-version }} make source
+          BOARD=${{ matrix.toolchain-version }} make source WORKFLOW=1
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
       - name: Build toolchain
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
         run: |
-          BOARD=${{ matrix.toolchain-version }} make sdk
+          BOARD=${{ matrix.toolchain-version }} make sdk WORKFLOW=1
 
       - name: Generate debug dummy toolchin for workflow testing
         if: ${{ github.event.inputs.debug_enabled == 'true' }}
