@@ -166,7 +166,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests 7zip build-essential bc bison cmake cpio curl ca-certificates dialog file flex git gh make gawk jq libncurses-dev procps rsync tzdata u-boot-tools unzip wget whiptail
+          apt-get install -y --no-install-recommends --no-install-suggests 7zip build-essential bc cmake cpio curl ca-certificates file git gh make gawk jq procps rsync tzdata u-boot-tools unzip wget
 
       - name: Set timezone
         run: |
@@ -229,7 +229,7 @@ jobs:
       - name: Build firmware
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
         run: |
-          BOARD=${{ matrix.thingino-version }} make fast
+          BOARD=${{ matrix.thingino-version }} make fast WORKFLOW=1
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
@@ -252,7 +252,7 @@ jobs:
         if: ${{ github.event.inputs.graph_enabled == 'true' }}
         run: |
           apt-get install -y --no-install-recommends --no-install-suggests python3-numpy python3-matplotlib
-          BOARD=${{ matrix.thingino-version }} make br-graph-build
+          BOARD=${{ matrix.thingino-version }} make br-graph-build WORKFLOW=1
 
       - name: Validate compiled firmware artifacts
         run: |

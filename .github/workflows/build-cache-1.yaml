@@ -84,7 +84,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc bison cmake cpio curl ca-certificates dialog file flex git gh make gawk jq libncurses-dev procps rsync tzdata u-boot-tools unzip wget whiptail
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git make gawk procps rsync u-boot-tools unzip wget
 
       - name: Set timezone
         run: |
@@ -133,7 +133,7 @@ jobs:
 
       - name: Generate buildroot cache
         run: |
-          BOARD=${{ matrix.caches-version }} make fast
+          BOARD=${{ matrix.caches-version }} make fast WORKFLOW=1
 
       - name: Save Buildroot ccache
         uses: actions/cache/save@v4
