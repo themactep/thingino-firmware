@@ -6,9 +6,15 @@ ifeq ($(__BASH_MAKE_COMPLETION__),1)
 endif
 
 # Run dependency check before doing anything
-_dep_check := $(shell $(CURDIR)/scripts/dep_check.sh>&2; echo $$?)
-ifneq ($(lastword $(_dep_check)),0)
-   $(error Dependency check failed)
+# Run dependency check before doing anything, but skip if WORKFLOW=1
+ifeq ($(WORKFLOW),)
+  _dep_check := $(shell $(CURDIR)/scripts/dep_check.sh>&2; echo $$?)
+  ifneq ($(lastword $(_dep_check)),0)
+    $(error Dependency check failed)
+  endif
+else
+   $(info Skipping dependency check for workflow)
+  _dep_check := 0
 endif
 
 # Camera IP address
