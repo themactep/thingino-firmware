@@ -13,19 +13,19 @@ if ! mkdir -p "$DHCP6_DATA_BASE"; then
 fi
 
 write_lease() {
-	local device="$1"
-	local lease_file="$DHCP6_DATA_BASE/${device}.leases"
+	local device lease_file address preferred valid
 
+	device="$1"
+	lease_file="$DHCP6_DATA_BASE/${device}.leases"
 	{
 		echo "lease6 {"
 		echo "  interface \"$device\";"
 		for addr in $ADDRESSES; do
-			local address="${addr%%,*}"
-			local preferred="${addr#*,}"
+			address="${addr%%,*}"
+			preferred="${addr#*,}"
 			preferred="${preferred%%,*}"
-			local valid="${addr#*,}"
+			valid="${addr#*,}"
 			valid="${valid##*,}"
-
 			echo "    iaaddr $address {"
 			echo "      starts $(date +%s);"
 			echo "      preferred-life $preferred;"
@@ -110,9 +110,11 @@ write_lease() {
 
 # Extract DNS information and domain search from the lease file
 extract_dns_and_domains() {
-	local lease_file="$1"
-	local dns=""
-	local domains=""
+	local lease_file dns domains
+
+	lease_file="$1"
+	dns=""
+	domains=""
 
 	if [ -f "$lease_file" ]; then
 		while read -r line; do
@@ -135,8 +137,10 @@ extract_dns_and_domains() {
 
 # Update resolv.conf with DNS information and search domains
 update_resolv() {
-	local dns="$1"
-	local domains="$2"
+	local dns domains
+
+	dns="$1"
+	domains="$2"
 
 	(
 		flock 9
@@ -170,17 +174,19 @@ update_resolv() {
 
 # Add an address and track it
 add_address() {
-	local address="$1"
+	local address addr dev_opts dev_name pref_lft valid_lft
+
+	address="$1"
 
 	# Separate the address and options properly
-	local addr="${address%% dev *}"
-	local dev_opts="${address#* dev }"
+	addr="${address%% dev *}"
+	dev_opts="${address#* dev }"
 
 	# Extract the individual components from dev_opts
-	local dev_name="${dev_opts%% *}"  # Device name (e.g., eth0)
-	local pref_lft="${dev_opts##*preferred_lft }"
-	pref_lft="${pref_lft%% valid_lft*}"  # preferred_lft value
-	local valid_lft="${dev_opts##*valid_lft }"  # valid_lft value
+	dev_name="${dev_opts%% *}"  # Device name (e.g., eth0)
+	pref_lft="${dev_opts##*preferred_lft }"
+	pref_lft="${pref_lft%% valid_lft*}"
+	valid_lft="${dev_opts##*valid_lft }"
 
 	# Check if the address already exists
 	if ip -6 address show dev "$dev_name" | grep -q "$addr"; then
@@ -206,21 +212,23 @@ add_address() {
 }
 
 setup_interface() {
-	local device="$1"
+	local device addr preferred valid lease_file
+
+	device="$1"
 
 	# Add and track addresses
 	for entry in $ADDRESSES; do
-		local addr="${entry%%,*}"
+		addr="${entry%%,*}"
 		entry="${entry#*,}"
-		local preferred="${entry%%,*}"
+		preferred="${entry%%,*}"
 		entry="${entry#*,}"
-		local valid="${entry%%,*}"
+		valid="${entry%%,*}"
 
 		add_address "$addr dev $device preferred_lft $preferred valid_lft $valid"
 	done
 
 	# Extract DNS information and search domains from the lease file
-	local lease_file="$DHCP6_DATA_BASE/${device}.leases"
+	lease_file="$DHCP6_DATA_BASE/${device}.leases"
 	read -r dns domains < <(extract_dns_and_domains "$lease_file")
 
 	# Call update_resolv to update resolv.conf with DNS information and search domains
@@ -233,8 +241,10 @@ setup_interface() {
 }
 
 teardown_interface() {
-	local device="$1"
-	local lease_file="$DHCP6_DATA_BASE/${device}.leases"
+	local device lease_file addr
+
+	device="$1"
+	lease_file="$DHCP6_DATA_BASE/${device}.leases"
 
 	# Check if the lease file exists
 	if [ -f "$lease_file" ]; then
@@ -245,7 +255,7 @@ teardown_interface() {
 			# Look for lines containing "iaaddr" and extract the address
 			if echo "$line" | grep -E -q "^\s*iaaddr\s"; then
 				# Extract the address (removing any subnet mask and braces)
-				local addr=$(echo "$line" | awk '{print $2}' | sed 's/[{}]//g' | cut -d'/' -f1)
+				addr=$(echo "$line" | awk '{print $2}' | sed 's/[{}]//g' | cut -d'/' -f1)
 
 				# Attempt to remove the address from the interface
 				if [ -n "$addr" ]; then
