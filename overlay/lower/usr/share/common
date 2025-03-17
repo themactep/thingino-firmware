@@ -287,5 +287,5 @@ tag() {
 }
 
 ts() {
-	date +"%F %T"
+	date -u +"%F %T"
 }
