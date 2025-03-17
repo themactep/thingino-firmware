@@ -30,8 +30,10 @@ scp_path=\"$scp_path\"
 scp_template=\"$scp_template\"
 scp_command=\"$scp_command\"
 "
+		redirect_to $SCRIPT_NAME "success" "Data updated."
+	else
+		redirect_to $SCRIPT_NAME "danger" "Error: $error"
 	fi
-	redirect_to $SCRIPT_NAME
 fi
 
 defaults

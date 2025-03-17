@@ -27,8 +27,10 @@ telegram_caption=\"$telegram_caption\"
 telegram_channel=\"$telegram_channel\"
 telegram_token=\"$telegram_token\"
 "
+		redirect_to $SCRIPT_NAME "success" "Data updated."
+	else
+		redirect_to $SCRIPT_NAME "danger" "Error: $error"
 	fi
-	redirect_to $SCRIPT_NAME
 fi
 
 defaults

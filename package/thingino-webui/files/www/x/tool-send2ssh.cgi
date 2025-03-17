@@ -24,8 +24,10 @@ ssh_port=\"$ssh_port\"
 ssh_username=\"$ssh_username\"
 ssh_command=\"$ssh_command\"
 "
+		redirect_to $SCRIPT_NAME "success" "Data updated."
+	else
+		redirect_to $SCRIPT_NAME "danger" "Error: $error"
 	fi
-	redirect_to $SCRIPT_NAME
 fi
 
 defaults

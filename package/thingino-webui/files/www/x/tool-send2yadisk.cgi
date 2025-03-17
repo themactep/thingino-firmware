@@ -23,8 +23,10 @@ yadisk_username=\"$yadisk_username\"
 yadisk_password=\"$yadisk_password\"
 yadisk_path=\"$yadisk_path\"
 "
+		redirect_to $SCRIPT_NAME "success" "Data updated."
+	else
+		redirect_to $SCRIPT_NAME "danger" "Error: $error"
 	fi
-	redirect_to $SCRIPT_NAME
 fi
 
 defaults

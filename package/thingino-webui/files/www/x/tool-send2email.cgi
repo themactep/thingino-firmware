@@ -46,8 +46,10 @@ email_smtp_username=\"$email_smtp_username\"
 email_smtp_password=\"$email_smtp_password\"
 email_smtp_use_ssl=\"$email_smtp_use_ssl\"
 "
+		redirect_to $SCRIPT_NAME "success" "Data updated."
+	else
+		redirect_to $SCRIPT_NAME "danger" "Error: $error"
 	fi
-	redirect_to $SCRIPT_NAME
 fi
 
 defaults

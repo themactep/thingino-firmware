@@ -40,8 +40,10 @@ wireguard_peerpub=\"$wireguard_peerpub\"
 wireguard_port=\"$wireguard_port\"
 wireguard_privkey=\"$wireguard_privkey\"
 "
+		redirect_to $SCRIPT_NAME "success" "Data updated."
+	else
+		redirect_to $SCRIPT_NAME "danger" "Error: $error"
 	fi
-	redirect_to $SCRIPT_NAME
 fi
 
 defaults
