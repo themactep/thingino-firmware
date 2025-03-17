@@ -25,5 +25,5 @@ case "$target" in
 		;;
 esac
 
-/etc/init.d/S95prudynt restart >/dev/null
-/etc/init.d/S96vbuffer restart >/dev/null
+service restart prudynt >/dev/null
+service restart vbuffer >/dev/null

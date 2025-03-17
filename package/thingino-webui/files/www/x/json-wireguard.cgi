@@ -7,8 +7,6 @@
 [ -z "$state" ] && json_error "Missing mandatory parameter: state"
 [ -z "$iface" ] && iface="wg0"
 
-WG_CTL="/etc/init.d/S42wireguard"
-
 is_wg_up() {
 	ip link show $iface | grep -q UP
 }
@@ -18,9 +16,9 @@ wg_status() {
 }
 
 if [ "true" = "$wg_enabled" ] ; then
-	is_wg_up || $WG_CTL force
+	is_wg_up || service force wireguard
 else
-	is_wg_up && $WG_CTL stop
+	is_wg_up && service stop wireguard
 fi
 
 json_ok "WireGuarde service is $(wg_status)."

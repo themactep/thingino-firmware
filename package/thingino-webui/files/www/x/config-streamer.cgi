@@ -4,7 +4,7 @@
 page_title="Streamer"
 
 if [ "restart" = "$GET_do" ]; then
-	/etc/init.d/S95prudynt restart >/dev/null
+	service restart prudynt >/dev/null
 	sleep 3
 	redirect_to $SCRIPT_NAME
 fi

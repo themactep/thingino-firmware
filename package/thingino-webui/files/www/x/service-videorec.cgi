@@ -4,7 +4,6 @@
 page_title="Video Recorder"
 
 MOUNTS=$(awk '/cif|fat|nfs|smb/{print $2}' /etc/mtab)
-RECORD_CTL="/etc/init.d/S96record"
 RECORD_FILENAME_FB="%Y%m%d/%Y%m%dT%H%M%S"
 
 defaults() {
@@ -40,12 +39,10 @@ record_limit=\"$record_limit\"
 record_mount=\"$record_mount\"
 record_videofmt=\"$record_videofmt\"
 "
-		if [ -f "$RECORD_CTL" ]; then
-			if [ "true" = "$record_enabled" ]; then
-				$RECORD_CTL start > /dev/null
-			else
-				$RECORD_CTL stop > /dev/null
-			fi
+		if [ "true" = "$record_enabled" ]; then
+			service start record >/dev/null
+		else
+			service stop record >/dev/null
 		fi
 		update_caminfo
 	fi
