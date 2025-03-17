@@ -5,7 +5,6 @@ ifeq ($(__BASH_MAKE_COMPLETION__),1)
 	exit
 endif
 
-# Run dependency check before doing anything
 # Run dependency check before doing anything, but skip if WORKFLOW=1
 ifeq ($(WORKFLOW),)
   _dep_check := $(shell $(CURDIR)/scripts/dep_check.sh>&2; echo $$?)

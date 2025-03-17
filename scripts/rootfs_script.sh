@@ -19,7 +19,7 @@ rm ${TARGET_DIR}/etc/dropbear
 mkdir -p ${TARGET_DIR}/etc/dropbear
 
 FILE=${TARGET_DIR}/usr/lib/os-release
-# prefix exiting buildroot entires
+# prefix exiting buildroot entries
 tmpfile=$(mktemp)
 sed 's/^/BUILDROOT_/' $FILE > $tmpfile
 # create our own release file
