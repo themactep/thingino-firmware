@@ -24,11 +24,14 @@ WIRED_METRIC=100
 
 # Function to determine the interface type
 get_interface_type() {
-case "$1" in
-	wlan*|wlp*|wls*) echo "wireless" ;;
-	eth*|enp*|ens*|usb*|enx*) echo "wired" ;;
-	*) echo "unknown" ;;
-esac
+	case "$1" in
+		wlan* | wlp* | wls*)
+			echo "wireless" ;;
+		eth* | enp* | ens* | usb* | enx*)
+			echo "wired" ;;
+		*)
+			echo "unknown" ;;
+	esac
 }
 
 case "$1" in
