@@ -63,10 +63,10 @@ if [ -z "$timelapse_interval" ]; then
 fi
 
 # delete older files
-find "$timelapse_storage" -type f -name '*.jpg' -mtime +$timelapse_depth -exec rm {} \;
+find "$timelapse_storage" -type f -name '*.jpg' -mtime +$timelapse_depth -delete
 
 # delete empty directories
-find "$timelapse_storage" -empty -type d -mindepth 1 -exec rm -r {} \;
+find "$timelapse_storage" -mindepth 1 -type d -empty -delete
 
 create_directory_for "$timelapse_storage/$(date +"$timelapse_filename")"
 cp -f "$SNAPSHOT_FILE" "$timelapse_storage/$(date +"$timelapse_filename")"
