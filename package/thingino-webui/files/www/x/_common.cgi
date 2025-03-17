@@ -441,7 +441,7 @@ is_valid_mac() {
 }
 
 is_isolated() {
-	[ "true" = "$webui_paranoid" ]
+	[ -f "$PORTAL_MODE_FLAG" ] || [ -f "$WLANAP_MODE_FLAG" ] || [ "true" = "$webui_paranoid" ]
 }
 
 link_to() {
