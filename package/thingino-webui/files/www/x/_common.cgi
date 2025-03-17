@@ -19,12 +19,14 @@ pagename=$(basename "$SCRIPT_NAME")
 pagename="${pagename%%.*}"
 
 # files
-alerts_dir=/tmp/alerts
+alerts_dir="/tmp/alerts"
 [ -d "$alerts_dir" ] || mkdir -p "$alerts_dir"
 
-signature_file=/tmp/signature.txt
-sysinfo_file=/tmp/sysinfo.txt
-webui_log=/tmp/webui.log
+signature_file="/tmp/signature.txt"
+
+sysinfo_file="/tmp/sysinfo.txt"
+
+webui_log="/tmp/webui.log"
 
 # read from files
 ws_token="$(cat /run/prudynt_websocket_token)"
@@ -394,6 +396,10 @@ field_textedit() {
 	 "<textarea id=\"$1\" name=\"$1\" class=\"form-control\">$(cat "$2")</textarea></div>"
 }
 
+generate_signature() {
+	echo "$soc_model, $sensor_model, $flash_size_mb MB, $network_hostname, $network_macaddr" >$signature_file
+}
+
 http_header() {
 	echo -en "$1\r\n"
 }
@@ -419,6 +425,11 @@ html_theme() {
 			echo -n "dark"
 			;;
 	esac
+}
+
+include() {
+	[ -f "$1" ] || touch $1
+	[ -f "$1" ] && . "$1"
 }
 
 is_pwm_pin() {
@@ -518,6 +529,7 @@ read_from_config() {
 # read_from_post "plugin" "params"
 read_from_post() {
 	local p
+
 	for p in $2; do
 		eval $1_$p=\$POST_$1_$p
 		sanitize "$1_$p"
@@ -544,8 +556,14 @@ Location: $1
 	exit 0
 }
 
+refresh_env_dump() {
+	fw_printenv | sort | sed -E 's/=(.*)$/="\1"/' > "$ENV_DUMP_FILE"
+	. $ENV_DUMP_FILE
+}
+
 report_error() {
-	echo "<h4 class=\"text-danger\">Oops. Something happened.</h4><div class=\"alert alert-danger\">$1</div>"
+	echo "<h4 class=\"text-danger\">Oops. Something happened.</h4>" \
+	 "<div class=\"alert alert-danger\">$1</div>"
 }
 
 # report_log "text" "extras"
@@ -554,7 +572,8 @@ report_log() {
 }
 
 report_command_error() {
-	echo "<h4 class=\"text-danger\">Oops. Something happened.</h4><div class=\"alert alert-danger\">"
+	echo "<h4 class=\"text-danger\">Oops. Something happened.</h4>" \
+	 "<div class=\"alert alert-danger\">"
 	report_command_info "$1" "$2"
 	echo "</div>"
 }
@@ -585,28 +604,24 @@ sanitize4web() {
 save2config() {
 	local tmp1file tmp2file name value
 
-	tmp2file="$(mktemp -u)"
-	echo "$1" > "$tmp2file"
-
 	tmp1file="$(mktemp -u)"
 	cp "$CONFIG_FILE" "$tmp1file"
+
+	tmp2file="$(mktemp -u)"
+	echo "$1" > "$tmp2file"
 	while read -r line; do
 		[ -z "$line" ] && continue
+
 		name="${line%%=*}"
 		value="${line#*=}"
 		sed -i -r "/^$name=.*/d" "$tmp1file"
-		[ -z "$value" ] || echo "$line" >> "$tmp1file"
+
+		[ -n "$value" ] && echo "$line" >> "$tmp1file"
 	done < "$tmp2file"
-
-	sort -o -u "$tmp1file" "$tmpfile"
-	sed -i '/^$/d' "$tmp1file"
-	mv "$tmp1file" "$CONFIG_FILE"
 	rm "$tmp2file"
-}
 
-refresh_env_dump() {
-	fw_printenv | sort | sed -E 's/=(.*)$/="\1"/' > "$ENV_DUMP_FILE"
-	. $ENV_DUMP_FILE
+	sed '/^$/d' "$tmp1file" | sort -u > "$CONFIG_FILE"
+	rm "$tmp1file"
 }
 
 save2env() {
@@ -620,10 +635,6 @@ save2env() {
 set_error_flag() {
 	alert_append "danger" "$1"
 	error=1
-}
-
-generate_signature() {
-	echo "$soc_model, $sensor_model, $flash_size_mb MB, $network_hostname, $network_macaddr" >$signature_file
 }
 
 signature() {
@@ -723,11 +734,6 @@ update_caminfo() {
 
 	echo -e "# caminfo $(date +"%F %T")\n" >>$sysinfo_file
 	generate_signature
-}
-
-include() {
-	[ -f "$1" ] || touch $1
-	[ -f "$1" ] && . "$1"
 }
 
 [ -f /etc/os-release ] && . /etc/os-release

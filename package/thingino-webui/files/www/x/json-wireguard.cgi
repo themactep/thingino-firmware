@@ -21,4 +21,4 @@ else
 	is_wg_up && service stop wireguard
 fi
 
-json_ok "WireGuarde service is $(wg_status)."
+json_ok "WireGuard service is $(wg_status)"

@@ -102,8 +102,8 @@ $$("button[data-sendto]").forEach(el => {
 		ev.preventDefault();
 		if (!confirm("Are you sure?")) return false;
 		fetch("/x/send.cgi?" + new URLSearchParams({'to': el.dataset.sendto}).toString())
-		.then(res => res.json())
-		.then(data => console.log(data))
+			.then(res => res.json())
+			.then(data => console.log(data))
 	}
 });
 
@@ -135,13 +135,19 @@ ws.onopen = () => {
 	console.log(ts(), '===>', payload);
 	ws.send(payload);
 }
-ws.onclose = () => { console.log('WebSocket connection closed'); }
-ws.onerror = (err) => { console.error('WebSocket error', err); }
+ws.onclose = () => {
+	console.log('WebSocket connection closed');
+	ws = null;
+}
+ws.onerror = (err) => {
+	console.error('WebSocket error', err);
+	ws.close();
+}
 ws.onmessage = (ev) => {
 	if (typeof ev.data == 'string') {
 		if (ev.data == '') {
-			console.log('Empty response')
-			return
+			console.log('Empty response');
+			return;
 		}
 		if (ev.data == '{"action":{"capture":"initiated"}}') {
 			return;
@@ -194,13 +200,13 @@ async function toggleDayNight(mode = 'read') {
 	await fetch(url)
 		.then(res => res.json())
 		.then(data => {
-			 console.log(data.message)
-			 $('#daynight').checked = (data.message.daynight == 'night')
-			 if ($('#ir850')) $('#ir850').checked = (data.message.ir850 == 1)
-			 if ($('#ir940')) $('#ir940').checked = (data.message.ir940 == 1)
-			 if ($('#white')) $('#white').checked = (data.message.white == 1)
-			 if ($('#ircut')) $('#ircut').checked = (data.message.ircut == 1)
-			 if ($('#color')) $('#color').checked = (data.message.color == 1)
+			console.log(data.message)
+			$('#daynight').checked = (data.message.daynight == 'night')
+			if ($('#ir850')) $('#ir850').checked = (data.message.ir850 == 1)
+			if ($('#ir940')) $('#ir940').checked = (data.message.ir940 == 1)
+			if ($('#white')) $('#white').checked = (data.message.white == 1)
+			if ($('#ircut')) $('#ircut').checked = (data.message.ircut == 1)
+			if ($('#color')) $('#color').checked = (data.message.color == 1)
 		})
 }
 

@@ -151,9 +151,6 @@ defaults
 <h4 class="mb-3">Debug info</h4>
 <% ex "grep ^gpio_motor_ $CONFIG_FILE" %>
 <% ex "grep ^motor_ $CONFIG_FILE" %>
-<pre>
-motor_disable_homing: <%= $motor_disable_homing %>
-</pre>
 </div>
 
 <script>

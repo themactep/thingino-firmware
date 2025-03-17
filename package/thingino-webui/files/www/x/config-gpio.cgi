@@ -36,7 +36,7 @@ update_config() {
 #	# drop individual environment settings for the color
 #	payload=$(echo -e "$payload\n$name")
 
-	# sqeeze spacing
+	# squeeze spacing
 	gpio_default=$(echo $gpio_default | tr -s " ")
 }
 
@@ -109,6 +109,7 @@ gpio_ircut_pin2="$(echo "$gpio_ircut" | awk '{print $2}')"
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-4 g-2">
+
 <% field_gpio "gpio_led_r" "Red LED" %>
 <% field_gpio "gpio_led_g" "Green LED" %>
 <% field_gpio "gpio_led_b" "Blue LED" %>

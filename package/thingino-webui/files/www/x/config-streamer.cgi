@@ -1,7 +1,7 @@
 #!/bin/haserl --upload-limit=1024 --upload-dir=/tmp
 <%in _common.cgi %>
 <%
-page_title="Streamer"
+page_title="Streamer/OSD"
 
 if [ "restart" = "$GET_do" ]; then
 	service restart prudynt >/dev/null

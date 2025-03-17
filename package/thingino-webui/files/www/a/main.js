@@ -65,7 +65,11 @@ function heartbeat() {
 		.then((response) => response.json())
 		.then((json) => {
 			if (json.time_now !== '') {
-				let options = {hour: "2-digit", minute: "2-digit", timeZone: json.timezone.replaceAll(' ', '_')};
+				let options = {
+					hour: "2-digit",
+					minute: "2-digit"
+					//, timeZone: json.timezone?.replaceAll(' ', '_')
+				};
 				const d = new Date(json.time_now * 1000);
 				$('#time-now').textContent = d.toDateString() + ' ' + d.toLocaleString(navigator.language, options) + ' ' + json.timezone;
 			}
