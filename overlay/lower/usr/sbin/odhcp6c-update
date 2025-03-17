@@ -310,3 +310,5 @@ teardown_interface() {
 ) 8>/tmp/odhcp6c.lock.$1
 
 rm -f /tmp/odhcp6c.lock.$1
+
+exit 0
