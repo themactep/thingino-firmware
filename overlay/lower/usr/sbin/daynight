@@ -5,7 +5,7 @@
 singleton $0
 
 MODE_FILE="/tmp/nightmode.txt"
-[ -f "$MODE_FILE" ] || echo "day" > "$MODE_FILE"
+[ -f "$MODE_FILE" ] || echo "day" >"$MODE_FILE"
 
 controls_color() {
 	if [ "true" != "$day_night_color" ]; then
@@ -85,7 +85,7 @@ switch_to_day() {
 		color on &
 	fi
 
-	echo "day" > "$MODE_FILE"
+	echo "day" >"$MODE_FILE"
 }
 
 switch_to_night() {
@@ -93,30 +93,30 @@ switch_to_night() {
 
 	if controls_color; then
 		echo "- switch to monocrome mode" >&2
-        	color off &
+		color off &
 	fi
 
 	if controls_ircut; then
 		echo "- remove IR-CUT filter" >&2
-        	ircut off &
+		ircut off &
 	fi
 
 	if controls_ir850; then
 		echo "- turn IR LED 850mn ON" >&2
-                irled on ir850 &
+		irled on ir850 &
 	fi
 
 	if controls_ir940; then
 		echo "- turn IR LED 940mn ON" >&2
-                irled on ir940 &
+		irled on ir940 &
 	fi
 
 	if controls_white; then
 		echo "- turn White Light ON" >&2
-                irled on white &
+		irled on white &
 	fi
 
-	echo "night" > "$MODE_FILE"
+	echo "night" >"$MODE_FILE"
 }
 
 # determine luminance of the scene

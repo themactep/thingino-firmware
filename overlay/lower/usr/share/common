@@ -32,12 +32,12 @@ NTP_WORKING_FILE="/tmp/ntp.conf"
 RESOLV_DEFAULT_FILE="/etc/default/resolv.conf"
 RESOLV_FILE="/etc/resolv.conf"
 RESOLV_WORKING_FILE="/tmp/resolv.conf"
+SNAPSHOT_FILE="/tmp/snapshot.jpg"
 SOC_FAMILY=$(soc -f)
 SOC_MODEL=$(soc -m)
-SNAPSHOT_FILE="/tmp/snapshot.jpg"
-TZNAME_FILE="/etc/timezone"
 TZCODE_FILE="/etc/TZ"
 TZJSON_FILE="/usr/share/tz.json.gz"
+TZNAME_FILE="/etc/timezone"
 VBUFFER_FILE="/tmp/vbuffer.mov"
 
 DAEMON=${DAEMON:-$0}
@@ -45,9 +45,8 @@ DAEMON_ARGS=${DAEMON_ARGS:-}
 DAEMON_PATH="/bin"
 DAEMON_SHORT=$(basename "${DAEMON%% *}" | sed -r 's/^[FKS]\d{2}//')
 DAEMON_FULL="$(which $DAEMON_SHORT)"
-PIDFILE="/run/$DAEMON_SHORT.pid"
-
 LOCK_FILE="/run/process-$PID.pid"
+PIDFILE="/run/$DAEMON_SHORT.pid"
 
 DAEMON_CONFIG="/etc/default/$DAEMON_SHORT"
 if [ -r "$DAEMON_CONFIG" ]; then

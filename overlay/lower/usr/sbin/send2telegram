@@ -5,7 +5,8 @@
 show_help() {
 	echo "Usage: $0 [options] [clip|motion|snap]
 Where:
-	-c channel  Telegram channel ID. See https://gist.github.com/mraaroncruz/e76d19f7d61d59419002db54030ebe35
+	-c channel  Telegram channel ID.
+	            See https://gist.github.com/mraaroncruz/e76d19f7d61d59419002db54030ebe35
 	-f file     Send file.
 	-m message  Send message.
 	-s          Disable notification.
@@ -81,7 +82,9 @@ command="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 $
 command="$command -H 'Content-Type: multipart/form-data' -F 'chat_id=$telegram_channel'"
 [ "true" = "$telegram_silent" ] && command="$command -F 'disable_notification=true'"
 command="$command --url https://api.telegram.org/bot$telegram_token/"
+
 # no further modifications to command after this point
+
 if [ "true" = "$telegram_attach_video" ] && [ "true" = "$telegram_attach_photo" ]; then
 	# https://core.telegram.org/bots/api#sendmediagroup
 	copy_photo

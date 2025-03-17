@@ -5,7 +5,7 @@
 show_help() {
 	local app=$(basename $0)
 	echo "Thingino System Config Tool
-Usage: 
+Usage:
  $app g <param>           - Get parameter value
  $app s <param> <value>   - Set parameter value
  $app d <param>           - Delete parameter

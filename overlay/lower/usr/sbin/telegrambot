@@ -21,7 +21,7 @@ bot_commands=""
 
 [ "-v" = "$1" ] && verbosity="--verbose" || verbosity="--silent"
 
-### Common methods
+# Common methods
 build_menu() {
 	bot_commands="["
 	bot_keyboard="{\"keyboard\":[["
@@ -52,7 +52,7 @@ json_data() {
 	jsonfilter -i $JSDATA_FILE -e "$1"
 }
 
-#### Telegram API
+# Telegram API
 
 api_call() {
 	[ -f $JSDATA_FILE ] && rm $JSDATA_FILE
@@ -69,7 +69,7 @@ api_call() {
 	echo_c 13 "$(cat $JSDATA_FILE)"
 }
 
-### Bot actions
+# Bot actions
 
 get_me() {
 	api_call "getMe" "{\"timeout\":$MSG_TIMEOUT}"
@@ -81,7 +81,7 @@ leave_chat() {
 	api_call "leaveChat" "{\"chat_id\":\"$1\"}"
 }
 
-### Commands menu
+# Commands menu
 
 get_my_commands() {
 	api_call "getMyCommands"
@@ -110,7 +110,7 @@ show_menu() {
 	api_call "sendMessage" "$data"
 }
 
-### Updates
+# Updates
 
 get_updates() {
 	# Available types of update:
@@ -145,7 +145,7 @@ tgb_readfromapi() {
 	jsonfilter -s "$updates" -e "$.result[@.update_id=$update_id].message.chat.id"
 }
 
-### Logics
+# Logics
 
 build_menu
 restore_offset
