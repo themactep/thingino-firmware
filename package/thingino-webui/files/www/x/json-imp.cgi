@@ -41,6 +41,10 @@ case "$cmd" in
 		command="daynight $val"
 		ret=$(daynight $val)
 		;;
+	gain)
+		command="imp-control gettotalgain"
+		ret=$(imp-control gettotalgain)
+		;;
 	ir850 | ir940 | white)
 		command="irled ${val:-read} $cmd"
 		ret=$(irled ${val:-read} $cmd)
