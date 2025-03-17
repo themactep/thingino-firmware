@@ -10,11 +10,10 @@ cleanup() {
 }
 trap cleanup 1 2 3 6 15
 
-show_help() {
+if [ "$#" -lt 1 ]; then
 	echo "Usage: blink <pin> [interval in sec.]" >&2
 	exit 1
-}
-[ "$#" -lt 1 ] && show_help
+fi
 
 pin=$1
 interval=${2:-1}
