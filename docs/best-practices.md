@@ -47,8 +47,8 @@ these logs will be lost after a reboot. If you need to keep logs for a longer
 period, you can use a syslog server to store them.
 
 Setup a syslog server on your network and configure the camera to send logs to
-the server by adding remote syslog server IP address to `rsyslog_ip` parameter
-of U-Boot environment, e.g.: `fw_setenv rsyslog_ip 192.168.1.66`
+the server by adding remote syslog server IP address to `rsyslog_host` parameter
+of U-Boot environment, e.g.: `fw_setenv rsyslog_host 192.168.1.66`
 
 
 Day/Night

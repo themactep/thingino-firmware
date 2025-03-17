@@ -11,13 +11,13 @@ defaults() {
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	read_from_post "rsyslog" "ip port local"
+	read_from_post "rsyslog" "host port local"
 
 	defaults
 
 	if [ -z "$error" ]; then
 		save2config "
-rsyslog_ip=\"$rsyslog_ip\"
+rsyslog_host=\"$rsyslog_host\"
 rsyslog_port=\"$rsyslog_port\"
 rsyslog_local=\"$rsyslog_local\"
 "
@@ -35,7 +35,7 @@ defaults
 <div class="col">
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <div class="row g-1">
-<div class="col-10"><% field_text "rsyslog_ip" "Syslog server FQDN or IP address" %></div>
+<div class="col-10"><% field_text "rsyslog_host" "Syslog server FQDN or IP address" %></div>
 <div class="col-2"><% field_text "rsyslog_port" "Port" %></div>
 </div>
 <% field_switch "rsyslog_local" "Enable local logging" %>
