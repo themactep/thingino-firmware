@@ -30,7 +30,7 @@ case "$1" in
 	stop)
 		stop
 		;;
-	reload | restart)
+	restart)
 		stop
 		start
 		;;

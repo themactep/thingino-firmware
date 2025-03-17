@@ -17,11 +17,9 @@ case "$IF_BRIDGE_PORTS" in
 	none)
 		INTERFACES=""
 		;;
-
 	all)
 		INTERFACES=$(grep eth /proc/net/dev | sed 's/\(\ *\)\(eth[^:]*\)\(.*\)/\2/')
 		;;
-
 	*)
 		INTERFACES="$IF_BRIDGE_PORTS"
 		;;
