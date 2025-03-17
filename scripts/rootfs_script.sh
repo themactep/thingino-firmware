@@ -22,29 +22,26 @@ FILE=${TARGET_DIR}/usr/lib/os-release
 # prefix exiting buildroot entries
 tmpfile=$(mktemp)
 sed 's/^/BUILDROOT_/' $FILE > $tmpfile
-# create our own release file
-{
-	echo "NAME=Thingino"
-	echo "ID=thingino"
-	echo "VERSION=\"1 (Ciao)\""
-	echo "VERSION_ID=1"
-	echo "VERSION_CODENAME=ciao"
-	echo "PRETTY_NAME=\"Thingino 1 (Ciao)\""
-	echo "ID_LIKE=buildroot"
-	echo "CPE_NAME=\"cpe:/o:thinginoproject:thingino:1\""
-	echo "LOGO=thingino-logo-icon"
-	echo "ANSI_COLOR=\"1;34\""
-	echo "HOME_URL=\"https://thingino.com/\""
-	echo "ARCHITECTURE=mips"
-	echo "IMAGE_ID=${IMAGE_ID}"
-	echo "BUILD_ID=\"${BUILD_ID}\""
-	echo "BUILD_TIME=\"${BUILD_TIME}\""
-	echo "COMMIT_ID=\"${COMMIT_ID}\""
-	echo "BOOTLOADER=$BOOTLOADER"
-	echo "HOSTNAME=ing-${HOSTNAME}"
-	date +TIME_STAMP=%s
-	cat $tmpfile
-} > $FILE
+echo "NAME=Thingino
+ID=thingino
+VERSION=\"1 (Ciao)\"
+VERSION_ID=1
+VERSION_CODENAME=ciao
+PRETTY_NAME=\"Thingino 1 (Ciao)\"
+ID_LIKE=buildroot
+CPE_NAME=\"cpe:/o:thinginoproject:thingino:1\"
+LOGO=thingino-logo-icon
+ANSI_COLOR=\"1;34\"
+HOME_URL=\"https://thingino.com/\"
+ARCHITECTURE=mips
+IMAGE_ID=${IMAGE_ID}
+BUILD_ID=\"${BUILD_ID}\"
+BUILD_TIME=\"${BUILD_TIME}\"
+COMMIT_ID=\"${COMMIT_ID}\"
+BOOTLOADER=$BOOTLOADER
+HOSTNAME=ing-${HOSTNAME}
+TIME_STAMP=$(date +%s)" | tee $FILE
+cat $tmpfile | tee -a $FILE
 rm $tmpfile
 
 touch ${TARGET_DIR}/etc/thingino.config
