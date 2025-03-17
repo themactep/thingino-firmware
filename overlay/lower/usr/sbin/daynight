@@ -119,6 +119,15 @@ switch_to_night() {
 	echo "night" >"$MODE_FILE"
 }
 
+# fail-safe defaults
+[ -z "$day_night_min" ] && day_night_min=500
+[ -z "$day_night_max" ] && day_night_max=15000
+[ -z "$day_night_color" ] && day_night_color="true"
+[ -z "$day_night_ircut" ] && day_night_ircut="true"
+[ -z "$day_night_ir850" ] && day_night_ir850="true"
+[ -z "$day_night_ir940" ] && day_night_ir940="true"
+[ -z "$day_night_white" ] && day_night_white="true"
+
 # determine luminance of the scene
 value=$(imp-control gettotalgain)
 if [ -z "$value" ] || [ "error" = "$value" ]; then
