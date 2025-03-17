@@ -6,7 +6,7 @@ start() {
 	echo "Checking sysupgrade..."
 
 	if [ "true" != "$sysupgrade_complete" ]; then
-		echo "- Mark sysupgradec complete"
+		echo "- Mark sysupgrade complete"
 		fw_setenv sysupgrade_complete true
 		# play_sound thingino.pcm
 	fi
