@@ -68,7 +68,8 @@ find "$timelapse_storage" -type f -name '*.jpg' -mtime +$timelapse_depth -delete
 # delete empty directories
 find "$timelapse_storage" -mindepth 1 -type d -empty -delete
 
-create_directory_for "$timelapse_storage/$(date +"$timelapse_filename")"
-cp -f "$SNAPSHOT_FILE" "$timelapse_storage/$(date +"$timelapse_filename")"
+target="$timelapse_storage/$(date +"$timelapse_filename")"
+create_directory_for "$target"
+cp -f "$SNAPSHOT_FILE" "$target"
 
 exit 0
