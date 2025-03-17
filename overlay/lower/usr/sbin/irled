@@ -62,7 +62,11 @@ case "$mode" in
 		gpio toggle $pin
 		;;
 	\? | read | status)
-		[ "$(gpio value $pin | tr -d '\n')" = "$pin_on" ] && echo -n "1" || echo -n "0"
+		if [ "$(gpio value $pin | tr -d '\n')" = "$pin_on" ]; then
+			echo -n "1"
+		else
+			echo -n "0"
+		fi
 		;;
 	*)
 		echo "Error: Unknown mode" >&2

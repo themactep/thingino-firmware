@@ -4,8 +4,15 @@ PID_FILE="/run/blink.pid"
 echo $$ > $PID
 
 cleanup() {
-	[ -z "$pin" ] || gpio set $pin 0
-	[ -f "$PID_FILE" ] && rm "$PID_FILE"
+	# FIXME: set pin to the predefined default status
+	if [ -n "$pin" ]; then
+		gpio set $pin 0
+	fi
+
+	if [ -f "$PID_FILE" ]; then
+		rm "$PID_FILE"
+	fi
+
 	exit 0
 }
 trap cleanup 1 2 3 6 15

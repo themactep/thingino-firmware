@@ -7,7 +7,10 @@ fi
 
 # Define the base directory for tracking DHCPv6 data
 DHCP6_DATA_BASE="/var/run/odhcp6c"
-mkdir -p "$DHCP6_DATA_BASE" || { echo "Error: cannot create $DHCP6_DATA_BASE"; exit 1; }
+if ! mkdir -p "$DHCP6_DATA_BASE"; then
+	echo "Error: cannot create $DHCP6_DATA_BASE"
+	exit 1
+fi
 
 write_lease() {
 	local device="$1"
@@ -142,13 +145,17 @@ update_resolv() {
 
 		# Add unique search domains to resolv.conf
 		for domain in $domains; do
-			grep -q "search $domain" /tmp/resolv.conf.tmp || echo "search $domain # added by odhcp6c" >> /tmp/resolv.conf.tmp
+			if ! grep -q "search $domain" /tmp/resolv.conf.tmp; then
+				echo "search $domain # added by odhcp6c" >> /tmp/resolv.conf.tmp
+			fi
 			echo "added search $domain"
 		done
 
 		# Add unique DNS servers to resolv.conf
 		for c in $dns; do
-			grep -q "nameserver $c" /tmp/resolv.conf.tmp || echo "nameserver $c # added by odhcp6c" >> /tmp/resolv.conf.tmp
+			if ! grep -q "nameserver $c" /tmp/resolv.conf.tmp; then
+				echo "nameserver $c # added by odhcp6c" >> /tmp/resolv.conf.tmp
+			fi
 			echo "added nameserver $c"
 		done
 
@@ -217,7 +224,9 @@ setup_interface() {
 	read -r dns domains < <(extract_dns_and_domains "$lease_file")
 
 	# Call update_resolv to update resolv.conf with DNS information and search domains
-	[ -n "$dns" ] && update_resolv "$dns" "$domains"
+	if [ -n "$dns" ]; then
+		update_resolv "$dns" "$domains"
+	fi
 
 	# Write the lease information to a file
 	write_lease "$device"
@@ -285,7 +294,9 @@ teardown_interface() {
 	esac
 
 	# Execute user-defined rules if present
-	[ -f /etc/odhcp6c.user ] && . /etc/odhcp6c.user
+	if [ -f /etc/odhcp6c.user ]; then
+		. /etc/odhcp6c.user
+	fi
 ) 8>/tmp/odhcp6c.lock.$1
 
 rm -f /tmp/odhcp6c.lock.$1

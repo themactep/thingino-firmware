@@ -19,23 +19,48 @@ hesitate() {
 timelapse_mount=${timelapse_mount%/}
 timelapse_device_path=${timelapse_device_path%/}
 
-[ -z "$timelapse_mount" ] && die "'timelapse_mount' is not set"
+if [ -z "$timelapse_mount" ]; then
+	echo "'timelapse_mount' is not set"
+	exit 1
+fi
 
 # wait for mount point
-mountpoint -q "$timelapse_mount" || hesitate "$timelapse_mount is not mounted"
-[ -w "$timelapse_mount" ] || hesitate "$timelapse_mount is not writable"
+if ! mountpoint -q "$timelapse_mount" >/dev/null; then
+	hesitate "$timelapse_mount is not mounted"
+fi
+
+if [ ! -w "$timelapse_mount" ]; then
+	hesitate "$timelapse_mount is not writable"
+fi
 
 # storage directory
 timelapse_storage="$timelapse_mount/$timelapse_device_path"
+
 if [ ! -d "$timelapse_storage" ]; then
 	echo "Creating $timelapse_storage" >&2
-	mkdir -vp "$timelapse_storage" || die "Cannot create directory $timelapse_storage"
-fi
-[ -w "$timelapse_storage" ] || die "Cannot write to $timelapse_storage"
 
-[ -z "$timelapse_depth" ] && timelapse_depth=7
-[ -z "$timelapse_filename" ] && timelapse_filename="%Y/%m/%d/%H%M.jpg"
-[ -z "$timelapse_interval" ] && timelapse_interval=1
+	if ! mkdir -vp "$timelapse_storage"; then
+		echo "Cannot create directory $timelapse_storage"
+		exit 1
+	fi
+fi
+
+if [ ! -w "$timelapse_storage" ]; then
+	echo "Cannot write to $timelapse_storage"
+	exit 1
+fi
+
+if [ -z "$timelapse_depth" ]; then
+	timelapse_depth=7
+fi
+
+if [ -z "$timelapse_filename" ]; then
+	timelapse_filename="%Y/%m/%d/%H%M.jpg"
+fi
+
+if [ -z "$timelapse_interval" ]; then
+	timelapse_interval=1
+fi
 
 # delete older files
 find "$timelapse_storage" -type f -name '*.jpg' -mtime +$timelapse_depth -exec rm {} \;
