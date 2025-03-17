@@ -7,6 +7,4 @@ gpio_mmc_cd=59
 gpio_motor_h=60 61 62 53
 gpio_motor_v=58 57 50 49
 gpio_speaker=63
-motor_maxstep_h=4130
-motor_maxstep_v=1260
 wlan_module=8189fs

@@ -14,7 +14,5 @@ gpio_sensor_switch=7
 gpio_speaker=63o
 gpio_white=60O
 gpio_wlan=6
-motor_maxstep_h=4000
-motor_maxstep_v=1200
 wlan_module=atbm6132u
 wlan_module_opts=atbm_printk_mask=0

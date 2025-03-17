@@ -3,5 +3,3 @@ gpio_ircut=57 58
 gpio_motor_h=63 62 61 60
 gpio_motor_v=59 52 53 49
 gpio_wlan=14O
-motor_maxstep_h=3700
-motor_maxstep_v=1000

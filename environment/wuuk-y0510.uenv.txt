@@ -9,7 +9,5 @@ gpio_motor_h=61 62 63 51
 gpio_motor_v=64 53 52 54
 gpio_speaker=7
 gpio_wlan=8O
-motor_maxstep_h=4050
-motor_maxstep_v=1000
 wlan_module=ssv6158
 wlan_module_opts=stacfgpath=/usr/share/wifi/ssv6x5x-wifi.cfg

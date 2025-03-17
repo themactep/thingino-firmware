@@ -7,8 +7,6 @@ gpio_mmc_cd=17
 gpio_motor_h=78 75 76 77
 gpio_motor_v=53 51 82 81
 gpio_speaker=63o
-motor_maxstep_h=4000
-motor_maxstep_v=1000
 wlan_module=8188fu
 
 # 0x28 40

@@ -11,6 +11,4 @@ gpio_motor_v=80 79 76 75
 gpio_speaker=63
 gpio_usb_en=47O
 gpio_wlan=62O
-motor_maxstep_h=2590
-motor_maxstep_v=710
 wlan_module=8189es

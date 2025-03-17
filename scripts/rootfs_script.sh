@@ -47,6 +47,12 @@ sed 's/^/BUILDROOT_/' $FILE > $tmpfile
 } > $FILE
 rm $tmpfile
 
+touch ${TARGET_DIR}/etc/thingino.config
+cat ${BR2_EXTERNAL}/configs/system/000_common.config | \
+	tee -a ${TARGET_DIR}/etc/thingino.config
+cat ${BR2_EXTERNAL}/configs/system/${CAMERA}.config | \
+	tee -a ${TARGET_DIR}/etc/thingino.config
+
 if [ -f "${TARGET_DIR}/lib/libconfig.so" ]; then
 	rm -vf ${TARGET_DIR}/lib/libconfig.so*
 fi

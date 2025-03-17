@@ -6,7 +6,7 @@ if [ ! -f "$ENV_DUMP_FILE" ]; then
 fi
 . "$ENV_DUMP_FILE"
 
-CONFIG_FILE="/etc/web.conf"
+CONFIG_FILE="/etc/thingino.config"
 if [ -f "$CONFIG_FILE" ]; then
 #	echo "Evaluating $CONFIG_FILE" >&2
 	. "$CONFIG_FILE"

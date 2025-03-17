@@ -7,6 +7,4 @@ gpio_motor_h=59 57 64 62
 gpio_motor_v=58 49 63 61
 gpio_white=50
 gpio_wlan=8O
-motor_maxstep_h=3180
-motor_maxstep_v=1140
 wlan_module=8188fu

@@ -10,7 +10,5 @@ gpio_motor_h=49 63 62 61
 gpio_motor_v=54 53 52 59
 gpio_speaker=64
 gpio_wlan=51o
-motor_maxstep_h=2000
-motor_maxstep_v=700
 wlan_module=atbm6032
 wlan_module_opts=atbm_printk_mask=0
