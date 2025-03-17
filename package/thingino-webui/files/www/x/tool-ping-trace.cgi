@@ -9,17 +9,24 @@ tools_packet_size="56" # 56-1500 for ping, 38-32768 for trace
 tools_duration="5"
 %>
 <%in _header.cgi %>
+
+<div class="row">
+<div class="col-12 col-lg-3 col-xxl-2">
 <div class="row g-1">
-<div class="col"><% field_select "tools_action" "Action" "ping,trace" %></div>
-<div class="col"><% field_text "tools_target" "Target" "FQDN or IP address" %></div>
+<div class="col-12 col-sm-6 col-lg-12"><% field_select "tools_action" "Action" "ping,trace" %></div>
+<div class="col-12 col-sm-6 col-lg-12"><% field_text "tools_target" "Target" "FQDN or IP address" %></div>
 </div>
 <div class="row g-1">
-<div class="col"><% field_select "tools_interface" "Interface" "auto,${interfaces}" %></div>
-<div class="col"><% field_number "tools_packet_size" "Packet size" "56,65535,1" "Bytes" %></div>
-<div class="col"><% field_number "tools_duration" "# of packets" "1,30,1" %></div>
+<div class="col-12 col-sm-4 col-lg-12"><% field_select "tools_interface" "Interface" "auto,${interfaces}" %></div>
+<div class="col-12 col-sm-4 col-lg-12"><% field_number "tools_packet_size" "Packet size" "56,65535,1" "Bytes" %></div>
+<div class="col-12 col-sm-4 col-lg-12"><% field_number "tools_duration" "# of packets" "1,30,1" %></div>
 </div>
 <button type="button" class="btn btn-primary mb-4" id="run">Run test</button>
+</div>
+<div class="col-12 col-lg-9 col-xxl-10">
 <div id="output-wrapper"></div>
+</div>
+</div>
 
 <script>
 $('#run').addEventListener('click', ev => {
