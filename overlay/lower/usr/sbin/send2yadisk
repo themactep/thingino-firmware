@@ -54,7 +54,8 @@ for subdir in ${subdirs//\// }; do
 	subdirs="${subdirs#*/}" # remove the processed directory
 done
 
-command="$command --request PUT --upload-file $yadisk_file --url $url/$yadisk_path/$(TZ=$(cat /etc/TZ) date +"%G%m%d-%H%M%S").jpg"
+command="$command --request PUT --upload-file $yadisk_file"
+command="$command --url $url/$yadisk_path/$(TZ=$(cat /etc/TZ) date +"%G%m%d-%H%M%S").jpg"
 
 sh -c "$command" || die "Failed to upload file to Yandex Disk"
 
