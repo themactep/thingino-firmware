@@ -1,6 +1,6 @@
 gpio_button=50
 gpio_button_call=8
-gpio_default=25ID 26IDU
+gpio_default=8i 50i 25ID 26IDU
 gpio_ir850=59
 gpio_ircut=57 58
 gpio_led_g=16
