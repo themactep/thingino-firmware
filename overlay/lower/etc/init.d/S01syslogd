@@ -7,23 +7,23 @@ PIDFILE="/run/$DAEMON.pid"
 . /usr/share/common
 
 if [ -n "$rsyslog_host" ]; then
-	echo "- Adding remote logging to $rsyslog_host:${rsyslog_port:-514}" >&2
+	echo_info "Adding remote logging to $rsyslog_host:${rsyslog_port:-514}"
 	DAEMON_ARGS="$DAEMON_ARGS -R $rsyslog_host:${rsyslog_port:-514}"
 fi
 
 if [ "true" = "$rsyslog_local" ]; then
-	echo "- Adding local logging" >&2
+	echo_info "Adding local logging"
 	DAEMON_ARGS="$DAEMON_ARGS -L"
 fi
 
 start() {
-	starting
+	echo_title "Starting syslogd"
 
 	start_daemon
 }
 
 stop() {
-	stopping
+	echo_title "Stopping syslogd"
 
 	stop_daemon
 }

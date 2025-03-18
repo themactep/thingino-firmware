@@ -2,25 +2,13 @@
 
 . /usr/share/common
 
-set_pin() {
-	if [ "$(gpio value $1)" -ne $2 ]; then
-		gpio set $1 $2
-	fi
-	echo "- GPIO $1 is $(gpio value $1)"
-}
-
 start() {
-	echo "Configuring LEDs..."
-
-	if [ ! -x /sbin/gpio ]; then
-		echo "- gpio tool not found"
-		exit 1
-	fi
+	echo_title "Configuring LEDs"
 
 	LED_PINS=$(awk -F= '/^gpio_led_/{gsub(/"/, "", $2); print $2}' "$ENV_DUMP_FILE")
 
 	if [ -z "$LED_PINS" ]; then
-		echo "- No LED pins defined"
+		echo_error "No LED pins defined"
 		exit 1
 	fi
 
@@ -31,13 +19,15 @@ start() {
 		case "$suffix" in
 			o) pin_on=0; pin_off=1 ;;
 			O) pin_on=1; pin_off=0 ;;
-			*) echo "- Pin ${pin} has unknown suffix ${suffix}!" ;;
+			*) echo_warning "Pin ${pin} has unknown suffix ${suffix}!" ;;
 		esac
 
 		if echo "$gpio_default" | grep -E "\b$pin_raw\b" > /dev/null; then
-			set_pin $pin $pin_on
+			echo_info "Set GPIO $pin $pin_on"
+			gpio set $pin $pin_on
 		else
-			set_pin $pin $pin_off
+			echo_info "Set GPIO $pin $pin_off"
+			gpio set $pin $pin_off
 		fi
 	done
 }

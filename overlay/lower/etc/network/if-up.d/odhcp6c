@@ -5,24 +5,24 @@ PIDFILE="/var/run/odhcp6c_$IFACE.pid"
 . /usr/share/common
 
 if [ ! -d "/sys/class/net/$IFACE" ]; then
-	echo "$IFACE not found"
-	exit 0
+	echo_error "$IFACE not found"
+	exit 1
 fi
 
 if [ "$(sysctl -n net.ipv6.conf.all.disable_ipv6)" -eq 1 ]; then
-	echo "$IFACE: IPv6 disabled globally"
-	exit 0
+	echo_error "IPv6 disabled globally"
+	exit 1
 fi
 
 if [ "true" = "$IF_DHCP_V6_ENABLED" ]; then
-	echo "$IFACE: DHCPv6 enabled"
-else
-	echo "$IFACE: DHCPv6 disabled"
-	exit 0
+	echo_error "DHCPv6 disabled on $IFACE"
+	exit 1
 fi
 
+echo_info "DHCPv6 on $IFACE"
+
 start_post_up() {
-	echo "$IFACE: starting odhcp6c"
+	echo_info "Starting odhcp6c on $IFACE"
 
 	TMP_LOG="/tmp/odhcp6c.log"
 
@@ -30,19 +30,19 @@ start_post_up() {
 }
 
 stop_pre_down() {
-	echo "$IFACE: stopping odhcp6c"
+	echo_title "Stopping odhcp6c on $IFACE"
 
 	if [ -f "$PIDFILE" ]; then
 		pid=$(cat $PIDFILE)
-		echo "Running service PID: $pid"
+		echo_info "Running service with PID $pid"
 
-		echo "kill -9 $pid"
+		echo_command "kill -9 $pid"
 		kill -9 $pid
 
-		echo "rm -f $PIDFILE"
+		echo_command "rm -f $PIDFILE"
 		rm -f "$PIDFILE"
 	else
-		echo "Nothing to stop"
+		echo_info "Nothing to stop"
 	fi
 }
 

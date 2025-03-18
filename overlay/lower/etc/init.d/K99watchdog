@@ -7,10 +7,10 @@ PIDFILE="/var/run/$DAEMON.pid"
 . /usr/share/common
 
 start() {
-	starting
+	echo_title "Starting watchdog"
 
 	if [ "true" = "$watchdog_disabled" ]; then
-		echo "$DAEMON is disabled"
+		echo_error "$DAEMON is disabled"
 		exit 1
 	fi
 
@@ -18,7 +18,7 @@ start() {
 }
 
 stop() {
-	stopping
+	echo_title "Stopping watchdog"
 
 	stop_daemon
 }

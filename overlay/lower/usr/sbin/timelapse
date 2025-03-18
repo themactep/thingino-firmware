@@ -2,15 +2,8 @@
 
 . /usr/share/common
 
-create_directory_for() {
-	dir="$(dirname "$1")"
-	[ -d "$dir" ] || mkdir -p "$dir"
-	[ -d "$dir" ] || die "Cannot create directory $dir"
-	[ -w "$dir" ] || die "Cannot write to $dir"
-}
-
 hesitate() {
-	echo "$1" >&2
+	echo_warning "$1"
 	sleep 5
 	exit 0
 }
@@ -20,7 +13,7 @@ timelapse_mount=${timelapse_mount%/}
 timelapse_device_path=${timelapse_device_path%/}
 
 if [ -z "$timelapse_mount" ]; then
-	echo "'timelapse_mount' is not set" >&2
+	echo_error "'timelapse_mount' is not set"
 	exit 1
 fi
 
@@ -35,20 +28,7 @@ fi
 
 # storage directory
 timelapse_storage="$timelapse_mount/$timelapse_device_path"
-
-if [ ! -d "$timelapse_storage" ]; then
-	echo "Creating $timelapse_storage" >&2
-
-	if ! mkdir -vp "$timelapse_storage"; then
-		echo "Cannot create directory $timelapse_storage" >&2
-		exit 1
-	fi
-fi
-
-if [ ! -w "$timelapse_storage" ]; then
-	echo "Cannot write to $timelapse_storage" >&2
-	exit 1
-fi
+ensure_dir "$timelapse_storage"
 
 if [ -z "$timelapse_depth" ]; then
 	timelapse_depth=7
@@ -69,7 +49,7 @@ find "$timelapse_storage" -type f -name '*.jpg' -mtime +$timelapse_depth -delete
 find "$timelapse_storage" -mindepth 1 -type d -empty -delete
 
 target="$timelapse_storage/$(date +"$timelapse_filename")"
-create_directory_for "$target"
+ensure_dir "$(dirname "$target")"
 cp -f "$SNAPSHOT_FILE" "$target"
 
 exit 0

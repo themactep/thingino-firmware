@@ -6,24 +6,24 @@ START_SCRIPT="/etc/rc.local"
 STOP_SCRIPT="/etc/rc.local.stop"
 
 start() {
-	echo "Starting rc.local"
+	echo_title "Starting rc.local"
 
 	if [ -x "$START_SCRIPT" ]; then
 		#( ( nohup /etc/rc.local >/dev/null 2>&1 </dev/null & ) & )
 		start-stop-daemon -b -S -x /bin/env -- \
 			/bin/sh -c "$START_SCRIPT 2>&1 | logger -p daemon.info -t $0"
 	else
-		echo "- Nothing to run"
+		echo_info "Nothing to run"
 	fi
 }
 
 stop() {
-	echo "Stopping rc.local"
+	echo_title "Stopping rc.local"
 
 	if [ -x "$STOP_SCRIPT" ]; then
 		$STOP_SCRIPT
 	else
-		echo "- Nothing to run"
+		echo_info "Nothing to run"
 	fi
 }
 

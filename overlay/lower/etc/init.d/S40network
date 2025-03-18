@@ -3,13 +3,13 @@
 . /usr/share/common
 
 start() {
-	echo "Starting network..."
+	echo_title "Starting network"
 
 	ifup -v -a
 }
 
 stop() {
-	echo "Stopping network..."
+	echo_title "Stopping network"
 
 	ifdown -v -a
 }

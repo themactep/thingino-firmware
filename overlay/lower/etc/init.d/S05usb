@@ -3,11 +3,11 @@
 . /usr/share/common
 
 start() {
-	echo "Configuring USB..."
+	echo_title "Configuring USB"
 
 	if [ -z "$gpio_usb_en" ]; then
-		echo "- USB power GPIO is not set"
-		exit 0
+		echo_error "USB power GPIO is not set"
+		exit 1
 	fi
 
 	if [ "$gpio_usb_en" = "${gpio_usb_en//[^0-9]/}" ]; then
@@ -16,12 +16,25 @@ start() {
 
 	pin="${gpio_usb_en:0:-1}"
 	case "${gpio_usb_en#$pin}" in
-		o) gpio set $pin 0 || die "- Failed to set USB power GPIO $pin to $state" ;;
-		O) gpio set $pin 1 || die "- Failed to set USB power GPIO $pin to $state" ;;
-		*) die "- Invalid state $state" ;;
+		o)
+			if ! gpio set $pin 0; then
+				echo_error "Failed to set USB power GPIO $pin to $state"
+				exit 1
+			fi
+			;;
+		O)
+			if ! gpio set $pin 1; then
+				echo_error "Failed to set USB power GPIO $pin to $state"
+				exit 1
+			fi
+			;;
+		*)
+			echo_error "Invalid state $state"
+			exit 1
+			;;
 	esac
 
-	echo "- Set USB power GPIO $pin to $state"
+	echo_info "Set USB power GPIO $pin to $state"
 }
 
 case "$1" in

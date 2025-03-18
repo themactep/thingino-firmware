@@ -31,8 +31,8 @@ start() {
 		echo_c 118 "Failsafe mode..."
 	fi
 
-	if [ -f "$FILE_OS_RELEASE" ]; then
-		. "$FILE_OS_RELEASE"
+	if [ -f "$OS_RELEASE_FILE" ]; then
+		. "$OS_RELEASE_FILE"
 		echo_c 208 "Thingino firmware built for $IMAGE_ID\n[$BUILD_ID]\n"
 	fi
 

@@ -1,15 +1,21 @@
 #!/bin/sh
 
+# only work on a WLAN interface
+if [ "wlan0" != "$IFACE" ]; then
+	exit 0
+fi
+
 . /usr/share/common
 
-if [ "$IFACE" = "wlan0" ]; then
-	if [ -z "$wlan_ssid" ] || [ -z "$wlan_pass" ]; then
-		echo "wlan0 disabled, no SSID/pass"
-		exit 1
-	elif [ "$disable_wlan" = "true" ]; then
-		echo "WLAN manually disabled."
-		exit 1
-	fi
+if [ -z "$wlan_ssid" ]; then
+	echo_error "WLAN disabled, no SSID"
+	exit 1
+elif [ -z "$wlan_pass" ]; then
+	echo_error "WLAN disabled, no password"
+	exit 1
+elif [ "$disable_wlan" = "true" ]; then
+	echo_error "WLAN manually disabled."
+	exit 1
 fi
 
 exit 0

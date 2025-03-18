@@ -3,20 +3,20 @@
 . /usr/share/common
 
 start() {
-	echo "Checking sysupgrade..."
+	echo_title "Checking sysupgrade"
 
 	if [ "true" != "$sysupgrade_complete" ]; then
-		echo "- Mark sysupgrade complete"
+		echo_info "Mark sysupgrade complete"
 		fw_setenv sysupgrade_complete true
 		# play_sound thingino.pcm
 	fi
 }
 
 stop() {
-	echo "Checking for upgrade..."
+	echo_title "Checking for upgrade"
 
 	if [ -f "/tmp/upgrade.me" ]; then
-		echo "- Running sysupgrade..."
+		echo_warning "Running sysupgrade"
 		sysupgrade -p
 	fi
 }

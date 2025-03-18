@@ -1,34 +1,33 @@
 #!/bin/sh
 
-if pidof -o %PPID $(basename $0) > /dev/null; then
-	echo "is already running" >&2
-	exit 1
-fi
+. /usr/share/common
+
+singleton "$0"
 
 format_partition() {
 	unmount_partition $1
-	echo "Format partition" >&2
+	echo_info "Format partition"
 	if ! $MKFS -n thingino $1 2>&1; then
-		echo "Cannot format $1 to $POST_fstype" >&2
+		echo_error "Cannot format $1 to $POST_fstype"
 		exit 1
 	fi
 }
 
 mount_partitions() {
-	echo "Mount partition" >&2
+	echo_info "Mount partition"
 	echo /sbin/mdev > /proc/sys/kernel/hotplug
 	if ! mdev -s; then
-		echo "Cannot re-mount SD card" >&2
+		echo_error "Cannot re-mount SD card"
 		exit 1
 	fi
 }
 
 unmount_partition() {
-	echo "Unmount partition" >&2
+	echo_info "Unmount partition"
 	local limit=5
 	while mountpoint -q $1; do
 		if [ "$limit" -le 0 ]; then
-			echo "Cannot unmount $1" >&2
+			echo_error "Cannot unmount $1"
 			exit 1
 		fi
 		umount -l $1 2>&1
@@ -38,7 +37,7 @@ unmount_partition() {
 }
 
 reinsert_sdcard() {
-	echo "Reinsert card" >&2
+	echo_info "Reinsert card"
 	echo "" > /proc/sys/kernel/hotplug
 	mmc 0 -r
 	sleep 1
@@ -47,9 +46,9 @@ reinsert_sdcard() {
 }
 
 repartition_sdcard() {
-	echo "Repartition card" >&2
+	echo_info "Repartition card"
 	if ! echo -e "o\nn\np\n1\n\n\nt\n$FSTYPE\nw" | fdisk $1 2>&1; then
-		echo "Cannot create a partition on $1" >&2
+		echo_error "Cannot create a partition on $1"
 		exit 1
 	fi
 }
@@ -67,7 +66,7 @@ esac
 
 device_name="$(awk -F= '/DEVNAME/{print $2}' /sys/bus/mmc/devices/*/block/*/uevent)"
 if [ -z "$device_name" ]; then
-	echo "No SD card device found" >&2
+	echo_error "No SD card device found"
 	exit 1
 fi
 

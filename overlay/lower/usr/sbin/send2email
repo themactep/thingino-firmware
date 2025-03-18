@@ -34,7 +34,7 @@ while getopts b:f:kn:p:s:t:vh flag; do
 done
 
 if [ -z "$email_smtp_host" ]; then
-	echo "SMTP host not found" >&2
+	echo_error "SMTP host not found"
 	exit 1
 fi
 
@@ -43,27 +43,27 @@ if [ -z "$email_smtp_port" ]; then
 fi
 
 if [ -z "$email_from_address" ]; then
-	echo "Sender's email address not found" >&2
+	echo_error "Sender's email address not found"
 	exit 1
 fi
 
 if [ -z "$email_to_address" ]; then
-	echo "Recipient's email address not found" >&2
+	echo_error "Recipient's email address not found"
 	exit 1
 fi
 
 if [ -z "$email_body" ]; then
-	echo "Email body not found" >&2
+	echo_error "Email body not found"
 	exit 1
 fi
 
 if ! echo "$email_from_address" | grep -E -q $EMAIL_FORMAT >/dev/null; then
-	echo "Invalid sender email address format" >&2
+	echo_error "Invalid sender email address format"
 	exit 1
 fi
 
 if ! echo "$email_to_address" | grep -E -q $EMAIL_FORMAT >/dev/null; then
-	echo "Invalid recipient email address format" >&2
+	echo_error "Invalid recipient email address format"
 	exit 1
 fi
 
@@ -79,8 +79,7 @@ if [ -z "$email_subject" ]; then
 	email_subject="Snapshot from Thingino Camera"
 fi
 
-command="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 $verbosity"
-command="$command --mail-from $email_from_address --mail-rcpt $email_to_address"
+command="$CURL $verbosity --mail-from $email_from_address --mail-rcpt $email_to_address"
 
 if [ -n "$email_smtp_username" ] && [ -n "$email_smtp_password" ]; then
 	command="$command --user '$email_smtp_username:$email_smtp_password'"
@@ -117,7 +116,7 @@ fi
 command="$command -F '=)'"
 
 if ! sh -c "$command"; then
-	echo "Failed to send email" >&2
+	echo_error "Failed to send email"
 	exit 1
 fi
 

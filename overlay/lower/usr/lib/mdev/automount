@@ -1,15 +1,17 @@
 #!/bin/sh
 
+. /usr/share/common
+
 if [ -z "$MDEV" ]; then
-	echo "No device name to mount!"
+	echo_error "No device name to mount!"
 	exit 1
 fi
 
 device_node="/dev/$MDEV"
-echo "Device node: $device_node"
+echo_info "Device node: $device_node"
 
 mount_point="/mnt/$MDEV"
-echo "Mount point: $mount_point"
+echo_info "Mount point: $mount_point"
 
 diag="$mount_point/.diag"
 run="$mount_point/run.sh"
@@ -23,12 +25,12 @@ run_once_flag="${run_once/.sh/.done}"
 cleanup() {
 	if [ -d "$mount_point" ]; then
 		if rm -r "$mount_point"; then
-			echo "Removed mount point $mount_point"
+			echo_info "Removed mount point $mount_point"
 		else
-			echo "Failed to remove mount point $mount_point"
+			echo_warning "Failed to remove mount point $mount_point"
 		fi
 	else
-		echo "No mount point $mount_point found"
+		echo_info "No mount point $mount_point found"
 	fi
 }
 
@@ -37,41 +39,41 @@ do_fsck() {
 	fsck_status=$?
 
 	echo "$res" | while IFS= read -r line; do
-		echo "$line"
+		echo_info "$line"
 	done
 
 	if [ "$fsck_status" -eq 0 ]; then
-		echo "fsck check succeeded on $device_node"
+		echo_info "fsck check succeeded on $device_node"
 	else
-		echo "fsck check failed on $device_node"
+		echo_warning "fsck check failed on $device_node"
 
 		if [ "$fsck_status" -eq 8 ] || [ "$fsck_status" -eq 16 ] || \
 		  [ "$fsck_status" -eq 32 ] || [ "$fsck_status" -eq 128 ]; then
-			echo "Critical fsck error with exit status $fsck_status, mounting process aborted"
+			echo_warning "Critical fsck error with exit status $fsck_status, mounting process aborted"
 			return 1
 		else
-			echo "Non-critical fsck error with exit status $fsck_status, continuing"
+			echo_warning "Non-critical fsck error with exit status $fsck_status, continuing"
 		fi
 	fi
 }
 
 do_mount() {
 	if mkdir -p "$mount_point"; then
-		echo "Created mount point $mount_point"
+		echo_info "Created mount point $mount_point"
 	else
-		echo "Cannot create mount point $mount_point"
+		echo_warning "Cannot create mount point $mount_point"
 		return 1
 	fi
 
 	if ! do_fsck; then
-		echo "Failed to fsck $device_node"
+		echo_warning "Failed to fsck $device_node"
 		return 1
 	fi
 
 	if mount -t auto -o noatime,sync "$device_node" "$mount_point"; then
-		echo "Mounted $device_node to $mount_point"
+		echo_info "Mounted $device_node to $mount_point"
 	else
-		echo "Failed to mount $device_node to $mount_point"
+		echo_warning "Failed to mount $device_node to $mount_point"
 		cleanup
 		return 1
 	fi
@@ -83,20 +85,20 @@ do_mount() {
 
 do_umount() {
 	if lsof | grep -q "$mount_point"; then
-		echo "Killing processes that are using $mount_point"
+		echo_info "Killing processes that are using $mount_point"
 		lsof | awk "/$mount_point/{print \$1}" | xargs kill -9
 	else
-		echo "No processes are using $mount_point"
+		echo_info "No processes are using $mount_point"
 	fi
 
 	if grep -qs "^$device_node " /proc/mounts; then
 		if umount -l "$mount_point"; then
-			echo "Unmounted $mount_point"
+			echo_info "Unmounted $mount_point"
 		else
-			echo "Failed to unmount $mount_point"
+			echo_warning "Failed to unmount $mount_point"
 		fi
 	else
-		echo "$device_node is not mounted"
+		echo_info "$device_node is not mounted"
 	fi
 
 	cleanup
@@ -104,9 +106,9 @@ do_umount() {
 
 do_run_always() {
 	if sh $run; then
-		echo "Executed $run script"
+		echo_info "Executed $run script"
 	else
-		echo "Failed to execute $run script"
+		echo_warning "Failed to execute $run script"
 	fi
 }
 
@@ -124,15 +126,15 @@ do_run_diag() {
 
 do_run_once() {
 	if [ -f "$run_once_flag" ]; then
-		echo "Stop flag $run_once_flag exists"
+		echo_warning "Stop flag $run_once_flag exists"
 		return 1
 	fi
 
 	if sh "$run_once"; then
 		touch "$run_once_flag"
-		echo "Executed $run_once script"
+		echo_info "Executed $run_once script"
 	else
-		echo "Failed to execute $run_once script"
+		echo_warning "Failed to execute $run_once script"
 	fi
 }
 

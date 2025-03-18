@@ -1,13 +1,15 @@
 #!/bin/sh
 # udhcpc script edited by Tim Riker <Tim@Rikers.org>
 
+. /usr/share/common
+
 if [ -z "$1" ]; then
-	echo "Error: should be called from udhcpc"
+	echo_error "Error: should be called from udhcpc"
 	exit 1
 fi
 
 if [ ! -d /sys/class/net/$interface ]; then
-	echo "$interface not found"
+	echo_error "Interface $interface not found"
 	exit 1
 fi
 
@@ -44,13 +46,13 @@ case "$1" in
 		echo "Setting IP address $ip on $interface"
 		ip addr add $ip$NETMASK $BROADCAST dev $interface
 		if [ -n "$router" ]; then
-			echo "Deleting routers"
+			echo_info "Deleting routers"
 			while route del default gw 0.0.0.0 dev $interface; do
 				:
 			done
 
 			for i in $router; do
-				echo "Adding router $i"
+				echo_info "Adding router $i"
 				if [ "$subnet" = "255.255.255.255" ]; then
 					ip route add $i dev $interface
 				fi

@@ -33,7 +33,7 @@ while getopts d:f:p:P:s:u:vVh flag; do
 done
 
 if [ -z "$ftp_host" ]; then
-	echo "FTP host not found" >&2
+	echo_error "FTP host not found"
 	exit 1
 fi
 
@@ -70,11 +70,9 @@ if [ -n "$ftp_path" ]; then
 fi
 url="$url/$ftp_filename"
 
-command="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 $verbosity"
-command="$command --url $url --upload-file $ftp_file --ftp-create-dirs"
-
+command="$CURL $verbosity --url $url --upload-file $ftp_file --ftp-create-dirs"
 if ! sh -c "$command"; then
-	echo "Failed to upload file to FTP server" >&2
+	echo_error "Failed to upload file to FTP server"
 	exit 1
 fi
 

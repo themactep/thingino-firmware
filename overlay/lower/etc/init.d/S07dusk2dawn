@@ -5,18 +5,18 @@ DAEMON="dusk2dawn"
 . /usr/share/common
 
 start() {
-	echo "Setting $DAEMON..."
+	echo_title "Setting $DAEMON"
 
 	if [ ! -x /sbin/$DAEMON ]; then
-		echo "- $DAEMON not found"
+		echo_error "$DAEMON not found"
 		exit 1
 	fi
 
 	if grep -q $DAEMON $CRONTABS; then
-		echo "- $DAEMON already in crontab"
+		echo_info "$DAEMON already in crontab"
 	else
 		printf "# run $DAEMON nightly at 0:00\n0 0 * * * $DAEMON\n" >> $CRONTABS
-		echo "- $DAEMON added to crontab"
+		echo_info "$DAEMON added to crontab"
 	fi
 }
 

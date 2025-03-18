@@ -36,7 +36,7 @@ case "$type" in
 esac
 
 if [ -z "$pin" ]; then
-	echo "Please define LED GPIO pin" >&2
+	echo_error "Please define LED GPIO pin"
 	exit 1
 fi
 
@@ -69,7 +69,7 @@ case "$mode" in
 		fi
 		;;
 	*)
-		echo "Error: Unknown mode" >&2
+		echo_error "Error: Unknown mode" >&2
 		exit 1
 		;;
 esac

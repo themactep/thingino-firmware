@@ -3,17 +3,17 @@
 . /usr/share/common
 
 start() {
-	echo "Setting initial system time"
+	echo_title "Setting initial system time"
 
-	if [ ! -f "$FILE_OS_RELEASE" ]; then
-		echo "- No release file found, not setting system clock"
+	if [ ! -f "$OS_RELEASE_FILE" ]; then
+		echo_error "No release file found, not setting system clock"
 		exit 1
 	fi
 
-	if date -u -s "@$(stat -c%X "$FILE_OS_RELEASE")" >/dev/null; then
-		echo "- $(date) (fail-safe)"
+	if date -u -s "@$(stat -c%X "$OS_RELEASE_FILE")" >/dev/null; then
+		echo_info "$(date) (fail-safe)"
 	else
-		echo "- Failed to set time"
+		echo_error "Failed to set time"
 		exit 1
 	fi
 }

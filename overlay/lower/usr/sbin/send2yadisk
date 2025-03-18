@@ -28,12 +28,12 @@ while getopts d:f:P:u:vh flag; do
 done
 
 if [ -z "$yadisk_username" ]; then
-	echo "Yandex Disk username not found" >&2
+	echo_error "Yandex Disk username not found"
 	exit 1
 fi
 
 if [ -z "$yadisk_password" ]; then
-	echo "Yandex Disk password not found" >&2
+	echo_error "Yandex Disk password not found"
 	exit 1
 fi
 
@@ -43,8 +43,7 @@ if [ -z "$yadisk_file" ]; then
 	yadisk_file=$attachment
 fi
 
-command="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 $verbosity"
-command="$command --user '${yadisk_username}:$yadisk_password'"
+command="$CURL $verbosity --user '${yadisk_username}:$yadisk_password'"
 
 url="https://webdav.yandex.ru"
 yadisk_path=$(date +"$yadisk_path")
@@ -67,7 +66,7 @@ command="$command --request PUT --upload-file $yadisk_file"
 command="$command --url $url/$yadisk_path/$(TZ=$(cat /etc/TZ) date +"%G%m%d-%H%M%S").jpg"
 
 if ! sh -c "$command"; then
-	echo "Failed to upload file to Yandex Disk" >&2
+	echo_error "Failed to upload file to Yandex Disk"
 	exit 1
 fi
 

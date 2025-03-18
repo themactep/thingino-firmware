@@ -3,8 +3,8 @@
 . /usr/share/common
 
 start() {
-	echo "Creating U-Boot environment dump in $ENV_DUMP_FILE"
-	refresh_env_dump
+	echo_title "U-Boot environment"
+	# Dumps the U-Boot environment to a file automatically
 }
 
 case "$1" in

@@ -42,12 +42,11 @@ while getopts a:c:f:i:l:m:n:p:s:t:u:vh flag; do
 done
 
 if [ -z "$ntfy_topic" ]; then
-	echo "NTFY topic is not set" >&2
+	echo_error "NTFY topic is not set"
 	exit 1
 fi
 
-command="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 $verbosity"
-command="$command -H p:${ntfy_priority:-3}"
+command="$CURL $verbosity -H p:${ntfy_priority:-3}"
 
 if [ -n "$ntfy_title" ]; then
 	command="$command -H 'Title: $ntfy_title'"
@@ -100,7 +99,7 @@ fi
 command="$command ${ntfy_host:-ntfy.sh}/$ntfy_topic"
 
 if ! sh -c "$command"; then
-	echo "Failed to send NTFY message" >&2
+	echo_error "Failed to send NTFY message"
 	exit 1
 fi
 

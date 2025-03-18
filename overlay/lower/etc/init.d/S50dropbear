@@ -6,7 +6,7 @@ DROPBEAR_KEY_FILE="/etc/dropbear/dropbear_ed25519_host_key"
 . /usr/share/common
 
 start() {
-	echo "Starting dropbear sshd..."
+	echo_title "Starting dropbear sshd"
 
 	umask 077
 
@@ -18,7 +18,7 @@ start() {
 }
 
 stop() {
-	echo "Stopping dropbear sshd..."
+	echo_title "Stopping dropbear sshd"
 
 	stop_daemon
 }

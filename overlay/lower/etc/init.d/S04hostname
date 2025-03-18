@@ -3,11 +3,7 @@
 . /usr/share/common
 
 default_hostname() {
-	echo "$(sed -n 's/^ID=//p' $FILE_OS_RELEASE)-$(soc -m)"
-}
-
-mac_suffix() {
-	echo $wlan_mac | sed -E 's/://g;s/.*(.{4})$/\1/'
+	echo "$(sed -n 's/^ID=//p' $OS_RELEASE_FILE)"
 }
 
 is_user_modified_hostname() {
@@ -16,59 +12,68 @@ is_user_modified_hostname() {
 	hostname="$(hostname)"
 
 	if [ -z "$hostname" ]; then
-		echo "- Hostname is blank or and should be generated"
+		echo_warning "Hostname is blank or and should be generated"
 		return 1
 	fi
 
 	if [ "(none)" = "$hostname" ]; then
-		echo "- Hostname is '(none)' and should be generated"
+		echo_warning "Hostname is '(none)' and should be generated"
 		return 1
 	fi
 
 	if [ "$(default_hostname)" = "$hostname" ]; then
-		echo "- Hostname $hostname is default and should be generated"
+		echo_warning "Hostname $hostname is default and should be generated"
 		return 1
 	fi
 
 	if echo "$hostname" | grep -i -q "^$(default_hostname)-[0-9a-f]\{4\}$"; then
-		echo "- Hostname $hostname is auto-generated and should be regenerated if the MAC address has changed"
+		echo_warning "Hostname $hostname is auto-generated and should be regenerated if the MAC address has changed"
 		return 1
 	fi
 
-	echo "- Hostname $hostname is custom, skipping generation"
+	echo_info "Hostname $hostname is custom, skipping generation"
 	return 0
 }
 
 generate() {
-	hostname="$(default_hostname)-$(mac_suffix)"
-	echo "- Generated name: $hostname"
+	hostname="$(default_hostname)-$(echo $wlan_mac | sed -E 's/://g;s/.*(.{4})$/\1/')"
+	echo_info "Generated name: $hostname"
 
 	if [ "$(hostname)" != "$hostname" ]; then
-		echo "- Setting hostname to $hostname"
+		echo_info "Setting hostname to $hostname"
 		hostname "$hostname"
 	fi
 
-	# Do not change hostname in $FILE_OS_RELEASE!
+	# Do not change hostname in $OS_RELEASE_FILE!
 
 	ip="127.0.1.1"
-	if [ "$(sed -nE "s/^$ip\s+(.*)$/\1/p" $FILE_HOSTS)" != "$hostname" ]; then
-		echo "- Setting hostname in $FILE_HOSTS"
-		sed -i "/^$ip/c$ip\t$hostname" $FILE_HOSTS
+	hostname_in_hosts=$(sed -nE "s/^$ip\s+(.*)$/\1/p" $HOSTS_FILE)
+	echo_info "Hostname in $HOSTS_FILE is $hostname_in_hosts"
+
+	if [ "$hostname_in_hosts" = "$hostname" ]; then
+		echo_info "Hostname in $HOSTS_FILE is correct"
+	else
+		echo_info "Updating hostname in $HOSTS_FILE"
+		sed -i "/^$ip/c$ip\t$hostname" $HOSTS_FILE
 	fi
 
-	if [ "$(cat $FILE_HOSTNAME)" != "$hostname" ]; then
-		echo "- Saving hostname in $FILE_HOSTNAME"
-		echo $hostname > $FILE_HOSTNAME
+	hostname_in_hostname=$(cat $HOSTNAME_FILE)
+	if [ "$hostname_in_hostname" = "$hostname" ]; then
+		echo_info "Hostname in $HOSTNAME_FILE is correct"
+	else
+		echo_info "Saving hostname in $HOSTNAME_FILE"
+		echo $hostname > $HOSTNAME_FILE
 	fi
 }
 
 start() {
-	echo "Setting hostname"
+	echo_title "Configuring hostname"
 
 	is_user_modified_hostname || generate
 
 	hostname=$(hostname)
-	echo "- Hostname set to $hostname"
+	echo_info "Hostname set to $hostname"
+
 	HOSTNAME="$hostname"
 	export HOSTNAME
 }

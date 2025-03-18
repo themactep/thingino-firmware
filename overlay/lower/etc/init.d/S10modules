@@ -10,13 +10,13 @@ load_modules() {
 		case "$module" in
 			"" | "#"*) continue ;;
 		esac
-		echo "- Loading $module $args"
+		echo_info "Loading $module $args"
 		modprobe $module $args
 	done < $file
 }
 
 start() {
-	echo "Loading kernel modules..."
+	echo_title "Loading kernel modules"
 
 	load_modules /etc/modules
 	[ -d /etc/modules.d ] && for conf in /etc/modules.d/*; do

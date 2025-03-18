@@ -2,6 +2,11 @@
 
 . /usr/share/common
 
+if [ ! -f "$CONFIG_FILE" ]; then
+	echo_error "Config file $CONFIG_FILE not found"
+	exit 1
+fi
+
 show_help() {
 	local app=$(basename $0)
 	echo "Thingino System Config Tool

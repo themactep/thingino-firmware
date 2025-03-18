@@ -22,7 +22,7 @@ if [ -n "$pin1" ]; then
 	esac
 	pin1=${pin1:0:(-1)}
 else
-	echo "Please define IRCUT pins in bootloader environment" >&2
+	echo_error "Please define IRCUT pins in bootloader environment"
 	exit 1
 fi
 
@@ -71,9 +71,9 @@ case "$1" in
 		;;
 	status)
 		case "$(cat "$MODE_FILE")" in
-			0) echo "IRCUT filter is removed" >&2 ;;
-			1) echo "IRCUT filter is set" >&2 ;;
-			*) echo "IRCUT filter is in unknown state" >&2 ;;
+			0) echo_info "IRCUT filter is removed" ;;
+			1) echo_info "IRCUT filter is set" ;;
+			*) echo_info "IRCUT filter is in unknown state" ;;
 		esac
 		;;
 	\? | read)

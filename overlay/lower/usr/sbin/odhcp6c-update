@@ -1,14 +1,14 @@
 #!/bin/sh
 
 if [ -z "$2" ]; then
-	echo "Error: should be run by odhcp6c" >&2
+	echo_error "Error: should be run by odhcp6c"
 	exit 1
 fi
 
 # Define the base directory for tracking DHCPv6 data
 DHCP6_DATA_BASE="/var/run/odhcp6c"
 if ! mkdir -p "$DHCP6_DATA_BASE"; then
-	echo "Error: cannot create $DHCP6_DATA_BASE" >&2
+	echo_error "Error: cannot create $DHCP6_DATA_BASE"
 	exit 1
 fi
 
@@ -152,7 +152,7 @@ update_resolv() {
 			if ! grep -q "search $domain" /tmp/resolv.conf.tmp; then
 				echo "search $domain # added by odhcp6c" >> /tmp/resolv.conf.tmp
 			fi
-			echo "added search $domain" >&2
+			echo_info "added search $domain"
 		done
 
 		# Add unique DNS servers to resolv.conf
@@ -160,7 +160,7 @@ update_resolv() {
 			if ! grep -q "nameserver $c" /tmp/resolv.conf.tmp; then
 				echo "nameserver $c # added by odhcp6c" >> /tmp/resolv.conf.tmp
 			fi
-			echo "added nameserver $c" >&2
+			echo_info "added nameserver $c"
 		done
 
 		# Move the temporary file to /tmp/resolv.conf
@@ -183,27 +183,27 @@ add_address() {
 	dev_opts="${address#* dev }"
 
 	# Extract the individual components from dev_opts
-	dev_name="${dev_opts%% *}"  # Device name (e.g., eth0)
+	dev_name="${dev_opts%% *}"
 	pref_lft="${dev_opts##*preferred_lft }"
 	pref_lft="${pref_lft%% valid_lft*}"
 	valid_lft="${dev_opts##*valid_lft }"
 
 	# Check if the address already exists
 	if ip -6 address show dev "$dev_name" | grep -q "$addr"; then
-		echo "Address already exists: $addr dev $dev_name, updating lifetimes" >&2
+		echo_warning "Address already exists: $addr dev $dev_name, updating lifetimes"
 
 		# Update the address with the new preferred and valid lifetimes
 		ip -6 address change "$addr" dev "$dev_name" preferred_lft "$pref_lft" valid_lft "$valid_lft" || {
-			echo "Failed to update address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft" >&2
+			echo_warning "Failed to update address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
 			return 1
 		}
 		return 0
 	fi
 
-	echo "Adding address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft" >&2
+	echo_info "Adding address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
 
 	ip -6 address add "$addr" dev "$dev_name" preferred_lft "$pref_lft" valid_lft "$valid_lft" || {
-		echo "Failed to add address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft" >&2
+		echo_warning "Failed to add address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
 		return 1
 	}
 
@@ -248,7 +248,7 @@ teardown_interface() {
 
 	# Check if the lease file exists
 	if [ -f "$lease_file" ]; then
-		echo "Attempting to remove addresses and routes from $device" >&2
+		echo_info "Attempting to remove addresses and routes from $device"
 
 		# Read the lease file line by line
 		while read -r line; do
@@ -261,26 +261,26 @@ teardown_interface() {
 				if [ -n "$addr" ]; then
 					# Attempt to remove the address
 					if ip -6 address del "$addr" dev "$device"; then
-						echo "Successfully removed address: $addr dev $device" >&2
+						echo_info "Successfully removed address: $addr dev $device"
 					else
-						echo "Failed to remove address: $addr dev $device" >&2
+						echo_warning "Failed to remove address: $addr dev $device"
 					fi
 
 					# Attempt to remove the route for this address
 					if ip -6 route del "$addr" dev "$device"; then
-						echo "Successfully removed route: $addr dev $device" >&2
+						echo_info "Successfully removed route: $addr dev $device"
 					else
-						echo "Failed to remove route: $addr dev $device" >&2
+						echo_warning "Failed to remove route: $addr dev $device"
 					fi
 				fi
 			fi
 		done < "$lease_file"
 
 		# Remove the lease file after processing
-		echo "Removing lease file: $lease_file" >&2
+		echo_info "Removing lease file: $lease_file"
 		rm -f "$lease_file"
 	else
-		echo "No existing lease file found for $device" >&2
+		echo_warning "No existing lease file found for $device"
 	fi
 }
 

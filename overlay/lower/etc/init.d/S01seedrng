@@ -7,13 +7,13 @@ PIDFILE="/run/$DAEMON.pid"
 . /usr/share/common
 
 start() {
-	echo "Starting seedrng..."
+	echo_title "Starting seedrng"
 
 	start_daemon
 }
 
 stop() {
-	echo "Stopping seedrng..."
+	echo_title "Stopping seedrng"
 
 	stop_daemon
 }

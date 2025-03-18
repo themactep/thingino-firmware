@@ -4,7 +4,6 @@ export HOME=${HOME:-/root}
 export TZ=$(cat /etc/TZ)
 export EDITOR="vi"
 export SENSOR=$(cat /etc/sensor/model)
-export SOC=$(soc -f)
 
 network_hostname=$(hostname -s)
 ifaces=$(ifconfig | awk '/^[^( |lo)]/{print $1}')

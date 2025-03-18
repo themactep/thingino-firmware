@@ -1,9 +1,11 @@
 #!/bin/sh
 
+. /usr/share/common
+
 MDEV="/sbin/mdev"
 
 start() {
-	echo "Configuring mdev..."
+	echo_title "Configuring mdev"
 
 	echo "$MDEV" > /proc/sys/kernel/hotplug
 	$MDEV -s

@@ -3,13 +3,13 @@
 . /usr/share/common
 
 start() {
-	echo "Starting Telegram bot daemon..."
+	echo_title "Starting Telegram bot daemon"
 
 	start_daemon
 }
 
 stop() {
-	echo "Stopping Telegram bot daemon..."
+	echo_title "Stopping Telegram bot daemon"
 
 	stop_daemon
 }

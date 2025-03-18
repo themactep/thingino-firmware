@@ -1,41 +1,45 @@
 #!/bin/sh
 
-DAEMON_ARGS="-n -S /etc/ntpd_callback"
-
 . /usr/share/common
 
-sync_time() {
-	echo "- Sync time"
-	ntpd -q -n -N &
-}
-
 start() {
-	echo "Starting NTP daemon..."
+	echo_title "Starting NTP daemon"
 
 	if [ "true" = "$wlanap_enabled" ]; then
 		touch "$NTP_WORKING_FILE"
 		DAEMON_ARGS="-n -l"
+	else
+		DAEMON_ARGS="-n -S /etc/ntpd_callback"
 	fi
 
 	if [ -f "$NTP_WORKING_FILE" ]; then
-		echo "- working configuration found"
+		echo_info "working configuration found"
 	else
 		if [ -f "$NTP_DEFAULT_FILE" ]; then
-			echo "- default configuration found"
+			echo_info "default configuration found"
 		else
-			echo "- restore default config from ROM"
+			echo_info "restore default config from ROM"
 			cp "/rom$NTP_DEFAULT_FILE" "$NTP_DEFAULT_FILE"
 		fi
 
-		echo "- use default configuration"
+		echo_info "use default configuration"
 		cp "$NTP_DEFAULT_FILE" "$NTP_WORKING_FILE"
 	fi
+
 	start_daemon
-	sync_time
+
+	if [ "true" = "$wlanap_enabled" ]; then
+		echo_info "WLAN AP mode. Skip sync time"
+	elif [ -f /run/portal_mode ]; then
+		echo_info "Portal mode. Skip sync time"
+	else
+		echo_info "Sync time"
+		ntpd -q -N &
+	fi
 }
 
 stop() {
-	echo "Stopping NTP daemon..."
+	echo_title "Stopping NTP daemon"
 
 	stop_daemon
 }

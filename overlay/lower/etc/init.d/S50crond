@@ -5,16 +5,24 @@ DAEMON_ARGS="-f -c /etc/cron/crontabs"
 . /usr/share/common
 
 start() {
-	echo "Starting crond..."
+	echo_title "Starting crond"
 
-	[ -f $DAEMON_FULL ] || quit "- Disabled"
+	if [ ! -f $DAEMON_FULL ]; then
+		echo_error "Disabled"
+		exit 1
+	fi
+
 	start_daemon
 }
 
 stop() {
-	echo "Stopping crond..."
+	echo_title "Stopping crond"
 
-	[ -f $DAEMON_FULL ] || quit "- Disabled"
+	if [ ! -f $DAEMON_FULL ]; then
+		echo_error "Disabled"
+		exit 1
+	fi
+
 	stop_daemon
 }
 

@@ -26,7 +26,7 @@ while getopts m:su:vh flag; do
 done
 
 if [ -z "$webhook_url" ]; then
-	echo "Webhook URL not found" >&2
+	echo_error "Webhook URL not found"
 	exit 1
 fi
 
@@ -38,11 +38,9 @@ else
 	data="-d '$webhook_message'"
 fi
 
-command="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 $verbosity"
-command="$command $data --url $webhook_url"
-
+command="$CURL $verbosity $data --url $webhook_url"
 if ! sh -c "$command"; then
-	echo "Failed to send webhook message" >&2
+	echo_error "Failed to send webhook message"
 	exit 1
 fi
 

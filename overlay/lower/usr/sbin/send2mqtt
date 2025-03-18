@@ -26,27 +26,27 @@ while getopts m:st:vh flag; do
 done
 
 if [ -z "$mqtt_host" ]; then
-	echo "MQTT broker host not found in config" >&2
+	echo_error "MQTT broker host not found in config"
 	exit 1
 fi
 
 if [ -z "$mqtt_port" ]; then
-	echo "MQTT broker port not found in config" >&2
+	echo_error "MQTT broker port not found in config"
 	exit 1
 fi
 
 if [ -z "$mqtt_topic" ]; then
-	echo "MQTT topic not found" >&2
+	echo_error "MQTT topic not found"
 	exit 1
 fi
 
 if [ -z "$mqtt_message" ]; then
-	echo "MQTT message template not found" >&2
+	echo_error "MQTT message template not found"
 	exit 1
 fi
 
 if [ "true" = "$mqtt_send_snap" ] && [ -z "$mqtt_snap_topic" ]; then
-	echo "MQTT topic for sending snapshot not found in config" >&2
+	echo_error "MQTT topic for sending snapshot not found in config"
 	exit 1
 fi
 
@@ -75,7 +75,7 @@ else
 fi
 
 if ! sh -c "$command"; then
-	echo "Failed to send MQTT message" >&2
+	echo_error "Failed to send MQTT message"
 	exit 1
 fi
 

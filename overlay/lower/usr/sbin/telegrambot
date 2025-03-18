@@ -2,12 +2,12 @@
 
 . /usr/share/common
 
-pidof -o %PPID $(basename $0) > /dev/null && die "is already running"
+singleton "$0"
 
 ensure_command "jsonfilter"
 
 if [ -z "$telegrambot_token" ]; then
-	echo "Telegram Bot token is not set" >&2
+	echo_error "Telegram Bot token is not set"
 	exit 1
 fi
 
@@ -70,17 +70,14 @@ api_call() {
 		rm $JSDATA_FILE
 	fi
 
-	echo_c 11 "$1"
 	local tmpfile=$(mktemp -u)
 	echo "$2" > $tmpfile
-	echo_c 14 "$(cat $tmpfile)"
 	curl $verbosity --show-error --fail \
 		--connect-timeout 10 --max-time 30 --retry 3 \
 		--url "$API_URL/$1" -H "Content-Type: application/json" \
 		--data-binary "@$tmpfile" \
 		--output $JSDATA_FILE
 	rm $tmpfile
-	echo_c 13 "$(cat $JSDATA_FILE)"
 }
 
 # Bot actions
@@ -88,7 +85,6 @@ api_call() {
 get_me() {
 	api_call "getMe" "{\"timeout\":$MSG_TIMEOUT}"
 	ME="@$(json_data "$.result.username")"
-	echo_c 33 "Starting Telegram Bot $ME"
 }
 
 leave_chat() {
@@ -236,7 +232,7 @@ while :; do
 
 			# check sender against whitelist
 			if ! echo "$telegrambot_users" | grep -qw "$sender"; then
-				echo "You are not my daddy, @$sender!"
+				echo_warning "You are not my daddy, @$sender!"
 				continue
 			fi
 

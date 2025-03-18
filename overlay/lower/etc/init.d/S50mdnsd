@@ -5,13 +5,13 @@ DAEMON_ARGS="-i $(ip addr show | awk '/inet.*brd/{print $NF}' | head -1) -s"
 . /usr/share/common
 
 start() {
-	echo "Starting mdnsd..."
+	echo_title "Starting mdnsd"
 
 	start_daemon
 }
 
 stop() {
-	echo "Stopping mdnsd..."
+	echo_title "Stopping mdnsd"
 
 	stop_daemon
 }

@@ -21,14 +21,14 @@ SERVICE=$2
 
 SCRIPT=$(ls /etc/init.d/[FKS][0-9][0-9]$SERVICE 2> /dev/null)
 if [ "$1" != "list" ] && [ -z "$SCRIPT" ]; then
-	echo "Service $SERVICE not found" >&2
+	echo_error "Service $SERVICE not found"
 	exit 1
 fi
 
 case "$ACTION" in
 	start | stop | reload | restart)
 		if ! $SCRIPT $ACTION; then
-			echo "Failed to $ACTION $SERVICE" >&2
+			echo_error "Failed to $ACTION $SERVICE"
 			exit 1
 		fi
 		;;
@@ -43,7 +43,7 @@ case "$ACTION" in
 		chmod -x $SCRIPT
 		;;
 	*)
-		echo "Invalid action: $ACTION" >&2
+		echo_error "Invalid action: $ACTION"
 		exit 1
 		;;
 esac

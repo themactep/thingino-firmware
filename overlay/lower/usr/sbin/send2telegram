@@ -56,7 +56,7 @@ parse_caption() {
 
 copy_photo() {
 	if [ ! -f "$SNAPSHOT_FILE" ]; then
-		echo "Snapshot not found" >&2
+		echo_error "Snapshot not found"
 		exit 1
 	fi
 	photo2=$(mktemp -u).jpg
@@ -66,7 +66,7 @@ copy_photo() {
 
 copy_video() {
 	if [ ! -f "$VBUFFER_FILE" ]; then
-		echo "Video buffer not found" >&2
+		echo_error "Video buffer not found"
 		exit 1
 	fi
 
@@ -83,17 +83,16 @@ remove_tempfiles() {
 }
 
 if [ -z "$telegram_token" ]; then
-	echo "Telegram token not found" >&2
+	echo_error "Telegram token not found"
 	exit 1
 fi
 
 if [ -z "$telegram_channel" ]; then
-	echo "Telegram channel not found" >&2
+	echo_error "Telegram channel not found"
 	exit 1
 fi
 
-command="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 $verbosity"
-command="$command -H 'Content-Type: multipart/form-data' -F 'chat_id=$telegram_channel'"
+command="$CURL $verbosity -H 'Content-Type: multipart/form-data' -F 'chat_id=$telegram_channel'"
 
 if [ "true" = "$telegram_silent" ]; then
 	command="$command -F 'disable_notification=true'"
@@ -119,7 +118,7 @@ if [ "true" = "$telegram_attach_video" ] && [ "true" = "$telegram_attach_photo" 
 	while [ $inode -eq $(stat -c%i $VBUFFER_FILE) ]; do
 		n=$((n + 1))
 		if [ "$n" -ge 10 ]; then
-			echo "Give up after $n attempts." >&2
+			echo_error "Give up after $n attempts."
 			exit 1
 		fi
 		sleep 1
@@ -155,12 +154,12 @@ elif [ -n "$telegram_file" ] && [ -f "$telegram_file" ]; then
 	fi
 	command="${command}sendDocument -F 'document=@$1' -F 'caption=$caption'"
 else
-	echo "Nothing to send" >&2
+	echo_error "Nothing to send"
 	exit 1
 fi
 
 if ! sh -c "$command"; then
-	echo "Failed to send message to Telegram" >&2
+	echo_error "Failed to send message to Telegram"
 	exit 1
 fi
 

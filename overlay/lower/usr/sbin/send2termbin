@@ -16,7 +16,7 @@ else
 fi
 
 if [ ! -s "$file" ]; then
-	echo "File $file is empty" >&2
+	echo_error "File $file is empty"
 	exit 1
 fi
 

@@ -1,7 +1,9 @@
 #!/bin/sh
 
+. /usr/share/common
+
 start() {
-	echo "Configuring IR-CUT..."
+	echo_title "Initializing IR-CUT"
 
 	ircut off > /dev/null 2>&1
 	sleep 0.5

@@ -3,13 +3,13 @@
 . /usr/share/common
 
 start() {
-	echo "Configuring DNS..."
+	echo_title "Configuring DNS"
 
 	if [ -f "$RESOLV_DEFAULT_FILE" ]; then
 		cat "$RESOLV_DEFAULT_FILE" > "$RESOLV_WORKING_FILE"
-		echo "- Using default DNS servers"
+		echo_info "Using default DNS servers"
 	else
-		echo "- No static DNS servers found"
+		echo_info "No static DNS servers found"
 	fi
 }
 
