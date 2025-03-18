@@ -1,3 +1,7 @@
+define WIFI_LINUX_CONFIG_FIXUPS
+	$(call KCONFIG_SET_OPT,CONFIG_RFKILL,y)
+endef
+
 define WIFI_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
 	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d/ $(WIFI_PKGDIR)/files/S36wireless
