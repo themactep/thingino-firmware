@@ -3,15 +3,13 @@
 <%
 page_title="Time"
 
-ntpd_static_config=/etc/default/ntp.conf
-ntpd_working_config=/tmp/ntp.conf
 ntpd_sync_status=/run/sync_status
 seq=$(seq 0 3)
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	case "$POST_action" in
 		reset)
-			cp -f /rom$ntpd_static_config $ntpd_working_config
+			cp -f /rom$NTP_DEFAULT_FILE $NTP_WORKING_FILE
 			;;
 		set)
 			date -s "$POST_time"
@@ -31,11 +29,11 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 					[ -n "$s" ] && echo "server $s iburst" >>$tmp_file
 				done; unset i; unset s
 
-				mv $tmp_file $ntpd_static_config
-				cp $ntpd_static_config $ntpd_working_config
-				chmod 444 $ntpd_static_config
-				chmod 444 $ntpd_working_config
-				service timezone restart > /dev/null
+				mv $tmp_file $NTP_DEFAULT_FILE
+				cp $NTP_DEFAULT_FILE $NTP_WORKING_FILE
+				chmod 444 $NTP_DEFAULT_FILE
+				chmod 444 $NTP_WORKING_FILE
+				service restart timezone > /dev/null
 			fi
 			;;
 	esac
@@ -87,8 +85,8 @@ done; unset i; unset x
 <% ex "cat /etc/timezone" %>
 <% ex "cat /etc/TZ" %>
 <% ex "echo \$TZ" %>
-<% [ -f "$ntpd_working_config" ] && ex "cat $ntpd_working_config" %>
-<% [ -f "$ntpd_static_config" ] && ex "cat $ntpd_static_config" %>
+<% [ -f "$NTP_WORKING_FILE" ] && ex "cat $NTP_WORKING_FILE" %>
+<% [ -f "$NTP_DEFAULT_FILE" ] && ex "cat $NTP_DEFAULT_FILE" %>
 <% [ -f "$ntpd_sync_status" ] && ex "cat $ntpd_sync_status" %>
 </div>
 
