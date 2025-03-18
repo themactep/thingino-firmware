@@ -101,6 +101,21 @@ ensure_command() {
 	fi
 }
 
+ensure_dir() {
+	if [ -d "$1" ]; then
+		echo_info "Directory $1 exists"
+		return 0
+	fi
+
+	if ! mkdir -p "$1"; then
+		echo_error "Cannot create directory $1"
+	fi
+
+	if [ ! -w "$1" ]; then
+		echo_error "Cannot write to $1"
+	fi
+}
+
 gpio_control() {
 	gpio_name="$1"
 	gpio_power="$(grep ^${gpio_name}= $CONFIG_FILE | cut -d= -f2)"
@@ -174,6 +189,11 @@ iface_exists() {
 		echo_warning "Interface '$iface' does not exist."
 		return 1
 	fi
+}
+
+iface_mac_suffix() {
+	#ip link show $1 | awk '/ether/ {print $2}' | sed -E 's/://g;s/.*(.{4})$/\1/'
+	ip link show $1 | awk '/ether/ {print $2}' | awk -F: '{print $(NF-1) $NF}'
 }
 
 is_debug_mode() {
@@ -296,4 +316,10 @@ tag() {
 
 ts() {
 	date -u +"%F %T"
+}
+
+usage() {
+	# {start|stop|restart|status}
+	echo "Usage: $0 $1" >&2
+	exit 1
 }
