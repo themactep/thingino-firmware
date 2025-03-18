@@ -56,15 +56,16 @@ decrement_mac() {
 
 	mac=$ethaddr
 	if [ -z "$mac" ]; then
-		echo "Error: MAC address not found in $CONFIG_FILE" >&2
+		echo_error "Error: MAC address not found in $CONFIG_FILE"
 		exit 1
 	fi
 
 	last_byte_dec=$((0x${mac##*:} - 1))
 	if [ $last_byte_dec -lt 0 ]; then
-		echo "Error: MAC address cannot be decremented below 00" >&2
+		echo_error "Error: MAC address cannot be decremented below 00"
 		exit 1
 	fi
+
 	ethaddr=$(printf "%s:%02x" "${mac%:*}" "$last_byte_dec")
 }
 
@@ -73,9 +74,29 @@ die() {
 	exit 1
 }
 
+echo_command() {
+	echo -e "\e[38;5;101m  $1\e[0m" >&2
+}
+
+echo_error() {
+	echo -e "\e[38;5;160m  $1\e[0m" >&2
+}
+
+echo_info() {
+	echo -e "\e[38;5;240m- $1\e[0m" >&2
+}
+
+echo_title() {
+	echo -e "\e[38;5;015m$1 ...\e[0m" >&2
+}
+
+echo_warning() {
+	echo -e "\e[38;5;142m  $1\e[0m" >&2
+}
+
 ensure_command() {
 	if ! command -v "$1" > /dev/null; then
-		echo "Missing $1" >&2
+		echo_error "Missing $1"
 		exit 1
 	fi
 }
@@ -99,15 +120,15 @@ gpio_control() {
 			gpio_cmd="low"
 			;;
 		*)
-			echo "Invalid state for GPIO $gpio_name: $state" >&2
+			echo_warning "Invalid state for GPIO $gpio_name: $state"
 			return 2  # invalid state
 			;;
 	esac
 
-	echo "Set GPIO $num $gpio_cmd" >&2
+	echo_info "Set GPIO $num $gpio_cmd"
 	gpio $gpio_cmd $num 2>&1 && return 0  # success
 
-	echo "Failed to set GPIO $num $gpio_cmd" >&2
+	echo_warning "Failed to set GPIO $num $gpio_cmd"
 	return 3  # failure
 }
 
@@ -137,20 +158,20 @@ iface_exists() {
 	iface="$1"
 
 	if [ -z "$iface" ]; then
-		echo "Interface parameter missing." >&2
+		echo_warning "Interface parameter missing."
 		return 1
 	fi
 
 	if ip link show $iface &> /dev/null; then
 		if [ "eth0" = $iface ] && ! is_gateway_reachable; then
-			echo "eth0 has no local connection" >&2
+			echo_warning "eth0 has no local connection"
 			return 1
 		fi
 
-		# echo "Interface '$iface' exists." >&2
+		# echo_info "Interface '$iface' exists." >&2
 		return 0
 	else
-		echo "Interface '$iface' does not exist." >&2
+		echo_warning "Interface '$iface' does not exist."
 		return 1
 	fi
 }
@@ -204,17 +225,22 @@ refresh_env_dump() {
 }
 
 set_gpio() {
-	echo "Set GPIO $1 to F$2 D$3" >&2
+	echo_info "Set GPIO $1 to F$2 D$3"
 	gpio-diag $1 func $2 drive $3
 }
 
 singleton() {
-	local name
+	if [ -z "$1" ]; then
+		echo_error "Program name is missing"
+		exit 1
+	fi
 
-	name=$(basename $1)
-	pids=$(pidof -o %PPID $name > /dev/null)
+	local appname
+
+	appname=$(basename $1)
+	pids=$(pidof -o %PPID $appname)
 	if [ -n "$pids" ]; then
-		echo "$name is already running with PIDs $pids. Exiting." >&2
+		echo_error "$appname is already running with PIDs $pids. Exiting"
 		exit 1
 	fi
 }
@@ -223,6 +249,7 @@ start_daemon() {
 	local command
 
 	command="${COMMAND:-$DAEMON_FULL} -- $DAEMON_ARGS"
+	echo_command "$command"
 	if [ -n "$PIDFILE" ] && [ -f "$PIDFILE" ]; then
 		start-stop-daemon -b -S -m -p $PIDFILE -x $command 2>&1
 	else
