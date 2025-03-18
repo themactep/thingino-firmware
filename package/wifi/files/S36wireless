@@ -4,7 +4,11 @@
 
 IFACE=wlan0
 
-init() {
+SDIO_MODULES="8189es 8189fs atbm6031 b43 bcmdhd hi3881 ssv6158"
+
+start() {
+	echo_title "Starting Wireless interface"
+
 	if [ "true" = "$disable_wlan" ]; then
 		echo_error "WLAN disabled"
 		exit 1
@@ -16,28 +20,27 @@ init() {
 	fi
 
 	if [ -z "$gpio_wlan" ]; then
-		echo "gpio_wlan is not set"
+		echo_warning "gpio_wlan is not set"
 	else
-		[ "$gpio_wlan" = "${gpio_wlan//[^0-9]/}" ] && gpio_wlan="${gpio_wlan}O"
-		pin="${gpio_wlan:0:-1}"
-		suffix="${gpio_wlan:0-1}"
-		case "$suffix" in
-			o) pin_on=0; pin_off=1 ;;
-			O) pin_on=1; pin_off=0 ;;
-			*) die "Unknown suffix!"
-		esac
-	fi
-}
+		echo_info "WiFi GPIO: $gpio_wlan"
+		for pin_raw in $gpio_wlan; do
+			# default to output high
+			[ "$pin_raw" = "${pin_raw//[^0-9]/}" ] && pin_raw="${pin_raw}O"
 
-start() {
-	starting
-	init
+			# extract pin number and suffix
+			pin="${pin_raw:0:-1}"
+			suffix="${pin_raw:0-1}"
 
-	if [ -z "$pin" ]; then
-		echo "GPIO pin for wireless module is not set"
-	else
-		echo "Set GPIO $pin to $pin_on"
-		gpio set $pin $pin_on
+			# convert suffix to binary state
+			case "$suffix" in
+				o) state=0 ;;
+				O) state=1 ;;
+				*) echo_warning "Unknown suffix ${suffix}!" ;;
+			esac
+
+			echo_info "Set GPIO $pin to $state"
+			gpio set "${pin}" "${state}"
+		done
 
 		if [ "bcmdhd" = "$wlan_module" ]; then
 			echo_info "Unexport GPIO pin $pin"
@@ -45,41 +48,38 @@ start() {
 		fi
 	fi
 
-	case "$wlan_module" in
-		8189es | 8189fs | atbm6031 | atbm6031x | b43 | bcmdhd | hi3881 | ssv6158)
-			# Check if MDIO directory exists
-			if [ -d /proc/jz/mdio ]; then
-				echo "GMAC is enabled, disabling MSC1..."
-			else
-				case "$SOC_FAMILY" in
-					t10 | t20 | t21 | t30 | t40 | t41)
-						echo "Skip GPIO setup for $SOC_MODEL"
-						;;
-					t23 | t31)
-						if [ "t31a" = "$SOC_MODEL" ]; then
-							echo "Skip GPIO setup for $SOC_MODEL"
-							return 1
-						else
-							set_gpio pb08 1 2
-							set_gpio pb09 1 1
-							set_gpio pb10 1 1
-							set_gpio pb11 1 1
-							set_gpio pb13 1 1
-							set_gpio pb14 1 1
-						fi
-						;;
-					*)
-						die "Unsupported SOC type: $SOC_FAMILY"
-						;;
-				esac
+	if echo "$SDIO_MODULES" | grep -q "$wlan_module"; then
+		echo_info "$wlan_module is an SDIO module"
 
-				echo "Send INSERT to MMC1"
-				mmc 1
-			fi
-			;;
-		*)
-			;; # MMC1 is not SDIO
-	esac
+		# Check if MDIO directory exists
+		if [ -d /proc/jz/mdio ]; then
+			echo_info "GMAC is enabled, disabling MSC1..."
+		else
+			case "$SOC_FAMILY" in
+				t10 | t20 | t21 | t30 | t40 | t41)
+					echo_info "Skip GPIO setup for $SOC_MODEL"
+					;;
+				t23 | t31)
+					if [ "t31a" = "$SOC_MODEL" ]; then
+						echo_info "Skip GPIO setup for $SOC_MODEL"
+						return 1
+					else
+						echo_info "Set GPIO pins with /sbin/mmc_gpio"
+						/sbin/mmc_gpio
+					fi
+					;;
+				*)
+					echo_error "Unsupported SOC type: $SOC_FAMILY"
+					exit 1
+					;;
+			esac
+
+			echo_info "Send INSERT to MMC1"
+			mmc 1
+		fi
+	else
+		echo_warning "MMC1 is not SDIO"
+	fi
 
 	if [ -n "$wlan_mac" ] && [ "hi3881" = "$wlan_module" ]; then
 		echo_info "Preset MAC address to $wlan_mac in /usr/share/wifi/wifi_cfg"
@@ -101,10 +101,13 @@ start() {
 	done
 
 	if [ -n "$wlan_mac" ] && [ "hi3881" != "$wlan_module" ]; then
-		ip link set dev $IFACE down
+		if ip link | grep -q $IFACE >/dev/null; then
+			echo_info "Bring interface $IFACE down"
+			ip link set dev $IFACE down
+		fi
+
 		echo_info "Set MAC address to $wlan_mac"
 		ip link set dev $IFACE address $wlan_mac
-                ip link set dev $IFACE up
 	fi
 }
 
