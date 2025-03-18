@@ -14,14 +14,16 @@ ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
 [ -z "$onvif_enabled" ] && onvif_enabled="true"
 
 start() {
-	starting
+	echo_title "Starting ONVIF Notify service"
 
 	if is_streamer_disabled; then
-		quit "Streamer disabled"
+		echo_error "Streamer disabled"
+		exit 1
 	fi
 
-	if is_onvif_disabled; then
-		quit "ONVIF disabled"
+	if [ "true" != "$onvif_enabled" ]; then
+		echo_error "ONVIF disabled"
+		exit 1
 	fi
 
 	if [ ! -d "$MOTION" ]; then
@@ -32,7 +34,8 @@ start() {
 }
 
 stop() {
-	stopping
+	echo_title "Stopping ONVIF Notify service"
+
 	stop_daemon
 }
 

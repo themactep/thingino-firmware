@@ -148,15 +148,14 @@ fi
 
 # Check for minimum arguments
 if [ "$#" -lt 2 ]; then
-	echo "Usage: $0 [-l] [-R <gpio>] [-r] <gpio> <brightness 0-100>"
-	echo
-	echo "Arguments:"
-	echo "  -l                List all available PWM-capable GPIOs for the detected SoC."
-	echo "  -R <gpio>         Read the current brightness percentage for the specified GPIO."
-	echo "  -r                Enable reverse polarity when setting the brightness for the specified GPIO."
-	echo "  <gpio>            The GPIO pin number for which PWM brightness is being set."
-	echo "  <brightness>      Brightness level as a percentage (0-100)."
-	exit 1
+	echo "Usage: $0 [-l] [-R <gpio>] [-r] <gpio> <brightness 0-100>
+Arguments:
+	-l                List all available PWM-capable GPIOs for the detected SoC.
+	-R <gpio>         Read the current brightness percentage for the specified GPIO.
+	-r                Enable reverse polarity when setting the brightness for the specified GPIO.
+	<gpio>            The GPIO pin number for which PWM brightness is being set.
+	<brightness>      Brightness level as a percentage (0-100).
+"
 fi
 
 if [ ! -e /dev/pwm ]; then

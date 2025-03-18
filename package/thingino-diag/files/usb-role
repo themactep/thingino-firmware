@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /usr/share/common
+
 # Function to display the help message
 show_help() {
 	echo "Usage: $0 [-m host|device]
@@ -12,20 +14,20 @@ Options:
 
 # Function to set USB to host mode
 set_host_mode() {
-	echo "Set USB to host mode" >&2
+	echo_info "Set USB to host mode"
 	devmem 0x10000040 32 0x0b000096
 }
 
 # Function to set USB to device mode for t20
 set_device_mode_t20() {
-	echo "Set USB to device mode for t20" >&2
+	echo_info "Set USB to device mode for t20"
 	devmem 0x10000040 32 0x0b800096
 	devmem 0x13500000 32 0x001100cc
 }
 
 # Function to set USB to device mode for t31
 set_device_mode_t31() {
-	echo "Set USB to device mode for t31" >&2
+	echo_info "Set USB to device mode for t31"
 	devmem 0x13500000 32 0x001100cc
 	devmem 0x10000040 32 0x0b000096
 	devmem 0x10000040 32 0x0b000FFF
@@ -36,13 +38,13 @@ display_current_mode() {
 	result=$(devmem 0x13500000 32)
 	case "$result" in
 		0x001900CC)
-			echo "Current mode: Device mode" >&2
+			echo_info "In Device mode"
 			;;
 		0x003800CC)
-			echo "Current mode: Host mode" >&2
+			echo_info "In Host mode"
 			;;
 		*)
-			echo "Unknown mode: $result" >&2
+			echo_warning "In unknown mode: $result"
 			;;
 	esac
 }
@@ -57,11 +59,11 @@ while getopts ":m:h" opt; do
 			show_help
 			;;
 		\?)
-			echo "Invalid option: -$OPTARG" >&2
+			echo_warning "Invalid option: -$OPTARG"
 			show_help
 			;;
 		:)
-			echo "Option -$OPTARG requires an argument." >&2
+			echo_warning "Option -$OPTARG requires an argument."
 			show_help
 			;;
 	esac
@@ -87,13 +89,13 @@ case "$MODE" in
 				set_device_mode_t31
 				;;
 			*)
-				echo "Unknown SOC type: $SOC_FAMILY" >&2
+				echo_error "Unknown SOC type: $SOC_FAMILY"
 				exit 1
 				;;
 		esac
 		;;
 	*)
-		echo "Invalid mode: $MODE" >&2
+		echo_warning "Invalid mode: $MODE"
 		show_help
 		;;
 esac

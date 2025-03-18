@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /usr/share/common
+
 OWNER="themactep"
 REPO="thingino-firmware"
 BASE_REPO_URL="https://api.github.com/repos/$OWNER/$REPO/contents/configs"
@@ -13,17 +15,20 @@ while getopts "dmh" opt; do
 	case $opt in
 		d) LIST_URL=$DEBUG_LIST ;;
 		m) LIST_URL=$PROD_MODULE_LIST ;;
-		*) echo "Usage: $0 [-d] [-m]"; exit 1 ;;
+		*)
+			echo "Usage: $0 [-d] [-m]"
+			exit 1
+			;;
 	esac
 done
 
 fetch_and_display_profiles() {
-	echo "Gestalt selector - Fetching available profiles:"
+	echo_info "Gestalt selector - Fetching available profiles:"
 	count=1
 	profiles=$(curl -m 10 -s -H "Accept: application/vnd.github+json" "$LIST_URL" | jsonfilter -e "@[*].name" 2>/dev/null)
 
 	if [ -z "$profiles" ]; then
-		echo "Error: gestalt list empty. Please try again later or check your network connection."
+		echo_error "Error: gestalt list empty. Please try again later or check your network connection."
 		exit 1
 	fi
 
@@ -42,8 +47,8 @@ while true; do
 	[ -f $LIST_PATH ] || fetch_and_display_profiles
 
 	current_image_id=$(grep "^IMAGE_ID=" /etc/os-release | cut -d'=' -f2)
-	echo -e "Current device gestalt: $current_image_id\n"
-	echo "Ctrl-C or Enter without input to exit."
+	echo_info "Current device gestalt: $current_image_id\n"
+	echo_info "Ctrl-C or Enter without input to exit."
 	read -p "Which gestalt do you want to switch to? Enter a number: " selection
 
 	[ -z "$selection" ] && break
@@ -51,11 +56,13 @@ while true; do
 	selected_profile=$(grep "^$selection:" $LIST_PATH | cut -d':' -f2)
 	if [ -n "$selected_profile" ]; then
 		sed -i "s/^IMAGE_ID=.*/IMAGE_ID=$selected_profile/" /etc/os-release
-		echo "Device gestalt updated to $selected_profile"
+		echo_info "Device gestalt updated to $selected_profile"
 		break
 	else
-		echo "Invalid selection. Please try again."
+		echo_warning "Invalid selection. Please try again."
 	fi
 done
 
 rm -f $LIST_PATH
+
+exit 0

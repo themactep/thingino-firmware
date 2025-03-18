@@ -9,7 +9,7 @@ ensure_command "motors"
 
 set_motor_phases() {
 	if [ "$(echo $2 | wc -w)" -lt 4 ]; then
-		echo "- Missing phase for ${1}motor" >&2
+		echo_error "Missing phase for ${1}motor"
 		exit 1
 	fi
 
@@ -21,12 +21,12 @@ set_motor_phases() {
 }
 
 home_motors() {
-	echo "- Home motors" >&2
+	echo_info "Home motors"
 	motors -r
 }
 
 set_motors_speed() {
-	echo "- Set motors speed to $motor_speed" >&2
+	echo_info "Set motors speed to $motor_speed"
 	motors -s $1
 }
 
@@ -41,47 +41,46 @@ position_motors() {
 		y=$((motor_maxstep_v / 2))
 	fi
 
-	echo "- Move to $x,$y" >&2
+	echo_info "Move to $x,$y"
 	motors -d h -x $x -y $y
 }
 
 start() {
-	echo "- Setting up motors" >&2
+	echo_title "Setting up motors"
 
 	if [ -z "$gpio_motor_h$gpio_motor_v" ]; then
-		echo "- No motor pins defined" >&2
-		exit 1
+		echo_error "No motor pins defined"
 	fi
 
 	if [ -z "$gpio_motor_h" ]; then
-		echo "- Pan motor GPIO pins are not set" >&2
+		echo_warning "gpio_motor_h is not set"
 	fi
 
 	if [ -z "$gpio_motor_v" ]; then
-		echo "- Tilt motor GPIO pins are not set" >&2
+		echo_warning "gpio_motor_v is not set"
 	fi
 
 	if [ -z "$gpio_motor_switch" ]; then
-		echo "- gpio_motor_switch is not set" >&2
+		echo_warning "gpio_motor_switch is not set"
 	fi
 
 	if [ -z "$motor_maxstep_h" ]; then
-		echo "- Pan motor Steps are not set" >&2
+		echo_warning "motor_maxstep_h is not set, set to 4000"
 		motor_maxstep_h=4000
 	fi
 
 	if [ -z "$motor_maxstep_v" ]; then
-		echo "- Tilt motor Steps are not set" >&2
+		echo_warning "motor_maxstep_v is not set, set to 2000"
 		motor_maxstep_v=2000
 	fi
 
 	if [ -z "$motor_speed_h" ]; then
-		echo "- motor_speed_h is not set, set to 900" >&2
+		echo_warning "motor_speed_h is not set, set to 900"
 		motor_speed_h=900
 	fi
 
 	if [ -z "$motor_speed_v" ]; then
-		echo "- motor_speed_v is not set, set to 900" >&2
+		echo_warning "motor_speed_v is not set, set to 900"
 		motor_speed_v=900
 	fi
 
@@ -90,9 +89,9 @@ start() {
 	fi
 
 	if grep -qE "^motor" /proc/modules; then
-		echo "- Module motor already loaded." >&2
+		echo_info "Module motor already loaded."
 	else
-		echo "- Set GPIO per motor phase" >&2
+		echo_info "Set GPIO per motor phase"
 
 		set_motor_phases "h" "$gpio_motor_h"
 		set_motor_phases "v" "$gpio_motor_v"
@@ -115,10 +114,10 @@ start() {
 			modprobe_args="$modprobe_args invert_gpio_dir=1"
 		fi
 
-		echo "- Load motor module with parameters: $modprobe_args" >&2
+		echo_info "Load motor module with parameters: $modprobe_args"
 
 		if ! modprobe motor $modprobe_args; then
-			echo "- Failed to load motor module"
+			echo_error "Failed to load motor module"
 			exit 1
 		fi
 	fi
@@ -131,7 +130,7 @@ start() {
 	set_motors_speed $motor_speed_h
 
 	if [ "true" = "$motor_disable_homing" ]; then
-		echo "- Homing disabled" >&2
+		echo_info "Homing disabled"
 	else
 		home_motors
 		position_motors
@@ -139,11 +138,16 @@ start() {
 }
 
 stop() {
-	echo "Stopping motors" >&2
+	echo_title "Stopping motors"
 
 	stop_daemon
-	# FIXME: motor.ko crashes on upload
-	# rmmod motor || die "Failed to unload motor module."
+
+	exit 0
+	# FIXME: module crashes on unloading
+	if ! rmmod motor; then
+		echo_error "Failed to unload motor module."
+		exit 1
+	fi
 }
 
 case "$1" in

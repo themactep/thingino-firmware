@@ -1,26 +1,38 @@
 #!/bin/sh
 
+. /usr/share/common
+
 erase_mtd1=true
 
 while getopts "efh" opt; do
 	case $opt in
-		e) erase_mtd1=false ;;
-		f) force_wipe=true ;;
-		h) echo -e "Usage: $0 [options]\n  -e    Do not erase /dev/mtd1\n  -h    Show help information"; exit 0 ;;
-		\?) echo "Invalid option. Use -h for help."; exit 1 ;;
+		e)
+			erase_mtd1=false
+			;;
+		f)
+			force_wipe=true
+			;;
+		h)
+			echo -e "Usage: $0 [options]\n  -e    Do not erase /dev/mtd1\n  -h    Show help information"
+			exit 0
+			;;
+		\?)
+			echo "Invalid option. Use -h for help."
+			exit 1
+			;;
 	esac
 done
 
 wipe() {
 	rootfs_data_dev=$(awk '$4 ~ /"rootfs_data"/ {gsub(":","",$1); print $1}' /proc/mtd)
 	if [ -z "$rootfs_data_dev" ]; then
-		echo "Overlay partition not found!"
+		echo_error "Overlay partition not found!"
 		exit 1
 	fi
 
 	configfs_data_dev=$(awk '$4 ~ /"config"/ {gsub(":","",$1); print "/dev/mtd" substr($1,4)}' /proc/mtd)
 	if [ -z "$configfs_data_dev" ]; then
-		echo "Config partition not found!"
+		echo_error "Config partition not found!"
 		exit 1
 	fi
 
@@ -30,9 +42,12 @@ wipe() {
 #	fi
 
 	flash_eraseall -j "${configfs_data_dev}"
+
 	flash_eraseall -j "/dev/${rootfs_data_dev}"
+
 	[ "$erase_mtd1" = true ] && flash_eraseall /dev/mtd1
-	echo "Erase completed. Rebooting..."
+
+	echo_info "Erase completed. Rebooting..."
 	reboot -f
 }
 
@@ -40,7 +55,7 @@ warn() {
 	echo -e "\033[31;47m!!! Warning !!!\033[0m\n\nThis action will reset the device to defaults and erase all configurations, leaving the device like the first boot.\n\n\033[33;40mAll saved settings will be erased!\033[0m\n\nAre you sure you want to proceed? (yes/no)"
 	read response
 	if [ "$response" != "yes" ]; then
-		echo "Operation aborted."
+		echo_error "Operation aborted."
 		exit 1
 	else
 		wipe
@@ -52,3 +67,5 @@ if [ "$force_wipe" = true ]; then
 else
 	warn
 fi
+
+exit 0

@@ -1,16 +1,16 @@
 #!/bin/sh
+
 PTZ_CONF_FILE="/etc/ptz_presets.conf"
 
-usage() {
-	echo "Usage: $0 [-g] [-a <preset_number> <preset_name> <x_coord> <y_coord>] [-r <preset_number>]"
-	echo "  -g: Display all presets"
-	echo "  -a: Add a new preset with number, name, and coordinates"
-	echo "  -r: Remove a preset by number"
-	echo "  <preset_number>: Run the specified preset"
+if [ $# -lt 1 ]; then
+	echo "Usage: $0 [-g] [-a <preset_number> <preset_name> <x_coord> <y_coord>] [-r <preset_number>]
+	-g: Display all presets
+	-a: Add a new preset with number, name, and coordinates
+	-r: Remove a preset by number
+	<preset_number>: Run the specified preset
+" >&2
 	exit 1
-}
-
-[ $# -lt 1 ] && usage
+fi
 
 case "$1" in
 	-g)

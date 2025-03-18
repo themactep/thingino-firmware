@@ -4,8 +4,10 @@
 # Takes an argument from 0 to 100 to set the focus position percentage
 
 if [ "$#" -ne 1 ]; then
-	echo "Usage: $0 <focus_percentage>"
-	echo "<focus_percentage> should be an integer from 0 to 100"
+	echo "Usage: $0 <focus_percentage>
+Where:
+	<focus_percentage> should be an integer from 0 to 100
+" >&2
 	exit 1
 fi
 
@@ -31,3 +33,5 @@ LOW_BYTE=$(( (DAC_VALUE << 4) & 0xF0 ))
 i2cset -y 0 0x0c $HIGH_BYTE $LOW_BYTE i
 
 echo "Focus set to $FOCUS_PERCENTAGE% (Translated to: $TRANSLATED_FOCUS%, DAC value: $DAC_VALUE)"
+
+exit 0

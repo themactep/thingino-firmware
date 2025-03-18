@@ -1,12 +1,16 @@
 #!/bin/sh
 
+. /usr/share/common
+
 GPIO_MAX=95
+
 EXCLUDE="55 56"
+
 # exclude pins already set in the environment
 EXCLUDE="$EXCLUDE $(fw_printenv | awk -F= '/^gpio_/ { gsub("[diouDIOU]","") ; print $2 }' | tr ' ' "\n" | sort -g | uniq | xargs)"
 [ "$#" -gt 0 ] && EXCLUDE="$EXCLUDE $*"
 
-echo "Excluded pins: $EXCLUDE"
+echo_warning "Excluded pins: $EXCLUDE"
 
 play_chime() {
 	audioplay /usr/share/sounds/th-chime_1.pcm 28 28 > /dev/null
@@ -21,9 +25,9 @@ pin_from=${1:-0}
 pin_till=${2:-$GPIO_MAX}
 
 for i in $(seq $pin_from $pin_till); do
-	echo $EXCLUDE | grep -e "\b$i\b" >/dev/null && continue
+	echo_info $EXCLUDE | grep -e "\b$i\b" >/dev/null && continue
 
-	echo "Pin $i"
+	echo_info "Pin $i"
 
 	gpio set $i 1
 	sleep 0.5

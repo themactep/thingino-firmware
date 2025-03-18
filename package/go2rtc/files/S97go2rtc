@@ -5,12 +5,14 @@
 DAEMON_ARGS="-d -c /etc/go2rtc.yaml"
 
 start() {
-	starting
+	echo_title "Starting Go2RTC"
+
 	start_daemon
 }
 
 stop() {
-	stopping
+	echo_title "Stopping Go2RTC"
+
 	stop_daemon
 }
 
@@ -29,7 +31,8 @@ case "$1" in
 		$1
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
 esac
 
 exit 0

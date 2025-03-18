@@ -14,7 +14,7 @@ check_imp() {
 			isp_path="/proc/jz/isp/isp-fs" ;;
 	esac
 
-	echo "Connect to libimp-control"
+	echo_info "Connecting to libimp-control"
 	local i=10
 	while [ "$i" -gt 0 ]; do
 		if grep -Eq "running|Software" $isp_path; then
@@ -26,31 +26,32 @@ check_imp() {
 		echo -n "."
 		sleep 1
 	done
-	echo " Timeout"
+	echo_error "Timeout"
 	exit 1
 }
 
-restore_config() {
-	echo -n "Restore IMP Configuration: "
+start() {
+	echo_title "IMP Configuration"
+
+	if is_streamer_disabled; then
+		echo_error "Streamer disabled"
+		exit 1
+	fi
+
+	check_imp
+
 	if [ -f "$config" ]; then
+		echo_info "Restore IMP Configuration"
 		while read -r line; do
 			imp-control $line > /dev/null
 		done < $config
 	else
-		echo "Nothing to restore"
-		exit 1
-	if
-}
-
-start() {
-	is_streamer_disabled && quit "Streamer disabled"
-	check_imp
-	restore_config
+		echo_warning "Nothing to restore"
+	fi
 }
 
 case "$1" in
 	start)
-		starting
 		start
 		;;
 	stop)

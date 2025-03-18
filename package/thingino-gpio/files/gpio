@@ -7,8 +7,7 @@ gpiodir=/sys/class/gpio
 unexport=0
 
 show_help() {
-	echo "
-Usage: $0 <command with params>
+	echo "Usage: $0 <command with params>
 Commands:
 	export <pin>		Export <pin> from kernel space
 	unexport <pin>		Release <pin> back to the kernel space
@@ -24,7 +23,7 @@ Legacy:
 	high <pin>		Set <pin1> output state to HIGH
 	low <pin>		Set <pin1> output state to LOW
 	clear <pin>		Set pin1 output state to LOW
-"
+" >&2
 	exit 1
 }
 

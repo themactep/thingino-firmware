@@ -5,12 +5,14 @@
 DAEMON_ARGS="-r -c /etc/iad.json"
 
 start() {
-	starting
+	echo_title "Starting Ingenic Audio Daemon"
+
 	start_daemon
 }
 
 stop() {
-	stopping
+	echo_title "Stopping Ingenic Audio Daemon"
+
 	stop_daemon
 }
 

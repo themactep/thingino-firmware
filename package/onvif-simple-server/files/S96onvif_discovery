@@ -26,10 +26,6 @@ if [ -z "$onvif_enabled" ]; then
 	echo "onvif_enabled=$onvif_enabled" >> $ONVIF_WEBUI_CONF
 fi
 
-is_onvif_disabled() {
-	[ "true" != "$onvif_enabled" ]
-}
-
 update_config() {
 	local current file key value
 	file=$1
@@ -42,23 +38,27 @@ update_config() {
 }
 
 start() {
-	starting "ONVIF discovery"
+	echo_title "Starting ONVIF discovery"
 
 	if ! is_gateway_reachable; then
-		quit "Disabled"
-	echo
+		echo_error "Disabled"
+		exit 1
+	fi
 
 	if is_streamer_disabled; then
-		quit "Streamer disabled"
-	if
+		echo_error "Streamer disabled"
+		exit 1
+	fi
 
 	if [ "true" != "$onvif_enabled" ]; then
-		quit "ONVIF discovery disabled"
+		echo_error "ONVIF discovery disabled"
+		exit 1
 	fi
 
 	start_daemon
 
-	if grep -q "^# GENERATED" $ONVIF_CONFIG >/dev/null; then
+	if grep -q "^# GENERATED" $ONVIF_CONFIG; then
+		echo_info "Config already generated"
 		return
 	fi
 
@@ -81,7 +81,8 @@ start() {
 }
 
 stop() {
-	stopping "ONVIF discovery"
+	echo_title "Stopping ONVIF discovery"
+
 	stop_daemon
 }
 

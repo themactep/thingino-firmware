@@ -5,20 +5,22 @@
 COMMAND="/bin/env -- LD_PRELOAD=/lib/libimp_control.so $DAEMON_FULL"
 
 start() {
-	starting
+	echo_title "Starting Prudynt"
 
 	if is_streamer_disabled; then
-		quit "Streamer disabled"
+		echo_error "Streamer disabled"
+		exit 1
 	fi
 
 	start_daemon
 }
 
 stop() {
-	stopping
+	echo_title "Stopping Prudynt"
 
 	if is_streamer_disabled; then
-		quit "Streamer disabled"
+		echo_error "Streamer disabled"
+		exit 1
 	fi
 
 	[ -f "$SNAPSHOT_FILE" ] && rm -f "$SNAPSHOT_FILE"

@@ -5,7 +5,7 @@
 MMC_MODULE="jzmmc_v12"
 
 set_gpio() {
-	echo "Set GPIO $1 to F$2 D$3" >&2
+	echo_info "Set GPIO $1 to F$2 D$3"
 	gpio-diag $1 func $2 drive $3
 }
 
@@ -19,11 +19,11 @@ set_power() {
 
 		case "${gpio#??}" in
 			"O")
-				echo "Set GPIO "${gpio%[oO]}" high" >&2
+				echo_info "Set GPIO "${gpio%[oO]}" high"
 				gpio set "${gpio%[oO]}" 1
 				;;
 			"o")
-				echo "Set GPIO "${gpio%[oO]}" low" >&2
+				echo_info "Set GPIO "${gpio%[oO]}" low"
 				gpio set "${gpio%[oO]}" 0
 				;;
 		esac
@@ -32,14 +32,14 @@ set_power() {
 
 load_module() {
 	if grep -q "$MMC_MODULE" /proc/modules >/dev/null; then
-		echo "$MMC_MODULE is already loaded" >&2
+		echo_error "$MMC_MODULE is already loaded"
 		exit 1
 	fi
 
-	echo "Load $MMC_MODULE $MMC_PARAM" >&2
+	echo_info "Load $MMC_MODULE $MMC_PARAM"
 
 	if ! modprobe $MMC_MODULE $MMC_PARAM; then
-		echo "Failed to load module!" >&2
+		echo_error "Failed to load module!"
 		exit 1
 	fi
 
@@ -47,7 +47,7 @@ load_module() {
 }
 
 start() {
-	echo "Starting MMC" >&2
+	echo_title "Initializing MMC"
 
 	MMC_PARAM="cd_gpio_pin=${gpio_mmc_cd:-59}"
 	load_module

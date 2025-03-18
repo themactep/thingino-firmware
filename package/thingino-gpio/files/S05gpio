@@ -11,7 +11,7 @@ VALID_STATES="high low input"
 MAX_GPIO=192
 
 start() {
-	echo " Setting GPIOs" >&2
+	echo_title "Setting GPIOs"
 
 	while IFS= read -r line; do
 		# Skip empty lines and comments
@@ -25,18 +25,18 @@ start() {
 			*"$state"*)
 				# pin is in valid range
 				if [ "$gpionum" -lt 0 ] || [ "$gpionum" -gt $MAX_GPIO ]; then
-					echo "Invalid GPIO number: $gpionum in line: $line" >&2
+					echo_warning "Invalid GPIO number: $gpionum in line: $line"
 				else
 					gpio "$state" "$gpionum"
-					echo "GPIO $gpionum set to $state" >&2
+					echo_info "GPIO $gpionum set to $state"
 
 					if [ -n "$3" ]; then
-						echo "Description: $3" >&2
+						echo_info "Description: $3"
 					fi
 				fi
 				;;
 			*)
-				echo "Invalid state: $state in line: $line"
+				echo_warning "Invalid state: $state in line: $line"
 				;;
 		esac
 	done < $GPIO_FILE

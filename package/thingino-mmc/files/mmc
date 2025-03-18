@@ -9,7 +9,7 @@ fi
 
 endpoint="/sys/devices/platform/jzmmc_v1.2.$1/present"
 if [ ! -f "$endpoint" ]; then
-	echo "No endpoint $endpoint" >&2
+	echo_error "No endpoint $endpoint"
 	exit 1
 fi
 

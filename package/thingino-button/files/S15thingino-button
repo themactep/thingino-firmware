@@ -5,12 +5,14 @@ DAEMON_ARGS="-d"
 . /usr/share/common
 
 start() {
-	starting
+	echo_title "Starting Button service"
+
 	start_daemon
 }
 
 stop() {
-	stopping
+	echo_title "Stopping Button service"
+
 	stop_daemon
 }
 
