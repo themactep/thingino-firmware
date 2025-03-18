@@ -1,16 +1,27 @@
 #!/bin/sh
 
-read_registers() {
+read_cpuid() {
 	cpuid_raw=$(devmem 0x1300002C)
-	cppsr_raw=$(devmem 0x10000034)
-	subrm_raw=$(devmem 0x13540231)
-	type1_raw=$(devmem 0x13540238)
-	type2_raw=$(devmem 0x13540250)
-
 	cpuid=$((($cpuid_raw >> 12) & 0xFFFF))
+}
+
+read_cppsr() {
+	cppsr_raw=$(devmem 0x10000034)
 	cppsr=$(($cppsr_raw & 0xFF))
+}
+
+read_subrm() {
+	subrm_raw=$(devmem 0x13540231)
 	subrm=$((($subrm_raw >> 8) & 0xFF))
+}
+
+read_type1() {
+	type1_raw=$(devmem 0x13540238)
 	type1=$((($type1_raw >> 16) & 0xFFFF))
+}
+
+read_type2() {
+	type2_raw=$(devmem 0x13540250)
 	type2=$((($type2_raw >> 16) & 0xFFFF))
 }
 
@@ -20,15 +31,27 @@ print_soc_clocks() {
 }
 
 print_wiki_line() {
-	read_registers
+	read_cpuid
+	read_cppsr
+	read_subrm
+	read_type1
+	read_type2
+
 	printf "||| 0x%08x | 0x%04x | 0x%08x | 0x%02x | 0x%08x | 0x%02x | 0x%08x | 0x%04x | 0x%08x | 0x%04x |\n" \
 		"$cpuid_raw" "$cpuid" "$cppsr_raw" "$cppsr" "$subrm_raw" "$subrm" "$type1_raw" "$type1" "$type2_raw" "$type2"
 }
 
-print_soc_model() {
-	read_registers
+print_soc_family() {
+	model=$(print_soc_model)
 
+	family=$(echo "$model" | sed 's/\([at][0-9]*\).*/\1/')
+	echo $family
+}
+
+print_soc_model() {
+	read_cpuid
 	if [ "$cpuid" -eq $((0x40)) ]; then # Identify based only on cpuid and type2
+		read_type2
 		case "$type2" in
 			$((0x1111))) soc="t40n" ;;
 			$((0x7777))) soc="t40xp" ;;
@@ -46,6 +69,7 @@ print_soc_model() {
 			*) soc="unknown_t4x" ;;
 		esac
 	elif [ "$cpuid" -eq $((0x1)) ]; then
+		read_type2
 		case "$type2" in
 			$((0x1111))) soc="a1n" ;;
 			$((0x5555))) soc="a1nt" ;;
@@ -56,9 +80,8 @@ print_soc_model() {
 		esac
 	else
 		# For all other chips, use type1
-		type=$type1
-
-		cpu_sig=$(printf '0x%08X' $(((cpuid << 16) | type)))
+		read_type1
+		cpu_sig=$(printf '0x%08X' $(((cpuid << 16) | $type1)))
 		case "$cpu_sig" in
 			0x00050000) soc="t10" ;;
 			0x20001111) soc="t20n" ;;
@@ -93,15 +116,12 @@ print_soc_model() {
 	echo $soc
 }
 
-print_soc_family() {
-	model=$(print_soc_model)
-
-	family=$(echo "$model" | sed 's/\([at][0-9]*\).*/\1/')
-	echo $family
-}
-
 show_usage() {
-	echo -e "Usage: $0 [-c|-f|-m|-w]\n\t-m\tSoC model\n\t-f\tSoC family\n\t-w\traw info for wiki\n"
+	echo "Usage: $0 [-c|-f|-m|-w]
+	-m	SoC model
+	-f	SoC family
+	-w	raw info for wiki
+" >&2
 }
 
 case "$1" in
