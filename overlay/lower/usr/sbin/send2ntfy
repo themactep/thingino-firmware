@@ -18,7 +18,7 @@ Where:
 	-w password  Password.
 	-v           Verbose output.
 	-h           Show this help.
-"
+" >&2
 	exit 0
 }
 
@@ -41,24 +41,67 @@ while getopts a:c:f:i:l:m:n:p:s:t:u:vh flag; do
 	esac
 done
 
-[ -z "$ntfy_topic" ] && die "NTFY topic is not set."
+if [ -z "$ntfy_topic" ]; then
+	echo "NTFY topic is not set" >&2
+	exit 1
+fi
 
 command="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 $verbosity"
 command="$command -H p:${ntfy_priority:-3}"
-[ -n "$ntfy_title" ] && command="$command -H 'Title: $ntfy_title'"
-[ -n "$ntfy_tags" ] || command="$command -H 'Tags: $ntfy_tags'"
-[ -n "$ntfy_delay" ] && command="$command -H 'Delay: $ntfy_delay'"
-[ -n "$ntfy_username" ] && [ -n "$ntfy_password" ] && command="$command -u $ntfy_username:$ntfy_password"
-[ -n "$ntfy_filename" ] && [ -f "$ntfy_filename" ] && command="$command -T $ntfy_filename -H 'Filename: $ntfy_filename'"
-[ -n "$ntfy_attach" ] && command="$command -H 'Attach: $ntfy_attach'"
-[ -n "$ntfy_click" ] && command="$command -H 'Click: $ntfy_click'"
-[ -n "$ntfy_icon" ] && command="$command -H 'Icon: $ntfy_icon'"
-[ -n "$ntfy_email" ] && command="$command -H 'Email: $ntfy_email'"
-[ -n "$ntfy_actions" ] && command="$command -H 'Actions: $ntfy_actions'"
-[ -n "$ntfy_call" ] && [ -n "$ntfy_twilio_token" ] && command="$command -H 'Call: $ntfy_call' -u :$ntfy_twilio_token"
-[ -n "$ntfy_message" ] && command="$command -d '$ntfy_message'"
+
+if [ -n "$ntfy_title" ]; then
+	command="$command -H 'Title: $ntfy_title'"
+fi
+
+if [ -n "$ntfy_tags" ]; then
+	command="$command -H 'Tags: $ntfy_tags'"
+fi
+
+if [ -n "$ntfy_delay" ]; then
+	command="$command -H 'Delay: $ntfy_delay'"
+fi
+
+if [ -n "$ntfy_username" ] && [ -n "$ntfy_password" ]; then
+	command="$command -u $ntfy_username:$ntfy_password"
+fi
+
+if [ -n "$ntfy_filename" ] && [ -f "$ntfy_filename" ]; then
+	command="$command -T $ntfy_filename -H 'Filename: $ntfy_filename'"
+fi
+
+if [ -n "$ntfy_attach" ]; then
+	command="$command -H 'Attach: $ntfy_attach'"
+fi
+
+if [ -n "$ntfy_click" ]; then
+	command="$command -H 'Click: $ntfy_click'"
+fi
+
+if [ -n "$ntfy_icon" ]; then
+	command="$command -H 'Icon: $ntfy_icon'"
+fi
+
+if [ -n "$ntfy_email" ]; then
+	command="$command -H 'Email: $ntfy_email'"
+fi
+
+if [ -n "$ntfy_actions" ]; then
+	command="$command -H 'Actions: $ntfy_actions'"
+fi
+
+if [ -n "$ntfy_call" ] && [ -n "$ntfy_twilio_token" ]; then
+	command="$command -H 'Call: $ntfy_call' -u :$ntfy_twilio_token"
+fi
+
+if [ -n "$ntfy_message" ]; then
+	command="$command -d '$ntfy_message'"
+fi
+
 command="$command ${ntfy_host:-ntfy.sh}/$ntfy_topic"
 
-sh -c "$command" || die "Failed to send NTFY message"
+if ! sh -c "$command"; then
+	echo "Failed to send NTFY message" >&2
+	exit 1
+fi
 
 exit 0

@@ -10,7 +10,7 @@ Where:
 	-s          Send a snapshot.
 	-v          Verbose output.
 	-h          Show this help.
-"
+" >&2
 	exit 0
 }
 
@@ -25,21 +25,46 @@ while getopts m:st:vh flag; do
 	esac
 done
 
-[ -z "$mqtt_host" ] && die "MQTT broker host not found in config"
-[ -z "$mqtt_port" ] && die "MQTT broker port not found in config"
-[ -z "$mqtt_topic" ] && die "MQTT topic not found"
-[ -z "$mqtt_message" ] && die "MQTT message template not found"
+if [ -z "$mqtt_host" ]; then
+	echo "MQTT broker host not found in config" >&2
+	exit 1
+fi
 
-[ "true" = "$mqtt_send_snap" ] && [ -z "$mqtt_snap_topic" ] && \
-	die "MQTT topic for sending snapshot not found in config"
+if [ -z "$mqtt_port" ]; then
+	echo "MQTT broker port not found in config" >&2
+	exit 1
+fi
 
-[ -z "$mqtt_client_id" ] && mqtt_client_id="$network_hostname"
+if [ -z "$mqtt_topic" ]; then
+	echo "MQTT topic not found" >&2
+	exit 1
+fi
+
+if [ -z "$mqtt_message" ]; then
+	echo "MQTT message template not found" >&2
+	exit 1
+fi
+
+if [ "true" = "$mqtt_send_snap" ] && [ -z "$mqtt_snap_topic" ]; then
+	echo "MQTT topic for sending snapshot not found in config" >&2
+	exit 1
+fi
+
+if [ -z "$mqtt_client_id" ]; then
+	mqtt_client_id="$network_hostname"
+fi
 
 mqtt_message=$(date +"$mqtt_message")
 
 command="mosquitto_pub -h $mqtt_host -p $mqtt_port -i $mqtt_client_id"
-[ -n "$mqtt_username" ] && command="$command -u $mqtt_username"
-[ -n "$mqtt_password" ] && command="$command -P $mqtt_password"
+
+if [ -n "$mqtt_username" ]; then
+	command="$command -u $mqtt_username"
+fi
+
+if [ -n "$mqtt_password" ]; then
+	command="$command -P $mqtt_password"
+fi
 
 if [ "true" = "$mqtt_send_snap" ]; then
 	attachment=$(mktemp -u).jpg
@@ -49,7 +74,10 @@ else
 	command="$command -t $mqtt_topic -m \"$mqtt_message\""
 fi
 
-sh -c "$command" || die "Failed to send MQTT message"
+if ! sh -c "$command"; then
+	echo "Failed to send MQTT message" >&2
+	exit 1
+fi
 
 [ -f "$attachment" ] && rm "$attachment"
 

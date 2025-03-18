@@ -5,7 +5,7 @@ if [ -z "$1" ]; then
 Shortcuts:
 	%ip     Tell IP address
 	%time   Tell recent time
-"
+" >&2
 	exit 1
 fi
 

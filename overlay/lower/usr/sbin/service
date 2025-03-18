@@ -12,7 +12,7 @@ Where actions:
 	enable    Enable the service on boot
 	disable   Disable the service on boot
 	list      List all services
-"
+" >&2
 	exit 1
 fi
 
@@ -21,14 +21,14 @@ SERVICE=$2
 
 SCRIPT=$(ls /etc/init.d/[FKS][0-9][0-9]$SERVICE 2> /dev/null)
 if [ "$1" != "list" ] && [ -z "$SCRIPT" ]; then
-	echo "Service $SERVICE not found"
+	echo "Service $SERVICE not found" >&2
 	exit 1
 fi
 
 case "$ACTION" in
 	start | stop | reload | restart)
 		if ! $SCRIPT $ACTION; then
-			echo "Failed to $ACTION $SERVICE"
+			echo "Failed to $ACTION $SERVICE" >&2
 			exit 1
 		fi
 		;;
@@ -43,7 +43,7 @@ case "$ACTION" in
 		chmod -x $SCRIPT
 		;;
 	*)
-		echo "Invalid action: $ACTION"
+		echo "Invalid action: $ACTION" >&2
 		exit 1
 		;;
 esac

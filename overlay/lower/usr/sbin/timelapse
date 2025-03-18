@@ -20,7 +20,7 @@ timelapse_mount=${timelapse_mount%/}
 timelapse_device_path=${timelapse_device_path%/}
 
 if [ -z "$timelapse_mount" ]; then
-	echo "'timelapse_mount' is not set"
+	echo "'timelapse_mount' is not set" >&2
 	exit 1
 fi
 
@@ -40,13 +40,13 @@ if [ ! -d "$timelapse_storage" ]; then
 	echo "Creating $timelapse_storage" >&2
 
 	if ! mkdir -vp "$timelapse_storage"; then
-		echo "Cannot create directory $timelapse_storage"
+		echo "Cannot create directory $timelapse_storage" >&2
 		exit 1
 	fi
 fi
 
 if [ ! -w "$timelapse_storage" ]; then
-	echo "Cannot write to $timelapse_storage"
+	echo "Cannot write to $timelapse_storage" >&2
 	exit 1
 fi
 

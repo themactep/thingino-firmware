@@ -7,7 +7,7 @@ pidof -o %PPID $(basename $0) > /dev/null && die "is already running"
 ensure_command "jsonfilter"
 
 if [ -z "$telegrambot_token" ]; then
-	echo "Telegram Bot token is not set"
+	echo "Telegram Bot token is not set" >&2
 	exit 1
 fi
 

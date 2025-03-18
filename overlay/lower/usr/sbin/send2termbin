@@ -3,7 +3,10 @@
 . /usr/share/common
 
 if [ -t 0 ]; then
-	[ -z "$1" ] && die "Usage: $0 <command>"
+	if [ -z "$1" ]; then
+		echo "Usage: $0 <command>" >&2
+		exit 1
+	fi
 
 	file=$(mktemp)
 	sh -c "$*" > "$file" 2>&1
@@ -12,7 +15,10 @@ else
 	cat - > "$file"
 fi
 
-[ -s "$file" ] || die "File $file is empty"
+if [ ! -s "$file" ]; then
+	echo "File $file is empty" >&2
+	exit 1
+fi
 
 curl -s -T - telnet://tb.thingino.com:9999 < "$file"
 rm -f "$file"

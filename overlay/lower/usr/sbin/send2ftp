@@ -13,7 +13,7 @@ Where:
 	-P password FTP password.
 	-v          Verbose output.
 	-h          Show this help.
-"
+" >&2
 	exit 0
 }
 
@@ -32,10 +32,19 @@ while getopts d:f:p:P:s:u:vVh flag; do
 	esac
 done
 
-[ -z "$ftp_host" ] && die "FTP host not found"
+if [ -z "$ftp_host" ]; then
+	echo "FTP host not found" >&2
+	exit 1
+fi
 
-[ -z "$ftp_port" ] && ftp_port=21
-[ -z "$ftp_user" ] && ftp_user="anonymous" && ftp_password="anonymous"
+if [ -z "$ftp_port" ]; then
+	ftp_port=21
+fi
+
+if [ -z "$ftp_user" ]; then
+	ftp_user="anonymous"
+	ftp_password="anonymous"
+fi
 
 if [ -z "$ftp_file" ]; then
 	if [ "true" = "$ftp_sendvideo" ]; then
@@ -52,15 +61,22 @@ if [ -z "$ftp_file" ]; then
 fi
 
 url="ftp://"
-[ -n "$ftp_user" ] && [ -n "$ftp_password" ] && url="$url$ftp_user:$ftp_password"
+if [ -n "$ftp_user" ] && [ -n "$ftp_password" ]; then
+	url="$url$ftp_user:$ftp_password"
+fi
 url="$url@$ftp_host:$ftp_port"
-[ -n "$ftp_path" ] && url="$url/${ftp_path// /%20}"
+if [ -n "$ftp_path" ]; then
+	url="$url/${ftp_path// /%20}"
+fi
 url="$url/$ftp_filename"
 
 command="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 $verbosity"
 command="$command --url $url --upload-file $ftp_file --ftp-create-dirs"
 
-sh -c "$command" || die "Failed to upload file to FTP server"
+if ! sh -c "$command"; then
+	echo "Failed to upload file to FTP server" >&2
+	exit 1
+fi
 
 [ -f "$attachment" ] && rm "$attachment"
 

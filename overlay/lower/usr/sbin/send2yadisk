@@ -11,7 +11,7 @@ Where:
 	-P password Yandex Disk username.
 	-v          Verbose output.
 	-h          Show this help.
-"
+" >&2
 	exit 0
 }
 
@@ -27,8 +27,15 @@ while getopts d:f:P:u:vh flag; do
 	esac
 done
 
-[ -z "$yadisk_username" ] && die "Yandex Disk username not found"
-[ -z "$yadisk_password" ] && die "Yandex Disk password not found"
+if [ -z "$yadisk_username" ]; then
+	echo "Yandex Disk username not found" >&2
+	exit 1
+fi
+
+if [ -z "$yadisk_password" ]; then
+	echo "Yandex Disk password not found" >&2
+	exit 1
+fi
 
 if [ -z "$yadisk_file" ]; then
 	attachment=$(mktemp -u).jpg
@@ -50,14 +57,19 @@ subdir="${subdir// /%20}" # convert each space into %20
 for subdir in ${subdirs//\// }; do
 	subdir="${subdirs%%/*}"  # leftmost directory
 	suburl="$suburl/$subdir"
-	[ -n "$subdir" ] && sh -c "$command --request MKCOL $url$suburl"
+	if [ -n "$subdir" ]; then
+		sh -c "$command --request MKCOL $url$suburl"
+	fi
 	subdirs="${subdirs#*/}" # remove the processed directory
 done
 
 command="$command --request PUT --upload-file $yadisk_file"
 command="$command --url $url/$yadisk_path/$(TZ=$(cat /etc/TZ) date +"%G%m%d-%H%M%S").jpg"
 
-sh -c "$command" || die "Failed to upload file to Yandex Disk"
+if ! sh -c "$command"; then
+	echo "Failed to upload file to Yandex Disk" >&2
+	exit 1
+fi
 
 [ -f "$attachment" ] && rm "$attachment"
 
