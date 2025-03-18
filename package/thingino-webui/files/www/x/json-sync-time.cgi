@@ -1,7 +1,7 @@
 #!/bin/sh
 . ./_json.sh
 
-if [ "true" = "$(fw_printenv -n wlanap_enabled)" ]; then
+if [ "true" = "$wlanap_enabled" ]; then
 	[ -n "$QUERY_STRING" ] && eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
 	now=$(date +%s)
 	ys=31557600
