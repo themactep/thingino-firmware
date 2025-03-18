@@ -1,8 +1,10 @@
 #!/bin/sh
 
+. /usr/share/common
+
 # Format: GPIO CHANNEL FUNC PIN
-case $(soc -f) in
-	t10|t20)
+case "$SOC_FAMILY" in
+	t10 | t20)
 		pwm_table="
 		49 PWM0 FUNC0 PB17
 		50 PWM1 FUNC0 PB18
@@ -73,7 +75,6 @@ esac
 
 # list all GPIO-PWM mappings
 list_gpios() {
-	SOC_MODEL=$(soc -m)
 	echo "$pwm_table" | grep -v '^\s*$' | while read -r gpio pwm func pin; do
 		pin_name=$(echo "$pin" | awk '{print $NF}')
 		if [ "$SOC_MODEL" != "t31a" ] && [[ "$pin_name" == PC* ]]; then

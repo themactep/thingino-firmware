@@ -1,11 +1,9 @@
 #!/bin/sh
 # Scan input GPIO pins for button or a sensor.
 
+. /usr/share/config
+
 GPIO_MAX=95
-
-CONFIG_FILE="/etc/web.conf"
-
-[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
 
 # exclude pins already set in the environment
 EXCLUDE="55 56"

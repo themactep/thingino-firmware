@@ -53,7 +53,7 @@ start() {
 	tempfile=$(mktemp -u)
 	cp $ONVIF_CONFIG $tempfile
 	update_config $tempfile "model" "$model"
-	update_config $tempfile "hardware_id" "ingenic_$(soc -m)"
+	update_config $tempfile "hardware_id" "ingenic_$SOC_MODEL"
 	update_config $tempfile "serial_num" "$(fw_printenv -n ethaddr | sed 's/://g')"
 	update_config $tempfile "firmware_ver" "$(awk -F '[:=, "]+' '/^BUILD_ID=/ {print $2}' $OS_RELEASE)"
 	update_config $tempfile "ifs" "$iface"

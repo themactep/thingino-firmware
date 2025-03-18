@@ -6,9 +6,12 @@ config="/etc/imp.conf"
 
 check_imp() {
 	local isp_path
-	case $(soc -f) in
-		t10 | t20) isp_path="/proc/jz/isp/isp_info" ;;
-		*) isp_path="/proc/jz/isp/isp-fs" ;;
+
+	case "$SOC_FAMILY" in
+		t10 | t20)
+			isp_path="/proc/jz/isp/isp_info" ;;
+		*)
+			isp_path="/proc/jz/isp/isp-fs" ;;
 	esac
 
 	echo "Connect to libimp-control"

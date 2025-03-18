@@ -3,11 +3,6 @@
 . /usr/share/common
 
 MMC_MODULE="jzmmc_v12"
-MMC_GPIO_CD=$(fw_printenv -n gpio_mmc_cd)
-MMC_GPIO_PWR=$(fw_printenv -n gpio_mmc_power)
-
-# Default CD-PIN for Ingenic PB27 (GPIO59)
-[ -z "$MMC_GPIO_CD" ] && MMC_GPIO_CD="59"
 
 set_gpio() {
 	echo "Set GPIO $1 to F$2 D$3"
@@ -16,8 +11,9 @@ set_gpio() {
 
 set_power() {
 	# Set additional MMC GPIOs
-	# This needs to run AFTER the driver has been loaded for the sd card to mount during boot
-	for gpio in $MMC_GPIO_PWR; do
+	# This needs to run AFTER the driver has been loaded
+	# for the SD card to mount during boot
+	for gpio in $gpio_mmc_power; do
 		[ "${#gpio}" -ne 3 ] && continue
 		[ "${gpio%[oO]}" = "$gpio" ] && continue
 
@@ -44,7 +40,7 @@ load_module() {
 start() {
 	echo "Starting MMC"
 
-	MMC_PARAM="cd_gpio_pin=$MMC_GPIO_CD"
+	MMC_PARAM="cd_gpio_pin=${gpio_mmc_cd:-59}"
 	load_module
 }
 

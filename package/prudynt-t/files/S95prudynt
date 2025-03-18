@@ -3,7 +3,6 @@
 . /usr/share/common
 
 COMMAND="/bin/env -- LD_PRELOAD=/lib/libimp_control.so $DAEMON_FULL"
-SNAPSHOT="/tmp/snapshot.jpg"
 
 start() {
 	starting
@@ -13,8 +12,13 @@ start() {
 
 stop() {
 	stopping
-	is_streamer_disabled && quit "Streamer disabled"
-	[ -f "$SNAPSHOT" ] && rm $SNAPSHOT
+
+	if is_streamer_disabled; then
+		quit "Streamer disabled"
+	fi
+
+	[ -f "$SNAPSHOT_FILE" ] && rm -f "$SNAPSHOT_FILE"
+
 	stop_daemon
 }
 

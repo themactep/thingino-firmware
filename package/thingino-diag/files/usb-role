@@ -73,24 +73,21 @@ if [ -z "$MODE" ]; then
 	exit 0
 fi
 
-# Get the SOC type
-SOC=$(soc -f)
-
 # Set USB mode based on the provided argument and SOC type
 case "$MODE" in
 	host)
 		set_host_mode
 		;;
 	device)
-		case "$SOC" in
-			t10|t20|t21|t23|t30)
+		case "$SOC_FAMILY" in
+			t10 | t20 | t21 | t23 | t30)
 				set_device_mode_t20
 				;;
 			t31)
 				set_device_mode_t31
 				;;
 			*)
-				echo "Unknown SOC type: $SOC"
+				echo "Unknown SOC type: $SOC_FAMILY" >&2
 				exit 1
 				;;
 		esac
