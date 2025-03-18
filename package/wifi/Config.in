@@ -10,7 +10,7 @@ menuconfig BR2_PACKAGE_WIFI
 	select BR2_PACKAGE_THINGINO_AP
 	help
 	  Thingino Wireless Packages
-	  include essentials for a wirless connection.
+	  include essentials for a wireless connection.
 	  You still need to add a Wi-Fi driver!
 
 if BR2_PACKAGE_WIFI
