@@ -3,7 +3,7 @@
 . /usr/share/common
 
 default_hostname() {
-	echo "$(sed -n 's/^ID=//p' $OS_RELEASE_FILE)"
+	echo "$(sed -n 's/^HOSTNAME=//p' $OS_RELEASE_FILE)"
 }
 
 is_user_modified_hostname() {
