@@ -4,7 +4,7 @@
 
 IFACE=wlan0
 
-SDIO_MODULES="8189es 8189fs atbm6031 b43 bcmdhd hi3881 ssv6158"
+SDIO_MODULES="8189es 8189fs atbm6031 atbm6031x b43 bcmdhd hi3881 ssv6158"
 
 start() {
 	echo_title "Starting Wireless interface"
