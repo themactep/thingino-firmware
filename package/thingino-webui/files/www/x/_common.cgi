@@ -1,26 +1,20 @@
 #!/bin/haserl
 <%
-IFS_ORIG=$IFS
+. /usr/share/common
 
-CRONTABS="/etc/cron/crontabs/root"
+IFS_ORIG=$IFS
 
 STR_EIGHT_OR_MORE_CHARS=" pattern=\".{8,}\" title=\"8 characters or longer\""
 STR_NOT_SUPPORTED="not supported on this system"
 STR_PASSWORD_TO_PSK="Plain-text password will be automatically converted to a PSK upon submission"
 STR_SUPPORTS_STRFTIME="Supports <a href=\"https://strftime.net/\" target=\"_blank\">strftime</a> format"
 
-ENV_DUMP_FILE="/tmp/environment"
-[ -f "$ENV_DUMP_FILE" ] && . "$ENV_DUMP_FILE"
-
-CONFIG_FILE="/etc/web.conf"
-[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
-
 pagename=$(basename "$SCRIPT_NAME")
 pagename="${pagename%%.*}"
 
 # files
 alerts_dir="/tmp/alerts"
-[ -d "$alerts_dir" ] || mkdir -p "$alerts_dir"
+ensure_dir "$alerts_dir"
 
 signature_file="/tmp/signature.txt"
 
@@ -677,8 +671,8 @@ update_caminfo() {
 	sensor_fps_min=$(sensor min_fps)
 	sensor_model=$(sensor name)
 
-	soc_family=$(soc -f)
-	soc_model=$(soc -m)
+	soc_family=$SOC_FAMILY
+	soc_model=$SOC_MODEL
 
 	# Firmware
 	# uboot_version=$(fw_printenv -n ver)
@@ -736,7 +730,9 @@ update_caminfo() {
 	generate_signature
 }
 
-[ -f /etc/os-release ] && . /etc/os-release
+if [ -f "$OS_RELEASE_FILE" ]; then
+	. "$OS_RELEASE_FILE"
+fi
 
 if [ "100.64.1.1" = $(ifconfig wlan0 | sed -En 's/^\s*inet addr:([0-9.]+)\s.*/\1/p') ]; then
 	wlanap_enabled="true"
