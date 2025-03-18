@@ -1,0 +1,6 @@
+config BR2_PACKAGE_WIFI_RTL8192FS
+	bool "Realtek RTL8192FS"
+	select BR2_LINUX_KERNEL
+	select BR2_PACKAGE_THINGINO_KOPT_MMC
+	help
+	  A driver for the RTL8192FS

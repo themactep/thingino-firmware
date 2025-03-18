@@ -1,0 +1,35 @@
+//RTL8192F_MAC_PHY_Parameter
+#[v1][Exact]#
+#[2.4G][A]#
+[1Tx] 0xe08	0x0000ff00	 	 0  0  20  20 // TXAGC codeword (H-byte->L-byte)={1M}
+[2Tx] 0xe08	0x0000ff00	 	 0  0  19  0 // TXAGC codeword (H-byte->L-byte)={1M}
+[1Tx] 0x86c	0xffffff00	 	 18 18 20  0 // TXAGC codeword (H-byte->L-byte)={11M 5.5M 2M}
+[2Tx] 0x86c	0xffffff00	 	 17 17 19  0 // TXAGC codeword (H-byte->L-byte)={11M 5.5M 2M}
+[1Tx] 0xe00	0xffffffff		 18 18 18 18 // TXAGC codeword (H-byte->L-byte)={18M 12M 9M 6M}
+[2Tx] 0xe00	0xffffffff		 17 17 17 17 // TXAGC codeword (H-byte->L-byte)={18M 12M 9M 6M}
+[1Tx] 0xe04	0xffffffff		 16 16 18 18 // TXAGC codeword (H-byte->L-byte)={54M 48M 36M 24M}
+[2Tx] 0xe04	0xffffffff		 15 15 17 17 // TXAGC codeword (H-byte->L-byte)={54M 48M 36M 24M}
+[1Tx] 0xe10	0xffffffff		 18 18 18 18 // TXAGC codeword (H-byte->L-byte)=HT_{MCS3 MCS2 MCS1 MCS0}
+[2Tx] 0xe10	0xffffffff		 17 17 17 17 // TXAGC codeword (H-byte->L-byte)=HT_{MCS3 MCS2 MCS1 MCS0}
+[1Tx] 0xe14	0xffffffff		 16 16 18 18 // TXAGC codeword (H-byte->L-byte)=HT_{MCS7 MCS6 MCS5 MCS4}
+[2Tx] 0xe14	0xffffffff		 15 15 17 17 // TXAGC codeword (H-byte->L-byte)=HT_{MCS7 MCS6 MCS5 MCS4}
+[2Tx] 0xe18	0xffffffff		 17 17 17 17 // TXAGC codeword (H-byte->L-byte)=HT_{MCS11 MCS10 MCS9 MCS8}
+[2Tx] 0xe1C	0xffffffff		 15 15 17 17 // TXAGC codeword (H-byte->L-byte)=HT_{MCS15 MCS14 MCS13 MCS12}
+#[END]#
+#[2.4G][B]#
+[1Tx] 0x838	0xffffff00		 18 20 20  20 // TXAGC codeword (H-byte->L-byte)={5.5M 2M 1M}
+[2Tx] 0x838	0xffffff00		 17 19 19  0 // TXAGC codeword (H-byte->L-byte)={5.5M 2M 1M}
+[1Tx] 0x86C	0x000000ff		 0  0  0  18 // TXAGC codeword (H-byte->L-byte)={11M}
+[2Tx] 0x86C	0x000000ff		 0  0  0  17 // TXAGC codeword (H-byte->L-byte)={11M}
+[1Tx] 0x830	0xffffffff		 18 18 18 18 // TXAGC codeword (H-byte->L-byte)={18M 12M 9M 6M}
+[2Tx] 0x830	0xffffffff		 17 17 17 17 // TXAGC codeword (H-byte->L-byte)={18M 12M 9M 6M}
+[1Tx] 0x834	0xffffffff		 16 16 18 18 // TXAGC codeword (H-byte->L-byte)={54M 48M 36M 24M}
+[2Tx] 0x834	0xffffffff		 15 15 17 17 // TXAGC codeword (H-byte->L-byte)={54M 48M 36M 24M}
+[1Tx] 0x83c	0xffffffff		 18 18 18 18 // TXAGC codeword (H-byte->L-byte)=HT_{MCS3 MCS2 MCS1 MCS0}
+[2Tx] 0x83c	0xffffffff		 17 17 17 17 // TXAGC codeword (H-byte->L-byte)=HT_{MCS3 MCS2 MCS1 MCS0}
+[1Tx] 0x848	0xffffffff		 16 16 18 18 // TXAGC codeword (H-byte->L-byte)=HT_{MCS7 MCS6 MCS5 MCS4}
+[2Tx] 0x848	0xffffffff		 15 15 17 17 // TXAGC codeword (H-byte->L-byte)=HT_{MCS7 MCS6 MCS5 MCS4}
+[2Tx] 0x84c	0xffffffff		 17 17 17 17 // TXAGC codeword (H-byte->L-byte)=HT_{MCS11 MCS10 MCS9 MCS8}
+[2Tx] 0x868	0xffffffff		 15 15 17 17 // TXAGC codeword (H-byte->L-byte)=HT_{MCS15 MCS14 MCS13 MCS12}
+#[END]#
+0xffff 0xffff
