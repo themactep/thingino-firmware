@@ -8,6 +8,10 @@ PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
 WLAN_INT_FILE="/etc/network/interfaces.d/wlan0"
 DAEMON_ARGS="-i $IFACE -c $CONFIG -P $PIDFILE -B"
 
+if [ "true" = "$debug" ]; then
+	DAEMON_ARGS="$DAEMON_ARGS -dd"
+fi
+
 password_changed() {
 	old_pass=$(awk -F= '/^\s*psk=/{gsub(/^"|"$/, "", $2); print $2}' $CONFIG)
 	[ "$old_pass" != "$wlan_pass" ]
