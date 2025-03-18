@@ -4,13 +4,12 @@
 page_title="ZeroTier"
 params="enabled nwid"
 config_file="/etc/webui/zerotier.conf"
-service_file=/etc/init.d/S90zerotier
+
 zt_cli_bin=/usr/sbin/zerotier-cli
 zt_one_bin=/usr/sbin/zerotier-one
 
 [ -f "$zt_cli_bin" ] || redirect_to "/" "danger" "ZerotierOne client is not a part of your firmware."
 [ -f "$zt_one_bin" ] || redirect_to "/" "danger" "$zt_one_bin file not found."
-[ -f "$service_file" ] || redirect_to "/" "danger" "$service_file file not found."
 [ -f "$config_file" ] || touch $config_file
 
 include $config_file
@@ -38,12 +37,12 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 				redirect_back "success" "Zerotier config updated."
 			fi
 			;;
-		start|open)
-			$service_file start >&2
+		start | open)
+			service start zerotier >&2
 			redirect_back # "success" "Sevice is up"
 			;;
-		stop|close)
-			$service_file stop >&2
+		stop | close)
+			service stop zerotier >&2
 			redirect_back # "danger" "Service is down"
 			;;
 		join)
@@ -121,7 +120,6 @@ fi
 <div class="col col-lg-8">
 <h3>Configuration</h3>
 <%
-[ -f "$service_file" ] && ex "cat $service_file"
 [ -f "$config_file" ] && ex "cat $config_file"
 [ -f "$zt_network_config_file" ] && ex "cat $zt_network_config_file"
 ex "ps | grep zerotier"

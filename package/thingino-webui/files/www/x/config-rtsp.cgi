@@ -5,8 +5,6 @@ page_title="RTSP/ONVIF Access"
 
 prudynt_config=/etc/prudynt.cfg
 onvif_config=/etc/onvif.conf
-onvif_discovery=/etc/init.d/S96onvif_discovery
-onvif_notify=/etc/init.d/S97onvif_notify
 
 rtsp_username=$(awk -F: '/Streaming Service/{print $1}' /etc/passwd)
 default_for rtsp_username "$(awk -F'"' '/username/{print $2}' $prudynt_config)"
@@ -42,21 +40,13 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 		echo "$rtsp_username:$rtsp_password" | chpasswd -c sha512
 
-		if [ -f "$onvif_discovery" ]; then
-			$onvif_discovery restart >> /tmp/webui.log
-		else
-			echo "$onvif_discovery not found" >> /tmp/webui.log
-		fi
-
-		if [ -f "$onvif_notify" ]; then
-			$onvif_notify restart >> /tmp/webui.log
-		else
-			echo "$onvif_notify not found" >> /tmp/webui.log
-		fi
-
-		/etc/init.d/S95prudynt restart >/dev/null
+		service restart onvif_discovery >/dev/null
+		service restart onvif_notify >/dev/null
+		service restart prudynt >/dev/null
+		redirect_to $SCRIPT_NAME "success" "Data updated."
+	else
+		redirect_to $SCRIPT_NAME "danger" "Error: $error"
 	fi
-	redirect_to $SCRIPT_NAME
 fi
 %>
 <%in _header.cgi %>
