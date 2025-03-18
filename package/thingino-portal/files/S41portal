@@ -18,98 +18,112 @@ timeout() {
 	sleep 600 && $0 stop
 }
 
-timestamp() {
-	date -u +"%Y-%m-%d %H:%M:%S"
-}
-
 start() {
-	echo "Starting captive portal at $(timestamp)"
+	echo "Captive Portal" >&2
 
-	if [ -f /run/portal_mode ]; then
-		echo "Already running"
+	if [ -f "$PORTAL_MODE_FLAG" ]; then
+		echo "Already running" >&2
 		exit 0
 	fi
 
 	if iface_exists "eth0"; then
-		echo "Ethernet interface found"
+		echo "Ethernet interface found" >&2
 		exit 0
 	fi
 
 	if iface_exists "usb0"; then
-		echo "USB interface found"
+		echo "USB interface found" >&2
 		exit 0
 	fi
 
 	if ! iface_exists "$portal_device"; then
-		echo "Wireless port not found"
+		echo "Wireless port not found" >&2
 		exit 0
 	fi
 
 	# quit if credentials are set
 	if [ -n "$wlan_ssid" ] && [ -n "$wlan_pass" ]; then
-		echo "WLAN already configured"
+		echo "WLAN already configured" >&2
 		exit 0
-	else
-		echo "WLAN not configured"
 	fi
 
 	if [ "true" = "$wlanap_enabled" ]; then
-		echo "WLAN AP enabled"
+		echo "WLAN AP enabled" >&2
 		exit 0
 	fi
 
-	echo "Run The Portal"
-	touch /run/portal_mode
+	echo "Run The Portal" >&2
+
+	echo "- Create DHCP leases database" >&2
 	touch /run/udhcpd.leases
 
-	echo "- Assign ${CNET}.1 to $portal_device"
+	echo "- Assign ${CNET}.1 to $portal_device" >&2
 	ip a add dev $portal_device ${CNET}.1/24
 
-	echo "- Bring $portal_device interface up"
+	echo "- Bring $portal_device interface up" >&2
 	ip link set $portal_device up
 
-	echo "- Add route ${CNET}.0/24 to $portal_device"
+	echo "- Add route ${CNET}.0/24 to $portal_device" >&2
 	ip route add ${CNET}.0/24 dev $portal_device
 
-	echo "- Starting DHCP server"
+	echo "- Start DHCP server" >&2
 	start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd-portal.conf
 
-	echo "- Starting DNS server"
+	echo "- Start DNS server" >&2
 	start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /etc/dnsd-portal.conf -d
 
-	echo "- Read MAC address"
+	echo "- Read MAC address" >&2
 	mac_address=$(ip link show $portal_device | awk '/ether/ {print $2}')
 
-	echo "- Update SSID with last two octets of MAC address"
+	echo "- Update SSID with last two octets of MAC address" >&2
 	last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
 
-	echo "- Update SSID name in wpa_supplicant config"
+	echo "- Update SSID name in wpa_supplicant config" >&2
 	sed -i "/ssid=\"THINGINO-\"$/ s/\"$/$last_two\"/" /etc/wpa-portal_ap.conf
 
-	echo "- Starting wpa_supplicant"
+	echo "- Start wpa_supplicant on $portal_device" >&2
 	start-stop-daemon -S -x /sbin/wpa_supplicant -- -i $portal_device \
 		-B -c /etc/wpa-portal_ap.conf
 
+	echo "- Set $PORTAL_MODE_FLAG" >&2
+	touch "$PORTAL_MODE_FLAG"
+
+	echo "- Portal started at $(ts)" >&2
+
+	echo "- Start timeout countdown" >&2
 	timeout &
 }
 
 stop() {
-	echo "Stopping captive portal at $(timestamp)"
+	echo "Captive Portal" >&2
 
-	if [ ! -f /run/portal_mode ]; then
-		echo "Not running"
+	if [ ! -f "$PORTAL_MODE_FLAG" ]; then
+		echo "Not running" >&2
 		exit 0
 	fi
 
+	echo "- Stop udhcp" >&2
 	start-stop-daemon -K -q -x /sbin/udhcpd
+
+	echo "- Stop dnsd" >&2
 	start-stop-daemon -K -q -x /sbin/dnsd
+
+	echo "- Stop wpa_supplicant" >&2
 	start-stop-daemon -K -q -x /sbin/wpa_supplicant
 
+	echo "- Remove route ${CNET}.0/24 from $portal_device" >&2
 	ip address delete dev $portal_device ${CNET}.1/24
-	ip link set $portal_device down
-	rm /run/portal_mode
 
+	echo "- Remove IP address from $portal_device" >&2
+	ip link set $portal_device down
+
+	echo "- Remove $PORTAL_MODE_FLAG" >&2
+	rm -f "$PORTAL_MODE_FLAG"
+
+	echo "- Kill the Portal process" >&2
 	kill -9 "$(pidof -s S41portal -o $$)"
+
+	echo "- Portal stopped at $(ts)" >&2
 }
 
 case "$1" in
@@ -119,8 +133,12 @@ case "$1" in
 	stop)
 		stop
 		;;
+	restart)
+		stop
+		start
+		;;
 	*)
-		echo "Usage: $0 {start|stop}"
+		echo "Usage: $0 {start|stop|reset}"
 		exit 1
 		;;
 esac
