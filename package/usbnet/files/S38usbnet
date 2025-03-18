@@ -5,7 +5,7 @@
 modulename="rndis_host"
 
 start() {
-	echo "Starting USB NET"
+	echo_title "Starting USB NET"
 
 	if [ -n "$gpio_usbnet" ]; then
 		num=${gpio_usbnet%[oO]}
@@ -16,15 +16,15 @@ start() {
 			o) gpio_cmd="low" ;;
 		esac
 
-		echo "Set GPIO $num $gpio_cmd"
+		echo_info "Set GPIO $num $gpio_cmd"
 		gpio $gpio_cmd $num
 	fi
 
-	echo "Load usbserial module"
+	echo_info "Load usbserial module"
 	modprobe usbserial
 
 	if ! grep -q ^$modulename /proc/modules; then
-		echo "Load $modulename module"
+		echo_info "Load $modulename module"
 		modprobe $modulename
 	fi
 }

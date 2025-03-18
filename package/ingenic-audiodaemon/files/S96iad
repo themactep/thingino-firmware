@@ -22,16 +22,19 @@ restart() {
 	reload
 }
 
-reload() {
-	start
-}
-
 case "$1" in
-	start | stop | restart | reload)
-		$1
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		restart
 		;;
 	*)
-		die "Usage: $0 {start|stop|restart|reload}"
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
 esac
 
 exit 0

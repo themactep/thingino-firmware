@@ -6,11 +6,13 @@ IFACE=wlan0
 
 init() {
 	if [ "true" = "$disable_wlan" ]; then
-		quit "WLAN disabled"
+		echo_error "WLAN disabled"
+		exit 1
 	fi
 
 	if [ -z "$wlan_module" ]; then
-		quit "wlan_module is not set"
+		echo_error "wlan_module is not set"
+		exit 1
 	fi
 
 	if [ -z "$gpio_wlan" ]; then
@@ -38,7 +40,7 @@ start() {
 		gpio set $pin $pin_on
 
 		if [ "bcmdhd" = "$wlan_module" ]; then
-			echo "Unexport GPIO pin $pin"
+			echo_info "Unexport GPIO pin $pin"
 			gpio unexport $pin
 		fi
 	fi
@@ -80,14 +82,14 @@ start() {
 	esac
 
 	if [ -n "$wlan_mac" ] && [ "hi3881" = "$wlan_module" ]; then
-		echo "Preset MAC address to $wlan_mac"
+		echo_info "Preset MAC address to $wlan_mac in /usr/share/wifi/wifi_cfg"
 		sed -i "s/CFG_MAC=[^;]*;/CFG_MAC=$wlan_mac;/" /usr/share/wifi/wifi_cfg
 	fi
 
 	if grep -q "^$wlan_module\b" /proc/modules; then
-		echo "Module $wlan_module is already loaded"
+		echo_info "Module $wlan_module is already loaded"
 	else
-		echo "Loading $wlan_module module with parameters $wlan_module_opts"
+		echo_info "Loading $wlan_module module with parameters $wlan_module_opts"
 		modprobe $wlan_module $wlan_module_opts
 	fi
 
@@ -99,15 +101,16 @@ start() {
 	done
 
 	if [ -n "$wlan_mac" ] && [ "hi3881" != "$wlan_module" ]; then
-		echo "Set MAC address to $wlan_mac"
 		ip link set dev $IFACE down
+		echo_info "Set MAC address to $wlan_mac"
 		ip link set dev $IFACE address $wlan_mac
                 ip link set dev $IFACE up
 	fi
 }
 
 stop() {
-	stopping
+	echo_title "Stopping Wireless interface"
+
 	ifdown $IFACE
 }
 
@@ -118,8 +121,13 @@ case "$1" in
 	stop)
 		stop
 		;;
+	restart)
+		stop
+		start
+		;;
 	*)
-		die "Usage: $0 {start|stop}"
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
 		;;
 esac
 

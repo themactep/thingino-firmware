@@ -16,9 +16,6 @@ case "$log" in
 	snmp)
 		cat /proc/net/snmp >$file
 		;;
-	weblog)
-		cat /tmp/webui.log >$file
-		;;
 	*)
 		echo "Unknown file."
 		exit 1

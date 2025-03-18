@@ -24,7 +24,8 @@ case "$1" in
 		true
 		;;
 	*)
-		die "Usage: $0 {start}"
+		echo "Usage: $0 {start}"
+		exit 1
 		;;
 esac
 

@@ -20,7 +20,8 @@ Where command:
   temp        Display module temperature details
   rssi        Display signal details
   cli         CLI interface on supported modules
-"
+" >&2
+	exit 1
 }
 
 check_interface() {

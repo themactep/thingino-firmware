@@ -30,14 +30,14 @@ else
 fi
 
 start() {
-	echo "Starting HTTPD"
+	echo_title "Starting HTTPD"
 
 	[ -f $DAEMON_FULL ] || quit "Disabled"
 	start_daemon
 }
 
 stop() {
-	echo "Stopping HTTPD"
+	echo_title "Stopping HTTPD"
 
 	[ -f $DAEMON_FULL ] || quit "Disabled"
 	stop_daemon

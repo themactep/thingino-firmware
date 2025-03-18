@@ -1,8 +1,6 @@
 #!/bin/sh
 . ./_json.sh
 
-CONFIG_FILE="/etc/web.conf"
-
 # parse parameters from query string
 [ -n "$QUERY_STRING" ] && eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
 
