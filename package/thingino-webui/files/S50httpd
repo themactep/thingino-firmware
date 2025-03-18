@@ -5,19 +5,7 @@
 HTTPD_CONF="/etc/httpd.conf"
 PORTAL_CONF="/etc/httpd-portal.conf"
 
-no_iface() {
-	[ -z "$(ip link show $1 2> /dev/null)" ]
-}
-
-no_wlan_ap() {
-	[ -z "$wlanap_enabled" ] || [ "$wlanap_enabled" = "false" ]
-}
-
-no_wlan_creds() {
-	[ -z "$wlan_ssid" ] || [ -z "$wlan_pass" ]
-}
-
-if no_iface eth0 && no_iface usb0 && iface_exists wlan0 && no_wlan_ap && no_wlan_creds; then
+if [ -f "$PORTAL_MODE_FLAG" ]; then
 	DAEMON_ARGS="-f -c $PORTAL_CONF"
 else
 	DAEMON_ARGS="-f -c $HTTPD_CONF -r Authentication"
@@ -32,14 +20,12 @@ fi
 start() {
 	echo_title "Starting HTTPD"
 
-	[ -f $DAEMON_FULL ] || quit "Disabled"
 	start_daemon
 }
 
 stop() {
 	echo_title "Stopping HTTPD"
 
-	[ -f $DAEMON_FULL ] || quit "Disabled"
 	stop_daemon
 }
 
