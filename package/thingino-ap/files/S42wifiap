@@ -5,60 +5,117 @@
 CNET=100.64.1
 
 # Define net_dev in the global scope
-net_dev="wlan0"  # default device
-if [ "$wlan_module" = "hi3881" ]; then
+if [ "hi3881" = "$wlan_module" ]; then
 	net_dev="ap0"
-	sed -i 's/wlan0/ap0/g' /etc/udhcpd-ap.conf
+else
+	net_dev="wlan0"
 fi
+sed -i "s/%dev%/$net_dev/g" /etc/udhcpd-ap.conf
 
 start() {
-	echo "Starting WLAN AP..."
+	echo "Starting WLAN AP..." >&2
 
-	(iface_exists "eth0" || iface_exists "usb0") && quit "Wired interface found"
-	iface_exists "$net_dev" || quit "Wireless port not found"
-	# quit if credentials are set, AP conflicts with normal wifi operation
-
-	[ "true" = "$wlanap_enabled" ] || quit "WLAN AP disabled"
-
-	touch /var/run/udhcpd_ap.leases
-	cp /etc/resolv-ap.conf /tmp/resolv.conf
-
-	ip a add dev $net_dev ${CNET}.1/24
-	ip link set $net_dev up
-	ip route add ${CNET}.0/24 dev $net_dev > /dev/null 2>&1
-
-	cp /etc/dnsd-ap.conf /tmp/dnsd.conf
-	hostname=$(hostname)
-	grep $hostname /tmp/dnsd.conf > /dev/null || echo $hostname.local ${CNET}.1 >> /tmp/dnsd.conf
-
-	start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd-ap.conf 2>&1
-	start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /tmp/dnsd.conf -d
-
-	mac_address=$(ip link show $net_dev | awk '/ether/ {print $2}')
-	last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
-
-	if [ -n "$wlanap_ssid" ]; then
-		sed -i '/ssid=/ s/ssid="[^"]*"/ssid="'"$wlanap_ssid"'"/' /etc/wpa-ap.conf
-	else
-		sed -i '/ssid=/ s/ssid="[^"]*"/ssid="THINGINO-'"$last_two"'"/' /etc/wpa-ap.conf
+	if [ -f "$PORTAL_MODE_FLAG" ]; then
+		echo "Portal mode enabled" >&2
+		exit 1
 	fi
 
-	[ ${#wlanap_pass} -lt 8 ] && wlanap_pass="thingino"
+	if iface_exists "eth0"; then
+		echo "Wired interface found" >&2
+		exit 1
+	fi
 
-	[[ ${#wlanap_pass} -eq 64 && "$wlanap_pass" =~ ^[0-9a-fA-F]{64}$ ]] && quote='' || quote='"'
+	if iface_exists "usb0"
+		echo "Wired interface found" >&2
+		exit 1
+	fi
+
+	if ! iface_exists "$net_dev"; then
+		echo "Wireless port not found" >&2
+		exit 1
+	fi
+
+	# quit if credentials are set, AP conflicts with normal wifi operation
+
+	if [ "true" != "$wlanap_enabled" ]; then
+		echo "WLAN AP disabled" >&2
+		exit 1
+	fi
+
+	echo "Create DHCP leases database" >&2
+	touch /var/run/udhcpd_ap.leases
+
+	echo "Set WLAN AP resolver configuration" >&2
+	cp /etc/resolv-ap.conf /tmp/resolv.conf
+
+	echo "Add IP address to $net_dev" >&2
+	ip a add dev $net_dev ${CNET}.1/24
+
+	echo "Bring $net_dev up" >&2
+	ip link set $net_dev up
+
+	echo "Add route to $net_dev" >&2
+	ip route add ${CNET}.0/24 dev $net_dev > /dev/null 2>&1
+
+	echo "Set WLAN AP DNS configuration" >&2
+	cp /etc/dnsd-ap.conf /tmp/dnsd.conf
+
+	hostname=$(hostname)
+
+	if ! grep -q $hostname /tmp/dnsd.conf >/dev/null; then
+		echo "Add $hostname to DNS configuration" >&2
+		echo $hostname.local ${CNET}.1 >> /tmp/dnsd.conf
+	fi
+
+	echo "Start udhcpd" >&2
+	start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd-ap.conf 2>&1
+
+	echo "Start dnsd" >&2
+	start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /tmp/dnsd.conf -d
+
+	echo "Set WLAN AP SSID" >&2
+	if [ -z "$wlanap_ssid" ]; then
+		mac_address=$(ip link show $net_dev | awk '/ether/ {print $2}')
+		wlanap_ssid="THINGINO-$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')"
+	fi
+	sed -iE "s/^(\s*)ssid=.*$/\1ssid=\"$wlanap_ssid\"/" /etc/wpa-ap.conf
+
+	echo "Set WLAN AP password" >&2
+	[ ${#wlanap_pass} -lt 8 ] && wlanap_pass="thingino"
+	if [[ ${#wlanap_pass} -eq 64 && "$wlanap_pass" =~ ^[0-9a-fA-F]{64}$ ]]; then
+		quote=''
+	else
+		quote='"'
+	fi
 	sed -i '/psk=/ s/psk=["]*[^"]*["]*/psk='"$quote$wlanap_pass$quote"'/' /etc/wpa-ap.conf
 
+	echo "Start wpa_supplicant" >&2
 	start-stop-daemon -S -x /sbin/wpa_supplicant -- -i $net_dev -B -c /etc/wpa-ap.conf 2>&1
+
+	echo "WLAN Access Point started" >&2
+	touch "$WLANAP_MODE_FLAG"
 }
 
 stop() {
-	echo "Stopping WLAN AP..."
+	echo "Stopping WLAN AP..." >&2
 
+	echo "Stop udhcpd" >&2
 	start-stop-daemon -K -q -x /sbin/udhcpd
+
+	echo "Stop dnsd" >&2
 	start-stop-daemon -K -q -x /sbin/dnsd
+
+	echo "Stop wpa_supplicant" >&2
 	start-stop-daemon -K -q -x /sbin/wpa_supplicant
+
+	echo "Remove IP address from $net_dev" >&2
 	ip address delete dev $net_dev ${CNET}.1/24
+
+	echo "Bring down $net_dev" >&2
 	ip link set $net_dev down
+
+	echo "WLAN AP stopped" >&2
+	rm -f "$WLANAP_MODE_FLAG"
 }
 
 case "$1" in
@@ -68,8 +125,13 @@ case "$1" in
 	stop)
 		stop
 		;;
+	restart)
+		stop
+		start
+		;;
 	*)
-		die "Usage: $0 {start|stop}"
+		echo "Usage: $0 {start|stop|restart}" >&2
+		exit 1
 		;;
 esac
 
