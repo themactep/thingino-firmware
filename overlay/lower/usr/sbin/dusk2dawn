@@ -47,9 +47,6 @@ while getopts d:r:s:x:y:vh flag; do
 	esac
 done
 
-[ -z "$dusk2dawn_lat" ] || die "Latitude is not set"
-[ -z "$dusk2dawn_lng" ] || die "Longitude is not set"
-
 if [ -z "$dusk2dawn_date" ]; then
 	log "Date is today"
 	dusk2dawn_date="today"
