@@ -43,12 +43,24 @@ update_config() {
 
 start() {
 	starting "ONVIF discovery"
-	is_gateway_reachable || quit "Disabled"
-	is_streamer_disabled && quit "Streamer disabled"
-	is_onvif_disabled && quit "ONVIF discovery disabled"
+
+	if ! is_gateway_reachable; then
+		quit "Disabled"
+	echo
+
+	if is_streamer_disabled; then
+		quit "Streamer disabled"
+	if
+
+	if [ "true" != "$onvif_enabled" ]; then
+		quit "ONVIF discovery disabled"
+	fi
+
 	start_daemon
 
-	grep -q "^# GENERATED" $ONVIF_CONFIG && return
+	if grep -q "^# GENERATED" $ONVIF_CONFIG >/dev/null; then
+		return
+	fi
 
 	tempfile=$(mktemp -u)
 	cp $ONVIF_CONFIG $tempfile

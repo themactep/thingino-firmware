@@ -13,15 +13,21 @@ ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
 # default to "enabled" (config is managed by S96onvif_discovery)
 [ -z "$onvif_enabled" ] && onvif_enabled="true"
 
-is_onvif_disabled() {
-	[ "true" != "$onvif_enabled" ]
-}
-
 start() {
 	starting
-	is_streamer_disabled && quit "Streamer disabled"
-	is_onvif_disabled && quit "ONVIF disabled"
-	[ -d "$MOTION" ] || mkdir -p $MOTION
+
+	if is_streamer_disabled; then
+		quit "Streamer disabled"
+	fi
+
+	if is_onvif_disabled; then
+		quit "ONVIF disabled"
+	fi
+
+	if [ ! -d "$MOTION" ]; then
+		mkdir -p $MOTION
+	fi
+
 	start_daemon
 }
 

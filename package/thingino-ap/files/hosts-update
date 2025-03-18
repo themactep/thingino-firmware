@@ -4,11 +4,14 @@ HOSTS=/tmp/dnsd.conf
 
 cp /etc/dnsd-ap.conf ${HOSTS}
 hostname=$(hostname)
-grep $hostname ${HOSTS} > /dev/null || echo $(hostname).local $(hostname -i) >> ${HOSTS}
+if ! grep -q $hostname "$HOSTS" >/dev/null; then
+	echo "$hostname.local $(hostname -i)" >> "$HOSTS"
+fi
 
-dumpleases -f /run/udhcpd_ap.leases -d | grep -v "^Mac Address" |
-while read line; do
+dumpleases -f /run/udhcpd_ap.leases -d | grep -v "^Mac Address" | while read line; do
 	ip=$(echo $line | cut -s -F 2)
 	hostname=$(echo $line | cut -s -F 3)
-	[ " " != "${line:34:1}" ] && echo $hostname.local $ip >> ${HOSTS}
+	if [ " " != "${line:34:1}" ]; then
+		echo "$hostname.local $ip" >> "$HOSTS"
+	fi
 done

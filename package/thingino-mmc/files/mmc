@@ -2,13 +2,23 @@
 
 . /usr/share/common
 
-[ -z "$1" ] && die "Usage: $0 <mmc port> [-r]"
+if [ -z "$1" ]; then
+	echo "Usage: $0 <mmc port> [-r]" >&2
+	exit 1
+fi
 
-endpoint=/sys/devices/platform/jzmmc_v1.2.$1/present
-[ -f $endpoint ] || die "No endpoint $endpoint"
+endpoint="/sys/devices/platform/jzmmc_v1.2.$1/present"
+if [ ! -f "$endpoint" ]; then
+	echo "No endpoint $endpoint" >&2
+	exit 1
+fi
 
 # Do REMOVE if -r supplied, otherwise INSERT
-[ "$2" = "-r" ] && action=REMOVE || action=INSERT
-echo $action > $endpoint
+if [ "$2" = "-r" ]; then
+	action="REMOVE"
+else
+	action="INSERT"
+fi
+echo "$action" > "$endpoint"
 
 exit 0
