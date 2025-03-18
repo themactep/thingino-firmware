@@ -67,7 +67,7 @@ start() {
 	update_config $tempfile "model" "$model"
 	update_config $tempfile "hardware_id" "ingenic_$SOC_MODEL"
 	update_config $tempfile "serial_num" "$(fw_printenv -n ethaddr | sed 's/://g')"
-	update_config $tempfile "firmware_ver" "$(awk -F '[:=, "]+' '/^BUILD_ID=/ {print $2}' $OS_RELEASE)"
+	update_config $tempfile "firmware_ver" "$BUILD_ID"
 	update_config $tempfile "ifs" "$iface"
 	update_config $tempfile "user" "$(awk -F '"' '/username:/ {print $2}' $PRUDYNT_CONFIG)"
 	update_config $tempfile "password" "$(awk -F '"' '/password:/ {print $2}' $PRUDYNT_CONFIG)"
