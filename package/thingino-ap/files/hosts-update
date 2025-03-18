@@ -1,8 +1,9 @@
 #!/bin/sh
 
-HOSTS=/tmp/dnsd.conf
+HOSTS="/tmp/dnsd.conf"
 
-cp /etc/dnsd-ap.conf ${HOSTS}
+cp /etc/dnsd-ap.conf "$HOSTS"
+
 hostname=$(hostname)
 if ! grep -q $hostname "$HOSTS" >/dev/null; then
 	echo "$hostname.local $(hostname -i)" >> "$HOSTS"
@@ -15,3 +16,5 @@ dumpleases -f /run/udhcpd_ap.leases -d | grep -v "^Mac Address" | while read lin
 		echo "$hostname.local $ip" >> "$HOSTS"
 	fi
 done
+
+exit 0

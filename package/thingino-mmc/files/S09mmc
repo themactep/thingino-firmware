@@ -5,7 +5,7 @@
 MMC_MODULE="jzmmc_v12"
 
 set_gpio() {
-	echo "Set GPIO $1 to F$2 D$3"
+	echo "Set GPIO $1 to F$2 D$3" >&2
 	gpio-diag $1 func $2 drive $3
 }
 
@@ -19,11 +19,11 @@ set_power() {
 
 		case "${gpio#??}" in
 			"O")
-				echo "Set GPIO "${gpio%[oO]}" high"
+				echo "Set GPIO "${gpio%[oO]}" high" >&2
 				gpio set "${gpio%[oO]}" 1
 				;;
 			"o")
-				echo "Set GPIO "${gpio%[oO]}" low"
+				echo "Set GPIO "${gpio%[oO]}" low" >&2
 				gpio set "${gpio%[oO]}" 0
 				;;
 		esac
@@ -47,7 +47,7 @@ load_module() {
 }
 
 start() {
-	echo "Starting MMC"
+	echo "Starting MMC" >&2
 
 	MMC_PARAM="cd_gpio_pin=${gpio_mmc_cd:-59}"
 	load_module
@@ -66,7 +66,7 @@ case "$1" in
 		start
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart}"
+		echo "Usage: $0 {start|stop|restart}" >&2
 		exit 1
 		;;
 esac
