@@ -17,13 +17,13 @@ PID=$$
 CRONTABS="/etc/cron/crontabs/root"
 CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3"
 EMAIL_FORMAT='^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
-FILE_HOSTNAME="/etc/hostname"
-FILE_HOSTS="/etc/hosts"
-FILE_OS_RELEASE="/etc/os-release"
+HOSTNAME_FILE="/etc/hostname"
+HOSTS_FILE="/etc/hosts"
 LOG_FILE="/tmp/webui.log"
 LOG_SIZE_LIMIT=50000
 NTP_DEFAULT_FILE="/etc/default/ntp.conf"
 NTP_WORKING_FILE="/tmp/ntp.conf"
+OS_RELEASE_FILE="/etc/os-release"
 PORTAL_MODE_FLAG="/run/portal_mode"
 RESOLV_DEFAULT_FILE="/etc/default/resolv.conf"
 RESOLV_FILE="/etc/resolv.conf"
@@ -177,33 +177,17 @@ log() {
 	logger -p daemon.info -t ${DAEMON_SHORT}[$$] <&0
 }
 
-log_to_file() {
-	# poor man's logrotate
-	if [ -f $LOG_FILE ] && [ "$(stat -c%s $LOG_FILE)" -gt $LOG_SIZE_LIMIT ]; then
-		# redundant, but calling log() from within log() is wrong!
-		echo "$(tag) Rotate log file" >> $LOG_FILE
-		mv "$LOG_FILE" "${LOG_FILE}.1"
-		echo "$(tag) Log file rotated." >> $LOG_FILE
-	fi
-
-	# log to file
-	echo -e "$(tag) $1" >> $LOG_FILE
-
-	# log to console
-	echo -e "$1" >&2
-}
-
 play_sound() {
 	iac -f /usr/share/sounds/$1
 }
 
 print_release() {
-	if [ ! -f "$FILE_OS_RELEASE" ]; then
-		echo "$FILE_OS_RELEASE not found" >&2
+	if [ ! -f "$OS_RELEASE_FILE" ]; then
+		echo_warning "$OS_RELEASE_FILE not found"
 		return 1
 	fi
 
-	. "$FILE_OS_RELEASE"
+	. "$OS_RELEASE_FILE"
 
 	# to stdout
 	echo_c 208 "Thingino $IMAGE_ID [$BUILD_ID]\n"
@@ -229,7 +213,7 @@ singleton() {
 
 	name=$(basename $1)
 	pids=$(pidof -o %PPID $name > /dev/null)
-	if [ -n "$pids" ] ; then
+	if [ -n "$pids" ]; then
 		echo "$name is already running with PIDs $pids. Exiting." >&2
 		exit 1
 	fi

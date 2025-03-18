@@ -26,7 +26,8 @@ check_imp() {
 		echo -n "."
 		sleep 1
 	done
-	die " Timeout"
+	echo " Timeout"
+	exit 1
 }
 
 restore_config() {
