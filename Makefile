@@ -431,11 +431,6 @@ $(UB_ENV_FINAL_TXT): $(OUTPUT_DIR)/.config
 	sort -u -o $@ $@
 	sed -i '/^\s*$$/d' $@
 
-$(SYSTEM_CONFIG):
-	$(info -------------------------------- $@)
-	touch $@
-	cat $(BR2_EXTERNAL)/configs/system/$(CAMERA).config >> $@
-
 $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(EXTRAS_BIN)
 	$(info -------------------------------- $@)
 	dd if=/dev/zero bs=$(SIZE_8M) skip=0 count=1 status=none | tr '\000' '\377' > $@
@@ -487,7 +482,7 @@ $(ROOTFS_BIN):
 	$(BR2_MAKE) all
 
 # create .tar file of rootfs
-$(ROOTFS_TAR): $(SYSTEM_CONFIG)
+$(ROOTFS_TAR):
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) all
 

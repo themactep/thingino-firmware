@@ -68,15 +68,15 @@ rm $tmpfile
 # Create the /etc/thingino.config file
 #
 
-touch ${TARGET_DIR}/etc/thingino.config
+SYSTEM_CONFIG=${TARGET_DIR}/etc/thingino.config
+
+touch $SYSTEM_CONFIG
 
 # Add the common configuration
-cat ${BR2_EXTERNAL}/configs/system/000_common.config | \
-	tee -a ${TARGET_DIR}/etc/thingino.config
+cat ${BR2_EXTERNAL}/configs/system/000_common.config | tee -a $SYSTEM_CONFIG
 
 # Add the camera specific configuration
-cat ${BR2_EXTERNAL}/configs/system/${CAMERA}.config | \
-	tee -a ${TARGET_DIR}/etc/thingino.config
+cat ${BR2_EXTERNAL}/configs/system/${CAMERA}.config | tee -a $SYSTEM_CONFIG
 
 #
 # Remove unnecessary files
