@@ -6,17 +6,17 @@ PIDFILE="/var/run/odhcp6c_$IFACE.pid"
 
 if [ ! -d "/sys/class/net/$IFACE" ]; then
 	echo_error "$IFACE not found"
-	exit 1
+	exit 0
 fi
 
 if [ "$(sysctl -n net.ipv6.conf.all.disable_ipv6)" -eq 1 ]; then
 	echo_error "IPv6 disabled globally"
-	exit 1
+	exit 0
 fi
 
-if [ "true" = "$IF_DHCP_V6_ENABLED" ]; then
+if [ "false" = "$IF_DHCP_V6_ENABLED" ]; then
 	echo_error "DHCPv6 disabled on $IFACE"
-	exit 1
+	exit 0
 fi
 
 echo_info "DHCPv6 on $IFACE"
