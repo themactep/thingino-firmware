@@ -1,7 +1,7 @@
 #!/bin/sh
 
 DAEMON="syslogd"
-DAEMON_ARGS="-n -C64 -l1 -S -t -D $RSYSLOG_ADDRESS"
+DAEMON_ARGS="-n -C64 -S -t -D $RSYSLOG_ADDRESS"
 
 # -n              Run in foreground
 # -R HOST[:PORT]  Log to HOST:PORT (default PORT:514)
