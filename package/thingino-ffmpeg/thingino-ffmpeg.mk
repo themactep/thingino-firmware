@@ -57,24 +57,27 @@ ifeq ($(BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR),y)
 THINGINO_FFMPEG_CONF_OPTS = \
 	--prefix=/usr \
 	--enable-mipsfpu \
+	--disable-asm \
 	--enable-cross-compile \
 	--disable-everything \
-	--disable-cuda \
-	--disable-cuda-llvm \
+	--enable-small \
+	--enable-shared \
 	--enable-gpl \
 	--enable-version3 \
 	--enable-avformat \
 	--enable-avcodec \
+	--enable-swscale \
 	--enable-network \
 	--enable-protocol=http,tcp,udp,file,rtsp,rtp \
 	--enable-parser=h264,hevc,aac,opus \
 	--enable-demuxer=rtsp,rtp,mov,m4a,mpegts,h264 \
-	--enable-muxer=mp4,opus,mpegts,hls \
-	--enable-muxer=segment \
-	--enable-bsf=aac_adtstoasc \
-	--enable-decoder=aac \
+	--enable-muxer=mp4,opus,mpegts,hls,segment \
+	--enable-filter=scale \
+	--enable-bsf=aac_adtstoasc,h264_mp4toannexb,hevc_mp4toannexb \
+	--enable-decoder=h264,aac,hevc \
 	--disable-static \
-	--enable-shared \
+	--disable-cuda \
+	--disable-cuda-llvm \
 	--disable-doc \
 	--disable-podpages \
 	--disable-htmlpages \
@@ -82,16 +85,16 @@ THINGINO_FFMPEG_CONF_OPTS = \
 	--disable-txtpages \
 	--disable-iconv \
 	--disable-zlib \
-	--disable-swscale \
 	--disable-avdevice \
 	--disable-postproc \
 	--disable-debug \
 	--disable-ffprobe \
 	--disable-ffmpeg \
-	--enable-small \
 	--disable-encoders \
 	--disable-runtime-cpudetect \
 	--disable-swresample \
+	--extra-cflags="-Os" \
+	--extra-cxxflags="-Os" \
 	--extra-cflags="-Os -flto-partition=none" \
 	--extra-cxxflags="-Os -flto-partition=none" \
 	--extra-ldflags="-z max-page-size=0x1000 -flto-partition=none -Wl,--gc-sections"
