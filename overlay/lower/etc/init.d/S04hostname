@@ -32,6 +32,7 @@ is_user_modified_hostname() {
 	fi
 
 	echo_info "Hostname $hostname is custom, skipping generation"
+
 	return 0
 }
 

@@ -7,6 +7,7 @@ ff02::2		ip6-allrouters
 
 # ipv4
 127.0.0.1	localhost
+127.0.1.1	localhost
 
 # github
 140.82.112.3	github.com

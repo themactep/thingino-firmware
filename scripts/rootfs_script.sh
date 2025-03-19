@@ -1,9 +1,16 @@
 #!/bin/bash
 
-# get image id from the path to output
+#
+# RootFS helper
+#
+
+BOOTLOADER=$(echo $BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME | tr -d '"')
+
+# Preset the hostname
 IMAGE_ID=$(echo $BR2_CONFIG | awk -F '/' '{print $(NF-1)}')
 HOSTNAME=$(echo $IMAGE_ID | awk -F '_' '{print $1 "-" $2}')
-BOOTLOADER=$(echo $BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME | tr -d '"')
+echo "$HOSTNAME" > ${TARGET_DIR}/etc/hostname
+sed -i "/^127.0.1.1/c127.0.1.1\t$HOSTNAME" ${TARGET_DIR}/etc/hosts
 
 cd $BR2_EXTERNAL
 GIT_BRANCH=$(git branch | grep ^* | awk '{print $2}')
@@ -14,14 +21,23 @@ BUILD_ID="${GIT_BRANCH}+${GIT_HASH:0:7}, ${BUILD_TIME}"
 COMMIT_ID="${GIT_BRANCH}+${GIT_HASH:0:7}, ${GIT_TIME}"
 cd -
 
+#
+# Create the /etc/os-release file
+#
+
 # Take care of dropbear
 rm ${TARGET_DIR}/etc/dropbear
 mkdir -p ${TARGET_DIR}/etc/dropbear
 
 FILE=${TARGET_DIR}/usr/lib/os-release
-# prefix exiting buildroot entries
+
+# Create a temporary file
 tmpfile=$(mktemp)
+
+# Prefix exiting buildroot entries
 sed 's/^/BUILDROOT_/' $FILE > $tmpfile
+
+# Add Thingino entries
 echo "NAME=Thingino
 ID=thingino
 VERSION=\"1 (Ciao)\"
@@ -41,14 +57,30 @@ COMMIT_ID=\"${COMMIT_ID}\"
 BOOTLOADER=$BOOTLOADER
 HOSTNAME=ing-${HOSTNAME}
 TIME_STAMP=$(date +%s)" | tee $FILE
+
+# Append the rest of the file
 cat $tmpfile | tee -a $FILE
+
+# Remove the temporary file
 rm $tmpfile
 
+#
+# Create the /etc/thingino.config file
+#
+
 touch ${TARGET_DIR}/etc/thingino.config
+
+# Add the common configuration
 cat ${BR2_EXTERNAL}/configs/system/000_common.config | \
 	tee -a ${TARGET_DIR}/etc/thingino.config
+
+# Add the camera specific configuration
 cat ${BR2_EXTERNAL}/configs/system/${CAMERA}.config | \
 	tee -a ${TARGET_DIR}/etc/thingino.config
+
+#
+# Remove unnecessary files
+#
 
 if [ -f "${TARGET_DIR}/lib/libconfig.so" ]; then
 	rm -vf ${TARGET_DIR}/lib/libconfig.so*
