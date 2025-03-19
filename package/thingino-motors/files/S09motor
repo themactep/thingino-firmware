@@ -100,9 +100,9 @@ start() {
 		modprobe_args="$modprobe_args hst1=$hst1 hst2=$hst2 hst3=$hst3 hst4=$hst4"
 
 		[ -z "$vst1" ] && vst1="$hst1"
-		[ -z "$vst2" ] && vst1="$hst2"
-		[ -z "$vst3" ] && vst1="$hst3"
-		[ -z "$vst4" ] && vst1="$hst4"
+		[ -z "$vst2" ] && vst2="$hst2"
+		[ -z "$vst3" ] && vst3="$hst3"
+		[ -z "$vst4" ] && vst4="$hst4"
 
 		modprobe_args="$modprobe_args vst1=$vst1 vst2=$vst2 vst3=$vst3 vst4=$vst4"
 
