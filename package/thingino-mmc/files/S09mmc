@@ -60,7 +60,7 @@ case "$1" in
 	stop)
 		true
 		;;
-	reload | restart)
+	restart)
 		stop
 		sleep 1
 		start
