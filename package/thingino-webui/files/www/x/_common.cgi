@@ -20,8 +20,6 @@ signature_file="/tmp/signature.txt"
 
 sysinfo_file="/tmp/sysinfo.txt"
 
-webui_log="/tmp/webui.log"
-
 # read from files
 ws_token="$(cat /run/prudynt_websocket_token)"
 
@@ -445,10 +443,6 @@ link_to() {
 wiki_page() {
 	echo "<p class=\"mb-0\"><a class=\"text-info\"" \
 	" href=\"https://github.com/themactep/thingino-firmware/wiki/$1\">Thingino Wiki</a></p>"
-}
-
-log() {
-	echo "$1" >> $webui_log
 }
 
 menu() {
