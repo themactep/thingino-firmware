@@ -11,7 +11,7 @@ else
 	DAEMON_ARGS="-f -c $HTTPD_CONF -r Authentication"
 fi
 
-if [ "0$(fw_printenv -n debug)" -gt 1 ]; then
+if [ "$debug" -gt 0 ]; then
 	sed -i 's/^\/x:root/#\/x:root/' $HTTPD_CONF
 else
 	sed -i 's/^#\/x:root/\/x:root/' $HTTPD_CONF
