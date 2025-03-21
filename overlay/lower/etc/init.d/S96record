@@ -9,14 +9,17 @@ start() {
 
 	if pidof -o $$ $DAEMON > /dev/null; then
 		echo_error "$DAEMON is already running"
+		exit 1
 	fi
 
 	if ! pidof $STREAMER_APP; then
 		echo_error "Streamer is not running"
+		exit 1
 	fi
 
 	if [ "true" = "$record_disabled" ]; then
 		echo_error "Recording disabled"
+		exit 1
 	fi
 
 	start_daemon
@@ -44,7 +47,7 @@ case "$1" in
 		start
 		;;
 	*)
-		usage "{start|stop}"
+		usage "{start|stop|restart}"
 		;;
 esac
 

@@ -15,10 +15,12 @@ SELF_NAME="$(basename "$0")"
 
 if ! is_streamer_running; then
 	echo_error "Streamer is not running"
+	exit 1
 fi
 
 if is_streamer_disabled; then
 	echo_error "Streamer disabled"
+	exit 1
 fi
 
 # "parameter" "default"
@@ -44,10 +46,12 @@ start() {
 
 	if pidof -o $$ $SELF_NAME > /dev/null; then
 		echo_error "is already running"
+		exit 1
 	fi
 
 	if [ "true" != "$(prudyntcfg get motion.enabled)" ]; then
 		echo_error "Motion Guard disabled"
+		exit 1
 	fi
 
 	record_duration=10
