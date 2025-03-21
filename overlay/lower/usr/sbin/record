@@ -11,10 +11,12 @@ SELF_NAME="$(basename "$0")"
 
 if ! is_streamer_running; then
 	echo_error "Streamer is not running"
+	exit 1
 fi
 
 if is_streamer_disabled; then
 	echo_error "Streamer disabled"
+	exit 1
 fi
 
 hesitate() {
@@ -227,6 +229,7 @@ while : ; do
 			get_free_space
 			if ! has_files "$record_storage"; then
 				echo_error "$record_mount is empty yet no space!"
+				exit 1
 			fi
 		done
 	fi
@@ -240,6 +243,7 @@ while : ; do
 			get_occupied_space
 			if ! has_files "$record_storage"; then
 				echo_error "$record_mount is empty yet no space!"
+				exit 1
 			fi
 		done
 	fi
