@@ -8,6 +8,4 @@ gpio_motor_v=60 39 38 41
 gpio_speaker=63o
 gpio_white=81o
 gpio_wlan=82O
-motor_maxstep_h=3120
-motor_maxstep_v=1140
 wlandev=8188fu
