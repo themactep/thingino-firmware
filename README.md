@@ -1,10 +1,13 @@
-## Thingino. Open Source Firmware for Ingenic SoC IP Cameras.
+Thingino
+--------
 
-![Thingino Web UI](https://thingino.com/a/webui-hawaii.jpg)
+Thingino is an open-source firmware for Ingenic SoC IP cameras.
+
+![Thingino Web UI][10]
 
 ### Supported Hardware
 
-Visit [project website][0] for a list of supported cameras. 
+Visit [project website][0] for a list of supported cameras.
 
 ### Building
 
@@ -13,7 +16,8 @@ git clone --recurse-submodules https://github.com/themactep/thingino-firmware
 cd thingino-firmware
 make
 ```
-Read [Building from sources](https://github.com/themactep/thingino-firmware/wiki/Building-from-sources) article for more info.
+
+Read [Building from sources][7] article for more info.
 
 ### Resources
 
@@ -25,8 +29,8 @@ Read [Building from sources](https://github.com/themactep/thingino-firmware/wiki
 
 ### GitHub CI Status
 
-[![toolchain](https://github.com/themactep/thingino-firmware/actions/workflows/toolchain.yaml/badge.svg)](https://github.com/themactep/thingino-firmware/actions/workflows/toolchain.yaml)
-[![firmware](https://github.com/themactep/thingino-firmware/actions/workflows/firmware.yaml/badge.svg)](https://github.com/themactep/thingino-firmware/actions/workflows/firmware.yaml)
+[![toolchain][11]][8]
+[![firmware][12]][9]
 
 
 [0]: https://thingino.com/
@@ -35,3 +39,9 @@ Read [Building from sources](https://github.com/themactep/thingino-firmware/wiki
 [4]: https://t.me/thingino
 [5]: https://buildroot.org/downloads/manual/manual.html
 [6]: https://nightly.buildroot.org/manual.pdf
+[7]: https://github.com/themactep/thingino-firmware/wiki/Building-from-sources
+[8]: https://github.com/themactep/thingino-firmware/actions/workflows/toolchain.yaml
+[9]: https://github.com/themactep/thingino-firmware/actions/workflows/firmware.yaml
+[10]: https://github.com/user-attachments/assets/6fe68e13-eb49-4c33-8836-af1e97bf8b4e
+[11]: https://github.com/themactep/thingino-firmware/actions/workflows/toolchain.yaml/badge.svg
+[12]: https://github.com/themactep/thingino-firmware/actions/workflows/firmware.yaml/badge.svg
