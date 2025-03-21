@@ -5,7 +5,6 @@ gpio_ircut=50 49
 #gpio_led_r=
 #gpio_mmc_cd=
 gpio_motor_h=53 52 54 51
-gpio_motor_speed=450
 gpio_motor_switch=17
 gpio_motor_v=53 52 54 51
 gpio_sensor_1=18O
