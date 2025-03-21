@@ -165,7 +165,7 @@ fi
 # FIXME: based on default stream endpoint name, won't work on custom endpoints
 stream_endpoint="ch$stream_number"
 
-rtsp_stream="rtsp://[::1]/$stream_endpoint"
+rtsp_stream="rtsp://127.0.0.1/$stream_endpoint"
 
 rtsp_username=$(read_config "username" "thingino")
 
