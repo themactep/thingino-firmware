@@ -1,0 +1,1036 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <0x01>;
+	#size-cells = <0x01>;
+	compatible = "ingenic,tucana\0ingenic,a1";
+
+	aliases {
+		i2c0 = "/apb/i2c@0x10050000";
+		i2c1 = "/apb/i2c@0x10051000";
+		uart0 = "/apb/serial@0x10030000";
+		uart1 = "/apb/serial@0x10031000";
+		uart2 = "/apb/serial@0x10032000";
+		msc0 = "/ahb0/msc@0x13060000";
+		msc1 = "/ahb0/msc@0x13070000";
+		ethernet0 = "/ahb0/gmac0@0x130b0000";
+		ethernet1 = "/ahb0/gmac1@0x130c0000";
+		spi0 = "/apb/spi0@0x10043000";
+		spi1 = "/apb/spi1@0x10044000";
+		sfc0 = "/ahb2/sfc0@0x13440000";
+		sfc1 = "/ahb2/sfc1@0x13450000";
+		otg0 = "/ahb2/otg0@0x13600000";
+		otg1 = "/ahb2/otg1@0x13640000";
+		otg2 = "/ahb2/otg2@0x13680000";
+	};
+
+	cpus {
+		#address-cells = <0x01>;
+		#size-cells = <0x00>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "ingenic,xburst2";
+			reg = <0x00>;
+			clock-frequency = <0x2faf0800>;
+		};
+
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "ingenic,xburst2";
+			reg = <0x01>;
+			clock-frequency = <0x2faf0800>;
+		};
+	};
+
+	cpufreq-dt {
+		compatible = "ingenic,a1-cpufreq";
+		status = "okay";
+		operating-points = <0x124f80 0xdbba0 0xb71b0 0xdbba0 0x927c0 0xdbba0 0x7a120 0xdbba0 0x61a80 0xdbba0 0x5b8d8 0xdbba0 0x493e0 0xdbba0 0x30d40 0xdbba0>;
+	};
+
+	interrupt-controller {
+		#address-cells = <0x00>;
+		#interrupt-cells = <0x01>;
+		interrupt-controller;
+		compatible = "ingenic,cpu-interrupt-controller";
+		linux,phandle = <0x01>;
+		phandle = <0x01>;
+	};
+
+	core-intc@0x12300000 {
+		compatible = "ingenic,core-intc";
+		reg = <0x12300000 0x1000>;
+		interrupt-controller;
+		#interrupt-cells = <0x01>;
+		cpu-intc-map = <0x00 0x00 0x01 0x100 0x02 0x200 0x03 0x300>;
+		interrupt-parent = <0x01>;
+		interrupts = <0x02>;
+		interrupt-names = "intc";
+		linux,phandle = <0x04>;
+		phandle = <0x04>;
+	};
+
+	core-ost@0x12000000 {
+		compatible = "ingenic,core-ost";
+		reg = <0x12000000 0x10000 0x12100000 0x10000>;
+		interrupt-parent = <0x01>;
+		interrupt-names = "sys_ost";
+		interrupts = <0x04>;
+		cpu-ost-map = <0x00 0x00 0x01 0x100>;
+	};
+
+	extclk {
+		compatible = "ingenic,fixed-clock";
+		clock-output-names = "ext";
+		#clock-cells = <0x00>;
+		clock-frequency = <0x16e3600>;
+		linux,phandle = <0x02>;
+		phandle = <0x02>;
+	};
+
+	rtcclk {
+		compatible = "ingenic,fixed-clock";
+		clock-output-names = "rtc_ext";
+		#clock-cells = <0x00>;
+		clock-frequency = <0x8000>;
+		linux,phandle = <0x03>;
+		phandle = <0x03>;
+	};
+
+	clock-controller@0x10000000 {
+		compatible = "ingenic,a1-clocks";
+		reg = <0x10000000 0x1000>;
+		clocks = <0x02 0x03>;
+		clock-names = "ext\0rtc_ext";
+		#clock-cells = <0x01>;
+		little-endian;
+	};
+
+	apb {
+		compatible = "simple-bus";
+		#address-cells = <0x01>;
+		#size-cells = <0x01>;
+		ranges;
+
+		tcu@0x10002000 {
+			compatible = "ingenic,tcu";
+			reg = <0x10002000 0x1000>;
+			interrupt-parent = <0x04>;
+			interrupt-names = "tcu_int0";
+			interrupts = <0x1b>;
+			interrupt-controller;
+			status = "ok";
+
+			channel0 {
+				compatible = "ingenic,tcu_chn0";
+				ingenic,channel-info = <0x100>;
+			};
+
+			channel1 {
+				compatible = "ingenic,tcu_chn1";
+				ingenic,channel-info = <0x201>;
+			};
+
+			channel2 {
+				compatible = "ingenic,tcu_chn2";
+				ingenic,channel-info = <0x202>;
+			};
+
+			channel3 {
+				compatible = "ingenic,tcu_chn3";
+				ingenic,channel-info = <0x103>;
+			};
+
+			channel4 {
+				compatible = "ingenic,tcu_chn4";
+				ingenic,channel-info = <0x104>;
+			};
+
+			channel5 {
+				compatible = "ingenic,tcu_chn5";
+				ingenic,channel-info = <0x105>;
+			};
+
+			channel6 {
+				compatible = "ingenic,tcu_chn6";
+				ingenic,channel-info = <0x106>;
+			};
+
+			channel7 {
+				compatible = "ingenic,tcu_chn7";
+				ingenic,channel-info = <0x107>;
+			};
+
+			channel16 {
+				compatible = "ingenic,watchdog";
+				ingenic,channel-info = <0x10>;
+			};
+		};
+
+		pinctrl@0x10010000 {
+			compatible = "ingenic,a1-pinctrl";
+			reg = <0x10010000 0x8000>;
+			ingenic,num-chips = <0x05>;
+			ingenic,regs-offset = <0x100>;
+
+			gpa {
+				gpio-controller;
+				#gpio-cells = <0x03>;
+				#ingenic,pincfg-cells = <0x03>;
+				#ingenic,pinmux-cells = <0x02>;
+				interrupts = <0x11>;
+				interrupt-parent = <0x04>;
+				interrupt-controller;
+				#interrupt-cells = <0x03>;
+				ingenic,num-gpios = <0x20>;
+				ingenic,pull-gpios-low = <0x55555555>;
+				ingenic,pull-gpios-high = <0x55555555>;
+				linux,phandle = <0x07>;
+				phandle = <0x07>;
+			};
+
+			gpb {
+				gpio-controller;
+				#gpio-cells = <0x03>;
+				#ingenic,pincfg-cells = <0x03>;
+				#ingenic,pinmux-cells = <0x02>;
+				interrupts = <0x10>;
+				interrupt-parent = <0x04>;
+				interrupt-controller;
+				#interrupt-cells = <0x03>;
+				ingenic,num-gpios = <0x20>;
+				ingenic,pull-gpios-low = <0x55555555>;
+				ingenic,pull-gpios-high = <0x55555555>;
+				linux,phandle = <0x05>;
+				phandle = <0x05>;
+			};
+
+			gpc {
+				gpio-controller;
+				#gpio-cells = <0x03>;
+				#ingenic,pincfg-cells = <0x03>;
+				#ingenic,pinmux-cells = <0x02>;
+				interrupts = <0x0f>;
+				interrupt-parent = <0x04>;
+				interrupt-controller;
+				#interrupt-cells = <0x03>;
+				ingenic,num-gpios = <0x20>;
+				ingenic,pull-gpios-low = <0x55555555>;
+				ingenic,pull-gpios-high = <0x55555555>;
+				linux,phandle = <0x06>;
+				phandle = <0x06>;
+			};
+
+			gpd {
+				gpio-controller;
+				#gpio-cells = <0x03>;
+				#ingenic,pincfg-cells = <0x03>;
+				#ingenic,pinmux-cells = <0x02>;
+				#interrupt-cells = <0x03>;
+				ingenic,num-gpios = <0x20>;
+				ingenic,pull-gpios-low = <0x55555555>;
+				ingenic,pull-gpios-high = <0x55555555>;
+			};
+
+			gpe {
+				gpio-controller;
+				#gpio-cells = <0x03>;
+				#ingenic,pincfg-cells = <0x03>;
+				#ingenic,pinmux-cells = <0x02>;
+				interrupts = <0x0e>;
+				interrupt-parent = <0x04>;
+				interrupt-controller;
+				#interrupt-cells = <0x03>;
+				ingenic,num-gpios = <0x1c>;
+				ingenic,pull-gpios-low = <0x55555555>;
+				ingenic,pull-gpios-high = <0x55555555>;
+				linux,phandle = <0x08>;
+				phandle = <0x08>;
+			};
+
+			uart0-pin {
+
+				uart0-pb {
+					ingenic,pinmux = <0x05 0x18 0x19>;
+					ingenic,pinmux-funcsel = <0x01>;
+					linux,phandle = <0x09>;
+					phandle = <0x09>;
+				};
+
+				uart0-pc {
+					ingenic,pinmux = <0x06 0x02 0x03>;
+					ingenic,pinmux-funcsel = <0x01>;
+				};
+
+				uart0-pc1 {
+					ingenic,pinmux = <0x06 0x12 0x13>;
+					ingenic,pinmux-funcsel = <0x00>;
+				};
+			};
+
+			uart1-pin {
+
+				uart1-pc {
+					ingenic,pinmux = <0x06 0x06 0x07>;
+					ingenic,pinmux-funcsel = <0x00>;
+					linux,phandle = <0x0a>;
+					phandle = <0x0a>;
+				};
+			};
+
+			uart2-pin {
+
+				uart2-pc {
+					ingenic,pinmux = <0x06 0x0e 0x0f>;
+					ingenic,pinmux-funcsel = <0x00>;
+					linux,phandle = <0x0b>;
+					phandle = <0x0b>;
+				};
+
+				uart2-pb {
+					ingenic,pinmux = <0x05 0x10 0x11>;
+					ingenic,pinmux-funcsel = <0x02>;
+				};
+
+				uart2-pa {
+					ingenic,pinmux = <0x07 0x04 0x05>;
+					ingenic,pinmux-funcsel = <0x01>;
+				};
+			};
+
+			i2c0-pin {
+
+				i2c0-pa {
+					ingenic,pinmux = <0x07 0x04 0x05>;
+					ingenic,pinmux-funcsel = <0x02>;
+				};
+
+				i2c0-pb {
+					ingenic,pinmux = <0x05 0x04 0x05>;
+					ingenic,pinmux-funcsel = <0x02>;
+					linux,phandle = <0x0c>;
+					phandle = <0x0c>;
+				};
+
+				i2c0-pb1 {
+					ingenic,pinmux = <0x05 0x18 0x19>;
+					ingenic,pinmux-funcsel = <0x02>;
+				};
+			};
+
+			i2c1-pin {
+
+				i2c1-pa {
+					ingenic,pinmux = <0x07 0x0a 0x0b>;
+					ingenic,pinmux-funcsel = <0x01>;
+					linux,phandle = <0x0d>;
+					phandle = <0x0d>;
+				};
+
+				i2c1-pb {
+					ingenic,pinmux = <0x05 0x0a 0x0b>;
+					ingenic,pinmux-funcsel = <0x02>;
+				};
+
+				i2c1-pc {
+					ingenic,pinmux = <0x06 0x02 0x03>;
+					ingenic,pinmux-funcsel = <0x02>;
+				};
+			};
+
+			hdmi_i2c-pin {
+
+				hdmi_i2c-pb {
+					ingenic,pinmux = <0x05 0x1d 0x1e>;
+					ingenic,pinmux-funcsel = <0x01>;
+				};
+
+				hdmi_i2c-pc {
+					ingenic,pinmux = <0x06 0x04 0x05>;
+					ingenic,pinmux-funcsel = <0x01>;
+				};
+			};
+
+			hdmi_hot-pin {
+
+				hdmi_hot-pb {
+					ingenic,pinmux = <0x05 0x1f 0x1f>;
+					ingenic,pinmux-funcsel = <0x01>;
+				};
+			};
+
+			hdmi_cec-pin {
+
+				hdmi_cec-pb {
+					ingenic,pinmux = <0x05 0x1c 0x1c>;
+					ingenic,pinmux-funcsel = <0x01>;
+				};
+			};
+
+			vga-pin {
+
+				vga-pc {
+					ingenic,pinmux = <0x06 0x02 0x05>;
+					ingenic,pinmux-funcsel = <0x00>;
+					linux,phandle = <0x20>;
+					phandle = <0x20>;
+				};
+			};
+
+			lcd-pin {
+
+				lcd-pe {
+					ingenic,pinmux = <0x08 0x00 0x1b>;
+					ingenic,pinmux-funcsel = <0x01>;
+				};
+			};
+
+			msc0-pin {
+
+				msc0-pb {
+					ingenic,pinmux = <0x05 0x00 0x05>;
+					ingenic,pinmux-funcsel = <0x00>;
+					linux,phandle = <0x14>;
+					phandle = <0x14>;
+				};
+
+				msc0-pc {
+					ingenic,pinmux = <0x06 0x18 0x1d>;
+					ingenic,pinmux-funcsel = <0x02>;
+				};
+			};
+
+			msc1-pin {
+
+				msc1-pb {
+					ingenic,pinmux = <0x05 0x0c 0x11>;
+					ingenic,pinmux-funcsel = <0x00>;
+					linux,phandle = <0x15>;
+					phandle = <0x15>;
+				};
+			};
+
+			gmac0-rmii-p0 {
+
+				gmac0-rmii-normal {
+					ingenic,pinmux = <0x07 0x01 0x06>;
+					ingenic,pinmux-funcsel = <0x00>;
+					linux,phandle = <0x17>;
+					phandle = <0x17>;
+				};
+
+				gmac0-rmii-p0-rst {
+					ingenic,pinmux = <0x07 0x01 0x06>;
+					ingenic,pinmux-funcsel = <0x04>;
+					linux,phandle = <0x19>;
+					phandle = <0x19>;
+				};
+			};
+
+			gmac0-rmii-p1 {
+
+				gmac0-rmii-p1-normal {
+					ingenic,pinmux = <0x07 0x00 0x00 0x07 0x07 0x0e>;
+					ingenic,pinmux-funcsel = <0x00>;
+					linux,phandle = <0x18>;
+					phandle = <0x18>;
+				};
+
+				gmac0-rmii-p1-nomdio {
+					ingenic,pinmux = <0x07 0x00 0x00 0x07 0x07 0x0c>;
+					ingenic,pinmux-funcsel = <0x00>;
+				};
+			};
+
+			gmac1-rmii-p0 {
+
+				gmac1-rmii-normal {
+					ingenic,pinmux = <0x07 0x10 0x15>;
+					ingenic,pinmux-funcsel = <0x00>;
+					linux,phandle = <0x1c>;
+					phandle = <0x1c>;
+				};
+
+				gmac1-rmii-p0-rst {
+					ingenic,pinmux = <0x07 0x10 0x15>;
+					ingenic,pinmux-funcsel = <0x04>;
+					linux,phandle = <0x1e>;
+					phandle = <0x1e>;
+				};
+			};
+
+			gmac1-rmii-p1 {
+
+				gmac1-rmii-p1-normal {
+					ingenic,pinmux = <0x07 0x0f 0x0f 0x07 0x16 0x1d>;
+					ingenic,pinmux-funcsel = <0x00>;
+					linux,phandle = <0x1d>;
+					phandle = <0x1d>;
+				};
+
+				gmac1-rmii-p1-nomdio {
+					ingenic,pinmux = <0x07 0x0f 0x0f 0x07 0x16 0x1b>;
+					ingenic,pinmux-funcsel = <0x00>;
+				};
+			};
+
+			sfc0-pin {
+
+				sfc0-pc {
+					ingenic,pinmux = <0x06 0x14 0x19>;
+					ingenic,pinmux-funcsel = <0x00>;
+					linux,phandle = <0x11>;
+					phandle = <0x11>;
+				};
+			};
+
+			sfc1-pin {
+
+				sfc1-pb {
+					ingenic,pinmux = <0x05 0x06 0x0b>;
+					ingenic,pinmux-funcsel = <0x01>;
+					linux,phandle = <0x12>;
+					phandle = <0x12>;
+				};
+			};
+
+			spi0_pin {
+
+				spi0-pb {
+					ingenic,pinmux = <0x05 0x00 0x05>;
+					ingenic,pinmux-funcsel = <0x01>;
+				};
+
+				spi0-pb1 {
+					ingenic,pinmux = <0x05 0x06 0x0b>;
+					ingenic,pinmux-funcsel = <0x00>;
+					linux,phandle = <0x0f>;
+					phandle = <0x0f>;
+				};
+			};
+
+			spi1_pin {
+
+				spi1-pb {
+					ingenic,pinmux = <0x05 0x0c 0x11>;
+					ingenic,pinmux-funcsel = <0x01>;
+				};
+
+				spi1-pc {
+					ingenic,pinmux = <0x06 0x08 0x0d>;
+					ingenic,pinmux-funcsel = <0x00>;
+					linux,phandle = <0x10>;
+					phandle = <0x10>;
+				};
+			};
+		};
+
+		serial@0x10030000 {
+			compatible = "ingenic,8250-uart";
+			reg = <0x10030000 0x1000>;
+			reg-shift = <0x02>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x33>;
+			pinctrl-names = "default";
+			pinctrl-0 = <0x09>;
+			status = "okay";
+		};
+
+		serial@0x10031000 {
+			compatible = "ingenic,8250-uart";
+			reg = <0x10031000 0x1000>;
+			reg-shift = <0x02>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x32>;
+			pinctrl-names = "default";
+			pinctrl-0 = <0x0a>;
+			status = "okay";
+		};
+
+		serial@0x10032000 {
+			compatible = "ingenic,8250-uart";
+			reg = <0x10032000 0x1000>;
+			reg-shift = <0x02>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x31>;
+			pinctrl-names = "default";
+			pinctrl-0 = <0x0b>;
+			status = "disable";
+		};
+
+		i2c@0x10050000 {
+			compatible = "ingenic,i2c";
+			reg = <0x10050000 0x1000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x3c>;
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+			status = "okay";
+			pinctrl-0 = <0x0c>;
+			pinctrl-names = "default";
+		};
+
+		i2c@0x10051000 {
+			compatible = "ingenic,i2c";
+			reg = <0x10051000 0x1000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x3b>;
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+			status = "disabled";
+			pinctrl-0 = <0x0d>;
+			pinctrl-names = "default";
+		};
+
+		spi0@0x10043000 {
+			compatible = "ingenic,spi";
+			reg = <0x10043000 0x1000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x09>;
+			dmas = <0x0e 0x16 0x0e 0x17>;
+			dma-names = "tx\0rx";
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+			status = "disabled";
+			pinctrl-names = "default";
+			pinctrl-0 = <0x0f>;
+			spi-max-frequency = <0x2dc6c00>;
+			num-cs = <0x02>;
+			cs-gpios = <0x00 0x00>;
+			ingenic,chnl = <0x00>;
+			ingenic,allow_cs_same = <0x01>;
+			ingenic,bus_num = <0x00>;
+			ingenic,has_dma_support = <0x01>;
+		};
+
+		spi1@0x10044000 {
+			compatible = "ingenic,spi";
+			reg = <0x10044000 0x1000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x08>;
+			dmas = <0x0e 0x18 0x0e 0x19>;
+			dma-names = "tx\0rx";
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+			status = "disabled";
+			pinctrl-names = "default";
+			pinctrl-0 = <0x10>;
+			spi-max-frequency = <0x2dc6c00>;
+			num-cs = <0x02>;
+			cs-gpios = <0x00 0x00>;
+			ingenic,chnl = <0x01>;
+			ingenic,allow_cs_same = <0x01>;
+			ingenic,bus_num = <0x01>;
+			ingenic,has_dma_support = <0x01>;
+		};
+
+		aic1@0x10021000 {
+			compatible = "ingenic,aic1";
+			reg = <0x10021000 0x1000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x00>;
+			status = "okay";
+		};
+
+		dtrng@0x10072000 {
+			compatible = "ingenic,dtrng";
+			reg = <0x10072000 0x100>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x22>;
+			status = "okay";
+		};
+
+		des@0x10061000 {
+			compatible = "ingenic,des";
+			reg = <0x10043000 0x1000>;
+			dmas = <0x0e 0x2e 0x0e 0x2f>;
+			dma-names = "tx\0rx";
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+			status = "okay";
+		};
+
+		otg_phy {
+			compatible = "ingenic,innophy\0syscon";
+			reg = <0x10000000 0x1000 0x10060000 0x1000>;
+			dr_mode = "otg";
+			status = "okay";
+			linux,phandle = <0x13>;
+			phandle = <0x13>;
+		};
+
+		rtc@0x10003000 {
+			compatible = "ingenic,rtc";
+			reg = <0x10003000 0x1000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x03>;
+			status = "okay";
+		};
+	};
+
+	ahb2 {
+		compatible = "simple-bus";
+		#address-cells = <0x01>;
+		#size-cells = <0x01>;
+		ranges;
+
+		dma@13420000 {
+			compatible = "ingenic,a1-pdma";
+			reg = <0x13420000 0x10000>;
+			interrupt-parent = <0x04>;
+			interrupt-names = "pdma\0pdmam";
+			interrupts = <0x0a 0x3d>;
+			#dma-channels = <0x20>;
+			#dma-cells = <0x01>;
+			ingenic,reserved-chs = <0x03>;
+			status = "okay";
+			linux,phandle = <0x0e>;
+			phandle = <0x0e>;
+		};
+
+		aes@0x13430000 {
+			compatible = "ingenic,aes";
+			reg = <0x13430000 0x10000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x17>;
+			status = "okay";
+		};
+
+		sfc0@0x13440000 {
+			compatible = "ingenic,sfc";
+			reg = <0x13440000 0x10000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x07>;
+			pinctrl-names = "default";
+			pinctrl-0 = <0x11>;
+			status = "okay";
+			ingenic,sfc-max-frequency = <0x5f5e100>;
+			ingenic,use_board_info = [00];
+			ingenic,spiflash_param_offset = <0x00>;
+		};
+
+		sfc1@0x13450000 {
+			compatible = "ingenic,sfc";
+			reg = <0x13450000 0x10000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x06>;
+			pinctrl-names = "default";
+			pinctrl-0 = <0x12>;
+			status = "disabled";
+			ingenic,sfc-max-frequency = <0xbebc200>;
+			ingenic,use_board_info = [00];
+			ingenic,spiflash_param_offset = <0x00>;
+		};
+
+		pwm@0x13460000 {
+			compatible = "ingenic,a1-pwm";
+			#pwm-cells = <0x02>;
+			reg = <0x13460000 0x10000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x1f>;
+			status = "okay";
+		};
+
+		hash@0x13480000 {
+			compatible = "ingenic,hash";
+			reg = <0x13480000 0x10000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x16>;
+			status = "okay";
+		};
+
+		rsa@0x134c0000 {
+			compatible = "ingenic,rsa";
+			reg = <0x134c0000 0x10000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x18>;
+			status = "okay";
+		};
+
+		otg0@0x13600000 {
+			compatible = "ingenic,dwc2-hsotg";
+			reg = <0x13600000 0x40000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x15>;
+			ingenic,usbphy = <0x13>;
+			status = "okay";
+			g-use-dma;
+			dr_mode = "otg0";
+		};
+
+		otg1@0x13640000 {
+			compatible = "ingenic,dwc2-hsotg";
+			reg = <0x13640000 0x40000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x1c>;
+			ingenic,usbphy = <0x13>;
+			status = "okay";
+			g-use-dma;
+			dr_mode = "otg1";
+		};
+
+		otg2@0x13680000 {
+			compatible = "ingenic,dwc2-hsotg";
+			reg = <0x13680000 0x40000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x1d>;
+			ingenic,usbphy = <0x13>;
+			status = "okay";
+			g-use-dma;
+			dr_mode = "otg2";
+		};
+
+		efuse@0x13540000 {
+			compatible = "ingenic,a1-efuse";
+			reg = <0x13540000 0x10000>;
+			status = "okay";
+		};
+	};
+
+	ahb1 {
+		compatible = "simple-bus";
+		#address-cells = <0x01>;
+		#size-cells = <0x01>;
+		ranges;
+
+		vc8000d@0x13100000 {
+			compatible = "ingenic,vc8000d";
+			reg = <0x13100000 0x100000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x2a>;
+			status = "disabled";
+		};
+
+		jpeg@0x13200000 {
+			compatible = "ingenic,jpeg";
+			reg = <0x13200000 0x100000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x21>;
+			status = "okay";
+		};
+	};
+
+	ahb0 {
+		compatible = "simple-bus";
+		#address-cells = <0x01>;
+		#size-cells = <0x01>;
+		ranges;
+
+		msc@0x13060000 {
+			compatible = "ingenic,sdhci";
+			reg = <0x13060000 0x10000>;
+			status = "disabled";
+			interrupt-parent = <0x04>;
+			interrupts = <0x25>;
+			pinctrl-names = "default";
+			pinctrl-0 = <0x14>;
+			cap-mmc-highspeed;
+			max-frequency = <0x2faf080>;
+			bus-width = <0x04>;
+			voltage-ranges = <0x708 0xce4>;
+			cd-inverted;
+			ingenic,wp-gpios = <0x00>;
+			ingenic,cd-gpios = <0x06 0x0b 0x01 0x00>;
+			ingenic,rst-gpios = <0x00>;
+		};
+
+		msc@0x13070000 {
+			compatible = "ingenic,sdhci";
+			reg = <0x13070000 0x10000>;
+			status = "disabled";
+			interrupt-parent = <0x04>;
+			interrupts = <0x24>;
+			pinctrl-names = "default";
+			pinctrl-0 = <0x15>;
+			cap-mmc-highspeed;
+			max-frequency = <0x2faf080>;
+			bus-width = <0x04>;
+			voltage-ranges = <0x708 0xce4>;
+			non-removable;
+			ingenic,sdio_clk = <0x01>;
+			ingenic,wp-gpios = <0x00>;
+			ingenic,rst-gpios = <0x00>;
+		};
+
+		ipu@0x13080000 {
+			compatible = "ingenic,ipu";
+			reg = <0x13080000 0x10000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x2e>;
+			status = "okay";
+		};
+
+		aip@0x13090000 {
+			compatible = "ingenic,aip";
+			reg = <0x13090000 0x10000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x28 0x27 0x26>;
+			status = "okay";
+		};
+
+		monitor@0x130a0000 {
+			compatible = "ingenic,monitor";
+			reg = <0x130a0000 0x10000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x35>;
+			status = "disabled";
+		};
+
+		gmac0@0x130b0000 {
+			compatible = "ingenic,a1-gmac";
+			reg = <0x130b0000 0x10000>;
+			interrupt-parent = <0x04>;
+			interrupts-names = "mac0irq";
+			interrupts = <0x38>;
+			clock-names = "mac-clk\0tx-clk\0phy-clk";
+			snps,txpbl = <0x20>;
+			snps,rxpbl = <0x20>;
+			snps,axi-config = <0x16>;
+			snps,force_sf_dma_mode;
+			status = "okay";
+			pinctrl-names = "default\0reset";
+			pinctrl-0 = <0x17 0x18>;
+			pinctrl-1 = <0x19 0x18>;
+			ingenic,mode-reg = <0xb00000c8>;
+			phy-handle = <0x1a>;
+			phy-mode = "rmii";
+			ingenic,reset-gpios = <0x06 0x12 0x01 0x00>;
+			ingenic,rst-ms = <0x0a>;
+			macphy-rate = <0x17d7840>;
+
+			stmmac-axi-config0 {
+				snps,wr_osr_lmt = <0x01>;
+				snps,rd_osr_lmt = <0x01>;
+				snps,blen = <0x00 0x00 0x00 0x20 0x00 0x00 0x00>;
+				linux,phandle = <0x16>;
+				phandle = <0x16>;
+			};
+
+			mdio {
+				compatible = "snps,dwmac-mdio";
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+
+				ethernet-phy@0 {
+					reg = <0x00>;
+					reset-gpios = <0x06 0x12 0x01 0x00>;
+					reset-delay-us = <0x2710>;
+					linux,phandle = <0x1a>;
+					phandle = <0x1a>;
+				};
+			};
+		};
+
+		gmac1@0x130c0000 {
+			compatible = "ingenic,a1-gmac";
+			reg = <0x130c0000 0x10000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x37>;
+			interrupts-names = "mac1irq";
+			clock-names = "mac-clk\0tx-clk\0phy-clk";
+			snps,txpbl = <0x20>;
+			snps,rxpbl = <0x20>;
+			snps,axi-config = <0x1b>;
+			snps,force_sf_dma_mode;
+			status = "okay";
+			pinctrl-names = "default\0reset";
+			pinctrl-0 = <0x1c 0x1d>;
+			pinctrl-1 = <0x1e 0x1d>;
+			ingenic,mode-reg = <0xb00000d8>;
+			phy-handle = <0x1f>;
+			phy-mode = "rgmii";
+			macphy-rate = <0x17d7840>;
+			ingenic,reset-gpios = <0x06 0x13 0x01 0x00>;
+			ingenic,rst-ms = <0x0a>;
+
+			stmmac-axi-config1 {
+				snps,wr_osr_lmt = <0x01>;
+				snps,rd_osr_lmt = <0x01>;
+				snps,blen = <0x00 0x00 0x00 0x20 0x00 0x00 0x00>;
+				linux,phandle = <0x1b>;
+				phandle = <0x1b>;
+			};
+
+			mdio {
+				compatible = "snps,dwmac-mdio";
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+
+				ethernet-phy@1 {
+					reg = <0x00>;
+					reset-gpios = <0x06 0x13 0x01 0x00>;
+					reset-delay-us = <0x2710>;
+					linux,phandle = <0x1f>;
+					phandle = <0x1f>;
+				};
+			};
+		};
+
+		sata@0x130d0000 {
+			compatible = "ingenic,a1-ahci";
+			reg = <0x130d0000 0x10000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x2b>;
+			ports-implemented = <0x03>;
+			status = "okay";
+			pinctrl-names = "default";
+			ingenic,clkgate_reg = <0xb00000f0>;
+			ingenic,phy0_rxsqul_reg = <0xb0080030>;
+			ingenic,phy0_rxoffseta_reg = <0xb0080870>;
+			ingenic,phy0_rxoffsetb_reg = <0xb0080044>;
+			ingenic,phy0_rxoffsetc_reg = <0xb0080020>;
+		};
+
+		sata_phy0@10080000 {
+			compatible = "ingenic,a1-sata-Innophy0";
+			reg = <0x10080000 0x10000>;
+		};
+
+		sata_phy1@10090000 {
+			compatible = "ingenic,a1-sata-Innophy1";
+			reg = <0x10090000 0x10000>;
+		};
+
+		vo_bt@0x130e0000 {
+			compatible = "ingenic,bt";
+			reg = <0x130e0000 0x1000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x1e>;
+			status = "disabled";
+		};
+
+		vde@0x13300000 {
+			compatible = "ingenic,vde";
+			reg = <0x13300000 0xa0000 0x10075000 0x1000 0x10076000 0x1000>;
+			interrupt-parent = <0x04>;
+			interrupts = <0x14 0x12 0x0d>;
+			pinctrl-names = "default";
+			pinctrl-0 = <0x20>;
+			status = "okay";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power";
+			linux,code = <0x74>;
+			gpios = <0x07 0x1f 0x01 0x00>;
+			gpio-key,wakeup;
+		};
+
+		bootsel0 {
+			label = "bootsel0";
+			linux,code = <0x66>;
+			gpios = <0x06 0x00 0x00 0x00>;
+		};
+
+		bootsel1 {
+			label = "bootsel1";
+			linux,code = <0x9e>;
+			gpios = <0x06 0x01 0x00 0x00>;
+		};
+	};
+};
