@@ -2,26 +2,25 @@ menu "Image Sensor Selection"
 
 choice
 	prompt "Image Sensor Quantity"
-	default BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_1
+	default BR2_THINGINO_IMAGE_SENSOR_QTY_1
 
-config BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_1
+config BR2_THINGINO_IMAGE_SENSOR_QTY_1
 	bool "1 Sensor"
 	help
 	  Use a single image sensor.
 
-config BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_2
+config BR2_THINGINO_IMAGE_SENSOR_QTY_2
 	bool "2 Sensors"
-	depends on BR2_THINGINO_DEV_EXPERIMENTAL
 	help
 	  Use two image sensors.
 
-config BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_3
+config BR2_THINGINO_IMAGE_SENSOR_QTY_3
 	bool "3 Sensors"
 	depends on BR2_THINGINO_DEV_EXPERIMENTAL
 	help
 	  Use three image sensors.
 
-config BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_4
+config BR2_THINGINO_IMAGE_SENSOR_QTY_4
 	bool "4 Sensors"
 	depends on BR2_THINGINO_DEV_EXPERIMENTAL
 	help
@@ -29,8 +28,8 @@ config BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_4
 endchoice
 
 choice BR2_SENSOR_NAME
-	prompt "Image Sensor Model"
-	depends on BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_1 || BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_4
+        prompt "Image Sensor Model"
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_1
 	help
 	  Select the sensor model for your device
 
@@ -280,19 +279,85 @@ config BR2_SENSOR_TP2850
 	bool "TP2850"
 endchoice
 
+choice BR2_SENSOR_1_NAME
+	prompt "Image Sensor Model [Sensor 1]"
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+	help
+	  Select the sensor model for your device
+
+config BR2_SENSOR_1_DUMMY
+	bool "Dummy (no sensor)"
+config BR2_SENSOR_1_CV2003S0
+	bool "CV2003s0"
+config BR2_SENSOR_1_GC1084S0
+	bool "GalaxyCore GC1084s0"
+config BR2_SENSOR_1_GC2053S0
+	bool "GalaxyCore GC2053s0"
+config BR2_SENSOR_1_GC2081S0
+	bool "GalaxyCore GC2083s0"
+config BR2_SENSOR_1_JXF37PAS0
+	bool "JX-F37pas0"
+config BR2_SENSOR_1_JXF38pS0
+	bool "JX-F38ps0"
+config BR2_SENSOR_1_JXF63pS0
+	bool "JX-F63ps0"
+config BR2_SENSOR_1_OS02N10S0
+	bool "OnviVision OS02N10s0"
+config BR2_SENSOR_1_OV9734S0
+	bool "OmnviVision OV9731s0"
+config BR2_SENSOR_1_SC1A4TS0
+	bool "SmartSens SC1A4Ts0"
+config BR2_SENSOR_1_SC1346S0
+	bool "SmartSens SC1346s0"
+config BR2_SENSOR_1_SC2331S0
+	bool "SmartSens SC2331s0"
+config BR2_SENSOR_1_SC2336S0
+	bool "SmartSens SC2336s0"
+config BR2_SENSOR_1_SC2336PS0
+	bool "SmartSens SC2336ps0"
+endchoice
+
 choice BR2_SENSOR_NAME_2
-	prompt "Image Sensor Model (Sensor 2)"
-	depends on BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_4
+	prompt "Image Sensor Model [Sensor 2]"
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
 	help
 	  Select the sensor model for your device
 
 config BR2_SENSOR_2_DUMMY
 	bool "Dummy (no sensor)"
+config BR2_SENSOR_2_CV2003S1
+	bool "CV2003s1"
+config BR2_SENSOR_2_GC1084S1
+	bool "GalaxyCore GC1084s1"
+config BR2_SENSOR_2_GC2053S1
+	bool "GalaxyCore GC2053s1"
+config BR2_SENSOR_2_GC2081S1
+	bool "GalaxyCore GC2083s1"
+config BR2_SENSOR_2_JXF37PAS1
+	bool "JX-F37pas1"
+config BR2_SENSOR_2_JXF38pS1
+	bool "JX-F38ps1"
+config BR2_SENSOR_2_JXF63pS1
+	bool "JX-F63ps1"
+config BR2_SENSOR_2_OS02N10S1
+	bool "OnviVision OS02N10s1"
+config BR2_SENSOR_2_OV9734S1
+	bool "OmnviVision OV9731s1"
+config BR2_SENSOR_2_SC1A4TS1
+	bool "SmartSens SC1A4Ts1"
+config BR2_SENSOR_2_SC1346S1
+	bool "SmartSens SC1346s1"
+config BR2_SENSOR_2_SC2331S1
+	bool "SmartSens SC2331s1"
+config BR2_SENSOR_2_SC2336S1
+	bool "SmartSens SC2336s1"
+config BR2_SENSOR_2_SC2336PS1
+	bool "SmartSens SC2336ps1"
 endchoice
 
 choice BR2_SENSOR_NAME_3
-	prompt "Image Sensor Model (Sensor 3)"
-	depends on BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_4
+	prompt "Image Sensor Model [Sensor 3]"
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
 	help
 	  Select the sensor model for your device
 
@@ -301,8 +366,8 @@ config BR2_SENSOR_3_DUMMY
 endchoice
 
 choice BR2_SENSOR_NAME_4
-	prompt "Image Sensor Model (Sensor 4)"
-	depends on BR2_PACKAGE_THINGINO_IMAGE_SENSOR_QTY_4
+	prompt "Image Sensor Model [Sensor 4]"
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_4
 	help
 	  Select the sensor model for your device
 
@@ -315,7 +380,32 @@ endmenu
 
 menu "ISP Module Config"
 config BR2_SENSOR_PARAMS
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_1
 	string "Image sensor parameters"
+	help
+	  Set additional parameters passed to image sensor kernel module
+
+config BR2_SENSOR_1_PARAMS
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_2
+	string "Image sensor parameters [Sensor 1]"
+	help
+	  Set additional parameters passed to image sensor kernel module
+
+config BR2_SENSOR_2_PARAMS
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_2
+	string "Image sensor parameters [Sensor 2]"
+	help
+	  Set additional parameters passed to image sensor kernel module
+
+config BR2_SENSOR_3_PARAMS
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_3
+	string "Image sensor parameters [Sensor 3]"
+	help
+	  Set additional parameters passed to image sensor kernel module
+
+config BR2_SENSOR_4_PARAMS
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_4
+	string "Image sensor parameters [Sensor 4]"
 	help
 	  Set additional parameters passed to image sensor kernel module
 

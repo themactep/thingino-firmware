@@ -6,21 +6,38 @@ INGENIC_SDK_VERSION = $(shell git ls-remote $(INGENIC_SDK_SITE) $(INGENIC_SDK_SI
 INGENIC_SDK_LICENSE = GPL-3.0
 INGENIC_SDK_LICENSE_FILES = LICENSE
 
-INGENIC_SDK_MODULE_MAKE_OPTS = \
-	SOC_FAMILY=$(SOC_FAMILY) \
-	SENSOR_MODEL=$(SENSOR_MODEL) \
-	KERNEL_VERSION=$(KERNEL_VERSION) \
-	INSTALL_MOD_PATH=$(TARGET_DIR) \
-	INSTALL_MOD_DIR=ingenic
-
-LINUX_CONFIG_LOCALVERSION = \
-	$(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
-
 ifeq ($(BR2_SOC_INGENIC_T10)$(BR2_SOC_INGENIC_T20)$(BR2_SOC_INGENIC_T30),y)
 	SENSOR_CONFIG_NAME = $(SENSOR_MODEL).bin
 else
 	SENSOR_CONFIG_NAME = $(SENSOR_MODEL)-$(SOC_FAMILY).bin
 endif
+
+ifneq ($(BR2_THINGINO_IMAGE_SENSOR_QTY_2)$(BR2_THINGINO_IMAGE_SENSOR_QTY_3)$(BR2_THINGINO_IMAGE_SENSOR_QTY_4),)
+	MULTI_SENSOR_ENABLED = CONFIG_MULTI_SENSOR=1
+	#SENSOR_MODEL = $(SENSOR_MODEL_1)
+	SENSOR_CONFIG_NAME = $(patsubst %s0,%,$(SENSOR_MODEL_1))-$(SOC_FAMILY).bin
+	SENSOR_1_BIN_NAME = $(patsubst %s0,%,$(SENSOR_MODEL_1))
+	MULTI_SENSOR_1_ENABLED = SENSOR_MODEL_1=$(SENSOR_MODEL_1)
+	MULTI_SENSOR_2_ENABLED = SENSOR_MODEL_2=$(SENSOR_MODEL_2)
+	SENSOR_2_CONFIG_NAME = $(SENSOR_MODEL_2)-$(SOC_FAMILY).bin
+else
+	MULTI_SENSOR_ENABLED =
+endif
+
+
+INGENIC_SDK_MODULE_MAKE_OPTS = \
+	SOC_FAMILY=$(SOC_FAMILY) \
+	KERNEL_VERSION=$(KERNEL_VERSION) \
+	INSTALL_MOD_PATH=$(TARGET_DIR) \
+	INSTALL_MOD_DIR=ingenic \
+	SENSOR_MODEL=$(SENSOR_MODEL) \
+	$(MULTI_SENSOR_ENABLED) \
+	$(MULTI_SENSOR_1_ENABLED) \
+	$(MULTI_SENSOR_2_ENABLED)
+
+
+LINUX_CONFIG_LOCALVERSION = \
+	$(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
 
 ifeq ($(KERNEL_VERSION_4),y)
 	FULL_KERNEL_VERSION = 4.4.94
@@ -80,13 +97,24 @@ endef
 define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_MODULES_PATH)
 	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
+	ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor
 
 	if [ "$(SENSOR_MODEL)" != "" ]; then \
 		$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/sensor; \
 		$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_MODEL).bin $(TARGET_DIR)/usr/share/sensor/$(SENSOR_CONFIG_NAME); \
-		echo $(SENSOR_MODEL) > $(TARGET_DIR)/usr/share/sensor/model;\
-		ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor;\
 	fi
+
+	if [ "$(SENSOR_MODEL_1)" != "" ]; then \
+		$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/sensor; \
+		$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_1_BIN_NAME).bin $(TARGET_DIR)/usr/share/sensor/$(SENSOR_CONFIG_NAME); \
+	fi
+
+	if [ "$(SENSOR_MODEL_2)" != "" ]; then \
+		$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/sensor; \
+		$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_1_BIN_NAME).bin $(TARGET_DIR)/usr/share/sensor/$(SENSOR_2_CONFIG_NAME); \
+	fi
+
+	echo $(SENSOR_MODEL) > $(TARGET_DIR)/usr/share/sensor/model
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/modules.d
 
@@ -112,7 +140,17 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/pwm; \
 	fi
 
-	echo "sensor_$(SENSOR_MODEL)_$(SOC_FAMILY) $(BR2_SENSOR_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor; \
+	if [ "$(SENSOR_MODEL)" != "" ]; then \
+		echo "sensor_$(SENSOR_MODEL)_$(SOC_FAMILY) $(BR2_SENSOR_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor; \
+	fi
+
+	if [ "$(SENSOR_MODEL_1)" != "" ]; then \
+		echo "sensor_$(SENSOR_MODEL_1)_$(SOC_FAMILY) $(BR2_SENSOR_1_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor_1; \
+	fi
+
+	if [ "$(SENSOR_MODEL_2)" != "" ]; then \
+		echo "sensor_$(SENSOR_MODEL_2)_$(SOC_FAMILY) $(BR2_SENSOR_2_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor_2; \
+	fi
 
 	$(GENERATE_GPIO_USERKEYS_CONFIG)
 endef

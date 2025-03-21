@@ -564,6 +564,8 @@ else ifeq ($(BR2_SENSOR_JXH62),y)
 	SENSOR_MODEL := jxh62
 else ifeq ($(BR2_SENSOR_JXH63),y)
 	SENSOR_MODEL := jxh63
+else ifeq ($(BR2_SENSOR_JXH63P),y)
+	SENSOR_MODEL := jxh63p
 else ifeq ($(BR2_SENSOR_JXH66),y)
 	SENSOR_MODEL := jxh66
 else ifeq ($(BR2_SENSOR_JXK03),y)
@@ -592,8 +594,6 @@ else ifeq ($(BR2_SENSOR_OS02D20),y)
 	SENSOR_MODEL := os02d20
 else ifeq ($(BR2_SENSOR_OS02G10),y)
 	SENSOR_MODEL := os02g10
-else ifeq ($(BR2_SENSOR_OS02G10S1),y)
-	SENSOR_MODEL := os02g10s1
 else ifeq ($(BR2_SENSOR_OS02K10),y)
 	SENSOR_MODEL := os02k10
 else ifeq ($(BR2_SENSOR_OS03B10),y)
@@ -717,6 +717,58 @@ else ifeq ($(BR2_SENSOR_TP2850),y)
 endif
 
 export SENSOR_MODEL
+
+ifeq ($(BR2_SENSOR_1_DUMMY),y)
+	SENSOR_MODEL_1 :=
+else ifeq ($(BR2_SENSOR_1_GC1084S0),y)
+	SENSOR_MODEL_1 := gc1084s0
+else ifeq ($(BR2_SENSOR_1_GC2053S0),y)
+	SENSOR_MODEL_1 := gc2053s0
+else ifeq ($(BR2_SENSOR_1_GC2083S0),y)
+	SENSOR_MODEL_1 := gc2083s0
+else ifeq ($(BR2_SENSOR_1_JXF38PS0),y)
+	SENSOR_MODEL_1 := jxf38ps0
+else ifeq ($(BR2_SENSOR_1_JXH63PS0),y)
+	SENSOR_MODEL_1 := jxh63ps0
+else ifeq ($(BR2_SENSOR_1_OS02G10S0),y)
+	SENSOR_MODEL_1 := os02g10s0
+else ifeq ($(BR2_SENSOR_1_SC1346S0),y)
+	SENSOR_MODEL_1 := sc1346s0
+else ifeq ($(BR2_SENSOR_1_SC1A4TS0),y)
+	SENSOR_MODEL_1 := sc1a4ts0
+else ifeq ($(BR2_SENSOR_1_SC2336S0),y)
+	SENSOR_MODEL_1 := sc2336s0
+else ifeq ($(BR2_SENSOR_1_SC2336PS0),y)
+	SENSOR_MODEL_1 := sc2336ps0
+endif
+
+export SENSOR_MODEL_1
+
+ifeq ($(BR2_SENSOR_2_DUMMY),y)
+	SENSOR_MODEL_2 :=
+else ifeq ($(BR2_SENSOR_2_GC1084S1),y)
+	SENSOR_MODEL_2 := gc1084s1
+else ifeq ($(BR2_SENSOR_2_GC2053S1),y)
+	SENSOR_MODEL_2 := gc2053s1
+else ifeq ($(BR2_SENSOR_2_GC2083S1),y)
+	SENSOR_MODEL_2 := gc2083s1
+else ifeq ($(BR2_SENSOR_2_JXF38PS1),y)
+	SENSOR_MODEL_2 := jxf38ps1
+else ifeq ($(BR2_SENSOR_2_JXH63PS1),y)
+	SENSOR_MODEL_2 := jxh63ps1
+else ifeq ($(BR2_SENSOR_2_OS02G10S1),y)
+	SENSOR_MODEL_2 := os02g10s1
+else ifeq ($(BR2_SENSOR_2_SC1346S1),y)
+	SENSOR_MODEL_2 := sc1346s1
+else ifeq ($(BR2_SENSOR_2_SC1A4TS1),y)
+	SENSOR_MODEL_2 := sc1a4ts1
+else ifeq ($(BR2_SENSOR_2_SC2336S1),y)
+	SENSOR_MODEL_2 := sc2336s1
+else ifeq ($(BR2_SENSOR_2_SC2336PS1),y)
+	SENSOR_MODEL_2 := sc2336ps1
+endif
+
+export SENSOR_MODEL_2
 
 #
 # ISP
