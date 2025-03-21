@@ -11,4 +11,4 @@ gpio_mmc_power=71
 gpio_speaker=63
 gpio_white=67
 gpio_wlan=57
-wlan_module=rtl8192fs
+wlan_module=8192fs
