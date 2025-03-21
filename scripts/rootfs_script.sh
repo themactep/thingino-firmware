@@ -73,10 +73,10 @@ SYSTEM_CONFIG=${TARGET_DIR}/etc/thingino.config
 touch $SYSTEM_CONFIG
 
 # Add the common configuration
-cat ${BR2_EXTERNAL}/configs/system/00_common | tee -a $SYSTEM_CONFIG
+cat ${BR2_EXTERNAL}/configs/system/00_common.config | tee -a $SYSTEM_CONFIG
 
 # Add the camera specific configuration
-cat ${BR2_EXTERNAL}/configs/system/${CAMERA} | tee -a $SYSTEM_CONFIG
+cat ${BR2_EXTERNAL}/configs/system/${CAMERA}.config | tee -a $SYSTEM_CONFIG
 
 #
 # Remove unnecessary files
