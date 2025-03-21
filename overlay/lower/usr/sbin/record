@@ -245,7 +245,7 @@ while : ; do
 	fi
 
 	record_file="$record_storage/$(date +"$record_filename").$record_videofmt"
-	ensure_dir "$(basedir $record_file)"
+	ensure_dir "$(dirname $record_file)"
 
 	real_duration=$(fix_duration $record_duration)
 
