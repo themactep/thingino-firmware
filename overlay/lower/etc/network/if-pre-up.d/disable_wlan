@@ -9,13 +9,13 @@ fi
 
 if [ -z "$wlan_ssid" ]; then
 	echo_error "WLAN disabled, no SSID"
-	exit 1
+	exit 0
 elif [ -z "$wlan_pass" ]; then
 	echo_error "WLAN disabled, no password"
-	exit 1
+	exit 0
 elif [ "$disable_wlan" = "true" ]; then
 	echo_error "WLAN manually disabled."
-	exit 1
+	exit 0
 fi
 
 exit 0

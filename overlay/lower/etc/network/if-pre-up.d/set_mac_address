@@ -12,7 +12,7 @@ nfsip=$(sed -n '/^[^ ]*:.* \/ nfs.*[ ,]addr=\([0-9.]\+\).*/s//\1/p' /proc/mounts
 # Check if the interface is not a USB device, then set the MAC address, unless using nfsroot
 if [ -n "$nfsip" ] && ip route get "$nfsip" | grep -q "dev $IFACE"; then
 	echo_error "Skip MAC address setup for $IFACE, used for NFS from $nfsip"
-	exit 1
+	exit 0
 elif [ -d /sys/class/net/eth0 ] && ! readlink -f /sys/class/net/eth0/device | grep -q "usb"; then
 	if [ -n "$ethaddr" ]; then
 		echo_info "Set MAC address $ethaddr (from environment) on $IFACE"
@@ -20,7 +20,7 @@ elif [ -d /sys/class/net/eth0 ] && ! readlink -f /sys/class/net/eth0/device | gr
 	fi
 else
 	echo_error "$IFACE does not exist or is a USB device, skipping MAC address setup"
-	exit 1
+	exit 0
 fi
 
 exit 0

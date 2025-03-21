@@ -7,12 +7,12 @@
 
 if [ ! -x /sbin/brctl ]; then
 	echo_error "No bridge ports control utility"
-	exit 1
+	exit 0
 fi
 
 if [ -z "$IF_BRIDGE_PORTS" ]; then
 	echo_error "No bridge ports defined"
-	exit 1
+	exit 0
 fi
 
 case "$IF_BRIDGE_PORTS" in

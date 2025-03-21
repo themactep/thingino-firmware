@@ -4,12 +4,12 @@
 
 if [ ! -x /sbin/vconfig ]; then
 	echo_error "No VLAN support"
-	exit 1
+	exit 0
 fi
 
 if [ -z "$IF_VLAN_RAW_DEVICE" ] && [ -z "$(echo $IFACE | grep '.\+\.[0-9]\+$')" ]; then
 	echo_error "No VLAN on $IFACE"
-	exit 1
+	exit 0
 fi
 
 echo_info "Removing VLAN from $IFACE"

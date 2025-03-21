@@ -4,17 +4,17 @@
 
 if [ ! -f /etc/network/interfaces.d/$IFACE ]; then
 	echo_error "No configuration file for $IFACE"
-	exit 1
+	exit 0
 fi
 
 if grep -q static /etc/network/interfaces.d/$IFACE; then
 	echo_error "$IFACE uses dynamic IP address"
-	exit 1
+	exit 0
 fi
 
 if [ ! -f "$RESOLV_DEFAULT_FILE" ]; then
 	echo_error "$IFACE does not use static DNS servers"
-	exit 1
+	exit 0
 fi
 
 if [ ! -f "$RESOLV_WORKING_FILE" ]; then

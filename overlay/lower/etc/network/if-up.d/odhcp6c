@@ -65,7 +65,7 @@ case "$MODE" in
 
 	*)
 		echo "Usage: $0 {start|stop}"
-		exit 1
+		exit 0
 		;;
 esac
 

@@ -8,7 +8,7 @@ if [ -n "$nfsip" ] && ip route get to "$nfsip" | grep -q "dev $IFACE"; then
 	ln -s /proc/net/pnp /tmp/resolv.conf
 
 	echo_error "Skipping DHCP for $IFACE, used for NFS from $nfsip"
-	exit 1
+	exit 0
 fi
 
 exit 0
