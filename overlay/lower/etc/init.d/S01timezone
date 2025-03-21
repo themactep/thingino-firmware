@@ -6,8 +6,11 @@ start() {
 	echo_title "Setting timezone"
 
 	if [ ! -f "$TZNAME_FILE" ]; then
+		echo_info "Timezone name not found, default to GMT"
 		echo "Etc/GMT" > "$TZNAME_FILE"
 	fi
+
+	echo_info "Timezone name: $(cat $TZNAME_FILE)"
 	tzname=$(cat "$TZNAME_FILE")
 
 	if [ ! -f "$TZJSON_FILE" ]; then
@@ -22,14 +25,19 @@ start() {
 	fi
 
 	if [ ! -f "$TZCODE_FILE" ]; then
+		echo_info "Timezone code not found, default to GMT0"
 		echo "GMT0" > "$TZCODE_FILE"
 	fi
 
 	if [ "$tz" != "$(cat $TZCODE_FILE)" ]; then
+		echo_info "Set timezone to $tz"
 		echo "$tz" > "$TZCODE_FILE"
 	fi
 
+	echo_info "Set TZ to $tz"
 	TZ="$tz"
+
+	echo_info "Export TZ globally"
 	export TZ
 }
 
