@@ -253,12 +253,9 @@ while : ; do
 
 	real_duration=$(fix_duration $record_duration)
 
-	timeout $((real_duration + 5)) \
-		openRTSP -V -u $rtsp_username $rtsp_password \
-			-w $stream_width -h $stream_height -f $stream_fps \
-			-d $real_duration $vformat -b 1048576 \
-			-t $rtsp_stream > "$record_file" \
-			2> /dev/null
+	command="openRTSP -V -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps -d $real_duration $vformat -b 1048576 -t $rtsp_stream > \"$record_file\""
+	echo_command "$command"
+	timeout $((real_duration + 5)) sh -c "$command" 2> /dev/null
 
 	[ "true" = "$one_time" ] && rm $RECORD_FLAG
 done
