@@ -30,7 +30,7 @@ case "$1" in
 	stop | kill)
 		stop
 		;;
-	reload | restart)
+	restart)
 		stop
 		sleep 1
 		start
