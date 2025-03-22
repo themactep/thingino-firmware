@@ -71,6 +71,7 @@ export CAMERA
 
 # hardcoded variables
 WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=5
+RSYNC := rsync --verbose --archive
 
 ifeq ($(shell command -v figlet),)
 FIGLET := echo
@@ -457,18 +458,36 @@ $(UB_ENV_BIN):
 # create config partition image
 $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 	$(info -------------------------------- $@)
-	rsync -a $(BR2_EXTERNAL)/overlay/config/ $(CONFIG_PARTITION_DIR)/
-	rsync -a $(BR2_EXTERNAL)/overlay/upper/ $(CONFIG_PARTITION_DIR)/
-	find $(CONFIG_PARTITION_DIR) -name ".*keep" -o -name ".empty" -delete
-	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(CONFIG_PARTITION_DIR)/ --pad=$(CONFIG_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
+	# remove older image if present
+	if [ -f $@ ]; then rm $@; fi
+	# syncronize overlay files
+	$(RSYNC) --delete $(BR2_EXTERNAL)/overlay/config/ $(CONFIG_PARTITION_DIR)/
+	$(RSYNC) --delete $(BR2_EXTERNAL)/overlay/upper/ $(CONFIG_PARTITION_DIR)/
+	# delete stub files
+	find $(CONFIG_PARTITION_DIR)/ -name ".*keep" -o -name ".empty" -delete
+	# pack the config partition image
+	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(CONFIG_PARTITION_DIR)/ \
+		--pad=$(CONFIG_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
 
 # create extras partition image
 $(EXTRAS_BIN): $(U_BOOT_BIN)
 	$(info -------------------------------- $@)
-	if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(FIGLET) "EXTRAS PARTITION IS TOO SMALL"; fi
+	# complain if there is not enough space for extras partition
+	if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then \
+		$(FIGLET) "EXTRAS PARTITION IS TOO SMALL"; \
+	fi
+	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
-	rsync -va $(OUTPUT_DIR)/target/opt/ $(OUTPUT_DIR)/extras/ && rm -rf $(OUTPUT_DIR)/target/opt/*
-	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/extras/ --pad=$(EXTRAS_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
+	# extract /opt/ from target rootfs to a separare directory
+	# NB! no deletion here. manually remove files /extras/ or use `make cleanbuild`
+	$(RSYNC) $(OUTPUT_DIR)/target/opt/ $(OUTPUT_DIR)/extras/
+	# empty /opt/ in the rootfs
+	rm -rf $(OUTPUT_DIR)/target/opt/*
+	# copy common files
+	$(RSYNC) $(BR2_EXTERNAL)/overlay/opt/ $(OUTPUT_DIR)/extras/
+	# pack the extras partition image
+	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/extras/ \
+		--pad=$(EXTRAS_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
 
 # rebuild kernel
 $(KERNEL_BIN):
