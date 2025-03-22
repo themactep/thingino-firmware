@@ -41,33 +41,31 @@ while [ "$s2" = "$s1" ]; do
     s2=$(date +%S)
     u2=$(uptimecs)
 done
-    log "offset is  $u2"
-    #echo "$s1 $s2 $(echo "$u2 $u1" | awk '{print $1 - $2}')"
     echo "$u2" 
 }
 
 
-fix_duration() {                                                                                     
-	if [ -z "$align_minutes" ]; then                              
-		echo "$1"                                   
-	elif [ "$1" -eq 60 ]; then
-		n_cs=$(uptimecs) || n_cs=0
-	s=$(date +%S | sed 's/^0//') || s=0
-	bonus_cs=0                               
-	if [ "$n_cs" -gt "$offset_cs" ]; then
-        s=$((s - 1))              
-        bonus_cs=100
-        fi                                                              
-        dpart=$(( bonus_cs +offset_cs - n_cs ))
-		[ "$dpart" -lt 10 ] && dpart="0$dpart"
-		spart=$(( $1 - s ))
-		echo "$spart.$dpart"                                        
-    elif [ $(( $1 % 60 )) -eq 0 ]; then                                            
-        m_inc=$(( $1 / 60 ))                                                     
+fix_duration() {                      
+        if [ "$align_minutes" = "false" ]; then
+                echo "$1"
+        elif [ "$1" -eq 60 ]; then                          
+                n_cs=$(uptimecs) || n_cs=0
+        s=$(date +%S | sed 's/^0//') || s=0
+        bonus_cs=0                                                            
+        if [ "$n_cs" -gt "$offset_cs" ]; then
+                s=$((s - 1))
+                bonus_cs=100                   
+        fi
+        dpart=$(( bonus_cs +offset_cs - n_cs ))   
+                [ "$dpart" -lt 10 ] && dpart="0$dpart"
+                spart=$(( $1 - s ))               
+                echo "$spart.$dpart"
+    elif [ $(( $1 % 60 )) -eq 0 ]; then
+        m_inc=$(( $1 / 60 ))
         mpart=$(( m_inc - ( $(date +%M) % m_inc ) ))
-        echo $(( mpart * 60 ))                                             
-    else                                           
-        echo "$1"                                 
+        echo $(( mpart * 60 ))   
+    else               
+        echo "$1"                                
     fi                                       
 } 
 
@@ -225,10 +223,11 @@ if [ -z "$stream_width" ]; then
 fi
 
 if [ -z "$align_minutes" ]; then
-	align_minutes="y"
+	align_minutes="true"
 fi
-if [ "$align_minutes" = "y" ]; then
-  offset_cs=$(find_cs)
+if [ "$align_minutes" = "true" ]; then
+	offset_cs=$(find_cs)
+	echo_info "Offset centoseconds vs run start is $offset_cs"
 fi
 
 # FIXME: based on default stream endpoint name, won't work on custom endpoints
@@ -347,7 +346,7 @@ fmanager() {
 # Function to clean up the subprocess                                                                 
 cleanup() {                                                                                                         
     if [ -n "$archive_pid" ] && kill -0 "$archive_pid" 2>/dev/null; then
-        echo "Parent exiting, killing subprocess $archive_pid..."                  
+        echo_warning "Parent exiting, killing subprocess $archive_pid..."                  
         kill -TERM "$archive_pid"                                          
     fi                                                                             
 }    
@@ -399,7 +398,7 @@ while : ; do
 
 	command="openRTSP -V -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps -d $real_duration $vformat -b 1048576 -t $rtsp_stream > \"$record_file\""
 	echo_command "$command"
-	timeout $((real_duration + 5)) sh -c "$command" 2> /dev/null &
+	timeout $((record_duration + 5)) sh -c "$command" 2> /dev/null &
 	opid=$!
 	start_time=$(date +%s)
 	end_time=$((start_time + record_duration + 5))
