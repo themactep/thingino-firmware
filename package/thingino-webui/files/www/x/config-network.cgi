@@ -298,8 +298,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			echo "$hostname" > /etc/hostname
 		[ "$hostname" = "$(hostname_in_hosts)" ] || \
 			sed -i "/^127.0.1.1/c127.0.1.1\t$hostname" /etc/hosts
-		[ "$hostname" = "$(hostname_in_release)" ] || \
-			sed -i "/^HOSTNAME/s/=.*$/=$hostname/" /etc/os-release
 		hostname "$hostname"
 
 		[ -z "$dns_1$dns_2" ] || \
