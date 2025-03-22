@@ -25,18 +25,52 @@ hesitate() {
 	exit 0
 }
 
-fix_duration() {
-	if [ "$1" -eq 60 ]; then
-		echo $(expr "$1" - $(date +%S))
-	elif [ $(expr "$1" % 60) -eq 0 ]; then
-		m_inc=$(expr "$1" / 60)
-		mpart=$(expr "$m_inc" - $(expr $(date +%M) % "$m_inc"))
-		echo $(expr "$mpart" "*" 60)
-	else
-		echo "$1"
-	fi
-	# TODO: handle cases different than 60 second durations or videos longer than an hour
+uptimecs()
+{
+echo $(awk -F. '{print $2+0}' /proc/uptime)
 }
+
+
+find_cs()
+{
+u1=$(uptimecs)
+s1=$(date +%S)
+s2="$s1"
+while [ "$s2" = "$s1" ]; do
+    sleep 0.05
+    s2=$(date +%S)
+    u2=$(uptimecs)
+done
+    log "offset is  $u2"
+    #echo "$s1 $s2 $(echo "$u2 $u1" | awk '{print $1 - $2}')"
+    echo "$u2" 
+}
+
+
+fix_duration() {                                                                                     
+	if [ -z "$align_minutes" ]; then                              
+		echo "$1"                                   
+	elif [ "$1" -eq 60 ]; then
+		n_cs=$(uptimecs) || n_cs=0
+	s=$(date +%S | sed 's/^0//') || s=0
+	bonus_cs=0                               
+	if [ "$n_cs" -gt "$offset_cs" ]; then
+        s=$((s - 1))              
+        bonus_cs=100
+        fi                                                              
+        dpart=$(( bonus_cs +offset_cs - n_cs ))
+		[ "$dpart" -lt 10 ] && dpart="0$dpart"
+		spart=$(( $1 - s ))
+		echo "$spart.$dpart"                                        
+    elif [ $(( $1 % 60 )) -eq 0 ]; then                                            
+        m_inc=$(( $1 / 60 ))                                                     
+        mpart=$(( m_inc - ( $(date +%M) % m_inc ) ))
+        echo $(( mpart * 60 ))                                             
+    else                                           
+        echo "$1"                                 
+    fi                                       
+} 
+
 
 get_free_space() {
 	available_space=$(df -k "$record_mount" | sed 1d | tr -d '\n' | awk 'END{print $4}') # in KiB
@@ -68,10 +102,36 @@ read_size() {
 
 # "path"
 remove_oldest_file_in() {
-	oldest_file="$(find "$1" -type f -exec ls -ltr {} + | head -n1 | awk '{print $9}')"
-	oldest_file_dir="$(dirname $oldest_file)"
-	rm -v "$oldest_file"
-	[ -z "$(ls -A1 "$oldest_file_dir")" ] && rm -rv "$oldest_file_dir"
+	[ -z "$del_count" ] && del_count=10
+
+	log "started removing old files started"
+	# Find oldest files, limited to del_count
+    oldest_files=$(find "$1" -type f -exec ls -ltr {} + | head -n"$del_count" | awk '{print $9}')
+
+    # Check if any files were found
+    if [ -z "$oldest_files" ]; then
+        echo "No files found to delete in $1" >&2
+        return 1
+    fi
+
+    echo "$oldest_files" | while IFS= read -r oldest_file; do
+        if [ -n "$oldest_file" ]; then
+            oldest_file_dir=$(dirname "$oldest_file")
+            rm -v "$oldest_file"
+            # Remove directory if empty
+            if [ -z "$(ls -A "$oldest_file_dir" 2>/dev/null)" ]; then
+                rm -rv "$oldest_file_dir"
+		if [ "$record_dir_count" -gt 1 ]; then
+    			parent_dir=$(dirname "$oldest_file_dir")
+    			if [ -n "$parent_dir" ] && [ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]; then
+        			rm -rv "$parent_dir"
+    			fi
+		fi   
+         	fi
+        fi
+    done
+
+    log "remove_oldest_file_in finished "
 }
 
 has_files() {
@@ -164,6 +224,13 @@ if [ -z "$stream_width" ]; then
 	stream_width=$(read_size "5" "1920")
 fi
 
+if [ -z "$align_minutes" ]; then
+	align_minutes="y"
+fi
+if [ "$align_minutes" = "y" ]; then
+  offset_cs=$(find_cs)
+fi
+
 # FIXME: based on default stream endpoint name, won't work on custom endpoints
 stream_endpoint="ch$stream_number"
 
@@ -183,7 +250,7 @@ stream_width: $stream_width
 "
 
 if [ -z "$stream_number" ]; then
-	echo_error "Cannot determine stream humber"
+	echo_error "Cannot determine stream number"
 fi
 
 if [ -z "$stream_endpoint" ]; then
@@ -214,12 +281,84 @@ touch $RECORD_FLAG
 record_storage="$record_mount/$record_device_path"
 ensure_dir "$record_storage"
 
+record_dir_count=0
+after_percent="${record_filename#*%}"  # Remove everything before and including the first %
+record_dir_count=$(echo "$after_percent" | tr -cd '/' | wc -c)
 record_limit_kb=$((record_limit * 1024 * 1024)) # GiB to KiB
 required_space=$((100 * record_duration)) # KiB
 
-while : ; do
-	[ -f $RECORD_FLAG ] || break
 
+fmanager() {
+    check_so=0
+
+    while :; do
+        get_free_space
+
+        # Initial space check (always run)
+        if [ "$available_space" -le "$required_space" ]; then
+            log "Space required: $required_space KiB"
+            log "Not enough space: $required_space > $available_space"
+            while [ "$available_space" -le "$required_space" ]; do
+                remove_oldest_file_in "$record_storage"
+                get_free_space
+                has_files "$record_storage" || die "$record_mount is empty yet no space!"
+            done
+        fi
+
+        # Detailed checks when check_so <= 0
+        if [ "$check_so" -le 0 ]; then
+            get_free_space
+            if [ "$available_space" -le "$required_space" ]; then
+                echo_info "Space required: $required_space KiB"
+                echo_warning "Not enough space: $required_space > $available_space"
+                while [ "$available_space" -le "$required_space" ]; do
+                    remove_oldest_file_in "$record_storage"
+                    get_free_space
+                    if ! has_files "$record_storage"; then
+                        echo_error "$record_mount is empty yet no space!"
+                        exit 1
+                    fi
+                done
+            fi
+
+            if [ "$record_limit_kb" -gt 0 ]; then
+                echo_info "Space limit: $record_limit_kb KiB"
+                get_occupied_space
+                while [ "$((occupied_space + required_space))" -gt "$record_limit_kb" ]; do
+                    echo_warning "Occupied space $occupied_space KiB exceeds limit $record_limit_kb KiB"
+                    remove_oldest_file_in "$record_storage"
+                    get_occupied_space
+                    if ! has_files "$record_storage"; then
+                        echo_error "$record_mount is empty yet no space!"
+                        exit 1
+                    fi
+                done
+            fi
+            # Reset check_so or adjust as needed (assuming it should reset)
+            check_so=0  # Optional: adjust this logic if it should increment instead
+        else
+            check_so=$((check_so - 1))
+        fi
+
+        sleep "$record_duration"
+    done
+}
+
+# Function to clean up the subprocess                                                                 
+cleanup() {                                                                                                         
+    if [ -n "$archive_pid" ] && kill -0 "$archive_pid" 2>/dev/null; then
+        echo "Parent exiting, killing subprocess $archive_pid..."                  
+        kill -TERM "$archive_pid"                                          
+    fi                                                                             
+}    
+
+if [ -z "$one_time" ]; then
+  fmanager  & 
+  archive_pid=$!
+  log "Spun up rarchive $archive_pid"
+  trap cleanup EXIT
+
+else
 	get_free_space
 	if [ "$available_space" -le "$required_space" ]; then
 		echo_info "Space required: $required_space KiB"
@@ -247,6 +386,11 @@ while : ; do
 			fi
 		done
 	fi
+fi
+
+
+while : ; do
+	[ -f $RECORD_FLAG ] || break
 
 	record_file="$record_storage/$(date +"$record_filename").$record_videofmt"
 	ensure_dir "$(dirname $record_file)"
@@ -255,7 +399,35 @@ while : ; do
 
 	command="openRTSP -V -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps -d $real_duration $vformat -b 1048576 -t $rtsp_stream > \"$record_file\""
 	echo_command "$command"
-	timeout $((real_duration + 5)) sh -c "$command" 2> /dev/null
+	timeout $((real_duration + 5)) sh -c "$command" 2> /dev/null &
+	opid=$!
+	start_time=$(date +%s)
+	end_time=$((start_time + record_duration + 5))
+	# Loop until process dies or time elapses
+	while [ "$(date +%s)" -lt "$end_time" ]; do
+    	# Check if the process is still alive
+    		if ! kill -0 "$opid" 2>/dev/null; then
+        		break
+    		fi
+    		sleep 1  # Check every second
+	done
+
+	# If the process is still alive after run_duration + 10, kill it
+	if kill -0 "$opid" 2>/dev/null; then
+		echo_warning "entered test loop for overrun"
+    		kill -HUP "$opid" 2>/dev/null                              
+    		end_time=$((end_time + 5))
+    		while [ "$(date +%s)" -lt "$end_time" ]; do                                            
+    			if ! kill -0 "$opid" 2>/dev/null; then                                              
+				break
+    			fi
+   			sleep 1
+   		done
+		if kill -0 "$opid" 2>/dev/null; then                                                       
+   			echo_warning "Time limit exceeded, killing process $opid."
+    			kill -TERM "$opid" 2>/dev/null
+		fi
+	fi
 
 	[ "true" = "$one_time" ] && rm $RECORD_FLAG
 done
