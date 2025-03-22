@@ -23,22 +23,22 @@ if is_streamer_disabled; then
 	exit 1
 fi
 
-# "parameter" "default"
+# "parameter"
 read_config() {
+	echo_info "Read $1 from $STREAMER_CONF_FILE"
 	sed -nE "s/^.*$1\s*[:=]\s*\"?([^\"]+)\"?;.*$/\1/p" $STREAMER_CONF_FILE | head -1
-	[ -z "$_" ] || echo "$2"
 }
 
 # "default"
 read_fps() {
+	echo_info "Read fps from logcat"
 	logcat | grep "fps" | head -1 | awk -F '[=,]' '{print $2}'
-	[ -z "$_" ] || echo "$1"
 }
 
-# "parameter" "default"
+# "position"
 read_size() {
+	echo_info "Read stream data from logcat ($1-th parameter)"
 	logcat | grep "VBMCreatePool()-${stream_number}: w=" | head -1 | awk -F '[= ]' "{print \$$1}"
-	[ -z "$_" ] || echo "$2"
 }
 
 start() {
@@ -61,14 +61,38 @@ start() {
 	stream_number=1
 
 	stream_fps=$(read_fps "25")
-	stream_height=$(read_size "7" "1080")
+	if [ -z "$stream_fps" ]; then
+		echo_info "fps unknown, use default"
+		stream_fps="25"
+	fi
+
+	stream_height=$(read_size "7")
+	if [ -z "$stream_height" ]; then
+		echo_info "height unknown, use default"
+		stream_height="1080"
+	fi
+
 	stream_width=$(read_size "5" "1920")
+	if [ -z "$stream_width" ]; then
+		echo_info "width unknown, use default"
+		stream_width="1920"
+	fi
 
 	# FIXME: based on default stream endpoint name, won't work on custom endpoints
 	stream_endpoint="ch$stream_number"
 	rtsp_stream="rtsp://127.0.0.1/$stream_endpoint"
-	rtsp_username=$(read_config "username" "thingino")
-	rtsp_password=$(read_config "password" "thingino")
+
+	rtsp_username=$(read_config "username")
+	if [ -z "$rtsp_username" ]; then
+		echo_info "username unknown, use default"
+		rtsp_username="thingino"
+	fi
+
+	rtsp_password=$(read_config "password")
+	if [ -z "$rtsp_password" ]; then
+		echo_info "password unknown, use default"
+		rtsp_password="thingino"
+	fi
 
 	case "$record_videofmt" in
 		avi) vformat="-i" ;;
@@ -78,7 +102,7 @@ start() {
 	esac
 
 	while : ; do
-		openRTSP -V -u $rstp_username $rstp_password \
+		openRTSP -V -u $rtsp_username $rtsp_password \
 			-w $stream_width -h $stream_height -f $stream_fps \
 			-d $record_duration $vformat \
 			-t $rtsp_stream > "$TEMP_FILE" \
