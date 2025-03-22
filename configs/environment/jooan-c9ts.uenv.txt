@@ -1,5 +1,5 @@
 gpio_button=62
-gpio_default=6o 6O 18O 49o 50o 57o 58o
+gpio_default=25ID 26IDU 6o 6O 18O 49o 50o 57o 58o
 gpio_ir850=59
 gpio_ircut=50 49
 gpio_mmc_cd=61

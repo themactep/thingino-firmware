@@ -11,4 +11,4 @@ BR2_THINGINO_PWM_ENABLE=y
 BR2_THINGINO_RMEM_22=y
 BR2_THINGINO_SDCARD=y
 FLASH_SIZE_8=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/wansview-g6-t31l-atbm6012b.uenv.txt"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/configs/environment/wansview-g6-t31l-atbm6012b.uenv.txt"

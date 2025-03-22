@@ -1,0 +1,15 @@
+disable_eth=true
+disable_sd=true
+gpio_button=
+gpio_default=18O
+gpio_ir850=9
+gpio_ircut=52 53
+gpio_led_b=
+gpio_led_y=
+gpio_mmc_cd=59
+gpio_speaker=
+gpio_white=50
+gpio_wlan=
+osmem=86M@0x0
+rmem=42M@0x5600000
+wlandev=8189fs

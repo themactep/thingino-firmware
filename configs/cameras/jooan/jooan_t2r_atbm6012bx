@@ -7,4 +7,4 @@ BR2_THINGINO_BUTTON=y
 BR2_THINGINO_MOTORS=y
 BR2_THINGINO_SDCARD=y
 FLASH_SIZE_8=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/jooan-t2r-atbm6012bx.uenv.txt"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/configs/environment/jooan-t2r-atbm6012bx.uenv.txt"

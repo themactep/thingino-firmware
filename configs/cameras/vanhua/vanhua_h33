@@ -14,4 +14,4 @@ BR2_SENSOR_PARAMS="shvflip=1"
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_BUTTON=y
 FLASH_SIZE_8=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/vanhua-h33.uenv.txt"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/configs/environment/vanhua-h33.uenv.txt"

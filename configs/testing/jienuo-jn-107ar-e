@@ -4,4 +4,4 @@ BR2_THINGINO_FLASH_NOR=y
 FLASH_SIZE_16=y
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_SDCARD=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/jienuo-jn-107ar-e.uenv.txt"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/configs/environment/jienuo-jn-107ar-e.uenv.txt"

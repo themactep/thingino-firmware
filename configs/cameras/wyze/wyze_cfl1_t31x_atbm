@@ -16,4 +16,4 @@ BR2_THINGINO_BUTTON=y
 BR2_THINGINO_PWM_ENABLE=y
 BR2_THINGINO_SDCARD=y
 FLASH_SIZE_16=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/wyze-c3-t31x-atbm.uenv.txt"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/configs/environment/wyze-c3-t31x-atbm.uenv.txt"

@@ -6,4 +6,4 @@ BR2_PACKAGE_THINGINO_KOPT_MMC0=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
 #BR2_SENSOR_PARAMS="shvflip=1"
 FLASH_SIZE_8=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/vstarcam-c662.uenv.txt"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/configs/environment/vstarcam-c662.uenv.txt"

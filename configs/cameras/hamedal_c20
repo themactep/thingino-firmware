@@ -10,4 +10,4 @@ BR2_SENSOR_PARAMS="sensor_max_fps=30 data_interface=1"
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_BUTTON=y
 FLASH_SIZE_16=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/hamedal-c20.uenv.txt"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/configs/environment/hamedal-c20.uenv.txt"

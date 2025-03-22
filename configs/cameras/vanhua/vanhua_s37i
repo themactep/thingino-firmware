@@ -13,4 +13,4 @@ BR2_PACKAGE_THINGINO_KOPT_MMC=y
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_RMEM_25=y
 FLASH_SIZE_16=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/vanhua-s37i.uenv.txt"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/configs/environment/vanhua-s37i.uenv.txt"

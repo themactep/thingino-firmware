@@ -9,4 +9,4 @@ BR2_PACKAGE_THINGINO_KOPT_MMC1_PB_4BIT=y
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_SDCARD=y
 FLASH_SIZE_8=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/camsoy_okc01.uenv.txt"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/configs/environment/camsoy_okc01.uenv.txt"

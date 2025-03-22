@@ -8,4 +8,4 @@ BR2_PACKAGE_THINGINO_KOPT_ADC=y
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_RMEM_22=y
 FLASH_SIZE_16=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/vanhua-djz.uenv.txt"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/configs/environment/vanhua-djz.uenv.txt"

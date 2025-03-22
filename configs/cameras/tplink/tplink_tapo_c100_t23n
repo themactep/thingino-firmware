@@ -9,4 +9,4 @@ BR2_THINGINO_AUDIO=y
 BR2_THINGINO_BUTTON=y
 BR2_THINGINO_PWM_ENABLE=y
 BR2_THINGINO_SDCARD=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/tplink-tapo-c100-t23n.uenv.txt"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/configs/environment/tplink-tapo-c100-t23n.uenv.txt"

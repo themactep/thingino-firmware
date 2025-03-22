@@ -10,4 +10,4 @@ BR2_THINGINO_RMEM_22=y
 BR2_THINGINO_SDCARD=y
 BR2_SENSOR_PARAMS="sensor_gpio_func=0"
 FLASH_SIZE_16=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/wansview-q6.uenv.txt"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/configs/environment/wansview-q6.uenv.txt"

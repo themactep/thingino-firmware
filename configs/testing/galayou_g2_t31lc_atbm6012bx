@@ -14,4 +14,4 @@ BR2_THINGINO_RMEM_23=y
 BR2_THINGINO_SDCARD=y
 BR2_WIFI_PARAMS="wifi_bt_comb=1"
 FLASH_SIZE_8=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/environment/galayou-g2-t31lc-atbm6012bx.uenv.txt"
+U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/configs/environment/galayou-g2-t31lc-atbm6012bx.uenv.txt"
