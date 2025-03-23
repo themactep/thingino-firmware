@@ -122,14 +122,14 @@ setup_wireless_network() {
 	pass=$3
 	psk=$(convert_psk "$ssid" "$pass")
 
-	tempfile=$(mktemp)
+	temp_file=$(mktemp)
 	{
 		[ -n "$ssid"  ] && echo "wlan_ssid $ssid"
 		[ -n "$bssid" ] && echo "wlan_bssid $bssid"
 		[ -n "$psk"   ] && echo "wlan_pass $psk"
-	} > $tempfile
-	fw_setenv -s $tempfile
-	rm $tempfile
+	} > $temp_file
+	fw_setenv -s $temp_file
+	rm -f $temp_file
 	refresh_env_dump
 }
 
