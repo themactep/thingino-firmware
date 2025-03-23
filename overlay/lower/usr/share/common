@@ -58,6 +58,20 @@ if [ -r "$DAEMON_CONFIG" ]; then
 	. "$DAEMON_CONFIG"
 fi
 
+# test cases:
+# network={
+#        ssid="ssid"
+#        #psk="`1234567890-=qwertyuiop[]asdfghjkl;'zxcvbnm,./"
+#        psk=2bc720c7bab24823e4b6ce3150ef1fcfee08a12f0be79f0352f7933bec8c53c5
+# }
+# network={
+#        ssid="ssid"
+#        #psk="~!@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:"ZXCVBNM<>?"
+#        psk=9268459e6347c6993772adedafd17a15b603c7232d80e91cab14585cfca3caf1
+# }
+
+# convert plain-text password to psd
+
 convert_psk() {
 	local psk tmpfile
 	if [ ${#2} -ge 64 ]; then

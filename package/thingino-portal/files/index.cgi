@@ -8,20 +8,6 @@ build_id=$(awk -F= '/BUILD_ID/{print $2}' $OS_RELEASE_FILE | tr -d '"')
 timestamp=$(date +%s)
 ttl_in_sec=600
 
-# test cases:
-# network={
-#        ssid="ssid"
-#        #psk="`1234567890-=qwertyuiop[]asdfghjkl;'zxcvbnm,./"
-#        psk=2bc720c7bab24823e4b6ce3150ef1fcfee08a12f0be79f0352f7933bec8c53c5
-# }
-# network={
-#        ssid="ssid"
-#        #psk="~!@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:"ZXCVBNM<>?"
-#        psk=9268459e6347c6993772adedafd17a15b603c7232d80e91cab14585cfca3caf1
-# }
-
-# convert plain-text password no matter what
-# "ssid" "pass"
 sanitize() {
 	echo $1 | sed -E 's/([`"])/\\\1/g'
 }
@@ -32,19 +18,6 @@ html_safe() {
 	text=${text//\`/&grave;}
 	text=${text//\"/&quot;}
 	echo $text
-}
-
-convert_psk() {
-	local psk tmpfile
-	if [ ${#2} -ge 64 ]; then
-		echo "$2"
-	else
-		tmpfile="/tmp/bogus.wpa"
-		wpa_passphrase "$1" $2 > $tmpfile
-		psk=$(grep '^\s*psk=' $tmpfile | cut -d= -f2 | tail -n 1)
-		rm -f $tmpfile
-		echo "$psk"
-	fi
 }
 
 get_request() {
