@@ -58,6 +58,19 @@ if [ -r "$DAEMON_CONFIG" ]; then
 	. "$DAEMON_CONFIG"
 fi
 
+convert_psk() {
+	local psk tmpfile
+	if [ ${#2} -ge 64 ]; then
+		echo "$2"
+	else
+		tmpfile="/tmp/bogus.wpa"
+		wpa_passphrase "$1" $2 > $tmpfile
+		psk=$(grep '^\s*psk=' $tmpfile | cut -d= -f2 | tail -n 1)
+		rm -f $tmpfile
+		echo "$psk"
+	fi
+}
+
 decrement_mac() {
 	local mac last_byte_dec
 

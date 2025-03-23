@@ -12,17 +12,6 @@ for i in $IFACES; do
 	done
 done
 
-# ssid, pass
-convert_psk() {
-	if [ ${#2} -lt 64 ]; then
-		local tmpfile=$(mktemp -u)
-		wpa_passphrase "$1" "$2" > $tmpfile
-		grep '^\s*psk=' $tmpfile | cut -d= -f2 | tail -n 1
-	else
-		echo "$2"
-	fi
-}
-
 disable_iface() {
 	sed -i "s/^auto /#auto /" /etc/network/interfaces.d/$1
 }
