@@ -1,8 +1,15 @@
 #!/bin/sh
 
 ENV_DUMP_FILE="/tmp/environment"
+refresh_env_dump() {
+	# sanitize and dump environment variables
+	fw_printenv | sort | \
+		sed -E 's/([`"$])/\\\1/g' | \
+		sed -E 's/=(.*)$/="\1"/' \
+		> "$ENV_DUMP_FILE"
+}
 if [ ! -f "$ENV_DUMP_FILE" ]; then
-	fw_printenv | sort | sed -E 's/=(.*)$/="\1"/' > "$ENV_DUMP_FILE"
+	refresh_env_dump
 fi
 . "$ENV_DUMP_FILE"
 
@@ -238,10 +245,6 @@ print_release() {
 quit() {
 	echo "$1" >&2
 	exit 0
-}
-
-refresh_env_dump() {
-	fw_printenv | sort | sed -E 's/=(.*)$/="\1"/' > "$ENV_DUMP_FILE"
 }
 
 set_gpio() {
