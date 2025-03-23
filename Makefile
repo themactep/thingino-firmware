@@ -414,8 +414,8 @@ endif
 $(UB_ENV_FINAL_TXT): $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
 	touch $@
-	if [ -f $(BR2_EXTERNAL)/config/environment/00_master.uenv.txt ]; then \
-		grep -v '^#' $(BR2_EXTERNAL)/config/environment/00_master.uenv.txt | tee $@; \
+	if [ -f $(BR2_EXTERNAL)/configs/environment/00_master.uenv.txt ]; then \
+		grep -v '^#' $(BR2_EXTERNAL)/configs/environment/00_master.uenv.txt | tee $@; \
 	fi
 	if [ -f $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) ]; then \
 		grep -v '^#' $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) | while read line; do \
