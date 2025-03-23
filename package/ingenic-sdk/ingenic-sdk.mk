@@ -14,7 +14,6 @@ endif
 
 ifneq ($(BR2_THINGINO_IMAGE_SENSOR_QTY_2)$(BR2_THINGINO_IMAGE_SENSOR_QTY_3)$(BR2_THINGINO_IMAGE_SENSOR_QTY_4),)
 	MULTI_SENSOR_ENABLED = CONFIG_MULTI_SENSOR=1
-	#SENSOR_MODEL = $(SENSOR_MODEL_1)
 	SENSOR_CONFIG_NAME = $(patsubst %s0,%,$(SENSOR_MODEL_1))-$(SOC_FAMILY).bin
 	SENSOR_1_BIN_NAME = $(patsubst %s0,%,$(SENSOR_MODEL_1))
 	MULTI_SENSOR_1_ENABLED = SENSOR_MODEL_1=$(SENSOR_MODEL_1)
@@ -97,24 +96,25 @@ endef
 define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_MODULES_PATH)
 	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
-	ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor
 
 	if [ "$(SENSOR_MODEL)" != "" ]; then \
+		ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor; \
 		$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/sensor; \
 		$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_MODEL).bin $(TARGET_DIR)/usr/share/sensor/$(SENSOR_CONFIG_NAME); \
+		echo $(SENSOR_MODEL) > $(TARGET_DIR)/usr/share/sensor/model; \
 	fi
 
 	if [ "$(SENSOR_MODEL_1)" != "" ]; then \
+		ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor; \
 		$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/sensor; \
 		$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_1_BIN_NAME).bin $(TARGET_DIR)/usr/share/sensor/$(SENSOR_CONFIG_NAME); \
+		echo $(SENSOR_MODEL) > $(TARGET_DIR)/usr/share/sensor/model; \
 	fi
 
 	if [ "$(SENSOR_MODEL_2)" != "" ]; then \
 		$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/sensor; \
 		$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_1_BIN_NAME).bin $(TARGET_DIR)/usr/share/sensor/$(SENSOR_2_CONFIG_NAME); \
 	fi
-
-	echo $(SENSOR_MODEL) > $(TARGET_DIR)/usr/share/sensor/model
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/modules.d
 
