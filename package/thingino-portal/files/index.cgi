@@ -2,11 +2,50 @@
 <%
 . /usr/share/common
 
+hostname=$(hostname)
 image_id=$(awk -F= '/IMAGE_ID/{print $2}' $OS_RELEASE_FILE)
 build_id=$(awk -F= '/BUILD_ID/{print $2}' $OS_RELEASE_FILE | tr -d '"')
-hostname=$(hostname)
 timestamp=$(date +%s)
 ttl_in_sec=600
+
+# test cases:
+# network={
+#        ssid="ssid"
+#        #psk="`1234567890-=qwertyuiop[]asdfghjkl;'zxcvbnm,./"
+#        psk=2bc720c7bab24823e4b6ce3150ef1fcfee08a12f0be79f0352f7933bec8c53c5
+# }
+# network={
+#        ssid="ssid"
+#        #psk="~!@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:"ZXCVBNM<>?"
+#        psk=9268459e6347c6993772adedafd17a15b603c7232d80e91cab14585cfca3caf1
+# }
+
+# convert plain-text password no matter what
+# "ssid" "pass"
+sanitize() {
+	echo $1 | sed -E 's/([`"])/\\\1/g'
+}
+
+html_safe() {
+	text="$1"
+	text=${text//&/&amp;}
+	text=${text//\`/&grave;}
+	text=${text//\"/&quot;}
+	echo $text
+}
+
+convert_psk() {
+	local psk tmpfile
+	if [ ${#2} -ge 64 ]; then
+		echo "$2"
+	else
+		tmpfile="/tmp/bogus.wpa"
+		wpa_passphrase "$1" $2 > $tmpfile
+		psk=$(grep '^\s*psk=' $tmpfile | cut -d= -f2 | tail -n 1)
+		rm -f $tmpfile
+		echo "$psk"
+	fi
+}
 
 get_request() {
 	[ "GET" = "$REQUEST_METHOD" ]
@@ -45,9 +84,7 @@ set_error() {
 	POST_mode="edit"
 }
 
-if $DEBUG; then
 debug_file=/tmp/portaldebug
-:>$debug_file
 post_request && echo "POST request" >> $debug_file
 post_request_to_review && echo "POST request to review" >> $debug_file
 post_request_to_save && echo "POST request to save" >> $debug_file
@@ -55,14 +92,13 @@ post_request_expired && echo "POST request expired" >> $debug_file
 get_request && echo "GET request" >> $debug_file
 get_request_with_wlan_credentials && echo "GET request with WLAN credentials" >> $debug_file
 get_request_with_wlanap_credentials && echo "GET request with WLAN AP credentials" >> $debug_file
-fi
 
 if post_request_expired; then
 	http_header="HTTP/1.1 303 See Other"
 	http_redirect="Location: $SCRIPT_NAME"
 
 elif post_request; then
-	frombrowser="$POST_frombrowser"
+	tzfrombrowser="$POST_tzfrombrowser"
 	hostname="$POST_hostname"
 	rootpass="$POST_rootpass"
 	rootpkey="$POST_rootpkey"
@@ -84,9 +120,11 @@ elif post_request; then
 		# update wlan settings in environment
 		temp_file=$(mktemp -u)
 		if [ "true" = "$wlanap_enabled" ]; then
+			wlanap_pass=$(convert_psk "$wlanap_ssid" "$wlanap_pass")
 			printf "wlanap_enabled %s\nwlanap_ssid %s\nwlanap_pass %s\n" \
 				"$wlanap_enabled" "$wlanap_ssid" "$wlanap_pass" > $temp_file
 		else
+			wlan_pass=$(convert_psk "$wlan_ssid" "$wlan_pass")
 			printf "wlan_ssid %s\nwlan_pass %s\n" \
 				"$wlan_ssid" "$wlan_pass" > $temp_file
 		fi
@@ -116,7 +154,7 @@ elif post_request; then
 	fi
 
 elif get_request; then
-	[ -z "$frombrowser" ] && frombrowser="true"
+	[ -z "$tzfrombrowser" ] && tzfrombrowser="true"
 
 	http_header="HTTP/1.1 200 OK"
 	http_redirect=""
@@ -213,8 +251,9 @@ h2 {font-size:1.3rem}
 </div>
 <div class="my-3">
 <div class="form-check form-switch">
-<input class="form-check-input" type="checkbox" role="switch" id="frombrowser" name="frombrowser" value="true"<% [ "false" != $frombrowser ] && echo " checked" %>>
-<label class="form-check-label" for="frombrowser">Pick up time zone from the browser</label>
+<input class="form-check-input" type="checkbox" role="switch" id="tzfrombrowser" name="tzfrombrowser" value="true"<% [ "false" != "$tzfrombrowser" ] && echo " checked" %>>
+<label class="form-check-label" for="tzfrombrowser">Pick up time zone from the browser</label>
+<span id="timezonename"></span>
 </div>
 </div>
 <ul class="nav nav-underline mb-3" role="tablist">
@@ -261,10 +300,9 @@ h2 {font-size:1.3rem}
 </form>
 
 <script>
-document.querySelector("#frombrowser").addEventListener("change", ev => {
-	const tz = document.querySelector("#timezone")
-	tz.value = (ev.target.checked) ? Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_', ' ') : ""
-});
+const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+document.querySelector("#timezonename").textContent = tz
+document.querySelector("#timezone").value = (ev.target.checked) ? tz.replaceAll('_', ' ') : ""
 document.querySelector("#wlanap_enabled").addEventListener("change", ev => {
 	document.querySelector('#wlan_pass').required = !ev.target.checked
 	document.querySelector('#wlan_ssid').required = !ev.target.checked
@@ -273,8 +311,9 @@ document.querySelector("#wlanap_enabled").addEventListener("change", ev => {
 });
 (() => {
 	const forms = document.querySelectorAll('.needs-validation');
-	Array.from(forms).forEach(form => { form.addEventListener('submit', event => {
-		if (!form.checkValidity()) { event.preventDefault(); event.stopPropagation(); }
+	Array.from(forms).forEach(form => { form.addEventListener('submit', ev => {
+		document.querySelector("#tzfrombrowser").disabled = document.querySelector("#tzfrombrowser").checked
+		if (!form.checkValidity()) { ev.preventDefault(); ev.stopPropagation(); }
 		form.classList.add('was-validated')}, false)
 	})
 })()
@@ -295,7 +334,7 @@ document.querySelector("#wlanap_enabled").addEventListener("change", ev => {
 <dt>Wireless Network SSID</dt>
 <dd><%= $wlan_ssid %></dd>
 <dt>Wireless Network Password</dt>
-<dd class="text-break"><%= $wlan_pass %></dd>
+<dd class="text-break"><% html_safe $wlan_pass %></dd>
 <% fi %>
 <dt>User <b>root</b> Password</dt>
 <dd><%= $rootpass %></dd>
@@ -315,7 +354,7 @@ document.querySelector("#wlanap_enabled").addEventListener("change", ev => {
 <div class="col my-2">
 <form action="<%= $SCRIPT_NAME %>" method="POST">
 <input type="hidden" name="mode" value="edit">
-<input type="hidden" name="frombrowser" value="<%= $frombrowser %>">
+<input type="hidden" name="tzfrombrowser" value="<%= $tzfrombrowser %>">
 <input type="hidden" name="hostname" value="<%= $hostname %>">
 <input type="hidden" name="rootpass" value="<%= ${rootpass//\"/&quot;} %>">
 <input type="hidden" name="rootpkey" value="<%= $rootpkey %>">
