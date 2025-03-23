@@ -544,11 +544,6 @@ Location: $1
 	exit 0
 }
 
-refresh_env_dump() {
-	fw_printenv | sort | sed -E 's/=(.*)$/="\1"/' > "$ENV_DUMP_FILE"
-	. $ENV_DUMP_FILE
-}
-
 report_error() {
 	echo "<h4 class=\"text-danger\">Oops. Something happened.</h4>" \
 	 "<div class=\"alert alert-danger\">$1</div>"
