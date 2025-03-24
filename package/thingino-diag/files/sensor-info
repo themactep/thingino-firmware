@@ -1,0 +1,60 @@
+#!/bin/sh
+
+echo "Thingino Diagnostics - sensor info"
+echo "This script requires network access to download modules if needed..."
+
+# Check if sinfo module is already loaded
+if lsmod | grep -q "sinfo"; then
+	echo "sinfo module is already loaded. Skipping download."
+else
+	# Get SoC type
+	soc="$(soc -f)"
+	if [ -z "$soc" ]; then
+		echo "Error: Could not determine SoC type."
+		exit 1
+	fi
+
+	echo "Detected SoC: $soc"
+	echo "Downloading sinfo module..."
+
+	# Download the appropriate module, check for kernel version later.
+	curl -L "https://github.com/themactep/ingenic-sdk/releases/download/sinfo/sinfo-$soc.ko" -o "/tmp/sinfo-$soc.ko"
+	if [ $? -ne 0 ]; then
+		echo "Error: Failed to download sinfo module."
+		exit 1
+	fi
+
+	# Load the module
+	echo "Loading sinfo module..."
+	insmod "/tmp/sinfo-$soc.ko"
+	if [ $? -ne 0 ]; then
+		echo "Error: Failed to load sinfo module."
+		rm -f "/tmp/sinfo-$soc.ko"
+		exit 1
+	fi
+
+	# Clean up downloaded file
+	rm -f "/tmp/sinfo-$soc.ko"
+fi
+
+# Trigger info output
+echo "Detecting sensors, please wait..."
+echo 1 > /proc/jz/sinfo/info
+
+# Extract and display the sensor information
+sensor_info=$(dmesg | grep "sinfo: Successful sensor detection:" | tail -1)
+if [ -n "$sensor_info" ]; then
+	# Extract sensor model, bus, and address
+	sensor_model=$(echo "$sensor_info" | sed -n 's/.*detection: \([^,]*\).*/\1/p')
+	i2c_bus=$(echo "$sensor_info" | sed -n 's/.*Bus: \([^,]*\).*/\1/p')
+	i2c_addr=$(echo "$sensor_info" | sed -n 's/.*Address: \(0x[0-9A-Fa-f]*\).*/\1/p')
+
+	echo ""
+	echo "===== SENSOR INFORMATION ====="
+	echo "Sensor model: $sensor_model"
+	echo "I2C Bus:      $i2c_bus"
+	echo "I2C Address:  $i2c_addr"
+	echo "============================"
+else
+	echo "No sensor information found."
+fi
