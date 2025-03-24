@@ -41,20 +41,14 @@ fi
 echo "Detecting sensors, please wait..."
 echo 1 > /proc/jz/sinfo/info
 
-# Extract and display the sensor information
-sensor_info=$(dmesg | grep "sinfo: Successful sensor detection:" | tail -1)
-if [ -n "$sensor_info" ]; then
-	# Extract sensor model, bus, and address
-	sensor_model=$(echo "$sensor_info" | sed -n 's/.*detection: \([^,]*\).*/\1/p')
-	i2c_bus=$(echo "$sensor_info" | sed -n 's/.*Bus: \([^,]*\).*/\1/p')
-	i2c_addr=$(echo "$sensor_info" | sed -n 's/.*Address: \(0x[0-9A-Fa-f]*\).*/\1/p')
-
-	echo ""
-	echo "===== SENSOR INFORMATION ====="
-	echo "Sensor model: $sensor_model"
-	echo "I2C Bus:      $i2c_bus"
-	echo "I2C Address:  $i2c_addr"
-	echo "============================"
-else
-	echo "No sensor information found."
+# Check for module dir
+if [ -f "/proc/jz/sinfo/info" ]; then
+	sensor_proc=$(cat /proc/jz/sinfo/info)
+	if echo "$sensor_proc" | grep -q "Detected sensors"; then
+		echo ""
+		echo "$sensor_proc"
+		exit 0
+	else
+		echo "No sensor information found."
+	fi
 fi
