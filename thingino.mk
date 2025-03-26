@@ -1053,7 +1053,7 @@ else ifeq ($(BR2_SOC_INGENIC_T20),y)
 else ifeq ($(BR2_SOC_INGENIC_T21),y)
 	SDK_VERSION := 1.0.33
 else ifeq ($(BR2_SOC_INGENIC_T23),y)
-	SDK_VERSION := 1.1.2
+	SDK_VERSION := 1.1.0
 else ifeq ($(BR2_SOC_INGENIC_T30),y)
 	SDK_VERSION := 1.0.5
 else ifeq ($(BR2_SOC_INGENIC_T31),y)
