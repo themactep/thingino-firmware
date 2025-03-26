@@ -23,6 +23,7 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_INGENIC_MUSL
 	select BR2_PACKAGE_INGENIC_PWM
 	select BR2_PACKAGE_INGENIC_SDK
+	select BR2_PACKAGE_ONVIF_SIMPLE_SERVER if !BR2_SOC_FAMILY_INGENIC_A1
 	select BR2_PACKAGE_THINGINO_LIBCURL
 	select BR2_PACKAGE_THINGINO_LIBCURL_COOKIES_SUPPORT
 	select BR2_PACKAGE_THINGINO_LIBCURL_CURL
@@ -61,7 +62,6 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-pwm/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-sdk/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat-mini/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ap/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-button/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-diag/Config.in"
@@ -107,6 +107,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/capjpeg/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/exfat-nofuse/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/jsonfilter/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libschrift/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mosquitto/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-tailscale/Config.in"
