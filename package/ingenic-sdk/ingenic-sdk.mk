@@ -93,28 +93,26 @@ define GENERATE_AUDIO_CONFIG
 	fi
 endef
 
+define install_sensor_bin
+	if [ "$(1)" != "" ]; then \
+		$(if $(filter-out $(SENSOR_MODEL_2),$(1)),ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor;) \
+		$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/sensor; \
+		if [ "$(SOC_FAMILY)" = "t23" ]; then \
+			$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/1.1.2/$(2).bin $(TARGET_DIR)/usr/share/sensor/$(3); \
+		else \
+			$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(2).bin $(TARGET_DIR)/usr/share/sensor/$(3); \
+		fi; \
+		$(if $(filter-out $(SENSOR_MODEL_2),$(1)),echo $(1) > $(TARGET_DIR)/usr/share/sensor/model;) \
+	fi
+endef
+
 define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 755 -d $(TARGET_MODULES_PATH)
 	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
 
-	if [ "$(SENSOR_MODEL)" != "" ]; then \
-		ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor; \
-		$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/sensor; \
-		$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_MODEL).bin $(TARGET_DIR)/usr/share/sensor/$(SENSOR_CONFIG_NAME); \
-		echo $(SENSOR_MODEL) > $(TARGET_DIR)/usr/share/sensor/model; \
-	fi
-
-	if [ "$(SENSOR_MODEL_1)" != "" ]; then \
-		ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor; \
-		$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/sensor; \
-		$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_1_BIN_NAME).bin $(TARGET_DIR)/usr/share/sensor/$(SENSOR_CONFIG_NAME); \
-		echo $(SENSOR_MODEL) > $(TARGET_DIR)/usr/share/sensor/model; \
-	fi
-
-	if [ "$(SENSOR_MODEL_2)" != "" ]; then \
-		$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/sensor; \
-		$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(SENSOR_1_BIN_NAME).bin $(TARGET_DIR)/usr/share/sensor/$(SENSOR_2_CONFIG_NAME); \
-	fi
+	$(call install_sensor_bin,$(SENSOR_MODEL),$(SENSOR_MODEL),$(SENSOR_CONFIG_NAME))
+	$(call install_sensor_bin,$(SENSOR_MODEL_1),$(SENSOR_1_BIN_NAME),$(SENSOR_CONFIG_NAME))
+	$(call install_sensor_bin,$(SENSOR_MODEL_2),$(SENSOR_1_BIN_NAME),$(SENSOR_2_CONFIG_NAME))
 
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/modules.d
 
