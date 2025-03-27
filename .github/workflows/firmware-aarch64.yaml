@@ -300,24 +300,6 @@ jobs:
           find ~/dl -type f | wc -l
           echo "DL cache restored successfully"
 
-      - name: Check toolchain architecture
-        run: |
-          # Check if the toolchain directory exists
-          if [ -d ~/dl/toolchain-external-custom ]; then
-            echo "Toolchain directory exists, checking content..."
-
-            # Check if any file in the directory contains x86_64
-            if grep -q "x86_64" ~/dl/toolchain-external-custom/* 2>/dev/null; then
-              echo "Found x86_64 in toolchain files, removing directory"
-              rm -rf ~/dl/toolchain-external-custom
-              echo "Toolchain directory removed"
-            else
-              echo "No x86_64 found in toolchain, keeping directory"
-            fi
-          else
-            echo "Toolchain directory does not exist, nothing to clean"
-          fi
-
       - name: Build firmware
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
         run: |
