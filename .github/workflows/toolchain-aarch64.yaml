@@ -246,7 +246,7 @@ jobs:
         run: |
           BOARD=${{ matrix.toolchain-version }} make sdk WORKFLOW=1
 
-      - name: Generate debug dummy toolchin for workflow testing
+      - name: Generate debug dummy toolchain for workflow testing
         if: ${{ github.event.inputs.debug_enabled == 'true' }}
         run: |
           DYNAMIC_PART="${{ matrix.toolchain-version }}"

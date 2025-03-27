@@ -29,7 +29,7 @@ on:
 env:
   BR2_DL_DIR: ~/dl
   FORCE_UNSAFE_CONFIGURE: 1
-  TAG_NAME: toolchain
+  TAG_NAME: toolchain-x86_64
   TERM: linux
   TG_TOKEN: ${{secrets.TELEGRAM_TOKEN_BOT_THINGINO}}
   TG_CHANNEL: ${{secrets.TELEGRAM_CHANNEL_THINGINO_MULTI}}
@@ -249,7 +249,7 @@ jobs:
         run: |
           BOARD=${{ matrix.toolchain-version }} make sdk WORKFLOW=1
 
-      - name: Generate debug dummy toolchin for workflow testing
+      - name: Generate debug dummy toolchain for workflow testing
         if: ${{ github.event.inputs.debug_enabled == 'true' }}
         run: |
           DYNAMIC_PART="${{ matrix.toolchain-version }}"
