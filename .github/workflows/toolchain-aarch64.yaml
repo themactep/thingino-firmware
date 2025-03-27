@@ -174,48 +174,61 @@ jobs:
         id: find_release
         run: |
           REPO="${{ github.repository }}"
-          
+
           # First try to find tag of the release with name "buildroot-dl-cache"
-          RELEASE_TAG=$(gh release list --repo "$REPO" --json name,tagName | jq -r '.[] | select(.name=="buildroot-dl-cache") | .tagName')
-          
+          RELEASE_TAG=$(gh release list --repo "$REPO" --json name,tagName | jq -r '.[] | select(.name=="buildroot-dl-cache") | .tagName' || echo "")
+
           # If not found, try to find tag starting with "update_cache"
           if [ -z "$RELEASE_TAG" ]; then
             echo "Could not find release with name 'buildroot-dl-cache', trying tags starting with 'update_cache'"
-            RELEASE_TAG=$(gh release list --repo "$REPO" --json tagName | jq -r '.[] | select(.tagName | startswith("update_cache")) | .tagName' | head -n 1)
+            RELEASE_TAG=$(gh release list --repo "$REPO" --json tagName | jq -r '.[] | select(.tagName | startswith("update_cache")) | .tagName' | head -n 1 || echo "")
           fi
-          
-          # Exit with error if we still can't find a suitable release
-          if [ -z "$RELEASE_TAG" ]; then
-            echo "Error: Could not find appropriate cache release"
-            exit 1
+
+          # If we found a release, mark as successful
+          if [ -n "$RELEASE_TAG" ]; then
+            echo "Found release with tag: $RELEASE_TAG"
+            echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+            echo "release_found=true" >> $GITHUB_OUTPUT
+          else
+            echo "Warning: Could not find appropriate release, continuing without cache"
+            echo "release_found=false" >> $GITHUB_OUTPUT
           fi
-          
-          echo "Found release with tag: $RELEASE_TAG"
-          echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
 
       - name: Download buildroot-dl-cache files
         id: download_cache
+        if: steps.find_release.outputs.release_found == 'true'
         run: |
           REPO="${{ github.repository }}"
           RELEASE_TAG="${{ steps.find_release.outputs.release_tag }}"
-          
+
           # Create temporary directory for downloads
           mkdir -p /tmp/dl-cache
-          
-          # Download all assets from the release
+
+          # Try to download all assets from the release
           echo "Downloading files from release with tag: $RELEASE_TAG"
+          set +e  # Turn off exit-on-error
           gh release download "$RELEASE_TAG" --repo "$REPO" --pattern "buildroot-dl-cache*" --dir "/tmp/dl-cache"
-          
+          DOWNLOAD_EXIT_CODE=$?
+          set -e  # Turn on exit-on-error again
+
+          if [ $DOWNLOAD_EXIT_CODE -ne 0 ]; then
+            echo "Warning: gh command exited with code $DOWNLOAD_EXIT_CODE."
+            echo "download_succeeded=false" >> $GITHUB_OUTPUT
+          elif [ ! "$(ls -A /tmp/dl-cache/)" ]; then
+            echo "Warning: Download directory is empty, no files were downloaded."
+            echo "download_succeeded=false" >> $GITHUB_OUTPUT
+          else
+            echo "Download successful!"
+            echo "download_succeeded=true" >> $GITHUB_OUTPUT
+          fi
+
           # List downloaded files
           echo "Downloaded files:"
-          ls -la /tmp/dl-cache/
+          ls -la /tmp/dl-cache/ || echo "No files found."
 
       - name: Extract buildroot-dl-cache
+        if: steps.download_cache.outputs.download_succeeded == 'true'
         run: |
-          # Clear destination directory first
-          rm -rf ~/dl
-          mkdir -p ~/dl
-
           # If there are split ZIP files, we need to ensure they're processed correctly
           if ls /tmp/dl-cache/buildroot-dl-cache.zip.* &>/dev/null; then
             # For split ZIP files, we need to extract from the first part
