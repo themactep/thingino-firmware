@@ -1,6 +1,9 @@
 # Thingino Firmware
 # https://github.com/themactep/thingino-firmware
 
+BR2_HOSTARCH = $(shell uname -m)
+export BR2_HOSTARCH
+
 ifeq ($(__BASH_MAKE_COMPLETION__),1)
 	exit
 endif
