@@ -1,5 +1,6 @@
 $(info --- FILE: external.mk)
 
+$(info Host architecture $(BR2_HOSTARCH))
 $(info Building for architecture $(INGENIC_ARCH))
 $(info SOC_VENDOR: $(SOC_VENDOR))
 $(info SOC_FAMILY: $(SOC_FAMILY))
