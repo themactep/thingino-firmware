@@ -185,28 +185,40 @@ jobs:
             ${{ runner.os }}-ccache-
             ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
 
-      - name: Get latest buildroot-dl-cache release
-        id: get_release
+      - name: Find buildroot-dl-cache release tag
+        id: find_release
         run: |
-          # Get repository owner and name from GitHub context
           REPO="${{ github.repository }}"
           
-          # Get latest release with tag starting with 'update_cache'
-          RELEASE_INFO=$(gh release list --repo "$REPO" | grep "update_cache" | head -n 1)
-          LATEST_RELEASE=$(echo "$RELEASE_INFO" | awk '{print $2}')
-          echo "Latest buildroot-dl-cache release tag: ${LATEST_RELEASE}"
-          echo "release_tag=${LATEST_RELEASE}" >> $GITHUB_OUTPUT
+          # First try to find tag of the release with name "buildroot-dl-cache"
+          RELEASE_TAG=$(gh release list --repo "$REPO" --json name,tagName | jq -r '.[] | select(.name=="buildroot-dl-cache") | .tagName')
+          
+          # If not found, try to find tag starting with "update_cache"
+          if [ -z "$RELEASE_TAG" ]; then
+            echo "Could not find release with name 'buildroot-dl-cache', trying tags starting with 'update_cache'"
+            RELEASE_TAG=$(gh release list --repo "$REPO" --json tagName | jq -r '.[] | select(.tagName | startswith("update_cache")) | .tagName' | head -n 1)
+          fi
+          
+          # Exit with error if we still can't find a suitable release
+          if [ -z "$RELEASE_TAG" ]; then
+            echo "Error: Could not find appropriate release"
+            exit 1
+          fi
+          
+          echo "Found release with tag: $RELEASE_TAG"
+          echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Download buildroot-dl-cache files
+        id: download_cache
+        run: |
+          REPO="${{ github.repository }}"
+          RELEASE_TAG="${{ steps.find_release.outputs.release_tag }}"
           
           # Create temporary directory for downloads
           mkdir -p /tmp/dl-cache
           
-      - name: Download buildroot-dl-cache files
-        run: |
-          REPO="${{ github.repository }}"
-          RELEASE_TAG="${{ steps.get_release.outputs.release_tag }}"
-          
-          # Download all assets for the release
-          echo "Downloading buildroot-dl-cache files from release: $RELEASE_TAG"
+          # Download all assets from the release
+          echo "Downloading files from release with tag: $RELEASE_TAG"
           gh release download "$RELEASE_TAG" --repo "$REPO" --pattern "buildroot-dl-cache*" --dir "/tmp/dl-cache"
           
           # List downloaded files
