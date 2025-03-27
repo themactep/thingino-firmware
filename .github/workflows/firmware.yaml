@@ -213,7 +213,7 @@ jobs:
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-
 
-      - name: Find buildroot-dl-cache release tag
+      - name: Fetch buildroot-dl-cache release
         id: find_release
         run: |
           REPO="${{ github.repository }}"
@@ -229,7 +229,7 @@ jobs:
           
           # Exit with error if we still can't find a suitable release
           if [ -z "$RELEASE_TAG" ]; then
-            echo "Error: Could not find appropriate release"
+            echo "Error: Could not find appropriate cache release"
             exit 1
           fi
           
@@ -253,7 +253,7 @@ jobs:
           echo "Downloaded files:"
           ls -la /tmp/dl-cache/
 
-      - name: Extract buildroot-dl-cache to ~/dl
+      - name: Extract buildroot-dl-cache
         run: |
           # Clear destination directory first
           rm -rf ~/dl
