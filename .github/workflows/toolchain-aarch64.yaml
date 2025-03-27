@@ -270,7 +270,7 @@ jobs:
             DIR_PATH=$(dirname "$INGTC")
             TOOLCHAIN_VERSION="${{ matrix.toolchain-version }}"
             CLEAN_VERSION=${TOOLCHAIN_VERSION#toolchain_}
-            INGTC_FINAL="${DIR_PATH}/thingino-toolchain_aarch64_${CLEAN_VERSION}-linux-mipsel.tar.gz"
+            INGTC_FINAL="${DIR_PATH}/thingino-toolchain-aarch64_${CLEAN_VERSION}-linux-mipsel.tar.gz"
             mv "$INGTC" "$INGTC_FINAL"
             echo "INGTC=$INGTC_FINAL" >> $GITHUB_ENV
           else

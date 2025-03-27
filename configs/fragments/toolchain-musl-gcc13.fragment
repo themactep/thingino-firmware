@@ -2,7 +2,7 @@
 BR2_TOOLCHAIN_EXTERNAL=y
 BR2_TOOLCHAIN_EXTERNAL_CUSTOM=y
 BR2_TOOLCHAIN_EXTERNAL_DOWNLOAD=y
-BR2_TOOLCHAIN_EXTERNAL_URL="https://github.com/themactep/thingino-firmware/releases/download/toolchain-$(BR2_HOSTARCH)/thingino-toolchain_$(INGENIC_ARCH)_musl_gcc13-linux-mipsel.tar.gz"
+BR2_TOOLCHAIN_EXTERNAL_URL="https://github.com/themactep/thingino-firmware/releases/download/toolchain-$(BR2_HOSTARCH)/thingino-toolchain-$(BR2_HOSTARCH)_$(INGENIC_ARCH)_musl_gcc13-linux-mipsel.tar.gz"
 BR2_TOOLCHAIN_EXTERNAL_HEADERS_3_10=y
 BR2_TOOLCHAIN_EXTERNAL_CUSTOM_MUSL=y
 BR2_TOOLCHAIN_EXTERNAL_GCC_13=y
