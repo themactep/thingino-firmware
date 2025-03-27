@@ -1,8 +1,5 @@
-name: firmware-arm64
+name: firmware-aarch64
 on:
-  schedule:
-    # 00:30 PST / Nightly
-    - cron:  '30 8 * * *'
   workflow_dispatch:
     inputs:
       tg_disabled:
