@@ -189,37 +189,26 @@ jobs:
         id: get_release
         run: |
           # Get repository owner and name from GitHub context
-          REPO_OWNER=$(echo "${{ github.repository }}" | cut -d '/' -f 1)
-          REPO_NAME=$(echo "${{ github.repository }}" | cut -d '/' -f 2)
-
+          REPO="${{ github.repository }}"
+          
           # Get latest release with tag starting with 'update_cache'
-          LATEST_RELEASE=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases" | \
-                          jq -r '.[] | select(.tag_name | startswith("update_cache")) | .tag_name' | head -n 1)
+          RELEASE_INFO=$(gh release list --repo "$REPO" | grep "update_cache" | head -n 1)
+          LATEST_RELEASE=$(echo "$RELEASE_INFO" | awk '{print $2}')
           echo "Latest buildroot-dl-cache release tag: ${LATEST_RELEASE}"
           echo "release_tag=${LATEST_RELEASE}" >> $GITHUB_OUTPUT
-
+          
           # Create temporary directory for downloads
           mkdir -p /tmp/dl-cache
-
+          
       - name: Download buildroot-dl-cache files
         run: |
-          # Get repository owner and name from GitHub context
-          REPO_OWNER=$(echo "${{ github.repository }}" | cut -d '/' -f 1)
-          REPO_NAME=$(echo "${{ github.repository }}" | cut -d '/' -f 2)
+          REPO="${{ github.repository }}"
           RELEASE_TAG="${{ steps.get_release.outputs.release_tag }}"
-
-          # Get asset URLs for the release
-          ASSET_URLS=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$RELEASE_TAG" | \
-                      jq -r '.assets[] | select(.name | startswith("buildroot-dl-cache")) | .browser_download_url')
-
-          # Download all assets
+          
+          # Download all assets for the release
           echo "Downloading buildroot-dl-cache files from release: $RELEASE_TAG"
-          for URL in $ASSET_URLS; do
-            echo "Downloading: $URL"
-            FILENAME=$(basename "$URL")
-            curl -L -o "/tmp/dl-cache/$FILENAME" "$URL"
-          done
-
+          gh release download "$RELEASE_TAG" --repo "$REPO" --pattern "buildroot-dl-cache*" --dir "/tmp/dl-cache"
+          
           # List downloaded files
           echo "Downloaded files:"
           ls -la /tmp/dl-cache/
