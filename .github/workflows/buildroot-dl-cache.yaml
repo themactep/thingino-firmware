@@ -43,6 +43,7 @@ jobs:
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
       - name: Configure Environment Variables
+        id: set_env
         run: |
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
@@ -84,7 +85,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git make gawk procps rsync u-boot-tools unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git make gawk procps rsync u-boot-tools unzip wget p7zip-full
 
       - name: Set timezone
         run: |
@@ -110,8 +111,11 @@ jobs:
           echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_ENV
           echo "GIT_BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
-          TAG_NAME="$TAG_NAME-$(date +'%Y-%m-%d')"
+          DATE_TAG=$(date +'%Y-%m-%d')
+          echo "DATE_TAG=$DATE_TAG" >> $GITHUB_ENV
+          TAG_NAME="$TAG_NAME-$DATE_TAG"
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "RELEASE_NAME=buildroot-dl-cache-$DATE_TAG" >> $GITHUB_ENV
 
           echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_OUTPUT
           echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
@@ -131,11 +135,29 @@ jobs:
         run: |
           find ~/dl/ -type d -name git -exec rm -rf {} +
 
-      - name: Save Buildroot DL cache
-        uses: actions/cache/save@v4
+      - name: Compress DL directory with ZIP (store mode)
+        run: |
+          mkdir -p /tmp/dl-archive
+          cd ~/
+          # Using ZIP format with store method (no compression) for maximum speed
+          7z a -tzip -mx=0 -v1536m /tmp/dl-archive/buildroot-dl-cache.zip dl/
+
+      - name: Check archive files
+        run: |
+          ls -la /tmp/dl-archive/
+          echo "Archive created with the following parts:"
+          ls -lh /tmp/dl-archive/buildroot-dl-cache*.zip*
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2.1.0
         with:
-          path: ~/dl
-          key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
+          name: "buildroot-dl-cache"
+          tag_name: "${{ env.TAG_NAME }}"
+          files: /tmp/dl-archive/buildroot-dl-cache*.zip*
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
+          make_latest: false
 
       - name: Send error notification
         if: ${{ env.TG_DISABLED == 'false' && failure() }}

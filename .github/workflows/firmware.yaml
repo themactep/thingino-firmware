@@ -166,7 +166,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests 7zip build-essential bc cmake cpio curl ca-certificates file git gh make gawk jq procps rsync tzdata u-boot-tools unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests 7zip build-essential bc cmake cpio curl ca-certificates file git gh make gawk jq p7zip-full procps rsync tzdata u-boot-tools unzip wget
 
       - name: Set timezone
         run: |
@@ -212,19 +212,82 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-${{ env.CURRENT_YEAR }}-
             ${{ runner.os }}-ccache-${{ matrix.thingino-version }}-
-            ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
-            ${{ runner.os }}-ccache-shared-v1-${{ env.CURRENT_YEAR }}-
-            ${{ runner.os }}-ccache-shared-v1-
 
-      - name: Restore Buildroot DL cache
-        uses: actions/cache/restore@v4
-        if: always()
-        with:
-          path: ~/dl
-          key: ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-week-${{ env.WEEK_NUMBER }}
-          restore-keys: |
-            ${{ runner.os }}-dl-shared-v1-${{ env.CURRENT_YEAR }}-
-            ${{ runner.os }}-dl-shared-v1-
+      - name: Setup DL cache directory
+        run: |
+          mkdir -p ~/dl
+          
+      - name: Get latest buildroot-dl-cache release
+        id: get_release
+        run: |
+          # Get repository owner and name from GitHub context
+          REPO_OWNER=$(echo "${{ github.repository }}" | cut -d '/' -f 1)
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d '/' -f 2)
+          
+          # Get latest release with tag starting with 'update_cache'
+          LATEST_RELEASE=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases" | \
+                          jq -r '.[] | select(.tag_name | startswith("update_cache")) | .tag_name' | head -n 1)
+          echo "Latest buildroot-dl-cache release tag: ${LATEST_RELEASE}"
+          echo "release_tag=${LATEST_RELEASE}" >> $GITHUB_OUTPUT
+          
+          # Create temporary directory for downloads
+          mkdir -p /tmp/dl-cache
+          
+      - name: Download buildroot-dl-cache files
+        run: |
+          # Get repository owner and name from GitHub context
+          REPO_OWNER=$(echo "${{ github.repository }}" | cut -d '/' -f 1)
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d '/' -f 2)
+          RELEASE_TAG="${{ steps.get_release.outputs.release_tag }}"
+          
+          # Get asset URLs for the release
+          ASSET_URLS=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$RELEASE_TAG" | \
+                      jq -r '.assets[] | select(.name | startswith("buildroot-dl-cache")) | .browser_download_url')
+          
+          # Download all assets
+          echo "Downloading buildroot-dl-cache files from release: $RELEASE_TAG"
+          for URL in $ASSET_URLS; do
+            echo "Downloading: $URL"
+            FILENAME=$(basename "$URL")
+            curl -L -o "/tmp/dl-cache/$FILENAME" "$URL"
+          done
+          
+          # List downloaded files
+          echo "Downloaded files:"
+          ls -la /tmp/dl-cache/
+          
+      - name: Extract buildroot-dl-cache to ~/dl
+        run: |
+          # Clear destination directory first
+          rm -rf ~/dl
+          mkdir -p ~/dl
+          
+          # If there are split ZIP files, we need to ensure they're processed correctly
+          if ls /tmp/dl-cache/buildroot-dl-cache.zip.* &>/dev/null; then
+            # For split ZIP files, we need to extract from the first part
+            echo "Extracting split ZIP files..."
+            cd ~
+            7z x /tmp/dl-cache/buildroot-dl-cache.zip.001 -y
+          else
+            # For single ZIP file
+            echo "Extracting single ZIP file..."
+            cd ~
+            7z x /tmp/dl-cache/buildroot-dl-cache.zip -y
+          fi
+          
+          # If files were extracted to a subdirectory called 'dl', move them up
+          if [ -d ~/dl/dl ]; then
+            echo "Moving files from ~/dl/dl to ~/dl"
+            mv ~/dl/dl/* ~/dl/
+            rm -rf ~/dl/dl
+          fi
+          
+          # Verify extraction
+          echo "Verifying extraction:"
+          ls -la ~/dl/
+          echo "Number of files in ~/dl:"
+          find ~/dl -type f | wc -l
+          echo "DL cache restored successfully"
 
       - name: Build firmware
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
