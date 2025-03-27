@@ -1,4 +1,4 @@
-name: toolchain
+name: toolchain-x86_64
 on:
   schedule:
     # 23:15 PST / Sunday
