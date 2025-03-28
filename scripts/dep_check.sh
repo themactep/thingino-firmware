@@ -17,13 +17,7 @@ fi
 
 # Check for gawk
 if ! command -v gawk >/dev/null 2>&1; then
-echo "Error: Please install gawk"
-exit 1
-fi
-
-# Check for mkimage from u-boot-tools
-if ! command -v mkimage >/dev/null 2>&1; then
-echo "Error: Please install mkimage from u-boot-tools"
+echo "'gawk' is not installed. Error: Please install gawk"
 exit 1
 fi
 
@@ -137,28 +131,28 @@ if [ -f /etc/os-release ]; then
 					pkg_manager="rpm"
 					pkg_check_command="rpm -q"
 					pkg_install_cmd="dnf install -y"
-					packages="gcc make bc bison cpio cmake curl file flex gawk git ncurses-devel rsync unzip wget newt dialog"
+					packages="gcc make bc bison cpio cmake curl file flex gawk git ncurses-devel rsync unzip uboot-tools wget newt dialog"
 					;;
 				arch)
 					echo "Arch-based"
 					pkg_manager="pacman"
 					pkg_check_command="pacman -Q"
 					pkg_install_cmd="pacman -S --noconfirm"
-					packages="base-devel bc bison cpio cmake curl file flex gawk git ncurses make rsync unzip wget libnewt dialog"
+					packages="base-devel bc bison cpio cmake curl file flex gawk git ncurses make rsync unzip uboot-tools wget libnewt dialog"
 					;;
 				alpine)
 					echo "Alpine Linux"
 					pkg_manager="apk"
 					pkg_check_command="apk info -e"
 					pkg_install_cmd="apk add"
-					packages="bash build-base bc bison cpio cmake curl file flex gawk git ncurses-dev make rsync unzip wget newt dialog perl findutils grep"
+					packages="bash build-base bc bison cpio cmake curl file flex gawk git ncurses-dev make rsync unzip uboot-tools wget newt dialog perl findutils grep"
 					;;
 				opensuse*)
 					echo "OpenSUSE Tumbleweed"
 					pkg_manager="zypper"
 					pkg_check_command="zypper search -i"
 					pkg_install_cmd="zypper install -y"
-					packages="gcc make bc bison cpio cmake curl file flex gawk git ncurses-devel rsync unzip wget newt dialog perl findutils grep"
+					packages="gcc make bc bison cpio cmake curl file flex gawk git ncurses-devel rsync unzip u-boot-tools wget newt dialog perl findutils grep"
 					;;
 				*)
 					echo "Unsupported OS: $ID"
