@@ -1,0 +1,7 @@
+gpio_ircut=57 58
+gpio_wlan=39O
+wlandev=atbm6032
+wlandevopts=atbm_printk_mask=0
+gpio_button=62
+gpio_mmc_cd=38
+enable_updates=true
