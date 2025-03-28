@@ -376,9 +376,6 @@ config BR2_SENSOR_4_DUMMY
 
 endchoice
 
-endmenu
-
-menu "ISP Module Config"
 config BR2_SENSOR_PARAMS
 	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_1
 	string "Image sensor parameters"
@@ -409,44 +406,5 @@ config BR2_SENSOR_4_PARAMS
 	help
 	  Set additional parameters passed to image sensor kernel module
 
-config BR2_ISP_PARAMS
-	string "ISP parameters"
-	help
-	  Set additional parameters passed to the ISP kernel module
-
 endmenu
 
-if FALSE
-menu "Image Sensor Configuration"
-config BR2_SENSOR_PARAM_RESET_GPIO
-	int "Reset GPIO pin"
-	default -1
-config BR2_SENSOR_PARAM_PWDN_GPIO
-	int "Powerdown GPIO pin"
-	default -1
-config BR2_SENSOR_PARAM_SENSOR_GPIO_FUNC
-	int "GPIO function"
-	default -1
-config BR2_SENSOR_PARAM_DATA_INTERFACE
-	int "Data interface"
-	default -1
-config BR2_SENSOR_PARAM_SENSOR_MAX_FPS
-	int "Maximum FPS"
-	default -1
-config BR2_SENSOR_PARAM_SHVFLIP
-	int "Horizontal and vertical flip"
-	default -1
-config BR2_SENSOR_PARAM_FSYNC_MODE
-	int "FSync mode"
-	default -1
-config BR2_SENSOR_PARAM_WDR_BUF_SIZE
-	int "WDR buffer size"
-	default -1
-config BR2_SENSOR_PARAM_SENSOR_RESOLUTION
-	int "Resolution"
-	default -1
-config BR2_SENSOR_PARAM_DATA_TYPE
-	int "Data type"
-	default -1
-endmenu
-endif
