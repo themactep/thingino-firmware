@@ -78,16 +78,32 @@ get_mtd_partitions() {
 <div class="alert alert-danger">
 <h4>Flash new firmware image</h4>
 <p>Upload a sysupgrade-compatible image here to replace the current firmware</p>
-<input type="file" class="form-control" id="firmware-image" name="firmware"">
+<input type="file" class="form-control" id="firmware-image" name="firmware">
 <button type="button" class="btn btn-primary mt-2" id="button-upload">Flash image</button>
 </div>
 </div>
 <div class="col col-lg-8">
-<div id="output-wrapper" class="p-1" style="height:60rem;max-height:60rem;overflow-y:auto">
-<pre class="m-0 h-100" style="white-space:pre-wrap;word-wrap:break-word;"></pre>
+<div id="output-wrapper" class="p-1">
+<pre class="m-0 h-100"></pre>
 </div>
 </div>
 </div>
+
+<style>
+#output-wrapper {
+	display: none;
+	background-color: #000;
+	border-radius: 0.5rem;
+	color: #fff;
+	height: calc(100vh - 200px);
+	padding: 1rem;
+	overflow-y: auto;
+}
+pre {
+	white-space:pre-wrap;
+	word-wrap:break-word;
+}
+</style>
 
 <script>
 async function handleOTAUpgrade() {
