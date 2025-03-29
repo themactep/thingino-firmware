@@ -29,7 +29,7 @@ REMOTE_FW_FILE="/tmp/fw.bin"
 REMOTE_HOST="root@$CAMERA_IP_ADDRESS"
 REMOTE_SCRIPT="/tmp/sup"
 
-SSH_OPTS="-o ConnectTimeout=10 -o ServerAliveInterval=2 \
+SSH_OPTS="-o ConnectTimeout=30 -o ServerAliveInterval=2 \
 -o ControlMaster=auto -o ControlPath=/tmp/ssh_mux_%h_%p_%r \
 -o ControlPersist=600 -o StrictHostKeyChecking=no \
 -o UserKnownHostsFile=/dev/null"
