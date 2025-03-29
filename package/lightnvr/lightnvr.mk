@@ -16,7 +16,7 @@ define LIGHTNVR_INSTALL_APP_FILES
 	cp -r $(@D)/web $(TARGET_DIR)/var/nvr/
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/lightnvr
 	$(INSTALL) -m 644 $(@D)/config/lightnvr.ini $(TARGET_DIR)/etc/lightnvr/lightnvr.ini
-	$(INSTALL) -D -m 0755 $(@D)/lightnvr $(TARGET_DIR)/usr/bin/lightnvr
+	$(INSTALL) -D -m 0755 $(@D)/bin/lightnvr $(TARGET_DIR)/usr/bin/lightnvr
 	$(INSTALL) -m 0755 -D $(LIGHTNVR_PKGDIR)/files/S95lightnvr $(TARGET_DIR)/etc/init.d/S95lightnvr
 endef
 
