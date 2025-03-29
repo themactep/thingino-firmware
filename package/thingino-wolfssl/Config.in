@@ -395,7 +395,7 @@ config BR2_PACKAGE_THINGINO_WOLFSSL_BUMP
 	  Enable SSL Bump build
 
 config BR2_PACKAGE_THINGINO_WOLFSSL_SNIFFER
-           bool "enable-sniffer"
+	bool "enable-sniffer"
 	help
 	  Enable wolfSSL sniffer support
 
@@ -430,7 +430,7 @@ config BR2_PACKAGE_THINGINO_WOLFSSL_SMIME
 	  Enable S/MIME
 
 config BR2_PACKAGE_THINGINO_WOLFSSL_PSA
-        bool "enable-psa"
+	bool "enable-psa"
 	help
 	  use Platform Security Architecture (PSA) interface
 
@@ -440,7 +440,7 @@ config BR2_PACKAGE_THINGINO_WOLFSSL_PSA_LIB_STATIC
 	  Link PSA as static library
 
 config BR2_PACKAGE_THINGINO_WOLFSSL_OPENSSLALL
-        bool "enable-opensslall"
+	bool "enable-opensslall"
 	help
 	  Enable all OpenSSL API, size++
 
@@ -450,7 +450,7 @@ config BR2_PACKAGE_THINGINO_WOLFSSL_OPENSSLEXTRA
 	  Enable extra OpenSSL API, size+
 
 config BR2_PACKAGE_THINGINO_WOLFSSL_ERROR_QUEUE_PER_THREAD
-        bool "enable-error-queue-per-thread"
+	bool "enable-error-queue-per-thread"
 	help
 	  Enable one error queue per thread. Requires thread local storage.
 
