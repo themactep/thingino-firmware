@@ -121,7 +121,9 @@ function updatePreview(data) {
 	ws.send('{"action":{"capture":null}}');
 }
 
-let ws = new WebSocket(`//${document.location.hostname}:8089?token=<%= $ws_token %>`);
+const wsPort = location.protocol === "https:" ? 8090 : 8089;
+let ws = new WebSocket(`//${document.location.hostname}:${wsPort}?token=<%= $ws_token %>`);
+
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
 	ws.binaryType = 'arraybuffer';

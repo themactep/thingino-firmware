@@ -333,7 +333,10 @@ const osd_params = ['enabled', 'font_color', 'font_path', 'font_size', 'font_str
 	'logo_enabled', 'time_enabled', 'time_format', 'uptime_enabled', 'user_text_enabled'];
 
 let sts;
-let ws = new WebSocket('//' + document.location.hostname + ':8089?token=<%= $ws_token %>');
+
+const wsPort = location.protocol === "https:" ? 8090 : 8089;
+let ws = new WebSocket('//' + location.hostname + ':' + wsPort + '?token=<%= $ws_token %>');
+
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
 	const stream_rq = '{' +
