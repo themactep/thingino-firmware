@@ -1,7 +1,7 @@
 $(info --- FILE: board.mk ---)
 
 LIST_OF_CAMERAS := $(shell find ./configs/cameras/* -type d | sort | \
-		   sed -E "s/^\.\/configs\/cameras\/(.*)/'\0' '\1'/")
+		   sed -E "s/^\.\/configs\/cameras\/(.*)/'\0'\/'\1'_defconfig '\1'/")
 
 BUILD_MEMO := /tmp/thingino-board.$(shell ps -o ppid $$PPID | tail -1 | xargs)
 
@@ -9,7 +9,7 @@ ifeq ($(BOARD),)
   ifeq ($(shell test -f $(BUILD_MEMO); echo $$?), 0)
     CAMERA_CONFIG = $(shell cat $(BUILD_MEMO))
     ifneq ($(CAMERA_CONFIG),)
-      BOARD ?= $(shell basename "$(CAMERA_CONFIG)")
+      BOARD ?= $(shell basename "$(CAMERA_CONFIG)" | sed -E "s/_defconfig//")
       ifeq ($(shell whiptail --yesno "Use $(BOARD)?" 20 76 3>&1 1>&2 2>&3; echo $$?),1)
         CAMERA_CONFIG =
         $(shell rm $(BUILD_MEMO))
@@ -35,8 +35,8 @@ else
   $(shell echo $(CAMERA_CONFIG) > $(BUILD_MEMO))
 endif
 
-BOARD ?= $(shell basename "$(CAMERA_CONFIG)")
-CAMERA_CONFIG_REAL := $(shell realpath "$(BR2_EXTERNAL)/$(CAMERA_CONFIG)/$(BOARD)_defconfig")
+BOARD ?= $(shell basename "$(CAMERA_CONFIG)" | sed -E "s/_defconfig//")
+CAMERA_CONFIG_REAL := $(shell realpath "$(BR2_EXTERNAL)/$(CAMERA_CONFIG)")
 $(info CAMERA_CONFIG_REAL = $(CAMERA_CONFIG_REAL))
 
 MODULE_CONFIG = $(shell awk '/MODULE:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(CAMERA_CONFIG_REAL))
