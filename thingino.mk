@@ -1004,9 +1004,6 @@ ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME),)
 	BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME := "u-boot-lzo-with-spl.bin"
 endif
 
-# FIXME requires U=Boot >= 2018.05
-#BR2_PACKAGE_THINGINO_UBOOT_DEFAULT_ENV_FILE=$(U_BOOT_ENV_TXT)
-
 UBOOT_REPO := https://github.com/gtxaspec/ingenic-u-boot-$(INGENIC_ARCH)
 
 ifeq ($(BR2_SOC_INGENIC_T40),y)

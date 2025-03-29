@@ -1,0 +1,14 @@
+gpio_button=102
+gpio_button_call=101
+gpio_default=100o 103o
+gpio_ir850=99
+gpio_ir850_sub=114
+gpio_ircut=66 67
+gpio_ircut_sub=68 69
+gpio_led_r=103O
+gpio_white=100
+gpio_mmc_cd=70
+gpio_motor_h=112 111 110 109
+gpio_motor_v=108 107 106 105
+gpio_speaker=63
+gpio_wlan=122O

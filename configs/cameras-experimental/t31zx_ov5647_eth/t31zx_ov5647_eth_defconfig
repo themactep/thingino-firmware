@@ -1,0 +1,5 @@
+# NAME: (T31ZX, OV5647, ETH)
+# FRAG: soc toolchain ccache brand rootfs kernel system target local
+BR2_SENSOR_OV5647=y
+BR2_SOC_INGENIC_T31ZX=y
+BR2_PACKAGE_USBNET=y

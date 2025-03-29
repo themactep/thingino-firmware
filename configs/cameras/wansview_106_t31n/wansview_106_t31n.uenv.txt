@@ -1,0 +1,5 @@
+gpio_default=53o
+gpio_default_net=
+gpio_ircut=
+gpio_led_r=53O
+gpio_mmc_cd=

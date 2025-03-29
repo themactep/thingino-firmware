@@ -1584,14 +1584,3 @@ config BR2_THINGINO_DEVICE_TYPE_SBC
 	  specific to this type.
 
 endchoice
-
-menu "U-Boot Environment Config"
-config U_BOOT_ENV_TXT
-	string "Path to U-Boot environment text file"
-	help
-	  Specify the path to your U-Boot environment configuration file.
-	  This file contains key-value pairs that will be written to the
-	  device's environment storage area during installation.
-	  The U-Boot environment variables control gpios, WLAN device selection,
-	  and other system configuration settings.
-endmenu

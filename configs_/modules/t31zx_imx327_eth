@@ -1,0 +1,6 @@
+# NAME: T31ZX, IMX327, ETH
+# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+BR2_ETHERNET=y
+BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13=y
+BR2_SENSOR_IMX327=y
+BR2_SOC_INGENIC_T31ZX=y

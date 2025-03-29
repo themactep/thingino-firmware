@@ -1,0 +1,14 @@
+gpio_button=6
+gpio_button_chime=7
+gpio_default=6i 7i 18O 38o 39o 49o 52o 53o 57O 59o 60o 61O 62O
+gpio_ir940=59
+gpio_ircut=53 52
+gpio_led_b=39O
+gpio_led_y=38O
+gpio_mmc_cd=-1
+gpio_speaker=58
+gpio_sub1g=61
+gpio_white=60
+gpio_wlan=57O
+pwm_ch_ir940=2
+pwm_ch_white=3

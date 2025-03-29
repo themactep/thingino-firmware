@@ -67,10 +67,10 @@ STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
 # handle the board
 include $(BR2_EXTERNAL)/board.mk
 
+export CAMERA
+
 # include thingino makefile
 include $(BR2_EXTERNAL)/thingino.mk
-
-export CAMERA
 
 # hardcoded variables
 WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=5
@@ -110,8 +110,8 @@ else
 U_BOOT_BIN = $(OUTPUT_DIR)/images/$(patsubst "%",%,$(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME))
 endif
 
-UB_ENV_FINAL_TXT = $(OUTPUT_DIR)/uenv.txt
-export UB_ENV_FINAL_TXT
+U_BOOT_ENV_TXT = $(OUTPUT_DIR)/uenv.txt
+export U_BOOT_ENV_TXT
 
 UB_ENV_BIN = $(OUTPUT_DIR)/images/u-boot-env.bin
 CONFIG_BIN := $(OUTPUT_DIR)/images/config.jffs2
@@ -120,7 +120,8 @@ ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
 ROOTFS_TAR := $(OUTPUT_DIR)/images/rootfs.tar
 EXTRAS_BIN := $(OUTPUT_DIR)/images/extras.jffs2
 
-# create a full binary file suffixed with the time of the last modification to either uboot, kernel, or rootfs
+# TODO: create a full binary file suffixed with the time of the last modification
+# to either uboot, kernel, or rootfs
 FIRMWARE_NAME_FULL = thingino-$(CAMERA).bin
 FIRMWARE_NAME_NOBOOT = thingino-$(CAMERA)-update.bin
 
@@ -210,11 +211,11 @@ bootstrap:
 	$(info -------------------------------- $@)
 	$(SCRIPTS_DIR)/dep_check.sh
 
-build: $(UB_ENV_FINAL_TXT)
+build: $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) all
 
-build_fast: $(UB_ENV_FINAL_TXT)
+build_fast: $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) -j$(shell nproc) all
 
@@ -414,24 +415,12 @@ endif
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 
-$(UB_ENV_FINAL_TXT): $(OUTPUT_DIR)/.config
+$(U_BOOT_ENV_TXT): $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
 	touch $@
-	if [ -f $(BR2_EXTERNAL)/configs/environment/00_master.uenv.txt ]; then \
-		grep -v '^#' $(BR2_EXTERNAL)/configs/environment/00_master.uenv.txt | tee $@; \
-	fi
-	if [ -f $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) ]; then \
-		grep -v '^#' $(BR2_EXTERNAL)$(shell sed -rn "s/^U_BOOT_ENV_TXT=\"\\\$$\(\w+\)(.+)\"/\1/p" $(OUTPUT_DIR)/.config) | while read line; do \
-			grep -F -x -q "$$line" $@ || echo "$$line" >> $@; \
-		done; \
-		if [ $(RELEASE) -ne 1 ]; then \
-			if [ -f $(BR2_EXTERNAL)/local.uenv.txt ]; then \
-				grep -v '^#' $(BR2_EXTERNAL)/local.uenv.txt | while read line; do \
-					grep -F -x -q "$$line" $@ || echo "$$line" >> $@; \
-				done; \
-			fi; \
-		fi; \
-	fi
+	grep -v '^#' $(BR2_EXTERNAL)/configs/common.uenv.txt | tee -a $@
+	grep -v '^#' $(BR2_EXTERNAL)/configs/cameras/$(CAMERA)/$(CAMERA).uenv.txt | tee -a $@
+	[ $(RELEASE) -ne 1 ] && grep -v '^#' $(BR2_EXTERNAL)/configs/local.uenv.txt | tee -a $@
 	sort -u -o $@ $@
 	sed -i '/^\s*$$/d' $@
 
@@ -456,7 +445,7 @@ $(U_BOOT_BIN):
 
 $(UB_ENV_BIN):
 	$(info -------------------------------- $@)
-	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(UB_ENV_FINAL_TXT)
+	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_TXT)
 
 # create config partition image
 $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep

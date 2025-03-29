@@ -1,0 +1,12 @@
+gpio_button=14
+gpio_ir850=50
+gpio_ircut=10 11
+gpio_led_w=9o
+gpio_mmc_cd=49
+gpio_motor_h=64 53 52 54
+gpio_motor_v=51 63 62 61
+gpio_speaker=7O
+gpio_white=59
+gpio_wlan=6O
+pwm_ch_ir850=2
+pwm_ch_white=3

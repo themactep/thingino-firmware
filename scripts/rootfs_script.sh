@@ -54,7 +54,7 @@ IMAGE_ID=${IMAGE_ID}
 BUILD_ID=\"${BUILD_ID}\"
 BUILD_TIME=\"${BUILD_TIME}\"
 COMMIT_ID=\"${COMMIT_ID}\"
-BOOTLOADER=$BOOTLOADER
+BOOTLOADER=${BOOTLOADER}
 HOSTNAME=${HOSTNAME}
 TIME_STAMP=$(date +%s)" | tee $FILE
 
@@ -73,10 +73,15 @@ SYSTEM_CONFIG=${TARGET_DIR}/etc/thingino.config
 touch $SYSTEM_CONFIG
 
 # Add the common configuration
-cat ${BR2_EXTERNAL}/configs/system/00_common.config | tee -a $SYSTEM_CONFIG
+cat ${BR2_EXTERNAL}/configs/common.config | tee -a $SYSTEM_CONFIG
 
 # Add the camera specific configuration
-cat ${BR2_EXTERNAL}/configs/system/${CAMERA}.config | tee -a $SYSTEM_CONFIG
+cat ${BR2_EXTERNAL}/configs/cameras/${CAMERA}/${CAMERA}.config | tee -a $SYSTEM_CONFIG
+
+# Add the development configuration
+if [ ${RELEASE} -ne 1 ] && [ -f ${BR2_EXTERNAL}/configs/local.config ]; then
+	cat ${BR2_EXTERNAL}/configs/local.config | tee -a $SYSTEM_CONFIG
+fi
 
 #
 # Remove unnecessary files

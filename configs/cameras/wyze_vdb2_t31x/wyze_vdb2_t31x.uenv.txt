@@ -1,0 +1,12 @@
+gpio_button=6
+gpio_button_chime=7
+gpio_default=25ID 26IDU 38o 39o
+gpio_ir940=60
+gpio_ircut=53 52
+gpio_led_b=39O
+gpio_led_y=38O
+gpio_mmc_cd=48
+gpio_mmc_power=47o 54o
+gpio_speaker=58
+gpio_sub1g=59
+gpio_wlan=57O
