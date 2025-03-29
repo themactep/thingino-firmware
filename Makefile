@@ -402,8 +402,8 @@ endif
 		$(FIGLET) "RELEASE"; \
 	else \
 		$(FIGLET) "DEVELOPMENT"; \
-		if [ -f $(BR2_EXTERNAL)/local.fragment ]; then \
-			cat $(BR2_EXTERNAL)/local.fragment >>$(OUTPUT_DIR)/.config; \
+		if [ -f $(BR2_EXTERNAL)/configs/local.fragment ]; then \
+			cat $(BR2_EXTERNAL)/configs/local.fragment >>$(OUTPUT_DIR)/.config; \
 		fi; \
 		if [ -f $(BR2_EXTERNAL)/local.mk ]; then \
 			cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; \
