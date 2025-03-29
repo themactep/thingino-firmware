@@ -26,37 +26,18 @@ define WIFI_B43_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_SSB_BLOCKIO)
 endef
 
-#WIFI_B43_MODULE_MAKE_OPTS = \
-#	KSRC=$(LINUX_DIR) \
-#	KVERSION=$(LINUX_VERSION_PROBED) \
-#	CONFIG_WLAN=y \
-#	CONFIG_WIRELESS=y \
-#	CONFIG_WIRELESS_EXT=y \
-#	CONFIG_WEXT_CORE=y \
-#	CONFIG_WEXT_PROC=y \
-#	CONFIG_WEXT_PRIV=y \
-#	CONFIG_CRYPTO=y \
-#	CONFIG_CFG80211=y \
-#	CONFIG_MAC80211=y \
-#	CONFIG_MAC80211_RC_MINSTREL=y \
-#	CONFIG_MAC80211_RC_MINSTREL_HT=y \
-#	CONFIG_MAC80211_RC_DEFAULT_MINSTREL=y \
-#	CONFIG_MAC80211_RC_DEFAULT="minstrel_ht" \
-#	CONFIG_SSB_POSSIBLE=y \
-#	CONFIG_MAC80211=y \
-#	CONFIG_HAS_DMA=y \
-#	CONFIG_SSB_SDIOHOST_POSSIBLE=y \
-#	CONFIG_SSB_SDIOHOST=y \
-#	CONFIG_B43=m \
-#	CONFIG_B43_SDIO=y \
-#	B43_SDIO=y
-
 define WIFI_B43_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/lib/firmware
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/firmware $(WIFI_B43_PKGDIR)/files/fw_bcm43436b0.bin
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/firmware $(WIFI_B43_PKGDIR)/files/fw_bcm43438a1.bin
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/firmware $(WIFI_B43_PKGDIR)/files/nv_bcm43436b0.txt
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/firmware $(WIFI_B43_PKGDIR)/files/nv_bcm43438a1.txt
+	$(INSTALL) -D -m 0644 $(WIFI_B43_PKGDIR)/files/fw_bcm43436b0.bin \
+		$(TARGET_DIR)/usr/lib/firmware/fw_bcm43436b0.bin
+
+	$(INSTALL) -D -m 0644 $(WIFI_B43_PKGDIR)/files/fw_bcm43438a1.bin \
+		$(TARGET_DIR)/usr/lib/firmware/fw_bcm43438a1.bin
+
+	$(INSTALL) -D -m 0644 $(WIFI_B43_PKGDIR)/files/nv_bcm43436b0.txt \
+		$(TARGET_DIR)/usr/lib/firmware/nv_bcm43436b0.txt
+
+	$(INSTALL) -D -m 0644 $(WIFI_B43_PKGDIR)/files/nv_bcm43438a1.txt \
+		$(TARGET_DIR)/usr/lib/firmware/nv_bcm43438a1.txt
 endef
 
 $(eval $(kernel-module))

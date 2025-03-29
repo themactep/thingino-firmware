@@ -6,8 +6,9 @@ define THINGINO_FONTS_EXTRACT_CMDS
 endef
 
 define THINGINO_FONTS_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/fonts/
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/fonts/ $(@D)/*.ttf
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/share/fonts/
+	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/fonts/ \
+		$(@D)/*.ttf
 endef
 
 $(eval $(generic-package))

@@ -17,15 +17,19 @@ else
 endif
 
 define INGENIC_LIB_INSTALL_STAGING_CMDS
-	$(INSTALL) -m 755 -d $(STAGING_DIR)/usr/lib
-	$(INSTALL) -m 644 -t $(STAGING_DIR)/usr/lib/ $(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/*.so; \
-	$(INSTALL) -m 644 -t $(STAGING_DIR)/usr/lib/ $(LIBALOG_FILE)
+	$(INSTALL) -D -m 0644 $(LIBALOG_FILE) \
+		$(STAGING_DIR)/usr/lib/libalog.so
+
+	$(INSTALL) -m 0644 -t $(STAGING_DIR)/usr/lib/ \
+		$(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/*.so
 endef
 
 define INGENIC_LIB_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/lib
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/ $(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/*.so; \
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/lib/ $(LIBALOG_FILE)
+	$(INSTALL) -D -m 0644 $(LIBALOG_FILE) \
+		$(TARGET_DIR)/usr/lib/libalog.so
+
+	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/lib/ \
+		$(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/*.so
 endef
 
 $(eval $(generic-package))

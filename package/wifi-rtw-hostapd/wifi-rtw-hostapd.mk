@@ -142,11 +142,13 @@ define WIFI_RTW_HOSTAPD_BUILD_CMDS
 endef
 
 define WIFI_RTW_HOSTAPD_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 0755 -D $(@D)/$(WIFI_RTW_HOSTAPD_SUBDIR)/hostapd \
+	$(INSTALL) -D -m 0755 $(@D)/$(WIFI_RTW_HOSTAPD_SUBDIR)/hostapd \
 		$(TARGET_DIR)/usr/sbin/hostapd
-	$(INSTALL) -m 0755 -D $(@D)/$(WIFI_RTW_HOSTAPD_SUBDIR)/hostapd_cli \
+
+	$(INSTALL) -D -m 0755 $(@D)/$(WIFI_RTW_HOSTAPD_SUBDIR)/hostapd_cli \
 		$(TARGET_DIR)/usr/bin/hostapd_cli
-	$(INSTALL) -m 0644 -D $(@D)/$(WIFI_RTW_HOSTAPD_SUBDIR)/hostapd.conf \
+
+	$(INSTALL) -D -m 0644 $(@D)/$(WIFI_RTW_HOSTAPD_SUBDIR)/hostapd.conf \
 		$(TARGET_DIR)/etc/hostapd.conf
 endef
 $(eval $(generic-package))

@@ -13,11 +13,13 @@ endef
 
 TARGET_MODULES_PATH = $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
 define EXFAT_NOFUSE_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 755 -d $(TARGET_MODULES_PATH)
+	$(INSTALL) -m 0755 -d $(TARGET_MODULES_PATH)
 	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
-	$(INSTALL) -m 755 -d $(TARGET_MODULES_PATH)/extra
-	$(INSTALL) -m 0644 -t $(TARGET_MODULES_PATH)/extra/ $(@D)/exfat.ko
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
+
+	$(INSTALL) -D -m 0644 $(@D)/exfat.ko \
+		$(TARGET_MODULES_PATH)/extra/exfat.ko
+
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc
 	echo exfat >> $(TARGET_DIR)/etc/modules
 endef
 

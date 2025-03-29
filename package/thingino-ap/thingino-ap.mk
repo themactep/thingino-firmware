@@ -1,15 +1,21 @@
 define THINGINO_AP_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(THINGINO_AP_PKGDIR)/files/dnsd-ap.conf
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(THINGINO_AP_PKGDIR)/files/udhcpd-ap.conf
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(THINGINO_AP_PKGDIR)/files/resolv-ap.conf
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/etc/ $(THINGINO_AP_PKGDIR)/files/wpa-ap.conf
+	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/dnsd-ap.conf \
+		$(TARGET_DIR)/etc/dnsd-ap.conf
 
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
-	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d/ $(THINGINO_AP_PKGDIR)/files/S42wifiap
+	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/udhcpd-ap.conf \
+		$(TARGET_DIR)/etc/udhcpd-ap.conf
 
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/sbin
-	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/sbin/ $(THINGINO_AP_PKGDIR)/files/hosts-update
+	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/resolv-ap.conf \
+		$(TARGET_DIR)/etc/resolv-ap.conf
+
+	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/wpa-ap.conf \
+		$(TARGET_DIR)/etc/wpa-ap.conf
+
+	$(INSTALL) -D -m 0755 $(THINGINO_AP_PKGDIR)/files/S42wifiap \
+		$(TARGET_DIR)/etc/init.d/S42wifiap
+
+	$(INSTALL) -D -m 0755 $(THINGINO_AP_PKGDIR)/files/hosts-update \
+		$(TARGET_DIR)/usr/sbin/hosts-update
 endef
 
 $(eval $(generic-package))

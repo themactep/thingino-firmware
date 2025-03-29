@@ -96,25 +96,26 @@ endef
 define install_sensor_bin
 	if [ "$(1)" != "" ]; then \
 		$(if $(filter-out $(SENSOR_MODEL_2),$(1)),ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor;) \
-		$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/sensor; \
 		if [ "$(SOC_FAMILY)" = "t23" ]; then \
-			$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/1.1.2/$(2).bin $(TARGET_DIR)/usr/share/sensor/$(3); \
+			$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/1.1.2/$(2).bin \
+				$(TARGET_DIR)/usr/share/sensor/$(3); \
 		else \
-			$(INSTALL) -m 644 -D $(@D)/sensor-iq/$(SOC_FAMILY)/$(2).bin $(TARGET_DIR)/usr/share/sensor/$(3); \
+			$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/$(2).bin \
+				$(TARGET_DIR)/usr/share/sensor/$(3); \
 		fi; \
 		$(if $(filter-out $(SENSOR_MODEL_2),$(1)),echo $(1) > $(TARGET_DIR)/usr/share/sensor/model;) \
 	fi
 endef
 
 define INGENIC_SDK_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 755 -d $(TARGET_MODULES_PATH)
+	$(INSTALL) -m 0755 -d $(TARGET_MODULES_PATH)
 	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
 
 	$(call install_sensor_bin,$(SENSOR_MODEL),$(SENSOR_MODEL),$(SENSOR_CONFIG_NAME))
 	$(call install_sensor_bin,$(SENSOR_MODEL_1),$(SENSOR_1_BIN_NAME),$(SENSOR_CONFIG_NAME))
 	$(call install_sensor_bin,$(SENSOR_MODEL_2),$(SENSOR_1_BIN_NAME),$(SENSOR_2_CONFIG_NAME))
 
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/modules.d
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
 
 	if [ "$(SOC_FAMILY)" = "t23" ]; then \
 		echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) isp_clk=$(ISP_CLK) $(ISP_CLKA_CLK_SRC) isp_clka=$(ISP_CLKA_CLK) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
@@ -127,10 +128,11 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	fi
 
 	if [ "$(BR2_THINGINO_AUDIO)" = "y" ]; then \
-		$(INSTALL) -m 644 -D $(@D)/config/webrtc_profile.ini $(TARGET_DIR)/etc/; \
+		$(INSTALL) -D -m 0644 $(@D)/config/webrtc_profile.ini \
+			$(TARGET_DIR)/etc/; \
 		$(GENERATE_AUDIO_CONFIG); \
-		$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/sbin; \
-		$(INSTALL) -m 755 -D $(INGENIC_SDK_PKGDIR)/files/speaker-ctrl $(TARGET_DIR)/usr/sbin/speaker-ctrl; \
+		$(INSTALL) -D -m 0755 $(INGENIC_SDK_PKGDIR)/files/speaker-ctrl \
+			$(TARGET_DIR)/usr/sbin/speaker-ctrl; \
 	fi
 
 	if [ "$(BR2_THINGINO_PWM_ENABLE)" = "y" ]; then \

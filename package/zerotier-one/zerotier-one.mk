@@ -27,10 +27,12 @@ endef
 
 define ZEROTIER_ONE_INSTALL_TARGET_CMDS
 	$(MAKE) -C $(@D) DESTDIR=$(TARGET_DIR) install
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
-	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d/ $(ZEROTIER_ONE_PKGDIR)/files/S90zerotier
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/www/x
-	$(INSTALL) -m 755 -t $(TARGET_DIR)/var/www/x/ $(ZEROTIER_ONE_PKGDIR)/files/service-zerotier.cgi
+
+	$(INSTALL) -D -m 0755 $(ZEROTIER_ONE_PKGDIR)/files/S90zerotier \
+		$(TARGET_DIR)/etc/init.d/S90zerotier
+
+	$(INSTALL) -D -m 0755 $(ZEROTIER_ONE_PKGDIR)/files/service-zerotier.cgi \
+		$(TARGET_DIR)/var/www/x/service-zerotier.cgi
 endef
 
 $(eval $(generic-package))

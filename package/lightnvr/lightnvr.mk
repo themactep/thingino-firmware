@@ -14,18 +14,27 @@ LIGHTNVR_DEPENDENCIES = thingino-ffmpeg thingino-libcurl sqlite
 define LIGHTNVR_INSTALL_APP_FILES
 	$(INSTALL) -d $(TARGET_DIR)/var/nvr
 	cp -r $(@D)/web $(TARGET_DIR)/var/nvr/
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/lightnvr
-	$(INSTALL) -m 644 $(@D)/config/lightnvr.ini $(TARGET_DIR)/etc/lightnvr/lightnvr.ini
-	$(INSTALL) -D -m 0755 $(@D)/bin/lightnvr $(TARGET_DIR)/usr/bin/lightnvr
-	$(INSTALL) -m 0755 -D $(LIGHTNVR_PKGDIR)/files/S95lightnvr $(TARGET_DIR)/etc/init.d/S95lightnvr
+
+	$(INSTALL) -D -m 0644 $(@D)/config/lightnvr.ini \
+		$(TARGET_DIR)/etc/lightnvr/lightnvr.ini
+
+	$(INSTALL) -D -m 0755 $(@D)/bin/lightnvr \
+		$(TARGET_DIR)/usr/bin/lightnvr
+
+	$(INSTALL) -D -m 0755 $(LIGHTNVR_PKGDIR)/files/S95lightnvr \
+		$(TARGET_DIR)/etc/init.d/S95lightnvr
 endef
 
 # libsod libraries installation
 define LIGHTNVR_INSTALL_LIBSOD
-	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/lib
-	$(INSTALL) -m 0755 $(@D)/src/sod/libsod.so.1.1.9 $(TARGET_DIR)/usr/lib/
-	$(INSTALL) -m 0755 -D $(@D)/src/sod/libsod.so.1 $(TARGET_DIR)/usr/lib/
-	$(INSTALL) -m 0755 -D $(@D)/src/sod/libsod.so $(TARGET_DIR)/usr/lib/
+	$(INSTALL) -D -m 0755 $(@D)/src/sod/libsod.so.1.1.9 \
+		$(TARGET_DIR)/usr/lib/libsod.so.1.1.9
+
+	$(INSTALL) -D -m 0755 $(@D)/src/sod/libsod.so.1 \
+		$(TARGET_DIR)/usr/lib/libsod.so.1
+
+	$(INSTALL) -D -m 0755 $(@D)/src/sod/libsod.so \
+		$(TARGET_DIR)/usr/lib/libsod.so
 endef
 
 define LIGHTNVR_INSTALL_TARGET_CMDS

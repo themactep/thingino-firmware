@@ -16,7 +16,8 @@ define RAPTOR_IPC_BUILD_CMDS
 endef
 
 define RAPTOR_IPC_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 0755 -t $(TARGET_DIR)/usr/bin $(@D)/raptor
+	$(INSTALL) -D -m 0755 $(@D)/raptor \
+		$(TARGET_DIR)/usr/bin/raptor
 endef
 
 $(eval $(generic-package))

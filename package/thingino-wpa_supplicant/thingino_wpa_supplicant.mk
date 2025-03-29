@@ -178,7 +178,7 @@ ifeq ($(BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_DBUS),y)
 THINGINO_WPA_SUPPLICANT_DEPENDENCIES += host-pkgconf dbus
 THINGINO_WPA_SUPPLICANT_CONFIG_ENABLE += CONFIG_CTRL_IFACE_DBUS_NEW
 define THINGINO_WPA_SUPPLICANT_INSTALL_DBUS_NEW
-	$(INSTALL) -m 0644 -D \
+	$(INSTALL) -D -m 0644 \
 		$(@D)/wpa_supplicant/dbus/$(THINGINO_WPA_SUPPLICANT_DBUS_SERVICE).service \
 		$(TARGET_DIR)/usr/share/dbus-1/system-services/$(THINGINO_WPA_SUPPLICANT_DBUS_SERVICE).service
 endef
@@ -209,15 +209,15 @@ endif
 ifeq ($(BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_WPA_CLIENT_SO),y)
 THINGINO_WPA_SUPPLICANT_CONFIG_ENABLE += CONFIG_BUILD_WPA_CLIENT_SO
 define THINGINO_WPA_SUPPLICANT_INSTALL_WPA_CLIENT_SO
-	$(INSTALL) -m 0644 -D $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/libwpa_client.so \
+	$(INSTALL) -D -m 0644 $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/libwpa_client.so \
 		$(TARGET_DIR)/usr/lib/libwpa_client.so
-	$(INSTALL) -m 0644 -D $(@D)/src/common/wpa_ctrl.h \
+	$(INSTALL) -D -m 0644 $(@D)/src/common/wpa_ctrl.h \
 		$(TARGET_DIR)/usr/include/wpa_ctrl.h
 endef
 define THINGINO_WPA_SUPPLICANT_INSTALL_STAGING_WPA_CLIENT_SO
-	$(INSTALL) -m 0644 -D $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/libwpa_client.so \
+	$(INSTALL) -D -m 0644 $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/libwpa_client.so \
 		$(STAGING_DIR)/usr/lib/libwpa_client.so
-	$(INSTALL) -m 0644 -D $(@D)/src/common/wpa_ctrl.h \
+	$(INSTALL) -D -m 0644 $(@D)/src/common/wpa_ctrl.h \
 		$(STAGING_DIR)/usr/include/wpa_ctrl.h
 endef
 endif
@@ -247,21 +247,21 @@ endef
 
 ifeq ($(BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_CLI),y)
 define THINGINO_WPA_SUPPLICANT_INSTALL_CLI
-	$(INSTALL) -m 0755 -D $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/wpa_cli \
+	$(INSTALL) -D -m 0755 $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/wpa_cli \
 		$(TARGET_DIR)/usr/sbin/wpa_cli
 endef
 endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_PASSPHRASE),y)
 define THINGINO_WPA_SUPPLICANT_INSTALL_PASSPHRASE
-	$(INSTALL) -m 0755 -D $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/wpa_passphrase \
+	$(INSTALL) -D -m 0755 $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/wpa_passphrase \
 		$(TARGET_DIR)/usr/sbin/wpa_passphrase
 endef
 endif
 
 ifeq ($(BR2_PACKAGE_DBUS),y)
 define THINGINO_WPA_SUPPLICANT_INSTALL_DBUS
-	$(INSTALL) -m 0644 -D \
+	$(INSTALL) -D -m 0644 \
 		$(@D)/wpa_supplicant/dbus/dbus-wpa_supplicant.conf \
 		$(TARGET_DIR)/etc/dbus-1/system.d/wpa_supplicant.conf
 	$(THINGINO_WPA_SUPPLICANT_INSTALL_DBUS_NEW)
@@ -274,7 +274,7 @@ endef
 
 ifeq ($(BR2_PACKAGE_IFUPDOWN_SCRIPTS),y)
 define THINGINO_WPA_SUPPLICANT_INSTALL_IFUP_SCRIPTS
-	$(INSTALL) -m 0755 -D package/wpa_supplicant/ifupdown.sh \
+	$(INSTALL) -D -m 0755 package/wpa_supplicant/ifupdown.sh \
 		$(TARGET_DIR)/etc/network/if-up.d/wpasupplicant
 	mkdir -p $(TARGET_DIR)/etc/network/if-down.d
 	ln -sf ../if-up.d/wpasupplicant \
@@ -283,9 +283,9 @@ endef
 endif
 
 define THINGINO_WPA_SUPPLICANT_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 0755 -D $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/wpa_supplicant \
+	$(INSTALL) -D -m 0755 $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/wpa_supplicant \
 		$(TARGET_DIR)/usr/sbin/wpa_supplicant
-	$(INSTALL) -m 644 -D package/wpa_supplicant/wpa_supplicant.conf \
+	$(INSTALL) -D -m 0644 package/wpa_supplicant/wpa_supplicant.conf \
 		$(TARGET_DIR)/etc/wpa_supplicant.conf
 	$(THINGINO_WPA_SUPPLICANT_INSTALL_CLI)
 	$(THINGINO_WPA_SUPPLICANT_INSTALL_PASSPHRASE)
@@ -296,15 +296,15 @@ define THINGINO_WPA_SUPPLICANT_INSTALL_TARGET_CMDS
 endef
 
 define THINGINO_WPA_SUPPLICANT_INSTALL_INIT_SYSTEMD
-	$(INSTALL) -m 0644 -D $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/systemd/wpa_supplicant.service \
+	$(INSTALL) -D -m 0644 $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/systemd/wpa_supplicant.service \
 		$(TARGET_DIR)/usr/lib/systemd/system/wpa_supplicant.service
-	$(INSTALL) -m 0644 -D $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/systemd/wpa_supplicant@.service \
+	$(INSTALL) -D -m 0644 $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/systemd/wpa_supplicant@.service \
 		$(TARGET_DIR)/usr/lib/systemd/system/wpa_supplicant@.service
-	$(INSTALL) -m 0644 -D $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/systemd/wpa_supplicant-nl80211@.service \
+	$(INSTALL) -D -m 0644 $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/systemd/wpa_supplicant-nl80211@.service \
 		$(TARGET_DIR)/usr/lib/systemd/system/wpa_supplicant-nl80211@.service
-	$(INSTALL) -m 0644 -D $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/systemd/wpa_supplicant-wired@.service \
+	$(INSTALL) -D -m 0644 $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/systemd/wpa_supplicant-wired@.service \
 		$(TARGET_DIR)/usr/lib/systemd/system/wpa_supplicant-wired@.service
-	$(INSTALL) -D -m 644 $(THINGINO_WPA_SUPPLICANT_PKGDIR)/50-wpa_supplicant.preset \
+	$(INSTALL) -D -m 0644 $(THINGINO_WPA_SUPPLICANT_PKGDIR)/50-wpa_supplicant.preset \
 		$(TARGET_DIR)/usr/lib/systemd/system-preset/50-wpa_supplicant.preset
 endef
 

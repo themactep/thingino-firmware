@@ -13,8 +13,8 @@ ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 endif
 
 INGENIC_AUDIODAEMON_LDFLAGS = $(TARGET_LDFLAGS) \
-        -L$(STAGING_DIR)/usr/lib \
-        -L$(TARGET_DIR)/usr/lib
+	-L$(STAGING_DIR)/usr/lib \
+	-L$(TARGET_DIR)/usr/lib
 
 define INGENIC_AUDIODAEMON_BUILD_CMDS
 	$(MAKE) version -C $(@D)
@@ -34,9 +34,15 @@ define INGENIC_AUDIODAEMON_BUILD_CMDS
 endef
 
 define INGENIC_AUDIODAEMON_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 0755 -D $(INGENIC_AUDIODAEMON_PKGDIR)/files/S96iad $(TARGET_DIR)/etc/init.d/S96iad
-	$(INSTALL) -m 0755 -D $(@D)/build/bin/* $(TARGET_DIR)/usr/bin/
-	$(INSTALL) -m 0644 -D $(@D)/config/iad.json $(TARGET_DIR)/etc/iad.json
+	$(INSTALL) -D -m 0644 $(@D)/config/iad.json \
+		$(TARGET_DIR)/etc/iad.json
+
+	$(INSTALL) -D -m 0755 $(INGENIC_AUDIODAEMON_PKGDIR)/files/S96iad \
+		$(TARGET_DIR)/etc/init.d/S96iad
+
+	$(INSTALL) -m 0755 -t $(TARGET_DIR)/usr/bin/ \
+		$(@D)/build/bin/*
+
 	sed -i '/"AI_attributes": {/,/}/{s/"enabled": true/"enabled": false/}' $(TARGET_DIR)/etc/iad.json
 endef
 

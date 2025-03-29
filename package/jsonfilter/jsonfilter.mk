@@ -8,7 +8,8 @@ JSONFILTER_LICENSE = ISC, BSD-3-Clause
 JSONFILTER_DEPENDENCIES = json-c libubox
 
 define JSONFILTER_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 0755 -D $(@D)/jsonpath $(TARGET_DIR)/usr/bin/jsonfilter
+	$(INSTALL) -D -m 0755 $(@D)/jsonpath \
+		$(TARGET_DIR)/usr/bin/jsonfilter
 endef
 
 $(eval $(cmake-package))

@@ -36,12 +36,16 @@ define WIFI_ATBM6041_LINUX_CONFIG_FIXUPS
 endef
 
 LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
+
 define WIFI_ATBM6041_INSTALL_CONFIGS
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)
 	touch $(TARGET_DIR)/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)/modules.builtin.modinfo
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/wifi
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/wifi $(WIFI_ATBM60XX_PKGDIR)/files/*.txt
+
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/share/wifi
+	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/wifi \
+		$(WIFI_ATBM60XX_PKGDIR)/files/*.txt
 endef
+
 WIFI_ATBM6041_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6041_INSTALL_CONFIGS
 
 $(eval $(kernel-module))

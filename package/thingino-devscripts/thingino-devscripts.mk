@@ -1,9 +1,15 @@
 define THINGINO_DEVSCRIPTS_INSTALL_TARGET_CMDS
-        $(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/sbin
-        $(INSTALL) -m 0755 -t $(TARGET_DIR)/usr/sbin $(THINGINO_DEVSCRIPTS_PKGDIR)/files/daylightsample
-        $(INSTALL) -m 0755 -t $(TARGET_DIR)/usr/sbin $(THINGINO_DEVSCRIPTS_PKGDIR)/files/gpioscan
-        $(INSTALL) -m 0755 -t $(TARGET_DIR)/usr/sbin $(THINGINO_DEVSCRIPTS_PKGDIR)/files/speakerseeker
-        $(INSTALL) -m 0755 -t $(TARGET_DIR)/usr/sbin $(THINGINO_DEVSCRIPTS_PKGDIR)/files/ticklemotor
+	$(INSTALL) -D -m 0755 $(THINGINO_DEVSCRIPTS_PKGDIR)/files/daylightsample \
+		$(TARGET_DIR)/usr/sbin/daylightsample
+
+	$(INSTALL) -D -m 0755 $(THINGINO_DEVSCRIPTS_PKGDIR)/files/gpioscan \
+		$(TARGET_DIR)/usr/sbin/gpioscan
+
+	$(INSTALL) -D -m 0755 $(THINGINO_DEVSCRIPTS_PKGDIR)/files/speakerseeker \
+		$(TARGET_DIR)/usr/sbin/speakerseeker
+
+	$(INSTALL) -D -m 0755 $(THINGINO_DEVSCRIPTS_PKGDIR)/files/ticklemotor \
+		$(TARGET_DIR)/usr/sbin/ticklemotor
 endef
 
 $(eval $(generic-package))

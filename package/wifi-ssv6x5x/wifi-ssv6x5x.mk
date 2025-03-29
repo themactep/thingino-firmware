@@ -54,8 +54,9 @@ define WIFI_SSV6X5X_LINUX_CONFIG_FIXUPS
 endef
 
 define WIFI_SSV6X5X_COPY_CONFIG
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/wifi
-	$(INSTALL) -m 644 $(WIFI_SSV6X5X_PKGDIR)/files/* $(TARGET_DIR)/usr/share/wifi
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/share/wifi
+	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/wifi \
+		$(WIFI_SSV6X5X_PKGDIR)/files/*
 endef
 
 WIFI_SSV6X5X_PRE_CONFIGURE_HOOKS += WIFI_SSV6X5X_COPY_CONFIG

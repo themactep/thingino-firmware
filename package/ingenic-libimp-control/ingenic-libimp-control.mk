@@ -9,10 +9,14 @@ define INGENIC_LIBIMP_CONTROL_BUILD_CMDS
 endef
 
 define INGENIC_LIBIMP_CONTROL_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0755 $(@D)/libimp_control.so $(TARGET_DIR)/usr/lib
-	$(INSTALL) -m 755 -t $(TARGET_DIR)/usr/sbin $(INGENIC_LIBIMP_CONTROL_PKGDIR)/src/imp-control
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/init.d
-	$(INSTALL) -m 755 -t $(TARGET_DIR)/etc/init.d $(INGENIC_LIBIMP_CONTROL_PKGDIR)/src/S96impconfig
+	$(INSTALL) -D -m 0755 $(@D)/libimp_control.so \
+		$(TARGET_DIR)/usr/lib/libimp_control.so
+
+	$(INSTALL) -D -m 0755 $(INGENIC_LIBIMP_CONTROL_PKGDIR)/src/imp-control \
+		$(TARGET_DIR)/usr/sbin/imp-control
+
+	$(INSTALL) -D -m 0755 $(INGENIC_LIBIMP_CONTROL_PKGDIR)/src/S96impconfig \
+		$(TARGET_DIR)/etc/init.d/S96impconfig
 endef
 
 $(eval $(generic-package))

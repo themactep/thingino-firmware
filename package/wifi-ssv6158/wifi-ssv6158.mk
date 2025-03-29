@@ -26,9 +26,10 @@ define WIFI_SSV6158_LINUX_CONFIG_FIXUPS
 endef
 
 define WIFI_SSV6158_COPY_CONFIG
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/usr/share/wifi
-	$(INSTALL) -m 644 -t $(TARGET_DIR)/usr/share/wifi $(WIFI_SSV6158_PKGDIR)/files/ssv6x5x-wifi.cfg
+	$(INSTALL) -D -m 0644 $(WIFI_SSV6158_PKGDIR)/files/ssv6x5x-wifi.cfg \
+		$(TARGET_DIR)/usr/share/wifi/ssv6x5x-wifi.cfg
 endef
+
 WIFI_SSV6158_PRE_CONFIGURE_HOOKS += WIFI_SSV6158_COPY_CONFIG
 
 $(eval $(kernel-module))

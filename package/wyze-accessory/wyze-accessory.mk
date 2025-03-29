@@ -7,26 +7,30 @@ define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_DOORBELL_CTRL
 endef
 
 define WYZE_ACCESSORY_INSTALL_DOORBELL_BUTTON_CONF
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc
 	echo -e "KEY_1 RELEASE 0 doorbell_ctrl $(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL_MAC) 15 1\nKEY_1 TIMED 0.1 iac -f /usr/share/sounds/th-doorbell_3.pcm" \
 		>> $(TARGET_DIR)/etc/thingino-button.conf
 	#echo -e "61 high doorbell chime" >> $(TARGET_DIR)/etc/gpio.conf
 endef
 
 define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_FLOODLIGHT
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/modules.d
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
 	echo ch341 >> $(TARGET_DIR)/etc/modules.d/accessory
 	echo snd-usb-audio >> $(TARGET_DIR)/etc/modules.d/accessory
 endef
 
 define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_SPOTLIGHT
-	$(INSTALL) -m 755 -D $(WYZE_ACCESSORY_PKGDIR)/files/spotlight_ctl $(TARGET_DIR)/usr/sbin/spotlight_ctl
-	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/modules.d
+	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/spotlight_ctl \
+		$(TARGET_DIR)/usr/sbin/spotlight_ctl
+
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
 	echo ch341 >> $(TARGET_DIR)/etc/modules.d/accessory
 endef
 
 define WYZE_ACCESSORY_INSTALL_TARGET_CMDS_CAR
-	$(INSTALL) -m 0755 -D $(WYZE_ACCESSORY_PKGDIR)/files/car_control $(TARGET_DIR)/usr/sbin/car_control
+	$(INSTALL) -D -m 0755 $(WYZE_ACCESSORY_PKGDIR)/files/car_control \
+		$(TARGET_DIR)/usr/sbin/car_control
+
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
 	echo cp210x >> $(TARGET_DIR)/etc/modules.d/accessory
 endef

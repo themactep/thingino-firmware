@@ -113,12 +113,13 @@ ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_BROKER),y)
 define THINGINO_MOSQUITTO_INSTALL_INIT_SYSV
 	$(INSTALL) -D -m 0755 package/mosquitto/S50mosquitto \
 		$(TARGET_DIR)/etc/init.d/S50mosquitto
+
 	$(INSTALL) -D -m 0644 $(@D)/mosquitto.conf \
 		$(TARGET_DIR)/etc/mosquitto/mosquitto.conf
 endef
 
 define THINGINO_MOSQUITTO_INSTALL_INIT_SYSTEMD
-	$(INSTALL) -D -m 644 $(@D)/service/systemd/mosquitto.service.notify \
+	$(INSTALL) -D -m 0644 $(@D)/service/systemd/mosquitto.service.notify \
 		$(TARGET_DIR)/usr/lib/systemd/system/mosquitto.service
 endef
 

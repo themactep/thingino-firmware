@@ -312,7 +312,8 @@ endif
 # legal-info finds it
 define THINGINO_UBOOT_COPY_OLD_LICENSE_FILE
 	if [ -f $(@D)/COPYING ]; then \
-		$(INSTALL) -m 0644 -D $(@D)/COPYING $(@D)/Licenses/gpl-2.0.txt; \
+		$(INSTALL) -D -m 0644 $(@D)/COPYING \
+			$(@D)/Licenses/gpl-2.0.txt; \
 	fi
 endef
 

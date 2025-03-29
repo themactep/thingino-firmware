@@ -32,18 +32,25 @@ define FAAC_CONFIGURE_CMDS
 endef
 
 define FAAC_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/lib
-	$(INSTALL) -m 0755 -D $(@D)/libfaac/.libs/libfaac.so.0.0.0 $(TARGET_DIR)/usr/lib/
+	$(INSTALL) -D -m 0755 $(@D)/libfaac/.libs/libfaac.so.0.0.0 \
+		$(TARGET_DIR)/usr/lib/libfaac.so.0.0.0
+
 	ln -sf libfaac.so.0.0.0 $(TARGET_DIR)/usr/lib/libfaac.so.0
 	ln -sf libfaac.so.0.0.0 $(TARGET_DIR)/usr/lib/libfaac.so
 endef
 
 define FAAC_INSTALL_STAGING_CMDS
-	$(INSTALL) -m 0755 -D $(@D)/libfaac/.libs/libfaac.so.0.0.0 $(STAGING_DIR)/usr/lib/
+	$(INSTALL) -D -m 0644 $(@D)/include/faac.h \
+		$(STAGING_DIR)/usr/include/faac.h
+
+	$(INSTALL) -D -m 0644 $(@D)/include/faaccfg.h \
+		$(STAGING_DIR)/usr/include/faaccfg.h
+
+	$(INSTALL) -D -m 0755 $(@D)/libfaac/.libs/libfaac.so.0.0.0 \
+		$(STAGING_DIR)/usr/lib/libfaac.so.0.0.0
+
 	ln -sf libfaac.so.0.0.0 $(STAGING_DIR)/usr/lib/libfaac.so.0
 	ln -sf libfaac.so.0.0.0 $(STAGING_DIR)/usr/lib/libfaac.so
-	$(INSTALL) -m 0644 -D $(@D)/include/faac.h $(STAGING_DIR)/usr/include/faac.h
-	$(INSTALL) -m 0644 -D $(@D)/include/faaccfg.h $(STAGING_DIR)/usr/include/faaccfg.h
 endef
 
 $(eval $(autotools-package))
