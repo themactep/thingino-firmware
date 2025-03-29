@@ -71,7 +71,6 @@ if post_request_expired; then
 	http_redirect="Location: $SCRIPT_NAME"
 
 elif post_request; then
-	tzfrombrowser="$POST_tzfrombrowser"
 	hostname="$POST_hostname"
 	rootpass="$POST_rootpass"
 	rootpkey="$POST_rootpkey"
@@ -82,7 +81,7 @@ elif post_request; then
 	wlan_pass="$POST_wlan_pass"
 	wlan_ssid="$POST_wlan_ssid"
 
-        bad_chars=$(echo "$hostname" | sed 's/[0-9A-Z\.-]//ig')
+	bad_chars=$(echo "$hostname" | sed 's/[0-9A-Z\.-]//ig')
 	[ -z "$bad_chars" ] || set_error "Hostname cannot contain $bad_chars"
 
 	if [ -z "$error_message" ] && post_request_to_save; then
@@ -127,8 +126,6 @@ elif post_request; then
 	fi
 
 elif get_request; then
-	[ -z "$tzfrombrowser" ] && tzfrombrowser="true"
-
 	http_header="HTTP/1.1 200 OK"
 	http_redirect=""
 fi
@@ -222,13 +219,6 @@ h2 {font-size:1.3rem}
 <textarea class="form-control bg-light text-dark text-break" name="rootpkey" id="rootpkey" rows="3"><%= $rootpkey %></textarea>
 </div>
 </div>
-<div class="my-3">
-<div class="form-check form-switch">
-<input class="form-check-input" type="checkbox" role="switch" id="tzfrombrowser" name="tzfrombrowser" value="true"<% [ "false" != "$tzfrombrowser" ] && echo " checked" %>>
-<label class="form-check-label" for="tzfrombrowser">Pick up time zone from the browser</label>
-<span id="timezonename"></span>
-</div>
-</div>
 <ul class="nav nav-underline mb-3" role="tablist">
 <li class="nav-item" role="presentation"><button type="button" role="tab" class="nav-link active" aria-current="page" data-bs-toggle="tab" data-bs-target="#wlan-tab-pane" id="wlan-tab">Wi-Fi Network</button></li>
 <li class="nav-item" role="presentation"><button type="button" role="tab" class="nav-link" data-bs-toggle="tab" data-bs-target="#wlanap-tab-pane" id="wlanap-tab">Wi-Fi Access Point</button></li>
@@ -273,9 +263,7 @@ h2 {font-size:1.3rem}
 </form>
 
 <script>
-const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-document.querySelector("#timezonename").textContent = tz
-document.querySelector("#timezone").value = (ev.target.checked) ? tz.replaceAll('_', ' ') : ""
+document.querySelector("#timezone").value = Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_', ' ')
 document.querySelector("#wlanap_enabled").addEventListener("change", ev => {
 	document.querySelector('#wlan_pass').required = !ev.target.checked
 	document.querySelector('#wlan_ssid').required = !ev.target.checked
@@ -285,7 +273,6 @@ document.querySelector("#wlanap_enabled").addEventListener("change", ev => {
 (() => {
 	const forms = document.querySelectorAll('.needs-validation');
 	Array.from(forms).forEach(form => { form.addEventListener('submit', ev => {
-		document.querySelector("#tzfrombrowser").disabled = document.querySelector("#tzfrombrowser").checked
 		if (!form.checkValidity()) { ev.preventDefault(); ev.stopPropagation(); }
 		form.classList.add('was-validated')}, false)
 	})
@@ -327,7 +314,6 @@ document.querySelector("#wlanap_enabled").addEventListener("change", ev => {
 <div class="col my-2">
 <form action="<%= $SCRIPT_NAME %>" method="POST">
 <input type="hidden" name="mode" value="edit">
-<input type="hidden" name="tzfrombrowser" value="<%= $tzfrombrowser %>">
 <input type="hidden" name="hostname" value="<%= $hostname %>">
 <input type="hidden" name="rootpass" value="<%= ${rootpass//\"/&quot;} %>">
 <input type="hidden" name="rootpkey" value="<%= $rootpkey %>">
