@@ -40,6 +40,9 @@ ssh -fN $SSH_OPTS $REMOTE_HOST || \
 
 echo "SSH connection initialized."
 
+remote_run "touch /tmp/webupgrade" || \
+	die "Failed to create webupgrade flag"
+
 echo "Transferring sysupgrade utility to device..."
 remote_copy $LOCAL_SCRIPT $REMOTE_HOST:$REMOTE_SCRIPT || \
 	die "Failed to transfer sysupgrade utility"
