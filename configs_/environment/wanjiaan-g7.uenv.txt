@@ -1,6 +1,0 @@
-gpio_button=54
-gpio_default=49i 50i 57i 58i
-gpio_ir850=49
-gpio_ircut=58 57
-gpio_mmc_cd=59
-gpio_white=50

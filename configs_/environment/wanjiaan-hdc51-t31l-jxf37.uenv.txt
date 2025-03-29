@@ -1,9 +1,0 @@
-gpio_button=54
-gpio_default=7O 49o 51i 52O 53O 54i 63o
-gpio_ircut=49O
-gpio_lds=7
-gpio_led_b=53o
-gpio_led_r=52o
-gpio_mmc_cd=51
-gpio_speaker=63
-wlan_module=8188fu

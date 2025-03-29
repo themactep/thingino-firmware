@@ -1,9 +1,0 @@
-gpio_button=6
-gpio_default=6i 14o 16O 18O 25ID 26IDU 50o 51o 54O 57o 58o 59i 61o 62o 63O
-gpio_ir850=51
-gpio_ircut=58 57
-gpio_mmc_cd=59
-gpio_speaker=63
-gpio_white=50
-gpio_wlan=62o
-wlan_module=ssv6x5x

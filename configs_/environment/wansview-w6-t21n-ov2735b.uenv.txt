@@ -1,8 +1,0 @@
-gpio_button=50
-gpio_ir850=49
-gpio_ircut=79 80
-gpio_led_net_rx=72
-gpio_led_net_tx=73
-gpio_mmc_cd=52
-gpio_speaker=63o
-wlan_module=8188fu

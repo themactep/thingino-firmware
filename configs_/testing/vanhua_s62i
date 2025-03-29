@@ -1,5 +1,0 @@
-# NAME: Vanhua S62I (T40NN, IMX307, ETH)
-# MODULE: t40nn_imx307_eth
-BR2_THINGINO_RMEM_64=y
-FLASH_SIZE_16=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/configs/environment/vanhua-s62i.uenv.txt"

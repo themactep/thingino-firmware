@@ -1,5 +1,0 @@
-# NAME: Vanhua AK54 (T31N, GC2053, ETH)
-# MODULE: t31n_gc2053_eth
-BR2_THINGINO_AUDIO=y
-FLASH_SIZE_8=y
-U_BOOT_ENV_TXT="$(BR2_EXTERNAL)/configs/environment/vanhua-ak54.uenv.txt"

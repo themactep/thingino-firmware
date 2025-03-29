@@ -1,5 +1,0 @@
-gpio_default=66o 67o 69o
-gpio_ir850=67
-gpio_ircut=118 119
-gpio_led_r=69
-gpio_white=66

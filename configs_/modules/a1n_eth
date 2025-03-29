@@ -1,5 +1,0 @@
-# NAME: A1N, SENSOR_DUMMY, ETH
-# FRAG: soc-xburst2 toolchain-xburst2 ccache brand rootfs kernel system target uboot
-BR2_ETHERNET=y
-BR2_SENSOR_DUMMY=y
-BR2_SOC_INGENIC_A1N=y

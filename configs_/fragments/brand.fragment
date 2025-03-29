@@ -1,3 +1,0 @@
-# brand.fragment
-BR2_TARGET_GENERIC_HOSTNAME="thingino-$(SOC_MODEL)"
-BR2_TARGET_GENERIC_ISSUE="Welcome to Thingino firmware"

@@ -1,7 +1,0 @@
-# NAME: T31LC, SC2336, ATBM6012B
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
-BR2_PACKAGE_WIFI=y
-BR2_PACKAGE_WIFI_ATBM6012B=y
-BR2_SENSOR_SC2336=y
-BR2_SOC_INGENIC_T31LC=y
-BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME="u-boot-with-spl.bin"

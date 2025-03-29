@@ -1,8 +1,0 @@
-gpio_ircut=49 50
-gpio_button=62
-gpio_ir850=46
-gpio_mmc_cd=58
-gpio_motor_h=83 77 72 76
-gpio_motor_v=82 79 81 80
-gpio_speaker=63O
-wlan_module=aic8800_fdrv
