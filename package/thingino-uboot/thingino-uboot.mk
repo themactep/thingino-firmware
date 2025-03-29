@@ -631,14 +631,11 @@ THINGINO_UBOOT_PRE_BUILD_HOOKS += THINGINO_GENERATE_UBOOT_ENV
 #
 # Patch uboot headers with env data for device if uenv.txt exists
 #
-ifeq ($(UB_ENV_FINAL_TXT),)
-$(warning Environment file not found)
-else
 define PATCH_DEV_ENV
-	$(BR2_EXTERNAL)/scripts/uboot-device-env.sh $(UB_ENV_FINAL_TXT) $(@D)/include/configs/isvp_common.h
+	$(BR2_EXTERNAL)/scripts/uboot-device-env.sh $(OUTPUT_DIR)/uenv.txt \
+		$(@D)/include/configs/isvp_common.h
 endef
 THINGINO_UBOOT_PRE_BUILD_HOOKS += PATCH_DEV_ENV
-endif
 
 #
 # Check U-Boot board name (for legacy) or the defconfig/custom config
