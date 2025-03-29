@@ -1,4 +1,1 @@
 # place your custom settings for local build here
-#
-BR2_PACKAGE_UHTTPD=y
-#BR2_PACKAGE_THINGINO_FFMPEG=y
