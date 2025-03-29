@@ -10,7 +10,7 @@ start() {
 	modprobe g_ncm iManufacturer=thingino host_addr=$(fw_printenv -n ethaddr) dev_addr=$ethaddr iProduct="NCM CDC Ethernet Gadget"
 	usb-role -m device
 	touch /run/udhcpd.leases
-        start-stop-daemon -S -x /sbin/dnsd -- -i $CNET -c /etc/dnsd.conf -d
+	start-stop-daemon -S -x /sbin/dnsd -- -i $CNET -c /etc/dnsd.conf -d
 	start-stop-daemon -S -x /sbin/udhcpd -- -S -I $CNET /etc/udhcpd.conf 2>&1
 }
 

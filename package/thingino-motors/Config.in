@@ -6,6 +6,6 @@ config BR2_PACKAGE_THINGINO_MOTORS
 	  Userspace programs to manage motor hardware
 
 config BR2_PACKAGE_THINGINO_MOTORS_DW9714_ONLY
-    bool "DW9714 Focus Control"
-    help
-      Enable support for DW9714 VCM, includes control script
+	bool "DW9714 Focus Control"
+	help
+	  Enable support for DW9714 VCM, includes control script

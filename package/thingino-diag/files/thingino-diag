@@ -17,10 +17,10 @@ Where:
 }
 
 header() {
-        local len=$((73 - ${#1}))
-        echo -en "\n\n===[ $1 ]"
-        for i in $(seq 1 $len); do echo -n "="; done
-        echo -e "\n\n"
+	local len=$((73 - ${#1}))
+	echo -en "\n\n===[ $1 ]"
+	for i in $(seq 1 $len); do echo -n "="; done
+	echo -e "\n\n"
 }
 
 infocat() {

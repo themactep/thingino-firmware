@@ -57,20 +57,20 @@ start() {
 			else
 				case "$SOC_FAMILY" in
 					t10 | t20 | t21 | t30 | t40 | t41)
-					echo_info "Skip GPIO setup for $SOC_MODEL"
+						echo_info "Skip GPIO setup for $SOC_MODEL"
 						;;
 					t23 | t31)
 						if [ "t31a" = "$SOC_MODEL" ]; then
-						echo_info "Skip GPIO setup for $SOC_MODEL"
+							echo_info "Skip GPIO setup for $SOC_MODEL"
 							return 1
 						else
-						echo_info "Set GPIO pins with /sbin/mmc_gpio"
-						/sbin/mmc_gpio
+							echo_info "Set GPIO pins with /sbin/mmc_gpio"
+							/sbin/mmc_gpio
 						fi
 						;;
 					*)
-					echo_error "Unsupported SOC type: $SOC_FAMILY"
-					exit 1
+						echo_error "Unsupported SOC type: $SOC_FAMILY"
+						exit 1
 						;;
 				esac
 
@@ -103,7 +103,7 @@ start() {
 	if [ -n "$wlan_mac" ] && [ "hi3881" != "$wlan_module" ]; then
 		if ip link | grep -q $IFACE >/dev/null; then
 			echo_info "Bring interface $IFACE down"
-		ip link set dev $IFACE down
+			ip link set dev $IFACE down
 		fi
 
 		echo_info "Set MAC address to $wlan_mac"

@@ -1,146 +1,146 @@
 //rtl8192f version = 1
 //RTL8192F_MAC_PHY_ForMPChip_v01
-// Format:							
-//							
+// Format:
+//
 // 		Note: The order of the tables MUST match the definition in WLAN driver.
-//							
-//		Power Limit Table Parameter Definition					
-//		Band:			2.4G/5G		
-//		Bandwidth:		20/40/80/160 MHZ			
-//		RF Path:		1/2/3/4 Transmit RF			
-//		Rate Section:	CCK/OFDM/HT/VHT				
-//		Regulation: 	FCC/ETSI/MKK				
-//							
-//		Description:					
+//
+//		Power Limit Table Parameter Definition
+//		Band:			2.4G/5G
+//		Bandwidth:		20/40/80/160 MHZ
+//		RF Path:		1/2/3/4 Transmit RF
+//		Rate Section:	CCK/OFDM/HT/VHT
+//		Regulation: 	FCC/ETSI/MKK
+//
+//		Description:
 //		1. IF in 1T test
-//		2. power is real dBm.					
-//		3. // is for comment.					
-//							
-// 		NA is non-release channle.					
-//							
-//							
-//Table 1: ===========================================							
-//							
-##	2.4G, 20M, 1T, CCK, //(1M;2M;5.5M;11M)						
+//		2. power is real dBm.
+//		3. // is for comment.
+//
+// 		NA is non-release channle.
+//
+//
+//Table 1: ===========================================
+//
+##	2.4G, 20M, 1T, CCK, //(1M;2M;5.5M;11M)
 ##	START
-##	#3#	FCC	ETSI	MKK	
-CH01	20	13	16	
-CH02	20	13	16	
-CH03	20	13	16	
-CH04	20	13	16	
-CH05	20	13	16	
-CH06	20	13	16	
-CH07	20	13	16	
-CH08	20	13	16	
-CH09	20	13	16	
-CH10	20	13	16	
-CH11	20	13	16	
-CH12	20	13	16	
-CH13	4	13	16	
-CH14	NA	NA	16	
-##	END						
-//							
-//Table 2: ===========================================							
-//							
-##	2.4G, 20M, 1T, OFDM, //(6M;9M;12M;18M;24M;36M;48M;54M)						
+##	#3#	FCC	ETSI	MKK
+CH01	20	13	16
+CH02	20	13	16
+CH03	20	13	16
+CH04	20	13	16
+CH05	20	13	16
+CH06	20	13	16
+CH07	20	13	16
+CH08	20	13	16
+CH09	20	13	16
+CH10	20	13	16
+CH11	20	13	16
+CH12	20	13	16
+CH13	4	13	16
+CH14	NA	NA	16
+##	END
+//
+//Table 2: ===========================================
+//
+##	2.4G, 20M, 1T, OFDM, //(6M;9M;12M;18M;24M;36M;48M;54M)
 ##	START
-##	#3#	FCC	ETSI	MKK	
-CH01	18	16	16	
-CH02	18	16	16	
-CH03	18	16	16	
-CH04	18	16	16	
-CH05	18	16	16	
-CH06	18	16	16	
-CH07	18	16	16	
-CH08	18	16	16	
-CH09	18	16	16	
-CH10	18	16	16	
-CH11	18	16	16	
-CH12	12	16	16	
-CH13	 6	16	16	
-CH14	NA	NA	NA	
-##	END						
-//							
-//Table 3: ===========================================							
-//							
-##	2.4G, 20M, 1T, HT, //(MCS0~MCS7)						
+##	#3#	FCC	ETSI	MKK
+CH01	18	16	16
+CH02	18	16	16
+CH03	18	16	16
+CH04	18	16	16
+CH05	18	16	16
+CH06	18	16	16
+CH07	18	16	16
+CH08	18	16	16
+CH09	18	16	16
+CH10	18	16	16
+CH11	18	16	16
+CH12	12	16	16
+CH13	 6	16	16
+CH14	NA	NA	NA
+##	END
+//
+//Table 3: ===========================================
+//
+##	2.4G, 20M, 1T, HT, //(MCS0~MCS7)
 ##	START
-##	#3#	FCC	ETSI	MKK	
-CH01	18	16	16	
-CH02	18	16	16	
-CH03	18	16	16	
-CH04	18	16	16	
-CH05	18	16	16	
-CH06	18	16	16	
-CH07	18	16	16	
-CH08	18	16	16	
-CH09	18	16	16	
-CH10	18	16	16	
-CH11	18	16	16	
-CH12	12	16	16	
-CH13	 6	16	16	
-CH14	NA	NA	NA	
-##	END						
-//							
-//Table 4: ===========================================							
-//							
-##	2.4G, 20M, 2T, HT, //(MCS8~MCS15)						
+##	#3#	FCC	ETSI	MKK
+CH01	18	16	16
+CH02	18	16	16
+CH03	18	16	16
+CH04	18	16	16
+CH05	18	16	16
+CH06	18	16	16
+CH07	18	16	16
+CH08	18	16	16
+CH09	18	16	16
+CH10	18	16	16
+CH11	18	16	16
+CH12	12	16	16
+CH13	 6	16	16
+CH14	NA	NA	NA
+##	END
+//
+//Table 4: ===========================================
+//
+##	2.4G, 20M, 2T, HT, //(MCS8~MCS15)
 ##	START
-##	#3#	FCC	ETSI	MKK	
-CH01	18	16	16	
-CH02	18	16	16	
-CH03	18	16	16	
-CH04	18	16	16	
-CH05	18	16	16	
-CH06	18	16	16	
-CH07	18	16	16	
-CH08	18	16	16	
-CH09	18	16	16	
-CH10	18	16	16	
-CH11	18	16	16	
-CH12	NA	16	16	
-CH13	NA	16	16	
-CH14	NA	NA	NA	
-##	END       						
-//                							
-//Table 5: ===========================================							
-//                							
-##	2.4G, 40M, 1T, HT, //(MCS0~MCS7)						
+##	#3#	FCC	ETSI	MKK
+CH01	18	16	16
+CH02	18	16	16
+CH03	18	16	16
+CH04	18	16	16
+CH05	18	16	16
+CH06	18	16	16
+CH07	18	16	16
+CH08	18	16	16
+CH09	18	16	16
+CH10	18	16	16
+CH11	18	16	16
+CH12	NA	16	16
+CH13	NA	16	16
+CH14	NA	NA	NA
+##	END
+//
+//Table 5: ===========================================
+//
+##	2.4G, 40M, 1T, HT, //(MCS0~MCS7)
 ##	START
-##	#3#	FCC	ETSI	MKK	
-CH01	NA	NA	NA	
-CH02	NA	NA	NA	
-CH03	18	14	14	
-CH04	18	14	14	
-CH05	18	14	14	
-CH06	18	14	14	
-CH07	18	14	14	
-CH08	18	14	14	
-CH09	18	14	14	
-CH10	18	14	14	
-CH11	18	14	14	
-CH12	NA	14	14	
-CH13	NA	14	14	
-CH14	NA	NA	NA	
-##	END						
-//							
-//Table 6: ===========================================							
-//							
-##	2.4G, 40M, 2T, HT, //(MCS8~MCS15)						
+##	#3#	FCC	ETSI	MKK
+CH01	NA	NA	NA
+CH02	NA	NA	NA
+CH03	18	14	14
+CH04	18	14	14
+CH05	18	14	14
+CH06	18	14	14
+CH07	18	14	14
+CH08	18	14	14
+CH09	18	14	14
+CH10	18	14	14
+CH11	18	14	14
+CH12	NA	14	14
+CH13	NA	14	14
+CH14	NA	NA	NA
+##	END
+//
+//Table 6: ===========================================
+//
+##	2.4G, 40M, 2T, HT, //(MCS8~MCS15)
 ##	START
-##	#3#	FCC	ETSI	MKK	
-CH01	NA	NA	NA	
-CH02	NA	NA	NA	
-CH03	18	14	14	
-CH04	18	14	14	
-CH05	18	14	14	
-CH06	18	14	14	
-CH07	18	14	14	
-CH08	18	14	14	
-CH09	18	14	14	
-CH10	18	14	14	
-CH11	18	14	14	
-CH12	NA	14	14	
-CH13	NA	14	14	
-CH14	NA	NA	NA	
-##	END						
+##	#3#	FCC	ETSI	MKK
+CH01	NA	NA	NA
+CH02	NA	NA	NA
+CH03	18	14	14
+CH04	18	14	14
+CH05	18	14	14
+CH06	18	14	14
+CH07	18	14	14
+CH08	18	14	14
+CH09	18	14	14
+CH10	18	14	14
+CH11	18	14	14
+CH12	NA	14	14
+CH13	NA	14	14
+CH14	NA	NA	NA
+##	END
