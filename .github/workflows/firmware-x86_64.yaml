@@ -124,9 +124,9 @@ jobs:
         id: set-matrix
         run: |
           if [[ "${{ github.event.inputs.teacup_only }}" == 'true' ]]; then
-            CONFIGS=$(find configs/cameras/ -type f | sort | awk -F '/' '{print $(NF)}' | awk NF | grep 'teacup')
+            CONFIGS=$(find configs/cameras/ -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|' | grep teacup)
           else
-            CONFIGS=$(find configs/cameras/ -type f | sort | awk -F '/' '{print $(NF)}' | awk NF)
+            CONFIGS=$(find configs/cameras/ -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|')
           fi
           JSON_MATRIX="{\"thingino-version\": ["
           for CONFIG in $CONFIGS; do
