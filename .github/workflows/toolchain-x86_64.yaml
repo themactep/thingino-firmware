@@ -179,7 +179,7 @@ jobs:
           REPO="${{ github.repository }}"
 
           # First try to find tag of the release with name "buildroot-dl-cache"
-          RELEASE_TAG=$(gh release list --repo "$REPO" --json name,tagName | jq -r '.[] | select(.name=="buildroot-dl-cache") | .tagName' || echo "")
+          RELEASE_TAG=$(gh release list --repo "themactep/thingino-firmware" --json name,tagName | jq -r '.[] | select(.name=="buildroot-dl-cache") | .tagName' | sort -r | head -1 || echo "")
 
           # If not found, try to find tag starting with "update_cache"
           if [ -z "$RELEASE_TAG" ]; then
