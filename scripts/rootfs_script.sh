@@ -79,7 +79,7 @@ cat ${BR2_EXTERNAL}/configs/common.config | tee -a $SYSTEM_CONFIG
 cat ${BR2_EXTERNAL}/configs/cameras/${CAMERA}/${CAMERA}.config | tee -a $SYSTEM_CONFIG
 
 # Add the development configuration
-if [ ${RELEASE} -ne 1 ] && [ -f ${BR2_EXTERNAL}/configs/local.config ]; then
+if [ -f ${BR2_EXTERNAL}/configs/local.config ]; then
 	cat ${BR2_EXTERNAL}/configs/local.config | tee -a $SYSTEM_CONFIG
 fi
 
