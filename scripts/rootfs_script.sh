@@ -104,7 +104,7 @@ if grep -q ^BR2_TOOLCHAIN_USES_MUSL $BR2_CONFIG >/dev/null; then
 	ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/usr/bin/ldd
 fi
 
-if grep -q ^BR2_PACKAGE_EXFAT_UTILS $BR2_CONFIG >dev/null; then
+if grep -q ^BR2_PACKAGE_EXFAT_UTILS $BR2_CONFIG >/dev/null; then
 	rm -vf ${TARGET_DIR}/usr/sbin/exfatattrib
 	rm -vf ${TARGET_DIR}/usr/sbin/dumpexfat
 	rm -vf ${TARGET_DIR}/usr/sbin/exfatlabel
