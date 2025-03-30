@@ -31,7 +31,7 @@ set_motors_speed() {
 }
 
 position_motors() {
-	local x y motor_pos_0
+	local x y
 
 	if [ -n "$motor_pos_0" ]; then
 		x=$(echo $motor_pos_0 | cut -d, -f1)
