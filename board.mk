@@ -1,13 +1,22 @@
 $(info --- FILE: board.mk ---)
 
-ifeq ($(GROUP),)
-CAMERAS_SUBDIR := "cameras"
+ifeq ($(GROUP),github)
+	SUBDIR := github
+	LIST_OF_CAMERAS := $(shell find ./configs/$(SUBDIR)/ -type f | sort | \
+		   sed -E "s/^\.\/configs\/$(SUBDIR)\/(.*)_defconfig/'\0' '\1'/")
+else ifeq ($(GROUP),modules)
+	SUBDIR := modules
+	LIST_OF_CAMERAS := $(shell find ./configs/$(SUBDIR)/ -type f | sort | \
+		   sed -E "s/^\.\/configs\/$(SUBDIR)\/(.*)_defconfig/'\0' '\1'/")
+else ifeq ($(GROUP),)
+	SUBDIR := cameras
+	LIST_OF_CAMERAS := $(shell find ./configs/$(SUBDIR)/ -type d | sort | \
+		   sed -E "s/^\.\/configs\/$(SUBDIR)\/(.*)/'\0'\/'\1'_defconfig '\1'/")
 else
-CAMERAS_SUBDIR := "cameras-$(GROUP)"
+	SUBDIR := cameras-$(GROUP)
+	LIST_OF_CAMERAS := $(shell find ./configs/$(SUBDIR)/ -type d | sort | \
+		   sed -E "s/^\.\/configs\/$(SUBDIR)\/(.*)/'\0'\/'\1'_defconfig '\1'/")
 endif
-
-LIST_OF_CAMERAS := $(shell find ./configs/$(CAMERAS_SUBDIR)/* -type d | sort | \
-		   sed -E "s/^\.\/configs\/$(CAMERAS_SUBDIR)\/(.*)/'\0'\/'\1'_defconfig '\1'/")
 
 BUILD_MEMO := /tmp/thingino-board.$(shell ps -o ppid $$PPID | tail -1 | xargs)
 
@@ -23,7 +32,7 @@ ifeq ($(BOARD),)
     endif
   endif
 else
-  CAMERA_CONFIG = $(shell find ./configs/$(CAMERAS_SUBDIR)/$(BOARD) -name "$(BOARD)_defconfig")
+  CAMERA_CONFIG = $(shell find ./configs/$(SUBDIR) -name "$(BOARD)_defconfig")
 endif
 
 ifeq ($(CAMERA_CONFIG),)
@@ -49,7 +58,7 @@ MODULE_CONFIG = $(shell awk '/MODULE:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(CAM
 ifeq ($(MODULE_CONFIG),)
 MODULE_CONFIG_REAL = $(CAMERA_CONFIG_REAL)
 else
-MODULE_CONFIG_REAL = $(shell realpath "$(BR2_EXTERNAL)/configs/modules/$(MODULE_CONFIG)")
+MODULE_CONFIG_REAL = $(shell realpath "$(BR2_EXTERNAL)/configs/modules/$(MODULE_CONFIG)_defconfig")
 endif
 $(info MODULE_CONFIG = $(MODULE_CONFIG))
 
