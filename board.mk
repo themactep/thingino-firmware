@@ -1,7 +1,13 @@
 $(info --- FILE: board.mk ---)
 
-LIST_OF_CAMERAS := $(shell find ./configs/cameras/* -type d | sort | \
-		   sed -E "s/^\.\/configs\/cameras\/(.*)/'\0'\/'\1'_defconfig '\1'/")
+ifeq ($(GROUP),)
+CAMERAS_SUBDIR := "cameras"
+else
+CAMERAS_SUBDIR := "cameras-$(GROUP)"
+endif
+
+LIST_OF_CAMERAS := $(shell find ./configs/$(CAMERAS_SUBDIR)/* -type d | sort | \
+		   sed -E "s/^\.\/configs\/$(CAMERAS_SUBDIR)\/(.*)/'\0'\/'\1'_defconfig '\1'/")
 
 BUILD_MEMO := /tmp/thingino-board.$(shell ps -o ppid $$PPID | tail -1 | xargs)
 
@@ -17,7 +23,7 @@ ifeq ($(BOARD),)
     endif
   endif
 else
-  CAMERA_CONFIG = $(shell find ./configs/cameras/$(BOARD) -name "$(BOARD)_defconfig")
+  CAMERA_CONFIG = $(shell find ./configs/$(CAMERAS_SUBDIR)/$(BOARD) -name "$(BOARD)_defconfig")
 endif
 
 ifeq ($(CAMERA_CONFIG),)
