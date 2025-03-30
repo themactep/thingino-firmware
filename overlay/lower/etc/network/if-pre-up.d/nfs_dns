@@ -3,7 +3,7 @@
 # Detect if the interface is used for nfsroot
 # if so, configure DNS and skip DHCP to prevent a hang.
 nfsip=`sed -n '/^[^ ]*:.* \/ nfs.*[ ,]addr=\([0-9.]\+\).*/s//\1/p' /proc/mounts`
-if [ -n "$nfsip" ] && ip route get to "$nfsip" | grep -q "dev $IFACE"; then
+if [ -n "$nfsip" ] && ip route get to "$nfsip" | grep -q "dev $IFACE" >/dev/null; then
 	echo_info "Set NFS resolver configuration"
 	ln -s /proc/net/pnp /tmp/resolv.conf
 

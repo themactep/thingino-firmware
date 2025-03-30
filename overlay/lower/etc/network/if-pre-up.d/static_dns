@@ -7,7 +7,7 @@ if [ ! -f /etc/network/interfaces.d/$IFACE ]; then
 	exit 0
 fi
 
-if grep -q static /etc/network/interfaces.d/$IFACE; then
+if grep -q static /etc/network/interfaces.d/$IFACE >/dev/null; then
 	echo_error "$IFACE uses dynamic IP address"
 	exit 0
 fi
