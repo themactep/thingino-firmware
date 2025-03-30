@@ -267,7 +267,6 @@ distclean:
 # assemble final images
 pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	$(info -------------------------------- $@)
-	@$(FIGLET) $(CAMERA)
 	$(info ALIGNMENT: $(ALIGN_BLOCK))
 	$(info  )
 	$(info $(shell printf "%-7s | %8s | %8s | %8s | %8s | %8s | %8s |" NAME OFFSET PT_SIZE CONTENT ALIGNED END LOSS))
@@ -298,6 +297,7 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	echo "$(shell echo \# $(CAMERA))" >> $(FIRMWARE_BIN_NOBOOT).sha256sum
 	echo "# ${GIT_BRANCH}+${GIT_HASH}, ${BUILD_DATE}" >> "$(FIRMWARE_BIN_NOBOOT).sha256sum"
 	sha256sum $(FIRMWARE_BIN_NOBOOT) | awk '{print $$1 "  " filename}' filename="$(FIRMWARE_NAME_NOBOOT)" >> $(FIRMWARE_BIN_NOBOOT).sha256sum
+	@$(FIGLET) $(CAMERA)
 	@$(FIGLET) "FINE"
 
 # rebuild a package
