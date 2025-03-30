@@ -12,7 +12,7 @@ is_user_modified_hostname() {
 	hostname="$(hostname)"
 
 	if [ -z "$hostname" ]; then
-		echo_warning "Hostname is blank or and should be generated"
+		echo_warning "Hostname is blank and should be generated"
 		return 1
 	fi
 
