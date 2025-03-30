@@ -23,7 +23,7 @@ if [ ! -f "$RESOLV_WORKING_FILE" ]; then
 fi
 
 grep -v '^#' /etc/default/resolv.conf | while read line; do
-	if ! grep -q "^$line$" "$RESOLV_WORKING_FILE"; then
+	if ! grep -q "^$line$" "$RESOLV_WORKING_FILE" >/dev/null; then
 		echo_info "append $line"
 		echo "$line" >> "$RESOLV_WORKING_FILE"
 	fi
