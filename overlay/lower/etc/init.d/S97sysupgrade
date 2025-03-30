@@ -17,7 +17,7 @@ stop() {
 
 	if [ -f "/tmp/upgrade.me" ]; then
 		echo_warning "Running full upgrade"
-		sysupgrade -f
+		yes yes | sysupgrade -f
 	elif [ -f "/tmp/update.me" ]; then
 		echo_warning "Running partial upgrade"
 		sysupgrade -p
