@@ -7,7 +7,7 @@ ifeq ($(BR2_PACKAGE_GO2RTC_MINI),y)
 else
 	GO2RTC_SITE = https://github.com/AlexxIT/go2rtc
 	GO2RTC_SITE_BRANCH = master
-	GO2RTC_VERSION = fa580c516efa95770be2137855c3c3cf19b8092b
+	GO2RTC_VERSION = d99bf122eae07eccec159e6496f0aea4295597db
 	# $(shell git ls-remote $(GO2RTC_SITE) $(GO2RTC_SITE_BRANCH) | head -1 | cut -f1)
 endif
 
