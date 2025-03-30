@@ -8,7 +8,7 @@ start() {
 	LED_PINS=$(awk -F= '/^gpio_led_/{gsub(/"/, "", $2); print $2}' "$ENV_DUMP_FILE")
 
 	if [ -z "$LED_PINS" ]; then
-		echo_error "No LED pins defined"
+		echo_warning "No LED pins defined"
 		exit 1
 	fi
 

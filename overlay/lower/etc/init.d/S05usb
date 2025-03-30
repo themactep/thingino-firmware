@@ -6,7 +6,7 @@ start() {
 	echo_title "Configuring USB"
 
 	if [ -z "$gpio_usb_en" ]; then
-		echo_error "USB power GPIO is not set"
+		echo_warning "USB power GPIO is not set"
 		exit 1
 	fi
 
