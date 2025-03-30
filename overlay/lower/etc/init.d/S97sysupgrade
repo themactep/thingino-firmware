@@ -16,7 +16,10 @@ stop() {
 	echo_title "Checking for upgrade"
 
 	if [ -f "/tmp/upgrade.me" ]; then
-		echo_warning "Running sysupgrade"
+		echo_warning "Running full upgrade"
+		sysupgrade -f
+	elif [ -f "/tmp/update.me" ]; then
+		echo_warning "Running partial upgrade"
 		sysupgrade -p
 	fi
 }
