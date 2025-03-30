@@ -95,9 +95,9 @@ jobs:
         id: set-matrix
         run: |
           if [[ "${{ github.event.inputs.latest_only }}" == 'true' ]]; then
-            CONFIGS=$(find configs/github/ -type f | sort | awk -F '/' '{print $(NF)}' | grep 'gcc14')
+            CONFIGS=$(find configs/github -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|' | grep gcc14)
           else
-            CONFIGS=$(find configs/github/ -type f | sort | awk -F '/' '{print $(NF)}' | grep 'toolchain_xburst')
+            CONFIGS=$(find configs/github -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|' | grep toolchain)
           fi
           JSON_MATRIX="{\"toolchain-version\": ["
           for CONFIG in $CONFIGS; do
@@ -262,7 +262,7 @@ jobs:
       - name: Prepare buildroot cache
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
         run: |
-          BOARD=${{ matrix.toolchain-version }} make source WORKFLOW=1
+          BOARD=${{ matrix.toolchain-version }} GROUP=github make source WORKFLOW=1
           TIME=$(date -d @${SECONDS} +%M:%S)
           echo "TIME=${TIME}" >> ${GITHUB_ENV}
 
