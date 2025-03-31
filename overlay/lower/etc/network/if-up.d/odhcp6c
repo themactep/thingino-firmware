@@ -9,12 +9,12 @@ if [ ! -d "/sys/class/net/$IFACE" ]; then
 	exit 0
 fi
 
-if [ "$(sysctl -n net.ipv6.conf.all.disable_ipv6)" -eq 1 ]; then
+if [ "$(sysctl -n net.ipv6.conf.all.disable_ipv6)" -ne 0 ]; then
 	echo_error "IPv6 disabled globally"
 	exit 0
 fi
 
-if [ "false" = "$IF_DHCP_V6_ENABLED" ]; then
+if [ "true" != "$IF_DHCP_V6_ENABLED" ]; then
 	echo_error "DHCPv6 disabled on $IFACE"
 	exit 0
 fi
