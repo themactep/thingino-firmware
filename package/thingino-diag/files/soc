@@ -117,11 +117,25 @@ print_soc_model() {
 	echo $soc
 }
 
+print_soc_architecture() {
+	while read -r line; do
+		case "$line" in
+			*"cpu model"*"Ingenic Xburst V0.0"*)
+				echo "Xburst1"
+				return
+				;;
+		esac
+	done < /proc/cpuinfo
+
+	echo "Xburst2"
+}
+
 show_usage() {
-	echo "Usage: $0 [-c|-f|-m|-w]
+	echo "Usage: $0 [-c|-f|-m|-w|-a]
 	-m	SoC model
 	-f	SoC family
 	-w	raw info for wiki
+	-a	CPU architecture
 " >&2
 }
 
@@ -137,6 +151,9 @@ case "$1" in
 		;;
 	-w)
 		print_wiki_line
+		;;
+	-a)
+		print_soc_architecture
 		;;
 	"")
 		print_soc_model
