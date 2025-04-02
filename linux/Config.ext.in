@@ -1,0 +1,47 @@
+# Must be in br2ext root
+
+config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT
+	bool "Thingino Kernel Extensions"
+	help
+		Enable Thingino kernel extensions and customizations.
+		This will enable additional configuration options for
+		Thingino-supported hardware platforms.
+
+config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS
+	bool "Device Tree (DTS)"
+	depends on BR2_LINUX_KERNEL_EXT_THINGINO_KOPT
+	help
+		Enable this option to access a submenu where you can select
+		specific Device Tree Source (DTS) files to compile with your
+		kernel. These DTS files will replace the default
+		hard-coded device tree configurations in the kernel.
+
+		Note: Selecting appropriate DTS files is critical for proper
+		hardware initialization and functionality.
+
+choice
+	prompt "Select Device Tree"
+	depends on BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS
+	help
+		Select the device tree for your hardware.
+		Only one device tree can be selected at a time.
+
+config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_WYZEC3P
+	bool "WyzeCam V3 Pro"
+	help
+		Select this option to use the custom device tree for WyzeCam V3 Pro.
+		This will install the wyze_cam3pro_t40xp.dts file to the kernel's
+		arch/mips/boot/dts/ingenic directory as shark.dts.
+
+		Compatible with Ingenic T40 based WyzeCam V3 Pro hardware.
+
+config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_A1_SMART_NVR
+	bool "Smart NVR A1"
+	help
+		Select this option to use the custom device tree for Smart NVR A1.
+		This will install the smart_nvr_a1n_eth.dts file to the kernel's
+		arch/mips/boot/dts/ingenic directory as tucana.dts.
+
+		Compatible with Ingenic A1N (Tucana) based Smart NVR hardware.
+
+endchoice
