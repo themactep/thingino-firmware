@@ -3,7 +3,7 @@ export HOME=$(awk -F: "/^${USER:-root}:/{print \$6}" /etc/passwd)
 export HOME=${HOME:-/root}
 export TZ=$(cat /etc/TZ)
 export EDITOR="vi"
-export SENSOR=$(cat /etc/sensor/model)
+[ -f /etc/sensor/model ] && export SENSOR=$(cat /etc/sensor/model)
 
 network_hostname=$(hostname -s)
 ifaces=$(ifconfig | awk '/^[^( |lo)]/{print $1}')
