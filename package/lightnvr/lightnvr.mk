@@ -29,7 +29,7 @@ LIGHTNVR_CONF_OPTS = \
 # Main application files installation
 define LIGHTNVR_INSTALL_APP_FILES
 	$(INSTALL) -d $(TARGET_DIR)/var/nvr
-	cp -r $(@D)/web $(TARGET_DIR)/var/nvr/
+	cp -r $(@D)/web/dist $(TARGET_DIR)/var/nvr/web
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/lightnvr
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/lightnvr/go2rtc
 	$(INSTALL) -m 644 $(@D)/config/lightnvr.ini $(TARGET_DIR)/etc/lightnvr/lightnvr.ini
