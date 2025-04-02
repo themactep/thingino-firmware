@@ -64,6 +64,17 @@ export CONFIG_PARTITION_DIR
 STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
 STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
 
+ifeq ($(GROUP),github)
+	SUBDIR := configs/github
+else ifeq ($(GROUP),modules)
+	SUBDIR := configs/modules
+else ifeq ($(GROUP),)
+	SUBDIR := configs/cameras
+else
+	SUBDIR := configs/cameras-$(GROUP)
+endif
+export SUBDIR
+
 # handle the board
 include $(BR2_EXTERNAL)/board.mk
 

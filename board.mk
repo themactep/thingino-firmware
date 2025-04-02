@@ -1,12 +1,3 @@
-ifeq ($(GROUP),github)
-	SUBDIR := "./configs/github"
-else ifeq ($(GROUP),modules)
-	SUBDIR := "./configs/modules"
-else ifeq ($(GROUP),)
-	SUBDIR := "./configs/cameras"
-else
-	SUBDIR := "./configs/cameras-$(GROUP)"
-endif
 LIST_OF_CAMERAS := $(shell find $(SUBDIR) -type f -name '*_defconfig' | \
 	sed -E "s/^(.+)\/(.*)_defconfig/'\0' '\2'/" | sort)
 
