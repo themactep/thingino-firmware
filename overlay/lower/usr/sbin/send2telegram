@@ -17,7 +17,6 @@ Where:
 	exit 0
 }
 
-verbosity="--silent"
 # override config values with command line arguments
 while getopts c:f:m:st:vh flag; do
 	case "$flag" in
@@ -26,7 +25,7 @@ while getopts c:f:m:st:vh flag; do
 		f) telegram_file=$OPTARG ;;
 		s) telegram_silent="true" ;;
 		t) telegram_token=$OPTARG ;;
-		v) verbosity="--verbose" ;;
+		v) verbose="true" ;;
 		h) show_help ;;
 	esac
 done
@@ -92,6 +91,7 @@ if [ -z "$telegram_channel" ]; then
 	exit 1
 fi
 
+[ "true" = "$verbose" ] && verbosity="--verbose" || verbosity="--silent"
 command="$CURL $verbosity -H 'Content-Type: multipart/form-data' -F 'chat_id=$telegram_channel'"
 
 if [ "true" = "$telegram_silent" ]; then
@@ -158,7 +158,8 @@ else
 	exit 1
 fi
 
-if ! sh -c "$command"; then
+echo_command "$command"
+if ! sh -c "$command" >/dev/null; then
 	echo_error "Failed to send message to Telegram"
 	exit 1
 fi
