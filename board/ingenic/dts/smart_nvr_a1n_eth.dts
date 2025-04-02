@@ -22,6 +22,8 @@
 		otg0 = "/ahb2/otg0@0x13600000";
 		otg1 = "/ahb2/otg1@0x13640000";
 		otg2 = "/ahb2/otg2@0x13680000";
+		mdio-gpio0 = "/mdio-gpio0";
+		mdio-gpio1 = "/mdio-gpio1";
 	};
 
 	cpus {
@@ -897,7 +899,7 @@
 			phy-mode = "rmii";
 			ingenic,reset-gpios = <0x06 0x12 0x01 0x00>;
 			ingenic,rst-ms = <0x0a>;
-			macphy-rate = <0x17d7840>;
+			macphy-rate = <50000000>;
 
 			stmmac-axi-config0 {
 				snps,wr_osr_lmt = <0x01>;
@@ -940,7 +942,7 @@
 			ingenic,mode-reg = <0xb00000d8>;
 			phy-handle = <0x1f>;
 			phy-mode = "rgmii";
-			macphy-rate = <0x17d7840>;
+			macphy-rate = <50000000>;
 			ingenic,reset-gpios = <0x06 0x13 0x01 0x00>;
 			ingenic,rst-ms = <0x0a>;
 
@@ -1032,5 +1034,19 @@
 			linux,code = <0x9e>;
 			gpios = <0x06 0x01 0x00 0x00>;
 		};
+	};
+
+	mdio-gpio0 {
+		compatible = "virtual,mdio-gpio";
+		gpios = <0x05 0x0d 0x00 0x00 0x05 0x0c 0x00 0x00>;
+		#address-cells = <0x01>;
+		#size-cells = <0x00>;
+	};
+
+	mdio-gpio1 {
+		compatible = "virtual,mdio-gpio";
+		gpios = <0x05 0x10 0x00 0x00 0x05 0x0f 0x00 0x00>;
+		#address-cells = <0x01>;
+		#size-cells = <0x00>;
 	};
 };
