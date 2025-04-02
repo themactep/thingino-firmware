@@ -1,4 +1,4 @@
-# NAME: Wanjiaan G7 (T31X, JXF37, Ethernet)
+# NAME: Wanjiaan G7 (T31X, JXF37, ETH)
 # MODULE: t31x_jxf37_eth
 BR2_ETHERNET=y
 BR2_PACKAGE_THINGINO_KOPT_DWC2=y
