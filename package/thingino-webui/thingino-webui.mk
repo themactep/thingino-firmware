@@ -20,11 +20,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 			$(TARGET_DIR)/etc/init.d/S50httpd; \
 	fi
 
-	if grep -q "^BR2_THINGINO_DEV_PACKAGES=y" $(BR2_CONFIG); then \
-		$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S44devmounts \
-			$(TARGET_DIR)/etc/init.d/S44devmounts; \
-	fi
-
 	$(INSTALL) -D -m 0755 $(@D)/mjpeg_frame \
 		$(TARGET_DIR)/usr/bin/mjpeg_frame
 
