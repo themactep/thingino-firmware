@@ -192,6 +192,18 @@ BUILD_DATE="$(shell env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z'
 
 RELEASE = 0
 
+define edit_file
+	$(info -------------------------------- $(1))
+	@if which nano > /dev/null 2>&1; then \
+		nano $(2); \
+	elif which vi > /dev/null 2>&1; then \
+		vi $(2); \
+	else \
+		echo "Neither nano nor vi is installed!"; \
+		exit 1; \
+	fi
+endef
+
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
 
@@ -240,6 +252,15 @@ FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(MODULE_CO
 defconfig: buildroot/Makefile $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
 	@$(FIGLET) $(CAMERA)
+
+edit:
+	$(call edit_file,$@,$(CAMERA_CONFIG_REAL))
+
+edit-module:
+	$(call edit_file,$@,$(MODULE_CONFIG_REAL))
+
+edit-uenv:
+	$(call edit_file,$@,$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt)
 
 select-device:
 	$(info -------------------------------- $@)
