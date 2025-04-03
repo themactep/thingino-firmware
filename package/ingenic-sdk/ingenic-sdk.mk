@@ -117,10 +117,12 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
 
-	if [ "$(SOC_FAMILY)" = "t23" ]; then \
-		echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) isp_clk=$(ISP_CLK) $(ISP_CLKA_CLK_SRC) isp_clka=$(ISP_CLKA_CLK) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
-	else \
-		echo tx_isp_$(SOC_FAMILY) isp_clk=$(ISP_CLK) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
+	if [ "$(SOC_FAMILY)" != "a1" ]; then \
+		if [ "$(SOC_FAMILY)" = "t23" ]; then \
+			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) isp_clk=$(ISP_CLK) $(ISP_CLKA_CLK_SRC) isp_clka=$(ISP_CLKA_CLK) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
+		else \
+			echo tx_isp_$(SOC_FAMILY) isp_clk=$(ISP_CLK) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
+		fi \
 	fi
 
 	if [ "$(SOC_FAMILY)" = "t31" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
