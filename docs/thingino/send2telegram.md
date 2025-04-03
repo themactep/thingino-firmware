@@ -1,5 +1,5 @@
-Send 2 Telegram
-===============
+Send to Telegram
+================
 
 "Send 2 Telegram" is a Thingino module that allows you to send snapshots
 and short video clips from the camera to a Telegram channel or a group.
