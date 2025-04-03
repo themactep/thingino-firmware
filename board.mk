@@ -1,4 +1,4 @@
-LIST_OF_CAMERAS := $(shell find $(SUBDIR) -type f -name '*_defconfig' | \
+LIST_OF_CAMERAS := $(shell find $(CAMERA_SUBDIR) -type f -name '*_defconfig' | \
 	sed -E "s/^(.+)\/(.*)_defconfig/'\0' '\2'/" | sort)
 
 BUILD_MEMO := /tmp/thingino-board.$(shell ps -o ppid $$PPID | tail -1 | xargs)
@@ -15,7 +15,7 @@ ifeq ($(BOARD),)
     endif
   endif
 else
-  CAMERA_CONFIG = $(shell find $(SUBDIR) -name "$(BOARD)_defconfig")
+  CAMERA_CONFIG = $(shell find $(CAMERA_SUBDIR) -name "$(BOARD)_defconfig")
 endif
 
 ifeq ($(CAMERA_CONFIG),)

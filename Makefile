@@ -67,15 +67,15 @@ STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
 STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
 
 ifeq ($(GROUP),github)
-	SUBDIR := configs/github
+	CAMERA_SUBDIR := configs/github
 else ifeq ($(GROUP),modules)
-	SUBDIR := configs/modules
+	CAMERA_SUBDIR := configs/modules
 else ifeq ($(GROUP),)
-	SUBDIR := configs/cameras
+	CAMERA_SUBDIR := configs/cameras
 else
-	SUBDIR := configs/cameras-$(GROUP)
+	CAMERA_SUBDIR := configs/cameras-$(GROUP)
 endif
-export SUBDIR
+export CAMERA_SUBDIR
 
 # handle the board
 include $(BR2_EXTERNAL)/board.mk
