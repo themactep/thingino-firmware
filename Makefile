@@ -432,7 +432,7 @@ $(U_BOOT_ENV_TXT): $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
 	touch $@
 	grep -v '^#' $(BR2_EXTERNAL)/configs/common.uenv.txt | tee -a $@
-	grep -v '^#' $(BR2_EXTERNAL)/$(SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt | tee -a $@
+	grep -v '^#' $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt | tee -a $@
 	grep -v '^#' $(BR2_EXTERNAL)/configs/local.uenv.txt | tee -a $@
 	sort -u -o $@ $@
 
