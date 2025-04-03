@@ -3,24 +3,6 @@
 preinit_check() {
 echo "Running dependencies check..."
 
-# Checkg or whiptail
-if ! command -v whiptail >/dev/null 2>&1; then
-echo "'dialog' is not installed. It is required for this script to run."
-exit 1
-fi
-
-# Checkg or dialog
-if ! command -v dialog >/dev/null 2>&1; then
-echo "'dialog' is not installed. It is required for this script to run."
-exit 1
-fi
-
-# Check for gawk
-if ! command -v gawk >/dev/null 2>&1; then
-echo "'gawk' is not installed. Error: Please install gawk"
-exit 1
-fi
-
 # Check if the current directory path contains spaces.
 case "$PWD" in
 *" "*)
