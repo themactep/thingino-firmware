@@ -19,7 +19,15 @@ SIZE_512K=524288
 workdir="/tmp/sysupgrade"
 stage1app="sysupgrade"
 stage2app="sysupgrade-stage2"
-fw_file="$workdir/fw.bin"
+
+SD_CARD_ROOT="/mnt/mmcblk0p1"
+if mountpoint $SD_CARD_ROOT && test -w $SD_CARD_ROOT; then
+	dl_dir="$SD_CARD_ROOT"
+	fw_file="$SD_CARD_ROOT/fw.bin"
+else
+	dl_dir="/tmp"
+	fw_file="$workdir/fw.bin"
+fi
 
 self=$(realpath $0)
 selfupdate="true"
@@ -31,7 +39,7 @@ bye() {
 }
 
 report_size() {
-	printf "%-20s %8s\n" "$1" "$2"
+	printf "%-20s %12s\n" "$1" "$2"
 }
 
 check_network() {
@@ -45,7 +53,7 @@ check_network() {
 check_free_space() {
 	local dl_size dl_size_offsetted flash_size free_space offset
 
-	dl_size=$(curl -sIL $1 | awk '/Content-Length/{fs=$2}END{print fs}')
+	dl_size=$(curl -sIL $1 | awk '/Content-Length:\s\d{2,}/{gsub(/\r/,"",$2);print $2}')
 	[ -z "$dl_size" ] && die "Cannot get remote file size"
 	[ "$dl_size" -le 0 ] && die "Remote file size is zero"
 	report_size "Remote file size" "$dl_size"
@@ -68,7 +76,7 @@ check_free_space() {
 }
 
 available_free_space() {
-	echo $(($(df -m /tmp | awk 'NR==2{print $4}') * 1024 * 1024))
+	echo $(($(df -m $dl_dir | awk 'NR==2{print $4}') * 1024 * 1024))
 }
 
 full_upgrade_partition_name() {
@@ -116,7 +124,8 @@ die() {
 
 # url file options
 download() {
-	local file="$2"
+	local file
+	file="$2"
 	[ -z "$file" ] && file="$fw_file"
 	echo "Downloading from $1 to $file"
 	curl -fL# --url "$1" -o "$file" $3 || return 1
@@ -133,6 +142,11 @@ extract_bootloader() {
 }
 
 handle_payload() {
+	echo "Change directory to $dl_dir"
+	[ -d "$dl_dir" ] || die "Cannot change directory to $dl_dir"
+	[ -w "$dl_dir" ] || die "Cannot write to $dl_dir"
+	cd $dl_dir
+
 	if [ "local" = "$upgrade" ]; then
 		say "Upgrade from a provided file"
 		if echo "$1" | grep -qE '^https?://'; then
@@ -172,13 +186,14 @@ handle_payload() {
 
 		check_free_space "$bin_url" "$offset"
 
+		say "Download checksum from $sha_url"
+		download "$sha_url" "tempsha256sum" || die "Cannot download checksum file."
+		grep -v '^#' "tempsha256sum" > $sha_file
+
 		say "Download firmware from $bin_url"
 		download "$bin_url" "$bin_file" "-C $offset" || die "Cannot download firmware from specified URL."
-		say "Download checksum from $sha_url"
-		download "$sha_url" "$sha_file" || die "Cannot download checksum file."
 
 		say "Verify downloaded file"
-		sed -i '/^#/d' $sha_file
 		sha256sum -c $sha_file || die "Checksum does not match!"
 
 		say "Clean up"
@@ -187,6 +202,8 @@ handle_payload() {
 		say "Relocate downloaded file"
 		mv -v "$bin_file" "$fw_file" || die "Cannot move $bin_file to $fw_file"
 	fi
+
+	cd -
 }
 
 flush_memory() {
