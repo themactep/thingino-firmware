@@ -1,9 +1,3 @@
-################################################################################
-#
-# lightnvr
-#
-################################################################################
-
 LIGHTNVR_SITE_METHOD = git
 LIGHTNVR_SITE = https://github.com/opensensor/lightNVR
 LIGHTNVR_SITE_BRANCH = main
