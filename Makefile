@@ -258,7 +258,7 @@ defconfig: buildroot/Makefile $(OUTPUT_DIR)/.config
 
 edit:
 	@bash -c 'CHOICE=$$(whiptail --title "Edit Menu" --menu "Choose an option to edit:" 12 60 3 \
-		"1" "Edit Camera Config (edit)" \
+		"1" "Edit Camera Config (edit-defconfig)" \
 		"2" "Edit Module Config (edit-module)" \
 		"3" "Edit U-Boot Environment (edit-uenv)" 3>&1 1>&2 2>&3); \
 		[ $$? -ne 0 ] && { echo "Menu cancelled"; exit 0; }; \
