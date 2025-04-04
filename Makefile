@@ -193,14 +193,12 @@ BUILD_DATE="$(shell env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z'
 
 RELEASE = 0
 
-EDITOR := $(shell if which nano > /dev/null 2>&1; then echo "nano"; \
-          elif which vi > /dev/null 2>&1; then echo "vi"; \
-          else echo ""; fi)
+EDITOR := $(shell which nano vim vi ed 2>/dev/null | head -1)
 
 define edit_file
 	$(info -------------------------------- $(1))
 	@if [ -z "$(EDITOR)" ]; then \
-		echo "Neither nano nor vi is installed!"; \
+		echo "No suitable editor found!"; \
 		exit 1; \
 	else \
 		$(EDITOR) $(2); \
