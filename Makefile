@@ -193,15 +193,17 @@ BUILD_DATE="$(shell env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z'
 
 RELEASE = 0
 
+EDITOR := $(shell if which nano > /dev/null 2>&1; then echo "nano"; \
+          elif which vi > /dev/null 2>&1; then echo "vi"; \
+          else echo ""; fi)
+
 define edit_file
 	$(info -------------------------------- $(1))
-	@if which nano > /dev/null 2>&1; then \
-		nano $(2); \
-	elif which vi > /dev/null 2>&1; then \
-		vi $(2); \
-	else \
+	@if [ -z "$(EDITOR)" ]; then \
 		echo "Neither nano nor vi is installed!"; \
 		exit 1; \
+	else \
+		$(EDITOR) $(2); \
 	fi
 endef
 
@@ -255,6 +257,25 @@ defconfig: buildroot/Makefile $(OUTPUT_DIR)/.config
 	@$(FIGLET) $(CAMERA)
 
 edit:
+	@bash -c 'CHOICE=$$(whiptail --title "Edit Menu" --menu "Choose an option to edit:" 12 60 3 \
+		"1" "Edit Camera Config (edit)" \
+		"2" "Edit Module Config (edit-module)" \
+		"3" "Edit U-Boot Environment (edit-uenv)" 3>&1 1>&2 2>&3); \
+		[ $$? -ne 0 ] && { echo "Menu cancelled"; exit 0; }; \
+		case "$$CHOICE" in \
+			"1") TARGET="edit-defconfig"; FILE="$(CAMERA_CONFIG_REAL)" ;; \
+			"2") TARGET="edit-module"; FILE="$(MODULE_CONFIG_REAL)" ;; \
+			"3") TARGET="edit-uenv"; FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt" ;; \
+			*) echo "Invalid option"; exit 1 ;; \
+		esac; \
+		if [ -z "$(EDITOR)" ]; then \
+			echo "Neither nano nor vi is installed!"; \
+			exit 1; \
+		else \
+			$(EDITOR) "$$FILE"; \
+		fi'
+
+edit-defconfig:
 	$(call edit_file,$@,$(CAMERA_CONFIG_REAL))
 
 edit-module:
