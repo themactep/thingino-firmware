@@ -121,13 +121,13 @@ print_soc_architecture() {
 	while read -r line; do
 		case "$line" in
 			*"cpu model"*"Ingenic Xburst V0.0"*)
-				echo "Xburst1"
+				echo "XBurst1"
 				return
 				;;
 		esac
 	done < /proc/cpuinfo
 
-	echo "Xburst2"
+	echo "XBurst2"
 }
 
 show_usage() {
