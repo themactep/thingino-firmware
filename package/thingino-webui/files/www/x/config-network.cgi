@@ -1,6 +1,8 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
+# TODO: add an easy way to update NTP servers for static networking.
+
 page_title="Network"
 
 IFACES="eth0 wlan0 usb0"
