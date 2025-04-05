@@ -255,23 +255,32 @@ defconfig: buildroot/Makefile $(OUTPUT_DIR)/.config
 	@$(FIGLET) $(CAMERA)
 
 edit:
-	@bash -c 'CHOICE=$$(whiptail --title "Edit Menu" --menu "Choose an option to edit:" 12 60 3 \
-		"1" "Edit Camera Config (edit-defconfig)" \
-		"2" "Edit Module Config (edit-module)" \
-		"3" "Edit U-Boot Environment (edit-uenv)" 3>&1 1>&2 2>&3); \
-		[ $$? -ne 0 ] && { echo "Menu cancelled"; exit 0; }; \
+	@bash -c 'while true; do \
+		CHOICE=$$(dialog --keep-tite --colors --title "Edit Menu" --menu "Choose an option to edit:" 16 60 10 \
+			"1" "Camera Config (edit-defconfig)" \
+			"2" "Module Config (edit-module)" \
+			"3" "U-Boot Environment (edit-uenv)" \
+			"" "━━━━━━━━━ LOCAL OVERRIDES ━━━━━━━━━" \
+			"4" "Local Fragment (edit-localfragment)" \
+			"5" "Local Config (edit-localconfig)" \
+			"6" "Local Makefile (edit-localmk)" \
+			"7" "Local U-Boot Evironment (edit-localuenv)" 2>&1 >/dev/tty) || { echo "Menu cancelled"; exit 0; }; \
+		\
+		[ -z "$$CHOICE" ] && { echo "Separator selected, ignoring"; continue; }; \
+		\
 		case "$$CHOICE" in \
-			"1") TARGET="edit-defconfig"; FILE="$(CAMERA_CONFIG_REAL)" ;; \
-			"2") TARGET="edit-module"; FILE="$(MODULE_CONFIG_REAL)" ;; \
-			"3") TARGET="edit-uenv"; FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt" ;; \
-			*) echo "Invalid option"; exit 1 ;; \
+			"1") FILE="$(CAMERA_CONFIG_REAL)" ;; \
+			"2") FILE="$(MODULE_CONFIG_REAL)" ;; \
+			"3") FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt" ;; \
+			"4") FILE="$(BR2_EXTERNAL)/configs/local.fragment" ;; \
+			"5") FILE="$(BR2_EXTERNAL)/configs/local.config" ;; \
+			"6") FILE="$(BR2_EXTERNAL)/local.mk" ;; \
+			"7") FILE="$(BR2_EXTERNAL)/configs/local.uenv.txt" ;; \
+			*) echo "Invalid option"; continue ;; \
 		esac; \
-		if [ -z "$(EDITOR)" ]; then \
-			echo "Neither nano nor vi is installed!"; \
-			exit 1; \
-		else \
-			$(EDITOR) "$$FILE"; \
-		fi'
+		\
+		[ -z "$(EDITOR)" ] && { echo "No suitable editor found!"; exit 1; } || { $(EDITOR) "$$FILE"; break; }; \
+	done'
 
 edit-defconfig:
 	$(call edit_file,$@,$(CAMERA_CONFIG_REAL))
@@ -281,6 +290,18 @@ edit-module:
 
 edit-uenv:
 	$(call edit_file,$@,$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt)
+
+edit-localmk:
+	$(call edit_file,$@,$(BR2_EXTERNAL)/local.mk)
+
+edit-localconfig:
+	$(call edit_file,$@,$(BR2_EXTERNAL)/configs/local.config)
+
+edit-localfragment:
+	$(call edit_file,$@,$(BR2_EXTERNAL)/configs/local.fragment)
+
+edit-localuenv:
+	$(call edit_file,$@,$(BR2_EXTERNAL)/configs/local.uenv.txt)
 
 select-device:
 	$(info -------------------------------- $@)
