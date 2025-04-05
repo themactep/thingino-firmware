@@ -259,7 +259,7 @@ edit:
 		CHOICE=$$(dialog --keep-tite --colors --title "Edit Menu" --menu "Choose an option to edit:" 16 60 10 \
 			"1" "Camera Config (edit-defconfig)" \
 			"2" "Module Config (edit-module)" \
-			"3" "U-Boot Environment (edit-uenv)" \
+			"3" "Camera U-Boot Environment (edit-uenv)" \
 			"" "━━━━━━━━━ LOCAL OVERRIDES ━━━━━━━━━" \
 			"4" "Local Fragment (edit-localfragment)" \
 			"5" "Local Config (edit-localconfig)" \
