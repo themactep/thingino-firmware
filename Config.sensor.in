@@ -1,4 +1,5 @@
 menu "Image Sensor Selection"
+depends on !BR2_SOC_FAMILY_INGENIC_A1
 
 choice
 	prompt "Image Sensor Quantity"

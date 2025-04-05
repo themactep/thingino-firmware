@@ -267,6 +267,7 @@ config BR2_THINGINO_INGENIC_SDK_GCC_720
 endchoice
 
 menu "ISP Configuration"
+depends on !BR2_SOC_FAMILY_INGENIC_A1
 
 if FALSE
 menu "Image Sensor Configuration"
@@ -1405,6 +1406,7 @@ config BR2_THINGINO_PWM_ENABLE
 	  Enable or Disable PWM support.
 
 config BR2_THINGINO_MOTORS
+	depends on !BR2_SOC_FAMILY_INGENIC_A1
 	bool "Pan/Tilt/Zoom Motors"
 	help
 	  The camera has Pan/Tilt or Zoom motors.
