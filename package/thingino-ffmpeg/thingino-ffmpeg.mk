@@ -70,11 +70,12 @@ THINGINO_FFMPEG_CONF_OPTS = \
 	--enable-network \
 	--enable-protocol=http,tcp,udp,file,rtsp,rtp \
 	--enable-parser=h264,hevc,aac,opus \
-	--enable-demuxer=rtsp,rtp,mov,m4a,mpegts,h264 \
-	--enable-muxer=mp4,opus,mpegts,hls,segment \
+	--enable-demuxer=rtsp,rtp,mov,m4a,mpegts,h264,rawvideo \
+	--enable-muxer=mp4,opus,mpegts,hls,segment,image2,png,mjpeg \
+	--enable-encoder=png,mjpeg \
+	--enable-decoder=h264,aac,hevc,rawvideo \
 	--enable-filter=scale \
 	--enable-bsf=aac_adtstoasc,h264_mp4toannexb,hevc_mp4toannexb \
-	--enable-decoder=h264,aac,hevc \
 	--disable-static \
 	--disable-cuda \
 	--disable-cuda-llvm \
@@ -88,9 +89,6 @@ THINGINO_FFMPEG_CONF_OPTS = \
 	--disable-avdevice \
 	--disable-postproc \
 	--disable-debug \
-	--disable-ffprobe \
-	--disable-ffmpeg \
-	--disable-encoders \
 	--disable-runtime-cpudetect \
 	--disable-swresample \
 	--extra-cflags="-Os" \
