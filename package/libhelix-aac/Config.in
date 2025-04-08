@@ -1,0 +1,7 @@
+config BR2_PACKAGE_LIBHELIX_AAC
+	bool "libhelix-aac Fixed-point HE-AAC decoder"
+	help
+	  libhelix-aac is a high-performance HE-AAC decoder for 32-bit fixed-point
+	  processors developed by RealNetworks.
+
+	  https://github.com/earlephilhower/ESP8266Audio/blob/master/src/libhelix-aac/readme.txt
