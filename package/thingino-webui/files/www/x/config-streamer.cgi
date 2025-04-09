@@ -177,7 +177,7 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <% done %>
 
 <div class="tab-pane fade" id="tab4-pane" role="tabpanel" aria-labelledby="tab4">
-<% field_switch "audio_input_enabled" "Enabled" %>
+<% field_switch "audio_input_enabled" "Input Enabled" %>
 <div class="row g-2">
 <div class="col"><% field_select "audio_input_format" "Codec" "$AUDIO_FORMATS" %></div>
 <div class="col"><% field_select "audio_input_sample_rate" "Sampling, Hz" "$AUDIO_SAMPLING" %></div>
@@ -200,6 +200,10 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <div class="col"><% field_range "audio_input_agc_compression_gain_db" "Compression gain, dB" "0,90,1" %></div>
 <div class="col"><% field_range "audio_input_agc_target_level_dbfs" "Target level, dBfs" "0,31,1" %></div>
 </div>
+
+<% field_switch "audio_output_enabled" "Output Enabled" %>
+
+<button type="button" class="btn btn-secondary" id="restart-audio">Restart Audio</button>
 </div>
 
 <div class="tab-pane fade" id="tab5-pane" role="tabpanel" aria-labelledby="tab5">
@@ -308,7 +312,7 @@ DEFAULT_VALUES = {
 // audio
 const audio_params = ['input_agc_compression_gain_db', 'input_agc_enabled', 'input_agc_target_level_dbfs',
 	'input_alc_gain', 'input_bitrate', 'input_enabled', 'input_format', 'input_gain', 'input_high_pass_filter',
-	'input_noise_suppression', 'input_sample_rate', 'input_vol'];
+	'input_noise_suppression', 'input_sample_rate', 'input_vol', 'output_enabled'];
 
 // image
 const image_params = ['ae_compensation', 'anti_flicker', 'backlight_compensation', 'brightness', 'contrast',
@@ -609,6 +613,10 @@ $('#stream2_jpeg_channel_1').addEventListener('click', ev => {
 
 $('#save-prudynt-config').addEventListener('click', ev => {
 	sendToWs('{"action":{"save_config":null}}');
+});
+
+$('#restart-audio').addEventListener('click', ev => {
+	sendToWs('{"action":{"restart_thread":' + ThreadAudio + '}}');
 });
 
 for (const i in [0, 1]) {
