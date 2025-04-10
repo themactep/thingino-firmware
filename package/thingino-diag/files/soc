@@ -26,12 +26,10 @@ read_type2() {
 }
 
 print_soc_clocks() {
-	soc_type=$(soc -f)
-
 	cpu_speed=$(grep "apll" /proc/jz/clock/clocks | head -1 | awk '{for(i=1;i<=NF;i++) if($i ~ /MHz/) print $i}')
 	echo "CPU Speed: $cpu_speed"
 
-	if [ "$soc_type" = "a1" ]; then
+	if [ "$(print_soc_family)" = "a1" ]; then
 		ddr_speed=$(grep "div_ddr" /proc/jz/clock/clocks | head -1 | awk '{for(i=1;i<=NF;i++) if($i ~ /MHz/) print $i}')
 		echo "DDR Speed: $ddr_speed"
 	else
