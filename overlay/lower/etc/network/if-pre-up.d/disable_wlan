@@ -7,15 +7,16 @@ fi
 
 . /usr/share/common
 
+# exit 1 to stop the interface from being brought up, and dhcp being attempted
 if [ -z "$wlan_ssid" ]; then
 	echo_error "WLAN disabled, no SSID"
-	exit 0
+	exit 1
 elif [ -z "$wlan_pass" ]; then
 	echo_error "WLAN disabled, no password"
-	exit 0
+	exit 1
 elif [ "$disable_wlan" = "true" ]; then
 	echo_error "WLAN manually disabled."
-	exit 0
+	exit 1
 fi
 
 exit 0
