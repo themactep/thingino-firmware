@@ -13,10 +13,11 @@ sanitize() {
 }
 
 html_safe() {
-	text="$1"
-	text=${text//&/&amp;}
-	text=${text//\`/&grave;}
-	text=${text//\"/&quot;}
+	text=$*
+	text=${text//&/\&amp;}
+	text=${text//\`/\&grave;}
+	text=${text//\"/\&quot;}
+	text=${text// /\&nbsp;}
 	echo $text
 }
 
