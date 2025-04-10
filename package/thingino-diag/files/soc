@@ -26,8 +26,20 @@ read_type2() {
 }
 
 print_soc_clocks() {
-	awk '/cclk/{cpu=$3} /cgu_ddr/{ddr=$3} /isp/ && $2=="isp"{isp=$3} \
-		END {print "CPU Speed: " cpu "\nDDR Speed: " ddr "\nISP Speed: " isp}' /proc/jz/clock/clocks
+	soc_type=$(soc -f)
+
+	cpu_speed=$(grep "apll" /proc/jz/clock/clocks | head -1 | awk '{for(i=1;i<=NF;i++) if($i ~ /MHz/) print $i}')
+	echo "CPU Speed: $cpu_speed"
+
+	if [ "$soc_type" = "a1" ]; then
+		ddr_speed=$(grep "div_ddr" /proc/jz/clock/clocks | head -1 | awk '{for(i=1;i<=NF;i++) if($i ~ /MHz/) print $i}')
+		echo "DDR Speed: $ddr_speed"
+	else
+		ddr_speed=$(awk '/cgu_ddr/{print $3}' /proc/jz/clock/clocks | head -1)
+		echo "DDR Speed: $ddr_speed"
+		isp_speed=$(awk '/isp/ && $2=="isp"{print $3}' /proc/jz/clock/clocks)
+		echo "ISP Speed: $isp_speed"
+	fi
 }
 
 print_wiki_line() {
