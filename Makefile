@@ -264,9 +264,9 @@ edit:
 			"4" "Local Fragment (edit-localfragment)" \
 			"5" "Local Config (edit-localconfig)" \
 			"6" "Local Makefile (edit-localmk)" \
-			"7" "Local U-Boot Evironment (edit-localuenv)" 2>&1 >/dev/tty) || { echo "Menu cancelled"; exit 0; }; \
+			"7" "Local U-Boot Evironment (edit-localuenv)" 2>&1 >/dev/tty) || exit 0; \
 		\
-		[ -z "$$CHOICE" ] && { echo "Separator selected, ignoring"; continue; }; \
+		[ -z "$$CHOICE" ] && continue; \
 		\
 		case "$$CHOICE" in \
 			"1") FILE="$(CAMERA_CONFIG_REAL)" ;; \
