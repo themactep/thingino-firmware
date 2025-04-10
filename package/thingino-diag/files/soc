@@ -141,11 +141,12 @@ print_soc_architecture() {
 }
 
 show_usage() {
-	echo "Usage: $0 [-c|-f|-m|-w|-a]
+	echo "Usage: $0 [-c|-f|-m|-w|-a|-c]
 	-m	SoC model
 	-f	SoC family
 	-w	raw info for wiki
 	-a	CPU architecture
+	-c	CPU Clocks
 " >&2
 }
 
