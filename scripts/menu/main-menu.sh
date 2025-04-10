@@ -15,6 +15,7 @@ function main_menu() {
 			"clean" "Clean before reassembly"  \
 			"cleanbuild" "Build everything from scratch" \
 			"distclean" "Remove all cached build files from current profile"  \
+			"edit" "Edit configurations" \
 			"make" "Generate firmware" \
 			"make fast" "Generate firmware (use $(nproc) CPU Cores)" \
 			"upgrade_ota" "Upload the full firmware file to the camera over network, and flash it"  \
@@ -38,6 +39,8 @@ function show_help() {
 			show_help_msgbox "The 'clean' command removes most of the files generated during the build process but preserves your configuration settings. This allows you to rebuild your firmware quickly without starting from scratch." 8;;
 		"HELP distclean")
 			show_help_msgbox "Choosing 'distclean' will clean your build environment more thoroughly than 'clean'. It removes all generated files, including your configuration and all cached build files. Use this to completely restart the build process." 8;;
+		"HELP edit")
+			show_help_msgbox "This option displays a menu where you can select configuration files to edit based on the selected profile." 6;;
 		"HELP make")
 			show_help_msgbox "This option starts the compilation process for the entire firmware project based on your current configuration settings. It's a key step in creating the custom thingino firmware for your device." 7;;
 		"HELP make fast")
@@ -69,7 +72,7 @@ execute_choice() {
 			make
 			exit
 			;;
-		defconfig|saveconfig|clean|distclean|cleanbuild)
+		defconfig|saveconfig|clean|distclean|cleanbuild|edit)
 			make $1
 			exit
 			;;

@@ -572,6 +572,7 @@ help:
 	Usage:\n\
 	  make bootstrap      install system deps\n\
 	  make update         update local repo from GitHub\n\
+	  make                edit configurations\n\
 	  make                build and pack everything\n\
 	  make build          build kernel and rootfs\n\
 	  make cleanbuild     build everything from scratch, fast\n\
