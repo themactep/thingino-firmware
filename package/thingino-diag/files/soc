@@ -76,6 +76,7 @@ print_soc_model() {
 			#$((0x????))) soc="t41zg" ;; # verify on chip
 			$((0x9999))) soc="t41lq" ;;
 			$((0xAAAA))) soc="t41nq" ;;
+			#$((0xAAAA))) soc="t41xq" ;;
 			*) soc="unknown_t4x" ;;
 		esac
 	elif [ "$cpuid" -eq $((0x1)) ]; then
