@@ -266,6 +266,29 @@ config BR2_THINGINO_INGENIC_SDK_GCC_720
 	depends on BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41 || BR2_SOC_FAMILY_INGENIC_A1
 endchoice
 
+menu "IPU Configuration"
+depends on BR2_SOC_FAMILY_INGENIC_A1
+choice
+	prompt "IPU Clock Speed"
+	default BR2_IPU_CLK_400MHZ
+	help
+	  Choose the IPU clock speed from the predefined options.
+
+config BR2_IPU_CLK_400MHZ
+	bool "400 MHz"
+config BR2_IPU_CLK_450MHZ
+	bool "450 MHz"
+config BR2_IPU_CLK_500MHZ
+	bool "500 MHz"
+config BR2_IPU_CLK_550MHZ
+	bool "550 MHz"
+config BR2_IPU_CLK_600MHZ
+	bool "600 MHz"
+config BR2_IPU_CLK_650MHZ
+	bool "650 MHz"
+endchoice
+endmenu
+
 menu "ISP Configuration"
 depends on !BR2_SOC_FAMILY_INGENIC_A1
 

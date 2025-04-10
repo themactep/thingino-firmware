@@ -833,6 +833,24 @@ endif
 
 export ISP_NMEM
 
+# Default IPU clock speed
+ifeq ($(BR2_IPU_CLK_400MHZ),y)
+	IPU_CLK := 400000000
+else ifeq ($(BR2_IPU_CLK_450MHZ),y)
+	IPU_CLK := 450000000
+else ifeq ($(BR2_IPU_CLK_500MHZ),y)
+	IPU_CLK := 500000000
+else ifeq ($(BR2_IPU_CLK_550MHZ),y)
+	IPU_CLK := 550000000
+else ifeq ($(BR2_IPU_CLK_600MHZ),y)
+	IPU_CLK := 600000000
+else ifeq ($(BR2_IPU_CLK_650MHZ),y)
+	IPU_CLK := 650000000
+else
+	IPU_CLK := 400000000
+endif
+
+
 # Default ISP clock speed
 ifeq ($(BR2_ISP_CLK_90MHZ),y)
 	ISP_CLK := 90000000
@@ -958,6 +976,7 @@ endif
 
 export AVPU_CLK
 export AVPU_CLK_SRC
+export IPU_CLK
 export ISP_CLK
 export ISP_CLK_SRC
 export ISP_CLKA_CLK
