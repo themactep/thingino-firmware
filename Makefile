@@ -509,7 +509,7 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(
 
 $(FIRMWARE_BIN_NOBOOT): $(FIRMWARE_BIN_FULL)
 	$(info -------------------------------- $@)
-	dd if=$(FIRMWARE_BIN_FULL) of=$@ bs=$(FIRMWARE_BIN_NOBOOT_SIZE) count=1 skip=$(KERNEL_OFFSET)B
+	dd if=$(FIRMWARE_BIN_FULL) of=$@ bs=$(FIRMWARE_NOBOOT_SIZE) count=1 skip=$(KERNEL_OFFSET)B
 
 $(U_BOOT_BIN):
 	$(info -------------------------------- $@)
