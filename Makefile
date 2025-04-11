@@ -258,23 +258,25 @@ edit:
 		CHOICE=$$(dialog --keep-tite --colors --title "Edit Menu" --menu "Choose an option to edit:" 16 60 10 \
 			"1" "Camera Config (edit-defconfig)" \
 			"2" "Module Config (edit-module)" \
-			"3" "Camera U-Boot Environment (edit-uenv)" \
+			"3" "System Config (edit-config)" \
+			"4" "Camera U-Boot Environment (edit-uenv)" \
 			"" "━━━━━━━━━ LOCAL OVERRIDES ━━━━━━━━━" \
-			"4" "Local Fragment (edit-localfragment)" \
-			"5" "Local Config (edit-localconfig)" \
-			"6" "Local Makefile (edit-localmk)" \
-			"7" "Local U-Boot Evironment (edit-localuenv)" 2>&1 >/dev/tty) || exit 0; \
+			"5" "Local Fragment (edit-localfragment)" \
+			"6" "Local Config (edit-localconfig)" \
+			"7" "Local Makefile (edit-localmk)" \
+			"8" "Local U-Boot Evironment (edit-localuenv)" 2>&1 >/dev/tty) || exit 0; \
 		\
 		[ -z "$$CHOICE" ] && continue; \
 		\
 		case "$$CHOICE" in \
 			"1") FILE="$(CAMERA_CONFIG_REAL)" ;; \
 			"2") FILE="$(MODULE_CONFIG_REAL)" ;; \
-			"3") FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt" ;; \
-			"4") FILE="$(BR2_EXTERNAL)/configs/local.fragment" ;; \
-			"5") FILE="$(BR2_EXTERNAL)/configs/local.config" ;; \
-			"6") FILE="$(BR2_EXTERNAL)/local.mk" ;; \
-			"7") FILE="$(BR2_EXTERNAL)/configs/local.uenv.txt" ;; \
+			"3") FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).config" ;; \
+			"4") FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt" ;; \
+			"5") FILE="$(BR2_EXTERNAL)/configs/local.fragment" ;; \
+			"6") FILE="$(BR2_EXTERNAL)/configs/local.config" ;; \
+			"7") FILE="$(BR2_EXTERNAL)/local.mk" ;; \
+			"8") FILE="$(BR2_EXTERNAL)/configs/local.uenv.txt" ;; \
 			*) echo "Invalid option"; continue ;; \
 		esac; \
 		\
@@ -286,6 +288,9 @@ edit-defconfig:
 
 edit-module:
 	$(call edit_file,$@,$(MODULE_CONFIG_REAL))
+
+edit-config:
+	$(call edit_file,$@,$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).config)
 
 edit-uenv:
 	$(call edit_file,$@,$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt)
