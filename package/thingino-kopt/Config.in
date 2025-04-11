@@ -274,3 +274,9 @@ config BR2_PACKAGE_THINGINO_KOPT_EXTFS
 	depends on BR2_PACKAGE_THINGINO_KOPT
 	help
 	  Enables EXT2 and EXT4 filesystem support with all dependencies.
+
+config BR2_PACKAGE_THINGINO_KOPT_DMIC
+	bool "I2S DMIC Support"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enables I2S DMIC (Digital Microphone) support.
