@@ -54,16 +54,25 @@ check_free_space() {
 	local dl_size dl_size_offsetted flash_size free_space offset
 
 	dl_size=$(curl -sIL $1 | awk '/Content-Length:\s\d{2,}/{gsub(/\r/,"",$2);print $2}')
-	[ -z "$dl_size" ] && die "Cannot get remote file size"
-	[ "$dl_size" -le 0 ] && die "Remote file size is zero"
+	if [ -z "$dl_size" ]; then
+		die "Cannot get remote file size. Camera profile name may have changed. Please run gestalt and select the correct profile."
+	fi
+
+	if [ "$dl_size" -le 0 ]; then
+		die "Remote file size is zero"
+	fi
 	report_size "Remote file size" "$dl_size"
 
 	offset="${2:-0}"
 	report_size "Remote file offset" "$offset"
-	[ "$dl_size" -le $offset ] && die "Remote file size is less than offset"
+	if [ "$dl_size" -le $offset ]; then
+		die "Remote file size is less than offset"
+	fi
 
 	flash_size=$(full_upgrade_partition_size)
-	[ "$dl_size" -gt $flash_size ] && die "Firmware is larger than flash chip: $dl_size > $flash_size"
+	if [ "$dl_size" -gt $flash_size ]; then
+		die "Firmware is larger than flash chip: $dl_size > $flash_size"
+	fi
 	report_size "Full flash size" "$flash_size"
 
 	free_space=$(available_free_space)
@@ -72,7 +81,9 @@ check_free_space() {
 	dl_size_offsetted=$((dl_size - offset))
 	report_size "Download size" "$dl_size_offsetted"
 
-	[ "$dl_size_offsetted" -gt $free_space ] && die "Not enough free space to download firmware"
+	if [ "$dl_size_offsetted" -gt $free_space ]; then
+		die "Not enough free space to download firmware"
+	fi
 }
 
 available_free_space() {
@@ -107,8 +118,13 @@ cleanup() {
 }
 
 clone_app() {
-	local target="$2"
-	[ -z "$target" ] && target="$(basename $1)"
+	local target
+
+	target="$2"
+	if [ -z "$target" ]; then
+		target="$(basename $1)"
+	fi
+
 	if ! cp -vf "$1" "$workdir/$target"; then
 		say "Error: Failed to copy $1 to $workdir/$target"
 		cleanup
@@ -125,6 +141,7 @@ die() {
 # url file options
 download() {
 	local file
+
 	file="$2"
 	[ -z "$file" ] && file="$fw_file"
 	echo "Downloading from $1 to $file"
@@ -137,30 +154,49 @@ expand_bb() {
 }
 
 extract_bootloader() {
-	[ "$U_BOOT_MAGIC" = "$(xxd -l 4 -p $1)" ] || die "$1 image does not start with a bootloader!"
+	if [ "$U_BOOT_MAGIC" != "$(xxd -l 4 -p $1)" ]; then
+		die "$1 image does not start with a bootloader!"
+	fi
+
 	truncate -s 256K $1
 }
 
 handle_payload() {
 	echo "Change directory to $dl_dir"
-	[ -d "$dl_dir" ] || die "Cannot change directory to $dl_dir"
-	[ -w "$dl_dir" ] || die "Cannot write to $dl_dir"
-	cd $dl_dir
+
+	if [ ! -d "$dl_dir" ]; then
+		die "Cannot change directory to $dl_dir"
+	fi
+
+	if [ ! -w "$dl_dir" ]; then
+		die "Cannot write to $dl_dir"
+	fi
+
+	if ! cd $dl_dir; then
+		die "Cannot change directory to $dl_dir"
+	fi
 
 	if [ "local" = "$upgrade" ]; then
 		say "Upgrade from a provided file"
 		if echo "$1" | grep -qE '^https?://'; then
 			say "Download firmware from\n$1"
 			check_free_space "$1"
-			download $1 || die "Cannot download $1 to $fw_file"
+			if ! download $1; then
+				die "Cannot download $1 to $fw_file"
+			fi
 		else
-			[ -f "$fw_file" ] || die "Cannot find $fw_file"
+			if [ ! -f "$fw_file" ]; then
+				die "Cannot find $fw_file"
+			fi
 		fi
 	else
 		say "Upgrade from GitHub"
+
 		data=/etc/os-release
 		profile=$(awk -F= '/^IMAGE_ID=/ {print $2}' $data)
-		[ -z "$profile" ] && die "Building profile is not set in $data"
+		if [ -z "$profile" ]; then
+			die "Building profile is not set in $data"
+		fi
 
 		gh_url="$GITHUB_URL/themactep/thingino-firmware/releases"
 		if [ -n "$release_date" ]; then
@@ -169,7 +205,9 @@ handle_payload() {
 		else
 			gh_url="$gh_url/latest/download"
 		fi
+
 		bin_url="$gh_url/thingino-$profile.bin"
+
 		if [ "part" = "$upgrade" ]; then
 			case "$(partial_upgrade_partition_name)" in
 				mtd5) offset=$SIZE_320K ;;
@@ -187,20 +225,29 @@ handle_payload() {
 		check_free_space "$bin_url" "$offset"
 
 		say "Download checksum from $sha_url"
-		download "$sha_url" "tempsha256sum" || die "Cannot download checksum file."
+		if ! download "$sha_url" "tempsha256sum"; then
+			die "Cannot download checksum file."
+		fi
+
 		grep -v '^#' "tempsha256sum" > $sha_file
 
 		say "Download firmware from $bin_url"
-		download "$bin_url" "$bin_file" "-C $offset" || die "Cannot download firmware from specified URL."
+		if ! download "$bin_url" "$bin_file" "-C $offset"; then
+			die "Cannot download firmware from specified URL."
+		fi
 
 		say "Verify downloaded file"
-		sha256sum -c $sha_file || die "Checksum does not match!"
+		if ! sha256sum -c $sha_file; then
+			die "Checksum does not match!"
+		fi
 
 		say "Clean up"
 		rm -v $sha_file
 
 		say "Relocate downloaded file"
-		mv -v "$bin_file" "$fw_file" || die "Cannot move $bin_file to $fw_file"
+		if ! mv -v "$bin_file" "$fw_file"; then
+			die "Cannot move $bin_file to $fw_file"
+		fi
 	fi
 
 	cd -
@@ -264,7 +311,9 @@ unmount_config() {
 }
 
 update_self() {
-	local GH_DL_URL="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/"
+	local GH_DL_URL
+
+	GH_DL_URL="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/"
 	download "$GH_DL_URL$stage1app" "$workdir/$stage1app"
 	chmod +x $workdir/$stage1app
 	download "$GH_DL_URL$stage2app" "/sbin/$stage2app"
@@ -311,7 +360,9 @@ shift "$((OPTIND - 1))"
 
 if [ -n "$requested_date" ]; then
 	if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ] || [ "boot" = "$upgrade" ]; then
-		release_date=$(date -d "$requested_date" +%F) || die "Invalid date: $requested_date"
+		if ! release_date=$(date -d "$requested_date" +%F); then
+			die "Invalid date: $requested_date"
+		fi
 	else
 		say "Release date only works with upgrades from GitHub"
 	fi
@@ -320,7 +371,9 @@ fi
 # work in $workdir
 if [ ! -d $workdir ]; then
 	say "Create $workdir directory"
-	mkdir -p $workdir || die "Cannot create $workdir directory"
+	if ! mkdir -p $workdir; then
+		die "Cannot create $workdir directory"
+	fi
 fi
 
 if [ -z "$upgrade" ]; then
@@ -336,16 +389,20 @@ if [ -z "$upgrade" ]; then
 			say "Found $fw_file"
 		else
 			ufile="$(realpath "$1")"
-			[ -r "$ufile" ] || die "Cannot find file $ufile (from $(pwd))"
+			if [ ! -r "$ufile" ]; then
+				die "Cannot find file $ufile (from $(pwd))"
+			fi
 			say "Found $ufile"
 			mv -v "$ufile" "$fw_file"
 		fi
 	fi
 fi
 
-cd $workdir || die "Cannot change directory to $workdir"
+if ! cd $workdir; then
+	die "Cannot change directory to $workdir"
+fi
 
-if [ "$(dirname $self)" != "$workdir" ]; then
+if [ "$(dirname "$self")" != "$workdir" ]; then
 	if [ "true" = "$selfupdate" ]; then
 		say "Update self"
 		update_self
@@ -389,7 +446,9 @@ fi
 
 trap cleanup 2 6 15
 
-[ -n "$url" ] && check_network "$url"
+if [ -n "$url" ]; then
+	check_network "$url"
+fi
 
 handle_payload "$@"
 
