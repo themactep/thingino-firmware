@@ -224,6 +224,17 @@ else ifeq ($(BR2_SOC_INGENIC_T31ZX),y)
 	else
 	UBOOT_BOARDNAME := "isvp_t31_sfcnor_ddr128M"
 	endif
+else ifeq ($(BR2_SOC_INGENIC_C100),y)
+	SOC_FAMILY := t31
+	SOC_MODEL := t31
+	SOC_RAM := 128
+	BR2_SOC_INGENIC_T31 := y
+	BR2_XBURST_1 := y
+	ifeq ($(BR2_THINGINO_FLASH_NAND),y)
+	UBOOT_BOARDNAME := "isvp_c100_sfcnand"
+	else
+	UBOOT_BOARDNAME := "isvp_c100_sfcnor"
+	endif
 else ifeq ($(BR2_SOC_INGENIC_T40N),y)
 	SOC_FAMILY := t40
 	SOC_MODEL := t40n
@@ -390,6 +401,7 @@ export BR2_SOC_INGENIC_T30
 export BR2_SOC_INGENIC_T31
 export BR2_SOC_INGENIC_T40
 export BR2_SOC_INGENIC_T41
+export BR2_SOC_INGENIC_C100
 export BR2_XBURST_1
 export BR2_XBURST_2
 export INGENIC_ARCH
@@ -433,7 +445,7 @@ else ifeq ($(BR2_SOC_INGENIC_A1),y)
 	KERNEL_VERSION := 4.4
 	KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
 	KERNEL_BRANCH := ingenic-a1
-else ifeq ($(BR2_SOC_INGENIC_T31),y)
+else ifeq ($(BR2_SOC_INGENIC_T31)$(BR2_SOC_INGENIC_C100),y)
 	ifeq ($(KERNEL_VERSION_3),y)
 		KERNEL_VERSION := 3.10
 		KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
@@ -1078,6 +1090,12 @@ else ifeq ($(BR2_SOC_INGENIC_T31),y)
 	else
 		SDK_VERSION := 1.1.6
 	endif
+else ifeq ($(BR2_SOC_INGENIC_C100),y)
+	ifeq ($(KERNEL_VERSION_4),y)
+		SDK_VERSION := 1.1.5.2
+	else
+		SDK_VERSION := 1.1.6
+	endif
 else ifeq ($(BR2_SOC_INGENIC_T40),y)
 	SDK_VERSION := 1.2.0
 else ifeq ($(BR2_SOC_INGENIC_T41),y)
@@ -1088,6 +1106,8 @@ endif
 
 # Determine project C library, set SDK C library and toolchain version
 ifeq ($(BR2_SOC_INGENIC_T31)$(KERNEL_VERSION_4),yy)
+	SDK_LIBC_NAME := uclibc
+else ifeq ($(BR2_SOC_INGENIC_C100)$(KERNEL_VERSION_4),yy)
 	SDK_LIBC_NAME := uclibc
 else ifeq ($(BR2_TOOLCHAIN_USES_GLIBC),y)
 	BR2_LIBC_NAME := glibc
@@ -1106,7 +1126,7 @@ endif
 
 ifeq ($(BR2_SOC_INGENIC_T10)$(BR2_SOC_INGENIC_T20)$(BR2_SOC_INGENIC_T21)$(BR2_SOC_INGENIC_T30),y)
 	SDK_LIBC_VERSION := 4.7.2
-else ifeq ($(BR2_SOC_INGENIC_T31),y)
+else ifeq ($(BR2_SOC_INGENIC_T31)$(BR2_SOC_INGENIC_C100),y)
 	ifeq ($(KERNEL_VERSION_4),y)
 		SDK_LIBC_VERSION := 4.7.2
 	else
