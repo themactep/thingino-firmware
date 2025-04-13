@@ -277,6 +277,6 @@ config BR2_PACKAGE_THINGINO_KOPT_EXTFS
 
 config BR2_PACKAGE_THINGINO_KOPT_DMIC
 	bool "I2S DMIC Support"
-	depends on BR2_PACKAGE_THINGINO_KOPT
+	depends on BR2_PACKAGE_THINGINO_KOPT && KERNEL_VERSION_3
 	help
 	  Enables I2S DMIC (Digital Microphone) support.
