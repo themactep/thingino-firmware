@@ -1,7 +1,7 @@
 INGENIC_LIB_SITE_METHOD = git
 INGENIC_LIB_SITE = https://github.com/gtxaspec/ingenic-lib
 INGENIC_LIB_SITE_BRANCH = master
-INGENIC_LIB_VERSION = aea63e6f0d7821fdb62d8fc9259beebf065f0c47
+INGENIC_LIB_VERSION = 98b6f0d5b6abf5b91e48c74d398101776c3df5ae
 # $(shell git ls-remote $(INGENIC_LIB_SITE) $(INGENIC_LIB_SITE_BRANCH) | head -1 | cut -f1)
 INGENIC_LIB_INSTALL_STAGING = YES
 
@@ -17,19 +17,19 @@ else
 endif
 
 define INGENIC_LIB_INSTALL_STAGING_CMDS
-	$(INSTALL) -D -m 0644 $(LIBALOG_FILE) \
-		$(STAGING_DIR)/usr/lib/libalog.so
-
 	$(INSTALL) -m 0644 -t $(STAGING_DIR)/usr/lib/ \
 		$(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/*.so
+
+	$(INSTALL) -D -m 0644 $(LIBALOG_FILE) \
+		$(STAGING_DIR)/usr/lib/libalog.so
 endef
 
 define INGENIC_LIB_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0644 $(LIBALOG_FILE) \
-		$(TARGET_DIR)/usr/lib/libalog.so
-
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/lib/ \
 		$(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/*.so
+
+	$(INSTALL) -D -m 0644 $(LIBALOG_FILE) \
+		$(TARGET_DIR)/usr/lib/libalog.so
 endef
 
 $(eval $(generic-package))
