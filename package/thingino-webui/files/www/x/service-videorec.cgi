@@ -4,7 +4,7 @@
 page_title="Video Recorder"
 
 MOUNTS=$(awk '/cif|fat|nfs|smb/{print $2}' /etc/mtab)
-RECORD_FILENAME_FB="%Y%m%d/%Y%m%dT%H%M%S"
+RECORD_FILENAME_FB="%Y%m%d/%H/%Y%m%dT%H%M%S"
 
 defaults() {
 	default_for record_enabled "false"
