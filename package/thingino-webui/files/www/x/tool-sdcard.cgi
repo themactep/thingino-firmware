@@ -58,4 +58,12 @@ if [ "POST" = "$REQUEST_METHOD" ]; then %>
 </form>
 </div>
 <% fi; fi %>
+
+<div class="alert alert-dark ui-debug d-none">
+<h4 class="mb-3">Debug info</h4>
+<% if [ -n "$device_name" ]; then %>
+<% ex "fdisk -l /dev/$device_name" %>
+<% end %>
+</div>
+
 <%in _footer.cgi %>
