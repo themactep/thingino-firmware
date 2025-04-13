@@ -225,10 +225,10 @@ else ifeq ($(BR2_SOC_INGENIC_T31ZX),y)
 	UBOOT_BOARDNAME := "isvp_t31_sfcnor_ddr128M"
 	endif
 else ifeq ($(BR2_SOC_INGENIC_C100),y)
-	SOC_FAMILY := t31
-	SOC_MODEL := t31
+	SOC_FAMILY := c100
+	SOC_MODEL := c100
 	SOC_RAM := 128
-	BR2_SOC_INGENIC_T31 := y
+	BR2_SOC_INGENIC_C100 := y
 	BR2_XBURST_1 := y
 	ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 	UBOOT_BOARDNAME := "isvp_c100_sfcnand"
@@ -445,7 +445,7 @@ else ifeq ($(BR2_SOC_INGENIC_A1),y)
 	KERNEL_VERSION := 4.4
 	KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
 	KERNEL_BRANCH := ingenic-a1
-else ifeq ($(BR2_SOC_INGENIC_T31)$(BR2_SOC_INGENIC_C100),y)
+else ifeq ($(BR2_SOC_INGENIC_T31),y)
 	ifeq ($(KERNEL_VERSION_3),y)
 		KERNEL_VERSION := 3.10
 		KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
@@ -454,6 +454,16 @@ else ifeq ($(BR2_SOC_INGENIC_T31)$(BR2_SOC_INGENIC_C100),y)
 		KERNEL_VERSION := 4.4
 		KERNEL_SITE := https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94
 		KERNEL_BRANCH := stable
+	endif
+else ifeq ($(BR2_SOC_INGENIC_C100),y)
+	ifeq ($(KERNEL_VERSION_3),y)
+		KERNEL_VERSION := 3.10
+		KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+		KERNEL_BRANCH := ingenic-t31
+	else ifeq ($(KERNEL_VERSION_4),y)
+		KERNEL_VERSION := 4.4
+		KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+		KERNEL_BRANCH := ingenic-c100
 	endif
 else
 	KERNEL_VERSION := 3.10
@@ -1092,7 +1102,7 @@ else ifeq ($(BR2_SOC_INGENIC_T31),y)
 	endif
 else ifeq ($(BR2_SOC_INGENIC_C100),y)
 	ifeq ($(KERNEL_VERSION_4),y)
-		SDK_VERSION := 1.1.5.2
+		SDK_VERSION := 2.1.0
 	else
 		SDK_VERSION := 1.1.6
 	endif
@@ -1128,9 +1138,9 @@ ifeq ($(BR2_SOC_INGENIC_T10)$(BR2_SOC_INGENIC_T20)$(BR2_SOC_INGENIC_T21)$(BR2_SO
 	SDK_LIBC_VERSION := 4.7.2
 else ifeq ($(BR2_SOC_INGENIC_T31)$(BR2_SOC_INGENIC_C100),y)
 	ifeq ($(KERNEL_VERSION_4),y)
-		SDK_LIBC_VERSION := 4.7.2
-	else
 		SDK_LIBC_VERSION := 5.4.0
+	else
+		SDK_LIBC_VERSION := 4.7.2
 	endif
 else ifeq ($(BR2_SOC_INGENIC_T40)$(BR2_SOC_INGENIC_T41)$(BR2_SOC_INGENIC_A1),y)
 	SDK_LIBC_VERSION := 7.2.0
