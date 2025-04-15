@@ -233,7 +233,7 @@ else ifeq ($(BR2_SOC_INGENIC_C100),y)
 	ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 	UBOOT_BOARDNAME := "isvp_c100_sfcnand"
 	else
-	UBOOT_BOARDNAME := "isvp_c100_sfcnor"
+	UBOOT_BOARDNAME := "isvp_t31al_sfcnor_ddr128M"
 	endif
 else ifeq ($(BR2_SOC_INGENIC_T40N),y)
 	SOC_FAMILY := t40
@@ -452,8 +452,10 @@ else ifeq ($(BR2_SOC_INGENIC_T31),y)
 		KERNEL_BRANCH := ingenic-t31
 	else ifeq ($(KERNEL_VERSION_4),y)
 		KERNEL_VERSION := 4.4
-		KERNEL_SITE := https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94
-		KERNEL_BRANCH := stable
+		KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
+		KERNEL_BRANCH := ingenic-t31
+		#KERNEL_SITE := https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94
+		#KERNEL_BRANCH := stable
 	endif
 else ifeq ($(BR2_SOC_INGENIC_C100),y)
 	ifeq ($(KERNEL_VERSION_3),y)
@@ -463,7 +465,7 @@ else ifeq ($(BR2_SOC_INGENIC_C100),y)
 	else ifeq ($(KERNEL_VERSION_4),y)
 		KERNEL_VERSION := 4.4
 		KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
-		KERNEL_BRANCH := ingenic-c100
+		KERNEL_BRANCH := ingenic-t31
 	endif
 else
 	KERNEL_VERSION := 3.10
