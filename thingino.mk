@@ -233,7 +233,7 @@ else ifeq ($(BR2_SOC_INGENIC_C100),y)
 	ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 	UBOOT_BOARDNAME := "isvp_c100_sfcnand"
 	else
-	UBOOT_BOARDNAME := "isvp_t31al_sfcnor_ddr128M"
+	UBOOT_BOARDNAME := "isvp_c100_sfcnor"
 	endif
 else ifeq ($(BR2_SOC_INGENIC_T40N),y)
 	SOC_FAMILY := t40
