@@ -8,10 +8,9 @@ gpio_led_g=54O
 gpio_mmc_cd=61
 gpio_mmc_power=52o
 gpio_motor_h=49 50 57 58
-gpio_motor_v=-1 -1 -1 -1
+gpio_motor_v=49 50 57 58
 gpio_motor_limit_h_1=6
 gpio_motor_limit_h_2=48
 gpio_motor_switch=62
 gpio_speaker=63
 gpio_wlan=53O
-
