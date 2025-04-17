@@ -453,7 +453,7 @@ else ifeq ($(BR2_SOC_INGENIC_T31),y)
 	else ifeq ($(KERNEL_VERSION_4),y)
 		KERNEL_VERSION := 4.4
 		KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
-		KERNEL_BRANCH := ingenic-t31
+		KERNEL_BRANCH := ingenic-t31-4.4.94
 		#KERNEL_SITE := https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94
 		#KERNEL_BRANCH := stable
 	endif
