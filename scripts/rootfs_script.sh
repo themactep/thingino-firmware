@@ -78,11 +78,20 @@ touch $SYSTEM_CONFIG
 cat ${BR2_EXTERNAL}/configs/common.config | tee -a $SYSTEM_CONFIG
 
 # Add the camera specific configuration
-cat ${BR2_EXTERNAL}/configs/cameras/${CAMERA}/${CAMERA}.config | tee -a $SYSTEM_CONFIG
+cat ${BR2_EXTERNAL}/${CAMERA_SUBDIR}/${CAMERA}/${CAMERA}.config | tee -a $SYSTEM_CONFIG
 
 # Add the development configuration
 if [ -f ${BR2_EXTERNAL}/configs/local.config ]; then
 	cat ${BR2_EXTERNAL}/configs/local.config | tee -a $SYSTEM_CONFIG
+fi
+
+if [ -f "${TARGET_DIR}/etc/init.d/S50dropbear" ]; then
+	mv ${TARGET_DIR}/etc/init.d/S50dropbear ${TARGET_DIR}/etc/init.d/S30dropbear
+fi
+
+if grep -q ^BR2_TOOLCHAIN_USES_MUSL $BR2_CONFIG >/dev/null; then
+	ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/lib/ld-uClibc.so.0
+	ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/usr/bin/ldd
 fi
 
 #
@@ -95,15 +104,6 @@ fi
 
 if [ -f "${TARGET_DIR}/lib/libstdc++.so.6.0.33-gdb.py" ]; then
 	rm -vf ${TARGET_DIR}/lib/libstdc++.so.6.0.33-gdb.py
-fi
-
-if [ -f "${TARGET_DIR}/etc/init.d/S50dropbear" ]; then
-	mv ${TARGET_DIR}/etc/init.d/S50dropbear ${TARGET_DIR}/etc/init.d/S30dropbear
-fi
-
-if grep -q ^BR2_TOOLCHAIN_USES_MUSL $BR2_CONFIG >/dev/null; then
-	ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/lib/ld-uClibc.so.0
-	ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/usr/bin/ldd
 fi
 
 if grep -q ^BR2_PACKAGE_EXFAT_UTILS $BR2_CONFIG >/dev/null; then
