@@ -496,9 +496,9 @@ endif
 $(U_BOOT_ENV_TXT): $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
 	touch $@
-	grep -v '^#' $(BR2_EXTERNAL)/configs/common.uenv.txt | tee -a $@
-	grep -v '^#' $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt | tee -a $@
-	grep -v '^#' $(BR2_EXTERNAL)/configs/local.uenv.txt | tee -a $@
+	grep -v '^#' $(BR2_EXTERNAL)/configs/common.uenv.txt | awk NF | tee -a $@
+	grep -v '^#' $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt | awk NF | tee -a $@
+	grep -v '^#' $(BR2_EXTERNAL)/configs/local.uenv.txt | awk NF | tee -a $@
 	sort -u -o $@ $@
 
 $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(EXTRAS_BIN)
