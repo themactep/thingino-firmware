@@ -8,12 +8,33 @@ INGENIC_LIB_INSTALL_STAGING = YES
 INGENIC_LIB_LICENSE = GPL-2.0
 INGENIC_LIB_LICENSE_FILES = COPYING
 
-ifeq ($(BR2_SOC_FAMILY_INGENIC_T40)$(BR2_SOC_FAMILY_INGENIC_T41)$(BR2_SOC_FAMILY_INGENIC_A1),y)
-	LIBALOG_FILE = $(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/libalog.so
+ifeq ($(BR2_THINGINO_INGENIC_SDK_GCC_GLIBC),y)
+	SDK_LIBC_NAME := glibc
+else ifeq ($(BR2_THINGINO_INGENIC_SDK_GCC_UCLIBC),y)
+	SDK_LIBC_NAME := uclibc
+else ifeq ($(BR2_THINGINO_INGENIC_SDK_GCC_MUSL),y)
+	SDK_LIBC_NAME := uclibc
 else
-	# Install libalog.so from T31 1.1.6 for every XBurst1 SoC
-	# 40032d0802b86f3cfb0b2b13d866556e
+	# default to uClibc libs
+	SDK_LIBC_NAME := uclibc
+endif
+
+ifeq ($(BR2_SOC_FAMILY_INGENIC_T40)$(BR2_SOC_FAMILY_INGENIC_T41)$(BR2_SOC_FAMILY_INGENIC_A1),y)
+ifeq ($(SDK_LIBC_NAME),uclibc)
+	# For T40/T41/A1 with uclibc, use T31 1.1.6 version
 	LIBALOG_FILE = $(@D)/T31/lib/1.1.6/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/libalog.so
+else
+	# For T40/T41/A1 with other libc, use their native version
+	LIBALOG_FILE = $(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/libalog.so
+endif
+else
+ifeq ($(SDK_LIBC_NAME),uclibc)
+	# For other XBurst1 SoCs with uclibc, use T31 1.1.6 version
+	LIBALOG_FILE = $(@D)/T31/lib/1.1.6/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/libalog.so
+else
+	# For other XBurst1 SoCs with non-uclibc (including T31 with glibc), use their corresponding libc version
+	LIBALOG_FILE = $(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/libalog.so
+endif
 endif
 
 define INGENIC_LIB_INSTALL_STAGING_CMDS

@@ -1116,26 +1116,6 @@ else ifeq ($(BR2_SOC_INGENIC_A1),y)
 	SDK_VERSION := 1.6.2
 endif
 
-# Determine project C library, set SDK C library and toolchain version
-ifeq ($(BR2_SOC_INGENIC_T31)$(KERNEL_VERSION_4),yy)
-	SDK_LIBC_NAME := uclibc
-else ifeq ($(BR2_SOC_INGENIC_C100)$(KERNEL_VERSION_4),yy)
-	SDK_LIBC_NAME := uclibc
-else ifeq ($(BR2_TOOLCHAIN_USES_GLIBC),y)
-	BR2_LIBC_NAME := glibc
-	SDK_LIBC_NAME := glibc
-else ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
-	BR2_LIBC_NAME := uclibc
-	SDK_LIBC_NAME := uclibc
-else ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
-	BR2_LIBC_NAME := musl
-	SDK_LIBC_NAME := uclibc
-else
-	# default to uClibc libs
-	BR2_LIBC_NAME := unknown
-	SDK_LIBC_NAME := uclibc
-endif
-
 ifeq ($(BR2_SOC_INGENIC_T10)$(BR2_SOC_INGENIC_T20)$(BR2_SOC_INGENIC_T21)$(BR2_SOC_INGENIC_T30),y)
 	SDK_LIBC_VERSION := 4.7.2
 else ifeq ($(BR2_SOC_INGENIC_T31)$(BR2_SOC_INGENIC_C100),y)

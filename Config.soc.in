@@ -275,6 +275,24 @@ config BR2_THINGINO_INGENIC_SDK_GCC_720
 	depends on BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41 || BR2_SOC_FAMILY_INGENIC_A1
 endchoice
 
+choice
+	prompt "Ingenic GCC Type"
+	help
+	  Select the GCC type
+
+config BR2_THINGINO_INGENIC_SDK_GCC_MUSL
+	bool "musl"
+	depends on BR2_TOOLCHAIN_USES_MUSL
+
+config BR2_THINGINO_INGENIC_SDK_GCC_GLIBC
+	bool "glibc"
+	depends on BR2_TOOLCHAIN_USES_GLIBC
+
+config BR2_THINGINO_INGENIC_SDK_GCC_UCLIBC
+	bool "uClibc"
+	depends on BR2_TOOLCHAIN_USES_UCLIBC
+endchoice
+
 menu "IPU Configuration"
 depends on BR2_SOC_FAMILY_INGENIC_A1
 choice
