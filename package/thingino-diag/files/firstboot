@@ -41,11 +41,16 @@ wipe() {
 #		umount -f /etc/config
 #	fi
 
+	echo "Erasing config partition..."
 	flash_eraseall -j "${configfs_data_dev}"
 
+	echo "Erasing rootfs_data partition..."
 	flash_eraseall -j "/dev/${rootfs_data_dev}"
 
-	[ "$erase_mtd1" = true ] && flash_eraseall /dev/mtd1
+	if [ "$erase_mtd1" = true ]; then
+		echo "Erasing U-Boot ENV..."
+		flash_eraseall /dev/mtd1
+	fi
 
 	echo_info "Erase completed. Rebooting..."
 	reboot -f
