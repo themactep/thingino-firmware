@@ -1,5 +1,5 @@
 diff --git a/src/libhelix-aac/aaccommon.h b/src/libhelix-aac/aaccommon.h
-index 804337c..686ad18 100644
+index 462f104..da8b16c 100644
 --- a/src/libhelix-aac/aaccommon.h
 +++ b/src/libhelix-aac/aaccommon.h
 @@ -46,8 +46,14 @@
@@ -12,9 +12,9 @@ index 804337c..686ad18 100644
 +  #include <Arduino.h>
 +  #include <pgmspace.h>
 +#else
-+    #define PROGMEM
-+    #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
-+    #define pgm_read_word(addr) (*(const unsigned short *)(addr))
++  #define PROGMEM
++  #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
++  #define pgm_read_word(addr) (*(const unsigned short *)(addr))
 +#endif
  
  // Can't fit in ESP8266 RAM
