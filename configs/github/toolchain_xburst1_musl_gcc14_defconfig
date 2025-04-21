@@ -24,4 +24,4 @@ BR2_PACKAGE_HOST_GDB=y
 BR2_PER_PACKAGE_DIRECTORIES=y
 BR2_THINGINO_DEV_PACKAGES=y
 BR2_THINGINO_TOOLCHAIN_BUILD=y
-BR2_EXTRA_GCC_CONFIG_OPTIONS="--disable-libstdcxx-verbose --enable-cxx-flags='-fno-exceptions -ffunction-sections -fdata-sections -Os -fno-rtti'"
+BR2_EXTRA_GCC_CONFIG_OPTIONS="--disable-libstdcxx-verbose --enable-cxx-flags='-fno-exceptions -ffunction-sections -fdata-sections -Os'"
