@@ -1,7 +1,7 @@
 #!/bin/sh
 # Scan input GPIO pins for button or a sensor.
 
-. /usr/share/config
+. /usr/share/common
 
 GPIO_MAX=95
 
