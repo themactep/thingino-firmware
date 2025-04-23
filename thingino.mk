@@ -1082,55 +1082,6 @@ endif
 
 export STREAMER
 
-#
-# SDK
-#
-
-ifeq ($(BR2_SOC_INGENIC_T10),y)
-	SDK_VERSION := 3.12.0
-else ifeq ($(BR2_SOC_INGENIC_T20),y)
-	SDK_VERSION := 3.12.0
-else ifeq ($(BR2_SOC_INGENIC_T21),y)
-	SDK_VERSION := 1.0.33
-else ifeq ($(BR2_SOC_INGENIC_T23),y)
-	SDK_VERSION := 1.1.0
-else ifeq ($(BR2_SOC_INGENIC_T30),y)
-	SDK_VERSION := 1.0.5
-else ifeq ($(BR2_SOC_INGENIC_T31),y)
-	ifeq ($(KERNEL_VERSION_4),y)
-		SDK_VERSION := 1.1.5.2
-	else
-		SDK_VERSION := 1.1.6
-	endif
-else ifeq ($(BR2_SOC_INGENIC_C100),y)
-	ifeq ($(KERNEL_VERSION_4),y)
-		SDK_VERSION := 2.1.0
-	else
-		SDK_VERSION := 1.1.6
-	endif
-else ifeq ($(BR2_SOC_INGENIC_T40),y)
-	SDK_VERSION := 1.2.0
-else ifeq ($(BR2_SOC_INGENIC_T41),y)
-	SDK_VERSION := 1.2.0
-else ifeq ($(BR2_SOC_INGENIC_A1),y)
-	SDK_VERSION := 1.6.2
-endif
-
-ifeq ($(BR2_SOC_INGENIC_T10)$(BR2_SOC_INGENIC_T20)$(BR2_SOC_INGENIC_T21)$(BR2_SOC_INGENIC_T30),y)
-	SDK_LIBC_VERSION := 4.7.2
-else ifeq ($(BR2_SOC_INGENIC_T31)$(BR2_SOC_INGENIC_C100),y)
-	SDK_LIBC_VERSION := 5.4.0
-else ifeq ($(BR2_SOC_INGENIC_T40)$(BR2_SOC_INGENIC_T41)$(BR2_SOC_INGENIC_A1),y)
-	SDK_LIBC_VERSION := 7.2.0
-else
-	SDK_LIBC_VERSION := 5.4.0
-endif
-
-export SDK_VERSION
-export SDK_LIBC_NAME
-export SDK_LIBC_VERSION
-export BR2_LIBC_NAME
-
 export BR2_THINGINO_MOTORS
 export BR2_THINGINO_MOTORS_SPI
 export BR2_THINGINO_MOTORS_TCU
