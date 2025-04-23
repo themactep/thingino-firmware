@@ -95,6 +95,11 @@ else ifeq ($(BR2_THINGINO_INGENIC_SDK_T41_44_1_2_0),y)
 	SDK_VERSION := 1.2.0
 endif
 
+$(info SDK_VERSION: $(SDK_VERSION))
+$(info SDK_LIBC_VERSION: $(SDK_LIBC_VERSION))
+$(info SDK_LIBC_NAME: $(SDK_LIBC_NAME))
+$(info Building using libs for $(SDK_LIBC_NAME) GCC $(SDK_LIBC_VERSION) toolchain from $(SDK_VERSION) SDK)
+
 ifeq ($(BR2_SOC_FAMILY_INGENIC_T40)$(BR2_SOC_FAMILY_INGENIC_T41)$(BR2_SOC_FAMILY_INGENIC_A1),y)
 	# For T40/T41/A1, use their native version regardless of libc type
 	LIBALOG_FILE = $(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/libalog.so
