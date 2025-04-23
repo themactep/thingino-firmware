@@ -225,10 +225,22 @@ else ifeq ($(BR2_SOC_INGENIC_T31ZX),y)
 	UBOOT_BOARDNAME := "isvp_t31_sfcnor_ddr128M"
 	endif
 else ifeq ($(BR2_SOC_INGENIC_C100),y)
+    ifeq ($(KERNEL_VERSION_4),y)
 	SOC_FAMILY := c100
+	else
+	SOC_FAMILY := t31
+	endif
+    ifeq ($(KERNEL_VERSION_4),y)
 	SOC_MODEL := c100
+	else
+	SOC_MODEL := t31x
+	endif
 	SOC_RAM := 128
+    ifeq ($(KERNEL_VERSION_4),y)
 	BR2_SOC_INGENIC_C100 := y
+	else
+	BR2_SOC_INGENIC_T31 := y
+	endif
 	BR2_XBURST_1 := y
 	ifeq ($(BR2_THINGINO_FLASH_NAND),y)
 	UBOOT_BOARDNAME := "isvp_c100_sfcnand"
