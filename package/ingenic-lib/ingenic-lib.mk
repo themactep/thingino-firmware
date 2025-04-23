@@ -65,7 +65,12 @@ else ifeq ($(BR2_THINGINO_INGENIC_SDK_T31_1_1_5_2),y)
 else ifeq ($(BR2_THINGINO_INGENIC_SDK_T31_1_1_6),y)
 	SDK_VERSION := 1.1.6
 else ifeq ($(BR2_THINGINO_INGENIC_SDK_C100_2_1_0),y)
+	# Use T31 1.1.6 libs for kernel version 3 C100 build
+	ifeq ($(KERNEL_VERSION_3),y)
+	SDK_VERSION := 1.1.6
+	else
 	SDK_VERSION := 2.1.0
+	endif
 else ifeq ($(BR2_THINGINO_INGENIC_SDK_T32_44_1_0_4),y)
 	SDK_VERSION := 1.0.4
 else ifeq ($(BR2_THINGINO_INGENIC_SDK_T31_1_0_4),y)
