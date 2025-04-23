@@ -2,12 +2,10 @@
 
 . /usr/share/common
 
-start() {
-	echo_title "Configuring USB"
-
+configure_usb_power() {
 	if [ -z "$gpio_usb_en" ]; then
 		echo_warning "USB power GPIO is not set"
-		exit 1
+		return 1
 	fi
 
 	if [ "$gpio_usb_en" = "${gpio_usb_en//[^0-9]/}" ]; then
@@ -19,22 +17,43 @@ start() {
 		o)
 			if ! gpio set $pin 0; then
 				echo_error "Failed to set USB power GPIO $pin to $state"
-				exit 1
+				return 1
 			fi
 			;;
 		O)
 			if ! gpio set $pin 1; then
 				echo_error "Failed to set USB power GPIO $pin to $state"
-				exit 1
+				return 1
 			fi
 			;;
 		*)
 			echo_error "Invalid state $state"
-			exit 1
+			return 1
 			;;
 	esac
 
 	echo_info "Set USB power GPIO $pin to $state"
+	return 0
+}
+
+configure_usb_role() {
+	#FIXME: we should store the host type in the system config for USB-DIRECT devices, etc.
+	kernel_version=`uname -r | cut -d. -f1-2`
+	if [ "$kernel_version" = "4.4" ]; then
+		echo_info "Setting USB controller to host mode"
+		usb-role -m host >/dev/null 2>&1
+		if [ $? -ne 0 ]; then
+			echo_warning "Failed to set USB controller to host mode"
+		else
+			echo_info "USB controller set to host mode"
+		fi
+	fi
+}
+
+start() {
+	echo_title "Configuring USB"
+	configure_usb_power
+	configure_usb_role
 }
 
 case "$1" in
