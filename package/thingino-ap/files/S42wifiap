@@ -4,6 +4,8 @@
 
 CNET=100.64.1
 
+WPA_AP_CONF="/etc/wpa-ap.conf"
+
 # Define net_dev in the global scope
 if [ "hi3881" = "$wlan_module" ]; then
 	net_dev="ap0"
@@ -73,23 +75,29 @@ start() {
 	echo_info "Start dnsd"
 	start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /tmp/dnsd.conf -d
 
-	echo_info "Set WLAN AP SSID"
 	if [ -z "$wlanap_ssid" ]; then
+		echo_info "Generate WLAN AP SSID"
 		wlanap_ssid="THINGINO-$(iface_mac_suffix $net_dev)"
 	fi
-	sed -iE "s/^(\s*)ssid=.*$/\1ssid=\"$wlanap_ssid\"/" /etc/wpa-ap.conf
 
-	echo_info "Set WLAN AP password"
-	[ ${#wlanap_pass} -lt 8 ] && wlanap_pass="thingino"
+	echo_info "Update WLAN AP SSID in $WPA_AP_CONF to $wlanap_ssid"
+	sed -E -i "/^\s+ssid=/c\\\tssid=\"$wlanap_ssid\"" $WPA_AP_CONF
+
+	if [ ${#wlanap_pass} -lt 8 ]; then
+		echo_info "Use default WLAN AP password"
+		wlanap_pass="thingino"
+	fi
+
 	if [[ ${#wlanap_pass} -eq 64 && "$wlanap_pass" =~ ^[0-9a-fA-F]{64}$ ]]; then
+		echo_info "WLAN AP password is a PSK"
 		quote=''
 	else
 		quote='"'
 	fi
-	sed -i '/psk=/ s/psk=["]*[^"]*["]*/psk='"$quote$wlanap_pass$quote"'/' /etc/wpa-ap.conf
+	sed -i '/psk=/ s/psk=["]*[^"]*["]*/psk='"$quote$wlanap_pass$quote"'/' $WPA_AP_CONF
 
 	echo_info "Start wpa_supplicant"
-	start-stop-daemon -S -x /sbin/wpa_supplicant -- -i $net_dev -B -c /etc/wpa-ap.conf
+	start-stop-daemon -S -x /sbin/wpa_supplicant -- -i $net_dev -B -c $WPA_AP_CONF
 
 	echo_warning "WLAN Access Point started"
 	touch "$WLANAP_MODE_FLAG"
