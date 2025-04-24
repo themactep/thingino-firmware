@@ -40,11 +40,6 @@ $(info BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME: $(BR2_PACKAGE_THINGINO_UBO
 
 $(info STREAMER: $(STREAMER))
 
-$(info SDK_VERSION: $(SDK_VERSION))
-$(info SDK_LIBC_VERSION: $(SDK_LIBC_VERSION))
-
-$(info Building using libs for GCC $(SDK_LIBC_VERSION) toolchain from $(SDK_VERSION) SDK)
-
 ifneq ($(BR2_SOC_INGENIC_DUMMY),y)
 # include makefiles from packages
 include $(sort $(wildcard $(BR2_EXTERNAL)/package/*/*.mk))
