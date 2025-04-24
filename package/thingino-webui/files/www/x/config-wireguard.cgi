@@ -1,7 +1,9 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-[ -f /bin/wg ] || redirect_to "/" "danger" "Your camera does not seem to support WireGuard"
+if [ ! -f "/bin/wg" ]; then
+	redirect_to "/" "danger" "Your camera does not seem to support WireGuard"
+fi
 
 page_title="WireGuard VPN"
 
