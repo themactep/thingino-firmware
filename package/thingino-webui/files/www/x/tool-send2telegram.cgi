@@ -40,17 +40,18 @@ defaults
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
-<div class="input-group mb-3">
-<input type="text" id="telegram_token" name="telegram_token" value="<%= $telegram_token %>" class="form-control" placeholder="Bot Token" aria-label="Your Telegram Bot authentication token.">
-<span class="input-group-text p-0"><button type="button" class="btn" data-bs-toggle="modal" data-bs-target="#helpModal">Help</button></span>
-</div>
+<% field_text "telegram_token" "Telegram Bot Token" %>
 <% field_text "telegram_channel" "Chat ID" "ID of the channel to post images to." "-100xxxxxxxxxxxx" %>
 </div>
 <div class="col">
 <% field_text "telegram_caption" "Photo caption" "Available variables: %hostname, %datetime" %>
 <p class="label">Attachment</p>
-<% field_switch "telegram_attach_snapshot" "Attach snapshot" %>
-<% field_switch "telegram_attach_video" "Attach video" %>
+<% field_switch "telegram_attach_snapshot" "Snapshot" %>
+<% field_switch "telegram_attach_video" "Video" %>
+</div>
+<div class="col">
+<button type="button" class="btn" data-bs-toggle="modal" data-bs-target="#helpModal">Help</button>
+<%in _tg_bot.cgi %>
 </div>
 </div>
 <% button_submit %>
@@ -63,5 +64,4 @@ defaults
 <% ex "grep ^telegram_ $CONFIG_FILE" %>
 </div>
 
-<%in _tg_bot.cgi %>
 <%in _footer.cgi %>
