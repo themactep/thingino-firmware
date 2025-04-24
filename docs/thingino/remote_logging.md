@@ -15,3 +15,6 @@ The default port is `514`, but you can change it to any other port if needed.
 
 Reboot the device to apply the changes.
 The device will start sending logs to the syslog server.
+
+You can enable optional logging on the camera by switching on the
+`Enable local logging` checkbox.
