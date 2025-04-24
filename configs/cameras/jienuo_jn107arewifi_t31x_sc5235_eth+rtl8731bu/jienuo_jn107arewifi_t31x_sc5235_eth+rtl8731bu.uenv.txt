@@ -1,5 +1,5 @@
 # gpio_default=11i 18O 57i 58i
-gpio_ircut=58 57
+gpio_ircut=57 58
 gpio_button=11
 gpio_wlan=61o
 gpio_mmc_power=62o
