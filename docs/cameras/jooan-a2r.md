@@ -1,11 +1,13 @@
-Jooan C9TS
-==========
+Jooan A2R-U
+===========
 
 ### Hardware
 
 - SoC: Ingenic T23N (64MB)
-- Image Sensor: SmartSense SC2335p (2MP)
-- Wi-Fi Module: AltoBeam ATBM6132BU (USB)
+- Image Sensor: SmartSense SC1A4T (1MP)
+- Wi-Fi Module:
+  - AltoBeam ATBM6012BX (USB)
+  - SSC6355 (USB)
 - Flash Chip: NOR 8MB (25Q64)
 - Power: 5V DC (USB-C)
 
@@ -35,10 +37,10 @@ SoC. The pads are not marked, but here's the mapping:
 ```
   Tilting motor       Panning motor
 [ +  *  *  *  * ]   [ +  *  *  *  * ]
-  C  51 54 52 53      C  51 54 52 53
+  C  14 54 52 53      C  14 54 52 53
 ```
 
-Both motors are controlled by the same GPIO pins: 51, 52, 53, 54.
+Both motors are controlled by the same GPIO pins: 14, 52, 53, 54.
 Setting the GPIO 17 to Hi or LOW switches the active motor.
 When the GPIO 17 is set to Hi, the tilt motor is active.
 When the GPIO 17 is set to LOW, the pan motor is active.

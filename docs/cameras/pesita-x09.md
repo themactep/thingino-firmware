@@ -8,7 +8,7 @@ https://www.amazon.ca/dp/B0B6J5TZJB
 - SoC: Ingenic T31N (64 MB)
 - Image Sensor:
 	- JXF23 (2MP)
-- Wi-Fi Module: RTL8189FTV (SDIO)
+- Wi-Fi Module: Realtek RTL8189FTV (SDIO)
 - Flash Chip: NOR 16MB (NOR 25Q128)
 - Power: 5V DC (microUSB port)
 
@@ -24,7 +24,7 @@ https://www.amazon.ca/dp/B0B6J5TZJB
 #### UART + SD card method
 
 1. Download a firmware image from the [Thingino website](https://thingino.com/).
-2. Copy the image to a FAT32 formatted SD card.
+2. Copy the image to a FAT32 formatted SD card as `thingino.bin`.
 3. Connect the UART contacts to a USB to TTL adapter.
 4. Power the device and interrupt the boot process to get to the U-Boot prompt.
 5. Run the following commands line by line to flash the firmware.
@@ -32,7 +32,7 @@ https://www.amazon.ca/dp/B0B6J5TZJB
    setenv baseaddr 0x82000000;
    setenv partsize 0x1000000;
    mw.b ${baseaddr} 0xff ${partsize};
-   fatload mmc 0:1 ${baseaddr} thingino-pesita_x09_t31n_jxf23.bin;
+   fatload mmc 0:1 ${baseaddr} thingino.bin;
    sf probe 0;
    sf erase 0x0 ${partsize};
    sf write ${baseaddr} 0x0 ${filesize};

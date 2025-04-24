@@ -5,7 +5,7 @@ Jooan Q3R
 
 - SoC: Ingenic T23N (64MB)
 - Image Sensor: SmartSense SC1A4T (1MP)
-- Wi-Fi Module: Altobeam ATBM6012BX (USB)
+- Wi-Fi Module: AltoBeam ATBM6012BX (USB)
 - Flash Chip: NOR 8MB (25Q64)
 - Ethernet: RTL8201CP (PHY)
 - Power: 5V DC (1ft cable USB-C)
