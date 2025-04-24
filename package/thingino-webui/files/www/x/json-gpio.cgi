@@ -9,11 +9,14 @@
 eval pin=\$$n
 [ -z "$pin" ] && json_error "GPIO is not found"
 
-if [ "$s" -eq 0 ] || [ "$s" -eq 1 ]; then
-	state=${s:-0}
-else
-	[ $(gpio read $pin) -eq 0 ] && state=1 || state=0
-fi
+case "$s" in
+	0 | 1)
+		state=${s:-0}
+		;;
+	*)
+		[ $(gpio read $pin) -eq 0 ] && state=1 || state=0
+		;;
+esac
 
 # default to output high
 [ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
