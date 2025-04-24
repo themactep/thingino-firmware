@@ -48,8 +48,8 @@ alerts_read() {
 		for line in $(cat $file); do
 			echo "<p>$line</p>"
 		done
-		echo "<button type=\"button\" class=\"btn btn-close\" data-bs-dismiss=\"alert\"" \
-		 " aria-label=\"Close\"></button></div>"
+		button_close
+		echo "</div>"
 		rm $file
 	done
 	IFS=$IFS_ORIG
@@ -72,8 +72,17 @@ time_http() {
 	time_gmt "%a, %d %b %Y %T %Z" "$1"
 }
 
+button_close() {
+	echo "<button type=\"button\" class=\"btn btn-close\" data-bs-dismiss=\"alert\" aria-label=\"Close\"></button>"
+}
+
 button_download() {
 	echo "<a href=\"dl2.cgi?log=$1\" class=\"btn btn-primary\">Download log</a>"
+}
+
+button_help() {
+	echo "<div class=\"switch float-end\"><img type=\"button\" src=\"/a/help.svg\" class=\"img-fluid\"" \
+	" data-bs-toggle=\"modal\" data-bs-target=\"#helpModal\" alt=\"Help\" style=\"max-height:1.5rem\"></div>"
 }
 
 button_refresh() {
@@ -116,6 +125,14 @@ button_sync_time() {
 		text="Synchronize time from NTP server"
 	fi
 	echo "<button id=\"sync-time\" type=\"button\" class=\"btn btn-secondary mb-3\">$text</button>"
+}
+
+# 1: name
+# 2: status
+button_test() {
+	echo "<div class=\"switch float-end\">" \
+	"<button type=\"button\" id=\"$1_toggle\" data-pin=\"$1\" data-status=\"$2\"" \
+	" class=\"btn btn-sm btn-outline-secondary m-0 led-status\">Test</button></div>"
 }
 
 check_file_exist() {
