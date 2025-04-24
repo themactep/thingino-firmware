@@ -10,45 +10,45 @@ tools_upgrade_option="Partial"
 mtdblock_partition="mtd0"
 
 if [ "$REQUEST_METHOD" = "POST" ]; then
-    if [ -n "$HASERL_firmware_path" ]; then
-        mv "$HASERL_firmware_path" /tmp/fw-web.bin
-        echo "Content-Type: application/json"
-        echo
-        echo '{"success": true}'
-        exit 0
-    fi
+	if [ -n "$HASERL_firmware_path" ]; then
+		mv "$HASERL_firmware_path" /tmp/fw-web.bin
+		echo "Content-Type: application/json"
+		echo
+		echo '{"success": true}'
+		exit 0
+	fi
 fi
 
 if [ "$QUERY_STRING" = "action=generate_backup" ]; then
-    host=$(hostname)
-    current_date=$(date +%Y-%m-%d)
-    echo "Content-Type: application/octet-stream"
-    echo "Content-Disposition: attachment; filename=backup-${host}-${current_date}.tar.gz"
-    echo
-    tar -cf - /etc | gzip
-    exit 0
+	host=$(hostname)
+	current_date=$(date +%Y-%m-%d)
+	echo "Content-Type: application/octet-stream"
+	echo "Content-Disposition: attachment; filename=backup-${host}-${current_date}.tar.gz"
+	echo
+	tar -cf - /etc | gzip
+	exit 0
 fi
 
 if [ ! -z "$QUERY_STRING" ]; then
-    if echo "$QUERY_STRING" | grep -q "^partition="; then
-        partition=$(echo "$QUERY_STRING" | sed -n 's/^partition=//p')
-        if [ -n "$partition" ] && [ -e "/dev/$partition" ]; then
-            echo "Content-Type: application/octet-stream"
-            echo "Content-Disposition: attachment; filename=$partition.bin"
-            echo
-            cat "/dev/$partition"
-            exit 0
-        else
-            echo "Content-Type: text/plain"
-            echo
-            echo "Error: Invalid or missing partition."
-            exit 1
-        fi
-    fi
+	if echo "$QUERY_STRING" | grep -q "^partition="; then
+		partition=$(echo "$QUERY_STRING" | sed -n 's/^partition=//p')
+		if [ -n "$partition" ] && [ -e "/dev/$partition" ]; then
+			echo "Content-Type: application/octet-stream"
+			echo "Content-Disposition: attachment; filename=$partition.bin"
+			echo
+			cat "/dev/$partition"
+			exit 0
+		else
+			echo "Content-Type: text/plain"
+			echo
+			echo "Error: Invalid or missing partition."
+			exit 1
+		fi
+	fi
 fi
 
 get_mtd_partitions() {
-    awk -F: '/^mtd[0-9]+/ {print $1}' /proc/mtd | tr '\n' ',' | sed 's/,$//'
+	awk -F: '/^mtd[0-9]+/ {print $1}' /proc/mtd | tr '\n' ',' | sed 's/,$//'
 }
 %>
 <%in _header.cgi %>
