@@ -50,4 +50,6 @@ defaults
 <% ex "grep ^webhook_ $CONFIG_FILE" %>
 </div>
 
+<button type="button" class="btn btn-dark border mb-2" title="Send to Webhook" data-sendto="webhook">Test</button>
+
 <%in _footer.cgi %>

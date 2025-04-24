@@ -53,6 +53,8 @@ Learn how to create it on <a href="https://yandex.com/support/id/authorization/a
 <% button_submit %>
 </form>
 
+<button type="button" class="btn btn-bark border mb-2" title="Yandex Disk" data-sendto="yadisk">Test</button>
+
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "grep ^yadisk_ $CONFIG_FILE" %>

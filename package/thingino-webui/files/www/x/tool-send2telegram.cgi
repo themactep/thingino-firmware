@@ -56,6 +56,8 @@ defaults
 <% button_submit %>
 </form>
 
+<button type="button" class="btn btn-dark border mb-2" title="Send to Telegram" data-sendto="telegram">Test</button>
+
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "grep ^telegram_ $CONFIG_FILE" %>

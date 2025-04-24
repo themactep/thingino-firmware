@@ -85,6 +85,8 @@ defaults
 <% button_submit %>
 </form>
 
+<button type="button" class="btn btn-dark border mb-2" title="Send to email" data-sendto="email">Test</button>
+
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "grep ^email_ $CONFIG_FILE" %>

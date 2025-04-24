@@ -5,11 +5,13 @@ page_title="Send to MQTT"
 
 [ -f /usr/bin/mosquitto_pub ] || redirect_to "/" "danger" "MQTT client is not a part of your firmware."
 
+camera_id=${network_macaddr//:/}
+
 defaults() {
-	default_for mqtt_client_id "${network_macaddr//:/}"
+	default_for mqtt_client_id $camera_id
 	default_for mqtt_port "1883"
 	default_for mqtt_topic "thingino/$mqtt_client_id"
-	default_for mqtt_message ""
+	default_for mqtt_message "{\"camera_id\": \"$camera_id\", \"timestamp\": \"%timestamp\"}"
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
@@ -86,6 +88,8 @@ defaults
 </div>
 <% button_submit %>
 </form>
+
+<button type="button" class="btn btn-dark border mb-2" title="Send to MQTT" data-sendto="mqtt">Test</button>
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>

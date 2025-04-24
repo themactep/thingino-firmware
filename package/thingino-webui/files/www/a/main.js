@@ -185,6 +185,17 @@ function initCopyToClipboard() {
 // set links to external resources to open in a new window.
 		$$('a[href^=http]').forEach(el => el.target = '_blank');
 
+// handle sendto buttons
+		$$("button[data-sendto]").forEach(el => {
+			el.onclick = (ev) => {
+				ev.preventDefault();
+				if (!confirm("Are you sure?")) return false;
+				fetch("/x/send.cgi?" + new URLSearchParams({'to': el.dataset.sendto}).toString())
+					.then(res => res.json())
+					.then(data => console.log(data))
+			}
+		});
+
 // async output of a command running on camera
 		if ($('pre#output[data-cmd]')) {
 			const el = $('pre#output[data-cmd]');
