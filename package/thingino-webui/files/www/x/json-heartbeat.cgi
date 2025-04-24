@@ -4,7 +4,7 @@ LOCKFILE=/tmp/hearbeat
 http_200
 json_header
 if [ -f $LOCKFILE ]; then
-	print '{"error":"Another request is in progress"}'
+	printf '{"error":"Another request is in progress"}'
 	exit 0
 fi
 touch /tmp/hearbeat
