@@ -14,13 +14,12 @@ Where:
 	exit 0
 }
 
-verbosity="--silent"
 while getopts m:su:vh flag; do
 	case "$flag" in
 		m) webhook_message=$OPTARG ;;
 		s) webhook_attach_snapshot="true" ;;
 		u) webhook_url=$OPTARG ;;
-		v) verbosity="--verbose" ;;
+		v) verbose="true" ;;
 		h | *) show_help ;;
 	esac
 done
@@ -30,16 +29,32 @@ if [ -z "$webhook_url" ]; then
 	exit 1
 fi
 
+if [ "true" = "$verbose" ]; then
+	command="$CURL --verbose"
+else
+	command="$CURL --silent"
+fi
+
 if [ "true" = "$webhook_attach_snapshot" ]; then
 	attachment=$(mktemp -u).jpg
 	cp -f "$SNAPSHOT_FILE" "$attachment"
-	data="-F 'message=$webhook_message' -F 'image=@$attachment'"
+	command="$command -F \"message=$webhook_message\" -F \"image=@$attachment\""
 else
-	data="-d '$webhook_message'"
+	command="$command -d \"$webhook_message\""
 fi
 
-command="$CURL $verbosity $data --url $webhook_url"
-if ! sh -c "$command"; then
+command="$command --url $webhook_url"
+
+if [ "true" = "$verbose" ]; then
+	echo_command "$command"
+fi
+
+result=$($command 2>&1)
+if [ $? -eq 0 ] ; then
+	if [ "true" = "$verbose" ]; then
+		echo_info "$result"
+	fi
+else
 	echo_error "Failed to send webhook message"
 	exit 1
 fi
