@@ -9,7 +9,7 @@ Manufactured by WESECUU, sold under brand names AJ Cloud, GBIUT, ILWUT etc.
 ### Hardware
 
 - SoC: Ingenic T23N (64MB)
-- Image Sensor: SmartSense SC2336 (2MP)
+- Image Sensor: SmartSense SC2336P (2MP)
 - Wi-Fi Module: AltoBeam ATBM6132BU (USB, 2.4GHz+5GHz)
 - Flash Chip: NOR 8MB (25Q64)
 - Power: 5V DC (USB-C connector)
