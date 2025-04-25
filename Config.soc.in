@@ -1611,6 +1611,7 @@ menu "Device Type"
 
 	config BR2_THINGINO_DEVICE_TYPE_IPCAM
 		bool "IPCamera"
+		select BR2_PACKAGE_THINGINO_IRCUT
 		help
 		  Specifies the device type as a Camera and installs configurations
 		  specific to this type.
