@@ -3,7 +3,7 @@
 . /usr/share/common
 
 start() {
-	echo_title "U-Boot environment"
+	echo_title "Reading U-Boot environment"
 	# Dumps the U-Boot environment to a file automatically
 }
 
