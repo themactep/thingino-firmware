@@ -18,6 +18,7 @@ TP-Link
 | 2AXJ4C125     | TP-Link Tapo C125       | SSC377D      |          |     | 25Q64      | SW6355     |             |      |                              |
 | TE7C200       | TP-Link Tapo C200       | RTS3903      |          |     | 25Q64      | RTL8188FTV |             |      |                              |
 | 2AXJ4C200V2   | TP-Link Tapo C200V2     | RTS3903N     |          |     | 25Q64      | RTL8188FTV |             |      |                              |
+|               | TP-Link Tapo C200V5     | T23N         |          |     | 25Q64      | RTL8188FTV |             |      |                              |
 | 2AXJ4C210     | TP-Link Tapo C210       | SSC335       |          |     | 25Q?       | SSW101B    |             |      |                              |
 |               | TP-Link Tapo C220       | SSC377       | SC401AI? |     | 25Q128     | RTL8188FTV |             |      |                              |
 | 2AXJ4C225     | TP-Link Tapo C225       | SSC30KQ      |          |     | F50L1G41LB | RTL8188FTV |             |      | Starlight                    |
