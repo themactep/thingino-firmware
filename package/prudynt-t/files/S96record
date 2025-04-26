@@ -17,7 +17,7 @@ start() {
 		exit 1
 	fi
 
-	if [ "true" = "$record_disabled" ]; then
+	if [ "true" != "$record_enabled" ]; then
 		echo_error "Recording disabled"
 		exit 1
 	fi
