@@ -1,0 +1,12 @@
+gpio_button=62
+gpio_default=62i 49o 53o 63o 43o 61O 52O 46o 40o 39o 45o 41o 47o 48o 38o
+gpio_ir850=49
+gpio_ircut_1=53o
+gpio_led_r=43O
+gpio_led_w=61o
+gpio_motor_h=46 40 39 45
+gpio_motor_v=41 47 48 38
+gpio_motor_invert=false
+gpio_motor_switch=false
+gpio_speaker=63o
+gpio_wlan=52O
