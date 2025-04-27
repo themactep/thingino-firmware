@@ -105,6 +105,13 @@ else ifeq ($(BR2_SOC_INGENIC_T23N),y)
 	BR2_SOC_INGENIC_T23 := y
 	BR2_XBURST_1 := y
 	UBOOT_BOARDNAME := "isvp_t23n_sfcnor"
+else ifeq ($(BR2_SOC_INGENIC_T23DL),y)
+	SOC_FAMILY := t23
+	SOC_MODEL := t23dl
+	SOC_RAM := 32
+	BR2_SOC_INGENIC_T23 := y
+	BR2_XBURST_1 := y
+	UBOOT_BOARDNAME := "isvp_t23dl_sfcnor"
 else ifeq ($(BR2_SOC_INGENIC_T23ZN),y)
 	SOC_FAMILY := t23
 	SOC_MODEL := t23zn
