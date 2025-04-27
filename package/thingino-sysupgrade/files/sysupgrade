@@ -21,13 +21,6 @@ stage1app="sysupgrade"
 stage2app="sysupgrade-stage2"
 
 SD_CARD_ROOT="/mnt/mmcblk0p1"
-if mountpoint $SD_CARD_ROOT && test -w $SD_CARD_ROOT; then
-	dl_dir="$SD_CARD_ROOT"
-	fw_file="$SD_CARD_ROOT/fw.bin"
-else
-	dl_dir="/tmp"
-	fw_file="$workdir/fw.bin"
-fi
 
 self=$(realpath $0)
 selfupdate="true"
@@ -319,6 +312,27 @@ update_self() {
 	download "$GH_DL_URL$stage2app" "/sbin/$stage2app"
 	chmod +x /sbin/$stage2app
 }
+
+dl_dir="/tmp"
+fw_file="$workdir/fw.bin"
+if [ $(available_free_space) -lt $(full_upgrade_partition_size) ]; then
+	echo "Not enough free space in $dl_dir to download firmware!"
+	if mountpoint $SD_CARD_ROOT && test -w $SD_CARD_ROOT; then
+		echo "Mountpoint $SD_CARD_ROOT is writable, using it for download."
+		dl_dir="$SD_CARD_ROOT"
+		fw_file="$SD_CARD_ROOT/fw.bin"
+		if [ $(available_free_space) -lt $(full_upgrade_partition_size) ]; then
+			echo "Not enough free space in $dl_dir to download firmware!"
+			echo "Please consider performing upgrade from an SD card."
+			exit 1
+		fi
+	else
+		echo "Please consider performing upgrade from an SD card."
+		exit 1
+	fi
+else
+	echo "Downloading firmware into $dl_dir, there is enough free space."
+fi
 
 check_upgrade_partitions
 
