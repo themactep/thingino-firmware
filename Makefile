@@ -424,6 +424,11 @@ upload_tftp: $(FIRMWARE_BIN_FULL)
 	$(info -------------------------------- $@)
 	busybox tftp -l $(FIRMWARE_BIN_FULL) -r $(FIRMWARE_NAME_FULL) -p $(TFTP_IP_ADDRESS)
 
+# download buildroot cache bundle from latest github release
+download-cache:
+	$(info -------------------------------- $@)
+	BR2_EXTERNAL=$(CURDIR) BR2_DL_DIR=$(BR2_DL_DIR) $(CURDIR)/scripts/dl_buildroot_cache.sh
+
 ### Buildroot
 
 # delete all build/{package} and per-package/{package} files

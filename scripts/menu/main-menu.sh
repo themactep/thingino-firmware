@@ -5,8 +5,9 @@ source ./scripts/menu/menu-common.sh
 function main_menu() {
 	check_and_install_dialog
 	while true; do
-		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Select an option:" 20 110 30 \
+		CHOICE=$("${DIALOG_COMMON[@]}" --help-button --menu "Select an option:" 22 110 30 \
 			"bootstrap" "Install prerequisite software necessary for the compilation process" \
+			"download-cache" "Downloads buildroot-dl cache from latest github release" \
 			"menuconfig" "Proceed to the buildroot menu (toolchain, kernel, and rootfs)" \
 			"linux-menuconfig" "Proceed to the Linux Kernel menu configuration" \
 			"busybox-menuconfig" "Proceed to the Busybox menu configuration" \
@@ -31,6 +32,8 @@ function show_help() {
 	case "$item" in
 		"HELP bootstrap")
 			show_help_msgbox "The 'Bootstrap' option initiates the installation of all necessary prerequisite software required for the compilation of the firmware.\n\nThis includes tools and libraries that are essential for building the firmware from source. Selecting this will ensure your environment is correctly set up to proceed with building Thingino without encountering missing dependencies.\n\nRequires super-user privileges." 13 80;;
+		"HELP download-cache")
+			show_help_msgbox "Downloads buildroot-dl cache from latest github release. This can significantly speed up the initial build process by pre-populating the buildroot download cache with commonly used files." 7;;
 		"HELP menuconfig")
 			show_help_msgbox "Launches a graphical interface for configuring the toolchain, kernel options, and the packages that will be included in your root filesystem. It's a crucial step for customizing your build according to your needs." 8;;
 		"HELP linux-menuconfig")
@@ -72,7 +75,7 @@ execute_choice() {
 			make
 			exit
 			;;
-		defconfig|saveconfig|clean|distclean|cleanbuild|edit)
+		defconfig|saveconfig|clean|distclean|cleanbuild|edit|download-cache)
 			make $1
 			exit
 			;;
