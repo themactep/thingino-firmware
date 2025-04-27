@@ -55,15 +55,17 @@ read_defaults() {
 
 echo "========== ISP/OS Memory Configuration ==========="
 echo "Select the total memory size for your SoC:"
-echo "1) 64MB"
-echo "2) 128MB"
-echo "3) 256MB"
+echo "1) 32MB"
+echo "2) 64MB"
+echo "3) 128MB"
+echo "4) 256MB"
 read -p "Enter choice [1-3]: " choice
 
 case $choice in
-	1) totalmem=64 ;;
-	2) totalmem=128 ;;
-	3) totalmem=256 ;;
+	1) totalmem=32 ;;
+	2) totalmem=64 ;;
+	3) totalmem=128 ;;
+	4) totalmem=256 ;;
 	*) echo "Invalid choice"; exit 1 ;;
 esac
 
