@@ -34,8 +34,15 @@ endef
 
 define WIFI_TXW901U_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/ko/txw901u.ko \
-			$(TARGET_DIR)/lib/modules/$(LINUX_VERSION_PROBED)/extra/txw901u.ko
+	$(TARGET_DIR)/lib/modules/$(LINUX_VERSION_PROBED)/extra/txw901u.ko
 endef
+
+define WIFI_TXW901U_EXTRACT_FIRMWARE
+	mkdir -p $(TARGET_DIR)/lib/firmware/
+	unzip -p $(@D)/firmware/txw901_v2.6.0.1-30594_2024.9.24_USB_24PIN_20240925103847.zip txw901_v2.6.0.1-30594_2024.9.24_USB_24PIN.bin > $(TARGET_DIR)/lib/firmware/hgics.bin
+endef
+
+WIFI_TXW901U_POST_BUILD_HOOKS += WIFI_TXW901U_EXTRACT_FIRMWARE
 
 $(eval $(kernel-module))
 $(eval $(generic-package))
