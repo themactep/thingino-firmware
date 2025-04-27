@@ -1612,79 +1612,75 @@ endchoice
 
 menu "Device Type"
 	choice
-		prompt "Main Device Type"
-		default BR2_THINGINO_DEVICE_TYPE_IPCAM
+		prompt "Device Type"
+		default BR2_THINGINO_DEV_IPCAM
 		help
 		  Select the main device type
 
-	config BR2_THINGINO_DEVICE_TYPE_IPCAM
-		bool "IPCamera"
+	config BR2_THINGINO_DEV_IPCAM
+		bool "IP Camera"
 		select BR2_PACKAGE_THINGINO_IRCUT
 		help
 		  Specifies the device type as a Camera and installs configurations
 		  specific to this type.
 
-	config BR2_THINGINO_DEVICE_TYPE_DOORBELL
-		bool "Doorbell"
-		help
-		  Specifies the device type as a Doorbell and installs configurations
-		  specific to this type.
-
-	config BR2_THINGINO_DEVICE_TYPE_WEBCAM
+	config BR2_THINGINO_DEV_WEBCAM
 		bool "Webcam"
 		help
 		  Specifies the device type as a Web Camera and installs configurations
 		  specific to this type.
 
-	config BR2_THINGINO_DEVICE_TYPE_NVR
+	config BR2_THINGINO_DEV_NVR
 		bool "NVR"
 		help
-		  Specifies the device type as a Network Video Recorder and installs configurations
+		  Specifies the device type as a NetwoBR2_THINGINO_DEV_SBCrk Video Recorder and installs configurations
 		  specific to this type.
 
-	config BR2_THINGINO_DEVICE_TYPE_SBC
+	config BR2_THINGINO_DEV_SBC
 		bool "SBC"
 		help
 		  Specifies the device type as a Small Board Computer (SBC) and installs configurations
 		  specific to this type.
 	endchoice
 
-	if BR2_THINGINO_DEVICE_TYPE_IPCAM
-		choice
-			prompt "IPCamera Type"
-			default BR2_THINGINO_DEVICE_TYPE_IPCAM_STANDARD
-			help
-			  Select the specific type of IPCamera
+	config BR2_THINGINO_DEV_DOORBELL
+		bool "Doorbell"
+		depends on BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_SBC
+		help
+		  Specifies the device features as a Doorbell and installs configurations
+		  specific to this type.
 
-		config BR2_THINGINO_DEVICE_TYPE_IPCAM_STANDARD
-			bool "Standard IPCamera"
-			help
-			  Standard IPCamera without pan, tilt, or zoom functionality.
+	config BR2_THINGINO_DEV_SIREN
+		bool "Siren"
+		depends on BR2_THINGINO_DEV_EXPERIMENTAL && (BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_SBC)
+		help
+		  Specifies the device features as a Siren and installs configurations
+		  specific to this type.
 
-		config BR2_THINGINO_DEVICE_TYPE_IPCAM_PAN_TILT
-			bool "Pan/Tilt"
-			help
-			  IPCamera with Pan and Tilt functionality.
+	config BR2_THINGINO_DEV_FLOODLIGHT
+		bool "Floodlight"
+		depends on BR2_THINGINO_DEV_EXPERIMENTAL && (BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_SBC)
+		help
+		  Specifies the device features as a Floodlight and installs configurations
+		  specific to this type.
 
-		config BR2_THINGINO_DEVICE_TYPE_IPCAM_PAN_TILT_ZOOM
-			bool "Pan/Tilt/Zoom"
-			help
-			  IPCamera with Pan, Tilt, and Zoom functionality.
-		endchoice
-	endif
+	config BR2_THINGINO_DEV_LASER
+		bool "Laser Pointer"
+		depends on BR2_THINGINO_DEV_EXPERIMENTAL && (BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_SBC)
+		help
+		  Specifies the device features as a Laser and installs configurations
+		  specific to this type.
+
+	config BR2_THINGINO_DEV_ALARM
+		bool "Security Alarm"
+		depends on BR2_THINGINO_DEV_EXPERIMENTAL && (BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_SBC)
+		help
+		  Specifies the device features as an Alarm and installs configurations
+		  specific to this type.
 
 	comment "Device Type: Webcam Selected"
-		depends on BR2_THINGINO_DEVICE_TYPE_WEBCAM
-
-	comment "Device Type: Doorbell Selected"
-		depends on BR2_THINGINO_DEVICE_TYPE_DOORBELL
-
-	comment "Device Type: IPCamera Selected"
-		depends on BR2_THINGINO_DEVICE_TYPE_IPCAM
+		depends on BR2_THINGINO_DEV_WEBCAM
 
 	comment "Device Type: NVR Selected"
-		depends on BR2_THINGINO_DEVICE_TYPE_NVR
-
-	comment "Device Type: SBC Selected"
-		depends on BR2_THINGINO_DEVICE_TYPE_SBC
+		depends on BR2_THINGINO_DEV_NVR
 endmenu

@@ -11,7 +11,5 @@ BR2_SOC_INGENIC_T31X=y
 BR2_TOOLCHAIN_EXTERNAL_HEADERS_4_4=y
 BR2_TOOLCHAIN_EXTERNAL_URL="https://github.com/matteius/ingenic-t31-zrt-kernel-4.4.94/releases/download/4.4.latest/mipsel-thingino-linux-musl_sdk-buildroot.tar.gz"
 BR2_TOOLCHAIN_USES_MUSL=y
-BR2_THINGINO_DEVICE_TYPE_IPCAM=y
-BR2_THINGINO_DEVICE_TYPE_IPCAM_STANDARD=y
 FLASH_SIZE_16=y
 KERNEL_VERSION_4=y
