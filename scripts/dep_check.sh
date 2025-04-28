@@ -154,7 +154,15 @@ packages_to_install=""
 for pkg in $packages; do
 	case "$pkg_manager" in
 		dpkg)
-			if ! $pkg_check_command "$pkg" 2>/dev/null | grep -q "install ok installed"; then
+			# Special case for vim-tiny: check if either vim-tiny or full vim is installed
+			if [ "$pkg" = "vim-tiny" ]; then
+				if ! $pkg_check_command "vim-tiny" 2>/dev/null | grep -q "install ok installed" && \
+				   ! $pkg_check_command "vim" 2>/dev/null | grep -q "install ok installed"; then
+					packages_to_install="$packages_to_install $pkg"
+				else
+					echo "Package vim-tiny or vim is installed"
+				fi
+			elif ! $pkg_check_command "$pkg" 2>/dev/null | grep -q "install ok installed"; then
 				packages_to_install="$packages_to_install $pkg"
 			else
 				echo "Package $pkg is installed"
