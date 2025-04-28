@@ -94,6 +94,12 @@ if grep -q ^BR2_TOOLCHAIN_USES_MUSL $BR2_CONFIG >/dev/null; then
 	ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/usr/bin/ldd
 fi
 
+if grep -q ^BR2_TOOLCHAIN_USES_UCLIBC $BR2_CONFIG >/dev/null; then
+	ln -srf ${TARGET_DIR}/lib/ld-uClibc*.so ${TARGET_DIR}/lib/libpthread.so.0
+	ln -srf ${TARGET_DIR}/lib/ld-uClibc*.so ${TARGET_DIR}/lib/libdl.so.0
+	ln -srf ${TARGET_DIR}/lib/ld-uClibc*.so ${TARGET_DIR}/lib/libm.so.0
+fi
+
 #
 # Remove unnecessary files
 #
