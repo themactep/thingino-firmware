@@ -89,15 +89,20 @@ if [ -f "${TARGET_DIR}/etc/init.d/S50dropbear" ]; then
 	mv ${TARGET_DIR}/etc/init.d/S50dropbear ${TARGET_DIR}/etc/init.d/S30dropbear
 fi
 
-if grep -q ^BR2_TOOLCHAIN_USES_MUSL $BR2_CONFIG >/dev/null; then
+# Toolchain specific fixes
+if grep -q "^BR2_TOOLCHAIN_USES_MUSL=y" $BR2_CONFIG >/dev/null; then
 	ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/lib/ld-uClibc.so.0
 	ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/usr/bin/ldd
 fi
 
-if grep -q ^BR2_TOOLCHAIN_USES_UCLIBC $BR2_CONFIG >/dev/null; then
+if grep -q "^BR2_TOOLCHAIN_USES_UCLIBC=y" $BR2_CONFIG >/dev/null; then
 	ln -srf ${TARGET_DIR}/lib/ld-uClibc*.so ${TARGET_DIR}/lib/libpthread.so.0
 	ln -srf ${TARGET_DIR}/lib/ld-uClibc*.so ${TARGET_DIR}/lib/libdl.so.0
 	ln -srf ${TARGET_DIR}/lib/ld-uClibc*.so ${TARGET_DIR}/lib/libm.so.0
+fi
+
+if grep -q "^BR2_TOOLCHAIN_USES_GLIBC=y" $BR2_CONFIG >/dev/null; then
+	ln -srf ${TARGET_DIR}/lib/libc.so.6 ${TARGET_DIR}/lib/libpthread.so.0
 fi
 
 #
