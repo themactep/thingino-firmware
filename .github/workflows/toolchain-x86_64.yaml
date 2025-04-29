@@ -147,9 +147,23 @@ jobs:
 
       - name: Generate locales
         run: |
+          sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen
           locale-gen en_US.UTF-8
+          update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+          export LANG=en_US.UTF-8
+          export LC_ALL=en_US.UTF-8
           echo "LANG=en_US.UTF-8" >> $GITHUB_ENV
           echo "LC_ALL=en_US.UTF-8" >> $GITHUB_ENV
+
+      - name: validate locales
+        run: |
+          locale -a
+          echo "Actual locale"
+          locale
+          echo "Actual numeric settings"
+          locale -c -k LC_NUMERIC
+          echo "LANG Variable"
+          echo "$LANG"
 
       - name: Setup gh workspace to container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
