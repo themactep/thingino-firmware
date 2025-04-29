@@ -20,6 +20,7 @@ Where command:
   temp        Display module temperature details
   rssi        Display signal details
   cli         CLI interface on supported modules
+  reset       Reset all Wi-Fi credentials
 " >&2
 	exit 1
 }
@@ -53,6 +54,13 @@ cli() {
 
 	echo "$*" > "$CMD_FILE"
 	cat "$CMD_FILE"
+}
+
+reset() {
+	tmp_file=$(mktemp)
+	echo -e "wlan_ssid\nwlan_bssid\nwlan_pass\nwlanap_ssid\nwlanap_pass" > $tmp_file
+	fw_setenv -s $tmp_file
+	rm -f $tmp_file
 }
 
 rssi() {
@@ -151,6 +159,8 @@ case "$entry_command" in
 		cli "$@" ;;
 	wlaninfo)
 		exec wlan info ;;
+	wlanreset)
+		exec wlan reset ;;
 	wlanrssi)
 		exec wlan rssi ;;
 	wlansetup)
@@ -162,6 +172,7 @@ case "$entry_command" in
 		case "$1" in
 			cli) shift; cli "$@" ;;
 			info) show_info ;;
+			reset) reset ;;
 			rssi) rssi ;;
 			setup) setup ;;
 			temp) temp ;;
