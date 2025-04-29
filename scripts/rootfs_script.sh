@@ -96,9 +96,9 @@ if grep -q "^BR2_TOOLCHAIN_USES_MUSL=y" $BR2_CONFIG >/dev/null; then
 fi
 
 if grep -q "^BR2_TOOLCHAIN_USES_UCLIBC=y" $BR2_CONFIG >/dev/null; then
-	ln -srf ${TARGET_DIR}/lib/ld-uClibc*.so ${TARGET_DIR}/lib/libpthread.so.0
-	ln -srf ${TARGET_DIR}/lib/ld-uClibc*.so ${TARGET_DIR}/lib/libdl.so.0
-	ln -srf ${TARGET_DIR}/lib/ld-uClibc*.so ${TARGET_DIR}/lib/libm.so.0
+	ln -srf ${TARGET_DIR}/lib/libuClibc*.so ${TARGET_DIR}/lib/libpthread.so.0
+	ln -srf ${TARGET_DIR}/lib/libuClibc*.so ${TARGET_DIR}/lib/libdl.so.0
+	ln -srf ${TARGET_DIR}/lib/libuClibc*.so ${TARGET_DIR}/lib/libm.so.0
 fi
 
 if grep -q "^BR2_TOOLCHAIN_USES_GLIBC=y" $BR2_CONFIG >/dev/null; then
