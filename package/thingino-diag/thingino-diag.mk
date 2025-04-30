@@ -22,6 +22,11 @@ define THINGINO_DIAG_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -D -m 0755 $(THINGINO_DIAG_PKGDIR)/files/usb-role \
 		$(TARGET_DIR)/usr/sbin/usb-role
+
+	if [ "$(SOC_FAMILY)" = "t40" ]; then \
+		$(INSTALL) -D -m 0755 $(THINGINO_DIAG_PKGDIR)/files/S02entropy \
+		$(TARGET_DIR)/etc/init.d/S02entropy; \
+	fi
 endef
 
 $(eval $(generic-package))
