@@ -15,7 +15,7 @@ exit 0
 }
 
 # Set trap for clean exit
-trap cleanup INT TERM QUIT HUPpackage/thingino-diag/files/S02entropy
+trap cleanup INT TERM QUIT HUP
 
 # Simple entropy generation function that doesn't use temp files
 generate_entropy() {
