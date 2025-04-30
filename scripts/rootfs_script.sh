@@ -21,6 +21,16 @@ BUILD_ID="${GIT_BRANCH}+${GIT_HASH:0:7}, ${BUILD_TIME}"
 COMMIT_ID="${GIT_BRANCH}+${GIT_HASH:0:7}, ${GIT_TIME}"
 cd -
 
+if grep -q "BR2_TOOLCHAIN_USES_GLIBC=y" $BR2_CONFIG; then
+	TOOLCHAIN="glibc"
+elif grep -q "BR2_TOOLCHAIN_USES_UCLIBC=y" $BR2_CONFIG; then
+	TOOLCHAIN="uclibc"
+elif grep -q "BR2_TOOLCHAIN_USES_MUSL=y" $BR2_CONFIG; then
+	TOOLCHAIN="musl"
+else
+	echo "Unknown"
+fi
+
 #
 # Create the /etc/os-release file
 #
@@ -50,6 +60,7 @@ LOGO=thingino-logo-icon
 ANSI_COLOR=\"1;34\"
 HOME_URL=\"https://thingino.com/\"
 ARCHITECTURE=mips
+TOOLCHAIN=${TOOLCHAIN}
 SOC=${SOC_FAMILY}
 SOC_ARCH=${INGENIC_ARCH}
 IMAGE_ID=${IMAGE_ID}
@@ -90,6 +101,9 @@ if [ -f "${TARGET_DIR}/etc/init.d/S50dropbear" ]; then
 fi
 
 # Toolchain specific fixes
+echo '#!/bin/sh
+LD_TRACE_LOADED_OBJECTS=1 exec "$@"' > ${TARGET_DIR}/usr/bin/ldd && chmod +x ${TARGET_DIR}/usr/bin/ldd
+
 if grep -q "^BR2_TOOLCHAIN_USES_MUSL=y" $BR2_CONFIG >/dev/null; then
 	ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/lib/ld-uClibc.so.0
 	ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/usr/bin/ldd
