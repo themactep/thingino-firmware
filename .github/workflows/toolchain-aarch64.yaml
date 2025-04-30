@@ -134,13 +134,23 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git gh lzop make gawk jq p7zip-full procps rsync u-boot-tools unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git gh locales lzop make gawk jq p7zip-full procps rsync u-boot-tools unzip wget
 
       - name: Set timezone
         run: |
           ln -sf /usr/share/zoneinfo/${{ env.TZ }} /etc/localtime
           echo ${{ env.TZ }} > /etc/timezone
           DEBIAN_FRONTEND=noninteractive dpkg-reconfigure -f noninteractive tzdata
+
+      - name: Generate locales
+        run: |
+          sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen
+          locale-gen en_US.UTF-8
+          update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+          export LANG=en_US.UTF-8
+          export LC_ALL=en_US.UTF-8
+          echo "LANG=en_US.UTF-8" >> $GITHUB_ENV
+          echo "LC_ALL=en_US.UTF-8" >> $GITHUB_ENV
 
       - name: Setup gh workspace to container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
