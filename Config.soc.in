@@ -310,6 +310,27 @@ endchoice
 
 menu "IPU Configuration"
 depends on BR2_SOC_FAMILY_INGENIC_A1
+
+choice
+	prompt "IPU Clock Source"
+	default BR2_IPU_CLK_INTERNAL
+	help
+	  Select the parent clock source for the IPU. (pclk_name)
+
+config BR2_IPU_CLK_SCLKA
+	bool "SCLKA"
+
+config BR2_IPU_CLK_VPLL
+	bool "VPLL"
+
+config BR2_IPU_CLK_MPLL
+	bool "MPLL"
+
+config BR2_IPU_CLK_INTERNAL
+	bool "Module Internal"
+
+endchoice
+
 choice
 	prompt "IPU Clock Speed"
 	default BR2_IPU_CLK_400MHZ
@@ -452,6 +473,68 @@ endif
 endif
 
 choice
+	prompt "AVPU Clock Source"
+	default BR2_AVPU_INTERNAL
+	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Select the parent clock source for the AVPU.
+
+config BR2_AVPU_APLL
+	bool "APLL"
+config BR2_AVPU_MPLL
+	bool "MPLL"
+config BR2_AVPU_VPLL
+	bool "VPLL"
+config BR2_AVPU_INTERNAL
+	bool "Module Internal"
+endchoice
+
+choice
+	prompt "AVPU Clock Speed"
+	default BR2_AVPU_CLK_400MHZ
+	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Choose the ISP clock speed from the predefined options.
+
+config BR2_AVPU_CLK_400MHZ
+	bool "400 MHz"
+config BR2_AVPU_CLK_450MHZ
+	bool "450 MHz"
+config BR2_AVPU_CLK_486MHZ
+	bool "486 MHz"
+config BR2_AVPU_CLK_500MHZ
+	bool "500 MHz"
+config BR2_AVPU_CLK_550MHZ
+	bool "550 MHz"
+config BR2_AVPU_CLK_600MHZ
+	bool "600 MHz"
+config BR2_AVPU_CLK_650MHZ
+	bool "650 MHz"
+config BR2_AVPU_CLK_700MHZ
+	bool "700 MHz"
+endchoice
+
+choice
+	prompt "ISP Clock Source"
+	default BR2_ISP_CLK_INTERNAL
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Select the parent clock source for the ISP. (clk_name)
+
+config BR2_ISP_CLK_SCLKA
+	bool "SCLKA"
+
+config BR2_ISP_CLK_VPLL
+	bool "VPLL"
+
+config BR2_ISP_CLK_MPLL
+	bool "MPLL"
+
+config BR2_ISP_CLK_INTERNAL
+        bool "Module Internal"
+endchoice
+
+choice
 	prompt "ISP Clock Speed"
 	default BR2_ISP_CLK_125MHZ if BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
 	default BR2_ISP_CLK_200MHZ if BR2_SOC_FAMILY_INGENIC_T23
@@ -493,73 +576,70 @@ config BR2_ISP_CLK_350MHZ
 endchoice
 
 choice
-	prompt "AVPU Clock Speed"
-	default BR2_AVPU_CLK_400MHZ
-	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	prompt "ISP Scaler Clock Source"
+	default BR2_ISP_CLKS_INTERNAL
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
 	help
-	  Choose the ISP clock speed from the predefined options.
+	  Select the parent clock source for the ISP scaler. (clks_name)
 
-config BR2_AVPU_CLK_400MHZ
+config BR2_ISP_CLKS_SCLKA
+	bool "SCLKA"
+
+config BR2_ISP_CLKS_VPLL
+	bool "VPLL"
+
+config BR2_ISP_CLKS_MPLL
+	bool "MPLL"
+
+config BR2_ISP_CLKS_INTERNAL
+        bool "Module Internal"
+endchoice
+
+choice
+	prompt "ISP Scaler Clock Speed"
+	default BR2_ISP_CLKS_400MHZ
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Choose the ISP's scaler clock speed from the predefined options.
+
+config BR2_ISP_CLKS_400MHZ
 	bool "400 MHz"
-config BR2_AVPU_CLK_450MHZ
+config BR2_ISP_CLKS_450MHZ
 	bool "450 MHz"
-config BR2_AVPU_CLK_486MHZ
+config BR2_ISP_CLKS_486MHZ
 	bool "486 MHz"
-config BR2_AVPU_CLK_500MHZ
+config BR2_ISP_CLKS_500MHZ
 	bool "500 MHz"
-config BR2_AVPU_CLK_550MHZ
+config BR2_ISP_CLKS_550MHZ
 	bool "550 MHz"
-config BR2_AVPU_CLK_600MHZ
+config BR2_ISP_CLKS_600MHZ
 	bool "600 MHz"
-config BR2_AVPU_CLK_650MHZ
+config BR2_ISP_CLKS_650MHZ
 	bool "650 MHz"
-config BR2_AVPU_CLK_700MHZ
+config BR2_ISP_CLKS_700MHZ
 	bool "700 MHz"
 endchoice
 
 choice
-	prompt "AVPU Clock Source"
-	default BR2_AVPU_INTERNAL
-	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	prompt "ISP AXI Bus Clock Source"
+	default BR2_ISP_CLKA_INTERNAL
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
 	help
-	  Select the clock source for the AVPU
-
-config BR2_AVPU_MPLL
-	bool "MPLL"
-config BR2_AVPU_VPLL
-	bool "VPLL"
-config BR2_AVPU_INTERNAL
-	bool "Module Internal"
-endchoice
-
-choice
-	prompt "ISP Clock Source"
-	default BR2_ISP_CLK_SCLKA
-	depends on BR2_SOC_FAMILY_INGENIC_T23
-	help
-	  Select the clock source for the AVPU
-
-config BR2_ISP_CLK_SCLKA
-	bool "SCLKA_CLK"
-endchoice
-
-choice
-	prompt "ISP Clock-A Source"
-	default BR2_ISP_CLKA_SCLKA
-	depends on BR2_SOC_FAMILY_INGENIC_T23
-	help
-	  Select the clock source for the AVPU
+	  Select the clock source for the ISP's AXI bus. (clka_name)
 
 config BR2_ISP_CLKA_SCLKA
-	bool "SCLKA_CLK"
+	bool "SCLKA"
+
+config BR2_ISP_CLKA_INTERNAL
+        bool "Module Internal"
 endchoice
 
 choice
-	prompt "ISP Clock-A Speed"
+	prompt "ISP AXI Bus Clock Speed"
 	default BR2_ISP_CLKA_400MHZ
-	depends on BR2_SOC_FAMILY_INGENIC_T23
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
 	help
-	  Choose the ISP clock speed from the predefined options.
+	  Choose the ISP's AXI bus clock speed from the predefined options.
 
 config BR2_ISP_CLKA_400MHZ
 	bool "400 MHz"
@@ -1508,6 +1588,51 @@ config BR2_THINGINO_BUTTON
 	select BR2_PACKAGE_THINGINO_BUTTON
 	help
 	  The hardware has a physical button wired to a GPIO.
+
+config BR2_THINGINO_NNA
+	bool "Neural Network Acceleration Support"
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	help
+	Enable support for Neural Network Acceleration on A1 SoCs.
+
+config BR2_THINGINO_VIDEO_OUT
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	select BR2_THINGINO_FRAMEBUFFER
+	select BR2_THINGINO_IPU
+	select BR2_THINGINO_VENC
+	bool "Video Output Support"
+	help
+	The hardware has a video output support.  Enables venc, framebuffer, and vo modules.
+
+config BR2_THINGINO_HDMI_AUDIO
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool "HDMI Audio Support"
+	help
+	The hardware has a HDMI audio support.  Enables hdmi_audio module.
+
+config BR2_THINGINO_AIP
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool "Ingenic AIP Support"
+	help
+	The hardware has a AIP DMA engine.  Enables ingenic-aip module.
+
+config BR2_THINGINO_VDEC
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool "VDEC Support"
+	help
+	The hardware has a video decoder support.  Enables vdec module.
+
+config BR2_THINGINO_FRAMEBUFFER
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool
+
+config BR2_THINGINO_VDE
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool
+
+config BR2_THINGINO_IPU
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool
 
 endmenu
 
