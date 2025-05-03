@@ -877,71 +877,37 @@ endif
 export ISP_NMEM
 
 # Default IPU clock speed
+ifeq ($(BR2_IPU_CLK_SCLKA),y)
+	IPU_CLK_SRC := clk_name=sclka
+else ifeq ($(BR2_IPU_CLK_VPLL),y)
+	IPU_CLK_SRC := clk_name=vpll
+else ifeq ($(BR2_IPU_CLK_MPLL),y)
+	IPU_CLK_SRC := clk_name=mpll
+else ifeq ($(BR2_IPU_CLK_INTERNAL),y)
+        IPU_CLK_SRC :=
+else
+	IPU_CLK_SRC :=
+endif
+
 ifeq ($(BR2_IPU_CLK_400MHZ),y)
-	IPU_CLK := 400000000
+	IPU_CLK := ipu_clk=400000000
 else ifeq ($(BR2_IPU_CLK_450MHZ),y)
-	IPU_CLK := 450000000
+	IPU_CLK := ipu_clk=450000000
 else ifeq ($(BR2_IPU_CLK_500MHZ),y)
-	IPU_CLK := 500000000
+	IPU_CLK := ipu_clk=500000000
 else ifeq ($(BR2_IPU_CLK_550MHZ),y)
-	IPU_CLK := 550000000
+	IPU_CLK := ipu_clk=550000000
 else ifeq ($(BR2_IPU_CLK_600MHZ),y)
-	IPU_CLK := 600000000
+	IPU_CLK := ipu_clk=600000000
 else ifeq ($(BR2_IPU_CLK_650MHZ),y)
-	IPU_CLK := 650000000
+	IPU_CLK := ipu_clk=650000000
 else
-	IPU_CLK := 400000000
+	IPU_CLK :=
 endif
 
-
-# Default ISP clock speed
-ifeq ($(BR2_ISP_CLK_90MHZ),y)
-	ISP_CLK := 90000000
-else ifeq ($(BR2_ISP_CLK_100MHZ),y)
-	ISP_CLK := 100000000
-else ifeq ($(BR2_ISP_CLK_120MHZ),y)
-	ISP_CLK := 120000000
-else ifeq ($(BR2_ISP_CLK_125MHZ),y)
-	ISP_CLK := 125000000
-else ifeq ($(BR2_ISP_CLK_150MHZ),y)
-	ISP_CLK := 150000000
-else ifeq ($(BR2_ISP_CLK_175MHZ),y)
-	ISP_CLK := 175000000
-else ifeq ($(BR2_ISP_CLK_200MHZ),y)
-	ISP_CLK := 200000000
-else ifeq ($(BR2_ISP_CLK_220MHZ),y)
-	ISP_CLK := 220000000
-else ifeq ($(BR2_ISP_CLK_225MHZ),y)
-	ISP_CLK := 225000000
-else ifeq ($(BR2_ISP_CLK_250MHZ),y)
-	ISP_CLK := 250000000
-else ifeq ($(BR2_ISP_CLK_300MHZ),y)
-	ISP_CLK := 300000000
-else ifeq ($(BR2_ISP_CLK_350MHZ),y)
-	ISP_CLK := 350000000
-else
-	ISP_CLK := 100000000
-endif
-
-ifeq ($(BR2_AVPU_CLK_400MHZ),y)
-	AVPU_CLK := 400000000
-else ifeq ($(BR2_AVPU_CLK_450MHZ),y)
-	AVPU_CLK := 450000000
-else ifeq ($(BR2_AVPU_CLK_500MHZ),y)
-	AVPU_CLK := 500000000
-else ifeq ($(BR2_AVPU_CLK_550MHZ),y)
-	AVPU_CLK := 550000000
-else ifeq ($(BR2_AVPU_CLK_600MHZ),y)
-	AVPU_CLK := 600000000
-else ifeq ($(BR2_AVPU_CLK_650MHZ),y)
-	AVPU_CLK := 650000000
-else ifeq ($(BR2_AVPU_CLK_700MHZ),y)
-	AVPU_CLK := 700000000
-else
-	AVPU_CLK := 400000000
-endif
-
-ifeq ($(BR2_AVPU_MPLL),y)
+ifeq ($(BR2_AVPU_APLL),y)
+	AVPU_CLK_SRC := clk_name=apll
+else ifeq ($(BR2_AVPU_MPLL),y)
 	AVPU_CLK_SRC := clk_name=mpll
 else ifeq ($(BR2_AVPU_VPLL),y)
 	AVPU_CLK_SRC := clk_name=vpll
@@ -951,34 +917,119 @@ else
 	AVPU_CLK_SRC :=
 endif
 
-ifeq ($(BR2_ISP_CLKA_400MHZ),y)
-	ISP_CLKA_CLK := 400000000
-else ifeq ($(BR2_ISP_CLKA_450MHZ),y)
-	ISP_CLKA_CLK := 450000000
-else ifeq ($(BR2_ISP_CLKA_500MHZ),y)
-	ISP_CLKA_CLK := 500000000
-else ifeq ($(BR2_ISP_CLKA_550MHZ),y)
-	ISP_CLKA_CLK := 550000000
-else ifeq ($(BR2_ISP_CLKA_600MHZ),y)
-	ISP_CLKA_CLK := 600000000
-else ifeq ($(BR2_ISP_CLKA_650MHZ),y)
-	ISP_CLKA_CLK := 650000000
-else ifeq ($(BR2_ISP_CLKA_700MHZ),y)
-	ISP_CLKA_CLK := 700000000
+ifeq ($(BR2_AVPU_CLK_400MHZ),y)
+	AVPU_CLK := avpu_clk=400000000
+else ifeq ($(BR2_AVPU_CLK_450MHZ),y)
+	AVPU_CLK := avpu_clk=450000000
+else ifeq ($(BR2_AVPU_CLK_500MHZ),y)
+	AVPU_CLK := avpu_clk=500000000
+else ifeq ($(BR2_AVPU_CLK_550MHZ),y)
+	AVPU_CLK := avpu_clk=550000000
+else ifeq ($(BR2_AVPU_CLK_600MHZ),y)
+	AVPU_CLK := avpu_clk=600000000
+else ifeq ($(BR2_AVPU_CLK_650MHZ),y)
+	AVPU_CLK := avpu_clk=650000000
+else ifeq ($(BR2_AVPU_CLK_700MHZ),y)
+	AVPU_CLK := avpu_clk=700000000
 else
-	ISP_CLKA_CLK := 400000000
+	AVPU_CLK :=
 endif
 
+# Default ISP clock speed
 ifeq ($(BR2_ISP_CLK_SCLKA),y)
 	ISP_CLK_SRC := clk_name=sclka
+else ifeq ($(BR2_ISP_CLK_VPLL),y)
+	ISP_CLK_SRC := clk_name=vpll
+else ifeq ($(BR2_ISP_CLK_MPLL),y)
+	ISP_CLK_SRC := clk_name=mpll
+else ifeq ($(BR2_ISP_CLK_INTERNAL),y)
+        ISP_CLK_SRC :=
 else
 	ISP_CLK_SRC :=
 endif
 
+ifeq ($(BR2_ISP_CLK_90MHZ),y)
+	ISP_CLK := isp_clk=90000000
+else ifeq ($(BR2_ISP_CLK_100MHZ),y)
+	ISP_CLK := isp_clk=100000000
+else ifeq ($(BR2_ISP_CLK_120MHZ),y)
+	ISP_CLK := isp_clk=120000000
+else ifeq ($(BR2_ISP_CLK_125MHZ),y)
+	ISP_CLK := isp_clk=125000000
+else ifeq ($(BR2_ISP_CLK_150MHZ),y)
+	ISP_CLK := isp_clk=150000000
+else ifeq ($(BR2_ISP_CLK_175MHZ),y)
+	ISP_CLK := isp_clk=175000000
+else ifeq ($(BR2_ISP_CLK_200MHZ),y)
+	ISP_CLK := isp_clk=200000000
+else ifeq ($(BR2_ISP_CLK_220MHZ),y)
+	ISP_CLK := isp_clk=220000000
+else ifeq ($(BR2_ISP_CLK_225MHZ),y)
+	ISP_CLK := isp_clk=225000000
+else ifeq ($(BR2_ISP_CLK_250MHZ),y)
+	ISP_CLK := isp_clk=250000000
+else ifeq ($(BR2_ISP_CLK_300MHZ),y)
+	ISP_CLK := isp_clk=300000000
+else ifeq ($(BR2_ISP_CLK_350MHZ),y)
+	ISP_CLK := isp_clk=350000000
+else
+	ISP_CLK :=
+endif
+
 ifeq ($(BR2_ISP_CLKA_SCLKA),y)
 	ISP_CLKA_CLK_SRC := clka_name=sclka
+else ifeq ($(BR2_ISP_CLKA_INTERNAL),y)
+        ISP_CLKA_CLK_SRC :=
 else
 	ISP_CLKA_CLK_SRC :=
+endif
+
+ifeq ($(BR2_ISP_CLKA_400MHZ),y)
+	ISP_CLKA_CLK := isp_clka=400000000
+else ifeq ($(BR2_ISP_CLKA_450MHZ),y)
+	ISP_CLKA_CLK := isp_clka=450000000
+else ifeq ($(BR2_ISP_CLKA_500MHZ),y)
+	ISP_CLKA_CLK := isp_clka=500000000
+else ifeq ($(BR2_ISP_CLKA_550MHZ),y)
+	ISP_CLKA_CLK := isp_clka=550000000
+else ifeq ($(BR2_ISP_CLKA_600MHZ),y)
+	ISP_CLKA_CLK := isp_clka=600000000
+else ifeq ($(BR2_ISP_CLKA_650MHZ),y)
+	ISP_CLKA_CLK := isp_clka=650000000
+else ifeq ($(BR2_ISP_CLKA_700MHZ),y)
+	ISP_CLKA_CLK := isp_clka=700000000
+else
+	ISP_CLKA_CLK :=
+endif
+
+ifeq ($(BR2_ISP_CLKS_SCLKA),y)
+	ISP_CLKS_CLK_SRC := clks_name=sclka
+else ifeq ($(BR2_ISP_CLKS_VPLL),y)
+	ISP_CLKS_CLK_SRC := clks_name=vpll
+else ifeq ($(BR2_ISP_CLKS_MPLL),y)
+	ISP_CLKS_CLK_SRC := clks_name=mpll
+else ifeq ($(BR2_ISP_CLKS_INTERNAL),y)
+        ISP_CLKS_CLK_SRC :=
+else
+	ISP_CLKS_CLK_SRC :=
+endif
+
+ifeq ($(BR2_ISP_CLKS_400MHZ),y)
+	ISP_CLKS_CLK := isp_clks=400000000
+else ifeq ($(BR2_ISP_CLKS_450MHZ),y)
+	ISP_CLKS_CLK := isp_clks=450000000
+else ifeq ($(BR2_ISP_CLKS_500MHZ),y)
+	ISP_CLKS_CLK := isp_clks=500000000
+else ifeq ($(BR2_ISP_CLKS_550MHZ),y)
+	ISP_CLKS_CLK := isp_clks=550000000
+else ifeq ($(BR2_ISP_CLKS_600MHZ),y)
+	ISP_CLKS_CLK := isp_clks=600000000
+else ifeq ($(BR2_ISP_CLKS_650MHZ),y)
+	ISP_CLKS_CLK := isp_clks=650000000
+else ifeq ($(BR2_ISP_CLKS_700MHZ),y)
+	ISP_CLKS_CLK := isp_clks=700000000
+else
+	ISP_CLKS_CLK :=
 endif
 
 ifeq ($(BR2_ISP_MEMOPT_0),y)
@@ -1017,13 +1068,21 @@ else
 	ISP_CH0_PRE_DEQUEUE_VALID_LINES :=
 endif
 
-export AVPU_CLK
 export AVPU_CLK_SRC
+export AVPU_CLK
+
+export IPU_CLK_SRC
 export IPU_CLK
-export ISP_CLK
+
 export ISP_CLK_SRC
+export ISP_CLK
+
+export ISP_CLKA_CLK_SRC
 export ISP_CLKA_CLK
-export ISP_CLKA_SRC
+
+export ISP_CLKS_CLK_SRC
+export ISP_CLKS_CLK
+
 export ISP_MEMOPT
 export ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM
 export ISP_CH0_PRE_DEQUEUE_TIME
