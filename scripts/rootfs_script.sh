@@ -93,7 +93,7 @@ cat ${BR2_EXTERNAL}/${CAMERA_SUBDIR}/${CAMERA}/${CAMERA}.config | tee -a $SYSTEM
 
 # Add the development configuration
 if [ -f ${BR2_EXTERNAL}/configs/local.config ]; then
-	cat ${BR2_EXTERNAL}/configs/local.config | tee -a $SYSTEM_CONFIG
+	grep -v "^#" ${BR2_EXTERNAL}/configs/local.config | grep -v "^[[:space:]]*$" | tee -a $SYSTEM_CONFIG
 fi
 
 if [ -f "${TARGET_DIR}/etc/init.d/S50dropbear" ]; then
