@@ -92,7 +92,7 @@ define GENERATE_AUDIO_CONFIG
 	fi
 endef
 
-define install_sensor_bin
+define INSTALL_SENSOR_BIN
 	if [ "$(1)" != "" ]; then \
 		$(if $(filter-out $(SENSOR_MODEL_2),$(1)),ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor;) \
 		if [ "$(SOC_FAMILY)" = "t23" ]; then \
@@ -106,39 +106,52 @@ define install_sensor_bin
 	fi
 endef
 
-define INGENIC_SDK_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 0755 -d $(TARGET_MODULES_PATH)
-	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
-
-	$(call install_sensor_bin,$(SENSOR_MODEL),$(SENSOR_MODEL),$(SENSOR_CONFIG_NAME))
-	$(call install_sensor_bin,$(SENSOR_MODEL_1),$(SENSOR_1_BIN_NAME),$(SENSOR_CONFIG_NAME))
-	$(call install_sensor_bin,$(SENSOR_MODEL_2),$(SENSOR_1_BIN_NAME),$(SENSOR_2_CONFIG_NAME))
-
+define GENERATE_MODULE_LOADER
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
+
+	if [ "$(BR2_THINGINO_AIP)" = "y" ]; then \
+		echo "ingenic-aip" > $(TARGET_DIR)/etc/modules.d/aip; \
+	fi
+
+	if [ "$(BR2_THINGINO_VIDEO_OUT)" = "y" ]; then \
+		echo "vde" > $(TARGET_DIR)/etc/modules.d/vde; \
+		echo "fb" > $(TARGET_DIR)/etc/modules.d/fb; \
+		echo "ipu $(IPU_CLK_SRC) $(IPU_CLK)" > $(TARGET_DIR)/etc/modules.d/ipu; \
+	fi
+
+	if [ "$(BR2_THINGINO_VDEC)" = "y" ]; then \
+		echo "vdec" > $(TARGET_DIR)/etc/modules.d/vdec; \
+	fi
+
+	if [ "$(BR2_THINGINO_HDMI_AUDIO)" = "y" ]; then \
+		echo "hdmi_audio" > $(TARGET_DIR)/etc/modules.d/hdmi_audio; \
+	fi
 
 	if [ "$(SOC_FAMILY)" != "a1" ]; then \
 		if [ "$(SOC_FAMILY)" = "t23" ]; then \
-			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) isp_clk=$(ISP_CLK) $(ISP_CLKA_CLK_SRC) isp_clka=$(ISP_CLKA_CLK) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
+			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
+		elif [ "$(SOC_FAMILY)" = "t41" ]; then \
+			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_CLKS_CLK_SRC) $(ISP_CLKS_CLK) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
 		else \
-			echo tx_isp_$(SOC_FAMILY) isp_clk=$(ISP_CLK) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
+			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
 		fi \
 	fi
 
 	if [ "$(SOC_FAMILY)" = "t31" ] || [ "$(SOC_FAMILY)" = "c100" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
-		echo "avpu $(AVPU_CLK_SRC) avpu_clk=$(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/avpu; \
-	fi
-
-	if [ "$(BR2_THINGINO_AUDIO)" = "y" ]; then \
-		$(INSTALL) -D -m 0644 $(@D)/config/webrtc_profile.ini \
-			$(TARGET_DIR)/etc/; \
-		$(GENERATE_AUDIO_CONFIG); \
-		$(INSTALL) -D -m 0755 $(INGENIC_SDK_PKGDIR)/files/speaker-ctrl \
-			$(TARGET_DIR)/usr/sbin/speaker-ctrl; \
+		echo "avpu $(AVPU_CLK_SRC) $(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/avpu; \
 	fi
 
 	if [ "$(BR2_THINGINO_PWM_ENABLE)" = "y" ]; then \
 		echo "pwm_core" >> $(TARGET_DIR)/etc/modules.d/pwm; \
 		echo "pwm_hal" >> $(TARGET_DIR)/etc/modules.d/pwm; \
+	fi
+
+	if [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
+		echo "mpsys-driver" >> $(TARGET_DIR)/etc/modules.d/mpsys; \
+	fi
+
+	if [ "$(BR2_THINGINO_NNA)" = "y" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
+		echo "soc-nna" >> $(TARGET_DIR)/etc/modules.d/nna; \
 	fi
 
 	if [ "$(SENSOR_MODEL)" != "" ]; then \
@@ -152,7 +165,26 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	if [ "$(SENSOR_MODEL_2)" != "" ]; then \
 		echo "sensor_$(SENSOR_MODEL_2)_$(SOC_FAMILY) $(BR2_SENSOR_2_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor_2; \
 	fi
+endef
 
+define INSTALL_AUDIO_SUPPORT
+	if [ "$(BR2_THINGINO_AUDIO)" = "y" ]; then \
+		$(INSTALL) -D -m 0644 $(@D)/config/webrtc_profile.ini $(TARGET_DIR)/etc/; \
+		$(GENERATE_AUDIO_CONFIG); \
+		$(INSTALL) -D -m 0755 $(INGENIC_SDK_PKGDIR)/files/speaker-ctrl $(TARGET_DIR)/usr/sbin/speaker-ctrl; \
+	fi
+endef
+
+define INGENIC_SDK_INSTALL_TARGET_CMDS
+	$(INSTALL) -m 0755 -d $(TARGET_MODULES_PATH)
+	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
+
+	$(call INSTALL_SENSOR_BIN,$(SENSOR_MODEL),$(SENSOR_MODEL),$(SENSOR_CONFIG_NAME))
+	$(call INSTALL_SENSOR_BIN,$(SENSOR_MODEL_1),$(SENSOR_1_BIN_NAME),$(SENSOR_CONFIG_NAME))
+	$(call INSTALL_SENSOR_BIN,$(SENSOR_MODEL_2),$(SENSOR_1_BIN_NAME),$(SENSOR_2_CONFIG_NAME))
+
+	$(GENERATE_MODULE_LOADER)
+	$(INSTALL_AUDIO_SUPPORT)
 	$(GENERATE_GPIO_USERKEYS_CONFIG)
 endef
 
