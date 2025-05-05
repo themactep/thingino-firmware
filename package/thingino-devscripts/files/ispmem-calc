@@ -1,0 +1,113 @@
+#!/bin/sh
+
+. /usr/share/common
+
+cleanup() {
+	echo
+	stty sane
+	exit 0
+}
+
+trap cleanup INT
+
+slider() {
+	local min=$1 max=$2 step=$3 totalmem=$4 width=$5 value=$6
+	echo -e "Use 'w/up arrow' to increase, 's/down arrow' to decrease, and 'q' to quit. Press 'Enter' to confirm.\n"
+	stty -echo
+
+	while :; do
+		local osmem=$(($totalmem - $value))
+		local ratio=$(($width * $value / $totalmem))
+		slider="["
+		for i in $(seq 1 $width); do
+			[ "$i" -le "$ratio" ] && slider="$slider#" || slider="$slider-"
+		done
+		slider="$slider]"
+
+		printf "\rOS Memory: %d MB | ISP Memory: %d MB %s" "$osmem" "$value" "$slider"
+
+		read -n 1 input
+		[ "$input" = $'\e' ] && read -rsn2 input
+
+		case $input in
+			w|A) [ "$value" -lt "$max" ] && value=$(($value + $step));;
+			s|B) [ "$value" -gt "$min" ] && value=$(($value - $step));;
+			q) echo; echo "Quitting without making changes."; stty echo; exit 1;;
+			"") break;;
+		esac
+	done
+
+	stty echo
+	echo
+	return $value
+}
+
+calculate_rmem_offset() {
+	printf "0x%X" $(($1 * 1024 * 1024))
+}
+
+read_defaults() {
+	local osmem_val rmem_val
+	osmem_val=$(fw_printenv -n osmem 2>/dev/null) || osmem_val=""
+	rmem_val=$(fw_printenv -n rmem 2>/dev/null) || rmem_val=""
+	echo "$osmem_val" "$rmem_val"
+}
+
+echo "========== ISP/OS Memory Configuration ==========="
+echo "Select the total memory size for your SoC:"
+echo "1) 32MB"
+echo "2) 64MB"
+echo "3) 128MB"
+echo "4) 256MB"
+read -p "Enter choice [1-3]: " choice
+
+case $choice in
+	1) totalmem=32 ;;
+	2) totalmem=64 ;;
+	3) totalmem=128 ;;
+	4) totalmem=256 ;;
+	*) echo "Invalid choice"; exit 1 ;;
+esac
+
+read osmem_env rmem_env < <(read_defaults)
+
+if [ -n "$osmem_env" ] && [ -n "$rmem_env" ]; then
+	osmem_value=${osmem_env%M@*}
+	rmem_value=${rmem_env%M@*}
+else
+	rmem_value=$(($totalmem / 2))
+	osmem_value=$(($totalmem - $rmem_value))
+fi
+
+width=40
+echo -e "\nAdjust ISP memory using the slider below:"
+slider 0 $totalmem 1 $totalmem $width $rmem_value
+rmem=$?
+
+osmem=$(($totalmem - $rmem))
+rmem_offset=$(calculate_rmem_offset $osmem)
+
+echo "============ Selected Configuration: ============="
+echo "OS memory (osmem): $osmem MB"
+echo "ISP memory (rmem): $rmem MB"
+echo "ISP memory offset: $rmem_offset"
+echo "Total memory: $totalmem MB"
+echo "=================================================="
+
+command="fw_setenv osmem ${osmem}M@0x0; fw_setenv rmem ${rmem}M@$rmem_offset"
+
+[ $DEBUG ] && {
+	echo "Linux command:"
+	echo "$command"
+	echo "=================================================="
+}
+
+read -n 1 -p "Would you like to set this configuration? [y/n] " run_command
+
+if [ "$run_command" = "y" ]; then
+	eval "$command"
+	echo -e "\nConfiguration set, please reboot for changes to take effect."
+	echo "Memory configuration changed: osmem=${osmem}M@0x0 rmem=${rmem}M@$rmem_offset"
+else
+	echo -e "\nQuitting, no changes made."
+fi

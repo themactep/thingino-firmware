@@ -10,6 +10,13 @@ define THINGINO_DEVSCRIPTS_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -D -m 0755 $(THINGINO_DEVSCRIPTS_PKGDIR)/files/ticklemotor \
 		$(TARGET_DIR)/usr/sbin/ticklemotor
+
+	$(INSTALL) -D -m 0755 $(THINGINO_DEVSCRIPTS_PKGDIR)/files/ispmem-calc \
+		$(TARGET_DIR)/usr/sbin/ispmem-calc
+
+	$(INSTALL) -D -m 0755 $(THINGINO_DEVSCRIPTS_PKGDIR)/files/overlay-backup \
+		$(TARGET_DIR)/usr/sbin/overlay-backup
+
 endef
 
 $(eval $(generic-package))
