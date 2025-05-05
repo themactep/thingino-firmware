@@ -64,29 +64,29 @@ print_soc_model() {
 		read_type2
 		case "$type2" in
 			$((0x1111))) soc="t40n" ;;
-			$((0x7777))) soc="t40xp" ;;
-			$((0x8888))) soc="t40nn" ;;
 			#$((0x1111))) soc="t41n" ;; # overlap with t40nn, verify on chip
 			$((0x3333))) soc="t41l" ;;
 			$((0x4444))) soc="t41a" ;;
 			$((0x5555))) soc="t41zl" ;;
 			$((0x6666))) soc="t41zx" ;;
+			$((0x7777))) soc="t40xp" ;;
 			#$((0x7777))) soc="t41zn" ;; # overlap with t40xp
-			#$((0x????))) soc="t41zm" ;; # verify on chip
-			#$((0x????))) soc="t41zg" ;; # verify on chip
+			$((0x8888))) soc="t40nn" ;;
 			$((0x9999))) soc="t41lq" ;;
 			$((0xAAAA))) soc="t41nq" ;;
 			#$((0xAAAA))) soc="t41xq" ;;
+			#$((0x????))) soc="t41zm" ;; # verify on chip
+			#$((0x????))) soc="t41zg" ;; # verify on chip
 			*) soc="unknown_t4x" ;;
 		esac
 	elif [ "$cpuid" -eq $((0x1)) ]; then
 		read_type2
 		case "$type2" in
 			$((0x1111))) soc="a1n" ;;
-			$((0x5555))) soc="a1nt" ;;
 			$((0x2222))) soc="a1x" ;;
 			$((0x3333))) soc="a1l" ;;
 			$((0x4444))) soc="a1a" ;;
+			$((0x5555))) soc="a1nt" ;;
 			*) soc="unknown_a1x" ;;
 		esac
 	else
@@ -95,25 +95,25 @@ print_soc_model() {
 		cpu_sig=$(printf '0x%08X' $(((cpuid << 16) | $type1)))
 		case "$cpu_sig" in
 			0x00050000) soc="t10" ;;
+			#0x01011111) soc="c100" ;;
 			0x20001111) soc="t20n" ;;
 			0x20002222) soc="t20x" ;;
 			0x20003333) soc="t20l" ;;
-			0x00213333) soc="t21l" ;;
 			0x00211111) soc="t21n" ;;
+			0x00213333) soc="t21l" ;;
 			#0x002????) soc="t21x" ;;
 			0x00215555) soc="t21z" ;;
 			0x00231111) soc="t23n" ;;
-			0x00237777) soc="t23zn" ;;
-			#0x0023????) soc="t23zx" ;;
-			0x00233333) soc="t23dl" ;;
-			#0x0023????) soc="t23dn" ;;
 			0x00232222) soc="t23x" ;;
-			0x00303333) soc="t30l" ;;
+			0x00233333) soc="t23dl" ;;
+			0x00237777) soc="t23zn" ;;
+			#0x0023????) soc="t23dn" ;;
+			#0x0023????) soc="t23zx" ;;
 			0x00301111) soc="t30n" ;;
 			0x00302222) soc="t30x" ;;
+			0x00303333) soc="t30l" ;;
 			0x00304444) soc="t30a" ;;
 			0x00305555) soc="t30z" ;;
-			#0x01011111) soc="c100" ;;
 			0x00311111) soc="t31n" ;;
 			0x00312222) soc="t31x" ;;
 			0x00313333) soc="t31l" ;;
