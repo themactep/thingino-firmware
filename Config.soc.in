@@ -1758,7 +1758,7 @@ menu "Device Type"
 	config BR2_THINGINO_DEV_NVR
 		bool "NVR"
 		help
-		  Specifies the device type as a NetwoBR2_THINGINO_DEV_SBCrk Video Recorder and installs configurations
+		  Specifies the device type as a Network Video Recorder and installs configurations
 		  specific to this type.
 
 	config BR2_THINGINO_DEV_SBC
