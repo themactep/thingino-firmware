@@ -122,7 +122,7 @@ start() {
 		swap_file_size=$(echo "$swap_file_size" | tr '[:lower:]' '[:upper:]')
 	fi
 
-	echo_info "Configuring swap"
+	echo_title "Configuring swap"
 	case "$swap_type" in
 		"partition")
 			if [ -z "$swap_partition_dev" ]; then
