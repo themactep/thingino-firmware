@@ -1,0 +1,100 @@
+#!/bin/sh
+
+. /usr/share/common
+
+# Store the PIDs of background processes for cleanup
+PIDS=""
+
+# Function to clean up
+cleanup() {
+echo "Cleaning up processes..."
+for PID in $PIDS; do
+	kill -9 $PID 2>/dev/null
+done
+exit 0
+}
+
+# Set trap for clean exit
+trap cleanup INT TERM QUIT HUP
+
+# Simple entropy generation function that doesn't use temp files
+generate_entropy() {
+while true; do
+	# Generate system activity with commands that don't need temp files
+	dd if=/dev/zero of=/dev/null bs=1K count=64 2>/dev/null
+
+	# Force interrupts with commands that won't fail
+	cat /proc/interrupts > /dev/null 2>&1
+	cat /proc/stat > /dev/null 2>&1
+	cat /proc/meminfo > /dev/null 2>&1
+
+	# Run some basic commands to create hardware activity
+	date > /dev/null 2>&1
+	ps > /dev/null 2>&1
+	ls -la /proc > /dev/null 2>&1
+
+	# Disk I/O activity
+	sync
+	echo 3 > /proc/sys/vm/drop_caches 2>/dev/null
+
+	# Brief pause to prevent overloading
+	sleep 0.05
+done
+}
+
+# Function to check current entropy
+check_entropy() {
+ENTROPY=$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo "0")
+echo "$(date +%H:%M:%S) - Current entropy: $ENTROPY" > /dev/null 2>&1
+
+# Return success if entropy is at least 1
+if [ "$ENTROPY" -ge 1 ]; then
+	return 0
+else
+	return 1
+fi
+}
+
+start(){
+
+	# Launch multiple instances
+	echo_title "Generating entropy"
+	for i in $(seq 1 3); do
+	generate_entropy &
+	PIDS="$PIDS $!"
+	done
+
+	# Monitor entropy until it reaches at least 1
+
+	while true; do
+	# Check current entropy
+	check_entropy
+
+	# Exit when entropy is at least 1
+	if [ $? -eq 0 ]; then
+		echo_info "Success! Entropy level reached at least 1"
+		cleanup
+	fi
+
+	# Brief pause before checking again
+	sleep 1
+	done
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		true
+		;;
+	restart)
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0
