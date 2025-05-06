@@ -25,7 +25,7 @@ pin_from=${1:-0}
 pin_till=${2:-$GPIO_MAX}
 
 for i in $(seq $pin_from $pin_till); do
-	echo_info $EXCLUDE | grep -e "\b$i\b" >/dev/null && continue
+	echo "$EXCLUDE" | grep -e "\b$i\b" >/dev/null && continue
 
 	echo_info "Pin $i"
 
