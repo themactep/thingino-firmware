@@ -8,4 +8,3 @@ Noorio T100
 - Wi-Fi Module: AIC8800
 - Flash Chip: NOR 32MB
 - Power: 5V DC (USB-C)
-
