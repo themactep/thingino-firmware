@@ -1,0 +1,5 @@
+gpio_ircut=57 58
+gpio_ir850=61
+gpio_mmc_cd=59
+gpio_white=50
+gpio_wlan=62o
