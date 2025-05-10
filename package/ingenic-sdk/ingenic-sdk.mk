@@ -98,9 +98,17 @@ define INSTALL_SENSOR_BIN
 		if [ "$(SOC_FAMILY)" = "t23" ]; then \
 			$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/1.1.2/$(2).bin \
 				$(TARGET_DIR)/usr/share/sensor/$(3); \
+			if [ -f $(@D)/sensor-iq/$(SOC_FAMILY)/1.1.2/$(2)-cust.bin ]; then \
+				$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/1.1.2/$(2)-cust.bin \
+					$(TARGET_DIR)/usr/share/sensor/$(patsubst %.bin,%-cust.bin,$(3)); \
+			fi; \
 		else \
 			$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/$(2).bin \
 				$(TARGET_DIR)/usr/share/sensor/$(3); \
+			if [ -f $(@D)/sensor-iq/$(SOC_FAMILY)/$(2)-cust.bin ]; then \
+				$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/$(2)-cust.bin \
+					$(TARGET_DIR)/usr/share/sensor/$(patsubst %.bin,%-cust.bin,$(3)); \
+			fi; \
 		fi; \
 		$(if $(filter-out $(SENSOR_MODEL_2),$(1)),echo $(1) > $(TARGET_DIR)/usr/share/sensor/model;) \
 	fi
