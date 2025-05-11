@@ -47,8 +47,13 @@ BR2_DL_DIR ?= $(HOME)/dl
 #$(info Building for CAMERA: $(CAMERA))
 #endif
 
+# repo data
+GIT_BRANCH="$(shell git branch | grep '^*' | awk '{print $$2}' | tr -d '()')"
+GIT_HASH="$(shell git show -s --format=%H | cut -c1-7)"
+GIT_DATE="$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S UTC' --format="%cd")"
+BUILD_DATE="$(shell env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z')"
+
 # working directory
-GIT_BRANCH := $(shell git branch --show-current)
 ifeq ($(GIT_BRANCH),master)
 OUTPUT_DIR ?= $(HOME)/output/$(CAMERA)
 else ifeq ($(GIT_BRANCH),)
@@ -183,12 +188,6 @@ EXTRAS_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
 
 # special case with no uboot nor env
 EXTRAS_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PARTITION_SIZE))))
-
-# repo data
-GIT_BRANCH="$(shell git branch | grep '^*' | awk '{print $$2}')"
-GIT_HASH="$(shell git show -s --format=%H | cut -c1-7)"
-GIT_DATE="$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S UTC' --format="%cd")"
-BUILD_DATE="$(shell env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z')"
 
 RELEASE = 0
 
@@ -377,6 +376,11 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	sha256sum $(FIRMWARE_BIN_NOBOOT) | awk '{print $$1 "  " filename}' filename="$(FIRMWARE_NAME_NOBOOT)" >> $(FIRMWARE_BIN_NOBOOT).sha256sum
 	@$(FIGLET) $(CAMERA)
 	@$(FIGLET) "FINE"
+	@echo "--------------------------------"
+	@echo "Full Image:"
+	@echo "$(FIRMWARE_BIN_FULL)"
+	@echo "Update Image:"
+	@echo "$(FIRMWARE_BIN_NOBOOT)"
 
 # rebuild a package
 rebuild-%: defconfig
