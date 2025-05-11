@@ -48,7 +48,7 @@ BR2_DL_DIR ?= $(HOME)/dl
 #endif
 
 # repo data
-GIT_BRANCH="$(shell git branch | grep '^*' | awk '{print $$2}' | tr -d '()')"
+GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD | tr -d '()' | xargs)
 GIT_HASH="$(shell git show -s --format=%H | cut -c1-7)"
 GIT_DATE="$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S UTC' --format="%cd")"
 BUILD_DATE="$(shell env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z')"
