@@ -32,7 +32,7 @@ define DOORBELL_BUTTON_CONF
 	else \
 		if [ "$(BR2_THINGINO_DEV_DOORBELL)" = "y" ]; then \
 			$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc; \
-			echo -e "KEY_1 RELEASE 0 KEY_1 TIMED 0.1 iac -f /usr/share/sounds/th-doorbell_3.pcm" \
+			echo -e "KEY_1 TIMED 0.1 iac -f /usr/share/sounds/th-doorbell_3.pcm" \
 				>> $(TARGET_DIR)/etc/thingino-button.conf; \
 		fi \
 	fi
