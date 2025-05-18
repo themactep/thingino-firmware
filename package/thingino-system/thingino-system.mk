@@ -23,8 +23,8 @@ define THINGINO_SYSTEM_INSTALL_TARGET_CMDS
 	fi
 
 	if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_ENTROPY_GENERATOR)" = "y" ]; then \
-		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/S02entropy \
-			$(TARGET_DIR)/etc/init.d/S02entropy; \
+		$(INSTALL) -D -m 0755 $(THINGINO_SYSTEM_PKGDIR)/files/S01entropy \
+			$(TARGET_DIR)/etc/init.d/S01entropy; \
 	fi
 
 	if [ "$(BR2_PACKAGE_THINGINO_SYSTEM_SWAP)" = "y" ]; then \
