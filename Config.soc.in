@@ -391,88 +391,6 @@ endmenu
 endif
 
 choice
-	prompt "ISP Memory Optimization Level"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
-	default BR2_ISP_MEMOPT_1 if BR2_SOC_INGENIC_T23N || BR2_SOC_INGENIC_T23ZN || BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL
-	help
-	  Select the memory optimization level for the ISP.
-
-config BR2_ISP_MEMOPT_0
-	bool "Optimize Disabled"
-	help
-	  Disables the ISP memory optimization.
-
-config BR2_ISP_MEMOPT_1
-	bool "Optimize Level 1"
-	help
-	  Enable ISP memory optimization - Leve 1 - Bypass Lynne + BGM
-
-config BR2_ISP_MEMOPT_2
-	bool "Optimize Level 2"
-	help
-	  Enable ISP memory optimization - Leve 2 - Bypass Lynne + BGM + Ass
-
-config BR2_ISP_MEMOPT_3
-	bool "Optimize Level 3"
-	help
-	  Enable ISP memory optimization - Leve 3 - Normal
-endchoice
-
-if FALSE
-if BR2_SOC_FAMILY_INGENIC_T31
-menuconfig BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME
-	bool "ISP Day/Night switch drop frame number"
-
-if BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME
-config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE
-	int "Number of frames to drop"
-	default 0
-	help
-	  Specify the exact number of frames to drop during the switch.
-	  This setting is only active if the drop frame feature is enabled.
-endif
-
-menuconfig BR2_ISP_CH0_PRE_DEQUEUE_TIME
-	bool "ISP Pre-dequeue Time for Channel 0"
-
-if BR2_ISP_CH0_PRE_DEQUEUE_TIME
-config BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE
-	int "Pre-dequeue time in milliseconds"
-	default 0
-	help
-	  Specify the exact pre-dequeue time for channel 0 in milliseconds.
-	  This setting is only active if the pre-dequeue time feature is enabled.
-endif
-
-menuconfig BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
-	bool "ISP Pre-dequeue Interrupt Processing for Channel 0"
-
-if BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
-config BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_VALUE
-	int "Interrupt processing time"
-	default 0
-	help
-	  Specify the interrupt processing time for pre-dequeue for channel 0.
-	  This setting is only active if the feature is enabled.
-
-endif
-
-menuconfig BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
-	bool "ISP Valid Lines for Pre-dequeue for Channel 0"
-
-if BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
-config BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE
-	int "Pre-dequeue valid lines"
-	default 0
-	help
-	  Specify the number of valid lines for pre-dequeue for channel 0.
-	  This setting is only active if the feature is enabled.
-endif
-
-endif
-endif
-
-choice
 	prompt "AVPU Clock Source"
 	default BR2_AVPU_INTERNAL
 	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
@@ -578,7 +496,7 @@ endchoice
 choice
 	prompt "ISP Scaler Clock Source"
 	default BR2_ISP_CLKS_INTERNAL
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
 	help
 	  Select the parent clock source for the ISP scaler. (clks_name)
 
@@ -1503,11 +1421,365 @@ config BR2_SENSOR_PARAM_DATA_TYPE
 endmenu
 endif
 
-config BR2_ISP_PARAMS
-	string "ISP parameters"
-	help
-	  Set additional parameters passed to the ISP kernel module
+menu "ISP Debug Configuration"
 
+choice
+	prompt "ISP Debug Print Level"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	default BR2_ISP_PRINT_LEVEL_1
+	help
+	  Select the debug print level for the ISP.
+	  (print_level)
+
+config BR2_ISP_PRINT_LEVEL_0
+	bool "ISP Print Level 0"
+	help
+	  Enable ISP debug print level 0 - All messages (info, warnings, and errors) will be printed
+
+config BR2_ISP_PRINT_LEVEL_1
+	bool "ISP Print Level 1"
+	help
+	  Enable ISP debug print level 1 - Only warnings and errors will be printed
+
+config BR2_ISP_PRINT_LEVEL_2
+	bool "ISP Print Level 2"
+	help
+	  Enable ISP debug print level 2 - Only errors will be printed
+
+config BR2_ISP_PRINT_LEVEL_3
+	bool "ISP Print Level 3"
+	help
+	  Enable ISP debug print level 3 - No messages will be printed
+endchoice
+
+choice
+	prompt "ISP Memory Optimization Level"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40
+	default BR2_ISP_MEMOPT_1 if BR2_SOC_FAMILY_32MB || BR2_SOC_FAMILY_64MB
+	help
+	  Select the memory optimization level for the ISP.
+	  (isp_memopt)
+
+config BR2_ISP_MEMOPT_0
+	bool "Optimize Disabled"
+	help
+	  Disables the ISP memory optimization.
+
+config BR2_ISP_MEMOPT_1
+	bool "Optimize Level 1"
+	help
+	  Enable ISP memory optimization - Level 1 - Bypass Lynne + BGM
+
+config BR2_ISP_MEMOPT_2
+	bool "Optimize Level 2"
+	help
+	  Enable ISP memory optimization - Level 2 - Bypass Lynne + BGM + Ass
+
+config BR2_ISP_MEMOPT_3
+	bool "Optimize Level 3"
+	help
+	  Enable ISP memory optimization - Level 3 - Normal
+endchoice
+
+menuconfig BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	bool "ISP Day/Night Switch Drop Frame Number"
+	help
+	  Enable the drop frame feature during the day/night switch.
+
+config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE
+	depends on BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME
+	int "Number of frames to drop"
+	default 0
+	help
+	  Specify the exact number of frames to drop during the switch.
+	  This setting is only active if the drop frame feature is enabled.
+	  (isp_day_night_switch_drop_frame_num)
+
+menuconfig BR2_ISP_CH0_PRE_DEQUEUE_TIME
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	bool "ISP CH0 Pre-dequeue Time"
+	help
+	  Enable the pre-dequeue time for channel 0.
+
+config BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE
+	depends on BR2_ISP_CH0_PRE_DEQUEUE_TIME
+	int "Pre-dequeue time in milliseconds"
+	default 0
+	help
+	  Specify the exact pre-dequeue time for channel 0 in milliseconds.
+	  This setting is only active if the pre-dequeue time feature is enabled.
+	  (isp_ch0_pre_dequeue_time)
+
+menuconfig BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	bool "ISP CH0 Pre-dequeue Interrupt Processing"
+	help
+	  Enable the interrupt processing time for pre-dequeue for channel 0.
+
+config BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_VALUE
+	depends on BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
+	int "Interrupt processing time"
+	default 0
+	help
+	  Specify the interrupt processing time for pre-dequeue for channel 0.
+	  This setting is only active if the feature is enabled.
+	  (isp_ch0_pre_dequeue_interrupt_process)
+
+menuconfig BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	bool "ISP CH0 Valid Lines for Pre-dequeue"
+	help
+	  Enable the number of valid lines for pre-dequeue for channel 0.
+
+config BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE
+	depends on BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
+	int "Pre-dequeue valid lines"
+	default 0
+	help
+	  Specify the number of valid lines for pre-dequeue for channel 0.
+	  This setting is only active if the feature is enabled.
+	  (isp_ch0_pre_dequeue_valid_lines)
+
+menuconfig BR2_ISP_CH1_DEQUEUE_DELAY_TIME
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	bool "ISP CH1 Pre-dequeue Delay Time"
+	help
+	  Enable the pre-dequeue delay time for channel 1.
+
+config BR2_ISP_CH1_DEQUEUE_DELAY_TIME_VALUE
+	depends on BR2_ISP_CH1_DEQUEUE_DELAY_TIME
+	int "Pre-dequeue delay time in milliseconds"
+	default 0
+	help
+	  Specify the pre-dequeue delay time for channel 1 in milliseconds.
+	  This setting is only active if the feature is enabled.
+	  (isp_ch1_dequeue_delay_time)
+
+config BR2_ISP_MIPI_SWITCH_GPIO
+	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+	int "mipi switch"
+	default 7
+	help
+	  Specify the pre-dequeue delay time for channel 1 in milliseconds.
+	  This setting is only active if the feature is enabled.
+	  (mipi_switch_gpio)
+
+choice
+	prompt "ISP Direct Mode"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Configure non-direct mode, direct mode, and semi-direct mode.
+	  (direct_mode)
+
+config BR2_ISP_DIRECT_MODE_0
+	bool "Non Direct Mode"
+	help
+	  Disables the ISP direct mode
+
+config BR2_ISP_DIRECT_MODE_1
+	bool "Direct Mode"
+	help
+	  Enable ISP direct mode
+
+config BR2_ISP_DIRECT_MODE_2
+	bool "Semi-Direct Mode"
+	help
+	  Enable ISP semi-direct mode.
+
+endchoice
+
+menuconfig BR2_ISP_IVDC_MEM_LINE
+	depends on (BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41) && BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+	bool "ISP IVDC Mem Line"
+	help
+	  Enable the IVDC mem line configuration.
+
+config BR2_ISP_IVDC_MEM_LINE_VALUE
+	depends on BR2_ISP_IVDC_MEM_LINE
+	int "IVDC lines stored in DDR"
+	help
+	  Configure the number of lines stored in DDR in IVDC ( one line represents width, aligned with 256).
+	  0: Y Configuration height, UV configuration height/2, this time means DDR can store 1 frame size of data (default value)
+	  >0: Y configuration ivdc_mem_line, UV configuration ivdc_mem_line/2.
+
+	  This setting is only active if the feature is enabled.
+	  (ivdc_mem_line)
+
+menuconfig BR2_ISP_IVDC_THRESHOLD_LINE
+	depends on (BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41) && BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+	bool "ISP Threshold Line"
+	help
+	  Enable the IVDC threshold line configuration.
+
+config BR2_ISP_IVDC_THRESHOLD_LINE_VALUE
+	depends on BR2_ISP_IVDC_THRESHOLD_LINE
+	int "IVDC encoding cache"
+	help
+	  Configure the threshold of IVDC encoding cache (unit: line number width, aligned with 256)
+	  0: Configured as height/2, indicating that the threshold is half frame (default value)
+	  >0: Indicates that the cache is width * ivdc_threshold_line
+
+	  This setting is only active if the feature is enabled.
+	  (ivdc_threshold_line)
+
+config BR2_ISP_CONFIG_HZ
+	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+	int "ISP Config Hz"
+	help
+	  Specify the frequency for the ISP multi frame capture.
+	  This setting is only active if the feature is enabled.
+	  (isp_config_hz)
+
+menuconfig BR2_ISP_ISPW
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Output Width"
+	help
+	  Set the width of the ISP output.
+
+config BR2_ISP_ISPW_VALUE
+	depends on BR2_ISP_ISPW
+	int "ISP Output Width"
+	default 0
+	help
+	  Set the width of the ISP output.
+
+menuconfig BR2_ISP_ISPH
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Output Height"
+	help
+	  Set the height of the ISP output.
+
+config BR2_ISP_ISPH_VALUE
+	depends on BR2_ISP_ISPH
+	int "ISP Output Height"
+	default 0
+	help
+	  Set the height of the ISP output.
+
+menuconfig BR2_ISP_ISPTOP
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Output Top"
+	help
+	  Set the top of the ISP output.
+
+config BR2_ISP_ISPTOP_VALUE
+	depends on BR2_ISP_ISPTOP
+	int "ISP Output Top"
+	default 0
+	help
+	  Set the top of the ISP output.
+
+menuconfig BR2_ISP_ISPLEFT
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Output Left"
+	help
+	  Set the left of the ISP output.
+
+config BR2_ISP_ISPLEFT_VALUE
+	depends on BR2_ISP_ISPLEFT
+	int "ISP Output Left"
+	default 0
+	help
+	  Set the left of the ISP output.
+
+menuconfig BR2_ISP_ISPCROP
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Crop"
+	help
+	  Set the crop of the ISP output.
+
+config BR2_ISP_ISPCROP_VALUE
+	depends on BR2_ISP_ISPCROP
+	int "ISP Crop"
+	default 0
+	help
+	  Set the crop of the ISP output.
+
+menuconfig BR2_ISP_ISPCROPWH
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Crop Width and Height"
+	help
+	  Set the crop width and height of the ISP output.
+
+config BR2_ISP_ISPCROPWH_VALUE
+	depends on BR2_ISP_ISPCROPWH
+	int "ISP Crop Width and Height"
+	default 0
+	help
+	  Set the crop width and height of the ISP output.
+
+menuconfig BR2_ISP_ISPCROPTL
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Crop Top and Left"
+	help
+	  Set the crop top and left of the ISP output.
+
+config BR2_ISP_ISPCROPTL_VALUE
+	depends on BR2_ISP_ISPCROPTL
+	int "ISP Crop Top and Left"
+	default 0
+	help
+	  Set the crop top and left of the ISP output.
+
+menuconfig BR2_ISP_ISPSCALER
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Scaler"
+	help
+	  Set the scaler of the ISP output.
+
+config BR2_ISP_ISPSCALER_VALUE
+	depends on BR2_ISP_ISPSCALER
+	int "ISP Scaler"
+	default 0
+	help
+	  Set the scaler of the ISP output.
+
+menuconfig BR2_ISP_ISPSCALERWH
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Scaler Width and Height"
+	help
+	  Set the scaler width and height of the ISP output.
+
+config BR2_ISP_ISPSCALERWH_VALUE
+	depends on BR2_ISP_ISPSCALERWH
+	int "ISP Scaler Width and Height"
+	default 0
+	help
+	  Set the scaler width and height of the ISP output.
+
+menuconfig BR2_ISP_ISP_M1_BUFS
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP M1 Bufs"
+	help
+	  Set the number of LDC input buffers.
+
+config BR2_ISP_ISP_M1_BUFS_VALUE
+	depends on BR2_ISP_ISP_M1_BUFS
+	int "ISP M1 Bufs"
+	default 2
+	help
+	  Set the number of LDC input buffers.
+
+menuconfig BR2_ISP_ISP_M2_BUFS
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP M2 Bufs"
+	help
+	  Set the number of LDC output buffers.
+
+config BR2_ISP_ISP_M2_BUFS_VALUE
+	depends on BR2_ISP_ISP_M2_BUFS
+	int "ISP M2 Bufs"
+	default 2
+	help
+	  Set the number of LDC output buffers.
+
+config BR2_ISP_PARAMS
+	string "Extra ISP parameters"
+	help
+	  Set additional parameters passed to the ISP kernel module when it is loaded.
+
+endmenu
 endmenu
 
 config BR2_THINGINO_GPIO_LIST

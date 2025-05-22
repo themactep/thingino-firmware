@@ -884,7 +884,7 @@ else ifeq ($(BR2_IPU_CLK_VPLL),y)
 else ifeq ($(BR2_IPU_CLK_MPLL),y)
 	IPU_CLK_SRC := clk_name=mpll
 else ifeq ($(BR2_IPU_CLK_INTERNAL),y)
-        IPU_CLK_SRC :=
+	IPU_CLK_SRC :=
 else
 	IPU_CLK_SRC :=
 endif
@@ -943,7 +943,7 @@ else ifeq ($(BR2_ISP_CLK_VPLL),y)
 else ifeq ($(BR2_ISP_CLK_MPLL),y)
 	ISP_CLK_SRC := clk_name=mpll
 else ifeq ($(BR2_ISP_CLK_INTERNAL),y)
-        ISP_CLK_SRC :=
+	ISP_CLK_SRC :=
 else
 	ISP_CLK_SRC :=
 endif
@@ -1041,7 +1041,11 @@ else ifeq ($(BR2_ISP_MEMOPT_2),y)
 else ifeq ($(BR2_ISP_MEMOPT_3),y)
 	ISP_MEMOPT := isp_memopt=3
 else
-	ISP_MEMOPT :=
+	ifeq ($(shell test $(SOC_RAM) -le 64 && echo true),true)
+		ISP_MEMOPT := isp_memopt=1
+	else
+		ISP_MEMOPT :=
+	endif
 endif
 
 ifeq ($(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM),y)
@@ -1068,18 +1072,133 @@ else
 	ISP_CH0_PRE_DEQUEUE_VALID_LINES :=
 endif
 
+ifeq ($(BR2_ISP_CH1_DEQUEUE_DELAY_TIME),y)
+	ISP_CH1_DEQUEUE_DELAY_TIME := isp_ch1_dequeue_delay_time=$(BR2_ISP_CH1_DEQUEUE_DELAY_TIME_VALUE)
+else
+	ISP_CH1_DEQUEUE_DELAY_TIME :=
+endif
+
+ifeq ($(BR2_ISP_MIPI_SWITCH_GPIO),y)
+	ISP_MIPI_SWITCH_GPIO := mipi_switch_gpio=$(BR2_ISP_MIPI_SWITCH_GPIO)
+else
+	ISP_MIPI_SWITCH_GPIO :=
+endif
+
+ifeq ($(BR2_ISP_DIRECT_MODE_0),y)
+	ISP_DIRECT_MODE := direct_mode=0
+else ifeq ($(BR2_ISP_DIRECT_MODE_1),y)
+	ISP_DIRECT_MODE := direct_mode=1
+else ifeq ($(BR2_ISP_DIRECT_MODE_2),y)
+	ISP_DIRECT_MODE := direct_mode=2
+else
+	ISP_DIRECT_MODE := direct_mode=0
+endif
+
+ifeq ($(BR2_ISP_IVDC_MEM_LINE),y)
+	ISP_IVDC_MEM_LINE := ivdc_mem_line=$(BR2_ISP_IVDC_MEM_LINE_VALUE)
+else
+	ISP_IVDC_MEM_LINE :=
+endif
+
+ifeq ($(BR2_ISP_IVDC_THRESHOLD_LINE),y)
+	ISP_IVDC_THRESHOLD_LINE := ivdc_threshold_line=$(BR2_ISP_IVDC_THRESHOLD_LINE_VALUE)
+else
+	ISP_IVDC_THRESHOLD_LINE :=
+endif
+
+ifeq ($(BR2_ISP_CONFIG_HZ),y)
+	ISP_CONFIG_HZ := isp_config_hz=$(BR2_ISP_CONFIG_HZ_VALUE)
+else
+	ISP_CONFIG_HZ :=
+endif
+
+ifeq ($(BR2_ISP_PRINT_LEVEL_0),y)
+	ISP_PRINT_LEVEL := print_level=0
+else ifeq ($(BR2_ISP_PRINT_LEVEL_1),y)
+	ISP_PRINT_LEVEL := print_level=1
+else ifeq ($(BR2_ISP_PRINT_LEVEL_2),y)
+	ISP_PRINT_LEVEL := print_level=2
+else ifeq ($(BR2_ISP_PRINT_LEVEL_3),y)
+	ISP_PRINT_LEVEL := print_level=3
+else
+	ISP_PRINT_LEVEL := print_level=1
+endif
+
+ifeq ($(BR2_ISP_ISPW),y)
+	ISP_ISPW := ispw=$(BR2_ISP_ISPW_VALUE)
+else
+	ISP_ISPW :=
+endif
+
+ifeq ($(BR2_ISP_ISPH),y)
+	ISP_ISPH := isph=$(BR2_ISP_ISPH_VALUE)
+else
+	ISP_ISPH :=
+endif
+
+ifeq ($(BR2_ISP_ISPTOP),y)
+	ISP_ISPTOP := isptop=$(BR2_ISP_ISPTOP_VALUE)
+else
+	ISP_ISPTOP :=
+endif
+
+ifeq ($(BR2_ISP_ISPLEFT),y)
+	ISP_ISPLEFT := ispleft=$(BR2_ISP_ISPLEFT_VALUE)
+else
+	ISP_ISPLEFT :=
+endif
+
+ifeq ($(BR2_ISP_ISPCROP),y)
+	ISP_ISPCROP := ispcrop=$(BR2_ISP_ISPCROP_VALUE)
+else
+	ISP_ISPCROP :=
+endif
+
+ifeq ($(BR2_ISP_ISPCROPWH),y)
+	ISP_ISPCROPWH := ispcropwh=$(BR2_ISP_ISPCROPWH_VALUE)
+else
+	ISP_ISPCROPWH :=
+endif
+
+ifeq ($(BR2_ISP_ISPCROPTL),y)
+	ISP_ISPCROPTL := ispcroptl=$(BR2_ISP_ISPCROPTL_VALUE)
+else
+	ISP_ISPCROPTL :=
+endif
+
+ifeq ($(BR2_ISP_ISPSCALER),y)
+	ISP_ISPSCALER := isp_scaler=$(BR2_ISP_ISPSCALER_VALUE)
+else
+	ISP_ISPSCALER :=
+endif
+
+ifeq ($(BR2_ISP_ISPSCALERWH),y)
+	ISP_ISPSCALERWH := isp_scalerwh=$(BR2_ISP_ISPSCALERWH_VALUE)
+else
+	ISP_ISPSCALERWH :=
+endif
+
+ifeq ($(BR2_ISP_ISP_M1_BUFS),y)
+	ISP_ISP_M1_BUFS := isp_m1_bufs=$(BR2_ISP_ISP_M1_BUFS_VALUE)
+else
+	ISP_ISP_M1_BUFS :=
+endif
+
+ifeq ($(BR2_ISP_ISP_M2_BUFS),y)
+	ISP_ISP_M2_BUFS := isp_m2_bufs=$(BR2_ISP_ISP_M2_BUFS_VALUE)
+else
+	ISP_ISP_M2_BUFS :=
+endif
+
+
 export AVPU_CLK_SRC
 export AVPU_CLK
-
 export IPU_CLK_SRC
 export IPU_CLK
-
 export ISP_CLK_SRC
 export ISP_CLK
-
 export ISP_CLKA_CLK_SRC
 export ISP_CLKA_CLK
-
 export ISP_CLKS_CLK_SRC
 export ISP_CLKS_CLK
 
@@ -1088,6 +1207,24 @@ export ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM
 export ISP_CH0_PRE_DEQUEUE_TIME
 export ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
 export ISP_CH0_PRE_DEQUEUE_VALID_LINES
+export ISP_CH1_DEQUEUE_DELAY_TIME
+export ISP_MIPI_SWITCH_GPIO
+export ISP_DIRECT_MODE
+export ISP_IVDC_MEM_LINE
+export ISP_IVDC_THRESHOLD_LINE
+export ISP_CONFIG_HZ
+export ISP_PRINT_LEVEL
+export ISP_ISPW
+export ISP_ISPH
+export ISP_ISPTOP
+export ISP_ISPLEFT
+export ISP_ISPCROP
+export ISP_ISPCROPWH
+export ISP_ISPCROPTL
+export ISP_ISPSCALER
+export ISP_ISPSCALERWH
+export ISP_ISP_M1_BUFS
+export ISP_ISP_M2_BUFS
 
 #
 # FLASH CHIP
