@@ -1,0 +1,6 @@
+# NAME: T23N, GC1084, ATBM6012B
+# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+BR2_SENSOR_GC1084=y
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_ATBM6012B=y
+BR2_SOC_INGENIC_T23N=y
