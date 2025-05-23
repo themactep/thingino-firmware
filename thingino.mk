@@ -1121,7 +1121,11 @@ else ifeq ($(BR2_ISP_PRINT_LEVEL_2),y)
 else ifeq ($(BR2_ISP_PRINT_LEVEL_3),y)
 	ISP_PRINT_LEVEL := print_level=3
 else
-	ISP_PRINT_LEVEL := print_level=1
+	ifeq ($(shell echo "$(SOC_FAMILY)" | grep -Eq "t10|t20|t21" && echo true),true)
+		ISP_PRINT_LEVEL :=
+	else
+		ISP_PRINT_LEVEL := print_level=1
+	endif
 endif
 
 ifeq ($(BR2_ISP_ISPW),y)
