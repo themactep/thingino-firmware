@@ -274,6 +274,8 @@ config BR2_SENSOR_SC500AI
 	bool "SmartSens SC500ai"
 config BR2_SENSOR_SC5235
 	bool "SmartSens SC5235"
+config BR2_SENSOR_SC5336
+	bool "SmartSens SC5336"
 config BR2_SENSOR_SP1405
 	bool "SP1405"
 config BR2_SENSOR_TP2850
