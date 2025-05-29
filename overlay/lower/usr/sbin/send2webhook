@@ -49,7 +49,7 @@ if [ "true" = "$verbose" ]; then
 	echo_command "$command"
 fi
 
-result=$($command 2>&1)
+result=$(sh -c "$command" 2>&1)
 if [ $? -eq 0 ] ; then
 	if [ "true" = "$verbose" ]; then
 		echo_info "$result"
