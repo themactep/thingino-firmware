@@ -8,15 +8,28 @@ WIFI_WS73V100_LICENSE = GPL-2.0
 
 WS73V100_MODULE_NAME = ws73v100
 
-WIFI_WS73V100_MODULE_MAKE_OPTS = \
-	WSCFG_KERNEL_DIR=$(LINUX_DIR) \
-	WSCFG_CROSS_COMPILE=$(TARGET_CROSS) \
-	WSCFG_ARCH_NAME=$(KERNEL_ARCH) \
-	WSCFG_ARCH_ARM="n"
+define WIFI_WS73V100_CONFIGURE_OPTIONS
+	# Configure build environment
+	sed -i 's|^WSCFG_KERNEL_DIR=.*|WSCFG_KERNEL_DIR=$(LINUX_DIR)|' $(@D)/build/config/ws73_default.config
+	sed -i 's|^WSCFG_CROSS_COMPILE=.*|WSCFG_CROSS_COMPILE=$(TARGET_CROSS)|' $(@D)/build/config/ws73_default.config
+	sed -i 's|^WSCFG_ARCH_NAME=.*|WSCFG_ARCH_NAME=$(KERNEL_ARCH)|' $(@D)/build/config/ws73_default.config
+	sed -i 's|^WSCFG_ARCH_ARM=.*|WSCFG_ARCH_ARM=n|' $(@D)/build/config/ws73_default.config
+	# Configure bus interface
+	$(if $(BR2_PACKAGE_WIFI_WS73V100_USB), \
+		sed -i 's/^WSCFG_BUS_SDIO=.*/WSCFG_BUS_SDIO=n/' $(@D)/build/config/ws73_default.config && \
+		sed -i 's/^WSCFG_BUS_USB=.*/WSCFG_BUS_USB=y/' $(@D)/build/config/ws73_default.config, \
+		$(if $(BR2_PACKAGE_WIFI_WS73V100_SDIO), \
+			sed -i 's/^WSCFG_BUS_SDIO=.*/WSCFG_BUS_SDIO=y/' $(@D)/build/config/ws73_default.config && \
+			sed -i 's/^WSCFG_BUS_USB=.*/WSCFG_BUS_USB=n/' $(@D)/build/config/ws73_default.config))
+	# Configure firmware and config file paths
+	sed -i 's|^CONFIG_FIRMWARE_BIN_PATH=.*|CONFIG_FIRMWARE_BIN_PATH="/usr/lib/firmware/ws73.bin"|' $(@D)/build/config/ws73_default.config
+	sed -i 's|^CONFIG_FIRMWARE_WIFICALI_PATH=.*|CONFIG_FIRMWARE_WIFICALI_PATH="/usr/lib/firmware/wifi_cali.bin"|' $(@D)/build/config/ws73_default.config
+	sed -i 's|^CONFIG_FIRMWARE_BSLECALI_PATH=.*|CONFIG_FIRMWARE_BSLECALI_PATH="/usr/lib/firmware/btc_cali.bin"|' $(@D)/build/config/ws73_default.config
+	sed -i 's|^CONFIG_FIRMWARE_WOW_PATH=.*|CONFIG_FIRMWARE_WOW_PATH="/usr/lib/firmware/wow.bin"|' $(@D)/build/config/ws73_default.config
+	sed -i 's|^CONFIG_INI_FILE_PATH=.*|CONFIG_INI_FILE_PATH="/usr/share/wifi/ws73_cfg.ini"|' $(@D)/build/config/ws73_default.config
+endef
 
-ifeq ($(BR2_PACKAGE_WIFI_WS73V100_USB),y)
-WIFI_WS73V100_MODULE_MAKE_OPTS += WSCFG_BUS_USB=y WSCFG_BUS_SDIO=n
-endif
+WIFI_WS73V100_PRE_BUILD_HOOKS += WIFI_WS73V100_CONFIGURE_OPTIONS
 
 define WIFI_WS73V100_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WLAN)
@@ -34,7 +47,7 @@ define WIFI_WS73V100_LINUX_CONFIG_FIXUPS
 endef
 
 define WIFI_WS73V100_BUILD_CMDS
-	$(TARGET_MAKE_ENV) $(MAKE) platform wifi $(WIFI_WS73V100_MODULE_MAKE_OPTS) -C $(@D) -j$(PARALLEL_JOBS)
+	$(TARGET_MAKE_ENV) $(MAKE) platform wifi -C $(@D)
 endef
 
 LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
