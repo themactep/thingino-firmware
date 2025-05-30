@@ -5,12 +5,13 @@ page_title="Send to Webhook"
 
 defaults() {
 	default_for webhook_attach_snapshot "true"
+	default_for webhook_attach_videoclip "false"
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	read_from_post "webhook" "attach_snapshot message url"
+	read_from_post "webhook" "attach_snapshot attach_videoclip message url"
 
 	error_if_empty "$webhook_url" "Webhook URL cannot be empty."
 
@@ -19,6 +20,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		save2config "
 webhook_attach_snapshot=\"$webhook_attach_snapshot\"
+webhook_attach_videoclip=\"$webhook_attach_videoclip\"
 webhook_message=\"$webhook_message\"
 webhook_url=\"$webhook_url\"
 "
@@ -40,6 +42,7 @@ defaults
 <div class="col">
 <% field_textarea "webhook_message" "Message" %>
 <% field_switch "webhook_attach_snapshot" "Attach Snapshot" %>
+<% field_switch "webhook_attach_videoclip" "Attach Videoclip" %>
 </div>
 </div>
 <% button_submit %>
