@@ -2,14 +2,19 @@
 
 PTZ_CONF_FILE="/etc/ptz_presets.conf"
 
-if [ $# -lt 1 ]; then
-	echo "Usage: $0 [-g] [-a <preset_number> <preset_name> <x_coord> <y_coord>] [-r <preset_number>]
+usage() {
+	echo "Usage: $0 [-g] [-a <preset_number> <preset_name> [<x_coord> <y_coord>]] [-r <preset_number>]
 	-g: Display all presets
-	-a: Add a new preset with number, name, and coordinates
+	-a: Add or overwrite a preset with number, name, and optionally coordinates.
+	    Use -1 as preset_number to auto-select an empty slot (based on missing coordinates).
 	-r: Remove a preset by number
 	<preset_number>: Run the specified preset
 " >&2
 	exit 1
+}
+
+if [ $# -lt 1 ]; then
+	usage
 fi
 
 case "$1" in
@@ -20,15 +25,65 @@ case "$1" in
 		exit 0
 		;;
 	-a)
-		[ $# -ne 5 ] && echo "Error: Missing arguments." && usage
-		PRESET_NUM=$2; PRESET_NAME=$3; PRESET_X=$4; PRESET_Y=$5
-		if grep -q "^$PRESET_NUM=" "$PTZ_CONF_FILE"; then
-			current_preset=$(grep "^$PRESET_NUM=" "$PTZ_CONF_FILE")
-			[ "$current_preset" != "$PRESET_NUM=,," ] && echo "Preset exists. Remove it first to overwrite." && exit 1
-			sed -i "/^$PRESET_NUM=,,/d" "$PTZ_CONF_FILE"
+		if [ $# -lt 3 ]; then
+			echo "Error: Missing arguments for -a." >&2
+			usage
 		fi
-		echo "$PRESET_NUM=$PRESET_NAME,$PRESET_X,$PRESET_Y" >> "$PTZ_CONF_FILE"
-		echo "Preset $PRESET_NUM added."
+
+		INPUT_NUM=$2
+		PRESET_NAME=$3
+
+		if [ $# -eq 5 ]; then
+			PRESET_X=$4
+			PRESET_Y=$5
+		else
+			MOTOR_POS=$(motors -p)
+			PRESET_X=$(echo "$MOTOR_POS" | cut -d',' -f1)
+			PRESET_Y=$(echo "$MOTOR_POS" | cut -d',' -f2)
+			[ -z "$PRESET_X" ] || [ -z "$PRESET_Y" ] && echo "Error: Failed to get coordinates from motors -p" && exit 1
+		fi
+
+		if [ "$INPUT_NUM" = "-1" ]; then
+			# Find the first preset with missing coordinates
+			TEMP_FILE=$(mktemp)
+			USED=0
+			while IFS= read -r line; do
+				case "$line" in
+					\#*) echo "$line" >> "$TEMP_FILE" ;;
+					*)
+						PNUM=$(echo "$line" | cut -d'=' -f1)
+						VALS=$(echo "$line" | cut -d'=' -f2)
+						PX=$(echo "$VALS" | cut -d',' -f2)
+						PY=$(echo "$VALS" | cut -d',' -f3)
+						if [ "$USED" -eq 0 ] && { [ -z "$PX" ] || [ -z "$PY" ]; }; then
+							echo "$PNUM=$PRESET_NAME,$PRESET_X,$PRESET_Y" >> "$TEMP_FILE"
+							USED=1
+							PRESET_NUM=$PNUM
+						else
+							echo "$line" >> "$TEMP_FILE"
+						fi
+						;;
+				esac
+			done < "$PTZ_CONF_FILE"
+
+			if [ "$USED" -eq 0 ]; then
+				PRESET_NUM=$(awk -F= '/^[0-9]+=/ {print $1}' "$PTZ_CONF_FILE" | sort -n | tail -n1)
+				PRESET_NUM=$((PRESET_NUM + 1))
+				echo "$PRESET_NUM=$PRESET_NAME,$PRESET_X,$PRESET_Y" >> "$TEMP_FILE"
+			fi
+
+			mv "$TEMP_FILE" "$PTZ_CONF_FILE"
+			echo "Preset $PRESET_NUM added or updated."
+		else
+			PRESET_NUM=$INPUT_NUM
+			if grep -q "^$PRESET_NUM=" "$PTZ_CONF_FILE"; then
+				sed -i "s/^$PRESET_NUM=.*/$PRESET_NUM=$PRESET_NAME,$PRESET_X,$PRESET_Y/" "$PTZ_CONF_FILE"
+				echo "Preset $PRESET_NUM updated."
+			else
+				echo "$PRESET_NUM=$PRESET_NAME,$PRESET_X,$PRESET_Y" >> "$PTZ_CONF_FILE"
+				echo "Preset $PRESET_NUM added."
+			fi
+		fi
 		exit 0
 		;;
 	-r)
