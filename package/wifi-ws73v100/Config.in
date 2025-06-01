@@ -1,14 +1,33 @@
-config BR2_PACKAGE_WIFI_WS73V100_SDIO
+menu "WS73V100"
+
+config BR2_PACKAGE_WIFI_WS73V100
+	bool "HiSilicon WS73V100 wireless support"
 	select BR2_LINUX_KERNEL
-	select BR2_PACKAGE_THINGINO_KOPT_MMC
-	bool "WS73V100 SDIO"
 	help
-	  HiSilicon WS73V100 SDIO driver
+	  HiSilicon WS73V100 wireless driver
+
+if BR2_PACKAGE_WIFI_WS73V100
+
+choice
+	prompt "Interface type"
+	default BR2_PACKAGE_WIFI_WS73V100_SDIO
+	help
+	  Select the interface type for WS73V100 wireless driver
+
+config BR2_PACKAGE_WIFI_WS73V100_SDIO
+	bool "SDIO"
+	select BR2_PACKAGE_THINGINO_KOPT_MMC
+	help
+	  Enable SDIO support for WS73V100 wireless driver
 
 config BR2_PACKAGE_WIFI_WS73V100_USB
-	select BR2_LINUX_KERNEL
+	bool "USB"
 	select BR2_PACKAGE_THINGINO_KOPT_DWC2
 	select BR2_PACKAGE_THINGINO_KOPT_DWC2_WIFI_ONLY
-	bool "WS73V100 USB"
 	help
-	  HiSilicon WS73V100 USB driver
+	  Enable USB support for WS73V100 wireless driver
+
+endchoice
+
+endif
+endmenu
