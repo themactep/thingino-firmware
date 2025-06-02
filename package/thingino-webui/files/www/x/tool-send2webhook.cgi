@@ -42,7 +42,7 @@ defaults
 <div class="col">
 <% field_textarea "webhook_message" "Message" %>
 <% field_switch "webhook_attach_snapshot" "Attach Snapshot" %>
-<% field_switch "webhook_attach_videoclip" "Attach Videoclip" %>
+<% field_switch "webhook_attach_videoclip" "Attach Videoclips" %>
 </div>
 </div>
 <% button_submit %>

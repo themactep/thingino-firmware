@@ -7,12 +7,19 @@ show_help() {
 Where:
 	-m message  Message to send to webhook.
 	-s          Attach snapshot to the webhook.
-	-c          Attach videoclip to the webhook.
+	-c          Attach videoclips to the webhook.
 	-u url      Webhook URL.
 	-v          Verbose output.
 	-h          Show this help.
 " >&2
 	exit 0
+}
+
+cleanup() {
+	# Cleanup temporary files
+	[ -f "$snapshot_attachment" ] && rm "$snapshot_attachment"
+	[ -f "$videoclip_attachment1" ] && rm "$videoclip_attachment1"
+	[ -f "$videoclip_attachment2" ] && rm "$videoclip_attachment2"
 }
 
 while getopts m:scu:vh flag; do
@@ -44,15 +51,27 @@ if [ "true" = "$webhook_attach_snapshot" ]; then
 	command="$command -F \"image=@$snapshot_attachment\""
 fi
 
-# Handle videoclip attachment
+# Handle videoclip attachment, we are sending copy of old and new buffer
 if [ "true" = "$webhook_attach_videoclip" ]; then
 	if [ -f "$VBUFFER_FILE" ]; then
-		videoclip_attachment=$(mktemp -u).mp4
-		cp -f "$VBUFFER_FILE" "$videoclip_attachment"
-		command="$command -F \"videoclip=@$videoclip_attachment\""
+		inode=$(stat -c%i $VBUFFER_FILE)
+		videoclip_attachment1=$(mktemp -u).mp4
+		cp -f "$VBUFFER_FILE" "$videoclip_attachment1"
+		command="$command -F \"video1=@$videoclip_attachment1\""
+		while [ $inode -eq $(stat -c%i $VBUFFER_FILE) ]; do
+			n=$((n + 1))
+			if [ "$n" -ge 10 ]; then
+				echo_error "Give up after $n attempts."
+				cleanup
+				exit 1
+			fi
+			sleep 1
+		done
+		videoclip_attachment2=$(mktemp -u).mp4
+		cp -f "$VBUFFER_FILE" "$videoclip_attachment2"
+		command="$command -F \"video2=@$videoclip_attachment2\""
 	else
 		echo_error "Videoclip not found: $VBUFFER_FILE"
-		exit 1
 	fi
 fi
 
@@ -70,11 +89,10 @@ if [ $? -eq 0 ] ; then
 	fi
 else
 	echo_error "Failed to send webhook message"
+	cleanup
 	exit 1
 fi
 
-# Cleanup temporary files
-[ -f "$snapshot_attachment" ] && rm "$snapshot_attachment"
-[ -f "$videoclip_attachment" ] && rm "$videoclip_attachment"
+cleanup
 
 exit 0
