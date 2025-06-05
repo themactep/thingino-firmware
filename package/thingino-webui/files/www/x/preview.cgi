@@ -112,7 +112,7 @@ function updatePreview(data) {
 }
 
 const wsPort = location.protocol === "https:" ? 8090 : 8089;
-let ws = new WebSocket(`//${document.location.hostname}:${wsPort}?token=<%= $ws_token %>`);
+let ws = new WebSocket(`ws://${document.location.hostname}:${wsPort}?token=<%= $ws_token %>`);
 
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
