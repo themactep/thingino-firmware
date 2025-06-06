@@ -147,13 +147,30 @@ print_soc_architecture() {
 	echo "XBurst2"
 }
 
+print_serial_number() {
+	# Read all 4 serial number parts in one loop
+	serial=""
+	for addr in 0x13540200 0x13540204 0x13540208 0x1354023C; do
+		val=$(devmem $addr 2>/dev/null)
+		if [ -z "$val" ]; then
+			echo "Error: Unable to read serial number" >&2
+			return 1
+		fi
+		# Convert hex to decimal and concatenate
+		serial="${serial}$(printf "%u" $val)"
+	done
+
+	echo "$serial"
+}
+
 show_usage() {
-	echo "Usage: $0 [-c|-f|-m|-w|-a|-c]
+	echo "Usage: $0 [-c|-f|-m|-w|-a|-s]
 	-m	SoC model
 	-f	SoC family
 	-w	raw info for wiki
 	-a	CPU architecture
 	-c	CPU Clocks
+	-s	Serial number
 " >&2
 }
 
@@ -172,6 +189,9 @@ case "$1" in
 		;;
 	-a)
 		print_soc_architecture
+		;;
+	-s)
+		print_serial_number
 		;;
 	"")
 		print_soc_model
