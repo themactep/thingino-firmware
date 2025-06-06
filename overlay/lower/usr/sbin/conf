@@ -15,6 +15,7 @@ Usage:
  $app s <param> <value>   - Set parameter value
  $app d <param>           - Delete parameter
  $app l [<filter>]        - List parameters matching filter
+ $app --script <file>     - Import parameters from file (var=val format)
 " >&2
 	exit 1
 }
@@ -49,6 +50,30 @@ case "$1" in
 		;;
 	l*)
 		grep "$2" "$CONFIG_FILE"
+		;;
+	--script)
+		[ -z "$2" ] && show_help
+		[ -f "$2" ] || { echo_error "Script file $2 not found"; exit 1; }
+		backup
+		# Process all parameters at once
+		awk -F= 'NR==FNR && /^[a-zA-Z_][a-zA-Z0-9_]*=/ {
+			gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+			gsub(/^"|"$/, "", $2)
+			gsub(/"/, "\\\"", $2)
+			params[$1] = $2
+			next
+		}
+		{
+			if ($1 in params) {
+				print $1 "=\"" params[$1] "\""
+				delete params[$1]
+			} else {
+				print
+			}
+		}
+		END {
+			for (p in params) print p "=\"" params[p] "\""
+		}' "$2" "$CONFIG_FILE" | sort -u > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
 		;;
 	*)
 		show_help
