@@ -19,7 +19,7 @@ stop() {
 restart() {
 	stop || true
 	sleep 1
-	reload
+	start
 }
 
 case "$1" in
