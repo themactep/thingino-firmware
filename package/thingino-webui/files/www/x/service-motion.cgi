@@ -34,7 +34,8 @@ const motion_params = ['enabled', 'sensitivity', 'cooldown_time'];
 const send2_targets = ['email', 'ftp', 'mqtt', 'telegram', 'webhook', 'yadisk'];
 
 const wsPort = location.protocol === "https:" ? 8090 : 8089;
-let ws = new WebSocket('//' + document.location.hostname + ':' + wsPort + '?token=<%= $ws_token %>');
+const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
+let ws = new WebSocket(`${wsProto}//${document.location.hostname}:${wsPort}?token=<%= $ws_token %>`);
 
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
