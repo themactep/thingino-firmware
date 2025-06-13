@@ -339,7 +339,8 @@ const osd_params = ['enabled', 'font_color', 'font_path', 'font_size', 'font_str
 let sts;
 
 const wsPort = location.protocol === "https:" ? 8090 : 8089;
-let ws = new WebSocket('//' + location.hostname + ':' + wsPort + '?token=<%= $ws_token %>');
+const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
+let ws = new WebSocket(`${wsProto}//${document.location.hostname}:${wsPort}?token=<%= $ws_token %>`);
 
 ws.onopen = () => {
 	console.log('WebSocket connection opened');
