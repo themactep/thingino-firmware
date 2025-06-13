@@ -5,6 +5,7 @@ config BR2_PACKAGE_ONVIF_SIMPLE_SERVER
 	select BR2_PACKAGE_THINGINO_WOLFSSL_ASN if BR2_PACKAGE_THINGINO_WOLFSSL
 	select BR2_PACKAGE_THINGINO_WOLFSSL_BASE64ENCODE if BR2_PACKAGE_THINGINO_WOLFSSL
 	select BR2_PACKAGE_THINGINO_WOLFSSL_CODING if BR2_PACKAGE_THINGINO_WOLFSSL
+	select BR2_PACKAGE_ZLIB
 	help
 	  onvif_simple_server is a C light implementation of an onvif
 	  server intended for use in resource-constrained devices
