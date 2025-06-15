@@ -1,0 +1,9 @@
+gpio_button_audio_mute=35
+gpio_button_video_mute=34
+gpio_button_vol_down=33
+gpio_button_vol_up=32
+gpio_default=
+gpio_default_net=
+gpio_ircut=
+gpio_led_r=
+gpio_mmc_cd=

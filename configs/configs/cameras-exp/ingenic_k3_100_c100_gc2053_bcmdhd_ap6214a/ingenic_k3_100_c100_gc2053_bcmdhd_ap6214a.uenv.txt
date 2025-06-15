@@ -1,0 +1,2 @@
+gpio_wlan=5OO
+gpio_ircut=-1

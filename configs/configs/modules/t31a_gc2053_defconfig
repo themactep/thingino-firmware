@@ -1,0 +1,4 @@
+# NAME: T31A, GC2053
+# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+BR2_SENSOR_GC2053=y
+BR2_SOC_INGENIC_T31A=y

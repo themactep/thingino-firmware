@@ -1,0 +1,6 @@
+# NAME: T31N, SC3335, ATBM6031
+# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_ATBM6031=y
+BR2_SENSOR_SC3335=y
+BR2_SOC_INGENIC_T31N=y

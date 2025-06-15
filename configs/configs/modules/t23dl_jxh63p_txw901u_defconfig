@@ -1,0 +1,6 @@
+# NAME: T23DL, JXH63P, TXW901U
+# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+BR2_SOC_INGENIC_T23DL=y
+BR2_SENSOR_JXH63P=y
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_TXW901U=y

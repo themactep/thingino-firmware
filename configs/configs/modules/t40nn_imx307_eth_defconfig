@@ -1,0 +1,5 @@
+# NAME: T40NN, IMX307, ETH
+# FRAG: soc-xburst2 toolchain-xburst2 ccache brand rootfs kernel system target uboot
+BR2_ETHERNET=y
+BR2_SENSOR_IMX307=y
+BR2_SOC_INGENIC_T40NN=y

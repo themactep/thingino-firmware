@@ -1,0 +1,9 @@
+gpio_button=10
+gpio_default=8O 52o 53o 50o 9o 10i 16i 49o 57o 58o 59o 61o 62o 63o 64o
+gpio_ir850=9
+gpio_ircut=53 52
+gpio_mmc_cd=16
+gpio_motor_h=59 57 64 62
+gpio_motor_v=58 49 63 61
+gpio_white=50
+gpio_wlan=8O

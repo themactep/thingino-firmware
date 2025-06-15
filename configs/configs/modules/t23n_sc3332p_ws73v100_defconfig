@@ -1,0 +1,6 @@
+# NAME: T23N, SC3332P, WS73V100
+# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+BR2_SOC_INGENIC_T23N=y
+BR2_SENSOR_SC3332P=y
+BR2_PACKAGE_WIFI_WS73V100=y
+BR2_PACKAGE_WIFI_WS73V100_USB=y
