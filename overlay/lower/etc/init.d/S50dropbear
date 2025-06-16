@@ -1,6 +1,9 @@
 #!/bin/sh
 
+DAEMON_SHORT="dropbear"
+DAEMON_FULL="/usr/sbin/dropbear"
 DAEMON_ARGS="-k -K 300 -R"
+PIDFILE="/var/run/dropbear.pid"
 DROPBEAR_KEY_FILE="/etc/dropbear/dropbear_ed25519_host_key"
 
 . /usr/share/common

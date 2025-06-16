@@ -1,0 +1,193 @@
+{{include:header}}
+
+<div class="row mb-3">
+  <h1 class="h3 mb-0"><i class="bi bi-house me-2"></i>Dashboard</h1>
+  <p class="text-muted mb-0">Welcome to your Thingino camera system</p>
+</div>
+
+<!-- System Status Cards -->
+<div class="dashboard-stats">
+  <div class="stat-card">
+    <div class="stat-icon"><i class="bi bi-clock-history"></i></div>
+    <div class="stat-value">{{system_uptime}}</div>
+    <div class="stat-label">System Uptime</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon"><i class="bi bi-camera-video"></i></div>
+    <div class="stat-value">{{stream_status}}</div>
+    <div class="stat-label">Stream Status</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon"><i class="bi bi-speedometer2"></i></div>
+    <div class="stat-value">{{system_load}}</div>
+    <div class="stat-label">Load Average</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon"><i class="bi bi-memory"></i></div>
+    <div class="stat-value">{{system_memory}}</div>
+    <div class="stat-label">System Memory</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon"><i class="bi bi-hdd"></i></div>
+    <div class="stat-value">{{system_storage}}</div>
+    <div class="stat-label">Storage Usage</div>
+  </div>
+</div>
+
+<div class="dashboard-grid">
+  <!-- Camera Preview Card -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="card-title mb-0"><i class="bi bi-camera-video me-2"></i>Camera Preview</h5>
+    </div>
+    <div class="card-body">
+      <div class="video-container">
+        <img id="cameraSnapshot" src="/lua/api/camera/snapshot" alt="Camera Preview" class="img-fluid rounded"
+             style="width: 100%; height: auto; object-fit: cover; background: #000;">
+        <div class="stream-overlay live"><i class="bi bi-record-circle me-1"></i>LIVE</div>
+      </div>
+      <div class="mt-3">
+        <a href="/lua/preview" class="btn btn-primary"><i class="bi bi-camera-video me-1"></i>Full Preview</a>
+        <a href="/lua/motion" class="btn btn-outline-primary"><i class="bi bi-activity me-1"></i>Motion Detection</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions Card -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="card-title mb-0"><i class="bi bi-lightning me-2"></i>Quick Actions</h5>
+    </div>
+    <div class="card-body">
+      <div class="dashboard-actions">
+        <button class="btn btn-success" onclick="takeSnapshot()"><i class="bi bi-camera me-1"></i>Take Snapshot</button>
+        <button class="btn btn-warning" onclick="restartStream()"><i class="bi bi-arrow-clockwise me-1"></i>Restart Stream</button>
+        <button class="btn btn-danger" onclick="rebootSystem()"><i class="bi bi-power me-1"></i>Reboot System</button>
+        <a href="/lua/info" class="btn btn-outline-secondary"><i class="bi bi-info-circle me-1"></i>System Info</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Status Card -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="card-title mb-0"><i class="bi bi-cpu me-2"></i>System Status</h5>
+    </div>
+    <div class="card-body">
+      <div class="camera-status">
+        <div class="status-item">
+          <span class="status-label">Uptime</span>
+          <span class="text-primary">{{uptime}}</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Load Average</span>
+          <span class="text-primary">{{load_average}}</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Network</span>
+          <div class="status-indicator"></div>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Storage</span>
+          <div class="status-indicator"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Activity Card -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="card-title mb-0"><i class="bi bi-clock-history me-2"></i>Recent Activity</h5>
+    </div>
+    <div class="card-body">
+      <div class="list-group list-group-flush">
+        <div class="list-group-item">
+          <div class="d-flex justify-content-between">
+            <span>System started</span>
+            <small class="text-muted">{{boot_time}}</small>
+          </div>
+        </div>
+        <div class="list-group-item">
+          <div class="d-flex justify-content-between">
+            <span>Stream initialized</span>
+            <small class="text-muted">{{stream_start_time}}</small>
+          </div>
+        </div>
+        <div class="list-group-item">
+          <div class="d-flex justify-content-between">
+            <span>Last snapshot</span>
+            <small class="text-muted">{{last_snapshot_time}}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    // Auto-refresh snapshot every 5 seconds
+    setInterval(function () {
+        const img = document.getElementById('cameraSnapshot');
+        if (img) {
+            img.src = '/lua/api/camera/snapshot?' + new Date().getTime();
+        }
+    }, 5000);
+
+    function takeSnapshot() {
+        fetch('/lua/api/camera/snapshot', {method: 'POST'})
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Snapshot taken successfully!');
+                } else {
+                    alert('Failed to take snapshot: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to take snapshot');
+            });
+    }
+
+    function restartStream() {
+        if (confirm('Are you sure you want to restart the video stream?')) {
+            fetch('/lua/api/system/restart-streaming', {method: 'POST'})
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Stream restarted successfully!');
+                    } else {
+                        alert('Failed to restart stream: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to restart stream');
+                });
+        }
+    }
+
+    function rebootSystem() {
+        if (confirm('Are you sure you want to reboot the system? This will disconnect all users.')) {
+            fetch('/lua/api/system/reboot', {method: 'POST'})
+                .then(response => response.json())
+                .then(data => {
+                    alert('System is rebooting...');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 30000); // Reload after 30 seconds
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to reboot system');
+                });
+        }
+    }
+</script>
+
+{{include:footer}}

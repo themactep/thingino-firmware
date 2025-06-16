@@ -6,25 +6,25 @@ HTTPD_CONF="/etc/httpd.conf"
 PORTAL_CONF="/etc/httpd-portal.conf"
 
 if [ -f "$PORTAL_MODE_FLAG" ]; then
-	DAEMON_ARGS="-f -c $PORTAL_CONF"
+	DAEMON_ARGS="-f -c $PORTAL_CONF -p 127.0.0.1:8080"
 else
-	DAEMON_ARGS="-f -c $HTTPD_CONF -r Authentication"
+	DAEMON_ARGS="-f -c $HTTPD_CONF -r Authentication -p 127.0.0.1:8080"
 fi
 
-if [ "$debug" -gt 0 ]; then
+if [ "0$debug" -gt 0 ]; then
 	sed -i 's/^\/x:root/#\/x:root/' $HTTPD_CONF
 else
 	sed -i 's/^#\/x:root/\/x:root/' $HTTPD_CONF
 fi
 
 start() {
-	echo_title "Starting HTTPD"
+	echo_title "Starting HTTPD Backend (port 8080)"
 
 	start_daemon
 }
 
 stop() {
-	echo_title "Stopping HTTPD"
+	echo_title "Stopping HTTPD Backend"
 
 	stop_daemon
 }

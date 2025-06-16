@@ -8,17 +8,17 @@ THINGINO_WOLFSSL_CPE_ID_VENDOR = wolfssl
 THINGINO_WOLFSSL_CONFIG_SCRIPTS = wolfssl-config
 # From git
 THINGINO_WOLFSSL_AUTORECONF = YES
-THINGINO_WOLFSSL_DEPENDENCIES = host-pkgconf
+THINGINO_WOLFSSL_DEPENDENCIES = host-pkgconf ca-certificates
 
 THINGINO_WOLFSSL_CONF_OPTS = \
-	--disable-examples \
-	--disable-crypttests \
 	--disable-option-checking
 
 ifeq ($(BR2_PACKAGE_THINGINO_WOLFSSL_ALL),y)
 THINGINO_WOLFSSL_CONF_OPTS += --enable-all
 else
 THINGINO_WOLFSSL_CONF_OPTS += --disable-all
+# Always enable essential features for ECC certificate generation
+THINGINO_WOLFSSL_CONF_OPTS += --enable-certgen --enable-keygen --enable-ecc
 endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_WOLFSSL_DISTRO),y)
@@ -1151,10 +1151,14 @@ endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_WOLFSSL_EXAMPLES),y)
 THINGINO_WOLFSSL_CONF_OPTS += --enable-examples
+else
+THINGINO_WOLFSSL_CONF_OPTS += --disable-examples
 endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_WOLFSSL_CRYPTTESTS),y)
 THINGINO_WOLFSSL_CONF_OPTS += --enable-crypttests
+else
+THINGINO_WOLFSSL_CONF_OPTS += --disable-crypttests
 endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_WOLFSSL_CRYPTTESTS_LIBS),y)
@@ -1275,5 +1279,25 @@ endif
 ifeq ($(BR2_ARM_INSTRUCTIONS_THUMB),y)
 THINGINO_WOLFSSL_CONF_OPTS += --with-arm-target=thumb
 endif
+
+# Build wolfSSL certificate generator (after wolfSSL is installed to staging)
+define THINGINO_WOLFSSL_BUILD_CERTGEN
+	$(MAKE) -C $(THINGINO_WOLFSSL_PKGDIR)/files/src \
+		CC="$(TARGET_CC)" \
+		CFLAGS="$(TARGET_CFLAGS) -DHAVE_WOLFSSL -DWOLFSSL_CERT_GEN -DWOLFSSL_KEY_GEN -DHAVE_ECC -I$(STAGING_DIR)/usr/include" \
+		LDFLAGS="$(TARGET_LDFLAGS) -L$(STAGING_DIR)/usr/lib" \
+		LIBS="-lwolfssl" \
+		wolfssl-certgen
+endef
+
+THINGINO_WOLFSSL_POST_INSTALL_STAGING_HOOKS += THINGINO_WOLFSSL_BUILD_CERTGEN
+
+# Install wolfSSL certificate generator
+define THINGINO_WOLFSSL_INSTALL_CERTGEN
+	$(INSTALL) -D -m 0755 $(THINGINO_WOLFSSL_PKGDIR)/files/src/wolfssl-certgen \
+		$(TARGET_DIR)/usr/bin/wolfssl-certgen-native
+endef
+
+THINGINO_WOLFSSL_POST_INSTALL_TARGET_HOOKS += THINGINO_WOLFSSL_INSTALL_CERTGEN
 
 $(eval $(autotools-package))

@@ -2,6 +2,7 @@ menu "Thingino Firmware"
 
 source "$BR2_EXTERNAL_THINGINO_PATH/Config.soc.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-jct/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-kopt/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/usbnet/Config.in"
 
@@ -12,7 +13,7 @@ config BR2_THINGINO_TOOLCHAIN
 menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	bool "System Packages"
 	default y if !BR2_THINGINO_TOOLCHAIN
-	select BR2_PACKAGE_DROPBEAR if BR2_PACKAGE_MBEDTLS
+	select BR2_PACKAGE_DROPBEAR
 	select BR2_PACKAGE_DROPBEAR_SMALL if BR2_PACKAGE_DROPBEAR
 	select BR2_PACKAGE_DROPBEAR_DISABLE_REVERSEDNS if BR2_PACKAGE_DROPBEAR
 	select BR2_PACKAGE_EXFAT_NOFUSE if BR2_THINGINO_SDCARD
@@ -39,15 +40,18 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_THINGINO_LIBCURL_MBEDTLS if BR2_PACKAGE_MBEDTLS
 	select BR2_PACKAGE_THINGINO_LIBCURL_OPENSSL if BR2_PACKAGE_OPENSSL
 	select BR2_PACKAGE_THINGINO_LIBCURL_WOLFSSL if BR2_PACKAGE_THINGINO_WOLFSSL
-	select BR2_PACKAGE_MBEDTLS
 	select BR2_PACKAGE_THINGINO_MOTORS if BR2_THINGINO_MOTORS
 	select BR2_PACKAGE_UBOOT_TOOLS
-	select BR2_PACKAGE_THINGINO_WOLFSSL if !BR2_PACKAGE_MBEDTLS && !BR2_PACKAGE_OPENSSL
+
+	select BR2_PACKAGE_THINGINO_WOLFSSL
+	# select BR2_PACKAGE_MBEDTLS
+	# select BR2_PACKAGE_OPENSSL
+
 	select BR2_PACKAGE_JSONFILTER
 	select BR2_PACKAGE_THINGINO_ETHERNET if BR2_ETHERNET
 	select BR2_PACKAGE_THINGINO_KOPT
 	select BR2_PACKAGE_THINGINO_UBOOT
-	select BR2_PACKAGE_THINGINO_WEBUI
+    select BR2_PACKAGE_THINGINO_WEBUI_LUA
 	select BR2_PACKAGE_WPA_SUPPLICANT_DEBUG_SYSLOG if BR2_PACKAGE_WPA_SUPPLICANT
 	help
 	  Thingino System Packages
@@ -77,7 +81,9 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sounds/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-system/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sysupgrade/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-uboot/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-uhttpd/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui-lua/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wolfssl/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wolfssh/Config.in"
 endif
@@ -114,6 +120,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mosquitto/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-tailscale/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wpa_supplicant/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ustream-ssl/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wyze-accessory/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/zerotier-one/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/lightnvr/Config.in"

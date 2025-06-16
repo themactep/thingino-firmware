@@ -1,1 +1,5 @@
 # place your custom settings for local build here
+BR2_PACKAGE_THINGINO_JCT=y
+BR2_THINGINO_DEV_PACKAGES=y
+BR2_PACKAGE_GDB=y
+BR2_PACKAGE_SELECT_STRACE=y

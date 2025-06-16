@@ -1,0 +1,147 @@
+{{include:header}}
+
+<div class="row mb-4">
+  <div class="col">
+    <h1 class="h3 mb-0"><i class="bi bi-cloud-arrow-up me-2"></i>Firmware Update</h1>
+    <p class="text-muted">Check for updates and manage firmware versions</p>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="row g-4">
+      <!-- Current Firmware Info -->
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-info-circle me-2"></i>Current Firmware</h5>
+          </div>
+          <div class="card-body">
+            <div class="mb-3">
+              <div class="row">
+                <div class="col-sm-4"><strong>Profile:</strong></div>
+                <div class="col-sm-8">{{firmware_profile}}</div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <div class="row">
+                <div class="col-sm-4"><strong>Build:</strong></div>
+                <div class="col-sm-8">{{firmware_build}}</div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <div class="row">
+                <div class="col-sm-4"><strong>Version:</strong></div>
+                <div class="col-sm-8">{{firmware_version}}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Update Operations -->
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-cloud-download me-2"></i>Update Operations</h5>
+          </div>
+          <div class="card-body">
+            <div class="d-grid gap-2">
+              <button class="btn btn-outline-primary" onclick="checkUpdates()">
+                <i class="bi bi-search me-1"></i>Check for Updates
+              </button>
+              <input type="file" id="firmwareFile" accept=".bin,.img" style="display: none;" onchange="uploadFirmware()">
+              <button class="btn btn-outline-warning" onclick="document.getElementById('firmwareFile').click()">
+                <i class="bi bi-upload me-1"></i>Upload Firmware
+              </button>
+            </div>
+            <div class="mt-3">
+              <small class="text-danger">
+                <strong>Warning:</strong> Incorrect firmware can permanently damage your device!
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Update Instructions -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Important Information</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <h6>Before Updating:</h6>
+                <ul class="small">
+                  <li>Ensure stable power supply</li>
+                  <li>Do not disconnect during update</li>
+                  <li>Backup your configuration</li>
+                  <li>Verify firmware compatibility</li>
+                </ul>
+              </div>
+              <div class="col-md-6">
+                <h6>Supported Formats:</h6>
+                <ul class="small">
+                  <li>.bin files (binary firmware)</li>
+                  <li>.img files (disk images)</li>
+                  <li>Only use official Thingino firmware</li>
+                  <li>Match your camera model exactly</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    function checkUpdates() {
+        alert('Checking for firmware updates...');
+        fetch('/lua/api/system/check-updates')
+            .then(response => response.json())
+            .then(data => {
+                if (data.available) {
+                    alert(`Update available: ${data.version}\n${data.description}`);
+                } else {
+                    alert('No updates available. You are running the latest version.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to check for updates');
+            });
+    }
+
+    function uploadFirmware() {
+        const file = document.getElementById('firmwareFile').files[0];
+        if (file) {
+            if (confirm(`Upload firmware file: ${file.name}?\n\nWARNING: Incorrect firmware can brick your device!`)) {
+                const formData = new FormData();
+                formData.append('firmware', file);
+
+                fetch('/lua/api/system/upload-firmware', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Firmware uploaded successfully. System will reboot to apply update.');
+                        } else {
+                            alert('Firmware upload failed: ' + (data.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Failed to upload firmware');
+                    });
+            }
+        }
+    }
+</script>
+
+{{include:footer}}

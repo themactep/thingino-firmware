@@ -52,3 +52,11 @@ Content-Type: application/x-www-form-urlencoded
 
 {"foo":"bar"}
 ```
+
+### Resources
+
+- [Telegram API Reference](https://core.telegram.org/bots/api]
+- [Discord API Reference](https://discord.com/developers/docs/reference)
+- [IFTTT API Reference](https://ifttt.com/maker_webhooks)
+- [Zapier API Reference](https://zapier.com/developer/documentation/)
+- [Webhook API Reference](https://en.wikipedia.org/wiki/Webhook)

@@ -4,15 +4,18 @@ config BR2_PACKAGE_PRUDYNT_T
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
 	select BR2_PACKAGE_INGENIC_LIBIMP_CONTROL
-	select BR2_PACKAGE_LIBCONFIG
+	select BR2_PACKAGE_JSON_C
 	select BR2_PACKAGE_THINGINO_LIVE555
 	select BR2_PACKAGE_THINGINO_FREETYPE if !BR2_PACKAGE_PRUDYNT_T_NG
 	select BR2_PACKAGE_THINGINO_FONTS
 	select BR2_PACKAGE_THINGINO_OPUS
 	select BR2_PACKAGE_LIBHELIX_AAC
+	select BR2_PACKAGE_THINGINO_JCT
 	depends on !(BR2_SOC_FAMILY_INGENIC_A1)
+
 	help
 	  Video streamer for Ingenic T-series.
+	  Now uses JSON configuration format with json-c library.
 
 	  https://github.com/gtxaspec/prudynt-t
 
@@ -23,5 +26,8 @@ config BR2_PACKAGE_PRUDYNT_T_NG
 	select BR2_PACKAGE_LIBWEBSOCKETS
 	help
 	  Use Next Generation experimental version of Prudynt-T streamer.
+	  This version uses JSON configuration format.
 
 	  https://github.com/Lu-Fi/prudynt-t
+
+

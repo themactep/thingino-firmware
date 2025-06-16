@@ -234,7 +234,7 @@ while : ; do
 		done
 	fi
 
-	if [ "$record_limit_kb" -gt 0 ]; then
+	if [ "0$record_limit_kb" -gt 0 ]; then
 		echo_info "Space limit: $record_limit_kb KiB"
 		get_occupied_space
 		while [ "$((occupied_space + required_space))" -gt "$record_limit_kb" ]; do

@@ -3,13 +3,14 @@
 . /usr/share/common
 
 ensure_command "openRTSP"
+ensure_command "jct"
 
 CLIP_FILE="/tmp/vbuffer.mp4"
 LOCK_FILE="/tmp/vbuffer.lock"
 TEMP_FILE="/tmp/vbuffer.tmp"
 
 STREAMER_APP="prudynt"
-STREAMER_CONF_FILE="/etc/prudynt.cfg"
+STREAMER_CONF_FILE="/etc/prudynt.json"
 
 SELF_NAME="$(basename "$0")"
 
@@ -26,7 +27,7 @@ fi
 # "parameter"
 read_config() {
 	echo_info "Read $1 from $STREAMER_CONF_FILE"
-	sed -nE "s/^.*$1\s*[:=]\s*\"?([^\"]+)\"?;.*$/\1/p" $STREAMER_CONF_FILE | head -1
+	jct "$STREAMER_CONF_FILE" get "$1"
 }
 
 # "default"
@@ -49,7 +50,8 @@ start() {
 		exit 1
 	fi
 
-	if [ "true" != "$(prudyntcfg get motion.enabled)" ]; then
+	motion_enabled=$(jct "$STREAMER_CONF_FILE" get "motion.enabled")
+	if [ "true" != "$motion_enabled" ]; then
 		echo_error "Motion Guard disabled"
 		exit 1
 	fi

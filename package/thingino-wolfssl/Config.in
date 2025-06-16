@@ -1,6 +1,7 @@
 config BR2_PACKAGE_THINGINO_WOLFSSL
 	bool "wolfssl"
 	depends on BR2_TOOLCHAIN_HAS_THREADS
+	select BR2_PACKAGE_CA_CERTIFICATES
 	help
 	  The wolfSSL embedded SSL library (formerly CyaSSL) is a
 	  lightweight, portable, C-language-based SSL/TLS library
@@ -789,13 +790,21 @@ config BR2_PACKAGE_THINGINO_WOLFSSL_SESSIONCERTS
 
 config BR2_PACKAGE_THINGINO_WOLFSSL_KEYGEN
 	bool "enable-keygen"
+	default y
 	help
 	  Enable key generation (only applies to RSA key generation)
 
 config BR2_PACKAGE_THINGINO_WOLFSSL_CERTGEN
 	bool "enable-certgen"
+	default y
 	help
 	  Enable cert generation
+
+config BR2_PACKAGE_THINGINO_WOLFSSL_ASN
+	bool "enable-asn"
+	default y
+	help
+	  Enable ASN.1 support (required for ustream-ssl)
 
 config BR2_PACKAGE_THINGINO_WOLFSSL_CERTREQ
 	bool "enable-certreq"

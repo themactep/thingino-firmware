@@ -1,0 +1,72 @@
+################################################################################
+#
+# thingino-mbedtls
+#
+################################################################################
+
+THINGINO_MBEDTLS_VERSION = 2.28.9
+THINGINO_MBEDTLS_SITE = https://github.com/Mbed-TLS/mbedtls/releases/download/v$(THINGINO_MBEDTLS_VERSION)
+THINGINO_MBEDTLS_SOURCE = mbedtls-$(THINGINO_MBEDTLS_VERSION).tar.bz2
+THINGINO_MBEDTLS_CONF_OPTS = \
+	-DCMAKE_C_FLAGS="$(TARGET_CFLAGS) -std=c99" \
+	-DENABLE_PROGRAMS=$(if $(BR2_PACKAGE_THINGINO_MBEDTLS_PROGRAMS),ON,OFF) \
+	-DENABLE_TESTING=OFF \
+	-DMBEDTLS_FATAL_WARNINGS=OFF
+THINGINO_MBEDTLS_INSTALL_STAGING = YES
+THINGINO_MBEDTLS_LICENSE = Apache-2.0 or GPL-2.0+
+THINGINO_MBEDTLS_LICENSE_FILES = LICENSE
+THINGINO_MBEDTLS_CPE_ID_VENDOR = arm
+THINGINO_MBEDTLS_CPE_ID_PRODUCT = mbed_tls
+
+# This is mandatory for hiawatha
+ifeq ($(BR2_TOOLCHAIN_HAS_THREADS),y)
+define THINGINO_MBEDTLS_ENABLE_THREADING
+	$(SED) "s://#define MBEDTLS_THREADING_C:#define MBEDTLS_THREADING_C:" \
+		$(@D)/include/mbedtls/config.h
+	$(SED) "s://#define MBEDTLS_THREADING_PTHREAD:#define MBEDTLS_THREADING_PTHREAD:" \
+		$(@D)/include/mbedtls/config.h
+endef
+THINGINO_MBEDTLS_PRE_CONFIGURE_HOOKS += THINGINO_MBEDTLS_ENABLE_THREADING
+ifeq ($(BR2_STATIC_LIBS),y)
+THINGINO_MBEDTLS_CONF_OPTS += -DLINK_WITH_PTHREAD=ON
+endif
+endif
+
+ifeq ($(BR2_STATIC_LIBS),y)
+THINGINO_MBEDTLS_CONF_OPTS += \
+	-DUSE_SHARED_MBEDTLS_LIBRARY=OFF -DUSE_STATIC_MBEDTLS_LIBRARY=ON
+else ifeq ($(BR2_SHARED_STATIC_LIBS),y)
+THINGINO_MBEDTLS_CONF_OPTS += \
+	-DUSE_SHARED_MBEDTLS_LIBRARY=ON -DUSE_STATIC_MBEDTLS_LIBRARY=ON
+else ifeq ($(BR2_SHARED_LIBS),y)
+THINGINO_MBEDTLS_CONF_OPTS += \
+	-DUSE_SHARED_MBEDTLS_LIBRARY=ON -DUSE_STATIC_MBEDTLS_LIBRARY=OFF
+endif
+
+define THINGINO_MBEDTLS_DISABLE_ASM
+	$(SED) '/^#define MBEDTLS_AESNI_C/d' \
+		$(@D)/include/mbedtls/config.h
+	$(SED) '/^#define MBEDTLS_HAVE_ASM/d' \
+		$(@D)/include/mbedtls/config.h
+	$(SED) '/^#define MBEDTLS_PADLOCK_C/d' \
+		$(@D)/include/mbedtls/config.h
+endef
+
+# ARM in thumb mode breaks debugging with asm optimizations
+# Microblaze asm optimizations are broken in general
+# MIPS R6 asm is not yet supported
+ifeq ($(BR2_ENABLE_DEBUG)$(BR2_ARM_INSTRUCTIONS_THUMB)$(BR2_ARM_INSTRUCTIONS_THUMB2),yy)
+THINGINO_MBEDTLS_POST_CONFIGURE_HOOKS += THINGINO_MBEDTLS_DISABLE_ASM
+else ifeq ($(BR2_microblaze)$(BR2_MIPS_CPU_MIPS32R6)$(BR2_MIPS_CPU_MIPS64R6),y)
+THINGINO_MBEDTLS_POST_CONFIGURE_HOOKS += THINGINO_MBEDTLS_DISABLE_ASM
+endif
+
+ifeq ($(BR2_PACKAGE_THINGINO_MBEDTLS_DTLS_SRTP),y)
+define THINGINO_MBEDTLS_ENABLE_DTLS_SRTP
+	$(SED) "s://#define MBEDTLS_SSL_DTLS_SRTP:#define MBEDTLS_SSL_DTLS_SRTP:" \
+		$(@D)/include/mbedtls/config.h
+endef
+THINGINO_MBEDTLS_PRE_CONFIGURE_HOOKS += THINGINO_MBEDTLS_ENABLE_DTLS_SRTP
+endif
+
+$(eval $(cmake-package))

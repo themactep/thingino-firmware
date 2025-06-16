@@ -1,0 +1,33 @@
+config BR2_PACKAGE_THINGINO_MBEDTLS
+	bool "thingino-mbedtls"
+	depends on !BR2_PACKAGE_MBEDTLS
+	help
+	  mbed TLS (formerly known as PolarSSL) makes it trivially easy
+	  for developers to include cryptographic and SSL/TLS
+	  capabilities in their (embedded) products, facilitating this
+	  functionality with a minimal coding footprint.
+
+	  This is a downgraded version (2.28.x LTS) specifically for
+	  compatibility with ustream-ssl in thingino firmware.
+
+	  https://tls.mbed.org/
+
+if BR2_PACKAGE_THINGINO_MBEDTLS
+
+config BR2_PACKAGE_THINGINO_MBEDTLS_PROGRAMS
+	bool "mbedtls programs"
+	depends on BR2_USE_MMU # fork()
+	help
+	  This option enables the installation and the build of
+	  mbed TLS companion programs.
+
+config BR2_PACKAGE_THINGINO_MBEDTLS_DTLS_SRTP
+	bool "enable DTLS-SRTP support"
+	help
+	  Enable support for negotiation of DTLS-SRTP (RFC 5764)
+	  through the use_srtp extension.
+
+endif
+
+comment "thingino-mbedtls conflicts with mbedtls"
+	depends on BR2_PACKAGE_MBEDTLS

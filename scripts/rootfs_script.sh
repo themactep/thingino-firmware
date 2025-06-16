@@ -122,3 +122,60 @@ if grep -q ^BR2_PACKAGE_EXFAT_UTILS $BR2_CONFIG >/dev/null; then
 	rm -vf ${TARGET_DIR}/usr/sbin/exfatlabel
 	rm -vf ${TARGET_DIR}/etc/network/nfs_check
 fi
+
+#
+# Remove unnecessary wolfSSL programs to save space
+# Keep only essential tools for SSL certificate management
+#
+if grep -q ^BR2_PACKAGE_THINGINO_WOLFSSL_EXAMPLES $BR2_CONFIG >/dev/null; then
+	echo "Removing unnecessary wolfSSL example programs to save space..."
+
+	# Remove benchmarking & testing tools (if they exist)
+	rm -vf ${TARGET_DIR}/usr/bin/benchmark
+	rm -vf ${TARGET_DIR}/usr/bin/testsuite
+	rm -vf ${TARGET_DIR}/usr/bin/unit_test
+
+	# Remove development & demo tools
+	rm -vf ${TARGET_DIR}/usr/bin/client
+	rm -vf ${TARGET_DIR}/usr/bin/server
+	rm -vf ${TARGET_DIR}/usr/bin/echoclient
+	rm -vf ${TARGET_DIR}/usr/bin/echoserver
+	rm -vf ${TARGET_DIR}/usr/bin/sctp-client
+	rm -vf ${TARGET_DIR}/usr/bin/sctp-server
+
+	# Remove specialized crypto tools (keep ssl_server2 for cert generation)
+	rm -vf ${TARGET_DIR}/usr/bin/tls_bench
+	rm -vf ${TARGET_DIR}/usr/bin/crypto_bench
+
+	# Keep essential wolfSSL tools for certificate generation and testing
+	# ssl_server2 - for certificate generation and SSL testing
+	# These are needed for our certificate generation scripts
+
+	echo "Kept essential wolfSSL tools: ssl_server2 (for certificate generation)"
+fi
+
+#
+# Fix ustream-ssl library conflicts
+# Remove any conflicting ustream-ssl libraries from overlay to ensure
+# the correct wolfSSL-based library is used
+#
+if [ -f "${TARGET_DIR}/overlay/usr/lib/libustream-ssl.so" ]; then
+	echo "Removing conflicting ustream-ssl library from overlay..."
+	rm -vf "${TARGET_DIR}/overlay/usr/lib/libustream-ssl.so"
+fi
+
+#
+# Legacy mbedTLS cleanup (for compatibility with mixed builds)
+# This section can be removed once fully migrated to wolfSSL
+#
+if grep -q ^BR2_PACKAGE_MBEDTLS_PROGRAMS $BR2_CONFIG >/dev/null; then
+	echo "Removing legacy mbedTLS programs (compatibility cleanup)..."
+
+	# Remove all mbedTLS tools since we're using wolfSSL
+	rm -vf ${TARGET_DIR}/usr/bin/cert_app
+	rm -vf ${TARGET_DIR}/usr/bin/cert_write
+	rm -vf ${TARGET_DIR}/usr/bin/gen_key
+	rm -vf ${TARGET_DIR}/usr/bin/ssl_server2
+
+	echo "Removed legacy mbedTLS tools (using wolfSSL instead)"
+fi

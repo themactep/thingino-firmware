@@ -13,7 +13,7 @@ endif
 
 PRUDYNT_T_GIT_SUBMODULES = YES
 
-PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-fonts ingenic-lib faac thingino-opus libhelix-aac
+PRUDYNT_T_DEPENDENCIES = json-c thingino-live555 thingino-fonts ingenic-lib faac thingino-opus libhelix-aac
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
 	PRUDYNT_T_DEPENDENCIES += libwebsockets libschrift
 else
@@ -66,26 +66,19 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/bin/prudynt \
 		$(TARGET_DIR)/usr/bin/prudynt
 
-	awk -f $(PRUDYNT_T_PKGDIR)/files/device_presets \
-		$(PRUDYNT_T_PKGDIR)/files/configs/$(shell awk 'BEGIN {split("$(BR2_CONFIG)", a, "/"); print a[length(a)-1]}') \
-		$(@D)/prudynt.cfg.example > $(STAGING_DIR)/prudynt.cfg
+	# Copy the JSON configuration example and customize for device
+	cp $(@D)/prudynt.json.example $(STAGING_DIR)/prudynt.json
 
-	$(INSTALL) -D -m 0644 $(STAGING_DIR)/prudynt.cfg \
-		$(TARGET_DIR)/etc/prudynt.cfg
+	# Apply device-specific configuration if needed
+	# TODO: Add JSON-based device preset processing if required
 
-	sed -i 's/;.*$$/;/' $(TARGET_DIR)/etc/prudynt.cfg
+	$(INSTALL) -D -m 0644 $(STAGING_DIR)/prudynt.json \
+		$(TARGET_DIR)/etc/prudynt.json
 
-    if [ "$(SOC_RAM)" -le "64" ]; then \
-    sed -i 's/^\([ \t]*\)# *buffers: 2;/\1buffers: 1;/' $(TARGET_DIR)/etc/prudynt.cfg; \
-    fi
-
-	awk '{if(NR>1){gsub(/^[[:space:]]*/,"");if(match($$0,"^[[:space:]]*#")){$$0=""}}}{if(length($$0)){if(NR>1)printf("%s",$$0);else print $$0;}}' \
-		$(PRUDYNT_T_PKGDIR)/files/prudyntcfg.awk > $(PRUDYNT_T_PKGDIR)/files/prudyntcfg
-
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/prudyntcfg \
-		$(TARGET_DIR)/usr/bin/prudyntcfg
-
-	rm $(PRUDYNT_T_PKGDIR)/files/prudyntcfg
+	# Adjust buffer settings for low-memory devices
+	if [ "$(SOC_RAM)" -le "64" ]; then \
+		sed -i 's/"buffers": 2/"buffers": 1/g' $(TARGET_DIR)/etc/prudynt.json; \
+	fi
 
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
 		$(TARGET_DIR)/etc/init.d/S95prudynt
