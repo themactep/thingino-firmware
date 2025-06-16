@@ -25,7 +25,21 @@ local CONFIG = {
     motion_config_path = "/etc/motion.json",
 
     -- Date/time format template
-    datetime_format = "%Y-%m-%d %H:%M:%S"
+    datetime_format = "%Y-%m-%d %H:%M:%S",
+
+    -- Timezone list for configuration
+    timezones = {
+        {value = "UTC", label = "UTC"},
+        {value = "America/New_York", label = "New York (EST/EDT)"},
+        {value = "America/Chicago", label = "Chicago (CST/CDT)"},
+        {value = "America/Denver", label = "Denver (MST/MDT)"},
+        {value = "America/Los_Angeles", label = "Los Angeles (PST/PDT)"},
+        {value = "Europe/London", label = "London (GMT/BST)"},
+        {value = "Europe/Paris", label = "Paris (CET/CEST)"},
+        {value = "Europe/Berlin", label = "Berlin (CET/CEST)"},
+        {value = "Asia/Tokyo", label = "Tokyo (JST)"},
+        {value = "Asia/Shanghai", label = "Shanghai (CST)"}
+    }
 }
 
 function handle_request(env)
@@ -479,31 +493,17 @@ function serve_config_page(config_type, sess)
             template_vars.config_ir_led = (config_data.ir_led and config_data.ir_led ~= "") and config_data.ir_led or "N/A"
             template_vars.config_bitrate = config_data.bitrate or "2048"
 
-            -- Resolution selection
-            template_vars.resolution_1920x1080_selected = (config_data.resolution == "1920x1080") and "selected" or ""
-            template_vars.resolution_1280x720_selected = (config_data.resolution == "1280x720") and "selected" or ""
-            template_vars.resolution_640x480_selected = (config_data.resolution == "640x480") and "selected" or ""
-            template_vars.resolution_320x240_selected = (config_data.resolution == "320x240") and "selected" or ""
-
-            -- FPS selection
-            template_vars.fps_30_selected = (config_data.fps == "30") and "selected" or ""
-            template_vars.fps_25_selected = (config_data.fps == "25") and "selected" or ""
-            template_vars.fps_20_selected = (config_data.fps == "20") and "selected" or ""
-            template_vars.fps_15_selected = (config_data.fps == "15") and "selected" or ""
-            template_vars.fps_10_selected = (config_data.fps == "10") and "selected" or ""
-
-            -- Codec selection
-            template_vars.codec_h264_selected = (config_data.codec == "h264") and "selected" or ""
-            template_vars.codec_h265_selected = (config_data.codec == "h265") and "selected" or ""
+            -- Camera configuration (data-driven)
+            template_vars.current_resolution = config_data.resolution or "1920x1080"
+            template_vars.current_fps = config_data.fps or "25"
+            template_vars.current_codec = config_data.codec or "h264"
 
             -- Flip checkboxes
             template_vars.flip_horizontal_checked = (config_data.flip_horizontal == "true") and "checked" or ""
             template_vars.flip_vertical_checked = (config_data.flip_vertical == "true") and "checked" or ""
 
-            -- Night mode selection
-            template_vars.night_mode_auto_selected = (config_data.night_mode == "auto") and "selected" or ""
-            template_vars.night_mode_on_selected = (config_data.night_mode == "on") and "selected" or ""
-            template_vars.night_mode_off_selected = (config_data.night_mode == "off") and "selected" or ""
+            -- Night mode configuration (data-driven)
+            template_vars.current_night_mode = config_data.night_mode or "auto"
         elseif config_type == "system" then
             -- Add fallbacks for system config values
             template_vars.config_ntp_server = config_data.ntp_server or "pool.ntp.org"
@@ -548,17 +548,8 @@ function serve_config_page(config_type, sess)
             template_vars.firmware_build = os_release:match('BUILD_ID="([^"]+)"') or os_release:match("BUILD_ID=([^\n]+)") or "Unknown"
             template_vars.firmware_profile = os_release:match('IMAGE_ID=([^\n]+)') or "Unknown"
 
-            -- Timezone selection
-            template_vars.timezone_utc_selected = (config_data.timezone == "UTC") and "selected" or ""
-            template_vars.timezone_america_new_york_selected = (config_data.timezone == "America/New_York") and "selected" or ""
-            template_vars.timezone_america_chicago_selected = (config_data.timezone == "America/Chicago") and "selected" or ""
-            template_vars.timezone_america_denver_selected = (config_data.timezone == "America/Denver") and "selected" or ""
-            template_vars.timezone_america_los_angeles_selected = (config_data.timezone == "America/Los_Angeles") and "selected" or ""
-            template_vars.timezone_europe_london_selected = (config_data.timezone == "Europe/London") and "selected" or ""
-            template_vars.timezone_europe_paris_selected = (config_data.timezone == "Europe/Paris") and "selected" or ""
-            template_vars.timezone_europe_berlin_selected = (config_data.timezone == "Europe/Berlin") and "selected" or ""
-            template_vars.timezone_asia_tokyo_selected = (config_data.timezone == "Asia/Tokyo") and "selected" or ""
-            template_vars.timezone_asia_shanghai_selected = (config_data.timezone == "Asia/Shanghai") and "selected" or ""
+            -- Timezone selection (data-driven from /usr/share/tz.json.gz)
+            template_vars.current_timezone = config_data.timezone or "UTC"
 
             -- Access checkboxes
             template_vars.ssh_enabled_checked = (config_data.ssh_enabled == "true") and "checked" or ""
@@ -568,21 +559,10 @@ function serve_config_page(config_type, sess)
             template_vars.config_session_timeout = "30" -- Default session timeout
             template_vars.config_log_retention = config_data.log_retention or "7" -- Default log retention
 
-            -- Timezone selection variables
-            template_vars.timezone_utc_selected = (config_data.timezone == "UTC") and "selected" or ""
-            template_vars.timezone_ny_selected = (config_data.timezone == "America/New_York") and "selected" or ""
-            template_vars.timezone_chicago_selected = (config_data.timezone == "America/Chicago") and "selected" or ""
-            template_vars.timezone_denver_selected = (config_data.timezone == "America/Denver") and "selected" or ""
-            template_vars.timezone_la_selected = (config_data.timezone == "America/Los_Angeles") and "selected" or ""
-            template_vars.timezone_london_selected = (config_data.timezone == "Europe/London") and "selected" or ""
-            template_vars.timezone_berlin_selected = (config_data.timezone == "Europe/Berlin") and "selected" or ""
-            template_vars.timezone_tokyo_selected = (config_data.timezone == "Asia/Tokyo") and "selected" or ""
+            -- Timezone selection is now handled dynamically via /lua/api/timezones API
 
-            -- Log level selection variables
-            template_vars.log_level_error_selected = (config_data.log_level == "error") and "selected" or ""
-            template_vars.log_level_warning_selected = (config_data.log_level == "warning") and "selected" or ""
-            template_vars.log_level_info_selected = (config_data.log_level == "info") and "selected" or ""
-            template_vars.log_level_debug_selected = (config_data.log_level == "debug") and "selected" or ""
+            -- Log level configuration (data-driven)
+            template_vars.current_log_level = config_data.log_level or "info"
 
             -- SSL Certificate status
             local ssl_cert_exists = utils.file_exists(CONFIG.ssl_cert_path) and utils.file_exists(CONFIG.ssl_key_path)
@@ -708,16 +688,10 @@ function serve_config_page(config_type, sess)
             utils.log("Firmware build: " .. firmware_build)
             utils.log("Firmware version: " .. firmware_version)
 
-            -- Log level selection
-            template_vars.log_level_debug_selected = (config_data.log_level == "debug") and "selected" or ""
-            template_vars.log_level_info_selected = (config_data.log_level == "info") and "selected" or ""
-            template_vars.log_level_warning_selected = (config_data.log_level == "warning") and "selected" or ""
-            template_vars.log_level_error_selected = (config_data.log_level == "error") and "selected" or ""
+            -- Log level configuration already handled above
 
-            -- Theme selection
-            template_vars.webui_theme_dark_selected = (config_data.webui_theme == "dark") and "selected" or ""
-            template_vars.webui_theme_light_selected = (config_data.webui_theme == "light") and "selected" or ""
-            template_vars.webui_theme_auto_selected = (config_data.webui_theme == "auto") and "selected" or ""
+            -- Theme configuration (data-driven)
+            template_vars.current_webui_theme = config_data.webui_theme or "dark"
 
             -- Paranoid mode checkbox
             template_vars.webui_paranoid_checked = (config_data.webui_paranoid == "true") and "checked" or ""
@@ -918,11 +892,8 @@ function handle_storage_config(env, sess)
         username = sess.user,
         config_log_retention = system_config.log_retention or "7",
 
-        -- Log level selection variables
-        log_level_error_selected = (system_config.log_level == "error") and "selected" or "",
-        log_level_warning_selected = (system_config.log_level == "warning") and "selected" or "",
-        log_level_info_selected = (system_config.log_level == "info") and "selected" or "",
-        log_level_debug_selected = (system_config.log_level == "debug") and "selected" or "",
+        -- Log level configuration (data-driven)
+        current_log_level = system_config.log_level or "info",
 
         -- Navigation state
         nav_dashboard_active = "",
@@ -1121,38 +1092,13 @@ function handle_streamer_config(env, sess)
         main_bitrate = config_values.video0_bitrate or "2048",
         sub_bitrate = config_values.video1_bitrate or "512",
 
-        -- Resolution selections
-        main_1920x1080_selected = (config_values.video0_size == "1920x1080") and "selected" or "",
-        main_1280x720_selected = (config_values.video0_size == "1280x720") and "selected" or "",
-        main_640x480_selected = (config_values.video0_size == "640x480") and "selected" or "",
-        main_320x240_selected = (config_values.video0_size == "320x240") and "selected" or "",
-
-        sub_640x480_selected = (config_values.video1_size == "640x480") and "selected" or "",
-        sub_320x240_selected = (config_values.video1_size == "320x240") and "selected" or "",
-        sub_160x120_selected = (config_values.video1_size == "160x120") and "selected" or "",
-
-        -- FPS selections
-        main_fps_30_selected = (config_values.video0_fps == "30") and "selected" or "",
-        main_fps_25_selected = (config_values.video0_fps == "25") and "selected" or "",
-        main_fps_20_selected = (config_values.video0_fps == "20") and "selected" or "",
-        main_fps_15_selected = (config_values.video0_fps == "15") and "selected" or "",
-        main_fps_10_selected = (config_values.video0_fps == "10") and "selected" or "",
-        main_fps_5_selected = (config_values.video0_fps == "5") and "selected" or "",
-
-        sub_fps_15_selected = (config_values.video1_fps == "15") and "selected" or "",
-        sub_fps_10_selected = (config_values.video1_fps == "10") and "selected" or "",
-        sub_fps_5_selected = (config_values.video1_fps == "5") and "selected" or "",
-        sub_fps_1_selected = (config_values.video1_fps == "1") and "selected" or "",
-
-        -- Codec selections
-        codec_h264_selected = (config_values.video0_codec == "h264") and "selected" or "",
-        codec_h265_selected = (config_values.video0_codec == "h265") and "selected" or "",
-        codec_mjpeg_selected = (config_values.video0_codec == "mjpeg") and "selected" or "",
-
-        -- Profile selections
-        profile_baseline_selected = (config_values.video0_profile == "baseline") and "selected" or "",
-        profile_main_selected = (config_values.video0_profile == "main") and "selected" or "",
-        profile_high_selected = (config_values.video0_profile == "high") and "selected" or ""
+        -- Video configuration (data-driven)
+        current_main_resolution = config_values.video0_size or "1920x1080",
+        current_sub_resolution = config_values.video1_size or "640x480",
+        current_main_fps = config_values.video0_fps or "25",
+        current_sub_fps = config_values.video1_fps or "15",
+        current_codec = config_values.video0_codec or "h264",
+        current_profile = config_values.video0_profile or "main"
     }
 
     local html = utils.load_template("streamer/config", template_vars)
