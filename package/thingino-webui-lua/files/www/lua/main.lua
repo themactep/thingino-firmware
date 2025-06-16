@@ -19,7 +19,10 @@ local CONFIG = {
     fonts_path = "/opt/fonts",
 
     -- Prudynt configuration path
-    prudynt_config_path = "/etc/prudynt.json"
+    prudynt_config_path = "/etc/prudynt.json",
+
+    -- Motion detection configuration path
+    motion_config_path = "/etc/motion.json"
 }
 
 function handle_request(env)
@@ -1622,7 +1625,7 @@ end
 function api_motion_config(sess, env)
     if env.REQUEST_METHOD == "GET" then
         -- Load motion configuration
-        local config_file = "/etc/motion.json"
+        local config_file = CONFIG.motion_config_path
         local file = io.open(config_file, "r")
         local config = {}
 
@@ -1648,7 +1651,7 @@ function api_motion_config(sess, env)
     elseif env.REQUEST_METHOD == "POST" then
         -- Save motion configuration - handle raw JSON to avoid parsing issues
         local content_length = tonumber(env.CONTENT_LENGTH or "0")
-        local config_file = "/etc/motion.json"
+        local config_file = CONFIG.motion_config_path
 
         if content_length <= 0 then
             utils.send_json({
@@ -1675,16 +1678,19 @@ function api_motion_config(sess, env)
         end
 
         -- Write raw JSON directly to file
+        utils.log("Saving motion configuration to " .. config_file)
         local file = io.open(config_file, "w")
         if file then
             file:write(raw_json)
             file:close()
+            utils.log("Motion configuration saved successfully")
 
             utils.send_json({
                 success = true,
                 message = "Motion configuration saved to persistent storage"
             })
         else
+            utils.log("Failed to save motion configuration file")
             utils.send_json({
                 success = false,
                 error = "Failed to save configuration file"
