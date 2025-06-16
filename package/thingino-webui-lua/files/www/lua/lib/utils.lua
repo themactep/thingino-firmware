@@ -1,5 +1,8 @@
 local utils = {}
 
+-- Constants
+utils.DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+
 -- HTTP response functions
 function utils.send_html(content)
     uhttpd.send("Status: 200 OK\r\n")
@@ -910,7 +913,7 @@ end
 function utils.log(message)
     local log_file = io.open("/tmp/webui-lua.log", "a")
     if log_file then
-        log_file:write(os.date("%Y-%m-%d %H:%M:%S") .. " " .. message .. "\n")
+        log_file:write(os.date(utils.DATETIME_FORMAT) .. " " .. message .. "\n")
         log_file:close()
     end
 end

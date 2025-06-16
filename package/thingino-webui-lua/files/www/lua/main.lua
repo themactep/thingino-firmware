@@ -8,7 +8,7 @@ local config = require("config")
 
 -- Global configuration
 local CONFIG = {
-    session_timeout = 7200, -- 2 hours
+    session_timeout = 0, -- Disabled - sessions are permanent until logout
     debug = false, -- Debug disabled for production
 
     -- SSL Certificate paths
@@ -22,7 +22,10 @@ local CONFIG = {
     prudynt_config_path = "/etc/prudynt.json",
 
     -- Motion detection configuration path
-    motion_config_path = "/etc/motion.json"
+    motion_config_path = "/etc/motion.json",
+
+    -- Date/time format template
+    datetime_format = "%Y-%m-%d %H:%M:%S"
 }
 
 function handle_request(env)
@@ -171,12 +174,12 @@ function add_debug_info(template_vars, sess)
     local time_remaining = math.max(0, CONFIG.session_timeout - time_since_activity)
 
     template_vars.session_id = sess.id or "unknown"
-    template_vars.session_created = os.date("%Y-%m-%d %H:%M:%S", sess.created or now)
-    template_vars.session_last_activity = os.date("%Y-%m-%d %H:%M:%S", sess.last_activity or now)
+    template_vars.session_created = os.date(CONFIG.datetime_format, sess.created or now)
+    template_vars.session_last_activity = os.date(CONFIG.datetime_format, sess.last_activity or now)
     template_vars.session_time_since = time_since_activity .. "s"
     template_vars.session_timeout = CONFIG.session_timeout
     template_vars.session_time_remaining = time_remaining .. "s"
-    template_vars.server_time = os.date("%Y-%m-%d %H:%M:%S", now)
+    template_vars.server_time = os.date(CONFIG.datetime_format, now)
 
     local system_info = utils.get_system_info()
     template_vars.system_uptime = system_info.uptime or "Unknown"
@@ -224,8 +227,8 @@ function serve_dashboard(sess)
         load_average = load_average_str,
 
         -- Activity timestamps
-        boot_time = os.date("%Y-%m-%d %H:%M:%S", sess.created),
-        stream_start_time = os.date("%Y-%m-%d %H:%M:%S", sess.last_activity),
+        boot_time = os.date(CONFIG.datetime_format, sess.created),
+        stream_start_time = os.date(CONFIG.datetime_format, sess.last_activity),
         last_snapshot_time = "Just now",
 
         system_load = load_average_str,

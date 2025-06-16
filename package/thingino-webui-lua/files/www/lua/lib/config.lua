@@ -40,7 +40,8 @@ function config.save(conf)
     
     -- Write header
     file:write("# Thingino configuration file\n")
-    file:write("# Generated on " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n\n")
+    local utils = require("utils")
+    file:write("# Generated on " .. os.date(utils.DATETIME_FORMAT) .. "\n\n")
     
     -- Sort keys for consistent output
     local keys = {}
