@@ -39,18 +39,223 @@
 #define MAX_PATH_LEN 512
 
 static void usage(const char *prog) {
-    printf("Usage: %s -h hostname -c cert_file -k key_file [-d days] [-s key_size]\n", prog);
+    printf("Usage: %s [GENERATE] -h hostname -c cert_file -k key_file [-d days] [-s key_size]\n", prog);
+    printf("       %s [INSPECT] -i cert_file [--json]\n", prog);
+    printf("\nGenerate certificate:\n");
     printf("  -h, --hostname   Hostname for certificate CN\n");
     printf("  -c, --cert       Output certificate file\n");
     printf("  -k, --key        Output private key file\n");
     printf("  -d, --days       Certificate validity in days (default: %d)\n", DEFAULT_DAYS);
     printf("  -s, --key-size   ECDSA key size in bits (default: %d)\n", DEFAULT_KEY_SIZE);
     printf("                   Supported: 224, 256, 384, 521\n");
+    printf("\nInspect certificate:\n");
+    printf("  -i, --inspect    Inspect and display certificate information\n");
+    printf("  --json           Output certificate information in JSON format\n");
+    printf("\nOther options:\n");
     printf("  --help           Show this help message\n");
 }
 
 #ifdef HAVE_WOLFSSL
 #ifdef WOLFSSL_CERT_GEN
+
+static int inspect_certificate(const char *cert_file, int json_output) {
+    FILE *file;
+    char *pem_data = NULL;
+    long file_size;
+    int ret;
+
+    printf("Inspecting certificate: %s\n", cert_file);
+
+    /* Read PEM certificate file */
+    file = fopen(cert_file, "rb");
+    if (!file) {
+        fprintf(stderr, "Error: Cannot open certificate file: %s\n", cert_file);
+        return -1;
+    }
+
+    /* Get file size */
+    fseek(file, 0, SEEK_END);
+    file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    /* Allocate buffer and read file */
+    pem_data = malloc(file_size + 1);
+    if (!pem_data) {
+        fprintf(stderr, "Error: Memory allocation failed\n");
+        fclose(file);
+        return -1;
+    }
+
+    fread(pem_data, 1, file_size, file);
+    pem_data[file_size] = '\0';
+    fclose(file);
+
+    /* Convert PEM to DER */
+    byte der_cert[4096];
+    int der_size;
+
+    der_size = wc_CertPemToDer((const unsigned char*)pem_data, file_size, der_cert, sizeof(der_cert), CERT_TYPE);
+    if (der_size <= 0) {
+        fprintf(stderr, "Error: Failed to convert PEM to DER: %d\n", der_size);
+        free(pem_data);
+        return -1;
+    }
+
+    /* Parse certificate */
+    DecodedCert decoded_cert;
+
+    wc_InitDecodedCert(&decoded_cert, der_cert, der_size, NULL);
+    ret = wc_ParseCert(&decoded_cert, CERT_TYPE, NO_VERIFY, NULL);
+    if (ret != 0) {
+        fprintf(stderr, "Error: Failed to parse certificate: %d\n", ret);
+        wc_FreeDecodedCert(&decoded_cert);
+        free(pem_data);
+        return -1;
+    }
+
+    /* Display certificate information */
+    if (json_output) {
+        printf("{\n");
+
+        /* Subject information */
+        if (decoded_cert.subject[0] != '\0') {
+            printf("  \"subject\": \"%s\",\n", decoded_cert.subject);
+
+            /* Extract common name from subject */
+            char *cn_start = strstr(decoded_cert.subject, "CN=");
+            if (cn_start) {
+                cn_start += 3; /* Skip "CN=" */
+                char *cn_end = strchr(cn_start, '/');
+                if (cn_end) {
+                    int cn_len = cn_end - cn_start;
+                    printf("  \"common_name\": \"%.*s\",\n", cn_len, cn_start);
+                } else {
+                    printf("  \"common_name\": \"%s\",\n", cn_start);
+                }
+            }
+        }
+
+        /* Issuer information */
+        if (decoded_cert.issuer[0] != '\0') {
+            printf("  \"issuer\": \"%s\",\n", decoded_cert.issuer);
+        }
+
+        /* Validity dates */
+        if (decoded_cert.afterDate && decoded_cert.afterDateLen > 0) {
+            printf("  \"expires_on\": \"");
+            for (int i = 0; i < decoded_cert.afterDateLen; i++) {
+                printf("%c", decoded_cert.afterDate[i]);
+            }
+            printf("\",\n");
+        }
+
+        if (decoded_cert.beforeDate && decoded_cert.beforeDateLen > 0) {
+            printf("  \"valid_from\": \"");
+            for (int i = 0; i < decoded_cert.beforeDateLen; i++) {
+                printf("%c", decoded_cert.beforeDate[i]);
+            }
+            printf("\",\n");
+        }
+
+        /* Key information */
+        printf("  \"signature_type\": \"");
+        switch (decoded_cert.signatureOID) {
+            case CTC_SHA256wECDSA:
+                printf("ECDSA with SHA256");
+                break;
+            case CTC_SHA256wRSA:
+                printf("RSA with SHA256");
+                break;
+            default:
+                printf("Unknown (%d)", decoded_cert.signatureOID);
+                break;
+        }
+        printf("\",\n");
+
+        /* Public key size */
+        if (decoded_cert.pubKeySize > 0) {
+            printf("  \"public_key_size\": %d,\n", decoded_cert.pubKeySize * 8);
+        }
+
+        /* Serial number */
+        if (decoded_cert.serialSz > 0) {
+            printf("  \"serial_number\": \"");
+            for (int i = 0; i < decoded_cert.serialSz && i < 16; i++) {
+                printf("%02X", decoded_cert.serial[i]);
+                if (i < decoded_cert.serialSz - 1 && i < 15) printf(":");
+            }
+            printf("\"\n");
+        }
+
+        printf("}\n");
+    } else {
+        printf("\n=== Certificate Information ===\n");
+
+        /* Subject information */
+        if (decoded_cert.subject[0] != '\0') {
+            printf("subject name      : %s\n", decoded_cert.subject);
+        }
+
+        /* Issuer information */
+        if (decoded_cert.issuer[0] != '\0') {
+            printf("issuer name       : %s\n", decoded_cert.issuer);
+        }
+
+        /* Validity dates */
+        if (decoded_cert.afterDate && decoded_cert.afterDateLen > 0) {
+            printf("expires on        : ");
+            for (int i = 0; i < decoded_cert.afterDateLen; i++) {
+                printf("%c", decoded_cert.afterDate[i]);
+            }
+            printf("\n");
+        }
+
+        if (decoded_cert.beforeDate && decoded_cert.beforeDateLen > 0) {
+            printf("valid from        : ");
+            for (int i = 0; i < decoded_cert.beforeDateLen; i++) {
+                printf("%c", decoded_cert.beforeDate[i]);
+            }
+            printf("\n");
+        }
+
+        /* Key information */
+        printf("signature type    : ");
+        switch (decoded_cert.signatureOID) {
+            case CTC_SHA256wECDSA:
+                printf("ECDSA with SHA256\n");
+                break;
+            case CTC_SHA256wRSA:
+                printf("RSA with SHA256\n");
+                break;
+            default:
+                printf("Unknown (%d)\n", decoded_cert.signatureOID);
+                break;
+        }
+
+        /* Public key size */
+        if (decoded_cert.pubKeySize > 0) {
+            printf("public key size   : %d bits\n", decoded_cert.pubKeySize * 8);
+        }
+
+        /* Serial number */
+        if (decoded_cert.serialSz > 0) {
+            printf("serial number     : ");
+            for (int i = 0; i < decoded_cert.serialSz && i < 16; i++) {
+                printf("%02X", decoded_cert.serial[i]);
+                if (i < decoded_cert.serialSz - 1 && i < 15) printf(":");
+            }
+            printf("\n");
+        }
+
+        printf("================================\n");
+    }
+
+    /* Cleanup */
+    wc_FreeDecodedCert(&decoded_cert);
+    free(pem_data);
+
+    return 0;
+}
 
 static int generate_ecdsa_key_and_cert(const char *cert_file, const char *key_file,
                                        const char *hostname, int key_size, int days) {
@@ -212,8 +417,11 @@ int main(int argc, char *argv[]) {
     char hostname[MAX_HOSTNAME_LEN] = {0};
     char cert_file[MAX_PATH_LEN] = {0};
     char key_file[MAX_PATH_LEN] = {0};
+    char inspect_file[MAX_PATH_LEN] = {0};
     int days = DEFAULT_DAYS;
     int key_size = DEFAULT_KEY_SIZE;
+    int inspect_mode = 0;
+    int json_output = 0;
     int opt;
 
     static struct option long_options[] = {
@@ -222,11 +430,13 @@ int main(int argc, char *argv[]) {
         {"key", required_argument, 0, 'k'},
         {"days", required_argument, 0, 'd'},
         {"key-size", required_argument, 0, 's'},
+        {"inspect", required_argument, 0, 'i'},
+        {"json", no_argument, 0, 'j'},
         {"help", no_argument, 0, 0},
         {0, 0, 0, 0}
     };
 
-    while ((opt = getopt_long(argc, argv, "h:c:k:d:s:", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "h:c:k:d:s:i:j", long_options, NULL)) != -1) {
         switch (opt) {
             case 'h':
                 strncpy(hostname, optarg, sizeof(hostname) - 1);
@@ -252,6 +462,13 @@ int main(int argc, char *argv[]) {
                     return 1;
                 }
                 break;
+            case 'i':
+                strncpy(inspect_file, optarg, sizeof(inspect_file) - 1);
+                inspect_mode = 1;
+                break;
+            case 'j':
+                json_output = 1;
+                break;
             case 0:
                 usage(argv[0]);
                 return 0;
@@ -261,32 +478,64 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    /* Validate required parameters */
-    if (strlen(hostname) == 0 || strlen(cert_file) == 0 || strlen(key_file) == 0) {
-        fprintf(stderr, "Error: Missing required parameters\n");
-        usage(argv[0]);
-        return 1;
-    }
-
-    printf("Generating ECDSA SSL certificate for hostname: %s\n", hostname);
+    /* Validate required parameters based on mode */
+    if (inspect_mode) {
+        if (strlen(inspect_file) == 0) {
+            fprintf(stderr, "Error: Missing certificate file for inspection\n");
+            usage(argv[0]);
+            return 1;
+        }
 
 #ifdef HAVE_WOLFSSL
 #ifdef WOLFSSL_CERT_GEN
-    /* Generate ECDSA key and self-signed certificate */
-    if (generate_ecdsa_key_and_cert(cert_file, key_file, hostname, key_size, days) != 0) {
-        fprintf(stderr, "Failed to generate certificate and key\n");
-        return 1;
-    }
+        /* Initialize wolfSSL for certificate inspection */
+        wolfSSL_Init();
 
-    printf("ECDSA SSL certificate and key generated successfully\n");
-    return 0;
+        /* Inspect certificate */
+        if (inspect_certificate(inspect_file, json_output) != 0) {
+            fprintf(stderr, "Failed to inspect certificate\n");
+            wolfSSL_Cleanup();
+            return 1;
+        }
+
+        wolfSSL_Cleanup();
+        return 0;
 #else
-    fprintf(stderr, "Error: wolfSSL was not compiled with certificate generation support\n");
-    fprintf(stderr, "Please rebuild wolfSSL with --enable-certgen --enable-keygen --enable-ecc\n");
-    return 1;
+        fprintf(stderr, "Error: wolfSSL was not compiled with certificate support\n");
+        return 1;
 #endif
 #else
-    fprintf(stderr, "Error: wolfSSL library not available\n");
-    return 1;
+        fprintf(stderr, "Error: wolfSSL library not available\n");
+        return 1;
 #endif
+    } else {
+        /* Generation mode - validate generation parameters */
+        if (strlen(hostname) == 0 || strlen(cert_file) == 0 || strlen(key_file) == 0) {
+            fprintf(stderr, "Error: Missing required parameters for certificate generation\n");
+            usage(argv[0]);
+            return 1;
+        }
+
+        printf("Generating ECDSA SSL certificate for hostname: %s\n", hostname);
+
+#ifdef HAVE_WOLFSSL
+#ifdef WOLFSSL_CERT_GEN
+        /* Generate ECDSA key and self-signed certificate */
+        if (generate_ecdsa_key_and_cert(cert_file, key_file, hostname, key_size, days) != 0) {
+            fprintf(stderr, "Failed to generate certificate and key\n");
+            return 1;
+        }
+
+        printf("ECDSA SSL certificate and key generated successfully\n");
+        return 0;
+#else
+        fprintf(stderr, "Error: wolfSSL was not compiled with certificate generation support\n");
+        fprintf(stderr, "Please rebuild wolfSSL with --enable-certgen --enable-keygen --enable-ecc\n");
+        return 1;
+#endif
+#else
+        fprintf(stderr, "Error: wolfSSL library not available\n");
+        return 1;
+#endif
+    }
 }

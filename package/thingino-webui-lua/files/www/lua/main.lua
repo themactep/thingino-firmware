@@ -856,8 +856,32 @@ function handle_security_config(env, sess)
         template_vars.ssl_remove_style = ""
         template_vars.ssl_generate_class = "d-none"
         template_vars.ssl_generate_style = "style=\"display: none;\""
-        template_vars.ssl_cert_info = "SSL Certificate"
-        template_vars.ssl_cert_expires = "Unknown"
+
+        -- Get SSL certificate information
+        utils.log("=== SSL CERTIFICATE PARSING DEBUG ===")
+        utils.log("Attempting to read SSL certificate: " .. CONFIG.ssl_cert_path)
+        local cert_content = utils.read_file(CONFIG.ssl_cert_path)
+        if cert_content then
+            utils.log("Certificate file read successfully, length: " .. #cert_content)
+            local cert_info = utils.get_certificate_info(cert_content)
+            if cert_info then
+                template_vars.ssl_cert_info = cert_info.common_name or "SSL Certificate"
+                template_vars.ssl_cert_expires = cert_info.expires or "Unknown"
+                utils.log("Certificate parsing SUCCESS:")
+                utils.log("  CN: " .. template_vars.ssl_cert_info)
+                utils.log("  Expires: " .. template_vars.ssl_cert_expires)
+                utils.log("  Issuer: " .. (cert_info.issuer or "Unknown"))
+            else
+                template_vars.ssl_cert_info = "SSL Certificate"
+                template_vars.ssl_cert_expires = "Unknown"
+                utils.log("Certificate parsing FAILED - cert_info is nil")
+            end
+        else
+            template_vars.ssl_cert_info = "Certificate file"
+            template_vars.ssl_cert_expires = "Unknown"
+            utils.log("Could not read certificate file: " .. CONFIG.ssl_cert_path)
+        end
+        utils.log("=== END SSL CERTIFICATE PARSING DEBUG ===")
     else
         template_vars.ssl_status_class = "bg-secondary"
         template_vars.ssl_status_text = "Not Installed"
@@ -1228,6 +1252,8 @@ function handle_api_request(path, env, sess)
         return api_get_debug_logs(sess)
     elseif api_path == "debug/clear-logs" then
         return api_clear_debug_logs(sess, env)
+    elseif api_path == "debug/ssl-tools" then
+        return api_debug_ssl_tools(sess)
     elseif api_path == "rtsp/config" then
         return api_rtsp_config(sess)
     elseif api_path == "ssl/upload" then
@@ -1823,6 +1849,77 @@ function api_clear_debug_logs(sess, env)
             error = "Failed to clear debug logs"
         }, 500)
     end
+end
+
+function api_debug_ssl_tools(sess)
+    -- Check what SSL/certificate tools are available on the camera
+    local tools = {
+        "openssl", "ssl_server2", "cert_app", "wolfssl-certgen", "wolfssl-certgen-native",
+        "mbedtls_ssl_server2", "gnutls-cli", "certtool"
+    }
+
+    local available_tools = {}
+    local cert_info = {}
+
+    for _, tool in ipairs(tools) do
+        local result = utils.execute_command("which " .. tool .. " 2>/dev/null")
+        if result and result ~= "" then
+            available_tools[tool] = result:gsub("^%s*(.-)%s*$", "%1") -- trim
+        else
+            available_tools[tool] = false
+        end
+    end
+
+    -- Test certificate parsing with available tools
+    local cert_file = CONFIG.ssl_cert_path
+    if utils.file_exists(cert_file) then
+        -- Try openssl if available
+        if available_tools.openssl then
+            local openssl_output = utils.execute_command("openssl x509 -in " .. cert_file .. " -text -noout 2>/dev/null")
+            if openssl_output then
+                cert_info.openssl_available = true
+                cert_info.openssl_output = openssl_output:sub(1, 500) .. "..." -- truncate for display
+
+                -- Extract specific fields
+                local subject = utils.execute_command("openssl x509 -in " .. cert_file .. " -subject -noout 2>/dev/null")
+                local expires = utils.execute_command("openssl x509 -in " .. cert_file .. " -enddate -noout 2>/dev/null")
+                cert_info.openssl_subject = subject
+                cert_info.openssl_expires = expires
+            else
+                cert_info.openssl_available = false
+            end
+        end
+
+        -- Try wolfssl-certgen-native with JSON output if available
+        if available_tools["wolfssl-certgen-native"] then
+            local wolfssl_json_output = utils.execute_command("wolfssl-certgen-native -i " .. cert_file .. " --json 2>/dev/null")
+            cert_info.wolfssl_certgen_native_available = true
+            cert_info.wolfssl_json_output = wolfssl_json_output and wolfssl_json_output:sub(1, 1000) .. "..." or "Failed"
+        end
+
+        -- Try ssl_server2 if available
+        if available_tools["ssl_server2"] then
+            local ssl_server2_output = utils.execute_command("ssl_server2 crt_file=" .. cert_file .. " exchanges=0 verify=0 2>/dev/null")
+            cert_info.ssl_server2_available = true
+            cert_info.ssl_server2_output = ssl_server2_output and ssl_server2_output:sub(1, 1000) .. "..." or "Failed"
+        end
+
+        -- Test the actual certificate parsing function
+        local cert_content = utils.read_file(cert_file)
+        if cert_content then
+            local parsed_info = utils.get_certificate_info(cert_content)
+            cert_info.parsed_info = parsed_info
+        end
+    else
+        cert_info.cert_file_exists = false
+    end
+
+    utils.send_json({
+        success = true,
+        available_tools = available_tools,
+        cert_info = cert_info,
+        cert_file = cert_file
+    })
 end
 
 -- SSL Certificate Management API Functions
