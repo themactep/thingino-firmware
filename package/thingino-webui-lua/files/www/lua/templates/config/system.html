@@ -106,8 +106,7 @@
             <label for="languageSelect" class="form-label" data-i18n="system.select_language">Select Language</label>
             <div class="input-group">
               <select class="form-select" id="languageSelect" name="language">
-                <option value="en">English</option>
-                <option value="es">Español</option>
+                <!-- Options populated dynamically by JavaScript -->
               </select>
               <button type="button" class="btn btn-outline-secondary" id="refreshLanguagesBtn" title="Refresh available languages from GitHub">
                 <i class="bi bi-arrow-clockwise"></i>
@@ -192,10 +191,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update display
                 const languageName = data.names[data.current] || data.current;
                 currentLanguageDisplay.textContent = languageName;
+            } else {
+                // Fallback if API fails
+                console.warn('Language API failed, using fallback');
+                loadFallbackLanguages();
             }
         } catch (error) {
             console.error('Failed to load language info:', error);
+            // Fallback if API fails
+            loadFallbackLanguages();
         }
+    }
+
+    // Fallback language loading
+    function loadFallbackLanguages() {
+        const fallbackLanguages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh', 'ja', 'ko'];
+        const fallbackNames = {
+            en: 'English',
+            es: 'Español',
+            fr: 'Français',
+            de: 'Deutsch',
+            it: 'Italiano',
+            pt: 'Português',
+            ru: 'Русский',
+            zh: '中文',
+            ja: '日本語',
+            ko: '한국어'
+        };
+        updateLanguageOptions(fallbackLanguages, fallbackNames, 'en');
+        currentLanguageDisplay.textContent = 'English';
     }
 
     // Refresh available languages from GitHub
