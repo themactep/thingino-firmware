@@ -7,6 +7,27 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css" rel="stylesheet">
   <link href="/static/css/thingino.css" rel="stylesheet">
+
+  <style>
+    /* Universal copyable element styling */
+    .copyable {
+        cursor: pointer;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+
+    .copyable:hover {
+        background-color: #495057 !important;
+        transform: translateY(-1px);
+    }
+
+    .copyable:active {
+        transform: translateY(0);
+    }
+
+    .copyable:hover .bi-clipboard {
+        color: #6c757d !important;
+    }
+  </style>
 </head>
 <body class="bg-dark text-light">
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -148,5 +169,98 @@
     </div>
   </div>
 </div>
+
+<script>
+// Universal copy to clipboard functionality
+function copyToClipboard(element) {
+    // Find the text content to copy
+    let textToCopy = '';
+
+    // Look for code, input, or textarea elements first
+    const codeElement = element.querySelector('code');
+    const inputElement = element.querySelector('input');
+    const textareaElement = element.querySelector('textarea');
+
+    if (codeElement) {
+        textToCopy = codeElement.textContent.trim();
+    } else if (inputElement) {
+        textToCopy = inputElement.value.trim();
+    } else if (textareaElement) {
+        textToCopy = textareaElement.value.trim();
+    } else {
+        // Fallback to element's text content
+        textToCopy = element.textContent.trim();
+    }
+
+    // Check for common "not ready" states
+    const notReadyStates = ['Loading...', 'Configuration error', 'Network error', 'Unknown', 'N/A', ''];
+    if (notReadyStates.includes(textToCopy)) {
+        showCopyNotification('Content not available yet', 'warning');
+        return;
+    }
+
+    // Use modern clipboard API if available
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            showCopyNotification('Copied to clipboard!', 'success');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            fallbackCopyTextToClipboard(textToCopy);
+        });
+    } else {
+        // Fallback for older browsers or non-HTTPS
+        fallbackCopyTextToClipboard(textToCopy);
+    }
+}
+
+// Fallback copy method for older browsers
+function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showCopyNotification('Copied to clipboard!', 'success');
+        } else {
+            showCopyNotification('Failed to copy', 'error');
+        }
+    } catch (err) {
+        console.error('Fallback copy failed:', err);
+        showCopyNotification('Copy not supported in this browser', 'error');
+    }
+
+    document.body.removeChild(textArea);
+}
+
+// Show copy notification
+function showCopyNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'danger'} position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 250px; opacity: 0; transition: opacity 0.3s ease;';
+    notification.innerHTML = `
+        <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'x-circle'} me-2"></i>
+        ${message}
+    `;
+
+    document.body.appendChild(notification);
+
+    // Fade in
+    setTimeout(() => notification.style.opacity = '1', 10);
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => document.body.removeChild(notification), 300);
+    }, 3000);
+}
+</script>
 
 <div class="container-fluid mt-4">

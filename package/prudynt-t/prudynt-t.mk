@@ -14,6 +14,7 @@ endif
 PRUDYNT_T_GIT_SUBMODULES = YES
 
 PRUDYNT_T_DEPENDENCIES = json-c thingino-live555 thingino-fonts ingenic-lib faac thingino-opus libhelix-aac
+PRUDYNT_T_DEPENDENCIES += host-jq
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
 	PRUDYNT_T_DEPENDENCIES += libwebsockets libschrift
 else
@@ -66,18 +67,17 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/bin/prudynt \
 		$(TARGET_DIR)/usr/bin/prudynt
 
-	# Copy the JSON configuration example and customize for device
-	cp $(@D)/prudynt.json.example $(STAGING_DIR)/prudynt.json
-
-	# Apply device-specific configuration if needed
-	# TODO: Add JSON-based device preset processing if required
+	# Copy the JSON configuration file
+	cp $(@D)/res/prudynt.json $(STAGING_DIR)/prudynt.json
 
 	$(INSTALL) -D -m 0644 $(STAGING_DIR)/prudynt.json \
 		$(TARGET_DIR)/etc/prudynt.json
 
 	# Adjust buffer settings for low-memory devices
 	if [ "$(SOC_RAM)" -le "64" ]; then \
-		sed -i 's/"buffers": 2/"buffers": 1/g' $(TARGET_DIR)/etc/prudynt.json; \
+		$(HOST_DIR)/bin/jq '.stream0.buffers = 1 | .stream1.buffers = 1' \
+			$(TARGET_DIR)/etc/prudynt.json > $(TARGET_DIR)/etc/prudynt.json.tmp && \
+		mv $(TARGET_DIR)/etc/prudynt.json.tmp $(TARGET_DIR)/etc/prudynt.json; \
 	fi
 
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
@@ -89,16 +89,14 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96vbuffer \
 		$(TARGET_DIR)/etc/init.d/S96vbuffer
 
-	$(INSTALL) -D -m 0644 $(@D)/res/thingino_logo_1.bgra \
-		$(TARGET_DIR)/usr/share/images/thingino_logo_1.bgra
+	$(INSTALL) -D -m 0644 $(@D)/res/default.ttf \
+		$(TARGET_DIR)/usr/share/fonts/default.ttf
 
-	$(INSTALL) -D -m 0644 $(@D)/res/thingino_logo_2.bgra \
-		$(TARGET_DIR)/usr/share/images/thingino_logo_2.bgra
+	$(INSTALL) -D -m 0644 $(@D)/res/thingino_100x30.bgra \
+		$(TARGET_DIR)/usr/share/images/thingino_100x30.bgra
 
-#	if [ "$(BR2_PACKAGE_PRUDYNT_T_NG)" = "y" ]; then \
-#	echo "Removing LD_PRELOAD command line from init script"; \
-#	sed -i '/^COMMAND=/d' $(TARGET_DIR)/etc/init.d/S95prudynt; \
-#	fi
+	$(INSTALL) -D -m 0644 $(@D)/res/thingino_210x64.bgra \
+		$(TARGET_DIR)/usr/share/images/thingino_210x64.bgra
 endef
 
 $(eval $(generic-package))

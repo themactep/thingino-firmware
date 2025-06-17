@@ -27,19 +27,7 @@ local CONFIG = {
     -- Date/time format template
     datetime_format = "%Y-%m-%d %H:%M:%S",
 
-    -- Timezone list for configuration
-    timezones = {
-        {value = "UTC", label = "UTC"},
-        {value = "America/New_York", label = "New York (EST/EDT)"},
-        {value = "America/Chicago", label = "Chicago (CST/CDT)"},
-        {value = "America/Denver", label = "Denver (MST/MDT)"},
-        {value = "America/Los_Angeles", label = "Los Angeles (PST/PDT)"},
-        {value = "Europe/London", label = "London (GMT/BST)"},
-        {value = "Europe/Paris", label = "Paris (CET/CEST)"},
-        {value = "Europe/Berlin", label = "Berlin (CET/CEST)"},
-        {value = "Asia/Tokyo", label = "Tokyo (JST)"},
-        {value = "Asia/Shanghai", label = "Shanghai (CST)"}
-    }
+
 }
 
 function handle_request(env)

@@ -189,14 +189,16 @@
               <p class="small mb-2">This web preview is for camera positioning and configuration only. For high-quality streaming, use the RTSP feed directly.</p>
               <div class="mb-2">
                 <small class="text-light d-block mb-1">Main Stream (High Quality):</small>
-                <div class="bg-dark p-2 rounded">
+                <div class="bg-dark p-2 rounded position-relative copyable" onclick="copyToClipboard(this)" title="Click to copy URL">
                   <code class="text-info small" id="mainStreamUrl">Loading...</code>
+                  <i class="bi bi-clipboard position-absolute top-50 end-0 translate-middle-y me-2 text-muted" style="cursor: pointer;"></i>
                 </div>
               </div>
               <div class="mb-2">
                 <small class="text-light d-block mb-1">Sub Stream (Lower Quality):</small>
-                <div class="bg-dark p-2 rounded">
+                <div class="bg-dark p-2 rounded position-relative copyable" onclick="copyToClipboard(this)" title="Click to copy URL">
                   <code class="text-warning small" id="subStreamUrl">Loading...</code>
+                  <i class="bi bi-clipboard position-absolute top-50 end-0 translate-middle-y me-2 text-muted" style="cursor: pointer;"></i>
                 </div>
               </div>
               <p class="small mt-2 mb-0">Open with MPV, VLC, OBS, or any RTSP-compatible player</p>
@@ -637,6 +639,8 @@
                 document.getElementById('subBitrate').textContent = errorText;
             });
     }
+
+
 
     // Auto-start stream when page loads
     window.addEventListener('load', function() {
