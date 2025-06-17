@@ -237,7 +237,7 @@
         }
         
         function searchLogs() {
-            const searchTerm = prompt('Enter search term:');
+            const searchTerm = prompt(window.i18n?.t('js.prompt.enter_search_term') || 'Enter search term:');
             if (searchTerm) {
                 // Highlight search terms in all log sections
                 const logSections = ['systemLogs', 'kernelLogs', 'cameraLogs', 'networkLogs', 'securityLogs'];
@@ -248,8 +248,8 @@
                     const highlighted = content.replace(regex, '<mark>$1</mark>');
                     section.innerHTML = highlighted;
                 });
-                
-                alert(`Search completed for: "${searchTerm}"`);
+
+                alert((window.i18n?.t('js.alert.search_completed') || 'Search completed for') + `: "${searchTerm}"`);
             }
         }
         

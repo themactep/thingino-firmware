@@ -121,24 +121,95 @@ function downloadLogs() {
 }
 
 function clearLogs() {
-    if (confirm('Are you sure you want to clear the debug logs?')) {
+    if (confirm(window.i18n?.t('js.confirm.clear_debug_logs') || 'Are you sure you want to clear the debug logs?')) {
         fetch('/lua/api/debug/clear-logs', {
             method: 'POST'
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Debug logs cleared successfully');
+                alert(window.i18n?.t('js.alert.logs_cleared') || 'Debug logs cleared successfully');
             } else {
-                alert('Failed to clear logs: ' + (data.error || 'Unknown error'));
+                alert((window.i18n?.t('js.alert.logs_clear_failed') || 'Failed to clear logs') + ': ' + (data.error || 'Unknown error'));
             }
         })
         .catch(error => {
             console.error('Error clearing logs:', error);
-            alert('Failed to clear logs');
+            alert(window.i18n?.t('js.alert.logs_clear_failed') || 'Failed to clear logs');
         });
     }
 }
+
+// Language selector functionality
+function updateLanguageMenu() {
+  console.log('updateLanguageMenu called');
+
+  if (!window.i18n) {
+    console.log('i18n not available, retrying in 100ms');
+    setTimeout(updateLanguageMenu, 100); // Wait for i18n to load
+    return;
+  }
+
+  if (!window.i18n.initialized) {
+    console.log('i18n not initialized, retrying in 100ms');
+    setTimeout(updateLanguageMenu, 100); // Wait for i18n to initialize
+    return;
+  }
+
+  const menu = document.getElementById('languageMenu');
+  const button = document.getElementById('languageDropdown');
+
+  if (!menu || !button) {
+    console.log('Language menu elements not found:', { menu: !!menu, button: !!button });
+    return; // Elements not found
+  }
+
+  const available = window.i18n.getAvailableLanguages();
+  const names = window.i18n.getLanguageNames();
+  const current = window.i18n.getCurrentLanguage();
+
+  console.log('Language menu data:', { available, names, current });
+
+  menu.innerHTML = '';
+
+  // Update button text with current language name
+  button.textContent = names[current] || current.toUpperCase();
+
+  // Add available languages
+  available.forEach(lang => {
+    console.log('Adding language to menu:', lang, names[lang]);
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.className = 'dropdown-item' + (lang === current ? ' active' : '');
+    a.href = '#';
+    a.textContent = names[lang] || lang.toUpperCase();
+    a.onclick = async (e) => {
+      e.preventDefault();
+      const success = await window.i18n.switchLanguage(lang);
+      if (success) {
+        updateLanguageMenu(); // Refresh menu
+      }
+    };
+    li.appendChild(a);
+    menu.appendChild(li);
+  });
+
+  console.log('Language menu updated with', available.length, 'languages');
+}
+
+// Legacy function for compatibility
+function setLanguage(lang) {
+  if (window.i18n) {
+    window.i18n.switchLanguage(lang);
+  }
+}
+
+// Initialize language menu when i18n is ready
+document.addEventListener('DOMContentLoaded', updateLanguageMenu);
+document.addEventListener('languageChanged', updateLanguageMenu);
+
+// Manual trigger for debugging
+window.debugUpdateLanguageMenu = updateLanguageMenu;
 </script>
 
 </body>

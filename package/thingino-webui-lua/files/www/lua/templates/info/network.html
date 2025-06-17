@@ -245,23 +245,23 @@
         }
         
         function scanWiFi() {
-            alert('Scanning for WiFi networks...');
+            alert(window.i18n?.t('js.alert.wifi_scanning') || 'Scanning for WiFi networks...');
             fetch('/lua/api/network/wifi-scan', { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.networks) {
-                        let message = 'Available WiFi Networks:\n\n';
+                        let message = (window.i18n?.t('js.alert.wifi_networks_found') || 'Available WiFi Networks:') + '\n\n';
                         data.networks.forEach(network => {
                             message += `${network.ssid} (${network.signal}dBm) - ${network.security}\n`;
                         });
                         alert(message);
                     } else {
-                        alert('WiFi scan failed: ' + (data.error || 'No networks found'));
+                        alert((window.i18n?.t('js.alert.wifi_scan_failed') || 'WiFi scan failed') + ': ' + (data.error || (window.i18n?.t('js.alert.no_networks_found') || 'No networks found')));
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Failed to scan WiFi networks');
+                    alert(window.i18n?.t('js.alert.wifi_scan_error') || 'Failed to scan WiFi networks');
                 });
         }
         

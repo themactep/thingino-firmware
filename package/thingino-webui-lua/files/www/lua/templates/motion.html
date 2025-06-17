@@ -183,7 +183,7 @@
                 const href = link.getAttribute('href');
                 // Only warn for navigation links, not external links or anchors
                 if (href && !href.startsWith('#') && !href.startsWith('mailto:') && !href.startsWith('tel:')) {
-                    if (!confirm('You have unsaved changes to your motion detection zones. Are you sure you want to leave this page?')) {
+                    if (!confirm(window.i18n?.t('js.confirm.unsaved_changes') || 'You have unsaved changes to your motion detection zones. Are you sure you want to leave this page?')) {
                         e.preventDefault();
                         return false;
                     }
