@@ -2,8 +2,8 @@
 
 <div class="row mb-4">
   <div class="col">
-    <h1 class="h3 mb-0"><i class="bi bi-clock me-2"></i>Date & Time Configuration</h1>
-    <p class="text-muted">Configure timezone and time synchronization settings</p>
+    <h1 class="h3 mb-0"><i class="bi bi-clock me-2"></i><span data-i18n="config.datetime.title">Date & Time Configuration</span></h1>
+    <p class="text-muted" data-i18n="config.datetime.subtitle">Configure timezone and time synchronization settings</p>
   </div>
 </div>
 
@@ -11,34 +11,34 @@
   <div class="col-lg-6">
     <div class="card config-form">
       <div class="card-header">
-        <h5 class="card-title mb-0"><i class="bi bi-clock me-2"></i>Date & Time Settings</h5>
+        <h5 class="card-title mb-0"><i class="bi bi-clock me-2"></i><span data-i18n="config.datetime.settings">Date & Time Settings</span></h5>
       </div>
       <div class="card-body">
         <form method="POST" action="/lua/config/datetime">
           <div class="mb-3">
-            <label for="timezone" class="form-label">Timezone</label>
+            <label for="timezone" class="form-label" data-i18n="config.datetime.timezone">Timezone</label>
             <datalist id="tz_list"></datalist>
-            <input type="text" id="timezone" name="timezone" class="form-control" value="{{config_timezone}}" list="tz_list" placeholder="Start typing a city name...">
-            <div class="form-text">Start typing the name of the nearest large city then select from available variants</div>
+            <input type="text" id="timezone" name="timezone" class="form-control" value="{{config_timezone}}" list="tz_list" data-i18n-placeholder="config.datetime.timezone_help">
+            <div class="form-text" data-i18n="config.datetime.timezone_help">Start typing the name of the nearest large city then select from available variants</div>
             <div class="mt-2">
               <button type="button" class="btn btn-outline-secondary btn-sm" id="frombrowser">
-                <i class="bi bi-geo-alt me-1"></i>Use Browser Timezone
+                <i class="bi bi-geo-alt me-1"></i><span data-i18n="config.datetime.use_browser_timezone">Use Browser Timezone</span>
               </button>
             </div>
             <input type="hidden" id="timezone_data" name="timezone_data" value="">
           </div>
           <div class="mb-3">
-            <label for="ntp_server" class="form-label">Primary NTP Server</label>
+            <label for="ntp_server" class="form-label" data-i18n="config.datetime.primary_ntp_server">Primary NTP Server</label>
             <input type="text" id="ntp_server" name="ntp_server" class="form-control" value="{{config_ntp_server}}" placeholder="pool.ntp.org">
-            <div class="form-text">Primary time synchronization server</div>
+            <div class="form-text" data-i18n="config.datetime.primary_ntp_help">Primary time synchronization server</div>
           </div>
           <div class="mb-3">
-            <label for="ntp_server_backup" class="form-label">Backup NTP Server</label>
+            <label for="ntp_server_backup" class="form-label" data-i18n="config.datetime.backup_ntp_server">Backup NTP Server</label>
             <input type="text" id="ntp_server_backup" name="ntp_server_backup" class="form-control" value="{{config_ntp_server_backup}}" placeholder="time.nist.gov">
-            <div class="form-text">Fallback server if primary fails</div>
+            <div class="form-text" data-i18n="config.datetime.backup_ntp_help">Fallback server if primary fails</div>
           </div>
           <div class="d-grid">
-            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save Date & Time Settings</button>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i><span data-i18n="config.datetime.save_settings">Save Date & Time Settings</span></button>
           </div>
         </form>
       </div>
