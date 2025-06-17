@@ -125,15 +125,17 @@ function session.is_expired(sess)
         return true
     end
 
-    local now = os.time()
-    local time_diff = now - sess.last_activity
-    local is_expired = time_diff > SESSION_TIMEOUT
+    -- Session timeout disabled - sessions are permanent until explicitly logged out
+    return false
 
-    if is_expired then
-        utils.log("Session expired: " .. time_diff .. "s > " .. SESSION_TIMEOUT .. "s (user: " .. (sess.user or "unknown") .. ")")
-    end
-
-    return is_expired
+    -- Original timeout logic (disabled):
+    -- local now = os.time()
+    -- local time_diff = now - sess.last_activity
+    -- local is_expired = time_diff > SESSION_TIMEOUT
+    -- if is_expired then
+    --     utils.log("Session expired: " .. time_diff .. "s > " .. SESSION_TIMEOUT .. "s (user: " .. (sess.user or "unknown") .. ")")
+    -- end
+    -- return is_expired
 end
 
 -- Update session activity
@@ -165,20 +167,23 @@ function session.destroy(session_id)
     end
 end
 
--- Clean up expired sessions
+-- Clean up expired sessions (disabled - sessions are permanent)
 function session.cleanup_expired()
-    local now = os.time()
-    local handle = io.popen("ls " .. SESSION_DIR .. "/ 2>/dev/null")
-    
-    if handle then
-        for filename in handle:lines() do
-            local sess = session.load(filename)
-            if sess and session.is_expired(sess) then
-                session.destroy(filename)
-            end
-        end
-        handle:close()
-    end
+    -- Session cleanup disabled - sessions persist until explicitly logged out
+    -- This prevents automatic session invalidation that could cause logout issues
+
+    -- Original cleanup logic (disabled):
+    -- local now = os.time()
+    -- local handle = io.popen("ls " .. SESSION_DIR .. "/ 2>/dev/null")
+    -- if handle then
+    --     for filename in handle:lines() do
+    --         local sess = session.load(filename)
+    --         if sess and session.is_expired(sess) then
+    --             session.destroy(filename)
+    --         end
+    --     end
+    --     handle:close()
+    -- end
 end
 
 -- Initialize session system
