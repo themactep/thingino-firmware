@@ -186,6 +186,17 @@ document.addEventListener('languageChanged', updateLanguageMenu);
 
 // Manual trigger for debugging
 window.debugUpdateLanguageMenu = updateLanguageMenu;
+
+// i18n Debug Tool - Development only
+// Add ?debug_i18n=1 to URL to enable
+if (window.location.search.includes('debug_i18n=1')) {
+  const script = document.createElement('script');
+  script.src = '/i18n_debug_bookmarklet.js';
+  script.onload = function() {
+    console.log('🌍 i18n Debug Tool loaded via URL parameter');
+  };
+  document.head.appendChild(script);
+}
 </script>
 
 </body>
