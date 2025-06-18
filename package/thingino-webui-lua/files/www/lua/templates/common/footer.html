@@ -140,6 +140,13 @@ function clearLogs() {
     }
 }
 
+function enableI18nDebug() {
+    // Add debug parameter to current URL and reload
+    const url = new URL(window.location);
+    url.searchParams.set('debug_i18n', '1');
+    window.location.href = url.toString();
+}
+
 // Language indicator functionality (header display only)
 function updateLanguageMenu() {
   console.log('updateLanguageMenu called');

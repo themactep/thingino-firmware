@@ -249,6 +249,7 @@
   "debug.client_time": "Client Time:",
   "debug.created": "Created:",
   "debug.download_logs": "Download Logs",
+  "debug.i18n_debug": "i18n Debug",
   "debug.last_activity": "Last Activity:",
   "debug.refresh": "Refresh",
   "debug.server_time": "Server Time:",
