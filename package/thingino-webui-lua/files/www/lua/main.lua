@@ -5,6 +5,10 @@ local session = require("session")
 local auth = require("auth")
 local utils = require("utils")
 local config = require("config")
+local i18n = require("i18n")
+
+-- Initialize i18n system
+i18n.init()
 
 -- Global configuration
 local CONFIG = {
@@ -347,6 +351,9 @@ function serve_info_page(info_type, sess)
         template_vars.network_logs = "Network logs will be displayed here..."
         template_vars.security_logs = "Security logs will be displayed here..."
     end
+
+    -- Add debug information
+    template_vars = add_debug_info(template_vars, sess)
 
     local html = utils.load_template("info/" .. info_type, template_vars)
     utils.send_html(html)
@@ -712,6 +719,9 @@ function serve_config_page(config_type, sess)
         utils.log("  " .. k .. " = " .. tostring(v))
     end
 
+    -- Add debug information
+    template_vars = add_debug_info(template_vars, sess)
+
     local template_path = "config/" .. config_type
     utils.log("Loading template: " .. template_path)
 
@@ -770,6 +780,9 @@ function handle_datetime_config(env, sess)
         nav_config_active = "active"
     }
 
+    -- Add debug information
+    template_vars = add_debug_info(template_vars, sess)
+
     local html = utils.load_template("config/datetime", template_vars)
     utils.send_html(html)
 end
@@ -800,6 +813,9 @@ function handle_user_config(env, sess)
         nav_info_active = "",
         nav_config_active = "active"
     }
+
+    -- Add debug information
+    template_vars = add_debug_info(template_vars, sess)
 
     local html = utils.load_template("config/user", template_vars)
     utils.send_html(html)
@@ -881,6 +897,9 @@ function handle_security_config(env, sess)
         template_vars.ssl_generate_style = ""
     end
 
+    -- Add debug information
+    template_vars = add_debug_info(template_vars, sess)
+
     local html = utils.load_template("config/security", template_vars)
     utils.send_html(html)
 end
@@ -914,6 +933,9 @@ function handle_storage_config(env, sess)
         nav_info_active = "",
         nav_config_active = "active"
     }
+
+    -- Add debug information
+    template_vars = add_debug_info(template_vars, sess)
 
     local html = utils.load_template("config/storage", template_vars)
     utils.send_html(html)
@@ -957,6 +979,9 @@ function handle_maintenance_config(env, sess)
         template_vars.system_storage = "Unknown"
     end
 
+    -- Add debug information
+    template_vars = add_debug_info(template_vars, sess)
+
     local html = utils.load_template("config/maintenance", template_vars)
     utils.send_html(html)
 end
@@ -979,6 +1004,9 @@ function handle_firmware_config(env, sess)
     template_vars.firmware_version = os_release:match('VERSION="([^"]+)"') or os_release:match("VERSION=([^\n]+)") or "Unknown"
     template_vars.firmware_build = os_release:match('BUILD_ID="([^"]+)"') or os_release:match("BUILD_ID=([^\n]+)") or "Unknown"
     template_vars.firmware_profile = os_release:match('IMAGE_ID=([^\n]+)') or "Unknown"
+
+    -- Add debug information
+    template_vars = add_debug_info(template_vars, sess)
 
     local html = utils.load_template("config/firmware", template_vars)
     utils.send_html(html)
@@ -1283,6 +1311,23 @@ function handle_api_request(path, env, sess)
         return api_get_snapshot(sess)
     elseif api_path == "websocket-token" then
         return api_get_websocket_token(sess)
+    elseif api_path == "language/list" then
+        return api_language_list(sess)
+    elseif api_path == "language/set" then
+        return api_language_set(sess, env)
+    elseif api_path == "language/download" then
+        return api_language_download(sess, env)
+    elseif api_path == "language/pack" then
+        return api_get_current_language_pack(sess)
+    elseif api_path:match("^language/pack/") then
+        local lang = api_path:match("^language/pack/(.+)")
+        return api_get_language_pack(sess, lang)
+    elseif api_path == "language/debug" then
+        return api_language_debug(sess)
+    elseif api_path == "language/test-persistence" then
+        return api_language_test_persistence(sess)
+    elseif api_path == "language/refresh-available" then
+        return api_language_refresh_available(sess)
     else
         return utils.send_json({error = "API endpoint not found"}, 404)
     end
@@ -2794,3 +2839,311 @@ function api_get_osd_config(sess)
         config = config
     })
 end
+
+-- Add API endpoint for language pack management
+function api_language_list(sess)
+    return utils.send_json({
+        success = true,
+        current = i18n.get_language(),
+        available = i18n.get_available_languages(),
+        names = i18n.get_language_names()
+    })
+end
+
+function api_language_set(sess, env)
+    if env.REQUEST_METHOD ~= "POST" then
+        return utils.send_json({error = "Method not allowed"}, 405)
+    end
+
+    local post_data = utils.read_post_data(env)
+    if not post_data or not post_data.lang then
+        return utils.send_json({
+            success = false,
+            error = "No language specified"
+        }, 400)
+    end
+
+    -- Settings-based language change: download from GitHub if needed, then set
+    local success, result = pcall(function()
+        local lang = post_data.lang
+
+        -- Try to download language pack from GitHub if not available locally
+        local download_success, download_msg = i18n.download_language_pack_from_github(lang)
+
+        -- Set the language (will work with built-in or downloaded pack)
+        local set_success = i18n.set_language(lang)
+        local current = i18n.get_language()
+
+        return {
+            success = set_success,
+            current = current,
+            download_attempted = true,
+            download_success = download_success,
+            download_message = download_msg,
+            message = "Language set to " .. current .. ". Please refresh the page to see changes."
+        }
+    end)
+
+    if success then
+        return utils.send_json(result)
+    else
+        return utils.send_json({
+            success = false,
+            error = "Internal error: " .. tostring(result)
+        }, 500)
+    end
+end
+
+function api_language_download(sess, env)
+    if env.REQUEST_METHOD ~= "POST" then
+        return utils.send_json({error = "Method not allowed"}, 405)
+    end
+
+    local post_data = utils.read_post_data(env)
+    if not post_data or not post_data.lang or not post_data.url then
+        return utils.send_json({
+            success = false,
+            error = "Missing language or URL"
+        }, 400)
+    end
+
+    local success, message = i18n.download_language_pack(post_data.lang, post_data.url)
+
+    return utils.send_json({
+        success = success,
+        message = success and message or nil,
+        error = success and nil or message
+    })
+end
+
+-- API endpoint to serve current language pack (simple version)
+function api_get_current_language_pack(sess)
+    local content = i18n.get_language_pack()
+    if content then
+        -- Parse JSON and send as object
+        local translations = {}
+        for key, value in content:gmatch('"([^"]+)"%s*:%s*"([^"]*)"') do
+            value = value:gsub('\\"', '"')  -- Handle escaped quotes
+            translations[key] = value
+        end
+
+        -- Send raw JSON content with proper headers
+        uhttpd.send("Status: 200 OK\r\n")
+        uhttpd.send("Content-Type: application/json; charset=utf-8\r\n")
+        uhttpd.send("Cache-Control: no-store\r\n\r\n")
+
+        -- Convert translations table to JSON
+        local json_parts = {}
+        for k, v in pairs(translations) do
+            table.insert(json_parts, '"' .. k .. '":"' .. v:gsub('"', '\\"') .. '"')
+        end
+        uhttpd.send('{' .. table.concat(json_parts, ',') .. '}')
+    else
+        -- No language pack = English (return empty object)
+        uhttpd.send("Status: 200 OK\r\n")
+        uhttpd.send("Content-Type: application/json; charset=utf-8\r\n")
+        uhttpd.send("Cache-Control: no-store\r\n\r\n")
+        uhttpd.send('{}')
+    end
+end
+
+-- API endpoint to serve language pack JSON
+function api_get_language_pack(sess, lang)
+    if not lang or lang == "" then
+        return utils.send_json({error = "Language code required"}, 400)
+    end
+
+    -- Add error handling
+    local success, content = pcall(i18n.get_language_pack, lang)
+    if not success then
+        utils.log("Error getting language pack for " .. lang .. ": " .. tostring(content))
+        return utils.send_json({error = "Internal server error"}, 500)
+    end
+
+    if content then
+        -- Send raw JSON content with proper headers
+        uhttpd.send("Status: 200 OK\r\n")
+        uhttpd.send("Content-Type: application/json; charset=utf-8\r\n")
+        uhttpd.send("Cache-Control: no-store\r\n\r\n")
+        uhttpd.send(content)
+    else
+        utils.send_json({error = "Language pack not found for: " .. lang}, 404)
+    end
+end
+
+-- Debug endpoint to check language pack availability
+function api_language_debug(sess)
+    local debug_info = {
+        builtin_dir = "/var/www/lang_packs",
+        download_dir = "/tmp/lang_packs",
+        available_languages = {},
+        file_checks = {}
+    }
+
+    -- Check if directories exist
+    local function check_dir(path)
+        local handle = io.popen("ls -la " .. path .. " 2>/dev/null")
+        if handle then
+            local result = handle:read("*a")
+            handle:close()
+            return result ~= "" and result or nil
+        end
+        return nil
+    end
+
+    debug_info.builtin_dir_content = check_dir(debug_info.builtin_dir)
+    debug_info.download_dir_content = check_dir(debug_info.download_dir)
+
+    -- Check specific files
+    local test_files = {
+        debug_info.builtin_dir .. "/en.json",
+        debug_info.builtin_dir .. "/es.json"
+    }
+
+    for _, file_path in ipairs(test_files) do
+        local file = io.open(file_path, "r")
+        if file then
+            local content = file:read("*all")
+            file:close()
+            debug_info.file_checks[file_path] = {
+                exists = true,
+                size = #content,
+                preview = content:sub(1, 100)
+            }
+        else
+            debug_info.file_checks[file_path] = {
+                exists = false
+            }
+        end
+    end
+
+    -- Get available languages from i18n
+    local success, available = pcall(i18n.get_available_languages)
+    if success then
+        debug_info.available_languages = available
+    else
+        debug_info.i18n_error = tostring(available)
+    end
+
+    utils.send_json(debug_info)
+end
+
+-- Test language persistence
+function api_language_test_persistence(sess)
+    local test_results = {}
+
+    -- Test 1: Check if settings file exists and what it contains
+    local settings_file = "/opt/webui/i18n/current_language"
+    local file = io.open(settings_file, "r")
+    if file then
+        local content = file:read("*all")
+        file:close()
+        test_results.file_exists = true
+        test_results.file_content = content
+    else
+        test_results.file_exists = false
+        test_results.file_content = nil
+    end
+
+    -- Test 2: Try to write a test value
+    local test_file = io.open(settings_file, "w")
+    if test_file then
+        test_file:write("test_lang")
+        test_file:close()
+        test_results.write_test = "success"
+
+        -- Test 3: Try to read it back
+        local read_file = io.open(settings_file, "r")
+        if read_file then
+            local read_content = read_file:read("*all")
+            read_file:close()
+            test_results.read_test = "success"
+            test_results.read_content = read_content
+        else
+            test_results.read_test = "failed"
+        end
+    else
+        test_results.write_test = "failed"
+    end
+
+    -- Test 4: Current i18n state
+    test_results.current_lang = i18n.get_language()
+
+    -- Test 5: Check debug log
+    local debug_file = io.open("/tmp/i18n_debug.log", "r")
+    if debug_file then
+        local debug_content = debug_file:read("*all")
+        debug_file:close()
+        test_results.debug_log = debug_content
+    else
+        test_results.debug_log = "No debug log found"
+    end
+
+    return utils.send_json(test_results)
+end
+
+-- Refresh available languages from GitHub
+function api_language_refresh_available(sess)
+    -- GitHub API URL to list files in lang_packs directory
+    local github_api_url = "https://api.github.com/repos/themactep/thingino-firmware/contents/package/thingino-webui-lua/files/lang_packs"
+
+    -- Use curl to fetch the directory listing
+    local temp_file = "/tmp/github_lang_list.json"
+    local cmd = "curl -s -o " .. temp_file .. " '" .. github_api_url .. "'"
+    local exit_code = os.execute(cmd)
+
+    if not exit_code then
+        return utils.send_json({
+            success = false,
+            error = "Failed to fetch language list from GitHub"
+        }, 500)
+    end
+
+    -- Read the response
+    local file = io.open(temp_file, "r")
+    if not file then
+        return utils.send_json({
+            success = false,
+            error = "Failed to read GitHub response"
+        }, 500)
+    end
+
+    local content = file:read("*all")
+    file:close()
+    os.remove(temp_file)
+
+    -- Parse the JSON response to extract .json files
+    local available_languages = {"en"}  -- Always include English
+    local language_names = {en = "English"}
+
+    -- Simple JSON parsing to find .json files
+    for filename in content:gmatch('"name"%s*:%s*"([^"]+%.json)"') do
+        local lang_code = filename:match("^([^%.]+)%.json$")
+        if lang_code and lang_code ~= "en" then
+            table.insert(available_languages, lang_code)
+
+            -- Add language display names
+            local names = {
+                es = "Español",
+                fr = "Français",
+                de = "Deutsch",
+                it = "Italiano",
+                pt = "Português",
+                ru = "Русский",
+                zh = "中文",
+                ja = "日本語",
+                ko = "한국어"
+            }
+            language_names[lang_code] = names[lang_code] or lang_code:upper()
+        end
+    end
+
+    return utils.send_json({
+        success = true,
+        available = available_languages,
+        names = language_names,
+        source = "GitHub",
+        message = "Language list refreshed from GitHub"
+    })
+end
+
