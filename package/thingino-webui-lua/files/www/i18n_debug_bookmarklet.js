@@ -163,6 +163,11 @@
             <button id="toggleMissing" onclick="window.i18nDebug.toggleMissingDetection()">Find Missing</button>
             <button onclick="window.i18nDebug.exportReport()">Export Report</button>
         </div>
+
+        <div>
+            <button onclick="window.i18nDebug.reloadWithDebug()">Reload with Debug</button>
+            <button onclick="window.i18nDebug.reloadWithoutDebug()">Clear Debug</button>
+        </div>
         
         <div class="debug-stats" id="debugStats">
             <div>Localized: <span id="localizedCount">0</span></div>
@@ -359,6 +364,26 @@
             
             console.log('i18n Debug Report:', report);
             alert(`i18n Report generated! Check console for details.\n\nStats:\n- Localized: ${report.stats.localized}\n- Missing: ${report.stats.missing}\n- Placeholders: ${report.stats.placeholders}\n- Titles: ${report.stats.titles}`);
+        },
+
+        reloadWithDebug() {
+            const url = new URL(window.location);
+
+            // Add or update the debug_i18n parameter
+            url.searchParams.set('debug_i18n', '1');
+
+            // Reload the page with the debug parameter
+            window.location.href = url.toString();
+        },
+
+        reloadWithoutDebug() {
+            const url = new URL(window.location);
+
+            // Remove the debug_i18n parameter
+            url.searchParams.delete('debug_i18n');
+
+            // Reload the page without the debug parameter
+            window.location.href = url.toString();
         }
     };
 
