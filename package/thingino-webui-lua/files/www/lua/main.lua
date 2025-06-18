@@ -13,7 +13,7 @@ i18n.init()
 -- Global configuration
 local CONFIG = {
     session_timeout = 0, -- Disabled - sessions are permanent until logout
-    debug = false, -- Debug disabled for production
+    debug = true, -- Debug enabled for troubleshooting
     disable_auth = true, -- DISABLE AUTHENTICATION FOR CLI TOOLS
 
     -- SSL Certificate paths
@@ -57,6 +57,7 @@ function handle_request(env)
 
     -- Check if authentication is disabled globally
     if CONFIG.disable_auth then
+        utils.log("AUTH DISABLED: Creating fake session for all requests")
         -- Create a fake session for all requests when auth is disabled
         sess = {
             id = "disabled-auth",
@@ -66,6 +67,7 @@ function handle_request(env)
             remote_addr = env.REMOTE_ADDR or "unknown"
         }
         is_authenticated = true
+        utils.log("AUTH DISABLED: is_authenticated = " .. tostring(is_authenticated))
     else
         -- Check if request is from localhost (bypass authentication)
         local remote_addr = env.REMOTE_ADDR or ""
@@ -112,9 +114,12 @@ function handle_request(env)
     end
 
     -- Protected pages (auth required)
+    utils.log("AUTH CHECK: is_authenticated = " .. tostring(is_authenticated) .. " for path = " .. path)
     if not is_authenticated then
+        utils.log("AUTH FAILED: Redirecting to login for path = " .. path)
         return utils.redirect("/lua/login")
     end
+    utils.log("AUTH SUCCESS: Proceeding with request for path = " .. path)
 
     -- Update session activity
     session.update_activity(sess)
