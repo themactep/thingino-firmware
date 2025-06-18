@@ -60,25 +60,26 @@ function i18n.get_current_language()
     local content = file:read("*all")
     file:close()
 
-    -- Try to detect language from content (look for language-specific text)
-    if content:match('"Español"') then
-      return "es"
-    elseif content:match('"Français"') or content:match('"Tableau de bord"') then
-      return "fr"
-    elseif content:match('"Deutsch"') or content:match('"Dashboard"') then
-      return "de"
-    elseif content:match('"Italiano"') or content:match('"Dashboard"') then
-      return "it"
-    elseif content:match('"Português"') or content:match('"Painel"') then
-      return "pt"
-    elseif content:match('"Русский"') or content:match('"Панель управления"') then
+    -- Try to detect language from content using unique dashboard translations
+    -- Check for unique dashboard translations first (most reliable)
+    if content:match('"dashboard%.title"%s*:%s*"Панель управления"') then
       return "ru"
-    elseif content:match('"中文"') or content:match('"仪表板"') then
+    elseif content:match('"dashboard%.title"%s*:%s*"仪表板"') then
       return "zh"
-    elseif content:match('"日本語"') or content:match('"ダッシュボード"') then
+    elseif content:match('"dashboard%.title"%s*:%s*"ダッシュボード"') then
       return "ja"
-    elseif content:match('"한국어"') or content:match('"대시보드"') then
+    elseif content:match('"dashboard%.title"%s*:%s*"대시보드"') then
       return "ko"
+    elseif content:match('"dashboard%.title"%s*:%s*"Tableau de bord"') then
+      return "fr"
+    elseif content:match('"dashboard%.title"%s*:%s*"Painel"') then
+      return "pt"
+    elseif content:match('"dashboard%.title"%s*:%s*"Dashboard"') and content:match('"language%.german"') then
+      return "de"
+    elseif content:match('"dashboard%.title"%s*:%s*"Dashboard"') and content:match('"language%.italian"') then
+      return "it"
+    elseif content:match('"dashboard%.title"%s*:%s*"Panel de control"') or content:match('"language%.spanish"%s*:%s*"Español"') then
+      return "es"
     -- Add more language detection patterns as needed
     else
       return "unknown"  -- File exists but language unknown
