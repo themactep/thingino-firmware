@@ -2872,7 +2872,9 @@ function api_language_set(sess, env)
 
         -- Set the language (will work with built-in or downloaded pack)
         local set_success = i18n.set_language(lang)
-        local current = i18n.get_language()
+
+        -- Use the requested language instead of trying to detect it (avoids race conditions)
+        local current = set_success and lang or "en"
 
         -- Get the proper language name for the message
         local language_names = i18n.get_language_names()

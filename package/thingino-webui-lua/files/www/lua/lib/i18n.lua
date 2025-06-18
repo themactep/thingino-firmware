@@ -62,23 +62,23 @@ function i18n.get_current_language()
 
     -- Try to detect language from content using unique dashboard translations
     -- Check for unique dashboard translations first (most reliable)
-    if content:match('"dashboard%.title"%s*:%s*"Панель управления"') then
+    if content:match('"dashboard.title"%s*:%s*"Панель управления"') then
       return "ru"
-    elseif content:match('"dashboard%.title"%s*:%s*"仪表板"') then
+    elseif content:match('"dashboard.title"%s*:%s*"仪表板"') then
       return "zh"
-    elseif content:match('"dashboard%.title"%s*:%s*"ダッシュボード"') then
+    elseif content:match('"dashboard.title"%s*:%s*"ダッシュボード"') then
       return "ja"
-    elseif content:match('"dashboard%.title"%s*:%s*"대시보드"') then
+    elseif content:match('"dashboard.title"%s*:%s*"대시보드"') then
       return "ko"
-    elseif content:match('"dashboard%.title"%s*:%s*"Tableau de bord"') then
+    elseif content:match('"dashboard.title"%s*:%s*"Tableau de bord"') then
       return "fr"
-    elseif content:match('"dashboard%.title"%s*:%s*"Painel"') then
+    elseif content:match('"dashboard.title"%s*:%s*"Painel"') then
       return "pt"
-    elseif content:match('"dashboard%.title"%s*:%s*"Dashboard"') and content:match('"language%.german"') then
+    elseif content:match('"dashboard.title"%s*:%s*"Dashboard"') and content:match('"language.german"') then
       return "de"
-    elseif content:match('"dashboard%.title"%s*:%s*"Dashboard"') and content:match('"language%.italian"') then
+    elseif content:match('"dashboard.title"%s*:%s*"Dashboard"') and content:match('"language.italian"') then
       return "it"
-    elseif content:match('"dashboard%.title"%s*:%s*"Panel de control"') or content:match('"language%.spanish"%s*:%s*"Español"') then
+    elseif content:match('"dashboard.title"%s*:%s*"Panel"') then
       return "es"
     -- Add more language detection patterns as needed
     else
