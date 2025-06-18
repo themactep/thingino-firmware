@@ -2874,13 +2874,17 @@ function api_language_set(sess, env)
         local set_success = i18n.set_language(lang)
         local current = i18n.get_language()
 
+        -- Get the proper language name for the message
+        local language_names = i18n.get_language_names()
+        local language_name = language_names[current] or current
+
         return {
             success = set_success,
             current = current,
             download_attempted = true,
             download_success = download_success,
             download_message = download_msg,
-            message = "Language set to " .. current .. ". Please refresh the page to see changes."
+            message = "Language set to " .. language_name .. ". Please refresh the page to see changes."
         }
     end)
 

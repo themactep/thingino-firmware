@@ -289,6 +289,37 @@ class ThinginoI18n {
     }
 
     /**
+     * Switch to a different language
+     */
+    async switchLanguage(lang) {
+        try {
+            const response = await fetch('/lua/api/language/set', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `lang=${encodeURIComponent(lang)}`
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Show success message with proper language name
+                alert(data.message || `Language switched to ${lang}`);
+                return true;
+            } else {
+                // Show error message
+                alert(data.error || 'Failed to switch language');
+                return false;
+            }
+        } catch (error) {
+            console.error('Error switching language:', error);
+            alert('Failed to switch language');
+            return false;
+        }
+    }
+
+    /**
      * Debug function to show inline translation patterns
      */
     debugInlinePatterns() {
