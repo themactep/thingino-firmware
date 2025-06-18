@@ -10,31 +10,31 @@
   <div class="stat-card">
     <div class="stat-icon"><i class="bi bi-clock-history"></i></div>
     <div class="stat-value">{{system_uptime}}</div>
-    <div class="stat-label">System Uptime</div>
+    <div class="stat-label" data-i18n="dashboard.system_uptime">System Uptime</div>
   </div>
 
   <div class="stat-card">
     <div class="stat-icon"><i class="bi bi-camera-video"></i></div>
     <div class="stat-value">{{stream_status}}</div>
-    <div class="stat-label">Stream Status</div>
+    <div class="stat-label" data-i18n="dashboard.stream_status">Stream Status</div>
   </div>
 
   <div class="stat-card">
     <div class="stat-icon"><i class="bi bi-speedometer2"></i></div>
     <div class="stat-value">{{system_load}}</div>
-    <div class="stat-label">Load Average</div>
+    <div class="stat-label" data-i18n="dashboard.load_average">Load Average</div>
   </div>
 
   <div class="stat-card">
     <div class="stat-icon"><i class="bi bi-memory"></i></div>
     <div class="stat-value">{{system_memory}}</div>
-    <div class="stat-label">System Memory</div>
+    <div class="stat-label" data-i18n="dashboard.system_memory">System Memory</div>
   </div>
 
   <div class="stat-card">
     <div class="stat-icon"><i class="bi bi-hdd"></i></div>
     <div class="stat-value">{{system_storage}}</div>
-    <div class="stat-label">Storage Usage</div>
+    <div class="stat-label" data-i18n="dashboard.storage_usage">Storage Usage</div>
   </div>
 </div>
 
@@ -60,14 +60,14 @@
   <!-- Quick Actions Card -->
   <div class="card">
     <div class="card-header">
-      <h5 class="card-title mb-0"><i class="bi bi-lightning me-2"></i>Quick Actions</h5>
+      <h5 class="card-title mb-0"><i class="bi bi-lightning me-2"></i><span data-i18n="dashboard.quick_actions">Quick Actions</span></h5>
     </div>
     <div class="card-body">
       <div class="dashboard-actions">
-        <button class="btn btn-success" onclick="takeSnapshot()"><i class="bi bi-camera me-1"></i>Take Snapshot</button>
-        <button class="btn btn-warning" onclick="restartStream()"><i class="bi bi-arrow-clockwise me-1"></i>Restart Stream</button>
-        <button class="btn btn-danger" onclick="rebootSystem()"><i class="bi bi-power me-1"></i>Reboot System</button>
-        <a href="/lua/info" class="btn btn-outline-secondary"><i class="bi bi-info-circle me-1"></i>System Info</a>
+        <button class="btn btn-success" onclick="takeSnapshot()"><i class="bi bi-camera me-1"></i><span data-i18n="dashboard.take_snapshot">Take Snapshot</span></button>
+        <button class="btn btn-warning" onclick="restartStream()"><i class="bi bi-arrow-clockwise me-1"></i><span data-i18n="dashboard.restart_stream">Restart Stream</span></button>
+        <button class="btn btn-danger" onclick="rebootSystem()"><i class="bi bi-power me-1"></i><span data-i18n="dashboard.reboot_system">Reboot System</span></button>
+        <a href="/lua/info" class="btn btn-outline-secondary"><i class="bi bi-info-circle me-1"></i><span data-i18n="dashboard.system_info">System Info</span></a>
       </div>
     </div>
   </div>
@@ -75,24 +75,24 @@
   <!-- System Status Card -->
   <div class="card">
     <div class="card-header">
-      <h5 class="card-title mb-0"><i class="bi bi-cpu me-2"></i>System Status</h5>
+      <h5 class="card-title mb-0"><i class="bi bi-cpu me-2"></i><span data-i18n="dashboard.system_status">System Status</span></h5>
     </div>
     <div class="card-body">
       <div class="camera-status">
         <div class="status-item">
-          <span class="status-label">Uptime</span>
+          <span class="status-label" data-i18n="dashboard.uptime">Uptime</span>
           <span class="text-primary">{{uptime}}</span>
         </div>
         <div class="status-item">
-          <span class="status-label">Load Average</span>
+          <span class="status-label" data-i18n="dashboard.load_average">Load Average</span>
           <span class="text-primary">{{load_average}}</span>
         </div>
         <div class="status-item">
-          <span class="status-label">Network</span>
+          <span class="status-label" data-i18n="dashboard.network">Network</span>
           <div class="status-indicator"></div>
         </div>
         <div class="status-item">
-          <span class="status-label">Storage</span>
+          <span class="status-label" data-i18n="dashboard.storage">Storage</span>
           <div class="status-indicator"></div>
         </div>
       </div>
@@ -102,25 +102,25 @@
   <!-- Recent Activity Card -->
   <div class="card">
     <div class="card-header">
-      <h5 class="card-title mb-0"><i class="bi bi-clock-history me-2"></i>Recent Activity</h5>
+      <h5 class="card-title mb-0"><i class="bi bi-clock-history me-2"></i><span data-i18n="dashboard.recent_activity">Recent Activity</span></h5>
     </div>
     <div class="card-body">
       <div class="list-group list-group-flush">
         <div class="list-group-item">
           <div class="d-flex justify-content-between">
-            <span>System started</span>
+            <span data-i18n="dashboard.system_started">System started</span>
             <small class="text-muted">{{boot_time}}</small>
           </div>
         </div>
         <div class="list-group-item">
           <div class="d-flex justify-content-between">
-            <span>Stream initialized</span>
+            <span data-i18n="dashboard.stream_initialized">Stream initialized</span>
             <small class="text-muted">{{stream_start_time}}</small>
           </div>
         </div>
         <div class="list-group-item">
           <div class="d-flex justify-content-between">
-            <span>Last snapshot</span>
+            <span data-i18n="dashboard.last_snapshot">Last snapshot</span>
             <small class="text-muted">{{last_snapshot_time}}</small>
           </div>
         </div>
@@ -155,36 +155,36 @@
     }
 
     function restartStream() {
-        if (confirm('Are you sure you want to restart the video stream?')) {
+        if (confirm(window.i18n?.t('js.confirm.restart_stream') || 'Are you sure you want to restart the video stream?')) {
             fetch('/lua/api/system/restart-streaming', {method: 'POST'})
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        alert('Stream restarted successfully!');
+                        alert(window.i18n?.t('js.alert.stream_restart_success') || 'Stream restarted successfully!');
                     } else {
-                        alert('Failed to restart stream: ' + (data.error || 'Unknown error'));
+                        alert((window.i18n?.t('js.alert.stream_restart_failed') || 'Failed to restart stream') + ': ' + (data.error || 'Unknown error'));
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Failed to restart stream');
+                    alert(window.i18n?.t('js.alert.stream_restart_failed') || 'Failed to restart stream');
                 });
         }
     }
 
     function rebootSystem() {
-        if (confirm('Are you sure you want to reboot the system? This will disconnect all users.')) {
+        if (confirm(window.i18n?.t('js.confirm.reboot_system') || 'Are you sure you want to reboot the system? This will disconnect all users.')) {
             fetch('/lua/api/system/reboot', {method: 'POST'})
                 .then(response => response.json())
                 .then(data => {
-                    alert('System is rebooting...');
+                    alert(window.i18n?.t('js.alert.system_rebooting') || 'System is rebooting...');
                     setTimeout(() => {
                         window.location.reload();
                     }, 30000); // Reload after 30 seconds
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Failed to reboot system');
+                    alert(window.i18n?.t('js.alert.reboot_failed') || 'Failed to reboot system');
                 });
         }
     }
