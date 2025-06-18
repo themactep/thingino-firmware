@@ -140,7 +140,7 @@ function clearLogs() {
     }
 }
 
-// Language selector functionality
+// Language indicator functionality (header display only)
 function updateLanguageMenu() {
   console.log('updateLanguageMenu called');
 
@@ -156,45 +156,21 @@ function updateLanguageMenu() {
     return;
   }
 
-  const menu = document.getElementById('languageMenu');
-  const button = document.getElementById('languageDropdown');
+  // Update the language indicator in the header (no dropdown menu exists)
+  const indicator = document.querySelector('#currentLanguage span[data-i18n="nav.current_language"]');
 
-  if (!menu || !button) {
-    console.log('Language menu elements not found:', { menu: !!menu, button: !!button });
-    return; // Elements not found
+  if (indicator) {
+    const names = window.i18n.getLanguageNames();
+    const current = window.i18n.getCurrentLanguage();
+    const languageName = names[current] || current.toUpperCase();
+
+    // Update the indicator text
+    indicator.textContent = languageName;
+
+    console.log('Language indicator updated to:', languageName);
+  } else {
+    console.log('Language indicator element not found - this is normal if not on a page with header');
   }
-
-  const available = window.i18n.getAvailableLanguages();
-  const names = window.i18n.getLanguageNames();
-  const current = window.i18n.getCurrentLanguage();
-
-  console.log('Language menu data:', { available, names, current });
-
-  menu.innerHTML = '';
-
-  // Update button text with current language name
-  button.textContent = names[current] || current.toUpperCase();
-
-  // Add available languages
-  available.forEach(lang => {
-    console.log('Adding language to menu:', lang, names[lang]);
-    const li = document.createElement('li');
-    const a = document.createElement('a');
-    a.className = 'dropdown-item' + (lang === current ? ' active' : '');
-    a.href = '#';
-    a.textContent = names[lang] || lang.toUpperCase();
-    a.onclick = async (e) => {
-      e.preventDefault();
-      const success = await window.i18n.switchLanguage(lang);
-      if (success) {
-        updateLanguageMenu(); // Refresh menu
-      }
-    };
-    li.appendChild(a);
-    menu.appendChild(li);
-  });
-
-  console.log('Language menu updated with', available.length, 'languages');
 }
 
 // Legacy function for compatibility
