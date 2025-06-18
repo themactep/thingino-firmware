@@ -40,13 +40,33 @@
             background-color: rgba(255, 0, 0, 0.1) !important;
             position: relative !important;
         }
-        
+
         .i18n-debug-missing::after {
             content: "NEEDS i18n";
             position: absolute;
             top: -20px;
             right: 0;
             background: #ff0000;
+            color: #fff;
+            padding: 2px 4px;
+            font-size: 10px;
+            font-family: monospace;
+            border-radius: 2px;
+            z-index: 10000;
+        }
+
+        .i18n-debug-missing-translation {
+            outline: 2px solid #ff6600 !important;
+            background-color: rgba(255, 102, 0, 0.1) !important;
+            position: relative !important;
+        }
+
+        .i18n-debug-missing-translation::after {
+            content: "MISSING TRANSLATION";
+            position: absolute;
+            top: -20px;
+            right: 0;
+            background: #ff6600;
             color: #fff;
             padding: 2px 4px;
             font-size: 10px;
@@ -146,7 +166,8 @@
         
         <div class="debug-stats" id="debugStats">
             <div>Localized: <span id="localizedCount">0</span></div>
-            <div>Missing: <span id="missingCount">0</span></div>
+            <div>Missing Translation: <span id="missingTranslationCount">0</span></div>
+            <div>Missing i18n: <span id="missingCount">0</span></div>
             <div>Placeholders: <span id="placeholderCount">0</span></div>
             <div>Titles: <span id="titleCount">0</span></div>
         </div>
@@ -221,9 +242,18 @@
         },
 
         highlightMissingElements() {
+            // Method 1: Find elements with data-i18n but no i18n-translated class (missing translations)
+            const missingTranslations = document.querySelectorAll('[data-i18n]:not(.i18n-translated), [data-i18n-placeholder]:not(.i18n-translated), [data-i18n-title]:not(.i18n-translated)');
+            missingTranslations.forEach(el => {
+                if (!el.closest('#i18nDebugPanel')) {
+                    el.classList.add('i18n-debug-missing-translation');
+                }
+            });
+
+            // Method 2: Find elements that might need localization but don't have data-i18n
             const potentialElements = document.querySelectorAll(`
                 h1, h2, h3, h4, h5, h6,
-                label:not([data-i18n]):not([data-i18n-placeholder]):not([data-i18n-title]), 
+                label:not([data-i18n]):not([data-i18n-placeholder]):not([data-i18n-title]),
                 button:not([data-i18n]):not([data-i18n-placeholder]):not([data-i18n-title]),
                 .btn:not([data-i18n]):not([data-i18n-placeholder]):not([data-i18n-title]),
                 .form-label:not([data-i18n]),
@@ -235,16 +265,16 @@
                 th:not([data-i18n]),
                 .badge:not([data-i18n])
             `);
-            
+
             potentialElements.forEach(el => {
                 if (el.closest('#i18nDebugPanel')) return;
-                
+
                 const text = el.textContent.trim();
                 if (!text || text.length < 2 || /^[^\w\s]*$/.test(text)) return;
                 if (/^\d+$/.test(text) || /^[0-9\.\-\+\%\$\€\£\¥]+$/.test(text)) return;
                 if (text.match(/^(OK|404|500|200|GET|POST|PUT|DELETE|API|JSON|XML|HTML|CSS|JS)$/i)) return;
                 if (text.startsWith('{{') || text.startsWith('${') || text.includes('()')) return;
-                
+
                 el.classList.add('i18n-debug-missing');
             });
         },
@@ -262,14 +292,16 @@
         },
 
         updateStats() {
-            const localizedCount = document.querySelectorAll('[data-i18n]').length;
+            const localizedCount = document.querySelectorAll('.i18n-translated').length;
             const placeholderCount = document.querySelectorAll('[data-i18n-placeholder]').length;
             const titleCount = document.querySelectorAll('[data-i18n-title]').length;
+            const missingTranslationCount = document.querySelectorAll('.i18n-debug-missing-translation').length;
             const missingCount = document.querySelectorAll('.i18n-debug-missing').length;
-            
+
             document.getElementById('localizedCount').textContent = localizedCount;
             document.getElementById('placeholderCount').textContent = placeholderCount;
             document.getElementById('titleCount').textContent = titleCount;
+            document.getElementById('missingTranslationCount').textContent = missingTranslationCount;
             document.getElementById('missingCount').textContent = missingCount;
         },
 
