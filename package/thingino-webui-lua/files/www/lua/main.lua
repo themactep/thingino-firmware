@@ -14,6 +14,7 @@ i18n.init()
 local CONFIG = {
     session_timeout = 0, -- Disabled - sessions are permanent until logout
     debug = false, -- Debug disabled for production
+    disable_auth = true, -- DISABLE AUTHENTICATION FOR CLI TOOLS
 
     -- SSL Certificate paths
     ssl_cert_path = "/etc/ssl/certs/uhttpd.crt",
@@ -54,28 +55,41 @@ function handle_request(env)
     local sess = session.get(env)
     local is_authenticated = sess and sess.user and not session.is_expired(sess)
 
-    -- Check if request is from localhost (bypass authentication)
-    local remote_addr = env.REMOTE_ADDR or ""
-    local http_host = env.HTTP_HOST or ""
-
-    -- Simple localhost detection
-    local is_localhost = false
-    if remote_addr == "127.0.0.1" or remote_addr == "::1" or
-       http_host == "localhost" or http_host == "127.0.0.1" or
-       remote_addr == "" then
-        is_localhost = true
-    end
-
-    if is_localhost then
-        -- Create a fake session for localhost requests
+    -- Check if authentication is disabled globally
+    if CONFIG.disable_auth then
+        -- Create a fake session for all requests when auth is disabled
         sess = {
-            id = "localhost",
+            id = "disabled-auth",
             user = "root",
             created = os.time(),
             last_activity = os.time(),
-            remote_addr = "localhost"
+            remote_addr = env.REMOTE_ADDR or "unknown"
         }
         is_authenticated = true
+    else
+        -- Check if request is from localhost (bypass authentication)
+        local remote_addr = env.REMOTE_ADDR or ""
+        local http_host = env.HTTP_HOST or ""
+
+        -- Simple localhost detection
+        local is_localhost = false
+        if remote_addr == "127.0.0.1" or remote_addr == "::1" or
+           http_host == "localhost" or http_host == "127.0.0.1" or
+           remote_addr == "" then
+            is_localhost = true
+        end
+
+        if is_localhost then
+            -- Create a fake session for localhost requests
+            sess = {
+                id = "localhost",
+                user = "root",
+                created = os.time(),
+                last_activity = os.time(),
+                remote_addr = "localhost"
+            }
+            is_authenticated = true
+        end
     end
 
     -- Public pages (no auth required)
