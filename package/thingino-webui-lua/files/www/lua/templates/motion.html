@@ -1,8 +1,8 @@
 {{include:header}}
 
 <div class="row mb-3">
-  <h1 class="h3 mb-0"><i class="bi bi-activity me-2"></i>Motion Detection</h1>
-  <p class="text-muted mb-0">Motion detection control and configuration</p>
+  <h1 class="h3 mb-0"><i class="bi bi-activity me-2"></i><span data-i18n="motion.title">Motion Detection</span></h1>
+  <p class="text-muted mb-0" data-i18n="motion.subtitle">Motion detection control and configuration</p>
 </div>
 
 <div class="row mb-4">
@@ -11,9 +11,9 @@
     <div class="card">
       <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
-          <h5 class="card-title mb-0"><i class="bi bi-bounding-box me-2"></i>Zone Configuration</h5>
-          <button class="btn btn-outline-primary btn-sm" onclick="loadSnapshot()" title="Load New Snapshot">
-            <i class="bi bi-camera me-1"></i>Refresh Image
+          <h5 class="card-title mb-0"><i class="bi bi-bounding-box me-2"></i><span data-i18n="motion.zone_configuration">Zone Configuration</span></h5>
+          <button class="btn btn-outline-primary btn-sm" onclick="loadSnapshot()" data-i18n-title="motion.load_new_snapshot">
+            <i class="bi bi-camera me-1"></i><span data-i18n="motion.refresh_image">Refresh Image</span>
           </button>
         </div>
       </div>
@@ -22,13 +22,13 @@
         <div class="mb-3">
           <div class="btn-group" role="group">
             <input type="radio" class="btn-check" name="drawingMode" id="modeInclude" value="include" checked>
-            <label class="btn btn-outline-success" for="modeInclude"><i class="bi bi-plus-circle me-1"></i>Include Zone</label>
+            <label class="btn btn-outline-success" for="modeInclude"><i class="bi bi-plus-circle me-1"></i><span data-i18n="motion.include_zone">Include Zone</span></label>
             <input type="radio" class="btn-check" name="drawingMode" id="modeExclude" value="exclude">
-            <label class="btn btn-outline-danger" for="modeExclude"><i class="bi bi-dash-circle me-1"></i>Exclude Zone</label>
+            <label class="btn btn-outline-danger" for="modeExclude"><i class="bi bi-dash-circle me-1"></i><span data-i18n="motion.exclude_zone">Exclude Zone</span></label>
           </div>
           <div class="btn-group ms-3" role="group">
-            <button class="btn btn-outline-warning" onclick="clearAllZones()"><i class="bi bi-trash me-1"></i>Clear All</button>
-            <button class="btn btn-outline-info" onclick="undoLastZone()"><i class="bi bi-arrow-counterclockwise me-1"></i>Undo</button>
+            <button class="btn btn-outline-warning" onclick="clearAllZones()"><i class="bi bi-trash me-1"></i><span data-i18n="motion.clear_all">Clear All</span></button>
+            <button class="btn btn-outline-info" onclick="undoLastZone()"><i class="bi bi-arrow-counterclockwise me-1"></i><span data-i18n="motion.undo">Undo</span></button>
           </div>
         </div>
         <!-- Canvas Container -->
@@ -42,9 +42,9 @@
         <div class="mt-3">
           <small class="text-muted">
             <i class="bi bi-info-circle me-1"></i>
-            <strong>Instructions:</strong> Click and drag to draw rectangular zones.
-            <span class="text-success">Include zones</span> will be monitored for motion,
-            <span class="text-danger">exclude zones</span> will be ignored.
+            <strong data-i18n="motion.instructions">Instructions:</strong> <span data-i18n="motion.instructions_text">Click and drag to draw rectangular zones.</span>
+            <span class="text-success" data-i18n="motion.include_zones_help">Include zones</span> <span data-i18n="motion.will_be_monitored">will be monitored for motion,</span>
+            <span class="text-danger" data-i18n="motion.exclude_zones_help">exclude zones</span> <span data-i18n="motion.will_be_ignored">will be ignored.</span>
           </small>
         </div>
       </div>
@@ -57,24 +57,24 @@
       <div class="col-12">
         <div class="card">
           <div class="card-header">
-            <h5 class="card-title mb-0"><i class="bi bi-gear me-2"></i>Motion Settings</h5>
+            <h5 class="card-title mb-0"><i class="bi bi-gear me-2"></i><span data-i18n="motion.settings">Motion Settings</span></h5>
           </div>
           <div class="card-body">
             <div class="mb-3">
-              <label class="form-label">Sensitivity</label>
+              <label class="form-label" data-i18n="motion.sensitivity">Sensitivity</label>
               <input type="range" class="form-range" id="sensitivity" min="1" max="100" value="50">
               <div class="d-flex justify-content-between">
-                <small class="text-muted">Low</small>
-                <small class="text-muted">High</small>
+                <small class="text-muted" data-i18n="motion.low">Low</small>
+                <small class="text-muted" data-i18n="motion.high">High</small>
               </div>
             </div>
             <div class="mb-3">
-              <label class="form-label">Minimum Object Size (%)</label>
+              <label class="form-label" data-i18n="motion.min_object_size">Minimum Object Size (%)</label>
               <input type="number" class="form-control" id="minObjectSize" min="1" max="50" value="5">
             </div>
             <div class="form-check">
               <input class="form-check-input" type="checkbox" id="enableMotion" checked>
-              <label class="form-check-label" for="enableMotion">Enable Motion Detection</label>
+              <label class="form-check-label" for="enableMotion" data-i18n="motion.enable_detection">Enable Motion Detection</label>
             </div>
           </div>
         </div>
@@ -85,10 +85,10 @@
           <div class="card-header">
             <div class="d-flex justify-content-between align-items-center">
               <h5 class="card-title mb-0">
-                <i class="bi bi-list me-2"></i>Defined Zones (<span id="zoneCount">0</span>)
+                <i class="bi bi-list me-2"></i><span data-i18n="motion.defined_zones">Defined Zones</span> (<span id="zoneCount">0</span>)
               </h5>
-              <button class="btn btn-success btn-sm" onclick="saveConfiguration()" title="Save Configuration">
-                <i class="bi bi-check-lg me-1"></i>Save
+              <button class="btn btn-success btn-sm" onclick="saveConfiguration()" data-i18n-title="motion.save_configuration">
+                <i class="bi bi-check-lg me-1"></i><span data-i18n="motion.save">Save</span>
               </button>
             </div>
           </div>
@@ -96,8 +96,8 @@
             <div id="zoneList">
               <div class="text-muted text-center py-3">
                 <i class="bi bi-bounding-box fs-1 mb-2"></i>
-                <p>No zones defined yet</p>
-                <small>Draw zones on the image to get started</small>
+                <p data-i18n="motion.no_zones_defined">No zones defined yet</p>
+                <small data-i18n="motion.draw_zones_to_start">Draw zones on the image to get started</small>
               </div>
             </div>
           </div>
@@ -413,8 +413,8 @@
             zoneList.innerHTML = `
                 <div class="text-muted text-center py-3">
                     <i class="bi bi-bounding-box fs-1 mb-2"></i>
-                    <p>No zones defined yet</p>
-                    <small>Draw zones on the image to get started</small>
+                    <p>${window.i18n?.t('motion.no_zones_defined') || 'No zones defined yet'}</p>
+                    <small>${window.i18n?.t('motion.draw_zones_to_start') || 'Draw zones on the image to get started'}</small>
                 </div>
             `;
             return;
