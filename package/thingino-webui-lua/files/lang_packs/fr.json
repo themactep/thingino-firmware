@@ -249,6 +249,7 @@
   "debug.client_time": "Heure du client :",
   "debug.created": "Créé :",
   "debug.download_logs": "Télécharger les journaux",
+  "debug.i18n_debug": "i18n Debug",
   "debug.last_activity": "Dernière activité :",
   "debug.refresh": "Actualiser",
   "debug.server_time": "Heure du serveur :",

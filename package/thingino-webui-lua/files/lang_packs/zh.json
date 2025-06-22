@@ -249,6 +249,7 @@
   "debug.client_time": "客户端时间：",
   "debug.created": "创建时间：",
   "debug.download_logs": "下载日志",
+  "debug.i18n_debug": "i18n Debug",
   "debug.last_activity": "最后活动：",
   "debug.refresh": "刷新",
   "debug.server_time": "服务器时间：",

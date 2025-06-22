@@ -249,6 +249,7 @@
   "debug.client_time": "クライアント時刻:",
   "debug.created": "作成日時:",
   "debug.download_logs": "ログをダウンロード",
+  "debug.i18n_debug": "i18n Debug",
   "debug.last_activity": "最終アクティビティ:",
   "debug.refresh": "更新",
   "debug.server_time": "サーバー時刻:",

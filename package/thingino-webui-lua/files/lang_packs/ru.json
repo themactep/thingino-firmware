@@ -249,6 +249,7 @@
   "debug.client_time": "Время клиента:",
   "debug.created": "Создано:",
   "debug.download_logs": "Скачать журналы",
+  "debug.i18n_debug": "i18n Debug",
   "debug.last_activity": "Последняя активность:",
   "debug.refresh": "Обновить",
   "debug.server_time": "Время сервера:",

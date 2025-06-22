@@ -249,6 +249,7 @@
   "debug.client_time": "클라이언트 시간:",
   "debug.created": "생성됨:",
   "debug.download_logs": "로그 다운로드",
+  "debug.i18n_debug": "i18n Debug",
   "debug.last_activity": "마지막 활동:",
   "debug.refresh": "새로고침",
   "debug.server_time": "서버 시간:",

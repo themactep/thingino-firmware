@@ -249,6 +249,7 @@
   "debug.client_time": "Hora del Cliente:",
   "debug.created": "Creado:",
   "debug.download_logs": "Descargar Registros",
+  "debug.i18n_debug": "i18n Debug",
   "debug.last_activity": "Última Actividad:",
   "debug.refresh": "Actualizar",
   "debug.server_time": "Hora del Servidor:",
