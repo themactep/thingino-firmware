@@ -1,0 +1,47 @@
+make[1]: Entering directory '/home/paul/dev/thingino-dev/buildroot'
+--- FILE: external.mk
+Host architecture x86_64
+Building for architecture xburst1
+SOC_VENDOR: ingenic
+SOC_FAMILY: t31
+SOC_FAMILY_CAPS: T31
+SOC_MODEL: t31x
+SOC_MODEL_LESS_Z: t31x
+SOC_RAM: 128
+KERNEL_VERSION: 3.10
+KERNEL_SITE: https://github.com/gtxaspec/thingino-linux
+KERNEL_BRANCH: ingenic-t31
+KERNEL_HASH: a3fe228a1b87a6a30767601964e94e34c6ca091e
+KERNEL_TARBALL_URL: https://github.com/gtxaspec/thingino-linux/archive/a3fe228a1b87a6a30767601964e94e34c6ca091e.tar.gz
+SENSOR_MODEL: gc2053
+AVPU_CLK: avpu_clk=600000000
+AVPU_CLK_SRC: 
+ISP_CLK: isp_clk=200000000
+ISP_CLK_SRC: 
+ISP_CLKA_CLK: 
+ISP_CLKA_SRC: 
+ISP_MEMOPT: 
+ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM: 
+ISP_CH0_PRE_DEQUEUE_TIME: 
+ISP_CH0_PRE_DEQUEUE_INTERRUP_PROCESS: 
+ISP_CH0_PRE_DEQUEUE_VALID_LINES: 
+FLASH_SIZE: 16777216
+UBOOT_BOARDNAME: "isvp_t31_sfcnor_ddr128M"
+UBOOT_REPO: https://github.com/gtxaspec/ingenic-u-boot-xburst1
+UBOOT_REPO_BRANCH: master
+UBOOT_REPO_VERSION: 79e8b65017ac6f47313cc8afc272da3c717a5f62
+BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME: ""isvp_t31_sfcnor_ddr128M""
+BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME: "u-boot-lzo-with-spl.bin"
+STREAMER: prudynt
+SDK_VERSION: 1.1.6
+SDK_LIBC_VERSION: 5.4.0
+SDK_LIBC_NAME: uclibc
+Building using libs for uclibc GCC 5.4.0 toolchain from 1.1.6 SDK
+Makefile:577: *** ingenic-musl is in the dependency chain of ingenic-audiodaemon that has added it to its _DEPENDENCIES variable without selecting it or depending on it from Config.in.  Stop.
+make[1]: *** [Makefile:83: _all] Error 2
+make[1]: Leaving directory '/home/paul/dev/thingino-dev/buildroot'
+make[1]: Entering directory '/home/paul/dev/thingino-dev/buildroot'
+  GEN     /home/paul/output-feature/osd-configuration-improvements/wyze_cam3_t31x_gc2053_rtl8189ftv/Makefile
+Makefile:955: *** Please configure Buildroot first (e.g. "make menuconfig").  Stop.
+make[1]: *** [Makefile:83: _all] Error 2
+make[1]: Leaving directory '/home/paul/dev/thingino-dev/buildroot'

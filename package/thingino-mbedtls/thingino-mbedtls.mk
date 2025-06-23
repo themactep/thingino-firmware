@@ -4,9 +4,10 @@
 #
 ################################################################################
 
-THINGINO_MBEDTLS_VERSION = 2.28.9
-THINGINO_MBEDTLS_SITE = https://github.com/Mbed-TLS/mbedtls/releases/download/v$(THINGINO_MBEDTLS_VERSION)
-THINGINO_MBEDTLS_SOURCE = mbedtls-$(THINGINO_MBEDTLS_VERSION).tar.bz2
+THINGINO_MBEDTLS_VERSION = a3857eb746057e69e2de56f6c546d999d985827d
+THINGINO_MBEDTLS_SITE = https://github.com/Mbed-TLS/mbedtls.git
+THINGINO_MBEDTLS_SITE_METHOD = git
+THINGINO_MBEDTLS_GIT_SUBMODULES = YES
 THINGINO_MBEDTLS_CONF_OPTS = \
 	-DCMAKE_C_FLAGS="$(TARGET_CFLAGS) -std=c99" \
 	-DENABLE_PROGRAMS=$(if $(BR2_PACKAGE_THINGINO_MBEDTLS_PROGRAMS),ON,OFF) \
@@ -22,9 +23,9 @@ THINGINO_MBEDTLS_CPE_ID_PRODUCT = mbed_tls
 ifeq ($(BR2_TOOLCHAIN_HAS_THREADS),y)
 define THINGINO_MBEDTLS_ENABLE_THREADING
 	$(SED) "s://#define MBEDTLS_THREADING_C:#define MBEDTLS_THREADING_C:" \
-		$(@D)/include/mbedtls/config.h
+		$(@D)/include/mbedtls/mbedtls_config.h
 	$(SED) "s://#define MBEDTLS_THREADING_PTHREAD:#define MBEDTLS_THREADING_PTHREAD:" \
-		$(@D)/include/mbedtls/config.h
+		$(@D)/include/mbedtls/mbedtls_config.h
 endef
 THINGINO_MBEDTLS_PRE_CONFIGURE_HOOKS += THINGINO_MBEDTLS_ENABLE_THREADING
 ifeq ($(BR2_STATIC_LIBS),y)
@@ -45,11 +46,11 @@ endif
 
 define THINGINO_MBEDTLS_DISABLE_ASM
 	$(SED) '/^#define MBEDTLS_AESNI_C/d' \
-		$(@D)/include/mbedtls/config.h
+		$(@D)/include/mbedtls/mbedtls_config.h
 	$(SED) '/^#define MBEDTLS_HAVE_ASM/d' \
-		$(@D)/include/mbedtls/config.h
+		$(@D)/include/mbedtls/mbedtls_config.h
 	$(SED) '/^#define MBEDTLS_PADLOCK_C/d' \
-		$(@D)/include/mbedtls/config.h
+		$(@D)/include/mbedtls/mbedtls_config.h
 endef
 
 # ARM in thumb mode breaks debugging with asm optimizations
@@ -61,12 +62,9 @@ else ifeq ($(BR2_microblaze)$(BR2_MIPS_CPU_MIPS32R6)$(BR2_MIPS_CPU_MIPS64R6),y)
 THINGINO_MBEDTLS_POST_CONFIGURE_HOOKS += THINGINO_MBEDTLS_DISABLE_ASM
 endif
 
-ifeq ($(BR2_PACKAGE_THINGINO_MBEDTLS_DTLS_SRTP),y)
-define THINGINO_MBEDTLS_ENABLE_DTLS_SRTP
-	$(SED) "s://#define MBEDTLS_SSL_DTLS_SRTP:#define MBEDTLS_SSL_DTLS_SRTP:" \
-		$(@D)/include/mbedtls/config.h
-endef
-THINGINO_MBEDTLS_PRE_CONFIGURE_HOOKS += THINGINO_MBEDTLS_ENABLE_DTLS_SRTP
-endif
+
+
+# Patches are applied automatically by buildroot:
+# 0001-enable-dtls-srtp.patch - Enable DTLS-SRTP support for WebRTC
 
 $(eval $(cmake-package))

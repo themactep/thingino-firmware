@@ -327,6 +327,12 @@ define THINGINO_UBOOT_DROP_YYLLOC
 endef
 THINGINO_UBOOT_POST_PATCH_HOOKS += THINGINO_UBOOT_DROP_YYLLOC
 
+# Copy sha1.h to tools directory for tools build
+define THINGINO_UBOOT_COPY_SHA1_HEADER
+	cp $(@D)/include/sha1.h $(@D)/tools/sha1.h
+endef
+THINGINO_UBOOT_POST_PATCH_HOOKS += THINGINO_UBOOT_COPY_SHA1_HEADER
+
 ifneq ($(ARCH_XTENSA_OVERLAY_FILE),)
 define THINGINO_UBOOT_XTENSA_OVERLAY_EXTRACT
 	$(call arch-xtensa-overlay-extract,$(@D),u-boot)

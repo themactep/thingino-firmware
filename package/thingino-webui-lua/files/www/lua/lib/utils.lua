@@ -3,6 +3,13 @@ local utils = {}
 -- Constants
 utils.DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+-- Client-side localization - no server-side translation processing needed
+function utils.translate_template(content)
+    -- For client-side localization, we don't process translation keys on the server
+    -- Translation keys like {{t:key}} will be handled by JavaScript on the client
+    return content
+end
+
 -- HTTP response functions
 function utils.send_html(content)
     uhttpd.send("Status: 200 OK\r\n")
@@ -306,6 +313,8 @@ function utils.load_template(template_name, vars)
     return content
 end
 
+-- No need to override load_template for client-side localization
+
 -- Process template includes
 function utils.process_includes(content)
     -- Process {{include:filename}} directives
@@ -320,6 +329,7 @@ function utils.process_includes(content)
         local include_content = file:read("*all")
         file:close()
 
+        -- Don't apply translations here - let the main template processing handle it
         return include_content
     end
 
@@ -1037,11 +1047,15 @@ function utils.table_to_json(t)
 end
 
 function utils.log(message)
+    -- Try multiple logging methods
     local log_file = io.open("/tmp/webui-lua.log", "a")
     if log_file then
         log_file:write(os.date(utils.DATETIME_FORMAT) .. " " .. message .. "\n")
         log_file:close()
     end
+
+    -- Also log to syslog as backup
+    os.execute("logger 'WEBUI-LUA: " .. message .. "'")
 end
 
 function utils.redirect(location)

@@ -426,7 +426,7 @@ function connectToPrudyntWebSocket() {
                 return;
             }
 
-            // Use port 8089 for both HTTP and HTTPS (only port listening)
+            // Use port 8089 for both HTTP and HTTPS
             const wsPort = 8089;
             const wsUrl = '//' + location.hostname + ':' + wsPort + '?token=' + token;
 
@@ -470,8 +470,6 @@ function tryDirectWebSocketConnection(wsUrl) {
         return false;
     }
 }
-
-
 
 function sendWebSocketMessage(message) {
     if (!prudyntWebSocket || prudyntWebSocket.readyState !== WebSocket.OPEN) {

@@ -1,6 +1,11 @@
 # Thingino Firmware
 # https://github.com/themactep/thingino-firmware
 
+CROSS_COMPILE ?= /opt/toolchains/thingino/xb1/gcc14-musl/bin/mipsel-thingino-linux-musl-
+export CROSS_COMPILE
+
+:> $(BR2_EXTERNAL)/build.log
+
 BR2_HOSTARCH = $(shell uname -m)
 export BR2_HOSTARCH
 
@@ -237,11 +242,11 @@ bootstrap:
 
 build: $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) all
+	$(BR2_MAKE) all 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
 
 build_fast: $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) -j$(shell nproc) all
+	$(BR2_MAKE) -j$(shell nproc) all 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
 
 ### Configuration
 
@@ -312,16 +317,16 @@ select-device:
 # call configurator
 menuconfig: $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) menuconfig
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) menuconfig 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
 
 nconfig: $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) nconfig
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) nconfig 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
 
 # permanently save changes to the defconfig
 saveconfig:
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) savedefconfig
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) savedefconfig 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
 
 ### Files
 
@@ -385,7 +390,7 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 # rebuild a package
 rebuild-%: defconfig
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
+	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@) 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
 
 remove_bins:
 	$(info -------------------------------- $@)
@@ -397,16 +402,16 @@ repack: remove_bins pack
 # build toolchain fast
 sdk: defconfig
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) -j$(shell nproc) sdk
+	$(BR2_MAKE) -j$(shell nproc) sdk 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
 
 source: defconfig
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
 
 # build toolchain
 toolchain: defconfig
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) sdk
+	$(BR2_MAKE) sdk 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
 
 # flash new uboot image to the camera
 upboot_ota: $(U_BOOT_BIN)
@@ -445,7 +450,7 @@ br-%-dirclean:
 
 br-%: defconfig
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) $(subst br-,,$@)
+	$(BR2_MAKE) $(subst br-,,$@) 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
 
 # checkout buidroot submodule
 buildroot/Makefile:
@@ -500,7 +505,7 @@ endif
 		ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; \
 	fi
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
 
 $(U_BOOT_ENV_TXT): $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
@@ -567,18 +572,18 @@ $(EXTRAS_BIN): $(U_BOOT_BIN)
 # rebuild kernel
 $(KERNEL_BIN):
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) linux-rebuild
+	$(BR2_MAKE) linux-rebuild 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
 #	mv -vf $(OUTPUT_DIR)/images/uImage $@
 
 # rebuild rootfs
 $(ROOTFS_BIN):
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) all
+	$(BR2_MAKE) all 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
 
 # create .tar file of rootfs
 $(ROOTFS_TAR):
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) all
+	$(BR2_MAKE) all 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
 
 info:
     $(info Host architecture $(BR2_HOSTARCH))

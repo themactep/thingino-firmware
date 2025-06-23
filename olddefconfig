@@ -1,0 +1,15 @@
+make[1]: Entering directory '/home/paul/dev/thingino-dev/buildroot'
+  GEN     /home/paul/output-feature/osd-configuration-improvements/wyze_cam3_t31x_gc2053_rtl8189ftv/Makefile
+Makefile:955: *** Please configure Buildroot first (e.g. "make menuconfig").  Stop.
+make[1]: *** [Makefile:83: _all] Error 2
+make[1]: Leaving directory '/home/paul/dev/thingino-dev/buildroot'
+make[1]: Entering directory '/home/paul/dev/thingino-dev/buildroot'
+  GEN     /home/paul/output-feature/osd-configuration-improvements/wyze_cam3_t31x_gc2053_rtl8189ftv/Makefile
+Makefile:955: *** Please configure Buildroot first (e.g. "make menuconfig").  Stop.
+make[1]: *** [Makefile:83: _all] Error 2
+make[1]: Leaving directory '/home/paul/dev/thingino-dev/buildroot'
+make[1]: Entering directory '/home/paul/dev/thingino-dev/buildroot'
+  GEN     /home/paul/output-feature/osd-configuration-improvements/wyze_cam3_t31x_gc2053_rtl8189ftv/Makefile
+Makefile:955: *** Please configure Buildroot first (e.g. "make menuconfig").  Stop.
+make[1]: *** [Makefile:83: _all] Error 2
+make[1]: Leaving directory '/home/paul/dev/thingino-dev/buildroot'

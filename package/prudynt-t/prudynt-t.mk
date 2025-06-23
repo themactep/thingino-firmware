@@ -1,25 +1,21 @@
 PRUDYNT_T_SITE_METHOD = git
-ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
-	PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
-	PRUDYNT_T_SITE_BRANCH = master
-	#PRUDYNT_T_VERSION = 6eab9c0ef6fac8eb80f10ce489bca18295d84729
-	PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
-else
-	PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
-	PRUDYNT_T_SITE_BRANCH = prudynt-t-old
-	#PRUDYNT_T_VERSION = 5daadef8f84596fd39343a5a794ebfd419c225fb
-	PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
-endif
+PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
+PRUDYNT_T_SITE_BRANCH = master
+#PRUDYNT_T_VERSION = 6eab9c0ef6fac8eb80f10ce489bca18295d84729
+PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
 
 PRUDYNT_T_GIT_SUBMODULES = YES
 
-PRUDYNT_T_DEPENDENCIES = json-c thingino-live555 thingino-fonts ingenic-lib faac thingino-opus libhelix-aac
+PRUDYNT_T_DEPENDENCIES = json-c thingino-live555 ingenic-lib libschrift
+PRUDYNT_T_DEPENDENCIES += thingino-opus
+PRUDYNT_T_DEPENDENCIES += faac libhelix-aac
 PRUDYNT_T_DEPENDENCIES += host-jq
-ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
-	PRUDYNT_T_DEPENDENCIES += libwebsockets libschrift
-else
-	PRUDYNT_T_DEPENDENCIES += thingino-freetype
+PRUDYNT_T_DEPENDENCIES += libwebsockets
+
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_WEBRTC),y)
+	PRUDYNT_T_DEPENDENCIES += libpeer
 endif
+
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 	PRUDYNT_T_DEPENDENCIES += ingenic-musl
 endif
@@ -45,9 +41,11 @@ PRUDYNT_CFLAGS += \
 	-I$(STAGING_DIR)/usr/include/UsageEnvironment \
 	-I$(STAGING_DIR)/usr/include/BasicUsageEnvironment
 
-ifneq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_WEBRTC),y)
 PRUDYNT_CFLAGS += \
-	-I$(STAGING_DIR)/usr/include/freetype2
+	-DWEBRTC_ENABLED=1 \
+	-DLIBPEER_AVAILABLE=1 \
+	-I$(STAGING_DIR)/usr/include
 endif
 
 PRUDYNT_LDFLAGS = $(TARGET_LDFLAGS) \
@@ -60,6 +58,7 @@ define PRUDYNT_T_BUILD_CMDS
 		CROSS_COMPILE=$(TARGET_CROSS) \
 		CFLAGS="$(PRUDYNT_CFLAGS)" \
 		LDFLAGS="$(PRUDYNT_LDFLAGS)" \
+		$(if $(BR2_PACKAGE_PRUDYNT_T_WEBRTC),WEBRTC_ENABLED=1,) \
 		-C $(@D) all commit_tag=$(shell git show -s --format=%h)
 endef
 

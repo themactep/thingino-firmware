@@ -6,9 +6,9 @@ HTTPD_CONF="/etc/httpd.conf"
 PORTAL_CONF="/etc/httpd-portal.conf"
 
 if [ -f "$PORTAL_MODE_FLAG" ]; then
-	DAEMON_ARGS="-f -c $PORTAL_CONF -p 127.0.0.1:8080"
+	DAEMON_ARGS="-f -c $PORTAL_CONF"
 else
-	DAEMON_ARGS="-f -c $HTTPD_CONF -r Authentication -p 127.0.0.1:8080"
+	DAEMON_ARGS="-f -c $HTTPD_CONF -r Authentication"
 fi
 
 if [ "0$debug" -gt 0 ]; then
@@ -18,13 +18,13 @@ else
 fi
 
 start() {
-	echo_title "Starting HTTPD Backend (port 8080)"
+	echo_title "Starting HTTPD"
 
 	start_daemon
 }
 
 stop() {
-	echo_title "Stopping HTTPD Backend"
+	echo_title "Stopping HTTPD"
 
 	stop_daemon
 }

@@ -40,18 +40,25 @@ end
 
 -- Save session to file
 function session.save(sess)
+    -- Ensure session directory exists
+    os.execute("mkdir -p " .. SESSION_DIR .. " 2>/dev/null")
+
     local session_file = SESSION_DIR .. "/" .. sess.id
     local file = io.open(session_file, "w")
-    
+
     if file then
         file:write("user=" .. sess.user .. "\n")
         file:write("created=" .. sess.created .. "\n")
         file:write("last_activity=" .. sess.last_activity .. "\n")
         file:write("remote_addr=" .. sess.remote_addr .. "\n")
         file:close()
-        
-        -- Set file permissions (readable only by owner)
-        os.execute("chmod 600 " .. session_file)
+
+        -- Set file permissions (readable only by owner) - only if file exists
+        local check_file = io.open(session_file, "r")
+        if check_file then
+            check_file:close()
+            os.execute("chmod 600 " .. session_file .. " 2>/dev/null")
+        end
     end
 end
 
@@ -189,9 +196,9 @@ end
 -- Initialize session system
 function session.init()
     -- Create session directory if it doesn't exist
-    os.execute("mkdir -p " .. SESSION_DIR)
-    os.execute("chmod 700 " .. SESSION_DIR)
-    
+    os.execute("mkdir -p " .. SESSION_DIR .. " 2>/dev/null")
+    os.execute("chmod 700 " .. SESSION_DIR .. " 2>/dev/null")
+
     -- Clean up expired sessions
     session.cleanup_expired()
 end

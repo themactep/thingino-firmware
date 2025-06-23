@@ -7,6 +7,10 @@ local utils = require("utils")
 local config = require("config")
 local i18n = require("i18n")
 
+-- Test logging at startup
+os.execute("logger 'WEBUI-LUA: main.lua loaded successfully'")
+os.execute("echo 'WEBUI-LUA: main.lua loaded at " .. os.date() .. "' >> /tmp/webui-startup.log")
+
 -- Initialize i18n system
 i18n.init()
 

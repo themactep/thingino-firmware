@@ -16,7 +16,7 @@ config BR2_PACKAGE_THINGINO_UHTTPD
 	  for a complete modern web interface.
 
 	  Features:
-	  - Native HTTPS support with mbedtls encryption
+	  - Native HTTPS support with wolfSSL or mbedTLS encryption
 	  - Lua scripting for dynamic web applications
 	  - Session-based authentication and security
 	  - Automatic HTTP to HTTPS redirection
@@ -33,19 +33,61 @@ if BR2_PACKAGE_THINGINO_UHTTPD
 config BR2_PACKAGE_THINGINO_UHTTPD_TLS
 	bool "Enable TLS/HTTPS support"
 	default y
+	help
+	  Enable TLS/HTTPS support for uhttpd.
+	  This provides secure encrypted connections to the camera's
+	  web interface with modern TLS protocols.
+
+if BR2_PACKAGE_THINGINO_UHTTPD_TLS
+
+choice
+	prompt "SSL/TLS library to use"
+	default BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS if BR2_PACKAGE_THINGINO_MBEDTLS
+	default BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS_BUILTIN if BR2_PACKAGE_MBEDTLS
+	default BR2_PACKAGE_THINGINO_UHTTPD_TLS_WOLFSSL if BR2_PACKAGE_THINGINO_WOLFSSL
+
+config BR2_PACKAGE_THINGINO_UHTTPD_TLS_WOLFSSL
+	bool "wolfSSL"
+	depends on BR2_PACKAGE_THINGINO_WOLFSSL
 	select BR2_PACKAGE_THINGINO_USTREAM_SSL
 	select BR2_PACKAGE_THINGINO_USTREAM_SSL_WOLFSSL
-	select BR2_PACKAGE_THINGINO_WOLFSSL
 	select BR2_PACKAGE_THINGINO_WOLFSSL_ALL
 	select BR2_PACKAGE_THINGINO_WOLFSSL_EXAMPLES
 	select BR2_PACKAGE_THINGINO_WOLFSSL_KEYGEN
 	select BR2_PACKAGE_THINGINO_WOLFSSL_CERTGEN
 	select BR2_PACKAGE_THINGINO_WOLFSSL_ASN
 	help
-	  Enable TLS/HTTPS support for uhttpd using wolfSSL.
-	  This provides secure encrypted connections to the camera's
-	  web interface with modern TLS protocols and includes
-	  wolfSSL tools for certificate generation.
+	  Use thingino wolfSSL for TLS support.
+	  Includes wolfSSL tools for certificate generation.
+
+config BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS
+	bool "thingino mbedTLS"
+	depends on BR2_PACKAGE_THINGINO_MBEDTLS
+	select BR2_PACKAGE_USTREAM_SSL
+	help
+	  Use thingino mbedTLS for TLS support.
+	  Enhanced mbedTLS with WebRTC DTLS compatibility.
+
+config BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS_BUILTIN
+	bool "buildroot mbedTLS"
+	depends on BR2_PACKAGE_MBEDTLS
+	select BR2_PACKAGE_USTREAM_SSL
+	help
+	  Use buildroot mbedTLS for TLS support.
+	  Standard mbedTLS implementation.
+
+endchoice
+
+comment "wolfSSL not available"
+	depends on !BR2_PACKAGE_THINGINO_WOLFSSL
+
+comment "thingino mbedTLS not available"
+	depends on !BR2_PACKAGE_THINGINO_MBEDTLS
+
+comment "buildroot mbedTLS not available"
+	depends on !BR2_PACKAGE_MBEDTLS
+
+endif
 
 config BR2_PACKAGE_THINGINO_UHTTPD_HTTP_REDIRECT
 	bool "Redirect HTTP to HTTPS"

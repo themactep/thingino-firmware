@@ -10,10 +10,25 @@ ifeq ($(BR2_PACKAGE_LIBXCRYPT),y)
 THINGINO_UHTTPD_DEPENDENCIES += libxcrypt
 endif
 
-# TLS support through mbedtls
+# TLS support with different backends
 ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS),y)
-THINGINO_UHTTPD_DEPENDENCIES += thingino-ustream-ssl thingino-wolfssl
 THINGINO_UHTTPD_CONF_OPTS += -DTLS_SUPPORT=ON
+
+# wolfSSL backend
+ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS_WOLFSSL),y)
+THINGINO_UHTTPD_DEPENDENCIES += thingino-ustream-ssl thingino-wolfssl
+endif
+
+# thingino mbedTLS backend
+ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS),y)
+THINGINO_UHTTPD_DEPENDENCIES += ustream-ssl thingino-mbedtls
+endif
+
+# buildroot mbedTLS backend
+ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS_BUILTIN),y)
+THINGINO_UHTTPD_DEPENDENCIES += ustream-ssl mbedtls
+endif
+
 else
 THINGINO_UHTTPD_CONF_OPTS += -DTLS_SUPPORT=OFF
 endif
@@ -54,7 +69,7 @@ define THINGINO_UHTTPD_INSTALL_CERT_SCRIPT
 endef
 
 THINGINO_UHTTPD_POST_INSTALL_TARGET_HOOKS += THINGINO_UHTTPD_INSTALL_CONFIG
-THINGINO_UHTTPD_POST_INSTALL_TARGET_HOOKS += THINGINO_UHTTPD_GENERATE_CERTS
+THINGINO_UHTTPD_POST_INSTALL_TARGET_HOOKS += THINGINO_UHTTPD_INSTALL_CERT_SCRIPT
 
 # Note: uhttpd loads ustream-ssl dynamically via dlopen, no static linking needed
 

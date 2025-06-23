@@ -123,6 +123,11 @@ if grep -q ^BR2_PACKAGE_EXFAT_UTILS $BR2_CONFIG >/dev/null; then
 	rm -vf ${TARGET_DIR}/etc/network/nfs_check
 fi
 
+# Remove empty Lua library directories
+echo "Removing empty Lua library directories..."
+rm -rf ${TARGET_DIR}/usr/lib/lua/
+rm -rf ${TARGET_DIR}/usr/share/lua/
+
 #
 # Remove unnecessary wolfSSL programs to save space
 # Keep only essential tools for SSL certificate management
@@ -152,6 +157,12 @@ if grep -q ^BR2_PACKAGE_THINGINO_WOLFSSL_EXAMPLES $BR2_CONFIG >/dev/null; then
 	# These are needed for our certificate generation scripts
 
 	echo "Kept essential wolfSSL tools: ssl_server2 (for certificate generation)"
+fi
+
+# Remove individual CA certificate files (keep bundle only)
+if [ -d "${TARGET_DIR}/usr/share/ca-certificates" ]; then
+    echo "Removing individual CA certificates to save space (bundle retained)..."
+    rm -rf "${TARGET_DIR}/usr/share/ca-certificates"
 fi
 
 #
