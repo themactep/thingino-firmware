@@ -11,7 +11,7 @@ defaults() {
 	default_for mqtt_client_id $camera_id
 	default_for mqtt_port "1883"
 	default_for mqtt_topic "thingino/$mqtt_client_id"
-	default_for mqtt_message "{\"camera_id\": \"$camera_id\", \"timestamp\": \"%timestamp\"}"
+	default_for mqtt_message "{\"camera_id\": \"$camera_id\", \"timestamp\": \"%s\"}"
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
