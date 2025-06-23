@@ -2,53 +2,56 @@
 
 . /usr/share/common
 
-OWNER="themactep"
-REPO="thingino-firmware"
-BASE_REPO_URL="https://api.github.com/repos/$OWNER/$REPO/contents/configs"
-PROD_LIST="$BASE_REPO_URL/cameras"
-PROD_MODULE_LIST="$BASE_REPO_URL/modules"
-DEBUG_LIST="$BASE_REPO_URL/testing"
-LIST_URL=$PROD_LIST
-LIST_PATH="/tmp/gestalt_list.txt"
+TZJSON_FILE="/usr/share/tz.json.gz"
+LIST_PATH="/tmp/timezone_list.txt"
 
-while getopts "dmh" opt; do
+while getopts "h" opt; do
 	case $opt in
-		d) LIST_URL=$DEBUG_LIST ;;
-		m) LIST_URL=$PROD_MODULE_LIST ;;
 		*)
-			echo "Usage: $0 [-d] [-m]"
+			echo "Usage: $0"
+			echo "Interactive timezone selector for embedded Linux"
 			exit 1
 			;;
 	esac
 done
 
-current_image_id=$(grep "^IMAGE_ID=" /etc/os-release | cut -d'=' -f2)
+current_tz_name=$(cat /etc/timezone 2>/dev/null || echo "Etc/GMT")
+current_tz_data=$(cat /etc/TZ 2>/dev/null || echo "GMT0")
 
-fetch_profiles() {
-	echo_info "Fetching available profiles..."
-	profiles=$(curl -m 10 -s -H "Accept: application/vnd.github+json" "$LIST_URL" | jsonfilter -e "@[*].name" 2>/dev/null)
+fetch_timezones() {
+	echo_info "Loading timezone data..."
 
-	if [ -z "$profiles" ]; then
-		echo_error "Error: gestalt list empty. Please try again later or check your network connection."
+	if [ ! -f "$TZJSON_FILE" ]; then
+		echo_error "Error: Timezone data file not found at $TZJSON_FILE"
 		exit 1
 	fi
 
+	# Extract timezone data using simple sed parsing (faster than multiple jsonfilter calls)
+	zcat "$TZJSON_FILE" | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' | \
+	sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' | sort > /tmp/tz_raw.txt
+
+	if [ ! -s /tmp/tz_raw.txt ]; then
+		echo_error "Error: Failed to parse timezone data"
+		exit 1
+	fi
+
+	# Create numbered list
 	count=1
-	echo "$profiles" | while read line; do
-		profile="${line#thingino-}"
-		profile="${profile%.bin}"
-		echo "$count:$profile" >> $LIST_PATH
+	while IFS=':' read -r name value; do
+		echo "$count:$name:$value" >> $LIST_PATH
 		count=$((count + 1))
-	done
+	done < /tmp/tz_raw.txt
+
+	rm -f /tmp/tz_raw.txt
 }
 
 
 
-display_profiles_page() {
+display_timezones_page() {
 	page=${1:-1}
 
 	# Calculate per_page based on terminal height
-	# Reserve 8 lines for: header(1) + empty(1) + current gestalt(1) + nav help(1) + prompt(1) + buffer(3)
+	# Reserve 8 lines for: header(1) + empty(1) + current tz(1) + nav help(1) + prompt(1) + buffer(3)
 	terminal_height=$(get_terminal_height)
 	per_page=$((terminal_height - 8))
 
@@ -64,10 +67,10 @@ display_profiles_page() {
 	start_line=$(( (page - 1) * per_page + 1 ))
 	end_line=$(( page * per_page ))
 
-	echo "Available profiles (page $page of $total_pages), use [PgUp]/[PgDn] keys to navigate."
+	echo "Available timezones (page $page of $total_pages), use [PgUp]/[PgDn] keys to navigate."
 	echo
-	sed -n "${start_line},${end_line}p" $LIST_PATH | while IFS=':' read num profile; do
-		echo "  $num) $profile"
+	sed -n "${start_line},${end_line}p" $LIST_PATH | while IFS=':' read num name value; do
+		echo "  $num) $name"
 	done
 }
 
@@ -76,8 +79,8 @@ cleanup() {
 	if [ -n "$old_tty_settings" ]; then
 		stty "$old_tty_settings" 2>/dev/null
 	fi
-	# Clean up temp file
-	rm -f $LIST_PATH
+	# Clean up temp files
+	rm -f $LIST_PATH /tmp/tz_raw.txt
 	echo ""
 }
 
@@ -90,18 +93,18 @@ old_tty_settings=$(stty -g)
 
 while true; do
 	if [ ! -f $LIST_PATH ]; then
-		fetch_profiles
+		fetch_timezones
 	fi
 
 	clear
-	echo "Gestalt selector"
+	echo "Timezone selector"
 	echo
-	echo "Current device: $current_image_id"
-	display_profiles_page $current_page
+	echo "Current timezone: $current_tz_name ($current_tz_data)"
+	display_timezones_page $current_page
 	echo
 
 	# Read a single character or escape sequence
-	printf "Enter number of a new profile or [Q] to quit: "
+	printf "Enter number of a timezone or [Q] to quit: "
 
 	# Set terminal to raw mode to capture individual keystrokes
 	stty raw -echo min 1 time 0
@@ -197,10 +200,18 @@ while true; do
 			exit 0
 			;;
 		[0-9]*)
-			selected_profile=$(grep "^$selection:" $LIST_PATH | cut -d':' -f2)
-			if [ -n "$selected_profile" ]; then
-				sed -i "s/^IMAGE_ID=.*/IMAGE_ID=$selected_profile/" /etc/os-release
-				echo_info "Device gestalt updated to $selected_profile"
+			selected_tz=$(grep "^$selection:" $LIST_PATH | cut -d':' -f2,3)
+			if [ -n "$selected_tz" ]; then
+				tz_name=$(echo "$selected_tz" | cut -d':' -f1)
+				tz_data=$(echo "$selected_tz" | cut -d':' -f2)
+				
+				echo "$tz_name" > /etc/timezone
+				echo "$tz_data" > /etc/TZ
+				
+				# Restart timezone service to apply changes
+				service restart timezone > /dev/null 2>&1
+				
+				echo_info "Timezone updated to $tz_name ($tz_data)"
 				break
 			else
 				echo_warning "Invalid selection. Please try again."

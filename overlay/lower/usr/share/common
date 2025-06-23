@@ -349,6 +349,38 @@ ts() {
 	date -u +"%F %T"
 }
 
+get_terminal_height() {
+	# Try multiple methods to get terminal height
+	height=""
+
+	# Method 1: stty size (most reliable in busybox/ash)
+	if command -v stty >/dev/null 2>&1; then
+		height=$(stty size 2>/dev/null | cut -d' ' -f1)
+	fi
+
+	# Method 2: tput lines (if available)
+	if [ -z "$height" ] && command -v tput >/dev/null 2>&1; then
+		height=$(tput lines 2>/dev/null)
+	fi
+
+	# Method 3: environment variable
+	if [ -z "$height" ] && [ -n "$LINES" ]; then
+		height=$LINES
+	fi
+
+	# Method 4: ttysize command (busybox)
+	if [ -z "$height" ] && command -v ttysize >/dev/null 2>&1; then
+		height=$(ttysize h 2>/dev/null)
+	fi
+
+	# Default fallback
+	if [ -z "$height" ] || [ "$height" -lt 10 ]; then
+		height=24
+	fi
+
+	echo "$height"
+}
+
 usage() {
 	# {start|stop|restart|status}
 	echo "Usage: $0 $1" >&2
