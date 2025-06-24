@@ -62,14 +62,14 @@ define THINGINO_UHTTPD_INSTALL_CONFIG
 	# Note: Complete web interface provided by thingino-webui-lua package
 endef
 
-# Install certificate generation script
-define THINGINO_UHTTPD_INSTALL_CERT_SCRIPT
-	$(INSTALL) -D -m 0755 $(THINGINO_UHTTPD_PKGDIR)/files/generate-ssl-cert \
-		$(TARGET_DIR)/usr/bin/generate-ssl-cert
-endef
+# Install certificate generation script (disabled - file missing)
+# define THINGINO_UHTTPD_INSTALL_CERT_SCRIPT
+#	$(INSTALL) -D -m 0755 $(THINGINO_UHTTPD_PKGDIR)/files/generate-ssl-cert \
+#		$(TARGET_DIR)/usr/bin/generate-ssl-cert
+# endef
 
 THINGINO_UHTTPD_POST_INSTALL_TARGET_HOOKS += THINGINO_UHTTPD_INSTALL_CONFIG
-THINGINO_UHTTPD_POST_INSTALL_TARGET_HOOKS += THINGINO_UHTTPD_INSTALL_CERT_SCRIPT
+# THINGINO_UHTTPD_POST_INSTALL_TARGET_HOOKS += THINGINO_UHTTPD_INSTALL_CERT_SCRIPT
 
 # Note: uhttpd loads ustream-ssl dynamically via dlopen, no static linking needed
 

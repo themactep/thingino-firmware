@@ -1,0 +1,67 @@
+--- a/deps/live555/liveMedia/RTPSink.cpp
++++ b/deps/live555/liveMedia/RTPSink.cpp
+@@ -1,6 +1,7 @@
+ #include "liveMedia.hh"
+ #include "GroupsockHelper.hh"
+ #include "ourMD5.hh"
++#include <chrono>
+ 
+ ////////// RTPSink //////////
+ 
+@@ -120,9 +121,18 @@ char const* RTPSink::auxSDPLine() {
+   return NULL; // by default
+ }
+ 
++// Monotonic time helper function for embedded systems
++static void getMonotonicTime(struct timeval* tv) {
++  static auto start_time = std::chrono::steady_clock::now();
++  auto now = std::chrono::steady_clock::now();
++  auto elapsed = now - start_time;
++  auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
++  tv->tv_sec = elapsed_us / 1000000;
++  tv->tv_usec = elapsed_us % 1000000;
++}
++
+ u_int32_t RTPSink::presetNextTimestamp() {
+   struct timeval timeNow;
+-  gettimeofday(&timeNow, NULL);
++  getMonotonicTime(&timeNow);
+ 
+   u_int32_t tsNow = convertToRTPTimestamp(timeNow);
+   if (!groupsockBeingUsed().hasMultipleDestinations()) {
+@@ -136,7 +146,7 @@ u_int32_t RTPSink::presetNextTimestamp() {
+ 
+ void RTPSink::getTotalBitrate(unsigned& outNumBytes, double& outElapsedTime) {
+   struct timeval timeNow;
+-  gettimeofday(&timeNow, NULL);
++  getMonotonicTime(&timeNow);
+ 
+   outNumBytes = fTotalOctetCount;
+   outElapsedTime = (double)(timeNow.tv_sec-fTotalOctetCountStartTime.tv_sec)
+@@ -172,7 +182,7 @@ RTPSink::RTPSink(UsageEnvironment& env,
+     fNumChannels(numChannels), fEstimatedBitrate(0) {
+   fRTPPayloadFormatName
+     = strDup(rtpPayloadFormatName == NULL ? "???" : rtpPayloadFormatName);
+-  gettimeofday(&fCreationTime, NULL);
++  getMonotonicTime(&fCreationTime);
+   fTotalOctetCountStartTime = fCreationTime;
+   resetPresentationTimes();
+ 
+@@ -302,7 +312,7 @@ RTPTransmissionStats::RTPTransmissionStats(RTPSink& rtpSink,
+     fAtLeastTwoRRsHaveBeenReceived(False), fFirstPacket(True),
+     fTotalOctetCount_hi(0), fTotalOctetCount_lo(0),
+     fTotalPacketCount_hi(0), fTotalPacketCount_lo(0) {
+-  gettimeofday(&fTimeCreated, NULL);
++  getMonotonicTime(&fTimeCreated);
+ 
+   fLastOctetCount = rtpSink.octetCount();
+   fLastPacketCount = rtpSink.packetCount();
+@@ -323,7 +333,7 @@ void RTPTransmissionStats::noteIncomingRR(u_int32_t lastPacketNumReceived,
+     fOldLastPacketNumReceived = fLastPacketNumReceived;
+     fOldTotNumPacketsLost = fTotNumPacketsLost;
+   }
+-  gettimeofday(&fTimeReceived, NULL);
++  getMonotonicTime(&fTimeReceived);
+ 
+   fLastFromAddress = lastFromAddress;
+   fPacketLossRatio = lossStats>>24;
