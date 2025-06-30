@@ -50,8 +50,14 @@ start() {
 		send2yadisk &
 	fi
 
+	# Local save option
+	if [ "true" = "$motion_send2local" ]; then
+		echo_info "Save snapshot/video locally"
+		send2local &
+	fi
+
 	if [ "true" = "$motion_playonspeaker" ]; then
-		echo_info "Send alert to play on speaker"
+		echo_info "Play alert on speaker"
 		playonspeaker &
 	fi
 }
@@ -75,6 +81,6 @@ case "$1" in
 	*)
 		start
 		;;
-esac
+	esac
 
 exit 0
