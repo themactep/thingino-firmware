@@ -96,6 +96,7 @@ print_soc_model() {
 		case "$cpu_sig" in
 			0x00050000) soc="t10" ;;
 			#0x01011111) soc="c100" ;;
+			0x20000000) soc="t20ax" ;;
 			0x20001111) soc="t20n" ;;
 			0x20002222) soc="t20x" ;;
 			0x20003333) soc="t20l" ;;
