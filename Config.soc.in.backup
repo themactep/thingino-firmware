@@ -1,0 +1,2091 @@
+config BR2_SOC_FAMILY_INGENIC_T10
+	bool
+	default y if BR2_SOC_INGENIC_T10L || BR2_SOC_INGENIC_T10N || BR2_SOC_INGENIC_T10A
+config BR2_SOC_FAMILY_INGENIC_T20
+	bool
+	default y if BR2_SOC_INGENIC_T20L || BR2_SOC_INGENIC_T20N || BR2_SOC_INGENIC_T20X || BR2_SOC_INGENIC_T20Z
+config BR2_SOC_FAMILY_INGENIC_T21
+	bool
+	default y if BR2_SOC_INGENIC_T21L || BR2_SOC_INGENIC_T21N || BR2_SOC_INGENIC_T21X || BR2_SOC_INGENIC_T21Z || BR2_SOC_INGENIC_T21ZL
+config BR2_SOC_FAMILY_INGENIC_T23
+	bool
+	default y if BR2_SOC_INGENIC_T23N || BR2_SOC_INGENIC_T23ZN || BR2_SOC_INGENIC_T23DL || BR2_SOC_INGENIC_T23DN
+config BR2_SOC_FAMILY_INGENIC_T30
+	bool
+	default y if BR2_SOC_INGENIC_T30L || BR2_SOC_INGENIC_T30N || BR2_SOC_INGENIC_T30X || BR2_SOC_INGENIC_T30A
+config BR2_SOC_FAMILY_INGENIC_C100
+	bool
+	default y if BR2_SOC_INGENIC_C100
+config BR2_SOC_FAMILY_INGENIC_T31
+	bool
+	default y if BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31A || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL || BR2_SOC_INGENIC_T31ZX
+config BR2_SOC_FAMILY_INGENIC_T32
+	bool
+	default y if BR2_SOC_INGENIC_T32LQ || BR2_SOC_INGENIC_T32NQ || BR2_SOC_INGENIC_T32XQ || BR2_SOC_INGENIC_T32A || BR2_SOC_INGENIC_T32ZL || BR2_SOC_INGENIC_T32ZN || BR2_SOC_INGENIC_T32ZX || BR2_SOC_INGENIC_T32ZR || BR2_SOC_INGENIC_T32ZMC
+config BR2_SOC_FAMILY_INGENIC_T40
+	bool
+	default y if BR2_SOC_INGENIC_T40N || BR2_SOC_INGENIC_T40NN || BR2_SOC_INGENIC_T40XP || BR2_SOC_INGENIC_T40A
+config BR2_SOC_FAMILY_INGENIC_T41
+	bool
+	default y if BR2_SOC_INGENIC_T41LQ || BR2_SOC_INGENIC_T41NQ || BR2_SOC_INGENIC_T41ZL || BR2_SOC_INGENIC_T41ZN || BR2_SOC_INGENIC_T41ZX || BR2_SOC_INGENIC_T41A
+config BR2_SOC_FAMILY_INGENIC_A1
+	bool
+	default y if BR2_SOC_INGENIC_A1N || BR2_SOC_INGENIC_A1NT || BR2_SOC_INGENIC_A1X || BR2_SOC_INGENIC_A1L || BR2_SOC_INGENIC_A1A
+
+config BR2_SOC_FAMILY_32MB
+	bool
+	default y if BR2_SOC_INGENIC_T23DL || BR2_SOC_INGENIC_T23DN
+config BR2_SOC_FAMILY_64MB
+	bool
+	default y if BR2_SOC_INGENIC_T10L || BR2_SOC_INGENIC_T10N || BR2_SOC_INGENIC_T10A || BR2_SOC_INGENIC_T20L || BR2_SOC_INGENIC_T20N || BR2_SOC_INGENIC_T20Z || BR2_SOC_INGENIC_T21L || BR2_SOC_INGENIC_T21N || BR2_SOC_INGENIC_T21Z || BR2_SOC_INGENIC_T21ZL || BR2_SOC_INGENIC_T21Z || BR2_SOC_INGENIC_T21ZL || BR2_SOC_INGENIC_T23N || BR2_SOC_INGENIC_T23ZN || BR2_SOC_INGENIC_T30L || BR2_SOC_INGENIC_T30N || BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL || BR2_SOC_INGENIC_T41LQ
+config BR2_SOC_FAMILY_128MB
+	bool
+	default y if BR2_SOC_INGENIC_T20X || BR2_SOC_INGENIC_T21X || BR2_SOC_INGENIC_T30X || BR2_SOC_INGENIC_T30A || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31ZX || BR2_SOC_INGENIC_C100 || BR2_SOC_INGENIC_T40NN || BR2_SOC_INGENIC_T40NN || BR2_SOC_INGENIC_T41NQ || BR2_SOC_INGENIC_A1L
+config BR2_SOC_FAMILY_256MB
+	bool
+	default y if BR2_SOC_INGENIC_T40XP || BR2_SOC_INGENIC_T40A || BR2_SOC_INGENIC_T41ZX || BR2_SOC_INGENIC_T41A || BR2_SOC_INGENIC_A1N || BR2_SOC_INGENIC_A1NT
+config BR2_SOC_FAMILY_512MB
+	bool
+	default y if BR2_SOC_INGENIC_A1A
+choice
+	prompt "SoC Model"
+	help
+	  Select the Ingenic SoC model for your device
+config BR2_SOC_INGENIC_DUMMY
+	bool "Dummy (for toolchain)"
+config BR2_SOC_INGENIC_A1N
+	bool "Ingenic A1N"
+config BR2_SOC_INGENIC_A1L
+	bool "Ingenic A1L"
+config BR2_SOC_INGENIC_A1NT
+	bool "Ingenic A1NT"
+config BR2_SOC_INGENIC_A1X
+	bool "Ingenic A1X"
+config BR2_SOC_INGENIC_A1A
+	bool "Ingenic A1A"
+config BR2_SOC_INGENIC_T10L
+	bool "Ingenic T10L"
+config BR2_SOC_INGENIC_T10N
+	bool "Ingenic T10N"
+config BR2_SOC_INGENIC_T10A
+	bool "Ingenic T10A"
+config BR2_SOC_INGENIC_T20L
+	bool "Ingenic T20L"
+config BR2_SOC_INGENIC_T20N
+	bool "Ingenic T20N"
+config BR2_SOC_INGENIC_T20X
+	bool "Ingenic T20X"
+config BR2_SOC_INGENIC_T20Z
+	bool "Ingenic T20Z"
+config BR2_SOC_INGENIC_T21L
+	bool "Ingenic T21L"
+config BR2_SOC_INGENIC_T21N
+	bool "Ingenic T21N"
+config BR2_SOC_INGENIC_T21X
+	bool "Ingenic T21X"
+config BR2_SOC_INGENIC_T21Z
+	bool "Ingenic T21Z"
+config BR2_SOC_INGENIC_T21ZL
+	bool "Ingenic T21ZL"
+config BR2_SOC_INGENIC_T23N
+	bool "Ingenic T23N"
+config BR2_SOC_INGENIC_T23DL
+	bool "Ingenic T23DL"
+config BR2_SOC_INGENIC_T23DN
+	bool "Ingenic T23DN"
+	depends on BR2_THINGINO_DEV_EXPERIMENTAL
+config BR2_SOC_INGENIC_T23ZN
+	bool "Ingenic T23ZN"
+config BR2_SOC_INGENIC_T30L
+	bool "Ingenic T30L"
+config BR2_SOC_INGENIC_T30N
+	bool "Ingenic T30N"
+config BR2_SOC_INGENIC_T30X
+	bool "Ingenic T30X"
+config BR2_SOC_INGENIC_T30A
+	bool "Ingenic T30A"
+config BR2_SOC_INGENIC_T31L
+	bool "Ingenic T31L"
+config BR2_SOC_INGENIC_T31LC
+	bool "Ingenic T31LC"
+config BR2_SOC_INGENIC_T31N
+	bool "Ingenic T31N"
+config BR2_SOC_INGENIC_T31X
+	bool "Ingenic T31X"
+config BR2_SOC_INGENIC_T31A
+	bool "Ingenic T31A"
+config BR2_SOC_INGENIC_T31AL
+	bool "Ingenic T31AL"
+config BR2_SOC_INGENIC_T31ZL
+	bool "Ingenic T31ZL"
+config BR2_SOC_INGENIC_T31ZX
+	bool "Ingenic T31ZX"
+config BR2_SOC_INGENIC_C100
+	bool "Ingenic C100"
+config BR2_SOC_INGENIC_T32LQ
+	bool "Ingenic T32LQ"
+config BR2_SOC_INGENIC_T32NQ
+	bool "Ingenic T32NQ"
+config BR2_SOC_INGENIC_T32XQ
+	bool "Ingenic T32XQ"
+config BR2_SOC_INGENIC_T32A
+	bool "Ingenic T32A"
+config BR2_SOC_INGENIC_T32ZL
+	bool "Ingenic T32ZL"
+config BR2_SOC_INGENIC_T32ZN
+	bool "Ingenic T32ZN"
+config BR2_SOC_INGENIC_T32ZX
+	bool "Ingenic T32ZX"
+config BR2_SOC_INGENIC_T32ZR
+	bool "Ingenic T32ZR"
+config BR2_SOC_INGENIC_T32ZMC
+	bool "Ingenic T32ZMC"
+config BR2_SOC_INGENIC_T40N
+	bool "Ingenic T40N"
+config BR2_SOC_INGENIC_T40NN
+	bool "Ingenic T40NN"
+config BR2_SOC_INGENIC_T40XP
+	bool "Ingenic T40XP"
+config BR2_SOC_INGENIC_T40A
+	bool "Ingenic T40A"
+config BR2_SOC_INGENIC_T41LQ
+	bool "Ingenic T41LQ"
+config BR2_SOC_INGENIC_T41NQ
+	bool "Ingenic T41NQ"
+config BR2_SOC_INGENIC_T41ZL
+	bool "Ingenic T41ZL"
+config BR2_SOC_INGENIC_T41ZN
+	bool "Ingenic T41ZN"
+config BR2_SOC_INGENIC_T41ZX
+	bool "Ingenic T41ZX"
+config BR2_SOC_INGENIC_T41A
+	bool "Ingenic T41A"
+endchoice
+
+menu "SoC Configuration"
+
+choice
+	prompt "Ingenic SDK Version"
+	default BR2_THINGINO_INGENIC_SDK_A1_1_6_2 if BR2_SOC_FAMILY_INGENIC_A1
+	default BR2_THINGINO_INGENIC_SDK_T20_3_12_0 if BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20
+	default BR2_THINGINO_INGENIC_SDK_T21_1_0_33 if BR2_SOC_FAMILY_INGENIC_T21
+	default BR2_THINGINO_INGENIC_SDK_T23_1_1_0 if BR2_SOC_FAMILY_INGENIC_T23
+	default BR2_THINGINO_INGENIC_SDK_T30_1_0_5 if BR2_SOC_FAMILY_INGENIC_T30
+	default BR2_THINGINO_INGENIC_SDK_T31_1_1_6 if BR2_SOC_FAMILY_INGENIC_T31
+	default BR2_THINGINO_INGENIC_SDK_T31_1_1_5_2 if BR2_SOC_FAMILY_INGENIC_T31 && KERNEL_VERSION_4
+	default BR2_THINGINO_INGENIC_SDK_C100_2_1_0 if BR2_SOC_FAMILY_INGENIC_C100
+	default BR2_THINGINO_INGENIC_SDK_T40_1_2_0 if BR2_SOC_FAMILY_INGENIC_T40
+	default BR2_THINGINO_INGENIC_SDK_T41_1_2_0 if BR2_SOC_FAMILY_INGENIC_T41
+	default BR2_THINGINO_INGENIC_SDK_T41_44_1_2_0 if BR2_SOC_FAMILY_INGENIC_T41 && KERNEL_VERSION_4
+
+config BR2_THINGINO_INGENIC_SDK_A1_1_5_2
+	bool "1.5.2"
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+config BR2_THINGINO_INGENIC_SDK_A1_1_6_2
+	bool "1.6.2"
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+config BR2_THINGINO_INGENIC_SDK_T20_3_9_0
+	bool "3.9.0"
+	depends on BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20
+config BR2_THINGINO_INGENIC_SDK_T20_3_12_0
+	bool "3.12.0"
+	depends on BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20
+config BR2_THINGINO_INGENIC_SDK_T21_1_0_33
+	bool "1.0.33"
+	depends on BR2_SOC_FAMILY_INGENIC_T21
+config BR2_THINGINO_INGENIC_SDK_T23_1_1_0
+	bool "1.1.0"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY_1
+config BR2_THINGINO_INGENIC_SDK_T23_1_1_0_MULTI
+	bool "1.1.0-double"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+config BR2_THINGINO_INGENIC_SDK_T23_1_1_2
+	bool "1.1.2"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY_1
+config BR2_THINGINO_INGENIC_SDK_T23_1_1_2_MULTI
+	bool "1.1.2-double"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+config BR2_THINGINO_INGENIC_SDK_T30_1_0_5
+	bool "1.0.5"
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+config BR2_THINGINO_INGENIC_SDK_T31_1_1_1
+	bool "1.1.1"
+	depends on BR2_SOC_FAMILY_INGENIC_T31
+config BR2_THINGINO_INGENIC_SDK_T31_1_1_2
+	bool "1.1.2"
+	depends on BR2_SOC_FAMILY_INGENIC_T31
+config BR2_THINGINO_INGENIC_SDK_T31_1_1_4
+	bool "1.1.5"
+	depends on BR2_SOC_FAMILY_INGENIC_T31
+config BR2_THINGINO_INGENIC_SDK_T31_1_1_5
+	bool "1.1.5"
+	depends on BR2_SOC_FAMILY_INGENIC_T31
+config BR2_THINGINO_INGENIC_SDK_T31_1_1_5_2
+	bool "1.1.5.2"
+	depends on KERNEL_VERSION_4 && BR2_SOC_FAMILY_INGENIC_T31
+config BR2_THINGINO_INGENIC_SDK_T31_1_1_6
+	bool "1.1.6"
+	depends on BR2_SOC_FAMILY_INGENIC_T31
+config BR2_THINGINO_INGENIC_SDK_T32_1_0_4
+	bool "1.0.4"
+	depends on BR2_SOC_FAMILY_INGENIC_T31 && BR2_SDK_T32
+config BR2_THINGINO_INGENIC_SDK_C100_2_1_0
+	bool "2.1.0"
+	depends on BR2_SOC_FAMILY_INGENIC_C100
+config BR2_THINGINO_INGENIC_SDK_T32_44_1_0_4
+	bool "1.0.4"
+	depends on KERNEL_VERSION_4 && BR2_SOC_FAMILY_INGENIC_T32
+config BR2_THINGINO_INGENIC_SDK_T31_1_0_4
+	bool "1.0.4"
+	depends on BR2_SOC_FAMILY_INGENIC_T32
+config BR2_THINGINO_INGENIC_SDK_T40_1_2_0
+	bool "1.2.0"
+	depends on KERNEL_VERSION_4 && BR2_SOC_FAMILY_INGENIC_T40
+config BR2_THINGINO_INGENIC_SDK_T41_1_0_1
+	bool "1.0.1"
+	depends on BR2_SOC_FAMILY_INGENIC_T41
+config BR2_THINGINO_INGENIC_SDK_T41_44_1_0_1
+	bool "1.0.1"
+	depends on KERNEL_VERSION_4 && BR2_SOC_FAMILY_INGENIC_T41
+config BR2_THINGINO_INGENIC_SDK_T41_1_1_0
+	bool "1.1.0"
+	depends on BR2_SOC_FAMILY_INGENIC_T41
+config BR2_THINGINO_INGENIC_SDK_T41_44_1_1_0
+	bool "1.1.0"
+	depends on KERNEL_VERSION_4 && BR2_SOC_FAMILY_INGENIC_T41
+config BR2_THINGINO_INGENIC_SDK_T41_1_1_1
+	bool "1.1.1"
+	depends on BR2_SOC_FAMILY_INGENIC_T41
+config BR2_THINGINO_INGENIC_SDK_T41_44_1_1_1
+	bool "1.1.1"
+	depends on KERNEL_VERSION_4 && BR2_SOC_FAMILY_INGENIC_T41
+config BR2_THINGINO_INGENIC_SDK_T41_1_2_0
+	bool "1.2.0"
+	depends on BR2_SOC_FAMILY_INGENIC_T41
+config BR2_THINGINO_INGENIC_SDK_T41_44_1_2_0
+	bool "1.2.0"
+	depends on KERNEL_VERSION_4 && BR2_SOC_FAMILY_INGENIC_T41
+endchoice
+
+choice
+	prompt "Ingenic SDK GCC Version"
+	default BR2_THINGINO_INGENIC_SDK_GCC_472 if BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20 || BR2_SOC_FAMILY_INGENIC_T21 || BR2_SOC_FAMILY_INGENIC_T30
+	default BR2_THINGINO_INGENIC_SDK_GCC_540 if BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T32
+	default BR2_THINGINO_INGENIC_SDK_GCC_720 if BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41 || BR2_SOC_FAMILY_INGENIC_A1
+	help
+          Select the GCC compiler version that was used to compile the
+          Ingenic SDK libraries. This ensures binary compatibility between
+          your application code and the provided SDK libraries. Choose the
+          version that matches the SDK you're targeting.
+
+config BR2_THINGINO_INGENIC_SDK_GCC_472
+	bool "GCC 4.7.2"
+	depends on BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20 || BR2_SOC_FAMILY_INGENIC_T21 || BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+config BR2_THINGINO_INGENIC_SDK_GCC_540
+	bool "GCC 5.4.0"
+	depends on !BR2_SOC_FAMILY_INGENIC_T21 || BR2_SOC_FAMILY_INGENIC_T23 || !BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T32
+config BR2_THINGINO_INGENIC_SDK_GCC_720
+	bool "GCC 7.2.0"
+	depends on BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41 || BR2_SOC_FAMILY_INGENIC_A1
+endchoice
+
+choice
+	prompt "Ingenic GCC Type"
+	default BR2_THINGINO_INGENIC_SDK_GCC_MUSL if BR2_TOOLCHAIN_USES_MUSL
+	default BR2_THINGINO_INGENIC_SDK_GCC_GLIBC if BR2_TOOLCHAIN_USES_GLIBC
+	default BR2_THINGINO_INGENIC_SDK_GCC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC
+	help
+	  Select the GCC type
+
+comment "To change the GCC Type, you need to change the"
+comment "fragment in your module to the corresponding"
+comment "GCC type, such as toolchain-musl,"
+comment "toolchain-uclibc, or toolchain-glibc."
+
+
+config BR2_THINGINO_INGENIC_SDK_GCC_MUSL
+	bool "musl"
+	depends on BR2_TOOLCHAIN_USES_MUSL
+
+config BR2_THINGINO_INGENIC_SDK_GCC_GLIBC
+	bool "glibc"
+	depends on BR2_TOOLCHAIN_USES_GLIBC
+
+config BR2_THINGINO_INGENIC_SDK_GCC_UCLIBC
+	bool "uClibc"
+	depends on BR2_TOOLCHAIN_USES_UCLIBC
+endchoice
+
+menu "IPU Configuration"
+depends on BR2_SOC_FAMILY_INGENIC_A1
+
+choice
+	prompt "IPU Clock Source"
+	default BR2_IPU_CLK_INTERNAL
+	help
+	  Select the parent clock source for the IPU. (pclk_name)
+
+config BR2_IPU_CLK_SCLKA
+	bool "SCLKA"
+
+config BR2_IPU_CLK_VPLL
+	bool "VPLL"
+
+config BR2_IPU_CLK_MPLL
+	bool "MPLL"
+
+config BR2_IPU_CLK_INTERNAL
+	bool "Module Internal"
+
+endchoice
+
+choice
+	prompt "IPU Clock Speed"
+	default BR2_IPU_CLK_400MHZ
+	help
+	  Choose the IPU clock speed from the predefined options.
+
+config BR2_IPU_CLK_400MHZ
+	bool "400 MHz"
+config BR2_IPU_CLK_450MHZ
+	bool "450 MHz"
+config BR2_IPU_CLK_500MHZ
+	bool "500 MHz"
+config BR2_IPU_CLK_550MHZ
+	bool "550 MHz"
+config BR2_IPU_CLK_600MHZ
+	bool "600 MHz"
+config BR2_IPU_CLK_650MHZ
+	bool "650 MHz"
+endchoice
+endmenu
+
+menu "ISP Configuration"
+depends on !BR2_SOC_FAMILY_INGENIC_A1
+
+if FALSE
+menu "Image Sensor Configuration"
+config BR2_SENSOR_PARAM_RESET_GPIO
+	int "Reset GPIO pin"
+	default -1
+config BR2_SENSOR_PARAM_PWDN_GPIO
+	int "Powerdown GPIO pin"
+	default -1
+config BR2_SENSOR_PARAM_SENSOR_GPIO_FUNC
+	int "GPIO function"
+	default -1
+config BR2_SENSOR_PARAM_DATA_INTERFACE
+	int "Data interface"
+	default -1
+config BR2_SENSOR_PARAM_SENSOR_MAX_FPS
+	int "Maximum FPS"
+	default -1
+config BR2_SENSOR_PARAM_SHVFLIP
+	int "Horizontal and vertical flip"
+	default -1
+config BR2_SENSOR_PARAM_FSYNC_MODE
+	int "FSync mode"
+	default -1
+config BR2_SENSOR_PARAM_WDR_BUF_SIZE
+	int "WDR buffer size"
+	default -1
+config BR2_SENSOR_PARAM_SENSOR_RESOLUTION
+	int "Resolution"
+	default -1
+config BR2_SENSOR_PARAM_DATA_TYPE
+	int "Data type"
+	default -1
+endmenu
+endif
+
+choice
+	prompt "AVPU Clock Source"
+	default BR2_AVPU_INTERNAL
+	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Select the parent clock source for the AVPU.
+
+config BR2_AVPU_APLL
+	bool "APLL"
+config BR2_AVPU_MPLL
+	bool "MPLL"
+config BR2_AVPU_VPLL
+	bool "VPLL"
+config BR2_AVPU_INTERNAL
+	bool "Module Internal"
+endchoice
+
+choice
+	prompt "AVPU Clock Speed"
+	default BR2_AVPU_CLK_400MHZ
+	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Choose the ISP clock speed from the predefined options.
+
+config BR2_AVPU_CLK_400MHZ
+	bool "400 MHz"
+config BR2_AVPU_CLK_450MHZ
+	bool "450 MHz"
+config BR2_AVPU_CLK_486MHZ
+	bool "486 MHz"
+config BR2_AVPU_CLK_500MHZ
+	bool "500 MHz"
+config BR2_AVPU_CLK_550MHZ
+	bool "550 MHz"
+config BR2_AVPU_CLK_600MHZ
+	bool "600 MHz"
+config BR2_AVPU_CLK_650MHZ
+	bool "650 MHz"
+config BR2_AVPU_CLK_700MHZ
+	bool "700 MHz"
+endchoice
+
+choice
+	prompt "ISP Clock Source"
+	default BR2_ISP_CLK_INTERNAL
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Select the parent clock source for the ISP. (clk_name)
+
+config BR2_ISP_CLK_SCLKA
+	bool "SCLKA"
+
+config BR2_ISP_CLK_VPLL
+	bool "VPLL"
+
+config BR2_ISP_CLK_MPLL
+	bool "MPLL"
+
+config BR2_ISP_CLK_INTERNAL
+        bool "Module Internal"
+endchoice
+
+choice
+	prompt "ISP Clock Speed"
+	default BR2_ISP_CLK_125MHZ if BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	default BR2_ISP_CLK_200MHZ if BR2_SOC_FAMILY_INGENIC_T23
+	default BR2_ISP_CLK_200MHZ if BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	default BR2_ISP_CLK_90MHZ
+	help
+	  Choose the ISP clock speed from the predefined options.
+
+config BR2_ISP_CLK_90MHZ
+	bool "90 MHz"
+config BR2_ISP_CLK_100MHZ
+	bool "100 MHz"
+config BR2_ISP_CLK_125MHZ
+	bool "125 MHz"
+config BR2_ISP_CLK_150MHZ
+	bool "150 MHz"
+	depends on BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_C100
+config BR2_ISP_CLK_175MHZ
+	bool "175 MHz"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 ||BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+config BR2_ISP_CLK_200MHZ
+	bool "200 MHz"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+config BR2_ISP_CLK_220MHZ
+	bool "220 MHz"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+config BR2_ISP_CLK_225MHZ
+	bool "225 MHz"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+config BR2_ISP_CLK_250MHZ
+	bool "250 MHz"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+config BR2_ISP_CLK_300MHZ
+	bool "300 MHz"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+config BR2_ISP_CLK_350MHZ
+	bool "350 MHz"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+endchoice
+
+choice
+	prompt "ISP Scaler Clock Source"
+	default BR2_ISP_CLKS_INTERNAL
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Select the parent clock source for the ISP scaler. (clks_name)
+
+config BR2_ISP_CLKS_SCLKA
+	bool "SCLKA"
+
+config BR2_ISP_CLKS_VPLL
+	bool "VPLL"
+
+config BR2_ISP_CLKS_MPLL
+	bool "MPLL"
+
+config BR2_ISP_CLKS_INTERNAL
+        bool "Module Internal"
+endchoice
+
+choice
+	prompt "ISP Scaler Clock Speed"
+	default BR2_ISP_CLKS_400MHZ
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Choose the ISP's scaler clock speed from the predefined options.
+
+config BR2_ISP_CLKS_400MHZ
+	bool "400 MHz"
+config BR2_ISP_CLKS_450MHZ
+	bool "450 MHz"
+config BR2_ISP_CLKS_486MHZ
+	bool "486 MHz"
+config BR2_ISP_CLKS_500MHZ
+	bool "500 MHz"
+config BR2_ISP_CLKS_550MHZ
+	bool "550 MHz"
+config BR2_ISP_CLKS_600MHZ
+	bool "600 MHz"
+config BR2_ISP_CLKS_650MHZ
+	bool "650 MHz"
+config BR2_ISP_CLKS_700MHZ
+	bool "700 MHz"
+endchoice
+
+choice
+	prompt "ISP AXI Bus Clock Source"
+	default BR2_ISP_CLKA_INTERNAL
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Select the clock source for the ISP's AXI bus. (clka_name)
+
+config BR2_ISP_CLKA_SCLKA
+	bool "SCLKA"
+
+config BR2_ISP_CLKA_INTERNAL
+        bool "Module Internal"
+endchoice
+
+choice
+	prompt "ISP AXI Bus Clock Speed"
+	default BR2_ISP_CLKA_400MHZ
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Choose the ISP's AXI bus clock speed from the predefined options.
+
+config BR2_ISP_CLKA_400MHZ
+	bool "400 MHz"
+config BR2_ISP_CLKA_450MHZ
+	bool "450 MHz"
+config BR2_ISP_CLKA_486MHZ
+	bool "486 MHz"
+config BR2_ISP_CLKA_500MHZ
+	bool "500 MHz"
+config BR2_ISP_CLKA_550MHZ
+	bool "550 MHz"
+config BR2_ISP_CLKA_600MHZ
+	bool "600 MHz"
+config BR2_ISP_CLKA_650MHZ
+	bool "650 MHz"
+config BR2_ISP_CLKA_700MHZ
+	bool "700 MHz"
+endchoice
+
+choice
+	prompt "ISP Reserved RAM (rmem)"
+	default BR2_THINGINO_RMEM_23 if BR2_SOC_FAMILY_64MB
+	default BR2_THINGINO_RMEM_29 if BR2_SOC_FAMILY_128MB
+	default BR2_THINGINO_RMEM_64 if BR2_SOC_FAMILY_256MB
+	help
+	  Specify reserved memory for the ISP in MB.
+
+config BR2_THINGINO_RMEM_AUTO
+	depends on BR2_THINGINO_DEV_EXPERIMENTAL
+	bool "Automatic"
+	help
+	  Automatically determine ISP reserved memory based on sensor configuration
+config BR2_THINGINO_RMEM_0
+	bool "0 MB"
+config BR2_THINGINO_RMEM_1
+	bool "1 MB"
+config BR2_THINGINO_RMEM_2
+	bool "2 MB"
+config BR2_THINGINO_RMEM_3
+	bool "3 MB"
+config BR2_THINGINO_RMEM_4
+	bool "4 MB"
+config BR2_THINGINO_RMEM_5
+	bool "5 MB"
+config BR2_THINGINO_RMEM_6
+	bool "6 MB"
+config BR2_THINGINO_RMEM_7
+	bool "7 MB"
+config BR2_THINGINO_RMEM_8
+	bool "8 MB"
+config BR2_THINGINO_RMEM_9
+	bool "9 MB"
+config BR2_THINGINO_RMEM_10
+	bool "10 MB"
+config BR2_THINGINO_RMEM_11
+	bool "11 MB"
+config BR2_THINGINO_RMEM_12
+	bool "12 MB"
+config BR2_THINGINO_RMEM_13
+	bool "13 MB"
+config BR2_THINGINO_RMEM_14
+	bool "14 MB"
+config BR2_THINGINO_RMEM_15
+	bool "15 MB"
+config BR2_THINGINO_RMEM_16
+	bool "16 MB"
+config BR2_THINGINO_RMEM_17
+	bool "17 MB"
+config BR2_THINGINO_RMEM_18
+	bool "18 MB"
+config BR2_THINGINO_RMEM_19
+	bool "19 MB"
+config BR2_THINGINO_RMEM_20
+	bool "20 MB"
+config BR2_THINGINO_RMEM_21
+	bool "21 MB"
+config BR2_THINGINO_RMEM_22
+	bool "22 MB"
+config BR2_THINGINO_RMEM_23
+	bool "23 MB"
+config BR2_THINGINO_RMEM_24
+	bool "24 MB"
+config BR2_THINGINO_RMEM_25
+	bool "25 MB"
+config BR2_THINGINO_RMEM_26
+	bool "26 MB"
+config BR2_THINGINO_RMEM_27
+	bool "27 MB"
+config BR2_THINGINO_RMEM_28
+	bool "28 MB"
+config BR2_THINGINO_RMEM_29
+	bool "29 MB"
+config BR2_THINGINO_RMEM_30
+	bool "30 MB"
+config BR2_THINGINO_RMEM_31
+	bool "31 MB"
+config BR2_THINGINO_RMEM_32
+	bool "32 MB"
+config BR2_THINGINO_RMEM_33
+	bool "33 MB"
+config BR2_THINGINO_RMEM_34
+	bool "34 MB"
+config BR2_THINGINO_RMEM_35
+	bool "35 MB"
+config BR2_THINGINO_RMEM_36
+	bool "36 MB"
+config BR2_THINGINO_RMEM_37
+	bool "37 MB"
+config BR2_THINGINO_RMEM_38
+	bool "38 MB"
+config BR2_THINGINO_RMEM_39
+	bool "39 MB"
+config BR2_THINGINO_RMEM_40
+	bool "40 MB"
+config BR2_THINGINO_RMEM_41
+	bool "41 MB"
+config BR2_THINGINO_RMEM_42
+	bool "42 MB"
+config BR2_THINGINO_RMEM_43
+	bool "43 MB"
+config BR2_THINGINO_RMEM_44
+	bool "44 MB"
+config BR2_THINGINO_RMEM_45
+	bool "45 MB"
+config BR2_THINGINO_RMEM_46
+	bool "46 MB"
+config BR2_THINGINO_RMEM_47
+	bool "47 MB"
+config BR2_THINGINO_RMEM_48
+	bool "48 MB"
+config BR2_THINGINO_RMEM_49
+	bool "49 MB"
+config BR2_THINGINO_RMEM_50
+	bool "50 MB"
+config BR2_THINGINO_RMEM_51
+	bool "51 MB"
+config BR2_THINGINO_RMEM_52
+	bool "52 MB"
+config BR2_THINGINO_RMEM_53
+	bool "53 MB"
+config BR2_THINGINO_RMEM_54
+	bool "54 MB"
+config BR2_THINGINO_RMEM_55
+	bool "55 MB"
+config BR2_THINGINO_RMEM_56
+	bool "56 MB"
+config BR2_THINGINO_RMEM_57
+	bool "57 MB"
+config BR2_THINGINO_RMEM_58
+	bool "58 MB"
+config BR2_THINGINO_RMEM_59
+	bool "59 MB"
+config BR2_THINGINO_RMEM_60
+	bool "60 MB"
+config BR2_THINGINO_RMEM_61
+	bool "61 MB"
+config BR2_THINGINO_RMEM_62
+	bool "62 MB"
+config BR2_THINGINO_RMEM_63
+	bool "63 MB"
+config BR2_THINGINO_RMEM_64
+	bool "64 MB"
+config BR2_THINGINO_RMEM_65
+	bool "65 MB"
+config BR2_THINGINO_RMEM_66
+	bool "66 MB"
+config BR2_THINGINO_RMEM_67
+	bool "67 MB"
+config BR2_THINGINO_RMEM_68
+	bool "68 MB"
+config BR2_THINGINO_RMEM_69
+	bool "69 MB"
+config BR2_THINGINO_RMEM_70
+	bool "70 MB"
+config BR2_THINGINO_RMEM_71
+	bool "71 MB"
+config BR2_THINGINO_RMEM_72
+	bool "72 MB"
+config BR2_THINGINO_RMEM_73
+	bool "73 MB"
+config BR2_THINGINO_RMEM_74
+	bool "74 MB"
+config BR2_THINGINO_RMEM_75
+	bool "75 MB"
+config BR2_THINGINO_RMEM_76
+	bool "76 MB"
+config BR2_THINGINO_RMEM_77
+	bool "77 MB"
+config BR2_THINGINO_RMEM_78
+	bool "78 MB"
+config BR2_THINGINO_RMEM_79
+	bool "79 MB"
+config BR2_THINGINO_RMEM_80
+	bool "80 MB"
+config BR2_THINGINO_RMEM_81
+	bool "81 MB"
+config BR2_THINGINO_RMEM_82
+	bool "82 MB"
+config BR2_THINGINO_RMEM_83
+	bool "83 MB"
+config BR2_THINGINO_RMEM_84
+	bool "84 MB"
+config BR2_THINGINO_RMEM_85
+	bool "85 MB"
+config BR2_THINGINO_RMEM_86
+	bool "86 MB"
+config BR2_THINGINO_RMEM_87
+	bool "87 MB"
+config BR2_THINGINO_RMEM_88
+	bool "88 MB"
+config BR2_THINGINO_RMEM_89
+	bool "89 MB"
+config BR2_THINGINO_RMEM_90
+	bool "90 MB"
+config BR2_THINGINO_RMEM_91
+	bool "91 MB"
+config BR2_THINGINO_RMEM_92
+	bool "92 MB"
+config BR2_THINGINO_RMEM_93
+	bool "93 MB"
+config BR2_THINGINO_RMEM_94
+	bool "94 MB"
+config BR2_THINGINO_RMEM_95
+	bool "95 MB"
+config BR2_THINGINO_RMEM_96
+	bool "96 MB"
+config BR2_THINGINO_RMEM_97
+	bool "97 MB"
+config BR2_THINGINO_RMEM_98
+	bool "98 MB"
+config BR2_THINGINO_RMEM_99
+	bool "99 MB"
+config BR2_THINGINO_RMEM_100
+	bool "100 MB"
+config BR2_THINGINO_RMEM_101
+	bool "101 MB"
+config BR2_THINGINO_RMEM_102
+	bool "102 MB"
+config BR2_THINGINO_RMEM_103
+	bool "103 MB"
+config BR2_THINGINO_RMEM_104
+	bool "104 MB"
+config BR2_THINGINO_RMEM_105
+	bool "105 MB"
+config BR2_THINGINO_RMEM_106
+	bool "106 MB"
+config BR2_THINGINO_RMEM_107
+	bool "107 MB"
+config BR2_THINGINO_RMEM_108
+	bool "108 MB"
+config BR2_THINGINO_RMEM_109
+	bool "109 MB"
+config BR2_THINGINO_RMEM_110
+	bool "110 MB"
+config BR2_THINGINO_RMEM_111
+	bool "111 MB"
+config BR2_THINGINO_RMEM_112
+	bool "112 MB"
+config BR2_THINGINO_RMEM_113
+	bool "113 MB"
+config BR2_THINGINO_RMEM_114
+	bool "114 MB"
+config BR2_THINGINO_RMEM_115
+	bool "115 MB"
+config BR2_THINGINO_RMEM_116
+	bool "116 MB"
+config BR2_THINGINO_RMEM_117
+	bool "117 MB"
+config BR2_THINGINO_RMEM_118
+	bool "118 MB"
+config BR2_THINGINO_RMEM_119
+	bool "119 MB"
+config BR2_THINGINO_RMEM_120
+	bool "120 MB"
+config BR2_THINGINO_RMEM_121
+	bool "121 MB"
+config BR2_THINGINO_RMEM_122
+	bool "122 MB"
+config BR2_THINGINO_RMEM_123
+	bool "123 MB"
+config BR2_THINGINO_RMEM_124
+	bool "124 MB"
+config BR2_THINGINO_RMEM_125
+	bool "125 MB"
+config BR2_THINGINO_RMEM_126
+	bool "126 MB"
+config BR2_THINGINO_RMEM_127
+	bool "127 MB"
+config BR2_THINGINO_RMEM_128
+	bool "128 MB"
+endchoice
+
+choice
+	prompt "ISP Reserved RAM (ispmem)"
+	depends on BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20
+	default BR2_THINGINO_ISPMEM_8
+	help
+	  Specify reserved memory for the ISP in MB.
+
+config BR2_THINGINO_ISPMEM_0
+	bool "0 MB"
+config BR2_THINGINO_ISPMEM_1
+	bool "1 MB"
+config BR2_THINGINO_ISPMEM_2
+	bool "2 MB"
+config BR2_THINGINO_ISPMEM_3
+	bool "3 MB"
+config BR2_THINGINO_ISPMEM_4
+	bool "4 MB"
+config BR2_THINGINO_ISPMEM_5
+	bool "5 MB"
+config BR2_THINGINO_ISPMEM_6
+	bool "6 MB"
+config BR2_THINGINO_ISPMEM_7
+	bool "7 MB"
+config BR2_THINGINO_ISPMEM_8
+	bool "8 MB"
+config BR2_THINGINO_ISPMEM_9
+	bool "9 MB"
+config BR2_THINGINO_ISPMEM_10
+	bool "10 MB"
+config BR2_THINGINO_ISPMEM_11
+	bool "11 MB"
+config BR2_THINGINO_ISPMEM_12
+	bool "12 MB"
+config BR2_THINGINO_ISPMEM_13
+	bool "13 MB"
+config BR2_THINGINO_ISPMEM_14
+	bool "14 MB"
+config BR2_THINGINO_ISPMEM_15
+	bool "15 MB"
+config BR2_THINGINO_ISPMEM_16
+	bool "16 MB"
+config BR2_THINGINO_ISPMEM_17
+	bool "17 MB"
+config BR2_THINGINO_ISPMEM_18
+	bool "18 MB"
+config BR2_THINGINO_ISPMEM_19
+	bool "19 MB"
+config BR2_THINGINO_ISPMEM_20
+	bool "20 MB"
+config BR2_THINGINO_ISPMEM_21
+	bool "21 MB"
+config BR2_THINGINO_ISPMEM_22
+	bool "22 MB"
+config BR2_THINGINO_ISPMEM_23
+	bool "23 MB"
+config BR2_THINGINO_ISPMEM_24
+	bool "24 MB"
+config BR2_THINGINO_ISPMEM_25
+	bool "25 MB"
+config BR2_THINGINO_ISPMEM_26
+	bool "26 MB"
+config BR2_THINGINO_ISPMEM_27
+	bool "27 MB"
+config BR2_THINGINO_ISPMEM_28
+	bool "28 MB"
+config BR2_THINGINO_ISPMEM_29
+	bool "29 MB"
+config BR2_THINGINO_ISPMEM_30
+	bool "30 MB"
+config BR2_THINGINO_ISPMEM_31
+	bool "31 MB"
+config BR2_THINGINO_ISPMEM_32
+	bool "32 MB"
+config BR2_THINGINO_ISPMEM_33
+	bool "33 MB"
+config BR2_THINGINO_ISPMEM_34
+	bool "34 MB"
+config BR2_THINGINO_ISPMEM_35
+	bool "35 MB"
+config BR2_THINGINO_ISPMEM_36
+	bool "36 MB"
+config BR2_THINGINO_ISPMEM_37
+	bool "37 MB"
+config BR2_THINGINO_ISPMEM_38
+	bool "38 MB"
+config BR2_THINGINO_ISPMEM_39
+	bool "39 MB"
+config BR2_THINGINO_ISPMEM_40
+	bool "40 MB"
+config BR2_THINGINO_ISPMEM_41
+	bool "41 MB"
+config BR2_THINGINO_ISPMEM_42
+	bool "42 MB"
+config BR2_THINGINO_ISPMEM_43
+	bool "43 MB"
+config BR2_THINGINO_ISPMEM_44
+	bool "44 MB"
+config BR2_THINGINO_ISPMEM_45
+	bool "45 MB"
+config BR2_THINGINO_ISPMEM_46
+	bool "46 MB"
+config BR2_THINGINO_ISPMEM_47
+	bool "47 MB"
+config BR2_THINGINO_ISPMEM_48
+	bool "48 MB"
+config BR2_THINGINO_ISPMEM_49
+	bool "49 MB"
+config BR2_THINGINO_ISPMEM_50
+	bool "50 MB"
+config BR2_THINGINO_ISPMEM_51
+	bool "51 MB"
+config BR2_THINGINO_ISPMEM_52
+	bool "52 MB"
+config BR2_THINGINO_ISPMEM_53
+	bool "53 MB"
+config BR2_THINGINO_ISPMEM_54
+	bool "54 MB"
+config BR2_THINGINO_ISPMEM_55
+	bool "55 MB"
+config BR2_THINGINO_ISPMEM_56
+	bool "56 MB"
+config BR2_THINGINO_ISPMEM_57
+	bool "57 MB"
+config BR2_THINGINO_ISPMEM_58
+	bool "58 MB"
+config BR2_THINGINO_ISPMEM_59
+	bool "59 MB"
+config BR2_THINGINO_ISPMEM_60
+	bool "60 MB"
+config BR2_THINGINO_ISPMEM_61
+	bool "61 MB"
+config BR2_THINGINO_ISPMEM_62
+	bool "62 MB"
+config BR2_THINGINO_ISPMEM_63
+	bool "63 MB"
+config BR2_THINGINO_ISPMEM_64
+	bool "64 MB"
+config BR2_THINGINO_ISPMEM_65
+	bool "65 MB"
+config BR2_THINGINO_ISPMEM_66
+	bool "66 MB"
+config BR2_THINGINO_ISPMEM_67
+	bool "67 MB"
+config BR2_THINGINO_ISPMEM_68
+	bool "68 MB"
+config BR2_THINGINO_ISPMEM_69
+	bool "69 MB"
+config BR2_THINGINO_ISPMEM_70
+	bool "70 MB"
+config BR2_THINGINO_ISPMEM_71
+	bool "71 MB"
+config BR2_THINGINO_ISPMEM_72
+	bool "72 MB"
+config BR2_THINGINO_ISPMEM_73
+	bool "73 MB"
+config BR2_THINGINO_ISPMEM_74
+	bool "74 MB"
+config BR2_THINGINO_ISPMEM_75
+	bool "75 MB"
+config BR2_THINGINO_ISPMEM_76
+	bool "76 MB"
+config BR2_THINGINO_ISPMEM_77
+	bool "77 MB"
+config BR2_THINGINO_ISPMEM_78
+	bool "78 MB"
+config BR2_THINGINO_ISPMEM_79
+	bool "79 MB"
+config BR2_THINGINO_ISPMEM_80
+	bool "80 MB"
+config BR2_THINGINO_ISPMEM_81
+	bool "81 MB"
+config BR2_THINGINO_ISPMEM_82
+	bool "82 MB"
+config BR2_THINGINO_ISPMEM_83
+	bool "83 MB"
+config BR2_THINGINO_ISPMEM_84
+	bool "84 MB"
+config BR2_THINGINO_ISPMEM_85
+	bool "85 MB"
+config BR2_THINGINO_ISPMEM_86
+	bool "86 MB"
+config BR2_THINGINO_ISPMEM_87
+	bool "87 MB"
+config BR2_THINGINO_ISPMEM_88
+	bool "88 MB"
+config BR2_THINGINO_ISPMEM_89
+	bool "89 MB"
+config BR2_THINGINO_ISPMEM_90
+	bool "90 MB"
+config BR2_THINGINO_ISPMEM_91
+	bool "91 MB"
+config BR2_THINGINO_ISPMEM_92
+	bool "92 MB"
+config BR2_THINGINO_ISPMEM_93
+	bool "93 MB"
+config BR2_THINGINO_ISPMEM_94
+	bool "94 MB"
+config BR2_THINGINO_ISPMEM_95
+	bool "95 MB"
+config BR2_THINGINO_ISPMEM_96
+	bool "96 MB"
+config BR2_THINGINO_ISPMEM_97
+	bool "97 MB"
+config BR2_THINGINO_ISPMEM_98
+	bool "98 MB"
+config BR2_THINGINO_ISPMEM_99
+	bool "99 MB"
+config BR2_THINGINO_ISPMEM_100
+	bool "100 MB"
+config BR2_THINGINO_ISPMEM_101
+	bool "101 MB"
+config BR2_THINGINO_ISPMEM_102
+	bool "102 MB"
+config BR2_THINGINO_ISPMEM_103
+	bool "103 MB"
+config BR2_THINGINO_ISPMEM_104
+	bool "104 MB"
+config BR2_THINGINO_ISPMEM_105
+	bool "105 MB"
+config BR2_THINGINO_ISPMEM_106
+	bool "106 MB"
+config BR2_THINGINO_ISPMEM_107
+	bool "107 MB"
+config BR2_THINGINO_ISPMEM_108
+	bool "108 MB"
+config BR2_THINGINO_ISPMEM_109
+	bool "109 MB"
+config BR2_THINGINO_ISPMEM_110
+	bool "110 MB"
+config BR2_THINGINO_ISPMEM_111
+	bool "111 MB"
+config BR2_THINGINO_ISPMEM_112
+	bool "112 MB"
+config BR2_THINGINO_ISPMEM_113
+	bool "113 MB"
+config BR2_THINGINO_ISPMEM_114
+	bool "114 MB"
+config BR2_THINGINO_ISPMEM_115
+	bool "115 MB"
+config BR2_THINGINO_ISPMEM_116
+	bool "116 MB"
+config BR2_THINGINO_ISPMEM_117
+	bool "117 MB"
+config BR2_THINGINO_ISPMEM_118
+	bool "118 MB"
+config BR2_THINGINO_ISPMEM_119
+	bool "119 MB"
+config BR2_THINGINO_ISPMEM_120
+	bool "120 MB"
+config BR2_THINGINO_ISPMEM_121
+	bool "121 MB"
+config BR2_THINGINO_ISPMEM_122
+	bool "122 MB"
+config BR2_THINGINO_ISPMEM_123
+	bool "123 MB"
+config BR2_THINGINO_ISPMEM_124
+	bool "124 MB"
+config BR2_THINGINO_ISPMEM_125
+	bool "125 MB"
+config BR2_THINGINO_ISPMEM_126
+	bool "126 MB"
+config BR2_THINGINO_ISPMEM_127
+	bool "127 MB"
+config BR2_THINGINO_ISPMEM_128
+	bool "128 MB"
+endchoice
+
+choice
+	prompt "Neural Network Reserved RAM (nmem)"
+	depends on BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	default BR2_THINGINO_NMEM_23 if BR2_SOC_FAMILY_64MB
+	default BR2_THINGINO_NMEM_29 if BR2_SOC_FAMILY_128MB
+	default BR2_THINGINO_NMEM_64 if BR2_SOC_FAMILY_256MB
+	help
+	  Specify reserved memory for the Neural Network module in MB.
+
+config BR2_THINGINO_NMEM_0
+	bool "0 MB"
+config BR2_THINGINO_NMEM_1
+	bool "1 MB"
+config BR2_THINGINO_NMEM_2
+	bool "2 MB"
+config BR2_THINGINO_NMEM_3
+	bool "3 MB"
+config BR2_THINGINO_NMEM_4
+	bool "4 MB"
+config BR2_THINGINO_NMEM_5
+	bool "5 MB"
+config BR2_THINGINO_NMEM_6
+	bool "6 MB"
+config BR2_THINGINO_NMEM_7
+	bool "7 MB"
+config BR2_THINGINO_NMEM_8
+	bool "8 MB"
+config BR2_THINGINO_NMEM_9
+	bool "9 MB"
+config BR2_THINGINO_NMEM_10
+	bool "10 MB"
+config BR2_THINGINO_NMEM_11
+	bool "11 MB"
+config BR2_THINGINO_NMEM_12
+	bool "12 MB"
+config BR2_THINGINO_NMEM_13
+	bool "13 MB"
+config BR2_THINGINO_NMEM_14
+	bool "14 MB"
+config BR2_THINGINO_NMEM_15
+	bool "15 MB"
+config BR2_THINGINO_NMEM_16
+	bool "16 MB"
+config BR2_THINGINO_NMEM_17
+	bool "17 MB"
+config BR2_THINGINO_NMEM_18
+	bool "18 MB"
+config BR2_THINGINO_NMEM_19
+	bool "19 MB"
+config BR2_THINGINO_NMEM_20
+	bool "20 MB"
+config BR2_THINGINO_NMEM_21
+	bool "21 MB"
+config BR2_THINGINO_NMEM_22
+	bool "22 MB"
+config BR2_THINGINO_NMEM_23
+	bool "23 MB"
+config BR2_THINGINO_NMEM_24
+	bool "24 MB"
+config BR2_THINGINO_NMEM_25
+	bool "25 MB"
+config BR2_THINGINO_NMEM_26
+	bool "26 MB"
+config BR2_THINGINO_NMEM_27
+	bool "27 MB"
+config BR2_THINGINO_NMEM_28
+	bool "28 MB"
+config BR2_THINGINO_NMEM_29
+	bool "29 MB"
+config BR2_THINGINO_NMEM_30
+	bool "30 MB"
+config BR2_THINGINO_NMEM_31
+	bool "31 MB"
+config BR2_THINGINO_NMEM_32
+	bool "32 MB"
+config BR2_THINGINO_NMEM_33
+	bool "33 MB"
+config BR2_THINGINO_NMEM_34
+	bool "34 MB"
+config BR2_THINGINO_NMEM_35
+	bool "35 MB"
+config BR2_THINGINO_NMEM_36
+	bool "36 MB"
+config BR2_THINGINO_NMEM_37
+	bool "37 MB"
+config BR2_THINGINO_NMEM_38
+	bool "38 MB"
+config BR2_THINGINO_NMEM_39
+	bool "39 MB"
+config BR2_THINGINO_NMEM_40
+	bool "40 MB"
+config BR2_THINGINO_NMEM_41
+	bool "41 MB"
+config BR2_THINGINO_NMEM_42
+	bool "42 MB"
+config BR2_THINGINO_NMEM_43
+	bool "43 MB"
+config BR2_THINGINO_NMEM_44
+	bool "44 MB"
+config BR2_THINGINO_NMEM_45
+	bool "45 MB"
+config BR2_THINGINO_NMEM_46
+	bool "46 MB"
+config BR2_THINGINO_NMEM_47
+	bool "47 MB"
+config BR2_THINGINO_NMEM_48
+	bool "48 MB"
+config BR2_THINGINO_NMEM_49
+	bool "49 MB"
+config BR2_THINGINO_NMEM_50
+	bool "50 MB"
+config BR2_THINGINO_NMEM_51
+	bool "51 MB"
+config BR2_THINGINO_NMEM_52
+	bool "52 MB"
+config BR2_THINGINO_NMEM_53
+	bool "53 MB"
+config BR2_THINGINO_NMEM_54
+	bool "54 MB"
+config BR2_THINGINO_NMEM_55
+	bool "55 MB"
+config BR2_THINGINO_NMEM_56
+	bool "56 MB"
+config BR2_THINGINO_NMEM_57
+	bool "57 MB"
+config BR2_THINGINO_NMEM_58
+	bool "58 MB"
+config BR2_THINGINO_NMEM_59
+	bool "59 MB"
+config BR2_THINGINO_NMEM_60
+	bool "60 MB"
+config BR2_THINGINO_NMEM_61
+	bool "61 MB"
+config BR2_THINGINO_NMEM_62
+	bool "62 MB"
+config BR2_THINGINO_NMEM_63
+	bool "63 MB"
+config BR2_THINGINO_NMEM_64
+	bool "64 MB"
+config BR2_THINGINO_NMEM_65
+	bool "65 MB"
+config BR2_THINGINO_NMEM_66
+	bool "66 MB"
+config BR2_THINGINO_NMEM_67
+	bool "67 MB"
+config BR2_THINGINO_NMEM_68
+	bool "68 MB"
+config BR2_THINGINO_NMEM_69
+	bool "69 MB"
+config BR2_THINGINO_NMEM_70
+	bool "70 MB"
+config BR2_THINGINO_NMEM_71
+	bool "71 MB"
+config BR2_THINGINO_NMEM_72
+	bool "72 MB"
+config BR2_THINGINO_NMEM_73
+	bool "73 MB"
+config BR2_THINGINO_NMEM_74
+	bool "74 MB"
+config BR2_THINGINO_NMEM_75
+	bool "75 MB"
+config BR2_THINGINO_NMEM_76
+	bool "76 MB"
+config BR2_THINGINO_NMEM_77
+	bool "77 MB"
+config BR2_THINGINO_NMEM_78
+	bool "78 MB"
+config BR2_THINGINO_NMEM_79
+	bool "79 MB"
+config BR2_THINGINO_NMEM_80
+	bool "80 MB"
+config BR2_THINGINO_NMEM_81
+	bool "81 MB"
+config BR2_THINGINO_NMEM_82
+	bool "82 MB"
+config BR2_THINGINO_NMEM_83
+	bool "83 MB"
+config BR2_THINGINO_NMEM_84
+	bool "84 MB"
+config BR2_THINGINO_NMEM_85
+	bool "85 MB"
+config BR2_THINGINO_NMEM_86
+	bool "86 MB"
+config BR2_THINGINO_NMEM_87
+	bool "87 MB"
+config BR2_THINGINO_NMEM_88
+	bool "88 MB"
+config BR2_THINGINO_NMEM_89
+	bool "89 MB"
+config BR2_THINGINO_NMEM_90
+	bool "90 MB"
+config BR2_THINGINO_NMEM_91
+	bool "91 MB"
+config BR2_THINGINO_NMEM_92
+	bool "92 MB"
+config BR2_THINGINO_NMEM_93
+	bool "93 MB"
+config BR2_THINGINO_NMEM_94
+	bool "94 MB"
+config BR2_THINGINO_NMEM_95
+	bool "95 MB"
+config BR2_THINGINO_NMEM_96
+	bool "96 MB"
+config BR2_THINGINO_NMEM_97
+	bool "97 MB"
+config BR2_THINGINO_NMEM_98
+	bool "98 MB"
+config BR2_THINGINO_NMEM_99
+	bool "99 MB"
+config BR2_THINGINO_NMEM_100
+	bool "100 MB"
+config BR2_THINGINO_NMEM_101
+	bool "101 MB"
+config BR2_THINGINO_NMEM_102
+	bool "102 MB"
+config BR2_THINGINO_NMEM_103
+	bool "103 MB"
+config BR2_THINGINO_NMEM_104
+	bool "104 MB"
+config BR2_THINGINO_NMEM_105
+	bool "105 MB"
+config BR2_THINGINO_NMEM_106
+	bool "106 MB"
+config BR2_THINGINO_NMEM_107
+	bool "107 MB"
+config BR2_THINGINO_NMEM_108
+	bool "108 MB"
+config BR2_THINGINO_NMEM_109
+	bool "109 MB"
+config BR2_THINGINO_NMEM_110
+	bool "110 MB"
+config BR2_THINGINO_NMEM_111
+	bool "111 MB"
+config BR2_THINGINO_NMEM_112
+	bool "112 MB"
+config BR2_THINGINO_NMEM_113
+	bool "113 MB"
+config BR2_THINGINO_NMEM_114
+	bool "114 MB"
+config BR2_THINGINO_NMEM_115
+	bool "115 MB"
+config BR2_THINGINO_NMEM_116
+	bool "116 MB"
+config BR2_THINGINO_NMEM_117
+	bool "117 MB"
+config BR2_THINGINO_NMEM_118
+	bool "118 MB"
+config BR2_THINGINO_NMEM_119
+	bool "119 MB"
+config BR2_THINGINO_NMEM_120
+	bool "120 MB"
+config BR2_THINGINO_NMEM_121
+	bool "121 MB"
+config BR2_THINGINO_NMEM_122
+	bool "122 MB"
+config BR2_THINGINO_NMEM_123
+	bool "123 MB"
+config BR2_THINGINO_NMEM_124
+	bool "124 MB"
+config BR2_THINGINO_NMEM_125
+	bool "125 MB"
+config BR2_THINGINO_NMEM_126
+	bool "126 MB"
+config BR2_THINGINO_NMEM_127
+	bool "127 MB"
+config BR2_THINGINO_NMEM_128
+	bool "128 MB"
+endchoice
+
+if FALSE
+menu "Image Sensor Configuration"
+config BR2_SENSOR_PARAM_RESET_GPIO
+	int "Reset GPIO pin"
+	default -1
+config BR2_SENSOR_PARAM_PWDN_GPIO
+	int "Powerdown GPIO pin"
+	default -1
+config BR2_SENSOR_PARAM_SENSOR_GPIO_FUNC
+	int "GPIO function"
+	default -1
+config BR2_SENSOR_PARAM_DATA_INTERFACE
+	int "Data interface"
+	default -1
+config BR2_SENSOR_PARAM_SENSOR_MAX_FPS
+	int "Maximum FPS"
+	default -1
+config BR2_SENSOR_PARAM_SHVFLIP
+	int "Horizontal and vertical flip"
+	default -1
+config BR2_SENSOR_PARAM_FSYNC_MODE
+	int "FSync mode"
+	default -1
+config BR2_SENSOR_PARAM_WDR_BUF_SIZE
+	int "WDR buffer size"
+	default -1
+config BR2_SENSOR_PARAM_SENSOR_RESOLUTION
+	int "Resolution"
+	default -1
+config BR2_SENSOR_PARAM_DATA_TYPE
+	int "Data type"
+	default -1
+endmenu
+endif
+
+menu "ISP Debug Configuration"
+
+choice
+	prompt "ISP Debug Print Level"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	default BR2_ISP_PRINT_LEVEL_1
+	help
+	  Select the debug print level for the ISP.
+	  (print_level)
+
+config BR2_ISP_PRINT_LEVEL_0
+	bool "ISP Print Level 0"
+	help
+	  Enable ISP debug print level 0 - All messages (info, warnings, and errors) will be printed
+
+config BR2_ISP_PRINT_LEVEL_1
+	bool "ISP Print Level 1"
+	help
+	  Enable ISP debug print level 1 - Only warnings and errors will be printed
+
+config BR2_ISP_PRINT_LEVEL_2
+	bool "ISP Print Level 2"
+	help
+	  Enable ISP debug print level 2 - Only errors will be printed
+
+config BR2_ISP_PRINT_LEVEL_3
+	bool "ISP Print Level 3"
+	help
+	  Enable ISP debug print level 3 - No messages will be printed
+endchoice
+
+choice
+	prompt "ISP Memory Optimization Level"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40
+	default BR2_ISP_MEMOPT_1 if BR2_SOC_FAMILY_32MB || BR2_SOC_FAMILY_64MB
+	help
+	  Select the memory optimization level for the ISP.
+	  (isp_memopt)
+
+config BR2_ISP_MEMOPT_0
+	bool "Optimize Disabled"
+	help
+	  Disables the ISP memory optimization.
+
+config BR2_ISP_MEMOPT_1
+	bool "Optimize Level 1"
+	help
+	  Enable ISP memory optimization - Level 1 - Bypass Lynne + BGM
+
+config BR2_ISP_MEMOPT_2
+	bool "Optimize Level 2"
+	help
+	  Enable ISP memory optimization - Level 2 - Bypass Lynne + BGM + Ass
+
+config BR2_ISP_MEMOPT_3
+	bool "Optimize Level 3"
+	help
+	  Enable ISP memory optimization - Level 3 - Normal
+endchoice
+
+menuconfig BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	bool "ISP Day/Night Switch Drop Frame Number"
+	help
+	  Enable the drop frame feature during the day/night switch.
+
+config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE
+	depends on BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME
+	int "Number of frames to drop"
+	default 0
+	help
+	  Specify the exact number of frames to drop during the switch.
+	  This setting is only active if the drop frame feature is enabled.
+	  (isp_day_night_switch_drop_frame_num)
+
+menuconfig BR2_ISP_CH0_PRE_DEQUEUE_TIME
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	bool "ISP CH0 Pre-dequeue Time"
+	help
+	  Enable the pre-dequeue time for channel 0.
+
+config BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE
+	depends on BR2_ISP_CH0_PRE_DEQUEUE_TIME
+	int "Pre-dequeue time in milliseconds"
+	default 0
+	help
+	  Specify the exact pre-dequeue time for channel 0 in milliseconds.
+	  This setting is only active if the pre-dequeue time feature is enabled.
+	  (isp_ch0_pre_dequeue_time)
+
+menuconfig BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	bool "ISP CH0 Pre-dequeue Interrupt Processing"
+	help
+	  Enable the interrupt processing time for pre-dequeue for channel 0.
+
+config BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_VALUE
+	depends on BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
+	int "Interrupt processing time"
+	default 0
+	help
+	  Specify the interrupt processing time for pre-dequeue for channel 0.
+	  This setting is only active if the feature is enabled.
+	  (isp_ch0_pre_dequeue_interrupt_process)
+
+menuconfig BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	bool "ISP CH0 Valid Lines for Pre-dequeue"
+	help
+	  Enable the number of valid lines for pre-dequeue for channel 0.
+
+config BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE
+	depends on BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
+	int "Pre-dequeue valid lines"
+	default 0
+	help
+	  Specify the number of valid lines for pre-dequeue for channel 0.
+	  This setting is only active if the feature is enabled.
+	  (isp_ch0_pre_dequeue_valid_lines)
+
+menuconfig BR2_ISP_CH1_DEQUEUE_DELAY_TIME
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	bool "ISP CH1 Pre-dequeue Delay Time"
+	help
+	  Enable the pre-dequeue delay time for channel 1.
+
+config BR2_ISP_CH1_DEQUEUE_DELAY_TIME_VALUE
+	depends on BR2_ISP_CH1_DEQUEUE_DELAY_TIME
+	int "Pre-dequeue delay time in milliseconds"
+	default 0
+	help
+	  Specify the pre-dequeue delay time for channel 1 in milliseconds.
+	  This setting is only active if the feature is enabled.
+	  (isp_ch1_dequeue_delay_time)
+
+config BR2_ISP_MIPI_SWITCH_GPIO
+	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+	int "mipi switch"
+	default 7
+	help
+	  Specify the pre-dequeue delay time for channel 1 in milliseconds.
+	  This setting is only active if the feature is enabled.
+	  (mipi_switch_gpio)
+
+choice
+	prompt "ISP Direct Mode"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Configure non-direct mode, direct mode, and semi-direct mode.
+	  (direct_mode)
+
+config BR2_ISP_DIRECT_MODE_0
+	bool "Non Direct Mode"
+	help
+	  Disables the ISP direct mode
+
+config BR2_ISP_DIRECT_MODE_1
+	bool "Direct Mode"
+	help
+	  Enable ISP direct mode
+
+config BR2_ISP_DIRECT_MODE_2
+	bool "Semi-Direct Mode"
+	help
+	  Enable ISP semi-direct mode.
+
+endchoice
+
+menuconfig BR2_ISP_IVDC_MEM_LINE
+	depends on (BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41) && BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+	bool "ISP IVDC Mem Line"
+	help
+	  Enable the IVDC mem line configuration.
+
+config BR2_ISP_IVDC_MEM_LINE_VALUE
+	depends on BR2_ISP_IVDC_MEM_LINE
+	int "IVDC lines stored in DDR"
+	help
+	  Configure the number of lines stored in DDR in IVDC ( one line represents width, aligned with 256).
+	  0: Y Configuration height, UV configuration height/2, this time means DDR can store 1 frame size of data (default value)
+	  >0: Y configuration ivdc_mem_line, UV configuration ivdc_mem_line/2.
+
+	  This setting is only active if the feature is enabled.
+	  (ivdc_mem_line)
+
+menuconfig BR2_ISP_IVDC_THRESHOLD_LINE
+	depends on (BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41) && BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+	bool "ISP Threshold Line"
+	help
+	  Enable the IVDC threshold line configuration.
+
+config BR2_ISP_IVDC_THRESHOLD_LINE_VALUE
+	depends on BR2_ISP_IVDC_THRESHOLD_LINE
+	int "IVDC encoding cache"
+	help
+	  Configure the threshold of IVDC encoding cache (unit: line number width, aligned with 256)
+	  0: Configured as height/2, indicating that the threshold is half frame (default value)
+	  >0: Indicates that the cache is width * ivdc_threshold_line
+
+	  This setting is only active if the feature is enabled.
+	  (ivdc_threshold_line)
+
+config BR2_ISP_CONFIG_HZ
+	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+	int "ISP Config Hz"
+	help
+	  Specify the frequency for the ISP multi frame capture.
+	  This setting is only active if the feature is enabled.
+	  (isp_config_hz)
+
+menuconfig BR2_ISP_ISPW
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Output Width"
+	help
+	  Set the width of the ISP output.
+
+config BR2_ISP_ISPW_VALUE
+	depends on BR2_ISP_ISPW
+	int "ISP Output Width"
+	default 0
+	help
+	  Set the width of the ISP output.
+
+menuconfig BR2_ISP_ISPH
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Output Height"
+	help
+	  Set the height of the ISP output.
+
+config BR2_ISP_ISPH_VALUE
+	depends on BR2_ISP_ISPH
+	int "ISP Output Height"
+	default 0
+	help
+	  Set the height of the ISP output.
+
+menuconfig BR2_ISP_ISPTOP
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Output Top"
+	help
+	  Set the top of the ISP output.
+
+config BR2_ISP_ISPTOP_VALUE
+	depends on BR2_ISP_ISPTOP
+	int "ISP Output Top"
+	default 0
+	help
+	  Set the top of the ISP output.
+
+menuconfig BR2_ISP_ISPLEFT
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Output Left"
+	help
+	  Set the left of the ISP output.
+
+config BR2_ISP_ISPLEFT_VALUE
+	depends on BR2_ISP_ISPLEFT
+	int "ISP Output Left"
+	default 0
+	help
+	  Set the left of the ISP output.
+
+menuconfig BR2_ISP_ISPCROP
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Crop"
+	help
+	  Set the crop of the ISP output.
+
+config BR2_ISP_ISPCROP_VALUE
+	depends on BR2_ISP_ISPCROP
+	int "ISP Crop"
+	default 0
+	help
+	  Set the crop of the ISP output.
+
+menuconfig BR2_ISP_ISPCROPWH
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Crop Width and Height"
+	help
+	  Set the crop width and height of the ISP output.
+
+config BR2_ISP_ISPCROPWH_VALUE
+	depends on BR2_ISP_ISPCROPWH
+	int "ISP Crop Width and Height"
+	default 0
+	help
+	  Set the crop width and height of the ISP output.
+
+menuconfig BR2_ISP_ISPCROPTL
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Crop Top and Left"
+	help
+	  Set the crop top and left of the ISP output.
+
+config BR2_ISP_ISPCROPTL_VALUE
+	depends on BR2_ISP_ISPCROPTL
+	int "ISP Crop Top and Left"
+	default 0
+	help
+	  Set the crop top and left of the ISP output.
+
+menuconfig BR2_ISP_ISPSCALER
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Scaler"
+	help
+	  Set the scaler of the ISP output.
+
+config BR2_ISP_ISPSCALER_VALUE
+	depends on BR2_ISP_ISPSCALER
+	int "ISP Scaler"
+	default 0
+	help
+	  Set the scaler of the ISP output.
+
+menuconfig BR2_ISP_ISPSCALERWH
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Scaler Width and Height"
+	help
+	  Set the scaler width and height of the ISP output.
+
+config BR2_ISP_ISPSCALERWH_VALUE
+	depends on BR2_ISP_ISPSCALERWH
+	int "ISP Scaler Width and Height"
+	default 0
+	help
+	  Set the scaler width and height of the ISP output.
+
+menuconfig BR2_ISP_ISP_M1_BUFS
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP M1 Bufs"
+	help
+	  Set the number of LDC input buffers.
+
+config BR2_ISP_ISP_M1_BUFS_VALUE
+	depends on BR2_ISP_ISP_M1_BUFS
+	int "ISP M1 Bufs"
+	default 2
+	help
+	  Set the number of LDC input buffers.
+
+menuconfig BR2_ISP_ISP_M2_BUFS
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP M2 Bufs"
+	help
+	  Set the number of LDC output buffers.
+
+config BR2_ISP_ISP_M2_BUFS_VALUE
+	depends on BR2_ISP_ISP_M2_BUFS
+	int "ISP M2 Bufs"
+	default 2
+	help
+	  Set the number of LDC output buffers.
+
+config BR2_ISP_PARAMS
+	string "Extra ISP parameters"
+	help
+	  Set additional parameters passed to the ISP kernel module when it is loaded.
+
+endmenu
+endmenu
+
+config BR2_THINGINO_GPIO_LIST
+	string "GPIO Enable List"
+	help
+	  Specify a comma-separated list of GPIOs to configure at boot. Each GPIO
+	  number can be followed by 'O' for high or 'o' for low to set its state.
+
+	  For example:
+	  6O    # Set GPIO 6 high
+	  60o   # Set GPIO 60 low
+	  20O   # Set GPIO 20 high
+
+	  Example full list: 6O,60o,20O
+
+	  The configuration is written to /etc/gpio.conf and applied at boot time
+	  by the init script.
+
+config BR2_THINGINO_AUDIO
+	bool "Audio Support"
+	help
+	  Enable audio suport.
+	  The GPIO pin for enabling audio can be specified in the U-Boot environment
+	  using the "gpio_speaker" parameter. If not specified, the default value is "-1".
+
+config BR2_THINGINO_AUDIO_DMIC
+	bool "DMIC Support"
+	depends on BR2_THINGINO_AUDIO
+	depends on BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T32 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	select BR2_PACKAGE_THINGINO_KOPT_DMIC if KERNEL_VERSION_3
+	help
+	  Enable Digital Microphone (DMIC) audio suport.
+
+config BR2_THINGINO_AUDIO_PARAMS
+	string "Audio Parameters"
+	depends on BR2_THINGINO_AUDIO
+	help
+	  Specify additional parameters to pass when loading the audio kernel module.
+
+config BR2_ETHERNET
+	bool "Ethernet port"
+        select BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE
+	help
+	  Enable Ethernet networking.
+
+config BR2_THINGINO_PWM_ENABLE
+	bool "PWM Support"
+	help
+	  Enable or Disable PWM support.
+
+config BR2_THINGINO_MOTORS
+	depends on !BR2_SOC_FAMILY_INGENIC_A1
+	bool "Pan/Tilt/Zoom Motors"
+	help
+	  The camera has Pan/Tilt or Zoom motors.
+
+config BR2_THINGINO_MOTORS_TCU
+	bool "Pan/Tilt Motors TCU"
+	depends on BR2_THINGINO_MOTORS
+	help
+	  The camera has Pan/Tilt or Zoom motors using PWM/GPIO via TCU
+
+config BR2_THINGINO_MOTORS_SPI
+	bool "Pan/Tilt SPI using ms419xx"
+	depends on BR2_THINGINO_MOTORS
+	help
+	  The camera has Pan/Tilt or Zoom motors using the ms419xx chip
+
+config BR2_THINGINO_SDCARD
+	bool "SD/MMC Card"
+	select BR2_PACKAGE_THINGINO_KOPT_MMC
+	select BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE
+	help
+	  The hardware has an SD/MMC card slot.
+
+config BR2_THINGINO_BUTTON
+	bool "Button Support"
+	select BR2_PACKAGE_THINGINO_BUTTON
+	help
+	  The hardware has a physical button wired to a GPIO.
+
+config BR2_THINGINO_NNA
+	bool "Neural Network Acceleration Support"
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	help
+	Enable support for Neural Network Acceleration on A1 SoCs.
+
+config BR2_THINGINO_VIDEO_OUT
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	select BR2_THINGINO_FRAMEBUFFER
+	select BR2_THINGINO_IPU
+	select BR2_THINGINO_VENC
+	bool "Video Output Support"
+	help
+	The hardware has a video output support.  Enables venc, framebuffer, and vo modules.
+
+config BR2_THINGINO_HDMI_AUDIO
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool "HDMI Audio Support"
+	help
+	The hardware has a HDMI audio support.  Enables hdmi_audio module.
+
+config BR2_THINGINO_AIP
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool "Ingenic AIP Support"
+	help
+	The hardware has a AIP DMA engine.  Enables ingenic-aip module.
+
+config BR2_THINGINO_VDEC
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool "VDEC Support"
+	help
+	The hardware has a video decoder support.  Enables vdec module.
+
+config BR2_THINGINO_FRAMEBUFFER
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool
+
+config BR2_THINGINO_VDE
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool
+
+config BR2_THINGINO_IPU
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool
+
+endmenu
+
+source "$BR2_EXTERNAL_THINGINO_PATH/Config.sensor.in"
+
+menu "Flash Chip Config"
+
+choice
+	prompt "Flash chip type"
+config BR2_THINGINO_FLASH_NOR
+	bool "SPI NOR"
+config BR2_THINGINO_FLASH_NAND
+	bool "SPI NAND"
+endchoice
+
+choice
+	prompt "Flash chip size"
+config FLASH_SIZE_8
+	bool "8MB (64MBit)"
+	depends on BR2_THINGINO_FLASH_NOR
+config FLASH_SIZE_16
+	bool "16MB (128MBit)"
+	depends on BR2_THINGINO_FLASH_NOR
+config FLASH_SIZE_32
+	bool "32MB (256MBit)"
+	depends on BR2_THINGINO_FLASH_NOR
+	select BR2_PACKAGE_THINGINO_UBOOT_ENABLE_BAR if (!FLASH_NAND && !BR2_SOC_FAMILY_INGENIC_T40 && !BR2_SOC_FAMILY_INGENIC_T41)
+config FLASH_SIZE_128
+	depends on BR2_THINGINO_FLASH_NAND
+	bool "128MB"
+config FLASH_SIZE_256
+	depends on BR2_THINGINO_FLASH_NAND
+	bool "256MB"
+config FLASH_SIZE_512
+	depends on BR2_THINGINO_FLASH_NAND
+	bool "512MB"
+config FLASH_SIZE_1G
+	depends on BR2_THINGINO_FLASH_NAND
+	bool "1GB"
+endchoice
+
+choice
+	prompt "Flash Alignment Size"
+	default BR2_THINGINO_ALIGN_SIZE_32K
+	depends on BR2_THINGINO_DEV_EXPERIMENTAL
+	help
+	  Choose the alignment size for memory or storage allocation.
+	  This setting determines the block size used for operations
+	  such as partition alignment, erase block sizing, or memory
+	  page allocation.
+
+	  The selected size should match the hardware requirements to
+	  avoid misalignment issues.
+
+config BR2_THINGINO_ALIGN_SIZE_320K
+	bool "320K (327680 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_256K
+	bool "256K (262144 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_224K
+	bool "224K (229376 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_192K
+	bool "192K (196608 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_128K
+	bool "128K (131072 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_64K
+	bool "64K (65536 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_32K
+	bool "32K (32768 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_16K
+	bool "16K (16384 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_8K
+	bool "8K (8192 bytes)"
+
+config BR2_THINGINO_ALIGN_SIZE_4K
+	bool "4K (4096 bytes)"
+
+endchoice
+
+
+endmenu
+
+choice
+	prompt "Kernel version"
+	help
+	  Select the desired  kernel version
+	default KERNEL_VERSION_4 if BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T41 || BR2_SOC_FAMILY_INGENIC_T40
+config KERNEL_VERSION_3
+	bool "Kernel 3.10.14"
+	depends on BR2_SOC_FAMILY_INGENIC_T10 ||BR2_SOC_FAMILY_INGENIC_T20 || BR2_SOC_FAMILY_INGENIC_T21 || BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T41
+config KERNEL_VERSION_4
+	bool "Kernel 4.4.94"
+	depends on BR2_SOC_FAMILY_INGENIC_T41 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_A1
+endchoice
+
+menu "Device Type"
+	choice
+		prompt "Device Type"
+		default BR2_THINGINO_DEV_IPCAM
+		help
+		  Select the main device type
+
+	config BR2_THINGINO_DEV_IPCAM
+		bool "IP Camera"
+		select BR2_PACKAGE_THINGINO_IRCUT
+		help
+		  Specifies the device type as a Camera and installs configurations
+		  specific to this type.
+
+	config BR2_THINGINO_DEV_WEBCAM
+		bool "Webcam"
+		help
+		  Specifies the device type as a Web Camera and installs configurations
+		  specific to this type.
+
+	config BR2_THINGINO_DEV_NVR
+		bool "NVR"
+		help
+		  Specifies the device type as a Network Video Recorder and installs configurations
+		  specific to this type.
+
+	config BR2_THINGINO_DEV_SBC
+		bool "SBC"
+		help
+		  Specifies the device type as a Small Board Computer (SBC) and installs configurations
+		  specific to this type.
+	endchoice
+
+	config BR2_THINGINO_DEV_DOORBELL
+		bool "Doorbell"
+		depends on BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_SBC
+		help
+		  Specifies the device features as a Doorbell and installs configurations
+		  specific to this type.
+
+	config BR2_THINGINO_DEV_SIREN
+		bool "Siren"
+		depends on BR2_THINGINO_DEV_EXPERIMENTAL && (BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_SBC)
+		help
+		  Specifies the device features as a Siren and installs configurations
+		  specific to this type.
+
+	config BR2_THINGINO_DEV_FLOODLIGHT
+		bool "Floodlight"
+		depends on BR2_THINGINO_DEV_EXPERIMENTAL && (BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_SBC)
+		help
+		  Specifies the device features as a Floodlight and installs configurations
+		  specific to this type.
+
+	config BR2_THINGINO_DEV_LASER
+		bool "Laser Pointer"
+		depends on BR2_THINGINO_DEV_EXPERIMENTAL && (BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_SBC)
+		help
+		  Specifies the device features as a Laser and installs configurations
+		  specific to this type.
+
+	config BR2_THINGINO_DEV_ALARM
+		bool "Security Alarm"
+		depends on BR2_THINGINO_DEV_EXPERIMENTAL && (BR2_THINGINO_DEV_IPCAM || BR2_THINGINO_DEV_SBC)
+		help
+		  Specifies the device features as an Alarm and installs configurations
+		  specific to this type.
+
+	comment "Device Type: Webcam Selected"
+		depends on BR2_THINGINO_DEV_WEBCAM
+
+	comment "Device Type: NVR Selected"
+		depends on BR2_THINGINO_DEV_NVR
+endmenu

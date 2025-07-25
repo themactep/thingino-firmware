@@ -7,10 +7,6 @@ local utils = require("utils")
 local config = require("config")
 local i18n = require("i18n")
 
--- Test logging at startup
-os.execute("logger 'WEBUI-LUA: main.lua loaded successfully'")
-os.execute("echo 'WEBUI-LUA: main.lua loaded at " .. os.date() .. "' >> /tmp/webui-startup.log")
-
 -- Initialize i18n system
 i18n.init()
 
@@ -30,8 +26,12 @@ local CONFIG = {
     -- Prudynt configuration path
     prudynt_config_path = "/etc/prudynt.json",
 
-    -- Motion detection configuration path
-    motion_config_path = "/etc/motion.json",
+    -- ROI zones configuration path
+    motion_config_path = "/etc/streamer.d/roi.json",
+
+    -- Streamer configuration
+    streamer_port = 8080,
+    streamer_host = "localhost",
 
     -- Date/time format template
     datetime_format = "%Y-%m-%d %H:%M:%S",
@@ -1253,6 +1253,100 @@ function send_websocket_message(message)
     return result == 0
 end
 
+-- Helper function to get streamer configuration
+function get_streamer_config()
+    -- Try to get streamer port from environment or configuration
+    local streamer_port = os.getenv("STREAMER_PORT") or CONFIG.streamer_port
+    local streamer_host = os.getenv("STREAMER_HOST") or CONFIG.streamer_host
+
+    -- Convert port to number if it's a string
+    if type(streamer_port) == "string" then
+        streamer_port = tonumber(streamer_port) or CONFIG.streamer_port
+    end
+
+    return {
+        host = streamer_host,
+        port = streamer_port
+    }
+end
+
+-- Helper function to get streamer URLs
+function get_streamer_urls(channel)
+    channel = channel or 0  -- Default to main channel
+    local streamer_config = get_streamer_config()
+
+    return {
+        image = string.format("http://%s:%d/image%d.jpg",
+                             streamer_config.host,
+                             streamer_config.port,
+                             channel),
+        mjpeg = string.format("http://%s:%d/stream%d.mjpeg",
+                             streamer_config.host,
+                             streamer_config.port,
+                             channel)
+    }
+end
+
+-- Helper function to fetch image from streamer
+function fetch_streamer_image(channel)
+    channel = channel or 0  -- Default to main channel
+    local urls = get_streamer_urls(channel)
+
+    -- Use curl to fetch the image
+    local temp_file = "/tmp/webui_snapshot_" .. channel .. ".jpg"
+
+    -- Clean up any existing temp file first
+    os.execute("rm -f '" .. temp_file .. "'")
+
+    local curl_cmd = string.format("curl -s -f --max-time 5 -o '%s' '%s' 2>/dev/null",
+                                  temp_file, urls.image)
+
+    -- Debug logging
+    if CONFIG.debug then
+        utils.log("Fetching image from: " .. urls.image)
+        utils.log("Curl command: " .. curl_cmd)
+    end
+
+    local exit_code = os.execute(curl_cmd)
+
+    -- Handle different Lua versions' os.execute return values
+    local success = false
+    if type(exit_code) == "number" then
+        success = (exit_code == 0)
+    elseif type(exit_code) == "boolean" then
+        success = exit_code
+    else
+        -- For some Lua versions, check if file exists as fallback
+        success = utils.file_exists(temp_file)
+    end
+
+    if CONFIG.debug then
+        utils.log("Curl exit code: " .. tostring(exit_code) .. " (type: " .. type(exit_code) .. ")")
+        utils.log("Success: " .. tostring(success))
+        utils.log("Temp file exists: " .. tostring(utils.file_exists(temp_file)))
+        if utils.file_exists(temp_file) then
+            local file_info = io.popen("ls -la '" .. temp_file .. "'"):read("*a")
+            utils.log("File info: " .. (file_info or "unknown"))
+        end
+    end
+
+    if success and utils.file_exists(temp_file) then
+        -- Check if file has content (not empty)
+        local file = io.open(temp_file, "rb")
+        if file then
+            local size = file:seek("end")
+            file:close()
+            if size and size > 0 then
+                return temp_file
+            end
+        end
+    end
+
+    -- Clean up failed download
+    os.execute("rm -f '" .. temp_file .. "'")
+    return nil
+end
+
 function handle_api_request(path, env, sess)
     local api_path = path:gsub("^/api/", "")
 
@@ -1262,6 +1356,10 @@ function handle_api_request(path, env, sess)
         return api_get_snapshot(sess)
     elseif api_path == "camera/mjpeg" then
         return api_get_mjpeg_stream(sess)
+    elseif api_path == "camera/stream-urls" then
+        return api_get_stream_urls(sess)
+    elseif api_path == "camera/test-streamer" then
+        return api_test_streamer(sess)
     elseif api_path == "camera/status" then
         return api_get_camera_status(sess)
     elseif api_path == "camera/ir-led" then
@@ -1367,52 +1465,260 @@ function api_get_status(sess)
 end
 
 function api_get_snapshot(sess)
-    -- Serve camera snapshot (updated by streamer)
-    local snapshot_path = "/tmp/snapshot.jpg"
+    -- Parse query parameters to get channel (default to 0 for main channel)
+    local query_string = os.getenv("QUERY_STRING") or ""
+    local channel = 0  -- Default to main channel
 
-    if utils.file_exists(snapshot_path) then
+    -- Parse channel parameter from query string
+    for param in query_string:gmatch("[^&]+") do
+        local key, value = param:match("([^=]+)=([^=]*)")
+        if key == "channel" then
+            channel = tonumber(value) or 0
+        end
+    end
+
+    -- Ensure channel is valid (0 or 1)
+    if channel ~= 0 and channel ~= 1 then
+        channel = 0
+    end
+
+    -- Debug logging
+    if CONFIG.debug then
+        utils.log("Snapshot request - Channel: " .. channel .. ", Query: " .. query_string)
+    end
+
+    -- Try to fetch image from new streamer first
+    local snapshot_path = fetch_streamer_image(channel)
+
+    if snapshot_path then
+        -- Send the image and clean up
         utils.send_file(snapshot_path, "image/jpeg")
+        os.execute("rm -f '" .. snapshot_path .. "'")
     else
-        utils.send_error(500, "Snapshot not available")
+        -- Fallback to old method for backward compatibility
+        local fallback_path = "/tmp/snapshot.jpg"
+        if utils.file_exists(fallback_path) then
+            utils.send_file(fallback_path, "image/jpeg")
+        else
+            -- Enhanced error message with debug info
+            local streamer_config = get_streamer_config()
+            local urls = get_streamer_urls(channel)
+            local error_msg = string.format("Snapshot not available. Tried: %s (streamer: %s:%d)",
+                                           urls.image, streamer_config.host, streamer_config.port)
+            utils.send_error(500, error_msg)
+        end
     end
 end
 
-function api_get_mjpeg_stream(sess)
-    -- Serve MJPEG stream using thingino's snapshot mechanism
-    -- Send MJPEG headers
-    uhttpd.send("Status: 200 OK\r\n")
-    uhttpd.send("Content-Type: multipart/x-mixed-replace; boundary=--thingino-mjpeg\r\n")
-    uhttpd.send("Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n")
-    uhttpd.send("Pragma: no-cache\r\n")
-    uhttpd.send("Connection: close\r\n")
-    uhttpd.send("\r\n")
+function api_test_streamer(sess)
+    -- Test streamer connectivity and return debug info
+    local streamer_config = get_streamer_config()
+    local test_results = {
+        config = streamer_config,
+        tests = {}
+    }
 
-    -- Stream snapshots in MJPEG format
-    local snapshot_path = "/tmp/snapshot.jpg"
-    local boundary = "--thingino-mjpeg"
+    -- Test both channels
+    for channel = 0, 1 do
+        local urls = get_streamer_urls(channel)
+        local temp_file = "/tmp/webui_test_" .. channel .. ".jpg"
 
-    -- Send initial frame if available
-    if utils.file_exists(snapshot_path) then
-        uhttpd.send(boundary .. "\r\n")
-        uhttpd.send("Content-Type: image/jpeg\r\n")
+        -- Clean up first
+        os.execute("rm -f '" .. temp_file .. "'")
 
-        -- Get file size
-        local file = io.open(snapshot_path, "rb")
-        if file then
-            local content = file:read("*a")
-            file:close()
+        local curl_cmd = string.format("curl -s -f --max-time 5 -o '%s' '%s' 2>/dev/null",
+                                      temp_file, urls.image)
 
-            uhttpd.send("Content-Length: " .. #content .. "\r\n")
-            uhttpd.send("\r\n")
-            uhttpd.send(content)
-            uhttpd.send("\r\n")
+        local exit_code = os.execute(curl_cmd)
+        local file_exists = utils.file_exists(temp_file)
+        local file_size = 0
+
+        if file_exists then
+            local file = io.open(temp_file, "rb")
+            if file then
+                file_size = file:seek("end") or 0
+                file:close()
+            end
         end
-    else
-        -- Send error frame
-        uhttpd.send(boundary .. "\r\n")
-        uhttpd.send("Content-Type: text/plain\r\n")
+
+        test_results.tests["channel_" .. channel] = {
+            url = urls.image,
+            curl_command = curl_cmd,
+            exit_code = exit_code,
+            exit_code_type = type(exit_code),
+            file_exists = file_exists,
+            file_size = file_size,
+            temp_file = temp_file
+        }
+
+        -- Clean up
+        os.execute("rm -f '" .. temp_file .. "'")
+    end
+
+    utils.send_json({
+        success = true,
+        debug = test_results
+    })
+end
+
+function api_get_stream_urls(sess)
+    -- Return available stream URLs from the streamer
+    local streamer_config = get_streamer_config()
+
+    local stream_urls = {
+        main_channel = {
+            snapshot = string.format("http://%s:%d/image0.jpg",
+                                    streamer_config.host, streamer_config.port),
+            mjpeg = string.format("http://%s:%d/stream0.mjpeg",
+                                 streamer_config.host, streamer_config.port)
+        },
+        sub_channel = {
+            snapshot = string.format("http://%s:%d/image1.jpg",
+                                    streamer_config.host, streamer_config.port),
+            mjpeg = string.format("http://%s:%d/stream1.mjpeg",
+                                 streamer_config.host, streamer_config.port)
+        },
+        webui_endpoints = {
+            snapshot_main = "/lua/api/camera/snapshot?channel=0",
+            snapshot_sub = "/lua/api/camera/snapshot?channel=1",
+            mjpeg_main = "/lua/api/camera/mjpeg?channel=0",
+            mjpeg_sub = "/lua/api/camera/mjpeg?channel=1",
+            mjpeg_main_redirect = "/lua/api/camera/mjpeg?channel=0&redirect=1",
+            mjpeg_sub_redirect = "/lua/api/camera/mjpeg?channel=1&redirect=1"
+        }
+    }
+
+    utils.send_json({
+        success = true,
+        streamer = stream_urls
+    })
+end
+
+function api_get_mjpeg_stream(sess)
+    -- Parse query parameters to get channel (default to 0 for main channel)
+    local query_string = os.getenv("QUERY_STRING") or ""
+    local channel = 0  -- Default to main channel
+
+    -- Parse channel parameter from query string
+    for param in query_string:gmatch("[^&]+") do
+        local key, value = param:match("([^=]+)=([^=]*)")
+        if key == "channel" then
+            channel = tonumber(value) or 0
+        end
+    end
+
+    -- Ensure channel is valid (0 or 1)
+    if channel ~= 0 and channel ~= 1 then
+        channel = 0
+    end
+
+    -- Get streamer URLs
+    local urls = get_streamer_urls(channel)
+
+    -- Check if we should redirect directly to streamer (more efficient)
+    -- This can be controlled via query parameter: ?redirect=1
+    local redirect_mode = false
+    for param in query_string:gmatch("[^&]+") do
+        local key, value = param:match("([^=]+)=([^=]*)")
+        if key == "redirect" and value == "1" then
+            redirect_mode = true
+            break
+        end
+    end
+
+    if redirect_mode then
+        -- Direct redirect to streamer MJPEG stream (most efficient)
+        uhttpd.send("Status: 302 Found\r\n")
+        uhttpd.send("Location: " .. urls.mjpeg .. "\r\n")
+        uhttpd.send("Cache-Control: no-cache\r\n")
         uhttpd.send("\r\n")
-        uhttpd.send("No snapshot available\r\n")
+        return
+    end
+
+    -- Try to proxy the native MJPEG stream
+    local curl_cmd = string.format("curl -s -f --max-time 30 '%s'", urls.mjpeg)
+    local handle = io.popen(curl_cmd, "r")
+
+    if handle then
+        -- Send appropriate headers for MJPEG stream
+        uhttpd.send("Status: 200 OK\r\n")
+        uhttpd.send("Content-Type: multipart/x-mixed-replace; boundary=--thingino-mjpeg\r\n")
+        uhttpd.send("Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n")
+        uhttpd.send("Pragma: no-cache\r\n")
+        uhttpd.send("Connection: close\r\n")
+        uhttpd.send("\r\n")
+
+        -- Stream the data directly from streamer
+        local chunk_size = 8192
+        while true do
+            local chunk = handle:read(chunk_size)
+            if not chunk or #chunk == 0 then
+                break
+            end
+            uhttpd.send(chunk)
+        end
+
+        handle:close()
+    else
+        -- Fallback: try to get a single snapshot and send as MJPEG
+        local snapshot_path = fetch_streamer_image(channel)
+
+        if snapshot_path then
+            uhttpd.send("Status: 200 OK\r\n")
+            uhttpd.send("Content-Type: multipart/x-mixed-replace; boundary=--thingino-mjpeg\r\n")
+            uhttpd.send("Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n")
+            uhttpd.send("Pragma: no-cache\r\n")
+            uhttpd.send("Connection: close\r\n")
+            uhttpd.send("\r\n")
+
+            uhttpd.send("--thingino-mjpeg\r\n")
+            uhttpd.send("Content-Type: image/jpeg\r\n")
+
+            local file = io.open(snapshot_path, "rb")
+            if file then
+                local content = file:read("*a")
+                file:close()
+
+                uhttpd.send("Content-Length: " .. #content .. "\r\n")
+                uhttpd.send("\r\n")
+                uhttpd.send(content)
+                uhttpd.send("\r\n")
+            end
+
+            -- Clean up temporary file
+            os.execute("rm -f '" .. snapshot_path .. "'")
+        else
+            -- Final fallback to old method
+            local fallback_path = "/tmp/snapshot.jpg"
+            if utils.file_exists(fallback_path) then
+                uhttpd.send("Status: 200 OK\r\n")
+                uhttpd.send("Content-Type: multipart/x-mixed-replace; boundary=--thingino-mjpeg\r\n")
+                uhttpd.send("Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n")
+                uhttpd.send("Pragma: no-cache\r\n")
+                uhttpd.send("Connection: close\r\n")
+                uhttpd.send("\r\n")
+
+                uhttpd.send("--thingino-mjpeg\r\n")
+                uhttpd.send("Content-Type: image/jpeg\r\n")
+
+                local file = io.open(fallback_path, "rb")
+                if file then
+                    local content = file:read("*a")
+                    file:close()
+
+                    uhttpd.send("Content-Length: " .. #content .. "\r\n")
+                    uhttpd.send("\r\n")
+                    uhttpd.send(content)
+                    uhttpd.send("\r\n")
+                end
+            else
+                -- Send error response
+                uhttpd.send("Status: 500 Internal Server Error\r\n")
+                uhttpd.send("Content-Type: text/plain\r\n")
+                uhttpd.send("\r\n")
+                uhttpd.send("MJPEG stream not available from streamer\r\n")
+            end
+        end
     end
 end
 
@@ -1655,7 +1961,7 @@ end
 
 function api_motion_config(sess, env)
     if env.REQUEST_METHOD == "GET" then
-        -- Load motion configuration
+        -- Load ROI zones configuration
         local config_file = CONFIG.motion_config_path
         local file = io.open(config_file, "r")
         local config = {}
@@ -1680,7 +1986,7 @@ function api_motion_config(sess, env)
             config = config
         })
     elseif env.REQUEST_METHOD == "POST" then
-        -- Save motion configuration - handle raw JSON to avoid parsing issues
+        -- Save ROI zones configuration - handle raw JSON to avoid parsing issues
         local content_length = tonumber(env.CONTENT_LENGTH or "0")
         local config_file = CONFIG.motion_config_path
 
@@ -1709,19 +2015,19 @@ function api_motion_config(sess, env)
         end
 
         -- Write raw JSON directly to file
-        utils.log("Saving motion configuration to " .. config_file)
+        utils.log("Saving ROI zones configuration to " .. config_file)
         local file = io.open(config_file, "w")
         if file then
             file:write(raw_json)
             file:close()
-            utils.log("Motion configuration saved successfully")
+            utils.log("ROI zones configuration saved successfully")
 
             utils.send_json({
                 success = true,
-                message = "Motion configuration saved to persistent storage"
+                message = "ROI zones configuration saved to persistent storage"
             })
         else
-            utils.log("Failed to save motion configuration file")
+            utils.log("Failed to save ROI zones configuration file")
             utils.send_json({
                 success = false,
                 error = "Failed to save configuration file"
@@ -1911,7 +2217,7 @@ function api_debug_ssl_tools(sess)
     -- Check what SSL/certificate tools are available on the camera
     local tools = {
         "openssl", "ssl_server2", "cert_app", "wolfssl-certgen", "wolfssl-certgen-native",
-        "mbedtls_ssl_server2", "gnutls-cli", "certtool"
+        "openssl-certgen", "mbedtls_ssl_server2", "gnutls-cli", "certtool"
     }
 
     local available_tools = {}
@@ -2107,11 +2413,11 @@ function api_ssl_generate_self_signed(sess, env)
     os.execute("cp " .. CONFIG.ssl_cert_path .. " " .. CONFIG.ssl_cert_path .. ".backup 2>/dev/null")
     os.execute("cp " .. CONFIG.ssl_key_path .. " " .. CONFIG.ssl_key_path .. ".backup 2>/dev/null")
 
-    -- Use wolfSSL certificate generator
+    -- Try available certificate generators
     local success = false
     local error_msg = ""
 
-    -- Use the new wolfssl-certgen utility
+    -- Try wolfssl-certgen first (if available)
     if utils.command_exists("wolfssl-certgen") then
         local wolfssl_cmd = string.format([[
             wolfssl-certgen -h "%s.local" -c "%s" -k "%s" -d 3650 2>&1
@@ -2124,10 +2430,25 @@ function api_ssl_generate_self_signed(sess, env)
         if result then
             success = true
         else
-            error_msg = "Certificate generation failed: " .. (result_output or "Unknown error")
+            error_msg = "wolfSSL certificate generation failed: " .. (result_output or "Unknown error")
+        end
+    -- Try openssl-certgen as fallback (if available)
+    elseif utils.command_exists("openssl-certgen") then
+        local openssl_cmd = string.format([[
+            openssl-certgen -h "%s.local" -c "%s" -k "%s" -d 3650 2>&1
+        ]], hostname, CONFIG.ssl_cert_path, CONFIG.ssl_key_path)
+
+        local handle = io.popen(openssl_cmd)
+        local result_output = handle:read("*a")
+        local result = handle:close()
+
+        if result then
+            success = true
+        else
+            error_msg = "OpenSSL certificate generation failed: " .. (result_output or "Unknown error")
         end
     else
-        error_msg = "wolfSSL certificate generator not available"
+        error_msg = "No certificate generator available (neither wolfssl-certgen nor openssl-certgen found)"
     end
 
     if success then
@@ -3175,4 +3496,3 @@ function api_language_refresh_available(sess)
         message = "Language list refreshed from GitHub"
     })
 end
-

@@ -14,19 +14,26 @@ endif
 ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS),y)
 THINGINO_UHTTPD_CONF_OPTS += -DTLS_SUPPORT=ON
 
+# mbedTLS backend
+ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS),y)
+THINGINO_UHTTPD_DEPENDENCIES += ustream-ssl thingino-mbedtls
+endif
+
+# mbedTLS backend
+ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS_OPENSSL),y)
+THINGINO_UHTTPD_DEPENDENCIES += ustream-ssl openssl
+endif
+
 # wolfSSL backend
 ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS_WOLFSSL),y)
 THINGINO_UHTTPD_DEPENDENCIES += thingino-ustream-ssl thingino-wolfssl
 endif
 
-# thingino mbedTLS backend
-ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS),y)
-THINGINO_UHTTPD_DEPENDENCIES += ustream-ssl thingino-mbedtls
-endif
-
-# buildroot mbedTLS backend
-ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS_BUILTIN),y)
-THINGINO_UHTTPD_DEPENDENCIES += ustream-ssl mbedtls
+# Ensure at least one SSL backend is selected when TLS is enabled
+ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS)$(BR2_PACKAGE_THINGINO_UHTTPD_TLS_OPENSSL)$(BR2_PACKAGE_THINGINO_UHTTPD_TLS_WOLFSSL),)
+$(warning TLS is enabled but no SSL backend is available. Disabling TLS support.)
+THINGINO_UHTTPD_CONF_OPTS := $(filter-out -DTLS_SUPPORT=ON,$(THINGINO_UHTTPD_CONF_OPTS))
+THINGINO_UHTTPD_CONF_OPTS += -DTLS_SUPPORT=OFF
 endif
 
 else

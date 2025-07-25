@@ -43,12 +43,27 @@ if BR2_PACKAGE_THINGINO_UHTTPD_TLS
 choice
 	prompt "SSL/TLS library to use"
 	default BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS if BR2_PACKAGE_THINGINO_MBEDTLS
-	default BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS_BUILTIN if BR2_PACKAGE_MBEDTLS
 	default BR2_PACKAGE_THINGINO_UHTTPD_TLS_WOLFSSL if BR2_PACKAGE_THINGINO_WOLFSSL
+
+config BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS
+	bool "mbedTLS"
+	depends on BR2_PACKAGE_THINGINO_MBEDTLS
+	select BR2_PACKAGE_USTREAM_SSL
+	help
+	  Use thingino mbedTLS for TLS support.
+	  Enhanced mbedTLS with WebRTC DTLS compatibility.
+
+config BR2_PACKAGE_THINGINO_UHTTPD_TLS_OPENSSL
+	bool "OpenSSL"
+	select BR2_PACKAGE_OPENSSL
+	select BR2_PACKAGE_USTREAM_SSL
+	help
+	  Use OpenSSL for TLS support.
 
 config BR2_PACKAGE_THINGINO_UHTTPD_TLS_WOLFSSL
 	bool "wolfSSL"
 	depends on BR2_PACKAGE_THINGINO_WOLFSSL
+	depends on BR2_USE_WCHAR
 	select BR2_PACKAGE_THINGINO_USTREAM_SSL
 	select BR2_PACKAGE_THINGINO_USTREAM_SSL_WOLFSSL
 	select BR2_PACKAGE_THINGINO_WOLFSSL_ALL
@@ -60,32 +75,16 @@ config BR2_PACKAGE_THINGINO_UHTTPD_TLS_WOLFSSL
 	  Use thingino wolfSSL for TLS support.
 	  Includes wolfSSL tools for certificate generation.
 
-config BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS
-	bool "thingino mbedTLS"
-	depends on BR2_PACKAGE_THINGINO_MBEDTLS
-	select BR2_PACKAGE_USTREAM_SSL
-	help
-	  Use thingino mbedTLS for TLS support.
-	  Enhanced mbedTLS with WebRTC DTLS compatibility.
-
-config BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS_BUILTIN
-	bool "buildroot mbedTLS"
-	depends on BR2_PACKAGE_MBEDTLS
-	select BR2_PACKAGE_USTREAM_SSL
-	help
-	  Use buildroot mbedTLS for TLS support.
-	  Standard mbedTLS implementation.
-
 endchoice
+
+comment "mbedTLS not available"
+	depends on !BR2_PACKAGE_THINGINO_MBEDTLS
+
+comment "wolfSSL not available (needs wchar support)"
+	depends on BR2_PACKAGE_THINGINO_WOLFSSL && !BR2_USE_WCHAR
 
 comment "wolfSSL not available"
 	depends on !BR2_PACKAGE_THINGINO_WOLFSSL
-
-comment "thingino mbedTLS not available"
-	depends on !BR2_PACKAGE_THINGINO_MBEDTLS
-
-comment "buildroot mbedTLS not available"
-	depends on !BR2_PACKAGE_MBEDTLS
 
 endif
 

@@ -12,7 +12,7 @@ UHTTPD_WATCHDOG=1
 UHTTPD_DEBUG_HTTP_ONLY=0
 
 # Watchdog configuration (used by uhttpd-watchdog script)
-WATCHDOG_INTERVAL=30      # Check interval in seconds
+WATCHDOG_INTERVAL=30     # Check interval in seconds
 HANG_TIMEOUT=60          # Timeout before considering hung
 MAX_RESTARTS=5           # Maximum restarts in time window
 RESTART_WINDOW=300       # Time window in seconds (5 minutes)

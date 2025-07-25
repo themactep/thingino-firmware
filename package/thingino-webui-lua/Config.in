@@ -1,9 +1,9 @@
 config BR2_PACKAGE_THINGINO_WEBUI_LUA
 	bool "thingino-webui-lua"
 	#depends on BR2_PACKAGE_LUA
-    select BR2_PACKAGE_LUA
-    select BR2_PACKAGE_THINGINO_UHTTPD
-    select BR2_PACKAGE_THINGINO_UHTTPD_LUA
+	select BR2_PACKAGE_LUA
+	select BR2_PACKAGE_THINGINO_UHTTPD
+	select BR2_PACKAGE_THINGINO_UHTTPD_LUA
 	help
 	  Modern Lua-based web interface for thingino cameras with
 	  session-based authentication, HTTPS support, and responsive

@@ -344,8 +344,6 @@ else
 	echo "Downloading firmware into $dl_dir, there is enough free space."
 fi
 
-check_upgrade_partitions
-
 ORIGINAL_ARG="$@"
 while getopts "bd:fhpx" flag; do
 	case "$flag" in
@@ -381,6 +379,8 @@ while getopts "bd:fhpx" flag; do
 	esac
 done
 shift "$((OPTIND - 1))"
+
+check_upgrade_partitions
 
 if [ -n "$requested_date" ]; then
 	if [ "full" = "$upgrade" ] || [ "part" = "$upgrade" ] || [ "boot" = "$upgrade" ]; then

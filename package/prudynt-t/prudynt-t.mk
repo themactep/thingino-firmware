@@ -12,6 +12,12 @@ PRUDYNT_T_DEPENDENCIES += faac libhelix-aac
 PRUDYNT_T_DEPENDENCIES += host-jq
 PRUDYNT_T_DEPENDENCIES += libwebsockets
 
+# Fix Makefile syntax error in source
+define PRUDYNT_T_FIX_MAKEFILE
+	sed -i '171d' $(@D)/Makefile
+endef
+PRUDYNT_T_POST_PATCH_HOOKS += PRUDYNT_T_FIX_MAKEFILE
+
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_WEBRTC),y)
 	PRUDYNT_T_DEPENDENCIES += libpeer
 endif
@@ -82,6 +88,9 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
 		$(TARGET_DIR)/etc/init.d/S95prudynt
 
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/record \
+		$(TARGET_DIR)/usr/sbin/record
+
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96record \
 		$(TARGET_DIR)/etc/init.d/S96record
 
@@ -96,6 +105,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -D -m 0644 $(@D)/res/thingino_210x64.bgra \
 		$(TARGET_DIR)/usr/share/images/thingino_210x64.bgra
+
+	echo -e "\n# run daynight every minute\n*/1 * * * * daynight" | tee -a $(TARGET_DIR)/etc/cron/crontabs/root
 endef
 
 $(eval $(generic-package))

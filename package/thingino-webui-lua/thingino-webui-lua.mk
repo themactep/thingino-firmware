@@ -1,9 +1,11 @@
 THINGINO_WEBUI_LUA_SITE_METHOD = local
 THINGINO_WEBUI_LUA_SITE = $(THINGINO_WEBUI_LUA_PKGDIR)/files
 THINGINO_WEBUI_LUA_LICENSE = MIT
-THINGINO_WEBUI_LUA_DEPENDENCIES = lua thingino-wolfssl
+THINGINO_WEBUI_LUA_DEPENDENCIES = lua
 
-# No build commands needed - wolfSSL certificate generator is built by thingino-wolfssl package
+ifeq ($(BR2_PACKAGE_OPENSSL),y)
+THINGINO_WEBUI_LUA_DEPENDENCIES += openssl
+endif
 
 define THINGINO_WEBUI_LUA_INSTALL_TARGET_CMDS
 	# Install Lua web interface files
@@ -23,14 +25,17 @@ define THINGINO_WEBUI_LUA_INSTALL_TARGET_CMDS
 	# Session storage will be created in /run/sessions by init script (tmpfs)
 
 	# Install startup script for uhttpd with Lua support
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_LUA_PKGDIR)/files/S60uhttpd-lua \
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_LUA_PKGDIR)/files/etc/init.d/S60uhttpd-lua \
 		$(TARGET_DIR)/etc/init.d/S60uhttpd-lua
-
-	# Install wolfSSL certificate generator (shell script)
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_LUA_PKGDIR)/files/usr/bin/wolfssl-certgen \
-		$(TARGET_DIR)/usr/bin/wolfssl-certgen
-
-	# wolfSSL certificate generator (native) is now installed by thingino-wolfssl package
 endef
+
+# Install SSL certificate generators conditionally
+ifeq ($(BR2_PACKAGE_OPENSSL),y)
+define THINGINO_WEBUI_LUA_INSTALL_OPENSSL_CERTGEN
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_LUA_PKGDIR)/files/usr/bin/openssl-certgen \
+		$(TARGET_DIR)/usr/bin/openssl-certgen
+endef
+THINGINO_WEBUI_LUA_POST_INSTALL_TARGET_HOOKS += THINGINO_WEBUI_LUA_INSTALL_OPENSSL_CERTGEN
+endif
 
 $(eval $(generic-package))

@@ -15,7 +15,10 @@ LIBPEER_INSTALL_STAGING = YES
 LIBPEER_INSTALL_TARGET = YES
 
 # Dependencies - thingino-libpeer fork uses system libraries
-LIBPEER_DEPENDENCIES = thingino-mbedtls libsrtp
+LIBPEER_DEPENDENCIES = libsrtp
+ifeq ($(BR2_PACKAGE_THINGINO_MBEDTLS),y)
+LIBPEER_DEPENDENCIES += thingino-mbedtls
+endif
 
 # Simple CMake configuration for clean fork
 LIBPEER_CONF_OPTS = \

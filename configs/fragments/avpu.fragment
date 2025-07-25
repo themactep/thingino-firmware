@@ -1,0 +1,3 @@
+# Enable AVPU (Audio/Video Processing Unit) for T31
+CONFIG_AVPU=y
+CONFIG_AVPU_DRIVER=y

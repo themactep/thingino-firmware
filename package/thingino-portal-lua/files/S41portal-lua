@@ -1,0 +1,165 @@
+#!/bin/sh
+
+. /usr/share/common
+
+CNET=172.16.0
+
+# Define portal_device in the global scope
+if [ "hi3881" = "$wlan_module" ]; then
+	portal_device="ap0"
+elif [ "wq9001" = "$wlan_module" ]; then
+	portal_device="wlan1"
+else
+	portal_device="wlan0"
+fi
+sed -i "s/%dev%/$portal_device/g" /etc/udhcpd-portal.conf
+
+timeout() {
+	sleep 600 && $0 stop
+}
+
+start() {
+	echo_title "Captive Portal (Lua)"
+
+	if [ -f "$PORTAL_MODE_FLAG" ]; then
+		echo_error "Already running"
+		exit 1
+	fi
+
+	if iface_exists "eth0"; then
+		echo_error "Ethernet interface found"
+		exit 1
+	fi
+
+	if iface_exists "usb0"; then
+		echo_error "USB interface found"
+		exit 1
+	fi
+
+	if ! iface_exists "$portal_device"; then
+		echo_error "Wireless port not found"
+		exit 1
+	fi
+
+	# quit if credentials are set
+	if [ -n "$wlan_ssid" ] && [ -n "$wlan_pass" ]; then
+		echo_error "WLAN already configured"
+		exit 1
+	fi
+
+	if [ "true" = "$wlanap_enabled" ]; then
+		echo_error "WLAN AP enabled"
+		exit 1
+	fi
+
+	echo_info "Run the Portal (Lua version)"
+
+	echo_info "Create DHCP leases database"
+	touch /run/udhcpd.leases
+
+	echo_info "Read MAC address"
+	mac_address=$(ip link show $portal_device | awk '/ether/ {print $2}')
+
+	echo_info "Update SSID with last two octets of MAC address"
+	last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
+
+	echo_info "Update SSID name in wpa_supplicant config"
+	sed -i "/ssid=\"THINGINO-\"$/ s/\"$/$last_two\"/" /etc/wpa-portal_ap.conf
+
+	echo_info "Start wpa_supplicant on $portal_device"
+	start-stop-daemon -S -x /sbin/wpa_supplicant -- -i $portal_device \
+		-B -c /etc/wpa-portal_ap.conf
+
+	echo_info "Wait for AP to start"
+	sleep 3
+
+	echo_info "Assign ${CNET}.1 to $portal_device"
+	ip a add dev $portal_device ${CNET}.1/24
+
+	echo_info "Bring $portal_device interface up"
+	ip link set $portal_device up
+
+	echo_info "Add route ${CNET}.0/24 to $portal_device"
+	ip route add ${CNET}.0/24 dev $portal_device
+
+	echo_info "Start DHCP server"
+	start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd-portal.conf
+
+	echo_info "Start DNS server"
+	start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /etc/dnsd-portal.conf -d
+
+	echo_info "Set $PORTAL_MODE_FLAG"
+	touch "$PORTAL_MODE_FLAG"
+
+	echo_info "Wait for network to be ready"
+	sleep 2
+
+	echo_info "Stop uhttpd (will be restarted by S60 in portal mode)"
+	/etc/init.d/S60uhttpd-lua stop
+
+	echo_info "Verify portal network setup"
+	ip addr show wlan0 | grep "172.16.0.1" && echo_info "Portal IP assigned" || echo_warning "Portal IP missing"
+	netstat -ln | grep ":80.*LISTEN" && echo_info "Web server listening" || echo_warning "Web server not listening"
+
+	echo_warning "Portal started at $(ts)"
+
+	echo_info "Start timeout countdown"
+	timeout &
+}
+
+stop() {
+	echo_title "Captive Portal (Lua)"
+
+	if [ ! -f "$PORTAL_MODE_FLAG" ]; then
+		echo_error "Not running"
+		exit 1
+	fi
+
+	echo_info "Stop uhttpd"
+	start-stop-daemon -K -q -x /bin/uhttpd
+
+	echo_info "Stop udhcp"
+	start-stop-daemon -K -q -x /sbin/udhcpd
+
+	echo_info "Stop dnsd"
+	start-stop-daemon -K -q -x /sbin/dnsd
+
+	echo_info "Stop wpa_supplicant"
+	start-stop-daemon -K -q -x /sbin/wpa_supplicant
+
+	echo_info "Remove route ${CNET}.0/24 from $portal_device"
+	ip address delete dev $portal_device ${CNET}.1/24
+
+	echo_info "Remove IP address from $portal_device"
+	ip link set $portal_device down
+
+	echo_info "Remove $PORTAL_MODE_FLAG"
+	rm -f "$PORTAL_MODE_FLAG"
+
+	echo_info "Restart uhttpd to normal mode"
+	/etc/init.d/S60uhttpd-lua restart
+
+	echo_info "Kill the Portal process"
+	kill -9 "$(pidof -s S41portal-lua -o $$)" 2>/dev/null
+
+	echo_warning "Portal stopped at $(ts)"
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

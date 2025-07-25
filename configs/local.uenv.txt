@@ -1,4 +1,4 @@
 ## environment settings for local compilation
 ## lines starting with # will be ignored
-wlan_ssid=thingino
-wlan_pass=thingino
+#wlan_ssid=thingino
+#wlan_pass=thingino

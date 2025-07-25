@@ -1,5 +1,5 @@
 # NAME: T23N, CV2003, ATBM6132U
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+# FRAG: soc toolchain ccache brand rootfs kernel system ssl target uboot
 BR2_SOC_INGENIC_T23N=y
 BR2_SENSOR_SV2003=y
 BR2_PACKAGE_WIFI=y

@@ -1,0 +1,5 @@
+config BR2_PACKAGE_WOLFSSL_CERTGEN
+	bool "wolfssl-certgen"
+	depends on BR2_PACKAGE_THINGINO_WOLFSSL
+	help
+	  Certificate generator for WolfSSL

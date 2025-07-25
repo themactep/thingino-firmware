@@ -1,11 +1,6 @@
 # Thingino Firmware
 # https://github.com/themactep/thingino-firmware
 
-CROSS_COMPILE ?= /opt/toolchains/thingino/xb1/gcc14-musl/bin/mipsel-thingino-linux-musl-
-export CROSS_COMPILE
-
-:> $(BR2_EXTERNAL)/build.log
-
 BR2_HOSTARCH = $(shell uname -m)
 export BR2_HOSTARCH
 
@@ -59,13 +54,16 @@ GIT_DATE="$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S UTC'
 BUILD_DATE="$(shell env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z')"
 
 # working directory
-ifeq ($(GIT_BRANCH),master)
-OUTPUT_DIR ?= $(HOME)/output/$(CAMERA)
-else ifeq ($(GIT_BRANCH),)
-OUTPUT_DIR ?= $(HOME)/output-junk/$(CAMERA)
-else
-OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)/$(CAMERA)
-endif
+#ifeq ($(GIT_BRANCH),master)
+#OUTPUT_DIR ?= $(HOME)/output/$(CAMERA)
+#else ifeq ($(GIT_BRANCH),)
+#OUTPUT_DIR ?= $(HOME)/output-junk/$(CAMERA)
+#else
+#OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)/$(CAMERA)
+#endif
+
+OUTPUT_DIR = $(HOME)/output-$(CAMERA)
+
 $(info OUTPUT_DIR: $(OUTPUT_DIR))
 export OUTPUT_DIR
 
@@ -212,7 +210,7 @@ endef
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
 
 .PHONY: all bootstrap build build_fast clean cleanbuild defconfig distclean fast \
-	help info pack release remove_bins repack sdk toolchain update upboot-ota \
+	help pack release remove_bins repack sdk toolchain update upboot-ota \
 	upload_tftp upgrade_ota br-%
 
 all: defconfig build pack
@@ -242,11 +240,11 @@ bootstrap:
 
 build: $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) all 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
+	$(BR2_MAKE) all
 
 build_fast: $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) -j$(shell nproc) all 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
+	$(BR2_MAKE) -j$(shell nproc) all
 
 ### Configuration
 
@@ -317,16 +315,16 @@ select-device:
 # call configurator
 menuconfig: $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) menuconfig 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) menuconfig
 
 nconfig: $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) nconfig 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) nconfig
 
 # permanently save changes to the defconfig
 saveconfig:
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) savedefconfig 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) savedefconfig
 
 ### Files
 
@@ -390,7 +388,7 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 # rebuild a package
 rebuild-%: defconfig
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@) 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
+	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
 
 remove_bins:
 	$(info -------------------------------- $@)
@@ -402,16 +400,16 @@ repack: remove_bins pack
 # build toolchain fast
 sdk: defconfig
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) -j$(shell nproc) sdk 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
+	$(BR2_MAKE) -j$(shell nproc) sdk
 
 source: defconfig
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source
 
 # build toolchain
 toolchain: defconfig
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) sdk 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
+	$(BR2_MAKE) sdk
 
 # flash new uboot image to the camera
 upboot_ota: $(U_BOOT_BIN)
@@ -450,7 +448,7 @@ br-%-dirclean:
 
 br-%: defconfig
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) $(subst br-,,$@) 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
+	$(BR2_MAKE) $(subst br-,,$@)
 
 # checkout buidroot submodule
 buildroot/Makefile:
@@ -505,7 +503,7 @@ endif
 		ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; \
 	fi
 	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 
 $(U_BOOT_ENV_TXT): $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
@@ -572,67 +570,18 @@ $(EXTRAS_BIN): $(U_BOOT_BIN)
 # rebuild kernel
 $(KERNEL_BIN):
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) linux-rebuild 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
+	$(BR2_MAKE) linux-rebuild
 #	mv -vf $(OUTPUT_DIR)/images/uImage $@
 
 # rebuild rootfs
 $(ROOTFS_BIN):
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) all 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
+	$(BR2_MAKE) all
 
 # create .tar file of rootfs
 $(ROOTFS_TAR):
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) all 2>&1 | tee -a $(BR2_EXTERNAL)/build.log
-
-info:
-    $(info Host architecture $(BR2_HOSTARCH))
-    $(info Building for architecture $(INGENIC_ARCH))
-    $(info SOC_VENDOR: $(SOC_VENDOR))
-    $(info SOC_FAMILY: $(SOC_FAMILY))
-    $(info SOC_FAMILY_CAPS: $(SOC_FAMILY_CAPS))
-    $(info SOC_MODEL: $(SOC_MODEL))
-    $(info SOC_MODEL_LESS_Z: $(SOC_MODEL_LESS_Z))
-    $(info SOC_RAM: $(SOC_RAM))
-
-    $(info KERNEL_VERSION: $(KERNEL_VERSION))
-    $(info KERNEL_SITE: $(KERNEL_SITE))
-    $(info KERNEL_BRANCH: $(KERNEL_BRANCH))
-    $(info KERNEL_HASH: $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1))
-    $(info KERNEL_TARBALL_URL: $(KERNEL_TARBALL_URL))
-
-    $(info SENSOR_MODEL: $(SENSOR_MODEL))
-
-    $(info AVPU_CLK: $(AVPU_CLK))
-    $(info AVPU_CLK_SRC: $(AVPU_CLK_SRC))
-    $(info ISP_CLK: $(ISP_CLK))
-    $(info ISP_CLK_SRC: $(ISP_CLK_SRC))
-    $(info ISP_CLKA_CLK: $(ISP_CLKA_CLK))
-    $(info ISP_CLKA_SRC: $(ISP_CLKA_SRC))
-    $(info ISP_MEMOPT: $(ISP_MEMOPT))
-    $(info ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM: $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM))
-    $(info ISP_CH0_PRE_DEQUEUE_TIME: $(ISP_CH0_PRE_DEQUEUE_TIME))
-    $(info ISP_CH0_PRE_DEQUEUE_INTERRUP_PROCESS: $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS))
-    $(info ISP_CH0_PRE_DEQUEUE_VALID_LINES: $(ISP_CH0_PRE_DEQUEUE_VALID_LINES))
-
-    $(info FLASH_SIZE: $(FLASH_SIZE))
-
-    $(info UBOOT_BOARDNAME: $(UBOOT_BOARDNAME))
-    $(info UBOOT_REPO: $(UBOOT_REPO))
-    $(info UBOOT_REPO_BRANCH: $(UBOOT_REPO_BRANCH))
-    $(info UBOOT_REPO_VERSION: $(UBOOT_REPO_VERSION))
-    $(info BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME: $(BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME))
-    $(info BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME: $(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME))
-
-    $(info STREAMER: $(STREAMER))
-
-    $(info SDK_VERSION: $(SDK_VERSION))
-    $(info SDK_LIBC_NAME: $(SDK_LIBC_NAME))
-    $(info SDK_LIBC_VERSION: $(SDK_LIBC_VERSION))
-    $(info BR2_LIBC_NAME: $(BR2_LIBC_NAME))
-
-    $(info Building using $(BR2_LIBC_NAME) with $(SDK_LIBC_NAME) libs for GCC $(SDK_LIBC_VERSION) toolchain from $(SDK_VERSION) SDK)
-
+	$(BR2_MAKE) all
 
 help:
 	$(info -------------------------------- $@)

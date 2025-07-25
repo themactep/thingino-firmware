@@ -1,7 +1,7 @@
 LOGCAT_MINI_SITE_METHOD = git
 LOGCAT_MINI_SITE = https://github.com/wltechblog/logcat-mini
 LOGCAT_MINI_SITE_BRANCH = main
-LOGCAT_MINI_VERSION = eba9adfbaa9000110ef69f171e3842996edef846
+LOGCAT_MINI_VERSION = 29095262840a807d794ecbe4eda9ee2c425b5015
 # $(shell git ls-remote $(LOGCAT_MINI_SITE) $(LOGCAT_MINI_SITE_BRANCH) | head -1 | cut -f1)
 
 LOGCAT_MINI_LICENSE = GPL-2.0
@@ -14,4 +14,13 @@ LOGCAT_MINI_INSTALL_STAGING = YES
 #	$(HOST_DIR)/bin/upx --best $(@D)/logcat
 #endef
 
-$(eval $(cmake-package))
+define LOGCAT_MINI_BUILD_CMDS
+	$(MAKE) $(TARGET_CONFIGURE_OPTS) -C $(@D)
+endef
+
+define LOGCAT_MINI_INSTALL_TARGET_CMDS
+	$(MAKE) $(TARGET_CONFIGURE_OPTS) -C $(@D) install \
+		DESTDIR=$(TARGET_DIR) PREFIX=/usr
+endef
+
+$(eval $(generic-package))
