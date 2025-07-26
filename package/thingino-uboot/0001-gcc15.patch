@@ -1,0 +1,726 @@
+diff --git a/arch/mips/cpu/xburst/c100/soc.c b/arch/mips/cpu/xburst/c100/soc.c
+index 239213b2..17064b27 100644
+--- a/arch/mips/cpu/xburst/c100/soc.c
++++ b/arch/mips/cpu/xburst/c100/soc.c
+@@ -30,6 +30,9 @@
+ #include <spl.h>
+ #include <asm/ddr_innophy.h>
+ 
++/* Function declaration for GCC 15 compatibility */
++extern void flush_cache_all(void);
++
+ #ifdef CONFIG_SPL_BUILD
+ /* Pointer to as well as the global data structure for SPL */
+ DECLARE_GLOBAL_DATA_PTR;
+@@ -153,8 +156,6 @@ void board_init_f(ulong dummy)
+ #endif
+ }
+ 
+-extern void flush_cache_all(void);
+-
+ void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
+ {
+ 	typedef void __noreturn (*image_entry_noargs_t)(void);
+diff --git a/arch/mips/cpu/xburst/ddr_innophy.c b/arch/mips/cpu/xburst/ddr_innophy.c
+index f1dbf90b..bb1a4f89 100644
+--- a/arch/mips/cpu/xburst/ddr_innophy.c
++++ b/arch/mips/cpu/xburst/ddr_innophy.c
+@@ -32,6 +32,9 @@
+ DECLARE_GLOBAL_DATA_PTR;
+ extern unsigned int sdram_size(int cs, struct ddr_params *p);
+ 
++/* Function declaration for GCC 15 compatibility */
++void phy_calibration(int al8_1x, int ah8_1x, int al8_2x, int ah8_2x);
++
+ struct ddr_params *ddr_params_p = NULL;
+ #ifndef CONFIG_FPGA
+ extern void reset_dll(void);
+diff --git a/arch/mips/cpu/xburst/t10/soc.c b/arch/mips/cpu/xburst/t10/soc.c
+index 1546abe6..d1976b04 100644
+--- a/arch/mips/cpu/xburst/t10/soc.c
++++ b/arch/mips/cpu/xburst/t10/soc.c
+@@ -15,6 +15,9 @@
+ #include <asm/arch/cpm.h>
+ #include <spl.h>
+ 
++/* Function declaration for GCC 15 compatibility */
++extern void flush_cache_all(void);
++
+ #ifdef CONFIG_SPL_BUILD
+ /* Pointer to as well as the global data structure for SPL */
+ DECLARE_GLOBAL_DATA_PTR;
+@@ -98,8 +101,6 @@ void board_init_f(ulong dummy)
+ #endif
+ }
+ 
+-extern void flush_cache_all(void);
+-
+ void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
+ {
+ 	typedef void __noreturn (*image_entry_noargs_t)(void);
+diff --git a/arch/mips/cpu/xburst/t15/soc.c b/arch/mips/cpu/xburst/t15/soc.c
+index 28a5c927..f87fafe2 100644
+--- a/arch/mips/cpu/xburst/t15/soc.c
++++ b/arch/mips/cpu/xburst/t15/soc.c
+@@ -15,6 +15,9 @@
+ #include <asm/arch/cpm.h>
+ #include <spl.h>
+ 
++/* Function declaration for GCC 15 compatibility */
++extern void flush_cache_all(void);
++
+ #ifdef CONFIG_SPL_BUILD
+ /* Pointer to as well as the global data structure for SPL */
+ DECLARE_GLOBAL_DATA_PTR;
+@@ -93,8 +96,6 @@ void board_init_f(ulong dummy)
+ #endif
+ }
+ 
+-extern void flush_cache_all(void);
+-
+ void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
+ {
+ 	typedef void __noreturn (*image_entry_noargs_t)(void);
+diff --git a/arch/mips/cpu/xburst/t20/soc.c b/arch/mips/cpu/xburst/t20/soc.c
+index ff1e03c8..c73092bb 100644
+--- a/arch/mips/cpu/xburst/t20/soc.c
++++ b/arch/mips/cpu/xburst/t20/soc.c
+@@ -15,6 +15,9 @@
+ #include <asm/arch/cpm.h>
+ #include <spl.h>
+ 
++/* Function declaration for GCC 15 compatibility */
++extern void flush_cache_all(void);
++
+ #ifdef CONFIG_SPL_BUILD
+ /* Pointer to as well as the global data structure for SPL */
+ DECLARE_GLOBAL_DATA_PTR;
+@@ -100,8 +103,6 @@ void board_init_f(ulong dummy)
+ #endif
+ }
+ 
+-extern void flush_cache_all(void);
+-
+ void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
+ {
+ 	typedef void __noreturn (*image_entry_noargs_t)(void);
+diff --git a/arch/mips/cpu/xburst/t21/soc.c b/arch/mips/cpu/xburst/t21/soc.c
+index e737ac50..ab483064 100644
+--- a/arch/mips/cpu/xburst/t21/soc.c
++++ b/arch/mips/cpu/xburst/t21/soc.c
+@@ -18,6 +18,9 @@
+ #include <spl.h>
+ #include <asm/ddr_innophy.h>
+ 
++/* Function declaration for GCC 15 compatibility */
++extern void flush_cache_all(void);
++
+ #ifdef CONFIG_SPL_BUILD
+ /* Pointer to as well as the global data structure for SPL */
+ DECLARE_GLOBAL_DATA_PTR;
+@@ -141,8 +144,6 @@ void board_init_f(ulong dummy)
+ #endif
+ }
+ 
+-extern void flush_cache_all(void);
+-
+ void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
+ {
+ 	typedef void __noreturn (*image_entry_noargs_t)(void);
+diff --git a/arch/mips/cpu/xburst/t23/soc.c b/arch/mips/cpu/xburst/t23/soc.c
+index a792f5c4..0b5b388d 100644
+--- a/arch/mips/cpu/xburst/t23/soc.c
++++ b/arch/mips/cpu/xburst/t23/soc.c
+@@ -18,6 +18,9 @@
+ #include <spl.h>
+ #include <asm/ddr_innophy.h>
+ 
++/* Function declaration for GCC 15 compatibility */
++extern void flush_cache_all(void);
++
+ #ifdef CONFIG_SPL_BUILD
+ /* Pointer to as well as the global data structure for SPL */
+ DECLARE_GLOBAL_DATA_PTR;
+@@ -147,8 +150,6 @@ void board_init_f(ulong dummy)
+ #endif
+ }
+ 
+-extern void flush_cache_all(void);
+-
+ void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
+ {
+ 	typedef void __noreturn (*image_entry_noargs_t)(void);
+diff --git a/arch/mips/cpu/xburst/t30/soc.c b/arch/mips/cpu/xburst/t30/soc.c
+index 017eeac3..96fbbe79 100644
+--- a/arch/mips/cpu/xburst/t30/soc.c
++++ b/arch/mips/cpu/xburst/t30/soc.c
+@@ -9,6 +9,7 @@
+  */
+ 
+ #define DEBUG
++
+ #include <config.h>
+ #include <common.h>
+ #include <asm/io.h>
+@@ -17,6 +18,9 @@
+ #include <spl.h>
+ #include <asm/ddr_innophy.h>
+ 
++/* Function declaration for GCC 15 compatibility */
++extern void flush_cache_all(void);
++
+ #ifdef CONFIG_SPL_BUILD
+ /* Pointer to as well as the global data structure for SPL */
+ DECLARE_GLOBAL_DATA_PTR;
+@@ -139,8 +143,6 @@ void board_init_f(ulong dummy)
+ #endif
+ }
+ 
+-extern void flush_cache_all(void);
+-
+ void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
+ {
+ 	typedef void __noreturn (*image_entry_noargs_t)(void);
+diff --git a/arch/mips/cpu/xburst/t31/soc.c b/arch/mips/cpu/xburst/t31/soc.c
+index 832abfb4..f89aa7e9 100644
+--- a/arch/mips/cpu/xburst/t31/soc.c
++++ b/arch/mips/cpu/xburst/t31/soc.c
+@@ -18,6 +18,9 @@
+ #include <spl.h>
+ #include <asm/ddr_innophy.h>
+ 
++/* Function declaration for GCC 15 compatibility */
++extern void flush_cache_all(void);
++
+ #ifdef CONFIG_SPL_BUILD
+ /* Pointer to as well as the global data structure for SPL */
+ DECLARE_GLOBAL_DATA_PTR;
+@@ -140,8 +143,6 @@ void board_init_f(ulong dummy)
+ #endif
+ }
+ 
+-extern void flush_cache_all(void);
+-
+ void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
+ {
+ 	typedef void __noreturn (*image_entry_noargs_t)(void);
+diff --git a/arch/mips/include/asm/io.h b/arch/mips/include/asm/io.h
+index f3f13f85..9803ef69 100644
+--- a/arch/mips/include/asm/io.h
++++ b/arch/mips/include/asm/io.h
+@@ -8,6 +8,8 @@
+ #ifndef _ASM_IO_H
+ #define _ASM_IO_H
+ 
++/* Modified for GCC 15 compatibility: changed extern inline to static inline */
++
+ #include <linux/config.h>
+ #if 0
+ #include <linux/pagemap.h>
+@@ -115,7 +117,7 @@ static inline void set_io_port_base(unsigned long base)
+  * Change virtual addresses to physical addresses and vv.
+  * These are trivial on the 1:1 Linux/MIPS mapping
+  */
+-extern inline phys_addr_t virt_to_phys(volatile void * address)
++static inline phys_addr_t virt_to_phys(volatile void * address)
+ {
+ #ifndef CONFIG_64BIT
+ 	return CPHYSADDR(address);
+@@ -124,7 +126,7 @@ extern inline phys_addr_t virt_to_phys(volatile void * address)
+ #endif
+ }
+ 
+-extern inline void * phys_to_virt(unsigned long address)
++static inline void * phys_to_virt(unsigned long address)
+ {
+ #ifndef CONFIG_64BIT
+ 	return (void *)KSEG0ADDR(address);
+@@ -136,7 +138,7 @@ extern inline void * phys_to_virt(unsigned long address)
+ /*
+  * IO bus memory addresses are also 1:1 with the physical address
+  */
+-extern inline unsigned long virt_to_bus(volatile void * address)
++static inline unsigned long virt_to_bus(volatile void * address)
+ {
+ #ifndef CONFIG_64BIT
+ 	return CPHYSADDR(address);
+@@ -145,7 +147,7 @@ extern inline unsigned long virt_to_bus(volatile void * address)
+ #endif
+ }
+ 
+-extern inline void * bus_to_virt(unsigned long address)
++static inline void * bus_to_virt(unsigned long address)
+ {
+ #ifndef CONFIG_64BIT
+ 	return (void *)KSEG0ADDR(address);
+diff --git a/arch/mips/include/asm/system.h b/arch/mips/include/asm/system.h
+index 2ee4df35..bdb2f602 100644
+--- a/arch/mips/include/asm/system.h
++++ b/arch/mips/include/asm/system.h
+@@ -13,6 +13,8 @@
+ #ifndef _ASM_SYSTEM_H
+ #define _ASM_SYSTEM_H
+ 
++/* Modified for GCC 15 compatibility: changed extern inline to static inline */
++
+ #include <linux/config.h>
+ #include <asm/sgidefs.h>
+ #include <asm/ptrace.h>
+@@ -20,7 +22,7 @@
+ #include <linux/kernel.h>
+ #endif
+ 
+-extern __inline__ void
++static __inline__ void
+ __sti(void)
+ {
+ 	__asm__ __volatile__(
+@@ -44,7 +46,7 @@ __sti(void)
+  * R4000/R4400 need three nops, the R4600 two nops and the R10000 needs
+  * no nops at all.
+  */
+-extern __inline__ void
++static __inline__ void
+ __cli(void)
+ {
+ 	__asm__ __volatile__(
+@@ -205,7 +207,7 @@ do { \
+  * For 32 and 64 bit operands we can take advantage of ll and sc.
+  * FIXME: This doesn't work for R3000 machines.
+  */
+-extern __inline__ unsigned long xchg_u32(volatile int * m, unsigned long val)
++static __inline__ unsigned long xchg_u32(volatile int * m, unsigned long val)
+ {
+ #ifdef CONFIG_CPU_HAS_LLSC
+ 	unsigned long dummy;
+diff --git a/arch/mips/lib/bootm.c b/arch/mips/lib/bootm.c
+index 8e40fb6b..319243c8 100644
+--- a/arch/mips/lib/bootm.c
++++ b/arch/mips/lib/bootm.c
+@@ -89,9 +89,9 @@ static void boot_jump_linux(bootm_headers_t *images)
+ 	printf("\nStarting kernel ...\n\n");
+ 
+ 	if (IMAGE_ENABLE_OF_LIBFDT && images->ft_len)
+-		theKernel(-2, (ulong)images->ft_addr, 0, 0);
++		theKernel(-2, (char **)images->ft_addr, (char **)0, (int *)0);
+ 	else
+-		theKernel(linux_argc, linux_argv, linux_env, 0);
++		theKernel(linux_argc, linux_argv, linux_env, (int *)0);
+ }
+ 
+ int do_bootm_linux(int flag, int argc, char * const argv[],
+diff --git a/common/cmd_jffs2load.c b/common/cmd_jffs2load.c
+index a7f0f1ff..a7b784bc 100644
+--- a/common/cmd_jffs2load.c
++++ b/common/cmd_jffs2load.c
+@@ -59,7 +59,7 @@ void* norflash_memory_map_init()
+ 		return NULL;
+ 	}
+ 
+-	flash_info[flash_num].start[0] = (unsigned long*)buf;
++	flash_info[flash_num].start[0] = (unsigned long)buf;
+ 
+ 	return buf;
+ }
+diff --git a/common/cmd_jznet.c b/common/cmd_jznet.c
+index 35350c61..b53cc33a 100644
+--- a/common/cmd_jznet.c
++++ b/common/cmd_jznet.c
+@@ -7,6 +7,10 @@
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+ 
++/* Function declarations for GCC 15 compatibility */
++extern void handle_gpio_settings(const char *name);
++extern int jz_net_initialize(bd_t *bd);
++
+ void jznet_init(void) {
+ #ifdef CONFIG_BITBANGMII
+ 	bb_miiphy_init();
+diff --git a/common/main.c b/common/main.c
+index 296dc99f..2da64040 100644
+--- a/common/main.c
++++ b/common/main.c
+@@ -26,7 +26,7 @@ DECLARE_GLOBAL_DATA_PTR;
+ /*
+  * Board-specific Platform code can reimplement show_boot_progress () if needed
+  */
+-void inline __show_boot_progress (int val) {}
++void __show_boot_progress (int val) {}
+ void show_boot_progress (int val) __attribute__((weak, alias("__show_boot_progress")));
+ 
+ #define MAX_DELAY_STOP_STR 32
+diff --git a/config.mk b/config.mk
+index 5d7f04bb..d4c7cb16 100644
+--- a/config.mk
++++ b/config.mk
+@@ -46,7 +46,7 @@ PLATFORM_LDFLAGS =
+ 
+ #########################################################################
+ 
+-HOSTCFLAGS	= -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer \
++HOSTCFLAGS	= -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -std=gnu11 -fcommon \
+ 		  $(HOSTCPPFLAGS)
+ HOSTSTRIP	= strip
+ 
+@@ -250,7 +250,7 @@ CPPFLAGS += -I$(TOPDIR)/include
+ CPPFLAGS += -fno-builtin -ffreestanding -nostdinc	\
+ 	-isystem $(gccincdir) -pipe $(PLATFORM_CPPFLAGS)
+ 
+-CFLAGS := $(CPPFLAGS) -Wall -Wstrict-prototypes
++CFLAGS := $(CPPFLAGS) -Wall -Wstrict-prototypes -std=gnu11 -fcommon
+ 
+ ifdef BUILD_TAG
+ CFLAGS += -DBUILD_TAG='"$(BUILD_TAG)"'
+diff --git a/drivers/gpio/jz_gpio_common.c b/drivers/gpio/jz_gpio_common.c
+index 77313cdf..08792689 100644
+--- a/drivers/gpio/jz_gpio_common.c
++++ b/drivers/gpio/jz_gpio_common.c
+@@ -160,6 +160,8 @@ int gpio_get_value(unsigned gpio)
+ 	} else {
+ #ifdef CONFIG_JZ_PCA953X
+ 		return pca953x_get_value(gpio);
++#else
++		return 0; /* Default value when PCA953X is not configured */
+ #endif
+ 	}
+ }
+@@ -243,6 +245,7 @@ void gpio_disable_pull_down(unsigned gpio)
+ }
+ void gpio_set_pull_dir(unsigned gpio, int pull)
+ {
++#ifndef CONFIG_T31
+ 	unsigned port= gpio / 32;
+ 	unsigned pin = gpio % 32;
+ 	if (pull) {
+@@ -250,6 +253,11 @@ void gpio_set_pull_dir(unsigned gpio, int pull)
+ 	} else {
+ 		writel(1 << pin, GPIO_PXPDIRC(port));
+ 	}
++#else
++	/* T31 does not support pull direction control */
++	(void)gpio;
++	(void)pull;
++#endif
+ }
+ 
+ void gpio_as_irq_high_level(unsigned gpio)
+@@ -364,7 +372,7 @@ void dump_gpio_func(unsigned int gpio)
+ void process_gpio_token(char* token) {
+ 	char *endptr;
+ 	long gpio = simple_strtol(token, &endptr, 10);
+-	
++
+ 	// Ignore negative GPIO values (like -1)
+ 	if (gpio < 0) {
+ 		printf(" [Ignoring GPIO %ld]", gpio);
+diff --git a/drivers/mmc/mmc.c b/drivers/mmc/mmc.c
+index 1ba1c4e2..7db49a33 100644
+--- a/drivers/mmc/mmc.c
++++ b/drivers/mmc/mmc.c
+@@ -777,7 +777,7 @@ void mmc_set_bus_width(struct mmc *mmc, uint width)
+ 
+ 	mmc_set_ios(mmc);
+ }
+-int get_mmc_csd_perm_w_protect()
++int get_mmc_csd_perm_w_protect(void)
+ {
+ 	return mmc_csd_perm_w_protect;
+ }
+diff --git a/drivers/mmc/mmc_private.h b/drivers/mmc/mmc_private.h
+index 16dcf9ff..289e51fb 100644
+--- a/drivers/mmc/mmc_private.h
++++ b/drivers/mmc/mmc_private.h
+@@ -16,6 +16,7 @@ extern int mmc_send_cmd(struct mmc *mmc, struct mmc_cmd *cmd,
+ 			struct mmc_data *data);
+ extern int mmc_send_status(struct mmc *mmc, int timeout);
+ extern int mmc_set_blocklen(struct mmc *mmc, int len);
++extern int get_mmc_csd_perm_w_protect(void);
+ 
+ #ifndef CONFIG_SPL_BUILD
+ 
+diff --git a/drivers/spi/jz_sfc_nor.c b/drivers/spi/jz_sfc_nor.c
+index 4ee92aeb..64e970a7 100644
+--- a/drivers/spi/jz_sfc_nor.c
++++ b/drivers/spi/jz_sfc_nor.c
+@@ -451,8 +451,7 @@ static int sfc_read(unsigned int addr, unsigned int addr_plus,
+ }
+ #endif
+ 
+-#define CPM_SSICDR (0xb0000000 + 0x74)
+-#define CPM_CLKGR0 (0xb0000000 + 0x20)
++/* CPM_SSICDR and CPM_CLKGR0 are defined in asm/arch/cpm.h */
+ 
+ int sfc_init(void)
+ {
+@@ -748,7 +747,7 @@ int jz_sfc_write(struct spi_flash *flash, u32 offset, size_t length, const void
+ 
+ 		/*dump_sfc_reg();*/
+ 
+-		sfc_write_data(send_buf ,len);
++		sfc_write_data((unsigned int *)send_buf ,len);
+ 
+ 		retlen = len;
+ 
+@@ -1084,7 +1083,7 @@ int sfc_nor_init(unsigned int idcode)
+ 	}
+ }
+ 
+-int sfc_nor_read(struct spi_flash *flash, unsigned int src_addr, unsigned int count,unsigned int dst_addr)
++int sfc_nor_read(struct spi_flash *flash, u32 src_addr, size_t count, void *dst_addr)
+ {
+ 	int i;
+ 	int ret = 0;
+@@ -1112,7 +1111,7 @@ int sfc_nor_read(struct spi_flash *flash, unsigned int src_addr, unsigned int co
+ 	return 0;
+ }
+ 
+-int sfc_nor_write(struct spi_flash *flash, unsigned int src_addr, unsigned int count,unsigned int dst_addr)
++int sfc_nor_write(struct spi_flash *flash, u32 src_addr, size_t count, const void *dst_addr)
+ {
+ 	int i;
+ 	int ret = 0;
+@@ -1261,7 +1260,7 @@ void read_sfcnand_id(u8 *response,size_t len)
+ 	unsigned char cmd[1];
+ 	cmd[0] = CMD_RDID;
+ 	sfc_send_cmd(&cmd[0],len,0,1,0,1,0);
+-	sfc_read_data(response,len);
++	sfc_read_data((unsigned int *)response,len);
+ 	printf("id0=%02x\n",response[0]);
+ 	printf("id1=%02x\n",response[1]);
+ 	printf("SFC_STA_RT=0x%08x,\n",jz_sfc_readl(SFC_STA_RT));
+diff --git a/drivers/usb/host/dwc2.c b/drivers/usb/host/dwc2.c
+index 6ddf08fd..d75171a5 100644
+--- a/drivers/usb/host/dwc2.c
++++ b/drivers/usb/host/dwc2.c
+@@ -817,10 +817,10 @@ int chunk_msg(struct usb_device *dev, unsigned long pipe, int *pid, int in,
+ 		if (!in)
+ 			memcpy(aligned_buffer, (char *)buffer + done, len);
+ 
+-			flush_dcache_range( (unsigned long)(aligned_buffer),
+-				(unsigned long)(aligned_buffer) +roundup(len, CONFIG_SYS_CACHELINE_SIZE) );/*zm*/
++		flush_dcache_range( (unsigned long)(aligned_buffer),
++			(unsigned long)(aligned_buffer) +roundup(len, CONFIG_SYS_CACHELINE_SIZE) );/*zm*/
+ 
+-		writel(virt_to_phys((unsigned long)aligned_buffer),
++		writel(virt_to_phys(aligned_buffer),
+ 		       &hc_regs->hcdma);
+ 
+ 
+diff --git a/fs/jffs2/mini_inflate.c b/fs/jffs2/mini_inflate.c
+index 2f13412f..e8b754b0 100644
+--- a/fs/jffs2/mini_inflate.c
++++ b/fs/jffs2/mini_inflate.c
+@@ -16,7 +16,7 @@
+ static unsigned char huffman_order[] = {16, 17, 18,  0,  8,  7,  9,  6, 10,  5,
+ 					11,  4, 12,  3, 13,  2, 14,  1, 15};
+ 
+-inline void cramfs_memset(int *s, const int c, size n)
++static void cramfs_memset(int *s, const int c, size n)
+ {
+ 	n--;
+ 	for (;n > 0; n--) s[n] = c;
+@@ -65,7 +65,7 @@ static void init_stream(struct bitstream *stream, unsigned char *data,
+ /* pull 'bits' bits out of the stream. The last bit pulled it returned as the
+  * msb. (section 3.1.1)
+  */
+-inline unsigned long pull_bits(struct bitstream *stream,
++static unsigned long pull_bits(struct bitstream *stream,
+ 			       const unsigned int bits)
+ {
+ 	unsigned long ret;
+@@ -85,7 +85,7 @@ inline unsigned long pull_bits(struct bitstream *stream,
+ 	return ret;
+ }
+ 
+-inline int pull_bit(struct bitstream *stream)
++static int pull_bit(struct bitstream *stream)
+ {
+ 	int ret = ((*(stream->data) >> stream->bit) & 1);
+ 	if (stream->bit++ == 7) {
+diff --git a/include/jz_pca953x.h b/include/jz_pca953x.h
+index b627bb39..2c4bc5e5 100644
+--- a/include/jz_pca953x.h
++++ b/include/jz_pca953x.h
+@@ -37,7 +37,7 @@ int pca953x_set_pol(u8 chip, uint mask, uint data);
+ int pca953x_set_dir(u8 chip, uint mask, uint data);
+ int pca953x_get_val(u8 chip);
+ 
+-int pca953x_init();
++int pca953x_init(void);
+ int pca953x_direction_output(int gpio, int val);
+ int pca953x_direction_input(int gpio);
+ 
+diff --git a/include/linux/compiler-gcc15.h b/include/linux/compiler-gcc15.h
+new file mode 100644
+index 00000000..97e7541d
+--- /dev/null
++++ b/include/linux/compiler-gcc15.h
+@@ -0,0 +1,126 @@
++/* gcc version specific checks */
++
++#ifndef GCC_VERSION
++#define GCC_VERSION (__GNUC__ * 10000           \
++                     + __GNUC_MINOR__ * 100     \
++                     + __GNUC_PATCHLEVEL__)
++#endif
++
++#if GCC_VERSION < 30200
++# error Sorry, your compiler is too old - please upgrade it.
++#endif
++
++#if GCC_VERSION < 30300
++# define __used			__attribute__((__unused__))
++#else
++# define __used			__attribute__((__used__))
++#endif
++
++#ifdef CONFIG_GCOV_KERNEL
++# if GCC_VERSION < 30400
++#   error "GCOV profiling support for gcc versions below 3.4 not included"
++# endif /* __GNUC_MINOR__ */
++#endif /* CONFIG_GCOV_KERNEL */
++
++#if GCC_VERSION >= 30400
++#define __must_check		__attribute__((warn_unused_result))
++#endif
++
++#if GCC_VERSION >= 40000
++
++/* GCC 4.1.[01] miscompiles __weak */
++#ifdef __KERNEL__
++# if GCC_VERSION >= 40100 &&  GCC_VERSION <= 40101
++#  error Your version of gcc miscompiles the __weak directive
++# endif
++#endif
++
++#define __used			__attribute__((__used__))
++#define __compiler_offsetof(a, b)					\
++	__builtin_offsetof(a, b)
++
++#if GCC_VERSION >= 40100 && GCC_VERSION < 40600
++# define __compiletime_object_size(obj) __builtin_object_size(obj, 0)
++#endif
++
++#if GCC_VERSION >= 40300
++/* Mark functions as cold. gcc will assume any path leading to a call
++ * to them will be unlikely.  This means a lot of manual unlikely()s
++ * are unnecessary now for any paths leading to the usual suspects
++ * like BUG(), printk(), panic() etc. [but let's keep them for now for
++ * older compilers]
++ *
++ * Early snapshots of gcc 4.3 don't support this and we can't detect this
++ * in the preprocessor, but we can live with this because they're unreleased.
++ * Maketime probing would be overkill here.
++ *
++ * gcc also has a __attribute__((__hot__)) to move hot functions into
++ * a special section, but I don't see any sense in this right now in
++ * the kernel context
++ */
++#define __cold			__attribute__((__cold__))
++
++#define __UNIQUE_ID(prefix) __PASTE(__PASTE(__UNIQUE_ID_, prefix), __COUNTER__)
++
++#ifndef __CHECKER__
++# define __compiletime_warning(message) __attribute__((warning(message)))
++# define __compiletime_error(message) __attribute__((error(message)))
++#endif /* __CHECKER__ */
++#endif /* GCC_VERSION >= 40300 */
++
++#if GCC_VERSION >= 40500
++/*
++ * Mark a position in code as unreachable.  This can be used to
++ * suppress control flow warnings after asm blocks that transfer
++ * control elsewhere.
++ *
++ * Early snapshots of gcc 4.5 don't support this and we can't detect
++ * this in the preprocessor, but we can live with this because they're
++ * unreleased.  Really, we need to have autoconf for the kernel.
++ */
++#define unreachable() __builtin_unreachable()
++
++/* Mark a function definition as prohibited from being cloned. */
++#define __noclone	__attribute__((__noclone__))
++
++#endif /* GCC_VERSION >= 40500 */
++
++#if GCC_VERSION >= 40600
++/*
++ * Tell the optimizer that something else uses this function or variable.
++ */
++#define __visible	__attribute__((externally_visible))
++#endif
++
++/*
++ * GCC 'asm goto' miscompiles certain code sequences:
++ *
++ *   http://gcc.gnu.org/bugzilla/show_bug.cgi?id=58670
++ *
++ * Work it around via a compiler barrier quirk suggested by Jakub Jelinek.
++ *
++ * (asm goto is automatically volatile - the naming reflects this.)
++ */
++#define asm_volatile_goto(x...)	do { asm goto(x); asm (""); } while (0)
++
++#ifdef CONFIG_ARCH_USE_BUILTIN_BSWAP
++#if GCC_VERSION >= 40400
++#define __HAVE_BUILTIN_BSWAP32__
++#define __HAVE_BUILTIN_BSWAP64__
++#endif
++#if GCC_VERSION >= 40800 || (defined(__powerpc__) && GCC_VERSION >= 40600)
++#define __HAVE_BUILTIN_BSWAP16__
++#endif
++#endif /* CONFIG_ARCH_USE_BUILTIN_BSWAP */
++
++#if GCC_VERSION >= 50000
++#define KASAN_ABI_VERSION 4
++#elif GCC_VERSION >= 40902
++#define KASAN_ABI_VERSION 3
++#endif
++
++#endif	/* gcc version >= 40000 specific checks */
++
++#ifndef OPTIMIZER_HIDE_VAR
++#define OPTIMIZER_HIDE_VAR(var) __asm__ ("" : "=r" (var) : "0" (var))
++#endif
+diff --git a/lib/sha1.c b/lib/sha1.c
+index f4527845..d684fa42 100644
+--- a/lib/sha1.c
++++ b/lib/sha1.c
+@@ -36,7 +36,8 @@
+ #include <string.h>
+ #endif /* USE_HOSTCC */
+ #include <watchdog.h>
+-#include "sha1.h"
++/* Use explicit path to avoid conflict with host system's /usr/include/sha1.h */
++#include "../include/sha1.h"
+ 
+ /*
+  * 32-bit integer manipulation macros (big endian)
+diff --git a/lib/sha256.c b/lib/sha256.c
+index 73481625..263f280c 100644
+--- a/lib/sha256.c
++++ b/lib/sha256.c
+@@ -11,7 +11,8 @@
+ #endif /* USE_HOSTCC */
+ #include <watchdog.h>
+ #include <linux/string.h>
+-#include <sha256.h>
++/* Use explicit path to avoid conflict with host system's /usr/include/sha256.h */
++#include "../include/sha256.h"
+ 
+ /*
+  * 32-bit integer manipulation macros (big endian)
+diff --git a/net/nfs.c b/net/nfs.c
+index 5f2fd83a..cb916b82 100644
+--- a/net/nfs.c
++++ b/net/nfs.c
+@@ -331,7 +331,7 @@ nfs_lookup_req(char *fname)
+ 	fnamelen = strlen(fname);
+ 
+ 	p = &(data[0]);
+-	p = (uint32_t *)rpc_add_credentials((long *)p);
++	p = rpc_add_credentials(p);
+ 
+ 	if (supported_nfs_versions & NFSV2_FLAG) {
+ 		memcpy(p, dirfh, NFS_FHSIZE);
