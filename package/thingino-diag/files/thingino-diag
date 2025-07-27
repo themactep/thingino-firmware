@@ -114,7 +114,7 @@ fi
 	inforun "ps" "PS"
 	inforun "lsof" "LSOF"
 	inforun "dmesg" "DMESG"
-	inforun "logcat" "LOGCAT"
+	inforun "logcat -t" "LOGCAT"
 	inforun "logread" "SYSLOG"
 
 	header "streamer"
