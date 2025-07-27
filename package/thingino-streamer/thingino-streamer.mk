@@ -6,29 +6,6 @@ THINGINO_STREAMER_VERSION = $(shell git ls-remote $(THINGINO_STREAMER_SITE) $(TH
 
 THINGINO_STREAMER_GIT_SUBMODULES = YES
 
-# Manually clone the ingenic-headers submodule since buildroot submodule support isn't working
-define THINGINO_STREAMER_GET_HEADERS
-	echo "=== THINGINO_STREAMER: Getting IMP headers ==="
-	echo "Source directory: $(@D)"
-	ls -la $(@D) || true
-	if [ ! -d $(@D)/include ]; then \
-		echo "Cloning ingenic-headers submodule..."; \
-		git clone http://github.com/gtxaspec/ingenic-headers $(@D)/include; \
-	else \
-		echo "Include directory already exists"; \
-	fi
-	# Install headers to staging directory
-	echo "Installing headers to $(STAGING_DIR)/usr/include"
-	mkdir -p $(STAGING_DIR)/usr/include
-	if [ -d $(@D)/include ]; then \
-		cp -r $(@D)/include/* $(STAGING_DIR)/usr/include/; \
-		echo "Headers installed successfully"; \
-	else \
-		echo "ERROR: Include directory not found"; \
-	fi
-endef
-THINGINO_STREAMER_PRE_BUILD_HOOKS += THINGINO_STREAMER_GET_HEADERS
-
 THINGINO_STREAMER_DEPENDENCIES = json-c ingenic-lib libschrift
 THINGINO_STREAMER_DEPENDENCIES += thingino-opus
 
