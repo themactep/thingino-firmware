@@ -19,6 +19,7 @@ ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
 else
 	PRUDYNT_T_DEPENDENCIES += thingino-freetype
 endif
+
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 	PRUDYNT_T_DEPENDENCIES += ingenic-musl
 endif
