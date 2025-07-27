@@ -43,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DNS/DHCP**: dnsmasq + udhcpd
 - **Network**: 172.16.0.0/24 isolated segment
 - **Memory Usage**: ~500KB total footprint
-- **Dependencies**: lua, thingino-uhttpd, dnsmasq, hostapd, wpa_supplicant
+- **Dependencies**: lua, thingino-uhttpd, dnsmasq, wpa_supplicant
 
 ### Configuration Files
 - `/etc/uhttpd-portal.conf` - Web server configuration

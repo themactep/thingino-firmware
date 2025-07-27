@@ -317,7 +317,7 @@ top -n 1 | grep -E "(uhttpd|lua)"
 
 ```makefile
 # Package dependencies
-THINGINO_PORTAL_LUA_DEPENDENCIES = lua thingino-uhttpd dnsmasq hostapd wpa_supplicant
+THINGINO_PORTAL_LUA_DEPENDENCIES = lua thingino-uhttpd dnsmasq wpa_supplicant
 
 # Install hooks
 THINGINO_PORTAL_LUA_POST_INSTALL_TARGET_HOOKS += MODIFY_INSTALL_CONFIGS

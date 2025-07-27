@@ -1,7 +1,7 @@
 THINGINO_PORTAL_LUA_SITE_METHOD = local
 THINGINO_PORTAL_LUA_SITE = $(THINGINO_PORTAL_LUA_PKGDIR)/files
 THINGINO_PORTAL_LUA_LICENSE = MIT
-THINGINO_PORTAL_LUA_DEPENDENCIES = lua thingino-uhttpd hostapd thingino-wpa_supplicant
+THINGINO_PORTAL_LUA_DEPENDENCIES = lua thingino-uhttpd thingino-wpa_supplicant
 
 define THINGINO_PORTAL_LUA_INSTALL_TARGET_CMDS
 	# Install portal web files
