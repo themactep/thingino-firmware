@@ -112,7 +112,7 @@ config BR2_PACKAGE_THINGINO_STREAMER_ONVIF
 config BR2_PACKAGE_THINGINO_STREAMER_OSD
 	bool "OSD timestamp overlay module support"
 	depends on BR2_PACKAGE_THINGINO_STREAMER
-	depends on BR2_PACKAGE_LIBSCHRIFT
+	select BR2_PACKAGE_LIBSCHRIFT
 	default y
 	help
 	  Enable OSD (On-Screen Display) timestamp overlay module with dedicated update thread.
