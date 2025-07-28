@@ -82,6 +82,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui-lua/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wolfssl/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wolfssh/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wolfssl-certgen/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/mbedtls-certgen/Config.in"
 endif
 
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
@@ -114,6 +115,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/jsonfilter/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libschrift/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mbedtls/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mosquitto/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-tailscale/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wpa_supplicant/Config.in"

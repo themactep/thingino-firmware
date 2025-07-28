@@ -1,9 +1,3 @@
-################################################################################
-#
-# thingino-mbedtls
-#
-################################################################################
-
 #THINGINO_MBEDTLS_VERSION = 64e80ddf8926c21c874f6e7801e92be7b269df74
 #THINGINO_MBEDTLS_SITE = https://github.com/Mbed-TLS/mbedtls.git
 #THINGINO_MBEDTLS_SITE_METHOD = git
