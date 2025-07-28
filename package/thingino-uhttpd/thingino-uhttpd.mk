@@ -16,7 +16,7 @@ THINGINO_UHTTPD_CONF_OPTS += -DTLS_SUPPORT=ON
 
 # mbedTLS backend
 ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS),y)
-THINGINO_UHTTPD_DEPENDENCIES += ustream-ssl thingino-mbedtls
+THINGINO_UHTTPD_DEPENDENCIES += ustream-ssl mbedtls
 endif
 
 # mbedTLS backend

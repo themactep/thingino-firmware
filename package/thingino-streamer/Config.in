@@ -164,18 +164,6 @@ config BR2_PACKAGE_THINGINO_STREAMER_RTSPS
 	  Additional memory usage: ~100KB for TLS contexts and encryption
 	  Default port: 322 (RTSPS standard port)
 
-config BR2_PACKAGE_THINGINO_STREAMER_RTMP
-	bool "RTMP streaming server module support"
-	depends on BR2_PACKAGE_THINGINO_STREAMER
-	help
-	  Enable RTMP streaming server module for live streaming to platforms.
-	  Provides RTMP server for receiving streams from OBS/FFmpeg and
-	  RTMP client for pushing streams to YouTube Live, Twitch, Facebook Live.
-
-	  Features: RTMP server/client, live streaming platforms, H.264/H.265 support
-	  Platforms: YouTube Live, Twitch, Facebook Live, custom RTMP servers
-	  Additional memory usage: ~300KB for RTMP protocol and connection handling
-
 config BR2_PACKAGE_THINGINO_STREAMER_RTMP_CLIENT
 	bool "RTMP streaming client module support"
 	depends on BR2_PACKAGE_THINGINO_STREAMER
@@ -202,16 +190,18 @@ config BR2_PACKAGE_THINGINO_STREAMER_RTMP_SERVER
 	  Use cases: Local recording, development testing, backup streams
 	  Additional memory usage: ~200KB for RTMP protocol and connection handling
 
-if BR2_PACKAGE_THINGINO_STREAMER_RTMP_CLIENT || BR2_PACKAGE_THINGINO_STREAMER_RTMP_SERVER
+if BR2_PACKAGE_THINGINO_STREAMER_RTMP_CLIENT || BR2_PACKAGE_THINGINO_STREAMER_RTSP
 
 choice
 	prompt "TLS/SSL backend for RTMPS support"
-	default BR2_PACKAGE_THINGINO_STREAMER_TLS_OPENSSL
+	default BR2_PACKAGE_THINGINO_STREAMER_TLS_NONE if !BR2_PACKAGE_OPENSSL && !BR2_PACKAGE_MBEDTLS
+	default BR2_PACKAGE_THINGINO_STREAMER_TLS_OPENSSL if BR2_PACKAGE_OPENSSL
+	default BR2_PACKAGE_THINGINO_STREAMER_TLS_MBEDTLS if BR2_PACKAGE_MBEDTLS
 	help
 	  Choose TLS/SSL backend for RTMPS (encrypted RTMP) support.
 	  Most modern streaming platforms require RTMPS for security.
 
-config BR2_PACKAGE_THINGINO_STREAMER_RTMP_CLIENT_TLS_NONE
+config BR2_PACKAGE_THINGINO_STREAMER_TLS_NONE
 	bool "No TLS support (plain RTMP only)"
 	help
 	  Disable TLS support. Only plain RTMP connections will work.

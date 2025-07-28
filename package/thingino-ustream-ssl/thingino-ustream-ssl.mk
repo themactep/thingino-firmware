@@ -1,9 +1,3 @@
-################################################################################
-#
-# thingino-ustream-ssl
-#
-################################################################################
-
 THINGINO_USTREAM_SSL_VERSION = 99bd3d2b167ccdffb6de072d02c380cb37b23e33
 THINGINO_USTREAM_SSL_SITE = https://git.openwrt.org/project/ustream-ssl.git
 THINGINO_USTREAM_SSL_SITE_METHOD = git

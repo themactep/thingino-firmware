@@ -2217,7 +2217,7 @@ function api_debug_ssl_tools(sess)
     -- Check what SSL/certificate tools are available on the camera
     local tools = {
         "openssl", "ssl_server2", "cert_app", "wolfssl-certgen", "wolfssl-certgen-native",
-        "openssl-certgen", "mbedtls_ssl_server2", "gnutls-cli", "certtool"
+        "openssl-certgen", "mbedtls-certgen", "mbedtls-certgen-native", "mbedtls_ssl_server2", "gnutls-cli", "certtool"
     }
 
     local available_tools = {}
@@ -2431,6 +2431,21 @@ function api_ssl_generate_self_signed(sess, env)
             success = true
         else
             error_msg = "wolfSSL certificate generation failed: " .. (result_output or "Unknown error")
+        end
+    -- Try mbedtls-certgen as second option (if available)
+    elseif utils.command_exists("mbedtls-certgen") then
+        local mbedtls_cmd = string.format([[
+            mbedtls-certgen -h "%s.local" -c "%s" -k "%s" -d 3650 -s 256 -t ecdsa 2>&1
+        ]], hostname, CONFIG.ssl_cert_path, CONFIG.ssl_key_path)
+
+        local handle = io.popen(mbedtls_cmd)
+        local result_output = handle:read("*a")
+        local result = handle:close()
+
+        if result then
+            success = true
+        else
+            error_msg = "mbedTLS certificate generation failed: " .. (result_output or "Unknown error")
         end
     -- Try openssl-certgen as fallback (if available)
     elseif utils.command_exists("openssl-certgen") then

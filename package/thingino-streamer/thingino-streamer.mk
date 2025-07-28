@@ -47,7 +47,7 @@ THINGINO_STREAMER_CFLAGS += -DNO_OPENSSL=1
 endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_STREAMER_TLS_MBEDTLS),y)
-THINGINO_STREAMER_DEPENDENCIES += thingino-mbedtls
+THINGINO_STREAMER_DEPENDENCIES += mbedtls
 endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_STREAMER_AUDIO),y)
@@ -227,13 +227,10 @@ endef
 # Post-install hook to generate SSL certificates for TLS-enabled builds
 define THINGINO_STREAMER_POST_INSTALL_TARGET_HOOKS_CMD
 	# Generate SSL certificates if TLS support is enabled
-	if [ "$(BR2_PACKAGE_THINGINO_STREAMER_RTSPS)" = "y" ] || \
-	   [ "$(BR2_PACKAGE_THINGINO_STREAMER_TLS_OPENSSL)" = "y" ] || \
-	   [ "$(BR2_PACKAGE_THINGINO_STREAMER_TLS_MBEDTLS)" = "y" ]; then \
+	if [ "$(BR2_PACKAGE_THINGINO_STREAMER_TLS_OPENSSL)" = "y" ]; then \
 		echo "Generating SSL certificates for Thingino Streamer..."; \
 		mkdir -p $(TARGET_DIR)/etc/ssl/certs $(TARGET_DIR)/etc/ssl/private; \
-		if [ "$(BR2_PACKAGE_THINGINO_STREAMER_TLS_OPENSSL)" = "y" ] || \
-		   [ "$(BR2_PACKAGE_THINGINO_STREAMER_RTSPS)" = "y" ]; then \
+		if [ "$(BR2_PACKAGE_THINGINO_STREAMER_TLS_OPENSSL)" = "y" ]; then \
 			$(HOST_DIR)/bin/openssl req -x509 -newkey rsa:2048 \
 				-keyout $(TARGET_DIR)/etc/ssl/private/rtsp-server.key \
 				-out $(TARGET_DIR)/etc/ssl/certs/rtsp-server.crt \

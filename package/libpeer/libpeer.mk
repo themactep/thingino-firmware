@@ -16,8 +16,8 @@ LIBPEER_INSTALL_TARGET = YES
 
 # Dependencies - thingino-libpeer fork uses system libraries
 LIBPEER_DEPENDENCIES = libsrtp
-ifeq ($(BR2_PACKAGE_THINGINO_MBEDTLS),y)
-LIBPEER_DEPENDENCIES += thingino-mbedtls
+ifeq ($(BR2_PACKAGE_MBEDTLS),y)
+LIBPEER_DEPENDENCIES += mbedtls
 endif
 
 # Simple CMake configuration for clean fork
@@ -40,7 +40,7 @@ define LIBPEER_INSTALL_PKGCONFIG
 	echo "Name: libpeer" >> $(STAGING_DIR)/usr/lib/pkgconfig/libpeer.pc
 	echo "Description: Lightweight WebRTC library for embedded systems" >> $(STAGING_DIR)/usr/lib/pkgconfig/libpeer.pc
 	echo "Version: $(LIBPEER_VERSION)" >> $(STAGING_DIR)/usr/lib/pkgconfig/libpeer.pc
-	echo "Requires: thingino-mbedtls libsrtp2" >> $(STAGING_DIR)/usr/lib/pkgconfig/libpeer.pc
+	echo "Requires: mbedtls libsrtp2" >> $(STAGING_DIR)/usr/lib/pkgconfig/libpeer.pc
 	echo "Libs: -L\$${libdir} -lpeer" >> $(STAGING_DIR)/usr/lib/pkgconfig/libpeer.pc
 	echo "Cflags: -I\$${includedir}" >> $(STAGING_DIR)/usr/lib/pkgconfig/libpeer.pc
 endef

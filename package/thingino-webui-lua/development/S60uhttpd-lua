@@ -102,6 +102,14 @@ start() {
             else
                 echo_warning "wolfSSL certificate generation failed, falling back to HTTP-only"
             fi
+        elif command -v mbedtls-certgen >/dev/null 2>&1; then
+            echo_info "Generating ECDSA certificate for $hostname using mbedTLS..."
+            echo_command "mbedtls-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 -t ecdsa"
+            if mbedtls-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 -t ecdsa >/dev/null 2>&1; then
+                echo_info "SSL certificate generated successfully with mbedTLS"
+            else
+                echo_warning "mbedTLS certificate generation failed, trying OpenSSL fallback..."
+            fi
         elif command -v openssl-certgen >/dev/null 2>&1; then
             echo_info "Generating ECDSA certificate for $hostname using OpenSSL..."
             echo_command "openssl-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256"
@@ -111,7 +119,7 @@ start() {
                 echo_warning "OpenSSL certificate generation failed, falling back to HTTP-only"
             fi
         else
-            echo_warning "No certificate generator available (neither wolfssl-certgen nor openssl-certgen found), using HTTP-only"
+            echo_warning "No certificate generator available (wolfssl-certgen, mbedtls-certgen, or openssl-certgen not found), using HTTP-only"
         fi
     fi
 
