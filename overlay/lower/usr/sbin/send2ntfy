@@ -80,20 +80,12 @@ if [ -n "$ntfy_icon" ]; then
 	command="$command -H 'Icon: $ntfy_icon'"
 fi
 
-if [ -n "$ntfy_email" ]; then
-	command="$command -H 'Email: $ntfy_email'"
-fi
-
 if [ -n "$ntfy_actions" ]; then
 	command="$command -H 'Actions: $ntfy_actions'"
 fi
 
-if [ -n "$ntfy_call" ] && [ -n "$ntfy_twilio_token" ]; then
-	command="$command -H 'Call: $ntfy_call' -u :$ntfy_twilio_token"
-fi
-
 if [ -n "$ntfy_message" ]; then
-	command="$command -d '$ntfy_message'"
+	command="$command -H 'Message: $ntfy_message'"
 fi
 
 command="$command ${ntfy_host:-ntfy.sh}/$ntfy_topic"
