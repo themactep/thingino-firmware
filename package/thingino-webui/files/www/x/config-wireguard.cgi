@@ -124,7 +124,7 @@ if (wgStatus == 1) {
 	$('#wg-ctrl').classList.add("alert-success");
 	$('#wg-ctrl .btn').classList.add("btn-success");
 	$('#wg-ctrl p:first-child').textContent = "Please click the button below to switch" +
-		" WireGuarg VPN on. Make sure all settings are correct!";
+		" WireGuard VPN on. Make sure all settings are correct!";
 	$('#wg-ctrl label span').textContent = "ON";
 }
 
