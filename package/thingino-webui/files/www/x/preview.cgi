@@ -73,6 +73,7 @@ Please note, there is no audio on this page. Open the RTSP stream in a player to
 <button type="button" class="btn btn-dark border mb-2" title="Send to FTP" data-sendto="ftp"><img src="/a/ftp.svg" alt="FTP" class="img-fluid"></button>
 <button type="button" class="btn btn-dark border mb-2" title="Send to MQTT" data-sendto="mqtt"><img src="/a/mqtt.svg" alt="MQTT" class="img-fluid"></button>
 <button type="button" class="btn btn-dark border mb-2" title="Send to Webhook" data-sendto="webhook"><img src="/a/webhook.svg" alt="Webhook" class="img-fluid"></button>
+<button type="button" class="btn btn-dark border mb-2" title="Send to Ntfy" data-sendto="ntfy"><img src="/a/ntfy.svg" alt="Ntfy" class="img-fluid"></button>
 <button type="button" class="btn btn-bark border mb-2" title="Yandex Disk" data-sendto="yadisk"><img src="/a/yadisk.svg" alt="Yandex Disk" class="img-fluid"></button>
 </div>
 </div>
@@ -83,7 +84,7 @@ Please note, there is no audio on this page. Open the RTSP stream in a player to
 
 <script>
 <%
-for i in email ftp mqtt telegram webhook yadisk; do
+for i in email ftp mqtt telegram webhook ntfy yadisk; do
 	continue
 #	[ "true" = $(eval echo \$${i}_enabled) ] && continue
 %>

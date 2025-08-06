@@ -50,6 +50,11 @@ start() {
 		send2yadisk &
 	fi
 
+	if [ "true" = "$motion_send2ntfy" ]; then
+		echo_info "Send alert to Ntfy"
+		send2ntfy &
+	fi
+
 	if [ "true" = "$motion_playonspeaker" ]; then
 		echo_info "Send alert to play on speaker"
 		playonspeaker &
