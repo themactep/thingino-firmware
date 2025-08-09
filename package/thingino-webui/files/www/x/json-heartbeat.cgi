@@ -7,7 +7,7 @@ if [ -f $LOCKFILE ]; then
 	printf '{"error":"Another request is in progress"}'
 	exit 0
 fi
-touch /tmp/heartbeat
+touch $LOCKFILE
 printf '{"time_now":"%s","timezone":"%s","mem_total":"%d","mem_active":"%d","mem_buffers":"%d","mem_cached":"%d","mem_free":"%d","overlay_total":"%d","overlay_used":"%d","overlay_free":"%d","extras_total":"%d","extras_used":"%d","extras_free":"%d","daynight_value":"%d","uptime":"%s"}' \
 	"$(date +%s)" \
 	"$(cat /etc/timezone)" \
