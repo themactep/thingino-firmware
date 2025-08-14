@@ -84,7 +84,7 @@ Please note, there is no audio on this page. Open the RTSP stream in a player to
 
 <script>
 <%
-for i in email ftp mqtt telegram webhook ntfy yadisk; do
+for i in email ftp local mqtt ntfy telegram webhook yadisk; do
 	continue
 #	[ "true" = $(eval echo \$${i}_enabled) ] && continue
 %>

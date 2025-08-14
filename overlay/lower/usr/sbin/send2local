@@ -1,0 +1,173 @@
+#!/bin/env sh
+
+# Save snapshot or video buffer to local storage
+#
+# This helper is used by the motion guard.  When the "Save locally" option is
+# enabled, /usr/sbin/motion simply runs this script without any arguments.  All
+# configuration parameters come from /etc/thingino.config and are already
+# available in the shell environment because /usr/share/common sources that
+# file and exports the variables.
+#
+# Options are mainly for manual testing.
+#   -d DIR   destination directory (default /mnt/records or $send_local_save_dir)
+#   -f FILE  explicit file to copy instead of snapshot / video buffer
+#   -V       copy video buffer instead of snapshot
+#   -v       verbose output
+#   -h       show help
+
+#   -s SEC   delay in seconds before grabbing snapshot when also saving video (default from config or 1)
+
+. /usr/share/common || {
+    echo "Error: /usr/share/common is missing" >&2
+    exit 1
+}
+
+show_help() {
+    cat >&2 <<EOF
+Usage: $0 [options]
+Where:
+  -d dir      Target directory to save files locally.
+  -f file     Explicit file to save instead of snapshot / video buffer.
+  -V          Save video buffer instead of snapshot.
+  -v          Verbose output.
+  -s sec      Delay in seconds before copying snapshot when saving video.
+  -h          Show this help and exit.
+EOF
+    exit 0
+}
+
+# ---------------------------------------------------------------------------
+# Default configuration – may be overridden by /etc/thingino.config or CLI
+# ---------------------------------------------------------------------------
+
+send_local_save_template=${send_local_save_template:-"${network_hostname:-thingino}-%Y%m%d-%H%M%S"}
+send_local_save_dir=${send_local_save_dir:-"/mnt/records"}
+send_local_verbosity=${send_local_verbosity:-"--silent"}
+send_local_save_video="${send_local_save_video:-false}"
+send_local_snapshot_delay=${send_local_snapshot_delay:-3}  # seconds
+
+# helper: log only when verbose
+logv() {
+    [ "$send_local_verbosity" = "--verbose" ] && echo "$*" >&2
+}
+
+# helper: wait until a file exists and its size is >0
+await_file() {
+    # args: file timeout_seconds
+    local f="$1" t="${2:-5}" i=0
+    while [ "$i" -lt "$t" ]; do
+        [ -s "$f" ] && return 0
+        sleep 1; i=$((i+1))
+    done
+    return 1
+}
+
+# ---------------------------------------------------------------------------
+# CLI parsing – mainly for testing from shell
+# ---------------------------------------------------------------------------
+while getopts d:f:Vv:s:h flag; do
+    case "${flag}" in
+        d) send_local_save_dir=$OPTARG ;;
+        V) send_local_save_video="true" ;;
+        v) send_local_verbosity="--verbose" ;;
+        s) send_local_snapshot_delay=$OPTARG ;;
+        h|*) show_help ;;
+    esac
+done
+
+# Sanity checks
+[ -z "$send_local_save_dir" ] && {
+    echo "Error: target directory is not set" >&2; exit 1; }
+
+# ---------------------------------------------------------------------------
+# Decide what to copy
+# ---------------------------------------------------------------------------
+
+action_ext="jpg"
+if [ "$send_local_save_video" = "true" ]; then
+	[ -n "$VBUFFER_FILE" ] || {
+		echo "Error: VBUFFER_FILE is not defined" >&2; exit 1; }
+	savable="$VBUFFER_FILE"
+	action_ext="mp4"
+else
+	[ -n "$SNAPSHOT_FILE" ] || {
+		echo "Error: SNAPSHOT_FILE is not defined" >&2; exit 1; }
+	savable="$SNAPSHOT_FILE"
+	action_ext="jpg"
+fi
+
+filename_prefix="$(date +"$send_local_save_template")"
+filename="${filename_prefix}.${action_ext}"
+
+# ---------------------------------------------------------------------------
+# Ensure source file is ready
+# ---------------------------------------------------------------------------
+if ! await_file "$savable" 5; then
+    echo "Error: $savable is empty or does not exist" >&2
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Create destination directory
+# ---------------------------------------------------------------------------
+logv "[INFO] Creating directory: $send_local_save_dir"
+mkdir -p "$send_local_save_dir" || {
+    echo "Error: cannot create directory $send_local_save_dir" >&2
+    exit 1
+}
+
+# ---------------------------------------------------------------------------
+# Perform copy
+# ---------------------------------------------------------------------------
+copy_file() {
+    local src="$1" dst="$2"
+    logv "[INFO] Copying $src -> $dst"
+    if cp -f "$src" "$dst"; then
+        logv "[OK] Saved: $dst"
+    else
+        echo "Error: failed to copy $src" >&2
+        exit 1
+    fi
+}
+
+dest_path="$send_local_save_dir/$filename"
+
+# ---------------------------------------------------------------------------
+# If we save a video, also save a snapshot with the same basename
+# ---------------------------------------------------------------------------
+if [ "$send_local_save_video" = "true" ]; then
+    if [ -n "$SNAPSHOT_FILE" ]; then
+		(
+			logv "[INFO] Waiting ${send_local_snapshot_delay}s before copying snapshot"
+			sleep "$send_local_snapshot_delay"
+			if await_file "$SNAPSHOT_FILE" 5; then
+				img_path="${dest_path%.*}.jpg"
+				copy_file "$SNAPSHOT_FILE" "$img_path"
+			else
+				logv "[WARN] Snapshot file not ready after waiting"
+			fi
+		) &
+    fi
+	# If we are saving video - capture the first part of the motion
+	copy_file "$savable" "$dest_path"
+
+	# If we are saving video - attempt to capture the second part of the motion
+    inode_before=$(stat -c%i "$savable" 2>/dev/null || echo 0)
+    # Wait up to 10 seconds for the buffer to rotate
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        sleep 1
+        inode_now=$(stat -c%i "$savable" 2>/dev/null || echo 0)
+        [ "$inode_now" != "$inode_before" ] && break
+    done
+    if [ "$inode_now" != "$inode_before" ]; then
+        # New buffer – copy it too
+        dest_path2="${dest_path%.*}_2.${action_ext}"
+        await_file "$savable" 5 && copy_file "$savable" "$dest_path2"
+    fi
+else
+	# not saving video so savable is the image
+	copy_file "$savable" "$dest_path"
+fi
+
+
+exit 0
