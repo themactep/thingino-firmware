@@ -5,6 +5,8 @@
 singleton $0
 
 MODE_FILE="/tmp/nightmode.txt"
+DN_MODE_FILE="/tmp/daynightmode"
+
 [ -f "$MODE_FILE" ] || echo "day" >"$MODE_FILE"
 
 controls_color() {
@@ -119,6 +121,65 @@ switch_to_night() {
 	echo "night" >"$MODE_FILE"
 }
 
+function limit_break()
+{
+	if [ "$2" -gt "$day_night_max" ] && [ "night" != "$1" ]; then
+		echo "night"
+	elif [ "$2" -lt "$day_night_min" ] && [ "day" != "$1" ]; then
+		echo "day"
+	fi
+	echo ""
+}
+
+function slimit_break()
+{
+	if [ "$3" -le "$day_night_toggle_limit" ]; then
+		echo $(limit_break "$1" "$2")
+	fi
+}
+
+function get_luminence()
+{
+	value=$(imp-control gettotalgain)
+	if [ -z "$value" ] || [ "error" = "$value" ]; then
+		echo_error "failed to get luminance"
+		rm "$DN_FLAG"
+		exit 1
+	fi
+	echo "$value"
+}
+
+function toggle_day_night()
+{
+	if [ "$1" = "day" ]; then
+		echo "night"
+	else
+		echo="day"
+	fi
+}
+
+last_value=$(get_luminence)
+function light_switch()
+{
+	abs_diff=$(expr "$2" - "$last_value") 
+	if [ "$abs_diff" -gt "$day_night_switch" ]; then
+		echo $(toggle_day_night "$1")
+	fi
+}
+
+function check_sched()
+{
+	mode="dummy"
+	if  ["$day_night_sched" = "none" ]; then
+		mode="limit" 
+	elif ["$day_night_sched" = "file"]; then
+		mode=$(cat "$DN_MODE_FILE")
+	else
+		#put code here to do time-based scheduling
+	fi
+	echo "$mode"
+}
+
 # fail-safe defaults
 [ -z "$day_night_min" ] && day_night_min=500
 [ -z "$day_night_max" ] && day_night_max=15000
@@ -127,63 +188,73 @@ switch_to_night() {
 [ -z "$day_night_ir850" ] && day_night_ir850="true"
 [ -z "$day_night_ir940" ] && day_night_ir940="true"
 [ -z "$day_night_white" ] && day_night_white="true"
+[ -z "$day_night_wait" ] && day_night_wait=60
+[ -z "$day_night_switch" ] && day_night_switch=1000
+[ -z "$day_night_toggle_limit" ] && day_night_toggle_limit=3
+[ -z "$day_night_sched" ] && day_night_sched="none"
 
-# determine luminance of the scene
-value=$(imp-control gettotalgain)
-if [ -z "$value" ] || [ "error" = "$value" ]; then
-	echo_error "failed to get luminance"
-	exit 1
-fi
 
-reversed=1
-state=$(cat "$MODE_FILE" 2>/dev/null)
 
-case "$1" in
-	night)
-		switch_to_night
-		;;
-	day)
-		switch_to_day
-		;;
-	~ | toggle)
-		if [ "day" = "$state" ]; then
-			switch_to_night
+DN_FLAG="/tmp/daynight.$$"
+touch "$DN_FLAG"
+dn_switch_repeat=0
+
+while : ; do
+	[ -f $DN_FLAG ] || break
+
+	# determine luminance of the scene
+	value=$(get_luminance)
+	state=$(cat "$MODE_FILE" 2>/dev/null)
+
+	#if we were given a parameter then we will only run once and do the parameter
+	if [! -z "$1" ]; then 
+		case "$1" in
+			night) action="night" ;;
+			day) action="day" ;;
+			~ | toggle) action=$(toggle_day_night "$state") ;;
+		esac
+		dn_mode="once"
+		rm "$DN_FLAG"
+	else 
+		dn_mode=$(check_sched)
+	fi
+
+	echo_info "day_night_min: $day_night_min"
+	echo_info "day_night_max: $day_night_max"
+	echo_info "state: $state"
+	if [ "day" = "$state" ]; then
+		echo_info "active range: 0-$day_night_max"
+	else
+		echo_info "active range: $day_night_min-Infinity"
+	fi
+	echo_info "value: $value"
+
+	case "$dn_mode" in
+		limit) 	action=$(limit_break "$state" "$value") ;;
+		slimit) action=$(slimit_break "$state" $value" "$dn_switch_repeat") ;;
+		switch) action=$(ligth_switch "$state" $value") ;;
+		dummy) action="";;
+	esac
+
+	if [! -z "$action"]; then
+		if [ "$action" = "$state" ]; then
+			dn_switch_repeat=$((dn_switch_repeat - 1))
 		else
-			switch_to_day
+			dn_switch_repeat=$((dn_switch_repeat + 1))
+			echo_info "new state: $state"
+			case "$action" in
+				night) switch_to_night ;;
+				day) switch_to_day ;;
+			esac
 		fi
-		;;
-	\? | read | status)
-		echo $state
-		;;
-	*)
-		echo_info "day_night_min: $day_night_min"
-		echo_info "day_night_max: $day_night_max"
-		echo_info "state: $state"
-		if [ "day" = "$state" ]; then
-			echo_info "active range: 0-$day_night_max"
-		else
-			echo_info "active range: $day_night_min-Infinity"
-		fi
-		echo_info "value: $value"
+	else
+		dn_switch_repeat=$((dn_switch_repeat - 1))
+	fi
 
-		if [ "$reversed" -eq 0 ]; then
-			if [ "$value" -lt "$day_night_min" ] && [ "day" != "$state" ]; then
-				switch_to_day
-			elif [ "$value" -gt "$day_night_max" ] && [ "night" != "$state" ]; then
-				switch_to_night
-			else
-				echo_info "within limits"
-			fi
-		else
-			if [ "$value" -gt "$day_night_max" ] && [ "night" != "$state" ]; then
-				switch_to_night
-			elif [ "$value" -lt "$day_night_min" ] && [ "day" != "$state" ]; then
-				switch_to_day
-			else
-				echo_info "within limits"
-			fi
-		fi
-		;;
+	sleep "$dn_wait"
+
 esac
+
+done
 
 exit 0
