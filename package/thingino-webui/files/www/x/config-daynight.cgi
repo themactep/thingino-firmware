@@ -77,11 +77,7 @@ defaults
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-3">
 <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4 mb-4">
 
-<div class="col">
-<h3 class="alert alert-warning text-center">Gain <span class="gain"></span></h3>
-<% field_number "day_night_min" "Switch to Day mode when gain drops below" %>
-<% field_number "day_night_max" "Switch to Night mode when gain raises above" %>
-</div>
+
 
 <div class="col mb-3">
 <h3>Daemon Test Frequency</h3>
@@ -93,12 +89,22 @@ class="form-control text-end" data-min="10" data-max="3600" data-step="10"> seco
 <p>Daemon Evaluation Method:
 <% field_select "day_night_sched" "Theme" "none,file,limit,dlimit,switch" %>
 
-<h5>Actions to perform</h5>
+<h5>Day/Night Mode Toggles</h5>
 <% field_checkbox "day_night_color" "Change color mode" %>
 <% [ -z "$gpio_ircut" ] || field_checkbox "day_night_ircut" "Flip IR cut filter" %>
 <% [ -z "$gpio_ir850" ] || field_checkbox "day_night_ir850" "Toggle IR 850 nm" %>
 <% [ -z "$gpio_ir940" ] || field_checkbox "day_night_ir940" "Toggle IR 940 nm" %>
 <% [ -z "$gpio_white" ] || field_checkbox "day_night_white" "Toggle white light" %>
+</div>
+
+<div class="col">
+<h3>Limit Method Values</h3>
+<h5 class="alert alert-warning text-center">Gain <span class="gain"></span></h3>
+<% field_number "day_night_min" "Switch to Day mode when gain drops below" %>
+<% field_number "day_night_max" "Switch to Night mode when gain raises above" %>
+
+<h3>"Plimit" Method</h3>
+<% field_number "day_night_toggle_limit" "Limit on the number of successive toggles before cooling off." %>
 </div>
 
 <div class="col">
@@ -117,10 +123,12 @@ class="form-control text-end" data-min="10" data-max="3600" data-step="10"> seco
 
 <div class="col">
 <div class="alert alert-info">
-<p>The day/night mode is controlled by the brightness of the scene.
-Changes in illumination affect the gain required to normalise a darkened image - the darker the scene, the higher the gain value.
+<p>The day/night daemon controls whether the camera is in night or day mode.
+<ul><li>The "limit" method uses changes in thethe gain required to normalise a darkened image - the darker the scene, the higher the gain value.
 The current gain value is displayed at the top of each page next to the sun emoji.
-Switching between modes is triggered by changes in the gain beyond the threshold values.</p>
+It switches between modes is triggered by changes in the gain beyond the threshold values.</li>
+<li>The "dlimit" method avoids flipping back and forth rapidly by ticking up a counter when changes occur and cooling off between changes.</li>
+<li>The "file" method uses the file `/tmp/daynightmode` to set day or night.</ul></p>
 <% wiki_page "Configuration:-Night-Mode" %>
 </div>
 </div>
