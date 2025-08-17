@@ -231,7 +231,7 @@ while : ; do
 	case "$dn_mode" in
 		limit) 	action=$(limit_break "$state" "$value") ;;
 		slimit) action=$(slimit_break "$state" $value" "$dn_switch_repeat") ;;
-		switch) action=$(ligth_switch "$state" $value") ;;
+		switch) action=$(light_switch "$state" $value") ;;
 		dummy) action="";;
 	esac
 
