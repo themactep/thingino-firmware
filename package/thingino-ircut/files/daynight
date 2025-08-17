@@ -5,7 +5,6 @@
 singleton $0
 
 MODE_FILE="/tmp/nightmode.txt"
-DN_MODE_FILE="/tmp/daynightmode"
 
 [ -f "$MODE_FILE" ] || echo "day" >"$MODE_FILE"
 
