@@ -84,9 +84,9 @@ sed -i "/$SS_MARK/,+1d" $tmpfile
 	echo "# run dusk2dawn nightly at 0:00"
 	echo "0 0 * * * dusk2dawn"
 	echo "$SS_MARK"
-	echo "$(time_for_cron "$sr_time") * * * daynight day"
+	echo "$(time_for_cron "$sr_time") * * * echo "day" > "$DN_MODE_FILE"
 	echo "$SR_MARK"
-	echo "$(time_for_cron "$ss_time") * * * daynight night"
+	echo "$(time_for_cron "$ss_time") * * * echo "night" > "$DN_MODE_FILE"
 } >> $tmpfile
 cp $tmpfile $CRONTABS
 
