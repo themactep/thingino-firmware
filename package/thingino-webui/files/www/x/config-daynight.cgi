@@ -17,7 +17,7 @@ defaults() {
 	default_for dusk2dawn_offset_sr "0"
 	default_for dusk2dawn_offset_ss "0"
 	default_for day_night_interval "60"
-	default_for day_night_sched "none"
+	default_for day_night_method "none"
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
@@ -86,8 +86,7 @@ name="day_night_interval" value="<%= $day_night_iternal %>" pattern="[0-9]{1,}" 
 class="form-control text-end" data-min="10" data-max="3600" data-step="10"> seconds</p>
 
 <h3>Daemon Check Method</h3>
-<p>Daemon Evaluation Method:
-<% field_select "day_night_sched" "Theme" "none,file,limit,dlimit,switch" %>
+<% field_select "day_night_method" "Daemon Evaluation Method" "none,file,limit,dlimit,switch" %>
 
 <h5>Day/Night Mode Toggles</h5>
 <% field_checkbox "day_night_color" "Change color mode" %>
