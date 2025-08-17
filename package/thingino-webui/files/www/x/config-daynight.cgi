@@ -5,10 +5,6 @@ page_title="Day/Night Mode Control"
 
 DAYNIGHT_APP="daynight"
 
-# read settings from crontab
-grep -q "^[^#].*$DAYNIGHT_APP\$" $CRONTABS && day_night_enabled=true
-day_night_interval=$(awk -F'[/ ]' "/$DAYNIGHT_APP\$/{print \$2}" $CRONTABS)
-
 defaults() {
 	default_for day_night_interval "1"
 	default_for day_night_max "15000"
@@ -20,6 +16,8 @@ defaults() {
 	default_for day_night_white "false"
 	default_for dusk2dawn_offset_sr "0"
 	default_for dusk2dawn_offset_ss "0"
+	default_for day_night_interval "60"
+	default_for day_night_sched "none"
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
@@ -42,6 +40,12 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	fi
 
 	if [ -z "$error" ]; then
+
+		if [ "true" = "$dusk2dawn_enabled" ]; then
+			dusk2dawn > /dev/null
+			day_night_sched="file" # use file method when using dusk2dawn
+		fi
+
 		save2config "
 day_night_color=\"$day_night_color\"
 day_night_enabled=\"$day_night_enabled\"
@@ -52,24 +56,14 @@ day_night_ircut=\"$day_night_ircut\"
 day_night_max=\"$day_night_max\"
 day_night_min=\"$day_night_min\"
 day_night_white=\"$day_night_white\"
+day_night_sched=\"$day_night_sched\"
 dusk2dawn_enabled=\"$dusk2dawn_enabled\"
 dusk2dawn_lat=\"$dusk2dawn_lat\"
 dusk2dawn_lng=\"$dusk2dawn_lng\"
 dusk2dawn_offset_sr=\"$dusk2dawn_offset_sr\"
 dusk2dawn_offset_ss=\"$dusk2dawn_offset_ss\"
 "
-		# update crontab
-		tmpfile=$(mktemp -u)
-		cat $CRONTABS > $tmpfile
-		sed -i "/$DAYNIGHT_APP/d" $tmpfile
-		echo "# run $DAYNIGHT_APP every $day_night_interval minutes" >> $tmpfile
-		[ "true" = "$day_night_enabled" ] || echo -n "#" >> $tmpfile
-		echo "*/$day_night_interval * * * * $DAYNIGHT_APP" >> $tmpfile
-		mv $tmpfile $CRONTABS
 
-		if [ "true" = "$dusk2dawn_enabled" ]; then
-			dusk2dawn > /dev/null
-		fi
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
 		redirect_to $SCRIPT_NAME "danger" "Error: $error"
@@ -90,11 +84,14 @@ defaults
 </div>
 
 <div class="col mb-3">
-<h3>By Illumination</h3>
-<% field_switch "day_night_enabled" "Enable Day/Night script" %>
-<p>Run with <a href="info.cgi?crontab">cron</a> every <input type="text" id="day_night_interval"
-name="day_night_interval" value="<%= $day_night_interval %>" pattern="[0-9]{1,}" title="numeric value"
-class="form-control text-end" data-min="1" data-max="60" data-step="1"> min.</p>
+<h3>Daemon Test Frequency</h3>
+<p>Have Daemon Check every <input type="text" id="day_night_interval"
+name="day_night_interval" value="<%= $day_night_iternal %>" pattern="[0-9]{1,}" title="numeric value"
+class="form-control text-end" data-min="10" data-max="3600" data-step="10"> seconds</p>
+
+<h3>Daemon Check Method</h3>
+<p>Daemon Evaluation Method:
+<% field_select "day_night_sched" "Theme" "none,file,limit,dlimit,switch" %>
 
 <h5>Actions to perform</h5>
 <% field_checkbox "day_night_color" "Change color mode" %>
