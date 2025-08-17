@@ -166,17 +166,17 @@ function light_switch()
 	fi
 }
 
-function check_sched()
+function check_method()
 {
-	mode="dummy"
-	if  [ "$day_night_sched" = "none" ]; then
-		mode="limit" 
-	elif [ "$day_night_sched" = "file" ]; then
-		mode=$(cat "$DN_MODE_FILE")
+	method="dummy"
+	if  [ "$day_night_method" = "none" ]; then
+		method="limit" 
+	elif [ "$day_night_method" = "file" ]; then
+		method="file"
 	else
 		#put code here to do time-based scheduling
 	fi
-	echo "$mode"
+	echo "$method"
 }
 
 # fail-safe defaults
@@ -190,7 +190,7 @@ function check_sched()
 [ -z "$day_night_wait" ] && day_night_wait=60
 [ -z "$day_night_switch" ] && day_night_switch=1000
 [ -z "$day_night_toggle_limit" ] && day_night_toggle_limit=3
-[ -z "$day_night_sched" ] && day_night_sched="none"
+[ -z "$day_night_method" ] && day_night_method="none"
 
 
 
@@ -212,10 +212,10 @@ while : ; do
 			day) action="day" ;;
 			~ | toggle) action=$(toggle_day_night "$state") ;;
 		esac
-		dn_mode="once"
+		dn_method="once"
 		rm "$DN_FLAG"
 	else 
-		dn_mode=$(check_sched)
+		dn_method=$(check_method)
 	fi
 
 	echo_info "day_night_min: $day_night_min"
@@ -228,10 +228,11 @@ while : ; do
 	fi
 	echo_info "value: $value"
 
-	case "$dn_mode" in
+	case "$dn_method" in
 		limit) 	action=$(limit_break "$state" "$value") ;;
 		slimit) action=$(slimit_break "$state" $value" "$dn_switch_repeat") ;;
 		switch) action=$(light_switch "$state" $value") ;;
+		file) action=$(cat "$DN_MODE_FILE") ;;
 		dummy) action="";;
 	esac
 
