@@ -6,7 +6,6 @@ page_title="Day/Night Mode Control"
 DAYNIGHT_APP="daynight"
 
 defaults() {
-	default_for day_night_interval "1"
 	default_for day_night_max "15000"
 	default_for day_night_min "5000"
 	default_for day_night_color "false"
@@ -82,7 +81,7 @@ defaults
 <div class="col mb-3">
 <h3>Daemon Test Frequency</h3>
 <p>Have Daemon Check every <input type="text" id="day_night_interval"
-name="day_night_interval" value="<%= $day_night_iternal %>" pattern="[0-9]{1,}" title="numeric value"
+name="day_night_interval" value="<%= $day_night_iterval %>" pattern="[0-9]{1,}" title="numeric value"
 class="form-control text-end" data-min="10" data-max="3600" data-step="10"> seconds</p>
 
 <h3>Daemon Check Method</h3>
