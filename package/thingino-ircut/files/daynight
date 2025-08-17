@@ -120,7 +120,7 @@ switch_to_night() {
 	echo "night" >"$MODE_FILE"
 }
 
-function limit_break()
+limit_break()
 {
 	if [ "$2" -gt "$day_night_max" ] && [ "night" != "$1" ]; then
 		echo "night"
@@ -130,14 +130,14 @@ function limit_break()
 	echo ""
 }
 
-function slimit_break()
+slimit_break()
 {
 	if [ "$3" -le "$day_night_toggle_limit" ]; then
 		echo $(limit_break "$1" "$2")
 	fi
 }
 
-function get_luminence()
+get_luminance()
 {
 	value=$(imp-control gettotalgain)
 	if [ -z "$value" ] || [ "error" = "$value" ]; then
@@ -148,25 +148,25 @@ function get_luminence()
 	echo "$value"
 }
 
-function toggle_day_night()
+toggle_day_night()
 {
 	if [ "$1" = "day" ]; then
 		echo "night"
 	else
-		echo="day"
+		echo "day"
 	fi
 }
 
-last_value=$(get_luminence)
-function light_switch()
+last_value=$(get_luminance)
+light_switch()
 {
-	abs_diff=$(expr "$2" - "$last_value") 
+	abs_diff=$(($2 - "$last_value"))
 	if [ "$abs_diff" -gt "$day_night_switch" ]; then
 		echo $(toggle_day_night "$1")
 	fi
 }
 
-function check_method()
+check_method()
 {
 	method="dummy"
 	if  [ "$day_night_method" = "none" ]; then
@@ -174,7 +174,7 @@ function check_method()
 	elif [ "$day_night_method" = "file" ]; then
 		method="file"
 	else
-		#put code here to do time-based scheduling
+		# put code here to do time-based scheduling
 	fi
 	echo "$method"
 }
@@ -199,14 +199,14 @@ touch "$DN_FLAG"
 dn_switch_repeat=0
 
 while : ; do
-	[ -f $DN_FLAG ] || break
+	[ -f "$DN_FLAG" ] || break
 
 	# determine luminance of the scene
 	value=$(get_luminance)
 	state=$(cat "$MODE_FILE" 2>/dev/null)
 
 	#if we were given a parameter then we will only run once and do the parameter
-	if [! -z "$1" ]; then 
+	if [ ! -z "$1" ]; then 
 		case "$1" in
 			night) action="night" ;;
 			day) action="day" ;;
@@ -230,18 +230,18 @@ while : ; do
 
 	case "$dn_method" in
 		limit) 	action=$(limit_break "$state" "$value") ;;
-		slimit) action=$(slimit_break "$state" $value" "$dn_switch_repeat") ;;
-		switch) action=$(light_switch "$state" $value") ;;
+		slimit) action=$(slimit_break "$state" "$value" "$day_night_toggle_limit") ;;
+		switch) action=$(light_switch "$state" "$value") ;;
 		file) action=$(cat "$DN_MODE_FILE") ;;
 		dummy) action="";;
 	esac
 
-	if [! -z "$action"]; then
+	if [ ! -z "$action"]; then
 		if [ "$action" = "$state" ]; then
 			dn_switch_repeat=$((dn_switch_repeat - 1))
 		else
 			dn_switch_repeat=$((dn_switch_repeat + 1))
-			echo_info "new state: $state"
+			echo_info "pre-action state: $state"
 			case "$action" in
 				night) switch_to_night ;;
 				day) switch_to_day ;;
@@ -251,9 +251,7 @@ while : ; do
 		dn_switch_repeat=$((dn_switch_repeat - 1))
 	fi
 
-	sleep "$dn_wait"
-
-esac
+	sleep "$day_night_wait"
 
 done
 
