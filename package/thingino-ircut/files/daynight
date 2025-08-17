@@ -169,9 +169,9 @@ function light_switch()
 function check_sched()
 {
 	mode="dummy"
-	if  ["$day_night_sched" = "none" ]; then
+	if  [ "$day_night_sched" = "none" ]; then
 		mode="limit" 
-	elif ["$day_night_sched" = "file"]; then
+	elif [ "$day_night_sched" = "file" ]; then
 		mode=$(cat "$DN_MODE_FILE")
 	else
 		#put code here to do time-based scheduling
