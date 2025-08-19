@@ -17,6 +17,7 @@ defaults() {
 	default_for dusk2dawn_offset_ss "0"
 	default_for day_night_interval "60"
 	default_for day_night_method "none"
+	default_for day_night_toggle_limit "3"
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
@@ -42,7 +43,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 		if [ "true" = "$dusk2dawn_enabled" ]; then
 			dusk2dawn > /dev/null
-			day_night_sched="file" # use file method when using dusk2dawn
+			day_night_method="file" # use file method when using dusk2dawn
 		fi
 
 		save2config "
@@ -55,8 +56,9 @@ day_night_ircut=\"$day_night_ircut\"
 day_night_max=\"$day_night_max\"
 day_night_min=\"$day_night_min\"
 day_night_white=\"$day_night_white\"
-day_night_sched=\"$day_night_sched\"
+day_night_method=\"$day_night_method\"
 dusk2dawn_enabled=\"$dusk2dawn_enabled\"
+day_night_toggle_limit=\"3\"
 dusk2dawn_lat=\"$dusk2dawn_lat\"
 dusk2dawn_lng=\"$dusk2dawn_lng\"
 dusk2dawn_offset_sr=\"$dusk2dawn_offset_sr\"
