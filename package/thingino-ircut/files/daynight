@@ -228,11 +228,15 @@ while : ; do
 	fi
 	echo_info "value: $value"
 
+	if [ "$dn_method" = "file"]; then
+		file_value=$(cat "$DN_MODE_FILE") ;;
+	fi
 	case "$dn_method" in
 		limit) 	action=$(limit_break "$state" "$value") ;;
 		slimit) action=$(slimit_break "$state" "$value" "$day_night_toggle_limit") ;;
 		switch) action=$(light_switch "$state" "$value") ;;
-		file) action=$(cat "$DN_MODE_FILE") ;;
+		day) action="day";;
+		night) action="night";;
 		dummy) action="";;
 	esac
 
