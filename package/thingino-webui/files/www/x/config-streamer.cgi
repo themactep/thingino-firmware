@@ -60,6 +60,7 @@ default_for rtsp_password "thingino"
 <div class="collapse navbar-collapse" id="nbStreamer">
 <ul class="navbar-nav nav-underline" role="tablist">
 <li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab1-pane" class="nav-link active" aria-current="page">Common</a></li>
+<li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab2priv-pane" class="nav-link">Privacy mode</a></li>
 <li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab2-pane" class="nav-link">Main stream</a></li>
 <li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab2osd-pane" class="nav-link">Main OSD</a></li>
 <li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab3-pane" class="nav-link">Substream</a></li>
@@ -117,6 +118,13 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <% field_range "image_ae_compensation" "<abbr title=\"Automatic Exposure\">AE</abbr> compensation" "0,255,1" %>
 <% field_switch "image_hflip" "Flip image horizontally" %>
 <% field_switch "image_vflip" "Flip image vertically" %>
+</div>
+
+
+<div class="tab-pane fade" id="tab2priv-pane" role="tabpanel" aria-labelledby="tab2priv-pane">
+<% field_switch "privacy_enabled" "Enabled" %>
+<% field_text "privacy_text_format" "Privacy message text format" "$STR_PRIVACY_TEXT_FMT" %>
+<div class="alert alert-dark">The text style depends on the corresponding OSD settings</div>
 </div>
 
 <% for i in 0 1; do domain="stream$i" %>
@@ -321,6 +329,9 @@ const image_params = ['ae_compensation', 'anti_flicker', 'backlight_compensation
 	'max_again', 'max_dgain', 'running_mode', 'saturation', 'sharpness', 'sinter_strength', 'temper_strength',
 	'vflip', 'wb_bgain', 'wb_rgain'];
 
+// privacy
+const privacy_params = ['enabled', 'text_format'];
+
 // motion
 const motion_params = ['debounce_time', 'post_time', 'ivs_polling_timeout', 'cooldown_time', 'init_time', 'min_time',
 	'sensitivity', 'skip_frame_count', 'frame_width', 'frame_height', 'monitor_stream', 'roi_0_x', 'roi_0_y',
@@ -350,7 +361,8 @@ ws.onopen = () => {
 		',"osd":{' + osd_params.map((x) => `"${x}":null`).join() + '}' +
 		'}';
 	const payload = '{' +
-		'"stream0":' + stream_rq +
+		'"privacy":{' + privacy_params.map((x) => `"${x}":null`).join() + '}' +
+		',"stream0":' + stream_rq +
 		',"stream1":' + stream_rq +
 		',"stream2":{' + stream2_params.map((x) => `"${x}":null`).join() + '}' +
 		',"audio":{' + audio_params.map((x) => `"${x}":null`).join() + '}' +
@@ -405,6 +417,8 @@ ws.onmessage = (ev) => {
 						$(`#osd${i}_time_enabled`).checked = data.osd.time_enabled;
 					if (data.osd.time_format)
 						$(`#osd${i}_time_format`).value = data.osd.time_format;
+					if (data.osd.privacy_format)
+						$(`#osd${i}_privacy_format`).value = data.osd.privacy_format;
 					if (data.osd.uptime_enabled)
 						$(`#osd${i}_uptime_enabled`).checked = data.osd.uptime_enabled;
 					if (data.osd.user_text_enabled)
@@ -421,6 +435,17 @@ ws.onmessage = (ev) => {
 			if (data) {
 				$('#stream2_jpeg_channel_0').checked = (data.jpeg_channel == 0);
 				$('#stream2_jpeg_channel_1').checked = (data.jpeg_channel == 1);
+			}
+		}
+
+		// Privacy
+		{
+			data = msg.privacy;
+			if (data) {
+				if (typeof(data.enabled) !== 'undefined')
+					$('#privacy_enabled').checked = data.enabled;
+				if (typeof(data.text_format) !== 'undefined')
+					$(`#privacy_text_format`).value = data.text_format;
 			}
 		}
 
@@ -622,6 +647,9 @@ $('#save-prudynt-config').addEventListener('click', ev => {
 $('#restart-audio').addEventListener('click', ev => {
 	sendToWs('{"action":{"restart_thread":' + ThreadAudio + '}}');
 });
+
+$('#privacy_enabled').onchange = (ev) => sendToWs('{"privacy":{"enabled":'+ev.target.checked+'},"action":{"restart_thread":14}}');
+$('#privacy_text_format').onchange = (ev) => sendToWs('{"privacy":{"text_format":"'+ev.target.value+'"},"action":{"restart_thread":14}}');
 
 for (const i in [0, 1]) {
 	$('#fontcolor'+i).onchange = () => setFontColor(i);

@@ -10,6 +10,9 @@ which motors > /dev/null && has_motors="true"
 <div class="col-lg-1">
 
 <div class="d-flex flex-nowrap flex-lg-wrap align-content-around gap-1" aria-label="controls">
+<input type="checkbox" class="btn-check" name="privacy" id="privacy" value="1">
+<label class="btn btn-dark border mb-2" for="privacy" title="Privacy Mode"><img src="/a/privacy.svg" alt="Privacy Mode" class="img-fluid"></label>
+
 <input type="checkbox" class="btn-check" name="motion" id="motion" value="1">
 <label class="btn btn-dark border mb-2" for="motion" title="Motion Guard"><img src="/a/motion.svg" alt="Motion Guard" class="img-fluid"></label>
 
@@ -121,6 +124,7 @@ ws.onopen = () => {
 	ws.binaryType = 'arraybuffer';
 	const payload = '{'+
 		'"image":{"hflip":null,"vflip":null},'+
+		'"privacy":{"enabled":null},'+
 		'"motion":{"enabled":null},'+
 		'"rtsp":{"username":null,"password":null,"port":null},'+
 		'"stream0":{"rtsp_endpoint":null},'+
@@ -155,6 +159,13 @@ ws.onmessage = (ev) => {
 			}
 			if (msg.image.vflip) {
 				$('#rotate').checked = msg.image.vflip;
+			}
+		}
+		if (msg.privacy) {
+			$('#privacy').checked = msg.privacy.enabled;
+			let motor = $('#motor');
+			if (motor) {
+				motor.style.display = msg.privacy.enabled ? "none" : "block";
 			}
 		}
 		if (msg.motion) {
@@ -204,6 +215,9 @@ async function toggleDayNight(mode = 'read') {
 		})
 }
 
+$("#privacy").addEventListener('change', ev => {
+    sendToWs('{"privacy":{"enabled":' + ev.target.checked + '}, "action":{"restart_thread":14}}');
+});
 $("#motion").addEventListener('change', ev => sendToWs('{"motion":{"enabled":' + ev.target.checked + '}}'));
 $('#rotate').addEventListener('change', ev => sendToWs('{"image":{"hflip":' + ev.target.checked + ',"vflip":' + ev.target.checked + '}}'));
 $("#daynight").addEventListener('change', ev => ev.target.checked ? toggleDayNight('night') : toggleDayNight('day'));
