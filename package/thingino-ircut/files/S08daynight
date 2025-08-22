@@ -2,24 +2,24 @@
 
 . /usr/share/common
 
+DAEMON="daynight"
+
 start() {
-	echo_title "Starting Record service"
+	echo_title "Starting daynight daemon"
 
 	if pidof -o $$ $DAEMON > /dev/null; then
 		echo_error "$DAEMON is already running"
 		exit 1
 	fi
 
-
-	start_daemon
+	$DAEMON > /dev/null 2>&1 &
 }
 
 stop() {
 	echo_title "Stopping Daynight daemon"
 
-	find /tmp/ -name "daynight.*" -maxdepth 0 -delete
+	find /tmp/ -name "daynight.*" -maxdepth 1 -delete
 
-	stop_daemon
 
 }
 
