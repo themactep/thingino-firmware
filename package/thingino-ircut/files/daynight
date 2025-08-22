@@ -5,6 +5,7 @@
 singleton $0
 
 MODE_FILE="/tmp/nightmode.txt"
+DN_MODE_FILE="/tmp/dnmode.txt"
 
 [ -f "$MODE_FILE" ] || echo "day" >"$MODE_FILE"
 
@@ -93,7 +94,7 @@ switch_to_night() {
 	echo_info "Switched to night mode"
 
 	if controls_color; then
-		echo_info "switch to monocrome mode"
+		echo_info "switch to monochrome mode"
 		color off &
 	fi
 
@@ -130,16 +131,19 @@ limit_break()
 	echo ""
 }
 
-slimit_break()
+dlimit_break()
 {
-	if [ "$3" -le "$day_night_toggle_limit" ]; then
+	if [ "$3" -lt "$day_night_toggle_limit" ]; then
+		echo_info "was at $3 vs  $day_night_toggle_limit"
 		echo $(limit_break "$1" "$2")
+	else
+		echo_info "prevented excessive switching"
 	fi
 }
 
 get_luminance()
 {
-	value=$(imp-control gettotalgain)
+	local value=$(imp-control gettotalgain)
 	if [ -z "$value" ] || [ "error" = "$value" ]; then
 		echo_error "failed to get luminance"
 		rm "$DN_FLAG"
@@ -160,7 +164,7 @@ toggle_day_night()
 last_value=$(get_luminance)
 light_switch()
 {
-	abs_diff=$(($2 - "$last_value"))
+	local abs_diff=$(($2 - "$last_value"))
 	if [ "$abs_diff" -gt "$day_night_switch" ]; then
 		echo $(toggle_day_night "$1")
 	fi
@@ -168,16 +172,26 @@ light_switch()
 
 check_method()
 {
-	method="dummy"
-	if  [ "$day_night_method" = "none" ]; then
-		method="limit" 
-	elif [ "$day_night_method" = "file" ]; then
-		method="file"
-	else
+	local method="dummy"
+	case "$day_night_method" in
+		limit|none) method="limit" ;;
+		dlimit) method="dlimit" ;;
+		file) method="file" ;;
+		*) echo_info "not implemented yet" ;;
 		# put code here to do time-based scheduling
-	fi
+	esac
 	echo "$method"
 }
+
+light_sleep()
+{
+	local i=0   
+	while [ -f "$DN_FLAG" ] && [ $i -le "$1" ]; do
+  		i=$((i + 1))                                                          
+  		sleep 1  # Sleep for 1 second, then check again
+	done
+}
+
 
 # fail-safe defaults
 [ -z "$day_night_min" ] && day_night_min=500
@@ -212,9 +226,11 @@ while : ; do
 			day) action="day" ;;
 			~ | toggle) action=$(toggle_day_night "$state") ;;
 		esac
-		dn_method="once"
-		day_night_wait=0
-		rm "$DN_FLAG"
+		if [ ! -z "$action" ]; then
+			dn_method="once"
+			rm "$DN_FLAG" 
+			day_night_wait=0
+		fi
 	else 
 		dn_method=$(check_method)
 	fi
@@ -230,11 +246,12 @@ while : ; do
 	echo_info "value: $value"
 
 	if [ "$dn_method" = "file" ]; then
-		file_value=$(cat "$DN_MODE_FILE") ;;
+		dn_method=$(cat "$DN_MODE_FILE")
 	fi
+	echo_info "running in $dn_method mode"
 	case "$dn_method" in
 		limit) 	action=$(limit_break "$state" "$value") ;;
-		slimit) action=$(slimit_break "$state" "$value" "$day_night_toggle_limit") ;;
+		dlimit) action=$(dlimit_break "$state" "$value" "$dn_switch_repeat") ;;
 		switch) action=$(light_switch "$state" "$value") ;;
 		day) action="day";;
 		night) action="night";;
@@ -243,10 +260,11 @@ while : ; do
 
 	if [ ! -z "$action" ]; then
 		if [ "$action" = "$state" ]; then
+			echo_info "already in state $state; skipping"
 			dn_switch_repeat=$((dn_switch_repeat - 1))
 		else
 			dn_switch_repeat=$((dn_switch_repeat + 1))
-			echo_info "pre-action state: $state"
+			echo_info "switching from $state to $action ($dn_switch_repeat in a row)"
 			case "$action" in
 				night) switch_to_night ;;
 				day) switch_to_day ;;
@@ -256,7 +274,8 @@ while : ; do
 		dn_switch_repeat=$((dn_switch_repeat - 1))
 	fi
 
-	sleep "$day_night_wait"
+	echo_info "waiting $day_night_wait"
+	light_sleep "$day_night_wait"
 
 done
 
