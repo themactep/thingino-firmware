@@ -13,17 +13,17 @@ defaults() {
 	default_for day_night_ir850 "false"
 	default_for day_night_ir940 "false"
 	default_for day_night_white "false"
-	default_for dusk2dawn_offset_sr "0"
-	default_for dusk2dawn_offset_ss "0"
-	default_for day_night_interval "60"
+	default_for day_night_wait2 "60"
 	default_for day_night_method "none"
 	default_for day_night_toggle_limit "3"
+	default_for dusk2dawn_offset_sr "0"
+	default_for dusk2dawn_offset_ss "0"
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	read_from_post "day_night" "color enabled interval ir850 ir940 ircut max min white"
+	read_from_post "day_night" "color enabled wait2 method toggle_limit ir850 ir940 ircut max min white"
 	read_from_post "dusk2dawn" "enabled lat lng offset_sr offset_ss"
 
 	defaults
