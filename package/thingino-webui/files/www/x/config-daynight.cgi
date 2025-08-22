@@ -13,9 +13,9 @@ defaults() {
 	default_for day_night_ir850 "false"
 	default_for day_night_ir940 "false"
 	default_for day_night_white "false"
-	default_for day_night_wait2 "60"
-	default_for day_night_method "none"
-	default_for day_night_toggle_limit "3"
+        default_for day_night_wait "60"    
+        default_for day_night_method "limit"  
+        default_for day_night_toggle_limit "3"
 	default_for dusk2dawn_offset_sr "0"
 	default_for dusk2dawn_offset_ss "0"
 }
@@ -23,7 +23,7 @@ defaults() {
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	read_from_post "day_night" "color enabled wait2 method toggle_limit ir850 ir940 ircut max min white"
+	read_from_post "day_night" "color enabled method wait toggle_limit ir850 ir940 ircut max min white"
 	read_from_post "dusk2dawn" "enabled lat lng offset_sr offset_ss"
 
 	defaults
@@ -56,6 +56,7 @@ day_night_ircut=\"$day_night_ircut\"
 day_night_max=\"$day_night_max\"
 day_night_min=\"$day_night_min\"
 day_night_white=\"$day_night_white\"
+day_night_wait=\"$day_night_wait\"   
 day_night_method=\"$day_night_method\"
 dusk2dawn_enabled=\"$dusk2dawn_enabled\"
 day_night_toggle_limit=\"3\"
@@ -65,6 +66,7 @@ dusk2dawn_offset_sr=\"$dusk2dawn_offset_sr\"
 dusk2dawn_offset_ss=\"$dusk2dawn_offset_ss\"
 "
 
+		/etc/init.d/S08daynight restart
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
 		redirect_to $SCRIPT_NAME "danger" "Error: $error"
@@ -82,8 +84,8 @@ defaults
 
 <div class="col mb-3">
 <h3>Daemon Test Frequency</h3>
-<p>Have Daemon Check every <input type="text" id="day_night_interval"
-name="day_night_interval" value="<%= $day_night_iterval %>" pattern="[0-9]{1,}" title="numeric value"
+<p>Have Daemon Check every <input type="text" id="day_night_wait"
+name="day_night_wait" value="<%= "$day_night_wait" %>" pattern="[0-9]{1,}" title="numeric value"
 class="form-control text-end" data-min="10" data-max="3600" data-step="10"> seconds</p>
 
 <h3>Daemon Check Method</h3>
@@ -103,7 +105,7 @@ class="form-control text-end" data-min="10" data-max="3600" data-step="10"> seco
 <% field_number "day_night_min" "Switch to Day mode when gain drops below" %>
 <% field_number "day_night_max" "Switch to Night mode when gain raises above" %>
 
-<h3>"Plimit" Method</h3>
+<h3>Dlimit Method</h3>
 <% field_number "day_night_toggle_limit" "Limit on the number of successive toggles before cooling off." %>
 </div>
 
