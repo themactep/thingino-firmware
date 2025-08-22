@@ -1,0 +1,44 @@
+#!/bin/sh
+
+. /usr/share/common
+
+start() {
+	echo_title "Starting Record service"
+
+	if pidof -o $$ $DAEMON > /dev/null; then
+		echo_error "$DAEMON is already running"
+		exit 1
+	fi
+
+
+	start_daemon
+}
+
+stop() {
+	echo_title "Stopping Daynight daemon"
+
+	find /tmp/ -name "daynight.*" -maxdepth 0 -delete
+
+	stop_daemon
+
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+
+	restart)
+		stop
+		sleep 1
+		start
+		;;
+	*)
+		usage "{start|stop|restart}"
+		;;
+esac
+
+exit 0
