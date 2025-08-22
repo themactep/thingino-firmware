@@ -213,6 +213,7 @@ while : ; do
 			~ | toggle) action=$(toggle_day_night "$state") ;;
 		esac
 		dn_method="once"
+		day_night_wait=0
 		rm "$DN_FLAG"
 	else 
 		dn_method=$(check_method)
@@ -228,7 +229,7 @@ while : ; do
 	fi
 	echo_info "value: $value"
 
-	if [ "$dn_method" = "file"]; then
+	if [ "$dn_method" = "file" ]; then
 		file_value=$(cat "$DN_MODE_FILE") ;;
 	fi
 	case "$dn_method" in
@@ -240,7 +241,7 @@ while : ; do
 		dummy) action="";;
 	esac
 
-	if [ ! -z "$action"]; then
+	if [ ! -z "$action" ]; then
 		if [ "$action" = "$state" ]; then
 			dn_switch_repeat=$((dn_switch_repeat - 1))
 		else
