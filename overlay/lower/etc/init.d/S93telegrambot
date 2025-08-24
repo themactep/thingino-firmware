@@ -4,6 +4,10 @@
 
 start() {
 	echo_title "Starting Telegram bot daemon"
+	if [ "true" != "$telegrambot_enabled" ]; then
+		echo_error "Not enabled"
+		exit 1
+	fi
 
 	start_daemon
 }
