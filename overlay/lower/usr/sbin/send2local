@@ -1,0 +1,88 @@
+#!/bin/env sh
+
+. /usr/share/common
+
+show_help() {
+	echo "Usage: $0 [options]
+Where:
+	-d dir      Target directory to save files locally.
+	-f file     Specific file to save instead of capturing snapshot/video.
+	-V          Save video buffer instead of snapshot.
+	-v          Verbose output.
+	-h          Show this help and exit.
+" >&2
+	exit 0
+}
+
+# Default settings
+save_dir=${save_dir:=""}
+verbosity=${verbosity:="--silent"}
+save_video=${save_video:="false"}
+save_template=${save_template:="%Y%m%d-%H%M%S"}
+
+while getopts d:f:Vvh flag; do
+	case "$flag" in
+		d) save_dir=$OPTARG ;;         # target directory
+		f) source_file=$OPTARG ;;      # explicit file
+		V) save_video="true" ;;      # use video buffer
+		v) verbosity="--verbose" ;;   # verbose output
+		h | *) show_help ;;
+	esac
+done
+
+# Validate or set defaults
+if [ -z "$save_dir" ]; then
+	echo "Error: Target directory (-d) is required." >&2
+	exit 1
+fi
+
+# Prepare source file and output filename
+if [ -n "$source_file" ]; then
+	# Use explicit file
+	savable="$source_file"	
+	filename=$(basename "$source_file")
+else
+	# Choose snapshot or video
+	if [ "$save_video" = "true" ]; then
+		if [ -z "$VBUFFER_FILE" ]; then
+			echo "Error: VBUFFER_FILE is not defined." >&2
+			exit 1
+		fi
+		savable="$VBUFFER_FILE"
+		ext="mov"
+	else
+		if [ -z "$SNAPSHOT_FILE" ]; then
+			echo "Error: SNAPSHOT_FILE is not defined." >&2
+			exit 1
+		fi
+		savable="$SNAPSHOT_FILE"
+		ext="jpg"
+	fi
+	# Generate timestamped filename
+	filename="$(date +"$save_template").$ext"
+fi
+
+# Create target directory (with -p)
+if [ "$verbosity" = "--verbose" ]; then
+	echo "[INFO] Creating directory: $save_dir"
+fi
+mkdir -p "$save_dir" || {
+	echo "Error: Could not create directory: $save_dir" >&2
+	exit 1
+}
+
+# Copy file
+dest_path="$save_dir/$filename"
+if [ "$verbosity" = "--verbose" ]; then
+	echo "[INFO] Copying $savable to $dest_path"
+fi
+
+if cp -f "$savable" "$dest_path"; then
+	if [ "$verbosity" = "--verbose" ]; then
+		echo "[OK] File saved to: $dest_path"
+	fi
+	exit 0
+else
+	echo "Error: Failed to copy file." >&2
+	exit 1
+fi
