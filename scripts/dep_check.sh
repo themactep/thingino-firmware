@@ -111,7 +111,7 @@ if [ -f /etc/os-release ]; then
 				rhel|centos|fedora)
 					echo "RedHat-based"
 					pkg_manager="rpm"
-					pkg_check_command="rpm -q"
+					pkg_check_command="rpm -q --whatprovides"
 					pkg_install_cmd="dnf install -y"
 					packages="gcc make bc bison cpio cmake curl file flex gawk git nano ncurses-devel rsync unzip uboot-tools wget newt dialog"
 					;;

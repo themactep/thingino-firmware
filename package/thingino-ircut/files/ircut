@@ -10,8 +10,9 @@ pin2=$gpio_ircut_2
 
 # Backward compatibility
 if [ -z "$pin1$pin2" ] && [ -n "$gpio_ircut" ]; then
-	pin1=${gpio_ircut%% *}
-	pin2=${gpio_ircut##* }
+	read pin1 pin2 << EOF
+$gpio_ircut
+EOF
 fi
 
 if [ -n "$pin1" ]; then

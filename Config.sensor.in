@@ -236,6 +236,8 @@ config BR2_SENSOR_SC2310
 	bool "SmartSens SC2310"
 config BR2_SENSOR_SC2315E
 	bool "SmartSens SC2315e"
+config BR2_SENSOR_SC2331
+	bool "SmartSens SC2331"
 config BR2_SENSOR_SC2332
 	bool "SmartSens SC2332"
 config BR2_SENSOR_SC2335

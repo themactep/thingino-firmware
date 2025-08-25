@@ -170,8 +170,9 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <div class="col col-4"><% field_color "fontstrokecolor${i}" "Shadow color" %></div>
 <div class="col col-4"><% field_range "fontstrokesize${i}" "Shadow size" "0,5,1" %></div>
 </div>
-<div class="row g-1">
+<div class="row g-2">
 <div class="col col-4"><% field_text "osd${i}_time_format" "Time format" "$STR_SUPPORTS_STRFTIME" %></div>
+<div class="col col-4"><% field_text "osd${i}_user_text_format" "User text format" "$STR_USER_TEXT_FMT" %></div>
 </div>
 </div>
 <% done %>
@@ -334,7 +335,7 @@ const stream2_params = ['jpeg_channel'];
 
 // OSD
 const osd_params = ['enabled', 'font_color', 'font_path', 'font_size', 'font_stroke_color', 'font_stroke',
-	'logo_enabled', 'time_enabled', 'time_format', 'uptime_enabled', 'user_text_enabled'];
+	'logo_enabled', 'time_enabled', 'time_format', 'uptime_enabled', 'user_text_enabled', 'user_text_format'];
 
 let sts;
 
@@ -408,6 +409,8 @@ ws.onmessage = (ev) => {
 						$(`#osd${i}_uptime_enabled`).checked = data.osd.uptime_enabled;
 					if (data.osd.user_text_enabled)
 						$(`#osd${i}_user_text_enabled`).checked = data.osd.user_text_enabled;
+					if (data.osd.user_text_format)
+						$(`#osd${i}_user_text_format`).value = data.osd.user_text_format;
 				}
 			}
 		}
@@ -632,6 +635,7 @@ for (const i in [0, 1]) {
 	$('#osd'+i+'_time_format').onchange = (ev) => sendToWs('{"stream'+i+'":{"osd":{"time_format":"'+ev.target.value+'"}},"action":{"restart_thread":10}}}');
 	$('#osd'+i+'_uptime_enabled').onchange = (ev) => toggleOSDElement(ev.target);
 	$('#osd'+i+'_user_text_enabled').onchange = (ev) => toggleOSDElement(ev.target);
+	$('#osd'+i+'_user_text_format').onchange = (ev) => sendToWs('{"stream'+i+'":{"osd":{"user_text_format":"'+ev.target.value+'"}},"action":{"restart_thread":10}}}');
 }
 </script>
 
