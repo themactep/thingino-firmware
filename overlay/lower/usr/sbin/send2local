@@ -15,9 +15,9 @@ Where:
 }
 
 # Default settings
-save_dir=""
-verbosity="--silent"
-save_video="false"
+save_dir=${save_dir:=""}
+verbosity=${verbosity:="--silent"}
+save_video=${save_video:="false"}
 
 while getopts d:f:Vvh flag; do
 	case "$flag" in
