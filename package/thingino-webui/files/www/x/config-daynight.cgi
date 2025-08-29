@@ -5,12 +5,7 @@ page_title="Day/Night Mode Control"
 
 DAYNIGHT_APP="daynight"
 
-# read settings from crontab
-grep -q "^[^#].*$DAYNIGHT_APP\$" $CRONTABS && day_night_enabled=true
-day_night_interval=$(awk -F'[/ ]' "/$DAYNIGHT_APP\$/{print \$2}" $CRONTABS)
-
 defaults() {
-	default_for day_night_interval "1"
 	default_for day_night_max "15000"
 	default_for day_night_min "5000"
 	default_for day_night_color "false"
@@ -18,6 +13,9 @@ defaults() {
 	default_for day_night_ir850 "false"
 	default_for day_night_ir940 "false"
 	default_for day_night_white "false"
+        default_for day_night_wait "60"    
+        default_for day_night_method "limit"  
+        default_for day_night_toggle_limit "3"
 	default_for dusk2dawn_offset_sr "0"
 	default_for dusk2dawn_offset_ss "0"
 }
@@ -25,7 +23,7 @@ defaults() {
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	read_from_post "day_night" "color enabled interval ir850 ir940 ircut max min white"
+	read_from_post "day_night" "color enabled method wait toggle_limit ir850 ir940 ircut max min white"
 	read_from_post "dusk2dawn" "enabled lat lng offset_sr offset_ss"
 
 	defaults
@@ -42,6 +40,12 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	fi
 
 	if [ -z "$error" ]; then
+
+		if [ "true" = "$dusk2dawn_enabled" ]; then
+			dusk2dawn > /dev/null
+			day_night_method="file" # use file method when using dusk2dawn
+		fi
+
 		save2config "
 day_night_color=\"$day_night_color\"
 day_night_enabled=\"$day_night_enabled\"
@@ -52,24 +56,17 @@ day_night_ircut=\"$day_night_ircut\"
 day_night_max=\"$day_night_max\"
 day_night_min=\"$day_night_min\"
 day_night_white=\"$day_night_white\"
+day_night_wait=\"$day_night_wait\"   
+day_night_method=\"$day_night_method\"
 dusk2dawn_enabled=\"$dusk2dawn_enabled\"
+day_night_toggle_limit=\"3\"
 dusk2dawn_lat=\"$dusk2dawn_lat\"
 dusk2dawn_lng=\"$dusk2dawn_lng\"
 dusk2dawn_offset_sr=\"$dusk2dawn_offset_sr\"
 dusk2dawn_offset_ss=\"$dusk2dawn_offset_ss\"
 "
-		# update crontab
-		tmpfile=$(mktemp -u)
-		cat $CRONTABS > $tmpfile
-		sed -i "/$DAYNIGHT_APP/d" $tmpfile
-		echo "# run $DAYNIGHT_APP every $day_night_interval minutes" >> $tmpfile
-		[ "true" = "$day_night_enabled" ] || echo -n "#" >> $tmpfile
-		echo "*/$day_night_interval * * * * $DAYNIGHT_APP" >> $tmpfile
-		mv $tmpfile $CRONTABS
 
-		if [ "true" = "$dusk2dawn_enabled" ]; then
-			dusk2dawn > /dev/null
-		fi
+		/etc/init.d/S08daynight restart
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
 		redirect_to $SCRIPT_NAME "danger" "Error: $error"
@@ -83,25 +80,33 @@ defaults
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-3">
 <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4 mb-4">
 
-<div class="col">
-<h3 class="alert alert-warning text-center">Gain <span class="gain"></span></h3>
-<% field_number "day_night_min" "Switch to Day mode when gain drops below" %>
-<% field_number "day_night_max" "Switch to Night mode when gain raises above" %>
-</div>
+
 
 <div class="col mb-3">
-<h3>By Illumination</h3>
-<% field_switch "day_night_enabled" "Enable Day/Night script" %>
-<p>Run with <a href="info.cgi?crontab">cron</a> every <input type="text" id="day_night_interval"
-name="day_night_interval" value="<%= $day_night_interval %>" pattern="[0-9]{1,}" title="numeric value"
-class="form-control text-end" data-min="1" data-max="60" data-step="1"> min.</p>
+<h3>Daemon Test Frequency</h3>
+<p>Have Daemon Check every <input type="text" id="day_night_wait"
+name="day_night_wait" value="<%= "$day_night_wait" %>" pattern="[0-9]{1,}" title="numeric value"
+class="form-control text-end" data-min="10" data-max="3600" data-step="10"> seconds</p>
 
-<h5>Actions to perform</h5>
+<h3>Daemon Check Method</h3>
+<% field_select "day_night_method" "Daemon Evaluation Method" "none,file,limit,dlimit,switch" %>
+
+<h5>Day/Night Mode Toggles</h5>
 <% field_checkbox "day_night_color" "Change color mode" %>
 <% [ -z "$gpio_ircut" ] || field_checkbox "day_night_ircut" "Flip IR cut filter" %>
 <% [ -z "$gpio_ir850" ] || field_checkbox "day_night_ir850" "Toggle IR 850 nm" %>
 <% [ -z "$gpio_ir940" ] || field_checkbox "day_night_ir940" "Toggle IR 940 nm" %>
 <% [ -z "$gpio_white" ] || field_checkbox "day_night_white" "Toggle white light" %>
+</div>
+
+<div class="col">
+<h3>Limit Method Values</h3>
+<h5 class="alert alert-warning text-center">Gain <span class="gain"></span></h3>
+<% field_number "day_night_min" "Switch to Day mode when gain drops below" %>
+<% field_number "day_night_max" "Switch to Night mode when gain raises above" %>
+
+<h3>Dlimit Method</h3>
+<% field_number "day_night_toggle_limit" "Limit on the number of successive toggles before cooling off." %>
 </div>
 
 <div class="col">
@@ -120,10 +125,12 @@ class="form-control text-end" data-min="1" data-max="60" data-step="1"> min.</p>
 
 <div class="col">
 <div class="alert alert-info">
-<p>The day/night mode is controlled by the brightness of the scene.
-Changes in illumination affect the gain required to normalise a darkened image - the darker the scene, the higher the gain value.
+<p>The day/night daemon controls whether the camera is in night or day mode.
+<ul><li>The "limit" method uses changes in thethe gain required to normalise a darkened image - the darker the scene, the higher the gain value.
 The current gain value is displayed at the top of each page next to the sun emoji.
-Switching between modes is triggered by changes in the gain beyond the threshold values.</p>
+It switches between modes is triggered by changes in the gain beyond the threshold values.</li>
+<li>The "dlimit" method avoids flipping back and forth rapidly by ticking up a counter when changes occur and cooling off between changes.</li>
+<li>The "file" method uses the file `/tmp/daynightmode` to set day or night.</ul></p>
 <% wiki_page "Configuration:-Night-Mode" %>
 </div>
 </div>
