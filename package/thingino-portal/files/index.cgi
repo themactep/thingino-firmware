@@ -197,9 +197,8 @@ h2 {font-size:1.3rem}
 </div>
 
 <p>To start, locate the <b><%= $wlanap_ssid %></b> wireless network on your device,
- connect using your password <b><%= $wlanap_pass %></b>, then open the web interface
- at <b>http://thingino.local/</b> using login <b>root</b> and the password you have
- just set up for that user.</p>
+ connect using your password then open the web interface at <b>http://thingino.local/</b>
+ using login <b>root</b> and the password you have just set up for that user.</p>
 
 <% elif get_request || post_request_to_edit; then %>
 
