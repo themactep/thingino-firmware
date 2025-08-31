@@ -1,0 +1,87 @@
+#!/bin/sh
+
+# Replace with your actual credentials or define environment variables
+#GMAIL_EMAIL_ADDRESS="your-email@gmail.com"
+#GMAIL_APP_PASSWORD="your-app-password"
+
+# Configuration
+TEST_DURATION_LOOPS="10000000"
+TEST_INTERVAL_US="1000"
+HISTOGRAM_BUCKETS="1000"
+SMTP_URL="smtp://smtp.gmail.com:587"
+SMTP_USER="$GMAIL_EMAIL_ADDRESS"
+SMTP_PASS="$GMAIL_APP_PASSWORD"
+FROM_ADDR="noreply@thingino.com"
+TO_ADDR="$GMAIL_EMAIL_ADDRESS"
+SUBJECT="Thingino Cyclictest Report - $(date +%Y%m%d-%H%M%S)"
+
+# File Paths
+BASE_DIR="/tmp"
+RESULTS_FILE="$BASE_DIR/cyclictest_summary.txt"
+HISTOGRAM_FILE="$BASE_DIR/cyclictest_histogram.txt"
+FULL_REPORT_FILE="$BASE_DIR/cyclictest_full_report.txt"
+
+# Function to log messages
+log() {
+    echo "[$(date)] $1" | tee -a "$FULL_REPORT_FILE"
+}
+
+# Start fresh
+rm -f "$RESULTS_FILE" "$HISTOGRAM_FILE" "$FULL_REPORT_FILE"
+touch "$FULL_REPORT_FILE"
+
+log "Starting Cyclictest Benchmark"
+log "Command: cyclictest -l $TEST_DURATION_LOOPS -m -p 99 -i $TEST_INTERVAL_US -h $HISTOGRAM_BUCKETS -q"
+
+# Run the test, capturing all output. Use -H if you want a separate histogram file.
+cyclictest -l $TEST_DURATION_LOOPS -m -p 99 -i $TEST_INTERVAL_US -h $HISTOGRAM_BUCKETS -q > "$RESULTS_FILE" 2>&1
+
+log "Cyclictest completed. Exit code: $?"
+
+# Generate the full report
+{
+    echo "===== THINGINO CYCLICTEST REPORT ====="
+    echo "Generated on: $(date)"
+    echo "Test Parameters:"
+    echo "  Loops:  $TEST_DURATION_LOOPS"
+    echo "  Interval: $TEST_INTERVAL_US us"
+    echo "  Priority: 99 (SCHED_FIFO)"
+    echo ""
+    echo "===== SYSTEM INFORMATION ====="
+    cat /proc/version | head -1
+    echo "Kernel: $(uname -r)"
+    echo ""
+    echo "===== CYCLICTEST SUMMARY OUTPUT ====="
+    cat "$RESULTS_FILE"
+    echo ""
+    echo "===== END OF REPORT ====="
+} > "$FULL_REPORT_FILE"
+
+log "Report generated at: $FULL_REPORT_FILE"
+
+# Send the email using curl
+log "Attempting to send report via email to $TO_ADDR..."
+
+curl -v --ssl-reqd \
+  --url "$SMTP_URL" \
+  --user "$SMTP_USER:$SMTP_PASS" \
+  --mail-from "$FROM_ADDR" \
+  --mail-rcpt "$TO_ADDR" \
+  --upload-file - <<EOF
+From: Thingino Benchmarks <${FROM_ADDR}>
+To: ${TO_ADDR}
+Subject: ${SUBJECT}
+Date: $(date -R)
+Content-Type: text/plain; charset="utf-8"
+
+$(cat "$FULL_REPORT_FILE")
+EOF
+
+MAIL_EXIT_CODE=$?
+if [ $MAIL_EXIT_CODE -eq 0 ]; then
+    log "Email sent successfully."
+else
+    log "ERROR: Failed to send email. Curl exit code: $MAIL_EXIT_CODE"
+fi
+
+log "Benchmarking session finished."
