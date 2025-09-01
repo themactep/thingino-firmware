@@ -1,3 +1,6 @@
+WIFI_SITE_METHOD = local
+WIFI_SITE = $(BR2_EXTERNAL)/package/wifi
+
 define WIFI_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_SET_OPT,CONFIG_RFKILL,y)
 endef
