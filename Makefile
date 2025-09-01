@@ -53,25 +53,6 @@ GIT_HASH="$(shell git show -s --format=%H | cut -c1-7)"
 GIT_DATE="$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S UTC' --format="%cd")"
 BUILD_DATE="$(shell env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z')"
 
-# working directory
-ifeq ($(GIT_BRANCH),master)
-OUTPUT_DIR ?= $(HOME)/output/$(CAMERA)
-else ifeq ($(GIT_BRANCH),)
-OUTPUT_DIR ?= $(HOME)/output-junk/$(CAMERA)
-else
-OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)/$(CAMERA)
-endif
-$(info OUTPUT_DIR: $(OUTPUT_DIR))
-export OUTPUT_DIR
-
-HOST_DIR = $(OUTPUT_DIR)/host
-
-CONFIG_PARTITION_DIR = $(OUTPUT_DIR)/config
-export CONFIG_PARTITION_DIR
-
-STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
-STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
-
 ifeq ($(GROUP),github)
 	CAMERA_SUBDIR := configs/github
 else ifeq ($(GROUP),modules)
@@ -87,6 +68,36 @@ export CAMERA_SUBDIR
 include $(BR2_EXTERNAL)/board.mk
 
 export CAMERA
+
+# working directory - set after CAMERA is defined
+ifeq ($(CAMERA),)
+# If CAMERA is not defined, use a safe default for exempted targets
+ifeq ($(GIT_BRANCH),master)
+OUTPUT_DIR ?= $(HOME)/output
+else ifeq ($(GIT_BRANCH),)
+OUTPUT_DIR ?= $(HOME)/output-junk
+else
+OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)
+endif
+else
+ifeq ($(GIT_BRANCH),master)
+OUTPUT_DIR ?= $(HOME)/output/$(CAMERA)
+else ifeq ($(GIT_BRANCH),)
+OUTPUT_DIR ?= $(HOME)/output-junk/$(CAMERA)
+else
+OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)/$(CAMERA)
+endif
+endif
+$(info OUTPUT_DIR: $(OUTPUT_DIR))
+export OUTPUT_DIR
+
+HOST_DIR = $(OUTPUT_DIR)/host
+
+CONFIG_PARTITION_DIR = $(OUTPUT_DIR)/config
+export CONFIG_PARTITION_DIR
+
+STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
+STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
 
 # include thingino makefile only when board configuration is available
 ifeq ($(SKIP_BOARD_SELECTION),)
@@ -442,21 +453,23 @@ saveconfig:
 # Clean camera-specific NFS debug artifacts
 clean-nfs-debug:
 	$(info -------------------------------- $@)
-	@if [ -f "$(OUTPUT_DIR)/.config" ]; then \
+	@if [ -z "$(CAMERA)" ] || [ "$(CAMERA)" = "" ]; then \
+		echo "CAMERA variable not defined, skipping NFS debug cleanup"; \
+	elif [ ! -f "$(OUTPUT_DIR)/.config" ]; then \
+		echo "Configuration file not found, skipping NFS debug cleanup"; \
+	else \
 		NFS_PATH=$$(grep '^BR2_THINGINO_NFS=' "$(OUTPUT_DIR)/.config" 2>/dev/null | cut -d'=' -f2 | tr -d '"' || echo ""); \
 		DEBUG_ENABLED=$$(grep '^BR2_PACKAGE_PRUDYNT_T_DEBUG=y' "$(OUTPUT_DIR)/.config" 2>/dev/null || echo ""); \
 		DEV_PACKAGES_ENABLED=$$(grep '^BR2_THINGINO_DEV_PACKAGES=y' "$(OUTPUT_DIR)/.config" 2>/dev/null || echo ""); \
 		\
 		if [ -n "$$DEBUG_ENABLED" ] && [ -n "$$DEV_PACKAGES_ENABLED" ] && [ -n "$$NFS_PATH" ] && [ "$$NFS_PATH" != "" ]; then \
 			CAMERA_NFS_DIR="$$NFS_PATH/$(CAMERA)"; \
-			if [ -n "$(CAMERA)" ] && [ "$(CAMERA)" != "" ] && [ -d "$$CAMERA_NFS_DIR" ]; then \
+			if [ -d "$$CAMERA_NFS_DIR" ]; then \
 				echo "Removing camera-specific NFS debug artifacts: $$CAMERA_NFS_DIR"; \
 				rm -rf "$$CAMERA_NFS_DIR"; \
 				echo "NFS debug artifacts cleaned for camera: $(CAMERA)"; \
-			elif [ -n "$(CAMERA)" ] && [ "$(CAMERA)" != "" ]; then \
-				echo "NFS debug directory does not exist: $$CAMERA_NFS_DIR (skipping)"; \
 			else \
-				echo "CAMERA variable not defined, skipping NFS debug cleanup"; \
+				echo "NFS debug directory does not exist: $$CAMERA_NFS_DIR (skipping)"; \
 			fi; \
 		else \
 			if [ -z "$$DEBUG_ENABLED" ]; then \
@@ -467,8 +480,6 @@ clean-nfs-debug:
 				echo "NFS path not configured, skipping NFS debug cleanup"; \
 			fi; \
 		fi; \
-	else \
-		echo "Configuration file not found, skipping NFS debug cleanup"; \
 	fi
 
 # remove target/ directory
