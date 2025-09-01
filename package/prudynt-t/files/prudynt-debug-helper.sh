@@ -1,7 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 
 # Prudynt Debug Helper Script
 # This script provides debugging utilities for the Prudynt debug build
+# This script is compatible with the BusyBox environment used in thingino firmware.
 
 set -e
 
@@ -17,25 +18,25 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 print_header() {
-    echo -e "${BLUE}=== Prudynt Debug Helper ===${NC}"
+    printf "${BLUE}=== Prudynt Debug Helper ===${NC}\n"
     echo
 }
 
 print_status() {
-    local status=$1
-    local message=$2
+    status=$1
+    message=$2
     case $status in
         "INFO")
-            echo -e "${BLUE}[INFO]${NC} $message"
+            printf "${BLUE}[INFO]${NC} %s\n" "$message"
             ;;
         "WARN")
-            echo -e "${YELLOW}[WARN]${NC} $message"
+            printf "${YELLOW}[WARN]${NC} %s\n" "$message"
             ;;
         "ERROR")
-            echo -e "${RED}[ERROR]${NC} $message"
+            printf "${RED}[ERROR]${NC} %s\n" "$message"
             ;;
         "SUCCESS")
-            echo -e "${GREEN}[SUCCESS]${NC} $message"
+            printf "${GREEN}[SUCCESS]${NC} %s\n" "$message"
             ;;
     esac
 }
@@ -94,12 +95,14 @@ run_with_asan() {
 
     # Set sanitizer options only if available
     if [ "${ASAN_AVAILABLE:-false}" = "true" ]; then
-        export ASAN_OPTIONS="abort_on_error=1:halt_on_error=1:print_stats=1:check_initialization_order=1"
+        ASAN_OPTIONS="abort_on_error=1:halt_on_error=1:print_stats=1:check_initialization_order=1"
+        export ASAN_OPTIONS
         print_status "INFO" "ASAN_OPTIONS: $ASAN_OPTIONS"
     fi
 
     if [ "${UBSAN_AVAILABLE:-false}" = "true" ]; then
-        export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1"
+        UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1"
+        export UBSAN_OPTIONS
         print_status "INFO" "UBSAN_OPTIONS: $UBSAN_OPTIONS"
     fi
 
@@ -130,13 +133,14 @@ show_memory_info() {
     print_status "INFO" "Current memory usage:"
     free -h
     echo
-    
+
     print_status "INFO" "Process memory if Prudynt is running:"
     if pgrep prudynt >/dev/null; then
-        ps aux | grep prudynt | grep -v grep
+        # BusyBox ps doesn't support aux, use basic ps and filter
+        ps | grep prudynt | grep -v grep
         echo
-        
-        local pid=$(pgrep prudynt)
+
+        pid=$(pgrep prudynt)
         if [ -f "/proc/$pid/status" ]; then
             print_status "INFO" "Detailed memory info for PID $pid:"
             grep -E "VmSize|VmRSS|VmPeak|VmHWM" "/proc/$pid/status"
