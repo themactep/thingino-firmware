@@ -40,13 +40,6 @@ SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 # export BR2_DL_DIR = /path/to/your/local/storage
 BR2_DL_DIR ?= $(HOME)/dl
 
-#ifeq ($(BOARD),)
-#$(error No camera config provided)
-#else
-#CAMERA:=$(BOARD)
-#$(info Building for CAMERA: $(CAMERA))
-#endif
-
 # repo data
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD | tr -d '()' | xargs)
 GIT_HASH="$(shell git show -s --format=%H | cut -c1-7)"
@@ -621,8 +614,6 @@ $(CONFIG_PARTITION_DIR)/.keep:
 	$(info -------------------------------- $@)
 	test -d $(CONFIG_PARTITION_DIR) || mkdir -p $(CONFIG_PARTITION_DIR)
 	touch $@
-
-
 
 $(U_BOOT_ENV_TXT): $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
