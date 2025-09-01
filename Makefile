@@ -234,13 +234,16 @@ release: distclean defconfig build_fast pack
 update:
 	$(info -------------------------------- $@)
 	@echo "Starting repository and buildroot submodule update..."
+	@echo "NOTE: This is a read-only operation - no changes will be automatically committed."
+	@echo ""
 
 	# Update main repository
-	@echo "Updating main repository..."
+	@echo "=== UPDATING MAIN REPOSITORY ==="
 	git pull --rebase --autostash
+	@echo ""
 
 	# Handle buildroot submodule with patch management
-	@echo "Updating buildroot submodule with patch management..."
+	@echo "=== UPDATING BUILDROOT SUBMODULE ==="
 	@if [ -d "buildroot" ] && [ -d "package/all-patches/buildroot" ]; then \
 		cd buildroot && \
 		echo "Checking buildroot submodule status..."; \
@@ -274,6 +277,22 @@ update:
 	fi
 
 	@echo "Repository update completed successfully"
+	@echo ""
+	@echo "=== UPDATE SUMMARY ==="
+	@echo "✓ Main repository updated from upstream"
+	@if [ -d "buildroot" ] && [ -d "package/all-patches/buildroot" ]; then \
+		echo "✓ Buildroot submodule updated to latest upstream with patches applied"; \
+		echo ""; \
+		echo "NOTE: Buildroot submodule changes are NOT automatically committed."; \
+		echo "Review the changes and commit if desired:"; \
+		echo "  git status                    # Check repository status"; \
+		echo "  git diff --submodule          # Review submodule changes"; \
+		echo "  git add buildroot             # Stage submodule update"; \
+		echo "  git commit -m 'buildroot: update to latest upstream with patches'"; \
+	else \
+		echo "✓ Standard submodule update completed"; \
+	fi
+	@echo ""
 
 # update buildroot submodule to latest upstream and reapply patches
 update-buildroot:
@@ -793,7 +812,7 @@ help:
 	@echo "\n\
 	Usage:\n\
 	  make bootstrap      install system deps\n\
-	  make update         update local repo and buildroot with patches\n\
+	  make update         update local repo and buildroot (read-only)\n\
 	  make                edit configurations\n\
 	  make                build and pack everything\n\
 	  make build          build kernel and rootfs\n\
