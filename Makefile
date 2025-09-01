@@ -88,8 +88,10 @@ include $(BR2_EXTERNAL)/board.mk
 
 export CAMERA
 
-# include thingino makefile
+# include thingino makefile only when board configuration is available
+ifeq ($(SKIP_BOARD_SELECTION),)
 include $(BR2_EXTERNAL)/thingino.mk
+endif
 
 # hardcoded variables
 WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=5
@@ -208,7 +210,7 @@ BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$
 
 .PHONY: all bootstrap build build_fast clean cleanbuild defconfig distclean fast \
 	help pack release remove_bins repack sdk toolchain update upboot-ota \
-	upload_tftp upgrade_ota br-%
+	upload_tftp upgrade_ota br-% check-config force-config show-config-deps clean-config
 
 all: defconfig build pack
 	$(info -------------------------------- $@)
@@ -247,8 +249,96 @@ build_fast: $(U_BOOT_ENV_TXT)
 
 FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(MODULE_CONFIG_REAL))
 
+# Configuration dependency files
+CONFIG_DEPS_FILE = $(OUTPUT_DIR)/.config.deps
+CONFIG_FRAGMENT_FILES = $(addprefix configs/fragments/,$(addsuffix .fragment,$(FRAGMENTS)))
+CONFIG_INPUT_FILES = $(CONFIG_FRAGMENT_FILES) $(MODULE_CONFIG_REAL)
+ifneq ($(CAMERA_CONFIG_REAL),$(MODULE_CONFIG_REAL))
+CONFIG_INPUT_FILES += $(CAMERA_CONFIG_REAL)
+endif
+ifeq ($(RELEASE),0)
+ifneq ($(wildcard $(BR2_EXTERNAL)/configs/local.fragment),)
+CONFIG_INPUT_FILES += $(BR2_EXTERNAL)/configs/local.fragment
+endif
+ifneq ($(wildcard $(BR2_EXTERNAL)/local.mk),)
+CONFIG_INPUT_FILES += $(BR2_EXTERNAL)/local.mk
+endif
+endif
+
+# Function to check if configuration needs regeneration
+define config_needs_regen
+$(shell \
+	if [ ! -f $(OUTPUT_DIR)/.config ] || [ ! -f $(CONFIG_DEPS_FILE) ]; then \
+		echo "yes"; \
+	else \
+		for file in $(CONFIG_INPUT_FILES); do \
+			if [ "$$file" -nt $(OUTPUT_DIR)/.config ]; then \
+				echo "yes"; \
+				break; \
+			fi; \
+		done; \
+	fi \
+)
+endef
+
+# Smart configuration check - only regenerate if needed
+check-config: buildroot/Makefile
+	$(info -------------------------------- $@)
+	@if [ "$(call config_needs_regen)" = "yes" ]; then \
+		echo "Configuration files have changed, regenerating .config"; \
+		$(MAKE) force-config; \
+	else \
+		echo "Configuration is up to date"; \
+	fi
+
+# Force configuration regeneration
+force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.keep
+	$(info -------------------------------- $@)
+	$(FIGLET) "$(BOARD)"
+	# delete older config
+	$(info * remove existing .config file)
+	rm -rvf $(OUTPUT_DIR)/.config
+	# gather fragments of a new config
+	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(MODULE_CONFIG_REAL))
+	for i in $(FRAGMENTS); do \
+		echo "** add configs/fragments/$$i.fragment"; \
+		cat configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
+		echo >>$(OUTPUT_DIR)/.config; \
+	done
+	# add module configuration
+	cat $(MODULE_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+ifneq ($(CAMERA_CONFIG_REAL),$(MODULE_CONFIG_REAL))
+	# add camera configuration
+	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+endif
+	if [ $(RELEASE) -eq 1 ]; then \
+		$(FIGLET) "RELEASE"; \
+	else \
+		$(FIGLET) "DEVELOPMENT"; \
+		if [ -f $(BR2_EXTERNAL)/configs/local.fragment ]; then \
+			cat $(BR2_EXTERNAL)/configs/local.fragment >>$(OUTPUT_DIR)/.config; \
+		fi; \
+		if [ -f $(BR2_EXTERNAL)/local.mk ]; then \
+			cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; \
+		fi; \
+	fi
+	if [ ! -L $(OUTPUT_DIR)/thingino ]; then \
+		ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; \
+	fi
+	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
+	# Create dependency tracking file
+	@echo "# Configuration dependency tracking file" > $(CONFIG_DEPS_FILE)
+	@echo "# Generated on $$(date)" >> $(CONFIG_DEPS_FILE)
+	@echo "CONFIG_INPUT_FILES = $(CONFIG_INPUT_FILES)" >> $(CONFIG_DEPS_FILE)
+	@for file in $(CONFIG_INPUT_FILES); do \
+		if [ -f "$$file" ]; then \
+			echo "$$file: $$(stat -c %Y "$$file")" >> $(CONFIG_DEPS_FILE); \
+		fi; \
+	done
+
 # Configure buildroot for a particular board
-defconfig: buildroot/Makefile $(OUTPUT_DIR)/.config
+defconfig: check-config
 	$(info -------------------------------- $@)
 	@$(FIGLET) $(CAMERA)
 
@@ -305,6 +395,30 @@ edit-localfragment:
 
 edit-localuenv:
 	$(call edit_file,$@,$(BR2_EXTERNAL)/configs/local.uenv.txt)
+
+# Configuration debugging and maintenance targets
+show-config-deps:
+	$(info -------------------------------- $@)
+	@echo "Configuration input files:"
+	@for file in $(CONFIG_INPUT_FILES); do \
+		if [ -f "$$file" ]; then \
+			echo "  $$file (exists, modified: $$(stat -c %Y "$$file"))"; \
+		else \
+			echo "  $$file (missing)"; \
+		fi; \
+	done
+	@if [ -f $(CONFIG_DEPS_FILE) ]; then \
+		echo ""; \
+		echo "Current dependency tracking:"; \
+		cat $(CONFIG_DEPS_FILE); \
+	else \
+		echo ""; \
+		echo "No dependency tracking file found at $(CONFIG_DEPS_FILE)"; \
+	fi
+
+clean-config:
+	$(info -------------------------------- $@)
+	rm -f $(OUTPUT_DIR)/.config $(CONFIG_DEPS_FILE) $(OUTPUT_DIR)/.config_original
 
 select-device:
 	$(info -------------------------------- $@)
@@ -382,8 +496,8 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	@echo "Update Image:"
 	@echo "$(FIRMWARE_BIN_NOBOOT)"
 
-# rebuild a package
-rebuild-%: defconfig
+# rebuild a package with smart configuration check
+rebuild-%: check-config
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
 
@@ -443,7 +557,7 @@ br-%-dirclean:
 		$(OUTPUT_DIR)/target
 	#  \ sed -i /^$(subst -dirclean,,$(subst br-,,$@))/d $(OUTPUT_DIR)/build/packages-file-list.txt
 
-br-%: defconfig
+br-%: check-config
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) $(subst br-,,$@)
 
@@ -465,42 +579,7 @@ $(CONFIG_PARTITION_DIR)/.keep:
 	test -d $(CONFIG_PARTITION_DIR) || mkdir -p $(CONFIG_PARTITION_DIR)
 	touch $@
 
-# configure buildroot for a particular board
-$(OUTPUT_DIR)/.config: $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.keep
-	$(info -------------------------------- $@)
-	$(FIGLET) "$(BOARD)"
-	# delete older config
-	$(info * remove existing .config file)
-	rm -rvf $(OUTPUT_DIR)/.config
-	# gather fragments of a new config
-	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(MODULE_CONFIG_REAL))
-	for i in $(FRAGMENTS); do \
-		echo "** add configs/fragments/$$i.fragment"; \
-		cat configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
-		echo >>$(OUTPUT_DIR)/.config; \
-	done
-	# add module configuration
-	cat $(MODULE_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
-ifneq ($(CAMERA_CONFIG_REAL),$(MODULE_CONFIG_REAL))
-	# add camera configuration
-	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
-endif
-	if [ $(RELEASE) -eq 1 ]; then \
-		$(FIGLET) "RELEASE"; \
-	else \
-		$(FIGLET) "DEVELOPMENT"; \
-		if [ -f $(BR2_EXTERNAL)/configs/local.fragment ]; then \
-			cat $(BR2_EXTERNAL)/configs/local.fragment >>$(OUTPUT_DIR)/.config; \
-		fi; \
-		if [ -f $(BR2_EXTERNAL)/local.mk ]; then \
-			cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; \
-		fi; \
-	fi
-	if [ ! -L $(OUTPUT_DIR)/thingino ]; then \
-		ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; \
-	fi
-	cp $(OUTPUT_DIR)/.config $(OUTPUT_DIR)/.config_original
-	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
+
 
 $(U_BOOT_ENV_TXT): $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
@@ -596,6 +675,13 @@ help:
 	  make distclean      start building from scratch\n\
 	  make rebuild-<pkg>  perform a clean package rebuild for <pkg>\n\
 	  make help           print this help\n\
+	  \n\
+	Configuration Management:\n\
+	  make defconfig      configure buildroot (auto-detects changes)\n\
+	  make check-config   check if configuration needs regeneration\n\
+	  make force-config   force configuration regeneration\n\
+	  make show-config-deps  show configuration dependencies\n\
+	  make clean-config   remove configuration files\n\
 	  \n\
 	  make upboot_ota IP=192.168.1.10\n\
 	                      upload bootloader to the camera\n\
