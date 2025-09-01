@@ -115,18 +115,57 @@ run_with_asan() {
 }
 
 run_with_gdb() {
-    if ! command -v gdb >/dev/null 2>&1; then
-        print_status "ERROR" "GDB not found. Install gdb package for debugging."
+    # Check for gdbserver first (preferred for embedded systems)
+    if command -v gdbserver >/dev/null 2>&1; then
+        print_status "INFO" "GDBserver found - setting up remote debugging..."
+
+        # Default port for gdbserver
+        GDB_PORT="${GDB_PORT:-2345}"
+
+        print_status "INFO" "Starting GDBserver on port $GDB_PORT"
+        printf "${BLUE}=== Remote Debugging Setup ===${NC}\n"
+        echo
+        printf "${YELLOW}On Camera (this device):${NC}\n"
+        printf "  gdbserver :$GDB_PORT $PRUDYNT_DEBUG_BIN %s\n" "$*"
+        echo
+        printf "${YELLOW}On Development Machine:${NC}\n"
+        printf "  gdb $PRUDYNT_DEBUG_BIN\n"
+        printf "  (gdb) target remote CAMERA_IP:$GDB_PORT\n"
+        printf "  (gdb) set environment ASAN_OPTIONS=abort_on_error=1:halt_on_error=1\n"
+        printf "  (gdb) set environment UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1\n"
+        printf "  (gdb) continue\n"
+        echo
+        printf "${BLUE}Starting gdbserver now...${NC}\n"
+        echo
+
+        # Set sanitizer options for the debug session
+        if [ "${ASAN_AVAILABLE:-false}" = "true" ]; then
+            ASAN_OPTIONS="abort_on_error=1:halt_on_error=1:print_stats=1:check_initialization_order=1"
+            export ASAN_OPTIONS
+        fi
+
+        if [ "${UBSAN_AVAILABLE:-false}" = "true" ]; then
+            UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1"
+            export UBSAN_OPTIONS
+        fi
+
+        # Start gdbserver
+        exec gdbserver ":$GDB_PORT" "$PRUDYNT_DEBUG_BIN" "$@"
+
+    elif command -v gdb >/dev/null 2>&1; then
+        print_status "INFO" "Local GDB found - starting interactive debugging..."
+        print_status "INFO" "Use 'run' to start, 'bt' for backtrace, 'info registers' for register state"
+        echo
+
+        gdb -ex "set environment ASAN_OPTIONS=abort_on_error=1:halt_on_error=1" \
+            -ex "set environment UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1" \
+            "$PRUDYNT_DEBUG_BIN"
+    else
+        print_status "ERROR" "Neither gdbserver nor gdb found."
+        print_status "INFO" "For remote debugging, gdbserver should be available in thingino firmware."
+        print_status "INFO" "For local debugging, install gdb package."
         return 1
     fi
-    
-    print_status "INFO" "Starting Prudynt under GDB..."
-    print_status "INFO" "Use 'run' to start, 'bt' for backtrace, 'info registers' for register state"
-    echo
-    
-    gdb -ex "set environment ASAN_OPTIONS=abort_on_error=1:halt_on_error=1" \
-        -ex "set environment UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1" \
-        "$PRUDYNT_BIN"
 }
 
 show_memory_info() {
@@ -157,15 +196,19 @@ show_usage() {
     echo "  info          Show debug build information"
     echo "  check         Check if this is a debug build"
     echo "  run [args]    Run Prudynt with AddressSanitizer options"
-    echo "  gdb [args]    Run Prudynt under GDB debugger"
+    echo "  gdb [args]    Start GDBserver for remote debugging (or local GDB if available)"
     echo "  memory        Show current memory usage information"
+    echo "  manual        Show comprehensive remote debugging manual"
     echo "  help          Show this help message"
     echo
     echo "Examples:"
     echo "  $0 info                    # Show debug build info"
     echo "  $0 run                     # Run with memory safety checking"
-    echo "  $0 gdb                     # Debug with GDB"
+    echo "  $0 gdb                     # Start remote debugging with gdbserver"
     echo "  $0 memory                  # Check memory usage"
+    echo
+    echo "Environment Variables:"
+    echo "  GDB_PORT      Port for gdbserver (default: 2345)"
 }
 
 case "${1:-help}" in
