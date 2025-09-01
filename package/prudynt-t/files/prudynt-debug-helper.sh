@@ -129,7 +129,7 @@ run_with_gdb() {
         printf "  gdbserver :$GDB_PORT $PRUDYNT_DEBUG_BIN %s\n" "$*"
         echo
         printf "${YELLOW}On Development Machine:${NC}\n"
-        printf "  gdb $PRUDYNT_DEBUG_BIN\n"
+        printf "  ~/output/camera_name/host/bin/mipsel-linux-gdb /nfs/camera_name/usr/bin/prudynt-debug\n"
         printf "  (gdb) target remote CAMERA_IP:$GDB_PORT\n"
         printf "  (gdb) set environment ASAN_OPTIONS=abort_on_error=1:halt_on_error=1\n"
         printf "  (gdb) set environment UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1\n"
@@ -189,6 +189,65 @@ show_memory_info() {
     fi
 }
 
+show_manual() {
+    printf "${BLUE}=== THINGINO CAMERA REMOTE DEBUGGING MANUAL ===${NC}\n"
+    echo
+    printf "${GREEN}DOCUMENTATION LOCATION${NC}\n"
+    echo "The comprehensive remote debugging manual is available as a separate document:"
+    echo
+    printf "${YELLOW}Markdown Documentation:${NC}\n"
+    echo "  • Source: package/prudynt-t/files/REMOTE_DEBUGGING_MANUAL.md"
+    echo "  • GitHub: https://github.com/themactep/thingino-firmware"
+    echo "  • Local: Check your thingino-firmware source directory"
+    echo
+    printf "${GREEN}QUICK REFERENCE${NC}\n"
+    echo
+    printf "${YELLOW}Start Remote Debugging:${NC}\n"
+    echo "1. On Camera:"
+    echo "   $0 gdb [args]"
+    echo
+    echo "2. On Development Machine:"
+    echo "   ~/output/camera_name/host/bin/mipsel-linux-gdb /nfs/camera_name/usr/bin/prudynt-debug"
+    echo "   (gdb) target remote CAMERA_IP:2345"
+    echo "   (gdb) continue"
+    echo
+    printf "${YELLOW}Essential GDB Commands:${NC}\n"
+    echo "  (gdb) break main              # Set breakpoint at main"
+    echo "  (gdb) continue                # Continue execution"
+    echo "  (gdb) step                    # Step into function"
+    echo "  (gdb) next                    # Step over function"
+    echo "  (gdb) bt                      # Show backtrace"
+    echo "  (gdb) print variable_name     # Print variable value"
+    echo
+    printf "${YELLOW}Camera-Specific Breakpoints:${NC}\n"
+    echo "  (gdb) break IMPSystem::init   # Debug camera initialization"
+    echo "  (gdb) break VideoWorker::run  # Debug video processing"
+    echo "  (gdb) break RTSP::handleRequest # Debug RTSP streaming"
+    echo
+    printf "${GREEN}TROUBLESHOOTING${NC}\n"
+    echo
+    printf "${YELLOW}Connection Issues:${NC}\n"
+    echo "  • Check: ping CAMERA_IP"
+    echo "  • Test port: telnet CAMERA_IP 2345"
+    echo "  • Verify gdbserver is running on camera"
+    echo
+    printf "${YELLOW}Symbol Issues:${NC}\n"
+    echo "  • Verify debug binary: file /nfs/camera_name/usr/bin/prudynt-debug"
+    echo "  • Load symbols: (gdb) symbol-file /nfs/camera_name/usr/lib/debug/usr/bin/prudynt.debug"
+    echo
+    printf "${GREEN}FOR COMPLETE DOCUMENTATION${NC}\n"
+    echo "Please refer to the full REMOTE_DEBUGGING_MANUAL.md for:"
+    echo "  • Detailed setup instructions"
+    echo "  • Advanced debugging techniques"
+    echo "  • Memory debugging methods"
+    echo "  • Multi-process debugging"
+    echo "  • Core dump analysis"
+    echo "  • Performance optimization"
+    echo "  • Safety considerations"
+    echo
+    printf "${BLUE}=== END OF QUICK REFERENCE ===${NC}\n"
+}
+
 show_usage() {
     echo "Usage: $0 [COMMAND] [OPTIONS]"
     echo
@@ -206,6 +265,7 @@ show_usage() {
     echo "  $0 run                     # Run with memory safety checking"
     echo "  $0 gdb                     # Start remote debugging with gdbserver"
     echo "  $0 memory                  # Check memory usage"
+    echo "  $0 manual                  # Show comprehensive debugging manual"
     echo
     echo "Environment Variables:"
     echo "  GDB_PORT      Port for gdbserver (default: 2345)"
@@ -228,6 +288,9 @@ case "${1:-help}" in
         ;;
     "memory")
         show_memory_info
+        ;;
+    "manual")
+        show_manual
         ;;
     "help"|*)
         show_usage
