@@ -213,7 +213,7 @@ endef
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
 
 .PHONY: all bootstrap build build_fast clean clean-nfs-debug cleanbuild defconfig distclean fast \
-	help pack release remove_bins repack sdk toolchain update upboot-ota \
+	help pack release remove_bins repack sdk toolchain update update-buildroot reset-buildroot upboot-ota \
 	upload_tftp upgrade_ota br-% check-config force-config show-config-deps clean-config
 
 all: defconfig build pack
@@ -230,11 +230,106 @@ release: RELEASE=1
 release: distclean defconfig build_fast pack
 	$(info -------------------------------- $@)
 
-# update repo and submodules
+# update repo and submodules with proper buildroot patch management
 update:
 	$(info -------------------------------- $@)
+	@echo "Starting repository and buildroot submodule update..."
+
+	# Update main repository
+	@echo "Updating main repository..."
 	git pull --rebase --autostash
-	git submodule update
+
+	# Handle buildroot submodule with patch management
+	@echo "Updating buildroot submodule with patch management..."
+	@if [ -d "buildroot" ] && [ -d "package/all-patches/buildroot" ]; then \
+		cd buildroot && \
+		echo "Checking buildroot submodule status..."; \
+		if git status --porcelain | grep -q .; then \
+			echo "WARNING: buildroot submodule has uncommitted changes"; \
+			echo "Stashing changes before update..."; \
+			git stash push -m "Auto-stash before update on $$(date)"; \
+		fi; \
+		echo "Resetting buildroot to clean upstream state..."; \
+		git fetch origin; \
+		git reset --hard origin/master; \
+		echo "Applying patches from package/all-patches/buildroot/..."; \
+		if ls ../package/all-patches/buildroot/*.patch >/dev/null 2>&1; then \
+			if git am ../package/all-patches/buildroot/*.patch; then \
+				echo "All patches applied successfully"; \
+			else \
+				echo "ERROR: Failed to apply patches"; \
+				echo "Aborting patch application..."; \
+				git am --abort; \
+				echo "Buildroot is in clean upstream state"; \
+				echo "Please review and fix patches in package/all-patches/buildroot/"; \
+				exit 1; \
+			fi; \
+		else \
+			echo "No patches found in package/all-patches/buildroot/"; \
+		fi; \
+		cd ..; \
+	else \
+		echo "Standard submodule update (no patch management)..."; \
+		git submodule update; \
+	fi
+
+	@echo "Repository update completed successfully"
+
+# update buildroot submodule to latest upstream and reapply patches
+update-buildroot:
+	$(info -------------------------------- $@)
+	@echo "Updating buildroot submodule to latest upstream..."
+	@if [ ! -d "buildroot" ]; then \
+		echo "ERROR: buildroot submodule not found"; \
+		exit 1; \
+	fi
+	@cd buildroot && \
+	echo "Fetching latest upstream changes..."; \
+	git fetch origin; \
+	echo "Current buildroot state:"; \
+	git log --oneline -5; \
+	echo "Resetting to clean upstream state..."; \
+	git reset --hard origin/master; \
+	echo "Latest upstream state:"; \
+	git log --oneline -5; \
+	if [ -d "../package/all-patches/buildroot" ] && ls ../package/all-patches/buildroot/*.patch >/dev/null 2>&1; then \
+		echo "Applying patches from package/all-patches/buildroot/..."; \
+		if git am ../package/all-patches/buildroot/*.patch; then \
+			echo "All patches applied successfully"; \
+			echo "Final buildroot state:"; \
+			git log --oneline -10; \
+		else \
+			echo "ERROR: Failed to apply patches"; \
+			echo "Aborting patch application..."; \
+			git am --abort; \
+			echo "Buildroot is in clean upstream state"; \
+			echo "Please review and fix patches in package/all-patches/buildroot/"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "No patches found in package/all-patches/buildroot/"; \
+	fi
+	@echo "Buildroot update completed successfully"
+
+# reset buildroot to clean upstream state (removes all patches)
+reset-buildroot:
+	$(info -------------------------------- $@)
+	@echo "Resetting buildroot submodule to clean upstream state..."
+	@if [ ! -d "buildroot" ]; then \
+		echo "ERROR: buildroot submodule not found"; \
+		exit 1; \
+	fi
+	@cd buildroot && \
+	echo "Current buildroot state:"; \
+	git log --oneline -5; \
+	echo "Fetching latest upstream changes..."; \
+	git fetch origin; \
+	echo "Resetting to clean upstream state (this will remove all patches)..."; \
+	git reset --hard origin/master; \
+	echo "Clean upstream state:"; \
+	git log --oneline -5
+	@echo "Buildroot reset to clean upstream state completed"
+	@echo "Use 'make update-buildroot' to reapply patches"
 
 # install what's needed
 bootstrap:
@@ -698,7 +793,7 @@ help:
 	@echo "\n\
 	Usage:\n\
 	  make bootstrap      install system deps\n\
-	  make update         update local repo from GitHub\n\
+	  make update         update local repo and buildroot with patches\n\
 	  make                edit configurations\n\
 	  make                build and pack everything\n\
 	  make build          build kernel and rootfs\n\
@@ -716,6 +811,10 @@ help:
 	  make force-config   force configuration regeneration\n\
 	  make show-config-deps  show configuration dependencies\n\
 	  make clean-config   remove configuration files\n\
+	  \n\
+	Buildroot Patch Management:\n\
+	  make update-buildroot  update buildroot to latest upstream + patches\n\
+	  make reset-buildroot   reset buildroot to clean upstream state\n\
 	  \n\
 	  make upboot_ota IP=192.168.1.10\n\
 	                      upload bootloader to the camera\n\
