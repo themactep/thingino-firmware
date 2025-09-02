@@ -2,6 +2,7 @@ menu "Thingino Firmware"
 
 source "$BR2_EXTERNAL_THINGINO_PATH/Config.soc.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wifi/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-jct/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-kopt/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/usbnet/Config.in"
 
@@ -24,6 +25,7 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_INGENIC_PWM
 	select BR2_PACKAGE_INGENIC_SDK
 	select BR2_PACKAGE_ONVIF_SIMPLE_SERVER if !BR2_SOC_FAMILY_INGENIC_A1
+	select BR2_PACKAGE_THINGINO_JCT
 	select BR2_PACKAGE_THINGINO_LIBCURL
 	select BR2_PACKAGE_THINGINO_LIBCURL_COOKIES_SUPPORT
 	select BR2_PACKAGE_THINGINO_LIBCURL_CURL
