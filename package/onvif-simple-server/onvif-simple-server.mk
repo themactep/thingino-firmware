@@ -7,6 +7,19 @@ ONVIF_SIMPLE_SERVER_VERSION = bee643a05de73d3519d282380615564ba1b4cd8e
 ONVIF_SIMPLE_SERVER_LICENSE = MIT
 ONVIF_SIMPLE_SERVER_LICENSE_FILES = LICENSE
 
+# uClibc compatibility for zlib off64_t issue
+ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
+define ONVIF_SIMPLE_SERVER_UCLIBC_FIX
+	# Add off64_t typedef before including zlib.h
+	for file in $(@D)/*.c; do \
+		if grep -q '#include.*zlib.h' "$$file"; then \
+			sed -i '/#include.*zlib.h/i #ifndef off64_t\n#define off64_t off_t\n#endif' "$$file"; \
+		fi; \
+	done
+endef
+ONVIF_SIMPLE_SERVER_PRE_BUILD_HOOKS += ONVIF_SIMPLE_SERVER_UCLIBC_FIX
+endif
+
 ifeq ($(BR2_PACKAGE_MBEDTLS),y)
 ONVIF_SIMPLE_SERVER_DEPENDENCIES = mbedtls cjson zlib
 MAKE_OPTS += HAVE_MBEDTLS=y
@@ -28,7 +41,9 @@ thingino -1 thingino -1 =thingino - - - Streaming Service
 endef
 
 define ONVIF_SIMPLE_SERVER_BUILD_CMDS
-	$(TARGET_CONFIGURE_OPTS) $(MAKE) LDFLAGS="$(TARGET_LDFLAGS)" -C $(@D) $(MAKE_OPTS)
+	$(TARGET_CONFIGURE_OPTS) $(MAKE) \
+		CFLAGS="$(TARGET_CFLAGS) $(ONVIF_SIMPLE_SERVER_CFLAGS)" \
+		LDFLAGS="$(TARGET_LDFLAGS)" -C $(@D) $(MAKE_OPTS)
 endef
 
 define ONVIF_SIMPLE_SERVER_INSTALL_TARGET_CMDS
