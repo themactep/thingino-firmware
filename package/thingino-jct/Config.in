@@ -2,3 +2,5 @@ config BR2_PACKAGE_THINGINO_JCT
 	bool "thingino-jct"
 	help
 	  JSON Configuration CLI Tool
+
+	  https://github.com/themactep/jct
