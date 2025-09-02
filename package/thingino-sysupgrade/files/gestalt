@@ -5,16 +5,22 @@
 OWNER="themactep"
 REPO="thingino-firmware"
 BASE_REPO_URL="https://api.github.com/repos/$OWNER/$REPO/contents/configs"
-PROD_LIST="$BASE_REPO_URL/cameras"
+
 PROD_MODULE_LIST="$BASE_REPO_URL/modules"
-DEBUG_LIST="$BASE_REPO_URL/testing"
-LIST_URL=$PROD_LIST
+PROD_CAMERA_LIST="$BASE_REPO_URL/cameras"
+TEST_CAMERA_LIST="$BASE_REPO_URL/cameras-exp"
+
+LIST_URL=$PROD_CAMERA_LIST
 LIST_PATH="/tmp/gestalt_list.txt"
 
 while getopts "dmh" opt; do
 	case $opt in
-		d) LIST_URL=$DEBUG_LIST ;;
-		m) LIST_URL=$PROD_MODULE_LIST ;;
+		d)
+			LIST_URL=$TEST_CAMERA_LIST
+			;;
+		m)
+			LIST_URL=$PROD_MODULE_LIST
+			;;
 		*)
 			echo "Usage: $0 [-d] [-m]"
 			exit 1
