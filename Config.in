@@ -124,11 +124,6 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/lightnvr/Config.in"
 config BR2_PACKAGE_IFUPDOWN_SCRIPTS
 	bool "ifupdown-scripts"
 
-config BR2_PACKAGE_NGINX
-	bool "nginx"
-	select BR2_PACKAGE_NGINX_HTTP
-	select BR2_PACKAGE_NGINX_HTTP_SSL_MODULE
-
 config BR2_PACKAGE_SSHPASS
 	bool "sshpass"
 endmenu
