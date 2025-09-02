@@ -58,6 +58,10 @@ ifeq ($(SHOW_BOARD_MENU),1)
     CAMERA_CONFIG := $(or $(shell whiptail --title "Config files" \
 	  --menu "Select a camera config:" 20 76 12 \
 	  --notags $(LIST_OF_CAMERAS) 3>&1 1>&2 2>&3))
+    # After menu selection, derive BOARD from the selected config
+    ifneq ($(CAMERA_CONFIG),)
+      BOARD := $(shell basename "$(CAMERA_CONFIG)" | sed -E "s/_defconfig//")
+    endif
   endif
 endif
 
@@ -70,6 +74,7 @@ else
   $(shell echo $(CAMERA_CONFIG) > $(BUILD_MEMO))
 endif
 
+# Ensure BOARD is set from CAMERA_CONFIG if not already set
 BOARD ?= $(shell basename "$(CAMERA_CONFIG)" | sed -E "s/_defconfig//")
 CAMERA_CONFIG_REAL := $(shell realpath "$(BR2_EXTERNAL)/$(CAMERA_CONFIG)")
 $(info CAMERA_CONFIG_REAL = $(CAMERA_CONFIG_REAL))
