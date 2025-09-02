@@ -1,4 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 # Update buildroot submodule to the latest version
-git pull
-git submodule update --remote --merge
+
+make reset-buildroot
+git add buildroot && git commit -m "buildroot: update to latest upstream"
+make update-buildroot
