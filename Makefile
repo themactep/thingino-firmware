@@ -233,38 +233,15 @@ release: distclean defconfig build_fast pack
 # update repo and submodules (excludes buildroot - use scripts/update_buildroot.sh for that)
 update:
 	$(info -------------------------------- $@)
-	@echo "Starting repository update..."
-	@echo "NOTE: This is a read-only operation - no changes will be automatically committed."
-	@echo ""
-
-	# Update main repository
 	@echo "=== UPDATING MAIN REPOSITORY ==="
 	git pull --rebase --autostash
-	@echo ""
-
-	# Update standard submodules (excluding buildroot)
 	@echo "=== UPDATING SUBMODULES ==="
-	@echo "Updating standard submodules (buildroot excluded)..."
 	git submodule update --init --recursive
-	@echo ""
 
-	@echo "Repository update completed successfully"
-	@echo ""
-	@echo "=== UPDATE SUMMARY ==="
-	@echo "✓ Main repository updated from upstream"
-	@echo "✓ Standard submodules updated"
-	@echo ""
-	@echo "NOTE: Buildroot submodule is NOT updated by this command."
-	@echo "To update buildroot with proper patch management, use:"
-	@echo "  scripts/update_buildroot.sh"
-	@echo ""
-
-# update buildroot submodule with proper patch management (uses dedicated script)
+# update buildroot submodule with proper patch management
 update-buildroot:
 	$(info -------------------------------- $@)
 	@echo "Updating buildroot submodule with proper patch management..."
-	@echo "Using dedicated script: scripts/update_buildroot.sh"
-	@echo ""
 	@scripts/update_buildroot.sh
 
 # reset buildroot to clean upstream state (removes all patches)
