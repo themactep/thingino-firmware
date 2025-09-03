@@ -273,6 +273,7 @@ update:
 		cd ..; \
 	else \
 		echo "Standard submodule update (no patch management)..."; \
+		[ -d "buildroot" ] || git submodule init; \
 		git submodule update; \
 	fi
 
