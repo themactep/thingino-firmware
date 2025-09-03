@@ -210,7 +210,7 @@ define edit_file
 endef
 
 # make command for buildroot
-BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR)
+BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR) BR2_DL_DIR=$(BR2_DL_DIR)
 
 .PHONY: all bootstrap build build_fast clean clean-nfs-debug cleanbuild defconfig distclean fast \
 	help pack release remove_bins repack sdk toolchain update update-buildroot reset-buildroot upboot-ota \
