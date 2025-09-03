@@ -1,24 +1,19 @@
 PRUDYNT_T_SITE_METHOD = git
-ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
-	PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
-	PRUDYNT_T_SITE_BRANCH = master
-	#PRUDYNT_T_VERSION = 6eab9c0ef6fac8eb80f10ce489bca18295d84729
-	PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
-else
-	PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
-	PRUDYNT_T_SITE_BRANCH = prudynt-t-old
-	#PRUDYNT_T_VERSION = 5daadef8f84596fd39343a5a794ebfd419c225fb
-	PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
-endif
+PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
+PRUDYNT_T_SITE_BRANCH = master
+#PRUDYNT_T_VERSION = 6eab9c0ef6fac8eb80f10ce489bca18295d84729
+PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
 
 PRUDYNT_T_GIT_SUBMODULES = YES
 
-PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-fonts ingenic-lib faac thingino-opus libhelix-aac
-ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
-	PRUDYNT_T_DEPENDENCIES += libwebsockets libschrift
-else
-	PRUDYNT_T_DEPENDENCIES += thingino-freetype
-endif
+PRUDYNT_T_DEPENDENCIES += ingenic-lib
+PRUDYNT_T_DEPENDENCIES += libconfig
+PRUDYNT_T_DEPENDENCIES += thingino-live555
+PRUDYNT_T_DEPENDENCIES += thingino-opus
+PRUDYNT_T_DEPENDENCIES += faac libhelix-aac
+PRUDYNT_T_DEPENDENCIES += libschrift
+PRUDYNT_T_DEPENDENCIES += thingino-fonts
+PRUDYNT_T_DEPENDENCIES += libwebsockets
 
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 	PRUDYNT_T_DEPENDENCIES += ingenic-musl
@@ -74,11 +69,6 @@ else
 	# Production build: optimize for size
 	PRUDYNT_CFLAGS += -Os
 	PRUDYNT_T_STRIP_BINARY = YES
-endif
-
-ifneq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
-PRUDYNT_CFLAGS += \
-	-I$(STAGING_DIR)/usr/include/freetype2
 endif
 
 PRUDYNT_LDFLAGS = $(TARGET_LDFLAGS) \
@@ -141,9 +131,9 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 
 	sed -i 's/;.*$$/;/' $(TARGET_DIR)/etc/prudynt.cfg
 
-    if [ "$(SOC_RAM)" -le "64" ]; then \
-        sed -i 's/^\([ \t]*\)# *buffers: 2;/\1buffers: 1;/' $(TARGET_DIR)/etc/prudynt.cfg; \
-    fi
+	if [ "$(SOC_RAM)" -le "64" ]; then \
+		sed -i 's/^\([ \t]*\)# *buffers: 2;/\1buffers: 1;/' $(TARGET_DIR)/etc/prudynt.cfg; \
+	fi
 
 	awk '{if(NR>1){gsub(/^[[:space:]]*/,"");if(match($$0,"^[[:space:]]*#")){$$0=""}}}{if(length($$0)){if(NR>1)printf("%s",$$0);else print $$0;}}' \
 		$(PRUDYNT_T_PKGDIR)/files/prudyntcfg.awk > $(PRUDYNT_T_PKGDIR)/files/prudyntcfg
@@ -201,13 +191,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		echo "Debug tools installed to NFS: prudynt-debug-helper, prudynt-test-memory"; \
 	fi
 
-#	if [ "$(BR2_PACKAGE_PRUDYNT_T_NG)" = "y" ]; then \
 #	echo "Removing LD_PRELOAD command line from init script"; \
-#	sed -i '/^COMMAND=/d' $(TARGET_DIR)/etc/init.d/S95prudynt; \
-#	fi
+#	sed -i '/^COMMAND=/d' $(TARGET_DIR)/etc/init.d/S95prudynt;
 endef
-
-# Debug symbol management is now handled in PRUDYNT_T_INSTALL_TARGET_CMDS
-# No additional hooks needed - we manually strip for firmware and preserve for NFS
 
 $(eval $(generic-package))
