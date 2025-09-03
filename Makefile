@@ -460,6 +460,8 @@ endif
 defconfig: check-config
 	$(info -------------------------------- $@)
 	@$(FIGLET) $(CAMERA)
+	# Ensure buildroot is properly configured
+	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 
 edit:
 	@bash -c 'while true; do \
