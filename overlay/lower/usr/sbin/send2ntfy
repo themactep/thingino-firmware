@@ -62,7 +62,7 @@ if [ -n "$ntfy_delay" ]; then
 	command="$command -H 'Delay: $ntfy_delay'"
 fi
 
-if [ -n "$ntfy_username" ] && [ -n "$ntfy_password" ]; then
+if [ -n "$ntfy_password" ]; then
 	command="$command -u $ntfy_username:$ntfy_password"
 fi
 
