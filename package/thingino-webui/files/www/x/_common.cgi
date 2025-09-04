@@ -9,6 +9,7 @@ STR_NOT_SUPPORTED="not supported on this system"
 STR_PASSWORD_TO_PSK="Plain-text password will be automatically converted to a PSK upon submission"
 STR_SUPPORTS_STRFTIME="Supports <a href=\"https://strftime.net/\" target=\"_blank\">strftime</a> format"
 STR_USER_TEXT_FMT="Supports %hostname, %ipaddress, %fps, %bps"
+STR_PRIVACY_TEXT_FMT="Supports %hostname, %ipaddress"
 
 pagename=$(basename "$SCRIPT_NAME")
 pagename="${pagename%%.*}"
