@@ -1,5 +1,6 @@
 PRUDYNT_T_SITE_METHOD = git
-PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
+# PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
+PRUDYNT_T_SITE = https://github.com/themactep/prudynt-t
 PRUDYNT_T_SITE_BRANCH = master
 #PRUDYNT_T_VERSION = 6eab9c0ef6fac8eb80f10ce489bca18295d84729
 PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
@@ -7,7 +8,8 @@ PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRA
 PRUDYNT_T_GIT_SUBMODULES = YES
 
 PRUDYNT_T_DEPENDENCIES += ingenic-lib
-PRUDYNT_T_DEPENDENCIES += libconfig
+PRUDYNT_T_DEPENDENCIES += json-c
+PRUDYNT_T_DEPENDENCIES += host-jq
 PRUDYNT_T_DEPENDENCIES += thingino-live555
 PRUDYNT_T_DEPENDENCIES += thingino-opus
 PRUDYNT_T_DEPENDENCIES += faac libhelix-aac
@@ -122,26 +124,18 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		chmod 755 $(TARGET_DIR)/usr/bin/prudynt-debug-info; \
 	fi
 
-	awk -f $(PRUDYNT_T_PKGDIR)/files/device_presets \
-		$(PRUDYNT_T_PKGDIR)/files/configs/$(shell awk 'BEGIN {split("$(BR2_CONFIG)", a, "/"); print a[length(a)-1]}') \
-		$(@D)/prudynt.cfg.example > $(STAGING_DIR)/prudynt.cfg
+	# Copy the JSON configuration file
+	cp $(@D)/res/prudynt.json $(STAGING_DIR)/prudynt.json
 
-	$(INSTALL) -D -m 0644 $(STAGING_DIR)/prudynt.cfg \
-		$(TARGET_DIR)/etc/prudynt.cfg
+	$(INSTALL) -D -m 0644 $(STAGING_DIR)/prudynt.json \
+		$(TARGET_DIR)/etc/prudynt.json
 
-	sed -i 's/;.*$$/;/' $(TARGET_DIR)/etc/prudynt.cfg
-
+	# Adjust buffer settings for low-memory devices
 	if [ "$(SOC_RAM)" -le "64" ]; then \
-		sed -i 's/^\([ \t]*\)# *buffers: 2;/\1buffers: 1;/' $(TARGET_DIR)/etc/prudynt.cfg; \
+		$(HOST_DIR)/bin/jq '.stream0.buffers = 1 | .stream1.buffers = 1' \
+			$(TARGET_DIR)/etc/prudynt.json > $(TARGET_DIR)/etc/prudynt.json.tmp && \
+		mv $(TARGET_DIR)/etc/prudynt.json.tmp $(TARGET_DIR)/etc/prudynt.json; \
 	fi
-
-	awk '{if(NR>1){gsub(/^[[:space:]]*/,"");if(match($$0,"^[[:space:]]*#")){$$0=""}}}{if(length($$0)){if(NR>1)printf("%s",$$0);else print $$0;}}' \
-		$(PRUDYNT_T_PKGDIR)/files/prudyntcfg.awk > $(PRUDYNT_T_PKGDIR)/files/prudyntcfg
-
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/prudyntcfg \
-		$(TARGET_DIR)/usr/bin/prudyntcfg
-
-	rm $(PRUDYNT_T_PKGDIR)/files/prudyntcfg
 
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
 		$(TARGET_DIR)/etc/init.d/S95prudynt
@@ -152,11 +146,14 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96vbuffer \
 		$(TARGET_DIR)/etc/init.d/S96vbuffer
 
-	$(INSTALL) -D -m 0644 $(@D)/res/thingino_logo_1.bgra \
-		$(TARGET_DIR)/usr/share/images/thingino_logo_1.bgra
+	$(INSTALL) -D -m 0644 $(@D)/res/default.ttf \
+		$(TARGET_DIR)/usr/share/fonts/default.ttf
 
-	$(INSTALL) -D -m 0644 $(@D)/res/thingino_logo_2.bgra \
-		$(TARGET_DIR)/usr/share/images/thingino_logo_2.bgra
+	$(INSTALL) -D -m 0644 $(@D)/res/thingino_100x30.bgra \
+		$(TARGET_DIR)/usr/share/images/thingino_100x30.bgra
+
+	$(INSTALL) -D -m 0644 $(@D)/res/thingino_210x64.bgra \
+		$(TARGET_DIR)/usr/share/images/thingino_210x64.bgra
 
 	# Install debug-specific files and configurations to NFS
 	if [ "$(BR2_PACKAGE_PRUDYNT_T_DEBUG)" = "y" ]; then \
@@ -190,6 +187,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		echo "  gdb /usr/bin/prudynt -s /mnt/nfs/$(CAMERA)/usr/lib/debug/usr/bin/prudynt.debug" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "Debug tools installed to NFS: prudynt-debug-helper, prudynt-test-memory"; \
 	fi
+
+#	echo -e "\n# run daynight every minute\n*/1 * * * * daynight" | tee -a $(TARGET_DIR)/etc/cron/crontabs/root
 
 #	echo "Removing LD_PRELOAD command line from init script"; \
 #	sed -i '/^COMMAND=/d' $(TARGET_DIR)/etc/init.d/S95prudynt;
