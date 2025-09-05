@@ -56,9 +56,9 @@ start() {
 		send2ntfy &
 	fi
 
-	if [ "true" = "$motion_send2local" ]; then
-		echo_info "Save snapshot/video locally"
-		send2local &
+	if [ "true" = "$motion_send2mount" ]; then
+		echo_info "Save snapshot/video to a local mount"
+		send2mount &
 	fi
 
 	if [ "true" = "$motion_playonspeaker" ]; then
