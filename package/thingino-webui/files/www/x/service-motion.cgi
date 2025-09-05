@@ -18,7 +18,7 @@ page_title="Motion Guard"
 <% field_checkbox "motion_send2webhook" "Send to webhook" "<a href=\"tool-send2webhook.cgi\">Configure sending to a webhook</a>" %>
 <% field_checkbox "motion_send2ftp" "Upload to FTP" "<a href=\"tool-send2ftp.cgi\">Configure uploading to FTP</a>" %>
 <% field_checkbox "motion_send2ntfy" "Send to Ntfy" "<a href=\"tool-send2ntfy.cgi\">Configure sending to Ntfy</a>" %>
-<% field_checkbox "motion_send2local" "Save locally" "<a href=\"tool-send2local.cgi\">Configure saving locally</a>" %>
+<% field_checkbox "motion_send2mount" "Save to mount" "<a href=\"tool-send2mount.cgi\">Configure saving to mount</a>" %>
 <% field_checkbox "motion_send2yadisk" "Upload to Yandex Disk" "<a href=\"tool-send2yadisk.cgi\">Configure sending to Yandex Disk</a>" %>
 </div>
 <div class="col">
@@ -33,7 +33,7 @@ which sends alerts through the selected and preconfigured notification methods.<
 
 <script>
 const motion_params = ['enabled', 'sensitivity', 'cooldown_time'];
-const send2_targets = ['email', 'ftp', 'local', 'mqtt', 'ntfy', 'telegram', 'webhook', 'yadisk'];
+const send2_targets = ['email', 'ftp', 'mount', 'mqtt', 'ntfy', 'telegram', 'webhook', 'yadisk'];
 
 const wsPort = location.protocol === "https:" ? 8090 : 8089;
 const wsProto = location.protocol === "https:" ? "wss:" : "ws:";

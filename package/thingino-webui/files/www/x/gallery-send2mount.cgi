@@ -1,9 +1,9 @@
 #!/bin/haserl
 <%in _common.cgi %>
 <%
-page_title="Local Recordings Gallery"
-default_for send_local_save_dir "/mnt/records"
-dir="$send_local_save_dir"
+page_title="Recordings Gallery"
+default_for send_mount_save_dir "/mnt/records"
+dir="$send_mount_save_dir"
 
 safe_path() {
 	real=$(readlink -f -- "$1") && [ -e "$real" ] && [ "${real#"$dir"/}" != "$real" ]

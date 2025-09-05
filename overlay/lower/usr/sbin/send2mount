@@ -18,14 +18,14 @@ EOF
 	exit 0
 }
 
-send_local_save_template=${send_local_save_template:-"${network_hostname:-thingino}-%Y%m%d-%H%M%S"}
-send_local_save_dir=${send_local_save_dir:-"/mnt/records"}
-send_local_verbose=${send_local_verbose:-"false"}
-send_local_save_video="${send_local_save_video:-false}"
-send_local_snapshot_delay=${send_local_snapshot_delay:-3}  # seconds
+send_mount_save_template=${send_mount_save_template:-"${network_hostname:-thingino}-%Y%m%d-%H%M%S"}
+send_mount_save_dir=${send_mount_save_dir:-"/mnt/records"}
+send_mount_verbose=${send_mount_verbose:-"false"}
+send_mount_save_video="${send_mount_save_video:-false}"
+send_mount_snapshot_delay=${send_mount_snapshot_delay:-3}  # seconds
 
 logv() {
-	[ "$send_local_verbose" = "true" ] && echo "$*" >&2
+	[ "$send_mount_verbose" = "true" ] && echo "$*" >&2
 }
 
 await_file() {
@@ -39,19 +39,19 @@ await_file() {
 
 while getopts d:Vv:s:h flag; do
 	case "${flag}" in
-		d) send_local_save_dir=$OPTARG ;;
-		V) send_local_save_video="true" ;;
-		v) send_local_verbose="true" ;;
-		s) send_local_snapshot_delay=$OPTARG ;;
+		d) send_mount_save_dir=$OPTARG ;;
+		V) send_mount_save_video="true" ;;
+		v) send_mount_verbose="true" ;;
+		s) send_mount_snapshot_delay=$OPTARG ;;
 		h|*) show_help ;;
 	esac
 done
 
-[ -z "$send_local_save_dir" ] && {
+[ -z "$send_mount_save_dir" ] && {
 	echo "Error: target directory is not set" >&2; exit 1; }
 
 action_ext="jpg"
-if [ "$send_local_save_video" = "true" ]; then
+if [ "$send_mount_save_video" = "true" ]; then
 	[ -n "$VBUFFER_FILE" ] || {
 		echo "Error: VBUFFER_FILE is not defined" >&2; exit 1; }
 	savable="$VBUFFER_FILE"
@@ -63,7 +63,7 @@ else
 	action_ext="jpg"
 fi
 
-filename_prefix="$(date +"$send_local_save_template")"
+filename_prefix="$(date +"$send_mount_save_template")"
 filename="${filename_prefix}.${action_ext}"
 
 if ! await_file "$savable" 5; then
@@ -71,9 +71,9 @@ if ! await_file "$savable" 5; then
 	exit 1
 fi
 
-logv "[INFO] Creating directory: $send_local_save_dir"
-mkdir -p "$send_local_save_dir" || {
-	echo "Error: cannot create directory $send_local_save_dir" >&2
+logv "[INFO] Creating directory: $send_mount_save_dir"
+mkdir -p "$send_mount_save_dir" || {
+	echo "Error: cannot create directory $send_mount_save_dir" >&2
 	exit 1
 }
 
@@ -88,13 +88,13 @@ copy_file() {
 	fi
 }
 
-dest_path="$send_local_save_dir/$filename"
+dest_path="$send_mount_save_dir/$filename"
 
-if [ "$send_local_save_video" = "true" ]; then
+if [ "$send_mount_save_video" = "true" ]; then
 	if [ -n "$SNAPSHOT_FILE" ]; then
 		(
-			logv "[INFO] Waiting ${send_local_snapshot_delay}s before copying snapshot"
-			sleep "$send_local_snapshot_delay"
+			logv "[INFO] Waiting ${send_mount_snapshot_delay}s before copying snapshot"
+			sleep "$send_mount_snapshot_delay"
 			if await_file "$SNAPSHOT_FILE" 5; then
 				img_path="${dest_path%.*}.jpg"
 				copy_file "$SNAPSHOT_FILE" "$img_path"

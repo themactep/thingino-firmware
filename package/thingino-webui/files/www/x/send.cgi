@@ -9,7 +9,7 @@ case "$target" in
 		send2telegram snap >/dev/null &
 		json_ok "Sent to $target"
 		;;
-	email | ftp | local | mqtt | ntfy | webhook | yadisk)
+	email | ftp | mount | mqtt | ntfy | webhook | yadisk)
 		send2$target $opts >/dev/null &
 		json_ok "Sent to $target"
 		;;
