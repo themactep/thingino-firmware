@@ -1,0 +1,123 @@
+#!/usr/bin/env sh
+
+. /usr/share/common || {
+	echo "Error: /usr/share/common is missing" >&2
+	exit 1
+}
+
+show_help() {
+	cat >&2 <<EOF
+Usage: $0 [options]
+Where:
+  -d dir      Target directory to save files locally.
+  -V          Save video buffer instead of snapshot.
+  -v          Verbose output.
+  -s sec      Delay in seconds before copying snapshot when saving video.
+  -h          Show this help and exit.
+EOF
+	exit 0
+}
+
+send_mount_save_template=${send_mount_save_template:-"${network_hostname:-thingino}-%Y%m%d-%H%M%S"}
+send_mount_save_dir=${send_mount_save_dir:-"/mnt/records"}
+send_mount_verbose=${send_mount_verbose:-"false"}
+send_mount_save_video="${send_mount_save_video:-false}"
+send_mount_snapshot_delay=${send_mount_snapshot_delay:-3}  # seconds
+
+logv() {
+	[ "$send_mount_verbose" = "true" ] && echo "$*" >&2
+}
+
+await_file() {
+	local f="$1" t="${2:-5}" i=0
+	while [ "$i" -lt "$t" ]; do
+		[ -s "$f" ] && return 0
+		sleep 1; i=$((i+1))
+	done
+	return 1
+}
+
+while getopts d:Vv:s:h flag; do
+	case "${flag}" in
+		d) send_mount_save_dir=$OPTARG ;;
+		V) send_mount_save_video="true" ;;
+		v) send_mount_verbose="true" ;;
+		s) send_mount_snapshot_delay=$OPTARG ;;
+		h|*) show_help ;;
+	esac
+done
+
+[ -z "$send_mount_save_dir" ] && {
+	echo "Error: target directory is not set" >&2; exit 1; }
+
+action_ext="jpg"
+if [ "$send_mount_save_video" = "true" ]; then
+	[ -n "$VBUFFER_FILE" ] || {
+		echo "Error: VBUFFER_FILE is not defined" >&2; exit 1; }
+	savable="$VBUFFER_FILE"
+	action_ext="mp4"
+else
+	[ -n "$SNAPSHOT_FILE" ] || {
+		echo "Error: SNAPSHOT_FILE is not defined" >&2; exit 1; }
+	savable="$SNAPSHOT_FILE"
+	action_ext="jpg"
+fi
+
+filename_prefix="$(date +"$send_mount_save_template")"
+filename="${filename_prefix}.${action_ext}"
+
+if ! await_file "$savable" 5; then
+	echo "Error: $savable is empty or does not exist" >&2
+	exit 1
+fi
+
+logv "[INFO] Creating directory: $send_mount_save_dir"
+mkdir -p "$send_mount_save_dir" || {
+	echo "Error: cannot create directory $send_mount_save_dir" >&2
+	exit 1
+}
+
+copy_file() {
+	local src="$1" dst="$2"
+	logv "[INFO] Copying $src -> $dst"
+	if cp -f "$src" "$dst"; then
+		logv "[OK] Saved: $dst"
+	else
+		echo "Error: failed to copy $src" >&2
+		exit 1
+	fi
+}
+
+dest_path="$send_mount_save_dir/$filename"
+
+if [ "$send_mount_save_video" = "true" ]; then
+	if [ -n "$SNAPSHOT_FILE" ]; then
+		(
+			logv "[INFO] Waiting ${send_mount_snapshot_delay}s before copying snapshot"
+			sleep "$send_mount_snapshot_delay"
+			if await_file "$SNAPSHOT_FILE" 5; then
+				img_path="${dest_path%.*}.jpg"
+				copy_file "$SNAPSHOT_FILE" "$img_path"
+			else
+				logv "[WARN] Snapshot file not ready after waiting"
+			fi
+		) &
+	fi
+	copy_file "$savable" "$dest_path"
+
+	inode_before=$(stat -c%i "$savable" 2>/dev/null || echo 0)
+	for i in 1 2 3 4 5 6 7 8 9 10; do
+		sleep 1
+		inode_now=$(stat -c%i "$savable" 2>/dev/null || echo 0)
+		[ "$inode_now" != "$inode_before" ] && break
+	done
+	if [ "$inode_now" != "$inode_before" ]; then
+		# New buffer – copy it too
+		dest_path2="${dest_path%.*}_2.${action_ext}"
+		await_file "$savable" 5 && copy_file "$savable" "$dest_path2"
+	fi
+else
+	copy_file "$savable" "$dest_path"
+fi
+
+exit 0
