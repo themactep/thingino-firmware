@@ -3,14 +3,13 @@
 DAEMON=wsd_simple_server
 ONVIF_CONFIG=/etc/onvif.conf
 ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
-OS_RELEASE=/etc/os-release
-PRUDYNT_CONFIG=/etc/prudynt.cfg
+PRUDYNT_CONFIG=/etc/prudynt.json
 
 . /usr/share/common
 
 iface="$(iface_default)"
 
-model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $OS_RELEASE)
+model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $OS_RELEASE_FILE)
 
 # extract iface for daemon from onvif.conf
 DAEMON_ARGS="--if_name $iface --xaddr http://%s/onvif/device_service -m $model -n thingino --pid_file /var/run/$DAEMON_SHORT.pid"
@@ -69,8 +68,8 @@ start() {
 	update_config $tempfile "serial_num" "$(fw_printenv -n ethaddr | sed 's/://g')"
 	update_config $tempfile "firmware_ver" "$BUILD_ID"
 	update_config $tempfile "ifs" "$iface"
-	update_config $tempfile "user" "$(awk -F '"' '/username:/ {print $2}' $PRUDYNT_CONFIG)"
-	update_config $tempfile "password" "$(awk -F '"' '/password:/ {print $2}' $PRUDYNT_CONFIG)"
+	update_config $tempfile "user" "$(jct $PRUDYNT_CONFIG get rtsp.username | tr -d \")"
+	update_config $tempfile "password" "$(jct $PRUDYNT_CONFIG get rtsp.password | tr -d \")"
 	update_config $tempfile "ptz" "$([ -n "$gpio_motor_h" ] && echo 1 || echo 0)"
 	update_config $tempfile "max_step_x" "$motor_maxstep_h"
 	update_config $tempfile "max_step_y" "$motor_maxstep_v"

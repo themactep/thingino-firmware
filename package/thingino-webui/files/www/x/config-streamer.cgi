@@ -44,12 +44,12 @@ case "$soc_family" in
 	  *) modes="$modes SMART" ;;
 esac
 
-prudynt_config=/etc/prudynt.cfg
+prudynt_config=/etc/prudynt.json
 onvif_config=/etc/onvif.conf
 
 rtsp_username=$(awk -F: '/Streaming Service/{print $1}' /etc/passwd)
-default_for rtsp_username $(awk -F'"' '/username/{print $2}' $prudynt_config)
-default_for rtsp_password $(awk -F'"' '/password/{print $2}' $prudynt_config)
+default_for rtsp_username $(jct $prudynt_config get rtsp.username)
+default_for rtsp_password $(jct $prudynt_config get rtsp.password)
 default_for rtsp_password "thingino"
 %>
 <%in _header.cgi %>
@@ -89,7 +89,7 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <div class="d-flex flex-wrap align-content-around gap-1">
 <a class="btn btn-secondary" href="<%= $SCRIPT_NAME %>?do=restart">Restart streamer</a>
 <button type="button" class="btn btn-secondary" id="save-prudynt-config">Save config</button>
-<a class="btn btn-secondary" href="tool-file-manager.cgi?dl=/etc/prudynt.cfg">Download config</a>
+<a class="btn btn-secondary" href="tool-file-manager.cgi?dl=/etc/prudynt.json">Download config</a>
 </div>
 </div>
 <div class="col mb-3">

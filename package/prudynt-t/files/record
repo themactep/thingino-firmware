@@ -5,7 +5,7 @@
 ensure_command "openRTSP"
 
 STREAMER_APP="prudynt"
-STREAMER_CONF_FILE="/etc/prudynt.cfg"
+STREAMER_CONF_FILE="/etc/prudynt.json"
 
 SELF_NAME="$(basename "$0")"
 
@@ -50,19 +50,7 @@ get_occupied_space() {
 
 # "parameter" "default"
 read_config() {
-	sed -nE "s/^.*$1\s*[:=]\s*\"?([^\"]+)\"?;.*$/\1/p" $STREAMER_CONF_FILE | head -1
-	[ -z "$_" ] || echo "$2"
-}
-
-# "default"
-read_fps() {
-	logcat | grep "fps" | head -1 | awk -F '[=,]' '{print $2}'
-	[ -z "$_" ] || echo "$1"
-}
-
-# "parameter" "default"
-read_size() {
-	logcat | grep "VBMCreatePool()-${stream_number}: w=" | head -1 | awk -F '[= ]' "{print \$$1}"
+	jct $STREAMER_CONF_FILE get $1
 	[ -z "$_" ] || echo "$2"
 }
 
@@ -153,26 +141,27 @@ if [ -z "$stream_number" ]; then
 fi
 
 if [ -z "$stream_fps" ]; then
-	stream_fps=$(read_fps "25")
+	stream_fps=$(cat /run/prudynt/rtsp/stream${stream_number}/fps)
 fi
 
 if [ -z "$stream_height" ]; then
-	stream_height=$(read_size "7" "1080")
+	stream_height=$(cat /run/prudynt/rtsp/stream${stream_number}/height)
 fi
 
 if [ -z "$stream_width" ]; then
-	stream_width=$(read_size "5" "1920")
+	stream_width=$(cat /run/prudynt/rtsp/stream${stream_number}/width)
 fi
 
-# FIXME: based on default stream endpoint name, won't work on custom endpoints
-stream_endpoint="ch$stream_number"
+if [ -z "$rtsp_username" ]; then
+	rtsp_username=$(read_config "rtsp.username" "thingino")
+fi
 
+if [ -z "$rtsp_password" ]; then
+	rtsp_password=$(read_config "rtsp.password" "thingino")
+fi
+
+stream_endpoint="$(cat /run/prudynt/rtsp/stream${stream_number}/endpoint)"
 rtsp_stream="rtsp://127.0.0.1/$stream_endpoint"
-
-rtsp_username=$(read_config "username" "thingino")
-
-rtsp_password=$(read_config "password" "thingino")
-
 
 echo_info "
 stream_number: $stream_number

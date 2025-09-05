@@ -37,6 +37,7 @@ endif
 # Base compiler flags
 PRUDYNT_CFLAGS += \
 	-DNO_OPENSSL=1 \
+	-DBINARY_DYNAMIC \
 	-I$(STAGING_DIR)/usr/include \
 	-I$(STAGING_DIR)/usr/include/liveMedia \
 	-I$(STAGING_DIR)/usr/include/groupsock \
@@ -139,6 +140,9 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
 		$(TARGET_DIR)/etc/init.d/S95prudynt
+
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/record \
+		$(TARGET_DIR)/usr/sbin/record
 
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96record \
 		$(TARGET_DIR)/etc/init.d/S96record

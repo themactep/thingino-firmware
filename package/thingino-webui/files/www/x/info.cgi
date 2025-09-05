@@ -26,7 +26,7 @@ case "$name" in
 			extras="$(button_restore_from_rom "/etc/httpd.conf")"
 			;;
 	netstat)	cmd="netstat -a" ;;
-	prudynt)	cmd="cat /etc/prudynt.cfg" ;;
+	prudynt)	cmd="cat /etc/prudynt.json" ;;
 	status)		cmd="uptime;df -T;cat /proc/meminfo | grep Mem" ;;
 	system)		cmd="cat /etc/os-release" ;;
 	top)		cmd="top -n 1 -b" ;;
