@@ -48,8 +48,8 @@ calculate_rmem_offset() {
 
 read_defaults() {
 	local osmem_val rmem_val
-	osmem_val=$(fw_printenv -n osmem 2>/dev/null) || osmem_val=""
-	rmem_val=$(fw_printenv -n rmem 2>/dev/null) || rmem_val=""
+	osmem_val=$osmem
+	rmem_val=$rmem
 	echo "$osmem_val" "$rmem_val"
 }
 
