@@ -1,7 +1,6 @@
 gpio_button=51
 gpio_default=18O 38O 39O 47o 48o 49o 50i 51i 52o 53o 57o 57O 59i 62i 63o 25ID 26IDU
 gpio_default_net=48o
-gpio_ir850=47
 gpio_ir940=49
 gpio_ircut=52 53
 gpio_led_b=39o
@@ -9,4 +8,5 @@ gpio_led_r=38o
 gpio_mmc_cd=59
 gpio_mmc_power=48o
 gpio_speaker=63
+gpio_usb_en=47O
 gpio_wlan=57O
