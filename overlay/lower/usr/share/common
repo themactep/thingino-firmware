@@ -42,6 +42,7 @@ TZCODE_FILE="/etc/TZ"
 TZJSON_FILE="/usr/share/tz.json.gz"
 TZNAME_FILE="/etc/timezone"
 VBUFFER_FILE="/tmp/vbuffer.mp4"
+DN_MODE_FILE="/tmp/daynightmode"
 WLANAP_MODE_FLAG="/run/wlanap_mode"
 
 DAEMON=${DAEMON:-$0}
