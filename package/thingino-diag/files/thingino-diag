@@ -118,7 +118,7 @@ fi
 	inforun "logread" "SYSLOG"
 
 	header "streamer"
-	sed -i 's/"password": "[^"]*"/"password": "REDACTED"/g' $PRUDYNT_CONFIG_FILE
+	sed 's/"password": "[^"]*"/"password": "REDACTED"/g' $PRUDYNT_CONFIG_FILE
 
 	infocat "/etc/cron/crontabs/root" "crontab"
 } > "$output_file"
