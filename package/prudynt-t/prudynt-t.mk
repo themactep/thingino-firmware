@@ -10,6 +10,7 @@ PRUDYNT_T_GIT_SUBMODULES = YES
 PRUDYNT_T_DEPENDENCIES += ingenic-lib
 PRUDYNT_T_DEPENDENCIES += json-c
 PRUDYNT_T_DEPENDENCIES += host-jq
+PRUDYNT_T_DEPENDENCIES += host-python3
 PRUDYNT_T_DEPENDENCIES += thingino-live555
 PRUDYNT_T_DEPENDENCIES += thingino-opus
 PRUDYNT_T_DEPENDENCIES += faac libhelix-aac
@@ -125,18 +126,26 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		chmod 755 $(TARGET_DIR)/usr/bin/prudynt-debug-info; \
 	fi
 
-	# Copy the JSON configuration file
+	# Copy the JSON configuration file to staging
 	cp $(@D)/res/prudynt.json $(STAGING_DIR)/prudynt.json
-
-	$(INSTALL) -D -m 0644 $(STAGING_DIR)/prudynt.json \
-		$(TARGET_DIR)/etc/prudynt.json
 
 	# Adjust buffer settings for low-memory devices
 	if [ "$(SOC_RAM)" -le "64" ]; then \
 		$(HOST_DIR)/bin/jq '.stream0.buffers = 1 | .stream1.buffers = 1' \
-			$(TARGET_DIR)/etc/prudynt.json > $(TARGET_DIR)/etc/prudynt.json.tmp && \
-		mv $(TARGET_DIR)/etc/prudynt.json.tmp $(TARGET_DIR)/etc/prudynt.json; \
+			$(STAGING_DIR)/prudynt.json > $(STAGING_DIR)/prudynt.json.tmp && \
+		mv $(STAGING_DIR)/prudynt.json.tmp $(STAGING_DIR)/prudynt.json; \
 	fi
+
+	# Apply device-specific presets in staging
+	if [ -f "$(PRUDYNT_T_PKGDIR)/files/configs/${CAMERA}.json" ]; then \
+		$(HOST_DIR)/bin/python3 $(PRUDYNT_T_PKGDIR)/files/apply_presets.py \
+			"$(PRUDYNT_T_PKGDIR)/files/configs/${CAMERA}.json" \
+			"$(STAGING_DIR)/prudynt.json"; \
+	fi
+
+	# Install the final, modified JSON file from staging to target
+	$(INSTALL) -D -m 0644 $(STAGING_DIR)/prudynt.json \
+		$(TARGET_DIR)/etc/prudynt.json
 
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
 		$(TARGET_DIR)/etc/init.d/S95prudynt
