@@ -193,6 +193,7 @@ fi
 
 case "$record_videofmt" in
 	avi) vformat="-i" ;;
+	mkv) vformat="-x" ;;
 	mov) vformat="-q -y -H" ;;
 	mp4) vformat="-4 -y -H" ;;
 	  *) echo_error "Unknown video format $record_videofmt"

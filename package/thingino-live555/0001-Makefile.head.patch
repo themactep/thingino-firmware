@@ -1,0 +1,8 @@
+
+--- a/Makefile.head
++++ b/Makefile.head
+@@ -1 +1,4 @@
++PREFIX = /usr
++LIBDIR = /usr/lib
++VERSION = $(shell grep LIVEMEDIA_LIBRARY_VERSION_STRING liveMedia/include/liveMedia_version.hh | sed 's/.*"\([^"]*\)".*/\1/')
+ ##### Change the following for your environment:
