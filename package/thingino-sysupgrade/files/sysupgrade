@@ -245,7 +245,7 @@ handle_payload() {
 		rm -v $sha_file
 
 		say "Relocate downloaded file"
-		if ! mv -v "$bin_file" "$fw_file"; then
+		if ! mv -fv "$bin_file" "$fw_file"; then
 			die "Cannot move $bin_file to $fw_file"
 		fi
 	fi
@@ -414,7 +414,7 @@ if [ -z "$upgrade" ]; then
 				die "Cannot find file $ufile (from $(pwd))"
 			fi
 			say "Found $ufile"
-			mv -v "$ufile" "$fw_file"
+			mv -fv "$ufile" "$fw_file"
 		fi
 	fi
 fi
