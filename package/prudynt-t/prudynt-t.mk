@@ -10,7 +10,6 @@ PRUDYNT_T_GIT_SUBMODULES = YES
 PRUDYNT_T_DEPENDENCIES += ingenic-lib
 PRUDYNT_T_DEPENDENCIES += json-c
 PRUDYNT_T_DEPENDENCIES += host-jq
-PRUDYNT_T_DEPENDENCIES += host-python3
 PRUDYNT_T_DEPENDENCIES += thingino-live555
 PRUDYNT_T_DEPENDENCIES += thingino-opus
 PRUDYNT_T_DEPENDENCIES += faac libhelix-aac
@@ -138,9 +137,10 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 
 	# Apply device-specific presets in staging
 	if [ -f "$(PRUDYNT_T_PKGDIR)/files/configs/${CAMERA}.json" ]; then \
-		$(HOST_DIR)/bin/python3 $(PRUDYNT_T_PKGDIR)/files/apply_presets.py \
+		$(HOST_DIR)/bin/jq -s '.[1] * .[0]' \
 			"$(PRUDYNT_T_PKGDIR)/files/configs/${CAMERA}.json" \
-			"$(STAGING_DIR)/prudynt.json"; \
+			"$(STAGING_DIR)/prudynt.json" > "$(STAGING_DIR)/prudynt.json.tmp" && \
+		mv "$(STAGING_DIR)/prudynt.json.tmp" "$(STAGING_DIR)/prudynt.json"; \
 	fi
 
 	# Install the final, modified JSON file from staging to target
