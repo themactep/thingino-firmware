@@ -55,6 +55,11 @@ start() {
 		send2ntfy &
 	fi
 
+	if [ "true" = "$motion_send2mount" ]; then
+		echo_info "Save snapshot/video to a local mount"
+		send2mount &
+	fi
+
 	if [ "true" = "$motion_playonspeaker" ]; then
 		echo_info "Send alert to play on speaker"
 		playonspeaker &
