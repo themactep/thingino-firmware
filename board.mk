@@ -1,5 +1,5 @@
 # Targets that don't require board selection
-NOBOARD_TARGETS := help bootstrap update update-buildroot reset-buildroot download-cache
+NOBOARD_TARGETS := help bootstrap update update-buildroot update-buildroot-patches reset-buildroot download-cache
 
 # Check if current target is exempted from board selection
 # MAKECMDGOALS contains the targets specified on command line
