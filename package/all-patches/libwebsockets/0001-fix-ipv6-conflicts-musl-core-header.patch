@@ -1,0 +1,35 @@
+From: Thingino Project <dev@thingino.com>
+Date: [Current Date]
+Subject: [PATCH] Fix IPv6 header conflicts in core private header for musl
+
+Set UAPI guards at the very beginning of the core private header
+to prevent IPv6 structure redefinition conflicts with musl libc.
+
+Signed-off-by: Thingino Project <dev@thingino.com>
+---
+ lib/core/private-lib-core.h | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/lib/core/private-lib-core.h b/lib/core/private-lib-core.h
+index abcdef1..1234567 100644
+--- a/lib/core/private-lib-core.h
++++ b/lib/core/private-lib-core.h
+@@ -25,6 +25,16 @@
+ #if !defined(__LWS_PRIVATE_LIB_CORE_H__)
+ #define __LWS_PRIVATE_LIB_CORE_H__
+
++/* Prevent IPv6 structure redefinition with musl libc - must be very first */
++#if !defined(__GLIBC__) && defined(__linux__)
++#define __UAPI_DEF_IN6_ADDR 0
++#define __UAPI_DEF_SOCKADDR_IN6 0
++#define __UAPI_DEF_IPV6_MREQ 0
++#define __UAPI_DEF_IN6_PKTINFO 0
++#define __UAPI_DEF_IP6_MTUINFO 0
++#define __UAPI_DEF_IPPROTO_V6 0
++#endif
++
+ #include "lws_config.h"
+ #include "lws_config_private.h"
+
+--
+2.47.2
