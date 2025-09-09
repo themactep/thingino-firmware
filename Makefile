@@ -230,19 +230,66 @@ release: RELEASE=1
 release: distclean defconfig build_fast pack
 	$(info -------------------------------- $@)
 
-# update repo and submodules (excludes buildroot - use scripts/update_buildroot.sh for that)
+# update repo and submodules with buildroot patch management
 update:
 	$(info -------------------------------- $@)
 	@echo "=== UPDATING MAIN REPOSITORY ==="
 	git pull --rebase --autostash
 	@echo "=== UPDATING SUBMODULES ==="
 	git submodule update --init --recursive
+	@echo "=== UPDATING BUILDROOT WITH PATCH MANAGEMENT ==="
+	@$(MAKE) update-buildroot-patches
 
 # update buildroot submodule with proper patch management
-update-buildroot:
+update-buildroot-patches:
 	$(info -------------------------------- $@)
-	@echo "Updating buildroot submodule with proper patch management..."
-	@scripts/update_buildroot.sh
+	@echo "Updating buildroot submodule with patch management..."
+	@if [ ! -d "buildroot" ]; then \
+		echo "ERROR: buildroot submodule not found"; \
+		echo "Initialize submodules first: git submodule update --init"; \
+		exit 1; \
+	fi
+	@echo "Step 1: Resetting buildroot to clean state..."
+	@cd buildroot && \
+	if git status --porcelain | grep -q .; then \
+		echo "Stashing uncommitted changes in buildroot..."; \
+		git stash push -m "Auto-stash before patch reset on $$(date)"; \
+	fi; \
+	echo "Fetching latest from origin..."; \
+	git fetch origin; \
+	echo "Resetting to clean upstream state..."; \
+	git reset --hard origin/master; \
+	echo "Buildroot reset to clean state"
+	@echo "Step 2: Updating to pinned version..."
+	@PINNED_COMMIT=$$(git ls-tree HEAD buildroot | awk '{print $$3}'); \
+	if [ -n "$$PINNED_COMMIT" ]; then \
+		echo "Updating buildroot to pinned commit: $$PINNED_COMMIT"; \
+		cd buildroot && git checkout "$$PINNED_COMMIT"; \
+		echo "Successfully updated to pinned version"; \
+	else \
+		echo "WARNING: Could not determine pinned commit"; \
+		exit 1; \
+	fi
+	@echo "Step 3: Applying thingino patches..."
+	@if [ -d "package/all-patches/buildroot" ]; then \
+		echo "Applying patches from package/all-patches/buildroot/"; \
+		cd buildroot && \
+		for patch in ../package/all-patches/buildroot/*.patch; do \
+			if [ -f "$$patch" ]; then \
+				echo "Applying patch: $$(basename $$patch)"; \
+				if ! patch -p1 < "$$patch"; then \
+					echo "ERROR: Failed to apply patch: $$(basename $$patch)"; \
+					echo "Buildroot may be in an inconsistent state"; \
+					exit 1; \
+				fi; \
+			fi; \
+		done; \
+		echo "All patches applied successfully"; \
+	else \
+		echo "No patches directory found at package/all-patches/buildroot/"; \
+		echo "Buildroot updated to clean pinned state without patches"; \
+	fi
+	@echo "Buildroot submodule update with patch management completed"
 
 # reset buildroot to clean upstream state (removes all patches)
 reset-buildroot:

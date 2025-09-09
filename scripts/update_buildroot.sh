@@ -1,13 +1,14 @@
 #!/bin/bash
-# Update buildroot submodule with proper patch management and submodule pinning
+# Update buildroot submodule to latest upstream and commit the change
 #
-# This script handles the complex process of updating the buildroot submodule
-# while maintaining local patches and following Git submodule best practices.
+# This script updates the buildroot submodule to the latest upstream commit
+# and commits that change to the main repository. It does NOT reapply patches.
 #
 # The process:
-# 1. Unapply existing patches to get clean upstream state
-# 2. Update submodule to its pinned commit (NOT HEAD tracking)
-# 3. Reapply patches from package/all-patches/buildroot/
+# 1. Remove existing patches to get clean upstream state
+# 2. Update submodule to latest upstream commit
+# 3. Commit the submodule update to main repository
+# 4. Push the commit to remote
 #
 # Usage: scripts/update_buildroot.sh [OPTIONS]
 #   -h, --help     Show this help message
@@ -21,7 +22,6 @@ set -e  # Exit on any error
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILDROOT_DIR="$PROJECT_ROOT/buildroot"
-PATCHES_DIR="$PROJECT_ROOT/package/all-patches/buildroot"
 
 # Default options
 DRY_RUN=false
@@ -61,11 +61,10 @@ log_verbose() {
 # Help function
 show_help() {
     cat << EOF
-Update buildroot submodule with proper patch management
+Update buildroot submodule to latest upstream and commit the change
 
-This script safely updates the buildroot submodule while maintaining local
-patches and following Git submodule best practices. It does NOT track HEAD
-but respects the pinned commit in the parent repository.
+This script updates the buildroot submodule to the latest upstream commit
+and commits that change to the main repository. Patches are NOT reapplied.
 
 Usage: $0 [OPTIONS]
 
@@ -76,18 +75,20 @@ Options:
     -f, --force    Force update even if there are uncommitted changes
 
 Examples:
-    $0                    # Normal update
+    $0                    # Normal update and commit
     $0 --dry-run          # Preview changes without applying
     $0 --verbose          # Update with detailed logging
     $0 --force            # Force update ignoring uncommitted changes
 
 The update process:
 1. Validates environment and checks for uncommitted changes
-2. Unapplies existing patches to restore clean upstream state
-3. Updates submodule to the commit pinned in parent repository
-4. Reapplies patches from package/all-patches/buildroot/
+2. Removes existing patches to restore clean upstream state
+3. Updates submodule to latest upstream commit
+4. Commits the submodule update to main repository
+5. Pushes the commit to remote
 
-Note: This script maintains submodule pinning and does NOT track upstream HEAD.
+Note: This script does NOT reapply patches. Use 'make update' afterwards
+to reapply patches if needed.
 EOF
 }
 
@@ -137,38 +138,53 @@ validate_environment() {
         exit 1
     fi
 
-    # Check if buildroot is a git repository (could be .git directory or .git file for submodules)
+    # Check if buildroot is a git repository
     if [ ! -e "$BUILDROOT_DIR/.git" ]; then
         log_error "Buildroot directory is not a git repository"
         log_error "Initialize submodules first: git submodule update --init"
         exit 1
     fi
 
-    # Verify we can actually run git commands in buildroot
+    # Verify we can run git commands in buildroot
     if ! (cd "$BUILDROOT_DIR" && git status >/dev/null 2>&1); then
         log_error "Cannot run git commands in buildroot directory"
         log_error "Initialize submodules first: git submodule update --init"
         exit 1
     fi
 
-    # Check if patches directory exists
-    if [ ! -d "$PATCHES_DIR" ]; then
-        log_warning "Patches directory not found: $PATCHES_DIR"
-        log_warning "No patches will be applied"
-    fi
-
     log_success "Environment validation passed"
 }
 
-# Check for uncommitted changes
-check_uncommitted_changes() {
-    log_info "Checking for uncommitted changes..."
+# Check for uncommitted changes in main repository
+check_main_repo_changes() {
+    log_info "Checking main repository for uncommitted changes..."
+
+    cd "$PROJECT_ROOT"
+
+    if git status --porcelain | grep -q .; then
+        if [ "$FORCE" = true ]; then
+            log_warning "Main repository has uncommitted changes but --force specified"
+            log_warning "Changes will be stashed automatically"
+        else
+            log_error "Main repository has uncommitted changes"
+            log_error "Commit or stash changes first, or use --force to auto-stash"
+            git status --short
+            exit 1
+        fi
+    else
+        log_success "No uncommitted changes in main repository"
+    fi
+}
+
+# Check for uncommitted changes in buildroot submodule
+check_buildroot_changes() {
+    log_info "Checking buildroot submodule for uncommitted changes..."
 
     cd "$BUILDROOT_DIR"
 
     if git status --porcelain | grep -q .; then
         if [ "$FORCE" = true ]; then
-            log_warning "Uncommitted changes detected but --force specified"
+            log_warning "Buildroot has uncommitted changes but --force specified"
             log_warning "Changes will be stashed automatically"
         else
             log_error "Buildroot submodule has uncommitted changes"
@@ -177,154 +193,149 @@ check_uncommitted_changes() {
             exit 1
         fi
     else
-        log_success "No uncommitted changes detected"
+        log_success "No uncommitted changes in buildroot submodule"
     fi
 
     cd "$PROJECT_ROOT"
 }
 
-# Unapply existing patches
-unapply_patches() {
-    log_info "Unapplying existing patches..."
+# Remove existing patches from buildroot
+remove_patches() {
+    log_info "Removing existing patches from buildroot..."
 
     cd "$BUILDROOT_DIR"
 
     if [ "$DRY_RUN" = true ]; then
-        log_info "[DRY RUN] Would unapply patches and reset to clean upstream state"
+        log_info "[DRY RUN] Would remove patches and reset to clean upstream state"
         cd "$PROJECT_ROOT"
         return 0
     fi
 
-    # Check if there are any applied patches by looking for commits that aren't in upstream
-    local upstream_commit
-    upstream_commit=$(git rev-parse origin/master 2>/dev/null || echo "")
-
-    if [ -z "$upstream_commit" ]; then
-        log_warning "Could not determine upstream commit, fetching..."
-        git fetch origin
-        upstream_commit=$(git rev-parse origin/master)
+    # Stash any uncommitted changes if --force was used
+    if git status --porcelain | grep -q .; then
+        log_info "Stashing uncommitted changes..."
+        git stash push -m "Auto-stash before buildroot update on $(date)"
     fi
 
-    local current_commit
-    current_commit=$(git rev-parse HEAD)
+    # Fetch latest from origin
+    log_info "Fetching latest from upstream..."
+    git fetch origin
 
-    if [ "$current_commit" = "$upstream_commit" ]; then
-        log_success "Already at clean upstream state, no patches to unapply"
-    else
-        log_verbose "Current commit: $current_commit"
-        log_verbose "Upstream commit: $upstream_commit"
-
-        # Stash any uncommitted changes if --force was used
-        if git status --porcelain | grep -q .; then
-            log_info "Stashing uncommitted changes..."
-            git stash push -m "Auto-stash before buildroot update on $(date)"
-        fi
-
-        # Reset to clean upstream state
-        log_info "Resetting to clean upstream state..."
-        git reset --hard "$upstream_commit"
-        log_success "Reset to clean upstream state"
-    fi
+    # Reset to clean upstream state (origin/master)
+    log_info "Resetting to clean upstream state..."
+    git reset --hard origin/master
+    log_success "Reset to clean upstream state"
 
     cd "$PROJECT_ROOT"
 }
 
-# Update submodule to pinned commit
-update_submodule_to_pinned_commit() {
-    log_info "Updating submodule to pinned commit..."
-
-    # Get the commit that the parent repository expects for buildroot
-    local pinned_commit
-    pinned_commit=$(git ls-tree HEAD buildroot | awk '{print $3}')
-
-    if [ -z "$pinned_commit" ]; then
-        log_error "Could not determine pinned commit for buildroot submodule"
-        exit 1
-    fi
-
-    log_info "Parent repository expects buildroot at commit: $pinned_commit"
+# Update submodule to latest upstream
+update_to_latest_upstream() {
+    log_info "Updating buildroot submodule to latest upstream..."
 
     cd "$BUILDROOT_DIR"
 
+    # Get current and latest commits
     local current_commit
     current_commit=$(git rev-parse HEAD)
 
-    if [ "$current_commit" = "$pinned_commit" ]; then
-        log_success "Buildroot is already at the pinned commit"
-    else
+    local latest_commit
+    latest_commit=$(git rev-parse origin/master)
+
+    log_info "Current commit: $current_commit"
+    log_info "Latest upstream commit: $latest_commit"
+
+    if [ "$current_commit" = "$latest_commit" ]; then
+        log_success "Buildroot is already at the latest upstream commit"
+        cd "$PROJECT_ROOT"
+        return 0
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[DRY RUN] Would update buildroot from $current_commit to $latest_commit"
+        cd "$PROJECT_ROOT"
+        return 0
+    fi
+
+    # Update to latest upstream
+    log_info "Updating to latest upstream commit: $latest_commit"
+    git checkout "$latest_commit"
+    log_success "Successfully updated to latest upstream commit"
+
+    cd "$PROJECT_ROOT"
+}
+
+# Commit the submodule update
+commit_submodule_update() {
+    log_info "Committing submodule update to main repository..."
+
+    cd "$PROJECT_ROOT"
+
+    # Check if there are changes to commit
+    if ! git diff --quiet buildroot; then
         if [ "$DRY_RUN" = true ]; then
-            log_info "[DRY RUN] Would update buildroot from $current_commit to $pinned_commit"
-        else
-            log_info "Updating buildroot from $current_commit to $pinned_commit"
-
-            # Fetch to ensure we have the pinned commit
-            git fetch origin
-
-            # Checkout the pinned commit
-            if git checkout "$pinned_commit"; then
-                log_success "Successfully updated to pinned commit: $pinned_commit"
-            else
-                log_error "Failed to checkout pinned commit: $pinned_commit"
-                exit 1
-            fi
+            log_info "[DRY RUN] Would commit submodule update"
+            git diff --submodule buildroot
+            return 0
         fi
-    fi
 
-    cd "$PROJECT_ROOT"
+        # Stash any uncommitted changes in main repo if --force was used
+        if git status --porcelain | grep -v "^M  buildroot" | grep -q .; then
+            log_info "Stashing uncommitted changes in main repository..."
+            git stash push -m "Auto-stash before buildroot submodule update on $(date)"
+        fi
+
+        # Get buildroot commit info for commit message
+        local buildroot_commit
+        buildroot_commit=$(cd "$BUILDROOT_DIR" && git rev-parse --short HEAD)
+
+        local buildroot_date
+        buildroot_date=$(cd "$BUILDROOT_DIR" && git log -1 --format="%ci" | cut -d' ' -f1)
+
+        # Add and commit the submodule update
+        git add buildroot
+        git commit -m "buildroot: update submodule to latest upstream
+
+Updated buildroot submodule to commit $buildroot_commit ($buildroot_date)
+
+This update removes all local patches. Use 'make update' to reapply
+patches if needed."
+
+        log_success "Committed submodule update"
+    else
+        log_info "No submodule changes to commit"
+    fi
 }
 
-# Apply patches from package/all-patches/buildroot/
-apply_patches() {
-    log_info "Applying patches from $PATCHES_DIR..."
+# Push to remote
+push_to_remote() {
+    log_info "Pushing commit to remote repository..."
 
-    if [ ! -d "$PATCHES_DIR" ]; then
-        log_warning "Patches directory not found, skipping patch application"
-        return 0
-    fi
-
-    cd "$BUILDROOT_DIR"
-
-    # Find all patch files
-    local patch_files
-    patch_files=($(find "$PATCHES_DIR" -name "*.patch" | sort))
-
-    if [ ${#patch_files[@]} -eq 0 ]; then
-        log_warning "No patch files found in $PATCHES_DIR"
-        cd "$PROJECT_ROOT"
-        return 0
-    fi
-
-    log_info "Found ${#patch_files[@]} patch files to apply"
+    cd "$PROJECT_ROOT"
 
     if [ "$DRY_RUN" = true ]; then
-        log_info "[DRY RUN] Would apply the following patches:"
-        for patch_file in "${patch_files[@]}"; do
-            echo "  - $(basename "$patch_file")"
-        done
-        cd "$PROJECT_ROOT"
+        log_info "[DRY RUN] Would push commit to remote"
         return 0
     fi
 
-    # Apply patches using git am
-    log_verbose "Applying patches with git am..."
-    if git am "${patch_files[@]}"; then
-        log_success "All ${#patch_files[@]} patches applied successfully"
+    # Get current branch
+    local current_branch
+    current_branch=$(git branch --show-current)
 
-        # Show final state
-        if [ "$VERBOSE" = true ]; then
-            log_verbose "Final buildroot state:"
-            git log --oneline -10
-        fi
-    else
-        log_error "Failed to apply patches"
-        log_error "Aborting patch application..."
-        git am --abort
-        log_error "Buildroot is in clean upstream state"
-        log_error "Please review and fix patches in $PATCHES_DIR"
+    if [ -z "$current_branch" ]; then
+        log_error "Not on a branch, cannot push"
         exit 1
     fi
 
-    cd "$PROJECT_ROOT"
+    log_info "Pushing to origin/$current_branch..."
+
+    if git push origin "$current_branch"; then
+        log_success "Successfully pushed to remote"
+    else
+        log_error "Failed to push to remote"
+        log_error "You may need to pull first or resolve conflicts"
+        exit 1
+    fi
 }
 
 # Show summary of changes
@@ -340,23 +351,15 @@ show_summary() {
 
     echo ""
     echo "=== BUILDROOT UPDATE SUMMARY ==="
-    echo "✓ Buildroot submodule updated successfully"
+    echo "✓ Buildroot submodule updated to latest upstream"
     echo "✓ Current commit: $current_commit"
     echo "✓ Current state: $current_branch"
-
-    if [ -d "$PATCHES_DIR" ]; then
-        local patch_count
-        patch_count=$(find "$PATCHES_DIR" -name "*.patch" | wc -l)
-        echo "✓ Applied $patch_count patches from package/all-patches/buildroot/"
-    fi
-
+    echo "✓ Submodule update committed to main repository"
+    echo "✓ Changes pushed to remote repository"
     echo ""
-    echo "NOTE: Buildroot submodule changes are NOT automatically committed."
-    echo "Review the changes and commit if desired:"
-    echo "  git status                    # Check repository status"
-    echo "  git diff --submodule          # Review submodule changes"
-    echo "  git add buildroot             # Stage submodule update"
-    echo "  git commit -m 'buildroot: update submodule with patches'"
+    echo "NOTE: All patches have been removed from buildroot."
+    echo "To reapply patches, run:"
+    echo "  make update"
     echo ""
 
     cd "$PROJECT_ROOT"
@@ -364,7 +367,7 @@ show_summary() {
 
 # Main function
 main() {
-    log_info "Starting buildroot submodule update process..."
+    log_info "Starting buildroot submodule update to latest upstream..."
     echo ""
 
     if [ "$DRY_RUN" = true ]; then
@@ -377,22 +380,28 @@ main() {
     echo ""
 
     # Step 2: Check for uncommitted changes
-    check_uncommitted_changes
+    check_main_repo_changes
+    echo ""
+    check_buildroot_changes
     echo ""
 
-    # Step 3: Unapply existing patches
-    unapply_patches
+    # Step 3: Remove existing patches
+    remove_patches
     echo ""
 
-    # Step 4: Update submodule to pinned commit
-    update_submodule_to_pinned_commit
+    # Step 4: Update to latest upstream
+    update_to_latest_upstream
     echo ""
 
-    # Step 5: Apply patches
-    apply_patches
+    # Step 5: Commit submodule update
+    commit_submodule_update
     echo ""
 
-    # Step 6: Show summary
+    # Step 6: Push to remote
+    push_to_remote
+    echo ""
+
+    # Step 7: Show summary
     if [ "$DRY_RUN" = false ]; then
         show_summary
     else
@@ -404,20 +413,6 @@ main() {
     fi
 }
 
-# Trap to ensure we're always in the project root on exit
-cleanup() {
-    cd "$PROJECT_ROOT" 2>/dev/null || true
-}
-trap cleanup EXIT
-
-# Script entry point
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    # Parse command line arguments
-    parse_args "$@"
-
-    # Change to project root
-    cd "$PROJECT_ROOT"
-
-    # Run main function
-    main
-fi
+# Parse arguments and run main function
+parse_args "$@"
+main
