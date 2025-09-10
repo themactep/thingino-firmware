@@ -299,9 +299,6 @@ jobs:
           find ~/dl -type f | wc -l
           echo "DL cache restored successfully"
 
-      - name: Update and patch buildroot
-        run: make update
-
       - name: Build firmware
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
         run: |
