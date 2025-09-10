@@ -184,9 +184,6 @@ jobs:
           ref: "master"
           fetch-depth: "1"
 
-      - name: Update and patch buildroot
-        run: make update
-
       - name: Configure environment variables
         id: env
         run: |
@@ -301,6 +298,9 @@ jobs:
           echo "Number of files in ~/dl:"
           find ~/dl -type f | wc -l
           echo "DL cache restored successfully"
+
+      - name: Update and patch buildroot
+        run: make update
 
       - name: Build firmware
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
