@@ -213,7 +213,7 @@ endef
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR) BR2_DL_DIR=$(BR2_DL_DIR)
 
 .PHONY: all bootstrap build build_fast clean clean-nfs-debug cleanbuild defconfig distclean fast \
-	help pack release remove_bins repack sdk toolchain update update-buildroot reset-buildroot upboot-ota \
+	help pack release remove_bins repack sdk toolchain update upboot-ota \
 	upload_tftp upgrade_ota br-% check-config force-config show-config-deps clean-config
 
 all: defconfig build pack
@@ -238,86 +238,6 @@ update:
 	@echo "=== UPDATING SUBMODULES ==="
 	git submodule update --init --recursive
 	@echo "=== UPDATING BUILDROOT WITH PATCH MANAGEMENT ==="
-	@$(MAKE) update-buildroot-patches
-
-# update buildroot submodule with proper patch management
-update-buildroot-patches:
-	$(info -------------------------------- $@)
-	@echo "Updating buildroot submodule with patch management..."
-	@if [ ! -d "buildroot" ]; then \
-		echo "ERROR: buildroot submodule not found"; \
-		echo "Initialize submodules first: git submodule update --init"; \
-		exit 1; \
-	fi
-	@echo "Step 1: Resetting buildroot to clean state..."
-	@cd buildroot && \
-	if git status --porcelain | grep -q .; then \
-		echo "Stashing uncommitted changes in buildroot..."; \
-		git stash push -m "Auto-stash before patch reset on $$(date)"; \
-	fi; \
-	echo "Fetching latest from origin..."; \
-	git fetch origin; \
-	echo "Resetting to clean upstream state..."; \
-	git reset --hard origin/master; \
-	echo "Buildroot reset to clean state"
-	@echo "Step 2: Updating to pinned version..."
-	@PINNED_COMMIT=$$(git ls-tree HEAD buildroot | awk '{print $$3}'); \
-	if [ -n "$$PINNED_COMMIT" ]; then \
-		echo "Updating buildroot to pinned commit: $$PINNED_COMMIT"; \
-		cd buildroot && git checkout "$$PINNED_COMMIT"; \
-		echo "Successfully updated to pinned version"; \
-	else \
-		echo "WARNING: Could not determine pinned commit"; \
-		exit 1; \
-	fi
-	@echo "Step 3: Applying thingino patches..."
-	@if [ -d "package/all-patches/buildroot" ]; then \
-		echo "Applying patches from package/all-patches/buildroot/"; \
-		cd buildroot && \
-		for patch in ../package/all-patches/buildroot/*.patch; do \
-			if [ -f "$$patch" ]; then \
-				echo "Applying patch: $$(basename $$patch)"; \
-				if ! patch -p1 < "$$patch"; then \
-					echo "ERROR: Failed to apply patch: $$(basename $$patch)"; \
-					echo "Buildroot may be in an inconsistent state"; \
-					exit 1; \
-				fi; \
-			fi; \
-		done; \
-		echo "All patches applied successfully"; \
-	else \
-		echo "No patches directory found at package/all-patches/buildroot/"; \
-		echo "Buildroot updated to clean pinned state without patches"; \
-	fi
-	@echo "Buildroot submodule update with patch management completed"
-
-# reset buildroot to clean upstream state (removes all patches)
-reset-buildroot:
-	$(info -------------------------------- $@)
-	@echo "Resetting buildroot submodule to clean upstream state..."
-	@if [ ! -d "buildroot" ]; then \
-		echo "ERROR: buildroot submodule not found"; \
-		echo "Initialize submodules first: git submodule update --init"; \
-		exit 1; \
-	fi
-	@cd buildroot && \
-	echo "Current buildroot state:"; \
-	git log --oneline -5; \
-	echo "Fetching upstream changes..."; \
-	git fetch origin; \
-	echo "Resetting to clean upstream state (this will remove all patches)..."; \
-	PINNED_COMMIT=$$(cd .. && git ls-tree HEAD buildroot | awk '{print $$3}'); \
-	if [ -n "$$PINNED_COMMIT" ]; then \
-		echo "Resetting to pinned commit: $$PINNED_COMMIT"; \
-		git reset --hard "$$PINNED_COMMIT"; \
-	else \
-		echo "WARNING: Could not determine pinned commit, using origin/master"; \
-		git reset --hard origin/master; \
-	fi; \
-	echo "Clean upstream state:"; \
-	git log --oneline -5
-	@echo "Buildroot reset to clean upstream state completed"
-	@echo "Use 'make update-buildroot' or 'scripts/update_buildroot.sh' to reapply patches"
 
 # install what's needed
 bootstrap:
