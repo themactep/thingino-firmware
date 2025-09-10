@@ -184,6 +184,9 @@ jobs:
           ref: "master"
           fetch-depth: "1"
 
+      - name: Update and patch buildroot
+        run: make update
+
       - name: Configure environment variables
         id: env
         run: |
