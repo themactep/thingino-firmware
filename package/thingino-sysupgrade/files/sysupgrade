@@ -415,6 +415,7 @@ if [ -z "$upgrade" ]; then
 			fi
 			say "Found $ufile"
 			mv -fv "$ufile" "$fw_file"
+			ORIGINAL_ARG="${ORIGINAL_ARG/$ufile/$fw_file}"
 		fi
 	fi
 fi
