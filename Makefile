@@ -236,7 +236,7 @@ update:
 	@echo "=== UPDATING MAIN REPOSITORY ==="
 	git pull --rebase --autostash
 	@echo "=== UPDATING SUBMODULES ==="
-	git submodule update --init --recursive
+	git submodule update --init --remote --recursive
 	@echo "=== UPDATING BUILDROOT WITH PATCH MANAGEMENT ==="
 
 # install what's needed
@@ -606,7 +606,7 @@ br-%: check-config
 buildroot/Makefile:
 	$(info -------------------------------- $@)
 	git submodule init
-	git submodule update --depth 1 --recursive
+	git submodule update --remote --recursive
 
 # create output directory
 $(OUTPUT_DIR)/.keep:
