@@ -1,3 +1,4 @@
+/.idea
 /.board
 /.bootstrapped
 /.gitconfig
@@ -18,3 +19,4 @@
 /sdk/
 /tmp/
 /toolchain/
+/build.log
