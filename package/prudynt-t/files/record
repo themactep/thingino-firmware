@@ -50,7 +50,7 @@ get_occupied_space() {
 
 # "parameter" "default"
 read_config() {
-	jct $STREAMER_CONF_FILE get $1
+	jct "$STREAMER_CONF_FILE" get "$1" | tr -d '"'
 	[ -z "$_" ] || echo "$2"
 }
 
@@ -140,16 +140,16 @@ if [ -z "$stream_number" ]; then
 	stream_number=0
 fi
 
-if [ -z "$stream_fps" ]; then
-	stream_fps=$(cat /run/prudynt/rtsp/stream${stream_number}/fps)
+if [ -z "$stream_width" ]; then
+	stream_width=$(cat /run/prudynt/rtsp/stream${stream_number}/width)
 fi
 
 if [ -z "$stream_height" ]; then
 	stream_height=$(cat /run/prudynt/rtsp/stream${stream_number}/height)
 fi
 
-if [ -z "$stream_width" ]; then
-	stream_width=$(cat /run/prudynt/rtsp/stream${stream_number}/width)
+if [ -z "$stream_fps" ]; then
+	stream_fps=$(cat /run/prudynt/rtsp/stream${stream_number}/fps)
 fi
 
 if [ -z "$rtsp_username" ]; then
