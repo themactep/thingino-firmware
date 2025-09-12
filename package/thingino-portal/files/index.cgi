@@ -229,12 +229,12 @@ h2 {font-size:1.3rem}
 <div class="tab-content" id="wireless-tabs">
 <div class="tab-pane fade show active" id="wlan-tab-pane" role="tabpanel" aria-labelledby="wlan-tab" tabindex="0">
 <div class="mb-2">
-<label class="form-label">Wireless Network Name (SSID)</label>
+<label class="form-label">Wi-Fi Network Name/SSID <span class="small text-white">(case-sensitive)</span></label>
 <input class="form-control bg-light text-dark" type="text" id="wlan_ssid" name="wlan_ssid" value="<%= $wlan_ssid %>" autocapitalize="none" required>
 <div class="invalid-feedback">Please enter network name</div>
 </div>
 <div class="mb-2">
-<label class="form-label">Wireless Network Password</label>
+<label class="form-label">Wi-Fi Network Password <span class="small text-white">(case-sensitive)</span></label>
 <input class="form-control bg-light text-dark" type="text" id="wlan_pass" name="wlan_pass" value="<%= $wlan_pass %>" autocapitalize="none" minlength="8" pattern=".{8,64}" required>
 <div class="invalid-feedback">Please enter a password 8 - 64 characters</div>
 </div>
@@ -248,12 +248,12 @@ h2 {font-size:1.3rem}
 </span>
 </div>
 <div class="mb-2">
-<label class="form-label">Wireless AP Network Name (SSID)</label>
+<label class="form-label">Wi-Fi AP Network SSID <span class="small text-white">(case-sensitive)</span></label>
 <input class="form-control bg-light text-dark" type="text" id="wlanap_ssid" name="wlanap_ssid" value="<%= $wlanap_ssid %>" autocapitalize="none">
 <div class="invalid-feedback">Please enter network name</div>
 </div>
 <div class="mb-2">
-<label class="form-label">Wireless AP Network Password</label>
+<label class="form-label">Wi-Fi AP Network Password <span class="small text-white">(case-sensitive)</span></label>
 <input class="form-control bg-light text-dark" type="text" id="wlanap_pass" name="wlanap_pass" value="<%= $wlanap_pass %>" autocapitalize="none" minlength="8" pattern=".{8,64}">
 <div class="invalid-feedback">Please enter a password 8 - 64 characters</div>
 </div>
