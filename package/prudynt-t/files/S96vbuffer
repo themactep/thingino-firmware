@@ -13,7 +13,7 @@ stream_number=1
 stream_endpoint="$(cat /run/prudynt/rtsp/stream${stream_number}/endpoint)"
 rtsp_stream="rtsp://127.0.0.1/$stream_endpoint"
 
-vformat="-x"
+vformat="-4"
 record_videofmt="mp4"
 record_duration=10
 record_filename="%hostname/%Y/%m/%d/%H-%M-%S"
