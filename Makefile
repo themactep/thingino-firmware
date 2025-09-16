@@ -723,8 +723,6 @@ help:
 	  make clean-config   remove configuration files\n\
 	  \n\
 	Buildroot Submodule Management:\n\
-	  make update-buildroot     update buildroot submodule with patch management\n\
-	  make reset-buildroot      reset buildroot to clean upstream state\n\
 	  scripts/update_buildroot.sh  advanced buildroot update with options\n\
 	  \n\
 	  make upboot_ota IP=192.168.1.10\n\

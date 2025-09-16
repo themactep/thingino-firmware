@@ -2,7 +2,6 @@ LIGHTNVR_SITE_METHOD = git
 LIGHTNVR_SITE = https://github.com/opensensor/lightNVR
 LIGHTNVR_SITE_BRANCH = main
 LIGHTNVR_VERSION = a5e16eeff9705e18d5aaa619f15d019c9bd3dfea
-# $(shell git ls-remote $(LIGHTNVR_SITE) $(LIGHTNVR_SITE_BRANCH) | head -1 | cut -f1)
 
 LIGHTNVR_LICENSE = MIT
 LIGHTNVR_LICENSE_FILES = COPYING

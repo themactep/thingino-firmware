@@ -313,8 +313,6 @@ function utils.load_template(template_name, vars)
     return content
 end
 
--- No need to override load_template for client-side localization
-
 -- Process template includes
 function utils.process_includes(content)
     -- Process {{include:filename}} directives
