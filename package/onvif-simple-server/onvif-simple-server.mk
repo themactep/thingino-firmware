@@ -1,7 +1,7 @@
 ONVIF_SIMPLE_SERVER_SITE_METHOD = git
 ONVIF_SIMPLE_SERVER_SITE = https://github.com/themactep/thingino-onvif
 ONVIF_SIMPLE_SERVER_SITE_BRANCH = master
-ONVIF_SIMPLE_SERVER_VERSION = 9159d835b860484c635b287c22041dee0e801a8f
+ONVIF_SIMPLE_SERVER_VERSION = 14529032693ae353919110236ae13138731a2c7c
 
 ONVIF_SIMPLE_SERVER_LICENSE = MIT
 ONVIF_SIMPLE_SERVER_LICENSE_FILES = LICENSE
@@ -45,39 +45,39 @@ endef
 define ONVIF_SIMPLE_SERVER_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/device_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/device_service_files \
-		$(@D)/xml/device_service_files/*
+		$(@D)/res/device_service_files/*
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/deviceio_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/deviceio_service_files \
-		$(@D)/xml/deviceio_service_files/*
+		$(@D)/res/deviceio_service_files/*
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/events_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/events_service_files \
-		$(@D)/xml/events_service_files/*
+		$(@D)/res/events_service_files/*
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/generic_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/generic_files \
-		$(@D)/xml/generic_files/*
+		$(@D)/res/generic_files/*
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/media_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/media_service_files \
-		$(@D)/xml/media_service_files/*
+		$(@D)/res/media_service_files/*
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/media2_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/media2_service_files \
-		$(@D)/xml/media2_service_files/*
+		$(@D)/res/media2_service_files/*
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/notify_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/notify_files \
-		$(@D)/xml/notify_files/*
+		$(@D)/res/notify_files/*
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/ptz_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/ptz_service_files \
-		$(@D)/xml/ptz_service_files/*
+		$(@D)/res/ptz_service_files/*
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/wsd_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/wsd_files \
-		$(@D)/xml/wsd_files/*
+		$(@D)/res/wsd_files/*
 
 	ln -sf /usr/sbin/onvif_simple_server $(TARGET_DIR)/var/www/onvif/device_service
 	ln -sf /usr/sbin/onvif_simple_server $(TARGET_DIR)/var/www/onvif/deviceio_service
@@ -95,8 +95,8 @@ define ONVIF_SIMPLE_SERVER_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/wsd_simple_server \
 		$(TARGET_DIR)/usr/sbin/wsd_simple_server
 
-	$(INSTALL) -D -m 0644 $(ONVIF_SIMPLE_SERVER_PKGDIR)/files/onvif.conf \
-		$(TARGET_DIR)/etc/onvif.conf
+	$(INSTALL) -D -m 0644 $(@D)/res/onvif.json \
+		$(TARGET_DIR)/etc/onvif.json
 
 	$(INSTALL) -D -m 0755 $(ONVIF_SIMPLE_SERVER_PKGDIR)/files/S96onvif_discovery \
 		$(TARGET_DIR)/etc/init.d/S96onvif_discovery
