@@ -1,0 +1,200 @@
+{{include:header}}
+
+<div class="row mb-4">
+  <div class="col">
+    <h1 class="h3 mb-0"><i class="bi bi-wifi me-2"></i><span data-i18n="config.network.title">Network Configuration</span></h1>
+    <p class="text-muted" data-i18n="config.network.subtitle">Configure network settings, WiFi, and connectivity</p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card config-form">
+      <div class="card-header">
+        <h5 class="card-title mb-0"><i class="bi bi-gear me-2"></i><span data-i18n="config.network.settings">Network Settings</span></h5>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="/lua/config/network">
+          <div class="mb-4">
+            <h6 class="text-primary mb-3"><i class="bi bi-hdd-network me-2"></i><span data-i18n="config.network.basic_settings">Basic Settings</span></h6>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="hostname" class="form-label" data-i18n="config.network.hostname">Hostname</label>
+                <input type="text" id="hostname" name="hostname" class="form-control" value="{{config_hostname}}" placeholder="thingino-camera">
+                <div class="form-text" data-i18n="config.network.hostname_help">Device name on the network</div>
+              </div>
+              <div class="col-md-6">
+                <label for="interface" class="form-label" data-i18n="config.network.interface">Network Interface</label>
+                <select id="interface" name="interface" class="form-select">
+                  <option value="wlan0" {{interface_wlan0_selected}}>WiFi (wlan0)</option>
+                  <option value="eth0" {{interface_eth0_selected}}>Ethernet (eth0)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="mb-4">
+            <h6 class="text-primary mb-3"><i class="bi bi-router me-2"></i><span data-i18n="config.network.ip_configuration">IP Configuration</span></h6>
+            <div class="form-check mb-3">
+              <input type="checkbox" id="dhcp" name="dhcp" value="true" class="form-check-input" {{dhcp_checked}} onchange="toggleStaticIP()">
+              <label for="dhcp" class="form-check-label" data-i18n="config.network.use_dhcp">Use DHCP (automatic IP configuration)</label>
+            </div>
+            <div id="staticIPSection" class="{{dhcp_section_hidden}}">
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label for="ip_address" class="form-label" data-i18n="config.network.ip_address">IP Address</label>
+                  <input type="text" id="ip_address" name="ip_address" class="form-control" value="{{config_ip_address}}" placeholder="192.168.1.100">
+                </div>
+                <div class="col-md-6">
+                  <label for="netmask" class="form-label" data-i18n="config.network.netmask">Netmask</label>
+                  <input type="text" id="netmask" name="netmask" class="form-control" value="{{config_netmask}}" placeholder="255.255.255.0">
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="gateway" class="form-label" data-i18n="config.network.gateway">Gateway</label>
+                <input type="text" id="gateway" name="gateway" class="form-control" value="{{config_gateway}}" placeholder="192.168.1.1">
+              </div>
+            </div>
+          </div>
+          <div class="mb-4">
+            <h6 class="text-primary mb-3"><i class="bi bi-dns me-2"></i><span data-i18n="config.network.dns_settings">DNS Settings</span></h6>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="dns1" class="form-label" data-i18n="config.network.primary_dns">Primary DNS</label>
+                <input type="text" id="dns1" name="dns1" class="form-control" value="{{config_dns1}}" placeholder="8.8.8.8">
+              </div>
+              <div class="col-md-6">
+                <label for="dns2" class="form-label" data-i18n="config.network.secondary_dns">Secondary DNS</label>
+                <input type="text" id="dns2" name="dns2" class="form-control" value="{{config_dns2}}" placeholder="8.8.4.4">
+              </div>
+            </div>
+          </div>
+          <div class="mb-4">
+            <h6 class="text-primary mb-3"><i class="bi bi-wifi me-2"></i><span data-i18n="config.network.wifi_settings">WiFi Settings</span></h6>
+            <div class="mb-3">
+              <label for="wifi_ssid" class="form-label" data-i18n="config.network.wifi_ssid">WiFi Network (SSID)</label>
+              <input type="text" id="wifi_ssid" name="wifi_ssid" class="form-control" value="{{config_wifi_ssid}}" placeholder="Your WiFi Network">
+            </div>
+            <div class="mb-3">
+              <label for="wifi_password" class="form-label" data-i18n="config.network.wifi_password">WiFi Password</label>
+              <input type="password" id="wifi_password" name="wifi_password" class="form-control" value="{{config_wifi_password}}" placeholder="WiFi Password">
+              <div class="form-text" data-i18n="config.network.wifi_password_help">Leave blank to keep current password</div>
+            </div>
+            <div class="mb-3">
+              <label for="wifi_encryption" class="form-label" data-i18n="config.network.security">Security</label>
+              <select id="wifi_encryption" name="wifi_encryption" class="form-select">
+                <option value="wpa2" {{wifi_encryption_wpa2_selected}}>WPA2</option>
+                <option value="wpa3" {{wifi_encryption_wpa3_selected}}>WPA3</option>
+                <option value="wep" {{wifi_encryption_wep_selected}} data-i18n="config.network.wep_not_recommended">WEP (not recommended)</option>
+                <option value="none" {{wifi_encryption_none_selected}} data-i18n="config.network.open_no_security">Open (no security)</option>
+              </select>
+            </div>
+          </div>
+          <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i><span data-i18n="config.network.save_configuration">Save Configuration</span></button>
+            <button type="button" class="btn btn-secondary" onclick="window.location.reload()"><i class="bi bi-arrow-clockwise me-1"></i><span data-i18n="config.network.reset">Reset</span>
+            </button>
+            <button type="button" class="btn btn-warning" onclick="testConnection()"><i class="bi bi-wifi me-1"></i><span data-i18n="config.network.test_connection">Test Connection</span></button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="card config-sidebar">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-activity me-2"></i><span data-i18n="config.common.current_status">Current Status</span></h5>
+          </div>
+          <div class="card-body">
+            <div class="list-group list-group-flush">
+              <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                <span data-i18n="config.common.ip_address">IP Address:</span>
+                <span class="text-muted">192.168.1.109</span>
+              </div>
+              <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                <span data-i18n="config.common.interface">Interface:</span>
+                <span class="text-muted">wlan0</span>
+              </div>
+              <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                <span data-i18n="config.common.status">Status:</span>
+                <span class="badge bg-success" data-i18n="config.common.connected">Connected</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-lightning me-2"></i><span data-i18n="config.common.quick_actions">Quick Actions</span></h5>
+          </div>
+          <div class="card-body">
+            <div class="d-grid gap-2">
+              <button class="btn btn-outline-primary" onclick="refreshStatus()"><i class="bi bi-arrow-clockwise me-1"></i><span data-i18n="config.network.refresh_status">Refresh Status</span></button>
+              <button class="btn btn-outline-warning" onclick="restartNetwork()"><i class="bi bi-arrow-repeat me-1"></i><span data-i18n="config.network.restart_network">Restart Network</span></button>
+              <button class="btn btn-outline-info" onclick="scanWiFi()"><i class="bi bi-search me-1"></i><span data-i18n="config.network.scan_wifi">Scan WiFi</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-question-circle me-2"></i><span data-i18n="config.common.help">Help</span></h5>
+          </div>
+          <div class="card-body">
+            <div class="small text-muted">
+              <p><strong>DHCP:</strong> <span data-i18n="config.network.help_dhcp">Automatically assigns IP address from your router.</span></p>
+              <p><strong>Static IP:</strong> <span data-i18n="config.network.help_static_ip">Manually set a fixed IP address.</span></p>
+              <p class="text-warning mb-0"><strong data-i18n="common.warning">Warning:</strong> <span data-i18n="config.network.warning_disconnect">Changing network settings may disconnect you from the camera.</span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    function toggleStaticIP() {
+        const dhcpCheckbox = document.getElementById('dhcp');
+        const staticSection = document.getElementById('staticIPSection');
+
+        if (dhcpCheckbox.checked) {
+            staticSection.style.display = 'none';
+        } else {
+            staticSection.style.display = 'block';
+        }
+    }
+
+    function testConnection() {
+        alert(window.i18n?.t('js.alert.testing_connection') || 'Testing network connection...');
+        // Implement connection test
+    }
+
+    function refreshStatus() {
+        window.location.reload();
+    }
+
+    function restartNetwork() {
+        if (confirm(window.i18n?.t('js.alert.restart_network_confirm') || 'Restart network services? This may disconnect you temporarily.')) {
+            fetch('/lua/api/network/restart', {method: 'POST'})
+                .then(response => response.json())
+                .then(data => {
+                    alert(window.i18n?.t('js.alert.network_restart_initiated') || 'Network restart initiated');
+                    setTimeout(() => window.location.reload(), 5000);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(window.i18n?.t('js.alert.network_restart_failed') || 'Failed to restart network');
+                });
+        }
+    }
+
+    function scanWiFi() {
+        alert(window.i18n?.t('js.alert.wifi_scan_coming_soon') || 'WiFi scan feature coming soon...');
+    }
+</script>
+
+{{include:footer}}

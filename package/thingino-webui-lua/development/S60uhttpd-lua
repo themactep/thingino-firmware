@@ -1,0 +1,229 @@
+#!/bin/sh
+
+. /usr/share/common
+
+DAEMON="uhttpd"
+PIDFILE="/var/run/uhttpd-lua.pid"
+
+mountpoint /var/www || mount -o nolock 192.168.1.61://home/paul/dev/thingino-dev-container/workspace/thingino/package/thingino-webui-lua/files/www /var/www
+
+start() {
+    # Check if already running - verify PID file contains a valid running process
+    if [ -f $PIDFILE ]; then
+        local pid=$(cat $PIDFILE)
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            echo_info "uhttpd already running (PID: $pid)"
+            return 0
+        else
+            echo_info "Stale PID file found, removing"
+            rm -f $PIDFILE
+        fi
+    fi
+
+    # Check if portal mode is active
+    if [ -f "$PORTAL_MODE_FLAG" ]; then
+        echo_title "Starting uhttpd with Portal interface"
+
+        # Check if portal files exist
+        if [ ! -d "/var/www-portal" ]; then
+            echo_warning "Portal directory /var/www-portal not found"
+            return 1
+        fi
+
+        if [ ! -f "/var/www-portal/lua/portal.lua" ]; then
+            echo_warning "Portal script /var/www-portal/lua/portal.lua not found"
+            return 1
+        fi
+
+        # Portal mode configuration
+        DAEMON_ARGS_BASE="-h /var/www-portal"
+        DAEMON_ARGS_BASE="$DAEMON_ARGS_BASE -L /var/www-portal/lua/portal.lua"
+        DAEMON_ARGS_BASE="$DAEMON_ARGS_BASE -l /lua"
+        DAEMON_ARGS_BASE="$DAEMON_ARGS_BASE -x /cgi-bin"
+        DAEMON_ARGS_BASE="$DAEMON_ARGS_BASE -t 30 -T 15 -k 10 -n 2 -N 50"
+
+        # Portal mode uses HTTP only (no SSL) - bind to portal IP
+        DAEMON_ARGS_HTTP="$DAEMON_ARGS_BASE -p 172.16.0.1:80"
+
+        echo_info "Starting uhttpd with args: $DAEMON_ARGS_HTTP"
+        /usr/bin/$DAEMON $DAEMON_ARGS_HTTP 2>&1 &
+        local uhttpd_pid=$!
+        echo $uhttpd_pid > $PIDFILE
+
+        # Wait and verify it's running
+        sleep 3
+
+        if pgrep uhttpd >/dev/null 2>&1; then
+            if netstat -ln | grep -q "172.16.0.1:80.*LISTEN"; then
+                echo_info "uhttpd started successfully (Portal mode)"
+                echo_info "Portal: http://172.16.0.1/"
+                return 0
+            else
+                echo_warning "uhttpd running but not listening on 172.16.0.1:80"
+                netstat -ln | grep ":80"
+                return 1
+            fi
+        else
+            echo_warning "uhttpd process not running"
+            return 1
+        fi
+    else
+        echo_title "Starting uhttpd with Lua web interface"
+
+        # Normal mode configuration
+        DAEMON_ARGS_BASE="-h /var/www"
+        DAEMON_ARGS_BASE="$DAEMON_ARGS_BASE -L /var/www/lua/main.lua"
+        DAEMON_ARGS_BASE="$DAEMON_ARGS_BASE -l /lua"
+        DAEMON_ARGS_BASE="$DAEMON_ARGS_BASE -x /cgi-bin"
+        DAEMON_ARGS_BASE="$DAEMON_ARGS_BASE -t 30 -T 15 -k 10 -n 2 -N 50"
+    fi
+
+    # SSL certificate paths (constants)
+    cert_path="/etc/ssl/certs/uhttpd.crt"
+    key_path="/etc/ssl/private/uhttpd.key"
+
+    # Auto-generate SSL certificates if they don't exist
+    if [ ! -f "$cert_path" ] || [ ! -f "$key_path" ] || [ ! -s "$cert_path" ] || [ ! -s "$key_path" ]; then
+        echo_warning "SSL certificates not found, generating new ones..."
+
+        # Create SSL directories if they don't exist
+        mkdir -p "$(dirname "$cert_path")" "$(dirname "$key_path")"
+
+        # Get hostname for certificate
+        hostname=$(hostname)
+        [ -z "$hostname" ] && hostname="localhost"
+
+        # Generate SSL certificate and key
+        if command -v wolfssl-certgen >/dev/null 2>&1; then
+            echo_info "Generating ECDSA certificate for $hostname using wolfSSL..."
+            echo_command "wolfssl-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256"
+            if wolfssl-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 >/dev/null 2>&1; then
+                echo_info "SSL certificate generated successfully with wolfSSL"
+            else
+                echo_warning "wolfSSL certificate generation failed, falling back to HTTP-only"
+            fi
+        elif command -v mbedtls-certgen >/dev/null 2>&1; then
+            echo_info "Generating ECDSA certificate for $hostname using mbedTLS..."
+            echo_command "mbedtls-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 -t ecdsa"
+            if mbedtls-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 -t ecdsa >/dev/null 2>&1; then
+                echo_info "SSL certificate generated successfully with mbedTLS"
+            else
+                echo_warning "mbedTLS certificate generation failed, trying OpenSSL fallback..."
+            fi
+        elif command -v openssl-certgen >/dev/null 2>&1; then
+            echo_info "Generating ECDSA certificate for $hostname using OpenSSL..."
+            echo_command "openssl-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256"
+            if openssl-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 >/dev/null 2>&1; then
+                echo_info "SSL certificate generated successfully with OpenSSL"
+            else
+                echo_warning "OpenSSL certificate generation failed, falling back to HTTP-only"
+            fi
+        else
+            echo_warning "No certificate generator available (wolfssl-certgen, mbedtls-certgen, or openssl-certgen not found), using HTTP-only"
+        fi
+    fi
+
+    # Try SSL first if certificates exist
+    if [ -f "$cert_path" ] && [ -f "$key_path" ] && [ -s "$cert_path" ] && [ -s "$key_path" ]; then
+        echo_info "SSL certificates found, attempting to start with SSL support..."
+
+        # Build SSL arguments
+        DAEMON_ARGS_SSL="$DAEMON_ARGS_BASE"
+        DAEMON_ARGS_SSL="$DAEMON_ARGS_SSL -s 443"
+        DAEMON_ARGS_SSL="$DAEMON_ARGS_SSL -C $cert_path"
+        DAEMON_ARGS_SSL="$DAEMON_ARGS_SSL -K $key_path"
+        DAEMON_ARGS_SSL="$DAEMON_ARGS_SSL -p 80"
+
+        # Start uhttpd with SSL
+        echo_command "/usr/bin/$DAEMON $DAEMON_ARGS_SSL"
+        /usr/bin/$DAEMON $DAEMON_ARGS_SSL >/dev/null 2>&1 &
+        local uhttpd_pid=$!
+        echo $uhttpd_pid > $PIDFILE
+
+        # Wait and verify both ports are running
+        sleep 3
+
+        if pgrep uhttpd >/dev/null 2>&1 && netstat -ln | grep -q ":443.*LISTEN" && netstat -ln | grep -q ":80.*LISTEN"; then
+            echo_info "uhttpd started successfully with SSL support"
+            echo_info "HTTPS: https://$(hostname):443/"
+            echo_info "HTTP:  http://$(hostname):80/ (redirects to HTTPS)"
+            return 0
+        else
+            kill "$uhttpd_pid" 2>/dev/null
+            echo_warning "SSL startup failed, falling back to HTTP-only..."
+        fi
+    else
+        echo_warning "SSL certificates not available, starting HTTP-only..."
+    fi
+
+    # Fallback: HTTP-only mode
+    DAEMON_ARGS_HTTP="$DAEMON_ARGS_BASE -p 80"
+
+    /usr/bin/$DAEMON $DAEMON_ARGS_HTTP >/dev/null 2>&1 &
+    local uhttpd_pid=$!
+    echo $uhttpd_pid > $PIDFILE
+
+    # Wait and verify it's running
+    sleep 2
+
+    if pgrep uhttpd >/dev/null 2>&1 && netstat -ln | grep -q ":80.*LISTEN"; then
+        echo_info "uhttpd started successfully (HTTP only)"
+        echo_info "HTTP:  http://$(hostname):80/"
+        return 0
+    else
+        echo_warning "FAIL"
+        rm -f $PIDFILE
+        return 1
+    fi
+}
+
+stop() {
+    echo_title "Stopping uhttpd"
+
+    # Try to kill using PID file first
+    if [ -f $PIDFILE ]; then
+        local pid=$(cat $PIDFILE)
+        if [ -n "$pid" ] && kill "$pid" 2>/dev/null; then
+            echo_info "Stopped uhttpd (PID: $pid)"
+        fi
+        rm -f $PIDFILE
+    fi
+
+    # Fallback: kill any remaining uhttpd processes
+    if pgrep uhttpd >/dev/null 2>&1; then
+        echo_info "Killing remaining uhttpd processes"
+        pkill uhttpd 2>/dev/null
+        sleep 1
+    fi
+
+    # Verify it's stopped
+    if pgrep uhttpd >/dev/null 2>&1; then
+        echo_warning "Some uhttpd processes may still be running"
+    else
+        echo_info "All uhttpd processes stopped"
+    fi
+}
+
+restart() {
+    stop
+    sleep 1
+    start
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart|reload)
+        restart
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+        ;;
+esac
+
+exit $?

@@ -1,0 +1,221 @@
+#!/bin/sh
+
+# uhttpd watchdog - monitors uhttpd for hangs and automatically restarts
+# Specifically designed to detect SSL/TLS handshake hangs
+
+DAEMON="uhttpd"
+PIDFILE="/var/run/uhttpd-lua.pid"
+WATCHDOG_INTERVAL=30
+HANG_TIMEOUT=60
+MAX_RESTARTS=5
+RESTART_WINDOW=300  # 5 minutes
+LOG_FILE="/tmp/uhttpd-watchdog.log"
+
+# Counters
+RESTART_COUNT=0
+RESTART_TIMES=""
+
+# Logging function
+log_message() {
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] $1" | tee -a "$LOG_FILE"
+}
+
+# Check if uhttpd is responsive
+check_uhttpd_responsive() {
+    local timeout=10
+
+    # Try to connect to HTTP port first (should redirect to HTTPS)
+    if timeout "$timeout" wget --quiet --spider "http://127.0.0.1:80/" 2>/dev/null; then
+        return 0  # Responsive
+    fi
+
+    # If HTTP fails, try raw TCP connection to HTTPS port
+    if echo "GET / HTTP/1.0" | timeout "$timeout" nc 127.0.0.1 443 >/dev/null 2>&1; then
+        return 0  # Responsive
+    fi
+
+    return 1  # Not responsive
+}
+
+# Check if uhttpd process exists but is hanging
+check_uhttpd_hanging() {
+    if [ ! -f "$PIDFILE" ]; then
+        return 1  # No PID file, not running
+    fi
+    
+    local pid=$(cat "$PIDFILE" 2>/dev/null)
+    if [ -z "$pid" ] || ! kill -0 "$pid" 2>/dev/null; then
+        return 1  # Process not running
+    fi
+    
+    # Process exists, check if it's responsive
+    if ! check_uhttpd_responsive; then
+        log_message "uhttpd process $pid exists but not responsive"
+        
+        # Check if process is stuck in SSL operations
+        local proc_stat="/proc/$pid/stat"
+        if [ -f "$proc_stat" ]; then
+            local state=$(awk '{print $3}' "$proc_stat" 2>/dev/null)
+            log_message "Process state: $state"
+            
+            # Check process stack trace if available
+            local proc_stack="/proc/$pid/stack"
+            if [ -f "$proc_stack" ]; then
+                log_message "Process stack trace:"
+                cat "$proc_stack" 2>/dev/null | head -10 | while read line; do
+                    log_message "  $line"
+                done
+            fi
+        fi
+        
+        return 0  # Hanging
+    fi
+    
+    return 1  # Not hanging
+}
+
+# Clean up old restart times outside the window
+cleanup_restart_times() {
+    local current_time=$(date +%s)
+    local cutoff_time=$((current_time - RESTART_WINDOW))
+    local new_times=""
+    
+    for restart_time in $RESTART_TIMES; do
+        if [ "$restart_time" -gt "$cutoff_time" ]; then
+            new_times="$new_times $restart_time"
+        fi
+    done
+    
+    RESTART_TIMES="$new_times"
+    RESTART_COUNT=$(echo $RESTART_TIMES | wc -w)
+}
+
+# Force restart uhttpd
+force_restart_uhttpd() {
+    log_message "Force restarting uhttpd due to hang detection"
+    
+    # Record restart time
+    local current_time=$(date +%s)
+    RESTART_TIMES="$RESTART_TIMES $current_time"
+    cleanup_restart_times
+    
+    if [ "$RESTART_COUNT" -ge "$MAX_RESTARTS" ]; then
+        log_message "ERROR: Maximum restart limit ($MAX_RESTARTS) reached in $RESTART_WINDOW seconds"
+        log_message "Disabling watchdog to prevent restart loop"
+        exit 1
+    fi
+    
+    # Kill uhttpd processes
+    log_message "Killing uhttpd processes..."
+    pkill -9 uhttpd 2>/dev/null
+    sleep 2
+    
+    # Clean up PID files
+    rm -f "$PIDFILE"
+    
+    # Start uhttpd service
+    log_message "Starting uhttpd service..."
+    /etc/init.d/S60uhttpd-lua start
+    
+    # Wait and verify
+    sleep 5
+    if pgrep uhttpd >/dev/null 2>&1; then
+        log_message "uhttpd restarted successfully"
+        return 0
+    else
+        log_message "ERROR: Failed to restart uhttpd"
+        return 1
+    fi
+}
+
+# Main watchdog loop
+watchdog_loop() {
+    log_message "Starting uhttpd watchdog (PID: $$)"
+    log_message "Check interval: ${WATCHDOG_INTERVAL}s, Hang timeout: ${HANG_TIMEOUT}s"
+    
+    local hang_start_time=0
+    
+    while true; do
+        if check_uhttpd_hanging; then
+            local current_time=$(date +%s)
+            
+            if [ "$hang_start_time" -eq 0 ]; then
+                hang_start_time="$current_time"
+                log_message "Detected uhttpd hang, starting timeout timer"
+            else
+                local hang_duration=$((current_time - hang_start_time))
+                log_message "uhttpd still hanging (${hang_duration}s)"
+                
+                if [ "$hang_duration" -ge "$HANG_TIMEOUT" ]; then
+                    log_message "Hang timeout reached, forcing restart"
+                    force_restart_uhttpd
+                    hang_start_time=0
+                fi
+            fi
+        else
+            if [ "$hang_start_time" -ne 0 ]; then
+                log_message "uhttpd recovered from hang"
+                hang_start_time=0
+            fi
+        fi
+        
+        sleep "$WATCHDOG_INTERVAL"
+    done
+}
+
+# Signal handlers
+cleanup_and_exit() {
+    log_message "Watchdog received signal, exiting"
+    exit 0
+}
+
+trap cleanup_and_exit INT TERM
+
+# Main execution
+case "$1" in
+    start)
+        if pgrep -f "uhttpd-watchdog" >/dev/null 2>&1; then
+            echo "uhttpd watchdog already running"
+            exit 1
+        fi
+        
+        # Start watchdog in background
+        watchdog_loop &
+        echo $! > /var/run/uhttpd-watchdog.pid
+        echo "uhttpd watchdog started"
+        ;;
+    stop)
+        if [ -f /var/run/uhttpd-watchdog.pid ]; then
+            kill $(cat /var/run/uhttpd-watchdog.pid) 2>/dev/null
+            rm -f /var/run/uhttpd-watchdog.pid
+        fi
+        pkill -f "uhttpd-watchdog" 2>/dev/null
+        echo "uhttpd watchdog stopped"
+        ;;
+    status)
+        if pgrep -f "uhttpd-watchdog" >/dev/null 2>&1; then
+            echo "uhttpd watchdog is running"
+            if [ -f "$LOG_FILE" ]; then
+                echo "Recent log entries:"
+                tail -5 "$LOG_FILE"
+            fi
+        else
+            echo "uhttpd watchdog is not running"
+        fi
+        ;;
+    test)
+        echo "Testing uhttpd responsiveness..."
+        if check_uhttpd_responsive; then
+            echo "uhttpd is responsive"
+        else
+            echo "uhttpd is not responsive"
+        fi
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|status|test}"
+        exit 1
+        ;;
+esac
+
+exit 0

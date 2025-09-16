@@ -1,0 +1,317 @@
+{{include:header}}
+
+<div class="row mb-4">
+  <div class="col">
+    <h1 class="h3 mb-0"><i class="bi bi-cpu me-2"></i><span data-i18n="config.system.title">System Overview</span></h1>
+    <p class="text-muted" data-i18n="config.system.subtitle">System status and information. Use the Configuration menu above to access specific settings.</p>
+  </div>
+</div>
+
+<!-- System Information -->
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">
+        <h5 class="card-title mb-0"><i class="bi bi-info-circle me-2"></i><span data-i18n="system.information">System Information</span></h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="d-flex justify-content-between">
+              <span class="text-muted" data-i18n="system.hostname">Hostname:</span>
+              <span>{{hostname}}</span>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="d-flex justify-content-between">
+              <span class="text-muted" data-i18n="system.firmware">Firmware:</span>
+              <span>{{firmware_version}}</span>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="d-flex justify-content-between">
+              <span class="text-muted" data-i18n="system.build">Build:</span>
+              <span>{{firmware_build}}</span>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="d-flex justify-content-between">
+              <span class="text-muted" data-i18n="system.profile">Profile:</span>
+              <span>{{firmware_profile}}</span>
+            </div>
+          </div>
+          <div class="col-12">
+            <hr class="my-2">
+            <div class="d-grid">
+              <a href="/lua/info/system" class="btn btn-outline-info btn-sm">
+                <i class="bi bi-info-circle me-1"></i><span data-i18n="system.view_detailed_info">View Detailed System Info</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">
+        <h5 class="card-title mb-0"><i class="bi bi-gear me-2"></i><span data-i18n="config.system.configuration_access">Configuration Access</span></h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3" data-i18n="config.system.access_help">Access configuration areas from the <strong>Configuration</strong> menu in the navigation bar above.</p>
+        <div class="row g-2">
+          <div class="col-md-6">
+            <a href="/lua/config/datetime" class="btn btn-outline-primary btn-sm w-100 mb-2">
+              <i class="bi bi-clock me-1"></i><span data-i18n="config.datetime.title">Date & Time</span>
+            </a>
+          </div>
+          <div class="col-md-6">
+            <a href="/lua/config/security" class="btn btn-outline-primary btn-sm w-100 mb-2">
+              <i class="bi bi-shield-check me-1"></i><span data-i18n="config.security.title">Security & SSL</span>
+            </a>
+          </div>
+          <div class="col-md-6">
+            <a href="/lua/config/user" class="btn btn-outline-primary btn-sm w-100 mb-2">
+              <i class="bi bi-person-lock me-1"></i><span data-i18n="config.user.title">User Management</span>
+            </a>
+          </div>
+          <div class="col-md-6">
+            <a href="/lua/config/maintenance" class="btn btn-outline-primary btn-sm w-100 mb-2">
+              <i class="bi bi-tools me-1"></i><span data-i18n="system.maintenance">Maintenance</span>
+            </a>
+          </div>
+        </div>
+        <div class="mt-3">
+          <small class="text-muted">
+            <i class="bi bi-info-circle me-1"></i>
+            <span data-i18n="system.navigation_help">All configuration options are now organized in the top navigation menu for easier access.</span>
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Language Settings -->
+<div class="row g-4 mt-2">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">
+        <h6 class="card-title mb-0"><i class="bi bi-translate me-2"></i><span data-i18n="system.language_settings">Language Settings</span></h6>
+      </div>
+      <div class="card-body">
+        <form id="languageForm">
+          <div class="mb-3">
+            <label for="languageSelect" class="form-label" data-i18n="system.select_language">Select Language</label>
+            <div class="input-group">
+              <select class="form-select" id="languageSelect" name="language">
+                <!-- Options populated dynamically by JavaScript -->
+              </select>
+              <button type="button" class="btn btn-outline-secondary" id="refreshLanguagesBtn" title="Refresh available languages from GitHub">
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+            </div>
+            <div class="form-text" data-i18n="system.language_help">Changes require a page reload to take effect. Language packs are downloaded from GitHub when needed.</div>
+          </div>
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary" id="saveLanguageBtn">
+              <i class="bi bi-download me-1"></i><span data-i18n="system.save_language">Save & Download Language Pack</span>
+            </button>
+          </div>
+        </form>
+        <div id="languageStatus" class="mt-3" style="display: none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">
+        <h6 class="card-title mb-0"><i class="bi bi-info-circle me-2"></i><span data-i18n="system.language_info">Language Information</span></h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-2">
+          <span class="text-muted" data-i18n="system.current_language">Current Language:</span>
+          <span class="fw-bold" id="currentLanguageDisplay">English</span>
+        </div>
+        <div class="mb-2">
+          <span class="text-muted" data-i18n="system.storage_location">Storage Location:</span>
+          <code>/opt/webui/lang.json</code>
+        </div>
+        <div class="mb-3">
+          <span class="text-muted" data-i18n="system.source">Source:</span>
+          <span>GitHub Repository</span>
+        </div>
+        <div class="alert alert-info" role="alert">
+          <i class="bi bi-info-circle me-1"></i>
+          <small data-i18n="system.language_note">Language changes are applied system-wide and persist across reboots. A page reload is required to see changes.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const languageForm = document.getElementById('languageForm');
+    const languageSelect = document.getElementById('languageSelect');
+    const saveLanguageBtn = document.getElementById('saveLanguageBtn');
+    const refreshLanguagesBtn = document.getElementById('refreshLanguagesBtn');
+    const languageStatus = document.getElementById('languageStatus');
+    const currentLanguageDisplay = document.getElementById('currentLanguageDisplay');
+
+    // Update language selector options
+    function updateLanguageOptions(languages, names, currentLang) {
+        // Clear existing options
+        languageSelect.innerHTML = '';
+
+        // Add options for each available language
+        languages.forEach(lang => {
+            const option = document.createElement('option');
+            option.value = lang;
+            option.textContent = names[lang] || lang.toUpperCase();
+            if (lang === currentLang) {
+                option.selected = true;
+            }
+            languageSelect.appendChild(option);
+        });
+    }
+
+    // Load current language info
+    async function loadLanguageInfo() {
+        try {
+            const response = await fetch('/lua/api/language/list');
+            const data = await response.json();
+
+            if (data.success) {
+                // Update language selector options
+                updateLanguageOptions(data.available || ['en'], data.names || {en: 'English'}, data.current || 'en');
+
+                // Update display
+                const languageName = data.names[data.current] || data.current;
+                currentLanguageDisplay.textContent = languageName;
+            } else {
+                // Fallback if API fails
+                console.warn('Language API failed, using fallback');
+                loadFallbackLanguages();
+            }
+        } catch (error) {
+            console.error('Failed to load language info:', error);
+            // Fallback if API fails
+            loadFallbackLanguages();
+        }
+    }
+
+    // Fallback language loading
+    function loadFallbackLanguages() {
+        const fallbackLanguages = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh', 'ja', 'ko'];
+        const fallbackNames = {
+            en: 'English',
+            es: 'Español',
+            fr: 'Français',
+            de: 'Deutsch',
+            it: 'Italiano',
+            pt: 'Português',
+            ru: 'Русский',
+            zh: '中文',
+            ja: '日本語',
+            ko: '한국어'
+        };
+        updateLanguageOptions(fallbackLanguages, fallbackNames, 'en');
+        currentLanguageDisplay.textContent = 'English';
+    }
+
+    // Refresh available languages from GitHub
+    async function refreshAvailableLanguages() {
+        refreshLanguagesBtn.disabled = true;
+        refreshLanguagesBtn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+
+        try {
+            const response = await fetch('/lua/api/language/refresh-available');
+            const data = await response.json();
+
+            if (data.success) {
+                // Update language selector with new options
+                const currentLang = languageSelect.value;
+                updateLanguageOptions(data.available, data.names, currentLang);
+
+                // Show success message
+                languageStatus.className = 'mt-3 alert alert-success';
+                languageStatus.innerHTML = `<i class="bi bi-check-circle me-1"></i>${data.message}`;
+                languageStatus.style.display = 'block';
+
+                // Hide message after 3 seconds
+                setTimeout(() => {
+                    languageStatus.style.display = 'none';
+                }, 3000);
+            } else {
+                languageStatus.className = 'mt-3 alert alert-warning';
+                languageStatus.innerHTML = `<i class="bi bi-exclamation-triangle me-1"></i>${data.error || 'Failed to refresh language list'}`;
+                languageStatus.style.display = 'block';
+            }
+        } catch (error) {
+            languageStatus.className = 'mt-3 alert alert-danger';
+            languageStatus.innerHTML = `<i class="bi bi-exclamation-triangle me-1"></i>Network error: ${error.message}`;
+            languageStatus.style.display = 'block';
+        } finally {
+            refreshLanguagesBtn.disabled = false;
+            refreshLanguagesBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
+        }
+    }
+
+    // Handle form submission
+    languageForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const selectedLang = languageSelect.value;
+        saveLanguageBtn.disabled = true;
+        saveLanguageBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Downloading...';
+
+        try {
+            const response = await fetch('/lua/api/language/set', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `lang=${encodeURIComponent(selectedLang)}`
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                languageStatus.className = 'mt-3 alert alert-success';
+                languageStatus.innerHTML = `
+                    <i class="bi bi-check-circle me-1"></i>
+                    ${data.message || 'Language changed successfully!'}
+                    <div class="mt-2">
+                        <button class="btn btn-success btn-sm" onclick="window.location.reload()">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Reload Page
+                        </button>
+                    </div>
+                `;
+                languageStatus.style.display = 'block';
+            } else {
+                languageStatus.className = 'mt-3 alert alert-danger';
+                languageStatus.innerHTML = `<i class="bi bi-exclamation-triangle me-1"></i>${data.error || 'Failed to change language'}`;
+                languageStatus.style.display = 'block';
+            }
+        } catch (error) {
+            languageStatus.className = 'mt-3 alert alert-danger';
+            languageStatus.innerHTML = `<i class="bi bi-exclamation-triangle me-1"></i>Network error: ${error.message}`;
+            languageStatus.style.display = 'block';
+        } finally {
+            saveLanguageBtn.disabled = false;
+            saveLanguageBtn.innerHTML = '<i class="bi bi-download me-1"></i>Save & Download Language Pack';
+        }
+    });
+
+    // Handle refresh button click
+    refreshLanguagesBtn.addEventListener('click', refreshAvailableLanguages);
+
+    // Load initial language info
+    loadLanguageInfo();
+});
+</script>
+
+{{include:footer}}

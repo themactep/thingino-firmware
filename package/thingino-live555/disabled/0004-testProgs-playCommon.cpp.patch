@@ -1,0 +1,13 @@
+
+--- a/testProgs/playCommon.cpp	2024-08-17 20:23:13.962883551 -0400
++++ b/testProgs/playCommon.cpp	2024-08-17 20:24:38.487927302 -0400
+@@ -25,7 +25,7 @@
+ #include "BasicUsageEnvironment.hh"
+ #include "GroupsockHelper.hh"
+ #include "MatroskaFileSink.hh"
+-
++#include <ctime>
+ 
+ #if defined(__WIN32__) || defined(_WIN32)
+ #define snprintf _snprintf
+

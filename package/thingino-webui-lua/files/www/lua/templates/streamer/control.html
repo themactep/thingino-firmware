@@ -1,0 +1,237 @@
+{{include:header}}
+
+<div class="row mb-4">
+  <div class="col">
+    <h1 class="h3 mb-0"><i class="bi bi-joystick me-2"></i>Camera Control</h1>
+    <p class="text-muted">Pan/tilt controls, presets, and camera positioning</p>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-10">
+    <div class="row">
+      <!-- Pan/Tilt Controls -->
+      <div class="col-md-6 mb-4">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-arrows-move me-2"></i>Pan/Tilt Control</h5>
+          </div>
+          <div class="card-body text-center">
+            <div class="ptz-control-grid mb-3">
+              <div class="row g-2">
+                <div class="col-4"></div>
+                <div class="col-4">
+                  <button type="button" class="btn btn-outline-primary w-100 ptz-btn" data-direction="up">
+                    <i class="bi bi-arrow-up"></i>
+                  </button>
+                </div>
+                <div class="col-4"></div>
+              </div>
+              <div class="row g-2">
+                <div class="col-4">
+                  <button type="button" class="btn btn-outline-primary w-100 ptz-btn" data-direction="left">
+                    <i class="bi bi-arrow-left"></i>
+                  </button>
+                </div>
+                <div class="col-4">
+                  <button type="button" class="btn btn-secondary w-100 ptz-btn" data-direction="home">
+                    <i class="bi bi-house"></i>
+                  </button>
+                </div>
+                <div class="col-4">
+                  <button type="button" class="btn btn-outline-primary w-100 ptz-btn" data-direction="right">
+                    <i class="bi bi-arrow-right"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="row g-2">
+                <div class="col-4"></div>
+                <div class="col-4">
+                  <button type="button" class="btn btn-outline-primary w-100 ptz-btn" data-direction="down">
+                    <i class="bi bi-arrow-down"></i>
+                  </button>
+                </div>
+                <div class="col-4"></div>
+              </div>
+            </div>
+            
+            <div class="row mb-3">
+              <div class="col-6">
+                <label for="pan_speed" class="form-label">Pan Speed</label>
+                <input type="range" id="pan_speed" class="form-range" min="1" max="10" value="5">
+              </div>
+              <div class="col-6">
+                <label for="tilt_speed" class="form-label">Tilt Speed</label>
+                <input type="range" id="tilt_speed" class="form-range" min="1" max="10" value="5">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Position Presets -->
+      <div class="col-md-6 mb-4">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-bookmark me-2"></i>Position Presets</h5>
+          </div>
+          <div class="card-body">
+            <div class="preset-grid mb-3">
+              <div class="row g-2">
+                <div class="col-4">
+                  <button type="button" class="btn btn-outline-secondary w-100 preset-btn" data-preset="1">1</button>
+                </div>
+                <div class="col-4">
+                  <button type="button" class="btn btn-outline-secondary w-100 preset-btn" data-preset="2">2</button>
+                </div>
+                <div class="col-4">
+                  <button type="button" class="btn btn-outline-secondary w-100 preset-btn" data-preset="3">3</button>
+                </div>
+              </div>
+              <div class="row g-2">
+                <div class="col-4">
+                  <button type="button" class="btn btn-outline-secondary w-100 preset-btn" data-preset="4">4</button>
+                </div>
+                <div class="col-4">
+                  <button type="button" class="btn btn-outline-secondary w-100 preset-btn" data-preset="5">5</button>
+                </div>
+                <div class="col-4">
+                  <button type="button" class="btn btn-outline-secondary w-100 preset-btn" data-preset="6">6</button>
+                </div>
+              </div>
+              <div class="row g-2">
+                <div class="col-4">
+                  <button type="button" class="btn btn-outline-secondary w-100 preset-btn" data-preset="7">7</button>
+                </div>
+                <div class="col-4">
+                  <button type="button" class="btn btn-outline-secondary w-100 preset-btn" data-preset="8">8</button>
+                </div>
+                <div class="col-4">
+                  <button type="button" class="btn btn-outline-secondary w-100 preset-btn" data-preset="9">9</button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+              <button type="button" class="btn btn-primary btn-sm" id="save-preset">
+                <i class="bi bi-plus me-1"></i>Save Current Position
+              </button>
+              <button type="button" class="btn btn-outline-warning btn-sm" id="clear-presets">
+                <i class="bi bi-trash me-1"></i>Clear All Presets
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Camera Settings -->
+    <div class="row">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-camera me-2"></i>Camera Settings</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <!-- Night Vision Controls -->
+              <div class="col-md-6 mb-3">
+                <h6 class="text-primary mb-3"><i class="bi bi-moon me-2"></i>Night Vision</h6>
+                <div class="row g-2">
+                  <div class="col-6">
+                    <button type="button" class="btn btn-outline-secondary w-100 night-vision-btn" data-type="ir850">
+                      <i class="bi bi-lightbulb me-1"></i>IR 850nm
+                    </button>
+                  </div>
+                  <div class="col-6">
+                    <button type="button" class="btn btn-outline-secondary w-100 night-vision-btn" data-type="ir940">
+                      <i class="bi bi-lightbulb me-1"></i>IR 940nm
+                    </button>
+                  </div>
+                  <div class="col-6">
+                    <button type="button" class="btn btn-outline-secondary w-100 night-vision-btn" data-type="white">
+                      <i class="bi bi-sun me-1"></i>White Light
+                    </button>
+                  </div>
+                  <div class="col-6">
+                    <button type="button" class="btn btn-outline-secondary w-100 night-vision-btn" data-type="auto">
+                      <i class="bi bi-magic me-1"></i>Auto
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Camera Mode -->
+              <div class="col-md-6 mb-3">
+                <h6 class="text-primary mb-3"><i class="bi bi-palette me-2"></i>Camera Mode</h6>
+                <div class="row g-2">
+                  <div class="col-6">
+                    <button type="button" class="btn btn-outline-secondary w-100 camera-mode-btn active" data-mode="color">
+                      <i class="bi bi-palette me-1"></i>Color
+                    </button>
+                  </div>
+                  <div class="col-6">
+                    <button type="button" class="btn btn-outline-secondary w-100 camera-mode-btn" data-mode="bw">
+                      <i class="bi bi-circle-half me-1"></i>B&W
+                    </button>
+                  </div>
+                  <div class="col-12">
+                    <div class="form-check">
+                      <input type="checkbox" id="ir_cut_filter" class="form-check-input">
+                      <label for="ir_cut_filter" class="form-check-label">IR Cut Filter</label>
+                      <div class="form-text">Remove infrared light for better color accuracy</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// PTZ Control handlers
+document.querySelectorAll('.ptz-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const direction = this.dataset.direction;
+        // Add PTZ control logic here
+        console.log('PTZ move:', direction);
+    });
+});
+
+// Preset handlers
+document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const preset = this.dataset.preset;
+        // Add preset logic here
+        console.log('Go to preset:', preset);
+    });
+});
+
+// Night vision handlers
+document.querySelectorAll('.night-vision-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.night-vision-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const type = this.dataset.type;
+        // Add night vision logic here
+        console.log('Night vision:', type);
+    });
+});
+
+// Camera mode handlers
+document.querySelectorAll('.camera-mode-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.camera-mode-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const mode = this.dataset.mode;
+        // Add camera mode logic here
+        console.log('Camera mode:', mode);
+    });
+});
+</script>
+
+{{include:footer}}

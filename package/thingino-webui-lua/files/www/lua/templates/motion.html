@@ -1,0 +1,724 @@
+{{include:header}}
+
+<div class="row mb-3">
+  <h1 class="h3 mb-0"><i class="bi bi-activity me-2"></i><span data-i18n="motion.title">Motion Detection</span></h1>
+  <p class="text-muted mb-0" data-i18n="motion.subtitle">Motion detection control and configuration</p>
+</div>
+
+<div class="row mb-4">
+  <!-- Left Column - Zone Drawing -->
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0"><i class="bi bi-bounding-box me-2"></i><span data-i18n="motion.zone_configuration">Zone Configuration</span></h5>
+          <button class="btn btn-outline-primary btn-sm" onclick="loadSnapshot()" data-i18n-title="motion.load_new_snapshot">
+            <i class="bi bi-camera me-1"></i><span data-i18n="motion.refresh_image">Refresh Image</span>
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- Drawing Controls -->
+        <div class="mb-3">
+          <div class="btn-group" role="group">
+            <input type="radio" class="btn-check" name="drawingMode" id="modeInclude" value="include" checked>
+            <label class="btn btn-outline-success" for="modeInclude"><i class="bi bi-plus-circle me-1"></i><span data-i18n="motion.include_zone">Include Zone</span></label>
+            <input type="radio" class="btn-check" name="drawingMode" id="modeExclude" value="exclude">
+            <label class="btn btn-outline-danger" for="modeExclude"><i class="bi bi-dash-circle me-1"></i><span data-i18n="motion.exclude_zone">Exclude Zone</span></label>
+          </div>
+          <div class="btn-group ms-3" role="group">
+            <button class="btn btn-outline-warning" onclick="clearAllZones()"><i class="bi bi-trash me-1"></i><span data-i18n="motion.clear_all">Clear All</span></button>
+            <button class="btn btn-outline-info" onclick="undoLastZone()"><i class="bi bi-arrow-counterclockwise me-1"></i><span data-i18n="motion.undo">Undo</span></button>
+          </div>
+        </div>
+        <!-- Canvas Container -->
+        <div class="motion-canvas-container" id="canvasContainer">
+          <canvas id="motionCanvas" class="motion-canvas"></canvas>
+          <svg class="zone-overlay" id="zoneOverlay">
+            <!-- Zones will be drawn here -->
+          </svg>
+        </div>
+        <!-- Instructions -->
+        <div class="mt-3">
+          <small class="text-muted">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong data-i18n="motion.instructions">Instructions:</strong> <span data-i18n="motion.instructions_text">Click and drag to draw rectangular zones.</span>
+            <span class="text-success" data-i18n="motion.include_zones_help">Include zones</span> <span data-i18n="motion.will_be_monitored">will be monitored for motion,</span>
+            <span class="text-danger" data-i18n="motion.exclude_zones_help">exclude zones</span> <span data-i18n="motion.will_be_ignored">will be ignored.</span>
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Right Column - Zone Management -->
+  <div class="col-lg-4">
+    <div class="row g-3">
+      <!-- Motion Settings -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-gear me-2"></i><span data-i18n="motion.settings">Motion Settings</span></h5>
+          </div>
+          <div class="card-body">
+            <div class="mb-3">
+              <label class="form-label" data-i18n="motion.sensitivity">Sensitivity</label>
+              <input type="range" class="form-range" id="sensitivity" min="1" max="100" value="50">
+              <div class="d-flex justify-content-between">
+                <small class="text-muted" data-i18n="motion.low">Low</small>
+                <small class="text-muted" data-i18n="motion.high">High</small>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" data-i18n="motion.min_object_size">Minimum Object Size (%)</label>
+              <input type="number" class="form-control" id="minObjectSize" min="1" max="50" value="5">
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="enableMotion" checked>
+              <label class="form-check-label" for="enableMotion" data-i18n="motion.enable_detection">Enable Motion Detection</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Zone List -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+              <h5 class="card-title mb-0">
+                <i class="bi bi-list me-2"></i><span data-i18n="motion.defined_zones">Defined Zones</span> (<span id="zoneCount">0</span>)
+              </h5>
+              <button class="btn btn-success btn-sm" onclick="saveConfiguration()" data-i18n-title="motion.save_configuration">
+                <i class="bi bi-check-lg me-1"></i><span data-i18n="motion.save">Save</span>
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="zoneList">
+              <div class="text-muted text-center py-3">
+                <i class="bi bi-bounding-box fs-1 mb-2"></i>
+                <p data-i18n="motion.no_zones_defined">No zones defined yet</p>
+                <small data-i18n="motion.draw_zones_to_start">Draw zones on the image to get started</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    let zones = [];
+    let isDrawing = false;
+    let startX, startY;
+    let currentZone = null;
+    let zoneIdCounter = 1;
+    let cameraResolution = { width: 1920, height: 1080 }; // Default, will be updated
+
+    // Track unsaved changes
+    let hasUnsavedChanges = false;
+    let originalConfigHash = null;
+
+    const canvas = document.getElementById('motionCanvas');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('zoneOverlay');
+
+    // Unsaved changes tracking functions
+    function generateConfigHash() {
+        const config = {
+            zones: zones,
+            settings: {
+                enabled: document.getElementById('enableMotion').checked,
+                sensitivity: document.getElementById('sensitivity').value,
+                minObjectSize: document.getElementById('minObjectSize').value
+            }
+        };
+        return JSON.stringify(config);
+    }
+
+    function markAsChanged() {
+        const currentHash = generateConfigHash();
+        hasUnsavedChanges = (currentHash !== originalConfigHash);
+        updateSaveButtonState();
+    }
+
+    function markAsSaved() {
+        originalConfigHash = generateConfigHash();
+        hasUnsavedChanges = false;
+        updateSaveButtonState();
+    }
+
+    function updateSaveButtonState() {
+        const saveButton = document.querySelector('button[onclick="saveConfiguration()"]');
+        if (saveButton) {
+            if (hasUnsavedChanges) {
+                saveButton.classList.remove('btn-success');
+                saveButton.classList.add('btn-warning');
+                saveButton.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Save*';
+                saveButton.title = 'You have unsaved changes';
+            } else {
+                saveButton.classList.remove('btn-warning');
+                saveButton.classList.add('btn-success');
+                saveButton.innerHTML = '<i class="bi bi-check-lg me-1"></i>Save';
+                saveButton.title = 'Save Configuration';
+            }
+        }
+    }
+
+    // Page leave warning
+    function setupPageLeaveWarning() {
+        window.addEventListener('beforeunload', function(e) {
+            if (hasUnsavedChanges) {
+                const message = 'You have unsaved changes to your motion detection zones. Are you sure you want to leave?';
+                e.preventDefault();
+                e.returnValue = message;
+                return message;
+            }
+        });
+
+        // Also handle navigation within the site
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('a[href]');
+            if (link && hasUnsavedChanges) {
+                const href = link.getAttribute('href');
+                // Only warn for navigation links, not external links or anchors
+                if (href && !href.startsWith('#') && !href.startsWith('mailto:') && !href.startsWith('tel:')) {
+                    if (!confirm(window.i18n?.t('js.confirm.unsaved_changes') || 'You have unsaved changes to your motion detection zones. Are you sure you want to leave this page?')) {
+                        e.preventDefault();
+                        return false;
+                    }
+                }
+            }
+        });
+    }
+
+    // Coordinate transformation functions
+    function canvasToSensor(canvasCoord) {
+        return {
+            x: Math.round((canvasCoord.x / canvas.width) * cameraResolution.width),
+            y: Math.round((canvasCoord.y / canvas.height) * cameraResolution.height),
+            width: Math.round((canvasCoord.width / canvas.width) * cameraResolution.width),
+            height: Math.round((canvasCoord.height / canvas.height) * cameraResolution.height)
+        };
+    }
+
+    function sensorToCanvas(sensorCoord) {
+        return {
+            x: Math.round((sensorCoord.x / cameraResolution.width) * canvas.width),
+            y: Math.round((sensorCoord.y / cameraResolution.height) * canvas.height),
+            width: Math.round((sensorCoord.width / cameraResolution.width) * canvas.width),
+            height: Math.round((sensorCoord.height / cameraResolution.height) * canvas.height)
+        };
+    }
+
+    // Load camera resolution
+    function loadCameraResolution() {
+        return fetch('/lua/api/camera/resolution')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.resolution) {
+                    cameraResolution = data.resolution;
+                    console.log('Camera resolution loaded:', cameraResolution);
+                } else {
+                    console.warn('Failed to load camera resolution, using default');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading camera resolution:', error);
+            });
+    }
+
+    // Set up responsive canvas
+    function setupCanvas() {
+        const container = document.getElementById('canvasContainer');
+        const rect = container.getBoundingClientRect();
+
+        // Set canvas size to match container
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+
+        // Update overlay size
+        overlay.setAttribute('viewBox', `0 0 ${canvas.width} ${canvas.height}`);
+    }
+
+    // Initialize with a sample snapshot
+    function initializeCanvas() {
+        setupCanvas();
+        refreshCanvasImage();
+    }
+
+    function drawGridPattern() {
+        ctx.fillStyle = '#2c3e50';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = '#34495e';
+        ctx.lineWidth = 1;
+
+        // Draw grid
+        for (let x = 0; x <= canvas.width; x += 40) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+        }
+
+        for (let y = 0; y <= canvas.height; y += 30) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+        }
+
+        // Add text
+        ctx.fillStyle = '#7f8c8d';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Camera Snapshot Area', canvas.width / 2, canvas.height / 2);
+        ctx.fillText('Draw motion detection zones here', canvas.width / 2, canvas.height / 2 + 25);
+    }
+
+    // Mouse event handlers for zone drawing
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', drawZone);
+    canvas.addEventListener('mouseup', endDrawing);
+
+    function startDrawing(e) {
+        const rect = canvas.getBoundingClientRect();
+        startX = e.clientX - rect.left;
+        startY = e.clientY - rect.top;
+        isDrawing = true;
+
+        // Clear any preview zone
+        clearPreviewZone();
+    }
+
+    function drawZone(e) {
+        if (!isDrawing) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+
+        // Clear previous preview
+        clearPreviewZone();
+
+        // Draw preview zone
+        const width = currentX - startX;
+        const height = currentY - startY;
+
+        if (Math.abs(width) > 5 && Math.abs(height) > 5) {
+            drawPreviewZone(startX, startY, width, height);
+        }
+    }
+
+    function endDrawing(e) {
+        if (!isDrawing) return;
+        isDrawing = false;
+
+        const rect = canvas.getBoundingClientRect();
+        const endX = e.clientX - rect.left;
+        const endY = e.clientY - rect.top;
+
+        const width = endX - startX;
+        const height = endY - startY;
+
+        // Only create zone if it's large enough (minimum 10 pixels)
+        if (Math.abs(width) > 10 && Math.abs(height) > 10) {
+            const mode = document.querySelector('input[name="drawingMode"]:checked').value;
+            createZone(startX, startY, width, height, mode);
+        }
+
+        clearPreviewZone();
+    }
+
+    function createZone(x, y, width, height, type) {
+        // Normalize coordinates (handle negative width/height)
+        const normalizedX = width < 0 ? x + width : x;
+        const normalizedY = height < 0 ? y + height : y;
+        const normalizedWidth = Math.abs(width);
+        const normalizedHeight = Math.abs(height);
+
+        // Convert canvas coordinates to sensor coordinates
+        const canvasCoord = {
+            x: normalizedX,
+            y: normalizedY,
+            width: normalizedWidth,
+            height: normalizedHeight
+        };
+        const sensorCoord = canvasToSensor(canvasCoord);
+
+        const zone = {
+            id: zoneIdCounter++,
+            type: type,
+            x: sensorCoord.x,
+            y: sensorCoord.y,
+            width: sensorCoord.width,
+            height: sensorCoord.height,
+            name: `${type.charAt(0).toUpperCase() + type.slice(1)} Zone ${zones.filter(z => z.type === type).length + 1}`
+        };
+
+        zones.push(zone);
+        updateZoneDisplay();
+        updateZoneList();
+        markAsChanged();
+    }
+
+    function drawPreviewZone(x, y, width, height) {
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', width < 0 ? x + width : x);
+        rect.setAttribute('y', height < 0 ? y + height : y);
+        rect.setAttribute('width', Math.abs(width));
+        rect.setAttribute('height', Math.abs(height));
+        rect.setAttribute('class', 'zone-preview');
+        rect.setAttribute('id', 'preview-zone');
+
+        overlay.appendChild(rect);
+    }
+
+    function clearPreviewZone() {
+        const preview = document.getElementById('preview-zone');
+        if (preview) {
+            preview.remove();
+        }
+    }
+
+    function updateZoneDisplay() {
+        // Clear existing zones from overlay
+        const existingZones = overlay.querySelectorAll('rect:not(#preview-zone)');
+        existingZones.forEach(zone => zone.remove());
+
+        // Draw all zones (convert sensor coordinates to canvas coordinates)
+        zones.forEach(zone => {
+            const canvasCoord = sensorToCanvas(zone);
+
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', canvasCoord.x);
+            rect.setAttribute('y', canvasCoord.y);
+            rect.setAttribute('width', canvasCoord.width);
+            rect.setAttribute('height', canvasCoord.height);
+            rect.setAttribute('class', `zone-${zone.type}`);
+            rect.setAttribute('data-zone-id', zone.id);
+
+            overlay.appendChild(rect);
+        });
+    }
+
+    function updateZoneList() {
+        const zoneList = document.getElementById('zoneList');
+        const zoneCount = document.getElementById('zoneCount');
+
+        zoneCount.textContent = zones.length;
+
+        if (zones.length === 0) {
+            zoneList.innerHTML = `
+                <div class="text-muted text-center py-3">
+                    <i class="bi bi-bounding-box fs-1 mb-2"></i>
+                    <p>${window.i18n?.t('motion.no_zones_defined') || 'No zones defined yet'}</p>
+                    <small>${window.i18n?.t('motion.draw_zones_to_start') || 'Draw zones on the image to get started'}</small>
+                </div>
+            `;
+            return;
+        }
+
+        zoneList.innerHTML = zones.map(zone => `
+            <div class="zone-list-item zone-${zone.type}" data-zone-id="${zone.id}">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="flex-grow-1 me-2">
+                        <input type="text" class="form-control form-control-sm"
+                               value="${zone.name}"
+                               onchange="updateZoneName(${zone.id}, this.value)"
+                               placeholder="Zone name">
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-outline-primary" onclick="highlightZone(${zone.id})" title="Highlight">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="deleteZone(${zone.id})" title="Delete">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Coordinates row: Show sensor coordinates -->
+                <div class="row g-2 mb-2">
+                    <div class="col-6 col-lg-3">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">X</span>
+                            <input type="number" class="form-control"
+                                   value="${zone.x}" min="0" max="${cameraResolution.width}"
+                                   onchange="updateZoneCoordinate(${zone.id}, 'x', this.value)">
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">Y</span>
+                            <input type="number" class="form-control"
+                                   value="${zone.y}" min="0" max="${cameraResolution.height}"
+                                   onchange="updateZoneCoordinate(${zone.id}, 'y', this.value)">
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">W</span>
+                            <input type="number" class="form-control"
+                                   value="${zone.width}" min="1" max="${cameraResolution.width}"
+                                   onchange="updateZoneCoordinate(${zone.id}, 'width', this.value)">
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">H</span>
+                            <input type="number" class="form-control"
+                                   value="${zone.height}" min="1" max="${cameraResolution.height}"
+                                   onchange="updateZoneCoordinate(${zone.id}, 'height', this.value)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom row: Zone type and size info -->
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="badge ${zone.type === 'include' ? 'bg-success' : 'bg-danger'}">
+                        <i class="bi bi-${zone.type === 'include' ? 'plus' : 'dash'}-circle me-1"></i>
+                        ${zone.type.charAt(0).toUpperCase() + zone.type.slice(1)}
+                    </span>
+                    <small class="text-muted">
+                        ${zone.width} × ${zone.height} px
+                    </small>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function updateZoneName(zoneId, newName) {
+        const zone = zones.find(z => z.id === zoneId);
+        if (zone) {
+            zone.name = newName;
+            markAsChanged();
+        }
+    }
+
+    function updateZoneCoordinate(zoneId, property, value) {
+        const zone = zones.find(z => z.id === zoneId);
+        if (zone) {
+            zone[property] = parseInt(value);
+            updateZoneDisplay();
+            markAsChanged();
+        }
+    }
+
+    function deleteZone(zoneId) {
+        zones = zones.filter(z => z.id !== zoneId);
+        updateZoneDisplay();
+        updateZoneList();
+        markAsChanged();
+    }
+
+    function highlightZone(zoneId) {
+        // Remove existing highlights
+        overlay.querySelectorAll('.zone-highlight').forEach(el => el.remove());
+
+        const zone = zones.find(z => z.id === zoneId);
+        if (zone) {
+            // Convert sensor coordinates to canvas coordinates for highlighting
+            const canvasCoord = sensorToCanvas(zone);
+
+            const highlight = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            highlight.setAttribute('x', canvasCoord.x - 2);
+            highlight.setAttribute('y', canvasCoord.y - 2);
+            highlight.setAttribute('width', canvasCoord.width + 4);
+            highlight.setAttribute('height', canvasCoord.height + 4);
+            highlight.setAttribute('class', 'zone-highlight');
+            highlight.setAttribute('fill', 'none');
+            highlight.setAttribute('stroke', '#ffc107');
+            highlight.setAttribute('stroke-width', '4');
+            highlight.setAttribute('stroke-dasharray', '10,5');
+
+            overlay.appendChild(highlight);
+
+            // Remove highlight after 2 seconds
+            setTimeout(() => {
+                highlight.remove();
+            }, 2000);
+        }
+    }
+
+    // Utility functions
+    function clearAllZones() {
+        if (zones.length === 0) return;
+
+        if (confirm('Are you sure you want to clear all zones?')) {
+            zones = [];
+            updateZoneDisplay();
+            updateZoneList();
+            markAsChanged();
+        }
+    }
+
+    function undoLastZone() {
+        if (zones.length > 0) {
+            zones.pop();
+            updateZoneDisplay();
+            updateZoneList();
+            markAsChanged();
+        }
+    }
+
+    function loadSnapshot() {
+        // Reload the canvas with a fresh snapshot
+        initializeCanvas();
+    }
+
+    function saveConfiguration() {
+        const config = {
+            zones: zones,
+            settings: {
+                enabled: document.getElementById('enableMotion').checked,
+                sensitivity: document.getElementById('sensitivity').value,
+                minObjectSize: document.getElementById('minObjectSize').value
+            }
+        };
+
+        console.log('Saving motion detection configuration:', config);
+
+        fetch('/lua/api/motion/config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(config)
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    markAsSaved();
+                    alert('Configuration saved successfully!');
+                } else {
+                    alert('Failed to save configuration: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error saving configuration:', error);
+                alert('Failed to save configuration');
+            });
+    }
+
+    // Debounced resize handler to prevent excessive image refreshing
+    let resizeTimeout;
+    function handleResize() {
+        setupCanvas();
+        updateZoneDisplay();
+
+        // Debounce image refresh to avoid excessive API calls
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            refreshCanvasImage();
+        }, 300); // Wait 300ms after resize stops
+    }
+
+    // Refresh the canvas image
+    function refreshCanvasImage() {
+        const img = new Image();
+        img.onload = function () {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        };
+
+        // Load fresh snapshot with cache-busting timestamp
+        img.src = '/lua/api/camera/snapshot?' + new Date().getTime();
+
+        // If snapshot fails, create a grid pattern
+        img.onerror = function () {
+            drawGridPattern();
+        };
+    }
+
+    // Load saved configuration
+    function loadSavedConfiguration() {
+        console.log('Loading saved motion configuration...');
+        fetch('/lua/api/motion/config')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && data.config) {
+                    console.log('Loaded configuration:', data.config);
+
+                    // Restore zones if they exist
+                    if (data.config.zones && Array.isArray(data.config.zones)) {
+                        zones = data.config.zones;
+
+                        // Update zone ID counter to avoid conflicts
+                        if (zones.length > 0) {
+                            zoneIdCounter = Math.max(...zones.map(z => z.id)) + 1;
+                        }
+
+                        updateZoneDisplay();
+                        updateZoneList();
+                        console.log(`Restored ${zones.length} zones`);
+                    }
+
+                    // Restore settings if they exist
+                    if (data.config.settings) {
+                        const settings = data.config.settings;
+                        if (settings.enabled !== undefined) {
+                            document.getElementById('enableMotion').checked = settings.enabled;
+                        }
+                        if (settings.sensitivity !== undefined) {
+                            document.getElementById('sensitivity').value = settings.sensitivity;
+                        }
+                        if (settings.minObjectSize !== undefined) {
+                            document.getElementById('minObjectSize').value = settings.minObjectSize;
+                        }
+                        console.log('Restored settings');
+                    }
+                } else {
+                    console.log('No saved configuration found');
+                }
+
+                // Set initial hash after loading configuration
+                originalConfigHash = generateConfigHash();
+                hasUnsavedChanges = false;
+                updateSaveButtonState();
+            })
+            .catch(error => {
+                console.error('Error loading saved configuration:', error);
+                // Set initial hash even if loading fails
+                originalConfigHash = generateConfigHash();
+                hasUnsavedChanges = false;
+                updateSaveButtonState();
+            });
+    }
+
+    // Initialize the page
+    document.addEventListener('DOMContentLoaded', function () {
+        // Load camera resolution first, then initialize everything else
+        loadCameraResolution().then(() => {
+            initializeCanvas();
+
+            // Add resize handler
+            window.addEventListener('resize', handleResize);
+
+            // Update sensitivity display and track changes
+            const sensitivitySlider = document.getElementById('sensitivity');
+            sensitivitySlider.addEventListener('input', function () {
+                const value = this.value;
+                const label = this.parentElement.querySelector('.form-label');
+                label.textContent = `Sensitivity (${value}%)`;
+                markAsChanged();
+            });
+
+            // Track changes to other settings
+            document.getElementById('enableMotion').addEventListener('change', markAsChanged);
+            document.getElementById('minObjectSize').addEventListener('input', markAsChanged);
+
+            // Setup page leave warning
+            setupPageLeaveWarning();
+
+            // Load saved configuration after canvas and resolution are initialized
+            setTimeout(loadSavedConfiguration, 500);
+        });
+    });
+</script>
+
+{{include:footer}}

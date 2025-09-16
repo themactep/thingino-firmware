@@ -1,8 +1,7 @@
 ONVIF_SIMPLE_SERVER_SITE_METHOD = git
-ONVIF_SIMPLE_SERVER_SITE = https://github.com/roleoroleo/onvif_simple_server
+ONVIF_SIMPLE_SERVER_SITE = https://github.com/themactep/thingino-onvif
 ONVIF_SIMPLE_SERVER_SITE_BRANCH = master
-ONVIF_SIMPLE_SERVER_VERSION = 993aaa92d5e35be445648b3cc7ec22f956a96f6b
-# $(shell git ls-remote $(ONVIF_SIMPLE_SERVER_SITE) $(ONVIF_SIMPLE_SERVER_SITE_BRANCH) | head -1 | awk '{ print $$1 }')
+ONVIF_SIMPLE_SERVER_VERSION = 9159d835b860484c635b287c22041dee0e801a8f
 
 ONVIF_SIMPLE_SERVER_LICENSE = MIT
 ONVIF_SIMPLE_SERVER_LICENSE_FILES = LICENSE
@@ -20,19 +19,16 @@ endef
 ONVIF_SIMPLE_SERVER_PRE_BUILD_HOOKS += ONVIF_SIMPLE_SERVER_UCLIBC_FIX
 endif
 
+ONVIF_SIMPLE_SERVER_DEPENDENCIES += json-c
+
 ifeq ($(BR2_PACKAGE_MBEDTLS),y)
-ONVIF_SIMPLE_SERVER_DEPENDENCIES += mbedtls cjson
+ONVIF_SIMPLE_SERVER_DEPENDENCIES += mbedtls
 MAKE_OPTS += HAVE_MBEDTLS=y
 else ifeq ($(BR2_PACKAGE_THINGINO_WOLFSSL),y)
-ONVIF_SIMPLE_SERVER_DEPENDENCIES += thingino-wolfssl cjson
+ONVIF_SIMPLE_SERVER_DEPENDENCIES += thingino-wolfssl
 MAKE_OPTS += HAVE_WOLFSSL=y
 else
 ONVIF_SIMPLE_SERVER_DEPENDENCIES += libtomcrypt
-endif
-
-ifeq ($(BR2_PACKAGE_ONVIF_SIMPLE_SERVER_ZLIB),y)
-ONVIF_SIMPLE_SERVER_DEPENDENCIES += zlib
-MAKE_OPTS += USE_ZLIB=y
 endif
 
 # username | uid | group | gid | password | home | shell | groups | comment
@@ -49,37 +45,42 @@ endef
 define ONVIF_SIMPLE_SERVER_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/device_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/device_service_files \
-		$(@D)/device_service_files/*
+		$(@D)/xml/device_service_files/*
+
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/deviceio_service_files
+	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/deviceio_service_files \
+		$(@D)/xml/deviceio_service_files/*
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/events_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/events_service_files \
-		$(@D)/events_service_files/*
+		$(@D)/xml/events_service_files/*
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/generic_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/generic_files \
-		$(@D)/generic_files/*
+		$(@D)/xml/generic_files/*
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/media_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/media_service_files \
-		$(@D)/media_service_files/*
+		$(@D)/xml/media_service_files/*
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/media2_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/media2_service_files \
-		$(@D)/media2_service_files/*
+		$(@D)/xml/media2_service_files/*
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/notify_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/notify_files \
-		$(@D)/notify_files/*
+		$(@D)/xml/notify_files/*
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/ptz_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/ptz_service_files \
-		$(@D)/ptz_service_files/*
+		$(@D)/xml/ptz_service_files/*
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/wsd_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/wsd_files \
-		$(@D)/wsd_files/*
+		$(@D)/xml/wsd_files/*
 
 	ln -sf /usr/sbin/onvif_simple_server $(TARGET_DIR)/var/www/onvif/device_service
+	ln -sf /usr/sbin/onvif_simple_server $(TARGET_DIR)/var/www/onvif/deviceio_service
 	ln -sf /usr/sbin/onvif_simple_server $(TARGET_DIR)/var/www/onvif/events_service
 	ln -sf /usr/sbin/onvif_simple_server $(TARGET_DIR)/var/www/onvif/media_service
 	ln -sf /usr/sbin/onvif_simple_server $(TARGET_DIR)/var/www/onvif/media2_service

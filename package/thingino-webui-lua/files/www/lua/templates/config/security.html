@@ -1,0 +1,182 @@
+{{include:header}}
+
+<div class="row mb-4">
+  <div class="col">
+    <h1 class="h3 mb-0"><i class="bi bi-shield-lock me-2"></i><span data-i18n="config.security.title">SSL Certificate Management</span></h1>
+    <p class="text-muted" data-i18n="config.security.subtitle">Manage SSL certificates for HTTPS web interface</p>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card config-form">
+      <div class="card-header">
+        <h5 class="card-title mb-0"><i class="bi bi-shield-lock me-2"></i><span data-i18n="config.security.title">SSL Certificate Management</span></h5>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="/lua/config/security">
+          <!-- Security Information -->
+          <div class="alert alert-info mb-4">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong data-i18n="config.security.security_status">Security Status:</strong>
+            <ul class="mb-0 mt-2">
+              <li><strong>HTTPS:</strong> <span data-i18n="config.security.https_info">Automatically enabled when SSL certificates are present</span></li>
+              <li><strong>SSH:</strong> <span data-i18n="config.security.ssh_info">Always available for system administration</span></li>
+              <li><strong data-i18n="common.authentication">Authentication:</strong> <span data-i18n="config.security.auth_info">Session-based login required for web access</span></li>
+            </ul>
+          </div>
+
+          <!-- SSL Certificate Section -->
+          <h6 class="text-primary mb-3"><i class="bi bi-shield-lock me-2"></i><span data-i18n="config.security.title">SSL Certificate Management</span></h6>
+          <div class="row mb-3">
+            <div class="col-sm-3">
+              <strong data-i18n="config.security.status">Status:</strong>
+            </div>
+            <div class="col-sm-9">
+              <span class="badge {{ssl_status_class}}">{{ssl_status_text}}</span>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-sm-3">
+              <strong data-i18n="config.security.certificate">Certificate:</strong>
+            </div>
+            <div class="col-sm-9">
+              <small class="text-muted">{{ssl_cert_info}}</small>
+            </div>
+          </div>
+          <div class="row mb-4">
+            <div class="col-sm-3">
+              <strong data-i18n="config.security.expires">Expires:</strong>
+            </div>
+            <div class="col-sm-9">
+              <small class="text-muted">{{ssl_cert_expires}}</small>
+            </div>
+          </div>
+          
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="ssl_cert_file" class="form-label" data-i18n="config.security.cert_file">Certificate (.crt/.pem)</label>
+              <input type="file" id="ssl_cert_file" name="ssl_cert_file" class="form-control" accept=".crt,.pem,.cert">
+            </div>
+            <div class="col-md-6">
+              <label for="ssl_key_file" class="form-label" data-i18n="config.security.key_file">Private Key (.key)</label>
+              <input type="file" id="ssl_key_file" name="ssl_key_file" class="form-control" accept=".key,.pem">
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <div class="col-md-4">
+              <button type="button" class="btn btn-outline-primary w-100" onclick="uploadSSLCertificate()">
+                <i class="bi bi-upload me-1"></i><span data-i18n="config.security.upload_certificate">Upload Certificate</span>
+              </button>
+            </div>
+            <div class="col-md-4">
+              <button type="button" class="btn btn-outline-secondary w-100 {{ssl_generate_class}}" onclick="generateSelfSigned()" {{ssl_generate_style}}>
+                <i class="bi bi-key me-1"></i><span data-i18n="config.security.generate_self_signed">Generate Self-Signed</span>
+              </button>
+            </div>
+            <div class="col-md-4">
+              <button type="button" class="btn btn-outline-danger w-100 {{ssl_remove_class}}" onclick="removeSSLCertificate()" {{ssl_remove_style}}>
+                <i class="bi bi-trash me-1"></i><span data-i18n="config.security.remove_certificate">Remove Certificate</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i><span data-i18n="config.security.save_settings">Save Security Settings</span></button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    // SSL Certificate Management Functions
+    function uploadSSLCertificate() {
+        const certFile = document.getElementById('ssl_cert_file').files[0];
+        const keyFile = document.getElementById('ssl_key_file').files[0];
+
+        if (!certFile || !keyFile) {
+            alert(window.i18n?.t('js.alert.ssl_select_files') || 'Please select both certificate and private key files.');
+            return;
+        }
+
+        if (confirm(window.i18n?.t('js.alert.ssl_upload_confirm') || 'Upload SSL certificate? This will replace any existing certificate.')) {
+            const formData = new FormData();
+            formData.append('certificate', certFile);
+            formData.append('private_key', keyFile);
+
+            fetch('/lua/api/ssl/upload', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(window.i18n?.t('js.alert.ssl_upload_success') || 'SSL certificate uploaded successfully. uhttpd service will be restarted.');
+                        window.location.reload();
+                    } else {
+                        alert((window.i18n?.t('js.alert.ssl_upload_failed') || 'Failed to upload SSL certificate') + ': ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(window.i18n?.t('js.alert.ssl_upload_failed') || 'Failed to upload SSL certificate');
+                });
+        }
+    }
+
+    function generateSelfSigned() {
+        if (confirm(window.i18n?.t('js.alert.ssl_generate_confirm') || 'Generate a self-signed SSL certificate? This will replace any existing certificate.')) {
+            fetch('/lua/api/ssl/generate-self-signed', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    hostname: '{{hostname}}',
+                    country: 'US',
+                    state: 'State',
+                    city: 'City',
+                    organization: 'Thingino Camera',
+                    days: 365
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(window.i18n?.t('js.alert.ssl_generate_success') || 'Self-signed SSL certificate generated successfully.');
+                        window.location.reload();
+                    } else {
+                        alert((window.i18n?.t('js.alert.ssl_generate_failed') || 'Failed to generate SSL certificate') + ': ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(window.i18n?.t('js.alert.ssl_generate_failed') || 'Failed to generate SSL certificate');
+                });
+        }
+    }
+
+    function removeSSLCertificate() {
+        if (confirm(window.i18n?.t('js.alert.ssl_remove_confirm') || 'Remove SSL certificate? HTTPS will be disabled.')) {
+            fetch('/lua/api/ssl/remove', {
+                method: 'POST'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(window.i18n?.t('js.alert.ssl_remove_success') || 'SSL certificate removed successfully.');
+                        window.location.reload();
+                    } else {
+                        alert((window.i18n?.t('js.alert.ssl_remove_failed') || 'Failed to remove SSL certificate') + ': ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(window.i18n?.t('js.alert.ssl_remove_failed') || 'Failed to remove SSL certificate');
+                });
+        }
+    }
+</script>
+
+{{include:footer}}

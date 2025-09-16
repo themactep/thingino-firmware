@@ -1,0 +1,25 @@
+From 032ae29ad3f288270f42c32931be1ce13280cf30 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <themactep@gmail.com>
+Date: Sun, 22 Sep 2024 02:14:20 -0400
+Subject: [PATCH 03/10] fix protocol
+
+---
+ Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Makefile b/Makefile
+index 022a713835..c0518f7564 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1211,7 +1211,7 @@ help:
+ 	@echo '  make O=dir             - Locate all output files in "dir", including .config'
+ 	@echo
+ 	@echo 'For further details, see README, generate the Buildroot manual, or consult'
+-	@echo 'it on-line at http://buildroot.org/docs.html'
++	@echo 'it on-line at https://buildroot.org/docs.html'
+ 	@echo
+ 
+ # List the defconfig files
+-- 
+2.47.2
+

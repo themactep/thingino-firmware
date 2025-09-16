@@ -1,0 +1,34 @@
+config BR2_PACKAGE_THINGINO_WEBUI_LUA
+	bool "thingino-webui-lua"
+	#depends on BR2_PACKAGE_LUA
+	select BR2_PACKAGE_LUA
+	select BR2_PACKAGE_THINGINO_UHTTPD
+	select BR2_PACKAGE_THINGINO_UHTTPD_LUA
+	help
+	  Modern Lua-based web interface for thingino cameras with
+	  session-based authentication, HTTPS support, and responsive
+	  design. This replaces the legacy haserl-based web interface
+	  with a more secure and maintainable solution.
+
+	  Features:
+	  - Session-based authentication (no more basic auth)
+	  - Modern responsive web interface
+	  - JSON API for AJAX requests
+	  - Secure session management
+	  - HTTPS-first design
+	  - Modular Lua architecture
+
+	  Requires uhttpd with Lua support enabled.
+
+if BR2_PACKAGE_THINGINO_WEBUI_LUA
+
+config BR2_PACKAGE_THINGINO_WEBUI_LUA_DEBUG
+	bool "Enable debug mode"
+	help
+	  Enable debug logging and development features in the
+	  Lua web interface. This should be disabled in production.
+
+endif
+
+comment "thingino-webui-lua needs Lua support"
+	depends on !BR2_PACKAGE_LUA
