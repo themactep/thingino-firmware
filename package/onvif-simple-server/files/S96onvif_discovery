@@ -1,9 +1,9 @@
 #!/bin/sh
 
 DAEMON=wsd_simple_server
-ONVIF_CONFIG=/etc/onvif.conf
-ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
 PRUDYNT_CONFIG=/etc/prudynt.json
+ONVIF_CONFIG=/etc/onvif.json
+ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
 
 . /usr/share/common
 
@@ -25,17 +25,6 @@ if [ -z "$onvif_enabled" ]; then
 	echo "onvif_enabled=$onvif_enabled" >> $ONVIF_WEBUI_CONF
 fi
 
-update_config() {
-	local current file key value
-	file=$1
-	key=$2
-	value=$3
-	current=$(awk -F= -v key="$key" '$1==key {print $2}' $file)
-	[ -z "$value" ] && value="0"
-	[ "$current" = "$value" ] && return
-	sed -i "s/^$key=.*/$key=$value/" $file
-}
-
 start() {
 	echo_title "Starting ONVIF discovery"
 
@@ -56,27 +45,19 @@ start() {
 
 	start_daemon
 
-	if grep -q "^# GENERATED" $ONVIF_CONFIG; then
-		echo_info "Config already generated"
-		return
-	fi
-
 	tempfile=$(mktemp -u)
-	cp $ONVIF_CONFIG $tempfile
-	update_config $tempfile "model" "$model"
-	update_config $tempfile "hardware_id" "ingenic_$SOC_MODEL"
-	update_config $tempfile "serial_num" "$(fw_printenv -n ethaddr | sed 's/://g')"
-	update_config $tempfile "firmware_ver" "$BUILD_ID"
-	update_config $tempfile "ifs" "$iface"
-	update_config $tempfile "user" "$(jct $PRUDYNT_CONFIG get rtsp.username | tr -d \")"
-	update_config $tempfile "password" "$(jct $PRUDYNT_CONFIG get rtsp.password | tr -d \")"
-	update_config $tempfile "ptz" "$([ -n "$gpio_motor_h" ] && echo 1 || echo 0)"
-	update_config $tempfile "max_step_x" "$motor_maxstep_h"
-	update_config $tempfile "max_step_y" "$motor_maxstep_v"
-	update_config $tempfile "move_right" "motors -d h -x $motor_maxstep_h"
-	update_config $tempfile "move_down" "motors -d h -y $motor_maxstep_v"
-	sed -i '1i # GENERATED On '"$(date)" $tempfile
-	mv $tempfile $ONVIF_CONFIG
+	jct $ONVIF_CONFIG set model "$model"
+	jct $ONVIF_CONFIG set hardware_id "ingenic_$SOC_MODEL"
+	jct $ONVIF_CONFIG set serial_num "$(fw_printenv -n ethaddr | sed 's/://g')"
+	jct $ONVIF_CONFIG set firmware_ver "$BUILD_ID"
+	jct $ONVIF_CONFIG set ifs "$iface"
+	jct $ONVIF_CONFIG set username "$(jct $PRUDYNT_CONFIG get rtsp.username | tr -d \")"
+	jct $ONVIF_CONFIG set password "$(jct $PRUDYNT_CONFIG get rtsp.password | tr -d \")"
+	jct $ONVIF_CONFIG set ptz "$([ -n "$gpio_motor_h" ] && echo 1 || echo 0)"
+	jct $ONVIF_CONFIG set max_step_x "$motor_maxstep_h"
+	jct $ONVIF_CONFIG set max_step_y "$motor_maxstep_v"
+	jct $ONVIF_CONFIG set move_right "motors -d h -x $motor_maxstep_h"
+	jct $ONVIF_CONFIG set move_down "motors -d h -y $motor_maxstep_v"
 }
 
 stop() {
