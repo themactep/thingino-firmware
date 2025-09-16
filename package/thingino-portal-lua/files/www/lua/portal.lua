@@ -387,7 +387,7 @@ function handle_save_configuration(form_data, system_info, script_name)
     end
 
     -- Update ONVIF interface
-    utils.execute_command("sed -i 's/^ifs=.*$/ifs=wlan0/' /etc/onvif.conf")
+    utils.execute_command("jct /etc/onvif.json set ifs wlan0")
 
     utils.log("Configuration saved, showing completion page")
 
