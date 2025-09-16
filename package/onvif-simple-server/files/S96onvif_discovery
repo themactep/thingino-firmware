@@ -11,8 +11,8 @@ iface="$(iface_default)"
 
 model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $OS_RELEASE_FILE)
 
-# extract iface for daemon from onvif.conf
-DAEMON_ARGS="--if_name $iface --xaddr http://%s/onvif/device_service -m $model -n thingino --pid_file /var/run/$DAEMON_SHORT.pid"
+# extract iface for daemon from onvif.json
+DAEMON_ARGS="-i $iface -x http://%s/onvif/device_service -m $model -n thingino -p /run/$DAEMON_SHORT.pid"
 
 # read web config, create if missing
 [ -d $(dirname $ONVIF_WEBUI_CONF) ] || mkdir -p $(dirname $ONVIF_WEBUI_CONF)
@@ -45,7 +45,6 @@ start() {
 
 	start_daemon
 
-	tempfile=$(mktemp -u)
 	jct $ONVIF_CONFIG set model "$model"
 	jct $ONVIF_CONFIG set hardware_id "ingenic_$SOC_MODEL"
 	jct $ONVIF_CONFIG set serial_num "$(fw_printenv -n ethaddr | sed 's/://g')"
@@ -53,11 +52,15 @@ start() {
 	jct $ONVIF_CONFIG set ifs "$iface"
 	jct $ONVIF_CONFIG set username "$(jct $PRUDYNT_CONFIG get rtsp.username | tr -d \")"
 	jct $ONVIF_CONFIG set password "$(jct $PRUDYNT_CONFIG get rtsp.password | tr -d \")"
-	jct $ONVIF_CONFIG set ptz "$([ -n "$gpio_motor_h" ] && echo 1 || echo 0)"
-	jct $ONVIF_CONFIG set max_step_x "$motor_maxstep_h"
-	jct $ONVIF_CONFIG set max_step_y "$motor_maxstep_v"
-	jct $ONVIF_CONFIG set move_right "motors -d h -x $motor_maxstep_h"
-	jct $ONVIF_CONFIG set move_down "motors -d h -y $motor_maxstep_v"
+
+	# conditional PTZ config
+	if [ -n "$gpio_motor_h" ]; then
+		jct $ONVIF_CONFIG set ptz.enable 1
+		jct $ONVIF_CONFIG set ptz.max_step_x "$motor_maxstep_h"
+		jct $ONVIF_CONFIG set ptz.max_step_y "$motor_maxstep_v"
+		jct $ONVIF_CONFIG set ptz.move_right "/sbin/motors -d h -x $motor_maxstep_h"
+		jct $ONVIF_CONFIG set ptz.move_down "/sbin/motors -d h -y $motor_maxstep_v"
+	fi
 }
 
 stop() {
