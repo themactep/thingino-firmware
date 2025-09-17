@@ -11,7 +11,7 @@ defaults() {
 	default_for record_device_path "$(hostname)/records"
 	default_for record_filename "$RECORD_FILENAME_FB"
 	[ "/" = "${record_filename:0-1}" ] && record_filename="$RECORD_FILENAME_FB"
-	default_for $record_videofmt "mkv"
+	default_for $record_videofmt "mp4"
 	default_for record_duration 60
 }
 
@@ -69,7 +69,7 @@ defaults
 <div class="row g-1">
 <div class="col-8"><% field_text "record_filename" "File name template" "$STR_SUPPORTS_STRFTIME" %></div>
 <div class="col-2"><% field_number "record_duration" "Duration" "" "seconds" %></div>
-<div class="col-2"><% field_select "record_videofmt" "Format" "mkv,mov,mp4" "also extension" %></div>
+<div class="col-2"><% field_select "record_videofmt" "Format" "mp4,mkv,mov" "also extension" %></div>
 </div>
 </div>
 <div class="col">
