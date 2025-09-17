@@ -1,6 +1,7 @@
 config BR2_PACKAGE_EXFAT_NOFUSE
 	bool "exfat-nofuse"
 	depends on BR2_LINUX_KERNEL
+	depends on BR2_USE_WCHAR
 	select BR2_PACKAGE_EXFAT_UTILS
 	help
 	  Linux non-fuse read/write kernel driver for the exFAT, FAT12, FAT16 and vfat (FAT32) file systems.
@@ -8,5 +9,5 @@ config BR2_PACKAGE_EXFAT_NOFUSE
 
 	  https://github.com/dorimanx/exfat-nofuse
 
-comment "exfat-nofuse needs a Linux kernel to be built"
-	depends on !BR2_LINUX_KERNEL
+comment "exfat-nofuse needs a Linux kernel and wchar support"
+	depends on !BR2_LINUX_KERNEL || !BR2_USE_WCHAR
