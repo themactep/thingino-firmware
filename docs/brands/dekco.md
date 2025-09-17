@@ -17,6 +17,7 @@ Also: AOSU
 
 | FCCID      | Model      | SoC  | WiFi     | SPI   |
 |------------|------------|------|----------|-------|
+| 2A2VW-DC2L | Dekco DC2L |      |          |       |
 |            | Dekco DC4L |      |          |       |
 | 2A2VW-DC5L | Dekco DC5L | T31L | ATBM6032 | 25Q64 |
 |            | Dekco DC8L |      |          |       |
