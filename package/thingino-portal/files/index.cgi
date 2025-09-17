@@ -118,7 +118,7 @@ elif post_request; then
 		echo "$rootpkey" | tr -d '\r' | sed 's/^ //g' > /root/.ssh/authorized_keys
 
 		# update interface for onvif
-		sed -i "s/^ifs=.*$/ifs=wlan0/" /etc/onvif.conf
+		jct /etc/onvif.json set ifs wlan0
 
 		# done
 		http_header="HTTP/1.1 303 See Other"

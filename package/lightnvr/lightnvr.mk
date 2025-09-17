@@ -2,7 +2,6 @@ LIGHTNVR_SITE_METHOD = git
 LIGHTNVR_SITE = https://github.com/opensensor/lightNVR
 LIGHTNVR_SITE_BRANCH = main
 LIGHTNVR_VERSION = a5e16eeff9705e18d5aaa619f15d019c9bd3dfea
-# $(shell git ls-remote $(LIGHTNVR_SITE) $(LIGHTNVR_SITE_BRANCH) | head -1 | cut -f1)
 
 LIGHTNVR_LICENSE = MIT
 LIGHTNVR_LICENSE_FILES = COPYING
@@ -10,7 +9,15 @@ LIGHTNVR_LICENSE_FILES = COPYING
 LIGHTNVR_INSTALL_STAGING = YES
 
 # Dependencies
-LIGHTNVR_DEPENDENCIES = thingino-ffmpeg thingino-libcurl sqlite mbedtls
+LIGHTNVR_DEPENDENCIES = thingino-ffmpeg thingino-libcurl sqlite
+
+ifeq ($(BR2_PACKAGE_MBEDTLS),y)
+LIGHTNVR_DEPENDENCIES += mbedtls
+endif
+
+ifeq ($(BR2_PACKAGE_THINGINO_WOLFSSL),y)
+LIGHTNVR_DEPENDENCIES += thingino-wolfssl
+endif
 
 # Enable SOD with dynamic linking and go2rtc, use bundled cJSON
 LIGHTNVR_CONF_OPTS = \

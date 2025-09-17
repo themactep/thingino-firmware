@@ -302,6 +302,9 @@ stop_services() {
 				;;
 		esac
 	done
+
+	say "Running processes:"
+	ps w
 }
 
 unmount_config() {

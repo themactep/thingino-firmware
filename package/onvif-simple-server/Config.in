@@ -1,19 +1,19 @@
 config BR2_PACKAGE_ONVIF_SIMPLE_SERVER
 	bool "ONVIF Simple Server"
+	select BR2_PACKAGE_JSON_C
 	select BR2_PACKAGE_LIBTOMCRYPT if !BR2_PACKAGE_MBEDTLS && !BR2_PACKAGE_THINGINO_WOLFSSL
 	select BR2_PACKAGE_THINGINO_WOLFSSL_ASN if BR2_PACKAGE_THINGINO_WOLFSSL
 	select BR2_PACKAGE_THINGINO_WOLFSSL_BASE64ENCODE if BR2_PACKAGE_THINGINO_WOLFSSL
 	select BR2_PACKAGE_THINGINO_WOLFSSL_CODING if BR2_PACKAGE_THINGINO_WOLFSSL
-	select BR2_PACKAGE_ZLIB
 	help
-	  onvif_simple_server is a C light implementation of an onvif
-	  server intended for use in resource-constrained devices
+	  Thingino fork of roleoroleo's onvif_simple_server.
+	  A light C implementation of an onvif server intended for use in resource-constrained devices.
 
-	  https://github.com/roleoroleo/onvif_simple_server
+	  https://github.com/themactep/thingino-onvif
 
 config BR2_PACKAGE_ONVIF_SIMPLE_SERVER_ZLIB
 	bool "Use ZLIB for templates"
-	default y
 	depends on BR2_PACKAGE_ONVIF_SIMPLE_SERVER
+	select BR2_PACKAGE_ZLIB
 	help
 	  Enable support for compressed template files (.gz).

@@ -37,23 +37,25 @@ choice BR2_SENSOR_NAME
 config BR2_SENSOR_DUMMY
 	bool "Dummy (no sensor)"
 config BR2_SENSOR_AR1337
-	bool "AR1337"
+	bool "OnSemi AR1337"
 config BR2_SENSOR_BF3A03
-	bool "BF3A03"
+	bool "BYD BF3A03"
 config BR2_SENSOR_C2399
-	bool "C2399"
+	bool "Cista C2399"
 config BR2_SENSOR_C23A98
-	bool "C23A98"
+	bool "Cista C23A98"
 config BR2_SENSOR_C3390
-	bool "C3390"
+	bool "Cista C3390"
 config BR2_SENSOR_C4390
-	bool "C4390"
+	bool "Cista C4390"
 config BR2_SENSOR_CV2001
-	bool "CV2001"
+	bool "CVSENS CV2001"
+config BR2_SENSOR_CV2003
+	bool "CVSENS CV2003"
 config BR2_SENSOR_CV3001
-	bool "CV3001"
+	bool "CVSENS CV3001"
 config BR2_SENSOR_CV4001
-	bool "CV4001"
+	bool "CVSENS CV4001"
 config BR2_SENSOR_GC0328
 	bool "Galaxycore GC0328"
 config BR2_SENSOR_GC032A
@@ -99,51 +101,51 @@ config BR2_SENSOR_IMX327
 config BR2_SENSOR_IMX335
 	bool "Sony IMX335"
 config BR2_SENSOR_JXF22
-	bool "JX-F22"
+	bool "SOI JX-F22"
 config BR2_SENSOR_JXF23
-	bool "JX-F23"
+	bool "SOI JX-F23"
 config BR2_SENSOR_JXF28P
-	bool "JX-F28p"
+	bool "SOI JX-F28p"
 config BR2_SENSOR_JXF32
-	bool "JX-F32"
+	bool "SOI JX-F32"
 config BR2_SENSOR_JXF35
-	bool "JX-F35"
+	bool "SOI JX-F35"
 config BR2_SENSOR_JXF352
-	bool "JX-F352"
+	bool "SOI JX-F352"
 config BR2_SENSOR_JXF355P
-	bool "JX-F355p"
+	bool "SOI JX-F355p"
 config BR2_SENSOR_JXF37
-	bool "JX-F37"
+	bool "SOI JX-F37"
 config BR2_SENSOR_JXF37P
-	bool "JX-F37p"
+	bool "SOI JX-F37p"
 config BR2_SENSOR_JXF38P
-	bool "JX-F38p"
+	bool "SOI JX-F38p"
 config BR2_SENSOR_JXF51
-	bool "JX-F51"
+	bool "SOI JX-F51"
 config BR2_SENSOR_JXF53
-	bool "JX-F53"
+	bool "SOI JX-F53"
 config BR2_SENSOR_JXH42
-	bool "JX-H42"
+	bool "SOI JX-H42"
 config BR2_SENSOR_JXH61P
-	bool "JX-H61p"
+	bool "SOI JX-H61p"
 config BR2_SENSOR_JXH62
-	bool "JX-H62"
+	bool "SOI JX-H62"
 config BR2_SENSOR_JXH63
-	bool "JX-H63"
+	bool "SOI JX-H63"
 config BR2_SENSOR_JXH66
-	bool "JX-H66"
+	bool "SOI JX-H66"
 config BR2_SENSOR_JXK03
-	bool "JX-K03"
+	bool "SOI JX-K03"
 config BR2_SENSOR_JXK04
-	bool "JX-K04"
+	bool "SOI JX-K04"
 config BR2_SENSOR_JXK05
-	bool "JX-K05"
+	bool "SOI JX-K05"
 config BR2_SENSOR_JXK06
-	bool "JX-K06"
+	bool "SOI JX-K06"
 config BR2_SENSOR_JXQ03
-	bool "JX-Q03"
+	bool "SOI JX-Q03"
 config BR2_SENSOR_JXQ03P
-	bool "JX-Q03p"
+	bool "SOI JX-Q03p"
 config BR2_SENSOR_MIS2006
 	bool "MIS2006"
 config BR2_SENSOR_MIS2008
@@ -153,25 +155,25 @@ config BR2_SENSOR_MIS4001
 config BR2_SENSOR_MIS5001
 	bool "MIS5001"
 config BR2_SENSOR_OS02B10
-	bool "OS02b10"
+	bool "OmniVision OS02b10"
 config BR2_SENSOR_OS02D20
-	bool "OS02d20"
+	bool "OmniVision OS02d20"
 config BR2_SENSOR_OS02G10
-	bool "OS02g10"
+	bool "OmniVision OS02g10"
 config BR2_SENSOR_OS02K10
-	bool "OS02k10"
+	bool "OmniVision OS02k10"
 config BR2_SENSOR_OS03B10
-	bool "OS03b10"
+	bool "OmniVision OS03b10"
 config BR2_SENSOR_OS04B10
-	bool "OS04b10"
+	bool "OmniVision OS04b10"
 config BR2_SENSOR_OS04C10
-	bool "OS04c10"
+	bool "OmniVision OS04c10"
 config BR2_SENSOR_OS04L10
-	bool "OS04l10"
+	bool "OmniVision OS04l10"
 config BR2_SENSOR_OS05A10
-	bool "OS05a10"
+	bool "OmniVision OS05a10"
 config BR2_SENSOR_OS05A20
-	bool "OS05a20"
+	bool "OmniVision OS05a20"
 config BR2_SENSOR_OV2735B
 	bool "OmniVision OV2735b"
 config BR2_SENSOR_OV2740
@@ -191,17 +193,17 @@ config BR2_SENSOR_OV9732
 config BR2_SENSOR_OV9750
 	bool "OmniVision OV9750"
 config BR2_SENSOR_PS5258
-	bool "PS5258"
+	bool "PixArt PS5258"
 config BR2_SENSOR_PS5250
-	bool "PS5250"
+	bool "PixArt PS5250"
 config BR2_SENSOR_PS5260
-	bool "PS5260"
+	bool "PixArt PS5260"
 config BR2_SENSOR_PS5268
-	bool "PS5268"
+	bool "PixArt PS5268"
 config BR2_SENSOR_PS5270
-	bool "PS5270"
+	bool "PixArt PS5270"
 config BR2_SENSOR_PS5520
-	bool "PS5520"
+	bool "PixArt PS5520"
 config BR2_SENSOR_SC1235
 	bool "SmartSens SC1235"
 config BR2_SENSOR_SC1346

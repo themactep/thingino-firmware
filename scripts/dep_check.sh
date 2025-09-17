@@ -96,7 +96,7 @@ if [ -f /etc/os-release ]; then
 			pkg_check_command="dpkg-query -W -f='\${Status}'"
 			pkg_install_cmd="apt-get install -y"
 			pkg_update_cmd="apt-get update"
-			packages="build-essential bc bison cpio cmake curl file flex gawk git libncurses-dev make nano rsync unzip u-boot-tools vim-tiny wget whiptail dialog"
+			packages="build-essential bc bison ccache cpio cmake curl file flex gawk git libncurses-dev make nano python3 python3-jsonschema rsync unzip u-boot-tools vim-tiny wget whiptail dialog"
 			;;
 		*)
 			case "$ID" in
