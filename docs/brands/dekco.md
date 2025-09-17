@@ -1,4 +1,4 @@
-Decko
+Dekco
 -----
 - https://www.amazon.com/stores/DEKCO_LIFE/page/AAD9C23E-3FC3-42AE-8A73-3A496874BDD4
 
@@ -15,10 +15,10 @@ Also: AOSU
 | 2A2VW-DL9E3CA11 |                               |
 | 2A2VW-C4L       | AOSU C4L Security Cam P1 Lite |
 
-| FCCID | Model      |
-|-------|------------|
-|       | Decko DC4L |
-|       | Decko DC5L |
-|       | Decko DC8L |
-|       | Decko DC9E |
-|       | Decko DC9L |
+| FCCID      | Model      | SoC  | WiFi     | SPI   |
+|------------|------------|------|----------|-------|
+|            | Dekco DC4L |      |          |       |
+| 2A2VW-DC5L | Dekco DC5L | T31L | ATBM6032 | 25Q64 |
+|            | Dekco DC8L |      |          |       |
+|            | Dekco DC9E |      |          |       |
+|            | Decko DC9L |      |          |       |
