@@ -9,7 +9,7 @@ page_title="Motion Guard"
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <% field_range "motion_sensitivity" "Sensitivity" "1,8,1" %>
-<% field_range "motion_cooldown_time" "Delay between alerts, sec." "5,30,1" %>
+<% field_range "motion_cooldown_time" "Delay between alerts, sec." "5,60,1" %>
 </div>
 <div class="col">
 <% field_checkbox "motion_send2email" "Send to email address" "<a href=\"tool-send2email.cgi\">Configure sending to email</a>" %>
