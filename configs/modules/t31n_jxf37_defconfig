@@ -1,4 +1,4 @@
 # NAME: T31N, JXF37
-# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot
 BR2_SENSOR_JXF37=y
 BR2_SOC_INGENIC_T31N=y

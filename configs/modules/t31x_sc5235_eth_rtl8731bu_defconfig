@@ -1,5 +1,5 @@
 # NAME: T31X, SC5235, ETH, RTL8731BU
-# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot
 BR2_ETHERNET=y
 BR2_SENSOR_SC5235=y
 BR2_SOC_INGENIC_T31X=y

@@ -1,5 +1,5 @@
 # NAME: T31X, SC301IOT, ATBM6031
-# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_ATBM6031=y
 BR2_SENSOR_SC301IOT=y
