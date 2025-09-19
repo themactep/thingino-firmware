@@ -18,3 +18,4 @@
 /sdk/
 /tmp/
 /toolchain/
+*.backup
