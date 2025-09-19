@@ -1,5 +1,5 @@
 # NAME: T31L, SC3336, ATBM6012BX
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot
 BR2_SOC_INGENIC_T31L=y
 BR2_SENSOR_SC3336=y
 BR2_PACKAGE_WIFI=y

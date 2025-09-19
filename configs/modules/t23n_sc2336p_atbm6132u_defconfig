@@ -1,5 +1,5 @@
 # NAME: T23N, SC2336P, ATBM6132U
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_ATBM6132U=y
 BR2_SENSOR_SC2336P=y

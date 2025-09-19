@@ -1,5 +1,5 @@
 # NAME: T31X, SC5235, ETH, RTL8137BU
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot
 BR2_PACKAGE_ETHERNET=y
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_RTL8137BU=y

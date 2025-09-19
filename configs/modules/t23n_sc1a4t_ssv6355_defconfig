@@ -1,5 +1,5 @@
 # NAME: T23N, SC1A4T, SSV6355
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_SSV6X5X=y
 BR2_PACKAGE_WIFI_SSV6X5X_SV6355=y

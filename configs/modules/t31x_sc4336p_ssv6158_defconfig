@@ -1,5 +1,5 @@
 # NAME: T31X, SC4336P, SSV6158
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_SSV6158=y
 BR2_SENSOR_SC4336P=y

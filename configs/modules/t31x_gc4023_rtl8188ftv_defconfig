@@ -1,5 +1,5 @@
 # NAME: T31X, GC4023, RTL8188FTV
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_RTL8188FU=y
 BR2_SENSOR_GC4023=y

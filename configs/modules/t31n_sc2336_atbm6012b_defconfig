@@ -1,5 +1,5 @@
 # NAME: T31N, SC2336, ATBM6012B
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_ATBM6012B=y
 BR2_SENSOR_SC2336=y
