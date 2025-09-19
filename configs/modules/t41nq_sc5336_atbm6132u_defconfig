@@ -1,5 +1,5 @@
 # NAME: T41NQ, SC5336, ATBM6132U
-# FRAG: soc-xburst2 toolchain-xburst2 ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst2 toolchain-xburst2 ccache brand rootfs kernel system target uboot ssl
 BR2_SENSOR_SC5336=y
 BR2_SOC_INGENIC_T41NQ=y
 BR2_PACKAGE_THINGINO_UBOOT_FLASH_CONTROLLER_JZ_SFC=n

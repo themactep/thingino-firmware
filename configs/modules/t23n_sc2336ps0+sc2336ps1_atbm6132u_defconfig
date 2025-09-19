@@ -1,5 +1,5 @@
 # NAME: T23N, SC2336P+SC2336PS1, ATBM6132U
-# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_SOC_INGENIC_T23N=y
 BR2_THINGINO_IMAGE_SENSOR_QTY_2=y
 BR2_SENSOR_1_SC2336PS0=y

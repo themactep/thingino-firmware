@@ -1,5 +1,5 @@
 # NAME: T30L, SC1235, RTL8189FTV
-# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_RTL8189FS=y
 BR2_SENSOR_SC1235=y

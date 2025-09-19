@@ -1,5 +1,5 @@
 # NAME: T20L, PS5250, RTL8189FTV
-# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_RTL8189FS=y
 BR2_SENSOR_PS5250=y

@@ -1,5 +1,5 @@
 # NAME: T21N, PS5260, MT7601U
-# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_MT7601U=y
 BR2_SENSOR_PS5260=y

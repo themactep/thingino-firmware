@@ -1,5 +1,5 @@
 # NAME: T23N, GC1084, ATBM6012B
-# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_SENSOR_GC1084=y
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_ATBM6012B=y

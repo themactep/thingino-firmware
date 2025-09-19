@@ -1,5 +1,5 @@
 # NAME: C100, GC2063, BCMDHD_AP6214A
-# FRAG: soc-xburst1 toolchain-glibc ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain-glibc ccache brand rootfs kernel system target uboot ssl
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_BCMDHD_AP6214A=y
 BR2_SENSOR_GC2053=y

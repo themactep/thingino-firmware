@@ -1,5 +1,5 @@
 # NAME: T20L, SC2235, ETH, RTL8188FTV
-# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_ETHERNET=y
 BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V12=y
 BR2_PACKAGE_WIFI=y
