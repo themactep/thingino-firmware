@@ -1,0 +1,31 @@
+BR2_PACKAGE_OPENSSL=y
+BR2_PACKAGE_LIBOPENSSL_BIN=y
+
+# Essential for HTTPS, RTSPS, RTMP, WPA2, etc. (not all are needed)
+BR2_PACKAGE_LIBOPENSSL_ENABLE_CHACHA=y          # Modern cipher for TLS 1.3
+BR2_PACKAGE_LIBOPENSSL_ENABLE_RC4=y             # RTMP + WPA2-TKIP
+BR2_PACKAGE_LIBOPENSSL_ENABLE_MD4=y             # WPA2 support
+BR2_PACKAGE_LIBOPENSSL_ENABLE_DES=y             # WPA2 support
+BR2_PACKAGE_LIBOPENSSL_ENABLE_PSK=y             # WPA2-PSK
+BR2_PACKAGE_LIBOPENSSL_ENABLE_IDEA=y            # May be needed
+BR2_PACKAGE_LIBOPENSSL_ENABLE_SEED=y            # May be needed
+BR2_PACKAGE_LIBOPENSSL_ENABLE_BLAKE2=y          # Modern hash
+BR2_PACKAGE_LIBOPENSSL_ENABLE_SSL=y             # Essential for HTTPS
+BR2_PACKAGE_LIBOPENSSL_ENABLE_ECX=y             # Modern elliptic curves
+BR2_PACKAGE_LIBOPENSSL_ENABLE_ARGON2=y          # Modern password hashing
+
+# Safe to disable
+BR2_PACKAGE_LIBOPENSSL_ENABLE_MD2=n             # Completely obsolete
+BR2_PACKAGE_LIBOPENSSL_ENABLE_RMD160=n          # Rarely used
+BR2_PACKAGE_LIBOPENSSL_ENABLE_WHIRLPOOL=n       # Rarely used
+BR2_PACKAGE_LIBOPENSSL_ENABLE_RC2=n             # Legacy
+BR2_PACKAGE_LIBOPENSSL_ENABLE_CAST=n            # Not commonly used
+BR2_PACKAGE_LIBOPENSSL_ENABLE_BLOWFISH=n        # Rarely used
+BR2_PACKAGE_LIBOPENSSL_ENABLE_SSL3=n            # Insecure
+BR2_PACKAGE_LIBOPENSSL_ENABLE_WEAK_SSL=n        # Contains weak ciphers
+BR2_PACKAGE_LIBOPENSSL_UNSECURE=n               # Debug/test features
+BR2_PACKAGE_LIBOPENSSL_ENABLE_QUIC=n            # HTTP/3, not needed
+BR2_PACKAGE_LIBOPENSSL_ENABLE_CMP=n             # Certificate management
+BR2_PACKAGE_LIBOPENSSL_ENABLE_PADLOCK_ENGINE=n  # VIA processor specific
+BR2_PACKAGE_LIBOPENSSL_ENABLE_LOADER_ENGINE=n   # Testing only
+BR2_PACKAGE_LIBOPENSSL_ENABLE_SSL_TRACE=n       # Debug feature
