@@ -119,6 +119,7 @@ if [ "true" = "$telegram_attach_video" ] && [ "true" = "$telegram_attach_photo" 
 		n=$((n + 1))
 		if [ "$n" -ge 10 ]; then
 			echo_error "Give up after $n attempts."
+			remove_tempfiles
 			exit 1
 		fi
 		sleep 1
@@ -161,6 +162,7 @@ fi
 echo_command "$command"
 if ! sh -c "$command" >/dev/null; then
 	echo_error "Failed to send message to Telegram"
+	remove_tempfiles
 	exit 1
 fi
 
