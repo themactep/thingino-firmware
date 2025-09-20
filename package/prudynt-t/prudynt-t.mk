@@ -2,8 +2,8 @@ PRUDYNT_T_SITE_METHOD = git
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
 	PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
 	PRUDYNT_T_SITE_BRANCH = master
-	#PRUDYNT_T_VERSION = 6eab9c0ef6fac8eb80f10ce489bca18295d84729
-	PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
+	PRUDYNT_T_VERSION = 57fd23f6b24901d469ce612dd6f75f818f4937fb
+	#PRUDYNT_T_VERSION = $(shell git ls-remote $(PRUDYNT_T_SITE) $(PRUDYNT_T_SITE_BRANCH) | head -1 | cut -f1)
 else
 	PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
 	PRUDYNT_T_SITE_BRANCH = prudynt-t-old
