@@ -9,7 +9,15 @@ LIGHTNVR_LICENSE_FILES = COPYING
 LIGHTNVR_INSTALL_STAGING = YES
 
 # Dependencies
-LIGHTNVR_DEPENDENCIES = thingino-ffmpeg thingino-libcurl sqlite mbedtls
+LIGHTNVR_DEPENDENCIES = thingino-ffmpeg thingino-libcurl sqlite
+
+ifeq ($(BR2_PACKAGE_MBEDTLS),y)
+LIGHTNVR_DEPENDENCIES += mbedtls
+endif
+
+ifeq ($(BR2_PACKAGE_THINGINO_WOLFSSL),y)
+LIGHTNVR_DEPENDENCIES += thingino-wolfssl
+endif
 
 # Enable SOD with dynamic linking and go2rtc, use bundled cJSON
 LIGHTNVR_CONF_OPTS = \
