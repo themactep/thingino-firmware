@@ -1,8 +1,9 @@
 gpio_button=62
 gpio_button_2=63
+gpio_default=18O 49o 51O 52i 53o 54O 57i 58i 59i 61O 62i 63i 91i 92i
+gpio_ir940=53
 gpio_ircut=-1
-gpio_default=49o 51O 54O
+gpio_led_b=51o
 gpio_led_g=54o
 gpio_led_r=49O
-gpio_led_b=51o
 gpio_mmc_cd=52
