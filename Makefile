@@ -230,11 +230,14 @@ release: RELEASE=1
 release: distclean defconfig build_fast pack
 	$(info -------------------------------- $@)
 
-# update repo and submodules
+# update repo and submodules with buildroot patch management
 update:
 	$(info -------------------------------- $@)
+	@echo "=== UPDATING MAIN REPOSITORY ==="
 	git pull --rebase --autostash
-	git submodule update
+	@echo "=== UPDATING SUBMODULES ==="
+	git submodule update --init --remote --recursive
+	@echo "=== UPDATING BUILDROOT WITH PATCH MANAGEMENT ==="
 
 # install what's needed
 bootstrap:
@@ -569,7 +572,7 @@ br-%: check-config
 buildroot/Makefile:
 	$(info -------------------------------- $@)
 	git submodule init
-	git submodule update --depth 1 --recursive
+	git submodule update --remote --recursive
 
 # create output directory
 $(OUTPUT_DIR)/.keep:
@@ -668,7 +671,7 @@ help:
 	@echo "\n\
 	Usage:\n\
 	  make bootstrap      install system deps\n\
-	  make update         update local repo from GitHub\n\
+	  make update         update local repo and submodules (excludes buildroot)\n\
 	  make                edit configurations\n\
 	  make                build and pack everything\n\
 	  make build          build kernel and rootfs\n\
@@ -686,6 +689,9 @@ help:
 	  make force-config   force configuration regeneration\n\
 	  make show-config-deps  show configuration dependencies\n\
 	  make clean-config   remove configuration files\n\
+	  \n\
+	Buildroot Submodule Management:\n\
+	  scripts/update_buildroot.sh  advanced buildroot update with options\n\
 	  \n\
 	  make upboot_ota IP=192.168.1.10\n\
 	                      upload bootloader to the camera\n\
