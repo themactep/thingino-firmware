@@ -212,7 +212,7 @@ endef
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR) BR2_DL_DIR=$(BR2_DL_DIR)
 
-.PHONY: all bootstrap build build_fast clean cleanbuild defconfig distclean fast \
+.PHONY: all bootstrap build build_fast clean clean-nfs-debug cleanbuild defconfig distclean fast \
 	help pack release remove_bins repack sdk toolchain update upboot-ota \
 	upload_tftp upgrade_ota br-% check-config force-config show-config-deps clean-config
 
@@ -448,8 +448,40 @@ saveconfig:
 
 ### Files
 
+# Clean camera-specific NFS debug artifacts
+clean-nfs-debug:
+	$(info -------------------------------- $@)
+	@if [ -z "$(CAMERA)" ] || [ "$(CAMERA)" = "" ]; then \
+		echo "CAMERA variable not defined, skipping NFS debug cleanup"; \
+	elif [ ! -f "$(OUTPUT_DIR)/.config" ]; then \
+		echo "Configuration file not found, skipping NFS debug cleanup"; \
+	else \
+		NFS_PATH=$$(grep '^BR2_THINGINO_NFS=' "$(OUTPUT_DIR)/.config" 2>/dev/null | cut -d'=' -f2 | tr -d '"' || echo ""); \
+		DEBUG_ENABLED=$$(grep '^BR2_PACKAGE_PRUDYNT_T_DEBUG=y' "$(OUTPUT_DIR)/.config" 2>/dev/null || echo ""); \
+		DEV_PACKAGES_ENABLED=$$(grep '^BR2_THINGINO_DEV_PACKAGES=y' "$(OUTPUT_DIR)/.config" 2>/dev/null || echo ""); \
+		\
+		if [ -n "$$DEBUG_ENABLED" ] && [ -n "$$DEV_PACKAGES_ENABLED" ] && [ -n "$$NFS_PATH" ] && [ "$$NFS_PATH" != "" ]; then \
+			CAMERA_NFS_DIR="$$NFS_PATH/$(CAMERA)"; \
+			if [ -d "$$CAMERA_NFS_DIR" ]; then \
+				echo "Removing camera-specific NFS debug artifacts: $$CAMERA_NFS_DIR"; \
+				rm -rf "$$CAMERA_NFS_DIR"; \
+				echo "NFS debug artifacts cleaned for camera: $(CAMERA)"; \
+			else \
+				echo "NFS debug directory does not exist: $$CAMERA_NFS_DIR (skipping)"; \
+			fi; \
+		else \
+			if [ -z "$$DEBUG_ENABLED" ]; then \
+				echo "Debug builds not enabled, skipping NFS debug cleanup"; \
+			elif [ -z "$$DEV_PACKAGES_ENABLED" ]; then \
+				echo "Development packages not enabled, skipping NFS debug cleanup"; \
+			elif [ -z "$$NFS_PATH" ] || [ "$$NFS_PATH" = "" ]; then \
+				echo "NFS path not configured, skipping NFS debug cleanup"; \
+			fi; \
+		fi; \
+	fi
+
 # remove target/ directory
-clean:
+clean: clean-nfs-debug
 	$(info -------------------------------- $@)
 	rm -rf $(OUTPUT_DIR)/target
 	rm -rf $(OUTPUT_DIR)/config
@@ -461,7 +493,7 @@ clean:
 
 
 # remove all build files
-distclean:
+distclean: clean-nfs-debug
 	$(info -------------------------------- $@)
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
@@ -587,8 +619,6 @@ $(CONFIG_PARTITION_DIR)/.keep:
 	$(info -------------------------------- $@)
 	test -d $(CONFIG_PARTITION_DIR) || mkdir -p $(CONFIG_PARTITION_DIR)
 	touch $@
-
-
 
 $(U_BOOT_ENV_TXT): $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
