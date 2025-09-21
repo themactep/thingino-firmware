@@ -3,14 +3,13 @@
 DAEMON=wsd_simple_server
 ONVIF_CONFIG=/etc/onvif.conf
 ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
-OS_RELEASE=/etc/os-release
 PRUDYNT_CONFIG=/etc/prudynt.cfg
 
 . /usr/share/common
 
 iface="$(iface_default)"
 
-model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $OS_RELEASE)
+model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $OS_RELEASE_FILE)
 
 # extract iface for daemon from onvif.conf
 DAEMON_ARGS="--if_name $iface --xaddr http://%s/onvif/device_service -m $model -n thingino --pid_file /var/run/$DAEMON_SHORT.pid"
