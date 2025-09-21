@@ -1,3 +1,6 @@
+THINGINO_DEVSCRIPTS_SITE_METHOD = local
+THINGINO_DEVSCRIPTS_SITE = $(BR2_EXTERNAL)/package/thingino-devscripts
+
 define THINGINO_DEVSCRIPTS_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(THINGINO_DEVSCRIPTS_PKGDIR)/files/daylightsample \
 		$(TARGET_DIR)/usr/sbin/daylightsample

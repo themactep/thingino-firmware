@@ -1,3 +1,6 @@
+# This is a configuration-only package that doesn't download source
+THINGINO_KOPT_SOURCE =
+
 ################ JZ_MAC #########################
 ifeq ($(BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V12),y)
 define THINGINO_KOPT_LINUX_CONFIG_FIXUPS_JZ_MAC_V12
