@@ -24,6 +24,7 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_INGENIC_PWM
 	select BR2_PACKAGE_INGENIC_SDK
 	select BR2_PACKAGE_ONVIF_SIMPLE_SERVER if BR2_PACKAGE_PRUDYNT_T
+	select BR2_PACKAGE_THINGINO_JCT
 	select BR2_PACKAGE_THINGINO_LIBCURL
 	select BR2_PACKAGE_THINGINO_LIBCURL_COOKIES_SUPPORT
 	select BR2_PACKAGE_THINGINO_LIBCURL_CURL
@@ -59,6 +60,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-diag-tools/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-lib/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-pwm/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-sdk/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-jct/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libwebsockets-435/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat-mini/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat/Config.in"
