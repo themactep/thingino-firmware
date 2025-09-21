@@ -1,0 +1,31 @@
+config BR2_PACKAGE_LIBWEBSOCKETS_435
+	bool "libwebsockets-435"
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_ZLIB
+	help
+	  Libwebsockets is a lightweight pure C library built to use
+	  minimal CPU and memory resources, and provide fast throughput
+	  in both directions.
+
+	  https://libwebsockets.org/
+
+if BR2_PACKAGE_LIBWEBSOCKETS_435
+
+config BR2_PACKAGE_LIBWEBSOCKETS_435_EXT_POLL
+	bool "enable external poll loop support"
+	default y  # legacy, was previously always enabled
+	help
+	  Enable external poll loop support code. This was
+	  unconditionally compiled in for library versions
+	  prior to 3.2.0.
+
+config BR2_PACKAGE_LIBWEBSOCKETS_435_ASYNC_DNS
+	bool "enable async dns support"
+	help
+	  Enable asynchronous DNS resolver that directly queries
+	  the configured nameserver over UDP, from the event loop.
+
+endif
+
+comment "libwebsockets needs a toolchain w/ dynamic library"
+	depends on BR2_STATIC_LIBS

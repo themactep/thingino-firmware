@@ -15,7 +15,7 @@ PRUDYNT_T_GIT_SUBMODULES = YES
 
 PRUDYNT_T_DEPENDENCIES = libconfig thingino-live555 thingino-fonts ingenic-lib faac thingino-opus libhelix-aac
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_NG),y)
-	PRUDYNT_T_DEPENDENCIES += libwebsockets libschrift
+	PRUDYNT_T_DEPENDENCIES += libwebsockets-435 libschrift
 else
 	PRUDYNT_T_DEPENDENCIES += thingino-freetype
 endif
