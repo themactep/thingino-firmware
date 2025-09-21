@@ -11,6 +11,32 @@ Please find [the full list of supported cameras](docs/supported_hardware.md)
 in a separate document. Visit [our website][0] for an illustrated version of
 the list.
 
+---
+
+### Thingino Repository Branches Explaned
+
+We've split the Thingino repository into two branches: stable and master, to better manage development and provide reliable releases for users.
+
+**Stable Branch**
+
+Provides a reliable, tested version of Thingino for general use. It includes carefully selected, stable changes. It uses the original ONVIF server and Prudynt with libconfig.
+The stable branch will receive critical fixes. New features will only be added once they are thoroughly tested and mature in the master branch.
+
+For users who want a dependable version of Thingino without needing to build or contribute to development.
+
+**Master Branch**
+
+The development hub for new features and experimental changes. Includes advanced features like Matroska, Opus, and improved file recording for Prudynt. These are still in development and may not be stable.
+
+Only for developers and contributors who can build the project themselves and actively participate in improving the code.
+
+This structure allows us to maintain a reliable version (stable) for most users while continuing to innovate and test new features (master). Critical fixes and matured features from master will be gradually integrated into stable for broader use.
+
+> [!NOTE]
+> If you’re not contributing to development, we recommend sticking with the stable branch.
+
+Thank you for using Thingino! For questions or contributions, please join our Discord community or check the GitHub issues page.
+
 ### Building
 
 ```
