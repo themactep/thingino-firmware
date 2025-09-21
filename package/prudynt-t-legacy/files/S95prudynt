@@ -1,0 +1,49 @@
+#!/bin/sh
+
+. /usr/share/common
+
+COMMAND="/bin/env -- LD_PRELOAD=/lib/libimp_control.so $DAEMON_FULL"
+
+start() {
+	echo_title "Starting Prudynt"
+
+	if is_streamer_disabled; then
+		echo_error "Streamer disabled"
+		exit 1
+	fi
+
+	start_daemon
+}
+
+stop() {
+	echo_title "Stopping Prudynt"
+
+	if is_streamer_disabled; then
+		echo_error "Streamer disabled"
+		exit 1
+	fi
+
+	[ -f "$SNAPSHOT_FILE" ] && rm -f "$SNAPSHOT_FILE"
+
+	stop_daemon
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop || true
+		sleep 1
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0
