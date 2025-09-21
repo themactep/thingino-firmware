@@ -12,6 +12,7 @@
 /local.mk
 /output*/
 /overlay/upper
+/overrides/
 /package/thingino-webui/files/var/www/onvif/*_files/
 /package/thingino-webui/files/var/www/onvif/*_service
 /package-repos/
