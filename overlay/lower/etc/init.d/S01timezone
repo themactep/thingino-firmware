@@ -18,7 +18,7 @@ start() {
 		exit 1
 	fi
 
-	tz=$(zcat "$TZJSON_FILE" | grep -o '"n":"'"$tzname"'"[^}]*"v":"[^"]*"' | sed 's/.*"v":"\([^"]*\)".*/\1/')
+	tz=$(zcat "$TZJSON_FILE" | jsonfilter -e "$[@.n='$tzname']".v)
 	if [ -z "$tz" ]; then
 		echo_error "Timezone $tzname not found in $TZJSON_FILE"
 		exit 1
