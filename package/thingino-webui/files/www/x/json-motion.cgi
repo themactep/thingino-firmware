@@ -5,7 +5,7 @@
 [ -n "$QUERY_STRING" ] && eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
 
 case "$target" in
-	email | ftp | mqtt | telegram | webhook | yadisk)
+	email | ftp | mqtt | telegram | webhook | ntfy | yadisk)
 		case "$state" in
 			true | false)
 				sed -i "/^motion_send2$target/d" $CONFIG_FILE
