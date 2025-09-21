@@ -40,37 +40,11 @@ SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 # export BR2_DL_DIR = /path/to/your/local/storage
 BR2_DL_DIR ?= $(HOME)/dl
 
-#ifeq ($(BOARD),)
-#$(error No camera config provided)
-#else
-#CAMERA:=$(BOARD)
-#$(info Building for CAMERA: $(CAMERA))
-#endif
-
 # repo data
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD | tr -d '()' | xargs)
 GIT_HASH="$(shell git show -s --format=%H | cut -c1-7)"
 GIT_DATE="$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S UTC' --format="%cd")"
 BUILD_DATE="$(shell env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z')"
-
-# working directory
-ifeq ($(GIT_BRANCH),master)
-OUTPUT_DIR ?= $(HOME)/output/$(CAMERA)
-else ifeq ($(GIT_BRANCH),)
-OUTPUT_DIR ?= $(HOME)/output-junk/$(CAMERA)
-else
-OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)/$(CAMERA)
-endif
-$(info OUTPUT_DIR: $(OUTPUT_DIR))
-export OUTPUT_DIR
-
-HOST_DIR = $(OUTPUT_DIR)/host
-
-CONFIG_PARTITION_DIR = $(OUTPUT_DIR)/config
-export CONFIG_PARTITION_DIR
-
-STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
-STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
 
 ifeq ($(GROUP),github)
 	CAMERA_SUBDIR := configs/github
@@ -87,6 +61,36 @@ export CAMERA_SUBDIR
 include $(BR2_EXTERNAL)/board.mk
 
 export CAMERA
+
+# working directory - set after CAMERA is defined
+ifeq ($(CAMERA),)
+# If CAMERA is not defined, use a safe default for exempted targets
+ifeq ($(GIT_BRANCH),master)
+OUTPUT_DIR ?= $(HOME)/output
+else ifeq ($(GIT_BRANCH),)
+OUTPUT_DIR ?= $(HOME)/output-junk
+else
+OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)
+endif
+else
+ifeq ($(GIT_BRANCH),master)
+OUTPUT_DIR ?= $(HOME)/output/$(CAMERA)
+else ifeq ($(GIT_BRANCH),)
+OUTPUT_DIR ?= $(HOME)/output-junk/$(CAMERA)
+else
+OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)/$(CAMERA)
+endif
+endif
+$(info OUTPUT_DIR: $(OUTPUT_DIR))
+export OUTPUT_DIR
+
+HOST_DIR = $(OUTPUT_DIR)/host
+
+CONFIG_PARTITION_DIR = $(OUTPUT_DIR)/config
+export CONFIG_PARTITION_DIR
+
+STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
+STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
 
 # include thingino makefile only when board configuration is available
 ifeq ($(SKIP_BOARD_SELECTION),)
