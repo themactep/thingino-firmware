@@ -236,8 +236,8 @@ update:
 	@echo "=== UPDATING MAIN REPOSITORY ==="
 	git pull --rebase --autostash
 	@echo "=== UPDATING SUBMODULES ==="
-	git submodule update --init --remote --recursive
-	@echo "=== UPDATING BUILDROOT WITH PATCH MANAGEMENT ==="
+	git submodule init
+	git submodule update
 
 # install what's needed
 bootstrap:
