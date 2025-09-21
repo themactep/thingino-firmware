@@ -1,5 +1,5 @@
 # NAME: T23N, SC3336, WQ9001
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_SOC_INGENIC_T23N=y
 BR2_SENSOR_SC3336=y
 BR2_PACKAGE_WIFI=y

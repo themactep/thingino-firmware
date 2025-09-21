@@ -1,5 +1,5 @@
 # NAME: T31L, OS02G10, ATBM6031
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_ATBM6031=y
 BR2_SENSOR_OS02G10=y

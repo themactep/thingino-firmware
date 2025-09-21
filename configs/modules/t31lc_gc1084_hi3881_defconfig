@@ -1,5 +1,5 @@
 # NAME: T31LC, GC1084, HI3881
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_HI3881=y
 BR2_SENSOR_GC1084=y
