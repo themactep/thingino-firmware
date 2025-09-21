@@ -1,4 +1,4 @@
-name: firmware-x86_64
+name: firmware-stable
 on:
   schedule:
     # 00:30 PST / Nightly
