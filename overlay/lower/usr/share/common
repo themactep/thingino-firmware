@@ -22,7 +22,7 @@ fi
 PID=$$
 
 CRONTABS="/etc/cron/crontabs/root"
-CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3"
+CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5"
 EMAIL_FORMAT='^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
 HOSTNAME_FILE="/etc/hostname"
 HOSTS_FILE="/etc/hosts"
