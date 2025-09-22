@@ -1,23 +1,42 @@
-ENV_DUMP_FILE="/tmp/environment"
-[ -f "$ENV_DUMP_FILE" ] && . "$ENV_DUMP_FILE"
+[ -n "$debug" ] && return
+[ -f "/etc/shadow-" ] && return
+[ -f "/tmp/.fs" ] && return
+{
+	trap 'echo_c 160 "\nInterrupted!";echo_c 184 "\nYou will be reminded again the next time you login.\n";trap - INT;return 1' INT
+	attempts=5
+	while : ; do
+		if [ "$attempts" -eq 5 ]; then
+			echo_c 015 "\nIt's your first login.\nYou are required to change your password!\n"
+		elif [ "$attempts" -gt 0 ]; then
+			echo_c 015 "Please try again. You have $attempts attempts left.\n"
+		else
+			echo_c 015 "No more attempts left.\n"
+			echo_c 184 "You will be reminded again the next time you login.\n"
+			trap - INT
+			return
+		fi
+		attempts=$((attempts-1))
 
-[ -z "$debug" ] && [ ! -f "/etc/shadow-" ] && [ ! -f "/tmp/.fs" ] && {
-	echo_c 196 "It's your first login. You are required to change your password!\n"
-	trap 'echo_c 184 "\n\nYou will be reminded again the next time you login.\n"; stty echo; trap - INT; return' INT
-	attempts=0
-	while [ $attempts -lt 5 ]; do
-		echo -en "\nPassword: "; stty -echo; read p1; echo -en "\nConfirm: "; read p2; stty echo
-		[ -z "$p1" ] && echo_c 196 "\n\nPassword cannot be empty. Please try again.\n" && attempts=$((attempts+1)) && continue
-		[ "$p1" = "root" ] && echo_c 196 "\n\n'root' is not allowed as a password. Please try again.\n" && attempts=$((attempts+1)) && continue
-		[ "$p1" = "$p2" ] && {
-			echo "root:$p1" | chpasswd -c sha512 2>/dev/null && echo_c 118 "\n\nPassword updated.\n" && break
-			echo_c 196 "\n\nUpdate failed. Please try again.\n"
-		} || echo_c 196 "\n\nPassword mismatch. Please try again.\n"
-		attempts=$((attempts + 1))
+		read -p "Password: " -s p1
+		echo
+		if [ -z "$p1" ]; then
+			echo_c 196 "Password cannot be empty."
+			continue
+		elif [ "$p1" = "root" ]; then
+			echo_c 196 "Password 'root' is not allowed."
+			continue
+		fi
+
+		read -p "Confirm: " -s p2
+		echo
+		if [ "$p1" != "$p2" ]; then
+			echo_c 196 "Passwords mismatch."
+			continue
+		fi
+
+		echo "root:$p1" | chpasswd -c sha512 2>/dev/null
+		echo_c 118 "\nPassword updated.\n"
+		break
 	done
-	[ $attempts -ge 5 ] && echo_c 184 "\n\nYou will be reminded again the next time you login.\n"
-	stty echo
-	trap - INT
-	return
 }
 trap - INT
