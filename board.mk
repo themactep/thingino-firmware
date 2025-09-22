@@ -76,8 +76,13 @@ endif
 
 # Ensure BOARD is set from CAMERA_CONFIG if not already set
 BOARD ?= $(shell basename "$(CAMERA_CONFIG)" | sed -E "s/_defconfig//")
-CAMERA_CONFIG_REAL := $(shell realpath "$(BR2_EXTERNAL)/$(CAMERA_CONFIG)")
+CAMERA_CONFIG_REAL := $(shell realpath "$(BR2_EXTERNAL)/$(CAMERA_CONFIG)" 2>/dev/null)
 $(info CAMERA_CONFIG_REAL = $(CAMERA_CONFIG_REAL))
+
+# Check if the camera config file actually exists
+ifeq ($(CAMERA_CONFIG_REAL),)
+  $(error * Camera config file not found: $(BR2_EXTERNAL)/$(CAMERA_CONFIG). Please check if the profile still exists or remove the BUILD_MEMO file: $(BUILD_MEMO))
+endif
 
 MODULE_CONFIG = $(shell awk '/MODULE:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(CAMERA_CONFIG_REAL))
 ifeq ($(MODULE_CONFIG),)
