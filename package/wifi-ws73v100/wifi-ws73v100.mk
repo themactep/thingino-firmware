@@ -1,12 +1,11 @@
 WIFI_WS73V100_SITE_METHOD = git
 WIFI_WS73V100_SITE = https://github.com/gtxaspec/ws73v100-wifi
 WIFI_WS73V100_SITE_BRANCH = master
-WIFI_WS73V100_VERSION = 163935b988d9c0eb7e98338badd713d2118ee638
-# $(shell git ls-remote $(WIFI_WS73V100_SITE) $(WIFI_WS73V100_SITE_BRANCH) | head -1 | cut -f1)
+WIFI_WS73V100_VERSION = $(shell git ls-remote $(WIFI_WS73V100_SITE) $(WIFI_WS73V100_SITE_BRANCH) | head -1 | cut -f1)
 
 WIFI_WS73V100_LICENSE = GPL-2.0
 
-WS73V100_MODULE_NAME = ws73v100
+WS73V100_MODULE_NAME = plat_wifi
 
 define WIFI_WS73V100_CONFIGURE_OPTIONS
 	# Configure build environment
@@ -17,7 +16,7 @@ define WIFI_WS73V100_CONFIGURE_OPTIONS
 	# Configure bus interface
 	$(if $(BR2_PACKAGE_WIFI_WS73V100_USB), \
 		sed -i 's/^WSCFG_BUS_SDIO=.*/WSCFG_BUS_SDIO=n/' $(@D)/build/config/ws73_default.config && \
-		sed -i 's/^WSCFG_BUS_USB=.*/WSCFG_BUS_USB=y/' $(@D)/build/config/ws73_default.config, \
+		sed -i 's/^# WSCFG_BUS_USB is not set/WSCFG_BUS_USB=y/' $(@D)/build/config/ws73_default.config, \
 		$(if $(BR2_PACKAGE_WIFI_WS73V100_SDIO), \
 			sed -i 's/^WSCFG_BUS_SDIO=.*/WSCFG_BUS_SDIO=y/' $(@D)/build/config/ws73_default.config && \
 			sed -i 's/^WSCFG_BUS_USB=.*/WSCFG_BUS_USB=n/' $(@D)/build/config/ws73_default.config))
