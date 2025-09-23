@@ -19,7 +19,7 @@ define THINGINO_DAYNIGHT_BUILD_CMDS
 endef
 
 define THINGINO_DAYNIGHT_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0755 $(@D)/daynightd \
+	$(INSTALL) -D -m 0755 $(@D)/files/daynightd \
 		$(TARGET_DIR)/usr/bin/daynightd
 	$(INSTALL) -D -m 0644 $(@D)/files/daynightd.json \
 		$(TARGET_DIR)/etc/daynightd.json
