@@ -1,0 +1,332 @@
+{{include:header}}
+
+        <div class="row mb-4">
+            <div class="col">
+                <h1 class="h3 mb-0">
+                    <i class="bi bi-journal-text me-2"></i>System Logs
+                </h1>
+                <p class="text-muted">System messages, kernel logs, and application logs</p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-journal-text me-2"></i>System Logs
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>Recent system messages and kernel logs (auto-refreshes every 30 seconds)
+                        </div>
+                        <div class="bg-dark p-3 rounded">
+                            <pre class="text-light mb-0" style="font-size: 0.875rem; max-height: 400px; overflow-y: auto;" id="systemLogs">{{system_logs}}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mt-2">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-cpu me-2"></i>Kernel Messages
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="bg-dark p-3 rounded">
+                            <pre class="text-light mb-0" style="font-size: 0.875rem; max-height: 300px; overflow-y: auto;" id="kernelLogs">{{kernel_logs}}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-camera-video me-2"></i>Camera Logs
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="bg-dark p-3 rounded">
+                            <pre class="text-light mb-0" style="font-size: 0.875rem; max-height: 300px; overflow-y: auto;" id="cameraLogs">{{camera_logs}}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mt-2">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-wifi me-2"></i>Network Logs
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="bg-dark p-3 rounded">
+                            <pre class="text-light mb-0" style="font-size: 0.875rem; max-height: 300px; overflow-y: auto;" id="networkLogs">{{network_logs}}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-shield-check me-2"></i>Security Logs
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="bg-dark p-3 rounded">
+                            <pre class="text-light mb-0" style="font-size: 0.875rem; max-height: 300px; overflow-y: auto;" id="securityLogs">{{security_logs}}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mt-2">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-lightning me-2"></i>Log Management
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-primary w-100" onclick="refreshLogs()">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-success w-100" onclick="exportLogs()">
+                                    <i class="bi bi-download me-1"></i>Export All
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-warning w-100" onclick="clearLogs()">
+                                    <i class="bi bi-trash me-1"></i>Clear Logs
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-info w-100" onclick="searchLogs()">
+                                    <i class="bi bi-search me-1"></i>Search
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-secondary w-100" onclick="toggleAutoRefresh()">
+                                    <i class="bi bi-pause me-1"></i><span id="autoRefreshText">Pause Auto</span>
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-light w-100" onclick="viewFullLogs()">
+                                    <i class="bi bi-eye me-1"></i>Full View
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mt-2">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-gear me-2"></i>Log Configuration
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label for="logLevel" class="form-label">Log Level</label>
+                                <select id="logLevel" class="form-select">
+                                    <option value="debug">Debug</option>
+                                    <option value="info" selected>Info</option>
+                                    <option value="warning">Warning</option>
+                                    <option value="error">Error</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="maxLines" class="form-label">Max Lines</label>
+                                <select id="maxLines" class="form-select">
+                                    <option value="50" selected>50</option>
+                                    <option value="100">100</option>
+                                    <option value="200">200</option>
+                                    <option value="500">500</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="refreshInterval" class="form-label">Refresh Interval</label>
+                                <select id="refreshInterval" class="form-select">
+                                    <option value="10">10 seconds</option>
+                                    <option value="30" selected>30 seconds</option>
+                                    <option value="60">1 minute</option>
+                                    <option value="300">5 minutes</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-grid">
+                                    <button class="btn btn-primary" onclick="applyLogSettings()" style="margin-top: 32px;">
+                                        <i class="bi bi-check-lg me-1"></i>Apply Settings
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <script>
+        let autoRefreshEnabled = true;
+        let refreshInterval = 30000; // 30 seconds
+        let refreshTimer;
+        
+        function refreshLogs() {
+            window.location.reload();
+        }
+        
+        function exportLogs() {
+            const logs = {
+                system: document.getElementById('systemLogs').textContent,
+                kernel: document.getElementById('kernelLogs').textContent,
+                camera: document.getElementById('cameraLogs').textContent,
+                network: document.getElementById('networkLogs').textContent,
+                security: document.getElementById('securityLogs').textContent,
+                timestamp: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `thingino-logs-${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function clearLogs() {
+            if (confirm('Clear all system logs? This action cannot be undone.')) {
+                fetch('/lua/api/system/clear-logs', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Logs cleared successfully');
+                            setTimeout(() => window.location.reload(), 1000);
+                        } else {
+                            alert('Failed to clear logs: ' + (data.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Failed to clear logs');
+                    });
+            }
+        }
+        
+        function searchLogs() {
+            const searchTerm = prompt(window.i18n?.t('js.prompt.enter_search_term') || 'Enter search term:');
+            if (searchTerm) {
+                // Highlight search terms in all log sections
+                const logSections = ['systemLogs', 'kernelLogs', 'cameraLogs', 'networkLogs', 'securityLogs'];
+                logSections.forEach(sectionId => {
+                    const section = document.getElementById(sectionId);
+                    const content = section.textContent;
+                    const regex = new RegExp(`(${searchTerm})`, 'gi');
+                    const highlighted = content.replace(regex, '<mark>$1</mark>');
+                    section.innerHTML = highlighted;
+                });
+
+                alert((window.i18n?.t('js.alert.search_completed') || 'Search completed for') + `: "${searchTerm}"`);
+            }
+        }
+        
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            const button = document.getElementById('autoRefreshText');
+            
+            if (autoRefreshEnabled) {
+                button.textContent = 'Pause Auto';
+                startAutoRefresh();
+            } else {
+                button.textContent = 'Resume Auto';
+                clearInterval(refreshTimer);
+            }
+        }
+        
+        function viewFullLogs() {
+            window.open('/lua/api/logs/full', '_blank');
+        }
+        
+        function applyLogSettings() {
+            const logLevel = document.getElementById('logLevel').value;
+            const maxLines = document.getElementById('maxLines').value;
+            const newRefreshInterval = parseInt(document.getElementById('refreshInterval').value) * 1000;
+            
+            // Update refresh interval
+            refreshInterval = newRefreshInterval;
+            if (autoRefreshEnabled) {
+                clearInterval(refreshTimer);
+                startAutoRefresh();
+            }
+            
+            // Apply log settings
+            fetch('/lua/api/logs/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    level: logLevel,
+                    max_lines: parseInt(maxLines)
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Log settings applied successfully');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    alert('Failed to apply settings: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to apply log settings');
+            });
+        }
+        
+        function startAutoRefresh() {
+            refreshTimer = setInterval(() => {
+                if (autoRefreshEnabled) {
+                    refreshLogs();
+                }
+            }, refreshInterval);
+        }
+        
+        // Initialize auto-refresh
+        startAutoRefresh();
+        
+        // Scroll to bottom of log sections
+        document.addEventListener('DOMContentLoaded', function() {
+            const logSections = ['systemLogs', 'kernelLogs', 'cameraLogs', 'networkLogs', 'securityLogs'];
+            logSections.forEach(sectionId => {
+                const section = document.getElementById(sectionId);
+                if (section) {
+                    section.scrollTop = section.scrollHeight;
+                }
+            });
+        });
+    </script>
+
+{{include:footer}}

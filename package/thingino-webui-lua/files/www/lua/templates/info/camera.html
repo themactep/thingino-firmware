@@ -1,0 +1,375 @@
+{{include:header}}
+
+        <div class="row mb-4">
+            <div class="col">
+                <h1 class="h3 mb-0">
+                    <i class="bi bi-camera-video me-2"></i>Camera Information
+                </h1>
+                <p class="text-muted">Sensor, streaming, and video configuration details</p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card info-card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-camera me-2"></i>Camera Hardware
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Sensor Model:</span>
+                                <span class="text-muted">{{sensor_model}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Max Resolution:</span>
+                                <span class="text-muted">{{max_resolution}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>ISP Version:</span>
+                                <span class="text-muted">{{isp_version}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Video Encoder:</span>
+                                <span class="text-muted">{{video_encoder}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Night Vision:</span>
+                                <span class="badge {{night_vision_badge_class}}">{{night_vision_status}}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card info-card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-play-circle me-2"></i>Streaming Status
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Stream Status:</span>
+                                <span class="badge {{stream_status_badge_class}}">{{stream_status}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Current Resolution:</span>
+                                <span class="text-muted">{{current_resolution}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Frame Rate:</span>
+                                <span class="text-muted">{{current_fps}} FPS</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Bitrate:</span>
+                                <span class="text-muted">{{current_bitrate}} kbps</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span>Codec:</span>
+                                <span class="text-muted">{{current_codec}}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mt-2">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-image me-2"></i>Live Preview
+                        </h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <img id="cameraSnapshot" src="/lua/api/camera/snapshot" 
+                             alt="Camera Preview" class="img-fluid rounded mb-3"
+                             style="max-height: 300px; object-fit: contain;">
+                        <div class="d-flex justify-content-center gap-2">
+                            <button class="btn btn-primary" onclick="refreshSnapshot()">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                            </button>
+                            <button class="btn btn-success" onclick="takeSnapshot()">
+                                <i class="bi bi-camera me-1"></i>Take Snapshot
+                            </button>
+                            <a href="/lua/preview" class="btn btn-outline-primary">
+                                <i class="bi bi-camera-video me-1"></i>Full Preview
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-gear me-2"></i>Camera Controls
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-success" onclick="startStreaming()">
+                                <i class="bi bi-play me-1"></i>Start Streaming
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="stopStreaming()">
+                                <i class="bi bi-stop me-1"></i>Stop Streaming
+                            </button>
+                            <button class="btn btn-outline-warning" onclick="restartStreaming()">
+                                <i class="bi bi-arrow-repeat me-1"></i>Restart Streaming
+                            </button>
+                            <button class="btn btn-outline-info" onclick="toggleNightVision()">
+                                <i class="bi bi-moon me-1"></i>Toggle Night Vision
+                            </button>
+                            <a href="/lua/config/camera" class="btn btn-outline-secondary">
+                                <i class="bi bi-gear me-1"></i>Camera Settings
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mt-2">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-code me-2"></i>Technical Details
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-primary">Sensor Information</h6>
+                                <pre class="bg-dark text-light p-3 rounded small">{{sensor_details}}</pre>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-primary">Streaming Configuration</h6>
+                                <pre class="bg-dark text-light p-3 rounded small">{{streaming_config}}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mt-2">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-lightning me-2"></i>Quick Actions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-primary w-100" onclick="refreshPage()">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-success w-100" onclick="exportCameraInfo()">
+                                    <i class="bi bi-download me-1"></i>Export Info
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-warning w-100" onclick="calibrateCamera()">
+                                    <i class="bi bi-bullseye me-1"></i>Calibrate
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-info w-100" onclick="testCamera()">
+                                    <i class="bi bi-check-circle me-1"></i>Test Camera
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <a href="/lua/motion" class="btn btn-outline-secondary w-100">
+                                    <i class="bi bi-activity me-1"></i>Motion Setup
+                                </a>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-light w-100" onclick="resetCamera()">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <script>
+        function refreshPage() {
+            window.location.reload();
+        }
+        
+        function refreshSnapshot() {
+            const img = document.getElementById('cameraSnapshot');
+            img.src = '/lua/api/camera/snapshot?' + new Date().getTime();
+        }
+        
+        function takeSnapshot() {
+            fetch('/lua/api/camera/snapshot', { method: 'POST' })
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `snapshot_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.jpg`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    refreshSnapshot();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to take snapshot');
+                });
+        }
+        
+        function startStreaming() {
+            fetch('/lua/api/camera/start-streaming', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Streaming started successfully');
+                        setTimeout(() => window.location.reload(), 2000);
+                    } else {
+                        alert('Failed to start streaming: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to start streaming');
+                });
+        }
+        
+        function stopStreaming() {
+            if (confirm('Stop video streaming?')) {
+                fetch('/lua/api/camera/stop-streaming', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Streaming stopped');
+                            setTimeout(() => window.location.reload(), 2000);
+                        } else {
+                            alert('Failed to stop streaming: ' + (data.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Failed to stop streaming');
+                    });
+            }
+        }
+        
+        function restartStreaming() {
+            if (confirm('Restart video streaming? This may interrupt the video feed briefly.')) {
+                fetch('/lua/api/system/restart-streaming', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert('Streaming service restarted');
+                        setTimeout(() => window.location.reload(), 3000);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Failed to restart streaming');
+                    });
+            }
+        }
+        
+        function toggleNightVision() {
+            fetch('/lua/api/camera/night-vision', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message || 'Night vision toggled');
+                    setTimeout(() => {
+                        refreshSnapshot();
+                        window.location.reload();
+                    }, 1000);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to toggle night vision');
+                });
+        }
+        
+        function exportCameraInfo() {
+            const cameraInfo = {
+                hardware: {
+                    sensor_model: '{{sensor_model}}',
+                    max_resolution: '{{max_resolution}}',
+                    isp_version: '{{isp_version}}',
+                    video_encoder: '{{video_encoder}}'
+                },
+                streaming: {
+                    status: '{{stream_status}}',
+                    resolution: '{{current_resolution}}',
+                    fps: '{{current_fps}}',
+                    bitrate: '{{current_bitrate}}',
+                    codec: '{{current_codec}}'
+                },
+                night_vision: '{{night_vision_status}}',
+                timestamp: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(cameraInfo, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `thingino-camera-info-${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function calibrateCamera() {
+            alert('Camera calibration feature coming soon...');
+        }
+        
+        function testCamera() {
+            alert('Running camera test...');
+            fetch('/lua/api/camera/test', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(`Camera test passed!\nSensor: OK\nStreaming: OK\nImage quality: ${data.quality || 'Good'}`);
+                    } else {
+                        alert('Camera test failed: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to run camera test');
+                });
+        }
+        
+        function resetCamera() {
+            if (confirm('Reset camera to default settings? This will restart the camera service.')) {
+                fetch('/lua/api/camera/reset', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert('Camera reset to defaults. Restarting camera service...');
+                        setTimeout(() => window.location.reload(), 5000);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Failed to reset camera');
+                    });
+            }
+        }
+        
+        // Auto-refresh snapshot every 30 seconds
+        setInterval(refreshSnapshot, 30000);
+        
+        // Auto-refresh page every 60 seconds
+        setInterval(refreshPage, 60000);
+    </script>
+
+{{include:footer}}

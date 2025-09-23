@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>i18n Debug Highlighter</title>
+    <style>
+        /* Highlighting styles for i18n debugging */
+        .i18n-debug-highlight {
+            outline: 2px solid #00ff00 !important;
+            background-color: rgba(0, 255, 0, 0.1) !important;
+            position: relative !important;
+        }
+
+        .i18n-debug-highlight::before {
+            content: attr(data-i18n);
+            position: absolute;
+            top: -20px;
+            left: 0;
+            background: #00ff00;
+            color: #000;
+            padding: 2px 4px;
+            font-size: 10px;
+            font-family: monospace;
+            border-radius: 2px;
+            z-index: 10000;
+            white-space: nowrap;
+        }
+
+        .i18n-debug-missing {
+            outline: 2px solid #ff0000 !important;
+            background-color: rgba(255, 0, 0, 0.1) !important;
+            position: relative !important;
+        }
+
+        .i18n-debug-missing::after {
+            content: "NEEDS i18n";
+            position: absolute;
+            top: -20px;
+            right: 0;
+            background: #ff0000;
+            color: #fff;
+            padding: 2px 4px;
+            font-size: 10px;
+            font-family: monospace;
+            border-radius: 2px;
+            z-index: 10000;
+        }
+
+        .i18n-debug-missing-translation {
+            outline: 2px solid #ff6600 !important;
+            background-color: rgba(255, 102, 0, 0.1) !important;
+            position: relative !important;
+        }
+
+        .i18n-debug-missing-translation::after {
+            content: "MISSING TRANSLATION";
+            position: absolute;
+            top: -20px;
+            right: 0;
+            background: #ff6600;
+            color: #fff;
+            padding: 2px 4px;
+            font-size: 10px;
+            font-family: monospace;
+            border-radius: 2px;
+            z-index: 10000;
+        }
+
+        .i18n-debug-placeholder {
+            outline: 2px solid #0066ff !important;
+            background-color: rgba(0, 102, 255, 0.1) !important;
+        }
+
+        .i18n-debug-title {
+            outline: 2px solid #ff6600 !important;
+            background-color: rgba(255, 102, 0, 0.1) !important;
+        }
+
+        #i18nDebugPanel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #000;
+            color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #333;
+            z-index: 99999;
+            font-family: monospace;
+            font-size: 12px;
+            max-width: 300px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+
+        #i18nDebugPanel h3 {
+            margin: 0 0 10px 0;
+            color: #00ff00;
+            font-size: 14px;
+        }
+
+        #i18nDebugPanel button {
+            background: #333;
+            color: #fff;
+            border: 1px solid #666;
+            padding: 5px 10px;
+            margin: 2px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        #i18nDebugPanel button:hover {
+            background: #555;
+        }
+
+        #i18nDebugPanel button.active {
+            background: #00ff00;
+            color: #000;
+        }
+
+        .debug-stats {
+            margin: 10px 0;
+            padding: 8px;
+            background: #222;
+            border-radius: 4px;
+        }
+
+        .debug-legend {
+            margin: 10px 0;
+            font-size: 10px;
+        }
+
+        .debug-legend div {
+            margin: 2px 0;
+            padding: 2px 4px;
+            border-radius: 2px;
+        }
+
+        .legend-localized { background: rgba(0, 255, 0, 0.3); }
+        .legend-missing { background: rgba(255, 0, 0, 0.3); }
+        .legend-missing-translation { background: rgba(255, 102, 0, 0.3); }
+        .legend-placeholder { background: rgba(0, 102, 255, 0.3); }
+        .legend-title { background: rgba(255, 102, 0, 0.3); }
+    </style>
+</head>
+<body>
+
+<div id="i18nDebugPanel">
+    <h3>🌍 i18n Debug Tool</h3>
+
+    <div>
+        <button id="toggleHighlight" onclick="toggleHighlighting()">Enable Highlighting</button>
+        <button id="toggleMissing" onclick="toggleMissingDetection()">Find Missing</button>
+        <button id="exportReport" onclick="exportReport()">Export Report</button>
+    </div>
+
+    <div>
+        <button onclick="reloadWithDebug()">Reload with Debug</button>
+        <button onclick="reloadWithoutDebug()">Clear Debug</button>
+    </div>
+
+    <div class="debug-stats" id="debugStats">
+        <div>Localized: <span id="localizedCount">0</span></div>
+        <div>Missing Translation: <span id="missingTranslationCount">0</span></div>
+        <div>Missing i18n: <span id="missingCount">0</span></div>
+        <div>Placeholders: <span id="placeholderCount">0</span></div>
+        <div>Titles: <span id="titleCount">0</span></div>
+    </div>
+
+    <div class="debug-legend">
+        <div class="legend-localized">🟢 data-i18n (localized)</div>
+        <div class="legend-placeholder">🔵 data-i18n-placeholder</div>
+        <div class="legend-title">🟠 data-i18n-title</div>
+        <div class="legend-missing-translation">🟠 Missing translation</div>
+        <div class="legend-missing">🔴 Needs localization</div>
+    </div>
+
+    <div>
+        <button onclick="scrollToNext('localized')">Next Localized</button>
+        <button onclick="scrollToNext('missing')">Next Missing</button>
+    </div>
+</div>
+
+<script>
+let highlightingEnabled = false;
+let missingDetectionEnabled = false;
+let currentScrollIndex = { localized: 0, missing: 0 };
+
+function toggleHighlighting() {
+    highlightingEnabled = !highlightingEnabled;
+    const button = document.getElementById('toggleHighlight');
+
+    if (highlightingEnabled) {
+        button.textContent = 'Disable Highlighting';
+        button.classList.add('active');
+        highlightLocalizedElements();
+    } else {
+        button.textContent = 'Enable Highlighting';
+        button.classList.remove('active');
+        removeHighlighting();
+    }
+
+    updateStats();
+}
+
+function toggleMissingDetection() {
+    missingDetectionEnabled = !missingDetectionEnabled;
+    const button = document.getElementById('toggleMissing');
+
+    if (missingDetectionEnabled) {
+        button.textContent = 'Hide Missing';
+        button.classList.add('active');
+        highlightMissingElements();
+    } else {
+        button.textContent = 'Find Missing';
+        button.classList.remove('active');
+        removeMissingHighlighting();
+    }
+
+    updateStats();
+}
+
+function highlightLocalizedElements() {
+    // Highlight elements with data-i18n
+    const i18nElements = document.querySelectorAll('[data-i18n]');
+    i18nElements.forEach(el => {
+        el.classList.add('i18n-debug-highlight');
+    });
+
+    // Highlight elements with data-i18n-placeholder
+    const placeholderElements = document.querySelectorAll('[data-i18n-placeholder]');
+    placeholderElements.forEach(el => {
+        el.classList.add('i18n-debug-placeholder');
+    });
+
+    // Highlight elements with data-i18n-title
+    const titleElements = document.querySelectorAll('[data-i18n-title]');
+    titleElements.forEach(el => {
+        el.classList.add('i18n-debug-title');
+    });
+}
+
+function highlightMissingElements() {
+    // Method 1: Find elements with data-i18n but no i18n-translated class (missing translations)
+    const missingTranslations = document.querySelectorAll('[data-i18n]:not(.i18n-translated), [data-i18n-placeholder]:not(.i18n-translated), [data-i18n-title]:not(.i18n-translated)');
+    missingTranslations.forEach(el => {
+        if (!el.closest('#i18nDebugPanel')) {
+            el.classList.add('i18n-debug-missing-translation');
+        }
+    });
+
+    // Method 2: Find elements that might need localization but don't have data-i18n
+    const potentialElements = document.querySelectorAll(`
+        h1, h2, h3, h4, h5, h6,
+        label,
+        button:not([data-i18n]):not([data-i18n-placeholder]):not([data-i18n-title]),
+        .btn:not([data-i18n]):not([data-i18n-placeholder]):not([data-i18n-title]),
+        .form-label:not([data-i18n]),
+        .form-text:not([data-i18n]),
+        .card-title:not([data-i18n]),
+        .nav-link:not([data-i18n]),
+        .dropdown-item:not([data-i18n]),
+        .alert:not([data-i18n]),
+        th:not([data-i18n]),
+        .badge:not([data-i18n])
+    `);
+
+    potentialElements.forEach(el => {
+        // Skip if already has i18n attributes
+        if (el.hasAttribute('data-i18n') ||
+            el.hasAttribute('data-i18n-placeholder') ||
+            el.hasAttribute('data-i18n-title')) {
+            return;
+        }
+
+        // Skip if it's our debug panel
+        if (el.closest('#i18nDebugPanel')) {
+            return;
+        }
+
+        // Skip if it's empty or only contains icons/symbols
+        const text = el.textContent.trim();
+        if (!text || text.length < 2 || /^[^\w\s]*$/.test(text)) {
+            return;
+        }
+
+        // Skip if it contains only numbers or common non-translatable content
+        if (/^\d+$/.test(text) ||
+            /^[0-9\.\-\+\%\$\€\£\¥]+$/.test(text) ||
+            text.match(/^(OK|404|500|200|GET|POST|PUT|DELETE|API|JSON|XML|HTML|CSS|JS)$/i)) {
+            return;
+        }
+
+        // Skip if it looks like a variable or code
+        if (text.startsWith('{{') || text.startsWith('${') || text.includes('()')) {
+            return;
+        }
+
+        el.classList.add('i18n-debug-missing');
+    });
+}
+
+function removeHighlighting() {
+    document.querySelectorAll('.i18n-debug-highlight, .i18n-debug-placeholder, .i18n-debug-title').forEach(el => {
+        el.classList.remove('i18n-debug-highlight', 'i18n-debug-placeholder', 'i18n-debug-title');
+    });
+}
+
+function removeMissingHighlighting() {
+    document.querySelectorAll('.i18n-debug-missing, .i18n-debug-missing-translation').forEach(el => {
+        el.classList.remove('i18n-debug-missing', 'i18n-debug-missing-translation');
+    });
+}
+
+function updateStats() {
+    const localizedCount = document.querySelectorAll('.i18n-translated').length;
+    const placeholderCount = document.querySelectorAll('[data-i18n-placeholder]').length;
+    const titleCount = document.querySelectorAll('[data-i18n-title]').length;
+    const missingTranslationCount = document.querySelectorAll('.i18n-debug-missing-translation').length;
+    const missingCount = document.querySelectorAll('.i18n-debug-missing').length;
+
+    document.getElementById('localizedCount').textContent = localizedCount;
+    document.getElementById('placeholderCount').textContent = placeholderCount;
+    document.getElementById('titleCount').textContent = titleCount;
+    document.getElementById('missingTranslationCount').textContent = missingTranslationCount;
+    document.getElementById('missingCount').textContent = missingCount;
+}
+
+function scrollToNext(type) {
+    let elements;
+    let indexKey;
+
+    if (type === 'localized') {
+        elements = document.querySelectorAll('[data-i18n], [data-i18n-placeholder], [data-i18n-title]');
+        indexKey = 'localized';
+    } else if (type === 'missing') {
+        elements = document.querySelectorAll('.i18n-debug-missing, .i18n-debug-missing-translation');
+        indexKey = 'missing';
+    }
+
+    if (elements.length === 0) return;
+
+    const currentIndex = currentScrollIndex[indexKey];
+    const element = elements[currentIndex];
+
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Temporarily highlight the element
+        const originalOutline = element.style.outline;
+        element.style.outline = '4px solid #ffff00';
+        setTimeout(() => {
+            element.style.outline = originalOutline;
+        }, 2000);
+    }
+
+    // Move to next element
+    currentScrollIndex[indexKey] = (currentIndex + 1) % elements.length;
+}
+
+function exportReport() {
+    const localized = Array.from(document.querySelectorAll('[data-i18n]')).map(el => ({
+        tag: el.tagName.toLowerCase(),
+        key: el.getAttribute('data-i18n'),
+        text: el.textContent.trim().substring(0, 50),
+        selector: getElementSelector(el)
+    }));
+
+    const missing = Array.from(document.querySelectorAll('.i18n-debug-missing')).map(el => ({
+        tag: el.tagName.toLowerCase(),
+        text: el.textContent.trim().substring(0, 50),
+        selector: getElementSelector(el)
+    }));
+
+    const report = {
+        timestamp: new Date().toISOString(),
+        url: window.location.href,
+        stats: {
+            localized: localized.length,
+            missing: missing.length,
+            placeholders: document.querySelectorAll('[data-i18n-placeholder]').length,
+            titles: document.querySelectorAll('[data-i18n-title]').length
+        },
+        localized,
+        missing
+    };
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `i18n-report-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function getElementSelector(element) {
+    if (element.id) return `#${element.id}`;
+    if (element.className) return `.${element.className.split(' ')[0]}`;
+    return element.tagName.toLowerCase();
+}
+
+function reloadWithDebug() {
+    const url = new URL(window.location);
+
+    // Add or update the debug_i18n parameter
+    url.searchParams.set('debug_i18n', '1');
+
+    // Reload the page with the debug parameter
+    window.location.href = url.toString();
+}
+
+function reloadWithoutDebug() {
+    const url = new URL(window.location);
+
+    // Remove the debug_i18n parameter
+    url.searchParams.delete('debug_i18n');
+
+    // Reload the page without the debug parameter
+    window.location.href = url.toString();
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    updateStats();
+});
+
+// Auto-update stats when DOM changes
+const observer = new MutationObserver(() => {
+    if (highlightingEnabled || missingDetectionEnabled) {
+        setTimeout(updateStats, 100);
+    }
+});
+
+observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['data-i18n', 'data-i18n-placeholder', 'data-i18n-title']
+});
+</script>
+
+</body>
+</html>
