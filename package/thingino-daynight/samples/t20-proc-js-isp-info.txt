@@ -1,0 +1,79 @@
+root@ing-wyze-cam2-e1e2 ~# cat /proc/jz/isp/isp_info
+****************** ISP INFO **********************
+Software Version : H201709151519
+Firmware Version : H01-380
+SENSOR NAME : jxf23
+SENSOR OUTPUT WIDTH : 1920
+SENSOR OUTPUT HEIGHT : 1080
+SENSOR OUTPUT RAW PATTERN : BGGR
+SENSOR Integration Time : 1124 lines
+ISP Top Value : 0x137c2193
+ISP Runing Mode : Day
+ISP OUTPUT FPS : 25 / 1
+SENSOR analog gain : 61
+MAX SENSOR analog gain : 128
+SENSOR digital gain : 0
+MAX SENSOR digital gain : 0
+ISP digital gain : 2
+MAX ISP digital gain : 32
+ISP gain log2 id : 2
+ISP total gain : 1002
+ISP exposure log2 id: 794050
+ISP AE strategy: AE_SPLIT_BALANCED
+ISP Antiflicker : 60[0 means disable]
+Evtolux Probability Enable  : 0
+ISP WB Gain00 : 449
+ISP WB Gain01 : 256
+ISP WB Gain10 : 256
+ISP WB Gain11 : 452
+ISP WB rg : 269
+ISP WB bg : 265
+ISP WB Temperature : 5400
+ISP Black level 00 : 66
+ISP Black level 01 : 64
+ISP Black level 10 : 63
+ISP Black level 11 : 65
+ISP LSC mesh module : enable
+ISP LSC mesh blend mode : 2
+ISP LSC mesh R table : 2
+ISP LSC mesh G table : 2
+ISP LSC mesh B table : 2
+ISP LSC mesh R blend : 0
+ISP LSC mesh G blend : 0
+ISP LSC mesh B blend : 0
+ISP LSC mesh shading strength : 1024
+ISP Sinter thresh1h : 7
+ISP Sinter thresh4h : 5
+ISP Sinter thresh1v : 7
+ISP Sinter thresh4v : 5
+ISP Sinter thresh short : 21
+ISP Sinter thresh long : 21
+ISP Sinter strength1 : 255
+ISP Sinter strength4 : 255
+ISP Temper thresh module :enable
+ISP Temper thresh short : 95
+ISP Temper thresh long : 95
+ISP Iridix strength : 51
+ISP Defect pixel threshold : 64
+ISP Defect pixel slope : 1496
+ISP sharpening directional : 100
+ISP sharpening undirectional : 105
+ISP FR sharpen strength : 10
+ISP DS1 sharpen strength : 50
+ISP DS2 sharpen strength : 70
+ISP CCM R_R : 444
+ISP CCM R_G : 32947
+ISP CCM R_B : 32782
+ISP CCM G_R : 32854
+ISP CCM G_B : 32904
+ISP CCM G_G : 470
+ISP CCM B_R : 32787
+ISP CCM B_G : 32982
+ISP CCM B_B : 484
+Saturation Target : 123
+Saturation : 128
+Sharpness : 128
+Contrast : 125
+Brightness : 128
+
+
