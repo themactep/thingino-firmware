@@ -3,6 +3,7 @@
 . /usr/share/common
 
 ensure_command "openRTSP"
+ensure_command "jct"
 
 CLIP_FILE="/tmp/vbuffer.mp4"
 LOCK_FILE="/tmp/vbuffer.lock"
