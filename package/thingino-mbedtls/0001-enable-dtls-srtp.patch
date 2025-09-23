@@ -1,0 +1,27 @@
+From 0e82e88ec5fd661366600b5b006d06609d703134 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Sat, 21 Jun 2025 03:08:00 -0400
+Subject: [PATCH] Enable DTLS-SRTP support for WebRTC
+
+Enable MBEDTLS_SSL_DTLS_SRTP to support DTLS-SRTP negotiation
+required for WebRTC peer connections with libpeer.
+---
+ include/mbedtls/mbedtls_config.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/mbedtls/mbedtls_config.h b/include/mbedtls/mbedtls_config.h
+index ddab7d0c32..0ff94cd8ad 100644
+--- a/include/mbedtls/mbedtls_config.h
++++ b/include/mbedtls/mbedtls_config.h
+@@ -602,7 +602,7 @@
+  *
+  * Uncomment this to enable support for use_srtp extension.
+  */
+-//#define MBEDTLS_SSL_DTLS_SRTP
++#define MBEDTLS_SSL_DTLS_SRTP
+ 
+ /**
+  * \def MBEDTLS_SSL_EARLY_DATA
+-- 
+2.50.0
+
