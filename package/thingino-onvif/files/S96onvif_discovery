@@ -1,7 +1,8 @@
 #!/bin/sh
 
 DAEMON=wsd_simple_server
-PRUDYNT_CONFIG=/etc/prudynt.json
+#PRUDYNT_CONFIG=/etc/prudynt.json
+PRUDYNT_CONFIG=/etc/prudynt.cfg
 ONVIF_CONFIG=/etc/onvif.json
 ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
 
@@ -51,8 +52,10 @@ start() {
 	jct $ONVIF_CONFIG set firmware_ver "$BUILD_ID"
 	jct $ONVIF_CONFIG set ifs "$iface"
 
-	jct $ONVIF_CONFIG set username "$(jct $PRUDYNT_CONFIG get rtsp.username | tr -d \")"
-	jct $ONVIF_CONFIG set password "$(jct $PRUDYNT_CONFIG get rtsp.password | tr -d \")"
+	jct $ONVIF_CONFIG set user "$(awk -F '"' '/username:/ {print $2}' $PRUDYNT_CONFIG)"
+	jct $ONVIF_CONFIG set password "$(awk -F '"' '/password:/ {print $2}' $PRUDYNT_CONFIG)"
+#	jct $ONVIF_CONFIG set username "$(jct $PRUDYNT_CONFIG get rtsp.username | tr -d \")"
+#	jct $ONVIF_CONFIG set password "$(jct $PRUDYNT_CONFIG get rtsp.password | tr -d \")"
 
 	# conditional PTZ config
 	if [ -n "$gpio_motor_h" ]; then
