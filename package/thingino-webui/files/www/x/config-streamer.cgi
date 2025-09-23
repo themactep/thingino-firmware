@@ -45,7 +45,6 @@ case "$soc_family" in
 esac
 
 prudynt_config=/etc/prudynt.cfg
-onvif_config=/etc/onvif.conf
 
 rtsp_username=$(awk -F: '/Streaming Service/{print $1}' /etc/passwd)
 default_for rtsp_username $(awk -F'"' '/username/{print $2}' $prudynt_config)
