@@ -1,0 +1,17 @@
+config BR2_PACKAGE_THINGINO_RTSP_SERVER
+	bool "Thingino RTSP Server"
+	help
+	  Minimal pure C RTSP server implementation for thingino firmware.
+
+	  This is a lightweight replacement for live555 that eliminates
+	  C++ dependencies while providing the essential RTSP server
+	  functionality needed by prudynt.
+
+	  Features:
+	  - Pure C implementation (no C++ dependencies)
+	  - Minimal memory footprint
+	  - RTSP/RTP streaming support
+	  - Compatible with prudynt integration
+	  - Authentication support
+
+	  https://github.com/themactep/thingino-firmware

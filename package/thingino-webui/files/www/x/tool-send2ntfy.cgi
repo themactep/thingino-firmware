@@ -21,7 +21,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	error_if_empty "$ntfy_topic" "Ntfy topic cannot be empty."
 	error_if_empty "$ntfy_message" "Ntfy message cannot be empty."
 
-	if [ -n "$(echo $ntfy_topic | sed -r -n /[^a-zA-Z0-9]/p)" ]; then
+	if [ -n "$(echo $ntfy_topic | sed -r -n /[^-_a-zA-Z0-9]/p)" ]; then
 		set_error_flag "Ntfy topic should not include non-ASCII characters or special characters like /, #, +, or space."
 	fi
 

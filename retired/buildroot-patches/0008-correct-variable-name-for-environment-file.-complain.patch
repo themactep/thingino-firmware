@@ -1,0 +1,31 @@
+From 262ddf6ad294d5012e735cfadbc90bfff48e53cc Mon Sep 17 00:00:00 2001
+From: Paul Philppov <paul@themactep.com>
+Date: Wed, 22 Jan 2025 15:53:36 -0500
+Subject: [PATCH 08/10] correct variable name for environment file. complain if
+ file is missing.
+
+---
+ boot/uboot/uboot.mk | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/boot/uboot/uboot.mk b/boot/uboot/uboot.mk
+index 628c261244..9f2bf06270 100644
+--- a/boot/uboot/uboot.mk
++++ b/boot/uboot/uboot.mk
+@@ -570,9 +570,11 @@ ifeq ($(BR2_TARGET_UBOOT)$(BR_BUILDING),yy)
+ #
+ # Patch uboot headers with env data for device if uenv.txt exists
+ #
+-ifneq ($(U_BOOT_ENV_FINAL_TXT),)
++ifeq ($(UB_ENV_FINAL_TXT),)
++$(warning Environment file not found)
++else
+ define PATCH_DEV_ENV
+-	$(BR2_EXTERNAL)/scripts/uboot-device-env.sh $(U_BOOT_ENV_FINAL_TXT) $(@D)/include/configs/isvp_common.h
++	$(BR2_EXTERNAL)/scripts/uboot-device-env.sh $(UB_ENV_FINAL_TXT) $(@D)/include/configs/isvp_common.h
+ endef
+ UBOOT_PRE_BUILD_HOOKS += PATCH_DEV_ENV
+ endif
+-- 
+2.47.2
+

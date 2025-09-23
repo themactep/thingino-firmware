@@ -16,6 +16,15 @@ PRUDYNT_T_DEPENDENCIES += libschrift
 PRUDYNT_T_DEPENDENCIES += thingino-fonts
 PRUDYNT_T_DEPENDENCIES += libwebsockets
 
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_FFMPEG),y)
+	PRUDYNT_T_DEPENDENCIES += thingino-ffmpeg
+	PRUDYNT_T_CFLAGS += -DUSE_FFMPEG
+endif
+
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_WEBRTC),y)
+	PRUDYNT_T_DEPENDENCIES += libpeer
+endif
+
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 	PRUDYNT_T_DEPENDENCIES += ingenic-musl
 endif
@@ -73,6 +82,13 @@ else
 	PRUDYNT_T_STRIP_BINARY = YES
 endif
 
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_WEBRTC),y)
+PRUDYNT_CFLAGS += \
+	-DWEBRTC_ENABLED=1 \
+	-DLIBPEER_AVAILABLE=1 \
+	-I$(STAGING_DIR)/usr/include
+endif
+
 PRUDYNT_LDFLAGS = $(TARGET_LDFLAGS) \
 	-L$(STAGING_DIR)/usr/lib \
 	-L$(TARGET_DIR)/usr/lib
@@ -84,6 +100,8 @@ define PRUDYNT_T_BUILD_CMDS
 		CFLAGS="$(PRUDYNT_CFLAGS)" \
 		LDFLAGS="$(PRUDYNT_LDFLAGS)" \
 		$(if $(filter y,$(BR2_PACKAGE_PRUDYNT_T_DEBUG)),DEBUG=1 DEBUG_STRIP=0,DEBUG_STRIP=1) \
+		$(if $(BR2_PACKAGE_PRUDYNT_T_FFMPEG),USE_FFMPEG=1) \
+		$(if $(BR2_PACKAGE_PRUDYNT_T_WEBRTC),WEBRTC_ENABLED=1,) \
 		-C $(@D) all commit_tag=$(shell git show -s --format=%h)
 endef
 

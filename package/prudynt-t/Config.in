@@ -13,12 +13,21 @@ config BR2_PACKAGE_PRUDYNT_T
 	select BR2_PACKAGE_THINGINO_OPUS
 	select BR2_PACKAGE_LIBHELIX_AAC
 	select BR2_PACKAGE_THINGINO_JCT
-	select BR2_PACKAGE_ONVIF_SIMPLE_SERVER
+	select BR2_PACKAGE_THINGINO_ONVIF
 	help
 	  Video streamer for Ingenic T-series.
 	  Now uses JSON configuration format with json-c library.
 
 	  https://github.com/gtxaspec/prudynt-t
+
+config BR2_PACKAGE_PRUDYNT_T_FFMPEG
+	bool "Enable FFmpeg integration (parsers/bitstream filters)"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	select BR2_PACKAGE_THINGINO_FFMPEG
+	help
+	  Enable FFmpeg-based H.264/H.265 parsing and bitstream filters (AUD insertion,
+	  extract_extradata). Prudynt will link against the FFmpeg built by the
+	  thingino-ffmpeg package in Buildroot.
 
 config BR2_PACKAGE_PRUDYNT_T_DEBUG
 	bool "Enable debug build"
@@ -59,3 +68,23 @@ config BR2_PACKAGE_PRUDYNT_T_DEBUG
 comment "prudynt-t debug build requires NFS configuration! Set BR2_THINGINO_NFS to your NFS mount point (e.g., /nfs)."
 	depends on BR2_PACKAGE_PRUDYNT_T_DEBUG
 	depends on BR2_THINGINO_NFS = ""
+
+config BR2_PACKAGE_PRUDYNT_T_WEBRTC
+	bool "WebRTC support"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_LIBPEER
+	help
+	  Enable WebRTC real-time streaming support for Prudynt-T.
+	  Adds WebRTC peer-to-peer streaming capabilities using libpeer.
+
+	  This feature allows direct browser-to-camera streaming without
+	  requiring RTSP clients, enabling modern web applications to
+	  access camera streams directly.
+
+	  Dependencies: libpeer (includes wolfSSL, libsrtp)
+	  Additional memory usage: ~2-4MB per WebRTC connection
+
+comment "WebRTC support needs a toolchain w/ threads, dynamic library"
+	depends on BR2_PACKAGE_PRUDYNT_T && (!BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS)

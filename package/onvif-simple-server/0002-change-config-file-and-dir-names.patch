@@ -1,0 +1,54 @@
+diff --git a/onvif_notify_server.c b/onvif_notify_server.c
+index 0a7b691..6a30c3c 100644
+--- a/onvif_notify_server.c
++++ b/onvif_notify_server.c
+@@ -39,12 +39,12 @@
+ #include "log.h"
+ #include "onvif_simple_server.h"
+ 
+-#define DEFAULT_CONF_FILE "/etc/onvif_simple_server.conf"
++#define DEFAULT_CONF_FILE "/etc/onvif.conf"
+ #define DEFAULT_JSON_CONF_FILE "/etc/onvif_simple_server.json"
+-#define DEFAULT_LOG_FILE "/var/log/onvif_notify_server.log"
++#define DEFAULT_LOG_FILE "/tmp/notify.log"
+ #define DEFAULT_PID_FILE "/var/run/onvif_notify_server.pid"
+-#define TEMPLATE_DIR "/etc/onvif_notify_server"
+-#define INOTIFY_DIR "/tmp/onvif_notify_server"
++#define TEMPLATE_DIR "/var/www/onvif/notify_files"
++#define INOTIFY_DIR "/run/motion"
+ 
+ #define ALARM_OFF 0
+ #define ALARM_ON  1
+diff --git a/onvif_simple_server.c b/onvif_simple_server.c
+index f050a74..bba76b7 100644
+--- a/onvif_simple_server.c
++++ b/onvif_simple_server.c
+@@ -38,10 +38,10 @@
+ #include "utils.h"
+ #include "log.h"
+ 
+-#define DEFAULT_CONF_FILE "/etc/onvif_simple_server.conf"
++#define DEFAULT_CONF_FILE "/etc/onvif.conf"
+ #define DEFAULT_JSON_CONF_FILE "/etc/onvif_simple_server.json"
+-#define DEFAULT_LOG_FILE "/var/log/onvif_simple_server.log"
+-#define DEBUG_FILE "/tmp/onvif_simple_server.debug"
++#define DEFAULT_LOG_FILE "/tmp/onvif.log"
++#define DEBUG_FILE "/tmp/onvif.debug"
+ 
+ #define ROTATION_LOG_LENGTH 3
+ 
+diff --git a/wsd_simple_server.c b/wsd_simple_server.c
+index e520c0e..0b6a7ae 100644
+--- a/wsd_simple_server.c
++++ b/wsd_simple_server.c
+@@ -38,8 +38,8 @@
+ #define PORT 3702
+ #define TYPE "NetworkVideoTransmitter"
+ 
+-#define DEFAULT_LOG_FILE "/var/log/wsd_simple_server.log"
+-#define TEMPLATE_DIR "/etc/wsd_simple_server"
++#define DEFAULT_LOG_FILE "/tmp/wsd.log"
++#define TEMPLATE_DIR "/var/www/onvif/wsd_files"
+ 
+ #define RECV_BUFFER_LEN 4096
+ 
