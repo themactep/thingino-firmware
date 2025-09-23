@@ -1,9 +1,9 @@
 config BR2_PACKAGE_THINGINO_STREAMER
 	bool "Thingino Streamer"
+	depends on !BR2_SOC_FAMILY_INGENIC_A1
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_JSON_C
-	select BR2_PACKAGE_LIBWEBSOCKETS
-	depends on !(BR2_SOC_FAMILY_INGENIC_A1)
+	select BR2_PACKAGE_LIBWEBSOCKETS_435
 	help
 	  Video streamer for Ingenic T-series.
 	  Now uses JSON configuration format with json-c library.
