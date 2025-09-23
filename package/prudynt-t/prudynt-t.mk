@@ -218,8 +218,6 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		echo "Debug tools installed to NFS: prudynt-debug-helper, prudynt-test-memory"; \
 	fi
 
-#	echo -e "\n# run daynight every minute\n*/1 * * * * daynight" | tee -a $(TARGET_DIR)/etc/cron/crontabs/root
-
 #	echo "Removing LD_PRELOAD command line from init script"; \
 #	sed -i '/^COMMAND=/d' $(TARGET_DIR)/etc/init.d/S95prudynt;
 endef
