@@ -34,7 +34,7 @@ ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 endif
 
 THINGINO_STREAMER_DEPENDENCIES += host-jq
-THINGINO_STREAMER_DEPENDENCIES += libwebsockets
+THINGINO_STREAMER_DEPENDENCIES += libwebsockets-435
 
 # Add module-specific CFLAGS and LDFLAGS based on enabled features
 
