@@ -14,7 +14,7 @@ PRUDYNT_T_DEPENDENCIES += thingino-opus
 PRUDYNT_T_DEPENDENCIES += faac libhelix-aac
 PRUDYNT_T_DEPENDENCIES += libschrift
 PRUDYNT_T_DEPENDENCIES += thingino-fonts
-PRUDYNT_T_DEPENDENCIES += libwebsockets
+PRUDYNT_T_DEPENDENCIES += libwebsockets-435
 
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_FFMPEG),y)
 	PRUDYNT_T_DEPENDENCIES += thingino-ffmpeg
