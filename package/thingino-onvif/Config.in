@@ -1,0 +1,12 @@
+config BR2_PACKAGE_THINGINO_ONVIF
+	bool "Thingino ONVIF"
+	select BR2_PACKAGE_JSON_C
+	select BR2_PACKAGE_LIBTOMCRYPT if !BR2_PACKAGE_MBEDTLS && !BR2_PACKAGE_THINGINO_WOLFSSL
+	select BR2_PACKAGE_THINGINO_WOLFSSL_ASN if BR2_PACKAGE_THINGINO_WOLFSSL
+	select BR2_PACKAGE_THINGINO_WOLFSSL_BASE64ENCODE if BR2_PACKAGE_THINGINO_WOLFSSL
+	select BR2_PACKAGE_THINGINO_WOLFSSL_CODING if BR2_PACKAGE_THINGINO_WOLFSSL
+	help
+	  Thingino fork of roleoroleo's ONVIF Simple Server.
+	  A light C implementation of an ONVIF server intended for use in resource-constrained devices.
+
+	  https://github.com/themactep/thingino-onvif

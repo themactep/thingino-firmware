@@ -1,9 +1,9 @@
 #!/bin/sh
 
 DAEMON=wsd_simple_server
-PRUDYNT_CONFIG=/etc/prudynt.json
-ONVIF_CONFIG=/etc/onvif.json
+ONVIF_CONFIG=/etc/onvif.conf
 ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
+PRUDYNT_CONFIG=/etc/prudynt.cfg
 
 . /usr/share/common
 
@@ -11,7 +11,7 @@ iface="$(iface_default)"
 
 model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $OS_RELEASE_FILE)
 
-# extract iface for daemon from onvif.json
+# extract iface for daemon from onvif.conf
 DAEMON_ARGS="-i $iface -x http://%s/onvif/device_service -m $model -n thingino -p /run/$DAEMON_SHORT.pid"
 
 # read web config, create if missing
@@ -24,6 +24,17 @@ if [ -z "$onvif_enabled" ]; then
 	onvif_enabled="true"
 	echo "onvif_enabled=$onvif_enabled" >> $ONVIF_WEBUI_CONF
 fi
+
+update_config() {
+	local current file key value
+	file=$1
+	key=$2
+	value=$3
+	current=$(awk -F= -v key="$key" '$1==key {print $2}' $file)
+	[ -z "$value" ] && value="0"
+	[ "$current" = "$value" ] && return
+	sed -i "s/^$key=.*/$key=$value/" $file
+}
 
 start() {
 	echo_title "Starting ONVIF discovery"
@@ -45,22 +56,27 @@ start() {
 
 	start_daemon
 
-	jct $ONVIF_CONFIG set model "$model"
-	jct $ONVIF_CONFIG set hardware_id "ingenic_$SOC_MODEL"
-	jct $ONVIF_CONFIG set serial_num "$(fw_printenv -n ethaddr | sed 's/://g')"
-	jct $ONVIF_CONFIG set firmware_ver "$BUILD_ID"
-	jct $ONVIF_CONFIG set ifs "$iface"
-	jct $ONVIF_CONFIG set username "$(jct $PRUDYNT_CONFIG get rtsp.username | tr -d \")"
-	jct $ONVIF_CONFIG set password "$(jct $PRUDYNT_CONFIG get rtsp.password | tr -d \")"
-
-	# conditional PTZ config
-	if [ -n "$gpio_motor_h" ]; then
-		jct $ONVIF_CONFIG set ptz.enable 1
-		jct $ONVIF_CONFIG set ptz.max_step_x "$motor_maxstep_h"
-		jct $ONVIF_CONFIG set ptz.max_step_y "$motor_maxstep_v"
-		jct $ONVIF_CONFIG set ptz.move_right "/sbin/motors -d h -x $motor_maxstep_h"
-		jct $ONVIF_CONFIG set ptz.move_down "/sbin/motors -d h -y $motor_maxstep_v"
+	if grep -q "^# GENERATED" $ONVIF_CONFIG; then
+		echo_info "Config already generated"
+		return
 	fi
+
+	tempfile=$(mktemp -u)
+	cp $ONVIF_CONFIG $tempfile
+	update_config $tempfile "model" "$model"
+	update_config $tempfile "hardware_id" "ingenic_$SOC_MODEL"
+	update_config $tempfile "serial_num" "$(fw_printenv -n ethaddr | sed 's/://g')"
+	update_config $tempfile "firmware_ver" "$BUILD_ID"
+	update_config $tempfile "ifs" "$iface"
+	update_config $tempfile "user" "$(awk -F '"' '/username:/ {print $2}' $PRUDYNT_CONFIG)"
+	update_config $tempfile "password" "$(awk -F '"' '/password:/ {print $2}' $PRUDYNT_CONFIG)"
+	update_config $tempfile "ptz" "$([ -n "$gpio_motor_h" ] && echo 1 || echo 0)"
+	update_config $tempfile "max_step_x" "$motor_maxstep_h"
+	update_config $tempfile "max_step_y" "$motor_maxstep_v"
+	update_config $tempfile "move_right" "motors -d h -x $motor_maxstep_h"
+	update_config $tempfile "move_down" "motors -d h -y $motor_maxstep_v"
+	sed -i '1i # GENERATED On '"$(date)" $tempfile
+	mv $tempfile $ONVIF_CONFIG
 }
 
 stop() {

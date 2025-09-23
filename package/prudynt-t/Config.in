@@ -13,7 +13,7 @@ config BR2_PACKAGE_PRUDYNT_T
 	select BR2_PACKAGE_THINGINO_OPUS
 	select BR2_PACKAGE_LIBHELIX_AAC
 	select BR2_PACKAGE_THINGINO_JCT
-	select BR2_PACKAGE_ONVIF_SIMPLE_SERVER
+	select BR2_PACKAGE_THINGINO_ONVIF
 	help
 	  Video streamer for Ingenic T-series.
 	  Now uses JSON configuration format with json-c library.
