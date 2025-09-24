@@ -197,7 +197,7 @@ field_color() {
 	echo "<p id=\"$1_wrap\" class=\"file\">" \
 	 "<label for=\"$1\" class=\"form-label\">$2</label>" \
 	 "<input type=\"color\" id=\"$1\" name=\"$1\" class=\"form-control input-color\">" \
-	 "<input type=\"range\" id=\"$1-alpha\" name="\$1-alpha\" min=0 max=255 step=1>" \
+	 "<input type=\"range\" id=\"$1-alpha\" name=\"$1-alpha\" min=0 max=255 step=1>" \
 	 "</p>"
 }
 
