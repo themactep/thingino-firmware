@@ -37,21 +37,29 @@ if [ -n "$pin2" ]; then
 fi
 
 ir_filter_off() {
-	gpio set "$pin1" "$pin1_off" > /dev/null
-	if [ -n "$pin2" ]; then
-		gpio set "$pin2" "$pin2_on" > /dev/null
-		usleep 10000
-		gpio set "$pin2" "$pin2_off" > /dev/null
+	if [ "$pin1" = "999" ]; then
+		echo -n 0 > /dev/tmi8152_ir_cut
+	else
+		gpio set "$pin1" "$pin1_off" > /dev/null
+		if [ -n "$pin2" ]; then
+			gpio set "$pin2" "$pin2_on" > /dev/null
+			usleep 10000
+			gpio set "$pin2" "$pin2_off" > /dev/null
+		fi
 	fi
 	echo "0" > "$MODE_FILE"
 }
 
 ir_filter_on() {
-	gpio set "$pin1" "$pin1_on" > /dev/null
-	if [ -n "$pin2" ]; then
-		gpio set "$pin2" "$pin2_off" > /dev/null
-		usleep 10000
-		gpio set "$pin1" "$pin1_off" > /dev/null
+	if [ "$pin1" = "999" ]; then
+		echo -n 1 > /dev/tmi8152_ir_cut
+	else
+		gpio set "$pin1" "$pin1_on" > /dev/null
+		if [ -n "$pin2" ]; then
+			gpio set "$pin2" "$pin2_off" > /dev/null
+			usleep 10000
+			gpio set "$pin1" "$pin1_off" > /dev/null
+		fi
 	fi
 	echo "1" > "$MODE_FILE"
 }
