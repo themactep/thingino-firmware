@@ -22,7 +22,7 @@ signature_file="/tmp/signature.txt"
 sysinfo_file="/tmp/sysinfo.txt"
 
 # read from files
-ws_token="$(cat /run/prudynt_websocket_token)"
+ws_token="$(cat /run/prudynt/websocket_token)"
 
 # name, text
 error_if_empty() {
@@ -192,10 +192,13 @@ field_checkbox() {
 	echo "</p>"
 }
 
+# field_color "name" "label"
 field_color() {
 	echo "<p id=\"$1_wrap\" class=\"file\">" \
 	 "<label for=\"$1\" class=\"form-label\">$2</label>" \
-	 "<input type=\"color\" id=\"$1\" name=\"$1\" class=\"form-control input-color\"></p>"
+	 "<input type=\"color\" id=\"$1\" name=\"$1\" class=\"form-control input-color\">" \
+	 "<input type=\"range\" id=\"$1-alpha\" name="\$1-alpha\" min=0 max=255 step=1>" \
+	 "</p>"
 }
 
 # field_file "name" "label" "hint"
@@ -472,7 +475,7 @@ menu() {
 		if [ "service" = "$1" ]; then
 			case "$name" in
 				motion)
-					prudyntcfg get motion.enabled | grep -q true && css=$CSS_ENABLED
+					jct /etc/prudynt.json get motion.enabled | grep -q true && css=$CSS_ENABLED
 					;;
 				mqtt)
 					[ -f /bin/mosquitto_pub ] || continue
@@ -722,8 +725,8 @@ update_caminfo() {
 	fi
 
 	# prudynt values
-	#rtsp_endpoint_ch0=$(prudyntcfg get stream0.rtsp_endpoint | tr -d '"')
-	#rtsp_endpoint_ch1=$(prudyntcfg get stream1.rtsp_endpoint | tr -d '"')
+	#rtsp_endpoint_ch0=$(jct /etc/prudynt.json get stream0.rtsp_endpoint | tr -d '"')
+	#rtsp_endpoint_ch1=$(jct /etc/prudynt.json get stream1.rtsp_endpoint | tr -d '"')
 
 	# create a sourceable file
 	for v in flash_size flash_size_mb flash_type network_address network_cidr network_default_interface network_dhcp network_dns_1 network_dns_2 network_gateway network_hostname network_interfaces network_macaddr network_netmask overlay_root rtsp_endpoint_ch0 rtsp_endpoint_ch1 soc_family soc_model sensor_fps_max sensor_fps_min sensor_model tz_data tz_name uboot_version ui_password; do

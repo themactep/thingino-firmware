@@ -44,11 +44,11 @@ case "$soc_family" in
 	  *) modes="$modes SMART" ;;
 esac
 
-prudynt_config=/etc/prudynt.cfg
+prudynt_config=/etc/prudynt.json
 
 rtsp_username=$(awk -F: '/Streaming Service/{print $1}' /etc/passwd)
-default_for rtsp_username $(awk -F'"' '/username/{print $2}' $prudynt_config)
-default_for rtsp_password $(awk -F'"' '/password/{print $2}' $prudynt_config)
+default_for rtsp_username $(jct $prudynt_config get rtsp.username)
+default_for rtsp_password $(jct $prudynt_config get rtsp.password)
 default_for rtsp_password "thingino"
 %>
 <%in _header.cgi %>
@@ -88,7 +88,7 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <div class="d-flex flex-wrap align-content-around gap-1">
 <a class="btn btn-secondary" href="<%= $SCRIPT_NAME %>?do=restart">Restart streamer</a>
 <button type="button" class="btn btn-secondary" id="save-prudynt-config">Save config</button>
-<a class="btn btn-secondary" href="tool-file-manager.cgi?dl=/etc/prudynt.cfg">Download config</a>
+<a class="btn btn-secondary" href="tool-file-manager.cgi?dl=/etc/prudynt.json">Download config</a>
 </div>
 </div>
 <div class="col mb-3">
@@ -149,29 +149,37 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 
 <div class="tab-pane fade" id="tab<%= $((i+2)) %>osd-pane" role="tabpanel" aria-labelledby="tab<%= $((i+2)) %>osd">
 <% field_switch "osd${i}_enabled" "OSD enabled" %>
-<div class="row g-1"><div class="col-7"><label class="form-label" for="fontname<%= $i %>">Font</label>
+<div class="row g-1">
+<div class="col-6">
+<label class="form-label" for="fontname<%= $i %>">Font</label>
 <div class="input-group mb-3">
 <button class="btn btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#mdFont" title="Upload a font">
 <img src="/a/upload.svg" alt="Upload" class="img-fluid icon-sm">
 </button>
 <select class="form-select" id="fontname<%= $i %>">
 <% for f in $FONTS; do %><option><%= $f %></option><% done %></select></div></div>
-<div class="col-5"><% field_range "fontsize${i}" "Font size" "10,80,1" %></div>
+<div class="col-3"><% field_range "fontsize${i}" "Font size" "10,80,1" %></div>
+<div class="col-3"><% field_range "fontstrokesize${i}" "Shadow size" "0,5,1" %></div>
 </div>
-<div class="d-flex gap-3">
+<div class="d-flex gap-1">
 <% field_switch "osd${i}_logo_enabled" "Logo" %>
-<% field_switch "osd${i}_time_enabled" "Time" %>
-<% field_switch "osd${i}_uptime_enabled" "Uptime" %>
-<% field_switch "osd${i}_user_text_enabled" "User text" %>
 </div>
 <div class="row g-1">
-<div class="col col-4"><% field_color "fontcolor${i}" "Text color" %></div>
-<div class="col col-4"><% field_color "fontstrokecolor${i}" "Shadow color" %></div>
-<div class="col col-4"><% field_range "fontstrokesize${i}" "Shadow size" "0,5,1" %></div>
-</div>
-<div class="row g-2">
+<div class="col col-2"><% field_switch "osd${i}_time_enabled" "Time" %></div>
+<div class="col col-3"><% field_color "osd${i}_time_fontcolor" "Color" %></div>
+<div class="col col-3"><% field_color "osd${i}_time_fontstrokecolor" "Shadow" %></div>
 <div class="col col-4"><% field_text "osd${i}_time_format" "Time format" "$STR_SUPPORTS_STRFTIME" %></div>
-<div class="col col-4"><% field_text "osd${i}_user_text_format" "User text format" "$STR_USER_TEXT_FMT" %></div>
+</div>
+<div class="row g-1">
+<div class="col col-2"><% field_switch "osd${i}_uptime_enabled" "Uptime" %></div>
+<div class="col col-3"><% field_color "osd${i}_uptime_fontcolor" "Color" %></div>
+<div class="col col-3"><% field_color "osd${i}_uptime_fontstrokecolor" "Shadow" %></div>
+</div>
+<div class="row g-1">
+<div class="col col-2"><% field_switch "osd${i}_usertext_enabled" "User text" %></div>
+<div class="col col-3"><% field_color "osd${i}_usertext_fontcolor" "Color" %></div>
+<div class="col col-3"><% field_color "osd${i}_usertext_fontstrokecolor" "Shadow" %></div>
+<div class="col col-4"><% field_text "osd${i}_usertext_format" "User text format" "$STR_usertext_FMT" %></div>
 </div>
 </div>
 <% done %>
@@ -333,8 +341,12 @@ const stream_params = ['audio_enabled', 'bitrate', 'buffers', 'enabled', 'format
 const stream2_params = ['jpeg_channel'];
 
 // OSD
-const osd_params = ['enabled', 'font_color', 'font_path', 'font_size', 'font_stroke_color', 'font_stroke',
-	'logo_enabled', 'time_enabled', 'time_format', 'uptime_enabled', 'user_text_enabled', 'user_text_format'];
+const osd_params = ['enabled', 'font_path', 'font_size',
+	'logo_enabled',
+	'time_enabled', 'time_font_color', 'time_font_stroke_color', 'time_format',
+	'uptime_enabled', 'uptime_font_color', 'uptime_font_stroke_color',
+	'usertext_enabled', 'usertext_font_color', 'usertext_stroke_color', 'usertext_format'
+];
 
 let sts;
 
@@ -384,8 +396,6 @@ ws.onmessage = (ev) => {
 						$(`#osd${i}_enabled`).checked = data.osd.enabled;
 						toggleWrappers(i);
 					}
-					if (data.osd.font_color)
-						$(`#fontcolor${i}`).value = data.osd.font_color.replace(/^0x../, '#');
 					if (data.osd.font_path)
 						$(`#fontname${i}`).value = data.osd.font_path.split('/').reverse()[0];
 					if (data.osd.font_size) {
@@ -393,23 +403,39 @@ ws.onmessage = (ev) => {
 						$(`#fontsize${i}-show`).textContent = data.osd.font_size;
 					}
 					if (data.osd.font_stroke_color)
-						$(`#fontstrokecolor${i}`).value = data.osd.font_stroke_color.replace(/^0x../, '#');
+						$(`#osd${i}_fontstrokecolor`).value = data.osd.font_stroke_color.replace(/^0x../, '#');
 					if (data.osd.font_stroke) {
 						$(`#fontstrokesize${i}`).value = data.osd.font_stroke;
 						$(`#fontstrokesize${i}-show`).textContent = data.osd.font_stroke;
 					}
+
 					if (data.osd.logo_enabled)
 						$(`#osd${i}_logo_enabled`).checked = data.osd.logo_enabled;
+
 					if (data.osd.time_enabled)
 						$(`#osd${i}_time_enabled`).checked = data.osd.time_enabled;
 					if (data.osd.time_format)
 						$(`#osd${i}_time_format`).value = data.osd.time_format;
+					if (data.osd.time_font_color)
+						$(`#osd${i}_time_fontcolor`).value = data.osd.time_font_color.replace(/^0x../, '#');
+					if (data.osd.time_font_stroke_color)
+						$(`#osd${i}_time_fontstrokecolor`).value = data.osd.time_font_stroke_color.replace(/^0x../, '#');
+
 					if (data.osd.uptime_enabled)
 						$(`#osd${i}_uptime_enabled`).checked = data.osd.uptime_enabled;
-					if (data.osd.user_text_enabled)
-						$(`#osd${i}_user_text_enabled`).checked = data.osd.user_text_enabled;
-					if (data.osd.user_text_format)
-						$(`#osd${i}_user_text_format`).value = data.osd.user_text_format;
+					if (data.osd.uptime_font_color)
+						$(`#osd${i}_uptime_fontcolor`).value = data.osd.uptime_font_color.replace(/^0x../, '#');
+					if (data.osd.uptime_font_stroke_color)
+						$(`#osd${i}_uptime_fontstrokecolor`).value = data.osd.uptime_font_stroke_color.replace(/^0x../, '#');
+
+					if (data.osd.usertext_enabled)
+						$(`#osd${i}_usertext_enabled`).checked = data.osd.usertext_enabled;
+					if (data.osd.usertext_font_color)
+						$(`#osd${i}_usertext_fontcolor`).value = data.osd.usertext_font_color.replace(/^0x../, '#');
+					if (data.osd.usertext_font_stroke_color)
+						$(`#osd${i}_usertext_fontstrokecolor`).value = data.osd.usertext_font_stroke_color.replace(/^0x../, '#');
+					if (data.osd.usertext_format)
+						$(`#osd${i}_usertext_format`).value = data.osd.usertext_format;
 				}
 			}
 		}
@@ -467,25 +493,30 @@ function getSnapshot() {
 	sts = setTimeout(getSnapshot, 500);
 }
 
+// n - stream #
 function setFont(n) {
 	const fontname = $(`#fontname${n}`).value;
 	const fontsize = $(`#fontsize${n}`).value;
+	const fontstrokesize = $(`#fontstrokesize${n}`).value;
+
 	if (fontname == '' || fontsize == '') return;
 	sendToWs('{"stream'+n+'":{"osd":{'+
 		'"font_path":"/usr/share/fonts/'+fontname+'",'+
-		'"font_size":'+fontsize+
+		'"font_size":'+fontsize+','+
+		'"font_stroke_size":'+fontstrokesize+
 		'}},"action":{"restart_thread":10}}');
 }
 
-function setFontColor(n) {
-	const fontcolor = $(`#fontcolor${n}`).value.replace(/^#/, '');
-	const fontstrokecolor = $(`#fontstrokecolor${n}`).value.replace(/^#/, '');
-	const fontstrokesize = $(`#fontstrokesize${n}`).value;
+// n - stream #,
+// el - osd element
+function setFontColor(n, el) {
+	const fontcolor = $(`#osd${n}_${el}_fontcolor`).value.replace(/^#/, '');
+	const fontstrokecolor = $(`#osd${n}_${el}_fontstrokecolor`).value.replace(/^#/, '');
+
 	if (fontcolor == '' || fontstrokecolor == '') return;
 	sendToWs('{"stream'+n+'":{"osd":{'+
-		'"font_color":"0xff'+fontcolor+'",'+
-		'"font_stroke_color":"0xff'+fontstrokecolor+'",'+
-		'"font_stroke":'+fontstrokesize+
+		'"'+el+'_font_color":"0xff'+fontcolor+'",'+
+		'"'+el+'_font_stroke_color":"0xff'+fontstrokecolor+'"'+
 		'}},"action":{"restart_thread":10}}');
 }
 
@@ -623,18 +654,26 @@ $('#restart-audio').addEventListener('click', ev => {
 });
 
 for (const i in [0, 1]) {
-	$('#fontcolor'+i).onchange = () => setFontColor(i);
 	$('#fontname'+i).onchange = () => setFont(i);
 	$('#fontsize'+i).onchange = () => setFont(i);
-	$('#fontstrokecolor'+i).onchange = () => setFontColor(i);
-	$('#fontstrokesize'+i).onchange = () => setFontColor(i);
+	$('#fontstrokesize'+i).onchange = () => setFont(i);
+
 	$('#osd'+i+'_enabled').onchange = (ev) => sendToWs('{"stream'+i+'":{"osd":{"enabled":'+ev.target.checked+'}},"action":{"restart_thread":10}}}');
 	$('#osd'+i+'_logo_enabled').onchange = (ev) => toggleOSDElement(ev.target);
+
 	$('#osd'+i+'_time_enabled').onchange = (ev) => toggleOSDElement(ev.target);
+	$('#osd'+i+'_time_fontcolor').onchange = () => setFontColor(i, 'time');
+	$('#osd'+i+'_time_fontstrokecolor').onchange = () => setFontColor(i, 'time');
 	$('#osd'+i+'_time_format').onchange = (ev) => sendToWs('{"stream'+i+'":{"osd":{"time_format":"'+ev.target.value+'"}},"action":{"restart_thread":10}}}');
+
 	$('#osd'+i+'_uptime_enabled').onchange = (ev) => toggleOSDElement(ev.target);
-	$('#osd'+i+'_user_text_enabled').onchange = (ev) => toggleOSDElement(ev.target);
-	$('#osd'+i+'_user_text_format').onchange = (ev) => sendToWs('{"stream'+i+'":{"osd":{"user_text_format":"'+ev.target.value+'"}},"action":{"restart_thread":10}}}');
+	$('#osd'+i+'_uptime_fontcolor').onchange = () => setFontColor(i, 'uptime');
+	$('#osd'+i+'_uptime_fontstrokecolor').onchange = () => setFontColor(i, 'uptime');
+
+	$('#osd'+i+'_usertext_enabled').onchange = (ev) => toggleOSDElement(ev.target);
+	$('#osd'+i+'_usertext_fontcolor').onchange = () => setFontColor(i, 'usertext');
+	$('#osd'+i+'_usertext_fontstrokecolor').onchange = () => setFontColor(i, 'usertext');
+	$('#osd'+i+'_usertext_format').onchange = (ev) => sendToWs('{"stream'+i+'":{"osd":{"usertext_format":"'+ev.target.value+'"}},"action":{"restart_thread":10}}}');
 }
 </script>
 
