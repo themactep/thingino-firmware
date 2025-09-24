@@ -76,6 +76,12 @@ if [ -n "$ntfy_username" ] && [ -n "$ntfy_password" ]; then
 	command="$command -u $ntfy_username:$ntfy_password"
 fi
 
+if [ "true" = "$ntfy_send_snap" ]; then
+	attachment=$(mktemp -u).jpg
+	cp -f "$SNAPSHOT_FILE" "$attachment"
+	command="$command -T $attachment -H 'Filename: $attachment'"
+fi
+
 if [ -n "$ntfy_filename" ] && [ -f "$ntfy_filename" ]; then
 	command="$command -T $ntfy_filename -H 'Filename: $ntfy_filename'"
 fi
