@@ -1,7 +1,7 @@
 Thingino
 --------
 
-Thingino is an open-source firmware for Ingenic SoC IP cameras.
+Thingino (_/θinˈdʒiːno/_, _thin-jee-no_) is an open-source firmware for Ingenic SoC IP cameras.
 
 ![Thingino Web UI][10]
 
