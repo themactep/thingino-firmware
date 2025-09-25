@@ -85,6 +85,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wolfssl/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wolfssh/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/mbedtls-certgen/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/spi-tmi8152/Config.in"
 endif
 
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
