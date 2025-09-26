@@ -69,6 +69,10 @@ body:before {
 	--ansi-144: #afaf87;
 }
 
+.alert p:last-of-type {
+	margin-bottom: 0;
+}
+
 .blink {
 	color: red;
 	animation: blinker 4s step-end infinite;
