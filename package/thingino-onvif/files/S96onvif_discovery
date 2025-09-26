@@ -62,8 +62,8 @@ start() {
 		jct $ONVIF_CONFIG set ptz.enable 1
 		jct $ONVIF_CONFIG set ptz.max_step_x "$motor_maxstep_h"
 		jct $ONVIF_CONFIG set ptz.max_step_y "$motor_maxstep_v"
-		jct $ONVIF_CONFIG set ptz.move_right "/sbin/motors -d h -x $motor_maxstep_h"
-		jct $ONVIF_CONFIG set ptz.move_down "/sbin/motors -d h -y $motor_maxstep_v"
+		jct $ONVIF_CONFIG set ptz.move_right "/bin/motors -d h -x $motor_maxstep_h"
+		jct $ONVIF_CONFIG set ptz.move_down "/bin/motors -d h -y $motor_maxstep_v"
 	fi
 }
 
