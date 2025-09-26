@@ -9,17 +9,19 @@ show_help() {
 	cat >&2 <<EOF
 Usage: $0 [options]
 Where:
-  -d dir      Target directory to save files locally.
+  -m mount    Target mount point directory to save files.
+  -d subdir   Target sub directory under mount point to save files.
   -V          Save video buffer instead of snapshot.
   -v          Verbose output.
-  -s sec      Delay in seconds before copying snapshot when saving video.
+  -s sec      Delay in seconds before copying snapshot/video.
   -h          Show this help and exit.
 EOF
 	exit 0
 }
 
 send_mount_save_template=${send_mount_save_template:-"${network_hostname:-thingino}-%Y%m%d-%H%M%S"}
-send_mount_save_dir=${send_mount_save_dir:-"/mnt/records"}
+send_mount_save_mount=${send_mount_save_mount:-"/mnt/mmcblk0p1"}
+send_mount_save_subdir=${send_mount_save_subdir:-"records"}
 send_mount_verbose=${send_mount_verbose:-"false"}
 send_mount_save_video="${send_mount_save_video:-false}"
 send_mount_snapshot_delay=${send_mount_snapshot_delay:-3}  # seconds
@@ -37,9 +39,10 @@ await_file() {
 	return 1
 }
 
-while getopts d:Vv:s:h flag; do
+while getopts m:d:Vvs:h flag; do
 	case "${flag}" in
-		d) send_mount_save_dir=$OPTARG ;;
+		m) send_mount_save_mount=$OPTARG ;;
+		d) send_mount_save_subdir=$OPTARG ;;
 		V) send_mount_save_video="true" ;;
 		v) send_mount_verbose="true" ;;
 		s) send_mount_snapshot_delay=$OPTARG ;;
@@ -47,8 +50,19 @@ while getopts d:Vv:s:h flag; do
 	esac
 done
 
-[ -z "$send_mount_save_dir" ] && {
-	echo "Error: target directory is not set" >&2; exit 1; }
+if [ -z "$send_mount_save_subdir" ] || [ -z "$send_mount_save_mount" ]; then
+	echo "Error: target mount or subdirectory is not set" >&2
+	exit 1
+fi
+
+! mountpoint -q "$send_mount_save_mount" && {
+	echo "Error: No such mount point: $send_mount_save_mount" >&2; exit 1; }
+
+case "$send_mount_save_subdir" in
+	""|/*|*"/.."|*"/../"*|*"..")
+		echo "Error: sub directory must be relative and not contain \"..\"" >&2
+		exit 1 ;;
+esac
 
 action_ext="jpg"
 if [ "$send_mount_save_video" = "true" ]; then
@@ -71,6 +85,7 @@ if ! await_file "$savable" 5; then
 	exit 1
 fi
 
+send_mount_save_dir="${send_mount_save_mount}/${send_mount_save_subdir}"
 logv "[INFO] Creating directory: $send_mount_save_dir"
 mkdir -p "$send_mount_save_dir" || {
 	echo "Error: cannot create directory $send_mount_save_dir" >&2

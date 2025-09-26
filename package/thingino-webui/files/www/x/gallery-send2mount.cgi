@@ -2,8 +2,9 @@
 <%in _common.cgi %>
 <%
 page_title="Recordings Gallery"
-default_for send_mount_save_dir "/mnt/records"
-dir="$send_mount_save_dir"
+default_for send_mount_save_mount "/mnt/mmcblk0p1"
+default_for send_mount_save_subdir "records"
+dir="${send_mount_save_mount}/${send_mount_save_subdir}"
 
 safe_path() {
 	real=$(readlink -f -- "$1") && [ -e "$real" ] && [ "${real#"$dir"/}" != "$real" ]
