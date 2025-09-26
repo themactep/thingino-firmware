@@ -1,22 +1,22 @@
 #!/bin/sh
+# Timezone selector
 
 . /usr/share/common
 
 TZJSON_FILE="/usr/share/tz.json.gz"
 LIST_PATH="/tmp/timezone_list.txt"
 
-while getopts "h" opt; do
-	case $opt in
-		*)
-			echo "Usage: $0"
-			echo "Interactive timezone selector for embedded Linux"
-			exit 1
-			;;
-	esac
-done
-
 current_tz_name=$(cat /etc/timezone 2>/dev/null || echo "Etc/GMT")
 current_tz_data=$(cat /etc/TZ 2>/dev/null || echo "GMT0")
+
+print_usage() {
+echo "Usage: $0 [options]
+Where:
+  -n <name>  Find and set timezone by name
+  -i         Interactive shell
+  -h         Show this usage help
+"
+}
 
 fetch_timezones() {
 	echo_info "Loading timezone data..."
@@ -45,8 +45,6 @@ fetch_timezones() {
 	rm -f /tmp/tz_raw.txt
 }
 
-
-
 display_timezones_page() {
 	page=${1:-1}
 
@@ -70,8 +68,42 @@ display_timezones_page() {
 	echo "Available timezones (page $page of $total_pages), use [PgUp]/[PgDn] keys to navigate."
 	echo
 	sed -n "${start_line},${end_line}p" $LIST_PATH | while IFS=':' read num name value; do
-		echo "  $num) $name"
+echo "  $num) $name"
 	done
+}
+
+set_timezone() {
+	if [ -z "$1" ]; then
+		echo "Empty data!"
+		exit 1
+	fi
+	local selected_tz="$1"
+	tz_name=$(echo "$selected_tz" | cut -d':' -f1)
+	tz_data=$(echo "$selected_tz" | cut -d':' -f2)
+	echo "$tz_name" > /etc/timezone
+	echo "$tz_data" > /etc/TZ
+	# Restart timezone service to apply changes
+	service restart timezone > /dev/null 2>&1
+	echo_info "Timezone updated to $tz_name ($tz_data)"
+}
+
+get_by_name() {
+	if [ -z "$1" ]; then
+		echo "No search pattern"
+		exit 1
+	fi
+
+	# if we ever get jq
+	# matched_tz=$(zcat $TZJSON_FILE | jq 'map(select(any(contains("$1"))))')
+	matched_tz=$(zcat $TZJSON_FILE | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' | sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' | sed -n "/$1/p")
+	if [ "0$(echo "$matched_tz" | wc -l)" -gt 1 ]; then
+		echo "Multiple matches:"
+		echo "$matched_tz"
+		exit 1
+	else
+		set_timezone "$matched_tz"
+		exit 0
+	fi
 }
 
 cleanup() {
@@ -84,142 +116,151 @@ cleanup() {
 	echo ""
 }
 
-trap 'cleanup; exit 0' INT TERM EXIT
+interactive_shell() {
+	trap 'cleanup; exit 0' INT TERM EXIT
+	current_page=1
 
-current_page=1
+	# Save initial terminal settings
+	old_tty_settings=$(stty -g)
 
-# Save initial terminal settings
-old_tty_settings=$(stty -g)
-
-while true; do
-	if [ ! -f $LIST_PATH ]; then
-		fetch_timezones
-	fi
-
-	clear
-	echo "Timezone selector"
-	echo
-	echo "Current timezone: $current_tz_name ($current_tz_data)"
-	display_timezones_page $current_page
-	echo
-
-	# Read a single character or escape sequence
-	printf "Enter number of a timezone or [Q] to quit: "
-
-	# Set terminal to raw mode to capture individual keystrokes
-	stty raw -echo min 1 time 0
-
-	# Read first character
-	char=$(dd bs=1 count=1 2>/dev/null)
-
-	# Check if it's an escape sequence
-	if [ "$char" = "$(printf '\033')" ]; then
-		# Read the next character
-		char2=$(dd bs=1 count=1 2>/dev/null)
-		if [ "$char2" = "[" ]; then
-			# Read the final character of the escape sequence
-			char3=$(dd bs=1 count=1 2>/dev/null)
-			case "$char3" in
-				"A") selection="up" ;;      # Up arrow
-				"B") selection="down" ;;    # Down arrow
-				"5")
-					# Page Up - read the trailing ~
-					dd bs=1 count=1 2>/dev/null
-					selection="pgup"
-					;;
-				"6")
-					# Page Down - read the trailing ~
-					dd bs=1 count=1 2>/dev/null
-					selection="pgdn"
-					;;
-				*) selection="$char$char2$char3" ;;
-			esac
-		else
-			selection="$char$char2"
+	while true; do
+		if [ ! -f $LIST_PATH ]; then
+			fetch_timezones
 		fi
-	elif [ "$char" = "$(printf '\003')" ]; then
-		# Ctrl-C
-		exit 0
-	elif [ "$char" = "$(printf '\r')" ] || [ "$char" = "$(printf '\n')" ]; then
-		# Enter without input
-		stty "$old_tty_settings"
-		echo ""
-		selection=""
-	else
-		# For regular characters, restore normal input mode first
+
+		clear
+		echo "Timezone selector"
+		echo
+		echo "Current timezone: $current_tz_name ($current_tz_data)"
+		display_timezones_page $current_page
+		echo
+
+		# Read a single character or escape sequence
+		printf "Enter number of a timezone or [Q] to quit: "
+
+		# Set terminal to raw mode to capture individual keystrokes
+		stty raw -echo min 1 time 0
+
+		# Read first character
+		char=$(dd bs=1 count=1 2>/dev/null)
+
+		# Check if it's an escape sequence
+		if [ "$char" = "$(printf '\033')" ]; then
+			# Read the next character
+			char2=$(dd bs=1 count=1 2>/dev/null)
+			if [ "$char2" = "[" ]; then
+				# Read the final character of the escape sequence
+				char3=$(dd bs=1 count=1 2>/dev/null)
+				case "$char3" in
+					"A") selection="up" ;;      # Up arrow
+					"B") selection="down" ;;    # Down arrow
+					"5")
+						# Page Up - read the trailing ~
+						dd bs=1 count=1 2>/dev/null
+						selection="pgup"
+						;;
+					"6")
+						# Page Down - read the trailing ~
+						dd bs=1 count=1 2>/dev/null
+						selection="pgdn"
+						;;
+					*) selection="$char$char2$char3" ;;
+				esac
+			else
+				selection="$char$char2"
+			fi
+		elif [ "$char" = "$(printf '\003')" ]; then
+			# Ctrl-C
+			exit 0
+		elif [ "$char" = "$(printf '\r')" ] || [ "$char" = "$(printf '\n')" ]; then
+			# Enter without input
+			stty "$old_tty_settings"
+			echo ""
+			selection=""
+		else
+			# For regular characters, restore normal input mode first
+			stty "$old_tty_settings"
+
+			# Check if first character is a digit
+			case "$char" in
+				[0-9])
+					# Echo the first digit and read the rest normally with visible input
+					printf "%s" "$char"
+					read -r rest_of_input
+					selection="$char$rest_of_input"
+					;;
+				*)
+					# Single character input (q, f, l, etc.)
+					printf "%s\n" "$char"
+					selection="$char"
+					;;
+			esac
+		fi
+
+		[ -z "$selection" ] && break
+
+		# Restore terminal settings before processing navigation
 		stty "$old_tty_settings"
 
-		# Check if first character is a digit
-		case "$char" in
-			[0-9])
-				# Echo the first digit and read the rest normally with visible input
-				printf "%s" "$char"
-				read -r rest_of_input
-				selection="$char$rest_of_input"
+		case "$selection" in
+			"pgup"|"up")
+				if [ $current_page -gt 1 ]; then
+					current_page=$((current_page - 1))
+				fi
+				;;
+			"pgdn"|"down")
+				total_count=$(wc -l < $LIST_PATH)
+				terminal_height=$(get_terminal_height)
+				per_page=$((terminal_height - 8))
+				if [ "$per_page" -lt 5 ]; then
+					per_page=5
+				elif [ "$per_page" -gt 50 ]; then
+					per_page=50
+				fi
+				total_pages=$(( (total_count + per_page - 1) / per_page ))
+				if [ $current_page -lt $total_pages ]; then
+					current_page=$((current_page + 1))
+				fi
+				;;
+			"f"|"F")
+				current_page=1
+				;;
+			"l"|"L")
+				total_count=$(wc -l < $LIST_PATH)
+				terminal_height=$(get_terminal_height)
+				per_page=$((terminal_height - 8))
+				if [ "$per_page" -lt 5 ]; then
+					per_page=5
+				elif [ "$per_page" -gt 50 ]; then
+					per_page=50
+				fi
+				current_page=$(( (total_count + per_page - 1) / per_page ))
+				;;
+			"q"|"Q")
+				exit 0
+				;;
+			[0-9]*)
+				selected_tz=$(grep "^$selection:" $LIST_PATH | cut -d':' -f2,3)
+				if [ -n "$selected_tz" ]; then
+					set_timezone "$selected_tz"
+					break
+				else
+					echo_warning "Invalid selection. Please try again."
+				fi
 				;;
 			*)
-				# Single character input (q, f, l, etc.)
-				printf "%s\n" "$char"
-				selection="$char"
+				# Invalid input
 				;;
 		esac
-	fi
+	done
+}
 
-	[ -z "$selection" ] && break
-
-	# Restore terminal settings before processing navigation
-	stty "$old_tty_settings"
-
-	case "$selection" in
-		"pgup"|"up")
-			if [ $current_page -gt 1 ]; then
-				current_page=$((current_page - 1))
-			fi
-			;;
-		"pgdn"|"down")
-			total_count=$(wc -l < $LIST_PATH)
-			terminal_height=$(get_terminal_height)
-			per_page=$((terminal_height - 8))
-			if [ "$per_page" -lt 5 ]; then per_page=5; elif [ "$per_page" -gt 50 ]; then per_page=50; fi
-			total_pages=$(( (total_count + per_page - 1) / per_page ))
-			if [ $current_page -lt $total_pages ]; then
-				current_page=$((current_page + 1))
-			fi
-			;;
-		"f"|"F")
-			current_page=1
-			;;
-		"l"|"L")
-			total_count=$(wc -l < $LIST_PATH)
-			terminal_height=$(get_terminal_height)
-			per_page=$((terminal_height - 8))
-			if [ "$per_page" -lt 5 ]; then per_page=5; elif [ "$per_page" -gt 50 ]; then per_page=50; fi
-			current_page=$(( (total_count + per_page - 1) / per_page ))
-			;;
-		"q"|"Q")
-			exit 0
-			;;
-		[0-9]*)
-			selected_tz=$(grep "^$selection:" $LIST_PATH | cut -d':' -f2,3)
-			if [ -n "$selected_tz" ]; then
-				tz_name=$(echo "$selected_tz" | cut -d':' -f1)
-				tz_data=$(echo "$selected_tz" | cut -d':' -f2)
-				
-				echo "$tz_name" > /etc/timezone
-				echo "$tz_data" > /etc/TZ
-				
-				# Restart timezone service to apply changes
-				service restart timezone > /dev/null 2>&1
-				
-				echo_info "Timezone updated to $tz_name ($tz_data)"
-				break
-			else
-				echo_warning "Invalid selection. Please try again."
-			fi
-			;;
-		*)
-			# Invalid input
-			;;
+while getopts "hin:" opt; do
+	case $opt in
+		h) print_usage ;;
+		i) interactive_shell ;;
+		n) get_by_name "$OPTARG" ;;
+		*) print_usage ;;
 	esac
 done
 
