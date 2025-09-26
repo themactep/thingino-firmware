@@ -124,7 +124,7 @@ jobs:
         id: set-matrix
         run: |
           if [[ "${{ github.event.inputs.wyzeatom_only }}" == "true" ]]; then
-            CONFIGS=$(find configs/cameras/ -type f | sort | awk -F '/' '{print $(NF)}' | awk NF | grep 'atom|wyze_c3_t31x')
+            CONFIGS=$(find configs/cameras/ -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|' | grep 'atom|wyze_c3_t31x')
           else
             CONFIGS=$(find configs/cameras/ -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|')
           fi
