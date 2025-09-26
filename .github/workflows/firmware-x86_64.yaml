@@ -123,7 +123,7 @@ jobs:
       - name: Generate device matrix
         id: set-matrix
         run: |
-          if [[ "${{ github.event.inputs.atomwyze_only }}" == "true" ]]; then
+          if [[ "${{ github.event.inputs.wyzeatom_only }}" == "true" ]]; then
             CONFIGS=$(find configs/cameras/ -type f | sort | awk -F '/' '{print $(NF)}' | awk NF | grep 'atom|wyze_c3_t31x'
           else
             CONFIGS=$(find configs/cameras/ -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|')
