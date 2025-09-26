@@ -52,8 +52,8 @@ start() {
 	jct $ONVIF_CONFIG set firmware_ver "$BUILD_ID"
 	jct $ONVIF_CONFIG set ifs "$iface"
 
-	jct $ONVIF_CONFIG set username "$(awk -F '"' '/username:/ {print $2}' $PRUDYNT_CONFIG)"
-	jct $ONVIF_CONFIG set password "$(awk -F '"' '/password:/ {print $2}' $PRUDYNT_CONFIG)"
+	jct $ONVIF_CONFIG set username "$(awk -F '"' '/username/ {print $2}' $PRUDYNT_CONFIG)"
+	jct $ONVIF_CONFIG set password "$(awk -F '"' '/password/ {print $2}' $PRUDYNT_CONFIG)"
 #	jct $ONVIF_CONFIG set username "$(jct $PRUDYNT_CONFIG get rtsp.username | tr -d \")"
 #	jct $ONVIF_CONFIG set password "$(jct $PRUDYNT_CONFIG get rtsp.password | tr -d \")"
 
