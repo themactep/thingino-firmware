@@ -1,4 +1,5 @@
 #!/bin/env sh
+# Gets commands via Telegram
 
 . /usr/share/common
 

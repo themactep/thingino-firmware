@@ -1,4 +1,5 @@
 #!/bin/sh
+# Prints information about SDIO devices
 
 for dev in /sys/bus/sdio/devices/*; do
   if [ -d "$dev" ]; then

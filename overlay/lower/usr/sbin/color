@@ -1,4 +1,5 @@
 #!/bin/sh
+# Controls color mode of the image
 
 MODE_FILE="/tmp/colormode.txt"
 [ -f "$MODE_FILE" ] || touch "$MODE_FILE"

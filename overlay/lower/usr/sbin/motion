@@ -1,4 +1,5 @@
 #!/bin/sh
+# Triggered on a motion event
 
 . /usr/share/common
 

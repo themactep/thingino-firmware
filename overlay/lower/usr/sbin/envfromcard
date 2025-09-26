@@ -1,4 +1,5 @@
 #!/bin/sh
+# Imports bootloader environment from SD card
 
 ENV_FILE="/mnt/mmcblk0p1/uenv.txt"
 if [ ! -f "$ENV_FILE" ]; then
