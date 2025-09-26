@@ -14,7 +14,7 @@ on:
         type: boolean
         description: 'Disable Telegram notifications'
         required: false
-        default: false
+        default: true
       tg_scratch:
         type: boolean
         description: 'Use TG scratch channel'
@@ -25,11 +25,11 @@ on:
         description: 'Enable build time graph'
         required: false
         default: false
-      teacup_only:
+      atomwyze_only:
         type: boolean
-        description: 'Only build Tea Cup profile'
+        description: 'Only build Atom and Wyze profile'
         required: false
-        default: false
+        default: true
       debug_enabled:
         type: boolean
         description: 'Debug: Generate dummy image files'
@@ -203,8 +203,8 @@ jobs:
       - name: Generate device matrix
         id: set-matrix
         run: |
-          if [[ "${{ github.event.inputs.teacup_only }}" == 'true' ]]; then
-            CONFIGS=$(find configs/cameras/ -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|' | grep teacup)
+          if [[ "${{ github.event.inputs.atomwyze_only }}" == "true" ]]; then
+            CONFIGS=$(find configs/cameras/ -type f | sort | awk -F '/' '{print $(NF)}' | awk NF | grep 'atom|wyze_c3_t31x_rtl'
           else
             CONFIGS=$(find configs/cameras/ -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|')
           fi
