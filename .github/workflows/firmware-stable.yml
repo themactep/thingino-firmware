@@ -460,7 +460,7 @@ jobs:
         with:
           tag_name: ${{ env.TAG_NAME }}
           make_latest: false
-          prerelease: true
+          prerelease: false
           files: |
             ${{ env.FULL_FW }}
             ${{ env.FULL_FW_SHA }}
