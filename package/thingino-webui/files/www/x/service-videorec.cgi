@@ -69,7 +69,7 @@ defaults
 <div class="row g-1">
 <div class="col-8"><% field_text "record_filename" "File name template" "$STR_SUPPORTS_STRFTIME" %></div>
 <div class="col-2"><% field_number "record_duration" "Duration" "" "seconds" %></div>
-<div class="col-2"><% field_select "record_videofmt" "Format" "mov, mp4" "also extension" %></div>
+<div class="col-2"><% field_select "record_videofmt" "Format" "mp4,mov" "also extension" %></div>
 </div>
 </div>
 <div class="col">
