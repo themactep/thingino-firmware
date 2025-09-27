@@ -147,7 +147,7 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 
 	# Adjust buffer settings for low-memory devices
 	if [ "$(SOC_RAM)" -le "64" ]; then \
-		$(HOST_DIR)/bin/jq '.stream0.buffers = 1 | .stream1.buffers = 1' \
+		$(HOST_DIR)/bin/jq '.stream0.buffers = 1 | .stream1.buffers = 1 | .audio.output_enabled = false' \
 			$(STAGING_DIR)/prudynt.json > $(STAGING_DIR)/prudynt.json.tmp && \
 		mv $(STAGING_DIR)/prudynt.json.tmp $(STAGING_DIR)/prudynt.json; \
 	fi
