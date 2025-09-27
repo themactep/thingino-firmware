@@ -61,6 +61,15 @@ jobs:
           ref: "stable"
           fetch-depth: 0
 
+      - name: Debug checked out branch and commit
+        run: |
+          echo "Checked out branch:"
+          git branch -a
+          echo "HEAD SHA:"
+          git rev-parse HEAD
+          echo "Last commit:"
+          git log --oneline -1
+
       - name: Check for updates since last release
         id: check
         run: |
@@ -149,6 +158,15 @@ jobs:
           ref: "stable"
           fetch-depth: "0"
 
+      - name: Debug checked out branch and commit
+        run: |
+          echo "Checked out branch:"
+          git branch -a
+          echo "HEAD SHA:"
+          git rev-parse HEAD
+          echo "Last commit:"
+          git log --oneline -1
+
       - name: Create release tag
         continue-on-error: true
         run: |
@@ -199,6 +217,15 @@ jobs:
         with:
           ref: "stable"
           fetch-depth: "0"
+
+      - name: Debug checked out branch and commit
+        run: |
+          echo "Checked out branch:"
+          git branch -a
+          echo "HEAD SHA:"
+          git rev-parse HEAD
+          echo "Last commit:"
+          git log --oneline -1
 
       - name: Generate device matrix
         id: set-matrix
@@ -263,6 +290,15 @@ jobs:
           submodules: 'true'
           ref: "stable"
           fetch-depth: "0"
+
+      - name: Debug checked out branch and commit
+        run: |
+          echo "Checked out branch:"
+          git branch -a
+          echo "HEAD SHA:"
+          git rev-parse HEAD
+          echo "Last commit:"
+          git log --oneline -1
 
       - name: Configure environment variables
         id: env
@@ -510,6 +546,15 @@ jobs:
         with:
           submodules: 'false'
           ref: "stable"
+
+      - name: Debug checked out branch and commit
+        run: |
+          echo "Checked out branch:"
+          git branch -a
+          echo "HEAD SHA:"
+          git rev-parse HEAD
+          echo "Last commit:"
+          git log --oneline -1
 
       - name: Generate release notes
         id: release_notes
