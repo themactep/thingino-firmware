@@ -1,4 +1,5 @@
 #!/bin/sh
+# Controls system services
 
 . /usr/share/common
 

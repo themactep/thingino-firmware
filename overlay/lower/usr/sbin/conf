@@ -1,4 +1,5 @@
 #!/bin/sh
+# Manages thingino config file
 
 . /usr/share/common
 

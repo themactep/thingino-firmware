@@ -1,4 +1,5 @@
 #!/bin/sh
+# Formats SD card
 
 . /usr/share/common
 

@@ -1,4 +1,5 @@
 #!/bin/sh
+# Controls color LED indicators
 
 . /usr/share/common
 

@@ -1,10 +1,11 @@
 #!/bin/sh
+# Prints information about SDIO devices
 
 for dev in /sys/bus/sdio/devices/*; do
-  if [ -d "$dev" ]; then
-    echo "Device: $(basename "$dev")"
-    echo "  Vendor ID: $(cat "$dev/vendor")"
-    echo "  Device ID: $(cat "$dev/device")"
-  fi
+	if [ -d "$dev" ]; then
+		echo "Device: $(basename "$dev")"
+		echo "  Vendor ID: $(cat "$dev/vendor")"
+		echo "  Device ID: $(cat "$dev/device")"
+	fi
 done
 

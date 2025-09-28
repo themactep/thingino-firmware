@@ -1,4 +1,5 @@
 #!/bin/sh
+# Timezone selector
 
 . /usr/share/common
 
