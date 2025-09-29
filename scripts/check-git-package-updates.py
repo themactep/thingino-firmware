@@ -29,6 +29,10 @@ UPDATED_PACKAGES: List[str] = []
 LOG_LEVEL = 20
 # Dry-run mode: when True, do not prompt or modify files
 DRY_RUN = False
+# Git commit mode: when True, create commits for package updates
+GIT_COMMIT = False
+# Stash reference for temporarily saving uncommitted changes
+STASH_REF: Optional[str] = None
 
 HASH_RE = re.compile(r"^[a-f0-9]{40}$")
 
@@ -71,6 +75,148 @@ def is_valid_hash(s: str) -> bool:
 
 def get_short_hash(h: str) -> str:
     return h[:7]
+
+
+def check_git_working_directory() -> bool:
+    """
+    Check if the Git working directory is clean (no uncommitted changes).
+    Returns True if clean, False if there are uncommitted changes.
+    """
+    log_debug("Checking Git working directory status")
+
+    # Check for staged changes
+    code, out, err = run_git(["diff", "--cached", "--quiet"], cwd=PROJECT_ROOT)
+    if code != 0:
+        log_debug("Found staged changes in working directory")
+        return False
+
+    # Check for unstaged changes
+    code, out, err = run_git(["diff", "--quiet"], cwd=PROJECT_ROOT)
+    if code != 0:
+        log_debug("Found unstaged changes in working directory")
+        return False
+
+    # Check for untracked files
+    code, out, err = run_git(["ls-files", "--others", "--exclude-standard"], cwd=PROJECT_ROOT)
+    if code == 0 and out.strip():
+        log_debug("Found untracked files in working directory")
+        return False
+
+    log_debug("Git working directory is clean")
+    return True
+
+
+def stash_uncommitted_changes() -> Optional[str]:
+    """
+    Stash any uncommitted changes in the working directory.
+    Returns the stash reference if successful, None if failed or no changes to stash.
+    """
+    global STASH_REF
+
+    if check_git_working_directory():
+        log_debug("No uncommitted changes to stash")
+        return None
+
+    log_info("Stashing uncommitted changes to ensure clean working directory")
+
+    # Create a stash with a descriptive message
+    stash_message = f"check-git-package-updates.py auto-stash at {subprocess.run(['date', '+%Y-%m-%d %H:%M:%S'], capture_output=True, text=True).stdout.strip()}"
+
+    code, out, err = run_git(["stash", "push", "-m", stash_message], cwd=PROJECT_ROOT)
+    if code != 0:
+        log_error(f"Failed to stash uncommitted changes: {err}")
+        return None
+
+    # Get the stash reference
+    code, out, err = run_git(["stash", "list", "--format=%H", "-n", "1"], cwd=PROJECT_ROOT)
+    if code != 0 or not out.strip():
+        log_error("Failed to get stash reference")
+        return None
+
+    stash_ref = out.strip()
+    STASH_REF = stash_ref
+    log_success(f"Successfully stashed changes with reference: {stash_ref[:7]}")
+    return stash_ref
+
+
+def restore_stashed_changes() -> bool:
+    """
+    Restore previously stashed changes.
+    Returns True if successful or no stash to restore, False if failed.
+    """
+    global STASH_REF
+
+    if not STASH_REF:
+        log_debug("No stashed changes to restore")
+        return True
+
+    log_info("Restoring previously stashed changes")
+
+    # Apply and drop the stash
+    code, out, err = run_git(["stash", "pop", STASH_REF], cwd=PROJECT_ROOT)
+    if code != 0:
+        log_error(f"Failed to restore stashed changes: {err}")
+        log_warn(f"You may need to manually restore stash {STASH_REF[:7]}")
+        return False
+
+    log_success("Successfully restored stashed changes")
+    STASH_REF = None
+    return True
+
+
+def create_package_commit(package_name: str, mk_path: Path, old_hash: str, new_hash: str, commit_log: List[str]) -> bool:
+    """
+    Create a Git commit for a package update.
+    Returns True if successful, False if failed.
+    """
+    if not GIT_COMMIT:
+        return True
+
+    log_debug(f"Creating Git commit for package {package_name}")
+
+    # Stage the modified .mk file
+    relative_mk_path = mk_path.relative_to(PROJECT_ROOT)
+    code, out, err = run_git(["add", str(relative_mk_path)], cwd=PROJECT_ROOT)
+    if code != 0:
+        log_error(f"Failed to stage {relative_mk_path}: {err}")
+        return False
+
+    # Create commit message
+    old_short = get_short_hash(old_hash)
+    new_short = get_short_hash(new_hash)
+
+    commit_title = f"package/{package_name}: update to {new_short}"
+
+    commit_body_lines = [
+        "",
+        f"Update {package_name} from {old_short} to {new_short}",
+        "",
+        f"Hash change: {old_hash} -> {new_hash}",
+        ""
+    ]
+
+    if commit_log:
+        commit_body_lines.extend([
+            "Changelog:",
+            ""
+        ])
+        for line in commit_log:
+            commit_body_lines.append(f"  {line}")
+    else:
+        commit_body_lines.append("(No changelog available)")
+
+    commit_message = commit_title + "\n" + "\n".join(commit_body_lines)
+
+    # Create the commit
+    code, out, err = run_git(["commit", "-m", commit_message], cwd=PROJECT_ROOT)
+    if code != 0:
+        log_error(f"Failed to create commit for {package_name}: {err}")
+        # Unstage the file
+        run_git(["reset", "HEAD", str(relative_mk_path)], cwd=PROJECT_ROOT)
+        return False
+
+    log_success(f"Created commit for {package_name}: {commit_title}")
+    return True
 
 
 def parse_mk_file(mk_path: Path) -> Optional[Tuple[str, str, str, str]]:
@@ -310,9 +456,13 @@ def process_package(mk_path: Path) -> None:
     # Prompt and update
     if prompt_yes_no(package_name, current_hash, remote_hash):
         if update_package_mk(mk_path, package_name, current_hash, remote_hash):
-            PACKAGES_UPDATED += 1
-            UPDATED_PACKAGES.append(f"{package_name}:{get_short_hash(current_hash)}->{get_short_hash(remote_hash)}")
-            log_debug(f"Package {package_name} updated successfully")
+            # Create Git commit if enabled
+            if create_package_commit(package_name, mk_path, current_hash, remote_hash, log_lines):
+                PACKAGES_UPDATED += 1
+                UPDATED_PACKAGES.append(f"{package_name}:{get_short_hash(current_hash)}->{get_short_hash(remote_hash)}")
+                log_debug(f"Package {package_name} updated successfully")
+            else:
+                log_error(f"Failed to create commit for package {package_name}")
         else:
             log_error(f"Failed to update package {package_name}")
     else:
@@ -320,16 +470,18 @@ def process_package(mk_path: Path) -> None:
 
 
 def main() -> int:
-    global TOTAL_PACKAGES_SCANNED, LOG_LEVEL, DRY_RUN
+    global TOTAL_PACKAGES_SCANNED, LOG_LEVEL, DRY_RUN, GIT_COMMIT
 
     parser = argparse.ArgumentParser(description="Check Git-sourced package hashes and interactively update.")
     parser.add_argument("patterns", nargs="*", help="Optional package name patterns (glob), e.g., wifi-* thingino-*")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument("--dry-run", action="store_true", help="Only check for updates; do not prompt or modify files")
+    parser.add_argument("--git-commit", action="store_true", help="Create Git commits for package updates")
     args = parser.parse_args()
     if args.debug:
         LOG_LEVEL = 10
     DRY_RUN = args.dry_run
+    GIT_COMMIT = args.git_commit
 
     log_info("Starting Git package hash update check")
     if args.patterns:
@@ -337,9 +489,16 @@ def main() -> int:
     else:
         log_info(f"Scanning packages in: {PACKAGE_DIR}")
 
+    if GIT_COMMIT:
+        log_info("Git commit mode enabled - will create commits for package updates")
+
     if not PACKAGE_DIR.is_dir():
         log_error(f"Package directory not found: {PACKAGE_DIR}")
         return 1
+
+    # Stash uncommitted changes if Git commit mode is enabled and not in dry-run
+    if GIT_COMMIT and not DRY_RUN:
+        stash_uncommitted_changes()
 
     # Find .mk files whose filename matches the package directory name
     mk_files: List[Path] = []
@@ -375,6 +534,12 @@ def main() -> int:
         if PACKAGES_UPDATED > 0:
             log_success(f"Successfully updated {PACKAGES_UPDATED} package(s).")
 
+    # Restore stashed changes if any were stashed
+    if GIT_COMMIT and not DRY_RUN:
+        if not restore_stashed_changes():
+            log_warn("Failed to restore stashed changes - please check manually")
+            return 1
+
     return 0
 
 
@@ -384,5 +549,16 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print("", file=sys.stderr)
         log_warn("Interrupted by user")
+        # Try to restore stashed changes if interrupted
+        if GIT_COMMIT and not DRY_RUN and STASH_REF:
+            log_info("Attempting to restore stashed changes before exit...")
+            restore_stashed_changes()
         sys.exit(130)
+    except Exception as e:
+        log_error(f"Unexpected error: {e}")
+        # Try to restore stashed changes on unexpected error
+        if GIT_COMMIT and not DRY_RUN and STASH_REF:
+            log_info("Attempting to restore stashed changes before exit...")
+            restore_stashed_changes()
+        sys.exit(1)
 
