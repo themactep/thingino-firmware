@@ -99,6 +99,7 @@ if [ -n "$ntfy_message" ]; then
 fi
 
 command="$command ${ntfy_host:-ntfy.sh}/$ntfy_topic"
+echo_command $command
 
 if ! sh -c "$command"; then
 	echo_error "Failed to send NTFY message"
