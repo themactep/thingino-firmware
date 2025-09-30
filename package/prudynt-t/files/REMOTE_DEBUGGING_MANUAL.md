@@ -65,7 +65,7 @@ mount -t nfs -o nolock,tcp,nfsvers=3 CAMERA_IP:/nfs /mnt/nfs
 
 **Debug with arguments:**
 ```bash
-/mnt/nfs/camera_name/usr/bin/prudynt-debug-helper gdb --config /etc/prudynt.cfg --verbose
+/mnt/nfs/camera_name/usr/bin/prudynt-debug-helper gdb --config /etc/prudynt.json --verbose
 ```
 
 **Custom port:**
