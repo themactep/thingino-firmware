@@ -1,25 +1,13 @@
 THINGINO_ONVIF_SITE_METHOD = git
 THINGINO_ONVIF_SITE = https://github.com/themactep/thingino-onvif
 THINGINO_ONVIF_SITE_BRANCH = master
-THINGINO_ONVIF_VERSION = cfab79f328fa92fb8caac0c46518581ecf009575
+THINGINO_ONVIF_VERSION = a47c9d1547c4b606420251b58a2433b02b23233f
+#$(shell git ls-remote $(THINGINO_ONVIF_SITE) $(THINGINO_ONVIF_SITE_BRANCH) | head -1 | cut -f1)
 
 THINGINO_ONVIF_LICENSE = MIT
 THINGINO_ONVIF_LICENSE_FILES = LICENSE
 
-# uClibc compatibility for zlib off64_t issue
-ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
-define THINGINO_ONVIF_UCLIBC_FIX
-	# Add off64_t typedef before including zlib.h
-	for file in $(@D)/*.c; do \
-		if grep -q '#include.*zlib.h' "$$file"; then \
-			sed -i '/#include.*zlib.h/i #ifndef off64_t\n#define off64_t off_t\n#endif' "$$file"; \
-		fi; \
-	done
-endef
-THINGINO_ONVIF_PRE_BUILD_HOOKS += THINGINO_ONVIF_UCLIBC_FIX
-endif
-
-THINGINO_ONVIF_DEPENDENCIES += json-c
+THINGINO_ONVIF_DEPENDENCIES += thingino-jct thingino-mxml
 
 ifeq ($(BR2_PACKAGE_MBEDTLS),y)
 THINGINO_ONVIF_DEPENDENCIES += mbedtls
