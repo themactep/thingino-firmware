@@ -8,4 +8,3 @@ for dev in /sys/bus/sdio/devices/*; do
 		echo "  Device ID: $(cat "$dev/device")"
 	fi
 done
-
