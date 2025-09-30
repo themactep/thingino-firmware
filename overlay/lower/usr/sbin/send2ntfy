@@ -1,4 +1,5 @@
 #!/bin/env sh
+# Sends data to ntfy.sh
 
 . /usr/share/common
 
