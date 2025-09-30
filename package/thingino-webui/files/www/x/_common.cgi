@@ -192,10 +192,13 @@ field_checkbox() {
 	echo "</p>"
 }
 
+# field_color "name" "label"
 field_color() {
 	echo "<p id=\"$1_wrap\" class=\"file\">" \
 	 "<label for=\"$1\" class=\"form-label\">$2</label>" \
-	 "<input type=\"color\" id=\"$1\" name=\"$1\" class=\"form-control input-color\"></p>"
+	 "<input type=\"color\" id=\"$1\" name=\"$1\" class=\"form-control input-color\">" \
+	 "<input type=\"range\" id=\"$1-alpha\" name=\"$1-alpha\" min=0 max=255 step=1>" \
+	 "</p>"
 }
 
 # field_file "name" "label" "hint"
@@ -478,7 +481,7 @@ menu() {
 					[ -f /bin/mosquitto_pub ] || continue
 					;;
 				telegrambot)
-					[ -f /bin/jsonfilter    ] || continue
+					[ -f /bin/jsonfilter ] || continue
 					pidof telegrambot > /dev/null && css=$CSS_ENABLED
 					;;
 				timelapse)

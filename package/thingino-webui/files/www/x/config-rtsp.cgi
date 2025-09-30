@@ -71,7 +71,7 @@ fi
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "grep ^thingino /etc/shadow" %>
-<% ex "grep ^password /etc/onvif.json" %>
+<% ex "grep password /etc/onvif.json" %>
 <% ex "grep password $prudynt_config | sed -E 's/^\s+//'" %>
 </div>
 
