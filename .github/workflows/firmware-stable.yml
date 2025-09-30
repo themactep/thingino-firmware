@@ -365,10 +365,14 @@ jobs:
 
           # Try to download all assets from the release
           echo "Downloading files from release with tag: $RELEASE_TAG"
-          set +e  # Turn off exit-on-error
+
+          # Turn off exit-on-error
+          set +e
           gh release download "$RELEASE_TAG" --repo "$REPO" --pattern "buildroot-dl-cache*" --dir "/tmp/dl-cache"
           DOWNLOAD_EXIT_CODE=$?
-          set -e  # Turn on exit-on-error again
+
+          # Turn on exit-on-error again
+          set -e
 
           if [ $DOWNLOAD_EXIT_CODE -ne 0 ]; then
             echo "Warning: gh command exited with code $DOWNLOAD_EXIT_CODE."
@@ -491,16 +495,7 @@ jobs:
             ${{ env.UPDATE_FW }}
             ${{ env.UPDATE_FW_SHA }}
 
-      - name: Post compiled firmware artifacts to release
-        uses: softprops/action-gh-release@v2.1.0
-        with:
-          tag_name: ${{ env.TAG_NAME }}
-          make_latest: false
-          prerelease: false
-          files: |
-            ${{ env.FULL_FW }}
-            ${{ env.FULL_FW_SHA }}
-            ${{ env.UPDATE_FW_SHA }}
+      # Removed: Post compiled firmware artifacts to release (moved to notify-completion)
 
       - name: Package binaries for notification
         run: |
@@ -555,6 +550,19 @@ jobs:
           git rev-parse HEAD
           echo "Last commit:"
           git log --oneline -1
+
+      - name: Download all firmware artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./all-firmware
+
+      - name: Upload all firmware artifacts to release
+        uses: softprops/action-gh-release@v2.1.0
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          make_latest: false
+          prerelease: false
+          files: ./all-firmware/**
 
       - name: Generate release notes
         id: release_notes
