@@ -2,6 +2,6 @@
 # Prints a chart of ANSI colors
 
 for n in $(seq 1 256); do
-printf "\e[38;5;%dm %03d\e[0m" $n $n
-[ $((n % 16)) -eq 0 ] && echo
+	printf "\e[38;5;%dm %03d\e[0m" $n $n
+	[ $((n % 16)) -eq 0 ] && echo
 done

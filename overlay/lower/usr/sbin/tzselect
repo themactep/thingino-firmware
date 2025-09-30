@@ -10,12 +10,12 @@ current_tz_name=$(cat /etc/timezone 2>/dev/null || echo "Etc/GMT")
 current_tz_data=$(cat /etc/TZ 2>/dev/null || echo "GMT0")
 
 print_usage() {
-echo "Usage: $0 [options]
+	echo "Usage: $0 [options]
 Where:
-  -n <name>  Find and set timezone by name
-  -i         Interactive shell
-  -h         Show this usage help
-"
+	-n <name>  Find and set timezone by name
+	-i         Interactive shell
+	-h         Show this usage help
+" >&2
 }
 
 fetch_timezones() {
@@ -68,7 +68,7 @@ display_timezones_page() {
 	echo "Available timezones (page $page of $total_pages), use [PgUp]/[PgDn] keys to navigate."
 	echo
 	sed -n "${start_line},${end_line}p" $LIST_PATH | while IFS=':' read num name value; do
-echo "  $num) $name"
+		echo "  $num) $name"
 	done
 }
 
