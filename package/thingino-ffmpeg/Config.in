@@ -1,4 +1,4 @@
-config BR2_PACKAGE_THINGINO_FFMPEG
+menuconfig BR2_PACKAGE_THINGINO_FFMPEG
 	bool "Thingino FFmpeg"
 	help
 	  Feature-reduced FFmpeg binary specifically configured
@@ -7,11 +7,43 @@ config BR2_PACKAGE_THINGINO_FFMPEG
 	  convert and stream audio and video.
 	  http://www.ffmpeg.org
 
-config BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR
-	bool "Thingino FFMpeg for lightnvr"
+if BR2_PACKAGE_THINGINO_FFMPEG
+
+choice
+	prompt "FFmpeg Configuration"
+	default BR2_PACKAGE_THINGINO_FFMPEG_IPC
 	help
-	  Feature-reduced FFmpeg binary specifically configured
-	  to perform recording on thingino devices.
-	  FFmpeg is a complete, cross-platform solution to record,
-	  convert and stream audio and video.
-	  http://www.ffmpeg.org
+	  Select the FFmpeg configuration variant.
+
+config BR2_PACKAGE_THINGINO_FFMPEG_IPC
+	bool "IPC (IP Camera)"
+	help
+	  Minimal configuration for IP camera use cases:
+	  - RTSP streaming to MP4 recording
+	  - H.264 video copy (no re-encoding)
+	  - OPUS to AAC audio conversion
+	  - Optimized for size and performance
+
+config BR2_PACKAGE_THINGINO_FFMPEG_NVR
+	bool "NVR (Network Video Recorder)"
+	help
+	  Extended configuration for NVR use cases:
+	  - Multiple codec support (H.264, H.265, AAC, OPUS)
+	  - Multiple container formats
+	  - More protocols and features
+	  - Larger binary but more functionality
+
+config BR2_PACKAGE_THINGINO_FFMPEG_DEV
+	bool "DEV (Development/Maximum Features)"
+	help
+	  Development configuration with maximum features enabled:
+	  - All available codecs, formats, and protocols
+	  - All filters and processing capabilities
+	  - Hardware acceleration support where available
+	  - Debugging and development tools
+	  - Largest binary but maximum functionality
+	  - Intended for development and testing purposes
+
+endchoice
+
+endif
