@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Sat, 31 Aug 2025 00:00:00 +0000
+Subject: [PATCH] Fix musl libc poll header warning in hackbench
+
+Replace deprecated <sys/poll.h> with standard <poll.h> to eliminate
+musl libc warning about incorrect include path.
+
+musl libc redirects <sys/poll.h> to <poll.h> and issues a warning.
+Using the standard <poll.h> header directly eliminates this warning
+while maintaining compatibility with both glibc and musl.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ src/hackbench/hackbench.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/hackbench/hackbench.c b/src/hackbench/hackbench.c
+index 1234567..abcdefg 100644
+--- a/src/hackbench/hackbench.c
++++ b/src/hackbench/hackbench.c
+@@ -23,7 +23,7 @@
+ #include <sys/socket.h>
+ #include <sys/wait.h>
+ #include <sys/time.h>
+-#include <sys/poll.h>
++#include <poll.h>
+ #include <limits.h>
+ #include <getopt.h>
+ #include <signal.h>
+-- 
+2.34.1
