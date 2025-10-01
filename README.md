@@ -58,7 +58,7 @@ Read [Building from sources][7] article for more info.
 ### GitHub CI Status
 
 [![toolchain-x86_64][11]][8]
-[![firmware-x86_64][12]][9]
+[![firmware-stable][12]][9]
 
 [0]: https://thingino.com/
 [1]: https://github.com/themactep/thingino-firmware/wiki
@@ -71,4 +71,4 @@ Read [Building from sources][7] article for more info.
 [9]: https://github.com/themactep/thingino-firmware/actions/workflows/firmware.yaml
 [10]: https://github.com/user-attachments/assets/6fe68e13-eb49-4c33-8836-af1e97bf8b4e
 [11]: https://github.com/themactep/thingino-firmware/actions/workflows/toolchain-x86_64.yaml/badge.svg
-[12]: https://github.com/themactep/thingino-firmware/actions/workflows/firmware-x86_64.yaml/badge.svg
+[12]: https://github.com/themactep/thingino-firmware/actions/workflows/firmware-stable.yml/badge.svg
