@@ -46,4 +46,13 @@ config BR2_PACKAGE_THINGINO_FFMPEG_DEV
 
 endchoice
 
+config BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR
+	bool
+	default y if BR2_PACKAGE_LIGHTNVR
+	help
+	  Internal option to enable FFmpeg features required by lightNVR.
+	  This option is automatically selected when lightNVR is enabled.
+	  It ensures FFmpeg is built with staging installation and
+	  appropriate libraries for CMake-based projects.
+
 endif

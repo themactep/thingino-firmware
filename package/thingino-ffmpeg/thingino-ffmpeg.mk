@@ -4,9 +4,12 @@ THINGINO_FFMPEG_SITE_METHOD = git
 THINGINO_FFMPEG_LICENSE = LGPL-2.1+, libjpeg license
 THINGINO_FFMPEG_LICENSE_FILES = LICENSE.md COPYING.LGPLv2.1
 
+# Install to staging only for LIGHTNVR (needed for CMake pkg-config)
 ifeq ($(BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR),y)
+THINGINO_FFMPEG_INSTALL_STAGING = YES
 THINGINO_FFMPEG_DEPENDENCIES += host-pkgconf
 else
+THINGINO_FFMPEG_INSTALL_STAGING = NO
 THINGINO_FFMPEG_DEPENDENCIES += host-pkgconf host-upx
 endif
 
@@ -48,6 +51,7 @@ THINGINO_FFMPEG_CONF_OPTS = \
 	--prefix=/usr \
 	--enable-mipsfpu \
 	--enable-mipsdspr2 \
+	--disable-msa \
 	--enable-cross-compile \
 	--enable-gpl \
 	--enable-version3 \
@@ -110,9 +114,22 @@ endif
 
 # NVR (Network Video Recorder) configuration - extended features
 ifeq ($(BR2_PACKAGE_THINGINO_FFMPEG_NVR),y)
-THINGINO_FFMPEG_CONF_OPTS += --enable-swresample
+THINGINO_FFMPEG_CONF_OPTS += --enable-swresample --enable-swscale
 THINGINO_FFMPEG_PARSERS += h264 hevc aac opus
 THINGINO_FFMPEG_DEMUXERS += mov m4a
+THINGINO_FFMPEG_MUXERS += mp4 opus
+THINGINO_FFMPEG_ENCODERS += aac
+THINGINO_FFMPEG_DECODERS += h264 hevc aac opus
+THINGINO_FFMPEG_DEPENDENCIES += thingino-opus
+endif
+
+# LIGHTNVR configuration - enables staging installation for CMake
+ifeq ($(BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR),y)
+# Enable swscale for lightNVR (required by CMake configuration)
+THINGINO_FFMPEG_CONF_OPTS += --enable-swscale --enable-swresample
+# Add additional codecs and formats needed by lightNVR
+THINGINO_FFMPEG_PARSERS += h264 hevc aac opus
+THINGINO_FFMPEG_DEMUXERS += mov m4a rtsp
 THINGINO_FFMPEG_MUXERS += mp4 opus
 THINGINO_FFMPEG_ENCODERS += aac
 THINGINO_FFMPEG_DECODERS += h264 hevc aac opus
@@ -206,7 +223,8 @@ endif
 # warning from ffmpeg's configure script.
 ifeq ($(BR2_mips)$(BR2_mipsel)$(BR2_mips64)$(BR2_mips64el),y)
 THINGINO_FFMPEG_CONF_OPTS += --cpu=mips32r2
-THINGINO_FFMPEG_CONF_OPTS += --enable-msa
+# MSA disabled due to type incompatibility errors with GCC 7.2.0
+# THINGINO_FFMPEG_CONF_OPTS += --enable-msa
 else ifneq ($(GCC_TARGET_CPU),)
 THINGINO_FFMPEG_CONF_OPTS += --cpu="$(GCC_TARGET_CPU)"
 else ifneq ($(GCC_TARGET_ARCH),)
@@ -244,8 +262,6 @@ define THINGINO_FFMPEG_REMOVE_EXAMPLE_SRC_FILES
 	rm -rf $(TARGET_DIR)/usr/share/ffmpeg/examples
 endef
 THINGINO_FFMPEG_POST_INSTALL_TARGET_HOOKS += THINGINO_FFMPEG_REMOVE_EXAMPLE_SRC_FILES
-
-THINGINO_FFMPEG_INSTALL_STAGING = NO
 
 define THINGINO_FFMPEG_UPX_INSTALL
 		$(HOST_DIR)/bin/upx --best --lzma $(TARGET_DIR)/usr/bin/ffmpeg
