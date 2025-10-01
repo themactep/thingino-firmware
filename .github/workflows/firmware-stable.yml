@@ -522,21 +522,6 @@ jobs:
         with:
           path: ./all-firmware
 
-      - name: Delete previously uploaded assets (ignore missing)
-        shell: bash
-        continue-on-error: true
-        run: |
-          set +e
-          RELEASE_ID=$(gh release view "${{ env.TAG_NAME }}" --json id -q ".id")
-          for asset in $(gh release view "${{ env.TAG_NAME }}" --json assets -q ".assets[].name"); do
-            echo "Deleting asset $asset..."
-            gh release delete-asset "${{ env.TAG_NAME }}" "$asset" --repo "${{ github.repository }}"
-            if [[ $? -eq 1 ]]; then
-              echo "Asset $asset not found, skipping deletion."
-            fi
-          done
-          set -e
-
       - name: Upload all firmware artifacts to release
         uses: softprops/action-gh-release@v2.1.0
         with:
