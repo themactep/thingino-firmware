@@ -463,6 +463,17 @@ jobs:
             ${{ env.UPDATE_FW }}
             ${{ env.UPDATE_FW_SHA }}
 
+      - name: Post compiled firmware artifacts to release
+        uses: softprops/action-gh-release@v2.1.0
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          make_latest: false
+          prerelease: true
+          files: |
+            ${{ env.FULL_FW }}
+            ${{ env.FULL_FW_SHA }}
+            ${{ env.UPDATE_FW_SHA }}
+
       - name: Package binaries for notification
         run: |
           7z a -t7z -mx=9 -mmt=on /tmp/thingino-${{ matrix.thingino-version }}.7z ${{ env.FULL_FW }} ${{ env.FULL_FW_SHA }}
