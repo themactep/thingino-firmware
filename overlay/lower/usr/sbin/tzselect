@@ -3,7 +3,6 @@
 
 . /usr/share/common
 
-TZJSON_FILE="/usr/share/tz.json.gz"
 LIST_PATH="/tmp/timezone_list.txt"
 
 current_tz_name=$(cat /etc/timezone 2>/dev/null || echo "Etc/GMT")
@@ -27,7 +26,7 @@ fetch_timezones() {
 	fi
 
 	# Extract timezone data using simple sed parsing (faster than multiple jsonfilter calls)
-	zcat "$TZJSON_FILE" | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' | \
+	cat "$TZJSON_FILE" | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' | \
 	sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' | sort > /tmp/tz_raw.txt
 
 	if [ ! -s /tmp/tz_raw.txt ]; then
@@ -94,8 +93,8 @@ get_by_name() {
 	fi
 
 	# if we ever get jq
-	# matched_tz=$(zcat $TZJSON_FILE | jq 'map(select(any(contains("$1"))))')
-	matched_tz=$(zcat $TZJSON_FILE | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' | sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' | sed -n "/$1/p")
+	# matched_tz=$(cat $TZJSON_FILE | jq 'map(select(any(contains("$1"))))')
+	matched_tz=$(cat $TZJSON_FILE | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' | sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' | sed -n "/$1/p")
 	if [ "0$(echo "$matched_tz" | wc -l)" -gt 1 ]; then
 		echo "Multiple matches:"
 		echo "$matched_tz"
