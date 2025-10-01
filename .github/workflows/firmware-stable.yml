@@ -34,6 +34,10 @@ on:
         description: 'Debug: Generate dummy image files'
         required: false
         default: false
+      board_list:
+        type: string
+        description: 'Comma-separated list of boards to build (e.g. board1,board2)'
+        required: false
 
 env:
   BR2_DL_DIR: ~/dl
@@ -104,7 +108,6 @@ jobs:
             echo "New commits detected since last release - building"
             echo "should_build=true" >> $GITHUB_OUTPUT
             echo "force_build=false" >> $GITHUB_OUTPUT
-          fi
 
   notify-no-build:
     runs-on: ubuntu-24.04
@@ -217,7 +220,9 @@ jobs:
       - name: Generate device matrix
         id: set-matrix
         run: |
-          if [[ "${{ github.event.inputs.teacup_only }}" == 'true' ]]; then
+          if [[ -n "${{ github.event.inputs.board_list }}" ]]; then
+            CONFIGS=$(echo "${{ github.event.inputs.board_list }}" | tr ',' '\n')
+          elif [[ "${{ github.event.inputs.teacup_only }}" == 'true' ]]; then
             CONFIGS=$(find configs/cameras/ -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|' | grep teacup)
           else
             CONFIGS=$(find configs/cameras/ -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|')
@@ -234,6 +239,7 @@ jobs:
     name: ${{ matrix.thingino-version }}
     needs: [generate-matrix, notify-begin]
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     outputs:
       GIT_HASH: ${{ steps.env.outputs.git_hash }}
       TAG_NAME: ${{ steps.env.outputs.tag_name }}
@@ -598,4 +604,16 @@ jobs:
           ELAPSED_MIN=$((ELAPSED / 60))
           ELAPSED_SEC=$((ELAPSED % 60))
           .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC finish ${{ github.workflow }} "${ELAPSED_MIN}m ${ELAPSED_SEC}s" ${{ github.run_id }} ${{ github.repository }}
-          
+
+  watchdog:
+    runs-on: ubuntu-24.04
+    needs: [buildroot, notify-completion]
+    if: always()
+    steps:
+      - name: Check for stuck jobs
+        run: |
+          if [[ "${{ needs.buildroot.result }}" == "failure" ]]; then
+            echo "One or more buildroot jobs failed or timed out."
+            if [ -n "${{ secrets.TELEGRAM_TOKEN_BOT_THINGINO }}" ]; then
+              .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC error $TAG_NAME "Buildroot job stuck or failed!" ${{ github.run_id }}
+            fi
