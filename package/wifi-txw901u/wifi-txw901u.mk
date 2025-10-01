@@ -34,7 +34,7 @@ endef
 
 define WIFI_TXW901U_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/ko/txw901u.ko \
-	$(TARGET_DIR)/lib/modules/$(LINUX_VERSION_PROBED)/extra/txw901u.ko
+		$(TARGET_DIR)/lib/modules/$(LINUX_VERSION_PROBED)/extra/txw901u.ko
 endef
 
 define WIFI_TXW901U_EXTRACT_FIRMWARE
