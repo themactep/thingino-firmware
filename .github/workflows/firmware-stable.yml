@@ -1,7 +1,6 @@
 name: firmware-stable
 on:
   schedule:
-    # 00:30 PST / Nightly
     - cron:  '30 8 * * *'
   workflow_dispatch:
     inputs:
@@ -73,42 +72,30 @@ jobs:
       - name: Check for updates since last release
         id: check
         run: |
-          # Always build if manually triggered with force_build option
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.force_build }}" == "true" ]]; then
             echo "Manual trigger with force build detected - forcing build"
             echo "should_build=true" >> $GITHUB_OUTPUT
             echo "force_build=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-
-          # Always build if manually triggered (backward compatibility)
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "Manual trigger detected - forcing build"
             echo "should_build=true" >> $GITHUB_OUTPUT
             echo "force_build=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-
-          # Get the latest firmware release tag
           LATEST_RELEASE=$(gh release list --repo ${{ github.repository }} --json tagName,name | jq -r '.[] | select(.name | startswith("firmware-")) | .tagName' | head -1)
-
           if [[ -z "$LATEST_RELEASE" ]]; then
             echo "No previous firmware release found - building"
             echo "should_build=true" >> $GITHUB_OUTPUT
             echo "force_build=false" >> $GITHUB_OUTPUT
             exit 0
           fi
-
           echo "Latest firmware release: $LATEST_RELEASE"
-
-          # Get the commit SHA of the latest release
           LATEST_RELEASE_COMMIT=$(gh api repos/${{ github.repository }}/git/ref/tags/$LATEST_RELEASE | jq -r '.object.sha')
           CURRENT_COMMIT=$(git rev-parse HEAD)
-
           echo "Latest release commit: $LATEST_RELEASE_COMMIT"
           echo "Current commit: $CURRENT_COMMIT"
-
-          # Check if there are new commits since the last release
           if [[ "$LATEST_RELEASE_COMMIT" == "$CURRENT_COMMIT" ]]; then
             echo "No new commits since last release - skipping build"
             echo "should_build=false" >> $GITHUB_OUTPUT
@@ -183,9 +170,9 @@ jobs:
         run: |
           TAG_NAME="${{ env.TAG_NAME }}"
           if ! gh release view "$TAG_NAME" --repo "${{ github.repository }}" &>/dev/null; then
-            echo "Release $TAG_NAME does not exist. Creating release."
-            gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "Release: \`\`\`$TAG_NAME\`\`\` is currently being built, please wait..."
-            else
+            echo "Release $TAG_NAME does not exist. Creating release as draft."
+            gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "Release: \`\`\`$TAG_NAME\`\`\` is currently being built, please wait..." --draft
+          else
             echo "Release $TAG_NAME already exists."
           fi
 
@@ -248,7 +235,6 @@ jobs:
     needs: [generate-matrix, notify-begin]
     runs-on: ubuntu-24.04
     outputs:
-      # Feed the hash of the commit we are building into the notify-completion release-notes step
       GIT_HASH: ${{ steps.env.outputs.git_hash }}
       TAG_NAME: ${{ steps.env.outputs.tag_name }}
     defaults:
@@ -333,17 +319,11 @@ jobs:
         id: find_release
         run: |
           REPO="${{ github.repository }}"
-
-          # First try to find tag of the release with name "buildroot-dl-cache"
           RELEASE_TAG=$(gh release list --repo "$REPO" --json name,tagName | jq -r '.[] | select(.name=="buildroot-dl-cache") | .tagName' | sort -r | head -1 || echo "")
-
-          # If not found, try to find tag starting with "update_cache"
           if [ -z "$RELEASE_TAG" ]; then
             echo "Could not find release with name 'buildroot-dl-cache', trying tags starting with 'update_cache'"
             RELEASE_TAG=$(gh release list --repo "$REPO" --json tagName | jq -r '.[] | select(.tagName | startswith("update_cache")) | .tagName' | head -n 1 || echo "")
           fi
-
-          # If we found a release, mark as successful
           if [ -n "$RELEASE_TAG" ]; then
             echo "Found release with tag: $RELEASE_TAG"
             echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
@@ -359,21 +339,12 @@ jobs:
         run: |
           REPO="${{ github.repository }}"
           RELEASE_TAG="${{ steps.find_release.outputs.release_tag }}"
-
-          # Create temporary directory for downloads
           mkdir -p /tmp/dl-cache
-
-          # Try to download all assets from the release
           echo "Downloading files from release with tag: $RELEASE_TAG"
-
-          # Turn off exit-on-error
           set +e
           gh release download "$RELEASE_TAG" --repo "$REPO" --pattern "buildroot-dl-cache*" --dir "/tmp/dl-cache"
           DOWNLOAD_EXIT_CODE=$?
-
-          # Turn on exit-on-error again
           set -e
-
           if [ $DOWNLOAD_EXIT_CODE -ne 0 ]; then
             echo "Warning: gh command exited with code $DOWNLOAD_EXIT_CODE."
             echo "download_succeeded=false" >> $GITHUB_OUTPUT
@@ -384,35 +355,26 @@ jobs:
             echo "Download successful!"
             echo "download_succeeded=true" >> $GITHUB_OUTPUT
           fi
-
-          # List downloaded files
           echo "Downloaded files:"
           ls -la /tmp/dl-cache/ || echo "No files found."
 
       - name: Extract buildroot-dl-cache
         if: steps.download_cache.outputs.download_succeeded == 'true'
         run: |
-          # If there are split ZIP files, we need to ensure they're processed correctly
           if ls /tmp/dl-cache/buildroot-dl-cache.zip.* &>/dev/null; then
-            # For split ZIP files, we need to extract from the first part
             echo "Extracting split ZIP files..."
             cd ~
             7z x /tmp/dl-cache/buildroot-dl-cache.zip.001 -y
           else
-            # For single ZIP file
             echo "Extracting single ZIP file..."
             cd ~
             7z x /tmp/dl-cache/buildroot-dl-cache.zip -y
           fi
-
-          # If files were extracted to a subdirectory called 'dl', move them up
           if [ -d ~/dl/dl ]; then
             echo "Moving files from ~/dl/dl to ~/dl"
             mv ~/dl/dl/* ~/dl/
             rm -rf ~/dl/dl
           fi
-
-          # Verify extraction
           echo "Verifying extraction:"
           ls -la ~/dl/
           echo "Number of files in ~/dl:"
@@ -495,8 +457,6 @@ jobs:
             ${{ env.UPDATE_FW }}
             ${{ env.UPDATE_FW_SHA }}
 
-      # Removed: Post compiled firmware artifacts to release (moved to notify-completion)
-
       - name: Package binaries for notification
         run: |
           7zz a -t7z -mx=9 -mmt=on /tmp/thingino-${{ matrix.thingino-version }}.7z ${{ env.FULL_FW }} ${{ env.FULL_FW_SHA }}
@@ -561,6 +521,7 @@ jobs:
         with:
           tag_name: ${{ env.TAG_NAME }}
           make_latest: false
+          draft: false
           prerelease: false
           files: ./all-firmware/**
 
@@ -568,7 +529,6 @@ jobs:
         id: release_notes
         run: |
           LAST_RELEASE_TAG=$(gh release list --limit 2 --json tagName -q '.[1].tagName')
-
           if [ -z "$LAST_RELEASE_TAG" ]; then
             echo "No previous release found. Skipping release notes generation."
             echo "RELEASE_NOTES_FILE=$(pwd)/release_notes.md" >> $GITHUB_ENV
@@ -576,7 +536,6 @@ jobs:
           else
             echo "Latest release so far is $LAST_RELEASE_TAG"
           fi
-
           COMMITS=$(gh api \
             -H "Accept: application/vnd.github.v3+json" \
             /repos/${{ github.repository }}/compare/$LAST_RELEASE_TAG...$GIT_HASH \
@@ -590,7 +549,6 @@ jobs:
                     and (.commit.message | contains("Merge pull request #") | not)
                   )
                 | "\(.sha[0:7]) \(.commit.message | gsub("\n"; " "))"')
-
           if [ -z "$COMMITS" ]; then
             echo "### No changes, nightly rebuild" > release_notes.md
           else
@@ -613,15 +571,14 @@ jobs:
           echo "Attempting to fetch release URL for tag ${TAG_NAME}..."
           RELEASE_URL=$(gh release view ${{ env.TAG_NAME }} --json url -q ".url")
           echo "RELEASE_URL: $RELEASE_URL"
-
           if [[ -n "$RELEASE_URL" ]]; then
             echo "Release URL found, attempting to mark as latest..."
             if [[ -f "${{ env.RELEASE_NOTES_FILE }}" ]]; then
               echo "Release notes file exists, including --notes-file..."
-              gh release edit ${{ env.TAG_NAME }} --latest --prerelease=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
+              gh release edit ${{ env.TAG_NAME }} --latest --draft=false --prerelease=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
             else
               echo "Release notes file does not exist, skipping --notes-file..."
-              gh release edit ${{ env.TAG_NAME }} --latest --prerelease=false --notes ""
+              gh release edit ${{ env.TAG_NAME }} --latest --draft=false --prerelease=false --notes ""
             fi
             echo "Release marked as latest"
           else
@@ -641,3 +598,4 @@ jobs:
           ELAPSED_MIN=$((ELAPSED / 60))
           ELAPSED_SEC=$((ELAPSED % 60))
           .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC finish ${{ github.workflow }} "${ELAPSED_MIN}m ${ELAPSED_SEC}s" ${{ github.run_id }} ${{ github.repository }}
+          
