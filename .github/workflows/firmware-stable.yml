@@ -517,20 +517,6 @@ jobs:
           echo "Last commit:"
           git log --oneline -1
 
-      - name: Download all firmware artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./all-firmware
-
-      - name: Upload all firmware artifacts to release
-        uses: softprops/action-gh-release@v2.1.0
-        with:
-          tag_name: ${{ env.TAG_NAME }}
-          make_latest: false
-          draft: false
-          prerelease: false
-          files: ./all-firmware/**
-
       - name: Generate release notes
         id: release_notes
         run: |
