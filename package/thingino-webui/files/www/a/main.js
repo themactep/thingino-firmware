@@ -65,13 +65,18 @@ function heartbeat() {
 		.then((response) => response.json())
 		.then((json) => {
 			if (json.time_now !== '') {
-				let options = {
-					hour: "2-digit",
-					minute: "2-digit"
-					//, timeZone: json.timezone?.replaceAll(' ', '_')
-				};
 				const d = new Date(json.time_now * 1000);
-				$('#time-now').textContent = d.toDateString() + ' ' + d.toLocaleString(navigator.language, options) + ' ' + json.timezone;
+				// Use device timezone if available, otherwise fall back to browser timezone
+				const deviceTz = json.timezone?.replaceAll(' ', '_');
+				let options = {
+					year: "numeric",
+					month: "short",
+					day: "numeric",
+					hour: "2-digit",
+					minute: "2-digit",
+					timeZone: deviceTz
+				};
+				$('#time-now').textContent = d.toLocaleString(navigator.language, options) + ' ' + json.timezone;
 			}
 
 			$('.progress-stacked.memory').title = 'Free memory: ' + json.mem_free + 'KiB'
