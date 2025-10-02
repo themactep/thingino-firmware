@@ -181,8 +181,8 @@ jobs:
         run: |
           TAG_NAME="${{ env.TAG_NAME }}"
           if ! gh release view "$TAG_NAME" --repo "${{ github.repository }}" &>/dev/null; then
-            echo "Release $TAG_NAME does not exist. Creating release as draft."
-            gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "Release: \`\`\`$TAG_NAME\`\`\` is currently being built, please wait..." --draft
+            echo "Release $TAG_NAME does not exist. Creating pre-release."
+            gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "pre-release: \`\`\`$TAG_NAME\`\`\` is currently being built, please wait..." --prerelease
           else
             echo "Release $TAG_NAME already exists."
           fi
