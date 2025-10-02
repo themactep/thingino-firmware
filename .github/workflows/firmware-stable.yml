@@ -388,7 +388,7 @@ jobs:
           echo "DL cache restored successfully"
 
       - name: Download buildroot sources if cache missing
-        if: steps.download_cache.outputs.download_succeeded != 'true'
+        if: steps.find_release.outputs.release_found != 'true' || steps.download_cache.outputs.download_succeeded != 'true'
         run: |
           echo "Buildroot DL cache not available, downloading sources..."
           BOARD=${{ matrix.thingino-version }} GROUP=github make source WORKFLOW=1
