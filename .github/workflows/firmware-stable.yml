@@ -391,7 +391,7 @@ jobs:
         if: steps.find_release.outputs.release_found != 'true' || steps.download_cache.outputs.download_succeeded != 'true'
         run: |
           echo "Buildroot DL cache not available, downloading sources..."
-          BOARD=${{ matrix.thingino-version }} GROUP=github make source WORKFLOW=1
+          BOARD=${{ matrix.thingino-version }} make source WORKFLOW=1
           echo "Source download completed"
 
       - name: Build firmware
