@@ -112,43 +112,29 @@ jobs:
           echo "No new commits detected since last firmware release."
           echo "Skipping scheduled build. Manual runs always build."
 
-  notify-begin:
+  prepare-release:
     runs-on: ubuntu-24.04
     needs: check-updates
     if: needs.check-updates.outputs.should_build == 'true'
     outputs:
-      start_time: ${{ steps.set_output.outputs.time }}
-      tg_disabled: ${{ steps.set_env.outputs.tg_disabled }}
+      tag_name: ${{ steps.set_tag.outputs.tag_name }}
     steps:
       - name: Set timezone
         run: |
           sudo timedatectl set-timezone ${{ env.TZ }}
 
-      - name: Save workflow start time to ENV
-        id: set_output
-        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
-
-      - name: Configure Environment Variables
+      - name: Configure TAG_NAME
+        id: set_tag
         run: |
-          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
-          echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
           TAG_NAME="$TAG_NAME-$(TZ=UTC date +'%Y-%m-%d')"
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
 
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch || 'stable' }}
-          fetch-depth: "0"
-
-      - name: Debug checked out branch and commit
-        run: |
-          echo "Checked out branch:"
-          git branch -a
-          echo "HEAD SHA:"
-          git rev-parse HEAD
-          echo "Last commit:"
-          git log --oneline -1
+          fetch-depth: "1"
 
       - name: Create release tag
         continue-on-error: true
@@ -171,6 +157,35 @@ jobs:
           else
             echo "Release $TAG_NAME already exists."
           fi
+
+  notify-begin:
+    runs-on: ubuntu-24.04
+    needs: prepare-release
+    if: needs.check-updates.outputs.should_build == 'true'
+    outputs:
+      start_time: ${{ steps.set_output.outputs.time }}
+      tg_disabled: ${{ steps.set_env.outputs.tg_disabled }}
+    steps:
+      - name: Set timezone
+        run: |
+          sudo timedatectl set-timezone ${{ env.TZ }}
+
+      - name: Save workflow start time to ENV
+        id: set_output
+        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
+
+      - name: Configure Environment Variables
+        id: set_env
+        run: |
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+          echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=${{ needs.prepare-release.outputs.tag_name }}" >> $GITHUB_ENV
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || 'stable' }}
+          fetch-depth: "1"
 
       - name: Send build start notification via Telegram
         if: env.TG_DISABLED == 'false'
@@ -230,7 +245,7 @@ jobs:
 
   buildroot:
     name: ${{ matrix.thingino-version }}
-    needs: [generate-matrix, notify-begin]
+    needs: [generate-matrix, notify-begin, prepare-release]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     outputs:
@@ -293,11 +308,10 @@ jobs:
           echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_ENV
           echo "GIT_BRANCH=$(git branch --show-current)" >> $GITHUB_ENV
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
-          TAG_NAME="$TAG_NAME-$(TZ=UTC date +'%Y-%m-%d')"
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "TAG_NAME=${{ needs.prepare-release.outputs.tag_name }}" >> $GITHUB_ENV
 
           echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_OUTPUT
-          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=${{ needs.prepare-release.outputs.tag_name }}" >> $GITHUB_OUTPUT
 
       - name: Setup cache directories
         run: |
@@ -499,7 +513,7 @@ jobs:
           .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC error $TAG_NAME "Github CI build failed!" ${{ github.run_id }} ${{ matrix.thingino-version }} ${{ github.repository }}
 
   notify-completion:
-    needs: [buildroot, notify-begin, check-updates]
+    needs: [buildroot, notify-begin, check-updates, prepare-release]
     runs-on: ubuntu-24.04
     if: always() && needs.check-updates.outputs.should_build == 'true'
     steps:
