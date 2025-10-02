@@ -512,8 +512,8 @@ jobs:
           fi
           .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC error $TAG_NAME "Github CI build failed!" ${{ github.run_id }} ${{ matrix.thingino-version }} ${{ github.repository }}
 
-  notify-completion:
-    needs: [buildroot, notify-begin, check-updates, prepare-release]
+  finalize-release:
+    needs: [buildroot, prepare-release, check-updates]
     runs-on: ubuntu-24.04
     if: always() && needs.check-updates.outputs.should_build == 'true'
     steps:
@@ -523,24 +523,14 @@ jobs:
 
       - name: Configure Environment
         run: |
-          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           echo "GIT_HASH=${{ needs.buildroot.outputs.git_hash }}" >> $GITHUB_ENV
-          echo "TAG_NAME=${{ needs.buildroot.outputs.tag_name }}" >> $GITHUB_ENV
+          echo "TAG_NAME=${{ needs.prepare-release.outputs.tag_name }}" >> $GITHUB_ENV
 
       - name: Checkout repository source
         uses: actions/checkout@v4
         with:
           submodules: 'false'
           ref: ${{ github.event.inputs.branch || 'stable' }}
-
-      - name: Debug checked out branch and commit
-        run: |
-          echo "Checked out branch:"
-          git branch -a
-          echo "HEAD SHA:"
-          git rev-parse HEAD
-          echo "Last commit:"
-          git log --oneline -1
 
       - name: Generate release notes
         id: release_notes
@@ -601,6 +591,25 @@ jobs:
           else
             echo "Release not found, skipping latest release update"
           fi
+
+  notify-completion:
+    needs: [finalize-release, notify-begin]
+    runs-on: ubuntu-24.04
+    if: always() && needs.check-updates.outputs.should_build == 'true'
+    steps:
+      - name: Set timezone
+        run: |
+          sudo timedatectl set-timezone ${{ env.TZ }}
+
+      - name: Configure Environment
+        run: |
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+
+      - name: Checkout repository source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || 'stable' }}
+          fetch-depth: "1"
 
       - name: Send notify completion summary
         if: ${{ env.TG_DISABLED == 'false' }}
