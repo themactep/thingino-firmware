@@ -12,11 +12,6 @@ on:
         options:
           - stable
           - master
-      force_build:
-        type: boolean
-        description: 'Force build even if no new commits'
-        required: false
-        default: false
       tg_disabled:
         type: boolean
         description: 'Disable Telegram notifications'
@@ -64,7 +59,6 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
-      force_build: ${{ steps.check.outputs.force_build }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -84,23 +78,16 @@ jobs:
       - name: Check for updates since last release
         id: check
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.force_build }}" == "true" ]]; then
-            echo "Manual trigger with force build detected - forcing build"
-            echo "should_build=true" >> $GITHUB_OUTPUT
-            echo "force_build=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+          # Always build if manually triggered
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "Manual trigger detected - forcing build"
+            echo "Manual trigger detected - building"
             echo "should_build=true" >> $GITHUB_OUTPUT
-            echo "force_build=true" >> $GITHUB_OUTPUT
             exit 0
           fi
           LATEST_RELEASE=$(gh release list --repo ${{ github.repository }} --json tagName,name | jq -r '.[] | select(.name | startswith("firmware-")) | .tagName' | head -1)
           if [[ -z "$LATEST_RELEASE" ]]; then
             echo "No previous firmware release found - building"
             echo "should_build=true" >> $GITHUB_OUTPUT
-            echo "force_build=false" >> $GITHUB_OUTPUT
             exit 0
           fi
           echo "Latest firmware release: $LATEST_RELEASE"
@@ -111,11 +98,9 @@ jobs:
           if [[ "$LATEST_RELEASE_COMMIT" == "$CURRENT_COMMIT" ]]; then
             echo "No new commits since last release - skipping build"
             echo "should_build=false" >> $GITHUB_OUTPUT
-            echo "force_build=false" >> $GITHUB_OUTPUT
           else
             echo "New commits detected since last release - building"
             echo "should_build=true" >> $GITHUB_OUTPUT
-            echo "force_build=false" >> $GITHUB_OUTPUT
 
   notify-no-build:
     runs-on: ubuntu-24.04
@@ -124,8 +109,8 @@ jobs:
     steps:
       - name: Log no build needed
         run: |
-          echo "No new commits detected in stable branch since last firmware release."
-          echo "Skipping build. Use 'Force build even if no new commits' option to override."
+          echo "No new commits detected since last firmware release."
+          echo "Skipping scheduled build. Manual runs always build."
 
   notify-begin:
     runs-on: ubuntu-24.04
