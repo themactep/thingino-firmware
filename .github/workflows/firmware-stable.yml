@@ -4,6 +4,14 @@ on:
     - cron:  '30 8 * * *'
   workflow_dispatch:
     inputs:
+      branch:
+        type: choice
+        description: 'Branch to build from'
+        required: false
+        default: 'stable'
+        options:
+          - stable
+          - master
       force_build:
         type: boolean
         description: 'Force build even if no new commits'
@@ -61,7 +69,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: "stable"
+          ref: ${{ github.event.inputs.branch || 'stable' }}
           fetch-depth: 0
 
       - name: Debug checked out branch and commit
@@ -145,7 +153,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: "stable"
+          ref: ${{ github.event.inputs.branch || 'stable' }}
           fetch-depth: "0"
 
       - name: Debug checked out branch and commit
@@ -205,7 +213,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: "stable"
+          ref: ${{ github.event.inputs.branch || 'stable' }}
           fetch-depth: "0"
 
       - name: Debug checked out branch and commit
@@ -280,7 +288,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: 'true'
-          ref: "stable"
+          ref: ${{ github.event.inputs.branch || 'stable' }}
           fetch-depth: "0"
 
       - name: Debug checked out branch and commit
@@ -524,7 +532,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: 'false'
-          ref: "stable"
+          ref: ${{ github.event.inputs.branch || 'stable' }}
 
       - name: Debug checked out branch and commit
         run: |
