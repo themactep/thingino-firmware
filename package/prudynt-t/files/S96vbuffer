@@ -5,23 +5,29 @@
 ensure_command "openRTSP"
 ensure_command "jct"
 
+SELF_NAME="$(basename "$0")"
+
 CLIP_FILE="/tmp/vbuffer.mp4"
 LOCK_FILE="/tmp/vbuffer.lock"
 TEMP_FILE="/tmp/vbuffer.tmp"
 
+STREAMER_APP="prudynt"
+STREAMER_CONF_FILE="/etc/prudynt.json"
+
+# "parameter" "default"
+read_config() {
+	jct "$STREAMER_CONF_FILE" get "$1" | tr -d '"'
+	[ -z "$_" ] || echo "$2"
+}
+
 stream_number=1
-stream_endpoint="$(cat /run/prudynt/rtsp/stream${stream_number}/endpoint)"
+stream_endpoint=$(read_config stream${stream_number}.rtsp_endpoint ch1)
 rtsp_stream="rtsp://127.0.0.1/$stream_endpoint"
 
 vformat="-4"
 record_videofmt="mp4"
 record_duration=10
 record_filename="%hostname/%Y/%m/%d/%H-%M-%S"
-
-STREAMER_APP="prudynt"
-STREAMER_CONF_FILE="/etc/prudynt.json"
-
-SELF_NAME="$(basename "$0")"
 
 if ! is_streamer_running; then
 	echo_error "Streamer is not running"
@@ -32,12 +38,6 @@ if is_streamer_disabled; then
 	echo_error "Streamer disabled"
 	exit 1
 fi
-
-# "parameter" "default"
-read_config() {
-	jct "$STREAMER_CONF_FILE" get "$1" | tr -d '"'
-	[ -z "$_" ] || echo "$2"
-}
 
 start() {
 	echo_title "Starting video buffer"
@@ -53,11 +53,11 @@ start() {
 		exit 1
 	fi
 
-	rtsp_username=$(read_config "rtsp.username" "thingino")
-	rtsp_password=$(read_config "rtsp.password" "thingino")
-	stream_width=$(cat /run/prudynt/rtsp/stream${stream_number}/width)
-	stream_height=$(cat /run/prudynt/rtsp/stream${stream_number}/height)
-	stream_fps=$(cat /run/prudynt/rtsp/stream${stream_number}/fps)
+	rtsp_username=$(read_config rtsp.username thingino)
+	rtsp_password=$(read_config rtsp.password thingino)
+	stream_width=$(read_config stream${stream_number}.width 640)
+	stream_height=$(read_config stream${stream_number}.height 360)
+	stream_fps=$(read_config stream${stream_number}.fps 25)
 
 	while : ; do
 		openRTSP -V -u $rtsp_username $rtsp_password \
