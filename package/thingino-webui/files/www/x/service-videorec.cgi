@@ -26,8 +26,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	[ "/" = "${record_filename:0:1}" ] && record_filename="${record_filename:1}"
 
 	# validate
-	error_if_empty "$record_mount" "Record mount cannot be empty."
-	error_if_empty "$record_filename" "Record filename cannot be empty."
+	if [ "true" = "$record_enabled" ]; then
+		error_if_empty "$record_mount" "Record mount cannot be empty."
+		error_if_empty "$record_filename" "Record filename cannot be empty."
+	fi
 
 	if [ -z "$error" ]; then
 		save2config "

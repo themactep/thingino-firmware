@@ -24,8 +24,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	[ "/" = "${timelapse_filename:0:1}" ] && timelapse_filename="${timelapse_filename:1}"
 
 	# validate
-	error_if_empty "$timelapse_mount" "Timelapse mount cannot be empty."
-	error_if_empty "$timelapse_filename" "Timelapse filename cannot be empty."
+	if [ "true" = "$timelapse_enabled" ]; then
+		error_if_empty "$timelapse_mount" "Timelapse mount cannot be empty."
+		error_if_empty "$timelapse_filename" "Timelapse filename cannot be empty."
+	fi
 
 	if [ -z "$error" ]; then
 		save2config "
