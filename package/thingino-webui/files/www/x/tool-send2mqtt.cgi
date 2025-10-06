@@ -3,7 +3,9 @@
 <%
 page_title="Send to MQTT"
 
-[ -f /usr/bin/mosquitto_pub ] || redirect_to "/" "danger" "MQTT client is not a part of your firmware."
+if [ ! -f /usr/bin/mosquitto_pub ]; then
+	redirect_to "/" "danger" "MQTT client is not a part of your firmware."
+fi
 
 camera_id=${network_macaddr//:/}
 
@@ -21,8 +23,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	error_if_empty "$mqtt_host" "MQTT broker host cannot be empty."
 	error_if_empty "$mqtt_port" "MQTT port cannot be empty."
-	# error_if_empty "$mqtt_username" "MQTT username cannot be empty."
-	# error_if_empty "$mqtt_password" "MQTT password cannot be empty."
 	error_if_empty "$mqtt_topic" "MQTT topic cannot be empty."
 	error_if_empty "$mqtt_message" "MQTT message cannot be empty."
 
