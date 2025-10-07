@@ -1,5 +1,6 @@
 #!/bin/env sh
 # Sends data to ntfy.sh
+# https://docs.ntfy.sh/publish/
 
 . /usr/share/common
 
@@ -9,7 +10,7 @@ Where:
 	-a URL       Attachment URL.
 	-c URL       Click URL.
 	-f file      Attach file.
-	-h host      NTFY host.
+	-h host      Server host.
 	-i URL       Icon URL.
 	-m message   Message body.
 	-n title     Message title.
@@ -19,13 +20,12 @@ Where:
 	-u username  Username.
 	-w password  Password.
 	-v           Verbose output.
-	-h           Show this help.
 " >&2
 	exit 0
 }
 
-verbosity="--silent"
-while getopts a:c:f:h:i:l:m:n:p:sh:t:u:vh flag; do
+verbosity="false"
+while getopts a:c:f:h:i:l:m:n:p:st:u:w:vh flag; do
 	case "$flag" in
 		a) ntfy_attach=$OPTARG ;;
 		c) ntfy_click=$OPTARG ;;
@@ -39,17 +39,41 @@ while getopts a:c:f:h:i:l:m:n:p:sh:t:u:vh flag; do
 		t) ntfy_topic=$OPTARG ;;
 		u) ntfy_username=$OPTARG ;;
 		w) ntfy_password=$OPTARG ;;
-		v) verbosity="--verbose" ;;
-		h | *) show_help ;;
+		v) verbosity="true" ;;
+		*) show_help ;;
 	esac
 done
+
+if [ -z "$ntfy_host" ]; then
+	echo_error "NFTY host is not set"
+	exit 1
+fi
+
+if [ -z "$ntfy_port" ]; then
+	echo_error "NTFY port is not set"
+	exit 1
+fi
 
 if [ -z "$ntfy_topic" ]; then
 	echo_error "NTFY topic is not set"
 	exit 1
 fi
 
-command="$CURL $verbosity -X POST -H p:${ntfy_priority:-3}"
+remove_ntfy_file="false"
+
+# Prepare snapshot as attachment
+if [ "true" = "$ntfy_send_snap" ]; then
+	ntfy_filename=$(mktemp -u).jpg
+	cp -f "$SNAPSHOT_FILE" "$ntfy_filename"
+	remove_ntfy_file="true"
+fi
+
+command="$CURL -X POST -H p:${ntfy_priority:-3}"
+if [ "true" = "$verbosity" ]; then
+	command="$command --verbose"
+else
+	command="$command --silent"
+fi
 
 if [ -n "$ntfy_title" ]; then
 	command="$command -H 'Title: $ntfy_title'"
@@ -89,23 +113,36 @@ if [ -n "$ntfy_icon" ]; then
 	command="$command -H 'Icon: $ntfy_icon'"
 fi
 
+if [ -n "$ntfy_email" ]; then
+	command="$command -H 'Email: $ntfy_email'"
+fi
+
 if [ -n "$ntfy_actions" ]; then
 	command="$command -H 'Actions: $ntfy_actions'"
 fi
 
+if [ -n "$ntfy_call" ] && [ -n "$ntfy_twilio_token" ]; then
+	command="$command -H 'Call: $ntfy_call' -u :$ntfy_twilio_token"
+fi
+
 if [ -n "$ntfy_message" ]; then
-	ntfy_message=$(date +"$ntfy_message")
+	ntfy_message="$(date +"$ntfy_message")"
 	command="$command -H 'Message: $ntfy_message'"
 fi
 
 command="$command ${ntfy_host:-ntfy.sh}/$ntfy_topic"
-echo_command $command
+
+if [ "true" = "$verbosity" ]; then
+	echo_command "$command"
+fi
 
 if ! sh -c "$command"; then
 	echo_error "Failed to send NTFY message"
 	exit 1
 fi
 
-[ -f "$attachment" ] && rm "$attachment"
+if [ "true" = "$remove_ntfy_file" ] && [ -f "$ntfy_filename" ]; then
+	rm "$ntfy_filename"
+fi
 
 exit 0
