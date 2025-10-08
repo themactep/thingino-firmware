@@ -20,7 +20,7 @@ start() {
 
 	tz=$(cat "$TZJSON_FILE" | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' | \
 		sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' | \
-		sed -En "/${tzname//\//\\\/}/p" | cut -d: -f2)
+		sed -En "/${tzname//\//\\\/}:/p" | head -1 | cut -d: -f2)
 
 	if [ -z "$tz" ]; then
 		echo_error "Timezone $tzname not found in $TZJSON_FILE"
