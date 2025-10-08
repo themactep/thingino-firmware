@@ -141,26 +141,26 @@ if [ -z "$stream_number" ]; then
 fi
 
 if [ -z "$stream_width" ]; then
-	stream_width=$(cat /run/prudynt/rtsp/stream${stream_number}/width)
+	stream_width=$(read_config stream${stream_number}.width 640)
 fi
 
 if [ -z "$stream_height" ]; then
-	stream_height=$(cat /run/prudynt/rtsp/stream${stream_number}/height)
+	stream_height=$(read_config stream${stream_number}.height 360)
 fi
 
 if [ -z "$stream_fps" ]; then
-	stream_fps=$(cat /run/prudynt/rtsp/stream${stream_number}/fps)
+	stream_fps=$(read_config stream${stream_number}.fps 25)
 fi
 
 if [ -z "$rtsp_username" ]; then
-	rtsp_username=$(read_config "rtsp.username" "thingino")
+	rtsp_username=$(read_config rtsp.username thingino)
 fi
 
 if [ -z "$rtsp_password" ]; then
-	rtsp_password=$(read_config "rtsp.password" "thingino")
+	rtsp_password=$(read_config rtsp.password thingino)
 fi
 
-stream_endpoint="$(cat /run/prudynt/rtsp/stream${stream_number}/endpoint)"
+stream_endpoint=$(read_config stream${stream_number}.rtsp_endpoint ch1)
 rtsp_stream="rtsp://127.0.0.1/$stream_endpoint"
 
 echo_info "
