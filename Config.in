@@ -160,11 +160,19 @@ config BR2_PACKAGE_GDB
 config BR2_PACKAGE_SELECT_LTRACE
 	bool "ltrace"
 	select BR2_PACKAGE_LTRACE
+	depends on BR2_USE_WCHAR
+	depends on !BR2_STATIC_LIBS
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	depends on BR2_TOOLCHAIN_USES_UCLIBC || BR2_TOOLCHAIN_USES_GLIBC
+	depends on BR2_PACKAGE_LTRACE_ARCH_SUPPORTS
 	help
 	  Debugging program which runs a specified command until it
 	  exits. While the command is executing, ltrace intercepts and
 	  records the dynamic library calls which are called by the
 	  executed process and the signals received by that process.
+
+comment "WARNING: ltrace is unsupported on musl; selection will not build ltrace"
+	depends on BR2_TOOLCHAIN_USES_MUSL && BR2_PACKAGE_SELECT_LTRACE
 
 config BR2_PACKAGE_SELECT_STRACE
 	bool "strace"
