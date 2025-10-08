@@ -7,7 +7,7 @@ CFLAGS = -Wall -Wextra -O2 -std=c99 -D_GNU_SOURCE
 CFLAGS += -ffunction-sections -fdata-sections
 CFLAGS += -DNDEBUG
 LDFLAGS = -Wl,--gc-sections -s
-LIBS = -lcjson
+LIBS = -ljct
 
 # For cross-compilation, adjust these paths as needed
 SYSROOT =
@@ -39,7 +39,7 @@ $(TARGET): $(SOURCES)
 dev: CC = gcc
 dev: CFLAGS = -Wall -Wextra -g -std=c99 -D_GNU_SOURCE -DDEBUG
 dev: LDFLAGS =
-dev: LIBS = -lcjson
+dev: LIBS = -ljct
 dev: $(TARGET)
 
 # Install to target system

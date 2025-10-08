@@ -117,7 +117,7 @@ The daemon uses **structured JSON configuration format**.
   "system": {
     "enable_syslog": true,
     "daemon_mode": true,
-    "debug_level": 0,
+    "debug_level": "INFO",
     "pid_file": "/var/run/daynightd.pid"
   }
 }
@@ -136,7 +136,7 @@ The daemon uses **structured JSON configuration format**.
 | `enable_ir_cut` | bool | true | Control IR cut filter via scripts |
 | `enable_syslog` | bool | true | Log to system syslog |
 | `daemon_mode` | bool | true | Run as background daemon |
-| `debug_level` | int | 0 | Verbosity level (0=normal, 1+=debug) |
+| `debug_level` | string | "INFO" | Log level: FATAL, ERROR, WARN, INFO, DEBUG, TRACE |
 | `pid_file` | string | `/run/daynightd.pid` | PID file location |
 
 ## Signal Control

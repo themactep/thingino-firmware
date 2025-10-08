@@ -24,7 +24,8 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/wait.h>
-#include <cjson/cJSON.h>
+#include <json_config.h>
+#include <ctype.h>
 
 /* Configuration defaults optimized for Thingino/Ingenic systems */
 #define DEFAULT_DEVICE "/dev/isp-m0"
@@ -75,7 +76,7 @@ typedef struct {
 
     bool enable_syslog;
     bool daemon_mode;
-    int debug_level;
+    int log_level;  /* 0=FATAL,1=ERROR,2=WARN,3=INFO,4=DEBUG,5=TRACE */
 } daynight_config_t;
 
 /* Runtime state for Thingino system */
@@ -96,18 +97,21 @@ static volatile sig_atomic_t g_terminate_flag = 0;
 
 /* Function prototypes */
 static void signal_handler(int sig);
-static int load_config(const char *config_file);
+static int read_config(const char *config_file);
 static int init_thingino_system(void);
 static int execute_command(const char *command, char *output, size_t output_size);
 static float calculate_brightness_from_isp(void);
 static float calculate_brightness_thingino(void);
-static int trigger_mode_change(daynight_mode_t new_mode);
+static int trigger_mode_change(daynight_mode_t new_mode, float level_value, float threshold_value, bool is_forced);
 static int apply_day_settings_thingino(void);
 static int apply_night_settings_thingino(void);
 static void log_message(int level, const char *format, ...);
 static int create_pid_file(void);
 static void remove_pid_file(void);
 static void daemonize(void);
+static int parse_debug_level_string(const char *s);
+static const char* log_level_name(int level);
+
 static int main_loop(void);
 static int write_brightness_value(float brightness, float avg_brightness, daynight_mode_t mode);
 
@@ -131,20 +135,49 @@ static void signal_handler(int sig) {
             break;
         case SIGHUP:
             /* Reload configuration */
-            load_config(g_config.config_file);
+            read_config(g_config.config_file);
+
             break;
     }
 }
+/* Parse case-insensitive debug level string to numeric 0..5; returns -1 if invalid */
+static int parse_debug_level_string(const char *s) {
+    if (!s) return -1;
+    /* Trim leading/trailing whitespace */
+    const char *start = s; while (*start && isspace((unsigned char)*start)) start++;
+    const char *end = start + strlen(start);
+    while (end > start && isspace((unsigned char)end[-1])) end--;
+    size_t len = (size_t)(end - start);
+    if (len == 0 || len > 16) return -1;
+    char buf[17];
+    for (size_t i = 0; i < len; ++i) buf[i] = (char)toupper((unsigned char)start[i]);
+    buf[len] = '\0';
+    if (!strcmp(buf, "FATAL")) return 0;
+    if (!strcmp(buf, "ERROR")) return 1;
+    if (!strcmp(buf, "WARN") || !strcmp(buf, "WARNING")) return 2;
+    if (!strcmp(buf, "INFO")) return 3;
+    if (!strcmp(buf, "DEBUG")) return 4;
+    if (!strcmp(buf, "TRACE")) return 5;
+    return -1;
+}
+
+static const char* log_level_name(int level) {
+    switch (level) {
+        case 0: return "FATAL";
+        case 1: return "ERROR";
+        case 2: return "WARN";
+        case 3: return "INFO";
+        case 4: return "DEBUG";
+        case 5: return "TRACE";
+        default: return "UNKNOWN";
+    }
+}
+
 
 /*
  * Load configuration from JSON file with safe defaults
  */
-static int load_config(const char *config_file) {
-    FILE *fp;
-    char *json_string = NULL;
-    long file_size;
-    cJSON *json = NULL;
-    cJSON *item = NULL;
+static int read_config(const char *config_file) {
     int result = 0;
 
     /* Set defaults */
@@ -159,128 +192,94 @@ static int load_config(const char *config_file) {
 
     g_config.enable_syslog = true;
     g_config.daemon_mode = true;
-    g_config.debug_level = 0;
+    g_config.log_level = 3; /* default INFO */
 
-    /* Try to open and read the JSON config file */
-    fp = fopen(config_file, "r");
-    if (!fp) {
-        log_message(LOG_WARNING, "Config file %s not found, using defaults", config_file);
+    /* Load JSON using jct */
+    JsonValue *root = load_config(config_file);
+    if (!root) {
+        log_message(LOG_WARNING, "Config file %s not found or invalid, using defaults", config_file);
         return 0;
-    }
-
-    /* Get file size */
-    fseek(fp, 0, SEEK_END);
-    file_size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-
-    if (file_size <= 0) {
-        log_message(LOG_WARNING, "Config file %s is empty, using defaults", config_file);
-        fclose(fp);
-        return 0;
-    }
-
-    /* Allocate buffer and read file */
-    json_string = malloc(file_size + 1);
-    if (!json_string) {
-        log_message(LOG_ERR, "Failed to allocate memory for config file");
-        fclose(fp);
-        return -1;
-    }
-
-    if (fread(json_string, 1, file_size, fp) != (size_t)file_size) {
-        log_message(LOG_ERR, "Failed to read config file %s", config_file);
-        free(json_string);
-        fclose(fp);
-        return -1;
-    }
-    json_string[file_size] = '\0';
-    fclose(fp);
-
-    /* Parse JSON */
-    json = cJSON_Parse(json_string);
-    free(json_string);
-
-    if (!json) {
-        const char *error_ptr = cJSON_GetErrorPtr();
-        if (error_ptr != NULL) {
-            log_message(LOG_ERR, "JSON parse error in %s: %s", config_file, error_ptr);
-        } else {
-            log_message(LOG_ERR, "JSON parse error in %s", config_file);
-        }
-        return -1;
     }
 
     /* Extract configuration values from nested JSON structure */
 
     /* Device path */
-    item = cJSON_GetObjectItemCaseSensitive(json, "device_path");
-    if (cJSON_IsString(item) && item->valuestring != NULL) {
-        strncpy(g_config.device_path, item->valuestring, sizeof(g_config.device_path) - 1);
+    JsonValue *v;
+    v = get_nested_item(root, "device_path");
+    if (v && v->type == JSON_STRING && v->value.string) {
+        strncpy(g_config.device_path, v->value.string, sizeof(g_config.device_path) - 1);
         g_config.device_path[sizeof(g_config.device_path) - 1] = '\0';
     }
 
     /* Brightness thresholds */
-    cJSON *brightness_thresholds = cJSON_GetObjectItemCaseSensitive(json, "brightness_thresholds");
-    if (brightness_thresholds) {
-        item = cJSON_GetObjectItemCaseSensitive(brightness_thresholds, "threshold_low");
-        if (cJSON_IsNumber(item)) {
-            g_config.threshold_low = (float)item->valuedouble;
-        }
-
-        item = cJSON_GetObjectItemCaseSensitive(brightness_thresholds, "threshold_high");
-        if (cJSON_IsNumber(item)) {
-            g_config.threshold_high = (float)item->valuedouble;
-        }
-
-        item = cJSON_GetObjectItemCaseSensitive(brightness_thresholds, "hysteresis_factor");
-        if (cJSON_IsNumber(item)) {
-            g_config.hysteresis_factor = (float)item->valuedouble;
-        }
+    v = get_nested_item(root, "brightness_thresholds.threshold_low");
+    if (v && v->type == JSON_NUMBER) {
+        g_config.threshold_low = (float)v->value.number;
+    }
+    v = get_nested_item(root, "brightness_thresholds.threshold_high");
+    if (v && v->type == JSON_NUMBER) {
+        g_config.threshold_high = (float)v->value.number;
+    }
+    v = get_nested_item(root, "brightness_thresholds.hysteresis_factor");
+    if (v && v->type == JSON_NUMBER) {
+        g_config.hysteresis_factor = (float)v->value.number;
     }
 
     /* Timing configuration */
-    cJSON *timing = cJSON_GetObjectItemCaseSensitive(json, "timing");
-    if (timing) {
-        item = cJSON_GetObjectItemCaseSensitive(timing, "sample_interval_ms");
-        if (cJSON_IsNumber(item)) {
-            g_config.sample_interval_ms = item->valueint;
-        }
-
-        item = cJSON_GetObjectItemCaseSensitive(timing, "transition_delay_s");
-        if (cJSON_IsNumber(item)) {
-            g_config.transition_delay_s = item->valueint;
-        }
+    v = get_nested_item(root, "timing.sample_interval_ms");
+    if (v && v->type == JSON_NUMBER) {
+        g_config.sample_interval_ms = (int)v->value.number;
+    }
+    v = get_nested_item(root, "timing.transition_delay_s");
+    if (v && v->type == JSON_NUMBER) {
+        g_config.transition_delay_s = (int)v->value.number;
     }
 
-
-
     /* System configuration */
-    cJSON *system = cJSON_GetObjectItemCaseSensitive(json, "system");
-    if (system) {
-        item = cJSON_GetObjectItemCaseSensitive(system, "enable_syslog");
-        if (cJSON_IsBool(item)) {
-            g_config.enable_syslog = cJSON_IsTrue(item);
-        }
+    v = get_nested_item(root, "system.enable_syslog");
+    if (v && v->type == JSON_BOOL) {
+        g_config.enable_syslog = v->value.boolean;
+    }
+    v = get_nested_item(root, "system.daemon_mode");
+    if (v && v->type == JSON_BOOL) {
+        g_config.daemon_mode = v->value.boolean;
+    }
 
-        item = cJSON_GetObjectItemCaseSensitive(system, "daemon_mode");
-        if (cJSON_IsBool(item)) {
-            g_config.daemon_mode = cJSON_IsTrue(item);
+    /* Log level from string debug_level only; default INFO when absent/invalid */
+    v = get_nested_item(root, "system.debug_level");
+    if (v) {
+        if (v->type == JSON_STRING && v->value.string) {
+            int lvl = parse_debug_level_string(v->value.string);
+            if (lvl >= 0) {
+                g_config.log_level = lvl;
+            } else {
+                static int warned_invalid = 0;
+                if (!warned_invalid) {
+                    log_message(LOG_WARNING, "Invalid debug_level '%s' in %s; defaulting to INFO", v->value.string, g_config.config_file);
+                    warned_invalid = 1;
+                }
+                g_config.log_level = 3;
+            }
+        } else {
+            static int warned_type = 0;
+            if (!warned_type) {
+                log_message(LOG_WARNING, "debug_level must be a string in %s; defaulting to INFO", g_config.config_file);
+                warned_type = 1;
+            }
+            g_config.log_level = 3;
         }
+    } else {
+        g_config.log_level = 3; /* Absent -> default INFO */
+    }
 
-        item = cJSON_GetObjectItemCaseSensitive(system, "debug_level");
-        if (cJSON_IsNumber(item)) {
-            g_config.debug_level = item->valueint;
-        }
-
-        item = cJSON_GetObjectItemCaseSensitive(system, "pid_file");
-        if (cJSON_IsString(item) && item->valuestring != NULL) {
-            strncpy(g_config.pid_file, item->valuestring, sizeof(g_config.pid_file) - 1);
-            g_config.pid_file[sizeof(g_config.pid_file) - 1] = '\0';
-        }
+    v = get_nested_item(root, "system.pid_file");
+    if (v && v->type == JSON_STRING && v->value.string) {
+        strncpy(g_config.pid_file, v->value.string, sizeof(g_config.pid_file) - 1);
+        g_config.pid_file[sizeof(g_config.pid_file) - 1] = '\0';
     }
 
     /* Cleanup */
-    cJSON_Delete(json);
+    free_json_value(root);
 
     /* Validate configuration */
     if (g_config.threshold_low >= g_config.threshold_high) {
@@ -513,7 +512,7 @@ static float calculate_brightness_thingino(void) {
 /*
  * Trigger mode change with hysteresis and transition delay
  */
-static int trigger_mode_change(daynight_mode_t new_mode) {
+static int trigger_mode_change(daynight_mode_t new_mode, float level_value, float threshold_value, bool is_forced) {
     struct timeval now, diff;
 
     if (new_mode == g_state.current_mode) {
@@ -531,10 +530,18 @@ static int trigger_mode_change(daynight_mode_t new_mode) {
         }
     }
 
-    log_message(LOG_INFO, "Mode change: %s -> %s",
-               (g_state.current_mode == MODE_DAY) ? "DAY" :
-               (g_state.current_mode == MODE_NIGHT) ? "NIGHT" : "UNKNOWN",
-               (new_mode == MODE_DAY) ? "DAY" : "NIGHT");
+    if (is_forced) {
+        log_message(LOG_INFO, "Mode change (forced): %s -> %s",
+                   (g_state.current_mode == MODE_DAY) ? "DAY" :
+                   (g_state.current_mode == MODE_NIGHT) ? "NIGHT" : "UNKNOWN",
+                   (new_mode == MODE_DAY) ? "DAY" : "NIGHT");
+    } else {
+        log_message(LOG_INFO, "Mode change: %s -> %s (level=%.1f%%, threshold=%.1f%%)",
+                   (g_state.current_mode == MODE_DAY) ? "DAY" :
+                   (g_state.current_mode == MODE_NIGHT) ? "NIGHT" : "UNKNOWN",
+                   (new_mode == MODE_DAY) ? "DAY" : "NIGHT",
+                   level_value, threshold_value);
+    }
 
     /* Apply mode-specific settings */
     int result = 0;
@@ -558,7 +565,7 @@ static int trigger_mode_change(daynight_mode_t new_mode) {
 static int apply_day_settings_thingino(void) {
     char command[MAX_COMMAND_LEN];
 
-    log_message(LOG_INFO, "Applying day mode settings");
+    log_message(LOG_DEBUG, "Applying day mode settings");
 
     snprintf(command, sizeof(command), "%s day", THINGINO_DAYNIGHT_SCRIPT);
     if (execute_command(command, NULL, 0) != 0) {
@@ -566,7 +573,7 @@ static int apply_day_settings_thingino(void) {
         return -1;
     }
 
-    log_message(LOG_INFO, "Day mode applied successfully");
+    log_message(LOG_DEBUG, "Day mode applied successfully");
     return 0;
 }
 
@@ -576,7 +583,7 @@ static int apply_day_settings_thingino(void) {
 static int apply_night_settings_thingino(void) {
     char command[MAX_COMMAND_LEN];
 
-    log_message(LOG_INFO, "Applying night mode settings");
+    log_message(LOG_DEBUG, "Applying night mode settings");
 
     snprintf(command, sizeof(command), "%s night", THINGINO_DAYNIGHT_SCRIPT);
     if (execute_command(command, NULL, 0) != 0) {
@@ -584,7 +591,7 @@ static int apply_night_settings_thingino(void) {
         return -1;
     }
 
-    log_message(LOG_INFO, "Night mode applied successfully");
+    log_message(LOG_DEBUG, "Night mode applied successfully");
     return 0;
 }
 
@@ -592,6 +599,49 @@ static int apply_night_settings_thingino(void) {
  * Logging function with syslog support
  */
 static void log_message(int level, const char *format, ...) {
+    /* Map syslog levels to numeric severity: 0=FATAL,1=ERROR,2=WARN,3=INFO,4=DEBUG,5=TRACE */
+    int msg_level_num;
+    switch (level) {
+        case LOG_EMERG:
+        case LOG_ALERT:
+        case LOG_CRIT:
+            msg_level_num = 0; /* FATAL */
+            break;
+        case LOG_ERR:
+            msg_level_num = 1; /* ERROR */
+            break;
+        case LOG_WARNING:
+            msg_level_num = 2; /* WARN */
+            break;
+        case LOG_INFO:
+            msg_level_num = 3; /* INFO */
+            break;
+        case LOG_DEBUG:
+            msg_level_num = 4; /* DEBUG (TRACE would be 5) */
+            break;
+        default:
+            msg_level_num = 4; /* Treat unknown as DEBUG */
+            break;
+    }
+
+    /* Drop messages more verbose than configured threshold */
+    if (msg_level_num > g_config.log_level) {
+        return;
+    }
+
+    /* Human-readable label for both console and syslog */
+    const char *level_str;
+    switch (level) {
+        case LOG_EMERG:
+        case LOG_ALERT:
+        case LOG_CRIT: level_str = "FATAL"; break;
+        case LOG_ERR: level_str = "ERROR"; break;
+        case LOG_WARNING: level_str = "WARN"; break;
+        case LOG_INFO: level_str = "INFO"; break;
+        case LOG_DEBUG: level_str = (g_config.log_level >= 5) ? "TRACE" : "DEBUG"; break;
+        default: level_str = "UNKNOWN"; break;
+    }
+
     va_list args;
     char buffer[512];
 
@@ -600,22 +650,12 @@ static void log_message(int level, const char *format, ...) {
     va_end(args);
 
     if (g_config.enable_syslog) {
-        syslog(level, "%s", buffer);
+        syslog(level, "[%s] %s", level_str, buffer);
     }
 
-    if (!g_config.daemon_mode || g_config.debug_level > 0) {
-        const char *level_str;
-        switch (level) {
-            case LOG_ERR: level_str = "ERROR"; break;
-            case LOG_WARNING: level_str = "WARN"; break;
-            case LOG_INFO: level_str = "INFO"; break;
-            case LOG_DEBUG: level_str = "DEBUG"; break;
-            default: level_str = "UNKNOWN"; break;
-        }
-
+    if (!g_config.daemon_mode || g_config.log_level > 0) {
         struct timeval tv;
         gettimeofday(&tv, NULL);
-
         fprintf(stderr, "[%lld.%03lld] %s: %s\n",
                 (long long)tv.tv_sec, (long long)(tv.tv_usec / 1000), level_str, buffer);
     }
@@ -703,6 +743,7 @@ static void daemonize(void) {
  * Write current brightness value to /run/daynight/value for monitoring
  */
 static int write_brightness_value(float brightness, float avg_brightness, daynight_mode_t mode) {
+
     FILE *fp;
     const char *mode_str;
     const char *dir_path = "/run/daynight";
@@ -753,6 +794,11 @@ static int main_loop(void) {
     daynight_mode_t target_mode;
     int i, sample_count;
 
+    /* Log suppression state: only report when values change */
+    static int last_brightness_d10 = -1;
+    static int last_avg_d10 = -1;
+    static daynight_mode_t last_mode = MODE_UNKNOWN;
+
     /* Calculate hysteresis thresholds */
     float hyst_range = (g_config.threshold_high - g_config.threshold_low) * g_config.hysteresis_factor;
     threshold_low_hyst = g_config.threshold_low + hyst_range;
@@ -796,19 +842,36 @@ static int main_loop(void) {
             avg_brightness = brightness;
         }
 
+
+        /* Track decision context for logging */
+        float used_threshold = -1.0f;
+        bool forced = false;
+
         /* Determine target mode with hysteresis */
         if (g_state.current_mode == MODE_DAY) {
             /* In day mode, switch to night only if below low threshold */
-            target_mode = (avg_brightness < g_config.threshold_low) ? MODE_NIGHT : MODE_DAY;
+            if (avg_brightness < g_config.threshold_low) {
+                target_mode = MODE_NIGHT;
+                used_threshold = g_config.threshold_low;
+            } else {
+                target_mode = MODE_DAY;
+            }
         } else if (g_state.current_mode == MODE_NIGHT) {
             /* In night mode, switch to day only if above high threshold */
-            target_mode = (avg_brightness > g_config.threshold_high) ? MODE_DAY : MODE_NIGHT;
+            if (avg_brightness > g_config.threshold_high) {
+                target_mode = MODE_DAY;
+                used_threshold = g_config.threshold_high;
+            } else {
+                target_mode = MODE_NIGHT;
+            }
         } else {
             /* Unknown mode, use hysteresis thresholds */
             if (avg_brightness < threshold_low_hyst) {
                 target_mode = MODE_NIGHT;
+                used_threshold = threshold_low_hyst;
             } else if (avg_brightness > threshold_high_hyst) {
                 target_mode = MODE_DAY;
+                used_threshold = threshold_high_hyst;
             } else {
                 target_mode = g_state.current_mode;  /* Stay in current mode */
             }
@@ -818,18 +881,26 @@ static int main_loop(void) {
         if (g_state.pending_mode != MODE_UNKNOWN) {
             target_mode = g_state.pending_mode;
             g_state.pending_mode = MODE_UNKNOWN;
+            forced = true;
             log_message(LOG_INFO, "Forced mode change requested");
         }
 
         /* Apply mode change if needed */
         if (target_mode != g_state.current_mode && target_mode != MODE_UNKNOWN) {
-            trigger_mode_change(target_mode);
+            trigger_mode_change(target_mode, avg_brightness, used_threshold, forced);
         }
 
-        log_message(LOG_DEBUG, "Brightness: %.1f%% (avg: %.1f%%), Mode: %s",
-                   brightness, avg_brightness,
-                   (g_state.current_mode == MODE_DAY) ? "DAY" :
-                   (g_state.current_mode == MODE_NIGHT) ? "NIGHT" : "UNKNOWN");
+        int b10 = (int)(brightness * 10.0f + 0.5f);
+        int avg10 = (int)(avg_brightness * 10.0f + 0.5f);
+        if (b10 != last_brightness_d10 || avg10 != last_avg_d10 || g_state.current_mode != last_mode) {
+            log_message(LOG_DEBUG, "Brightness: %.1f%% (avg: %.1f%%), Mode: %s",
+                       brightness, avg_brightness,
+                       (g_state.current_mode == MODE_DAY) ? "DAY" :
+                       (g_state.current_mode == MODE_NIGHT) ? "NIGHT" : "UNKNOWN");
+            last_brightness_d10 = b10;
+            last_avg_d10 = avg10;
+            last_mode = g_state.current_mode;
+        }
 
         /* Write brightness value to /run/daynight/value for monitoring */
         write_brightness_value(brightness, avg_brightness, g_state.current_mode);
@@ -910,7 +981,7 @@ int main(int argc, char *argv[]) {
                 strncpy(g_config.pid_file, optarg, sizeof(g_config.pid_file) - 1);
                 break;
             case 'v':
-                g_config.debug_level++;
+                if (g_config.log_level < 5) g_config.log_level++;
                 break;
             case 'h':
                 print_usage(argv[0]);
@@ -926,7 +997,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* Load configuration */
-    if (load_config(config_file) != 0) {
+    if (read_config(config_file) != 0) {
         fprintf(stderr, "Failed to load configuration\n");
         exit(EXIT_FAILURE);
     }
@@ -943,6 +1014,8 @@ int main(int argc, char *argv[]) {
     }
 
     log_message(LOG_INFO, "Starting daynightd v1.0.0");
+    log_message(LOG_INFO, "Log level set to %s", log_level_name(g_config.log_level));
+
 
     /* Check if already running */
     FILE *pid_fp = fopen(g_config.pid_file, "r");

@@ -12,7 +12,7 @@
   "system": {
     "enable_syslog": true,
     "daemon_mode": true,
-    "debug_level": 0,
+    "debug_level": "INFO",
     "pid_file": "/run/daynightd.pid"
   }
 }
