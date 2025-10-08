@@ -18,7 +18,7 @@ start() {
 		exit 1
 	fi
 
-	tz=$(zcat "$TZJSON_FILE" | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' | \
+	tz=$(cat "$TZJSON_FILE" | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' | \
 		sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' | \
 		sed -En "/${tzname//\//\\\/}/p" | cut -d: -f2)
 
