@@ -45,13 +45,13 @@ while getopts a:c:f:h:i:l:m:n:p:st:u:w:vh flag; do
 done
 
 if [ -z "$ntfy_host" ]; then
-	echo_error "NFTY host is not set"
-	exit 1
+	ntfy_host="ntfy.sh"
+	#echo_warning "NFTY host is not set"
 fi
 
 if [ -z "$ntfy_port" ]; then
-	echo_error "NTFY port is not set"
-	exit 1
+	ntfy_port=80
+	#echo_error "NTFY port is not set"
 fi
 
 if [ -z "$ntfy_topic" ]; then
