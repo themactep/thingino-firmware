@@ -29,7 +29,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	sanitize rtsp_password
 
 	if [ -z "$error" ]; then
-		jct /etc/onvif.json set password "$rtsp_password" > /dev/null
+		jct /etc/onvif.json set password "$rtsp_password"
 
 		jct $prudynt_config set rtsp.password "$rtsp_password" > /dev/null
 
