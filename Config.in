@@ -22,7 +22,7 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
 	select BR2_PACKAGE_INGENIC_PWM
 	select BR2_PACKAGE_INGENIC_SDK
-	select BR2_PACKAGE_JSONFILTER
+	select BR2_PACKAGE_JSONPATH
 	select BR2_PACKAGE_THINGINO_ETHERNET if BR2_ETHERNET
 	select BR2_PACKAGE_THINGINO_JCT
 	select BR2_PACKAGE_THINGINO_KOPT
@@ -109,7 +109,7 @@ endif
 menu "Extra Packages"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/capjpeg/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/exfat-nofuse/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/jsonfilter/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/jsonpath/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libschrift/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
