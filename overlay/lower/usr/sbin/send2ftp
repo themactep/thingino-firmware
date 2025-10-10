@@ -3,18 +3,18 @@
 . /usr/share/common
 
 show_help() {
-		echo "Usage: $0 [options]
+	echo "Usage: $0 [options]
 Where:
-		-s host     FTP server FQDN or IP address.
-		-p port     FTP server port.
-		-d path     Directory on server, relative to FTP root.
-		-f file     File to upload.
-		-u username FTP username.
-		-P password FTP password.
-		-v          Verbose output.
-		-V          If -f not specified, sends the video currently in vbuffer.
-		-S          Sends the current camera snapshot.
-		-h          Show this help.
+	-s host     FTP server FQDN or IP address.
+	-p port     FTP server port.
+	-d path     Directory on server, relative to FTP root.
+	-f file     File to upload.
+	-u username FTP username.
+	-P password FTP password.
+	-v          Verbose output.
+	-V          If -f not specified, sends the video currently in vbuffer.
+	-S          If -f not specified, sends the current camera snapshot.
+	-h          Show this help.
 " >&2
 		exit 0
 }
@@ -22,7 +22,7 @@ Where:
 verbosity="--silent"
 while getopts d:f:p:P:s:u:vVSh flag; do
 	case "$flag" in
-		d) ftp_path=$OPTARG ;;
+		d) ftp_path=$OPTARG ;;	
 		f) ftp_file=$OPTARG ;;
 		p) ftp_port=$OPTARG ;;
 		P) ftp_password=$OPTARG ;;
@@ -36,106 +36,106 @@ while getopts d:f:p:P:s:u:vVSh flag; do
 done
 
 copy_videos() {
-		if [ ! -f "$VBUFFER_FILE" ]; then
-				echo_error "Video buffer not found"
-				exit 1
+	if [ ! -f "$VBUFFER_FILE" ]; then
+		echo_error "Video buffer not found"
+		exit 1
+	fi
+
+	inode=$(stat -c%i $VBUFFER_FILE)
+	local ext=${VBUFFER_FILE##*.}
+
+	# Copy current file from before detection:
+
+	video_file1=$(mktemp -u).$ext
+	cp -f "$VBUFFER_FILE" "$video_file1"
+	garbage="$garbage $video_file1"
+
+	# Wait until the inode changes, meaning the video buffer file was recreated:
+	while [ $inode -eq $(stat -c%i $VBUFFER_FILE) ]; do
+		n=$((n + 1))
+		if [ "$n" -ge 10 ]; then
+			echo_error "Give up after $n attempts."
+			remove_tempfiles
+			exit 1
 		fi
+		sleep 1
+	done
 
-		inode=$(stat -c%i $VBUFFER_FILE)
-		local ext=${VBUFFER_FILE##*.}
+	# Copy the file following the event instant:
 
-		# Copy current file from before detection:
-
-		video_file1=$(mktemp -u).$ext
-		cp -f "$VBUFFER_FILE" "$video_file1"
-		garbage="$garbage $video_file1"
-
-		# Wait until the inode changes, meaning the video buffer file was recreated:
-		while [ $inode -eq $(stat -c%i $VBUFFER_FILE) ]; do
-			n=$((n + 1))
-			if [ "$n" -ge 10 ]; then
-					echo_error "Give up after $n attempts."
-					remove_tempfiles
-					exit 1
-			fi
-			sleep 1
-		done
-
-		# Copy the file following the event instant:
-
-		video_file2=$(mktemp -u).$ext
-		cp -f "$VBUFFER_FILE" "$video_file2"
-		garbage="$garbage $video_file2"
+	video_file2=$(mktemp -u).$ext
+	cp -f "$VBUFFER_FILE" "$video_file2"
+	garbage="$garbage $video_file2"
 }
 
 remove_tempfiles() {
-		for f in $garbage; do
-				[ -f "$f" ] && rm "$f"
-		done
+	for f in $garbage; do
+		[ -f "$f" ] && rm "$f"
+	done
 }
 
 send_files() {
-		url="ftp://"
-		if [ -n "$ftp_user" ] && [ -n "$ftp_password" ]; then
-				url="$url$ftp_user:$ftp_password"
+	url="ftp://"
+	if [ -n "$ftp_user" ] && [ -n "$ftp_password" ]; then
+		url="$url$ftp_user:$ftp_password"
+	fi
+
+	url="$url@$ftp_host:$ftp_port"
+	if [ -n "$ftp_path" ]; then
+		url="$url/${ftp_path// /%20}"
+	fi
+
+	i=0
+
+	local local_files="$1"
+
+	echo "local files:" "$local_files"
+	for local_file in $local_files; do
+		local ext=${local_file##*.}
+		local ftp_filename=$(date +"$ftp_template-$(printf %02d $i)").$ext
+		local final_url="$url/$ftp_filename"
+
+		set -x
+		command="$CURL $verbosity --url $final_url --upload-file $local_file --ftp-create-dirs"
+		set +x
+
+		i=$(($i + 1))
+		if ! sh -c "$command"; then
+				echo_error "Failed to upload file to FTP server"
+				exit 1
 		fi
-
-		url="$url@$ftp_host:$ftp_port"
-		if [ -n "$ftp_path" ]; then
-				url="$url/${ftp_path// /%20}"
-		fi
-
-		i=0
-
-		local local_files="$1"
-
-		echo "local files:" "$local_files"
-		for local_file in $local_files; do
-				local ext=${local_file##*.}
-				local ftp_filename=$(date +"$ftp_template-$(printf %02d $i)").$ext
-				local final_url="$url/$ftp_filename"
-
-				set -x
-				command="$CURL $verbosity --url $final_url --upload-file $local_file --ftp-create-dirs"
-				set +x
-
-				i=$(($i + 1))
-				if ! sh -c "$command"; then
-						echo_error "Failed to upload file to FTP server"
-						exit 1
-				fi
-		done
+	done
 }
 
 if [ -z "$ftp_host" ]; then
-		echo_error "FTP host not found"
-		exit 1
+	echo_error "FTP host not found"
+	exit 1
 fi
 
 if [ -z "$ftp_port" ]; then
-		ftp_port=21
+	ftp_port=21
 fi
 
 if [ -z "$ftp_user" ]; then
-		ftp_user="anonymous"
-		ftp_password="anonymous"
+	ftp_user="anonymous"
+	ftp_password="anonymous"
 fi
 
 if [ -z "$ftp_file" ]; then
-		if [ "true" = "$ftp_send_video" ]; then
-				copy_videos
-				local_files="$video_file1 $video_file2"
-		fi
+	if [ "true" = "$ftp_send_video" ]; then
+		copy_videos
+		local_files="$video_file1 $video_file2"
+	fi
 
-		if [ "true" = "$ftp_send_snap" ]; then
-				attachment=$(mktemp -u).jpg
-				cp -f "$SNAPSHOT_FILE" "$attachment"
-				local_files="$local_files $attachment"
+	if [ "true" = "$ftp_send_snap" ]; then
+		attachment=$(mktemp -u).jpg
+		cp -f "$SNAPSHOT_FILE" "$attachment"
+		local_files="$local_files $attachment"
 
-				garbage="$garbage $attachment"
+		garbage="$garbage $attachment"
 		fi
 else
-		local_files="$ftp_file"
+	local_files="$ftp_file"
 fi
 
 send_files "$local_files"
