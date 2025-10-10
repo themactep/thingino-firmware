@@ -1,7 +1,7 @@
 THINGINO_LIVE555_SITE_METHOD = git
 THINGINO_LIVE555_SITE = https://github.com/themactep/thingino-live555
 THINGINO_LIVE555_SITE_BRANCH = master
-THINGINO_LIVE555_VERSION = 96b8a028ca5eee5ba2083d5e51492144b25ff273
+THINGINO_LIVE555_VERSION = 73f015a0c13e97cd9be49af07e7779961a327699
 # $(shell git ls-remote $(THINGINO_LIVE555_SITE) $(THINGINO_LIVE555_SITE_BRANCH) | head -1 | cut -f1)
 
 # There is a COPYING file with the GPL-3.0 license text, but none of
