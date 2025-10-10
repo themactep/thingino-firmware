@@ -24,7 +24,6 @@ page_title="Motion Guard"
 <div class="alert alert-info">
 <p>A motion event is detected by the streamer which triggers the <code>/sbin/motion</code> script,
 which sends alerts through the selected and preconfigured notification methods.</p>
-<p>You must configure at least one notification method for the motion monitor to work.</p>
 <% wiki_page "Plugin:-Motion-Guard" %>
 </div>
 </div>
