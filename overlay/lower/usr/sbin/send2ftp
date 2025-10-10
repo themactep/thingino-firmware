@@ -21,18 +21,18 @@ Where:
 
 verbosity="--silent"
 while getopts d:f:p:P:s:u:vVSh flag; do
-		case "$flag" in
-				d) ftp_path=$OPTARG ;;
-				f) ftp_file=$OPTARG ;;
-				p) ftp_port=$OPTARG ;;
-				P) ftp_password=$OPTARG ;;
-				s) ftp_host=$OPTARG ;;
-				u) ftp_user=$OPTARG ;;
-				v) verbosity="--verbose" ;;
-				V) ftp_send_video="true" ;;
-				S) ftp_send_snap="true" ;;
-				h | *) show_help ;;
-		esac
+	case "$flag" in
+		d) ftp_path=$OPTARG ;;
+		f) ftp_file=$OPTARG ;;
+		p) ftp_port=$OPTARG ;;
+		P) ftp_password=$OPTARG ;;
+		s) ftp_host=$OPTARG ;;
+		u) ftp_user=$OPTARG ;;
+		v) verbosity="--verbose" ;;
+		V) ftp_send_video="true" ;;
+		S) ftp_send_snap="true" ;;
+		h | *) show_help ;;
+	esac
 done
 
 copy_videos() {
