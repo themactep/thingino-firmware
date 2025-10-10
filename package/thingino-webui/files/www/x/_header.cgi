@@ -141,6 +141,16 @@ class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover">
 </div>
 <% fi %>
 
+<% if [ -f /tmp/sensor-iq-restart.txt ]; then %>
+<div class="alert alert-danger">
+<p>The sensor IQ file has been updated. Restart to apply changes.</p>
+<span class="d-flex flex-wrap gap-3">
+<a class="btn btn-danger" href="reboot.cgi">Reboot camera</a>
+<a class="btn btn-primary" href="config-sensor.cgi">See sensor settings</a>
+</span>
+</div>
+<% fi %>
+
 <h2><%= $page_title %></h2>
 
 <% alerts_read %>
