@@ -122,20 +122,20 @@ def stash_uncommitted_changes() -> Optional[str]:
     # Create a stash with a descriptive message
     stash_message = f"check-git-package-updates.py auto-stash at {subprocess.run(['date', '+%Y-%m-%d %H:%M:%S'], capture_output=True, text=True).stdout.strip()}"
 
-    code, out, err = run_git(["stash", "push", "-m", stash_message], cwd=PROJECT_ROOT)
+    code, out, err = run_git(["stash", "push", "-u", "-m", stash_message], cwd=PROJECT_ROOT)
     if code != 0:
         log_error(f"Failed to stash uncommitted changes: {err}")
         return None
 
     # Get the stash reference
-    code, out, err = run_git(["stash", "list", "--format=%H", "-n", "1"], cwd=PROJECT_ROOT)
+    code, out, err = run_git(["stash", "list", "--format=%gd", "-n", "1"], cwd=PROJECT_ROOT)
     if code != 0 or not out.strip():
         log_error("Failed to get stash reference")
         return None
 
-    stash_ref = out.strip()
+    stash_ref = out.strip()  # e.g., 'stash@{0}'
     STASH_REF = stash_ref
-    log_success(f"Successfully stashed changes with reference: {stash_ref[:7]}")
+    log_success(f"Successfully stashed changes with reference: {stash_ref}")
     return stash_ref
 
 
@@ -156,7 +156,7 @@ def restore_stashed_changes() -> bool:
     code, out, err = run_git(["stash", "pop", STASH_REF], cwd=PROJECT_ROOT)
     if code != 0:
         log_error(f"Failed to restore stashed changes: {err}")
-        log_warn(f"You may need to manually restore stash {STASH_REF[:7]}")
+        log_warn(f"You may need to manually restore stash {STASH_REF}")
         return False
 
     log_success("Successfully restored stashed changes")
