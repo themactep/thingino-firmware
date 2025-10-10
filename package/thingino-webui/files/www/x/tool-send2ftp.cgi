@@ -4,26 +4,26 @@
 page_title="Send to FTP"
 
 defaults() {
-        default_for "ftp_port" "21"
-        default_for "ftp_template" "${network_hostname}-%Y%m%d-%H%M%S"
-        default_for "ftp_send_video" "false"
-        default_for "ftp_send_snap" "false"
-        [ -z "$ftp_user" ] && ftp_user="anonymous" && ftp_password="anonymous"
+	default_for "ftp_port" "21"
+	default_for "ftp_template" "${network_hostname}-%Y%m%d-%H%M%S"
+	default_for "ftp_send_video" "false"
+	default_for "ftp_send_snap" "false"
+	[ -z "$ftp_user" ] && ftp_user="anonymous" && ftp_password="anonymous"
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-        error=""
+	error=""
 
-        read_from_post "ftp" "host password path port send_video send_snap template user"
+	read_from_post "ftp" "host password path port send_video send_snap template user"
 
-        [ "true" = "$ftp_send2ftp"  ] && error_if_empty "$ftp_ftphost" "FTP address cannot be empty."
-        [ "true" = "$ftp_send2tftp" ] && error_if_empty "$ftp_tftphost" "TFTP address cannot be empty."
-        [ "true" = "$ftp_save4web"  ] && error_if_empty "$ftp_localpath" "Local path cannot be empty."
+	[ "true" = "$ftp_send2ftp"  ] && error_if_empty "$ftp_ftphost" "FTP address cannot be empty."
+	[ "true" = "$ftp_send2tftp" ] && error_if_empty "$ftp_tftphost" "TFTP address cannot be empty."
+	[ "true" = "$ftp_save4web"  ] && error_if_empty "$ftp_localpath" "Local path cannot be empty."
 
-        defaults
+	defaults
 
-        if [ -z "$error" ]; then
-                save2config "
+	if [ -z "$error" ]; then
+		save2config "
 ftp_host=\"$ftp_host\"
 ftp_password=\"$ftp_password\"
 ftp_path=\"$ftp_path\"
@@ -33,10 +33,10 @@ ftp_send_snap=\"$ftp_send_snap\"
 ftp_template=\"$ftp_template\"
 ftp_user=\"$ftp_user\"
 "
-                redirect_to $SCRIPT_NAME "success" "Data updated."
-        else
-                redirect_to $SCRIPT_NAME "danger" "Error: $error"
-        fi
+		redirect_to $SCRIPT_NAME "success" "Data updated."
+	else
+		redirect_to $SCRIPT_NAME "danger" "Error: $error"
+	fi
 fi
 
 defaults
