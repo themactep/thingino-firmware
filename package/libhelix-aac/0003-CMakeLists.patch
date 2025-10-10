@@ -1,0 +1,33 @@
+
+--- /dev/null
++++ b/src/libhelix-aac/CMakeLists.txt
+@@ -0,0 +1,29 @@
++cmake_minimum_required(VERSION 3.10)
++project(libhelix-aac)
++set(CMAKE_C_STANDARD 99)
++
++add_definitions(-DUSE_DEFAULT_STDLIB)
++
++file(GLOB SOURCES CONFIGURE_DEPENDS
++    "${PROJECT_SOURCE_DIR}/*.c"
++)
++file(GLOB HEADERS CONFIGURE_DEPENDS
++    "${PROJECT_SOURCE_DIR}/*.h"
++)
++
++if(BUILD_SHARED_LIBS)
++    add_library(helix-aac SHARED ${SOURCES} ${HEADERS})
++else()
++    add_library(helix-aac STATIC ${SOURCES} ${HEADERS})
++endif()
++
++install(FILES ${HEADERS}
++    DESTINATION include
++)
++
++set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
++set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
++install(TARGETS helix-aac
++    LIBRARY DESTINATION lib
++    ARCHIVE DESTINATION lib
++)
