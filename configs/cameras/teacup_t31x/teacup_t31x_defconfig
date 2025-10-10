@@ -1,5 +1,9 @@
 # NAME: Teacup DevBoard (T31ZX, IMX327, ETH)
-# MODULE: t31zx_imx327_eth
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_ETHERNET=y
+BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13=y
+BR2_SENSOR_IMX327=y
+BR2_SOC_INGENIC_T31ZX=y
 BR2_AVPU_VPLL=y
 BR2_ISP_CLK_225MHZ=y
 BR2_PACKAGE_THINGINO_KOPT_ADC=y

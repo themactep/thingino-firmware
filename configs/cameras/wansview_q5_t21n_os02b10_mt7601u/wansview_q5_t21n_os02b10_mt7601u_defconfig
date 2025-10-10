@@ -1,5 +1,9 @@
 # NAME: Wansview Q5 (T21N, OS02B10, MT7601U)
-# MODULE: t21n_os02b10_mt7601u
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_MT7601U=y
+BR2_SENSOR_OS02B10=y
+BR2_SOC_INGENIC_T21N=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
 BR2_SENSOR_PARAMS="sensor_gpio_func=0"

@@ -1,5 +1,9 @@
 # NAME: Aobocam A12 (T23DL, JXH63P, TXW901U)
-# MODULE: t23dl_jxh63p_txw901u
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_SOC_INGENIC_T23DL=y
+BR2_SENSOR_JXH63P=y
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_TXW901U=y
 BR2_ISP_CLKA_600MHZ=y
 BR2_ISP_CLKA_SCLKA=y
 BR2_ISP_CLK_200MHZ=y

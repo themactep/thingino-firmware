@@ -1,4 +1,8 @@
 # NAME: Xiaomi MJSXJ03HL (T31N, JXQ03P, RTL8189FTV) with Kernel 4.x
-# MODULE: t31n_jxq03p_rtl8189ftv
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_RTL8189FS=y
+BR2_SENSOR_JXQ03P=y
+BR2_SOC_INGENIC_T31N=y
 FLASH_SIZE_16=y
 KERNEL_VERSION_4=y

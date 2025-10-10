@@ -1,5 +1,9 @@
 # NAME: H3C C2041 (T31X, JXK04, RTL8188FTV)
-# MODULE: t31x_jxk04_rtl8188ftv
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_RTL8188FU=y
+BR2_SENSOR_JXK04=y
+BR2_SOC_INGENIC_T31X=y
 BR2_ISP_CLK_150MHZ=y
 BR2_THINGINO_MOTORS=y
 BR2_THINGINO_MOTORS_TCU=y

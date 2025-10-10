@@ -1,5 +1,9 @@
 # NAME: Vanhua H33 (T31L, GC2083, ETH)
-# MODULE: t31l_gc2083_eth
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_ETHERNET=y
+BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13=y
+BR2_SENSOR_GC2083=y
+BR2_SOC_INGENIC_T31L=y
 BR2_AVPU_CLK_486MHZ=y
 BR2_AVPU_VPLL=y
 BR2_ISP_CLK_200MHZ=y

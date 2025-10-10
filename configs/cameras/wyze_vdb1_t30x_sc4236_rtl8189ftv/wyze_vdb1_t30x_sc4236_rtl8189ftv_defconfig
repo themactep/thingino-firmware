@@ -1,5 +1,9 @@
 # NAME: Wyze Video Doorbell v1 (T30X, SC4236, RTL8189FTV)
-# MODULE: t30x_sc4236_rtl8189ftv
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_RTL8189FS=y
+BR2_SENSOR_SC4236=y
+BR2_SOC_INGENIC_T30X=y
 BR2_ISP_CLK_150MHZ=y
 BR2_ISP_ISP_M1_BUFS=y
 BR2_ISP_ISP_M1_BUFS_VALUE=4
