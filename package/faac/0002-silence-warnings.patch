@@ -1,0 +1,12 @@
+diff --git a/libfaac/frame.c b/libfaac/frame.c
+index 37eb4f8..bc96ac8 100644
+--- a/libfaac/frame.c
++++ b/libfaac/frame.c
+@@ -379,6 +379,7 @@ int FAACAPI faacEncEncode(faacEncHandle hpEncoder,
+     unsigned int bandWidth = hEncoder->config.bandWidth;
+     unsigned int shortctl = hEncoder->config.shortctl;
+     int maxqual = hEncoder->config.outputFormat ? MAXQUALADTS : MAXQUAL;
++    (void)maxqual; /* silence unused in DRM builds */
+ 
+     /* Increase frame number */
+     hEncoder->frameNum++;
