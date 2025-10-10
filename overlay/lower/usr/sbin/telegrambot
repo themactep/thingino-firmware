@@ -5,7 +5,7 @@
 
 singleton "$0"
 
-ensure_command "jsonfilter"
+ensure_command "jsonpath"
 
 if [ -z "$telegrambot_token" ]; then
 	echo_error "Telegram Bot token is not set"
@@ -61,7 +61,7 @@ restore_offset() {
 }
 
 json_data() {
-	jsonfilter -i $JSDATA_FILE -e "$1"
+	jsonpath -i $JSDATA_FILE -e "$1"
 }
 
 # Telegram API
@@ -157,7 +157,7 @@ delete_message() {
 }
 
 tgb_readfromapi() {
-	jsonfilter -s "$updates" -e "$.result[@.update_id=$update_id].message.chat.id"
+	jsonpath -s "$updates" -e "$.result[@.update_id=$update_id].message.chat.id"
 }
 
 # Logics
@@ -237,8 +237,8 @@ while :; do
 				continue
 			fi
 
-			if [ "bot_command" = "$(jsonfilter -s "$entity" -e "$.type")" ]; then
-				bot_command="${message_text:$(jsonfilter -s "$entity" -e "$.offset"):$(jsonfilter -s "$entity" -e "$.length")}"
+			if [ "bot_command" = "$(jsonpath -s "$entity" -e "$.type")" ]; then
+				bot_command="${message_text:$(jsonpath -s "$entity" -e "$.offset"):$(jsonpath -s "$entity" -e "$.length")}"
 
 				# split command by '@' to $command and $mention
 				mention=${bot_command##*@}

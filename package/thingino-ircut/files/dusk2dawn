@@ -27,8 +27,8 @@ time_for_cron() {
 
 time_with_offset() {
 	local h m
-	h=$(jsonfilter -s "$json" -e @.results.$1 | awk -F[T:] '{print $2}' | sed 's/^0//')
-	m=$(jsonfilter -s "$json" -e @.results.$1 | awk -F[T:] '{print $3}' | sed 's/^0//')
+	h=$(jsonpath -s "$json" -e @.results.$1 | awk -F[T:] '{print $2}' | sed 's/^0//')
+	m=$(jsonpath -s "$json" -e @.results.$1 | awk -F[T:] '{print $3}' | sed 's/^0//')
 	echo $(((1440 + h * 60 + m + $2) % 1440))
 }
 

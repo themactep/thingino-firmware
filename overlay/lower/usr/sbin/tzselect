@@ -25,7 +25,7 @@ fetch_timezones() {
 		exit 1
 	fi
 
-	# Extract timezone data using simple sed parsing (faster than multiple jsonfilter calls)
+	# Extract timezone data using simple sed parsing (faster than multiple jsonpath calls)
 	cat "$TZJSON_FILE" | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' | \
 	sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' | sort > /tmp/tz_raw.txt
 
