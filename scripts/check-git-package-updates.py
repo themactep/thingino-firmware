@@ -33,6 +33,8 @@ DRY_RUN = False
 GIT_COMMIT = False
 # Stash reference for temporarily saving uncommitted changes
 STASH_REF: Optional[str] = None
+STASH_SHA: Optional[str] = None
+
 
 HASH_RE = re.compile(r"^[a-f0-9]{40}$")
 
@@ -111,7 +113,7 @@ def stash_uncommitted_changes() -> Optional[str]:
     Stash any uncommitted changes in the working directory.
     Returns the stash reference if successful, None if failed or no changes to stash.
     """
-    global STASH_REF
+    global STASH_REF, STASH_SHA
 
     if check_git_working_directory():
         log_debug("No uncommitted changes to stash")
@@ -128,15 +130,21 @@ def stash_uncommitted_changes() -> Optional[str]:
         return None
 
     # Get the stash reference
-    code, out, err = run_git(["stash", "list", "--format=%gd", "-n", "1"], cwd=PROJECT_ROOT)
+    code, out, err = run_git(["stash", "list", "--format=%H %gd", "-n", "1"], cwd=PROJECT_ROOT)
     if code != 0 or not out.strip():
         log_error("Failed to get stash reference")
         return None
 
-    stash_ref = out.strip()  # e.g., 'stash@{0}'
-    STASH_REF = stash_ref
-    log_success(f"Successfully stashed changes with reference: {stash_ref}")
-    return stash_ref
+    try:
+        sha, ref = out.strip().split(maxsplit=1)
+    except ValueError:
+        log_error("Unexpected format when reading stash reference")
+        return None
+
+    STASH_SHA = sha
+    STASH_REF = ref  # e.g., 'stash@{0}'
+    log_success(f"Successfully stashed changes with reference: {ref}")
+    return ref
 
 
 def restore_stashed_changes() -> bool:
@@ -144,7 +152,7 @@ def restore_stashed_changes() -> bool:
     Restore previously stashed changes.
     Returns True if successful or no stash to restore, False if failed.
     """
-    global STASH_REF
+    global STASH_REF, STASH_SHA
 
     if not STASH_REF:
         log_debug("No stashed changes to restore")
@@ -154,13 +162,35 @@ def restore_stashed_changes() -> bool:
 
     # Apply and drop the stash
     code, out, err = run_git(["stash", "pop", STASH_REF], cwd=PROJECT_ROOT)
-    if code != 0:
-        log_error(f"Failed to restore stashed changes: {err}")
+
+    # Determine whether the stash still exists (by SHA) regardless of exit code
+    still_exists = False
+    if STASH_SHA:
+        ls_code, ls_out, ls_err = run_git(["stash", "list", "--format=%H"], cwd=PROJECT_ROOT)
+        if ls_code == 0 and STASH_SHA in ls_out.splitlines():
+            still_exists = True
+
+    if code != 0 and still_exists:
+        # Include stdout and stderr to aid diagnosis
+        details = (out + ("\n" if out and err else "") + err).strip()
+        log_error(f"Failed to restore stashed changes: {details}")
         log_warn(f"You may need to manually restore stash {STASH_REF}")
         return False
 
+    # Consider success if the stash no longer exists (it may have applied with warnings/conflicts)
+    if code != 0 and not still_exists:
+        details = (out + ("\n" if out and err else "") + err).strip()
+        if details:
+            log_warn(f"Stash restored with warnings: {details}")
+        log_success("Successfully restored stashed changes")
+        STASH_REF = None
+        STASH_SHA = None
+        return True
+
+    # code == 0
     log_success("Successfully restored stashed changes")
     STASH_REF = None
+    STASH_SHA = None
     return True
 
 
