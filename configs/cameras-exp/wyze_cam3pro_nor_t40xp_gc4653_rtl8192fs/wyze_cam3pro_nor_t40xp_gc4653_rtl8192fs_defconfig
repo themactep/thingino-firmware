@@ -1,5 +1,10 @@
 # NAME: Wyze Cam v3 Pro (T40XP, GC4653, RTL8192FS)
-# MODULE: t40xp_gc4653_rtl8192fs
+# FRAG: soc-xburst2 toolchain-xburst2 ccache brand rootfs kernel system target uboot ssl
+BR2_ETHERNET=y
+BR2_SENSOR_GC4653=y
+BR2_SOC_INGENIC_T40XP=y
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_RTL8192FS=y
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_BUTTON=y
 BR2_THINGINO_SDCARD=y

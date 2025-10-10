@@ -1,5 +1,9 @@
 # NAME: Galayou Y4 (T31N, SC2336, ATBM6012B)
-# MODULE: t31n_sc2336_atbm6012b
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_ATBM6012B=y
+BR2_SENSOR_SC2336=y
+BR2_SOC_INGENIC_T31N=y
 BR2_AVPU_VPLL=y
 BR2_ISP_CLK_150MHZ=y
 BR2_ISP_CH0_PRE_DEQUEUE_TIME=y

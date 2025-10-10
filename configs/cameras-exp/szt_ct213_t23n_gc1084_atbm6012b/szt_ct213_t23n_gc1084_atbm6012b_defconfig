@@ -1,5 +1,9 @@
 # NAME: SZT CT213 (T23N, GC1084, ATBM6012)
-# MODULE: t23n_gc1084_atbm6012b
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_SENSOR_GC1084=y
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_ATBM6012B=y
+BR2_SOC_INGENIC_T23N=y
 BR2_ISP_CLK_200MHZ=y
 BR2_ISP_PARAMS="direct_mode=2 ivdc_mem_line=648 isp_memopt=1"
 BR2_PACKAGE_THINGINO_KOPT_MMC0=y

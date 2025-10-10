@@ -1,5 +1,9 @@
 # NAME: ieGeek SC1 (T23N, CV2003, ATBM6132U)
-# MODULE: t23n_cv2003_atbm6132u
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_ATBM6132U=y
+BR2_SENSOR_SV2003=y
+BR2_SOC_INGENIC_T23N=y
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_BUTTON=y
 BR2_THINGINO_FLASH_NOR=y

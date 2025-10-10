@@ -1,5 +1,9 @@
 # NAME: Ingenic K3 100 EVB (C100, GC2053, SYN4343)
-# MODULE: c100_gc2053_bcmdhd_ap6214a
+# FRAG: soc-xburst1 toolchain-xb1-gcc14-glibc-br ccache brand rootfs kernel system target uboot ssl
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_BCMDHD_AP6214A=y
+BR2_SENSOR_GC2053=y
+BR2_SOC_INGENIC_C100=y
 BR2_AVPU_CLK_600MHZ=y
 BR2_ISP_CLK_200MHZ=y
 BR2_PACKAGE_THINGINO_KOPT_DWC2=y
