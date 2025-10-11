@@ -1,0 +1,26 @@
+From b3d8ccc4fab60514d6707f9aefe0a116970d4ccd Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Wed, 8 Oct 2025 21:18:19 -0400
+Subject: [PATCH] Fix calloc argument order in STACK_ALLOC macro to match
+ calloc(nmemb, size) and resolve -Wcalloc-transposed-args warnings on MIPS
+
+---
+ schrift.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/schrift.c b/schrift.c
+index eb39376..bca3e69 100644
+--- a/schrift.c
++++ b/schrift.c
+@@ -70,7 +70,7 @@
+ /* Allocate values on the stack if they are small enough, else spill to heap. */
+ #define STACK_ALLOC(var, type, thresh, count) \
+ 	type var##_stack_[thresh]; \
+-	var = (count) <= (thresh) ? var##_stack_ : calloc(sizeof(type), count);
++	var = (count) <= (thresh) ? var##_stack_ : calloc(count, sizeof(type));
+ #define STACK_FREE(var) \
+ 	if (var != var##_stack_) free(var);
+ 
+-- 
+2.47.3
+
