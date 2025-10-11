@@ -1,0 +1,120 @@
+config BR2_PACKAGE_THINGINO_UHTTPD
+	bool "thingino-uhttpd"
+	depends on !BR2_STATIC_LIBS # dlopen(), ustream-ssl
+	depends on BR2_TOOLCHAIN_HAS_SYNC_4 # json-c
+	depends on BR2_USE_MMU # fork()
+	depends on !BR2_PACKAGE_UHTTPD # conflicts with buildroot uhttpd
+
+	select BR2_PACKAGE_LIBUBOX
+	select BR2_PACKAGE_JSON_C
+	select BR2_PACKAGE_LIBXCRYPT if BR2_TOOLCHAIN_USES_GLIBC
+	help
+	  uHTTPd web server with HTTPS support and optional Lua scripting.
+	  Provides a secure, modern web server for thingino cameras with
+	  TLS/SSL encryption, session management, and extensible Lua-based
+	  web applications. Can be used standalone or with thingino-webui-lua
+	  for a complete modern web interface.
+
+	  Features:
+	  - Native HTTPS support with wolfSSL or mbedTLS encryption
+	  - Lua scripting for dynamic web applications
+	  - Session-based authentication and security
+	  - Automatic HTTP to HTTPS redirection
+	  - RESTful API endpoints for automation
+	  - Modern responsive web interface support
+
+	  Can be used standalone as a web server or with thingino-webui-lua
+	  for a complete modern camera management interface.
+
+	  https://wiki.openwrt.org/doc/howto/http.uhttpd
+
+if BR2_PACKAGE_THINGINO_UHTTPD
+
+config BR2_PACKAGE_THINGINO_UHTTPD_TLS
+	bool "Enable TLS/HTTPS support"
+	default y
+	help
+	  Enable TLS/HTTPS support for uhttpd.
+	  This provides secure encrypted connections to the camera's
+	  web interface with modern TLS protocols.
+
+if BR2_PACKAGE_THINGINO_UHTTPD_TLS
+
+choice
+	prompt "SSL/TLS library to use"
+	default BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS if BR2_PACKAGE_THINGINO_MBEDTLS
+	default BR2_PACKAGE_THINGINO_UHTTPD_TLS_WOLFSSL if BR2_PACKAGE_THINGINO_WOLFSSL
+
+config BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS
+	bool "mbedTLS"
+	depends on BR2_PACKAGE_MBEDTLS
+	help
+	  Use thingino mbedTLS for TLS support.
+	  Enhanced mbedTLS with WebRTC DTLS compatibility.
+
+config BR2_PACKAGE_THINGINO_UHTTPD_TLS_OPENSSL
+	bool "OpenSSL"
+	depends on BR2_PACKAGE_OPENSSL
+	help
+	  Use OpenSSL for TLS support.
+
+config BR2_PACKAGE_THINGINO_UHTTPD_TLS_WOLFSSL
+	bool "wolfSSL"
+	depends on BR2_PACKAGE_THINGINO_WOLFSSL
+	depends on BR2_USE_WCHAR
+	select BR2_PACKAGE_THINGINO_USTREAM_SSL_WOLFSSL
+	select BR2_PACKAGE_THINGINO_WOLFSSL_ALL
+	select BR2_PACKAGE_THINGINO_WOLFSSL_EXAMPLES
+	select BR2_PACKAGE_THINGINO_WOLFSSL_KEYGEN
+	select BR2_PACKAGE_THINGINO_WOLFSSL_CERTGEN
+	select BR2_PACKAGE_THINGINO_WOLFSSL_ASN
+	help
+	  Use thingino wolfSSL for TLS support.
+	  Includes wolfSSL tools for certificate generation.
+
+endchoice
+
+comment "mbedTLS not available"
+	depends on !BR2_PACKAGE_THINGINO_MBEDTLS
+
+comment "wolfSSL not available (needs wchar support)"
+	depends on BR2_PACKAGE_THINGINO_WOLFSSL && !BR2_USE_WCHAR
+
+comment "wolfSSL not available"
+	depends on !BR2_PACKAGE_THINGINO_WOLFSSL
+
+endif
+
+config BR2_PACKAGE_THINGINO_UHTTPD_HTTP_REDIRECT
+	bool "Redirect HTTP to HTTPS"
+	default y
+	depends on BR2_PACKAGE_THINGINO_UHTTPD_TLS
+	help
+	  Automatically redirect HTTP requests on port 80 to HTTPS
+	  on port 443 for enhanced security.
+
+config BR2_PACKAGE_THINGINO_UHTTPD_LUA
+	bool "Enable Lua support"
+	depends on BR2_PACKAGE_LUA
+	help
+	  Enable Lua scripting support in uhttpd for dynamic content
+	  generation and server-side scripting. This is useful for
+	  implementing session-based authentication and other
+	  advanced web functionality.
+
+config BR2_PACKAGE_THINGINO_UHTTPD_UBUS
+	bool "Enable ubus support"
+	depends on BR2_PACKAGE_UBUS
+	help
+	  Enable ubus support for inter-process communication
+	  with other system services.
+
+endif
+
+comment "thingino-uhttpd needs a toolchain w/ dynamic library"
+	depends on BR2_TOOLCHAIN_HAS_SYNC_4
+	depends on BR2_USE_MMU
+	depends on BR2_STATIC_LIBS
+
+comment "thingino-uhttpd conflicts with uhttpd"
+	depends on BR2_PACKAGE_UHTTPD

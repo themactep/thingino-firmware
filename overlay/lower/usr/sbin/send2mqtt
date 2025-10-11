@@ -1,37 +1,46 @@
 #!/bin/env sh
+# Sends data to MQTT server
+# https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html
+# https://mosquitto.org/documentation/
 
 . /usr/share/common
 
 show_help() {
 	echo "Usage: $0 [options]
 Where:
-	-t topic    MQTT topic.
-	-m message  Message playload.
-	-s          Send a snapshot.
-	-v          Verbose output.
-	-h          Show this help.
+	-h host      Server host.
+	-j           Message is JSON.
+	-m message   Message body.
+	-s           Send a snapshot.
+	-t topic     Topic.
+	-u username  Username.
+	-w password  Password.
+	-v           Verbose output.
 " >&2
 	exit 0
 }
 
-verbosity="--quiet"
-while getopts m:st:vh flag; do
+while getopts h:jm:st:u:w:v flag; do
 	case "$flag" in
+		h) mqtt_host=$OPTARG ;;
+		j) mqtt_is_json="true" ;;
 		m) mqtt_message=$OPTARG ;;
 		s) mqtt_send_snap="true" ;;
 		t) mqtt_topic=$OPTARG ;;
-		v) verbosity="-d" ;;
-		h | *) show_help ;;
+		u) mqtt_username=$OPTARG ;;
+		w) mqtt_password=$OPTARG ;;
+		v) verbose="true" ;;
+		*) show_help ;;
 	esac
 done
 
 if [ -z "$mqtt_host" ]; then
-	echo_error "MQTT broker host not found in config"
+	echo_error "MQTT broker host is not set"
 	exit 1
 fi
 
 if [ -z "$mqtt_port" ]; then
-	echo_error "MQTT broker port not found in config"
+	echo_error "MQTT broker port is not set"
 	exit 1
 fi
 
@@ -57,6 +66,9 @@ fi
 mqtt_message=$(date +"$mqtt_message")
 
 command="mosquitto_pub -h $mqtt_host -p $mqtt_port -i $mqtt_client_id"
+if [ "true" = "$verbose" ]; then
+	command="$command -d"
+fi
 
 if [ -n "$mqtt_username" ]; then
 	command="$command -u $mqtt_username"
@@ -67,7 +79,17 @@ if [ -n "$mqtt_password" ]; then
 fi
 
 mqtt_failed=0
-send_command="$command -t $mqtt_topic -m \"$mqtt_message\""
+
+if [ "true" = "$mqtt_is_json" ]; then
+	tmpfile=$(mktemp)
+	echo "$mqtt_message" > $tmpfile
+	send_command="$command -t $mqtt_topic -f $tmpfile"
+else
+	send_command="$command -t $mqtt_topic -m '$mqtt_message'"
+fi
+if [ "true" = "$verbosity" ]; then
+	echo_command "$send_command"
+fi
 if ! sh -c "$send_command"; then
 	echo_error "Failed to send MQTT message"
 	mqtt_failed=1
@@ -77,17 +99,25 @@ if [ "true" = "$mqtt_send_snap" ]; then
 	attachment=$(mktemp -u).jpg
 	cp -f "$SNAPSHOT_FILE" "$attachment"
 	send_command="$command -t $mqtt_snap_topic -f \"$attachment\""
-
+	if [ "true" = "$verbosity" ]; then
+		echo_command "$send_command"
+	fi
 	if ! sh -c "$send_command"; then
 		echo_error "Failed to send snapshot via MQTT"
 		mqtt_failed=1
 	fi
 fi
 
+if [ -f "$tmpfile" ]; then
+	rm "$tmpfile"
+fi
+
+if [ -f "$attachment" ]; then
+	rm "$attachment"
+fi
+
 if [ $mqtt_failed -eq 1 ]; then
 	exit 1
 fi
-
-[ -f "$attachment" ] && rm "$attachment"
 
 exit 0

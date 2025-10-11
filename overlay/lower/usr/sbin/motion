@@ -1,4 +1,5 @@
 #!/bin/sh
+# Triggered on a motion event
 
 . /usr/share/common
 
@@ -48,6 +49,11 @@ start() {
 	if [ "true" = "$motion_send2yadisk" ]; then
 		echo_info "Send alert to Yandex Disk"
 		send2yadisk &
+	fi
+
+	if [ "true" = "$motion_send2ntfy" ]; then
+		echo_info "Send alert to Ntfy"
+		send2ntfy &
 	fi
 
 	if [ "true" = "$motion_playonspeaker" ]; then

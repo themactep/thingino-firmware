@@ -1,0 +1,6 @@
+# NAME: T31X, SC3336, SYN4343
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_SYN4343=y
+BR2_SENSOR_SC3336=y
+BR2_SOC_INGENIC_T31X=y

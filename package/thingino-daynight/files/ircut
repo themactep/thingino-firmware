@@ -1,0 +1,97 @@
+#!/bin/sh
+
+. /usr/share/common
+
+MODE_FILE="/tmp/ircutmode.txt"
+[ -f "$MODE_FILE" ] || touch "$MODE_FILE"
+
+pin1=$gpio_ircut_1
+pin2=$gpio_ircut_2
+
+# Backward compatibility
+if [ -z "$pin1$pin2" ] && [ -n "$gpio_ircut" ]; then
+	read pin1 pin2 << EOF
+$gpio_ircut
+EOF
+fi
+
+if [ -n "$pin1" ]; then
+	[ "$pin1" = "${pin1//[^0-9]/}" ] && pin1="${pin1}O"
+	case ${pin1:(-1)} in
+		o) pin1_on=0; pin1_off=1 ;;
+		O) pin1_on=1; pin1_off=0 ;;
+	esac
+	pin1=${pin1:0:(-1)}
+else
+	echo_error "Please define IRCUT pins in bootloader environment"
+	exit 1
+fi
+
+if [ -n "$pin2" ]; then
+	[ "$pin2" = "${pin2//[^0-9]/}" ] && pin2="${pin2}O"
+	case ${pin2:(-1)} in
+		o) pin2_on=0; pin2_off=1 ;;
+		O) pin2_on=1; pin2_off=0 ;;
+	esac
+	pin2=${pin2:0:(-1)}
+fi
+
+ir_filter_off() {
+	if [ "$pin1" = "999" ]; then
+		echo -n 0 > /dev/tmi8152_ir_cut
+	else
+		gpio set "$pin1" "$pin1_off" > /dev/null
+		if [ -n "$pin2" ]; then
+			gpio set "$pin2" "$pin2_on" > /dev/null
+			usleep 10000
+			gpio set "$pin2" "$pin2_off" > /dev/null
+		fi
+	fi
+	echo "0" > "$MODE_FILE"
+}
+
+ir_filter_on() {
+	if [ "$pin1" = "999" ]; then
+		echo -n 1 > /dev/tmi8152_ir_cut
+	else
+		gpio set "$pin1" "$pin1_on" > /dev/null
+		if [ -n "$pin2" ]; then
+			gpio set "$pin2" "$pin2_off" > /dev/null
+			usleep 10000
+			gpio set "$pin1" "$pin1_off" > /dev/null
+		fi
+	fi
+	echo "1" > "$MODE_FILE"
+}
+
+case "$1" in
+	0 | off | night)
+		ir_filter_off
+		;;
+	1 | on | day)
+		ir_filter_on
+		;;
+	~ | toggle)
+		if [ "$(cat "$MODE_FILE")" -eq 0 ]; then
+			ir_filter_on
+		else
+			ir_filter_off
+		fi
+		;;
+	status)
+		case "$(cat "$MODE_FILE")" in
+			0) echo_info "IRCUT filter is removed" ;;
+			1) echo_info "IRCUT filter is set" ;;
+			*) echo_info "IRCUT filter is in unknown state" ;;
+		esac
+		;;
+	\? | read)
+		cat "$MODE_FILE" | tr -d '\n'
+		;;
+	*)
+		echo "Usage: $0 [on|off|toggle|status|read]" >&2
+		exit 1
+		;;
+esac
+
+exit 0

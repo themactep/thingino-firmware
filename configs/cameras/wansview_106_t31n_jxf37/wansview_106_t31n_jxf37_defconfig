@@ -1,5 +1,7 @@
 # NAME: Wansview 106 (T31N, JXF37)
-# MODULE: t31n_jxf37
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_SENSOR_JXF37=y
+BR2_SOC_INGENIC_T31N=y
 BR2_AVPU_CLK_500MHZ=y
 BR2_ISP_CLK_200MHZ=y
 BR2_PACKAGE_MOTORS=y

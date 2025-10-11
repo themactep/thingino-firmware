@@ -3,7 +3,7 @@ config BR2_SOC_FAMILY_INGENIC_T10
 	default y if BR2_SOC_INGENIC_T10L || BR2_SOC_INGENIC_T10N || BR2_SOC_INGENIC_T10A
 config BR2_SOC_FAMILY_INGENIC_T20
 	bool
-	default y if BR2_SOC_INGENIC_T20L || BR2_SOC_INGENIC_T20N || BR2_SOC_INGENIC_T20X
+	default y if BR2_SOC_INGENIC_T20L || BR2_SOC_INGENIC_T20N || BR2_SOC_INGENIC_T20X || BR2_SOC_INGENIC_T20Z
 config BR2_SOC_FAMILY_INGENIC_T21
 	bool
 	default y if BR2_SOC_INGENIC_T21L || BR2_SOC_INGENIC_T21N || BR2_SOC_INGENIC_T21X || BR2_SOC_INGENIC_T21Z || BR2_SOC_INGENIC_T21ZL
@@ -37,7 +37,7 @@ config BR2_SOC_FAMILY_32MB
 	default y if BR2_SOC_INGENIC_T23DL || BR2_SOC_INGENIC_T23DN
 config BR2_SOC_FAMILY_64MB
 	bool
-	default y if BR2_SOC_INGENIC_T10L || BR2_SOC_INGENIC_T10N || BR2_SOC_INGENIC_T10A || BR2_SOC_INGENIC_T20L || BR2_SOC_INGENIC_T20N || BR2_SOC_INGENIC_T21L || BR2_SOC_INGENIC_T21N || BR2_SOC_INGENIC_T21Z || BR2_SOC_INGENIC_T21ZL || BR2_SOC_INGENIC_T21Z || BR2_SOC_INGENIC_T21ZL || BR2_SOC_INGENIC_T23N || BR2_SOC_INGENIC_T23ZN || BR2_SOC_INGENIC_T30L || BR2_SOC_INGENIC_T30N || BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL || BR2_SOC_INGENIC_T41LQ
+	default y if BR2_SOC_INGENIC_T10L || BR2_SOC_INGENIC_T10N || BR2_SOC_INGENIC_T10A || BR2_SOC_INGENIC_T20L || BR2_SOC_INGENIC_T20N || BR2_SOC_INGENIC_T20Z || BR2_SOC_INGENIC_T21L || BR2_SOC_INGENIC_T21N || BR2_SOC_INGENIC_T21Z || BR2_SOC_INGENIC_T21ZL || BR2_SOC_INGENIC_T21Z || BR2_SOC_INGENIC_T21ZL || BR2_SOC_INGENIC_T23N || BR2_SOC_INGENIC_T23ZN || BR2_SOC_INGENIC_T30L || BR2_SOC_INGENIC_T30N || BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL || BR2_SOC_INGENIC_T41LQ
 config BR2_SOC_FAMILY_128MB
 	bool
 	default y if BR2_SOC_INGENIC_T20X || BR2_SOC_INGENIC_T21X || BR2_SOC_INGENIC_T30X || BR2_SOC_INGENIC_T30A || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31ZX || BR2_SOC_INGENIC_C100 || BR2_SOC_INGENIC_T40NN || BR2_SOC_INGENIC_T40NN || BR2_SOC_INGENIC_T41NQ || BR2_SOC_INGENIC_A1L
@@ -75,6 +75,8 @@ config BR2_SOC_INGENIC_T20N
 	bool "Ingenic T20N"
 config BR2_SOC_INGENIC_T20X
 	bool "Ingenic T20X"
+config BR2_SOC_INGENIC_T20Z
+	bool "Ingenic T20Z"
 config BR2_SOC_INGENIC_T21L
 	bool "Ingenic T21L"
 config BR2_SOC_INGENIC_T21N
@@ -171,6 +173,7 @@ choice
 	default BR2_THINGINO_INGENIC_SDK_T30_1_0_5 if BR2_SOC_FAMILY_INGENIC_T30
 	default BR2_THINGINO_INGENIC_SDK_T31_1_1_6 if BR2_SOC_FAMILY_INGENIC_T31
 	default BR2_THINGINO_INGENIC_SDK_T31_1_1_5_2 if BR2_SOC_FAMILY_INGENIC_T31 && KERNEL_VERSION_4
+	default BR2_THINGINO_INGENIC_SDK_T32_1_0_4 if BR2_SOC_FAMILY_INGENIC_T32
 	default BR2_THINGINO_INGENIC_SDK_C100_2_1_0 if BR2_SOC_FAMILY_INGENIC_C100
 	default BR2_THINGINO_INGENIC_SDK_T40_1_2_0 if BR2_SOC_FAMILY_INGENIC_T40
 	default BR2_THINGINO_INGENIC_SDK_T41_1_2_0 if BR2_SOC_FAMILY_INGENIC_T41
@@ -224,6 +227,9 @@ config BR2_THINGINO_INGENIC_SDK_T31_1_1_5_2
 config BR2_THINGINO_INGENIC_SDK_T31_1_1_6
 	bool "1.1.6"
 	depends on BR2_SOC_FAMILY_INGENIC_T31
+config BR2_THINGINO_INGENIC_SDK_T32_1_0_4
+	bool "1.0.4"
+	depends on BR2_SOC_FAMILY_INGENIC_T31 && BR2_SDK_T32
 config BR2_THINGINO_INGENIC_SDK_C100_2_1_0
 	bool "2.1.0"
 	depends on BR2_SOC_FAMILY_INGENIC_C100
@@ -286,6 +292,9 @@ endchoice
 
 choice
 	prompt "Ingenic GCC Type"
+	default BR2_THINGINO_INGENIC_SDK_GCC_MUSL   if BR2_TOOLCHAIN_USES_MUSL
+	default BR2_THINGINO_INGENIC_SDK_GCC_GLIBC  if BR2_TOOLCHAIN_USES_GLIBC
+	default BR2_THINGINO_INGENIC_SDK_GCC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC
 	help
 	  Select the GCC type
 
@@ -310,6 +319,27 @@ endchoice
 
 menu "IPU Configuration"
 depends on BR2_SOC_FAMILY_INGENIC_A1
+
+choice
+	prompt "IPU Clock Source"
+	default BR2_IPU_CLK_INTERNAL
+	help
+	  Select the parent clock source for the IPU. (pclk_name)
+
+config BR2_IPU_CLK_SCLKA
+	bool "SCLKA"
+
+config BR2_IPU_CLK_VPLL
+	bool "VPLL"
+
+config BR2_IPU_CLK_MPLL
+	bool "MPLL"
+
+config BR2_IPU_CLK_INTERNAL
+	bool "Module Internal"
+
+endchoice
+
 choice
 	prompt "IPU Clock Speed"
 	default BR2_IPU_CLK_400MHZ
@@ -370,86 +400,66 @@ endmenu
 endif
 
 choice
-	prompt "ISP Memory Optimization Level"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
-	default BR2_ISP_MEMOPT_1 if BR2_SOC_INGENIC_T23N || BR2_SOC_INGENIC_T23ZN || BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL
+	prompt "AVPU Clock Source"
+	default BR2_AVPU_INTERNAL
+	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
 	help
-	  Select the memory optimization level for the ISP.
+	  Select the parent clock source for the AVPU.
 
-config BR2_ISP_MEMOPT_0
-	bool "Optimize Disabled"
-	help
-	  Disables the ISP memory optimization.
-
-config BR2_ISP_MEMOPT_1
-	bool "Optimize Level 1"
-	help
-	  Enable ISP memory optimization - Leve 1 - Bypass Lynne + BGM
-
-config BR2_ISP_MEMOPT_2
-	bool "Optimize Level 2"
-	help
-	  Enable ISP memory optimization - Leve 2 - Bypass Lynne + BGM + Ass
-
-config BR2_ISP_MEMOPT_3
-	bool "Optimize Level 3"
-	help
-	  Enable ISP memory optimization - Leve 3 - Normal
+config BR2_AVPU_APLL
+	bool "APLL"
+config BR2_AVPU_MPLL
+	bool "MPLL"
+config BR2_AVPU_VPLL
+	bool "VPLL"
+config BR2_AVPU_INTERNAL
+	bool "Module Internal"
 endchoice
 
-if FALSE
-if BR2_SOC_FAMILY_INGENIC_T31
-menuconfig BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME
-	bool "ISP Day/Night switch drop frame number"
-
-if BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME
-config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE
-	int "Number of frames to drop"
-	default 0
+choice
+	prompt "AVPU Clock Speed"
+	default BR2_AVPU_CLK_400MHZ
+	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
 	help
-	  Specify the exact number of frames to drop during the switch.
-	  This setting is only active if the drop frame feature is enabled.
-endif
+	  Choose the ISP clock speed from the predefined options.
 
-menuconfig BR2_ISP_CH0_PRE_DEQUEUE_TIME
-	bool "ISP Pre-dequeue Time for Channel 0"
+config BR2_AVPU_CLK_400MHZ
+	bool "400 MHz"
+config BR2_AVPU_CLK_450MHZ
+	bool "450 MHz"
+config BR2_AVPU_CLK_486MHZ
+	bool "486 MHz"
+config BR2_AVPU_CLK_500MHZ
+	bool "500 MHz"
+config BR2_AVPU_CLK_550MHZ
+	bool "550 MHz"
+config BR2_AVPU_CLK_600MHZ
+	bool "600 MHz"
+config BR2_AVPU_CLK_650MHZ
+	bool "650 MHz"
+config BR2_AVPU_CLK_700MHZ
+	bool "700 MHz"
+endchoice
 
-if BR2_ISP_CH0_PRE_DEQUEUE_TIME
-config BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE
-	int "Pre-dequeue time in milliseconds"
-	default 0
+choice
+	prompt "ISP Clock Source"
+	default BR2_ISP_CLK_INTERNAL
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
 	help
-	  Specify the exact pre-dequeue time for channel 0 in milliseconds.
-	  This setting is only active if the pre-dequeue time feature is enabled.
-endif
+	  Select the parent clock source for the ISP. (clk_name)
 
-menuconfig BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
-	bool "ISP Pre-dequeue Interrupt Processing for Channel 0"
+config BR2_ISP_CLK_SCLKA
+	bool "SCLKA"
 
-if BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
-config BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_VALUE
-	int "Interrupt processing time"
-	default 0
-	help
-	  Specify the interrupt processing time for pre-dequeue for channel 0.
-	  This setting is only active if the feature is enabled.
+config BR2_ISP_CLK_VPLL
+	bool "VPLL"
 
-endif
+config BR2_ISP_CLK_MPLL
+	bool "MPLL"
 
-menuconfig BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
-	bool "ISP Valid Lines for Pre-dequeue for Channel 0"
-
-if BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
-config BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE
-	int "Pre-dequeue valid lines"
-	default 0
-	help
-	  Specify the number of valid lines for pre-dequeue for channel 0.
-	  This setting is only active if the feature is enabled.
-endif
-
-endif
-endif
+config BR2_ISP_CLK_INTERNAL
+        bool "Module Internal"
+endchoice
 
 choice
 	prompt "ISP Clock Speed"
@@ -493,73 +503,70 @@ config BR2_ISP_CLK_350MHZ
 endchoice
 
 choice
-	prompt "AVPU Clock Speed"
-	default BR2_AVPU_CLK_400MHZ
-	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	prompt "ISP Scaler Clock Source"
+	default BR2_ISP_CLKS_INTERNAL
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
 	help
-	  Choose the ISP clock speed from the predefined options.
+	  Select the parent clock source for the ISP scaler. (clks_name)
 
-config BR2_AVPU_CLK_400MHZ
+config BR2_ISP_CLKS_SCLKA
+	bool "SCLKA"
+
+config BR2_ISP_CLKS_VPLL
+	bool "VPLL"
+
+config BR2_ISP_CLKS_MPLL
+	bool "MPLL"
+
+config BR2_ISP_CLKS_INTERNAL
+        bool "Module Internal"
+endchoice
+
+choice
+	prompt "ISP Scaler Clock Speed"
+	default BR2_ISP_CLKS_400MHZ
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Choose the ISP's scaler clock speed from the predefined options.
+
+config BR2_ISP_CLKS_400MHZ
 	bool "400 MHz"
-config BR2_AVPU_CLK_450MHZ
+config BR2_ISP_CLKS_450MHZ
 	bool "450 MHz"
-config BR2_AVPU_CLK_486MHZ
+config BR2_ISP_CLKS_486MHZ
 	bool "486 MHz"
-config BR2_AVPU_CLK_500MHZ
+config BR2_ISP_CLKS_500MHZ
 	bool "500 MHz"
-config BR2_AVPU_CLK_550MHZ
+config BR2_ISP_CLKS_550MHZ
 	bool "550 MHz"
-config BR2_AVPU_CLK_600MHZ
+config BR2_ISP_CLKS_600MHZ
 	bool "600 MHz"
-config BR2_AVPU_CLK_650MHZ
+config BR2_ISP_CLKS_650MHZ
 	bool "650 MHz"
-config BR2_AVPU_CLK_700MHZ
+config BR2_ISP_CLKS_700MHZ
 	bool "700 MHz"
 endchoice
 
 choice
-	prompt "AVPU Clock Source"
-	default BR2_AVPU_INTERNAL
-	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	prompt "ISP AXI Bus Clock Source"
+	default BR2_ISP_CLKA_INTERNAL
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
 	help
-	  Select the clock source for the AVPU
-
-config BR2_AVPU_MPLL
-	bool "MPLL"
-config BR2_AVPU_VPLL
-	bool "VPLL"
-config BR2_AVPU_INTERNAL
-	bool "Module Internal"
-endchoice
-
-choice
-	prompt "ISP Clock Source"
-	default BR2_ISP_CLK_SCLKA
-	depends on BR2_SOC_FAMILY_INGENIC_T23
-	help
-	  Select the clock source for the AVPU
-
-config BR2_ISP_CLK_SCLKA
-	bool "SCLKA_CLK"
-endchoice
-
-choice
-	prompt "ISP Clock-A Source"
-	default BR2_ISP_CLKA_SCLKA
-	depends on BR2_SOC_FAMILY_INGENIC_T23
-	help
-	  Select the clock source for the AVPU
+	  Select the clock source for the ISP's AXI bus. (clka_name)
 
 config BR2_ISP_CLKA_SCLKA
-	bool "SCLKA_CLK"
+	bool "SCLKA"
+
+config BR2_ISP_CLKA_INTERNAL
+        bool "Module Internal"
 endchoice
 
 choice
-	prompt "ISP Clock-A Speed"
+	prompt "ISP AXI Bus Clock Speed"
 	default BR2_ISP_CLKA_400MHZ
-	depends on BR2_SOC_FAMILY_INGENIC_T23
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
 	help
-	  Choose the ISP clock speed from the predefined options.
+	  Choose the ISP's AXI bus clock speed from the predefined options.
 
 config BR2_ISP_CLKA_400MHZ
 	bool "400 MHz"
@@ -1423,11 +1430,365 @@ config BR2_SENSOR_PARAM_DATA_TYPE
 endmenu
 endif
 
-config BR2_ISP_PARAMS
-	string "ISP parameters"
-	help
-	  Set additional parameters passed to the ISP kernel module
+menu "ISP Debug Configuration"
 
+choice
+	prompt "ISP Debug Print Level"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	default BR2_ISP_PRINT_LEVEL_1
+	help
+	  Select the debug print level for the ISP.
+	  (print_level)
+
+config BR2_ISP_PRINT_LEVEL_0
+	bool "ISP Print Level 0"
+	help
+	  Enable ISP debug print level 0 - All messages (info, warnings, and errors) will be printed
+
+config BR2_ISP_PRINT_LEVEL_1
+	bool "ISP Print Level 1"
+	help
+	  Enable ISP debug print level 1 - Only warnings and errors will be printed
+
+config BR2_ISP_PRINT_LEVEL_2
+	bool "ISP Print Level 2"
+	help
+	  Enable ISP debug print level 2 - Only errors will be printed
+
+config BR2_ISP_PRINT_LEVEL_3
+	bool "ISP Print Level 3"
+	help
+	  Enable ISP debug print level 3 - No messages will be printed
+endchoice
+
+choice
+	prompt "ISP Memory Optimization Level"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40
+	default BR2_ISP_MEMOPT_1 if BR2_SOC_FAMILY_32MB || BR2_SOC_FAMILY_64MB
+	help
+	  Select the memory optimization level for the ISP.
+	  (isp_memopt)
+
+config BR2_ISP_MEMOPT_0
+	bool "Optimize Disabled"
+	help
+	  Disables the ISP memory optimization.
+
+config BR2_ISP_MEMOPT_1
+	bool "Optimize Level 1"
+	help
+	  Enable ISP memory optimization - Level 1 - Bypass Lynne + BGM
+
+config BR2_ISP_MEMOPT_2
+	bool "Optimize Level 2"
+	help
+	  Enable ISP memory optimization - Level 2 - Bypass Lynne + BGM + Ass
+
+config BR2_ISP_MEMOPT_3
+	bool "Optimize Level 3"
+	help
+	  Enable ISP memory optimization - Level 3 - Normal
+endchoice
+
+menuconfig BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	bool "ISP Day/Night Switch Drop Frame Number"
+	help
+	  Enable the drop frame feature during the day/night switch.
+
+config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE
+	depends on BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME
+	int "Number of frames to drop"
+	default 0
+	help
+	  Specify the exact number of frames to drop during the switch.
+	  This setting is only active if the drop frame feature is enabled.
+	  (isp_day_night_switch_drop_frame_num)
+
+menuconfig BR2_ISP_CH0_PRE_DEQUEUE_TIME
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	bool "ISP CH0 Pre-dequeue Time"
+	help
+	  Enable the pre-dequeue time for channel 0.
+
+config BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE
+	depends on BR2_ISP_CH0_PRE_DEQUEUE_TIME
+	int "Pre-dequeue time in milliseconds"
+	default 0
+	help
+	  Specify the exact pre-dequeue time for channel 0 in milliseconds.
+	  This setting is only active if the pre-dequeue time feature is enabled.
+	  (isp_ch0_pre_dequeue_time)
+
+menuconfig BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	bool "ISP CH0 Pre-dequeue Interrupt Processing"
+	help
+	  Enable the interrupt processing time for pre-dequeue for channel 0.
+
+config BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_VALUE
+	depends on BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
+	int "Interrupt processing time"
+	default 0
+	help
+	  Specify the interrupt processing time for pre-dequeue for channel 0.
+	  This setting is only active if the feature is enabled.
+	  (isp_ch0_pre_dequeue_interrupt_process)
+
+menuconfig BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	bool "ISP CH0 Valid Lines for Pre-dequeue"
+	help
+	  Enable the number of valid lines for pre-dequeue for channel 0.
+
+config BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE
+	depends on BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
+	int "Pre-dequeue valid lines"
+	default 0
+	help
+	  Specify the number of valid lines for pre-dequeue for channel 0.
+	  This setting is only active if the feature is enabled.
+	  (isp_ch0_pre_dequeue_valid_lines)
+
+menuconfig BR2_ISP_CH1_DEQUEUE_DELAY_TIME
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	bool "ISP CH1 Pre-dequeue Delay Time"
+	help
+	  Enable the pre-dequeue delay time for channel 1.
+
+config BR2_ISP_CH1_DEQUEUE_DELAY_TIME_VALUE
+	depends on BR2_ISP_CH1_DEQUEUE_DELAY_TIME
+	int "Pre-dequeue delay time in milliseconds"
+	default 0
+	help
+	  Specify the pre-dequeue delay time for channel 1 in milliseconds.
+	  This setting is only active if the feature is enabled.
+	  (isp_ch1_dequeue_delay_time)
+
+config BR2_ISP_MIPI_SWITCH_GPIO
+	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+	int "mipi switch"
+	default 7
+	help
+	  Specify the pre-dequeue delay time for channel 1 in milliseconds.
+	  This setting is only active if the feature is enabled.
+	  (mipi_switch_gpio)
+
+choice
+	prompt "ISP Direct Mode"
+	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
+	help
+	  Configure non-direct mode, direct mode, and semi-direct mode.
+	  (direct_mode)
+
+config BR2_ISP_DIRECT_MODE_0
+	bool "Non Direct Mode"
+	help
+	  Disables the ISP direct mode
+
+config BR2_ISP_DIRECT_MODE_1
+	bool "Direct Mode"
+	help
+	  Enable ISP direct mode
+
+config BR2_ISP_DIRECT_MODE_2
+	bool "Semi-Direct Mode"
+	help
+	  Enable ISP semi-direct mode.
+
+endchoice
+
+menuconfig BR2_ISP_IVDC_MEM_LINE
+	depends on (BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41) && BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+	bool "ISP IVDC Mem Line"
+	help
+	  Enable the IVDC mem line configuration.
+
+config BR2_ISP_IVDC_MEM_LINE_VALUE
+	depends on BR2_ISP_IVDC_MEM_LINE
+	int "IVDC lines stored in DDR"
+	help
+	  Configure the number of lines stored in DDR in IVDC ( one line represents width, aligned with 256).
+	  0: Y Configuration height, UV configuration height/2, this time means DDR can store 1 frame size of data (default value)
+	  >0: Y configuration ivdc_mem_line, UV configuration ivdc_mem_line/2.
+
+	  This setting is only active if the feature is enabled.
+	  (ivdc_mem_line)
+
+menuconfig BR2_ISP_IVDC_THRESHOLD_LINE
+	depends on (BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41) && BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+	bool "ISP Threshold Line"
+	help
+	  Enable the IVDC threshold line configuration.
+
+config BR2_ISP_IVDC_THRESHOLD_LINE_VALUE
+	depends on BR2_ISP_IVDC_THRESHOLD_LINE
+	int "IVDC encoding cache"
+	help
+	  Configure the threshold of IVDC encoding cache (unit: line number width, aligned with 256)
+	  0: Configured as height/2, indicating that the threshold is half frame (default value)
+	  >0: Indicates that the cache is width * ivdc_threshold_line
+
+	  This setting is only active if the feature is enabled.
+	  (ivdc_threshold_line)
+
+config BR2_ISP_CONFIG_HZ
+	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+	int "ISP Config Hz"
+	help
+	  Specify the frequency for the ISP multi frame capture.
+	  This setting is only active if the feature is enabled.
+	  (isp_config_hz)
+
+menuconfig BR2_ISP_ISPW
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Output Width"
+	help
+	  Set the width of the ISP output.
+
+config BR2_ISP_ISPW_VALUE
+	depends on BR2_ISP_ISPW
+	int "ISP Output Width"
+	default 0
+	help
+	  Set the width of the ISP output.
+
+menuconfig BR2_ISP_ISPH
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Output Height"
+	help
+	  Set the height of the ISP output.
+
+config BR2_ISP_ISPH_VALUE
+	depends on BR2_ISP_ISPH
+	int "ISP Output Height"
+	default 0
+	help
+	  Set the height of the ISP output.
+
+menuconfig BR2_ISP_ISPTOP
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Output Top"
+	help
+	  Set the top of the ISP output.
+
+config BR2_ISP_ISPTOP_VALUE
+	depends on BR2_ISP_ISPTOP
+	int "ISP Output Top"
+	default 0
+	help
+	  Set the top of the ISP output.
+
+menuconfig BR2_ISP_ISPLEFT
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Output Left"
+	help
+	  Set the left of the ISP output.
+
+config BR2_ISP_ISPLEFT_VALUE
+	depends on BR2_ISP_ISPLEFT
+	int "ISP Output Left"
+	default 0
+	help
+	  Set the left of the ISP output.
+
+menuconfig BR2_ISP_ISPCROP
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Crop"
+	help
+	  Set the crop of the ISP output.
+
+config BR2_ISP_ISPCROP_VALUE
+	depends on BR2_ISP_ISPCROP
+	int "ISP Crop"
+	default 0
+	help
+	  Set the crop of the ISP output.
+
+menuconfig BR2_ISP_ISPCROPWH
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Crop Width and Height"
+	help
+	  Set the crop width and height of the ISP output.
+
+config BR2_ISP_ISPCROPWH_VALUE
+	depends on BR2_ISP_ISPCROPWH
+	int "ISP Crop Width and Height"
+	default 0
+	help
+	  Set the crop width and height of the ISP output.
+
+menuconfig BR2_ISP_ISPCROPTL
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Crop Top and Left"
+	help
+	  Set the crop top and left of the ISP output.
+
+config BR2_ISP_ISPCROPTL_VALUE
+	depends on BR2_ISP_ISPCROPTL
+	int "ISP Crop Top and Left"
+	default 0
+	help
+	  Set the crop top and left of the ISP output.
+
+menuconfig BR2_ISP_ISPSCALER
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Scaler"
+	help
+	  Set the scaler of the ISP output.
+
+config BR2_ISP_ISPSCALER_VALUE
+	depends on BR2_ISP_ISPSCALER
+	int "ISP Scaler"
+	default 0
+	help
+	  Set the scaler of the ISP output.
+
+menuconfig BR2_ISP_ISPSCALERWH
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP Scaler Width and Height"
+	help
+	  Set the scaler width and height of the ISP output.
+
+config BR2_ISP_ISPSCALERWH_VALUE
+	depends on BR2_ISP_ISPSCALERWH
+	int "ISP Scaler Width and Height"
+	default 0
+	help
+	  Set the scaler width and height of the ISP output.
+
+menuconfig BR2_ISP_ISP_M1_BUFS
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP M1 Bufs"
+	help
+	  Set the number of LDC input buffers.
+
+config BR2_ISP_ISP_M1_BUFS_VALUE
+	depends on BR2_ISP_ISP_M1_BUFS
+	int "ISP M1 Bufs"
+	default 2
+	help
+	  Set the number of LDC input buffers.
+
+menuconfig BR2_ISP_ISP_M2_BUFS
+	depends on BR2_SOC_FAMILY_INGENIC_T30
+	bool "ISP M2 Bufs"
+	help
+	  Set the number of LDC output buffers.
+
+config BR2_ISP_ISP_M2_BUFS_VALUE
+	depends on BR2_ISP_ISP_M2_BUFS
+	int "ISP M2 Bufs"
+	default 2
+	help
+	  Set the number of LDC output buffers.
+
+config BR2_ISP_PARAMS
+	string "Extra ISP parameters"
+	help
+	  Set additional parameters passed to the ISP kernel module when it is loaded.
+
+endmenu
 endmenu
 
 config BR2_THINGINO_GPIO_LIST
@@ -1509,6 +1870,51 @@ config BR2_THINGINO_BUTTON
 	help
 	  The hardware has a physical button wired to a GPIO.
 
+config BR2_THINGINO_NNA
+	bool "Neural Network Acceleration Support"
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	help
+	Enable support for Neural Network Acceleration on A1 SoCs.
+
+config BR2_THINGINO_VIDEO_OUT
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	select BR2_THINGINO_FRAMEBUFFER
+	select BR2_THINGINO_IPU
+	select BR2_THINGINO_VENC
+	bool "Video Output Support"
+	help
+	The hardware has a video output support.  Enables venc, framebuffer, and vo modules.
+
+config BR2_THINGINO_HDMI_AUDIO
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool "HDMI Audio Support"
+	help
+	The hardware has a HDMI audio support.  Enables hdmi_audio module.
+
+config BR2_THINGINO_AIP
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool "Ingenic AIP Support"
+	help
+	The hardware has a AIP DMA engine.  Enables ingenic-aip module.
+
+config BR2_THINGINO_VDEC
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool "VDEC Support"
+	help
+	The hardware has a video decoder support.  Enables vdec module.
+
+config BR2_THINGINO_FRAMEBUFFER
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool
+
+config BR2_THINGINO_VDE
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool
+
+config BR2_THINGINO_IPU
+	depends on BR2_SOC_FAMILY_INGENIC_A1
+	bool
+
 endmenu
 
 source "$BR2_EXTERNAL_THINGINO_PATH/Config.sensor.in"
@@ -1534,7 +1940,7 @@ config FLASH_SIZE_16
 config FLASH_SIZE_32
 	bool "32MB (256MBit)"
 	depends on BR2_THINGINO_FLASH_NOR
-	select BR2_PACKAGE_THINGINO_UBOOT_ENABLE_BAR if !FLASH_NAND
+	select BR2_PACKAGE_THINGINO_UBOOT_ENABLE_BAR if (!FLASH_NAND && !BR2_SOC_FAMILY_INGENIC_T40 && !BR2_SOC_FAMILY_INGENIC_T41)
 config FLASH_SIZE_128
 	depends on BR2_THINGINO_FLASH_NAND
 	bool "128MB"
@@ -1633,7 +2039,7 @@ menu "Device Type"
 	config BR2_THINGINO_DEV_NVR
 		bool "NVR"
 		help
-		  Specifies the device type as a NetwoBR2_THINGINO_DEV_SBCrk Video Recorder and installs configurations
+		  Specifies the device type as a Network Video Recorder and installs configurations
 		  specific to this type.
 
 	config BR2_THINGINO_DEV_SBC

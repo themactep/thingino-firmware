@@ -26,8 +26,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	[ "/" = "${record_filename:0:1}" ] && record_filename="${record_filename:1}"
 
 	# validate
-	error_if_empty "$record_mount" "Record mount cannot be empty."
-	error_if_empty "$record_filename" "Record filename cannot be empty."
+	if [ "true" = "$record_enabled" ]; then
+		error_if_empty "$record_mount" "Record mount cannot be empty."
+		error_if_empty "$record_filename" "Record filename cannot be empty."
+	fi
 
 	if [ -z "$error" ]; then
 		save2config "
@@ -69,7 +71,7 @@ defaults
 <div class="row g-1">
 <div class="col-8"><% field_text "record_filename" "File name template" "$STR_SUPPORTS_STRFTIME" %></div>
 <div class="col-2"><% field_number "record_duration" "Duration" "" "seconds" %></div>
-<div class="col-2"><% field_select "record_videofmt" "Format" "mov, mp4" "also extension" %></div>
+<div class="col-2"><% field_select "record_videofmt" "Format" "mp4,mkv,mov" "also extension" %></div>
 </div>
 </div>
 <div class="col">

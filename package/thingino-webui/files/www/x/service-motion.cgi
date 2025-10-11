@@ -9,7 +9,7 @@ page_title="Motion Guard"
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <% field_range "motion_sensitivity" "Sensitivity" "1,8,1" %>
-<% field_range "motion_cooldown_time" "Delay between alerts, sec." "5,30,1" %>
+<% field_range "motion_cooldown_time" "Delay between alerts, sec." "5,60,1" %>
 </div>
 <div class="col">
 <% field_checkbox "motion_send2email" "Send to email address" "<a href=\"tool-send2email.cgi\">Configure sending to email</a>" %>
@@ -17,6 +17,7 @@ page_title="Motion Guard"
 <% field_checkbox "motion_send2mqtt" "Send to MQTT" "<a href=\"tool-send2mqtt.cgi\">Configure sending to MQTT</a>" %>
 <% field_checkbox "motion_send2webhook" "Send to webhook" "<a href=\"tool-send2webhook.cgi\">Configure sending to a webhook</a>" %>
 <% field_checkbox "motion_send2ftp" "Upload to FTP" "<a href=\"tool-send2ftp.cgi\">Configure uploading to FTP</a>" %>
+<% field_checkbox "motion_send2ntfy" "Send to Ntfy" "<a href=\"tool-send2ntfy.cgi\">Configure sending to Ntfy</a>" %>
 <% field_checkbox "motion_send2yadisk" "Upload to Yandex Disk" "<a href=\"tool-send2yadisk.cgi\">Configure sending to Yandex Disk</a>" %>
 </div>
 <div class="col">
@@ -31,10 +32,11 @@ which sends alerts through the selected and preconfigured notification methods.<
 
 <script>
 const motion_params = ['enabled', 'sensitivity', 'cooldown_time'];
-const send2_targets = ['email', 'ftp', 'mqtt', 'telegram', 'webhook', 'yadisk'];
+const send2_targets = ['email', 'ftp', 'mqtt', 'telegram', 'webhook', 'ntfy', 'yadisk'];
 
 const wsPort = location.protocol === "https:" ? 8090 : 8089;
-let ws = new WebSocket('//' + document.location.hostname + ':' + wsPort + '?token=<%= $ws_token %>');
+const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
+let ws = new WebSocket(`${wsProto}//${document.location.hostname}:${wsPort}?token=<%= $ws_token %>`);
 
 ws.onopen = () => {
 	console.log('WebSocket connection opened');

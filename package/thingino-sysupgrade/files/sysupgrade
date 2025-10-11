@@ -26,6 +26,7 @@ self=$(realpath $0)
 selfupdate="true"
 bbapplets="echo flash_eraseall flashcp reboot sh sleep"
 upgrade=""
+gestalt_app="/sbin/gestalt"
 
 bye() {
 	die "\n\n\tMaybe next time..."
@@ -48,7 +49,13 @@ check_free_space() {
 
 	dl_size=$(curl -sIL $1 | awk '/Content-Length:\s\d{2,}/{gsub(/\r/,"",$2);print $2}')
 	if [ -z "$dl_size" ]; then
-		die "Cannot get remote file size. Camera profile name may have changed. Please run gestalt and select the correct profile."
+		if [ ! -f "$gestalt_app" ]; then
+			gestalt_url="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/gestalt"
+			download "$gestalt_url" "$gestalt"
+			chmod +x "$gestalt"
+		fi
+		echo "Cannot get remote file size. Camera profile name may have changed."
+		die "Please run gestalt and select the correct profile."
 	fi
 
 	if [ "$dl_size" -le 0 ]; then
@@ -238,7 +245,7 @@ handle_payload() {
 		rm -v $sha_file
 
 		say "Relocate downloaded file"
-		if ! mv -v "$bin_file" "$fw_file"; then
+		if ! mv -fv "$bin_file" "$fw_file"; then
 			die "Cannot move $bin_file to $fw_file"
 		fi
 	fi
@@ -295,6 +302,9 @@ stop_services() {
 				;;
 		esac
 	done
+
+	say "Running processes:"
+	ps w
 }
 
 unmount_config() {
@@ -407,7 +417,8 @@ if [ -z "$upgrade" ]; then
 				die "Cannot find file $ufile (from $(pwd))"
 			fi
 			say "Found $ufile"
-			mv -v "$ufile" "$fw_file"
+			mv -fv "$ufile" "$fw_file"
+			ORIGINAL_ARG="${ORIGINAL_ARG/$ufile/$fw_file}"
 		fi
 	fi
 fi

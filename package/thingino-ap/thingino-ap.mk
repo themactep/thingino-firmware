@@ -1,3 +1,6 @@
+THINGINO_AP_SITE_METHOD = local
+THINGINO_AP_SITE = $(BR2_EXTERNAL)/package/thingino-ap
+
 define THINGINO_AP_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/dnsd-ap.conf \
 		$(TARGET_DIR)/etc/dnsd-ap.conf

@@ -11,13 +11,48 @@
 #include <unistd.h>
 #include <termios.h>
 
+// Define CRTSCTS if not defined
+#ifndef CRTSCTS
+#define CRTSCTS 020000000000
+#endif
+
 // Convert a hexadecimal ASCII character to its ASCII value
 unsigned char hex_char_to_ascii(char c) {
 	return (unsigned char)c;
 }
 
+// Check if a MAC address is in valid format (XX:XX:XX:XX)
+int is_valid_mac_format(const char *mac) {
+	// Check if the MAC has the correct length and colons in the right positions
+	if (strlen(mac) != 11) {
+		return 0;
+	}
+
+	if (mac[2] != ':' || mac[5] != ':' || mac[8] != ':') {
+		return 0;
+	}
+
+	// Check if all other characters are valid hexadecimal digits
+	for (int i = 0; i < 11; i++) {
+		if (i == 2 || i == 5 || i == 8) {
+			continue; // Skip the colon positions
+		}
+		if (!isxdigit(mac[i])) {
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 // Convert each pair of hexadecimal ASCII characters to their corresponding ASCII values
 void convert_mac_to_ascii(const char *mac, char *mac_ascii) {
+	// First, we should validate the MAC format
+	if (!is_valid_mac_format(mac)) {
+		fprintf(stderr, "Error: Invalid MAC address format. Use XX:XX:XX:XX format.\n");
+		exit(EXIT_FAILURE);
+	}
+
 	size_t j = 0;
 	for (size_t i = 0; i < strlen(mac); i++) {
 		if (mac[i] == ':') {
@@ -177,9 +212,51 @@ void send_verify_result(const char *mac_ascii, int debug_mode) {
 	close(serial_port);
 }
 
+// Display detailed help information
+void display_help(const char *program_name) {
+	printf("Wyze Doorbell Chime Controller\n");
+	printf("==============================\n\n");
+	printf("Usage:\n");
+	printf("  %s [-d] [-p] <MAC_ADDRESS> <SOUND_NAME_OR_NUMBER> <VOLUME> [REPEAT]\n", program_name);
+	printf("  %s [-d] -p <MAC_ADDRESS>\n", program_name);
+	printf("  %s -h\n\n", program_name);
+
+	printf("Options:\n");
+	printf("  -h    Display this help message\n");
+	printf("  -d    Debug mode (verbose output)\n");
+	printf("  -p    Pairing mode (pair with a doorbell chime)\n\n");
+
+	printf("Arguments:\n");
+	printf("  MAC_ADDRESS         MAC address of the doorbell chime in XX:XX:XX:XX format\n");
+	printf("  SOUND_NAME_OR_NUMBER  Sound to play, either by name or number (1-19)\n");
+	printf("  VOLUME              Volume level (1-8)\n");
+	printf("  REPEAT              Number of times to repeat the sound (1-255, default: 1)\n\n");
+
+	printf("Available Sound Names:\n");
+	printf("  SPACE_WAVE (1)      WIND_CHIME (2)     CURIOSITY (3)\n");
+	printf("  SURPRISE (4)        CHEERFUL (5)       DOORBELL_1 (6)\n");
+	printf("  DOORBELL_2 (7)      DOORBELL_3 (8)     DOORBELL_4 (9)\n");
+	printf("  BIRD_CHIRP (10)     DOG_BARK_1 (11)    DOG_BARK_2 (12)\n");
+	printf("  DOOR_CLOSE (13)     DOOR_OPEN (14)     SIMPLE_1 (15)\n");
+	printf("  SIMPLE_2 (16)       SIMPLE_3 (17)      SIMPLE_4 (18)\n");
+	printf("  INTRUDER (19)\n\n");
+
+	printf("Examples:\n");
+	printf("  %s -p 00:11:22:33   # Pair with chime at MAC 00:11:22:33\n", program_name);
+	printf("  %s 00:11:22:33 DOORBELL_1 5 2   # Play DOORBELL_1 sound at volume 5, repeat 2 times\n", program_name);
+	printf("  %s 00:11:22:33 15 8   # Play SIMPLE_1 sound at maximum volume\n", program_name);
+}
+
 int main(int argc, char *argv[]) {
 	int debug_mode = 0;
 	int pairing_mode = 0;
+	int help_mode = 0;
+
+	// Check if the -h flag is present (help mode)
+	if (argc > 1 && strcmp(argv[1], "-h") == 0) {
+		display_help(argv[0]);
+		return EXIT_SUCCESS;
+	}
 
 	// Check if the -d or -p flag is present
 	while (argc > 1 && (strcmp(argv[1], "-d") == 0 || strcmp(argv[1], "-p") == 0)) {
@@ -194,12 +271,22 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (pairing_mode && argc != 2) {
+		fprintf(stderr, "Error: Invalid arguments for pairing mode.\n");
 		fprintf(stderr, "Usage: %s [-d] -p <MAC_ADDRESS>\n", argv[0]);
+		fprintf(stderr, "Try '%s -h' for more information.\n", argv[0]);
 		return EXIT_FAILURE;
 	}
 
 	if (!pairing_mode && (argc < 4 || argc > 5)) {
-		fprintf(stderr, "Usage: %s [-d] [-p] <MAC_ADDRESS> <SOUND_NAME_OR_NUMBER> <VOLUME> [REPEAT]\n", argv[0]);
+		// If no arguments were provided at all (just the program name), show a friendlier message
+		if (argc == 1) {
+			fprintf(stderr, "Usage: %s [-d] <MAC_ADDRESS> <SOUND_NAME_OR_NUMBER> <VOLUME> [REPEAT]\n", argv[0]);
+			fprintf(stderr, "Try '%s -h' for more information.\n", argv[0]);
+		} else {
+			fprintf(stderr, "Error: Invalid number of arguments.\n");
+			fprintf(stderr, "Usage: %s [-d] <MAC_ADDRESS> <SOUND_NAME_OR_NUMBER> <VOLUME> [REPEAT]\n", argv[0]);
+			fprintf(stderr, "Try '%s -h' for more information.\n", argv[0]);
+		}
 		return EXIT_FAILURE;
 	}
 
@@ -230,12 +317,6 @@ int main(int argc, char *argv[]) {
 	const char *sound_arg = argv[2];
 	const char *volume_arg = argv[3];
 	const char *repeat_arg = (argc == 5) ? argv[4] : "1";  // Default repeat value is 1
-
-	// Validate MAC address format
-	if (strlen(mac) != 11 || mac[2] != ':' || mac[5] != ':' || mac[8] != ':') {
-		fprintf(stderr, "Invalid MAC address format. Use XX:XX:XX:XX\n");
-		return EXIT_FAILURE;
-	}
 
 	// Get sound ID
 	int sound_id;

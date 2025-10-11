@@ -10,7 +10,7 @@ endef
 endif
 
 define THINGINO_ETHERNET_BUSYBOX_CONFIG_FIXUPS
-	$(call KCONFIG_ENABLE_OPT,CONFIG_IFPLUGD)
+	$(call THINGINO_ETHERNET_BUSYBOX_CONFIG_FIXUPS_ETH)
 endef
 
 $(eval $(generic-package))

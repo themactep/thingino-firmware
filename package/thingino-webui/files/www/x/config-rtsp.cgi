@@ -3,26 +3,25 @@
 <%
 page_title="RTSP/ONVIF Access"
 
-prudynt_config=/etc/prudynt.cfg
-onvif_config=/etc/onvif.conf
+prudynt_config=/etc/prudynt.json
 
 rtsp_username=$(awk -F: '/Streaming Service/{print $1}' /etc/passwd)
-default_for rtsp_username "$(awk -F'"' '/username/{print $2}' $prudynt_config)"
+default_for rtsp_username "$(jct $prudynt_config get rtsp.username | tr -d '"')"
 default_for rtsp_username "thingino"
 
-default_for rtsp_password "$(awk -F'"' '/password/{print $2}' $prudynt_config)"
+default_for rtsp_password "$(jct $prudynt_config get rtsp.password | tr -d '"')"
 default_for rtsp_password "thingino"
 
-rtsp_port=$(prudyntcfg get rtsp.port)
+rtsp_port=$(jct $prudynt_config get rtsp.port)
 default_for rtsp_port "554"
 
-onvif_port=$(awk -F= '/^port=/{print $2}' /etc/onvif.conf)
+onvif_port=$(jct /etc/onvif.json get port)
 default_for onvif_port "80"
 
-rtsp_endpoint_ch0=$(prudyntcfg get stream0.rtsp_endpoint | tr -d '"')
+rtsp_endpoint_ch0=$(jct $prudynt_config get stream0.rtsp_endpoint | tr -d '"')
 default_for rtsp_endpoint_ch0 "ch0"
 
-rtsp_endpoint_ch1=$(prudyntcfg get stream1.rtsp_endpoint | tr -d '"')
+rtsp_endpoint_ch1=$(jct $prudynt_config get stream1.rtsp_endpoint | tr -d '"')
 default_for rtsp_endpoint_ch1 "ch1"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
@@ -30,13 +29,9 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	sanitize rtsp_password
 
 	if [ -z "$error" ]; then
-		tmpfile=$(mktemp)
-		cat $onvif_config > $tmpfile
-		#sed -i "/^user=/cuser=$rtsp_username" $tmpfile
-		sed -i "/^password=/cpassword=$rtsp_password" $tmpfile
-		mv $tmpfile $onvif_config
+		jct /etc/onvif.json set password "$rtsp_password"
 
-		prudyntcfg set rtsp.password "\"$rtsp_password\""
+		jct $prudynt_config set rtsp.password "$rtsp_password" > /dev/null
 
 		echo "$rtsp_username:$rtsp_password" | chpasswd -c sha512
 
@@ -76,7 +71,7 @@ fi
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "grep ^thingino /etc/shadow" %>
-<% ex "grep ^password $onvif_config" %>
+<% ex "grep password /etc/onvif.json" %>
 <% ex "grep password $prudynt_config | sed -E 's/^\s+//'" %>
 </div>
 

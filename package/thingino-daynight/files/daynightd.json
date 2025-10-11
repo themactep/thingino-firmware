@@ -1,0 +1,18 @@
+{
+  "device_path": "/dev/isp-m0",
+  "brightness_thresholds": {
+    "threshold_low": 25.0,
+    "threshold_high": 75.0,
+    "hysteresis_factor": 0.1
+  },
+  "timing": {
+    "sample_interval_ms": 500,
+    "transition_delay_s": 5
+  },
+  "system": {
+    "enable_syslog": true,
+    "daemon_mode": true,
+    "debug_level": "INFO",
+    "pid_file": "/run/daynightd.pid"
+  }
+}

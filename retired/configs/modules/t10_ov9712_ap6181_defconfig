@@ -1,0 +1,6 @@
+# NAME: T10, OV9712, AP6181
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_SYN4343=y
+BR2_SENSOR_OV9712=y
+BR2_SOC_INGENIC_T10L=y

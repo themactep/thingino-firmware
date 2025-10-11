@@ -1,3 +1,5 @@
 #!/bin/sh
+# Prints text in color
+
 [ -z "$HASERLVER" ] && t="\e[38;5;$1m$2\e[0m" || t="$2"
 echo -e "$t"

@@ -1,0 +1,5 @@
+#!/bin/sh
+
+ulimit -c unlimited
+echo "|/usr/sbin/sendcoredump" >/proc/sys/kernel/core_pattern
+

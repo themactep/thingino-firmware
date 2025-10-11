@@ -1,27 +1,89 @@
 config BR2_PACKAGE_PRUDYNT_T
 	bool "Prudynt-T streamer"
+	depends on !BR2_SOC_FAMILY_INGENIC_A1
 	select BR2_PACKAGE_FAAC
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
 	select BR2_PACKAGE_INGENIC_LIBIMP_CONTROL
-	select BR2_PACKAGE_LIBCONFIG
+	select BR2_PACKAGE_LIBHELIX_AAC
+	select BR2_PACKAGE_LIBSCHRIFT
+	select BR2_PACKAGE_LIBWEBSOCKETS_435
 	select BR2_PACKAGE_THINGINO_LIVE555
-	select BR2_PACKAGE_THINGINO_FREETYPE if !BR2_PACKAGE_PRUDYNT_T_NG
 	select BR2_PACKAGE_THINGINO_FONTS
 	select BR2_PACKAGE_THINGINO_OPUS
-	select BR2_PACKAGE_LIBHELIX_AAC
-	depends on !(BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41 || BR2_SOC_FAMILY_INGENIC_A1)
+	select BR2_PACKAGE_THINGINO_JCT
+	select BR2_PACKAGE_THINGINO_ONVIF
 	help
 	  Video streamer for Ingenic T-series.
+	  Now uses JSON configuration format with json-c library.
 
 	  https://github.com/gtxaspec/prudynt-t
 
-config BR2_PACKAGE_PRUDYNT_T_NG
-	bool "Prudynt NG"
+config BR2_PACKAGE_PRUDYNT_T_FFMPEG
+	bool "Enable FFmpeg integration (parsers/bitstream filters)"
 	depends on BR2_PACKAGE_PRUDYNT_T
-	select BR2_PACKAGE_LIBSCHRIFT
-	select BR2_PACKAGE_LIBWEBSOCKETS
+	select BR2_PACKAGE_THINGINO_FFMPEG
 	help
-	  Use Next Generation experimental version of Prudynt-T streamer.
+	  Enable FFmpeg-based H.264/H.265 parsing and bitstream filters (AUD insertion,
+	  extract_extradata). Prudynt will link against the FFmpeg built by the
+	  thingino-ffmpeg package in Buildroot.
 
-	  https://github.com/Lu-Fi/prudynt-t
+config BR2_PACKAGE_PRUDYNT_T_DEBUG
+	bool "Enable debug build"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	select BR2_PACKAGE_GDB
+	help
+	  Enable debug build of Prudynt-T with memory safety checking.
+
+	  This option enables:
+	  - Debug symbols (-g)
+	  - Disabled optimizations (-O0)
+	  - AddressSanitizer for memory error detection (when supported)
+	  - UndefinedBehaviorSanitizer for runtime checks
+	  - Preserved debug information (no symbol stripping)
+
+	  IMPORTANT: Debug builds require NFS configuration!
+
+	  Debug components are installed to the NFS share to keep firmware
+	  images small:
+	  - Unstripped binary: $(THINGINO_NFS)/usr/bin/prudynt-debug
+	  - Debug symbols: $(THINGINO_NFS)/usr/lib/debug/usr/bin/prudynt.debug
+	  - Debug tools: $(THINGINO_NFS)/usr/bin/prudynt-*
+
+	  The firmware image will only contain the stripped binary at
+	  /usr/bin/prudynt to maintain minimal size for camera deployment.
+
+	  To use debug builds:
+	  1. Set BR2_THINGINO_NFS in buildroot configuration
+	  2. Mount NFS on camera: mount -t nfs server:/path /mnt/nfs
+	  3. Access debug tools: /mnt/nfs/usr/bin/prudynt-debug
+
+	  Use this for development, debugging memory issues, and
+	  troubleshooting crashes on camera hardware.
+
+	  WARNING: Debug builds are significantly larger and slower.
+	  Only use for development and debugging purposes.
+
+comment "prudynt-t debug build requires NFS configuration! Set BR2_THINGINO_NFS to your NFS mount point (e.g., /nfs)."
+	depends on BR2_PACKAGE_PRUDYNT_T_DEBUG
+	depends on BR2_THINGINO_NFS = ""
+
+config BR2_PACKAGE_PRUDYNT_T_WEBRTC
+	bool "WebRTC support"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_LIBPEER
+	help
+	  Enable WebRTC real-time streaming support for Prudynt-T.
+	  Adds WebRTC peer-to-peer streaming capabilities using libpeer.
+
+	  This feature allows direct browser-to-camera streaming without
+	  requiring RTSP clients, enabling modern web applications to
+	  access camera streams directly.
+
+	  Dependencies: libpeer (includes wolfSSL, libsrtp)
+	  Additional memory usage: ~2-4MB per WebRTC connection
+
+comment "WebRTC support needs a toolchain w/ threads, dynamic library"
+	depends on BR2_PACKAGE_PRUDYNT_T && (!BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS)

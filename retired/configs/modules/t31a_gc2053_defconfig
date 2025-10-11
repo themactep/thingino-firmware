@@ -1,0 +1,4 @@
+# NAME: T31A, GC2053
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_SENSOR_GC2053=y
+BR2_SOC_INGENIC_T31A=y

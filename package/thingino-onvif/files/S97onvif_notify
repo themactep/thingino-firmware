@@ -1,0 +1,60 @@
+#!/bin/sh
+
+DAEMON="onvif_notify_server"
+DAEMON_ARGS="-c /etc/onvif.json -p /run/$DAEMON.pid"
+MOTION="/run/motion"
+
+. /usr/share/common
+
+# read web config
+ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
+[ -f $ONVIF_WEBUI_CONF ] && . $ONVIF_WEBUI_CONF
+
+# default to "enabled" (config is managed by S96onvif_discovery)
+[ -z "$onvif_enabled" ] && onvif_enabled="true"
+
+start() {
+	echo_title "Starting ONVIF Notify service"
+
+	if is_streamer_disabled; then
+		echo_error "Streamer disabled"
+		exit 1
+	fi
+
+	if [ "true" != "$onvif_enabled" ]; then
+		echo_error "ONVIF disabled"
+		exit 1
+	fi
+
+	if [ ! -d "$MOTION" ]; then
+		mkdir -p $MOTION
+	fi
+
+	start_daemon
+}
+
+stop() {
+	echo_title "Stopping ONVIF Notify service"
+
+	stop_daemon
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		sleep 1
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

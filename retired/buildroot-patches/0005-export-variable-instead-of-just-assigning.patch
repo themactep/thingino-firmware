@@ -1,0 +1,27 @@
+From e2d6e32c96668717ebad821923c345b5f4a9a4b4 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <themactep@gmail.com>
+Date: Sun, 22 Sep 2024 02:15:43 -0400
+Subject: [PATCH 05/10] export variable instead of just assigning
+
+---
+ package/pkg-download.mk | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/package/pkg-download.mk b/package/pkg-download.mk
+index fcb4bd2d90..20d8532d9f 100644
+--- a/package/pkg-download.mk
++++ b/package/pkg-download.mk
+@@ -57,7 +57,9 @@ github = https://github.com/$(1)/$(2)/archive/$(3)
+ gitlab = https://gitlab.com/$(1)/$(2)/-/archive/$(3)
+ 
+ # Expressly do not check hashes for those files
+-BR_NO_CHECK_HASH_FOR =
++# Exported variables default to immediately expanded in some versions of
++# make, but we need it to be recursively expanded, so explicitly assign it.
++export BR_NO_CHECK_HASH_FOR =
+ 
+ ################################################################################
+ # DOWNLOAD_URIS - List the candidates URIs where to get the package from:
+-- 
+2.47.2
+

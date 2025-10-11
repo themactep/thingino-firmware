@@ -45,11 +45,11 @@ else ifeq ($(BR2_THINGINO_INGENIC_SDK_T21_1_0_33),y)
 else ifeq ($(BR2_THINGINO_INGENIC_SDK_T23_1_1_0),y)
 	SDK_VERSION := 1.1.0
 else ifeq ($(BR2_THINGINO_INGENIC_SDK_T23_1_1_0_MULTI),y)
-	SDK_VERSION := 1.1.0-double
+	SDK_VERSION := 1.1.0
 else ifeq ($(BR2_THINGINO_INGENIC_SDK_T23_1_1_2),y)
 	SDK_VERSION := 1.1.2
 else ifeq ($(BR2_THINGINO_INGENIC_SDK_T23_1_1_2_MULTI),y)
-	SDK_VERSION := 1.1.2-double
+	SDK_VERSION := 1.1.2
 else ifeq ($(BR2_THINGINO_INGENIC_SDK_T30_1_0_5),y)
 	SDK_VERSION := 1.0.5
 else ifeq ($(BR2_THINGINO_INGENIC_SDK_T31_1_1_1),y)
@@ -64,6 +64,8 @@ else ifeq ($(BR2_THINGINO_INGENIC_SDK_T31_1_1_5_2),y)
 	SDK_VERSION := 1.1.5.2
 else ifeq ($(BR2_THINGINO_INGENIC_SDK_T31_1_1_6),y)
 	SDK_VERSION := 1.1.6
+else ifeq ($(BR2_THINGINO_INGENIC_SDK_T32_1_0_4),y)
+	SDK_VERSION := 1.0.4
 else ifeq ($(BR2_THINGINO_INGENIC_SDK_C100_2_1_0),y)
 	# Use T31 1.1.6 libs for kernel version 3 C100 build
 	ifeq ($(KERNEL_VERSION_3),y)

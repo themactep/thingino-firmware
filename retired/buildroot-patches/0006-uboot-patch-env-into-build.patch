@@ -1,0 +1,33 @@
+From 0b628e670b1cf3717c550ad2aa04d8739548fdc5 Mon Sep 17 00:00:00 2001
+From: gtxaspec <gtxent@gmail.com>
+Date: Thu, 19 Dec 2024 20:51:18 -0800
+Subject: [PATCH 06/10] uboot: patch env into build
+
+---
+ boot/uboot/uboot.mk | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/boot/uboot/uboot.mk b/boot/uboot/uboot.mk
+index 2796b0a310..c78ffbe15d 100644
+--- a/boot/uboot/uboot.mk
++++ b/boot/uboot/uboot.mk
+@@ -567,6 +567,16 @@ endef
+ 
+ ifeq ($(BR2_TARGET_UBOOT)$(BR_BUILDING),yy)
+ 
++#
++# Patch uboot headers with env data for device if uenv.txt exists
++#
++ifneq ($(U_BOOT_ENV_TXT),)
++define PATCH_DEV_ENV
++	$(BR2_EXTERNAL)/scripts/uboot-device-env.sh $(U_BOOT_ENV_TXT) $(@D)/include/configs/isvp_common.h
++endef
++UBOOT_PRE_BUILD_HOOKS += PATCH_DEV_ENV
++endif
++
+ #
+ # Check U-Boot board name (for legacy) or the defconfig/custom config
+ # file options (for kconfig)
+-- 
+2.47.2
+

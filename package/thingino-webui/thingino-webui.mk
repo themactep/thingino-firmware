@@ -28,9 +28,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -D -m 0755 $(@D)/mjpeg_inotify \
 		$(TARGET_DIR)/var/www/x/mjpeg.cgi
-
-	find $(TARGET_DIR)/var/www/x/ -type f -name "*.cgi" -exec chmod 755 {} \;
-	find $(TARGET_DIR)/var/www/a/ -type f ! -name "*.gz" -exec gzip -9 {} \;
 endef
 
 $(eval $(generic-package))

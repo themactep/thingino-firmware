@@ -1,0 +1,14 @@
+config BR2_PACKAGE_THINGINO_PROVISION
+	bool "thingino-provision"
+	help
+	  Thingino Provisioning System
+
+	  This package provides an automated provisioning system for Thingino devices.
+	  It allows devices to fetch configuration from a provisioning server based on
+	  their MAC address, featuring secure authentication.
+
+	  Features:
+	  - Device-specific configuration based on MAC address
+	  - Secure authentication with salted password hashes
+	  - Support for UENV, SYSTEM, and USER configuration sections
+	  - DHCP-triggered provisioning support

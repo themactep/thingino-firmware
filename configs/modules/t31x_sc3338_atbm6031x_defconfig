@@ -1,6 +1,0 @@
-# NAME: T31X, SC3338, ATBM6031X
-# FRAG: soc toolchain ccache brand rootfs kernel system target uboot
-BR2_PACKAGE_WIFI=y
-BR2_PACKAGE_WIFI_ATBM6031X=y
-BR2_SENSOR_SC3338=y
-BR2_SOC_INGENIC_T31X=y

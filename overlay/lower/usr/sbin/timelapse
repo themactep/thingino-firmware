@@ -1,4 +1,5 @@
 #!/bin/sh
+# Grabs a snapshot for timelapse by cron
 
 . /usr/share/common
 

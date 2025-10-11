@@ -1,6 +1,7 @@
 config BR2_PACKAGE_THINGINO_WOLFSSL
 	bool "wolfssl"
 	depends on BR2_TOOLCHAIN_HAS_THREADS
+	select BR2_PACKAGE_CA_CERTIFICATES
 	help
 	  The wolfSSL embedded SSL library (formerly CyaSSL) is a
 	  lightweight, portable, C-language-based SSL/TLS library

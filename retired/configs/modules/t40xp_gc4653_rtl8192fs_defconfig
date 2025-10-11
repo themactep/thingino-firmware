@@ -1,0 +1,7 @@
+# NAME: T40XP, GC4653, RTL8192FS
+# FRAG: soc-xburst2 toolchain-xburst2 ccache brand rootfs kernel system target uboot ssl
+BR2_ETHERNET=y
+BR2_SENSOR_GC4653=y
+BR2_SOC_INGENIC_T40XP=y
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_RTL8192FS=y

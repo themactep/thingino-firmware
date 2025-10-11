@@ -1,5 +1,9 @@
 # NAME: Wyze Cam Pan v1 (T20X, JXF22, RTL8189ETV)
-# MODULE: t20x_jxf22_rtl8189etv
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_RTL8189ES=y
+BR2_SENSOR_JXF22=y
+BR2_SOC_INGENIC_T20X=y
 BR2_ISP_CLK_100MHZ=y
 BR2_PACKAGE_THINGINO_KOPT_DWC2=y
 BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG=y

@@ -1,0 +1,35 @@
+From: Thingino Project <dev@thingino.com>
+Date: [Current Date]
+Subject: [PATCH] Fix IPv6 header conflicts in private headers for musl
+
+Ensure UAPI guards are set before any IPv6 headers are included
+through the private header chain.
+
+Signed-off-by: Thingino Project <dev@thingino.com>
+---
+ lib/plat/unix/private-lib-plat-unix.h | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/lib/plat/unix/private-lib-plat-unix.h b/lib/plat/unix/private-lib-plat-unix.h
+index abcdef1..1234567 100644
+--- a/lib/plat/unix/private-lib-plat-unix.h
++++ b/lib/plat/unix/private-lib-plat-unix.h
+@@ -28,6 +28,16 @@
+ #include <strings.h>
+ #include <unistd.h>
+
++/* Prevent IPv6 structure redefinition with musl libc */
++#if !defined(__GLIBC__) && defined(__linux__)
++#define __UAPI_DEF_IN6_ADDR 0
++#define __UAPI_DEF_SOCKADDR_IN6 0
++#define __UAPI_DEF_IPV6_MREQ 0
++#define __UAPI_DEF_IN6_PKTINFO 0
++#define __UAPI_DEF_IP6_MTUINFO 0
++#define __UAPI_DEF_IPPROTO_V6 0
++#endif
++
+ #include <netinet/in.h>
+ #include <netinet/tcp.h>
+ #include <arpa/inet.h>
+--
+2.47.2

@@ -1,0 +1,163 @@
+#!/bin/sh
+
+. /usr/share/common
+
+singleton $0
+
+MODE_FILE="/tmp/nightmode.txt"
+[ -f "$MODE_FILE" ] || echo "day" >"$MODE_FILE"
+
+controls_color() {
+	if [ "true" != "$day_night_color" ]; then
+		echo_warning "Color not enabled"
+		return 1
+	fi
+}
+
+controls_ircut() {
+	if [ "true" != "$day_night_ircut" ]; then
+		echo_warning "IR-CUT filter not enabled"
+		return 1
+	fi
+}
+
+controls_ir850() {
+	if [ "true" != "$day_night_ir850" ]; then
+		echo_warning "IR LED 850mn not enabled"
+		return 1
+	fi
+
+	if [ -z "$gpio_ir850" ]; then
+		echo_warning "IR LED 850mn not configured"
+		return 1
+	fi
+}
+
+controls_ir940() {
+	if [ "true" != "$day_night_ir940" ]; then
+		echo_warning "IR LED 940mn not enabled"
+		return 1
+	fi
+
+	if [ -z "$gpio_ir940" ]; then
+		echo_warning "IR LED 940mn not configured"
+		return 1
+	fi
+}
+
+controls_white() {
+	if [ "true" != "$day_night_white" ]; then
+		echo_warning "White Light not enabled"
+		return 1
+	fi
+
+	if [ -z "$gpio_white" ]; then
+		echo_warning "White Light not configured"
+		return 1
+	fi
+}
+
+switch_to_day() {
+	echo_info "Switching to day mode..."
+
+	if controls_ircut; then
+		echo_info "set IR-CUT filter"
+		ircut on &
+	fi
+
+	if controls_ir850; then
+		echo_info "turn IR LED 850mn OFF"
+		irled off ir850 &
+	fi
+
+	if controls_ir940; then
+		echo_info "turn IR LED 940mn OFF"
+		irled off ir940 &
+	fi
+
+	if controls_white; then
+		echo_info "turn White Light OFF"
+		irled off white &
+	fi
+
+	if controls_color; then
+		echo_info "switch to color mode"
+		color on &
+	fi
+
+	echo "day" >"$MODE_FILE"
+}
+
+switch_to_night() {
+	echo_info "Switched to night mode"
+
+	if controls_color; then
+		echo_info "switch to monocrome mode"
+		color off &
+	fi
+
+	if controls_ircut; then
+		echo_info "remove IR-CUT filter"
+		ircut off &
+	fi
+
+	if controls_ir850; then
+		echo_info "turn IR LED 850mn ON"
+		irled on ir850 &
+	fi
+
+	if controls_ir940; then
+		echo_info "- turn IR LED 940mn ON"
+		irled on ir940 &
+	fi
+
+	if controls_white; then
+		echo_info "- turn White Light ON"
+		irled on white &
+	fi
+
+	echo "night" >"$MODE_FILE"
+}
+
+[ -z "$day_night_color" ] && day_night_color="true"
+[ -z "$day_night_ircut" ] && day_night_ircut="true"
+[ -z "$day_night_ir850" ] && day_night_ir850="true"
+[ -z "$day_night_ir850" ] && day_night_ir850="true"
+[ -z "$day_night_ir940" ] && day_night_ir940="true"
+[ -z "$day_night_white" ] && day_night_white="false"
+
+reversed=1
+state=$(cat "$MODE_FILE" 2>/dev/null)
+
+case "$1" in
+	night)
+		switch_to_night
+		;;
+	day)
+		switch_to_day
+		;;
+	~ | toggle)
+		if [ "day" = "$state" ]; then
+			switch_to_night
+		else
+			switch_to_day
+		fi
+		;;
+	\? | read | status)
+		echo $state
+		;;
+	*)
+		echo_info "value: $(cat /run/daynight/value 2>/dev/null)"
+		echo_info "day_night_min: $(jct /etc/daynightd.json get brightness_thresholds.threshold_low)"
+		echo_info "day_night_max: $(jct /etc/daynightd.json get brightness_thresholds.threshold_high)"
+		echo_info "state: $state"
+		if [ "day" = "$state" ]; then
+			echo_info "active range: 0-$day_night_max"
+		else
+			echo_info "active range: $day_night_min-Infinity"
+		fi
+		echo_info "value: $value"
+		;;
+esac
+
+exit 0

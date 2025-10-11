@@ -1,0 +1,13 @@
+{
+  "common.cancel": "Cancel",
+  "common.save": "Save",
+  "common.delete": "Delete",
+  "common.edit": "Edit",
+  "common.back": "Back",
+  
+  "language.current": "English",
+  "language.download_title": "Download Language Pack",
+  "language.code": "Language Code",
+  "language.url": "Language Pack URL",
+  "language.download": "Download"
+}

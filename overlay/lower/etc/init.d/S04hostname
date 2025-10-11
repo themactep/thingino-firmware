@@ -36,13 +36,15 @@ is_user_modified_hostname() {
 	return 0
 }
 
-generate() {
-	hostname="$(default_hostname)-$(echo $wlan_mac | sed -E 's/://g;s/.*(.{4})$/\1/')"
-	echo_info "Generated name: $hostname"
+set_hostname() {
+	local new_hostname="$1"
+	local source="$2"
 
-	if [ "$(hostname)" != "$hostname" ]; then
-		echo_info "Setting hostname to $hostname"
-		hostname "$hostname"
+	echo_info "Setting hostname to $new_hostname ($source)"
+
+	if [ "$(hostname)" != "$new_hostname" ]; then
+		echo_info "Updating current hostname"
+		hostname "$new_hostname"
 	fi
 
 	# Do not change hostname in $OS_RELEASE_FILE!
@@ -51,31 +53,45 @@ generate() {
 	hostname_in_hosts=$(sed -nE "s/^$ip\s+(.*)$/\1/p" $HOSTS_FILE)
 	echo_info "Hostname in $HOSTS_FILE is $hostname_in_hosts"
 
-	if [ "$hostname_in_hosts" = "$hostname" ]; then
+	if [ "$hostname_in_hosts" = "$new_hostname" ]; then
 		echo_info "Hostname in $HOSTS_FILE is correct"
 	else
 		echo_info "Updating hostname in $HOSTS_FILE"
-		sed -i "/^$ip/c$ip\t$hostname" $HOSTS_FILE
+		sed -i "/^$ip/c$ip\t$new_hostname" $HOSTS_FILE
 	fi
 
 	hostname_in_hostname=$(cat $HOSTNAME_FILE)
-	if [ "$hostname_in_hostname" = "$hostname" ]; then
+	if [ "$hostname_in_hostname" = "$new_hostname" ]; then
 		echo_info "Hostname in $HOSTNAME_FILE is correct"
 	else
 		echo_info "Saving hostname in $HOSTNAME_FILE"
-		echo $hostname > $HOSTNAME_FILE
+		echo $new_hostname > $HOSTNAME_FILE
 	fi
+}
+
+generate() {
+	local generated_hostname="$(default_hostname)-$(echo $wlan_mac | sed -E 's/://g;s/.*(.{4})$/\1/')"
+	echo_info "Generated name: $generated_hostname"
+	set_hostname "$generated_hostname" "auto-generated"
 }
 
 start() {
 	echo_title "Configuring hostname"
 
-	is_user_modified_hostname || generate
+	# Check if hostname is configured via 'conf s hostname'
+	if [ -n "$hostname" ]; then
+		echo_info "Using configured hostname: $hostname"
+		set_hostname "$hostname" "configured"
+	elif is_user_modified_hostname; then
+		echo_info "Hostname is already customized, keeping current"
+	else
+		generate
+	fi
 
-	hostname=$(hostname)
-	echo_info "Hostname set to $hostname"
+	current_hostname=$(hostname)
+	echo_info "Hostname set to $current_hostname"
 
-	HOSTNAME="$hostname"
+	HOSTNAME="$current_hostname"
 	export HOSTNAME
 }
 

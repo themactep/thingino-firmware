@@ -1,0 +1,76 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thingino Project <dev@thingino.com>
+Date: Mon, 23 Sep 2025 00:00:00 +0000
+Subject: [PATCH] scripts/unifdef.c: Fix constexpr variable name for GCC 15 compatibility
+
+The variable name 'constexpr' conflicts with the C++11 keyword 'constexpr'
+when compiling with GCC 15. This causes compilation errors as 'constexpr'
+is now a reserved keyword.
+
+Rename the variable from 'constexpr' to 'const_expr' to avoid the conflict
+and maintain compatibility with newer GCC versions.
+
+This fixes the following compilation errors:
+- scripts/unifdef.c:206:1: error: 'constexpr' in empty declaration
+- scripts/unifdef.c:880:27: error: expected identifier or '(' before '=' token
+- scripts/unifdef.c:898:27: error: expected identifier or '(' before '=' token
+- scripts/unifdef.c:958:19: error: expected identifier or '(' before '=' token
+
+Signed-off-by: Thingino Project <dev@thingino.com>
+---
+ scripts/unifdef.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/scripts/unifdef.c b/scripts/unifdef.c
+index 7493c0ee5..885417ce0 100644
+--- a/scripts/unifdef.c
++++ b/scripts/unifdef.c
+@@ -203,7 +203,7 @@ static int              depth;			/* current #if nesting */
+ static int              delcount;		/* count of deleted lines */
+ static unsigned         blankcount;		/* count of blank lines */
+ static unsigned         blankmax;		/* maximum recent blankcount */
+-static bool             constexpr;		/* constant #if expression */
++static bool             const_expr;		/* constant #if expression */
+ static bool             zerosyms = true;	/* to format symdepth output */
+ static bool             firstsym;		/* ditto */
+
+@@ -819,7 +819,7 @@ static const struct ops {
+ /*
+  * Function for evaluating the innermost parts of expressions,
+  * viz. !expr (expr) number defined(symbol) symbol
+- * We reset the constexpr flag in the last two cases.
++ * We reset the const_expr flag in the last two cases.
+  */
+ static Linetype
+ eval_unary(const struct ops *ops, int *valp, const char **cpp)
+@@ -877,7 +877,7 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
+ 		cp = skipcomment(cp);
+ 		if (defparen && *cp++ != ')')
+ 			return (LT_ERROR);
+-		constexpr = false;
++		const_expr = false;
+ 	} else if (!endsym(*cp)) {
+ 		debug("eval%d symbol", ops - eval_ops);
+ 		sym = findsym(cp);
+@@ -895,7 +895,7 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
+ 			lt = *valp ? LT_TRUE : LT_FALSE;
+ 			cp = skipargs(cp);
+ 		}
+-		constexpr = false;
++		const_expr = false;
+ 	} else {
+ 		debug("eval%d bad expr", ops - eval_ops);
+ 		return (LT_ERROR);
+@@ -955,10 +955,10 @@ ifeval(const char **cpp)
+ 	int val = 0;
+
+ 	debug("eval %s", *cpp);
+-	constexpr = killconsts ? false : true;
++	const_expr = killconsts ? false : true;
+ 	ret = eval_table(eval_ops, &val, cpp);
+ 	debug("eval = %d", val);
+-	return (constexpr ? LT_IF : ret == LT_ERROR ? LT_IF : ret);
++	return (const_expr ? LT_IF : ret == LT_ERROR ? LT_IF : ret);
+ }
+
+ /*

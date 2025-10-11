@@ -2,7 +2,7 @@
 
 die() { echo "$1" >&2; exit 1; }
 
-PRUDYNT_CONFIG_FILE="/etc/prudynt.cfg"
+PRUDYNT_CONFIG_FILE="/etc/prudynt.json"
 
 show_help() {
 	echo "Thingino Diagnostics Script
@@ -114,11 +114,11 @@ fi
 	inforun "ps" "PS"
 	inforun "lsof" "LSOF"
 	inforun "dmesg" "DMESG"
-	inforun "logcat" "LOGCAT"
+	inforun "logcat -t" "LOGCAT"
 	inforun "logread" "SYSLOG"
 
 	header "streamer"
-	awk '{if ($0 ~ /password[[:space:]]*=/) sub(/=.*/, "= \"REDACTED\";"); print}' $PRUDYNT_CONFIG_FILE
+	sed 's/"password": "[^"]*"/"password": "REDACTED"/g' $PRUDYNT_CONFIG_FILE
 
 	infocat "/etc/cron/crontabs/root" "crontab"
 } > "$output_file"

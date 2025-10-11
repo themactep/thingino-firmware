@@ -1,0 +1,41 @@
+From d7a76c9fbda07b50048c14a913a9175ababcd38d Mon Sep 17 00:00:00 2001
+From: Paul Philippov <themactep@gmail.com>
+Date: Wed, 1 Oct 2025 14:05:59 -0400
+Subject: [PATCH] Fix FFmpeg 7 compatibility for AVFrame key_frame field
+
+The key_frame field was deprecated and removed from AVFrame structure in FFmpeg 7.
+Use the new AV_FRAME_FLAG_KEY flag instead for newer FFmpeg versions.
+
+Signed-off-by: Paul Philippov <themactep@gmail.com>
+---
+ src/video/detection_stream_thread.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/src/video/detection_stream_thread.c b/src/video/detection_stream_thread.c
+index e6bf8c6..9596d2d 100644
+--- a/src/video/detection_stream_thread.c
++++ b/src/video/detection_stream_thread.c
+@@ -532,11 +532,20 @@ int process_segment_for_detection(stream_detection_thread_t *thread, const char
+ 
+             // OPTIMIZATION: Process only key frames (I-frames) to reduce CPU usage
+             // Check if this is a key frame (I-frame)
++#if (LIBAVUTIL_VERSION_INT < AV_VERSION_INT(58,29,100))
+             bool is_key_frame = frame->key_frame || (frame->pict_type == AV_PICTURE_TYPE_I);
+ 
++#else
++            bool is_key_frame = (frame->flags & AV_FRAME_FLAG_KEY) || (frame->pict_type == AV_PICTURE_TYPE_I);
++#endif
+             if (is_key_frame) {
++#if (LIBAVUTIL_VERSION_INT < AV_VERSION_INT(58,29,100))
+                 log_info("[Stream %s] Processing key frame %d (pict_type: %d, key_frame: %d)",
+                         thread->stream_name, frame_count, frame->pict_type, frame->key_frame);
++#else
++                log_info("[Stream %s] Processing key frame %d (pict_type: %d, key_frame: %d)",
++                        thread->stream_name, frame_count, frame->pict_type, !!(frame->flags & AV_FRAME_FLAG_KEY));
++#endif
+ 
+                 // Process the frame for detection
+                 log_info("[Stream %s] Processing frame %d from segment file: %s",
+-- 
+2.47.3
+

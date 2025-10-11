@@ -1,3 +1,6 @@
+THINGINO_PORTAL_SITE_METHOD = local
+THINGINO_PORTAL_SITE = $(BR2_EXTERNAL)/package/thingino-portal
+
 define THINGINO_PORTAL_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(THINGINO_PORTAL_PKGDIR)/files/dnsd-portal.conf \
 		$(TARGET_DIR)/etc/dnsd-portal.conf

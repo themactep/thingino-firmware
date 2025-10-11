@@ -1,5 +1,9 @@
 # NAME: WUUK Y0510 (T31X, SC401AI, SSV6158)
-# MODULE: t31x_sc401ai_ssv6158
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_PACKAGE_WIFI=y
+BR2_PACKAGE_WIFI_SSV6158=y
+BR2_SENSOR_SC401AI=y
+BR2_SOC_INGENIC_T31X=y
 BR2_AVPU_CLK_400MHZ=y
 BR2_AVPU_VPLL=y
 BR2_ISP_CLK_200MHZ=y

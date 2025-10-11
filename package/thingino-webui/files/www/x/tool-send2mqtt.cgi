@@ -3,7 +3,9 @@
 <%
 page_title="Send to MQTT"
 
-[ -f /usr/bin/mosquitto_pub ] || redirect_to "/" "danger" "MQTT client is not a part of your firmware."
+if [ ! -f /usr/bin/mosquitto_pub ]; then
+	redirect_to "/" "danger" "MQTT client is not a part of your firmware."
+fi
 
 camera_id=${network_macaddr//:/}
 
@@ -11,7 +13,7 @@ defaults() {
 	default_for mqtt_client_id $camera_id
 	default_for mqtt_port "1883"
 	default_for mqtt_topic "thingino/$mqtt_client_id"
-	default_for mqtt_message "{\"camera_id\": \"$camera_id\", \"timestamp\": \"%timestamp\"}"
+	default_for mqtt_message "{\"camera_id\": \"$camera_id\", \"timestamp\": \"%s\"}"
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
@@ -21,8 +23,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	error_if_empty "$mqtt_host" "MQTT broker host cannot be empty."
 	error_if_empty "$mqtt_port" "MQTT port cannot be empty."
-	# error_if_empty "$mqtt_username" "MQTT username cannot be empty."
-	# error_if_empty "$mqtt_password" "MQTT password cannot be empty."
 	error_if_empty "$mqtt_topic" "MQTT topic cannot be empty."
 	error_if_empty "$mqtt_message" "MQTT message cannot be empty."
 
@@ -34,8 +34,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		set_error_flag "MQTT topic should not contain spaces."
 	fi
 
-	if [ -n "$(echo $mqtt_topic | sed -r -n /[^a-zA-Z0-9/]/p)" ] || [ -n "$(echo $mqtt_snap_topic | sed -r -n /[^a-zA-Z0-9/]/p)" ]; then
-		set_error_flag "MQTT topic should not include non-ASCII characters."
+	if [ -n "$(echo $mqtt_topic | sed -r -n /[^a-zA-Z0-9/_-]/p)" ] || [ -n "$(echo $mqtt_snap_topic | sed -r -n /[^a-zA-Z0-9/_-]/p)" ]; then
+		set_error_flag "MQTT topic should not include non-ASCII characters or special characters like /, #, +, or space."
 	fi
 
 	if [ "true" = "$mqtt_send_snap" ] && [ -z "$mqtt_snap_topic" ]; then

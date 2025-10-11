@@ -1,0 +1,505 @@
+#!/bin/sh
+#
+# Thingino Provisioning System Init Script
+# This script checks for device-specific configuration from a provisioning server
+# and applies the configuration to the system
+#
+
+. /usr/share/common
+
+# Configuration
+PROVISIONING_SERVER="${provisioning_server:-}"
+TEMP_DIR="/tmp/provisioning"
+CONFIG_MARKER="!THINGINO-CONFIG"
+SCRIPT_NAME="$(basename $0)"
+
+# Get SoC serial number for hashing
+get_soc_serial() {
+	local serial
+
+	# Get serial from soc -s command
+	if command -v soc >/dev/null 2>&1; then
+		serial=$(soc -s 2>/dev/null)
+		if [ -n "$serial" ]; then
+			echo "$serial"
+			return 0
+		fi
+	fi
+
+	echo_error "Could not retrieve SoC serial number"
+	return 1
+}
+
+# Generate salted password hash
+generate_password_hash() {
+	local password="$1"
+	local soc_serial
+
+	soc_serial=$(get_soc_serial) || return 1
+
+	# Generate salted hash: serial:password
+	echo "${soc_serial}:${password}" | sha256sum | cut -d' ' -f1
+}
+
+# Get MAC address based on priority: usb0 > eth0 > wlan0
+get_mac_address() {
+	local mac=""
+	local interface=""
+
+	# Check interfaces in priority order
+	if [ -d "/sys/class/net/usb0" ]; then
+		interface="usb0"
+	elif [ -d "/sys/class/net/eth0" ]; then
+		interface="eth0"
+	elif [ -d "/sys/class/net/wlan0" ]; then
+		interface="wlan0"
+	else
+		die "No network interface found"
+	fi
+
+	# Read MAC address (without colons, keeping original case)
+	if [ -r "/sys/class/net/${interface}/address" ]; then
+		mac=$(cat "/sys/class/net/${interface}/address" | tr -d ':')
+		echo_info "Using MAC address from ${interface}: ${mac}"
+		echo "${mac}"
+	else
+		die "Cannot read MAC address from ${interface}"
+	fi
+}
+
+# Parse a section from the config file
+parse_section() {
+	local config_file="$1"
+	local section="$2"
+	local in_section=0
+
+	while IFS= read -r line; do
+		# Skip empty lines and comments
+		case "$line" in
+			""|\#*) continue ;;
+		esac
+
+		# Check if we're entering the desired section
+		if echo "$line" | grep -q "^\[${section}\]$"; then
+			in_section=1
+			continue
+		fi
+
+		# Check if we're entering a different section
+		if echo "$line" | grep -q "^\[.*\]$"; then
+			in_section=0
+			continue
+		fi
+
+		# If we're in the desired section, output the line
+		if [ $in_section -eq 1 ]; then
+			echo "$line"
+		fi
+	done < "$config_file"
+}
+
+# Process UENV section
+process_uenv() {
+	local config_file="$1"
+	local temp_file="${TEMP_DIR}/uenv_script.txt"
+
+	echo_info "Processing UENV section"
+
+	# Extract UENV entries
+	parse_section "$config_file" "UENV" > "$temp_file"
+
+	if [ -s "$temp_file" ]; then
+		if command -v fw_setenv >/dev/null 2>&1; then
+			echo_info "Applying UENV settings"
+			if fw_setenv --script "$temp_file" 2>&1 | logger -t "thingino-provision"; then
+				echo_info "UENV settings applied successfully"
+			else
+				echo_error "Failed to apply UENV settings"
+			fi
+		else
+			echo_warning "fw_setenv not found, skipping UENV section"
+		fi
+	else
+		echo_info "No UENV entries found"
+	fi
+
+	rm -f "$temp_file"
+}
+
+# Process SYSTEM section
+process_system() {
+	local config_file="$1"
+	local temp_file="${TEMP_DIR}/system_script.txt"
+
+	echo_info "Processing SYSTEM section"
+
+	# Extract SYSTEM entries
+	parse_section "$config_file" "SYSTEM" > "$temp_file"
+
+	if [ -s "$temp_file" ]; then
+		if command -v conf >/dev/null 2>&1; then
+			echo_info "Applying SYSTEM settings"
+			if conf --script "$temp_file" 2>&1 | logger -t "thingino-provision"; then
+				echo_info "SYSTEM settings applied successfully"
+			else
+				echo_error "Failed to apply SYSTEM settings"
+			fi
+		else
+			echo_warning "conf command not found, skipping SYSTEM section"
+		fi
+	else
+		echo_info "No SYSTEM entries found"
+	fi
+
+	rm -f "$temp_file"
+}
+
+# Process USER section (shell commands)
+process_user() {
+	local config_file="$1"
+	local temp_file="${TEMP_DIR}/user_commands.sh"
+
+	echo_info "Processing USER section"
+
+	# Extract USER commands
+	echo "#!/bin/sh" > "$temp_file"
+	echo "# Auto-generated user commands from provisioning" >> "$temp_file"
+	parse_section "$config_file" "USER" >> "$temp_file"
+
+	if [ $(wc -l < "$temp_file") -gt 2 ]; then
+		chmod +x "$temp_file"
+		echo_info "Executing USER commands"
+		if sh -x "$temp_file" 2>&1 | logger -t "thingino-provision"; then
+			echo_info "USER commands executed successfully"
+		else
+			echo_error "Some USER commands may have failed"
+		fi
+	else
+		echo_info "No USER commands found"
+	fi
+
+	rm -f "$temp_file"
+}
+
+# Validate password strength
+validate_password() {
+	local password="$1"
+	local min_length=8
+
+	# Check minimum length
+	if [ ${#password} -lt $min_length ]; then
+		echo_error "Password must be at least $min_length characters long"
+		return 1
+	fi
+
+	# Check all requirements in one pass using case patterns
+	case "$password" in
+		*[a-z]*) ;; # has lowercase
+		*) echo_error "Password must contain at least one lowercase letter"; return 1 ;;
+	esac
+	case "$password" in
+		*[A-Z]*) ;; # has uppercase
+		*) echo_error "Password must contain at least one uppercase letter"; return 1 ;;
+	esac
+	case "$password" in
+		*[!a-zA-Z0-9]*) ;; # has special char
+		*) echo_error "Password must contain at least one special character"; return 1 ;;
+	esac
+
+	return 0
+}
+
+# Process AUTH section
+process_auth() {
+	local config_file="$1"
+	local temp_file="${TEMP_DIR}/auth_settings.txt"
+
+	echo_info "Processing AUTH section"
+
+	# Extract AUTH entries
+	parse_section "$config_file" "AUTH" > "$temp_file"
+
+	# Check if device has provisioning password hash configured (REQUIRED)
+	if [ -z "$provisioning_password_hash" ]; then
+		echo_error "No provisioning_password_hash set on device - run 'genpw' to generate"
+		rm -f "$temp_file"
+		return 1
+	fi
+
+	# Use stored device hash
+	device_hash="$provisioning_password_hash"
+
+	# Parse auth settings
+	if [ -s "$temp_file" ]; then
+		while IFS='=' read -r key value; do
+			# Skip empty lines and comments
+			case "$key" in
+				""|\#*) continue ;;
+			esac
+
+			# Remove any whitespace
+			key=$(echo "$key" | tr -d ' \t')
+			value=$(echo "$value" | tr -d ' \t')
+
+			case "$key" in
+				password_hash)
+					if [ "$value" = "$device_hash" ]; then
+						echo_info "Authentication successful"
+						rm -f "$temp_file"
+						return 0
+					else
+						echo_error "Authentication failed - password hash mismatch"
+						rm -f "$temp_file"
+						return 1
+					fi
+					;;
+				*)
+					echo_warning "Unknown AUTH setting: $key"
+					;;
+			esac
+		done < "$temp_file"
+
+		# If we get here, no password_hash was found in AUTH section
+		echo_error "AUTH section present but no password_hash found"
+		rm -f "$temp_file"
+		return 1
+	else
+		# No AUTH section - FAIL (auth required)
+		echo_error "Config file missing required AUTH section"
+		rm -f "$temp_file"
+		return 1
+	fi
+}
+
+# Process PROVISION section
+process_provision() {
+	local config_file="$1"
+	local temp_file="${TEMP_DIR}/provision_settings.txt"
+
+	echo_info "Processing PROVISION section"
+
+	# Extract PROVISION entries
+	parse_section "$config_file" "PROVISION" > "$temp_file"
+
+	# Set defaults
+	PROVISION_REBOOT="true"
+	PROVISION_COMMON_CONFIG="false"
+
+	# Parse provision settings
+	if [ -s "$temp_file" ]; then
+		while IFS='=' read -r key value; do
+			# Skip empty lines and comments
+			case "$key" in
+				""|\#*) continue ;;
+			esac
+
+			# Remove any whitespace
+			key=$(echo "$key" | tr -d ' \t')
+			value=$(echo "$value" | tr -d ' \t')
+
+			case "$key" in
+				reboot)
+					PROVISION_REBOOT="$value"
+					echo_info "Reboot setting: $PROVISION_REBOOT"
+					;;
+				common_config)
+					PROVISION_COMMON_CONFIG="$value"
+					echo_info "Common config setting: $PROVISION_COMMON_CONFIG"
+					;;
+				*)
+					echo_warning "Unknown PROVISION setting: $key"
+					;;
+			esac
+		done < "$temp_file"
+	else
+		echo_info "No PROVISION settings found, using defaults"
+	fi
+
+	rm -f "$temp_file"
+}
+
+# Main provisioning function
+do_provisioning() {
+	local mac_address
+	local config_url
+	local config_file="${TEMP_DIR}/provision.conf"
+
+	# Check if provisioning has already been completed
+	if command -v conf >/dev/null 2>&1; then
+		if [ "$(conf g provisioning_complete 2>/dev/null)" = "true" ]; then
+			echo_info "Provisioning already completed, skipping"
+			return 0
+		fi
+	fi
+
+	# Check if provisioning server is configured
+	if [ -z "$PROVISIONING_SERVER" ]; then
+		echo_info "No provisioning server configured, skipping provisioning"
+		return 0
+	fi
+
+	# Create temp directory
+	mkdir -p "$TEMP_DIR" || die "Failed to create temp directory"
+
+	# Get MAC address
+	mac_address=$(get_mac_address) || exit 1
+
+	# Build configuration URLs (try both lowercase and uppercase)
+	mac_lower=$(echo "$mac_address" | tr 'A-Z' 'a-z')
+	mac_upper=$(echo "$mac_address" | tr 'a-z' 'A-Z')
+
+	# Prepare curl command with SSL validation setting
+	CURL_CMD="$CURL"
+	if [ "$provision_validate_ssl" = "false" ]; then
+		CURL_CMD="$CURL --insecure"
+		echo_info "SSL certificate validation disabled (system setting)"
+	fi
+
+	# Try lowercase first
+	config_url="${PROVISIONING_SERVER}/thingino-${mac_lower}.conf"
+	echo_info "Trying provisioning config: ${config_url}"
+
+	# Download configuration file
+	if $CURL_CMD -o "$config_file" "$config_url" 2>/dev/null; then
+		echo_info "Provisioning config downloaded successfully (lowercase MAC)"
+	else
+		# Try uppercase
+		config_url="${PROVISIONING_SERVER}/thingino-${mac_upper}.conf"
+		echo_info "Trying provisioning config: ${config_url}"
+
+		if $CURL_CMD -o "$config_file" "$config_url" 2>/dev/null; then
+			echo_info "Provisioning config downloaded successfully (uppercase MAC)"
+		else
+			echo_info "No provisioning config found for MAC ${mac_address}"
+			rm -rf "$TEMP_DIR"
+			return 0
+		fi
+	fi
+
+	# Verify config file has the required marker
+	if ! grep -q "^${CONFIG_MARKER}$" "$config_file"; then
+		echo_error "Invalid config file - missing ${CONFIG_MARKER} marker"
+		rm -rf "$TEMP_DIR"
+		return 1
+	fi
+
+	echo_info "Valid provisioning config found, processing sections"
+
+	# Authenticate first
+	if ! process_auth "$config_file"; then
+		echo_error "Authentication failed, aborting provisioning"
+		rm -rf "$TEMP_DIR"
+		return 1
+	fi
+
+	# Process each section
+	process_provision "$config_file"
+
+	# Check if common config should be applied
+	if [ "$PROVISION_COMMON_CONFIG" = "true" ]; then
+		echo_info "Common config enabled, attempting to fetch"
+
+		# Try to download common config
+		common_url="${PROVISIONING_SERVER}/thingino-common.conf"
+		common_file="${TEMP_DIR}/common.conf"
+
+		if $CURL_CMD -o "$common_file" "$common_url" 2>/dev/null; then
+			# Verify common config has the required marker
+			if grep -q "^${CONFIG_MARKER}$" "$common_file"; then
+				echo_info "Common config downloaded, applying base settings"
+
+				# Process all sections from common config (already authenticated)
+				process_uenv "$common_file"
+				process_system "$common_file"
+				process_user "$common_file"
+
+				echo_info "Common config applied"
+			else
+				echo_warning "Common config exists but missing ${CONFIG_MARKER} marker, skipping"
+			fi
+		else
+			echo_warning "Common config requested but not found at ${common_url}"
+		fi
+	fi
+
+	# Process device-specific sections (these override common if present)
+	process_uenv "$config_file"
+	process_system "$config_file"
+	process_user "$config_file"
+
+	# Mark provisioning as complete
+	if command -v conf >/dev/null 2>&1; then
+		echo_info "Setting provisioning_complete flag"
+		conf s provisioning_complete true
+	fi
+
+	# Cleanup
+	rm -rf "$TEMP_DIR"
+	echo_info "Provisioning completed successfully"
+
+	# Reboot if configured to do so
+	if [ "$PROVISION_REBOOT" = "true" ]; then
+		echo_info "Rebooting system to apply configuration changes"
+		sleep 2
+		reboot
+	else
+		echo_info "Reboot disabled in provisioning configuration"
+	fi
+
+	return 0
+}
+
+case "$1" in
+	start)
+		echo_title "Starting provisioning"
+		do_provisioning
+		;;
+	stop)
+		;;
+	restart|reload)
+		$0 start
+		;;
+	genpw)
+		echo_title "Generate provisioning password hash"
+		echo "Enter password (will be hidden):"
+		read -s password
+		echo
+
+		if [ -z "$password" ]; then
+			echo_error "Password cannot be empty"
+			exit 1
+		fi
+
+		if ! validate_password "$password"; then
+			echo_error "Password does not meet security requirements"
+			exit 1
+		fi
+
+		hash=$(generate_password_hash "$password")
+		if [ $? -eq 0 ]; then
+			# Store hash in device configuration
+			if command -v conf >/dev/null 2>&1; then
+				conf s provisioning_password_hash "$hash"
+				echo_info "Password hash saved to device configuration"
+			else
+				echo_warning "conf command not available, hash not saved to device"
+			fi
+
+			echo_info "Generated password hash for this device:"
+			echo "$hash"
+			echo
+			echo_info "Add this to your config file:"
+			echo "[AUTH]"
+			echo "password_hash=$hash"
+		else
+			echo_error "Failed to generate password hash"
+			exit 1
+		fi
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload|genpw}"
+		exit 1
+		;;
+esac
+
+exit 0

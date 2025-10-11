@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="refresh" content="0; url=/lua/">
+    <title>Thingino Camera - Redirecting...</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .container {
+            max-width: 400px;
+            padding: 2rem;
+        }
+        .logo {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #ff8800;
+        }
+        .message {
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.9;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #ff8800;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .manual-link {
+            margin-top: 2rem;
+        }
+        .manual-link a {
+            color: #ff8800;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .manual-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+    <script>
+        // Fallback redirect in case meta refresh doesn't work
+        setTimeout(function() {
+            window.location.href = '/lua/';
+        }, 100);
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">Thingino</div>
+        <div class="message">Redirecting to camera interface...</div>
+        <div class="spinner"></div>
+        <div class="manual-link">
+            <p>If you are not redirected automatically, <a href="/lua/">click here</a>.</p>
+        </div>
+    </div>
+</body>
+</html>

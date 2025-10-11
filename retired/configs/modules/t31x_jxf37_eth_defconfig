@@ -1,0 +1,6 @@
+# NAME: T31X, JXF37, ETH
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_ETHERNET=y
+BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13=y
+BR2_SENSOR_JXF37=y
+BR2_SOC_INGENIC_T31X=y

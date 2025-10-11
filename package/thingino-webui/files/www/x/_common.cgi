@@ -8,6 +8,7 @@ STR_EIGHT_OR_MORE_CHARS=" pattern=\".{8,}\" title=\"8 characters or longer\""
 STR_NOT_SUPPORTED="not supported on this system"
 STR_PASSWORD_TO_PSK="Plain-text password will be automatically converted to a PSK upon submission"
 STR_SUPPORTS_STRFTIME="Supports <a href=\"https://strftime.net/\" target=\"_blank\">strftime</a> format"
+STR_USER_TEXT_FMT="Supports %hostname, %ipaddress, %fps, %bps"
 
 pagename=$(basename "$SCRIPT_NAME")
 pagename="${pagename%%.*}"
@@ -21,7 +22,7 @@ signature_file="/tmp/signature.txt"
 sysinfo_file="/tmp/sysinfo.txt"
 
 # read from files
-ws_token="$(cat /run/prudynt_websocket_token)"
+ws_token="$(cat /run/prudynt/websocket_token)"
 
 # name, text
 error_if_empty() {
@@ -191,10 +192,13 @@ field_checkbox() {
 	echo "</p>"
 }
 
+# field_color "name" "label"
 field_color() {
 	echo "<p id=\"$1_wrap\" class=\"file\">" \
 	 "<label for=\"$1\" class=\"form-label\">$2</label>" \
-	 "<input type=\"color\" id=\"$1\" name=\"$1\" class=\"form-control input-color\"></p>"
+	 "<input type=\"color\" id=\"$1\" name=\"$1\" class=\"form-control input-color\">" \
+	 "<input type=\"range\" id=\"$1-alpha\" name=\"$1-alpha\" min=0 max=255 step=1>" \
+	 "</p>"
 }
 
 # field_file "name" "label" "hint"
@@ -471,13 +475,13 @@ menu() {
 		if [ "service" = "$1" ]; then
 			case "$name" in
 				motion)
-					prudyntcfg get motion.enabled | grep -q true && css=$CSS_ENABLED
+					jct /etc/prudynt.json get motion.enabled | grep -q true && css=$CSS_ENABLED
 					;;
 				mqtt)
 					[ -f /bin/mosquitto_pub ] || continue
 					;;
 				telegrambot)
-					[ -f /bin/jsonfilter    ] || continue
+					[ -f /bin/jsonpath ] || continue
 					pidof telegrambot > /dev/null && css=$CSS_ENABLED
 					;;
 				timelapse)
@@ -721,8 +725,8 @@ update_caminfo() {
 	fi
 
 	# prudynt values
-	#rtsp_endpoint_ch0=$(prudyntcfg get stream0.rtsp_endpoint | tr -d '"')
-	#rtsp_endpoint_ch1=$(prudyntcfg get stream1.rtsp_endpoint | tr -d '"')
+	#rtsp_endpoint_ch0=$(jct /etc/prudynt.json get stream0.rtsp_endpoint | tr -d '"')
+	#rtsp_endpoint_ch1=$(jct /etc/prudynt.json get stream1.rtsp_endpoint | tr -d '"')
 
 	# create a sourceable file
 	for v in flash_size flash_size_mb flash_type network_address network_cidr network_default_interface network_dhcp network_dns_1 network_dns_2 network_gateway network_hostname network_interfaces network_macaddr network_netmask overlay_root rtsp_endpoint_ch0 rtsp_endpoint_ch1 soc_family soc_model sensor_fps_max sensor_fps_min sensor_model tz_data tz_name uboot_version ui_password; do

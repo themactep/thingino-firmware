@@ -1,4 +1,8 @@
 # NAME: Vanhua L34 (T31L, GC2083, ETH)
-# MODULE: t31l_gc2083_eth
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_ETHERNET=y
+BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13=y
+BR2_SENSOR_GC2083=y
+BR2_SOC_INGENIC_T31L=y
 BR2_THINGINO_AUDIO=y
 FLASH_SIZE_8=y

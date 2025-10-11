@@ -1,4 +1,5 @@
 #!/bin/sh
+# TTS client
 
 . /usr/share/common
 

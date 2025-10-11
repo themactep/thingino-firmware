@@ -1,0 +1,31 @@
+config BR2_PACKAGE_THINGINO_SYSTEM
+	bool "thingino-system"
+	help
+	  Various utilities related to thingino system operations
+
+config BR2_PACKAGE_THINGINO_SYSTEM_USB_ROLE
+	default y
+	depends on BR2_PACKAGE_THINGINO_SYSTEM && BR2_PACKAGE_THINGINO_KOPT_DWC2_OTG
+	bool "usb-role switcher"
+	help
+	  Enables on the fly USB role switching when using the ingenic DWC2 USB controller.
+
+config BR2_PACKAGE_THINGINO_SYSTEM_ENTROPY_GENERATOR
+	default y
+	bool "entropy generator"
+	depends on BR2_PACKAGE_THINGINO_SYSTEM && BR2_SOC_FAMILY_INGENIC_T40
+	help
+	  Enables the entropy service for the T40 SoC.
+
+config BR2_PACKAGE_THINGINO_SYSTEM_SWAP
+	bool "swap"
+	depends on BR2_PACKAGE_THINGINO_SYSTEM
+	help
+	  Enables swap support.
+
+config BR2_PACKAGE_THINGINO_SYSTEM_SENSOR_UTILS
+	default y
+	bool "sensor utilities"
+	depends on BR2_PACKAGE_THINGINO_SYSTEM && !BR2_THINGINO_DEV_NVR
+	help
+	  Enables sensor utilities.

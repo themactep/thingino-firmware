@@ -22,7 +22,7 @@ fi
 PID=$$
 
 CRONTABS="/etc/cron/crontabs/root"
-CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3"
+CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5"
 EMAIL_FORMAT='^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
 HOSTNAME_FILE="/etc/hostname"
 HOSTS_FILE="/etc/hosts"
@@ -39,7 +39,7 @@ SNAPSHOT_FILE="/tmp/snapshot.jpg"
 SOC_FAMILY=$(soc -f)
 SOC_MODEL=$(soc -m)
 TZCODE_FILE="/etc/TZ"
-TZJSON_FILE="/usr/share/tz.json.gz"
+TZJSON_FILE="/usr/share/tz.json"
 TZNAME_FILE="/etc/timezone"
 VBUFFER_FILE="/tmp/vbuffer.mp4"
 WLANAP_MODE_FLAG="/run/wlanap_mode"
@@ -232,7 +232,7 @@ iface_mac_suffix() {
 }
 
 is_debug_mode() {
-	[ $((0 + debug)) -gt 0 ] || [ "true" = "$debug" ]
+	[ "0$((debug))" -gt 0 ] || [ "true" = "$debug" ]
 }
 
 is_streamer_disabled() {
@@ -347,6 +347,38 @@ tag() {
 
 ts() {
 	date -u +"%F %T"
+}
+
+get_terminal_height() {
+	# Try multiple methods to get terminal height
+	height=""
+
+	# Method 1: stty size (most reliable in busybox/ash)
+	if command -v stty >/dev/null 2>&1; then
+		height=$(stty size 2>/dev/null | cut -d' ' -f1)
+	fi
+
+	# Method 2: tput lines (if available)
+	if [ -z "$height" ] && command -v tput >/dev/null 2>&1; then
+		height=$(tput lines 2>/dev/null)
+	fi
+
+	# Method 3: environment variable
+	if [ -z "$height" ] && [ -n "$LINES" ]; then
+		height=$LINES
+	fi
+
+	# Method 4: ttysize command (busybox)
+	if [ -z "$height" ] && command -v ttysize >/dev/null 2>&1; then
+		height=$(ttysize h 2>/dev/null)
+	fi
+
+	# Default fallback
+	if [ -z "$height" ] || [ "$height" -lt 10 ]; then
+		height=24
+	fi
+
+	echo "$height"
 }
 
 usage() {

@@ -1,0 +1,21 @@
+From: Thingino Project <dev@thingino.com>
+Date: Mon Sep 9 16:35:00 2024 +0000
+Subject: [PATCH] Fix IPv6 header conflicts in unix-sockets.c for musl
+
+Prevent inclusion of linux/ipv6.h when using musl libc to avoid
+IPv6 structure redefinition conflicts. Musl provides all necessary
+IPv6 definitions in netinet/in.h.
+
+Signed-off-by: Thingino Project <dev@thingino.com>
+---
+--- a/lib/plat/unix/unix-sockets.c
++++ b/lib/plat/unix/unix-sockets.c
+@@ -27,7 +27,7 @@
+ #endif
+ #include "private-lib-core.h"
+
+-#if defined(LWS_HAVE_LINUX_IPV6_H)
++#if defined(LWS_HAVE_LINUX_IPV6_H) && defined(__GLIBC__)
+ #include <linux/ipv6.h>
+ #endif
+

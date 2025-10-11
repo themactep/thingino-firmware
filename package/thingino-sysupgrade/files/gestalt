@@ -5,16 +5,22 @@
 OWNER="themactep"
 REPO="thingino-firmware"
 BASE_REPO_URL="https://api.github.com/repos/$OWNER/$REPO/contents/configs"
-PROD_LIST="$BASE_REPO_URL/cameras"
+
 PROD_MODULE_LIST="$BASE_REPO_URL/modules"
-DEBUG_LIST="$BASE_REPO_URL/testing"
-LIST_URL=$PROD_LIST
+PROD_CAMERA_LIST="$BASE_REPO_URL/cameras"
+TEST_CAMERA_LIST="$BASE_REPO_URL/cameras-exp"
+
+LIST_URL=$PROD_CAMERA_LIST
 LIST_PATH="/tmp/gestalt_list.txt"
 
 while getopts "dmh" opt; do
 	case $opt in
-		d) LIST_URL=$DEBUG_LIST ;;
-		m) LIST_URL=$PROD_MODULE_LIST ;;
+		d)
+			LIST_URL=$TEST_CAMERA_LIST
+			;;
+		m)
+			LIST_URL=$PROD_MODULE_LIST
+			;;
 		*)
 			echo "Usage: $0 [-d] [-m]"
 			exit 1
@@ -22,47 +28,194 @@ while getopts "dmh" opt; do
 	esac
 done
 
-fetch_and_display_profiles() {
-	echo_info "Gestalt selector - Fetching available profiles:"
-	count=1
-	profiles=$(curl -m 10 -s -H "Accept: application/vnd.github+json" "$LIST_URL" | jsonfilter -e "@[*].name" 2>/dev/null)
+current_image_id=$(grep "^IMAGE_ID=" /etc/os-release | cut -d'=' -f2)
+
+fetch_profiles() {
+	echo_info "Fetching available profiles..."
+	profiles=$(curl -m 10 -s -H "Accept: application/vnd.github+json" "$LIST_URL" | sed -En 's/\s*"name": "(.*)",/\1/p' 2>/dev/null)
 
 	if [ -z "$profiles" ]; then
 		echo_error "Error: gestalt list empty. Please try again later or check your network connection."
 		exit 1
 	fi
 
+	count=1
 	echo "$profiles" | while read line; do
 		profile="${line#thingino-}"
 		profile="${profile%.bin}"
-		echo "  $count) $profile"
 		echo "$count:$profile" >> $LIST_PATH
 		count=$((count + 1))
 	done
 }
 
-trap 'rm -f $LIST_PATH;echo "";exit 0' INT
+
+
+display_profiles_page() {
+	page=${1:-1}
+
+	# Calculate per_page based on terminal height
+	# Reserve 8 lines for: header(1) + empty(1) + current gestalt(1) + nav help(1) + prompt(1) + buffer(3)
+	terminal_height=$(get_terminal_height)
+	per_page=$((terminal_height - 8))
+
+	# Minimum 5 items per page, maximum 50
+	if [ "$per_page" -lt 5 ]; then
+		per_page=5
+	elif [ "$per_page" -gt 50 ]; then
+		per_page=50
+	fi
+
+	total_count=$(wc -l < $LIST_PATH)
+	total_pages=$(( (total_count + per_page - 1) / per_page ))
+	start_line=$(( (page - 1) * per_page + 1 ))
+	end_line=$(( page * per_page ))
+
+	echo "Available profiles (page $page of $total_pages), use [PgUp]/[PgDn] keys to navigate."
+	echo
+	sed -n "${start_line},${end_line}p" $LIST_PATH | while IFS=':' read num profile; do
+		echo "  $num) $profile"
+	done
+}
+
+cleanup() {
+	# Restore terminal settings if they were saved
+	if [ -n "$old_tty_settings" ]; then
+		stty "$old_tty_settings" 2>/dev/null
+	fi
+	# Clean up temp file
+	rm -f $LIST_PATH
+	echo ""
+}
+
+trap 'cleanup; exit 0' INT TERM EXIT
+
+current_page=1
+
+# Save initial terminal settings
+old_tty_settings=$(stty -g)
 
 while true; do
-	[ -f $LIST_PATH ] || fetch_and_display_profiles
+	if [ ! -f $LIST_PATH ]; then
+		fetch_profiles
+	fi
 
-	current_image_id=$(grep "^IMAGE_ID=" /etc/os-release | cut -d'=' -f2)
-	echo_info "Current device gestalt: $current_image_id\n"
-	echo_info "Ctrl-C or Enter without input to exit."
-	read -p "Which gestalt do you want to switch to? Enter a number: " selection
+	clear
+	echo "Gestalt selector"
+	echo
+	echo "Current device: $current_image_id"
+	display_profiles_page $current_page
+	echo
+
+	# Read a single character or escape sequence
+	printf "Enter number of a new profile or [Q] to quit: "
+
+	# Set terminal to raw mode to capture individual keystrokes
+	stty raw -echo min 1 time 0
+
+	# Read first character
+	char=$(dd bs=1 count=1 2>/dev/null)
+
+	# Check if it's an escape sequence
+	if [ "$char" = "$(printf '\033')" ]; then
+		# Read the next character
+		char2=$(dd bs=1 count=1 2>/dev/null)
+		if [ "$char2" = "[" ]; then
+			# Read the final character of the escape sequence
+			char3=$(dd bs=1 count=1 2>/dev/null)
+			case "$char3" in
+				"A") selection="up" ;;      # Up arrow
+				"B") selection="down" ;;    # Down arrow
+				"5")
+					# Page Up - read the trailing ~
+					dd bs=1 count=1 2>/dev/null
+					selection="pgup"
+					;;
+				"6")
+					# Page Down - read the trailing ~
+					dd bs=1 count=1 2>/dev/null
+					selection="pgdn"
+					;;
+				*) selection="$char$char2$char3" ;;
+			esac
+		else
+			selection="$char$char2"
+		fi
+	elif [ "$char" = "$(printf '\003')" ]; then
+		# Ctrl-C
+		exit 0
+	elif [ "$char" = "$(printf '\r')" ] || [ "$char" = "$(printf '\n')" ]; then
+		# Enter without input
+		stty "$old_tty_settings"
+		echo ""
+		selection=""
+	else
+		# For regular characters, restore normal input mode first
+		stty "$old_tty_settings"
+
+		# Check if first character is a digit
+		case "$char" in
+			[0-9])
+				# Echo the first digit and read the rest normally with visible input
+				printf "%s" "$char"
+				read -r rest_of_input
+				selection="$char$rest_of_input"
+				;;
+			*)
+				# Single character input (q, f, l, etc.)
+				printf "%s\n" "$char"
+				selection="$char"
+				;;
+		esac
+	fi
 
 	[ -z "$selection" ] && break
 
-	selected_profile=$(grep "^$selection:" $LIST_PATH | cut -d':' -f2)
-	if [ -n "$selected_profile" ]; then
-		sed -i "s/^IMAGE_ID=.*/IMAGE_ID=$selected_profile/" /etc/os-release
-		echo_info "Device gestalt updated to $selected_profile"
-		break
-	else
-		echo_warning "Invalid selection. Please try again."
-	fi
-done
+	# Restore terminal settings before processing navigation
+	stty "$old_tty_settings"
 
-rm -f $LIST_PATH
+	case "$selection" in
+		"pgup"|"up")
+			if [ $current_page -gt 1 ]; then
+				current_page=$((current_page - 1))
+			fi
+			;;
+		"pgdn"|"down")
+			total_count=$(wc -l < $LIST_PATH)
+			terminal_height=$(get_terminal_height)
+			per_page=$((terminal_height - 8))
+			if [ "$per_page" -lt 5 ]; then per_page=5; elif [ "$per_page" -gt 50 ]; then per_page=50; fi
+			total_pages=$(( (total_count + per_page - 1) / per_page ))
+			if [ $current_page -lt $total_pages ]; then
+				current_page=$((current_page + 1))
+			fi
+			;;
+		"f"|"F")
+			current_page=1
+			;;
+		"l"|"L")
+			total_count=$(wc -l < $LIST_PATH)
+			terminal_height=$(get_terminal_height)
+			per_page=$((terminal_height - 8))
+			if [ "$per_page" -lt 5 ]; then per_page=5; elif [ "$per_page" -gt 50 ]; then per_page=50; fi
+			current_page=$(( (total_count + per_page - 1) / per_page ))
+			;;
+		"q"|"Q")
+			exit 0
+			;;
+		[0-9]*)
+			selected_profile=$(grep "^$selection:" $LIST_PATH | cut -d':' -f2)
+			if [ -n "$selected_profile" ]; then
+				sed -i "s/^IMAGE_ID=.*/IMAGE_ID=$selected_profile/" /etc/os-release
+				echo_info "Device gestalt updated to $selected_profile"
+				break
+			else
+				echo_warning "Invalid selection. Please try again."
+			fi
+			;;
+		*)
+			# Invalid input
+			;;
+	esac
+done
 
 exit 0

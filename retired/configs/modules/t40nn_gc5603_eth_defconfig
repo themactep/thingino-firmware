@@ -1,0 +1,6 @@
+# NAME: T40NN, GC5603, ETH
+# FRAG: soc-xburst2 toolchain-xburst2 ccache brand rootfs kernel system target uboot ssl
+BR2_ETHERNET=y
+BR2_SENSOR_GC5603=y
+BR2_THINGINO_RMEM_64=y
+BR2_SOC_INGENIC_T40NN=y

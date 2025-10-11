@@ -148,7 +148,7 @@ jobs:
       run:
         shell: bash
     container:
-      image: debian:bookworm
+      image: debian:trixie
     strategy:
       fail-fast: false
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
@@ -166,7 +166,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests 7zip build-essential bc cmake cpio curl ca-certificates file git gh make gawk jq p7zip-full procps rsync tzdata u-boot-tools unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc cmake cpio curl ca-certificates file git gh make gawk jq p7zip-full procps rsync tzdata u-boot-tools unzip wget
 
       - name: Set timezone
         run: |
@@ -388,7 +388,7 @@ jobs:
 
       - name: Package binaries for notification
         run: |
-          7zz a -t7z -mx=9 -mmt=on /tmp/thingino-${{ matrix.thingino-version }}.7z ${{ env.FULL_FW }} ${{ env.FULL_FW_SHA }}
+          7z a -t7z -mx=9 -mmt=on /tmp/thingino-${{ matrix.thingino-version }}.7z ${{ env.FULL_FW }} ${{ env.FULL_FW_SHA }}
 
       - name: Send firmware completion notifications with attachment
         if: ${{ env.TG_DISABLED == 'false' && (env.FULL_FW) }}

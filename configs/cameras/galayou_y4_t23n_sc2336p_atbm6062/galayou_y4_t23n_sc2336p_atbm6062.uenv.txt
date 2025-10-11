@@ -1,0 +1,11 @@
+gpio_button=38
+gpio_default=38i 39O 40o 45o 47o 49o 50i 52o 53o 57o 58o 59o 60o 61o 62o 63o 64o
+gpio_ir850=45
+gpio_ircut=57 58
+gpio_led_b=40
+gpio_mmc_cd=50
+gpio_motor_h=61 62 63 49
+gpio_motor_v=59 52 53 64
+gpio_speaker=39o
+gpio_white=60
+gpio_wlan=47o

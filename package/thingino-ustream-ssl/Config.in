@@ -1,0 +1,24 @@
+config BR2_PACKAGE_THINGINO_USTREAM_SSL
+	bool "thingino-ustream-ssl"
+	depends on BR2_USE_WCHAR
+	depends on !BR2_PACKAGE_USTREAM_SSL
+	depends on BR2_PACKAGE_THINGINO_WOLFSSL
+	select BR2_PACKAGE_LIBUBOX
+	select BR2_PACKAGE_THINGINO_WOLFSSL_ALL
+	select BR2_PACKAGE_THINGINO_WOLFSSL_ASN
+	help
+	  A small SSL library that can be used to provide SSL/TLS
+	  support to ustream. This version uses wolfSSL as the
+	  SSL backend for optimal embedded performance.
+
+	  https://git.openwrt.org/project/ustream-ssl.git
+
+config BR2_PACKAGE_THINGINO_USTREAM_SSL_WOLFSSL
+	bool
+	default y if BR2_PACKAGE_THINGINO_USTREAM_SSL
+
+comment "thingino-ustream-ssl needs a toolchain w/ wchar"
+	depends on !BR2_USE_WCHAR
+
+comment "thingino-ustream-ssl conflicts with ustream-ssl"
+	depends on BR2_PACKAGE_USTREAM_SSL

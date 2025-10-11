@@ -1,4 +1,5 @@
 #!/bin/sh
+# Manages thingino config file
 
 . /usr/share/common
 
@@ -15,6 +16,7 @@ Usage:
  $app s <param> <value>   - Set parameter value
  $app d <param>           - Delete parameter
  $app l [<filter>]        - List parameters matching filter
+ $app --script <file>     - Import parameters from file (var=val format)
 " >&2
 	exit 1
 }
@@ -29,17 +31,23 @@ case "$1" in
 		awk -F= "/^$2=/{gsub(/\"/,\"\",\$2);print \$2}" "$CONFIG_FILE"
 		;;
 	s*)
-		[ -z "$3" ] && show_help
-		backup
-		value="$(echo "$3" | sed 's/"/\"/g')"
-		if grep -q "^$2=" "$CONFIG_FILE"; then
-			sed -i "/^$2=/c$2=\"$value\"" "$CONFIG_FILE"
+		[ -z "$2" ] && show_help
+		# If no value provided or empty value, delete the parameter
+		if [ -z "$3" ] || [ "$3" = "" ]; then
+			backup
+			sed -i "/^$2=/d" "$CONFIG_FILE"
 		else
-			tmpfile=$(mktemp)
-			cat "$CONFIG_FILE" > "$tmpfile"
-			echo "$2=\"$value\"" >> "$tmpfile"
-			sed -i "/^\s*$/d" "$tmpfile"
-			sort -u < "$tmpfile" > "$CONFIG_FILE"
+			backup
+			value="$(echo "$3" | sed 's/"/\"/g')"
+			if grep -q "^$2=" "$CONFIG_FILE"; then
+				sed -i "/^$2=/c$2=\"$value\"" "$CONFIG_FILE"
+			else
+				tmpfile=$(mktemp)
+				cat "$CONFIG_FILE" > "$tmpfile"
+				echo "$2=\"$value\"" >> "$tmpfile"
+				sed -i "/^\s*$/d" "$tmpfile"
+				sort -u < "$tmpfile" > "$CONFIG_FILE"
+			fi
 		fi
 		;;
 	d*)
@@ -49,6 +57,30 @@ case "$1" in
 		;;
 	l*)
 		grep "$2" "$CONFIG_FILE"
+		;;
+	--script)
+		[ -z "$2" ] && show_help
+		[ -f "$2" ] || { echo_error "Script file $2 not found"; exit 1; }
+		backup
+		# Process all parameters at once
+		awk -F= 'NR==FNR && /^[a-zA-Z_][a-zA-Z0-9_]*=/ {
+			gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+			gsub(/^"|"$/, "", $2)
+			gsub(/"/, "\\\"", $2)
+			params[$1] = $2
+			next
+		}
+		{
+			if ($1 in params) {
+				print $1 "=\"" params[$1] "\""
+				delete params[$1]
+			} else {
+				print
+			}
+		}
+		END {
+			for (p in params) print p "=\"" params[p] "\""
+		}' "$2" "$CONFIG_FILE" | sort -u > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
 		;;
 	*)
 		show_help

@@ -1,5 +1,7 @@
 # NAME: Hamedal C20 (T31A, GC2053)
-# MODULE: t31a_gc2053
+# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_SENSOR_GC2053=y
+BR2_SOC_INGENIC_T31A=y
 BR2_AVPU_CLK_600MHZ=y
 BR2_ISP_CLK_200MHZ=y
 BR2_PACKAGE_THINGINO_KOPT_DWC2=y
