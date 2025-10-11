@@ -1,7 +1,7 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/themactep/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = master
-INGENIC_SDK_VERSION = 1e854ca18d679e6c6051abfe1bec9be4ede93aaf
+INGENIC_SDK_VERSION = be5af39a46e6f239b895dc8ffddc6ddabe15d05e
 
 INGENIC_SDK_LICENSE = GPL-3.0
 INGENIC_SDK_LICENSE_FILES = LICENSE
@@ -101,20 +101,11 @@ endef
 define INSTALL_SENSOR_BIN
 	if [ "$(1)" != "" ]; then \
 		$(if $(filter-out $(SENSOR_MODEL_2),$(1)),ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor;) \
-		if [ "$(SOC_FAMILY)" = "t23" ]; then \
-			$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/1.1.2/$(2).bin \
-				$(TARGET_DIR)/usr/share/sensor/$(3); \
-			if [ -f $(@D)/sensor-iq/$(SOC_FAMILY)/1.1.2/$(2)-cust.bin ]; then \
-				$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/1.1.2/$(2)-cust.bin \
-					$(TARGET_DIR)/usr/share/sensor/$(patsubst %.bin,$(2)-cust-$(SOC_FAMILY).bin,$(3)); \
-			fi; \
-		else \
-			$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/$(2).bin \
-				$(TARGET_DIR)/usr/share/sensor/$(3); \
-			if [ -f $(@D)/sensor-iq/$(SOC_FAMILY)/$(2)-cust.bin ]; then \
-				$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/$(2)-cust.bin \
-					$(TARGET_DIR)/usr/share/sensor/$(patsubst %.bin,$(2)-cust-$(SOC_FAMILY).bin,$(3)); \
-			fi; \
+		$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/$(2).bin \
+			$(TARGET_DIR)/usr/share/sensor/$(3); \
+		if [ -f $(@D)/sensor-iq/$(SOC_FAMILY)/$(2)-cust.bin ]; then \
+			$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/$(2)-cust.bin \
+				$(TARGET_DIR)/usr/share/sensor/$(patsubst %.bin,$(2)-cust-$(SOC_FAMILY).bin,$(3)); \
 		fi; \
 		$(if $(filter-out $(SENSOR_MODEL_2),$(1)),echo $(1) > $(TARGET_DIR)/usr/share/sensor/model;) \
 	fi
