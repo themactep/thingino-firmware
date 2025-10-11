@@ -69,23 +69,23 @@ fi
 mqtt_failed=0
 send_command="$command -t $mqtt_topic -m \"$mqtt_message\""
 if ! sh -c "$send_command"; then
-        echo_error "Failed to send MQTT message"
-        mqtt_failed=1
+	echo_error "Failed to send MQTT message"
+	mqtt_failed=1
 fi
 
 if [ "true" = "$mqtt_send_snap" ]; then
-        attachment=$(mktemp -u).jpg
-        cp -f "$SNAPSHOT_FILE" "$attachment"
-        send_command="$command -t $mqtt_snap_topic -f \"$attachment\""
+	attachment=$(mktemp -u).jpg
+	cp -f "$SNAPSHOT_FILE" "$attachment"
+	send_command="$command -t $mqtt_snap_topic -f \"$attachment\""
 
-        if ! sh -c "$send_command"; then
-                echo_error "Failed to send snapshot via MQTT"
-                mqtt_failed=1
-        fi
+	if ! sh -c "$send_command"; then
+		echo_error "Failed to send snapshot via MQTT"
+		mqtt_failed=1
+	fi
 fi
 
 if [ $mqtt_failed -eq 1 ]; then
-        exit 1
+	exit 1
 fi
 
 [ -f "$attachment" ] && rm "$attachment"
