@@ -32,7 +32,7 @@ current_image_id=$(grep "^IMAGE_ID=" /etc/os-release | cut -d'=' -f2)
 
 fetch_profiles() {
 	echo_info "Fetching available profiles..."
-	profiles=$(curl -m 10 -s -H "Accept: application/vnd.github+json" "$LIST_URL" | jsonfilter -e "@[*].name" 2>/dev/null)
+	profiles=$(curl -m 10 -s -H "Accept: application/vnd.github+json" "$LIST_URL" | jsonpath -e "@[*].name" 2>/dev/null)
 
 	if [ -z "$profiles" ]; then
 		echo_error "Error: gestalt list empty. Please try again later or check your network connection."
