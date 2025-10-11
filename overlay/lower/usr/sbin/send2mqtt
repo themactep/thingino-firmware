@@ -20,7 +20,6 @@ Where:
 	exit 0
 }
 
-verbosity="false"
 while getopts h:jm:st:u:w:v flag; do
 	case "$flag" in
 		h) mqtt_host=$OPTARG ;;
@@ -30,7 +29,7 @@ while getopts h:jm:st:u:w:v flag; do
 		t) mqtt_topic=$OPTARG ;;
 		u) mqtt_username=$OPTARG ;;
 		w) mqtt_password=$OPTARG ;;
-		v) verbosity="true" ;;
+		v) verbose="true" ;;
 		*) show_help ;;
 	esac
 done
@@ -67,7 +66,7 @@ fi
 mqtt_message=$(date +"$mqtt_message")
 
 command="mosquitto_pub -h $mqtt_host -p $mqtt_port -i $mqtt_client_id"
-if [ "true" = "$verbosity" ]; then
+if [ "true" = "$verbose" ]; then
 	command="$command -d"
 fi
 
@@ -79,27 +78,34 @@ if [ -n "$mqtt_password" ]; then
 	command="$command -P $mqtt_password"
 fi
 
+mqtt_failed=0
+
+if [ "true" = "$mqtt_is_json" ]; then
+	tmpfile=$(mktemp)
+	echo "$mqtt_message" > $tmpfile
+	send_command="$command -t $mqtt_topic -f $tmpfile"
+else
+	send_command="$command -t $mqtt_topic -m '$mqtt_message'"
+fi
+if [ "true" = "$verbosity" ]; then
+	echo_command "$send_command"
+fi
+if ! sh -c "$send_command"; then
+	echo_error "Failed to send MQTT message"
+	mqtt_failed=1
+fi
+
 if [ "true" = "$mqtt_send_snap" ]; then
 	attachment=$(mktemp -u).jpg
 	cp -f "$SNAPSHOT_FILE" "$attachment"
-	command="$command -t $mqtt_snap_topic -f \"$attachment\""
-else
-	if [ "true" = "$mqtt_is_json" ]; then
-		tmpfile=$(mktemp)
-		echo "$mqtt_message" > $tmpfile
-		command="$command -t $mqtt_topic -f $tmpfile"
-	else
-		command="$command -t $mqtt_topic -m '$mqtt_message'"
+	send_command="$command -t $mqtt_snap_topic -f \"$attachment\""
+	if [ "true" = "$verbosity" ]; then
+		echo_command "$send_command"
 	fi
-fi
-
-if [ "true" = "$verbosity" ]; then
-	echo_command "$command"
-fi
-
-if ! sh -c "$command"; then
-	echo_error "Failed to send MQTT message"
-	exit 1
+	if ! sh -c "$send_command"; then
+		echo_error "Failed to send snapshot via MQTT"
+		mqtt_failed=1
+	fi
 fi
 
 if [ -f "$tmpfile" ]; then
@@ -108,6 +114,10 @@ fi
 
 if [ -f "$attachment" ]; then
 	rm "$attachment"
+fi
+
+if [ $mqtt_failed -eq 1 ]; then
+	exit 1
 fi
 
 exit 0
