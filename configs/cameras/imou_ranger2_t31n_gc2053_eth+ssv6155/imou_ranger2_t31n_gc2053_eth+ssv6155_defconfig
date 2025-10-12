@@ -1,4 +1,4 @@
-# NAME: Imou Ranger 2 IPC-A22E-E (T31N, GC2053, SSV6155)
+# NAME: Imou Ranger 2 IPC-A22E-E (T31N, GC2053, ETH, SSV6155)
 # FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 #Ethernet functionality TBD
 BR2_ETHERNET=y

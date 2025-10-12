@@ -1,4 +1,4 @@
-# NAME: HC-3301Y-MT1 (T31N, SC2332, HI3881)
+# NAME: HC-3301Y-MT1 (T31N, SC2332, ETH, HI3881)
 # FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_ETHERNET=y
 BR2_PACKAGE_THINGINO_KOPT_JZ_MAC=y
