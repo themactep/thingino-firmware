@@ -35,7 +35,6 @@ GIT_COMMIT = False
 STASH_REF: Optional[str] = None
 STASH_SHA: Optional[str] = None
 
-
 HASH_RE = re.compile(r"^[a-f0-9]{40}$")
 
 
