@@ -3,7 +3,7 @@ config BR2_PACKAGE_WIFI_AIC8800
 	bool "AIC8800 wireless support"
 	select BR2_LINUX_KERNEL
 	help
-	AIC8800 wireless driver
+	  AIC8800 wireless driver
 
 if BR2_PACKAGE_WIFI_AIC8800
 	choice
