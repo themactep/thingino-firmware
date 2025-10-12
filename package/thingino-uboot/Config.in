@@ -3,7 +3,7 @@ menu "thingino-uboot "
 config BR2_PACKAGE_THINGINO_UBOOT
 	bool "U-Boot"
 	help
-	  Build "Das U-Boot" Boot Monitor, thingino version.
+	  Build "Das U-Boot" Boot Monitor, Thingino version.
 
 	  https://docs.u-boot.org/en/latest/
 
@@ -43,7 +43,7 @@ choice
 	  Select the specific U-Boot version you want to use
 
 config BR2_PACKAGE_THINGINO_UBOOT_LATEST_VERSION
-	bool "2024.04"
+	bool "2025.10"
 
 config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_VERSION
 	bool "Custom version"
@@ -87,7 +87,7 @@ endif
 
 config BR2_PACKAGE_THINGINO_UBOOT_VERSION
 	string
-	default "2024.04"	if BR2_PACKAGE_THINGINO_UBOOT_LATEST_VERSION
+	default "2025.10"	if BR2_PACKAGE_THINGINO_UBOOT_LATEST_VERSION
 	default BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_VERSION_VALUE \
 		if BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_VERSION
 	default "custom"	if BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_TARBALL
@@ -246,9 +246,9 @@ config BR2_PACKAGE_THINGINO_UBOOT_NEEDS_XXD
 
 config BR2_PACKAGE_THINGINO_UBOOT_NEEDS_ATF_BL31
 	bool "U-Boot needs ATF BL31"
-	depends on BR2_PACKAGE_ARM_TRUSTED_FIRMWARE
-	depends on !BR2_PACKAGE_ARM_TRUSTED_FIRMWARE_UBOOT_AS_BL33
-	select BR2_PACKAGE_ARM_TRUSTED_FIRMWARE_BL31
+	depends on BR2_TARGET_ARM_TRUSTED_FIRMWARE
+	depends on !BR2_TARGET_ARM_TRUSTED_FIRMWARE_UBOOT_AS_BL33
+	select BR2_TARGET_ARM_TRUSTED_FIRMWARE_BL31
 	help
 	  Some specific platforms (such as Allwinner A64/H5)
 	  encapsulate the BL31 part of ATF inside U-Boot. This option
@@ -276,11 +276,35 @@ config BR2_PACKAGE_THINGINO_UBOOT_NEEDS_OPTEE_TEE
 	  Some platforms (such as Rockchip) encapsulate the TEE inside
 	  U-Boot. This option makes sure optee-os gets built prior to
 	  U-Boot, and that the TEE variable pointing to OPTEE's
-	  tee.elf, is passed during the Buildroot build.
+	  core file, is passed during the Buildroot build.
+
+choice
+	prompt "U-Boot OPTEE TEE format"
+	default BR2_PACKAGE_THINGINO_UBOOT_NEEDS_OPTEE_TEE_ELF
+	depends on BR2_PACKAGE_THINGINO_UBOOT_NEEDS_OPTEE_TEE
+	help
+	  Select the TEE format.
+	  You may select the TEE in ELF format only for OP-TEE
+	  versions before 3.8.0.
+	  Since this version, the TEE in binary format must be used as
+	  it contains important meta-data.
+
+config BR2_PACKAGE_THINGINO_UBOOT_NEEDS_OPTEE_TEE_ELF
+	bool "tee.elf"
+	help
+	  ELF format may be used only for OP-TEE versions before
+	  3.8.0.
+
+config BR2_PACKAGE_THINGINO_UBOOT_NEEDS_OPTEE_TEE_BIN
+	bool "tee.bin"
+	help
+	  Binary format must be used for OP-TEE versions since 3.8.0.
+
+endchoice
 
 config BR2_PACKAGE_THINGINO_UBOOT_NEEDS_OPENSBI
 	bool "U-Boot needs OpenSBI"
-	depends on BR2_PACKAGE_OPENSBI
+	depends on BR2_TARGET_OPENSBI
 	help
 	  Some RISC-V platforms (such as SiFive HiFive Unleashed)
 	  encapsulate the OpenSBI firmware image inside U-Boot.
@@ -292,6 +316,7 @@ config BR2_PACKAGE_THINGINO_UBOOT_NEEDS_IMX_FIRMWARE
 	bool "U-Boot needs firmware-imx"
 	depends on BR2_PACKAGE_FIRMWARE_IMX
 	depends on BR2_PACKAGE_FIRMWARE_IMX_NEEDS_DDR_FW || \
+		BR2_PACKAGE_FIRMWARE_IMX_NEEDS_DDR_FW_IMX9 || \
 		BR2_PACKAGE_FIRMWARE_IMX_NEEDS_HDMI_FW
 	help
 	  Some i.MX8 platforms (such as i.MX8 M, i.MX 8M Mini, i.MX 8M
@@ -317,7 +342,7 @@ config BR2_PACKAGE_THINGINO_UBOOT_USE_BINMAN
 	help
 	  Use binman tool for generation and signing of boot images.
 
-	  https://docs.u-boot.org/en/v2024.04/develop/package/binman.html
+	  https://docs.u-boot.org/en/v2025.07/develop/package/binman.html
 
 menu "U-Boot binary format"
 
@@ -448,6 +473,14 @@ config BR2_PACKAGE_THINGINO_UBOOT_FORMAT_SD
 
 	  See doc/README.mxs (or doc/README.mx28_common before 2013.07)
 
+config BR2_PACKAGE_THINGINO_UBOOT_FORMAT_QSPI_BIN
+	bool "qspi.bin"
+	depends on BR2_PACKAGE_THINGINO_UBOOT_ZYNQMP
+	help
+	  When booting from qspi flash, u-boot can generate a single
+	  file for flashing by combining the spl/boot.bin and
+	  u-boot.itb files into a unified binary.
+
 config BR2_PACKAGE_THINGINO_UBOOT_FORMAT_STM32
 	bool "u-boot.stm32"
 	depends on BR2_arm
@@ -544,7 +577,8 @@ config BR2_PACKAGE_THINGINO_UBOOT_INITIAL_ENV
 
 config BR2_PACKAGE_THINGINO_UBOOT_ZYNQMP
 	bool "Boot on the Xilinx ZynqMP SoCs"
-	depends on BR2_aarch64
+	depends on BR2_TARGET_XILINX_FIRMWARE_ARCH_SUPPORTS
+	depends on BR2_cortex_a53
 	help
 	  Enable options specific to the Xilinx ZynqMP family of SoCs.
 
@@ -566,26 +600,26 @@ choice
 
 config BR2_PACKAGE_THINGINO_UBOOT_ZYNQMP_PMUFW_EMBEDDEDSW
 	bool "Build from source via xilinx-embeddedsw"
-	depends on BR2_PACKAGE_XILINX_EMBEDDEDSW_ZYNQMP_PMUFW
+	depends on BR2_TARGET_XILINX_EMBEDDEDSW_ZYNQMP_PMUFW
 	help
 	  Use xilinx-embeddedsw boot package for building
 	  zynqmp pmufw.elf from
 	    https://github.com/Xilinx/embeddedsw repo.
 
 comment "To build from source, xilinx-embeddedsw needs to be enabled with zynqmp_pmufw option."
-	depends on !BR2_PACKAGE_XILINX_EMBEDDEDSW_ZYNQMP_PMUFW
+	depends on !BR2_TARGET_XILINX_EMBEDDEDSW_ZYNQMP_PMUFW
 
 config BR2_PACKAGE_THINGINO_UBOOT_ZYNQMP_PMUFW_PREBUILT
 	bool "Prebuilt via xilinx-prebuilt"
-	depends on BR2_PACKAGE_XILINX_PREBUILT_ZYNQMP || BR2_PACKAGE_XILINX_PREBUILT_KRIA
+	depends on BR2_TARGET_XILINX_PREBUILT_ZYNQMP || BR2_TARGET_XILINX_PREBUILT_KRIA
 	help
 	  Use xilinx-prebuilt boot package for downloading prebuilt
 	  zynqmp pmufw.elf from
 	    https://github.com/Xilinx/soc-prebuilt-firmware repo.
 
 comment "To use official prebuilt, xilinx-prebuilt needs to be enabled with zynqmp or kria option."
-	depends on !BR2_PACKAGE_XILINX_PREBUILT_KRIA
-	depends on !BR2_PACKAGE_XILINX_PREBUILT_ZYNQMP
+	depends on !BR2_TARGET_XILINX_PREBUILT_KRIA
+	depends on !BR2_TARGET_XILINX_PREBUILT_ZYNQMP
 
 config BR2_PACKAGE_THINGINO_UBOOT_ZYNQMP_PMUFW_CUSTOM
 	bool "Prebuilt from custom location"
@@ -669,6 +703,41 @@ config BR2_PACKAGE_THINGINO_UBOOT_ZYNQMP_PSU_INIT_FILE
 	  U-Boot, available from versions after 2018.07.
 
 endif
+
+config BR2_PACKAGE_THINGINO_UBOOT_ZYNQ
+	bool "Boot on the Xilinx Zynq SoCs"
+	depends on BR2_arm
+	depends on BR2_cortex_a9
+	help
+	  Enable options specific to the Xilinx Zynq family of SoCs.
+
+config BR2_PACKAGE_THINGINO_UBOOT_ZYNQ_PS7_INIT_FILE
+	string "Custom ps7_init_gpl file"
+	depends on BR2_PACKAGE_THINGINO_UBOOT_BUILD_SYSTEM_KCONFIG
+	depends on BR2_PACKAGE_THINGINO_UBOOT_ZYNQ
+	help
+	  On Zynq the booloader is responsible for some basic
+	  initializations, such as enabling peripherals and
+	  configuring pinmuxes. The ps7_init_gpl.c file (and,
+	  optionally, ps7_init_gpl.h) contains the code for such
+	  initializations.
+
+	  Although U-Boot contains ps7_init_gpl.c files for some
+	  boards, each of them describes only one specific
+	  configuration. Users of a different board, or needing a
+	  different configuration, can generate custom files using
+	  the Xilinx Vivado development tools.
+
+	  Set this variable to the path to your ps7_init_gpl.c file
+	  (e.g. "board/myboard/ps7_init_gpl.c"). ps7_init_gpl.h, if
+	  needed, should be in the same directory. U-Boot will build
+	  and link the user-provided file instead of the built-in.
+
+	  Leave empty to use the files provided by U-Boot.
+
+	  This feature requires commit
+	  6da4f67ad09cd8b311d77b2b04e557b7ef65b56c from upstream
+	  U-Boot, available from versions after 2018.07.
 
 config BR2_PACKAGE_THINGINO_UBOOT_ALTERA_SOCFPGA_IMAGE_CRC
 	bool "CRC image for Altera SoC FPGA (mkpimage)"
