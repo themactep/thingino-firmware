@@ -48,8 +48,6 @@ fetch_profiles() {
 	done
 }
 
-
-
 display_profiles_page() {
 	page=${1:-1}
 

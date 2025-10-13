@@ -274,10 +274,10 @@ choice
 	default BR2_THINGINO_INGENIC_SDK_GCC_540 if BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T32
 	default BR2_THINGINO_INGENIC_SDK_GCC_720 if BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41 || BR2_SOC_FAMILY_INGENIC_A1
 	help
-          Select the GCC compiler version that was used to compile the
-          Ingenic SDK libraries. This ensures binary compatibility between
-          your application code and the provided SDK libraries. Choose the
-          version that matches the SDK you're targeting.
+	  Select the GCC compiler version that was used to compile the
+	  Ingenic SDK libraries. This ensures binary compatibility between
+	  your application code and the provided SDK libraries. Choose the
+	  version that matches the SDK you're targeting.
 
 config BR2_THINGINO_INGENIC_SDK_GCC_472
 	bool "GCC 4.7.2"
@@ -302,7 +302,6 @@ comment "To change the GCC Type, you need to change the"
 comment "fragment in your module to the corresponding"
 comment "GCC type, such as toolchain-musl,"
 comment "toolchain-uclibc, or toolchain-glibc."
-
 
 config BR2_THINGINO_INGENIC_SDK_GCC_MUSL
 	bool "musl"
