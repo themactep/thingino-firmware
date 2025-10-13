@@ -58,11 +58,15 @@ THINGINO_FFMPEG_CONF_OPTS = \
 	--enable-avformat \
 	--enable-avcodec \
 	--enable-network \
-	--enable-static \
 	--enable-ffmpeg \
 	--enable-protocol=file \
 	--enable-protocol=tcp \
 	--enable-protocol=udp
+
+# Set default to static build (will be overridden for LIGHTNVR)
+ifneq ($(BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR),y)
+THINGINO_FFMPEG_CONF_OPTS += --enable-static --disable-shared
+endif
 
 # Apply different base configurations based on variant
 ifneq ($(BR2_PACKAGE_THINGINO_FFMPEG_DEV),y)
@@ -70,7 +74,6 @@ ifneq ($(BR2_PACKAGE_THINGINO_FFMPEG_DEV),y)
 THINGINO_FFMPEG_CONF_OPTS += \
 	$(THINGINO_FFMPEG_DISABLE_JUNK) \
 	--enable-muxer=segment \
-	--disable-shared \
 	--extra-cflags="-Os -flto-partition=none" \
 	--extra-ldflags="-z max-page-size=0x1000 -flto-partition=none -Wl,--gc-sections" \
 	--disable-libx264 \
@@ -113,10 +116,15 @@ THINGINO_FFMPEG_DEPENDENCIES += thingino-opus
 endif
 
 # NVR (Network Video Recorder) configuration - extended features
-ifeq ($(BR2_PACKAGE_THINGINO_FFMPEG_NVR),y)
-THINGINO_FFMPEG_CONF_OPTS += --enable-swresample --enable-swscale
+# LIGHTNVR configuration - enables staging installation for CMake
+ifeq ($(BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR),y)
+# Enable swscale for lightNVR (required by CMake configuration)
+THINGINO_FFMPEG_CONF_OPTS += --enable-swscale --enable-swresample
+# Enable shared libraries and disable static for LIGHTNVR
+THINGINO_FFMPEG_CONF_OPTS += --enable-shared --disable-static
+# Add additional codecs and formats needed by lightNVR
 THINGINO_FFMPEG_PARSERS += h264 hevc aac opus
-THINGINO_FFMPEG_DEMUXERS += mov m4a
+THINGINO_FFMPEG_DEMUXERS += mov m4a rtsp
 THINGINO_FFMPEG_MUXERS += mp4 opus
 THINGINO_FFMPEG_ENCODERS += aac
 THINGINO_FFMPEG_DECODERS += h264 hevc aac opus
