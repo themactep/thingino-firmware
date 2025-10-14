@@ -40,8 +40,6 @@ define THINGINO_PORTAL_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(THINGINO_PORTAL_PKGDIR)/files/logo.svg \
 		$(TARGET_DIR)/var/www/a/logo.svg
 
-	find $(TARGET_DIR)/var/www/a/ -type f \( -name "*.css" -o -name "*.ico" -o -name "*.js" -o -name "*.svg" \) -exec gzip {} \;
-
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www-portal/a
 
 	ln -sr $(TARGET_DIR)/var/www/a/bootstrap.min.css \

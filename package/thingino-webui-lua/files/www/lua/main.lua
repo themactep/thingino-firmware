@@ -567,7 +567,7 @@ function serve_config_page(config_type, sess)
             template_vars.firmware_build = os_release:match('BUILD_ID="([^"]+)"') or os_release:match("BUILD_ID=([^\n]+)") or "Unknown"
             template_vars.firmware_profile = os_release:match('IMAGE_ID=([^\n]+)') or "Unknown"
 
-            -- Timezone selection (data-driven from /usr/share/tz.json.gz)
+            -- Timezone selection (data-driven from /usr/share/tz.json)
             template_vars.current_timezone = config_data.timezone or "UTC"
 
             -- Access checkboxes
@@ -1795,8 +1795,8 @@ function api_get_camera_status(sess)
 end
 
 function api_get_timezones(sess)
-    -- Serve timezone data from /usr/share/tz.json.gz
-    local timezone_file = "/usr/share/tz.json.gz"
+    -- Serve timezone data from /usr/share/tz.json
+    local timezone_file = "/usr/share/tz.json"
 
     -- Check if timezone file exists
     if not utils.file_exists(timezone_file) then
@@ -1805,10 +1805,10 @@ function api_get_timezones(sess)
     end
 
     -- Read and decompress timezone data
-    local cmd = "zcat " .. timezone_file
+    local cmd = "cat " .. timezone_file
     local handle = io.popen(cmd)
     if not handle then
-        utils.log("Failed to execute zcat command")
+        utils.log("Failed to execute cat command")
         return utils.send_json({error = "Failed to read timezone data"}, 500)
     end
 

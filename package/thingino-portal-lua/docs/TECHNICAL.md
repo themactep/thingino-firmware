@@ -204,14 +204,9 @@ local html = table.concat(html_buffer)
 
 ### Asset Optimization
 
-Static assets are compressed during build:
-
 ```makefile
-# Compress CSS/JS files
-find $(TARGET_DIR)/var/www/a/ -type f \( -name "*.css" -o -name "*.js" \) -exec gzip {} \;
-
 # Create symlinks for portal
-ln -sr $(TARGET_DIR)/var/www/a/bootstrap.min.css.gz $(TARGET_DIR)/var/www-portal/a/
+ln -sr $(TARGET_DIR)/var/www/a/bootstrap.min.css $(TARGET_DIR)/var/www-portal/a/
 ```
 
 ## Error Handling
