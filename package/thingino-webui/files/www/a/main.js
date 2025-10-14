@@ -147,10 +147,12 @@ function initCopyToClipboard() {
 // ranges
 		$$('input[type=range]').forEach(el => {
 			el.addEventListener('change', ev => {
-				$('#' + ev.target.id + '-show').textContent = ev.target.value
+				if ($('#' + ev.target.id + '-show'))
+					$('#' + ev.target.id + '-show').textContent = ev.target.value
 			})
 			el.addEventListener('input', ev => {
-				$('#' + ev.target.id + '-show').textContent = ev.target.value
+				if ($('#' + ev.target.id + '-show'))
+					$('#' + ev.target.id + '-show').textContent = ev.target.value
 			});
 		});
 
