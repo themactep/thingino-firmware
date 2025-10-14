@@ -65,6 +65,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/libwebsockets-435/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat-mini/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/mbedtls-certgen/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/spi-tmi8152/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ap/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-button/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-daynight/Config.in"
@@ -87,7 +88,6 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-uboot/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wolfssl/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wolfssh/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/spi-tmi8152/Config.in"
 endif
 
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
