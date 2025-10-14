@@ -1,0 +1,19 @@
+config BR2_PACKAGE_OPENIMP
+	bool "OpenIMP"
+	depends on BR2_PACKAGE_INGENIC_SDK
+	depends on BR2_PACKAGE_INGENIC_LIB
+	help
+	  OpenIMP is an open-source implementation of the Ingenic IMP
+	  (Image Media Process) library. It provides a reverse-engineered
+	  implementation of libimp.so that can replace the proprietary
+	  Ingenic library.
+
+	  This package builds after ingenic-sdk and ingenic-lib and
+	  overrides the usr/lib/libimp.so library with the open-source
+	  implementation.
+
+	  https://github.com/opensensor/openimp
+
+comment "openimp needs ingenic-sdk and ingenic-lib"
+	depends on !BR2_PACKAGE_INGENIC_SDK || !BR2_PACKAGE_INGENIC_LIB
+
