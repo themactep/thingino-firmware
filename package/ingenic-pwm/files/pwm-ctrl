@@ -187,7 +187,7 @@ CHANNEL=$(echo "$PWM" | sed 's/PWM//')
 FUNC_NUM=$(echo "$FUNC" | sed 's/FUNC//')
 
 # Validate brightness input
-if [ "$(echo "$BRIGHTNESS < 0" | bc)" -eq 1 ] || [ "$(echo "$BRIGHTNESS > 100" | bc)" -eq 1 ]; then
+if [ -z "$BRIGHTNESS" ] || [ "$(echo "$BRIGHTNESS < 0" | bc)" -eq 1 ] || [ "$(echo "$BRIGHTNESS > 100" | bc)" -eq 1 ]; then
 	echo "Brightness must be between 0 and 100"
 	exit 1
 fi
