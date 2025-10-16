@@ -25,6 +25,6 @@ page_title="Telegram Bot"
 <% ex "jct $CONFIG_FILE print" %>
 </div>
 
-<script src="/a/thingino-telegrambot-ui.js"></script>
+<script src="/a/telegrambot-ui.js"></script>
 <%in _tg_bot.cgi %>
 <%in _footer.cgi %>

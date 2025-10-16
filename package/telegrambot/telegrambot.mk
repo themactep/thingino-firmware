@@ -8,17 +8,24 @@ TELEGRAMBOT_SITE_METHOD = local
 TELEGRAMBOT_LICENSE = MIT
 
 TELEGRAMBOT_DEPENDENCIES = thingino-libcurl thingino-jct
+# Package-specific flags (append-only for configurability)
+TELEGRAMBOT_CFLAGS += -D_POSIX_C_SOURCE=200809L -std=c99 \
+	-Wall -Wextra -Os -ffunction-sections -fdata-sections \
+	-I$(STAGING_DIR)/usr/include
+
+TELEGRAMBOT_LDFLAGS += -Wl,--gc-sections
+# Link libraries (append-only for configurability)
+TELEGRAMBOT_LIBS += -L$(STAGING_DIR)/usr/lib -ljct -lcurl
+
+
 
 define TELEGRAMBOT_BUILD_CMDS
-	$(TARGET_CC) $(TARGET_CFLAGS) -D_POSIX_C_SOURCE=200809L -std=c99 \
-		-Wall -Wextra -Os -ffunction-sections -fdata-sections \
-		-I$(@D)/../.. \
-		-I$(STAGING_DIR)/usr/include \
+	$(TARGET_CC) $(TARGET_CFLAGS) $(TELEGRAMBOT_CFLAGS) \
 		-c $(@D)/telegrambot.c \
 		-o $(@D)/telegrambot.o
 
-	$(TARGET_CC) $(TARGET_LDFLAGS) -Wl,--gc-sections -o $(@D)/telegrambot \
-		$(@D)/telegrambot.o -L$(STAGING_DIR)/usr/lib -ljct -lcurl
+	$(TARGET_CC) $(TARGET_LDFLAGS) $(TELEGRAMBOT_LDFLAGS) -o $(@D)/telegrambot \
+		$(@D)/telegrambot.o $(TELEGRAMBOT_LIBS)
 endef
 
 define TELEGRAMBOT_INSTALL_TARGET_CMDS
@@ -28,7 +35,7 @@ define TELEGRAMBOT_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/etc/init.d/S93telegrambot
 	$(INSTALL) -D -m 0644 $(TELEGRAMBOT_PKGDIR)/files/etc/telegrambot.json \
 		$(TARGET_DIR)/etc/telegrambot.json
-	$(INSTALL) -D -m 0755 $(TELEGRAMBOT_PKGDIR)/files/www/a/telegrambot-ui.js \
+	$(INSTALL) -D -m 0644 $(TELEGRAMBOT_PKGDIR)/files/www/a/telegrambot-ui.js \
 		$(TARGET_DIR)/var/www/a/telegrambot-ui.js
 	$(INSTALL) -D -m 0755 $(TELEGRAMBOT_PKGDIR)/files/www/x/service-telegrambot.cgi \
 		$(TARGET_DIR)/var/www/x/service-telegrambot.cgi
