@@ -1,0 +1,36 @@
+# Augment/assistant project hints (machine-readable)
+# This file helps assistants/tools quickly adopt local conventions.
+
+conventions:
+  rebuild_pattern: "rebuild-%"
+  rebuild_sequence:
+    - "%-dirclean"
+    - "%"
+  build_helpers:
+    - "br-%"
+    - "br-%-dirclean"
+  helper_targets:
+    - "augment-info"
+    - "show-vars"
+
+packages:
+  telegrambot:
+    flags:
+      cflags_var: "TELEGRAMBOT_CFLAGS"
+      ldflags_var: "TELEGRAMBOT_LDFLAGS"
+      libs_var: "TELEGRAMBOT_LIBS"
+    defaults:
+      cflags: "-D_POSIX_C_SOURCE=200809L -std=c99 -Wall -Wextra -Os -ffunction-sections -fdata-sections -I$(STAGING_DIR)/usr/include"
+      ldflags: "-Wl,--gc-sections"
+      libs: "-L$(STAGING_DIR)/usr/lib -ljct -lcurl"
+
+onboarding:
+  quickstart:
+    - "Run: make augment-info (prints conventions and key vars)"
+    - "Rebuild a package: make rebuild-<pkg> (e.g., make rebuild-telegrambot)"
+    - "List variables: make show-vars"
+
+notes:
+  - "OUTPUT_DIR and other paths are computed in the top-level Makefile."
+  - "Board selection is skipped for augment-info and show-vars."
+
