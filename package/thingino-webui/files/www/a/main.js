@@ -90,8 +90,8 @@ function heartbeat() {
 			$('.progress-stacked.extras').title = 'Free extras: ' + json.extras_free + 'KiB'
 			setProgressBar('#pb-extras-used', json.extras_used, json.extras_total, 'Extras Usage');
 
-			if (json.daynight_value !== '-1')
-				$$('.gain').forEach(el => el.textContent = '☀️ ' + json.daynight_value);
+			if (json.dnd_gain !== '-1')
+				$$('.dnd_gain').forEach(el => el.textContent = '☀️ ' + json.dnd_gain);
 
 			if (typeof (json.uptime) !== 'undefined' && json.uptime !== '')
 				$('#uptime').textContent = 'Uptime:️ ' + json.uptime;

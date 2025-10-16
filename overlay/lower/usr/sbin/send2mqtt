@@ -97,7 +97,7 @@ fi
 
 if [ "true" = "$mqtt_send_snap" ]; then
 	attachment=$(mktemp -u).jpg
-	cp -f "$SNAPSHOT_FILE" "$attachment"
+	prudyntctl snapshot -c 0 > $attachment
 	send_command="$command -t $mqtt_snap_topic -f \"$attachment\""
 	if [ "true" = "$verbosity" ]; then
 		echo_command "$send_command"

@@ -18,6 +18,11 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
+
+#ifndef TELEGRAM_TEXT_MAX
+#define TELEGRAM_TEXT_MAX 4096
+#endif
+
 // Forward decl from jct (not in header)
 extern JsonValue* parse_json_string(const char* json_str);
 
@@ -315,7 +320,7 @@ static int run_command(const Config* cfg, int idx, long chat_id)
     FILE* p = popen(cmdline, "r");
     if (!p)
         return -1;
-    char buf[896];
+    char buf[TELEGRAM_TEXT_MAX + 1];
     size_t n = fread(buf, 1, sizeof(buf) - 1, p);
     buf[n] = '\0';
     int status = pclose(p);
@@ -337,7 +342,7 @@ static int run_command(const Config* cfg, int idx, long chat_id)
 
     if (exitcode != 0) {
         syslog(LOG_WARNING, "Command failed: %s (code %d)", cmd, exitcode);
-        char msg[1024];
+        char msg[TELEGRAM_TEXT_MAX + 128];
         snprintf(msg, sizeof msg, "Execution failed! Please review the command:\n%s\n\nOutput:\n%s", cmd, (n ? buf : ""));
         return reply_text(cfg, chat_id, msg);
     }
@@ -535,9 +540,9 @@ static int reply_text(const Config* cfg, long chat_id, const char* text)
     char url[512];
     make_url(url, sizeof(url), cfg, "sendMessage", NULL);
 
-    char esc[400];
+    char esc[TELEGRAM_TEXT_MAX + 1];
     json_escape(text, esc, sizeof esc);
-    char body[512];
+    char body[TELEGRAM_TEXT_MAX + 128];
     snprintf(body, sizeof(body), "{\"chat_id\":%ld,\"text\":\"%s\"}", chat_id, esc);
 
     Memory m;

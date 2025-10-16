@@ -24,7 +24,6 @@ Where:
 	exit 0
 }
 
-verbosity="false"
 while getopts a:c:f:h:i:l:m:n:p:st:u:w:vh flag; do
 	case "$flag" in
 		a) ntfy_attach=$OPTARG ;;
@@ -39,7 +38,7 @@ while getopts a:c:f:h:i:l:m:n:p:st:u:w:vh flag; do
 		t) ntfy_topic=$OPTARG ;;
 		u) ntfy_username=$OPTARG ;;
 		w) ntfy_password=$OPTARG ;;
-		v) verbosity="true" ;;
+		v) verbose="true" ;;
 		*) show_help ;;
 	esac
 done
@@ -64,12 +63,12 @@ remove_ntfy_file="false"
 # Prepare snapshot as attachment
 if [ "true" = "$ntfy_send_snap" ]; then
 	ntfy_filename=$(mktemp -u).jpg
-	cp -f "$SNAPSHOT_FILE" "$ntfy_filename"
+	prudyntctl snapshot -c 0 > $ntfy_filename
 	remove_ntfy_file="true"
 fi
 
 command="$CURL -X POST -H p:${ntfy_priority:-3}"
-if [ "true" = "$verbosity" ]; then
+if [ "true" = "$verbose" ]; then
 	command="$command --verbose"
 else
 	command="$command --silent"
@@ -93,7 +92,7 @@ fi
 
 if [ "true" = "$ntfy_send_snap" ]; then
 	attachment=$(mktemp -u).jpg
-	cp -f "$SNAPSHOT_FILE" "$attachment"
+	prudyntctl snapshot -c 0 > $attachment
 	command="$command -T $attachment -H 'Filename: $attachment'"
 fi
 
@@ -132,7 +131,7 @@ fi
 
 command="$command ${ntfy_host:-ntfy.sh}/$ntfy_topic"
 
-if [ "true" = "$verbosity" ]; then
+if [ "true" = "$verbose" ]; then
 	echo_command "$command"
 fi
 

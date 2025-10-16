@@ -74,12 +74,11 @@ default_for rtsp_password "thingino"
 
 <div class="btn-toolbar" role="toolbar">
 <div class="btn-group mb-3" role="group">
-<button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#mdPreview"
-title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm"></button>
-<input type="radio" class="btn-check" name="stream2_jpeg_channel" id="stream2_jpeg_channel_0" value="0" checked>
-<label class="btn btn-outline-primary" for="stream2_jpeg_channel_0">Main stream</label>
-<input type="radio" class="btn-check" name="stream2_jpeg_channel" id="stream2_jpeg_channel_1" value="1">
-<label class="btn btn-outline-primary" for="stream2_jpeg_channel_1">Substream</label>
+<button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#mdPreview" title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm"></button>
+<input type="radio" class="btn-check" name="preview_source" id="preview_source_0" value="0" checked>
+<label class="btn btn-outline-primary" for="preview_source_0">Main stream</label>
+<input type="radio" class="btn-check" name="preview_source" id="preview_source_1" value="1">
+<label class="btn btn-outline-primary" for="preview_source_1">Substream</label>
 </div>
 </div>
 
@@ -289,8 +288,8 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 
 <script>
 const soc = "<%= $soc_family %>";
-const preview = $("#preview");
-preview.onload = function() { URL.revokeObjectURL(this.src) }
+
+const endpoint = '/x/json-prudynt.cgi';
 
 function ts() {
 	return Math.floor(Date.now());
@@ -354,44 +353,163 @@ DEFAULT_VALUES = {
 }
 
 // audio
-const audio_params = ['input_agc_compression_gain_db', 'input_agc_enabled', 'input_agc_target_level_dbfs',
-	'input_alc_gain', 'input_bitrate', 'input_enabled', 'input_format', 'input_gain', 'input_high_pass_filter',
-	'input_noise_suppression', 'input_sample_rate', 'input_vol', 'output_enabled'];
+const audio_params = [
+	'input_agc_compression_gain_db', 'input_agc_enabled',
+	'input_agc_target_level_dbfs', 'input_alc_gain', 'input_bitrate',
+	'input_enabled', 'input_format', 'input_gain', 'input_high_pass_filter',
+	'input_noise_suppression', 'input_sample_rate', 'input_vol',
+	'output_enabled'
+];
 
 // image
-const image_params = ['ae_compensation', 'anti_flicker', 'backlight_compensation', 'brightness', 'contrast',
-	'core_wb_mode', 'defog_strength', 'dpc_strength', 'drc_strength', 'hflip', 'highlight_depress', 'hue',
-	'max_again', 'max_dgain', 'running_mode', 'saturation', 'sharpness', 'sinter_strength', 'temper_strength',
-	'vflip', 'wb_bgain', 'wb_rgain'];
+const image_params = [
+	'ae_compensation', 'anti_flicker', 'backlight_compensation',
+	'brightness', 'contrast', 'core_wb_mode', 'defog_strength',
+	'dpc_strength', 'drc_strength', 'hflip', 'highlight_depress', 'hue',
+	'max_again', 'max_dgain', 'running_mode', 'saturation', 'sharpness',
+	'sinter_strength', 'temper_strength', 'vflip', 'wb_bgain', 'wb_rgain'
+];
 
 // motion
-const motion_params = ['debounce_time', 'post_time', 'ivs_polling_timeout', 'cooldown_time', 'init_time', 'min_time',
-	'sensitivity', 'skip_frame_count', 'frame_width', 'frame_height', 'monitor_stream', 'roi_0_x', 'roi_0_y',
-	'roi_1_x', 'roi_1_y', 'roi_count'];
+const motion_params = [
+	'debounce_time', 'post_time', 'ivs_polling_timeout', 'cooldown_time',
+	'init_time', 'min_time', 'sensitivity', 'skip_frame_count',
+	'frame_width', 'frame_height', 'monitor_stream', 'roi_0_x', 'roi_0_y',
+	'roi_1_x', 'roi_1_y', 'roi_count'
+];
 
 // stream [0, 1]
-const stream_params = ['audio_enabled', 'bitrate', 'buffers', 'enabled', 'format', 'fps', 'gop', 'height', 'max_gop',
- 	'mode', 'profile', 'rotation', 'rtsp_endpoint', 'width'];
+const stream_params = [
+	'audio_enabled', 'bitrate', 'buffers', 'enabled', 'format', 'fps',
+	'gop', 'height', 'max_gop', 'mode', 'profile', 'rotation',
+	'rtsp_endpoint', 'width'
+];
 
 // stream 2
 const stream2_params = ['jpeg_channel'];
 
 // OSD
-const osd_params = ['enabled', 'font_path', 'font_size', 'font_stroke_size',
-	'logo_enabled',
-	'time_enabled', 'time_font_color', 'time_font_stroke_color', 'time_format',
-	'uptime_enabled', 'uptime_font_color', 'uptime_font_stroke_color',
-	'usertext_enabled', 'usertext_font_color', 'usertext_stroke_color', 'usertext_format'
+const osd_params = [
+	'enabled', 'font_path', 'font_size', 'font_stroke_size', 'logo_enabled',
+	'time_enabled', 'time_font_color', 'time_font_stroke_color',
+	'time_format', 'uptime_enabled', 'uptime_font_color',
+	'uptime_font_stroke_color', 'usertext_enabled', 'usertext_font_color',
+	'usertext_stroke_color', 'usertext_format'
 ];
 
 let sts;
 
-const wsPort = location.protocol === "https:" ? 8090 : 8089;
-const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
-let ws = new WebSocket(`${wsProto}//${document.location.hostname}:${wsPort}?token=<%= $ws_token %>`);
+function rgba2color(hex8) {
+	return hex8.substring(0, 7);
+}
 
-ws.onopen = () => {
-	console.log('WebSocket connection opened');
+function rgba2alpha(hex8) {
+	const alphaHex = hex8.substring(7, 9);
+	const alpha = parseInt(alphaHex, 16);
+	return alpha;
+}
+
+function handleMessage(msg) {
+	if (msg.action && msg.action.capture == 'initiated') return;
+
+	let data;
+
+	// Video
+	for (const i in [0, 1]) {
+		const domain = `stream${i}`;
+		data = msg[domain];
+		if (data) {
+			stream_params.forEach((x) => {
+				if (typeof(data[x]) !== 'undefined')
+					setValue(data, domain, x);
+			});
+			if (data.osd) {
+				if (data.osd.enabled) {
+					$(`#osd${i}_enabled`).checked = data.osd.enabled;
+					toggleWrappers(i);
+				}
+				if (data.osd.font_path)
+					$(`#osd${i}_fontname`).value = data.osd.font_path.split('/').reverse()[0];
+				if (data.osd.font_size) {
+					$(`#osd${i}_fontsize-show`).textContent = data.osd.font_size;
+					$(`#osd${i}_fontsize`).value = data.osd.font_size;
+				}
+				if (data.osd.font_stroke_size) {
+					$(`#osd${i}_fontstrokesize-show`).textContent = data.osd.font_stroke_size;
+					$(`#osd${i}_fontstrokesize`).value = data.osd.font_stroke_size;
+				}
+
+				if (data.osd.logo_enabled)
+					$(`#osd${i}_logo_enabled`).checked = data.osd.logo_enabled;
+
+				if (data.osd.time_enabled)
+					$(`#osd${i}_time_enabled`).checked = data.osd.time_enabled;
+				if (data.osd.time_format)
+					$(`#osd${i}_time_format`).value = data.osd.time_format;
+
+				if (data.osd.time_font_color) {
+					$(`#osd${i}_time_fontcolor`).value = rgba2color(data.osd.time_font_color);
+					$(`#osd${i}_time_fontcolor-alpha`).value = rgba2alpha(data.osd.time_font_color);
+				}
+
+				if (data.osd.time_font_stroke_color) {
+					$(`#osd${i}_time_fontstrokecolor`).value = rgba2color(data.osd.time_font_stroke_color);
+				}
+
+				if (data.osd.uptime_enabled)
+					$(`#osd${i}_uptime_enabled`).checked = data.osd.uptime_enabled;
+
+				if (data.osd.uptime_font_color) {
+					$(`#osd${i}_uptime_fontcolor`).value = rgba2color(data.osd.uptime_font_color);
+					$(`#osd${i}_uptime_fontcolor-alpha`).value = rgba2alpha(data.osd.uptime_font_color);
+				}
+
+				if (data.osd.uptime_font_stroke_color) {
+					$(`#osd${i}_uptime_fontstrokecolor`).value = rgba2color(data.osd.uptime_font_stroke_color);
+				}
+
+				if (data.osd.usertext_enabled)
+					$(`#osd${i}_usertext_enabled`).checked = data.osd.usertext_enabled;
+
+				if (data.osd.usertext_font_color) {
+					$(`#osd${i}_usertext_fontcolor`).value = rgba2color(data.osd.usertext_font_color);
+					$(`#osd${i}_usertext_fontcolor-alpha`).value = rgba2alpha(data.osd.usertext_font_color);
+				}
+
+				if (data.osd.usertext_font_stroke_color) {
+					$(`#osd${i}_usertext_fontstrokecolor`).value = rgba2color(data.osd.usertext_font_stroke_color);
+				}
+
+				if (data.osd.usertext_format)
+					$(`#osd${i}_usertext_format`).value = data.osd.usertext_format;
+			}
+		}
+	}
+
+	// Audio
+	{
+		data = msg.audio;
+		if (data) {
+			audio_params.forEach((x) => {
+				if (typeof(data[x]) !== 'undefined')
+					setValue(data, 'audio', x);
+			});
+		}
+	}
+
+	// Image
+	{
+		data = msg.image;
+		if (data) {
+			image_params.forEach((x) => {
+				if (typeof(data[x]) !== 'undefined')
+					setValue(data, 'image', x);
+			});
+		}
+	}
+}
+
+async function loadConfig() {
 	const stream_rq = '{' +
 		stream_params.map((x) => `"${x}":null`).join() +
 		',"osd":{' + osd_params.map((x) => `"${x}":null`).join() + '}' +
@@ -404,153 +522,56 @@ ws.onopen = () => {
 		',"image":{' + image_params.map((x) => `"${x}":null`).join() + '}' +
 		'}';
 	console.log('===>', payload);
-	ws.send(payload);
-	sts = setTimeout(getSnapshot, 1000);
-}
-ws.onclose = () => { console.log('WebSocket connection closed'); }
-ws.onerror = (err) => { console.error('WebSocket error', err); }
-ws.onmessage = (ev) => {
-	if (typeof ev.data === 'string') {
-		if (ev.data == '') return;
-		const msg = JSON.parse(ev.data);
-		if (msg.action && msg.action.capture == 'initiated') return;
-		console.log(ts(), '<===', ev.data);
-
-		let data;
-
-		// Video
-		for (const i in [0, 1]) {
-			const domain = `stream${i}`;
-			data = msg[domain];
-			if (data) {
-				stream_params.forEach((x) => {
-					if (typeof(data[x]) !== 'undefined')
-						setValue(data, domain, x);
-				});
-				if (data.osd) {
-					if (data.osd.enabled) {
-						$(`#osd${i}_enabled`).checked = data.osd.enabled;
-						toggleWrappers(i);
-					}
-					if (data.osd.font_path)
-						$(`#osd${i}_fontname`).value = data.osd.font_path.split('/').reverse()[0];
-					if (data.osd.font_size) {
-						$(`#osd${i}_fontsize-show`).textContent = data.osd.font_size;
-						$(`#osd${i}_fontsize`).value = data.osd.font_size;
-					}
-					if (data.osd.font_stroke_size) {
-						$(`#osd${i}_fontstrokesize-show`).textContent = data.osd.font_stroke_size;
-						$(`#osd${i}_fontstrokesize`).value = data.osd.font_stroke_size;
-					}
-
-					if (data.osd.logo_enabled)
-						$(`#osd${i}_logo_enabled`).checked = data.osd.logo_enabled;
-
-					if (data.osd.time_enabled)
-						$(`#osd${i}_time_enabled`).checked = data.osd.time_enabled;
-					if (data.osd.time_format)
-						$(`#osd${i}_time_format`).value = data.osd.time_format;
-					if (data.osd.time_font_color)
-						$(`#osd${i}_time_fontcolor`).value = data.osd.time_font_color.replace(/^0x../, '#');
-					if (data.osd.time_font_stroke_color)
-						$(`#osd${i}_time_fontstrokecolor`).value = data.osd.time_font_stroke_color.replace(/^0x../, '#');
-
-					if (data.osd.uptime_enabled)
-						$(`#osd${i}_uptime_enabled`).checked = data.osd.uptime_enabled;
-					if (data.osd.uptime_font_color)
-						$(`#osd${i}_uptime_fontcolor`).value = data.osd.uptime_font_color.replace(/^0x../, '#');
-					if (data.osd.uptime_font_stroke_color)
-						$(`#osd${i}_uptime_fontstrokecolor`).value = data.osd.uptime_font_stroke_color.replace(/^0x../, '#');
-
-					if (data.osd.usertext_enabled)
-						$(`#osd${i}_usertext_enabled`).checked = data.osd.usertext_enabled;
-					if (data.osd.usertext_font_color)
-						$(`#osd${i}_usertext_fontcolor`).value = data.osd.usertext_font_color.replace(/^0x../, '#');
-					if (data.osd.usertext_font_stroke_color)
-						$(`#osd${i}_usertext_fontstrokecolor`).value = data.osd.usertext_font_stroke_color.replace(/^0x../, '#');
-					if (data.osd.usertext_format)
-						$(`#osd${i}_usertext_format`).value = data.osd.usertext_format;
-				}
-			}
+	try {
+		const response = await fetch(endpoint, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: payload
+		});
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		const contentType = response.headers.get('content-type');
+		if (contentType?.includes('application/json')) {
+			const msg = await response.json();
+			console.log(ts(), '<===', JSON.stringify(msg));
+			handleMessage(msg);
 		}
-
-		// Stream 2
-		{
-			data = msg.stream2;
-			if (data) {
-				$('#stream2_jpeg_channel_0').checked = (data.jpeg_channel == 0);
-				$('#stream2_jpeg_channel_1').checked = (data.jpeg_channel == 1);
-			}
-		}
-
-		// Audio
-		{
-			data = msg.audio;
-			if (data) {
-				audio_params.forEach((x) => {
-					if (typeof(data[x]) !== 'undefined')
-						setValue(data, 'audio', x);
-				});
-			}
-		}
-
-		// Image
-		{
-			data = msg.image;
-			if (data) {
-				image_params.forEach((x) => {
-					if (typeof(data[x]) !== 'undefined')
-						setValue(data, 'image', x);
-				});
-			}
-		}
-	} else if (ev.data instanceof ArrayBuffer) {
-		// console.log(ts(), '<===', ev.data);
-
-		const blob = new Blob([ev.data], {type: 'image/jpeg'});
-		const url = URL.createObjectURL(blob);
-		preview.src = url;
-		$("#preview_fullsize").src = url;
+	} catch (err) {
+		console.error('Load config error', err);
 	}
 }
 
-function sendToWs(payload) {
+async function sendToEndpoint(payload) {
 	console.log(ts(), '===>', payload);
-	ws.send(payload);
-}
-
-function getSnapshot() {
-	clearTimeout(sts);
-	ws.binaryType = 'arraybuffer';
-	const payload = '{"action":{"capture":null}}';
-	ws.send(payload);
-	sts = setTimeout(getSnapshot, 500);
-}
-
-// n - stream #
-function setFont(n) {
-	const fontname = $(`#osd${n}_fontname`).value;
-	const fontsize = $(`#osd${n}_fontsize`).value;
-	const fontstrokesize = $(`#osd${n}_fontstrokesize`).value;
-
-	if (fontname == '' || fontsize == '') return;
-	sendToWs('{"stream'+n+'":{"osd":{'+
-		'"font_path":"/usr/share/fonts/'+fontname+'",'+
-		'"font_size":'+fontsize+','+
-		'"font_stroke_size":'+fontstrokesize+
-		'}},"action":{"restart_thread":10}}');
+	try {
+		const response = await fetch(endpoint, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: payload
+		});
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		const contentType = response.headers.get('content-type');
+		if (contentType?.includes('application/json')) {
+			const msg = await response.json();
+			console.log(ts(), '<===', JSON.stringify(msg));
+			handleMessage(msg);
+		}
+	} catch (err) {
+		console.error('Send error', err);
+	}
 }
 
 // n - stream #,
 // el - osd element
 function setFontColor(n, el) {
-	const fontcolor = $(`#osd${n}_${el}_fontcolor`).value.replace(/^#/, '');
-	const fontstrokecolor = $(`#osd${n}_${el}_fontstrokecolor`).value.replace(/^#/, '');
+	const fontcolor = $(`#osd${n}_${el}_fontcolor`).value;
+	const fontcolor_alpha = parseInt($(`#osd${n}_${el}_fontcolor-alpha`).value).toString(16);
+	const fontstrokecolor = $(`#osd${n}_${el}_fontstrokecolor`).value;
+	const fontstrokecolor_alpha = parseInt($(`#osd${n}_${el}_fontstrokecolor-alpha`).value).toString(16);
 
 	if (fontcolor == '' || fontstrokecolor == '') return;
-	sendToWs('{"stream'+n+'":{"osd":{'+
-		'"'+el+'_font_color":"0xff'+fontcolor+'",'+
-		'"'+el+'_font_stroke_color":"0xff'+fontstrokecolor+'"'+
+	sendToEndpoint('{"stream'+n+'":{"osd":{'+
+		'"'+el+'_font_color":"'+fontcolor+fontcolor_alpha+'",'+
+		'"'+el+'_font_stroke_color":"'+fontstrokecolor+fontstrokecolor_alpha+'"'+
 		'}},"action":{"restart_thread":10}}');
 }
 
@@ -558,7 +579,7 @@ function toggleOSDElement(el) {
 	const status = el.checked ? 'true' : 'false';
 	const stream_id = el.id.substr(3, 1);
 	const id = el.id.replace('osd0_', '').replace('osd1_', '');
-	sendToWs('{"stream'+stream_id+'":{"osd":{'+
+	sendToEndpoint('{"stream'+stream_id+'":{"osd":{'+
 		'"'+id+'":'+status+
 		'}},"action":{"restart_thread":10}}');
 }
@@ -615,7 +636,7 @@ function saveValue(domain, name) {
 
 	let json_actions = '';
 	if (thread > 0) json_actions = ',"action":{"restart_thread":'+thread+'}';
-	sendToWs('{"'+domain+'":{'+payload+json_actions+'}}');
+	sendToEndpoint('{"'+domain+'":{'+payload+json_actions+'}}');
 }
 
 for (const i in [0, 1]) {
@@ -671,20 +692,12 @@ image_params.forEach((x) => {
 	});
 });
 
-$('#stream2_jpeg_channel_0').addEventListener('click', ev => {
-	sendToWs('{"stream2":{"jpeg_channel":0},"action":{"restart_thread":11}}');
-});
-
-$('#stream2_jpeg_channel_1').addEventListener('click', ev => {
-	sendToWs('{"stream2":{"jpeg_channel":1},"action":{"restart_thread":11}}');
-});
-
 $('#save-prudynt-config').addEventListener('click', ev => {
-	sendToWs('{"action":{"save_config":null}}');
+	sendToEndpoint('{"action":{"save_config":null}}');
 });
 
 $('#restart-audio').addEventListener('click', ev => {
-	sendToWs('{"action":{"restart_thread":' + ThreadAudio + '}}');
+	sendToEndpoint('{"action":{"restart_thread":' + ThreadAudio + '}}');
 });
 
 for (const i in [0, 1]) {
@@ -692,23 +705,34 @@ for (const i in [0, 1]) {
 	$('#osd'+i+'_fontsize').onchange = () => setFont(i);
 	$('#osd'+i+'_fontstrokesize').onchange = () => setFont(i);
 
-	$('#osd'+i+'_enabled').onchange = (ev) => sendToWs('{"stream'+i+'":{"osd":{"enabled":'+ev.target.checked+'}},"action":{"restart_thread":10}}}');
+	$('#osd'+i+'_enabled').onchange = (ev) => sendToEndpoint('{"stream'+i+'":{"osd":{"enabled":'+ev.target.checked+'}},"action":{"restart_thread":10}}}');
 	$('#osd'+i+'_logo_enabled').onchange = (ev) => toggleOSDElement(ev.target);
 
 	$('#osd'+i+'_time_enabled').onchange = (ev) => toggleOSDElement(ev.target);
 	$('#osd'+i+'_time_fontcolor').onchange = () => setFontColor(i, 'time');
+	$('#osd'+i+'_time_fontcolor-alpha').onchange = () => setFontColor(i, 'time');
 	$('#osd'+i+'_time_fontstrokecolor').onchange = () => setFontColor(i, 'time');
-	$('#osd'+i+'_time_format').onchange = (ev) => sendToWs('{"stream'+i+'":{"osd":{"time_format":"'+ev.target.value+'"}},"action":{"restart_thread":10}}}');
+	$('#osd'+i+'_time_fontstrokecolor-alpha').onchange = () => setFontColor(i, 'time');
+	$('#osd'+i+'_time_format').onchange = (ev) => sendToEndpoint('{"stream'+i+'":{"osd":{"time_format":"'+ev.target.value+'"}},"action":{"restart_thread":10}}}');
 
 	$('#osd'+i+'_uptime_enabled').onchange = (ev) => toggleOSDElement(ev.target);
 	$('#osd'+i+'_uptime_fontcolor').onchange = () => setFontColor(i, 'uptime');
+	$('#osd'+i+'_uptime_fontcolor-alpha').onchange = () => setFontColor(i, 'uptime');
 	$('#osd'+i+'_uptime_fontstrokecolor').onchange = () => setFontColor(i, 'uptime');
+	$('#osd'+i+'_uptime_fontstrokecolor-alpha').onchange = () => setFontColor(i, 'uptime');
 
 	$('#osd'+i+'_usertext_enabled').onchange = (ev) => toggleOSDElement(ev.target);
 	$('#osd'+i+'_usertext_fontcolor').onchange = () => setFontColor(i, 'usertext');
+	$('#osd'+i+'_usertext_fontcolor-alpha').onchange = () => setFontColor(i, 'usertext');
 	$('#osd'+i+'_usertext_fontstrokecolor').onchange = () => setFontColor(i, 'usertext');
-	$('#osd'+i+'_usertext_format').onchange = (ev) => sendToWs('{"stream'+i+'":{"osd":{"usertext_format":"'+ev.target.value+'"}},"action":{"restart_thread":10}}}');
+	$('#osd'+i+'_usertext_fontstrokecolor-alpha').onchange = () => setFontColor(i, 'usertext');
+	$('#osd'+i+'_usertext_format').onchange = (ev) => sendToEndpoint('{"stream'+i+'":{"osd":{"usertext_format":"'+ev.target.value+'"}},"action":{"restart_thread":10}}}');
 }
+
+$('#preview_source_0').addEventListener('click', () => { $('#preview').src='/x/ch0.mjpg' });
+$('#preview_source_1').addEventListener('click', () => { $('#preview').src='/x/ch1.mjpg' });
+
+loadConfig().then(() => { $('#preview').src = '/x/ch0.mjpg' });
 </script>
 
 <%in _footer.cgi %>

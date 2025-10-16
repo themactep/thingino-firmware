@@ -1,0 +1,167 @@
+#!/bin/sh
+
+# FFmpeg-based replacement for openRTSP
+# Provides compatible command-line interface for existing scripts
+
+FFMPEG_BIN="/usr/bin/ffmpeg"
+
+usage() {
+    echo "Usage: $0 [options] rtsp://url"
+    echo ""
+    echo "FFmpeg-based RTSP client (openRTSP replacement)"
+    echo ""
+    echo "Options:"
+    echo "  -V              Verbose output"
+    echo "  -v              Very verbose output"
+    echo "  -u USER PASS    RTSP authentication"
+    echo "  -w WIDTH        Video width"
+    echo "  -h HEIGHT       Video height"
+    echo "  -f FPS          Frame rate"
+    echo "  -d DURATION     Recording duration (seconds)"
+    echo "  -t              Test mode (no output file)"
+    echo "  -4              MP4 output format"
+    echo "  -i              AVI output format"
+    echo "  -q              MOV output format"
+    echo "  -y              Overwrite output files"
+    echo "  -H              Add headers"
+    echo ""
+    echo "Examples:"
+    echo "  $0 -V -u user pass -w 640 -h 360 -f 25 -d 30 -4 rtsp://host/stream > output.mp4"
+    echo "  $0 -v -V -d 5 -t rtsp://host/stream  # Test connectivity"
+    exit 1
+}
+
+# Default values
+VERBOSE=""
+USER=""
+PASS=""
+WIDTH=""
+HEIGHT=""
+FPS=""
+DURATION=""
+TEST_MODE=""
+OUTPUT_FORMAT=""
+OVERWRITE=""
+HEADERS=""
+RTSP_URL=""
+
+# Parse arguments
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -V)
+            VERBOSE="-v info"
+            ;;
+        -v)
+            VERBOSE="-v debug"
+            ;;
+        -u)
+            USER="$2"
+            PASS="$3"
+            shift 2
+            ;;
+        -w)
+            WIDTH="$2"
+            shift
+            ;;
+        -h)
+            HEIGHT="$2"
+            shift
+            ;;
+        -f)
+            FPS="$2"
+            shift
+            ;;
+        -d)
+            DURATION="$2"
+            shift
+            ;;
+        -t)
+            TEST_MODE="1"
+            ;;
+        -4)
+            OUTPUT_FORMAT="mp4"
+            ;;
+        -i)
+            OUTPUT_FORMAT="avi"
+            ;;
+        -q)
+            OUTPUT_FORMAT="mov"
+            ;;
+        -y)
+            OVERWRITE="-y"
+            ;;
+        -H)
+            HEADERS="1"
+            ;;
+        rtsp://*)
+            RTSP_URL="$1"
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            usage
+            ;;
+    esac
+    shift
+done
+
+# Validate required parameters
+if [ -z "$RTSP_URL" ]; then
+    echo "Error: RTSP URL required" >&2
+    usage
+fi
+
+# Build RTSP URL with authentication
+if [ -n "$USER" ] && [ -n "$PASS" ]; then
+    # Extract protocol and rest of URL
+    PROTOCOL=$(echo "$RTSP_URL" | cut -d: -f1)
+    REST=$(echo "$RTSP_URL" | cut -d/ -f3-)
+    RTSP_URL="${PROTOCOL}://${USER}:${PASS}@${REST}"
+fi
+
+# Build FFmpeg command
+FFMPEG_CMD="$FFMPEG_BIN"
+
+# Add verbosity
+if [ -n "$VERBOSE" ]; then
+    FFMPEG_CMD="$FFMPEG_CMD $VERBOSE"
+else
+    FFMPEG_CMD="$FFMPEG_CMD -v quiet"
+fi
+
+# Add input
+FFMPEG_CMD="$FFMPEG_CMD -i \"$RTSP_URL\""
+
+# Add duration
+if [ -n "$DURATION" ]; then
+    FFMPEG_CMD="$FFMPEG_CMD -t $DURATION"
+fi
+
+# Add video filters if width/height specified
+if [ -n "$WIDTH" ] && [ -n "$HEIGHT" ]; then
+    FFMPEG_CMD="$FFMPEG_CMD -vf scale=${WIDTH}:${HEIGHT}"
+fi
+
+# Add frame rate
+if [ -n "$FPS" ]; then
+    FFMPEG_CMD="$FFMPEG_CMD -r $FPS"
+fi
+
+# Add overwrite flag
+if [ -n "$OVERWRITE" ]; then
+    FFMPEG_CMD="$FFMPEG_CMD $OVERWRITE"
+fi
+
+# Handle output
+if [ -n "$TEST_MODE" ]; then
+    # Test mode - just probe the stream
+    FFMPEG_CMD="$FFMPEG_CMD -f null -"
+else
+    # Recording mode
+    if [ -n "$OUTPUT_FORMAT" ]; then
+        FFMPEG_CMD="$FFMPEG_CMD -f $OUTPUT_FORMAT"
+    fi
+    FFMPEG_CMD="$FFMPEG_CMD -c copy -"
+fi
+
+# Execute command
+eval "$FFMPEG_CMD"

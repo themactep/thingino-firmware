@@ -5,6 +5,9 @@
   const endpoint = 'json-telegrambot.cgi';
   const container = document.querySelector('.bot-commands');
 
+  // Keep a copy of the current config so we can preserve unknown fields on save
+  let originalConfig = null;
+
   // Build dynamic commands UI
   const table = document.createElement('table');
   table.className = 'table table-sm table-striped';
@@ -40,12 +43,24 @@
     try { const r = await fetch(endpoint+'?mode=structured'); data = await r.json(); } catch(e){}
     if (!data){ const r = await fetch(endpoint); data = await r.json(); }
 
-    // Populate token/users and enabled
+    // Keep original config to preserve unknown fields when saving
+    originalConfig = data;
+
+    // Populate token/users
     const token = data.token || data.tb_token || '';
     const users = Array.isArray(data.allowed_usernames) ? data.allowed_usernames.join(' ') : (data.tb_users||'');
     const elTok = document.getElementById('tb_token'); if (elTok) elTok.value = token;
     const elUsr = document.getElementById('tb_users'); if (elUsr) elUsr.value = users;
-    const elEn = document.getElementById('tb_enabled'); if (elEn) elEn.checked = (data.enabled_boot === true) || (data.tb_enabled === true) || (data.tb_enabled === 'true');
+
+    // Get service status to set the enable switch
+    try {
+      const s = await fetch('/x/ctl-telegrambot.cgi?status=1').then(r=>r.json());
+      const elEn = document.getElementById('tb_enabled');
+      if (elEn) elEn.checked = (s.enabled_boot === true) || (s.enabled_runtime === true);
+    } catch(e) {
+      const elEn = document.getElementById('tb_enabled');
+      if (elEn) elEn.checked = (data.enabled_boot === true) || (data.tb_enabled === true) || (data.tb_enabled === 'true');
+    }
 
     // Populate commands
     tbody.innerHTML = '';
@@ -66,12 +81,23 @@
       exec: tr.querySelector('.cmd-e').value.trim()
     })).filter(c=>c.handle && c.exec);
 
-    const payload = { token, allowed_usernames: users, commands, enabled };
-    // Include tb_enabled for backward compatibility
-    payload.tb_enabled = enabled;
+    // Start from original config to preserve unknown fields
+    const updated = JSON.parse(JSON.stringify(originalConfig || {}));
+    updated.token = token;
+    updated.allowed_usernames = users;
+    updated.commands = commands;
+    // Remove UI-only flags if present
+    delete updated.enabled;
+    delete updated.tb_enabled;
+
     try{
-      const r = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      // Save full config (preserves other keys)
+      const r = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(updated) });
       if(!r.ok) throw new Error('HTTP '+r.status);
+
+      // Apply enable/disable toggle
+      try { await fetch('/x/ctl-telegrambot.cgi?enabled=' + (enabled ? 1 : 0)); } catch(e){}
+
       alert('Saved.');
     }catch(e){ alert('Save failed: '+e.message); }
   }
@@ -79,4 +105,3 @@
   form.addEventListener('submit', save);
   load();
 })();
-

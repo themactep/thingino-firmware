@@ -421,7 +421,7 @@ function utils.get_camera_status()
 end
 
 function utils.get_websocket_token()
-    local token_file = io.open("/run/prudynt_websocket_token", "r")
+    local token_file = io.open("/run/prudynt/websocket_token", "r")
     if token_file then
         local token = token_file:read("*line")
         token_file:close()
@@ -429,7 +429,6 @@ function utils.get_websocket_token()
     end
     return ""
 end
-
 
 
 -- Get detailed system information for info page
