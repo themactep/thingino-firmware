@@ -138,9 +138,7 @@ start() {
 		echo_info "Homing disabled"
 	else
 		home_motors
-		if [ -z "$motor" ]; then
-			position_motors
-		fi
+		position_motors
 	fi
 }
 
