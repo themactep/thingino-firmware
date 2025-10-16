@@ -13,6 +13,7 @@ Where actions:
 	enable    Enable the service on boot
 	disable   Disable the service on boot
 	list      List all services
+	status    Status of the service
 " >&2
 	exit 1
 fi
@@ -42,6 +43,13 @@ case "$ACTION" in
 		;;
 	disable)
 		chmod -x $SCRIPT
+		;;
+	status)
+		case "$(stat -c%a $SCRIPT)" in
+			755) echo "enabled" ;;
+			644) echo "disabled" ;;
+			*) echo "unknown" ;;
+		esac
 		;;
 	*)
 		echo_error "Invalid action: $ACTION"
