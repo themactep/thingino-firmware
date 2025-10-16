@@ -97,87 +97,79 @@ for i in email ftp mqtt telegram webhook ntfy; do
 }
 <% done %>
 
-const preview = $("#preview");
-preview.onload = function() { URL.revokeObjectURL(this.src) }
-
 const ImageBlackMode = 1
 const ImageColorMode = 0
 
-function updatePreview(data) {
-	const blob = new Blob([data], {type: 'image/jpeg'});
-	const url = URL.createObjectURL(blob);
-	preview.src = url;
-	$("#preview_fullsize").src = url;
-	ws.send('{"action":{"capture":null}}');
-}
+const endpoint = '/x/json-prudynt.cgi';
 
-const wsPort = location.protocol === "https:" ? 8090 : 8089;
-const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
-let ws = new WebSocket(`${wsProto}//${document.location.hostname}:${wsPort}?token=<%= $ws_token %>`);
-
-ws.onopen = () => {
-	console.log('WebSocket connection opened');
-	ws.binaryType = 'arraybuffer';
-	const payload = '{'+
-		'"image":{"hflip":null,"vflip":null},'+
-		'"motion":{"enabled":null},'+
-		'"rtsp":{"username":null,"password":null,"port":null},'+
-		'"stream0":{"rtsp_endpoint":null},'+
-		'"action":{"capture":null}'+
-		'}'
-	console.log(ts(), '===>', payload);
-	ws.send(payload);
-}
-ws.onclose = () => {
-	console.log('WebSocket connection closed');
-	ws = null;
-}
-ws.onerror = (err) => {
-	console.error('WebSocket error', err);
-	ws.close();
-}
-ws.onmessage = (ev) => {
-	if (typeof ev.data == 'string') {
-		if (ev.data == '') {
-			console.log('Empty response');
-			return;
-		}
-		if (ev.data == '{"action":{"capture":"initiated"}}') {
-			return;
-		}
-		console.log(ts(), '<===', ev.data);
-		const msg = JSON.parse(ev.data);
-
-		if (msg.image) {
-			if (msg.image.hflip) {
-				$('#rotate').checked = msg.image.hflip;
-			}
-			if (msg.image.vflip) {
-				$('#rotate').checked = msg.image.vflip;
-			}
-		}
-		if (msg.motion) {
-			if (msg.motion.enabled) $('#motion').checked = msg.motion.enabled;
-		}
-		if (msg.rtsp) {
-			const r = msg.rtsp;
-			if (r.username && r.password && r.port)
-				$('#playrtsp').innerHTML = `mpv rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
-		}
-	} else if (ev.data instanceof ArrayBuffer) {
-		updatePreview(ev.data);
+function handleMessage(msg) {
+	if (msg.image) {
+		if (msg.image.hflip)
+			$('#rotate').checked = msg.image.hflip;
+		if (msg.image.vflip)
+			$('#rotate').checked = msg.image.vflip;
+	}
+	if (msg.motion && msg.motion.enabled) {
+		$('#motion').checked = msg.motion.enabled;
+	}
+	if (msg.rtsp) {
+		const r = msg.rtsp;
+		if (r.username && r.password && r.port && msg.stream0?.rtsp_endpoint)
+			$('#playrtsp').innerHTML = `mpv rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
 	}
 }
 
-function sendToWs(payload) {
-	payload = payload.replace(/}$/, ',"action":{"save_config":null}}')
+async function loadConfig() {
+	const payload = JSON.stringify({
+			image: {hflip: null, vflip: null},
+			motion: {enabled: null},
+			rtsp: {username: null, password: null, port: null},
+			stream0: {rtsp_endpoint: null},
+			action: {capture: null}
+		});
+	console.log('===>', payload);
+	try {
+		const response = await fetch(endpoint, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: payload
+		});
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		const contentType = response.headers.get('content-type');
+		if (contentType?.includes('application/json')) {
+			const msg = await response.json();
+			console.log(ts(), '<===', JSON.stringify(msg));
+			handleMessage(msg);
+		}
+	} catch (err) {
+		console.error('Load config error', err);
+	}
+}
+
+async function sendToEndpoint(payload) {
 	console.log(ts(), '===>', payload);
-	ws.send(payload);
+	try {
+		const response = await fetch(endpoint, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(payload)
+		});
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		const contentType = response.headers.get('content-type');
+		if (contentType?.includes('application/json')) {
+			const msg = await response.json();
+			console.log(ts(), '<===', JSON.stringify(msg));
+			handleMessage(msg);
+		}
+	} catch (err) {
+		console.error('Send error', err);
+	}
 }
 
 async function toggleButton(el) {
 	if (!el) return;
-	const url = '/x/json-imp.cgi?' + new URLSearchParams({'cmd': el.id, 'val': (el.checked ? 1 : 0)}).toString();
+	const url = '/x/json-imp.cgi?' +
+		new URLSearchParams({'cmd': el.id, 'val': (el.checked ? 1 : 0)}).toString();
 	console.log(url)
 	await fetch(url)
 		.then(res => res.json())
@@ -203,10 +195,22 @@ async function toggleDayNight(mode = 'read') {
 		})
 }
 
-$("#motion").addEventListener('change', ev => sendToWs('{"motion":{"enabled":' + ev.target.checked + '}}'));
-$('#rotate').addEventListener('change', ev => sendToWs('{"image":{"hflip":' + ev.target.checked + ',"vflip":' + ev.target.checked + '}}'));
-$("#daynight").addEventListener('change', ev => ev.target.checked ? toggleDayNight('night') : toggleDayNight('day'));
-$$("#color, #ircut, #ir850, #ir940, #white").forEach(el => el.addEventListener('change', ev => toggleButton(el)));
+$("#motion").addEventListener('change', ev =>
+	sendToEndpoint({motion:{enabled: ev.target.checked}}));
+
+$('#rotate').addEventListener('change', ev =>
+	sendToEndpoint({image:{hflip: ev.target.checked, vflip: ev.target.checked}}));
+
+$("#daynight").addEventListener('change', ev =>
+	ev.target.checked ? toggleDayNight('night') : toggleDayNight('day'));
+
+$$("#color, #ircut, #ir850, #ir940, #white").forEach(el =>
+	el.addEventListener('change', ev => toggleButton(el)));
+
+// Init on load
+loadConfig().then(() => {
+	$('#preview').src = '/x/ch0.mjpg';
+});
 
 toggleDayNight();
 </script>

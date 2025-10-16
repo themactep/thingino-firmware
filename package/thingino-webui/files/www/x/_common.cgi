@@ -15,14 +15,13 @@ pagename="${pagename%%.*}"
 
 # files
 alerts_dir="/tmp/alerts"
-ensure_dir "$alerts_dir"
+
+#ensure_dir "$alerts_dir"
+[ -d "$alerts_dir" ] || mkdir -p "$alerts_dir"
 
 signature_file="/tmp/signature.txt"
 
 sysinfo_file="/tmp/sysinfo.txt"
-
-# read from files
-ws_token="$(cat /run/prudynt/websocket_token)"
 
 # name, text
 error_if_empty() {

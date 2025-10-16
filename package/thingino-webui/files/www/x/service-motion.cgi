@@ -29,25 +29,15 @@ which sends alerts through the selected and preconfigured notification methods.<
 </div>
 
 <script>
+const endpoint = '/x/json-prudynt.cgi';
 const motion_params = ['enabled', 'sensitivity', 'cooldown_time'];
 const send2_targets = ['email', 'ftp', 'mqtt', 'telegram', 'webhook', 'ntfy'];
 
-const wsPort = location.protocol === "https:" ? 8090 : 8089;
-const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
-let ws = new WebSocket(`${wsProto}//${document.location.hostname}:${wsPort}?token=<%= $ws_token %>`);
+function handleMessage(msg) {
+	if (msg.action && msg.action.capture == 'initiated') return;
 
-ws.onopen = () => {
-	console.log('WebSocket connection opened');
-	const payload = '{"motion":{' + motion_params.map((x) => `"${x}":null`).join() + '}}';
-	ws.send(payload);
-}
-ws.onclose = () => { console.log('WebSocket connection closed'); }
-ws.onerror = (err) => { console.error('WebSocket error', err); }
-ws.onmessage = (ev) => {
-	if (ev.data == '') return;
-	const msg = JSON.parse(ev.data);
-	console.log(ts(), '<===', ev.data);
 	let data;
+
 	data = msg.motion;
 	if (data) {
 		if (data.enabled)
@@ -63,9 +53,45 @@ ws.onmessage = (ev) => {
 	}
 }
 
-function sendToWs(payload) {
+async function loadConfig() {
+	const payload = '{"motion":{' + motion_params.map((x) => `"${x}":null`).join() + '}}';
+	console.log('===>', payload);
+	try {
+		const response = await fetch(endpoint, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: payload
+		});
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		const contentType = response.headers.get('content-type');
+		if (contentType?.includes('application/json')) {
+			const msg = await response.json();
+			console.log(ts(), '<===', JSON.stringify(msg));
+			handleMessage(msg);
+		}
+	} catch (err) {
+		console.error('Load config error', err);
+	}
+}
+
+async function sendToEndpoint(payload) {
 	console.log(ts(), '===>', payload);
-	ws.send(payload);
+	try {
+		const response = await fetch(endpoint, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: payload
+		});
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		const contentType = response.headers.get('content-type');
+		if (contentType?.includes('application/json')) {
+			const msg = await response.json();
+			console.log(ts(), '<===', JSON.stringify(msg));
+			handleMessage(msg);
+		}
+	} catch (err) {
+		console.error('Send error', err);
+	}
 }
 
 function saveValue(domain, name) {
@@ -80,7 +106,7 @@ function saveValue(domain, name) {
 	} else {
 		value = el.value;
 	}
-	sendToWs(`{"${domain}":{"${name}":${value}},"action":{"save_config":null,"restart_thread":2}}`);
+	sendToEndpoint(`{"${domain}":{"${name}":${value}},"action":{"save_config":null,"restart_thread":2}}`);
 }
 
 motion_params.forEach((x) => {
@@ -96,6 +122,9 @@ async function switchSend2Target(target, state) {
 send2_targets.forEach((x) => {
 	$(`#motion_send2${x}`).onchange = (ev) => switchSend2Target(x, ev.target.checked);
 });
+
+
+loadConfig();
 </script>
 
 <div class="alert alert-dark ui-debug d-none">

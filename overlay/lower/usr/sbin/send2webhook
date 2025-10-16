@@ -47,7 +47,7 @@ fi
 # Handle snapshot attachment
 if [ "true" = "$webhook_attach_snapshot" ]; then
 	snapshot_attachment=$(mktemp -u).jpg
-	cp -f "$SNAPSHOT_FILE" "$snapshot_attachment"
+	prudyntctl snapshot -c 0 > $snapshot_attachment
 	command="$command -F \"image=@$snapshot_attachment\""
 fi
 

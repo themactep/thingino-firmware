@@ -51,6 +51,6 @@ find "$timelapse_storage" -mindepth 1 -type d -empty -delete
 
 target="$timelapse_storage/$(date +"$timelapse_filename")"
 ensure_dir "$(dirname "$target")"
-cp -f "$SNAPSHOT_FILE" "$target"
+prudyntctl snapshot -c 0 > "$target"
 
 exit 0

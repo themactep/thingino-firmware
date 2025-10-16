@@ -1,8 +1,8 @@
 PRUDYNT_T_SITE_METHOD = git
 # PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
 PRUDYNT_T_SITE = https://github.com/themactep/prudynt-t
-PRUDYNT_T_SITE_BRANCH = stable
-PRUDYNT_T_VERSION = b3ef6b2f8508cfa74cdd7197eacc5e51ce0c1e75
+PRUDYNT_T_SITE_BRANCH = nopreload
+PRUDYNT_T_VERSION = 9ca2539e4d813ab4d3b2a33a67d3de91ed8e6311
 
 PRUDYNT_T_GIT_SUBMODULES = YES
 
@@ -13,8 +13,6 @@ PRUDYNT_T_DEPENDENCIES += thingino-live555
 PRUDYNT_T_DEPENDENCIES += thingino-opus
 PRUDYNT_T_DEPENDENCIES += faac libhelix-aac
 PRUDYNT_T_DEPENDENCIES += libschrift
-PRUDYNT_T_DEPENDENCIES += thingino-fonts
-PRUDYNT_T_DEPENDENCIES += libwebsockets-435
 
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_FFMPEG),y)
 	PRUDYNT_T_DEPENDENCIES += thingino-ffmpeg
@@ -109,7 +107,17 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	# Always install stripped binary for firmware (keeps image size small)
 	$(TARGET_CROSS)strip $(@D)/bin/prudynt -o $(TARGET_DIR)/usr/bin/prudynt
 	chmod 755 $(TARGET_DIR)/usr/bin/prudynt
-	echo "Installed stripped prudynt binary for firmware ($$(du -h $(TARGET_DIR)/usr/bin/prudynt | cut -f1))"
+	echo "Installed stripped prudynt binary ($$(du -h $(TARGET_DIR)/usr/bin/prudynt | cut -f1))"
+
+	# Copy prudyntctl
+	cp $(@D)/bin/prudyntctl $(TARGET_DIR)/usr/bin/prudyntctl
+
+	if [ "$(BR2_PACKAGE_PRUDYNT_T_FFMPEG)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ffmpeg-rtsp \
+			$(TARGET_DIR)/usr/sbin/ffmpeg-rtsp; \
+		$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/thingino-stream \
+			$(TARGET_DIR)/usr/sbin/thingino-stream; \
+	fi
 
 	# For debug builds, mandate NFS and install all debug components there
 	if [ "$(BR2_PACKAGE_PRUDYNT_T_DEBUG)" = "y" ]; then \
@@ -147,7 +155,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 
 	# Adjust buffer settings for low-memory devices
 	if [ "$(SOC_RAM)" -le "64" ]; then \
-		$(HOST_DIR)/bin/jq '.stream0.buffers = 1 | .stream1.buffers = 1 | .audio.output_enabled = false' \
+		$(HOST_DIR)/bin/jq \
+			'.stream0.buffers = 1 | .stream1.buffers = 1 | .audio.output_enabled = false' \
 			$(STAGING_DIR)/prudynt.json > $(STAGING_DIR)/prudynt.json.tmp && \
 		mv $(STAGING_DIR)/prudynt.json.tmp $(STAGING_DIR)/prudynt.json; \
 	fi
@@ -164,11 +173,11 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(STAGING_DIR)/prudynt.json \
 		$(TARGET_DIR)/etc/prudynt.json
 
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
-		$(TARGET_DIR)/etc/init.d/S95prudynt
-
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/record \
 		$(TARGET_DIR)/usr/sbin/record
+
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
+		$(TARGET_DIR)/etc/init.d/S95prudynt
 
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96record \
 		$(TARGET_DIR)/etc/init.d/S96record
@@ -217,9 +226,6 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		echo "  gdb /usr/bin/prudynt -s /mnt/nfs/$(CAMERA)/usr/lib/debug/usr/bin/prudynt.debug" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "Debug tools installed to NFS: prudynt-debug-helper, prudynt-test-memory"; \
 	fi
-
-#	echo "Removing LD_PRELOAD command line from init script"; \
-#	sed -i '/^COMMAND=/d' $(TARGET_DIR)/etc/init.d/S95prudynt;
 endef
 
 $(eval $(generic-package))

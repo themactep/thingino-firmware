@@ -2,17 +2,9 @@
 <%in _common.cgi %>
 <%
 page_title="Day/Night Mode Control"
-
-DAYNIGHT_APP="daynight"
-
-# read settings from crontab
-grep -q "^[^#].*$DAYNIGHT_APP\$" $CRONTABS && day_night_enabled=true
-day_night_interval=$(awk -F'[/ ]' "/$DAYNIGHT_APP\$/{print \$2}" $CRONTABS)
+LOG=/tmp/webui.log
 
 defaults() {
-	default_for day_night_interval "1"
-	default_for day_night_max "15000"
-	default_for day_night_min "5000"
 	default_for day_night_color "false"
 	default_for day_night_ircut "false"
 	default_for day_night_ir850 "false"
@@ -20,20 +12,31 @@ defaults() {
 	default_for day_night_white "false"
 	default_for dusk2dawn_offset_sr "0"
 	default_for dusk2dawn_offset_ss "0"
+
+	if [ "enabled" = $(service status daynightd) ]; then
+		dnd_enabled="true"
+	else
+		dnd_enabled="false"
+	fi
+	default_for dnd_threshold_low "$(jct /etc/daynightd.json get brightness_thresholds.threshold_low)"
+	default_for dnd_threshold_high "$(jct /etc/daynightd.json get brightness_thresholds.threshold_high)"
+	default_for dnd_hysteresis "$(jct /etc/daynightd.json get brightness_thresholds.hysteresis_factor)"
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	read_from_post "day_night" "color enabled interval ir850 ir940 ircut max min white"
+	read_from_post "dnd" "enabled threshold_low threshold_high hysteresis"
+	read_from_post "day_night" "color enabled ir850 ir940 ircut white"
 	read_from_post "dusk2dawn" "enabled lat lng offset_sr offset_ss"
 
 	defaults
 
 	# validate
-	if [ "true" = "$day_night_enabled" ]; then
-		error_if_empty "$day_night_min" "Day mode threshold cannot be empty"
-		error_if_empty "$day_night_max" "Night mode threshold cannot be empty"
+	if [ "true" = "$dnd_enabled" ]; then
+		error_if_empty "$dnd_threshold_low" "Day mode threshold cannot be empty"
+		error_if_empty "$dnd_threshold_high" "Night mode threshold cannot be empty"
+		error_if_empty "$dnd_hysteresis" "Hysteresis cannot be empty"
 	fi
 
 	if [ "true" = "$dusk2dawn_enabled" ]; then
@@ -44,13 +47,9 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	if [ -z "$error" ]; then
 		save2config "
 day_night_color=\"$day_night_color\"
-day_night_enabled=\"$day_night_enabled\"
-day_night_interval=\"$day_night_interval\"
 day_night_ir850=\"$day_night_ir850\"
 day_night_ir940=\"$day_night_ir940\"
 day_night_ircut=\"$day_night_ircut\"
-day_night_max=\"$day_night_max\"
-day_night_min=\"$day_night_min\"
 day_night_white=\"$day_night_white\"
 dusk2dawn_enabled=\"$dusk2dawn_enabled\"
 dusk2dawn_lat=\"$dusk2dawn_lat\"
@@ -58,18 +57,22 @@ dusk2dawn_lng=\"$dusk2dawn_lng\"
 dusk2dawn_offset_sr=\"$dusk2dawn_offset_sr\"
 dusk2dawn_offset_ss=\"$dusk2dawn_offset_ss\"
 "
-		# update crontab
-		tmpfile=$(mktemp -u)
-		cat $CRONTABS > $tmpfile
-		sed -i "/$DAYNIGHT_APP/d" $tmpfile
-		echo "# run $DAYNIGHT_APP every $day_night_interval minutes" >> $tmpfile
-		[ "true" = "$day_night_enabled" ] || echo -n "#" >> $tmpfile
-		echo "*/$day_night_interval * * * * $DAYNIGHT_APP" >> $tmpfile
-		mv $tmpfile $CRONTABS
+		jct /etc/daynightd.json set brightness_thresholds.threshold_low "$dnd_threshold_low" >>$LOG 2>&1
+		jct /etc/daynightd.json set brightness_thresholds.threshold_high "$dnd_threshold_high" >>$LOG 2>&1
+		jct /etc/daynightd.json set brightness_thresholds.hysteresis_factor "$dnd_hysteresis" >>$LOG 2>&1
+
+		if [ "true" = "$dnd_enabled" ]; then
+			service enable daynightd >>$LOG 2>&1
+			service start daynightd >>$LOG 2>&1
+		else
+			service stop daynightd >>$LOG 2>&1
+			service disable daynightd >>$LOG 2>&1
+		fi
 
 		if [ "true" = "$dusk2dawn_enabled" ]; then
-			dusk2dawn > /dev/null
+			dusk2dawn >>$LOG 2>&1
 		fi
+
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
 		redirect_to $SCRIPT_NAME "danger" "Error: $error"
@@ -84,17 +87,15 @@ defaults
 <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4 mb-4">
 
 <div class="col">
-<h3 class="alert alert-warning text-center">Gain <span class="gain"></span></h3>
-<% field_number "day_night_min" "Switch to Day mode when gain drops below" %>
-<% field_number "day_night_max" "Switch to Night mode when gain raises above" %>
+<h3 class="alert alert-warning text-center">Gain <span class="dnd_gain"></span>%</h3>
+<% field_range "dnd_threshold_low" "Switch to Day mode at value below, %" %>
+<% field_range "dnd_threshold_high" "Switch to Night at value above, %" %>
+<% field_range "dnd_hysteresis" "Hysteresis factor" "0.1,0.9,0.1" %>
 </div>
 
 <div class="col mb-3">
 <h3>By Illumination</h3>
-<% field_switch "day_night_enabled" "Enable Day/Night script" %>
-<p>Run with <a href="info.cgi?crontab">cron</a> every <input type="text" id="day_night_interval"
-name="day_night_interval" value="<%= $day_night_interval %>" pattern="[0-9]{1,}" title="numeric value"
-class="form-control text-end" data-min="1" data-max="60" data-step="1"> min.</p>
+<% field_switch "dnd_enabled" "Enable Day/Night daemon" %>
 
 <h5>Actions to perform</h5>
 <% field_checkbox "day_night_color" "Change color mode" %>
@@ -121,8 +122,6 @@ class="form-control text-end" data-min="1" data-max="60" data-step="1"> min.</p>
 <div class="col">
 <div class="alert alert-info">
 <p>The day/night mode is controlled by the brightness of the scene.
-Changes in illumination affect the gain required to normalise a darkened image - the darker the scene, the higher the gain value.
-The current gain value is displayed at the top of each page next to the sun emoji.
 Switching between modes is triggered by changes in the gain beyond the threshold values.</p>
 <% wiki_page "Configuration:-Night-Mode" %>
 </div>
@@ -134,6 +133,7 @@ Switching between modes is triggered by changes in the gain beyond the threshold
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
+<% ex "jct /etc/daynightd.json print" %>
 <% ex "grep ^day_night_ $CONFIG_FILE" %>
 <% ex "grep ^dusk2dawn_ $CONFIG_FILE" %>
 <% ex "crontab -l" %>
