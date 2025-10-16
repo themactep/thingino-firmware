@@ -481,7 +481,6 @@ menu() {
 					[ -f /bin/mosquitto_pub ] || continue
 					;;
 				telegrambot)
-					[ -f /bin/jsonpath ] || continue
 					pidof telegrambot > /dev/null && css=$CSS_ENABLED
 					;;
 				timelapse)
