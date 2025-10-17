@@ -47,7 +47,9 @@ ws.onmessage = (ev) => {
 	if (ev.data == '') return;
 	const msg = JSON.parse(ev.data);
 	console.log(ts(), '<===', ev.data);
+
 	let data;
+
 	data = msg.motion;
 	if (data) {
 		if (data.enabled)

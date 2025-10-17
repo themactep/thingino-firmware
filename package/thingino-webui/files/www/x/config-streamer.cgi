@@ -354,34 +354,48 @@ DEFAULT_VALUES = {
 }
 
 // audio
-const audio_params = ['input_agc_compression_gain_db', 'input_agc_enabled', 'input_agc_target_level_dbfs',
-	'input_alc_gain', 'input_bitrate', 'input_enabled', 'input_format', 'input_gain', 'input_high_pass_filter',
-	'input_noise_suppression', 'input_sample_rate', 'input_vol', 'output_enabled'];
+const audio_params = [
+	'input_agc_compression_gain_db', 'input_agc_enabled',
+	'input_agc_target_level_dbfs', 'input_alc_gain', 'input_bitrate',
+	'input_enabled', 'input_format', 'input_gain', 'input_high_pass_filter',
+	'input_noise_suppression', 'input_sample_rate', 'input_vol',
+	'output_enabled'
+];
 
 // image
-const image_params = ['ae_compensation', 'anti_flicker', 'backlight_compensation', 'brightness', 'contrast',
-	'core_wb_mode', 'defog_strength', 'dpc_strength', 'drc_strength', 'hflip', 'highlight_depress', 'hue',
-	'max_again', 'max_dgain', 'running_mode', 'saturation', 'sharpness', 'sinter_strength', 'temper_strength',
-	'vflip', 'wb_bgain', 'wb_rgain'];
+const image_params = [
+	'ae_compensation', 'anti_flicker', 'backlight_compensation',
+	'brightness', 'contrast', 'core_wb_mode', 'defog_strength',
+	'dpc_strength', 'drc_strength', 'hflip', 'highlight_depress', 'hue',
+	'max_again', 'max_dgain', 'running_mode', 'saturation', 'sharpness',
+	'sinter_strength', 'temper_strength', 'vflip', 'wb_bgain', 'wb_rgain'
+];
 
 // motion
-const motion_params = ['debounce_time', 'post_time', 'ivs_polling_timeout', 'cooldown_time', 'init_time', 'min_time',
-	'sensitivity', 'skip_frame_count', 'frame_width', 'frame_height', 'monitor_stream', 'roi_0_x', 'roi_0_y',
-	'roi_1_x', 'roi_1_y', 'roi_count'];
+const motion_params = [
+	'debounce_time', 'post_time', 'ivs_polling_timeout', 'cooldown_time',
+	'init_time', 'min_time', 'sensitivity', 'skip_frame_count',
+	'frame_width', 'frame_height', 'monitor_stream', 'roi_0_x', 'roi_0_y',
+	'roi_1_x', 'roi_1_y', 'roi_count'
+];
 
 // stream [0, 1]
-const stream_params = ['audio_enabled', 'bitrate', 'buffers', 'enabled', 'format', 'fps', 'gop', 'height', 'max_gop',
- 	'mode', 'profile', 'rotation', 'rtsp_endpoint', 'width'];
+const stream_params = [
+	'audio_enabled', 'bitrate', 'buffers', 'enabled', 'format', 'fps',
+	'gop', 'height', 'max_gop', 'mode', 'profile', 'rotation',
+	'rtsp_endpoint', 'width'
+];
 
 // stream 2
 const stream2_params = ['jpeg_channel'];
 
 // OSD
-const osd_params = ['enabled', 'font_path', 'font_size', 'font_stroke_size',
-	'logo_enabled',
-	'time_enabled', 'time_font_color', 'time_font_stroke_color', 'time_format',
-	'uptime_enabled', 'uptime_font_color', 'uptime_font_stroke_color',
-	'usertext_enabled', 'usertext_font_color', 'usertext_stroke_color', 'usertext_format'
+const osd_params = [
+	'enabled', 'font_path', 'font_size', 'font_stroke_size', 'logo_enabled',
+	'time_enabled', 'time_font_color', 'time_font_stroke_color',
+	'time_format', 'uptime_enabled', 'uptime_font_color',
+	'uptime_font_stroke_color', 'usertext_enabled', 'usertext_font_color',
+	'usertext_stroke_color', 'usertext_format'
 ];
 
 let sts;
