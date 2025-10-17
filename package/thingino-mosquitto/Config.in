@@ -19,6 +19,11 @@ config BR2_PACKAGE_THINGINO_MOSQUITTO
 
 	  https://mosquitto.org/
 
+config BR2_PACKAGE_THINGINO_MOSQUITTO_LIBWEBSOCKETS
+	bool "mosquitto-libwebsockets"
+	help
+	  Add support of websockets.
+
 config BR2_PACKAGE_THINGINO_MOSQUITTO_BROKER
 	bool "install the mosquitto broker"
 	depends on BR2_USE_MMU # fork()
