@@ -1873,7 +1873,7 @@ config BR2_THINGINO_NNA
 	bool "Neural Network Acceleration Support"
 	depends on BR2_SOC_FAMILY_INGENIC_A1
 	help
-	Enable support for Neural Network Acceleration on A1 SoCs.
+	  Enable support for Neural Network Acceleration on A1 SoCs.
 
 config BR2_THINGINO_VIDEO_OUT
 	depends on BR2_SOC_FAMILY_INGENIC_A1
@@ -1882,25 +1882,25 @@ config BR2_THINGINO_VIDEO_OUT
 	select BR2_THINGINO_VENC
 	bool "Video Output Support"
 	help
-	The hardware has a video output support.  Enables venc, framebuffer, and vo modules.
+	  The hardware has a video output support.  Enables venc, framebuffer, and vo modules.
 
 config BR2_THINGINO_HDMI_AUDIO
 	depends on BR2_SOC_FAMILY_INGENIC_A1
 	bool "HDMI Audio Support"
 	help
-	The hardware has a HDMI audio support.  Enables hdmi_audio module.
+	  The hardware has a HDMI audio support.  Enables hdmi_audio module.
 
 config BR2_THINGINO_AIP
 	depends on BR2_SOC_FAMILY_INGENIC_A1
 	bool "Ingenic AIP Support"
 	help
-	The hardware has a AIP DMA engine.  Enables ingenic-aip module.
+	  The hardware has a AIP DMA engine.  Enables ingenic-aip module.
 
 config BR2_THINGINO_VDEC
 	depends on BR2_SOC_FAMILY_INGENIC_A1
 	bool "VDEC Support"
 	help
-	The hardware has a video decoder support.  Enables vdec module.
+	  The hardware has a video decoder support.  Enables vdec module.
 
 config BR2_THINGINO_FRAMEBUFFER
 	depends on BR2_SOC_FAMILY_INGENIC_A1
