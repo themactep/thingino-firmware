@@ -216,7 +216,7 @@ BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$
 .PHONY: all bootstrap build build_fast clean clean-nfs-debug cleanbuild defconfig distclean fast \
 	help pack release remove_bins repack sdk toolchain update upboot-ota \
 	upload_tftp upgrade_ota br-% check-config force-config show-config-deps clean-config \
-		augment-info show-vars
+	augment-info show-vars
 
 all: defconfig build pack
 	$(info -------------------------------- $@)

@@ -123,7 +123,6 @@ send2_targets.forEach((x) => {
 	$(`#motion_send2${x}`).onchange = (ev) => switchSend2Target(x, ev.target.checked);
 });
 
-
 loadConfig();
 </script>
 
