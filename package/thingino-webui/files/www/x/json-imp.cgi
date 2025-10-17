@@ -35,11 +35,11 @@ val="$(urldecode "$val")"
 case "$cmd" in
 	color)
 		command="color $val"
-		ret=$(color $val)
+		ret=$(color $val >/dev/null)
 		;;
 	daynight)
 		command="daynight $val"
-		ret=$(daynight $val)
+		ret=$(daynight $val >/dev/null)
 		;;
 	gain)
 		command="imp-control gettotalgain"
@@ -47,11 +47,11 @@ case "$cmd" in
 		;;
 	ir850 | ir940 | white)
 		command="irled ${val:-read} $cmd"
-		ret=$(irled ${val:-read} $cmd)
+		ret=$(irled ${val:-read} $cmd >/dev/null)
 		;;
 	ircut)
 		command="ircut $val"
-		ret=$(ircut $val)
+		ret=$(ircut $val >/dev/null)
 		;;
 esac
 
