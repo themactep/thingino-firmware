@@ -1,0 +1,23 @@
+--- a/networking/udhcp/dhcpc.c	2024-09-26 10:00:52.000000000 -0400
++++ b/networking/udhcp/dhcpc.c	2025-10-17 23:00:22.077311823 -0400
+@@ -1652,7 +1652,6 @@
+ 		case INIT_SELECTING:
+ 			/* Must be a DHCPOFFER */
+ 			if (*message == DHCPOFFER) {
+-				struct in_addr temp_addr;
+ 				uint8_t *temp;
+ 
+ /* What exactly is server's IP? There are several values.
+@@ -1688,8 +1687,8 @@
+ 					move_from_unaligned32(server_id, temp);
+ 				}
+ 				/*xid = packet.xid; - already is */
+-				temp_addr.s_addr = requested_ip = packet.yiaddr;
+-				log1("received offer of %s", inet_ntoa(temp_addr));
++				requested_ip = packet.yiaddr;
++				log1("received offer of %s", inet_ntoa((struct in_addr){ .s_addr = requested_ip }));
+ 
+ 				/* enter requesting state */
+ 				client_data.state = REQUESTING;
+ 				timeout = 0;
+

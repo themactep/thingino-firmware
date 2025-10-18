@@ -1,0 +1,43 @@
+From 972c28f7de2579a1c0d1821373b59beb0d4ceb78 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Fri, 17 Oct 2025 22:32:04 -0400
+Subject: [PATCH] sysklogd: silence musl SYSLOG_NAMES const-qualifier warnings
+
+On musl, <syslog.h> defines prioritynames and facilitynames as macros of the
+form (CODE *)(const CODE []){ ... }. Using these to initialize our
+`const CODE *const bb_prioritynames/facilitynames` triggers
+-Wdiscarded-qualifiers because the macro casts away const.
+
+Wrap the two initializations in a local GCC diagnostic push/ignore/pop block to
+silence the warning without changing behavior. Guarded under __GNUC__ so other
+compilers are unaffected.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ sysklogd/syslogd_and_logger.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/sysklogd/syslogd_and_logger.c b/sysklogd/syslogd_and_logger.c
+index 94d8273..66b1f8a 100644
+--- a/sysklogd/syslogd_and_logger.c
++++ b/sysklogd/syslogd_and_logger.c
+@@ -50,9 +50,16 @@ typedef struct _code {
+  * The pointers themselves are optimized out
+  * (no size change on uclibc).
+  */
++#if defined(__GNUC__)
++#pragma GCC diagnostic push
++#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
++#endif
+ static const CODE *const bb_prioritynames = prioritynames;
+ static const CODE *const bb_facilitynames = facilitynames;
+ 
++#if defined(__GNUC__)
++#pragma GCC diagnostic pop
++#endif
+ 
+ #if ENABLE_SYSLOGD
+ #include "syslogd.c"
+-- 
+2.47.3
+
