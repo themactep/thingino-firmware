@@ -54,8 +54,7 @@ default_for rtsp_password "thingino"
 <%in _header.cgi %>
 
 <nav class="navbar navbar-expand-lg mb-4 p-1">
-<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbStreamer"
- aria-controls="nbStreamer" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbStreamer" aria-controls="nbStreamer" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
 <div class="collapse navbar-collapse" id="nbStreamer">
 <ul class="navbar-nav nav-underline" role="tablist">
 <li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab1-pane" class="nav-link active" aria-current="page">Common</a></li>
@@ -85,7 +84,7 @@ default_for rtsp_password "thingino"
 <p><img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Stream Preview"></p>
 
 <div class="d-flex flex-wrap align-content-around gap-1">
-<a class="btn btn-secondary" href="<%= $SCRIPT_NAME %>?do=restart">Restart streamer</a>
+<a class="btn btn-warning" href="<%= $SCRIPT_NAME %>?do=restart">Restart streamer</a>
 <button type="button" class="btn btn-secondary" id="save-prudynt-config">Save config</button>
 <a class="btn btn-secondary" href="tool-file-manager.cgi?dl=/etc/prudynt.json">Download config</a>
 </div>
@@ -274,15 +273,20 @@ default_for rtsp_password "thingino"
 </div>
 </div>
 
+<div class="alert alert-danger mt-5">
+<p>If you made changes that messed up the settings, you can restore the original configuration and start from scratch.</p>
+<% button_restore_from_rom "/etc/prudynt.json" %>
+</div>
+
 <div class="modal fade" id="mdFont" tabindex="-1" aria-labelledby="mdlFont" aria-hidden="true">
 <div class="modal-dialog"><div class="modal-content"><div class="modal-header">
 <h1 class="modal-title fs-4" id="mdlFont">Upload font file</h1>
 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div><div class="modal-body text-center">
-
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4" enctype="multipart/form-data">
 <% field_file "fontfile" "Upload a TTF file" %>
-<% button_submit %></form></div></div></div></div>
+<% button_submit %></form>
+</div></div></div></div>
 
 <%in _preview.cgi %>
 
