@@ -207,9 +207,24 @@ $("#daynight").addEventListener('change', ev =>
 $$("#color, #ircut, #ir850, #ir940, #white").forEach(el =>
 	el.addEventListener('change', ev => toggleButton(el)));
 
+
 // Init on load
 loadConfig().then(() => {
-	$('#preview').src = '/x/ch0.mjpg';
+	// Preview
+	const timeout = 5000;
+	const preview = $('#preview');
+	let lastLoadTime = Date.now();
+	preview.src = '/x/ch0.mjpg';
+	preview.addEventListener('load', () => {
+		lastLoadTime = Date.now();
+	});
+	setInterval(() => {
+		if (Date.now() - lastLoadTime > timeout) {
+			// Restart stream
+			preview.src = preview.src.split('?')[0] + '?' + new Date().getTime();
+			lastLoadTime = Date.now();
+		}
+	}, 1000);
 });
 
 toggleDayNight();
