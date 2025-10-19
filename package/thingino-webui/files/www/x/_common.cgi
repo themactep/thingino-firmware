@@ -293,6 +293,32 @@ field_number() {
 	echo "</div>"
 }
 
+# field_number_int "name" "label" "range" "hint"
+field_number_int() {
+	local ab mn mx n r st v vr
+
+	n=$1
+	r=$3 # min,max,step,button
+	mn=$(echo "$r" | cut -d, -f1)
+	mx=$(echo "$r" | cut -d, -f2)
+	st=$(echo "$r" | cut -d, -f3)
+	ab=$(echo "$r" | cut -d, -f4)
+	v=$(t_value "$n")
+	vr=$v
+	[ -n "$ab" ] && [ "$ab" = "$v" ] && vr=$(((mn + mx) / 2))
+	echo "<div class=\"mb-2 number\"><label class=\"form-label\" for=\"$n\">$2</label><span class=\"input-group\">"
+	# NB! no name on checkbox, since we don't want its data submitted
+	if [ -n "$ab" ]; then
+		echo "<label class=\"input-group-text\" for=\"${n}-auto\">$ab <input type=\"checkbox\"" \
+		 " class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\"" \
+		 " data-value=\"$vr\" $(checked_if "$ab" "$v")></label>"
+	fi
+	echo "<input type=\"text\" id=\"$n\" name=\"$n\" class=\"form-control text-end\" value=\"$vr\"" \
+	 " pattern=\"-?[0-9]{1,}\" title=\"numeric value\" data-min=\"$mn\" data-max=\"$mx\" data-step=\"$st\"></span>"
+	[ -n "$4" ] && echo "<span class=\"hint text-secondary\">$4</span>"
+	echo "</div>"
+}
+
 # field_password "name" "label" "hint"
 field_password() {
 	local v
