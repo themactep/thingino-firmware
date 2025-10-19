@@ -51,11 +51,13 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	# validate
-	if [ -z "$gpio_motor_h_1" ] || [ -z "$gpio_motor_h_2" ] || \
-	   [ -z "$gpio_motor_h_3" ] || [ -z "$gpio_motor_h_4" ] || \
-	   [ -z "$gpio_motor_v_1" ] || [ -z "$gpio_motor_v_2" ] || \
-	   [ -z "$gpio_motor_v_3" ] || [ -z "$gpio_motor_v_4" ]; then
-		set_error_flag "All pins are required"
+	if [ "$motor" != "spi" ]; then
+		if [ -z "$gpio_motor_h_1" ] || [ -z "$gpio_motor_h_2" ] || \
+		   [ -z "$gpio_motor_h_3" ] || [ -z "$gpio_motor_h_4" ] || \
+		   [ -z "$gpio_motor_v_1" ] || [ -z "$gpio_motor_v_2" ] || \
+		   [ -z "$gpio_motor_v_3" ] || [ -z "$gpio_motor_v_4" ]; then
+			set_error_flag "All pins are required"
+		fi
 	fi
 
 	if [ "0$motor_maxstep_h" -le 0 ] || \
@@ -107,6 +109,7 @@ defaults
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <h5>Pan motor</h5>
+<% if [ "$motor" != "spi" ]; then %>
 <div class="row g-1">
 <div class="col"><% field_number "gpio_motor_h_1" "GPIO pin 1" %></div>
 <div class="col"><% field_number "gpio_motor_h_2" "GPIO pin 2" %></div>
@@ -114,6 +117,7 @@ defaults
 <div class="col"><% field_number "gpio_motor_h_4" "GPIO pin 4" %></div>
 <a href="#" class="mb-4 flip_motor" data-direction="h">Flip direction</a>
 </div>
+<% fi %>
 <div class="row g-1">
 <div class="col"><% field_number "motor_speed_h" "Max. speed"%></div>
 <div class="col"><% field_number "motor_maxstep_h" "Max. steps" %></div>
@@ -123,6 +127,7 @@ defaults
 </div>
 <div class="col">
 <h5>Tilt motor</h5>
+<% if [ "$motor" != "spi" ]; then %>
 <div class="row g-1">
 <div class="col"><% field_number "gpio_motor_v_1" "GPIO pin 1" %></div>
 <div class="col"><% field_number "gpio_motor_v_2" "GPIO pin 2" %></div>
@@ -130,6 +135,7 @@ defaults
 <div class="col"><% field_number "gpio_motor_v_4" "GPIO pin 4" %></div>
 <a href="#" class="mb-4 flip_motor" data-direction="v">Flip direction</a>
 </div>
+<% fi %>
 <div class="row g-1">
 <div class="col"><% field_number "motor_speed_v" "Max. speed"%></div>
 <div class="col"><% field_number "motor_maxstep_v" "Max. steps" %></div>
