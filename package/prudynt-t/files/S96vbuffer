@@ -6,17 +6,12 @@ ensure_command "openRTSP"
 ensure_command "jct"
 
 SELF_NAME="$(basename "$0")"
-
-CLIP_FILE="/tmp/vbuffer.mp4"
-LOCK_FILE="/tmp/vbuffer.lock"
-TEMP_FILE="/tmp/vbuffer.tmp"
-
 STREAMER_APP="prudynt"
 STREAMER_CONF_FILE="/etc/prudynt.json"
 
 # "parameter" "default"
 read_config() {
-	jct "$STREAMER_CONF_FILE" get "$1" | tr -d '"'
+	jct "$STREAMER_CONF_FILE" get "$1"
 	[ -z "$_" ] || echo "$2"
 }
 
@@ -27,7 +22,10 @@ rtsp_stream="rtsp://127.0.0.1/$stream_endpoint"
 vformat="-4"
 record_videofmt="mp4"
 record_duration=10
-record_filename="%hostname/%Y/%m/%d/%H-%M-%S"
+
+CLIP_FILE="/tmp/vbuffer.${record_videofmt}"
+LOCK_FILE="/tmp/vbuffer.lock"
+TEMP_FILE="/tmp/vbuffer.tmp"
 
 if ! is_streamer_running; then
 	echo_error "Streamer is not running"
@@ -44,12 +42,6 @@ start() {
 
 	if pidof -o $$ $SELF_NAME > /dev/null; then
 		echo_error "is already running"
-		exit 1
-	fi
-
-	motion_enabled=$(jct "$STREAMER_CONF_FILE" get "motion.enabled")
-	if [ "true" != "$motion_enabled" ]; then
-		echo_error "Motion Guard disabled"
 		exit 1
 	fi
 

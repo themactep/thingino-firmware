@@ -1,0 +1,77 @@
+#!/bin/sh
+
+. /usr/share/common
+
+show_help() {
+	echo "Usage: $0 <mode> <type>
+Where:
+	mode	on|off
+	type	ir850|ir940|white
+" >&2
+	exit 1
+}
+
+[ "$#" -lt 1 ] && show_help
+
+# set parameters from cli, if empty
+[ -z "$mode" ] && mode=$1
+[ -z "$type" ] && type=$2
+
+case "$type" in
+	ir850)
+		pin=$gpio_ir850
+		;;
+	ir940)
+		pin=$gpio_ir940
+		;;
+	white)
+		pin=$gpio_white
+		;;
+	*)
+		# select first non-empty pin of available
+		[ -z "$pin" ] && pin=$gpio_ir850
+		[ -z "$pin" ] && pin=$gpio_ir940
+		[ -z "$pin" ] && pin=$gpio_white
+		;;
+esac
+
+if [ -z "$pin" ]; then
+	echo_error "Please define LED GPIO pin"
+	exit 1
+fi
+
+# default to output high
+if [ "$pin" = "${pin//[^0-9]/}" ]; then
+	pin="${pin}O"
+fi
+
+case ${pin:(-1)} in
+	o) pin_on=0; pin_off=1 ;;
+	O) pin_on=1; pin_off=0 ;;
+esac
+pin=${pin:0:(-1)}
+
+case "$mode" in
+	0 | off)
+		gpio set $pin $pin_off
+		;;
+	1 | on)
+		gpio set $pin $pin_on
+		;;
+	~ | toggle)
+		gpio toggle $pin
+		;;
+	\? | read | status)
+		if [ "$(gpio value $pin | tr -d '\n')" = "$pin_on" ]; then
+			echo -n "1"
+		else
+			echo -n "0"
+		fi
+		;;
+	*)
+		echo_error "Error: Unknown mode" >&2
+		exit 1
+		;;
+esac
+
+exit 0

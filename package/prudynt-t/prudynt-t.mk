@@ -170,29 +170,32 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	fi
 
 	# Install the final, modified JSON file from staging to target
-	$(INSTALL) -D -m 0644 $(STAGING_DIR)/prudynt.json \
-		$(TARGET_DIR)/etc/prudynt.json
+	$(INSTALL) -D -m 0644 $(STAGING_DIR)/prudynt.json $(TARGET_DIR)/etc/prudynt.json
 
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/record \
-		$(TARGET_DIR)/usr/sbin/record
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/color $(TARGET_DIR)/usr/sbin/color
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ircut $(TARGET_DIR)/usr/sbin/ircut
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/irled $(TARGET_DIR)/usr/sbin/irled
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/record $(TARGET_DIR)/usr/sbin/record
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/timelapse $(TARGET_DIR)/usr/sbin/timelapse
 
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
-		$(TARGET_DIR)/etc/init.d/S95prudynt
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ch0.jpg $(TARGET_DIR)/var/www/x/ch0.jpg
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ch0.mjpg $(TARGET_DIR)/var/www/x/ch0.mjpg
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ch1.jpg $(TARGET_DIR)/var/www/x/ch1.jpg
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ch1.mjpg $(TARGET_DIR)/var/www/x/ch1.mjpg
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/image.cgi $(TARGET_DIR)/var/www/x/image.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/video.mjpg $(TARGET_DIR)/var/www/x/video.mjpg
 
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96record \
-		$(TARGET_DIR)/etc/init.d/S96record
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/events.cgi $(TARGET_DIR)/var/www/x/events.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/metrics $(TARGET_DIR)/var/www/x/metrics
 
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96vbuffer \
-		$(TARGET_DIR)/etc/init.d/S96vbuffer
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S06ircut $(TARGET_DIR)/etc/init.d/S06ircut
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt $(TARGET_DIR)/etc/init.d/S95prudynt
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96vbuffer $(TARGET_DIR)/etc/init.d/S96vbuffer
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96record $(TARGET_DIR)/etc/init.d/S96record
 
-	$(INSTALL) -D -m 0644 $(@D)/res/default.ttf \
-		$(TARGET_DIR)/usr/share/fonts/default.ttf
-
-	$(INSTALL) -D -m 0644 $(@D)/res/thingino_100x30.bgra \
-		$(TARGET_DIR)/usr/share/images/thingino_100x30.bgra
-
-	$(INSTALL) -D -m 0644 $(@D)/res/thingino_210x64.bgra \
-		$(TARGET_DIR)/usr/share/images/thingino_210x64.bgra
+	$(INSTALL) -D -m 0644 $(@D)/res/default.ttf $(TARGET_DIR)/usr/share/fonts/default.ttf
+	$(INSTALL) -D -m 0644 $(@D)/res/thingino_100x30.bgra $(TARGET_DIR)/usr/share/images/thingino_100x30.bgra
+	$(INSTALL) -D -m 0644 $(@D)/res/thingino_210x64.bgra $(TARGET_DIR)/usr/share/images/thingino_210x64.bgra
 
 	# Install debug-specific files and configurations to NFS
 	if [ "$(BR2_PACKAGE_PRUDYNT_T_DEBUG)" = "y" ]; then \
