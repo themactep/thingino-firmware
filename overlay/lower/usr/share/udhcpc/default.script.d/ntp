@@ -19,8 +19,8 @@ setup_ntp_from_dhcp() {
 			if [ -f "$TZNAME_FILE" ] && [ "$(cat "$TZNAME_FILE")" == "$tzdbstr" ]; then
 				echo "Timezone already set to '$tzdbstr', skipping update"
 			else
-				echo "Set timezone to '$tzdbstr' as provided by DHCP"
-				printf '%s\n' "$tzdbstr" > "$TZNAME_FILE"
+				echo "Set timezone to '$tzdbstr' from DHCP"
+				tzselect -n "${tzdbstr//\//\\\/}"
 			fi
 		fi
 	fi
