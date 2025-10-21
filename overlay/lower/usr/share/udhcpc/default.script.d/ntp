@@ -16,8 +16,12 @@ setup_ntp_from_dhcp() {
 		echo "$TZNAME_FILE is read-only, skipping update"
 	else
 		if [ -n "$tzdbstr" ]; then
-			echo "Set timezone to '$tzdbstr' as provided by DHCP"
-			echo "$tzdbstr" > $TZNAME_FILE
+			if [ -f "$TZNAME_FILE" ] && [ "$(cat "$TZNAME_FILE")" == "$tzdbstr" ]; then
+				echo "Timezone already set to '$tzdbstr', skipping update"
+			else
+				echo "Set timezone to '$tzdbstr' as provided by DHCP"
+				printf '%s\n' "$tzdbstr" > "$TZNAME_FILE"
+			fi
 		fi
 	fi
 }
