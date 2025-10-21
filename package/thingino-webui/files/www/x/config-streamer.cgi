@@ -92,8 +92,6 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 </div>
 </div>
 <div class="col mb-3">
-<p class="small">Double-click on a range element will restore its default value.</p>
-
 <div class="tab-content" id="streamer-tabs">
 <div class="tab-pane fade show active" id="tab1-pane" role="tabpanel" aria-labelledby="tab1">
 <div class="mb-2 select" id="image_core_wb_mode_wrap">
@@ -317,40 +315,6 @@ if (soc == "t31") {
 	DEFAULT_BUFFERS_1 = 2
 	DEFAULT_SINTER = 50
 	DEFAULT_TEMPER = 50
-}
-
-DEFAULT_VALUES = {
-	'audio_input_agc_compression_gain_db': 0,
-	'audio_input_agc_target_level_dbfs': 10,
-	'audio_input_alc_gain': 0,
-	'audio_input_gain': 25,
-	'audio_input_noise_suppression': 0,
-	'audio_input_sample_rate':  16000,
-	'audio_input_vol': 80,
-	'image_ae_compensation': 128,
-	'image_anti_flicker': 2,
-	'image_backlight_compensation': 0,
-	'image_brightness': 128,
-	'image_contrast': 128,
-	'image_core_wb_mode': 0,
-	'image_defog_strength': 128,
-	'image_dpc_strength': 128,
-	'image_drc_strength': 128,
-	'image_highlight_depress': 0,
-	'image_hue': 128,
-	'image_max_again': 160,
-	'image_max_dgain': 80,
-	'image_running_mode': 0,
-	'image_saturation': 128,
-	'image_sharpness': 128,
-	'image_sinter_strength': DEFAULT_SINTER,
-	'image_temper_strength': DEFAULT_TEMPER,
-	'image_wb_bgain': 0,
-	'image_wb_rgain': 0,
-	'image_hflip': false,
-	'image_vflip': false,
-	'stream0_fps': 25,
-	'stream1_fps': 25,
 }
 
 // audio
@@ -642,12 +606,6 @@ for (const i in [0, 1]) {
 		el.addEventListener('change', (_) => {
 			saveValue(`stream${i}`, x);
 		});
-		el.addEventListener('dblclick', (_) => {
-			const v = DEFAULT_VALUES[`stream${i}_${x}`];
-			el.value = v;
-			$(`#stream${i}_${x}-show`).textContent = v;
-			saveValue(`stream${i}`, x);
-		});
 	});
 }
 
@@ -660,12 +618,6 @@ audio_params.forEach((x) => {
 	el.addEventListener('change', (_) => {
 		saveValue('audio', x);
 	});
-	el.addEventListener('dblclick', (_) => {
-		const v = DEFAULT_VALUES[`audio_${x}`];
-		el.value = v;
-		$(`#audio_${x}-show`).textContent = v;
-		saveValue('audio', x);
-	});
 });
 
 image_params.forEach((x) => {
@@ -675,12 +627,6 @@ image_params.forEach((x) => {
 		return;
 	}
 	el.addEventListener('change', (_) => {
-		saveValue('image', x);
-	});
-	el.addEventListener('dblclick', (_) => {
-		const v = DEFAULT_VALUES[`image_${x}`];
-		el.value = v;
-		$(`#image_${x}-show`).textContent = v;
 		saveValue('image', x);
 	});
 });
