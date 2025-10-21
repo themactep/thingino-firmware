@@ -120,6 +120,7 @@ ws.onopen = () => {
 	ws.binaryType = 'arraybuffer';
 	const payload = '{'+
 		'"image":{"hflip":null,"vflip":null},'+
+		'"image":{"running_mode":null},'+
 		'"motion":{"enabled":null},'+
 		'"rtsp":{"username":null,"password":null,"port":null},'+
 		'"stream0":{"rtsp_endpoint":null},'+
