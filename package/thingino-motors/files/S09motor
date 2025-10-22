@@ -93,7 +93,7 @@ start() {
 	if grep -qE "^motor" /proc/modules; then
 		echo_info "Module motor already loaded."
 	else
-		modprobe_args="hmaxstep=$motor_maxstep_h vmaxstep=$motor_maxstep_v"
+		modprobe_args="tcu_channels=2 hmaxstep=$motor_maxstep_h vmaxstep=$motor_maxstep_v"
 
 		if [ -z "$motor" ]; then
 			echo_info "Set GPIO per motor phase"
