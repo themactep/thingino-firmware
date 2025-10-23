@@ -137,7 +137,6 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 </div>
 <div class="row g-2">
 <div class="col-9"><% field_text "${domain}_rtsp_endpoint" "Endpoint" %></div>
-<div class="col-3"><% field_text "${domain}_rotation" "Rotation" %></div>
 </div>
 <% field_switch "${domain}_audio_enabled" "Audio in the stream" %>
 <div class="alert alert-dark">RTSP stream URL:
@@ -346,8 +345,7 @@ const motion_params = [
 // stream [0, 1]
 const stream_params = [
 	'audio_enabled', 'bitrate', 'buffers', 'enabled', 'format', 'fps',
-	'gop', 'height', 'max_gop', 'mode', 'profile', 'rotation',
-	'rtsp_endpoint', 'width'
+	'gop', 'height', 'max_gop', 'mode', 'profile', 'rtsp_endpoint', 'width'
 ];
 
 // stream 2
