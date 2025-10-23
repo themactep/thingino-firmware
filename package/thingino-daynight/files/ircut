@@ -37,7 +37,7 @@ if [ -n "$pin2" ]; then
 fi
 
 ir_filter_off() {
-	if [ "$pin1" = "999" ]; then
+	if [ "$pin1" = "999" ] && [ -c /dev/tmi8152_ir_cut ]; then
 		echo -n 0 > /dev/tmi8152_ir_cut
 	else
 		gpio set "$pin1" "$pin1_off" > /dev/null
@@ -51,7 +51,7 @@ ir_filter_off() {
 }
 
 ir_filter_on() {
-	if [ "$pin1" = "999" ]; then
+	if [ "$pin1" = "999" ] && [ -c /dev/tmi8152_ir_cut ]; then
 		echo -n 1 > /dev/tmi8152_ir_cut
 	else
 		gpio set "$pin1" "$pin1_on" > /dev/null
