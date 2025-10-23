@@ -87,9 +87,11 @@ if [ "true" = "$mqtt_is_json" ]; then
 else
 	send_command="$command -t $mqtt_topic -m '$mqtt_message'"
 fi
+
 if [ "true" = "$verbosity" ]; then
 	echo_command "$send_command"
 fi
+
 if ! sh -c "$send_command"; then
 	echo_error "Failed to send MQTT message"
 	mqtt_failed=1
