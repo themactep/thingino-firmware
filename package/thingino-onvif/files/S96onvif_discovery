@@ -54,7 +54,7 @@ start() {
 	jct $ONVIF_CONFIG set password "$(jct $PRUDYNT_CONFIG get rtsp.password | tr -d \")"
 
 	# conditional PTZ config
-	if [ -n "$gpio_motor_h" ]; then
+	if [ -n "$gpio_motor_h" ] || [ -n "$motor" ]; then
 		jct $ONVIF_CONFIG set ptz.enable 1
 		jct $ONVIF_CONFIG set ptz.max_step_x "$motor_maxstep_h"
 		jct $ONVIF_CONFIG set ptz.max_step_y "$motor_maxstep_v"
