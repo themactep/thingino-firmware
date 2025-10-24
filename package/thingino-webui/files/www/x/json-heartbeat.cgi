@@ -19,6 +19,6 @@ printf '{"time_now":"%s","timezone":"%s","mem_total":"%d","mem_active":"%d","mem
 	$(df | awk '/\/overlay$/{print $2,$3,$4}') \
 	"$(awk '{m=$1/60;h=m/60;printf "%sd %sh %sm %ss\n",int(h/24),int(h%24),int(m%60),int($1%60)}' /proc/uptime)" \
 	"$(awk '{print $1}' /run/daynight/value || echo "unknown")" \
-	$(df | awk '/\/opt$/{print $2,$3,$4}') \
+	$(df | awk '/\/opt$/{print $2,$3,$4}')
 [ -f $LOCKFILE ] && rm $LOCKFILE
 exit 0
