@@ -2,7 +2,7 @@ PRUDYNT_T_SITE_METHOD = git
 # PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
 PRUDYNT_T_SITE = https://github.com/themactep/prudynt-t
 PRUDYNT_T_SITE_BRANCH = t40-hal-support
-PRUDYNT_T_VERSION = b3648d2fba7e985ad1c5cb8b87dbd749f2a0a49a
+PRUDYNT_T_VERSION = f317949b225667f3160ede404dcfb63ef2a8d9a4
 
 PRUDYNT_T_GIT_SUBMODULES = YES
 
