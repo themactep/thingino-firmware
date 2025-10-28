@@ -3,6 +3,15 @@
 
 . /usr/share/common
 
+TIMELAPSE_CONFIG_FILE="/etc/timelapse.json"
+
+tl_enabled=$(jct $TIMELAPSE_CONFIG_FILE get enabled)
+tl_mount=$(jct $TIMELAPSE_CONFIG_FILE get mount)
+tl_filepath=$(jct $TIMELAPSE_CONFIG_FILE get filepath)
+tl_filename=$(jct $TIMELAPSE_CONFIG_FILE get filename)
+tl_interval=$(jct $TIMELAPSE_CONFIG_FILE get interval)
+tl_keep_days=$(jct $TIMELAPSE_CONFIG_FILE get keep_days)
+
 hesitate() {
 	echo_warning "$1"
 	sleep 5
@@ -10,46 +19,46 @@ hesitate() {
 }
 
 # drop trailing slashes
-timelapse_mount=${timelapse_mount%/}
-timelapse_device_path=${timelapse_device_path%/}
+tl_mount=${tl_mount%/}
+tl_filepath=${tl_filepath%/}
 
-if [ -z "$timelapse_mount" ]; then
-	echo_error "'timelapse_mount' is not set"
+if [ -z "$tl_mount" ]; then
+	echo_error "'tl_mount' is not set"
 	exit 1
 fi
 
 # wait for mount point
-if ! mountpoint -q "$timelapse_mount" >/dev/null; then
-	hesitate "$timelapse_mount is not mounted"
+if ! mountpoint -q "$tl_mount" >/dev/null; then
+	hesitate "$tl_mount is not mounted"
 fi
 
-if [ ! -w "$timelapse_mount" ]; then
-	hesitate "$timelapse_mount is not writable"
+if [ ! -w "$tl_mount" ]; then
+	hesitate "$tl_mount is not writable"
 fi
 
 # storage directory
-timelapse_storage="$timelapse_mount/$timelapse_device_path"
-ensure_dir "$timelapse_storage"
+tl_storage="$tl_mount/$tl_filepath"
+ensure_dir "$tl_storage"
 
-if [ -z "$timelapse_depth" ]; then
-	timelapse_depth=7
+if [ -z "$tl_keep_days" ]; then
+	tl_keep_days=7
 fi
 
-if [ -z "$timelapse_filename" ]; then
-	timelapse_filename="%Y/%m/%d/%H%M.jpg"
+if [ -z "$tl_filename" ]; then
+	tl_filename="%Y/%m/%d/%H%M.jpg"
 fi
 
-if [ -z "$timelapse_interval" ]; then
-	timelapse_interval=1
+if [ -z "$tl_interval" ]; then
+	tl_interval=1
 fi
 
 # delete older files
-find "$timelapse_storage" -type f -name '*.jpg' -mtime +$timelapse_depth -delete
+find "$tl_storage" -type f -name '*.jpg' -mtime +$tl_keep_days -delete
 
 # delete empty directories
-find "$timelapse_storage" -mindepth 1 -type d -empty -delete
+find "$tl_storage" -mindepth 1 -type d -empty -delete
 
-target="$timelapse_storage/$(date +"$timelapse_filename")"
+target="$tl_storage/$(date +"$tl_filename")"
 ensure_dir "$(dirname "$target")"
 cp -f "$SNAPSHOT_FILE" "$target"
 
