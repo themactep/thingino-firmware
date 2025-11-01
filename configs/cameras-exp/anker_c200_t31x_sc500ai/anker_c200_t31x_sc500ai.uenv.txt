@@ -1,5 +1,5 @@
-gpio_default=49o
+gpio_default=18O 26I 42O 49o 57I
 gpio_default_net=
 gpio_ircut=
-gpio_led_r=49O
+gpio_led_w=49O
 gpio_mmc_cd=
