@@ -7,7 +7,7 @@ ifeq ($(BR2_PACKAGE_GO2RTC_MINI),y)
 else
 	GO2RTC_SITE = https://github.com/AlexxIT/go2rtc
 	GO2RTC_SITE_BRANCH = master
-	GO2RTC_VERSION = d99bf122eae07eccec159e6496f0aea4295597db
+	GO2RTC_VERSION = be80eb1ac98dd4d11dcf171cbb33e1fdd4974285
 	# $(shell git ls-remote $(GO2RTC_SITE) $(GO2RTC_SITE_BRANCH) | head -1 | cut -f1)
 endif
 
@@ -17,8 +17,15 @@ GO2RTC_LICENSE_FILES = LICENSE
 GO2RTC_INSTALL_TARGET = YES
 
 GO2RTC_DEPENDENCIES = host-upx
-GO2RTC_GO_ENV = GOARCH=mipsle
-GO2RTC_LDFLAGS = -s -w" -gcflags=all="-l -B
+
+# Disable CGO to avoid V4L2/ALSA C dependencies on MIPS
+GO2RTC_GO_ENV = CGO_ENABLED=0 GOARCH=mipsle
+
+# Strip debug symbols (-s -w) for smaller binary
+GO2RTC_LDFLAGS = -s -w
+
+# Disable inlining and bounds checking for smaller binary
+GO2RTC_BUILD_OPTS = -gcflags=all="-l -B"
 
 define GO2RTC_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(GO2RTC_PKGDIR)/files/go2rtc.yaml \
