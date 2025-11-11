@@ -24,8 +24,8 @@ define SPI_TMI8152_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/tmi8152_spi_dev.ko \
 		$(TARGET_MODULES_PATH)/extra/tmi8152_spi_dev.ko
 
-	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc
-	echo tmi8152_spi_dev.ko >> $(TARGET_DIR)/etc/modules
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc/modules.d
+	echo tmi8152_spi_dev > $(TARGET_DIR)/etc/modules.d/tmi8152_spi_dev
 endef
 
 $(eval $(kernel-module))
