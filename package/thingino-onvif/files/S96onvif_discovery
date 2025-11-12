@@ -19,12 +19,6 @@ DAEMON_ARGS="-i $iface -x http://%s/onvif/device_service -m $model -n thingino -
 [ -f $ONVIF_WEBUI_CONF ] || touch $ONVIF_WEBUI_CONF
 . $ONVIF_WEBUI_CONF
 
-# default to "enabled" and update config
-if [ -z "$onvif_enabled" ]; then
-	onvif_enabled="true"
-	echo "onvif_enabled=$onvif_enabled" >> $ONVIF_WEBUI_CONF
-fi
-
 start() {
 	echo_title "Starting ONVIF discovery"
 
@@ -35,11 +29,6 @@ start() {
 
 	if is_streamer_disabled; then
 		echo_error "Streamer disabled"
-		exit 1
-	fi
-
-	if [ "true" != "$onvif_enabled" ]; then
-		echo_error "ONVIF discovery disabled"
 		exit 1
 	fi
 
