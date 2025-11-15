@@ -352,9 +352,13 @@ config BR2_PACKAGE_THINGINO_UBOOT_PHY_RESET_AFTER_CONFIG
 
 config BR2_PACKAGE_THINGINO_UBOOT_GPIO_PHY_RESET
 	int "GPIO to toggle for PHY Reset"
+	default -1
+	depends on BR2_PACKAGE_THINGINO_UBOOT_PHY_RESET_AFTER_CONFIG
 
 config BR2_PACKAGE_THINGINO_UBOOT_GPIO_PHY_RESET_ENLEVEL
 	int "0 for active low reset signal or 1 for active high"
+	default 0
+	depends on BR2_PACKAGE_THINGINO_UBOOT_PHY_RESET_AFTER_CONFIG
 
 menu "U-Boot binary format"
 
