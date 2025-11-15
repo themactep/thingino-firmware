@@ -1,6 +1,5 @@
 config BR2_PACKAGE_THINGINO_MOTORS
 	bool "thingino-motors"
-	depends on BR2_THINGINO_MOTORS
 	select BR2_THINGINO_MOTORS_TCU if !BR2_THINGINO_MOTORS_MS419XX
 	help
 	  Userspace programs to manage motor hardware
