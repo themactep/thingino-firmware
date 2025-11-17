@@ -19,6 +19,34 @@ space := $(empty) $(empty)
 comma := ,
 
 # Our curated "disable everything" macro - lighter version of FFmpeg's --disable-everything
+# For LightNVR builds, we use a version WITHOUT --disable-protocols to avoid breaking protocol support
+ifeq ($(BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR),y)
+THINGINO_FFMPEG_DISABLE_JUNK = \
+	--disable-encoders \
+	--disable-decoders \
+	--disable-hwaccels \
+	--disable-parsers \
+	--disable-indevs \
+	--disable-outdevs \
+	--disable-filters \
+	--disable-bsfs \
+	--disable-demuxers \
+	--disable-muxers \
+	--disable-debug \
+	--disable-doc \
+	--disable-htmlpages \
+	--disable-manpages \
+	--disable-podpages \
+	--disable-txtpages \
+	--disable-ffplay \
+	--disable-ffprobe \
+	--disable-iconv \
+	--disable-zlib \
+	--disable-swscale \
+	--enable-avdevice \
+	--disable-cuda \
+	--disable-cuda-llvm
+else
 THINGINO_FFMPEG_DISABLE_JUNK = \
 	--disable-encoders \
 	--disable-decoders \
@@ -45,6 +73,7 @@ THINGINO_FFMPEG_DISABLE_JUNK = \
 	--enable-avdevice \
 	--disable-cuda \
 	--disable-cuda-llvm
+endif
 
 # Base configuration options
 THINGINO_FFMPEG_CONF_OPTS = \
@@ -127,12 +156,19 @@ endif
 ifeq ($(BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR),y)
 # Enable swscale for lightNVR (required by CMake configuration)
 THINGINO_FFMPEG_CONF_OPTS += --enable-swscale --enable-swresample
+# Explicitly enable protocols needed for lightNVR (file I/O, RTSP streaming)
+# Note: DISABLE_JUNK for LIGHTNVR builds does NOT include --disable-protocols
+THINGINO_FFMPEG_CONF_OPTS += --enable-protocol=file --enable-protocol=tcp --enable-protocol=udp
 # Add additional codecs and formats needed by lightNVR
 THINGINO_FFMPEG_PARSERS += h264 hevc aac opus
 THINGINO_FFMPEG_DEMUXERS += mov m4a rtsp
-THINGINO_FFMPEG_MUXERS += mp4 opus
+# Enable both mp4 and mov muxers (mov is the base for mp4)
+# Also enable hls muxer for HLS streaming support
+THINGINO_FFMPEG_MUXERS += mp4 mov opus hls
 THINGINO_FFMPEG_ENCODERS += aac
 THINGINO_FFMPEG_DECODERS += h264 hevc aac opus
+# Enable bitstream filters needed for MP4 muxing
+THINGINO_FFMPEG_CONF_OPTS += --enable-bsf=h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc
 THINGINO_FFMPEG_DEPENDENCIES += thingino-opus
 endif
 
