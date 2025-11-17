@@ -130,9 +130,13 @@ THINGINO_FFMPEG_CONF_OPTS += --enable-swscale --enable-swresample
 # Add additional codecs and formats needed by lightNVR
 THINGINO_FFMPEG_PARSERS += h264 hevc aac opus
 THINGINO_FFMPEG_DEMUXERS += mov m4a rtsp
-THINGINO_FFMPEG_MUXERS += mp4 opus
+# Enable both mp4 and mov muxers (mov is the base for mp4)
+# Also enable hls muxer for HLS streaming support
+THINGINO_FFMPEG_MUXERS += mp4 mov opus hls
 THINGINO_FFMPEG_ENCODERS += aac
 THINGINO_FFMPEG_DECODERS += h264 hevc aac opus
+# Enable bitstream filters needed for MP4 muxing
+THINGINO_FFMPEG_CONF_OPTS += --enable-bsf=h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc
 THINGINO_FFMPEG_DEPENDENCIES += thingino-opus
 endif
 

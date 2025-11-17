@@ -44,11 +44,16 @@ LIGHTNVR_PRE_BUILD_HOOKS += LIGHTNVR_BUILD_WEB_ASSETS
 
 # Main application files installation
 define LIGHTNVR_INSTALL_APP_FILES
-	$(INSTALL) -d $(TARGET_DIR)/var/nvr
-	cp -r $(@D)/web/dist $(TARGET_DIR)/var/nvr/web
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/lib/lightnvr
+	cp -r $(@D)/web/dist $(TARGET_DIR)/var/lib/lightnvr/web
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/lightnvr
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/lightnvr/go2rtc
-	$(INSTALL) -m 644 $(@D)/config/lightnvr.ini $(TARGET_DIR)/etc/lightnvr/lightnvr.ini
+	$(INSTALL) -m 644 $(LIGHTNVR_PKGDIR)/files/lightnvr.ini $(TARGET_DIR)/etc/lightnvr/lightnvr.ini
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/opt/lightnvr
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/opt/lightnvr/recordings
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/opt/lightnvr/recordings/mp4
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/opt/lightnvr/database
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/opt/lightnvr/models
 	$(INSTALL) -m 0755 -D $(@D)/bin/lightnvr $(TARGET_DIR)/usr/bin/lightnvr
 	$(INSTALL) -m 0755 -D $(LIGHTNVR_PKGDIR)/files/S95lightnvr $(TARGET_DIR)/etc/init.d/S95lightnvr
 endef
