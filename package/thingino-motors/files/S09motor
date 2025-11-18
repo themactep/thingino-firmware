@@ -93,9 +93,10 @@ start() {
 	if grep -qE "^motor" /proc/modules; then
 		echo_info "Module motor already loaded."
 	else
-		modprobe_args="tcu_channels=2 hmaxstep=$motor_maxstep_h vmaxstep=$motor_maxstep_v"
+		modprobe_args="hmaxstep=$motor_maxstep_h vmaxstep=$motor_maxstep_v"
 
 		if [ -z "$motor" ]; then
+			modprobe_args="$modprobe_args tcu_channels=2"
 			echo_info "Set GPIO per motor phase"
 
 			set_motor_phases "h" "$gpio_motor_h"
@@ -138,9 +139,7 @@ start() {
 		echo_info "Homing disabled"
 	else
 		home_motors
-		if [ -z "$motor" ]; then
-			position_motors
-		fi
+		position_motors
 	fi
 }
 
