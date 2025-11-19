@@ -1,0 +1,32 @@
+config BR2_PACKAGE_THINGINO_ESPHOME
+	bool "thingino-esphome"
+	depends on BR2_USE_MMU # meson
+	depends on BR2_TOOLCHAIN_HAS_THREADS # dbus
+	select BR2_PACKAGE_DBUS
+	select BR2_PACKAGE_LIBGLIB2
+	help
+	  ESPHome Linux service for Thingino cameras.
+
+	  A lightweight TCP service implementing the ESPHome Native API,
+	  allowing Thingino cameras to function as ESPHome devices
+	  discoverable by Home Assistant.
+
+	  Features:
+	  - Bluetooth Proxy for BLE device scanning (optional, requires bluetooth fragment)
+	  - Auto-discovery via mDNS (_esphomelib._tcp)
+	  - Plugin architecture for extensibility
+	  - Native integration with Home Assistant
+
+	  Optional features (enable via fragments):
+	  - Bluetooth Proxy: Include "bluetooth" fragment in camera defconfig
+	    Requires BLE-capable hardware (ATBM6031x, SSV6158, etc.)
+
+	  Recommended:
+	  - mDNS service (mdnsd or avahi-daemon) for auto-discovery
+	  - ingenic-audiodaemon for MediaPlayer functionality
+
+	  https://github.com/yinzara/esphome-linux
+
+comment "thingino-esphome needs a toolchain w/ threads"
+	depends on BR2_USE_MMU
+	depends on !BR2_TOOLCHAIN_HAS_THREADS
