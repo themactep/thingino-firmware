@@ -1,0 +1,3 @@
+config BR2_PACKAGE_WIFI_ATBM_BLE
+	select BR2_LINUX_KERNEL
+	bool "AltoBeam ATBM-BLE"

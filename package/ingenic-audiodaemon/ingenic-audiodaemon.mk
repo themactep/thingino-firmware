@@ -86,8 +86,6 @@ define INGENIC_AUDIODAEMON_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -m 0755 -t $(TARGET_DIR)/usr/bin/ \
 		$(@D)/build/bin/*
-
-	sed -i '/"AI_attributes": {/,/}/{s/"enabled": true/"enabled": false/}' $(TARGET_DIR)/etc/iad.json
 endef
 
 $(eval $(generic-package))

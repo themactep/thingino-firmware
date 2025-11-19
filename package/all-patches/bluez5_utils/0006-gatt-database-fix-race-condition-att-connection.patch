@@ -1,0 +1,57 @@
+From 7e2a18e44ca311120a8ff638629aaf08c074d9d3 Mon Sep 17 00:00:00 2001
+From: Matthew Vance <yinzara@gmail.com>
+Date: Tue, 11 Nov 2025 02:15:20 -0800
+Subject: [PATCH] gatt-database: Fix race condition in ATT connection handling
+
+When an LE device connects, both the HCI connection event and ATT
+connection callback fire nearly simultaneously. This creates a race:
+
+1. connected_callback() starts creating device (registers D-Bus)
+2. connect_cb() fires before device is added to adapter's device list
+3. btd_adapter_get_device() fails to find the device4. Device creation fails with 'Unable to register device interface'
+
+The issue occurs because device_new() registers the D-Bus interface
+before adapter_create_device() adds it to the adapter->devices list.
+
+Fix by adding a fallback in connect_cb() to search by D-Bus path if the
+device isn't found in the adapter's device list yet.
+---
+ src/gatt-database.c | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/gatt-database.c b/src/gatt-database.c
+index a86e528..9023ebb 100644
+--- a/src/gatt-database.c
++++ b/src/gatt-database.c
+@@ -674,8 +674,26 @@ static void connect_cb(GIOChannel *io, GError *gerr, gpointer user_data)
+ 		return;
+ 
+ 	device = btd_adapter_get_device(adapter, &dst, dst_type);
+-	if (!device)
+-		return;
++	if (!device) {
++		/* Race condition: device might be in creation but not yet
++		 * added to adapter's device list. Try finding by path as
++		 * D-Bus registration happens before list addition. */
++		char addr[18];
++		char path[sizeof("/org/bluez/hci") + 3 + sizeof("/dev_") +
++			  18];
++
++		ba2str(&dst, addr);
++		snprintf(path, sizeof(path), "/org/bluez/hci%d/dev_%s",
++			 btd_adapter_get_index(adapter), addr);
++		g_strdelimit(path + strlen(path) - 17, ":", '_');
++
++		device = btd_adapter_find_device_by_path(adapter, path);
++		if (!device) {
++			DBG("Device not found even by path, giving up");
++			return;
++		}
++		DBG("Found device by path during race condition");
++	}
+ 
+ 	device_attach_att(device, io);
+ }
+-- 
+2.39.5 (Apple Git-154)
+
