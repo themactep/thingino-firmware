@@ -1,0 +1,5 @@
+config BR2_PACKAGE_THINGINO_BLUETOOTH
+	bool "thingino-bluetooth"
+	depends on BR2_PACKAGE_BLUEZ5_UTILS
+	help
+	  Thingino Bluetooth Low Energy utilities

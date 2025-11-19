@@ -1,0 +1,16 @@
+config BR2_PACKAGE_WIFI_ATBM6031X_BLE
+    select BR2_LINUX_KERNEL
+    select BR2_PACKAGE_WIFI_ATBM_BLE
+	bool "AltoBeam ATBM6031X with Bluetooth LE"
+	help
+	  Enable Bluetooth Low Energy 5.0 support for ATBM6031X combo chip.
+
+	  This adds BLE functionality to the ATBM6031X WiFi driver using
+	  BlueZ HCI interface.
+
+	  Hardware support: AltoBeam ATBM6031-X (lite variant)
+	  - WiFi: 802.11b/g/n (2.4GHz, HT20/HT40)
+	  - Bluetooth: BLE v4.2 / v5.0
+
+	  Cameras known to have ATBM6031X with BLE capability:
+	  - Eufy E220 T8410C (T31X + ATBM6031X)

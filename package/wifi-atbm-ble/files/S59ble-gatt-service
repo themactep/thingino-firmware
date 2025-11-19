@@ -1,0 +1,117 @@
+#!/bin/sh
+#
+# S59ble-gatt-service - BLE GATT Server for ATBM6031X
+#
+# Provides BLE GATT peripheral/server functionality with Improv WiFi provisioning.
+# Runs as a background daemon using NimBLE stack.
+#
+
+DAEMON="ble-gatt-server"
+DAEMON_PATH="/usr/sbin/$DAEMON"
+PIDFILE="/var/run/ble-gatt-server.pid"
+
+# Logging helper
+log() {
+	echo "$*"
+	logger -t ble-gatt-server "$*"
+}
+
+# Check dependencies
+check_dependencies() {
+	# Check if Bluetooth hardware available
+	if ! hciconfig hci0 >/dev/null 2>&1; then
+		log "ERROR: Bluetooth interface hci0 not found"
+		return 1
+	fi
+
+	# Check if daemon exists
+	if [ ! -x "$DAEMON_PATH" ]; then
+		log "ERROR: $DAEMON_PATH not found or not executable"
+		return 1
+	fi
+
+	return 0
+}
+
+# Start GATT server daemon
+start_daemon() {
+	log "Starting BLE GATT server..."
+
+	# Start daemon in background with PID file
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON_PATH"
+
+	if [ $? -eq 0 ]; then
+		log "BLE GATT server started successfully"
+		return 0
+	else
+		log "ERROR: Failed to start BLE GATT server"
+		return 1
+	fi
+}
+
+start() {
+	if ! check_dependencies; then
+		return 1
+	fi
+
+	# Check if already running
+	if [ -f "$PIDFILE" ] && kill -0 $(cat "$PIDFILE") 2>/dev/null; then
+		log "BLE GATT server is already running"
+		return 0
+	fi
+
+	start_daemon
+	return $?
+}
+
+stop() {
+	log "Stopping BLE GATT server..."
+
+	# Stop daemon using PID file
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE"
+		rm -f "$PIDFILE"
+		log "BLE GATT server stopped"
+	else
+		# Fallback: kill by name
+		killall $DAEMON 2>/dev/null
+		log "BLE GATT server stopped (fallback)"
+	fi
+
+	return 0
+}
+
+restart() {
+	stop
+	sleep 2
+	start
+}
+
+status() {
+	if [ -f "$PIDFILE" ] && kill -0 $(cat "$PIDFILE") 2>/dev/null; then
+		echo "BLE GATT server is running (PID: $(cat "$PIDFILE"))"
+		return 0
+	else
+		echo "BLE GATT server is not running"
+		return 1
+	fi
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart|reload)
+		restart
+		;;
+	status)
+		status
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|status}"
+		exit 1
+		;;
+esac
