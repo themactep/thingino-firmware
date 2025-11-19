@@ -1,0 +1,10 @@
+config BR2_PACKAGE_INGENIC_TFLITE_MICRO
+	bool "ingenic-tflite-micro"
+	help
+	  TensorFlow Lite Micro for Ingenic MIPS SoCs.
+
+	  A lightweight machine learning inference library
+	  optimized for embedded MIPS processors.
+
+	  Used for on-device wake word detection and other
+	  ML inference tasks.
