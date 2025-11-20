@@ -56,6 +56,13 @@ endif
 # Always enable plugins
 THINGINO_ESPHOME_CONF_OPTS += -Denable_plugins=true
 
+# Enable wake word detection if TFLite Micro is available
+ifeq ($(BR2_PACKAGE_THINGINO_ESPHOME_WAKE_WORD),y)
+THINGINO_ESPHOME_CONF_OPTS += -Denable_wake_word=true
+else
+THINGINO_ESPHOME_CONF_OPTS += -Denable_wake_word=false
+endif
+
 # Install init script
 define THINGINO_ESPHOME_INSTALL_INIT_SYSV
 	$(INSTALL) -D -m 0755 $(THINGINO_ESPHOME_PKGDIR)/files/S60esphome-service \
