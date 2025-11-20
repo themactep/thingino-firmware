@@ -347,6 +347,8 @@ void media_player_stop_audio_input(void) {
 
     if (was_active && g_player_ctx.audio_input_sock >= 0) {
         printf("[MediaPlayer] Stopping audio input\n");
+        // Shutdown the socket first to unblock any pending read()
+        shutdown(g_player_ctx.audio_input_sock, SHUT_RDWR);
         close(g_player_ctx.audio_input_sock);
         g_player_ctx.audio_input_sock = -1;
         g_player_ctx.audio_input_active = false;
@@ -1092,6 +1094,8 @@ int media_player_handle_message(esphome_plugin_context_t *ctx,
 #ifdef ENABLE_WAKE_WORD
                 stop_ha_audio_stream();
                 va_led_off();
+                // Restart wake word detection so we can listen again
+                wake_word_start();
 #endif
                 break;
             case 2: // RUN_END
