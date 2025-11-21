@@ -1,7 +1,7 @@
 WIFI_WS73V100_SITE_METHOD = git
-WIFI_WS73V100_SITE = https://github.com/gtxaspec/ws73v100-wifi
+WIFI_WS73V100_SITE = https://github.com/wltechblog/ws73v100-wifi
 WIFI_WS73V100_SITE_BRANCH = master
-WIFI_WS73V100_VERSION = 20b5fdbeba911657a915f14c7de7fcdf209924fa
+WIFI_WS73V100_VERSION = a843b299a59a63e1e5bf37dd89d37c08769c2776
 
 WIFI_WS73V100_LICENSE = GPL-2.0
 
@@ -67,11 +67,11 @@ endef
 WIFI_WS73V100_POST_INSTALL_TARGET_HOOKS += WIFI_WS73V100_INSTALL_CONFIGS
 
 define WIFI_WS73V100_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0755 $(@D)/output/bin/plat_soc.ko \
-		$(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/extra/plat_soc.ko
+	$(INSTALL) -D -m 0755 $(@D)/output/bin/ws73v100.ko \
+		$(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/extra/ws73v100.ko
 
-	$(INSTALL) -D -m 0755 $(@D)/output/bin/wifi_soc.ko \
-		$(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/extra/plat_wifi.ko
+	$(INSTALL) -D -m 0755 $(@D)/output/bin/ws73v100_plat.ko \
+		$(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/extra/ws73v100_plat.ko
 endef
 
 $(eval $(kernel-module))
