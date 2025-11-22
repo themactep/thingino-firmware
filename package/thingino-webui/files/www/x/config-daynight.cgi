@@ -14,9 +14,9 @@ defaults() {
 	default_for dusk2dawn_offset_ss "0"
 
 	if [ "enabled" = $(service status daynightd) ]; then
-		dnd_enabled="true"
+		default_for dnd_enabled "true"
 	else
-		dnd_enabled="false"
+		default_for dnd_enabled "false"
 	fi
 	default_for dnd_threshold_low "$(jct /etc/daynightd.json get brightness_thresholds.threshold_low)"
 	default_for dnd_threshold_high "$(jct /etc/daynightd.json get brightness_thresholds.threshold_high)"
