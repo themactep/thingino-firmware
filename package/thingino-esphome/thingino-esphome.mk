@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-THINGINO_ESPHOME_VERSION = 2e140651a0594e6d4289cdfde85799c25606b671
+THINGINO_ESPHOME_VERSION = v0.0.7
 THINGINO_ESPHOME_SITE = https://github.com/yinzara/esphome-linux
 THINGINO_ESPHOME_SITE_METHOD = git
 THINGINO_ESPHOME_SITE_BRANCH = main
@@ -16,7 +16,7 @@ THINGINO_ESPHOME_DEPENDENCIES = host-meson host-pkgconf thingino-libcurl ingenic
 
 # Add Bluetooth dependencies if Bluetooth is enabled
 ifeq ($(BR2_PACKAGE_THINGINO_BLUETOOTH),y)
-THINGINO_ESPHOME_DEPENDENCIES += dbus libglib2 bluez5_utils
+THINGINO_ESPHOME_DEPENDENCIES += thingino-libble
 endif
 
 # Add TFLite Micro and microspeech features dependencies if wake word is enabled

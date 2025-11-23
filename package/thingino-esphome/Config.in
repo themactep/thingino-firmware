@@ -2,6 +2,7 @@ config BR2_PACKAGE_THINGINO_ESPHOME
 	bool "thingino-esphome"
 	depends on BR2_USE_MMU # meson
 	depends on BR2_TOOLCHAIN_HAS_THREADS # dbus
+    select BR2_THINGINO_LIBBLE if BR2_PACKAGE_THINGINO_BLUETOOTH
 	help
 	  ESPHome Linux service for Thingino cameras.
 
@@ -11,13 +12,13 @@ config BR2_PACKAGE_THINGINO_ESPHOME
 
 	  Features:
 	  - MediaPlayer plugin for audio playback via Home Assistant
-	  - Bluetooth Proxy for BLE device scanning (optional, requires bluetooth fragment)
+	  - Bluetooth Proxy for BLE device scanning (optional, requires BR2_PACKAGE_THINGINO_BLUETOOTH)
 	  - Auto-discovery via mDNS (_esphomelib._tcp)
 	  - Plugin architecture for extensibility
 	  - Native integration with Home Assistant
 
 	  Optional features (enable via fragments):
-	  - Bluetooth Proxy: Include "bluetooth" fragment in camera defconfig
+	  - Bluetooth Proxy: Include BR2_PACKAGE_THINGINO_BLUETOOTH=y in camera defconfig
 	    Requires BLE-capable hardware (ATBM6031x, SSV6158, etc.)
 
 	  Recommended:
