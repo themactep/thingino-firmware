@@ -200,59 +200,34 @@ static void provision_wifi(const char* ssid, const char* password) {
 
     log_printf("[WIFI] Provisioning: %s\n", ssid);
     set_state(improv::STATE_PROVISIONING);
-    
+
     char cmd[512];
     snprintf(cmd, sizeof(cmd), "fw_setenv wlan_ssid \"%s\" 2>/dev/null", ssid);
     system(cmd);
-    
+
     if (password && strlen(password) > 0) {
         snprintf(cmd, sizeof(cmd), "fw_setenv wlan_pass \"%s\" 2>/dev/null", password);
     } else {
         snprintf(cmd, sizeof(cmd), "fw_setenv wlan_pass \"\" 2>/dev/null");
     }
     system(cmd);
-    
-    snprintf(cmd, sizeof(cmd), "wlan_ssid=\"%s\" wlan_pass=\"%s\" /etc/init.d/S38wpa_supplicant start 2>/dev/null",
-             ssid, password ? password : "");
-    system(cmd);
-    
-    log_printf("[WIFI] Triggering WiFi restart...\n");
-    system("/etc/init.d/S40network restart 2>/dev/null &");
-    
-    // Monitor WiFi connection in separate thread
-    std::thread([]() {
-        int attempts = 0;
-        const int max_attempts = 30;
-        
-        std::this_thread::sleep_for(std::chrono::seconds(3));
-        
-        while (attempts < max_attempts && g_running) {
-            attempts++;
-            log_printf("[WIFI] Checking WiFi status (attempt %d/%d)...\n", attempts, max_attempts);
-            
-            if (check_wifi_connected()) {
-                log_printf("[WIFI] WiFi provisioning successful!\n");
-                set_state(improv::STATE_PROVISIONED);
-                set_error(improv::ERROR_NONE);
 
-                std::string url = "http://" + g_device_hostname + ".local";
-                send_rpc_result(improv::WIFI_SETTINGS, {url});
-                
-                std::this_thread::sleep_for(std::chrono::seconds(2));
-                log_printf("[IMPROV] Provisioning complete - rebooting...\n");
-                sync();
-                system("sleep 1 && reboot &");
-                break;
-            }
-            
+    log_printf("[WIFI] WiFi credentials saved - triggering reboot in 5 seconds...\n");
+    set_state(improv::STATE_PROVISIONED);
+    set_error(improv::ERROR_NONE);
+
+    std::string url = "http://" + g_device_hostname + ".local";
+    send_rpc_result(improv::WIFI_SETTINGS, {url});
+
+    // Reboot after 5 seconds to apply WiFi settings
+    std::thread([]() {
+        for (int i = 5; i > 0; i--) {
+            log_printf("[WIFI] Rebooting in %d seconds...\n", i);
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
-        
-        if (attempts >= max_attempts) {
-            log_printf("[WIFI] WiFi provisioning failed - timeout\n");
-            set_state(improv::STATE_AUTHORIZED);
-            set_error(improv::ERROR_UNABLE_TO_CONNECT);
-        }
+        log_printf("[IMPROV] Provisioning complete - rebooting now!\n");
+        sync();
+        system("reboot");
     }).detach();
 }
 

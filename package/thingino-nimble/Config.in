@@ -1,9 +1,3 @@
 config BR2_PACKAGE_THINGINO_NIMBLE
     bool "Apache Nimble 4.2 implementation (Bluetooth) for ATBM chips"
-    depends on BR2_INSTALL_LIBSTDCPP
-    depends on BR2_TOOLCHAIN_HAS_THREADS
-    select BR2_PACKAGE_HAS_LIBSTDCPP
-
-comment "thingino-nimble needs a toolchain w/ C++, threads"
-    depends on !BR2_INSTALL_LIBSTDCPP || !BR2_TOOLCHAIN_HAS_THREADS
 
