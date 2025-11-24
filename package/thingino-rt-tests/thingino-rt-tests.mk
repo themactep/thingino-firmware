@@ -47,9 +47,9 @@ endef
 # Install init script for cyclictest service (optional)
 ifeq ($(BR2_PACKAGE_THINGINO_RT_TESTS_INIT_SCRIPT),y)
 define THINGINO_RT_TESTS_INSTALL_INIT_SYSV
-	$(INSTALL) -D -m 0755 $(THINGINO_RT_TESTS_PKGDIR)/S99cyclictest \
+	$(INSTALL) -D -m 0755 $(THINGINO_RT_TESTS_PKGDIR)/files/S99cyclictest \
 		$(TARGET_DIR)/etc/init.d/S99cyclictest
-	$(INSTALL) -D -m 0755 $(THINGINO_RT_TESTS_PKGDIR)/runandreportcyclictest \
+	$(INSTALL) -D -m 0755 $(THINGINO_RT_TESTS_PKGDIR)/files/runandreportcyclictest \
 		$(TARGET_DIR)/usr/bin/runandreportcyclictest
 endef
 endif
