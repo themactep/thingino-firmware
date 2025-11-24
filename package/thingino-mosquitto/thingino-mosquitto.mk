@@ -111,7 +111,7 @@ endef
 
 ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_BROKER),y)
 define THINGINO_MOSQUITTO_INSTALL_INIT_SYSV
-	$(INSTALL) -D -m 0755 package/mosquitto/S50mosquitto \
+	$(INSTALL) -D -m 0755 $(THINGINO_MOSQUITTO_PKGDIR)/files/S50mosquitto \
 		$(TARGET_DIR)/etc/init.d/S50mosquitto
 
 	$(INSTALL) -D -m 0644 $(@D)/mosquitto.conf \
