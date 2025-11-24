@@ -147,15 +147,52 @@ static bool check_provisioned() {
  * State Management
  ******************************************************************************/
 
+static void update_advertising_data() {
+    // Update advertising service data according to Improv WiFi v2.0 spec
+    // The service data must be updated when state changes
+    if (!g_server) return;
+
+    log_printf("[IMPROV] Updating advertising service data with state: 0x%02x\n",
+               (int)g_current_state.load());
+
+    // Stop current advertising
+    g_server->stop_advertising();
+
+    // Setup new advertising with updated state
+    AdvertisingParams adv_params;
+    adv_params.device_name = g_ble_device_name;
+    adv_params.service_uuids = {UUID(improv::SERVICE_UUID)};
+    adv_params.min_interval_ms = 100;
+    adv_params.max_interval_ms = 100;
+
+    // Add Improv WiFi v2.0 service data with current state
+    adv_params.service_data_uuid16 = 0x4677;
+    adv_params.service_data = {
+        (uint8_t)g_current_state.load(),    // Byte 1: Current state
+        improv::CAPABILITY_IDENTIFY,        // Byte 2: Capabilities
+        0, 0, 0, 0                          // Bytes 3-6: Reserved
+    };
+
+    // Restart advertising
+    int rc = g_server->start_advertising(adv_params);
+    if (rc != 0) {
+        log_printf("[IMPROV] ERROR: Failed to restart advertising: %d\n", rc);
+    }
+}
+
 static void set_state(improv::State new_state) {
     if (g_current_state != new_state) {
         g_current_state = new_state;
         log_printf("[IMPROV] State changed to: 0x%02x\n", (int)new_state);
 
+        // Notify connected clients
         if (g_server && g_conn_handle && g_state_handle) {
             std::vector<uint8_t> data = {(uint8_t)new_state};
             g_server->notify(g_conn_handle, g_state_handle, data);
         }
+
+        // Update advertising data per Improv WiFi v2.0 spec
+        update_advertising_data();
     }
 }
 
@@ -212,12 +249,12 @@ static void provision_wifi(const char* ssid, const char* password) {
     }
     system(cmd);
 
+    std::string url = "http://" + g_device_hostname + ".local";
+    send_rpc_result(improv::WIFI_SETTINGS, {url});
+
     log_printf("[WIFI] WiFi credentials saved - triggering reboot in 5 seconds...\n");
     set_state(improv::STATE_PROVISIONED);
     set_error(improv::ERROR_NONE);
-
-    std::string url = "http://" + g_device_hostname + ".local";
-    send_rpc_result(improv::WIFI_SETTINGS, {url});
 
     // Reboot after 5 seconds to apply WiFi settings
     std::thread([]() {
@@ -550,12 +587,22 @@ int main(int argc, char* argv[]) {
     log_printf("[MAIN] - Error Handle: %d\n", g_error_handle);
     log_printf("[MAIN] - RPC Result Handle: %d\n", g_rpc_result_handle);
     
-    // Setup advertising
+    // Setup advertising with Improv WiFi v2.0 service data
     AdvertisingParams adv_params;
     adv_params.device_name = g_ble_device_name;
     adv_params.service_uuids = {UUID(improv::SERVICE_UUID)};
     adv_params.min_interval_ms = 100;
     adv_params.max_interval_ms = 100;
+
+    // Add Improv WiFi v2.0 service data
+    // Service Data UUID: 0x4677 (00004677-0000-1000-8000-00805f9b34fb)
+    // Format: [Current State][Capabilities][Reserved 0][Reserved 0][Reserved 0][Reserved 0]
+    adv_params.service_data_uuid16 = 0x4677;
+    adv_params.service_data = {
+        (uint8_t)g_current_state.load(),    // Byte 1: Current state
+        improv::CAPABILITY_IDENTIFY,        // Byte 2: Capabilities
+        0, 0, 0, 0                          // Bytes 3-6: Reserved
+    };
     
     rc = g_server->start_advertising(adv_params);
     if (rc != 0) {

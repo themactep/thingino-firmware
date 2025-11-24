@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-THINGINO_LIBBLE_VERSION = v0.0.2
+THINGINO_LIBBLE_VERSION = v0.0.3
 THINGINO_LIBBLE_SITE = https://github.com/yinzara/libblepp
 THINGINO_LIBBLE_SITE_METHOD = git
 THINGINO_LIBBLE_SITE_BRANCH = main
