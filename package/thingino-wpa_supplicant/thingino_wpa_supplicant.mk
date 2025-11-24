@@ -274,7 +274,7 @@ endef
 
 ifeq ($(BR2_PACKAGE_IFUPDOWN_SCRIPTS),y)
 define THINGINO_WPA_SUPPLICANT_INSTALL_IFUP_SCRIPTS
-	$(INSTALL) -D -m 0755 package/wpa_supplicant/ifupdown.sh \
+	$(INSTALL) -D -m 0755 $(THINGINO_WPA_SUPPLICANT_PKGDIR)/files/ifupdown.sh \
 		$(TARGET_DIR)/etc/network/if-up.d/wpasupplicant
 	mkdir -p $(TARGET_DIR)/etc/network/if-down.d
 	ln -sf ../if-up.d/wpasupplicant \
@@ -285,7 +285,7 @@ endif
 define THINGINO_WPA_SUPPLICANT_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/wpa_supplicant \
 		$(TARGET_DIR)/usr/sbin/wpa_supplicant
-	$(INSTALL) -D -m 0644 package/wpa_supplicant/wpa_supplicant.conf \
+	$(INSTALL) -D -m 0644 $(THINGINO_WPA_SUPPLICANT_PKGDIR)/files/wpa_supplicant.conf \
 		$(TARGET_DIR)/etc/wpa_supplicant.conf
 	$(THINGINO_WPA_SUPPLICANT_INSTALL_CLI)
 	$(THINGINO_WPA_SUPPLICANT_INSTALL_PASSPHRASE)
@@ -304,7 +304,7 @@ define THINGINO_WPA_SUPPLICANT_INSTALL_INIT_SYSTEMD
 		$(TARGET_DIR)/usr/lib/systemd/system/wpa_supplicant-nl80211@.service
 	$(INSTALL) -D -m 0644 $(@D)/$(THINGINO_WPA_SUPPLICANT_SUBDIR)/systemd/wpa_supplicant-wired@.service \
 		$(TARGET_DIR)/usr/lib/systemd/system/wpa_supplicant-wired@.service
-	$(INSTALL) -D -m 0644 $(THINGINO_WPA_SUPPLICANT_PKGDIR)/50-wpa_supplicant.preset \
+	$(INSTALL) -D -m 0644 $(THINGINO_WPA_SUPPLICANT_PKGDIR)/files/50-wpa_supplicant.preset \
 		$(TARGET_DIR)/usr/lib/systemd/system-preset/50-wpa_supplicant.preset
 endef
 
