@@ -46,11 +46,6 @@ start() {
 		send2webhook &
 	fi
 
-	if [ "true" = "$motion_send2yadisk" ]; then
-		echo_info "Send alert to Yandex Disk"
-		send2yadisk &
-	fi
-
 	if [ "true" = "$motion_send2ntfy" ]; then
 		echo_info "Send alert to Ntfy"
 		send2ntfy &
