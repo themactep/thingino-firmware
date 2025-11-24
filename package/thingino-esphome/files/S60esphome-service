@@ -38,6 +38,14 @@ EOF
 }
 
 start() {
+	# Check if WiFi is configured
+	wlan_ssid=$(fw_printenv wlan_ssid 2>/dev/null | cut -d'=' -f2)
+
+	if [ -z "$wlan_ssid" ]; then
+		echo_info "WiFi not configured, skipping ESPHome service"
+		return 0
+	fi
+
 	echo_info "Starting ESPHome service"
 
 	# Check if already running

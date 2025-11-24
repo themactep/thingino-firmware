@@ -7,7 +7,7 @@ This plugin implements the ESPHome MediaPlayer interface for Thingino cameras, e
 - **Home Assistant Integration** - Full ESPHome MediaPlayer entity support
 - **URL-based Playback** - Stream audio from HTTP/HTTPS URLs
 - **Announcement Support** - Special handling for TTS and announcements
-- **Volume Control** - System volume management via ALSA
+- **Volume Control** - System volume management
 - **Ingenic Audio Daemon** - Uses IAD for hardware-accelerated audio output
 - **Streaming Playback** - Direct streaming from URL to IAD (no buffering)
 
