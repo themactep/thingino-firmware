@@ -1217,15 +1217,20 @@ int media_player_handle_message(esphome_plugin_context_t *ctx,
         return -1; // Not for us
     }
 
-    esphome_plugin_log(ctx, 2, "[MediaPlayer] Received command: %d", cmd_msg.command);
+    if (cmd_msg.has_media_url && cmd_msg.media_url[0]) {
+        bool is_announcement = cmd_msg.has_announcement && cmd_msg.announcement;
+        download_and_stream_audio(cmd_msg.media_url, is_announcement);
+    }
 
     if (cmd_msg.has_command) {
+        esphome_plugin_log(ctx, 2, "[MediaPlayer] Received command: %d", cmd_msg.command);
+
         switch (cmd_msg.command) {
             case MEDIA_PLAYER_COMMAND_PLAY:
-                if (cmd_msg.has_media_url && cmd_msg.media_url[0]) {
-                    bool is_announcement = cmd_msg.has_announcement && cmd_msg.announcement;
-                    download_and_stream_audio(cmd_msg.media_url, is_announcement);
-                }
+                pthread_mutex_lock(&g_player_ctx.lock);
+                g_player_ctx.state = MEDIA_PLAYER_STATE_PLAYING;
+                pthread_mutex_unlock(&g_player_ctx.lock);
+                report_media_player_state(MEDIA_PLAYER_STATE_PLAYING, g_player_ctx.volume, g_player_ctx.muted);
                 break;
 
             case MEDIA_PLAYER_COMMAND_PAUSE:
