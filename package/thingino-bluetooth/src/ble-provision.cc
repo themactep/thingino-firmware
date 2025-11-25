@@ -500,7 +500,7 @@ static GATTServiceDef create_improv_service() {
     error_char.val_handle_ptr = &g_error_handle;
     
     // RPC Command (Write only)
-    service.add_characteristic(rpc_command_uuid, GATT_CHR_F_WRITE, rpc_command_cb);
+    service.add_characteristic(rpc_command_uuid, GATT_CHR_F_WRITE | GATT_CHR_F_WRITE_NO_RSP, rpc_command_cb);
     
     // RPC Result (Read + Notify)
     auto& result_char = service.add_characteristic(rpc_result_uuid, 
