@@ -26,8 +26,8 @@ extern "C" {
 #define WAKE_WORD_RING_BUFFER_SAMPLES (WAKE_WORD_SAMPLE_RATE * WAKE_WORD_RING_BUFFER_MS / 1000)
 
 // Detection thresholds
-#define WAKE_WORD_DETECTION_THRESHOLD 0.85f
-#define WAKE_WORD_SLIDING_WINDOW_AVERAGE_SIZE 10
+#define WAKE_WORD_DETECTION_THRESHOLD 0.65f  // Lowered from 0.85 for better detection
+#define WAKE_WORD_SLIDING_WINDOW_AVERAGE_SIZE 5  // Reduced for faster response
 
 // Model tensor arena size (needs to be large enough for stateful RNN models)
 // Must be larger than the model size plus working memory

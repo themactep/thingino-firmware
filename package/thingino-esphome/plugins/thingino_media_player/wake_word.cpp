@@ -254,18 +254,37 @@ static bool generate_features(int8_t *features_buffer) {
         return false;
     }
 
-    // Read window_samples starting from read_pos
+    // Read window_samples starting from read_pos and calculate energy
     int16_t sample_min = 32767, sample_max = -32768;
+    int64_t energy = 0;  // Sum of squares for energy calculation
     for (size_t i = 0; i < window_samples; i++) {
         audio_samples[i] = g_wake_word_ctx.ring_buffer[
             (g_wake_word_ctx.ring_buffer_read_pos + i) % WAKE_WORD_RING_BUFFER_SAMPLES];
         if (audio_samples[i] < sample_min) sample_min = audio_samples[i];
         if (audio_samples[i] > sample_max) sample_max = audio_samples[i];
+        energy += (int64_t)audio_samples[i] * (int64_t)audio_samples[i];
+    }
+
+    // Calculate RMS (Root Mean Square) energy
+    float rms = sqrtf((float)energy / window_samples);
+
+    // Skip processing if audio energy is too low (likely silence)
+    // Threshold of ~100 RMS is reasonable for 16-bit audio
+    const float MIN_AUDIO_ENERGY = 100.0f;
+    if (rms < MIN_AUDIO_ENERGY) {
+        if (first_gen || gen_count % 100 == 0) {
+            fprintf(stderr, "[WakeWord] Skipping low energy audio: RMS=%.1f (min=%.1f)\n",
+                    rms, MIN_AUDIO_ENERGY);
+        }
+        // Don't advance read position, just return
+        pthread_mutex_unlock(&g_wake_word_ctx.lock);
+        return false;
     }
 
     // Log raw audio levels periodically
     if (first_gen || gen_count % 100 == 0) {
-        fprintf(stderr, "[WakeWord] Raw audio samples: min=%d, max=%d\n", sample_min, sample_max);
+        fprintf(stderr, "[WakeWord] Raw audio samples: min=%d, max=%d, RMS=%.1f\n",
+                sample_min, sample_max, rms);
     }
 
     // Advance read position by stride_samples (consuming that many samples)
@@ -731,15 +750,19 @@ static void *detection_thread_func(void *arg) {
                 void *userdata = g_wake_word_ctx.userdata;
                 pthread_mutex_unlock(&g_wake_word_ctx.lock);
 
-                // Log every 50th inference
-                if (inference_count % 50 == 0) {
-                    fprintf(stderr, "[WakeWord] Detection loop #%d: prob=%.3f, avg=%.3f, max=%.3f, threshold=%.2f\n",
+                // Log more frequently when probability is elevated
+                bool is_elevated = probability > 0.3f || avg > 0.3f;
+                if (inference_count % 50 == 0 || is_elevated) {
+                    fprintf(stderr, "[WakeWord] Detection loop #%d: prob=%.3f, avg=%.3f, max=%.3f, threshold=%.2f%s\n",
                             inference_count, probability, avg, g_wake_word_ctx.max_probability,
-                            WAKE_WORD_DETECTION_THRESHOLD);
+                            WAKE_WORD_DETECTION_THRESHOLD, is_elevated ? " [ELEVATED]" : "");
                 }
 
-                // Check if wake word detected
-                if (avg >= WAKE_WORD_DETECTION_THRESHOLD && callback) {
+                // Check if wake word detected - also check peak probability
+                bool avg_detected = avg >= WAKE_WORD_DETECTION_THRESHOLD;
+                bool peak_detected = probability >= (WAKE_WORD_DETECTION_THRESHOLD + 0.1f);  // Higher threshold for single sample
+
+                if ((avg_detected || peak_detected) && callback) {
                     // Check cooldown to prevent double-triggering
                     uint64_t now = get_time_ms();
                     uint64_t elapsed = now - g_wake_word_ctx.last_detection_time_ms;
@@ -751,7 +774,9 @@ static void *detection_thread_func(void *arg) {
                                     (unsigned long long)(WAKE_WORD_COOLDOWN_MS - elapsed));
                         }
                     } else {
-                        printf("[WakeWord] Detected! avg=%.2f, max=%.2f\n", avg, g_wake_word_ctx.max_probability);
+                        const char *method = avg_detected ? "average" : "peak";
+                        printf("[WakeWord] *** DETECTED via %s! *** prob=%.2f, avg=%.2f, max=%.2f\n",
+                               method, probability, avg, g_wake_word_ctx.max_probability);
 
                         // Update last detection time
                         g_wake_word_ctx.last_detection_time_ms = now;
@@ -901,7 +926,9 @@ int wake_word_start(void) {
 
     // Reset detection state
     g_wake_word_ctx.ring_buffer_write_pos = 0;
+    g_wake_word_ctx.ring_buffer_read_pos = 0;  // Fix: Initialize read position
     g_wake_word_ctx.ring_buffer_available = 0;
+    memset(g_wake_word_ctx.ring_buffer, 0, sizeof(g_wake_word_ctx.ring_buffer));  // Clear buffer
     memset(g_wake_word_ctx.probability_history, 0, sizeof(g_wake_word_ctx.probability_history));
     g_wake_word_ctx.probability_history_pos = 0;
     g_wake_word_ctx.max_probability = 0.0f;
