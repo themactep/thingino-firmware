@@ -1228,9 +1228,9 @@ int media_player_handle_message(esphome_plugin_context_t *ctx,
         switch (cmd_msg.command) {
             case MEDIA_PLAYER_COMMAND_PLAY:
                 pthread_mutex_lock(&g_player_ctx.lock);
-                g_player_ctx.state = MEDIA_PLAYER_STATE_PAUSED;
+                g_player_ctx.state = MEDIA_PLAYER_STATE_PLAYING;
                 pthread_mutex_unlock(&g_player_ctx.lock);
-                report_media_player_state(MEDIA_PLAYER_STATE_PAUSED, g_player_ctx.volume, g_player_ctx.muted);
+                report_media_player_state(MEDIA_PLAYER_STATE_PLAYING, g_player_ctx.volume, g_player_ctx.muted);
                 break;
 
             case MEDIA_PLAYER_COMMAND_PAUSE:
