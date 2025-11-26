@@ -1,5 +1,6 @@
 #include "thingino_media_player.h"
 #include "media_player_proto.h"
+#include "switch_proto.h"
 #include "esphome_proto.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,6 +25,7 @@
 static const char *plugin_name = "thingino_media_player";
 static const char *plugin_version = "1.0.0";
 static const uint32_t media_player_key = 1; // Entity key for this media player
+static const uint32_t wake_word_switch_key = 2; // Entity key for this media player
 
 // Media player format purpose constants (if not defined in esphome_proto.h)
 #ifndef MEDIA_PLAYER_FORMAT_PURPOSE_DEFAULT
@@ -74,6 +76,7 @@ static const media_player_supported_format_t supported_formats[] = {
 
 // Forward declarations of static helper functions
 static void report_media_player_state(MediaPlayerState state, float volume, bool muted);
+static void report_switch_state(uint32_t key, bool state);
 static int iac_connect_audio_output(void);
 static int iac_connect_control(void);
 static int iac_send_control_command(const char *command, char *response, size_t response_size);
@@ -124,6 +127,27 @@ static void report_media_player_state(MediaPlayerState state, float volume, bool
     } else {
         esphome_plugin_log(g_player_ctx.plugin_ctx, 0,
                            "[MediaPlayer] Failed to encode state response");
+    }
+}
+
+static void report_switch_state(uint32_t key, bool state) {
+
+    uint8_t encode_buf[128];
+    switch_state_response_t state_msg = {
+        .key = key,
+        .state = state
+    };
+    size_t len = switch_encode_state_response(encode_buf, sizeof(encode_buf), &state_msg);
+
+    if (len > 0) {
+        esphome_plugin_send_message(g_player_ctx.plugin_ctx,
+                                        ESPHOME_MSG_SWITCH_STATE_RESPONSE,
+                                        encode_buf, len);
+        esphome_plugin_log(g_player_ctx.plugin_ctx, 2,
+                            "[MediaPlayer] Switch state: %d", state_msg.state);
+    } else {
+        esphome_plugin_log(g_player_ctx.plugin_ctx, 0,
+                            "[MediaPlayer] Failed to encode state response");
     }
 }
 
@@ -690,17 +714,36 @@ static float get_system_volume(void) {
 // Audio Streaming Functions
 // =============================================================================
 
-static size_t curl_write_to_iad(void *buffer, size_t size, size_t nmemb, void *userp) {
-    int sockfd = *(int *)userp;
-    size_t total_size = size * nmemb;
+#define WAV_HEADER_SIZE	78
+typedef struct {
+    int sockfd;
+    size_t bytes_received;
+} curl_write_ctx_t;
 
-    ssize_t written = write(sockfd, buffer, total_size);
-    if (written < 0) {
-        perror("[MediaPlayer] write to IAD socket");
-        return 0;
+static size_t curl_write_to_iad(void *buffer, size_t size, size_t nmemb, void *userp) {
+    curl_write_ctx_t *ctx = (curl_write_ctx_t *)userp;
+    size_t total_size = size * nmemb;
+    size_t skip_bytes = 0;
+    ssize_t written = 0;
+
+    if (ctx->bytes_received < WAV_HEADER_SIZE) {
+        size_t needed = WAV_HEADER_SIZE - ctx->bytes_received;
+        if (total_size < needed) {
+            ctx->bytes_received += total_size;
+            return total_size;
+        }
+        skip_bytes = needed;
     }
 
-    return written;
+    if ((total_size - skip_bytes) > 0) {
+        written = write(ctx->sockfd, ((uint8_t *)buffer) + skip_bytes, total_size - skip_bytes);
+        if (written < 0) {
+            perror("[MediaPlayer] write to IAD socket");
+            return 0;
+        }
+    }
+    ctx->bytes_received += (written + skip_bytes);
+    return written + skip_bytes;
 }
 
 void *audio_streaming_thread(void *arg) {
@@ -730,9 +773,14 @@ void *audio_streaming_thread(void *arg) {
 
     CURL *curl = curl_easy_init();
     if (curl) {
+        curl_write_ctx_t curl_write_ctx = {
+            .sockfd = audio_sock,
+            .bytes_received = 0
+        };
+
         curl_easy_setopt(curl, CURLOPT_URL, url);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_to_iad);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &audio_sock);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &curl_write_ctx);
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 300L);
 
@@ -852,6 +900,29 @@ int media_player_handle_message(esphome_plugin_context_t *ctx,
     // This ensures we always have a valid server pointer
     g_player_ctx.plugin_ctx = ctx;
 
+#ifdef ENABLE_WAKE_WORD
+    if (msg_type == ESPHOME_MSG_SWITCH_COMMAND_REQUEST) {
+        esphome_plugin_log(ctx, 2, "[MediaPlayer] Received SWITCH_COMMAND_REQUEST");
+        switch_command_request_t cmd_msg;
+        if (!switch_decode_command_request(data, len, &cmd_msg)) {
+            esphome_plugin_log(ctx, 0, "[MediaPlayer] Failed to decode switch command");
+            return -1;
+        }
+        if(cmd_msg.key == wake_word_switch_key && wake_word_is_available()) {
+            if(cmd_msg.state && wake_word_get_state() == WAKE_WORD_STATE_STOPPED) {
+                esphome_plugin_log(ctx, 0, "[MediaPlayer] Start wake word detection");
+                wake_word_start();
+            }
+            else if(!cmd_msg.state && wake_word_get_state() == WAKE_WORD_STATE_DETECTING) {
+                esphome_plugin_log(ctx, 0, "[MediaPlayer] Stop wake word detection");
+                wake_word_stop();
+            }
+            report_switch_state(wake_word_switch_key,
+                                wake_word_is_available() ? wake_word_get_state() == WAKE_WORD_STATE_DETECTING : false);
+        }
+        return 0;
+    }
+#endif
     // Handle subscribe states request - send current state
     if (msg_type == ESPHOME_MSG_SUBSCRIBE_STATES_REQUEST) {
         esphome_plugin_log(ctx, 2, "[MediaPlayer] Received SUBSCRIBE_STATES_REQUEST, sending current state");
@@ -1302,7 +1373,7 @@ int media_player_handle_message(esphome_plugin_context_t *ctx,
 }
 
 int media_player_list_entities(esphome_plugin_context_t *ctx, int client_id) {
-    list_entities_media_player_response_t entity = {
+    list_entities_media_player_response_t media_player_entity = {
         .object_id = "speaker",
         .key = media_player_key,
         .name = "Thingino Speaker",
@@ -1323,18 +1394,54 @@ int media_player_list_entities(esphome_plugin_context_t *ctx, int client_id) {
     };
 
     uint8_t encode_buf[512];
-    size_t len = media_player_encode_list_entities_response(encode_buf, sizeof(encode_buf), &entity);
+    size_t len = media_player_encode_list_entities_response(encode_buf, sizeof(encode_buf), &media_player_entity);
 
     if (len > 0) {
         esphome_plugin_send_message_to_client(ctx, client_id,
                                                ESPHOME_MSG_LIST_ENTITIES_MEDIA_PLAYER_RESPONSE,
                                                encode_buf, len);
         esphome_plugin_log(ctx, 2, "[MediaPlayer] Sent entity list response");
-        return 0;
     } else {
         esphome_plugin_log(ctx, 0, "[MediaPlayer] Failed to encode entity list");
         return -1;
     }
+
+#ifdef ENABLE_WAKE_WORD
+    list_entities_switch_response_t switch_entity = {
+        .object_id = "speaker",
+        .key = wake_word_switch_key,
+        .name = "Listen for Wake-word",
+        .icon = "mdi:microphone",
+        .assumed_state = false,
+        .disabled_by_default = false,
+        .entity_category = 0,
+        .device_class = ""
+    };
+
+    len = switch_encode_list_entities_response(encode_buf, sizeof(encode_buf), &switch_entity);
+    if (len > 0) {
+        esphome_plugin_send_message_to_client(ctx, client_id,
+                                               ESPHOME_MSG_LIST_ENTITIES_SWITCH_RESPONSE,
+                                               encode_buf, len);
+        esphome_plugin_log(ctx, 2, "[MediaPlayer] Sent switch entity list response");
+    } else {
+        esphome_plugin_log(ctx, 0, "[MediaPlayer] Failed to encode switch entity list");
+        return -1;
+    }
+#endif
+    return 0;
+}
+//==============================================================================
+// Initial state/info sending
+//==============================================================================
+
+int media_player_subscribe_states(esphome_plugin_context_t *ctx, int client_id) {
+    report_media_player_state(MEDIA_PLAYER_STATE_IDLE, g_player_ctx.volume, g_player_ctx.muted);
+#ifdef ENABLE_WAKE_WORD
+    report_switch_state(wake_word_switch_key,
+                        wake_word_is_available() ? wake_word_get_state() == WAKE_WORD_STATE_DETECTING : false);
+#endif
+    return 0;
 }
 
 #ifdef ENABLE_WAKE_WORD
