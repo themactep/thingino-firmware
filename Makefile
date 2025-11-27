@@ -302,7 +302,8 @@ check-config: buildroot/Makefile
 # Force configuration regeneration
 force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.keep
 	$(info -------------------------------- $@)
-	$(FIGLET) "$(BOARD)"
+	@$(FIGLET) "$(BOARD)"
+	@$(FIGLET) "$(GIT_BRANCH)"
 	# delete older config
 	$(info * remove existing .config file)
 	rm -rvf $(OUTPUT_DIR)/.config
@@ -319,10 +320,7 @@ ifneq ($(CAMERA_CONFIG_REAL),$(MODULE_CONFIG_REAL))
 	# add camera configuration
 	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
 endif
-	if [ $(RELEASE) -eq 1 ]; then \
-		$(FIGLET) "RELEASE"; \
-	else \
-		$(FIGLET) "DEVELOPMENT"; \
+	if [ $(RELEASE) -ne 1 ]; then \
 		if [ -f $(BR2_EXTERNAL)/configs/local.fragment ]; then \
 			cat $(BR2_EXTERNAL)/configs/local.fragment >>$(OUTPUT_DIR)/.config; \
 		fi; \
@@ -349,6 +347,7 @@ endif
 defconfig: check-config
 	$(info -------------------------------- $@)
 	@$(FIGLET) $(CAMERA)
+	@$(FIGLET) $(GIT_BRANCH)
 	# Ensure buildroot is properly configured
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 
@@ -520,7 +519,6 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" EXTRAS $(EXTRAS_OFFSET) $(EXTRAS_PARTITION_SIZE) $(EXTRAS_BIN_SIZE) $(EXTRAS_BIN_SIZE_ALIGNED) $$(($(EXTRAS_OFFSET) + $(EXTRAS_BIN_SIZE_ALIGNED))) $$(($(EXTRAS_PARTITION_SIZE) - $(EXTRAS_BIN_SIZE_ALIGNED))) ))
 	$(info  )
 
-	if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FIRMWARE_FULL_SIZE) ]; then $(FIGLET) "OVERSIZE"; fi
 	rm -f $(FIRMWARE_BIN_FULL).sha256sum
 	echo "$(shell echo \# $(CAMERA))" >> $(FIRMWARE_BIN_FULL).sha256sum
 	echo "# ${GIT_BRANCH}+${GIT_HASH}, ${BUILD_DATE}" >> "$(FIRMWARE_BIN_FULL).sha256sum"
@@ -531,7 +529,11 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	echo "# ${GIT_BRANCH}+${GIT_HASH}, ${BUILD_DATE}" >> "$(FIRMWARE_BIN_NOBOOT).sha256sum"
 	sha256sum $(FIRMWARE_BIN_NOBOOT) | awk '{print $$1 "  " filename}' filename="$(FIRMWARE_NAME_NOBOOT)" >> $(FIRMWARE_BIN_NOBOOT).sha256sum
 	@$(FIGLET) $(CAMERA)
-	@$(FIGLET) "FINE"
+	@$(FIGLET) $(GIT_BRANCH)
+	@if [ "$(RELEASE)" -ne 1 ]; then $(FIGLET) "NON-SECURE"; fi
+	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FIRMWARE_FULL_SIZE) ]; then \
+		$(FIGLET) "OVERSIZE"; else \
+		$(FIGLET) "FINE $(shell date +"%T")"; fi
 	@echo "--------------------------------"
 	@echo "Full Image:"
 	@echo "$(FIRMWARE_BIN_FULL)"
@@ -667,9 +669,7 @@ $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 $(EXTRAS_BIN): $(U_BOOT_BIN)
 	$(info -------------------------------- $@)
 	# complain if there is not enough space for extras partition
-	if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then \
-		$(FIGLET) "EXTRAS PARTITION IS TOO SMALL"; \
-	fi
+	@if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(FIGLET) "EXTRAS PARTITION IS TOO SMALL"; fi
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
 	# extract /opt/ from target rootfs to a separare directory
