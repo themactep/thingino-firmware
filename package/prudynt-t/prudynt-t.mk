@@ -1,8 +1,8 @@
 PRUDYNT_T_SITE_METHOD = git
 # PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
 PRUDYNT_T_SITE = https://github.com/themactep/prudynt-t
-PRUDYNT_T_SITE_BRANCH = stable
-PRUDYNT_T_VERSION = 6032070a42ac58316b2fe43f44fff85fe630bbf6
+PRUDYNT_T_SITE_BRANCH = mp4video
+PRUDYNT_T_VERSION = bbe7d747da554656778e714eff6573b35817ea1c
 
 PRUDYNT_T_GIT_SUBMODULES = YES
 
