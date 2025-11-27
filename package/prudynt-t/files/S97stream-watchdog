@@ -34,7 +34,7 @@ watch() {
 		SUCCESS=false
 
 		for i in $(seq 1 $RETRY_COUNT); do
-			openRTSP -v -V -d 5 -t "$RTSP_URL" > /dev/null 2>&1 &
+			# check rtsp port for data
 			PID=$!
 
 			wait $PID

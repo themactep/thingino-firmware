@@ -1,4 +1,4 @@
-#!/bin/env sh
+#!/bin/sh
 
 . /usr/share/common
 
@@ -16,10 +16,8 @@ Where:
 }
 
 cleanup() {
-	# Cleanup temporary files
 	[ -f "$snapshot_attachment" ] && rm "$snapshot_attachment"
-	[ -f "$videoclip_attachment1" ] && rm "$videoclip_attachment1"
-	[ -f "$videoclip_attachment2" ] && rm "$videoclip_attachment2"
+	[ -f "$video_attachment" ] && rm "$video_attachment"
 }
 
 while getopts m:scu:vh flag; do
@@ -33,64 +31,41 @@ while getopts m:scu:vh flag; do
 	esac
 done
 
-if [ -z "$webhook_url" ]; then
-	echo_error "Webhook URL not found"
-	exit 1
-fi
+# validators
+[ -z "$webhook_url" ] && die "Webhook URL not found"
 
+# command
 if [ "true" = "$verbose" ]; then
 	command="$CURL --verbose"
 else
 	command="$CURL --silent"
 fi
 
-# Handle snapshot attachment
+# snapshot attachment
 if [ "true" = "$webhook_attach_snapshot" ]; then
 	snapshot_attachment=$(mktemp -u).jpg
 	cp -f "$SNAPSHOT_FILE" "$snapshot_attachment"
 	command="$command -F \"image=@$snapshot_attachment\""
 fi
 
-# Handle videoclip attachment, we are sending copy of old and new buffer
-if [ "true" = "$webhook_attach_videoclip" ]; then
-	if [ -f "$VBUFFER_FILE" ]; then
-		inode=$(stat -c%i $VBUFFER_FILE)
-		videoclip_attachment1=$(mktemp -u).mp4
-		cp -f "$VBUFFER_FILE" "$videoclip_attachment1"
-		command="$command -F \"video1=@$videoclip_attachment1\""
-		while [ $inode -eq $(stat -c%i $VBUFFER_FILE) ]; do
-			n=$((n + 1))
-			if [ "$n" -ge 10 ]; then
-				echo_error "Give up after $n attempts."
-				cleanup
-				exit 1
-			fi
-			sleep 1
-		done
-		videoclip_attachment2=$(mktemp -u).mp4
-		cp -f "$VBUFFER_FILE" "$videoclip_attachment2"
-		command="$command -F \"video2=@$videoclip_attachment2\""
-	else
-		echo_error "Videoclip not found: $VBUFFER_FILE"
-	fi
+# video attachment
+if [ "true" = "$webhook_attach_videoclip" ] && [ -f "$MOTION_VIDEO_FILE" ]; then
+	video_attachment=$(mktemp -u).mp4
+	cp -f "$MOTION_VIDEO_FILE" "$video_attachment"
+	command="$command -F \"video=@$video_attachment\""
 fi
 
 # Add message and url to the command
 command="$command -F \"message=$webhook_message\" --url \"$webhook_url\""
 
-if [ "true" = "$verbose" ]; then
-	echo_command "$command"
-fi
+[ "true" = "$verbose" ] && echo_command "$command"
 
 result=$(sh -c "$command" 2>&1)
 if [ $? -eq 0 ] ; then
-	if [ "true" = "$verbose" ]; then
-		echo_info "$result"
-	fi
+	[ "true" = "$verbose" ] && echo_info "$result"
 else
-	echo_error "Failed to send webhook message"
 	cleanup
-	exit 1
+	die "Failed to send webhook message"
 fi
 
 cleanup

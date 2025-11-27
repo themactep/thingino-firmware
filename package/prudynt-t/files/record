@@ -2,11 +2,6 @@
 
 . /usr/share/common
 
-ensure_command "openRTSP"
-
-STREAMER_APP="prudynt"
-STREAMER_CONF_FILE="/etc/prudynt.json"
-
 SELF_NAME="$(basename "$0")"
 
 if ! is_streamer_running; then
@@ -48,12 +43,6 @@ get_occupied_space() {
 	echo_info "Space occupied: $occupied_space KiB"
 }
 
-# "parameter" "default"
-read_config() {
-	jct "$STREAMER_CONF_FILE" get "$1" | tr -d '"'
-	[ -z "$_" ] || echo "$2"
-}
-
 # "path"
 remove_oldest_file_in() {
 	oldest_file="$(find "$1" -type f -exec ls -ltr {} + | head -n1 | awk '{print $9}')"
@@ -66,17 +55,35 @@ has_files() {
 	[ "$(find "$1" -type f | wc -l)" -gt 0 ]
 }
 
+channel_state_file() {
+	local channel="$1"
+	echo "/run/prudynt/mp4ctl-ch${channel}.active"
+}
+
+wait_for_channel_idle() {
+	local channel="$1"
+	local timeout="$2"
+	local waited=0
+	local state_file
+	state_file=$(channel_state_file "$channel")
+	[ -z "$timeout" ] && timeout=0
+	while : ; do
+		if [ ! -f "$state_file" ]; then
+			return 0
+		fi
+		if [ "$timeout" -gt 0 ] && [ "$waited" -ge "$timeout" ]; then
+			return 1
+		fi
+		sleep 1
+		waited=$((waited + 1))
+	done
+}
+
 show_help() {
 	usage "[<params>]
 Where params are:
-	-u <string>  RTSP username
-	-p <string>  RTSP password
-	-c <int>     RTSP stream number
-	-h <int>     Frame height
-	-w <int>     Frame width
-	-f <int>     Frames per second
+	-c <int>     Video channel index
 	-t <int>     Duration in seconds
-	-v <str>     Record video format
 	-m <path>    Mount point for storing files
 	-s <path>    Subdirectory for the device
 	-n <string>  File name template (supports strftime format)
@@ -91,18 +98,12 @@ RECORD_FLAG="/tmp/record.$$"
 
 while getopts "c:d:f:h:m:n:p:s:t:u:v:w:xz:" flag; do
 	case "$flag" in
-		c) stream_number=$OPTARG ;;
+		c) record_channel=$OPTARG ;;
 		d) record_limit=$OPTARG ;;
-		f) stream_fps=$OPTARG ;;
-		h) stream_height=$OPTARG ;;
 		m) record_mount=$OPTARG ;;
 		n) record_filename=$OPTARG ;;
-		p) rtsp_password=$OPTARG ;;
 		s) record_device_path=$OPTARG ;;
 		t) record_duration=$OPTARG ;;
-		u) rtsp_username=$OPTARG ;;
-		v) record_videofmt=$OPTARG ;;
-		w) stream_width=$OPTARG ;;
 		x) one_time="true" ;;
 		*) show_help && exit ;;
 	esac
@@ -128,76 +129,13 @@ if [ -z "$record_duration" ]; then
 	record_duration=10
 fi
 
+if [ -z "$record_channel" ]; then
+	record_channel=0
+fi
+
 if [ -z "$record_filename" ]; then
 	record_filename="%hostname/%Y/%m/%d/%H-%M-%S"
 fi
-
-if [ -z "$record_videofmt" ]; then
-	record_videofmt="mp4"
-fi
-
-if [ -z "$stream_number" ]; then
-	stream_number=0
-fi
-
-if [ -z "$stream_width" ]; then
-	stream_width=$(read_config stream${stream_number}.width 640)
-fi
-
-if [ -z "$stream_height" ]; then
-	stream_height=$(read_config stream${stream_number}.height 360)
-fi
-
-if [ -z "$stream_fps" ]; then
-	stream_fps=$(read_config stream${stream_number}.fps 25)
-fi
-
-if [ -z "$rtsp_username" ]; then
-	rtsp_username=$(read_config rtsp.username thingino)
-fi
-
-if [ -z "$rtsp_password" ]; then
-	rtsp_password=$(read_config rtsp.password thingino)
-fi
-
-stream_endpoint=$(read_config stream${stream_number}.rtsp_endpoint ch1)
-rtsp_stream="rtsp://127.0.0.1/$stream_endpoint"
-
-echo_info "
-stream_number: $stream_number
-stream_endpoint: $stream_endpoint
-stream_fps: $stream_fps
-stream_height: $stream_height
-stream_width: $stream_width
-"
-
-if [ -z "$stream_number" ]; then
-	echo_error "Cannot determine stream humber"
-fi
-
-if [ -z "$stream_endpoint" ]; then
-	echo_error "Cannot determine stream endpoint"
-fi
-
-if [ -z "$stream_fps" ]; then
-	echo_error "Cannot determine stream fps"
-fi
-
-if [ -z "$stream_height" ]; then
-	echo_error "Cannot determine stream height"
-fi
-
-if [ -z "$stream_width" ]; then
-	echo_error "Cannot determine stream width"
-fi
-
-case "$record_videofmt" in
-	avi) vformat="-i" ;;
-	mkv) vformat="-x" ;;
-	mov) vformat="-q" ;;
-	mp4) vformat="-4" ;;
-	  *) echo_error "Unknown video format $record_videofmt"
-esac
 
 touch $RECORD_FLAG
 
@@ -238,14 +176,19 @@ while : ; do
 		done
 	fi
 
-	record_file="$record_storage/$(date +"$record_filename").$record_videofmt"
+	record_file="$record_storage/$(date +"$record_filename").mp4"
 	ensure_dir "$(dirname $record_file)"
 
 	real_duration=$(fix_duration $record_duration)
+	[ -z "$real_duration" ] && real_duration=$record_duration
 
-	command="openRTSP -V -u $rtsp_username $rtsp_password -w $stream_width -h $stream_height -f $stream_fps -d $real_duration $vformat -b 1048576 -t $rtsp_stream > \"$record_file\""
-	echo_command "$command"
-	timeout $((real_duration + 5)) sh -c "$command" 2> /dev/null
+	controller_command="START $record_file $real_duration $record_channel"
+	echo_command "$controller_command"
+	echo "$controller_command" > /run/prudynt/mp4ctl
+	wait_timeout=$((real_duration + 5))
+	if ! wait_for_channel_idle "$record_channel" "$wait_timeout"; then
+		echo_warning "Recorder on channel $record_channel still active after ${wait_timeout}s"
+	fi
 
 	[ "true" = "$one_time" ] && rm $RECORD_FLAG
 done

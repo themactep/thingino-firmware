@@ -18,7 +18,6 @@ Where:
 	exit 0
 }
 
-verbosity="--silent"
 while getopts b:f:kn:p:s:t:vh flag; do
 	case "$flag" in
 		b) email_body=$OPTARG ;;
@@ -28,58 +27,37 @@ while getopts b:f:kn:p:s:t:vh flag; do
 		p) email_smtp_port=$OPTARG ;;
 		s) email_subject=$OPTARG ;;
 		t) email_to_address=$OPTARG ;;
-		v) verbosity="--verbose" ;;
+		v) verbose="true" ;;
 		h | *) show_help ;;
 	esac
 done
 
-if [ -z "$email_smtp_host" ]; then
-	echo_error "SMTP host not found"
-	exit 1
+# validators
+[ -z "$email_smtp_host" ] && die "SMTP host not found"
+[ -z "$email_from_address" ] && die "Sender's email address not found"
+[ -z "$email_to_address" ] && die "Recipient's email address not found"
+[ -z "$email_body" ] && die "Email body not found"
+
+echo "$email_from_address" | grep -E -q $EMAIL_FORMAT >/dev/null || die "Invalid sender email address format"
+echo "$email_to_address" | grep -E -q $EMAIL_FORMAT >/dev/null || die "Invalid recipient email address format"
+
+# defaults
+[ -z "$email_smtp_port" ] && email_smtp_port=25
+[ -z "$email_from_name" ] && email_from_name="Thingino Camera"
+[ -z "$email_to_name" ] && email_to_name="Thingino Camera Admin"
+[ -z "$email_subject" ] && email_subject="Snapshot from Thingino Camera"
+
+# sanitizers
+email_body=${email_body//"/\\"}
+
+# command
+if [ "true" = "$verbose" ]; then
+	command="$CURL --verbose"
+else
+	command="$CURL --silent"
 fi
 
-if [ -z "$email_smtp_port" ]; then
-	email_smtp_port=25
-fi
-
-if [ -z "$email_from_address" ]; then
-	echo_error "Sender's email address not found"
-	exit 1
-fi
-
-if [ -z "$email_to_address" ]; then
-	echo_error "Recipient's email address not found"
-	exit 1
-fi
-
-if [ -z "$email_body" ]; then
-	echo_error "Email body not found"
-	exit 1
-fi
-
-if ! echo "$email_from_address" | grep -E -q $EMAIL_FORMAT >/dev/null; then
-	echo_error "Invalid sender email address format"
-	exit 1
-fi
-
-if ! echo "$email_to_address" | grep -E -q $EMAIL_FORMAT >/dev/null; then
-	echo_error "Invalid recipient email address format"
-	exit 1
-fi
-
-if [ -z "$email_from_name" ]; then
-	email_from_name="Thingino Camera"
-fi
-
-if [ -z "$email_to_name" ]; then
-	email_to_name="Thingino Camera Admin"
-fi
-
-if [ -z "$email_subject" ]; then
-	email_subject="Snapshot from Thingino Camera"
-fi
-
-command="$CURL $verbosity --mail-from $email_from_address --mail-rcpt $email_to_address"
+command="$command --mail-from $email_from_address --mail-rcpt $email_to_address"
 
 if [ -n "$email_smtp_username" ] && [ -n "$email_smtp_password" ]; then
 	command="$command --user '$email_smtp_username:$email_smtp_password'"
@@ -87,14 +65,11 @@ fi
 
 if [ "true" = "$email_smtp_use_ssl" ]; then
 	command="$command --url smtps://$email_smtp_host:$email_smtp_port --ssl"
-	if [ "true" = "$email_insecure_ssl" ]; then
-		command="$command --insecure"
-	fi
+	[ "true" = "$email_insecure_ssl" ] && command="$command --insecure"
 else
 	command="$command --url smtp://$email_smtp_host:$email_smtp_port"
 fi
 
-email_body=${email_body//"/\\"}
 command="$command -H 'From: \"$email_from_name\" <$email_from_address>'"
 command="$command -H 'To: \"$email_to_name\" <$email_to_address>'"
 command="$command -H 'Subject: $email_subject'"
@@ -107,25 +82,19 @@ if [ "true" = "$email_attach_snapshot" ]; then
 	command="$command -F 'snapshot=@$photo_attachment;type=image/jpeg;encoder=base64'"
 fi
 
-if [ "true" = "$email_attach_video" ]; then
-	video_attachment=$(mktemp -u).mov
-	cp -f "$VBUFFER_FILE" "$video_attachment"
-	command="$command -F 'video=@$video_attachment;type=video/quicktime;encoder=base64'"
+if [ "true" = "$email_attach_video" ] && [ -f "$MOTION_VIDEO_FILE" ]; then
+	video_attachment="$(mktemp -u).mp4"
+	cp -f "$MOTION_VIDEO_FILE" "$video_attachment"
+	command="$command -F 'video=@$video_attachment;type=video/mp4;encoder=base64'"
 fi
 
 command="$command -F '=)'"
 
-if ! sh -c "$command"; then
-	echo_error "Failed to send email"
-	exit 1
-fi
+[ "true" = "$verbose" ] && echo_command "$command"
 
-if [ -f "$photo_attachment" ]; then
-	rm "$photo_attachment"
-fi
+sh -c "$command" || die "Failed to send email"
 
-if [ -f "$video_attachment" ]; then
-	rm "$video_attachment"
-fi
+[ -f "$photo_attachment" ] && rm "$photo_attachment"
+[ -f "$video_attachment" ] && rm "$video_attachment"
 
 exit 0

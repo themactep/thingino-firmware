@@ -41,14 +41,11 @@ which motors > /dev/null && has_motors="true"
 <input type="checkbox" class="btn-check" name="white" id="white" value="1">
 <label class="btn btn-dark border mb-2" for="white" title="White LED"><img src="/a/light_white.svg" alt="White light" class="img-fluid"></label>
 <% fi %>
-
-<button type="button" class="btn btn-dark border mb-2" title="Zoom" data-bs-toggle="modal" data-bs-target="#mdPreview">
-<img src="/a/zoom.svg" alt="Zoom" class="img-fluid"></button>
 </div>
-
 </div>
 <div class="col-lg-10">
 <div id="frame" class="position-relative mb-2">
+<video id="previewVideo" class="img-fluid d-none" autoplay muted playsinline controlslist="nodownload nofullscreen noremoteplayback"></video>
 <img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Preview">
 <% if [ "true" = "$has_motors" ]; then %><%in _motors.cgi %><% fi %>
 </div>
@@ -59,9 +56,12 @@ Use a single click for precise positioning, double click for coarse, larger dist
 <% fi %>
 
 <div class="alert alert-secondary">
-<p class="mb-0"><img src="/a/mute.svg" alt="Icon: No Audio" class="float-start me-2" style="height:1.75rem" title="No Audio">
-Please note, there is no audio on this page. Open the RTSP stream in a player to hear audio.</p>
-<b id="playrtsp" class="cb"></b>
+<p class="mb-0">
+<button type="button" id="audioToggle" class="btn btn-dark border m-2 px-3 py-1 float-end" title="Toggle audio" disabled>
+<span data-audio-label>Audio Off</span></button>
+When the browser supports MP4 streaming, the preview carries audio.
+In the fallback JPEG mode, audio remains unavailable, so open the RTSP stream:
+<b id="playrtsp" class="cb"></b></p>
 </div>
 </div>
 
@@ -82,33 +82,221 @@ Please note, there is no audio on this page. Open the RTSP stream in a player to
 <%in _preview.cgi %>
 
 <script>
-<%
-for i in email ftp mqtt telegram webhook ntfy; do
-	continue
-#	[ "true" = $(eval echo \$${i}_enabled) ] && continue
-%>
-{
-	let a = document.createElement('a')
-	a.href = 'tool-send2<%= $i %>.cgi'
-	a.classList.add('btn','btn-outline-danger','mb-2')
-	a.title = 'Configure sent2<%= $i%> plugin'
-	a.append($('button[data-sendto=<%= $i %>] img'))
-	$('button[data-sendto=<%= $i %>]').replaceWith(a);
-}
-<% done %>
-
 const preview = $("#preview");
+const previewVideo = $('#previewVideo');
+const audioToggle = $('#audioToggle');
+const audioToggleLabel = audioToggle ? audioToggle.querySelector('[data-audio-label]') : null;
+if (previewVideo) {
+	previewVideo.muted = true;
+	previewVideo.setAttribute('muted', 'muted');
+	previewVideo.playsInline = true;
+}
+let jpegPreviewActive = true;
+let audioEnabled = false;
+let hlsInstance = null;
+let hlsScriptLoading = null;
+let attemptedHlsJs = false;
+let currentStreamMode = 'none';
+let mp4FallbackTimer = null;
 preview.onload = function() { URL.revokeObjectURL(this.src) }
 
 const ImageBlackMode = 1
 const ImageColorMode = 0
 
-function updatePreview(data) {
-	const blob = new Blob([data], {type: 'image/jpeg'});
-	const url = URL.createObjectURL(blob);
-	preview.src = url;
-	$("#preview_fullsize").src = url;
-	ws.send('{"action":{"capture":null}}');
+function requestNextCapture() {
+	if (jpegPreviewActive && ws && ws.readyState === WebSocket.OPEN) {
+		ws.send('{"action":{"capture":null}}');
+	}
+}
+
+function updatePreview(buffer) {
+	if (!buffer) return;
+	const blob = new Blob([buffer], {type: 'image/jpeg'});
+	const objectUrl = URL.createObjectURL(blob);
+	previewVideo.classList.add('d-none');
+	preview.classList.remove('d-none');
+	preview.src = objectUrl;
+	jpegPreviewActive = true;
+}
+
+function updateAudioToggle() {
+	if (!audioToggle) return;
+	audioToggle.classList.toggle('btn-success', audioEnabled && !audioToggle.disabled);
+	audioToggle.classList.toggle('btn-dark', !audioEnabled || audioToggle.disabled);
+	audioToggle.setAttribute('aria-pressed', audioEnabled ? 'true' : 'false');
+	audioToggle.title = audioEnabled ? 'Mute preview audio' : 'Enable preview audio';
+	if (audioToggleLabel) {
+		audioToggleLabel.textContent = audioEnabled ? 'Audio On' : 'Audio Off';
+	}
+}
+
+function initPreviewVideo() {
+	if (!previewVideo) return;
+	const httpProto = location.protocol === "https:" ? "https:" : "http:";
+	const httpPort = location.protocol === "https:" ? 8090 : 8089;
+	const mp4Url = `${httpProto}//${document.location.hostname}:${httpPort}/ch0.mp4?token=<%= $ws_token %>`;
+	const hlsUrl = `${httpProto}//${document.location.hostname}:${httpPort}/hls/playlist.m3u8?token=<%= $ws_token %>`;
+	const ua = navigator.userAgent || '';
+	const isSafari = /Safari/i.test(ua) && !/Chrome|Chromium|Android/i.test(ua);
+	const nativeHls = isSafari && typeof previewVideo.canPlayType === 'function' &&
+		previewVideo.canPlayType('application/vnd.apple.mpegurl');
+
+	const ensureHlsDestroyed = () => {
+		if (hlsInstance) {
+			try {
+				hlsInstance.destroy();
+			} catch (e) {
+				console.warn('hls.js destroy error', e);
+			}
+			hlsInstance = null;
+		}
+	};
+
+	const clearMp4FallbackTimer = () => {
+		if (mp4FallbackTimer) {
+			clearTimeout(mp4FallbackTimer);
+			mp4FallbackTimer = null;
+		}
+	};
+
+	const setVideoSource = (mode) => {
+		clearMp4FallbackTimer();
+		currentStreamMode = mode;
+		if (audioToggle) {
+			audioToggle.disabled = true;
+		}
+		if (mode === 'hls-native') {
+			ensureHlsDestroyed();
+			previewVideo.dataset.streamType = 'hls-native';
+			previewVideo.src = hlsUrl;
+			previewVideo.load();
+			previewVideo.play().catch(() => {});
+			return;
+		}
+		if (mode === 'hls-js') {
+			ensureHlsDestroyed();
+			loadHlsJs().then(() => {
+				if (!window.Hls || !window.Hls.isSupported()) {
+					console.warn('hls.js not supported in this browser');
+					fallbackToMp4();
+					return;
+				}
+				hlsInstance = new window.Hls({lowLatencyMode: false});
+				hlsInstance.loadSource(hlsUrl);
+				hlsInstance.attachMedia(previewVideo);
+				hlsInstance.on(window.Hls.Events.MANIFEST_PARSED, () => {
+					previewVideo.dataset.streamType = 'hls-js';
+					previewVideo.play().catch(err => console.warn('autoplay blocked (hls.js)', err));
+				});
+				hlsInstance.on(window.Hls.Events.ERROR, (event, data) => {
+					console.error('hls.js error', data);
+					if (data && data.fatal) {
+						fallbackToMp4();
+					}
+				});
+			}).catch(err => {
+				console.error('Failed to load hls.js', err);
+				fallbackToMp4();
+			});
+			return;
+		}
+		// default mp4
+		ensureHlsDestroyed();
+		previewVideo.dataset.streamType = 'mp4';
+		previewVideo.src = mp4Url;
+		previewVideo.load();
+		previewVideo.play().catch(() => {});
+		if (!attemptedHlsJs) {
+			mp4FallbackTimer = window.setTimeout(() => {
+				if (currentStreamMode !== 'mp4') {
+					return;
+				}
+				const haveData = typeof previewVideo.readyState === 'number' &&
+					previewVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+				if (haveData) {
+					return;
+				}
+				console.warn('MP4 inline playback timed out; switching to hls.js');
+				attemptedHlsJs = true;
+				setVideoSource('hls-js');
+			}, 2500);
+		}
+	};
+
+	const fallbackToMp4 = () => {
+		if (currentStreamMode === 'mp4') {
+			return;
+		}
+		setVideoSource('mp4');
+	};
+
+	const handleVideoError = (err) => {
+		console.error('Inline video error', err, previewVideo.error);
+		if (currentStreamMode === 'mp4' && !attemptedHlsJs) {
+			attemptedHlsJs = true;
+			setVideoSource('hls-js');
+			return;
+		}
+		if (currentStreamMode === 'hls-js') {
+			attemptedHlsJs = true;
+			fallbackToMp4();
+			return;
+		}
+		previewVideo.classList.add('d-none');
+		preview.classList.remove('d-none');
+		jpegPreviewActive = true;
+		if (audioToggle) {
+			audioToggle.disabled = true;
+		}
+		audioEnabled = false;
+		updateAudioToggle();
+		requestNextCapture();
+	};
+
+	previewVideo.addEventListener('error', handleVideoError);
+	previewVideo.addEventListener('loadeddata', () => {
+		clearMp4FallbackTimer();
+		preview.classList.add('d-none');
+		previewVideo.classList.remove('d-none');
+		jpegPreviewActive = false;
+		if (audioToggle) {
+			audioToggle.disabled = false;
+		}
+		updateAudioToggle();
+		previewVideo.play().catch(e => console.warn('autoplay blocked', e));
+	});
+
+	previewVideo.addEventListener('stalled', () => {
+		if (currentStreamMode === 'mp4' && !attemptedHlsJs) {
+			console.warn('MP4 stream stalled; attempting hls.js fallback');
+			attemptedHlsJs = true;
+			setVideoSource('hls-js');
+		}
+	});
+
+	if (nativeHls) {
+		setVideoSource('hls-native');
+	} else {
+		setVideoSource('mp4');
+	}
+}
+
+initPreviewVideo();
+
+if (audioToggle) {
+	audioToggle.addEventListener('click', () => {
+		if (!previewVideo || audioToggle.disabled) return;
+		audioEnabled = !audioEnabled;
+		previewVideo.muted = !audioEnabled;
+		if (audioEnabled) {
+			previewVideo.removeAttribute('muted');
+			previewVideo.play().catch(err => console.warn('audio play blocked', err));
+		} else {
+			previewVideo.setAttribute('muted', 'muted');
+		}
+		updateAudioToggle();
+	});
+	updateAudioToggle();
 }
 
 const wsPort = location.protocol === "https:" ? 8090 : 8089;
@@ -123,7 +311,7 @@ ws.onopen = () => {
 		'"motion":{"enabled":null},'+
 		'"rtsp":{"username":null,"password":null,"port":null},'+
 		'"stream0":{"rtsp_endpoint":null},'+
-		'"action":{"capture":null}'+
+//		'"action":{"capture":null}'+
 		'}'
 	console.log(ts(), '===>', payload);
 	ws.send(payload);
@@ -216,6 +404,23 @@ $$("#color, #ircut, #ir850, #ir940, #white").forEach(el =>
 	el.addEventListener('change', ev => toggleButton(el)));
 
 toggleDayNight();
+
+function loadHlsJs() {
+	if (window.Hls && typeof window.Hls.isSupported === 'function') {
+		return Promise.resolve();
+	}
+	if (hlsScriptLoading) {
+		return hlsScriptLoading;
+	}
+	hlsScriptLoading = new Promise((resolve, reject) => {
+		const script = document.createElement('script');
+		script.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js';
+		script.onload = () => resolve();
+		script.onerror = (err) => reject(err);
+		document.head.appendChild(script);
+	});
+	return hlsScriptLoading;
+}
 </script>
 
 <div class="alert alert-dark ui-debug d-none">

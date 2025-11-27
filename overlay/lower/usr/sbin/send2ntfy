@@ -24,7 +24,6 @@ Where:
 	exit 0
 }
 
-verbosity="false"
 while getopts a:c:f:h:i:l:m:n:p:st:u:w:vh flag; do
 	case "$flag" in
 		a) ntfy_attach=$OPTARG ;;
@@ -39,57 +38,41 @@ while getopts a:c:f:h:i:l:m:n:p:st:u:w:vh flag; do
 		t) ntfy_topic=$OPTARG ;;
 		u) ntfy_username=$OPTARG ;;
 		w) ntfy_password=$OPTARG ;;
-		v) verbosity="true" ;;
+		v) verbose="true" ;;
 		*) show_help ;;
 	esac
 done
 
-if [ -z "$ntfy_host" ]; then
-	ntfy_host="ntfy.sh"
-	#echo_warning "NFTY host is not set"
-fi
+# validators
+[ -z "$ntfy_topic" ] && die "NTFY topic is not set"
 
-if [ -z "$ntfy_port" ]; then
-	ntfy_port=80
-	#echo_error "NTFY port is not set"
-fi
+# defaults
+[ -z "$ntfy_host" ] && ntfy_host="ntfy.sh"
+[ -z "$ntfy_port" ] && ntfy_port=80
 
-if [ -z "$ntfy_topic" ]; then
-	echo_error "NTFY topic is not set"
-	exit 1
-fi
-
+# attachments
 remove_ntfy_file="false"
 
-# Prepare snapshot as attachment
 if [ "true" = "$ntfy_send_snap" ]; then
 	ntfy_filename=$(mktemp -u).jpg
 	cp -f "$SNAPSHOT_FILE" "$ntfy_filename"
 	remove_ntfy_file="true"
 fi
 
-command="$CURL -X POST -H p:${ntfy_priority:-3}"
-if [ "true" = "$verbosity" ]; then
-	command="$command --verbose"
+# command
+if [ "true" = "$verbose" ]; then
+	command="$CURL --verbose"
 else
-	command="$command --silent"
+	command="$CURL --silent"
 fi
 
-if [ -n "$ntfy_title" ]; then
-	command="$command -H 'Title: $ntfy_title'"
-fi
+command="$command -X POST -H p:${ntfy_priority:-3}"
 
-if [ -n "$ntfy_tags" ]; then
-	command="$command -H 'Tags: $ntfy_tags'"
-fi
-
-if [ -n "$ntfy_delay" ]; then
-	command="$command -H 'Delay: $ntfy_delay'"
-fi
-
-if [ -n "$ntfy_username" ] && [ -n "$ntfy_password" ]; then
-	command="$command -u $ntfy_username:$ntfy_password"
-fi
+[ -n "$ntfy_title" ] && command="$command -H 'Title: $ntfy_title'"
+[ -n "$ntfy_tags" ] && command="$command -H 'Tags: $ntfy_tags'"
+[ -n "$ntfy_delay" ] && command="$command -H 'Delay: $ntfy_delay'"
+[ -n "$ntfy_username" ] && \
+[ -n "$ntfy_password" ] && command="$command -u $ntfy_username:$ntfy_password"
 
 if [ "true" = "$ntfy_send_snap" ]; then
 	attachment=$(mktemp -u).jpg
@@ -97,33 +80,15 @@ if [ "true" = "$ntfy_send_snap" ]; then
 	command="$command -T $attachment -H 'Filename: $attachment'"
 fi
 
-if [ -n "$ntfy_filename" ] && [ -f "$ntfy_filename" ]; then
-	command="$command -T $ntfy_filename -H 'Filename: $ntfy_filename'"
-fi
-
-if [ -n "$ntfy_attach" ]; then
-	command="$command -H 'Attach: $ntfy_attach'"
-fi
-
-if [ -n "$ntfy_click" ]; then
-	command="$command -H 'Click: $ntfy_click'"
-fi
-
-if [ -n "$ntfy_icon" ]; then
-	command="$command -H 'Icon: $ntfy_icon'"
-fi
-
-if [ -n "$ntfy_email" ]; then
-	command="$command -H 'Email: $ntfy_email'"
-fi
-
-if [ -n "$ntfy_actions" ]; then
-	command="$command -H 'Actions: $ntfy_actions'"
-fi
-
-if [ -n "$ntfy_call" ] && [ -n "$ntfy_twilio_token" ]; then
-	command="$command -H 'Call: $ntfy_call' -u :$ntfy_twilio_token"
-fi
+[ -n "$ntfy_filename" ] && \
+[ -f "$ntfy_filename" ] && command="$command -T $ntfy_filename -H 'Filename: $ntfy_filename'"
+[ -n "$ntfy_attach"   ] && command="$command -H 'Attach: $ntfy_attach'"
+[ -n "$ntfy_click"    ] && command="$command -H 'Click: $ntfy_click'"
+[ -n "$ntfy_icon"     ] && command="$command -H 'Icon: $ntfy_icon'"
+[ -n "$ntfy_email"    ] && command="$command -H 'Email: $ntfy_email'"
+[ -n "$ntfy_actions"  ] && command="$command -H 'Actions: $ntfy_actions'"
+[ -n "$ntfy_twilio_token" ] && \
+[ -n "$ntfy_call"     ] && command="$command -H 'Call: $ntfy_call' -u :$ntfy_twilio_token"
 
 if [ -n "$ntfy_message" ]; then
 	ntfy_message="$(date +"$ntfy_message")"
@@ -132,17 +97,10 @@ fi
 
 command="$command ${ntfy_host:-ntfy.sh}/$ntfy_topic"
 
-if [ "true" = "$verbosity" ]; then
-	echo_command "$command"
-fi
+[ "true" = "$verbose" ] && echo_command "$command"
 
-if ! sh -c "$command"; then
-	echo_error "Failed to send NTFY message"
-	exit 1
-fi
+sh -c "$command" || die "Failed to send NTFY message"
 
-if [ "true" = "$remove_ntfy_file" ] && [ -f "$ntfy_filename" ]; then
-	rm "$ntfy_filename"
-fi
+[ "true" = "$remove_ntfy_file" ] && [ -f "$ntfy_filename" ] && rm "$ntfy_filename"
 
 exit 0

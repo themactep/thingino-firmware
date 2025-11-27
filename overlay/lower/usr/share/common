@@ -28,6 +28,7 @@ HOSTNAME_FILE="/etc/hostname"
 HOSTS_FILE="/etc/hosts"
 LOG_FILE="/tmp/webui.log"
 LOG_SIZE_LIMIT=50000
+MOTION_VIDEO_FILE="/tmp/motion.mp4"
 NTP_DEFAULT_FILE="/etc/default/ntp.conf"
 NTP_WORKING_FILE="/tmp/ntp.conf"
 OS_RELEASE_FILE="/etc/os-release"
@@ -41,7 +42,6 @@ SOC_MODEL=$(soc -m)
 TZCODE_FILE="/etc/TZ"
 TZJSON_FILE="/usr/share/tz.json"
 TZNAME_FILE="/etc/timezone"
-VBUFFER_FILE="/tmp/vbuffer.mp4"
 WLANAP_MODE_FLAG="/run/wlanap_mode"
 
 DAEMON=${DAEMON:-$0}
@@ -105,7 +105,7 @@ decrement_mac() {
 }
 
 die() {
-	echo "$1" >&2
+	echo_error "$1"
 	exit 1
 }
 

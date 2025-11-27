@@ -17,7 +17,6 @@ Where:
 	exit 0
 }
 
-verbosity="--silent"
 while getopts d:f:p:P:s:u:vVh flag; do
 	case "$flag" in
 		d) ftp_path=$OPTARG ;;
@@ -26,55 +25,53 @@ while getopts d:f:p:P:s:u:vVh flag; do
 		P) ftp_password=$OPTARG ;;
 		s) ftp_host=$OPTARG ;;
 		u) ftp_user=$OPTARG ;;
-		v) verbosity="--verbose" ;;
+		v) verbose="true" ;;
 		V) ftp_sendvideo="true" ;;
 		h | *) show_help ;;
 	esac
 done
 
-if [ -z "$ftp_host" ]; then
-	echo_error "FTP host not found"
-	exit 1
-fi
+# validators
+[ -z "$ftp_host" ] && die "FTP host not found"
 
-if [ -z "$ftp_port" ]; then
-	ftp_port=21
-fi
+# defaults
+[ -z "$ftp_port" ] && ftp_port=21
+[ -z "$ftp_user" ] && ftp_user="anonymous" && ftp_password="anonymous"
 
-if [ -z "$ftp_user" ]; then
-	ftp_user="anonymous"
-	ftp_password="anonymous"
-fi
-
+# attachments
 if [ -z "$ftp_file" ]; then
-	if [ "true" = "$ftp_sendvideo" ]; then
-		attachment=$(mktemp -u).mov
-		cp -f "$VBUFFER_FILE" "$attachment"
-		ftp_filename=$(date +"$ftp_template").mov
-	else
+	if [ "true" = "$ftp_sendvideo" ] && [ -f "$MOTION_VIDEO_FILE" ]; then
+		cp -f $MOTION_VIDEO_FILE "$video_attachment"
+		ftp_filename=$(date +"$ftp_template").mp4
+	fi
+
+	if [ "true" = "$ftp_sendphoto" ] && [ -f "$SNAPSHOT_FILE" ]; then
 		attachment=$(mktemp -u).jpg
-		cp -f "$SNAPSHOT_FILE" "$attachment"
+		cp -f "$SNAPSHOT_FILE" "$photo_attachment"
 		ftp_filename=$(date +"$ftp_template").jpg
 	fi
 
 	ftp_file=$attachment
 fi
 
+# ftp url
 url="ftp://"
-if [ -n "$ftp_user" ] && [ -n "$ftp_password" ]; then
-	url="$url$ftp_user:$ftp_password"
-fi
+[ -n "$ftp_user" ] && [ -n "$ftp_password" ] && url="$url$ftp_user:$ftp_password"
 url="$url@$ftp_host:$ftp_port"
-if [ -n "$ftp_path" ]; then
-	url="$url/${ftp_path// /%20}"
-fi
+[ -n "$ftp_path" ] && url="$url/${ftp_path// /%20}"
 url="$url/$ftp_filename"
 
-command="$CURL $verbosity --url $url --upload-file $ftp_file --ftp-create-dirs"
-if ! sh -c "$command"; then
-	echo_error "Failed to upload file to FTP server"
-	exit 1
+# command
+if [ "true" = "$verbose" ]; then
+	command="$CURL --verbose"
+else
+	command="$CURL --silent"
 fi
+command="$command --url $url --upload-file $ftp_file --ftp-create-dirs"
+
+[ "true" = "$verbose" ] && echo_command "$command"
+
+sh -c "$command" || die "Failed to upload file to FTP server"
 
 [ -f "$attachment" ] && rm "$attachment"
 

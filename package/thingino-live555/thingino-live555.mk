@@ -65,7 +65,6 @@ endef
 
 define THINGINO_LIVE555_INSTALL_TARGET_CMDS
 	$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(TARGET_DIR) PREFIX=/usr -C $(@D) install
-	cp $(@D)/testProgs/openRTSP $(TARGET_DIR)/usr/bin/
 endef
 
 $(eval $(generic-package))

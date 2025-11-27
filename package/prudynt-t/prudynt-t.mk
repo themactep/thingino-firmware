@@ -98,9 +98,9 @@ define PRUDYNT_T_BUILD_CMDS
 		ARCH=$(TARGET_ARCH) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
 		CFLAGS="$(PRUDYNT_CFLAGS)" \
+		CXXFLAGS="$(PRUDYNT_CFLAGS)" \
 		LDFLAGS="$(PRUDYNT_LDFLAGS)" \
 		$(if $(filter y,$(BR2_PACKAGE_PRUDYNT_T_DEBUG)),DEBUG=1 DEBUG_STRIP=0,DEBUG_STRIP=1) \
-		$(if $(BR2_PACKAGE_PRUDYNT_T_FFMPEG),USE_FFMPEG=1) \
 		$(if $(BR2_PACKAGE_PRUDYNT_T_WEBRTC),WEBRTC_ENABLED=1,) \
 		-C $(@D) all commit_tag=$(shell git show -s --format=%h)
 endef
@@ -172,9 +172,6 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96record \
 		$(TARGET_DIR)/etc/init.d/S96record
-
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96vbuffer \
-		$(TARGET_DIR)/etc/init.d/S96vbuffer
 
 	$(INSTALL) -D -m 0644 $(@D)/res/default.ttf \
 		$(TARGET_DIR)/usr/share/fonts/default.ttf

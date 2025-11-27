@@ -54,49 +54,39 @@ parse_caption() {
 }
 
 copy_photo() {
-	if [ ! -f "$SNAPSHOT_FILE" ]; then
-		echo_error "Snapshot not found"
-		exit 1
-	fi
+	[ -f "$SNAPSHOT_FILE" ] || die "Snapshot not found"
 	photo2=$(mktemp -u).jpg
 	cp -f "$SNAPSHOT_FILE" "$photo2"
 	garbage="$garbage $photo2"
 }
 
 copy_video() {
-	if [ ! -f "$VBUFFER_FILE" ]; then
-		echo_error "Video buffer not found"
-		exit 1
-	fi
-
-	local ext=${VBUFFER_FILE##*.}
-	video2=$(mktemp -u).$ext
-	cp -f "$VBUFFER_FILE" "$video2"
+	[ -f "$MOTION_VIDEO_FILE" ] || die "Video not found"
+	video2=$(mktemp -u).mp4
+	cp -f "$MOTION_VIDEO_FILE" "$video2"
 	garbage="$garbage $video2"
 }
 
-remove_tempfiles() {
+cleanup() {
 	for f in $garbage; do
 		[ -f "$f" ] && rm "$f"
 	done
 }
 
-if [ -z "$telegram_token" ]; then
-	echo_error "Telegram token not found"
-	exit 1
+# validators
+[ -z "$telegram_token" ] && die "Telegram token not found"
+[ -z "$telegram_channel" ] && die "Telegram channel not found"
+
+# command
+if [ "true" = "$verbose" ]; then
+	command="$CURL --verbose"
+else
+	command="$CURL --silent"
 fi
 
-if [ -z "$telegram_channel" ]; then
-	echo_error "Telegram channel not found"
-	exit 1
-fi
+command="$command -H 'Content-Type: multipart/form-data' -F 'chat_id=$telegram_channel'"
 
-[ "true" = "$verbose" ] && verbosity="--verbose" || verbosity="--silent"
-command="$CURL $verbosity -H 'Content-Type: multipart/form-data' -F 'chat_id=$telegram_channel'"
-
-if [ "true" = "$telegram_silent" ]; then
-	command="$command -F 'disable_notification=true'"
-fi
+[ "true" = "$telegram_silent" ] && command="$command -F 'disable_notification=true'"
 
 command="$command --url https://api.telegram.org/bot$telegram_token/"
 
@@ -107,23 +97,8 @@ if [ "true" = "$telegram_attach_video" ] && [ "true" = "$telegram_attach_photo" 
 	copy_photo
 	caption=$(parse_caption $photo2)
 	command="${command}sendMediaGroup -F 'snap=@$photo2'"
-	if [ -n "$telegram_message" ]; then
-		caption="$caption - $telegram_message"
-	fi
+	[ -n "$telegram_message" ] && caption="$caption - $telegram_message"
 	media='[{"type":"photo","media":"attach://snap","caption":"'$caption'"},'
-	inode=$(stat -c%i $VBUFFER_FILE)
-	copy_video
-	command="$command -F 'video1=@$video2'"
-	media=$media'{"type":"video","media":"attach://video1"},'
-	while [ $inode -eq $(stat -c%i $VBUFFER_FILE) ]; do
-		n=$((n + 1))
-		if [ "$n" -ge 10 ]; then
-			echo_error "Give up after $n attempts."
-			remove_tempfiles
-			exit 1
-		fi
-		sleep 1
-	done
 	copy_video
 	command="$command -F 'video2=@$video2'"
 	media=$media'{"type":"video","media":"attach://video2"}]'
@@ -132,17 +107,13 @@ elif [ "true" = "$telegram_attach_video" ]; then
 	# https://core.telegram.org/bots/api#sendvideo
 	copy_video
 	caption="$(parse_caption $video2)"
-	if [ -n "$telegram_message" ]; then
-		caption="$caption - $telegram_message"
-	fi
+	[ -n "$telegram_message" ] && caption="$caption - $telegram_message"
 	command="${command}sendVideo -F 'video=@$video2' -F 'caption=$caption'"
 elif [ "true" = "$telegram_attach_photo" ]; then
 	# https://core.telegram.org/bots/api#sendphoto
 	copy_photo
 	caption="$(parse_caption $photo2)"
-	if [ -n "$telegram_message" ]; then
-		caption="$caption - $telegram_message"
-	fi
+	[ -n "$telegram_message" ] && caption="$caption - $telegram_message"
 	command="${command}sendPhoto -F 'photo=@$photo2' -F 'caption=$caption'"
 elif [ -n "$telegram_message" ]; then
 	# https://core.telegram.org/bots/api#sendmessage
@@ -150,22 +121,19 @@ elif [ -n "$telegram_message" ]; then
 elif [ -n "$telegram_file" ] && [ -f "$telegram_file" ]; then
 	# https://core.telegram.org/bots/api#senddocument
 	caption="$(parse_caption $telegram_file)"
-	if [ -n "$telegram_message" ]; then
-		caption="$caption - $telegram_message"
-	fi
+	[ -n "$telegram_message" ] && caption="$caption - $telegram_message"
 	command="${command}sendDocument -F 'document=@$1' -F 'caption=$caption'"
 else
-	echo_error "Nothing to send"
-	exit 1
+	die "Nothing to send"
 fi
 
-echo_command "$command"
+[ "true" = "$verbose" ] && echo_command "$command"
+
 if ! sh -c "$command" >/dev/null; then
-	echo_error "Failed to send message to Telegram"
-	remove_tempfiles
-	exit 1
+	cleanup
+	die "Failed to send message to Telegram"
 fi
 
-remove_tempfiles
+cleanup
 
 exit 0

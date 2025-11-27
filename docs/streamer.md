@@ -58,6 +58,24 @@ Adding `--untimed` will disable synchronization to play the video feed as fast
 as possible but could break audio, while `--no-correct-pts` will use fixed
 timesteps and seems to break audio.
 
+### HTTP fMP4 stream quick-start
+
+The built-in HTTP endpoint (`http://<camera-ip>:8089/ch0.mp4?token=<token>`) now
+serves fragmented MP4 so simple tools like `ffplay` and `mpv` can monitor a
+low-latency feed without RTSP. Most players begin immediately, but vanilla
+ffplay buffers until it has collected enough data, which makes audio start
+before video. Until we shorten the encoder GOP, recommend these options to keep
+startup instant and A/V in sync:
+
+```
+ffplay -hide_banner -fflags nobuffer -flags low_delay -probesize 32 -analyzeduration 0 \
+	"http://<camera-ip>:8089/ch0.mp4?token=<token>"
+```
+
+This disables the long probe/analyze phase so ffplay displays the first IDR as
+soon as the stream connects. mpv already behaves correctly with its default
+settings, so no extra flags are needed there.
+
 Resources
 ---------
 

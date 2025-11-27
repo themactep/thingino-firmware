@@ -20,7 +20,6 @@ Where:
 	exit 0
 }
 
-verbosity="false"
 while getopts h:jm:st:u:w:v flag; do
 	case "$flag" in
 		h) mqtt_host=$OPTARG ;;
@@ -30,54 +29,30 @@ while getopts h:jm:st:u:w:v flag; do
 		t) mqtt_topic=$OPTARG ;;
 		u) mqtt_username=$OPTARG ;;
 		w) mqtt_password=$OPTARG ;;
-		v) verbosity="true" ;;
+		v) verbose="true" ;;
 		*) show_help ;;
 	esac
 done
 
-if [ -z "$mqtt_host" ]; then
-	echo_error "MQTT broker host is not set"
-	exit 1
-fi
+# validators
+[ -z "$mqtt_host" ] && die "MQTT broker host is not set"
+[ -z "$mqtt_port" ] && die "MQTT broker port is not set"
+[ -z "$mqtt_topic" ] && die "MQTT topic not found"
+[ -z "$mqtt_message" ] && die "MQTT message template not found"
+[ "true" = "$mqtt_send_snap" ] && \
+[ -z "$mqtt_snap_topic" ] && die "MQTT topic for sending snapshot not found in config"
 
-if [ -z "$mqtt_port" ]; then
-	echo_error "MQTT broker port is not set"
-	exit 1
-fi
+# defaults
+[ -z "$mqtt_client_id" ] && mqtt_client_id="$network_hostname"
 
-if [ -z "$mqtt_topic" ]; then
-	echo_error "MQTT topic not found"
-	exit 1
-fi
-
-if [ -z "$mqtt_message" ]; then
-	echo_error "MQTT message template not found"
-	exit 1
-fi
-
-if [ "true" = "$mqtt_send_snap" ] && [ -z "$mqtt_snap_topic" ]; then
-	echo_error "MQTT topic for sending snapshot not found in config"
-	exit 1
-fi
-
-if [ -z "$mqtt_client_id" ]; then
-	mqtt_client_id="$network_hostname"
-fi
-
+# sanitizers
 mqtt_message=$(date +"$mqtt_message")
 
+# command
 command="mosquitto_pub -h $mqtt_host -p $mqtt_port -i $mqtt_client_id"
-if [ "true" = "$verbosity" ]; then
-	command="$command -d"
-fi
-
-if [ -n "$mqtt_username" ]; then
-	command="$command -u $mqtt_username"
-fi
-
-if [ -n "$mqtt_password" ]; then
-	command="$command -P $mqtt_password"
-fi
+[ "true" = "$verbose" ] && command="$command -d"
+[ -n "$mqtt_username" ] && command="$command -u $mqtt_username"
+[ -n "$mqtt_password" ] && command="$command -P $mqtt_password"
 
 if [ "true" = "$mqtt_send_snap" ]; then
 	attachment=$(mktemp -u).jpg
@@ -93,21 +68,11 @@ else
 	fi
 fi
 
-if [ "true" = "$verbosity" ]; then
-	echo_command "$command"
-fi
+[ "true" = "$verbose" ] && echo_command "$command"
 
-if ! sh -c "$command"; then
-	echo_error "Failed to send MQTT message"
-	exit 1
-fi
+sh -c "$command" || die "Failed to send MQTT message"
 
-if [ -f "$tmpfile" ]; then
-	rm "$tmpfile"
-fi
-
-if [ -f "$attachment" ]; then
-	rm "$attachment"
-fi
+[ -f "$tmpfile" ] && rm "$tmpfile"
+[ -f "$attachment" ] && rm "$attachment"
 
 exit 0

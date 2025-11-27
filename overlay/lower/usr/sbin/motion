@@ -11,8 +11,37 @@ MOTION_ALARM_DIR=$(dirname "$MOTION_ALARM")
 
 MOTION_STOP_FILE="/run/motors.pid"
 
+MP4_CTL_FIFO="/run/prudynt/mp4ctl"
+channel_state_file() {
+	local channel="$1"
+	echo "/run/prudynt/mp4ctl-ch${channel}.active"
+}
+
+wait_for_recording_completion() {
+	local channel="$1"
+	local timeout="$2"
+	local waited=0
+	local state_file
+	state_file=$(channel_state_file "$channel")
+	[ -z "$timeout" ] && timeout=0
+	while : ; do
+		if [ ! -f "$state_file" ]; then
+			return 0
+		fi
+		if [ "$timeout" -gt 0 ] && [ "$waited" -ge "$timeout" ]; then
+			return 1
+		fi
+		sleep 1
+		waited=$((waited + 1))
+	done
+}
+
 start() {
 	echo_info "Start motion"
+
+	channel=1
+	duration=10
+
 	if [ -f "$MOTION_STOP_FILE" ]; then
 		echo_error "Motor motion file present. Exiting."
 		exit 1
@@ -20,6 +49,13 @@ start() {
 
 	echo_info "Set $MOTION_ALARM"
 	touch "$MOTION_ALARM"
+
+	echo_info "Start recording $duration sec clip from stream $channel as $MOTION_VIDEO_FILE"
+	echo "START $MOTION_VIDEO_FILE $duration $channel" > "$MP4_CTL_FIFO"
+	wait_timeout=$((duration + 5))
+	if ! wait_for_recording_completion "$channel" "$wait_timeout"; then
+		echo_warning "Recording channel $channel still active after ${wait_timeout}s"
+	fi
 
 	if [ "true" = "$motion_send2email" ]; then
 		echo_info "Send alert to email"
