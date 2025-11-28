@@ -252,13 +252,13 @@ static void provision_wifi(const char* ssid, const char* password) {
     std::string url = "http://" + g_device_hostname + ".local";
     send_rpc_result(improv::WIFI_SETTINGS, {url});
 
-    log_printf("[WIFI] WiFi credentials saved - triggering reboot in 5 seconds...\n");
+    log_printf("[WIFI] WiFi credentials saved - triggering reboot in 10 seconds...\n");
     set_state(improv::STATE_PROVISIONED);
     set_error(improv::ERROR_NONE);
 
-    // Reboot after 5 seconds to apply WiFi settings
+    // Reboot after 10 seconds to apply WiFi settings but allow time to read response
     std::thread([]() {
-        for (int i = 5; i > 0; i--) {
+        for (int i = 10; i > 0; i--) {
             log_printf("[WIFI] Rebooting in %d seconds...\n", i);
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }

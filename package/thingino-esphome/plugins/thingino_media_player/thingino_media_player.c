@@ -1451,6 +1451,9 @@ int media_player_configure_device_info(esphome_plugin_context_t *ctx,
                                         esphome_device_info_response_t *device_info) {
     (void)ctx;
 
+	// Set the webserver_port since we expose a web server
+	device_info->webserver_port = 80;
+
     // Enable Voice Assistant features since we have a media player for TTS output
     // We support announcements via the media player (no direct speaker streaming)
     device_info->voice_assistant_feature_flags |=
