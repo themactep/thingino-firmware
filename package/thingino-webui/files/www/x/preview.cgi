@@ -98,6 +98,12 @@ let hlsScriptLoading = null;
 let attemptedHlsJs = false;
 let currentStreamMode = 'none';
 let mp4FallbackTimer = null;
+let playbackRestartTimer = null;
+let restartSuppressionTimer = null;
+let suppressVideoEvents = false;
+let hlsCooldownUntil = 0;
+let hasLoadedInitialFrame = false;
+const hlsCooldownMs = 10000;
 preview.onload = function() { URL.revokeObjectURL(this.src) }
 
 const ImageBlackMode = 1
@@ -140,6 +146,7 @@ function initPreviewVideo() {
 	const isSafari = /Safari/i.test(ua) && !/Chrome|Chromium|Android/i.test(ua);
 	const nativeHls = isSafari && typeof previewVideo.canPlayType === 'function' &&
 		previewVideo.canPlayType('application/vnd.apple.mpegurl');
+	const initialMode = nativeHls ? 'hls-native' : 'mp4';
 
 	const ensureHlsDestroyed = () => {
 		if (hlsInstance) {
@@ -159,6 +166,75 @@ function initPreviewVideo() {
 		}
 	};
 
+	const suppressVideoEventsFor = (durationMs = 1500) => {
+		suppressVideoEvents = true;
+		if (restartSuppressionTimer) {
+			clearTimeout(restartSuppressionTimer);
+		}
+		restartSuppressionTimer = window.setTimeout(() => {
+			suppressVideoEvents = false;
+			restartSuppressionTimer = null;
+		}, durationMs);
+	};
+
+	const resumeVideoEventHandling = () => {
+		suppressVideoEvents = false;
+		if (restartSuppressionTimer) {
+			clearTimeout(restartSuppressionTimer);
+			restartSuppressionTimer = null;
+		}
+	};
+
+	const shouldIgnorePreloadEvent = (label) => {
+		if (hasLoadedInitialFrame) {
+			return false;
+		}
+		return label === 'emptied' || label === 'suspend' || label === 'abort' || label === 'ended';
+	};
+
+	const guardVideoEvent = (label, handler) => {
+		if (shouldIgnorePreloadEvent(label)) {
+			console.warn('Ignoring', label, 'before first frame');
+			return;
+		}
+		if (suppressVideoEvents) {
+			console.warn('Ignoring video event during restart:', label);
+			return;
+		}
+		handler();
+	};
+
+	const schedulePlaybackRestart = (reason, delayMs = 3000) => {
+		if (suppressVideoEvents) {
+			console.warn('Restart already in progress; skipping', reason);
+			return;
+		}
+		if (playbackRestartTimer) {
+			return;
+		}
+		console.warn('Scheduling preview restart:', reason);
+		playbackRestartTimer = window.setTimeout(() => {
+			playbackRestartTimer = null;
+			restartPlayback();
+		}, delayMs);
+	};
+
+	const restartPlayback = () => {
+		console.warn('Reinitializing inline preview stream');
+		suppressVideoEventsFor();
+		clearMp4FallbackTimer();
+		ensureHlsDestroyed();
+		attemptedHlsJs = false;
+		currentStreamMode = 'none';
+		hasLoadedInitialFrame = false;
+		try {
+			previewVideo.pause();
+		} catch (e) {}
+		previewVideo.removeAttribute('src');
+		previewVideo.load();
+		setVideoSource(initialMode);
+	};
+
 	const setVideoSource = (mode) => {
 		clearMp4FallbackTimer();
 		currentStreamMode = mode;
@@ -174,6 +250,11 @@ function initPreviewVideo() {
 			return;
 		}
 		if (mode === 'hls-js') {
+			if (Date.now() < hlsCooldownUntil) {
+				console.warn('Skipping hls.js start (cooldown active)');
+				fallbackToMp4();
+				return;
+			}
 			ensureHlsDestroyed();
 			loadHlsJs().then(() => {
 				if (!window.Hls || !window.Hls.isSupported()) {
@@ -191,11 +272,13 @@ function initPreviewVideo() {
 				hlsInstance.on(window.Hls.Events.ERROR, (event, data) => {
 					console.error('hls.js error', data);
 					if (data && data.fatal) {
+						hlsCooldownUntil = Date.now() + hlsCooldownMs;
 						fallbackToMp4();
 					}
 				});
 			}).catch(err => {
 				console.error('Failed to load hls.js', err);
+				hlsCooldownUntil = Date.now() + hlsCooldownMs;
 				fallbackToMp4();
 			});
 			return;
@@ -231,6 +314,10 @@ function initPreviewVideo() {
 	};
 
 	const handleVideoError = (err) => {
+		if (suppressVideoEvents) {
+			console.warn('Ignoring inline video error while restarting');
+			return;
+		}
 		console.error('Inline video error', err, previewVideo.error);
 		if (currentStreamMode === 'mp4' && !attemptedHlsJs) {
 			attemptedHlsJs = true;
@@ -239,6 +326,7 @@ function initPreviewVideo() {
 		}
 		if (currentStreamMode === 'hls-js') {
 			attemptedHlsJs = true;
+			hlsCooldownUntil = Date.now() + hlsCooldownMs;
 			fallbackToMp4();
 			return;
 		}
@@ -251,10 +339,13 @@ function initPreviewVideo() {
 		audioEnabled = false;
 		updateAudioToggle();
 		requestNextCapture();
+		schedulePlaybackRestart('stream error fallback', 5000);
 	};
 
 	previewVideo.addEventListener('error', handleVideoError);
 	previewVideo.addEventListener('loadeddata', () => {
+		hasLoadedInitialFrame = true;
+		resumeVideoEventHandling();
 		clearMp4FallbackTimer();
 		preview.classList.add('d-none');
 		previewVideo.classList.remove('d-none');
@@ -266,19 +357,23 @@ function initPreviewVideo() {
 		previewVideo.play().catch(e => console.warn('autoplay blocked', e));
 	});
 
-	previewVideo.addEventListener('stalled', () => {
+	previewVideo.addEventListener('stalled', () => guardVideoEvent('stalled', () => {
 		if (currentStreamMode === 'mp4' && !attemptedHlsJs) {
 			console.warn('MP4 stream stalled; attempting hls.js fallback');
 			attemptedHlsJs = true;
 			setVideoSource('hls-js');
+			return;
 		}
+		schedulePlaybackRestart('video stalled');
+	}));
+
+	['ended', 'abort', 'suspend', 'emptied'].forEach(evt => {
+		previewVideo.addEventListener(evt, () => guardVideoEvent(evt, () => {
+			schedulePlaybackRestart(`video ${evt}`);
+		}));
 	});
 
-	if (nativeHls) {
-		setVideoSource('hls-native');
-	} else {
-		setVideoSource('mp4');
-	}
+	setVideoSource(initialMode);
 }
 
 initPreviewVideo();
