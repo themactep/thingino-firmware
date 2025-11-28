@@ -536,6 +536,7 @@ jobs:
       - name: Generate release notes
         id: release_notes
         run: |
+          GIT_HASH=$(git ls-remote origin "refs/heads/stable" | cut -f1 | cut -c1-7)
           LAST_RELEASE_TAG=$(gh release list --limit 2 --json tagName -q '.[1].tagName')
           if [ -z "$LAST_RELEASE_TAG" ]; then
             echo "No previous release found. Skipping release notes generation."
