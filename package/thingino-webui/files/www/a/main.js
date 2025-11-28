@@ -1,3 +1,7 @@
+// DOM selector helpers
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
+
 const ThreadRtsp = 1;
 const ThreadVideo = 2;
 const ThreadAudio = 4;
@@ -5,14 +9,6 @@ const ThreadOSD = 8;
 
 let max = 0;
 let HeartBeatInterval = 30 * 1000;
-
-function $(n) {
-	return document.querySelector(n)
-}
-
-function $$(n) {
-	return document.querySelectorAll(n)
-}
 
 function ts() {
 	return Math.floor(Date.now());
