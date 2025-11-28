@@ -61,42 +61,57 @@ function reqListener(data) {
 }
 
 function heartbeat() {
-	fetch('/x/json-heartbeat.cgi')
-		.then((response) => response.json())
-		.then((json) => {
-			if (json.time_now !== '') {
-				const d = new Date(json.time_now * 1000);
-				// Use device timezone if available, otherwise fall back to browser timezone
-				const deviceTz = json.timezone?.replaceAll(' ', '_');
-				let options = {
-					year: "numeric",
-					month: "short",
-					day: "numeric",
-					hour: "2-digit",
-					minute: "2-digit",
-					timeZone: deviceTz
-				};
-				$('#time-now').textContent = d.toLocaleString(navigator.language, options) + ' ' + json.timezone;
-			}
+// Use SSE instead of fetch/XHR
+if (window.__heartbeatEventSource) {
+	window.__heartbeatEventSource.close();
+}
+const es = new EventSource('/x/json-heartbeat.sh');
+window.__heartbeatEventSource = es;
+es.onmessage = function(event) {
+	let json;
+	try {
+		json = JSON.parse(event.data);
+	} catch (e) {
+		console.error('Invalid SSE JSON:', event.data);
+		return;
+	}
+	if (json.time_now !== '') {
+		const d = new Date(json.time_now * 1000);
+		// Use device timezone if available, otherwise fall back to browser timezone
+		const deviceTz = json.timezone?.replaceAll(' ', '_');
+		let options = {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+			timeZone: deviceTz
+		};
+		$('#time-now').textContent = d.toLocaleString(navigator.language, options) + ' ' + json.timezone;
+	}
 
-			$('.progress-stacked.memory').title = 'Free memory: ' + json.mem_free + 'KiB'
-			setProgressBar('#pb-memory-active', json.mem_active, json.mem_total, 'Memory Active');
-			setProgressBar('#pb-memory-buffers', json.mem_buffers, json.mem_total, 'Memory Buffers');
-			setProgressBar('#pb-memory-cached', json.mem_cached, json.mem_total, 'Memory Cached');
+	$('.progress-stacked.memory').title = 'Free memory: ' + json.mem_free + 'KiB'
+	setProgressBar('#pb-memory-active', json.mem_active, json.mem_total, 'Memory Active');
+	setProgressBar('#pb-memory-buffers', json.mem_buffers, json.mem_total, 'Memory Buffers');
+	setProgressBar('#pb-memory-cached', json.mem_cached, json.mem_total, 'Memory Cached');
 
-			$('.progress-stacked.overlay').title = 'Free overlay: ' + json.overlay_free + 'KiB'
-			setProgressBar('#pb-overlay-used', json.overlay_used, json.overlay_total, 'Overlay Usage');
+	$('.progress-stacked.overlay').title = 'Free overlay: ' + json.overlay_free + 'KiB'
+	setProgressBar('#pb-overlay-used', json.overlay_used, json.overlay_total, 'Overlay Usage');
 
-			$('.progress-stacked.extras').title = 'Free extras: ' + json.extras_free + 'KiB'
-			setProgressBar('#pb-extras-used', json.extras_used, json.extras_total, 'Extras Usage');
+	$('.progress-stacked.extras').title = 'Free extras: ' + json.extras_free + 'KiB'
+	setProgressBar('#pb-extras-used', json.extras_used, json.extras_total, 'Extras Usage');
 
-			if (json.daynight_value !== '-1')
-				$$('.gain').forEach(el => el.textContent = '☀️ ' + json.daynight_value);
+	if (json.daynight_value !== '-1')
+		$$('.gain').forEach(el => el.textContent = '☀️ ' + json.daynight_value);
 
-			if (typeof (json.uptime) !== 'undefined' && json.uptime !== '')
-				$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
-		})
-		.then(setTimeout(heartbeat, HeartBeatInterval));
+	if (typeof (json.uptime) !== 'undefined' && json.uptime !== '')
+		$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
+};
+es.onerror = function(e) {
+	console.error('SSE connection error', e);
+	// Optionally, try to reconnect after a delay
+	setTimeout(heartbeat, 5000);
+};
 }
 
 function initCopyToClipboard() {
