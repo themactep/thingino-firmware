@@ -125,16 +125,16 @@ automation:
 
 ### Supported Commands
 
-| Command | Description | Supported |
-|---------|-------------|-----------|
-| `PLAY` | Start playback from URL | ✅ Yes |
-| `STOP` | Stop current playback | ✅ Yes |
-| `PAUSE` | Pause playback | ⚠️ Partial (sets state, no resume) |
-| `MUTE` | Mute audio output | ✅ Yes |
-| `UNMUTE` | Unmute audio output | ✅ Yes |
-| `VOLUME_UP` | Increase volume by 10% | ✅ Yes |
-| `VOLUME_DOWN` | Decrease volume by 10% | ✅ Yes |
-| `SET_VOLUME` | Set specific volume level | ✅ Yes |
+| Command       | Description               | Supported |
+|---------------|---------------------------|-----------|
+| `PLAY`        | Resumes playback          | ⚠️ Partial (sets state, no resume) |
+| `STOP`        | Stop current playback     | ✅ Yes |
+| `PAUSE`       | Pause playback            | ⚠️ Partial (sets state, no resume) |
+| `MUTE`        | Mute audio output         | ✅ Yes |
+| `UNMUTE`      | Unmute audio output       | ✅ Yes |
+| `VOLUME_UP`   | Increase volume by 10%    | ✅ Yes |
+| `VOLUME_DOWN` | Decrease volume by 10%    | ✅ Yes |
+| `SET_VOLUME`  | Set specific volume level | ✅ Yes |
 
 ### Supported Audio Formats
 
