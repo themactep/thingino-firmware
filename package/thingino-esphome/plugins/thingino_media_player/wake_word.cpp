@@ -25,6 +25,10 @@
 // Cooldown period after detection to prevent double-triggering (in milliseconds)
 #define WAKE_WORD_COOLDOWN_MS 2000
 
+// Warmup period after starting detection - discard this many inferences
+// This prevents false detections when resuming after playback due to stale model state
+#define WAKE_WORD_WARMUP_INFERENCES 10
+
 // TensorFlow Lite Micro includes
 #include "tensorflow/lite/core/c/common.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
@@ -74,6 +78,9 @@ typedef struct {
 
     // Cooldown to prevent double-triggering
     uint64_t last_detection_time_ms;  // Timestamp of last detection
+
+    // Warmup counter - number of inferences to discard after starting
+    int warmup_remaining;
 
     // Callbacks
     wake_word_detected_callback_t callback;
@@ -707,6 +714,13 @@ static void *detection_thread_func(void *arg) {
 
     while (1) {
         loop_count++;
+
+        // Check for shutdown request
+        if (media_player_is_shutdown_requested()) {
+            fprintf(stderr, "[WakeWord] Detection thread: shutdown requested, exiting\n");
+            break;
+        }
+
         pthread_mutex_lock(&g_wake_word_ctx.lock);
         bool active = g_wake_word_ctx.detection_active;
         pthread_mutex_unlock(&g_wake_word_ctx.lock);
@@ -728,8 +742,22 @@ static void *detection_thread_func(void *arg) {
                 // Inference complete - process probability
                 inference_count++;
 
-                // Update probability history
+                // Check if we're still in warmup period
                 pthread_mutex_lock(&g_wake_word_ctx.lock);
+                if (g_wake_word_ctx.warmup_remaining > 0) {
+                    g_wake_word_ctx.warmup_remaining--;
+                    if (g_wake_word_ctx.warmup_remaining == 0) {
+                        fprintf(stderr, "[WakeWord] Warmup complete, detection active (discarded %d inferences)\n",
+                                WAKE_WORD_WARMUP_INFERENCES);
+                    } else if (inference_count <= 3 || g_wake_word_ctx.warmup_remaining % 3 == 0) {
+                        fprintf(stderr, "[WakeWord] Warmup: discarding inference #%d (prob=%.3f), %d remaining\n",
+                                inference_count, probability, g_wake_word_ctx.warmup_remaining);
+                    }
+                    pthread_mutex_unlock(&g_wake_word_ctx.lock);
+                    continue;  // Skip detection during warmup
+                }
+
+                // Update probability history
 
                 g_wake_word_ctx.probability_history[g_wake_word_ctx.probability_history_pos] = probability;
                 g_wake_word_ctx.probability_history_pos =
@@ -933,6 +961,26 @@ int wake_word_start(void) {
     g_wake_word_ctx.probability_history_pos = 0;
     g_wake_word_ctx.max_probability = 0.0f;
     g_wake_word_ctx.current_stride_step = 0;
+    g_wake_word_ctx.warmup_remaining = WAKE_WORD_WARMUP_INFERENCES;
+
+    // Zero the input tensor to clear any stale data from previous session
+    if (g_wake_word_ctx.input_tensor) {
+        int8_t *input_data = tflite::GetTensorData<int8_t>(g_wake_word_ctx.input_tensor);
+        if (input_data) {
+            memset(input_data, 0, g_wake_word_ctx.input_tensor->bytes);
+        }
+    }
+
+    // Reset resource variables (RNN/LSTM hidden state) to clear internal model state
+    // This clears the internal model state that persists between inferences
+    if (g_wake_word_ctx.resource_variables) {
+        TfLiteStatus status = g_wake_word_ctx.resource_variables->ResetAll();
+        if (status == kTfLiteOk) {
+            fprintf(stderr, "[WakeWord] Reset model resource variables (RNN state)\n");
+        } else {
+            fprintf(stderr, "[WakeWord] Warning: Failed to reset resource variables\n");
+        }
+    }
 
     // Reset frontend
     FrontendReset(&g_wake_word_ctx.frontend_state);
