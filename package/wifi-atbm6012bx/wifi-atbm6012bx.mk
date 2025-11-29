@@ -88,7 +88,7 @@ define WIFI_ATBM6012BX_COPY_CONFIG
 endef
 else
 define WIFI_ATBM6012BX_COPY_CONFIG
-	$(INSTALL) -D -m 0644 $(@D)/configs/atbm6012x.config \
+	$(INSTALL) -D -m 0644 $(@D)/configs/atbm6012bx.config \
 		$(@D)/.config
 endef
 endif

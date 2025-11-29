@@ -16,6 +16,7 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <time.h>
+#include <poll.h>
 
 #ifdef ENABLE_WAKE_WORD
 #include "wake_word.h"
@@ -25,7 +26,7 @@
 static const char *plugin_name = "thingino_media_player";
 static const char *plugin_version = "1.0.0";
 static const uint32_t media_player_key = 1; // Entity key for this media player
-static const uint32_t wake_word_switch_key = 2; // Entity key for this media player
+static const uint32_t wake_word_switch_key = 2;
 
 // Media player format purpose constants (if not defined in esphome_proto.h)
 #ifndef MEDIA_PLAYER_FORMAT_PURPOSE_DEFAULT
@@ -65,6 +66,73 @@ static MediaPlayerContext g_player_ctx = {
 #endif
 };
 
+// Shutdown flag to allow graceful exit from blocking operations
+static volatile bool g_shutdown_requested = false;
+
+// Check if shutdown has been requested
+bool media_player_is_shutdown_requested(void) {
+    return g_shutdown_requested;
+}
+
+// Request shutdown - can be called from signal handlers
+void media_player_request_shutdown(void) {
+    g_shutdown_requested = true;
+}
+
+// Atexit handler for graceful shutdown
+static void atexit_shutdown_handler(void) {
+    fprintf(stderr, "[MediaPlayer] atexit handler called, requesting shutdown\n");
+    g_shutdown_requested = true;
+
+    // Give threads a moment to notice the shutdown flag
+    usleep(200000);  // 200ms
+}
+
+// Register atexit handler for graceful shutdown
+// NOTE: We don't install signal handlers because the main esphome-linux program
+// needs to handle SIGINT/SIGTERM to exit its main loop. Installing our handler
+// would prevent the main program from receiving the signal.
+// Instead, we rely on:
+// 1. atexit() - called when the program exits normally
+// 2. media_player_cleanup() - called by esphome_plugin_cleanup_all() during shutdown
+static void register_shutdown_handlers(void) {
+    atexit(atexit_shutdown_handler);
+}
+
+#ifdef ENABLE_WAKE_WORD
+// Track whether wake word was suspended by us (so we know to restart it)
+static bool g_wake_word_suspended = false;
+
+// Suspend wake word detection if it's currently active
+// Returns true if wake word was suspended, false if it wasn't running
+static bool suspend_wake_word(void) {
+    if (wake_word_get_state() == WAKE_WORD_STATE_DETECTING) {
+        wake_word_stop();
+        g_wake_word_suspended = true;
+        printf("[MediaPlayer] Wake word detection suspended\n");
+        return true;
+    }
+    return false;
+}
+
+// Resume wake word detection if we previously suspended it
+static void resume_wake_word(void) {
+    if (g_wake_word_suspended) {
+        g_wake_word_suspended = false;
+        // Don't restart wake word during shutdown
+        if (g_shutdown_requested) {
+            printf("[MediaPlayer] Shutdown requested, not resuming wake word\n");
+            return;
+        }
+        if (wake_word_start() == 0) {
+            printf("[MediaPlayer] Wake word detection resumed\n");
+        } else {
+            fprintf(stderr, "[MediaPlayer] Failed to resume wake word detection\n");
+        }
+    }
+}
+#endif
+
 // Supported audio formats for this device
 // Must use media_player_supported_format_t which has: format, sample_rate, num_channels, purpose, sample_bytes
 // Purpose: 0 = DEFAULT, 1 = ANNOUNCEMENT (for voice assistant TTS)
@@ -76,7 +144,6 @@ static const media_player_supported_format_t supported_formats[] = {
 
 // Forward declarations of static helper functions
 static void report_media_player_state(MediaPlayerState state, float volume, bool muted);
-static void report_switch_state(uint32_t key, bool state);
 static int iac_connect_audio_output(void);
 static int iac_connect_control(void);
 static int iac_send_control_command(const char *command, char *response, size_t response_size);
@@ -268,8 +335,15 @@ static void *audio_input_thread(void *arg) {
 
     uint8_t buffer[AUDIO_INPUT_BUFFER_SIZE];
     ssize_t bytes_received;
+    struct pollfd pfd;
 
     while (1) {
+        // Check for shutdown
+        if (g_shutdown_requested) {
+            printf("[MediaPlayer] Audio input thread: shutdown requested\n");
+            break;
+        }
+
         pthread_mutex_lock(&g_player_ctx.lock);
         bool active = g_player_ctx.audio_input_active;
         int sockfd = g_player_ctx.audio_input_sock;
@@ -281,9 +355,33 @@ static void *audio_input_thread(void *arg) {
             break;
         }
 
+        // Use poll() with timeout so we can check shutdown flag periodically
+        pfd.fd = sockfd;
+        pfd.events = POLLIN;
+        pfd.revents = 0;
+
+        int poll_result = poll(&pfd, 1, 100);  // 100ms timeout
+        if (poll_result < 0) {
+            if (errno == EINTR) {
+                continue;  // Interrupted by signal, check shutdown and retry
+            }
+            perror("[MediaPlayer] poll on audio input socket");
+            break;
+        } else if (poll_result == 0) {
+            // Timeout - loop back to check shutdown flag
+            continue;
+        }
+
+        // Check for errors or hangup
+        if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+            printf("[MediaPlayer] Audio input socket error or hangup\n");
+            break;
+        }
+
+        // Data available, read it
         bytes_received = read(sockfd, buffer, AUDIO_INPUT_BUFFER_SIZE);
         if (bytes_received <= 0) {
-            if (bytes_received < 0) {
+            if (bytes_received < 0 && errno != EINTR) {
                 perror("[MediaPlayer] read from audio input socket");
             }
             break;
@@ -443,8 +541,52 @@ static void ha_stream_audio_callback(const int16_t *buffer, size_t samples, void
     }
 }
 
+// Wait for any active audio playback to complete
+// timeout_ms: maximum time to wait in milliseconds (0 = wait indefinitely)
+// Returns true if playback completed, false if timed out or shutdown requested
+static bool wait_for_playback_complete(uint32_t timeout_ms) {
+    uint32_t elapsed = 0;
+    const uint32_t poll_interval_ms = 50;
+
+    while (1) {
+        // Check for shutdown request
+        if (g_shutdown_requested) {
+            fprintf(stderr, "[MediaPlayer] Shutdown requested, aborting wait\n");
+            return false;
+        }
+
+        pthread_mutex_lock(&g_player_ctx.lock);
+        bool playing = g_player_ctx.playback_active;
+        pthread_mutex_unlock(&g_player_ctx.lock);
+
+        if (!playing) {
+            return true;
+        }
+
+        if (timeout_ms > 0 && elapsed >= timeout_ms) {
+            fprintf(stderr, "[MediaPlayer] Timeout waiting for playback to complete\n");
+            return false;
+        }
+
+        usleep(poll_interval_ms * 1000);
+        elapsed += poll_interval_ms;
+
+        // Log progress every second
+        if (elapsed % 1000 == 0) {
+            fprintf(stderr, "[MediaPlayer] Waiting for playback to complete... (%u ms)\n", elapsed);
+        }
+    }
+}
+
 // Start API-based audio streaming (port=0 means stream via API)
 static int start_ha_api_audio_stream(int client_id) {
+    // Wait for any current playback to finish before starting to record
+    // Use a 30 second timeout to avoid waiting forever
+    if (!wait_for_playback_complete(30000)) {
+        fprintf(stderr, "[MediaPlayer] Cannot start API audio stream - playback still active\n");
+        return -1;
+    }
+
     pthread_mutex_lock(&g_player_ctx.lock);
 
     // Stop any existing stream
@@ -462,8 +604,8 @@ static int start_ha_api_audio_stream(int client_id) {
 
     pthread_mutex_unlock(&g_player_ctx.lock);
 
-    // Stop wake word detection while streaming
-    wake_word_stop();
+    // Suspend wake word detection while streaming
+    suspend_wake_word();
 
     // Start audio input with our streaming callback
     if (media_player_start_audio_input(ha_stream_audio_callback, NULL) != 0) {
@@ -471,8 +613,8 @@ static int start_ha_api_audio_stream(int client_id) {
         g_player_ctx.ha_streaming_active = false;
         g_player_ctx.ha_api_streaming = false;
         pthread_mutex_unlock(&g_player_ctx.lock);
-        // Restart wake word detection
-        wake_word_start();
+        // Resume wake word detection
+        resume_wake_word();
         return -1;
     }
 
@@ -481,6 +623,13 @@ static int start_ha_api_audio_stream(int client_id) {
 }
 
 static int start_ha_audio_stream(const char *host, uint32_t port) {
+    // Wait for any current playback to finish before starting to record
+    // Use a 30 second timeout to avoid waiting forever
+    if (!wait_for_playback_complete(30000)) {
+        fprintf(stderr, "[MediaPlayer] Cannot start UDP audio stream - playback still active\n");
+        return -1;
+    }
+
     pthread_mutex_lock(&g_player_ctx.lock);
 
     // Stop any existing stream
@@ -530,8 +679,8 @@ static int start_ha_audio_stream(const char *host, uint32_t port) {
 
     pthread_mutex_unlock(&g_player_ctx.lock);
 
-    // Stop wake word detection while streaming
-    wake_word_stop();
+    // Suspend wake word detection while streaming
+    suspend_wake_word();
 
     // Start audio input with our streaming callback
     if (media_player_start_audio_input(ha_stream_audio_callback, NULL) != 0) {
@@ -540,8 +689,8 @@ static int start_ha_audio_stream(const char *host, uint32_t port) {
         g_player_ctx.ha_stream_sock = -1;
         g_player_ctx.ha_streaming_active = false;
         pthread_mutex_unlock(&g_player_ctx.lock);
-        // Restart wake word detection
-        wake_word_start();
+        // Resume wake word detection
+        resume_wake_word();
         return -1;
     }
 
@@ -549,7 +698,10 @@ static int start_ha_audio_stream(const char *host, uint32_t port) {
     return 0;
 }
 
-static void stop_ha_audio_stream(void) {
+// Stop HA audio streaming
+// resume_wake_word_after: if true, resume wake word detection after stopping
+//                         set to false if TTS playback will follow (playback will resume it)
+static void stop_ha_audio_stream_internal(bool resume_wake_word_after) {
     pthread_mutex_lock(&g_player_ctx.lock);
 
     if (!g_player_ctx.ha_streaming_active) {
@@ -599,8 +751,15 @@ static void stop_ha_audio_stream(void) {
         printf("[MediaPlayer] Stopped streaming audio to HA (UDP)\n");
     }
 
-    // Restart wake word detection
-    wake_word_start();
+    // Resume wake word detection if requested
+    if (resume_wake_word_after) {
+        resume_wake_word();
+    }
+}
+
+// Stop HA audio streaming and resume wake word detection
+static void stop_ha_audio_stream(void) {
+    stop_ha_audio_stream_internal(true);
 }
 
 // =============================================================================
@@ -751,6 +910,11 @@ void *audio_streaming_thread(void *arg) {
 
     printf("[MediaPlayer] Starting playback of %s\n", url);
 
+#ifdef ENABLE_WAKE_WORD
+    // Suspend wake word detection during playback to avoid false triggers
+    suspend_wake_word();
+#endif
+
     int audio_sock = iac_connect_audio_output();
     if (audio_sock < 0) {
         fprintf(stderr, "[MediaPlayer] Failed to connect to IAD\n");
@@ -760,13 +924,18 @@ void *audio_streaming_thread(void *arg) {
         g_player_ctx.playback_active = false;
         pthread_mutex_unlock(&g_player_ctx.lock);
         report_media_player_state(MEDIA_PLAYER_STATE_IDLE, g_player_ctx.volume, g_player_ctx.muted);
+#ifdef ENABLE_WAKE_WORD
+        // Resume wake word detection after playback error
+        resume_wake_word();
+#endif
         return NULL;
     }
 
     pthread_mutex_lock(&g_player_ctx.lock);
     g_player_ctx.audio_sock = audio_sock;
-    g_player_ctx.state = g_player_ctx.is_announcement ?
-                         MEDIA_PLAYER_STATE_ANNOUNCING : MEDIA_PLAYER_STATE_PLAYING;
+    // Note: Use PLAYING instead of ANNOUNCING because Home Assistant's ESPHome
+    // integration doesn't map ANNOUNCING state (causes KeyError in HA)
+    g_player_ctx.state = MEDIA_PLAYER_STATE_PLAYING;
     pthread_mutex_unlock(&g_player_ctx.lock);
 
     report_media_player_state(g_player_ctx.state, g_player_ctx.volume, g_player_ctx.muted);
@@ -777,7 +946,6 @@ void *audio_streaming_thread(void *arg) {
             .sockfd = audio_sock,
             .bytes_received = 0
         };
-
         curl_easy_setopt(curl, CURLOPT_URL, url);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_to_iad);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &curl_write_ctx);
@@ -809,6 +977,11 @@ void *audio_streaming_thread(void *arg) {
     pthread_mutex_unlock(&g_player_ctx.lock);
 
     report_media_player_state(MEDIA_PLAYER_STATE_IDLE, g_player_ctx.volume, g_player_ctx.muted);
+
+#ifdef ENABLE_WAKE_WORD
+    // Resume wake word detection after playback completes
+    resume_wake_word();
+#endif
 
     return NULL;
 }
@@ -909,26 +1082,19 @@ int media_player_handle_message(esphome_plugin_context_t *ctx,
             return -1;
         }
         if(cmd_msg.key == wake_word_switch_key && wake_word_is_available()) {
-            if(cmd_msg.state && wake_word_get_state() == WAKE_WORD_STATE_STOPPED) {
-                esphome_plugin_log(ctx, 0, "[MediaPlayer] Start wake word detection");
-                wake_word_start();
+            if(cmd_msg.state && g_wake_word_suspended) {
+                esphome_plugin_log(ctx, 2, "[MediaPlayer] Resume wake word detection");
+                resume_wake_word();
             }
-            else if(!cmd_msg.state && wake_word_get_state() == WAKE_WORD_STATE_DETECTING) {
-                esphome_plugin_log(ctx, 0, "[MediaPlayer] Stop wake word detection");
-                wake_word_stop();
+            else if(!cmd_msg.state && !g_wake_word_suspended) {
+                esphome_plugin_log(ctx, 2, "[MediaPlayer] Suspend wake word detection");
+                suspend_wake_word();
             }
-            report_switch_state(wake_word_switch_key,
-                                wake_word_is_available() ? wake_word_get_state() == WAKE_WORD_STATE_DETECTING : false);
+            report_switch_state(wake_word_switch_key, !g_wake_word_suspended);
         }
         return 0;
     }
 #endif
-    // Handle subscribe states request - send current state
-    if (msg_type == ESPHOME_MSG_SUBSCRIBE_STATES_REQUEST) {
-        esphome_plugin_log(ctx, 2, "[MediaPlayer] Received SUBSCRIBE_STATES_REQUEST, sending current state");
-        report_media_player_state(g_player_ctx.state, g_player_ctx.volume, g_player_ctx.muted);
-        return -1; // Let other plugins also handle this
-    }
 
     // Handle Voice Assistant Subscribe Request (94)
     if (msg_type == ESPHOME_MSG_SUBSCRIBE_VOICE_ASSISTANT_REQUEST) {
@@ -1165,8 +1331,7 @@ int media_player_handle_message(esphome_plugin_context_t *ctx,
 #ifdef ENABLE_WAKE_WORD
                 stop_ha_audio_stream();
                 va_led_off();
-                // Restart wake word detection so we can listen again
-                wake_word_start();
+                // Note: stop_ha_audio_stream() already calls resume_wake_word()
 #endif
                 break;
             case 2: // RUN_END
@@ -1179,9 +1344,10 @@ int media_player_handle_message(esphome_plugin_context_t *ctx,
                 break;
             case 4: // STT_END
                 // Speech-to-text finished, can stop streaming audio
+                // Don't resume wake word yet - TTS playback will follow and resume it when done
                 esphome_plugin_log(ctx, 2, "[MediaPlayer] STT finished, stopping audio stream");
 #ifdef ENABLE_WAKE_WORD
-                stop_ha_audio_stream();
+                stop_ha_audio_stream_internal(false);  // Don't resume wake word yet
                 // Switch to blinking while processing intent/TTS
                 va_led_processing();
 #endif
@@ -1373,7 +1539,7 @@ int media_player_handle_message(esphome_plugin_context_t *ctx,
 }
 
 int media_player_list_entities(esphome_plugin_context_t *ctx, int client_id) {
-    list_entities_media_player_response_t media_player_entity = {
+    list_entities_media_player_response_t entity = {
         .object_id = "speaker",
         .key = media_player_key,
         .name = "Thingino Speaker",
@@ -1390,11 +1556,12 @@ int media_player_list_entities(esphome_plugin_context_t *ctx, int client_id) {
                          MEDIA_PLAYER_FEATURE_PLAY_MEDIA |
                          MEDIA_PLAYER_FEATURE_VOLUME_STEP |
                          MEDIA_PLAYER_FEATURE_STOP |
+						 MEDIA_PLAYER_FEATURE_BROWSE_MEDIA |
                          MEDIA_PLAYER_FEATURE_MEDIA_ANNOUNCE
     };
 
     uint8_t encode_buf[512];
-    size_t len = media_player_encode_list_entities_response(encode_buf, sizeof(encode_buf), &media_player_entity);
+    size_t len = media_player_encode_list_entities_response(encode_buf, sizeof(encode_buf), &entity);
 
     if (len > 0) {
         esphome_plugin_send_message_to_client(ctx, client_id,
@@ -1405,7 +1572,6 @@ int media_player_list_entities(esphome_plugin_context_t *ctx, int client_id) {
         esphome_plugin_log(ctx, 0, "[MediaPlayer] Failed to encode entity list");
         return -1;
     }
-
 #ifdef ENABLE_WAKE_WORD
     list_entities_switch_response_t switch_entity = {
         .object_id = "speaker",
@@ -1428,18 +1594,6 @@ int media_player_list_entities(esphome_plugin_context_t *ctx, int client_id) {
         esphome_plugin_log(ctx, 0, "[MediaPlayer] Failed to encode switch entity list");
         return -1;
     }
-#endif
-    return 0;
-}
-//==============================================================================
-// Initial state/info sending
-//==============================================================================
-
-int media_player_subscribe_states(esphome_plugin_context_t *ctx, int client_id) {
-    report_media_player_state(MEDIA_PLAYER_STATE_IDLE, g_player_ctx.volume, g_player_ctx.muted);
-#ifdef ENABLE_WAKE_WORD
-    report_switch_state(wake_word_switch_key,
-                        wake_word_is_available() ? wake_word_get_state() == WAKE_WORD_STATE_DETECTING : false);
 #endif
     return 0;
 }
@@ -1501,6 +1655,10 @@ int media_player_init(esphome_plugin_context_t *ctx) {
     // Store plugin context
     g_player_ctx.plugin_ctx = ctx;
 
+    // Reset shutdown flag and register atexit handler
+    g_shutdown_requested = false;
+    register_shutdown_handlers();
+
     // Initialize mutex
     pthread_mutex_init(&g_player_ctx.lock, NULL);
 
@@ -1537,6 +1695,9 @@ int media_player_init(esphome_plugin_context_t *ctx) {
 void media_player_cleanup(esphome_plugin_context_t *ctx) {
     esphome_plugin_log(ctx, 2, "[%s] Cleaning up", plugin_name);
 
+    // Signal shutdown to unblock any waiting operations
+    g_shutdown_requested = true;
+
     stop_current_playback();
 #ifdef ENABLE_WAKE_WORD
     stop_ha_audio_stream();
@@ -1554,9 +1715,23 @@ void media_player_cleanup(esphome_plugin_context_t *ctx) {
     esphome_plugin_log(ctx, 2, "[MediaPlayer] Cleanup complete");
 }
 
+int media_player_subscribe_states(esphome_plugin_context_t *ctx, int client_id) {
+    // Store plugin context
+    g_player_ctx.plugin_ctx = ctx;
+
+    report_media_player_state(g_player_ctx.state, g_player_ctx.volume, g_player_ctx.muted);
+#ifdef ENABLE_WAKE_WORD
+    report_switch_state(wake_word_switch_key, !g_wake_word_suspended);
+#endif
+    return 0;
+}
+
 int media_player_configure_device_info(esphome_plugin_context_t *ctx,
                                         esphome_device_info_response_t *device_info) {
     (void)ctx;
+
+	// Set the webserver_port since we expose a web server
+	device_info->webserver_port = 80;
 
     // Enable Voice Assistant features since we have a media player for TTS output
     // We support announcements via the media player (no direct speaker streaming)
@@ -1593,5 +1768,6 @@ ESPHOME_PLUGIN_REGISTER(thingino_media_player_plugin,
                          media_player_cleanup,
                          media_player_handle_message,
                          media_player_configure_device_info,  // Set voice assistant feature flags
-                         media_player_list_entities
+                         media_player_list_entities,
+						 media_player_subscribe_states
 );
