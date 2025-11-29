@@ -137,6 +137,12 @@ int media_player_start_audio_input(audio_input_callback_t callback, void *userda
 void media_player_stop_audio_input(void);
 #endif
 
+// Check if shutdown has been requested (for graceful thread termination)
+bool media_player_is_shutdown_requested(void);
+
+// Request shutdown - can be called from signal handlers to stop all threads
+void media_player_request_shutdown(void);
+
 // ESPHome Plugin API callbacks (must match esphome_plugin.h signatures)
 int media_player_init(esphome_plugin_context_t *ctx);
 void media_player_cleanup(esphome_plugin_context_t *ctx);
