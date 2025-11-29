@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-THINGINO_ESPHOME_VERSION = v0.0.12
+THINGINO_ESPHOME_VERSION = v0.0.13
 THINGINO_ESPHOME_SITE = https://github.com/yinzara/esphome-linux
 THINGINO_ESPHOME_SITE_METHOD = git
 THINGINO_ESPHOME_SITE_BRANCH = main

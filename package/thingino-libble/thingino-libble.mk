@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-THINGINO_LIBBLE_VERSION = v0.0.3
+THINGINO_LIBBLE_VERSION = v0.0.4
 THINGINO_LIBBLE_SITE = https://github.com/yinzara/libblepp
 THINGINO_LIBBLE_SITE_METHOD = git
 THINGINO_LIBBLE_SITE_BRANCH = main
@@ -44,9 +44,25 @@ THINGINO_LIBBLE_LDFLAGS = $(TARGET_LDFLAGS) \
 	-L$(TARGET_DIR)/usr/lib \
 	-lstdc++
 
+ifneq ($(BR2_PACKAGE_WIFI_ATBM6012BX)$(BR2_PACKAGE_WIFI_ATBM6031X)$(BR2_PACKAGE_WIFI_ATBM6032X),)
 define THINGINO_LIBBLE_CONFIGURE_CMDS
-	(cd $(@D) ; ./configure )
+	(cd $(@D) ; ./configure --with-server-support \
+				--with-nimble-support \
+				--without-bluez-support \
+				NIMBLE_LIBDIR=$(STAGING_DIR)/usr/lib \
+				CFLAGS="$(THINGINO_LIBBLE_CFLAGS)" \
+				CXXFLAGS="$(THINGINO_LIBBLE_CXXFLAGS)" \
+				LDFLAGS="$(THINGINO_LIBBLE_LDFLAGS)" )
 endef
+else
+define THINGINO_LIBBLE_CONFIGURE_CMDS
+	(cd $(@D) ; ./configure --with-server-support \
+				--with-bluez-support \
+				CFLAGS="$(THINGINO_LIBBLE_CFLAGS)" \
+				CXXFLAGS="$(THINGINO_LIBBLE_CXXFLAGS)" \
+				LDFLAGS="$(THINGINO_LIBBLE_LDFLAGS)" )
+endef
+endif
 
 ifneq ($(BR2_PACKAGE_WIFI_ATBM6012BX)$(BR2_PACKAGE_WIFI_ATBM6031X)$(BR2_PACKAGE_WIFI_ATBM6032X),)
 define THINGINO_LIBBLE_BUILD_CMDS
