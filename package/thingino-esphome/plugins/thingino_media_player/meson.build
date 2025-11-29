@@ -48,5 +48,6 @@ endif
 plugin_sources += files(
     'thingino_media_player.c',
     'media_player_proto.c',
+    'switch_proto.c',
     'wake_word.cpp',
 )
