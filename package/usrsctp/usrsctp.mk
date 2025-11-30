@@ -1,0 +1,7 @@
+USRSCTP_VERSION = 0.9.5.0
+USRSCTP_SITE = $(call github,sctplab,usrsctp,$(USRSCTP_VERSION))
+USRSCTP_LICENSE = BSD-3-Clause
+USRSCTP_LICENSE_FILES = LICENSE
+USRSCTP_INSTALL_STAGING = YES
+
+$(eval $(cmake-package))
