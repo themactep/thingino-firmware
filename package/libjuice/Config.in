@@ -1,0 +1,4 @@
+config BR2_PACKAGE_LIBJUICE
+	bool "libjuice"
+	help
+	  ICE library for WebRTC (dependency of libdatachannel)
