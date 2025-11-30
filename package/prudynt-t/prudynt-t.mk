@@ -89,7 +89,7 @@ PRUDYNT_CFLAGS += \
 	-I$(STAGING_DIR)/usr/include
 endif
 
-PRUDYNT_LDFLAGS = $(TARGET_LDFLAGS) \
+PRUDYNT_LDFLAGS += $(TARGET_LDFLAGS) \
 	-L$(STAGING_DIR)/usr/lib \
 	-L$(TARGET_DIR)/usr/lib
 
