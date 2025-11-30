@@ -73,7 +73,8 @@ config BR2_PACKAGE_PRUDYNT_T_WEBRTC
 	depends on BR2_PACKAGE_PRUDYNT_T
 	depends on BR2_TOOLCHAIN_HAS_THREADS
 	depends on !BR2_STATIC_LIBS
-	select BR2_PACKAGE_LIBPEER
+#	select BR2_PACKAGE_LIBPEER
+	select BR2_PACKAGE_LIBDATACHANNEL
 	help
 	  Enable WebRTC real-time streaming support for Prudynt-T.
 	  Adds WebRTC peer-to-peer streaming capabilities using libpeer.
@@ -81,9 +82,6 @@ config BR2_PACKAGE_PRUDYNT_T_WEBRTC
 	  This feature allows direct browser-to-camera streaming without
 	  requiring RTSP clients, enabling modern web applications to
 	  access camera streams directly.
-
-	  Dependencies: libpeer (includes wolfSSL, libsrtp)
-	  Additional memory usage: ~2-4MB per WebRTC connection
 
 comment "WebRTC support needs a toolchain w/ threads, dynamic library"
 	depends on BR2_PACKAGE_PRUDYNT_T && (!BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS)

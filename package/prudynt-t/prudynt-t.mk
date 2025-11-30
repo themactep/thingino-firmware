@@ -22,7 +22,9 @@ ifeq ($(BR2_PACKAGE_PRUDYNT_T_FFMPEG),y)
 endif
 
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_WEBRTC),y)
-	PRUDYNT_T_DEPENDENCIES += libpeer
+#	PRUDYNT_T_DEPENDENCIES += libpeer
+	PRUDYNT_T_DEPENDENCIES += libdatachannel
+	PRUDYNT_T_DEPENDENCIES += mbedtls
 endif
 
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
@@ -85,8 +87,10 @@ endif
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_WEBRTC),y)
 PRUDYNT_CFLAGS += \
 	-DWEBRTC_ENABLED=1 \
+	-DLIBDATACHANNEL_ENABLED=1 \
 	-DLIBPEER_AVAILABLE=1 \
 	-I$(STAGING_DIR)/usr/include
+PRUDYNT_LDFLAGS += -ldatachannel -lusrsctp -lmbedtls -lmbedx509 -lmbedcrypto -ljuice
 endif
 
 PRUDYNT_LDFLAGS += $(TARGET_LDFLAGS) \
