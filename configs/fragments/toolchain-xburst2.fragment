@@ -1,1 +1,1 @@
-toolchain-xb2-gcc14-musl-ext.fragment
+toolchain/xb2-gcc15-musl-ext.fragment
