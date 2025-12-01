@@ -53,16 +53,22 @@ which motors > /dev/null && has_motors="true"
 <% if [ "true" = "$has_motors" ]; then %><%in _motors.cgi %><% fi %>
 </div>
 
-<% if [ "true" = "$has_motors" ]; then %>
-<p class="small">Move mouse cursor over the center of the preview image to reveal the motor controls.
-Use a single click for precise positioning, double click for coarse, larger distance movement.</p>
-<% fi %>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-2 imaging-slider">
+<div class="col"><% field_range "brightness" "Brightness" "0,255,1" %></div>
+<div class="col"><% field_range "contrast" "Constrast" "0,255,1" %></div>
+<div class="col"><% field_range "sharpness" "Sharpness" "0,255,1" %></div>
+<div class="col"><% field_range "saturation" "Saturation" "0,255,1" %></div>
+</div>
 
 <div class="alert alert-secondary">
-<p class="mb-0"><img src="/a/mute.svg" alt="Icon: No Audio" class="float-start me-2" style="height:1.75rem" title="No Audio">
-Please note, there is no audio on this page. Open the RTSP stream in a player to hear audio.</p>
-<b id="playrtsp" class="cb"></b>
+<% if [ "true" = "$has_motors" ]; then %>
+<p class="small">Move mouse over the center of the preview image for motor controls.
+Use single click for precise positioning, double click for coarse navigation.</p>
+<% fi %>
+<p class="small mb-0">This page has no audio. Open RTSP stream in a video player to hear audio:
+<span id="playrtsp" class="cb"></span></p>
 </div>
+
 </div>
 
 <div class="col-lg-1">
@@ -216,6 +222,78 @@ $$("#color, #ircut, #ir850, #ir940, #white").forEach(el =>
 	el.addEventListener('change', ev => toggleButton(el)));
 
 toggleDayNight();
+
+const imagingFields = ["brightness", "contrast", "sharpness", "saturation"];
+
+function updateImagingLabel(name, value) {
+	const badge = $(`#${name}-show`);
+	if (badge) {
+		badge.textContent = value;
+	}
+}
+
+function setSliderBounds(slider, min, max, value) {
+	slider.min = Number.isFinite(min) ? min : slider.min;
+	slider.max = Number.isFinite(max) ? max : slider.max;
+	slider.value = value;
+}
+
+async function fetchImagingState() {
+	try {
+		const res = await fetch('/x/json-imaging.cgi?cmd=read', {cache: 'no-store'});
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		const payload = await res.json();
+		const fields = payload && payload.message && payload.message.fields;
+		if (!fields) return;
+		imagingFields.forEach(field => {
+			const data = fields[field];
+			if (!data) return;
+			const slider = $(`#${field}`);
+			if (!slider) return;
+			setSliderBounds(slider, Number(data.min), Number(data.max), data.value);
+			updateImagingLabel(field, data.value);
+		});
+	} catch (err) {
+		console.warn('Unable to load imaging state', err);
+	}
+}
+
+async function sendImagingUpdate(field, value, slider) {
+	const params = new URLSearchParams({cmd: 'set'});
+	params.append(field, value);
+	slider?.setAttribute('data-busy', '1');
+	slider?.classList.add('opacity-75');
+	try {
+		const res = await fetch(`/x/json-imaging.cgi?${params.toString()}`, {cache: 'no-store'});
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		const payload = await res.json();
+		const fields = payload && payload.message && payload.message.fields;
+		if (fields && fields[field]) {
+			const data = fields[field];
+			if (slider) {
+				setSliderBounds(slider, Number(data.min), Number(data.max), data.value);
+			}
+			updateImagingLabel(field, data.value);
+		}
+	} catch (err) {
+		console.error('Failed to update imaging value', err);
+	} finally {
+		slider?.removeAttribute('data-busy');
+		slider?.classList.remove('opacity-75');
+	}
+}
+
+$$('.imaging-slider input[type="range"]').forEach(slider => {
+	slider.addEventListener('input', ev => updateImagingLabel(ev.target.name, ev.target.value));
+	slider.addEventListener('change', ev => sendImagingUpdate(ev.target.name, ev.target.value, ev.target));
+	slider.addEventListener('dblclick', ev => {
+		ev.target.value = 127;
+		updateImagingLabel(ev.target.name, ev.target.value);
+		sendImagingUpdate(ev.target.name, ev.target.value, ev.target);
+	});
+});
+
+fetchImagingState();
 </script>
 
 <div class="alert alert-dark ui-debug d-none">
