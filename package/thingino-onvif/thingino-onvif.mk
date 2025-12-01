@@ -46,6 +46,10 @@ define THINGINO_ONVIF_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/generic_files \
 		$(@D)/res/generic_files/*
 
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/imaging_service_files
+	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/imaging_service_files \
+		$(@D)/res/imaging_service_files/*
+
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/media_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/media_service_files \
 		$(@D)/res/media_service_files/*
@@ -71,6 +75,7 @@ define THINGINO_ONVIF_INSTALL_TARGET_CMDS
 	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/device_service
 	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/deviceio_service
 	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/events_service
+	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/imaging_service
 	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/media_service
 	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/media2_service
 	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/ptz_service
