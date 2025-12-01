@@ -506,6 +506,10 @@ menu() {
 				mqtt)
 					[ -f /bin/mosquitto_pub ] || continue
 					;;
+				prusa-connect)
+					[ -x /sbin/prusa-connect ] || continue
+					pidof prusa-connectd >/dev/null && css=$CSS_ENABLED
+					;;
 				telegrambot)
 					[ -f /bin/jsonpath ] || continue
 					pidof telegrambot > /dev/null && css=$CSS_ENABLED

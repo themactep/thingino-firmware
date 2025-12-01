@@ -1,0 +1,48 @@
+#!/bin/sh
+
+DAEMON="/sbin/prusa-connectd"
+DAEMON_ARGS="daemon"
+
+. /usr/share/common
+
+start() {
+	echo_title "Starting Prusa Connect service"
+	start_daemon
+}
+
+stop() {
+	echo_title "Stopping Prusa Connect service"
+	stop_daemon
+}
+
+status() {
+	if pidof prusa-connectd >/dev/null; then
+		echo "prusa-connectd is running"
+		return 0
+	fi
+	echo "prusa-connectd is stopped"
+	return 1
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart|reload)
+		stop || true
+		sleep 1
+		start
+		;;
+	status)
+		status
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload|status}"
+		exit 1
+		;;
+esac
+
+exit 0
