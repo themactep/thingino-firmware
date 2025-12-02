@@ -44,20 +44,33 @@ which motors > /dev/null && has_motors="true"
 
 <button type="button" class="btn btn-dark border mb-2" title="Zoom" data-bs-toggle="modal" data-bs-target="#mdPreview">
 <img src="/a/zoom.svg" alt="Zoom" class="img-fluid"></button>
-</div>
 
+<button type="button" class="btn btn-dark border mb-2" title="Imaging controls" id="toggle-imaging" aria-controls="imaging-slider" aria-expanded="false">
+<img src="/a/controls.svg" alt="Controls" class="img-fluid"></button>
+
+</div>
 </div>
 <div class="col-lg-10">
 <div id="frame" class="position-relative mb-2">
+
 <img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Preview">
 <% if [ "true" = "$has_motors" ]; then %><%in _motors.cgi %><% fi %>
 </div>
 
-<div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-2 imaging-slider">
+<div id="imaging-slider" class="p-4 bg-black mb-2 d-none" aria-hidden="true">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 mb-3">
 <div class="col"><% field_range "brightness" "Brightness" "0,255,1" %></div>
 <div class="col"><% field_range "contrast" "Constrast" "0,255,1" %></div>
 <div class="col"><% field_range "sharpness" "Sharpness" "0,255,1" %></div>
 <div class="col"><% field_range "saturation" "Saturation" "0,255,1" %></div>
+</div>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-5 g-3">
+<div class="col"><% field_range "backlight" "Backlight" "0,10,1" %></div>
+<div class="col"><% field_range "wide_dynamic_range" "WDR" "0,255,1" %></div>
+<div class="col"><% field_range "tone" "Highlights" "0,255,1" %></div>
+<div class="col"><% field_range "defog" "Defog" "0,255,1" %></div>
+<div class="col"><% field_range "noise_reduction" "Noise reduction" "0,255,1" %></div>
+</div>
 </div>
 
 <div class="alert alert-secondary">
@@ -223,19 +236,82 @@ $$("#color, #ircut, #ir850, #ir940, #white").forEach(el =>
 
 toggleDayNight();
 
-const imagingFields = ["brightness", "contrast", "sharpness", "saturation"];
+const imagingFields = [
+	"brightness",
+	"contrast",
+	"sharpness",
+	"saturation",
+	"backlight",
+	"wide_dynamic_range",
+	"tone",
+	"defog",
+	"noise_reduction"
+];
+
+const imagingPanel = $('#imaging-slider');
+const imagingToggleButton = $('#toggle-imaging');
+let imagingPanelVisible = false;
+
+function setImagingPanelVisibility(show) {
+	if (!imagingPanel || !imagingToggleButton) return;
+	imagingPanelVisible = !!show;
+	imagingPanel.classList.toggle('d-none', !show);
+	imagingPanel.setAttribute('aria-hidden', show ? 'false' : 'true');
+}
+
+imagingToggleButton?.addEventListener('click', () => {
+	const nextState = !imagingPanelVisible;
+	setImagingPanelVisibility(nextState);
+	if (nextState) {
+		fetchImagingState();
+	}
+});
+
+setImagingPanelVisibility(false);
 
 function updateImagingLabel(name, value) {
 	const badge = $(`#${name}-show`);
 	if (badge) {
-		badge.textContent = value;
+		const displayValue = value === undefined || value === null ? '—' : value;
+		badge.textContent = displayValue;
 	}
 }
 
-function setSliderBounds(slider, min, max, value) {
-	slider.min = Number.isFinite(min) ? min : slider.min;
-	slider.max = Number.isFinite(max) ? max : slider.max;
-	slider.value = value;
+function setSliderBounds(slider, min, max, value, defaultValue) {
+	if (Number.isFinite(min)) {
+		slider.min = min;
+	}
+	if (Number.isFinite(max)) {
+		slider.max = max;
+	}
+	if (Number.isFinite(value)) {
+		slider.value = value;
+	}
+	if (Number.isFinite(defaultValue)) {
+		slider.dataset.defaultValue = defaultValue;
+	} else {
+		delete slider.dataset.defaultValue;
+	}
+}
+
+function applyFieldMetadata(field, data) {
+	const slider = $(`#${field}`);
+	if (!slider) return;
+	const wrapper = slider.closest('.col') || slider.parentElement;
+	const isSupported = data && data.supported !== false;
+	if (!isSupported) {
+		slider.disabled = true;
+		slider.classList.add('opacity-50');
+		wrapper?.classList.add('d-none');
+		delete slider.dataset.defaultValue;
+		updateImagingLabel(field, '—');
+		return;
+	}
+	slider.disabled = false;
+	slider.classList.remove('opacity-50');
+	wrapper?.classList.remove('d-none');
+	setSliderBounds(slider, Number(data.min), Number(data.max), Number(data.value), Number(data.default));
+	updateImagingLabel(field, data.value);
 }
 
 async function fetchImagingState() {
@@ -245,14 +321,7 @@ async function fetchImagingState() {
 		const payload = await res.json();
 		const fields = payload && payload.message && payload.message.fields;
 		if (!fields) return;
-		imagingFields.forEach(field => {
-			const data = fields[field];
-			if (!data) return;
-			const slider = $(`#${field}`);
-			if (!slider) return;
-			setSliderBounds(slider, Number(data.min), Number(data.max), data.value);
-			updateImagingLabel(field, data.value);
-		});
+		imagingFields.forEach(field => applyFieldMetadata(field, fields[field] || null));
 	} catch (err) {
 		console.warn('Unable to load imaging state', err);
 	}
@@ -268,12 +337,8 @@ async function sendImagingUpdate(field, value, slider) {
 		if (!res.ok) throw new Error(`HTTP ${res.status}`);
 		const payload = await res.json();
 		const fields = payload && payload.message && payload.message.fields;
-		if (fields && fields[field]) {
-			const data = fields[field];
-			if (slider) {
-				setSliderBounds(slider, Number(data.min), Number(data.max), data.value);
-			}
-			updateImagingLabel(field, data.value);
+		if (fields) {
+			applyFieldMetadata(field, fields[field] || null);
 		}
 	} catch (err) {
 		console.error('Failed to update imaging value', err);
@@ -283,11 +348,16 @@ async function sendImagingUpdate(field, value, slider) {
 	}
 }
 
-$$('.imaging-slider input[type="range"]').forEach(slider => {
+$$('#imaging-slider input[type="range"]').forEach(slider => {
 	slider.addEventListener('input', ev => updateImagingLabel(ev.target.name, ev.target.value));
 	slider.addEventListener('change', ev => sendImagingUpdate(ev.target.name, ev.target.value, ev.target));
 	slider.addEventListener('dblclick', ev => {
-		ev.target.value = 127;
+		const min = Number(ev.target.min ?? 0);
+		const max = Number(ev.target.max ?? 255);
+		const midpoint = Math.round((min + max) / 2);
+		const defaultValue = ev.target.dataset.defaultValue;
+		const targetValue = Number.isFinite(Number(defaultValue)) ? Number(defaultValue) : midpoint;
+		ev.target.value = targetValue;
 		updateImagingLabel(ev.target.name, ev.target.value);
 		sendImagingUpdate(ev.target.name, ev.target.value, ev.target);
 	});

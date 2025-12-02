@@ -4,7 +4,7 @@
 
 STATE_FILE="/run/prudynt/imaging.json"
 IMAGING_FIFO="/run/prudynt/imagingctl"
-FIELDS="brightness contrast saturation sharpness"
+FIELDS="brightness contrast saturation sharpness backlight wide_dynamic_range tone defog noise_reduction"
 
 urldecode() {
 	local i="${*//+/ }"
@@ -20,22 +20,23 @@ field_attr() {
 	jct "$STATE_FILE" get "fields.${field}.${attr}" 2>/dev/null | tr -d '"' | tr -d '\n' | tr -d '\r'
 }
 
+field_supported() {
+	local field="$1" supported
+	supported=$(field_attr "$field" supported)
+	[ "$supported" = "true" ]
+}
+
 collect_fields() {
 	[ -r "$STATE_FILE" ] || return 1
-	local first=1 field value min max norm
+	local first=1 field entry
 	printf '{'
 	for field in $FIELDS; do
-		value=$(field_attr "$field" value)
-		min=$(field_attr "$field" min)
-		max=$(field_attr "$field" max)
-		norm=$(field_attr "$field" normalized)
-		[ -z "$value" ] && continue
-		[ -z "$norm" ] && norm="0"
+		entry=$(jct "$STATE_FILE" get "fields.${field}" 2>/dev/null | tr -d '\n' | tr -d '\r')
+		[ -z "$entry" ] && continue
 		if [ $first -eq 0 ]; then
 			printf ','
 		fi
-		printf '"%s":{"value":%s,"min":%s,"max":%s,"normalized":%s}' \
-			"$field" "$value" "$min" "$max" "$norm"
+		printf '"%s":%s' "$field" "$entry"
 		first=0
 	done
 	printf '}'
@@ -53,9 +54,11 @@ read_fields_with_retry() {
 }
 
 normalize_value() {
-	local field="$1" raw="$2" min max
+	local field="$1" raw="$2" min max supported
 	min=$(field_attr "$field" min)
 	max=$(field_attr "$field" max)
+	supported=$(field_attr "$field" supported)
+	[ "$supported" = "true" ] || return 1
 	[ -z "$min" ] && return 1
 	[ -z "$max" ] && return 1
 	awk -v v="$raw" -v mn="$min" -v mx="$max" 'BEGIN {
@@ -79,6 +82,9 @@ apply_updates() {
 		[ -z "$raw" ] && continue
 		if ! is_number "$raw"; then
 			json_error "invalid value for $field"
+		fi
+		if ! field_supported "$field"; then
+			json_error "$field is not supported"
 		fi
 		norm=$(normalize_value "$field" "$raw") || json_error "missing range for $field"
 		payload="$payload $field=$norm"
