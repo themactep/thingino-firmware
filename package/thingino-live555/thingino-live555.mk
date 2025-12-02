@@ -1,7 +1,7 @@
 THINGINO_LIVE555_SITE_METHOD = git
 THINGINO_LIVE555_SITE = https://github.com/themactep/live555
 THINGINO_LIVE555_SITE_BRANCH = master
-THINGINO_LIVE555_VERSION = b461f7379c2ce19e151dbf42b4e2b69ae1b5690a
+THINGINO_LIVE555_VERSION = e116665ab4fa57fb6f2353ccf4897cf3f4f5b96b
 
 # There is a COPYING file with the GPL-3.0 license text, but none of
 # the source files appear to be released under GPL-3.0, and the
