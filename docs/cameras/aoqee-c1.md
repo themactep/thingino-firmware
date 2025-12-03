@@ -7,7 +7,7 @@ https://aoqee.com/C11pack
 
 - SoC: Ingenic T23N (64MB)
 - Image Sensor: SmartSense SC2336 (2MP)
-- Wi-Fi Module: AltoBeam ATBM6062 (USB)
+- Wi-Fi Module: AltoBeam ATBM6062 or ATBM6062CU (USB)
 - Flash Chip: NOR 8MB (25Q64)
 - Power: 5V DC (cable with USB-A connector)
 
