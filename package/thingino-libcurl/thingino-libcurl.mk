@@ -92,7 +92,7 @@ endif
 ifeq ($(BR2_PACKAGE_THINGINO_LIBCURL_WOLFSSL),y)
 THINGINO_LIBCURL_CONF_OPTS += --with-wolfssl=$(STAGING_DIR)/usr
 THINGINO_LIBCURL_CONF_OPTS += --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
-THINGINO_LIBCURL_DEPENDENCIES += thingino-wolfssl
+THINGINO_LIBCURL_DEPENDENCIES += wolfssl
 else
 THINGINO_LIBCURL_CONF_OPTS += --without-wolfssl
 endif

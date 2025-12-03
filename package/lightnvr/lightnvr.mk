@@ -16,8 +16,8 @@ ifeq ($(BR2_PACKAGE_MBEDTLS),y)
 LIGHTNVR_DEPENDENCIES += mbedtls
 endif
 
-ifeq ($(BR2_PACKAGE_THINGINO_WOLFSSL),y)
-LIGHTNVR_DEPENDENCIES += thingino-wolfssl
+ifeq ($(BR2_PACKAGE_WOLFSSL),y)
+LIGHTNVR_DEPENDENCIES += wolfssl
 endif
 
 # Enable SOD with dynamic linking and go2rtc, use bundled cJSON
