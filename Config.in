@@ -93,6 +93,7 @@ menuconfig BR2_THINGINO_STREAMER_PACKAGES
 
 if BR2_THINGINO_STREAMER_PACKAGES
 source "$BR2_EXTERNAL_THINGINO_PATH/package/faac/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/libhelix-mp3/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libflac/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/go2rtc/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-audiodaemon/Config.in"
