@@ -9,7 +9,7 @@ SENSOR_FILE="${SENSOR}-$(fw_printenv -n soc).bin"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
-	
+
 	if [ "$POST_action" = "restore_factory_file" ]; then
 		rm "$SENSOR_IQ_UPLOAD_PATH/uploaded.bin"
 		rm "/overlay$SENSOR_IQ_PATH/$SENSOR_FILE"; mount -o remount /

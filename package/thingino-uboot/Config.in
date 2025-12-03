@@ -784,8 +784,6 @@ config BR2_PACKAGE_THINGINO_UBOOT_CUSTOM_MAKEOPTS
 	  List of custom make options passed at build time. Can be
 	  used for example to pass a DEVICE_TREE= value.
 
-
-
 endif # BR2_PACKAGE_THINGINO_UBOOT
 
 menu "Boot Configuration"
