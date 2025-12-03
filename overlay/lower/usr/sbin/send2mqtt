@@ -20,7 +20,6 @@ Where:
 	exit 0
 }
 
-verbosity="false"
 while getopts h:jm:st:u:w:v flag; do
 	case "$flag" in
 		h) mqtt_host=$OPTARG ;;
@@ -30,7 +29,7 @@ while getopts h:jm:st:u:w:v flag; do
 		t) mqtt_topic=$OPTARG ;;
 		u) mqtt_username=$OPTARG ;;
 		w) mqtt_password=$OPTARG ;;
-		v) verbosity="true" ;;
+		v) verbose="true" ;;
 		*) show_help ;;
 	esac
 done
@@ -67,7 +66,7 @@ fi
 mqtt_message=$(date +"$mqtt_message")
 
 command="mosquitto_pub -h $mqtt_host -p $mqtt_port -i $mqtt_client_id"
-if [ "true" = "$verbosity" ]; then
+if [ "true" = "$verbose" ]; then
 	command="$command -d"
 fi
 
@@ -93,7 +92,7 @@ else
 	fi
 fi
 
-if [ "true" = "$verbosity" ]; then
+if [ "true" = "$verbose" ]; then
 	echo_command "$command"
 fi
 

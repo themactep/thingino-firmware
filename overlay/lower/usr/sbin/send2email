@@ -18,7 +18,6 @@ Where:
 	exit 0
 }
 
-verbosity="--silent"
 while getopts b:f:kn:p:s:t:vh flag; do
 	case "$flag" in
 		b) email_body=$OPTARG ;;
@@ -28,7 +27,7 @@ while getopts b:f:kn:p:s:t:vh flag; do
 		p) email_smtp_port=$OPTARG ;;
 		s) email_subject=$OPTARG ;;
 		t) email_to_address=$OPTARG ;;
-		v) verbosity="--verbose" ;;
+		v) verbose="true" ;;
 		h | *) show_help ;;
 	esac
 done
@@ -79,7 +78,12 @@ if [ -z "$email_subject" ]; then
 	email_subject="Snapshot from Thingino Camera"
 fi
 
-command="$CURL $verbosity --mail-from $email_from_address --mail-rcpt $email_to_address"
+if [ "true" = "$verbose" ]; then
+	command="$CURL --verbose"
+else
+	command="$CURL --silent"
+fi
+command="$command --mail-from $email_from_address --mail-rcpt $email_to_address"
 
 if [ -n "$email_smtp_username" ] && [ -n "$email_smtp_password" ]; then
 	command="$command --user '$email_smtp_username:$email_smtp_password'"
@@ -114,6 +118,10 @@ if [ "true" = "$email_attach_video" ]; then
 fi
 
 command="$command -F '=)'"
+
+if [ "true" = "$verbose" ]; then
+	echo_command "$command"
+fi
 
 if ! sh -c "$command"; then
 	echo_error "Failed to send email"
