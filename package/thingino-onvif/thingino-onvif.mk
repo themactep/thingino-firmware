@@ -71,14 +71,14 @@ define THINGINO_ONVIF_INSTALL_TARGET_CMDS
 		$(@D)/res/wsd_files/*
 
 	$(INSTALL) -D -m 0755 $(@D)/onvif_simple_server \
-		$(TARGET_DIR)/usr/sbin/onvif.cgi
-	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/device_service
-	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/deviceio_service
-	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/events_service
-	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/imaging_service
-	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/media_service
-	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/media2_service
-	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/ptz_service
+		$(TARGET_DIR)/var/www/onvif/onvif.cgi
+	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/device_service
+	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/deviceio_service
+	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/events_service
+	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/imaging_service
+	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/media_service
+	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/media2_service
+	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/ptz_service
 
 	$(INSTALL) -D -m 0755 $(@D)/onvif_notify_server \
 		$(TARGET_DIR)/usr/sbin/onvif_notify_server
