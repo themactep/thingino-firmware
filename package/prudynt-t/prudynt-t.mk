@@ -110,7 +110,7 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	# Always install stripped binary for firmware (keeps image size small)
 	$(TARGET_CROSS)strip $(@D)/bin/prudynt -o $(TARGET_DIR)/usr/bin/prudynt
 	chmod 755 $(TARGET_DIR)/usr/bin/prudynt
-	echo "Installed stripped prudynt binary for firmware ($$(du -h $(TARGET_DIR)/usr/bin/prudynt | cut -f1))"
+	echo "Installed stripped prudynt binary ($$(du -h $(TARGET_DIR)/usr/bin/prudynt | cut -f1))"
 
 	# For debug builds, mandate NFS and install all debug components there
 	if [ "$(BR2_PACKAGE_PRUDYNT_T_DEBUG)" = "y" ]; then \
@@ -165,11 +165,11 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(STAGING_DIR)/prudynt.json \
 		$(TARGET_DIR)/etc/prudynt.json
 
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
-		$(TARGET_DIR)/etc/init.d/S95prudynt
-
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/record \
 		$(TARGET_DIR)/usr/sbin/record
+
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
+		$(TARGET_DIR)/etc/init.d/S95prudynt
 
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96record \
 		$(TARGET_DIR)/etc/init.d/S96record
@@ -218,9 +218,6 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		echo "  gdb /usr/bin/prudynt -s /mnt/nfs/$(CAMERA)/usr/lib/debug/usr/bin/prudynt.debug" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "Debug tools installed to NFS: prudynt-debug-helper, prudynt-test-memory"; \
 	fi
-
-#	echo "Removing LD_PRELOAD command line from init script"; \
-#	sed -i '/^COMMAND=/d' $(TARGET_DIR)/etc/init.d/S95prudynt;
 endef
 
 $(eval $(generic-package))
