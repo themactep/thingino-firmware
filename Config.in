@@ -108,7 +108,6 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/raptor-ipc/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ffmpeg/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-fonts/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-live555/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-opus/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-v4l2loopback/Config.in"
 endif
 

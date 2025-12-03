@@ -138,7 +138,7 @@ THINGINO_FFMPEG_ENCODERS += aac rawvideo
 THINGINO_FFMPEG_MUXERS += mp4 rtsp avi mpegts
 THINGINO_FFMPEG_FILTERS += color testsrc testsrc2 smptebars rgbtestsrc
 THINGINO_FFMPEG_INDEVS += lavfi
-THINGINO_FFMPEG_DEPENDENCIES += thingino-opus
+THINGINO_FFMPEG_DEPENDENCIES += opus
 endif
 
 # NVR (Network Video Recorder) configuration - extended features
@@ -149,7 +149,7 @@ THINGINO_FFMPEG_DEMUXERS += mov m4a
 THINGINO_FFMPEG_MUXERS += mp4 opus
 THINGINO_FFMPEG_ENCODERS += aac
 THINGINO_FFMPEG_DECODERS += h264 hevc aac opus
-THINGINO_FFMPEG_DEPENDENCIES += thingino-opus
+THINGINO_FFMPEG_DEPENDENCIES += opus
 endif
 
 # LIGHTNVR configuration - enables staging installation for CMake
@@ -169,7 +169,7 @@ THINGINO_FFMPEG_ENCODERS += aac
 THINGINO_FFMPEG_DECODERS += h264 hevc aac opus
 # Enable bitstream filters needed for MP4 muxing
 THINGINO_FFMPEG_CONF_OPTS += --enable-bsf=h264_mp4toannexb,hevc_mp4toannexb,aac_adtstoasc
-THINGINO_FFMPEG_DEPENDENCIES += thingino-opus
+THINGINO_FFMPEG_DEPENDENCIES += opus
 endif
 
 # DEV (Development/Maximum Features) configuration - all features enabled
@@ -211,7 +211,7 @@ THINGINO_FFMPEG_CONF_OPTS += \
 	--enable-iconv
 
 # Add dependencies for maximum features
-THINGINO_FFMPEG_DEPENDENCIES += thingino-opus zlib
+THINGINO_FFMPEG_DEPENDENCIES += opus zlib
 endif
 
 # Add specific codec/format options only for non-DEV configurations
