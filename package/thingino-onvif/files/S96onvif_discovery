@@ -34,22 +34,26 @@ start() {
 
 	start_daemon
 
-	jct $ONVIF_CONFIG set model "$model"
-	jct $ONVIF_CONFIG set hardware_id "ingenic_$SOC_MODEL"
-	jct $ONVIF_CONFIG set serial_num "$(fw_printenv -n ethaddr | sed 's/://g')"
-	jct $ONVIF_CONFIG set firmware_ver "$BUILD_ID"
-	jct $ONVIF_CONFIG set ifs "$iface"
-	jct $ONVIF_CONFIG set username "$(jct $PRUDYNT_CONFIG get rtsp.username | tr -d \")"
-	jct $ONVIF_CONFIG set password "$(jct $PRUDYNT_CONFIG get rtsp.password | tr -d \")"
+	tmpfile=$(mktemp -u)
+	cp $ONVIF_CONFIG $tmpfile
+	jct $tmpfile set camera.model "$model"
+	jct $tmpfile set camera.hardware_id "ingenic_$SOC_MODEL"
+	jct $tmpfile set camera.serial_num "$(fw_printenv -n ethaddr | sed 's/://g')"
+	jct $tmpfile set camera.firmware_ver "$(awk -F'[=,"]' '/^BUILD_ID/{print $3 $4}' /etc/os-release)"
+
+	jct $tmpfile set server.ifs "$iface"
+	jct $tmpfile set server.username "$(jct $PRUDYNT_CONFIG get rtsp.username)"
+	jct $tmpfile set server.password "$(jct $PRUDYNT_CONFIG get rtsp.password)"
 
 	# conditional PTZ config
 	if [ -n "$gpio_motor_h" ] || [ -n "$motor" ]; then
-		jct $ONVIF_CONFIG set ptz.enable 1
-		jct $ONVIF_CONFIG set ptz.max_step_x "$motor_maxstep_h"
-		jct $ONVIF_CONFIG set ptz.max_step_y "$motor_maxstep_v"
-		jct $ONVIF_CONFIG set ptz.move_right "/bin/motors -d h -x $motor_maxstep_h"
-		jct $ONVIF_CONFIG set ptz.move_down "/bin/motors -d h -y $motor_maxstep_v"
+		jct $tmpfile set ptz.enable 1
+		jct $tmpfile set ptz.max_step_x "$motor_maxstep_h"
+		jct $tmpfile set ptz.max_step_y "$motor_maxstep_v"
+		jct $tmpfile set ptz.move_right "/bin/motors -d h -x $motor_maxstep_h"
+		jct $tmpfile set ptz.move_down "/bin/motors -d h -y $motor_maxstep_v"
 	fi
+	mv $tmpfile $ONVIF_CONFIG
 }
 
 stop() {
