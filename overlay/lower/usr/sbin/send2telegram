@@ -49,8 +49,18 @@ if [ $# -ne 0 ]; then
 	esac
 fi
 
-parse_caption() {
-	echo "$telegram_caption" | sed "s/%hostname/$(hostname -s)/;s/%datetime/$(date @$(stat -c%Z $1))/"
+check_vbuffer() {
+	if [ ! -f "$VBUFFER_FILE" ]; then
+		echo_error "Video buffer not found"
+		cleanup
+		exit 1
+	fi
+}
+
+cleanup() {
+	for f in $garbage; do
+		[ -f "$f" ] && rm "$f"
+	done
 }
 
 copy_photo() {
@@ -66,6 +76,7 @@ copy_photo() {
 copy_video() {
 	if [ ! -f "$VBUFFER_FILE" ]; then
 		echo_error "Video buffer not found"
+		cleanup
 		exit 1
 	fi
 
@@ -75,24 +86,28 @@ copy_video() {
 	garbage="$garbage $video2"
 }
 
-remove_tempfiles() {
-	for f in $garbage; do
-		[ -f "$f" ] && rm "$f"
-	done
+parse_caption() {
+	echo "$telegram_caption" | sed "s/%hostname/$(hostname -s)/;s/%datetime/$(date @$(stat -c%Z $1))/"
 }
 
 if [ -z "$telegram_token" ]; then
 	echo_error "Telegram token not found"
+	cleanup
 	exit 1
 fi
 
 if [ -z "$telegram_channel" ]; then
 	echo_error "Telegram channel not found"
+	cleanup
 	exit 1
 fi
 
-[ "true" = "$verbose" ] && verbosity="--verbose" || verbosity="--silent"
-command="$CURL $verbosity -H 'Content-Type: multipart/form-data' -F 'chat_id=$telegram_channel'"
+if [ "true" = "$verbose" ]; then
+	command="$CURL --verbose"
+else
+	command="$CURL --silent"
+fi
+command="$command -H 'Content-Type: multipart/form-data' -F 'chat_id=$telegram_channel'"
 
 if [ "true" = "$telegram_silent" ]; then
 	command="$command -F 'disable_notification=true'"
@@ -119,11 +134,12 @@ if [ "true" = "$telegram_attach_video" ] && [ "true" = "$telegram_attach_photo" 
 		n=$((n + 1))
 		if [ "$n" -ge 10 ]; then
 			echo_error "Give up after $n attempts."
-			remove_tempfiles
+			cleanup
 			exit 1
 		fi
 		sleep 1
 	done
+
 	copy_video
 	command="$command -F 'video2=@$video2'"
 	media=$media'{"type":"video","media":"attach://video2"}]'
@@ -165,10 +181,10 @@ fi
 
 if ! sh -c "$command" >/dev/null; then
 	echo_error "Failed to send message to Telegram"
-	remove_tempfiles
+	cleanup
 	exit 1
 fi
 
-remove_tempfiles
+cleanup
 
 exit 0
