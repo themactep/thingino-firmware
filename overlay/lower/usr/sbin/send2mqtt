@@ -66,6 +66,7 @@ fi
 mqtt_message=$(date +"$mqtt_message")
 
 command="mosquitto_pub -h $mqtt_host -p $mqtt_port -i $mqtt_client_id"
+
 if [ "true" = "$verbose" ]; then
 	command="$command -d"
 fi
@@ -79,14 +80,14 @@ if [ -n "$mqtt_password" ]; then
 fi
 
 if [ "true" = "$mqtt_send_snap" ]; then
-	attachment=$(mktemp -u).jpg
-	cp -f "$SNAPSHOT_FILE" "$attachment"
-	command="$command -t $mqtt_snap_topic -f \"$attachment\""
+	photo=$(copy_photo)
+	command="$command -t $mqtt_snap_topic -f '$photo'"
 else
 	if [ "true" = "$mqtt_is_json" ]; then
 		tmpfile=$(mktemp)
 		echo "$mqtt_message" > $tmpfile
 		command="$command -t $mqtt_topic -f $tmpfile"
+		garbage="$garbage $tmpfile"
 	else
 		command="$command -t $mqtt_topic -m '$mqtt_message'"
 	fi
@@ -98,15 +99,10 @@ fi
 
 if ! sh -c "$command"; then
 	echo_error "Failed to send MQTT message"
+	cleanup
 	exit 1
 fi
 
-if [ -f "$tmpfile" ]; then
-	rm "$tmpfile"
-fi
-
-if [ -f "$attachment" ]; then
-	rm "$attachment"
-fi
+cleanup
 
 exit 0

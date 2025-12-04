@@ -18,7 +18,7 @@ Where:
 	exit 0
 }
 
-while getopts b:f:kn:p:s:t:vh flag; do
+while getopts b:f:hkn:p:s:t:v flag; do
 	case "$flag" in
 		b) email_body=$OPTARG ;;
 		f) email_from_address=$OPTARG ;;
@@ -106,22 +106,19 @@ command="$command -F '=(;type=multipart/mixed'"
 command="$command -F \"=${email_body};type=text/plain\""
 
 if [ "true" = "$email_attach_snapshot" ]; then
-	photo_attachment=$(mktemp -u).jpg
-	cp -f "$SNAPSHOT_FILE" "$photo_attachment"
-	command="$command -F 'snapshot=@$photo_attachment;type=image/jpeg;encoder=base64'"
+	photo=$(copy_photo)
+	command="$command -F 'snapshot=@$photo;type=image/jpeg;encoder=base64'"
 fi
 
 if [ "true" = "$email_attach_video" ]; then
-	local ext="${VBUFFER_FILE##*.}"
-	video_attachment="$(mktemp -u).$ext"
-	case "$ext" in
+	video="$(copy_video)"
+	case "${VBUFFER_FILE##*.}" in
 		mkv) mime="video/matroska" ;;
 		mov) mime="video/quicktime" ;;
 		mp4) mime="video/mp4" ;;
 		*) mime="application/octet-stream" ;;
 	esac
-	cp -f "$VBUFFER_FILE" "$video_attachment"
-	command="$command -F 'video=@$video_attachment;type=$mime;encoder=base64'"
+	command="$command -F 'video=@$video;type=$mime;encoder=base64'"
 fi
 
 command="$command -F '=)'"
@@ -130,17 +127,12 @@ if [ "true" = "$verbose" ]; then
 	echo_command "$command"
 fi
 
-if ! sh -c "$command"; then
+if ! sh -c "$command" >/dev/null; then
 	echo_error "Failed to send email"
+	cleanup
 	exit 1
 fi
 
-if [ -f "$photo_attachment" ]; then
-	rm "$photo_attachment"
-fi
-
-if [ -f "$video_attachment" ]; then
-	rm "$video_attachment"
-fi
+cleanup
 
 exit 0

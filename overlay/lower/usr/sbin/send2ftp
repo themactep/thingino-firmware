@@ -67,16 +67,13 @@ fi
 
 if [ -z "$ftp_file" ]; then
 	if [ "true" = "$ftp_send_video" ]; then
-		if [ ! -f "$VBUFFER_FILE" ]; then
-			echo_error "Video buffer not found"
-			cleanup
-			exit 1
-		fi
+		check_vbuffer
 
 		inode=$(stat -c%i $VBUFFER_FILE)
 
 		# Video preceeding the event
-		add_to_queue "$VBUFFER_FILE"
+		video1=$(copy_video)
+		add_to_queue "$video1"
 
 		# Wait until the inode changes, meaning the video buffer file was recreated
 		while [ $inode -eq $(stat -c%i $VBUFFER_FILE) ]; do
@@ -90,13 +87,13 @@ if [ -z "$ftp_file" ]; then
 		done
 
 		# Video following the event
-		add_to_queue "$VBUFFER_FILE"
+		video2=$(copy_video)
+		add_to_queue "$video2"
 	fi
 
 	if [ "true" = "$ftp_send_snap" ]; then
-		tmpfile="$(mktemp -u).jpg"
-		cp -f "$SNAPSHOT_FILE" "$tmpfile"
-		add_to_queue "$tmpfile"
+		photo=$(copy_photo)
+		add_to_queue "$photo"
 	fi
 else
 	add_to_queue "$ftp_file"
