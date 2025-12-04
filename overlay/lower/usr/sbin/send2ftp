@@ -12,12 +12,30 @@ Where:
 	-u username FTP username.
 	-P password FTP password.
 	-v          Verbose output.
+	-V          If -f not specified, sends the video currently in vbuffer.
+	-S          If -f not specified, sends the current camera snapshot.
 	-h          Show this help.
 " >&2
 	exit 0
 }
 
-while getopts d:f:p:P:s:u:vVh flag; do
+# Files to send
+queue=""
+
+cleanup() {
+	for f in $queue; do
+		[ -f "$f" ] && rm "$f"
+	done
+}
+
+add_to_queue() {
+	local ext="${1##*.}"
+	local tempfile="$(mktemp -u).$ext"
+	cp -f "$1" "$tempfile"
+	queue="$queue $tempfile"
+}
+
+while getopts d:f:hp:P:s:Su:vV flag; do
 	case "$flag" in
 		d) ftp_path=$OPTARG ;;
 		f) ftp_file=$OPTARG ;;
@@ -26,13 +44,15 @@ while getopts d:f:p:P:s:u:vVh flag; do
 		s) ftp_host=$OPTARG ;;
 		u) ftp_user=$OPTARG ;;
 		v) verbose="true" ;;
-		V) ftp_sendvideo="true" ;;
+		V) ftp_send_video="true" ;;
+		S) ftp_send_snap="true" ;;
 		h | *) show_help ;;
 	esac
 done
 
 if [ -z "$ftp_host" ]; then
 	echo_error "FTP host not found"
+	cleanup
 	exit 1
 fi
 
@@ -46,17 +66,40 @@ if [ -z "$ftp_user" ]; then
 fi
 
 if [ -z "$ftp_file" ]; then
-	if [ "true" = "$ftp_sendvideo" ]; then
-		attachment=$(mktemp -u).mov
-		cp -f "$VBUFFER_FILE" "$attachment"
-		ftp_filename=$(date +"$ftp_template").mov
-	else
-		attachment=$(mktemp -u).jpg
-		cp -f "$SNAPSHOT_FILE" "$attachment"
-		ftp_filename=$(date +"$ftp_template").jpg
+	if [ "true" = "$ftp_send_video" ]; then
+		if [ ! -f "$VBUFFER_FILE" ]; then
+			echo_error "Video buffer not found"
+			cleanup
+			exit 1
+		fi
+
+		inode=$(stat -c%i $VBUFFER_FILE)
+
+		# Video preceeding the event
+		add_to_queue "$VBUFFER_FILE"
+
+		# Wait until the inode changes, meaning the video buffer file was recreated
+		while [ $inode -eq $(stat -c%i $VBUFFER_FILE) ]; do
+			n=$((n + 1))
+			if [ "$n" -ge 10 ]; then
+				echo_error "Give up after $n attempts."
+				cleanup
+				exit 1
+			fi
+			sleep 1
+		done
+
+		# Video following the event
+		add_to_queue "$VBUFFER_FILE"
 	fi
 
-	ftp_file=$attachment
+	if [ "true" = "$ftp_send_snap" ]; then
+		tmpfile="$(mktemp -u).jpg"
+		cp -f "$SNAPSHOT_FILE" "$tmpfile"
+		add_to_queue "$tmpfile"
+	fi
+else
+	add_to_queue "$ftp_file"
 fi
 
 url="ftp://"
@@ -67,24 +110,35 @@ url="$url@$ftp_host:$ftp_port"
 if [ -n "$ftp_path" ]; then
 	url="$url/${ftp_path// /%20}"
 fi
-url="$url/$ftp_filename"
 
-if [ "true" = "$verbose" ]; then
-	command="$CURL --verbose"
-else
-	command="$CURL --silent"
-fi
-command="$command --url $url --upload-file $ftp_file --ftp-create-dirs"
+n=0
+for local_file in $queue; do
+	ext="${local_file##*.}"
+	ftp_filename=$(date +"$ftp_template-$(printf %02d $n)").$ext
+	final_url="$url/$ftp_filename"
 
-if [ "true" = "$verbose" ]; then
-	echo_command "$command"
-fi
+	set -x
+	if [ "true" = "$verbose" ]; then
+		command="$CURL --verbose"
+	else
+		command="$CURL --silent"
+	fi
+	command="$command --url $final_url --upload-file $local_file --ftp-create-dirs"
+	set +x
 
-if ! sh -c "$command"; then
-	echo_error "Failed to upload file to FTP server"
-	exit 1
-fi
+	if [ "true" = "$verbose" ]; then
+		echo_command "$command"
+	fi
 
-[ -f "$attachment" ] && rm "$attachment"
+	if ! sh -c "$command"; then
+		echo_error "Failed to upload file to FTP server"
+		cleanup
+		exit 1
+	fi
+
+	n=$(($n + 1))
+done
+
+cleanup
 
 exit 0
