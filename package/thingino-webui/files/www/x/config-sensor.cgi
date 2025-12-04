@@ -26,7 +26,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	fi
 	redirect_to $SCRIPT_NAME
 fi
-
 %>
 <%in _header.cgi %>
 <div class="row g-4">

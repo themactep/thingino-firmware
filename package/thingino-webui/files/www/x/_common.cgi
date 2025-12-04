@@ -15,6 +15,7 @@ pagename="${pagename%%.*}"
 
 # files
 alerts_dir="/tmp/alerts"
+
 ensure_dir "$alerts_dir"
 
 signature_file="/tmp/signature.txt"

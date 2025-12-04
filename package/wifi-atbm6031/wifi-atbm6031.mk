@@ -45,6 +45,7 @@ define WIFI_ATBM6031_COPY_CONFIG
 	$(INSTALL) -D -m 0644 $(@D)/configs/atbm6031.config \
 		$(@D)/.config
 endef
+
 WIFI_ATBM6031_PRE_CONFIGURE_HOOKS += WIFI_ATBM6031_COPY_CONFIG
 
 $(eval $(kernel-module))
