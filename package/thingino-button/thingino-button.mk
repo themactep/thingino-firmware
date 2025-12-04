@@ -15,7 +15,8 @@ define CHECK_MULTIPLE_GPIO_BUTTONS
 			esac; \
 		done < $(U_BOOT_ENV_TXT); \
 		if [ "$$button_count" -gt 1 ]; then \
-			echo "KEY_1 TIMED 0.1 iac -f /usr/share/sounds/th-chime_1.pcm" >> $(TARGET_DIR)/etc/thingino-button.conf; \
+			echo "KEY_1 TIMED 0.1 play /usr/share/sounds/th-chime_1.opus" \
+				>> $(TARGET_DIR)/etc/thingino-button.conf; \
 		fi \
 	fi
 endef
@@ -27,12 +28,12 @@ endef
 define DOORBELL_BUTTON_CONF
 	if [ "$(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL)" = "y" ]; then \
 		$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc; \
-		echo -e "KEY_1 RELEASE 0 doorbell_ctrl $(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL_MAC) 15 1\nKEY_1 TIMED 0.1 iac -f /usr/share/sounds/th-doorbell_3.pcm" \
+		echo -e "KEY_1 RELEASE 0 doorbell_ctrl $(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL_MAC) 15 1\nKEY_1 TIMED 0.1 play /usr/share/sounds/th-doorbell_3.opus" \
 			>> $(TARGET_DIR)/etc/thingino-button.conf; \
 	else \
 		if [ "$(BR2_THINGINO_DEV_DOORBELL)" = "y" ]; then \
 			$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc; \
-			echo -e "KEY_1 TIMED 0.1 iac -f /usr/share/sounds/th-doorbell_3.pcm" \
+			echo -e "KEY_1 TIMED 0.1 play /usr/share/sounds/th-doorbell_3.opus" \
 				>> $(TARGET_DIR)/etc/thingino-button.conf; \
 		fi \
 	fi

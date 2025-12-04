@@ -13,7 +13,7 @@ EXCLUDE="$EXCLUDE $(fw_printenv | awk -F= '/^gpio_/ { gsub("[diouDIOU]","") ; pr
 echo_warning "Excluded pins: $EXCLUDE"
 
 play_chime() {
-	audioplay /usr/share/sounds/th-chime_1.pcm 28 28 > /dev/null
+	play -v 80 -g 28 /usr/share/sounds/th-chime_1.opus
 }
 
 show_help() {

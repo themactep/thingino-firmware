@@ -23,6 +23,6 @@ case "$1" in
 		phrase="$*" ;;
 esac
 
-$CURL --silent --get --url https://thingino.com/say --data-urlencode q="$phrase" | iac -s
+$CURL --silent --get --url https://thingino.com/say2 --data-urlencode q="$phrase" | play -f opus -s
 
 exit 0

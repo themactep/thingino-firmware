@@ -117,11 +117,7 @@ do_run_diag() {
 	thingino-diag -l $mount_point
 	sync
 	do_umount
-	iac -f /usr/share/sounds/th-chime_1.pcm
-	sleep 0.5
-	iac -f /usr/share/sounds/th-chime_1.pcm
-	sleep 0.5
-	iac -f /usr/share/sounds/th-chime_1.pcm
+	play -l 3 /usr/share/sounds/th-chime_1.opus
 }
 
 do_run_once() {
