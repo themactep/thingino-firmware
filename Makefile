@@ -531,9 +531,11 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	@$(FIGLET) $(CAMERA)
 	@$(FIGLET) $(GIT_BRANCH)
 	@if [ "$(RELEASE)" -ne 1 ]; then $(FIGLET) "NON-SECURE"; fi
+	@if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(FIGLET) "EXTRAS PARTITION IS TOO SMALL"; fi
 	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FIRMWARE_FULL_SIZE) ]; then \
 		$(FIGLET) "OVERSIZE"; else \
-		$(FIGLET) "FINE $(shell date +"%T")"; fi
+		$(FIGLET) "FINE"; fi
+	@date +%T
 	@echo "--------------------------------"
 	@echo "Full Image:"
 	@echo "$(FIRMWARE_BIN_FULL)"
@@ -668,8 +670,6 @@ $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 # create extras partition image
 $(EXTRAS_BIN): $(U_BOOT_BIN)
 	$(info -------------------------------- $@)
-	# complain if there is not enough space for extras partition
-	@if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(FIGLET) "EXTRAS PARTITION IS TOO SMALL"; fi
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
 	# extract /opt/ from target rootfs to a separare directory
