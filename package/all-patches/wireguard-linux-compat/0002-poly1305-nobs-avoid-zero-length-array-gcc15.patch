@@ -1,0 +1,10 @@
+--- a/src/crypto/zinc/poly1305/poly1305.c	2022-06-27 00:00:00.000000000 +0000
++++ b/src/crypto/zinc/poly1305/poly1305.c	2025-10-18 01:05:00.000000000 +0000
+@@ -43,4 +43,5 @@
+-static bool *const poly1305_nobs[] __initconst = { };
++static bool __initdata poly1305_dummy_nob;
++static bool *const poly1305_nobs[] __initconst = { &poly1305_dummy_nob };
+ static void __init poly1305_fpu_init(void)
+ {
+ }
+
