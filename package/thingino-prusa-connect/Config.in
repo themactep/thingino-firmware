@@ -1,0 +1,10 @@
+config BR2_PACKAGE_THINGINO_PRUSA_CONNECT
+	bool "Thingino Prusa Connect integration"
+	help
+	  Upload Thingino camera metadata and snapshots directly to the
+	  Prusa Connect cloud service. Includes:
+	  - init script and daemon that periodically push /tmp/snapshot.jpg
+	    and device information to the Prusa Connect API
+	  - CLI helper for configuring tokens/fingerprints from SSH
+	  - WebUI page (needs thingino-webui) for credential entry
+
