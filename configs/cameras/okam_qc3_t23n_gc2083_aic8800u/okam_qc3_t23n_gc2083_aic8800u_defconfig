@@ -1,4 +1,4 @@
-# NAME: O-KAM QC3 (T23N, GC2083, AIC8800 USB)
+# NAME: O-KAM QC3 (T23N, GC2083, AIC8800D40L USB)
 # FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_AIC8800=y
@@ -12,5 +12,4 @@ BR2_THINGINO_AUDIO=y
 BR2_THINGINO_BUTTON=y
 BR2_THINGINO_PWM_ENABLE=y
 BR2_THINGINO_SDCARD=y
-# NB! needs larger flash size due to WiFi firmware
-FLASH_SIZE_16=y
+FLASH_SIZE_8=y
