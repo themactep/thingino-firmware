@@ -2,7 +2,7 @@ config BR2_PACKAGE_THINGINO_ESPHOME
 	bool "thingino-esphome"
 	depends on BR2_USE_MMU # meson
 	depends on BR2_TOOLCHAIN_HAS_THREADS # dbus
-    select BR2_THINGINO_LIBBLE if BR2_PACKAGE_THINGINO_BLUETOOTH
+	select BR2_THINGINO_LIBBLE if BR2_PACKAGE_THINGINO_BLUETOOTH
 	help
 	  ESPHome Linux service for Thingino cameras.
 

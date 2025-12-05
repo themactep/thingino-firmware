@@ -34,9 +34,9 @@ void ble_npl_eventq_main(void);
 
 struct ble_eventq_s {
     uint8_t              b_init;
-	pthread_mutex_t 	 m_mutex;
-	pthread_mutexattr_t  m_mutex_attr;
-	pthread_cond_t		 m_condv;
+    pthread_mutex_t      m_mutex;
+    pthread_mutexattr_t  m_mutex_attr;
+    pthread_cond_t         m_condv;
 
     STAILQ_HEAD(ble_queue_list, ble_npl_event) mq_head;
 };
@@ -88,7 +88,7 @@ int mqueue_put(struct ble_eventq_s *mq, struct ble_npl_event *evq)
 
 struct ble_npl_event *mqueue_pick(struct ble_eventq_s *mq)
 {
-	struct ble_npl_event *mp;
+    struct ble_npl_event *mp;
     os_sr_t sr;
 
     OS_ENTER_CRITICAL(sr);
@@ -103,7 +103,7 @@ void mqueue_del_unlock(struct ble_eventq_s *mq,struct ble_npl_event *mp)
    // os_sr_t sr;
 
    // OS_ENTER_CRITICAL(sr);
-	STAILQ_REMOVE(&mq->mq_head, mp, ble_npl_event, next);
+    STAILQ_REMOVE(&mq->mq_head, mp, ble_npl_event, next);
    // OS_EXIT_CRITICAL(sr);
 
 }
@@ -112,20 +112,20 @@ void mqueue_del_unlock(struct ble_eventq_s *mq,struct ble_npl_event *mp)
 
 void wqueue_init(wqueue_t * q)
 {
-	q->b_init = 1;
+    q->b_init = 1;
     pthread_mutexattr_init(&q->m_mutex_attr);
     pthread_mutexattr_settype(&q->m_mutex_attr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(&q->m_mutex, &q->m_mutex_attr);
     pthread_cond_init(&q->m_condv, NULL);
-	mqueue_init(q);
+    mqueue_init(q);
 }
 
 void wqueue_deinit(wqueue_t * q) {
-	if(q->b_init){
-		q->b_init = 0;
-	    pthread_mutex_destroy(&q->m_mutex);
-	    pthread_cond_destroy(&q->m_condv);
-	}
+    if(q->b_init){
+        q->b_init = 0;
+        pthread_mutex_destroy(&q->m_mutex);
+        pthread_cond_destroy(&q->m_condv);
+    }
 }
 
 void wqueue_put(wqueue_t * q,struct ble_npl_event * ev) {
@@ -152,7 +152,7 @@ struct ble_npl_event * wqueue_get(wqueue_t * q,uint32_t tmo) {
 
 void wqueue_remove(wqueue_t * q,struct ble_npl_event * ev) {
     pthread_mutex_lock(&q->m_mutex);
-	mqueue_del_unlock(q,ev);
+    mqueue_del_unlock(q,ev);
     pthread_mutex_unlock(&q->m_mutex);
 }
 
@@ -179,23 +179,23 @@ ble_npl_eventq_init(struct ble_npl_eventq *evq)
     }
 
     evq->q = os_memblock_get(&ble_eventq_pool);
-	if(evq->q){
-		wqueue_init((wqueue_t *)evq->q);
-	}
-	else {
-		printf("<error>ble_npl_eventq_init fail\n");
-	}
+    if(evq->q){
+        wqueue_init((wqueue_t *)evq->q);
+    }
+    else {
+        printf("<error>ble_npl_eventq_init fail\n");
+    }
 }
 void
 ble_npl_eventq_release(struct ble_npl_eventq* evq)
 {
-	if(evq->q){
-		wqueue_deinit((wqueue_t *)evq->q);
-    	os_memblock_put(&ble_eventq_pool, evq->q);
-	}
-	else {
-		printf("<error>ble_npl_eventq_release fail\n");
-	}
+    if(evq->q){
+        wqueue_deinit((wqueue_t *)evq->q);
+        os_memblock_put(&ble_eventq_pool, evq->q);
+    }
+    else {
+        printf("<error>ble_npl_eventq_release fail\n");
+    }
 }
 
 bool

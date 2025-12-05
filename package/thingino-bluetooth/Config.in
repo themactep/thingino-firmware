@@ -8,6 +8,6 @@ config BR2_PACKAGE_THINGINO_BLUETOOTH
 
 
 config BR2_PACKAGE_THINGINO_BLUETOOTH_PROVISIONING
-    bool "Improv-wifi bluetooth provisioning"
-    help
-        This config option enable bluetooth provisioning with the Improv Wifi protocol. Must be accompanied with BR2_PACKAGE_THINGINO_BLUETOOTH
+	bool "Improv-wifi bluetooth provisioning"
+	help
+	  This config option enable bluetooth provisioning with the Improv Wifi protocol. Must be accompanied with BR2_PACKAGE_THINGINO_BLUETOOTH
