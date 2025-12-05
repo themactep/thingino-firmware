@@ -112,7 +112,7 @@ THINGINO_FFMPEG_ENCODERS += aac rawvideo
 THINGINO_FFMPEG_MUXERS += mp4 rtsp avi mpegts
 THINGINO_FFMPEG_FILTERS += color testsrc testsrc2 smptebars rgbtestsrc
 THINGINO_FFMPEG_INDEVS += lavfi
-THINGINO_FFMPEG_DEPENDENCIES += thingino-opus
+THINGINO_FFMPEG_DEPENDENCIES += opus
 endif
 
 # NVR (Network Video Recorder) configuration - extended features
