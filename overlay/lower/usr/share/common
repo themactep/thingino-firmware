@@ -409,7 +409,7 @@ cleanup() {
 copy_photo() {
 	check_snapshot
 	local tmpfile="$(mktemp -u).jpg"
-	cp -f "$SNAPSHOT_FILE" "$photo"
+	cp -f "$SNAPSHOT_FILE" "$tmpfile"
 	garbage="$garbage $tmpfile"
 	echo "$tmpfile"
 }
