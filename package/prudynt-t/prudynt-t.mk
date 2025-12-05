@@ -10,7 +10,7 @@ PRUDYNT_T_DEPENDENCIES += ingenic-lib
 PRUDYNT_T_DEPENDENCIES += host-jq thingino-jct
 PRUDYNT_T_DEPENDENCIES += thingino-live555
 PRUDYNT_T_DEPENDENCIES += opus faac libhelix-aac libhelix-mp3 libflac
-PRUDYNT_T_DEPENDENCIES += libschrift thingino-fonts
+PRUDYNT_T_DEPENDENCIES += libschrift
 PRUDYNT_T_DEPENDENCIES += libwebsockets
 
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_FFMPEG),y)
