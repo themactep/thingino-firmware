@@ -1,5 +1,9 @@
 #!/bin/sh
 
+if [ -f .prereqs.done ]; then
+	exit 0
+fi
+
 preinit_check() {
 echo "Running dependencies check..."
 
@@ -24,7 +28,8 @@ req=9.0
 dd --version 2>&1 | head -n1 | grep -oE '[0-9]+\.[0-9]+' | {
 	read cur_ver || { echo "Unable to determine dd version" >&2; exit 1; }
 	if [ "$(printf '%s\n' "$req" "$cur_ver" | sort -V | head -n1)" != "$req" ]; then
-		echo "dd version $cur_ver is less than required $req.  Please update the coreutils for your distribution."
+		echo "dd version $cur_ver is less than required $req."
+		echo "Please update the coreutils for your distribution."
 		exit 1
 	else
 		echo "dd version is $cur_ver, which is >= $req"
@@ -233,3 +238,5 @@ else
 		touch .prereqs.done
 	fi
 fi
+
+exit 0
