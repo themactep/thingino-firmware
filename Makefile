@@ -239,7 +239,12 @@ update:
 	git pull --rebase --autostash
 	@echo "=== UPDATING SUBMODULES ==="
 	git submodule update --init --remote --recursive
-	@echo "=== UPDATING BUILDROOT WITH PATCH MANAGEMENT ==="
+	@$(FIGLET) "$(GIT_BRANCH)"
+
+update_manual:
+	@echo "=== UPDATING BUILDROOT MANUALS ==="
+	@curl -s -z docs/buildroot/manual-nightly.pdf -o docs/buildroot/manual-nightly.pdf https://nightly.buildroot.org/manual.pdf
+	@curl -s -z docs/buildroot/manual-nightly.txt -o docs/buildroot/manual-nightly.txt https://nightly.buildroot.org/manual.text
 
 # install what's needed
 bootstrap:
