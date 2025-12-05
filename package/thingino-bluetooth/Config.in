@@ -1,0 +1,13 @@
+config BR2_PACKAGE_THINGINO_BLUETOOTH
+	bool "thingino-bluetooth"
+	select BR2_PACKAGE_THINGINO_LIBBLE
+	help
+	  Thingino package that enables Bluetooth low energy support within the Thingino build system.
+	  This package also provides Bluetooth provisioning capabilities via the Improv Wifi protocol. See www.improv-wifi.com
+	  To enable BLE provisioning set the BR2_PACKAGE_THINGINO_BLUETOOTH_PROVISIONING=y in your device defconfig
+
+
+config BR2_PACKAGE_THINGINO_BLUETOOTH_PROVISIONING
+	bool "Improv-wifi bluetooth provisioning"
+	help
+	  This config option enable bluetooth provisioning with the Improv Wifi protocol. Must be accompanied with BR2_PACKAGE_THINGINO_BLUETOOTH
