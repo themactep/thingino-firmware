@@ -2,6 +2,8 @@
 
 . /usr/share/common
 
+COMMAND="/bin/env -- LD_PRELOAD=/lib/libimp_control.so $DAEMON_FULL"
+
 start() {
 	echo_title "Starting Prudynt"
 
