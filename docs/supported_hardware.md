@@ -189,7 +189,7 @@ Imou
 
 ### Imou Ranger 2 IPC-A22E-E
 
-- [T31N, GC2053, SSV6155](https://github.com/themactep/thingino-firmware/releases/latest/download/thingino-imou_ranger2_t31n_gc2053_ssv6155.bin)
+- [T31N, GC2053, SSV6155](https://github.com/themactep/thingino-firmware/releases/latest/download/thingino-imou_ranger2_t31n_gc2053_eth+ssv6155.bin)
 
 
 Jooan
