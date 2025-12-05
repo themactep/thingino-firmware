@@ -47,75 +47,75 @@ RTSP_URL=""
 
 # Parse arguments
 while [ $# -gt 0 ]; do
-    case "$1" in
-        -V)
-            VERBOSE="-v info"
-            ;;
-        -v)
-            VERBOSE="-v debug"
-            ;;
-        -u)
-            USER="$2"
-            PASS="$3"
-            shift 2
-            ;;
-        -w)
-            WIDTH="$2"
-            shift
-            ;;
-        -h)
-            HEIGHT="$2"
-            shift
-            ;;
-        -f)
-            FPS="$2"
-            shift
-            ;;
-        -d)
-            DURATION="$2"
-            shift
-            ;;
-        -t)
-            TEST_MODE="1"
-            ;;
-        -4)
-            OUTPUT_FORMAT="mp4"
-            ;;
-        -i)
-            OUTPUT_FORMAT="avi"
-            ;;
-        -q)
-            OUTPUT_FORMAT="mov"
-            ;;
-        -y)
-            OVERWRITE="-y"
-            ;;
-        -H)
-            HEADERS="1"
-            ;;
-        rtsp://*)
-            RTSP_URL="$1"
-            ;;
-        *)
-            echo "Unknown option: $1" >&2
-            usage
-            ;;
-    esac
-    shift
+	case "$1" in
+		-V)
+			VERBOSE="-v info"
+			;;
+		-v)
+			VERBOSE="-v debug"
+			;;
+		-u)
+			USER="$2"
+			PASS="$3"
+			shift 2
+			;;
+		-w)
+			WIDTH="$2"
+			shift
+			;;
+		-h)
+			HEIGHT="$2"
+			shift
+			;;
+		-f)
+			FPS="$2"
+			shift
+			;;
+		-d)
+			DURATION="$2"
+			shift
+			;;
+		-t)
+			TEST_MODE="1"
+			;;
+		-4)
+			OUTPUT_FORMAT="mp4"
+			;;
+		-i)
+			OUTPUT_FORMAT="avi"
+			;;
+		-q)
+			OUTPUT_FORMAT="mov"
+			;;
+		-y)
+			OVERWRITE="-y"
+			;;
+		-H)
+			HEADERS="1"
+			;;
+		rtsp://*)
+			RTSP_URL="$1"
+			;;
+		*)
+			echo "Unknown option: $1" >&2
+			usage
+			;;
+	esac
+	shift
 done
 
 # Validate required parameters
 if [ -z "$RTSP_URL" ]; then
-    echo "Error: RTSP URL required" >&2
-    usage
+	echo "Error: RTSP URL required" >&2
+	usage
 fi
 
 # Build RTSP URL with authentication
 if [ -n "$USER" ] && [ -n "$PASS" ]; then
-    # Extract protocol and rest of URL
-    PROTOCOL=$(echo "$RTSP_URL" | cut -d: -f1)
-    REST=$(echo "$RTSP_URL" | cut -d/ -f3-)
-    RTSP_URL="${PROTOCOL}://${USER}:${PASS}@${REST}"
+	# Extract protocol and rest of URL
+	PROTOCOL=$(echo "$RTSP_URL" | cut -d: -f1)
+	REST=$(echo "$RTSP_URL" | cut -d/ -f3-)
+	RTSP_URL="${PROTOCOL}://${USER}:${PASS}@${REST}"
 fi
 
 # Build FFmpeg command
@@ -123,9 +123,9 @@ FFMPEG_CMD="$FFMPEG_BIN"
 
 # Add verbosity
 if [ -n "$VERBOSE" ]; then
-    FFMPEG_CMD="$FFMPEG_CMD $VERBOSE"
+	FFMPEG_CMD="$FFMPEG_CMD $VERBOSE"
 else
-    FFMPEG_CMD="$FFMPEG_CMD -v quiet"
+	FFMPEG_CMD="$FFMPEG_CMD -v quiet"
 fi
 
 # Add input
@@ -133,34 +133,34 @@ FFMPEG_CMD="$FFMPEG_CMD -i \"$RTSP_URL\""
 
 # Add duration
 if [ -n "$DURATION" ]; then
-    FFMPEG_CMD="$FFMPEG_CMD -t $DURATION"
+	FFMPEG_CMD="$FFMPEG_CMD -t $DURATION"
 fi
 
 # Add video filters if width/height specified
 if [ -n "$WIDTH" ] && [ -n "$HEIGHT" ]; then
-    FFMPEG_CMD="$FFMPEG_CMD -vf scale=${WIDTH}:${HEIGHT}"
+	FFMPEG_CMD="$FFMPEG_CMD -vf scale=${WIDTH}:${HEIGHT}"
 fi
 
 # Add frame rate
 if [ -n "$FPS" ]; then
-    FFMPEG_CMD="$FFMPEG_CMD -r $FPS"
+	FFMPEG_CMD="$FFMPEG_CMD -r $FPS"
 fi
 
 # Add overwrite flag
 if [ -n "$OVERWRITE" ]; then
-    FFMPEG_CMD="$FFMPEG_CMD $OVERWRITE"
+	FFMPEG_CMD="$FFMPEG_CMD $OVERWRITE"
 fi
 
 # Handle output
 if [ -n "$TEST_MODE" ]; then
-    # Test mode - just probe the stream
-    FFMPEG_CMD="$FFMPEG_CMD -f null -"
+	# Test mode - just probe the stream
+	FFMPEG_CMD="$FFMPEG_CMD -f null -"
 else
-    # Recording mode
-    if [ -n "$OUTPUT_FORMAT" ]; then
-        FFMPEG_CMD="$FFMPEG_CMD -f $OUTPUT_FORMAT"
-    fi
-    FFMPEG_CMD="$FFMPEG_CMD -c copy -"
+	# Recording mode
+	if [ -n "$OUTPUT_FORMAT" ]; then
+		FFMPEG_CMD="$FFMPEG_CMD -f $OUTPUT_FORMAT"
+	fi
+	FFMPEG_CMD="$FFMPEG_CMD -c copy -"
 fi
 
 # Execute command

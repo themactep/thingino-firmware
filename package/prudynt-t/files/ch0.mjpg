@@ -10,12 +10,12 @@ H=""
 # Parse QUERY_STRING (supports &-separated pairs)
 OLD_IFS=$IFS; IFS='&'
 for KV in $QUERY_STRING; do
-  case "$KV" in
-    f=*) FPS=${KV#f=} ;;
-    q=*) Q=${KV#q=} ;;
-    w=*) W=${KV#w=} ;;
-    h=*) H=${KV#h=} ;;
-  esac
+	case "$KV" in
+		f=*) FPS=${KV#f=} ;;
+		q=*) Q=${KV#q=} ;;
+		w=*) W=${KV#w=} ;;
+		h=*) H=${KV#h=} ;;
+	esac
 done
 IFS=$OLD_IFS
 

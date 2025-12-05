@@ -7,13 +7,12 @@ echo
 
 Q=""
 case "$QUERY_STRING" in
-  q=*) Q=${QUERY_STRING#q=} ;;
-  *) Q="" ;;
+	q=*) Q=${QUERY_STRING#q=} ;;
+	*) Q="" ;;
 esac
 
 if [ -n "$Q" ]; then
-  prudyntctl snapshot -c 0 -q "$Q"
+	prudyntctl snapshot -c 0 -q "$Q"
 else
-  prudyntctl snapshot -c 0
+	prudyntctl snapshot -c 0
 fi
-

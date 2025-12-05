@@ -2,4 +2,3 @@
 PRUDYNTCTL=${PRUDYNTCTL:-/bin/prudyntctl}
 printf "Content-Type: text/plain\r\n\r\n"
 exec "$PRUDYNTCTL" metrics
-

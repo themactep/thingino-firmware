@@ -16,200 +16,200 @@ FFMPEG_PID="/tmp/ffmpeg-stream.pid"
 
 # Check if binaries exist
 check_binaries() {
-    if [ ! -f "$RTSP_SERVER" ]; then
-        echo_error "RTSP server not found: $RTSP_SERVER"
-        return 1
-    fi
-    
-    if [ ! -f "$FFMPEG_BIN" ]; then
-        echo_error "FFmpeg not found: $FFMPEG_BIN"
-        return 1
-    fi
-    
-    return 0
+	if [ ! -f "$RTSP_SERVER" ]; then
+		echo_error "RTSP server not found: $RTSP_SERVER"
+		return 1
+	fi
+
+	if [ ! -f "$FFMPEG_BIN" ]; then
+		echo_error "FFmpeg not found: $FFMPEG_BIN"
+		return 1
+	fi
+
+	return 0
 }
 
 # Start RTSP server
 start_rtsp_server() {
-    echo_info "Starting RTSP server on port $RTSP_PORT"
+	echo_info "Starting RTSP server on port $RTSP_PORT"
 
-    # Start server in daemon mode
-    $RTSP_SERVER -p $RTSP_PORT -u $RTSP_USER -P $RTSP_PASS -d
+	# Start server in daemon mode
+	$RTSP_SERVER -p $RTSP_PORT -u $RTSP_USER -P $RTSP_PASS -d
 
-    # Wait a moment for server to start
-    sleep 3
+	# Wait a moment for server to start
+	sleep 3
 
-    # Check if server is listening on the port
-    if netstat -tln | grep -q ":$RTSP_PORT "; then
-        # Find the actual PID
-        RTSP_SERVER_PID=$(pidof thingino-rtsp-server)
-        if [ -n "$RTSP_SERVER_PID" ]; then
-            echo $RTSP_SERVER_PID > "$RTSP_PID"
-            echo_info "RTSP server started (PID: $RTSP_SERVER_PID)"
-            return 0
-        fi
-    fi
+	# Check if server is listening on the port
+	if netstat -tln | grep -q ":$RTSP_PORT "; then
+		# Find the actual PID
+		RTSP_SERVER_PID=$(pidof thingino-rtsp-server)
+		if [ -n "$RTSP_SERVER_PID" ]; then
+			echo $RTSP_SERVER_PID > "$RTSP_PID"
+			echo_info "RTSP server started (PID: $RTSP_SERVER_PID)"
+			return 0
+		fi
+	fi
 
-    echo_error "Failed to start RTSP server"
-    return 1
+	echo_error "Failed to start RTSP server"
+	return 1
 }
 
 # Stop RTSP server
 stop_rtsp_server() {
-    if [ -f "$RTSP_PID" ]; then
-        RTSP_SERVER_PID=$(cat "$RTSP_PID")
-        if [ -n "$RTSP_SERVER_PID" ] && kill -0 "$RTSP_SERVER_PID" 2>/dev/null; then
-            echo_info "Stopping RTSP server (PID: $RTSP_SERVER_PID)"
-            kill "$RTSP_SERVER_PID"
-            sleep 1
-            kill -9 "$RTSP_SERVER_PID" 2>/dev/null
-        fi
-        rm -f "$RTSP_PID"
-    fi
+	if [ -f "$RTSP_PID" ]; then
+		RTSP_SERVER_PID=$(cat "$RTSP_PID")
+		if [ -n "$RTSP_SERVER_PID" ] && kill -0 "$RTSP_SERVER_PID" 2>/dev/null; then
+			echo_info "Stopping RTSP server (PID: $RTSP_SERVER_PID)"
+			kill "$RTSP_SERVER_PID"
+			sleep 1
+			kill -9 "$RTSP_SERVER_PID" 2>/dev/null
+		fi
+		rm -f "$RTSP_PID"
+	fi
 }
 
 # Start FFmpeg streaming
 start_ffmpeg_stream() {
-    # Check if we should use camera or test pattern
-    if [ -c "/dev/video0" ]; then
-        echo_info "Starting FFmpeg camera stream from /dev/video0"
+	# Check if we should use camera or test pattern
+	if [ -c "/dev/video0" ]; then
+		echo_info "Starting FFmpeg camera stream from /dev/video0"
 
-        # Stream from camera device
-        $FFMPEG_BIN -f v4l2 -i /dev/video0 \
-            -c:v rawvideo -f rtsp \
-            rtsp://127.0.0.1:$RTSP_PORT/ch0 \
-            >/dev/null 2>&1 &
-    else
-        echo_info "Starting FFmpeg test pattern stream (no camera found)"
+		# Stream from camera device
+		$FFMPEG_BIN -f v4l2 -i /dev/video0 \
+			-c:v rawvideo -f rtsp \
+			rtsp://127.0.0.1:$RTSP_PORT/ch0 \
+			>/dev/null 2>&1 &
+	else
+		echo_info "Starting FFmpeg test pattern stream (no camera found)"
 
-        # Fallback to test pattern
-        $FFMPEG_BIN -f lavfi -i testsrc=size=640x360:rate=25 \
-            -c:v rawvideo -f rtsp \
-            rtsp://127.0.0.1:$RTSP_PORT/ch0 \
-            >/dev/null 2>&1 &
-    fi
-    
-    FFMPEG_STREAM_PID=$!
-    echo $FFMPEG_STREAM_PID > "$FFMPEG_PID"
-    
-    if kill -0 $FFMPEG_STREAM_PID 2>/dev/null; then
-        echo_info "FFmpeg stream started (PID: $FFMPEG_STREAM_PID)"
-        return 0
-    else
-        echo_error "Failed to start FFmpeg stream"
-        return 1
-    fi
+		# Fallback to test pattern
+		$FFMPEG_BIN -f lavfi -i testsrc=size=640x360:rate=25 \
+			-c:v rawvideo -f rtsp \
+			rtsp://127.0.0.1:$RTSP_PORT/ch0 \
+			>/dev/null 2>&1 &
+	fi
+
+	FFMPEG_STREAM_PID=$!
+	echo $FFMPEG_STREAM_PID > "$FFMPEG_PID"
+
+	if kill -0 $FFMPEG_STREAM_PID 2>/dev/null; then
+		echo_info "FFmpeg stream started (PID: $FFMPEG_STREAM_PID)"
+		return 0
+	else
+		echo_error "Failed to start FFmpeg stream"
+		return 1
+	fi
 }
 
 # Stop FFmpeg streaming
 stop_ffmpeg_stream() {
-    if [ -f "$FFMPEG_PID" ]; then
-        FFMPEG_STREAM_PID=$(cat "$FFMPEG_PID")
-        if [ -n "$FFMPEG_STREAM_PID" ] && kill -0 "$FFMPEG_STREAM_PID" 2>/dev/null; then
-            echo_info "Stopping FFmpeg stream (PID: $FFMPEG_STREAM_PID)"
-            kill "$FFMPEG_STREAM_PID"
-            sleep 1
-            kill -9 "$FFMPEG_STREAM_PID" 2>/dev/null
-        fi
-        rm -f "$FFMPEG_PID"
-    fi
+	if [ -f "$FFMPEG_PID" ]; then
+		FFMPEG_STREAM_PID=$(cat "$FFMPEG_PID")
+		if [ -n "$FFMPEG_STREAM_PID" ] && kill -0 "$FFMPEG_STREAM_PID" 2>/dev/null; then
+			echo_info "Stopping FFmpeg stream (PID: $FFMPEG_STREAM_PID)"
+			kill "$FFMPEG_STREAM_PID"
+			sleep 1
+			kill -9 "$FFMPEG_STREAM_PID" 2>/dev/null
+		fi
+		rm -f "$FFMPEG_PID"
+	fi
 }
 
 # Start streaming service
 start_streaming() {
-    echo_title "Starting Thingino Streaming (Pure C)"
+	echo_title "Starting Thingino Streaming (Pure C)"
 
-    if ! check_binaries; then
-        return 1
-    fi
+	if ! check_binaries; then
+		return 1
+	fi
 
-    # Stop prudynt if it's running (to free up resources)
-    if pidof prudynt >/dev/null; then
-        echo_info "Stopping prudynt to free up resources..."
-        killall prudynt 2>/dev/null || true
-        sleep 2
-    fi
+	# Stop prudynt if it's running (to free up resources)
+	if pidof prudynt >/dev/null; then
+		echo_info "Stopping prudynt to free up resources..."
+		killall prudynt 2>/dev/null || true
+		sleep 2
+	fi
 
-    # Start RTSP server first
-    if ! start_rtsp_server; then
-        return 1
-    fi
-    
-    # Start FFmpeg streaming
-    if ! start_ffmpeg_stream; then
-        stop_rtsp_server
-        return 1
-    fi
-    
-    echo_info "Streaming service started successfully"
-    echo_info "RTSP URLs:"
-    echo_info "  rtsp://$RTSP_USER:$RTSP_PASS@$(hostname -i):$RTSP_PORT/ch0"
-    echo_info "  rtsp://$(hostname -i):$RTSP_PORT/ch0"
+	# Start RTSP server first
+	if ! start_rtsp_server; then
+		return 1
+	fi
+
+	# Start FFmpeg streaming
+	if ! start_ffmpeg_stream; then
+		stop_rtsp_server
+		return 1
+	fi
+
+	echo_info "Streaming service started successfully"
+	echo_info "RTSP URLs:"
+	echo_info "  rtsp://$RTSP_USER:$RTSP_PASS@$(hostname -i):$RTSP_PORT/ch0"
+	echo_info "  rtsp://$(hostname -i):$RTSP_PORT/ch0"
 }
 
 # Stop streaming service
 stop_streaming() {
-    echo_title "Stopping Thingino Streaming"
-    
-    stop_ffmpeg_stream
-    stop_rtsp_server
-    
-    echo_info "Streaming service stopped"
+	echo_title "Stopping Thingino Streaming"
+
+	stop_ffmpeg_stream
+	stop_rtsp_server
+
+	echo_info "Streaming service stopped"
 }
 
 # Show status
 show_status() {
-    echo_title "Thingino Streaming Status"
-    
-    if [ -f "$RTSP_PID" ]; then
-        RTSP_SERVER_PID=$(cat "$RTSP_PID")
-        if kill -0 "$RTSP_SERVER_PID" 2>/dev/null; then
-            echo_info "RTSP server: RUNNING (PID: $RTSP_SERVER_PID)"
-        else
-            echo_warning "RTSP server: STOPPED (stale PID file)"
-        fi
-    else
-        echo_warning "RTSP server: STOPPED"
-    fi
-    
-    if [ -f "$FFMPEG_PID" ]; then
-        FFMPEG_STREAM_PID=$(cat "$FFMPEG_PID")
-        if kill -0 "$FFMPEG_STREAM_PID" 2>/dev/null; then
-            echo_info "FFmpeg stream: RUNNING (PID: $FFMPEG_STREAM_PID)"
-        else
-            echo_warning "FFmpeg stream: STOPPED (stale PID file)"
-        fi
-    else
-        echo_warning "FFmpeg stream: STOPPED"
-    fi
-    
-    echo_info "RTSP URLs:"
-    echo_info "  rtsp://$RTSP_USER:$RTSP_PASS@$(hostname -i):$RTSP_PORT/ch0"
+	echo_title "Thingino Streaming Status"
+
+	if [ -f "$RTSP_PID" ]; then
+		RTSP_SERVER_PID=$(cat "$RTSP_PID")
+		if kill -0 "$RTSP_SERVER_PID" 2>/dev/null; then
+			echo_info "RTSP server: RUNNING (PID: $RTSP_SERVER_PID)"
+		else
+			echo_warning "RTSP server: STOPPED (stale PID file)"
+		fi
+	else
+		echo_warning "RTSP server: STOPPED"
+	fi
+
+	if [ -f "$FFMPEG_PID" ]; then
+		FFMPEG_STREAM_PID=$(cat "$FFMPEG_PID")
+		if kill -0 "$FFMPEG_STREAM_PID" 2>/dev/null; then
+			echo_info "FFmpeg stream: RUNNING (PID: $FFMPEG_STREAM_PID)"
+		else
+			echo_warning "FFmpeg stream: STOPPED (stale PID file)"
+		fi
+	else
+		echo_warning "FFmpeg stream: STOPPED"
+	fi
+
+	echo_info "RTSP URLs:"
+	echo_info "  rtsp://$RTSP_USER:$RTSP_PASS@$(hostname -i):$RTSP_PORT/ch0"
 }
 
 # Main command handling
 case "$1" in
-    start)
-        start_streaming
-        ;;
-    stop)
-        stop_streaming
-        ;;
-    restart)
-        stop_streaming
-        sleep 2
-        start_streaming
-        ;;
-    status)
-        show_status
-        ;;
-    *)
-        echo "Usage: $0 {start|stop|restart|status}"
-        echo ""
-        echo "Thingino streaming service using pure C RTSP server"
-        echo "Eliminates C++ dependencies from the streaming pipeline"
-        exit 1
-        ;;
-esac
+	start)
+		start_streaming
+		;;
+	stop)
+		stop_streaming
+		;;
+	restart)
+		stop_streaming
+		sleep 2
+		start_streaming
+		;;
+	status)
+		show_status
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|status}"
+		echo ""
+		echo "Thingino streaming service using pure C RTSP server"
+		echo "Eliminates C++ dependencies from the streaming pipeline"
+		exit 1
+		;;
+	esac
 
 exit 0
