@@ -16,7 +16,6 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_DROPBEAR_SMALL if BR2_PACKAGE_DROPBEAR
 	select BR2_PACKAGE_DROPBEAR_DISABLE_REVERSEDNS if BR2_PACKAGE_DROPBEAR
 	select BR2_PACKAGE_EXFAT_NOFUSE if BR2_THINGINO_SDCARD
-	select BR2_PACKAGE_INGENIC_AUDIODAEMON if BR2_THINGINO_AUDIO
 	select BR2_PACKAGE_INGENIC_DIAG_TOOLS
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
@@ -83,6 +82,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-nimble/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-portal/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-portal-lua/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-provision/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-prusa-connect/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sounds/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-system/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sysupgrade/Config.in"
@@ -100,16 +100,21 @@ menuconfig BR2_THINGINO_STREAMER_PACKAGES
 
 if BR2_THINGINO_STREAMER_PACKAGES
 source "$BR2_EXTERNAL_THINGINO_PATH/package/faac/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/libhelix-aac/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/libhelix-mp3/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/libflac/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/go2rtc/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-audiodaemon/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-libimp-control/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/libjuice/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/libdatachannel/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/usrsctp/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/prudynt-t/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/prudynt-t-legacy/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/raptor-ipc/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ffmpeg/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-fonts/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-live555/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-opus/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-streamer/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-v4l2loopback/Config.in"
 endif
@@ -208,12 +213,12 @@ config BR2_PACKAGE_SELECT_VALGRIND
 	  Tool for debugging and profiling Linux programs.
 
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-rt-tests/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-developer/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-devscripts/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/gadget-serial/Config.in"
 
 config BR2_THINGINO_DEV_EXPERIMENTAL
 	bool "Enable experimental items in menuconfig"
-	default n
 	help
 	  Enables experimental options hidden in menuconfig. These features may be unstable, have unexpected behavior, or be non-functional. For developers only.
 endif
