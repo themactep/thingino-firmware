@@ -23,8 +23,8 @@ define MBEDTLS_CERTGEN_BUILD_CMDS
 endef
 
 define MBEDTLS_CERTGEN_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0755 $(@D)/mbedtls-certgen $(TARGET_DIR)/usr/bin/mbedtls-certgen-native
-	$(INSTALL) -D -m 0755 $(@D)/mbedtls-certgen.sh $(TARGET_DIR)/usr/bin/mbedtls-certgen
+	$(INSTALL) -D -m 0755 $(@D)/mbedtls-certgen \
+		$(TARGET_DIR)/usr/bin/mbedtls-certgen
 endef
 
 $(eval $(generic-package))
