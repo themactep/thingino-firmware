@@ -6,17 +6,9 @@ THINGINO_ONVIF_VERSION = 44296bad9a1146b343cf75938c413120d6089eb1
 THINGINO_ONVIF_LICENSE = MIT
 THINGINO_ONVIF_LICENSE_FILES = LICENSE
 
-THINGINO_ONVIF_DEPENDENCIES += thingino-jct thingino-mxml
+THINGINO_ONVIF_DEPENDENCIES += thingino-jct thingino-mxml mbedtls
 
-ifeq ($(BR2_PACKAGE_MBEDTLS),y)
-THINGINO_ONVIF_DEPENDENCIES += mbedtls
 MAKE_OPTS += HAVE_MBEDTLS=y
-else ifeq ($(BR2_PACKAGE_THINGINO_WOLFSSL),y)
-THINGINO_ONVIF_DEPENDENCIES += thingino-wolfssl
-MAKE_OPTS += HAVE_WOLFSSL=y
-else
-THINGINO_ONVIF_DEPENDENCIES += libtomcrypt
-endif
 
 # username | uid | group | gid | password | home | shell | groups | comment
 define THINGINO_ONVIF_USERS
