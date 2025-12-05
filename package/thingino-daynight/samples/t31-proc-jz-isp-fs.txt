@@ -1,0 +1,43 @@
+root@ing-wyze-cam3-556c ~# cat /proc/jz/isp/isp-fs
+############## framesource 0 ###############
+chan status: running
+output pixformat: NV12
+output resolution: 1920 * 1080
+scaler : disable
+crop : disable
+the state of buffers:
+queue count: 3
+queue addr: 0x076d3000
+queue addr: 0x079d0000
+queue addr: 0x070d9000
+done count: 0
+the output buffers is: 0
+the losted buffers is: 0
+ch0_pre_dequeue_drop is: 0
+ch0_pre_dequeue_intc_ahead_cnt is: 0
+pdq cnt: 0, pdq intc cnt:0, pdq intc cnt1:0
+---------------------------
+buf:0, state:3, buf_state:30, buf_qcnt:2796, buf_dqcnt:2795
+buf:1, state:0, buf_state:102, buf_qcnt:2795, buf_dqcnt:2795
+buf:2, state:3, buf_state:30, buf_qcnt:2795, buf_dqcnt:2794
+buf:3, state:3, buf_state:30, buf_qcnt:2795, buf_dqcnt:2794
+############## framesource 1 ###############
+chan status: running
+output pixformat: NV12
+output resolution: 640 * 360
+scaler : enable
+scaler width: 640
+scaler height: 360
+crop : disable
+the state of buffers:
+queue count: 2
+queue addr: 0x07e07100
+queue addr: 0x07e5d500
+done count: 0
+the output buffers is: 0
+the losted buffers is: 0
+---------------------------
+buf:0, state:3, buf_state:30, buf_qcnt:5590, buf_dqcnt:5589
+buf:1, state:3, buf_state:30, buf_qcnt:5590, buf_dqcnt:5589
+############## framesource 2 ###############
+chan status: stop
