@@ -10,19 +10,11 @@ MOTION="/run/motion"
 ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
 [ -f $ONVIF_WEBUI_CONF ] && . $ONVIF_WEBUI_CONF
 
-# default to "enabled" (config is managed by S96onvif_discovery)
-[ -z "$onvif_enabled" ] && onvif_enabled="true"
-
 start() {
 	echo_title "Starting ONVIF Notify service"
 
 	if is_streamer_disabled; then
 		echo_error "Streamer disabled"
-		exit 1
-	fi
-
-	if [ "true" != "$onvif_enabled" ]; then
-		echo_error "ONVIF disabled"
 		exit 1
 	fi
 

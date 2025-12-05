@@ -1,7 +1,7 @@
 THINGINO_ONVIF_SITE_METHOD = git
 THINGINO_ONVIF_SITE = https://github.com/themactep/thingino-onvif
 THINGINO_ONVIF_SITE_BRANCH = master
-THINGINO_ONVIF_VERSION = 44296bad9a1146b343cf75938c413120d6089eb1
+THINGINO_ONVIF_VERSION = bc69abce40fe1d750ba96223e30a1682a0d3f858
 
 THINGINO_ONVIF_LICENSE = MIT
 THINGINO_ONVIF_LICENSE_FILES = LICENSE
@@ -38,6 +38,10 @@ define THINGINO_ONVIF_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/generic_files \
 		$(@D)/res/generic_files/*
 
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/imaging_service_files
+	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/imaging_service_files \
+		$(@D)/res/imaging_service_files/*
+
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var/www/onvif/media_service_files
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/var/www/onvif/media_service_files \
 		$(@D)/res/media_service_files/*
@@ -59,13 +63,14 @@ define THINGINO_ONVIF_INSTALL_TARGET_CMDS
 		$(@D)/res/wsd_files/*
 
 	$(INSTALL) -D -m 0755 $(@D)/onvif_simple_server \
-		$(TARGET_DIR)/usr/sbin/onvif.cgi
-	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/device_service
-	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/deviceio_service
-	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/events_service
-	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/media_service
-	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/media2_service
-	ln -sf /usr/sbin/onvif.cgi $(TARGET_DIR)/var/www/onvif/ptz_service
+		$(TARGET_DIR)/var/www/onvif/onvif.cgi
+	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/device_service
+	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/deviceio_service
+	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/events_service
+	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/imaging_service
+	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/media_service
+	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/media2_service
+	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/ptz_service
 
 	ln -sf /var/www/x/image.cgi $(TARGET_DIR)/var/www/onvif/image.cgi
 
