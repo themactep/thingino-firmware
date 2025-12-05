@@ -1,0 +1,12 @@
+config BR2_PACKAGE_ESP_MICROSPEECH_FEATURES
+	bool "esp-microspeech-features"
+	select BR2_PACKAGE_INGENIC_TFLITE_MICRO
+	help
+	  ESPMicroSpeechFeatures - TensorFlow Lite Micro spectrogram feature
+	  generation library for audio processing.
+
+	  A fork of the TensorFlow Lite Micro's Microfrontend optimized for
+	  wake word detection. Generates spectrogram features from raw audio
+	  samples suitable for TFLite Micro inference.
+
+	  https://github.com/kahrendt/ESPMicroSpeechFeatures
