@@ -6,7 +6,7 @@ config BR2_PACKAGE_THINGINO_SOUNDS
 if BR2_PACKAGE_THINGINO_SOUNDS
 
 config BR2_PACKAGE_THINGINO_SOUNDS_STARTUP
-	bool "Install startup sound (thingino.pcm)"
+	bool "Install startup sound"
 	help
 	  Install the Thingino startup sound file.
 	  This sound is played when the device boots up.

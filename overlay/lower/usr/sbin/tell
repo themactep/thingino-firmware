@@ -23,6 +23,8 @@ case "$1" in
 		phrase="$*" ;;
 esac
 
-$CURL --silent --get --url https://thingino.com/say --data-urlencode q="$phrase" | iac -s
+tmpfile="$(mktemp -u).opus"
+$CURL --silent --get --url https://thingino.com/say2 --data-urlencode q="$phrase" -o $tmpfile
+play $tmpfile && rm $tmpfile
 
 exit 0

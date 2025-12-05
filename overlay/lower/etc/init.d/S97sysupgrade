@@ -8,7 +8,7 @@ start() {
 	if [ "true" != "$sysupgrade_complete" ]; then
 		echo_info "Mark sysupgrade complete"
 		fw_setenv sysupgrade_complete true
-		# play_sound thingino.pcm
+		play /usr/share/sounds/thingino.opus
 	fi
 }
 

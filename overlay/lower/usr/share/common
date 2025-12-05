@@ -253,10 +253,6 @@ log() {
 	logger -p daemon.info -t ${DAEMON_SHORT}[$$] <&0
 }
 
-play_sound() {
-	iac -f /usr/share/sounds/$1
-}
-
 print_release() {
 	if [ ! -f "$OS_RELEASE_FILE" ]; then
 		echo_warning "$OS_RELEASE_FILE not found"

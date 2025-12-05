@@ -1,0 +1,99 @@
+#!/bin/sh
+set -eu
+
+FIFO="/run/prudynt/audio_out"
+
+usage() {
+    cat <<'EOF'
+Usage: play [-v volume] [-g gain] [-r rate] [-f format] [-l loop] [-d delay_ms] [-A] [-s] [path|-]
+
+Wraps Prudynt's audio FIFO so you can enqueue PLAY commands without manually
+crafting the control line.
+
+Options:
+    -v volume   Set volume (0-100)
+    -g gain     Set gain (0-31)
+    -r rate     Override sample rate in Hz
+    -f format   Force decoder (pcm|wav|aac|opus|mp3|flac)
+    -l loop     Repeat playback N times (max 32)
+    -d delay_ms Pause this many milliseconds between loops (max 5000)
+    -A          Append without clearing the queue (append=1)
+    -s          Read audio data from stdin (spooled to /tmp before playback)
+    -h          Show this help
+
+Examples:
+    play /usr/share/sounds/th-chime_1.opus
+    play -v 80 -g 20 -l 3 -d 300 /usr/share/sounds/th-chime_2.opus
+    curl ... | play -s -f aac
+EOF
+}
+
+VOL=""
+GAIN=""
+RATE=""
+FORMAT=""
+LOOP=""
+DELAY=""
+APPEND=0
+READ_STDIN=0
+TMP_FILE=""
+
+cleanup() {
+    if [ -n "$TMP_FILE" ] && [ -f "$TMP_FILE" ]; then
+        rm -f "$TMP_FILE"
+    fi
+}
+
+trap cleanup INT TERM EXIT
+
+while getopts "v:g:r:f:l:d:Ash" opt; do
+    case "$opt" in
+        v) VOL=$OPTARG ;;
+        g) GAIN=$OPTARG ;;
+        r) RATE=$OPTARG ;;
+        f) FORMAT=$OPTARG ;;
+        l) LOOP=$OPTARG ;;
+        d) DELAY=$OPTARG ;;
+        A) APPEND=1 ;;
+        s) READ_STDIN=1 ;;
+        h) usage; exit 0 ;;
+        *) usage >&2; exit 1 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+PATH_ARG=${1:-}
+
+if [ "$READ_STDIN" -eq 1 ] || [ "$PATH_ARG" = "-" ]; then
+    TMP_FILE=$(mktemp /tmp/play-stdin.XXXXXX)
+    if ! cat > "$TMP_FILE"; then
+        echo "play: failed to capture stdin" >&2
+        exit 1
+    fi
+    PATH_ARG=$TMP_FILE
+elif [ -z "$PATH_ARG" ]; then
+    usage >&2
+    exit 1
+fi
+
+if [ ! -e "$PATH_ARG" ]; then
+    echo "play: '$PATH_ARG' not found" >&2
+    exit 1
+fi
+
+if [ ! -p "$FIFO" ]; then
+    echo "play: Prudynt audio FIFO ($FIFO) is unavailable" >&2
+    exit 1
+fi
+
+CMD="PLAY $PATH_ARG"
+[ -n "$VOL" ] && CMD="$CMD vol=$VOL"
+[ -n "$GAIN" ] && CMD="$CMD gain=$GAIN"
+[ -n "$RATE" ] && CMD="$CMD rate=$RATE"
+[ -n "$FORMAT" ] && CMD="$CMD format=$FORMAT"
+[ -n "$LOOP" ] && CMD="$CMD loop=$LOOP"
+[ -n "$DELAY" ] && CMD="$CMD delay=$DELAY"
+[ "$APPEND" -eq 1 ] && CMD="$CMD append=1"
+
+printf '%s\n' "$CMD" > "$FIFO"
+echo "Queued: $CMD"
