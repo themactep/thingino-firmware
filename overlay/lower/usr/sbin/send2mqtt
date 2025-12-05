@@ -79,30 +79,40 @@ if [ -n "$mqtt_password" ]; then
 	command="$command -P $mqtt_password"
 fi
 
-if [ "true" = "$mqtt_send_snap" ]; then
-	photo=$(copy_photo)
-	command="$command -t $mqtt_snap_topic -f '$photo'"
+mqtt_failed=0
+
+if [ "true" = "$mqtt_is_json" ]; then
+	tmpfile=$(mktemp)
+	echo "$mqtt_message" > $tmpfile
+	send_command="$command -t $mqtt_topic -f $tmpfile"
+	garbage="$garbage $tmpfile"
 else
-	if [ "true" = "$mqtt_is_json" ]; then
-		tmpfile=$(mktemp)
-		echo "$mqtt_message" > $tmpfile
-		command="$command -t $mqtt_topic -f $tmpfile"
-		garbage="$garbage $tmpfile"
-	else
-		command="$command -t $mqtt_topic -m '$mqtt_message'"
-	fi
+	send_command="$command -t $mqtt_topic -m '$mqtt_message'"
 fi
 
 if [ "true" = "$verbose" ]; then
-	echo_command "$command"
+	echo_command "$send_command"
 fi
 
-if ! sh -c "$command"; then
+if ! sh -c "$send_command"; then
 	echo_error "Failed to send MQTT message"
-	cleanup
-	exit 1
+	mqtt_failed=1
+fi
+
+if [ "true" = "$mqtt_send_snap" ]; then
+	photo=$(copy_photo)
+	send_command="$command -t $mqtt_snap_topic -f '$photo'"
+
+	if [ "true" = "$verbose" ]; then
+		echo_command "$send_command"
+	fi
+
+	if ! sh -c "$send_command"; then
+		echo_error "Failed to send snapshot via MQTT"
+		mqtt_failed=1
+	fi
 fi
 
 cleanup
 
-exit 0
+exit $mqtt_failed
