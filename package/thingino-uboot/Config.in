@@ -344,6 +344,22 @@ config BR2_PACKAGE_THINGINO_UBOOT_USE_BINMAN
 
 	  https://docs.u-boot.org/en/v2025.07/develop/package/binman.html
 
+config BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE
+	bool
+
+config BR2_PACKAGE_THINGINO_UBOOT_PHY_RESET_AFTER_CONFIG
+	bool "Reset PHY after being Configured"
+
+config BR2_PACKAGE_THINGINO_UBOOT_GPIO_PHY_RESET
+	int "GPIO to toggle for PHY Reset"
+	default -1
+	depends on BR2_PACKAGE_THINGINO_UBOOT_PHY_RESET_AFTER_CONFIG
+
+config BR2_PACKAGE_THINGINO_UBOOT_GPIO_PHY_RESET_ENLEVEL
+	int "0 for active low reset signal or 1 for active high"
+	default 0
+	depends on BR2_PACKAGE_THINGINO_UBOOT_PHY_RESET_AFTER_CONFIG
+
 menu "U-Boot binary format"
 
 config BR2_PACKAGE_THINGINO_UBOOT_FORMAT_AIS
