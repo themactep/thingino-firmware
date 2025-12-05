@@ -239,6 +239,7 @@ update:
 	@echo "=== UPDATING SUBMODULES ==="
 	git submodule init
 	git submodule update
+	@$(FIGLET) "$(GIT_BRANCH)"
 
 # install what's needed
 bootstrap:
