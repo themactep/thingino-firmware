@@ -24,7 +24,7 @@ Where:
 	exit 0
 }
 
-while getopts a:c:f:h:i:l:m:n:p:st:u:w:vh flag; do
+while getopts a:c:f:h:i:l:m:n:p:st:u:w:v flag; do
 	case "$flag" in
 		a) ntfy_attach=$OPTARG ;;
 		c) ntfy_click=$OPTARG ;;
@@ -45,12 +45,10 @@ done
 
 if [ -z "$ntfy_host" ]; then
 	ntfy_host="ntfy.sh"
-	#echo_warning "NFTY host is not set"
 fi
 
 if [ -z "$ntfy_port" ]; then
 	ntfy_port=80
-	#echo_error "NTFY port is not set"
 fi
 
 if [ -z "$ntfy_topic" ]; then
@@ -58,16 +56,8 @@ if [ -z "$ntfy_topic" ]; then
 	exit 1
 fi
 
-remove_ntfy_file="false"
-
-# Prepare snapshot as attachment
-if [ "true" = "$ntfy_send_snap" ]; then
-	ntfy_filename=$(mktemp -u).jpg
-	prudyntctl snapshot -c 0 > $ntfy_filename
-	remove_ntfy_file="true"
-fi
-
 command="$CURL -X POST -H p:${ntfy_priority:-3}"
+
 if [ "true" = "$verbose" ]; then
 	command="$command --verbose"
 else
@@ -91,9 +81,8 @@ if [ -n "$ntfy_username" ] && [ -n "$ntfy_password" ]; then
 fi
 
 if [ "true" = "$ntfy_send_snap" ]; then
-	attachment=$(mktemp -u).jpg
-	prudyntctl snapshot -c 0 > $attachment
-	command="$command -T $attachment -H 'Filename: $attachment'"
+	photo=$(copy_photo)
+	command="$command -T $photo -H 'Filename: $photo'"
 fi
 
 if [ -n "$ntfy_filename" ] && [ -f "$ntfy_filename" ]; then
@@ -135,13 +124,12 @@ if [ "true" = "$verbose" ]; then
 	echo_command "$command"
 fi
 
-if ! sh -c "$command"; then
+if ! sh -c "$command" >/dev/null; then
 	echo_error "Failed to send NTFY message"
+	cleanup
 	exit 1
 fi
 
-if [ "true" = "$remove_ntfy_file" ] && [ -f "$ntfy_filename" ]; then
-	rm "$ntfy_filename"
-fi
+cleanup
 
 exit 0

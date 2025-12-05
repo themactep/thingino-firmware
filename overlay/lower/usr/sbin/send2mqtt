@@ -66,6 +66,7 @@ fi
 mqtt_message=$(date +"$mqtt_message")
 
 command="mosquitto_pub -h $mqtt_host -p $mqtt_port -i $mqtt_client_id"
+
 if [ "true" = "$verbose" ]; then
 	command="$command -d"
 fi
@@ -84,11 +85,12 @@ if [ "true" = "$mqtt_is_json" ]; then
 	tmpfile=$(mktemp)
 	echo "$mqtt_message" > $tmpfile
 	send_command="$command -t $mqtt_topic -f $tmpfile"
+	garbage="$garbage $tmpfile"
 else
 	send_command="$command -t $mqtt_topic -m '$mqtt_message'"
 fi
 
-if [ "true" = "$verbosity" ]; then
+if [ "true" = "$verbose" ]; then
 	echo_command "$send_command"
 fi
 
@@ -98,28 +100,19 @@ if ! sh -c "$send_command"; then
 fi
 
 if [ "true" = "$mqtt_send_snap" ]; then
-	attachment=$(mktemp -u).jpg
-	prudyntctl snapshot -c 0 > $attachment
-	send_command="$command -t $mqtt_snap_topic -f \"$attachment\""
-	if [ "true" = "$verbosity" ]; then
+	photo=$(copy_photo)
+	send_command="$command -t $mqtt_snap_topic -f '$photo'"
+
+	if [ "true" = "$verbose" ]; then
 		echo_command "$send_command"
 	fi
+
 	if ! sh -c "$send_command"; then
 		echo_error "Failed to send snapshot via MQTT"
 		mqtt_failed=1
 	fi
 fi
 
-if [ -f "$tmpfile" ]; then
-	rm "$tmpfile"
-fi
+cleanup
 
-if [ -f "$attachment" ]; then
-	rm "$attachment"
-fi
-
-if [ $mqtt_failed -eq 1 ]; then
-	exit 1
-fi
-
-exit 0
+exit $mqtt_failed

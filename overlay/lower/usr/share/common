@@ -382,3 +382,43 @@ usage() {
 	echo "Usage: $0 $1" >&2
 	exit 1
 }
+
+# send2 scripts
+
+check_snapshot() {
+	if [ ! -f "$SNAPSHOT_FILE" ]; then
+		echo_error "Snapshot not found"
+		exit 1
+	fi
+}
+
+check_vbuffer() {
+	if [ ! -f "$VBUFFER_FILE" ]; then
+		echo_error "Video buffer not found"
+		cleanup
+		exit 1
+	fi
+}
+
+cleanup() {
+	for f in $garbage; do
+		[ -f "$f" ] && rm "$f"
+	done
+}
+
+copy_photo() {
+	check_snapshot
+	local tmpfile="$(mktemp -u).jpg"
+	cp -f "$SNAPSHOT_FILE" "$photo"
+	garbage="$garbage $tmpfile"
+	echo "$tmpfile"
+}
+
+copy_video() {
+	check_vbuffer
+	local tmpfile="$(mktemp -u).${VBUFFER_FILE##*.}"
+	cp -f "$VBUFFER_FILE" "$tmpfile"
+	garbage="$garbage $tmpfile"
+	echo "$tmpfile"
+}
+
