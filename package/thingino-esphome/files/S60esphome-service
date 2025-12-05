@@ -1,0 +1,135 @@
+#!/bin/sh
+
+DAEMON="esphome-linux"
+PIDFILE="/var/run/$DAEMON.pid"
+MDNS_SERVICE="/etc/mdns.d/esphome.service"
+
+. /usr/share/common
+
+get_mac_address() {
+	# Try to get MAC from primary interface
+	for iface in eth0 wlan0 ra0 br-lan; do
+		if [ -e "/sys/class/net/$iface/address" ]; then
+			cat "/sys/class/net/$iface/address" | tr -d ':' | tr '[:lower:]' '[:upper:]'
+			return 0
+		fi
+	done
+	echo "000000000000"
+}
+
+generate_mdns_service() {
+	local hostname=$(hostname)
+	local mac=$(get_mac_address)
+
+	cat > "$MDNS_SERVICE" <<EOF
+# ESPHome service definition for mdnsd (auto-generated)
+name $hostname
+type _esphomelib._tcp
+port 6053
+txt version=2025.1.0
+txt mac=$mac
+txt platform=thingino
+txt board=ingenic_mips
+txt network=ethernet
+txt friendly_name=$hostname
+EOF
+
+	echo_info "Generated mDNS service: $hostname (MAC: $mac)"
+}
+
+start() {
+	# Check if WiFi is configured
+	wlan_ssid=$(fw_printenv wlan_ssid 2>/dev/null | cut -d'=' -f2)
+
+	if [ -z "$wlan_ssid" ]; then
+		echo_info "WiFi not configured, skipping ESPHome service"
+		return 0
+	fi
+
+	echo_info "Starting ESPHome service"
+
+	# Check if already running
+	if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+		echo_warning "ESPHome service already running"
+		return 0
+	fi
+
+	# Generate mDNS service file
+	generate_mdns_service
+
+	# Restart mdnsd to pick up the new service
+	if [ -x /etc/init.d/S50mdnsd ]; then
+		/etc/init.d/S50mdnsd restart >/dev/null 2>&1
+	fi
+
+	# Start daemon
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x /usr/bin/$DAEMON \
+		&& echo_info "ESPHome service started" \
+		|| echo_error "Failed to start ESPHome service"
+}
+
+stop() {
+	echo_info "Stopping ESPHome service"
+
+	if [ ! -f "$PIDFILE" ]; then
+		echo_warning "ESPHome service not running"
+		return 0
+	fi
+
+	start-stop-daemon -K -p "$PIDFILE" -s TERM -q
+	sleep 1
+
+	# Force kill if still running
+	if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+		start-stop-daemon -K -p "$PIDFILE" -s KILL -q
+	fi
+
+	rm -f "$PIDFILE"
+
+	# Remove mDNS service file
+	rm -f "$MDNS_SERVICE"
+
+	# Restart mdnsd to remove the service
+	if [ -x /etc/init.d/S50mdnsd ]; then
+		/etc/init.d/S50mdnsd restart >/dev/null 2>&1
+	fi
+
+	echo_info "ESPHome service stopped"
+}
+
+restart() {
+	stop
+	sleep 1
+	start
+}
+
+status() {
+	if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+		echo_info "ESPHome service is running (PID: $(cat "$PIDFILE"))"
+		return 0
+	else
+		echo_warning "ESPHome service is not running"
+		return 1
+	fi
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		restart
+		;;
+	status)
+		status
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|status}"
+		exit 1
+		;;
+esac
+
+exit 0
