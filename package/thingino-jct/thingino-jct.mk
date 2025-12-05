@@ -10,7 +10,10 @@ THINGINO_JCT_LICENSE_FILES = LICENSE
 THINGINO_JCT_INSTALL_STAGING = YES
 
 define THINGINO_JCT_BUILD_CMDS
-	$(MAKE) CROSS_COMPILE=$(TARGET_CROSS) LDFLAGS="$(TARGET_LDFLAGS)" -C $(@D) lib jct
+	$(TARGET_MAKE_ENV) $(MAKE) \
+		CROSS_COMPILE=$(TARGET_CROSS) \
+		LDFLAGS="$(TARGET_LDFLAGS)" \
+		-C $(@D) lib jct
 endef
 
 define THINGINO_JCT_INSTALL_STAGING_CMDS
@@ -37,4 +40,18 @@ define THINGINO_JCT_INSTALL_TARGET_CMDS
 	ln -sf libjct.so.1.0.0 $(TARGET_DIR)/usr/lib/libjct.so
 endef
 
+define HOST_THINGINO_JCT_BUILD_CMDS
+	$(HOST_MAKE_ENV) $(MAKE) \
+		CC="$(HOSTCC)" \
+		LD="$(HOSTCC)" \
+		AR="$(HOSTAR)" \
+		RANLIB="$(HOSTRANLIB)" \
+		-C $(@D) lib jct
+endef
+
+define HOST_THINGINO_JCT_INSTALL_CMDS
+	$(INSTALL) -D -m 0755 $(@D)/jct $(HOST_DIR)/bin/jct
+endef
+
 $(eval $(generic-package))
+$(eval $(host-generic-package))
