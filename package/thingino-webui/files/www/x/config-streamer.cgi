@@ -54,7 +54,8 @@ default_for rtsp_password "thingino"
 <%in _header.cgi %>
 
 <nav class="navbar navbar-expand-lg mb-4 p-1">
-<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbStreamer" aria-controls="nbStreamer" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbStreamer"
+ aria-controls="nbStreamer" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
 <div class="collapse navbar-collapse" id="nbStreamer">
 <ul class="navbar-nav nav-underline" role="tablist">
 <li class="nav-item"><a href="#" data-bs-toggle="tab" data-bs-target="#tab1-pane" class="nav-link active" aria-current="page">Common</a></li>
@@ -282,6 +283,7 @@ default_for rtsp_password "thingino"
 <h1 class="modal-title fs-4" id="mdlFont">Upload font file</h1>
 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div><div class="modal-body text-center">
+
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4" enctype="multipart/form-data">
 <% field_file "fontfile" "Upload a TTF file" %>
 <% button_submit %></form>
