@@ -86,12 +86,13 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <p><img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Stream Preview"></p>
 
 <div class="d-flex flex-wrap align-content-around gap-1">
-<a class="btn btn-secondary" href="<%= $SCRIPT_NAME %>?do=restart">Restart streamer</a>
+<a class="btn btn-warning" href="<%= $SCRIPT_NAME %>?do=restart">Restart streamer</a>
 <button type="button" class="btn btn-secondary" id="save-prudynt-config">Save config</button>
 <a class="btn btn-secondary" href="tool-file-manager.cgi?dl=/etc/prudynt.json">Download config</a>
 </div>
 </div>
 <div class="col mb-3">
+
 <div class="tab-content" id="streamer-tabs">
 <div class="tab-pane fade show active" id="tab1-pane" role="tabpanel" aria-labelledby="tab1">
 <div class="mb-2 select" id="image_core_wb_mode_wrap">
@@ -272,6 +273,11 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 </div>
 </div>
 
+<div class="alert alert-danger mt-5">
+<p>If you made changes that messed up the settings, you can restore the original configuration and start from scratch.</p>
+<% button_restore_from_rom "/etc/prudynt.json" %>
+</div>
+
 <div class="modal fade" id="mdFont" tabindex="-1" aria-labelledby="mdlFont" aria-hidden="true">
 <div class="modal-dialog"><div class="modal-content"><div class="modal-header">
 <h1 class="modal-title fs-4" id="mdlFont">Upload font file</h1>
@@ -280,7 +286,8 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4" enctype="multipart/form-data">
 <% field_file "fontfile" "Upload a TTF file" %>
-<% button_submit %></form></div></div></div></div>
+<% button_submit %></form>
+</div></div></div></div>
 
 <%in _preview.cgi %>
 
