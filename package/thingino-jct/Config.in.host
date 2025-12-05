@@ -1,0 +1,7 @@
+config BR2_PACKAGE_HOST_THINGINO_JCT
+	bool "host thingino-jct"
+	help
+	  Host build of the JSON Configuration Tool (jct).
+	  Provides the `jct` CLI on the build host for editing
+	  Thingino configuration files or generating payloads
+	  during development workflows.
