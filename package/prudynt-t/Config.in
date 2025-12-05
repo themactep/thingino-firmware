@@ -32,8 +32,6 @@ config BR2_PACKAGE_PRUDYNT_T_FFMPEG
 config BR2_PACKAGE_PRUDYNT_T_DEBUG
 	bool "Enable debug build"
 	depends on BR2_PACKAGE_PRUDYNT_T
-	select BR2_PACKAGE_LIBHELIX_MP3
-	select BR2_PACKAGE_LIBFLAC
 	select BR2_PACKAGE_GDB
 	help
 	  Enable debug build of Prudynt-T with memory safety checking.

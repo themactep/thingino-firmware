@@ -4,10 +4,12 @@ PRUDYNT_T_SITE = https://github.com/themactep/prudynt-t
 PRUDYNT_T_SITE_BRANCH = stable
 PRUDYNT_T_VERSION = b743ba59c4cfcbcf703f930b954722c1fbc6bd88
 
+PRUDYNT_T_OVERRIDE_FILE = $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/prudynt-override.json
+
 PRUDYNT_T_GIT_SUBMODULES = YES
 
 PRUDYNT_T_DEPENDENCIES += ingenic-lib
-PRUDYNT_T_DEPENDENCIES += host-jq thingino-jct
+PRUDYNT_T_DEPENDENCIES += host-thingino-jct thingino-jct
 PRUDYNT_T_DEPENDENCIES += thingino-live555
 PRUDYNT_T_DEPENDENCIES += opus faac libhelix-aac libhelix-mp3 libflac
 PRUDYNT_T_DEPENDENCIES += libschrift
@@ -146,19 +148,14 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	# Copy the JSON configuration file to staging
 	cp $(@D)/res/prudynt.json $(STAGING_DIR)/prudynt.json
 
-	# Adjust buffer settings for low-memory devices
-	if [ "$(SOC_RAM)" -le "64" ]; then \
-		$(HOST_DIR)/bin/jq '.stream0.buffers = 1 | .stream1.buffers = 1' \
-			$(STAGING_DIR)/prudynt.json > $(STAGING_DIR)/prudynt.json.tmp && \
-		mv $(STAGING_DIR)/prudynt.json.tmp $(STAGING_DIR)/prudynt.json; \
-	fi
-
-	# Apply device-specific presets in staging
-	if [ -f "$(PRUDYNT_T_PKGDIR)/files/configs/${CAMERA}.json" ]; then \
-		$(HOST_DIR)/bin/jq -s '.[1] * .[0]' \
-			"$(PRUDYNT_T_PKGDIR)/files/configs/${CAMERA}.json" \
-			"$(STAGING_DIR)/prudynt.json" > "$(STAGING_DIR)/prudynt.json.tmp" && \
-		mv "$(STAGING_DIR)/prudynt.json.tmp" "$(STAGING_DIR)/prudynt.json"; \
+	# Apply optional camera override using host jct
+	if [ -f "$(PRUDYNT_T_OVERRIDE_FILE)" ]; then \
+		if [ ! -x "$(HOST_DIR)/bin/jct" ]; then \
+			echo "ERROR: host jct tool missing: $(HOST_DIR)/bin/jct"; \
+			exit 1; \
+		fi; \
+		echo "Applying Prudynt override from $(PRUDYNT_T_OVERRIDE_FILE)"; \
+		$(HOST_DIR)/bin/jct $(STAGING_DIR)/prudynt.json import "$(PRUDYNT_T_OVERRIDE_FILE)"; \
 	fi
 
 	# Install the final, modified JSON file from staging to target
