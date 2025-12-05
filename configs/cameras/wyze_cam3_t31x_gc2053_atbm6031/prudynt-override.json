@@ -1,0 +1,12 @@
+{
+  "audio": {
+    "input_high_pass_filter": true,
+    "input_agc_enabled": true,
+    "input_vol": 120,
+    "input_gain": 30,
+    "input_alc_gain": 7,
+    "input_agc_target_level_dbfs": 30,
+    "input_agc_compression_gain_db": 70,
+    "input_noise_suppression": 3
+  }
+}
