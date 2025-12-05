@@ -433,11 +433,11 @@ select-device:
 	$(info -------------------------------- $@)
 
 # call configurator
-menuconfig: $(OUTPUT_DIR)/.config
+menuconfig: check-config $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) menuconfig
 
-nconfig: $(OUTPUT_DIR)/.config
+nconfig: check-config $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) nconfig
 
@@ -624,6 +624,11 @@ $(CONFIG_PARTITION_DIR)/.keep:
 	$(info -------------------------------- $@)
 	test -d $(CONFIG_PARTITION_DIR) || mkdir -p $(CONFIG_PARTITION_DIR)
 	touch $@
+
+# generate a base Buildroot config when missing
+$(OUTPUT_DIR)/.config:
+	$(info -------------------------------- $@)
+	$(MAKE) force-config
 
 $(U_BOOT_ENV_TXT): $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
