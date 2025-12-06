@@ -12,7 +12,7 @@ LIBFLAC_SO_NAME = libflac-lite.so
 define LIBFLAC_BUILD_CMDS
 	$(foreach src,$(wildcard $(@D)/$(LIBFLAC_SRC_DIR)/*.c), \
 		$(TARGET_CC) $(TARGET_CFLAGS) -I$(@D)/$(LIBFLAC_SRC_DIR) -I$(LIBFLAC_PKGDIR)/arduino_compat -fPIC -DUSE_DEFAULT_STDLIB -c $(src) -o $(patsubst %.c, %.o, $(src));)
-	find $(@D)/$(LIBFLAC_SRC_DIR) -type f -name *.o | xargs $(TARGET_CC) $(TARGET_LDFLAGS) -shared -o $(@D)/$(LIBFLAC_SO_NAME)
+	find $(@D)/$(LIBFLAC_SRC_DIR) -type f -name '*.o' | xargs $(TARGET_CC) $(TARGET_LDFLAGS) -shared -o $(@D)/$(LIBFLAC_SO_NAME)
 endef
 
 define LIBFLAC_INSTALL_TARGET_CMDS

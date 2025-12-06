@@ -7,16 +7,11 @@
 #include <string.h>
 #include <pthread.h>
 #include <math.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 #include <sys/time.h>
 #include <unistd.h>
 
-// Audio output socket path (from thingino_media_player.h)
-#define AUDIO_OUTPUT_SOCKET_PATH "ingenic_audio_output"
-
 // Wake word chime sound file
-#define WAKE_WORD_CHIME_PATH "/usr/share/sounds/th-chime_3.pcm"
+#define WAKE_WORD_CHIME_PATH "/usr/share/sounds/th-chime_3.opus"
 
 // ESPMicroSpeechFeatures includes
 #include "include/frontend.h"
@@ -114,73 +109,16 @@ static uint64_t get_time_ms(void) {
 // =============================================================================
 
 static void play_wake_word_beep(void) {
-    // Open the chime PCM file
-    FILE *f = fopen(WAKE_WORD_CHIME_PATH, "rb");
-    if (!f) {
-        fprintf(stderr, "[WakeWord] Failed to open chime file: %s\n", WAKE_WORD_CHIME_PATH);
-        return;
+    // Use the 'play' command to play the chime file
+    char play_cmd[256];
+    snprintf(play_cmd, sizeof(play_cmd), "play %s", WAKE_WORD_CHIME_PATH);
+
+    printf("[WakeWord] Playing wake word chime: %s\n", play_cmd);
+
+    int ret = system(play_cmd);
+    if (ret != 0) {
+        fprintf(stderr, "[WakeWord] Failed to play chime (exit code: %d)\n", ret);
     }
-
-    // Get file size
-    fseek(f, 0, SEEK_END);
-    long file_size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    if (file_size <= 0) {
-        fprintf(stderr, "[WakeWord] Chime file is empty\n");
-        fclose(f);
-        return;
-    }
-
-    // Read the PCM data
-    uint8_t *pcm_data = (uint8_t *)malloc(file_size);
-    if (!pcm_data) {
-        fprintf(stderr, "[WakeWord] Failed to allocate memory for chime\n");
-        fclose(f);
-        return;
-    }
-
-    size_t bytes_read = fread(pcm_data, 1, file_size, f);
-    fclose(f);
-
-    if (bytes_read != (size_t)file_size) {
-        fprintf(stderr, "[WakeWord] Failed to read chime file\n");
-        free(pcm_data);
-        return;
-    }
-
-    // Connect to IAD audio output socket
-    int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        fprintf(stderr, "[WakeWord] Failed to create socket for chime\n");
-        free(pcm_data);
-        return;
-    }
-
-    struct sockaddr_un addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    // Abstract socket (leading null byte)
-    strncpy(&addr.sun_path[1], AUDIO_OUTPUT_SOCKET_PATH, sizeof(addr.sun_path) - 2);
-
-    if (connect(sockfd, (struct sockaddr*)&addr,
-                sizeof(sa_family_t) + strlen(&addr.sun_path[1]) + 1) == -1) {
-        fprintf(stderr, "[WakeWord] Failed to connect to audio output for chime\n");
-        close(sockfd);
-        free(pcm_data);
-        return;
-    }
-
-    // Write PCM data to audio output
-    ssize_t written = write(sockfd, pcm_data, bytes_read);
-    if (written < 0) {
-        fprintf(stderr, "[WakeWord] Failed to write chime to audio output\n");
-    } else {
-        printf("[WakeWord] Played wake word chime (%zu bytes)\n", bytes_read);
-    }
-
-    close(sockfd);
-    free(pcm_data);
 }
 
 // =============================================================================
@@ -1044,6 +982,97 @@ void wake_word_stop(void) {
     pthread_mutex_unlock(&g_wake_word_ctx.lock);
 
     printf("[WakeWord] Detection stopped\n");
+}
+
+void wake_word_suspend(void) {
+    pthread_mutex_lock(&g_wake_word_ctx.lock);
+
+    if (g_wake_word_ctx.state != WAKE_WORD_STATE_DETECTING) {
+        pthread_mutex_unlock(&g_wake_word_ctx.lock);
+        return;
+    }
+
+    g_wake_word_ctx.state = WAKE_WORD_STATE_STOPPING;
+    g_wake_word_ctx.detection_active = false;
+    pthread_mutex_unlock(&g_wake_word_ctx.lock);
+
+    // Do NOT stop audio input - just wait for detection thread to exit
+    // The audio input will continue running with whatever callback is set
+
+    // Wait for detection thread
+    pthread_join(g_wake_word_ctx.detection_thread, NULL);
+
+    pthread_mutex_lock(&g_wake_word_ctx.lock);
+    g_wake_word_ctx.state = WAKE_WORD_STATE_STOPPED;
+    pthread_mutex_unlock(&g_wake_word_ctx.lock);
+
+    printf("[WakeWord] Detection suspended (audio input still running)\n");
+}
+
+int wake_word_resume(void) {
+    pthread_mutex_lock(&g_wake_word_ctx.lock);
+
+    if (g_wake_word_ctx.state != WAKE_WORD_STATE_STOPPED) {
+        pthread_mutex_unlock(&g_wake_word_ctx.lock);
+        return -1;
+    }
+
+    g_wake_word_ctx.state = WAKE_WORD_STATE_STARTING;
+
+    // Reset detection state
+    g_wake_word_ctx.ring_buffer_write_pos = 0;
+    g_wake_word_ctx.ring_buffer_read_pos = 0;
+    g_wake_word_ctx.ring_buffer_available = 0;
+    memset(g_wake_word_ctx.ring_buffer, 0, sizeof(g_wake_word_ctx.ring_buffer));
+    memset(g_wake_word_ctx.probability_history, 0, sizeof(g_wake_word_ctx.probability_history));
+    g_wake_word_ctx.probability_history_pos = 0;
+    g_wake_word_ctx.max_probability = 0.0f;
+    g_wake_word_ctx.current_stride_step = 0;
+    g_wake_word_ctx.warmup_remaining = WAKE_WORD_WARMUP_INFERENCES;
+
+    // Zero the input tensor to clear any stale data
+    if (g_wake_word_ctx.input_tensor) {
+        int8_t *input_data = tflite::GetTensorData<int8_t>(g_wake_word_ctx.input_tensor);
+        if (input_data) {
+            memset(input_data, 0, g_wake_word_ctx.input_tensor->bytes);
+        }
+    }
+
+    // Reset resource variables (RNN/LSTM hidden state)
+    if (g_wake_word_ctx.resource_variables) {
+        g_wake_word_ctx.resource_variables->ResetAll();
+    }
+
+    // Reset frontend
+    FrontendReset(&g_wake_word_ctx.frontend_state);
+
+    g_wake_word_ctx.detection_active = true;
+    pthread_mutex_unlock(&g_wake_word_ctx.lock);
+
+    // Restore wake word audio callback (audio input should already be running)
+    media_player_set_audio_callback(audio_input_handler, NULL);
+
+    // Start detection thread with larger stack for TFLite
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, 256 * 1024);
+
+    if (pthread_create(&g_wake_word_ctx.detection_thread, &attr, detection_thread_func, NULL) != 0) {
+        pthread_attr_destroy(&attr);
+        pthread_mutex_lock(&g_wake_word_ctx.lock);
+        g_wake_word_ctx.state = WAKE_WORD_STATE_STOPPED;
+        g_wake_word_ctx.detection_active = false;
+        pthread_mutex_unlock(&g_wake_word_ctx.lock);
+        return -1;
+    }
+    pthread_attr_destroy(&attr);
+
+    pthread_mutex_lock(&g_wake_word_ctx.lock);
+    g_wake_word_ctx.state = WAKE_WORD_STATE_DETECTING;
+    pthread_mutex_unlock(&g_wake_word_ctx.lock);
+
+    printf("[WakeWord] Detection resumed\n");
+    return 0;
 }
 
 void wake_word_cleanup(void) {

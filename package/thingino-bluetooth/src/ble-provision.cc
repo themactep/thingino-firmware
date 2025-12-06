@@ -114,7 +114,7 @@ static std::string get_hostname() {
 static bool check_wifi_connected() {
     FILE* fp = popen("ip addr show wlan0 2>/dev/null | grep 'inet ' | awk '{print $2}'", "r");
     if (!fp) return false;
-    
+
     char line[256];
     bool has_ip = false;
     if (fgets(line, sizeof(line), fp) && strlen(line) > 3) {
@@ -128,7 +128,7 @@ static bool check_wifi_connected() {
 static bool check_provisioned() {
     FILE* fp = popen("fw_printenv wlan_ssid 2>/dev/null", "r");
     if (!fp) return false;
-    
+
     char line[256];
     bool has_ssid = false;
     if (fgets(line, sizeof(line), fp) && line[0] != '\0') {
@@ -288,7 +288,7 @@ static void handle_wifi_settings(const improv::ImprovCommand& cmd) {
 
 static void handle_identify() {
     log_printf("[IMPROV] Identify command received\n");
-    system("iac -f /usr/share/sounds/th-chime_1.pcm 2>/dev/null &");
+    system("play /usr/share/sounds/th-chime_1.pcm 2>/dev/null &");
     send_rpc_result(improv::IDENTIFY, {});
 }
 
@@ -429,7 +429,7 @@ static void handle_rpc_command(const std::vector<uint8_t>& data) {
  * GATT Characteristic Callbacks
  ******************************************************************************/
 
-static int current_state_cb(uint16_t conn_handle, ATTAccessOp op, uint16_t offset, 
+static int current_state_cb(uint16_t conn_handle, ATTAccessOp op, uint16_t offset,
                            std::vector<uint8_t>& data) {
     if (op == ATTAccessOp::READ_CHR) {
         data = {(uint8_t)g_current_state.load()};
@@ -438,7 +438,7 @@ static int current_state_cb(uint16_t conn_handle, ATTAccessOp op, uint16_t offse
     return BLE_ATT_ERR_READ_NOT_PERMITTED;
 }
 
-static int error_state_cb(uint16_t conn_handle, ATTAccessOp op, uint16_t offset, 
+static int error_state_cb(uint16_t conn_handle, ATTAccessOp op, uint16_t offset,
                          std::vector<uint8_t>& data) {
     if (op == ATTAccessOp::READ_CHR) {
         data = {(uint8_t)g_current_error.load()};
@@ -447,7 +447,7 @@ static int error_state_cb(uint16_t conn_handle, ATTAccessOp op, uint16_t offset,
     return BLE_ATT_ERR_READ_NOT_PERMITTED;
 }
 
-static int rpc_command_cb(uint16_t conn_handle, ATTAccessOp op, uint16_t offset, 
+static int rpc_command_cb(uint16_t conn_handle, ATTAccessOp op, uint16_t offset,
                          std::vector<uint8_t>& data) {
     if (op == ATTAccessOp::WRITE_CHR) {
         handle_rpc_command(data);
@@ -456,7 +456,7 @@ static int rpc_command_cb(uint16_t conn_handle, ATTAccessOp op, uint16_t offset,
     return BLE_ATT_ERR_WRITE_NOT_PERMITTED;
 }
 
-static int rpc_result_cb(uint16_t conn_handle, ATTAccessOp op, uint16_t offset, 
+static int rpc_result_cb(uint16_t conn_handle, ATTAccessOp op, uint16_t offset,
                         std::vector<uint8_t>& data) {
     if (op == ATTAccessOp::READ_CHR) {
         std::lock_guard<std::mutex> lock(g_rpc_result_mutex);
@@ -488,28 +488,28 @@ static GATTServiceDef create_improv_service() {
     UUID capabilities_uuid = UUID(improv::CAPABILITIES_UUID);
 
     GATTServiceDef service(GATTServiceType::PRIMARY, improv_service_uuid);
-    
+
     // Current State (Read + Notify)
-    auto& state_char = service.add_characteristic(current_state_uuid, 
+    auto& state_char = service.add_characteristic(current_state_uuid,
         GATT_CHR_F_READ | GATT_CHR_F_NOTIFY, current_state_cb);
     state_char.val_handle_ptr = &g_state_handle;
-    
+
     // Error State (Read + Notify)
-    auto& error_char = service.add_characteristic(error_state_uuid, 
+    auto& error_char = service.add_characteristic(error_state_uuid,
         GATT_CHR_F_READ | GATT_CHR_F_NOTIFY, error_state_cb);
     error_char.val_handle_ptr = &g_error_handle;
-    
+
     // RPC Command (Write only)
     service.add_characteristic(rpc_command_uuid, GATT_CHR_F_WRITE | GATT_CHR_F_WRITE_NO_RSP, rpc_command_cb);
-    
+
     // RPC Result (Read + Notify)
-    auto& result_char = service.add_characteristic(rpc_result_uuid, 
+    auto& result_char = service.add_characteristic(rpc_result_uuid,
         GATT_CHR_F_READ | GATT_CHR_F_NOTIFY, rpc_result_cb);
     result_char.val_handle_ptr = &g_rpc_result_handle;
-    
+
     // Capabilities (Read only)
     service.add_characteristic(capabilities_uuid, GATT_CHR_F_READ, capabilities_cb);
-    
+
     return service;
 }
 
@@ -549,44 +549,44 @@ int main(int argc, char* argv[]) {
         log_printf("[MAIN] ===============================================\n");
         return 0;
     }
-    
+
     // Get hostname for BLE name
     g_device_hostname = get_hostname();
     g_ble_device_name = g_device_hostname + "-setup";
-    
+
     log_printf("========================================\n");
     log_printf("===  IMPROV WIFI SERVICE v1.0       ===\n");
     log_printf("===  libble++ Implementation        ===\n");
     log_printf("========================================\n");
     log_printf("[MAIN] BLE device name: %s\n", g_ble_device_name.c_str());
     log_printf("[MAIN] Redirect URL: http://%s.local\n", g_device_hostname.c_str());
-    
+
     // Create server transport
     std::unique_ptr<BLETransport> transport(create_server_transport());
     if (!transport) {
         log_printf("[MAIN] ERROR: Failed to create BLE transport\n");
         return 1;
     }
-    
+
     // Create GATT server
     g_server = new BLEGATTServer(std::move(transport));
-    
+
     // Register Improv WiFi service
     std::vector<GATTServiceDef> services;
     services.push_back(create_improv_service());
-    
+
     int rc = g_server->register_services(services);
     if (rc != 0) {
         log_printf("[MAIN] ERROR: Failed to register services: %d\n", rc);
         delete g_server;
         return 1;
     }
-    
+
     log_printf("[MAIN] Improv WiFi service registered\n");
     log_printf("[MAIN] - State Handle: %d\n", g_state_handle);
     log_printf("[MAIN] - Error Handle: %d\n", g_error_handle);
     log_printf("[MAIN] - RPC Result Handle: %d\n", g_rpc_result_handle);
-    
+
     // Setup advertising with Improv WiFi v2.0 service data
     AdvertisingParams adv_params;
     adv_params.device_name = g_ble_device_name;
@@ -603,39 +603,39 @@ int main(int argc, char* argv[]) {
         improv::CAPABILITY_IDENTIFY,        // Byte 2: Capabilities
         0, 0, 0, 0                          // Bytes 3-6: Reserved
     };
-    
+
     rc = g_server->start_advertising(adv_params);
     if (rc != 0) {
         log_printf("[MAIN] ERROR: Failed to start advertising: %d\n", rc);
         delete g_server;
         return 1;
     }
-    
+
     log_printf("[MAIN] *** ADVERTISING STARTED ***\n");
     log_printf("[MAIN] Device visible as '%s'\n", g_ble_device_name.c_str());
-    
+
     // Setup callbacks
     g_server->on_connected = [](uint16_t conn_handle, const std::string& peer_addr) {
         g_conn_handle = conn_handle;
         log_printf("[MAIN] Client connected: handle=%d, addr=%s\n", conn_handle, peer_addr.c_str());
     };
-    
+
     g_server->on_disconnected = [](uint16_t conn_handle) {
         log_printf("[MAIN] Client disconnected: handle=%d\n", conn_handle);
         g_conn_handle = 0;
     };
-    
+
     // Setup signal handlers
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
-    
+
     // Run server event loop
     log_printf("[MAIN] Starting event loop...\n");
     rc = g_server->run();
-    
+
     // Cleanup
     log_printf("[MAIN] Server stopped\n");
     delete g_server;
-    
+
     return 0;
 }
