@@ -12,7 +12,7 @@ LIBFLAC_SO_NAME = libflac-lite.so
 define LIBFLAC_BUILD_CMDS
 	$(foreach src,$(wildcard $(@D)/$(LIBFLAC_SRC_DIR)/*.c), \
 		$(TARGET_CC) $(TARGET_CFLAGS) -I$(@D)/$(LIBFLAC_SRC_DIR) -I$(LIBFLAC_PKGDIR)/arduino_compat -fPIC -DUSE_DEFAULT_STDLIB -c $(src) -o $(patsubst %.c, %.o, $(src));)
-	find $(@D)/$(LIBFLAC_SRC_DIR) -type f -name *.o | xargs $(TARGET_CC) $(TARGET_LDFLAGS) -shared -o $(@D)/$(LIBFLAC_SO_NAME)
+	find $(@D)/$(LIBFLAC_SRC_DIR) -type f -name '*.o' | xargs $(TARGET_CC) $(TARGET_LDFLAGS) -shared -o $(@D)/$(LIBFLAC_SO_NAME)
 endef
 
 define LIBFLAC_INSTALL_TARGET_CMDS
@@ -24,7 +24,7 @@ define LIBFLAC_INSTALL_STAGING_CMDS
 	mkdir -p $(STAGING_DIR)/usr/include
 	rm -rf $(STAGING_DIR)/usr/include/FLAC
 	cp -r $(@D)/$(LIBFLAC_SRC_DIR)/FLAC $(STAGING_DIR)/usr/include/
-	find $(@D)/$(LIBFLAC_SRC_DIR) -maxdepth 1 -type f -name *.h -exec $(INSTALL) -D -m 0644 {} $(STAGING_DIR)/usr/include/ \;
+	find $(@D)/$(LIBFLAC_SRC_DIR) -maxdepth 1 -type f -name '*.h' -exec $(INSTALL) -D -m 0644 {} $(STAGING_DIR)/usr/include/ \;
 endef
 
 $(eval $(generic-package))
