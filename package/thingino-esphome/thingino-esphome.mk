@@ -71,6 +71,9 @@ endef
 
 # Install wake word model - prefer overlay, fall back to package files
 define THINGINO_ESPHOME_INSTALL_WAKE_WORD_MODEL
+	$(INSTALL) -D -m 0644 $(THINGINO_ESPHOME_PKGDIR)/files/alarm.opus \
+		$(TARGET_DIR)/usr/share/sounds/alarm.opus
+
 	if [ -f $(TOPDIR)/../overlay/upper/etc/wake_word_model.tflite ]; then \
 		$(INSTALL) -D -m 0644 $(TOPDIR)/../overlay/upper/etc/wake_word_model.tflite \
 			$(TARGET_DIR)/etc/wake_word_model.tflite; \

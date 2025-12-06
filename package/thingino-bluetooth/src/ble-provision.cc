@@ -288,7 +288,7 @@ static void handle_wifi_settings(const improv::ImprovCommand& cmd) {
 
 static void handle_identify() {
     log_printf("[IMPROV] Identify command received\n");
-    system("play /usr/share/sounds/th-chime_1.pcm 2>/dev/null &");
+    system("play /usr/share/sounds/th-chime_1.opus 2>/dev/null &");
     send_rpc_result(improv::IDENTIFY, {});
 }
 

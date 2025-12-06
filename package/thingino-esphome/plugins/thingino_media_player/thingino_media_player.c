@@ -756,7 +756,69 @@ static void va_led_off(void) {
     fprintf(stderr, "[MediaPlayer] LED: off\n");
 }
 
+// Alternating red/blue LED - timer alarm
+static void va_led_alarm(void) {
+    va_led_stop_blink();
+
+    // Fork a process to alternate red/blue LED
+    pid_t pid = fork();
+    if (pid == 0) {
+        // Child process - alternate red and blue
+        while (1) {
+            system("led red");
+            usleep(250000);   // 250ms red
+            system("led blue");
+            usleep(250000);   // 250ms blue
+        }
+        _exit(0);
+    } else if (pid > 0) {
+        va_led_blink_pid = pid;
+        fprintf(stderr, "[MediaPlayer] LED: alarm (alternating red/blue, pid=%d)\n", pid);
+    }
+}
+
 #endif // ENABLE_WAKE_WORD
+
+// =============================================================================
+// Timer Alarm Functions
+// =============================================================================
+
+// Timer alarm sound path
+#define TIMER_ALARM_SOUND_PATH "/usr/share/sounds/alarm.opus"
+
+// Duration to blink LED during alarm (seconds)
+#define TIMER_ALARM_LED_DURATION_SEC 4
+
+// Thread function to blink LED for alarm duration then turn off
+static void *alarm_led_thread(void *arg) {
+    (void)arg;
+    // Blink for the specified duration
+    sleep(TIMER_ALARM_LED_DURATION_SEC);
+#ifdef ENABLE_WAKE_WORD
+    va_led_off();
+#endif
+    printf("[MediaPlayer] Alarm LED finished\n");
+    return NULL;
+}
+
+// Play the timer alarm sound with blinking LED
+static void play_timer_alarm(void) {
+    printf("[MediaPlayer] Playing timer alarm\n");
+
+#ifdef ENABLE_WAKE_WORD
+    // Start alternating red/blue LED
+    va_led_alarm();
+
+    // Spawn thread to turn off LED after alarm duration
+    pthread_t led_thread;
+    pthread_create(&led_thread, NULL, alarm_led_thread, NULL);
+    pthread_detach(led_thread);
+#endif
+
+    // Play alarm sound 8 times at max volume, half gain for best quality
+    // The play command queues and returns immediately
+    system("play -l 8 -v 120 -g 15 " TIMER_ALARM_SOUND_PATH);
+}
 
 // =============================================================================
 // Volume and Gain Control Functions
@@ -1498,6 +1560,76 @@ int media_player_handle_message(esphome_plugin_context_t *ctx,
                                          response_buf, resp_pb.pos);
             esphome_plugin_log(ctx, 2, "[MediaPlayer] Sent VOICE_ASSISTANT_ANNOUNCE_FINISHED");
         }
+        return 0;
+    }
+
+    // Handle Voice Assistant Timer Event Response (115)
+    if (msg_type == ESPHOME_MSG_VOICE_ASSISTANT_TIMER_EVENT_RESPONSE) {
+        // Decode the timer event
+        // Fields:
+        //   1: VoiceAssistantTimerEvent event_type (0=STARTED, 1=UPDATED, 2=CANCELLED, 3=FINISHED)
+        //   2: string timer_id
+        //   3: string name
+        //   4: uint32 total_seconds
+        //   5: uint32 seconds_left
+        //   6: bool is_active
+        uint32_t event_type = 0;
+        char timer_id[64] = {0};
+        char timer_name[128] = {0};
+
+        pb_buffer_t pb;
+        pb_buffer_init_read(&pb, data, len);
+
+        while (pb.pos < pb.size && !pb.error) {
+            uint64_t tag_value;
+            if (!pb_decode_varint(&pb, &tag_value)) break;
+
+            uint32_t field_num = tag_value >> 3;
+            uint8_t wire_type = tag_value & 0x07;
+
+            switch (field_num) {
+                case 1: // event_type
+                    if (wire_type == PB_WIRE_TYPE_VARINT) {
+                        uint64_t val;
+                        pb_decode_varint(&pb, &val);
+                        event_type = (uint32_t)val;
+                    } else {
+                        pb_skip_field(&pb, wire_type);
+                    }
+                    break;
+                case 2: // timer_id
+                    if (wire_type == PB_WIRE_TYPE_LENGTH) {
+                        pb_decode_string(&pb, timer_id, sizeof(timer_id));
+                    } else {
+                        pb_skip_field(&pb, wire_type);
+                    }
+                    break;
+                case 3: // name
+                    if (wire_type == PB_WIRE_TYPE_LENGTH) {
+                        pb_decode_string(&pb, timer_name, sizeof(timer_name));
+                    } else {
+                        pb_skip_field(&pb, wire_type);
+                    }
+                    break;
+                default:
+                    pb_skip_field(&pb, wire_type);
+                    break;
+            }
+        }
+
+        // Timer event types
+        const char *timer_event_names[] = {"STARTED", "UPDATED", "CANCELLED", "FINISHED"};
+        const char *event_name = (event_type < 4) ? timer_event_names[event_type] : "UNKNOWN";
+
+        esphome_plugin_log(ctx, 2, "[MediaPlayer] TimerEvent: %s - id=%s, name=%s",
+                           event_name, timer_id, timer_name[0] ? timer_name : "(none)");
+
+        // Handle FINISHED event (3) - play alarm
+        if (event_type == 3) {
+            esphome_plugin_log(ctx, 2, "[MediaPlayer] Timer finished! Playing alarm...");
+            play_timer_alarm();
+        }
+
         return 0;
     }
 
