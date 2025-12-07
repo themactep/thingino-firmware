@@ -18,7 +18,7 @@ endef
 
 define LIBHELIX_AAC_INSTALL_STAGING_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/libhelix-aac.so $(STAGING_DIR)/usr/lib/libhelix-aac.so
-	find $(@D)/src/libhelix-aac -type f -name *.h -exec $(INSTALL) -D -m 0644 {} $(STAGING_DIR)/usr/include/ \;
+	find $(@D)/src/libhelix-aac -type f -name '*.h' -exec $(INSTALL) -D -m 0644 {} $(STAGING_DIR)/usr/include/ \;
 endef
 
 $(eval $(generic-package))
