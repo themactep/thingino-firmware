@@ -122,7 +122,6 @@ switch_to_night() {
 [ -z "$day_night_color" ] && day_night_color="true"
 [ -z "$day_night_ircut" ] && day_night_ircut="true"
 [ -z "$day_night_ir850" ] && day_night_ir850="true"
-[ -z "$day_night_ir850" ] && day_night_ir850="true"
 [ -z "$day_night_ir940" ] && day_night_ir940="true"
 [ -z "$day_night_white" ] && day_night_white="false"
 
