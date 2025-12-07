@@ -4,26 +4,43 @@
 page_title="Send to Webhook"
 
 defaults() {
-	default_for webhook_attach_snapshot "true"
-	default_for webhook_attach_videoclip "false"
+	default_for send_photo "true"
+	default_for send_video "false"
 }
+
+read_config() {
+	local CONFIG_FILE=/etc/send2.json
+	[ -f "$CONFIG_FILE" ] || return
+
+	url=$(jct $CONFIG_FILE get webhook.url)
+	message=$(jct $CONFIG_FILE get webhook.message)
+	send_photo=$(jct $CONFIG_FILE get webhook.send_photo)
+	send_video=$(jct $CONFIG_FILE get webhook.send_video)
+}
+
+read_config
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	read_from_post "webhook" "attach_snapshot attach_videoclip message url"
+	url="$POST_url"
+	message="$POST_message"
+	send_photo="$POST_send_photo"
+	send_video="$POST_send_video"
 
-	error_if_empty "$webhook_url" "Webhook URL cannot be empty."
+	error_if_empty "$url" "Webhook URL cannot be empty."
 
 	defaults
 
 	if [ -z "$error" ]; then
-		save2config "
-webhook_attach_snapshot=\"$webhook_attach_snapshot\"
-webhook_attach_videoclip=\"$webhook_attach_videoclip\"
-webhook_message=\"$webhook_message\"
-webhook_url=\"$webhook_url\"
-"
+                tmpfile="$(mktemp -u).json"
+                jct $tmpfile set webhook.url "$url"
+                jct $tmpfile set webhook.message "$message"
+                jct $tmpfile set webhook.send_photo "$send_photo"
+                jct $tmpfile set webhook.send_video "$send_video"
+                jct /etc/send2.json import $tmpfile
+                rm $tmpfile
+
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
 		redirect_to $SCRIPT_NAME "danger" "Error: $error"
@@ -37,12 +54,12 @@ defaults
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
-<% field_text "webhook_url" "Webhook URL" %>
+<% field_text "url" "Webhook URL" %>
 </div>
 <div class="col">
-<% field_textarea "webhook_message" "Message" %>
-<% field_switch "webhook_attach_snapshot" "Attach Snapshot" %>
-<% field_switch "webhook_attach_videoclip" "Attach Videoclips" %>
+<% field_textarea "message" "Message" %>
+<% field_switch "send_photo" "Attach Snapshot" %>
+<% field_switch "send_video" "Attach Videoclips" %>
 </div>
 </div>
 <% button_submit %>
@@ -50,7 +67,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "grep ^webhook_ $CONFIG_FILE" %>
+<% ex "jct /etc/send2.json get webhook" %>
 </div>
 
 <button type="button" class="btn btn-dark border mb-2" title="Send to Webhook" data-sendto="webhook">Test</button>
