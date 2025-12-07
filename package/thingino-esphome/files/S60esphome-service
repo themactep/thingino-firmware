@@ -38,6 +38,9 @@ EOF
 }
 
 start() {
+	# patch prudynt config to enable the audio tap if it isn't already
+	jct /etc/prudynt.json set audio.tap_enabled true
+
 	# Check if WiFi is configured
 	wlan_ssid=$(fw_printenv wlan_ssid 2>/dev/null | cut -d'=' -f2)
 

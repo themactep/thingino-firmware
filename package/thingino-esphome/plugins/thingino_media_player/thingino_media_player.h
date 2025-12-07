@@ -10,17 +10,20 @@
 extern "C" {
 #endif
 
-// IAC (Ingenic Audio Client) socket paths
-#define AUDIO_INPUT_SOCKET_PATH "ingenic_audio_input"
-#define AUDIO_OUTPUT_SOCKET_PATH "ingenic_audio_output"
-#define AUDIO_CONTROL_SOCKET_PATH "ingenic_audio_control"
+// Audio input file path (from prudynt)
+#define AUDIO_INPUT_PCM_PATH "/run/prudynt/audio_mic.pcm"
 
-// Audio socket request types
-#define AUDIO_INPUT_REQUEST 1
-#define AUDIO_OUTPUT_REQUEST 2
+// Audio output gain range (for play command)
+#define AUDIO_GAIN_MIN 0
+#define AUDIO_GAIN_MAX 31
+#define AUDIO_GAIN_DEFAULT 15
+
+// Audio output volume range (for play command, mapped from 0.0-1.0)
+#define AUDIO_VOLUME_MIN -30
+#define AUDIO_VOLUME_MAX 120
 
 #ifdef ENABLE_WAKE_WORD
-// Audio input configuration (from IAD)
+// Audio input configuration (from prudynt PCM file)
 #define AUDIO_INPUT_SAMPLE_RATE 16000
 #define AUDIO_INPUT_CHANNELS 1
 #define AUDIO_INPUT_BITS_PER_SAMPLE 16
@@ -101,12 +104,13 @@ typedef void (*audio_input_callback_t)(const int16_t *buffer, size_t samples, vo
 typedef struct {
     esphome_plugin_context_t *plugin_ctx;  // ESPHome plugin context
     MediaPlayerState state;
-    float volume;           // 0.0 to 1.0
+    float volume;           // 0.0 to 1.0 (mapped to -30 to 120 for play command)
+    int gain;               // 0 to 31 (audio output gain for play command)
     bool muted;
     pthread_mutex_t lock;
 
     // Playback control
-    int audio_sock;         // Socket to IAD for audio data
+    pid_t playback_pid;     // PID of play command process
     pthread_t playback_thread;
     bool playback_active;
     char *current_url;      // Current media URL being played
@@ -114,7 +118,7 @@ typedef struct {
 
 #ifdef ENABLE_WAKE_WORD
     // Audio input
-    int audio_input_sock;   // Socket to IAD for audio input
+    int audio_input_fd;     // File descriptor for audio input PCM file
     pthread_t audio_input_thread;
     bool audio_input_active;
     audio_input_callback_t audio_input_callback;
@@ -134,6 +138,7 @@ typedef struct {
 #ifdef ENABLE_WAKE_WORD
 // Audio input API
 int media_player_start_audio_input(audio_input_callback_t callback, void *userdata);
+void media_player_set_audio_callback(audio_input_callback_t callback, void *userdata);
 void media_player_stop_audio_input(void);
 #endif
 

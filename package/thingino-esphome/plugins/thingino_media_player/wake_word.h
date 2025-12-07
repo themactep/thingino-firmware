@@ -63,8 +63,18 @@ int wake_word_init(esphome_plugin_context_t *ctx, const char *model_path,
 // Returns 0 on success, -1 on failure
 int wake_word_start(void);
 
-// Stop wake word detection
+// Stop wake word detection (also stops audio input)
 void wake_word_stop(void);
+
+// Suspend wake word detection without stopping audio input
+// Audio input continues running but detection thread stops
+// Use wake_word_resume() to restart detection
+void wake_word_suspend(void);
+
+// Resume wake word detection after suspend
+// Restores the wake word audio callback
+// Returns 0 on success, -1 on failure
+int wake_word_resume(void);
 
 // Cleanup wake word detection system
 void wake_word_cleanup(void);
