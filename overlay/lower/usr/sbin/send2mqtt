@@ -4,6 +4,7 @@
 # https://mosquitto.org/documentation/
 
 . /usr/share/common
+. /usr/share/common_send2
 
 show_help() {
 	echo "Usage: $0 [options]
@@ -20,50 +21,67 @@ Where:
 	exit 0
 }
 
+read_config() {
+	local CONFIG_NAME=/etc/send2.json
+	[ -f "$CONFIG_NAME" ] || return
+
+	       host=$(jct $CONFIG_NAME get mqtt.host)
+	       port=$(jct $CONFIG_NAME get mqtt.port)
+	   username=$(jct $CONFIG_NAME get mqtt.username)
+	   password=$(jct $CONFIG_NAME get mqtt.password)
+	      topic=$(jct $CONFIG_NAME get mqtt.topic)
+	    message=$(jct $CONFIG_NAME get mqtt.message)
+	    is_json=$(jct $CONFIG_NAME get mqtt.is_json)
+	topic_photo=$(jct $CONFIG_NAME get mqtt.topic)
+	 send_photo=$(jct $CONFIG_NAME get mqtt.send_photo)
+}
+
+read_config
+
 while getopts h:jm:st:u:w:v flag; do
 	case "$flag" in
-		h) mqtt_host=$OPTARG ;;
-		j) mqtt_is_json="true" ;;
-		m) mqtt_message=$OPTARG ;;
-		s) mqtt_send_snap="true" ;;
-		t) mqtt_topic=$OPTARG ;;
-		u) mqtt_username=$OPTARG ;;
-		w) mqtt_password=$OPTARG ;;
+		h) host=$OPTARG ;;
+		j) is_json="true" ;;
+		m) message=$OPTARG ;;
+		s) send_photo="true" ;;
+		t) topic=$OPTARG ;;
+		u) username=$OPTARG ;;
+		w) password=$OPTARG ;;
 		v) verbose="true" ;;
 		*) show_help ;;
 	esac
 done
 
-if [ -z "$mqtt_host" ]; then
+if [ -z "$host" ]; then
 	echo_error "MQTT broker host is not set"
 	exit 1
 fi
 
-if [ -z "$mqtt_port" ]; then
+if [ -z "$port" ]; then
 	echo_error "MQTT broker port is not set"
 	exit 1
 fi
 
-if [ -z "$mqtt_topic" ]; then
+if [ -z "$topic" ]; then
 	echo_error "MQTT topic not found"
 	exit 1
 fi
 
-if [ -z "$mqtt_message" ]; then
+if [ -z "$message" ]; then
 	echo_error "MQTT message template not found"
 	exit 1
 fi
 
-if [ "true" = "$mqtt_send_snap" ] && [ -z "$mqtt_snap_topic" ]; then
+if [ "true" = "$send_photo" ] && [ -z "$topic_photo" ]; then
 	echo_error "MQTT topic for sending snapshot not found in config"
 	exit 1
 fi
 
-if [ -z "$mqtt_client_id" ]; then
-	mqtt_client_id="$network_hostname"
+if [ -z "$client_id" ]; then
+	client_id="$network_hostname"
 fi
 
-mqtt_message=$(date +"$mqtt_message")
+message=$(date +"$mqtt_message")
 
 command="mosquitto_pub -h $mqtt_host -p $mqtt_port -i $mqtt_client_id"
 
@@ -71,23 +89,23 @@ if [ "true" = "$verbose" ]; then
 	command="$command -d"
 fi
 
-if [ -n "$mqtt_username" ]; then
-	command="$command -u $mqtt_username"
+if [ -n "$username" ]; then
+	command="$command -u $username"
 fi
 
-if [ -n "$mqtt_password" ]; then
-	command="$command -P $mqtt_password"
+if [ -n "$password" ]; then
+	command="$command -P $password"
 fi
 
 mqtt_failed=0
 
-if [ "true" = "$mqtt_is_json" ]; then
+if [ "true" = "$is_json" ]; then
 	tmpfile=$(mktemp)
-	echo "$mqtt_message" > $tmpfile
-	send_command="$command -t $mqtt_topic -f $tmpfile"
+	echo "$message" > $tmpfile
+	send_command="$command -t $topic -f $tmpfile"
 	garbage="$garbage $tmpfile"
 else
-	send_command="$command -t $mqtt_topic -m '$mqtt_message'"
+	send_command="$command -t $topic -m '$message'"
 fi
 
 if [ "true" = "$verbose" ]; then
@@ -101,7 +119,7 @@ fi
 
 if [ "true" = "$mqtt_send_snap" ]; then
 	photo=$(copy_photo)
-	send_command="$command -t $mqtt_snap_topic -f '$photo'"
+	send_command="$command -t $topic_photo -f '$photo'"
 
 	if [ "true" = "$verbose" ]; then
 		echo_command "$send_command"
@@ -112,7 +130,5 @@ if [ "true" = "$mqtt_send_snap" ]; then
 		mqtt_failed=1
 	fi
 fi
-
-cleanup
 
 exit $mqtt_failed

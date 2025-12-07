@@ -1,6 +1,7 @@
 #!/bin/env sh
 
 . /usr/share/common
+. /usr/share/common_send2
 
 show_help() {
 	echo "Usage: $0 [options]
@@ -19,14 +20,20 @@ Where:
 	exit 0
 }
 
+read_config() {
+	local CONFIG_FILE=/etc/send2.json
+	[ -f "$CONFIG_FILE" ] || return
+
+	    host=$(jct $CONFIG_FILE get ftp.host)
+	    port=$(jct $CONFIG_FILE get ftp.port)
+	username=$(jct $CONFIG_FILE get ftp.username)
+	password=$(jct $CONFIG_FILE get ftp.password)
+	    path=$(jct $CONFIG_FILE get ftp.path)
+	template=$(jct $CONFIG_FILE get ftp.template)
+}
+
 # Files to send
 queue=""
-
-cleanup() {
-	for f in $queue; do
-		[ -f "$f" ] && rm "$f"
-	done
-}
 
 add_to_queue() {
 	local ext="${1##*.}"
@@ -35,38 +42,39 @@ add_to_queue() {
 	queue="$queue $tempfile"
 }
 
+read_config
+
 while getopts d:f:hp:P:s:Su:vV flag; do
 	case "$flag" in
-		d) ftp_path=$OPTARG ;;
-		f) ftp_file=$OPTARG ;;
-		p) ftp_port=$OPTARG ;;
-		P) ftp_password=$OPTARG ;;
-		s) ftp_host=$OPTARG ;;
-		u) ftp_user=$OPTARG ;;
+		d) path=$OPTARG ;;
+		f) file=$OPTARG ;;
+		p) port=$OPTARG ;;
+		P) password=$OPTARG ;;
+		s) host=$OPTARG ;;
+		u) username=$OPTARG ;;
 		v) verbose="true" ;;
-		V) ftp_send_video="true" ;;
-		S) ftp_send_snap="true" ;;
+		S) send_photo="true" ;;
+		V) send_video="true" ;;
 		h | *) show_help ;;
 	esac
 done
 
-if [ -z "$ftp_host" ]; then
+if [ -z "$host" ]; then
 	echo_error "FTP host not found"
-	cleanup
 	exit 1
 fi
 
-if [ -z "$ftp_port" ]; then
-	ftp_port=21
+if [ -z "$port" ]; then
+	port=21
 fi
 
-if [ -z "$ftp_user" ]; then
-	ftp_user="anonymous"
+if [ -z "$username" ]; then
+	ftp_username="anonymous"
 	ftp_password="anonymous"
 fi
 
-if [ -z "$ftp_file" ]; then
-	if [ "true" = "$ftp_send_video" ]; then
+if [ -z "$file" ]; then
+	if [ "true" = "$send_video" ]; then
 		check_vbuffer
 
 		inode=$(stat -c%i $VBUFFER_FILE)
@@ -80,7 +88,6 @@ if [ -z "$ftp_file" ]; then
 			n=$((n + 1))
 			if [ "$n" -ge 10 ]; then
 				echo_error "Give up after $n attempts."
-				cleanup
 				exit 1
 			fi
 			sleep 1
@@ -91,28 +98,28 @@ if [ -z "$ftp_file" ]; then
 		add_to_queue "$video2"
 	fi
 
-	if [ "true" = "$ftp_send_snap" ]; then
+	if [ "true" = "$send_photo" ]; then
 		photo=$(copy_photo)
 		add_to_queue "$photo"
 	fi
 else
-	add_to_queue "$ftp_file"
+	add_to_queue "$file"
 fi
 
 url="ftp://"
-if [ -n "$ftp_user" ] && [ -n "$ftp_password" ]; then
-	url="$url$ftp_user:$ftp_password"
+if [ -n "$username" ] && [ -n "$password" ]; then
+	url="$url$username:$password"
 fi
-url="$url@$ftp_host:$ftp_port"
-if [ -n "$ftp_path" ]; then
-	url="$url/${ftp_path// /%20}"
+url="$url@$host:$port"
+if [ -n "$path" ]; then
+	url="$url/${path// /%20}"
 fi
 
 n=0
 for local_file in $queue; do
 	ext="${local_file##*.}"
-	ftp_filename=$(date +"$ftp_template-$(printf %02d $n)").$ext
-	final_url="$url/$ftp_filename"
+	filename=$(date +"$template-$(printf %02d $n)").$ext
+	final_url="$url/$filename"
 
 	set -x
 	if [ "true" = "$verbose" ]; then
@@ -129,13 +136,10 @@ for local_file in $queue; do
 
 	if ! sh -c "$command"; then
 		echo_error "Failed to upload file to FTP server"
-		cleanup
 		exit 1
 	fi
 
 	n=$(($n + 1))
 done
-
-cleanup
 
 exit 0

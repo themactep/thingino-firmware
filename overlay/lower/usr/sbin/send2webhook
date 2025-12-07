@@ -1,6 +1,7 @@
 #!/bin/env sh
 
 . /usr/share/common
+. /usr/share/common_send2
 
 show_help() {
 	echo "Usage: $0 [options]
@@ -15,20 +16,31 @@ Where:
 	exit 0
 }
 
+read_config {
+        local CONFIG_FILE=/etc/send2.json
+        [ -f "$CONFIG_FILE" ] || return
+
+	       url=$(jct $CONFIG_FILE get webhook.url)
+           message=$(jct $CONFIG_FILE get webhook.message)
+        send_photo=$(jct $CONFIG_FILE get webhook.send_photo)
+        send_video=$(jct $CONFIG_FILE get webhook.send_video)
+}
+
+read_config
+
 while getopts chm:su:v flag; do
 	case "$flag" in
-		m) webhook_message=$OPTARG ;;
-		s) webhook_attach_snapshot="true" ;;
-		c) webhook_attach_videoclip="true" ;;
-		u) webhook_url=$OPTARG ;;
+		m) message=$OPTARG ;;
+		s) send_photo="true" ;;
+		c) send_video="true" ;;
+		u) url=$OPTARG ;;
 		v) verbose="true" ;;
 		h | *) show_help ;;
 	esac
 done
 
-if [ -z "$webhook_url" ]; then
+if [ -z "$url" ]; then
 	echo_error "Webhook URL not found"
-	cleanup
 	exit 1
 fi
 
@@ -38,12 +50,12 @@ else
 	command="$CURL --silent"
 fi
 
-if [ "true" = "$webhook_attach_snapshot" ]; then
+if [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
 	command="$command -F 'image=@$photo'"
 fi
 
-if [ "true" = "$webhook_attach_videoclip" ]; then
+if [ "true" = "$send_video" ]; then
 	check_vbuffer
 	inode=$(stat -c%i $VBUFFER_FILE)
 
@@ -54,7 +66,6 @@ if [ "true" = "$webhook_attach_videoclip" ]; then
 		n=$((n + 1))
 		if [ "$n" -ge 10 ]; then
 			echo_error "Give up after $n attempts."
-			cleanup
 			exit 1
 		fi
 		sleep 1
@@ -64,8 +75,8 @@ if [ "true" = "$webhook_attach_videoclip" ]; then
 	command="$command -F 'video2=@$video2'"
 fi
 
-command="$command -F \"message=$webhook_message\""
-command="$command --url \"$webhook_url\""
+command="$command -F \"message=$message\""
+command="$command --url \"$url\""
 
 if [ "true" = "$verbose" ]; then
 	echo_command "$command"
@@ -73,10 +84,7 @@ fi
 
 if ! sh -c "$command" >/dev/null; then
 	echo_error "Failed to send webhook message"
-	cleanup
 	exit 1
 fi
-
-cleanup
 
 exit 0

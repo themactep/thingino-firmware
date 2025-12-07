@@ -10,53 +10,82 @@ fi
 camera_id=${network_macaddr//:/}
 
 defaults() {
-	default_for mqtt_client_id $camera_id
-	default_for mqtt_port "1883"
-	default_for mqtt_topic "thingino/$mqtt_client_id"
-	default_for mqtt_message "{\"camera_id\": \"$camera_id\", \"timestamp\": \"%s\"}"
+	default_for client_id $camera_id
+	default_for port "1883"
+	default_for topic "thingino/$client_id"
+	default_for message "{\"camera_id\": \"$camera_id\", \"timestamp\": \"%s\"}"
 }
+
+read_config() {
+        local CONFIG_NAME=/etc/send2.json
+        [ -f "$CONFIG_NAME" ] || return
+
+               host=$(jct $CONFIG_NAME get mqtt.host)
+               port=$(jct $CONFIG_NAME get mqtt.port)
+           username=$(jct $CONFIG_NAME get mqtt.username)
+           password=$(jct $CONFIG_NAME get mqtt.password)
+              topic=$(jct $CONFIG_NAME get mqtt.topic)
+            message=$(jct $CONFIG_NAME get mqtt.message)
+            is_json=$(jct $CONFIG_NAME get mqtt.is_json)
+        topic_photo=$(jct $CONFIG_NAME get mqtt.topic)
+         send_photo=$(jct $CONFIG_NAME get mqtt.send_photo)
+}
+
+read_config
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	read_from_post "mqtt" "host port client_id username password topic message send_snap snap_topic use_ssl"
+	host="$POST_host"
+	port="$POST_port"
+	client_id="$POST_client_id"
+	username="$POST_username"
+	password="$POST_password"
+	topic="$POST_topic"
+	message="$POST_message"
+	send_photo="$POST_send_photo"
+	topic_photo="$POST_topic_photo"
+	use_ssl="$POST_use_ssl"
 
-	error_if_empty "$mqtt_host" "MQTT broker host cannot be empty."
-	error_if_empty "$mqtt_port" "MQTT port cannot be empty."
-	error_if_empty "$mqtt_topic" "MQTT topic cannot be empty."
-	error_if_empty "$mqtt_message" "MQTT message cannot be empty."
+	error_if_empty "$host" "MQTT broker host cannot be empty."
+	error_if_empty "$port" "MQTT port cannot be empty."
+	error_if_empty "$topic" "MQTT topic cannot be empty."
+	error_if_empty "$message" "MQTT message cannot be empty."
 
-	if [ "${mqtt_topic:0:1}" = "/" ] || [ "${mqtt_snap_topic:0:1}" = "/" ]; then
+	if [ "${topic:0:1}" = "/" ] || [ "${mqtt_topic_photo:0:1}" = "/" ]; then
 		set_error_flag "MQTT topic should not start with a slash."
 	fi
 
-	if [ "$mqtt_topic" != "${mqtt_topic// /}" ] || [ "$mqtt_snap_topic" != "${mqtt_snap_topic// /}" ]; then
+	if [ "$topic" != "${topic// /}" ] || [ "$topic_photo" != "${topic_photo// /}" ]; then
 		set_error_flag "MQTT topic should not contain spaces."
 	fi
 
-	if [ -n "$(echo $mqtt_topic | sed -r -n /[^a-zA-Z0-9/_-]/p)" ] || [ -n "$(echo $mqtt_snap_topic | sed -r -n /[^a-zA-Z0-9/_-]/p)" ]; then
-		set_error_flag "MQTT topic should not include non-ASCII characters or special characters like /, #, +, or space."
+	if [ -n "$(echo $topic | sed -r -n /[^a-zA-Z0-9/_-]/p)" ] || \
+	   [ -n "$(echo $topic_photo | sed -r -n /[^a-zA-Z0-9/_-]/p)" ]; then
+		set_error_flag "MQTT topic should not include non-ASCII or special characters like /, #, +."
 	fi
 
-	if [ "true" = "$mqtt_send_snap" ] && [ -z "$mqtt_snap_topic" ]; then
+	if [ "true" = "$send_photo" ] && [ -z "$topic_photo" ]; then
 		set_error_flag "MQTT topic for snapshot should not be empty."
 	fi
 
 	defaults
 
 	if [ -z "$error" ]; then
-		save2config "
-mqtt_client_id=\"$mqtt_client_id\"
-mqtt_host=\"$mqtt_host\"
-mqtt_message=\"$mqtt_message\"
-mqtt_password=\"$mqtt_password\"
-mqtt_port=\"$mqtt_port\"
-mqtt_send_snap=\"$mqtt_send_snap\"
-mqtt_snap_topic=\"$mqtt_snap_topic\"
-mqtt_topic=\"$mqtt_topic\"
-mqtt_use_ssl=\"$mqtt_use_ssl\"
-mqtt_username=\"$mqtt_username\"
-"
+		tmpfile="$(mktemp -u).json"
+                jct $tmpfile set mqtt.host "$host"
+                jct $tmpfile set mqtt.port "$port"
+                jct $tmpfile set mqtt.username "$username"
+                jct $tmpfile set mqtt.password "$password"
+                jct $tmpfile set mqtt.client_id "$client_id"
+                jct $tmpfile set mqtt.topic "$topic"
+                jct $tmpfile set mqtt.message "$message"
+                jct $tmpfile set mqtt.topic_photo "$topic_photo"
+                jct $tmpfile set mqtt.use_ssl "$use_ssl"
+                jct $tmpfile set mqtt.send_photo "$send_photo"
+                jct /etc/send2.json import $tmpfile
+                rm $tmpfile
+
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
 		redirect_to $SCRIPT_NAME "danger" "Error: $error"
@@ -70,20 +99,20 @@ defaults
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
 <div class="col">
-<% field_text "mqtt_client_id" "MQTT client ID" %>
+<% field_text "client_id" "MQTT client ID" %>
 <div class="row g-1">
-<div class="col-10"><% field_text "mqtt_host" "MQTT broker FQDN or IP address" %></div>
-<div class="col-2"><% field_text "mqtt_port" "Port" %></div>
+<div class="col-10"><% field_text "host" "MQTT broker FQDN or IP address" %></div>
+<div class="col-2"><% field_text "port" "Port" %></div>
 </div>
-<% field_text "mqtt_username" "MQTT broker username" %>
-<% field_password "mqtt_password" "MQTT broker password" %>
-<% field_switch "mqtt_use_ssl" "Use SSL" %>
+<% field_text "username" "MQTT broker username" %>
+<% field_password "password" "MQTT broker password" %>
+<% field_switch "use_ssl" "Use SSL" %>
 </div>
 <div class="col">
-<% field_text "mqtt_topic" "MQTT topic" %>
-<% field_textarea "mqtt_message" "MQTT message" "$STR_SUPPORTS_STRFTIME" %>
-<% field_switch "mqtt_send_snap" "Send a snapshot" %>
-<% field_text "mqtt_snap_topic" "MQTT topic to send the snapshot to" %>
+<% field_text "topic" "MQTT topic" %>
+<% field_textarea "message" "MQTT message" "$STR_SUPPORTS_STRFTIME" %>
+<% field_switch "send_photo" "Send a snapshot" %>
+<% field_text "topic_photo" "MQTT topic to send the snapshot to" %>
 </div>
 </div>
 <% button_submit %>
@@ -93,13 +122,13 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "grep ^mqtt_ $CONFIG_FILE" %>
+<% ex "jct /etc/send2.json get mqtt" %>
 </div>
 
 <script>
-$('#mqtt_message').style.height = '7rem';
-$('#mqtt_use_ssl').addEventListener('change', ev => {
-	const el=$('#mqtt_port');
+$('#message').style.height = '7rem';
+$('#use_ssl').addEventListener('change', ev => {
+	const el=$('#port');
 	if (ev.target.checked) {
 		if (el.value === '1883') el.value='8883';
 	} else {

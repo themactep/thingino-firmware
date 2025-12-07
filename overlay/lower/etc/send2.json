@@ -1,0 +1,70 @@
+{
+	"discord": {
+		"url": ""
+	},
+	"email": {
+		"host": "smtp.gmail.com",
+		"port": 465,
+		"username": "",
+		"password": "",
+		"use_ssl": true,
+		"trust_cert": false,
+		"from_address": "",
+		"from_name": "Thingino Camera",
+		"to_address": "",
+		"to_name": "",
+		"subject": "Snapshot from camera",
+		"body": "test",
+		"send_photo": false,
+		"send_video": false
+	},
+	"ftp": {
+		"host": "",
+		"port": 21,
+		"username": "anonymous",
+		"password": "anonymous",
+		"path": "thingino",
+		"template": "thingino-%Y%m%d-%H%M%S",
+		"send_photo": false,
+		"send_video": false
+	},
+	"mqtt": {
+		"host": "",
+		"port": 1883,
+		"use_ssl": false,
+		"username": "",
+		"password": "",
+		"client_id": "",
+		"topic": "",
+		"message": "{\"timestamp\": \"%s\"}",
+		"send_photo": false,
+		"topic_photo": ""
+	},
+	"ntfy": {
+		"host": "",
+		"username": "",
+		"password": "",
+		"token": "",
+		"url": "",
+		"topic": "",
+		"title": "Test message from Thingino",
+		"message": "{\"timestamp\": \"%s\"}",
+		"send_photo": false
+	},
+	"telegram": {
+		"token": "",
+		"channel": "",
+		"caption": "%hostname, %datetime",
+		"message": "test",
+		"file": [],
+		"silent": false,
+		"send_photo": false,
+		"send_video": false
+	},
+	"webhook": {
+		"url": "",
+		"message": "{\"message\":\"test\"}",
+		"send_photo": false,
+		"send_video": false
+	}
+}
