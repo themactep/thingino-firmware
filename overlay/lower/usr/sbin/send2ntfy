@@ -3,6 +3,7 @@
 # https://docs.ntfy.sh/publish/
 
 . /usr/share/common
+. /usr/share/common_send2
 
 show_help() {
 	echo "Usage: $0 [options]
@@ -24,39 +25,62 @@ Where:
 	exit 0
 }
 
+read_config() {
+	local CONFIG_FILE=/etc/send2.json
+	[ -f "$CONFIG_FILE" ] || return
+
+	       host=$(jct $CONFIG_FILE get ntfy.host || echo "ntfy.sh")
+               port=$(jct $CONFIG_FILE get ntfy.port || echo "80")
+           username=$(jct $CONFIG_FILE get ntfy.username)
+           password=$(jct $CONFIG_FILE get ntfy.password)
+	      token=$(jct $CONFIG_FILE get ntfy.token)
+              topic=$(jct $CONFIG_FILE get ntfy.topic)
+               icon=$(jct $CONFIG_FILE get ntfy.icon || echo "")
+            message=$(jct $CONFIG_FILE get ntfy.message)
+	      title=$(jct $CONFIG_FILE get ntfy.title)
+	       tags=$(jct $CONFIG_FILE get ntfy.tags || echo "[]")
+	      delay=$(jct $CONFIG_FILE get ntfy.delay || echo "")
+            prority=$(jct $CONFIG_FILE get ntfy.priority || echo "")
+         send_photo=$(jct $CONFIG_FILE get ntfy.send_photo)
+	     attach=$(jct $CONFIG_FILE get ntfy.attach || echo "")
+              click=$(jct $CONFIG_FILE get ntfy.click || echo "")
+	   filename=$(jct $CONFIG_FILE get ntfy.filename || echo "")
+	      email=$(jct $CONFIG_FILE get ntfy.email || echo "")
+	       call=$(jct $CONFIG_FILE get ntfy.call || echo "")
+	    actions=$(jct $CONFIG_FILE get ntfy.actions || echo "")
+       twilio_token=$(jct $CONFIG_FILE get ntfy.twilio_token || echo "")
+}
+
+read_config
+
 while getopts a:c:f:h:i:l:m:n:p:st:u:w:v flag; do
 	case "$flag" in
-		a) ntfy_attach=$OPTARG ;;
-		c) ntfy_click=$OPTARG ;;
-		f) ntfy_filename=$OPTARG ;;
-		h) ntfy_host=$OPTARG ;;
-		i) ntfy_icon=$OPTARG ;;
-		m) ntfy_message=$OPTARG ;;
-		n) ntfy_title=$OPTARG ;;
-		p) ntfy_priority=$OPTARG ;;
-		s) ntfy_send_snap="true" ;;
-		t) ntfy_topic=$OPTARG ;;
-		u) ntfy_username=$OPTARG ;;
-		w) ntfy_password=$OPTARG ;;
+		a) attach=$OPTARG ;;
+		c) click=$OPTARG ;;
+		f) filename=$OPTARG ;;
+		h) host=$OPTARG ;;
+		i) icon=$OPTARG ;;
+		m) message=$OPTARG ;;
+		n) title=$OPTARG ;;
+		p) priority=$OPTARG ;;
+		s) send_photo="true" ;;
+		t) topic=$OPTARG ;;
+		u) username=$OPTARG ;;
+		w) password=$OPTARG ;;
 		v) verbose="true" ;;
 		*) show_help ;;
 	esac
 done
 
-if [ -z "$ntfy_host" ]; then
-	ntfy_host="ntfy.sh"
-fi
+[ -z "$host" ] && host="ntfy.sh"
+[ -z "$port" ] && port=80
 
-if [ -z "$ntfy_port" ]; then
-	ntfy_port=80
-fi
-
-if [ -z "$ntfy_topic" ]; then
+if [ -z "$topic" ]; then
 	echo_error "NTFY topic is not set"
 	exit 1
 fi
 
-command="$CURL -X POST -H p:${ntfy_priority:-3}"
+command="curl -X POST -H p:${priority:-3}"
 
 if [ "true" = "$verbose" ]; then
 	command="$command --verbose"
@@ -64,61 +88,41 @@ else
 	command="$command --silent"
 fi
 
-if [ -n "$ntfy_title" ]; then
-	command="$command -H 'Title: $ntfy_title'"
+[ -n "$title" ] && command="$command -H 'Title: $title'"
+[ -n "$tags" ] && command="$command -H 'Tags: $tags'"
+[ -n "$delay" ] && command="$command -H 'Delay: $delay'"
+
+if [ -n "$token" ]; then
+	command="$command -H 'Authorization: Bearer $token'"
+elif [ -n "$username" ] && [ -n "$password" ]; then
+	command="$command -u $username:$password"
 fi
 
-if [ -n "$ntfy_tags" ]; then
-	command="$command -H 'Tags: $ntfy_tags'"
-fi
-
-if [ -n "$ntfy_delay" ]; then
-	command="$command -H 'Delay: $ntfy_delay'"
-fi
-
-if [ -n "$ntfy_username" ] && [ -n "$ntfy_password" ]; then
-	command="$command -u $ntfy_username:$ntfy_password"
-fi
-
-if [ "true" = "$ntfy_send_snap" ]; then
+if [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
 	command="$command -T $photo -H 'Filename: $photo'"
 fi
 
-if [ -n "$ntfy_filename" ] && [ -f "$ntfy_filename" ]; then
-	command="$command -T $ntfy_filename -H 'Filename: $ntfy_filename'"
+if [ -n "$filename" ] && [ -f "$filename" ]; then
+	command="$command -T $filename -H 'Filename: $filename'"
 fi
 
-if [ -n "$ntfy_attach" ]; then
-	command="$command -H 'Attach: $ntfy_attach'"
+[ -n "$attach" ] && command="$command -H 'Attach: $attach'"
+[ -n "$click" ] && command="$command -H 'Click: $click'"
+[ -n "$icon" ] && command="$command -H 'Icon: $icon'"
+[ -n "$email" ] && command="$command -H 'Email: $email'"
+[ -n "$actions" ] && command="$command -H 'Actions: $actions'"
+
+if [ -n "$call" ] && [ -n "$twilio_token" ]; then
+	command="$command -H 'Call: $call' -u :$twilio_token"
 fi
 
-if [ -n "$ntfy_click" ]; then
-	command="$command -H 'Click: $ntfy_click'"
+if [ -n "$message" ]; then
+	message="$(date +"$message")"
+	command="$command -H 'Message: $message'"
 fi
 
-if [ -n "$ntfy_icon" ]; then
-	command="$command -H 'Icon: $ntfy_icon'"
-fi
-
-if [ -n "$ntfy_email" ]; then
-	command="$command -H 'Email: $ntfy_email'"
-fi
-
-if [ -n "$ntfy_actions" ]; then
-	command="$command -H 'Actions: $ntfy_actions'"
-fi
-
-if [ -n "$ntfy_call" ] && [ -n "$ntfy_twilio_token" ]; then
-	command="$command -H 'Call: $ntfy_call' -u :$ntfy_twilio_token"
-fi
-
-if [ -n "$ntfy_message" ]; then
-	ntfy_message="$(date +"$ntfy_message")"
-	command="$command -H 'Message: $ntfy_message'"
-fi
-
-command="$command ${ntfy_host:-ntfy.sh}/$ntfy_topic"
+command="$command $host/$topic"
 
 if [ "true" = "$verbose" ]; then
 	echo_command "$command"
@@ -126,10 +130,7 @@ fi
 
 if ! sh -c "$command" >/dev/null; then
 	echo_error "Failed to send NTFY message"
-	cleanup
 	exit 1
 fi
-
-cleanup
 
 exit 0
