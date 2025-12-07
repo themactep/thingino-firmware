@@ -148,8 +148,8 @@ case "$1" in
 		;;
 	*)
 		echo_info "value: $(cat /run/daynight/value 2>/dev/null)"
-		echo_info "day_night_min: $(jct /etc/daynightd.json get brightness_thresholds.threshold_low)"
-		echo_info "day_night_max: $(jct /etc/daynightd.json get brightness_thresholds.threshold_high)"
+		echo_info "day_night_min: $(jct /etc/daynightd.json get brightness.threshold_low)"
+		echo_info "day_night_max: $(jct /etc/daynightd.json get brightness.threshold_high)"
 		echo_info "state: $state"
 		if [ "day" = "$state" ]; then
 			echo_info "active range: 0-$day_night_max"

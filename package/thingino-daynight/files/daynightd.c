@@ -212,15 +212,15 @@ static int read_config(const char *config_file) {
     }
 
     /* Brightness thresholds */
-    v = get_nested_item(root, "brightness_thresholds.threshold_low");
+    v = get_nested_item(root, "brightness.threshold_low");
     if (v && v->type == JSON_NUMBER) {
         g_config.threshold_low = (float)v->value.number;
     }
-    v = get_nested_item(root, "brightness_thresholds.threshold_high");
+    v = get_nested_item(root, "brightness.threshold_high");
     if (v && v->type == JSON_NUMBER) {
         g_config.threshold_high = (float)v->value.number;
     }
-    v = get_nested_item(root, "brightness_thresholds.hysteresis_factor");
+    v = get_nested_item(root, "brightness.hysteresis_factor");
     if (v && v->type == JSON_NUMBER) {
         g_config.hysteresis_factor = (float)v->value.number;
     }

@@ -102,7 +102,7 @@ The daemon uses **structured JSON configuration format**.
 ```json
 {
   "device_path": "/dev/isp-m0",
-  "brightness_thresholds": {
+  "brightness": {
     "threshold_low": 25.0,
     "threshold_high": 75.0,
     "hysteresis_factor": 0.1
