@@ -3,12 +3,10 @@ ifeq ($(BR2_PACKAGE_GO2RTC_MINI),y)
 	GO2RTC_SITE = https://github.com/wltechblog/go2rtc-smaller
 	GO2RTC_SITE_BRANCH = master
 	GO2RTC_VERSION = 49b7e2c1b74b9fc4e529d2a1626ab67489eecc7c
-	# $(shell git ls-remote $(GO2RTC_SITE) $(GO2RTC_SITE_BRANCH) | head -1 | cut -f1)
 else
 	GO2RTC_SITE = https://github.com/AlexxIT/go2rtc
 	GO2RTC_SITE_BRANCH = master
 	GO2RTC_VERSION = be80eb1ac98dd4d11dcf171cbb33e1fdd4974285
-	# $(shell git ls-remote $(GO2RTC_SITE) $(GO2RTC_SITE_BRANCH) | head -1 | cut -f1)
 endif
 
 GO2RTC_LICENSE = MIT
