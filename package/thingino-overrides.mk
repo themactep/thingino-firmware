@@ -12,3 +12,4 @@
 # aggregated file.
 -include $(BR2_EXTERNAL)/local.mk
 -include $(CONFIG_DIR)/local.mk
+include $(BR2_EXTERNAL)/package/thingino-freetype/freetype-override.mk
