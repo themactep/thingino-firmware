@@ -1,0 +1,25 @@
+From: Thingino Project <dev@thingino.com>
+Date: Mon Sep 9 16:45:00 2024 +0000
+Subject: [PATCH] Fix IFA_FLAGS missing in older Linux headers
+
+Add fallback definition for IFA_FLAGS when not available in older
+Linux kernel headers. IFA_FLAGS was added in newer kernel versions
+and may not be present in older header sets used by some build
+environments.
+
+Signed-off-by: Thingino Project <dev@thingino.com>
+---
+--- a/lib/roles/netlink/ops-netlink.c
++++ b/lib/roles/netlink/ops-netlink.c
+@@ -36,6 +36,11 @@
+ #include <linux/netlink.h>
+ #include <linux/rtnetlink.h>
+
++/* Fallback definition for older Linux headers */
++#ifndef IFA_FLAGS
++#define IFA_FLAGS 8
++#endif
++
+ //#define lwsl_netlink lwsl_notice
+ #define lwsl_cx_netlink		lwsl_cx_info
+ #define lwsl_cx_netlink_debug	lwsl_cx_debug
