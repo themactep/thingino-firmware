@@ -72,6 +72,8 @@ define THINGINO_ONVIF_INSTALL_TARGET_CMDS
 	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/media2_service
 	ln -sf onvif.cgi $(TARGET_DIR)/var/www/onvif/ptz_service
 
+	ln -sf /var/www/x/image.cgi $(TARGET_DIR)/var/www/onvif/image.cgi
+
 	$(INSTALL) -D -m 0755 $(@D)/onvif_notify_server \
 		$(TARGET_DIR)/usr/sbin/onvif_notify_server
 
