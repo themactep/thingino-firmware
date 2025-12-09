@@ -1,4 +1,5 @@
-config BR2_PACKAGE_HOST_MOSQUITTO
+config BR2_PACKAGE_HOST_THINGINO_MOSQUITTO
 	bool "host mosquitto (mosquitto_passwd)"
+	select BR2_PACKAGE_HOST_MOSQUITTO
 	help
-	  Only installs mosquitto_passwd.
+	  Wrapper to pull in the upstream host mosquitto_passwd tool.
