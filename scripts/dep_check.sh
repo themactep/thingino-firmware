@@ -19,17 +19,25 @@ else
 	echo "Host architecture is $host_arch"
 fi
 
-# Check dd (coreutils)
-req=9.0
-dd --version 2>&1 | head -n1 | grep -oE '[0-9]+\.[0-9]+' | {
-	read cur_ver || { echo "Unable to determine dd version" >&2; exit 1; }
-	if [ "$(printf '%s\n' "$req" "$cur_ver" | sort -V | head -n1)" != "$req" ]; then
-		echo "dd version $cur_ver is less than required $req.  Please update the coreutils for your distribution."
-		exit 1
-	else
-		echo "dd version is $cur_ver, which is >= $req"
-	fi
-}
+# Check dd (coreutils or uutils)
+dd_version_output=$(dd --version 2>&1 | head -n1)
+
+# Check if it's uutils coreutils (Rust rewrite)
+if echo "$dd_version_output" | grep -q "uutils coreutils"; then
+	echo "dd (uutils coreutils) detected - OK"
+else
+	# Classic coreutils - require >= 9.0
+	req=9.0
+	echo "$dd_version_output" | grep -oE '[0-9]+\.[0-9]+' | {
+		read cur_ver || { echo "Unable to determine dd version" >&2; exit 1; }
+		if [ "$(printf '%s\n' "$req" "$cur_ver" | sort -V | head -n1)" != "$req" ]; then
+			echo "dd version $cur_ver is less than required $req.  Please update the coreutils for your distribution."
+			exit 1
+		else
+			echo "dd version is $cur_ver, which is >= $req"
+		fi
+	}
+fi
 
 if [ $? -ne 0 ]; then
 	exit 1
