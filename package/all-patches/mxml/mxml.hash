@@ -1,0 +1,6 @@
+# sha256 checksums from https://github.com/michaelrsweet/mxml/releases/
+sha256  c8d1728d6ccf71a862a1538bd5e132daa2181bb42fe14b078baa2ec1510c0150  mxml-4.0.4.tar.gz
+
+# Locally calculated
+sha256  c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4  LICENSE
+sha256  528125ed9bea128efa97005f9d1b0656b483508a9777c123c026d1d3058a38ac  NOTICE
