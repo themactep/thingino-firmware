@@ -7,4 +7,3 @@ gpio_led_r=78
 gpio_mmc_cd=52
 gpio_speaker=63o
 gpio_wlan=50o
-gpio_motor_h=41 40 39 42
