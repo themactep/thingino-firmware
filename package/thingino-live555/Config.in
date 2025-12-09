@@ -1,6 +1,7 @@
 config BR2_PACKAGE_THINGINO_LIVE555
 	bool "LIVE555 Streaming Media Platform"
 	depends on BR2_INSTALL_LIBSTDCPP
+	select BR2_PACKAGE_LIVE555
 	help
 	  LIVE555 Streaming Media forms a set of C++ libraries for
 	  multimedia streaming, using open standard protocols
@@ -9,3 +10,8 @@ config BR2_PACKAGE_THINGINO_LIVE555
 
 comment "live555 needs a toolchain w/ C++"
 	depends on !BR2_INSTALL_LIBSTDCPP
+
+config THINGINO_LIVE555_USE_OPENRTSP
+	bool "openrtsp"
+	help
+	  Install openRTSP app
