@@ -8,19 +8,22 @@ defaults() {
 	default_for "template" "${network_hostname}-%Y%m%d-%H%M%S"
 	default_for "send_video" "false"
 	default_for "send_photo" "false"
+
 	[ -z "$username" ] && username="anonymous" && password="anonymous"
 }
 
 read_config() {
-        local CONFIG_FILE=/etc/send2.json
-        [ -f "$CONFIG_FILE" ] || return
+	local CONFIG_FILE=/etc/send2.json
+	[ -f "$CONFIG_FILE" ] || return
 
-            host=$(jct $CONFIG_FILE get ftp.host)
-            port=$(jct $CONFIG_FILE get ftp.port)
-        username=$(jct $CONFIG_FILE get ftp.username)
-        password=$(jct $CONFIG_FILE get ftp.password)
-            path=$(jct $CONFIG_FILE get ftp.path)
-        template=$(jct $CONFIG_FILE get ftp.template)
+	      host=$(jct $CONFIG_FILE get ftp.host)
+	      port=$(jct $CONFIG_FILE get ftp.port)
+	  username=$(jct $CONFIG_FILE get ftp.username)
+	  password=$(jct $CONFIG_FILE get ftp.password)
+	      path=$(jct $CONFIG_FILE get ftp.path)
+	  template=$(jct $CONFIG_FILE get ftp.template)
+	send_photo=$(jct $CONFIG_FILE get ftp.send_photo)
+	send_video=$(jct $CONFIG_FILE get ftp.send_video)
 }
 
 read_config
@@ -34,8 +37,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	password="$POST_password"
 	path="$POST_path"
 	template="$POST_template"
-	send_video="$POST_send_video"
 	send_photo="$POST_send_photo"
+	send_video="$POST_send_video"
 
 #	[ "true" = "$send2ftp"  ] && error_if_empty "$host" "FTP address cannot be empty."
 #	[ "true" = "$send2tftp" ] && error_if_empty "$host" "TFTP address cannot be empty."
@@ -79,8 +82,8 @@ defaults
 <div class="col">
 <% field_text "path" "Path on FTP server" "relative to FTP root directory" %>
 <% field_text "template" "Filename template" "$STR_SUPPORTS_STRFTIME" "do not use extension" %>
-<% field_switch "send_video" "Upload video file" %>
-<% field_switch "send_photo" "Upload camera snapshot" %>
+<% field_switch "send_photo" "Send snapshot" %>
+<% field_switch "send_video" "Send video" %>
 </div>
 </div>
 <% button_submit %>

@@ -4,22 +4,22 @@
 page_title="Send to Telegram"
 
 defaults() {
-	default_for send_photo "true"
-	default_for send_video "true"
 	default_for caption "%hostname, %datetime"
+	default_for send_photo "false"
+	default_for send_video "false"
 }
 
 read_config() {
-        local CONFIG_FILE=/etc/send2.json
-        [ -f "$CONFIG_FILE" ] || return
+	local CONFIG_FILE=/etc/send2.json
+	[ -f "$CONFIG_FILE" ] || return
 
-             token=$(jct $CONFIG_FILE get telegram.token)
-           channel=$(jct $CONFIG_FILE get telegram.channel)
-           message=$(jct $CONFIG_FILE get telegram.message)
-              file=$(jct $CONFIG_FILE get telegram.file)
-            silent=$(jct $CONFIG_FILE get telegram.silent)
-        send_photo=$(jct $CONFIG_FILE get telegram.send_photo)
-        send_video=$(jct $CONFIG_FILE get telegram.send_video)
+	     token=$(jct $CONFIG_FILE get telegram.token)
+	   channel=$(jct $CONFIG_FILE get telegram.channel)
+	   message=$(jct $CONFIG_FILE get telegram.message)
+	      file=$(jct $CONFIG_FILE get telegram.file)
+	    silent=$(jct $CONFIG_FILE get telegram.silent)
+	send_photo=$(jct $CONFIG_FILE get telegram.send_photo)
+	send_video=$(jct $CONFIG_FILE get telegram.send_video)
 }
 
 read_config
@@ -28,10 +28,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
 	token="$POST_token"
-	send_photo="$POST_send_photo"
-	send_video="$POST_send_video"
 	channel="$POST_channel"
 	caption="$POST_caption"
+	send_photo="$POST_send_photo"
+	send_video="$POST_send_video"
 
 	error_if_empty "$token" "Telegram token cannot be empty."
 	error_if_empty "$channel" "Telegram channel cannot be empty."
@@ -39,14 +39,14 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-                tmpfile="$(mktemp -u).json"
-                jct $tmpfile set telegram.token "$token"
-                jct $tmpfile set telegram.channel "$channel"
-                jct $tmpfile set telegram.caption "$caption"
-                jct $tmpfile set telegram.send_photo "$send_photo"
-                jct $tmpfile set telegram.send_video "$send_video"
-                jct /etc/send2.json import $tmpfile
-                rm $tmpfile
+		tmpfile="$(mktemp -u).json"
+		jct $tmpfile set telegram.token "$token"
+		jct $tmpfile set telegram.channel "$channel"
+		jct $tmpfile set telegram.caption "$caption"
+		jct $tmpfile set telegram.send_photo "$send_photo"
+		jct $tmpfile set telegram.send_video "$send_video"
+		jct /etc/send2.json import $tmpfile
+		rm $tmpfile
 
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
@@ -67,8 +67,8 @@ defaults
 <div class="col">
 <% field_text "caption" "Photo caption" "Available variables: %hostname, %datetime" %>
 <p class="label">Attachment</p>
-<% field_switch "send_photo" "Snapshot" %>
-<% field_switch "send_video" "Video" %>
+<% field_switch "send_photo" "Send photo" %>
+<% field_switch "send_video" "Send video" %>
 </div>
 <div class="col">
 <button type="button" class="btn" data-bs-toggle="modal" data-bs-target="#helpModal">Help</button>

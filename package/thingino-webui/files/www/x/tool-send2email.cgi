@@ -4,33 +4,33 @@
 page_title="Send to email"
 
 defaults() {
-	default_for send_photo "false"
-	default_for send_video "true"
 	default_for from_name "Camera $network_hostname"
 	default_for trust_cert "false"
 	default_for port "25"
 	default_for to_name "Camera admin"
 	default_for subject "Snapshot from $network_hostname"
+	default_for send_photo "false"
+	default_for send_video "false"
 }
 
 read_config() {
-        local CONFIG_FILE=/etc/send2.json
-        [ -f "$CONFIG_FILE" ] || return
+	local CONFIG_FILE=/etc/send2.json
+	[ -f "$CONFIG_FILE" ] || return
 
-        from_address=$(jct $CONFIG_FILE get email.from_address)
-           from_name=$(jct $CONFIG_FILE get email.from_name)
-          to_address=$(jct $CONFIG_FILE get email.to_address)
-             to_name=$(jct $CONFIG_FILE get email.to_name)
-             subject=$(jct $CONFIG_FILE get email.subject)
-                body=$(jct $CONFIG_FILE get email.body)
-                host=$(jct $CONFIG_FILE get email.host)
-                port=$(jct $CONFIG_FILE get email.port)
-            username=$(jct $CONFIG_FILE get email.username)
-            password=$(jct $CONFIG_FILE get email.password)
-             use_ssl=$(jct $CONFIG_FILE get email.use_ssl)
-          trust_cert=$(jct $CONFIG_FILE get email.trust_cert)
-          send_photo=$(jct $CONFIG_FILE get email.send_photo)
-          send_video=$(jct $CONFIG_FILE get email.send_video)
+	from_address=$(jct $CONFIG_FILE get email.from_address)
+	   from_name=$(jct $CONFIG_FILE get email.from_name)
+	  to_address=$(jct $CONFIG_FILE get email.to_address)
+	     to_name=$(jct $CONFIG_FILE get email.to_name)
+	     subject=$(jct $CONFIG_FILE get email.subject)
+		body=$(jct $CONFIG_FILE get email.body)
+		host=$(jct $CONFIG_FILE get email.host)
+		port=$(jct $CONFIG_FILE get email.port)
+	    username=$(jct $CONFIG_FILE get email.username)
+	    password=$(jct $CONFIG_FILE get email.password)
+	     use_ssl=$(jct $CONFIG_FILE get email.use_ssl)
+	  trust_cert=$(jct $CONFIG_FILE get email.trust_cert)
+	  send_photo=$(jct $CONFIG_FILE get email.send_photo)
+	  send_video=$(jct $CONFIG_FILE get email.send_video)
 }
 
 read_config
@@ -115,8 +115,8 @@ defaults
 <% field_text "subject" "Email subject" %>
 <% field_textarea "body" "Email text" "Line breaks will be replaced with whitespaces." %>
 <p class="label">Attachment</p>
-<% field_switch "send_photo" "Attach snapshot" %>
-<% field_switch "send_video" "Attach video" %>
+<% field_switch "send_photo" "Send snapshot" %>
+<% field_switch "send_video" "Send video" %>
 </div>
 </div>
 <% button_submit %>

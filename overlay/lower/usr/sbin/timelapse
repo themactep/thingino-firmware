@@ -3,14 +3,17 @@
 
 . /usr/share/common
 
-TIMELAPSE_CONFIG_FILE="/etc/timelapse.json"
+read_config() {
+	local CONFIG_FILE="/etc/timelapse.json"
+	[ -f "$CONFIG_FILE" ] || return
 
-tl_enabled=$(jct $TIMELAPSE_CONFIG_FILE get enabled)
-tl_mount=$(jct $TIMELAPSE_CONFIG_FILE get mount)
-tl_filepath=$(jct $TIMELAPSE_CONFIG_FILE get filepath)
-tl_filename=$(jct $TIMELAPSE_CONFIG_FILE get filename)
-tl_interval=$(jct $TIMELAPSE_CONFIG_FILE get interval)
-tl_keep_days=$(jct $TIMELAPSE_CONFIG_FILE get keep_days)
+	  enabled=$(jct $TIMELAPSE_CONFIG_FILE get enabled)
+	mountroot=$(jct $TIMELAPSE_CONFIG_FILE get mountroot)
+	 filepath=$(jct $TIMELAPSE_CONFIG_FILE get filepath)
+	 filename=$(jct $TIMELAPSE_CONFIG_FILE get filename)
+	 interval=$(jct $TIMELAPSE_CONFIG_FILE get interval)
+	keep_days=$(jct $TIMELAPSE_CONFIG_FILE get keep_days)
+}
 
 hesitate() {
 	echo_warning "$1"
@@ -18,47 +21,37 @@ hesitate() {
 	exit 0
 }
 
-# drop trailing slashes
-tl_mount=${tl_mount%/}
-tl_filepath=${tl_filepath%/}
+read_config
 
-if [ -z "$tl_mount" ]; then
-	echo_error "'tl_mount' is not set"
+# drop trailing slashes
+mountroot=${mountroot%/}
+filepath=${filepath%/}
+
+if [ -z "$mountroot" ]; then
+	echo_error "'mountroot' is not set"
 	exit 1
 fi
 
 # wait for mount point
-if ! mountpoint -q "$tl_mount" >/dev/null; then
-	hesitate "$tl_mount is not mounted"
-fi
+mountpoint -q "$mountroot" >/dev/null || hesitate "$mountroot is not mounted"
 
-if [ ! -w "$tl_mount" ]; then
-	hesitate "$tl_mount is not writable"
-fi
+[ -w "$mountroot" ] || hesitate "$mountroot is not writable"
 
 # storage directory
-tl_storage="$tl_mount/$tl_filepath"
-ensure_dir "$tl_storage"
+storage="$mountroot/$filepath"
+ensure_dir "$storage"
 
-if [ -z "$tl_keep_days" ]; then
-	tl_keep_days=7
-fi
-
-if [ -z "$tl_filename" ]; then
-	tl_filename="%Y/%m/%d/%H%M.jpg"
-fi
-
-if [ -z "$tl_interval" ]; then
-	tl_interval=1
-fi
+[ -z "$keep_days" ] && keep_days=7
+[ -z "$filename" ] && filename="%Y/%m/%d/%H%M.jpg"
+[ -z "$interval" ] && interval=1
 
 # delete older files
-find "$tl_storage" -type f -name '*.jpg' -mtime +$tl_keep_days -delete
+find "$storage" -type f -name '*.jpg' -mtime +$keep_days -delete
 
 # delete empty directories
-find "$tl_storage" -mindepth 1 -type d -empty -delete
+find "$storage" -mindepth 1 -type d -empty -delete
 
-target="$tl_storage/$(date +"$tl_filename")"
+target="$storage/$(date +"$filename")"
 ensure_dir "$(dirname "$target")"
 cp -f "$SNAPSHOT_FILE" "$target"
 

@@ -12,8 +12,8 @@ read_config() {
 	local CONFIG_FILE=/etc/send2.json
 	[ -f "$CONFIG_FILE" ] || return
 
-	url=$(jct $CONFIG_FILE get webhook.url)
-	message=$(jct $CONFIG_FILE get webhook.message)
+	       url=$(jct $CONFIG_FILE get webhook.url)
+	   message=$(jct $CONFIG_FILE get webhook.message)
 	send_photo=$(jct $CONFIG_FILE get webhook.send_photo)
 	send_video=$(jct $CONFIG_FILE get webhook.send_video)
 }
@@ -58,8 +58,8 @@ defaults
 </div>
 <div class="col">
 <% field_textarea "message" "Message" %>
-<% field_switch "send_photo" "Attach Snapshot" %>
-<% field_switch "send_video" "Attach Videoclips" %>
+<% field_switch "send_photo" "Send photo" %>
+<% field_switch "send_video" "Send video" %>
 </div>
 </div>
 <% button_submit %>

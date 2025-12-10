@@ -10,25 +10,29 @@ fi
 camera_id=${network_macaddr//:/}
 
 defaults() {
-	default_for client_id $camera_id
+	default_for client_id "$camera_id"
 	default_for port "1883"
 	default_for topic "thingino/$client_id"
 	default_for message "{\"camera_id\": \"$camera_id\", \"timestamp\": \"%s\"}"
+	default_for send_photo "false"
+	default_for send_video "false"
 }
 
 read_config() {
-        local CONFIG_NAME=/etc/send2.json
-        [ -f "$CONFIG_NAME" ] || return
+	local CONFIG_FILE=/etc/send2.json
+	[ -f "$CONFIG_FILE" ] || return
 
-               host=$(jct $CONFIG_NAME get mqtt.host)
-               port=$(jct $CONFIG_NAME get mqtt.port)
-           username=$(jct $CONFIG_NAME get mqtt.username)
-           password=$(jct $CONFIG_NAME get mqtt.password)
-              topic=$(jct $CONFIG_NAME get mqtt.topic)
-            message=$(jct $CONFIG_NAME get mqtt.message)
-            is_json=$(jct $CONFIG_NAME get mqtt.is_json)
-        topic_photo=$(jct $CONFIG_NAME get mqtt.topic)
-         send_photo=$(jct $CONFIG_NAME get mqtt.send_photo)
+	       host=$(jct $CONFIG_FILE get mqtt.host)
+	       port=$(jct $CONFIG_FILE get mqtt.port)
+	   username=$(jct $CONFIG_FILE get mqtt.username)
+	   password=$(jct $CONFIG_FILE get mqtt.password)
+	      topic=$(jct $CONFIG_FILE get mqtt.topic)
+	    message=$(jct $CONFIG_FILE get mqtt.message)
+	    is_json=$(jct $CONFIG_FILE get mqtt.is_json)
+	 send_photo=$(jct $CONFIG_FILE get mqtt.send_photo)
+	 send_video=$(jct $CONFIG_FILE get mqtt.send_video)
+	topic_photo=$(jct $CONFIG_FILE get mqtt.topic_photo)
+	topic_video=$(jct $CONFIG_FILE get mqtt.topic_video)
 }
 
 read_config
@@ -44,7 +48,9 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	topic="$POST_topic"
 	message="$POST_message"
 	send_photo="$POST_send_photo"
+	send_video="$POST_send_video"
 	topic_photo="$POST_topic_photo"
+	topic_video="$POST_topic_video"
 	use_ssl="$POST_use_ssl"
 
 	error_if_empty "$host" "MQTT broker host cannot be empty."
@@ -73,18 +79,20 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	if [ -z "$error" ]; then
 		tmpfile="$(mktemp -u).json"
-                jct $tmpfile set mqtt.host "$host"
-                jct $tmpfile set mqtt.port "$port"
-                jct $tmpfile set mqtt.username "$username"
-                jct $tmpfile set mqtt.password "$password"
-                jct $tmpfile set mqtt.client_id "$client_id"
-                jct $tmpfile set mqtt.topic "$topic"
-                jct $tmpfile set mqtt.message "$message"
-                jct $tmpfile set mqtt.topic_photo "$topic_photo"
-                jct $tmpfile set mqtt.use_ssl "$use_ssl"
-                jct $tmpfile set mqtt.send_photo "$send_photo"
-                jct /etc/send2.json import $tmpfile
-                rm $tmpfile
+		jct $tmpfile set mqtt.host "$host"
+		jct $tmpfile set mqtt.port "$port"
+		jct $tmpfile set mqtt.username "$username"
+		jct $tmpfile set mqtt.password "$password"
+		jct $tmpfile set mqtt.client_id "$client_id"
+		jct $tmpfile set mqtt.topic "$topic"
+		jct $tmpfile set mqtt.message "$message"
+		jct $tmpfile set mqtt.use_ssl "$use_ssl"
+		jct $tmpfile set mqtt.send_photo "$send_photo"
+		jct $tmpfile set mqtt.send_video "$send_video"
+		jct $tmpfile set mqtt.topic_photo "$topic_photo"
+		jct $tmpfile set mqtt.topic_video "$topic_video"
+		jct /etc/send2.json import $tmpfile
+		rm $tmpfile
 
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
@@ -111,8 +119,10 @@ defaults
 <div class="col">
 <% field_text "topic" "MQTT topic" %>
 <% field_textarea "message" "MQTT message" "$STR_SUPPORTS_STRFTIME" %>
-<% field_switch "send_photo" "Send a snapshot" %>
-<% field_text "topic_photo" "MQTT topic to send the snapshot to" %>
+<% field_switch "send_photo" "Send photo" %>
+<% field_text "topic_photo" "MQTT topic to send the photo to" %>
+<% field_switch "send_video" "Send video" %>
+<% field_text "topic_video" "MQTT topic to send the video to" %>
 </div>
 </div>
 <% button_submit %>
