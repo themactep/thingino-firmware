@@ -12,7 +12,7 @@ THINGINO_ESPHOME_LICENSE = MIT
 THINGINO_ESPHOME_LICENSE_FILES = LICENSE
 
 # Base dependencies
-THINGINO_ESPHOME_DEPENDENCIES = host-meson host-pkgconf thingino-libcurl ingenic-audiodaemon
+THINGINO_ESPHOME_DEPENDENCIES = host-meson host-pkgconf thingino-libcurl
 
 # Add Bluetooth dependencies if Bluetooth is enabled
 ifeq ($(BR2_PACKAGE_THINGINO_BLUETOOTH),y)
