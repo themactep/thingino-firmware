@@ -27,8 +27,8 @@ define THINGINO_MOTORS_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/motors-daemon \
 		$(TARGET_DIR)/usr/bin/motors-daemon
 
-	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/S09motor \
-		$(TARGET_DIR)/etc/init.d/S09motor
+	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/S59motor \
+		$(TARGET_DIR)/etc/init.d/S59motor
 
 	$(INSTALL) -D -m 0755 $(THINGINO_MOTORS_PKGDIR)/files/ptz_presets \
 		$(TARGET_DIR)/usr/sbin
