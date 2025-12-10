@@ -512,7 +512,6 @@ menu() {
 					pidof prusa-connectd >/dev/null && css=$CSS_ENABLED
 					;;
 				telegrambot)
-					[ -f /bin/jsonpath ] || continue
 					pidof telegrambot > /dev/null && css=$CSS_ENABLED
 					;;
 				timelapse)
