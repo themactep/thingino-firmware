@@ -62,8 +62,8 @@ endef
 define LIGHTNVR_INSTALL_LIBSOD
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/lib
 	$(INSTALL) -m 0755 $(@D)/src/sod/libsod.so.1.1.9 $(TARGET_DIR)/usr/lib/
-	$(INSTALL) -m 0755 $(@D)/src/sod/libsod.so.1 $(TARGET_DIR)/usr/lib/
-	$(INSTALL) -m 0755 $(@D)/src/sod/libsod.so $(TARGET_DIR)/usr/lib/
+	ln -s libsod.so.1.1.9 $(TARGET_DIR)/usr/lib/libsod.so.1
+	ln -s libsod.so.1.1.9 $(TARGET_DIR)/usr/lib/libsod.so
 endef
 
 # The complete target installation command set
