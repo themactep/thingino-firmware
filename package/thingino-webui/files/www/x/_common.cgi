@@ -16,7 +16,7 @@ pagename="${pagename%%.*}"
 # files
 alerts_dir="/tmp/alerts"
 
-ensure_dir "$alerts_dir"
+[ -d "$alerts_dir" ] || mkdir -p "$alerts_dir"
 
 signature_file="/tmp/signature.txt"
 
