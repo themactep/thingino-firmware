@@ -1,0 +1,38 @@
+#!/bin/sh
+
+. /usr/share/common
+
+DAEMON_ARGS="-d -c /etc/go2rtc.yaml"
+
+start() {
+	echo_title "Starting Go2RTC"
+
+	start_daemon
+}
+
+stop() {
+	echo_title "Stopping Go2RTC"
+
+	stop_daemon
+}
+
+restart() {
+	stop || true
+	sleep 1
+	reload
+}
+
+reload() {
+	start
+}
+
+case "$1" in
+	start | stop | restart | reload)
+		$1
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+esac
+
+exit 0
