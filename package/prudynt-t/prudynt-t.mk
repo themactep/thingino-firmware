@@ -192,7 +192,7 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	# Install debug-specific files and configurations to NFS
 	if [ "$(BR2_PACKAGE_PRUDYNT_T_DEBUG)" = "y" ]; then \
 		echo "Installing debug tools and documentation to NFS..."; \
-		$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/prudynt-debug-helper.sh \
+		$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/scripts/prudynt-debug-helper.sh \
 			$(BR2_THINGINO_NFS)/$(CAMERA)/usr/bin/prudynt-debug-helper; \
 		if [ -f $(@D)/test_memory_safety.sh ]; then \
 			$(INSTALL) -D -m 0755 $(@D)/test_memory_safety.sh \
