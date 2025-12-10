@@ -27,11 +27,6 @@ start() {
 		exit 1
 	fi
 
-	if is_streamer_disabled; then
-		echo_error "Streamer disabled"
-		exit 1
-	fi
-
 	start_daemon
 
 	tmpfile=$(mktemp -u)

@@ -13,11 +13,6 @@ ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
 start() {
 	echo_title "Starting ONVIF Notify service"
 
-	if is_streamer_disabled; then
-		echo_error "Streamer disabled"
-		exit 1
-	fi
-
 	if [ ! -d "$MOTION" ]; then
 		mkdir -p $MOTION
 	fi
