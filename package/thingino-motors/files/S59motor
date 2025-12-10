@@ -113,7 +113,7 @@ start() {
 	# FIXME: motors may have different speeds for pan and tilt
 	set_motors_speed $speed_pan
 
-	if [ "true" = "$homing" ]; then
+	if [ "false" = "$homing" ]; then
 		echo_info "Homing disabled"
 	else
 		home_motors
