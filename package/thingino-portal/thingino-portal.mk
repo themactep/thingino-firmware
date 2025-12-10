@@ -29,7 +29,7 @@ define THINGINO_PORTAL_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(THINGINO_PORTAL_PKGDIR)/files/portal.cgi \
 		$(TARGET_DIR)/var/www-portal/x/portal.cgi
 
-	find $(TARGET_DIR)/var/www-portal/x/ -type f -name *.cgi -exec chmod 755 {} \;
+	find $(TARGET_DIR)/var/www-portal/x/ -type f -name '*.cgi' -exec chmod 755 {} \;
 
 	$(INSTALL) -D -m 0644 $(THINGINO_PORTAL_PKGDIR)/files/bootstrap.bundle.min.js \
 		$(TARGET_DIR)/var/www/a/bootstrap.bundle.min.js
