@@ -8,7 +8,8 @@ define THINGINO_PRUSA_CONNECT_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(THINGINO_PRUSA_CONNECT_PKGDIR)/files/prusa-connect \
 		$(TARGET_DIR)/usr/sbin/prusa-connect
 
-	$(INSTALL) -D -m 0755 $(THINGINO_PRUSA_CONNECT_PKGDIR)/files/S67prusa-connect \
+	# install service disabled
+	$(INSTALL) -D -m 0644 $(THINGINO_PRUSA_CONNECT_PKGDIR)/files/S67prusa-connect \
 		$(TARGET_DIR)/etc/init.d/S67prusa-connect
 
 	$(INSTALL) -D -m 0644 $(THINGINO_PRUSA_CONNECT_PKGDIR)/files/prusa-connect.json \
