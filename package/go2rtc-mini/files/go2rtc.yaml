@@ -1,0 +1,20 @@
+log:
+  level: info  # default level
+  api: trace
+  exec: debug
+  ngrok: info
+  rtsp: warn
+  streams: error
+  webrtc: fatal
+
+rtsp:
+  listen: ":8553"
+
+webrtc:
+  candidates:
+    - stun:8555
+
+streams:
+  jpeg: http://thingino:thingino@127.0.0.1/image.jpg
+  rtsp-high: rtsp://thingino:thingino@127.0.0.1/ch0
+  rtsp-low: rtsp://thingino:thingino@127.0.0.1/ch1
