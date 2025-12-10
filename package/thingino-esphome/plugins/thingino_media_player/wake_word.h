@@ -35,7 +35,7 @@ extern "C" {
 #define WAKE_WORD_TENSOR_ARENA_SIZE (256 * 1024)  // 256KB
 
 // Wake word model paths (can be configured at runtime)
-#define WAKE_WORD_MODEL_DEFAULT_PATH "/etc/wake_word_model.tflite"
+#define WAKE_WORD_MODEL_DEFAULT_PATH "/usr/share/esphome/wake_word_model.tflite"
 
 // Wake word state
 typedef enum {
