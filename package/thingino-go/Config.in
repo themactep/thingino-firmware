@@ -1,0 +1,9 @@
+config BR2_PACKAGE_THINGINO_GO
+	bool "Go toolchain (shadow package)"
+	default y if BR2_PACKAGE_GO2RTC
+	select BR2_PACKAGE_HOST_GO
+	help
+	  Shadow package that forces Buildroot's host-go toolchain to be
+	  rebuilt with the upstream 1.25.3 release, using a fresh stage4
+	  bootstrap compiler so Go >= 1.24 based applications build
+	  reliably.
