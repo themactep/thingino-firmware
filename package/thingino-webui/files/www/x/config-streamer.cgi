@@ -293,6 +293,7 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 
 <script>
 const soc = "<%= $soc_family %>";
+
 const preview = $("#preview");
 preview.onload = function() { URL.revokeObjectURL(this.src) }
 

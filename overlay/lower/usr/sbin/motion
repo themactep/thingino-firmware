@@ -11,6 +11,10 @@ MOTION_ALARM_DIR=$(dirname "$MOTION_ALARM")
 
 MOTION_STOP_FILE="/run/motors.pid"
 
+MOTION_VIDEO_FILE="/tmp/vbuffer.mp4"
+MOTION_VIDEO_CHANNEL=0
+MOTION_VIDEO_LENGTH=10
+
 start() {
 	echo_info "Start motion"
 	if [ -f "$MOTION_STOP_FILE" ]; then
@@ -21,40 +25,10 @@ start() {
 	echo_info "Set $MOTION_ALARM"
 	touch "$MOTION_ALARM"
 
-	if [ "true" = "$motion_send2email" ]; then
-		echo_info "Send alert to email"
-		send2email &
-	fi
-
-	if [ "true" = "$motion_send2ftp" ]; then
-		echo_info "Send alert to FTP"
-		send2ftp &
-	fi
-
-	if [ "true" = "$motion_send2mqtt" ]; then
-		echo_info "Send alert to MQTT"
-		send2mqtt &
-	fi
-
-	if [ "true" = "$motion_send2telegram" ]; then
-		echo_info "Send alert to Telegram"
-		send2telegram motion &
-	fi
-
-	if [ "true" = "$motion_send2webhook" ]; then
-		echo_info "Send alert to WebHook"
-		send2webhook &
-	fi
-
-	if [ "true" = "$motion_send2ntfy" ]; then
-		echo_info "Send alert to Ntfy"
-		send2ntfy &
-	fi
-
-	if [ "true" = "$motion_playonspeaker" ]; then
-		echo_info "Send alert to play on speaker"
-		playonspeaker &
-	fi
+	# record a video clip
+	echo_info "Start recording $MOTION_VIDEO_FILE"
+	echo "START $MOTION_VIDEO_FILE $MOTION_VIDEO_LENGTH $MOTION_VIDEO_CHANNEL" > /run/prudynt/mp4ctl
+	echo_info "Motion video is ready."
 }
 
 stop() {

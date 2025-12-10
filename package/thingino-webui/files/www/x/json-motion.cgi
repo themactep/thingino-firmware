@@ -1,16 +1,25 @@
 #!/bin/sh
 . ./_json.sh
 
-# parse parameters from query string
 [ -n "$QUERY_STRING" ] && eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
 
 case "$target" in
-	email | ftp | mqtt | telegram | webhook | ntfy)
+	enabled)
 		case "$state" in
 			true | false)
-				sed -i "/^motion_send2$target/d" $CONFIG_FILE
-				echo "motion_send2$target=\"$state\"" >> $CONFIG_FILE
-
+				jct /etc/prudynt.json set "motion.$target" $state
+				json_ok "{\"target\":\"$target\",\"status\":$state}"
+				service restart prudynt >/dev/null
+				;;
+			*)
+				json_error "state missing"
+				;;
+		esac
+		;;
+	send2email | send2ftp | send2mqtt | send2ntfy | send2telegram | send2webhook)
+		case "$state" in
+			true | false)
+				jct /etc/motion.json set "motion.$target" $state
 				json_ok "{\"target\":\"$target\",\"status\":$state}"
 				;;
 			*)
@@ -18,10 +27,11 @@ case "$target" in
 				;;
 		esac
 		;;
+	sensitivity | cooldown_time)
+			jct /etc/motion.json set "motion.$target" $state
+			json_ok "{\"target\":\"$target\",\"state\":$state}"
+		;;
 	*)
 		json_error "target missing"
 		;;
 esac
-
-service restart prudynt >/dev/null
-service restart vbuffer >/dev/null

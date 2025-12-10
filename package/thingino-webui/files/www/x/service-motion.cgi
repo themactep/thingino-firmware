@@ -2,22 +2,40 @@
 <%in _common.cgi %>
 <%
 page_title="Motion Guard"
+
+read_config() {
+	enabled=$(jct /etc/prudynt.json get motion.enabled)
+
+	local CONFIG_FILE=/etc/motion.json
+	[ -f "$CONFIG_FILE" ] || retun
+
+	send2email=$(jct $CONFIG_FILE get motion.send2email)
+	send2ftp=$(jct $CONFIG_FILE get motion.send2ftp)
+	send2mqtt=$(jct $CONFIG_FILE get motion.send2mqtt)
+	send2ntfy=$(jct $CONFIG_FILE get motion.send2ntfy)
+	send2telegram=$(jct $CONFIG_FILE get motion.send2telegram)
+	send2webhook=$(jct $CONFIG_FILE get motion.send2webhook)
+	sensitivity=$(jct $CONFIG_FILE get motion.sensitivity)
+	cooldown_time=$(jct $CONFIG_FILE get motion.cooldown_time)
+}
+
+read_config
 %>
 <%in _header.cgi %>
 
-<% field_switch "motion_enabled" "Enable motion guard" %>
+<% field_switch "enabled" "Enable motion guard" %>
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
-<% field_range "motion_sensitivity" "Sensitivity" "1,8,1" %>
-<% field_range "motion_cooldown_time" "Delay between alerts, sec." "5,60,1" %>
+<% field_range "sensitivity" "Sensitivity" "1,8,1" %>
+<% field_range "cooldown_time" "Delay between alerts, sec." "5,60,1" %>
 </div>
 <div class="col">
-<% field_checkbox "motion_send2email" "Send to email address" "<a href=\"tool-send2email.cgi\">Configure sending to email</a>" %>
-<% field_checkbox "motion_send2telegram" "Send to Telegram" "<a href=\"tool-send2telegram.cgi\">Configure sending to Telegram</a>" %>
-<% field_checkbox "motion_send2mqtt" "Send to MQTT" "<a href=\"tool-send2mqtt.cgi\">Configure sending to MQTT</a>" %>
-<% field_checkbox "motion_send2webhook" "Send to webhook" "<a href=\"tool-send2webhook.cgi\">Configure sending to a webhook</a>" %>
-<% field_checkbox "motion_send2ftp" "Upload to FTP" "<a href=\"tool-send2ftp.cgi\">Configure uploading to FTP</a>" %>
-<% field_checkbox "motion_send2ntfy" "Send to Ntfy" "<a href=\"tool-send2ntfy.cgi\">Configure sending to Ntfy</a>" %>
+<% field_checkbox "send2email" "Send to email address" "<a href=\"tool-send2email.cgi\">Configure sending to email</a>" %>
+<% field_checkbox "send2ftp" "Upload to FTP" "<a href=\"tool-send2ftp.cgi\">Configure uploading to FTP</a>" %>
+<% field_checkbox "send2mqtt" "Send to MQTT" "<a href=\"tool-send2mqtt.cgi\">Configure sending to MQTT</a>" %>
+<% field_checkbox "send2ntfy" "Send to Ntfy" "<a href=\"tool-send2ntfy.cgi\">Configure sending to Ntfy</a>" %>
+<% field_checkbox "send2telegram" "Send to Telegram" "<a href=\"tool-send2telegram.cgi\">Configure sending to Telegram</a>" %>
+<% field_checkbox "send2webhook" "Send to webhook" "<a href=\"tool-send2webhook.cgi\">Configure sending to a webhook</a>" %>
 </div>
 <div class="col">
 <div class="alert alert-info">
@@ -29,51 +47,50 @@ which sends alerts through the selected and preconfigured notification methods.<
 </div>
 
 <script>
+const endpoint = '/x/json-motion.cgi';
+
 const motion_params = ['enabled', 'sensitivity', 'cooldown_time'];
-const send2_targets = ['email', 'ftp', 'mqtt', 'telegram', 'webhook', 'ntfy'];
 
-const wsPort = location.protocol === "https:" ? 8090 : 8089;
-const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
-let ws = new WebSocket(`${wsProto}//${document.location.hostname}:${wsPort}?token=<%= $ws_token %>`);
-
-ws.onopen = () => {
-	console.log('WebSocket connection opened');
-	const payload = '{"motion":{' + motion_params.map((x) => `"${x}":null`).join() + '}}';
-	ws.send(payload);
-}
-ws.onclose = () => { console.log('WebSocket connection closed'); }
-ws.onerror = (err) => { console.error('WebSocket error', err); }
-ws.onmessage = (ev) => {
-	if (ev.data == '') return;
-	const msg = JSON.parse(ev.data);
-	console.log(ts(), '<===', ev.data);
+function handleMessage(msg) {
+	if (msg.action && msg.action.capture == 'initiated') return;
 
 	let data;
 
 	data = msg.motion;
 	if (data) {
 		if (data.enabled)
-			$('#motion_enabled').checked = data.enabled;
+			$('#enabled').checked = data.enabled;
 		if (data.sensitivity) {
-			$('#motion_sensitivity').value = data.sensitivity;
-			$('#motion_sensitivity-show').textContent = data.sensitivity;
+			$('#sensitivity').value = data.sensitivity;
+			$('#sensitivity-show').textContent = data.sensitivity;
 		}
 		if (data.cooldown_time) {
-			$('#motion_cooldown_time').value = data.cooldown_time;
-			$('#motion_cooldown_time-show').textContent = data.cooldown_time;
+			$('#cooldown_time').value = data.cooldown_time;
+			$('#cooldown_time-show').textContent = data.cooldown_time;
 		}
 	}
 }
 
-function sendToWs(payload) {
+async function sendToEndpoint(payload) {
 	console.log(ts(), '===>', payload);
-	ws.send(payload);
+	try {
+		const response = await fetch(endpoint + '?' + payload);
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		const contentType = response.headers.get('content-type');
+		if (contentType?.includes('application/json')) {
+			const msg = await response.json();
+			console.log(ts(), '<===', JSON.stringify(msg));
+			handleMessage(msg);
+		}
+	} catch (err) {
+		console.error('Send error', err);
+	}
 }
 
-function saveValue(domain, name) {
-	const el = $(`#${domain}_${name}`);
+function saveValue(name) {
+	const el = $(`#${name}`);
 	if (!el) {
-		console.error(`Element #${domain}_${name} not found`);
+		console.error(`Element #${name} not found`);
 		return;
 	}
 	let value;
@@ -82,27 +99,40 @@ function saveValue(domain, name) {
 	} else {
 		value = el.value;
 	}
-	sendToWs(`{"${domain}":{"${name}":${value}},"action":{"save_config":null,"restart_thread":2}}`);
+	payload = new URLSearchParams({ "target": name, "state": value }).toString()
+	sendToEndpoint(payload);
 }
 
-motion_params.forEach((x) => {
-	$(`#motion_${x}`).onchange = (_) => saveValue('motion', x);
+$$('#enabled, #send2email, #send2ftp, #send2mqtt, #send2ntfy, #send2telegram, #send2webhook, #sensitivity, #cooldown_time').forEach((x) => {
+	x.onchange = (_) => saveValue(x.id);
 });
 
+/*
 async function switchSend2Target(target, state) {
 	await fetch('/x/json-motion.cgi?' + new URLSearchParams({ "target": target, "state": state }).toString())
 		.then(res => res.json())
-		.then(data => { $(`#motion_send2${data.message.target}`).checked = (data.message.status == 1) });
+		.then(data => { $(`#${data.message.target}`).checked = (data.message.status == 1) });
 }
 
-send2_targets.forEach((x) => {
-	$(`#motion_send2${x}`).onchange = (ev) => switchSend2Target(x, ev.target.checked);
+// range
+$$('#sensitivity, #cooldown_time').forEach((el) => {
+	el.onchange = (ev) => {
+		fetch('/x/json-motion.cgi?' + new URLSearchParams({ "target": el.id, "state": el.value }).toString())
+			.then(res => res.json())
+			.then(data => { $(`#${data.message.target}`).value = (data.message.state) });
+	}
 });
+
+// boolean
+$$('#enabled, #send2email, #send2ftp, #send2mqtt, #send2ntfy, #send2telegram, #send2webhook').forEach((el) => {
+	el.onchange = (ev) => switchSend2Target(el.id, ev.target.checked);
+});
+*/
 </script>
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "grep ^motion_ $CONFIG_FILE" %>
+<% ex "jct /etc/motion.json print" %>
 </div>
 
 <%in _footer.cgi %>

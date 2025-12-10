@@ -1,0 +1,41 @@
+#!/bin/sh
+
+# requires this daemon:
+#inotifyd /sbin/send_on_motion /tmp/vbuffer.mp4:w
+
+. /usr/share/common
+
+if [ "true" = "$motion_send2email" ]; then
+    echo_info "Send alert to email"
+    send2email &
+fi
+
+if [ "true" = "$motion_send2ftp" ]; then
+    echo_info "Send alert to FTP"
+    send2ftp &
+fi
+
+if [ "true" = "$motion_send2mqtt" ]; then
+    echo_info "Send alert to MQTT"
+    send2mqtt &
+fi
+
+if [ "true" = "$motion_send2telegram" ]; then
+    echo_info "Send alert to Telegram"
+    send2telegram motion &
+fi
+
+if [ "true" = "$motion_send2webhook" ]; then
+    echo_info "Send alert to WebHook"
+    send2webhook &
+fi
+
+if [ "true" = "$motion_send2ntfy" ]; then
+    echo_info "Send alert to Ntfy"
+    send2ntfy &
+fi
+
+if [ "true" = "$motion_playonspeaker" ]; then
+    echo_info "Send alert to play on speaker"
+    playonspeaker &
+fi
