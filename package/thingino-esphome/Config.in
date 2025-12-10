@@ -23,7 +23,6 @@ config BR2_PACKAGE_THINGINO_ESPHOME
 
 	  Recommended:
 	  - mDNS service (mdnsd or avahi-daemon) for auto-discovery
-	  - ingenic-audiodaemon for MediaPlayer functionality
 
 	  https://github.com/yinzara/esphome-linux
 
@@ -42,8 +41,6 @@ config BR2_PACKAGE_THINGINO_ESPHOME_WAKE_WORD
 	  Requires:
 	  - ingenic-tflite-micro (auto-selected)
 	  - esp-microspeech-features (auto-selected)
-	  - ingenic-audiodaemon for microphone input
-
 endif
 
 comment "thingino-esphome needs a toolchain w/ threads"
