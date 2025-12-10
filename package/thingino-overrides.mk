@@ -14,5 +14,6 @@
 -include $(CONFIG_DIR)/local.mk
 
 include $(BR2_EXTERNAL)/package/thingino-freetype/freetype-override.mk
+include $(BR2_EXTERNAL)/package/thingino-go/go-override.mk
 include $(BR2_EXTERNAL)/package/thingino-live555/live555-override.mk
 include $(BR2_EXTERNAL)/package/thingino-mxml/mxml-override.mk
