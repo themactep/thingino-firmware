@@ -1,7 +1,6 @@
 #!/bin/sh
 . ./_json.sh
 
-# parse parameters from query string
 [ -n "$QUERY_STRING" ] && eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
 
 case "$target" in
