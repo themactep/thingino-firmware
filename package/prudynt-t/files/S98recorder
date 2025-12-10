@@ -1,36 +1,25 @@
 #!/bin/sh
 
 STREAMER_APP="prudynt"
+FIFO_PATH="/run/prudynt/mp4ctl"
 
 . /usr/share/common
 
 start() {
 	echo_title "Starting Record service"
 
-	if pidof -o $$ $DAEMON > /dev/null; then
-		echo_error "$DAEMON is already running"
-		exit 1
-	fi
-
-	if ! pidof $STREAMER_APP; then
+	if ! pidof $STREAMER_APP >/dev/null 2>&1; then
 		echo_error "Streamer is not running"
 		exit 1
 	fi
 
-	if [ "true" != "$record_enabled" ]; then
-		echo_error "Recording disabled"
-		exit 1
-	fi
-
-	start_daemon
+	/sbin/record || echo_warning "record command failed"
 }
 
 stop() {
 	echo_title "Stopping Recording service"
 
-	stop_daemon
-
-	find /tmp/ -name "record.*" -maxdepth 0 -delete
+	printf 'STOP\n' > "$FIFO_PATH"
 }
 
 case "$1" in

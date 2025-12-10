@@ -168,11 +168,12 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
 		$(TARGET_DIR)/etc/init.d/S95prudynt
 
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96record \
-		$(TARGET_DIR)/etc/init.d/S96record
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S97prudynt-watchdog \
+		$(TARGET_DIR)/etc/init.d/S97prudynt-watchdog
 
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96vbuffer \
-		$(TARGET_DIR)/etc/init.d/S96vbuffer
+	# install service disabled
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/S98recorder \
+		$(TARGET_DIR)/etc/init.d/S98recorder
 
 	$(INSTALL) -D -m 0644 $(@D)/res/default.ttf \
 		$(TARGET_DIR)/usr/share/fonts/default.ttf
