@@ -2,9 +2,11 @@
 
 . /usr/share/common
 
-ENABLED=false
-INTERVAL=60
 RTSP_URL="rtsp://thingino:thingino@127.0.0.1/ch0"
+PID_FILE="/run/rtsp_watchdog.pid" # PID file to store the background process ID
+
+# Interval to check the stream
+INTERVAL=60
 
 # Number of retries before declaring the stream down
 RETRY_COUNT=3
@@ -18,15 +20,63 @@ RESTART_LIMIT=3
 # Delay in seconds between restarts
 RESTART_DELAY=10
 
+# Seconds to wait for probe command
+CHECK_TIMEOUT=10
+
+RTSP_HOST=""
+RTSP_PORT=""
+PID=""
 RESTART_COUNT=0
-PID_FILE="/run/rtsp_watchdog.pid"  # PID file to store the background process ID
+
+parse_rtsp_endpoint() {
+	local url="${RTSP_URL#rtsp://}"
+	local creds_trim="${url##*@}"
+	local host_port="${creds_trim%%/*}"
+	if [ -z "$host_port" ]; then
+		return 1
+	fi
+	if echo "$host_port" | grep -q ':'; then
+		RTSP_HOST="${host_port%%:*}"
+		RTSP_PORT="${host_port##*:}"
+	else
+		RTSP_HOST="$host_port"
+		RTSP_PORT=554
+	fi
+	[ -n "$RTSP_HOST" ] && [ -n "$RTSP_PORT" ]
+}
+
+check_with_curl() {
+	curl -s --max-time "$CHECK_TIMEOUT" --fail -X OPTIONS "$RTSP_URL" >/dev/null 2>&1
+}
+
+check_with_nc() {
+	[ -n "$RTSP_HOST" ] || parse_rtsp_endpoint || return 1
+	local payload
+	payload=$(printf 'OPTIONS %s RTSP/1.0\r\nCSeq: 1\r\nUser-Agent: stream-watchdog\r\n\r\n' "$RTSP_URL")
+	printf '%s' "$payload" | timeout "$CHECK_TIMEOUT" nc -w "$CHECK_TIMEOUT" "$RTSP_HOST" "$RTSP_PORT" 2>/dev/null | grep -q "RTSP/1.0 200"
+}
+
+check_rtsp_stream() {
+	if check_with_curl; then
+		return 0
+	fi
+
+	if check_with_nc; then
+		return 0
+	fi
+
+	return 1
+}
 
 # Handle signals
 trap 'echo "Stream Watchdog: Stopping watchdog..."; cleanup; exit 0' INT TERM
 
 cleanup() {
 	# Kill any background processes and cleanup resources
-	[ -n "$PID" ] && kill $PID
+	if [ -f "$PID_FILE" ]; then
+		PID=$(cat "$PID_FILE")
+		[ -n "$PID" ] && kill "$PID" 2>/dev/null || true
+	fi
 }
 
 watch() {
@@ -34,12 +84,7 @@ watch() {
 		SUCCESS=false
 
 		for i in $(seq 1 $RETRY_COUNT); do
-			openRTSP -v -V -d 5 -t "$RTSP_URL" > /dev/null 2>&1 &
-			PID=$!
-
-			wait $PID
-			if [ $? -eq 0 ]; then
-				echo_info "Stream stream is active."
+			if check_rtsp_stream; then
 				SUCCESS=true
 				RESTART_COUNT=0  # Reset the restart count after a successful check
 				break
@@ -79,8 +124,11 @@ start() {
 		exit 1
 	fi
 
+	parse_rtsp_endpoint || true
+
 	watch &
-	echo $! > "$PID_FILE"  # Store the PID of the background process
+	PID=$!
+	echo "$PID" > "$PID_FILE"  # Store the PID of the background process
 }
 
 stop() {

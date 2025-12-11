@@ -11,6 +11,7 @@ PRUDYNT_T_GIT_SUBMODULES = YES
 PRUDYNT_T_DEPENDENCIES += ingenic-lib
 PRUDYNT_T_DEPENDENCIES += host-thingino-jct thingino-jct
 PRUDYNT_T_DEPENDENCIES += thingino-live555
+PRUDYNT_T_DEPENDENCIES += thingino-libcurl
 PRUDYNT_T_DEPENDENCIES += opus faac libhelix-aac libhelix-mp3 libflac
 PRUDYNT_T_DEPENDENCIES += libschrift
 PRUDYNT_T_DEPENDENCIES += libwebsockets
@@ -102,6 +103,7 @@ define PRUDYNT_T_BUILD_CMDS
 		CROSS_COMPILE=$(TARGET_CROSS) \
 		CFLAGS="$(PRUDYNT_CFLAGS)" \
 		LDFLAGS="$(PRUDYNT_LDFLAGS)" \
+		SDK_VERSION="$(SDK_VERSION)" \
 		$(if $(filter y,$(BR2_PACKAGE_PRUDYNT_T_DEBUG)),DEBUG=1 DEBUG_STRIP=0,DEBUG_STRIP=1) \
 		$(if $(BR2_PACKAGE_PRUDYNT_T_FFMPEG),USE_FFMPEG=1) \
 		$(if $(BR2_PACKAGE_PRUDYNT_T_WEBRTC),WEBRTC_ENABLED=1,) \
@@ -176,10 +178,11 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	# services
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
 		$(TARGET_DIR)/etc/init.d/S95prudynt
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96record \
-		$(TARGET_DIR)/etc/init.d/S96record
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96vbuffer \
-		$(TARGET_DIR)/etc/init.d/S96vbuffer
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S97prudynt-watchdog \
+		$(TARGET_DIR)/etc/init.d/S97prudynt-watchdog
+	# install service disabled
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/S98recorder \
+		$(TARGET_DIR)/etc/init.d/S98recorder
 
 	# assets
 	$(INSTALL) -D -m 0644 $(@D)/res/default.ttf \

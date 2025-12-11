@@ -2,5 +2,3 @@
 
 # reboot camera nightly @ 3:00
 #0 3 * * * reboot -f
-# run daynight every minute
-*/1 * * * * daynight
