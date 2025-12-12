@@ -10,7 +10,7 @@ defaults() {
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	read_from_post "webui" "paranoid theme ws_token"
+	read_from_post "webui" "paranoid theme"
 
 	defaults
 
@@ -18,7 +18,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		save2config "
 webui_paranoid=\"$webui_paranoid\"
 webui_theme=\"$webui_theme\"
-webui_ws_token=\"$webui_ws_token\"
 "
 		new_password="$POST_ui_password_new"
 		[ -n "$new_password" ] && echo "root:$new_password" | chpasswd -c sha512 >/dev/null
@@ -46,7 +45,6 @@ defaults
 <div class="col">
 </div>
 <div class="col">
-<% field_password "ws_token" "Websockets security token" "FIXME: a stub" %>
 </div>
 </div>
 <% button_submit %>

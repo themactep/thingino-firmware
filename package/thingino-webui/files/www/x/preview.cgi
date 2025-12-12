@@ -122,6 +122,8 @@ preview.onload = function() { URL.revokeObjectURL(this.src) }
 const ImageBlackMode = 1
 const ImageColorMode = 0
 
+const endpoint = '/x/json-prudynt.cgi';
+
 function updatePreview(data) {
 	const blob = new Blob([data], {type: 'image/jpeg'});
 	const url = URL.createObjectURL(blob);

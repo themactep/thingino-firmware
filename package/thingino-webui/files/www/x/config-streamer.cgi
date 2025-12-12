@@ -157,7 +157,7 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <select class="form-select" id="osd<%= $i %>_fontname">
 <% for f in $FONTS; do %><option><%= $f %></option><% done %></select></div></div>
 <div class="col-3"><% field_range "osd${i}_fontsize" "Font size" "10,80,1" %></div>
-<div class="col-3"><% field_range "osd${i}_fontstrokesize" "Shadow size" "0,5,1" %></div>
+<div class="col-3"><% field_range "osd${i}_strokesize" "Shadow size" "0,5,1" %></div>
 </div>
 <div class="accordion" id="#osd${i}Elements">
 <div class="accordion-item">
@@ -178,8 +178,8 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <div class="accordion-body">
 <% field_switch "osd${i}_time_enabled" "Display" %>
 <div class="row g-1">
-<div class="col col-4"><% field_color "osd${i}_time_fontcolor" "Color" %></div>
-<div class="col col-4"><% field_color "osd${i}_time_fontstrokecolor" "Shadow" %></div>
+<div class="col col-4"><% field_color "osd${i}_time_fillcolor" "Color" %></div>
+<div class="col col-4"><% field_color "osd${i}_time_strokecolor" "Shadow" %></div>
 <div class="col col-4"><% field_text "osd${i}_time_format" "Format" "$STR_SUPPORTS_STRFTIME" %></div>
 </div>
 </div>
@@ -193,8 +193,8 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <div class="accordion-body">
 <% field_switch "osd${i}_uptime_enabled" "Display" %>
 <div class="row g-1">
-<div class="col col-4"><% field_color "osd${i}_uptime_fontcolor" "Color" %></div>
-<div class="col col-4"><% field_color "osd${i}_uptime_fontstrokecolor" "Shadow" %></div>
+<div class="col col-4"><% field_color "osd${i}_uptime_fillcolor" "Color" %></div>
+<div class="col col-4"><% field_color "osd${i}_uptime_strokecolor" "Shadow" %></div>
 </div>
 </div>
 </div>
@@ -207,8 +207,8 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <div class="accordion-body">
 <% field_switch "osd${i}_usertext_enabled" "Display" %>
 <div class="row g-1">
-<div class="col col-4"><% field_color "osd${i}_usertext_fontcolor" "Color" %></div>
-<div class="col col-4"><% field_color "osd${i}_usertext_fontstrokecolor" "Shadow" %></div>
+<div class="col col-4"><% field_color "osd${i}_usertext_fillcolor" "Color" %></div>
+<div class="col col-4"><% field_color "osd${i}_usertext_strokecolor" "Shadow" %></div>
 <div class="col col-4"><% field_text "osd${i}_usertext_format" "Format" "$STR_usertext_FMT" %></div>
 </div>
 </div>
@@ -361,10 +361,10 @@ const stream2_params = ['jpeg_channel'];
 
 // OSD
 const osd_params = [
-	'enabled', 'font_path', 'font_size', 'font_stroke_size', 'logo_enabled',
-	'time_enabled', 'time_font_color', 'time_font_stroke_color',
-	'time_format', 'uptime_enabled', 'uptime_font_color',
-	'uptime_font_stroke_color', 'usertext_enabled', 'usertext_font_color',
+	'enabled', 'font_path', 'font_size', 'stroke_size', 'logo_enabled',
+	'time_enabled', 'time_fill_color', 'time_stroke_color',
+	'time_format', 'uptime_enabled', 'uptime_fill_color',
+	'uptime_stroke_color', 'usertext_enabled', 'usertext_fill_color',
 	'usertext_stroke_color', 'usertext_format'
 ];
 
@@ -422,9 +422,9 @@ ws.onmessage = (ev) => {
 						$(`#osd${i}_fontsize-show`).textContent = data.osd.font_size;
 						$(`#osd${i}_fontsize`).value = data.osd.font_size;
 					}
-					if (data.osd.font_stroke_size) {
-						$(`#osd${i}_fontstrokesize-show`).textContent = data.osd.font_stroke_size;
-						$(`#osd${i}_fontstrokesize`).value = data.osd.font_stroke_size;
+					if (data.osd.stroke_size) {
+						$(`#osd${i}_strokesize-show`).textContent = data.osd.stroke_size;
+						$(`#osd${i}_strokesize`).value = data.osd.stroke_size;
 					}
 
 					if (data.osd.logo_enabled)
@@ -434,24 +434,24 @@ ws.onmessage = (ev) => {
 						$(`#osd${i}_time_enabled`).checked = data.osd.time_enabled;
 					if (data.osd.time_format)
 						$(`#osd${i}_time_format`).value = data.osd.time_format;
-					if (data.osd.time_font_color)
-						$(`#osd${i}_time_fontcolor`).value = data.osd.time_font_color.replace(/^0x../, '#');
-					if (data.osd.time_font_stroke_color)
-						$(`#osd${i}_time_fontstrokecolor`).value = data.osd.time_font_stroke_color.replace(/^0x../, '#');
+					if (data.osd.time_fill_color)
+						$(`#osd${i}_time_fillcolor`).value = data.osd.time_fill_color.replace(/^0x../, '#');
+					if (data.osd.time_stroke_color)
+						$(`#osd${i}_time_strokecolor`).value = data.osd.time_stroke_color.replace(/^0x../, '#');
 
 					if (data.osd.uptime_enabled)
 						$(`#osd${i}_uptime_enabled`).checked = data.osd.uptime_enabled;
-					if (data.osd.uptime_font_color)
-						$(`#osd${i}_uptime_fontcolor`).value = data.osd.uptime_font_color.replace(/^0x../, '#');
-					if (data.osd.uptime_font_stroke_color)
-						$(`#osd${i}_uptime_fontstrokecolor`).value = data.osd.uptime_font_stroke_color.replace(/^0x../, '#');
+					if (data.osd.uptime_fill_color)
+						$(`#osd${i}_uptime_fillcolor`).value = data.osd.uptime_fill_color.replace(/^0x../, '#');
+					if (data.osd.uptime_stroke_color)
+						$(`#osd${i}_uptime_strokecolor`).value = data.osd.uptime_stroke_color.replace(/^0x../, '#');
 
 					if (data.osd.usertext_enabled)
 						$(`#osd${i}_usertext_enabled`).checked = data.osd.usertext_enabled;
-					if (data.osd.usertext_font_color)
-						$(`#osd${i}_usertext_fontcolor`).value = data.osd.usertext_font_color.replace(/^0x../, '#');
-					if (data.osd.usertext_font_stroke_color)
-						$(`#osd${i}_usertext_fontstrokecolor`).value = data.osd.usertext_font_stroke_color.replace(/^0x../, '#');
+					if (data.osd.usertext_fill_color)
+						$(`#osd${i}_usertext_fillcolor`).value = data.osd.usertext_fill_color.replace(/^0x../, '#');
+					if (data.osd.usertext_stroke_color)
+						$(`#osd${i}_usertext_strokecolor`).value = data.osd.usertext_stroke_color.replace(/^0x../, '#');
 					if (data.osd.usertext_format)
 						$(`#osd${i}_usertext_format`).value = data.osd.usertext_format;
 				}
@@ -515,26 +515,26 @@ function getSnapshot() {
 function setFont(n) {
 	const fontname = $(`#osd${n}_fontname`).value;
 	const fontsize = $(`#osd${n}_fontsize`).value;
-	const fontstrokesize = $(`#osd${n}_fontstrokesize`).value;
+	const strokesize = $(`#osd${n}_strokesize`).value;
 
 	if (fontname == '' || fontsize == '') return;
 	sendToWs('{"stream'+n+'":{"osd":{'+
 		'"font_path":"/usr/share/fonts/'+fontname+'",'+
-		'"font_size":'+fontsize+','+
-		'"font_stroke_size":'+fontstrokesize+
+		'"font_size":'+fontsize+', '+
+		'"stroke_size":'+strokesize+
 		'}},"action":{"restart_thread":10}}');
 }
 
 // n - stream #,
 // el - osd element
 function setFontColor(n, el) {
-	const fontcolor = $(`#osd${n}_${el}_fontcolor`).value.replace(/^#/, '');
-	const fontstrokecolor = $(`#osd${n}_${el}_fontstrokecolor`).value.replace(/^#/, '');
+	const fillcolor = $(`#osd${n}_${el}_fillcolor`).value.replace(/^#/, '');
+	const strokecolor = $(`#osd${n}_${el}_strokecolor`).value.replace(/^#/, '');
 
-	if (fontcolor == '' || fontstrokecolor == '') return;
+	if (fillcolor == '' || strokecolor == '') return;
 	sendToWs('{"stream'+n+'":{"osd":{'+
-		'"'+el+'_font_color":"0xff'+fontcolor+'",'+
-		'"'+el+'_font_stroke_color":"0xff'+fontstrokecolor+'"'+
+		'"'+el+'_fill_color":"0xff'+fillcolor+'",'+
+		'"'+el+'_stroke_color":"0xff'+strokecolor+'"'+
 		'}},"action":{"restart_thread":10}}');
 }
 
@@ -656,23 +656,23 @@ $('#restart-audio').addEventListener('click', ev => {
 for (const i in [0, 1]) {
 	$('#osd'+i+'_fontname').onchange = () => setFont(i);
 	$('#osd'+i+'_fontsize').onchange = () => setFont(i);
-	$('#osd'+i+'_fontstrokesize').onchange = () => setFont(i);
+	$('#osd'+i+'_strokesize').onchange = () => setFont(i);
 
 	$('#osd'+i+'_enabled').onchange = (ev) => sendToWs('{"stream'+i+'":{"osd":{"enabled":'+ev.target.checked+'}},"action":{"restart_thread":10}}}');
 	$('#osd'+i+'_logo_enabled').onchange = (ev) => toggleOSDElement(ev.target);
 
 	$('#osd'+i+'_time_enabled').onchange = (ev) => toggleOSDElement(ev.target);
-	$('#osd'+i+'_time_fontcolor').onchange = () => setFontColor(i, 'time');
-	$('#osd'+i+'_time_fontstrokecolor').onchange = () => setFontColor(i, 'time');
+	$('#osd'+i+'_time_fillcolor').onchange = () => setFontColor(i, 'time');
+	$('#osd'+i+'_time_strokecolor').onchange = () => setFontColor(i, 'time');
 	$('#osd'+i+'_time_format').onchange = (ev) => sendToWs('{"stream'+i+'":{"osd":{"time_format":"'+ev.target.value+'"}},"action":{"restart_thread":10}}}');
 
 	$('#osd'+i+'_uptime_enabled').onchange = (ev) => toggleOSDElement(ev.target);
-	$('#osd'+i+'_uptime_fontcolor').onchange = () => setFontColor(i, 'uptime');
-	$('#osd'+i+'_uptime_fontstrokecolor').onchange = () => setFontColor(i, 'uptime');
+	$('#osd'+i+'_uptime_fillcolor').onchange = () => setFontColor(i, 'uptime');
+	$('#osd'+i+'_uptime_strokecolor').onchange = () => setFontColor(i, 'uptime');
 
 	$('#osd'+i+'_usertext_enabled').onchange = (ev) => toggleOSDElement(ev.target);
-	$('#osd'+i+'_usertext_fontcolor').onchange = () => setFontColor(i, 'usertext');
-	$('#osd'+i+'_usertext_fontstrokecolor').onchange = () => setFontColor(i, 'usertext');
+	$('#osd'+i+'_usertext_fillcolor').onchange = () => setFontColor(i, 'usertext');
+	$('#osd'+i+'_usertext_strokecolor').onchange = () => setFontColor(i, 'usertext');
 	$('#osd'+i+'_usertext_format').onchange = (ev) => sendToWs('{"stream'+i+'":{"osd":{"usertext_format":"'+ev.target.value+'"}},"action":{"restart_thread":10}}}');
 }
 </script>

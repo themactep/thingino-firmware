@@ -14,7 +14,10 @@ PRUDYNT_T_DEPENDENCIES += thingino-live555
 PRUDYNT_T_DEPENDENCIES += thingino-libcurl
 PRUDYNT_T_DEPENDENCIES += opus faac libhelix-aac libhelix-mp3 libflac
 PRUDYNT_T_DEPENDENCIES += libschrift
-PRUDYNT_T_DEPENDENCIES += libwebsockets
+
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_WEBSOCKET),y)
+	PRUDYNT_T_DEPENDENCIES += libwebsockets
+endif
 
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_FFMPEG),y)
 	PRUDYNT_T_DEPENDENCIES += thingino-ffmpeg
@@ -107,6 +110,7 @@ define PRUDYNT_T_BUILD_CMDS
 		$(if $(filter y,$(BR2_PACKAGE_PRUDYNT_T_DEBUG)),DEBUG=1 DEBUG_STRIP=0,DEBUG_STRIP=1) \
 		$(if $(BR2_PACKAGE_PRUDYNT_T_FFMPEG),USE_FFMPEG=1) \
 		$(if $(BR2_PACKAGE_PRUDYNT_T_WEBRTC),WEBRTC_ENABLED=1,) \
+		$(if $(BR2_PACKAGE_PRUDYNT_T_WEBSOCKET),WEBSOCKET_ENABLED=1,WEBSOCKET_ENABLED=0) \
 		-C $(@D) all commit_tag=$(shell git show -s --format=%h)
 endef
 
@@ -115,6 +119,16 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	$(TARGET_CROSS)strip $(@D)/bin/prudynt -o $(TARGET_DIR)/usr/bin/prudynt
 	chmod 755 $(TARGET_DIR)/usr/bin/prudynt
 	echo "Installed stripped prudynt binary ($$(du -h $(TARGET_DIR)/usr/bin/prudynt | cut -f1))"
+
+	# Copy prudyntctl
+	cp $(@D)/bin/prudyntctl $(TARGET_DIR)/usr/bin/prudyntctl
+
+	if [ "$(BR2_PACKAGE_PRUDYNT_T_FFMPEG)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ffmpeg-rtsp \
+			$(TARGET_DIR)/usr/sbin/ffmpeg-rtsp; \
+		$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/thingino-stream \
+			$(TARGET_DIR)/usr/sbin/thingino-stream; \
+	fi
 
 	# For debug builds, mandate NFS and install all debug components there
 	if [ "$(BR2_PACKAGE_PRUDYNT_T_DEBUG)" = "y" ]; then \
@@ -167,7 +181,25 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	# scripts (video)
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/color \
 		$(TARGET_DIR)/usr/sbin/color
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/motion \
+		$(TARGET_DIR)/usr/sbin/motion
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/privacy \
+		$(TARGET_DIR)/usr/sbin/privacy
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/timelapse \
+		$(TARGET_DIR)/usr/sbin/timelapse
 
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ircut \
+		$(TARGET_DIR)/usr/sbin/ircut
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/irled \
+		$(TARGET_DIR)/usr/sbin/irled
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/metrics \
+		$(TARGET_DIR)/var/www/x/metrics
+
+	# scripts (audio)
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/microphone \
+		$(TARGET_DIR)/usr/sbin/microphone
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/speaker \
+		$(TARGET_DIR)/usr/sbin/speaker
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/play \
 		$(TARGET_DIR)/usr/sbin/play
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/record \
@@ -176,6 +208,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/tell
 
 	# services
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S06ircut \
+		$(TARGET_DIR)/etc/init.d/S06ircut
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
 		$(TARGET_DIR)/etc/init.d/S95prudynt
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S97prudynt-watchdog \
@@ -191,6 +225,23 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/images/thingino_100x30.bgra
 	$(INSTALL) -D -m 0644 $(@D)/res/thingino_210x64.bgra \
 		$(TARGET_DIR)/usr/share/images/thingino_210x64.bgra
+
+	# web ui
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ch0.jpg \
+		$(TARGET_DIR)/var/www/x/ch0.jpg
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ch0.mjpg \
+		$(TARGET_DIR)/var/www/x/ch0.mjpg
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ch1.jpg \
+		$(TARGET_DIR)/var/www/x/ch1.jpg
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ch1.mjpg \
+		$(TARGET_DIR)/var/www/x/ch1.mjpg
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/image.cgi \
+		$(TARGET_DIR)/var/www/x/image.cgi
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/video.mjpg \
+		$(TARGET_DIR)/var/www/x/video.mjpg
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/events.cgi \
+		$(TARGET_DIR)/var/www/x/events.cgi
+
 
 	# Install debug-specific files and configurations to NFS
 	if [ "$(BR2_PACKAGE_PRUDYNT_T_DEBUG)" = "y" ]; then \

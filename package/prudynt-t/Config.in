@@ -9,7 +9,6 @@ config BR2_PACKAGE_PRUDYNT_T
 	select BR2_PACKAGE_LIBHELIX_MP3
 	select BR2_PACKAGE_LIBFLAC
 	select BR2_PACKAGE_LIBSCHRIFT
-	select BR2_PACKAGE_LIBWEBSOCKETS
 	select BR2_PACKAGE_OPUS
 	select BR2_PACKAGE_THINGINO_JCT
 	select BR2_PACKAGE_THINGINO_LIVE555
@@ -69,6 +68,15 @@ config BR2_PACKAGE_PRUDYNT_T_DEBUG
 comment "prudynt-t debug build requires NFS configuration! Set BR2_THINGINO_NFS to your NFS mount point (e.g., /nfs)."
 	depends on BR2_PACKAGE_PRUDYNT_T_DEBUG
 	depends on BR2_THINGINO_NFS = ""
+
+config BR2_PACKAGE_PRUDYNT_T_WEBSOCKET
+	bool "Enable WebSocket UI/control server"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	select BR2_PACKAGE_LIBWEBSOCKETS
+	help
+	  Build the libwebsockets-based configuration UI and API server.
+	  Disable this if you only need RTSP/HTTP interfaces and want to drop
+	  the libwebsockets dependency.
 
 config BR2_PACKAGE_PRUDYNT_T_WEBRTC
 	bool "WebRTC support"

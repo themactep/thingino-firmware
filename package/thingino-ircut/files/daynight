@@ -129,11 +129,11 @@ switch_to_night() {
 [ -z "$day_night_white" ] && day_night_white="false"
 
 # determine luminance of the scene
-value=$(imp-control gettotalgain)
-if [ -z "$value" ] || [ "error" = "$value" ]; then
-	echo_error "failed to get luminance"
-	exit 1
-fi
+# value=$(imp-control gettotalgain)
+# if [ -z "$value" ] || [ "error" = "$value" ]; then
+# 	echo_error "failed to get luminance"
+# 	exit 1
+# fi
 
 reversed=1
 state=$(cat "$MODE_FILE" 2>/dev/null)
