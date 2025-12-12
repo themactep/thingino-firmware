@@ -27,7 +27,7 @@ read_config() {
               topic=$(jct $CONFIG_NAME get mqtt.topic)
             message=$(jct $CONFIG_NAME get mqtt.message)
             is_json=$(jct $CONFIG_NAME get mqtt.is_json)
-        topic_photo=$(jct $CONFIG_NAME get mqtt.topic)
+        topic_photo=$(jct $CONFIG_NAME get mqtt.topic_photo)
          send_photo=$(jct $CONFIG_NAME get mqtt.send_photo)
 }
 
