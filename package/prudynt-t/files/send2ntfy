@@ -3,7 +3,7 @@
 # https://docs.ntfy.sh/publish/
 
 . /usr/share/common
-. /usr/share/common_send2
+. /usr/share/send2common
 
 show_help() {
 	echo "Usage: $0 [options]

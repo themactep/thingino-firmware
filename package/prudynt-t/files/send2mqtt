@@ -4,7 +4,7 @@
 # https://mosquitto.org/documentation/
 
 . /usr/share/common
-. /usr/share/common_send2
+. /usr/share/send2common
 
 show_help() {
 	echo "Usage: $0 [options]

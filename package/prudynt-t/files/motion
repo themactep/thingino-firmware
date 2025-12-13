@@ -11,6 +11,10 @@ MOTION_ALARM_DIR=$(dirname "$MOTION_ALARM")
 
 MOTION_STOP_FILE="/run/motors.pid"
 
+MOTION_VIDEO_FILE="/tmp/motion.mp4"
+MOTION_VIDEO_CHANNEL=0
+MOTION_VIDEO_LENGTH=10
+
 start() {
 	echo_info "Start motion"
 	if [ -f "$MOTION_STOP_FILE" ]; then
@@ -20,6 +24,14 @@ start() {
 
 	echo_info "Set $MOTION_ALARM"
 	touch "$MOTION_ALARM"
+
+	# record a video clip
+	echo_info "Start recording $MOTION_VIDEO_FILE"
+	echo "START $MOTION_VIDEO_FILE $MOTION_VIDEO_LENGTH $MOTION_VIDEO_CHANNEL" > /run/prudynt/mp4ctl
+	echo_info "Motion video is ready."
+
+	# send2 actions
+
 
 	if [ "true" = "$motion_send2email" ]; then
 		echo_info "Send alert to email"

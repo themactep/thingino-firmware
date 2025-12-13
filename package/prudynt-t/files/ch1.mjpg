@@ -1,0 +1,28 @@
+#!/bin/sh
+# BusyBox httpd CGI for MJPEG stream (channel 1)
+# Query params: f=<fps> q=<quality> w=<width> h=<height>
+
+BOUNDARY="prudyntmjpegboundary"
+FPS=5
+Q=""
+W=""
+H=""
+# Parse QUERY_STRING (supports &-separated pairs)
+OLD_IFS=$IFS; IFS='&'
+for KV in $QUERY_STRING; do
+	case "$KV" in
+		f=*) FPS=${KV#f=} ;;
+		q=*) Q=${KV#q=} ;;
+		w=*) W=${KV#w=} ;;
+		h=*) H=${KV#h=} ;;
+	esac
+done
+IFS=$OLD_IFS
+
+# Headers
+printf "Content-Type: multipart/x-mixed-replace; boundary=%s\r\n\r\n" "$BOUNDARY"
+
+ARGS="-c 1 -f $FPS -b $BOUNDARY"
+[ -n "$Q" ] && ARGS="$ARGS -q $Q"
+[ -n "$W" ] && [ -n "$H" ] && ARGS="$ARGS -w $W -h $H"
+exec prudyntctl mjpeg $ARGS

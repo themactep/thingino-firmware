@@ -1,0 +1,26 @@
+#!/bin/sh
+
+get_audio() {
+  jct /etc/prudynt.json get "audio.$1"
+}
+
+set_audio() {
+  jct /etc/prudynt.json set "audio.$1" "$2"
+}
+
+case "$1" in
+  on)
+    set_audio "mic_enabled" "true"
+    ;;
+  off)
+    set_audio "mic_enabled" "false"
+    ;;
+  status)
+    get_audio "mic_enabled"
+    ;;
+  *)
+    echo "Not implemented"
+    ;;
+esac
+
+exit 0

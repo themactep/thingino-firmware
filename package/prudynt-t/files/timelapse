@@ -1,0 +1,58 @@
+#!/bin/sh
+# Grabs a snapshot for timelapse by cron
+
+. /usr/share/common
+
+read_config() {
+	local CONFIG_FILE="/etc/timelapse.json"
+	[ -f "$CONFIG_FILE" ] || return
+
+	  enabled=$(jct $TIMELAPSE_CONFIG_FILE get enabled)
+	mountroot=$(jct $TIMELAPSE_CONFIG_FILE get mountroot)
+	 filepath=$(jct $TIMELAPSE_CONFIG_FILE get filepath)
+	 filename=$(jct $TIMELAPSE_CONFIG_FILE get filename)
+	 interval=$(jct $TIMELAPSE_CONFIG_FILE get interval)
+	keep_days=$(jct $TIMELAPSE_CONFIG_FILE get keep_days)
+}
+
+hesitate() {
+	echo_warning "$1"
+	sleep 5
+	exit 0
+}
+
+read_config
+
+# drop trailing slashes
+mountroot=${mountroot%/}
+filepath=${filepath%/}
+
+if [ -z "$mountroot" ]; then
+	echo_error "'mountroot' is not set"
+	exit 1
+fi
+
+# wait for mount point
+mountpoint -q "$mountroot" >/dev/null || hesitate "$mountroot is not mounted"
+
+[ -w "$mountroot" ] || hesitate "$mountroot is not writable"
+
+# storage directory
+storage="$mountroot/$filepath"
+ensure_dir "$storage"
+
+[ -z "$keep_days" ] && keep_days=7
+[ -z "$filename" ] && filename="%Y/%m/%d/%H%M.jpg"
+[ -z "$interval" ] && interval=1
+
+# delete older files
+find "$storage" -type f -name '*.jpg' -mtime +$keep_days -delete
+
+# delete empty directories
+find "$storage" -mindepth 1 -type d -empty -delete
+
+target="$storage/$(date +"$filename")"
+ensure_dir "$(dirname "$target")"
+cp -f "$SNAPSHOT_FILE" "$target"
+
+exit 0

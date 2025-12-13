@@ -1,0 +1,29 @@
+#!/bin/sh
+
+. /usr/share/common
+
+start() {
+	echo_title "Initializing IR-CUT"
+
+	ircut off > /dev/null 2>&1
+	sleep 0.5
+	ircut on > /dev/null 2>&1
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		true
+		;;
+	restart)
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

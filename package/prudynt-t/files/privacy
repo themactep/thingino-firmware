@@ -1,0 +1,13 @@
+#!/bin/sh
+
+case "$1" in
+    on|off)
+        printf "PRIVACY ch=0 value=$1\n" > /run/prudynt/video_ctrl
+        ;;
+    *)
+        echo "Usage: $0 [on|off]"
+        exit 1
+        ;;
+esac
+
+exit 0

@@ -18,11 +18,18 @@ Where actions:
 	exit 1
 fi
 
-ACTION=$1
-SERVICE=$2
+VALID_ACTIONS="start stop restart reload enable disable list status"
+
+if echo "$VALID_ACTIONS" | grep -w -q "$1"; then
+	ACTION=$1
+	SERVICE=$2
+else
+	ACTION=$2
+	SERVICE=$1
+fi
 
 SCRIPT=$(ls /etc/init.d/[FKS][0-9][0-9]$SERVICE 2> /dev/null)
-if [ "$1" != "list" ] && [ -z "$SCRIPT" ]; then
+if [ "$ACTION" != "list" ] && [ -z "$SCRIPT" ]; then
 	echo_error "Service $SERVICE not found"
 	exit 1
 fi
