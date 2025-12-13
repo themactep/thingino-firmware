@@ -1,0 +1,35 @@
+From 1b2c3d4e5f60718293a4b5c6d7e8f90123456789 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Wed, 11 Dec 2024 12:34:56 +0000
+Subject: [PATCH] Add missing libblepp.pc.in
+
+The upstream libblepp repository references libblepp.pc.in in
+configure.ac, but the file is absent, causing config.status to abort.
+Provide a minimal pkg-config template so the configure script can
+materialize libblepp.pc and keep the build moving.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ libblepp.pc.in | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+ create mode 100644 libblepp.pc.in
+
+diff --git a/libblepp.pc.in b/libblepp.pc.in
+new file mode 100644
+index 0000000..6b92b82
+--- /dev/null
++++ b/libblepp.pc.in
+@@ -0,0 +1,11 @@
++prefix=@prefix@
++exec_prefix=@exec_prefix@
++libdir=@libdir@
++includedir=@includedir@
++
++Name: libblepp
++Description: C++ BLE helper library
++Version: @PACKAGE_VERSION@
++Libs: -L${libdir} -lble++
++Cflags: -I${includedir}/blepp
++
+--
+2.45.2
