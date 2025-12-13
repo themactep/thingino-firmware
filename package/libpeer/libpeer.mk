@@ -6,7 +6,7 @@
 
 LIBPEER_SITE = https://github.com/themactep/libpeer
 LIBPEER_SITE_BRANCH = thingino-mbedtls-3.6
-LIBPEER_VERSION = $(shell git ls-remote $(LIBPEER_SITE) $(LIBPEER_SITE_BRANCH) | head -1 | cut -f1)
+LIBPEER_VERSION = fa117d1abf9e4b8133b46dfaa90a1d749c81bfc7
 LIBPEER_SITE_METHOD = git
 LIBPEER_GIT_SUBMODULES = YES
 LIBPEER_LICENSE = MIT
