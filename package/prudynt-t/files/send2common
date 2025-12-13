@@ -31,7 +31,6 @@ check_snapshot() {
 check_vbuffer() {
 	if [ ! -f "$VBUFFER_FILE" ]; then
 		echo_error "Video buffer not found"
-		cleanup
 		exit 1
 	fi
 }
