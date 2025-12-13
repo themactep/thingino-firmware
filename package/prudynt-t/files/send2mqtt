@@ -6,17 +6,36 @@
 . /usr/share/common
 . /usr/share/send2common
 
+message_looks_like_json() {
+	# Treat payload as JSON when it is wrapped in braces or brackets
+	local trimmed
+	trimmed=$(printf '%s' "$1" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+	case "$trimmed" in
+		\{*\}|\[*\])
+			return 0
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+
+escape_single_quotes() {
+	# Escape single quotes for safe inclusion inside single-quoted strings
+	printf "%s" "$1" | sed "s/'/'\\\\''/g"
+}
+
 show_help() {
 	echo "Usage: $0 [options]
 Where:
-	-h host      Server host.
-	-j           Message is JSON.
-	-m message   Message body.
-	-s           Send a snapshot.
-	-t topic     Topic.
-	-u username  Username.
-	-w password  Password.
-	-v           Verbose output.
+	-h host      Server host
+	-m message   Message body
+	-t topic     Topic
+	-u username  Username
+	-w password  Password
+	-S           Send photo
+	-V           Send video
+	-v           Verbose output
 " >&2
 	exit 0
 }
@@ -32,17 +51,15 @@ read_config() {
 	  client_id=$(jct $CONFIG_NAME get mqtt.client_id)
 	      topic=$(jct $CONFIG_NAME get mqtt.topic)
 	    message=$(jct $CONFIG_NAME get mqtt.message)
-	    is_json=$(jct $CONFIG_NAME get mqtt.is_json)
 	topic_photo=$(jct $CONFIG_NAME get mqtt.topic)
 	 send_photo=$(jct $CONFIG_NAME get mqtt.send_photo)
 }
 
 read_config
 
-while getopts h:jm:st:u:w:v flag; do
+while getopts h:m:st:u:w:v flag; do
 	case "$flag" in
 		h) host=$OPTARG ;;
-		j) is_json="true" ;;
 		m) message=$OPTARG ;;
 		s) send_photo="true" ;;
 		t) topic=$OPTARG ;;
@@ -78,41 +95,29 @@ if [ "true" = "$send_photo" ] && [ -z "$topic_photo" ]; then
 	exit 1
 fi
 
-if [ -z "$client_id" ]; then
-	client_id=$(hostname)
-fi
+[ -z "$client_id" ] && client_id=$(hostname)
 
 message=$(date +"$message")
 
 command="mosquitto_pub -h $host -p $port -i $client_id"
 
-if [ "true" = "$verbose" ]; then
-	command="$command -d"
-fi
-
-if [ -n "$username" ]; then
-	command="$command -u $username"
-fi
-
-if [ -n "$password" ]; then
-	command="$command -P $password"
-fi
+[ "true" = "$verbose" ] && command="$command -d"
+[ -n "$username" ] && command="$command -u $username"
+[ -n "$password" ] && command="$command -P $password"
 
 failed=0
 
-if [ "true" = "$is_json" ]; then
-	tmpfile=$(mktemp)
+if message_looks_like_json "$message"; then
+	tmpfile="$(mktemp -u).json"
 	echo "$message" > $tmpfile
 	send_command="$command -t $topic -f $tmpfile"
 	garbage="$garbage $tmpfile"
 else
-	send_command="$command -t $topic -m '$message'"
+	sanitized_message=$(escape_single_quotes "$message")
+	send_command="$command -t $topic -m '$sanitized_message'"
 fi
 
-if [ "true" = "$verbose" ]; then
-	echo_command "$send_command"
-fi
-
+[ "true" = "$verbose" ] && echo_command "$send_command"
 if ! sh -c "$send_command"; then
 	echo_error "Failed to send MQTT message"
 	failed=1
@@ -121,13 +126,19 @@ fi
 if [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
 	send_command="$command -t $topic_photo -f '$photo'"
-
-	if [ "true" = "$verbose" ]; then
-		echo_command "$send_command"
-	fi
-
+	[ "true" = "$verbose" ] && echo_command "$send_command"
 	if ! sh -c "$send_command"; then
-		echo_error "Failed to send snapshot via MQTT"
+		echo_error "Failed to send photo via MQTT"
+		failed=1
+	fi
+fi
+
+if [ "true" = "$send_video" ]; then
+	video=$(copy_video)
+	send_command="$command -t $topic_video -f '$video'"
+	[ "true" = "$verbose" ] && echo_command "$send_command"
+	if ! sh -c "$send_command"; then
+		echo_error "Failed to send video via MQTT"
 		failed=1
 	fi
 fi
