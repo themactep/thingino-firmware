@@ -71,6 +71,7 @@ comment "prudynt-t debug build requires NFS configuration! Set BR2_THINGINO_NFS 
 
 config BR2_PACKAGE_PRUDYNT_T_WEBSOCKET
 	bool "Enable WebSocket UI/control server"
+	default y
 	depends on BR2_PACKAGE_PRUDYNT_T
 	select BR2_PACKAGE_LIBWEBSOCKETS
 	help
