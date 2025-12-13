@@ -1,0 +1,15 @@
+{
+  "motors": {
+    "gpio_invert": false,
+    "gpio_pan": "49 40 48 47",
+    "gpio_power": 11,
+    "gpio_switch": -1,
+    "gpio_tilt": "60 39 38 41",
+    "homing": true,
+    "pos_0": "1560,570",
+    "speed_pan": 900,
+    "speed_tilt": 900,
+    "steps_pan": 3120,
+    "steps_tilt": 1140
+  }
+}
