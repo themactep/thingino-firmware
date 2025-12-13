@@ -66,6 +66,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	if [ -z "$error" ]; then
 		tmpfile="$(mktemp -u).json"
+		echo '{}' > $tmpfile
 		jct $tmpfile set email.host "$host"
 		jct $tmpfile set email.port "$port"
 		jct $tmpfile set email.username "$username"

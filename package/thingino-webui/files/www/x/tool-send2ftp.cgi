@@ -48,6 +48,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	if [ -z "$error" ]; then
 		tmpfile="$(mktemp -u).json"
+		echo '{}' > $tmpfile
 		jct $tmpfile set ftp.host "$host"
 		jct $tmpfile set ftp.port "$port"
 		jct $tmpfile set ftp.username "$username"

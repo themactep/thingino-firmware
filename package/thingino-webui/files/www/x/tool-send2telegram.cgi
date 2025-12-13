@@ -40,6 +40,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	if [ -z "$error" ]; then
 		tmpfile="$(mktemp -u).json"
+		echo '{}' > $tmpfile
 		jct $tmpfile set telegram.token "$token"
 		jct $tmpfile set telegram.channel "$channel"
 		jct $tmpfile set telegram.caption "$caption"

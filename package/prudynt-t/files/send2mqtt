@@ -41,31 +41,32 @@ Where:
 }
 
 read_config() {
-	local CONFIG_NAME=/etc/send2.json
-	[ -f "$CONFIG_NAME" ] || return
+	local CONFIG_FILE=/etc/send2.json
+	[ -f "$CONFIG_FILE" ] || return
 
-	       host=$(jct $CONFIG_NAME get mqtt.host)
-	       port=$(jct $CONFIG_NAME get mqtt.port)
-	   username=$(jct $CONFIG_NAME get mqtt.username)
-	   password=$(jct $CONFIG_NAME get mqtt.password)
-	  client_id=$(jct $CONFIG_NAME get mqtt.client_id)
-	      topic=$(jct $CONFIG_NAME get mqtt.topic)
-	    message=$(jct $CONFIG_NAME get mqtt.message)
-	topic_photo=$(jct $CONFIG_NAME get mqtt.topic)
-	 send_photo=$(jct $CONFIG_NAME get mqtt.send_photo)
-	 send_video=$(jct $CONFIG_NAME get mqtt.send_video)
+	       host=$(jct $CONFIG_FILE get mqtt.host)
+	       port=$(jct $CONFIG_FILE get mqtt.port)
+	   username=$(jct $CONFIG_FILE get mqtt.username)
+	   password=$(jct $CONFIG_FILE get mqtt.password)
+	  client_id=$(jct $CONFIG_FILE get mqtt.client_id)
+	      topic=$(jct $CONFIG_FILE get mqtt.topic)
+	    message=$(jct $CONFIG_FILE get mqtt.message)
+	topic_photo=$(jct $CONFIG_FILE get mqtt.topic)
+	 send_photo=$(jct $CONFIG_FILE get mqtt.send_photo)
+	 send_video=$(jct $CONFIG_FILE get mqtt.send_video)
 }
 
 read_config
 
-while getopts h:m:st:u:w:v flag; do
+while getopts h:m:St:u:w:Vv flag; do
 	case "$flag" in
 		h) host=$OPTARG ;;
 		m) message=$OPTARG ;;
-		s) send_photo="true" ;;
 		t) topic=$OPTARG ;;
 		u) username=$OPTARG ;;
 		w) password=$OPTARG ;;
+		S) send_photo="true" ;;
+		V) send_video="true" ;;
 		v) verbose="true" ;;
 		*) show_help ;;
 	esac

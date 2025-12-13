@@ -73,6 +73,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	if [ -z "$error" ]; then
 		tmpfile="$(mktemp -u).json"
+		echo '{}' > $tmpfile
 		jct $tmpfile set mqtt.host "$host"
 		jct $tmpfile set mqtt.port "$port"
 		jct $tmpfile set mqtt.username "$username"
@@ -80,7 +81,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		jct $tmpfile set mqtt.topic "$topic"
 		jct $tmpfile set mqtt.title "$title"
 		jct $tmpfile set mqtt.message "$message"
-		jct $tmpfile set mqtt.use_ssl "$use_ssl"
 		jct $tmpfile set mqtt.send_photo "$send_photo"
 		jct $tmpfile set mqtt.send_video "$send_video"
 		jct /etc/send2.json import $tmpfile

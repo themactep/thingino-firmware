@@ -8,19 +8,20 @@
 show_help() {
 	echo "Usage: $0 [options]
 Where:
-	-a URL       Attachment URL.
-	-c URL       Click URL.
-	-f file      Attach file.
-	-h host      Server host.
-	-i URL       Icon URL.
-	-m message   Message body.
-	-n title     Message title.
-	-p N         Priority. 1-lowest, 5-highest.
-	-s           Send a snapshot.
-	-t topic     Topic.
-	-u username  Username.
-	-w password  Password.
-	-v           Verbose output.
+	-a URL       Attachment URL
+	-c URL       Click URL
+	-f file      Attach file
+	-h host      Server host
+	-i URL       Icon URL
+	-m message   Message body
+	-t topic     Topic
+	-n title     Message title
+	-p N         Priority: 1-lowest, 5-highest
+	-u username  Username
+	-w password  Password
+	-S           Send photo
+	-V           Send video
+	-v           Verbose output
 " >&2
 	exit 0
 }
@@ -29,31 +30,31 @@ read_config() {
 	local CONFIG_FILE=/etc/send2.json
 	[ -f "$CONFIG_FILE" ] || return
 
-	       host=$(jct $CONFIG_FILE get ntfy.host || echo "ntfy.sh")
-               port=$(jct $CONFIG_FILE get ntfy.port || echo "80")
-           username=$(jct $CONFIG_FILE get ntfy.username)
-           password=$(jct $CONFIG_FILE get ntfy.password)
-	      token=$(jct $CONFIG_FILE get ntfy.token)
-              topic=$(jct $CONFIG_FILE get ntfy.topic)
-               icon=$(jct $CONFIG_FILE get ntfy.icon || echo "")
-            message=$(jct $CONFIG_FILE get ntfy.message)
-	      title=$(jct $CONFIG_FILE get ntfy.title)
-	       tags=$(jct $CONFIG_FILE get ntfy.tags || echo "[]")
-	      delay=$(jct $CONFIG_FILE get ntfy.delay || echo "")
-            prority=$(jct $CONFIG_FILE get ntfy.priority || echo "")
-         send_photo=$(jct $CONFIG_FILE get ntfy.send_photo)
-	     attach=$(jct $CONFIG_FILE get ntfy.attach || echo "")
-              click=$(jct $CONFIG_FILE get ntfy.click || echo "")
-	   filename=$(jct $CONFIG_FILE get ntfy.filename || echo "")
-	      email=$(jct $CONFIG_FILE get ntfy.email || echo "")
-	       call=$(jct $CONFIG_FILE get ntfy.call || echo "")
-	    actions=$(jct $CONFIG_FILE get ntfy.actions || echo "")
-       twilio_token=$(jct $CONFIG_FILE get ntfy.twilio_token || echo "")
+	        host=$(jct $CONFIG_FILE get ntfy.host)
+	        port=$(jct $CONFIG_FILE get ntfy.port)
+	    username=$(jct $CONFIG_FILE get ntfy.username)
+	    password=$(jct $CONFIG_FILE get ntfy.password)
+	       token=$(jct $CONFIG_FILE get ntfy.token)
+	       topic=$(jct $CONFIG_FILE get ntfy.topic)
+	        icon=$(jct $CONFIG_FILE get ntfy.icon)
+	     message=$(jct $CONFIG_FILE get ntfy.message)
+	       title=$(jct $CONFIG_FILE get ntfy.title)
+	        tags=$(jct $CONFIG_FILE get ntfy.tags)
+	       delay=$(jct $CONFIG_FILE get ntfy.delay)
+	     prority=$(jct $CONFIG_FILE get ntfy.priority)
+	  send_photo=$(jct $CONFIG_FILE get ntfy.send_photo)
+	      attach=$(jct $CONFIG_FILE get ntfy.attach)
+	       click=$(jct $CONFIG_FILE get ntfy.click)
+	    filename=$(jct $CONFIG_FILE get ntfy.filename)
+	       email=$(jct $CONFIG_FILE get ntfy.email)
+	        call=$(jct $CONFIG_FILE get ntfy.call)
+	     actions=$(jct $CONFIG_FILE get ntfy.actions)
+	twilio_token=$(jct $CONFIG_FILE get ntfy.twilio_token)
 }
 
 read_config
 
-while getopts a:c:f:h:i:l:m:n:p:st:u:w:v flag; do
+while getopts a:c:f:h:i:l:m:n:p:St:u:w:Vv flag; do
 	case "$flag" in
 		a) attach=$OPTARG ;;
 		c) click=$OPTARG ;;
@@ -63,10 +64,11 @@ while getopts a:c:f:h:i:l:m:n:p:st:u:w:v flag; do
 		m) message=$OPTARG ;;
 		n) title=$OPTARG ;;
 		p) priority=$OPTARG ;;
-		s) send_photo="true" ;;
 		t) topic=$OPTARG ;;
 		u) username=$OPTARG ;;
 		w) password=$OPTARG ;;
+		S) send_photo="true" ;;
+		V) send_video="true" ;;
 		v) verbose="true" ;;
 		*) show_help ;;
 	esac

@@ -79,6 +79,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	if [ -z "$error" ]; then
 		tmpfile="$(mktemp -u).json"
+		echo '{}' > $tmpfile
 		jct $tmpfile set mqtt.host "$host"
 		jct $tmpfile set mqtt.port "$port"
 		jct $tmpfile set mqtt.username "$username"

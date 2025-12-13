@@ -33,13 +33,14 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-                tmpfile="$(mktemp -u).json"
-                jct $tmpfile set webhook.url "$url"
-                jct $tmpfile set webhook.message "$message"
-                jct $tmpfile set webhook.send_photo "$send_photo"
-                jct $tmpfile set webhook.send_video "$send_video"
-                jct /etc/send2.json import $tmpfile
-                rm $tmpfile
+		tmpfile="$(mktemp -u).json"
+		echo '{}' > $tmpfile
+		jct $tmpfile set webhook.url "$url"
+		jct $tmpfile set webhook.message "$message"
+		jct $tmpfile set webhook.send_photo "$send_photo"
+		jct $tmpfile set webhook.send_video "$send_video"
+		jct /etc/send2.json import $tmpfile
+		rm $tmpfile
 
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
