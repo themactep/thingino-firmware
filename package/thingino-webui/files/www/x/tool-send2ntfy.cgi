@@ -9,6 +9,7 @@ defaults() {
 	default_for host "ntfy.sh"
 	default_for topic "$camera_id"
 	default_for message "{\"camera_id\": \"$camera_id\", \"timestamp\": \"%s\"}"
+	default_for tags "[]"
 	default_for send_photo "false"
 	default_for send_video "false"
 }
@@ -17,26 +18,26 @@ read_config() {
 	local CONFIG_FILE=/etc/send2.json
 	[ -f "$CONFIG_FILE" ] || return
 
-	      host=$(jct $CONFIG_FILE get ntfy.host)
-	      port=$(jct $CONFIG_FILE get ntfy.port)
-	  username=$(jct $CONFIG_FILE get ntfy.username)
-	  password=$(jct $CONFIG_FILE get ntfy.password)
-	     token=$(jct $CONFIG_FILE get ntfy.token)
-	     topic=$(jct $CONFIG_FILE get ntfy.topic)
-	      icon=$(jct $CONFIG_FILE get ntfy.icon)
-	   message=$(jct $CONFIG_FILE get ntfy.message)
-	     title=$(jct $CONFIG_FILE get ntfy.title)
-	      tags=$(jct $CONFIG_FILE get ntfy.tags)
-	     delay=$(jct $CONFIG_FILE get ntfy.delay)
-	   prority=$(jct $CONFIG_FILE get ntfy.priority)
-	send_photo=$(jct $CONFIG_FILE get ntfy.send_photo)
-	send_video=$(jct $CONFIG_FILE get ntfy.send_video)
-	    attach=$(jct $CONFIG_FILE get ntfy.attach)
-	     click=$(jct $CONFIG_FILE get ntfy.click)
-	  filename=$(jct $CONFIG_FILE get ntfy.filename)
-	     email=$(jct $CONFIG_FILE get ntfy.email)
-	      call=$(jct $CONFIG_FILE get ntfy.call)
-	   actions=$(jct $CONFIG_FILE get ntfy.actions)
+	        host=$(jct $CONFIG_FILE get ntfy.host)
+	        port=$(jct $CONFIG_FILE get ntfy.port)
+	    username=$(jct $CONFIG_FILE get ntfy.username)
+	    password=$(jct $CONFIG_FILE get ntfy.password)
+	       token=$(jct $CONFIG_FILE get ntfy.token)
+	       topic=$(jct $CONFIG_FILE get ntfy.topic)
+	        icon=$(jct $CONFIG_FILE get ntfy.icon)
+	     message=$(jct $CONFIG_FILE get ntfy.message)
+	       title=$(jct $CONFIG_FILE get ntfy.title)
+	        tags=$(jct $CONFIG_FILE get ntfy.tags)
+	       delay=$(jct $CONFIG_FILE get ntfy.delay)
+	     prority=$(jct $CONFIG_FILE get ntfy.priority)
+	  send_photo=$(jct $CONFIG_FILE get ntfy.send_photo)
+	  send_video=$(jct $CONFIG_FILE get ntfy.send_video)
+	      attach=$(jct $CONFIG_FILE get ntfy.attach)
+	       click=$(jct $CONFIG_FILE get ntfy.click)
+	    filename=$(jct $CONFIG_FILE get ntfy.filename)
+	       email=$(jct $CONFIG_FILE get ntfy.email)
+	        call=$(jct $CONFIG_FILE get ntfy.call)
+	     actions=$(jct $CONFIG_FILE get ntfy.actions)
 	twilio_token=$(jct $CONFIG_FILE get ntfy.twilio_token)
 }
 
