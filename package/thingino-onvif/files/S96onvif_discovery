@@ -35,11 +35,11 @@ start() {
 	jct $tmpfile set server.username $(jct $PRUDYNT_CONFIG get rtsp.username)
 	jct $tmpfile set server.password $(jct $PRUDYNT_CONFIG get rtsp.password)
 
-	steps_pan=$(jct $MOTORS_CONFIG get motors.steps_pan | tr -d "\n")
-	setps_tilt=$(jct $MOTORS_CONFIG get motors.steps_tilt | tr -d "\n")
-
 	# conditional PTZ config
 	if [ -f "$MOTORS_BIN" ]; then
+		 steps_pan=$(jct $MOTORS_CONFIG get motors.steps_pan | tr -d "\n")
+		setps_tilt=$(jct $MOTORS_CONFIG get motors.steps_tilt | tr -d "\n")
+
 		jct $tmpfile set ptz.enable 1
 		jct $tmpfile set ptz.max_step_x "$steps_pan"
 		jct $tmpfile set ptz.max_step_y "$setps_tilt"
