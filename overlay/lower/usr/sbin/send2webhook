@@ -16,7 +16,7 @@ Where:
 	exit 0
 }
 
-read_config {
+read_config() {
         local CONFIG_FILE=/etc/send2.json
         [ -f "$CONFIG_FILE" ] || return
 

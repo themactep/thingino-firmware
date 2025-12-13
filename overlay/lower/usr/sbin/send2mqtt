@@ -32,7 +32,7 @@ read_config() {
 	      topic=$(jct $CONFIG_NAME get mqtt.topic)
 	    message=$(jct $CONFIG_NAME get mqtt.message)
 	    is_json=$(jct $CONFIG_NAME get mqtt.is_json)
-	topic_photo=$(jct $CONFIG_NAME get mqtt.topic)
+	topic_photo=$(jct $CONFIG_NAME get mqtt.topic_photo)
 	 send_photo=$(jct $CONFIG_NAME get mqtt.send_photo)
 }
 
@@ -117,7 +117,7 @@ if ! sh -c "$send_command"; then
 	mqtt_failed=1
 fi
 
-if [ "true" = "$mqtt_send_snap" ]; then
+if [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
 	send_command="$command -t $topic_photo -f '$photo'"
 
