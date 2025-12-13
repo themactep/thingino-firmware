@@ -40,13 +40,16 @@ start() {
 	jct $tmpfile set server.username "$(jct $PRUDYNT_CONFIG get rtsp.username)"
 	jct $tmpfile set server.password "$(jct $PRUDYNT_CONFIG get rtsp.password)"
 
+	steps_pan=$(jct /etc/motors.json get motors.steps_pan)
+	setps_tilt=$(jct /etc/motors.json get motors.steps_tilt)
+
 	# conditional PTZ config
 	if [ -n "$gpio_motor_h" ] || [ -n "$motor" ]; then
 		jct $tmpfile set ptz.enable 1
-		jct $tmpfile set ptz.max_step_x "$motor_maxstep_h"
-		jct $tmpfile set ptz.max_step_y "$motor_maxstep_v"
-		jct $tmpfile set ptz.move_right "/bin/motors -d h -x $motor_maxstep_h"
-		jct $tmpfile set ptz.move_down "/bin/motors -d h -y $motor_maxstep_v"
+		jct $tmpfile set ptz.max_step_x "$steps_pan"
+		jct $tmpfile set ptz.max_step_y "$setps_tilt"
+		jct $tmpfile set ptz.move_right "/bin/motors -d h -x $steps_pan"
+		jct $tmpfile set ptz.move_down  "/bin/motors -d h -y $steps_tilt"
 	fi
 	mv $tmpfile $ONVIF_CONFIG
 }
