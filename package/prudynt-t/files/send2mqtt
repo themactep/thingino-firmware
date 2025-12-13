@@ -29,6 +29,7 @@ read_config() {
 	       port=$(jct $CONFIG_NAME get mqtt.port)
 	   username=$(jct $CONFIG_NAME get mqtt.username)
 	   password=$(jct $CONFIG_NAME get mqtt.password)
+	  client_id=$(jct $CONFIG_NAME get mqtt.client_id)
 	      topic=$(jct $CONFIG_NAME get mqtt.topic)
 	    message=$(jct $CONFIG_NAME get mqtt.message)
 	    is_json=$(jct $CONFIG_NAME get mqtt.is_json)
@@ -78,12 +79,12 @@ if [ "true" = "$send_photo" ] && [ -z "$topic_photo" ]; then
 fi
 
 if [ -z "$client_id" ]; then
-	client_id="$network_hostname"
+	client_id=$(hostname)
 fi
 
-message=$(date +"$mqtt_message")
+message=$(date +"$message")
 
-command="mosquitto_pub -h $mqtt_host -p $mqtt_port -i $mqtt_client_id"
+command="mosquitto_pub -h $host -p $port -i $client_id"
 
 if [ "true" = "$verbose" ]; then
 	command="$command -d"
@@ -97,7 +98,7 @@ if [ -n "$password" ]; then
 	command="$command -P $password"
 fi
 
-mqtt_failed=0
+failed=0
 
 if [ "true" = "$is_json" ]; then
 	tmpfile=$(mktemp)
@@ -114,10 +115,10 @@ fi
 
 if ! sh -c "$send_command"; then
 	echo_error "Failed to send MQTT message"
-	mqtt_failed=1
+	failed=1
 fi
 
-if [ "true" = "$mqtt_send_snap" ]; then
+if [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
 	send_command="$command -t $topic_photo -f '$photo'"
 
@@ -127,8 +128,8 @@ if [ "true" = "$mqtt_send_snap" ]; then
 
 	if ! sh -c "$send_command"; then
 		echo_error "Failed to send snapshot via MQTT"
-		mqtt_failed=1
+		failed=1
 	fi
 fi
 
-exit $mqtt_failed
+exit $failed
