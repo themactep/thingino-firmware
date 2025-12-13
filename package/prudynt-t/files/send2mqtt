@@ -49,9 +49,10 @@ read_config() {
 	   username=$(jct $CONFIG_FILE get mqtt.username)
 	   password=$(jct $CONFIG_FILE get mqtt.password)
 	  client_id=$(jct $CONFIG_FILE get mqtt.client_id)
-	      topic=$(jct $CONFIG_FILE get mqtt.topic)
 	    message=$(jct $CONFIG_FILE get mqtt.message)
-	topic_photo=$(jct $CONFIG_FILE get mqtt.topic)
+	      topic=$(jct $CONFIG_FILE get mqtt.topic)
+	topic_photo=$(jct $CONFIG_FILE get mqtt.topic_photo)
+	topic_video=$(jct $CONFIG_FILE get mqtt.topic_video)
 	 send_photo=$(jct $CONFIG_FILE get mqtt.send_photo)
 	 send_video=$(jct $CONFIG_FILE get mqtt.send_video)
 }

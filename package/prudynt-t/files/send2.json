@@ -37,7 +37,6 @@
     "client_id": "",
     "topic": "",
     "message": "{\"timestamp\": \"%s\"}",
-    "is_json": true,
     "send_photo": false,
     "topic_photo": ""
   },
