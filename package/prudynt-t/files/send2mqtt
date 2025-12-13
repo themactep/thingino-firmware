@@ -53,6 +53,7 @@ read_config() {
 	    message=$(jct $CONFIG_NAME get mqtt.message)
 	topic_photo=$(jct $CONFIG_NAME get mqtt.topic)
 	 send_photo=$(jct $CONFIG_NAME get mqtt.send_photo)
+	 send_video=$(jct $CONFIG_NAME get mqtt.send_video)
 }
 
 read_config
@@ -125,21 +126,31 @@ fi
 
 if [ "true" = "$send_photo" ]; then
 	photo=$(copy_photo)
-	send_command="$command -t $topic_photo -f '$photo'"
-	[ "true" = "$verbose" ] && echo_command "$send_command"
-	if ! sh -c "$send_command"; then
-		echo_error "Failed to send photo via MQTT"
+	if [ -z "$photo" ]; then
+		echo_error "Failed to get photo"
 		failed=1
+	else
+		send_command="$command -t $topic_photo -f '$photo'"
+		[ "true" = "$verbose" ] && echo_command "$send_command"
+		if ! sh -c "$send_command"; then
+			echo_error "Failed to send photo via MQTT"
+			failed=1
+		fi
 	fi
 fi
 
 if [ "true" = "$send_video" ]; then
 	video=$(copy_video)
-	send_command="$command -t $topic_video -f '$video'"
-	[ "true" = "$verbose" ] && echo_command "$send_command"
-	if ! sh -c "$send_command"; then
-		echo_error "Failed to send video via MQTT"
+	if [ -z "$video" ]; then
+		echo_error "Failed to get video"
 		failed=1
+	else
+		send_command="$command -t $topic_video -f '$video'"
+		[ "true" = "$verbose" ] && echo_command "$send_command"
+		if ! sh -c "$send_command"; then
+			echo_error "Failed to send video via MQTT"
+			failed=1
+		fi
 	fi
 fi
 
