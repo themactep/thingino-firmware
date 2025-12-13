@@ -3,21 +3,17 @@
 DAEMON=wsd_simple_server
 PRUDYNT_CONFIG=/etc/prudynt.json
 ONVIF_CONFIG=/etc/onvif.json
-ONVIF_WEBUI_CONF=/etc/webui/onvif.conf
+MOTORS_CONFIG=/etc/motors.json
+MOTORS_BIN="/bin/motors"
 
 . /usr/share/common
 
 iface="$(iface_default)"
 
-model=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $OS_RELEASE_FILE)
+CAMERA=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $OS_RELEASE_FILE)
 
-# extract iface for daemon from onvif.json
-DAEMON_ARGS="-i $iface -x http://%s/onvif/device_service -m $model -n thingino -p /run/$DAEMON_SHORT.pid"
-
-# read web config, create if missing
-[ -d $(dirname $ONVIF_WEBUI_CONF) ] || mkdir -p $(dirname $ONVIF_WEBUI_CONF)
-[ -f $ONVIF_WEBUI_CONF ] || touch $ONVIF_WEBUI_CONF
-. $ONVIF_WEBUI_CONF
+ONVIF_IFACE=$(jct $ONVIF_CONFIG get server.ifs)
+DAEMON_ARGS="-i $ONVIF_IFACE -x http://%s/onvif/device_service -m $CAMERA -n thingino -p /run/$DAEMON_SHORT.pid"
 
 start() {
 	echo_title "Starting ONVIF discovery"
@@ -29,29 +25,29 @@ start() {
 
 	start_daemon
 
-	tmpfile=$(mktemp -u)
-	cp $ONVIF_CONFIG $tmpfile
-	jct $tmpfile set camera.model "$model"
+	tmpfile="$(mktemp -u).json"
+	echo '{}' > $tmpfile
+	jct $tmpfile set camera.model "$CAMERA"
 	jct $tmpfile set camera.hardware_id "ingenic_$SOC_MODEL"
-	jct $tmpfile set camera.serial_num "$(fw_printenv -n ethaddr | sed 's/://g')"
-	jct $tmpfile set camera.firmware_ver "$(awk -F'[=,"]' '/^BUILD_ID/{print $3 $4}' /etc/os-release)"
+	jct $tmpfile set camera.serial_num "$(fw_printenv -n ethaddr | sed 's/://g' | tr -d "\n")"
+	jct $tmpfile set camera.firmware_ver "$(awk -F'[=,"]' '/^BUILD_ID/{print $3 $4}' /etc/os-release | tr -d "\n")"
+	jct $tmpfile set server.ifs $iface
+	jct $tmpfile set server.username $(jct $PRUDYNT_CONFIG get rtsp.username)
+	jct $tmpfile set server.password $(jct $PRUDYNT_CONFIG get rtsp.password)
 
-	jct $tmpfile set server.ifs "$iface"
-	jct $tmpfile set server.username "$(jct $PRUDYNT_CONFIG get rtsp.username)"
-	jct $tmpfile set server.password "$(jct $PRUDYNT_CONFIG get rtsp.password)"
-
-	steps_pan=$(jct /etc/motors.json get motors.steps_pan)
-	setps_tilt=$(jct /etc/motors.json get motors.steps_tilt)
+	steps_pan=$(jct $MOTORS_CONFIG get motors.steps_pan | tr -d "\n")
+	setps_tilt=$(jct $MOTORS_CONFIG get motors.steps_tilt | tr -d "\n")
 
 	# conditional PTZ config
-	if [ -n "$gpio_motor_h" ] || [ -n "$motor" ]; then
+	if [ -f "$MOTORS_BIN" ]; then
 		jct $tmpfile set ptz.enable 1
 		jct $tmpfile set ptz.max_step_x "$steps_pan"
 		jct $tmpfile set ptz.max_step_y "$setps_tilt"
-		jct $tmpfile set ptz.move_right "/bin/motors -d h -x $steps_pan"
-		jct $tmpfile set ptz.move_down  "/bin/motors -d h -y $steps_tilt"
+		jct $tmpfile set ptz.move_right "$MOTORS_BIN -d h -x $steps_pan"
+		jct $tmpfile set ptz.move_down "$MOTORS_BIN -d h -y $steps_tilt"
 	fi
-	mv $tmpfile $ONVIF_CONFIG
+	jct $ONVIF_CONFIG import $tmpfile
+	rm -f $tmpfile
 }
 
 stop() {
