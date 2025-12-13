@@ -163,7 +163,7 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	fi
 
 	# Copy the JSON configuration file to staging
-	cp $(@D)/res/prudynt.json $(STAGING_DIR)/prudynt.json
+	cp $(PRUDYNT_T_PKGDIR)/files/prudynt.json $(STAGING_DIR)/prudynt.json
 
 	# Apply optional camera override using host jct
 	if [ -f "$(PRUDYNT_T_OVERRIDE_FILE)" ]; then \
