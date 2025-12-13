@@ -23,9 +23,13 @@ function runMotorCmd(args) {
 	});
 }
 
+<%
+steps_pan=$(jct /etc/motors.json get motors.steps_pan)
+steps_tilt=$(jct /etc/motors.json get motors.steps_tilt)
+%>
 function moveMotor(dir, steps = 100, d = 'g') {
-	const x_max=<%= ${motor_maxstep_h:-2000} %>;
-	const y_max=<%= ${motor_maxstep_v:-1000} %>;
+	const x_max=<%= $steps_pan %>;
+	const y_max=<%= $steps_tilt %>;
 	const step = x_max / steps;
 	if (dir == 'homing') {
 		runMotorCmd("d=r");
