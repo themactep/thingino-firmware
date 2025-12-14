@@ -8,6 +8,9 @@ FAAC_LICENSE_FILES = COPYING
 
 FAAC_DEPENDENCIES = host-pkgconf
 
+FAAC_INSTALL_STAGING = YES
+FAAC_INSTALL_TARGET = YES
+
 FAAC_CONF_OPTS = $(if $(BR2_PACKAGE_FAAC_ENABLE_DRM),-Denable_drm=true,-Denable_drm=false)
 
 $(eval $(meson-package))
