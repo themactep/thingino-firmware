@@ -77,7 +77,7 @@ start() {
 	else
 		modprobe_args="hmaxstep=$steps_pan vmaxstep=$steps_tilt"
 
-		if [ -z "$is_spi" ]; then
+		if [ "true" != "$is_spi" ]; then
 			modprobe_args="$modprobe_args tcu_channels=2"
 
 			echo_info "Set GPIO per motor phase"
