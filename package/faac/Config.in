@@ -4,3 +4,12 @@ config BR2_PACKAGE_FAAC
 	  FAAC is an open-source MPEG-2 and MPEG-4 AAC audio format encoder.
 
 	  http://sourceforge.net/projects/faac/
+
+config BR2_PACKAGE_FAAC_ENABLE_DRM
+	bool "Build DRM variant library"
+	default n
+	depends on BR2_PACKAGE_FAAC
+	help
+	  Enable the DRM (Digital Radio Mondiale) variant of libfaac. This
+	  controls the upstream meson enable_drm option and allows the
+	  DRM-specific library to be built and installed.
