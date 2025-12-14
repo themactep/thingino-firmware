@@ -3,6 +3,11 @@
 <%
 page_title="Admin profile"
 
+default_from_json admin_name
+default_from_json admin_email
+default_from_json admin_telegram
+default_from_json admin_discord
+
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 

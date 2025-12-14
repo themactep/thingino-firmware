@@ -436,6 +436,93 @@ field_textedit() {
 	 "<textarea id=\"$1\" name=\"$1\" class=\"form-control\">$(cat "$2")</textarea></div>"
 }
 
+CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
+
+config_json_set() {
+	local key="$1"
+	local value="${2-}"
+	[ -n "$key" ] || return
+	if [ ! -f "$CONFIG_JSON" ]; then
+		local old_umask
+		old_umask=$(umask)
+		umask 077
+		echo "{}" > "$CONFIG_JSON"
+		umask "$old_umask"
+	fi
+	jct "$CONFIG_JSON" set "$key" "$value" >/dev/null 2>&1
+}
+
+config_json_bulk_set() {
+	local data="$1"
+	local tmp line key raw
+	[ -n "$data" ] || return
+	tmp=$(mktemp)
+	printf '%s\n' "$data" > "$tmp"
+	while IFS= read -r line || [ -n "$line" ]; do
+		line=$(printf '%s' "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+		[ -n "$line" ] || continue
+		key="${line%%=*}"
+		raw="${line#*=}"
+		key=$(printf '%s' "$key" | tr -d '[:space:]')
+		[ -n "$key" ] || continue
+		raw=$(printf '%s' "$raw" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+		if [ "${raw:0:1}" = '"' ] && [ "${raw: -1}" = '"' ]; then
+			raw="${raw:1:-1}"
+		fi
+		raw="${raw//\\\"/\"}"
+		raw="${raw//\\\$/\$}"
+		config_json_set "$key" "$raw"
+	done < "$tmp"
+	rm -f "$tmp"
+}
+
+config_json_get() {
+	local key="$1"
+	local value
+	[ -n "$key" ] || return
+	[ -f "$CONFIG_JSON" ] || return
+	value=$(jct "$CONFIG_JSON" get "$key" 2>/dev/null) || return
+	[ "$value" = "null" ] && return
+	echo "$value"
+}
+
+default_from_json() {
+	local var="$1"
+	local key="${2:-$1}"
+	local value
+	value=$(config_json_get "$key")
+	[ -z "$value" ] || default_for "$var" "$value"
+}
+
+config_json_init() {
+	local line key raw
+	[ -f "$CONFIG_JSON" ] && return
+	local old_umask
+	old_umask=$(umask)
+	umask 077
+	echo "{}" > "$CONFIG_JSON"
+	umask "$old_umask"
+	[ -f "$CONFIG_FILE" ] || return
+	while IFS= read -r line || [ -n "$line" ]; do
+		case "$line" in
+			''|\#*) continue ;;
+		esac
+		key="${line%%=*}"
+		raw="${line#*=}"
+		key=$(printf '%s' "$key" | tr -d '[:space:]')
+		[ -n "$key" ] || continue
+		raw=$(printf '%s' "$raw" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+		if [ "${raw:0:1}" = '"' ] && [ "${raw: -1}" = '"' ]; then
+			raw="${raw:1:-1}"
+		fi
+		raw="${raw//\\\"/\"}"
+		raw="${raw//\\\$/\$}"
+		config_json_set "$key" "$raw"
+	done < "$CONFIG_FILE"
+}
+
+config_json_init
+
 generate_signature() {
 	echo "$soc_model, $sensor_model, $flash_size_mb MB, $network_hostname, $network_macaddr" >$signature_file
 }
@@ -449,10 +536,12 @@ html_title() {
 }
 
 html_theme() {
-	test -f "$CONFIG_FILE" && webui_theme=$(awk -F= '/webui_theme/{print $2}' "$CONFIG_FILE" | tr -d '"')
-	case "$webui_theme" in
+	local theme
+	theme=$(config_json_get webui_theme)
+	[ -z "$theme" ] && theme="$webui_theme"
+	case "$theme" in
 		dark | light)
-			echo -n $webui_theme
+			echo -n "$theme"
 			;;
 		auto)
 			if [ $(date +%H) -gt 8 ] && [ $(date +%H) -lt 20 ]; then
@@ -635,9 +724,10 @@ sanitize4web() {
 }
 
 # list of "param=value" lines
-save2config() {
+legacy_save2config() {
 	local tmp1file tmp2file name value
 
+	[ -f "$CONFIG_FILE" ] || touch "$CONFIG_FILE"
 	tmp1file="$(mktemp -u)"
 	cp "$CONFIG_FILE" "$tmp1file"
 
@@ -656,6 +746,11 @@ save2config() {
 
 	sed '/^$/d' "$tmp1file" | sort -u > "$CONFIG_FILE"
 	rm "$tmp1file"
+}
+
+save2config() {
+	config_json_bulk_set "$1"
+	legacy_save2config "$1"
 }
 
 save2env() {

@@ -5,6 +5,23 @@ page_title="LED/IRcut GPIO"
 
 COLORS="r b g y o w"
 
+gpio_json_keys="
+gpio_default
+gpio_ir850_ch gpio_ir850_inv gpio_ir850_lit gpio_ir850_lvl gpio_ir850_pin
+gpio_ir940_ch gpio_ir940_inv gpio_ir940_lit gpio_ir940_lvl gpio_ir940_pin
+gpio_white_ch gpio_white_inv gpio_white_lit gpio_white_lvl gpio_white_pin
+gpio_led_r_inv gpio_led_r_lit gpio_led_r_pin
+gpio_led_g_inv gpio_led_g_lit gpio_led_g_pin
+gpio_led_b_inv gpio_led_b_lit gpio_led_b_pin
+gpio_led_y_inv gpio_led_y_lit gpio_led_y_pin
+gpio_led_o_inv gpio_led_o_lit gpio_led_o_pin
+gpio_led_w_inv gpio_led_w_lit gpio_led_w_pin
+gpio_ircut"
+
+for key in $gpio_json_keys; do
+	default_from_json "$key"
+done
+
 update_config() {
 	local name=gpio_led_$1
 

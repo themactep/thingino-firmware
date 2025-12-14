@@ -4,7 +4,11 @@ const ThreadAudio = 4;
 const ThreadOSD = 8;
 
 let max = 0;
-let HeartBeatInterval = 30 * 1000;
+const HeartBeatInterval = 30 * 1000;
+const HeartBeatReconnectDelay = 5 * 1000;
+const HeartBeatEndpoint = '/x/json-heartbeat.cgi';
+let heartbeatSource = null;
+let heartbeatFallbackTimer = null;
 
 function $(n) {
 	return document.querySelector(n)
@@ -60,43 +64,104 @@ function reqListener(data) {
 	console.log(data.responseText);
 }
 
-function heartbeat() {
-	fetch('/x/json-heartbeat.cgi')
+function updateHeartbeatUi(json) {
+	if (!json) return;
+	if (json.time_now !== '') {
+		const d = new Date(json.time_now * 1000);
+		// Use device timezone if available, otherwise fall back to browser timezone
+		const deviceTz = json.timezone?.replaceAll(' ', '_');
+		let options = {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+			timeZone: deviceTz
+		};
+		$('#time-now').textContent = d.toLocaleString(navigator.language, options) + ' ' + json.timezone;
+	}
+
+	$('.progress-stacked.memory').title = 'Free memory: ' + json.mem_free + 'KiB'
+	setProgressBar('#pb-memory-active', json.mem_active, json.mem_total, 'Memory Active');
+	setProgressBar('#pb-memory-buffers', json.mem_buffers, json.mem_total, 'Memory Buffers');
+	setProgressBar('#pb-memory-cached', json.mem_cached, json.mem_total, 'Memory Cached');
+
+	$('.progress-stacked.overlay').title = 'Free overlay: ' + json.overlay_free + 'KiB'
+	setProgressBar('#pb-overlay-used', json.overlay_used, json.overlay_total, 'Overlay Usage');
+
+	$('.progress-stacked.extras').title = 'Free extras: ' + json.extras_free + 'KiB'
+	setProgressBar('#pb-extras-used', json.extras_used, json.extras_total, 'Extras Usage');
+
+	if (json.dnd_gain !== '-1')
+		$$('.dnd_gain').forEach(el => el.textContent = '☀️ ' + json.dnd_gain);
+
+	if (typeof (json.uptime) !== 'undefined' && json.uptime !== '')
+		$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
+}
+
+function startHeartbeatPoll() {
+	if (heartbeatFallbackTimer) {
+		clearTimeout(heartbeatFallbackTimer);
+		heartbeatFallbackTimer = null;
+	}
+	const scheduleNextPoll = () => {
+		heartbeatFallbackTimer = setTimeout(startHeartbeatPoll, HeartBeatInterval);
+	};
+	fetch(HeartBeatEndpoint)
 		.then((response) => response.json())
 		.then((json) => {
-			if (json.time_now !== '') {
-				const d = new Date(json.time_now * 1000);
-				// Use device timezone if available, otherwise fall back to browser timezone
-				const deviceTz = json.timezone?.replaceAll(' ', '_');
-				let options = {
-					year: "numeric",
-					month: "short",
-					day: "numeric",
-					hour: "2-digit",
-					minute: "2-digit",
-					timeZone: deviceTz
-				};
-				$('#time-now').textContent = d.toLocaleString(navigator.language, options) + ' ' + json.timezone;
-			}
-
-			$('.progress-stacked.memory').title = 'Free memory: ' + json.mem_free + 'KiB'
-			setProgressBar('#pb-memory-active', json.mem_active, json.mem_total, 'Memory Active');
-			setProgressBar('#pb-memory-buffers', json.mem_buffers, json.mem_total, 'Memory Buffers');
-			setProgressBar('#pb-memory-cached', json.mem_cached, json.mem_total, 'Memory Cached');
-
-			$('.progress-stacked.overlay').title = 'Free overlay: ' + json.overlay_free + 'KiB'
-			setProgressBar('#pb-overlay-used', json.overlay_used, json.overlay_total, 'Overlay Usage');
-
-			$('.progress-stacked.extras').title = 'Free extras: ' + json.extras_free + 'KiB'
-			setProgressBar('#pb-extras-used', json.extras_used, json.extras_total, 'Extras Usage');
-
-			if (json.dnd_gain !== '-1')
-				$$('.dnd_gain').forEach(el => el.textContent = '☀️ ' + json.dnd_gain);
-
-			if (typeof (json.uptime) !== 'undefined' && json.uptime !== '')
-				$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
+			updateHeartbeatUi(json);
+			return null;
 		})
-		.then(setTimeout(heartbeat, HeartBeatInterval));
+		.catch((error) => {
+			console.error('Heartbeat fetch failed', error);
+			return null;
+		})
+		.then(scheduleNextPoll);
+}
+
+function startHeartbeatSse() {
+	if (heartbeatFallbackTimer) {
+		clearTimeout(heartbeatFallbackTimer);
+		heartbeatFallbackTimer = null;
+	}
+	if (heartbeatSource) return;
+	heartbeatSource = new EventSource(HeartBeatEndpoint);
+	heartbeatSource.onmessage = (event) => {
+		try {
+			updateHeartbeatUi(JSON.parse(event.data));
+		} catch (error) {
+			console.error('Heartbeat SSE payload error', error);
+		}
+	};
+	heartbeatSource.onerror = (error) => {
+		console.error('Heartbeat SSE error', error);
+		heartbeatSource.close();
+		heartbeatSource = null;
+		setTimeout(startHeartbeatSse, HeartBeatReconnectDelay);
+	};
+}
+
+function cleanupHeartbeatResources() {
+	if (heartbeatSource) {
+		heartbeatSource.close();
+		heartbeatSource = null;
+	}
+	if (heartbeatFallbackTimer) {
+		clearTimeout(heartbeatFallbackTimer);
+		heartbeatFallbackTimer = null;
+	}
+}
+
+window.addEventListener('beforeunload', cleanupHeartbeatResources);
+
+function heartbeat() {
+	if ('EventSource' in window) {
+		startHeartbeatSse();
+		return;
+	}
+	console.warn('EventSource unsupported, using fallback heartbeat polling');
+	startHeartbeatPoll();
 }
 
 function initCopyToClipboard() {

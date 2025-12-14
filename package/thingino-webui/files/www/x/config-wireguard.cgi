@@ -13,35 +13,70 @@ defaults() {
 	true
 }
 
-is_wireguard_up() {
+is_up() {
 	ip link show $WG_DEV | grep -q UP
 }
 
-wireguard_status() {
-	is_wireguard_up && echo -n "on" || echo -n "off"
+status() {
+	is_up && echo -n "on" || echo -n "off"
 }
+
+read_config() {
+	local CONFIG_FILE=/etc/wireguard.json
+	[ -f "$CONFIG_FILE" ] || return
+
+	enabled=$(jct $CONFIG_FILE get wireguard.enabled)
+
+	  address=$(jct $CONFIG_FILE get wireguard.address)
+	  allowed=$(jct $CONFIG_FILE get wireguard.allowed)
+	      dns=$(jct $CONFIG_FILE get wireguard.dns)
+	 endpoint=$(jct $CONFIG_FILE get wireguard.endpoint)
+	keepalive=$(jct $CONFIG_FILE get wireguard.keepalive)
+	      mtu=$(jct $CONFIG_FILE get wireguard.mtu)
+	  peerpsk=$(jct $CONFIG_FILE get wireguard.peerpsk)
+	  peerhub=$(jct $CONFIG_FILE get wireguard.peerpub)
+	     port=$(jct $CONFIG_FILE get wireguard.port)
+	  privkey=$(jct $CONFIG_FILE get wireguard.privkey)
+}
+
+read_config
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	read_from_post "wireguard" "address allowed dns enabled endpoint keepalive mtu peerpsk peerpub port privkey"
+	# Read data from the form
+	  address="$POST_address"
+	  allowed="$POST_allowed"
+	      dns="$POST_dns"
+	  enabled="$POST_enabled"
+	 endpoint="$POST_endpoint"
+	keepalive="$POST_keepalive"
+	      mtu="$POST_mtu"
+	  peerpsk="$POST_peerpsk"
+	  peerpub="$POST_peerpub"
+	     port="$POST_port"
+	  privkey="$POST_privkey"
 
 	defaults
 
 	if [ -z "$error" ]; then
-		save2config "
-wireguard_address=\"$wireguard_address\"
-wireguard_allowed=\"$wireguard_allowed\"
-wireguard_dns=\"$wireguard_dns\"
-wireguard_enabled=\"$wireguard_enabled\"
-wireguard_endpoint=\"$wireguard_endpoint\"
-wireguard_keepalive=\"$wireguard_keepalive\"
-wireguard_mtu=\"$wireguard_mtu\"
-wireguard_peerpsk=\"$wireguard_peerpsk\"
-wireguard_peerpub=\"$wireguard_peerpub\"
-wireguard_port=\"$wireguard_port\"
-wireguard_privkey=\"$wireguard_privkey\"
-"
+
+		tmpfile="$(mktemp -u).json"
+		echo '{}' > $tmpfile
+		jct $tmpfile set wireguard.address "$address"
+		jct $tmpfile set wireguard.allowed "$allowed"
+		jct $tmpfile set wireguard.dns "$dns"
+		jct $tmpfile set wireguard.enabled "$enabled"
+		jct $tmpfile set wireguard.endpoint "$endpoint"
+		jct $tmpfile set wireguard.keepalive "$keepalive"
+		jct $tmpfile set wireguard.mtu "$mtu"
+		jct $tmpfile set wireguard.peerpsk "$peerpsk"
+		jct $tmpfile set wireguard.peerpub "$peerpub"
+		jct $tmpfile set wireguard.port "$port"
+		jct $tmpfile set wireguard.privkey "$privkey"
+		jct /etc/motors.json import $tmpfile
+		rm $tmpfile
+
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
 		redirect_to $SCRIPT_NAME "danger" "Error: $error"
@@ -53,24 +88,24 @@ defaults
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_switch "wireguard_enabled" "Enable WireGuard" %>
+<% field_switch "enabled" "Enable WireGuard" %>
 
 <div class="row">
 <div class="col col-12 col-lg-6 col-xxl-4 order-2 order-xxl-1">
 <h5>Interface</h5>
-<% field_password "wireguard_privkey" "Private Key" %>
-<% field_password "wireguard_peerpsk" "Pre-Shared Key" %>
-<% field_text "wireguard_address" "FQDN or IP address" %>
-<% field_text "wireguard_port" "port" %>
-<% field_text "wireguard_dns" "DNS" %>
+<% field_password "privkey" "Private Key" %>
+<% field_password "peerpsk" "Pre-Shared Key" %>
+<% field_text "address" "FQDN or IP address" %>
+<% field_text "port" "port" %>
+<% field_text "dns" "DNS" %>
 </div>
 <div class="col col-12 col-lg-6 col-xxl-4 order-3 order-xxl-2">
 <h5>Peer</h5>
-<% field_text "wireguard_endpoint" "Endpoint host:port" %>
-<% field_text "wireguard_peerpub" "Peer Public Key" %>
-<% field_text "wireguard_mtu" "MTU" %>
-<% field_text "wireguard_keepalive" "Persistent Keepalive" %>
-<% field_text "wireguard_allowed" "Allowed CIDRs" %>
+<% field_text "endpoint" "Endpoint host:port" %>
+<% field_text "peerpub" "Peer Public Key" %>
+<% field_text "mtu" "MTU" %>
+<% field_text "keepalive" "Persistent Keepalive" %>
+<% field_text "allowed" "Allowed CIDRs" %>
 </div>
 <div class="col col-12 col-lg-12 col-xxl-4 order-1 order-xxl-3">
 <div class="alert alert-info">
@@ -87,7 +122,7 @@ and routing traffic from the camera, to a set of CIDRs (networks) through that s
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <% field_hidden "action" "startstop" %>
-<% button_submit "$wireguard_action WireGuard" "danger" %>
+<% button_submit "$action WireGuard" "danger" %>
 </form>
 
 <div id="wg-ctrl" class="alert">
@@ -99,7 +134,7 @@ and routing traffic from the camera, to a set of CIDRs (networks) through that s
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "grep '^wireguard_' $CONFIG_FILE | sed -Ee 's/(key|psk)=.*$/\1=[__redacted__]/' | sort" %>
+<% ex "grep '^' $CONFIG_FILE | sed -Ee 's/(key|psk)=.*$/\1=[__redacted__]/' | sort" %>
 <% ex "wg show $WG_DEV 2>&1 | grep -A5 endpoint" %>
 </div>
 
@@ -112,7 +147,7 @@ async function switchWireGuard(state) {
 		});
 }
 
-let wgStatus = <% is_wireguard_up && echo -n 1 || echo -n 0 %>;
+let wgStatus = <% is_up && echo -n 1 || echo -n 0 %>;
 if (wgStatus == 1) {
 	$('#wg-ctrl').classList.add("alert-danger");
 	$('#wg-ctrl .btn').classList.add("btn-danger");

@@ -11,4 +11,3 @@ if [ -n "$CONTENT_LENGTH" ]; then
 else
 	prudyntctl json -
 fi
-

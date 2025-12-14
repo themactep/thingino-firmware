@@ -89,6 +89,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		fi
 
 		tmpfile="$(mktemp -u).json"
+		echo '{}' > $tmpfile
 		jct $tmpfile set motors.gpio_pan "$gpio_pan"
 		jct $tmpfile set motors.gpio_tilt "$gpio_tilt"
 		jct $tmpfile set motors.steps_pan "$steps_pan"

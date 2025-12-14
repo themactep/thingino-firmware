@@ -1,18 +1,11 @@
 #!/bin/sh
 . ./_json.sh
 
-# parse parameters from query string
-if [ -n "$QUERY_STRING" ]; then
-	eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
-fi
+[ -n "$QUERY_STRING" ] && eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
 
-if [ -z "$state" ]; then
-	json_error "Missing mandatory parameter: state"
-fi
+[ -z "$state" ] && json_error "Missing mandatory parameter: state"
 
-if [ -z "$iface" ]; then
-	iface="wg0"
-fi
+[ -z "$iface" ] && iface="wg0"
 
 is_wg_up() {
 	ip link show $iface | grep -q UP
