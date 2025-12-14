@@ -60,6 +60,7 @@ start() {
 	  speed_pan=$(jct $MOTORS_CONFIG get motors.speed_pan)
 	 speed_tilt=$(jct $MOTORS_CONFIG get motors.speed_tilt)
 	     homing=$(jct $MOTORS_CONFIG get motors.homing)
+	     is_spi=$(jct $MOTORS_CONFIG get motors.is_spi)
 
 	[ -z "$gpio_pan" ] && echo_warning "gpio_pan is not set"
 	[ -z "$gpio_tilt" ] && echo_warning "gpio_tilt is not set"
@@ -76,7 +77,7 @@ start() {
 	else
 		modprobe_args="hmaxstep=$steps_pan vmaxstep=$steps_tilt"
 
-		if [ -z "$motor" ]; then
+		if [ -z "$is_spi" ]; then
 			modprobe_args="$modprobe_args tcu_channels=2"
 
 			echo_info "Set GPIO per motor phase"
