@@ -86,7 +86,7 @@ if [ ! -p "$FIFO" ]; then
     exit 1
 fi
 
-CMD="PLAY $PATH_ARG"
+CMD="PLAY url=$PATH_ARG"
 [ -n "$VOL" ] && CMD="$CMD vol=$VOL"
 [ -n "$GAIN" ] && CMD="$CMD gain=$GAIN"
 [ -n "$RATE" ] && CMD="$CMD rate=$RATE"
