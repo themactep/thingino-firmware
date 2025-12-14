@@ -27,6 +27,7 @@ read_config() {
 	 speed_tilt=$(jct $CONFIG_FILE get motors.speed_tilt)
 	     homing=$(jct $CONFIG_FILE get motors.homing)
 	      pos_0=$(jct $CONFIG_FILE get motors.pos_0)
+	      is_spi=$(jct $CONFIG_FILE get motors.is_spi)
 }
 
 read_config
@@ -66,7 +67,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	# validate
-	if [ "$motor" != "spi" ]; then
+	if [ "true" != "$is_spi" ]; then
 		if [ -z "$gpio_pan_1" ] || [ -z "$gpio_pan_2" ] || [ -z "$gpio_pan_3" ] || [ -z "$gpio_pan_4" ] || \
 		   [ -z "$gpio_tilt_1" ] || [ -z "$gpio_tilt_2" ] || [ -z "$gpio_tilt_3" ] || [ -z "$gpio_tilt_4" ]; then
 			set_error_flag "All pins are required"
@@ -117,7 +118,7 @@ defaults
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <h5>Pan motor</h5>
-<% if [ "$motor" != "spi" ]; then %>
+<% if [ "true" != "$is_spi" ]; then %>
 <div class="row g-1">
 <div class="col"><% field_number "gpio_pan_1" "GPIO pin 1" %></div>
 <div class="col"><% field_number "gpio_pan_2" "GPIO pin 2" %></div>
@@ -135,7 +136,7 @@ defaults
 </div>
 <div class="col">
 <h5>Tilt motor</h5>
-<% if [ "$motor" != "spi" ]; then %>
+<% if [ "true" != "$is_spi" ]; then %>
 <div class="row g-1">
 <div class="col"><% field_number "gpio_tilt_1" "GPIO pin 1" %></div>
 <div class="col"><% field_number "gpio_tilt_2" "GPIO pin 2" %></div>
