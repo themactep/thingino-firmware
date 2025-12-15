@@ -64,6 +64,17 @@ shift $((OPTIND - 1))
 
 PATH_ARG=${1:-}
 
+is_remote_path() {
+    case "$1" in
+        *://*)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 if [ "$READ_STDIN" -eq 1 ] || [ "$PATH_ARG" = "-" ]; then
     TMP_FILE=$(mktemp /tmp/play-stdin.XXXXXX)
     if ! cat > "$TMP_FILE"; then
@@ -76,7 +87,9 @@ elif [ -z "$PATH_ARG" ]; then
     exit 1
 fi
 
-if [ ! -e "$PATH_ARG" ]; then
+if is_remote_path "$PATH_ARG"; then
+    : # skip local existence check for URLs
+elif [ ! -e "$PATH_ARG" ]; then
     echo "play: '$PATH_ARG' not found" >&2
     exit 1
 fi
