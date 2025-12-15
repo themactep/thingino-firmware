@@ -47,6 +47,7 @@ process_file() {
 	local name="/tmp/$(date +"$template").$ext"
 	mv "$file" "$name"
 	add_to_queue "$name"
+	add_to_garbage "$name"
 }
 
 read_config
