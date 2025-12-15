@@ -6,12 +6,8 @@ CNET=100.64.1
 
 WPA_AP_CONF="/etc/wpa-ap.conf"
 
-# Define net_dev in the global scope
-if [ "hi3881" = "$wlan_module" ]; then
-	net_dev="ap0"
-else
-	net_dev="wlan0"
-fi
+# Define net_dev in the global scope (populated at build time)
+net_dev="@WLAN_AP_NETDEV@"
 sed -i "s/%dev%/$net_dev/g" /etc/udhcpd-ap.conf
 
 start() {

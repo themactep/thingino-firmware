@@ -1,6 +1,13 @@
 THINGINO_PORTAL_SITE_METHOD = local
 THINGINO_PORTAL_SITE = $(BR2_EXTERNAL)/package/thingino-portal
 
+THINGINO_PORTAL_NETDEV = wlan0
+ifeq ($(BR2_PACKAGE_WIFI_HI3881),y)
+THINGINO_PORTAL_NETDEV = ap0
+else ifeq ($(BR2_PACKAGE_WIFI_WQ9001),y)
+THINGINO_PORTAL_NETDEV = wlan1
+endif
+
 define THINGINO_PORTAL_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(THINGINO_PORTAL_PKGDIR)/files/dnsd-portal.conf \
 		$(TARGET_DIR)/etc/dnsd-portal.conf
@@ -14,8 +21,11 @@ define THINGINO_PORTAL_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(THINGINO_PORTAL_PKGDIR)/files/wpa-portal_ap.conf \
 		$(TARGET_DIR)/etc/wpa-portal_ap.conf
 
-	$(INSTALL) -D -m 0755 $(THINGINO_PORTAL_PKGDIR)/files/S41portal \
+	$(INSTALL) -d $(TARGET_DIR)/etc/init.d
+	sed -e 's,@PORTAL_NETDEV@,$(THINGINO_PORTAL_NETDEV),g' \
+		$(THINGINO_PORTAL_PKGDIR)/files/S41portal.in > \
 		$(TARGET_DIR)/etc/init.d/S41portal
+	chmod 0755 $(TARGET_DIR)/etc/init.d/S41portal
 
 	$(INSTALL) -D -m 0644 $(THINGINO_PORTAL_PKGDIR)/files/favicon.ico \
 		$(TARGET_DIR)/var/www-portal/favicon.ico

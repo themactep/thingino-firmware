@@ -3,8 +3,13 @@
 . /usr/share/common
 
 IFACE=wlan0
+EXPECTED_WLAN_MODULE="@WLAN_MODULE@"
 
-SDIO_MODULES="8189es 8189fs atbm6031 atbm6031x b43 bcmdhd hi3881 ssv6158"
+if [ -z "$wlan_module" ]; then
+	wlan_module="$EXPECTED_WLAN_MODULE"
+elif [ "$wlan_module" != "$EXPECTED_WLAN_MODULE" ]; then
+	echo_warning "wlan_module ($wlan_module) differs from build-time value $EXPECTED_WLAN_MODULE"
+fi
 
 start() {
 	echo_title "Starting wireless interface"
@@ -48,43 +53,41 @@ start() {
 		fi
 	fi
 
-	if echo "$SDIO_MODULES" | grep -q "$wlan_module"; then
-		echo_info "$wlan_module is an SDIO module"
+@if WIFI_MODULE_IS_SDIO@
+	echo_info "$wlan_module is an SDIO module"
 
-			# Check if MDIO directory exists
-			if [ -d /proc/jz/mdio ]; then
-			echo_info "GMAC is enabled, disabling MSC1..."
-			else
-				case "$SOC_FAMILY" in
-					t10 | t20 | t21 | t30 | t40 | t41)
-						echo_info "Skip GPIO setup for $SOC_MODEL"
-						;;
-					t23 | t31)
-						if [ "t31a" = "$SOC_MODEL" ]; then
-							echo_info "Skip GPIO setup for $SOC_MODEL"
-							return 1
-						else
-							echo_info "Set GPIO pins with /sbin/mmc_gpio"
-							/sbin/mmc_gpio
-						fi
-						;;
-					*)
-						echo_error "Unsupported SOC type: $SOC_FAMILY"
-						exit 1
-						;;
-				esac
-
-			echo_info "Send INSERT to MMC1"
-				mmc 1
-			fi
+	if [ -d /proc/jz/mdio ]; then
+		echo_info "GMAC is enabled, disabling MSC1..."
 	else
-		echo_warning "MMC1 is not SDIO"
+@if WIFI_SDIO_UNSUPPORTED@
+		echo_error "Unsupported SOC type for SDIO Wi-Fi: @SOC_FAMILY@"
+		exit 1
+@else@
+@if WIFI_SDIO_RETURN_EARLY@
+		echo_info "Skip GPIO setup for @SOC_MODEL@"
+		return 1
+@else@
+@if WIFI_SDIO_SET_GPIO@
+		echo_info "Set GPIO pins with /sbin/mmc_gpio"
+		/sbin/mmc_gpio
+@else@
+		echo_info "Skip GPIO setup for @SOC_MODEL@"
+@endif@
+		echo_info "Send INSERT to MMC1"
+		mmc 1
+@endif@
+@endif@
 	fi
+@else@
+	echo_warning "MMC1 is not SDIO"
+@endif@
 
-	if [ -n "$wlan_mac" ] && [ "hi3881" = "$wlan_module" ]; then
+@if WIFI_PRESET_MAC@
+	if [ -n "$wlan_mac" ]; then
 		echo_info "Preset MAC address to $wlan_mac in /usr/share/wifi/wifi_cfg"
 		sed -i "s/CFG_MAC=[^;]*;/CFG_MAC=$wlan_mac;/" /usr/share/wifi/wifi_cfg
 	fi
+@endif@
 
 	if grep -q "^$wlan_module\b" /proc/modules; then
 		echo_info "Module $wlan_module is already loaded"
@@ -100,7 +103,8 @@ start() {
 		sleep 0.1
 	done
 
-	if [ -n "$wlan_mac" ] && [ "hi3881" != "$wlan_module" ]; then
+@if WIFI_SET_MAC_VIA_IP@
+	if [ -n "$wlan_mac" ]; then
 		if ip link | grep -q $IFACE >/dev/null; then
 			echo_info "Bring interface $IFACE down"
 			ip link set dev $IFACE down
@@ -109,6 +113,7 @@ start() {
 		echo_info "Set MAC address to $wlan_mac"
 		ip link set dev $IFACE address $wlan_mac
 	fi
+@endif@
 }
 
 stop() {

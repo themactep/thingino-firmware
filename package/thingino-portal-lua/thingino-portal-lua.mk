@@ -3,6 +3,13 @@ THINGINO_PORTAL_LUA_SITE = $(THINGINO_PORTAL_LUA_PKGDIR)/files
 THINGINO_PORTAL_LUA_LICENSE = MIT
 THINGINO_PORTAL_LUA_DEPENDENCIES = lua thingino-uhttpd thingino-wpa_supplicant
 
+THINGINO_PORTAL_LUA_NETDEV = wlan0
+ifeq ($(BR2_PACKAGE_WIFI_HI3881),y)
+THINGINO_PORTAL_LUA_NETDEV = ap0
+else ifeq ($(BR2_PACKAGE_WIFI_WQ9001),y)
+THINGINO_PORTAL_LUA_NETDEV = wlan1
+endif
+
 define THINGINO_PORTAL_LUA_INSTALL_TARGET_CMDS
 	# Install portal web files
 	$(INSTALL) -d $(TARGET_DIR)/var/www-portal/lua
@@ -23,7 +30,11 @@ define THINGINO_PORTAL_LUA_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0644 $(THINGINO_PORTAL_LUA_PKGDIR)/files/etc/wpa-portal_ap.conf $(TARGET_DIR)/etc/wpa-portal_ap.conf
 
 	# Install init script
-	$(INSTALL) -D -m 0755 $(THINGINO_PORTAL_LUA_PKGDIR)/files/S41portal-lua $(TARGET_DIR)/etc/init.d/S41portal-lua
+	$(INSTALL) -d $(TARGET_DIR)/etc/init.d
+	sed -e 's,@PORTAL_NETDEV@,$(THINGINO_PORTAL_LUA_NETDEV),g' \
+		$(THINGINO_PORTAL_LUA_PKGDIR)/files/S41portal-lua.in > \
+		$(TARGET_DIR)/etc/init.d/S41portal-lua
+	chmod 0755 $(TARGET_DIR)/etc/init.d/S41portal-lua
 endef
 
 # MT7601u wifi driver needs a PSK for the portal AP to function
