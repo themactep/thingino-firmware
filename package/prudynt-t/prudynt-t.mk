@@ -51,6 +51,8 @@ endif
 # Base compiler flags
 PRUDYNT_CFLAGS += \
 	-DNO_OPENSSL=1 \
+	-DAUDIO_SUPPORT=1 \
+	-DLIB_AUDIO_PROCESSING=1 \
 	-DBINARY_DYNAMIC \
 	-I$(STAGING_DIR)/usr/include \
 	-I$(STAGING_DIR)/usr/include/liveMedia \
