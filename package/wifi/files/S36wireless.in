@@ -82,12 +82,14 @@ start() {
 	echo_warning "MMC1 is not SDIO"
 @endif@
 
-@if WIFI_PRESET_MAC@
 	if [ -n "$wlan_mac" ]; then
-		echo_info "Preset MAC address to $wlan_mac in /usr/share/wifi/wifi_cfg"
-		sed -i "s/CFG_MAC=[^;]*;/CFG_MAC=$wlan_mac;/" /usr/share/wifi/wifi_cfg
+		if [ -f /usr/share/wifi/wifi_cfg ]; then
+			echo_info "Preset MAC address to $wlan_mac in /usr/share/wifi/wifi_cfg"
+			sed -i "s/CFG_MAC=[^;]*;/CFG_MAC=$wlan_mac;/" /usr/share/wifi/wifi_cfg
+		else
+			echo_warning "Cannot preset MAC: /usr/share/wifi/wifi_cfg missing"
+		fi
 	fi
-@endif@
 
 	if grep -q "^$wlan_module\b" /proc/modules; then
 		echo_info "Module $wlan_module is already loaded"
