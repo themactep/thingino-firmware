@@ -4,9 +4,10 @@
 page_title="Web Interface"
 
 defaults() {
-	default_for ui_username "$USER"
 	default_from_json webui_theme
 	default_from_json webui_paranoid
+
+	default_for ui_username "$USER"
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then

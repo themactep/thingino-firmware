@@ -22,9 +22,6 @@ signature_file="/tmp/signature.txt"
 
 sysinfo_file="/tmp/sysinfo.txt"
 
-# read from files
-ws_token="$(cat /run/prudynt/websocket_token)"
-
 # name, text
 error_if_empty() {
 	[ -z "$1" ] && set_error_flag "$2"

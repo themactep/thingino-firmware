@@ -6,22 +6,23 @@ LOG=/tmp/webui.log
 
 defaults() {
 	default_from_json day_night_color
-	default_for day_night_color "false"
 	default_from_json day_night_ircut
-	default_for day_night_ircut "false"
 	default_from_json day_night_ir850
-	default_for day_night_ir850 "false"
 	default_from_json day_night_ir940
-	default_for day_night_ir940 "false"
 	default_from_json day_night_white
-	default_for day_night_white "false"
 	default_from_json dusk2dawn_enabled
-	default_for dusk2dawn_enabled "false"
 	default_from_json dusk2dawn_lat
 	default_from_json dusk2dawn_lng
 	default_from_json dusk2dawn_offset_sr
-	default_for dusk2dawn_offset_sr "0"
 	default_from_json dusk2dawn_offset_ss
+
+	default_for day_night_color "false"
+	default_for day_night_ircut "false"
+	default_for day_night_ir850 "false"
+	default_for day_night_ir940 "false"
+	default_for day_night_white "false"
+	default_for dusk2dawn_enabled "false"
+	default_for dusk2dawn_offset_sr "0"
 	default_for dusk2dawn_offset_ss "0"
 
 	if [ "enabled" = $(service status daynightd) ]; then

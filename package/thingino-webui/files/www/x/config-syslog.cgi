@@ -7,6 +7,7 @@ defaults() {
 	default_from_json rsyslog_host
 	default_from_json rsyslog_port
 	default_from_json rsyslog_local
+
 	default_for rsyslog_port "514"
 	default_for rsyslog_local "false"
 }

@@ -27,7 +27,7 @@ read_config() {
 	 speed_tilt=$(jct $CONFIG_FILE get motors.speed_tilt)
 	     homing=$(jct $CONFIG_FILE get motors.homing)
 	      pos_0=$(jct $CONFIG_FILE get motors.pos_0)
-	      is_spi=$(jct $CONFIG_FILE get motors.is_spi)
+	     is_spi=$(jct $CONFIG_FILE get motors.is_spi)
 }
 
 read_config
