@@ -107,7 +107,7 @@ start() {
 		sleep 0.1
 	done
 
-@if WIFI_IS_NOT_HI3881@
+@if !WIFI_IS_HI3881@
 	if [ -n "$wlan_mac" ]; then
 		if ip link | grep -q $IFACE >/dev/null; then
 			echo_info "Bring interface $IFACE down"
