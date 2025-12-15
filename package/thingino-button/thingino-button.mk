@@ -2,7 +2,6 @@ THINGINO_BUTTON_SITE_METHOD = git
 THINGINO_BUTTON_SITE = https://github.com/gtxaspec/thingino-button
 THINGINO_BUTTON_SITE_BRANCH = master
 THINGINO_BUTTON_VERSION = 6a88c8e5fc203ceabc721ad03e2e1be8deb81c80
-# $(shell git ls-remote $(THINGINO_BUTTON_SITE) $(THINGINO_BUTTON_SITE_BRANCH) | head -1 | cut -f1)
 
 define CHECK_MULTIPLE_GPIO_BUTTONS
 	if [ "$(BR2_THINGINO_DEV_DOORBELL)" != "y" ] && [ "$(BR2_PACKAGE_WYZE_ACCESSORY_DOORBELL_CTRL)" != "y" ]; then \
