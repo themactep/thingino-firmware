@@ -6,16 +6,15 @@
 show_help() {
 	echo "Usage: $0 [options]
 Where:
-	-s host     FTP server FQDN or IP address.
-	-p port     FTP server port.
-	-d path     Directory on server, relative to FTP root.
-	-f file     File to upload.
-	-u username FTP username.
-	-P password FTP password.
-	-v          Verbose output.
-	-V          If -f not specified, sends the video currently in vbuffer.
-	-S          If -f not specified, sends the current camera snapshot.
-	-h          Show this help.
+	-s host     FTP server FQDN or IP address
+	-p port     FTP server port
+	-d path     Directory on server, relative to FTP root
+	-f file     File to upload
+	-u username FTP username
+	-P password FTP password
+	-v          Verbose output
+	-S          Send photo
+	-V          Send video
 " >&2
 	exit 0
 }
@@ -24,38 +23,48 @@ read_config() {
 	local CONFIG_FILE=/etc/send2.json
 	[ -f "$CONFIG_FILE" ] || return
 
-	    host=$(jct $CONFIG_FILE get ftp.host)
-	    port=$(jct $CONFIG_FILE get ftp.port)
-	username=$(jct $CONFIG_FILE get ftp.username)
-	password=$(jct $CONFIG_FILE get ftp.password)
-	    path=$(jct $CONFIG_FILE get ftp.path)
-	template=$(jct $CONFIG_FILE get ftp.template)
+	      host=$(jct $CONFIG_FILE get ftp.host)
+	      port=$(jct $CONFIG_FILE get ftp.port)
+	  username=$(jct $CONFIG_FILE get ftp.username)
+	  password=$(jct $CONFIG_FILE get ftp.password)
+	      path=$(jct $CONFIG_FILE get ftp.path)
+	  template=$(jct $CONFIG_FILE get ftp.template)
+	send_photo=$(jct $CONFIG_FILE get ftp.send_photo)
+	send_video=$(jct $CONFIG_FILE get ftp.send_video)
 }
 
 # Files to send
 queue=""
 
 add_to_queue() {
-	local ext="${1##*.}"
-	local tempfile="$(mktemp -u).$ext"
-	cp -f "$1" "$tempfile"
-	queue="$queue $tempfile"
+	queue="$queue $1"
+}
+
+# rename file by the template
+process_file() {
+	local file="$1"
+	local ext="${file##*.}"
+	local name="/tmp/$(date +"$template").$ext"
+	mv "$file" "$name"
+	add_to_queue "$name"
 }
 
 read_config
 
-while getopts d:f:hp:P:s:Su:vV flag; do
+while getopts d:f:p:P:s:u:vSV flag; do
 	case "$flag" in
-		d) path=$OPTARG ;;
-		f) file=$OPTARG ;;
+		s) host=$OPTARG ;;
 		p) port=$OPTARG ;;
 		P) password=$OPTARG ;;
-		s) host=$OPTARG ;;
 		u) username=$OPTARG ;;
-		v) verbose="true" ;;
+		d) path=$OPTARG ;;
+		# sending a file from the command line disables sending photo
+		# and video defined in config unless explicitly set so (-S/-V)
+		f) file=$OPTARG; send_photo="false"; send_video="false" ;;
 		S) send_photo="true" ;;
 		V) send_video="true" ;;
-		h | *) show_help ;;
+		v) verbose="true" ;;
+		*) show_help ;;
 	esac
 done
 
@@ -64,82 +73,40 @@ if [ -z "$host" ]; then
 	exit 1
 fi
 
-if [ -z "$port" ]; then
-	port=21
-fi
+[ -z "$port" ] && port=21
+[ -z "$username" ] && username="anonymous" && password="anonymous"
 
-if [ -z "$username" ]; then
-	ftp_username="anonymous"
-	ftp_password="anonymous"
-fi
-
-if [ -z "$file" ]; then
-	if [ "true" = "$send_video" ]; then
-		check_vbuffer
-
-		inode=$(stat -c%i $VBUFFER_FILE)
-
-		# Video preceeding the event
-		video1=$(copy_video)
-		add_to_queue "$video1"
-
-		# Wait until the inode changes, meaning the video buffer file was recreated
-		while [ $inode -eq $(stat -c%i $VBUFFER_FILE) ]; do
-			n=$((n + 1))
-			if [ "$n" -ge 10 ]; then
-				echo_error "Give up after $n attempts."
-				exit 1
-			fi
-			sleep 1
-		done
-
-		# Video following the event
-		video2=$(copy_video)
-		add_to_queue "$video2"
-	fi
-
-	if [ "true" = "$send_photo" ]; then
-		photo=$(copy_photo)
-		add_to_queue "$photo"
-	fi
-else
+if [ -n "$file" ]; then
 	add_to_queue "$file"
 fi
 
+if [ "true" = "$send_video" ]; then
+	process_file $(copy_video)
+fi
+
+if [ "true" = "$send_photo" ]; then
+	process_file $(copy_photo)
+fi
+
 url="ftp://"
-if [ -n "$username" ] && [ -n "$password" ]; then
-	url="$url$username:$password"
-fi
+[ -n "$username" ] && [ -n "$password" ] && url="$url$username:$password"
 url="$url@$host:$port"
-if [ -n "$path" ]; then
-	url="$url/${path// /%20}"
-fi
+[ -n "$path" ] && url="$url/${path// /%20}"
 
-n=0
 for local_file in $queue; do
-	ext="${local_file##*.}"
-	filename=$(date +"$template-$(printf %02d $n)").$ext
-	final_url="$url/$filename"
-
-	set -x
 	if [ "true" = "$verbose" ]; then
 		command="$CURL --verbose"
 	else
 		command="$CURL --silent"
 	fi
-	command="$command --url $final_url --upload-file $local_file --ftp-create-dirs"
-	set +x
+	command="$command --url $url/$(basename $local_file) --upload-file $local_file --ftp-create-dirs"
 
-	if [ "true" = "$verbose" ]; then
-		echo_command "$command"
-	fi
+	[ "true" = "$verbose" ] && echo_command "$command"
 
 	if ! sh -c "$command"; then
 		echo_error "Failed to upload file to FTP server"
 		exit 1
 	fi
-
-	n=$(($n + 1))
 done
 
 exit 0
