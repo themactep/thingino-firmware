@@ -134,7 +134,7 @@ function handleMessage(msg) {
 	if (msg.rtsp) {
 		const r = msg.rtsp;
 		if (r.username && r.password && r.port && msg.stream0?.rtsp_endpoint)
-			$('#playrtsp').innerHTML = `mpv rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
+			$('#playrtsp').innerHTML = `ffplay rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
 	}
 }
 
