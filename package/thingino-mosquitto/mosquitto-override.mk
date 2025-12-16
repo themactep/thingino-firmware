@@ -10,6 +10,25 @@ ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO),y)
 override MOSQUITTO_VERSION = 2.0.22
 override MOSQUITTO_SITE = https://sources.buildroot.net/mosquitto
 
+# Keep client builds lean; disable cJSON/JSON pretty-print support.
+override MOSQUITTO_DEPENDENCIES := $(filter-out cjson,$(MOSQUITTO_DEPENDENCIES))
+override MOSQUITTO_STATIC_LIBS := $(filter-out -lcjson,$(MOSQUITTO_STATIC_LIBS))
+override MOSQUITTO_MAKE_OPTS := $(filter-out WITH_CJSON=%,$(MOSQUITTO_MAKE_OPTS))
+override MOSQUITTO_MAKE_OPTS += WITH_CJSON=no
+
+override MOSQUITTO_MAKE_OPTS += prefix=/usr
+
+ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_USE_MBEDTLS),y)
+override MOSQUITTO_DEPENDENCIES := $(filter-out openssl,$(MOSQUITTO_DEPENDENCIES))
+override MOSQUITTO_DEPENDENCIES += mbedtls
+
+override MOSQUITTO_STATIC_LIBS := $(filter-out -lssl -lcrypto,$(MOSQUITTO_STATIC_LIBS))
+override MOSQUITTO_STATIC_LIBS += -lmbedtls -lmbedx509 -lmbedcrypto
+
+override MOSQUITTO_MAKE_OPTS := $(filter-out WITH_TLS=%,$(MOSQUITTO_MAKE_OPTS))
+override MOSQUITTO_MAKE_OPTS += WITH_TLS=yes TLS_IMPL=mbedtls
+endif
+
 # Unless the Thingino-specific broker option is enabled, skip building the
 # upstream broker even though the Buildroot symbol stays default-on.
 ifneq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_BROKER),y)
