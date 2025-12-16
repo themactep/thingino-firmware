@@ -112,8 +112,8 @@ if [ -f "${TARGET_DIR}/lib/libconfig.so" ]; then
 	rm -vf ${TARGET_DIR}/lib/libconfig.so*
 fi
 
-if [ -f "${TARGET_DIR}/lib/libstdc++.so.6.0.33-gdb.py" ]; then
-	rm -vf ${TARGET_DIR}/lib/libstdc++.so.6.0.33-gdb.py
+if [ -f "${TARGET_DIR}/lib/libstdc++.so.6.0.34-gdb.py" ]; then
+	rm -vf ${TARGET_DIR}/lib/libstdc++.so.6.0.34-gdb.py
 fi
 
 if grep -q ^BR2_PACKAGE_EXFAT_UTILS $BR2_CONFIG >/dev/null; then
