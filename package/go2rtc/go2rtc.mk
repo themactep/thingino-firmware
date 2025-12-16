@@ -6,7 +6,7 @@ GO2RTC_LICENSE_FILES = LICENSE
 
 GO2RTC_INSTALL_TARGET = YES
 
-GO2RTC_DEPENDENCIES = host-upx thingino-go
+GO2RTC_DEPENDENCIES = host-upx host-go
 
 # Disable CGO to avoid V4L2/ALSA C dependencies on MIPS
 GO2RTC_GO_ENV = CGO_ENABLED=0 GOARCH=mipsle
