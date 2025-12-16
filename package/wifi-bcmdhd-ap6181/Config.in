@@ -1,0 +1,3 @@
+config BR2_PACKAGE_WIFI_BCMDHD_AP6181
+	bool "Broadcom 43438 (AP6181)"
+	select BR2_LINUX_KERNEL
