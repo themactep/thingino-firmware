@@ -1,0 +1,200 @@
+#!/bin/sh
+
+. /usr/share/common
+
+EXPECTED_WLAN_MODULE="@WLAN_MODULE@"
+
+if [ -z "$wlan_module" ]; then
+	wlan_module="$EXPECTED_WLAN_MODULE"
+elif [ "$wlan_module" != "$EXPECTED_WLAN_MODULE" ]; then
+	echo_warning "wlan_module ($wlan_module) differs from build-time value $EXPECTED_WLAN_MODULE"
+fi
+
+if [ -z "$wlan_module" ]; then
+	die "wlan_module is empty, exit."
+fi
+
+entry_command=$(basename "$0")
+
+show_help() {
+	echo "Usage: $0 <command>
+Where command:
+  setup       Set up Wi-Fi credentials
+  info        Display connection details
+  temp        Display module temperature details
+  rssi        Display signal details
+  cli         CLI interface on supported modules
+  reset       Reset all Wi-Fi credentials
+" >&2
+	exit 1
+}
+
+check_interface() {
+	ip link show $1 > /dev/null 2>&1 || die "Error: interface $1 does not exist."
+}
+
+cli() {
+	@if WIFI_FAMILY_ATBM@
+	CMD_FILE=$(find /sys/module/atbm*/atbmfs -name atbm_cmd 2>/dev/null)
+	@else@
+	@if WIFI_FAMILY_SSV@
+	CMD_FILE="/proc/ssv/phy0/ssv_cmd"
+	@else@
+	echo "Error: CLI is not supported on $wlan_module."
+	exit 1
+	@endif@
+	@endif@
+
+	[ -f "$CMD_FILE" ] || die "Error: Command file not found for $wlan_module."
+
+	if [ -z "$1" ]; then
+		echo "Usage: $entry_command cli <command>"
+		echo "Send a command to the wireless device CLI interface."
+		echo "Example: $entry_command cli <your_command>"
+		exit 0
+	fi
+
+	echo "$*" > "$CMD_FILE"
+	cat "$CMD_FILE"
+}
+
+reset() {
+	tmp_file=$(mktemp)
+	echo -e "wlan_ssid\nwlan_bssid\nwlan_pass\nwlanap_ssid\nwlanap_pass" > $tmp_file
+	fw_setenv -s $tmp_file
+	rm -f $tmp_file
+}
+
+rssi() {
+	check_interface wlan0
+
+	@if WIFI_FAMILY_AIC@
+	echo "AICSemi not supported yet."
+	return
+	@endif@
+	@if WIFI_FAMILY_ATBM@
+	iwpriv wlan0 common get_rssi | sed -n 's/.*rssi=\(-[0-9]*\).*/\1/p'
+	return
+	@endif@
+	@if WIFI_FAMILY_BCM@
+	echo "Broadcom not supported yet."
+	return
+	@endif@
+	@if WIFI_FAMILY_HI@
+	echo "HiSilicon not supported yet."
+	return
+	@endif@
+	@if WIFI_FAMILY_MTK@
+	iwconfig wlan0 | sed -n 's/.*Signal level[=:] *\(-\?[0-9]\+\) *dBm.*/\1/p; s/.*Signal level[=:] *\([0-9]\+\)\/100.*/-\1/p'
+	return
+	@endif@
+	@if WIFI_FAMILY_RTL@
+	iwconfig wlan0 | sed -n 's/.*Signal level[=:] *\(-\?[0-9]\+\) *dBm.*/\1/p; s/.*Signal level[=:] *\([0-9]\+\)\/100.*/-\1/p'
+	return
+	@endif@
+	@if WIFI_FAMILY_SSV@
+	echo "rf rssi" > $SSV_CMD_FILE
+	cat $SSV_CMD_FILE | sed -n 's/.*ofdm RSSI \(-[0-9]*\).*/\1/p'
+	return
+	@endif@
+
+	echo "Unknown wireless device type $wlan_module."
+}
+
+
+show_info() {
+	@if WIFI_FAMILY_ATBM@
+	iwpriv wlan0 common get_ap_info
+	return
+	@endif@
+	@if WIFI_FAMILY_MTK@
+	iwconfig wlan0
+	return
+	@endif@
+	@if WIFI_FAMILY_RTL@
+	iwconfig wlan0
+	return
+	@endif@
+
+	echo "Not supported on $wlan_module"
+}
+
+setup() {
+	echo_c 208 "Thingino Wi-Fi setup"
+	echo "Wi-Fi driver: $(echo_c 10 $wlan_module)"
+	read -r -p "Enter Wi-Fi SSID: " ssid
+	while :; do
+		read -r -p "Enter Wi-Fi Password: " password
+		[ ${#password} -ge 8 ] && [ ${#password} -le 64 ] && break
+		echo_c 160 "Passwords is not between 8 and 64 characters. Please try again."
+	done
+
+	fw_setenv wlan_ssid "$ssid"
+	fw_setenv wlan_pass "$password"
+
+	echo_c 40 "Wi-Fi settings updated. Please restart for changes to take effect.\n"
+}
+
+temp() {
+	check_interface wlan0
+
+	@if WIFI_FAMILY_AIC@
+	echo "AICSemi is not supported."
+	return
+	@endif@
+	@if WIFI_FAMILY_ATBM@
+	iwpriv wlan0 common get_tjroom | sed -n 's/.*stempC:\(-\?[0-9]\+\).*/\1/p'
+	return
+	@endif@
+	@if WIFI_FAMILY_BCM@
+	echo "Broadcom is not supported."
+	return
+	@endif@
+	@if WIFI_FAMILY_HI@
+	echo "HiSilicon is not supported."
+	return
+	@endif@
+	@if WIFI_FAMILY_MTK@
+	echo "MediaTek is not supported."
+	return
+	@endif@
+	@if WIFI_FAMILY_RTL@
+	echo "Realtek is not supported."
+	return
+	@endif@
+	@if WIFI_FAMILY_SSV@
+	echo "SSV not supported yet."
+	return
+	@endif@
+
+	echo "Unknown wireless device $wlan_module."
+}
+
+case "$entry_command" in
+	wlancli)
+		cli "$@" ;;
+	wlaninfo)
+		exec wlan info ;;
+	wlanreset)
+		exec wlan reset ;;
+	wlanrssi)
+		exec wlan rssi ;;
+	wlansetup)
+		exec wlan setup ;;
+	wlantemp)
+		exec wlan temp ;;
+	*)
+		# main case selection for wlan command if no specific entry_command match
+		case "$1" in
+			cli) shift; cli "$@" ;;
+			info) show_info ;;
+			reset) reset ;;
+			rssi) rssi ;;
+			setup) setup ;;
+			temp) temp ;;
+			*) show_help ;;  # only show help if no valid command is provided
+		esac
+		;;
+esac
+
+exit 0

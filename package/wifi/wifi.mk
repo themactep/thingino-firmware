@@ -78,6 +78,15 @@ else
 WIFI_IS_HI3881_FLAG := 0
 endif
 
+WIFI_IS_FAMILY_AIC_FLAG := $(if $(filter aic%,$(WLAN_MODULE)),1,0)
+WIFI_IS_FAMILY_ATBM_FLAG := $(if $(filter atbm%,$(WLAN_MODULE)),1,0)
+WIFI_IS_FAMILY_BCM_FLAG := $(if $(filter bcm% syn%,$(WLAN_MODULE)),1,0)
+WIFI_IS_FAMILY_HI_FLAG := $(if $(filter hi%,$(WLAN_MODULE)),1,0)
+WIFI_IS_FAMILY_MTK_FLAG := $(if $(filter mt7%,$(WLAN_MODULE)),1,0)
+WIFI_IS_FAMILY_RTL_FLAG := $(if $(filter rtl% 818% 87% 88%,$(WLAN_MODULE)),1,0)
+WIFI_IS_FAMILY_SSV_FLAG := $(if $(filter ssv%,$(WLAN_MODULE)),1,0)
+
+
 WIFI_SDIO_SET_GPIO_FLAG := 0
 WIFI_SDIO_RETURN_EARLY_FLAG := 0
 WIFI_SDIO_UNSUPPORTED_FLAG := 0
@@ -104,7 +113,14 @@ WIFI_TEMPLATE_VARS = \
 	--var WIFI_SDIO_SET_GPIO=$(WIFI_SDIO_SET_GPIO_FLAG) \
 	--var WIFI_SDIO_RETURN_EARLY=$(WIFI_SDIO_RETURN_EARLY_FLAG) \
 	--var WIFI_SDIO_UNSUPPORTED=$(WIFI_SDIO_UNSUPPORTED_FLAG) \
-	--var WIFI_IS_HI3881=$(WIFI_IS_HI3881_FLAG)
+	--var WIFI_IS_HI3881=$(WIFI_IS_HI3881_FLAG) \
+	--var WIFI_FAMILY_AIC=$(WIFI_IS_FAMILY_AIC_FLAG) \
+	--var WIFI_FAMILY_ATBM=$(WIFI_IS_FAMILY_ATBM_FLAG) \
+	--var WIFI_FAMILY_BCM=$(WIFI_IS_FAMILY_BCM_FLAG) \
+	--var WIFI_FAMILY_HI=$(WIFI_IS_FAMILY_HI_FLAG) \
+	--var WIFI_FAMILY_MTK=$(WIFI_IS_FAMILY_MTK_FLAG) \
+	--var WIFI_FAMILY_RTL=$(WIFI_IS_FAMILY_RTL_FLAG) \
+	--var WIFI_FAMILY_SSV=$(WIFI_IS_FAMILY_SSV_FLAG)
 
 define WIFI_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_SET_OPT,CONFIG_RFKILL,y)
@@ -119,8 +135,10 @@ define WIFI_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(WIFI_PKGDIR)/files/S38wpa_supplicant \
 		$(TARGET_DIR)/etc/init.d/S38wpa_supplicant
 
-	$(INSTALL) -D -m 0755 $(WIFI_PKGDIR)/files/wlan \
-		$(TARGET_DIR)/usr/sbin/wlan
+	$(INSTALL) -d $(TARGET_DIR)/usr/sbin
+	$(WIFI_TEMPLATE_PYTHON) $(WIFI_TEMPLATE_RENDERER) --template $(WIFI_PKGDIR)/files/wlan.in \
+		--output $(TARGET_DIR)/usr/sbin/wlan $(WIFI_TEMPLATE_VARS)
+	chmod 0755 $(TARGET_DIR)/usr/sbin/wlan
 
 	ln -sr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlancli
 	ln -sr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlaninfo
