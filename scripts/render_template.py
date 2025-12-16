@@ -66,9 +66,13 @@ def render(template: Path, output: Path, variables: dict[str, str]) -> None:
         if stripped.startswith("@if "):
             condition = stripped[4:].strip()
             invert = False
+            if condition.endswith("@"):
+                condition = condition[:-1].strip()
             if condition.startswith("!"):
                 invert = True
                 condition = condition[1:].strip()
+                if condition.endswith("@"):
+                    condition = condition[:-1].strip()
             cond_value = variables.get(condition, "")
             cond_result = is_truthy(cond_value)
             if invert:

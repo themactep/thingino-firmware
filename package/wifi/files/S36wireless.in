@@ -77,11 +77,7 @@ start() {
 		mmc 1
 @endif@
 @endif@
-	fi
-@else@
-@if WIFI_INTERFACE_IS_UNKNOWN@
-	echo_warning "MMC1 is not SDIO"
-@endif@
+fi
 @endif@
 
 @if WIFI_IS_HI3881@
