@@ -13,9 +13,6 @@ which motors > /dev/null && has_motors="true"
 <input type="checkbox" class="btn-check" name="motion" id="motion" value="1">
 <label class="btn btn-dark border mb-2" for="motion" title="Motion Guard"><img src="/a/motion.svg" alt="Motion Guard" class="img-fluid"></label>
 
-<input type="checkbox" class="btn-check" name="rotate" id="rotate" value="1">
-<label class="btn btn-dark border mb-2" for="rotate" title="Rotate 180°"><img src="/a/rotate.svg" alt="Rotate 180°" class="img-fluid"></label>
-
 <input type="checkbox" class="btn-check" name="daynight" id="daynight" value="1">
 <label class="btn btn-dark border mb-2" for="daynight" title="Night mode"><img src="/a/night.svg" alt="Day/Night Mode" class="img-fluid"></label>
 
@@ -122,12 +119,6 @@ const ImageColorMode = 0
 const endpoint = '/x/json-prudynt.cgi';
 
 function handleMessage(msg) {
-	if (msg.image) {
-		if (msg.image.hflip)
-			$('#rotate').checked = msg.image.hflip;
-		if (msg.image.vflip)
-			$('#rotate').checked = msg.image.vflip;
-	}
 	if (msg.motion && msg.motion.enabled) {
 		$('#motion').checked = msg.motion.enabled;
 	}
@@ -215,9 +206,6 @@ async function toggleDayNight(mode = 'read') {
 
 $("#motion").addEventListener('change', ev =>
 	sendToEndpoint({motion:{enabled: ev.target.checked}}));
-
-$('#rotate').addEventListener('change', ev =>
-	sendToEndpoint({image:{hflip: ev.target.checked, vflip: ev.target.checked}}));
 
 $("#daynight").addEventListener('change', ev =>
 	ev.target.checked ? toggleDayNight('night') : toggleDayNight('day'));
