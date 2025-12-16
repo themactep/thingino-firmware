@@ -396,9 +396,9 @@ const stream2_params = ['jpeg_channel'];
 // OSD
 const osd_params = [
 	'enabled', 'font_path', 'font_size', 'stroke_size', 'logo_enabled',
-	'time_enabled', 'time_fill_color', 'time_stroke_color',
-	'time_format', 'uptime_enabled', 'uptime_fill_color',
-	'uptime_stroke_color', 'usertext_enabled', 'usertext_fill_color',
+	'time_enabled', 'time_color', 'time_stroke_color',
+	'time_format', 'uptime_enabled', 'uptime_color',
+	'uptime_color', 'usertext_enabled', 'usertext_color',
 	'usertext_stroke_color', 'usertext_format'
 ];
 
@@ -452,37 +452,37 @@ function handleMessage(msg) {
 				if (data.osd.time_format)
 					$(`#osd${i}_time_format`).value = data.osd.time_format;
 
-				if (data.osd.time_font_color) {
-					$(`#osd${i}_time_fillcolor`).value = rgba2color(data.osd.time_font_color);
-					$(`#osd${i}_time_fillcolor-alpha`).value = rgba2alpha(data.osd.time_font_color);
+				if (data.osd.time_color) {
+					$(`#osd${i}_time_fillcolor`).value = rgba2color(data.osd.time_color);
+					$(`#osd${i}_time_fillcolor-alpha`).value = rgba2alpha(data.osd.time_color);
 				}
 
-				if (data.osd.time_font_stroke_color) {
-					$(`#osd${i}_time_strokecolor`).value = rgba2color(data.osd.time_font_stroke_color);
+				if (data.osd.time_stroke_color) {
+					$(`#osd${i}_time_strokecolor`).value = rgba2color(data.osd.time_stroke_color);
 				}
 
 				if (data.osd.uptime_enabled)
 					$(`#osd${i}_uptime_enabled`).checked = data.osd.uptime_enabled;
 
-				if (data.osd.uptime_font_color) {
-					$(`#osd${i}_uptime_fillcolor`).value = rgba2color(data.osd.uptime_font_color);
-					$(`#osd${i}_uptime_fillcolor-alpha`).value = rgba2alpha(data.osd.uptime_font_color);
+				if (data.osd.uptime_color) {
+					$(`#osd${i}_uptime_fillcolor`).value = rgba2color(data.osd.uptime_color);
+					$(`#osd${i}_uptime_fillcolor-alpha`).value = rgba2alpha(data.osd.uptime_color);
 				}
 
-				if (data.osd.uptime_font_stroke_color) {
-					$(`#osd${i}_uptime_strokecolor`).value = rgba2color(data.osd.uptime_font_stroke_color);
+				if (data.osd.uptime_stroke_color) {
+					$(`#osd${i}_uptime_strokecolor`).value = rgba2color(data.osd.uptime_stroke_color);
 				}
 
 				if (data.osd.usertext_enabled)
 					$(`#osd${i}_usertext_enabled`).checked = data.osd.usertext_enabled;
 
-				if (data.osd.usertext_font_color) {
-					$(`#osd${i}_usertext_fillcolor`).value = rgba2color(data.osd.usertext_font_color);
-					$(`#osd${i}_usertext_fillcolor-alpha`).value = rgba2alpha(data.osd.usertext_font_color);
+				if (data.osd.usertext_color) {
+					$(`#osd${i}_usertext_fillcolor`).value = rgba2color(data.osd.usertext_color);
+					$(`#osd${i}_usertext_fillcolor-alpha`).value = rgba2alpha(data.osd.usertext_color);
 				}
 
-				if (data.osd.usertext_font_stroke_color) {
-					$(`#osd${i}_usertext_strokecolor`).value = rgba2color(data.osd.usertext_font_stroke_color);
+				if (data.osd.usertext_stroke_color) {
+					$(`#osd${i}_usertext_strokecolor`).value = rgba2color(data.osd.usertext_stroke_color);
 				}
 
 				if (data.osd.usertext_format)
@@ -575,8 +575,8 @@ function setFontColor(n, el) {
 
 	if (fillcolor == '' || strokecolor == '') return;
 	sendToEndpoint('{"stream'+n+'":{"osd":{'+
-		'"'+el+'_font_color":"'+fillcolor+fillcolor_alpha+'",'+
-		'"'+el+'_font_stroke_color":"'+strokecolor+strokecolor_alpha+'"'+
+		'"'+el+'_color":"'+fillcolor+fillcolor_alpha+'",'+
+		'"'+el+'_stroke_color":"'+strokecolor+strokecolor_alpha+'"'+
 		'}},"action":{"restart_thread":10}}');
 }
 
