@@ -1,0 +1,7 @@
+gpio_default=18O
+gpio_mmc_cd=-1
+gpio_ircut=72
+gpio_ir850=89o
+gpio_led_r=90o
+gpio_led_b=49o
+gpio_speaker=63o
