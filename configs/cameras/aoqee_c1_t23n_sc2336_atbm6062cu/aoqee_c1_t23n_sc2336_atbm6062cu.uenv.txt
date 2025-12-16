@@ -6,4 +6,3 @@ gpio_led_w=60O
 gpio_mmc_cd=50
 gpio_speaker=39o
 gpio_wlan=47o
-wlan_module=atbm6062cu
