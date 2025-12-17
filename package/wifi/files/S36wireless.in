@@ -1,0 +1,144 @@
+#!/bin/sh
+
+. /usr/share/common
+
+IFACE=wlan0
+EXPECTED_WLAN_MODULE="@WLAN_MODULE@"
+
+if [ -z "$wlan_module" ]; then
+	wlan_module="$EXPECTED_WLAN_MODULE"
+elif [ "$wlan_module" != "$EXPECTED_WLAN_MODULE" ]; then
+	echo_warning "wlan_module ($wlan_module) differs from build-time value $EXPECTED_WLAN_MODULE"
+fi
+
+start() {
+	echo_title "Starting wireless interface"
+
+	if [ "true" = "$disable_wlan" ]; then
+		echo_error "WLAN disabled"
+		exit 1
+	fi
+
+	if [ -z "$wlan_module" ]; then
+		echo_error "wlan_module is not set"
+		exit 1
+	fi
+
+	if [ -z "$gpio_wlan" ]; then
+		echo_warning "gpio_wlan is not set"
+	else
+		echo_info "WiFi GPIO: $gpio_wlan"
+		for pin_raw in $gpio_wlan; do
+			# default to output high
+			[ "$pin_raw" = "${pin_raw//[^0-9]/}" ] && pin_raw="${pin_raw}O"
+
+			# extract pin number and suffix
+			pin="${pin_raw:0:-1}"
+			suffix="${pin_raw:0-1}"
+
+			# convert suffix to binary state
+		case "$suffix" in
+				o) state=0 ;;
+				O) state=1 ;;
+				*) echo_warning "Unknown suffix ${suffix}!" ;;
+		esac
+
+			echo_info "Set GPIO $pin to $state"
+			gpio set "${pin}" "${state}"
+		done
+
+		if [ "bcmdhd" = "$wlan_module" ]; then
+			echo_info "Unexport GPIO pin $pin"
+			gpio unexport $pin
+		fi
+	fi
+
+@if WIFI_MODULE_IS_SDIO@
+	echo_info "$wlan_module is an SDIO module"
+
+	if [ -d /proc/jz/mdio ]; then
+		echo_info "GMAC is enabled, disabling MSC1..."
+	else
+@if WIFI_SDIO_UNSUPPORTED@
+		echo_error "Unsupported SOC type for SDIO Wi-Fi: @SOC_FAMILY@"
+		exit 1
+@else@
+@if WIFI_SDIO_RETURN_EARLY@
+		echo_info "Skip GPIO setup for @SOC_MODEL@"
+		return 1
+@else@
+@if WIFI_SDIO_SET_GPIO@
+		echo_info "Set GPIO pins with /sbin/mmc_gpio"
+		/sbin/mmc_gpio
+@else@
+		echo_info "Skip GPIO setup for @SOC_MODEL@"
+@endif@
+		echo_info "Send INSERT to MMC1"
+		mmc 1
+@endif@
+@endif@
+fi
+@endif@
+
+@if WIFI_IS_HI3881@
+	if [ -n "$wlan_mac" ]; then
+		if [ -f /usr/share/wifi/wifi_cfg ]; then
+			echo_info "Preset MAC address to $wlan_mac in /usr/share/wifi/wifi_cfg"
+			sed -i "s/CFG_MAC=[^;]*;/CFG_MAC=$wlan_mac;/" /usr/share/wifi/wifi_cfg
+		else
+			echo_warning "Cannot preset MAC: /usr/share/wifi/wifi_cfg missing"
+		fi
+	fi
+@endif@
+
+	if grep -q "^$wlan_module\b" /proc/modules; then
+		echo_info "Module $wlan_module is already loaded"
+	else
+		echo_info "Loading $wlan_module module with parameters $wlan_module_opts"
+		modprobe $wlan_module $wlan_module_opts
+	fi
+
+	m=50 # limit to 5 seconds
+	while [ "$m" -gt 0 ]; do
+		grep -q $IFACE /proc/net/wireless && break
+		m=$((m-1))
+		sleep 0.1
+	done
+
+@if !WIFI_IS_HI3881@
+	if [ -n "$wlan_mac" ]; then
+		if ip link | grep -q $IFACE >/dev/null; then
+			echo_info "Bring interface $IFACE down"
+			ip link set dev $IFACE down
+		fi
+
+		echo_info "Set MAC address to $wlan_mac"
+		ip link set dev $IFACE address $wlan_mac
+	fi
+@endif@
+}
+
+stop() {
+	echo_title "Stopping wireless interface"
+
+	ifdown $IFACE
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

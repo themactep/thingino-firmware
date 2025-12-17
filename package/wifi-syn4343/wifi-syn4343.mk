@@ -3,6 +3,9 @@ WIFI_SYN4343_SITE = https://github.com/acvigue/bcmdhd
 WIFI_SYN4343_SITE_BRANCH = main
 WIFI_SYN4343_VERSION = a874170026892c58352a5be37c4c0f1f6767f295
 
+SYN4343_MODULE_NAME = bcmdhd
+SYN4343_MODULE_OPTS = "gpio_wl_reg_on=48 gpio_wl_host_wake=39 firmware_path=/usr/lib/firmware/ nvram_path=/usr/lib/firmware/nv_bcm4343.txt op_mode=2"
+
 WIFI_SYN4343_MODULE_MAKE_OPTS = \
 	KVER=$(LINUX_VERSION_PROBED) \
 	KSRC=$(LINUX_DIR) \

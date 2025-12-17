@@ -12,4 +12,3 @@ gpio_sensor_switch=7
 gpio_speaker=63o
 gpio_white=60O
 gpio_wlan=6
-wlan_module="atbm6012b"

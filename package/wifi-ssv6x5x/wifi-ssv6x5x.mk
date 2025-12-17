@@ -33,6 +33,18 @@ ifneq ($(filter y,$(SSV6X5X_PID6011_CHIPS)),)
 	WIFI_SSV6X5X_VERSION = caac9e093548e1a8ff0d5d9b391b52062b23d830
 endif
 
+SSV6X5X_MODULE_NAME = ssv6x5x
+ifeq ($(BR2_PACKAGE_WIFI_SSV6X5X_SV6155P),y)
+	SSV6X5X_MODULE_OPTS = stacfgpath=/usr/share/wifi/ssv6155-usb-40M.cfg
+endif
+ifeq ($(BR2_PACKAGE_WIFI_SSV6X5X_SV6256P),y)
+	SSV6X5X_MODULE_OPTS = stacfgpath=/usr/share/wifi/ssv6x5x-wifi.cfg
+endif
+# weird ops from Ginzzu OP200
+ifeq ($(BR2_PACKAGE_WIFI_SSV6X5X_SV6006C),y)
+	SSV6X5X_MODULE_OPTS = stacfgpath=/usr/share/wifi/ssv6006c-wifi.cfg
+endif
+
 WIFI_SSV6X5X_LICENSE = GPL-2.0
 WIFI_SSV6X5X_LICENSE_FILES = COPYING
 
