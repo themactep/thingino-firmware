@@ -13,3 +13,12 @@ config BR2_PACKAGE_FAAC_ENABLE_DRM
 	  Enable the DRM (Digital Radio Mondiale) variant of libfaac. This
 	  controls the upstream meson enable_drm option and allows the
 	  DRM-specific library to be built and installed.
+
+config BR2_PACKAGE_FAAC_INSTALL_BIN
+	bool "Install faac CLI"
+	default n
+	depends on BR2_PACKAGE_FAAC
+	help
+	  Install the `faac` command-line encoder binary on both the
+	  target rootfs and the staging sysroot. Disable this option to
+	  keep only the libraries.
