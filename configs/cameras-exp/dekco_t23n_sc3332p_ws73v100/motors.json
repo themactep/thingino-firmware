@@ -1,0 +1,8 @@
+{
+  "motors": {
+    "motor_maxstep_h": "5900",
+    "motor_maxstep_v": "900",
+    "motor_speed_h": "900",
+    "motor_speed_v": "900"
+  }
+}
