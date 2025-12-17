@@ -1,7 +1,7 @@
 FAAC_SITE_METHOD = git
 FAAC_SITE = https://github.com/knik0/faac
 FAAC_SITE_BRANCH = master
-FAAC_VERSION = cb10c59666a3631547a9037c1576a34d8ca52df1
+FAAC_VERSION = 05f85a53d56f4c563524c5ffc2ebb2dd98fa7180
 # $(shell git ls-remote $(FAAC_SITE) $(FAAC_SITE_BRANCH) | head -1 | cut -f1)
 
 FAAC_LICENSE = MPEG-4-Reference-Code, LGPL-2.1+
