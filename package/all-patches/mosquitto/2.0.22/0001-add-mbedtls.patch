@@ -1,0 +1,1397 @@
+diff -urNa a/config.h b/config.h
+--- a/config.h	2025-07-11 17:32:27.000000000 -0400
++++ b/config.h	2025-12-17 06:52:43.260891271 -0500
+@@ -56,9 +56,13 @@
+ 
+ 
+ #ifdef WITH_TLS
+-#  include <openssl/opensslconf.h>
+-#  if defined(WITH_TLS_PSK) && !defined(OPENSSL_NO_PSK)
+-#    define FINAL_WITH_TLS_PSK
++#  if defined(WITH_TLS_MBEDTLS)
++#    include <mbedtls/version.h>
++#  elif defined(WITH_TLS_OPENSSL)
++#    include <openssl/opensslconf.h>
++#    if defined(WITH_TLS_PSK) && !defined(OPENSSL_NO_PSK)
++#      define FINAL_WITH_TLS_PSK
++#    endif
+ #  endif
+ #endif
+ 
+diff -urNa a/config.mk b/config.mk
+--- a/config.mk	2025-07-11 17:32:27.000000000 -0400
++++ b/config.mk	2025-12-17 06:52:43.260891271 -0500
+@@ -28,6 +28,10 @@
+ # This must be disabled if using openssl < 1.0.
+ WITH_TLS_PSK:=yes
+ 
++# Select TLS backend. Supported values: openssl (default), mbedtls.
++TLS_IMPL?=openssl
++TLS_IMPL:=$(strip $(TLS_IMPL))
++
+ # Comment out to disable client threading support.
+ WITH_THREADING:=yes
+ 
+@@ -185,7 +189,7 @@
+ CLIENT_CPPFLAGS:=$(CPPFLAGS) -I.. -I../include
+ CLIENT_CFLAGS:=${CFLAGS} -DVERSION="\"${VERSION}\""
+ CLIENT_LDFLAGS:=$(LDFLAGS) -L../lib
+-CLIENT_LDADD:=
++CLIENT_LDADD:=$(CLIENT_LDADD) -lmosquitto
+ 
+ PASSWD_LDADD:=
+ 
+@@ -208,9 +212,9 @@
+ 	LIB_LIBADD:=$(LIB_LIBADD) -lrt
+ endif
+ 
+-ifeq ($(WITH_SHARED_LIBRARIES),yes)
+-	CLIENT_LDADD:=${CLIENT_LDADD} ../lib/libmosquitto.so.${SOVERSION}
+-endif
++	ifneq ($(TLS_IMPL),mbedtls)
++		# this block was corrupted; restore structure before handling TLS_IMPL
++	endif
+ 
+ ifeq ($(UNAME),SunOS)
+ 	SEDINPLACE:=
+@@ -250,19 +254,42 @@
+ endif
+ 
+ ifeq ($(WITH_TLS),yes)
+-	APP_CPPFLAGS:=$(APP_CPPFLAGS) -DWITH_TLS -DOPENSSL_API_COMPAT=0x10100000L
+-	BROKER_CPPFLAGS:=$(BROKER_CPPFLAGS) -DWITH_TLS -DOPENSSL_API_COMPAT=0x10100000L
+-	BROKER_LDADD:=$(BROKER_LDADD) -lssl -lcrypto
+-	CLIENT_CPPFLAGS:=$(CLIENT_CPPFLAGS) -DWITH_TLS -DOPENSSL_API_COMPAT=0x10100000L
+-	LIB_CPPFLAGS:=$(LIB_CPPFLAGS) -DWITH_TLS -DOPENSSL_API_COMPAT=0x10100000L
+-	LIB_LIBADD:=$(LIB_LIBADD) -lssl -lcrypto
++	APP_CPPFLAGS:=$(APP_CPPFLAGS) -DWITH_TLS
++	BROKER_CPPFLAGS:=$(BROKER_CPPFLAGS) -DWITH_TLS
++	CLIENT_CPPFLAGS:=$(CLIENT_CPPFLAGS) -DWITH_TLS
++	LIB_CPPFLAGS:=$(LIB_CPPFLAGS) -DWITH_TLS
++
++	ifeq ($(TLS_IMPL),mbedtls)
++		APP_CPPFLAGS:=$(APP_CPPFLAGS) -DWITH_TLS_MBEDTLS
++		BROKER_CPPFLAGS:=$(BROKER_CPPFLAGS) -DWITH_TLS_MBEDTLS
++		CLIENT_CPPFLAGS:=$(CLIENT_CPPFLAGS) -DWITH_TLS_MBEDTLS
++		LIB_CPPFLAGS:=$(LIB_CPPFLAGS) -DWITH_TLS_MBEDTLS
++		MOSQ_TLS_LIBS:=-lmbedtls -lmbedx509 -lmbedcrypto
++		BROKER_LDADD:=$(BROKER_LDADD) $(MOSQ_TLS_LIBS)
++		CLIENT_LDADD:=$(CLIENT_LDADD) $(MOSQ_TLS_LIBS)
++		LIB_LIBADD:=$(LIB_LIBADD) $(MOSQ_TLS_LIBS)
++		STATIC_LIB_DEPS:=$(STATIC_LIB_DEPS) $(MOSQ_TLS_LIBS)
++	else
++		APP_CPPFLAGS:=$(APP_CPPFLAGS) -DWITH_TLS_OPENSSL -DOPENSSL_API_COMPAT=0x10100000L
++		BROKER_CPPFLAGS:=$(BROKER_CPPFLAGS) -DWITH_TLS_OPENSSL -DOPENSSL_API_COMPAT=0x10100000L
++		CLIENT_CPPFLAGS:=$(CLIENT_CPPFLAGS) -DWITH_TLS_OPENSSL -DOPENSSL_API_COMPAT=0x10100000L
++		LIB_CPPFLAGS:=$(LIB_CPPFLAGS) -DWITH_TLS_OPENSSL -DOPENSSL_API_COMPAT=0x10100000L
++		BROKER_LDADD:=$(BROKER_LDADD) -lssl -lcrypto
++		CLIENT_LDADD:=$(CLIENT_LDADD) -lssl -lcrypto
++		LIB_LIBADD:=$(LIB_LIBADD) -lssl -lcrypto
++		STATIC_LIB_DEPS:=$(STATIC_LIB_DEPS) -lssl -lcrypto
++	endif
++
+ 	PASSWD_LDADD:=$(PASSWD_LDADD) -lcrypto
+-	STATIC_LIB_DEPS:=$(STATIC_LIB_DEPS) -lssl -lcrypto
+ 
+ 	ifeq ($(WITH_TLS_PSK),yes)
+-		BROKER_CPPFLAGS:=$(BROKER_CPPFLAGS) -DWITH_TLS_PSK
+-		LIB_CPPFLAGS:=$(LIB_CPPFLAGS) -DWITH_TLS_PSK
+-		CLIENT_CPPFLAGS:=$(CLIENT_CPPFLAGS) -DWITH_TLS_PSK
++		ifeq ($(TLS_IMPL),mbedtls)
++                $(warning TLS PSK mode currently requires the OpenSSL backend; disabling PSK support)
++		else
++			BROKER_CPPFLAGS:=$(BROKER_CPPFLAGS) -DWITH_TLS_PSK
++			LIB_CPPFLAGS:=$(LIB_CPPFLAGS) -DWITH_TLS_PSK
++			CLIENT_CPPFLAGS:=$(CLIENT_CPPFLAGS) -DWITH_TLS_PSK
++		endif
+ 	endif
+ endif
+ 
+diff -urNa a/lib/loop.c b/lib/loop.c
+--- a/lib/loop.c	2025-07-11 17:32:27.000000000 -0400
++++ b/lib/loop.c	2025-12-17 06:52:43.260891271 -0500
+@@ -66,7 +66,7 @@
+ 		if(mosq->want_write){
+ 			FD_SET(mosq->sock, &writefds);
+ 		}else{
+-#ifdef WITH_TLS
++#if defined(WITH_TLS_OPENSSL)
+ 			if(mosq->ssl == NULL || SSL_is_init_finished(mosq->ssl))
+ #endif
+ 			{
+diff -urNa a/lib/Makefile b/lib/Makefile
+--- a/lib/Makefile	2025-07-11 17:32:27.000000000 -0400
++++ b/lib/Makefile	2025-12-17 06:52:43.260891271 -0500
+@@ -22,7 +22,6 @@
+ 		  memory_mosq.o \
+ 		  messages_mosq.o \
+ 		  misc_mosq.o \
+-		  net_mosq_ocsp.o \
+ 		  net_mosq.o \
+ 		  options.o \
+ 		  packet_datatypes.o \
+@@ -40,12 +39,18 @@
+ 		  strings_mosq.o \
+ 		  thread_mosq.o \
+ 		  time_mosq.o \
+-		  tls_mosq.o \
+ 		  utf8_mosq.o \
+ 		  util_mosq.o \
+ 		  util_topic.o \
+ 		  will_mosq.o
+ 
++ifeq ($(TLS_IMPL),openssl)
++MOSQ_OBJS+=net_mosq_ocsp.o \
++		tls_mosq.o
++else ifeq ($(TLS_IMPL),mbedtls)
++MOSQ_OBJS+=tls_mbedtls.o
++endif
++
+ ALL_DEPS:=
+ 
+ ifeq ($(WITH_SHARED_LIBRARIES),yes)
+@@ -94,6 +99,7 @@
+ 
+ libmosquitto.so.${SOVERSION} : ${MOSQ_OBJS}
+ 	${CROSS_COMPILE}$(CC) -shared $(LIB_LDFLAGS) $^ -o $@ ${LIB_LIBADD}
++	ln -sf $@ libmosquitto.so
+ 
+ libmosquitto.a : ${MOSQ_OBJS}
+ 	${CROSS_COMPILE}$(AR) cr $@ $^
+@@ -215,6 +221,9 @@
+ tls_mosq.o : tls_mosq.c
+ 	${CROSS_COMPILE}$(CC) $(LIB_CPPFLAGS) $(LIB_CFLAGS) -c $< -o $@
+ 
++tls_mbedtls.o : tls_mbedtls.c tls_mbedtls.h
++	${CROSS_COMPILE}$(CC) $(LIB_CPPFLAGS) $(LIB_CFLAGS) -c $< -o $@
++
+ utf8_mosq.o : utf8_mosq.c
+ 	${CROSS_COMPILE}$(CC) $(LIB_CPPFLAGS) $(LIB_CFLAGS) -c $< -o $@
+ 
+diff -urNa a/lib/mosquitto.c b/lib/mosquitto.c
+--- a/lib/mosquitto.c	2025-07-11 17:32:27.000000000 -0400
++++ b/lib/mosquitto.c	2025-12-17 06:52:43.260891271 -0500
+@@ -199,7 +199,8 @@
+ 	mosq->reconnect_delay_max = 1;
+ 	mosq->reconnect_exponential_backoff = false;
+ 	mosq->threaded = mosq_ts_none;
+-#ifdef WITH_TLS
++	mosq->want_write = false;
++#ifdef WITH_TLS_OPENSSL
+ 	mosq->ssl = NULL;
+ 	mosq->ssl_ctx = NULL;
+ 	mosq->ssl_ctx_defaults = true;
+@@ -208,7 +209,15 @@
+ #endif
+ 	mosq->tls_cert_reqs = SSL_VERIFY_PEER;
+ 	mosq->tls_insecure = false;
+-	mosq->want_write = false;
++	mosq->tls_ocsp_required = false;
++#endif
++#ifdef WITH_TLS_MBEDTLS
++	mosq->mbedtls = NULL;
++#ifndef WITH_BROKER
++	mosq->user_mbedtls = NULL;
++#endif
++	mosq->tls_cert_reqs = SSL_VERIFY_PEER;
++	mosq->tls_insecure = false;
+ 	mosq->tls_ocsp_required = false;
+ #endif
+ #ifdef WITH_THREADING
+@@ -267,7 +276,8 @@
+ 	}
+ 	message__cleanup_all(mosq);
+ 	will__clear(mosq);
+-#ifdef WITH_TLS
++
++#ifdef WITH_TLS_OPENSSL
+ 	if(mosq->ssl){
+ 		SSL_free(mosq->ssl);
+ 	}
+@@ -282,6 +292,11 @@
+ 		SSL_CTX_free(mosq->ssl_ctx);
+ 	}
+ #endif
++#endif
++#ifdef WITH_TLS_MBEDTLS
++	mosquitto__mbedtls_cleanup(mosq);
++#endif
++#ifdef WITH_TLS
+ 	mosquitto__free(mosq->tls_cafile);
+ 	mosquitto__free(mosq->tls_capath);
+ 	mosquitto__free(mosq->tls_certfile);
+@@ -292,11 +307,9 @@
+ 	mosquitto__free(mosq->tls_psk);
+ 	mosquitto__free(mosq->tls_psk_identity);
+ 	mosquitto__free(mosq->tls_alpn);
+-#ifndef OPENSSL_NO_ENGINE
+ 	mosquitto__free(mosq->tls_engine);
+ 	mosq->tls_engine = NULL;
+ #endif
+-#endif
+ 
+ 	mosquitto__free(mosq->address);
+ 	mosq->address = NULL;
+diff -urNa a/lib/mosquitto_internal.h b/lib/mosquitto_internal.h
+--- a/lib/mosquitto_internal.h	2025-07-11 17:32:27.000000000 -0400
++++ b/lib/mosquitto_internal.h	2025-12-17 06:52:43.260891271 -0500
+@@ -21,15 +21,22 @@
+ #define MOSQUITTO_INTERNAL_H
+ 
+ #include "config.h"
++#include "tls_mosq.h"
+ 
+ #ifdef WIN32
+ #  include <winsock2.h>
+ #endif
+ 
+ #ifdef WITH_TLS
+-#  include <openssl/ssl.h>
+-#else
+-#  include <time.h>
++#  ifdef WITH_TLS_OPENSSL
++#    include <openssl/ssl.h>
++#  elif defined(WITH_TLS_MBEDTLS)
++#    include <mbedtls/ssl.h>
++#  endif
++#endif
++#include <time.h>
++#ifdef WITH_TLS_MBEDTLS
++#  include "tls_mbedtls.h"
+ #endif
+ #include <stdlib.h>
+ 
+@@ -252,11 +259,18 @@
+ 	uint32_t will_delay_interval;
+ 	time_t will_delay_time;
+ #ifdef WITH_TLS
++#  ifdef WITH_TLS_OPENSSL
+ 	SSL *ssl;
+ 	SSL_CTX *ssl_ctx;
+-#ifndef WITH_BROKER
++#    ifndef WITH_BROKER
+ 	SSL_CTX *user_ssl_ctx;
+-#endif
++#    endif
++#  elif defined(WITH_TLS_MBEDTLS)
++	struct mosq_mbedtls *mbedtls;
++#    ifndef WITH_BROKER
++	struct mosq_mbedtls *user_mbedtls;
++#    endif
++#  endif
+ 	char *tls_cafile;
+ 	char *tls_capath;
+ 	char *tls_certfile;
+diff -urNa a/lib/net_mosq.c b/lib/net_mosq.c
+--- a/lib/net_mosq.c	2025-07-11 17:32:27.000000000 -0400
++++ b/lib/net_mosq.c	2025-12-17 06:52:43.260891271 -0500
+@@ -54,11 +54,13 @@
+ #endif
+ 
+ #ifdef WITH_TLS
+-#include <openssl/conf.h>
+-#include <openssl/engine.h>
+-#include <openssl/err.h>
+-#include <openssl/ui.h>
+-#include <tls_mosq.h>
++#  ifdef WITH_TLS_OPENSSL
++#    include <openssl/conf.h>
++#    include <openssl/engine.h>
++#    include <openssl/err.h>
++#    include <openssl/ui.h>
++#  endif
++#  include <tls_mosq.h>
+ #endif
+ 
+ #ifdef WITH_BROKER
+@@ -77,7 +79,7 @@
+ #include "time_mosq.h"
+ #include "util_mosq.h"
+ 
+-#ifdef WITH_TLS
++#if defined(WITH_TLS) && defined(WITH_TLS_OPENSSL)
+ int tls_ex_index_mosq = -1;
+ UI_METHOD *_ui_method = NULL;
+ 
+@@ -146,7 +148,7 @@
+ 
+ void net__cleanup(void)
+ {
+-#ifdef WITH_TLS
++#if defined(WITH_TLS) && defined(WITH_TLS_OPENSSL)
+ #  if OPENSSL_VERSION_NUMBER < 0x10100000L
+ 	CRYPTO_cleanup_all_ex_data();
+ 	ERR_free_strings();
+@@ -172,7 +174,7 @@
+ #endif
+ }
+ 
+-#ifdef WITH_TLS
++#if defined(WITH_TLS) && defined(WITH_TLS_OPENSSL)
+ void net__init_tls(void)
+ {
+ 	if(is_tls_initialized) return;
+@@ -196,6 +198,11 @@
+ 
+ 	is_tls_initialized = true;
+ }
++#elif defined(WITH_TLS) && defined(WITH_TLS_MBEDTLS)
++void net__init_tls(void)
++{
++	/* mbedTLS does not require global initialization here. */
++}
+ #endif
+ 
+ bool net__is_connected(struct mosquitto *mosq)
+@@ -220,9 +227,10 @@
+ 
+ 	assert(mosq);
+ #ifdef WITH_TLS
+-#ifdef WITH_WEBSOCKETS
++#  ifdef WITH_TLS_OPENSSL
++#    ifdef WITH_WEBSOCKETS
+ 	if(!mosq->wsi)
+-#endif
++#    endif
+ 	{
+ 		if(mosq->ssl){
+ 			if(!SSL_in_init(mosq->ssl)){
+@@ -232,6 +240,9 @@
+ 			mosq->ssl = NULL;
+ 		}
+ 	}
++#  elif defined(WITH_TLS_MBEDTLS)
++	mosquitto__mbedtls_cleanup(mosq);
++#  endif
+ #endif
+ 
+ #ifdef WITH_WEBSOCKETS
+@@ -537,7 +548,7 @@
+ }
+ 
+ 
+-#ifdef WITH_TLS
++#if defined(WITH_TLS_OPENSSL)
+ void net__print_ssl_error(struct mosquitto *mosq)
+ {
+ 	char ebuf[256];
+@@ -579,7 +590,7 @@
+ #endif
+ 
+ 
+-#ifdef WITH_TLS
++#if defined(WITH_TLS_OPENSSL)
+ static int net__tls_load_ca(struct mosquitto *mosq)
+ {
+ 	int ret;
+@@ -860,7 +871,7 @@
+ 
+ int net__socket_connect_step3(struct mosquitto *mosq, const char *host)
+ {
+-#ifdef WITH_TLS
++#if defined(WITH_TLS_OPENSSL)
+ 	BIO *bio;
+ 
+ 	int rc = net__init_ssl_ctx(mosq);
+@@ -903,6 +914,12 @@
+ 		}
+ 
+ 	}
++#elif defined(WITH_TLS_MBEDTLS)
++	int rc = mosquitto__mbedtls_connect(mosq, host);
++	if(rc){
++		net__socket_close(mosq);
++		return rc;
++	}
+ #else
+ 	UNUSED(mosq);
+ 	UNUSED(host);
+@@ -939,7 +956,7 @@
+ }
+ 
+ 
+-#ifdef WITH_TLS
++#if defined(WITH_TLS) && defined(WITH_TLS_OPENSSL)
+ static void net__handle_ssl(struct mosquitto* mosq, int ret)
+ {
+ 	int err;
+@@ -975,6 +992,7 @@
+ 	assert(mosq);
+ 	errno = 0;
+ #ifdef WITH_TLS
++#  ifdef WITH_TLS_OPENSSL
+ 	if(mosq->ssl){
+ 		ERR_clear_error();
+ 		ret = SSL_read(mosq->ssl, buf, (int)count);
+@@ -982,7 +1000,13 @@
+ 			net__handle_ssl(mosq, ret);
+ 		}
+ 		return (ssize_t )ret;
+-	}else{
++	}else
++#  elif defined(WITH_TLS_MBEDTLS)
++	if(mosq->mbedtls){
++		return mosquitto__mbedtls_read(mosq, buf, count);
++	}else
++#  endif
++	{
+ 		/* Call normal read/recv */
+ 
+ #endif
+@@ -1007,6 +1031,7 @@
+ 
+ 	errno = 0;
+ #ifdef WITH_TLS
++#  ifdef WITH_TLS_OPENSSL
+ 	if(mosq->ssl){
+ 		ERR_clear_error();
+ 		mosq->want_write = false;
+@@ -1015,7 +1040,13 @@
+ 			net__handle_ssl(mosq, ret);
+ 		}
+ 		return (ssize_t )ret;
+-	}else{
++	}else
++#  elif defined(WITH_TLS_MBEDTLS)
++	if(mosq->mbedtls){
++		return mosquitto__mbedtls_write(mosq, buf, count);
++	}else
++#  endif
++	{
+ 		/* Call normal write/send */
+ #endif
+ 
+@@ -1183,15 +1214,20 @@
+ }
+ #endif
+ 
+-#ifndef WITH_BROKER
++#if !defined(WITH_BROKER) && defined(WITH_TLS_OPENSSL)
+ void *mosquitto_ssl_get(struct mosquitto *mosq)
+ {
+ #ifdef WITH_TLS
+-	return mosq->ssl;
++	return mosq ? mosq->ssl : NULL;
+ #else
+ 	UNUSED(mosq);
+-
+ 	return NULL;
+ #endif
+ }
++#elif !defined(WITH_BROKER)
++void *mosquitto_ssl_get(struct mosquitto *mosq)
++{
++	UNUSED(mosq);
++	return NULL;
++}
+ #endif
+diff -urNa a/lib/net_mosq.h b/lib/net_mosq.h
+--- a/lib/net_mosq.h	2025-07-11 17:32:27.000000000 -0400
++++ b/lib/net_mosq.h	2025-12-17 06:52:43.260891271 -0500
+@@ -80,7 +80,7 @@
+ ssize_t net__read(struct mosquitto *mosq, void *buf, size_t count);
+ ssize_t net__write(struct mosquitto *mosq, const void *buf, size_t count);
+ 
+-#ifdef WITH_TLS
++#if defined(WITH_TLS) && defined(WITH_TLS_OPENSSL)
+ void net__print_ssl_error(struct mosquitto *mosq);
+ int net__socket_apply_tls(struct mosquitto *mosq);
+ int net__socket_connect_tls(struct mosquitto *mosq);
+@@ -90,6 +90,8 @@
+ #define ENGINE_SECRET_MODE "SECRET_MODE"
+ #define ENGINE_SECRET_MODE_SHA 0x1000
+ #define ENGINE_PIN "PIN"
++#else
++#define ENGINE_FINISH(e)
+ #endif
+ 
+ #endif
+diff -urNa a/lib/net_mosq_ocsp.c b/lib/net_mosq_ocsp.c
+--- a/lib/net_mosq_ocsp.c	2025-07-11 17:32:27.000000000 -0400
++++ b/lib/net_mosq_ocsp.c	2025-12-17 06:52:43.260891271 -0500
+@@ -44,7 +44,7 @@
+ 
+ #include "config.h"
+ 
+-#ifdef WITH_TLS
++#if defined(WITH_TLS) && defined(WITH_TLS_OPENSSL)
+ #include <logging_mosq.h>
+ #include <mosquitto_internal.h>
+ #include <net_mosq.h>
+diff -urNa a/lib/options.c b/lib/options.c
+--- a/lib/options.c	2025-07-11 17:32:27.000000000 -0400
++++ b/lib/options.c	2025-12-17 06:52:43.260891271 -0500
+@@ -28,7 +28,10 @@
+ #  ifdef WIN32
+ #    include <winsock2.h>
+ #  endif
+-#  include <openssl/engine.h>
++#  ifdef WITH_TLS_OPENSSL
++#    include <openssl/engine.h>
++#    include <openssl/ssl.h>
++#  endif
+ #endif
+ 
+ #include "mosquitto.h"
+@@ -280,8 +283,10 @@
+ 
+ int mosquitto_string_option(struct mosquitto *mosq, enum mosq_opt_t option, const char *value)
+ {
+-#ifdef WITH_TLS
++#if defined(WITH_TLS) && defined(WITH_TLS_OPENSSL)
+ 	ENGINE *eng;
++#endif
++#ifdef WITH_TLS
+ 	char *str;
+ #endif
+ 
+@@ -289,7 +294,7 @@
+ 
+ 	switch(option){
+ 		case MOSQ_OPT_TLS_ENGINE:
+-#if defined(WITH_TLS) && !defined(OPENSSL_NO_ENGINE)
++#if defined(WITH_TLS_OPENSSL) && !defined(OPENSSL_NO_ENGINE)
+ 			mosquitto__free(mosq->tls_engine);
+ 			if(value){
+ #if OPENSSL_VERSION_NUMBER >= 0x10100000L
+@@ -314,7 +319,7 @@
+ 			break;
+ 
+ 		case MOSQ_OPT_TLS_KEYFORM:
+-#ifdef WITH_TLS
++#ifdef WITH_TLS_OPENSSL
+ 			if(!value) return MOSQ_ERR_INVAL;
+ 			if(!strcasecmp(value, "pem")){
+ 				mosq->tls_keyform = mosq_k_pem;
+@@ -331,7 +336,7 @@
+ 
+ 
+ 		case MOSQ_OPT_TLS_ENGINE_KPASS_SHA1:
+-#ifdef WITH_TLS
++#ifdef WITH_TLS_OPENSSL
+ 			if(mosquitto__hex2bin_sha1(value, (unsigned char**)&str) != MOSQ_ERR_SUCCESS){
+ 				return MOSQ_ERR_INVAL;
+ 			}
+@@ -472,15 +477,15 @@
+ 			break;
+ 
+ 		case MOSQ_OPT_SSL_CTX_WITH_DEFAULTS:
+-#if defined(WITH_TLS) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+-			if(value){
+-				mosq->ssl_ctx_defaults = true;
+-			}else{
+-				mosq->ssl_ctx_defaults = false;
+-			}
+-			break;
++#if defined(WITH_TLS_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10100000L
++		if(value){
++			mosq->ssl_ctx_defaults = true;
++		}else{
++			mosq->ssl_ctx_defaults = false;
++		}
++		break;
+ #else
+-			return MOSQ_ERR_NOT_SUPPORTED;
++		return MOSQ_ERR_NOT_SUPPORTED;
+ #endif
+ 
+ 		case MOSQ_OPT_TLS_USE_OS_CERTS:
+@@ -496,7 +501,7 @@
+ #endif
+ 
+ 		case MOSQ_OPT_TLS_OCSP_REQUIRED:
+-#ifdef WITH_TLS
++#ifdef WITH_TLS_OPENSSL
+ 			mosq->tls_ocsp_required = (bool)value;
+ #else
+ 			return MOSQ_ERR_NOT_SUPPORTED;
+@@ -520,7 +525,7 @@
+ 
+ 	switch(option){
+ 		case MOSQ_OPT_SSL_CTX:
+-#ifdef WITH_TLS
++#if defined(WITH_TLS_OPENSSL)
+ 			mosq->user_ssl_ctx = (SSL_CTX *)value;
+ 			if(mosq->user_ssl_ctx){
+ #if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+diff -urNa a/lib/tls_mbedtls.c b/lib/tls_mbedtls.c
+--- a/lib/tls_mbedtls.c	1969-12-31 19:00:00.000000000 -0500
++++ b/lib/tls_mbedtls.c	2025-12-17 07:07:55.884287734 -0500
+@@ -0,0 +1,547 @@
++#include "config.h"
++
++#ifdef WITH_TLS_MBEDTLS
++
++#include <errno.h>
++#include <stddef.h>
++#include <stdlib.h>
++#include <string.h>
++
++#ifndef WIN32
++#include <sys/socket.h>
++#include <unistd.h>
++#else
++#include <winsock2.h>
++#endif
++
++#include <mbedtls/error.h>
++#include <mbedtls/net_sockets.h>
++#include <mbedtls/version.h>
++
++#include "logging_mosq.h"
++#include "memory_mosq.h"
++#include "mosquitto_internal.h"
++#include "net_mosq.h"
++#include "tls_mbedtls.h"
++
++static void mosquitto__mbedtls_log_error(struct mosquitto *mosq, int code);
++
++static const char *const g_mosquitto_mbedtls_env_cafile_vars[] = {
++	"SSL_CERT_FILE",
++	"OPENSSL_CAFILE",
++	"X509_CERT_FILE",
++	NULL
++};
++
++static const char *const g_mosquitto_mbedtls_default_ca_files[] = {
++	"/etc/ssl/certs/ca-certificates.crt",
++	"/etc/ssl/cert.pem",
++	"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
++	"/etc/pki/tls/certs/ca-bundle.crt",
++	"/etc/pki/tls/cacert.pem",
++	"/etc/ssl/ca-bundle.pem",
++	"/etc/ssl/certs/ca-bundle.crt",
++	"/usr/local/share/certs/ca-bundle.crt",
++	NULL
++};
++
++#if defined(MBEDTLS_X509_CRT_PARSE_PATH)
++static const char *const g_mosquitto_mbedtls_env_capath_vars[] = {
++	"SSL_CERT_DIR",
++	"X509_CERT_DIR",
++	NULL
++};
++
++static const char *const g_mosquitto_mbedtls_default_ca_dirs[] = {
++	"/etc/ssl/certs",
++	"/usr/local/share/certs",
++	"/usr/share/ca-certificates",
++	"/etc/pki/tls/certs",
++	"/etc/pki/ca-trust/extracted/pem",
++	NULL
++};
++#endif
++
++static const unsigned char g_mbedtls_personalization[] = "thingino-mosquitto";
++
++static int mosquitto__mbedtls_try_load_ca_file(struct mosq_mbedtls *tls, struct mosquitto *mosq, const char *path)
++{
++	int ret;
++
++	if(!path || !path[0]){
++		return MBEDTLS_ERR_X509_FILE_IO_ERROR;
++	}
++
++	ret = mbedtls_x509_crt_parse_file(&tls->ca_chain, path);
++	if(ret != 0 && ret != MBEDTLS_ERR_X509_FILE_IO_ERROR){
++		mosquitto__mbedtls_log_error(mosq, ret);
++	}
++
++	return ret;
++}
++
++static int mosquitto__mbedtls_try_load_cafile_list(struct mosq_mbedtls *tls, struct mosquitto *mosq, const char *const *files)
++{
++	int ret = MBEDTLS_ERR_X509_FILE_IO_ERROR;
++	size_t i;
++
++	if(!files){
++		return ret;
++	}
++
++	for(i=0; files[i]; i++){
++		ret = mosquitto__mbedtls_try_load_ca_file(tls, mosq, files[i]);
++		if(ret == 0){
++			return 0;
++		}
++		if(ret != MBEDTLS_ERR_X509_FILE_IO_ERROR){
++			return ret;
++		}
++	}
++
++	return ret;
++}
++
++static int mosquitto__mbedtls_try_env_cafile(struct mosq_mbedtls *tls, struct mosquitto *mosq, const char *const *env_vars)
++{
++	int ret = MBEDTLS_ERR_X509_FILE_IO_ERROR;
++	size_t i;
++
++	if(!env_vars){
++		return ret;
++	}
++
++	for(i=0; env_vars[i]; i++){
++		const char *value = getenv(env_vars[i]);
++		if(!value || !value[0]){
++			continue;
++		}
++		ret = mosquitto__mbedtls_try_load_ca_file(tls, mosq, value);
++		if(ret == 0){
++			return 0;
++		}
++		if(ret != MBEDTLS_ERR_X509_FILE_IO_ERROR){
++			return ret;
++		}
++	}
++
++	return ret;
++}
++
++#if defined(MBEDTLS_X509_CRT_PARSE_PATH)
++static int mosquitto__mbedtls_try_load_ca_path(struct mosq_mbedtls *tls, struct mosquitto *mosq, const char *path)
++{
++	int ret;
++
++	if(!path || !path[0]){
++		return MBEDTLS_ERR_X509_FILE_IO_ERROR;
++	}
++
++	ret = mbedtls_x509_crt_parse_path(&tls->ca_chain, path);
++	if(ret != 0 && ret != MBEDTLS_ERR_X509_FILE_IO_ERROR){
++		mosquitto__mbedtls_log_error(mosq, ret);
++	}
++
++	return ret;
++}
++
++static int mosquitto__mbedtls_try_load_capath_list(struct mosq_mbedtls *tls, struct mosquitto *mosq, const char *const *paths)
++{
++	int ret = MBEDTLS_ERR_X509_FILE_IO_ERROR;
++	size_t i;
++
++	if(!paths){
++		return ret;
++	}
++
++	for(i=0; paths[i]; i++){
++		ret = mosquitto__mbedtls_try_load_ca_path(tls, mosq, paths[i]);
++		if(ret == 0){
++			return 0;
++		}
++		if(ret != MBEDTLS_ERR_X509_FILE_IO_ERROR){
++			return ret;
++		}
++	}
++
++	return ret;
++}
++
++static int mosquitto__mbedtls_try_env_capath(struct mosq_mbedtls *tls, struct mosquitto *mosq, const char *const *env_vars)
++{
++	int ret = MBEDTLS_ERR_X509_FILE_IO_ERROR;
++	size_t i;
++
++	if(!env_vars){
++		return ret;
++	}
++
++	for(i=0; env_vars[i]; i++){
++		const char *value = getenv(env_vars[i]);
++		if(!value || !value[0]){
++			continue;
++		}
++		ret = mosquitto__mbedtls_try_load_ca_path(tls, mosq, value);
++		if(ret == 0){
++			return 0;
++		}
++		if(ret != MBEDTLS_ERR_X509_FILE_IO_ERROR){
++			return ret;
++		}
++	}
++
++	return ret;
++}
++#endif
++
++static int mosquitto__mbedtls_load_os_certs(struct mosq_mbedtls *tls, struct mosquitto *mosq)
++{
++	int ret;
++
++	ret = mosquitto__mbedtls_try_env_cafile(tls, mosq, g_mosquitto_mbedtls_env_cafile_vars);
++	if(ret == 0){
++		return 0;
++	}
++	if(ret != MBEDTLS_ERR_X509_FILE_IO_ERROR){
++		return ret;
++	}
++
++	ret = mosquitto__mbedtls_try_load_cafile_list(tls, mosq, g_mosquitto_mbedtls_default_ca_files);
++	if(ret == 0){
++		return 0;
++	}
++	if(ret != MBEDTLS_ERR_X509_FILE_IO_ERROR){
++		return ret;
++	}
++
++#if defined(MBEDTLS_X509_CRT_PARSE_PATH)
++	ret = mosquitto__mbedtls_try_env_capath(tls, mosq, g_mosquitto_mbedtls_env_capath_vars);
++	if(ret == 0){
++		return 0;
++	}
++	if(ret != MBEDTLS_ERR_X509_FILE_IO_ERROR){
++		return ret;
++	}
++
++	ret = mosquitto__mbedtls_try_load_capath_list(tls, mosq, g_mosquitto_mbedtls_default_ca_dirs);
++	if(ret == 0){
++		return 0;
++	}
++	if(ret != MBEDTLS_ERR_X509_FILE_IO_ERROR){
++		return ret;
++	}
++#endif
++
++	log__printf(mosq, MOSQ_LOG_ERR, "Error: Unable to load CA certificates from the operating system certificate store.");
++	return MBEDTLS_ERR_X509_CERT_VERIFY_FAILED;
++}
++
++static int mosquitto__mbedtls_seed(struct mosq_mbedtls *tls)
++{
++	int ret;
++
++	mbedtls_entropy_init(&tls->entropy);
++	mbedtls_ctr_drbg_init(&tls->ctr_drbg);
++
++	ret = mbedtls_ctr_drbg_seed(&tls->ctr_drbg, mbedtls_entropy_func, &tls->entropy,
++			g_mbedtls_personalization,
++			sizeof(g_mbedtls_personalization));
++	return ret;
++}
++
++static int mosquitto__mbedtls_configure(struct mosquitto *mosq)
++{
++	int ret;
++	struct mosq_mbedtls *tls = mosq->mbedtls;
++
++	if(mosq->tls_engine || mosq->tls_engine_kpass_sha1 || mosq->tls_keyform == mosq_k_engine){
++		log__printf(mosq, MOSQ_LOG_WARNING, "Warning: TLS engine options are not supported with the mbedTLS backend and will be ignored.");
++	}
++	if(mosq->tls_ciphers){
++		log__printf(mosq, MOSQ_LOG_WARNING, "Warning: Custom cipher lists are not yet supported with the mbedTLS backend.");
++	}
++
++	if(!tls->configured){
++		mbedtls_ssl_init(&tls->ssl);
++		mbedtls_ssl_config_init(&tls->conf);
++		mbedtls_x509_crt_init(&tls->ca_chain);
++		mbedtls_x509_crt_init(&tls->client_cert);
++		mbedtls_pk_init(&tls->client_key);
++
++		ret = mosquitto__mbedtls_seed(tls);
++		if(ret != 0){
++			return ret;
++		}
++
++		ret = mbedtls_ssl_config_defaults(&tls->conf, MBEDTLS_SSL_IS_CLIENT,
++				MBEDTLS_SSL_TRANSPORT_STREAM,
++				MBEDTLS_SSL_PRESET_DEFAULT);
++		if(ret != 0){
++			return ret;
++		}
++
++		mbedtls_ssl_conf_rng(&tls->conf, mbedtls_ctr_drbg_random, &tls->ctr_drbg);
++		mbedtls_ssl_conf_ca_chain(&tls->conf, &tls->ca_chain, NULL);
++		mbedtls_ssl_conf_read_timeout(&tls->conf, 0);
++
++		if(mosq->tls_insecure || mosq->tls_cert_reqs == 0){
++			mbedtls_ssl_conf_authmode(&tls->conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
++		}else{
++			mbedtls_ssl_conf_authmode(&tls->conf, MBEDTLS_SSL_VERIFY_REQUIRED);
++		}
++
++		if(mosq->tls_alpn){
++			const char *alpn[2] = { mosq->tls_alpn, NULL };
++			mbedtls_ssl_conf_alpn_protocols(&tls->conf, alpn);
++		}
++
++		if(mosq->tls_version){
++			if(!strcmp(mosq->tls_version, "tlsv1.3")){
++#ifdef MBEDTLS_SSL_PROTO_TLS1_3
++				mbedtls_ssl_conf_min_version(&tls->conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_4);
++				mbedtls_ssl_conf_max_version(&tls->conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_4);
++#else
++				return MBEDTLS_ERR_SSL_BAD_CONFIG;
++#endif
++			}else if(!strcmp(mosq->tls_version, "tlsv1.2")){
++				mbedtls_ssl_conf_min_version(&tls->conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3);
++				mbedtls_ssl_conf_max_version(&tls->conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3);
++			}
++		}
++
++		tls->configured = true;
++	}
++
++	if(mosq->tls_cafile){
++		ret = mbedtls_x509_crt_parse_file(&tls->ca_chain, mosq->tls_cafile);
++		if(ret != 0){
++			return ret;
++		}
++	}else if(mosq->tls_use_os_certs){
++		ret = mosquitto__mbedtls_load_os_certs(tls, mosq);
++		if(ret != 0){
++			return ret;
++		}
++	}else if(!mosq->tls_insecure && mosq->tls_cert_reqs != 0){
++		return MBEDTLS_ERR_X509_CERT_VERIFY_FAILED;
++	}
++
++	if(mosq->tls_capath){
++		log__printf(mosq, MOSQ_LOG_WARNING, "Warning: tls-capath is not yet supported with the mbedTLS backend.");
++	}
++
++		if(mosq->tls_certfile){
++		ret = mbedtls_x509_crt_parse_file(&tls->client_cert, mosq->tls_certfile);
++		if(ret != 0){
++			return ret;
++		}
++			if(mosq->tls_keyfile){
++#if MBEDTLS_VERSION_NUMBER >= 0x03000000
++				ret = mbedtls_pk_parse_keyfile(&tls->client_key, mosq->tls_keyfile, NULL,
++					mbedtls_ctr_drbg_random, &tls->ctr_drbg);
++#else
++				ret = mbedtls_pk_parse_keyfile(&tls->client_key, mosq->tls_keyfile, NULL);
++#endif
++			if(ret != 0){
++				return ret;
++			}
++			ret = mbedtls_ssl_conf_own_cert(&tls->conf, &tls->client_cert, &tls->client_key);
++			if(ret != 0){
++				return ret;
++			}
++					
++			tls->has_client_cert = true;
++		}
++	}
++
++	return 0;
++}
++
++static int mosquitto__mbedtls_bio_send(void *context, const unsigned char *buf, size_t len)
++{
++	struct mosquitto *mosq = context;
++	int rc;
++
++	errno = 0;
++	if(!mosq) return MBEDTLS_ERR_NET_INVALID_CONTEXT;
++
++	rc = (int)send(mosq->sock, (const char *)buf, (int)len, MSG_NOSIGNAL);
++	if(rc < 0){
++#ifdef WIN32
++		errno = WSAGetLastError();
++#endif
++		if(errno == EWOULDBLOCK || errno == EAGAIN){
++			return MBEDTLS_ERR_SSL_WANT_WRITE;
++		}
++		return MBEDTLS_ERR_NET_SEND_FAILED;
++	}
++	return rc;
++}
++
++static int mosquitto__mbedtls_bio_recv(void *context, unsigned char *buf, size_t len)
++{
++	struct mosquitto *mosq = context;
++	int rc;
++
++	errno = 0;
++	if(!mosq) return MBEDTLS_ERR_NET_INVALID_CONTEXT;
++
++	rc = (int)recv(mosq->sock, (char *)buf, (int)len, 0);
++	if(rc == 0){
++		return MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY;
++	}else if(rc < 0){
++#ifdef WIN32
++		errno = WSAGetLastError();
++#endif
++		if(errno == EWOULDBLOCK || errno == EAGAIN){
++			return MBEDTLS_ERR_SSL_WANT_READ;
++		}
++		return MBEDTLS_ERR_NET_RECV_FAILED;
++	}
++	return rc;
++}
++
++int mosquitto__mbedtls_init(struct mosquitto *mosq)
++{
++	if(!mosq) return MOSQ_ERR_INVAL;
++	if(mosq->mbedtls) return MOSQ_ERR_SUCCESS;
++
++	mosq->mbedtls = mosquitto__calloc(1, sizeof(struct mosq_mbedtls));
++	if(!mosq->mbedtls){
++		return MOSQ_ERR_NOMEM;
++	}
++	mbedtls_ssl_init(&mosq->mbedtls->ssl);
++
++	return MOSQ_ERR_SUCCESS;
++}
++
++void mosquitto__mbedtls_cleanup(struct mosquitto *mosq)
++{
++	struct mosq_mbedtls *tls;
++
++	if(!mosq || !mosq->mbedtls) return;
++
++	tls = mosq->mbedtls;
++	mbedtls_ssl_free(&tls->ssl);
++	mbedtls_ssl_config_free(&tls->conf);
++	mbedtls_x509_crt_free(&tls->ca_chain);
++	mbedtls_x509_crt_free(&tls->client_cert);
++	mbedtls_pk_free(&tls->client_key);
++	mbedtls_ctr_drbg_free(&tls->ctr_drbg);
++	mbedtls_entropy_free(&tls->entropy);
++	mosquitto__free(mosq->mbedtls);
++	mosq->mbedtls = NULL;
++}
++
++static void mosquitto__mbedtls_log_error(struct mosquitto *mosq, int code)
++{
++	char buf[128];
++
++	mbedtls_strerror(code, buf, sizeof(buf));
++	log__printf(mosq, MOSQ_LOG_ERR, "mbedTLS error: %s (%d)", buf, code);
++}
++
++int mosquitto__mbedtls_connect(struct mosquitto *mosq, const char *host)
++{
++	int ret;
++
++	if(!mosq) return MOSQ_ERR_INVAL;
++
++	ret = mosquitto__mbedtls_init(mosq);
++	if(ret != MOSQ_ERR_SUCCESS){
++		return ret;
++	}
++
++	ret = mosquitto__mbedtls_configure(mosq);
++	if(ret != 0){
++		mosquitto__mbedtls_log_error(mosq, ret);
++		return MOSQ_ERR_TLS;
++	}
++
++	mbedtls_ssl_free(&mosq->mbedtls->ssl);
++	mbedtls_ssl_init(&mosq->mbedtls->ssl);
++	ret = mbedtls_ssl_setup(&mosq->mbedtls->ssl, &mosq->mbedtls->conf);
++	if(ret != 0){
++		mosquitto__mbedtls_log_error(mosq, ret);
++		return MOSQ_ERR_TLS;
++	}
++
++	mbedtls_ssl_set_bio(&mosq->mbedtls->ssl, mosq, mosquitto__mbedtls_bio_send,
++			mosquitto__mbedtls_bio_recv, NULL);
++
++	if(host && !mosq->tls_insecure){
++		ret = mbedtls_ssl_set_hostname(&mosq->mbedtls->ssl, host);
++		if(ret != 0){
++			mosquitto__mbedtls_log_error(mosq, ret);
++			return MOSQ_ERR_TLS;
++		}
++	}
++
++	do {
++		ret = mbedtls_ssl_handshake(&mosq->mbedtls->ssl);
++	} while(ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE);
++
++	if(ret != 0){
++		mosquitto__mbedtls_log_error(mosq, ret);
++		return MOSQ_ERR_TLS;
++	}
++
++	if(!mosq->tls_insecure && mosq->tls_cert_reqs != 0){
++		uint32_t flags = mbedtls_ssl_get_verify_result(&mosq->mbedtls->ssl);
++		if(flags != 0){
++			char info[256];
++			mbedtls_x509_crt_verify_info(info, sizeof(info), "  ", flags);
++			log__printf(mosq, MOSQ_LOG_ERR, "Error: TLS certificate verification failed: %s", info);
++			return MOSQ_ERR_TLS;
++		}
++	}
++
++	return MOSQ_ERR_SUCCESS;
++}
++
++ssize_t mosquitto__mbedtls_read(struct mosquitto *mosq, void *buf, size_t count)
++{
++	int ret;
++
++	if(!mosq || !mosq->mbedtls) return -1;
++
++	errno = 0;
++	ret = mbedtls_ssl_read(&mosq->mbedtls->ssl, buf, count);
++	if(ret > 0){
++		return ret;
++	}
++	if(ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE){
++		errno = EAGAIN;
++		return -1;
++	}
++	if(ret == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY){
++		errno = ECONNRESET;
++		return -1;
++	}
++	mosquitto__mbedtls_log_error(mosq, ret);
++	errno = EPROTO;
++	return -1;
++}
++
++ssize_t mosquitto__mbedtls_write(struct mosquitto *mosq, const void *buf, size_t count)
++{
++	int ret;
++
++	if(!mosq || !mosq->mbedtls) return -1;
++
++	errno = 0;
++	ret = mbedtls_ssl_write(&mosq->mbedtls->ssl, buf, count);
++	if(ret >= 0){
++		return ret;
++	}
++	if(ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE){
++		mosq->want_write = (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
++		errno = EAGAIN;
++		return -1;
++	}
++	mosquitto__mbedtls_log_error(mosq, ret);
++	errno = EPROTO;
++	return -1;
++}
++
++#endif
+diff -urNa a/lib/tls_mbedtls.h b/lib/tls_mbedtls.h
+--- a/lib/tls_mbedtls.h	1969-12-31 19:00:00.000000000 -0500
++++ b/lib/tls_mbedtls.h	2025-12-17 06:52:53.989068882 -0500
+@@ -0,0 +1,39 @@
++#ifndef TLS_MBEDTLS_H
++#define TLS_MBEDTLS_H
++
++#include "config.h"
++
++#ifdef WITH_TLS_MBEDTLS
++
++#include <stdbool.h>
++#include <stddef.h>
++
++#include <mbedtls/ctr_drbg.h>
++#include <mbedtls/entropy.h>
++#include <mbedtls/pk.h>
++#include <mbedtls/ssl.h>
++#include <mbedtls/x509_crt.h>
++
++struct mosquitto;
++
++struct mosq_mbedtls {
++	mbedtls_ssl_context ssl;
++	mbedtls_ssl_config conf;
++	mbedtls_ctr_drbg_context ctr_drbg;
++	mbedtls_entropy_context entropy;
++	mbedtls_x509_crt ca_chain;
++	mbedtls_x509_crt client_cert;
++	mbedtls_pk_context client_key;
++	bool has_client_cert;
++	bool configured;
++};
++
++int mosquitto__mbedtls_init(struct mosquitto *mosq);
++void mosquitto__mbedtls_cleanup(struct mosquitto *mosq);
++int mosquitto__mbedtls_connect(struct mosquitto *mosq, const char *host);
++ssize_t mosquitto__mbedtls_read(struct mosquitto *mosq, void *buf, size_t count);
++ssize_t mosquitto__mbedtls_write(struct mosquitto *mosq, const void *buf, size_t count);
++
++#endif
++
++#endif
+diff -urNa a/lib/tls_mosq.c b/lib/tls_mosq.c
+--- a/lib/tls_mosq.c	2025-07-11 17:32:27.000000000 -0400
++++ b/lib/tls_mosq.c	2025-12-17 06:52:43.260891271 -0500
+@@ -18,7 +18,7 @@
+ 
+ #include "config.h"
+ 
+-#ifdef WITH_TLS
++#if defined(WITH_TLS) && defined(WITH_TLS_OPENSSL)
+ 
+ #ifdef WIN32
+ #  include <winsock2.h>
+diff -urNa a/lib/tls_mosq.h b/lib/tls_mosq.h
+--- a/lib/tls_mosq.h	2025-07-11 17:32:27.000000000 -0400
++++ b/lib/tls_mosq.h	2025-12-17 06:52:43.260891271 -0500
+@@ -19,13 +19,23 @@
+ #ifndef TLS_MOSQ_H
+ #define TLS_MOSQ_H
+ 
++#ifdef WITH_TLS_MBEDTLS
++#  include "tls_mbedtls.h"
++#endif
++
+ #ifdef WITH_TLS
+-#  define SSL_DATA_PENDING(A) ((A)->ssl && SSL_pending((A)->ssl))
++#  ifdef WITH_TLS_OPENSSL
++#    define SSL_DATA_PENDING(A) ((A)->ssl && SSL_pending((A)->ssl))
++#  elif defined(WITH_TLS_MBEDTLS)
++#    define SSL_DATA_PENDING(A) ((A)->mbedtls && mbedtls_ssl_get_bytes_avail(&(A)->mbedtls->ssl))
++#  else
++#    define SSL_DATA_PENDING(A) 0
++#  endif
+ #else
+ #  define SSL_DATA_PENDING(A) 0
+ #endif
+ 
+-#ifdef WITH_TLS
++#if defined(WITH_TLS) && defined(WITH_TLS_OPENSSL)
+ 
+ #include <openssl/ssl.h>
+ #include <openssl/engine.h>
+@@ -33,6 +43,16 @@
+ int mosquitto__server_certificate_verify(int preverify_ok, X509_STORE_CTX *ctx);
+ int mosquitto__verify_certificate_hostname(X509 *cert, const char *hostname);
+ 
+-#endif /* WITH_TLS */
++#else
++
++#ifndef SSL_VERIFY_NONE
++#  define SSL_VERIFY_NONE 0
++#endif
++
++#ifndef SSL_VERIFY_PEER
++#  define SSL_VERIFY_PEER 1
++#endif
++
++#endif /* WITH_TLS && WITH_TLS_OPENSSL */
+ 
+ #endif
+diff -urNa a/lib/util_mosq.c b/lib/util_mosq.c
+--- a/lib/util_mosq.c	2025-07-11 17:32:27.000000000 -0400
++++ b/lib/util_mosq.c	2025-12-17 06:52:43.260891271 -0500
+@@ -31,15 +31,14 @@
+ #  include <sys/stat.h>
+ #endif
+ 
+-#if !defined(WITH_TLS) && defined(__linux__) && defined(__GLIBC__)
++#if !defined(WITH_TLS_OPENSSL) && defined(__linux__) && defined(__GLIBC__)
+ #  if __GLIBC_PREREQ(2, 25)
+ #    include <sys/random.h>
+ #    define HAVE_GETRANDOM 1
+ #  endif
+ #endif
+ 
+-#ifdef WITH_TLS
+-#  include <openssl/bn.h>
++#ifdef WITH_TLS_OPENSSL
+ #  include <openssl/rand.h>
+ #endif
+ 
+@@ -165,55 +164,70 @@
+ 
+ 
+ #ifdef WITH_TLS
++
++#define MOSQ_SHA1_BYTES 20
++
++static int mosq__hex2nibble(char c)
++{
++	if(c >= '0' && c <= '9'){
++		return c - '0';
++	}else if(c >= 'a' && c <= 'f'){
++		return 10 + (c - 'a');
++	}else if(c >= 'A' && c <= 'F'){
++		return 10 + (c - 'A');
++	}
++	return -1;
++}
++
+ int mosquitto__hex2bin_sha1(const char *hex, unsigned char **bin)
+ {
+-	unsigned char *sha, tmp[SHA_DIGEST_LENGTH];
++	unsigned char *sha;
++	unsigned char tmp[MOSQ_SHA1_BYTES];
++	int expected_len = (int)sizeof(tmp);
+ 
+-	if(mosquitto__hex2bin(hex, tmp, SHA_DIGEST_LENGTH) != SHA_DIGEST_LENGTH){
++	if(mosquitto__hex2bin(hex, tmp, expected_len) != expected_len){
+ 		return MOSQ_ERR_INVAL;
+ 	}
+ 
+-	sha = mosquitto__malloc(SHA_DIGEST_LENGTH);
++	sha = mosquitto__malloc(expected_len);
+ 	if(!sha){
+ 		return MOSQ_ERR_NOMEM;
+ 	}
+-	memcpy(sha, tmp, SHA_DIGEST_LENGTH);
++	memcpy(sha, tmp, expected_len);
+ 	*bin = sha;
+ 	return MOSQ_ERR_SUCCESS;
+ }
+ 
+ int mosquitto__hex2bin(const char *hex, unsigned char *bin, int bin_max_len)
+ {
+-	BIGNUM *bn = NULL;
+-	int len;
+-	int leading_zero = 0;
+-	int start = 0;
+-	size_t i = 0;
+-
+-	/* Count the number of leading zero */
+-	for(i=0; i<strlen(hex); i=i+2) {
+-		if(strncmp(hex + i, "00", 2) == 0) {
+-			leading_zero++;
+-			/* output leading zero to bin */
+-			bin[start++] = 0;
+-		}else{
+-			break;
+-		}
+-	}
++	size_t hex_len;
++	int out_len = 0;
++	int hi, lo;
++	size_t i;
+ 
+-	if(BN_hex2bn(&bn, hex) == 0){
+-		if(bn) BN_free(bn);
++	if(!hex || !bin || bin_max_len <= 0){
+ 		return 0;
+ 	}
+-	if(BN_num_bytes(bn) + leading_zero > bin_max_len){
+-		BN_free(bn);
++	hex_len = strlen(hex);
++	if(hex_len == 0 || hex_len % 2 != 0){
+ 		return 0;
+ 	}
+ 
+-	len = BN_bn2bin(bn, bin + leading_zero);
+-	BN_free(bn);
+-	return len + leading_zero;
++	for(i = 0; i < hex_len; i += 2){
++		hi = mosq__hex2nibble(hex[i]);
++		lo = mosq__hex2nibble(hex[i+1]);
++		if(hi < 0 || lo < 0){
++			return 0;
++		}
++		if(out_len >= bin_max_len){
++			return 0;
++		}
++		bin[out_len++] = (unsigned char)((hi << 4) | lo);
++	}
++
++	return out_len;
+ }
++#undef MOSQ_SHA1_BYTES
+ #endif
+ 
+ void util__increment_receive_quota(struct mosquitto *mosq)
+@@ -250,7 +264,7 @@
+ {
+ 	int rc = MOSQ_ERR_UNKNOWN;
+ 
+-#ifdef WITH_TLS
++#if defined(WITH_TLS_OPENSSL)
+ 	if(RAND_bytes(bytes, count) == 1){
+ 		rc = MOSQ_ERR_SUCCESS;
+ 	}
