@@ -6,6 +6,4 @@ gpio_white=9
 gpio_default_net=39o
 gpio_mmc_cd=49
 #gpio_mmc_power=46o
-gpio_motor_h=54 52 53 64
-gpio_motor_v=61 62 63 51
 gpio_speaker=60O

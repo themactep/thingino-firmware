@@ -4,7 +4,5 @@ gpio_ir850=81
 gpio_ircut=79 80
 gpio_led_r=78
 gpio_mmc_cd=52
-gpio_motor_h=39 40 41 42
-gpio_motor_v=48 46 45 43
 gpio_speaker=63o
 gpio_white=82

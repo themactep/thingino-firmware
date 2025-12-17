@@ -5,7 +5,5 @@ gpio_ircut=57 58
 gpio_led_b=40o
 gpio_led_r=46o
 gpio_mmc_cd=50
-gpio_motor_h=49 63 62 61
-gpio_motor_v=52 53 64 59
 gpio_speaker=39o
 gpio_wlan=47o

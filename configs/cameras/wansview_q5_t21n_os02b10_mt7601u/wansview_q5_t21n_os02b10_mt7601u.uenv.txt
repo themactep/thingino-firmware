@@ -5,6 +5,4 @@ gpio_ircut=79 80
 gpio_led_b=73o
 gpio_led_r=72o
 gpio_mmc_cd=52
-gpio_motor_h=81 82 51 53
-gpio_motor_v=77 76 75 78
 gpio_speaker=63o

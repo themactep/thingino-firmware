@@ -6,6 +6,4 @@ gpio_led_b=48
 gpio_led_y=47
 gpio_mmc_cd=50
 gpio_mmc_power=39o
-gpio_motor_h=54 51 49 57
-gpio_motor_v=63 62 61 60
 gpio_speaker=8
