@@ -6,6 +6,7 @@ WIFI_DEPENDENCIES += host-python3
 WIFI_TEMPLATE_RENDERER = $(BR2_EXTERNAL)/scripts/render_template.py
 WIFI_TEMPLATE_PYTHON = $(HOST_DIR)/bin/python3
 
+ifeq ($(BR2_PACKAGE_WIFI),y)
 WIFI_DRIVER_SELECTED :=
 
 define WIFI_ADD_DRIVER
@@ -160,3 +161,5 @@ define WIFI_INSTALL_TARGET_CMDS
 endef
 
 $(eval $(generic-package))
+
+endif
