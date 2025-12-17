@@ -29,7 +29,7 @@ else
 fi
 
 SCRIPT=$(ls /etc/init.d/[FKS][0-9][0-9]$SERVICE 2> /dev/null)
-if [ "$ACTION" != "list" ] && [ -z "$SCRIPT" ]; then
+if [ "list" != "$ACTION" ] && [ -z "$SCRIPT" ]; then
 	echo_error "Service $SERVICE not found"
 	exit 1
 fi
