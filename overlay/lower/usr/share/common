@@ -13,11 +13,72 @@ if [ ! -f "$ENV_DUMP_FILE" ]; then
 fi
 . "$ENV_DUMP_FILE"
 
-CONFIG_FILE="/etc/thingino.config"
-if [ -f "$CONFIG_FILE" ]; then
-#	echo "Evaluating $CONFIG_FILE" >&2
-	. "$CONFIG_FILE"
-fi
+CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
+CONFIG_ENV_CACHE="${CONFIG_ENV_CACHE:-/run/thingino.env}"
+JCT_BIN="${JCT_BIN:-$(command -v jct 2>/dev/null)}"
+
+config_shell_quote() {
+	printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
+config_list_keys() {
+	local data
+	[ -r "$CONFIG_JSON" ] || return 1
+	[ -n "$JCT_BIN" ] || return 1
+	data=$("$JCT_BIN" "$CONFIG_JSON" path '$.*' --mode paths --pretty 2>/dev/null) || return 1
+	printf '%s\n' "$data" |
+		sed -n -E 's/^[[:space:]]*"\$\.([^\"]+)"[[:space:]]*,?$/\1/p'
+}
+
+config_refresh_env_cache() {
+	local tmp keys_file key value cache_dir
+	[ -n "$JCT_BIN" ] || return 1
+	[ -r "$CONFIG_JSON" ] || return 1
+	tmp=$(mktemp) || return 1
+	keys_file=$(mktemp) || { rm -f "$tmp"; return 1; }
+	if ! config_list_keys > "$keys_file"; then
+		rm -f "$tmp" "$keys_file"
+		return 1
+	fi
+	while IFS= read -r key || [ -n "$key" ]; do
+		[ -n "$key" ] || continue
+		value=$("$JCT_BIN" "$CONFIG_JSON" get "$key" 2>/dev/null) || value=""
+		printf '%s=%s\n' "$key" "$(config_shell_quote "$value")" >> "$tmp"
+	done < "$keys_file"
+	rm -f "$keys_file"
+	cache_dir=$(dirname "$CONFIG_ENV_CACHE")
+	if [ ! -d "$cache_dir" ]; then
+		mkdir -p "$cache_dir" || { rm -f "$tmp"; return 1; }
+	fi
+	cp -f "$tmp" "$CONFIG_ENV_CACHE" || {
+		rm -f "$tmp"
+		return 1
+	}
+	rm -f "$tmp"
+}
+
+config_load_env_vars() {
+	[ -n "$JCT_BIN" ] || {
+		printf 'jct binary not found; cannot read %s\n' "$CONFIG_JSON" >&2
+		return 1
+	}
+	if [ ! -r "$CONFIG_JSON" ]; then
+		printf 'Config JSON %s not found\n' "$CONFIG_JSON" >&2
+		return 1
+	fi
+	if [ ! -f "$CONFIG_ENV_CACHE" ] || [ "$CONFIG_ENV_CACHE" -ot "$CONFIG_JSON" ]; then
+		config_refresh_env_cache || return 1
+	fi
+	[ -f "$CONFIG_ENV_CACHE" ] && . "$CONFIG_ENV_CACHE"
+}
+
+config_value_for() {
+	local key="$1"
+	[ -n "$key" ] || return
+	eval "printf '%s' \"\${$key:-}\""
+}
+
+config_load_env_vars || printf 'Failed to load %s\n' "$CONFIG_JSON" >&2
 
 PID=$$
 
@@ -91,7 +152,7 @@ decrement_mac() {
 
 	mac=$ethaddr
 	if [ -z "$mac" ]; then
-		echo_error "Error: MAC address not found in $CONFIG_FILE"
+		echo_error "Error: MAC address not found in $CONFIG_JSON"
 		exit 1
 	fi
 
@@ -153,7 +214,7 @@ ensure_dir() {
 
 gpio_control() {
 	gpio_name="$1"
-	gpio_power="$(grep ^${gpio_name}= $CONFIG_FILE | cut -d= -f2)"
+	gpio_power="$(config_value_for "$gpio_name")"
 
 	if [ -z "$gpio_power" ]; then
 		return 1  # no value
