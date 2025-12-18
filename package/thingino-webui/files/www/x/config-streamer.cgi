@@ -708,7 +708,7 @@ $('#restart-audio').addEventListener('click', ev => {
 for (const i in [0, 1]) {
 	$('#osd'+i+'_fontname').onchange = () => setFont(i);
 	$('#osd'+i+'_fontsize').onchange = () => setFont(i);
-	$('#osd'+i+'_fontstrokesize').onchange = () => setFont(i);
+	$('#osd'+i+'_strokesize').onchange = () => setFont(i);
 
 	$('#osd'+i+'_enabled').onchange = (ev) => sendToEndpoint('{"stream'+i+'":{"osd":{"enabled":'+ev.target.checked+'}},"action":{"restart_thread":10}}}');
 	$('#osd'+i+'_logo_enabled').onchange = (ev) => toggleOSDElement(ev.target);
