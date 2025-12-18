@@ -23,12 +23,22 @@
   },
   "daynight": {
     "enabled": true,
+    "ev_night_high": 0,
+    "ev_day_low_primary": 0,
+    "ev_day_low_secondary": 0,
     "loglevel": "INFO",
     "sample_interval_ms": 1000,
     "script_path": "/sbin/daynight",
     "switch_above_percent": 80,
     "switch_below_percent": 15,
-    "tolerance_percent": 50
+    "tolerance_percent": 50,
+    "controls": {
+      "color": true,
+      "ircut": true,
+      "ir850": true,
+      "ir940": true,
+      "white": false
+    }
   },
   "general": {
     "allocation_tracking_enabled": false,
@@ -60,8 +70,6 @@
     "running_mode": 0,
     "saturation": 128,
     "sharpness": 128,
-    "sinter_strength": 128,
-    "temper_strength": 128,
     "vflip": false,
     "wb_bgain": 0,
     "wb_rgain": 0
@@ -153,8 +161,8 @@
         "format": "Brightness:%b%% Avg:%a%% %m",
         "position": "10,70",
         "rotation": 0,
-        "fill_color": "#FFFFFFFF",
-        "stroke_color": "#000000FF"
+        "fill_color": "#FFFFFF88",
+        "stroke_color": "#00000088"
       },
       "logo": {
         "enabled": true,
@@ -182,27 +190,27 @@
       },
       "time": {
         "enabled": true,
-        "fill_color": "#FFFFFFFF",
+        "fill_color": "#FFFFFF88",
         "format": "%F %T",
         "position": "10,10",
         "rotation": 0,
-        "stroke_color": "#000000FF"
+        "stroke_color": "#00000088"
       },
       "uptime": {
         "enabled": true,
-        "fill_color": "#FFFFFFFF",
+        "fill_color": "#FFFFFF88",
         "format": "Uptime: %02lu:%02lu:%02lu",
         "position": "-10,10",
         "rotation": 0,
-        "stroke_color": "#000000FF"
+        "stroke_color": "#00000088"
       },
       "usertext": {
         "enabled": true,
-        "fill_color": "#FFFFFFFF",
+        "fill_color": "#FFFFFF88",
         "format": "%hostname",
         "position": "0,10",
         "rotation": 0,
-        "stroke_color": "#000000FF"
+        "stroke_color": "#00000088"
       }
     },
     "profile": 2,
@@ -240,11 +248,11 @@
       "start_delay": 0,
       "brightness": {
         "enabled": false,
+        "fill_color": "#FFFFFF88",
         "format": "Brightness:%b%% Avg:%a%% %m",
         "position": "10,70",
         "rotation": 0,
-        "fill_color": "#FFFFFFFF",
-        "stroke_color": "#000000FF"
+        "stroke_color": "#00000088"
       },
       "logo": {
         "enabled": true,
@@ -272,27 +280,27 @@
       },
       "time": {
         "enabled": true,
+        "fill_color": "#FFFFFF88",
         "format": "%F %T",
         "position": "10,10",
         "rotation": 0,
-        "fill_color": "#FFFFFFFF",
-        "stroke_color": "#000000FF"
+        "stroke_color": "#00000088"
       },
       "uptime": {
         "enabled": true,
+        "fill_color": "#FFFFFF88",
         "format": "Uptime: %02lu:%02lu:%02lu",
         "position": "-10,10",
         "rotation": 0,
-        "fill_color": "#FFFFFFFF",
-        "stroke_color": "#000000FF"
+        "stroke_color": "#00000088"
       },
       "usertext": {
         "enabled": true,
+        "fill_color": "#FFFFFF88",
         "format": "%hostname",
         "position": "0,10",
         "rotation": 0,
-        "fill_color": "#FFFFFFFF",
-        "stroke_color": "#000000FF"
+        "stroke_color": "#00000088"
       }
     },
     "profile": 2,
@@ -305,11 +313,20 @@
   },
   "stream2": {
     "enabled": true,
+    "fps": 15,
     "jpeg_channel": 0,
-    "jpeg_idle_fps": 5,
+    "jpeg_idle_fps": 1,
     "jpeg_path": "/tmp/snapshot.jpg",
     "jpeg_quality": 75,
     "jpeg_refresh": 1000
+  },
+    "stream3": {
+    "enabled": true,
+    "fps": 15,
+    "jpeg_channel": 1,
+    "jpeg_idle_fps": 1,
+    "jpeg_path": "/tmp/snapshot_ch1.jpg",
+    "jpeg_quality": 75
   },
   "http_mjpeg": {
     "enabled": true,

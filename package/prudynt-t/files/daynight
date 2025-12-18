@@ -1,0 +1,196 @@
+#!/bin/sh
+
+. /usr/share/common
+
+singleton $0
+
+MODE_FILE="/tmp/nightmode.txt"
+[ -f "$MODE_FILE" ] || echo "day" >"$MODE_FILE"
+
+IRCUT_BIN=${IRCUT_BIN:-ircut}
+IRLED_BIN=${IRLED_BIN:-irled}
+COLOR_BIN=${COLOR_BIN:-color}
+PRUDYNT_CONFIG=${PRUDYNT_CONFIG:-/etc/prudynt.json}
+
+command_present() {
+	command -v "$1" >/dev/null 2>&1
+}
+
+ensure_helper() {
+	local bin="$1"
+	local label="$2"
+	if ! command_present "$bin"; then
+		echo_warning "$label helper '$bin' not found"
+		return 1
+	fi
+	return 0
+}
+
+run_async() {
+	local desc="$1"
+	shift
+	(
+		"$@" >/dev/null 2>&1
+		status=$?
+		if [ $status -ne 0 ]; then
+			echo_warning "$desc failed (exit $status)"
+		fi
+	) &
+}
+
+perform_action() {
+	local check_fn="$1"
+	shift
+	local message="$1"
+	shift
+	if "$check_fn"; then
+		echo_info "$message"
+		run_async "$message" "$@"
+	fi
+}
+
+load_daynight_flag() {
+	local var_name="$1"
+	local key="$2"
+	local default_value="$3"
+	local current
+	local value
+
+	eval "current=\${$var_name}"
+	if [ -n "$current" ]; then
+		return
+	fi
+
+	if command_present jct && [ -f "$PRUDYNT_CONFIG" ]; then
+		value=$(jct "$PRUDYNT_CONFIG" get "$key" 2>/dev/null)
+	else
+		value=""
+	fi
+
+	case "$value" in
+		true|false)
+			eval "$var_name=\"$value\""
+			return
+			;;
+	esac
+
+	eval "$var_name=\"$default_value\""
+}
+
+controls_color() {
+	if [ "true" != "$day_night_color" ]; then
+		echo_warning "Color not enabled"
+		return 1
+	fi
+
+	ensure_helper "$COLOR_BIN" "Color control" || return 1
+}
+
+controls_ircut() {
+	if [ "true" != "$day_night_ircut" ]; then
+		echo_warning "IR-CUT filter not enabled"
+		return 1
+	fi
+
+	ensure_helper "$IRCUT_BIN" "IR-CUT filter" || return 1
+}
+
+controls_ir850() {
+	if [ "true" != "$day_night_ir850" ]; then
+		echo_warning "IR LED 850mn not enabled"
+		return 1
+	fi
+
+	if [ -z "$gpio_ir850" ]; then
+		echo_warning "IR LED 850mn not configured"
+		return 1
+	fi
+
+	ensure_helper "$IRLED_BIN" "IR LED" || return 1
+}
+
+controls_ir940() {
+	if [ "true" != "$day_night_ir940" ]; then
+		echo_warning "IR LED 940mn not enabled"
+		return 1
+	fi
+
+	if [ -z "$gpio_ir940" ]; then
+		echo_warning "IR LED 940mn not configured"
+		return 1
+	fi
+
+	ensure_helper "$IRLED_BIN" "IR LED" || return 1
+}
+
+controls_white() {
+	if [ "true" != "$day_night_white" ]; then
+		echo_warning "White Light not enabled"
+		return 1
+	fi
+
+	if [ -z "$gpio_white" ]; then
+		echo_warning "White Light not configured"
+		return 1
+	fi
+
+	ensure_helper "$IRLED_BIN" "White Light" || return 1
+}
+
+switch_to_day() {
+	echo_info "Switching to day mode..."
+
+	perform_action controls_ircut "set IR-CUT filter" "$IRCUT_BIN" on
+	perform_action controls_ir850 "turn IR LED 850mn OFF" "$IRLED_BIN" off ir850
+	perform_action controls_ir940 "turn IR LED 940mn OFF" "$IRLED_BIN" off ir940
+	perform_action controls_white "turn White Light OFF" "$IRLED_BIN" off white
+	perform_action controls_color "switch to color mode" "$COLOR_BIN" on
+
+	echo "day" >"$MODE_FILE"
+}
+
+
+switch_to_night() {
+	echo_info "Switched to night mode"
+
+	perform_action controls_color "switch to monochrome mode" "$COLOR_BIN" off
+	perform_action controls_ircut "remove IR-CUT filter" "$IRCUT_BIN" off
+	perform_action controls_ir850 "turn IR LED 850mn ON" "$IRLED_BIN" on ir850
+	perform_action controls_ir940 "turn IR LED 940mn ON" "$IRLED_BIN" on ir940
+	perform_action controls_white "turn White Light ON" "$IRLED_BIN" on white
+
+	echo "night" >"$MODE_FILE"
+}
+
+load_daynight_flag day_night_color "daynight.controls.color" "true"
+load_daynight_flag day_night_ircut "daynight.controls.ircut" "true"
+load_daynight_flag day_night_ir850 "daynight.controls.ir850" "true"
+load_daynight_flag day_night_ir940 "daynight.controls.ir940" "true"
+load_daynight_flag day_night_white "daynight.controls.white" "false"
+
+reversed=1
+state=$(cat "$MODE_FILE" 2>/dev/null)
+
+case "$1" in
+	night)
+		switch_to_night
+		;;
+	day)
+		switch_to_day
+		;;
+	~ | toggle)
+		if [ "day" = "$state" ]; then
+			switch_to_night
+		else
+			switch_to_day
+		fi
+		;;
+	\? | read | status)
+		echo $state
+		;;
+	*)
+		# no sensing
+		;;
+esac
+
+exit 0
