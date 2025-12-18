@@ -6,10 +6,6 @@
 
 ifeq ($(BR2_PACKAGE_THINGINO_FREETYPE),y)
 
-override FREETYPE_VERSION = 2.14.1
-override FREETYPE_SOURCE = freetype-$(FREETYPE_VERSION).tar.xz
-override FREETYPE_SITE = http://download.savannah.gnu.org/releases/freetype
-
 # Append legacy flags only after Buildroot's freetype.mk has set defaults.
 # These --disable-largefile and --disable-mmap flags keep Thingino’s freetype build
 # identical to the one in Ingenic’s 1.1.6 SDK that our released images are based on.
