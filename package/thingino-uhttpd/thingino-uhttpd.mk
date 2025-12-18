@@ -26,7 +26,7 @@ endif
 
 # wolfSSL backend
 ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS_WOLFSSL),y)
-THINGINO_UHTTPD_DEPENDENCIES += thingino-ustream-ssl thingino-wolfssl
+THINGINO_UHTTPD_DEPENDENCIES += ustream-ssl thingino-wolfssl
 endif
 
 # Ensure at least one SSL backend is selected when TLS is enabled
