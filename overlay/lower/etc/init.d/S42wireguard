@@ -26,6 +26,9 @@ start() {
 		exit 1
 	fi
 
+	# make sure the system clock is syncronized
+	ntpd -qnN
+
 	echo_info "Create WireGuard network interface"
 	ip link add dev $WIREGUARD_INTERFACE type wireguard
 
