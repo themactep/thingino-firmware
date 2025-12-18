@@ -11,7 +11,6 @@ start() {
 
 stop() {
 	echo_title "Stopping Prudynt"
-	[ -f "$SNAPSHOT_FILE" ] && rm -f "$SNAPSHOT_FILE"
 	stop_daemon
 }
 

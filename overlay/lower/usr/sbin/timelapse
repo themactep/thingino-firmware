@@ -60,6 +60,6 @@ find "$tl_storage" -mindepth 1 -type d -empty -delete
 
 target="$tl_storage/$(date +"$tl_filename")"
 ensure_dir "$(dirname "$target")"
-cp -f "$SNAPSHOT_FILE" "$target"
+prudyntctl snapshot -c 0 > "$target"
 
 exit 0

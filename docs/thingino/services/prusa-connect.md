@@ -48,8 +48,6 @@ All values now live in `/etc/prusa-connect.json`. Inspect or tweak them via
 Troubleshooting
 ---------------
 
-* **Snapshot not ready** – ensure `/tmp/snapshot.jpg` exists (start Prudynt /
-  preview first).
 * **Host unreachable** – the optional reachability host must resolve and
   reply to ICMP. Leave the field empty to skip the check.
 * **HTTP 401/403** – verify both Token and Fingerprint exactly match the

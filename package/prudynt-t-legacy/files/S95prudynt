@@ -23,8 +23,6 @@ stop() {
 		exit 1
 	fi
 
-	[ -f "$SNAPSHOT_FILE" ] && rm -f "$SNAPSHOT_FILE"
-
 	stop_daemon
 }
 

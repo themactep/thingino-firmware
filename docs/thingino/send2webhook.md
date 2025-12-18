@@ -17,8 +17,7 @@ plain text data or a valid JSON object.
 
 - `Attach Snapshot` is a boolean option that allows you to attach a snapshot from
 the camera to the webhook request. If this option is enabled, the snapshot will
-be attached as a file to the request. The file name will be `snapshot.jpg` and
-the content type will be `image/jpeg`. The snapshot will be taken at the time
+be attached as a file to the request. The snapshot will be taken at the time
 the webhook is sent.
 
 ### Test Webhook

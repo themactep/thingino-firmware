@@ -290,6 +290,7 @@ red() {
 	echo -e "\e[38;5;160m$1\e[0m"
 }
 
+# TODO: remove after most cameras upgrade to dynamic snapshot firmware
 remove_snapshot() {
 	say "Remove snapshot"
 	rm -f /tmp/snapshot.jpg

@@ -5,6 +5,9 @@ page_title="Send to Ntfy"
 
 camera_id=${network_macaddr//:/}
 
+config_file=/etc/send2.json
+temp_config_file="/tmp/send2ntfy.json"
+
 defaults() {
 	default_for host "ntfy.sh"
 	default_for topic "$camera_id"
@@ -14,31 +17,35 @@ defaults() {
 	default_for send_video "false"
 }
 
-read_config() {
-	local CONFIG_FILE=/etc/send2.json
-	[ -f "$CONFIG_FILE" ] || return
+save_config() {
+	[ -f "$temp_config_file" ] || echo '{}' > $temp_config_file
+	jct $temp_config_file set "ntfy.$1" "$2" >/dev/null 2>&1
+}
 
-	        host=$(jct $CONFIG_FILE get ntfy.host)
-	        port=$(jct $CONFIG_FILE get ntfy.port)
-	    username=$(jct $CONFIG_FILE get ntfy.username)
-	    password=$(jct $CONFIG_FILE get ntfy.password)
-	       token=$(jct $CONFIG_FILE get ntfy.token)
-	       topic=$(jct $CONFIG_FILE get ntfy.topic)
-	        icon=$(jct $CONFIG_FILE get ntfy.icon)
-	     message=$(jct $CONFIG_FILE get ntfy.message)
-	       title=$(jct $CONFIG_FILE get ntfy.title)
-	        tags=$(jct $CONFIG_FILE get ntfy.tags)
-	       delay=$(jct $CONFIG_FILE get ntfy.delay)
-	     prority=$(jct $CONFIG_FILE get ntfy.priority)
-	  send_photo=$(jct $CONFIG_FILE get ntfy.send_photo)
-	  send_video=$(jct $CONFIG_FILE get ntfy.send_video)
-	      attach=$(jct $CONFIG_FILE get ntfy.attach)
-	       click=$(jct $CONFIG_FILE get ntfy.click)
-	    filename=$(jct $CONFIG_FILE get ntfy.filename)
-	       email=$(jct $CONFIG_FILE get ntfy.email)
-	        call=$(jct $CONFIG_FILE get ntfy.call)
-	     actions=$(jct $CONFIG_FILE get ntfy.actions)
-	twilio_token=$(jct $CONFIG_FILE get ntfy.twilio_token)
+read_config() {
+	[ -f "$config_file" ] || return
+
+	        host=$(jct $config_file get ntfy.host)
+	        port=$(jct $config_file get ntfy.port)
+	    username=$(jct $config_file get ntfy.username)
+	    password=$(jct $config_file get ntfy.password)
+	       token=$(jct $config_file get ntfy.token)
+	       topic=$(jct $config_file get ntfy.topic)
+	        icon=$(jct $config_file get ntfy.icon)
+	     message=$(jct $config_file get ntfy.message)
+	       title=$(jct $config_file get ntfy.title)
+	        tags=$(jct $config_file get ntfy.tags)
+	       delay=$(jct $config_file get ntfy.delay)
+	     prority=$(jct $config_file get ntfy.priority)
+	  send_photo=$(jct $config_file get ntfy.send_photo)
+	  send_video=$(jct $config_file get ntfy.send_video)
+	      attach=$(jct $config_file get ntfy.attach)
+	       click=$(jct $config_file get ntfy.click)
+	    filename=$(jct $config_file get ntfy.filename)
+	       email=$(jct $config_file get ntfy.email)
+	        call=$(jct $config_file get ntfy.call)
+	     actions=$(jct $config_file get ntfy.actions)
+	twilio_token=$(jct $config_file get ntfy.twilio_token)
 }
 
 read_config
@@ -47,18 +54,16 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
 	host="$POST_host"
-	username="$POST_port"
+	port="$POST_port"
+	username="$POST_username"
 	password="$POST_password"
+	token="$POST_token"
 	topic="$POST_topic"
-	title="$POST_title"
 	message="$POST_message"
+	title="$POST_title"
 	send_photo="$POST_send_photo"
 	send_video="$POST_send_video"
 
-	# error_if_empty "$host" "Ntfy broker host cannot be empty."
-	# error_if_empty "$username" "Ntfy username cannot be empty."
-	# error_if_empty "$password" "Ntfy password cannot be empty."
-	# error_if_empty "$token" "Ntfy token cannot be empty."
 	error_if_empty "$topic" "Ntfy topic cannot be empty."
 	error_if_empty "$message" "Ntfy message cannot be empty."
 
@@ -73,19 +78,29 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		tmpfile="$(mktemp -u).json"
-		echo '{}' > $tmpfile
-		jct $tmpfile set mqtt.host "$host"
-		jct $tmpfile set mqtt.port "$port"
-		jct $tmpfile set mqtt.username "$username"
-		jct $tmpfile set mqtt.password "$password"
-		jct $tmpfile set mqtt.topic "$topic"
-		jct $tmpfile set mqtt.title "$title"
-		jct $tmpfile set mqtt.message "$message"
-		jct $tmpfile set mqtt.send_photo "$send_photo"
-		jct $tmpfile set mqtt.send_video "$send_video"
-		jct /etc/send2.json import $tmpfile
-		rm $tmpfile
+		save_config "host" "$host"
+		save_config "port" "$port"
+		save_config "username" "$username"
+		save_config "password" "$password"
+		save_config "token" "$token"
+		save_config "topic" "$topic"
+		save_config "message" "$message"
+		save_config "title" "$title"
+		#save_config "icon" "$icon"
+		#save_config "tags" "$tags"
+		#save_config "delay" "$delay"
+		#save_config "priority" "$prority"
+		#save_config "send_photo" "$send_photo"
+		#save_config "send_video" "$send_video"
+		#save_config "attach" "$attach"
+		#save_config "click" "$click"
+		#save_config "filename" "$filename"
+		#save_config "email" "$email"
+		#save_config "call" "$call"
+		#save_config "actions" "$actions"
+		#save_config "twilio_token" "$twilio_token"
+		jct $config_file import $temp_config_file
+		rm $temp_config_file
 
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
@@ -120,7 +135,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "jct /etc/send2.json get ntfy" %>
+<% ex "jct $config_file get ntfy" %>
 </div>
 
 <script>

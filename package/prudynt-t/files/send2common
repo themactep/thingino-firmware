@@ -21,13 +21,6 @@ _cleanup() {
 	GARBAGE=""
 }
 
-check_snapshot() {
-	if [ ! -f "$SNAPSHOT_FILE" ]; then
-		echo_error "Snapshot not found"
-		exit 1
-	fi
-}
-
 check_vbuffer() {
 	if [ ! -f "$VBUFFER_FILE" ]; then
 		echo_error "Video buffer not found"
@@ -36,10 +29,8 @@ check_vbuffer() {
 }
 
 copy_photo() {
-	check_snapshot
 	local tmpfile="$(mktemp -u).jpg"
-	cp -f "$SNAPSHOT_FILE" "$tmpfile"
-#	prudyntctl snapshot -c 0 > "$tmpfile"
+	prudyntctl snapshot -c 0 > "$tmpfile"
 	add_to_garbage "$tmpfile"
 	echo "$tmpfile"
 }

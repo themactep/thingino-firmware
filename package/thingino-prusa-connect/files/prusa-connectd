@@ -11,7 +11,6 @@ RUN_DIR="/run/prusa-connect"
 STATE_FILE="$RUN_DIR/state"
 INFO_LAST="$STATE_DIR/info.last"
 INFO_TMP="$RUN_DIR/info.json.tmp"
-SNAPSHOT_PATH="${SNAPSHOT_FILE:-/tmp/snapshot.jpg}"
 PIDFILE="$RUN_DIR/prusa-connectd.pid"
 PRUSA_CONNECT_SNAPSHOT_URL="${PRUSA_CONNECT_SNAPSHOT_URL:-https://webcam.connect.prusa3d.com/c/snapshot}"
 PRUSA_CONNECT_INFO_URL="${PRUSA_CONNECT_INFO_URL:-https://webcam.connect.prusa3d.com/c/info}"
@@ -204,12 +203,8 @@ check_online() {
 
 upload_snapshot() {
 	local tmp image_size code
-	if [ ! -s "$SNAPSHOT_PATH" ]; then
-		log_msg "Snapshot not ready at $SNAPSHOT_PATH"
-		return 1
-	fi
 	tmp=$(mktemp "$RUN_DIR/snapshot.XXXXXX") || return 1
-	cp "$SNAPSHOT_PATH" "$tmp" || { rm -f "$tmp"; return 1; }
+	prudyntctl snapshot -c 0 > "$tmp" || { rm -f "$tmp"; return 1; }
 	image_size=$(stat -c %s "$tmp" 2>/dev/null || echo 0)
 	check_online || { rm -f "$tmp"; return 1; }
 	code=$(curl_put "$tmp" "$SNAPSHOT_URL" "snapshot" "image/jpeg") || {
