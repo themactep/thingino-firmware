@@ -52,6 +52,17 @@ function setValue(data, domain, name) {
 	}
 }
 
+function dayNightIcon(mode) {
+	switch ((mode || '').toString().toLowerCase()) {
+	case 'day':
+		return '☀️';
+	case 'night':
+		return '🌙';
+	default:
+		return '❔';
+	}
+}
+
 function sendToApi(endpoint) {
 	const xhr = new XMLHttpRequest();
 	xhr.addEventListener('load', reqListener);
@@ -92,8 +103,13 @@ function updateHeartbeatUi(json) {
 	$('.progress-stacked.extras').title = 'Free extras: ' + json.extras_free + 'KiB'
 	setProgressBar('#pb-extras-used', json.extras_used, json.extras_total, 'Extras Usage');
 
-	if (json.dnd_gain !== '-1')
-		$$('.dnd_gain').forEach(el => el.textContent = '☀️ ' + json.dnd_gain);
+	const hasDndGain = typeof (json.dnd_gain) !== 'undefined' && json.dnd_gain !== '-1';
+	const hasMode = typeof (json.dnd_mode) !== 'undefined' && json.dnd_mode !== '';
+	if (hasDndGain || hasMode) {
+		const icon = dayNightIcon(json.dnd_mode);
+		const label = hasDndGain ? `${icon} ${json.dnd_gain}` : icon;
+		$$('.dnd_gain').forEach(el => el.textContent = label);
+	}
 
 	if (typeof (json.uptime) !== 'undefined' && json.uptime !== '')
 		$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
