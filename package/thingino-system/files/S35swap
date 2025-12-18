@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Variables from /etc/thingino.config:
+# Variables sourced via /etc/thingino.json:
 # swap_enabled (true/false to determine if swap should be configured)
 # swap_type (should be 'file' or 'partition')
 # swap_file_path (if swap_type is 'file')
@@ -114,7 +114,7 @@ start() {
 	fi
 
 	if [ -z "$swap_type" ]; then
-		echo_error "swap_type not defined."
+		echo_error "swap_type not defined in $CONFIG_JSON."
 		exit 1
 	fi
 
@@ -126,14 +126,14 @@ start() {
 	case "$swap_type" in
 		"partition")
 			if [ -z "$swap_partition_dev" ]; then
-				echo_error "swap_partition_dev not defined in config. Exiting."
+				echo_error "swap_partition_dev not defined in $CONFIG_JSON. Exiting."
 				exit 1
 			fi
 			setup_swap_partition "$swap_partition_dev"
 			;;
 		"file")
 			if [ -z "$swap_file_path" ]; then
-				echo_error "swap_file_path not defined in config. Exiting."
+				echo_error "swap_file_path not defined in $CONFIG_JSON. Exiting."
 				exit 1
 			fi
 			setup_swap_file "$swap_file_path"
