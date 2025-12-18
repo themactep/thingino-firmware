@@ -5,6 +5,7 @@
 #include "json_config.h"
 
 #include <fcntl.h>
+#include <getopt.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,6 +35,49 @@ static void handle_signal(int sig)
     g_running = 0;
 }
 
+static void print_usage(const char* prog)
+{
+    fprintf(stderr, "Usage: %s [-f] [-d] [-c <config>]", prog);
+    fprintf(stderr, "\n  -f    run in foreground (disable daemon mode)\n");
+    fprintf(stderr, "  -d    enable debug log level\n");
+    fprintf(stderr, "  -c    specify configuration file path\n");
+}
+
+static void format_url_for_log(const char* url, char* out, size_t outsz)
+{
+    if (!outsz)
+        return;
+    if (!url) {
+        out[0] = '\0';
+        return;
+    }
+    const char* bot = strstr(url, "/bot");
+    if (!bot) {
+        snprintf(out, outsz, "%s", url);
+        return;
+    }
+    const char* after = strchr(bot + 4, '/');
+    if (!after) {
+        snprintf(out, outsz, "%.*s<token>", (int) (bot - url + 4), url);
+        return;
+    }
+    snprintf(out, outsz, "%.*s<token>%s", (int) (bot - url + 4), url, after);
+}
+
+static void log_payload_excerpt(const char* prefix, const char* url, const char* payload, size_t size)
+{
+    if (!payload || size == 0) {
+        syslog(LOG_DEBUG, "%s %s payload: <empty>", prefix, url ? url : "");
+        return;
+    }
+    const size_t LIMIT = 512;
+    size_t copy = size < LIMIT ? size : LIMIT;
+    char buf[LIMIT + 1];
+    memcpy(buf, payload, copy);
+    buf[copy] = '\0';
+    syslog(LOG_DEBUG, "%s %s payload (%zu bytes): %s%s", prefix, url ? url : "", size, buf, (size > LIMIT) ? "..." : "");
+}
+
 typedef struct {
     char* data;
     size_t size;
@@ -53,13 +97,19 @@ static size_t write_cb(void* contents, size_t size, size_t nmemb, void* userp)
     return realsize;
 }
 
-static int http_get(const char* url, long timeout_s, Memory* out)
+static int http_get(const char* url, long timeout_s, Memory* out, long* status_code)
 {
     CURL* curl = curl_easy_init();
     if (!curl)
         return -1;
     out->data = NULL;
     out->size = 0;
+    if (status_code)
+        *status_code = 0;
+
+    char safe_url[512];
+    format_url_for_log(url, safe_url, sizeof safe_url);
+    syslog(LOG_DEBUG, "HTTP GET %s", safe_url[0] ? safe_url : url);
 
     char err[CURL_ERROR_SIZE];
     err[0] = '\0';
@@ -79,14 +129,18 @@ static int http_get(const char* url, long timeout_s, Memory* out)
     CURLcode res = curl_easy_perform(curl);
     if (res == CURLE_OK) {
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
+        if (status_code)
+            *status_code = code;
     }
+    if (out->data && out->size > 0)
+        log_payload_excerpt("HTTP GET response", safe_url[0] ? safe_url : url, out->data, out->size);
     if (res != CURLE_OK) {
-        syslog(LOG_WARNING, "HTTP GET %s failed: %s", url, err[0] ? err : curl_easy_strerror(res));
+        syslog(LOG_WARNING, "HTTP GET %s failed: %s", safe_url[0] ? safe_url : url, err[0] ? err : curl_easy_strerror(res));
     } else if (code != 200) {
-        syslog(LOG_WARNING, "HTTP GET %s failed: HTTP %ld", url, code);
+        syslog(LOG_WARNING, "HTTP GET %s failed: HTTP %ld", safe_url[0] ? safe_url : url, code);
     }
     curl_easy_cleanup(curl);
-    if (res != CURLE_OK || code != 200) {
+    if (res != CURLE_OK) {
         free(out->data);
         out->data = NULL;
         out->size = 0;
@@ -102,6 +156,14 @@ static int http_post_json(const char* url, const char* json, long timeout_s, Mem
         return -1;
     out->data = NULL;
     out->size = 0;
+
+    char safe_url[512];
+    format_url_for_log(url, safe_url, sizeof safe_url);
+    syslog(LOG_DEBUG, "HTTP POST %s", safe_url[0] ? safe_url : url);
+    if (json)
+        log_payload_excerpt("HTTP POST request", safe_url[0] ? safe_url : url, json, strlen(json));
+    else
+        log_payload_excerpt("HTTP POST request", safe_url[0] ? safe_url : url, "", 0);
 
     char err[CURL_ERROR_SIZE];
     err[0] = '\0';
@@ -124,10 +186,12 @@ static int http_post_json(const char* url, const char* json, long timeout_s, Mem
     if (res == CURLE_OK) {
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
     }
+    if (out->data && out->size > 0)
+        log_payload_excerpt("HTTP POST response", safe_url[0] ? safe_url : url, out->data, out->size);
     if (res != CURLE_OK) {
-        syslog(LOG_WARNING, "HTTP POST %s failed: %s", url, err[0] ? err : curl_easy_strerror(res));
+        syslog(LOG_WARNING, "HTTP POST %s failed: %s", safe_url[0] ? safe_url : url, err[0] ? err : curl_easy_strerror(res));
     } else if (code != 200) {
-        syslog(LOG_WARNING, "HTTP POST %s failed: HTTP %ld", url, code);
+        syslog(LOG_WARNING, "HTTP POST %s failed: HTTP %ld", safe_url[0] ? safe_url : url, code);
     }
 
     curl_slist_free_all(headers);
@@ -645,7 +709,8 @@ static int poll_once(const Config* cfg, long* offset_io)
     make_url(url, sizeof(url), cfg, "getUpdates", qs2);
 
     Memory m;
-    if (http_get(url, cfg->polling_timeout + 10, &m) != 0)
+    long http_status = 0;
+    if (http_get(url, cfg->polling_timeout + 10, &m, &http_status) != 0)
         return -1;
 
     JsonValue* root = parse_json_string(m.data);
@@ -656,7 +721,19 @@ static int poll_once(const Config* cfg, long* offset_io)
     }
 
     JsonValue* ok = get_object_item(root, "ok");
-    if (!ok || ok->type != JSON_BOOL || !ok->value.boolean) {
+    if (!ok || ok->type != JSON_BOOL) {
+        free_json_value(root);
+        return -1;
+    }
+    if (!ok->value.boolean) {
+        JsonValue* err = get_object_item(root, "error_code");
+        JsonValue* desc = get_object_item(root, "description");
+        if (err && err->type == JSON_NUMBER && (long) err->value.number == 409 && desc && desc->type == JSON_STRING
+            && strcmp(desc->value.string,
+                   "Conflict: terminated by other getUpdates request; make sure that only one bot instance is running") == 0) {
+            syslog(LOG_ERR, "Detected duplicate Telegram bot instance (error 409). shutting down: %s", desc->value.string);
+            g_running = 0; /* ensure main loop exits */
+        }
         free_json_value(root);
         return -1;
     }
@@ -713,9 +790,34 @@ static void daemonize_self(void)
 
 int main(int argc, char** argv)
 {
-    const char* config_path = (argc > 1) ? argv[1] : "/etc/telegrambot.json";
+    const char* config_path = "/etc/telegrambot.json";
+    int force_foreground = 0;
+    int force_debug = 0;
+    int opt;
+    while ((opt = getopt(argc, argv, "fdc:")) != -1) {
+        switch (opt) {
+        case 'f':
+            force_foreground = 1;
+            break;
+        case 'd':
+            force_debug = 1;
+            break;
+        case 'c':
+            config_path = optarg;
+            break;
+        default:
+            print_usage(argv[0]);
+            return 1;
+        }
+    }
+    if (optind < argc)
+        config_path = argv[optind];
 
-    openlog("telegrambot", LOG_PID | LOG_CONS, LOG_DAEMON);
+    int log_options = LOG_PID | LOG_CONS;
+    if (force_foreground)
+        log_options |= LOG_PERROR;
+
+    openlog("telegrambot", log_options, LOG_DAEMON);
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
 
@@ -723,6 +825,17 @@ int main(int argc, char** argv)
     if (load_config_file(config_path, &cfg) != 0) {
         syslog(LOG_ERR, "Failed to load config: %s", config_path);
         return 2;
+    }
+
+    if (force_foreground)
+        cfg.daemonize = 0;
+    if (force_debug)
+        cfg.log_priority = LOG_DEBUG;
+
+    if (!cfg.daemonize && !(log_options & LOG_PERROR)) {
+        log_options |= LOG_PERROR;
+        closelog();
+        openlog("telegrambot", log_options, LOG_DAEMON);
     }
 
     /* Apply log mask based on configured level */
@@ -747,6 +860,8 @@ int main(int argc, char** argv)
             if (offset > 0)
                 save_offset(cfg.state_file, offset);
         } else {
+            if (!g_running)
+                break;
             syslog(LOG_WARNING, "Polling failed; sleeping");
             sleep(5);
         }
