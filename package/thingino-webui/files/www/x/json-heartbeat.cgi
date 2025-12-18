@@ -15,7 +15,7 @@ heartbeat_payload() {
 		"$(awk '/^MemFree:/{print $2}' /proc/meminfo)" \
 		$(df | awk '/\/overlay$/{print $2,$3,$4}') \
 		"$(awk '{m=$1/60;h=m/60;printf "%sd %sh %sm %ss\n",int(h/24),int(h%24),int(m%60),int($1%60)}' /proc/uptime)" \
-		"$(awk '{print $1}' /run/daynight/value || echo "unknown")" \
+		"$(awk '{print $1}' /run/prudynt/daynight_brightness || echo "unknown")" \
 		$(df | awk '/\/opt$/{print $2,$3,$4}')
 }
 
