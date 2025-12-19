@@ -8,12 +8,12 @@ config_file="/etc/thingino.json"
 temp_config_file="/tmp/$domain.json"
 
 defaults() {
-	[ -z "$theme" ] && theme="auto"
-	[ -z "$paranoid" ] && paranoid="false"
-	[ -z "$username" ] && username="$USER"
+	default_for theme "auto"
+	default_for paranoid "false"
+	default_for username "$USER"
 }
 
-save_config() {
+set_value() {
 	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
 	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
 }
@@ -25,9 +25,9 @@ get_value() {
 read_config() {
 	[ -f "$config_file" ] || return
 
-	theme="$(get_value "theme")"
-	paranoid="$(get_value "paranoid")"
-	username="$(get_value "username")"
+	theme="$(get_value theme)"
+	paranoid="$(get_value paranoid)"
+	username="$(get_value username)"
 }
 
 read_config
@@ -41,8 +41,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		save_config "paranoid" "$paranoid"
-		save_config "theme" "$theme"
+		set_value paranoid "$paranoid"
+		set_value theme "$theme"
 
 		jct "$config_file" import "$temp_config_file"
 		rm "$temp_config_file"

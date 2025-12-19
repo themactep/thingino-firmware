@@ -5,6 +5,10 @@ page_title="Motors"
 
 [ -f /bin/motors ] || redirect_to "/" "danger" "Your camera does not seem to support motors"
 
+domain="motors"
+config_file="/etc/motors.json"
+temp_config_file="/tmp/$domain.json"
+
 defaults() {
 	default_for homing "true"
 	default_for gpio_invert "false"
@@ -13,56 +17,64 @@ defaults() {
 	default_for speed_tilt "900"
 }
 
-read_config() {
-	local CONFIG_FILE=/etc/motors.json
-	[ -f "$CONFIG_FILE" ] || return
+set_value() {
+	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
+	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+}
 
-	   gpio_pan=$(jct $CONFIG_FILE get motors.gpio_pan)
-	  gpio_tilt=$(jct $CONFIG_FILE get motors.gpio_tilt)
-	gpio_switch=$(jct $CONFIG_FILE get motors.gpio_switch)
-	gpio_invert=$(jct $CONFIG_FILE get motors.gpio_invert)
-	  steps_pan=$(jct $CONFIG_FILE get motors.steps_pan)
-	 steps_tilt=$(jct $CONFIG_FILE get motors.steps_tilt)
-	  speed_pan=$(jct $CONFIG_FILE get motors.speed_pan)
-	 speed_tilt=$(jct $CONFIG_FILE get motors.speed_tilt)
-	     homing=$(jct $CONFIG_FILE get motors.homing)
-	      pos_0=$(jct $CONFIG_FILE get motors.pos_0)
-	     is_spi=$(jct $CONFIG_FILE get motors.is_spi)
+get_value() {
+	jct $config_file get "$domain.$1"
+}
+
+read_config() {
+	[ -f "$config_file" ] || return
+
+	gpio_pan=$(get_value gpio_pan)
+	gpio_tilt=$(get_value gpio_tilt)
+	gpio_switch=$(get_value gpio_switch)
+	gpio_invert=$(get_value gpio_invert)
+	steps_pan=$(get_value steps_pan)
+	steps_tilt=$(get_value steps_tilt)
+	speed_pan=$(get_value speed_pan)
+	speed_tilt=$(get_value speed_tilt)
+	homing=$(get_value homing)
+	pos_0=$(get_value pos_0)
+	is_spi=$(get_value is_spi)
 }
 
 read_config
 
 # normalize
- gpio_pan_1=$(echo $gpio_motor_h | awk '{print $1}')
- gpio_pan_2=$(echo $gpio_motor_h | awk '{print $2}')
- gpio_pan_3=$(echo $gpio_motor_h | awk '{print $3}')
- gpio_pan_4=$(echo $gpio_motor_h | awk '{print $4}')
+gpio_pan_1=$(echo $gpio_motor_h | awk '{print $1}')
+gpio_pan_2=$(echo $gpio_motor_h | awk '{print $2}')
+gpio_pan_3=$(echo $gpio_motor_h | awk '{print $3}')
+gpio_pan_4=$(echo $gpio_motor_h | awk '{print $4}')
 gpio_tilt_1=$(echo $gpio_motor_v | awk '{print $1}')
 gpio_tilt_2=$(echo $gpio_motor_v | awk '{print $2}')
 gpio_tilt_3=$(echo $gpio_motor_v | awk '{print $3}')
 gpio_tilt_4=$(echo $gpio_motor_v | awk '{print $4}')
-    pos_0_x=$(echo $pos_0 | awk -F',' '{print $1}')
-    pos_0_y=$(echo $pos_0 | awk -F',' '{print $2}')
+pos_0_x=$(echo $pos_0 | awk -F',' '{print $1}')
+pos_0_y=$(echo $pos_0 | awk -F',' '{print $2}')
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
 	# Read data from the form
-	 gpio_pan_1=$POST_gpio_pan_1
-	 gpio_pan_2=$POST_gpio_pan_2
-	 gpio_pan_3=$POST_gpio_pan_3
-	 gpio_pan_4=$POST_gpio_pan_4
+	gpio_pan_1=$POST_gpio_pan_1
+	gpio_pan_2=$POST_gpio_pan_2
+	gpio_pan_3=$POST_gpio_pan_3
+	gpio_pan_4=$POST_gpio_pan_4
 	gpio_tilt_1=$POST_gpio_tilt_1
 	gpio_tilt_2=$POST_gpio_tilt_2
 	gpio_tilt_3=$POST_gpio_tilt_3
 	gpio_tilt_4=$POST_gpio_tilt_4
-	     homing=$POST_homing
-	    pos_0_x=$POST_pos_0_x
-	    pos_0_y=$POST_pos_0_y
-	  speed_pan=$POST_speed_pan
-	 speed_tilt=$POST_speed_tilt
-	  steps_pan=$POST_steps_pan
-	 steps_tilt=$POST_steps_tilt
+	homing=$POST_homing
+	pos_0_x=$POST_pos_0_x
+	pos_0_y=$POST_pos_0_y
+	speed_pan=$POST_speed_pan
+	speed_tilt=$POST_speed_tilt
+	steps_pan=$POST_steps_pan
+	steps_tilt=$POST_steps_tilt
 
 	defaults
 
@@ -91,18 +103,19 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 		tmpfile="$(mktemp -u).json"
 		echo '{}' > $tmpfile
-		jct $tmpfile set motors.gpio_pan "$gpio_pan"
-		jct $tmpfile set motors.gpio_tilt "$gpio_tilt"
-		jct $tmpfile set motors.steps_pan "$steps_pan"
-		jct $tmpfile set motors.steps_tilt "$steps_tilt"
-		jct $tmpfile set motors.speed_pan "$speed_pan"
-		jct $tmpfile set motors.speed_tilt "$speed_tilt"
-		jct $tmpfile set motors.gpio_switch "$gpio_switch"
-		jct $tmpfile set motors.gpio_invert "$gpio_invert"
-		jct $tmpfile set motors.homing "$homing"
-		jct $tmpfile set motors.pos_0 "$pos_0"
-		jct /etc/motors.json import $tmpfile
-		rm $tmpfile
+		set_value gpio_pan "$gpio_pan"
+		set_value gpio_tilt "$gpio_tilt"
+		set_value steps_pan "$steps_pan"
+		set_value steps_tilt "$steps_tilt"
+		set_value speed_pan "$speed_pan"
+		set_value speed_tilt "$speed_tilt"
+		set_value gpio_switch "$gpio_switch"
+		set_value gpio_invert "$gpio_invert"
+		set_value homing "$homing"
+		set_value pos_0 "$pos_0"
+
+		jct "$config_file" import "$temp_config_file"
+		rm "$temp_config_file"
 
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
@@ -116,6 +129,7 @@ defaults
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
+
 <div class="col">
 <h5>Pan motor</h5>
 <% if [ "true" != "$is_spi" ]; then %>
@@ -159,12 +173,13 @@ defaults
 <% field_switch "homing" "Homing on boot" %>
 </div>
 </div>
+
 <% button_submit %>
 </form>
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "jct /etc/motors.json print" %>
+<% ex "jct $config_file get $domain" %>
 </div>
 
 <script>

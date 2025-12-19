@@ -8,10 +8,10 @@ config_file="/etc/thingino.json"
 temp_config_file="/tmp/$domain.json"
 
 defaults() {
-	[ -z "$name" ] && name="Thingino Camera Admin"
+	default_for name "Thingino Camera Admin"
 }
 
-save_config() {
+set_value() {
 	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
 	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
 }
@@ -23,10 +23,10 @@ get_value() {
 read_config() {
 	[ -f "$config_file" ] || return
 
-	name="$(get_value "name")"
-	email="$(get_value "email")"
-	telegram="$(get_value "telegram")"
-	discord="$(get_value "discord")"
+	name="$(get_value name)"
+	email="$(get_value email)"
+	telegram="$(get_value telegram)"
+	discord="$(get_value discord)"
 }
 
 read_config
@@ -51,10 +51,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		save_config "name" "$name"
-		save_config "email" "$email"
-		save_config "telegram" "$telegram"
-		save_config "discord" "$discord"
+		set_value name "$name"
+		set_value email "$email"
+		set_value telegram "$telegram"
+		set_value discord "$discord"
 
 		jct "$config_file" import "$temp_config_file"
 		rm "$temp_config_file"

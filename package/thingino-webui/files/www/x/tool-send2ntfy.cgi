@@ -7,7 +7,7 @@ camera_id=${network_macaddr//:/}
 
 domain="ntfy"
 config_file="/etc/send2.json"
-temp_config_file="/tmp/send2ntfy.json"
+temp_config_file="/tmp/$domain.json"
 
 defaults() {
 	default_for host "ntfy.sh"
@@ -18,7 +18,7 @@ defaults() {
 	default_for send_video "false"
 }
 
-save_config() {
+set_value() {
 	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
 	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
 }
@@ -83,27 +83,28 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		save_config "host" "$host"
-		save_config "port" "$port"
-		save_config "username" "$username"
-		save_config "password" "$password"
-		save_config "token" "$token"
-		save_config "topic" "$topic"
-		save_config "message" "$message"
-		save_config "title" "$title"
-		#save_config "icon" "$icon"
-		#save_config "tags" "$tags"
-		#save_config "delay" "$delay"
-		#save_config "priority" "$prority"
-		#save_config "send_photo" "$send_photo"
-		#save_config "send_video" "$send_video"
-		#save_config "attach" "$attach"
-		#save_config "click" "$click"
-		#save_config "filename" "$filename"
-		#save_config "email" "$email"
-		#save_config "call" "$call"
-		#save_config "actions" "$actions"
-		#save_config "twilio_token" "$twilio_token"
+		set_value host "$host"
+		set_value port "$port"
+		set_value username "$username"
+		set_value password "$password"
+		set_value token "$token"
+		set_value topic "$topic"
+		set_value message "$message"
+		set_value title "$title"
+		#set_value icon "$icon"
+		#set_value tags "$tags"
+		#set_value delay "$delay"
+		#set_value priority "$prority"
+		#set_value send_photo "$send_photo"
+		#set_value send_video "$send_video"
+		#set_value attach "$attach"
+		#set_value click "$click"
+		#set_value filename "$filename"
+		#set_value email "$email"
+		#set_value call "$call"
+		#set_value actions "$actions"
+		#set_value twilio_token "$twilio_token"
+
 		jct "$config_file" import "$temp_config_file"
 		rm "$temp_config_file"
 
@@ -140,7 +141,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "jct $config_file get ntfy" %>
+<% ex "jct $config_file get $domain" %>
 </div>
 
 <script>

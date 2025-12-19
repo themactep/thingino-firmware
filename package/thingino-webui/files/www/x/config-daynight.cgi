@@ -5,13 +5,13 @@ page_title="Day/Night Mode Control"
 
 domain="daynight"
 config_file="/etc/prudynt.json"
-temp_config_file="/tmp/daynight.json"
+temp_config_file="/tmp/$domain.json"
 
 defaults() {
-	[ -z "$enabled" ] && enabled="false"
+	default_for enabled "false"
 }
 
-save_config() {
+set_value() {
 	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
 	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
 }
@@ -23,19 +23,19 @@ get_value() {
 read_config() {
 	[ -f "$config_file" ] || return
 
-	enabled="$(get_value "enabled")"
-	ev_day_low_primary="$(get_value "ev_day_low_primary")"
-	ev_day_low_secondary="$(get_value "ev_day_low_secondary")"
-	ev_night_high="$(get_value "ev_night_high")"
-	sample_interval_ms="$(get_value "sample_interval_ms")"
-	switch_above_percent="$(get_value "switch_above_percent")"
-	switch_below_percent="$(get_value "switch_below_percent")"
-	tolerance_percent="$(get_value "tolerance_percent")"
-	controls_color="$(get_value "controls.color")"
-	controls_ir850="$(get_value "controls.ir850")"
-	controls_ir940="$(get_value "controls.ir940")"
-	controls_ircut="$(get_value "controls.ircut")"
-	controls_white="$(get_value "controls.white")"
+	enabled="$(get_value enabled)"
+	ev_day_low_primary="$(get_value ev_day_low_primary)"
+	ev_day_low_secondary="$(get_value ev_day_low_secondary)"
+	ev_night_high="$(get_value ev_night_high)"
+	sample_interval_ms="$(get_value sample_interval_ms)"
+	switch_above_percent="$(get_value switch_above_percent)"
+	switch_below_percent="$(get_value switch_below_percent)"
+	tolerance_percent="$(get_value tolerance_percent)"
+	controls_color="$(get_value controls.color)"
+	controls_ir850="$(get_value controls.ir850)"
+	controls_ir940="$(get_value controls.ir940)"
+	controls_ircut="$(get_value controls.ircut)"
+	controls_white="$(get_value controls.white)"
 }
 
 read_config
@@ -67,19 +67,20 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		save_config "enabled" "$enabled"
-		save_config "ev_day_low_primary" "$ev_day_low_primary"
-		save_config "ev_day_low_secondary" "$ev_day_low_secondary"
-		save_config "ev_night_high" "$ev_night_high"
-		save_config "sample_interval_ms" "$sample_interval_ms"
-		save_config "switch_above_percent" "$switch_above_percent"
-		save_config "switch_below_percent" "$switch_below_percent"
-		save_config "tolerance_percent" "$tolerance_percent"
-		save_config "controls.color" "$controls_color"
-		save_config "controls.ir850" "$controls_ir850"
-		save_config "controls.ir940" "$controls_ir940"
-		save_config "controls.ircut" "$controls_ircut"
-		save_config "controls.white" "$controls_white"
+		set_value enabled "$enabled"
+		set_value ev_day_low_primary "$ev_day_low_primary"
+		set_value ev_day_low_secondary "$ev_day_low_secondary"
+		set_value ev_night_high "$ev_night_high"
+		set_value sample_interval_ms "$sample_interval_ms"
+		set_value switch_above_percent "$switch_above_percent"
+		set_value switch_below_percent "$switch_below_percent"
+		set_value tolerance_percent "$tolerance_percent"
+		set_value controls.color "$controls_color"
+		set_value controls.ir850 "$controls_ir850"
+		set_value controls.ir940 "$controls_ir940"
+		set_value controls.ircut "$controls_ircut"
+		set_value controls.white "$controls_white"
+
 		jct "$config_file" import "$temp_config_file"
 		rm "$temp_config_file"
 

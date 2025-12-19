@@ -3,20 +3,26 @@
 <%
 page_title="Motion Guard"
 
+domain="motion"
+config_file="/etc/prudynt.json"
+temp_config_file="/tmp/$domain.json"
+
+get_value() {
+	jct $config_file get "$domain.$1"
+}
+
 read_config() {
-	enabled=$(jct /etc/prudynt.json get motion.enabled)
+	[ -f "$config_file" ] || return
 
-	local CONFIG_FILE=/etc/motion.json
-	[ -f "$CONFIG_FILE" ] || retun
-
-	send2email=$(jct $CONFIG_FILE get motion.send2email)
-	send2ftp=$(jct $CONFIG_FILE get motion.send2ftp)
-	send2mqtt=$(jct $CONFIG_FILE get motion.send2mqtt)
-	send2ntfy=$(jct $CONFIG_FILE get motion.send2ntfy)
-	send2telegram=$(jct $CONFIG_FILE get motion.send2telegram)
-	send2webhook=$(jct $CONFIG_FILE get motion.send2webhook)
-	sensitivity=$(jct $CONFIG_FILE get motion.sensitivity)
-	cooldown_time=$(jct $CONFIG_FILE get motion.cooldown_time)
+	enabled=$(get_value enabled)
+	send2email=$(get_value send2email)
+	send2ftp=$(get_value send2ftp)
+	send2mqtt=$(get_value send2mqtt)
+	send2ntfy=$(get_value send2ntfy)
+	send2telegram=$(get_value send2telegram)
+	send2webhook=$(get_value send2webhook)
+	sensitivity=$(get_value sensitivity)
+	cooldown_time=$(get_value cooldown_time)
 }
 
 read_config

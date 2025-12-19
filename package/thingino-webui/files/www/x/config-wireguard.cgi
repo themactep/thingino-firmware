@@ -25,7 +25,7 @@ defaults() {
 	true
 }
 
-save_config() {
+set_value() {
 	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
 	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
 }
@@ -37,17 +37,17 @@ get_value() {
 read_config() {
 	[ -f "$config_file" ] || return
 
-	enabled=$(get_value "enabled")
-	address=$(get_value "address")
-	allowed=$(get_value "allowed")
-	dns=$(get_value "dns")
-	endpoint=$(get_value "endpoint")
-	keepalive=$(get_value "keepalive")
-	mtu=$(get_value "mtu")
-	peerpsk=$(get_value "peerpsk")
-	peerhub=$(get_value "peerpub")
-	port=$(get_value "port")
-	privkey=$(get_value "privkey")
+	enabled=$(get_value enabled)
+	address=$(get_value address)
+	allowed=$(get_value allowed)
+	dns=$(get_value dns)
+	endpoint=$(get_value endpoint)
+	keepalive=$(get_value keepalive)
+	mtu=$(get_value mtu)
+	peerpsk=$(get_value peerpsk)
+	peerhub=$(get_value peerpub)
+	port=$(get_value port)
+	privkey=$(get_value privkey)
 }
 
 read_config
@@ -70,17 +70,17 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		save_config "address" "$address"
-		save_config "allowed" "$allowed"
-		save_config "dns" "$dns"
-		save_config "enabled" "$enabled"
-		save_config "endpoint" "$endpoint"
-		save_config "keepalive" "$keepalive"
-		save_config "mtu" "$mtu"
-		save_config "peerpsk" "$peerpsk"
-		save_config "peerpub" "$peerpub"
-		save_config "port" "$port"
-		save_config "privkey" "$privkey"
+		set_value address "$address"
+		set_value allowed "$allowed"
+		set_value dns "$dns"
+		set_value enabled "$enabled"
+		set_value endpoint "$endpoint"
+		set_value keepalive "$keepalive"
+		set_value mtu "$mtu"
+		set_value peerpsk "$peerpsk"
+		set_value peerpub "$peerpub"
+		set_value port "$port"
+		set_value privkey "$privkey"
 
 		jct "$config_file" import "$temp_config_file"
 		rm "$temp_config_file"

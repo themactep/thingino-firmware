@@ -2,6 +2,9 @@
 <%in _common.cgi %>
 <%
 page_title="Send to Telegram"
+domain="telegram"
+config_file="/etc/send2.json"
+temp_config_file="/tmp/$domain.json"
 
 defaults() {
 	default_for caption "%hostname, %datetime"
@@ -9,17 +12,25 @@ defaults() {
 	default_for send_video "false"
 }
 
-read_config() {
-	local CONFIG_FILE=/etc/send2.json
-	[ -f "$CONFIG_FILE" ] || return
+set_value() {
+	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
+	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+}
 
-	     token=$(jct $CONFIG_FILE get telegram.token)
-	   channel=$(jct $CONFIG_FILE get telegram.channel)
-	   message=$(jct $CONFIG_FILE get telegram.message)
-	      file=$(jct $CONFIG_FILE get telegram.file)
-	    silent=$(jct $CONFIG_FILE get telegram.silent)
-	send_photo=$(jct $CONFIG_FILE get telegram.send_photo)
-	send_video=$(jct $CONFIG_FILE get telegram.send_video)
+get_value() {
+	jct $config_file get "$domain.$1"
+}
+
+read_config() {
+	[ -f "$config_file" ] || return
+
+	token=$(get_value "token")
+	channel=$(get_value "channel")
+	message=$(get_value "message")
+	file=$(get_value "file")
+	silent=$(get_value "silent")
+	send_photo=$(get_value "send_photo")
+	send_video=$(get_value "send_video")
 }
 
 read_config
@@ -39,15 +50,14 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		tmpfile="$(mktemp -u).json"
-		echo '{}' > $tmpfile
-		jct $tmpfile set telegram.token "$token"
-		jct $tmpfile set telegram.channel "$channel"
-		jct $tmpfile set telegram.caption "$caption"
-		jct $tmpfile set telegram.send_photo "$send_photo"
-		jct $tmpfile set telegram.send_video "$send_video"
-		jct /etc/send2.json import $tmpfile
-		rm $tmpfile
+		set_value token "$token"
+		set_value channel "$channel"
+		set_value caption "$caption"
+		set_value send_photo "$send_photo"
+		set_value send_video "$send_video"
+
+		jct "$config_file" import "$temp_config_file"
+		rm "$temp_config_file"
 
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
@@ -83,7 +93,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "jct /etc/send2.json get telegram" %>
+<% ex "jct $config_file get $domain" %>
 </div>
 
 <%in _footer.cgi %>

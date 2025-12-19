@@ -3,6 +3,10 @@
 <%
 page_title="Send to MQTT"
 
+domain="mqtt"
+config_file="/etc/send2.json"
+temp_config_file="/tmp/$domain.json"
+
 if [ ! -f /usr/bin/mosquitto_pub ]; then
 	redirect_to "/" "danger" "MQTT client is not a part of your firmware."
 fi
@@ -18,21 +22,29 @@ defaults() {
 	default_for send_video "false"
 }
 
-read_config() {
-	local CONFIG_FILE=/etc/send2.json
-	[ -f "$CONFIG_FILE" ] || return
+set_value() {
+	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
+	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+}
 
-	       host=$(jct $CONFIG_FILE get mqtt.host)
-	       port=$(jct $CONFIG_FILE get mqtt.port)
-	   username=$(jct $CONFIG_FILE get mqtt.username)
-	   password=$(jct $CONFIG_FILE get mqtt.password)
-	      topic=$(jct $CONFIG_FILE get mqtt.topic)
-	    message=$(jct $CONFIG_FILE get mqtt.message)
-	    is_json=$(jct $CONFIG_FILE get mqtt.is_json)
-	 send_photo=$(jct $CONFIG_FILE get mqtt.send_photo)
-	 send_video=$(jct $CONFIG_FILE get mqtt.send_video)
-	topic_photo=$(jct $CONFIG_FILE get mqtt.topic_photo)
-	topic_video=$(jct $CONFIG_FILE get mqtt.topic_video)
+get_value() {
+	jct $config_file get "$domain.$1"
+}
+
+read_config() {
+	[ -f "$config_file" ] || return
+
+	host=$(get_value "host")
+	port=$(get_value "port")
+	username=$(get_value "username")
+	password=$(get_value "password")
+	topic=$(get_value "topic")
+	message=$(get_value "message")
+	is_json=$(get_value "is_json")
+	send_photo=$(get_value "send_photo")
+	send_video=$(get_value "send_video")
+	topic_photo=$(get_value "topic_photo")
+	topic_video=$(get_value "topic_video")
 }
 
 read_config
@@ -78,22 +90,21 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		tmpfile="$(mktemp -u).json"
-		echo '{}' > $tmpfile
-		jct $tmpfile set mqtt.host "$host"
-		jct $tmpfile set mqtt.port "$port"
-		jct $tmpfile set mqtt.username "$username"
-		jct $tmpfile set mqtt.password "$password"
-		jct $tmpfile set mqtt.client_id "$client_id"
-		jct $tmpfile set mqtt.topic "$topic"
-		jct $tmpfile set mqtt.message "$message"
-		jct $tmpfile set mqtt.use_ssl "$use_ssl"
-		jct $tmpfile set mqtt.send_photo "$send_photo"
-		jct $tmpfile set mqtt.send_video "$send_video"
-		jct $tmpfile set mqtt.topic_photo "$topic_photo"
-		jct $tmpfile set mqtt.topic_video "$topic_video"
-		jct /etc/send2.json import $tmpfile
-		rm $tmpfile
+		set_value host "$host"
+		set_value port "$port"
+		set_value username "$username"
+		set_value password "$password"
+		set_value client_id "$client_id"
+		set_value topic "$topic"
+		set_value message "$message"
+		set_value use_ssl "$use_ssl"
+		set_value send_photo "$send_photo"
+		set_value send_video "$send_video"
+		set_value topic_photo "$topic_photo"
+		set_value topic_video "$topic_video"
+
+		jct "$config_file" import "$temp_config_file"
+		rm "$temp_config_file"
 
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
@@ -133,7 +144,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "jct /etc/send2.json get mqtt" %>
+<% ex "jct $config_file get $domain" %>
 </div>
 
 <script>

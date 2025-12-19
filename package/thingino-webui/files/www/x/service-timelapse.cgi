@@ -4,60 +4,79 @@
 page_title="Timelapse Recorder"
 
 MOUNTS=$(awk '/cif|fat|nfs|smb/{print $2}' /etc/mtab)
-TIMELAPSE_CONFIG_FILE="/etc/timelapse.json"
+
+domain="timelapse"
+config_file="/etc/timelapse.json"
+temp_config_file="/tmp/$domain.json"
 
 defaults() {
-	default_for tl_filepath "$(hostname)/timelapses"
-	default_for tl_filename "%Y%m%d/%Y%m%dT%H%M%S.jpg"
-	default_for tl_interval 1
-	default_for tl_keep_days 7
+	default_for filepath "$(hostname)/timelapses"
+	default_for filename "%Y%m%d/%Y%m%dT%H%M%S.jpg"
+	default_for interval 1
+	default_for keep_days 7
 }
 
-tl_enabled=$(jct $TIMELAPSE_CONFIG_FILE get enabled)
-tl_mount=$(jct $TIMELAPSE_CONFIG_FILE get mount)
-tl_filepath=$(jct $TIMELAPSE_CONFIG_FILE get filepath)
-tl_filename=$(jct $TIMELAPSE_CONFIG_FILE get filename)
-tl_interval=$(jct $TIMELAPSE_CONFIG_FILE get interval)
-tl_keep_days=$(jct $TIMELAPSE_CONFIG_FILE get keep_days)
+set_value() {
+	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
+	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+}
+
+get_value() {
+	jct $config_file get "$domain.$1"
+}
+
+read_config() {
+	[ -f "$config_file" ] || return
+
+	enabled=$(get_value enabled)
+	mount=$(get_value mount)
+	filepath=$(get_value filepath)
+	filename=$(get_value filename)
+	interval=$(get_value interval)
+	keep_days=$(get_value keep_days)
+}
+
+read_config
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	tl_enabled="$POST_tl_enabled"
-	tl_mount="$POST_tl_mount"
-	tl_filepath="$POST_tl_filepath"
-	tl_filename="$POST_tl_filename"
-	tl_interval="$POST_tl_interval"
-	tl_keep_days="$POST_tl_keep_days"
+	enabled="$POST_enabled"
+	mount="$POST_mount"
+	filepath="$POST_filepath"
+	filename="$POST_filename"
+	interval="$POST_interval"
+	keep_days="$POST_keep_days"
 
 	defaults
 
 	# normalize
-	[ "/" = "${tl_filename:0:1}" ] && tl_filename="${tl_filename:1}"
+	[ "/" = "${filename:0:1}" ] && filename="${filename:1}"
 
 	# validate
-	if [ "true" = "$tl_enabled" ]; then
-		error_if_empty "$tl_mount" "Timelapse mount cannot be empty."
-		error_if_empty "$tl_filename" "Timelapse filename cannot be empty."
+	if [ "true" = "$enabled" ]; then
+		error_if_empty "$mount" "Timelapse mount cannot be empty."
+		error_if_empty "$filename" "Timelapse filename cannot be empty."
 	fi
 
 	if [ -z "$error" ]; then
-		tmpfile="$(mktemp -u).json"
-		jct $tmpfile set enabled "$tl_enabled"
-		jct $tmpfile set mount "$tl_mount"
-		jct $tmpfile set filepath "$tl_filepath"
-		jct $tmpfile set filename "$tl_filename"
-		jct $tmpfile set interval "$tl_interval"
-		jct $tmpfile set keep_days "$tl_keep_days"
-		mv "$tmpfile" "$TIMELAPSE_CONFIG_FILE"
+		set_value enabled "$enabled"
+		set_value mount "$mount"
+		set_value filepath "$filepath"
+		set_value filename "$filename"
+		set_value interval "$interval"
+		set_value keep_days "$keep_days"
+
+		jct "$config_file" import "$temp_config_file"
+		rm "$temp_config_file"
 
 		# update crontab
 		tmpfile=$(mktemp -u)
 		cat $CRONTABS > $tmpfile
 		sed -i '/timelapse/d' $tmpfile
-		echo "# run timelapse every $tl_interval minutes" >> $tmpfile
-		[ "true" = "$tl_enabled" ] || echo -n "#" >> $tmpfile
-		echo "*/$tl_interval * * * * timelapse" >> $tmpfile
+		echo "# run timelapse every $interval minutes" >> $tmpfile
+		[ "true" = "$enabled" ] || echo -n "#" >> $tmpfile
+		echo "*/$interval * * * * timelapse" >> $tmpfile
 		mv $tmpfile $CRONTABS
 
 		redirect_to $SCRIPT_NAME "success" "Data updated."
@@ -71,27 +90,27 @@ defaults
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_switch "tl_enabled" "Enable timelapse recorder" %>
+<% field_switch "enabled" "Enable timelapse recorder" %>
 
 <div class="row">
 
 <div class="col col-xl-4">
-<% field_select "tl_mount" "Storage mountpoint" "$MOUNTS" "SD card or a network share" %>
-<% field_text "tl_filepath" "Device-specific path in the storage" "Helps to deal with multiple devices" %>
-<% field_text "tl_filename" "Individual image filename template" "$STR_SUPPORTS_STRFTIME" %>
+<% field_select "mount" "Storage mountpoint" "$MOUNTS" "SD card or a network share" %>
+<% field_text "filepath" "Device-specific path in the storage" "Helps to deal with multiple devices" %>
+<% field_text "filename" "Individual image filename template" "$STR_SUPPORTS_STRFTIME" %>
 </div>
 
 <div class="col col-xl-4">
-<div class="mb-2 string" id="tl_interval_wrap">
-<label for="tl_interval" class="form-label">Save a snaphot every
- <input type="text" id="tl_interval" name="tl_interval" class="form-control"
- style="max-width:4rem;display:inline-block;margin:0 0.25rem" value="<%= $tl_interval %>">
+<div class="mb-2 string" id="interval_wrap">
+<label for="interval" class="form-label">Save a snaphot every
+ <input type="text" id="interval" name="interval" class="form-control"
+ style="max-width:4rem;display:inline-block;margin:0 0.25rem" value="<%= $interval %>">
  minutes</label>
 </div>
-<div class="mb-2 string" id="tl_keep_days_wrap">
-<label for="tl_keep_days" class="form-label">Keep timelapses of the last
- <input type="text" id="tl_keep_days" name="tl_keep_days" class="form-control"
- style="max-width:4rem;display:inline-block;margin:0 0.25rem" value="<%= $tl_keep_days %>">
+<div class="mb-2 string" id="keep_days_wrap">
+<label for="keep_days" class="form-label">Keep timelapses of the last
+ <input type="text" id="keep_days" name="keep_days" class="form-control"
+ style="max-width:4rem;display:inline-block;margin:0 0.25rem" value="<%= $keep_days %>">
  days</label>
 </div>
 <p><a href="tool-file-manager.cgi?cd=/mnt" id="link-fm">Open in File Manager</a></p>
@@ -114,13 +133,13 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "jct $TIMELAPSE_CONFIG_FILE print" %>
+<% ex "jct $config_file get $domain" %>
 <% ex "crontab -l" %>
 </div>
 
 <script>
 $('#link-fm').addEventListener('click', ev => {
-	ev.target.href = 'tool-file-manager.cgi?cd=' + $('#tl_mount').value + '/' + $('#tl_filepath').value
+	ev.target.href = 'tool-file-manager.cgi?cd=' + $('#mount').value + '/' + $('#filepath').value
 })
 </script>
 

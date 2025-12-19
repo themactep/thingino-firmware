@@ -8,12 +8,12 @@ config_file="/etc/thingino.json"
 temp_config_file="/tmp/$domain.json"
 
 defaults() {
-	[ -z "$enabled" ] && enabled="false"
-	[ -z "$port" ] && port="514"
-	[ -z "$file" ] && file="false"
+	default_for enabled "false"
+	default_for port "514"
+	default_for file "false"
 }
 
-save_config() {
+set_value() {
 	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
 	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
 }
@@ -25,10 +25,10 @@ get_value() {
 read_config() {
 	[ -f "$config_file" ] || return
 
-	enabled="$(get_value "enabled")"
-	host="$(get_value "host")"
-	port="$(get_value "port")"
-	file="$(get_value "file")"
+	enabled="$(get_value enabled)"
+	host="$(get_value host)"
+	port="$(get_value port)"
+	file="$(get_value file)"
 }
 
 read_config
@@ -48,10 +48,10 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		save_config "enabled" "$enabled"
-		save_config "host" "$host"
-		save_config "port" "$port"
-		save_config "file" "$file"
+		set_value enabled "$enabled"
+		set_value host "$host"
+		set_value port "$port"
+		set_value file "$file"
 
 		jct "$config_file" import "$temp_config_file"
 		rm "$temp_config_file"

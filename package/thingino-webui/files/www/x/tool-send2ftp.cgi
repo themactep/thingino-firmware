@@ -3,6 +3,10 @@
 <%
 page_title="Send to FTP"
 
+domain="ftp"
+config_file="/etc/send2.json"
+temp_config_file="/tmp/$domain.json"
+
 defaults() {
 	default_for "port" "21"
 	default_for "template" "${network_hostname}-%Y%m%d-%H%M%S"
@@ -12,18 +16,26 @@ defaults() {
 	[ -z "$username" ] && username="anonymous" && password="anonymous"
 }
 
-read_config() {
-	local CONFIG_FILE=/etc/send2.json
-	[ -f "$CONFIG_FILE" ] || return
+set_value() {
+	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
+	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+}
 
-	      host=$(jct $CONFIG_FILE get ftp.host)
-	      port=$(jct $CONFIG_FILE get ftp.port)
-	  username=$(jct $CONFIG_FILE get ftp.username)
-	  password=$(jct $CONFIG_FILE get ftp.password)
-	      path=$(jct $CONFIG_FILE get ftp.path)
-	  template=$(jct $CONFIG_FILE get ftp.template)
-	send_photo=$(jct $CONFIG_FILE get ftp.send_photo)
-	send_video=$(jct $CONFIG_FILE get ftp.send_video)
+get_value() {
+	jct $config_file get "$domain.$1"
+}
+
+read_config() {
+	[ -f "$config_file" ] || return
+
+	host=$(get_value "host")
+	port=$(get_value "port")
+	username=$(get_value "username")
+	password=$(get_value "password")
+	path=$(get_value "path")
+	template=$(get_value "template")
+	send_photo=$(get_value "send_photo")
+	send_video=$(get_value "send_video")
 }
 
 read_config
@@ -47,18 +59,17 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		tmpfile="$(mktemp -u).json"
-		echo '{}' > $tmpfile
-		jct $tmpfile set ftp.host "$host"
-		jct $tmpfile set ftp.port "$port"
-		jct $tmpfile set ftp.username "$username"
-		jct $tmpfile set ftp.password "$password"
-		jct $tmpfile set ftp.path "$path"
-		jct $tmpfile set ftp.template "$template"
-		jct $tmpfile set ftp.send_photo "$send_photo"
-		jct $tmpfile set ftp.send_video "$send_video"
-		jct /etc/send2.json import $tmpfile
-		rm $tmpfile
+		set_value host "$host"
+		set_value port "$port"
+		set_value username "$username"
+		set_value password "$password"
+		set_value path "$path"
+		set_value template "$template"
+		set_value send_photo "$send_photo"
+		set_value send_video "$send_video"
+
+		jct "$config_file" import "$temp_config_file"
+		rm "$temp_config_file"
 
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
@@ -94,7 +105,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "jct /etc/send2.json get ftp" %>
+<% ex "jct $config_file get $domain" %>
 </div>
 
 <%in _footer.cgi %>

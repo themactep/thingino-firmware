@@ -6,18 +6,19 @@ page_title="RTSP/ONVIF Access"
 domain="server"
 config_file="/etc/onvif.json"
 temp_config_file="/tmp/onvif.json"
+
 prudynt_config_file=/etc/prudynt.json
 
 defaults() {
-	[ -z "$username" ] && username="thingino"
-	[ -z "$password" ] && password="thingino"
-	[ -z "$onvif_port" ] && onvif_port="80"
-	[ -z "$rtsp_port" ] && rtsp_port="554"
-	[ -z "$rtsp_ch0" ] && rtsp_ch0="ch0"
-	[ -z "$rtsp_ch1" ] && rtsp_ch1="ch1"
+	default_for username "thingino"
+	default_for password "thingino"
+	default_for onvif_port "80"
+	default_for rtsp_port "554"
+	default_for rtsp_ch0 "ch0"
+	default_for rtsp_ch1 "ch1"
 }
 
-save_config() {
+set_value() {
 	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
 	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
 }
@@ -29,18 +30,18 @@ get_value() {
 read_config() {
 	[ -f "$config_file" ] || return
 
-	username="$(get_value "username")"
-	password="$(get_value "password")"
-	onvif_port="$(get_value "port")"
+	username="$(get_value username)"
+	password="$(get_value password)"
+	onvif_port="$(get_value port)"
 
+	# different config file so no `get_value`
 	rtsp_port="$(jct $prudynt_config_file get rtsp.port)"
 	rtsp_ch0="$(jct $prudynt_config_file get stream0.rtsp_endpoint)"
 	rtsp_ch1="$(jct $prudynt_config_file get stream1.rtsp_endpoint)"
-
-	#username=$(awk -F: '/Streaming Service/{print $1}' /etc/passwd)
-
 	[ -z "$username" ] && username="$(jct $prudynt_config_file get rtsp.username)"
 	[ -z "$password" ] && password="$(jct $prudynt_config_file get rtsp.password)"
+
+	#username=$(awk -F: '/Streaming Service/{print $1}' /etc/passwd)
 }
 
 read_config
@@ -50,8 +51,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	sanitize $password
 
 	if [ -z "$error" ]; then
-#		save_config "username" "$username"
-		save_config "password" "$password"
+#		set_value username "$username"
+		set_value password "$password"
 		jct "$config_file" import "$temp_config_file"
 		rm "$temp_config_file"
 

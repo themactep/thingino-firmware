@@ -3,6 +3,10 @@
 <%
 page_title="Send to email"
 
+domain="email"
+config_file="/etc/send2.json"
+temp_config_file="/tmp/$domain.json"
+
 defaults() {
 	default_for from_name "Camera $network_hostname"
 	default_for trust_cert "false"
@@ -13,24 +17,32 @@ defaults() {
 	default_for send_video "false"
 }
 
-read_config() {
-	local CONFIG_FILE=/etc/send2.json
-	[ -f "$CONFIG_FILE" ] || return
+set_value() {
+	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
+	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+}
 
-	from_address=$(jct $CONFIG_FILE get email.from_address)
-	   from_name=$(jct $CONFIG_FILE get email.from_name)
-	  to_address=$(jct $CONFIG_FILE get email.to_address)
-	     to_name=$(jct $CONFIG_FILE get email.to_name)
-	     subject=$(jct $CONFIG_FILE get email.subject)
-	        body=$(jct $CONFIG_FILE get email.body)
-	        host=$(jct $CONFIG_FILE get email.host)
-	        port=$(jct $CONFIG_FILE get email.port)
-	    username=$(jct $CONFIG_FILE get email.username)
-	    password=$(jct $CONFIG_FILE get email.password)
-	     use_ssl=$(jct $CONFIG_FILE get email.use_ssl)
-	  trust_cert=$(jct $CONFIG_FILE get email.trust_cert)
-	  send_photo=$(jct $CONFIG_FILE get email.send_photo)
-	  send_video=$(jct $CONFIG_FILE get email.send_video)
+get_value() {
+	jct $config_file get "$domain.$1"
+}
+
+read_config() {
+	[ -f "$config_file" ] || return
+
+	from_address=$(get_value "from_address")
+	from_name=$(get_value "from_name")
+	to_address=$(get_value "to_address")
+	to_name=$(get_value "to_name")
+	subject=$(get_value "subject")
+	body=$(get_value "body")
+	host=$(get_value "host")
+	port=$(get_value "port")
+	username=$(get_value "username")
+	password=$(get_value "password")
+	use_ssl=$(get_value "use_ssl")
+	trust_cert=$(get_value "trust_cert")
+	send_photo=$(get_value "send_photo")
+	send_video=$(get_value "send_video")
 }
 
 read_config
@@ -65,24 +77,23 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		tmpfile="$(mktemp -u).json"
-		echo '{}' > $tmpfile
-		jct $tmpfile set email.host "$host"
-		jct $tmpfile set email.port "$port"
-		jct $tmpfile set email.username "$username"
-		jct $tmpfile set email.password "$password"
-		jct $tmpfile set email.use_ssl "$use_ssl"
-		jct $tmpfile set email.trust_cert "$trust_cert"
-		jct $tmpfile set email.from_name "$from_name"
-		jct $tmpfile set email.from_address "$from_address"
-		jct $tmpfile set email.to_name "$to_name"
-		jct $tmpfile set email.to_address "$to_address"
-		jct $tmpfile set email.subject "$subject"
-		jct $tmpfile set email.body "$body"
-		jct $tmpfile set email.send_photo "$send_photo"
-		jct $tmpfile set email.send_video "$send_video"
-		jct /etc/send2.json import $tmpfile
-		rm $tmpfile
+		set_value host "$host"
+		set_value port "$port"
+		set_value username "$username"
+		set_value password "$password"
+		set_value use_ssl "$use_ssl"
+		set_value trust_cert "$trust_cert"
+		set_value from_name "$from_name"
+		set_value from_address "$from_address"
+		set_value to_name "$to_name"
+		set_value to_address "$to_address"
+		set_value subject "$subject"
+		set_value body "$body"
+		set_value send_photo "$send_photo"
+		set_value send_video "$send_video"
+
+		jct "$config_file" import "$temp_config_file"
+		rm "$temp_config_file"
 
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
@@ -127,7 +138,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "jct /etc/send2.json get email" %>
+<% ex "jct $config_file get $domain" %>
 </div>
 
 <script>

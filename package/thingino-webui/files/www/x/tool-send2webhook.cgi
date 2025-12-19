@@ -2,20 +2,31 @@
 <%in _common.cgi %>
 <%
 page_title="Send to Webhook"
+domain="webhook"
+config_file="/etc/send2.json"
+temp_config_file="/tmp/$domain.json"
 
 defaults() {
 	default_for send_photo "true"
 	default_for send_video "false"
 }
 
-read_config() {
-	local CONFIG_FILE=/etc/send2.json
-	[ -f "$CONFIG_FILE" ] || return
+set_value() {
+	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
+	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+}
 
-	       url=$(jct $CONFIG_FILE get webhook.url)
-	   message=$(jct $CONFIG_FILE get webhook.message)
-	send_photo=$(jct $CONFIG_FILE get webhook.send_photo)
-	send_video=$(jct $CONFIG_FILE get webhook.send_video)
+get_value() {
+	jct $config_file get "$domain.$1"
+}
+
+read_config() {
+	[ -f "$config_file" ] || return
+
+	url=$(get_value "url")
+	message=$(get_value "message")
+	send_photo=$(get_value "send_photo")
+	send_video=$(get_value "send_video")
 }
 
 read_config
@@ -33,14 +44,13 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	defaults
 
 	if [ -z "$error" ]; then
-		tmpfile="$(mktemp -u).json"
-		echo '{}' > $tmpfile
-		jct $tmpfile set webhook.url "$url"
-		jct $tmpfile set webhook.message "$message"
-		jct $tmpfile set webhook.send_photo "$send_photo"
-		jct $tmpfile set webhook.send_video "$send_video"
-		jct /etc/send2.json import $tmpfile
-		rm $tmpfile
+		set_value url "$url"
+		set_value message "$message"
+		set_value send_photo "$send_photo"
+		set_value send_video "$send_video"
+
+		jct "$config_file" import "$temp_config_file"
+		rm "$temp_config_file"
 
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
@@ -68,7 +78,7 @@ defaults
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "jct /etc/send2.json get webhook" %>
+<% ex "jct $config_file get $domain" %>
 </div>
 
 <button type="button" class="btn btn-dark border mb-2" title="Send to Webhook" data-sendto="webhook">Test</button>
