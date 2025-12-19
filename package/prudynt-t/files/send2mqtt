@@ -6,6 +6,9 @@
 . /usr/share/common
 . /usr/share/send2common
 
+domiain="mqtt"
+config_file="/etc/send2.json"
+
 message_looks_like_json() {
 	# Treat payload as JSON when it is wrapped in braces or brackets
 	local trimmed
@@ -28,44 +31,45 @@ escape_single_quotes() {
 show_help() {
 	echo "Usage: $0 [options]
 Where:
-	-h host      Server host
-	-m message   Message body
+	-h host      MQTT server FQDN or IP address
+	-p port      MQTT port
+	-u username  MQTT username
+	-P password  MQTT password
 	-t topic     Topic
-	-u username  Username
-	-w password  Password
+	-m message   Message body
+	-v           Verbose output
 	-S           Send photo
 	-V           Send video
-	-v           Verbose output
 " >&2
 	exit 0
 }
 
 read_config() {
-	local CONFIG_FILE=/etc/send2.json
-	[ -f "$CONFIG_FILE" ] || return
+	[ -f "$config_file" ] || return
 
-	       host=$(jct $CONFIG_FILE get mqtt.host)
-	       port=$(jct $CONFIG_FILE get mqtt.port)
-	   username=$(jct $CONFIG_FILE get mqtt.username)
-	   password=$(jct $CONFIG_FILE get mqtt.password)
-	  client_id=$(jct $CONFIG_FILE get mqtt.client_id)
-	    message=$(jct $CONFIG_FILE get mqtt.message)
-	      topic=$(jct $CONFIG_FILE get mqtt.topic)
-	topic_photo=$(jct $CONFIG_FILE get mqtt.topic_photo)
-	topic_video=$(jct $CONFIG_FILE get mqtt.topic_video)
-	 send_photo=$(jct $CONFIG_FILE get mqtt.send_photo)
-	 send_video=$(jct $CONFIG_FILE get mqtt.send_video)
+	host=$(get_value host)
+	port=$(get_value port)
+	username=$(get_value username)
+	password=$(get_value password)
+	client_id=$(get_value client_id)
+	message=$(get_value message)
+	topic=$(get_value topic)
+	topic_photo=$(get_value topic_photo)
+	topic_video=$(get_value topic_video)
+	send_photo=$(get_value send_photo)
+	send_video=$(get_value send_video)
 }
 
 read_config
 
-while getopts h:m:St:u:w:Vv flag; do
+while getopts h:p:u:P:t:m:SVv flag; do
 	case "$flag" in
 		h) host=$OPTARG ;;
-		m) message=$OPTARG ;;
-		t) topic=$OPTARG ;;
+		p) port=$OPTARG ;;
 		u) username=$OPTARG ;;
-		w) password=$OPTARG ;;
+		P) password=$OPTARG ;;
+		t) topic=$OPTARG ;;
+		m) message=$OPTARG ;;
 		S) send_photo="true" ;;
 		V) send_video="true" ;;
 		v) verbose="true" ;;
@@ -84,21 +88,22 @@ if [ -z "$port" ]; then
 fi
 
 if [ -z "$topic" ]; then
-	echo_error "MQTT topic not found"
+	echo_error "MQTT topic is not set"
 	exit 1
 fi
 
 if [ -z "$message" ]; then
-	echo_error "MQTT message template not found"
+	echo_error "MQTT message template is not set"
 	exit 1
 fi
 
 if [ "true" = "$send_photo" ] && [ -z "$topic_photo" ]; then
-	echo_error "MQTT topic for sending snapshot not found in config"
+	echo_error "MQTT topic for sending snapshot is not set"
 	exit 1
 fi
 
 [ -z "$client_id" ] && client_id=$(hostname)
+[ -z "$port" ] && port=1883
 
 message=$(date +"$message")
 

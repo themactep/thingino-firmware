@@ -3,39 +3,40 @@
 . /usr/share/common
 . /usr/share/send2common
 
+domiain="webhook"
+config_file="/etc/send2.json"
+
 show_help() {
 	echo "Usage: $0 [options]
 Where:
-	-m message  Message to send to webhook.
-	-s          Attach snapshot to the webhook.
-	-c          Attach videoclips to the webhook.
-	-u url      Webhook URL.
-	-v          Verbose output.
-	-h          Show this help.
+	-u url       Webhook URL
+	-m message   Message to send to webhook
+	-v           Verbose output
+	-S           Send photo
+	-V           Send video
 " >&2
 	exit 0
 }
 
 read_config() {
-        local CONFIG_FILE=/etc/send2.json
-        [ -f "$CONFIG_FILE" ] || return
+	[ -f "$config_file" ] || return
 
-	       url=$(jct $CONFIG_FILE get webhook.url)
-           message=$(jct $CONFIG_FILE get webhook.message)
-        send_photo=$(jct $CONFIG_FILE get webhook.send_photo)
-        send_video=$(jct $CONFIG_FILE get webhook.send_video)
+	url=$(get_value url)
+	message=$(get_value message)
+	send_photo=$(get_value send_photo)
+	send_video=$(get_value send_video)
 }
 
 read_config
 
-while getopts chm:su:v flag; do
+while getopts u:m:SVv flag; do
 	case "$flag" in
-		m) message=$OPTARG ;;
-		s) send_photo="true" ;;
-		c) send_video="true" ;;
 		u) url=$OPTARG ;;
+		m) message=$OPTARG ;;
+		S) send_photo="true" ;;
+		V) send_video="true" ;;
 		v) verbose="true" ;;
-		h | *) show_help ;;
+		*) show_help ;;
 	esac
 done
 
@@ -78,9 +79,7 @@ fi
 command="$command -F \"message=$message\""
 command="$command --url \"$url\""
 
-if [ "true" = "$verbose" ]; then
-	echo_command "$command"
-fi
+[ "true" = "$verbose" ] && echo_command "$command"
 
 if ! sh -c "$command" >/dev/null; then
 	echo_error "Failed to send webhook message"

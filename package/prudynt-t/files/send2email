@@ -3,53 +3,62 @@
 . /usr/share/common
 . /usr/share/send2common
 
+domiain="email"
+config_file="/etc/send2.json"
+
 show_help() {
 	echo "Usage: $0 [options]
 Where:
-	-f address  Sender's email address
-	-t address  Recipient's email address
-	-n host     SMTP server host.
-	-p port     SMTP server port.
-	-s subject  Subject line.
-	-b body     Letter body.
-	-k          Ignore SSL certificate validity.
-	-v          Verbose output.
-	-h          Show this help.
+	-n host      SMTP server FQDN or IP address
+	-p port      SMTP server port
+	-u username  SMTP username
+	-P password  SMTP password
+	-f address   Sender's email address
+	-t address   Recipient's email address
+	-s subject   Subject line
+	-b body      Letter body
+	-k           Ignore SSL certificate validity
+	-v           Verbose output
+	-S           Send photo
+	-V           Send video
 " >&2
 	exit 0
 }
 
 read_config() {
-	local CONFIG_FILE=/etc/send2.json
 	[ -f "$CONFIG_FILE" ] || return
 
-	from_address=$(jct $CONFIG_FILE get email.from_address)
-	   from_name=$(jct $CONFIG_FILE get email.from_name)
-	  to_address=$(jct $CONFIG_FILE get email.to_address)
-	     to_name=$(jct $CONFIG_FILE get email.to_name)
-	     subject=$(jct $CONFIG_FILE get email.subject)
-	        body=$(jct $CONFIG_FILE get email.body)
-	        host=$(jct $CONFIG_FILE get email.host)
-	        port=$(jct $CONFIG_FILE get email.port)
-	    username=$(jct $CONFIG_FILE get email.username)
-	    password=$(jct $CONFIG_FILE get email.password)
-	     use_ssl=$(jct $CONFIG_FILE get email.use_ssl)
-	  trust_cert=$(jct $CONFIG_FILE get email.trust_cert)
-	  send_photo=$(jct $CONFIG_FILE get email.send_photo)
-	  send_video=$(jct $CONFIG_FILE get email.send_video)
+	host=$(get_value host)
+	port=$(get_value port)
+	username=$(get_value username)
+	password=$(get_value password)
+	use_ssl=$(get_value use_ssl)
+	trust_cert=$(get_value trust_cert)
+	from_address=$(get_value from_address)
+	from_name=$(get_value from_name)
+	to_address=$(get_value to_address)
+	to_name=$(get_value to_name)
+	subject=$(get_value subject)
+	body=$(get_value body)
+	send_photo=$(get_value send_photo)
+	send_video=$(get_value send_video)
 }
 
 read_config
 
-while getopts b:f:hkn:p:s:t:v flag; do
+while getopts h:p:u:P:kf:t:s:b:SVv flag; do
 	case "$flag" in
-		b) body=$OPTARG ;;
-		f) from_address=$OPTARG ;;
 		h) host=$OPTARG ;;
-		k) use_ssl="true" ;;
 		p) port=$OPTARG ;;
-		s) subject=$OPTARG ;;
+		u) username=$OPTARG ;;
+		P) password=$OPTARG ;;
+		k) use_ssl="true" ;;
+		f) from_address=$OPTARG ;;
 		t) to_address=$OPTARG ;;
+		s) subject=$OPTARG ;;
+		b) body=$OPTARG ;;
+		S) send_photo="true" ;;
+		V) send_video="true" ;;
 		v) verbose="true" ;;
 		*) show_help ;;
 	esac
@@ -58,10 +67,6 @@ done
 if [ -z "$host" ]; then
 	echo_error "SMTP host not found"
 	exit 1
-fi
-
-if [ -z "$port" ]; then
-	port=25
 fi
 
 if [ -z "$from_address" ]; then
@@ -89,17 +94,10 @@ if ! echo "$to_address" | grep -E -q $EMAIL_FORMAT >/dev/null; then
 	exit 1
 fi
 
-if [ -z "$from_name" ]; then
-	from_name="Thingino Camera"
-fi
-
-if [ -z "$to_name" ]; then
-	to_name="Thingino Camera Admin"
-fi
-
-if [ -z "$subject" ]; then
-	subject="Snapshot from Thingino Camera"
-fi
+[ -z "$port" ] && port=25
+[ -z "$from_name" ] && from_name="Thingino Camera"
+[ -z "$to_name" ] && to_name="Thingino Camera Admin"
+[ -z "$subject" ] && subject="Snapshot from Thingino Camera"
 
 if [ "true" = "$verbose" ]; then
 	command="$CURL --verbose"
@@ -107,10 +105,7 @@ else
 	command="$CURL --silent"
 fi
 command="$command --mail-from $from_address --mail-rcpt $to_address"
-
-if [ -n "$username" ] && [ -n "$password" ]; then
-	command="$command --user '$username:$password'"
-fi
+[ -n "$username" ] && [ -n "$password" ] && command="$command --user '$username:$password'"
 
 if [ "true" = "$use_ssl" ]; then
 	command="$command --url smtps://$host:$port --ssl"
@@ -144,9 +139,7 @@ fi
 
 command="$command -F '=)'"
 
-if [ "true" = "$verbose" ]; then
-	echo_command "$command"
-fi
+[ "true" = "$verbose" ] && echo_command "$command"
 
 if ! sh -c "$command" >/dev/null; then
 	echo_error "Failed to send email"

@@ -5,20 +5,25 @@
 . /usr/share/common
 . /usr/share/send2common
 
+domiain="ntfy"
+config_file="/etc/send2.json"
+
 show_help() {
 	echo "Usage: $0 [options]
 Where:
+	-h host      NTFY server FQDN or IP address
+	-u username  NTFY username
+	-P password  NTFY password
+	-T token     NTFY token
+	-t topic     Topic
+	-n title     Message title
+	-m message   Message body
 	-a URL       Attachment URL
 	-c URL       Click URL
 	-f file      Attach file
-	-h host      Server host
 	-i URL       Icon URL
-	-m message   Message body
-	-t topic     Topic
-	-n title     Message title
-	-p N         Priority: 1-lowest, 5-highest
-	-u username  Username
-	-w password  Password
+	-z N         Priority: 1-lowest, 5-highest
+	-d N         Delay
 	-S           Send photo
 	-V           Send video
 	-v           Verbose output
@@ -27,46 +32,47 @@ Where:
 }
 
 read_config() {
-	local CONFIG_FILE=/etc/send2.json
-	[ -f "$CONFIG_FILE" ] || return
+	[ -f "$config_file" ] || return
 
-	        host=$(jct $CONFIG_FILE get ntfy.host)
-	        port=$(jct $CONFIG_FILE get ntfy.port)
-	    username=$(jct $CONFIG_FILE get ntfy.username)
-	    password=$(jct $CONFIG_FILE get ntfy.password)
-	       token=$(jct $CONFIG_FILE get ntfy.token)
-	       topic=$(jct $CONFIG_FILE get ntfy.topic)
-	        icon=$(jct $CONFIG_FILE get ntfy.icon)
-	     message=$(jct $CONFIG_FILE get ntfy.message)
-	       title=$(jct $CONFIG_FILE get ntfy.title)
-	        tags=$(jct $CONFIG_FILE get ntfy.tags)
-	       delay=$(jct $CONFIG_FILE get ntfy.delay)
-	     prority=$(jct $CONFIG_FILE get ntfy.priority)
-	  send_photo=$(jct $CONFIG_FILE get ntfy.send_photo)
-	      attach=$(jct $CONFIG_FILE get ntfy.attach)
-	       click=$(jct $CONFIG_FILE get ntfy.click)
-	    filename=$(jct $CONFIG_FILE get ntfy.filename)
-	       email=$(jct $CONFIG_FILE get ntfy.email)
-	        call=$(jct $CONFIG_FILE get ntfy.call)
-	     actions=$(jct $CONFIG_FILE get ntfy.actions)
-	twilio_token=$(jct $CONFIG_FILE get ntfy.twilio_token)
+	host=$(get_value host)
+	port=$(get_value port)
+	username=$(get_value username)
+	password=$(get_value password)
+	token=$(get_value token)
+	message=$(get_value message)
+	topic=$(get_value topic)
+	title=$(get_value title)
+	tags=$(get_value tags)
+	icon=$(get_value icon)
+	delay=$(get_value delay)
+	prority=$(get_value priority)
+	send_photo=$(get_value send_photo)
+	attach=$(get_value attach)
+	click=$(get_value click)
+	filename=$(get_value filename)
+	email=$(get_value email)
+	call=$(get_value call)
+	actions=$(get_value actions)
+	twilio_token=$(get_value twilio_token)
 }
 
 read_config
 
-while getopts a:c:f:h:i:l:m:n:p:St:u:w:Vv flag; do
+while getopts h:p:u:P:T:m:n:t:i:z:d:a:c:f:SVv flag; do
 	case "$flag" in
+		h) host=$OPTARG ;;
+		u) username=$OPTARG ;;
+		P) password=$OPTARG ;;
+		T) token=$OPTARG ;;
+		m) message=$OPTARG ;;
+		n) title=$OPTARG ;;
+		t) topic=$OPTARG ;;
+		i) icon=$OPTARG ;;
+		z) priority=$OPTARG ;;
+		d) delay==$OPTARG ;;
 		a) attach=$OPTARG ;;
 		c) click=$OPTARG ;;
 		f) filename=$OPTARG ;;
-		h) host=$OPTARG ;;
-		i) icon=$OPTARG ;;
-		m) message=$OPTARG ;;
-		n) title=$OPTARG ;;
-		p) priority=$OPTARG ;;
-		t) topic=$OPTARG ;;
-		u) username=$OPTARG ;;
-		w) password=$OPTARG ;;
 		S) send_photo="true" ;;
 		V) send_video="true" ;;
 		v) verbose="true" ;;
@@ -90,10 +96,6 @@ else
 	command="$command --silent"
 fi
 
-[ -n "$title" ] && command="$command -H 'Title: $title'"
-[ -n "$tags" ] && command="$command -H 'Tags: $tags'"
-[ -n "$delay" ] && command="$command -H 'Delay: $delay'"
-
 if [ -n "$token" ]; then
 	command="$command -H 'Authorization: Bearer $token'"
 elif [ -n "$username" ] && [ -n "$password" ]; then
@@ -109,26 +111,24 @@ if [ -n "$filename" ] && [ -f "$filename" ]; then
 	command="$command -T $filename -H 'Filename: $filename'"
 fi
 
-[ -n "$attach" ] && command="$command -H 'Attach: $attach'"
-[ -n "$click" ] && command="$command -H 'Click: $click'"
-[ -n "$icon" ] && command="$command -H 'Icon: $icon'"
-[ -n "$email" ] && command="$command -H 'Email: $email'"
-[ -n "$actions" ] && command="$command -H 'Actions: $actions'"
-
-if [ -n "$call" ] && [ -n "$twilio_token" ]; then
-	command="$command -H 'Call: $call' -u :$twilio_token"
-fi
-
 if [ -n "$message" ]; then
 	message="$(date +"$message")"
 	command="$command -H 'Message: $message'"
 fi
 
+#[ -n "$title" ] && command="$command -H 'Title: $title'"
+#[ -n "$delay" ] && command="$command -H 'Delay: $delay'"
+#[ -n "$tags" ] && command="$command -H 'Tags: $tags'"
+#[ -n "$attach" ] && command="$command -H 'Attach: $attach'"
+#[ -n "$click" ] && command="$command -H 'Click: $click'"
+#[ -n "$icon" ] && command="$command -H 'Icon: $icon'"
+#[ -n "$email" ] && command="$command -H 'Email: $email'"
+#[ -n "$actions" ] && command="$command -H 'Actions: $actions'"
+#[ -n "$call" ] && [ -n "$twilio_token" ] && command="$command -H 'Call: $call' -u :$twilio_token"
+
 command="$command $host/$topic"
 
-if [ "true" = "$verbose" ]; then
-	echo_command "$command"
-fi
+[ "true" = "$verbose" ] && echo_command "$command"
 
 if ! sh -c "$command" >/dev/null; then
 	echo_error "Failed to send NTFY message"
