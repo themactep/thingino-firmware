@@ -5,7 +5,8 @@ page_title="Send to Ntfy"
 
 camera_id=${network_macaddr//:/}
 
-config_file=/etc/send2.json
+domain="ntfy"
+config_file="/etc/send2.json"
 temp_config_file="/tmp/send2ntfy.json"
 
 defaults() {
@@ -18,34 +19,38 @@ defaults() {
 }
 
 save_config() {
-	[ -f "$temp_config_file" ] || echo '{}' > $temp_config_file
-	jct $temp_config_file set "ntfy.$1" "$2" >/dev/null 2>&1
+	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
+	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+}
+
+get_value() {
+	jct $config_file get "$domain.$1"
 }
 
 read_config() {
 	[ -f "$config_file" ] || return
 
-	        host=$(jct $config_file get ntfy.host)
-	        port=$(jct $config_file get ntfy.port)
-	    username=$(jct $config_file get ntfy.username)
-	    password=$(jct $config_file get ntfy.password)
-	       token=$(jct $config_file get ntfy.token)
-	       topic=$(jct $config_file get ntfy.topic)
-	        icon=$(jct $config_file get ntfy.icon)
-	     message=$(jct $config_file get ntfy.message)
-	       title=$(jct $config_file get ntfy.title)
-	        tags=$(jct $config_file get ntfy.tags)
-	       delay=$(jct $config_file get ntfy.delay)
-	     prority=$(jct $config_file get ntfy.priority)
-	  send_photo=$(jct $config_file get ntfy.send_photo)
-	  send_video=$(jct $config_file get ntfy.send_video)
-	      attach=$(jct $config_file get ntfy.attach)
-	       click=$(jct $config_file get ntfy.click)
-	    filename=$(jct $config_file get ntfy.filename)
-	       email=$(jct $config_file get ntfy.email)
-	        call=$(jct $config_file get ntfy.call)
-	     actions=$(jct $config_file get ntfy.actions)
-	twilio_token=$(jct $config_file get ntfy.twilio_token)
+	host=$(get_value "host")
+	port=$(get_value "port")
+	username=$(get_value "username")
+	password=$(get_value "password")
+	token=$(get_value "token")
+	topic=$(get_value "topic")
+	icon=$(get_value "icon")
+	message=$(get_value "message")
+	title=$(get_value "title")
+	tags=$(get_value "tags")
+	delay=$(get_value "delay")
+	prority=$(get_value "priority")
+	send_photo=$(get_value "send_photo")
+	send_video=$(get_value "send_video")
+	attach=$(get_value "attach")
+	click=$(get_value "click")
+	filename=$(get_value "filename")
+	email=$(get_value "email")
+	call=$(get_value "call")
+	actions=$(get_value "actions")
+	twilio_token=$(get_value "twilio_token")
 }
 
 read_config
@@ -99,8 +104,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 		#save_config "call" "$call"
 		#save_config "actions" "$actions"
 		#save_config "twilio_token" "$twilio_token"
-		jct $config_file import $temp_config_file
-		rm $temp_config_file
+		jct "$config_file" import "$temp_config_file"
+		rm "$temp_config_file"
 
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else

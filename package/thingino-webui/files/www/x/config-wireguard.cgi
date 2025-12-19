@@ -7,11 +7,11 @@ fi
 
 page_title="WireGuard VPN"
 
-WG_DEV="wg0"
+domain="wireguard"
+config_file="/etc/thingino.json"
+temp_config_file="/tmp/$domain.json"
 
-defaults() {
-	true
-}
+WG_DEV="wg0"
 
 is_up() {
 	ip link show $WG_DEV | grep -q UP
@@ -21,22 +21,33 @@ status() {
 	is_up && echo -n "on" || echo -n "off"
 }
 
+defaults() {
+	true
+}
+
+save_config() {
+	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
+	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+}
+
+get_value() {
+	jct $config_file get "$domain.$1"
+}
+
 read_config() {
-	local CONFIG_FILE=/etc/wireguard.json
-	[ -f "$CONFIG_FILE" ] || return
+	[ -f "$config_file" ] || return
 
-	enabled=$(jct $CONFIG_FILE get wireguard.enabled)
-
-	  address=$(jct $CONFIG_FILE get wireguard.address)
-	  allowed=$(jct $CONFIG_FILE get wireguard.allowed)
-	      dns=$(jct $CONFIG_FILE get wireguard.dns)
-	 endpoint=$(jct $CONFIG_FILE get wireguard.endpoint)
-	keepalive=$(jct $CONFIG_FILE get wireguard.keepalive)
-	      mtu=$(jct $CONFIG_FILE get wireguard.mtu)
-	  peerpsk=$(jct $CONFIG_FILE get wireguard.peerpsk)
-	  peerhub=$(jct $CONFIG_FILE get wireguard.peerpub)
-	     port=$(jct $CONFIG_FILE get wireguard.port)
-	  privkey=$(jct $CONFIG_FILE get wireguard.privkey)
+	enabled=$(get_value "enabled")
+	address=$(get_value "address")
+	allowed=$(get_value "allowed")
+	dns=$(get_value "dns")
+	endpoint=$(get_value "endpoint")
+	keepalive=$(get_value "keepalive")
+	mtu=$(get_value "mtu")
+	peerpsk=$(get_value "peerpsk")
+	peerhub=$(get_value "peerpub")
+	port=$(get_value "port")
+	privkey=$(get_value "privkey")
 }
 
 read_config
@@ -44,38 +55,35 @@ read_config
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	# Read data from the form
-	  address="$POST_address"
-	  allowed="$POST_allowed"
-	      dns="$POST_dns"
-	  enabled="$POST_enabled"
-	 endpoint="$POST_endpoint"
+	address="$POST_address"
+	allowed="$POST_allowed"
+	dns="$POST_dns"
+	enabled="$POST_enabled"
+	endpoint="$POST_endpoint"
 	keepalive="$POST_keepalive"
-	      mtu="$POST_mtu"
-	  peerpsk="$POST_peerpsk"
-	  peerpub="$POST_peerpub"
-	     port="$POST_port"
-	  privkey="$POST_privkey"
+	mtu="$POST_mtu"
+	peerpsk="$POST_peerpsk"
+	peerpub="$POST_peerpub"
+	port="$POST_port"
+	privkey="$POST_privkey"
 
 	defaults
 
 	if [ -z "$error" ]; then
+		save_config "address" "$address"
+		save_config "allowed" "$allowed"
+		save_config "dns" "$dns"
+		save_config "enabled" "$enabled"
+		save_config "endpoint" "$endpoint"
+		save_config "keepalive" "$keepalive"
+		save_config "mtu" "$mtu"
+		save_config "peerpsk" "$peerpsk"
+		save_config "peerpub" "$peerpub"
+		save_config "port" "$port"
+		save_config "privkey" "$privkey"
 
-		tmpfile="$(mktemp -u).json"
-		echo '{}' > $tmpfile
-		jct $tmpfile set wireguard.address "$address"
-		jct $tmpfile set wireguard.allowed "$allowed"
-		jct $tmpfile set wireguard.dns "$dns"
-		jct $tmpfile set wireguard.enabled "$enabled"
-		jct $tmpfile set wireguard.endpoint "$endpoint"
-		jct $tmpfile set wireguard.keepalive "$keepalive"
-		jct $tmpfile set wireguard.mtu "$mtu"
-		jct $tmpfile set wireguard.peerpsk "$peerpsk"
-		jct $tmpfile set wireguard.peerpub "$peerpub"
-		jct $tmpfile set wireguard.port "$port"
-		jct $tmpfile set wireguard.privkey "$privkey"
-		jct /etc/motors.json import $tmpfile
-		rm $tmpfile
+		jct "$config_file" import "$temp_config_file"
+		rm "$temp_config_file"
 
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
@@ -88,8 +96,6 @@ defaults
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_switch "enabled" "Enable WireGuard" %>
-
 <div class="row">
 <div class="col col-12 col-lg-6 col-xxl-4 order-2 order-xxl-1">
 <h5>Interface</h5>
@@ -109,32 +115,29 @@ defaults
 </div>
 <div class="col col-12 col-lg-12 col-xxl-4 order-1 order-xxl-3">
 <div class="alert alert-info">
-<p><img src="/a/wireguard.svg" alt="WireGuard" class="img-fluid icon float-start me-2 mb-1">
-WireGuard is a fast and simple general purpose VPN.</p>
-<p>This interface supports the simple use case of connecting a single tunnel to a peer (server),
-and routing traffic from the camera, to a set of CIDRs (networks) through that server.</p>
+<p><img src="/a/wireguard.svg" alt="WireGuard" class="img-fluid icon float-start me-3 mb-1"> WireGuard is a fast and simple general purpose VPN.</p>
+<p>This interface supports the simple use case of connecting a single tunnel to a peer (server), and routing traffic from the camera, to a set of CIDRs (networks) through that server.</p>
 <% wiki_page "VPN:-Wireguard" %>
 </div>
+
+<div id="wg-ctrl" class="alert">
+<p id="button_placeholder"></p>
+<p class="text-end mb-0">
+<input type="checkbox" class="btn-check" autocomplete="off" id="btn-wg-control">
+<label class="btn" for="btn-wg-control">Switch WireGuard <span id="status_placeholder"></span></label></p>
+</div>
+
 </div>
 </div>
+
+<% field_switch "enabled" "Run WireGuard at boot" %>
+
 <% button_submit %>
 </form>
 
-<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_hidden "action" "startstop" %>
-<% button_submit "$action WireGuard" "danger" %>
-</form>
-
-<div id="wg-ctrl" class="alert">
-<p></p>
-<p class="text-end mb-0">
-<input type="checkbox" class="btn-check" autocomplete="off" id="btn-wg-control">
-<label class="btn" for="btn-wg-control">Switch WireGuard <span></span></label></p>
-</div>
-
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "grep '^' $CONFIG_FILE | sed -Ee 's/(key|psk)=.*$/\1=[__redacted__]/' | sort" %>
+<% ex "jct $config_file get $domain | sed -Ee 's/(key|psk)=.*$/\1=[__redacted__]/'" %>
 <% ex "wg show $WG_DEV 2>&1 | grep -A5 endpoint" %>
 </div>
 

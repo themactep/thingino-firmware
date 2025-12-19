@@ -3,37 +3,69 @@
 <%
 page_title="Admin profile"
 
-default_from_json admin_name
-default_from_json admin_email
-default_from_json admin_telegram
-default_from_json admin_discord
+domain="admin"
+config_file="/etc/thingino.json"
+temp_config_file="/tmp/$domain.json"
+
+defaults() {
+	[ -z "$name" ] && name="Thingino Camera Admin"
+}
+
+save_config() {
+	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
+	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+}
+
+get_value() {
+	jct $config_file get "$domain.$1"
+}
+
+read_config() {
+	[ -f "$config_file" ] || return
+
+	name="$(get_value "name")"
+	email="$(get_value "email")"
+	telegram="$(get_value "telegram")"
+	discord="$(get_value "discord")"
+}
+
+read_config
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	read_from_post "admin" "name email telegram discord"
+	name="$POST_name"
+	email="$POST_email"
+	telegram="$POST_telegram"
+	discord="$POST_discord"
 
 	# add @ to Discord and Telegram usernames, if missed
-	if [ -n "$admin_discord" ]; then
-		[ "${admin_discord:0:1}" = "@" ] || admin_discord="@$admin_discord"
+	if [ -n "$discord" ]; then
+		[ "${discord:0:1}" = "@" ] || discord="@$discord"
 	fi
 
-	if [ -n "$admin_telegram" ]; then
-		[ "${admin_telegram:0:1}" = "@" ] || admin_telegram="@$admin_telegram"
+	if [ -n "$telegram" ]; then
+		[ "${telegram:0:1}" = "@" ] || telegram="@$telegram"
 	fi
+
+	defaults
 
 	if [ -z "$error" ]; then
-		save2config "
-admin_name=\"$admin_name\"
-admin_email=\"$admin_email\"
-admin_telegram=\"$admin_telegram\"
-admin_discord=\"$admin_discord\"
-"
+		save_config "name" "$name"
+		save_config "email" "$email"
+		save_config "telegram" "$telegram"
+		save_config "discord" "$discord"
+
+		jct "$config_file" import "$temp_config_file"
+		rm "$temp_config_file"
+
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
 		redirect_to $SCRIPT_NAME "danger" "Error: $error"
 	fi
 fi
+
+defaults
 %>
 <%in _header.cgi %>
 
@@ -45,20 +77,21 @@ will be used as sender identity for emails originating from this camera.</p>
 </div>
 <div class="col">
 <% field_hidden "action" "update" %>
-<% field_text "admin_name" "Full name" %>
-<% field_text "admin_email" "Email address" %>
+<% field_text "name" "Full name" %>
+<% field_text "email" "Email address" %>
 </div>
 <div class="col">
-<% field_text "admin_telegram" "Username on Telegram" %>
-<% field_text "admin_discord" "Username on Discord" %>
+<% field_text "telegram" "Username on Telegram" %>
+<% field_text "discord" "Username on Discord" %>
 </div>
 </div>
+
 <% button_submit %>
 </form>
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "grep ^admin_ $CONFIG_FILE" %>
+<% ex "jct $config_file get $domain" %>
 </div>
 
 <%in _footer.cgi %>

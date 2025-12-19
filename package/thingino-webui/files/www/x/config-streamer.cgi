@@ -47,6 +47,7 @@ esac
 prudynt_config=/etc/prudynt.json
 
 rtsp_username=$(awk -F: '/Streaming Service/{print $1}' /etc/passwd)
+
 default_for rtsp_username $(jct $prudynt_config get rtsp.username)
 default_for rtsp_password $(jct $prudynt_config get rtsp.password)
 default_for rtsp_password "thingino"
@@ -294,6 +295,7 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 
 <script>
 const soc = "<%= $soc_family %>";
+const osdFontBasePath = "<%= $OSD_FONT_PATH %>";
 
 const endpoint = '/x/json-prudynt.cgi';
 
@@ -394,13 +396,26 @@ const stream_params = [
 const stream2_params = ['jpeg_channel'];
 
 // OSD
-const osd_params = [
-	'enabled', 'font_path', 'font_size', 'stroke_size', 'logo_enabled',
-	'time_enabled', 'time_fill_color', 'time_stroke_color',
-	'time_format', 'uptime_enabled', 'uptime_fill_color',
-	'uptime_stroke_color', 'usertext_enabled', 'usertext_fill_color',
-	'usertext_stroke_color', 'usertext_format'
-];
+const buildNullObject = (keys) => {
+	const obj = {};
+	keys.forEach((key) => { obj[key] = null; });
+	return obj;
+};
+
+const buildStreamRequest = () => {
+	const req = buildNullObject(stream_params);
+	req.osd = {
+		enabled: null,
+		font_path: null,
+		font_size: null,
+		stroke_size: null,
+		logo: { enabled: null },
+		time: { enabled: null, format: null, fill_color: null, stroke_color: null },
+		uptime: { enabled: null, format: null, fill_color: null, stroke_color: null },
+		usertext: { enabled: null, format: null, fill_color: null, stroke_color: null }
+	};
+	return req;
+};
 
 let sts;
 
@@ -412,6 +427,53 @@ function rgba2alpha(hex8) {
 	const alphaHex = hex8.substring(7, 9);
 	const alpha = parseInt(alphaHex, 16);
 	return alpha;
+}
+
+function updateColorInputs(streamIndex, elementKey, fillHex, strokeHex) {
+	if (typeof fillHex === 'string' && fillHex.length >= 7) {
+		const fillInput = $(`#osd${streamIndex}_${elementKey}_fillcolor`);
+		if (fillInput) fillInput.value = rgba2color(fillHex);
+		const fillAlphaInput = $(`#osd${streamIndex}_${elementKey}_fillcolor-alpha`);
+		if (fillAlphaInput) fillAlphaInput.value = rgba2alpha(fillHex);
+	}
+	if (typeof strokeHex === 'string' && strokeHex.length >= 7) {
+		const strokeInput = $(`#osd${streamIndex}_${elementKey}_strokecolor`);
+		if (strokeInput) strokeInput.value = rgba2color(strokeHex);
+		const strokeAlphaInput = $(`#osd${streamIndex}_${elementKey}_strokecolor-alpha`);
+		if (strokeAlphaInput) strokeAlphaInput.value = rgba2alpha(strokeHex);
+	}
+}
+
+function alphaToHex(value) {
+	const numeric = Number(value);
+	if (Number.isNaN(numeric)) return 'ff';
+	return numeric.toString(16).padStart(2, '0');
+}
+
+function normalizeOsdElement(osd, key) {
+	const nested = osd && osd[key] ? osd[key] : {};
+	return {
+		enabled: nested.enabled,
+		format: nested.format,
+		fill_color: nested.fill_color,
+		stroke_color: nested.stroke_color
+	};
+}
+
+function applyCheckbox(selector, value) {
+	if (typeof value === 'undefined') return;
+	const el = $(selector);
+	if (el) el.checked = value;
+}
+
+function syncOsdTextElement(streamIndex, elementKey, config, withFormat = false) {
+	if (!config) return;
+	applyCheckbox(`#osd${streamIndex}_${elementKey}_enabled`, config.enabled);
+	if (withFormat && typeof config.format !== 'undefined') {
+		const input = $(`#osd${streamIndex}_${elementKey}_format`);
+		if (input) input.value = config.format;
+	}
+	updateColorInputs(streamIndex, elementKey, config.fill_color, config.stroke_color);
 }
 
 function handleMessage(msg) {
@@ -429,64 +491,28 @@ function handleMessage(msg) {
 					setValue(data, domain, x);
 			});
 			if (data.osd) {
-				if (data.osd.enabled) {
-					$(`#osd${i}_enabled`).checked = data.osd.enabled;
+				const osd = data.osd;
+				if (typeof osd.enabled !== 'undefined') {
+					$(`#osd${i}_enabled`).checked = osd.enabled;
 					toggleWrappers(i);
 				}
-				if (data.osd.font_path)
-					$(`#osd${i}_fontname`).value = data.osd.font_path.split('/').reverse()[0];
-				if (data.osd.font_size) {
-					$(`#osd${i}_fontsize-show`).textContent = data.osd.font_size;
-					$(`#osd${i}_fontsize`).value = data.osd.font_size;
+				if (osd.font_path)
+					$(`#osd${i}_fontname`).value = osd.font_path.split('/').reverse()[0];
+				if (typeof osd.font_size !== 'undefined') {
+					$(`#osd${i}_fontsize-show`).textContent = osd.font_size;
+					$(`#osd${i}_fontsize`).value = osd.font_size;
 				}
-				if (data.osd.font_stroke_size) {
-					$(`#osd${i}_strokesize-show`).textContent = data.osd.font_stroke_size;
-					$(`#osd${i}_strokesize`).value = data.osd.font_stroke_size;
-				}
-
-				if (data.osd.logo_enabled)
-					$(`#osd${i}_logo_enabled`).checked = data.osd.logo_enabled;
-
-				if (data.osd.time_enabled)
-					$(`#osd${i}_time_enabled`).checked = data.osd.time_enabled;
-				if (data.osd.time_format)
-					$(`#osd${i}_time_format`).value = data.osd.time_format;
-
-				if (data.osd.time_font_color) {
-					$(`#osd${i}_time_fillcolor`).value = rgba2color(data.osd.time_font_color);
-					$(`#osd${i}_time_fillcolor-alpha`).value = rgba2alpha(data.osd.time_font_color);
+				if (typeof osd.stroke_size !== 'undefined') {
+					$(`#osd${i}_strokesize-show`).textContent = osd.stroke_size;
+					$(`#osd${i}_strokesize`).value = osd.stroke_size;
 				}
 
-				if (data.osd.time_font_stroke_color) {
-					$(`#osd${i}_time_strokecolor`).value = rgba2color(data.osd.time_font_stroke_color);
-				}
+				const logo = osd.logo || {};
+				applyCheckbox(`#osd${i}_logo_enabled`, logo.enabled);
 
-				if (data.osd.uptime_enabled)
-					$(`#osd${i}_uptime_enabled`).checked = data.osd.uptime_enabled;
-
-				if (data.osd.uptime_font_color) {
-					$(`#osd${i}_uptime_fillcolor`).value = rgba2color(data.osd.uptime_font_color);
-					$(`#osd${i}_uptime_fillcolor-alpha`).value = rgba2alpha(data.osd.uptime_font_color);
-				}
-
-				if (data.osd.uptime_font_stroke_color) {
-					$(`#osd${i}_uptime_strokecolor`).value = rgba2color(data.osd.uptime_font_stroke_color);
-				}
-
-				if (data.osd.usertext_enabled)
-					$(`#osd${i}_usertext_enabled`).checked = data.osd.usertext_enabled;
-
-				if (data.osd.usertext_font_color) {
-					$(`#osd${i}_usertext_fillcolor`).value = rgba2color(data.osd.usertext_font_color);
-					$(`#osd${i}_usertext_fillcolor-alpha`).value = rgba2alpha(data.osd.usertext_font_color);
-				}
-
-				if (data.osd.usertext_font_stroke_color) {
-					$(`#osd${i}_usertext_strokecolor`).value = rgba2color(data.osd.usertext_font_stroke_color);
-				}
-
-				if (data.osd.usertext_format)
-					$(`#osd${i}_usertext_format`).value = data.osd.usertext_format;
+				syncOsdTextElement(i, 'time', normalizeOsdElement(osd, 'time'), true);
+				syncOsdTextElement(i, 'uptime', normalizeOsdElement(osd, 'uptime'));
+				syncOsdTextElement(i, 'usertext', normalizeOsdElement(osd, 'usertext'), true);
 			}
 		}
 	}
@@ -514,18 +540,16 @@ function handleMessage(msg) {
 	}
 }
 
+
 async function loadConfig() {
-	const stream_rq = '{' +
-		stream_params.map((x) => `"${x}":null`).join() +
-		',"osd":{' + osd_params.map((x) => `"${x}":null`).join() + '}' +
-		'}';
-	const payload = '{' +
-		'"stream0":' + stream_rq +
-		',"stream1":' + stream_rq +
-		',"stream2":{' + stream2_params.map((x) => `"${x}":null`).join() + '}' +
-		',"audio":{' + audio_params.map((x) => `"${x}":null`).join() + '}' +
-		',"image":{' + image_params.map((x) => `"${x}":null`).join() + '}' +
-		'}';
+	const payloadObj = {
+		stream0: buildStreamRequest(),
+		stream1: buildStreamRequest(),
+		stream2: buildNullObject(stream2_params),
+		audio: buildNullObject(audio_params),
+		image: buildNullObject(image_params)
+	};
+	const payload = JSON.stringify(payloadObj);
 	console.log('===>', payload);
 	try {
 		const response = await fetch(endpoint, {
@@ -565,28 +589,73 @@ async function sendToEndpoint(payload) {
 	}
 }
 
+function sendOsdUpdate(streamId, osdPayload, restartThread = 10) {
+	const payload = {
+		[`stream${streamId}`]: {
+			osd: osdPayload
+		}
+	};
+	if (restartThread) {
+		payload.action = { restart_thread: restartThread };
+	}
+	sendToEndpoint(JSON.stringify(payload));
+}
+
 // n - stream #,
 // el - osd element
 function setFontColor(n, el) {
 	const fillcolor = $(`#osd${n}_${el}_fillcolor`).value;
-	const fillcolor_alpha = parseInt($(`#osd${n}_${el}_fillcolor-alpha`).value).toString(16);
+	const fillAlphaSlider = $(`#osd${n}_${el}_fillcolor-alpha`).value;
 	const strokecolor = $(`#osd${n}_${el}_strokecolor`).value;
-	const strokecolor_alpha = parseInt($(`#osd${n}_${el}_strokecolor-alpha`).value).toString(16);
+	const strokeAlphaSlider = $(`#osd${n}_${el}_strokecolor-alpha`).value;
 
-	if (fillcolor == '' || strokecolor == '') return;
-	sendToEndpoint('{"stream'+n+'":{"osd":{'+
-		'"'+el+'_font_color":"'+fillcolor+fillcolor_alpha+'",'+
-		'"'+el+'_font_stroke_color":"'+strokecolor+strokecolor_alpha+'"'+
-		'}},"action":{"restart_thread":10}}');
+	if (fillcolor === '' && strokecolor === '') return;
+	const update = {};
+	if (fillcolor !== '') {
+		update.fill_color = `${fillcolor}${alphaToHex(fillAlphaSlider)}`;
+	}
+	if (strokecolor !== '') {
+		update.stroke_color = `${strokecolor}${alphaToHex(strokeAlphaSlider)}`;
+	}
+	if (Object.keys(update).length)
+		sendOsdUpdate(n, { [el]: update });
+}
+
+function setFont(n) {
+	const fontSelect = $(`#osd${n}_fontname`);
+	const fontSizeInput = $(`#osd${n}_fontsize`);
+	const strokeSizeInput = $(`#osd${n}_strokesize`);
+	if (!fontSelect || !fontSizeInput || !strokeSizeInput) return;
+
+	const payload = {};
+	const fontName = fontSelect.value;
+	if (fontName)
+		payload.font_path = `${osdFontBasePath}/${fontName}`;
+
+	const fontSize = Number(fontSizeInput.value);
+	if (!Number.isNaN(fontSize)) {
+		payload.font_size = fontSize;
+		$(`#osd${n}_fontsize-show`).textContent = fontSize;
+	}
+
+	const strokeSize = Number(strokeSizeInput.value);
+	if (!Number.isNaN(strokeSize)) {
+		payload.stroke_size = strokeSize;
+		$(`#osd${n}_strokesize-show`).textContent = strokeSize;
+	}
+
+	if (Object.keys(payload).length === 0) return;
+	sendOsdUpdate(n, payload);
 }
 
 function toggleOSDElement(el) {
-	const status = el.checked ? 'true' : 'false';
-	const stream_id = el.id.substr(3, 1);
-	const id = el.id.replace('osd0_', '').replace('osd1_', '');
-	sendToEndpoint('{"stream'+stream_id+'":{"osd":{'+
-		'"'+id+'":'+status+
-		'}},"action":{"restart_thread":10}}');
+	const stream_id = Number(el.id.substr(3, 1));
+	if (Number.isNaN(stream_id)) return;
+	const id = el.id.replace(/^osd[01]_/, '');
+	if (!id.endsWith('_enabled')) return;
+	const element = id.slice(0, -8);
+	if (!element) return;
+	sendOsdUpdate(stream_id, { [element]: { enabled: el.checked } });
 }
 
 function toggleWrappers(id) {
@@ -710,7 +779,7 @@ for (const i in [0, 1]) {
 	$('#osd'+i+'_fontsize').onchange = () => setFont(i);
 	$('#osd'+i+'_strokesize').onchange = () => setFont(i);
 
-	$('#osd'+i+'_enabled').onchange = (ev) => sendToEndpoint('{"stream'+i+'":{"osd":{"enabled":'+ev.target.checked+'}},"action":{"restart_thread":10}}}');
+	$('#osd'+i+'_enabled').onchange = (ev) => sendOsdUpdate(i, { enabled: ev.target.checked });
 	$('#osd'+i+'_logo_enabled').onchange = (ev) => toggleOSDElement(ev.target);
 
 	$('#osd'+i+'_time_enabled').onchange = (ev) => toggleOSDElement(ev.target);
@@ -718,7 +787,7 @@ for (const i in [0, 1]) {
 	$('#osd'+i+'_time_fillcolor-alpha').onchange = () => setFontColor(i, 'time');
 	$('#osd'+i+'_time_strokecolor').onchange = () => setFontColor(i, 'time');
 	$('#osd'+i+'_time_strokecolor-alpha').onchange = () => setFontColor(i, 'time');
-	$('#osd'+i+'_time_format').onchange = (ev) => sendToEndpoint('{"stream'+i+'":{"osd":{"time_format":"'+ev.target.value+'"}},"action":{"restart_thread":10}}}');
+	$('#osd'+i+'_time_format').onchange = (ev) => sendOsdUpdate(i, { time: { format: ev.target.value } });
 
 	$('#osd'+i+'_uptime_enabled').onchange = (ev) => toggleOSDElement(ev.target);
 	$('#osd'+i+'_uptime_fillcolor').onchange = () => setFontColor(i, 'uptime');
@@ -731,7 +800,7 @@ for (const i in [0, 1]) {
 	$('#osd'+i+'_usertext_fillcolor-alpha').onchange = () => setFontColor(i, 'usertext');
 	$('#osd'+i+'_usertext_strokecolor').onchange = () => setFontColor(i, 'usertext');
 	$('#osd'+i+'_usertext_strokecolor-alpha').onchange = () => setFontColor(i, 'usertext');
-	$('#osd'+i+'_usertext_format').onchange = (ev) => sendToEndpoint('{"stream'+i+'":{"osd":{"usertext_format":"'+ev.target.value+'"}},"action":{"restart_thread":10}}}');
+	$('#osd'+i+'_usertext_format').onchange = (ev) => sendOsdUpdate(i, { usertext: { format: ev.target.value } });
 }
 
 $('#preview_source_0').addEventListener('click', () => { $('#preview').src='/x/ch0.mjpg' });

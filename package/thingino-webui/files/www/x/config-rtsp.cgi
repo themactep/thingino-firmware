@@ -3,65 +3,94 @@
 <%
 page_title="RTSP/ONVIF Access"
 
-prudynt_config=/etc/prudynt.json
+domain="server"
+config_file="/etc/onvif.json"
+temp_config_file="/tmp/onvif.json"
+prudynt_config_file=/etc/prudynt.json
 
-rtsp_username=$(awk -F: '/Streaming Service/{print $1}' /etc/passwd)
-default_for rtsp_username "$(jct $prudynt_config get rtsp.username | tr -d '"')"
-default_for rtsp_username "thingino"
+defaults() {
+	[ -z "$username" ] && username="thingino"
+	[ -z "$password" ] && password="thingino"
+	[ -z "$onvif_port" ] && onvif_port="80"
+	[ -z "$rtsp_port" ] && rtsp_port="554"
+	[ -z "$rtsp_ch0" ] && rtsp_ch0="ch0"
+	[ -z "$rtsp_ch1" ] && rtsp_ch1="ch1"
+}
 
-default_for rtsp_password "$(jct $prudynt_config get rtsp.password | tr -d '"')"
-default_for rtsp_password "thingino"
+save_config() {
+	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
+	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+}
 
-rtsp_port=$(jct $prudynt_config get rtsp.port)
-default_for rtsp_port "554"
+get_value() {
+	jct $config_file get "$domain.$1"
+}
 
-onvif_port=$(jct /etc/onvif.json get port)
-default_for onvif_port "80"
+read_config() {
+	[ -f "$config_file" ] || return
 
-rtsp_endpoint_ch0=$(jct $prudynt_config get stream0.rtsp_endpoint | tr -d '"')
-default_for rtsp_endpoint_ch0 "ch0"
+	username="$(get_value "username")"
+	password="$(get_value "password")"
+	onvif_port="$(get_value "port")"
 
-rtsp_endpoint_ch1=$(jct $prudynt_config get stream1.rtsp_endpoint | tr -d '"')
-default_for rtsp_endpoint_ch1 "ch1"
+	rtsp_port="$(jct $prudynt_config_file get rtsp.port)"
+	rtsp_ch0="$(jct $prudynt_config_file get stream0.rtsp_endpoint)"
+	rtsp_ch1="$(jct $prudynt_config_file get stream1.rtsp_endpoint)"
+
+	#username=$(awk -F: '/Streaming Service/{print $1}' /etc/passwd)
+
+	[ -z "$username" ] && username="$(jct $prudynt_config_file get rtsp.username)"
+	[ -z "$password" ] && password="$(jct $prudynt_config_file get rtsp.password)"
+}
+
+read_config
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	rtsp_password=$POST_rtsp_password
-	sanitize rtsp_password
+	password=$POST_password
+	sanitize $password
 
 	if [ -z "$error" ]; then
-		jct /etc/onvif.json set password "$rtsp_password"
+#		save_config "username" "$username"
+		save_config "password" "$password"
+		jct "$config_file" import "$temp_config_file"
+		rm "$temp_config_file"
 
-		jct $prudynt_config set rtsp.password "$rtsp_password" > /dev/null
+		# update password in prudynt config
+		jct $prudynt_config_file set rtsp.password "$password" > /dev/null
 
-		echo "$rtsp_username:$rtsp_password" | chpasswd -c sha512
+		# update password in system
+		echo "$username:$password" | chpasswd -c sha512
 
 		service restart onvif_discovery >/dev/null
 		service restart onvif_notify >/dev/null
 		service restart prudynt >/dev/null
+
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
 		redirect_to $SCRIPT_NAME "danger" "Error: $error"
 	fi
 fi
+
+defaults
 %>
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <div class="row">
 <div class="col-lg-4">
-<% field_text "rtsp_username" "RTSP/ONVIF Username" %>
-<% field_password "rtsp_password" "RTSP/ONVIF Password" %>
+<% field_text "username" "RTSP/ONVIF Username" %>
+<% field_password "password" "RTSP/ONVIF Password" %>
 <% button_submit %>
 </div>
 <div class="col-lg-8">
 <div class="alert alert-info">
 <dl class="mb-0">
 <dt>ONVIF URL</dt>
-<dd class="cb">onvif://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>:<%= $onvif_port %>/onvif/device_service</dd>
+<dd class="cb">onvif://<%= $username %>:<%= $password %>@<%= $network_address %>:<%= $onvif_port %>/onvif/device_service</dd>
 <dt>RTSP Mainstream URL</dt>
-<dd class="cb">rtsp://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>:<%= $rtsp_port %>/<%= $rtsp_endpoint_ch0 %></dd>
+<dd class="cb">rtsp://<%= $username %>:<%= $password %>@<%= $network_address %>:<%= $rtsp_port %>/<%= $rtsp_ch0 %></dd>
 <dt>RTSP Substream URL</dt>
-<dd class="cb">rtsp://<%= $rtsp_username %>:<%= $rtsp_password %>@<%= $network_address %>:<%= $rtsp_port %>/<%= $rtsp_endpoint_ch1 %></dd>
+<dd class="cb">rtsp://<%= $username %>:<%= $password %>@<%= $network_address %>:<%= $rtsp_port %>/<%= $rtsp_ch1 %></dd>
 </dl>
 </div>
 </div>
@@ -71,8 +100,8 @@ fi
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "grep ^thingino /etc/shadow" %>
-<% ex "grep password /etc/onvif.json" %>
-<% ex "grep password $prudynt_config | sed -E 's/^\s+//'" %>
+<% ex "jct $config_file get server.password" %>
+<% ex "jct $prudynt_config_file get rtsp.password" %>
 </div>
 
 <script>

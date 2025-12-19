@@ -2,88 +2,86 @@
 <%in _common.cgi %>
 <%
 page_title="Day/Night Mode Control"
-LOG=/tmp/webui.log
+
+domain="daynight"
+config_file="/etc/prudynt.json"
+temp_config_file="/tmp/daynight.json"
 
 defaults() {
-	default_from_json day_night_color
-	default_from_json day_night_ircut
-	default_from_json day_night_ir850
-	default_from_json day_night_ir940
-	default_from_json day_night_white
-	default_from_json dusk2dawn_enabled
-	default_from_json dusk2dawn_lat
-	default_from_json dusk2dawn_lng
-	default_from_json dusk2dawn_offset_sr
-	default_from_json dusk2dawn_offset_ss
-
-	default_for day_night_color "false"
-	default_for day_night_ircut "false"
-	default_for day_night_ir850 "false"
-	default_for day_night_ir940 "false"
-	default_for day_night_white "false"
-	default_for dusk2dawn_enabled "false"
-	default_for dusk2dawn_offset_sr "0"
-	default_for dusk2dawn_offset_ss "0"
-
-	if [ "enabled" = $(service status daynightd) ]; then
-		default_for dnd_enabled "true"
-	else
-		default_for dnd_enabled "false"
-	fi
-	default_for dnd_threshold_low "$(jct /etc/daynightd.json get brightness_thresholds.threshold_low)"
-	default_for dnd_threshold_high "$(jct /etc/daynightd.json get brightness_thresholds.threshold_high)"
-	default_for dnd_hysteresis "$(jct /etc/daynightd.json get brightness_thresholds.hysteresis_factor)"
+	[ -z "$enabled" ] && enabled="false"
 }
+
+save_config() {
+	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
+	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+}
+
+get_value() {
+	jct $config_file get "$domain.$1"
+}
+
+read_config() {
+	[ -f "$config_file" ] || return
+
+	enabled="$(get_value "enabled")"
+	ev_day_low_primary="$(get_value "ev_day_low_primary")"
+	ev_day_low_secondary="$(get_value "ev_day_low_secondary")"
+	ev_night_high="$(get_value "ev_night_high")"
+	sample_interval_ms="$(get_value "sample_interval_ms")"
+	switch_above_percent="$(get_value "switch_above_percent")"
+	switch_below_percent="$(get_value "switch_below_percent")"
+	tolerance_percent="$(get_value "tolerance_percent")"
+	controls_color="$(get_value "controls.color")"
+	controls_ir850="$(get_value "controls.ir850")"
+	controls_ir940="$(get_value "controls.ir940")"
+	controls_ircut="$(get_value "controls.ircut")"
+	controls_white="$(get_value "controls.white")"
+}
+
+read_config
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	read_from_post "dnd" "enabled threshold_low threshold_high hysteresis"
-	read_from_post "day_night" "color enabled ir850 ir940 ircut white"
-	read_from_post "dusk2dawn" "enabled lat lng offset_sr offset_ss"
+	enabled="$POST_enabled"
+	ev_day_low_primary="$POST_ev_day_low_primary"
+	ev_day_low_secondary="$POST_ev_day_low_secondary"
+	ev_night_high="$POST_ev_night_high"
+	sample_interval_ms="$POST_sample_interval_ms"
+	switch_above_percent="$POST_switch_above_percent"
+	switch_below_percent="$POST_switch_below_percent"
+	tolerance_percent="$POST_tolerance_percent"
+	controls_color="$POST_controls_color"
+	controls_ir850="$POST_controls_ir850"
+	controls_ir940="$POST_controls_ir940"
+	controls_ircut="$POST_controls_ircut"
+	controls_white="$POST_controls_white"
+
+	# validate
+	if [ "true" = "$enabled" ]; then
+		error_if_empty "$switch_above_percent" "Day mode threshold cannot be empty"
+		error_if_empty "$switch_below_percent" "Night mode threshold cannot be empty"
+		error_if_empty "$tolerance_percent"    "Hysteresis cannot be empty"
+	fi
 
 	defaults
 
-	# validate
-	if [ "true" = "$dnd_enabled" ]; then
-		error_if_empty "$dnd_threshold_low" "Day mode threshold cannot be empty"
-		error_if_empty "$dnd_threshold_high" "Night mode threshold cannot be empty"
-		error_if_empty "$dnd_hysteresis" "Hysteresis cannot be empty"
-	fi
-
-	if [ "true" = "$dusk2dawn_enabled" ]; then
-		error_if_empty "$dusk2dawn_lat" "Latitude cannot be empty"
-		error_if_empty "$dusk2dawn_lng" "Longitude cannot be empty"
-	fi
-
 	if [ -z "$error" ]; then
-		save2config "
-day_night_color=\"$day_night_color\"
-day_night_ir850=\"$day_night_ir850\"
-day_night_ir940=\"$day_night_ir940\"
-day_night_ircut=\"$day_night_ircut\"
-day_night_white=\"$day_night_white\"
-dusk2dawn_enabled=\"$dusk2dawn_enabled\"
-dusk2dawn_lat=\"$dusk2dawn_lat\"
-dusk2dawn_lng=\"$dusk2dawn_lng\"
-dusk2dawn_offset_sr=\"$dusk2dawn_offset_sr\"
-dusk2dawn_offset_ss=\"$dusk2dawn_offset_ss\"
-"
-		jct /etc/daynightd.json set brightness_thresholds.threshold_low "$dnd_threshold_low" >>$LOG 2>&1
-		jct /etc/daynightd.json set brightness_thresholds.threshold_high "$dnd_threshold_high" >>$LOG 2>&1
-		jct /etc/daynightd.json set brightness_thresholds.hysteresis_factor "$dnd_hysteresis" >>$LOG 2>&1
-
-		if [ "true" = "$dnd_enabled" ]; then
-			service enable daynightd >>$LOG 2>&1
-			service start daynightd >>$LOG 2>&1
-		else
-			service stop daynightd >>$LOG 2>&1
-			service disable daynightd >>$LOG 2>&1
-		fi
-
-		if [ "true" = "$dusk2dawn_enabled" ]; then
-			dusk2dawn >>$LOG 2>&1
-		fi
+		save_config "enabled" "$enabled"
+		save_config "ev_day_low_primary" "$ev_day_low_primary"
+		save_config "ev_day_low_secondary" "$ev_day_low_secondary"
+		save_config "ev_night_high" "$ev_night_high"
+		save_config "sample_interval_ms" "$sample_interval_ms"
+		save_config "switch_above_percent" "$switch_above_percent"
+		save_config "switch_below_percent" "$switch_below_percent"
+		save_config "tolerance_percent" "$tolerance_percent"
+		save_config "controls.color" "$controls_color"
+		save_config "controls.ir850" "$controls_ir850"
+		save_config "controls.ir940" "$controls_ir940"
+		save_config "controls.ircut" "$controls_ircut"
+		save_config "controls.white" "$controls_white"
+		jct "$config_file" import "$temp_config_file"
+		rm "$temp_config_file"
 
 		redirect_to $SCRIPT_NAME "success" "Data updated."
 	else
@@ -100,23 +98,25 @@ defaults
 
 <div class="col">
 <h3 class="alert alert-warning text-center">Gain <span class="dnd_gain"></span>%</h3>
-<% field_range "dnd_threshold_low" "Switch to Day mode at value below, %" %>
-<% field_range "dnd_threshold_high" "Switch to Night at value above, %" %>
-<% field_range "dnd_hysteresis" "Hysteresis factor" "0.1,0.9,0.1" %>
+<% field_switch "enabled" "Enable photosensing" %>
 </div>
 
 <div class="col mb-3">
-<h3>By Illumination</h3>
-<% field_switch "dnd_enabled" "Enable Day/Night daemon" %>
-
-<h5>Actions to perform</h5>
-<% field_checkbox "day_night_color" "Change color mode" %>
-<% [ -z "$gpio_ircut" ] || field_checkbox "day_night_ircut" "Flip IR cut filter" %>
-<% [ -z "$gpio_ir850" ] || field_checkbox "day_night_ir850" "Toggle IR 850 nm" %>
-<% [ -z "$gpio_ir940" ] || field_checkbox "day_night_ir940" "Toggle IR 940 nm" %>
-<% [ -z "$gpio_white" ] || field_checkbox "day_night_white" "Toggle white light" %>
+<% field_range "switch_above_percent" "Day mode at value below, %" %>
+<% field_range "switch_below_percent" "Night mode at value above, %" %>
+<% field_range "tolerance_percent" "Tolerance, %" %>
 </div>
 
+<div class="col mb-3">
+<h5>Controls</h5>
+<% field_checkbox "controls_color" "Change color mode" %>
+<% field_checkbox "controls_ircut" "Flip IR cut filter" %>
+<% field_checkbox "controls_ir850" "Toggle IR 850 nm" %>
+<% field_checkbox "controls_ir940" "Toggle IR 940 nm" %>
+<% field_checkbox "controls_white" "Toggle white light" %>
+</div>
+
+<!--
 <div class="col">
 <h3>By Sun</h3>
 <% field_switch "dusk2dawn_enabled" "Enable Sun tracking" %>
@@ -130,6 +130,7 @@ defaults
 <div class="col"><% field_text "dusk2dawn_offset_ss" "Sunset offset" "minutes" %></div>
 </div>
 </div>
+-->
 
 <div class="col">
 <div class="alert alert-info">
@@ -145,8 +146,7 @@ Switching between modes is triggered by changes in the gain beyond the threshold
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "jct /etc/daynightd.json print" %>
-<% ex "crontab -l" %>
+<% ex "jct $config_file get $domain" %>
 </div>
 
 <%in _footer.cgi %>
