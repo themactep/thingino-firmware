@@ -1,0 +1,19 @@
+--- a/lib/net_mosq.c	2025-12-20 11:36:52.904037859 +0000
++++ b/lib/net_mosq.c	2025-12-20 11:37:01.672329975 +0000
+@@ -1,10 +1,12 @@
+ 
+ 	}
+ #elif defined(WITH_TLS_MBEDTLS)
+-	int rc = mosquitto__mbedtls_connect(mosq, host);
+-	if(rc){
+-		net__socket_close(mosq);
+-		return rc;
++	if(mosq->tls_cafile || mosq->tls_capath || mosq->tls_certfile || mosq->tls_keyfile || mosq->tls_psk || mosq->tls_use_os_certs || mosq->port == 8883 || mosq->port == 8884) {
++		int rc = mosquitto__mbedtls_connect(mosq, host);
++		if(rc){
++			net__socket_close(mosq);
++			return rc;
++		}
+ 	}
+ #else
+ 	UNUSED(mosq);
