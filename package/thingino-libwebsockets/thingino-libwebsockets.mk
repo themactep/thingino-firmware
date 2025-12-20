@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-# Ensure libwebsockets pulls headers from the real zlib provider.
+# Ensure libwebsockets pulls headers from the real zlib provider (libzlib).
 override LIBWEBSOCKETS_DEPENDENCIES := \
 	$(filter-out zlib,$(LIBWEBSOCKETS_DEPENDENCIES)) \
 	libzlib

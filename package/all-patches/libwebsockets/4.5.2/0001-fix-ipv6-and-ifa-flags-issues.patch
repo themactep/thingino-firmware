@@ -1,0 +1,79 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Fri, 20 Dec 2024 14:50:00 +0000
+Subject: [PATCH] Fix IPv6 header conflicts and IFA_FLAGS for uClibc/musl
+
+This patch addresses multiple compilation issues with libwebsockets 4.5.2
+on embedded Linux systems using uClibc or musl libc:
+
+1. IPv6 structure redefinition: Prevent conflicts between linux/ipv6.h
+   and netinet/in.h by using __UAPI_DEF_* guards and excluding linux/ipv6.h
+   on Linux systems where netinet/in.h already provides the definitions.
+
+2. IFA_FLAGS undefined: Add fallback definition for IFA_FLAGS constant
+   which may not be present in older kernel headers.
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+diff -Naur libwebsockets-4.5.2/lib/plat/unix/private-lib-plat-unix.h /home/paul/dev/thingino-firmware-stable/overrides/libwebsockets-4.5.2/lib/plat/unix/private-lib-plat-unix.h
+--- libwebsockets-4.5.2/lib/plat/unix/private-lib-plat-unix.h	2025-12-03 01:15:09.000000000 -0500
++++ /home/paul/dev/thingino-firmware-stable/overrides/libwebsockets-4.5.2/lib/plat/unix/private-lib-plat-unix.h	2025-12-20 09:42:46.155524448 -0500
+@@ -24,6 +24,16 @@
+  *  Included from lib/private-lib-core.h if no explicit platform
+  */
+ 
++/* Prevent IPv6 structure redefinition when using linux/ipv6.h */
++#ifdef __linux__
++#define __UAPI_DEF_IN6_ADDR 0
++#define __UAPI_DEF_SOCKADDR_IN6 0
++#define __UAPI_DEF_IPV6_MREQ 0
++#define __UAPI_DEF_IN6_PKTINFO 0
++#define __UAPI_DEF_IP6_MTUINFO 0
++#define __UAPI_DEF_IPPROTO_V6 0
++#endif
++
+ #include <fcntl.h>
+ #include <strings.h>
+ #include <unistd.h>
+diff -Naur libwebsockets-4.5.2/lib/plat/unix/unix-sockets.c /home/paul/dev/thingino-firmware-stable/overrides/libwebsockets-4.5.2/lib/plat/unix/unix-sockets.c
+--- libwebsockets-4.5.2/lib/plat/unix/unix-sockets.c	2025-12-03 01:15:09.000000000 -0500
++++ /home/paul/dev/thingino-firmware-stable/overrides/libwebsockets-4.5.2/lib/plat/unix/unix-sockets.c	2025-12-20 09:44:28.337764613 -0500
+@@ -27,7 +27,8 @@
+ #endif
+ #include "private-lib-core.h"
+ 
+-#if defined(LWS_HAVE_LINUX_IPV6_H)
++/* Don't include linux/ipv6.h on Linux - we get IPv6 defs from netinet/in.h */
++#if defined(LWS_HAVE_LINUX_IPV6_H) && !defined(__linux__)
+ #include <linux/ipv6.h>
+ #endif
+ 
+diff -Naur libwebsockets-4.5.2/lib/roles/netlink/ops-netlink.c /home/paul/dev/thingino-firmware-stable/overrides/libwebsockets-4.5.2/lib/roles/netlink/ops-netlink.c
+--- libwebsockets-4.5.2/lib/roles/netlink/ops-netlink.c	2025-12-03 01:15:09.000000000 -0500
++++ /home/paul/dev/thingino-firmware-stable/overrides/libwebsockets-4.5.2/lib/roles/netlink/ops-netlink.c	2025-12-20 09:45:56.291678406 -0500
+@@ -36,6 +36,11 @@
+ #include <linux/netlink.h>
+ #include <linux/rtnetlink.h>
+ 
++/* Fallback definition for older Linux headers */
++#ifndef IFA_FLAGS
++#define IFA_FLAGS 8
++#endif
++
+ //#define lwsl_netlink lwsl_notice
+ #define lwsl_cx_netlink		lwsl_cx_info
+ #define lwsl_cx_netlink_debug	lwsl_cx_debug
+diff: libwebsockets-4.5.2/minimal-examples/embedded/esp32/esp-c3dev/libwebsockets: recursive directory loop
+diff: libwebsockets-4.5.2/minimal-examples/embedded/esp32/esp-heltec-wb32/libwebsockets: recursive directory loop
+diff: libwebsockets-4.5.2/minimal-examples/embedded/esp32/esp-wrover-kit/libwebsockets: recursive directory loop
+diff: libwebsockets-4.5.2/minimal-examples/embedded/lhp/esp32-heltec-128-64/libwebsockets: recursive directory loop
+diff: libwebsockets-4.5.2/minimal-examples/embedded/lhp/esp32s2-kaluga-320-200/libwebsockets: recursive directory loop
+diff: libwebsockets-4.5.2/minimal-examples/embedded/lhp/esp32-waveshare-104-212/libwebsockets: recursive directory loop
+diff: libwebsockets-4.5.2/minimal-examples/embedded/lhp/esp32-waveshare-122-250-bw/libwebsockets: recursive directory loop
+diff: libwebsockets-4.5.2/minimal-examples/embedded/lhp/esp32-waveshare-400-300-4gray/libwebsockets: recursive directory loop
+diff: libwebsockets-4.5.2/minimal-examples/embedded/lhp/esp32-waveshare-600-448-7col/libwebsockets: recursive directory loop
+diff: libwebsockets-4.5.2/minimal-examples/embedded/lhp/esp32-wrover-kit-320-200/libwebsockets: recursive directory loop
+diff: libwebsockets-4.5.2/minimal-examples/embedded/pico/pico-sspc-binance/libwebsockets: recursive directory loop
+diff: libwebsockets-4.5.2/minimal-examples/embedded/rt595/hello_world/libwebsockets: recursive directory loop
+
+-- 
+2.34.1
