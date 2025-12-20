@@ -221,31 +221,37 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <% done %>
 
 <div class="tab-pane fade" id="tab4-pane" role="tabpanel" aria-labelledby="tab4">
-<% field_switch "audio_input_enabled" "Input Enabled" %>
+<% field_switch "audio_mic_enabled" "Microphone Enabled" %>
 <div class="row g-2">
-<div class="col"><% field_select "audio_input_format" "Codec" "$AUDIO_FORMATS" %></div>
-<div class="col"><% field_select "audio_input_sample_rate" "Sampling, Hz" "$AUDIO_SAMPLING" %></div>
-<div class="col"><% field_select "audio_input_bitrate" "Bitrate, kbps" "$AUDIO_BITRATES" %></div>
+<div class="col"><% field_select "audio_mic_format" "Codec" "$AUDIO_FORMATS" %></div>
+<div class="col"><% field_select "audio_mic_sample_rate" "Sampling, Hz" "$AUDIO_SAMPLING" %></div>
+<div class="col"><% field_select "audio_mic_bitrate" "Bitrate, kbps" "$AUDIO_BITRATES" %></div>
 </div>
 <div class="row g-2">
-<div class="col"><% field_range "audio_input_vol" "Input volume" "-30,120,1" %></div>
-<div class="col"><% field_range "audio_input_gain" "Input gain" "0,31,1" %></div>
-<div class="col"><% field_range "audio_input_alc_gain" "<abbr title=\"Automatic Level Control\">ALC</abbr> gain" "0,7,1" %></div>
+<div class="col"><% field_range "audio_mic_vol" "Mic volume" "-30,120,1" %></div>
+<div class="col"><% field_range "audio_mic_gain" "Mic gain" "0,31,1" %></div>
+<div class="col"><% field_range "audio_mic_alc_gain" "<abbr title=\"Automatic Level Control\">ALC</abbr> gain" "0,7,1" %></div>
 </div>
 <br>
 <div class="row g-2">
-<div class="col"><% field_switch "audio_input_agc_enabled" "<abbr title=\"Automatic gain control\">AGC</abbr> Enabled" %></div>
-<div class="col"><% field_switch "audio_input_high_pass_filter" "High pass filter" %></div>
+<div class="col"><% field_switch "audio_mic_agc_enabled" "<abbr title=\"Automatic gain control\">AGC</abbr> Enabled" %></div>
+<div class="col"><% field_switch "audio_mic_high_pass_filter" "High pass filter" %></div>
+<div class="col"><% field_switch "audio_force_stereo" "Force stereo" %></div>
 </div>
 <div class="row g-2">
-<div class="col"><% field_range "audio_input_noise_suppression" "Noise suppression level" "0,3,1" %></div>
+<div class="col"><% field_range "audio_mic_noise_suppression" "Noise suppression level" "0,3,1" %></div>
 </div>
 <div class="row g-2">
-<div class="col"><% field_range "audio_input_agc_compression_gain_db" "Compression gain, dB" "0,90,1" %></div>
-<div class="col"><% field_range "audio_input_agc_target_level_dbfs" "Target level, dBfs" "0,31,1" %></div>
+<div class="col"><% field_range "audio_mic_agc_compression_gain_db" "Compression gain, dB" "0,90,1" %></div>
+<div class="col"><% field_range "audio_mic_agc_target_level_dbfs" "Target level, dBfs" "0,31,1" %></div>
 </div>
-
-<% field_switch "audio_output_enabled" "Output Enabled" %>
+<br>
+<% field_switch "audio_spk_enabled" "Speaker Enabled" %>
+<div class="row g-2">
+<div class="col"><% field_range "audio_spk_vol" "Speaker volume" "-30,120,1" %></div>
+<div class="col"><% field_range "audio_spk_gain" "Speaker gain" "0,31,1" %></div>
+<div class="col"><% field_select "audio_spk_sample_rate" "Speaker sampling, Hz" "$AUDIO_SAMPLING" %></div>
+</div>
 
 <button type="button" class="btn btn-secondary" id="restart-audio">Restart Audio</button>
 </div>
@@ -327,13 +333,16 @@ if (soc == "t31") {
 }
 
 DEFAULT_VALUES = {
-	'audio_input_agc_compression_gain_db': 0,
-	'audio_input_agc_target_level_dbfs': 10,
-	'audio_input_alc_gain': 0,
-	'audio_input_gain': 25,
-	'audio_input_noise_suppression': 0,
-	'audio_input_sample_rate':  16000,
-	'audio_input_vol': 80,
+	'audio_mic_agc_compression_gain_db': 0,
+	'audio_mic_agc_target_level_dbfs': 10,
+	'audio_mic_alc_gain': 0,
+	'audio_mic_gain': 25,
+	'audio_mic_noise_suppression': 0,
+	'audio_mic_sample_rate':  16000,
+	'audio_mic_vol': 80,
+	'audio_spk_vol': 80,
+	'audio_spk_gain': 25,
+	'audio_spk_sample_rate': 16000,
 	'image_ae_compensation': 128,
 	'image_anti_flicker': 2,
 	'image_backlight_compensation': 0,
@@ -362,11 +371,12 @@ DEFAULT_VALUES = {
 
 // audio
 const audio_params = [
-	'input_agc_compression_gain_db', 'input_agc_enabled',
-	'input_agc_target_level_dbfs', 'input_alc_gain', 'input_bitrate',
-	'input_enabled', 'input_format', 'input_gain', 'input_high_pass_filter',
-	'input_noise_suppression', 'input_sample_rate', 'input_vol',
-	'output_enabled'
+	'mic_agc_compression_gain_db', 'mic_agc_enabled',
+	'mic_agc_target_level_dbfs', 'mic_alc_gain', 'mic_bitrate',
+	'mic_enabled', 'mic_format', 'mic_gain', 'mic_high_pass_filter',
+	'mic_noise_suppression', 'mic_sample_rate', 'mic_vol',
+	'spk_enabled', 'spk_vol', 'spk_gain', 'spk_sample_rate',
+	'force_stereo', 'buffer_warn_frames', 'buffer_cap_frames'
 ];
 
 // image
@@ -692,13 +702,13 @@ function saveValue(domain, name) {
 	if (domain == 'audio') {
 		thread += ThreadAudio;
 		console.log(name, value);
-		if (name == 'input_format') {
+		if (name == 'mic_format') {
 			if (value == '"G711A"' || value == '"G711U"') {
-				payload += ',"input_sample_rate":8000'
+				payload += ',"mic_sample_rate":8000'
 			} else if (value == '"G726"') {
-				payload += ',"input_sample_rate":16000'
+				payload += ',"mic_sample_rate":16000'
 			} else if (value == '"OPUS"') {
-				payload += ',"input_sample_rate":48000'
+				payload += ',"mic_sample_rate":48000'
 			}
 		}
 	} else if (domain == 'stream0' || domain == 'stream1') {
