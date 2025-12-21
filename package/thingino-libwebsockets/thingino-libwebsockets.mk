@@ -1,15 +1,10 @@
 ################################################################################
 #
-# thingino-libwebsockets
+# thingino-libwebsockets - virtual package that selects the custom libwebsockets build
 #
 ################################################################################
 
-# Ensure libwebsockets pulls headers from the real zlib provider (libzlib).
-override LIBWEBSOCKETS_DEPENDENCIES := \
-	$(filter-out zlib,$(LIBWEBSOCKETS_DEPENDENCIES)) \
-	libzlib
-
-# Virtual wrapper so we can rebuild this tweak if needed.
+# The actual libwebsockets overrides live in libwebsockets-override.mk.
 THINGINO_LIBWEBSOCKETS_DEPENDENCIES = libwebsockets
 
 $(eval $(virtual-package))
