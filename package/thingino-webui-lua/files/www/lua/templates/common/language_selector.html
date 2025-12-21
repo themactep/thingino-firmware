@@ -1,0 +1,130 @@
+<div class="dropdown">
+  <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="languageDropdown" data-bs-toggle="dropdown" aria-expanded="false" data-i18n="language.current">
+    English
+  </button>
+  <ul class="dropdown-menu" aria-labelledby="languageDropdown" id="languageMenu">
+    <!-- Will be populated by JavaScript -->
+  </ul>
+</div>
+
+<div class="modal fade" id="downloadLangModal" tabindex="-1" aria-labelledby="downloadLangModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="downloadLangModalLabel" data-i18n="language.download_title">Download Language Pack</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="downloadLangForm">
+          <div class="mb-3">
+            <label for="langCode" class="form-label" data-i18n="language.code">Language Code</label>
+            <input type="text" class="form-control" id="langCode" required>
+          </div>
+          <div class="mb-3">
+            <label for="langUrl" class="form-label" data-i18n="language.url">Language Pack URL</label>
+            <input type="url" class="form-control" id="langUrl" required>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="downloadLangBtn" data-i18n="language.download">Download</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Populate language menu and handle language switching
+function updateLanguageMenu() {
+  if (!window.i18n) {
+    setTimeout(updateLanguageMenu, 100); // Wait for i18n to load
+    return;
+  }
+
+  const menu = document.getElementById('languageMenu');
+  const button = document.getElementById('languageDropdown');
+  const available = window.i18n.getAvailableLanguages();
+  const names = window.i18n.getLanguageNames();
+  const current = window.i18n.getCurrentLanguage();
+
+  menu.innerHTML = '';
+
+  // Update button text with current language name
+  button.textContent = names[current] || current.toUpperCase();
+
+  // Add available languages
+  available.forEach(lang => {
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.className = 'dropdown-item' + (lang === current ? ' active' : '');
+    a.href = '#';
+    a.textContent = names[lang] || lang.toUpperCase();
+    a.onclick = async (e) => {
+      e.preventDefault();
+      const success = await window.i18n.switchLanguage(lang);
+      if (success) {
+        updateLanguageMenu(); // Refresh menu
+      }
+    };
+    li.appendChild(a);
+    menu.appendChild(li);
+  });
+
+  // Add divider
+  const divider = document.createElement('li');
+  divider.innerHTML = '<hr class="dropdown-divider">';
+  menu.appendChild(divider);
+
+  // Add "Download new language" option
+  const downloadLi = document.createElement('li');
+  const downloadA = document.createElement('a');
+  downloadA.className = 'dropdown-item';
+  downloadA.href = '#';
+  downloadA.textContent = window.i18n.t('language.download_new');
+  downloadA.onclick = (e) => {
+    e.preventDefault();
+    const modal = new bootstrap.Modal(document.getElementById('downloadLangModal'));
+    modal.show();
+  };
+  downloadLi.appendChild(downloadA);
+  menu.appendChild(downloadLi);
+}
+
+// Legacy function for compatibility
+function setLanguage(lang) {
+  if (window.i18n) {
+    window.i18n.switchLanguage(lang);
+  }
+}
+
+// Handle language pack download
+document.getElementById('downloadLangBtn').addEventListener('click', function() {
+  const langCode = document.getElementById('langCode').value;
+  const langUrl = document.getElementById('langUrl').value;
+  
+  if (!langCode || !langUrl) return;
+  
+  fetch('/lua/api/language/download', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: `lang=${encodeURIComponent(langCode)}&url=${encodeURIComponent(langUrl)}`
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Close modal and update language menu
+      bootstrap.Modal.getInstance(document.getElementById('downloadLangModal')).hide();
+      updateLanguageMenu();
+    } else {
+      alert(data.error || window.i18n.t('error.download_failed'));
+    }
+  });
+});
+
+// Initialize when i18n is ready
+document.addEventListener('DOMContentLoaded', updateLanguageMenu);
+document.addEventListener('languageChanged', updateLanguageMenu);
+</script>

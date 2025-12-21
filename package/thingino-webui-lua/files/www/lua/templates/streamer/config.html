@@ -1,0 +1,509 @@
+{{include:header}}
+
+<div class="row mb-4">
+  <div class="col">
+    <h1 class="h3 mb-0"><i class="bi bi-sliders me-2"></i>Streamer Configuration</h1>
+    <p class="text-muted">Configure video streaming settings and parameters</p>
+  </div>
+</div>
+
+<div class="row">
+  <!-- Configuration Controls (full width) -->
+  <div class="col-12">
+    <form method="POST" action="/lua/streamer/config" id="streamer-config-form">
+      <div class="row">
+        <!-- Column 1 -->
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+          <!-- Video Resolution Card -->
+          <div class="card mb-3">
+            <h6 class="card-header">Video Resolution</h6>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="main_resolution" class="form-label">Main Stream</label>
+                <select id="main_resolution" name="main_resolution" class="form-select form-select-sm" onchange="updateConfig('video0', 'size', this.value)">
+                  <option value="1920x1080" {{main_1920x1080_selected}}>1920x1080</option>
+                  <option value="1280x720" {{main_1280x720_selected}}>1280x720</option>
+                  <option value="640x480" {{main_640x480_selected}}>640x480</option>
+                  <option value="320x240" {{main_320x240_selected}}>320x240</option>
+                </select>
+              </div>
+              <div>
+                <label for="sub_resolution" class="form-label">Sub Stream</label>
+                <select id="sub_resolution" name="sub_resolution" class="form-select form-select-sm" onchange="updateConfig('video1', 'size', this.value)">
+                  <option value="640x480" {{sub_640x480_selected}}>640x480</option>
+                  <option value="320x240" {{sub_320x240_selected}}>320x240</option>
+                  <option value="160x120" {{sub_160x120_selected}}>160x120</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Frame Rate Card -->
+          <div class="card mb-3">
+            <h6 class="card-header">Frame Rate</h6>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="main_fps" class="form-label">Main Stream</label>
+                <select id="main_fps" name="main_fps" class="form-select form-select-sm" onchange="updateConfig('video0', 'fps', this.value)">
+                  <option value="30" {{main_fps_30_selected}}>30 FPS</option>
+                  <option value="25" {{main_fps_25_selected}}>25 FPS</option>
+                  <option value="20" {{main_fps_20_selected}}>20 FPS</option>
+                  <option value="15" {{main_fps_15_selected}}>15 FPS</option>
+                  <option value="10" {{main_fps_10_selected}}>10 FPS</option>
+                  <option value="5" {{main_fps_5_selected}}>5 FPS</option>
+                </select>
+              </div>
+              <div>
+                <label for="sub_fps" class="form-label">Sub Stream</label>
+                <select id="sub_fps" name="sub_fps" class="form-select form-select-sm" onchange="updateConfig('video1', 'fps', this.value)">
+                  <option value="15" {{sub_fps_15_selected}}>15 FPS</option>
+                  <option value="10" {{sub_fps_10_selected}}>10 FPS</option>
+                  <option value="5" {{sub_fps_5_selected}}>5 FPS</option>
+                  <option value="1" {{sub_fps_1_selected}}>1 FPS</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 2 -->
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+          <!-- Bitrate Settings Card -->
+          <div class="card mb-3">
+            <h6 class="card-header">Bitrate Settings</h6>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="main_bitrate" class="form-label">Main Stream (kbps)</label>
+                <input type="number" id="main_bitrate" name="main_bitrate" class="form-control form-control-sm" value="{{main_bitrate}}" min="128" max="8192" onchange="updateConfig('video0', 'bitrate', this.value)">
+              </div>
+              <div>
+                <label for="sub_bitrate" class="form-label">Sub Stream (kbps)</label>
+                <input type="number" id="sub_bitrate" name="sub_bitrate" class="form-control form-control-sm" value="{{sub_bitrate}}" min="64" max="2048" onchange="updateConfig('video1', 'bitrate', this.value)">
+              </div>
+            </div>
+          </div>
+
+          <!-- Encoding Settings Card -->
+          <div class="card mb-3">
+            <h6 class="card-header">Encoding Settings</h6>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="video_codec" class="form-label">Video Codec</label>
+                <select id="video_codec" name="video_codec" class="form-select form-select-sm" onchange="updateConfig('video0', 'codec', this.value)">
+                  <option value="h264" {{codec_h264_selected}}>H.264</option>
+                  <option value="h265" {{codec_h265_selected}}>H.265 (HEVC)</option>
+                  <option value="mjpeg" {{codec_mjpeg_selected}}>MJPEG</option>
+                </select>
+              </div>
+              <div>
+                <label for="encoding_profile" class="form-label">Encoding Profile</label>
+                <select id="encoding_profile" name="encoding_profile" class="form-select form-select-sm" onchange="updateConfig('video0', 'profile', this.value)">
+                  <option value="baseline" {{profile_baseline_selected}}>Baseline</option>
+                  <option value="main" {{profile_main_selected}}>Main</option>
+                  <option value="high" {{profile_high_selected}}>High</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 3 -->
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+          <!-- Quality Settings Card -->
+          <div class="card mb-3">
+            <h6 class="card-header">Quality Settings</h6>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="quality_mode" class="form-label">Quality Mode</label>
+                <select id="quality_mode" name="quality_mode" class="form-select form-select-sm">
+                  <option value="cbr" selected>CBR</option>
+                  <option value="vbr">VBR</option>
+                  <option value="cqp">CQP</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="gop_size" class="form-label">GOP Size</label>
+                <input type="number" id="gop_size" name="gop_size" class="form-control form-control-sm" value="50" min="1" max="300">
+              </div>
+              <div>
+                <label for="quality_level" class="form-label">Quality Level</label>
+                <input type="range" id="quality_level" name="quality_level" class="form-range" min="1" max="10" value="7">
+                <div class="d-flex justify-content-between">
+                  <small class="text-muted">Low</small>
+                  <small class="text-muted">High</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RTSP Settings Card -->
+          <div class="card mb-3">
+            <h6 class="card-header">RTSP Settings</h6>
+            <div class="card-body">
+              <div class="form-check mb-3">
+                <input type="checkbox" id="rtsp_enabled" name="rtsp_enabled" value="true" class="form-check-input" checked>
+                <label for="rtsp_enabled" class="form-check-label">Enable RTSP</label>
+              </div>
+              <div class="mb-3">
+                <label for="rtsp_port" class="form-label">RTSP Port</label>
+                <input type="number" id="rtsp_port" name="rtsp_port" class="form-control form-control-sm" value="554" min="1" max="65535">
+              </div>
+              <div class="mb-3">
+                <label for="rtsp_username" class="form-label">Username</label>
+                <input type="text" id="rtsp_username" name="rtsp_username" class="form-control form-control-sm" value="thingino">
+              </div>
+              <div>
+                <label for="rtsp_password" class="form-label">Password</label>
+                <input type="password" id="rtsp_password" name="rtsp_password" class="form-control form-control-sm" value="thingino">
+              </div>
+            </div>
+          </div>
+
+          <!-- Advanced Settings Card -->
+          <div class="card mb-3">
+            <h6 class="card-header">Advanced Settings</h6>
+            <div class="card-body">
+              <div class="form-check mb-3">
+                <input type="checkbox" id="smart_encoding" name="smart_encoding" value="true" class="form-check-input">
+                <label for="smart_encoding" class="form-check-label">Smart Encoding</label>
+                <div class="form-text">Auto adjust quality</div>
+              </div>
+              <div class="form-check mb-3">
+                <input type="checkbox" id="noise_reduction" name="noise_reduction" value="true" class="form-check-input">
+                <label for="noise_reduction" class="form-check-label">Noise Reduction</label>
+                <div class="form-text">Reduce low light noise</div>
+              </div>
+              <div class="mb-3">
+                <label for="buffer_size" class="form-label">Buffer Size</label>
+                <input type="number" id="buffer_size" name="buffer_size" class="form-control form-control-sm" value="5" min="1" max="30">
+                <div class="form-text">Frames to buffer</div>
+              </div>
+              <div>
+                <label for="max_connections" class="form-label">Max Connections</label>
+                <input type="number" id="max_connections" name="max_connections" class="form-control form-control-sm" value="5" min="1" max="20">
+                <div class="form-text">Max RTSP connections</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+      </div>
+
+      <!-- Full Width Action Buttons Row -->
+      <div class="row">
+        <div class="col-12">
+          <!-- Action Buttons Card -->
+          <div class="card">
+            <div class="card-body">
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <button type="submit" class="btn btn-primary w-100">
+                    Apply Configuration
+                  </button>
+                </div>
+                <div class="col-md-6">
+                  <button type="button" class="btn btn-outline-info w-100" onclick="viewConfigModal()">
+                    View Config File
+                  </button>
+                </div>
+                <div class="col-md-6">
+                  <button type="button" class="btn btn-outline-warning w-100" onclick="restartStreamer()">
+                    Restart Streaming Service
+                  </button>
+                </div>
+                <div class="col-md-6">
+                  <button type="button" class="btn btn-outline-secondary w-100" onclick="resetToDefaults()">
+                    Reset to Defaults
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// Configuration management functions
+function refreshConfig() {
+    // This function is called by the auto-refresh interval
+    // For now, just log that it was called
+    console.log('Config refresh called');
+}
+
+function viewConfigModal() {
+    fetch('/lua/api/streamer/config')
+        .then(response => response.text())
+        .then(data => {
+            showConfigModal(data, false);
+        })
+        .catch(error => {
+            console.error('Error loading config:', error);
+            alert('Failed to load configuration');
+        });
+}
+
+function showConfigModal(configContent, editMode = false) {
+    const modalTitle = editMode ? 'Edit Configuration File' : 'View Configuration File';
+    const switchButtonText = editMode ? 'Switch to View' : 'Switch to Edit';
+    const switchButtonClass = editMode ? 'btn-secondary' : 'btn-warning';
+    const textareaReadonly = editMode ? '' : 'readonly';
+    const saveButtonStyle = editMode ? '' : 'style="display: none;"';
+    const modalContentClass = editMode ? 'bg-danger text-white' : 'bg-dark';
+    const modalHeaderClass = editMode ? '' : '';
+    const modalFooterClass = editMode ? '' : '';
+    const alertClass = editMode ? 'alert-light' : 'alert-info';
+
+    const modalHtml = `
+        <div class="modal fade" id="configModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content ${modalContentClass}">
+                    <div class="modal-header ${modalHeaderClass}">
+                        <h5 class="modal-title" id="configModalTitle">${modalTitle}</h5>
+                        <button type="button" class="btn-close ${editMode ? 'btn-close-white' : 'btn-close-white'}" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        ${editMode ? `
+                        <div class="alert ${alertClass}">
+                            <strong>⚠️ Advanced Users Only:</strong> Editing the configuration file directly can break streaming functionality. Make sure you understand the format before making changes.
+                        </div>
+                        ` : ''}
+                        <textarea id="configViewer" class="form-control ${editMode ? 'bg-light text-dark' : 'bg-dark text-light'}" rows="25"
+                                  style="font-family: monospace; font-size: 0.875rem;" ${textareaReadonly}>${configContent}</textarea>
+                    </div>
+                    <div class="modal-footer ${modalFooterClass}">
+                        <button type="button" class="btn ${switchButtonClass}" onclick="toggleConfigMode()">${switchButtonText}</button>
+                        <button type="button" class="btn ${editMode ? 'btn-light' : 'btn-secondary'}" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn ${editMode ? 'btn-dark' : 'btn-primary'}" onclick="saveConfigFromModal()" ${saveButtonStyle} id="saveConfigBtn">Save Configuration</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if present
+    const existingModal = document.getElementById('configModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Store current mode
+    window.configModalEditMode = editMode;
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('configModal'));
+    modal.show();
+}
+
+function updateConfig(section, key, value) {
+    const data = {
+        section: section,
+        key: key,
+        value: value
+    };
+
+    fetch('/lua/api/streamer/update-config', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // Refresh the config display
+            refreshConfig();
+        } else {
+            alert('Failed to update configuration: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error updating config:', error);
+        alert('Failed to update configuration');
+    });
+}
+
+function toggleConfigMode() {
+    const currentContent = document.getElementById('configViewer').value;
+    const newEditMode = !window.configModalEditMode;
+
+    // Close current modal
+    const currentModal = bootstrap.Modal.getInstance(document.getElementById('configModal'));
+    currentModal.hide();
+
+    // Show modal in new mode after a brief delay
+    setTimeout(() => {
+        showConfigModal(currentContent, newEditMode);
+    }, 300);
+}
+
+function saveConfigFromModal() {
+    const newConfig = document.getElementById('configViewer').value;
+
+    fetch('/lua/api/streamer/save-config', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'text/plain'
+        },
+        body: newConfig
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            bootstrap.Modal.getInstance(document.getElementById('configModal')).hide();
+            alert('Configuration updated successfully');
+        } else {
+            alert('Failed to save configuration: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error saving config:', error);
+        alert('Failed to save configuration');
+    });
+}
+
+function restartStreamer() {
+    if (confirm('Are you sure you want to restart the streaming service? This will temporarily interrupt video streams.')) {
+        fetch('/lua/api/streamer/restart', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Streaming service restarted successfully');
+            } else {
+                alert('Failed to restart streaming service: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error restarting streamer:', error);
+            alert('Error: ' + error.message);
+        });
+    }
+}
+
+function resetToDefaults() {
+    if (confirm('Are you sure you want to reset all streaming settings to defaults? This will overwrite your current configuration.')) {
+        fetch('/lua/api/streamer/reset-defaults', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Configuration reset to defaults successfully');
+                location.reload(); // Reload page to show new values
+            } else {
+                alert('Failed to reset configuration: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error resetting config:', error);
+            alert('Error: ' + error.message);
+        });
+    }
+}
+
+
+
+// WebSocket connection for prudynt communication
+let prudyntWebSocket = null;
+
+function connectToPrudyntWebSocket() {
+    // First get the WebSocket token
+    fetch('/lua/api/websocket-token')
+        .then(response => response.json())
+        .then(data => {
+            const token = data.token;
+            if (!token) {
+                console.error('No WebSocket token available');
+                return;
+            }
+
+            // Use port 8089 for both HTTP and HTTPS
+            const wsPort = 8089;
+            const wsUrl = '//' + location.hostname + ':' + wsPort + '?token=' + token;
+
+            console.log('Connecting to WebSocket:', wsUrl);
+            tryDirectWebSocketConnection(wsUrl);
+
+        })
+        .catch(error => {
+            console.error('Failed to get WebSocket token:', error);
+        });
+}
+
+function tryDirectWebSocketConnection(wsUrl) {
+    try {
+        // Ensure proper protocol for WebSocket URL
+        if (!wsUrl.startsWith('ws://') && !wsUrl.startsWith('wss://')) {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            wsUrl = protocol + wsUrl;
+        }
+
+        console.log('Creating WebSocket with URL:', wsUrl);
+        prudyntWebSocket = new WebSocket(wsUrl);
+
+        prudyntWebSocket.onopen = function() {
+            console.log('Connected to prudynt WebSocket:', wsUrl);
+        };
+
+        prudyntWebSocket.onclose = function() {
+            console.log('Disconnected from prudynt WebSocket');
+            prudyntWebSocket = null;
+        };
+
+        prudyntWebSocket.onerror = function(error) {
+            console.error('Prudynt WebSocket error:', error);
+            prudyntWebSocket = null;
+        };
+
+        return true;
+    } catch (error) {
+        console.error('Failed to create WebSocket:', error);
+        return false;
+    }
+}
+
+function sendWebSocketMessage(message) {
+    if (!prudyntWebSocket || prudyntWebSocket.readyState !== WebSocket.OPEN) {
+        if (!connectToPrudyntWebSocket()) {
+            return false;
+        }
+
+        // Wait a bit for connection to establish
+        setTimeout(() => {
+            if (prudyntWebSocket && prudyntWebSocket.readyState === WebSocket.OPEN) {
+                prudyntWebSocket.send(JSON.stringify(message));
+            }
+        }, 100);
+
+        return true;
+    }
+
+    try {
+        prudyntWebSocket.send(JSON.stringify(message));
+        console.log('Sent WebSocket message:', message);
+        return true;
+    } catch (error) {
+        console.error('Failed to send WebSocket message:', error);
+        return false;
+    }
+}
+
+// Load page when ready
+document.addEventListener('DOMContentLoaded', function() {
+    connectToPrudyntWebSocket();
+});
+
+// Auto-refresh config every 30 seconds
+setInterval(refreshConfig, 30000);
+</script>
+
+{{include:footer}}

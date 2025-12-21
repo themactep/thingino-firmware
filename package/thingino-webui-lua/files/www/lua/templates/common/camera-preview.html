@@ -1,0 +1,223 @@
+<!-- Camera Preview Component -->
+<!-- Usage: {{include:camera-preview}} -->
+<div class="card video-container">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center">
+      <h5 class="card-title mb-0 me-3"><i class="bi bi-play-circle me-2"></i>{{preview_title}}</h5>
+    </div>
+    <div class="btn-group" role="group">
+      <button class="btn btn-sm btn-outline-light" onclick="refreshCameraPreview()" title="Refresh Preview">
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="video-placeholder position-relative" disabled-class="motion-canvas-container" id="cameraPreviewContainer">
+      <canvas id="cameraPreviewCanvas" class="motion-canvas"></canvas>
+      <!-- Overlay container for page-specific overlays -->
+      <div id="cameraPreviewOverlay" class="position-absolute top-0 start-0 w-100 h-100" style="pointer-events: none;">
+        <!-- Page-specific overlays will be inserted here -->
+      </div>
+    </div>
+    <div class="card-footer text-center">
+      <small class="text-muted"><i class="bi bi-info-circle me-1"></i>{{preview_description}}</small>
+    </div>
+  </div>
+</div>
+
+<script>
+// Universal Camera Preview Component
+(function() {
+    'use strict';
+
+    // Global variables for camera preview
+    window.cameraPreview = {
+        canvas: null,
+        ctx: null,
+        resolution: { width: 1920, height: 1080 }, // Default
+        container: null,
+        refreshInterval: null,
+        updateInterval: null
+    };
+
+    // Initialize camera preview
+    function initCameraPreview() {
+        const canvas = document.getElementById('cameraPreviewCanvas');
+        const container = document.getElementById('cameraPreviewContainer');
+
+        if (!canvas || !container) {
+            console.warn('Camera preview elements not found');
+            return;
+        }
+
+        window.cameraPreview.canvas = canvas;
+        window.cameraPreview.ctx = canvas.getContext('2d');
+        window.cameraPreview.container = container;
+
+        // Load camera resolution first
+        loadCameraResolution().then(() => {
+            setupCameraPreviewCanvas();
+            refreshCameraPreviewImage();
+
+            // Add resize handler
+            window.addEventListener('resize', handleCameraPreviewResize);
+
+            // Auto-refresh every 5 seconds
+            window.cameraPreview.refreshInterval = setInterval(refreshCameraPreviewImage, 5000);
+        });
+    }
+
+    // Load camera resolution
+    function loadCameraResolution() {
+        return fetch('/lua/api/camera/resolution')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.resolution) {
+                    window.cameraPreview.resolution = data.resolution;
+                    console.log('Camera resolution loaded:', window.cameraPreview.resolution);
+                } else {
+                    console.warn('Failed to load camera resolution, using default');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading camera resolution:', error);
+            });
+    }
+
+    // Set up responsive canvas
+    function setupCameraPreviewCanvas() {
+        const container = window.cameraPreview.container;
+        const canvas = window.cameraPreview.canvas;
+        const rect = container.getBoundingClientRect();
+
+        // Set canvas size to match container
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+    }
+
+    // Refresh the canvas image
+    function refreshCameraPreviewImage() {
+        const canvas = window.cameraPreview.canvas;
+        const ctx = window.cameraPreview.ctx;
+
+        if (!canvas || !ctx) return;
+
+        const img = new Image();
+        img.onload = function () {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            // Trigger custom event for pages to update their overlays
+            window.dispatchEvent(new CustomEvent('cameraPreviewUpdated', {
+                detail: { canvas, ctx, resolution: window.cameraPreview.resolution }
+            }));
+        };
+
+        // Load fresh snapshot with cache-busting timestamp
+        img.src = '/lua/api/camera/snapshot?' + new Date().getTime();
+
+        // If snapshot fails, create a grid pattern
+        img.onerror = function () {
+            drawCameraPreviewGrid();
+        };
+    }
+
+    // Draw grid pattern when camera is unavailable
+    function drawCameraPreviewGrid() {
+        const canvas = window.cameraPreview.canvas;
+        const ctx = window.cameraPreview.ctx;
+
+        if (!canvas || !ctx) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+
+        // Draw grid
+        const gridSize = 50;
+        for (let x = 0; x <= canvas.width; x += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+        }
+        for (let y = 0; y <= canvas.height; y += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+        }
+
+        // Add text
+        ctx.fillStyle = '#666';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Camera Preview', canvas.width / 2, canvas.height / 2);
+    }
+
+    // Debounced resize handler
+    let resizeTimeout;
+    function handleCameraPreviewResize() {
+        setupCameraPreviewCanvas();
+
+        // Debounce image refresh to avoid excessive API calls
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            refreshCameraPreviewImage();
+        }, 300);
+    }
+
+    // Global function for refresh button
+    window.refreshCameraPreview = function() {
+        refreshCameraPreviewImage();
+    };
+
+    // Utility function to convert canvas coordinates to camera coordinates
+    window.canvasToCamera = function(canvasX, canvasY) {
+        const canvas = window.cameraPreview.canvas;
+        const resolution = window.cameraPreview.resolution;
+
+        if (!canvas || !resolution) return { x: canvasX, y: canvasY };
+
+        return {
+            x: Math.round((canvasX / canvas.width) * resolution.width),
+            y: Math.round((canvasY / canvas.height) * resolution.height)
+        };
+    };
+
+    // Utility function to convert camera coordinates to canvas coordinates
+    window.cameraToCanvas = function(cameraX, cameraY) {
+        const canvas = window.cameraPreview.canvas;
+        const resolution = window.cameraPreview.resolution;
+
+        if (!canvas || !resolution) return { x: cameraX, y: cameraY };
+
+        return {
+            x: Math.round((cameraX / resolution.width) * canvas.width),
+            y: Math.round((cameraY / resolution.height) * canvas.height)
+        };
+    };
+
+    // Cleanup function
+    window.cleanupCameraPreview = function() {
+        if (window.cameraPreview.refreshInterval) {
+            clearInterval(window.cameraPreview.refreshInterval);
+        }
+        if (window.cameraPreview.updateInterval) {
+            clearInterval(window.cameraPreview.updateInterval);
+        }
+        window.removeEventListener('resize', handleCameraPreviewResize);
+    };
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCameraPreview);
+    } else {
+        initCameraPreview();
+    }
+
+})();
+</script>

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{page_title}} - Thingino</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="/static/css/thingino.css" rel="stylesheet">
+  <script src="/static/js/i18n.js"></script>
+  <script>
+    // Fallback: show content after 2 seconds even if i18n fails to load
+    setTimeout(() => {
+      if (document.body.classList.contains('i18n-loading')) {
+        document.body.classList.remove('i18n-loading');
+        document.body.classList.add('i18n-ready');
+      }
+    }, 2000);
+  </script>
+
+  <style>
+    /* Hide content until i18n is ready to prevent flash of untranslated content */
+    body.i18n-loading {
+      visibility: hidden;
+    }
+    body.i18n-ready {
+      visibility: visible;
+    }
+
+    /* Universal copyable element styling */
+    .copyable {
+        cursor: pointer;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+    }
+
+    .copyable:hover {
+        background-color: #495057 !important;
+        transform: translateY(-1px);
+    }
+
+    .copyable:active {
+        transform: translateY(0);
+    }
+
+    .copyable:hover .bi-clipboard {
+        color: #6c757d !important;
+    }
+  </style>
+</head>
+<body class="bg-dark text-light i18n-loading">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="/lua/dashboard"><span class="text-light">th</span>ing<span class="text-light">ino</span></a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link {{nav_dashboard_active}}" href="/lua/dashboard"><i class="bi bi-house me-1"></i><span data-i18n="nav.dashboard">Dashboard</span></a></li>
+        <li class="nav-item"><a class="nav-link {{nav_preview_active}}" href="/lua/preview"><i class="bi bi-camera-video me-1"></i><span data-i18n="nav.preview">Preview</span></a></li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {{nav_streamer_active}}{{nav_motion_active}}" href="#" role="button" data-bs-toggle="dropdown"><i class="bi bi-broadcast me-1"></i><span data-i18n="nav.streamer">Streamer</span></a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item {{nav_motion_active}}" href="/lua/motion"><i class="bi bi-activity me-2"></i><span data-i18n="nav.motion">Motion</span></a></li>
+            <li><a class="dropdown-item {{streamer_control_active}}" href="/lua/streamer/control"><i class="bi bi-joystick me-2"></i><span data-i18n="nav.streamer_control">Control</span></a></li>
+            <li><a class="dropdown-item {{streamer_osd_active}}" href="/lua/streamer/osd"><i class="bi bi-fonts me-2"></i><span data-i18n="nav.streamer_osd">OSD</span></a></li>
+            <li><a class="dropdown-item {{streamer_config_active}}" href="/lua/streamer/config"><i class="bi bi-sliders me-2"></i><span data-i18n="nav.streamer_config">Configuration</span></a></li>
+          </ul>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {{nav_info_active}}" href="#" role="button" data-bs-toggle="dropdown"><i class="bi bi-info-circle me-1"></i><span data-i18n="nav.system_info">System Info</span></a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item {{info_system_active}}" href="/lua/info/system"><i class="bi bi-cpu me-2"></i><span data-i18n="nav.info_system">System</span></a></li>
+            <li><a class="dropdown-item {{info_network_active}}" href="/lua/info/network"><i class="bi bi-wifi me-2"></i><span data-i18n="nav.info_network">Network</span></a></li>
+            <li><a class="dropdown-item {{info_camera_active}}" href="/lua/info/camera"><i class="bi bi-camera-video me-2"></i><span data-i18n="nav.info_camera">Camera</span></a></li>
+            <li><a class="dropdown-item {{info_logs_active}}" href="/lua/info/logs"><i class="bi bi-journal-text me-2"></i><span data-i18n="nav.info_logs">Logs</span></a></li>
+          </ul>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {{nav_config_active}}" href="#" role="button" data-bs-toggle="dropdown"><i class="bi bi-gear me-1"></i><span data-i18n="nav.configuration">Configuration</span></a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="/lua/config/network"><i class="bi bi-wifi me-2"></i><span data-i18n="nav.config_network">Network</span></a></li>
+            <li><a class="dropdown-item" href="/lua/config/camera"><i class="bi bi-camera-video me-2"></i><span data-i18n="nav.config_camera">Camera</span></a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header" data-i18n="nav.config_system_header">System Configuration</h6></li>
+            <li><a class="dropdown-item" href="/lua/config/system"><i class="bi bi-cpu me-2"></i><span data-i18n="nav.config_system">System Overview</span></a></li>
+            <li><a class="dropdown-item" href="/lua/config/datetime"><i class="bi bi-clock me-2"></i><span data-i18n="nav.config_datetime">Date & Time</span></a></li>
+            <li><a class="dropdown-item" href="/lua/config/user"><i class="bi bi-person-lock me-2"></i><span data-i18n="nav.config_user">User Management</span></a></li>
+            <li><a class="dropdown-item" href="/lua/config/security"><i class="bi bi-shield-check me-2"></i><span data-i18n="nav.config_security">Security & SSL</span></a></li>
+            <li><a class="dropdown-item" href="/lua/config/storage"><i class="bi bi-hdd me-2"></i><span data-i18n="nav.config_storage">Storage & Logs</span></a></li>
+            <li><a class="dropdown-item" href="/lua/config/maintenance"><i class="bi bi-tools me-2"></i><span data-i18n="nav.config_maintenance">System Maintenance</span></a></li>
+            <li><a class="dropdown-item" href="/lua/config/firmware"><i class="bi bi-cloud-arrow-up me-2"></i><span data-i18n="nav.config_firmware">Firmware Update</span></a></li>
+          </ul>
+        </li>
+      </ul>
+
+      <!-- Language indicator (settings-based, no real-time switching) -->
+      <div class="navbar-nav ms-auto">
+        <span class="navbar-text text-light small" id="currentLanguage">
+          <i class="bi bi-translate me-1"></i><span data-i18n="nav.current_language">English</span>
+        </span>
+      </div>
+
+      <div class="navbar-nav">
+        <button class="btn btn-outline-light btn-sm me-2" type="button" data-bs-toggle="collapse" data-bs-target="#debugPanel" aria-expanded="false">
+          <i class="bi bi-bug me-1"></i><span data-i18n="nav.debug">Debug</span>
+        </button>
+        <div class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="bi bi-person-circle me-1"></i>{{username}}</a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="/lua/logout"><i class="bi bi-box-arrow-right me-2"></i><span data-i18n="nav.logout">Logout</span></a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- Debug Panel -->
+<div class="collapse" id="debugPanel">
+  <div class="container-fluid">
+    <div class="card bg-black text-light mt-2 mb-3">
+      <div class="card-header">
+        <h6 class="card-title mb-0"><i class="bi bi-bug me-2"></i><span data-i18n="debug.title">Debug Information</span></h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <h6 class="text-warning"><i class="bi bi-person-check me-1"></i><span data-i18n="debug.session_info">Session Info</span></h6>
+            <div class="debug-info">
+              <div class="debug-item">
+                <span class="debug-label" data-i18n="debug.user">User:</span>
+                <span class="debug-value">{{username}}</span>
+              </div>
+              <div class="debug-item">
+                <span class="debug-label" data-i18n="debug.session_id">Session ID:</span>
+                <span class="debug-value font-monospace">{{session_id}}</span>
+              </div>
+              <div class="debug-item">
+                <span class="debug-label" data-i18n="debug.created">Created:</span>
+                <span class="debug-value">{{session_created}}</span>
+              </div>
+              <div class="debug-item">
+                <span class="debug-label" data-i18n="debug.last_activity">Last Activity:</span>
+                <span class="debug-value">{{session_last_activity}}</span>
+              </div>
+              <div class="debug-item">
+                <span class="debug-label" data-i18n="debug.time_since_activity">Time Since Activity:</span>
+                <span class="debug-value" id="timeSinceActivity">{{session_time_since}}</span>
+              </div>
+              <div class="debug-item">
+                <span class="debug-label" data-i18n="debug.session_timeout">Session Timeout:</span>
+                <span class="debug-value">{{session_timeout}} seconds</span>
+              </div>
+              <div class="debug-item">
+                <span class="debug-label" data-i18n="debug.time_remaining">Time Remaining:</span>
+                <span class="debug-value" id="timeRemaining">{{session_time_remaining}}</span>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <h6 class="text-info"><i class="bi bi-clock me-1"></i><span data-i18n="debug.system_time">System Time</span></h6>
+            <div class="debug-info">
+              <div class="debug-item">
+                <span class="debug-label" data-i18n="debug.server_time">Server Time:</span>
+                <span class="debug-value" id="serverTime">{{server_time}}</span>
+              </div>
+              <div class="debug-item">
+                <span class="debug-label" data-i18n="debug.client_time">Client Time:</span>
+                <span class="debug-value" id="clientTime">--</span>
+              </div>
+              <div class="debug-item">
+                <span class="debug-label" data-i18n="debug.time_difference">Time Difference:</span>
+                <span class="debug-value" id="timeDiff">--</span>
+              </div>
+              <div class="debug-item">
+                <span class="debug-label" data-i18n="debug.uptime">Uptime:</span>
+                <span class="debug-value">{{system_uptime}}</span>
+              </div>
+            </div>
+            <h6 class="text-success mt-3"><i class="bi bi-activity me-1"></i><span data-i18n="debug.actions">Actions</span></h6>
+            <div class="debug-actions">
+              <button class="btn btn-sm btn-outline-warning me-2" onclick="refreshDebugInfo()">
+                <i class="bi bi-arrow-clockwise me-1"></i><span data-i18n="debug.refresh">Refresh</span>
+              </button>
+              <button class="btn btn-sm btn-outline-info me-2" onclick="downloadLogs()">
+                <i class="bi bi-download me-1"></i><span data-i18n="debug.download_logs">Download Logs</span>
+              </button>
+              <button class="btn btn-sm btn-outline-danger me-2" onclick="clearLogs()">
+                <i class="bi bi-trash me-1"></i><span data-i18n="debug.clear_logs">Clear Logs</span>
+              </button>
+              <button class="btn btn-sm btn-outline-success" onclick="enableI18nDebug()">
+                <i class="bi bi-translate me-1"></i><span data-i18n="debug.i18n_debug">i18n Debug</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Universal copy to clipboard functionality
+function copyToClipboard(element) {
+    // Find the text content to copy
+    let textToCopy = '';
+
+    // Look for code, input, or textarea elements first
+    const codeElement = element.querySelector('code');
+    const inputElement = element.querySelector('input');
+    const textareaElement = element.querySelector('textarea');
+
+    if (codeElement) {
+        textToCopy = codeElement.textContent.trim();
+    } else if (inputElement) {
+        textToCopy = inputElement.value.trim();
+    } else if (textareaElement) {
+        textToCopy = textareaElement.value.trim();
+    } else {
+        // Fallback to element's text content
+        textToCopy = element.textContent.trim();
+    }
+
+    // Check for common "not ready" states
+    const notReadyStates = ['Loading...', 'Configuration error', 'Network error', 'Unknown', 'N/A', ''];
+    if (notReadyStates.includes(textToCopy)) {
+        showCopyNotification('Content not available yet', 'warning');
+        return;
+    }
+
+    // Use modern clipboard API if available
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            showCopyNotification('Copied to clipboard!', 'success');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            fallbackCopyTextToClipboard(textToCopy);
+        });
+    } else {
+        // Fallback for older browsers or non-HTTPS
+        fallbackCopyTextToClipboard(textToCopy);
+    }
+}
+
+// Fallback copy method for older browsers
+function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showCopyNotification('Copied to clipboard!', 'success');
+        } else {
+            showCopyNotification('Failed to copy', 'error');
+        }
+    } catch (err) {
+        console.error('Fallback copy failed:', err);
+        showCopyNotification('Copy not supported in this browser', 'error');
+    }
+
+    document.body.removeChild(textArea);
+}
+
+// Show copy notification
+function showCopyNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'danger'} position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 250px; opacity: 0; transition: opacity 0.3s ease;';
+    notification.innerHTML = `
+        <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'x-circle'} me-2"></i>
+        ${message}
+    `;
+
+    document.body.appendChild(notification);
+
+    // Fade in
+    setTimeout(() => notification.style.opacity = '1', 10);
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => document.body.removeChild(notification), 300);
+    }, 3000);
+}
+</script>
+
+<div class="container-fluid mt-4">

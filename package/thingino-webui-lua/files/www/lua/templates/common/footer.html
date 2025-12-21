@@ -1,0 +1,210 @@
+</div>
+
+<footer class="mt-4 text-end">
+  <div class="container-fluid small">
+    <p>Powered by <a href="https://github.com/themactep/thingino-firmware">Thingino</a>.</p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// Debug Panel JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    updateClientTime();
+    updateTimers();
+
+    // Update client time and timers every second
+    setInterval(function() {
+        updateClientTime();
+        updateTimers();
+    }, 1000);
+});
+
+function updateClientTime() {
+    const now = new Date();
+    const clientTimeElement = document.getElementById('clientTime');
+    const timeDiffElement = document.getElementById('timeDiff');
+
+    if (clientTimeElement) {
+        clientTimeElement.textContent = now.toLocaleString();
+    }
+
+    // Calculate time difference between client and server
+    if (timeDiffElement) {
+        const serverTimeElement = document.getElementById('serverTime');
+        if (serverTimeElement) {
+            const serverTimeText = serverTimeElement.textContent;
+            try {
+                const serverTime = new Date(serverTimeText);
+                const diffMs = Math.abs(now.getTime() - serverTime.getTime());
+                const diffSeconds = Math.round(diffMs / 1000);
+
+                if (diffSeconds < 60) {
+                    timeDiffElement.textContent = diffSeconds + 's';
+                } else if (diffSeconds < 3600) {
+                    timeDiffElement.textContent = Math.round(diffSeconds / 60) + 'm';
+                } else {
+                    timeDiffElement.textContent = Math.round(diffSeconds / 3600) + 'h';
+                }
+
+                // Highlight if time difference is significant
+                if (diffSeconds > 30) {
+                    timeDiffElement.style.color = '#ffc107';
+                } else {
+                    timeDiffElement.style.color = '';
+                }
+            } catch (e) {
+                timeDiffElement.textContent = 'Error';
+            }
+        }
+    }
+}
+
+function updateTimers() {
+    const timeSinceElement = document.getElementById('timeSinceActivity');
+    const timeRemainingElement = document.getElementById('timeRemaining');
+
+    if (timeSinceElement && timeRemainingElement) {
+        // This would need to be updated with actual session data
+        // For now, we'll just increment the displayed values
+        const currentText = timeSinceElement.textContent;
+        const match = currentText.match(/(\d+)/);
+        if (match) {
+            const seconds = parseInt(match[1]) + 1;
+            timeSinceElement.textContent = formatDuration(seconds);
+
+            // Calculate remaining time (assuming 2 hour timeout)
+            const timeoutSeconds = 7200; // 2 hours
+            const remaining = Math.max(0, timeoutSeconds - seconds);
+            timeRemainingElement.textContent = formatDuration(remaining);
+
+            // Color coding for time remaining
+            if (remaining < 300) { // Less than 5 minutes
+                timeRemainingElement.style.color = '#dc3545';
+            } else if (remaining < 1800) { // Less than 30 minutes
+                timeRemainingElement.style.color = '#ffc107';
+            } else {
+                timeRemainingElement.style.color = '#28a745';
+            }
+        }
+    }
+}
+
+function formatDuration(seconds) {
+    if (seconds < 60) {
+        return seconds + 's';
+    } else if (seconds < 3600) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return minutes + 'm ' + remainingSeconds + 's';
+    } else {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return hours + 'h ' + minutes + 'm';
+    }
+}
+
+function refreshDebugInfo() {
+    // Reload the current page to get fresh debug data
+    window.location.reload();
+}
+
+function downloadLogs() {
+    // Create a link to download the log file
+    const link = document.createElement('a');
+    link.href = '/lua/api/debug/logs';
+    link.download = 'webui-debug.log';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function clearLogs() {
+    if (confirm(window.i18n?.t('js.confirm.clear_debug_logs') || 'Are you sure you want to clear the debug logs?')) {
+        fetch('/lua/api/debug/clear-logs', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(window.i18n?.t('js.alert.logs_cleared') || 'Debug logs cleared successfully');
+            } else {
+                alert((window.i18n?.t('js.alert.logs_clear_failed') || 'Failed to clear logs') + ': ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error clearing logs:', error);
+            alert(window.i18n?.t('js.alert.logs_clear_failed') || 'Failed to clear logs');
+        });
+    }
+}
+
+function enableI18nDebug() {
+    // Add debug parameter to current URL and reload
+    const url = new URL(window.location);
+    url.searchParams.set('debug_i18n', '1');
+    window.location.href = url.toString();
+}
+
+// Language indicator functionality (header display only)
+function updateLanguageMenu() {
+  console.log('updateLanguageMenu called');
+
+  if (!window.i18n) {
+    console.log('i18n not available, retrying in 100ms');
+    setTimeout(updateLanguageMenu, 100); // Wait for i18n to load
+    return;
+  }
+
+  if (!window.i18n.initialized) {
+    console.log('i18n not initialized, retrying in 100ms');
+    setTimeout(updateLanguageMenu, 100); // Wait for i18n to initialize
+    return;
+  }
+
+  // Update the language indicator in the header (no dropdown menu exists)
+  const indicator = document.querySelector('#currentLanguage span[data-i18n="nav.current_language"]');
+
+  if (indicator) {
+    const names = window.i18n.getLanguageNames();
+    const current = window.i18n.getCurrentLanguage();
+    const languageName = names[current] || current.toUpperCase();
+
+    // Update the indicator text
+    indicator.textContent = languageName;
+
+    console.log('Language indicator updated to:', languageName);
+  } else {
+    console.log('Language indicator element not found - this is normal if not on a page with header');
+  }
+}
+
+// Legacy function for compatibility
+function setLanguage(lang) {
+  if (window.i18n) {
+    window.i18n.switchLanguage(lang);
+  }
+}
+
+// Initialize language menu when i18n is ready
+document.addEventListener('DOMContentLoaded', updateLanguageMenu);
+document.addEventListener('languageChanged', updateLanguageMenu);
+
+// Manual trigger for debugging
+window.debugUpdateLanguageMenu = updateLanguageMenu;
+
+// i18n Debug Tool - Development only
+// Add ?debug_i18n=1 to URL to enable
+if (window.location.search.includes('debug_i18n=1')) {
+  const script = document.createElement('script');
+  script.src = '/i18n_debug_bookmarklet.js';
+  script.onload = function() {
+    console.log('🌍 i18n Debug Tool loaded via URL parameter');
+  };
+  document.head.appendChild(script);
+}
+</script>
+
+</body>
+</html>
