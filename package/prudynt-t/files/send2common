@@ -21,13 +21,6 @@ _cleanup() {
 	GARBAGE=""
 }
 
-check_vbuffer() {
-	if [ ! -f "$VBUFFER_FILE" ]; then
-		echo_error "Video buffer not found"
-		exit 1
-	fi
-}
-
 copy_photo() {
 	local tmpfile="$(mktemp -u).jpg"
 	prudyntctl snapshot -c 0 > "$tmpfile"
@@ -36,9 +29,9 @@ copy_photo() {
 }
 
 copy_video() {
-	check_vbuffer
 	local tmpfile="$(mktemp -u).${VBUFFER_FILE##*.}"
-	cp -f "$VBUFFER_FILE" "$tmpfile"
+	echo "START $tmpfile 10 0" > /run/prudynt/mp4ctl
+	sleep 12
 	add_to_garbage  "$tmpfile"
 	echo "$tmpfile"
 }
