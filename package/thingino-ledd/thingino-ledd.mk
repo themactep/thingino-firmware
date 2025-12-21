@@ -1,7 +1,7 @@
 THINGINO_LEDD_SITE_METHOD = git
-THINGINO_LEDD_SITE = https://github.com/gtxaspec/thingino-ledd
+THINGINO_LEDD_SITE = https://github.com/themactep/thingino-ledd
 THINGINO_LEDD_SITE_BRANCH = master
-THINGINO_LEDD_VERSION = 2d11db5f06927f05ffd3bb932be688f4b8e7e198
+THINGINO_LEDD_VERSION = 7926ea4d60fea18e42c72ee0cf3eae5d643edaa1
 
 define THINGINO_LEDD_BUILD_CMDS
 	$(MAKE) CROSS_COMPILE=$(TARGET_CROSS) \
