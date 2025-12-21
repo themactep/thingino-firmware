@@ -51,6 +51,12 @@
     "message": "{\"timestamp\": \"%s\"}",
     "send_photo": false
   },
+  "speaker": {
+    "file": "",
+	"volume": 80,
+	"gain": 20,
+	"loop": 1
+  },
   "telegram": {
     "token": "",
     "channel": "",

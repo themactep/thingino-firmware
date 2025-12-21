@@ -84,6 +84,7 @@
     "ivs_polling_timeout": 1000,
     "min_time": 1,
     "monitor_stream": 1,
+	"playonspeaker": false,
     "post_time": 0,
     "roi_0_x": 0,
     "roi_0_y": 0,

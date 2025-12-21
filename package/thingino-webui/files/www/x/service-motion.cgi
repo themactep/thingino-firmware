@@ -21,6 +21,7 @@ read_config() {
 	send2ntfy=$(get_value send2ntfy)
 	send2telegram=$(get_value send2telegram)
 	send2webhook=$(get_value send2webhook)
+	playonspeaker=$(get_value playonspeaker)
 	sensitivity=$(get_value sensitivity)
 	cooldown_time=$(get_value cooldown_time)
 }
@@ -42,6 +43,7 @@ read_config
 <% field_checkbox "send2ntfy" "Send to Ntfy" "<a href=\"tool-send2ntfy.cgi\">Configure sending to Ntfy</a>" %>
 <% field_checkbox "send2telegram" "Send to Telegram" "<a href=\"tool-send2telegram.cgi\">Configure sending to Telegram</a>" %>
 <% field_checkbox "send2webhook" "Send to webhook" "<a href=\"tool-send2webhook.cgi\">Configure sending to a webhook</a>" %>
+<% field_checkbox "playonspeaker" "Play on speaker" "<a href=\"tool-send2speaker.cgi\">Configure playing</a>" %>
 </div>
 <div class="col">
 <div class="alert alert-info">
@@ -107,7 +109,7 @@ function saveValue(name) {
 	sendToEndpoint(payload);
 }
 
-$$('#enabled, #send2email, #send2ftp, #send2mqtt, #send2ntfy, #send2telegram, #send2webhook, #sensitivity, #cooldown_time').forEach((x) => {
+$$('#enabled, #send2email, #send2ftp, #send2mqtt, #send2ntfy, #send2telegram, #send2webhook, #playonspeaker, #sensitivity, #cooldown_time').forEach((x) => {
 	x.onchange = (_) => saveValue(x.id);
 });
 
@@ -136,7 +138,7 @@ $$('#enabled, #send2email, #send2ftp, #send2mqtt, #send2ntfy, #send2telegram, #s
 
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
-<% ex "jct /etc/motion.json print" %>
+<% ex "jct $config_file get $domain" %>
 </div>
 
 <%in _footer.cgi %>
