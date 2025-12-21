@@ -45,14 +45,14 @@ read_config() {
 read_config
 
 # normalize
-gpio_pan_1=$(echo $gpio_motor_h | awk '{print $1}')
-gpio_pan_2=$(echo $gpio_motor_h | awk '{print $2}')
-gpio_pan_3=$(echo $gpio_motor_h | awk '{print $3}')
-gpio_pan_4=$(echo $gpio_motor_h | awk '{print $4}')
-gpio_tilt_1=$(echo $gpio_motor_v | awk '{print $1}')
-gpio_tilt_2=$(echo $gpio_motor_v | awk '{print $2}')
-gpio_tilt_3=$(echo $gpio_motor_v | awk '{print $3}')
-gpio_tilt_4=$(echo $gpio_motor_v | awk '{print $4}')
+gpio_pan_1=$(echo $gpio_pan | awk '{print $1}')
+gpio_pan_2=$(echo $gpio_pan | awk '{print $2}')
+gpio_pan_3=$(echo $gpio_pan | awk '{print $3}')
+gpio_pan_4=$(echo $gpio_pan | awk '{print $4}')
+gpio_tilt_1=$(echo $gpio_tilt | awk '{print $1}')
+gpio_tilt_2=$(echo $gpio_tilt | awk '{print $2}')
+gpio_tilt_3=$(echo $gpio_tilt | awk '{print $3}')
+gpio_tilt_4=$(echo $gpio_tilt | awk '{print $4}')
 pos_0_x=$(echo $pos_0 | awk -F',' '{print $1}')
 pos_0_y=$(echo $pos_0 | awk -F',' '{print $2}')
 
