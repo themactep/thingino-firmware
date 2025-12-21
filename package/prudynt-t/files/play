@@ -5,7 +5,8 @@ FIFO="/run/prudynt/audio_out"
 
 usage() {
 	cat <<'EOF'
-Usage: play [-v volume] [-g gain] [-r rate] [-f format] [-l loop] [-d delay_ms] [-A] [-s] [path|-]
+Usage: play [-v volume] [-g gain] [-r rate] [-f format] [-l loop] [-d delay_ms] [-A] [-s] [path|url|-]
+       play stop
 
 Wraps Prudynt's audio FIFO so you can enqueue PLAY commands without manually
 crafting the control line.
@@ -63,6 +64,16 @@ done
 shift $((OPTIND - 1))
 
 PATH_ARG=${1:-}
+
+case "$PATH_ARG" in
+	stop)
+		echo "STOP" > "$FIFO"
+		exit 0
+		;;
+	*)
+		true
+		;;
+esac
 
 is_remote_path() {
 	case "$1" in
