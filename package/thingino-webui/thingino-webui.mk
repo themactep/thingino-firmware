@@ -26,6 +26,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/var
 	cp -rv $(THINGINO_WEBUI_PKGDIR)/files/www $(TARGET_DIR)/var/
 
+	ln -s /usr/share/tz.json $(TARGET_DIR)/var/www/a/tz.json
+
 	$(INSTALL) -D -m 0755 $(@D)/mjpeg_inotify \
 		$(TARGET_DIR)/var/www/x/mjpeg.cgi
 endef
