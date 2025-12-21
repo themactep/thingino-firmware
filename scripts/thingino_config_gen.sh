@@ -29,10 +29,10 @@ merge_config_files() {
 	local output_file="$1"
 	shift
 	local config_files=("$@")
-	
+
 	# Use associative array to track key-value pairs
 	declare -A config_vars
-	
+
 	# Process each config file in order
 	for config_file in "${config_files[@]}"; do
 		if [ -f "$config_file" ]; then
@@ -56,7 +56,7 @@ merge_config_files() {
 			echo "Config file not found: $config_file" >&2
 		fi
 	done
-	
+
 	# Write the merged configuration
 	{
 		# Write all key-value pairs (sorted for consistency)
@@ -64,7 +64,7 @@ merge_config_files() {
 			echo "${key}=${config_vars[$key]}"
 		done
 	} > "$output_file"
-	
+
 	echo "Generated config with ${#config_vars[@]} keys" >&2
 }
 

@@ -9,14 +9,8 @@ THINGINO_FFMPEG_SITE = https://ffmpeg.org/releases
 THINGINO_FFMPEG_LICENSE = LGPL-2.1+, libjpeg license
 THINGINO_FFMPEG_LICENSE_FILES = LICENSE.md COPYING.LGPLv2.1
 
-# Install to staging only for LIGHTNVR (needed for CMake pkg-config)
-#ifeq ($(BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR),y)
 THINGINO_FFMPEG_INSTALL_STAGING = YES
 THINGINO_FFMPEG_DEPENDENCIES += host-pkgconf
-#else
-#THINGINO_FFMPEG_INSTALL_STAGING = NO
-#THINGINO_FFMPEG_DEPENDENCIES += host-pkgconf host-upx
-#endif
 
 # Helper variables for list manipulation
 empty :=
@@ -304,13 +298,5 @@ define THINGINO_FFMPEG_REMOVE_EXAMPLE_SRC_FILES
 endef
 
 THINGINO_FFMPEG_POST_INSTALL_TARGET_HOOKS += THINGINO_FFMPEG_REMOVE_EXAMPLE_SRC_FILES
-
-#define THINGINO_FFMPEG_UPX_INSTALL
-#		$(HOST_DIR)/bin/upx --best --lzma $(TARGET_DIR)/usr/bin/ffmpeg
-#endef
-
-#ifneq ($(BR2_PACKAGE_THINGINO_FFMPEG_LIGHTNVR),y)
-#THINGINO_FFMPEG_POST_INSTALL_TARGET_HOOKS += THINGINO_FFMPEG_UPX_INSTALL
-#endif
 
 $(eval $(autotools-package))

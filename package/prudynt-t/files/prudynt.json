@@ -23,9 +23,9 @@
   },
   "daynight": {
     "enabled": true,
-    "ev_night_high": 0,
     "ev_day_low_primary": 0,
     "ev_day_low_secondary": 0,
+    "ev_night_high": 0,
     "loglevel": "INFO",
     "sample_interval_ms": 1000,
     "script_path": "/sbin/daynight",

@@ -18,8 +18,6 @@ FILES := $(shell ...)
 FILES = $(shell ...)
 # expand later: FILES holds the syntax $(shell ...)
 
-```
-
 ### Override workflow basics
 
 Thingino relies on Buildroot's `BR2_EXTERNAL` hook plus a single
@@ -104,4 +102,3 @@ reused across different override use cases.
 * **Config drift**: If you need package-specific configuration symbols, add
 	them to `Config.in` under `package/thingino-<pkg>/` and select them from your
 	camera `defconfig` just like any other Buildroot option.
-```
