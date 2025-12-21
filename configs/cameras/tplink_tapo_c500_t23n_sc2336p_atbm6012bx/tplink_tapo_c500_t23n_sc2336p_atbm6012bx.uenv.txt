@@ -1,5 +1,5 @@
 gpio_button=40
-gpio_default=38o 40i 42o 43o 49o 50o
+gpio_default=38O 40i 42o 43o 49o 50o
 gpio_ir850=49O
 gpio_ircut=999
 gpio_led_g=42O
