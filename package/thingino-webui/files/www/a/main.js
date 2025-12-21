@@ -42,6 +42,12 @@ function setValue(data, domain, name) {
 	if (!el) return;
 	const value = data[name];
 	if (typeof (value) == 'undefined') return;
+
+	// Enable the element since it has a value from backend
+	el.disabled = false;
+	const wrapper = el.closest('.range, .select, .boolean, .file');
+	if (wrapper) wrapper.classList.remove('disabled');
+
 	if (el.type === "checkbox") {
 		el.checked = value;
 	} else {

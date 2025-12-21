@@ -353,3 +353,13 @@ li.enabled {
 	border-left: 5px solid green;
 	margin-left: -5px;
 }
+
+/* Disabled form controls */
+.range.disabled,
+.select.disabled,
+.boolean.disabled,
+.col.disabled,
+.file.disabled {
+	opacity: 0.4;
+	pointer-events: none;
+}

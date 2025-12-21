@@ -250,6 +250,16 @@ const imagingPanel = $('#imaging-slider');
 const imagingToggleButton = $('#toggle-imaging');
 let imagingPanelVisible = false;
 
+// Disable all imaging controls initially
+imagingFields.forEach(field => {
+	const slider = $(`#${field}`);
+	if (slider) {
+		slider.disabled = true;
+		const wrapper = slider.closest('.range, .col');
+		if (wrapper) wrapper.classList.add('disabled');
+	}
+});
+
 function setImagingPanelVisibility(show) {
 	if (!imagingPanel || !imagingToggleButton) return;
 	imagingPanelVisible = !!show;
@@ -295,19 +305,17 @@ function setSliderBounds(slider, min, max, value, defaultValue) {
 function applyFieldMetadata(field, data) {
 	const slider = $(`#${field}`);
 	if (!slider) return;
-	const wrapper = slider.closest('.col') || slider.parentElement;
+	const wrapper = slider.closest('.col, .range') || slider.parentElement;
 	const isSupported = data && data.supported !== false;
 	if (!isSupported) {
 		slider.disabled = true;
-		slider.classList.add('opacity-50');
-		wrapper?.classList.add('d-none');
+		if (wrapper) wrapper.classList.add('disabled');
 		delete slider.dataset.defaultValue;
 		updateImagingLabel(field, '—');
 		return;
 	}
 	slider.disabled = false;
-	slider.classList.remove('opacity-50');
-	wrapper?.classList.remove('d-none');
+	if (wrapper) wrapper.classList.remove('disabled');
 	setSliderBounds(slider, Number(data.min), Number(data.max), Number(data.value), Number(data.default));
 	updateImagingLabel(field, data.value);
 }

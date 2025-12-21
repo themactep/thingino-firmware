@@ -303,6 +303,14 @@ const osdFontBasePath = "<%= $OSD_FONT_PATH %>";
 
 const endpoint = '/x/json-prudynt.cgi';
 
+// Request version tracking to prevent race conditions
+let requestVersions = {
+	stream0: 0,
+	stream1: 0,
+	audio: 0,
+	image: 0
+};
+
 function ts() {
 	return Math.floor(Date.now());
 }
@@ -440,15 +448,31 @@ function rgba2alpha(hex8) {
 function updateColorInputs(streamIndex, elementKey, fillHex, strokeHex) {
 	if (typeof fillHex === 'string' && fillHex.length >= 7) {
 		const fillInput = $(`#osd${streamIndex}_${elementKey}_fillcolor`);
-		if (fillInput) fillInput.value = rgba2color(fillHex);
+		if (fillInput) {
+			fillInput.value = rgba2color(fillHex);
+			fillInput.disabled = false;
+			const wrapper = fillInput.closest('.file');
+			if (wrapper) wrapper.classList.remove('disabled');
+		}
 		const fillAlphaInput = $(`#osd${streamIndex}_${elementKey}_fillcolor-alpha`);
-		if (fillAlphaInput) fillAlphaInput.value = rgba2alpha(fillHex);
+		if (fillAlphaInput) {
+			fillAlphaInput.value = rgba2alpha(fillHex);
+			fillAlphaInput.disabled = false;
+		}
 	}
 	if (typeof strokeHex === 'string' && strokeHex.length >= 7) {
 		const strokeInput = $(`#osd${streamIndex}_${elementKey}_strokecolor`);
-		if (strokeInput) strokeInput.value = rgba2color(strokeHex);
+		if (strokeInput) {
+			strokeInput.value = rgba2color(strokeHex);
+			strokeInput.disabled = false;
+			const wrapper = strokeInput.closest('.file');
+			if (wrapper) wrapper.classList.remove('disabled');
+		}
 		const strokeAlphaInput = $(`#osd${streamIndex}_${elementKey}_strokecolor-alpha`);
-		if (strokeAlphaInput) strokeAlphaInput.value = rgba2alpha(strokeHex);
+		if (strokeAlphaInput) {
+			strokeAlphaInput.value = rgba2alpha(strokeHex);
+			strokeAlphaInput.disabled = false;
+		}
 	}
 }
 
@@ -471,7 +495,12 @@ function normalizeOsdElement(osd, key) {
 function applyCheckbox(selector, value) {
 	if (typeof value === 'undefined') return;
 	const el = $(selector);
-	if (el) el.checked = value;
+	if (el) {
+		el.checked = value;
+		el.disabled = false;
+		const wrapper = el.closest('.boolean');
+		if (wrapper) wrapper.classList.remove('disabled');
+	}
 }
 
 function syncOsdTextElement(streamIndex, elementKey, config, withFormat = false) {
@@ -479,7 +508,12 @@ function syncOsdTextElement(streamIndex, elementKey, config, withFormat = false)
 	applyCheckbox(`#osd${streamIndex}_${elementKey}_enabled`, config.enabled);
 	if (withFormat && typeof config.format !== 'undefined') {
 		const input = $(`#osd${streamIndex}_${elementKey}_format`);
-		if (input) input.value = config.format;
+		if (input) {
+			input.value = config.format;
+			input.disabled = false;
+			const wrapper = input.closest('.file');
+			if (wrapper) wrapper.classList.remove('disabled');
+		}
 	}
 	updateColorInputs(streamIndex, elementKey, config.fill_color, config.stroke_color);
 }
@@ -501,18 +535,35 @@ function handleMessage(msg) {
 			if (data.osd) {
 				const osd = data.osd;
 				if (typeof osd.enabled !== 'undefined') {
-					$(`#osd${i}_enabled`).checked = osd.enabled;
+					const osdEl = $(`#osd${i}_enabled`);
+					osdEl.checked = osd.enabled;
+					osdEl.disabled = false;
+					const wrapper = osdEl.closest('.boolean');
+					if (wrapper) wrapper.classList.remove('disabled');
 					toggleWrappers(i);
 				}
-				if (osd.font_path)
-					$(`#osd${i}_fontname`).value = osd.font_path.split('/').reverse()[0];
+				if (osd.font_path) {
+					const fontEl = $(`#osd${i}_fontname`);
+					fontEl.value = osd.font_path.split('/').reverse()[0];
+					fontEl.disabled = false;
+					const wrapper = fontEl.closest('.select');
+					if (wrapper) wrapper.classList.remove('disabled');
+				}
 				if (typeof osd.font_size !== 'undefined') {
+					const fontSizeEl = $(`#osd${i}_fontsize`);
 					$(`#osd${i}_fontsize-show`).textContent = osd.font_size;
-					$(`#osd${i}_fontsize`).value = osd.font_size;
+					fontSizeEl.value = osd.font_size;
+					fontSizeEl.disabled = false;
+					const wrapper = fontSizeEl.closest('.range');
+					if (wrapper) wrapper.classList.remove('disabled');
 				}
 				if (typeof osd.stroke_size !== 'undefined') {
+					const strokeSizeEl = $(`#osd${i}_strokesize`);
 					$(`#osd${i}_strokesize-show`).textContent = osd.stroke_size;
-					$(`#osd${i}_strokesize`).value = osd.stroke_size;
+					strokeSizeEl.value = osd.stroke_size;
+					strokeSizeEl.disabled = false;
+					const wrapper = strokeSizeEl.closest('.range');
+					if (wrapper) wrapper.classList.remove('disabled');
 				}
 
 				const logo = osd.logo || {};
@@ -577,8 +628,31 @@ async function loadConfig() {
 	}
 }
 
-async function sendToEndpoint(payload) {
+async function sendToEndpoint(payload, domainHint = null) {
 	console.log(ts(), '===>', payload);
+
+	// Determine which domain is being updated and track its version
+	let requestVersion = null;
+	let domain = domainHint;
+	if (!domain) {
+		try {
+			const parsed = JSON.parse(payload);
+			const keys = Object.keys(parsed);
+			for (const key of keys) {
+				if (requestVersions.hasOwnProperty(key)) {
+					domain = key;
+					break;
+				}
+			}
+		} catch (e) {}
+	}
+
+	if (domain && requestVersions.hasOwnProperty(domain)) {
+		requestVersions[domain]++;
+		requestVersion = requestVersions[domain];
+		console.log(`Request v${requestVersion} for ${domain}`);
+	}
+
 	try {
 		const response = await fetch(endpoint, {
 			method: 'POST',
@@ -590,6 +664,15 @@ async function sendToEndpoint(payload) {
 		if (contentType?.includes('application/json')) {
 			const msg = await response.json();
 			console.log(ts(), '<===', JSON.stringify(msg));
+
+			// Check if this response is still current
+			if (domain && requestVersion !== null) {
+				if (requestVersion !== requestVersions[domain]) {
+					console.log(`Discarding stale response v${requestVersion} for ${domain} (current: v${requestVersions[domain]})`);
+					return;
+				}
+			}
+
 			handleMessage(msg);
 		}
 	} catch (err) {
@@ -718,7 +801,7 @@ function saveValue(domain, name) {
 
 	let json_actions = '';
 	if (thread > 0) json_actions = ',"action":{"restart_thread":'+thread+'}';
-	sendToEndpoint('{"'+domain+'":{'+payload+json_actions+'}}');
+	sendToEndpoint('{"'+domain+'":{'+payload+json_actions+'}}', domain);
 }
 
 for (const i in [0, 1]) {
@@ -814,6 +897,53 @@ for (const i in [0, 1]) {
 $('#preview_source_0').addEventListener('click', () => { $('#preview').src='/x/ch0.mjpg' });
 $('#preview_source_1').addEventListener('click', () => { $('#preview').src='/x/ch1.mjpg' });
 
+// Disable all form elements initially - they'll be enabled when backend sends values
+function disableAllControls() {
+	const selectors = [
+		...stream_params.flatMap(x => [`#stream0_${x}`, `#stream1_${x}`]),
+		...audio_params.map(x => `#audio_${x}`),
+		...image_params.map(x => `#image_${x}`)
+	];
+
+	// Add OSD elements for both streams
+	for (const i in [0, 1]) {
+		selectors.push(
+			`#osd${i}_enabled`,
+			`#osd${i}_fontname`,
+			`#osd${i}_fontsize`,
+			`#osd${i}_strokesize`,
+			`#osd${i}_logo_enabled`,
+			`#osd${i}_time_enabled`,
+			`#osd${i}_time_format`,
+			`#osd${i}_time_fillcolor`,
+			`#osd${i}_time_fillcolor-alpha`,
+			`#osd${i}_time_strokecolor`,
+			`#osd${i}_time_strokecolor-alpha`,
+			`#osd${i}_uptime_enabled`,
+			`#osd${i}_uptime_fillcolor`,
+			`#osd${i}_uptime_fillcolor-alpha`,
+			`#osd${i}_uptime_strokecolor`,
+			`#osd${i}_uptime_strokecolor-alpha`,
+			`#osd${i}_usertext_enabled`,
+			`#osd${i}_usertext_format`,
+			`#osd${i}_usertext_fillcolor`,
+			`#osd${i}_usertext_fillcolor-alpha`,
+			`#osd${i}_usertext_strokecolor`,
+			`#osd${i}_usertext_strokecolor-alpha`
+		);
+	}
+
+	selectors.forEach(selector => {
+		const el = $(selector);
+		if (el) {
+			el.disabled = true;
+			const wrapper = el.closest('.range, .select, .boolean, .file');
+			if (wrapper) wrapper.classList.add('disabled');
+		}
+	});
+}
+
+disableAllControls();
 loadConfig().then(() => { $('#preview').src = '/x/ch0.mjpg' });
 </script>
 
