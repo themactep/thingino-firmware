@@ -24,6 +24,7 @@ CAMERA_IP_ADDRESS="$2"
 
 LOCAL_FW_FILE="$1"
 LOCAL_SCRIPT="$(dirname "$0")/../package/thingino-sysupgrade/files/sysupgrade"
+LOCAL_SCRIPT2="$(dirname "$0")/../package/thingino-sysupgrade/files/sysupgrade-stage2"
 
 REMOTE_FW_FILE="/tmp/fw.bin"
 REMOTE_HOST="root@$CAMERA_IP_ADDRESS"
@@ -46,6 +47,8 @@ remote_run "touch /tmp/webupgrade" || \
 echo "Transferring sysupgrade utility to device..."
 remote_copy $LOCAL_SCRIPT $REMOTE_HOST:$REMOTE_SCRIPT || \
 	die "Failed to transfer sysupgrade utility"
+remote_copy $LOCAL_SCRIPT2 $REMOTE_HOST:/sbin/$(basename $REMOTE_SCRIPT2) || \
+	die "Failed to transfer sysupgrade-stage2 utility"
 
 remote_run "chmod +x $REMOTE_SCRIPT" || \
 	die "Failed to set execute permissions on sysupgrade utility"
