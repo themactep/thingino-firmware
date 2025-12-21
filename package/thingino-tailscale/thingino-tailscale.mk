@@ -1,32 +1,3 @@
-THINGINO_TAILSCALE_VERSION = 1.78.1
-THINGINO_TAILSCALE_SOURCE = tailscale-$(THINGINO_TAILSCALE_VERSION)-go2.tar.gz
-THINGINO_TAILSCALE_SITE = $(call github,tailscale,tailscale,v$(THINGINO_TAILSCALE_VERSION))
-THINGINO_TAILSCALE_LICENSE = BSD-3-Clause
-THINGINO_TAILSCALE_LICENSE_FILES = LICENSE
-THINGINO_TAILSCALE_GOMOD = tailscale.com
-THINGINO_TAILSCALE_CPE_ID_VENDOR = tailscale
-THINGINO_TAILSCALE_BUILD_TARGETS = cmd/tailscale cmd/tailscaled
-THINGINO_TAILSCALE_LDFLAGS = \
-	-X tailscale.com/version.longStamp=$(THINGINO_TAILSCALE_VERSION) \
-	-X tailscale.com/version.shortStamp=$(THINGINO_TAILSCALE_VERSION)
+TAILSCALE_GO_ENV += GOARCH=mipsle CGO_ENABLED=0
 
-THINGINO_TAILSCALE_DEPENDENCIES = host-upx thingino-go
-THINGINO_TAILSCALE_GO_ENV = GOARCH=mipsle
-
-define THINGINO_TAILSCALE_INSTALL_TARGET_CMDS
-        $(INSTALL) -D -m 0755 $(@D)/bin/tailscale \
-                $(TARGET_DIR)/opt/bin/tailscale
-        $(INSTALL) -D -m 0755 $(@D)/bin/tailscaled \
-                $(TARGET_DIR)/opt/bin/tailscaled
-endef
-
-define THINGINO_TAILSCALE_INSTALL_SYMLINK
-	ln -f -s /opt/bin/tailscaled $(TARGET_DIR)/usr/sbin/tailscaled
-endef
-THINGINO_TAILSCALE_POST_INSTALL_TARGET_HOOKS += THINGINO_TAILSCALE_INSTALL_SYMLINK
-
-define THINGINO_TAILSCALE_LINUX_CONFIG_FIXUPS
-	$(call KCONFIG_ENABLE_OPT,CONFIG_TUN)
-endef
-
-$(eval $(golang-package))
+$(eval $(generic-package))
