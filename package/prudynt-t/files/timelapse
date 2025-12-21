@@ -7,11 +7,11 @@ read_config() {
 	local CONFIG_FILE="/etc/timelapse.json"
 	[ -f "$CONFIG_FILE" ] || return
 
-	  enabled=$(jct $TIMELAPSE_CONFIG_FILE get enabled)
+	enabled=$(jct $TIMELAPSE_CONFIG_FILE get enabled)
 	mountroot=$(jct $TIMELAPSE_CONFIG_FILE get mountroot)
-	 filepath=$(jct $TIMELAPSE_CONFIG_FILE get filepath)
-	 filename=$(jct $TIMELAPSE_CONFIG_FILE get filename)
-	 interval=$(jct $TIMELAPSE_CONFIG_FILE get interval)
+	filepath=$(jct $TIMELAPSE_CONFIG_FILE get filepath)
+	filename=$(jct $TIMELAPSE_CONFIG_FILE get filename)
+	interval=$(jct $TIMELAPSE_CONFIG_FILE get interval)
 	keep_days=$(jct $TIMELAPSE_CONFIG_FILE get keep_days)
 }
 
