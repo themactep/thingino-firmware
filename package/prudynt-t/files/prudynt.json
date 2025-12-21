@@ -161,8 +161,8 @@
         "format": "Brightness:%b%% Avg:%a%% %m",
         "position": "10,70",
         "rotation": 0,
-        "fill_color": "#FFFFFF88",
-        "stroke_color": "#00000088"
+        "fill_color": "#FFFFFFCC",
+        "stroke_color": "#000000CC"
       },
       "logo": {
         "enabled": true,
@@ -190,27 +190,27 @@
       },
       "time": {
         "enabled": true,
-        "fill_color": "#FFFFFF88",
+        "fill_color": "#FFFFFFCC",
         "format": "%F %T",
         "position": "10,10",
         "rotation": 0,
-        "stroke_color": "#00000088"
+        "stroke_color": "#000000CC"
       },
       "uptime": {
         "enabled": true,
-        "fill_color": "#FFFFFF88",
+        "fill_color": "#FFFFFFCC",
         "format": "Uptime: %02lu:%02lu:%02lu",
         "position": "-10,10",
         "rotation": 0,
-        "stroke_color": "#00000088"
+        "stroke_color": "#000000CC"
       },
       "usertext": {
         "enabled": true,
-        "fill_color": "#FFFFFF88",
+        "fill_color": "#FFFFFFCC",
         "format": "%hostname",
         "position": "0,10",
         "rotation": 0,
-        "stroke_color": "#00000088"
+        "stroke_color": "#000000CC"
       }
     },
     "profile": 2,
@@ -248,11 +248,11 @@
       "start_delay": 0,
       "brightness": {
         "enabled": false,
-        "fill_color": "#FFFFFF88",
+        "fill_color": "#FFFFFFCC",
         "format": "Brightness:%b%% Avg:%a%% %m",
         "position": "10,70",
         "rotation": 0,
-        "stroke_color": "#00000088"
+        "stroke_color": "#000000CC"
       },
       "logo": {
         "enabled": true,
@@ -280,27 +280,27 @@
       },
       "time": {
         "enabled": true,
-        "fill_color": "#FFFFFF88",
+        "fill_color": "#FFFFFFCC",
         "format": "%F %T",
         "position": "10,10",
         "rotation": 0,
-        "stroke_color": "#00000088"
+        "stroke_color": "#000000CC"
       },
       "uptime": {
         "enabled": true,
-        "fill_color": "#FFFFFF88",
+        "fill_color": "#FFFFFFCC",
         "format": "Uptime: %02lu:%02lu:%02lu",
         "position": "-10,10",
         "rotation": 0,
-        "stroke_color": "#00000088"
+        "stroke_color": "#000000CC"
       },
       "usertext": {
         "enabled": true,
-        "fill_color": "#FFFFFF88",
+        "fill_color": "#FFFFFFCC",
         "format": "%hostname",
         "position": "0,10",
         "rotation": 0,
-        "stroke_color": "#00000088"
+        "stroke_color": "#000000CC"
       }
     },
     "profile": 2,
