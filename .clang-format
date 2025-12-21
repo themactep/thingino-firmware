@@ -1,0 +1,10 @@
+# .clang-format
+#
+# Generic clang-format configuration.
+# For documentation of the options, see
+# https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+#
+BasedOnStyle: LLVM
+AllowShortFunctionsOnASingleLine: None
+KeepEmptyLinesAtTheStartOfBlocks: false
+ColumnLimit: 120
