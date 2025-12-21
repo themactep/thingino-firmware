@@ -251,7 +251,7 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <div class="col"><% field_select "audio_spk_sample_rate" "Speaker sampling, Hz" "$AUDIO_SAMPLING" %></div>
 </div>
 
-<button type="button" class="btn btn-secondary" id="restart-audio">Restart Audio</button>
+<button type="button" class="btn btn-secondary mt-3" id="restart-audio">Restart Audio</button>
 </div>
 
 <div class="tab-pane fade" id="tab5-pane" role="tabpanel" aria-labelledby="tab5">
