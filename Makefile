@@ -215,7 +215,8 @@ BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$
 
 .PHONY: all bootstrap build build_fast clean clean-nfs-debug cleanbuild defconfig distclean \
 	fast help info pack release remove_bins repack sdk toolchain update upboot-ota \
-	upload_tftp upgrade_ota br-% check-config force-config show-config-deps clean-config
+	upload_tftp upgrade_ota br-% check-config force-config show-config-deps clean-config \
+	agent-info show-vars
 
 all: defconfig build pack
 	$(info -------------------------------- $@)
@@ -240,6 +241,11 @@ update:
 	git submodule init
 	git submodule update
 	@$(FIGLET) "$(GIT_BRANCH)"
+
+update_manual:
+	@echo "=== UPDATING BUILDROOT MANUALS ==="
+	@curl -s -z docs/buildroot/manual.pdf -o docs/buildroot/manual.pdf https://buildroot.org/manual.pdf
+	@curl -s -z docs/buildroot/manual.txt -o docs/buildroot/manual.txt https://buildroot.org/manual.text
 
 # install what's needed
 bootstrap:
@@ -761,6 +767,8 @@ help:
 	  make clean          clean before reassembly\n\
 	  make distclean      start building from scratch\n\
 	  make rebuild-<pkg>  perform a clean package rebuild for <pkg>\n\
+	  make agent-info     show rebuild conventions and key vars\n\
+	  make show-vars      print key build variables\n\
 	  make help           print this help\n\
 	  \n\
 	Configuration Management:\n\
@@ -783,3 +791,33 @@ help:
 	                      upload full firmware image to the camera\n\
 	                        over network, and flash it\n\n\
 	"
+# Show conventions and quick project introspection for assistants/tools
+agent-info:
+	$(info -------------------------------- $@)
+	@echo "Conventions:";
+	@echo "  - Rebuild pattern: rebuild-% => %-dirclean then %";
+	@echo "  - Buildroot helpers: br-% and br-%-dirclean";
+	@echo "Examples:";
+	@echo "  make rebuild-telegrambot    # clean + build telegrambot";
+	@echo "  make br-telegrambot         # just build the package";
+	@echo "  make br-telegrambot-dirclean# clean only the package";
+	@if [ -f .agent/project.yml ]; then \
+		echo "Agent memory file: .agent/project.yml"; \
+	else \
+		echo "Agent memory file not found (.agent/project.yml). Optional: add one for assistant hints."; \
+	fi;
+	@if [ -f docs/agent-memory.md ]; then \
+		echo "Project memory doc: docs/agent-memory.md"; \
+	fi;
+	@$(MAKE) --no-print-directory show-vars
+
+# Print key variables commonly needed for tooling
+show-vars:
+	$(info -------------------------------- $@)
+	@echo "BR2_EXTERNAL  = $(BR2_EXTERNAL)";
+	@echo "OUTPUT_DIR    = $(OUTPUT_DIR)";
+	@echo "BR2_DL_DIR    = $(BR2_DL_DIR)";
+	@echo "CAMERA_SUBDIR = $(CAMERA_SUBDIR)";
+	@echo "CAMERA        = $(CAMERA)";
+	@echo "HOST_DIR      = $(HOST_DIR)";
+	@echo "BR2_MAKE      = $(BR2_MAKE)";
