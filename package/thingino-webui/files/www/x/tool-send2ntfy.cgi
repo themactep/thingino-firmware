@@ -11,6 +11,7 @@ temp_config_file="/tmp/$domain.json"
 
 defaults() {
 	default_for host "ntfy.sh"
+	default_for port "80"
 	default_for topic "$camera_id"
 	default_for message "{\"camera_id\": \"$camera_id\", \"timestamp\": \"%s\"}"
 	default_for tags "[]"
@@ -30,27 +31,27 @@ get_value() {
 read_config() {
 	[ -f "$config_file" ] || return
 
+	actions=$(get_value "actions")
+	attach=$(get_value "attach")
+	call=$(get_value "call")
+	click=$(get_value "click")
+	delay=$(get_value "delay")
+	email=$(get_value "email")
+	filename=$(get_value "filename")
 	host=$(get_value "host")
-	port=$(get_value "port")
-	username=$(get_value "username")
-	password=$(get_value "password")
-	token=$(get_value "token")
-	topic=$(get_value "topic")
 	icon=$(get_value "icon")
 	message=$(get_value "message")
-	title=$(get_value "title")
-	tags=$(get_value "tags")
-	delay=$(get_value "delay")
-	prority=$(get_value "priority")
+	password=$(get_value "password")
+	port=$(get_value "port")
+	priority=$(get_value "priority")
 	send_photo=$(get_value "send_photo")
 	send_video=$(get_value "send_video")
-	attach=$(get_value "attach")
-	click=$(get_value "click")
-	filename=$(get_value "filename")
-	email=$(get_value "email")
-	call=$(get_value "call")
-	actions=$(get_value "actions")
+	tags=$(get_value "tags")
+	title=$(get_value "title")
+	token=$(get_value "token")
+	topic=$(get_value "topic")
 	twilio_token=$(get_value "twilio_token")
+	username=$(get_value "username")
 }
 
 read_config
@@ -59,15 +60,15 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
 	host="$POST_host"
-	port="$POST_port"
-	username="$POST_username"
-	password="$POST_password"
-	token="$POST_token"
-	topic="$POST_topic"
 	message="$POST_message"
-	title="$POST_title"
+	port="$POST_port"
+	password="$POST_password"
 	send_photo="$POST_send_photo"
 	send_video="$POST_send_video"
+	title="$POST_title"
+	token="$POST_token"
+	topic="$POST_topic"
+	username="$POST_username"
 
 	error_if_empty "$topic" "Ntfy topic cannot be empty."
 	error_if_empty "$message" "Ntfy message cannot be empty."
@@ -84,25 +85,27 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 	if [ -z "$error" ]; then
 		set_value host "$host"
-		set_value port "$port"
-		set_value username "$username"
+		set_value message "$message"
 		set_value password "$password"
+		set_value port "$port"
+		set_value send_photo "$send_photo"
+		set_value send_video "$send_video"
+		set_value title "$title"
 		set_value token "$token"
 		set_value topic "$topic"
-		set_value message "$message"
-		set_value title "$title"
-		#set_value icon "$icon"
-		#set_value tags "$tags"
-		#set_value delay "$delay"
-		#set_value priority "$prority"
-		#set_value send_photo "$send_photo"
-		#set_value send_video "$send_video"
-		#set_value attach "$attach"
-		#set_value click "$click"
-		#set_value filename "$filename"
-		#set_value email "$email"
-		#set_value call "$call"
+		set_value username "$username"
+		set_value icon "$icon"
+
 		#set_value actions "$actions"
+		#set_value attach "$attach"
+		#set_value call "$call"
+		#set_value click "$click"
+		#set_value delay "$delay"
+		#set_value email "$email"
+		#set_value filename "$filename"
+		#set_value icon "$icon"
+		#set_value priority "$prority"
+		#set_value tags "$tags"
 		#set_value twilio_token "$twilio_token"
 
 		jct "$config_file" import "$temp_config_file"
@@ -121,10 +124,14 @@ defaults
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
 <div class="col">
-<% field_text "host" "Ntfy server" "Defaults to <a href=\"https://ntfy.sh/\" target=\"_blank\">ntfy.sh</a>" %>
+<div class="row g-1">
+<div class="col-10"><% field_text "host" "Ntfy server FQDN or IP address"  "Defaults to <a href=\"https://ntfy.sh/\" target=\"_blank\">ntfy.sh</a>" %></div>
+<div class="col-2"><% field_text "port" "Port" %></div>
+</div>
 <% field_text "username" "Ntfy username" %>
 <% field_password "password" "Ntfy password" %>
 <% field_text "token" "Ntfy token" %>
+<% field_switch "use_ssl" "Use SSL" %>
 </div>
 <div class="col">
 <% field_text "topic" "Ntfy topic" %>
@@ -146,6 +153,14 @@ defaults
 
 <script>
 $('#message').style.height = '7rem';
+$('#use_ssl').addEventListener('change', ev => {
+	const el=$('#port');
+	if (ev.target.checked) {
+		if (el.value === '80') el.value='443';
+	} else {
+		if (el.value === '443') el.value='80';
+	}
+});
 </script>
 
 <%in _footer.cgi %>

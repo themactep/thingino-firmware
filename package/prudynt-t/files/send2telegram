@@ -30,29 +30,29 @@ parse_caption() {
 read_config() {
 	[ -f "$config_file" ] || return
 
-	     token=$(get_value token)
-	   channel=$(get_value channel)
-	   message=$(get_value message)
-	      file=$(get_value file)
-	    silent=$(get_value silent)
+	channel=$(get_value channel)
+	file=$(get_value file)
+	message=$(get_value message)
+	silent=$(get_value silent)
 	send_photo=$(get_value send_photo)
 	send_video=$(get_value send_video)
+	token=$(get_value token)
 }
 
 read_config
 
 # override config values with command line arguments
-while getopts c:f:m:Sst:Vvh flag; do
+while getopts c:f:m:st:vSV flag; do
 	case "$flag" in
 		c) channel=$OPTARG ;;
-		m) message=$OPTARG ;;
 		f) file=$OPTARG ;;
+		m) message=$OPTARG ;;
 		s) silent="true" ;;
 		t) token=$OPTARG ;;
 		v) verbose="true" ;;
 		S) send_photo="true" ;;
 		V) send_video="true" ;;
-		h) show_help ;;
+		*) show_help ;;
 	esac
 done
 
@@ -108,25 +108,10 @@ if [ "true" = "$send_video" ] && [ "true" = "$send_photo" ]; then
 	[ -n "$message" ] && caption="$caption $message"
 	media='[{"type":"photo","media":"attach://snap","caption":"'$caption'"},'
 
-	check_vbuffer
-	inode=$(stat -c%i $VBUFFER_FILE)
+	video=$(copy_video)
+	command="$command -F 'video=@$video'"
+	media=$media'{"type":"video","media":"attach://video"},'
 
-	video1=$(copy_video)
-	command="$command -F 'video1=@$video1'"
-	media=$media'{"type":"video","media":"attach://video1"},'
-
-	while [ $inode -eq $(stat -c%i $VBUFFER_FILE) ]; do
-		n=$((n + 1))
-		if [ "$n" -ge 10 ]; then
-			echo_error "Give up after $n attempts."
-			exit 1
-		fi
-		sleep 1
-	done
-
-	video2=$(copy_video)
-	command="$command -F 'video2=@$video2'"
-	media=$media'{"type":"video","media":"attach://video2"}]'
 	command="$command -F 'media=$media'"
 
 elif [ "true" = "$send_video" ]; then

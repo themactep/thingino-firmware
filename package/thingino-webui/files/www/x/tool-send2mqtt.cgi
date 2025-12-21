@@ -35,16 +35,16 @@ read_config() {
 	[ -f "$config_file" ] || return
 
 	host=$(get_value "host")
-	port=$(get_value "port")
-	username=$(get_value "username")
-	password=$(get_value "password")
-	topic=$(get_value "topic")
 	message=$(get_value "message")
-	is_json=$(get_value "is_json")
+	password=$(get_value "password")
+	port=$(get_value "port")
 	send_photo=$(get_value "send_photo")
 	send_video=$(get_value "send_video")
+	topic=$(get_value "topic")
 	topic_photo=$(get_value "topic_photo")
 	topic_video=$(get_value "topic_video")
+	use_ssl=$(get_value "use_ssl")
+	username=$(get_value "username")
 }
 
 read_config
@@ -52,18 +52,18 @@ read_config
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
-	host="$POST_host"
-	port="$POST_port"
 	client_id="$POST_client_id"
-	username="$POST_username"
-	password="$POST_password"
-	topic="$POST_topic"
+	host="$POST_host"
 	message="$POST_message"
+	password="$POST_password"
+	port="$POST_port"
 	send_photo="$POST_send_photo"
 	send_video="$POST_send_video"
+	topic="$POST_topic"
 	topic_photo="$POST_topic_photo"
 	topic_video="$POST_topic_video"
 	use_ssl="$POST_use_ssl"
+	username="$POST_username"
 
 	error_if_empty "$host" "MQTT broker host cannot be empty."
 	error_if_empty "$port" "MQTT port cannot be empty."

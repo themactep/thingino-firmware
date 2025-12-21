@@ -47,43 +47,41 @@ Where:
 read_config() {
 	[ -f "$config_file" ] || return
 
-	host=$(get_value host)
-	port=$(get_value port)
-	username=$(get_value username)
-	password=$(get_value password)
 	client_id=$(get_value client_id)
+	host=$(get_value host)
 	message=$(get_value message)
+	password=$(get_value password)
+	port=$(get_value port)
+	send_photo=$(get_value send_photo)
+	send_video=$(get_value send_video)
 	topic=$(get_value topic)
 	topic_photo=$(get_value topic_photo)
 	topic_video=$(get_value topic_video)
-	send_photo=$(get_value send_photo)
-	send_video=$(get_value send_video)
+	username=$(get_value username)
 }
 
 read_config
 
-while getopts h:p:u:P:t:m:SVv flag; do
+while getopts h:m:p:t:u:vP:SV flag; do
 	case "$flag" in
 		h) host=$OPTARG ;;
-		p) port=$OPTARG ;;
-		u) username=$OPTARG ;;
-		P) password=$OPTARG ;;
-		t) topic=$OPTARG ;;
 		m) message=$OPTARG ;;
+		p) port=$OPTARG ;;
+		t) topic=$OPTARG ;;
+		u) username=$OPTARG ;;
+		v) verbose="true" ;;
+		P) password=$OPTARG ;;
+		# sending a file from the command line disables sending photo
+		# and video defined in config unless explicitly set so (-S/-V)
+		f) file=$OPTARG; send_photo="false"; send_video="false" ;;
 		S) send_photo="true" ;;
 		V) send_video="true" ;;
-		v) verbose="true" ;;
 		*) show_help ;;
 	esac
 done
 
 if [ -z "$host" ]; then
 	echo_error "MQTT broker host is not set"
-	exit 1
-fi
-
-if [ -z "$port" ]; then
-	echo_error "MQTT broker port is not set"
 	exit 1
 fi
 
@@ -129,6 +127,15 @@ fi
 if ! sh -c "$send_command"; then
 	echo_error "Failed to send MQTT message"
 	failed=1
+fi
+
+if [ -n "$file" ] && [ -f "$file" ]; then
+	send_command="$command -t $topic -f '$file'"
+	[ "true" = "$verbose" ] && echo_command "$send_command"
+	if ! sh -c "$send_command"; then
+		echo_error "Failed to send file via MQTT"
+		failed=1
+	fi
 fi
 
 if [ "true" = "$send_photo" ]; then

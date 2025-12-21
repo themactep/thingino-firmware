@@ -26,13 +26,13 @@ read_config() {
 	[ -f "$config_file" ] || return
 
 	host=$(get_value host)
-	port=$(get_value port)
-	username=$(get_value username)
-	password=$(get_value password)
 	path=$(get_value path)
-	template=$(get_value template)
+	password=$(get_value password)
+	port=$(get_value port)
 	send_photo=$(get_value send_photo)
 	send_video=$(get_value send_video)
+	template=$(get_value template)
+	username=$(get_value username)
 }
 
 # Files to send
@@ -54,19 +54,20 @@ process_file() {
 
 read_config
 
-while getopts h:p:u:P:d:f:SVv flag; do
+# order is important!
+while getopts d:h:p:u:vP:f:SV flag; do
 	case "$flag" in
+		d) path=$OPTARG ;;
 		h) host=$OPTARG ;;
 		p) port=$OPTARG ;;
 		u) username=$OPTARG ;;
+		v) verbose="true" ;;
 		P) password=$OPTARG ;;
-		d) path=$OPTARG ;;
 		# sending a file from the command line disables sending photo
 		# and video defined in config unless explicitly set so (-S/-V)
 		f) file=$OPTARG; send_photo="false"; send_video="false" ;;
 		S) send_photo="true" ;;
 		V) send_video="true" ;;
-		v) verbose="true" ;;
 		*) show_help ;;
 	esac
 done

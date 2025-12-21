@@ -29,7 +29,7 @@ copy_photo() {
 }
 
 copy_video() {
-	local tmpfile="$(mktemp -u).${VBUFFER_FILE##*.}"
+	local tmpfile="$(mktemp -u).mp4"
 	echo "START $tmpfile 10 0" > /run/prudynt/mp4ctl
 	sleep 12
 	add_to_garbage  "$tmpfile"
@@ -37,7 +37,7 @@ copy_video() {
 }
 
 get_value() {
-	jct $config_file get "$domain.$1"
+	jct $config_file get "$domain.$1" 2>/dev/null
 }
 
 trap _cleanup EXIT

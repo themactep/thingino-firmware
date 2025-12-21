@@ -12,6 +12,7 @@ show_help() {
 	echo "Usage: $0 [options]
 Where:
 	-h host      NTFY server FQDN or IP address
+	-p port      NTFY server port
 	-u username  NTFY username
 	-P password  NTFY password
 	-T token     NTFY token
@@ -34,59 +35,63 @@ Where:
 read_config() {
 	[ -f "$config_file" ] || return
 
-	host=$(get_value host)
-	port=$(get_value port)
-	username=$(get_value username)
-	password=$(get_value password)
-	token=$(get_value token)
-	message=$(get_value message)
-	topic=$(get_value topic)
-	title=$(get_value title)
-	tags=$(get_value tags)
-	icon=$(get_value icon)
+	actions=$(get_value actions)
+	attach=$(get_value attach)
+	call=$(get_value call)
+	click=$(get_value click)
 	delay=$(get_value delay)
+	email=$(get_value email)
+	filename=$(get_value filename)
+	host=$(get_value host)
+	icon=$(get_value icon)
+	message=$(get_value message)
+	password=$(get_value password)
+	port=$(get_value port)
 	prority=$(get_value priority)
 	send_photo=$(get_value send_photo)
-	attach=$(get_value attach)
-	click=$(get_value click)
-	filename=$(get_value filename)
-	email=$(get_value email)
-	call=$(get_value call)
-	actions=$(get_value actions)
+	send_video=$(get_value send_video)
+	tags=$(get_value tags)
+	title=$(get_value title)
+	token=$(get_value token)
+	topic=$(get_value topic)
 	twilio_token=$(get_value twilio_token)
+	username=$(get_value username)
 }
 
 read_config
 
-while getopts h:p:u:P:T:m:n:t:i:z:d:a:c:f:SVv flag; do
+while getopts a:c:d:h:i:m:n:t:p:u:vz:P:T:f:SV flag; do
 	case "$flag" in
-		h) host=$OPTARG ;;
-		u) username=$OPTARG ;;
-		P) password=$OPTARG ;;
-		T) token=$OPTARG ;;
-		m) message=$OPTARG ;;
-		n) title=$OPTARG ;;
-		t) topic=$OPTARG ;;
-		i) icon=$OPTARG ;;
-		z) priority=$OPTARG ;;
-		d) delay==$OPTARG ;;
 		a) attach=$OPTARG ;;
 		c) click=$OPTARG ;;
-		f) filename=$OPTARG ;;
+		d) delay==$OPTARG ;;
+		h) host=$OPTARG ;;
+		i) icon=$OPTARG ;;
+		m) message=$OPTARG ;;
+		n) title=$OPTARG ;;
+		p) port=$OPTARG ;;
+		t) topic=$OPTARG ;;
+		u) username=$OPTARG ;;
+		v) verbose="true" ;;
+		z) priority=$OPTARG ;;
+		P) password=$OPTARG ;;
+		T) token=$OPTARG ;;
+		# sending a file from the command line disables sending photo
+		# and video defined in config unless explicitly set so (-S/-V)
+		f) filename=$OPTARG; send_photo="false"; send_video="false" ;;
 		S) send_photo="true" ;;
 		V) send_video="true" ;;
-		v) verbose="true" ;;
 		*) show_help ;;
 	esac
 done
-
-[ -z "$host" ] && host="ntfy.sh"
-[ -z "$port" ] && port=80
 
 if [ -z "$topic" ]; then
 	echo_error "NTFY topic is not set"
 	exit 1
 fi
+
+[ -z "$host" ] && host="ntfy.sh"
+[ -z "$port" ] && port=80
 
 command="curl -X POST -H p:${priority:-3}"
 
@@ -102,18 +107,21 @@ elif [ -n "$username" ] && [ -n "$password" ]; then
 	command="$command -u $username:$password"
 fi
 
-if [ "true" = "$send_photo" ]; then
-	photo=$(copy_photo)
-	command="$command -T $photo -H 'Filename: $photo'"
-fi
-
-if [ -n "$filename" ] && [ -f "$filename" ]; then
-	command="$command -T $filename -H 'Filename: $filename'"
-fi
-
 if [ -n "$message" ]; then
 	message="$(date +"$message")"
 	command="$command -H 'Message: $message'"
+fi
+
+# Seems only one attachment is allowed at a time
+# so we prioritize file over snapshot over video.
+if [ -n "$filename" ] && [ -f "$filename" ]; then
+	command="$command -T $filename -H 'Filename: $filename'"
+elif [ "true" = "$send_photo" ]; then
+	photo=$(copy_photo)
+	command="$command -T $photo -H 'Filename: $photo'"
+elif [ "true" = "$send_video" ]; then
+	video=$(copy_video)
+	command="$command -T $video -H 'Filename: $video'"
 fi
 
 #[ -n "$title" ] && command="$command -H 'Title: $title'"

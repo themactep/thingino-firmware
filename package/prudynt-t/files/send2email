@@ -28,38 +28,38 @@ Where:
 read_config() {
 	[ -f "$CONFIG_FILE" ] || return
 
-	host=$(get_value host)
-	port=$(get_value port)
-	username=$(get_value username)
-	password=$(get_value password)
-	use_ssl=$(get_value use_ssl)
-	trust_cert=$(get_value trust_cert)
+	body=$(get_value body)
 	from_address=$(get_value from_address)
 	from_name=$(get_value from_name)
-	to_address=$(get_value to_address)
-	to_name=$(get_value to_name)
-	subject=$(get_value subject)
-	body=$(get_value body)
+	host=$(get_value host)
+	password=$(get_value password)
+	port=$(get_value port)
 	send_photo=$(get_value send_photo)
 	send_video=$(get_value send_video)
+	subject=$(get_value subject)
+	to_address=$(get_value to_address)
+	to_name=$(get_value to_name)
+	trust_cert=$(get_value trust_cert)
+	use_ssl=$(get_value use_ssl)
+	username=$(get_value username)
 }
 
 read_config
 
-while getopts h:p:u:P:kf:t:s:b:SVv flag; do
+while getopts b:f:h:kp:s:t:u:vP:SV flag; do
 	case "$flag" in
-		h) host=$OPTARG ;;
-		p) port=$OPTARG ;;
-		u) username=$OPTARG ;;
-		P) password=$OPTARG ;;
-		k) use_ssl="true" ;;
-		f) from_address=$OPTARG ;;
-		t) to_address=$OPTARG ;;
-		s) subject=$OPTARG ;;
 		b) body=$OPTARG ;;
+		f) from_address=$OPTARG ;;
+		h) host=$OPTARG ;;
+		k) use_ssl="true" ;;
+		p) port=$OPTARG ;;
+		s) subject=$OPTARG ;;
+		t) to_address=$OPTARG ;;
+		u) username=$OPTARG ;;
+		v) verbose="true" ;;
+		P) password=$OPTARG ;;
 		S) send_photo="true" ;;
 		V) send_video="true" ;;
-		v) verbose="true" ;;
 		*) show_help ;;
 	esac
 done
@@ -128,7 +128,7 @@ fi
 
 if [ "true" = "$send_video" ]; then
 	video="$(copy_video)"
-	case "${VBUFFER_FILE##*.}" in
+	case "${video##*.}" in
 		mkv) mime="video/matroska" ;;
 		mov) mime="video/quicktime" ;;
 		mp4) mime="video/mp4" ;;
