@@ -3,7 +3,7 @@
 #
 # Thingino Configuration Generator
 #
-# This script generates the /etc/thingino.config file by merging multiple
+# This script generates the /etc/thingino.json file by merging multiple
 # configuration sources with proper key override behavior.
 #
 # Usage: thingino_config_gen.sh <output_file> <br2_external> <camera_subdir> <camera>
@@ -23,6 +23,17 @@ OUTPUT_FILE="$1"
 BR2_EXTERNAL="$2"
 CAMERA_SUBDIR="$3"
 CAMERA="$4"
+
+# Function to escape JSON strings
+json_escape() {
+	local raw="$1"
+	raw=${raw//\\/\\\\}
+	raw=${raw//"/\\"}
+	raw=${raw//$'\n'/\\n}
+	raw=${raw//$'\r'/\\r}
+	raw=${raw//$'\t'/\\t}
+	echo "$raw"
+}
 
 # Function to merge config files with proper key override behavior
 merge_config_files() {
@@ -47,6 +58,11 @@ merge_config_files() {
 					local value="${BASH_REMATCH[2]}"
 					# Remove leading/trailing whitespace from key
 					key=$(echo "$key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+					value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+					if [[ "$value" =~ ^".*"$ ]]; then
+						value="${value:1:-1}"
+					fi
+					value=${value//\\"/"}
 					# Store the key-value pair (later files override earlier ones)
 					config_vars["$key"]="$value"
 					echo "  Set: $key=$value" >&2
@@ -57,12 +73,25 @@ merge_config_files() {
 		fi
 	done
 
-	# Write the merged configuration
+	# Write the merged configuration as JSON
 	{
-		# Write all key-value pairs (sorted for consistency)
-		for key in $(printf '%s\n' "${!config_vars[@]}" | sort); do
-			echo "${key}=${config_vars[$key]}"
+		echo "{"
+		local keys=($(printf '%s\n' "${!config_vars[@]}" | sort))
+		local total=${#keys[@]}
+		local index=0
+		local value escaped
+		for key in "${keys[@]}"; do
+			value="${config_vars[$key]}"
+			escaped=$(json_escape "$value")
+			printf '  "%s": "%s"' "$key" "$escaped"
+			index=$((index + 1))
+			if [ "$index" -lt "$total" ]; then
+				printf ',\n'
+			else
+				printf '\n'
+			fi
 		done
+		echo "}"
 	} > "$output_file"
 
 	echo "Generated config with ${#config_vars[@]} keys" >&2
@@ -82,7 +111,7 @@ if [ -f "${BR2_EXTERNAL}/configs/local.config" ]; then
 	CONFIG_FILES+=("${BR2_EXTERNAL}/configs/local.config")
 fi
 
-echo "Generating thingino.config..." >&2
+echo "Generating thingino.json..." >&2
 echo "Output file: $OUTPUT_FILE" >&2
 echo "Config files to merge:" >&2
 for config_file in "${CONFIG_FILES[@]}"; do
@@ -92,8 +121,8 @@ done
 # Merge all configuration files
 merge_config_files "$TEMP_CONFIG" "${CONFIG_FILES[@]}"
 
-# Copy the merged config to the final location
-cp "$TEMP_CONFIG" "$OUTPUT_FILE"
+# Copy the merged config to the final location with restrictive permissions
+install -m 0600 "$TEMP_CONFIG" "$OUTPUT_FILE"
 
 # Clean up temporary file
 rm "$TEMP_CONFIG"
