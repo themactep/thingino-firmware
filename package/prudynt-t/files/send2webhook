@@ -3,7 +3,7 @@
 . /usr/share/common
 . /usr/share/send2common
 
-domiain="webhook"
+domain="webhook"
 config_file="/etc/send2.json"
 
 show_help() {
