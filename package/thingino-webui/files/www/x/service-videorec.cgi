@@ -90,8 +90,6 @@ defaults
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_switch "enabled" "Enable Recorder" %>
-
 <div class="row row-cols-1 row-cols-md-2">
 
 <div class="col">
@@ -109,14 +107,36 @@ defaults
 </div>
 </div>
 <div class="col">
-<% if pidof record > /dev/null; then %>
-<h3 class="alert alert-info">Recording in progress.</h3>
+<% field_switch "enabled" "Start recording on boot" %>
+
+<%
+configured_channel=$(jct "$config_file" get "$domain.channel" 2>/dev/null || echo "0")
+ch0_active=""
+ch1_active=""
+[ -f "/run/prudynt/mp4ctl-ch0.active" ] && ch0_active="yes"
+[ -f "/run/prudynt/mp4ctl-ch1.active" ] && ch1_active="yes"
+
+recording_active=""
+if [ "$configured_channel" = "0" ] && [ -n "$ch0_active" ]; then
+	recording_active="yes"
+elif [ "$configured_channel" = "1" ] && [ -n "$ch1_active" ]; then
+	recording_active="yes"
+fi
+
+if [ -n "$recording_active" ]; then %>
+<div class="alert alert-info">
+<h3>Recording in progress</h3>
+<p class="mb-1">Channel <%= $configured_channel %>: Active</p>
+<button type="button" class="btn btn-danger btn-sm" onclick="controlRecording('stop')">Stop Recording</button>
+</div>
 <% else %>
-<div class="alert alert-danger">
-<h3>Recording stopped.</h3>
-<p class="mb-0">Please note. The last active recording will continue until the end of the recording time!</p>
+<div class="alert alert-warning">
+<h3>Recording stopped</h3>
+<p class="mb-1">Channel <%= $configured_channel %>: Ready</p>
+<button type="button" class="btn btn-primary btn-sm" onclick="controlRecording('start')">Start Recording</button>
 </div>
 <% fi %>
+
 </div>
 </div>
 <% button_submit %>
@@ -131,6 +151,20 @@ defaults
 $('#link-fm').addEventListener('click', ev => {
 	ev.target.href = 'tool-file-manager.cgi?cd=' + $('#mount').value
 })
+
+function controlRecording(action) {
+	const cmd = action === 'start' ? 'record -x' : 'echo "STOP" > /run/prudynt/mp4ctl'
+	fetch('/x/run.cgi', {
+		method: 'POST',
+		headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+		body: 'cmd=' + encodeURIComponent(cmd)
+	}).then(() => {
+		setTimeout(() => location.reload(), 1000)
+	}).catch(err => {
+		console.error('Recording control failed:', err)
+		alert('Failed to ' + action + ' recording')
+	})
+}
 </script>
 
 <%in _footer.cgi %>
