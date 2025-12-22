@@ -1,0 +1,170 @@
+diff -urNa a/groupsock/NetAddress.cpp b/groupsock/NetAddress.cpp
+--- a/groupsock/NetAddress.cpp	2025-12-22 07:01:53.161298195 -0500
++++ b/groupsock/NetAddress.cpp	2025-12-22 06:47:50.842184784 -0500
+@@ -157,7 +157,7 @@
+       return ((struct sockaddr_in const&)left).sin_addr.s_addr == ((struct sockaddr_in const&)right).sin_addr.s_addr;
+     }
+     case AF_INET6: {
+-      return ((struct sockaddr_in6 const&)left).sin6_addr.s6_addr == ((struct sockaddr_in6 const&)right).sin6_addr.s6_addr;
++      return memcmp(((struct sockaddr_in6 const&)left).sin6_addr.s6_addr, ((struct sockaddr_in6 const&)right).sin6_addr.s6_addr, 16) == 0;
+     }
+     default: {
+       return False;
+diff -urNa a/liveMedia/FileSink.cpp b/liveMedia/FileSink.cpp
+--- a/liveMedia/FileSink.cpp	2025-12-22 07:01:53.153298050 -0500
++++ b/liveMedia/FileSink.cpp	2025-12-22 06:47:28.393775605 -0500
+@@ -97,11 +97,11 @@
+ 	presentationTime.tv_sec == fPrevPresentationTime.tv_sec) {
+       // The presentation time is unchanged from the previous frame, so we add a 'counter'
+       // suffix to the file name, to distinguish them:
+-      sprintf(fPerFrameFileNameBuffer, "%s-%lu.%06lu-%u", fPerFrameFileNamePrefix,
+-	      presentationTime.tv_sec, presentationTime.tv_usec, ++fSamePresentationTimeCounter);
++      sprintf(fPerFrameFileNameBuffer, "%s-%lld.%06lld-%u", fPerFrameFileNamePrefix,
++	      (long long)presentationTime.tv_sec, (long long)presentationTime.tv_usec, ++fSamePresentationTimeCounter);
+     } else {
+-      sprintf(fPerFrameFileNameBuffer, "%s-%lu.%06lu", fPerFrameFileNamePrefix,
+-	      presentationTime.tv_sec, presentationTime.tv_usec);
++      sprintf(fPerFrameFileNameBuffer, "%s-%lld.%06lld", fPerFrameFileNamePrefix,
++	      (long long)presentationTime.tv_sec, (long long)presentationTime.tv_usec);
+       fPrevPresentationTime = presentationTime; // for next time
+       fSamePresentationTimeCounter = 0; // for next time
+     }
+diff -urNa a/liveMedia/H263plusVideoStreamParser.cpp b/liveMedia/H263plusVideoStreamParser.cpp
+--- a/liveMedia/H263plusVideoStreamParser.cpp	2025-12-22 07:01:53.153298050 -0500
++++ b/liveMedia/H263plusVideoStreamParser.cpp	2025-12-22 06:47:44.738073528 -0500
+@@ -197,8 +197,8 @@
+             ((row = fStates[(unsigned char)row][*(bufferIndex++)]) != -1)); // Start code was not found
+ 
+    if (row != -1) {
+-      fprintf(stderr, "%s: Buffer too small (%ld)\n",
+-         "h263reader:", bufferEnd - fTo + ADDITIONAL_BYTES_NEEDED);
++      fprintf(stderr, "%s: Buffer too small (%d)\n",
++         "h263reader:", (int)(bufferEnd - fTo + ADDITIONAL_BYTES_NEEDED));
+       return 0;
+    }
+ 
+diff -urNa a/liveMedia/Locale.cpp b/liveMedia/Locale.cpp
+--- a/liveMedia/Locale.cpp	2025-12-22 07:01:53.157298122 -0500
++++ b/liveMedia/Locale.cpp	2025-12-22 06:47:39.093970648 -0500
+@@ -25,7 +25,7 @@
+ Locale::Locale(char const* newLocale, LocaleCategory category) {
+ #ifndef LOCALE_NOT_USED
+ #ifndef NEWLOCALE_NOT_USED
+-  int categoryMask;
++  int categoryMask = LC_ALL_MASK;
+   switch (category) {
+     case All: { categoryMask = LC_ALL_MASK; break; }
+     case Numeric: { categoryMask = LC_NUMERIC_MASK; break; }
+diff -urNa a/liveMedia/MediaSession.cpp b/liveMedia/MediaSession.cpp
+--- a/liveMedia/MediaSession.cpp	2025-12-22 07:01:53.157298122 -0500
++++ b/liveMedia/MediaSession.cpp	2025-12-22 06:51:25.898026880 -0500
+@@ -1150,7 +1150,8 @@
+   // Check for a "a=fmtp:" line:
+   // Later: Check that payload format number matches; #####
+   do {
+-    if (strncmp(sdpLine, "a=fmtp:", 7) != 0) break; sdpLine += 7;
++    if (strncmp(sdpLine, "a=fmtp:", 7) != 0) break;
++    sdpLine += 7;
+     while (isdigit(*sdpLine)) ++sdpLine;
+ 
+     // The remaining "sdpLine" should be a sequence of
+diff -urNa a/liveMedia/MIKEY.cpp b/liveMedia/MIKEY.cpp
+--- a/liveMedia/MIKEY.cpp	2025-12-22 07:01:53.157298122 -0500
++++ b/liveMedia/MIKEY.cpp	2025-12-22 06:47:33.933876597 -0500
+@@ -158,7 +158,7 @@
+     if (dataSize < 10) break;
+     u_int8_t numCryptoSessions = data[8];
+ 
+-    if (numCryptoSessions == 0 || dataSize < 10 + numCryptoSessions*(1+4+4)) break;
++    if (numCryptoSessions == 0 || dataSize < 10 + (unsigned)numCryptoSessions*(1+4+4)) break;
+     u_int8_t* rocPtr = &data[10 + (1+4)];
+     rocPtr[0] = roc>>24;
+     rocPtr[1] = roc>>16;
+diff -urNa a/liveMedia/MPEG2TransportStreamParser_STREAM.cpp b/liveMedia/MPEG2TransportStreamParser_STREAM.cpp
+--- a/liveMedia/MPEG2TransportStreamParser_STREAM.cpp	2025-12-22 07:01:53.161298195 -0500
++++ b/liveMedia/MPEG2TransportStreamParser_STREAM.cpp	2025-12-22 06:47:41.758019207 -0500
+@@ -248,7 +248,7 @@
+ 
+       // Make sure that the number of header bytes parsed is consistent with "PES_header_data_length"
+       // (and skip over any remasining 'stuffing' bytes):
+-      if (curOffset() - startPos > 9 + PES_header_data_length) {
++      if ((int)(curOffset() - startPos) > (int)(9 + PES_header_data_length)) {
+ #ifdef DEBUG_ERRORS
+ 	fprintf(stderr, "MPEG2TransportStreamParser::parsePESHeader(0x%02x, %d): Error: Parsed %d PES header bytes; expected %d (based on \"PES_header_data_length\": %d)\n",
+ 		pidState->PID, numDataBytes, curOffset() - startPos, 9 + PES_header_data_length,
+diff -urNa a/liveMedia/OggFileParser.cpp b/liveMedia/OggFileParser.cpp
+--- a/liveMedia/OggFileParser.cpp	2025-12-22 07:01:53.157298122 -0500
++++ b/liveMedia/OggFileParser.cpp	2025-12-22 06:51:49.774453371 -0500
+@@ -342,7 +342,7 @@
+     fprintf(stderr, "\t\t\t!ordered: sparse %d\n", sparse);
+ #endif
+     for (unsigned i = 0; i < codebook_entries; ++i) {
+-      unsigned codewordLength;
++      unsigned codewordLength = 0;
+ 
+       if (sparse) {
+ 	unsigned flag = bv.getBits(1);
+@@ -356,6 +356,8 @@
+       }
+ #ifdef DEBUG_SETUP_HEADER
+       fprintf(stderr, "\t\t\t\tcodeword length[%d]:\t%d\n", i, codewordLength);
++#else
++      (void)codewordLength;
+ #endif
+     }
+   } else { // ordered
+diff -urNa a/liveMedia/RTCP.cpp b/liveMedia/RTCP.cpp
+--- a/liveMedia/RTCP.cpp	2025-12-22 07:01:53.157298122 -0500
++++ b/liveMedia/RTCP.cpp	2025-12-22 06:47:37.741946006 -0500
+@@ -565,7 +565,8 @@
+       if (length > packetSize) break;
+ 
+       // Assume that each RTCP subpacket begins with a 4-byte SSRC:
+-      if (length < 4) break; length -= 4;
++      if (length < 4) break;
++      length -= 4;
+       reportSenderSSRC = ntohl(*(u_int32_t*)pkt); ADVANCE(4);
+ #ifdef HACK_FOR_CHROME_WEBRTC_BUG
+       if (reportSenderSSRC == 0x00000001 && pt == RTCP_PT_RR) {
+@@ -583,7 +584,8 @@
+ #ifdef DEBUG
+ 	  fprintf(stderr, "SR\n");
+ #endif
+-	  if (length < 20) break; length -= 20;
++	  if (length < 20) break;
++	  length -= 20;
+ 
+ 	  // Extract the NTP timestamp, and note this:
+ 	  unsigned NTPmsw = ntohl(*(u_int32_t*)pkt); ADVANCE(4);
+diff -urNa a/liveMedia/RTSPServer.cpp b/liveMedia/RTSPServer.cpp
+--- a/liveMedia/RTSPServer.cpp	2025-12-22 07:01:53.157298122 -0500
++++ b/liveMedia/RTSPServer.cpp	2025-12-22 06:47:45.534088037 -0500
+@@ -653,7 +653,7 @@
+ void RTSPServer::RTSPClientConnection::resetRequestBuffer() {
+   ClientConnection::resetRequestBuffer();
+   
+-  fLastCRLF = &fRequestBuffer[-3]; // hack: Ensures that we don't think we have end-of-msg if the data starts with <CR><LF>
++  fLastCRLF = fRequestBuffer - 3; // hack: Ensures that we don't think we have end-of-msg if the data starts with <CR><LF>
+   fBase64RemainderCount = 0;
+ }
+ 
+diff -urNa a/liveMedia/VorbisAudioRTPSink.cpp b/liveMedia/VorbisAudioRTPSink.cpp
+--- a/liveMedia/VorbisAudioRTPSink.cpp	2025-12-22 07:01:53.157298122 -0500
++++ b/liveMedia/VorbisAudioRTPSink.cpp	2025-12-22 06:47:48.614144175 -0500
+@@ -254,8 +254,14 @@
+     }
+   }
+   // Copy each header:
+-  if (identificationHeader != NULL) memmove(p, identificationHeader, identificationHeaderSize); p += identificationHeaderSize;
+-  if (commentHeader != NULL) memmove(p, commentHeader, commentHeaderSize); p += commentHeaderSize;
++  if (identificationHeader != NULL) {
++    memmove(p, identificationHeader, identificationHeaderSize);
++    p += identificationHeaderSize;
++  }
++  if (commentHeader != NULL) {
++    memmove(p, commentHeader, commentHeaderSize);
++    p += commentHeaderSize;
++  }
+   if (setupHeader != NULL) memmove(p, setupHeader, setupHeaderSize);
+   
+   // Having set up the 'packed configuration headers', Base-64-encode this, for our result:
