@@ -78,7 +78,7 @@ set_timezone() {
 	fi
 	local selected_tz="$1"
 	tz_name=$(echo "$selected_tz" | cut -d':' -f1)
-	tz_data=$(echo "$selected_tz" | cut -d':' -f2)
+	tz_data=$(echo "$selected_tz" | cut -d':' -f2-)
 	echo "$tz_name" > /etc/timezone
 	echo "$tz_data" > /etc/TZ
 	# Restart timezone service to apply changes
