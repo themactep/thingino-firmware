@@ -18,7 +18,9 @@ defaults() {
 
 set_value() {
 	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
-	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+	local sanitized_value
+	sanitized_value="$(sanitize_json_value "$2")"
+	jct "$temp_config_file" set "$domain.$1" "$sanitized_value" >/dev/null 2>&1
 }
 
 get_value() {
