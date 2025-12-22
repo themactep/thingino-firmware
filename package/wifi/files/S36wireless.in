@@ -4,11 +4,19 @@
 
 IFACE=wlan0
 EXPECTED_WLAN_MODULE="@WLAN_MODULE@"
+WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
+WLAN_MODULE_OPTS="@WLAN_MODULE_OPTS@"
 
+# Legacy compatibility: allow runtime override via U-Boot environment
 if [ -z "$wlan_module" ]; then
-	wlan_module="$EXPECTED_WLAN_MODULE"
-elif [ "$wlan_module" != "$EXPECTED_WLAN_MODULE" ]; then
-	echo_warning "wlan_module ($wlan_module) differs from build-time value $EXPECTED_WLAN_MODULE"
+	wlan_module="$WLAN_MODULE_NAME"
+elif [ "$wlan_module" != "$WLAN_MODULE_NAME" ]; then
+	echo_warning "wlan_module ($wlan_module) differs from build-time value $WLAN_MODULE_NAME"
+fi
+
+# Use build-time module options unless overridden
+if [ -z "$wlan_module_opts" ]; then
+	wlan_module_opts="$WLAN_MODULE_OPTS"
 fi
 
 start() {
@@ -37,11 +45,11 @@ start() {
 			suffix="${pin_raw:0-1}"
 
 			# convert suffix to binary state
-		case "$suffix" in
+			case "$suffix" in
 				o) state=0 ;;
 				O) state=1 ;;
 				*) echo_warning "Unknown suffix ${suffix}!" ;;
-		esac
+			esac
 
 			echo_info "Set GPIO $pin to $state"
 			gpio set "${pin}" "${state}"

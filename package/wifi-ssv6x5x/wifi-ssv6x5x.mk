@@ -34,6 +34,7 @@ ifneq ($(filter y,$(SSV6X5X_PID6011_CHIPS)),)
 endif
 
 SSV6X5X_MODULE_NAME = ssv6x5x
+SSV6X5X_MODULE_OPTS =
 ifeq ($(BR2_PACKAGE_WIFI_SSV6X5X_SV6155P),y)
 	SSV6X5X_MODULE_OPTS = stacfgpath=/usr/share/wifi/ssv6155-usb-40M.cfg
 endif

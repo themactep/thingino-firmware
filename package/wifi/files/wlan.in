@@ -3,11 +3,19 @@
 . /usr/share/common
 
 EXPECTED_WLAN_MODULE="@WLAN_MODULE@"
+WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
+WLAN_MODULE_OPTS="@WLAN_MODULE_OPTS@"
 
+# Legacy compatibility: allow runtime override via U-Boot environment
 if [ -z "$wlan_module" ]; then
-	wlan_module="$EXPECTED_WLAN_MODULE"
-elif [ "$wlan_module" != "$EXPECTED_WLAN_MODULE" ]; then
-	echo_warning "wlan_module ($wlan_module) differs from build-time value $EXPECTED_WLAN_MODULE"
+	wlan_module="$WLAN_MODULE_NAME"
+elif [ "$wlan_module" != "$WLAN_MODULE_NAME" ]; then
+	echo_warning "wlan_module ($wlan_module) differs from build-time value $WLAN_MODULE_NAME"
+fi
+
+# Use build-time module options unless overridden
+if [ -z "$wlan_module_opts" ]; then
+	wlan_module_opts="$WLAN_MODULE_OPTS"
 fi
 
 if [ -z "$wlan_module" ]; then

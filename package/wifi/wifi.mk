@@ -8,11 +8,14 @@ WIFI_TEMPLATE_PYTHON = $(HOST_DIR)/bin/python3
 
 ifeq ($(BR2_PACKAGE_WIFI),y)
 WIFI_DRIVER_SELECTED :=
+WIFI_DRIVER_BR2_PACKAGE :=
 
 define WIFI_ADD_DRIVER
 WIFI_DRIVER_INTERFACE_$2 := $3
+WIFI_DRIVER_BR2_NAME_$2 := $1
 ifeq ($$($1),y)
 WIFI_DRIVER_SELECTED += $2
+WIFI_DRIVER_BR2_PACKAGE := $1
 endif
 endef
 
@@ -71,6 +74,14 @@ ifeq ($(WIFI_INTERFACE),)
 $(error Thingino Wi-Fi driver '$(WLAN_MODULE)' is missing interface metadata)
 endif
 
+# Extract the driver package prefix (e.g., BR2_PACKAGE_WIFI_BCM43438 -> BCM43438)
+WIFI_DRIVER_PREFIX := $(patsubst BR2_PACKAGE_WIFI_%,%,$(WIFI_DRIVER_BR2_PACKAGE))
+
+# Get the MODULE_NAME and MODULE_OPTS from the driver package
+# Convert to uppercase for variable lookup (e.g., BCM43438_MODULE_NAME)
+WLAN_MODULE_NAME := $($(WIFI_DRIVER_PREFIX)_MODULE_NAME)
+WLAN_MODULE_OPTS := $($(WIFI_DRIVER_PREFIX)_MODULE_OPTS)
+
 WIFI_MODULE_IS_SDIO_FLAG := $(if $(filter sdio,$(WIFI_INTERFACE)),1,0)
 
 ifeq ($(WLAN_MODULE),hi3881)
@@ -108,6 +119,8 @@ endif
 
 WIFI_TEMPLATE_VARS = \
 	--var WLAN_MODULE=$(WLAN_MODULE) \
+	--var WLAN_MODULE_NAME=$(WLAN_MODULE_NAME) \
+	--var WLAN_MODULE_OPTS=$(WLAN_MODULE_OPTS) \
 	--var SOC_FAMILY=$(SOC_FAMILY) \
 	--var SOC_MODEL=$(SOC_MODEL) \
 	--var WIFI_MODULE_IS_SDIO=$(WIFI_MODULE_IS_SDIO_FLAG) \

@@ -4,6 +4,7 @@ WIFI_BCM43438_VERSION=1.0
 WIFI_BCM43438_SITE = $(LINUX_DIR)/drivers/net/wireless/bcmdhd_1_141_66
 
 BCM43438_MODULE_NAME = bcmdhd
+BCM43438_MODULE_OPTS = "gpio_wl_reg_on=48 gpio_wl_host_wake=39 firmware_path=/usr/lib/firmware/ nvram_path=/usr/lib/firmware/nv_bcm4343.txt op_mode=2"
 
 define WIFI_BCM43438_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WLAN)
