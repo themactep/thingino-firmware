@@ -55,6 +55,7 @@ start() {
 	   gpio_pan=$(jct $MOTORS_CONFIG get motors.gpio_pan)
 	  gpio_tilt=$(jct $MOTORS_CONFIG get motors.gpio_tilt)
 	gpio_switch=$(jct $MOTORS_CONFIG get motors.gpio_switch)
+	gpio_invert=$(jct $MOTORS_CONFIG get motors.gpio_invert)
 	  steps_pan=$(jct $MOTORS_CONFIG get motors.steps_pan)
 	 steps_tilt=$(jct $MOTORS_CONFIG get motors.steps_tilt)
 	  speed_pan=$(jct $MOTORS_CONFIG get motors.speed_pan)
