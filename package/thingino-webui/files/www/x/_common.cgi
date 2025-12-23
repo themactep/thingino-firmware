@@ -323,6 +323,8 @@ field_password() {
 	local v
 
 	v=$(t_value "$1")
+	sanitize4web v
+
 	echo "<div class=\"mb-2 password\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$2</label>" \
 	 "<span class=\"input-group\"><input type=\"password\" id=\"$1\" name=\"$1\" class=\"form-control\"" \
 	 " value=\"$v\" placeholder=\"K3wLHaZk3R!\"><label class=\"input-group-text\"><input type=\"checkbox\"" \
