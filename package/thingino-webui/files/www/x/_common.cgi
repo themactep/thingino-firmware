@@ -446,9 +446,7 @@ config_json_set() {
 		echo "{}" > "$CONFIG_JSON"
 		umask "$old_umask"
 	fi
-	local sanitized_value
-	sanitized_value="$(sanitize_json_value "$value")"
-	jct "$CONFIG_JSON" set "$key" "$sanitized_value" >/dev/null 2>&1
+	jct "$CONFIG_JSON" set "$key" "$value" >/dev/null 2>&1
 }
 
 config_json_bulk_set() {
@@ -712,14 +710,6 @@ sanitize() {
 	eval $n=$(echo \${$n//\\\"/\\\\\\\"})
 	# escape variables
 	eval $n=$(echo \${$n//\$/\\\\\$})
-}
-
-sanitize_json_value() {
-	# Escape special characters for JSON string values
-	# 1. Escape backslashes (must be done first)
-	# 2. Escape double quotes
-	# 3. Remove control characters that break JSON
-	printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | tr -d '\000-\010\013-\037'
 }
 
 sanitize4web() {
