@@ -92,8 +92,8 @@ defaults
 <% field_password "password" "FTP password" %>
 </div>
 <div class="col">
-<% field_text "path" "Path on FTP server" "relative to FTP root directory" %>
-<% field_text "template" "Filename template" "$STR_SUPPORTS_STRFTIME" "do not use extension" %>
+<% field_text "path" "Path on FTP server" "$STR_SUPPORTS_STRFTIME. Relative to FTP root directory" %>
+<% field_text "template" "Filename template" "$STR_SUPPORTS_STRFTIME. Do not use extension" %>
 <% field_switch "send_photo" "Send photo" %>
 <% field_switch "send_video" "Send video" %>
 </div>

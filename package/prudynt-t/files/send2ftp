@@ -95,7 +95,10 @@ fi
 url="ftp://"
 [ -n "$username" ] && [ -n "$password" ] && url="$url$username:$password"
 url="$url@$host:$port"
-[ -n "$path" ] && url="$url/${path// /%20}"
+if [ -n "$path" ]; then
+	path="$(date +"$path")"
+	url="$url/${path// /%20}"
+fi
 
 for local_file in $queue; do
 	if [ "true" = "$verbose" ]; then
