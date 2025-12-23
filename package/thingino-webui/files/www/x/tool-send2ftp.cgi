@@ -22,7 +22,7 @@ set_value() {
 }
 
 get_value() {
-	jct $config_file get "$domain.$1"
+	jct "$config_file" get "$domain.$1" 2>/dev/null
 }
 
 read_config() {
