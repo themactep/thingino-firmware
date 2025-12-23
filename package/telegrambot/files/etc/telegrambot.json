@@ -12,8 +12,8 @@
     { "handle": "start", "description": "Initiate session", "exec": "/bin/echo \"Hello\"" },
     { "handle": "help",  "description": "Request help", "exec": "/bin/echo \"Try https://thingino.com/\"" },
     { "handle": "info",  "description": "System information", "exec": "/bin/cat /etc/os-release" },
-    { "handle": "diag",  "description": "Gather diagnostics", "exec": "/usr/bin/thingino-diag" },
-    { "handle": "snap",  "description": "Snap a picture", "exec": "/usr/bin/send2telegram snap" },
-    { "handle": "clip",  "description": "Record a clip", "exec": "/usr/bin/send2telegram clip" }
+    { "handle": "diag",  "description": "Gather diagnostics", "exec": "/sbin/thingino-diag" },
+    { "handle": "snap",  "description": "Snap a picture", "exec": "/sbin/send2telegram snap" },
+    { "handle": "clip",  "description": "Record a clip", "exec": "/sbin/send2telegram clip" }
   ]
 }
