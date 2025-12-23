@@ -52,6 +52,11 @@ start() {
 		send2ntfy &
 	fi
 
+	if [ "true" = "$(jct /etc/prudynt.json get motion.send2storage)" ]; then
+		echo_info "Save to storage"
+		send2storage &
+	fi
+
 	if [ "true" = "$(jct /etc/prudynt.json get motion.send2telegram)" ]; then
 		echo_info "Send alert to Telegram"
 		send2telegram motion &

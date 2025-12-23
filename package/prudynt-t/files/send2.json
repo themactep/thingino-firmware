@@ -57,6 +57,13 @@
 	"gain": 20,
 	"loop": 1
   },
+  "storage": {
+    "mount": "",
+    "device_path": "",
+    "template": "thingino-%Y%m%d-%H%M%S",
+    "send_photo": false,
+    "send_video": false
+  },
   "telegram": {
     "token": "",
     "channel": "",

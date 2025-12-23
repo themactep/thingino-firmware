@@ -211,6 +211,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/send2mqtt
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2ntfy \
 		$(TARGET_DIR)/usr/sbin/send2ntfy
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2storage \
+		$(TARGET_DIR)/usr/sbin/send2storage
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2telegram \
 		$(TARGET_DIR)/usr/sbin/send2telegram
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2webhook \

@@ -19,6 +19,7 @@ read_config() {
 	send2ftp=$(get_value send2ftp)
 	send2mqtt=$(get_value send2mqtt)
 	send2ntfy=$(get_value send2ntfy)
+	send2storage=$(get_value send2storage)
 	send2telegram=$(get_value send2telegram)
 	send2webhook=$(get_value send2webhook)
 	playonspeaker=$(get_value playonspeaker)
@@ -30,22 +31,21 @@ read_config
 %>
 <%in _header.cgi %>
 
-<% field_switch "enabled" "Enable motion detection on boot" %>
-
-<div id="motion-runtime-status" class="alert alert-secondary">
-<h3>Loading runtime status...</h3>
-</div>
-
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <% field_range "sensitivity" "Sensitivity" "1,8,1" %>
 <% field_range "cooldown_time" "Delay between alerts, sec." "5,60,1" %>
+<% field_switch "enabled" "Enable motion detection on boot" %>
+<div id="motion-runtime-status" class="alert alert-secondary mt-3">
+<h5>Loading runtime status...</h5>
+</div>
 </div>
 <div class="col">
 <% field_checkbox "send2email" "Send to email address" "<a href=\"tool-send2email.cgi\">Configure sending to email</a>" %>
 <% field_checkbox "send2ftp" "Upload to FTP" "<a href=\"tool-send2ftp.cgi\">Configure uploading to FTP</a>" %>
 <% field_checkbox "send2mqtt" "Send to MQTT" "<a href=\"tool-send2mqtt.cgi\">Configure sending to MQTT</a>" %>
 <% field_checkbox "send2ntfy" "Send to Ntfy" "<a href=\"tool-send2ntfy.cgi\">Configure sending to Ntfy</a>" %>
+<% field_checkbox "send2storage" "Save to storage" "<a href=\"tool-send2storage.cgi\">Configure saving to storage</a>" %>
 <% field_checkbox "send2telegram" "Send to Telegram" "<a href=\"tool-send2telegram.cgi\">Configure sending to Telegram</a>" %>
 <% field_checkbox "send2webhook" "Send to webhook" "<a href=\"tool-send2webhook.cgi\">Configure sending to a webhook</a>" %>
 <% field_checkbox "playonspeaker" "Play on speaker" "<a href=\"tool-send2speaker.cgi\">Configure playing</a>" %>
@@ -114,7 +114,7 @@ function saveValue(name) {
 	sendToEndpoint(payload);
 }
 
-$$('#enabled, #send2email, #send2ftp, #send2mqtt, #send2ntfy, #send2telegram, #send2webhook, #playonspeaker, #sensitivity, #cooldown_time').forEach((x) => {
+$$('#enabled, #send2email, #send2ftp, #send2mqtt, #send2ntfy, #send2storage, #send2telegram, #send2webhook, #playonspeaker, #sensitivity, #cooldown_time').forEach((x) => {
 	x.onchange = (_) => saveValue(x.id);
 });
 
@@ -123,15 +123,13 @@ function updateMotionStatusUI(enabled) {
 	if (enabled) {
 		statusDiv.className = 'alert alert-success';
 		statusDiv.innerHTML = `
-			<h3>Motion detection active</h3>
-			<p class="mb-1">Runtime status: Enabled</p>
+			<h5>Motion detection active</h5>
 			<button type="button" class="btn btn-warning btn-sm" onclick="toggleMotionRuntime(false)">Disable Now</button>
 		`;
 	} else {
 		statusDiv.className = 'alert alert-warning';
 		statusDiv.innerHTML = `
-			<h3>Motion detection inactive</h3>
-			<p class="mb-1">Runtime status: Disabled</p>
+			<h5>Motion detection inactive</h5>
 			<button type="button" class="btn btn-primary btn-sm" onclick="toggleMotionRuntime(true)">Enable Now</button>
 		`;
 	}
