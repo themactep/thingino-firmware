@@ -30,7 +30,12 @@ read_config
 %>
 <%in _header.cgi %>
 
-<% field_switch "enabled" "Enable motion guard" %>
+<% field_switch "enabled" "Enable motion detection on boot" %>
+
+<div id="motion-runtime-status" class="alert alert-secondary">
+<h3>Loading runtime status...</h3>
+</div>
+
 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
 <div class="col">
 <% field_range "sensitivity" "Sensitivity" "1,8,1" %>
@@ -112,6 +117,68 @@ function saveValue(name) {
 $$('#enabled, #send2email, #send2ftp, #send2mqtt, #send2ntfy, #send2telegram, #send2webhook, #playonspeaker, #sensitivity, #cooldown_time').forEach((x) => {
 	x.onchange = (_) => saveValue(x.id);
 });
+
+function updateMotionStatusUI(enabled) {
+	const statusDiv = $('#motion-runtime-status');
+	if (enabled) {
+		statusDiv.className = 'alert alert-success';
+		statusDiv.innerHTML = `
+			<h3>Motion detection active</h3>
+			<p class="mb-1">Runtime status: Enabled</p>
+			<button type="button" class="btn btn-warning btn-sm" onclick="toggleMotionRuntime(false)">Disable Now</button>
+		`;
+	} else {
+		statusDiv.className = 'alert alert-warning';
+		statusDiv.innerHTML = `
+			<h3>Motion detection inactive</h3>
+			<p class="mb-1">Runtime status: Disabled</p>
+			<button type="button" class="btn btn-primary btn-sm" onclick="toggleMotionRuntime(true)">Enable Now</button>
+		`;
+	}
+}
+
+function loadMotionStatus() {
+	const payload = JSON.stringify({ motion: { enabled: null } });
+	fetch('/x/json-prudynt.cgi', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: payload
+	})
+		.then(res => res.json())
+		.then(data => {
+			if (data.motion && data.motion.enabled !== undefined) {
+				updateMotionStatusUI(data.motion.enabled);
+			}
+		})
+		.catch(err => console.error('Failed to load motion status:', err));
+}
+
+function toggleMotionRuntime(enable) {
+	const payload = JSON.stringify({ motion: { enabled: enable } });
+	fetch('/x/json-prudynt.cgi', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: payload
+	})
+		.then(res => res.json())
+		.then(data => {
+			console.log(ts(), '<===', JSON.stringify(data));
+			// Verify the state was actually changed
+			if (data.motion && data.motion.enabled !== undefined) {
+				updateMotionStatusUI(data.motion.enabled);
+			} else {
+				console.error('Unexpected response from prudynt:', data);
+				alert('Motion state change unclear - please reload page');
+			}
+		})
+		.catch(err => {
+			console.error('Motion toggle failed:', err);
+			alert('Failed to toggle motion detection');
+		});
+}
+
+// Load motion runtime status on page load
+loadMotionStatus();
 
 /*
 async function switchSend2Target(target, state) {

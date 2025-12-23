@@ -119,7 +119,7 @@ const ImageColorMode = 0
 const endpoint = '/x/json-prudynt.cgi';
 
 function handleMessage(msg) {
-	if (msg.motion && msg.motion.enabled) {
+	if (msg.motion && msg.motion.enabled !== undefined) {
 		$('#motion').checked = msg.motion.enabled;
 	}
 	if (msg.rtsp) {
@@ -204,8 +204,23 @@ async function toggleDayNight(mode = 'read') {
 		})
 }
 
-$("#motion").addEventListener('change', ev =>
-	sendToEndpoint({motion:{enabled: ev.target.checked}}));
+$("#motion").addEventListener('change', ev => {
+	const state = ev.target.checked;
+	const payload = JSON.stringify({ motion: { enabled: state } });
+	fetch('/x/json-prudynt.cgi', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: payload
+	})
+		.then(res => res.json())
+		.then(data => {
+			console.log(ts(), '<===', JSON.stringify(data));
+			if (data.motion && data.motion.enabled !== undefined) {
+				$('#motion').checked = data.motion.enabled;
+			}
+		})
+		.catch(err => console.error('Motion toggle error', err));
+});
 
 $("#daynight").addEventListener('change', ev =>
 	ev.target.checked ? toggleDayNight('night') : toggleDayNight('day'));

@@ -9,7 +9,6 @@ case "$target" in
 			true | false)
 				jct /etc/prudynt.json set "motion.$target" $state
 				json_ok "{\"target\":\"$target\",\"status\":$state}"
-				service restart prudynt >/dev/null
 				;;
 			*)
 				json_error "state missing"
