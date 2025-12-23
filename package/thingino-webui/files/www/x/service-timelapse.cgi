@@ -90,28 +90,22 @@ defaults
 <%in _header.cgi %>
 
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_switch "enabled" "Enable timelapse recorder" %>
 
 <div class="row">
-
 <div class="col col-xl-4">
+<% field_switch "enabled" "Launch timelapse recorder on boot" %>
 <% field_select "mount" "Storage mountpoint" "$MOUNTS" "SD card or a network share" %>
 <% field_text "filepath" "Device-specific path in the storage" "Helps to deal with multiple devices" %>
 <% field_text "filename" "Individual image filename template" "$STR_SUPPORTS_STRFTIME" %>
 </div>
-
 <div class="col col-xl-4">
 <div class="mb-2 string" id="interval_wrap">
-<label for="interval" class="form-label">Save a snaphot every
- <input type="text" id="interval" name="interval" class="form-control"
- style="max-width:4rem;display:inline-block;margin:0 0.25rem" value="<%= $interval %>">
- minutes</label>
+<label for="interval" class="form-label">Save a snapshot every <input type="text" id="interval" name="interval"
+class="form-control" style="max-width:4rem;display:inline-block;margin:0 0.25rem" value="<%= $interval %>"> minutes</label>
 </div>
 <div class="mb-2 string" id="keep_days_wrap">
-<label for="keep_days" class="form-label">Keep timelapses of the last
- <input type="text" id="keep_days" name="keep_days" class="form-control"
- style="max-width:4rem;display:inline-block;margin:0 0.25rem" value="<%= $keep_days %>">
- days</label>
+<label for="keep_days" class="form-label">Keep timelapses of the last <input type="text" id="keep_days" name="keep_days"
+class="form-control" style="max-width:4rem;display:inline-block;margin:0 0.25rem" value="<%= $keep_days %>"> days</label>
 </div>
 <p><a href="tool-file-manager.cgi?cd=/mnt" id="link-fm">Open in File Manager</a></p>
 </div>
