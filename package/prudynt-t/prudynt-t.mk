@@ -231,8 +231,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/tell
 
 	# services
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S06ircut \
-		$(TARGET_DIR)/etc/init.d/S06ircut
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S56ircut \
+		$(TARGET_DIR)/etc/init.d/S56ircut
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
 		$(TARGET_DIR)/etc/init.d/S95prudynt
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S97prudynt-watchdog \
