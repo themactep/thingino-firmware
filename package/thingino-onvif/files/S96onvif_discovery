@@ -27,6 +27,7 @@ start() {
 
 	tmpfile="$(mktemp -u).json"
 	echo '{}' > $tmpfile
+	jct $tmpfile set camera.manufacturer "Thingino"
 	jct $tmpfile set camera.model "$CAMERA"
 	jct $tmpfile set camera.hardware_id "ingenic_$SOC_MODEL"
 	jct $tmpfile set camera.serial_num "$(fw_printenv -n ethaddr | sed 's/://g' | tr -d "\n")"
