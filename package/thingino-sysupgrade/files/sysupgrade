@@ -94,6 +94,8 @@ prepare_download_dir() {
 	[ "$download_dir_ready" = "true" ] && return
 	download_dir_ready="true"
 
+	# FIXME: checking free space against full upgrade partition size produces false negatives
+	#        when image is smaller than the actual flash size (e.g. 32MB eufy cameras)
 	if [ $(available_free_space) -lt $(full_upgrade_partition_size) ]; then
 		echo "Not enough free space in $dl_dir to download firmware!"
 		if mountpoint $SD_CARD_ROOT && test -w $SD_CARD_ROOT; then
@@ -110,7 +112,7 @@ prepare_download_dir() {
 			exit 1
 		fi
 	else
-		echo "Downloading firmware into $dl_dir, there is enough free space."
+		echo "Downloading firmware into $dl_dir."
 	fi
 }
 
