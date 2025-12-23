@@ -26,7 +26,7 @@ Where:
 }
 
 read_config() {
-	[ -f "$CONFIG_FILE" ] || return
+	[ -f "$config_file" ] || return
 
 	body=$(get_value body)
 	from_address=$(get_value from_address)

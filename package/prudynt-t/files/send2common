@@ -37,7 +37,7 @@ copy_video() {
 }
 
 get_value() {
-	jct $config_file get "$domain.$1" 2>/dev/null
+	jct "$config_file" get "$domain.$1" 2>/dev/null
 }
 
 trap _cleanup EXIT
