@@ -1,0 +1,15 @@
+{
+	"osd": {
+		"content": "%F %T",
+		"position": "10,10",
+		"foreground": {
+			"color": "#ffffff",
+			"alpha": 50
+		},
+		"background": {
+			"color": "#000000",
+			"alpha": 0
+		},
+		"border": 1
+	}
+}

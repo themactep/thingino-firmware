@@ -46,6 +46,10 @@ prudynt_config=/etc/prudynt.json
 
 rtsp_username=$(awk -F: '/Streaming Service/{print $1}' /etc/passwd)
 
+SENSOR_FPS_MAX=$(cat /proc/jz/sensor/max_fps)
+SENSOR_FPS_MIN=$(cat /proc/jz/sensor/min_fps)
+sensor_fps=$(cat /proc/jz/sensor/actual_fps)
+
 default_for rtsp_username $(jct $prudynt_config get rtsp.username)
 default_for rtsp_password $(jct $prudynt_config get rtsp.password)
 default_for rtsp_password "thingino"
@@ -123,7 +127,7 @@ title="Full-screen"><img src="/a/zoom.svg" alt="Zoom" class="img-fluid icon-sm">
 <div class="row g-2">
 <div class="col-3"><% field_text "${domain}_width" "Width" %></div>
 <div class="col-3"><% field_text "${domain}_height" "Height" %></div>
-<div class="col-6"><% field_range "${domain}_fps" "FPS" "$sensor_fps_min,$sensor_fps_max,1" %></div>
+<div class="col-6"><% field_range "${domain}_fps" "FPS" "$SENSOR_FPS_MIN,$SENSOR_FPS_MAX,1" %></div>
 </div>
 <div class="row g-2">
 <div class="col-3"><% field_select "${domain}_format" "Format" $FORMATS %></div>
