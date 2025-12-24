@@ -1,0 +1,245 @@
+diff -urNa a/make-linux.mk b/ZeroTierOne-1.16.0/make-linux.mk
+--- a/make-linux.mk	2025-09-11 13:52:09.000000000 -0400
++++ b/ZeroTierOne-1.16.0/make-linux.mk	2025-12-24 02:26:57.880065996 -0500
+@@ -15,6 +15,9 @@
+ DESTDIR?=
+ EXTRA_DEPS?=
+ 
++# Add libatomic for architectures that need it (e.g., MIPS for 64-bit atomic ops)
++LDLIBS+=-latomic
++
+ include objects.mk
+ 
+ ifeq ($(ZT_CONTROLLER),1)
+@@ -82,11 +85,11 @@
+ 	# C25519 in particular is almost UNUSABLE in -O0 even on a 3ghz box!
+ node/Salsa20.o node/SHA512.o node/C25519.o node/Poly1305.o: CXXFLAGS=-Wall -O2 -g -pthread $(INCLUDES) $(DEFS)
+ else
+-	CFLAGS?=-O3 -fstack-protector
++	CFLAGS?=-Os
+ 	override CFLAGS+=-Wall -Wno-deprecated -pthread $(INCLUDES) -DNDEBUG $(DEFS)
+-	CXXFLAGS?=-O3 -fstack-protector
++	CXXFLAGS?=-Os
+ 	override CXXFLAGS+=-Wall -Wno-deprecated -std=c++17 -pthread $(INCLUDES) -DNDEBUG $(DEFS)
+-	LDFLAGS?=-pie -Wl,-z,relro,-z,now
++	LDFLAGS?=
+ 	ZT_CARGO_FLAGS=--release
+ endif
+ 
+@@ -337,7 +340,7 @@
+ 
+ # Static builds, which are currently done for a number of Linux targets
+ ifeq ($(ZT_STATIC),1)
+-	override LDFLAGS+=-static
++	override LDFLAGS+=-static-libstdc++
+ endif
+ 
+ # For building an official semi-static binary on CentOS 7
+@@ -389,9 +392,9 @@
+ 	override CORE_OBJS+=ext/arm32-neon-salsa2012-asm/salsa2012.o
+ endif
+ 
+-# Position Independence
+-override CFLAGS+=-fPIC -fPIE
+-override CXXFLAGS+=-fPIC -fPIE
++# Position Independence and Link Time Optimization
++override CFLAGS+=-flto
++override CXXFLAGS+=-flto
+ 
+ # Non-executable stack
+ override LDFLAGS+=-Wl,-z,noexecstack
+@@ -418,7 +421,7 @@
+ $(ONE_OBJS): zeroidc smeeclient
+ 
+ libzerotiercore.a:	FORCE
+-	make CFLAGS="-O3 -fstack-protector -fPIC" CXXFLAGS="-O3 -std=c++17 -fstack-protector -fPIC" $(CORE_OBJS)
++	make CFLAGS="-Os -flto" CXXFLAGS="-Os -std=c++17 -flto" $(CORE_OBJS)
+ 	ar rcs libzerotiercore.a $(CORE_OBJS)
+ 	ranlib libzerotiercore.a
+ 
+diff -urNa a/node/Capability.hpp b/ZeroTierOne-1.16.0/node/Capability.hpp
+--- a/node/Capability.hpp	2025-09-11 13:52:09.000000000 -0400
++++ b/ZeroTierOne-1.16.0/node/Capability.hpp	2025-12-24 01:16:32.932167573 -0500
+@@ -57,8 +57,12 @@
+ 
+ 	Capability() : _nwid(0), _ts(0), _id(0), _maxCustodyChainLength(0), _ruleCount(0)
+ 	{
+-		memset(_rules, 0, sizeof(_rules));
+-		memset(_custody, 0, sizeof(_custody));
++		std::fill(std::begin(_rules), std::end(_rules), ZT_VirtualNetworkRule{});
++		for (auto& c : _custody) {
++			c.to = Address();
++			c.from = Address();
++			c.signature = ECC::Signature();
++		}
+ 	}
+ 
+ 	/**
+diff -urNa a/node/NetworkConfig.cpp b/ZeroTierOne-1.16.0/node/NetworkConfig.cpp
+--- a/node/NetworkConfig.cpp	2025-09-11 13:52:09.000000000 -0400
++++ b/ZeroTierOne-1.16.0/node/NetworkConfig.cpp	2025-12-24 01:17:33.921414047 -0500
+@@ -48,17 +48,17 @@
+ 	, ssoClientID()
+ {
+ 	name[0] = 0;
+-	memset(specialists, 0, sizeof(uint64_t) * ZT_MAX_NETWORK_SPECIALISTS);
+-	memset(routes, 0, sizeof(ZT_VirtualNetworkRoute) * ZT_MAX_NETWORK_ROUTES);
+-	memset(staticIps, 0, sizeof(InetAddress) * ZT_MAX_ZT_ASSIGNED_ADDRESSES);
+-	memset(rules, 0, sizeof(ZT_VirtualNetworkRule) * ZT_MAX_NETWORK_RULES);
+-	memset(&dns, 0, sizeof(ZT_VirtualNetworkDNS));
+-	memset(authenticationURL, 0, sizeof(authenticationURL));
+-	memset(issuerURL, 0, sizeof(issuerURL));
+-	memset(centralAuthURL, 0, sizeof(centralAuthURL));
+-	memset(ssoNonce, 0, sizeof(ssoNonce));
+-	memset(ssoState, 0, sizeof(ssoState));
+-	memset(ssoClientID, 0, sizeof(ssoClientID));
++	std::fill(std::begin(specialists), std::end(specialists), uint64_t{0});
++	std::fill(std::begin(routes), std::end(routes), ZT_VirtualNetworkRoute{});
++	std::fill(std::begin(staticIps), std::end(staticIps), InetAddress());
++	std::fill(std::begin(rules), std::end(rules), ZT_VirtualNetworkRule{});
++	dns = ZT_VirtualNetworkDNS{};
++	std::fill(std::begin(authenticationURL), std::end(authenticationURL), char{0});
++	std::fill(std::begin(issuerURL), std::end(issuerURL), char{0});
++	std::fill(std::begin(centralAuthURL), std::end(centralAuthURL), char{0});
++	std::fill(std::begin(ssoNonce), std::end(ssoNonce), char{0});
++	std::fill(std::begin(ssoState), std::end(ssoState), char{0});
++	std::fill(std::begin(ssoClientID), std::end(ssoClientID), char{0});
+ 	strncpy(ssoProvider, "default", sizeof(ssoProvider));
+ 	ssoProvider[sizeof(ssoProvider) - 1] = 0;
+ }
+diff -urNa a/node/Network.hpp b/ZeroTierOne-1.16.0/node/Network.hpp
+--- a/node/Network.hpp	2025-09-11 13:52:09.000000000 -0400
++++ b/ZeroTierOne-1.16.0/node/Network.hpp	2025-12-24 01:16:40.604325230 -0500
+@@ -479,9 +479,9 @@
+ 	int64_t _lastConfigUpdate;
+ 
+ 	struct _IncomingConfigChunk {
+-		_IncomingConfigChunk()
++		_IncomingConfigChunk() : ts(0), updateId(0), haveChunks(0), haveBytes(0)
+ 		{
+-			memset(this, 0, sizeof(_IncomingConfigChunk));
++			std::fill(std::begin(haveChunkIds), std::end(haveChunkIds), 0);
+ 		}
+ 		uint64_t ts;
+ 		uint64_t updateId;
+diff -urNa a/one.cpp b/ZeroTierOne-1.16.0/one.cpp
+--- a/one.cpp	2025-09-11 13:52:09.000000000 -0400
++++ b/ZeroTierOne-1.16.0/one.cpp	2025-12-24 01:21:03.385594420 -0500
+@@ -655,10 +655,10 @@
+ 								printf("-");
+ 							}
+ 							printf("\n");
+-							for (int i = 0; i < p.size(); i++) {
++							for (size_t i = 0; i < p.size(); i++) {
+ 								printf(
+ 									"%2d: %26s %51s %.16llx %12d\n",
+-									i,
++									(int)i,
+ 									OSUtils::jsonString(p[i]["ifname"], "-").c_str(),
+ 									OSUtils::jsonString(p[i]["address"], "-").c_str(),
+ 									(unsigned long long)OSUtils::jsonInt(p[i]["localSocket"], 0),
+@@ -671,10 +671,10 @@
+ 								printf("-");
+ 							}
+ 							printf("\n");
+-							for (int i = 0; i < p.size(); i++) {
++							for (size_t i = 0; i < p.size(); i++) {
+ 								printf(
+ 									"%2d: %8.2f %8.2f %10d %7.4f %11d %11d %9d %7d %7d\n",
+-									i,
++									(int)i,
+ 									OSUtils::jsonDouble(p[i]["latencyMean"], 0),
+ 									OSUtils::jsonDouble(p[i]["latencyVariance"], 0),
+ 									(int)OSUtils::jsonInt(p[i]["givenLinkSpeed"], 0),
+@@ -1347,9 +1347,9 @@
+ 		close(sock);
+ 		char cwd[16384];
+ 		getcwd(cwd, sizeof(cwd));
+-		snprintf(cwd, sizeof(cwd), "%s%szerotier_dump.txt", cwd, ZT_PATH_SEPARATOR_S);
+-		fprintf(stdout, "Writing dump to: %s\n", cwd);
+-		int fd = open(cwd, O_CREAT | O_RDWR, 0664);
++		std::string filepath = std::string(cwd) + ZT_PATH_SEPARATOR_S + "zerotier_dump.txt";
++		fprintf(stdout, "Writing dump to: %s\n", filepath.c_str());
++		int fd = open(filepath.c_str(), O_CREAT | O_RDWR, 0664);
+ 		if (fd == -1) {
+ 			fprintf(stderr, "Error creating file.\n");
+ 			return 1;
+diff -urNa a/osdep/LinuxNetLink.cpp b/ZeroTierOne-1.16.0/osdep/LinuxNetLink.cpp
+--- a/osdep/LinuxNetLink.cpp	2025-09-11 13:52:09.000000000 -0400
++++ b/ZeroTierOne-1.16.0/osdep/LinuxNetLink.cpp	2025-12-24 01:16:04.079572330 -0500
+@@ -275,7 +275,6 @@
+ 	char gws[40] = { 0 };
+ 	char srcs[40] = { 0 };
+ 	char ifs[16] = { 0 };
+-	char ms[24] = { 0 };
+ 
+ 	struct rtmsg* rtp = (struct rtmsg*)NLMSG_DATA(nlp);
+ 	struct rtattr* rtap = (struct rtattr*)RTM_RTA(rtp);
+@@ -361,7 +360,6 @@
+ 	char gws[40] = { 0 };
+ 	char srcs[40] = { 0 };
+ 	char ifs[16] = { 0 };
+-	char ms[24] = { 0 };
+ 
+ 	struct rtmsg* rtp = (struct rtmsg*)NLMSG_DATA(nlp);
+ 	struct rtattr* rtap = (struct rtattr*)RTM_RTA(rtp);
+diff -urNa a/service/OneService.cpp b/ZeroTierOne-1.16.0/service/OneService.cpp
+--- a/service/OneService.cpp	2025-09-11 13:52:09.000000000 -0400
++++ b/ZeroTierOne-1.16.0/service/OneService.cpp	2025-12-24 01:20:05.664455958 -0500
+@@ -1043,7 +1043,6 @@
+ 		return;
+ #endif
+ 		_node->initMultithreading(_concurrency, _cpuPinningEnabled);
+-		bool pinning = _cpuPinningEnabled;
+ 	}
+ 
+ #ifdef ZT_OPENTELEMETRY_ENABLED
+@@ -1797,13 +1796,12 @@
+ 					auto match = req.matches[1];
+ 					if (match.matched) {
+ 						// fallback
+-						char indexHtmlPath[16384];
+-						snprintf(indexHtmlPath, sizeof(indexHtmlPath), "%s/%s/%s", appUiDir, match.str().c_str(), "index.html");
+-						// fprintf(stderr, "fallback path %s\n", indexHtmlPath);
++						std::string indexHtmlPath = std::string(appUiDir) + "/" + match.str() + "/index.html";
++						// fprintf(stderr, "fallback path %s\n", indexHtmlPath.c_str());
+ 
+ 						std::string indexHtml;
+ 
+-						if (! OSUtils::readFile(indexHtmlPath, indexHtml)) {
++						if (! OSUtils::readFile(indexHtmlPath.c_str(), indexHtml)) {
+ 							res.status = 500;
+ 							return;
+ 						}
+@@ -1821,10 +1819,9 @@
+ 
+ 					// add .html
+ 					std::string htmlFile;
+-					char htmlPath[16384];
+-					snprintf(htmlPath, sizeof(htmlPath), "%s%s%s", appUiDir, (req.path).substr(appUiPath.length()).c_str(), ".html");
+-					// fprintf(stderr, "path: %s\n", htmlPath);
+-					if (OSUtils::readFile(htmlPath, htmlFile)) {
++					std::string htmlPath = std::string(appUiDir) + (req.path).substr(appUiPath.length()) + ".html";
++					// fprintf(stderr, "path: %s\n", htmlPath.c_str());
++					if (OSUtils::readFile(htmlPath.c_str(), htmlFile)) {
+ 						res.set_content(htmlFile.c_str(), "text/html");
+ 						return;
+ 					}
+@@ -2453,7 +2450,7 @@
+ 			// Enumerate all local address/port pairs that this node is listening on
+ 			std::vector<InetAddress> boundAddrs(_binder.allBoundLocalInterfaceAddresses());
+ 			auto boundAddrArray = json::array();
+-			for (int i = 0; i < boundAddrs.size(); i++) {
++			for (size_t i = 0; i < boundAddrs.size(); i++) {
+ 				char ipBuf[64] = { 0 };
+ 				boundAddrs[i].toString(ipBuf);
+ 				boundAddrArray.push_back(ipBuf);
+@@ -2462,7 +2459,7 @@
+ 			// Enumerate all external address/port pairs that are reported for this node
+ 			std::vector<InetAddress> surfaceAddrs = _node->SurfaceAddresses();
+ 			auto surfaceAddrArray = json::array();
+-			for (int i = 0; i < surfaceAddrs.size(); i++) {
++			for (size_t i = 0; i < surfaceAddrs.size(); i++) {
+ 				char ipBuf[64] = { 0 };
+ 				surfaceAddrs[i].toString(ipBuf);
+ 				surfaceAddrArray.push_back(ipBuf);
