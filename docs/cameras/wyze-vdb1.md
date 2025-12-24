@@ -9,7 +9,7 @@ Camera
 - Flash Chip: 16MB (25Q128)
 - Wi-Fi Module: Realtek RTL8189 (SDIO)
 - Power: 16-24V AC or 5V DC (microUSB)
-- FCC ID: 2ANJHWVDB1
+- FCC ID: 2AUIUWVDB1 (T31X) or 2AUIUWVDB1A (T31ZX)
 
 Chime (WDBC1)
 -------------
