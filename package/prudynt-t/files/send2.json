@@ -53,9 +53,9 @@
   },
   "speaker": {
     "file": "",
-	"volume": 80,
-	"gain": 20,
-	"loop": 1
+    "volume": 80,
+    "gain": 20,
+    "loop": 1
   },
   "storage": {
     "mount": "",
