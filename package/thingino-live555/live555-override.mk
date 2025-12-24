@@ -12,14 +12,10 @@ override LIVE555_SITE = https://download.videolan.org/contrib/live555
 
 # Override CFLAGS to remove -std=c++20 from being passed to C files
 override LIVE555_CFLAGS = $(TARGET_CFLAGS)
-ifeq ($(BR2_STATIC_LIBS),y)
-override LIVE555_CONFIG_TARGET = linux
-override LIVE555_LIBRARY_LINK = $(TARGET_AR) cr
-else
+# Build both static and shared libraries for flexibility
 override LIVE555_CONFIG_TARGET = linux-with-shared-libraries
 override LIVE555_LIBRARY_LINK = $(TARGET_CC) -o
 override LIVE555_CFLAGS += -fPIC
-endif
 
 ifeq ($(BR2_PACKAGE_OPENSSL),y)
 override LIVE555_DEPENDENCIES += host-pkgconf openssl
@@ -59,27 +55,42 @@ override define LIVE555_CONFIGURE_CMDS
 endef
 
 # Skip building test programs and media servers - we only need the libraries
-# This is aligned with patches 0003 that removes install targets for testProgs
+# Build shared libraries always, static libraries only if needed
 override define LIVE555_BUILD_CMDS
 	$(TARGET_MAKE_ENV) $(MAKE) -C $(@D)/groupsock
 	$(TARGET_MAKE_ENV) $(MAKE) -C $(@D)/liveMedia
 	$(TARGET_MAKE_ENV) $(MAKE) -C $(@D)/UsageEnvironment
 	$(TARGET_MAKE_ENV) $(MAKE) -C $(@D)/BasicUsageEnvironment
+	$(if $(filter y,$(BR2_PACKAGE_PRUDYNT_T_HYBRID) $(BR2_PACKAGE_PRUDYNT_T_STATIC)), \
+		cd $(@D)/groupsock && $(TARGET_AR) cr libgroupsock.a *.o && \
+		cd $(@D)/liveMedia && $(TARGET_AR) cr libliveMedia.a *.o && \
+		cd $(@D)/UsageEnvironment && $(TARGET_AR) cr libUsageEnvironment.a *.o && \
+		cd $(@D)/BasicUsageEnvironment && $(TARGET_AR) cr libBasicUsageEnvironment.a *.o \
+	)
 endef
 
 # Install only the libraries, skip test programs and servers
+# Install both shared and static versions (if built)
 override define LIVE555_INSTALL_STAGING_CMDS
 	$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(STAGING_DIR) -C $(@D)/groupsock install
 	$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(STAGING_DIR) -C $(@D)/liveMedia install
 	$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(STAGING_DIR) -C $(@D)/UsageEnvironment install
 	$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(STAGING_DIR) -C $(@D)/BasicUsageEnvironment install
+	$(if $(filter y,$(BR2_PACKAGE_PRUDYNT_T_HYBRID) $(BR2_PACKAGE_PRUDYNT_T_STATIC)), \
+		$(INSTALL) -D -m 0644 $(@D)/groupsock/libgroupsock.a $(STAGING_DIR)/usr/lib/libgroupsock.a && \
+		$(INSTALL) -D -m 0644 $(@D)/liveMedia/libliveMedia.a $(STAGING_DIR)/usr/lib/libliveMedia.a && \
+		$(INSTALL) -D -m 0644 $(@D)/UsageEnvironment/libUsageEnvironment.a $(STAGING_DIR)/usr/lib/libUsageEnvironment.a && \
+		$(INSTALL) -D -m 0644 $(@D)/BasicUsageEnvironment/libBasicUsageEnvironment.a $(STAGING_DIR)/usr/lib/libBasicUsageEnvironment.a \
+	)
 endef
 
 override define LIVE555_INSTALL_TARGET_CMDS
-	$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(TARGET_DIR) PREFIX=/usr -C $(@D)/groupsock install
-	$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(TARGET_DIR) PREFIX=/usr -C $(@D)/liveMedia install
-	$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(TARGET_DIR) PREFIX=/usr -C $(@D)/UsageEnvironment install
-	$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(TARGET_DIR) PREFIX=/usr -C $(@D)/BasicUsageEnvironment install
+	$(if $(filter y,$(BR2_PACKAGE_PRUDYNT_T_DYNAMIC)), \
+		$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(TARGET_DIR) PREFIX=/usr -C $(@D)/groupsock install && \
+		$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(TARGET_DIR) PREFIX=/usr -C $(@D)/liveMedia install && \
+		$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(TARGET_DIR) PREFIX=/usr -C $(@D)/UsageEnvironment install && \
+		$(TARGET_MAKE_ENV) $(MAKE) DESTDIR=$(TARGET_DIR) PREFIX=/usr -C $(@D)/BasicUsageEnvironment install \
+	)
 endef
 
 #override LIVE555_CFLAGS += \

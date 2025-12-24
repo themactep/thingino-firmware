@@ -51,12 +51,20 @@ endif
 # Base compiler flags
 PRUDYNT_CFLAGS += \
 	-DNO_OPENSSL=1 \
-	-DBINARY_DYNAMIC \
 	-I$(STAGING_DIR)/usr/include \
 	-I$(STAGING_DIR)/usr/include/liveMedia \
 	-I$(STAGING_DIR)/usr/include/groupsock \
 	-I$(STAGING_DIR)/usr/include/UsageEnvironment \
 	-I$(STAGING_DIR)/usr/include/BasicUsageEnvironment
+
+# Build mode selection
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_STATIC),y)
+PRUDYNT_CFLAGS += -DBINARY_STATIC
+else ifeq ($(BR2_PACKAGE_PRUDYNT_T_HYBRID),y)
+PRUDYNT_CFLAGS += -DBINARY_HYBRID
+else
+PRUDYNT_CFLAGS += -DBINARY_DYNAMIC
+endif
 
 # Debug vs Production build flags
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_DEBUG),y)
