@@ -1,10 +1,8 @@
 WIFI_SITE_METHOD = local
 WIFI_SITE = $(BR2_EXTERNAL)/package/wifi
 
-WIFI_DEPENDENCIES += host-python3
-
+WIFI_TEMPLATE_PYTHON = $(shell command -v python3)
 WIFI_TEMPLATE_RENDERER = $(BR2_EXTERNAL)/scripts/render_template.py
-WIFI_TEMPLATE_PYTHON = $(HOST_DIR)/bin/python3
 
 ifeq ($(BR2_PACKAGE_WIFI),y)
 WIFI_DRIVER_SELECTED :=
