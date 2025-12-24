@@ -13,6 +13,9 @@ which motors > /dev/null && has_motors="true"
 <input type="checkbox" class="btn-check" name="motion" id="motion" value="1">
 <label class="btn btn-dark border mb-2" for="motion" title="Motion Guard"><img src="/a/motion.svg" alt="Motion Guard" class="img-fluid"></label>
 
+<input type="checkbox" class="btn-check" name="privacy" id="privacy" value="1">
+<label class="btn btn-dark border mb-2" for="privacy" title="Privacy mode"><img src="/a/eye-slash.svg" alt="Privacy mode" class="img-fluid"></label>
+
 <input type="checkbox" class="btn-check" name="daynight" id="daynight" value="1">
 <label class="btn btn-dark border mb-2" for="daynight" title="Night mode"><img src="/a/night.svg" alt="Day/Night Mode" class="img-fluid"></label>
 
@@ -122,6 +125,9 @@ function handleMessage(msg) {
 	if (msg.motion && msg.motion.enabled !== undefined) {
 		$('#motion').checked = msg.motion.enabled;
 	}
+	if (msg.privacy && msg.privacy.enabled !== undefined) {
+		$('#privacy').checked = msg.privacy.enabled;
+	}
 	if (msg.rtsp) {
 		const r = msg.rtsp;
 		if (r.username && r.password && r.port && msg.stream0?.rtsp_endpoint)
@@ -133,6 +139,7 @@ async function loadConfig() {
 	const payload = JSON.stringify({
 			image: {hflip: null, vflip: null},
 			motion: {enabled: null},
+			privacy: {enabled: null},
 			rtsp: {username: null, password: null, port: null},
 			stream0: {rtsp_endpoint: null},
 			action: {capture: null}
@@ -220,6 +227,24 @@ $("#motion").addEventListener('change', ev => {
 			}
 		})
 		.catch(err => console.error('Motion toggle error', err));
+});
+
+$("#privacy").addEventListener('change', ev => {
+	const state = ev.target.checked;
+	const payload = JSON.stringify({ privacy: { enabled: state } });
+	fetch('/x/json-prudynt.cgi', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: payload
+	})
+		.then(res => res.json())
+		.then(data => {
+			console.log(ts(), '<===', JSON.stringify(data));
+			if (data.privacy && data.privacy.enabled !== undefined) {
+				$('#privacy').checked = data.privacy.enabled;
+			}
+		})
+		.catch(err => console.error('Privacy toggle error', err));
 });
 
 $("#daynight").addEventListener('change', ev =>
