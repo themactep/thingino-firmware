@@ -669,7 +669,6 @@ $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
 	# syncronize overlay files
-	$(RSYNC) --delete $(BR2_EXTERNAL)/overlay/config/ $(CONFIG_PARTITION_DIR)/
 	$(RSYNC) --delete $(BR2_EXTERNAL)/overlay/upper/ $(CONFIG_PARTITION_DIR)/
 	# delete stub files
 	find $(CONFIG_PARTITION_DIR)/ -name ".*keep" -o -name ".empty" -delete
