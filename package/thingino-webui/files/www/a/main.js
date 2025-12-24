@@ -175,7 +175,18 @@ function cleanupHeartbeatResources() {
 	}
 }
 
+// Cleanup on page unload and visibility change
 window.addEventListener('beforeunload', cleanupHeartbeatResources);
+window.addEventListener('pagehide', cleanupHeartbeatResources);
+
+// Pause heartbeat when page is hidden, resume when visible
+document.addEventListener('visibilitychange', () => {
+	if (document.hidden) {
+		cleanupHeartbeatResources();
+	} else {
+		heartbeat();
+	}
+});
 
 function heartbeat() {
 	if ('EventSource' in window) {

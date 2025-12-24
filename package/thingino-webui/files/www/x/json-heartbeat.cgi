@@ -1,7 +1,7 @@
 #!/bin/sh
 . ./_json.sh
 
-HEARTBEAT_INTERVAL="${HEARTBEAT_INTERVAL:-30}"
+HEARTBEAT_INTERVAL="${HEARTBEAT_INTERVAL:-5}"
 HEARTBEAT_RETRY_MS=$((HEARTBEAT_INTERVAL * 1000))
 
 heartbeat_payload() {
@@ -32,12 +32,12 @@ EOF
 
 stream_heartbeat() {
 	while true; do
-		printf 'retry: %d\n' "$HEARTBEAT_RETRY_MS"
-		printf 'data: %s\n\n' "$(heartbeat_payload)"
+		printf 'retry: %d\n' "$HEARTBEAT_RETRY_MS" || exit 0
+		printf 'data: %s\n\n' "$(heartbeat_payload)" || exit 0
 		sleep "$HEARTBEAT_INTERVAL" || exit 0
 	done
 }
 
-trap 'exit 0' INT TERM PIPE
+trap 'exit 0' INT TERM PIPE HUP
 send_headers
 stream_heartbeat
