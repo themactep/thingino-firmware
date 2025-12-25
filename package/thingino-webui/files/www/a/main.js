@@ -355,4 +355,14 @@ function initCopyToClipboard() {
 	}
 
 	window.addEventListener('load', initAll)
+
+	document.addEventListener("visibilitychange", () => {
+		if (document.hidden) {
+			if ($('#preview'))
+				$('#preview').src = '/a/nostream.webp';
+		} else {
+			if ($('#preview'))
+				$('#preview').src = '/x/ch0.mjpg';
+		}
+	});
 })();
