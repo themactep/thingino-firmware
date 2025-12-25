@@ -4,11 +4,11 @@ const ThreadAudio = 4;
 const ThreadOSD = 8;
 
 let max = 0;
-const HeartBeatInterval = 30 * 1000;
 const HeartBeatReconnectDelay = 5 * 1000;
+const HeartBeatMaxReconnectDelay = 60 * 1000;
 const HeartBeatEndpoint = '/x/json-heartbeat.cgi';
 let heartbeatSource = null;
-let heartbeatFallbackTimer = null;
+let currentReconnectDelay = HeartBeatReconnectDelay;
 
 function $(n) {
 	return document.querySelector(n)
@@ -119,38 +119,16 @@ function updateHeartbeatUi(json) {
 
 	if (typeof (json.uptime) !== 'undefined' && json.uptime !== '')
 		$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
-}
 
-function startHeartbeatPoll() {
-	if (heartbeatFallbackTimer) {
-		clearTimeout(heartbeatFallbackTimer);
-		heartbeatFallbackTimer = null;
-	}
-	const scheduleNextPoll = () => {
-		heartbeatFallbackTimer = setTimeout(startHeartbeatPoll, HeartBeatInterval);
-	};
-	fetch(HeartBeatEndpoint)
-		.then((response) => response.json())
-		.then((json) => {
-			updateHeartbeatUi(json);
-			return null;
-		})
-		.catch((error) => {
-			console.error('Heartbeat fetch failed', error);
-			return null;
-		})
-		.then(scheduleNextPoll);
 }
 
 function startHeartbeatSse() {
-	if (heartbeatFallbackTimer) {
-		clearTimeout(heartbeatFallbackTimer);
-		heartbeatFallbackTimer = null;
-	}
 	if (heartbeatSource) return;
 	heartbeatSource = new EventSource(HeartBeatEndpoint);
 	heartbeatSource.onmessage = (event) => {
 		try {
+			// Reset reconnect delay on successful message
+			currentReconnectDelay = HeartBeatReconnectDelay;
 			updateHeartbeatUi(JSON.parse(event.data));
 		} catch (error) {
 			console.error('Heartbeat SSE payload error', error);
@@ -160,7 +138,10 @@ function startHeartbeatSse() {
 		console.error('Heartbeat SSE error', error);
 		heartbeatSource.close();
 		heartbeatSource = null;
-		setTimeout(startHeartbeatSse, HeartBeatReconnectDelay);
+		console.log(`Reconnecting in ${currentReconnectDelay / 1000}s`);
+		setTimeout(startHeartbeatSse, currentReconnectDelay);
+		// Double the delay for next failure, capped at max
+		currentReconnectDelay = Math.min(currentReconnectDelay * 2, HeartBeatMaxReconnectDelay);
 	};
 }
 
@@ -169,10 +150,8 @@ function cleanupHeartbeatResources() {
 		heartbeatSource.close();
 		heartbeatSource = null;
 	}
-	if (heartbeatFallbackTimer) {
-		clearTimeout(heartbeatFallbackTimer);
-		heartbeatFallbackTimer = null;
-	}
+	// Reset reconnect delay on cleanup
+	currentReconnectDelay = HeartBeatReconnectDelay;
 }
 
 // Cleanup on page unload and visibility change
@@ -189,12 +168,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 function heartbeat() {
-	if ('EventSource' in window) {
-		startHeartbeatSse();
-		return;
-	}
-	console.warn('EventSource unsupported, using fallback heartbeat polling');
-	startHeartbeatPoll();
+	startHeartbeatSse();
 }
 
 function initCopyToClipboard() {
