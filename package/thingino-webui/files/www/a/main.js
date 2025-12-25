@@ -301,6 +301,14 @@ function initCopyToClipboard() {
 			}
 		});
 
+// debug button
+		if ($('#debug'))
+			$('#debug').addEventListener('change', ev => {
+				ev.target.checked ?
+					$('.ui-debug').classList.remove('d-none') :
+					$('.ui-debug').classList.add('d-none') ;
+			});
+
 // async output of a command running on camera
 		if ($('pre#output[data-cmd]')) {
 			const el = $('pre#output[data-cmd]');
