@@ -2,10 +2,9 @@
 
 . /usr/share/common
 
-STREAMER_APP="prudynt"
-FIFO_PATH="/run/prudynt/mp4ctl"
+PRUDYNT_APP="prudynt"
 PRUDYNT_CONFIG="/etc/prudynt.json"
-LEGACY_RECORDER_CONFIG="/etc/recorder.json"
+FIFO_PATH="/run/prudynt/mp4ctl"
 
 json_get() {
 	local file="$1"
@@ -23,18 +22,11 @@ expand_template() {
 }
 
 read_config() {
-	mount=$(json_get "$PRUDYNT_CONFIG" recorder.mount)
 	device_path=$(json_get "$PRUDYNT_CONFIG" recorder.device_path)
-	filename=$(json_get "$PRUDYNT_CONFIG" recorder.filename)
 	duration=$(json_get "$PRUDYNT_CONFIG" recorder.duration)
+	filename=$(json_get "$PRUDYNT_CONFIG" recorder.filename)
+	mount=$(json_get "$PRUDYNT_CONFIG" recorder.mount)
 	stream_number=$(json_get "$PRUDYNT_CONFIG" recorder.channel)
-
-	if [ -f "$LEGACY_RECORDER_CONFIG" ]; then
-		[ -z "$mount" ] && mount=$(json_get "$LEGACY_RECORDER_CONFIG" mount)
-		[ -z "$device_path" ] && device_path=$(json_get "$LEGACY_RECORDER_CONFIG" device_path)
-		[ -z "$filename" ] && filename=$(json_get "$LEGACY_RECORDER_CONFIG" filename)
-		[ -z "$duration" ] && duration=$(json_get "$LEGACY_RECORDER_CONFIG" duration)
-	fi
 }
 
 wait_for_active_creation() {
@@ -57,10 +49,9 @@ wait_for_active_completion() {
 
 read_config
 
-while getopts "c:d:m:n:s:t:x" flag; do
+while getopts "c:m:n:s:t:x" flag; do
 	case "$flag" in
 		c) stream_number=$OPTARG ;;
-		d) : ;; # deprecated placeholder
 		m) mount=$OPTARG ;;
 		n) filename=$OPTARG ;;
 		s) device_path=$OPTARG ;;
@@ -76,14 +67,14 @@ shift "$((OPTIND - 1))"
 
 device_path=$(expand_template "$device_path")
 
-if ! pidof "$STREAMER_APP" >/dev/null 2>&1; then
+if ! pidof "$PRUDYNT_APP" >/dev/null 2>&1; then
 	echo_error "Streamer is not running"
 	exit 1
 fi
 
-[ -z "$mount" ] && mount="/mnt/mmc"
-[ -z "$filename" ] && filename="%Y/%m/%d/%H-%M-%S"
 [ -z "$duration" ] && duration=60
+[ -z "$filename" ] && filename="%Y/%m/%d/%H-%M-%S"
+[ -z "$mount" ] && mount="/mnt/mmc"
 [ -z "$stream_number" ] && stream_number=0
 
 if ! echo "$duration" | grep -Eq '^[0-9]+$' || [ "$duration" -le 0 ]; then

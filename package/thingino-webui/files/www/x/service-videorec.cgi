@@ -11,6 +11,7 @@ config_file="/etc/prudynt.json"
 temp_config_file="/tmp/$domain.json"
 
 defaults() {
+	default_for autostart "false"
 	default_for channel 0
 	default_for device_path "$(hostname)/records"
 	default_for filename "$RECORD_FILENAME_FB"
@@ -31,6 +32,7 @@ get_value() {
 read_config() {
 	[ -f "$config_file" ] || return
 
+	autostart=$(get_value autostart)
 	channel=$(get_value channel)
 	device_path=$(get_value device_path)
 	duration=$(get_value duration)
@@ -44,6 +46,7 @@ read_config
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	error=""
 
+	autostart="$POST_autostart"
 	channel="$POST_channel"
 	device_path="$POST_device_path"
 	duration="$POST_duration"
@@ -61,6 +64,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 	error_if_empty "$filename" "Record filename cannot be empty."
 
 	if [ -z "$error" ]; then
+		set_value autostart "$autostart"
 		set_value channel "$channel"
 		set_value device_path "$device_path"
 		set_value duration "$duration"
@@ -70,12 +74,6 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
 		jct "$config_file" import "$temp_config_file"
 		rm "$temp_config_file"
-
-		if [ "true" = "$enabled" ]; then
-			service start record >/dev/null
-		else
-			service stop record >/dev/null
-		fi
 
 		update_caminfo
 
@@ -107,36 +105,7 @@ defaults
 </div>
 </div>
 <div class="col">
-<% field_switch "enabled" "Start recording on boot" %>
-
-<%
-configured_channel=$(jct "$config_file" get "$domain.channel" 2>/dev/null || echo "0")
-ch0_active=""
-ch1_active=""
-[ -f "/run/prudynt/mp4ctl-ch0.active" ] && ch0_active="yes"
-[ -f "/run/prudynt/mp4ctl-ch1.active" ] && ch1_active="yes"
-
-recording_active=""
-if [ "$configured_channel" = "0" ] && [ -n "$ch0_active" ]; then
-	recording_active="yes"
-elif [ "$configured_channel" = "1" ] && [ -n "$ch1_active" ]; then
-	recording_active="yes"
-fi
-
-if [ -n "$recording_active" ]; then %>
-<div class="alert alert-info">
-<h3>Recording in progress</h3>
-<p class="mb-1">Channel <%= $configured_channel %>: Active</p>
-<button type="button" class="btn btn-danger btn-sm" onclick="controlRecording('stop')">Stop Recording</button>
-</div>
-<% else %>
-<div class="alert alert-warning">
-<h3>Recording stopped</h3>
-<p class="mb-1">Channel <%= $configured_channel %>: Ready</p>
-<button type="button" class="btn btn-primary btn-sm" onclick="controlRecording('start')">Start Recording</button>
-</div>
-<% fi %>
-
+<% field_switch "autostart" "Start recording on boot" %>
 </div>
 </div>
 <% button_submit %>
@@ -151,20 +120,6 @@ if [ -n "$recording_active" ]; then %>
 $('#link-fm').addEventListener('click', ev => {
 	ev.target.href = 'tool-file-manager.cgi?cd=' + $('#mount').value
 })
-
-function controlRecording(action) {
-	const cmd = action === 'start' ? 'record -x' : 'echo "STOP" > /run/prudynt/mp4ctl'
-	fetch('/x/run.cgi', {
-		method: 'POST',
-		headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-		body: 'cmd=' + encodeURIComponent(cmd)
-	}).then(() => {
-		setTimeout(() => location.reload(), 1000)
-	}).catch(err => {
-		console.error('Recording control failed:', err)
-		alert('Failed to ' + action + ' recording')
-	})
-}
 </script>
 
 <%in _footer.cgi %>

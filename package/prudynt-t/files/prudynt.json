@@ -102,6 +102,7 @@
     "skip_frame_count": 5
   },
   "recorder": {
+    "autostart": false,
     "channel": 0,
     "device_path": "%hostname",
     "duration": 60,

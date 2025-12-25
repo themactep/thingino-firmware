@@ -28,6 +28,10 @@ Pragma: no-cache
 <script src="/a/main.js?ts=<%= $assets_ts %>"></script>
 </head>
 
+<%
+configured_channel=$(jct "/etc/prudynt.json" get "recorder.channel" 2>/dev/null || echo "0")
+%>
+
 <body id="page-<%= $pagename %>"<% is_isolated && echo -n ' class="paranoid"' %>>
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
 <div class="container">

@@ -4,6 +4,12 @@ const ThreadAudio = 4;
 const ThreadOSD = 8;
 
 let max = 0;
+
+// Recording state management
+let recordingState = {
+	ch0: false,
+	ch1: false
+};
 const HeartBeatReconnectDelay = 5 * 1000;
 const HeartBeatMaxReconnectDelay = 60 * 1000;
 const HeartBeatEndpoint = '/x/json-heartbeat.cgi';
@@ -81,6 +87,104 @@ function reqListener(data) {
 	console.log(data.responseText);
 }
 
+function updateRecordingIcons() {
+	$$('#recorder-ch0, #recorder-ch1').forEach(checkbox => {
+		const channel = parseInt(checkbox.dataset.channel);
+		const isRecording = recordingState[`ch${channel}`];
+		const label = $$(`label[for="${checkbox.id}"]`)[0];
+
+		console.log(`Updating recorder ch${channel}: isRecording=${isRecording}, label=${label ? 'found' : 'not found'}`);
+
+		if (label) {
+			label.classList.toggle('recorder-active', isRecording);
+		}
+
+		checkbox.checked = isRecording;
+	});
+}
+
+function updateRecordingState(state) {
+	console.log('updateRecordingState called:', state);
+	recordingState.ch0 = state.ch0;
+	recordingState.ch1 = state.ch1;
+	updateRecordingIcons();
+}
+
+function toggleRecording(channel) {
+	const isRecording = recordingState[`ch${channel}`];
+	const action = isRecording ? 'stop' : 'start';
+
+	console.log(`toggleRecording called: channel=${channel}, currentState=${isRecording ? 'recording' : 'stopped'}, action=${action}`);
+
+	const payload = isRecording
+		? JSON.stringify({ mp4: { stop: { channel: channel } } })
+		: JSON.stringify({ mp4: { start: { channel: channel } } });
+
+	console.log(`Sending payload: ${payload}`);
+
+	fetch('/x/json-prudynt.cgi', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: payload
+	})
+	.then(response => response.json())
+	.then(data => {
+		console.log(`Response received:`, data);
+		if (data.mp4 && data.mp4[action]) {
+			if (data.mp4[action] === 'ok') {
+				console.log(`Recording ${action} successful on channel ${channel}`);
+				// Update will happen via heartbeat
+			} else {
+				console.error('Recording control error:', data.mp4[action]);
+				alert(`Failed to ${action} recording on channel ${channel}: ${data.mp4[action]}`);
+			}
+		} else {
+			console.error('Unexpected response:', data);
+			alert(`Failed to ${action} recording on channel ${channel}`);
+		}
+	})
+	.catch(err => {
+		console.error('Recording control failed:', err);
+		alert(`Failed to ${action} recording on channel ${channel}`);
+	});
+}
+
+function toggleMotion(state) {
+	const payload = JSON.stringify({ motion: { enabled: state } });
+	fetch('/x/json-prudynt.cgi', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: payload
+	})
+	.then(res => res.json())
+	.then(data => {
+		console.log(ts(), '<===', JSON.stringify(data));
+		if (data.motion && data.motion.enabled !== undefined) {
+			const el = $('#motion');
+			if (el) el.checked = data.motion.enabled;
+		}
+	})
+	.catch(err => console.error('Motion toggle error', err));
+}
+
+function togglePrivacy(state) {
+	const payload = JSON.stringify({ privacy: { enabled: state } });
+	fetch('/x/json-prudynt.cgi', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: payload
+	})
+	.then(res => res.json())
+	.then(data => {
+		console.log(ts(), '<===', JSON.stringify(data));
+		if (data.privacy && data.privacy.enabled !== undefined) {
+			const el = $('#privacy');
+			if (el) el.checked = data.privacy.enabled;
+		}
+	})
+	.catch(err => console.error('Privacy toggle error', err));
+}
+
 function updateHeartbeatUi(json) {
 	if (!json) return;
 	if (json.time_now !== '') {
@@ -120,6 +224,11 @@ function updateHeartbeatUi(json) {
 	if (typeof (json.uptime) !== 'undefined' && json.uptime !== '')
 		$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
 
+	// Update recording state
+	updateRecordingState({
+		ch0: json.rec_ch0 === true,
+		ch1: json.rec_ch1 === true
+	});
 }
 
 function startHeartbeatSse() {
@@ -334,6 +443,17 @@ function initCopyToClipboard() {
 
 		initCopyToClipboard()
 		heartbeat()
+
+		// Setup recording button handlers
+		$$('#recorder-ch0, #recorder-ch1').forEach(checkbox => {
+			checkbox.addEventListener('click', function(e) {
+				e.preventDefault();
+				const channel = parseInt(this.dataset.channel);
+				toggleRecording(channel);
+			});
+		});
+
+		updateRecordingIcons();
 	}
 
 	window.addEventListener('load', initAll)

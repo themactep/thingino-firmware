@@ -1,6 +1,7 @@
 #!/bin/sh
 
-STREAMER_APP="prudynt"
+PRUDYNT_APP="prudynt"
+PRUDYNT_CONFIG="/etc/prudynt.json"
 FIFO_PATH="/run/prudynt/mp4ctl"
 
 . /usr/share/common
@@ -8,9 +9,14 @@ FIFO_PATH="/run/prudynt/mp4ctl"
 start() {
 	echo_title "Starting Record service"
 
-	if ! pidof $STREAMER_APP >/dev/null 2>&1; then
+	if ! pidof $PRUDYNT_APP >/dev/null 2>&1; then
 		echo_error "Streamer is not running"
 		exit 1
+	fi
+
+	if [ "true" != "$(jct $PRUDYNT_CONFIG get recorder.autostart 2>/dev/null)" ]; then
+		echo_warning "Autostart is not set"
+		exit 0
 	fi
 
 	/sbin/record || echo_warning "record command failed"
