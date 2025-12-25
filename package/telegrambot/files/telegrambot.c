@@ -1,6 +1,8 @@
 /*
  * Telegram Bot
  * (c) 2025 Thingino Project
+ *
+ * API documentation: https://core.telegram.org/bots/api
  */
 #include "json_config.h"
 
@@ -260,7 +262,7 @@ typedef struct {
   int polling_timeout;
   int daemonize;
   char state_file[128];
-  long allowed_ids[8];
+  long long allowed_ids[8];
   int allowed_count;
   char allowed_users[16][32];
   int allowed_users_count;
@@ -351,9 +353,9 @@ static int find_command(const Config *cfg, const char *text) {
 }
 
 // forward declaration
-static int reply_text(const Config *cfg, long chat_id, const char *text);
+static int reply_text(const Config *cfg, long long chat_id, const char *text);
 
-static int run_command(const Config *cfg, int idx, long chat_id) {
+static int run_command(const Config *cfg, int idx, long long chat_id) {
   if (idx < 0 || idx >= cfg->cmd_count) {
     return -1;
   }
@@ -403,7 +405,7 @@ static int run_command(const Config *cfg, int idx, long chat_id) {
   return reply_text(cfg, chat_id, buf);
 }
 
-static int id_allowed(Config *cfg, long chat_id) {
+static int id_allowed(Config *cfg, long long chat_id) {
   if (cfg->allowed_count == 0)
     return 1; // no filter
   for (int i = 0; i < cfg->allowed_count; ++i)
@@ -446,7 +448,7 @@ static int load_config_file(const char *path, Config *cfg) {
     for (int i = 0; i < n && cfg->allowed_count < (int)(sizeof(cfg->allowed_ids) / sizeof(cfg->allowed_ids[0])); ++i) {
       JsonValue *el = get_array_item(arr, i);
       if (el && el->type == JSON_NUMBER)
-        cfg->allowed_ids[cfg->allowed_count++] = (long)el->value.number;
+        cfg->allowed_ids[cfg->allowed_count++] = (long long)el->value.number;
     }
   }
 
@@ -576,14 +578,14 @@ static void make_url(char *buf, size_t bufsz, const Config *cfg, const char *met
            (qs && qs[0]) ? qs : "");
 }
 
-static int reply_text(const Config *cfg, long chat_id, const char *text) {
+static int reply_text(const Config *cfg, long long chat_id, const char *text) {
   char url[512];
   make_url(url, sizeof(url), cfg, "sendMessage", NULL);
 
   char esc[TELEGRAM_TEXT_MAX + 1];
   json_escape(text, esc, sizeof esc);
   char body[TELEGRAM_TEXT_MAX + 128];
-  snprintf(body, sizeof(body), "{\"chat_id\":%ld,\"text\":\"%s\"}", chat_id, esc);
+  snprintf(body, sizeof(body), "{\"chat_id\":%lld,\"text\":\"%s\"}", chat_id, esc);
 
   Memory m;
   if (http_post_json(url, body, 20, &m) != 0)
@@ -608,7 +610,7 @@ static void process_update(const Config *cfg, JsonValue *upd) {
   JsonValue *cidv = get_object_item(chat, "id");
   if (!cidv || cidv->type != JSON_NUMBER)
     return;
-  long chat_id = (long)cidv->value.number;
+  long long chat_id = (long long)cidv->value.number;
 
   // Username check
   const char *username = NULL;
@@ -625,15 +627,15 @@ static void process_update(const Config *cfg, JsonValue *upd) {
 
   // Chat ID filter (if present)
   if (!id_allowed((Config *)cfg, chat_id)) {
-    syslog(LOG_INFO, "Ignoring message from chat %ld (not allowed)", chat_id);
+    syslog(LOG_INFO, "Ignoring message from chat %lld (not allowed)", chat_id);
     return;
   }
 
   const char *t = text->value.string;
   if (username && *username) {
-    syslog(LOG_INFO, "Message from %ld (@%s): %s", chat_id, username, t);
+    syslog(LOG_INFO, "Message from %lld (@%s): %s", chat_id, username, t);
   } else {
-    syslog(LOG_INFO, "Message from %ld: %s", chat_id, t);
+    syslog(LOG_INFO, "Message from %lld: %s", chat_id, t);
   }
 
   // Configured commands take precedence
@@ -642,9 +644,9 @@ static void process_update(const Config *cfg, JsonValue *upd) {
     const char *h = cfg->commands[ci].handle;
     const char *e = cfg->commands[ci].exec;
     if (username && *username) {
-      syslog(LOG_INFO, "Executing '/%s' -> %s (chat %ld, @%s)", h, e, chat_id, username);
+      syslog(LOG_INFO, "Executing '/%s' -> %s (chat %lld, @%s)", h, e, chat_id, username);
     } else {
-      syslog(LOG_INFO, "Executing '/%s' -> %s (chat %ld)", h, e, chat_id);
+      syslog(LOG_INFO, "Executing '/%s' -> %s (chat %lld)", h, e, chat_id);
     }
     run_command(cfg, ci, chat_id);
     return;
