@@ -106,13 +106,13 @@ if [ "true" = "$send_video" ] && [ "true" = "$send_photo" ]; then
 	caption=$(parse_caption $photo)
 	command="${command}sendMediaGroup -F 'snap=@$photo'"
 	[ -n "$message" ] && caption="$caption $message"
-	media='[{"type":"photo","media":"attach://snap","caption":"'$caption'"},'
+	media='{"type":"photo","media":"attach://snap","caption":"'$caption'"},'
 
 	video=$(copy_video)
 	command="$command -F 'video=@$video'"
-	media=$media'{"type":"video","media":"attach://video"},'
+	media=$media'{"type":"video","media":"attach://video"}'
 
-	command="$command -F 'media=$media'"
+	command="$command -F 'media=[$media]'"
 
 elif [ "true" = "$send_video" ]; then
 	# https://core.telegram.org/bots/api#sendvideo
