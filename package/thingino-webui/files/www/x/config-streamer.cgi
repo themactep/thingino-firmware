@@ -777,7 +777,7 @@ function saveValue(domain, name) {
 			value = el.checked;
 	} else {
 		value = el.value;
-		if (["format", "input_format", "mode", "rtsp_endpoint"].includes(name)) {
+		if (["format", "input_format", "mode", "rtsp_endpoint", "mic_format"].includes(name)) {
 			value = `"${value}"`;
 		}
 	}
