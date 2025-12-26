@@ -41,6 +41,21 @@ ssh -fN $SSH_OPTS $REMOTE_HOST || \
 
 echo "SSH connection initialized."
 
+echo "Checking firmware compatibility..."
+REMOTE_IMAGE_ID=$(remote_run "grep '^IMAGE_ID=' /etc/os-release | cut -d'=' -f2" | tr -d '\n')
+# IMAGE_ID is derived from CAMERA variable which should be set by the Makefile
+LOCAL_IMAGE_ID="${CAMERA:-unknown}"
+
+if [ -z "$REMOTE_IMAGE_ID" ]; then
+	die "Failed to read IMAGE_ID from device"
+fi
+
+if [ "$LOCAL_IMAGE_ID" != "$REMOTE_IMAGE_ID" ]; then
+	die "Firmware IMAGE_ID mismatch: local=$LOCAL_IMAGE_ID, device=$REMOTE_IMAGE_ID"
+fi
+
+echo "Firmware compatibility verified."
+
 echo "Transferring sysupgrade utility to device..."
 remote_copy $LOCAL_SCRIPT $REMOTE_HOST:$REMOTE_SCRIPT || \
 	die "Failed to transfer sysupgrade utility"
