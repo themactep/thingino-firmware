@@ -3,11 +3,25 @@
 LOCKFILE=/tmp/heartbeat
 http_200
 json_header
-if [ -f $LOCKFILE ]; then
+
+LOCK_PID=$(cat "$LOCKFILE" 2>/dev/null || true)
+# check if PID in the lockfile is still running
+# 0= running, 1= not running or missing lockfile
+LOCK_PID_KILL_RET=$([ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID"; echo $?)
+
+if [ $LOCK_PID_KILL_RET -eq 0 ]; then
 	printf '{"error":"Another request is in progress"}'
 	exit 0
 fi
-touch $LOCKFILE
+
+cleanup() {
+	trap - EXIT TERM INT HUP
+	rm -f "$LOCKFILE"
+}
+
+trap cleanup EXIT TERM INT HUP
+echo $$ > "$LOCKFILE"
+
 printf '{"time_now":"%s","timezone":"%s","mem_total":"%d","mem_active":"%d","mem_buffers":"%d","mem_cached":"%d","mem_free":"%d","overlay_total":"%d","overlay_used":"%d","overlay_free":"%d","uptime":"%s","dnd_gain":"%s","extras_total":"%d","extras_used":"%d","extras_free":"%d"}' \
 	"$(date +%s)" \
 	"$(cat /etc/timezone)" \
@@ -20,5 +34,5 @@ printf '{"time_now":"%s","timezone":"%s","mem_total":"%d","mem_active":"%d","mem
 	"$(awk '{m=$1/60;h=m/60;printf "%sd %sh %sm %ss\n",int(h/24),int(h%24),int(m%60),int($1%60)}' /proc/uptime)" \
 	"$(awk '{print $1}' /run/daynight/value || echo "unknown")" \
 	$(df | awk '/\/opt$/{print $2,$3,$4}')
-[ -f $LOCKFILE ] && rm $LOCKFILE
+
 exit 0
