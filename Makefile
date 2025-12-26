@@ -677,7 +677,7 @@ $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 		--pad=$(CONFIG_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
 
 # create extras partition image
-$(EXTRAS_BIN): $(U_BOOT_BIN)
+$(EXTRAS_BIN): $(U_BOOT_BIN) $(ROOTFS_BIN)
 	$(info -------------------------------- $@)
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
