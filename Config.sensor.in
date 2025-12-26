@@ -252,6 +252,8 @@ config BR2_SENSOR_SC301IOT
 	bool "SmartSens SC301IoT"
 config BR2_SENSOR_SC3235
 	bool "SmartSens SC3235"
+config BR2_SENSOR_SC3332
+	bool "SmartSens SC3332"
 config BR2_SENSOR_SC3335
 	bool "SmartSens SC3335"
 config BR2_SENSOR_SC3336
