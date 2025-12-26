@@ -96,6 +96,7 @@ body:before {
 	text-decoration-color: #f80;
 	text-decoration-line: underline;
 	text-underline-offset: 0.25em;
+	white-space: nowrap;
 }
 
 .container {
@@ -138,7 +139,6 @@ body:before {
 }
 
 .icon {
-	color: lightgray;
 	max-width: 4rem;
 }
 
