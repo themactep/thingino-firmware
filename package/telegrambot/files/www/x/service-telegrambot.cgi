@@ -6,11 +6,11 @@ page_title="Telegram Bot"
 <%in _header.cgi %>
 
 <form action="" method="post" class="mb-4">
-<% field_switch "tb_enabled" "Launch Telegram bot on boot" %>
+<% field_switch "enabled" "Launch Telegram bot on boot" %>
 <div class="row mb-3">
 <div class="col col-lg-6">
-<% field_text "tb_token" "Bot token" "click <span class=\"link\" data-bs-toggle=\"modal\" data-bs-target=\"#helpModal\">here</span> for help" %>
-<% field_text "tb_users" "Respond only to these users" "whitespace separated list" %>
+<% field_text "token" "Bot token" "click <span class=\"link\" data-bs-toggle=\"modal\" data-bs-target=\"#helpModal\">here</span> for help" %>
+<% field_text "users" "Respond only to these users" "whitespace separated list" %>
 </div>
 </div>
 <div class="bot-commands mb-4">

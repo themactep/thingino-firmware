@@ -18,7 +18,7 @@
   container.appendChild(addBtn);
   container.appendChild(table);
 
-  // Hide existing fixed rows (tb_command_0..9 etc.)
+  // Hide existing fixed rows (command_0..9 etc.)
   Array.from(container.querySelectorAll('.row.g-1')).forEach(r => r.classList.add('d-none'));
 
   function addRow(cmd){
@@ -47,34 +47,34 @@
     originalConfig = data;
 
     // Populate token/users
-    const token = data.token || data.tb_token || '';
-    const users = Array.isArray(data.allowed_usernames) ? data.allowed_usernames.join(' ') : (data.tb_users||'');
-    const elTok = document.getElementById('tb_token'); if (elTok) elTok.value = token;
-    const elUsr = document.getElementById('tb_users'); if (elUsr) elUsr.value = users;
+    const token = data.token || '';
+    const users = Array.isArray(data.allowed_usernames) ? data.allowed_usernames.join(' ') : (data.users||'');
+    const elTok = document.getElementById('token'); if (elTok) elTok.value = token;
+    const elUsr = document.getElementById('users'); if (elUsr) elUsr.value = users;
 
     // Get service status to set the enable switch
     try {
       const s = await fetch('/x/ctl-telegrambot.cgi?status=1').then(r=>r.json());
-      const elEn = document.getElementById('tb_enabled');
+      const elEn = document.getElementById('enabled');
       if (elEn) elEn.checked = (s.enabled_boot === true) || (s.enabled_runtime === true);
     } catch(e) {
-      const elEn = document.getElementById('tb_enabled');
-      if (elEn) elEn.checked = (data.enabled_boot === true) || (data.tb_enabled === true) || (data.tb_enabled === 'true');
+      const elEn = document.getElementById('enabled');
+      if (elEn) elEn.checked = (data.enabled_boot === true) || (data.enabled === true) || (data.enabled === 'true');
     }
 
     // Populate commands
     tbody.innerHTML = '';
     const cmds = Array.isArray(data.commands) ? data.commands : (function(){
-      const out=[]; for (let i=0;i<100;i++){ const h=data['tb_command_'+i],d=data['tb_description_'+i],e=data['tb_script_'+i]; if(!h&&!e&&!d) break; if(h&&e) out.push({handle:h,description:d||'',exec:e}); } return out; })();
+      const out=[]; for (let i=0;i<100;i++){ const h=data['command_'+i],d=data['description_'+i],e=data['script_'+i]; if(!h&&!e&&!d) break; if(h&&e) out.push({handle:h,description:d||'',exec:e}); } return out; })();
     cmds.forEach(addRow);
   }
 
   async function save(ev){
     ev && ev.preventDefault();
     // Gather structured JSON
-    const token = document.getElementById('tb_token')?.value.trim()||'';
-    const users = splitUsers(document.getElementById('tb_users')?.value||'');
-    const enabled = !!document.getElementById('tb_enabled')?.checked;
+    const token = document.getElementById('token')?.value.trim()||'';
+    const users = splitUsers(document.getElementById('users')?.value||'');
+    const enabled = !!document.getElementById('enabled')?.checked;
     const commands = Array.from(tbody.querySelectorAll('tr')).map(tr=>({
       handle: tr.querySelector('.cmd-h').value.trim(),
       description: tr.querySelector('.cmd-d').value.trim(),
@@ -88,7 +88,6 @@
     updated.commands = commands;
     // Remove UI-only flags if present
     delete updated.enabled;
-    delete updated.tb_enabled;
 
     try{
       // Save full config (preserves other keys)
