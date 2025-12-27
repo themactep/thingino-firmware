@@ -33,11 +33,12 @@ configured_channel=$(jct "/etc/prudynt.json" get "recorder.channel" 2>/dev/null 
 %>
 
 <body id="page-<%= $pagename %>"<% is_isolated && echo -n ' class="paranoid"' %>>
+
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
 <div class="container">
 <a class="navbar-brand" href="/"><img alt="Image: thingino logo" width="150" src="/a/logo.svg"></a>
 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nbMain"
-aria-controls="nbMain" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+ aria-controls="nbMain" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
 
 <div class="collapse navbar-collapse justify-content-end" id="nbMain">
 <ul class="navbar-nav">
@@ -80,7 +81,6 @@ aria-controls="nbMain" aria-label="Toggle navigation"><span class="navbar-toggle
 </li>
 </ul>
 </div>
-
 </div>
 </nav>
 
@@ -119,7 +119,7 @@ class="link-underline link-underline-opacity-0 link-underline-opacity-75-hover">
 
 <% if ! [ "true" = "$wlanap_enabled" ] && [ -z "$network_gateway" ]; then %>
 <div class="alert alert-warning">
-<p class="mb-0">No Internet connection. Please <a href="config-network.cgi">check your network settings</a>.</p>
+<p>No Internet connection. Please <a href="config-network.cgi">check your network settings</a>.</p>
 </div>
 <% fi %>
 
