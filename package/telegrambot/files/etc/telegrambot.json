@@ -13,7 +13,7 @@
     { "handle": "help",  "description": "Request help", "exec": "/bin/echo \"Try https://thingino.com/\"" },
     { "handle": "info",  "description": "System information", "exec": "/bin/cat /etc/os-release" },
     { "handle": "diag",  "description": "Gather diagnostics", "exec": "/sbin/thingino-diag" },
-    { "handle": "snap",  "description": "Snap a picture", "exec": "/sbin/send2telegram snap" },
-    { "handle": "clip",  "description": "Record a clip", "exec": "/sbin/send2telegram clip" }
+    { "handle": "snap",  "description": "Snap a picture", "exec": "/sbin/send2telegram -S" },
+    { "handle": "clip",  "description": "Record a clip", "exec": "/sbin/send2telegram -V" }
   ]
 }
