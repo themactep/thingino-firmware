@@ -35,8 +35,15 @@ if [ "list" != "$ACTION" ] && [ -z "$SCRIPT" ]; then
 fi
 
 case "$ACTION" in
-	start | stop | reload | restart)
+	start | reload | restart)
 		if ! $SCRIPT $ACTION; then
+			echo_error "Failed to $ACTION $SERVICE"
+			exit 1
+		fi
+		;;
+	stop)
+		# force stop action on a disabled script
+		if ! sh -c $SCRIPT $ACTION; then
 			echo_error "Failed to $ACTION $SERVICE"
 			exit 1
 		fi
