@@ -23,8 +23,8 @@ function runMotorCmd(args) {
 }
 
 <%
-steps_pan=$(jct /etc/motors.json get motors.steps_pan)
-steps_tilt=$(jct /etc/motors.json get motors.steps_tilt)
+steps_pan=$(jct /etc/motors.json get motors.steps_pan); [ -z "$steps_pan" ] && steps_pan=0;
+steps_tilt=$(jct /etc/motors.json get motors.steps_tilt); [ -z "$steps_tilt" ] && steps_tilt=0;
 %>
 function moveMotor(dir, steps = 100, d = 'g') {
 	const x_max=<%= $steps_pan %>;
