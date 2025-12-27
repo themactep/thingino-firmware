@@ -1,0 +1,8 @@
+{
+  "websocket": {
+    "enabled": true,
+    "port": 8089,
+    "secured": false,
+    "token": "auto"
+  }
+}

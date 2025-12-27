@@ -96,6 +96,7 @@
     "send2ftp": false,
     "send2mqtt": false,
     "send2ntfy": false,
+    "send2storage": false,
     "send2telegram": false,
     "send2webhook": false,
     "sensitivity": 1,
@@ -331,13 +332,7 @@
     "jpeg_quality": 75
   },
   "http_mjpeg": {
-    "enabled": true,
+    "enabled": false,
     "port": 8081
-  },
-  "websocket": {
-    "enabled": true,
-    "port": 8089,
-    "secured": false,
-    "token": "auto"
   }
 }
