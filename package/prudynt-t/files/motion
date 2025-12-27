@@ -11,7 +11,6 @@ MOTION_ALARM_DIR=$(dirname "$MOTION_ALARM")
 
 MOTION_STOP_FILE="/run/motors.pid"
 
-MOTION_VIDEO_FILE="/tmp/motion.mp4"
 MOTION_VIDEO_CHANNEL=0
 MOTION_VIDEO_LENGTH=10
 
@@ -22,54 +21,142 @@ start() {
 		exit 1
 	fi
 
+	# Generate timestamp for this motion event
+	MOTION_TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+	MOTION_PHOTO_FILE="/tmp/motion_${MOTION_TIMESTAMP}.jpg"
+	MOTION_VIDEO_FILE="/tmp/motion_${MOTION_TIMESTAMP}.mp4"
+
 	echo_info "Set $MOTION_ALARM"
 	touch "$MOTION_ALARM"
 
-	# record a video clip
-	echo_info "Start recording $MOTION_VIDEO_FILE"
-	echo "START $MOTION_VIDEO_FILE $MOTION_VIDEO_LENGTH $MOTION_VIDEO_CHANNEL" > /run/prudynt/mp4ctl
-	echo_info "Motion video is ready."
+	# Check if any send2* service needs photo or video
+	need_photo=false
+	need_video=false
+
+	for service in email ftp mqtt ntfy storage telegram webhook; do
+		if [ "true" = "$(jct /etc/prudynt.json get motion.send2${service})" ]; then
+			[ "true" = "$(jct /etc/send2.json get ${service}.send_photo)" ] && need_photo=true
+			[ "true" = "$(jct /etc/send2.json get ${service}.send_video)" ] && need_video=true
+		fi
+	done
+
+	# Capture snapshot only if needed
+	if [ "$need_photo" = "true" ]; then
+		echo_info "Capture snapshot $MOTION_PHOTO_FILE"
+		prudyntctl snapshot -c $MOTION_VIDEO_CHANNEL > "$MOTION_PHOTO_FILE"
+		export MOTION_PHOTO_FILE
+	else
+		echo_info "Skipping snapshot (not needed by any send2 service)"
+		unset MOTION_PHOTO_FILE
+	fi
+
+	# Record video only if needed
+	if [ "$need_video" = "true" ]; then
+		echo_info "Start recording $MOTION_VIDEO_FILE"
+		echo "START $MOTION_VIDEO_FILE $MOTION_VIDEO_LENGTH $MOTION_VIDEO_CHANNEL" > /run/prudynt/mp4ctl
+
+		# Wait for video file to be created and finish recording
+		sleep 2
+		while [ ! -f "$MOTION_VIDEO_FILE" ]; do
+			sleep 1
+		done
+
+		# Wait for file to finish writing (size stops changing)
+		prev_size=0
+		curr_size=$(stat -c%s "$MOTION_VIDEO_FILE" 2>/dev/null || echo 0)
+		stable_count=0
+		max_wait=0
+
+		while [ $stable_count -lt 2 ] && [ $max_wait -lt 15 ]; do
+			sleep 1
+			prev_size=$curr_size
+			curr_size=$(stat -c%s "$MOTION_VIDEO_FILE" 2>/dev/null || echo 0)
+
+			if [ "$curr_size" -eq "$prev_size" ] && [ "$curr_size" -gt 0 ]; then
+				stable_count=$((stable_count + 1))
+			else
+				stable_count=0
+			fi
+			max_wait=$((max_wait + 1))
+		done
+
+		echo_info "Motion video is ready."
+		export MOTION_VIDEO_FILE
+	else
+		echo_info "Skipping video recording (not needed by any send2 service)"
+		unset MOTION_VIDEO_FILE
+	fi
 
 	# send2 actions
+	send2_pids=""
 
 	if [ "true" = "$(jct /etc/prudynt.json get motion.send2email)" ]; then
 		echo_info "Send alert to email"
-		send2email &
+		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2email &
+		send2_pids="$send2_pids $!"
 	fi
 
 	if [ "true" = "$(jct /etc/prudynt.json get motion.send2ftp)" ]; then
 		echo_info "Send alert to FTP"
-		send2ftp &
+		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2ftp &
+		send2_pids="$send2_pids $!"
 	fi
 
 	if [ "true" = "$(jct /etc/prudynt.json get motion.send2mqtt)" ]; then
 		echo_info "Send alert to MQTT"
-		send2mqtt &
+		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2mqtt &
+		send2_pids="$send2_pids $!"
 	fi
 
 	if [ "true" = "$(jct /etc/prudynt.json get motion.send2ntfy)" ]; then
 		echo_info "Send alert to Ntfy"
-		send2ntfy &
+		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2ntfy &
+		send2_pids="$send2_pids $!"
 	fi
 
 	if [ "true" = "$(jct /etc/prudynt.json get motion.send2storage)" ]; then
 		echo_info "Save to storage"
-		send2storage &
+		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2storage &
+		send2_pids="$send2_pids $!"
 	fi
 
 	if [ "true" = "$(jct /etc/prudynt.json get motion.send2telegram)" ]; then
 		echo_info "Send alert to Telegram"
-		send2telegram motion &
+		if [ "$need_photo" = "true" ] || [ "$need_video" = "true" ]; then
+			echo_info "MOTION_PHOTO_FILE=$MOTION_PHOTO_FILE MOTION_VIDEO_FILE=$MOTION_VIDEO_FILE"
+			MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2telegram -v >>/tmp/send2telegram.log 2>&1 &
+			send2_pids="$send2_pids $!"
+		else
+			echo_info "Skipping Telegram (no media to send)"
+		fi
 	fi
 
 	if [ "true" = "$(jct /etc/prudynt.json get motion.send2webhook)" ]; then
 		echo_info "Send alert to WebHook"
-		send2webhook &
+		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2webhook &
+		send2_pids="$send2_pids $!"
 	fi
 
 	if [ "true" = "$(jct /etc/prudynt.json get motion.playonspeaker)" ]; then
 		echo_info "Send alert to play on speaker"
 		playonspeaker &
+		send2_pids="$send2_pids $!"
+	fi
+
+	# Wait for all send2 processes to complete in background, then cleanup
+	if [ -n "$send2_pids" ]; then
+		(
+			# Wait for each send2 process to complete
+			for pid in $send2_pids; do
+				# Use kill -0 to check if process exists, then wait
+				while kill -0 $pid 2>/dev/null; do
+					sleep 1
+				done
+			done
+			echo_info "Cleaning up motion files"
+			[ -f "$MOTION_PHOTO_FILE" ] && rm -f "$MOTION_PHOTO_FILE"
+			[ -f "$MOTION_VIDEO_FILE" ] && rm -f "$MOTION_VIDEO_FILE"
+		) &
 	fi
 }
 

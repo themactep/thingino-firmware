@@ -6,8 +6,12 @@
 domain="telegram"
 config_file="/etc/send2.json"
 
+get_value() {
+	jct "$config_file" get "$domain.$1" 2>/dev/null
+}
+
 show_help() {
-	echo "Usage: $0 [options] [clip|motion|snap]
+	echo "Usage: $0 [options]
 Where:
 	-c channel  Telegram channel ID.
 	            See https://gist.github.com/mraaroncruz/e76d19f7d61d59419002db54030ebe35
@@ -16,7 +20,7 @@ Where:
 	-s          Disable notification.
 	-t token    Telegram bot token. See https://t.me/botfather if you need one.
 	-v          Verbose output.
-	-S          Send snapshot.
+	-S          Send photo.
 	-V          Send video.
 	-h          Show this help.
 " >&2
@@ -24,7 +28,11 @@ Where:
 }
 
 parse_caption() {
-	echo "$caption" | sed "s/%hostname/$(hostname -s)/;s/%datetime/$(date @$(stat -c%Z $1))/"
+	local file="$1"
+	local caption_template="${2:-}"
+	[ -z "$caption_template" ] && caption_template=$(get_value caption)
+	[ -z "$caption_template" ] && caption_template=""
+	echo "$caption_template" | sed "s/%hostname/$(hostname -s)/g;s/%datetime/$(date +%Y-%m-%d\ %H:%M:%S)/g"
 }
 
 read_config() {
@@ -56,25 +64,6 @@ while getopts c:f:m:st:vSV flag; do
 	esac
 done
 
-shift $((OPTIND - 1))
-
-if [ $# -ne 0 ]; then
-	case "$1" in
-		clip)
-			send_photo="false"
-			send_video="true"
-			;;
-		motion)
-			send_photo="true"
-			send_video="true"
-			;;
-		snap)
-			send_photo="true"
-			send_video="false"
-			;;
-	esac
-fi
-
 if [ -z "$token" ]; then
 	echo_error "Telegram token not found"
 	exit 1
@@ -85,58 +74,57 @@ if [ -z "$channel" ]; then
 	exit 1
 fi
 
-if [ "true" = "$verbose" ]; then
-	command="curl --verbose"
-else
-	command="curl --silent"
-fi
-
-command="$command -H 'Content-Type: multipart/form-data'"
+command="curl --silent"
+[ "true" = "$verbose" ] && command="$command --verbose"
 command="$command -F 'chat_id=$channel'"
+[ "true" = "$silent" ] && command="$command -F 'disable_notification=true'"
+command="$command -F 'rand=$RANDOM'"
 
-if [ "true" = "$silent" ]; then
-	command="$command -F 'disable_notification=true'"
-fi
-command="$command --url https://api.telegram.org/bot$token/"
-# no further modifications to command after this point
+url="https://api.telegram.org/bot$token/"
 
 if [ "true" = "$send_video" ] && [ "true" = "$send_photo" ]; then
 	# https://core.telegram.org/bots/api#sendmediagroup
+	url="${url}sendMediaGroup"
+
 	photo=$(copy_photo)
 	caption=$(parse_caption $photo)
-	command="${command}sendMediaGroup -F 'snap=@$photo'"
+	command="$command -F 'photo=@$photo'"
 	[ -n "$message" ] && caption="$caption $message"
-	media='{"type":"photo","media":"attach://snap","caption":"'$caption'"},'
+	media='{"type":"photo","media":"attach://photo","caption":"'$caption'"},'
 
 	video=$(copy_video)
 	command="$command -F 'video=@$video'"
 	media=$media'{"type":"video","media":"attach://video"}'
 
-	command="$command -F 'media=[$media]'"
+	command="$command -F 'media=[$media]' $url"
 
 elif [ "true" = "$send_video" ]; then
 	# https://core.telegram.org/bots/api#sendvideo
-	video1=$(copy_video)
-	caption="$(parse_caption $video1)"
+	url="${url}sendVideo"
+	video=$(copy_video)
+	caption="$(parse_caption $video)"
 	[ -n "$message" ] && caption="$caption $message"
-	command="${command}sendVideo -F 'video=@$video1' -F 'caption=$caption'"
+	command="$command -F 'video=@$video' -F 'caption=\"$caption\"' $url"
 
 elif [ "true" = "$send_photo" ]; then
 	# https://core.telegram.org/bots/api#sendphoto
+	url="${url}sendPhoto"
 	photo=$(copy_photo)
 	caption="$(parse_caption $photo)"
 	[ -n "$message" ] && caption="$caption $message"
-	command="${command}sendPhoto -F 'photo=@$photo' -F 'caption=$caption'"
+	command="$command -F 'photo=@$photo' -F 'caption=\"$caption\"' $url"
 
 elif [ -n "$message" ]; then
 	# https://core.telegram.org/bots/api#sendmessage
-	command="${command}sendMessage -F 'text=$message'"
+	url="${url}sendMessage"
+	command="$command -F 'text=$message' $url"
 
 elif [ -n "$file" ] && [ -f "$file" ]; then
 	# https://core.telegram.org/bots/api#senddocument
+	url="${url}sendDocument"
 	caption="$(parse_caption $file)"
 	[ -n "$message" ] && caption="$caption $message"
-	command="${command}sendDocument -F 'document=@$1' -F 'caption=$caption'"
+	command="$command -F 'document=@$1' -F 'caption=\"$caption\"' $url"
 
 else
 	echo_error "Nothing to send"

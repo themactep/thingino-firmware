@@ -22,6 +22,16 @@ _cleanup() {
 }
 
 copy_photo() {
+	# Use existing photo from motion if available
+	if [ -n "$MOTION_PHOTO_FILE" ] && [ -f "$MOTION_PHOTO_FILE" ]; then
+		# Copy to temp file immediately to avoid race condition with cleanup
+		local tmpfile="$(mktemp -u).jpg"
+		cp "$MOTION_PHOTO_FILE" "$tmpfile"
+		add_to_garbage "$tmpfile"
+		echo "$tmpfile"
+		return
+	fi
+
 	local tmpfile="$(mktemp -u).jpg"
 	prudyntctl snapshot -c 0 > "$tmpfile"
 	add_to_garbage "$tmpfile"
@@ -29,10 +39,63 @@ copy_photo() {
 }
 
 copy_video() {
+	# Use existing video from motion if available
+	if [ -n "$MOTION_VIDEO_FILE" ] && [ -f "$MOTION_VIDEO_FILE" ]; then
+		# Copy to temp file immediately to avoid race condition with cleanup
+		local tmpfile="$(mktemp -u).mp4"
+		cp "$MOTION_VIDEO_FILE" "$tmpfile"
+		add_to_garbage "$tmpfile"
+		echo "$tmpfile"
+		return
+	fi
+
 	local tmpfile="$(mktemp -u).mp4"
-	echo "START $tmpfile 10 0" > /run/prudynt/mp4ctl
-	sleep 12
-	add_to_garbage  "$tmpfile"
+
+	# Check if mp4ctl interface exists
+	if [ ! -e "/run/prudynt/mp4ctl" ]; then
+		echo "$tmpfile"
+		return 1
+	fi
+
+	# Send recording command
+	if ! echo "START $tmpfile 10 0" > /run/prudynt/mp4ctl 2>/dev/null; then
+		echo "$tmpfile"
+		return 1
+	fi
+
+	# Wait for file to be created (max 15 seconds)
+	local i=0
+	while [ ! -f "$tmpfile" ] && [ $i -lt 15 ]; do
+		sleep 1
+		i=$((i + 1))
+	done
+
+	if [ ! -f "$tmpfile" ]; then
+		echo "$tmpfile"
+		return 1
+	fi
+
+	# Wait for file to finish writing (size stops changing)
+	local prev_size=0
+	local curr_size=$(stat -c%s "$tmpfile" 2>/dev/null || echo 0)
+	local stable_count=0
+
+	# Wait until size is stable for 2 consecutive checks or max 20 iterations
+	i=0
+	while [ $stable_count -lt 2 ] && [ $i -lt 20 ]; do
+		sleep 1
+		prev_size=$curr_size
+		curr_size=$(stat -c%s "$tmpfile" 2>/dev/null || echo 0)
+
+		if [ "$curr_size" -eq "$prev_size" ] && [ "$curr_size" -gt 0 ]; then
+			stable_count=$((stable_count + 1))
+		else
+			stable_count=0
+		fi
+		i=$((i + 1))
+	done
+
+	add_to_garbage "$tmpfile"
 	echo "$tmpfile"
 }
 
