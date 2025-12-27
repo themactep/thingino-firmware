@@ -28,6 +28,7 @@ endif
 
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_WEBSOCKETS),y)
 	PRUDYNT_T_DEPENDENCIES += libwebsockets
+	PRUDYNT_T_DEPENDENCIES += host-thingino-jct
 	PRUDYNT_T_CFLAGS += -DUSE_WEBSOCKETS
 endif
 
@@ -181,6 +182,16 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		fi; \
 		echo "Applying Prudynt override from $(PRUDYNT_T_OVERRIDE_FILE)"; \
 		$(HOST_DIR)/bin/jct $(STAGING_DIR)/prudynt.json import "$(PRUDYNT_T_OVERRIDE_FILE)"; \
+	fi
+
+	# Merge websockets configuration if enabled
+	if [ "$(BR2_PACKAGE_PRUDYNT_T_WEBSOCKETS)" = "y" ]; then \
+		if [ ! -x "$(HOST_DIR)/bin/jct" ]; then \
+			echo "ERROR: host jct tool missing: $(HOST_DIR)/bin/jct"; \
+			exit 1; \
+		fi; \
+		echo "Merging websockets configuration"; \
+		$(HOST_DIR)/bin/jct $(STAGING_DIR)/prudynt.json import "$(PRUDYNT_T_PKGDIR)/files/websockets.json"; \
 	fi
 
 	# Install the final, modified JSON file from staging to target
