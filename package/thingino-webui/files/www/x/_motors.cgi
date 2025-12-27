@@ -10,7 +10,6 @@
 <a class="s" data-dir="cl"></a>
 <a class="s" data-dir="ul"></a>
 <a class="b" data-dir="h"></a>
-<div id="ptzpos" class="position-absolute m-0 top-50 start-50 translate-middle small"></div>
 </div>
 </div>
 
@@ -19,7 +18,7 @@ function runMotorCmd(args) {
 	fetch(`/x/json-motor.cgi?${args}`)
 	.then(res => res.json())
 	.then(({message: {xpos, ypos}}) => {
-		$('#ptzpos').textContent = xpos + "," + ypos;
+		console.log("Position:" + xpos + "," + ypos);
 	});
 }
 
