@@ -28,7 +28,7 @@ CAMERA="$4"
 json_escape() {
 	local raw="$1"
 	raw=${raw//\\/\\\\}
-	raw=${raw//"/\\"}
+	raw=${raw//\"/\\\"}
 	raw=${raw//$'\n'/\\n}
 	raw=${raw//$'\r'/\\r}
 	raw=${raw//$'\t'/\\t}
@@ -59,10 +59,12 @@ merge_config_files() {
 					# Remove leading/trailing whitespace from key
 					key=$(echo "$key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 					value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-					if [[ "$value" =~ ^".*"$ ]]; then
+					# Strip surrounding quotes if present
+					if [[ "$value" =~ ^\".*\"$ ]]; then
 						value="${value:1:-1}"
+						# Unescape any escaped quotes within the value
+						value=${value//\\"/"}
 					fi
-					value=${value//\\"/"}
 					# Store the key-value pair (later files override earlier ones)
 					config_vars["$key"]="$value"
 					echo "  Set: $key=$value" >&2
