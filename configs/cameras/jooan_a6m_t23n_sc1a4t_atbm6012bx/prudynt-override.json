@@ -1,0 +1,5 @@
+{
+  "audio": {
+    "mic_high_pass_filter": true
+  }
+}
