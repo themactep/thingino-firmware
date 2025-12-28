@@ -1,0 +1,27 @@
+{
+	"admin_name": "Thingino Admin",
+	"debug_enabled": false,
+	"enable_updates": true,
+	"portal_device": "wlan0",
+	"streamer_disabled": false,
+	"usb_console": false,
+	"wlanap_enabled": false,
+	"rsyslog": {
+		"host": "",
+		"local": false,
+		"port": 514
+	},
+	"watchdog": {
+		"device": "/dev/watchdog",
+		"disable": false,
+		"timeout": 60
+	},
+	"webui": {
+		"level": "user",
+		"paranoid": false,
+		"theme": "dark"
+	},
+	"wireguard": {
+		"enabled": false
+	}
+}
