@@ -43,7 +43,7 @@ case "$ACTION" in
 		;;
 	stop)
 		# force stop action on a disabled script
-		if ! sh -c $SCRIPT $ACTION; then
+		if ! sh -c "$SCRIPT $ACTION"; then
 			echo_error "Failed to $ACTION $SERVICE"
 			exit 1
 		fi
