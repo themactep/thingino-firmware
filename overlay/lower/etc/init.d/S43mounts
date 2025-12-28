@@ -7,7 +7,7 @@ nfs_mount=/mnt/nfs
 start() {
 	echo_title "Mount $nfs_mount"
 
-	nfs_share=$(fw_printenv -n nfs_share)
+	nfs_share="$(jct /etc/thingino.json get nfs_share)"
 	if [ -z "$nfs_share" ]; then
 		echo_info "Mount share is not set"
 		return 0
