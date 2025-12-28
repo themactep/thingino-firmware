@@ -3,128 +3,156 @@
 <%
 page_title="ZeroTier"
 params="enabled nwid"
-config_file="/etc/webui/zerotier.conf"
 
-zt_cli_bin=/usr/sbin/zerotier-cli
-zt_one_bin=/usr/sbin/zerotier-one
+domain="zerotier"
+config_file="/etc/zerotier.json"
+temp_config_file="/tmp/$domain.json"
 
-[ -f "$zt_cli_bin" ] || redirect_to "/" "danger" "ZerotierOne client is not a part of your firmware."
-[ -f "$zt_one_bin" ] || redirect_to "/" "danger" "$zt_one_bin file not found."
-[ -f "$config_file" ] || touch $config_file
+ZT_CLI_BIN=/usr/sbin/zerotier-cli
+ZT_ONE_BIN=/usr/sbin/zerotier-one
 
-include $config_file
+get_value() {
+        jct "$config_file" get "$domain.$1" 2>/dev/null
+}
 
-[ -n "$zerotier_nwid" ] && zt_network_config_file="/var/lib/zerotier-one/networks.d/$zerotier_nwid.conf"
+set_value() {
+        [ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
+        jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+}
+
+read_config() {
+        [ -f "$config_file" ] || return
+
+	enabled=$(get_value enabled)
+	nwid=$(get_value nwid)
+}
+
+read_config
+
+[ -f "$ZT_CLI_BIN" ] || redirect_to "/" "danger" "ZeroTierOne client is not a part of your firmware."
+[ -f "$ZT_ONE_BIN" ] || redirect_to "/" "danger" "$ZT_ONE_BIN file not found."
+
+[ -n "$nwid" ] && ZT_NETWORK_CONFIG="/var/lib/zerotier-one/networks.d/${nwid}.conf"
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
 	case "$POST_action" in
 		create)
-			read_from_post "zerotier" "$params"
+			enabled="$POST_enabled"
+			nwid="$POST_nwid"
 
-			if [ "true" = "$zerotier_enabled" ]; then
-				error_if_empty "$zerotier_nwid" "ZeroTier Network ID cannot be empty."
-				[ "${#zerotier_nwid}" -ne 16 ] && set_error_flag "ZeroTier Network ID should be 16 digits long."
+			if [ "true" = "$enabled" ]; then
+				error_if_empty "$nwid" "ZeroTier Network ID cannot be empty."
+				[ "${#nwid}" -ne 16 ] && set_error_flag "ZeroTier Network ID should be 16 digits long."
 			fi
 
 			if [ -z "$error" ]; then
-				tmp_file=$(mktemp -u)
-				for p in $params; do
-					echo "zerotier_$p=\"$(eval echo \$zerotier_$p)\"" >>$tmp_file
-				done; unset p
-				mv $tmp_file $config_file
+				set_value enabled "$enabled"
+				set_value nwid "$nwid"
+
+				jct "$config_file" import "$temp_config_file"
+				rm "$temp_config_file"
 
 				update_caminfo
-				redirect_back "success" "Zerotier config updated."
+				redirect_back "success" "ZeroTier config updated."
 			fi
 			;;
 		start | open)
 			service start zerotier >&2
-			redirect_back # "success" "Sevice is up"
+			redirect_back "success" "Sevice is up"
 			;;
 		stop | close)
 			service stop zerotier >&2
-			redirect_back # "danger" "Service is down"
+			redirect_back "danger" "Service is down"
 			;;
 		join)
-			$zt_cli_bin join $zerotier_nwid >&2
-			while [ -z $(grep nwid "$zt_network_config_file") ]; do sleep 1; done
-			redirect_back
+			$ZT_CLI_BIN join $nwid >&2
+			while [ -z $(grep nwid "$ZT_NETWORK_CONFIG") ]; do sleep 1; done
+			redirect_back "success" "Joined network $nwid"
 			;;
 		leave)
-			$zt_cli_bin leave $zerotier_nwid >&2
-			redirect_back
+			$ZT_CLI_BIN leave $nwid >&2
+			redirect_back "success" "Left network $nwid"
 			;;
 		*)
 			redirect_back "danger" "Unknown action $POST_action!"
+			;;
 	esac
 fi
 %>
 <%in _header.cgi %>
 
 <div class="row g-4 mb-4">
-<div class="col col-lg-4">
-<h3>Settings</h3>
-<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+  <div class="col col-lg-4">
+    <h3>Settings</h3>
+    <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
+      <% field_hidden "action" "create" %>
+      <% field_text "nwid" "ZeroTier Network ID" 'Get one at <a href="https://my.zerotier.com/">my.zerotier.com</a>' %>
+      <% field_switch "enabled" "Join ZeroTier network on boot" %>
+      <% button_submit %>
+    </form>
+  </div>
+  <div class="col col-lg-8">
+<% if zerotier-cli info >/dev/null ; then %>
+    <div class="alert alert-success">
+      <h5>ZeroTier Tunnel is open</h5>
 
-<% field_hidden "action" "create" %>
-<% field_switch "zerotier_enabled" "Enable ZeroTier network on restart" %>
-<% field_text "zerotier_nwid" "ZeroTier Network ID" "Don't have it? Get one at <a href=\"https://my.zerotier.com/\">my.zerotier.com</a>" %>
-<% button_submit %>
-</form>
-<br>
-<% zerotier-cli info >/dev/null; if [ $? -eq 0 ]; then %>
-<div class="alert alert-success">
-<h5>ZeroTier Tunnel is open</h5>
-<% if [ -f "$zt_network_config_file" ]; then %>
-<% zt_id="$(grep ^nwid= $zt_network_config_file | cut -d= -f2)" %>
-<% zt_name="$(grep ^n= $zt_network_config_file | cut -d= -f2)" %>
-<% if [ -n "$zt_id" ] && [ -n "$zt_name" ]; then %>
-<p>Use the following credentials to set up remote access via active virtual tunnel:</p>
-<dl>
-<dt>NWID: <%= $zt_id %></dd>
-<dt>Name: <%= $zt_name %></dd>
-</dl>
-<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_hidden "action" "leave" %>
-<% button_submit "Leave network" "danger" %>
-</form>
+<% if [ -f "$ZT_NETWORK_CONFIG" ]; then %>
+  <% nwid="$(grep ^nwid= $ZT_NETWORK_CONFIG | cut -d= -f2)" %>
+  <% name="$(grep ^n= $ZT_NETWORK_CONFIG | cut -d= -f2)" %>
+
+<% if [ -n "$nwid" ] && [ -n "$name" ]; then %>
+      <p>Use the following credentials to set up remote access via active virtual tunnel:</p>
+      <dl>
+        <dt>NWID: <%= $nwid %></dd>
+        <dt>Name: <%= $name %></dd>
+      </dl>
+
+      <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-0">
+        <% field_hidden "action" "leave" %>
+        <% button_submit "Leave network" "danger" %>
+      </form>
 <% fi %>
+
 <% else %>
-<div class="row">
-<div class="col">
-<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_hidden "action" "join" %>
-<% button_submit "Join network" %>
-</form>
-</div>
-<div class="col">
-<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_hidden "action" "stop" %>
-<% button_submit "Close tunnel" "danger" %>
-</form>
-</div>
-</div>
+      <div class="row">
+        <div class="col">
+          <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-0">
+            <% field_hidden "action" "join" %>
+            <% button_submit "Join network" %>
+          </form>
+        </div>
+        <div class="col">
+          <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-0">
+            <% field_hidden "action" "stop" %>
+            <% button_submit "Close tunnel" "danger" %>
+          </form>
+        </div>
+      </div>
 <% fi %>
-</div>
+
+    </div>
+
 <% else %>
-<div class="alert alert-warning">
-<h4>ZeroTier Tunnel is closed</h4>
-<form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4">
-<% field_hidden "action" "start" %>
-<% button_submit "Open tunnel" %>
-</form>
-</div>
+
+    <div class="alert alert-warning">
+      <h4>ZeroTier Tunnel is closed</h4>
+      <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-0">
+        <% field_hidden "action" "start" %>
+        <% button_submit "Open tunnel" %>
+      </form>
+    </div>
+
 <% fi %>
+
+  </div>
 </div>
 
-<div class="col col-lg-8">
-<h3>Configuration</h3>
-<%
-[ -f "$config_file" ] && ex "cat $config_file"
-[ -f "$zt_network_config_file" ] && ex "cat $zt_network_config_file"
-ex "ps | grep zerotier"
-%>
+<div class="alert alert-dark ui-debug d-none">
+<h4 class="mb-3">Debug info</h4>
+<% ex "jct $config_file get $domain" %>
+<% ex "cat $ZT_NETWORK_CONFIG" %>
+<% ex "ps | grep zerotier" %>
 </div>
-</div>
+
 
 <%in _footer.cgi %>

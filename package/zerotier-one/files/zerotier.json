@@ -1,0 +1,6 @@
+{
+  "zerotier": {
+    "enabled": false,
+    "nwid": ""
+  }
+}

@@ -2,30 +2,31 @@
 
 . /usr/share/common
 
-config_file=/etc/webui/zerotier.conf
-[ -f "$config_file" ] && . $config_file
+DAEMON="zerotier-one"
+action="$1"
 
-case "$1" in
+case "$action" in
 	start)
-		if [ "false" = "$zerotier_enabled" ]; then
-			echo_error "Zerotier-One service is disabled in $config_file"
+		config_file=/etc/zerotier.json
+		if [ ! -f "$config_file" ]; then
+			echo_error "ZeroTier configuration file $config_file not found"
 			exit 1
 		fi
 
-		echo_title "Starting Zerotier-One"
+		if [ "true" != "$(jct "$config_file" get zerotier.enabled)" ]; then
+			echo_error "ZeroTier-One service is disabled in $config_file"
+			exit 1
+		fi
 
-		modprobe tun
-
-		zerotier-one -d
+		echo_title "Starting ZeroTier-One"
+		modprobe tun && $DAEMON -d >/dev/null 2>&1
 		;;
 	stop)
-		echo_title "Stopping Zerotier-One"
-
-		kill -9 $(pidof zerotier-one)
-
-		rmmod -w tun
+		echo_title "Stopping ZeroTier-One"
+		killall -q -9 $DAEMON && rmmod tun
 		;;
 	*)
+		echo_error "Unknown action $action"
 		echo "Usage: $0 {start|stop}"
 		exit 1
 		;;
