@@ -82,6 +82,7 @@
     "frame_width": 0,
     "init_time": 5,
     "ivs_polling_timeout": 1000,
+    "motor_settle_ms": 1200,
     "min_time": 1,
     "monitor_stream": 1,
     "playonspeaker": false,
