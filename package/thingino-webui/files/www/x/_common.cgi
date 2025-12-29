@@ -323,12 +323,14 @@ field_password() {
 	local v
 
 	v=$(t_value "$1")
-	sanitize4web v
+	v=$(sanitize4web "$v")
 
-	echo "<div class=\"mb-2 password\" id=\"$1_wrap\"><label for=\"$1\" class=\"form-label\">$2</label>" \
-	 "<span class=\"input-group\"><input type=\"password\" id=\"$1\" name=\"$1\" class=\"form-control\"" \
-	 " value=\"$v\" placeholder=\"K3wLHaZk3R!\"><label class=\"input-group-text\"><input type=\"checkbox\"" \
-	 " class=\"form-check-input me-1\" data-for=\"$1\"> show</label></span>"
+	echo "<div class=\"mb-2 password\" id=\"$1_wrap\">" \
+		"<label for=\"$1\" class=\"form-label\">$2</label>" \
+		"<span class=\"input-group\">" \
+		"<input type=\"password\" id=\"$1\" name=\"$1\" class=\"form-control\" value=\"$v\" placeholder=\"K3wLH@Zk3R!\">" \
+		"<label class=\"input-group-text\"><input type=\"checkbox\" class=\"form-check-input me-1\" data-for=\"$1\"> show</label>" \
+		"</span>"
 	[ -n "$3" ] && echo "<span class=\"hint text-secondary\">$3</span>"
 	echo "</div>"
 }
@@ -350,14 +352,14 @@ field_range() {
 	 "<span class=\"input-group\">"
 	# NB! no name on checkbox, since we don't want its data submitted
 	if [ -n "$ab" ]; then
-		echo "<label class=\"input-group-text\" for=\"$n-auto\">$ab <input type=\"checkbox\"" \
-		 " class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\"" \
-		 " data-value=\"$vr\" $(checked_if "$ab" "$v")></label>"
+		echo "<label class=\"input-group-text\" for=\"$n-auto\">$ab " \
+			"<input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")>" \
+			"</label>"
 	fi
 	echo "<span class=\"input-group-text range-value text-end\" id=\"$n-show\">$v</span>"
 	# Input that holds the submitting value.
-	echo "<input type=\"range\" id=\"$n\" name=\"$n\" value=\"$vr\" min=\"$mn\" max=\"$mx\" step=\"$st\"" \
-	 " class=\"form-control form-range\"></span>"
+	echo "<input type=\"range\" id=\"$n\" name=\"$n\" value=\"$vr\" min=\"$mn\" max=\"$mx\" step=\"$st\" class=\"form-control form-range\">" \
+		"</span>"
 	[ -n "$4" ] && echo "<span class=\"hint text-secondary\">$4</span>"
 	echo "</div>"
 }
@@ -706,20 +708,27 @@ report_command_info() {
 
 sanitize() {
 	local n=$1
-	# strip trailing whitespace
+	# strip trailing whitespace and escape critical characters
 	eval $n=$(echo \$${n})
+	# escape backslashes first so subsequent escapes are preserved
+	eval $n=$(echo \${$n//\\/\\\\})
 	# escape double-quotes
-	eval $n=$(echo \${$n//\\\"/\\\\\\\"})
+	eval $n=$(echo \${$n//\"/\\\"})
+	# escape backticks to prevent command substitution
+	eval $n=$(echo \${$n//\`/\\\`})
 	# escape variables
-	eval $n=$(echo \${$n//\$/\\\\\$})
+	eval $n=$(echo \${$n//\$/\\\$})
 }
 
 sanitize4web() {
-	local n=$1
-	[ -z "$n" ] && return
-	# convert html entities
-	eval $n=$(echo \${$n//\\\"/\&quot\;})
-	eval $n=$(echo \${$n//\$/\\\$})
+	local v
+	v="$1"
+	v=${v//&/&amp;}
+	v=${v//\"/&quot;}
+	v=${v//\'/&#39;}
+	v=${v//</&#60;}
+	v=${v//>/&#62;}
+	printf '%s' "$v"
 }
 
 # list of "param=value" lines
@@ -781,7 +790,9 @@ tab_lap() {
 }
 
 t_value() {
-	eval echo "\$$1"
+	local v
+	eval "v=\${$1}"
+	printf '%s' "$v"
 }
 
 update_caminfo() {

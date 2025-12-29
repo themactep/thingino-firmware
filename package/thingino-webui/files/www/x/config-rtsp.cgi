@@ -47,8 +47,8 @@ read_config() {
 read_config
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	password=$POST_password
-	sanitize $password
+	# Preserve password literally; avoid command substitution side effects
+	password="$(printf '%s' "$POST_password")"
 
 	if [ -z "$error" ]; then
 #		set_value username "$username"
@@ -87,11 +87,11 @@ defaults
 <div class="alert alert-info">
 <dl class="mb-0">
 <dt>ONVIF URL</dt>
-<dd class="cb">onvif://<%= $username %>:<%= $password %>@<%= $network_address %>:<%= $onvif_port %>/onvif/device_service</dd>
+<dd class="cb">onvif://<%= $username %>:<% sanitize4web $password %>@<%= $network_address %>:<%= $onvif_port %>/onvif/device_service</dd>
 <dt>RTSP Mainstream URL</dt>
-<dd class="cb">rtsp://<%= $username %>:<%= $password %>@<%= $network_address %>:<%= $rtsp_port %>/<%= $rtsp_ch0 %></dd>
+<dd class="cb">rtsp://<%= $username %>:<% sanitize4web $password %>@<%= $network_address %>:<%= $rtsp_port %>/<%= $rtsp_ch0 %></dd>
 <dt>RTSP Substream URL</dt>
-<dd class="cb">rtsp://<%= $username %>:<%= $password %>@<%= $network_address %>:<%= $rtsp_port %>/<%= $rtsp_ch1 %></dd>
+<dd class="cb">rtsp://<%= $username %>:<% sanitize4web $password %>@<%= $network_address %>:<%= $rtsp_port %>/<%= $rtsp_ch1 %></dd>
 </dl>
 </div>
 </div>
