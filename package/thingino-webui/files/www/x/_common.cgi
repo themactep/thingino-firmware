@@ -538,17 +538,17 @@ html_title() {
 
 html_theme() {
 	local theme
-	theme=$(config_json_get webui_theme)
+	theme=$(jct /etc/thingino.json get webui.theme)
 	[ -z "$theme" ] && theme="$webui_theme"
 	case "$theme" in
-		dark | light)
-			echo -n "$theme"
-			;;
-		auto)
-			if [ $(date +%H) -gt 8 ] && [ $(date +%H) -lt 20 ]; then
-				echo -n "light"
-			else
-				echo -n "dark"
+	dark | light)
+		echo -n "$theme"
+		;;
+	auto)
+		if [ $(date +%H) -gt 8 ] && [ $(date +%H) -lt 20 ]; then
+			echo -n "light"
+		else
+			echo -n "dark"
 			fi
 			;;
 		*)
