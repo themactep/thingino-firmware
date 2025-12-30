@@ -1,4 +1,4 @@
-#!/bin/haserl
+#!/bin/haserl  
 <%in _common.cgi %>
 <%
 page_title="ZeroTier"
@@ -57,20 +57,18 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 			fi
 			;;
 		start | open)
-			service start zerotier >&2
-			redirect_back "success" "Sevice is up"
+			service force zerotier >&2
+			sleep 5
+			redirect_back "success" "Service is up"
 			;;
 		stop | close)
 			service stop zerotier >&2
 			redirect_back "danger" "Service is down"
 			;;
-		join)
-			$ZT_CLI_BIN join $nwid >&2
-			while [ -z $(grep nwid "$ZT_NETWORK_CONFIG") ]; do sleep 1; done
-			redirect_back "success" "Joined network $nwid"
-			;;
 		leave)
 			$ZT_CLI_BIN leave $nwid >&2
+			set_value nwid ""
+			service stop zerotier >&2
 			redirect_back "success" "Left network $nwid"
 			;;
 		*)
@@ -92,65 +90,56 @@ fi
     </form>
   </div>
   <div class="col col-lg-8">
-<% if zerotier-cli info >/dev/null ; then %>
-    <div class="alert alert-success">
-      <h5>ZeroTier Tunnel is open</h5>
 
 <% if [ -f "$ZT_NETWORK_CONFIG" ]; then %>
-  <% nwid="$(grep ^nwid= $ZT_NETWORK_CONFIG | cut -d= -f2)" %>
-  <% name="$(grep ^n= $ZT_NETWORK_CONFIG | cut -d= -f2)" %>
+	<% status=$(zerotier-cli info | cut -f 5 -d ' ') %>
+	<% if [ "${status}" = "ONLINE" ]; then %>
+		<% name=$(zerotier-cli info | cut -f 3 -d ' ') %>
+		 <div class="alert alert-success">
+		 <h4>ZeroTier is running</h4>
+		<% if [ -n "$nwid" ] && [ -n "$name" ]; then %>
+			<% if [ $(zerotier-cli get ${nwid} status) = "ACCESS_DENIED" ]; then %>
+				 <p>Connection is being attempted, but is not authorized. Go to your ZeroTier admin dashboard for network <%= $nwid %> and allow <%= $name %> to join.
+			<% else %>
+				<% if [ $(zerotier-cli get ${nwid} status) = "OK" ]; then %>
+					<h5>Tunnel Connected.  <% zerotier-cli get $nwid ip %></h5>
+					 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-0">
+					 <% field_hidden "action" "close" %>
+					 <% button_submit "Close Tunnel" "danger" %>
+					 </form>
+					 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-0">
+					 <% field_hidden "action" "leave" %>
+					 <% button_submit "Leave network" "danger" %>
+					 </form>
+					 </div>
+				<% fi %>
+			<% fi %>
+		<% fi %>
+	<% else %>
 
-<% if [ -n "$nwid" ] && [ -n "$name" ]; then %>
-      <p>Use the following credentials to set up remote access via active virtual tunnel:</p>
-      <dl>
-        <dt>NWID: <%= $nwid %></dd>
-        <dt>Name: <%= $name %></dd>
-      </dl>
-
-      <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-0">
-        <% field_hidden "action" "leave" %>
-        <% button_submit "Leave network" "danger" %>
-      </form>
-<% fi %>
-
+	<% if [ -n "$nwid" ]; then %>
+	    <div class="alert alert-warning">
+	      <h4>ZeroTier Tunnel is closed</h4>
+	      <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-0">
+	        <% field_hidden "action" "start" %>
+	        <% button_submit "Open tunnel" %>
+	      </form>
+	    </div>
+	<% fi %>
+	<% fi %>
 <% else %>
-      <div class="row">
-        <div class="col">
-          <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-0">
-            <% field_hidden "action" "join" %>
-            <% button_submit "Join network" %>
-          </form>
-        </div>
-        <div class="col">
-          <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-0">
-            <% field_hidden "action" "stop" %>
-            <% button_submit "Close tunnel" "danger" %>
-          </form>
-        </div>
-      </div>
+		<p>Set your network ID and save to continue.</p>
 <% fi %>
-
-    </div>
-
-<% else %>
-
-    <div class="alert alert-warning">
-      <h4>ZeroTier Tunnel is closed</h4>
-      <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-0">
-        <% field_hidden "action" "start" %>
-        <% button_submit "Open tunnel" %>
-      </form>
-    </div>
-
-<% fi %>
-
-  </div>
+	 </div>
 </div>
-
 <div class="alert alert-dark ui-debug d-none">
 <h4 class="mb-3">Debug info</h4>
 <% ex "jct $config_file get $domain" %>
-<% ex "cat $ZT_NETWORK_CONFIG" %>
+<% if [ -n "$ZT_NETWORK_CONFIG" ] && [ -f "$ZT_NETWORK_CONFIG" ]; then %>
+		<% ex "cat $ZT_NETWORK_CONFIG" %>
+<% else %>
+	No Network Configured
+<% fi %>
 <% ex "ps | grep zerotier" %>
 </div>
 

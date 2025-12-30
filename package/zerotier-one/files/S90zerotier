@@ -4,15 +4,42 @@
 
 DAEMON="zerotier-one"
 action="$1"
+config_file=/etc/zerotier.json
+
+validate() {
+nwid=$(jct "$config_file" get zerotier.nwid)
+if [ "${nwid}" = "" ]; then
+	echo_error "No network defined"
+	exit 1
+fi
+}
+
+join() {
+if [ ! -e /var/lib/zerotier-one/networks.d/${nwid}.conf ]; then
+	sleep 2
+	zerotier-cli join "${nwid}"
+fi
+}
+
+abort_if_running() {
+pidof zerotier-one  > /dev/null
+if [ $? = 0 ]; then
+	echo_error "ZeroTier already running"
+	exit 1
+fi
+}
 
 case "$action" in
+	force)
+		abort_if_running
+		validate
+		echo_title "Starting ZeroTier-One"
+		modprobe tun && $DAEMON -d >/dev/null 2>&1
+		join
+		;;
 	start)
-		config_file=/etc/zerotier.json
-		if [ ! -f "$config_file" ]; then
-			echo_error "ZeroTier configuration file $config_file not found"
-			exit 1
-		fi
-
+		abort_if_running
+		validate
 		if [ "true" != "$(jct "$config_file" get zerotier.enabled)" ]; then
 			echo_error "ZeroTier-One service is disabled in $config_file"
 			exit 1
@@ -20,10 +47,11 @@ case "$action" in
 
 		echo_title "Starting ZeroTier-One"
 		modprobe tun && $DAEMON -d >/dev/null 2>&1
+		join
 		;;
 	stop)
 		echo_title "Stopping ZeroTier-One"
-		killall -q -9 $DAEMON && rmmod tun
+		killall -q -9 $DAEMON && sleep 2 && rmmod tun
 		;;
 	*)
 		echo_error "Unknown action $action"

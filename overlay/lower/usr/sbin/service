@@ -10,6 +10,7 @@ Where actions:
 	stop      Stop the service
 	restart   Restart the service
 	reload    Reload the service
+	force     Start the service even if disabled
 	enable    Enable the service on boot
 	disable   Disable the service on boot
 	list      List all services
@@ -18,7 +19,7 @@ Where actions:
 	exit 1
 fi
 
-VALID_ACTIONS="start stop restart reload enable disable list status"
+VALID_ACTIONS="start stop restart reload enable disable list status force"
 
 if echo "$VALID_ACTIONS" | grep -w -q "$1"; then
 	ACTION=$1
@@ -35,7 +36,7 @@ if [ "list" != "$ACTION" ] && [ -z "$SCRIPT" ]; then
 fi
 
 case "$ACTION" in
-	start | reload | restart)
+	start | reload | restart | force)
 		if ! $SCRIPT $ACTION; then
 			echo_error "Failed to $ACTION $SERVICE"
 			exit 1
