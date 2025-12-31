@@ -27,7 +27,7 @@ case "$target" in
 		esac
 		;;
 	sensitivity | cooldown_time)
-			jct /etc/motion.json set "motion.$target" $state
+			jct /etc/prudynt.json set "motion.$target" $state
 			json_ok "{\"target\":\"$target\",\"state\":$state}"
 		;;
 	*)

@@ -4,7 +4,7 @@
 page_title="Motion Guard"
 
 domain="motion"
-config_file="/etc/prudynt.json"
+config_file="/etc/motion.json"
 temp_config_file="/tmp/$domain.json"
 
 get_value() {
@@ -12,9 +12,12 @@ get_value() {
 }
 
 read_config() {
+              enabled=$(jct "/etc/prudynt.json" get motion.enabled 2>/dev/null)
+        cooldown_time=$(jct "/etc/prudynt.json" get motion.cooldown_time 2>/dev/null)
+          sensitivity=$(jct "/etc/prudynt.json" get motion.sensitivity 2>/dev/null)
+
 	[ -f "$config_file" ] || return
 
-	enabled=$(get_value enabled)
 	send2email=$(get_value send2email)
 	send2ftp=$(get_value send2ftp)
 	send2mqtt=$(get_value send2mqtt)
@@ -23,17 +26,15 @@ read_config() {
 	send2telegram=$(get_value send2telegram)
 	send2webhook=$(get_value send2webhook)
 	playonspeaker=$(get_value playonspeaker)
-	sensitivity=$(get_value sensitivity)
-	cooldown_time=$(get_value cooldown_time)
 }
 
 read_config
 %>
 <%in _header.cgi %>
 
-<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-4">
 <div class="col">
-<% field_range "sensitivity" "Sensitivity" "1,8,1" %>
+<% field_range "sensitivity" "Sensitivity" "1,8,1" "Most cameras only need 1-4 range" %>
 <% field_range "cooldown_time" "Delay between alerts, sec." "5,60,1" %>
 <% field_switch "enabled" "Enable motion detection on boot" %>
 <div id="motion-runtime-status" class="alert alert-secondary mt-3">
@@ -45,6 +46,8 @@ read_config
 <% field_checkbox "send2ftp" "Upload to FTP" "<a href=\"tool-send2ftp.cgi\">Configure uploading to FTP</a>" %>
 <% field_checkbox "send2mqtt" "Send to MQTT" "<a href=\"tool-send2mqtt.cgi\">Configure sending to MQTT</a>" %>
 <% field_checkbox "send2ntfy" "Send to Ntfy" "<a href=\"tool-send2ntfy.cgi\">Configure sending to Ntfy</a>" %>
+</div>
+<div class="col">
 <% field_checkbox "send2storage" "Save to storage" "<a href=\"tool-send2storage.cgi\">Configure saving to storage</a>" %>
 <% field_checkbox "send2telegram" "Send to Telegram" "<a href=\"tool-send2telegram.cgi\">Configure sending to Telegram</a>" %>
 <% field_checkbox "send2webhook" "Send to webhook" "<a href=\"tool-send2webhook.cgi\">Configure sending to a webhook</a>" %>
