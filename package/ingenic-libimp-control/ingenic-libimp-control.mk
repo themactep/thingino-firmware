@@ -14,8 +14,8 @@ define INGENIC_LIBIMP_CONTROL_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(INGENIC_LIBIMP_CONTROL_PKGDIR)/files/imp-control \
 		$(TARGET_DIR)/usr/sbin/imp-control
 
-	$(INSTALL) -D -m 0755 $(INGENIC_LIBIMP_CONTROL_PKGDIR)/files/S96impconfig \
-		$(TARGET_DIR)/etc/init.d/S96impconfig
+	$(INSTALL) -D -m 0755 $(INGENIC_LIBIMP_CONTROL_PKGDIR)/files/S33impconfig \
+		$(TARGET_DIR)/etc/init.d/S33impconfig
 endef
 
 $(eval $(generic-package))

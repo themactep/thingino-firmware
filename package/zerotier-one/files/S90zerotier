@@ -7,26 +7,28 @@ action="$1"
 config_file=/etc/zerotier.json
 
 validate() {
-nwid=$(jct "$config_file" get zerotier.nwid)
-if [ "${nwid}" = "" ]; then
-	echo_error "No network defined"
-	exit 1
-fi
+	nwid=$(jct "$config_file" get zerotier.nwid)
+	if [ -n "$nwid" ]; then
+		echo_error "No network defined"
+		exit 1
+	fi
 }
 
 join() {
-if [ ! -e /var/lib/zerotier-one/networks.d/${nwid}.conf ]; then
-	sleep 2
-	zerotier-cli join "${nwid}"
-fi
+	if [ ! -e "/var/lib/zerotier-one/networks.d/${nwid}.conf" ]; then
+		sleep 2
+		if zerotier-cli join "$nwid"; then
+			play /usr/share/sounds/zerotiervpnisup.opus
+		fi
+	fi
 }
 
 abort_if_running() {
-pidof zerotier-one  > /dev/null
-if [ $? = 0 ]; then
-	echo_error "ZeroTier already running"
-	exit 1
-fi
+	pidof zerotier-one  > /dev/null
+	if [ $? = 0 ]; then
+		echo_error "ZeroTier already running"
+		exit 1
+	fi
 }
 
 case "$action" in
@@ -51,7 +53,10 @@ case "$action" in
 		;;
 	stop)
 		echo_title "Stopping ZeroTier-One"
-		killall -q -9 $DAEMON && sleep 2 && rmmod tun
+		killall -q -9 $DAEMON && \
+			sleep 2 && \
+			rmmod tun && \
+			play /usr/share/sounds/zerotiervpnisdown.opus
 		;;
 	*)
 		echo_error "Unknown action $action"

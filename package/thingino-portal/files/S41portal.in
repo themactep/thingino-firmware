@@ -9,7 +9,9 @@ portal_device="@PORTAL_NETDEV@"
 sed -i "s/%dev%/$portal_device/g" /etc/udhcpd-portal.conf
 
 timeout() {
-	sleep 600 && $0 stop
+	sleep 600 &&
+		play /usr/share/sounds/configurationportalisdown.opus &&
+		$0 stop
 }
 
 start() {
@@ -83,6 +85,7 @@ start() {
 	touch "$PORTAL_MODE_FLAG"
 
 	echo_warning "Portal started at $(ts)"
+	play /usr/share/sounds/configurationportalisup.opus
 
 	echo_info "Start timeout countdown"
 	timeout &

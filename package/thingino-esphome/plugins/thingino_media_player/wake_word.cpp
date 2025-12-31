@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 // Wake word chime sound file
-#define WAKE_WORD_CHIME_PATH "/usr/share/sounds/th-chime_3.opus"
+#define WAKE_WORD_CHIME_PATH "/usr/share/sounds/chime_3.opus"
 
 // ESPMicroSpeechFeatures includes
 #include "include/frontend.h"

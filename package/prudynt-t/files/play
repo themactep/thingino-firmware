@@ -23,8 +23,8 @@ Options:
 	-h          Show this help
 
 Examples:
-	play /usr/share/sounds/th-chime_1.opus
-	play -v 80 -g 20 -l 3 -d 300 /usr/share/sounds/th-chime_2.opus
+	play /usr/share/sounds/chime_1.opus
+	play -v 80 -g 20 -l 3 -d 300 /usr/share/sounds/chime_2.opus
 	curl ... | play -s -f aac
 EOF
 }

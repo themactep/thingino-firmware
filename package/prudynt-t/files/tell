@@ -3,6 +3,16 @@
 
 . /usr/share/common
 
+no_internet() {
+	ping -c1 -W1 1.1.1.1 >/dev/null 2>&1 || return 0
+	return 1
+}
+
+portal_is_up() {
+	[ -f "$PORTAL_MODE_FLAG" ] || return 0
+	return 0
+}
+
 if [ -z "$1" ]; then
 	echo "Usage: $0 \"<phrase to say>\"
 Shortcuts:
@@ -10,6 +20,16 @@ Shortcuts:
 	%time   Tell recent time
 " >&2
 	exit 1
+fi
+
+if no_internet; then
+	if portal_is_up; then
+		play /usr/share/sounds/configurationportalmode.opus
+	else
+		play /usr/share/sounds/configurationportalisdown.opus \
+			/usr/share/sounds/pleasepowercycletorestart.opus
+		exit 1
+	fi
 fi
 
 case "$1" in

@@ -124,12 +124,14 @@ fi
 		ip link set dev $IFACE address $wlan_mac
 	fi
 @endif@
+	# play /usr/share/sounds/wificonnected.opus
 }
 
 stop() {
 	echo_title "Stopping wireless interface"
 
 	ifdown $IFACE
+	# play /usr/share/sounds/wifidisconnected.opus
 }
 
 case "$1" in

@@ -252,10 +252,10 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	# services
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S56ircut \
 		$(TARGET_DIR)/etc/init.d/S56ircut
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S95prudynt \
-		$(TARGET_DIR)/etc/init.d/S95prudynt
-#	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S97prudynt-watchdog \
-#		$(TARGET_DIR)/etc/init.d/S97prudynt-watchdog
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S31prudynt \
+		$(TARGET_DIR)/etc/init.d/S31prudynt
+#	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S32prudynt-watchdog \
+#		$(TARGET_DIR)/etc/init.d/S32prudynt-watchdog
 	# install service disabled
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/S98recorder \
 		$(TARGET_DIR)/etc/init.d/S98recorder
