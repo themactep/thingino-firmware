@@ -16,6 +16,7 @@ defaults() {
 	default_for rtsp_port "554"
 	default_for rtsp_ch0 "ch0"
 	default_for rtsp_ch1 "ch1"
+	default_for rtsp_mic "mic"
 }
 
 set_value() {
@@ -38,6 +39,7 @@ read_config() {
 	rtsp_port="$(jct $prudynt_config_file get rtsp.port)"
 	rtsp_ch0="$(jct $prudynt_config_file get stream0.rtsp_endpoint)"
 	rtsp_ch1="$(jct $prudynt_config_file get stream1.rtsp_endpoint)"
+	rtsp_mic="$(jct $prudynt_config_file get rtsp.audio_only_endpoint)"
 	[ -z "$username" ] && username="$(jct $prudynt_config_file get rtsp.username)"
 	[ -z "$password" ] && password="$(jct $prudynt_config_file get rtsp.password)"
 
@@ -92,6 +94,8 @@ defaults
 <dd class="cb">rtsp://<%= $username %>:<% sanitize4web $password %>@<%= $network_address %>:<%= $rtsp_port %>/<%= $rtsp_ch0 %></dd>
 <dt>RTSP Substream URL</dt>
 <dd class="cb">rtsp://<%= $username %>:<% sanitize4web $password %>@<%= $network_address %>:<%= $rtsp_port %>/<%= $rtsp_ch1 %></dd>
+<dt>RTSP Microphone audio-only stream URL</dt>
+<dd class="cb">rtsp://<%= $username %>:<% sanitize4web $password %>@<%= $network_address %>:<%= $rtsp_port %>/<%= $rtsp_mic %></dd>
 </dl>
 </div>
 </div>
