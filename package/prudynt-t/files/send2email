@@ -108,7 +108,7 @@ command="$command --mail-from $from_address --mail-rcpt $to_address"
 [ -n "$username" ] && [ -n "$password" ] && command="$command --user '$username:$password'"
 
 if [ "true" = "$use_ssl" ]; then
-	command="$command --url smtps://$host:$port --ssl"
+	command="$command --url smtps://$host:$port --ssl-reqd"
 	[ "true" = "$trust_cert" ] && command="$command --insecure"
 else
 	command="$command --url smtp://$host:$port"
