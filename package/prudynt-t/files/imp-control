@@ -1,26 +1,59 @@
 #!/bin/sh
 # imp-control replacement - communicates with prudynt via HTTP JSON API
-# Replaces the old socket-based imp-control utility
+# Replaces the old socket-based imp-control utility (port 4000)
 
 API_URL="http://127.0.0.1/api/v1/config"
 
 usage() {
     cat << EOF
-Usage: imp-control <command> [value]
+Usage: imp-control <command> [value] [extra_args...]
 
-Commands:
-  ispmode <0|1>         Set ISP running mode (0=day/color, 1=night/mono)
-  brightness <0-255>    Set brightness
-  contrast <0-255>      Set contrast
-  saturation <0-255>    Set saturation
-  sharpness <0-255>     Set sharpness
-  hue <0-255>           Set hue
-  sinter <0-255>        Set spatial denoise strength
-  temper <0-255>        Set temporal denoise strength
+IMAGE/ISP CONTROLS:
+  ispmode <0|1>              ISP mode (0=day/color, 1=night/mono)
+  brightness <0-255>         Image brightness
+  contrast <0-255>           Image contrast
+  saturation <0-255>         Image saturation
+  sharpness <0-255>          Image sharpness
+  hue <0-255>                Image hue (platform dependent)
+  sinter <0-255>             Spatial denoise strength
+  temper <0-255>             Temporal denoise strength
+  dpc <0-255>                Dead pixel correction (T31+)
+  drc <0-255>                Dynamic range compression (T31+)
+  defog <0-255>              Defog strength (T31+)
+  aecomp <int>               Auto-exposure compensation
+  backlight <0-255>          Backlight compensation
+  highlight <0-255>          Highlight depress
+  antiflicker <0|1|2>        Anti-flicker (0=off, 1=50Hz, 2=60Hz)
+  maxagain <0-255>           Max analog gain
+  maxdgain <0-255>           Max digital gain
+  hflip <0|1>                Horizontal flip
+  vflip <0|1>                Vertical flip
+  wb <mode> <rgain> <bgain>  White balance (mode, red gain, blue gain)
+
+AUDIO INPUT CONTROLS:
+  mic_vol <-30..120>         Microphone volume (dB)
+  mic_gain <0-31>            Microphone gain (dB)
+  mic_alc <0-7>              Auto level control gain
+  mic_hpf <0|1>              High-pass filter enable
+  mic_ns <0-3>               Noise suppression level
+  mic_agc <0|1>              AGC enable
+
+AUDIO OUTPUT CONTROLS:
+  spk_vol <-30..120>         Speaker volume (dB)
+  spk_gain <0-31>            Speaker gain (dB)
+
+STREAM CONTROLS:
+  bitrate <ch> <bps>         Set bitrate for channel
+  gop <ch> <frames>          Set GOP length for channel
+  fps <ch> <num> <den>       Set framerate for channel
+  qp <ch> <value>            Set QP for channel
 
 Examples:
-  imp-control ispmode 0      # Switch to day/color mode
-  imp-control brightness 128 # Set brightness to 128
+  imp-control ispmode 0              # Day/color mode
+  imp-control brightness 128         # Set brightness
+  imp-control wb 0 128 128          # Set white balance
+  imp-control mic_vol 80            # Set mic volume
+  imp-control bitrate 0 2048        # Set stream0 bitrate to 2Mbps
 EOF
     exit 1
 }
@@ -35,8 +68,11 @@ send_config() {
 
 COMMAND="$1"
 VALUE="$2"
+ARG3="$3"
+ARG4="$4"
 
 case "$COMMAND" in
+    # ISP/Image controls
     ispmode)
         [ -z "$VALUE" ] && { echo "Error: ispmode requires value (0 or 1)" >&2; exit 1; }
         send_config "{\"image\": {\"running_mode\": $VALUE}}"
@@ -63,12 +99,159 @@ case "$COMMAND" in
         ;;
     sinter)
         [ -z "$VALUE" ] && { echo "Error: sinter requires value (0-255)" >&2; exit 1; }
-        send_config "{\"image\": {\"sinter\": $VALUE}}"
+        send_config "{\"image\": {\"sinter_strength\": $VALUE}}"
         ;;
     temper)
         [ -z "$VALUE" ] && { echo "Error: temper requires value (0-255)" >&2; exit 1; }
-        send_config "{\"image\": {\"temper\": $VALUE}}"
+        send_config "{\"image\": {\"temper_strength\": $VALUE}}"
         ;;
+    dpc)
+        [ -z "$VALUE" ] && { echo "Error: dpc requires value (0-255)" >&2; exit 1; }
+        send_config "{\"image\": {\"dpc_strength\": $VALUE}}"
+        ;;
+    drc)
+        [ -z "$VALUE" ] && { echo "Error: drc requires value (0-255)" >&2; exit 1; }
+        send_config "{\"image\": {\"drc_strength\": $VALUE}}"
+        ;;
+    defog)
+        [ -z "$VALUE" ] && { echo "Error: defog requires value (0-255)" >&2; exit 1; }
+        send_config "{\"image\": {\"defog_strength\": $VALUE}}"
+        ;;
+    aecomp|ae_compensation)
+        [ -z "$VALUE" ] && { echo "Error: aecomp requires value" >&2; exit 1; }
+        send_config "{\"image\": {\"ae_compensation\": $VALUE}}"
+        ;;
+    backlight|backlight_comp)
+        [ -z "$VALUE" ] && { echo "Error: backlight requires value (0-255)" >&2; exit 1; }
+        send_config "{\"image\": {\"backlight_compensation\": $VALUE}}"
+        ;;
+    highlight|highlight_depress)
+        [ -z "$VALUE" ] && { echo "Error: highlight requires value (0-255)" >&2; exit 1; }
+        send_config "{\"image\": {\"highlight_depress\": $VALUE}}"
+        ;;
+    antiflicker|anti_flicker|flicker)
+        [ -z "$VALUE" ] && { echo "Error: antiflicker requires value (0=off, 1=50Hz, 2=60Hz)" >&2; exit 1; }
+        send_config "{\"image\": {\"anti_flicker\": $VALUE}}"
+        ;;
+    maxagain|max_again)
+        [ -z "$VALUE" ] && { echo "Error: maxagain requires value (0-255)" >&2; exit 1; }
+        send_config "{\"image\": {\"max_again\": $VALUE}}"
+        ;;
+    maxdgain|max_dgain)
+        [ -z "$VALUE" ] && { echo "Error: maxdgain requires value (0-255)" >&2; exit 1; }
+        send_config "{\"image\": {\"max_dgain\": $VALUE}}"
+        ;;
+    hflip)
+        [ -z "$VALUE" ] && { echo "Error: hflip requires value (0 or 1)" >&2; exit 1; }
+        if [ "$VALUE" = "1" ] || [ "$VALUE" = "true" ]; then
+            send_config "{\"image\": {\"hflip\": true}}"
+        else
+            send_config "{\"image\": {\"hflip\": false}}"
+        fi
+        ;;
+    vflip)
+        [ -z "$VALUE" ] && { echo "Error: vflip requires value (0 or 1)" >&2; exit 1; }
+        if [ "$VALUE" = "1" ] || [ "$VALUE" = "true" ]; then
+            send_config "{\"image\": {\"vflip\": true}}"
+        else
+            send_config "{\"image\": {\"vflip\": false}}"
+        fi
+        ;;
+    wb|white_balance)
+        [ -z "$ARG4" ] && { echo "Error: wb requires 3 args: mode rgain bgain" >&2; exit 1; }
+        send_config "{\"image\": {\"core_wb_mode\": $VALUE, \"wb_rgain\": $ARG3, \"wb_bgain\": $ARG4}}"
+        ;;
+    
+    # Audio input controls
+    mic_vol|micvol)
+        [ -z "$VALUE" ] && { echo "Error: mic_vol requires value (-30 to 120)" >&2; exit 1; }
+        send_config "{\"audio\": {\"mic_vol\": $VALUE}}"
+        ;;
+    mic_gain|micgain)
+        [ -z "$VALUE" ] && { echo "Error: mic_gain requires value (0-31)" >&2; exit 1; }
+        send_config "{\"audio\": {\"mic_gain\": $VALUE}}"
+        ;;
+    mic_alc|micalc)
+        [ -z "$VALUE" ] && { echo "Error: mic_alc requires value (0-7)" >&2; exit 1; }
+        send_config "{\"audio\": {\"mic_alc_gain\": $VALUE}}"
+        ;;
+    mic_hpf|michpf)
+        [ -z "$VALUE" ] && { echo "Error: mic_hpf requires value (0 or 1)" >&2; exit 1; }
+        if [ "$VALUE" = "1" ] || [ "$VALUE" = "true" ]; then
+            send_config "{\"audio\": {\"mic_high_pass_filter\": true}}"
+        else
+            send_config "{\"audio\": {\"mic_high_pass_filter\": false}}"
+        fi
+        ;;
+    mic_ns|mic_noise_suppression)
+        [ -z "$VALUE" ] && { echo "Error: mic_ns requires value (0-3)" >&2; exit 1; }
+        send_config "{\"audio\": {\"mic_noise_suppression\": $VALUE}}"
+        ;;
+    mic_agc|micagc)
+        [ -z "$VALUE" ] && { echo "Error: mic_agc requires value (0 or 1)" >&2; exit 1; }
+        if [ "$VALUE" = "1" ] || [ "$VALUE" = "true" ]; then
+            send_config "{\"audio\": {\"mic_agc_enabled\": true}}"
+        else
+            send_config "{\"audio\": {\"mic_agc_enabled\": false}}"
+        fi
+        ;;
+    
+    # Audio output controls
+    spk_vol|spkvol)
+        [ -z "$VALUE" ] && { echo "Error: spk_vol requires value (-30 to 120)" >&2; exit 1; }
+        send_config "{\"audio\": {\"spk_vol\": $VALUE}}"
+        ;;
+    spk_gain|spkgain)
+        [ -z "$VALUE" ] && { echo "Error: spk_gain requires value (0-31)" >&2; exit 1; }
+        send_config "{\"audio\": {\"spk_gain\": $VALUE}}"
+        ;;
+    
+    # Stream/encoder controls
+    bitrate)
+        [ -z "$ARG3" ] && { echo "Error: bitrate requires channel and value" >&2; exit 1; }
+        if [ "$VALUE" = "0" ]; then
+            send_config "{\"stream0\": {\"bitrate\": $ARG3}}"
+        elif [ "$VALUE" = "1" ]; then
+            send_config "{\"stream1\": {\"bitrate\": $ARG3}}"
+        else
+            echo "Error: Invalid channel $VALUE (use 0 or 1)" >&2
+            exit 1
+        fi
+        ;;
+    gop)
+        [ -z "$ARG3" ] && { echo "Error: gop requires channel and value" >&2; exit 1; }
+        if [ "$VALUE" = "0" ]; then
+            send_config "{\"stream0\": {\"gop\": $ARG3}}"
+        elif [ "$VALUE" = "1" ]; then
+            send_config "{\"stream1\": {\"gop\": $ARG3}}"
+        else
+            echo "Error: Invalid channel $VALUE (use 0 or 1)" >&2
+            exit 1
+        fi
+        ;;
+    fps|framerate)
+        [ -z "$ARG4" ] && { echo "Error: fps requires channel, numerator, denominator" >&2; exit 1; }
+        if [ "$VALUE" = "0" ]; then
+            send_config "{\"stream0\": {\"fps\": $ARG3}}"
+        elif [ "$VALUE" = "1" ]; then
+            send_config "{\"stream1\": {\"fps\": $ARG3}}"
+        else
+            echo "Error: Invalid channel $VALUE (use 0 or 1)" >&2
+            exit 1
+        fi
+        ;;
+    qp)
+        [ -z "$ARG3" ] && { echo "Error: qp requires channel and value" >&2; exit 1; }
+        if [ "$VALUE" = "0" ]; then
+            send_config "{\"stream0\": {\"qp_init\": $ARG3}}"
+        elif [ "$VALUE" = "1" ]; then
+            send_config "{\"stream1\": {\"qp_init\": $ARG3}}"
+        else
+            echo "Error: Invalid channel $VALUE (use 0 or 1)" >&2
+            exit 1
+        fi
+        ;;
+    
     *)
         echo "Error: Unknown command '$COMMAND'" >&2
         usage
