@@ -4,172 +4,92 @@
 
 singleton $0
 
-MODE_FILE="/tmp/nightmode.txt"
-[ -f "$MODE_FILE" ] || echo "day" >"$MODE_FILE"
-
-IRCUT_BIN=${IRCUT_BIN:-ircut}
-IRLED_BIN=${IRLED_BIN:-irled}
-COLOR_BIN=${COLOR_BIN:-color}
-PRUDYNT_CONFIG=${PRUDYNT_CONFIG:-/etc/prudynt.json}
+MODE_FILE="/run/prudynt/daynight_mode"
+PRUDYNT_CONFIG="/etc/prudynt.json"
 
 command_present() {
 	command -v "$1" >/dev/null 2>&1
 }
 
-ensure_helper() {
-	local bin="$1"
-	local label="$2"
-	if ! command_present "$bin"; then
-		echo_warning "$label helper '$bin' not found"
-		return 1
-	fi
-	return 0
-}
-
-run_async() {
-	local desc="$1"
-	shift
-	(
-		"$@" >/dev/null 2>&1
-		status=$?
-		if [ $status -ne 0 ]; then
-			echo_warning "$desc failed (exit $status)"
-		fi
-	) &
-}
-
-perform_action() {
-	local check_fn="$1"
-	shift
-	local message="$1"
-	shift
-	if "$check_fn"; then
-		echo_info "$message"
-		run_async "$message" "$@"
-	fi
-}
-
-load_daynight_flag() {
-	local var_name="$1"
-	local key="$2"
-	local default_value="$3"
-	local current
-	local value
-
-	eval "current=\${$var_name}"
-	if [ -n "$current" ]; then
-		return
-	fi
-
+# Load control flags from prudynt config
+load_controls() {
 	if command_present jct && [ -f "$PRUDYNT_CONFIG" ]; then
-		value=$(jct "$PRUDYNT_CONFIG" get "$key" 2>/dev/null)
+		day_night_color=$(jct "$PRUDYNT_CONFIG" get "daynight.controls.color" 2>/dev/null || echo "true")
+		day_night_ircut=$(jct "$PRUDYNT_CONFIG" get "daynight.controls.ircut" 2>/dev/null || echo "true")
+		day_night_ir850=$(jct "$PRUDYNT_CONFIG" get "daynight.controls.ir850" 2>/dev/null || echo "true")
+		day_night_ir940=$(jct "$PRUDYNT_CONFIG" get "daynight.controls.ir940" 2>/dev/null || echo "true")
+		day_night_white=$(jct "$PRUDYNT_CONFIG" get "daynight.controls.white" 2>/dev/null || echo "false")
 	else
-		value=""
+		# Fallback defaults
+		day_night_color="true"
+		day_night_ircut="true"
+		day_night_ir850="true"
+		day_night_ir940="true"
+		day_night_white="false"
 	fi
-
-	case "$value" in
-		true|false)
-			eval "$var_name=\"$value\""
-			return
-			;;
-	esac
-
-	eval "$var_name=\"$default_value\""
-}
-
-controls_color() {
-	if [ "true" != "$day_night_color" ]; then
-		echo_warning "Color not enabled"
-		return 1
-	fi
-
-	ensure_helper "$COLOR_BIN" "Color control" || return 1
-}
-
-controls_ircut() {
-	if [ "true" != "$day_night_ircut" ]; then
-		echo_warning "IR-CUT filter not enabled"
-		return 1
-	fi
-
-	ensure_helper "$IRCUT_BIN" "IR-CUT filter" || return 1
-}
-
-controls_ir850() {
-	if [ "true" != "$day_night_ir850" ]; then
-		echo_warning "IR LED 850mn not enabled"
-		return 1
-	fi
-
-	if [ -z "$gpio_ir850" ]; then
-		echo_warning "IR LED 850mn not configured"
-		return 1
-	fi
-
-	ensure_helper "$IRLED_BIN" "IR LED" || return 1
-}
-
-controls_ir940() {
-	if [ "true" != "$day_night_ir940" ]; then
-		echo_warning "IR LED 940mn not enabled"
-		return 1
-	fi
-
-	if [ -z "$gpio_ir940" ]; then
-		echo_warning "IR LED 940mn not configured"
-		return 1
-	fi
-
-	ensure_helper "$IRLED_BIN" "IR LED" || return 1
-}
-
-controls_white() {
-	if [ "true" != "$day_night_white" ]; then
-		echo_warning "White Light not enabled"
-		return 1
-	fi
-
-	if [ -z "$gpio_white" ]; then
-		echo_warning "White Light not configured"
-		return 1
-	fi
-
-	ensure_helper "$IRLED_BIN" "White Light" || return 1
 }
 
 switch_to_day() {
 	echo_info "Switching to day mode..."
+	load_controls
 
-	perform_action controls_ircut "set IR-CUT filter" "$IRCUT_BIN" on
-	perform_action controls_ir850 "turn IR LED 850mn OFF" "$IRLED_BIN" off ir850
-	perform_action controls_ir940 "turn IR LED 940mn OFF" "$IRLED_BIN" off ir940
-	perform_action controls_white "turn White Light OFF" "$IRLED_BIN" off white
-	perform_action controls_color "switch to color mode" "$COLOR_BIN" on
+	if [ "true" = "$day_night_ircut" ] && command_present ircut; then
+		echo_info "  set IR-CUT filter"
+		ircut on &
+	fi
 
-	echo "day" >"$MODE_FILE"
+	if [ "true" = "$day_night_ir850" ] && [ -n "$gpio_ir850" ] && command_present irled; then
+		echo_info "  turn IR LED 850nm OFF"
+		irled off ir850 &
+	fi
+
+	if [ "true" = "$day_night_ir940" ] && [ -n "$gpio_ir940" ] && command_present irled; then
+		echo_info "  turn IR LED 940nm OFF"
+		irled off ir940 &
+	fi
+
+	if [ "true" = "$day_night_white" ] && [ -n "$gpio_white" ] && command_present irled; then
+		echo_info "  turn White Light OFF"
+		irled off white &
+	fi
+
+	if [ "true" = "$day_night_color" ] && command_present color; then
+		echo_info "  switch to color mode"
+		color on &
+	fi
 }
-
 
 switch_to_night() {
-	echo_info "Switched to night mode"
+	echo_info "Switching to night mode..."
+	load_controls
 
-	perform_action controls_color "switch to monochrome mode" "$COLOR_BIN" off
-	perform_action controls_ircut "remove IR-CUT filter" "$IRCUT_BIN" off
-	perform_action controls_ir850 "turn IR LED 850mn ON" "$IRLED_BIN" on ir850
-	perform_action controls_ir940 "turn IR LED 940mn ON" "$IRLED_BIN" on ir940
-	perform_action controls_white "turn White Light ON" "$IRLED_BIN" on white
+	if [ "true" = "$day_night_color" ] && command_present color; then
+		echo_info "  switch to monochrome mode"
+		color off &
+	fi
 
-	echo "night" >"$MODE_FILE"
+	if [ "true" = "$day_night_ircut" ] && command_present ircut; then
+		echo_info "  remove IR-CUT filter"
+		ircut off &
+	fi
+
+	if [ "true" = "$day_night_ir850" ] && [ -n "$gpio_ir850" ] && command_present irled; then
+		echo_info "  turn IR LED 850nm ON"
+		irled on ir850 &
+	fi
+
+	if [ "true" = "$day_night_ir940" ] && [ -n "$gpio_ir940" ] && command_present irled; then
+		echo_info "  turn IR LED 940nm ON"
+		irled on ir940 &
+	fi
+
+	if [ "true" = "$day_night_white" ] && [ -n "$gpio_white" ] && command_present irled; then
+		echo_info "  turn White Light ON"
+		irled on white &
+	fi
 }
 
-load_daynight_flag day_night_color "daynight.controls.color" "true"
-load_daynight_flag day_night_ircut "daynight.controls.ircut" "true"
-load_daynight_flag day_night_ir850 "daynight.controls.ir850" "true"
-load_daynight_flag day_night_ir940 "daynight.controls.ir940" "true"
-load_daynight_flag day_night_white "daynight.controls.white" "false"
-
-reversed=1
-state=$(cat "$MODE_FILE" 2>/dev/null)
+state=$(awk 'NR==1 {print $1}' "$MODE_FILE" 2>/dev/null || echo "day")
 
 case "$1" in
 	night)
@@ -186,10 +106,11 @@ case "$1" in
 		fi
 		;;
 	\? | read | status)
-		echo $state
+		echo "$state"
 		;;
 	*)
-		# no sensing
+		echo_info "Usage: $0 {day|night|toggle|read}"
+		echo_info "Current state: $state"
 		;;
 esac
 
