@@ -1,0 +1,78 @@
+#!/bin/sh
+# imp-control replacement - communicates with prudynt via HTTP JSON API
+# Replaces the old socket-based imp-control utility
+
+API_URL="http://127.0.0.1/api/v1/config"
+
+usage() {
+    cat << EOF
+Usage: imp-control <command> [value]
+
+Commands:
+  ispmode <0|1>         Set ISP running mode (0=day/color, 1=night/mono)
+  brightness <0-255>    Set brightness
+  contrast <0-255>      Set contrast
+  saturation <0-255>    Set saturation
+  sharpness <0-255>     Set sharpness
+  hue <0-255>           Set hue
+  sinter <0-255>        Set spatial denoise strength
+  temper <0-255>        Set temporal denoise strength
+
+Examples:
+  imp-control ispmode 0      # Switch to day/color mode
+  imp-control brightness 128 # Set brightness to 128
+EOF
+    exit 1
+}
+
+send_config() {
+    local json="$1"
+    curl -s -X POST "$API_URL" -H "Content-Type: application/json" -d "$json" > /dev/null 2>&1
+    return $?
+}
+
+[ $# -lt 1 ] && usage
+
+COMMAND="$1"
+VALUE="$2"
+
+case "$COMMAND" in
+    ispmode)
+        [ -z "$VALUE" ] && { echo "Error: ispmode requires value (0 or 1)" >&2; exit 1; }
+        send_config "{\"image\": {\"running_mode\": $VALUE}}"
+        ;;
+    brightness)
+        [ -z "$VALUE" ] && { echo "Error: brightness requires value (0-255)" >&2; exit 1; }
+        send_config "{\"image\": {\"brightness\": $VALUE}}"
+        ;;
+    contrast)
+        [ -z "$VALUE" ] && { echo "Error: contrast requires value (0-255)" >&2; exit 1; }
+        send_config "{\"image\": {\"contrast\": $VALUE}}"
+        ;;
+    saturation)
+        [ -z "$VALUE" ] && { echo "Error: saturation requires value (0-255)" >&2; exit 1; }
+        send_config "{\"image\": {\"saturation\": $VALUE}}"
+        ;;
+    sharpness)
+        [ -z "$VALUE" ] && { echo "Error: sharpness requires value (0-255)" >&2; exit 1; }
+        send_config "{\"image\": {\"sharpness\": $VALUE}}"
+        ;;
+    hue)
+        [ -z "$VALUE" ] && { echo "Error: hue requires value (0-255)" >&2; exit 1; }
+        send_config "{\"image\": {\"hue\": $VALUE}}"
+        ;;
+    sinter)
+        [ -z "$VALUE" ] && { echo "Error: sinter requires value (0-255)" >&2; exit 1; }
+        send_config "{\"image\": {\"sinter\": $VALUE}}"
+        ;;
+    temper)
+        [ -z "$VALUE" ] && { echo "Error: temper requires value (0-255)" >&2; exit 1; }
+        send_config "{\"image\": {\"temper\": $VALUE}}"
+        ;;
+    *)
+        echo "Error: Unknown command '$COMMAND'" >&2
+        usage
+        ;;
+esac
+
+exit $?

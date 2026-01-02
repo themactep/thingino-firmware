@@ -199,6 +199,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/etc/prudynt.json
 
 	# scripts (video)
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/imp-control \
+		$(TARGET_DIR)/usr/sbin/imp-control
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/color \
 		$(TARGET_DIR)/usr/sbin/color
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/motion \
