@@ -18,7 +18,7 @@ case "$target" in
 	send2email | send2ftp | send2mqtt | send2ntfy | send2storage | send2telegram | send2webhook)
 		case "$state" in
 			true | false)
-				jct /etc/motion.json set "motion.$target" $state
+				jct /etc/prudynt.json set "motion.$target" $state
 				json_ok "{\"target\":\"$target\",\"status\":$state}"
 				;;
 			*)
