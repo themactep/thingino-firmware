@@ -123,7 +123,7 @@
     "packet_loss_threshold": 0.05,
     "password": "thingino",
     "port": 554,
-    "send_buffer_size": 153600,
+    "send_buffer_size": 307200,
     "session_reclaim": 65,
     "username": "thingino"
   },
