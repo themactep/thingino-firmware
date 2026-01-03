@@ -159,7 +159,7 @@
       "font_path": "/usr/share/fonts/default.ttf",
       "font_size": 32,
       "start_delay": 0,
-      "stroke_size": 1,
+      "stroke_size": 4,
       "brightness": {
         "enabled": false,
         "format": "Brightness:%b%% Avg:%a%% %m",
@@ -248,20 +248,20 @@
       "enabled": true,
       "font_path": "/usr/share/fonts/default.ttf",
       "font_size": 13,
-      "stroke_size": 1,
+      "stroke_size": 2,
       "start_delay": 0,
       "brightness": {
         "enabled": false,
         "fill_color": "#FFFFFFCC",
         "format": "Brightness:%b%% Avg:%a%% %m",
-        "position": "10,70",
+        "position": "5,-5",
         "rotation": 0,
         "stroke_color": "#000000CC"
       },
       "logo": {
         "enabled": true,
         "path": "/usr/share/images/thingino_100x30.bgra",
-        "position": "-10,-10",
+        "position": "-5,-5",
         "rotation": 0,
         "width": 100,
         "height": 30,
@@ -286,7 +286,7 @@
         "enabled": true,
         "fill_color": "#FFFFFFCC",
         "format": "%F %T",
-        "position": "10,10",
+        "position": "5,5",
         "rotation": 0,
         "stroke_color": "#000000CC"
       },
@@ -294,7 +294,7 @@
         "enabled": true,
         "fill_color": "#FFFFFFCC",
         "format": "Uptime: %02lu:%02lu:%02lu",
-        "position": "-10,10",
+        "position": "-5,5",
         "rotation": 0,
         "stroke_color": "#000000CC"
       },
@@ -302,7 +302,7 @@
         "enabled": true,
         "fill_color": "#FFFFFFCC",
         "format": "%hostname",
-        "position": "0,10",
+        "position": "0,5",
         "rotation": 0,
         "stroke_color": "#000000CC"
       }
