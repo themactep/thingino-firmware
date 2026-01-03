@@ -42,8 +42,6 @@ read_config() {
 	file=$(get_value file)
 	message=$(get_value message)
 	silent=$(get_value silent)
-	send_photo=$(get_value send_photo)
-	send_video=$(get_value send_video)
 	token=$(get_value token)
 }
 
@@ -63,6 +61,12 @@ while getopts c:f:m:st:vSV flag; do
 		*) show_help ;;
 	esac
 done
+
+# use config settings only if not set from command line
+if [ -z "$send_photo$send_video" ]; then
+	send_photo=$(get_value send_photo)
+	send_video=$(get_value send_video)
+fi
 
 if [ -z "$token" ]; then
 	echo_error "Telegram token not found"

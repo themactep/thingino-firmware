@@ -34,8 +34,6 @@ read_config() {
 	host=$(get_value host)
 	password=$(get_value password)
 	port=$(get_value port)
-	send_photo=$(get_value send_photo)
-	send_video=$(get_value send_video)
 	subject=$(get_value subject)
 	to_address=$(get_value to_address)
 	to_name=$(get_value to_name)
@@ -63,6 +61,12 @@ while getopts b:f:h:kp:s:t:u:vP:SV flag; do
 		*) show_help ;;
 	esac
 done
+
+# use config settings only if not set from command line
+if [ -z "$send_photo$send_video" ]; then
+        send_photo=$(get_value send_photo)
+        send_video=$(get_value send_video)
+fi
 
 if [ -z "$host" ]; then
 	echo_error "SMTP host not found"

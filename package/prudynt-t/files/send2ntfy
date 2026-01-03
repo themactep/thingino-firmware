@@ -48,8 +48,6 @@ read_config() {
 	password=$(get_value password)
 	port=$(get_value port)
 	prority=$(get_value priority)
-	send_photo=$(get_value send_photo)
-	send_video=$(get_value send_video)
 	tags=$(get_value tags)
 	title=$(get_value title)
 	token=$(get_value token)
@@ -84,6 +82,12 @@ while getopts a:c:d:h:i:m:n:t:p:u:vz:P:T:f:SV flag; do
 		*) show_help ;;
 	esac
 done
+
+# use config settings only if not set from command line
+if [ -z "$filename" ] && [ "true" != "$send_photo" ] && [ "true" != "$send_video" ]; then
+        send_photo=$(get_value send_photo)
+        send_video=$(get_value send_video)
+fi
 
 if [ -z "$topic" ]; then
 	echo_error "NTFY topic is not set"

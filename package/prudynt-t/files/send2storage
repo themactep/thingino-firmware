@@ -25,8 +25,6 @@ read_config() {
 	mount=$(get_value mount)
 	device_path=$(get_value device_path)
 	template=$(get_value template)
-	send_photo=$(get_value send_photo)
-	send_video=$(get_value send_video)
 }
 
 # Files to send
@@ -60,6 +58,12 @@ while getopts m:d:t:vSV flag; do
 		*) show_help ;;
 	esac
 done
+
+# use config settings only if not set from command line
+if [ -z "$send_photo$send_video" ]; then
+        send_photo=$(get_value send_photo)
+        send_video=$(get_value send_video)
+fi
 
 # Validate mount point
 if [ -z "$mount" ]; then
@@ -105,15 +109,15 @@ fi
 # Copy files to storage
 for local_file in $queue; do
 	dest_file="$dest_dir/$(basename $local_file)"
-	
+
 	[ "true" = "$verbose" ] && echo_info "Copying $local_file to $dest_file"
-	
+
 	if ! cp "$local_file" "$dest_file"; then
 		echo_error "Failed to copy file to storage: $dest_file"
 		rm -f "$local_file"
 		exit 1
 	fi
-	
+
 	# Clean up temp file after successful copy
 	rm -f "$local_file"
 done

@@ -29,8 +29,6 @@ read_config() {
 	path=$(get_value path)
 	password=$(get_value password)
 	port=$(get_value port)
-	send_photo=$(get_value send_photo)
-	send_video=$(get_value send_video)
 	template=$(get_value template)
 	username=$(get_value username)
 }
@@ -71,6 +69,12 @@ while getopts d:h:p:u:vP:f:SV flag; do
 		*) show_help ;;
 	esac
 done
+
+# use config settings only if not set from command line
+if [ -z "$send_photo$send_video" ]; then
+        send_photo=$(get_value send_photo)
+        send_video=$(get_value send_video)
+fi
 
 if [ -z "$host" ]; then
 	echo_error "FTP host not found"

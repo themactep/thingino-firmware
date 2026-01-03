@@ -23,8 +23,6 @@ read_config() {
 	[ -f "$config_file" ] || return
 
 	message=$(get_value message)
-	send_photo=$(get_value send_photo)
-	send_video=$(get_value send_video)
 	url=$(get_value url)
 }
 
@@ -43,6 +41,12 @@ while getopts f:m:u:vSV flag; do
 		*) show_help ;;
 	esac
 done
+
+# use config settings only if not set from command line
+if [ -z "$send_photo$send_video" ]; then
+        send_photo=$(get_value send_photo)
+        send_video=$(get_value send_video)
+fi
 
 if [ -z "$url" ]; then
 	echo_error "Webhook URL not found"

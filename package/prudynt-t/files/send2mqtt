@@ -55,8 +55,6 @@ read_config() {
 	send_photo=$(get_value send_photo)
 	send_video=$(get_value send_video)
 	topic=$(get_value topic)
-	topic_photo=$(get_value topic_photo)
-	topic_video=$(get_value topic_video)
 	username=$(get_value username)
 }
 
@@ -79,6 +77,12 @@ while getopts h:m:p:t:u:vP:SV flag; do
 		*) show_help ;;
 	esac
 done
+
+# use config settings only if not set from command line
+if [ -z "$send_photo$send_video" ]; then
+        send_photo=$(get_value send_photo)
+        send_video=$(get_value send_video)
+fi
 
 if [ -z "$host" ]; then
 	echo_error "MQTT broker host is not set"
