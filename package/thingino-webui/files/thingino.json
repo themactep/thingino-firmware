@@ -1,0 +1,37 @@
+{
+  "admin_name": "Thingino Admin",
+  "debug_enabled": false,
+  "enable_updates": true,
+  "gpio": {
+    "led_b": 9,
+    "led_r": 8,
+    "button": 14,
+    "ir940": 11,
+    "ircut": [57,58],
+    "mmc_cd": 50,
+    "speaker": "7o",
+    "wlan": 47
+  },
+  "portal_device": "wlan0",
+  "rsyslog": {
+    "host": "",
+    "local": false,
+    "port": 514
+  },
+  "streamer_disabled": false,
+  "usb_console": false,
+  "watchdog": {
+    "device": "/dev/watchdog",
+    "disable": false,
+    "timeout": 60
+  },
+  "webui": {
+    "level": "user",
+    "paranoid": false,
+    "theme": "dark"
+  },
+  "wireguard": {
+    "enabled": false
+  },
+  "wlanap_enabled": false
+}

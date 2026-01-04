@@ -117,6 +117,9 @@
     "adaptive_bitrate_enabled": true,
     "auth_required": true,
     "bandwidth_margin": 1.2,
+    "audio_only_enabled": true,
+    "audio_only_endpoint": "mic",
+    "audio_only_info": "audio from the microphone",
     "est_bitrate": 5000,
     "name": "thingino prudynt",
     "out_buffer_size": 1000000,
@@ -162,7 +165,7 @@
       "stroke_size": 4,
       "brightness": {
         "enabled": false,
-        "format": "Brightness:%b%% Avg:%a%% %m",
+        "format": "%b%%(%a%%) %m",
         "position": "10,70",
         "rotation": 0,
         "fill_color": "#FFFFFFCC",
@@ -253,7 +256,7 @@
       "brightness": {
         "enabled": false,
         "fill_color": "#FFFFFFCC",
-        "format": "Brightness:%b%% Avg:%a%% %m",
+        "format": "%b%%(%a%%) %m",
         "position": "5,-5",
         "rotation": 0,
         "stroke_color": "#000000CC"
@@ -333,7 +336,7 @@
     "jpeg_quality": 75
   },
   "http_mjpeg": {
-    "enabled": false,
+    "enabled": true,
     "port": 8081
   }
 }
