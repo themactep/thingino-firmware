@@ -7,39 +7,39 @@ ntpd_sync_status=/run/sync_status
 seq=$(seq 0 3)
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	case "$POST_action" in
-		reset)
-			cp -f /rom$NTP_DEFAULT_FILE $NTP_WORKING_FILE
-			;;
-		set)
-			date -s "$POST_time"
-			;;
-		update)
-			# check for mandatory data
-			error_if_empty "$POST_tz_name" "Empty timezone name."
-			error_if_empty "$POST_tz_data" "Empty timezone value."
+  case "$POST_action" in
+    reset)
+      cp -f /rom$NTP_DEFAULT_FILE $NTP_WORKING_FILE
+      ;;
+    set)
+      date -s "$POST_time"
+      ;;
+    update)
+      # check for mandatory data
+      error_if_empty "$POST_tz_name" "Empty timezone name."
+      error_if_empty "$POST_tz_data" "Empty timezone value."
 
-			if [ -z "$error" ]; then
-				[ "$tz_data" = "$POST_tz_data" ] || echo "$POST_tz_data" >/etc/TZ
-				[ "$tz_name" != "$POST_tz_name" ] && echo "$POST_tz_name" >/etc/timezone
+      if [ -z "$error" ]; then
+        [ "$tz_data" = "$POST_tz_data" ] || echo "$POST_tz_data" >/etc/TZ
+        [ "$tz_name" != "$POST_tz_name" ] && echo "$POST_tz_name" >/etc/timezone
 
-				tmp_file=$(mktemp)
-				for i in $seq; do
-					eval s="\$POST_ntp_server_$i"
-					[ -n "$s" ] && echo "server $s iburst" >>$tmp_file
-				done; unset i; unset s
+        tmp_file=$(mktemp)
+        for i in $seq; do
+          eval s="\$POST_ntp_server_$i"
+          [ -n "$s" ] && echo "server $s iburst" >>$tmp_file
+        done; unset i; unset s
 
-				mv $tmp_file $NTP_DEFAULT_FILE
-				cp $NTP_DEFAULT_FILE $NTP_WORKING_FILE
-				chmod 444 $NTP_DEFAULT_FILE
-				chmod 444 $NTP_WORKING_FILE
-				service restart timezone > /dev/null
-			fi
-			;;
-	esac
+        mv $tmp_file $NTP_DEFAULT_FILE
+        cp $NTP_DEFAULT_FILE $NTP_WORKING_FILE
+        chmod 444 $NTP_DEFAULT_FILE
+        chmod 444 $NTP_WORKING_FILE
+        service restart timezone > /dev/null
+      fi
+      ;;
+  esac
 
-	update_caminfo
-	redirect_to $SCRIPT_NAME
+  update_caminfo
+  redirect_to $SCRIPT_NAME
 fi
 %>
 <%in _header.cgi %>
@@ -66,14 +66,16 @@ fi
 <h3>Time Synchronization</h3>
 <%
 for i in $seq; do
-	x=$(expr $i + 1)
-	[ -f "/etc/ntp.conf" ] && eval ntp_server_$i="$(sed -n ${x}p /etc/ntp.conf | cut -d' ' -f2)"
-	field_text "ntp_server_$i" "NTP Server $((i + 1))"
+  x=$(expr $i + 1)
+  [ -f "/etc/ntp.conf" ] && eval ntp_server_$i="$(sed -n ${x}p /etc/ntp.conf | cut -d' ' -f2)"
+  field_text "ntp_server_$i" "NTP Server $((i + 1))"
 done; unset i; unset x
 %>
 </div>
 <div class="col">
-<% button_sync_time %>
+<button id="sync-time" type="button" class="btn btn-secondary mb-3">
+<% [ "true" = "$wlanap_enabled" ] && echo "Set time from the browser" || echo "Synchronize time from NTP server" %>
+</button>
 <p id="sync-time-wrapper"></p>
 </div>
 </div>
@@ -91,71 +93,71 @@ done; unset i; unset x
 </div>
 
 <script>
-	function findTimezone(tz) {
-		return tz.n == $("#tz_name").value;
-	}
+  function findTimezone(tz) {
+    return tz.n == $("#tz_name").value;
+  }
 
-	function updateTimezone() {
-		const tz = TZ.filter(findTimezone);
-		$("#tz_data").value = (tz.length == 0) ? "" : tz[0].v;
-	}
+  function updateTimezone() {
+    const tz = TZ.filter(findTimezone);
+    $("#tz_data").value = (tz.length == 0) ? "" : tz[0].v;
+  }
 
-	function useBrowserTimezone(event) {
-		event.preventDefault();
-		$("#tz_name").value = Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_', ' ');
-		updateTimezone();
-	}
+  function useBrowserTimezone(event) {
+    event.preventDefault();
+    $("#tz_name").value = Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_', ' ');
+    updateTimezone();
+  }
 
-	$('#sync-time').onclick = (ev) => {
-		ev.preventDefault();
-		fetch('/x/json-sync-time.cgi?' + new URLSearchParams({ "ts": Date.now() }).toString())
-			.then(res => res.json())
-			.then(json => {
-				p = document.createElement('p');
-				p.classList.add('alert', 'alert-' + json.result);
-				p.textContent = json.message;
-				$('#sync-time-wrapper').replaceWith(p);
-			})
-	}
+  $('#sync-time').onclick = (ev) => {
+    ev.preventDefault();
+    fetch('/x/json-sync-time.cgi?' + new URLSearchParams({ "ts": Date.now() }).toString())
+      .then(res => res.json())
+      .then(json => {
+        p = document.createElement('p');
+        p.classList.add('alert', 'alert-' + json.result);
+        p.textContent = json.message;
+        $('#sync-time-wrapper').replaceWith(p);
+      })
+  }
 
-	function populate_timezones() {
-		if (navigator.userAgent.includes("Android") && navigator.userAgent.includes("Firefox")) {
-			const sel = document.createElement("select");
-			sel.classList.add("form-select");
-			sel.name = "tz_name";
-			sel.id = "tz_name";
-			sel.options.add(new Option());
-			let opt;
-			TZ.forEach(function (tz) {
-				opt = new Option(tz.n);
-				opt.selected = (tz.n == tzn.value);
-				sel.options.add(opt);
-			});
-			tzn.replaceWith(sel);
-		} else {
-			const el = $("#tz_list");
-			el.innerHTML = "";
-			TZ.forEach(function (tz) {
-				const o = document.createElement("option");
-				o.value = tz.n;
-				el.appendChild(o);
-			});
-		}
-	}
+  function populate_timezones() {
+    if (navigator.userAgent.includes("Android") && navigator.userAgent.includes("Firefox")) {
+      const sel = document.createElement("select");
+      sel.classList.add("form-select");
+      sel.name = "tz_name";
+      sel.id = "tz_name";
+      sel.options.add(new Option());
+      let opt;
+      TZ.forEach(function (tz) {
+        opt = new Option(tz.n);
+        opt.selected = (tz.n == tzn.value);
+        sel.options.add(opt);
+      });
+      tzn.replaceWith(sel);
+    } else {
+      const el = $("#tz_list");
+      el.innerHTML = "";
+      TZ.forEach(function (tz) {
+        const o = document.createElement("option");
+        o.value = tz.n;
+        el.appendChild(o);
+      });
+    }
+  }
 
-	let TZ;
+  let TZ;
 
-	fetch(document.location.protocol + '//' + document.location.host + "/a/tz.json")
-		.then(res => res.json())
-		.then(json => {
-			TZ = json;
-			populate_timezones(json);
-		})
+  fetch(document.location.protocol + '//' + document.location.host + "/a/tz.json")
+    .then(res => res.json())
+    .then(json => {
+      TZ = json;
+      populate_timezones(json);
+    })
 
-	const tzn = $("#tz_name");
-	tzn.onfocus = (ev) => ev.target.select();
-	tzn.onselectionchange = updateTimezone;
-	tzn.onchange = updateTimezone;
-	$("#frombrowser").onclick = useBrowserTimezone;
+  const tzn = $("#tz_name");
+  tzn.onfocus = (ev) => ev.target.select();
+  tzn.onselectionchange = updateTimezone;
+  tzn.onchange = updateTimezone;
+  $("#frombrowser").onclick = useBrowserTimezone;
 </script>
 <%in _footer.cgi %>

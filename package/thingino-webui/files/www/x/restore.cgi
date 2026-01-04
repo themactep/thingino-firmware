@@ -10,8 +10,8 @@ file=$GET_f
 
 cp "/rom/$file" "$file"
 if [ $? -eq 0 ]; then
-	redirect_back "success" "File $file restored from ROM."
+  redirect_back "success" "File $file restored from ROM."
 else
-	redirect_back "danger" "Cannot restore $file!"
+  redirect_back "danger" "Cannot restore $file!"
 fi
 %>

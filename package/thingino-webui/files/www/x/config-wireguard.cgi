@@ -2,7 +2,7 @@
 <%in _common.cgi %>
 <%
 if [ ! -f "/bin/wg" ]; then
-	redirect_to "/" "danger" "Your camera does not seem to support WireGuard"
+  redirect_to "/" "danger" "Your camera does not seem to support WireGuard"
 fi
 
 page_title="WireGuard VPN"
@@ -14,81 +14,81 @@ temp_config_file="/tmp/$domain.json"
 WG_DEV="wg0"
 
 is_up() {
-	ip link show $WG_DEV | grep -q UP
+  ip link show $WG_DEV | grep -q UP
 }
 
 status() {
-	is_up && echo -n "on" || echo -n "off"
+  is_up && echo -n "on" || echo -n "off"
 }
 
 defaults() {
-	true
+  true
 }
 
 set_value() {
-	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
-	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+  [ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
+  jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
 }
 
 get_value() {
-	jct "$config_file" get "$domain.$1" 2>/dev/null
+  jct "$config_file" get "$domain.$1" 2>/dev/null
 }
 
 read_config() {
-	[ -f "$config_file" ] || return
+  [ -f "$config_file" ] || return
 
-	enabled=$(get_value enabled)
-	address=$(get_value address)
-	allowed=$(get_value allowed)
-	dns=$(get_value dns)
-	endpoint=$(get_value endpoint)
-	keepalive=$(get_value keepalive)
-	mtu=$(get_value mtu)
-	peerpsk=$(get_value peerpsk)
-	peerhub=$(get_value peerpub)
-	port=$(get_value port)
-	privkey=$(get_value privkey)
+  enabled=$(get_value enabled)
+  address=$(get_value address)
+  allowed=$(get_value allowed)
+  dns=$(get_value dns)
+  endpoint=$(get_value endpoint)
+  keepalive=$(get_value keepalive)
+  mtu=$(get_value mtu)
+  peerpsk=$(get_value peerpsk)
+  peerhub=$(get_value peerpub)
+  port=$(get_value port)
+  privkey=$(get_value privkey)
 }
 
 read_config
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	error=""
+  error=""
 
-	address="$POST_address"
-	allowed="$POST_allowed"
-	dns="$POST_dns"
-	enabled="$POST_enabled"
-	endpoint="$POST_endpoint"
-	keepalive="$POST_keepalive"
-	mtu="$POST_mtu"
-	peerpsk="$POST_peerpsk"
-	peerpub="$POST_peerpub"
-	port="$POST_port"
-	privkey="$POST_privkey"
+  address="$POST_address"
+  allowed="$POST_allowed"
+  dns="$POST_dns"
+  enabled="$POST_enabled"
+  endpoint="$POST_endpoint"
+  keepalive="$POST_keepalive"
+  mtu="$POST_mtu"
+  peerpsk="$POST_peerpsk"
+  peerpub="$POST_peerpub"
+  port="$POST_port"
+  privkey="$POST_privkey"
 
-	defaults
+  defaults
 
-	if [ -z "$error" ]; then
-		set_value address "$address"
-		set_value allowed "$allowed"
-		set_value dns "$dns"
-		set_value enabled "$enabled"
-		set_value endpoint "$endpoint"
-		set_value keepalive "$keepalive"
-		set_value mtu "$mtu"
-		set_value peerpsk "$peerpsk"
-		set_value peerpub "$peerpub"
-		set_value port "$port"
-		set_value privkey "$privkey"
+  if [ -z "$error" ]; then
+    set_value address "$address"
+    set_value allowed "$allowed"
+    set_value dns "$dns"
+    set_value enabled "$enabled"
+    set_value endpoint "$endpoint"
+    set_value keepalive "$keepalive"
+    set_value mtu "$mtu"
+    set_value peerpsk "$peerpsk"
+    set_value peerpub "$peerpub"
+    set_value port "$port"
+    set_value privkey "$privkey"
 
-		jct "$config_file" import "$temp_config_file"
-		rm "$temp_config_file"
+    jct "$config_file" import "$temp_config_file"
+    rm "$temp_config_file"
 
-		redirect_to $SCRIPT_NAME "success" "Data updated."
-	else
-		redirect_to $SCRIPT_NAME "danger" "Error: $error"
-	fi
+    redirect_to $SCRIPT_NAME "success" "Data updated."
+  else
+    redirect_to $SCRIPT_NAME "danger" "Error: $error"
+  fi
 fi
 
 defaults
@@ -143,32 +143,32 @@ defaults
 
 <script>
 async function switchWireGuard(state) {
-	await fetch("/x/json-wireguard.cgi?iface=<%= $WG_DEV %>&amp;s=" + state)
-		.then(response => response.json())
-		.then(data => {
-			$('#btn-wg-control').checked = (data.message.status == 1);
-		});
+  await fetch("/x/json-wireguard.cgi?iface=<%= $WG_DEV %>&amp;s=" + state)
+    .then(response => response.json())
+    .then(data => {
+      $('#btn-wg-control').checked = (data.message.status == 1);
+    });
 }
 
 let wgStatus = <% is_up && echo -n 1 || echo -n 0 %>;
 if (wgStatus == 1) {
-	$('#wg-ctrl').classList.add("alert-danger");
-	$('#wg-ctrl .btn').classList.add("btn-danger");
-	$('#wg-ctrl p:first-child').textContent = "Attention! Switching WireGuard off" +
-		" while working over the VPN connection will render this camera inaccessible!" +
-		" Make sure you have a backup plan.";
-	$('#wg-ctrl label span').textContent = "OFF";
+  $('#wg-ctrl').classList.add("alert-danger");
+  $('#wg-ctrl .btn').classList.add("btn-danger");
+  $('#wg-ctrl p:first-child').textContent = "Attention! Switching WireGuard off" +
+    " while working over the VPN connection will render this camera inaccessible!" +
+    " Make sure you have a backup plan.";
+  $('#wg-ctrl label span').textContent = "OFF";
 } else {
-	$('#wg-ctrl').classList.add("alert-success");
-	$('#wg-ctrl .btn').classList.add("btn-success");
-	$('#wg-ctrl p:first-child').textContent = "Please click the button below to switch" +
-		" WireGuard VPN on. Make sure all settings are correct!";
-	$('#wg-ctrl label span').textContent = "ON";
+  $('#wg-ctrl').classList.add("alert-success");
+  $('#wg-ctrl .btn').classList.add("btn-success");
+  $('#wg-ctrl p:first-child').textContent = "Please click the button below to switch" +
+    " WireGuard VPN on. Make sure all settings are correct!";
+  $('#wg-ctrl label span').textContent = "ON";
 }
 
 $('#btn-wg-control').addEventListener('click', ev => {
-	var state = ev.target.dataset['state'];
-	switchWireGuard(state)
+  var state = ev.target.dataset['state'];
+  switchWireGuard(state)
 })
 </script>
 

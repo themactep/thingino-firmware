@@ -8,9 +8,9 @@
 [ -z "$d" ] && d="g"
 
 case "$d" in
-g) motors -d g -x "$x" -y "$y" >/dev/null ;;
-r) motors -r >/dev/null ;;
-h) motors -d h -x "$x" -y "$y" >/dev/null ;;
+  g) motors -d g -x "$x" -y "$y" >/dev/null ;;
+  r) motors -r >/dev/null ;;
+  h) motors -d h -x "$x" -y "$y" >/dev/null ;;
 esac
 
 json_ok "$(motors -j)"

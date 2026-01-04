@@ -5,7 +5,6 @@ const ThreadOSD = 8;
 
 let max = 0;
 
-// Recording state management
 let recordingState = {
 	ch0: false,
 	ch1: false
@@ -49,7 +48,6 @@ function setValue(data, domain, name) {
 	const value = data[name];
 	if (typeof (value) == 'undefined') return;
 
-	// Enable the element since it has a value from backend
 	el.disabled = false;
 	const wrapper = el.closest('.range, .select, .boolean, .file');
 	if (wrapper) wrapper.classList.remove('disabled');
@@ -88,33 +86,29 @@ function reqListener(data) {
 }
 
 function updateRecordingIcons() {
-	$$('#recorder-ch0, #recorder-ch1').forEach(checkbox => {
-		const channel = parseInt(checkbox.dataset.channel);
+	$$('#recorder-ch0, #recorder-ch1').forEach(button => {
+		const channel = parseInt(button.dataset.channel);
 		const isRecording = recordingState[`ch${channel}`];
-		const label = $$(`label[for="${checkbox.id}"]`)[0];
-
-		console.log(`Updating recorder ch${channel}: isRecording=${isRecording}, label=${label ? 'found' : 'not found'}`);
-
-		if (label) {
-			label.classList.toggle('recorder-active', isRecording);
-		}
-
-		checkbox.checked = isRecording;
+		button.classList.remove('pending');
+		button.classList.toggle('active', isRecording);
+		button.classList.toggle('recorder-active', isRecording);
 	});
 }
 
 function updateRecordingState(state) {
-	console.log('updateRecordingState called:', state);
 	recordingState.ch0 = state.ch0;
 	recordingState.ch1 = state.ch1;
 	updateRecordingIcons();
 }
 
 function toggleRecording(channel) {
+	const button = $(`#recorder-ch${channel}`);
 	const isRecording = recordingState[`ch${channel}`];
 	const action = isRecording ? 'stop' : 'start';
 
 	console.log(`toggleRecording called: channel=${channel}, currentState=${isRecording ? 'recording' : 'stopped'}, action=${action}`);
+
+	if (button) button.classList.add('pending');
 
 	const payload = isRecording
 		? JSON.stringify({ mp4: { stop: { channel: channel } } })
@@ -127,62 +121,220 @@ function toggleRecording(channel) {
 		headers: { 'Content-Type': 'application/json' },
 		body: payload
 	})
-	.then(response => response.json())
-	.then(data => {
+	.then(response => {
+		if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+		return response.text();
+	})
+	.then(text => {
+		if (!text) {
+			console.log(`Empty response (assumed success)`);
+			return;
+		}
+		const data = JSON.parse(text);
 		console.log(`Response received:`, data);
 		if (data.mp4 && data.mp4[action]) {
 			if (data.mp4[action] === 'ok') {
 				console.log(`Recording ${action} successful on channel ${channel}`);
-				// Update will happen via heartbeat
 			} else {
 				console.error('Recording control error:', data.mp4[action]);
+				if (button) button.classList.remove('pending');
 				alert(`Failed to ${action} recording on channel ${channel}: ${data.mp4[action]}`);
 			}
 		} else {
 			console.error('Unexpected response:', data);
+			if (button) button.classList.remove('pending');
 			alert(`Failed to ${action} recording on channel ${channel}`);
 		}
 	})
 	.catch(err => {
 		console.error('Recording control failed:', err);
+		if (button) button.classList.remove('pending');
 		alert(`Failed to ${action} recording on channel ${channel}`);
 	});
 }
 
 function toggleMotion(state) {
+	const button = $('#motion');
+	if (button) button.classList.add('pending');
+
 	const payload = JSON.stringify({ motion: { enabled: state } });
 	fetch('/x/json-prudynt.cgi', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: payload
 	})
-	.then(res => res.json())
-	.then(data => {
+	.then(res => {
+		if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+		return res.text();
+	})
+	.then(text => {
+		if (!text) {
+			console.log(ts(), '<===', 'Empty response (assumed success)');
+			return;
+		}
+		const data = JSON.parse(text);
 		console.log(ts(), '<===', JSON.stringify(data));
 		if (data.motion && data.motion.enabled !== undefined) {
-			const el = $('#motion');
-			if (el) el.checked = data.motion.enabled;
+			// Pending class will be removed when heartbeat confirms the state
+		} else {
+			if (button) button.classList.remove('pending');
 		}
 	})
-	.catch(err => console.error('Motion toggle error', err));
+	.catch(err => {
+		console.error('Motion toggle error', err);
+		if (button) button.classList.remove('pending');
+	});
 }
 
 function togglePrivacy(state) {
+	const button = $('#privacy');
+	if (button) button.classList.add('pending');
+
 	const payload = JSON.stringify({ privacy: { enabled: state } });
 	fetch('/x/json-prudynt.cgi', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: payload
 	})
-	.then(res => res.json())
-	.then(data => {
+	.then(res => {
+		if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+		return res.text();
+	})
+	.then(text => {
+		if (!text) {
+			console.log(ts(), '<===', 'Empty response (assumed success)');
+			return;
+		}
+		const data = JSON.parse(text);
 		console.log(ts(), '<===', JSON.stringify(data));
 		if (data.privacy && data.privacy.enabled !== undefined) {
-			const el = $('#privacy');
-			if (el) el.checked = data.privacy.enabled;
+			// Pending class will be removed when heartbeat confirms the state
+		} else {
+			if (button) button.classList.remove('pending');
 		}
 	})
-	.catch(err => console.error('Privacy toggle error', err));
+	.catch(err => {
+		console.error('Privacy toggle error', err);
+		if (button) button.classList.remove('pending');
+	});
+}
+
+function toggleDayNight(mode) {
+	const button = $('#daynight');
+	if (button) button.classList.add('pending');
+
+	const payload = JSON.stringify({ daynight: { force_mode: mode } });
+	console.log('Sending daynight payload:', payload);
+	fetch('/x/json-prudynt.cgi', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: payload
+	})
+	.then(res => {
+		if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+		return res.text();
+	})
+	.then(text => {
+		if (!text) {
+			console.log(ts(), '<===', 'Empty response (assumed success)');
+			return;
+		}
+		const data = JSON.parse(text);
+		console.log(ts(), '<===', JSON.stringify(data));
+		if (data.daynight && data.daynight.force_mode !== undefined) {
+			// Pending class will be removed when heartbeat confirms the state
+		} else {
+			if (button) button.classList.remove('pending');
+		}
+	})
+	.catch(err => {
+		console.error('DayNight toggle error', err);
+		if (button) button.classList.remove('pending');
+	});
+}
+
+function toggleAudio(device, state) {
+	const button = $('#' + device);
+	if (button) button.classList.add('pending');
+
+	const param = device === 'microphone' ? 'mic_enabled' : 'spk_enabled';
+	const payload = JSON.stringify({ audio: { [param]: state } });
+	console.log(ts(), '===>', payload);
+	fetch('/x/json-prudynt.cgi', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: payload
+	})
+	.then(res => {
+		if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+		return res.text();
+	})
+	.then(text => {
+		if (!text) {
+			console.log(ts(), '<===', 'Empty response (assumed success)');
+			return;
+		}
+		const data = JSON.parse(text);
+		console.log(ts(), '<===', JSON.stringify(data));
+		if (data.audio && data.audio[param] !== undefined) {
+			// Pending class will be removed when heartbeat confirms the state
+		} else {
+			if (button) button.classList.remove('pending');
+		}
+	})
+	.catch(err => {
+		console.error('Audio toggle error', err);
+		if (button) button.classList.remove('pending');
+	});
+}
+
+function toggleTheme() {
+	const htmlEl = document.documentElement;
+	const currentTheme = htmlEl.getAttribute('data-bs-theme');
+	const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+	htmlEl.setAttribute('data-bs-theme', newTheme);
+
+	const themeBtn = $('#theme-toggle');
+	if (themeBtn) {
+		const img = themeBtn.querySelector('img');
+		if (img) {
+			img.src = newTheme === 'dark' ? '/a/brilliance.svg' : '/a/brilliance.svg';
+			img.alt = newTheme === 'dark' ? 'Light mode' : 'Dark mode';
+		}
+	}
+
+/*
+	// Save to server
+	const payload = JSON.stringify({ webui: { theme: newTheme } });
+	fetch('/x/json-config.cgi', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: payload
+	})
+	.then(res => res.json())
+	.then(data => {
+		console.log('Theme saved:', data);
+	})
+	.catch(err => console.error('Theme save error', err));
+*/
+}
+
+async function toggleButton(el) {
+	if (!el) return;
+	const currentState = el.classList.contains('active') ? 1 : 0;
+	const newState = currentState ? 0 : 1;
+	const payload = JSON.stringify({ cmd: el.id, val: newState });
+	console.log('Sending to json-imp.cgi:', payload);
+	await fetch('/x/json-imp.cgi', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: payload
+	})
+		.then(res => res.json())
+		.then(data => {
+			console.log(data.message)
+		})
 }
 
 function updateHeartbeatUi(json) {
@@ -213,22 +365,116 @@ function updateHeartbeatUi(json) {
 	$('.progress-stacked.extras').title = 'Free extras: ' + json.extras_free + 'KiB'
 	setProgressBar('#pb-extras-used', json.extras_used, json.extras_total, 'Extras Usage');
 
-	const hasDndGain = typeof (json.dnd_gain) !== 'undefined' && json.dnd_gain !== '-1';
-	const hasMode = typeof (json.dnd_mode) !== 'undefined' && json.dnd_mode !== '';
-	if (hasDndGain || hasMode) {
-		const icon = dayNightIcon(json.dnd_mode);
-		const label = hasDndGain ? `${icon} ${json.dnd_gain}` : icon;
-		$$('.dnd_gain').forEach(el => el.textContent = label);
+	const hasBrightness = typeof (json.daynight_brightness) !== 'undefined' && json.daynight_brightness !== 'unknown' && json.daynight_brightness !== '';
+	const hasMode = typeof (json.daynight_mode) !== 'undefined' && json.daynight_mode !== 'unknown' && json.daynight_mode !== '';
+	if (hasBrightness || hasMode) {
+		const icon = dayNightIcon(json.daynight_mode);
+		const label = hasBrightness ? `${icon} ${json.daynight_brightness}` : icon;
+		$$('.dnd-gain').forEach(el => el.textContent = label);
 	}
 
 	if (typeof (json.uptime) !== 'undefined' && json.uptime !== '')
 		$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
 
-	// Update recording state
 	updateRecordingState({
 		ch0: json.rec_ch0 === true,
 		ch1: json.rec_ch1 === true
 	});
+
+	// Update motion detection icon
+	if (typeof(json.motion_enabled) !== 'undefined') {
+		const motionBtn = $('#motion');
+		if (motionBtn) {
+			motionBtn.classList.remove('pending');
+			motionBtn.classList.toggle('active', json.motion_enabled === true);
+		}
+	}
+
+	// Update privacy icon
+	if (typeof(json.privacy_enabled) !== 'undefined') {
+		const privacyBtn = $('#privacy');
+		if (privacyBtn) {
+			privacyBtn.classList.remove('pending');
+			privacyBtn.classList.toggle('active', json.privacy_enabled === true);
+		}
+	}
+
+	// Update daynight mode button
+	if (typeof(json.daynight_mode) !== 'undefined') {
+		const daynightBtn = $('#daynight');
+		if (daynightBtn) {
+			daynightBtn.classList.remove('pending');
+			daynightBtn.classList.toggle('active', json.daynight_mode === 'night');
+		}
+	}
+
+	// Update color mode button
+	if (typeof(json.color_mode) !== 'undefined' && json.color_mode !== null) {
+		const colorBtn = $('#color');
+		if (colorBtn) {
+			colorBtn.classList.toggle('active', json.color_mode == 1);
+		}
+	}
+
+	// Update ircut button
+	if (typeof(json.ircut_state) !== 'undefined' && json.ircut_state !== null) {
+		const ircutBtn = $('#ircut');
+		if (ircutBtn) {
+			ircutBtn.classList.toggle('active', json.ircut_state == 1);
+		}
+	}
+
+	// Update ir850 button
+	if (typeof(json.ir850_state) !== 'undefined' && json.ir850_state !== null) {
+		const ir850Btn = $('#ir850');
+		if (ir850Btn) {
+			ir850Btn.classList.toggle('active', json.ir850_state == 1);
+		}
+	}
+
+	// Update ir940 button
+	if (typeof(json.ir940_state) !== 'undefined' && json.ir940_state !== null) {
+		const ir940Btn = $('#ir940');
+		if (ir940Btn) {
+			ir940Btn.classList.toggle('active', json.ir940_state == 1);
+		}
+	}
+
+	// Update white LED button
+	if (typeof(json.white_state) !== 'undefined' && json.white_state !== null) {
+		const whiteBtn = $('#white');
+		if (whiteBtn) {
+			whiteBtn.classList.toggle('active', json.white_state == 1);
+		}
+	}
+
+	// Update microphone button
+	if (typeof(json.mic_enabled) !== 'undefined') {
+		const micBtn = $('#microphone');
+		if (micBtn) {
+			micBtn.classList.remove('pending');
+			const isActive = json.mic_enabled === true;
+			micBtn.classList.toggle('active', isActive);
+			const img = micBtn.querySelector('img');
+			if (img) {
+				img.src = isActive ? '/a/mic.svg' : '/a/mic-mute.svg';
+			}
+		}
+	}
+
+	// Update speaker button
+	if (typeof(json.spk_enabled) !== 'undefined') {
+		const spkBtn = $('#speaker');
+		if (spkBtn) {
+			spkBtn.classList.remove('pending');
+			const isActive = json.spk_enabled === true;
+			spkBtn.classList.toggle('active', isActive);
+			const img = spkBtn.querySelector('img');
+			if (img) {
+				img.src = isActive ? '/a/volume-up.svg' : '/a/volume-mute.svg';
+			}
+		}
+	}
 }
 
 function startHeartbeatSse() {
@@ -236,7 +482,6 @@ function startHeartbeatSse() {
 	heartbeatSource = new EventSource(HeartBeatEndpoint);
 	heartbeatSource.onmessage = (event) => {
 		try {
-			// Reset reconnect delay on successful message
 			currentReconnectDelay = HeartBeatReconnectDelay;
 			updateHeartbeatUi(JSON.parse(event.data));
 		} catch (error) {
@@ -259,15 +504,12 @@ function cleanupHeartbeatResources() {
 		heartbeatSource.close();
 		heartbeatSource = null;
 	}
-	// Reset reconnect delay on cleanup
 	currentReconnectDelay = HeartBeatReconnectDelay;
 }
 
-// Cleanup on page unload and visibility change
 window.addEventListener('beforeunload', cleanupHeartbeatResources);
 window.addEventListener('pagehide', cleanupHeartbeatResources);
 
-// Pause heartbeat when page is hidden, resume when visible
 document.addEventListener('visibilitychange', () => {
 	if (document.hidden) {
 		cleanupHeartbeatResources();
@@ -325,7 +567,7 @@ function initCopyToClipboard() {
 		const tooltipTriggerList = $$('[data-bs-toggle="tooltip"]')
 		const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
 
-// ranges
+		// ranges
 		$$('input[type=range]').forEach(el => {
 			el.addEventListener('change', ev => {
 				if ($('#' + ev.target.id + '-show'))
@@ -337,7 +579,7 @@ function initCopyToClipboard() {
 			});
 		});
 
-		// For .warning and .danger buttons, ask confirmation on action.
+		// ask confirmation on action for .warning and .danger buttons
 		$$('.btn-danger, .btn-warning, .confirm').forEach(el => {
 			// for input, find its parent form and attach listener to it submit event
 			if (el.nodeName === 'INPUT') {
@@ -348,13 +590,13 @@ function initCopyToClipboard() {
 			}
 		});
 
-// toggle auto value
+		// toggle auto value
 		$$('input.auto-value').forEach(el => {
 			el.addEventListener('click', ev => toggleAuto(ev.target));
 			toggleAuto(el);
 		});
 
-// show password when checkbox is checked
+		// show password when checkbox is checked
 		$$('.password input[type=checkbox]').forEach(el => {
 			el.addEventListener('change', ev => {
 				const pw = $('#' + ev.target.dataset['for']);
@@ -363,36 +605,37 @@ function initCopyToClipboard() {
 			});
 		});
 
-// reload window when refresh button is clicked
+		// reload window when refresh button is clicked
 		$$('.refresh').forEach(el => {
 			el.addEventListener('click', ev => {
 				window.location.reload()
 			});
 		});
 
-// set links to external resources to open in a new window.
+		// set links to external resources to open in a new window.
 		$$('a[href^=http]').forEach(el => el.target = '_blank');
 
-// handle sendto buttons
+		// handle sendto buttons
 		$$("button[data-sendto]").forEach(el => {
+			if (el.dataset.sendtoBypass === '1' || el.dataset.sendtoBypass === 'true') return;
 			el.onclick = (ev) => {
 				ev.preventDefault();
 				if (!confirm("Are you sure?")) return false;
-				fetch("/x/send.cgi?" + new URLSearchParams({'to': el.dataset.sendto}).toString())
+				const params = {to: el.dataset.sendto};
+				if (el.dataset.type) {
+					params.type = el.dataset.type;
+				}
+				fetch("/x/send.cgi", {
+					method: 'POST',
+					headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+					body: new URLSearchParams(params).toString()
+				})
 					.then(res => res.json())
 					.then(data => console.log(data))
 			}
 		});
 
-// debug button
-		if ($('#debug'))
-			$('#debug').addEventListener('change', ev => {
-				ev.target.checked ?
-					$('.ui-debug').classList.remove('d-none') :
-					$('.ui-debug').classList.add('d-none') ;
-			});
-
-// async output of a command running on camera
+		// async output of a command running on camera
 		if ($('pre#output[data-cmd]')) {
 			const el = $('pre#output[data-cmd]');
 
@@ -444,14 +687,105 @@ function initCopyToClipboard() {
 		initCopyToClipboard()
 		heartbeat()
 
-		// Setup recording button handlers
-		$$('#recorder-ch0, #recorder-ch1').forEach(checkbox => {
-			checkbox.addEventListener('click', function(e) {
+		// setup recording button handlers
+		$$('#recorder-ch0, #recorder-ch1').forEach(button => {
+			button.addEventListener('click', function(e) {
 				e.preventDefault();
 				const channel = parseInt(this.dataset.channel);
+				// State is managed by recordingState and will be toggled by toggleRecording
 				toggleRecording(channel);
 			});
 		});
+
+		// setup motion button handler
+		const motionBtn = $('#motion');
+		if (motionBtn) {
+			motionBtn.addEventListener('click', ev => {
+				ev.preventDefault();
+				toggleMotion(!motionBtn.classList.contains('active'));
+			});
+		}
+
+		// setup privacy button handler
+		const privacyBtn = $('#privacy');
+		if (privacyBtn) {
+			privacyBtn.addEventListener('click', ev => {
+				ev.preventDefault();
+				togglePrivacy(!privacyBtn.classList.contains('active'));
+			});
+		}
+
+		// setup daynight button handler
+		const daynightBtn = $('#daynight');
+		if (daynightBtn) {
+			daynightBtn.addEventListener('click', ev => {
+				ev.preventDefault();
+	            const currentlyNight = daynightBtn.classList.contains('active');
+	            const newMode = currentlyNight ? 'day' : 'night';
+				toggleDayNight(newMode);
+			});
+		}
+
+		// setup microphone button handler
+		const micBtn = $('#microphone');
+		if (micBtn) {
+			micBtn.addEventListener('click', ev => {
+				ev.preventDefault();
+				toggleAudio('microphone', !micBtn.classList.contains('active'));
+			});
+		}
+
+		// setup speaker button handler
+		const spkBtn = $('#speaker');
+		if (spkBtn) {
+			spkBtn.addEventListener('click', ev => {
+				ev.preventDefault();
+				toggleAudio('speaker', !spkBtn.classList.contains('active'));
+			});
+		}
+
+		// setup debug toggle button handler
+		const debugBtn = $('#debug');
+		if (debugBtn) {
+			debugBtn.addEventListener('click', ev => {
+				ev.preventDefault();
+				const currentlyDebug = debugBtn.classList.contains('active');
+				if (currentlyDebug) {
+					$('.ui-debug').classList.add('d-none');
+					debugBtn.classList.remove('active');
+				} else {
+					$('.ui-debug').classList.remove('d-none');
+					debugBtn.classList.add('active');
+				}
+			});
+		}
+
+		// setup camera control buttons (color, ircut, ir850, ir940, white)
+		$$("#color, #ircut, #ir850, #ir940, #white").forEach(el => {
+			if (el) {
+				el.addEventListener('click', ev => {
+					ev.preventDefault();
+					toggleButton(el);
+				});
+			}
+		});
+
+		// setup theme toggle button handler
+		const themeBtn = $('#theme-toggle');
+		if (themeBtn) {
+			const htmlEl = document.documentElement;
+			const currentTheme = htmlEl.getAttribute('data-bs-theme');
+			const img = themeBtn.querySelector('img');
+			if (img && currentTheme) {
+				img.src = currentTheme === 'dark' ? '/a/brilliance.svg' : '/a/brilliance.svg';
+				img.alt = currentTheme === 'dark' ? 'Light mode' : 'Dark mode';
+			}
+
+			themeBtn.addEventListener('click', ev => {
+				ev.preventDefault();
+				toggleTheme();
+			});
+		}
 
 		updateRecordingIcons();
 	}

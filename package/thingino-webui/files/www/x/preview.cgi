@@ -1,419 +1,1492 @@
-#!/bin/haserl
+#!/bin/haserl --upload-limit=1024 --upload-dir=/tmp
 <%in _common.cgi %>
 <%
 page_title="Camera preview"
 which motors > /dev/null && has_motors="true"
+
+motors_domain="motors"
+motors_config_file="/etc/motors.json"
+motors_temp_config_file="/tmp/$motors_domain.json"
+
+motors_defaults() {
+  default_for homing "true"
+  default_for gpio_invert "false"
+  default_for gpio_switch "false"
+  default_for speed_pan "900"
+  default_for speed_tilt "900"
+}
+
+motors_set_value() {
+  [ -f "$motors_temp_config_file" ] || echo '{}' > "$motors_temp_config_file"
+  jct "$motors_temp_config_file" set "$motors_domain.$1" "$2" >/dev/null 2>&1
+}
+
+motors_get_value() {
+  jct "$motors_config_file" get "$motors_domain.$1" 2>/dev/null
+}
+
+motors_read_config() {
+  [ -f "$motors_config_file" ] || return
+
+  gpio_pan=$(motors_get_value gpio_pan)
+  gpio_tilt=$(motors_get_value gpio_tilt)
+  gpio_switch=$(motors_get_value gpio_switch)
+  gpio_invert=$(motors_get_value gpio_invert)
+  homing=$(motors_get_value homing)
+  is_spi=$(motors_get_value is_spi)
+  pos_0=$(motors_get_value pos_0)
+  speed_pan=$(motors_get_value speed_pan)
+  speed_tilt=$(motors_get_value speed_tilt)
+  steps_pan=$(motors_get_value steps_pan)
+  steps_tilt=$(motors_get_value steps_tilt)
+}
+
+motors_read_config
+
+# normalize
+gpio_pan_1=$(echo $gpio_pan | awk '{print $1}')
+gpio_pan_2=$(echo $gpio_pan | awk '{print $2}')
+gpio_pan_3=$(echo $gpio_pan | awk '{print $3}')
+gpio_pan_4=$(echo $gpio_pan | awk '{print $4}')
+gpio_tilt_1=$(echo $gpio_tilt | awk '{print $1}')
+gpio_tilt_2=$(echo $gpio_tilt | awk '{print $2}')
+gpio_tilt_3=$(echo $gpio_tilt | awk '{print $3}')
+gpio_tilt_4=$(echo $gpio_tilt | awk '{print $4}')
+pos_0_x=$(echo $pos_0 | awk -F',' '{print $1}')
+pos_0_y=$(echo $pos_0 | awk -F',' '{print $2}')
+
+motors_defaults
+
+OSD_FONT_PATH="/usr/share/fonts"
+if [ "POST" = "$REQUEST_METHOD" ]; then
+  case "$POST_form" in
+    font)
+      error=""
+      if [ -z "$HASERL_fontfile_path" ]; then
+        set_error_flag "File upload failed. No font selected?"
+      elif [ $(stat -c%s $HASERL_fontfile_path) -eq 0 ]; then
+        set_error_flag "File upload failed. Empty file?"
+      else
+        mv "$HASERL_fontfile_path" "$OSD_FONT_PATH/uploaded.ttf"
+      fi
+      redirect_to $SCRIPT_NAME
+      ;;
+    motors)
+      error=""
+      gpio_pan_1=$POST_gpio_pan_1
+      gpio_pan_2=$POST_gpio_pan_2
+      gpio_pan_3=$POST_gpio_pan_3
+      gpio_pan_4=$POST_gpio_pan_4
+      gpio_tilt_1=$POST_gpio_tilt_1
+      gpio_tilt_2=$POST_gpio_tilt_2
+      gpio_tilt_3=$POST_gpio_tilt_3
+      gpio_tilt_4=$POST_gpio_tilt_4
+      homing=$POST_homing
+      pos_0_x=$POST_pos_0_x
+      pos_0_y=$POST_pos_0_y
+      speed_pan=$POST_speed_pan
+      speed_tilt=$POST_speed_tilt
+      steps_pan=$POST_steps_pan
+      steps_tilt=$POST_steps_tilt
+
+      motors_defaults
+
+      if [ "true" != "$is_spi" ]; then
+        if [ -z "$gpio_pan_1" ] || [ -z "$gpio_pan_2" ] || [ -z "$gpio_pan_3" ] || [ -z "$gpio_pan_4" ] || \
+           [ -z "$gpio_tilt_1" ] || [ -z "$gpio_tilt_2" ] || [ -z "$gpio_tilt_3" ] || [ -z "$gpio_tilt_4" ]; then
+          set_error_flag "All pins are required"
+        fi
+      fi
+
+      if [ "0$steps_pan" -le 0 ] || [ "0$steps_tilt" -le 0 ]; then
+        set_error_flag "Motor max steps aren't set"
+      fi
+
+      if [ -z "$error" ]; then
+        gpio_pan="$gpio_pan_1 $gpio_pan_2 $gpio_pan_3 $gpio_pan_4"
+        gpio_tilt="$gpio_tilt_1 $gpio_tilt_2 $gpio_tilt_3 $gpio_tilt_4"
+
+        if [ -n "$pos_0_x" ] && [ -n "$pos_0_y" ]; then
+          pos_0="$pos_0_x,$pos_0_y"
+        else
+          pos_0=""
+        fi
+
+        tmpfile="$(mktemp -u).json"
+        echo '{}' > $tmpfile
+        motors_set_value gpio_pan "$gpio_pan"
+        motors_set_value gpio_tilt "$gpio_tilt"
+        motors_set_value steps_pan "$steps_pan"
+        motors_set_value steps_tilt "$steps_tilt"
+        motors_set_value speed_pan "$speed_pan"
+        motors_set_value speed_tilt "$speed_tilt"
+        motors_set_value gpio_switch "$gpio_switch"
+        motors_set_value gpio_invert "$gpio_invert"
+        motors_set_value homing "$homing"
+        motors_set_value pos_0 "$pos_0"
+
+        jct "$motors_config_file" import "$motors_temp_config_file"
+        rm "$motors_temp_config_file"
+
+        redirect_to $SCRIPT_NAME "success" "Motor settings updated."
+      else
+        redirect_to $SCRIPT_NAME "danger" "Error: $error"
+      fi
+      ;;
+    *)
+      redirect_to $SCRIPT_NAME
+      ;;
+  esac
+fi
+
+AUDIO_FORMATS="AAC G711A G711U G726 OPUS PCM"
+AUDIO_SAMPLING="8000,12000,16000,24000,48000"
+AUDIO_BITRATES=$(seq 6 2 256)
+
+if [ "t30" = "$soc_family" ] || [ "t31" = "$soc_family" -a "t31lc" != "$soc_model" ]; then
+  FORMATS="H264,H265"
+else
+  FORMATS="H264"
+fi
+
+modes="CBR VBR FIXQP"
+case "$soc_family" in
+t31) modes="$modes CAPPED_VBR CAPPED_QUALITY" ;;
+*) modes="$modes SMART" ;;
+esac
+
+SENSOR_FPS_MAX=$(cat /proc/jz/sensor/max_fps)
+SENSOR_FPS_MIN=$(cat /proc/jz/sensor/min_fps)
+
+FONTS=$(ls -1 $OSD_FONT_PATH)
 %>
 <%in _header.cgi %>
 
+<div class="mb-2">
+  <button type="button" class="btn btn-outline-secondary btn-sm" id="toggle-tabs">
+    <i class="bi bi-layout-sidebar"></i> Toggle Tabs
+  </button>
+</div>
+
 <div class="row preview">
-<div class="col-lg-1">
-
-<div class="d-flex flex-nowrap flex-lg-wrap align-content-around gap-1" aria-label="controls">
-<input type="checkbox" class="btn-check" name="motion" id="motion" value="1">
-<label class="btn btn-dark border mb-2" for="motion" title="Motion Guard"><img src="/a/motion.svg" alt="Motion Guard" class="img-fluid"></label>
-
-<input type="checkbox" class="btn-check" name="privacy" id="privacy" value="1">
-<label class="btn btn-dark border mb-2" for="privacy" title="Privacy mode"><img src="/a/eye-slash.svg" alt="Privacy mode" class="img-fluid"></label>
-
-<input type="checkbox" class="btn-check" name="daynight" id="daynight" value="1">
-<label class="btn btn-dark border mb-2" for="daynight" title="Night mode"><img src="/a/night.svg" alt="Day/Night Mode" class="img-fluid"></label>
-
-<input type="checkbox" class="btn-check" name="color" id="color" value="1">
-<label class="btn btn-dark border mb-2" for="color" title="Color mode"><img src="/a/color.svg" alt="Color mode" class="img-fluid"></label>
-
-<% if [ -n "$gpio_ircut" ]; then %>
-<input type="checkbox" class="btn-check" name="ircut" id="ircut" value="1">
-<label class="btn btn-dark border mb-2" for="ircut" title="IR filter"><img src="/a/ircut_filter.svg" alt="IR filter" class="img-fluid"></label>
-<% fi %>
-
-<% if [ -n "$gpio_ir850" ]; then %>
-<input type="checkbox" class="btn-check" name="ir850" id="ir850" value="1">
-<label class="btn btn-dark border mb-2" for="ir850" title="IR LED 850 nm"><img src="/a/light_850nm.svg" alt="850nm LED" class="img-fluid"></label>
-<% fi %>
-
-<% if [ -n "$gpio_ir940" ]; then %>
-<input type="checkbox" class="btn-check" name="ir940" id="ir940" value="1">
-<label class="btn btn-dark border mb-2" for="ir940" title="IR LED 940 nm"><img src="/a/light_940nm.svg" alt="940nm LED" class="img-fluid"></label>
-<% fi %>
-
-<% if [ -n "$gpio_white" ]; then %>
-<input type="checkbox" class="btn-check" name="white" id="white" value="1">
-<label class="btn btn-dark border mb-2" for="white" title="White LED"><img src="/a/light_white.svg" alt="White light" class="img-fluid"></label>
-<% fi %>
-
-<button type="button" class="btn btn-dark border mb-2" title="Zoom" data-bs-toggle="modal" data-bs-target="#mdPreview">
-<img src="/a/zoom.svg" alt="Zoom" class="img-fluid"></button>
-
-<button type="button" class="btn btn-dark border mb-2" title="Imaging controls" id="toggle-imaging" aria-controls="imaging-slider" aria-expanded="false">
-<img src="/a/controls.svg" alt="Controls" class="img-fluid"></button>
-
-</div>
-</div>
-<div class="col-lg-10">
-<div id="frame" class="position-relative mb-2">
-
-<img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Preview">
-<% if [ "true" = "$has_motors" ]; then %><%in _motors.cgi %><% fi %>
-</div>
-
-<div id="imaging-slider" class="p-4 bg-black mb-2 d-none" aria-hidden="true">
-<div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 mb-3">
-<div class="col"><% field_range "brightness" "Brightness" "0,255,1" %></div>
-<div class="col"><% field_range "contrast" "Constrast" "0,255,1" %></div>
-<div class="col"><% field_range "sharpness" "Sharpness" "0,255,1" %></div>
-<div class="col"><% field_range "saturation" "Saturation" "0,255,1" %></div>
-</div>
-<div class="row row-cols-1 row-cols-md-2 row-cols-xl-5 g-3">
-<div class="col"><% field_range "backlight" "Backlight" "0,10,1" %></div>
-<div class="col"><% field_range "wide_dynamic_range" "WDR" "0,255,1" %></div>
-<div class="col"><% field_range "tone" "Highlights" "0,255,1" %></div>
-<div class="col"><% field_range "defog" "Defog" "0,255,1" %></div>
-<div class="col"><% field_range "noise_reduction" "Noise reduction" "0,255,1" %></div>
-</div>
-</div>
-
-<div class="alert alert-secondary">
+  <div class="col" id="preview-col">
+    <div id="frame" class="position-relative mb-2">
+      <img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Preview"
+        data-bs-toggle="modal" data-bs-target="#mdPreview" style="cursor: zoom-in;">
 <% if [ "true" = "$has_motors" ]; then %>
-<p class="small">Move mouse over the center of the preview image for motor controls.
-Use single click for precise positioning, double click for coarse navigation.</p>
+      <div class="position-absolute top-50 start-50 translate-middle">
+        <%in _motors.cgi %>
+      </div>
 <% fi %>
-<p class="small mb-0">This page has no audio. Open RTSP stream in a video player to hear audio:
-<span id="playrtsp" class="cb"></span></p>
-</div>
+    </div>
+  </div>
 
-</div>
+  <div class="col d-none" id="tabs-col">
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+<% if [ "true" = "$has_motors" ]; then %>
+      <li class="nav-item" role="presentation"><button class="nav-link" id="ptz-tab"
+        data-bs-toggle="tab" data-bs-target="#ptz" type="button" role="tab"
+        aria-controls="ptz" aria-selected="true">Pan/Tilt</button></li>
+<% fi %>
+      <li class="nav-item" role="presentation"><button class="nav-link" id="iq-tab"
+        data-bs-toggle="tab" data-bs-target="#iq" type="button" role="tab"
+        aria-controls="iq" aria-selected="false">Image</button></li>
+      <li class="nav-item" role="presentation"><button class="nav-link" id="streamer-tab"
+        data-bs-toggle="tab" data-bs-target="#streamer" type="button" role="tab"
+        aria-controls="streamer" aria-selected="false">Main stream</button></li>
+      <li class="nav-item" role="presentation"><button class="nav-link" id="substream-tab"
+        data-bs-toggle="tab" data-bs-target="#substream" type="button" role="tab"
+        aria-controls="substream" aria-selected="false">Substream</button></li>
+      <li class="nav-item" role="presentation"><button class="nav-link" id="audio-tab"
+        data-bs-toggle="tab" data-bs-target="#audio" type="button" role="tab"
+        aria-controls="audio" aria-selected="false">Audio</button></li>
+      <li class="nav-item" role="presentation"><button class="nav-link" id="settings-tab"
+        data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab"
+        aria-controls="settings" aria-selected="false">Settings</button></li>
+    </ul>
 
-<div class="col-lg-1">
-<div class="d-flex flex-nowrap flex-lg-wrap align-content-around gap-1" aria-label="controls">
-<a href="image.cgi" target="_blank" class="btn btn-dark border mb-2" title="Save image"><img src="/a/download.svg" alt="Save image" class="img-fluid"></a>
-<button type="button" class="btn btn-dark border mb-2" title="Send to email" data-sendto="email"><img src="/a/email.svg" alt="Email" class="img-fluid"></button>
-<button type="button" class="btn btn-dark border mb-2" title="Send to Telegram" data-sendto="telegram"><img src="/a/telegram.svg" alt="Telegram" class="img-fluid"></button>
-<button type="button" class="btn btn-dark border mb-2" title="Send to FTP" data-sendto="ftp"><img src="/a/ftp.svg" alt="FTP" class="img-fluid"></button>
-<button type="button" class="btn btn-dark border mb-2" title="Send to MQTT" data-sendto="mqtt"><img src="/a/mqtt.svg" alt="MQTT" class="img-fluid"></button>
-<button type="button" class="btn btn-dark border mb-2" title="Send to Webhook" data-sendto="webhook"><img src="/a/webhook.svg" alt="Webhook" class="img-fluid"></button>
-<button type="button" class="btn btn-dark border mb-2" title="Send to Ntfy" data-sendto="ntfy"><img src="/a/ntfy.svg" alt="Ntfy" class="img-fluid"></button>
-</div>
-</div>
+    <div class="tab-content">
 
+<% if [ "true" = "$has_motors" ]; then %>
+      <div class="tab-pane" id="ptz" role="tabpanel" aria-labelledby="ptz-tab" tabindex="0">
+        <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-0">
+          <input type="hidden" name="form" value="motors">
+
+          <h6>Pan motor</h6>
+          <div class="row align-items-end g-1">
+<% if [ "true" != "$is_spi" ]; then %>
+            <div class="col"><% field_number "gpio_pan_1" "pin 1" %></div>
+            <div class="col"><% field_number "gpio_pan_2" "pin 2" %></div>
+            <div class="col"><% field_number "gpio_pan_3" "pin 3" %></div>
+            <div class="col"><% field_number "gpio_pan_4" "pin 4" %></div>
+            <div class="col">
+              <button type="button" class="btn btn-outline-secondary mb-2 flip_motor"
+                data-direction="pan" title="Flip pan motion direction">
+                <i class="bi bi-arrow-down-up"></i>
+              </button>
+            </div>
+<% fi %>
+            <div class="col"><% field_number "steps_pan" "Steps" %></div>
+            <div class="col"><% field_number "speed_pan" "Speed" %></div>
+          </div>
+
+          <h6>Tilt motor</h6>
+          <div class="row align-items-end g-1">
+<% if [ "true" != "$is_spi" ]; then %>
+            <div class="col"><% field_number "gpio_tilt_1" "pin 1" %></div>
+            <div class="col"><% field_number "gpio_tilt_2" "pin 2" %></div>
+            <div class="col"><% field_number "gpio_tilt_3" "pin 3" %></div>
+            <div class="col"><% field_number "gpio_tilt_4" "pin 4" %></div>
+            <div class="col">
+              <button type="button" class="btn btn-outline-secondary mb-2 flip_motor"
+                data-direction="tilt" title="Flip tilt motion direction">
+                <i class="bi bi-arrow-left-right"></i>
+              </button>
+            </div>
+<% fi %>
+            <div class="col"><% field_number "steps_tilt" "Steps" %></div>
+            <div class="col"><% field_number "speed_tilt" "Speed" %></div>
+          </div>
+
+          <h6>Homing</h6>
+          <% field_switch "homing" "Perform homing on boot" %>
+          <div class="row align-items-end g-1">
+            <div class="col-2"><% field_number "pos_0_x" "Start pos. X" %></div>
+            <div class="col-1 text-center">
+              <button type="button" class="btn btn-outline-secondary mb-2 mx-auto read-motors"
+                title="Pick up the recent position">
+                <i class="bi bi-bullseye"></i>
+              </button>
+            </div>
+            <div class="col-2"><% field_number "pos_0_y" "Start pos. Y" %></div>
+          </div>
+          <div class="mt-3"><% button_submit %></div>
+        </form>
+      </div>
+<% fi %>
+
+    <div class="tab-pane" id="iq" role="tabpanel" aria-labelledby="iq-tab" tabindex="0">
+      <div class="row row-cols-2 row-cols-xxl-3">
+        <div class="col"><% field_range "brightness" "Brightness" "0,255,1" %></div>
+        <div class="col"><% field_range "contrast" "Contrast" "0,255,1" %></div>
+        <div class="col"><% field_range "sharpness" "Sharpness" "0,255,1" %></div>
+        <div class="col"><% field_range "saturation" "Saturation" "0,255,1" %></div>
+        <div class="col"><% field_range "backlight" "Backlight" "0,10,1" %></div>
+        <div class="col"><% field_range "wide_dynamic_range" "WDR" "0,255,1" %></div>
+        <div class="col"><% field_range "tone" "Highlights" "0,255,1" %></div>
+        <div class="col"><% field_range "defog" "Defog" "0,255,1" %></div>
+        <div class="col"><% field_range "noise_reduction" "Noise reduction" "0,255,1" %></div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <div class="mb-2 select" id="image_core_wb_mode_wrap">
+            <label for="image_core_wb_mode" class="form-label">White balance mode</label>
+            <select class="form-select" id="image_core_wb_mode" name="image_core_wb_mode">
+            <option value="0">AUTO</option>
+            <option value="1">MANUAL</option>
+            <option value="2">DAY LIGHT</option>
+            <option value="3">CLOUDY</option>
+            <option value="4">INCANDESCENT</option>
+            <option value="5">FLOURESCENT</option>
+            <option value="6">TWILIGHT</option>
+            <option value="7">SHADE</option>
+            <option value="8">WARM FLOURESCENT</option>
+            <option value="9">CUSTOM</option>
+            </select>
+          </div>
+        </div>
+        <div class="col"><% field_range "image_wb_bgain" "Blue channel gain" "0,1024,1" %></div>
+        <div class="col"><% field_range "image_wb_rgain" "Red channel gain" "0,1024,1" %></div>
+      </div>
+      <div class="row">
+        <div class="col"><% field_range "image_ae_compensation" "<abbr title=\"Automatic Exposure\">AE</abbr> compensation" "0,255,1" %></div>
+        <div class="col"><% field_switch "image_hflip" "V-Flip" %></div>
+        <div class="col"><% field_switch "image_vflip" "H-Flip" %></div>
+      </div>
+    </div>
+
+      <div class="tab-pane" id="streamer" role="tabpanel" aria-labelledby="streamer-tab" tabindex="0">
+        <div class="row g-2">
+          <div class="col-2"><% field_text "stream0_width" "Width" %></div>
+          <div class="col-2"><% field_text "stream0_height" "Height" %></div>
+          <div class="col-4"><% field_range "stream0_fps" "FPS" "$SENSOR_FPS_MIN,$SENSOR_FPS_MAX,1" %></div>
+          <div class="col-2"><% field_text "stream0_gop" "GOP" %></div>
+          <div class="col-2"><% field_text "stream0_max_gop" "Max GOP" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-3"><% field_select "stream0_format" "Format" "$FORMATS" %></div>
+          <div class="col-3"><% field_text "stream0_bitrate" "Bitrate" %></div>
+          <div class="col-6"><% field_select "stream0_mode" "Mode" "$modes" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-2"><% field_text "stream0_buffers" "Buffers" %></div>
+          <div class="col-2"><% field_text "stream0_profile" "Profile" %></div>
+          <div class="col-4"><% field_text "stream0_rtsp_endpoint" "RTSP Endpoint" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-4"><% field_switch "stream0_video_enabled" "Video in stream" %></div>
+          <div class="col-4"><% field_switch "stream0_audio_enabled" "Audio in stream" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-4"><% field_switch "osd0_enabled" "OSD enabled" %></div>
+          <div class="col-4">
+            <label class="form-label" for="osd0_fontname">Font</label>
+            <div class="input-group mb-3">
+              <button class="btn btn-secondary" type="button"
+                data-bs-toggle="modal" data-bs-target="#mdFont" title="Upload a font">
+                <i class="bi bi-upload"></i>
+              </button>
+              <select class="form-select" id="osd0_fontname">
+              <% for f in $FONTS; do %><option><%= $f %></option><% done %>
+              </select>
+            </div>
+          </div>
+          <div class="col-2"><% field_text "osd0_fontsize" "Size" %></div>
+          <div class="col-2"><% field_text "osd0_strokesize" "Shadow" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-2"><% field_switch "osd0_logo_enabled" "Logo" %></div>
+          <div class="col-3"><% field_text "osd0_logo_position" "Position (x,y)" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-2"><% field_switch "osd0_time_enabled" "Time" %></div>
+          <div class="col-3"><% field_text "osd0_time_position" "Position (x,y)" %></div>
+          <div class="col-2"><% field_color "osd0_time_fillcolor" "Color" %></div>
+          <div class="col-2"><% field_color "osd0_time_strokecolor" "Shadow" %></div>
+          <div class="col-3"><% field_text "osd0_time_format" "Format" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-2"><% field_switch "osd0_uptime_enabled" "Uptime" %></div>
+          <div class="col-3"><% field_text "osd0_uptime_position" "Position (x,y)" %></div>
+          <div class="col-2"><% field_color "osd0_uptime_fillcolor" "Color" %></div>
+          <div class="col-2"><% field_color "osd0_uptime_strokecolor" "Shadow" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-2"><% field_switch "osd0_usertext_enabled" "User text" %></div>
+          <div class="col-3"><% field_text "osd0_usertext_position" "Position (x,y)" %></div>
+          <div class="col-2"><% field_color "osd0_usertext_fillcolor" "Color" %></div>
+          <div class="col-2"><% field_color "osd0_usertext_strokecolor" "Shadow" %></div>
+          <div class="col-3"><% field_text "osd0_usertext_format" "Format" %></div>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="substream" role="tabpanel" aria-labelledby="substream-tab" tabindex="0">
+        <div class="row g-2">
+          <div class="col-2"><% field_text "stream1_width" "Width" %></div>
+          <div class="col-2"><% field_text "stream1_height" "Height" %></div>
+          <div class="col-4"><% field_range "stream1_fps" "FPS" "$SENSOR_FPS_MIN,$SENSOR_FPS_MAX,1" %></div>
+          <div class="col-2"><% field_text "stream1_gop" "GOP" %></div>
+          <div class="col-2"><% field_text "stream1_max_gop" "Max GOP" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-3"><% field_select "stream1_format" "Format" "$FORMATS" %></div>
+          <div class="col-3"><% field_text "stream1_bitrate" "Bitrate" %></div>
+          <div class="col-6"><% field_select "stream1_mode" "Mode" "$modes" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-2"><% field_text "stream1_buffers" "Buffers" %></div>
+          <div class="col-2"><% field_text "stream1_profile" "Profile" %></div>
+          <div class="col-4"><% field_text "stream1_rtsp_endpoint" "RTSP Endpoint" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-4"><% field_switch "stream1_video_enabled" "Video in stream" %></div>
+          <div class="col-4"><% field_switch "stream1_audio_enabled" "Audio in stream" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-4"><% field_switch "osd1_enabled" "OSD enabled" %></div>
+          <div class="col-4">
+            <label class="form-label" for="osd1_fontname">Font</label>
+            <div class="input-group mb-3">
+              <button class="btn btn-secondary" type="button"
+                data-bs-toggle="modal" data-bs-target="#mdFont" title="Upload a font">
+                <i class="bi bi-upload"></i>
+              </button>
+              <select class="form-select" id="osd1_fontname">
+                <% for f in $FONTS; do %><option><%= $f %></option><% done %>
+              </select>
+            </div>
+          </div>
+          <div class="col-2"><% field_text "osd1_fontsize" "Size" %></div>
+          <div class="col-2"><% field_text "osd1_strokesize" "Shadow" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-2"><% field_switch "osd1_logo_enabled" "Logo" %></div>
+          <div class="col-3"><% field_text "osd1_logo_position" "Position (x,y)" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-2"><% field_switch "osd1_time_enabled" "Time" %></div>
+          <div class="col-3"><% field_text "osd1_time_position" "Position (x,y)" %></div>
+          <div class="col-2"><% field_color "osd1_time_fillcolor" "Color" %></div>
+          <div class="col-2"><% field_color "osd1_time_strokecolor" "Shadow" %></div>
+          <div class="col-3"><% field_text "osd1_time_format" "Format" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-2"><% field_switch "osd1_uptime_enabled" "Uptime" %></div>
+          <div class="col-3"><% field_text "osd1_uptime_position" "Position (x,y)" %></div>
+          <div class="col-2"><% field_color "osd1_uptime_fillcolor" "Color" %></div>
+          <div class="col-2"><% field_color "osd1_uptime_strokecolor" "Shadow" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-2"><% field_switch "osd1_usertext_enabled" "User text" %></div>
+          <div class="col-3"><% field_text "osd1_usertext_position" "Position (x,y)" %></div>
+          <div class="col-2"><% field_color "osd1_usertext_fillcolor" "Color" %></div>
+          <div class="col-2"><% field_color "osd1_usertext_strokecolor" "Shadow" %></div>
+          <div class="col-3"><% field_text "osd1_usertext_format" "Format" %></div>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="audio" role="tabpanel" aria-labelledby="audio-tab" tabindex="0">
+        <h6>Microphone</h6>
+        <div class="row g-2">
+          <div class="col"><% field_select "audio_mic_format" "Codec" "$AUDIO_FORMATS" %></div>
+          <div class="col"><% field_select "audio_mic_sample_rate" "Sampling, Hz" "$AUDIO_SAMPLING" %></div>
+          <div class="col"><% field_select "audio_mic_bitrate" "Bitrate, kbps" "$AUDIO_BITRATES" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col"><% field_range "audio_mic_vol" "Mic volume" "-30,120,1" %></div>
+          <div class="col"><% field_range "audio_mic_gain" "Mic gain" "0,31,1" %></div>
+          <div class="col"><% field_range "audio_mic_alc_gain" "<abbr title=\"Automatic Level Control\">ALC</abbr> gain" "0,7,1" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col"><% field_switch "audio_mic_agc_enabled" "<abbr title=\"Automatic gain control\">AGC</abbr> Enabled" %></div>
+          <div class="col"><% field_switch "audio_mic_high_pass_filter" "High pass filter" %></div>
+          <div class="col"><% field_switch "audio_force_stereo" "Force stereo" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col"><% field_range "audio_mic_noise_suppression" "Noise suppression" "0,3,1" %></div>
+          <div class="col"><% field_range "audio_mic_agc_compression_gain_db" "Compression gain, dB" "0,90,1" %></div>
+          <div class="col"><% field_range "audio_mic_agc_target_level_dbfs" "Target level, dBfs" "0,31,1" %></div>
+        </div>
+
+        <h6>Speaker</h6>
+        <div class="row g-2">
+          <div class="col"><% field_range "audio_spk_vol" "Speaker volume" "-30,120,1" %></div>
+          <div class="col"><% field_range "audio_spk_gain" "Speaker gain" "0,31,1" %></div>
+          <div class="col"><% field_select "audio_spk_sample_rate" "Speaker sampling, Hz" "$AUDIO_SAMPLING" %></div>
+        </div>
+        <div class="alert alert-info small mt-3">RTSP stream URL: <span id="playrtsp" class="cb"></span></div>
+      </div>
+
+      <div class="tab-pane" id="settings" role="tabpanel" aria-labelledby="settings-tab" tabindex="0">
+        <h6>Configuration Management</h6>
+        <div class="row g-2">
+          <div class="col-12">
+            <button type="button" id="export-config" class="btn btn-primary">
+              <i class="bi bi-download"></i>
+              Export Current Configuration
+            </button>
+            <p class="small text-muted mt-2">Download the active configuration from prudynt's memory as JSON.</p>
+          </div>
+          <div class="col-12">
+            <button type="button" id="save-config" class="btn btn-warning">
+              <i class="bi bi-floppy"></i> Save Configuration to File
+            </button>
+            <p class="small text-muted mt-2">Write the active configuration to /etc/prudynt.json on the camera.</p>
+          </div>
+          <div class="col-12">
+            <button type="button" id="restart-prudynt" class="btn btn-danger">
+              <i class="bi bi-arrow-clockwise"></i> Restart Prudynt
+            </button>
+            <p class="small text-muted mt-2">Restart the prudynt service to apply changes that require a full restart.</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- .tab-content -->
+  </div><!-- #tabs-col -->
+</div><!-- .preview -->
+
+<div class="alert alert-dark ui-debug d-none">
+  <h4 class="mb-3">Debug info</h4>
 </div>
 
 <%in _preview.cgi %>
 
 <script>
-<%
-for i in email ftp mqtt telegram webhook ntfy; do
-	continue
-#	[ "true" = $(eval echo \$${i}_enabled) ] && continue
-%>
-{
-	let a = document.createElement('a')
-	a.href = 'tool-send2<%= $i %>.cgi'
-	a.classList.add('btn','btn-outline-danger','mb-2')
-	a.title = 'Configure sent2<%= $i%> plugin'
-	a.append($('button[data-sendto=<%= $i %>] img'))
-	$('button[data-sendto=<%= $i %>]').replaceWith(a);
-}
-<% done %>
-
 const ImageBlackMode = 1
 const ImageColorMode = 0
 
 const endpoint = '/x/json-prudynt.cgi';
 
+const stream_params = [
+  'width', 'height', 'fps', 'bitrate', 'gop', 'max_gop', 'format', 'mode',
+  'buffers', 'profile', 'rtsp_endpoint', 'video_enabled', 'audio_enabled'
+];
+const osd_params = ['enabled', 'fontname', 'fontsize', 'strokesize'];
+const audio_params = [
+  'mic_enabled', 'mic_format', 'mic_sample_rate', 'mic_bitrate',
+  'mic_vol', 'mic_gain', 'mic_alc_gain', 'mic_agc_enabled',
+  'mic_high_pass_filter', 'mic_noise_suppression',
+  'mic_agc_compression_gain_db', 'mic_agc_target_level_dbfs',
+  'spk_enabled', 'spk_vol', 'spk_gain', 'spk_sample_rate', 'force_stereo'
+];
+
+function rgba2color(hex8) {
+  return hex8.substring(0, 7);
+}
+
+function rgba2alpha(hex8) {
+  const alphaHex = hex8.substring(7, 9);
+  const alpha = parseInt(alphaHex, 16);
+  return alpha;
+}
+
+function handleOsdData(osd, streamIndex) {
+  if (!osd) return;
+
+  if (osd.enabled !== undefined) {
+    const el = $(`#osd${streamIndex}_enabled`);
+    if (el) {
+      el.checked = osd.enabled;
+      el.disabled = false;
+    }
+  }
+  if (osd.font_path) {
+    const el = $(`#osd${streamIndex}_fontname`);
+    if (el) {
+      el.value = osd.font_path.split('/').pop();
+      el.disabled = false;
+    }
+  }
+  if (osd.font_size !== undefined) {
+    const el = $(`#osd${streamIndex}_fontsize`);
+    if (el) {
+      el.value = osd.font_size;
+      el.disabled = false;
+    }
+  }
+  if (osd.stroke_size !== undefined) {
+    const el = $(`#osd${streamIndex}_strokesize`);
+    if (el) {
+      el.value = osd.stroke_size;
+      el.disabled = false;
+    }
+  }
+
+  // Logo element
+  if (osd.logo) {
+    if (osd.logo.enabled !== undefined) {
+      const el = $(`#osd${streamIndex}_logo_enabled`);
+      if (el) {
+        el.checked = osd.logo.enabled;
+        el.disabled = false;
+      }
+    }
+    if (osd.logo.position !== undefined) {
+      const el = $(`#osd${streamIndex}_logo_position`);
+      if (el) {
+        el.value = osd.logo.position;
+        el.disabled = false;
+      }
+    }
+  }
+
+  // Time element
+  if (osd.time) {
+    if (osd.time.enabled !== undefined) {
+      const el = $(`#osd${streamIndex}_time_enabled`);
+      if (el) {
+        el.checked = osd.time.enabled;
+        el.disabled = false;
+      }
+    }
+    if (osd.time.format !== undefined) {
+      const el = $(`#osd${streamIndex}_time_format`);
+      if (el) {
+        el.value = osd.time.format;
+        el.disabled = false;
+      }
+    }
+    if (osd.time.position !== undefined) {
+      const el = $(`#osd${streamIndex}_time_position`);
+      if (el) {
+        el.value = osd.time.position;
+        el.disabled = false;
+      }
+    }
+    if (osd.time.fill_color) {
+      const el = $(`#osd${streamIndex}_time_fillcolor`);
+      if (el) {
+        el.value = rgba2color(osd.time.fill_color);
+        el.disabled = false;
+      }
+    }
+    if (osd.time.stroke_color) {
+      const el = $(`#osd${streamIndex}_time_strokecolor`);
+      if (el) {
+        el.value = rgba2color(osd.time.stroke_color);
+        el.disabled = false;
+      }
+    }
+  }
+
+  // Uptime element
+  if (osd.uptime) {
+    if (osd.uptime.enabled !== undefined) {
+      const el = $(`#osd${streamIndex}_uptime_enabled`);
+      if (el) {
+        el.checked = osd.uptime.enabled;
+        el.disabled = false;
+      }
+    }
+    if (osd.uptime.position !== undefined) {
+      const el = $(`#osd${streamIndex}_uptime_position`);
+      if (el) {
+        el.value = osd.uptime.position;
+        el.disabled = false;
+      }
+    }
+    if (osd.uptime.fill_color) {
+      const el = $(`#osd${streamIndex}_uptime_fillcolor`);
+      if (el) {
+        el.value = rgba2color(osd.uptime.fill_color);
+        el.disabled = false;
+      }
+    }
+    if (osd.uptime.stroke_color) {
+      const el = $(`#osd${streamIndex}_uptime_strokecolor`);
+      if (el) {
+        el.value = rgba2color(osd.uptime.stroke_color);
+        el.disabled = false;
+      }
+    }
+  }
+
+  // Usertext element
+  if (osd.usertext) {
+    if (osd.usertext.enabled !== undefined) {
+      const el = $(`#osd${streamIndex}_usertext_enabled`);
+      if (el) {
+        el.checked = osd.usertext.enabled;
+        el.disabled = false;
+      }
+    }
+    if (osd.usertext.format !== undefined) {
+      const el = $(`#osd${streamIndex}_usertext_format`);
+      if (el) {
+        el.value = osd.usertext.format;
+        el.disabled = false;
+      }
+    }
+    if (osd.usertext.position !== undefined) {
+      const el = $(`#osd${streamIndex}_usertext_position`);
+      if (el) {
+        el.value = osd.usertext.position;
+        el.disabled = false;
+      }
+    }
+    if (osd.usertext.fill_color) {
+      const el = $(`#osd${streamIndex}_usertext_fillcolor`);
+      if (el) {
+        el.value = rgba2color(osd.usertext.fill_color);
+        el.disabled = false;
+      }
+    }
+    if (osd.usertext.stroke_color) {
+      const el = $(`#osd${streamIndex}_usertext_strokecolor`);
+      if (el) {
+        el.value = rgba2color(osd.usertext.stroke_color);
+        el.disabled = false;
+      }
+    }
+  }
+}
+
 function handleMessage(msg) {
-	if (msg.motion && msg.motion.enabled !== undefined) {
-		$('#motion').checked = msg.motion.enabled;
-	}
-	if (msg.privacy && msg.privacy.enabled !== undefined) {
-		$('#privacy').checked = msg.privacy.enabled;
-	}
-	if (msg.rtsp) {
-		const r = msg.rtsp;
-		if (r.username && r.password && r.port && msg.stream0?.rtsp_endpoint)
-			$('#playrtsp').innerHTML = `ffplay rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
-	}
+  if (msg.motion && msg.motion.enabled !== undefined) {
+    $('#motion').checked = msg.motion.enabled;
+  }
+  if (msg.privacy && msg.privacy.enabled !== undefined) {
+    $('#privacy').checked = msg.privacy.enabled;
+  }
+  if (msg.rtsp) {
+    const r = msg.rtsp;
+    if (r.username && r.password && r.port && msg.stream0?.rtsp_endpoint)
+      $('#playrtsp').innerHTML = `ffplay -hide_banner -rtsp_transport tcp rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
+  }
+
+  // Handle image params
+  if (msg.image) {
+    const imageParams = ['hflip', 'vflip', 'wb_bgain', 'wb_rgain', 'ae_compensation', 'core_wb_mode'];
+    imageParams.forEach(param => {
+      if (msg.image[param] !== undefined) {
+        setValue(msg.image, 'image', param);
+      }
+    });
+  }
+
+  // Handle stream0 params
+  if (msg.stream0) {
+    stream_params.forEach(param => {
+      if (msg.stream0[param] !== undefined) {
+        setValue(msg.stream0, 'stream0', param);
+      }
+    });
+    handleOsdData(msg.stream0.osd, 0);
+  }
+
+  // Handle stream1 params
+  if (msg.stream1) {
+    stream_params.forEach(param => {
+      if (msg.stream1[param] !== undefined) {
+        setValue(msg.stream1, 'stream1', param);
+      }
+    });
+    handleOsdData(msg.stream1.osd, 1);
+  }
+
+  // Handle audio params
+  if (msg.audio) {
+    audio_params.forEach(param => {
+      if (msg.audio[param] !== undefined) {
+        setValue(msg.audio, 'audio', param);
+      }
+    });
+  }
 }
 
 async function loadConfig() {
-	const payload = JSON.stringify({
-			image: {hflip: null, vflip: null},
-			motion: {enabled: null},
-			privacy: {enabled: null},
-			rtsp: {username: null, password: null, port: null},
-			stream0: {rtsp_endpoint: null},
-			action: {capture: null}
-		});
-	console.log('===>', payload);
-	try {
-		const response = await fetch(endpoint, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: payload
-		});
-		if (!response.ok) throw new Error(`HTTP ${response.status}`);
-		const contentType = response.headers.get('content-type');
-		if (contentType?.includes('application/json')) {
-			const msg = await response.json();
-			console.log(ts(), '<===', JSON.stringify(msg));
-			handleMessage(msg);
-		}
-	} catch (err) {
-		console.error('Load config error', err);
-	}
+  const payload = JSON.stringify({
+      image: {
+        hflip: null, vflip: null,
+        wb_bgain: null, wb_rgain: null,
+        ae_compensation: null, core_wb_mode: null
+      },
+      motion: {enabled: null},
+      privacy: {enabled: null},
+      rtsp: {username: null, password: null, port: null},
+      stream0: {
+        width: null, height: null, fps: null, bitrate: null, gop: null, max_gop: null,
+        format: null, mode: null, buffers: null, profile: null, rtsp_endpoint: null,
+        video_enabled: null, audio_enabled: null,
+        osd: {
+          enabled: null, font_path: null, font_size: null, stroke_size: null,
+          logo: {enabled: null, position: null},
+          time: {enabled: null, format: null, position: null, fill_color: null, stroke_color: null},
+          uptime: {enabled: null, position: null, fill_color: null, stroke_color: null},
+          usertext: {enabled: null, format: null, position: null, fill_color: null, stroke_color: null}
+        }
+      },
+      stream1: {
+        width: null, height: null, fps: null, bitrate: null, gop: null, max_gop: null,
+        format: null, mode: null, buffers: null, profile: null, rtsp_endpoint: null,
+        video_enabled: null, audio_enabled: null,
+        osd: {
+          enabled: null, font_path: null, font_size: null, stroke_size: null,
+          logo: {enabled: null, position: null},
+          time: {enabled: null, format: null, position: null, fill_color: null, stroke_color: null},
+          uptime: {enabled: null, position: null, fill_color: null, stroke_color: null},
+          usertext: {enabled: null, format: null, position: null, fill_color: null, stroke_color: null}
+        }
+      },
+      audio: {
+        mic_enabled: null, mic_format: null, mic_sample_rate: null, mic_bitrate: null,
+        mic_vol: null, mic_gain: null, mic_alc_gain: null, mic_agc_enabled: null,
+        mic_high_pass_filter: null, mic_noise_suppression: null,
+        mic_agc_compression_gain_db: null, mic_agc_target_level_dbfs: null,
+        spk_enabled: null, spk_vol: null, spk_gain: null, spk_sample_rate: null,
+        force_stereo: null
+      },
+      action: {capture: null}
+    });
+  console.log('===>', payload);
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const text = await response.text();
+    if (text) {
+      const msg = JSON.parse(text);
+      console.log(ts(), '<===', JSON.stringify(msg));
+      handleMessage(msg);
+    } else {
+      console.log(ts(), '<===', 'Empty response');
+    }
+  } catch (err) {
+    console.error('Load config error', err);
+  }
 }
 
 async function sendToEndpoint(payload) {
-	console.log(ts(), '===>', payload);
-	try {
-		const response = await fetch(endpoint, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(payload)
-		});
-		if (!response.ok) throw new Error(`HTTP ${response.status}`);
-		const contentType = response.headers.get('content-type');
-		if (contentType?.includes('application/json')) {
-			const msg = await response.json();
-			console.log(ts(), '<===', JSON.stringify(msg));
-			handleMessage(msg);
-		}
-	} catch (err) {
-		console.error('Send error', err);
-	}
+  console.log(ts(), '--->', payload);
+  const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
+  console.log(ts(), '===>', payloadStr);
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payloadStr
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const text = await response.text();
+    if (text) {
+      const msg = JSON.parse(text);
+      console.log(ts(), '<===', JSON.stringify(msg));
+      handleMessage(msg);
+    } else {
+      console.log(ts(), '<===', 'Empty response');
+    }
+  } catch (err) {
+    console.error('Send error', err);
+  }
 }
-
-async function toggleButton(el) {
-	if (!el) return;
-	const url = '/x/json-imp.cgi?' + new URLSearchParams({'cmd': el.id, 'val': (el.checked ? 1 : 0)}).toString();
-	console.log(url)
-	await fetch(url)
-		.then(res => res.json())
-		.then(data => {
-			console.log(data.message)
-			el.checked = data.message[el.id] == 1
-		})
-}
-
-async function toggleDayNight(mode = 'read') {
-	url = '/x/json-imp.cgi?' + new URLSearchParams({'cmd': 'daynight', 'val': mode}).toString()
-	console.log(url)
-	await fetch(url)
-		.then(res => res.json())
-		.then(data => {
-			console.log(data.message)
-			$('#daynight').checked = (data.message.daynight == 'night')
-			if ($('#ir850')) $('#ir850').checked = (data.message.ir850 == 1)
-			if ($('#ir940')) $('#ir940').checked = (data.message.ir940 == 1)
-			if ($('#white')) $('#white').checked = (data.message.white == 1)
-			if ($('#ircut')) $('#ircut').checked = (data.message.ircut == 1)
-			if ($('#color')) $('#color').checked = (data.message.color == 1)
-		})
-}
-
-$("#motion").addEventListener('change', ev => {
-	const state = ev.target.checked;
-	const payload = JSON.stringify({ motion: { enabled: state } });
-	fetch('/x/json-prudynt.cgi', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: payload
-	})
-		.then(res => res.json())
-		.then(data => {
-			console.log(ts(), '<===', JSON.stringify(data));
-			if (data.motion && data.motion.enabled !== undefined) {
-				$('#motion').checked = data.motion.enabled;
-			}
-		})
-		.catch(err => console.error('Motion toggle error', err));
-});
-
-$("#privacy").addEventListener('change', ev => {
-	const state = ev.target.checked;
-	const payload = JSON.stringify({ privacy: { enabled: state } });
-	fetch('/x/json-prudynt.cgi', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: payload
-	})
-		.then(res => res.json())
-		.then(data => {
-			console.log(ts(), '<===', JSON.stringify(data));
-			if (data.privacy && data.privacy.enabled !== undefined) {
-				$('#privacy').checked = data.privacy.enabled;
-			}
-		})
-		.catch(err => console.error('Privacy toggle error', err));
-});
-
-$("#daynight").addEventListener('change', ev =>
-	ev.target.checked ? toggleDayNight('night') : toggleDayNight('day'));
-
-$$("#color, #ircut, #ir850, #ir940, #white").forEach(el =>
-	el.addEventListener('change', ev => toggleButton(el)));
 
 // Init on load
 loadConfig().then(() => {
-	// Preview
-	const timeout = 5000;
-	const preview = $('#preview');
-	let lastLoadTime = Date.now();
-	preview.src = '/x/ch0.mjpg';
-	preview.addEventListener('load', () => {
-		lastLoadTime = Date.now();
-	});
-	setInterval(() => {
-		if (Date.now() - lastLoadTime > timeout) {
-			// Restart stream
-			preview.src = preview.src.split('?')[0] + '?' + new Date().getTime();
-			lastLoadTime = Date.now();
-		}
-	}, 1000);
+  // Determine which stream to show based on tabs visibility
+  const tabsVisible = localStorage.getItem('preview_tabs_visible') === 'true';
+  let streamUrl = tabsVisible ? '/x/ch1.mjpg' : '/x/ch0.mjpg';
+
+  // Preview
+  const timeout = 5000;
+  const preview = $('#preview');
+  let lastLoadTime = Date.now();
+  preview.src = streamUrl;
+  preview.addEventListener('load', () => {
+    lastLoadTime = Date.now();
+  });
+  setInterval(() => {
+    if (Date.now() - lastLoadTime > timeout) {
+      // Restart stream
+      preview.src = preview.src.split('?')[0] + '?' + new Date().getTime();
+      lastLoadTime = Date.now();
+    }
+  }, 1000);
 });
 
-toggleDayNight();
-
 const imagingFields = [
-	"brightness",
-	"contrast",
-	"sharpness",
-	"saturation",
-	"backlight",
-	"wide_dynamic_range",
-	"tone",
-	"defog",
-	"noise_reduction"
+  "brightness",
+  "contrast",
+  "sharpness",
+  "saturation",
+  "backlight",
+  "wide_dynamic_range",
+  "tone",
+  "defog",
+  "noise_reduction"
 ];
-
-const imagingPanel = $('#imaging-slider');
-const imagingToggleButton = $('#toggle-imaging');
-let imagingPanelVisible = false;
 
 // Disable all imaging controls initially
 imagingFields.forEach(field => {
-	const slider = $(`#${field}`);
-	if (slider) {
-		slider.disabled = true;
-		const wrapper = slider.closest('.range, .col');
-		if (wrapper) wrapper.classList.add('disabled');
-	}
+  const slider = $(`#${field}`);
+  if (slider) {
+    slider.disabled = true;
+    const wrapper = slider.closest('.range, .col');
+    if (wrapper) wrapper.classList.add('disabled');
+  }
 });
-
-function setImagingPanelVisibility(show) {
-	if (!imagingPanel || !imagingToggleButton) return;
-	imagingPanelVisible = !!show;
-	imagingPanel.classList.toggle('d-none', !show);
-	imagingPanel.setAttribute('aria-hidden', show ? 'false' : 'true');
-}
-
-imagingToggleButton?.addEventListener('click', () => {
-	const nextState = !imagingPanelVisible;
-	setImagingPanelVisibility(nextState);
-	if (nextState) {
-		fetchImagingState();
-	}
-});
-
-setImagingPanelVisibility(false);
 
 function updateImagingLabel(name, value) {
-	const badge = $(`#${name}-show`);
-	if (badge) {
-		const displayValue = value === undefined || value === null ? '—' : value;
-		badge.textContent = displayValue;
-	}
+  const badge = $(`#${name}-show`);
+  if (badge) {
+    const displayValue = value === undefined || value === null ? '—' : value;
+    badge.textContent = displayValue;
+  }
 }
 
 function setSliderBounds(slider, min, max, value, defaultValue) {
-	if (Number.isFinite(min)) {
-		slider.min = min;
-	}
-	if (Number.isFinite(max)) {
-		slider.max = max;
-	}
-	if (Number.isFinite(value)) {
-		slider.value = value;
-	}
-	if (Number.isFinite(defaultValue)) {
-		slider.dataset.defaultValue = defaultValue;
-	} else {
-		delete slider.dataset.defaultValue;
-	}
+  if (Number.isFinite(min)) {
+    slider.min = min;
+  }
+  if (Number.isFinite(max)) {
+    slider.max = max;
+  }
+  if (Number.isFinite(value)) {
+    slider.value = value;
+  }
+  if (Number.isFinite(defaultValue)) {
+    slider.dataset.defaultValue = defaultValue;
+  } else {
+    delete slider.dataset.defaultValue;
+  }
 }
 
 function applyFieldMetadata(field, data) {
-	const slider = $(`#${field}`);
-	if (!slider) return;
-	const wrapper = slider.closest('.col, .range') || slider.parentElement;
-	const isSupported = data && data.supported !== false;
-	if (!isSupported) {
-		slider.disabled = true;
-		if (wrapper) wrapper.classList.add('disabled');
-		delete slider.dataset.defaultValue;
-		updateImagingLabel(field, '—');
-		return;
-	}
-	slider.disabled = false;
-	if (wrapper) wrapper.classList.remove('disabled');
-	setSliderBounds(slider, Number(data.min), Number(data.max), Number(data.value), Number(data.default));
-	updateImagingLabel(field, data.value);
+  const slider = $(`#${field}`);
+  if (!slider) return;
+  const wrapper = slider.closest('.col, .range') || slider.parentElement;
+  const isSupported = data && data.supported !== false;
+  if (!isSupported) {
+    slider.disabled = true;
+    if (wrapper) wrapper.classList.add('disabled');
+    delete slider.dataset.defaultValue;
+    updateImagingLabel(field, '—');
+    return;
+  }
+  slider.disabled = false;
+  if (wrapper) wrapper.classList.remove('disabled');
+  setSliderBounds(slider, Number(data.min), Number(data.max), Number(data.value), Number(data.default));
+  updateImagingLabel(field, data.value);
 }
 
 async function fetchImagingState() {
-	try {
-		const res = await fetch('/x/json-imaging.cgi?cmd=read', {cache: 'no-store'});
-		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		const payload = await res.json();
-		const fields = payload && payload.message && payload.message.fields;
-		if (!fields) return;
-		imagingFields.forEach(field => applyFieldMetadata(field, fields[field] || null));
-	} catch (err) {
-		console.warn('Unable to load imaging state', err);
-	}
+  try {
+    const res = await fetch('/x/json-imaging.cgi?cmd=read', {cache: 'no-store'});
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const payload = await res.json();
+    const fields = payload && payload.message && payload.message.fields;
+    if (!fields) return;
+    imagingFields.forEach(field => applyFieldMetadata(field, fields[field] || null));
+  } catch (err) {
+    console.warn('Unable to load imaging state', err);
+  }
 }
 
 async function sendImagingUpdate(field, value, slider) {
-	const params = new URLSearchParams({cmd: 'set'});
-	params.append(field, value);
-	slider?.setAttribute('data-busy', '1');
-	slider?.classList.add('opacity-75');
-	try {
-		const res = await fetch(`/x/json-imaging.cgi?${params.toString()}`, {cache: 'no-store'});
-		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		const payload = await res.json();
-		const fields = payload && payload.message && payload.message.fields;
-		if (fields) {
-			applyFieldMetadata(field, fields[field] || null);
-		}
-	} catch (err) {
-		console.error('Failed to update imaging value', err);
-	} finally {
-		slider?.removeAttribute('data-busy');
-		slider?.classList.remove('opacity-75');
-	}
+  const params = new URLSearchParams({cmd: 'set'});
+  params.append(field, value);
+  slider?.setAttribute('data-busy', '1');
+  slider?.classList.add('opacity-75');
+  try {
+    const res = await fetch(`/x/json-imaging.cgi?${params.toString()}`, {cache: 'no-store'});
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    if (text) {
+      const payload = JSON.parse(text);
+      const fields = payload && payload.message && payload.message.fields;
+      if (fields) {
+        applyFieldMetadata(field, fields[field] || null);
+      }
+    }
+  } catch (err) {
+    console.error('Failed to update imaging value', err);
+  } finally {
+    slider?.removeAttribute('data-busy');
+    slider?.classList.remove('opacity-75');
+  }
 }
 
-$$('#imaging-slider input[type="range"]').forEach(slider => {
-	slider.addEventListener('input', ev => updateImagingLabel(ev.target.name, ev.target.value));
-	slider.addEventListener('change', ev => sendImagingUpdate(ev.target.name, ev.target.value, ev.target));
-	slider.addEventListener('dblclick', ev => {
-		const min = Number(ev.target.min ?? 0);
-		const max = Number(ev.target.max ?? 255);
-		const midpoint = Math.round((min + max) / 2);
-		const defaultValue = ev.target.dataset.defaultValue;
-		const targetValue = Number.isFinite(Number(defaultValue)) ? Number(defaultValue) : midpoint;
-		ev.target.value = targetValue;
-		updateImagingLabel(ev.target.name, ev.target.value);
-		sendImagingUpdate(ev.target.name, ev.target.value, ev.target);
-	});
+$$('#iq input[type="range"]').forEach(slider => {
+  slider.addEventListener('input', ev => updateImagingLabel(ev.target.name, ev.target.value));
+  slider.addEventListener('change', ev => sendImagingUpdate(ev.target.name, ev.target.value, ev.target));
+  slider.addEventListener('dblclick', ev => {
+    const min = Number(ev.target.min ?? 0);
+    const max = Number(ev.target.max ?? 255);
+    const midpoint = Math.round((min + max) / 2);
+    const defaultValue = ev.target.dataset.defaultValue;
+    const targetValue = Number.isFinite(Number(defaultValue)) ? Number(defaultValue) : midpoint;
+    ev.target.value = targetValue;
+    updateImagingLabel(ev.target.name, ev.target.value);
+    sendImagingUpdate(ev.target.name, ev.target.value, ev.target);
+  });
 });
 
+// Streamer controls
+function saveStreamValue(streamId, param) {
+  const el = $(`#stream${streamId}_${param}`);
+  if (!el) return;
+  const value = el.type === 'checkbox' ? el.checked : el.value;
+  const payload = {[`stream${streamId}`]: {[param]: value}, action: {restart_thread: ThreadRtsp | ThreadVideo}};
+  sendToEndpoint(payload);
+}
+
+// Setup stream0 and stream1 controls
+[0, 1].forEach(streamId => {
+  stream_params.forEach(param => {
+    const el = $(`#stream${streamId}_${param}`);
+    if (el) {
+      el.addEventListener('change', () => saveStreamValue(streamId, param));
+      el.disabled = true;
+    }
+  });
+});
+
+// OSD controls
+function sendOsdUpdate(streamId, osdPayload) {
+  // OSD changes require Video + OSD thread restart to take effect immediately
+  const payload = {[`stream${streamId}`]: {osd: osdPayload}, action: {restart_thread: ThreadVideo | ThreadOSD}};
+  sendToEndpoint(payload);
+}
+
+function setFont(streamId) {
+  const fontSelect = $(`#osd${streamId}_fontname`);
+  const fontSizeInput = $(`#osd${streamId}_fontsize`);
+  const strokeSizeInput = $(`#osd${streamId}_strokesize`);
+  if (!fontSelect || !fontSizeInput || !strokeSizeInput) return;
+
+  const payload = {};
+  const fontName = fontSelect.value;
+  if (fontName)
+    payload.font_path = `/usr/share/fonts/${fontName}`;
+
+  const fontSize = Number(fontSizeInput.value);
+  if (!Number.isNaN(fontSize)) {
+    payload.font_size = fontSize;
+  }
+
+  const strokeSize = Number(strokeSizeInput.value);
+  if (!Number.isNaN(strokeSize)) {
+    payload.stroke_size = strokeSize;
+  }
+
+  if (Object.keys(payload).length === 0) return;
+  console.log(ts(), 'setFont for stream', streamId, ':', payload);
+  // Font changes require Video + OSD thread restart for immediate effect
+  const fullPayload = {[`stream${streamId}`]: {osd: payload}, action: {restart_thread: ThreadVideo | ThreadOSD}};
+  sendToEndpoint(fullPayload);
+}
+
+// Setup OSD controls for both stream0 and stream1
+[0, 1].forEach(streamId => {
+  const osdEnabled = $(`#osd${streamId}_enabled`);
+  if (osdEnabled) {
+    osdEnabled.addEventListener('change', (e) => {
+      sendOsdUpdate(streamId, {enabled: e.target.checked});
+    });
+    osdEnabled.disabled = true;
+  }
+
+  const osdFontname = $(`#osd${streamId}_fontname`);
+  if (osdFontname) {
+    osdFontname.addEventListener('change', () => setFont(streamId));
+    osdFontname.disabled = true;
+  }
+
+  const osdFontsize = $(`#osd${streamId}_fontsize`);
+  if (osdFontsize) {
+    osdFontsize.addEventListener('change', () => setFont(streamId));
+    osdFontsize.disabled = true;
+  }
+
+  const osdStrokesize = $(`#osd${streamId}_strokesize`);
+  if (osdStrokesize) {
+    osdStrokesize.addEventListener('change', () => setFont(streamId));
+    osdStrokesize.disabled = true;
+  }
+
+  const osdLogoEnabled = $(`#osd${streamId}_logo_enabled`);
+  if (osdLogoEnabled) {
+    osdLogoEnabled.addEventListener('change', (e) => {
+      sendOsdUpdate(streamId, {logo: {enabled: e.target.checked}});
+    });
+    osdLogoEnabled.disabled = true;
+  }
+
+  const osdLogoPosition = $(`#osd${streamId}_logo_position`);
+  if (osdLogoPosition) {
+    osdLogoPosition.addEventListener('change', () => {
+      sendOsdUpdate(streamId, {logo: {position: osdLogoPosition.value}});
+    });
+    osdLogoPosition.disabled = true;
+  }
+
+  const osdTimeEnabled = $(`#osd${streamId}_time_enabled`);
+  if (osdTimeEnabled) {
+    osdTimeEnabled.addEventListener('change', (e) => {
+      sendOsdUpdate(streamId, {time: {enabled: e.target.checked}});
+    });
+    osdTimeEnabled.disabled = true;
+  }
+
+  const osdTimeFormat = $(`#osd${streamId}_time_format`);
+  if (osdTimeFormat) {
+    osdTimeFormat.addEventListener('change', () => {
+      sendOsdUpdate(streamId, {time: {format: osdTimeFormat.value}});
+    });
+    osdTimeFormat.disabled = true;
+  }
+
+  const osdTimePosition = $(`#osd${streamId}_time_position`);
+  if (osdTimePosition) {
+    osdTimePosition.addEventListener('change', () => {
+      sendOsdUpdate(streamId, {time: {position: osdTimePosition.value}});
+    });
+    osdTimePosition.disabled = true;
+  }
+
+  const osdTimeFillcolor = $(`#osd${streamId}_time_fillcolor`);
+  if (osdTimeFillcolor) {
+    osdTimeFillcolor.addEventListener('change', () => {
+      sendOsdUpdate(streamId, {time: {fill_color: osdTimeFillcolor.value + 'ff'}});
+    });
+    osdTimeFillcolor.disabled = true;
+  }
+
+  const osdTimeStrokecolor = $(`#osd${streamId}_time_strokecolor`);
+  if (osdTimeStrokecolor) {
+    osdTimeStrokecolor.addEventListener('change', () => {
+      sendOsdUpdate(streamId, {time: {stroke_color: osdTimeStrokecolor.value + 'ff'}});
+    });
+    osdTimeStrokecolor.disabled = true;
+  }
+
+  const osdUptimeEnabled = $(`#osd${streamId}_uptime_enabled`);
+  if (osdUptimeEnabled) {
+    osdUptimeEnabled.addEventListener('change', (e) => {
+      sendOsdUpdate(streamId, {uptime: {enabled: e.target.checked}});
+    });
+    osdUptimeEnabled.disabled = true;
+  }
+
+  const osdUptimePosition = $(`#osd${streamId}_uptime_position`);
+  if (osdUptimePosition) {
+    osdUptimePosition.addEventListener('change', () => {
+      sendOsdUpdate(streamId, {uptime: {position: osdUptimePosition.value}});
+    });
+    osdUptimePosition.disabled = true;
+  }
+
+  const osdUptimeFillcolor = $(`#osd${streamId}_uptime_fillcolor`);
+  if (osdUptimeFillcolor) {
+    osdUptimeFillcolor.addEventListener('change', () => {
+      sendOsdUpdate(streamId, {uptime: {fill_color: osdUptimeFillcolor.value + 'ff'}});
+    });
+    osdUptimeFillcolor.disabled = true;
+  }
+
+  const osdUptimeStrokecolor = $(`#osd${streamId}_uptime_strokecolor`);
+  if (osdUptimeStrokecolor) {
+    osdUptimeStrokecolor.addEventListener('change', () => {
+      sendOsdUpdate(streamId, {uptime: {stroke_color: osdUptimeStrokecolor.value + 'ff'}});
+    });
+    osdUptimeStrokecolor.disabled = true;
+  }
+
+  const osdUsertextEnabled = $(`#osd${streamId}_usertext_enabled`);
+  if (osdUsertextEnabled) {
+    osdUsertextEnabled.addEventListener('change', (e) => {
+      sendOsdUpdate(streamId, {usertext: {enabled: e.target.checked}});
+    });
+    osdUsertextEnabled.disabled = true;
+  }
+
+  const osdUsertextFormat = $(`#osd${streamId}_usertext_format`);
+  if (osdUsertextFormat) {
+    osdUsertextFormat.addEventListener('change', () => {
+      sendOsdUpdate(streamId, {usertext: {format: osdUsertextFormat.value}});
+    });
+    osdUsertextFormat.disabled = true;
+  }
+
+  const osdUsertextPosition = $(`#osd${streamId}_usertext_position`);
+  if (osdUsertextPosition) {
+    osdUsertextPosition.addEventListener('change', () => {
+      sendOsdUpdate(streamId, {usertext: {position: osdUsertextPosition.value}});
+    });
+    osdUsertextPosition.disabled = true;
+  }
+
+  const osdUsertextFillcolor = $(`#osd${streamId}_usertext_fillcolor`);
+  if (osdUsertextFillcolor) {
+    osdUsertextFillcolor.addEventListener('change', () => {
+      sendOsdUpdate(streamId, {usertext: {fill_color: osdUsertextFillcolor.value + 'ff'}});
+    });
+    osdUsertextFillcolor.disabled = true;
+  }
+
+  const osdUsertextStrokecolor = $(`#osd${streamId}_usertext_strokecolor`);
+  if (osdUsertextStrokecolor) {
+    osdUsertextStrokecolor.addEventListener('change', () => {
+      sendOsdUpdate(streamId, {usertext: {stroke_color: osdUsertextStrokecolor.value + 'ff'}});
+    });
+    osdUsertextStrokecolor.disabled = true;
+  }
+});
+
+// Audio controls
+function saveAudioValue(param) {
+  const el = $('#audio_' + param);
+  if (!el) return;
+  let value = el.type === 'checkbox' ? el.checked : el.value;
+
+  // Convert numeric strings to numbers for non-format fields
+  if (el.type !== 'checkbox' && param !== 'mic_format' && !isNaN(value)) {
+    value = Number(value);
+  }
+
+  const payload = {audio: {[param]: value}, action: {restart_thread: ThreadAudio}};
+  sendToEndpoint(payload);
+}
+
+audio_params.forEach(param => {
+  const el = $('#audio_' + param);
+  if (el) {
+    el.addEventListener('change', () => saveAudioValue(param));
+    el.disabled = true;
+  }
+});
+
+// Motors config helpers (PTZ tab)
+function updateHomingInputs() {
+  const homing = $('#homing');
+  const x = $('#pos_0_x');
+  const y = $('#pos_0_y');
+  if (!homing) return;
+  const disabled = !homing.checked;
+  if (x) x.disabled = disabled;
+  if (y) y.disabled = disabled;
+}
+
+async function readMotorsPosition() {
+  try {
+    const res = await fetch('/x/json-motor.cgi?' + new URLSearchParams({ d: 'j' }).toString());
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { message } = await res.json();
+    if (message) {
+      if ($('#pos_0_x')) $('#pos_0_x').value = message.xpos;
+      if ($('#pos_0_y')) $('#pos_0_y').value = message.ypos;
+    }
+    if ($('#homing')) $('#homing').checked = true;
+    updateHomingInputs();
+  } catch (err) {
+    console.error('Failed to read motors position', err);
+  }
+}
+
+$$('.read-motors').forEach(el => {
+  el.addEventListener('click', ev => {
+    ev.preventDefault();
+    readMotorsPosition();
+  });
+});
+
+$$('.flip_motor').forEach(el => {
+  el.addEventListener('click', ev => {
+    ev.preventDefault();
+    const dir = el.dataset.direction;
+    if (!dir) return;
+    const base = '#gpio_' + dir + '_';
+    const pins = [1,2,3,4].map(i => $(base + i)?.value).reverse();
+    [1,2,3,4].forEach((i, idx) => {
+      const field = $(base + i);
+      if (field && pins[idx] !== undefined) field.value = pins[idx];
+    });
+  });
+});
+
+const homingSwitch = $('#homing');
+if (homingSwitch) {
+  homingSwitch.addEventListener('change', updateHomingInputs);
+  updateHomingInputs();
+}
+
+// Image controls (WB and AE)
+function saveImageValue(param) {
+  const el = $('#image_' + param);
+  if (!el) return;
+
+  let value;
+  if (el.type === 'checkbox') {
+    value = el.checked;
+  } else if (el.type === 'select-one') {
+    value = parseInt(el.value);
+  } else {
+    value = parseInt(el.value);
+  }
+
+  const payload = {image: {[param]: value}};
+  console.log(ts(), 'Sending image param:', param, '=', value);
+  sendToEndpoint(payload);
+}
+
+const imageParams = ['hflip', 'vflip', 'wb_bgain', 'wb_rgain', 'ae_compensation', 'core_wb_mode'];
+imageParams.forEach(param => {
+  const el = $('#image_' + param);
+  if (el) {
+    el.addEventListener('change', () => {
+      console.log('Image param changed:', param);
+      saveImageValue(param);
+    });
+    el.disabled = true;
+  }
+});
+
+// Restore active tab from localStorage
+const savedTab = localStorage.getItem('preview_active_tab');
+if (savedTab) {
+  const tabButton = $(savedTab);
+  if (tabButton) {
+    const bsTab = new bootstrap.Tab(tabButton);
+    bsTab.show();
+  }
+}
+
+// Save active tab to localStorage and handle preview switching
+$$('#myTab button[data-bs-toggle="tab"]').forEach(button => {
+  button.addEventListener('shown.bs.tab', event => {
+    localStorage.setItem('preview_active_tab', '#' + event.target.id);
+
+    // Switch preview based on active tab
+    const preview = $('#preview');
+    if (event.target.id === 'streamer-tab') {
+      // Main stream tab - switch to ch0
+      preview.src = '/x/ch0.mjpg';
+    } else {
+      // Any other tab (including substream) - switch to ch1
+      preview.src = '/x/ch1.mjpg';
+    }
+  });
+});
+
+// Export configuration button
+const exportConfigBtn = $('#export-config');
+if (exportConfigBtn) {
+  exportConfigBtn.addEventListener('click', () => {
+    exportConfigBtn.disabled = true;
+    exportConfigBtn.textContent = 'Exporting...';
+
+    // Open the CGI endpoint which will trigger download
+    window.location.href = '/x/json-prudynt-config.cgi';
+
+    // Re-enable button after a short delay
+    setTimeout(() => {
+      exportConfigBtn.disabled = false;
+      exportConfigBtn.innerHTML = '<i class="bi bi-download" style="color: cornflowerblue;"></i> Export Current Configuration';
+    }, 1000);
+  });
+}
+
+// Save configuration button
+const saveConfigBtn = $('#save-config');
+if (saveConfigBtn) {
+  saveConfigBtn.addEventListener('click', async () => {
+    if (!confirm('Save the current configuration to /etc/prudynt.json?\n\nThis will overwrite the saved configuration file on the camera.')) {
+      return;
+    }
+
+    try {
+      saveConfigBtn.disabled = true;
+      saveConfigBtn.textContent = 'Saving...';
+
+      const payload = {action: {save_config: null}};
+      const res = await fetch('/x/json-prudynt.cgi', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (data.action && data.action.save_config === 'ok') {
+        alert('Configuration saved successfully to /etc/prudynt.json');
+      } else {
+        throw new Error('Save failed');
+      }
+    } catch (err) {
+      console.error('Failed to save config:', err);
+      alert('Failed to save configuration: ' + err.message);
+    } finally {
+      saveConfigBtn.disabled = false;
+      saveConfigBtn.innerHTML = '<i class="bi bi-save" style="color: cornflowerblue;"></i> Save Configuration to File';
+    }
+  });
+}
+
+// Restart prudynt button
+const restartPrudyntBtn = $('#restart-prudynt');
+if (restartPrudyntBtn) {
+  restartPrudyntBtn.addEventListener('click', async () => {
+    if (!confirm('Restart prudynt service?\n\nThe video stream will be interrupted for a few seconds.')) {
+      return;
+    }
+
+    try {
+      restartPrudyntBtn.disabled = true;
+      restartPrudyntBtn.textContent = 'Restarting...';
+
+      const res = await fetch('/x/restart-prudynt.cgi', {method: 'GET'});
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      // Wait for prudynt to restart
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      alert('Prudynt restarted successfully');
+      // Reload the page to refresh all states
+      location.reload();
+    } catch (err) {
+      console.error('Failed to restart prudynt:', err);
+      alert('Failed to restart prudynt: ' + err.message);
+      restartPrudyntBtn.disabled = false;
+      restartPrudyntBtn.innerHTML = '<i class="bi bi-arrow-clockwise" style="color: cornflowerblue;"></i> Restart Prudynt';
+    }
+  });
+}
+
 fetchImagingState();
+
+// Toggle tabs functionality
+const toggleTabsBtn = $('#toggle-tabs');
+const previewCol = $('#preview-col');
+const tabsCol = $('#tabs-col');
+const preview = $('#preview');
+
+// Load saved state from localStorage (default: hidden)
+const tabsVisible = localStorage.getItem('preview_tabs_visible') === 'true';
+
+function updateTabsVisibility(visible) {
+  if (visible) {
+    // Showing tabs: hide tabs first, switch to ch1, then show tabs
+    tabsCol.classList.remove('d-none');
+    previewCol.classList.remove('col');
+    previewCol.classList.add('col-5');
+    preview.src = '/x/ch1.mjpg';
+    localStorage.setItem('preview_tabs_visible', visible);
+  } else {
+    // Hiding tabs: switch to ch0 first, wait for load, then hide tabs
+    const newSrc = '/x/ch0.mjpg';
+    const onLoad = () => {
+      preview.removeEventListener('load', onLoad);
+      tabsCol.classList.add('d-none');
+      previewCol.classList.remove('col-5');
+      previewCol.classList.add('col');
+    };
+    preview.addEventListener('load', onLoad);
+    preview.src = newSrc;
+    localStorage.setItem('preview_tabs_visible', visible);
+  }
+}
+
+// Apply saved state if different from default (which is already hidden in HTML)
+if (tabsVisible) {
+  updateTabsVisibility(true);
+}
+
+if (toggleTabsBtn) {
+  toggleTabsBtn.addEventListener('click', () => {
+    const currentlyVisible = !tabsCol.classList.contains('d-none');
+    updateTabsVisibility(!currentlyVisible);
+  });
+}
 </script>
 
-<div class="alert alert-dark ui-debug d-none">
-<h4 class="mb-3">Debug info</h4>
+<div class="modal fade" id="mdFont" tabindex="-1" aria-labelledby="mdlFont" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fs-4" id="mdlFont">Upload font file</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4" enctype="multipart/form-data">
+          <input type="hidden" name="form" value="font">
+          <% field_file "fontfile" "Upload a TTF file" %>
+          <% button_submit %>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="helpModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Homing</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>During boot, the camera rotates to its minimum limits and zeroes both axes. Disable if you prefer a fixed pose.</p>
+        <% wiki_page "Motors" %>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <%in _footer.cgi %>

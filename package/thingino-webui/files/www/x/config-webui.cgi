@@ -8,52 +8,52 @@ config_file="/etc/thingino.json"
 temp_config_file="/tmp/$domain.json"
 
 defaults() {
-	default_for theme "auto"
-	default_for paranoid "false"
-	default_for username "$USER"
+  default_for theme "auto"
+  default_for paranoid "false"
+  default_for username "$USER"
 }
 
 set_value() {
-	[ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
-	jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
+  [ -f "$temp_config_file" ] || echo '{}' > "$temp_config_file"
+  jct "$temp_config_file" set "$domain.$1" "$2" >/dev/null 2>&1
 }
 
 get_value() {
-	jct "$config_file" get "$domain.$1" 2>/dev/null
+  jct "$config_file" get "$domain.$1" 2>/dev/null
 }
 
 read_config() {
-	[ -f "$config_file" ] || return
+  [ -f "$config_file" ] || return
 
-	theme="$(get_value theme)"
-	paranoid="$(get_value paranoid)"
-	username="$(get_value username)"
+  theme="$(get_value theme)"
+  paranoid="$(get_value paranoid)"
+  username="$(get_value username)"
 }
 
 read_config
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
-	error=""
+  error=""
 
-	paranoid="$POST_paranoid"
-	theme="$POST_theme"
+  paranoid="$POST_paranoid"
+  theme="$POST_theme"
 
-	defaults
+  defaults
 
-	if [ -z "$error" ]; then
-		set_value paranoid "$paranoid"
-		set_value theme "$theme"
+  if [ -z "$error" ]; then
+    set_value paranoid "$paranoid"
+    set_value theme "$theme"
 
-		jct "$config_file" import "$temp_config_file"
-		rm "$temp_config_file"
+    jct "$config_file" import "$temp_config_file"
+    rm "$temp_config_file"
 
-		new_password="$POST_password_new"
-		[ -n "$new_password" ] && echo "root:$new_password" | chpasswd -c sha512 >/dev/null
+    new_password="$POST_password_new"
+    [ -n "$new_password" ] && echo "root:$new_password" | chpasswd -c sha512 >/dev/null
 
-		redirect_to $SCRIPT_NAME "success" "Data updated."
-	else
-		redirect_to $SCRIPT_NAME "danger" "Error: $error"
-	fi
+    redirect_to $SCRIPT_NAME "success" "Data updated."
+  else
+    redirect_to $SCRIPT_NAME "danger" "Error: $error"
+  fi
 fi
 
 defaults
