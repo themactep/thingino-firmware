@@ -102,9 +102,17 @@ Flashing Instructions
 
 1. **Prepare SD card:**
    ```bash
-   # Format as FAT32 with MBR partition table
+   # Create MBR partition table and FAT32 partition
+   # Replace /dev/sdX with your SD card device (e.g., /dev/sdb)
+   sudo fdisk /dev/sdX
+   # In fdisk: type 'o' for new DOS partition table, 'n' for new partition,
+   # accept defaults, type 'w' to write changes
+   
+   # Format the new partition as FAT32
    sudo mkfs.vfat -F 32 /dev/sdX1
    ```
+   **Note:** Ensure you identify the correct device. Use `lsblk` before and after
+   inserting the SD card to confirm the device name.
 2. **Copy firmware:**
    - Rename firmware to `autoupdate-full.bin`
    - Copy to SD card root directory
@@ -199,7 +207,7 @@ Troubleshooting
 1. Connect via UART to view boot logs
 2. Check for WiFi driver loading errors
 3. Check for "Portal started" message
-4. See [troubleshooting-boot.md](troubleshooting-boot.md)
+4. See [troubleshooting-boot.md](../troubleshooting-boot.md)
 
 ### Intermittent Flashing on One Camera
 
@@ -335,10 +343,10 @@ After trying all three firmware variants and all troubleshooting steps:
 Related Documentation
 ---------------------
 
-- [Boot Troubleshooting Guide](troubleshooting-boot.md) - Detailed boot diagnostics
-- [Camera Recovery Guide](camera-recovery.md) - Recovery procedures
-- [Firmware Dumping Guide](firmware.md) - How to backup original firmware
-- [Eufy Brand Page](brands/eufy.md) - All Eufy camera models
+- [Boot Troubleshooting Guide](../troubleshooting-boot.md) - Detailed boot diagnostics
+- [Camera Recovery Guide](../camera-recovery.md) - Recovery procedures
+- [Firmware Dumping Guide](../firmware.md) - How to backup original firmware
+- [Eufy Brand Page](../brands/eufy.md) - All Eufy camera models
 
 Community Success Stories
 --------------------------
