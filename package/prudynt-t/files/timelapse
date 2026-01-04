@@ -3,16 +3,28 @@
 
 . /usr/share/common
 
+CONFIG_FILE="/etc/timelapse.json"
+
+tl_get() {
+	jct "$CONFIG_FILE" get "timelapse.$1" 2>/dev/null
+}
+
 read_config() {
-	local CONFIG_FILE="/etc/timelapse.json"
 	[ -f "$CONFIG_FILE" ] || return
 
-	enabled=$(jct $TIMELAPSE_CONFIG_FILE get enabled)
-	mountroot=$(jct $TIMELAPSE_CONFIG_FILE get mountroot)
-	filepath=$(jct $TIMELAPSE_CONFIG_FILE get filepath)
-	filename=$(jct $TIMELAPSE_CONFIG_FILE get filename)
-	interval=$(jct $TIMELAPSE_CONFIG_FILE get interval)
-	keep_days=$(jct $TIMELAPSE_CONFIG_FILE get keep_days)
+	enabled=$(tl_get enabled)
+	mountroot=$(tl_get mount)
+	[ -z "$mountroot" ] && mountroot=$(tl_get mountroot) # backward compatibility
+	filepath=$(tl_get filepath)
+	filename=$(tl_get filename)
+	interval=$(tl_get interval)
+	keep_days=$(tl_get keep_days)
+	preset_enabled=$(tl_get preset_enabled)
+	ircut=$(tl_get ircut)
+	ir850=$(tl_get ir850)
+	ir940=$(tl_get ir940)
+	white=$(tl_get white)
+	color=$(tl_get color)
 }
 
 hesitate() {
@@ -53,6 +65,73 @@ find "$storage" -mindepth 1 -type d -empty -delete
 
 target="$storage/$(date +"$filename")"
 ensure_dir "$(dirname "$target")"
+
+# Preserve current states so we can restore after snapshot (only if preset is enabled)
+orig_ircut=""; orig_ir850=""; orig_ir940=""; orig_white=""; orig_color=""
+
+if [ "true" = "$preset_enabled" ]; then
+	if command -v ircut >/dev/null 2>&1; then
+		orig_ircut=$(ircut read 2>/dev/null || echo "")
+	fi
+	if command -v irled >/dev/null 2>&1; then
+		orig_ir850=$(irled read ir850 2>/dev/null || echo "")
+		orig_ir940=$(irled read ir940 2>/dev/null || echo "")
+		orig_white=$(irled read white 2>/dev/null || echo "")
+	fi
+	if command -v color >/dev/null 2>&1; then
+		orig_color=$(color read 2>/dev/null || echo "")
+	fi
+fi
+
+# Apply requested snapshot presets when provided (non-empty) and preset is enabled
+apply_bool() {
+	local value="$1" cmd_on="$2" cmd_off="$3"
+	[ -z "$value" ] && return
+	case "$value" in
+		true|1|on|yes) eval "$cmd_on" ;;
+		false|0|off|no) eval "$cmd_off" ;;
+		*) : ;;
+	esac
+}
+
+if [ "true" = "$preset_enabled" ]; then
+	if command -v ircut >/dev/null 2>&1; then
+		apply_bool "$ircut" "ircut on >/dev/null 2>&1" "ircut off >/dev/null 2>&1"
+	fi
+	if command -v irled >/dev/null 2>&1; then
+		[ -n "$gpio_ir850" ] && apply_bool "$ir850" "irled on ir850 >/dev/null 2>&1" "irled off ir850 >/dev/null 2>&1"
+		[ -n "$gpio_ir940" ] && apply_bool "$ir940" "irled on ir940 >/dev/null 2>&1" "irled off ir940 >/dev/null 2>&1"
+		[ -n "$gpio_white" ] && apply_bool "$white" "irled on white >/dev/null 2>&1" "irled off white >/dev/null 2>&1"
+	fi
+	if command -v color >/dev/null 2>&1; then
+		apply_bool "$color" "color on >/dev/null 2>&1" "color off >/dev/null 2>&1"
+	fi
+fi
+
 prudyntctl snapshot -c 0 > "$target"
+
+# Restore original states if we captured them (only if preset was enabled)
+restore_bool() {
+	local orig="$1" cmd_on="$2" cmd_off="$3"
+	case "$orig" in
+		1) eval "$cmd_on" ;;
+		0) eval "$cmd_off" ;;
+		*) : ;;
+	esac
+}
+
+if [ "true" = "$preset_enabled" ]; then
+	if command -v ircut >/dev/null 2>&1; then
+		restore_bool "$orig_ircut" "ircut on >/dev/null 2>&1" "ircut off >/dev/null 2>&1"
+	fi
+	if command -v irled >/dev/null 2>&1; then
+		[ -n "$gpio_ir850" ] && restore_bool "$orig_ir850" "irled on ir850 >/dev/null 2>&1" "irled off ir850 >/dev/null 2>&1"
+		[ -n "$gpio_ir940" ] && restore_bool "$orig_ir940" "irled on ir940 >/dev/null 2>&1" "irled off ir940 >/dev/null 2>&1"
+		[ -n "$gpio_white" ] && restore_bool "$orig_white" "irled on white >/dev/null 2>&1" "irled off white >/dev/null 2>&1"
+	fi
+	if command -v color >/dev/null 2>&1; then
+		restore_bool "$orig_color" "color on >/dev/null 2>&1" "color off >/dev/null 2>&1"
+	fi
+fi
 
 exit 0
