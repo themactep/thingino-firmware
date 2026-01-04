@@ -101,9 +101,19 @@ Flashing Instructions
 **Steps:**
 
 1. **Prepare SD card:**
+   
+   > **⚠️ WARNING:** The following commands will **erase all data** on the SD card.
+   > Make sure you select the correct device to avoid data loss on your system drives!
+   
    ```bash
+   # First, identify your SD card device
+   lsblk
+   # Insert SD card and run again to see which device appeared
+   lsblk
+   
    # Create MBR partition table and FAT32 partition
    # Replace /dev/sdX with your SD card device (e.g., /dev/sdb)
+   # NEVER use /dev/sda as this is typically your main system drive!
    sudo fdisk /dev/sdX
    # In fdisk: type 'o' for new DOS partition table, 'n' for new partition,
    # accept defaults, type 'w' to write changes
@@ -111,8 +121,6 @@ Flashing Instructions
    # Format the new partition as FAT32
    sudo mkfs.vfat -F 32 /dev/sdX1
    ```
-   **Note:** Ensure you identify the correct device. Use `lsblk` before and after
-   inserting the SD card to confirm the device name.
 2. **Copy firmware:**
    - Rename firmware to `autoupdate-full.bin`
    - Copy to SD card root directory
