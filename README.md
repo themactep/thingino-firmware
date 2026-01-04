@@ -55,6 +55,13 @@ Read [Building from sources][7] article for more info.
 - [Discord channel][3]
 - [Telegram group][4]
 
+### Documentation
+
+- [Troubleshooting Boot Issues](docs/troubleshooting-boot.md)
+- [Camera Recovery Guide](docs/camera-recovery.md)
+- [Diagnostics Guide](docs/diagnostics.md)
+- [Supported Hardware](docs/supported_hardware.md)
+
 ### GitHub CI Status
 
 [![toolchain-x86_64][11]][8]

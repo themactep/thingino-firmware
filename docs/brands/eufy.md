@@ -4,6 +4,11 @@ eufy
 
 also [Anker](anker.md), [CZEview](czeview.md)
 
+Camera-Specific Guides
+----------------------
+
+- [Eufy Indoor Cam 2K C120 (T8400/T8400X)](../cameras/eufy-c120.md) - Detailed troubleshooting for hardware variations
+
 | FCC ID        | Model   | Name                                               | SoC         | Image Sensor | Flash Chip | DRAM            | WiFi Module    | MCU           | Link                                                      |
 |---------------|---------|----------------------------------------------------|-------------|--------------|------------|-----------------|----------------|---------------|-----------------------------------------------------------|
 | 2AOKB-T7200   | T7200   | eufy Dog Camera D605 / Pet Camera Lite N140        | T31         |              | 25Q256     | KLM4G1FETE-B041 |                |               |                                                           |

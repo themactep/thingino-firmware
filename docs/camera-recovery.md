@@ -1,6 +1,11 @@
 Recovery of a bricked camera
 ============================
 
+> [!TIP]
+> If your camera won't boot or you're experiencing flashing issues, see the
+> [Boot Troubleshooting Guide](troubleshooting-boot.md) for detailed diagnostic
+> steps and solutions for common boot problems.
+
 with a programmer
 -----------------
 
