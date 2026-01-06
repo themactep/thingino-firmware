@@ -34,27 +34,27 @@ list_pins() {
 
 claim_pin() {
 	export_pin
-	echo $pin > /proc/gpio_claim/gpio
+	echo "$pin" > /proc/gpio_claim/gpio
 }
 
 export_pin() {
-	[ -d $gpiodir/gpio$pin ] && return
-	echo $pin > $gpiodir/export
+	[ -d "$gpiodir/gpio$pin" ] && return
+	echo "$pin" > "$gpiodir/export"
 }
 
 unexport_pin() {
 	[ -d "$gpiodir/gpio$pin" ] || return
-	echo $pin > $gpiodir/unexport
+	echo "$pin" > "$gpiodir/unexport"
 }
 
 set_direction() {
 	export_pin
-	echo $1 > $gpiodir/gpio$pin/direction
+	echo "$1" > "$gpiodir/gpio$pin/direction"
 }
 
 set_value() {
 	set_direction "out"
-	echo $1 > $gpiodir/gpio$pin/value
+	echo "$1" > "$gpiodir/gpio$pin/value"
 }
 
 toggle_value() {
@@ -81,20 +81,25 @@ get_pin_info() {
 }
 
 get_direction() {
-	export_pin $pin
-	cat $gpiodir/gpio$1/direction
+	export_pin "$pin"
+	cat "$gpiodir/gpio$1/direction"
 }
 
 get_value() {
 	if [ ! -d "$gpiodir/gpio$pin" ]; then
-		export_pin $pin
+		export_pin "$pin"
 		unexport=1
 	fi
-	[ -f $gpiodir/gpio$pin/value ] && cat $gpiodir/gpio$pin/value
-	[ "0$unexport" -eq 1 ] && unexport_pin "$pin"
+	if [ -f "$gpiodir/gpio$pin/value" ]; then
+		cat "$gpiodir/gpio$pin/value"
+	fi
+	if [ "0$unexport" -eq 1 ]; then
+		unexport_pin "$pin"
+	fi
 }
 
 if [ -n "$2" ]; then
+	# sanitize converting to integer
 	pin=$(echo $2 | sed s/[^0-9]//g)
 	[ -z "$pin" ] && die "PIN $pin IS NOT SET"
 else

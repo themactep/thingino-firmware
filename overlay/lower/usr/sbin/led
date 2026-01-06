@@ -11,9 +11,9 @@ Where:
 	exit 1
 }
 
-GPIO_R=$gpio_led_r
-GPIO_G=$gpio_led_g
-GPIO_B=$gpio_led_b
+GPIO_R=$(jct /etc/thingino.json get gpio.led_r)
+GPIO_G=$(jct /etc/thingino.json get gpio.led_g)
+GPIO_B=$(jct /etc/thingino.json get gpio.led_b)
 
 [ "o" = "${GPIO_R:0-1}" ] && GPIO_R_HI=0 || GPIO_R_HI=1
 [ "o" = "${GPIO_G:0-1}" ] && GPIO_G_HI=0 || GPIO_G_HI=1

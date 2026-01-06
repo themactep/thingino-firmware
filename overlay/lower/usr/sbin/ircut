@@ -5,8 +5,9 @@
 MODE_FILE="/tmp/ircutmode.txt"
 [ -f "$MODE_FILE" ] || touch "$MODE_FILE"
 
-pin1=$gpio_ircut_1
-pin2=$gpio_ircut_2
+gpio_ircut=$(jct /etc/thingino.json get gpio.ircut)
+#pin1=$(jct /etc/thingino.json get gpio.ircut.0)
+#pin2=$(jct /etc/thingino.json get gpio.ircut.1)
 
 # Backward compatibility
 if [ -z "$pin1$pin2" ] && [ -n "$gpio_ircut" ]; then

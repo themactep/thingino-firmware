@@ -10,6 +10,8 @@ set_gpio() {
 }
 
 set_power() {
+	gpio_mmc_power=$(jct /etc/thingino.json get gpio.mmc_power)
+
 	# Set additional MMC GPIOs
 	# This needs to run AFTER the driver has been loaded
 	# for the SD card to mount during boot
@@ -49,6 +51,7 @@ load_module() {
 start() {
 	echo_title "Initializing MMC"
 
+	gpio_mmc_cd=$(jct /etc/thingino.json get gpio.mmc_cd)
 	MMC_PARAM="cd_gpio_pin=${gpio_mmc_cd:-59}"
 	load_module
 }

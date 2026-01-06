@@ -209,13 +209,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/privacy
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/timelapse \
 		$(TARGET_DIR)/usr/sbin/timelapse
-
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/daynight \
 		$(TARGET_DIR)/usr/sbin/daynight
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ircut \
-		$(TARGET_DIR)/usr/sbin/ircut
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/irled \
-		$(TARGET_DIR)/usr/sbin/irled
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/metrics \
 		$(TARGET_DIR)/var/www/x/metrics
 
@@ -252,12 +247,10 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/tell
 
 	# services
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S56ircut \
-		$(TARGET_DIR)/etc/init.d/S56ircut
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S31prudynt \
 		$(TARGET_DIR)/etc/init.d/S31prudynt
-#	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S32prudynt-watchdog \
-#		$(TARGET_DIR)/etc/init.d/S32prudynt-watchdog
+#	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S32prudyntwd \
+#		$(TARGET_DIR)/etc/init.d/S32prudyntwd
 	# install service disabled
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/S98recorder \
 		$(TARGET_DIR)/etc/init.d/S98recorder
@@ -285,7 +278,6 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/video.mjpg
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/events.cgi \
 		$(TARGET_DIR)/var/www/x/events.cgi
-
 
 	# Install debug-specific files and configurations to NFS
 	if [ "$(BR2_PACKAGE_PRUDYNT_T_DEBUG)" = "y" ]; then \

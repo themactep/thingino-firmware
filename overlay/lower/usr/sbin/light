@@ -19,19 +19,25 @@ Where:
 
 get_config_pin() {
 	local type="$1"
-	jct /etc/thingino.json get "gpio_$type" 2>/dev/null
+	jct /etc/thingino.json get "gpio.$type.pin" 2>/dev/null || \
+		jct /etc/thingino.json get "gpio.$type" 2>/dev/null
+}
+
+get_config_active_low() {
+	local type="$1"
+	jct /etc/thingino.json get "gpio.$type.active_low" 2>/dev/null || echo "false"
 }
 
 set_config_pin() {
 	local type="$1"
 	local pin="$2"
-	jct /etc/thingino.json set "gpio_$type" "$pin" 2>/dev/null
+	jct /etc/thingino.json set "gpio.$type.pin" "$pin" 2>/dev/null
 }
 
 case "$type" in
 	ir850 | ir940 | white | flood)
 		pin=$(get_config_pin "$type")
-		if [ -z "$pin" ] && [ "set" != "$mode" ]; then
+		if [ -z "$pin" ] && [ "gpio" != "$mode" ]; then
 			echo_error "GPIO pin for $type light is not defined"
 			exit 1
 		fi
@@ -42,16 +48,13 @@ case "$type" in
 		;;
 esac
 
-# default to output high
-if [ "$pin" = "${pin//[^0-9]/}" ]; then
-	pin="${pin}O"
+if [ "true" = "$(get_config_active_low "$type")" ]; then
+	pin_on=0
+	pin_off=1
+else
+	pin_on=1
+	pin_off=0
 fi
-
-case ${pin:(-1)} in
-	o) pin_on=0; pin_off=1 ;;
-	O) pin_on=1; pin_off=0 ;;
-esac
-pin=${pin:0:(-1)}
 
 case "$mode" in
 	0 | off)
@@ -71,6 +74,7 @@ case "$mode" in
 		fi
 		;;
 	gpio | pin)
+		mode="gpio"
 		new_pin="$3"
 		if [ -n "$new_pin" ]; then
 			set_config_pin "$type" "$new_pin"
