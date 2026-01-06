@@ -113,26 +113,18 @@ configured_channel=$(jct "/etc/prudynt.json" get "recorder.channel" 2>/dev/null 
               <li><button class="dropdown-item btn btn-secondary" type="button" id="color" title="Color mode">
                 <i class="bi bi-palette"></i> Color mode
               </button></li>
-<% if [ -n "$gpio_ircut" ]; then %>
               <li><button class="dropdown-item btn btn-secondary" type="button" id="ircut" title="IR filter">
                 <i class="bi bi-transparency"></i> IR filter
               </button></li>
-<% fi %>
-<% if [ -n "$gpio_ir850" ]; then %>
               <li><button class="dropdown-item btn btn-secondary" type="button" id="ir850" title="IR LED 850 nm">
                 <i class="bi bi-lightbulb"></i> IR LED 850 nm
               </button></li>
-<% fi %>
-<% if [ -n "$gpio_ir940" ]; then %>
               <li><button class="dropdown-item btn btn-secondary" type="button" id="ir940" title="IR LED 940 nm">
                 <i class="bi bi-lightbulb"></i> IR LED 940 nm
               </button></li>
-<% fi %>
-<% if [ -n "$gpio_white" ]; then %>
               <li><button class="dropdown-item btn btn-secondary" type="button" id="white" title="White LED">
                 <i class="bi bi-lightbulb"></i> White LED
               </button></li>
-<% fi %>
             </ul>
           </div>
           <button type="button" class="btn btn-secondary" id="microphone" title="Microphone">
