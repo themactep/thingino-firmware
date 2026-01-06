@@ -44,8 +44,6 @@ start() {
 		jct $tmpfile set ptz.enable 1
 		jct $tmpfile set ptz.max_step_x "$steps_pan"
 		jct $tmpfile set ptz.max_step_y "$steps_tilt"
-		jct $tmpfile set ptz.move_right "$MOTORS_BIN -d h -x $steps_pan"
-		jct $tmpfile set ptz.move_down "$MOTORS_BIN -d h -y $steps_tilt"
 	fi
 	jct $ONVIF_CONFIG import $tmpfile
 	rm -f $tmpfile
