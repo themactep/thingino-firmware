@@ -1813,6 +1813,17 @@ config BR2_THINGINO_AUDIO
 	  The GPIO pin for enabling audio can be specified in the U-Boot environment
 	  using the "gpio_speaker" parameter. If not specified, the default value is "-1".
 
+config BR2_THINGINO_AUDIO_GPIO
+	int "Speaker GPIO"
+	help
+	  Speaker GPIO
+
+config BR2_THINGINO_AUDIO_GPIO_LOW
+	bool "Speaker GPIO active LOW"
+	default n
+	help
+	  Speaker GPIO active LOW
+
 config BR2_THINGINO_AUDIO_DMIC
 	bool "DMIC Support"
 	depends on BR2_THINGINO_AUDIO

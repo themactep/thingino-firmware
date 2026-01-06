@@ -80,22 +80,15 @@ define GENERATE_GPIO_USERKEYS_CONFIG
 endef
 
 define GENERATE_AUDIO_CONFIG
-	if [ -n "$(U_BOOT_ENV_TXT)" ] && [ -f $(U_BOOT_ENV_TXT) ]; then \
-		gpio_speaker=$$(awk -F= '/^gpio_speaker=/ {print $$2}' $(U_BOOT_ENV_TXT)); \
-		if [ -z "$$gpio_speaker" ]; then \
-				spk_gpio=-1; \
-				spk_level=-1; \
-		elif echo "$$gpio_speaker" | grep -qE '^[0-9]+[Oo]$$'; then \
-				spk_gpio=$$(echo "$$gpio_speaker" | sed 's/[Oo]$$//'); \
-				spk_level=$$(echo "$$gpio_speaker" | grep -q 'O$$' && echo 1 || echo 0); \
-		else \
-				spk_gpio=$$gpio_speaker; \
-				spk_level=-1; \
-		fi; \
-		echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(BR2_THINGINO_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/audio; \
+	gpio_speaker=$(BR2_THINGINO_AUDIO_GPIO); \
+	if [ -z "$$gpio_speaker" ]; then \
+		spk_gpio=-1; \
+		spk_level=-1; \
 	else \
-		echo "Skipping audio configuration: U_BOOT_ENV_TXT is empty or does not exist."; \
-	fi
+		spk_gpio=$$gpio_speaker; \
+		[ "$(BR2_THINGINO_AUDIO_GPIO_LOW)" = "y" ] && spk_level=0 || spk_level=1; \
+	fi; \
+	echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(BR2_THINGINO_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/audio
 endef
 
 define INSTALL_SENSOR_BIN
@@ -175,11 +168,9 @@ define GENERATE_MODULE_LOADER
 endef
 
 define INSTALL_AUDIO_SUPPORT
-	if [ "$(BR2_THINGINO_AUDIO)" = "y" ]; then \
-		$(INSTALL) -D -m 0644 $(@D)/config/webrtc_profile.ini $(TARGET_DIR)/etc/; \
-		$(GENERATE_AUDIO_CONFIG); \
-		$(INSTALL) -D -m 0755 $(INGENIC_SDK_PKGDIR)/files/speaker-ctrl $(TARGET_DIR)/usr/sbin/speaker-ctrl; \
-	fi
+	$(INSTALL) -D -m 0644 $(@D)/config/webrtc_profile.ini $(TARGET_DIR)/etc/
+	$(INSTALL) -D -m 0755 $(INGENIC_SDK_PKGDIR)/files/speaker-ctrl $(TARGET_DIR)/usr/sbin/speaker-ctrl
+	$(GENERATE_AUDIO_CONFIG)
 endef
 
 define INGENIC_SDK_INSTALL_TARGET_CMDS
@@ -191,7 +182,7 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(call INSTALL_SENSOR_BIN,$(SENSOR_MODEL_2),$(SENSOR_1_BIN_NAME),$(SENSOR_2_CONFIG_NAME))
 
 	$(GENERATE_MODULE_LOADER)
-	$(INSTALL_AUDIO_SUPPORT)
+	[ "$(BR2_THINGINO_AUDIO)" = "y" ] && $(INSTALL_AUDIO_SUPPORT)
 	$(GENERATE_GPIO_USERKEYS_CONFIG)
 endef
 
