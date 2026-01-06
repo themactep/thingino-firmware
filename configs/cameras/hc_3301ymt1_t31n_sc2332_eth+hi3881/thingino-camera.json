@@ -1,0 +1,14 @@
+{
+  "gpio": {
+    "button_reset": 6,
+    "ir850": {
+      "pin": 50,
+      "active_low": true
+    },
+    "ircut": "63 64",
+    "white": {
+      "pin": 49,
+      "active_low": true
+    }
+  }
+}

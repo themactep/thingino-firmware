@@ -77,9 +77,6 @@ cat $tmpfile | tee -a $FILE
 # Remove the temporary file
 rm $tmpfile
 
-# Generate thingino.json
-${BR2_EXTERNAL}/scripts/thingino_config_gen.sh "${TARGET_DIR}/etc/thingino.json" "$BR2_EXTERNAL" "$CAMERA_SUBDIR" "$CAMERA"
-
 # Adjust dropbear init script order
 if [ -f "${TARGET_DIR}/etc/init.d/S50dropbear" ]; then
 	mv ${TARGET_DIR}/etc/init.d/S50dropbear ${TARGET_DIR}/etc/init.d/S30dropbear

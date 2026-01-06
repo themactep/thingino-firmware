@@ -1,0 +1,14 @@
+{
+  "gpio": {
+    "button_reset": 14,
+    "ir940": 50,
+    "ircut": "16 17",
+    "led_b": {
+      "pin": 35,
+      "active_low": true
+    },
+    "mmc_cd": 49,
+    "scl": "58i",
+    "sda": "57i"
+  }
+}

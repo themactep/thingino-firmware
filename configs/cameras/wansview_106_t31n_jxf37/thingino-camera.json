@@ -1,0 +1,11 @@
+{
+  "gpio": {
+    "ircut": "",
+    "led_r": {
+      "pin": 53,
+      "active_low": false
+    },
+    "mmc_cd": "",
+    "net": ""
+  }
+}

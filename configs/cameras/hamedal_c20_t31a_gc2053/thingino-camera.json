@@ -1,0 +1,8 @@
+{
+  "gpio": {
+    "button_audio_mute": 35,
+    "button_video_mute": 34,
+    "button_vol_down": 33,
+    "button_vol_up": 32
+  }
+}

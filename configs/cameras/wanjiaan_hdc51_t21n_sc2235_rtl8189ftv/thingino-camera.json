@@ -1,0 +1,18 @@
+{
+  "gpio": {
+    "button_reset": 59,
+    "led_b": {
+      "pin": 52,
+      "active_low": true
+    },
+    "led_r": {
+      "pin": 53,
+      "active_low": true
+    },
+    "mmc_cd": 51,
+    "wlan": {
+      "pin": 62,
+      "active_low": true
+    }
+  }
+}
