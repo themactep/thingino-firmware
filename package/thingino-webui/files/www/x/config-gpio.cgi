@@ -7,25 +7,25 @@ domain="gpio"
 temp_file="/tmp/gpio.json"
 
 set_value() {
-[ -f "$temp_file" ] || echo '{}' > "$temp_file"
-jct "$temp_file" set "$1" "$2" 2>/dev/null
+  [ -f "$temp_file" ] || echo '{}' > "$temp_file"
+  jct "$temp_file" set "$1" "$2" 2>/dev/null
 }
 
 save_gpio_pin() {
-local name=$1
-eval local pin=\$POST_${name}_pin
-eval local inv=\$POST_${name}_inv
-eval local lit=\$POST_${name}_lit
-eval local ch=\$POST_${name}_ch
-eval local lvl=\$POST_${name}_lvl
+  local name=$1
+  eval local pin=\$POST_${name}_pin
+  eval local inv=\$POST_${name}_inv
+  eval local lit=\$POST_${name}_lit
+  eval local ch=\$POST_${name}_ch
+  eval local lvl=\$POST_${name}_lvl
 
-[ -z "$pin" ] && return
+  [ -z "$pin" ] && return
 
-set_value "$domain.$name.pin" "$pin"
-[ "$inv" = "true" ] && set_value "$domain.$name.active_low" "true" || set_value "$domain.$name.active_low" "false"
-[ "$lit" = "true" ] && set_value "$domain.$name.active_on_boot" "true" || set_value "$domain.$name.active_on_boot" "false"
-[ -n "$ch" ] && set_value "$domain.$name.pwm_channel" "$ch"
-[ -n "$lvl" ] && set_value "$domain.$name.pwm_level" "$lvl"
+  set_value "$domain.$name.pin" "$pin"
+  [ "$inv" = "true" ] && set_value "$domain.$name.active_low" "true" || set_value "$domain.$name.active_low" "false"
+  [ "$lit" = "true" ] && set_value "$domain.$name.active_on_boot" "true" || set_value "$domain.$name.active_on_boot" "false"
+  [ -n "$ch" ] && set_value "$domain.$name.pwm_channel" "$ch"
+  [ -n "$lvl" ] && set_value "$domain.$name.pwm_level" "$lvl"
 }
 
 if [ "POST" = "$REQUEST_METHOD" ]; then
@@ -164,7 +164,7 @@ ${isPWMPin(pin) ? `
     <div class="row">
       <label class="form-label col-9" for="${name}_ch">GPIO PWM channel</label>
       <div class="col">
-        <input type="text" class="form-control text-end" id="${name}_ch" name="${name}_ch" pattern="[0-9]{1,3}" title="empty or a number" value="${pwmCh}">
+        <input type="text" class="form-control text-end" id="${name}_ch" name="${name}_ch" pattern="[0-9]{1,3}" title="empty or a number" value="${pwmCh}" readonly>
       </div>
     </div>
     <div class="row">
@@ -240,7 +240,13 @@ gpioConfigs.forEach(({ name }) => {
   const toggle = document.getElementById(name + '_toggle');
   if (toggle) {
     toggle.addEventListener('click', () => {
-      fetch('/x/json-gpio.cgi?' + new URLSearchParams({ 'n': name, 's': '~' }).toString())
+      fetch('/x/json-gpio.cgi', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({ 'n': name, 's': '~' }).toString()
+      })
         .then(res => res.json())
         .then(data => console.log(data.message));
     });
