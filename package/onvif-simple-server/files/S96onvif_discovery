@@ -50,6 +50,9 @@ start() {
 		return
 	fi
 
+	steps_pan="$(jct /etc/motors.json get motors.steps_pan)"
+	steps_tilt="$(jct /etc/motors.json get motors.steps_pan)"
+
 	tempfile=$(mktemp -u)
 	cp $ONVIF_CONFIG $tempfile
 	update_config $tempfile "model" "$model"
@@ -59,11 +62,11 @@ start() {
 	update_config $tempfile "ifs" "$iface"
 	update_config $tempfile "user" "$(awk -F '"' '/username:/ {print $2}' $PRUDYNT_CONFIG)"
 	update_config $tempfile "password" "$(awk -F '"' '/password:/ {print $2}' $PRUDYNT_CONFIG)"
-	update_config $tempfile "ptz" "$([ -n "$gpio_motor_h" ] && echo 1 || echo 0)"
-	update_config $tempfile "max_step_x" "$motor_maxstep_h"
-	update_config $tempfile "max_step_y" "$motor_maxstep_v"
-	update_config $tempfile "move_right" "motors -d h -x $motor_maxstep_h"
-	update_config $tempfile "move_down" "motors -d h -y $motor_maxstep_v"
+	update_config $tempfile "ptz" "$([ -f /etc/motors.json ] && echo 1 || echo 0)"
+	update_config $tempfile "max_step_x" "$steps_pan"
+	update_config $tempfile "max_step_y" "$steps_tilt"
+	update_config $tempfile "move_right" "motors -d h -x $steps_pan"
+	update_config $tempfile "move_down"  "motors -d h -y $steps_tilt"
 	sed -i '1i # GENERATED On '"$(date)" $tempfile
 	mv $tempfile $ONVIF_CONFIG
 }
