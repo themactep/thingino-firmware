@@ -1,5 +1,5 @@
-config BR2_PACKAGE_THINGINO_DAYNIGHT
-	bool "thignino-daynight"
+config BR2_PACKAGE_THINGINO_DAYNIGHTD
+	bool "thignino-daynight-daemon"
 	help
 	  Automatic Day/Night Mode Switching Daemon for IP cameras.
 	  
@@ -12,16 +12,16 @@ config BR2_PACKAGE_THINGINO_DAYNIGHT
 	  
 	  https://github.com/themactep/thingino-firmware
 
-if BR2_PACKAGE_DAYNIGHT
+if BR2_PACKAGE_DAYNIGHTD
 
-config BR2_PACKAGE_DAYNIGHT_DEBUG
+config BR2_PACKAGE_DAYNIGHTD_DEBUG
 	bool "Enable debug build"
 	help
 	  Build daynightd with debug symbols and verbose logging.
 	  This increases binary size but provides better debugging
 	  capabilities for development and troubleshooting.
 
-config BR2_PACKAGE_DAYNIGHT_AUTOSTART
+config BR2_PACKAGE_DAYNIGHTD_AUTOSTART
 	bool "Auto-start at boot"
 	default y
 	help

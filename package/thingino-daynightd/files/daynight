@@ -67,17 +67,17 @@ switch_to_day() {
 
 	if controls_ir850; then
 		echo_info "turn IR LED 850mn OFF"
-		irled off ir850 &
+		light ir850 off &
 	fi
 
 	if controls_ir940; then
 		echo_info "turn IR LED 940mn OFF"
-		irled off ir940 &
+		light ir940 off &
 	fi
 
 	if controls_white; then
 		echo_info "turn White Light OFF"
-		irled off white &
+		light white off &
 	fi
 
 	if controls_color; then
@@ -103,17 +103,17 @@ switch_to_night() {
 
 	if controls_ir850; then
 		echo_info "turn IR LED 850mn ON"
-		irled on ir850 &
+		light ir850 on &
 	fi
 
 	if controls_ir940; then
 		echo_info "- turn IR LED 940mn ON"
-		irled on ir940 &
+		light ir940 on &
 	fi
 
 	if controls_white; then
 		echo_info "- turn White Light ON"
-		irled on white &
+		light white on &
 	fi
 
 	echo "night" >"$MODE_FILE"
