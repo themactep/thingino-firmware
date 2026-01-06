@@ -1,7 +1,7 @@
 INGENIC_SDK_SITE_METHOD = git
 INGENIC_SDK_SITE = https://github.com/themactep/ingenic-sdk
 INGENIC_SDK_SITE_BRANCH = master
-INGENIC_SDK_VERSION = 37df4ecbcc4efc11faff44938a44852ca18edec9
+INGENIC_SDK_VERSION = 6bf94e5ac7aae56b30ddbf52dccffc5f62a148d2
 
 INGENIC_SDK_LICENSE = GPL-3.0
 INGENIC_SDK_LICENSE_FILES = LICENSE
@@ -11,7 +11,7 @@ INGENIC_SDK_MODULE_MAKE_OPTS = \
 	KERNEL_VERSION=$(KERNEL_VERSION) \
 	INSTALL_MOD_PATH=$(TARGET_DIR) \
 	INSTALL_MOD_DIR=ingenic \
-	SENSOR_MODEL=$(SENSOR_MODEL) \
+	SENSOR_1_MODEL=$(SENSOR_1_MODEL) \
 	$(MULTI_SENSOR_ENABLED) \
 	$(MULTI_SENSOR_1_ENABLED) \
 	$(MULTI_SENSOR_2_ENABLED)
@@ -24,18 +24,18 @@ endif
 
 # Old SDK's don't set the SOC in the IQ file name
 ifeq ($(BR2_SOC_INGENIC_T10)$(BR2_SOC_INGENIC_T20)$(BR2_SOC_INGENIC_T30),y)
-	SENSOR_CONFIG_NAME = $(SENSOR_MODEL).bin
+	SENSOR_1_CONFIG_NAME = $(SENSOR_1_MODEL).bin
 else
-	SENSOR_CONFIG_NAME = $(SENSOR_MODEL)-$(SOC_FAMILY).bin
+	SENSOR_1_CONFIG_NAME = $(SENSOR_1_MODEL)-$(SOC_FAMILY).bin
 endif
 
-ifneq ($(BR2_THINGINO_IMAGE_SENSOR_QTY_2)$(BR2_THINGINO_IMAGE_SENSOR_QTY_3)$(BR2_THINGINO_IMAGE_SENSOR_QTY_4),)
-	MULTI_SENSOR_ENABLED = CONFIG_MULTI_SENSOR=1
-	SENSOR_CONFIG_NAME = $(patsubst %s0,%,$(SENSOR_MODEL_1))-$(SOC_FAMILY).bin
-	SENSOR_1_BIN_NAME = $(patsubst %s0,%,$(SENSOR_MODEL_1))
-	MULTI_SENSOR_1_ENABLED = SENSOR_MODEL_1=$(SENSOR_MODEL_1)
-	MULTI_SENSOR_2_ENABLED = SENSOR_MODEL_2=$(SENSOR_MODEL_2)
-	SENSOR_2_CONFIG_NAME = $(SENSOR_MODEL_2)-$(SOC_FAMILY).bin
+ifneq ($(BR2_THINGINO_IMAGE_SENSOR_QTY),1)
+	MULTI_SENSOR_ENABLED   = CONFIG_MULTI_SENSOR=1
+	SENSOR_1_CONFIG_NAME   = $(patsubst %s0,%,$(SENSOR_1_MODEL))-$(SOC_FAMILY).bin
+	SENSOR_1_BIN_NAME      = $(patsubst %s0,%,$(SENSOR_1_MODEL))
+	MULTI_SENSOR_1_ENABLED = SENSOR_1_MODEL=$(SENSOR_1_MODEL)
+	MULTI_SENSOR_2_ENABLED = SENSOR_2_MODEL=$(SENSOR_2_MODEL)
+	SENSOR_2_CONFIG_NAME   = $(SENSOR_2_MODEL)-$(SOC_FAMILY).bin
 else
 	MULTI_SENSOR_ENABLED =
 endif
@@ -93,14 +93,14 @@ endef
 
 define INSTALL_SENSOR_BIN
 	if [ "$(1)" != "" ]; then \
-		$(if $(filter-out $(SENSOR_MODEL_2),$(1)),ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor;) \
+		$(if $(filter-out $(SENSOR_2_MODEL),$(1)),ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor;) \
 		$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/$(2).bin \
 			$(TARGET_DIR)/usr/share/sensor/$(3); \
 		if [ -f $(@D)/sensor-iq/$(SOC_FAMILY)/$(2)-cust.bin ]; then \
 			$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/$(2)-cust.bin \
 				$(TARGET_DIR)/usr/share/sensor/$(patsubst %.bin,$(2)-cust-$(SOC_FAMILY).bin,$(3)); \
 		fi; \
-		$(if $(filter-out $(SENSOR_MODEL_2),$(1)),echo $(1) > $(TARGET_DIR)/usr/share/sensor/model;) \
+		$(if $(filter-out $(SENSOR_2_MODEL),$(1)),echo $(1) > $(TARGET_DIR)/usr/share/sensor/model;) \
 	fi
 endef
 
@@ -154,16 +154,16 @@ define GENERATE_MODULE_LOADER
 		echo "soc-nna" >> $(TARGET_DIR)/etc/modules.d/nna; \
 	fi
 
-	if [ "$(SENSOR_MODEL)" != "" ]; then \
-		echo "sensor_$(SENSOR_MODEL)_$(SOC_FAMILY) $(BR2_SENSOR_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor; \
+	if [ -n "$(SENSOR_1_MODEL)" ]; then \
+		if [ -n "$(SENSOR_2_MODEL)" ]; then \
+			echo "sensor_$(SENSOR_1_MODEL)_$(SOC_FAMILY) $(BR2_SENSOR_1_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor_1; \
+		else \
+			echo "sensor_$(SENSOR_1_MODEL)_$(SOC_FAMILY) $(BR2_SENSOR_1_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor; \
+		fi \
 	fi
 
-	if [ "$(SENSOR_MODEL_1)" != "" ]; then \
-		echo "sensor_$(SENSOR_MODEL_1)_$(SOC_FAMILY) $(BR2_SENSOR_1_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor_1; \
-	fi
-
-	if [ "$(SENSOR_MODEL_2)" != "" ]; then \
-		echo "sensor_$(SENSOR_MODEL_2)_$(SOC_FAMILY) $(BR2_SENSOR_2_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor_2; \
+	if [ -n "$(SENSOR_2_MODEL)" ]; then \
+		echo "sensor_$(SENSOR_2_MODEL)_$(SOC_FAMILY) $(BR2_SENSOR_2_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor_2; \
 	fi
 endef
 
@@ -177,9 +177,8 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0755 -d $(TARGET_MODULES_PATH)
 	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
 
-	$(call INSTALL_SENSOR_BIN,$(SENSOR_MODEL),$(SENSOR_MODEL),$(SENSOR_CONFIG_NAME))
-	$(call INSTALL_SENSOR_BIN,$(SENSOR_MODEL_1),$(SENSOR_1_BIN_NAME),$(SENSOR_CONFIG_NAME))
-	$(call INSTALL_SENSOR_BIN,$(SENSOR_MODEL_2),$(SENSOR_1_BIN_NAME),$(SENSOR_2_CONFIG_NAME))
+	$(call INSTALL_SENSOR_BIN,$(SENSOR_1_MODEL),$(SENSOR_1_BIN_NAME),$(SENSOR_1_CONFIG_NAME))
+	$(call INSTALL_SENSOR_BIN,$(SENSOR_2_MODEL),$(SENSOR_1_BIN_NAME),$(SENSOR_2_CONFIG_NAME))
 
 	$(GENERATE_MODULE_LOADER)
 	[ "$(BR2_THINGINO_AUDIO)" = "y" ] && $(INSTALL_AUDIO_SUPPORT)
@@ -188,3 +187,4 @@ endef
 
 $(eval $(kernel-module))
 $(eval $(generic-package))
+

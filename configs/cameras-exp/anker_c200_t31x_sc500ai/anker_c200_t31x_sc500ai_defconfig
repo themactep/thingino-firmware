@@ -1,6 +1,6 @@
 # NAME: Anker C200 (T31X, SC500AI)
 # FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
-BR2_SENSOR_SC500AI=y
+BR2_SENSOR_1_NAME=sc500ai
 BR2_SOC_INGENIC_T31X=y
 BR2_AVPU_CLK_600MHZ=y
 BR2_ISP_CLK_200MHZ=y

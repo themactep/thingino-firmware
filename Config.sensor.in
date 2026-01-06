@@ -1,419 +1,60 @@
 menu "Image Sensor Selection"
 depends on !BR2_SOC_FAMILY_INGENIC_A1
 
-choice
-	prompt "Image Sensor Quantity"
-	default BR2_THINGINO_IMAGE_SENSOR_QTY_1
-
-config BR2_THINGINO_IMAGE_SENSOR_QTY_1
-	bool "1 Sensor"
+config BR2_THINGINO_IMAGE_SENSOR_QTY
+	int "Image Sensor Qty"
+	default 1
 	help
-	  Use a single image sensor.
+	  Number of image sensors in the system
 
-config BR2_THINGINO_IMAGE_SENSOR_QTY_2
-	bool "2 Sensors"
-	help
-	  Use two image sensors.
-
-config BR2_THINGINO_IMAGE_SENSOR_QTY_3
-	bool "3 Sensors"
-	depends on BR2_THINGINO_DEV_EXPERIMENTAL
-	help
-	  Use three image sensors.
-
-config BR2_THINGINO_IMAGE_SENSOR_QTY_4
-	bool "4 Sensors"
-	depends on BR2_THINGINO_DEV_EXPERIMENTAL
-	help
-	  Use four image sensors.
-endchoice
-
-choice BR2_SENSOR_NAME
-        prompt "Image Sensor Model"
-	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_1
+config BR2_SENSOR_1_NAME
+	string "Image Sensor Model"
+	default "none"
 	help
 	  Select the sensor model for your device
 
-config BR2_SENSOR_DUMMY
-	bool "Dummy (no sensor)"
-config BR2_SENSOR_AR1337
-	bool "OnSemi AR1337"
-config BR2_SENSOR_BF3A03
-	bool "BYD BF3A03"
-config BR2_SENSOR_C2399
-	bool "Cista C2399"
-config BR2_SENSOR_C23A98
-	bool "Cista C23A98"
-config BR2_SENSOR_C3390
-	bool "Cista C3390"
-config BR2_SENSOR_C4390
-	bool "Cista C4390"
-config BR2_SENSOR_CV2001
-	bool "CVSENS CV2001"
-config BR2_SENSOR_CV2003
-	bool "CVSENS CV2003"
-config BR2_SENSOR_CV3001
-	bool "CVSENS CV3001"
-config BR2_SENSOR_CV4001
-	bool "CVSENS CV4001"
-config BR2_SENSOR_GC0328
-	bool "Galaxycore GC0328"
-config BR2_SENSOR_GC032A
-	bool "Galaxycore GC032A"
-config BR2_SENSOR_GC1034
-	bool "Galaxycore GC1034"
-config BR2_SENSOR_GC1054
-	bool "Galaxycore GC1054"
-config BR2_SENSOR_GC1084
-	bool "Galaxycore GC1084"
-config BR2_SENSOR_GC2023
-	bool "Galaxycore GC2023"
-config BR2_SENSOR_GC2033
-	bool "Galaxycore GC2033"
-config BR2_SENSOR_GC2053
-	bool "Galaxycore GC2053"
-config BR2_SENSOR_GC2063
-	bool "Galaxycore GC2063"
-config BR2_SENSOR_GC2083
-	bool "Galaxycore GC2083"
-config BR2_SENSOR_GC2093
-	bool "Galaxycore GC2093"
-config BR2_SENSOR_GC3003
-	bool "Galaxycore GC3003"
-config BR2_SENSOR_GC3003A
-	bool "Galaxycore GC3003a"
-config BR2_SENSOR_GC4023
-	bool "Galaxycore GC4023"
-config BR2_SENSOR_GC4653
-	bool "Galaxycore GC4653"
-config BR2_SENSOR_GC4C33
-	bool "Galaxycore GC4c33"
-config BR2_SENSOR_GC5035
-	bool "Galaxycore GC5035"
-config BR2_SENSOR_GC5603
-	bool "Galaxycore GC5603"
-config BR2_SENSOR_IMX298
-	bool "Sony IMX298"
-config BR2_SENSOR_IMX307
-	bool "Sony IMX307"
-config BR2_SENSOR_IMX327
-	bool "Sony IMX327"
-config BR2_SENSOR_IMX335
-	bool "Sony IMX335"
-config BR2_SENSOR_JXF22
-	bool "SOI JX-F22"
-config BR2_SENSOR_JXF23
-	bool "SOI JX-F23"
-config BR2_SENSOR_JXF28P
-	bool "SOI JX-F28p"
-config BR2_SENSOR_JXF32
-	bool "SOI JX-F32"
-config BR2_SENSOR_JXF35
-	bool "SOI JX-F35"
-config BR2_SENSOR_JXF352
-	bool "SOI JX-F352"
-config BR2_SENSOR_JXF355P
-	bool "SOI JX-F355p"
-config BR2_SENSOR_JXF37
-	bool "SOI JX-F37"
-config BR2_SENSOR_JXF37P
-	bool "SOI JX-F37p"
-config BR2_SENSOR_JXF38P
-	bool "SOI JX-F38p"
-config BR2_SENSOR_JXF51
-	bool "SOI JX-F51"
-config BR2_SENSOR_JXF53
-	bool "SOI JX-F53"
-config BR2_SENSOR_JXH42
-	bool "SOI JX-H42"
-config BR2_SENSOR_JXH61P
-	bool "SOI JX-H61p"
-config BR2_SENSOR_JXH62
-	bool "SOI JX-H62"
-config BR2_SENSOR_JXH63
-	bool "SOI JX-H63"
-config BR2_SENSOR_JXH66
-	bool "SOI JX-H66"
-config BR2_SENSOR_JXK03
-	bool "SOI JX-K03"
-config BR2_SENSOR_JXK04
-	bool "SOI JX-K04"
-config BR2_SENSOR_JXK05
-	bool "SOI JX-K05"
-config BR2_SENSOR_JXK06
-	bool "SOI JX-K06"
-config BR2_SENSOR_JXQ03
-	bool "SOI JX-Q03"
-config BR2_SENSOR_JXQ03P
-	bool "SOI JX-Q03p"
-config BR2_SENSOR_MIS2006
-	bool "MIS2006"
-config BR2_SENSOR_MIS2008
-	bool "MIS2008"
-config BR2_SENSOR_MIS4001
-	bool "MIS4001"
-config BR2_SENSOR_MIS5001
-	bool "MIS5001"
-config BR2_SENSOR_OS02B10
-	bool "OmniVision OS02b10"
-config BR2_SENSOR_OS02D20
-	bool "OmniVision OS02d20"
-config BR2_SENSOR_OS02G10
-	bool "OmniVision OS02g10"
-config BR2_SENSOR_OS02K10
-	bool "OmniVision OS02k10"
-config BR2_SENSOR_OS03B10
-	bool "OmniVision OS03b10"
-config BR2_SENSOR_OS04B10
-	bool "OmniVision OS04b10"
-config BR2_SENSOR_OS04C10
-	bool "OmniVision OS04c10"
-config BR2_SENSOR_OS04L10
-	bool "OmniVision OS04l10"
-config BR2_SENSOR_OS05A10
-	bool "OmniVision OS05a10"
-config BR2_SENSOR_OS05A20
-	bool "OmniVision OS05a20"
-config BR2_SENSOR_OV2735B
-	bool "OmniVision OV2735b"
-config BR2_SENSOR_OV2740
-	bool "OmniVision OV2740"
-config BR2_SENSOR_OV2745
-	bool "OmniVision OV2745"
-config BR2_SENSOR_OV5648
-	bool "OmniVision OV5648"
-config BR2_SENSOR_OV5695
-	bool "OmniVision OV5695"
-config BR2_SENSOR_OV8856
-	bool "OmniVision OV8856"
-config BR2_SENSOR_OV9712
-	bool "OmniVision OV9712"
-config BR2_SENSOR_OV9732
-	bool "OmniVision OV9732"
-config BR2_SENSOR_OV9750
-	bool "OmniVision OV9750"
-config BR2_SENSOR_PS5258
-	bool "PixArt PS5258"
-config BR2_SENSOR_PS5250
-	bool "PixArt PS5250"
-config BR2_SENSOR_PS5260
-	bool "PixArt PS5260"
-config BR2_SENSOR_PS5268
-	bool "PixArt PS5268"
-config BR2_SENSOR_PS5270
-	bool "PixArt PS5270"
-config BR2_SENSOR_PS5520
-	bool "PixArt PS5520"
-config BR2_SENSOR_SC1235
-	bool "SmartSens SC1235"
-config BR2_SENSOR_SC1346
-	bool "SmartSens SC1346"
-config BR2_SENSOR_SC1A4T
-	bool "SmartSens SC1A4T"
-config BR2_SENSOR_SC200AI
-	bool "SmartSens SC200ai"
-config BR2_SENSOR_SC201CS
-	bool "SmartSens SC201cs"
-config BR2_SENSOR_SC202CS
-	bool "SmartSens SC202cs"
-config BR2_SENSOR_SC2210
-	bool "SmartSens SC2210"
-config BR2_SENSOR_SC2232
-	bool "SmartSens SC2232"
-config BR2_SENSOR_SC2232H
-	bool "SmartSens SC2232h"
-config BR2_SENSOR_SC2235
-	bool "SmartSens SC2235"
-config BR2_SENSOR_SC2239
-	bool "SmartSens SC2239"
-config BR2_SENSOR_SC2239P
-	bool "SmartSens SC2239p"
-config BR2_SENSOR_SC223A
-	bool "SmartSens SC223a"
-config BR2_SENSOR_SC230AI
-	bool "SmartSens SC230ai"
-config BR2_SENSOR_SC2300
-	bool "SmartSens SC2300"
-config BR2_SENSOR_SC2310
-	bool "SmartSens SC2310"
-config BR2_SENSOR_SC2315E
-	bool "SmartSens SC2315e"
-config BR2_SENSOR_SC2331
-	bool "SmartSens SC2331"
-config BR2_SENSOR_SC2332
-	bool "SmartSens SC2332"
-config BR2_SENSOR_SC2335
-	bool "SmartSens SC2335"
-config BR2_SENSOR_SC2336
-	bool "SmartSens SC2336"
-config BR2_SENSOR_SC2336P
-	bool "SmartSens SC2336p"
-config BR2_SENSOR_SC301IOT
-	bool "SmartSens SC301IoT"
-config BR2_SENSOR_SC3235
-	bool "SmartSens SC3235"
-config BR2_SENSOR_SC3332
-	bool "SmartSens SC3332"
-config BR2_SENSOR_SC3335
-	bool "SmartSens SC3335"
-config BR2_SENSOR_SC3336
-	bool "SmartSens SC3336"
-config BR2_SENSOR_SC3338
-	bool "SmartSens SC3338"
-config BR2_SENSOR_SC401AI
-	bool "SmartSens SC401ai"
-config BR2_SENSOR_SC4236
-	bool "SmartSens SC4236"
-config BR2_SENSOR_SC4236H
-	bool "SmartSens SC4236h"
-config BR2_SENSOR_SC4238
-	bool "SmartSens SC4238"
-config BR2_SENSOR_SC4335
-	bool "SmartSens SC4335"
-config BR2_SENSOR_SC4336
-	bool "SmartSens SC4336"
-config BR2_SENSOR_SC4336P
-	bool "SmartSens SC4336p"
-config BR2_SENSOR_SC450AI
-	bool "SmartSens SC450ai"
-config BR2_SENSOR_SC500AI
-	bool "SmartSens SC500ai"
-config BR2_SENSOR_SC5235
-	bool "SmartSens SC5235"
-config BR2_SENSOR_SC5336
-	bool "SmartSens SC5336"
-config BR2_SENSOR_SP1405
-	bool "SP1405"
-config BR2_SENSOR_TP2850
-	bool "TP2850"
-endchoice
-
-choice BR2_SENSOR_1_NAME
-	prompt "Image Sensor Model [Sensor 1]"
-	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+config BR2_SENSOR_2_NAME
+	string "Image Sensor Model [Sensor 2]"
+	default "none"
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY >= 2
 	help
 	  Select the sensor model for your device
 
-config BR2_SENSOR_1_DUMMY
-	bool "Dummy (no sensor)"
-config BR2_SENSOR_1_CV2003S0
-	bool "CV2003s0"
-config BR2_SENSOR_1_GC1084S0
-	bool "GalaxyCore GC1084s0"
-config BR2_SENSOR_1_GC2053S0
-	bool "GalaxyCore GC2053s0"
-config BR2_SENSOR_1_GC2081S0
-	bool "GalaxyCore GC2083s0"
-config BR2_SENSOR_1_JXF37PAS0
-	bool "JX-F37pas0"
-config BR2_SENSOR_1_JXF38pS0
-	bool "JX-F38ps0"
-config BR2_SENSOR_1_JXF63pS0
-	bool "JX-F63ps0"
-config BR2_SENSOR_1_OS02N10S0
-	bool "OnviVision OS02N10s0"
-config BR2_SENSOR_1_OV9734S0
-	bool "OmnviVision OV9731s0"
-config BR2_SENSOR_1_SC1A4TS0
-	bool "SmartSens SC1A4Ts0"
-config BR2_SENSOR_1_SC1346S0
-	bool "SmartSens SC1346s0"
-config BR2_SENSOR_1_SC2331S0
-	bool "SmartSens SC2331s0"
-config BR2_SENSOR_1_SC2336S0
-	bool "SmartSens SC2336s0"
-config BR2_SENSOR_1_SC2336PS0
-	bool "SmartSens SC2336ps0"
-endchoice
-
-choice BR2_SENSOR_NAME_2
-	prompt "Image Sensor Model [Sensor 2]"
-	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_2 || BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+config BR2_SENSOR_3_NAME
+	string "Image Sensor Model [Sensor 3]"
+	default "none"
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY >= 3
 	help
 	  Select the sensor model for your device
 
-config BR2_SENSOR_2_DUMMY
-	bool "Dummy (no sensor)"
-config BR2_SENSOR_2_CV2003S1
-	bool "CV2003s1"
-config BR2_SENSOR_2_GC1084S1
-	bool "GalaxyCore GC1084s1"
-config BR2_SENSOR_2_GC2053S1
-	bool "GalaxyCore GC2053s1"
-config BR2_SENSOR_2_GC2081S1
-	bool "GalaxyCore GC2083s1"
-config BR2_SENSOR_2_JXF37PAS1
-	bool "JX-F37pas1"
-config BR2_SENSOR_2_JXF38pS1
-	bool "JX-F38ps1"
-config BR2_SENSOR_2_JXF63pS1
-	bool "JX-F63ps1"
-config BR2_SENSOR_2_OS02N10S1
-	bool "OnviVision OS02N10s1"
-config BR2_SENSOR_2_OV9734S1
-	bool "OmnviVision OV9731s1"
-config BR2_SENSOR_2_SC1A4TS1
-	bool "SmartSens SC1A4Ts1"
-config BR2_SENSOR_2_SC1346S1
-	bool "SmartSens SC1346s1"
-config BR2_SENSOR_2_SC2331S1
-	bool "SmartSens SC2331s1"
-config BR2_SENSOR_2_SC2336S1
-	bool "SmartSens SC2336s1"
-config BR2_SENSOR_2_SC2336PS1
-	bool "SmartSens SC2336ps1"
-endchoice
-
-choice BR2_SENSOR_NAME_3
-	prompt "Image Sensor Model [Sensor 3]"
-	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_3 || BR2_THINGINO_IMAGE_SENSOR_QTY_4
+config BR2_SENSOR_4_NAME
+	string "Image Sensor Model [Sensor 4]"
+	default "none"
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY >= 4
 	help
 	  Select the sensor model for your device
-
-config BR2_SENSOR_3_DUMMY
-	bool "Dummy (no sensor)"
-endchoice
-
-choice BR2_SENSOR_NAME_4
-	prompt "Image Sensor Model [Sensor 4]"
-	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_4
-	help
-	  Select the sensor model for your device
-
-config BR2_SENSOR_4_DUMMY
-	bool "Dummy (no sensor)"
-
-endchoice
-
-config BR2_SENSOR_PARAMS
-	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_1
-	string "Image sensor parameters"
-	help
-	  Set additional parameters passed to image sensor kernel module
 
 config BR2_SENSOR_1_PARAMS
-	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_2
 	string "Image sensor parameters [Sensor 1]"
 	help
 	  Set additional parameters passed to image sensor kernel module
 
 config BR2_SENSOR_2_PARAMS
-	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_2
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY >= 2
 	string "Image sensor parameters [Sensor 2]"
 	help
 	  Set additional parameters passed to image sensor kernel module
 
 config BR2_SENSOR_3_PARAMS
-	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_3
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY >= 3
 	string "Image sensor parameters [Sensor 3]"
 	help
 	  Set additional parameters passed to image sensor kernel module
 
 config BR2_SENSOR_4_PARAMS
-	depends on BR2_THINGINO_IMAGE_SENSOR_QTY_4
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY >= 4
 	string "Image sensor parameters [Sensor 4]"
 	help
 	  Set additional parameters passed to image sensor kernel module
 
 endmenu
-
