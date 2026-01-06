@@ -113,21 +113,6 @@ defaults
       <% field_checkbox "controls_ir940" "Toggle IR 940 nm" %>
       <% field_checkbox "controls_white" "Toggle white light" %>
     </div>
-<!--
-    <div class="col">
-      <h3>By Sun</h3>
-      <% field_switch "dusk2dawn_enabled" "Enable Sun tracking" %>
-      <div class="row g-1">
-        <div class="col"><% field_text "dusk2dawn_lat" "Latitude" %></div>
-        <div class="col"><% field_text "dusk2dawn_lng" "Longitude" %></div>
-      </div>
-      <p><a href="https://my-coordinates.com/">Find your coordinates</a></p>
-      <div class="row g-1">
-        <div class="col"><% field_text "dusk2dawn_offset_sr" "Sunrise offset" "minutes" %></div>
-        <div class="col"><% field_text "dusk2dawn_offset_ss" "Sunset offset" "minutes" %></div>
-      </div>
-    </div>
--->
     <div class="col">
       <div class="alert alert-info">
         <p>The day/night mode is controlled by the brightness of the scene.
