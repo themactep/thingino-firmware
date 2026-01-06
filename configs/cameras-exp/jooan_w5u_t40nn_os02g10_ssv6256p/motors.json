@@ -1,5 +1,6 @@
 {
   "motors": {
+    "is_spi": false,
     "motor_maxstep_h": "4200",
     "motor_maxstep_v": "1200",
     "motor_speed_h": "900",
