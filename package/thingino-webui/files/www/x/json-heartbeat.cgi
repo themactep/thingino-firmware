@@ -13,9 +13,9 @@ heartbeat_payload() {
   # Read hardware states
   color_mode=$(color read 2>/dev/null || echo "")
   ircut_state=$(ircut read 2>/dev/null || echo "")
-  ir850_state=$(irled read ir850 2>/dev/null || echo "")
-  ir940_state=$(irled read ir940 2>/dev/null || echo "")
-  white_state=$(irled read white 2>/dev/null || echo "")
+  ir850_state=$(light ir850 read 2>/dev/null || echo "")
+  ir940_state=$(light ir940 read 2>/dev/null || echo "")
+  white_state=$(light white read 2>/dev/null || echo "")
 
   # Read audio states
   audio_states=$(echo '{"audio":{"mic_enabled":null,"spk_enabled":null}}' | prudyntctl json - 2>/dev/null)

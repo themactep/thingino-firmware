@@ -24,11 +24,12 @@ unknown_value() {
 # Read POST data
 read -r POST_DATA
 
-# Parse JSON using awk
-cmd=$(echo "$POST_DATA" | awk -F'"' '/"cmd"/{for(i=1;i<=NF;i++){if($i=="cmd"){print $(i+2); exit}}}')
-val=$(echo "$POST_DATA" | awk -F'"' '/"val"/{for(i=1;i<=NF;i++){if($i=="val"){print $(i+2); exit}}}')
+# Parse JSON (supports quoted or numeric val)
+cmd=$(printf '%s' "$POST_DATA" | awk -F'"' '/"cmd"/{for(i=1;i<=NF;i++){if($i=="cmd"){print $(i+2); exit}}}')
+val=$(printf '%s' "$POST_DATA" | sed -n 's/.*"val"[[:space:]]*:[[:space:]]*"\{0,1\}\([^",}]*\).*/\1/p')
 
 [ -z "$cmd" ] && bad_request "missing required parameter cmd"
+[ -z "$val" ] && bad_request "missing required parameter val"
 
 case "$cmd" in
   color)
@@ -42,8 +43,8 @@ case "$cmd" in
     exit 0
     ;;
   ir850 | ir940 | white)
-    command="irled ${val:-read} $cmd"
-    ret=$(irled ${val:-read} $cmd >/dev/null)
+    command="light $cmd $val"
+    ret=$(light $cmd $val)
     ;;
   ircut)
     command="ircut $val"
@@ -62,13 +63,13 @@ color=$(color read)
 ircut=$(ircut read)
 [ -z "$ircut" ] || payload="$payload,\"ircut\":$ircut"
 
-ir850=$(irled read ir850)
+ir850=$(light ir850 read)
 [ -z "$ir850" ] || payload="$payload,\"ir850\":$ir850"
 
-ir940=$(irled read ir940)
+ir940=$(light ir940 read)
 [ -z "$ir940" ] || payload="$payload,\"ir940\":$ir940"
 
-white=$(irled read white)
+white=$(light white read)
 [ -z "$white" ] || payload="$payload,\"white\":$white"
 
 payload="$payload}"
