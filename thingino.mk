@@ -522,10 +522,7 @@ export SENSOR_4_MODEL
 #
 
 # ISP kernel reserved memory allocations
-FOUND_RMEM := $(subst BR2_THINGINO_RMEM_,,$(strip \
-	$(foreach v,$(filter BR2_THINGINO_RMEM_%,$(filter-out BR2_THINGINO_RMEM_CHOICE,$(.VARIABLES))), \
-		$(if $(filter y,$($(v))),$(v)) \
-	)))
+FOUND_RMEM := $(BR2_THINGINO_RMEM_MB)
 
 # Set the default RMEM size based on SOC ram size if no explicit value found
 # These values match the default values found in uboot by the soc ram size
@@ -543,27 +540,17 @@ ifeq ($(FOUND_RMEM),)
 else
 	ISP_RMEM := $(FOUND_RMEM)
 endif
-
 export ISP_RMEM
 
-FOUND_ISPMEM := $(subst BR2_THINGINO_ISPMEM_,,$(strip \
-	$(foreach v,$(filter BR2_THINGINO_ISPMEM_%,$(filter-out BR2_THINGINO_ISPMEM_CHOICE,$(.VARIABLES))), \
-		$(if $(filter y,$($(v))),$(v)) \
-	)))
-
+FOUND_ISPMEM := $(BR2_THINGINO_ISPMEM_MB)
 ifeq ($(FOUND_ISPMEM),)
 	ISP_ISPMEM := 8
 else
 	ISP_ISPMEM := $(FOUND_ISPMEM)
 endif
-
 export ISP_ISPMEM
 
-FOUND_NMEM := $(subst BR2_THINGINO_NMEM_,,$(strip \
-	$(foreach v,$(filter BR2_THINGINO_NMEM_%,$(filter-out BR2_THINGINO_NMEM_CHOICE,$(.VARIABLES))), \
-		$(if $(filter y,$($(v))),$(v)) \
-	)))
-
+FOUND_NMEM := $(BR2_THINGINO_NMEM_MB)
 ifeq ($(FOUND_NMEM),)
 	ifeq ($(SOC_RAM),64)
 		ISP_NMEM := 23
@@ -577,7 +564,6 @@ ifeq ($(FOUND_NMEM),)
 else
 	ISP_NMEM := $(FOUND_NMEM)
 endif
-
 export ISP_NMEM
 
 # Default IPU clock speed
