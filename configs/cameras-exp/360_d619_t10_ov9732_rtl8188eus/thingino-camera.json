@@ -1,0 +1,16 @@
+{
+  "gpio": {
+    "ircut": "26 25",
+    "led_r": 49,
+    "sda": 57,
+    "scl": 58,
+    "mmc_cd": 59,
+    "ir850": 61,
+    "wlan": 62,
+    "button_reset": 64,
+    "led_b": {
+      "pin": 72,
+      "active_low": true
+    }
+  }
+}

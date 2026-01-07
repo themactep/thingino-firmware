@@ -1,0 +1,17 @@
+{
+  "gpio": {
+    "ircut": 72,
+    "ir850": {
+      "pin": 89,
+      "active_low": true
+    },
+    "led_r": {
+      "pin": 90,
+      "active_low": true
+    },
+    "led_b": {
+      "pin": 49,
+      "active_low": true
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+    "motors": {
+        "gpio_pan": "53 52 54 51",
+        "gpio_switch": 17,
+        "gpio_tilt": "53 52 54 51"
+    }
+}

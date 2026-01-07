@@ -1,0 +1,16 @@
+{
+  "gpio": {
+    "button_reset": 50,
+    "ircut": "57 58",
+    "led_b": {
+      "pin": 16,
+      "active_low": true
+    },
+    "led_r": {
+      "pin": 17,
+      "active_low": true
+    },
+    "mmc_cd": 49,
+    "wlan": 10
+  }
+}
