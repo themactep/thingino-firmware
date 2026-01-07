@@ -938,25 +938,10 @@ export ISP_ISP_M2_BUFS
 # FLASH CHIP
 #
 
-ifeq ($(FLASH_SIZE_8),y)
-	FLASH_SIZE := $(SIZE_8M)
-else ifeq ($(FLASH_SIZE_16),y)
-	FLASH_SIZE := $(SIZE_16M)
-else ifeq ($(FLASH_SIZE_32),y)
-	FLASH_SIZE := $(SIZE_32M)
-else ifeq ($(FLASH_SIZE_128),y)
-	FLASH_SIZE := $(SIZE_128M)
-else ifeq ($(FLASH_SIZE_256),y)
-	FLASH_SIZE := $(SIZE_256M)
-else ifeq ($(FLASH_SIZE_512),y)
-	FLASH_SIZE := $(SIZE_512M)
-else ifeq ($(FLASH_SIZE_1G),y)
-	FLASH_SIZE := $(SIZE_1G)
-else
-	FLASH_SIZE := $(SIZE_8M)
+ifeq ($(FLASH_SIZE_MB),)
+	FLASH_SIZE_MB := 8
 endif
-
-export FLASH_SIZE
+export FLASH_SIZE_MB
 
 #
 # U-BOOT

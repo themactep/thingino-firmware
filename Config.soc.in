@@ -1941,33 +1941,11 @@ config BR2_THINGINO_FLASH_NAND
 	bool "SPI NAND"
 endchoice
 
-choice
-	prompt "Flash chip size"
-config FLASH_SIZE_8
-	bool "8MB (64MBit)"
-	depends on BR2_THINGINO_FLASH_NOR
-config FLASH_SIZE_16
-	bool "16MB (128MBit)"
-	depends on BR2_THINGINO_FLASH_NOR
-config FLASH_SIZE_32
-	bool "32MB (256MBit)"
-	depends on BR2_THINGINO_FLASH_NOR
+config FLASH_SIZE_MB
+	bool "Flash chip size, MB"
+	depends on BR2_THINGINO_FLASH_NOR || BR2_THINGINO_FLASH_NAND
 	select BR2_PACKAGE_THINGINO_UBOOT_ENABLE_BAR if (!FLASH_NAND && !BR2_SOC_FAMILY_INGENIC_T40 && !BR2_SOC_FAMILY_INGENIC_T41)
-config FLASH_SIZE_128
-	depends on BR2_THINGINO_FLASH_NAND
-	bool "128MB"
-config FLASH_SIZE_256
-	depends on BR2_THINGINO_FLASH_NAND
-	bool "256MB"
-config FLASH_SIZE_512
-	depends on BR2_THINGINO_FLASH_NAND
-	bool "512MB"
-config FLASH_SIZE_1G
-	depends on BR2_THINGINO_FLASH_NAND
-	bool "1GB"
-endchoice
 
-choice
 	prompt "Flash Alignment Size"
 	default BR2_THINGINO_ALIGN_SIZE_32K
 	depends on BR2_THINGINO_DEV_EXPERIMENTAL
