@@ -1036,6 +1036,7 @@ config BR2_THINGINO_AUDIO
 
 config BR2_THINGINO_AUDIO_GPIO
 	int "Speaker GPIO"
+	default -1
 	help
 	  Speaker GPIO
 
