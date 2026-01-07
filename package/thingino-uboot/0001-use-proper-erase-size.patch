@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: hyx0329 <hyx0329@outlook.com>
+Date: Wed, 7 Jan 2026 18:03:36 +0800
+Subject: [PATCH] use proper erase size
+
+Thingino uses a partition setup aligned to 32KB, while some flash chips
+are hardcoded to erase by 64KB if possible. The check only checks for
+32KB and that will cause unsigned long int overflow and the whole flash
+will be erased.
+
+Use smallest erase size(4K) if erase length is smaller than predefined
+sector size.
+
+Signed-off-by: hyx0329 <hyx0329@outlook.com>
+---
+ drivers/mtd/devices/jz_sfc_v1/jz_sfc_nor.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/mtd/devices/jz_sfc_v1/jz_sfc_nor.c b/drivers/mtd/devices/jz_sfc_v1/jz_sfc_nor.c
+index 9d114eb..e212cbb 100644
+--- a/drivers/mtd/devices/jz_sfc_v1/jz_sfc_nor.c
++++ b/drivers/mtd/devices/jz_sfc_v1/jz_sfc_nor.c
+@@ -878,7 +878,9 @@ int jz_sfc_erase(struct spi_flash *flash, u32 offset, size_t len)
+ 
+ 	jz_sfc_set_address_mode(flash,1);
+ 
+-	if(len < 0x8000){
++	if(len < (size_t)erase_size) {
++		// use minimum erase size(4k) if len is smaller than predefined
++		// sector_size in jz_spi.h
+ 		erase_size = 0x1000;
+ 	}
+ 
+-- 
+2.52.0
+
