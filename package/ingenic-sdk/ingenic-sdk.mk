@@ -80,18 +80,6 @@ define GENERATE_GPIO_USERKEYS_CONFIG
 	fi
 endef
 
-define GENERATE_AUDIO_CONFIG
-	gpio_speaker=$(BR2_THINGINO_AUDIO_GPIO); \
-	if [ -z "$$gpio_speaker" ]; then \
-		spk_gpio=-1; \
-		spk_level=-1; \
-	else \
-		spk_gpio=$$gpio_speaker; \
-		[ "$(BR2_THINGINO_AUDIO_GPIO_LOW)" = "y" ] && spk_level=0 || spk_level=1; \
-	fi; \
-	echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(BR2_THINGINO_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/audio
-endef
-
 define INSTALL_SENSOR_BIN
 	if [ "$(1)" != "" ]; then \
 		$(if $(filter-out $(SENSOR_2_MODEL),$(1)),ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor;) \
@@ -169,9 +157,23 @@ define GENERATE_MODULE_LOADER
 endef
 
 define INSTALL_AUDIO_SUPPORT
-	$(INSTALL) -D -m 0644 $(@D)/config/webrtc_profile.ini $(TARGET_DIR)/etc/
+	gpio_speaker=$(BR2_THINGINO_AUDIO_GPIO); \
+	if [ -z "$$gpio_speaker" ]; then \
+		spk_gpio=-1; \
+		spk_level=-1; \
+	else \
+		spk_gpio=$$gpio_speaker; \
+		if [ "$(BR2_THINGINO_AUDIO_GPIO_LOW)" = "y" ]; then \
+			spk_level=0; \
+		else \
+			spk_level=1; \
+		fi; \
+	fi; \
+	echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(BR2_THINGINO_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/audio
+
+	[ -f $(@D)/config/webrtc_profile.ini ] && $(INSTALL) -D -m 0644 $(@D)/config/webrtc_profile.ini $(TARGET_DIR)/etc/
+
 	$(INSTALL) -D -m 0755 $(INGENIC_SDK_PKGDIR)/files/speaker-ctrl $(TARGET_DIR)/usr/sbin/speaker-ctrl
-	$(GENERATE_AUDIO_CONFIG)
 endef
 
 define INGENIC_SDK_INSTALL_TARGET_CMDS
@@ -182,8 +184,8 @@ define INGENIC_SDK_INSTALL_TARGET_CMDS
 	$(call INSTALL_SENSOR_BIN,$(SENSOR_2_MODEL),$(SENSOR_1_BIN_NAME),$(SENSOR_2_CONFIG_NAME))
 
 	$(GENERATE_MODULE_LOADER)
-	[ "$(BR2_THINGINO_AUDIO)" = "y" ] && $(INSTALL_AUDIO_SUPPORT)
 	$(GENERATE_GPIO_USERKEYS_CONFIG)
+	[ "$(BR2_THINGINO_AUDIO)" = "y" ] && $(INSTALL_AUDIO_SUPPORT)
 endef
 
 $(eval $(kernel-module))
