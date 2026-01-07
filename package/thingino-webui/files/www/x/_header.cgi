@@ -94,7 +94,7 @@ configured_channel=$(jct "/etc/prudynt.json" get "recorder.channel" 2>/dev/null 
   <div class="container" style="min-height: 80vh">
     <div class="row my-2 x-small">
 
-      <div class="col-12 col-lg-6">
+      <div class="col-11 col-lg-6">
         <div id="button-bar" class="d-flex align-items-center gap-1 mb-2 flex-wrap">
           <button type="button" class="btn btn-secondary" id="motion" title="Motion Guard">
             <i class="bi bi-person-walking"></i>
@@ -145,11 +145,11 @@ configured_channel=$(jct "/etc/prudynt.json" get "recorder.channel" 2>/dev/null 
         </div>
       </div>
 
-      <div class="col col-1">
+      <div class="col-1">
         <a href="config-daynight.cgi" class="dnd-gain <%= $CSS_SILENT_LINK %>" title="Brightness"></a>
       </div>
 
-      <div class="col col-2">
+      <div class="col-4 col-lg-2">
         <div class="progress-stacked memory my-1">
           <div class="progress" role="progressbar" id="pb-memory-active" aria-label="Active" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
             <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width:100%"></div>
@@ -173,11 +173,11 @@ configured_channel=$(jct "/etc/prudynt.json" get "recorder.channel" 2>/dev/null 
         </div>
       </div>
 
-      <div class="col col-2 text-end">
+      <div class="col-7 col-lg-2 text-end">
         <a href="/x/config-time.cgi" id="time-now" class="<%= $CSS_SILENT_LINK %>"></a>
       </div>
 
-      <div class="col col-1 text-end">
+      <div class="col-1 text-end">
         <button type="button" class="btn btn-secondary" id="theme-toggle" title="Toggle theme">
           <i class="bi bi-brilliance"></i>
         </button>
