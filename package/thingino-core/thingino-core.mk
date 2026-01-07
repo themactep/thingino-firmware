@@ -11,10 +11,10 @@ define THINGINO_CORE_INSTALL_TARGET_CMDS
 	[ -f $(THINGINO_CORE_OUTPUT_FILE) ] || echo '{}' > $(THINGINO_CORE_OUTPUT_FILE)
 
 	CAMERA_CONFIG=$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino-camera.json; \
-	[ -f $$CAMERA_CONFIG ] && $(HOST_DIR)/bin/jct $(THINGINO_CORE_OUTPUT_FILE) import $$CAMERA_CONFIG
+	[ -f $$CAMERA_CONFIG ] && $(HOST_DIR)/bin/jct $(THINGINO_CORE_OUTPUT_FILE) import $$CAMERA_CONFIG || true
 
 	USER_CONFIG=$(BR2_EXTERNAL)/configs/thingino-local.json; \
-	[ -f $$USER_CONFIG ] && $(HOST_DIR)/bin/jct $(THINGINO_CORE_OUTPUT_FILE) import $$USER_CONFIG
+	[ -f $$USER_CONFIG ] && $(HOST_DIR)/bin/jct $(THINGINO_CORE_OUTPUT_FILE) import $$USER_CONFIG || true
 
 	printf "thingino-core: generated %s\n" $(THINGINO_CORE_OUTPUT_FILE) 1>&2
 endef
