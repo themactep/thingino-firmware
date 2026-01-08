@@ -22,7 +22,7 @@
 
 <div id="debug-wrap">
   <button type="button" class="btn btn-outline-secondary" id="debug" value="1" title="Debug info">
-    <i class="bi bi-bug" style="font-size: 2rem"></i>
+    <i class="bi bi-bug"></i>
   </button>
 </div>
 
