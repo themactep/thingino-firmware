@@ -28,9 +28,8 @@ read_config() {
   ev_day_low_secondary="$(get_value ev_day_low_secondary)"
   ev_night_high="$(get_value ev_night_high)"
   sample_interval_ms="$(get_value sample_interval_ms)"
-  switch_above_percent="$(get_value switch_above_percent)"
-  switch_below_percent="$(get_value switch_below_percent)"
-  tolerance_percent="$(get_value tolerance_percent)"
+  total_gain_night_threshold="$(get_value total_gain_night_threshold)"
+  total_gain_day_threshold="$(get_value total_gain_day_threshold)"
   controls_color="$(get_value controls.color)"
   controls_ir850="$(get_value controls.ir850)"
   controls_ir940="$(get_value controls.ir940)"
@@ -48,9 +47,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
   ev_day_low_secondary="$POST_ev_day_low_secondary"
   ev_night_high="$POST_ev_night_high"
   sample_interval_ms="$POST_sample_interval_ms"
-  switch_above_percent="$POST_switch_above_percent"
-  switch_below_percent="$POST_switch_below_percent"
-  tolerance_percent="$POST_tolerance_percent"
+  total_gain_night_threshold="$POST_total_gain_night_threshold"
+  total_gain_day_threshold="$POST_total_gain_day_threshold"
   controls_color="$POST_controls_color"
   controls_ir850="$POST_controls_ir850"
   controls_ir940="$POST_controls_ir940"
@@ -59,9 +57,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
   # validate
   if [ "true" = "$enabled" ]; then
-    error_if_empty "$switch_above_percent" "Day mode threshold cannot be empty"
-    error_if_empty "$switch_below_percent" "Night mode threshold cannot be empty"
-    error_if_empty "$tolerance_percent" "Hysteresis cannot be empty"
+    error_if_empty "$total_gain_night_threshold" "Night gain threshold cannot be empty"
+    error_if_empty "$total_gain_day_threshold" "Day gain threshold cannot be empty"
   fi
 
   defaults
@@ -72,9 +69,8 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
     set_value ev_day_low_secondary "$ev_day_low_secondary"
     set_value ev_night_high "$ev_night_high"
     set_value sample_interval_ms "$sample_interval_ms"
-    set_value switch_above_percent "$switch_above_percent"
-    set_value switch_below_percent "$switch_below_percent"
-    set_value tolerance_percent "$tolerance_percent"
+    set_value total_gain_night_threshold "$total_gain_night_threshold"
+    set_value total_gain_day_threshold "$total_gain_day_threshold"
     set_value controls.color "$controls_color"
     set_value controls.ir850 "$controls_ir850"
     set_value controls.ir940 "$controls_ir940"
@@ -97,13 +93,13 @@ defaults
 <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-3">
   <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4 mb-4">
     <div class="col">
-      <h3 class="alert alert-warning text-center"><span class="dnd-gain"></span>%</h3>
+      <h3 class="alert alert-warning text-center"><span class="dnd-gain"></span></h3>
       <% field_switch "enabled" "Enable photosensing" %>
     </div>
     <div class="col mb-3">
-      <% field_range "switch_above_percent" "Day mode at value below, %" %>
-      <% field_range "switch_below_percent" "Night mode at value above, %" %>
-      <% field_range "tolerance_percent" "Tolerance, %" %>
+      <h6>Thresholds</h6>
+      <% field_number "total_gain_night_threshold" "Switch to night mode above" "0,10000,1" %>
+      <% field_number "total_gain_day_threshold" "Switch to day mode below" "0,10000,1" %>
     </div>
     <div class="col mb-3">
       <h5>Controls</h5>

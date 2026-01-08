@@ -366,10 +366,11 @@ function updateHeartbeatUi(json) {
 	setProgressBar('#pb-extras-used', json.extras_used, json.extras_total, 'Extras Usage');
 
 	const hasBrightness = typeof (json.daynight_brightness) !== 'undefined' && json.daynight_brightness !== 'unknown' && json.daynight_brightness !== '';
+	const hasTotalGain = typeof (json.total_gain) !== 'undefined' && json.total_gain !== 'unknown' && json.total_gain !== '' && json.total_gain >= 0;
 	const hasMode = typeof (json.daynight_mode) !== 'undefined' && json.daynight_mode !== 'unknown' && json.daynight_mode !== '';
-	if (hasBrightness || hasMode) {
+	if (hasTotalGain || hasBrightness || hasMode) {
 		const icon = dayNightIcon(json.daynight_mode);
-		const label = hasBrightness ? `${icon} ${json.daynight_brightness}` : icon;
+		const label = hasTotalGain ? `${icon} ${json.total_gain}` : (hasBrightness ? `${icon} ${json.daynight_brightness}` : icon);
 		$$('.dnd-gain').forEach(el => el.textContent = label);
 	}
 

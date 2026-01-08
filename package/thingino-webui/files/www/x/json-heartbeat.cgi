@@ -22,7 +22,12 @@ heartbeat_payload() {
   mic_enabled=$(echo "$audio_states" | grep -o '"mic_enabled":[^,}]*' | cut -d: -f2)
   spk_enabled=$(echo "$audio_states" | grep -o '"spk_enabled":[^,}]*' | cut -d: -f2)
 
-  printf '{"time_now":"%s","timezone":"%s","mem_total":"%d","mem_active":"%d","mem_buffers":"%d","mem_cached":"%d","mem_free":"%d","overlay_total":"%d","overlay_used":"%d","overlay_free":"%d","uptime":"%s","daynight_brightness":"%s","daynight_mode":"%s","extras_total":"%d","extras_used":"%d","extras_free":"%d","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"mic_enabled":%s,"spk_enabled":%s}' \
+  # Read daynight status for total_gain
+  daynight_status=$(echo '{"daynight":{"status":null}}' | prudyntctl json - 2>/dev/null)
+  total_gain=$(echo "$daynight_status" | grep -o '"total_gain":[0-9-]*' | cut -d: -f2)
+  total_gain="${total_gain:-0}"
+
+  printf '{"time_now":"%s","timezone":"%s","mem_total":"%d","mem_active":"%d","mem_buffers":"%d","mem_cached":"%d","mem_free":"%d","overlay_total":"%d","overlay_used":"%d","overlay_free":"%d","uptime":"%s","daynight_brightness":"%s","total_gain":"%s","daynight_mode":"%s","extras_total":"%d","extras_used":"%d","extras_free":"%d","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"mic_enabled":%s,"spk_enabled":%s}' \
     "$(date +%s)" \
     "$(cat /etc/timezone)" \
     "$(awk '/^MemTotal:/{print $2}' /proc/meminfo)" \
@@ -33,6 +38,7 @@ heartbeat_payload() {
     $(df | awk '/\/overlay$/{print $2,$3,$4}') \
     "$(awk '{m=$1/60;h=m/60;printf "%sd %sh %sm %ss\n",int(h/24),int(h%24),int(m%60),int($1%60)}' /proc/uptime)" \
     "$(awk '{print $1}' /run/prudynt/daynight_brightness 2>/dev/null || echo "unknown")" \
+    "$total_gain" \
     "$(awk 'NR==1 {print $1}' /run/prudynt/daynight_mode 2>/dev/null || echo "unknown")" \
     $(df | awk '/\/opt$/{print $2,$3,$4}') \
     "$ch0_rec" \
