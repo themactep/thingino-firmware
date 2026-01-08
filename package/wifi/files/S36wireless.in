@@ -19,6 +19,16 @@ if [ -z "$wlan_module_opts" ]; then
 	wlan_module_opts="$WLAN_MODULE_OPTS"
 fi
 
+get_wlan_pin_from_json() {
+	jct /etc/thingino.json get gpio.wlan.pin 2>/dev/null || \
+		jct /etc/thingino.json get gpio.wlan 2>/dev/null
+}
+
+get_wlan_active_low_from_json() {
+	jct /etc/thingino.json get gpio.wlan.active_low 2>/dev/null || \
+		echo "false"
+}
+
 start() {
 	echo_title "Starting wireless interface"
 
@@ -32,32 +42,25 @@ start() {
 		exit 1
 	fi
 
-	if [ -z "$gpio_wlan" ]; then
-		echo_warning "gpio_wlan is not set"
+	gpio_wlan_pin=$(get_wlan_pin_from_json)
+	gpio_wlan_active_low=$(get_wlan_active_low_from_json)
+
+	if [ -z "$gpio_wlan_pin" ]; then
+		echo_warning "Wireless module GPIO is not set"
 	else
-		echo_info "WiFi GPIO: $gpio_wlan"
-		for pin_raw in $gpio_wlan; do
-			# default to output high
-			[ "$pin_raw" = "${pin_raw//[^0-9]/}" ] && pin_raw="${pin_raw}O"
+		echo_info "WiFi GPIO: $gpio_wlan_pin"
+		if [ "true" = "$gpio_wlan_active_low" ]; then
+			state=0
+		else
+			state=1
+		fi
 
-			# extract pin number and suffix
-			pin="${pin_raw:0:-1}"
-			suffix="${pin_raw:0-1}"
-
-			# convert suffix to binary state
-			case "$suffix" in
-				o) state=0 ;;
-				O) state=1 ;;
-				*) echo_warning "Unknown suffix ${suffix}!" ;;
-			esac
-
-			echo_info "Set GPIO $pin to $state"
-			gpio set "${pin}" "${state}"
-		done
+		echo_info "Set GPIO $gpio_wlan_pin to $state"
+		gpio set "$gpio_wlan_pin" "$state"
 
 		if [ "bcmdhd" = "$wlan_module" ]; then
-			echo_info "Unexport GPIO pin $pin"
-			gpio unexport $pin
+			echo_info "Unexport GPIO pin $gpio_wlan_pin"
+			gpio unexport "$gpio_wlan_pin"
 		fi
 	fi
 
