@@ -29,9 +29,8 @@
     "loglevel": "INFO",
     "sample_interval_ms": 1000,
     "script_path": "/sbin/daynight",
-    "switch_above_percent": 80,
-    "switch_below_percent": 15,
-    "tolerance_percent": 50,
+    "total_gain_day_threshold": 300,
+    "total_gain_night_threshold": 3000,
     "controls": {
       "color": true,
       "ircut": true,
