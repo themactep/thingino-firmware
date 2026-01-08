@@ -169,7 +169,7 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
 </div>
 
 <div class="row preview">
-  <div class="col-12 col-lg-5" id="preview-col">
+  <div class="col" id="preview-col">
     <div id="frame" class="position-relative mb-2">
       <img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Preview"
         data-bs-toggle="modal" data-bs-target="#mdPreview" style="cursor: zoom-in;">
