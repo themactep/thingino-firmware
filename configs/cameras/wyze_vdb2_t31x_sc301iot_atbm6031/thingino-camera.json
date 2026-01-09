@@ -14,7 +14,6 @@
     },
     "mmc_cd": 48,
     "mmc_power": "47o 54o",
-    "speaker": 58,
     "sub1g": 59,
     "wlan": {
       "pin": 57,
