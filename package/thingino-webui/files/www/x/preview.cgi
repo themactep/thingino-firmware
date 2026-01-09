@@ -266,7 +266,7 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
 <% fi %>
 
     <div class="tab-pane" id="iq" role="tabpanel" aria-labelledby="iq-tab" tabindex="0">
-      <div class="row row-cols-2 row-cols-xxl-3">
+      <div class="row row-cols-2 row-cols-xxl-3 g-2">
         <div class="col"><% field_range "brightness" "Brightness" "0,255,1" %></div>
         <div class="col"><% field_range "contrast" "Contrast" "0,255,1" %></div>
         <div class="col"><% field_range "sharpness" "Sharpness" "0,255,1" %></div>
@@ -277,7 +277,7 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
         <div class="col"><% field_range "defog" "Defog" "0,255,1" %></div>
         <div class="col"><% field_range "noise_reduction" "Noise reduction" "0,255,1" %></div>
       </div>
-      <div class="row">
+      <div class="row g-2">
         <div class="col">
           <div class="mb-2 select" id="image_core_wb_mode_wrap">
             <label for="image_core_wb_mode" class="form-label">White balance mode</label>
@@ -298,7 +298,7 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
         <div class="col"><% field_range "image_wb_bgain" "Blue channel gain" "0,1024,1" %></div>
         <div class="col"><% field_range "image_wb_rgain" "Red channel gain" "0,1024,1" %></div>
       </div>
-      <div class="row">
+      <div class="row g-2">
         <div class="col"><% field_range "image_ae_compensation" "<abbr title=\"Automatic Exposure\">AE</abbr> compensation" "0,255,1" %></div>
         <div class="col"><% field_switch "image_hflip" "V-Flip" %></div>
         <div class="col"><% field_switch "image_vflip" "H-Flip" %></div>
