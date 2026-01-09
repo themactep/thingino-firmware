@@ -13,20 +13,9 @@ pagename="sensor-data"
 	margin-bottom: 2rem;
 }
 
-.controls {
-	display: flex;
-	gap: 1rem;
-	flex-wrap: wrap;
-	margin-bottom: 1rem;
-	align-items: center;
-}
-
-.controls button,
 .controls select {
-	padding: 0.5rem 1rem;
-	border: 1px solid #ccc;
+	padding: 0.25rem 0.5rem;
 	border-radius: 0.25rem;
-	background-color: var(--bs-body-bg);
 	cursor: pointer;
 }
 
@@ -34,20 +23,27 @@ pagename="sensor-data"
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 	gap: 1rem;
-	margin-bottom: 2rem;
+	margin-bottom: 1rem;
 }
 
 .stat-card {
-	padding: 1rem;
+	padding: 0.5rem;
 	border: 1px solid #e0e0e0;
 	border-radius: 0.25rem;
 	background-color: var(--bs-body-bg);
+	text-align: center;
 }
+
+.stat-card.ev .stat-value { color: #FF6384 }
+.stat-card.total_gain .stat-value { color: #36A2EB }
+.stat-card.ae_luma .stat-value { color: #FFCE56 }
+.stat-card.daynight_brightness .stat-value { color: #B8FF4D }
 
 .stat-label {
 	font-size: 0.875rem;
-	color: #666;
-	margin-bottom: 0.5rem;
+	font-weight: 700;
+	color: #999;
+	margin-bottom: 0.25rem;
 }
 
 .stat-value {
@@ -59,58 +55,56 @@ pagename="sensor-data"
 .stat-detail {
 	font-size: 0.75rem;
 	color: #999;
-	margin-top: 0.5rem;
+	margin-top: 0.25rem;
 }
 
 .stream-status {
-	padding: 0.5rem 1rem;
-	border-radius: 0.25rem;
-	font-size: 0.875rem;
-	margin-bottom: 1rem;
+	font-size: 1rem;
+	margin-left: 0.5rem;
 }
 
 .stream-status.connected {
-	background-color: #d4edda;
-	color: #155724;
-	border: 1px solid #c3e6cb;
+	color: #28a745;
 }
 
 .stream-status.disconnected {
-	background-color: #f8d7da;
-	color: #721c24;
-	border: 1px solid #f5c6cb;
+	color: #dc3545;
 }
 </style>
 
-<div class="container-fluid">
-	<h2>Raw Sensor Data Collection</h2>
-	<p>Graphs raw unprocessed sensor values for day/night algorithm analysis</p>
+<h2 class="d-flex align-items-center mb-0">
+  Raw Sensor Data Collection
+  <i id="stream-status" class="bi bi-circle-fill stream-status disconnected" title="Connecting..."></i>
+</h2>
+<p class="mb-3">Graphs raw unprocessed sensor values for day/night algorithm analysis</p>
 
-	<div id="stream-status" class="stream-status disconnected">
-		<span class="status-indicator">●</span> Connecting...
-	</div>
-
-	<div class="controls">
-		<button id="clear-data" class="btn btn-danger">Clear Data</button>
-		<button id="toggle-pause" class="btn btn-info">Pause</button>
-		<select id="max-points">
-			<option value="100">Last 100 points</option>
-			<option value="300" selected>Last 300 points</option>
-			<option value="600">Last 600 points</option>
-			<option value="1200">Last 1200 points (10min)</option>
-		</select>
-		<button id="export-json" class="btn btn-info">Export JSON</button>
-		<button id="export-csv" class="btn btn-info">Export CSV</button>
-	</div>
-
-	<div id="chart-container">
-		<canvas id="dataChart"></canvas>
-	</div>
-
-	<h3>Current Values</h3>
-	<div class="stat-grid" id="data-stats">
-		<!-- Populated by JavaScript -->
-	</div>
+<div class="row preview">
+  <div class="col col-lg-5" id="preview-col">
+    <div id="frame" class="position-relative mb-2">
+      <img id="preview" src="/x/ch1.mjpg" class="img-fluid" alt="Image: Preview">
+    </div>
+    <h5 class="mt-3">Current Values</h5>
+    <div class="stat-grid" id="data-stats">
+      <!-- Populated by JavaScript -->
+    </div>
+  </div>
+  <div class="col-12 col-lg-7" id="tabs-col">
+    <div id="chart-container">
+      <canvas id="dataChart"></canvas>
+    </div>
+    <div class="controls d-flex gap-1 w-100">
+      <button id="clear-data" class="btn btn-sm btn-danger">Clear Data</button>
+      <button id="toggle-pause" class="btn btn-sm btn-secondary">Pause</button>
+      <div class="btn-group" role="group" id="max-points">
+        <button type="button" class="btn btn-sm btn-secondary" data-points="100">100</button>
+        <button type="button" class="btn btn-sm btn-primary active" data-points="300">300</button>
+        <button type="button" class="btn btn-sm btn-secondary" data-points="600">600</button>
+        <button type="button" class="btn btn-sm btn-secondary" data-points="1200">1200</button>
+      </div>
+      <button id="export-json" class="btn btn-sm btn-secondary">Export JSON</button>
+      <button id="export-csv" class="btn btn-sm btn-secondary">Export CSV</button>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -125,12 +119,11 @@ class SensorDataCollector {
 		this.isPaused = false;
 
 		// Metrics to track: raw, unprocessed values only
-		// NOTE: GB/GR gains always return 0 from ISP (not populated on T23)
 		this.metrics = [
 			{ key: 'ev', label: 'Exposure Time (EV)', color: '#FF6384' },
 			{ key: 'total_gain', label: 'Total Gain', color: '#36A2EB' },
 			{ key: 'ae_luma', label: 'AE Luma', color: '#FFCE56' },
-			{ key: 'daynight_brightness', label: 'Brightness %', color: '#FFB84D' }
+			{ key: 'daynight_brightness', label: 'Brightness %', color: '#B8FF4D' }
 		];
 
 		// Track mode changes separately (day=0, night=1)
@@ -149,18 +142,29 @@ class SensorDataCollector {
 	}
 
 	setupEventListeners() {
-		document.getElementById('clear-data').addEventListener('click', () => this.clearData());
-		document.getElementById('toggle-pause').addEventListener('click', (e) => this.togglePause(e));
-		document.getElementById('export-json').addEventListener('click', () => this.exportJSON());
-		document.getElementById('export-csv').addEventListener('click', () => this.exportCSV());
-		document.getElementById('max-points').addEventListener('change', (e) => {
-			this.maxPoints = parseInt(e.target.value);
-			this.trimData();
+		$('#clear-data').addEventListener('click', () => this.clearData());
+		$('#toggle-pause').addEventListener('click', (e) => this.togglePause(e));
+		$('#export-json').addEventListener('click', () => this.exportJSON());
+		$('#export-csv').addEventListener('click', () => this.exportCSV());
+		$$('#max-points button').forEach(btn => {
+			btn.addEventListener('click', (e) => {
+				// Remove active state from all buttons
+				$$('#max-points button').forEach(b => {
+					b.classList.remove('btn-primary', 'active');
+					b.classList.add('btn-secondary');
+				});
+				// Add active state to clicked button
+				e.target.classList.remove('btn-secondary');
+				e.target.classList.add('btn-primary', 'active');
+				// Update max points
+				this.maxPoints = parseInt(e.target.dataset.points);
+				this.trimData();
+			});
 		});
 	}
 
 	initChart() {
-		const ctx = document.getElementById('dataChart').getContext('2d');
+		const ctx = $('#dataChart').getContext('2d');
 		this.chart = new Chart(ctx, {
 			type: 'line',
 			data: {
@@ -176,8 +180,7 @@ class SensorDataCollector {
 				},
 				plugins: {
 					legend: {
-						display: true,
-						position: 'top'
+						display: false
 					}
 				},
 				scales: {
@@ -190,6 +193,8 @@ class SensorDataCollector {
 					},
 					y: {
 						display: true,
+						min: 0,
+						max: 3200,
 						title: {
 							display: true,
 							text: 'Raw Value'
@@ -245,6 +250,8 @@ class SensorDataCollector {
 		if (jsonData.total_gain_night_threshold !== undefined && !this.nightThreshold) {
 			this.nightThreshold = parseInt(jsonData.total_gain_night_threshold);
 			this.dayThreshold = parseInt(jsonData.total_gain_day_threshold);
+			// Update chart max based on night threshold
+			this.chart.options.scales.y.max = this.nightThreshold + 200;
 		}
 
 		// Track daynight mode (day=0, night=1)
@@ -295,7 +302,7 @@ class SensorDataCollector {
 	}
 
 	updateStatsDisplay() {
-		const container = document.getElementById('data-stats');
+		const container = $('#data-stats');
 		container.innerHTML = '';
 
 		this.metrics.forEach(metric => {
@@ -303,13 +310,11 @@ class SensorDataCollector {
 			if (!stat) return;
 
 			const div = document.createElement('div');
-			div.className = 'stat-card';
+			div.className = `stat-card ${metric.key}`;
 			div.innerHTML = `
 				<div class="stat-label">${metric.label}</div>
 				<div class="stat-value">${stat.latest.toFixed(1)}</div>
-				<div class="stat-detail">
-					Min: ${stat.min.toFixed(1)} | Max: ${stat.max.toFixed(1)} | Avg: ${stat.avg.toFixed(1)}
-				</div>
+				<div class="stat-detail">Min: ${stat.min.toFixed(1)} | Max: ${stat.max.toFixed(1)} | Avg: ${stat.avg.toFixed(1)}</div>
 			`;
 			container.appendChild(div);
 		});
@@ -329,9 +334,9 @@ class SensorDataCollector {
 				borderWidth: 2,
 				tension: 0.4,
 				fill: false,
-				pointRadius: 2,
+				pointRadius: 1,
 				pointBackgroundColor: metric.color,
-				pointBorderColor: '#fff',
+				pointBorderColor: metric.color,
 				pointBorderWidth: 1
 			});
 		});
@@ -345,7 +350,7 @@ class SensorDataCollector {
 				label: `Night Threshold (${this.nightThreshold})`,
 				data: Array(numPoints).fill(this.nightThreshold),
 				borderColor: 'rgba(255, 0, 0, 0.7)',
-				borderWidth: 2,
+				borderWidth: 1,
 				borderDash: [5, 5],
 				fill: false,
 				pointRadius: 0
@@ -356,7 +361,7 @@ class SensorDataCollector {
 				label: `Day Threshold (${this.dayThreshold})`,
 				data: Array(numPoints).fill(this.dayThreshold),
 				borderColor: 'rgba(0, 255, 0, 0.7)',
-				borderWidth: 2,
+				borderWidth: 1,
 				borderDash: [5, 5],
 				fill: false,
 				pointRadius: 0
@@ -413,15 +418,15 @@ class SensorDataCollector {
 	}
 
 	updateStreamStatus(connected) {
-		const el = document.getElementById('stream-status');
+		const el = $('#stream-status');
 		if (connected) {
 			el.classList.remove('disconnected');
 			el.classList.add('connected');
-			el.innerHTML = '<span class="status-indicator">●</span> Connected - Collecting sensor data';
+			el.title = 'Connected - Collecting sensor data';
 		} else {
 			el.classList.remove('connected');
 			el.classList.add('disconnected');
-			el.innerHTML = '<span class="status-indicator">●</span> Disconnected - Reconnecting...';
+			el.title = 'Disconnected - Reconnecting...';
 		}
 	}
 
