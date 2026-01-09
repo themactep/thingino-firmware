@@ -38,12 +38,14 @@ start() {
 
 	# conditional PTZ config
 	if [ -f "$MOTORS_BIN" ]; then
-		 steps_pan=$(jct $MOTORS_CONFIG get motors.steps_pan | tr -d "\n")
+		steps_pan=$(jct $MOTORS_CONFIG get motors.steps_pan | tr -d "\n")
 		steps_tilt=$(jct $MOTORS_CONFIG get motors.steps_tilt | tr -d "\n")
 
 		jct $tmpfile set ptz.enable 1
 		jct $tmpfile set ptz.max_step_x "$steps_pan"
 		jct $tmpfile set ptz.max_step_y "$steps_tilt"
+	else
+		jct $tmpfile set ptz.enable 0
 	fi
 	jct $ONVIF_CONFIG import $tmpfile
 	rm -f $tmpfile
