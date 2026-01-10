@@ -3,33 +3,156 @@
 . /usr/share/common
 
 MMC_MODULE="jzmmc_v12"
+MMC_CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
 
 set_gpio() {
 	echo_info "Set GPIO $1 to F$2 D$3"
 	gpio-diag $1 func $2 drive $3
 }
 
+bool_is_true() {
+	local value
+	value=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
+	case "$value" in
+		1|true|yes|on)
+			return 0
+			;;
+	esac
+	return 1
+}
+
+print_pin_state() {
+	local pin="$1"
+	local state="$2"
+
+	case "$pin" in
+		''|*[^0-9]*)
+			return 1
+			;;
+	esac
+
+	case "$state" in
+		0|1)
+			;;
+		*)
+			return 1
+			;;
+	esac
+
+	printf '%s %s\n' "$pin" "$state"
+	return 0
+}
+
+parse_legacy_token() {
+	local token pin suffix state
+	token=$(printf '%s' "$1" | tr -d '\r')
+	[ -n "$token" ] || return 1
+
+	if [ "${token%[oO]}" != "$token" ]; then
+		pin=${token%[oO]}
+		suffix=${token#${pin}}
+		case "$suffix" in
+			o)
+				state=0
+				;;
+			O)
+				state=1
+				;;
+			*)
+				return 1
+				;;
+		esac
+	else
+		pin="$token"
+		state=1
+	fi
+
+	print_pin_state "$pin" "$state"
+}
+
+get_mmc_power_sequence() {
+	local idx=0 emitted=0 pin active_low state entry
+
+	while true; do
+		if pin=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_power.$idx.pin" 2>/dev/null); then
+			if ! active_low=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_power.$idx.active_low" 2>/dev/null); then
+				active_low="false"
+			fi
+			state=1
+			if bool_is_true "$active_low"; then
+				state=0
+			fi
+			if print_pin_state "$pin" "$state"; then
+				emitted=$((emitted + 1))
+			else
+				echo_warning "Invalid GPIO pin '$pin' in gpio.mmc_power[$idx]"
+			fi
+			idx=$((idx + 1))
+			continue
+		fi
+
+		if entry=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_power.$idx" 2>/dev/null); then
+			if parse_legacy_token "$entry"; then
+				emitted=$((emitted + 1))
+			else
+				echo_warning "Invalid gpio.mmc_power entry '$entry' at index $idx"
+			fi
+			idx=$((idx + 1))
+			continue
+		fi
+
+		break
+	done
+
+	if [ "$emitted" -gt 0 ]; then
+		return 0
+	fi
+
+	if pin=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_power.pin" 2>/dev/null); then
+		if ! active_low=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_power.active_low" 2>/dev/null); then
+			active_low="false"
+		fi
+		state=1
+		if bool_is_true "$active_low"; then
+			state=0
+		fi
+		if print_pin_state "$pin" "$state"; then
+			return 0
+		fi
+	fi
+
+		if entry=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_power" 2>/dev/null); then
+		for token in $entry; do
+			if parse_legacy_token "$token"; then
+				emitted=$((emitted + 1))
+			else
+				echo_warning "Invalid gpio.mmc_power token '$token'"
+			fi
+		done
+		[ "$emitted" -gt 0 ] && return 0
+	fi
+
+	return 1
+}
+
 set_power() {
-	gpio_mmc_power=$(jct /etc/thingino.json get gpio.mmc_power)
+	local sequence pin state
+
+	if ! sequence="$(get_mmc_power_sequence)"; then
+		echo_warning "No MMC power GPIO sequence defined"
+		return
+	fi
 
 	# Set additional MMC GPIOs
 	# This needs to run AFTER the driver has been loaded
 	# for the SD card to mount during boot
-	for gpio in $gpio_mmc_power; do
-		[ "${#gpio}" -ne 3 ] && continue
-		[ "${gpio%[oO]}" = "$gpio" ] && continue
-
-		case "${gpio#??}" in
-			"O")
-				echo_info "Set GPIO "${gpio%[oO]}" high"
-				gpio set "${gpio%[oO]}" 1
-				;;
-			"o")
-				echo_info "Set GPIO "${gpio%[oO]}" low"
-				gpio set "${gpio%[oO]}" 0
-				;;
-		esac
-	done
+	while IFS=' ' read -r pin state; do
+		[ -n "$pin" ] || continue
+		echo_info "Set GPIO $pin to $state"
+		gpio set "$pin" "$state"
+	done <<-EOF
+	$sequence
+	EOF
 }
 
 load_module() {
@@ -51,7 +174,7 @@ load_module() {
 start() {
 	echo_title "Initializing MMC"
 
-	gpio_mmc_cd=$(jct /etc/thingino.json get gpio.mmc_cd)
+	gpio_mmc_cd=$(jct "$MMC_CONFIG_JSON" get "gpio.mmc_cd")
 	MMC_PARAM="cd_gpio_pin=${gpio_mmc_cd:-59}"
 	load_module
 }
