@@ -12,9 +12,34 @@ flash_firmware() {
 	flashcp -v $fw_file $mtd_dev
 }
 
+stream_flash_progress() {
+	local logfile="$1"
+	local pid="$2"
+	local tail_pid=""
+
+	if command -v tail >/dev/null 2>&1; then
+		tail -n 20 -f "$logfile" &
+		tail_pid=$!
+	else
+		echo "tail not available in PATH, monitor $logfile manually."
+	fi
+
+	wait "$pid"
+	local status=$?
+
+	if [ -n "$tail_pid" ]; then
+		kill "$tail_pid" 2>/dev/null
+		wait "$tail_pid" 2>/dev/null
+	fi
+
+	echo ""
+	return $status
+}
+
 # Detach from terminal and protect against disconnections during flash
 detach_and_flash() {
 	logfile="/tmp/sysupgrade-flash.log"
+	: >"$logfile"
 
 	echo_c 208 "CRITICAL PHASE: Detaching from terminal to protect against connection loss..."
 	echo "Process will continue even if SSH disconnects."
@@ -55,17 +80,19 @@ detach_and_flash() {
 
 	flash_pid=$!
 	echo "Flash process running with PID $flash_pid (safe to disconnect)"
+	echo "Streaming flash progress (Ctrl-C stops viewing, flashing continues)..."
 
-	# Monitor the process
-	sleep 2
-	while kill -0 $flash_pid 2>/dev/null; do
-		[ -f "$logfile" ] && tail -n 3 $logfile 2>/dev/null
-		sleep 2
-	done
+	stream_flash_progress "$logfile" "$flash_pid"
+	flash_status=$?
 
-	# Get exit status
-	wait $flash_pid
-	exit $?
+	if [ $flash_status -eq 0 ]; then
+		echo_c 46 "Flash completed successfully. Rebooting shortly..."
+		echo "Rebooting"
+	else
+		echo_c 160 "Flash failed; consult $logfile for details."
+	fi
+
+	exit $flash_status
 }
 
 go_reboot() {

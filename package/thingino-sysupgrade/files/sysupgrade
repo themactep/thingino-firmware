@@ -24,7 +24,7 @@ SD_CARD_ROOT="/mnt/mmcblk0p1"
 
 self=$(realpath $0)
 selfupdate="true"
-bbapplets="echo flash_eraseall flashcp reboot sh sleep"
+bbapplets="echo flash_eraseall flashcp reboot sh sleep tail date"
 upgrade=""
 gestalt_app="/sbin/gestalt"
 
