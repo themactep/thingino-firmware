@@ -8,6 +8,9 @@
       "pin": 60,
       "active_low": false
     },
-    "wlan": "6o 6O"
+    "wlan": {
+      "pin": 6,
+      "toggle": true
+    }
   }
 }

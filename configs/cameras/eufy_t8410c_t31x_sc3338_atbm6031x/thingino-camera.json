@@ -10,6 +10,9 @@
       "pin": 17,
       "active_low": false
     },
-    "wlan": "48o 48O"
+    "wlan": {
+      "pin": 48,
+      "toggle": true
+    }
   }
 }

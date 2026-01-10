@@ -7,6 +7,9 @@
     "led_r": 62,
     "mmc_cd": 59,
     "mmc_power": 17,
-    "wlan": "48o 48O"
+    "wlan": {
+      "pin": 48,
+      "toggle": true
+    }
   }
 }

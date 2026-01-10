@@ -6,6 +6,8 @@ IFACE=wlan0
 EXPECTED_WLAN_MODULE="@WLAN_MODULE@"
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
 WLAN_MODULE_OPTS="@WLAN_MODULE_OPTS@"
+WLAN_CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
+wlan_pins_used=""
 
 # Legacy compatibility: allow runtime override via U-Boot environment
 if [ -z "$wlan_module" ]; then
@@ -19,14 +21,236 @@ if [ -z "$wlan_module_opts" ]; then
 	wlan_module_opts="$WLAN_MODULE_OPTS"
 fi
 
-get_wlan_pin_from_json() {
-	jct /etc/thingino.json get gpio.wlan.pin 2>/dev/null || \
-		jct /etc/thingino.json get gpio.wlan 2>/dev/null
+bool_is_true() {
+	local value
+	value=$(printf '%s' "$1" | tr -d '\r')
+	set -- $value
+	value="$1"
+	value=$(printf '%s' "$value" | tr 'A-Z' 'a-z')
+	case "$value" in
+		1|true|yes|on|enable|enabled)
+			return 0
+			;;
+	esac
+	return 1
 }
 
-get_wlan_active_low_from_json() {
-	jct /etc/thingino.json get gpio.wlan.active_low 2>/dev/null || \
-		echo "false"
+normalize_state_value() {
+	local raw value lower
+	raw=$(printf '%s' "$1" | tr -d '\r')
+	set -- $raw
+	value="$1"
+	[ -n "$value" ] || return 1
+	case "$value" in
+		0|1)
+			printf '%s\n' "$value"
+			return 0
+			;;
+	esac
+	lower=$(printf '%s' "$value" | tr 'A-Z' 'a-z')
+	case "$lower" in
+		true|high|on|enable|enabled)
+			printf '1\n'
+			return 0
+			;;
+		false|low|off|disable|disabled)
+			printf '0\n'
+			return 0
+			;;
+	esac
+	return 1
+}
+
+emit_pin_command() {
+	local pin="$1" action="${2:-set}" state="$3"
+	case "$pin" in
+		''|*[^0-9]*)
+			return 1
+			;;
+	esac
+	case "$action" in
+		toggle)
+			printf '%s toggle\n' "$pin"
+			return 0
+			;;
+		set|'')
+			case "$state" in
+				0|1)
+					printf '%s set %s\n' "$pin" "$state"
+					return 0
+					;;
+			esac
+			;;
+	esac
+	return 1
+}
+
+parse_legacy_token() {
+	local token pin suffix action state
+	token=$(printf '%s' "$1" | tr -d '\r')
+	set -- $token
+	token="$1"
+	[ -n "$token" ] || return 1
+	if [ "${token%[oOtT~]}" != "$token" ]; then
+		pin=${token%[oOtT~]}
+		suffix=${token#$pin}
+	else
+		pin="$token"
+		suffix=""
+	fi
+	case "$suffix" in
+		o)
+			action="set"
+			state=0
+			;;
+		O)
+			action="set"
+			state=1
+			;;
+		t|T|~)
+			action="toggle"
+			;;
+		'')
+			action="set"
+			state=1
+			;;
+		*)
+			return 1
+			;;
+	esac
+	emit_pin_command "$pin" "$action" "$state"
+}
+
+emit_wlan_object_path() {
+	local base="$1" pin active_low action state raw_state toggle_flag pre_state
+	if pin=$(jct "$WLAN_CONFIG_JSON" get "$base.pin.pin" 2>/dev/null); then
+		if ! active_low=$(jct "$WLAN_CONFIG_JSON" get "$base.pin.active_low" 2>/dev/null); then
+			active_low=$(jct "$WLAN_CONFIG_JSON" get "$base.active_low" 2>/dev/null)
+		fi
+	elif pin=$(jct "$WLAN_CONFIG_JSON" get "$base.pin" 2>/dev/null); then
+		active_low=$(jct "$WLAN_CONFIG_JSON" get "$base.active_low" 2>/dev/null)
+	else
+		return 1
+	fi
+	action=$(jct "$WLAN_CONFIG_JSON" get "$base.action" 2>/dev/null)
+	[ -n "$action" ] || action=$(jct "$WLAN_CONFIG_JSON" get "$base.mode" 2>/dev/null)
+	raw_state=$(jct "$WLAN_CONFIG_JSON" get "$base.state" 2>/dev/null)
+	[ -n "$raw_state" ] || raw_state=$(jct "$WLAN_CONFIG_JSON" get "$base.value" 2>/dev/null)
+	if [ -z "$action" ] && [ -n "$raw_state" ]; then
+		case "$(printf '%s' "$raw_state" | tr 'A-Z' 'a-z')" in
+			toggle|~)
+				action="toggle"
+				raw_state=""
+				;;
+		esac
+	fi
+	[ -n "$action" ] || action="set"
+	toggle_flag=$(jct "$WLAN_CONFIG_JSON" get "$base.toggle" 2>/dev/null)
+	if [ "toggle" = "$action" ]; then
+		if bool_is_true "$toggle_flag"; then
+			echo_warning "Ignoring toggle flag at $base because action is already 'toggle'"
+		fi
+		emit_pin_command "$pin" "toggle"
+		return $?
+	fi
+	if [ -z "$raw_state" ]; then
+		if bool_is_true "$active_low"; then
+			raw_state=0
+		else
+			raw_state=1
+		fi
+	fi
+	if ! state=$(normalize_state_value "$raw_state"); then
+		echo_warning "Invalid GPIO state '$raw_state' at $base"
+		return 1
+	fi
+	if bool_is_true "$toggle_flag"; then
+		case "$state" in
+			0)
+				pre_state=1
+				;;
+			1)
+				pre_state=0
+				;;
+			*)
+				pre_state=""
+				;;
+		esac
+		if [ -n "$pre_state" ]; then
+			emit_pin_command "$pin" "set" "$pre_state"
+		fi
+	fi
+	emit_pin_command "$pin" "set" "$state"
+}
+
+get_wlan_sequence() {
+	local idx=0 emitted=0 entry
+	while true; do
+		if emit_wlan_object_path "gpio.wlan.$idx"; then
+			emitted=$((emitted + 1))
+			idx=$((idx + 1))
+			continue
+		fi
+		if entry=$(jct "$WLAN_CONFIG_JSON" get "gpio.wlan.$idx" 2>/dev/null); then
+			if parse_legacy_token "$entry"; then
+				emitted=$((emitted + 1))
+			else
+				echo_warning "Invalid gpio.wlan entry '$entry' at index $idx"
+			fi
+			idx=$((idx + 1))
+			continue
+		fi
+		break
+	done
+	if [ "$emitted" -gt 0 ]; then
+		return 0
+	fi
+	if emit_wlan_object_path "gpio.wlan"; then
+		return 0
+	fi
+	if entry=$(jct "$WLAN_CONFIG_JSON" get "gpio.wlan" 2>/dev/null); then
+		for token in $entry; do
+			if parse_legacy_token "$token"; then
+				emitted=$((emitted + 1))
+			else
+				echo_warning "Invalid gpio.wlan token '$token'"
+			fi
+		done
+		[ "$emitted" -gt 0 ] && return 0
+	fi
+	return 1
+}
+
+apply_wlan_sequence() {
+	local sequence="$1" pin action state
+	wlan_pins_used=""
+	while IFS=' ' read -r pin action state; do
+		[ -n "$pin" ] || continue
+		case "$action" in
+			toggle)
+				echo_info "Toggle GPIO $pin"
+				gpio toggle "$pin"
+				;;
+			set|'')
+				[ -n "$state" ] || state=1
+				echo_info "Set GPIO $pin to $state"
+				gpio set "$pin" "$state"
+				;;
+			*)
+				echo_warning "Unknown GPIO action '$action' for pin $pin"
+				continue
+				;;
+		esac
+		case " $wlan_pins_used " in
+			*" $pin "*)
+				;;
+			*)
+				wlan_pins_used="${wlan_pins_used:+$wlan_pins_used }$pin"
+				;;
+		esac
+	done <<-EOF
+$sequence
+EOF
 }
 
 start() {
@@ -42,25 +266,20 @@ start() {
 		exit 1
 	fi
 
-	gpio_wlan_pin=$(get_wlan_pin_from_json)
-	gpio_wlan_active_low=$(get_wlan_active_low_from_json)
+	if ! wlan_sequence=$(get_wlan_sequence); then
+		wlan_sequence=""
+	fi
 
-	if [ -z "$gpio_wlan_pin" ]; then
+	if [ -z "$wlan_sequence" ]; then
 		echo_warning "Wireless module GPIO is not set"
 	else
-		echo_info "WiFi GPIO: $gpio_wlan_pin"
-		if [ "true" = "$gpio_wlan_active_low" ]; then
-			state=0
-		else
-			state=1
-		fi
+		apply_wlan_sequence "$wlan_sequence"
 
-		echo_info "Set GPIO $gpio_wlan_pin to $state"
-		gpio set "$gpio_wlan_pin" "$state"
-
-		if [ "bcmdhd" = "$wlan_module" ]; then
-			echo_info "Unexport GPIO pin $gpio_wlan_pin"
-			gpio unexport "$gpio_wlan_pin"
+		if [ "bcmdhd" = "$wlan_module" ] && [ -n "$wlan_pins_used" ]; then
+			for pin in $wlan_pins_used; do
+				echo_info "Unexport GPIO pin $pin"
+				gpio unexport "$pin"
+			done
 		fi
 	fi
 
