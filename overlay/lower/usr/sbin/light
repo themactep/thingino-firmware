@@ -5,7 +5,7 @@
 show_help() {
 	echo "Usage: $0 <type> <mode> [pin#]
 Where:
-	type	ir850 | ir940 | white | flood
+	type	ir | ir850 | ir940 | white | flood
 	mode	on | off | toggle | read | gpio
 " >&2
 	exit 1
@@ -35,6 +35,14 @@ set_config_pin() {
 }
 
 case "$type" in
+	ir)
+		pin=$(get_config_pin ir850)
+		[ -z "$pin" ] && pin=$(get_config_pin ir940)
+		if [ -z "$pin" ]; then
+			echo_error "GPIO pins for either IR lights are not defined"
+			exit 1
+		fi
+		;;
 	ir850 | ir940 | white | flood)
 		pin=$(get_config_pin "$type")
 		if [ -z "$pin" ] && [ "gpio" != "$mode" ]; then
