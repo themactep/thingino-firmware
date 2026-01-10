@@ -49,7 +49,7 @@ function setValue(data, domain, name) {
 	if (typeof (value) == 'undefined') return;
 
 	el.disabled = false;
-	const wrapper = el.closest('.range, .select, .boolean, .file');
+	const wrapper = el.closest('.range, .number-range, .number, .select, .boolean, .file');
 	if (wrapper) wrapper.classList.remove('disabled');
 
 	if (el.type === "checkbox") {
@@ -58,6 +58,14 @@ function setValue(data, domain, name) {
 		el.value = value;
 		if (el.type === "range") {
 			$(`${id}-show`).textContent = value;
+		}
+		// Also update modal slider for number_range fields
+		const slider = $(`${id}-slider`);
+		if (slider) {
+			slider.value = value;
+			slider.disabled = false;
+			const sliderValue = $(`${id}-slider-value`);
+			if (sliderValue) sliderValue.textContent = value;
 		}
 	}
 }

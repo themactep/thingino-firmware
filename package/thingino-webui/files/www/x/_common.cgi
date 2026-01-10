@@ -262,6 +262,68 @@ field_number_int() {
   echo "</div>"
 }
 
+# field_number_range "name" "label" "range" "hint"
+field_number_range() {
+  local ab mn mx n r st v vr
+
+  n=$1
+  r=$3 # min,max,step,button
+  mn=$(echo "$r" | cut -d, -f1)
+  mx=$(echo "$r" | cut -d, -f2)
+  st=$(echo "$r" | cut -d, -f3)
+  ab=$(echo "$r" | cut -d, -f4)
+  v=$(t_value "$n")
+  vr=$v
+  [ -n "$ab" ] && [ "$ab" = "$v" ] && vr=$(((mn + mx) / 2))
+  echo "<div class=\"mb-2 number-range\"><label class=\"form-label\" for=\"$n\">$2</label><span class=\"input-group\">"
+  if [ -n "$ab" ]; then
+    echo "<label class=\"input-group-text\" for=\"${n}-auto\">$ab <input type=\"checkbox\" class=\"form-check-input auto-value ms-1\" id=\"${n}-auto\" data-for=\"$n\" data-value=\"$vr\" $(checked_if "$ab" "$v")></label>"
+  fi
+  echo "<input type=\"text\" id=\"$n\" name=\"$n\" class=\"form-control text-end\" value=\"$vr\" pattern=\"[0-9]{1,}\" title=\"numeric value\" data-min=\"$mn\" data-max=\"$mx\" data-step=\"$st\"><button type=\"button\" class=\"btn btn-outline-secondary dropdown-toggle\" data-bs-toggle=\"modal\" data-bs-target=\"#${n}-modal\" aria-label=\"Open slider\"></button></span>"
+  [ -n "$4" ] && echo "<span class=\"hint text-secondary\">$4</span>"
+  echo "</div>
+<div class=\"modal fade\" id=\"${n}-modal\" tabindex=\"-1\" aria-labelledby=\"${n}-modal-label\" aria-hidden=\"true\">
+  <div class=\"modal-dialog modal-dialog-centered\">
+    <div class=\"modal-content\">
+      <div class=\"modal-header\">
+        <h5 class=\"modal-title\" id=\"${n}-modal-label\">$2</h5>
+        <button type=\"button\" class=\"btn-close\" data-bs-dismiss=\"modal\" aria-label=\"Close\"></button>
+      </div>
+      <div class=\"modal-body\">
+        <div class=\"d-flex justify-content-between mb-2\">
+          <span>$mn</span>
+          <span class=\"fw-bold\" id=\"${n}-slider-value\">$vr</span>
+          <span>$mx</span>
+        </div>
+        <input type=\"range\" id=\"${n}-slider\" class=\"form-range\" min=\"$mn\" max=\"$mx\" step=\"$st\" value=\"$vr\">
+      </div>
+      <div class=\"modal-footer\">
+        <button type=\"button\" class=\"btn btn-secondary\" data-bs-dismiss=\"modal\">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function() {
+  const input = document.getElementById('$n');
+  const slider = document.getElementById('${n}-slider');
+  const sliderValue = document.getElementById('${n}-slider-value');
+  
+  slider.addEventListener('input', function() {
+    input.value = this.value;
+    sliderValue.textContent = this.value;
+  });
+  
+  input.addEventListener('input', function() {
+    const val = parseInt(this.value) || $mn;
+    const clampedVal = Math.max($mn, Math.min($mx, val));
+    slider.value = clampedVal;
+    sliderValue.textContent = clampedVal;
+  });
+})();
+</script>"
+}
+
 # field_password "name" "label" "hint"
 field_password() {
   local v
