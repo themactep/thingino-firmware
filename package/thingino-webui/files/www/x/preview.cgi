@@ -1183,10 +1183,29 @@ imagingFields.forEach(field => {
 });
 
 // Streamer controls
+function coerceStreamValue(param, el) {
+  if (el.type === 'checkbox') {
+    return el.checked;
+  }
+
+  const raw = typeof el.value === 'string' ? el.value : '';
+  const trimmed = raw.trim();
+  if (trimmed === '') {
+    return '';
+  }
+
+  // Treat any purely numeric string as a number so prudynt gets the correct type.
+  if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) {
+    return trimmed.includes('.') ? Number.parseFloat(trimmed) : Number.parseInt(trimmed, 10);
+  }
+
+  return trimmed;
+}
+
 function saveStreamValue(streamId, param) {
   const el = $(`#stream${streamId}_${param}`);
   if (!el) return;
-  const value = el.type === 'checkbox' ? el.checked : el.value;
+  const value = coerceStreamValue(param, el);
   const payload = {[`stream${streamId}`]: {[param]: value}, action: {restart_thread: ThreadRtsp | ThreadVideo}};
   sendToEndpoint(payload);
 }
