@@ -110,8 +110,8 @@ wait_limit=5
 while ! ip link show "$FIFO" >/dev/null 2>&1; do
 	wait_attempt=$((wait_attempt + 1))
 	if [ $wait_attempt -ge $wait_limit ]; then
-		echo_error "$FIFO did not appear within ${wait_limit}s"
-		break
+		echo "play: $FIFO did not appear within ${wait_limit}s"
+		exit 1
 	fi
 	sleep 0.5
 done
