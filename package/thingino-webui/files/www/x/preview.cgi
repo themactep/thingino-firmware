@@ -66,7 +66,7 @@ daynight_get_value() {
 
 daynight_read_config() {
   [ -f "$daynight_config_file" ] || return
-  
+
   daynight_enabled="$(daynight_get_value enabled)"
   daynight_total_gain_night_threshold="$(daynight_get_value total_gain_night_threshold)"
   daynight_total_gain_day_threshold="$(daynight_get_value total_gain_day_threshold)"
@@ -206,7 +206,7 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
 
 <div class="mb-2">
   <button type="button" class="btn btn-outline-secondary btn-sm" id="toggle-tabs">
-    <i class="bi bi-layout-sidebar"></i> Toggle Tabs
+    <i class="bi bi-layout-sidebar"></i> Toggle Configuration Tabs
   </button>
 </div>
 
@@ -536,7 +536,7 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
 	  File: <%= "${SENSOR_IQ_PATH}/${SENSOR_IQ_FILE}" %><br>
 	  MD5: <% md5sum "${SENSOR_IQ_PATH}/${SENSOR_IQ_FILE}" | cut -d' ' -f1 %>
 	</p>
-        <p>Upload a custom sensor IQ file for <span class="fw-bold text-uppercase"><%= $soc_model %></span> 
+        <p>Upload a custom sensor IQ file for <span class="fw-bold text-uppercase"><%= $soc_model %></span>
 	  and <span class="fw-bold text-uppercase"><%= $sensor_model %></span>, e.g. from a stock firmware backup.</p>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#mdSensorIQ">
           <i class="bi bi-upload"></i> Upload Sensor IQ File
@@ -937,9 +937,13 @@ async function loadConfig() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const text = await response.text();
     if (text) {
-      const msg = JSON.parse(text);
-      console.log(ts(), '<===', JSON.stringify(msg));
-      handleMessage(msg);
+      try {
+        const msg = JSON.parse(text);
+        console.log(ts(), '<===', JSON.stringify(msg));
+        handleMessage(msg);
+      } catch (parseErr) {
+        console.warn(ts(), 'Invalid JSON response', text, parseErr);
+      }
     } else {
       console.log(ts(), '<===', 'Empty response');
     }
@@ -961,9 +965,13 @@ async function sendToEndpoint(payload) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const text = await response.text();
     if (text) {
-      const msg = JSON.parse(text);
-      console.log(ts(), '<===', JSON.stringify(msg));
-      handleMessage(msg);
+      try {
+        const msg = JSON.parse(text);
+        console.log(ts(), '<===', JSON.stringify(msg));
+        handleMessage(msg);
+      } catch (parseErr) {
+        console.warn(ts(), 'Invalid JSON response', text, parseErr);
+      }
     } else {
       console.log(ts(), '<===', 'Empty response');
     }
@@ -1123,7 +1131,7 @@ async function sendImagingUpdate(field, value, element) {
 imagingFields.forEach(field => {
   const input = $(`#${field}`);
   const slider = $(`#${field}-slider`);
-  
+
   // Handle text input changes
   if (input) {
     input.addEventListener('change', ev => {
@@ -1132,7 +1140,7 @@ imagingFields.forEach(field => {
         sendImagingUpdate(field, value, ev.target);
       }
     });
-    
+
     // Double-click on input to reset to default
     input.addEventListener('dblclick', ev => {
       const min = Number(ev.target.dataset.min ?? 0);
@@ -1145,13 +1153,13 @@ imagingFields.forEach(field => {
       sendImagingUpdate(field, targetValue, ev.target);
     });
   }
-  
+
   // Handle modal slider input (live update)
   if (slider) {
     slider.addEventListener('input', ev => {
       updateImagingLabel(field, ev.target.value);
     });
-    
+
     // Handle slider change (on release)
     slider.addEventListener('change', ev => {
       const value = parseInt(ev.target.value);
@@ -1159,7 +1167,7 @@ imagingFields.forEach(field => {
         sendImagingUpdate(field, value, ev.target);
       }
     });
-    
+
     // Double-click on slider to reset to default
     slider.addEventListener('dblclick', ev => {
       const min = Number(ev.target.min ?? 0);
@@ -1191,7 +1199,7 @@ function saveStreamValue(streamId, param) {
       el.addEventListener('change', () => saveStreamValue(streamId, param));
       el.disabled = true;
     }
-    
+
     // Also handle modal slider if it exists
     const slider = $(`#stream${streamId}_${param}-slider`);
     if (slider) {
@@ -1420,7 +1428,7 @@ audio_params.forEach(param => {
     el.addEventListener('change', () => saveAudioValue(param));
     el.disabled = true;
   }
-  
+
   // Also handle modal slider if it exists
   const slider = $('#audio_' + param + '-slider');
   if (slider) {
@@ -1588,13 +1596,13 @@ function showTab(tabId) {
   Object.values(tabPanes).forEach(pane => {
     if (pane) pane.classList.remove('show', 'active');
   });
-  
+
   // Show selected tab pane
   const selectedPane = tabPanes[tabId];
   if (selectedPane) {
     selectedPane.classList.add('show', 'active');
   }
-  
+
   // Switch preview based on active tab
   const preview = $('#preview');
   if (preview) {
@@ -1606,7 +1614,7 @@ function showTab(tabId) {
       preview.src = '/x/ch1.mjpg';
     }
   }
-  
+
   // Save to localStorage
   localStorage.setItem('preview_active_tab', tabId);
 }
