@@ -105,10 +105,16 @@ elif [ ! -e "$PATH_ARG" ]; then
 	exit 1
 fi
 
-if [ ! -p "$FIFO" ]; then
-	echo "play: Prudynt audio FIFO ($FIFO) is unavailable" >&2
-	exit 1
-fi
+wait_attempt=0
+wait_limit=5
+while ! ip link show "$FIFO" >/dev/null 2>&1; do
+	wait_attempt=$((wait_attempt + 1))
+	if [ $wait_attempt -ge $wait_limit ]; then
+		echo_error "$FIFO did not appear within ${wait_limit}s"
+		break
+	fi
+	sleep 0.5
+done
 
 CMD="PLAY url=$PATH_ARG"
 [ -n "$VOL" ] && CMD="$CMD vol=$VOL"
