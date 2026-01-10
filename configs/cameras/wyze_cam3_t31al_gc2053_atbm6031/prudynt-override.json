@@ -1,12 +1,15 @@
 {
   "audio": {
-    "input_high_pass_filter": true,
-    "input_agc_enabled": true,
-    "input_vol": 120,
-    "input_gain": 30,
-    "input_alc_gain": 7,
-    "input_agc_target_level_dbfs": 30,
-    "input_agc_compression_gain_db": 70,
-    "input_noise_suppression": 3
+    "mic_agc_compression_gain_db": 70,
+    "mic_alc_gain": 7,
+    "mic_agc_enabled": true,
+    "mic_agc_target_level_dbfs": 30,
+    "mic_gain": 30,
+    "mic_high_pass_filter": true,
+    "mic_noise_suppression": 3,
+    "mic_vol": 120,
+    "spk_enabled": true,
+    "spk_gain": 23,
+    "spk_vol": 80
   }
 }
