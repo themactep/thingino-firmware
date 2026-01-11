@@ -8,6 +8,11 @@ CNET=172.16.0
 portal_device="@PORTAL_NETDEV@"
 sed -i "s/%dev%/$portal_device/g" /etc/udhcpd-portal.conf
 
+wlanap_enabled=$(jct /etc/thingino.json get wlan_ap.enabled 2>/dev/null)
+
+wlan_ssid=$(jct /etc/thingino.json get wlan.ssid 2>/dev/null)
+wlan_pass=$(jct /etc/thingino.json get wlan.pass 2>/dev/null)
+
 timeout() {
 	sleep 600 &&
 		play /usr/share/sounds/configurationportalisdown.opus &&
@@ -135,7 +140,7 @@ case "$1" in
 		start
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart}"
+		echo "Usage: $0 {start|stop|restart}" >&2
 		exit 1
 		;;
 esac
