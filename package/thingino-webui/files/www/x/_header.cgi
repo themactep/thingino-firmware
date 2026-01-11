@@ -141,7 +141,7 @@ configured_channel=$(jct "/etc/prudynt.json" get "recorder.channel" 2>/dev/null 
       </div>
 
       <div class="col-1">
-        <a href="config-daynight.cgi" class="dnd-gain <%= $CSS_SILENT_LINK %>" title="Brightness"></a>
+        <a href="preview.cgi?tab=photosensing" class="dnd-gain <%= $CSS_SILENT_LINK %>" title="Total gain"></a>
       </div>
 
       <div class="col-4 col-lg-2">
