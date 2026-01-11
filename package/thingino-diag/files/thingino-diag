@@ -85,6 +85,8 @@ fi
 	header "ENV"
 	fw_printenv | awk -F'=' '{if (/ethaddr|gatewayip|ipaddr|root_pw_hash|pwbackup|serverip|ssh_authorized_keys|sshkey|wlan_ssid|wlan_mac|wlan_pass|wg_dns|wg_address|wg_endpoint|wg_peerpub|wg_peerpsk|wg_allowed/) print $1 "=REDACTED"; else print}' | sort
 
+	inforun "jst /etc/thignino.json print"
+
 	infocat "/proc/cmdline" "CMDLINE"
 	inforun "gpio list" "GPIO"
 	inforun "df -h" "DF"
