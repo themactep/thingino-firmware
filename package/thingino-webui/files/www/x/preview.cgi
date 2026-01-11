@@ -107,7 +107,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
           mkdir -p "$SENSOR_IQ_UPLOAD_PATH"
           mv "$HASERL_sensorfile_path" "$UPLOADED_SENSOR_IQ_FILE"
           ln -sf "$UPLOADED_SENSOR_IQ_FILE" "${SENSOR_IQ_PATH}/${SENSOR_IQ_FILE}"
-	  service restart prudynt >/dev/null &
+          service restart prudynt >/dev/null &
           redirect_to $SCRIPT_NAME "success" "Custom sensor IQ file installed"
         fi
       fi
@@ -214,7 +214,7 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
   <div class="col" id="preview-col">
     <div id="frame" class="position-relative mb-2">
       <img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Preview"
-        data-bs-toggle="modal" data-bs-target="#mdPreview" style="cursor: zoom-in;">
+        data-bs-toggle="modal" data-bs-target="#mdPreview" style="cursor: zoom-in;" tabindex="-1">
 <% if [ "true" = "$has_motors" ]; then %>
       <div class="position-absolute top-50 start-50 translate-middle">
         <%in _motors.cgi %>
@@ -224,8 +224,20 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
   </div>
 
   <div class="col-12 col-lg-7 d-none" id="tabs-col">
-    <div class="mb-3">
-      <select class="form-select" id="tab-selector" aria-label="Select tab">
+    <div class="d-flex gap-1 mb-3">
+      <button type="button" id="export-config" class="btn btn-secondary" title="Download the active configuration from prudynt's memory as JSON">
+        <i class="bi bi-download" title="Export JSON"></i>
+      </button>
+
+      <button type="button" id="save-config" class="btn btn-secondary" title="Write the active configuration to /etc/prudynt.json on the camera">
+        <i class="bi bi-floppy" title="Save"></i>
+      </button>
+
+      <button type="button" id="restart-prudynt" class="btn btn-danger">
+        <i class="bi bi-arrow-clockwise" title="Restart Prudynt"></i>
+      </button>
+
+      <select class="form-select ms-2" id="tab-selector" aria-label="Select tab">
 <% if [ "true" = "$has_motors" ]; then %>
         <option value="ptz">Pan/Tilt Motors</option>
 <% fi %>
@@ -237,7 +249,6 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
         <option value="audio">Audio Settings</option>
         <option value="sensor">Sensor IQ File</option>
         <option value="photosensing">Photosensing</option>
-        <option value="settings">Config File</option>
       </select>
     </div>
 
@@ -337,7 +348,7 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
         </div>
         <div class="row g-2">
           <div class="col-3">
-	    <% field_switch "image_hflip" "V-Flip" %>
+                  <% field_switch "image_hflip" "V-Flip" %>
             <% field_switch "image_vflip" "H-Flip" %>
           </div>
         </div>
@@ -361,9 +372,9 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
         <div class="row g-2">
           <div class="col-4"><% field_text "stream0_rtsp_endpoint" "RTSP Endpoint" %></div>
           <div class="col-4">
-	    <% field_switch "stream0_video_enabled" "Video in stream" %>
+                  <% field_switch "stream0_video_enabled" "Video in stream" %>
             <% field_switch "stream0_audio_enabled" "Audio in stream" %>
-	  </div>
+          </div>
         </div>
       </div>
 
@@ -429,9 +440,9 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
         <div class="row g-2">
           <div class="col-4"><% field_text "stream1_rtsp_endpoint" "RTSP Endpoint" %></div>
           <div class="col-4">
-	    <% field_switch "stream1_video_enabled" "Video in stream" %>
+                  <% field_switch "stream1_video_enabled" "Video in stream" %>
             <% field_switch "stream1_audio_enabled" "Audio in stream" %>
-	  </div>
+                </div>
         </div>
       </div>
 
@@ -506,18 +517,12 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
           <div class="col"><% field_number_range "audio_spk_gain" "Speaker gain" "0,31,1" %></div>
           <div class="col"><% field_select "audio_spk_sample_rate" "Speaker sampling, Hz" "$AUDIO_SAMPLING" %></div>
         </div>
-        <div class="alert alert-info small mt-3">RTSP stream URL: <span id="playrtsp" class="cb"></span></div>
       </div>
 
       <div class="tab-pane" id="photosensing" role="tabpanel" aria-labelledby="photosensing-tab" tabindex="0">
         <div class="row g-2">
           <div class="col-12">
-	    <% field_switch "daynight_enabled" "Enable photosensing on boot" %>
-	  </div>
-          <div class="col col-md-6">
-            <h6>Thresholds</h6>
-            <% field_number_range "daynight_total_gain_night_threshold" "Switch to night mode above" "0,10000,1" %>
-            <% field_number_range "daynight_total_gain_day_threshold" "Switch to day mode below" "0,10000,1" %>
+            <% field_switch "daynight_enabled" "Enable photosensing on boot" %>
           </div>
           <div class="col col-md-6">
             <h6>Controls</h6>
@@ -527,47 +532,26 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
             <% field_checkbox "daynight_controls_ir940" "Toggle IR 940 nm" %>
             <% field_checkbox "daynight_controls_white" "Toggle white light" %>
           </div>
+          <div class="col col-md-6">
+            <h6>Thresholds</h6>
+            <% field_number_range "daynight_total_gain_night_threshold" "Switch to night mode above" "0,10000,1" %>
+            <% field_number_range "daynight_total_gain_day_threshold" "Switch to day mode below" "0,10000,1" %>
+          </div>
         </div>
       </div>
 
       <div class="tab-pane" id="sensor" role="tabpanel" aria-labelledby="sensor-tab" tabindex="0">
         <h6>Sensor IQ file</h6>
-	<p class="alert alert-secondary">
-	  File: <%= "${SENSOR_IQ_PATH}/${SENSOR_IQ_FILE}" %><br>
-	  MD5: <% md5sum "${SENSOR_IQ_PATH}/${SENSOR_IQ_FILE}" | cut -d' ' -f1 %>
-	</p>
+        <p class="alert alert-secondary">
+          File: <%= "${SENSOR_IQ_PATH}/${SENSOR_IQ_FILE}" %><br>
+          MD5: <% md5sum "${SENSOR_IQ_PATH}/${SENSOR_IQ_FILE}" | cut -d' ' -f1 %>
+        </p>
         <p>Upload a custom sensor IQ file for <span class="fw-bold text-uppercase"><%= $soc_model %></span>
-	  and <span class="fw-bold text-uppercase"><%= $sensor_model %></span>, e.g. from a stock firmware backup.</p>
+          and <span class="fw-bold text-uppercase"><%= $sensor_model %></span>, e.g. from a stock firmware backup.</p>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#mdSensorIQ">
           <i class="bi bi-upload"></i> Upload Sensor IQ File
         </button>
       </div>
-
-      <div class="tab-pane" id="settings" role="tabpanel" aria-labelledby="settings-tab" tabindex="0">
-        <h6>Configuration Management</h6>
-        <div class="row g-2">
-          <div class="col-12">
-            <button type="button" id="export-config" class="btn btn-primary">
-              <i class="bi bi-download"></i>
-              Export Current Configuration
-            </button>
-            <p class="small text-muted mt-2">Download the active configuration from prudynt's memory as JSON.</p>
-          </div>
-          <div class="col-12">
-            <button type="button" id="save-config" class="btn btn-warning">
-              <i class="bi bi-floppy"></i> Save Configuration to File
-            </button>
-            <p class="small text-muted mt-2">Write the active configuration to /etc/prudynt.json on the camera.</p>
-          </div>
-          <div class="col-12">
-            <button type="button" id="restart-prudynt" class="btn btn-danger">
-              <i class="bi bi-arrow-clockwise"></i> Restart Prudynt
-            </button>
-            <p class="small text-muted mt-2">Restart the prudynt service to apply changes that require a full restart.</p>
-          </div>
-        </div>
-      </div>
-
    </div><!-- .tab-content -->
   </div><!-- #tabs-col -->
 </div><!-- .preview -->
@@ -775,11 +759,12 @@ function handleMessage(msg) {
   if (msg.privacy && msg.privacy.enabled !== undefined) {
     $('#privacy').checked = msg.privacy.enabled;
   }
-  if (msg.rtsp) {
-    const r = msg.rtsp;
-    if (r.username && r.password && r.port && msg.stream0?.rtsp_endpoint)
-      $('#playrtsp').innerHTML = `ffplay -hide_banner -rtsp_transport tcp rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
-  }
+
+  // if (msg.rtsp) {
+  //   const r = msg.rtsp;
+  //   if (r.username && r.password && r.port && msg.stream0?.rtsp_endpoint)
+  //     $('#playrtsp').innerHTML = `ffplay -hide_banner -rtsp_transport tcp rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
+  // }
 
   // Handle image params
   if (msg.image) {
@@ -1015,6 +1000,18 @@ const imagingFields = [
   "noise_reduction"
 ];
 
+const imageConfigKeyMap = {
+  brightness: "brightness",
+  contrast: "contrast",
+  sharpness: "sharpness",
+  saturation: "saturation",
+  backlight: "backlight_compensation",
+  wide_dynamic_range: "drc_strength",
+  tone: "highlight_depress",
+  defog: "defog_strength",
+  noise_reduction: "sinter_strength"
+};
+
 // Disable all imaging controls initially
 imagingFields.forEach(field => {
   const input = $(`#${field}`);
@@ -1103,6 +1100,18 @@ async function fetchImagingState() {
   }
 }
 
+async function persistImagingSetting(field, value) {
+  const configKey = imageConfigKeyMap[field];
+  if (!configKey) return;
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return;
+  try {
+    await sendToEndpoint({image: {[configKey]: numericValue}});
+  } catch (err) {
+    console.warn('Failed to persist imaging setting', field, err);
+  }
+}
+
 async function sendImagingUpdate(field, value, element) {
   const params = new URLSearchParams({cmd: 'set'});
   params.append(field, value);
@@ -1119,6 +1128,7 @@ async function sendImagingUpdate(field, value, element) {
         applyFieldMetadata(field, fields[field] || null);
       }
     }
+    await persistImagingSetting(field, value);
   } catch (err) {
     console.error('Failed to update imaging value', err);
   } finally {
@@ -1663,7 +1673,6 @@ const exportConfigBtn = $('#export-config');
 if (exportConfigBtn) {
   exportConfigBtn.addEventListener('click', () => {
     exportConfigBtn.disabled = true;
-    exportConfigBtn.textContent = 'Exporting...';
 
     // Open the CGI endpoint which will trigger download
     window.location.href = '/x/json-prudynt-config.cgi';
@@ -1671,7 +1680,6 @@ if (exportConfigBtn) {
     // Re-enable button after a short delay
     setTimeout(() => {
       exportConfigBtn.disabled = false;
-      exportConfigBtn.innerHTML = '<i class="bi bi-download" style="color: cornflowerblue;"></i> Export Current Configuration';
     }, 1000);
   });
 }
@@ -1686,7 +1694,6 @@ if (saveConfigBtn) {
 
     try {
       saveConfigBtn.disabled = true;
-      saveConfigBtn.textContent = 'Saving...';
 
       const payload = {action: {save_config: null}};
       const res = await fetch('/x/json-prudynt.cgi', {
@@ -1708,7 +1715,6 @@ if (saveConfigBtn) {
       alert('Failed to save configuration: ' + err.message);
     } finally {
       saveConfigBtn.disabled = false;
-      saveConfigBtn.innerHTML = '<i class="bi bi-save" style="color: cornflowerblue;"></i> Save Configuration to File';
     }
   });
 }
@@ -1723,7 +1729,6 @@ if (restartPrudyntBtn) {
 
     try {
       restartPrudyntBtn.disabled = true;
-      restartPrudyntBtn.textContent = 'Restarting...';
 
       const res = await fetch('/x/restart-prudynt.cgi', {method: 'GET'});
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1738,7 +1743,6 @@ if (restartPrudyntBtn) {
       console.error('Failed to restart prudynt:', err);
       alert('Failed to restart prudynt: ' + err.message);
       restartPrudyntBtn.disabled = false;
-      restartPrudyntBtn.innerHTML = '<i class="bi bi-arrow-clockwise" style="color: cornflowerblue;"></i> Restart Prudynt';
     }
   });
 }
@@ -1843,5 +1847,9 @@ if (toggleTabsBtn) {
     </div>
   </div>
 </div>
+
+<!--
+<p>Play RTSP: <span id="playrtsp" class="cb"></span></p>
+-->
 
 <%in _footer.cgi %>
