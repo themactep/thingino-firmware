@@ -7,6 +7,10 @@ fi
 
 . /usr/share/common
 
+wlan_pass=$(jct /etc/thingino.json get wlan.pass 2>/dev/null || fw_printenv -n wlan_pass)
+wlan_ssid=$(jct /etc/thingino.json get wlan.ssid 2>/dev/null || fw_printenv -n wlan_ssid)
+wlan_enabled=$(jct /etc/thingino.json get wlan.enabled 2>/dev/null || fw_printenv -n wlan_enabled)
+
 # exit 1 to stop the interface from being brought up, and dhcp being attempted
 if [ -z "$wlan_ssid" ]; then
 	echo_error "WLAN disabled, no SSID"
@@ -14,7 +18,7 @@ if [ -z "$wlan_ssid" ]; then
 elif [ -z "$wlan_pass" ]; then
 	echo_error "WLAN disabled, no password"
 	exit 1
-elif [ "$disable_wlan" = "true" ]; then
+elif [ "$wlan_enabled" = "false" ]; then
 	echo_error "WLAN manually disabled."
 	exit 1
 fi

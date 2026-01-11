@@ -6,8 +6,12 @@ IFACE=wlan0
 EXPECTED_WLAN_MODULE="@WLAN_MODULE@"
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
 WLAN_MODULE_OPTS="@WLAN_MODULE_OPTS@"
-WLAN_CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
+WLAN_CONFIG_JSON="/etc/thingino.json"
 wlan_pins_used=""
+
+wlan_module=$(jct /etc/thingino.json get wlan.module 2>/dev/null || fw_printenv -n wlan_module)
+wlan_module_opts=$(jct /etc/thingino.json get wlan.module_opts 2>/dev/null || fw_printenv -n wlan_module_opts)
+wlan_mac=$(jct /etc/thingino.json get wlan.mac 2>/dev/null || fw_printenv -n wlan_mac)
 
 # Legacy compatibility: allow runtime override via U-Boot environment
 if [ -z "$wlan_module" ]; then

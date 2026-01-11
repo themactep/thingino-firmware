@@ -4,6 +4,8 @@
 
 USB_SCRIPT="/etc/init.d/F02failsafe-usb"
 
+usb_console=$(jct /dev/thingino.json get usb.console 2>/dev/null || fw_printenv -n usb_console)
+
 start() {
 	if [ "true" = "$usb_console" ] && [ -f "$USB_SCRIPT" ]; then
 		exit 0

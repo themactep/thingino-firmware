@@ -70,7 +70,9 @@ set_hostname() {
 }
 
 generate() {
+	local wlan_mac=$(jct /etc/thingino.json get wlan.mac 2>/dev/null || fw_printenv -n wlan_mac)
 	local generated_hostname="$(default_hostname)-$(echo $wlan_mac | sed -E 's/://g;s/.*(.{4})$/\1/')"
+
 	echo_info "Generated name: $generated_hostname"
 	set_hostname "$generated_hostname" "auto-generated"
 }

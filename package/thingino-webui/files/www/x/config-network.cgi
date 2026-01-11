@@ -5,6 +5,10 @@
 
 page_title="Network"
 
+eth_mac=$(jct /etc/thingino.json get eth.mac 2>/dev/null || fw_printenv -n ethaddr)
+usb_mac=$(jct /etc/thingino.json get usb.mac 2>/dev/null || fw_printenv -n usb_mac)
+wlan_mac=$(jct /etc/thingino.json get wlan.mac 2>/dev/null || fw_printenv -n wlan_mac)
+
 IFACES="eth0 wlan0 usb0"
 PARAMS="hostname dns1 dns2"
 SUBPARAMS="enabled dhcp ipv6 address mac netmask gateway broadcast"
@@ -125,6 +129,15 @@ setup_wireless_network() {
   psk=$(convert_psk "$ssid" "$pass")
 
   temp_file=$(mktemp)
+  echo '{}' > $temp_file
+	jct $temp_file set wlan.ssid "$ssid"
+	jct $temp_file set wlan.bssid "$bssid"
+  jct $temp_file set wlan.pass "$psk"
+  jct /etc/thingino.json import $temp_file
+  rm -f $temp_file
+
+  # legacy settings
+  temp_file=$(mktemp)
   {
     [ -n "$ssid"  ] && echo "wlan_ssid $ssid"
     [ -n "$bssid" ] && echo "wlan_bssid $bssid"
@@ -146,7 +159,7 @@ fi
 
 eth0_enabled=$(iface_up eth0)
 eth0_mac=$(iface_mac eth0)
-[ -z "$eth0_mac" ] && eth0_mac="$ethaddr"
+[ -z "$eth0_mac" ] && eth0_mac="$eth_mac"
 is_iface_dhcp eth0 && eth0_dhcp="true"
 [ -z "$eth0_address" ] && eth0_address=$(iface_ip_actual eth0)
 [ -z "$eth0_address" ] && eth0_address=$(iface_ip_in_etc eth0)
@@ -272,18 +285,21 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
 
   if [ -z "$error" ]; then
     setup_iface eth0 "$eth0_mode" "$eth0_address" "$eth0_netmask" "$eth0_gateway" "$eth0_broadcast"
-    fw_setenv ethaddr "$eth0_mac"
+    jct /etc/thingino.json set eth.mac "$eth0_mac"
+    fw_setenv ethaddr "$eth0_mac" # legacy
     [ "true" = "$eth0_enabled" ] || disable_iface eth0
 
     setup_iface wlan0 "$wlan0_mode" "$wlan0_address" "$wlan0_netmask" "$wlan0_gateway" "$wlan0_broadcast"
-    fw_setenv wlan_mac "$wlan0_mac"
+    jct /etc/thingino.json set wlan.mac "$wlan0_mac"
+    fw_setenv wlan_mac "$wlan0_mac" # legacy
     [ "true" = "$wlan0_enabled" ] || disable_iface wlan0
 
     setup_iface usb0 "$usb0_mode" "$usb0_address" "$usb0_netmask" "$usb0_gateway" "$usb0_broadcast"
-    fw_setenv usbmac "$usb0_mac"
+    jct /etc/thingino.json set usb.mac "$usb0_mac"
+    fw_setenv usbmac "$usb0_mac" # legacy
     [ "true" = "$usb0_enabled" ] || disable_iface usb0
 
-    refresh_env_dump
+    refresh_env_dump # legacy
 
     hostname=$POST_hostname
     [ "$hostname" = "$(hostname_in_etc)" ] || \

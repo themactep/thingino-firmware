@@ -68,8 +68,19 @@ cli() {
 
 reset() {
 	tmp_file=$(mktemp)
+
+	echo '{}' > $tmp_file
+	jct $tmp_file set wlan.ssid ""
+	jct $tmp_file set wlan.bssid ""
+	jct $tmp_file set wlan.pass ""
+	jct $tmp_file set wlan_ap.ssid ""
+	jct $tmp_file set wlan_ap.pass ""
+	jct /etc/thingino.json import $tmp_file
+
+	# legacy env settings
 	echo -e "wlan_ssid\nwlan_bssid\nwlan_pass\nwlanap_ssid\nwlanap_pass" > $tmp_file
 	fw_setenv -s $tmp_file
+
 	rm -f $tmp_file
 }
 
@@ -137,8 +148,19 @@ setup() {
 		echo_c 160 "Passwords is not between 8 and 64 characters. Please try again."
 	done
 
+	psk=$(convert_psk "$ssid" "$password")
+
+	temp_file=$(mktemp -u)
+	echo '{}' > $temp_file
+	jct $temp_file set wlan.ssid "$ssid"
+	jct $temp_file set wlan.pass "$psk"
+	jct $temp_file set wlan_ap.enabled "false"
+	jct /etc/thingino.json import $temp_file
+	rm -f $temp_file
+
+	# legacy settings
 	fw_setenv wlan_ssid "$ssid"
-	fw_setenv wlan_pass "$password"
+	fw_setenv wlan_pass "$psk"
 
 	echo_c 40 "Wi-Fi settings updated. Please restart for changes to take effect.\n"
 }

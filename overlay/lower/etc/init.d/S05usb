@@ -6,7 +6,8 @@ USB_EN_PIN=""
 USB_EN_ACTIVE_LOW=0
 USB_EN_ACTIVE_ON_BOOT=1
 PARSED_PIN=""
-PARSED_ACTIVE=""
+
+CONFIG_JSON="/etc/thingino.json"
 
 bool_flag() {
 	case "${1:-}" in
@@ -39,38 +40,15 @@ get_bool_or_default() {
 }
 
 parse_scalar_pin() {
-	local raw="$1" default="$2" token suffix pin active
-	raw=$(printf '%s' "$raw" | tr -d '\r')
-	raw=${raw%\"}
-	raw=${raw#\"}
+	local raw="$1"
+	raw=$(printf '%s' "$raw" | tr -d '\r\n"')
 	set -- $raw
-	token="$1"
-	[ -n "$token" ] || return 1
-	case "$token" in
-		-1) return 1 ;;
-		*[!0-9oO]*) return 1 ;;
-	esac
-	case "$token" in
-		*[oO])
-			pin=${token%?}
-			suffix=${token#$pin}
-			;;
-		*)
-			pin="$token"
-			suffix=""
-			;;
-	esac
-	case "$pin" in
+	raw="$1"
+	case "$raw" in
 		''|*[!0-9]*) return 1 ;;
+		-1) return 1 ;;
 	esac
-	case "$suffix" in
-		o) active=1 ;;
-		O) active=0 ;;
-		*) active="$default" ;;
-	esac
-	[ -n "$active" ] || active=0
-	PARSED_PIN="$pin"
-	PARSED_ACTIVE="$active"
+	PARSED_PIN="$raw"
 	return 0
 }
 
@@ -86,14 +64,12 @@ load_usb_gpio_from_json() {
 		active_low="$nested_active"
 		active_boot=$(get_bool_or_default "$base.pin.active_on_boot" "$active_boot")
 	elif raw=$(jct_get "$base.pin" 2>/dev/null); then
-		if parse_scalar_pin "$raw" "$active_low"; then
+		if parse_scalar_pin "$raw"; then
 			pin="$PARSED_PIN"
-			active_low="$PARSED_ACTIVE"
 		fi
 	elif raw=$(jct_get "$base" 2>/dev/null); then
-		if parse_scalar_pin "$raw" "$active_low"; then
+		if parse_scalar_pin "$raw"; then
 			pin="$PARSED_PIN"
-			active_low="$PARSED_ACTIVE"
 		fi
 	fi
 	[ -n "$pin" ] || return 1
@@ -131,39 +107,8 @@ configure_usb_power() {
 		return 0
 	fi
 
-	if [ -z "$gpio_usb_en" ]; then
-		echo_warning "USB power GPIO is not set"
-		return 1
-	fi
-
-	if [ "$gpio_usb_en" = "${gpio_usb_en//[^0-9]/}" ]; then
-		gpio_usb_en="${gpio_usb_en}O"
-	fi
-
-	pin="${gpio_usb_en:0:-1}"
-	case "${gpio_usb_en#$pin}" in
-		o)
-			target=0
-			state_desc="low"
-			;;
-		O)
-			target=1
-			state_desc="high"
-			;;
-		*)
-			echo_error "Invalid USB GPIO suffix for $gpio_usb_en"
-			return 1
-			;;
-	esac
-
-	ensure_command gpio
-	if ! gpio set "$pin" "$target"; then
-		echo_error "Failed to set USB power GPIO $pin to $target"
-		return 1
-	fi
-
-	echo_info "Set USB power GPIO $pin to $state_desc"
-	return 0
+	echo_warning "USB power GPIO is not set in thingino configuration"
+	return 1
 }
 
 configure_usb_role() {

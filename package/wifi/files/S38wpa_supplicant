@@ -25,13 +25,18 @@ ssid_changed() {
 start() {
 	echo_title "Starting WPA Supplicant"
 
-	# convert plain-text password no matter what
+	wlan_pass=$(jct /etc/thingino.json get wlan.pass 2>/dev/null || fw_printenv -n wlan_pass)
+	wlan_ssid=$(jct /etc/thingino.json get wlan.ssid 2>/dev/null || fw_printenv -n wlan_ssid)
+	wlan_bssid=$(jct /etc/thingino.json get wlan.bssid 2>/dev/null || fw_printenv -n wlan_bssid)
+	wlanap_enabled=$(jct /etc/thingino.json get wlan_ap.enabled 2>/dev/null || fw_printenv -n wlanap_enabled)
+
 	if [ -n "$wlan_pass" ] && [ ${#wlan_pass} -lt 64 ]; then
-		tmpfile=$(mktemp)
-		wpa_passphrase "$wlan_ssid" "$wlan_pass" > $tmpfile
-		wlan_pass=$(grep '^\s*psk=' $tmpfile | cut -d= -f2 | tail -n 1)
+		echo_info "Converting plain password to PSK"
+		psk=$(convert_psk "$wlan_ssid" "$wlan_pass")
+		jct /etc/thingino.json set wlan.pass "$psk" 2>/dev/null
 		fw_setenv wlan_pass $wlan_pass
-		rm -f $tmpfile
+	else
+		echo_info "Wi-Fi password is PSK"
 	fi
 
 	if ! iface_exists "wlan0"; then
