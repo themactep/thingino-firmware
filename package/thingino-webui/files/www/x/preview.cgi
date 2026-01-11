@@ -1620,7 +1620,26 @@ const tabPanes = {
   'photosensing': $('#photosensing')
 };
 
+function isValidTabId(tabId) {
+  return typeof tabId === 'string' && Object.prototype.hasOwnProperty.call(tabPanes, tabId);
+}
+
+function updateTabQueryParam(tabId) {
+  if (!window.history || typeof window.history.replaceState !== 'function') return;
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tabId);
+    const nextUrl = url.toString();
+    if (nextUrl !== window.location.href) {
+      window.history.replaceState({}, '', nextUrl);
+    }
+  } catch (err) {
+    console.warn('Unable to update tab query param', err);
+  }
+}
+
 function showTab(tabId) {
+  if (!isValidTabId(tabId)) return;
   // Hide all tab panes
   Object.values(tabPanes).forEach(pane => {
     if (pane) pane.classList.remove('show', 'active');
@@ -1646,19 +1665,39 @@ function showTab(tabId) {
 
   // Save to localStorage
   localStorage.setItem('preview_active_tab', tabId);
+  updateTabQueryParam(tabId);
 }
 
-// Restore active tab from localStorage
-const savedTab = localStorage.getItem('preview_active_tab');
-if (savedTab && tabSelector) {
-  tabSelector.value = savedTab;
-  showTab(savedTab);
-} else if (tabSelector) {
-  // Show first tab by default
-  const firstOption = tabSelector.options[0];
-  if (firstOption) {
-    showTab(firstOption.value);
+function getInitialTabFromUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    return isValidTabId(tabParam) ? tabParam : null;
+  } catch (err) {
+    console.warn('Unable to parse preview tab from URL', err);
+    return null;
   }
+}
+
+function getFirstSelectableTab() {
+  if (tabSelector && tabSelector.options.length) {
+    const option = Array.from(tabSelector.options).find(opt => isValidTabId(opt.value));
+    if (option) return option.value;
+  }
+  return Object.keys(tabPanes).find(isValidTabId) || null;
+}
+
+const initialTab = (() => {
+  const urlTab = getInitialTabFromUrl();
+  if (urlTab) return urlTab;
+  const savedTab = localStorage.getItem('preview_active_tab');
+  if (isValidTabId(savedTab)) return savedTab;
+  return getFirstSelectableTab();
+})();
+
+if (initialTab) {
+  if (tabSelector) tabSelector.value = initialTab;
+  showTab(initialTab);
 }
 
 // Handle tab selector change
