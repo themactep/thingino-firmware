@@ -2,8 +2,158 @@
 
 . /usr/share/common
 
+LED_RECORDS=""
+JSON_LED_COUNT=0
+PARSED_PIN=""
+PARSED_ACTIVE=""
+
+bool_flag() {
+	case "${1:-}" in
+		1|true|TRUE|on|ON|yes|YES) echo 1 ;;
+		0|false|FALSE|off|OFF|no|NO) echo 0 ;;
+		*) echo "${2:-0}" ;;
+	esac
+}
+
+jct_has() {
+	[ -n "$JCT_BIN" ] || return 1
+	[ -r "$CONFIG_JSON" ] || return 1
+	"$JCT_BIN" "$CONFIG_JSON" get "$1" >/dev/null 2>&1
+}
+
+jct_get() {
+	[ -n "$JCT_BIN" ] || return 1
+	[ -r "$CONFIG_JSON" ] || return 1
+	"$JCT_BIN" "$CONFIG_JSON" get "$1" 2>/dev/null
+}
+
+get_bool_or_default() {
+	local key="$1" default="$2" raw
+	raw=$(jct_get "$key") || {
+		echo "$default"
+		return
+	}
+	raw=$(printf '%s' "$raw" | tr -d '\r\n"')
+	bool_flag "$raw" "$default"
+}
+
+parse_scalar_pin() {
+	local raw="$1" default="$2" token suffix pin active
+	raw=$(printf '%s' "$raw" | tr -d '\r')
+	raw=${raw%"}
+	raw=${raw#"}
+	set -- $raw
+	token="$1"
+	[ -n "$token" ] || return 1
+	case "$token" in
+		-1) return 1 ;;
+		*[!0-9oO]*) return 1 ;;
+	esac
+	case "$token" in
+		*[oO])
+			pin=${token%?}
+			suffix=${token#$pin}
+			;;
+		*)
+			pin="$token"
+			suffix=""
+			;;
+	esac
+	case "$pin" in
+		''|*[!0-9]*) return 1 ;;
+	esac
+	case "$suffix" in
+		o) active=1 ;;
+		O) active=0 ;;
+		*) active="$default" ;;
+	esac
+	[ -n "$active" ] || active=0
+	PARSED_PIN="$pin"
+	PARSED_ACTIVE="$active"
+	return 0
+}
+
+append_led_record() {
+	local record="$1"
+	if [ -z "$LED_RECORDS" ]; then
+		LED_RECORDS="$record"
+	else
+		LED_RECORDS="$LED_RECORDS
+$record"
+	fi
+}
+
+load_led_definition() {
+	local base="$1" pin="" active_low=0 active_on_boot=0 raw nested_active
+	[ -n "$base" ] || return
+	active_low=$(get_bool_or_default "$base.active_low" 0)
+	active_on_boot=$(get_bool_or_default "$base.active_on_boot" 0)
+	if jct_has "$base.pin.pin"; then
+		pin=$(jct_get "$base.pin.pin")
+		nested_active=$(get_bool_or_default "$base.pin.active_low" "$active_low")
+		active_low="$nested_active"
+		active_on_boot=$(get_bool_or_default "$base.pin.active_on_boot" "$active_on_boot")
+	else
+		if raw=$(jct_get "$base.pin" 2>/dev/null); then
+			if parse_scalar_pin "$raw" "$active_low"; then
+				pin="$PARSED_PIN"
+				active_low="$PARSED_ACTIVE"
+			fi
+		fi
+	fi
+	if [ -z "$pin" ] && raw=$(jct_get "$base" 2>/dev/null); then
+		if parse_scalar_pin "$raw" "$active_low"; then
+			pin="$PARSED_PIN"
+			active_low="$PARSED_ACTIVE"
+		fi
+	fi
+	[ -n "$pin" ] || return
+	append_led_record "${base#gpio.}:$pin:$active_low:$active_on_boot"
+	JSON_LED_COUNT=$((JSON_LED_COUNT + 1))
+}
+
+discover_led_configs() {
+	local keys base seen=""
+	keys=$(config_list_keys 2>/dev/null) || return
+	while IFS= read -r key; do
+		case "$key" in
+			gpio.led_*)
+				base=$(printf '%s' "$key" | cut -d'.' -f1-2)
+				case " $seen " in *" $base "*) continue ;; esac
+				seen="$seen $base"
+				load_led_definition "$base"
+				;;
+		esac
+	done <<EOF
+$keys
+EOF
+}
+
+discover_led_configs
+
 start() {
 	echo_title "Configuring LEDs"
+	ensure_command gpio
+
+	if [ "$JSON_LED_COUNT" -gt 0 ]; then
+		printf '%s\n' "$LED_RECORDS" | while IFS=: read -r led_name pin active_low active_on_boot; do
+			[ -n "$pin" ] || continue
+			case "$active_low" in
+				1) pin_on=0; pin_off=1 ;;
+				*) pin_on=1; pin_off=0 ;;
+			esac
+			if [ "$active_on_boot" = "1" ]; then
+				target=$pin_on
+				state_desc="on"
+			else
+				target=$pin_off
+				state_desc="off"
+			fi
+			echo_info "Set GPIO $pin $state_desc (LED $led_name)"
+			gpio set "$pin" "$target"
+		 done
+		return
+	fi
 
 	LED_PINS=$(awk -F= '/^gpio_led_/{gsub(/"/, "", $2); print $2}' "$ENV_DUMP_FILE")
 
@@ -29,7 +179,7 @@ start() {
 			echo_info "Set GPIO $pin $pin_off"
 			gpio set $pin $pin_off
 		fi
-	done
+	 done
 }
 
 case "$1" in
