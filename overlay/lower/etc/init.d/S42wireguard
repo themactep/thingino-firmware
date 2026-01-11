@@ -2,13 +2,42 @@
 
 . /usr/share/common
 
+WIREGUARD_INTERFACE="wg0"
+RESOLV_BAK="${RESOLV_WORKING_FILE}.bak"
+WIREGUARD_CONFIG_DOMAIN="wireguard"
+
+wireguard_json_get() {
+	local key="$1" value="" rc=0
+	value=$("$JCT_BIN" "$CONFIG_JSON" get "${WIREGUARD_CONFIG_DOMAIN}.$key" 2>/dev/null) || rc=$?
+	[ "$value" = "null" ] && value=""
+	printf '%s' "$value"
+	return $rc
+}
+
+wireguard_load_config() {
+	local key value var
+	if [ -z "$JCT_BIN" ]; then
+		echo_error "jct utility not found; cannot read $CONFIG_JSON"
+		return 1
+	fi
+	if [ ! -r "$CONFIG_JSON" ]; then
+		echo_error "Config file $CONFIG_JSON not found"
+		return 1
+	fi
+	for key in enabled address allowed dns endpoint keepalive mtu peerpsk peerpub port privkey; do
+		value=$(wireguard_json_get "$key")
+		var="wireguard_$key"
+		eval "$var=\$value"
+	done
+	wireguard_enabled=${wireguard_enabled:-false}
+}
+
+wireguard_load_config || exit 1
+
 if [ -z "$wireguard_address" ]; then
 	echo_error "No WireGuard IP address configured"
 	exit 1
 fi
-
-WIREGUARD_INTERFACE="wg0"
-RESOLV_BAK="${RESOLV_WORKING_FILE}.bak"
 
 start() {
 	echo_title "Starting WireGuard"
