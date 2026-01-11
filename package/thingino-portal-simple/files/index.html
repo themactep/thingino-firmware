@@ -19,7 +19,7 @@
 
 <div id="loading" class="hidden">
 <div class="spinner"></div>
-<p class="text-center">Loading...</p>
+<p class="text-center">Saving...</p>
 </div>
 
 <div id="error-message" class="alert alert-danger hidden"></div>
@@ -209,7 +209,7 @@ function collectFormData() {
     timezone: form.timezone.value,
     wlanap_enabled: form.wlanap_enabled.checked ? 'true' : 'false'
   };
-  
+
   if (form.wlanap_enabled.checked) {
     data.wlanap_ssid = form.wlanap_ssid.value;
     data.wlanap_pass = form.wlanap_pass.value;
@@ -217,14 +217,14 @@ function collectFormData() {
     data.wlan_ssid = form.wlan_ssid.value;
     data.wlan_pass = form.wlan_pass.value;
   }
-  
+
   return data;
 }
 
 function showReview(data) {
   hideError();
   hideElement('config-form');
-  
+
   if (data.wlanap_enabled === 'true') {
     document.getElementById('review-network-label').textContent = 'Wireless AP Network SSID';
     document.getElementById('review-network-ssid').textContent = data.wlanap_ssid;
@@ -236,18 +236,18 @@ function showReview(data) {
     document.getElementById('review-password-label').textContent = 'Wireless Network Password';
     document.getElementById('review-network-pass').textContent = data.wlan_pass;
   }
-  
+
   document.getElementById('review-rootpass').textContent = data.rootpass;
   document.getElementById('review-hostname').textContent = data.hostname;
   document.getElementById('review-timezone').textContent = data.timezone || '';
-  
+
   if (data.rootpkey) {
     document.getElementById('review-rootpkey').textContent = data.rootpkey;
     document.getElementById('review-rootpkey-label').classList.remove('hidden');
   } else {
     document.getElementById('review-rootpkey-label').classList.add('hidden');
   }
-  
+
   showElement('review-section');
 }
 
@@ -261,11 +261,11 @@ async function saveConfiguration(data) {
   try {
     const result = await apiCall('save', data);
     hideElement('loading');
-    
+
     if (result.success) {
       hideElement('config-form');
       hideElement('review-section');
-      
+
       if (data.wlanap_enabled === 'true') {
         document.getElementById('wlanap-ssid-display').textContent = data.wlanap_ssid;
         showElement('success-wlanap');
@@ -285,21 +285,21 @@ async function saveConfiguration(data) {
 
 document.getElementById('config-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  
+
   const form = e.target;
   if (!form.checkValidity()) {
     form.classList.add('was-validated');
     return;
   }
-  
+
   const data = collectFormData();
   const hostnameError = validateHostname(data.hostname);
-  
+
   if (hostnameError) {
     showError(hostnameError);
     return;
   }
-  
+
   formData = data;
   showReview(data);
 });
