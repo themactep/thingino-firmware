@@ -12,15 +12,19 @@ Pragma: no-cache
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title><% html_title %></title>
   <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
-<% if ! is_isolated; then %>
+<% if is_isolated; then %>
+  <link rel="stylesheet" href="/a/bootstrap.min.css">
+  <link rel="stylesheet" href="/a/bootstrap-icons.min.css">
+  <script src="/a/bootstrap.bundle.min.js"></script>
+<% else %>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <% fi %>
-  <link rel="stylesheet" href="/a/bootstrap.min.css">
-  <link rel="stylesheet" href="/a/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/a/main.css?ts=<%= $assets_ts %>">
-  <script src="/a/bootstrap.bundle.min.js"></script>
   <script src="/a/main.js?ts=<%= $assets_ts %>"></script>
 </head>
 <%
