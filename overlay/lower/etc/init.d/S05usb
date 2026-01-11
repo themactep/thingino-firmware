@@ -41,8 +41,8 @@ get_bool_or_default() {
 parse_scalar_pin() {
 	local raw="$1" default="$2" token suffix pin active
 	raw=$(printf '%s' "$raw" | tr -d '\r')
-	raw=${raw%"}
-	raw=${raw#"}
+	raw=${raw%\"}
+	raw=${raw#\"}
 	set -- $raw
 	token="$1"
 	[ -n "$token" ] || return 1
