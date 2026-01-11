@@ -2,7 +2,135 @@
 
 . /usr/share/common
 
+USB_EN_PIN=""
+USB_EN_ACTIVE_LOW=0
+USB_EN_ACTIVE_ON_BOOT=1
+PARSED_PIN=""
+PARSED_ACTIVE=""
+
+bool_flag() {
+	case "${1:-}" in
+		1|true|TRUE|on|ON|yes|YES) echo 1 ;;
+		0|false|FALSE|off|OFF|no|NO) echo 0 ;;
+		*) echo "${2:-0}" ;;
+	esac
+}
+
+jct_has() {
+	[ -n "$JCT_BIN" ] || return 1
+	[ -r "$CONFIG_JSON" ] || return 1
+	"$JCT_BIN" "$CONFIG_JSON" get "$1" >/dev/null 2>&1
+}
+
+jct_get() {
+	[ -n "$JCT_BIN" ] || return 1
+	[ -r "$CONFIG_JSON" ] || return 1
+	"$JCT_BIN" "$CONFIG_JSON" get "$1" 2>/dev/null
+}
+
+get_bool_or_default() {
+	local key="$1" default="$2" raw
+	raw=$(jct_get "$key") || {
+		echo "$default"
+		return
+	}
+	raw=$(printf '%s' "$raw" | tr -d '\r\n"')
+	bool_flag "$raw" "$default"
+}
+
+parse_scalar_pin() {
+	local raw="$1" default="$2" token suffix pin active
+	raw=$(printf '%s' "$raw" | tr -d '\r')
+	raw=${raw%"}
+	raw=${raw#"}
+	set -- $raw
+	token="$1"
+	[ -n "$token" ] || return 1
+	case "$token" in
+		-1) return 1 ;;
+		*[!0-9oO]*) return 1 ;;
+	esac
+	case "$token" in
+		*[oO])
+			pin=${token%?}
+			suffix=${token#$pin}
+			;;
+		*)
+			pin="$token"
+			suffix=""
+			;;
+	esac
+	case "$pin" in
+		''|*[!0-9]*) return 1 ;;
+	esac
+	case "$suffix" in
+		o) active=1 ;;
+		O) active=0 ;;
+		*) active="$default" ;;
+	esac
+	[ -n "$active" ] || active=0
+	PARSED_PIN="$pin"
+	PARSED_ACTIVE="$active"
+	return 0
+}
+
+load_usb_gpio_from_json() {
+	local base="gpio.usb.en" raw pin="" active_low=0 active_boot=1 nested_active
+	[ -n "$JCT_BIN" ] || return 1
+	[ -r "$CONFIG_JSON" ] || return 1
+	active_low=$(get_bool_or_default "$base.active_low" 0)
+	active_boot=$(get_bool_or_default "$base.active_on_boot" 1)
+	if jct_has "$base.pin.pin"; then
+		pin=$(jct_get "$base.pin.pin")
+		nested_active=$(get_bool_or_default "$base.pin.active_low" "$active_low")
+		active_low="$nested_active"
+		active_boot=$(get_bool_or_default "$base.pin.active_on_boot" "$active_boot")
+	elif raw=$(jct_get "$base.pin" 2>/dev/null); then
+		if parse_scalar_pin "$raw" "$active_low"; then
+			pin="$PARSED_PIN"
+			active_low="$PARSED_ACTIVE"
+		fi
+	elif raw=$(jct_get "$base" 2>/dev/null); then
+		if parse_scalar_pin "$raw" "$active_low"; then
+			pin="$PARSED_PIN"
+			active_low="$PARSED_ACTIVE"
+		fi
+	fi
+	[ -n "$pin" ] || return 1
+	USB_EN_PIN="$pin"
+	USB_EN_ACTIVE_LOW="$active_low"
+	USB_EN_ACTIVE_ON_BOOT="$active_boot"
+	return 0
+}
+
+load_usb_gpio_from_json
+
 configure_usb_power() {
+	if [ -n "$USB_EN_PIN" ]; then
+		local pin_on pin_off target state_desc
+		ensure_command gpio
+		if [ "$USB_EN_ACTIVE_LOW" = "1" ]; then
+			pin_on=0
+			pin_off=1
+		else
+			pin_on=1
+			pin_off=0
+		fi
+		if [ "$USB_EN_ACTIVE_ON_BOOT" = "1" ]; then
+			target=$pin_on
+			state_desc="on"
+		else
+			target=$pin_off
+			state_desc="off"
+		fi
+		echo_info "Set USB power GPIO $USB_EN_PIN $state_desc via $CONFIG_JSON"
+		if ! gpio set "$USB_EN_PIN" "$target"; then
+			echo_error "Failed to set USB power GPIO $USB_EN_PIN to $target"
+			return 1
+		fi
+		return 0
+	fi
+
 	if [ -z "$gpio_usb_en" ]; then
 		echo_warning "USB power GPIO is not set"
 		return 1
@@ -15,24 +143,26 @@ configure_usb_power() {
 	pin="${gpio_usb_en:0:-1}"
 	case "${gpio_usb_en#$pin}" in
 		o)
-			if ! gpio set $pin 0; then
-				echo_error "Failed to set USB power GPIO $pin to $state"
-				return 1
-			fi
+			target=0
+			state_desc="low"
 			;;
 		O)
-			if ! gpio set $pin 1; then
-				echo_error "Failed to set USB power GPIO $pin to $state"
-				return 1
-			fi
+			target=1
+			state_desc="high"
 			;;
 		*)
-			echo_error "Invalid state $state"
+			echo_error "Invalid USB GPIO suffix for $gpio_usb_en"
 			return 1
 			;;
 	esac
 
-	echo_info "Set USB power GPIO $pin to $state"
+	ensure_command gpio
+	if ! gpio set "$pin" "$target"; then
+		echo_error "Failed to set USB power GPIO $pin to $target"
+		return 1
+	fi
+
+	echo_info "Set USB power GPIO $pin to $state_desc"
 	return 0
 }
 
