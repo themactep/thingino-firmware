@@ -2,6 +2,8 @@
 
 . /usr/share/common
 
+wlanap_enabled="$(jct /dev/prudynt.json get wlan_ap.enabled 2>/dev/null)"
+
 start() {
 	echo_title "Starting NTP daemon"
 
