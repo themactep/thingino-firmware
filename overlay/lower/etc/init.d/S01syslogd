@@ -2,6 +2,7 @@
 
 DAEMON="syslogd"
 DAEMON_ARGS="-n -C64 -S -t -D $RSYSLOG_ADDRESS"
+RSYSLOG_CONFIG_DOMAIN="rsyslog"
 
 # -n              Run in foreground
 # -R HOST[:PORT]  Log to HOST:PORT (default PORT:514)
@@ -19,12 +20,40 @@ PIDFILE="/run/$DAEMON.pid"
 
 . /usr/share/common
 
-if [ -n "$rsyslog_host" ]; then
+rsyslog_json_get() {
+	local key="$1" value=""
+	[ -n "$JCT_BIN" ] || return 1
+	[ -r "$CONFIG_JSON" ] || return 1
+	value=$("$JCT_BIN" "$CONFIG_JSON" get "${RSYSLOG_CONFIG_DOMAIN}.$key" 2>/dev/null) || value=""
+	[ "$value" = "null" ] && value=""
+	printf '%s' "$value"
+}
+
+rsyslog_load_config() {
+	local key value var
+	[ -n "$JCT_BIN" ] || return 0
+	[ -r "$CONFIG_JSON" ] || return 0
+	for key in enabled host port file; do
+		value=$(rsyslog_json_get "$key")
+		var="rsyslog_$key"
+		eval "$var=\$value"
+	done
+	rsyslog_enabled=${rsyslog_enabled:-false}
+	rsyslog_port=${rsyslog_port:-514}
+	rsyslog_file=${rsyslog_file:-false}
+	rsyslog_local=${rsyslog_local:-$rsyslog_file}
+}
+
+rsyslog_load_config
+
+if [ "true" = "$rsyslog_enabled" ] && [ -n "$rsyslog_host" ]; then
 	echo_info "Adding remote logging to $rsyslog_host:${rsyslog_port:-514}"
 	DAEMON_ARGS="$DAEMON_ARGS -R $rsyslog_host:${rsyslog_port:-514}"
+elif [ "true" = "$rsyslog_enabled" ] && [ -z "$rsyslog_host" ]; then
+	echo_warning "Remote logging enabled but host missing"
 fi
 
-if [ "true" = "$rsyslog_local" ]; then
+if [ "true" = "$rsyslog_local" ] || [ "true" = "$rsyslog_file" ]; then
 	echo_info "Adding local logging"
 	DAEMON_ARGS="$DAEMON_ARGS -L"
 fi
