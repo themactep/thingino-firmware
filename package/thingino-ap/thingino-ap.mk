@@ -38,8 +38,6 @@ define THINGINO_AP_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/a/bootstrap.bundle.min.js
 	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/bootstrap-icons.min.css \
 		$(TARGET_DIR)/var/www/a/bootstrap-icons.min.css
-	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/bootstrap-icons.woff \
-		$(TARGET_DIR)/var/www/a/fonts/bootstrap-icons.woff
 	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/bootstrap-icons.woff2 \
 		$(TARGET_DIR)/var/www/a/fonts/bootstrap-icons.woff2
 endef
