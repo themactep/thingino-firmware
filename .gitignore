@@ -22,3 +22,5 @@
 /toolchain/
 *.backup
 .DS_Store
+.selected_camera
+.bash_history
