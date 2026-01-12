@@ -1,0 +1,42 @@
+# Build outputs
+output/
+buildroot/output/
+*.img
+*.bin
+*.elf
+
+# Build cache
+.stamps_*
+.config.old
+
+# Git
+.git/
+.gitignore
+.gitmodules
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local configuration
+local.mk
+local.mk.bak
+
+# Override sources
+overrides/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Logs
+*.log

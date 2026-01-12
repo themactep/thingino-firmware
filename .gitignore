@@ -1,5 +1,6 @@
 /.board
 /.bootstrapped
+/.ccache
 /.gitconfig
 /.idea
 /.prereqs.done
@@ -21,3 +22,5 @@
 /toolchain/
 *.backup
 .DS_Store
+.selected_camera
+.bash_history
