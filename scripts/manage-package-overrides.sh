@@ -75,12 +75,12 @@ EOF
 parse_package_mk() {
     local mk_file="$1"
     local pkg_upper="$2"
-    
+
     local site=""
     local version=""
     local method=""
     local branch=""
-    
+
     # Try to extract from the package .mk file
     if [ -f "$mk_file" ]; then
         site=$(grep "^${pkg_upper}_SITE\s*=" "$mk_file" | head -1 | sed 's/^.*=\s*//' | tr -d ' ')
@@ -88,40 +88,40 @@ parse_package_mk() {
         version=$(grep "^${pkg_upper}_VERSION\s*=" "$mk_file" | head -1 | sed 's/^.*=\s*//' | tr -d ' ')
         branch=$(grep "^${pkg_upper}_SITE_BRANCH\s*=" "$mk_file" | head -1 | sed 's/^.*=\s*//' | tr -d ' ')
     fi
-    
+
     echo "$method|$site|$version|$branch"
 }
 
 # Check if package has override in local.mk
 check_override() {
     local pkg_upper="$1"
-    
+
     if [ ! -f "$LOCAL_MK" ]; then
         return 1
     fi
-    
+
     grep -q "^${pkg_upper}_OVERRIDE_SRCDIR" "$LOCAL_MK" 2>/dev/null
 }
 
 # Check if package has override but is disabled (commented)
 check_override_disabled() {
     local pkg_upper="$1"
-    
+
     if [ ! -f "$LOCAL_MK" ]; then
         return 1
     fi
-    
+
     grep -q "^#\s*${pkg_upper}_OVERRIDE_SRCDIR" "$LOCAL_MK" 2>/dev/null
 }
 
 # Get override path from local.mk
 get_override_path() {
     local pkg_upper="$1"
-    
+
     if [ ! -f "$LOCAL_MK" ]; then
         return 1
     fi
-    
+
     # Try active override first, then disabled one
     grep "^${pkg_upper}_OVERRIDE_SRCDIR\|^#\s*${pkg_upper}_OVERRIDE_SRCDIR" "$LOCAL_MK" 2>/dev/null | head -1 | sed 's/^#\s*//' | sed 's/^.*=\s*//' | tr -d ' '
 }
@@ -130,13 +130,21 @@ get_override_path() {
 add_override() {
     local pkg_upper="$1"
     local override_path="$2"
-    
+
+    # Convert absolute path to relative using $(BR2_EXTERNAL)
+    # Remove BASE_DIR prefix and use $(BR2_EXTERNAL) instead
+    local relative_path="${override_path#$BASE_DIR/}"
+    if [ "$relative_path" != "$override_path" ]; then
+        # Path was inside BASE_DIR, make it relative
+        override_path="\$(BR2_EXTERNAL)/$relative_path"
+    fi
+
     # Create local.mk if it doesn't exist
     if [ ! -f "$LOCAL_MK" ]; then
         touch "$LOCAL_MK"
         print_info "Created $LOCAL_MK"
     fi
-    
+
     # Check if override already exists
     if check_override "$pkg_upper"; then
         local existing_path=$(get_override_path "$pkg_upper")
@@ -149,7 +157,7 @@ add_override() {
         # Remove old entry
         sed -i "/^${pkg_upper}_OVERRIDE_SRCDIR/d" "$LOCAL_MK"
     fi
-    
+
     # Add new override
     echo "${pkg_upper}_OVERRIDE_SRCDIR = $override_path" >> "$LOCAL_MK"
     print_success "Added override: ${pkg_upper}_OVERRIDE_SRCDIR = $override_path"
@@ -158,17 +166,17 @@ add_override() {
 # Remove override from local.mk
 remove_override() {
     local pkg_upper="$1"
-    
+
     if [ ! -f "$LOCAL_MK" ]; then
         print_error "local.mk does not exist"
         return 1
     fi
-    
+
     if ! check_override "$pkg_upper" && ! check_override_disabled "$pkg_upper"; then
         print_error "No override found for $pkg_upper"
         return 1
     fi
-    
+
     local override_path=$(get_override_path "$pkg_upper")
     sed -i "/^${pkg_upper}_OVERRIDE_SRCDIR/d; /^#\s*${pkg_upper}_OVERRIDE_SRCDIR/d" "$LOCAL_MK"
     print_success "Removed override for $pkg_upper (was: $override_path)"
@@ -177,22 +185,22 @@ remove_override() {
 # Enable (uncomment) override in local.mk
 enable_override() {
     local pkg_upper="$1"
-    
+
     if [ ! -f "$LOCAL_MK" ]; then
         print_error "local.mk does not exist"
         return 1
     fi
-    
+
     if check_override "$pkg_upper"; then
         print_warning "Override for $pkg_upper is already enabled"
         return 0
     fi
-    
+
     if ! check_override_disabled "$pkg_upper"; then
         print_error "No disabled override found for $pkg_upper"
         return 1
     fi
-    
+
     # Remove leading # and whitespace
     sed -i "s/^#\s*\(${pkg_upper}_OVERRIDE_SRCDIR\)/\1/" "$LOCAL_MK"
     local override_path=$(get_override_path "$pkg_upper")
@@ -202,22 +210,22 @@ enable_override() {
 # Disable (comment) override in local.mk
 disable_override() {
     local pkg_upper="$1"
-    
+
     if [ ! -f "$LOCAL_MK" ]; then
         print_error "local.mk does not exist"
         return 1
     fi
-    
+
     if check_override_disabled "$pkg_upper"; then
         print_warning "Override for $pkg_upper is already disabled"
         return 0
     fi
-    
+
     if ! check_override "$pkg_upper"; then
         print_error "No active override found for $pkg_upper"
         return 1
     fi
-    
+
     # Add # at the beginning of the line
     sed -i "s/^\(${pkg_upper}_OVERRIDE_SRCDIR\)/# \1/" "$LOCAL_MK"
     local override_path=$(get_override_path "$pkg_upper")
@@ -228,30 +236,30 @@ disable_override() {
 update_override() {
     local pkg_name="$1"
     local pkg_upper="$2"
-    
+
     # Check if override exists (enabled or disabled)
     if ! check_override "$pkg_upper" && ! check_override_disabled "$pkg_upper"; then
         print_error "No override found for $pkg_name"
         return 1
     fi
-    
+
     local override_path=$(get_override_path "$pkg_upper")
-    
+
     if [ ! -d "$override_path" ]; then
         print_error "Override path does not exist: $override_path"
         return 1
     fi
-    
+
     # Check if it's a git repository
     if [ ! -d "$override_path/.git" ]; then
         print_warning "$pkg_name is not a git repository, skipping"
         return 1
     fi
-    
+
     print_info "Updating $pkg_name at $override_path"
-    
+
     cd "$override_path"
-    
+
     # Check for uncommitted changes
     if ! git diff-index --quiet HEAD -- 2>/dev/null; then
         print_warning "Uncommitted changes detected in $pkg_name"
@@ -266,17 +274,17 @@ update_override() {
             return 1
         fi
     fi
-    
+
     # Get current branch or default branch
     local current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-    
+
     # Check if in detached HEAD state
     if [ "$current_branch" = "HEAD" ]; then
         print_warning "Repository is in detached HEAD state"
-        
+
         # Try to get the default branch from remote
         local default_branch=$(git remote show origin 2>/dev/null | grep 'HEAD branch' | cut -d' ' -f5)
-        
+
         if [ -z "$default_branch" ]; then
             # Fallback to common defaults
             if git show-ref --verify --quiet refs/heads/master; then
@@ -289,7 +297,7 @@ update_override() {
                 return 1
             fi
         fi
-        
+
         print_info "Checking out $default_branch branch..."
         if ! git checkout "$default_branch" 2>&1; then
             print_error "Failed to checkout $default_branch"
@@ -298,7 +306,7 @@ update_override() {
         fi
         current_branch="$default_branch"
     fi
-    
+
     # Fetch latest changes
     print_info "Fetching from remote..."
     if ! git fetch origin 2>&1; then
@@ -306,7 +314,7 @@ update_override() {
         cd - >/dev/null
         return 1
     fi
-    
+
     # Pull latest changes
     print_info "Pulling latest changes on $current_branch..."
     if git pull --ff-only origin "$current_branch" 2>&1; then
@@ -316,7 +324,7 @@ update_override() {
         cd - >/dev/null
         return 1
     fi
-    
+
     cd - >/dev/null
     return 0
 }
@@ -329,12 +337,12 @@ download_package() {
     local site="$4"
     local version="$5"
     local branch="$6"
-    
+
     local dest_dir="$OVERRIDES_DIR/$pkg_name"
-    
+
     # Create overrides directory if needed
     mkdir -p "$OVERRIDES_DIR"
-    
+
     if [ -d "$dest_dir" ]; then
         print_warning "Directory already exists: $dest_dir"
         read -p "Re-clone/update? [y/N]: " -n 1 -r
@@ -345,23 +353,23 @@ download_package() {
             return 1
         fi
     fi
-    
+
     if [ "$method" = "git" ]; then
         print_info "Cloning $site to $dest_dir"
-        
+
         if [ -n "$branch" ]; then
             git clone --branch "$branch" "$site" "$dest_dir"
         else
             git clone "$site" "$dest_dir"
         fi
-        
+
         # Checkout specific version if not HEAD
         if [ -n "$version" ] && [ "$version" != "HEAD" ]; then
             cd "$dest_dir"
             git checkout "$version" 2>/dev/null || print_warning "Could not checkout version: $version"
             cd - >/dev/null
         fi
-        
+
         print_success "Cloned $pkg_name to $dest_dir"
     else
         print_error "Unsupported site method: $method (only 'git' is supported)"
@@ -372,23 +380,23 @@ download_package() {
 # List packages and their status
 list_packages() {
     local pattern="$1"
-    
+
     printf "%-40s %-10s %-50s\n" "PACKAGE" "OVERRIDE" "PATH"
     printf "%s\n" "$(printf '=%.0s' {1..110})"
-    
+
     for pkg_dir in "$PACKAGE_DIR"/$pattern/; do
         [ -d "$pkg_dir" ] || continue
-        
+
         local pkg_name=$(basename "$pkg_dir")
         local pkg_upper=$(echo "$pkg_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
         local mk_file="$pkg_dir/$pkg_name.mk"
-        
+
         # Skip if .mk file doesn't exist
         [ -f "$mk_file" ] || continue
-        
+
         local status="NO"
         local path="-"
-        
+
         if check_override "$pkg_upper"; then
             status="${GREEN}YES${NC}"
             path=$(get_override_path "$pkg_upper")
@@ -396,7 +404,7 @@ list_packages() {
             status="${YELLOW}DISABLED${NC}"
             path=$(get_override_path "$pkg_upper")
         fi
-        
+
         printf "%-40s %-20s %-50s\n" "$pkg_name" "$(echo -e $status)" "$path"
     done
 }
@@ -405,10 +413,10 @@ list_packages() {
 process_packages() {
     local pattern="$1"
     local auto_mode="$2"
-    
+
     local count=0
     local processed=0
-    
+
     # Count packages first
     for pkg_dir in "$PACKAGE_DIR"/$pattern/; do
         [ -d "$pkg_dir" ] || continue
@@ -416,34 +424,34 @@ process_packages() {
         local mk_file="$pkg_dir/$pkg_name.mk"
         [ -f "$mk_file" ] && count=$((count + 1))
     done
-    
+
     if [ $count -eq 0 ]; then
         print_error "No packages found matching pattern: $pattern"
         exit 1
     fi
-    
+
     print_info "Found $count package(s) matching pattern: $pattern"
     echo
-    
+
     for pkg_dir in "$PACKAGE_DIR"/$pattern/; do
         [ -d "$pkg_dir" ] || continue
-        
+
         local pkg_name=$(basename "$pkg_dir")
         local pkg_upper=$(echo "$pkg_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
         local mk_file="$pkg_dir/$pkg_name.mk"
-        
+
         # Skip if .mk file doesn't exist
         [ -f "$mk_file" ] || continue
-        
+
         processed=$((processed + 1))
-        
+
         echo -e "${BLUE}[$processed/$count]${NC} Processing: ${GREEN}$pkg_name${NC}"
-        
+
         # Check if already has override
         if check_override "$pkg_upper"; then
             local override_path=$(get_override_path "$pkg_upper")
             print_info "Already has override: $override_path"
-            
+
             if [ "$auto_mode" != "yes" ]; then
                 read -p "Skip? [Y/n]: " -n 1 -r
                 echo
@@ -456,23 +464,23 @@ process_packages() {
                 continue
             fi
         fi
-        
+
         # Parse package info
         IFS='|' read -r method site version branch <<< "$(parse_package_mk "$mk_file" "$pkg_upper")"
-        
+
         if [ -z "$method" ] || [ -z "$site" ]; then
             print_warning "Could not extract git info from $mk_file"
             echo
             continue
         fi
-        
+
         print_info "Method: $method"
         print_info "Site: $site"
         print_info "Version: $version"
         [ -n "$branch" ] && print_info "Branch: $branch"
-        
+
         local do_download="no"
-        
+
         if [ "$auto_mode" = "yes" ]; then
             do_download="yes"
         else
@@ -480,16 +488,16 @@ process_packages() {
             echo
             [[ $REPLY =~ ^[Yy]$ ]] && do_download="yes"
         fi
-        
+
         if [ "$do_download" = "yes" ]; then
             if download_package "$pkg_name" "$pkg_upper" "$method" "$site" "$version" "$branch"; then
                 add_override "$pkg_upper" "$OVERRIDES_DIR/$pkg_name"
             fi
         fi
-        
+
         echo
     done
-    
+
     print_success "Processed $processed package(s)"
 }
 
@@ -499,20 +507,20 @@ clean_overrides() {
         print_info "No local.mk file found"
         return 0
     fi
-    
+
     print_warning "This will remove ALL package overrides from local.mk"
     read -p "Are you sure? [y/N]: " -n 1 -r
     echo
-    
+
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         print_info "Cancelled"
         return 0
     fi
-    
+
     # Backup local.mk
     cp "$LOCAL_MK" "$LOCAL_MK.bak"
     print_info "Backed up local.mk to local.mk.bak"
-    
+
     # Remove all OVERRIDE_SRCDIR lines
     sed -i '/_OVERRIDE_SRCDIR/d' "$LOCAL_MK"
     print_success "Cleaned all overrides from local.mk"
@@ -522,31 +530,31 @@ clean_overrides() {
 update_overrides() {
     local pattern="$1"
     local update_all="$2"
-    
+
     local count=0
     local updated=0
     local failed=0
     local skipped=0
-    
+
     # If updating all, get list from local.mk
     if [ "$update_all" = "yes" ]; then
         if [ ! -f "$LOCAL_MK" ]; then
             print_error "No local.mk file found"
             exit 1
         fi
-        
+
         print_info "Updating all package overrides..."
         echo
-        
+
         # Extract all package names from local.mk
         while IFS= read -r line; do
             if [[ "$line" =~ ^#?[[:space:]]*([A-Z_]+)_OVERRIDE_SRCDIR ]]; then
                 local pkg_upper="${BASH_REMATCH[1]}"
                 local pkg_name=$(echo "$pkg_upper" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
-                
+
                 count=$((count + 1))
                 echo -e "${BLUE}[$count]${NC} Updating: ${GREEN}$pkg_name${NC}"
-                
+
                 if update_override "$pkg_name" "$pkg_upper"; then
                     updated=$((updated + 1))
                 else
@@ -563,18 +571,18 @@ update_overrides() {
         # Update packages matching pattern
         for pkg_dir in "$PACKAGE_DIR"/$pattern/; do
             [ -d "$pkg_dir" ] || continue
-            
+
             local pkg_name=$(basename "$pkg_dir")
             local pkg_upper=$(echo "$pkg_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
-            
+
             # Check if this package has an override
             if ! check_override "$pkg_upper" && ! check_override_disabled "$pkg_upper"; then
                 continue
             fi
-            
+
             count=$((count + 1))
             echo -e "${BLUE}[$count]${NC} Updating: ${GREEN}$pkg_name${NC}"
-            
+
             if update_override "$pkg_name" "$pkg_upper"; then
                 updated=$((updated + 1))
             else
@@ -587,12 +595,12 @@ update_overrides() {
             echo
         done
     fi
-    
+
     if [ $count -eq 0 ]; then
         print_error "No package overrides found matching pattern: $pattern"
         exit 1
     fi
-    
+
     echo "================================"
     print_info "Update summary:"
     print_success "  Updated: $updated"
@@ -611,7 +619,7 @@ main() {
     local disable_pkg=""
     local update_mode="no"
     local update_all="no"
-    
+
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -665,7 +673,7 @@ main() {
                 ;;
         esac
     done
-    
+
     case "$mode" in
         list)
             list_packages "$pattern"
