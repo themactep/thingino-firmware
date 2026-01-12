@@ -222,6 +222,10 @@ BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$
 all: defconfig build_fast pack
 	$(info -------------------------------- $@)
 
+# legacy target used by GitHub CI
+fast: defconfig build_fast pack
+	$(info -------------------------------- $@)
+
 # Development build: slow serial for debugging compilation issues
 dev: defconfig build pack
 	$(info -------------------------------- $@)
