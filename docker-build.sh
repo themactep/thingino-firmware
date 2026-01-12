@@ -76,6 +76,17 @@ select_camera() {
         exit 1
     fi
 
+    # Check if CAMERA is already provided
+    if [ -n "$CAMERA" ]; then
+        if [ -d "$cameras_dir/$CAMERA" ]; then
+            echo "$CAMERA"
+            return 0
+        else
+            print_error "Provided CAMERA='$CAMERA' not found in $cameras_dir" >&2
+            exit 1
+        fi
+    fi
+
     # Get list of cameras
     local cameras=($(ls "$cameras_dir" | sort))
 
