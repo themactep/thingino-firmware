@@ -5,7 +5,8 @@
     "ircut": "17 16",
     "led_b": {
       "pin": 57,
-      "active_low": false
+      "active_low": false,
+      "active_on_boot": true
     },
     "mmc_cd": 49,
     "mmc_power": {

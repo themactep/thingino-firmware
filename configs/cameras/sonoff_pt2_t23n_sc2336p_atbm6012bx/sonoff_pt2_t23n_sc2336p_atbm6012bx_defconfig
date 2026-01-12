@@ -17,7 +17,7 @@ BR2_THINGINO_AUDIO_GPIO=7
 BR2_THINGINO_AUDIO_GPIO_LOW=n
 BR2_THINGINO_BUTTON=y
 BR2_THINGINO_MOTORS=y
-# PWM control is not working, no white LED brightness adjustment.
+# PWM control is not working, no white/IR LED brightness adjustment.
 #BR2_THINGINO_PWM_ENABLE=y
 BR2_THINGINO_SDCARD=y
 FLASH_SIZE_MB=16
