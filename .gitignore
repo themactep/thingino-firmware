@@ -1,5 +1,6 @@
 /.board
 /.bootstrapped
+/.ccache
 /.gitconfig
 /.idea
 /.prereqs.done
