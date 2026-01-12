@@ -214,17 +214,19 @@ endef
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR) BR2_DL_DIR=$(BR2_DL_DIR)
 
 .PHONY: all bootstrap build build_fast clean clean-nfs-debug cleanbuild defconfig distclean \
-	fast help info pack release remove_bins repack sdk toolchain update upboot-ota \
+	dev fast help info pack release remove_bins repack sdk toolchain update upboot-ota \
 	upload_tftp upgrade_ota br-% check-config force-config show-config-deps clean-config \
 	agent-info show-vars
 
-all: defconfig build pack
+# Default: fast parallel incremental build
+all: defconfig build_fast pack
 	$(info -------------------------------- $@)
 
-fast: defconfig build_fast pack
+# Development build: slow serial for debugging compilation issues
+dev: defconfig build pack
 	$(info -------------------------------- $@)
 
-# rebuild from scratch
+# Clean build from scratch with parallel compilation
 cleanbuild: distclean defconfig build_fast pack
 	$(info -------------------------------- $@)
 
@@ -761,10 +763,11 @@ help:
 	Usage:\n\
 	  make bootstrap      install system deps\n\
 	  make update         update local repo and submodules (excludes buildroot)\n\
-	  make                edit configurations\n\
-	  make                build and pack everything\n\
-	  make build          build kernel and rootfs\n\
-	  make cleanbuild     build everything from scratch, fast\n\
+	  make                build from scratch (clean + parallel) [DEFAULT]\n\
+	  make dev            serial build for debugging compilation errors\n\
+	  make fast           fast incremental build (no clean)\n\
+	  make cleanbuild     same as 'make' (clean + parallel build)\n\
+	  make build          serial build (no clean)\n\
 	  make release        build without local fragments\n\
 	  make pack           create firmware images\n\
 	  make clean          clean before reassembly\n\
