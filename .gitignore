@@ -10,6 +10,7 @@
 /buildroot-*/
 /buildroot-dl-cache\.zip*
 /configs/local.*
+/dl/
 /local.mk
 /output*/
 /overlay/upper

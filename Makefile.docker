@@ -18,7 +18,13 @@ else
 	CONTAINER_RUN := $(CONTAINER_ENGINE) run --rm --user $(USER_ID):$(GROUP_ID)
 endif
 
-CONTAINER_RUN_OPTS := -v $(WORKSPACE_DIR):/home/$(USERNAME)/build -v $(DL_DIR):/home/$(USERNAME)/dl -w /home/$(USERNAME)/build -e BR2_DL_DIR=/home/$(USERNAME)/dl -e HOME=/home/$(USERNAME)/build -e TERM=xterm-256color
+CONTAINER_RUN_OPTS := \
+	-v $(WORKSPACE_DIR):/home/$(USERNAME)/build \
+	-v $(DL_DIR):/home/$(USERNAME)/dl \
+	-w /home/$(USERNAME)/build \
+	-e BR2_DL_DIR=/home/$(USERNAME)/dl \
+	-e HOME=/home/$(USERNAME)/build \
+	-e TERM=xterm-256color
 
 # Interactive container
 CONTAINER_RUN_INTERACTIVE := $(CONTAINER_RUN) -it $(CONTAINER_RUN_OPTS)
@@ -49,7 +55,7 @@ docker-shell: docker-build
 docker-make: docker-build
 	$(eval TARGETS := $(if $(filter-out docker-make,$(MAKECMDGOALS)),$(filter-out docker-make,$(MAKECMDGOALS)),all))
 	$(eval CAMERA_ARG := $(if $(CAMERA),CAMERA=$(CAMERA)))
-	@echo "Running make $(CAMERA_ARG) $(TARGETS) V=1 in container..."
+	@echo "Running make $(CAMERA_ARG) $(TARGETS) in container..."
 	@echo '#!/bin/bash' > /tmp/docker-make-run.sh
 	@echo 'cleanup() {' >> /tmp/docker-make-run.sh
 	@echo '    echo' >> /tmp/docker-make-run.sh
@@ -58,7 +64,7 @@ docker-make: docker-build
 	@echo '    exit 130' >> /tmp/docker-make-run.sh
 	@echo '}' >> /tmp/docker-make-run.sh
 	@echo 'trap cleanup INT TERM' >> /tmp/docker-make-run.sh
-	@echo '$(CONTAINER_RUN_EXEC) $(DOCKER_IMAGE):$(DOCKER_TAG) make $(CAMERA_ARG) $(TARGETS) V=1 &' >> /tmp/docker-make-run.sh
+	@echo '$(CONTAINER_RUN_EXEC) $(DOCKER_IMAGE):$(DOCKER_TAG) make $(CAMERA_ARG) $(TARGETS) &' >> /tmp/docker-make-run.sh
 	@echo 'wait $$!' >> /tmp/docker-make-run.sh
 	@chmod +x /tmp/docker-make-run.sh
 	@/tmp/docker-make-run.sh
@@ -104,6 +110,12 @@ docker-busybox-menuconfig: docker-build
 docker-clean-build: docker-build
 	$(CONTAINER_RUN_EXEC) $(DOCKER_IMAGE):$(DOCKER_TAG) make distclean
 	$(CONTAINER_RUN_EXEC) $(DOCKER_IMAGE):$(DOCKER_TAG) make
+
+.PHONY: docker-upgrade-ota
+docker-upgrade-ota: docker-build
+	$(eval IP_ARG := $(if $(IP),IP=$(IP)))
+	$(eval CAMERA_ARG := $(if $(CAMERA),CAMERA=$(CAMERA)))
+	$(CONTAINER_RUN_INTERACTIVE) $(DOCKER_IMAGE):$(DOCKER_TAG) make upgrade_ota $(IP_ARG) $(CAMERA_ARG)
 
 # Allow make targets to be passed through to container
 %:

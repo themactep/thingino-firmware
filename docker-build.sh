@@ -9,6 +9,7 @@
 #   ./docker-build.sh menuconfig # Run menuconfig in container
 #   ./docker-build.sh shell      # Open interactive shell
 #   ./docker-build.sh clean      # Clean build in container
+#   ./docker-build.sh upgrade_ota # Upgrade firmware OTA
 #
 
 set -e
@@ -69,22 +70,22 @@ fi
 select_camera() {
     local cameras_dir="configs/cameras"
     local memo_file=".selected_camera"
-    
+
     if [ ! -d "$cameras_dir" ]; then
         print_error "Camera configs directory not found: $cameras_dir"
         exit 1
     fi
-    
+
     # Get list of cameras
     local cameras=($(ls "$cameras_dir" | sort))
-    
+
     if [ ${#cameras[@]} -eq 0 ]; then
         print_error "No camera configs found in $cameras_dir"
         exit 1
     fi
-    
+
     local selected_camera=""
-    
+
     # Check if there's a previous selection
     if [ -f "$memo_file" ]; then
         local prev_camera=$(cat "$memo_file")
@@ -99,7 +100,7 @@ select_camera() {
             fi
         fi
     fi
-    
+
     # Try fzf first (best UX) - can be disabled with USE_FZF=0
     if [ "${USE_FZF:-1}" = "1" ] && command -v fzf >/dev/null 2>&1; then
         print_info "Select camera (type to filter in order, e.g., 't20' shows t20* cameras):" >&2
@@ -111,11 +112,11 @@ select_camera() {
             --prompt="Camera: " \
             --header="Select camera configuration (${#cameras[@]} available) - type to filter" \
             --preview-window=hidden | sed 's/\x1b[^a-zA-Z]*[a-zA-Z]//g')
-        
+
         # Reset terminal after fzf to prevent display issues
         tput sgr0 2>/dev/null || true
         echo "" >&2
-    
+
     # Try whiptail (used by main Makefile)
     elif command -v whiptail >/dev/null 2>&1; then
         # Build menu items for whiptail
@@ -123,13 +124,13 @@ select_camera() {
         for camera in "${cameras[@]}"; do
             menu_items+=("$camera" "")
         done
-        
+
         selected_camera=$(whiptail --title "Camera Selection" \
             --menu "Select a camera config (${#cameras[@]} available):" \
             20 76 12 \
             "${menu_items[@]}" \
             3>&1 1>&2 2>&3)
-    
+
     # Try dialog as fallback
     elif command -v dialog >/dev/null 2>&1; then
         # Build menu items for dialog
@@ -137,50 +138,50 @@ select_camera() {
         for camera in "${cameras[@]}"; do
             menu_items+=("$camera" "")
         done
-        
+
         selected_camera=$(dialog --stdout --title "Camera Selection" \
             --menu "Select a camera config (${#cameras[@]} available):" \
             20 76 12 \
             "${menu_items[@]}")
-    
+
     # Fallback to numbered list
     else
         echo "" >&2
         echo "Available cameras (${#cameras[@]} total):" >&2
         echo "==========================================" >&2
-        
+
         local i=1
         for camera in "${cameras[@]}"; do
             printf "%3d) %s\n" $i "$camera" >&2
             ((i++))
         done
-        
+
         echo "" >&2
         read -p "Select camera number (1-${#cameras[@]}), or press Enter to cancel: " selection >&2
-        
+
         if [ -z "$selection" ]; then
             print_info "Cancelled"
             exit 0
         fi
-        
+
         if ! [[ "$selection" =~ ^[0-9]+$ ]] || [ "$selection" -lt 1 ] || [ "$selection" -gt ${#cameras[@]} ]; then
             print_error "Invalid selection: $selection"
             exit 1
         fi
-        
+
         selected_camera="${cameras[$((selection-1))]}"
     fi
-    
+
     if [ -z "$selected_camera" ]; then
         exit 0
     fi
-    
+
     # Strip any ANSI color codes that might have been captured
     selected_camera=$(echo "$selected_camera" | sed 's/\x1b[^a-zA-Z]*[a-zA-Z]//g')
-    
+
     # Save selection for next time
     echo "$selected_camera" > "$memo_file"
-    
+
     echo "$selected_camera"
 }
 
@@ -203,54 +204,72 @@ case "$CMD" in
     cleanbuild)
         # Select camera
         CAMERA=$(select_camera)
-        
+
         # Strip any ANSI codes that might have been captured
         CAMERA=$(echo "$CAMERA" | sed 's/\x1b[^a-zA-Z]*[a-zA-Z]//g')
-        
+
         if [ -z "$CAMERA" ]; then
             print_error "No camera selected"
             exit 1
         fi
-        
+
         print_success "Selected camera: $CAMERA"
         print_info "Running CLEAN build (distclean + fast parallel)..."
-        
+
         # Build with selected camera using cleanbuild target
         make -f Makefile.docker docker-make CAMERA="$CAMERA" MAKECMDGOALS="cleanbuild" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     dev)
         # Select camera
         CAMERA=$(select_camera)
-        
+
         # Strip any ANSI codes that might have been captured
         CAMERA=$(echo "$CAMERA" | sed 's/\x1b[^a-zA-Z]*[a-zA-Z]//g')
-        
+
         if [ -z "$CAMERA" ]; then
             print_error "No camera selected"
             exit 1
         fi
-        
+
         print_success "Selected camera: $CAMERA"
         print_info "Running SERIAL build for debugging (incremental, stops at errors)..."
-        
+
         # Build with selected camera using dev target (serial build with V=1)
         make -f Makefile.docker docker-make CAMERA="$CAMERA" MAKECMDGOALS="dev" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        ;;
+    upgrade_ota)
+        # Select camera
+        CAMERA=$(select_camera)
+
+        # Strip any ANSI codes that might have been captured
+        CAMERA=$(echo "$CAMERA" | sed 's/\x1b[^a-zA-Z]*[a-zA-Z]//g')
+
+        if [ -z "$CAMERA" ]; then
+            print_error "No camera selected"
+            exit 1
+        fi
+
+        print_success "Selected camera: $CAMERA"
+        print_info "Running upgrade_ota in container..."
+
+        # Build with selected camera
+        make -f Makefile.docker docker-upgrade-ota CAMERA="$CAMERA" CONTAINER_ENGINE="$CONTAINER_ENGINE" "$@"
         ;;
     build|"")
         # Select camera
         CAMERA=$(select_camera)
-        
+
         # Strip any ANSI codes that might have been captured
         CAMERA=$(echo "$CAMERA" | sed 's/\x1b[^a-zA-Z]*[a-zA-Z]//g')
-        
+
         if [ -z "$CAMERA" ]; then
             print_error "No camera selected"
             exit 1
         fi
-        
+
         print_success "Selected camera: $CAMERA"
         print_info "Building firmware in container (parallel incremental)..."
-        
+
         # Build with selected camera (uses default 'all' target which is incremental parallel)
         make -f Makefile.docker docker-make CAMERA="$CAMERA" MAKECMDGOALS="all" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
@@ -283,6 +302,7 @@ Unknown command. Available commands:
   ./docker-build.sh clean        Clean build artifacts
   ./docker-build.sh info         Show container configuration
   ./docker-build.sh rebuild-image Rebuild the container image
+  ./docker-build.sh upgrade_ota  Upgrade firmware OTA (requires IP=x.x.x.x)
 
 EOF
         exit 1
