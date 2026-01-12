@@ -47,29 +47,25 @@ thingino/
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
-| `-h, --help` | Show help message |
-| `-a, --auto` | Automatically download all matching packages without prompting |
-| `-l, --list` | List packages and their override status |
-| `-r, --remove PACKAGE` | Remove override for specified package |
-| `-e, --enable PACKAGE` | Enable (uncomment) override for specified package |
-| `-d, --disable PACKAGE` | Disable (comment) override for specified package |
-| `-u, --update [PATTERN]` | Update override(s) matching pattern (git pull/checkout) |
-| `--all` | Update all overrides (use with `-u`) |
-| `--clean` | Clean all overrides (prompts for confirmation) |
+    -h, --help              Show help message
+    -a, --auto              Automatically download all matching packages without prompting
+    -l, --list              List packages and their override status
+    -r, --remove PACKAGE    Remove override for specified package
+    -e, --enable PACKAGE    Enable (uncomment) override for specified package
+    -d, --disable PACKAGE   Disable (comment) override for specified package
+    -u, --update [PATTERN]  Update override(s) matching pattern (git pull/checkout)
+    --all                   Update all overrides (use with -u)
+    --clean                 Clean all overrides (prompts for confirmation)
 
 ### Pattern Matching
 
 Patterns use standard shell wildcard syntax:
 
-| Pattern | Matches |
-|---------|---------|
-| `*` | All packages (default) |
-| `thingino-*` | All packages starting with "thingino-" |
-| `*streamer*` | Packages containing "streamer" |
-| `wifi-*` | All WiFi driver packages |
-| `openimp` | Specific package name |
+    *               All packages (default)
+    thingino-*      All packages starting with "thingino-"
+    *streamer*      Packages containing "streamer"
+    wifi-*          All WiFi driver packages
+    openimp         Specific package name
 
 ## Common Workflows
 

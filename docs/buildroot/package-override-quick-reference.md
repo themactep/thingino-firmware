@@ -65,11 +65,11 @@ make thingino-button-rebuild
 
 ## Override States
 
-| State | Description | Color |
-|-------|-------------|-------|
-| YES | Active override | Green |
-| DISABLED | Override exists but commented | Yellow |
-| NO | No override configured | - |
+    State      Description                        Color
+    ────────────────────────────────────────────────────────────
+    YES        Active override                    Green
+    DISABLED   Override exists but commented      Yellow
+    NO         No override configured             -
 
 ## Files
 
