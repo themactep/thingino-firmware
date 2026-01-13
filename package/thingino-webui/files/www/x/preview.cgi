@@ -1591,6 +1591,21 @@ dayNightParams.forEach(param => {
     });
     // Don't disable - values are loaded server-side from prudynt.json
   }
+
+  const slider = $('#daynight_' + param + '-slider');
+  if (slider) {
+    slider.addEventListener('input', ev => {
+      if (el) el.value = ev.target.value;
+      const sliderValue = $('#daynight_' + param + '-slider-value');
+      if (sliderValue) sliderValue.textContent = ev.target.value;
+    });
+    slider.addEventListener('change', () => {
+      if (el) el.value = slider.value;
+      console.log('Daynight slider changed:', param);
+      saveDayNightValue(param);
+    });
+    slider.disabled = false;
+  }
 });
 
 const dayNightControls = ['color', 'ircut', 'ir850', 'ir940', 'white'];
