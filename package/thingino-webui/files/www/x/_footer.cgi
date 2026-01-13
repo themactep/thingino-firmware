@@ -8,6 +8,7 @@
         <div><%= $network_hostname %></div>
         <div><%= $network_macaddr %></div>
         <div id="uptime"></div>
+        <div><a href="#" id="theme-toggle" title="Toggle theme">Toggle theme</a></div>
       </div>
       <div class="col col-sm-7 mb-2">
         <div class="text-sm-end">
@@ -22,7 +23,7 @@
 
 <div id="debug-wrap">
   <button type="button" class="btn btn-outline-secondary" id="debug" value="1" title="Debug info">
-    <i class="bi bi-bug"></i>
+    <i class="bi bi-bug"></i> Debug
   </button>
 </div>
 

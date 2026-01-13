@@ -1,7 +1,7 @@
 #!/bin/sh
 . ./_json.sh
 
-HEARTBEAT_INTERVAL="${HEARTBEAT_INTERVAL:-5}"
+HEARTBEAT_INTERVAL="${HEARTBEAT_INTERVAL:-1}"
 HEARTBEAT_RETRY_MS=$((HEARTBEAT_INTERVAL * 1000))
 
 heartbeat_payload() {
@@ -11,7 +11,7 @@ heartbeat_payload() {
   privacy_enabled="false"; [ -f "/run/prudynt/privacy.active" ] && privacy_enabled="true"
 
   # Read hardware states
-  color_mode=$(color read 2>/dev/null || echo "")
+  color_mode=$(echo '{"image": {"running_mode": null}}' | prudyntctl json - 2>/dev/null | grep -o '"running_mode":[^,}]*' | cut -d: -f2)
   ircut_state=$(ircut read 2>/dev/null || echo "")
   ir850_state=$(light ir850 read 2>/dev/null || echo "")
   ir940_state=$(light ir940 read 2>/dev/null || echo "")
@@ -23,11 +23,12 @@ heartbeat_payload() {
   spk_enabled=$(echo "$audio_states" | grep -o '"spk_enabled":[^,}]*' | cut -d: -f2)
 
   # Read daynight status for total_gain
-  daynight_status=$(echo '{"daynight":{"status":null}}' | prudyntctl json - 2>/dev/null)
+  daynight_status=$(echo '{"daynight":{"status":null,"enabled":null}}' | prudyntctl json - 2>/dev/null)
   total_gain=$(echo "$daynight_status" | grep -o '"total_gain":[0-9-]*' | cut -d: -f2)
   total_gain="${total_gain:-0}"
+  daynight_enabled=$(echo "$daynight_status" | grep -o '"enabled":[^,}]*' | cut -d: -f2)
 
-  printf '{"time_now":"%s","timezone":"%s","mem_total":"%d","mem_active":"%d","mem_buffers":"%d","mem_cached":"%d","mem_free":"%d","overlay_total":"%d","overlay_used":"%d","overlay_free":"%d","uptime":"%s","daynight_brightness":"%s","total_gain":"%s","daynight_mode":"%s","extras_total":"%d","extras_used":"%d","extras_free":"%d","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"mic_enabled":%s,"spk_enabled":%s}' \
+  printf '{"time_now":"%s","timezone":"%s","mem_total":"%d","mem_active":"%d","mem_buffers":"%d","mem_cached":"%d","mem_free":"%d","overlay_total":"%d","overlay_used":"%d","overlay_free":"%d","uptime":"%s","daynight_brightness":"%s","total_gain":"%s","daynight_mode":"%s","extras_total":"%d","extras_used":"%d","extras_free":"%d","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s}' \
     "$(date +%s)" \
     "$(cat /etc/timezone)" \
     "$(awk '/^MemTotal:/{print $2}' /proc/meminfo)" \
@@ -51,7 +52,8 @@ heartbeat_payload() {
     "${ir940_state:-null}" \
     "${white_state:-null}" \
     "${mic_enabled:-false}" \
-    "${spk_enabled:-false}"
+    "${spk_enabled:-false}" \
+    "${daynight_enabled:-false}"
 }
 
 send_headers() {

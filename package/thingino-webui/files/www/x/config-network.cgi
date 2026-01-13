@@ -271,7 +271,7 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
   # set WLAN AP status
   wlanap_ssid="$POST_wlanap_ssid"
   wlanap_pass="$POST_wlanap_pass"
-  conf s wlanap_enabled $POST_wlanap_enabled
+  jct /etc/thingino.json wlan_ap.enabled "$POST_wlanap_enabled"
 
   # validate wireless network credentials if not empty
   if [ "true" = "$wlan0_enabled" ] && [ -n "$wlan0_ssid$wlan0_pass" ]; then

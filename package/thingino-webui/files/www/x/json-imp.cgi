@@ -9,18 +9,6 @@ bad_request() {
   exit 1
 }
 
-we_are_good() {
-  echo "we are good"
-}
-
-unknown_command() {
-  bad_request "unknown command"
-}
-
-unknown_value() {
-  bad_request "unknown value"
-}
-
 # Read POST data
 read -r POST_DATA
 
@@ -32,46 +20,24 @@ val=$(printf '%s' "$POST_DATA" | sed -n 's/.*"val"[[:space:]]*:[[:space:]]*"\{0,
 [ -z "$val" ] && bad_request "missing required parameter val"
 
 case "$cmd" in
+  auto)
+    echo '{"daynight":{"enabled":true}}' | prudyntctl json - >/dev/null 2>&1
+    ;;
   color)
-    command="color $val"
-    ret=$(color $val >/dev/null)
+    echo "{\"daynight\":{\"enabled\":false},\"image\":{\"running_mode\": $val}}" | prudyntctl json - >/dev/null 2>&1
     ;;
   daynight)
-    command="daynight $val"
-    echo "{\"daynight\":{\"force_mode\":\"$val\"}}" | prudyntctl json - >/dev/null 2>&1
-    json_ok
-    exit 0
+    echo "{\"daynight\":{\"enabled\":false,\"force_mode\":\"$val\"}}" | prudyntctl json - >/dev/null 2>&1
     ;;
   ir850 | ir940 | white)
-    command="light $cmd $val"
-    ret=$(light $cmd $val)
+    echo '{"daynight":{"enabled":false}}' | prudyntctl json - >/dev/null 2>&1
+    light $cmd $val
     ;;
   ircut)
-    command="ircut $val"
-    ret=$(ircut $val >/dev/null)
+    echo '{"daynight":{"enabled":false}}' | prudyntctl json - >/dev/null 2>&1
+    ircut $val >/dev/null
     ;;
 esac
 
-payload="{\"time\":\"$(date +%s)\",\"command\":\"$command\",\"result\":\"$ret\""
-
-daynight=$(awk 'NR==1 {print $1}' /run/prudynt/daynight_mode 2>/dev/null || echo "unknown")
-[ -z "$daynight" ] || payload="$payload,\"daynight\":\"$daynight\""
-
-color=$(color read)
-[ -z "$color" ] || payload="$payload,\"color\":$color"
-
-ircut=$(ircut read)
-[ -z "$ircut" ] || payload="$payload,\"ircut\":$ircut"
-
-ir850=$(light ir850 read)
-[ -z "$ir850" ] || payload="$payload,\"ir850\":$ir850"
-
-ir940=$(light ir940 read)
-[ -z "$ir940" ] || payload="$payload,\"ir940\":$ir940"
-
-white=$(light white read)
-[ -z "$white" ] || payload="$payload,\"white\":$white"
-
-payload="$payload}"
-
-json_ok "$payload"
+# All state data is provided by heartbeat, no need to build payload here
+json_ok

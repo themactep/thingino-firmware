@@ -92,21 +92,33 @@ configured_channel=$(jct "/etc/prudynt.json" get "recorder.channel" 2>/dev/null 
       <div class="col-11 col-lg-6">
         <div id="button-bar" class="d-flex align-items-center gap-1 mb-2 flex-wrap">
           <button type="button" class="btn btn-secondary" id="motion" title="Motion Guard">
-            <i class="bi bi-person-walking"></i>
+            <i class="bi bi-person-walking"></i> Motion
           </button>
           <button type="button" class="btn btn-secondary" id="privacy" title="Privacy mode">
-            <i class="bi bi-eye-slash"></i>
+            <i class="bi bi-eye-slash" title="Privacy mode"></i> Privacy
           </button>
           <div class="btn-group" role="group">
             <button type="button" class="btn btn-secondary" id="daynight" title="Night mode">
-              <i class="bi bi-moon-stars"></i>
+              <i class="bi bi-sun" title="Day mode"></i>
+              <span id="daynight-text">----</span>
             </button>
             <button type="button" class="btn btn-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+              <span id="daynight-gain" class="dnd-gain x-small me-1" title="Gain">---</span>
               <span class="visually-hidden">Toggle Dropdown</span>
             </button>
             <ul class="dropdown-menu">
+              <li><button class="dropdown-item btn btn-secondary" type="button" id="auto" title="Auto mode">
+                <i class="bi bi-magic"></i> Auto mode
+              </button></li>
+              <li><button class="dropdown-item btn btn-secondary" type="button" id="day" title="Day mode">
+                <i class="bi bi-sun"></i> Day mode
+              </button></li>
+              <li><button class="dropdown-item btn btn-secondary" type="button" id="night" title="Night mode">
+                <i class="bi bi-moon"></i> Night mode
+              </button></li>
+              <li><hr class="dropdown-divider"></li>
               <li><button class="dropdown-item btn btn-secondary" type="button" id="color" title="Color mode">
-                <i class="bi bi-palette"></i> Color mode
+                <i class="bi bi-palette"></i> Color
               </button></li>
               <li><button class="dropdown-item btn btn-secondary" type="button" id="ircut" title="IR filter">
                 <i class="bi bi-transparency"></i> IR filter
@@ -123,25 +135,21 @@ configured_channel=$(jct "/etc/prudynt.json" get "recorder.channel" 2>/dev/null 
             </ul>
           </div>
           <button type="button" class="btn btn-secondary" id="microphone" title="Microphone">
-            <i class="bi bi-mic"></i>
+            <i class="bi bi-mic"></i> Microphone
           </button>
           <button type="button" class="btn btn-secondary" id="speaker" title="Speaker">
-            <i class="bi bi-volume-up"></i>
+            <i class="bi bi-volume-up"></i> Speaker
           </button>
           <button type="button" class="btn btn-secondary" id="recorder-ch0" data-channel="0" title="Main stream recorder">
-            <i class="bi bi-record"></i>
+            <i class="bi bi-record"></i> Recording
           </button>
           <button type="button" class="btn btn-secondary" id="recorder-ch1" data-channel="1" title="Substream recorder">
-            <i class="bi bi-record"></i>
+            <i class="bi bi-record"></i> Recording
           </button>
           <button type="button" class="btn btn-secondary" title="Send snapshot" data-bs-toggle="modal" data-bs-target="#sendModal">
-            <i class="bi bi-send"></i>
+            <i class="bi bi-send"></i> Send to ...
           </button>
         </div>
-      </div>
-
-      <div class="col-1">
-        <a href="preview.cgi?tab=photosensing" class="dnd-gain <%= $CSS_SILENT_LINK %>" title="Total gain"></a>
       </div>
 
       <div class="col-4 col-lg-2">
@@ -171,13 +179,6 @@ configured_channel=$(jct "/etc/prudynt.json" get "recorder.channel" 2>/dev/null 
       <div class="col-7 col-lg-2 text-end">
         <a href="/x/config-time.cgi" id="time-now" class="<%= $CSS_SILENT_LINK %>"></a>
       </div>
-
-      <div class="col-1 text-end">
-        <button type="button" class="btn btn-secondary" id="theme-toggle" title="Toggle theme">
-          <i class="bi bi-brilliance"></i>
-        </button>
-      </div>
-
     </div>
 
 <% if ! [ "true" = "$wlanap_enabled" ] && [ -z "$network_gateway" ]; then %>
