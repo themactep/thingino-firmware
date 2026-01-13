@@ -4,7 +4,7 @@ echo "Run as $0 $*"
 
 # Releases older that the timestamp below
 # are not eligible for partial updates.
-RUBICON="1740787200" # 2025-03-01
+RUBICON="1768337345" # 2026-01-13
 
 KERNEL_MAGIC="27051956"
 U_BOOT_MAGIC="06050403"
