@@ -73,6 +73,18 @@ save_config() {
 	wlan_pass="$PARAM_wlan_pass"
 	wlan_ssid="$PARAM_wlan_ssid"
 
+	# Trim trailing whitespaces from submitted values
+	hostname=$(echo "$hostname" | sed 's/[[:space:]]*$//')
+	rootpass=$(echo "$rootpass" | sed 's/[[:space:]]*$//')
+	rootpkey=$(echo "$rootpkey" | sed 's/[[:space:]]*$//')
+	timezone=$(echo "$timezone" | sed 's/[[:space:]]*$//')
+	wlanap_pass=$(echo "$wlanap_pass" | sed 's/[[:space:]]*$//')
+	wlanap_ssid=$(echo "$wlanap_ssid" | sed 's/[[:space:]]*$//')
+	wlan_pass=$(echo "$wlan_pass" | sed 's/[[:space:]]*$//')
+	wlan_ssid=$(echo "$wlan_ssid" | sed 's/[[:space:]]*$//')
+
+	# FIXME: Sanitize ssid and password
+
 	# Validate hostname
 	bad_chars=$(echo "$hostname" | sed 's/[0-9A-Z\.-]//ig')
 	if [ -n "$bad_chars" ]; then
