@@ -169,23 +169,23 @@ die() {
 }
 
 echo_command() {
-	echo -e "\e[38;5;101m  $1\e[0m" >&2
+	echo -c 101 "$1" >&2
 }
 
 echo_error() {
-	echo -e "\e[38;5;160m  $1\e[0m" >&2
+	echo -c 160 "$1" >&2
 }
 
 echo_info() {
-	echo -e "\e[38;5;240m- $1\e[0m" >&2
+	echo -c 240 "- $1" >&2
 }
 
 echo_title() {
-	echo -e "\e[38;5;015m$1 ...\e[0m" >&2
+	echo -c 15 "$1 ..." >&2
 }
 
 echo_warning() {
-	echo -e "\e[38;5;142m  $1\e[0m" >&2
+	echo -c 142 "$1" >&2
 }
 
 ensure_command() {
@@ -321,7 +321,7 @@ print_release() {
 	. "$OS_RELEASE_FILE"
 
 	# to stdout
-	echo_c 208 "Thingino $IMAGE_ID [$BUILD_ID]\n"
+	echo -c 208 "Thingino $IMAGE_ID [$BUILD_ID]\n"
 	echo "Thingino $IMAGE_ID [$BUILD_ID]"
 }
 

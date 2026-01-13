@@ -139,13 +139,13 @@ show_info() {
 }
 
 setup() {
-	echo_c 208 "Thingino Wi-Fi setup"
-	echo "Wi-Fi driver: $(echo_c 10 $wlan_module)"
+	echo -c 208 "Thingino Wi-Fi setup"
+	echo "Wi-Fi driver: $(echo -c 10 $wlan_module)"
 	read -r -p "Enter Wi-Fi SSID: " ssid
 	while :; do
 		read -r -p "Enter Wi-Fi Password: " password
 		[ ${#password} -ge 8 ] && [ ${#password} -le 64 ] && break
-		echo_c 160 "Passwords is not between 8 and 64 characters. Please try again."
+		echo -c 160 "Passwords is not between 8 and 64 characters. Please try again."
 	done
 
 	psk=$(convert_psk "$ssid" "$password")
@@ -162,7 +162,7 @@ setup() {
 	fw_setenv wlan_ssid "$ssid"
 	fw_setenv wlan_pass "$psk"
 
-	echo_c 40 "Wi-Fi settings updated. Please restart for changes to take effect.\n"
+	echo -c 40 "Wi-Fi settings updated. Please restart for changes to take effect.\n"
 }
 
 temp() {
