@@ -143,8 +143,10 @@
 
 <script>
 const API_URL = '/x/api.cgi';
+const TIMEOUT_WARNING_MS = 540000;
 let formData = {};
 let systemInfo = {};
+let timeoutWarningTimer;
 
 function showElement(id) {
   document.getElementById(id).classList.remove('hidden');
@@ -162,6 +164,19 @@ function showError(message) {
 
 function hideError() {
   hideElement('error-message');
+}
+
+function scheduleTimeoutWarning() {
+  clearTimeout(timeoutWarningTimer);
+  hideElement('timeout-warning');
+  timeoutWarningTimer = setTimeout(() => {
+    showElement('timeout-warning');
+  }, TIMEOUT_WARNING_MS);
+}
+
+function cancelTimeoutWarning() {
+  clearTimeout(timeoutWarningTimer);
+  hideElement('timeout-warning');
 }
 
 async function apiCall(action, data = {}) {
@@ -224,6 +239,7 @@ function collectFormData() {
 function showReview(data) {
   hideError();
   hideElement('config-form');
+  scheduleTimeoutWarning();
 
   if (data.wlanap_enabled === 'true') {
     document.getElementById('review-network-label').textContent = 'Wireless AP Network SSID';
@@ -254,6 +270,7 @@ function showReview(data) {
 function showForm() {
   hideElement('review-section');
   showElement('config-form');
+  scheduleTimeoutWarning();
 }
 
 async function saveConfiguration(data) {
@@ -272,6 +289,7 @@ async function saveConfiguration(data) {
       } else {
         showElement('success-wlan');
       }
+      cancelTimeoutWarning();
     } else {
       showError(result.error || 'Failed to save configuration');
       showForm();
@@ -331,10 +349,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
-// Show timeout warning after 9 minutes (540000 ms)
-setTimeout(() => {
-  document.getElementById('timeout-warning').classList.remove('hidden');
-}, 540000);
+scheduleTimeoutWarning();
 
 loadSystemInfo();
 </script>
