@@ -20,7 +20,7 @@ start() {
 		return
 	fi
 
-	echo -c 104 "\nPress the [f] key to enter failsafe mode\n"
+	echo -c 104 -e "\nPress the [f] key to enter failsafe mode\n"
 
 	stty -icanon min 0 time 20 -echo
 	key=$(dd bs=1 count=1 2>/dev/null)
@@ -35,7 +35,7 @@ start() {
 
 	if [ -f "$OS_RELEASE_FILE" ]; then
 		. "$OS_RELEASE_FILE"
-		echo -c 208 "Thingino firmware built for $IMAGE_ID\n[$BUILD_ID]\n"
+		echo -c 208 -e "Thingino firmware built for $IMAGE_ID\n[$BUILD_ID]\n"
 	fi
 
 	/etc/init.d/rcS

@@ -10,7 +10,7 @@ start_usb_console() {
 	usb-role -m device
 	sleep 2
 
-	echo -c 104 "\nPress the [f] key to enter failsafe mode [USB Serial Console]\n" > /dev/ttyGS0
+	echo -c 104 -e "\nPress the [f] key to enter failsafe mode [USB Serial Console]\n" > /dev/ttyGS0
 
 	stty -icanon min 0 time 20 -echo < /dev/ttyGS0
 	key=$(dd bs=1 count=1 2>/dev/null < /dev/ttyGS0)
