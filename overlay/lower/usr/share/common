@@ -169,23 +169,23 @@ die() {
 }
 
 echo_command() {
-	echo -c 101 "$1" >&2
+	echo -c 101 -e "$1" >&2
 }
 
 echo_error() {
-	echo -c 160 "$1" >&2
+	echo -c 160 -e "$1" >&2
 }
 
 echo_info() {
-	echo -c 240 "- $1" >&2
+	echo -c 240 -e "- $1" >&2
 }
 
 echo_title() {
-	echo -c 15 "$1 ..." >&2
+	echo -c 15 -e "$1 ..." >&2
 }
 
 echo_warning() {
-	echo -c 142 "$1" >&2
+	echo -c 142 -e "$1" >&2
 }
 
 ensure_command() {
@@ -321,7 +321,7 @@ print_release() {
 	. "$OS_RELEASE_FILE"
 
 	# to stdout
-	echo -c 208 "Thingino $IMAGE_ID [$BUILD_ID]\n"
+	echo -c 208 -e "Thingino $IMAGE_ID [$BUILD_ID]\n"
 	echo "Thingino $IMAGE_ID [$BUILD_ID]"
 }
 

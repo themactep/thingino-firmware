@@ -1,6 +1,6 @@
 #!/bin/sh
 
-echo -c 196 "\n\nGoing to reboot!\n"
+echo -c 196 -e "\n\nGoing to reboot!\n"
 
 # Kill watchdog to trigger hw timer
 /etc/init.d/K99watchdog kill
