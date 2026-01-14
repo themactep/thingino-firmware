@@ -1,7 +1,7 @@
 name: firmware-stable
 on:
   schedule:
-    - cron:  '30 8 * * *'
+    - cron:  '30 8 * * 1'
   workflow_dispatch:
     inputs:
       branch:
