@@ -6,7 +6,7 @@
 	attempts=5
 	while : ; do
 		if [ "$attempts" -eq 5 ]; then
-			echo -c 015 "\nIt's your first login.\nYou are required to change your password!\n"
+			echo -c 015 -e "\nIt's your first login.\nYou are required to change your password!\n"
 		elif [ "$attempts" -gt 0 ]; then
 			echo -c 015 "Please try again. You have $attempts attempts left.\n"
 		else
