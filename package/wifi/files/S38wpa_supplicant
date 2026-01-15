@@ -25,31 +25,24 @@ ssid_changed() {
 start() {
 	echo_title "Starting WPA Supplicant"
 
-	wlan_pass=$(jct /etc/thingino.json get wlan.pass 2>/dev/null || fw_printenv -n wlan_pass)
-	wlan_ssid=$(jct /etc/thingino.json get wlan.ssid 2>/dev/null || fw_printenv -n wlan_ssid)
-	wlan_bssid=$(jct /etc/thingino.json get wlan.bssid 2>/dev/null || fw_printenv -n wlan_bssid)
+	     wlan_pass=$(jct /etc/thingino.json get wlan.pass       2>/dev/null || fw_printenv -n wlan_pass)
+	      wlan_psk=$(jct /etc/thingino.json get wlan.psk        2>/dev/null || fw_printenv -n wlan_psk)
+	     wlan_ssid=$(jct /etc/thingino.json get wlan.ssid       2>/dev/null || fw_printenv -n wlan_ssid)
+	    wlan_bssid=$(jct /etc/thingino.json get wlan.bssid      2>/dev/null || fw_printenv -n wlan_bssid)
 	wlanap_enabled=$(jct /etc/thingino.json get wlan_ap.enabled 2>/dev/null || fw_printenv -n wlanap_enabled)
-
-	if [ -n "$wlan_pass" ] && [ ${#wlan_pass} -lt 64 ]; then
-		echo_info "Converting plain password to PSK"
-		psk=$(convert_psk "$wlan_ssid" "$wlan_pass")
-		jct /etc/thingino.json set wlan.pass "$psk" 2>/dev/null
-		fw_setenv wlan_pass $wlan_pass
-	else
-		echo_info "Wi-Fi password is PSK"
-	fi
 
 	if ! iface_exists "wlan0"; then
 		echo_error "No wireless interface"
 		exit 1
 	fi
 
-	if [ -z "$wlan_pass" ]; then
-		echo_error "WiFi password missing"
+	if [ "${wlan_ssid}${wlan_bssid}" = "" ]; then
+		echo_error "WiFi network missing"
+		exit 1
 	fi
 
-	if [ -z "${wlan_ssid}${wlan_bssid}" ]; then
-		echo_error "WiFi network missing"
+	if [ "${wlan_psk}${wlan_pass}" = "" ]; then
+		echo_error "WiFi password missing"
 		exit 1
 	fi
 
@@ -58,9 +51,22 @@ start() {
 		exit 1
 	fi
 
+	if [ ${#wlan_psk} -eq 64 ]; then
+		echo_info "Wi-Fi PSK found"
+	elif [ ${#wlan_pass} -gt 0 ] && [ ${#wlan_pass} -lt 64 ]; then
+		echo_info "Wi-Fi password found, converting to PSK"
+		wlan_psk=$(convert_psk "$wlan_ssid" "$wlan_pass")
+		cp /etc/thingino.json /root/thingino.json.before
+		jct /etc/thingino.json set wlan.psk "$wlan_psk" 2>/dev/null
+		cp /etc/thingino.json /root/thingino.json.after
+	else
+		echo_error "Invalid length of Wi-Fi password/PSK"
+		exit 1
+	fi
+
 	if [ ! -f "$CONFIG" ] || ssid_changed || password_changed; then
 		wpa_passphrase "$wlan_ssid" "dummy_password" > $CONFIG
-		sed -i "s/psk=.*$/psk=${wlan_pass}/" $CONFIG
+		sed -i "s/psk=.*$/psk=${wlan_psk}/" $CONFIG
 		if [ -n "$wlan_bssid" ]; then
 			sed -i "s/^\s*ssid=.*$/\tbssid=$wlan_bssid/" $CONFIG
 		else

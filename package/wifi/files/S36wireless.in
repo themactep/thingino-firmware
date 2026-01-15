@@ -9,21 +9,7 @@ WLAN_MODULE_OPTS="@WLAN_MODULE_OPTS@"
 WLAN_CONFIG_JSON="/etc/thingino.json"
 wlan_pins_used=""
 
-wlan_module=$(jct /etc/thingino.json get wlan.module 2>/dev/null || fw_printenv -n wlan_module)
-wlan_module_opts=$(jct /etc/thingino.json get wlan.module_opts 2>/dev/null || fw_printenv -n wlan_module_opts)
 wlan_mac=$(jct /etc/thingino.json get wlan.mac 2>/dev/null || fw_printenv -n wlan_mac)
-
-# Legacy compatibility: allow runtime override via U-Boot environment
-if [ -z "$wlan_module" ]; then
-	wlan_module="$WLAN_MODULE_NAME"
-elif [ "$wlan_module" != "$WLAN_MODULE_NAME" ]; then
-	echo_warning "wlan_module ($wlan_module) differs from build-time value $WLAN_MODULE_NAME"
-fi
-
-# Use build-time module options unless overridden
-if [ -z "$wlan_module_opts" ]; then
-	wlan_module_opts="$WLAN_MODULE_OPTS"
-fi
 
 bool_is_true() {
 	local value
@@ -265,8 +251,8 @@ start() {
 		exit 1
 	fi
 
-	if [ -z "$wlan_module" ]; then
-		echo_error "wlan_module is not set"
+	if [ -z "$WLAN_MODULE_NAME" ]; then
+		echo_error "Wireless module name is not set"
 		exit 1
 	fi
 
@@ -279,7 +265,7 @@ start() {
 	else
 		apply_wlan_sequence "$wlan_sequence"
 
-		if [ "bcmdhd" = "$wlan_module" ] && [ -n "$wlan_pins_used" ]; then
+		if [ "bcmdhd" = "$WLAN_MODULE_NAME" ] && [ -n "$wlan_pins_used" ]; then
 			for pin in $wlan_pins_used; do
 				echo_info "Unexport GPIO pin $pin"
 				gpio unexport "$pin"
@@ -288,7 +274,7 @@ start() {
 	fi
 
 @if WIFI_MODULE_IS_SDIO@
-	echo_info "$wlan_module is an SDIO module"
+	echo_info "$WLAN_MODULE_NAME is an SDIO module"
 
 	if [ -d /proc/jz/mdio ]; then
 		echo_info "GMAC is enabled, disabling MSC1..."
@@ -325,11 +311,11 @@ fi
 	fi
 @endif@
 
-	if grep -q "^$wlan_module\b" /proc/modules; then
-		echo_info "Module $wlan_module is already loaded"
+	if grep -q "^$WLAN_MODULE_NAME\b" /proc/modules; then
+		echo_info "Module $WLAN_MODULE_NAME is already loaded"
 	else
-		echo_info "Loading $wlan_module module with parameters $wlan_module_opts"
-		modprobe $wlan_module $wlan_module_opts
+		echo_info "Loading $WLAN_MODULE_NAME module with parameters $WLAN_MODULE_OPTS"
+		modprobe $WLAN_MODULE_NAME $WLAN_MODULE_OPTS
 	fi
 
 	m=50 # limit to 5 seconds

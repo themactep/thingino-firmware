@@ -6,20 +6,8 @@ EXPECTED_WLAN_MODULE="@WLAN_MODULE@"
 WLAN_MODULE_NAME="@WLAN_MODULE_NAME@"
 WLAN_MODULE_OPTS="@WLAN_MODULE_OPTS@"
 
-# Legacy compatibility: allow runtime override via U-Boot environment
-if [ -z "$wlan_module" ]; then
-	wlan_module="$WLAN_MODULE_NAME"
-elif [ "$wlan_module" != "$WLAN_MODULE_NAME" ]; then
-	echo_warning "wlan_module ($wlan_module) differs from build-time value $WLAN_MODULE_NAME"
-fi
-
-# Use build-time module options unless overridden
-if [ -z "$wlan_module_opts" ]; then
-	wlan_module_opts="$WLAN_MODULE_OPTS"
-fi
-
-if [ -z "$wlan_module" ]; then
-	die "wlan_module is empty, exit."
+if [ -z "$WLAN_MODULE_NAME" ]; then
+	die "Wireless module name is empty, exit."
 fi
 
 entry_command=$(basename "$0")
@@ -32,6 +20,7 @@ Where command:
   temp        Display module temperature details
   rssi        Display signal details
   cli         CLI interface on supported modules
+  ap [on|off] Access Point mode
   reset       Reset all Wi-Fi credentials
 " >&2
 	exit 1
@@ -48,12 +37,12 @@ cli() {
 	@if WIFI_FAMILY_SSV@
 	CMD_FILE="/proc/ssv/phy0/ssv_cmd"
 	@else@
-	echo "Error: CLI is not supported on $wlan_module."
+	echo "Error: CLI is not supported on $WLAN_MODULE_NAME."
 	exit 1
 	@endif@
 	@endif@
 
-	[ -f "$CMD_FILE" ] || die "Error: Command file not found for $wlan_module."
+	[ -f "$CMD_FILE" ] || die "Error: Command file not found for $WLAN_MODULE_NAME."
 
 	if [ -z "$1" ]; then
 		echo "Usage: $entry_command cli <command>"
@@ -67,8 +56,7 @@ cli() {
 }
 
 reset() {
-	tmp_file=$(mktemp)
-
+	local tmp_file=$(mktemp)
 	echo '{}' > $tmp_file
 	jct $tmp_file set wlan.ssid ""
 	jct $tmp_file set wlan.bssid ""
@@ -76,11 +64,6 @@ reset() {
 	jct $tmp_file set wlan_ap.ssid ""
 	jct $tmp_file set wlan_ap.pass ""
 	jct /etc/thingino.json import $tmp_file
-
-	# legacy env settings
-	echo -e "wlan_ssid\nwlan_bssid\nwlan_pass\nwlanap_ssid\nwlanap_pass" > $tmp_file
-	fw_setenv -s $tmp_file
-
 	rm -f $tmp_file
 }
 
@@ -117,7 +100,7 @@ rssi() {
 	return
 	@endif@
 
-	echo "Unknown wireless device type $wlan_module."
+	echo "Unknown wireless device type $WLAN_MODULE_NAME."
 }
 
 
@@ -135,12 +118,12 @@ show_info() {
 	return
 	@endif@
 
-	echo "Not supported on $wlan_module"
+	echo "Not supported on $WLAN_MODULE_NAME."
 }
 
 setup() {
 	echo -c 208 "Thingino Wi-Fi setup"
-	echo "Wi-Fi driver: $(echo -c 10 $wlan_module)"
+	echo "Wi-Fi driver: $(echo -c 10 $WLAN_MODULE_NAME)"
 	read -r -p "Enter Wi-Fi SSID: " ssid
 	while :; do
 		read -r -p "Enter Wi-Fi Password: " password
@@ -148,9 +131,8 @@ setup() {
 		echo -c 160 "Passwords is not between 8 and 64 characters. Please try again."
 	done
 
-	psk=$(convert_psk "$ssid" "$password")
-
-	temp_file=$(mktemp -u)
+	local psk=$(convert_psk "$ssid" "$password")
+	local temp_file=$(mktemp -u)
 	echo '{}' > $temp_file
 	jct $temp_file set wlan.ssid "$ssid"
 	jct $temp_file set wlan.pass "$psk"
@@ -158,11 +140,7 @@ setup() {
 	jct /etc/thingino.json import $temp_file
 	rm -f $temp_file
 
-	# legacy settings
-	fw_setenv wlan_ssid "$ssid"
-	fw_setenv wlan_pass "$psk"
-
-	echo -c 40 "Wi-Fi settings updated. Please restart for changes to take effect.\n"
+	echo -c 40 -e "Wi-Fi settings updated. Please restart for changes to take effect.\n"
 }
 
 temp() {
@@ -197,7 +175,7 @@ temp() {
 	return
 	@endif@
 
-	echo "Unknown wireless device $wlan_module."
+	echo "Unknown wireless device $WLAN_MODULE_NAME."
 }
 
 case "$entry_command" in
