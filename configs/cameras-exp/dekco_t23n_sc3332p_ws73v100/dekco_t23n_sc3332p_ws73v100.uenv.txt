@@ -1,6 +1,6 @@
 gpio_button=62
 gpio_ir940=61
-gpio_ircut=57
+gpio_ircut=-1
 gpio_led_b=57
 gpio_led_g=58
 gpio_mmc_cd=59
