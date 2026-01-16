@@ -5,6 +5,10 @@
     "ircut": -1,
     "led_b": 57,
     "mmc_cd": 59,
+    "mmc_power": {
+      "pin": 50,
+      "active_low": true
+    },
     "white": 60,
     "wlan": 6,
     "mmc_power": {
