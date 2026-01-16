@@ -6,5 +6,5 @@ gpio_led_g=58
 gpio_mmc_cd=59
 gpio_speaker=42o
 gpio_white=60
-gpio_wlan=6o
+gpio_wlan=6
 gpio_mmc_power=50o

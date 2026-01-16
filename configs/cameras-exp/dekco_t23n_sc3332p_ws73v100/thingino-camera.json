@@ -6,7 +6,7 @@
     "led_b": 57,
     "mmc_cd": 59,
     "white": 60,
-    "wlan": "6O",
+    "wlan": "6",
    "mmc_power": {
       "pin": 50,
       "active_low": true
