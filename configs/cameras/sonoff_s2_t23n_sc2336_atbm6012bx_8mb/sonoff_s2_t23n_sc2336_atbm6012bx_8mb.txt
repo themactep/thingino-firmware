@@ -1,0 +1,8 @@
+gpio_button=14
+gpio_ir940=50
+gpio_ircut=16 17
+gpio_led_b=35o
+gpio_mmc_cd=49
+gpio_scl=58i
+gpio_sda=57i
+gpio_speaker=7o
