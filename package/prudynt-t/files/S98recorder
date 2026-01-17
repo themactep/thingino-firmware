@@ -25,7 +25,9 @@ start() {
 stop() {
 	echo_title "Stopping Recording service"
 
-	printf 'STOP\n' > "$FIFO_PATH"
+	pidof prudynt || return 0
+
+	[ -p "$FIFO_PATH" ] && printf 'STOP\n' > "$FIFO_PATH"
 }
 
 case "$1" in

@@ -6,6 +6,8 @@ CNET=100.64.1
 
 WPA_AP_CONF="/etc/wpa-ap.conf"
 
+wlanap_enabled=$(jct /etc/thingino.json get wlan_ap.enabled 2>/dev/null)
+
 # Define net_dev in the global scope (populated at build time)
 net_dev="@WLAN_AP_NETDEV@"
 sed -i "s/%dev%/$net_dev/g" /etc/udhcpd-ap.conf

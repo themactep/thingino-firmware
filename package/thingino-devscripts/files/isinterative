@@ -1,6 +1,6 @@
 #!/bin/sh
 
-echo_c 208 \$-
+echo -c 208 \$-
 if echo $- | grep -q i > /dev/null; then
 	echo "Interactive"
 else
@@ -8,7 +8,7 @@ else
 fi
 
 
-echo_c 208 tty
+echo -c 208 tty
 if tty > /dev/null; then
 	echo "Interactive"
 else

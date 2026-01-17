@@ -2,40 +2,41 @@
 
 . /usr/share/common
 
-nfs_mount=/mnt/nfs
+NFS_MOUNT="/mnt/nfs"
+
+nfs_share="$(jct /etc/thingino.json get nfs_share 2>/dev/null)"
 
 start() {
-	echo_title "Mount $nfs_mount"
+	echo_title "Mount $NFS_MOUNT"
 
-	nfs_share="$(jct /etc/thingino.json get nfs_share)"
 	if [ -z "$nfs_share" ]; then
 		echo_info "Mount share is not set"
 		return 0
 	fi
 
-	if mountpoint -q "$nfs_mount"; then
-		echo_error "$nfs_mount already mounted"
+	if mountpoint -q "$NFS_MOUNT"; then
+		echo_error "$NFS_MOUNT already mounted"
 		exit 1
 	fi
 
-	if mount -o nolock "$nfs_share" "$nfs_mount"; then
-		echo_info "Mounted $nfs_share on $nfs_mount"
+	if mount -o nolock "$nfs_share" "$NFS_MOUNT"; then
+		echo_info "Mounted $nfs_share on $NFS_MOUNT"
 	else
-		echo_error "Failed to mount $nfs_share on $nfs_mount"
+		echo_error "Failed to mount $nfs_share on $NFS_MOUNT"
 		exit 1
 	fi
 }
 
 stop() {
-	echo_title "Unmount $nfs_mount"
+	echo_title "Unmount $NFS_MOUNT"
 
-	if ! mountpoint -q "$nfs_mount"; then
-		echo_info "$nfs_mount is not mounted"
+	if ! mountpoint -q "$NFS_MOUNT"; then
+		echo_info "$NFS_MOUNT is not mounted"
 		return 0
 	fi
 
-	if umount -l "$nfs_mount"; then
-		echo_info "$nfs_mount unmounted"
+	if umount -l "$NFS_MOUNT"; then
+		echo_info "$NFS_MOUNT unmounted"
 	else
 		echo_error "Failed to unmount $nfs_share"
 		exit 1

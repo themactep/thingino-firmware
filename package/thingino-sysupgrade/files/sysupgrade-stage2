@@ -3,13 +3,94 @@
 export PATH="/tmp/sysupgrade"
 echo "stage 2 PATH is $PATH"
 
-echo_c() { echo -e "\e[38;5;$1m$2\e[0m"; }
-
-die() { echo_c 160 "$1"; exit 1; }
+die() { echo -c 160 "$1"; exit 1; }
 
 flash_firmware() {
 	echo "Flashing firmware to $mtd_dev"
 	flashcp -v $fw_file $mtd_dev
+}
+
+stream_flash_progress() {
+	local logfile="$1"
+	local pid="$2"
+	local tail_pid=""
+
+	if command -v tail >/dev/null 2>&1; then
+		tail -n 20 -f "$logfile" &
+		tail_pid=$!
+	else
+		echo "tail not available in PATH, monitor $logfile manually."
+	fi
+
+	wait "$pid"
+	local status=$?
+
+	if [ -n "$tail_pid" ]; then
+		kill "$tail_pid" 2>/dev/null
+		wait "$tail_pid" 2>/dev/null
+	fi
+
+	echo ""
+	return $status
+}
+
+# Detach from terminal and protect against disconnections during flash
+detach_and_flash() {
+	logfile="/tmp/sysupgrade-flash.log"
+	: >"$logfile"
+
+	echo -c 208 "CRITICAL PHASE: Detaching from terminal to protect against connection loss..."
+	echo "Process will continue even if SSH disconnects."
+	echo "Log file: $logfile"
+	echo ""
+
+	# Run in subshell detached from terminal
+	(
+		# Protect against all signals during flash
+		trap '' HUP INT TERM
+
+		exec >$logfile 2>&1
+
+		echo "=== Flash operation started at $(date) ==="
+
+		MAX_TRIES=3
+		x=0
+		times=""
+		while :; do
+			x=$((x+1))
+			if flash_firmware; then
+				echo "=== Flash completed successfully at $(date) ==="
+				echo "Rebooting in 5 seconds..."
+				sleep 5
+				echo wdt > /proc/jz/reset/reset
+				exit 0
+			fi
+			[ $x -gt 1 ] && times=" $x times"
+			echo "Flashing failed${times}."
+			[ $x -gt $MAX_TRIES ] && break
+			echo "Retrying in 5 seconds..."
+			sleep 5
+		done
+		echo "Flashing failed after $MAX_TRIES attempts!"
+		echo "WARNING: You may need to perform a recovery flash restore before rebooting the camera!"
+		exit 1
+	) </dev/null &
+
+	flash_pid=$!
+	echo "Flash process running with PID $flash_pid (safe to disconnect)"
+	echo "Streaming flash progress (Ctrl-C stops viewing, flashing continues)..."
+
+	stream_flash_progress "$logfile" "$flash_pid"
+	flash_status=$?
+
+	if [ $flash_status -eq 0 ]; then
+		echo -c 46 "Flash completed successfully. Rebooting shortly..."
+		echo "Rebooting"
+	else
+		echo -c 160 "Flash failed; consult $logfile for details."
+	fi
+
+	exit $flash_status
 }
 
 go_reboot() {
@@ -25,20 +106,12 @@ go_reboot() {
 fw_file=$1
 mtd_dev="/dev/$2"
 
-MAX_TRIES=3
+echo -c 208 "Running Stage 2 of sysupgrade."
+echo "Firmware: $fw_file"
+echo "Target: $mtd_dev"
+echo ""
+echo "You can still press Ctrl-C to abort before flashing starts."
+echo ""
 
-echo_c 208 "Running Stage 2 of sysupgrade."
-x=0
-times=""
-while :; do
-	x=$((x+1))
-	flash_firmware && go_reboot
-	[ $x -gt 1 ] && times=" $x times"
-	echo_c 160 "Flashing failed${times}."
-	[ $x -gt $MAX_TRIES ] && break
-	echo "Retrying in 5 seconds..."
-	sleep 5
-done
-echo "Flashing failed after $MAX_TRIES attempts!"
-echo_c 160 "WARNING: You may need to perform a recovery flash restore before rebooting the camera!"
-exit 1
+# Call the detached flash function which will protect the session
+detach_and_flash

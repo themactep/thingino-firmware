@@ -73,10 +73,10 @@ if [ "true" = "$preset_enabled" ]; then
 	if command -v ircut >/dev/null 2>&1; then
 		orig_ircut=$(ircut read 2>/dev/null || echo "")
 	fi
-	if command -v irled >/dev/null 2>&1; then
-		orig_ir850=$(irled read ir850 2>/dev/null || echo "")
-		orig_ir940=$(irled read ir940 2>/dev/null || echo "")
-		orig_white=$(irled read white 2>/dev/null || echo "")
+	if command -v light >/dev/null 2>&1; then
+		orig_ir850=$(light ir850 read 2>/dev/null || echo "")
+		orig_ir940=$(light ir940 read 2>/dev/null || echo "")
+		orig_white=$(light white read 2>/dev/null || echo "")
 	fi
 	if command -v color >/dev/null 2>&1; then
 		orig_color=$(color read 2>/dev/null || echo "")
@@ -98,10 +98,10 @@ if [ "true" = "$preset_enabled" ]; then
 	if command -v ircut >/dev/null 2>&1; then
 		apply_bool "$ircut" "ircut on >/dev/null 2>&1" "ircut off >/dev/null 2>&1"
 	fi
-	if command -v irled >/dev/null 2>&1; then
-		[ -n "$gpio_ir850" ] && apply_bool "$ir850" "irled on ir850 >/dev/null 2>&1" "irled off ir850 >/dev/null 2>&1"
-		[ -n "$gpio_ir940" ] && apply_bool "$ir940" "irled on ir940 >/dev/null 2>&1" "irled off ir940 >/dev/null 2>&1"
-		[ -n "$gpio_white" ] && apply_bool "$white" "irled on white >/dev/null 2>&1" "irled off white >/dev/null 2>&1"
+	if command -v light >/dev/null 2>&1; then
+		[ -n "$gpio_ir850" ] && apply_bool "$ir850" "light ir850 on >/dev/null 2>&1" "light ir850 off >/dev/null 2>&1"
+		[ -n "$gpio_ir940" ] && apply_bool "$ir940" "light ir940 on >/dev/null 2>&1" "light ir940 off >/dev/null 2>&1"
+		[ -n "$gpio_white" ] && apply_bool "$white" "light white on >/dev/null 2>&1" "light white off >/dev/null 2>&1"
 	fi
 	if command -v color >/dev/null 2>&1; then
 		apply_bool "$color" "color on >/dev/null 2>&1" "color off >/dev/null 2>&1"
@@ -124,10 +124,10 @@ if [ "true" = "$preset_enabled" ]; then
 	if command -v ircut >/dev/null 2>&1; then
 		restore_bool "$orig_ircut" "ircut on >/dev/null 2>&1" "ircut off >/dev/null 2>&1"
 	fi
-	if command -v irled >/dev/null 2>&1; then
-		[ -n "$gpio_ir850" ] && restore_bool "$orig_ir850" "irled on ir850 >/dev/null 2>&1" "irled off ir850 >/dev/null 2>&1"
-		[ -n "$gpio_ir940" ] && restore_bool "$orig_ir940" "irled on ir940 >/dev/null 2>&1" "irled off ir940 >/dev/null 2>&1"
-		[ -n "$gpio_white" ] && restore_bool "$orig_white" "irled on white >/dev/null 2>&1" "irled off white >/dev/null 2>&1"
+	if command -v light  >/dev/null 2>&1; then
+		[ -n "$gpio_ir850" ] && restore_bool "$orig_ir850" "light ir850 on >/dev/null 2>&1" "light ir850 off >/dev/null 2>&1"
+		[ -n "$gpio_ir940" ] && restore_bool "$orig_ir940" "light ir940 on >/dev/null 2>&1" "light ir940 off >/dev/null 2>&1"
+		[ -n "$gpio_white" ] && restore_bool "$orig_white" "light white on >/dev/null 2>&1" "light white off >/dev/null 2>&1"
 	fi
 	if command -v color >/dev/null 2>&1; then
 		restore_bool "$orig_color" "color on >/dev/null 2>&1" "color off >/dev/null 2>&1"

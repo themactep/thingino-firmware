@@ -2,34 +2,136 @@
 
 . /usr/share/common
 
+LED_RECORDS=""
+JSON_LED_COUNT=0
+PARSED_PIN=""
+
+bool_flag() {
+	case "${1:-}" in
+		1|true|TRUE|on|ON|yes|YES) echo 1 ;;
+		0|false|FALSE|off|OFF|no|NO) echo 0 ;;
+		*) echo "${2:-0}" ;;
+	esac
+}
+
+jct_has() {
+	[ -n "$JCT_BIN" ] || return 1
+	[ -r "$CONFIG_JSON" ] || return 1
+	"$JCT_BIN" "$CONFIG_JSON" get "$1" >/dev/null 2>&1
+}
+
+jct_get() {
+	[ -n "$JCT_BIN" ] || return 1
+	[ -r "$CONFIG_JSON" ] || return 1
+	"$JCT_BIN" "$CONFIG_JSON" get "$1" 2>/dev/null
+}
+
+get_bool_or_default() {
+	local key="$1" default="$2" raw
+	raw=$(jct_get "$key") || {
+		echo "$default"
+		return
+	}
+	raw=$(printf '%s' "$raw" | tr -d '\r\n"')
+	bool_flag "$raw" "$default"
+}
+
+parse_scalar_pin() {
+	local raw="$1"
+	raw=$(printf '%s' "$raw" | tr -d '\r\n"')
+	set -- $raw
+	raw="$1"
+	case "$raw" in
+		''|*[!0-9]*) return 1 ;;
+		-1) return 1 ;;
+	esac
+	PARSED_PIN="$raw"
+	return 0
+}
+
+list_led_bases() {
+	[ -n "$JCT_BIN" ] || return 1
+	[ -r "$CONFIG_JSON" ] || return 1
+	"$JCT_BIN" "$CONFIG_JSON" path '$.gpio.*' --mode paths 2>/dev/null |
+		tr ',' '\n' |
+		sed -n 's/.*"$\.gpio.\(led_[^".]*\)".*/\1/p' |
+		sort -u
+}
+
+append_led_record() {
+	local record="$1"
+	if [ -z "$LED_RECORDS" ]; then
+		LED_RECORDS="$record"
+	else
+		LED_RECORDS="$LED_RECORDS
+$record"
+	fi
+}
+
+load_led_definition() {
+	local base="$1" pin="" active_low=0 active_on_boot=0 raw
+	[ -n "$base" ] || return
+	active_low=$(get_bool_or_default "$base.active_low" 0)
+	active_on_boot=$(get_bool_or_default "$base.active_on_boot" 0)
+	if jct_has "$base.pin.pin"; then
+		raw=$(jct_get "$base.pin.pin")
+		if parse_scalar_pin "$raw"; then
+			pin="$PARSED_PIN"
+		fi
+		active_low=$(get_bool_or_default "$base.pin.active_low" "$active_low")
+		active_on_boot=$(get_bool_or_default "$base.pin.active_on_boot" "$active_on_boot")
+	elif raw=$(jct_get "$base.pin" 2>/dev/null); then
+		if parse_scalar_pin "$raw"; then
+			pin="$PARSED_PIN"
+		fi
+	elif raw=$(jct_get "$base" 2>/dev/null); then
+		if parse_scalar_pin "$raw"; then
+			pin="$PARSED_PIN"
+		fi
+	fi
+	[ -n "$pin" ] || return
+	append_led_record "${base#gpio.}:$pin:$active_low:$active_on_boot"
+	JSON_LED_COUNT=$((JSON_LED_COUNT + 1))
+}
+
+discover_led_configs() {
+	local name bases
+	bases=$(list_led_bases) || return
+	while IFS= read -r name; do
+		[ -n "$name" ] || continue
+		load_led_definition "gpio.$name"
+	done <<EOF
+$bases
+EOF
+}
+
+discover_led_configs
+
 start() {
 	echo_title "Configuring LEDs"
+	ensure_command gpio
 
-	LED_PINS=$(awk -F= '/^gpio_led_/{gsub(/"/, "", $2); print $2}' "$ENV_DUMP_FILE")
-
-	if [ -z "$LED_PINS" ]; then
-		echo_warning "No LED pins defined"
-		exit 1
+	if [ "$JSON_LED_COUNT" -eq 0 ]; then
+		echo_warning "No LED pins defined in prudynt configuration"
+		return
 	fi
 
-	for pin_raw in $LED_PINS; do
-		[ "$pin_raw" = "${pin_raw//[^0-9]/}" ] && pin_raw="${pin_raw}O"
-		pin="${pin_raw:0:-1}"
-		suffix="${pin_raw:0-1}"
-		case "$suffix" in
-			o) pin_on=0; pin_off=1 ;;
-			O) pin_on=1; pin_off=0 ;;
-			*) echo_warning "Pin ${pin} has unknown suffix ${suffix}!" ;;
+	printf '%s\n' "$LED_RECORDS" | while IFS=: read -r led_name pin active_low active_on_boot; do
+		[ -n "$pin" ] || continue
+		case "$active_low" in
+			1) pin_on=0; pin_off=1 ;;
+			*) pin_on=1; pin_off=0 ;;
 		esac
-
-		if echo "$gpio_default" | grep -E "\b$pin_raw\b" > /dev/null; then
-			echo_info "Set GPIO $pin $pin_on"
-			gpio set $pin $pin_on
+		if [ "$active_on_boot" = "1" ]; then
+			target=$pin_on
+			state_desc="on"
 		else
-			echo_info "Set GPIO $pin $pin_off"
-			gpio set $pin $pin_off
+			target=$pin_off
+			state_desc="off"
 		fi
-	done
+		echo_info "Set GPIO $pin $state_desc (LED $led_name)"
+		gpio set "$pin" "$target"
+	 done
 }
 
 case "$1" in

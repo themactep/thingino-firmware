@@ -1,21 +1,80 @@
-body:before {color: #333; display: block; font-size: 3rem; font-variant: all-small-caps; font-weight: 700; line-height: 1; position: fixed; right: 1rem; bottom: 1rem; z-index: -1;}
-@media (max-width: 575.98px) {body:before {content: "xs"}}
-@media (min-width: 576px) and (max-width: 767.98px) {body:before {content: "sm"}}
-@media (min-width: 768px) and (max-width: 991.98px) {body:before {content: "md"}}
-@media (min-width: 992px) and (max-width: 1199.98px) {body:before {content: "lg"}}
-@media (min-width: 1200px) and (max-width: 1399.98px) {body:before {content: "xl"}}
-@media (min-width: 1400px) {body:before {content: "xxl"}}
+body:before {
+	color: #333;
+	display: block;
+	font-size: 3rem;
+	font-variant: all-small-caps;
+	font-weight: 700;
+	line-height: 1;
+	position: fixed;
+	right: 1rem;
+	bottom: 1rem;
+	z-index: -1;
+}
+
+@media (max-width: 575.98px) {
+	body:before {
+		content: "xs"
+	}
+}
+
+@media (min-width: 576px) and (max-width: 767.98px) {
+	body:before {
+		content: "sm"
+	}
+}
+
+@media (min-width: 768px) and (max-width: 991.98px) {
+	body:before {
+		content: "md"
+	}
+}
+
+@media (min-width: 992px) and (max-width: 1199.98px) {
+	body:before {
+		content: "lg"
+	}
+}
+
+@media (min-width: 1200px) and (max-width: 1399.98px) {
+	body:before {
+		content: "xl"
+	}
+}
+
+@media (min-width: 1400px) {
+	body:before {
+		content: "xxl"
+	}
+}
 
 @keyframes a1 {
-	90%, 100% { flex-grow: 1; }
+
+	90%,
+	100% {
+		flex-grow: 1;
+	}
 }
+
 @keyframes blinker {
-	0% { opacity: 0; }
-	15% { opacity: 1; }
+	0% {
+		opacity: 0;
+	}
+
+	15% {
+		opacity: 1;
+	}
 }
+
 @keyframes pulse {
-	0%, 100% { opacity: 1; }
-	50% { opacity: 0.7; }
+
+	0%,
+	100% {
+		opacity: 1;
+	}
+
+	50% {
+		opacity: 0.7;
+	}
 }
 
 :root {
@@ -24,7 +83,7 @@ body:before {color: #333; display: block; font-size: 3rem; font-variant: all-sma
 	--ansi-144: #afaf87;
 	--bs-font-sans-serif: "Montserrat", sans-serif;
 	--bs-btn-active-bg: #008040;
-    --bs-btn-active-border-color: #00a050;
+	--bs-btn-active-border-color: #00a050;
 }
 
 .alert p:last-of-type {
@@ -62,13 +121,13 @@ body:before {color: #333; display: block; font-size: 3rem; font-variant: all-sma
 	display: block;
 }
 
-.col > h3 {
+.col>h3 {
 	color: var(--bs-secondary-color);
 	font-size: 1.3rem;
 	margin-bottom: 1.3rem;
 }
 
-.col .ex > h6 {
+.col .ex>h6 {
 	font-weight: 500;
 	color: var(--bs-tertiary-color);
 }
@@ -91,7 +150,7 @@ body:before {color: #333; display: block; font-size: 3rem; font-variant: all-sma
 	padding: 0.1rem 0.375rem;
 }
 
-input[type="color"] + input[type="range"] {
+input[type="color"]+input[type="range"] {
 	width: 100%;
 }
 
@@ -212,7 +271,9 @@ input[type="color"] + input[type="range"] {
 }
 
 @keyframes spin {
-	to { transform: rotate(360deg); }
+	to {
+		transform: rotate(360deg);
+	}
 }
 
 .tab-pane {
@@ -247,7 +308,7 @@ input[type="color"] + input[type="range"] {
 	font-size: 0.8125rem;
 }
 
-body > main > .container > h2 {
+body>main>.container>h2 {
 	color: var(--bs-primary);
 	margin: 2rem 0 1.5rem;
 }
@@ -257,7 +318,8 @@ dt {
 	color: var(--bs-light);
 }
 
-input[type="checkbox"], .form-check-label {
+input[type="checkbox"],
+.form-check-label {
 	cursor: pointer;
 }
 
@@ -275,8 +337,7 @@ pre.list b {
 input[type="text"],
 input[type="password"],
 input[type="number"],
-select
-{
+select {
 	font-family: var(--bs-font-monospace);
 	font-size: 1rem;
 	color: lightpink;
@@ -322,16 +383,41 @@ pre#output[data-cmd] {
 	color: rgba(170, 170, 170, 0.8);
 }
 
-.gpio_led_r > .input-group > .switch { background: red; }
-.gpio_led_g > .input-group > .switch { background: green; }
-.gpio_led_b > .input-group > .switch { background: blue; }
-.gpio_led_y > .input-group > .switch { background: yellow; }
-.gpio_led_o > .input-group > .switch { background: orange; }
-.gpio_led_w > .input-group > .switch { background: white; }
+.gpio_led_r>.input-group>.switch {
+	background: red;
+}
 
-.gpio_ir850 > .input-group > .switch { background: violet; }
-.gpio_ir940 > .input-group > .switch { background: darkviolet; }
-.gpio_white > .input-group > .switch { background: white; }
+.gpio_led_g>.input-group>.switch {
+	background: green;
+}
+
+.gpio_led_b>.input-group>.switch {
+	background: blue;
+}
+
+.gpio_led_y>.input-group>.switch {
+	background: yellow;
+}
+
+.gpio_led_o>.input-group>.switch {
+	background: orange;
+}
+
+.gpio_led_w>.input-group>.switch {
+	background: white;
+}
+
+.gpio_ir850>.input-group>.switch {
+	background: violet;
+}
+
+.gpio_ir940>.input-group>.switch {
+	background: darkviolet;
+}
+
+.gpio_white>.input-group>.switch {
+	background: white;
+}
 
 li.enabled {
 	border-left: 5px solid green;
@@ -351,7 +437,20 @@ li.enabled {
 .expert {
 	display: none;
 }
+
 body.expert .expert {
 	display: initial;
 }
 
+/* Fixed width for daynight button text to prevent jumping */
+#daynight-text {
+	display: inline-block;
+	min-width: 3.5rem;
+	text-align: left;
+}
+
+#daynight-gain {
+	display: inline-block;
+	min-width: 3rem;
+	text-align: right;
+}

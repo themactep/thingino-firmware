@@ -4,6 +4,8 @@
 
 USB_SCRIPT="/etc/init.d/F02failsafe-usb"
 
+usb_console=$(jct /dev/thingino.json get usb.console 2>/dev/null || fw_printenv -n usb_console)
+
 start() {
 	if [ "true" = "$usb_console" ] && [ -f "$USB_SCRIPT" ]; then
 		exit 0
@@ -11,14 +13,14 @@ start() {
 
 	# Always enter failsafe if enable_failsafe is true
 	if [ "true" = "$enable_failsafe" ]; then
-		echo_c 118 "Automatically entering failsafe mode..."
+		echo -c 118 "Automatically entering failsafe mode..."
 		touch /tmp/.fs
 		. /etc/profile
 		exec setsid /sbin/getty -n -l /bin/sh -L console 0 vt100
 		return
 	fi
 
-	echo_c 104 "\nPress the [f] key to enter failsafe mode\n"
+	echo -c 104 -e "\nPress the [f] key to enter failsafe mode\n"
 
 	stty -icanon min 0 time 20 -echo
 	key=$(dd bs=1 count=1 2>/dev/null)
@@ -28,12 +30,12 @@ start() {
 		touch /tmp/.fs
 		. /etc/profile
 		exec setsid /sbin/getty -n -l /bin/sh -L console 0 vt100
-		echo_c 118 "Failsafe mode..."
+		echo -c 118 "Failsafe mode..."
 	fi
 
 	if [ -f "$OS_RELEASE_FILE" ]; then
 		. "$OS_RELEASE_FILE"
-		echo_c 208 "Thingino firmware built for $IMAGE_ID\n[$BUILD_ID]\n"
+		echo -c 208 -e "Thingino firmware built for $IMAGE_ID\n[$BUILD_ID]\n"
 	fi
 
 	/etc/init.d/rcS

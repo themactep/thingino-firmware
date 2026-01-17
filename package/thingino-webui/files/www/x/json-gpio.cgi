@@ -1,8 +1,12 @@
 #!/bin/sh
 . ./_json.sh
 
-# @params: n - name, s -state
-[ -n "$QUERY_STRING" ] && eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
+# @params: n - name, s - state
+if [ "$REQUEST_METHOD" = "POST" ]; then
+  eval $(echo "$CONTENT" | sed "s/&/;/g")
+else
+  eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
+fi
 
 [ -z "$n" ] && json_error "Required parameter '$n' is not set"
 
@@ -10,12 +14,8 @@ eval pin=\$$n
 [ -z "$pin" ] && json_error "GPIO is not found"
 
 case "$s" in
-  0 | 1)
-    state=${s:-0}
-    ;;
-  *)
-    [ $(gpio read $pin) -eq 0 ] && state=1 || state=0
-    ;;
+  0 | 1) state=${s:-0} ;;
+  *) [ $(gpio read $pin) -eq 0 ] && state=1 || state=0 ;;
 esac
 
 # default to output high
@@ -26,6 +26,6 @@ case "${pin:0-1}" in
 esac
 pin=${pin:0:(-1)}
 
-gpio set $pin $state
+gpio set "$pin" "$state"
 
 json_ok "{\"pin\":\"$pin\",\"status\":\"$(gpio read $pin)\"}"

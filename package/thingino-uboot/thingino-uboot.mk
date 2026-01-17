@@ -286,30 +286,30 @@ endif
 # Calculate reserved memory values and export to uenv.txt
 #
 define RMEM_SET_VALUE
-	if [ -n "$(ISP_RMEM)" ]; then \
+	if [ -n "$(ISP_RMEM_MB)" ]; then \
 		if [ "$(SOC_FAMILY)" = "t20" -o "$(SOC_FAMILY)" = "t10" ]; then \
-			osmem=$$(( $(SOC_RAM) - $(ISP_RMEM) - $(ISP_ISPMEM) )) && \
-			ispmem_offset=$$(( ($(SOC_RAM) - $(ISP_RMEM) - $(ISP_ISPMEM)) * 0x100000 )) && \
-			rmem_offset=$$(( ($(SOC_RAM) - $(ISP_RMEM)) * 0x100000 )) && \
+			osmem=$$(( $(SOC_RAM_MB) - $(ISP_RMEM_MB) - $(ISP_ISPMEM_MB) )) && \
+			ispmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_RMEM_MB) - $(ISP_ISPMEM_MB)) * 0x100000 )) && \
+			rmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_RMEM_MB)) * 0x100000 )) && \
 			grep -q "^osmem=$${osmem}M@0x0" $(OUTPUT_DIR)/uenv.txt || echo "osmem=$${osmem}M@0x0" >> $(OUTPUT_DIR)/uenv.txt && \
-			grep -q "^ispmem=$(ISP_ISPMEM)M@$$(printf '0x%x' $$ispmem_offset)" $(OUTPUT_DIR)/uenv.txt || echo "ispmem=$(ISP_ISPMEM)M@$$(printf '0x%x' $$ispmem_offset)" >> $(OUTPUT_DIR)/uenv.txt && \
-			grep -q "^rmem=$(ISP_RMEM)M@$$(printf '0x%x' $$rmem_offset)" $(OUTPUT_DIR)/uenv.txt || echo "rmem=$(ISP_RMEM)M@$$(printf '0x%x' $$rmem_offset)" >> $(OUTPUT_DIR)/uenv.txt; \
+			grep -q "^ispmem=$(ISP_ISPMEM_MB)M@$$(printf '0x%x' $$ispmem_offset)" $(OUTPUT_DIR)/uenv.txt || echo "ispmem=$(ISP_ISPMEM_MB)M@$$(printf '0x%x' $$ispmem_offset)" >> $(OUTPUT_DIR)/uenv.txt && \
+			grep -q "^rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" $(OUTPUT_DIR)/uenv.txt || echo "rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" >> $(OUTPUT_DIR)/uenv.txt; \
 		elif [ "$(SOC_FAMILY)" = "t40" -o "$(SOC_FAMILY)" = "t41" ]; then \
-			osmem=$$(( $(SOC_RAM) - $(ISP_RMEM) - $(ISP_NMEM) )) && \
-			rmem_offset=$$(( ($(SOC_RAM) - $(ISP_RMEM) - $(ISP_NMEM)) * 0x100000 )) && \
-			nmem_offset=$$(( ($(SOC_RAM) - $(ISP_NMEM)) * 0x100000 )) && \
+			osmem=$$(( $(SOC_RAM_MB) - $(ISP_RMEM_MB) - $(ISP_NMEM_MB) )) && \
+			rmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_RMEM_MB) - $(ISP_NMEM_MB)) * 0x100000 )) && \
+			nmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_NMEM_MB)) * 0x100000 )) && \
 			grep -q "^osmem=$${osmem}M@0x0" $(OUTPUT_DIR)/uenv.txt || echo "osmem=$${osmem}M@0x0" >> $(OUTPUT_DIR)/uenv.txt && \
-			grep -q "^rmem=$(ISP_RMEM)M@$$(printf '0x%x' $$rmem_offset)" $(OUTPUT_DIR)/uenv.txt || echo "rmem=$(ISP_RMEM)M@$$(printf '0x%x' $$rmem_offset)" >> $(OUTPUT_DIR)/uenv.txt && \
-			grep -q "^nmem=$(ISP_NMEM)M@$$(printf '0x%x' $$nmem_offset)" $(OUTPUT_DIR)/uenv.txt || echo "nmem=$(ISP_NMEM)M@$$(printf '0x%x' $$nmem_offset)" >> $(OUTPUT_DIR)/uenv.txt; \
-			echo HELLO $(ISP_NMEM); \
+			grep -q "^rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" $(OUTPUT_DIR)/uenv.txt || echo "rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" >> $(OUTPUT_DIR)/uenv.txt && \
+			grep -q "^nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" $(OUTPUT_DIR)/uenv.txt || echo "nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" >> $(OUTPUT_DIR)/uenv.txt; \
+			echo HELLO $(ISP_NMEM_MB); \
 		else \
-			osmem=$$(( $(SOC_RAM) - $(ISP_RMEM) )) && \
-			rmem_offset=$$(( ($(SOC_RAM) - $(ISP_RMEM)) * 0x100000 )) && \
+			osmem=$$(( $(SOC_RAM_MB) - $(ISP_RMEM_MB) )) && \
+			rmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_RMEM_MB)) * 0x100000 )) && \
 			grep -q "^osmem=$${osmem}M@0x0" $(OUTPUT_DIR)/uenv.txt || echo "osmem=$${osmem}M@0x0" >> $(OUTPUT_DIR)/uenv.txt && \
-			grep -q "^rmem=$(ISP_RMEM)M@$$(printf '0x%x' $$rmem_offset)" $(OUTPUT_DIR)/uenv.txt || echo "rmem=$(ISP_RMEM)M@$$(printf '0x%x' $$rmem_offset)" >> $(OUTPUT_DIR)/uenv.txt; \
+			grep -q "^rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" $(OUTPUT_DIR)/uenv.txt || echo "rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" >> $(OUTPUT_DIR)/uenv.txt; \
 		fi; \
 	else \
-		echo "No ISP_RMEM value set"; \
+		echo "No ISP_RMEM_MB value set"; \
 	fi
 endef
 

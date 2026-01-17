@@ -1,0 +1,29 @@
+{
+  "gpio": {
+    "ir940": 72,
+    "ircut": "25 26",
+    "led_b": {
+      "pin": 76,
+      "active_low": true
+    },
+    "led_y": {
+      "pin": 75,
+      "active_low": true
+    },
+    "mmc_cd": 59,
+    "mmc_power": {
+      "pin": 43,
+      "active_low": true
+    },
+    "usb": {
+      "en": {
+        "pin": 47,
+        "active_low": false
+      }
+    },
+    "wlan": {
+      "pin": 60,
+      "active_low": false
+    }
+  }
+}

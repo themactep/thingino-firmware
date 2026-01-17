@@ -96,13 +96,21 @@ elif post_request; then
 			wlanap_pass=$(convert_psk "$wlanap_ssid" "$wlanap_pass")
 			printf "wlanap_ssid %s\nwlanap_pass %s\n" \
 				"$wlanap_ssid" "$wlanap_pass" > $temp_file
+
+			jct /etc/thingino.json set wlan_ap.ssid "$wlanap_ssid"
+			jct /etc/thingino.json set wlan_ap.pass "$wlanap_pass"
 		else
 			wlan_pass=$(convert_psk "$wlan_ssid" "$wlan_pass")
 			printf "wlan_ssid %s\nwlan_pass %s\n" \
 				"$wlan_ssid" "$wlan_pass" > $temp_file
+
+			jct /etc/thingino.json set wlan.ssid "$wlan_ssid"
+			jct /etc/thingino.json set wlan.pass "$wlan_pass"
 		fi
 		fw_setenv -s $temp_file
 		rm -f $temp_file
+
+		jct /etc/thingino.json set wlan_ap.enabled "$wlanap_enabled"
 
 		# set wlanap status
 		conf s wlanap_enabled $wlanap_enabled

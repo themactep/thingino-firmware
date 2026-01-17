@@ -1,0 +1,17 @@
+{
+  "gpio": {
+    "button_reset": 18,
+    "ir940": 59,
+    "ircut": "49 50",
+    "led_white": 45,
+    "mmc_cd": 61,
+    "mmc_power": {
+      "pin": 46,
+      "active_low": true
+    },
+    "wlan": {
+      "pin": 40,
+      "active_low": true
+    }
+  }
+}

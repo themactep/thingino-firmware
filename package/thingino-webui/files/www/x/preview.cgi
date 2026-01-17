@@ -57,7 +57,34 @@ pos_0_y=$(echo $pos_0 | awk -F',' '{print $2}')
 
 motors_defaults
 
+# Read daynight configuration from prudynt.json
+daynight_config_file="/etc/prudynt.json"
+
+daynight_get_value() {
+  jct "$daynight_config_file" get "daynight.$1" 2>/dev/null
+}
+
+daynight_read_config() {
+  [ -f "$daynight_config_file" ] || return
+
+  daynight_enabled="$(daynight_get_value enabled)"
+  daynight_total_gain_night_threshold="$(daynight_get_value total_gain_night_threshold)"
+  daynight_total_gain_day_threshold="$(daynight_get_value total_gain_day_threshold)"
+  daynight_controls_color="$(daynight_get_value controls.color)"
+  daynight_controls_ir850="$(daynight_get_value controls.ir850)"
+  daynight_controls_ir940="$(daynight_get_value controls.ir940)"
+  daynight_controls_ircut="$(daynight_get_value controls.ircut)"
+  daynight_controls_white="$(daynight_get_value controls.white)"
+}
+
+daynight_read_config
+
 OSD_FONT_PATH="/usr/share/fonts"
+SENSOR_IQ_PATH="/etc/sensor"
+SENSOR_IQ_UPLOAD_PATH="/opt/sensor"
+SENSOR_IQ_FILE="${SENSOR}-$(fw_printenv -n soc).bin"
+UPLOADED_SENSOR_IQ_FILE="${SENSOR_IQ_UPLOAD_PATH}/uploaded.bin"
+
 if [ "POST" = "$REQUEST_METHOD" ]; then
   case "$POST_form" in
     font)
@@ -68,6 +95,21 @@ if [ "POST" = "$REQUEST_METHOD" ]; then
         set_error_flag "File upload failed. Empty file?"
       else
         mv "$HASERL_fontfile_path" "$OSD_FONT_PATH/uploaded.ttf"
+      fi
+      redirect_to $SCRIPT_NAME
+      ;;
+    sensor)
+      error=""
+      if [ -n "$HASERL_sensorfile_path" ]; then
+        if [ $(stat -c%s $HASERL_sensorfile_path) -eq 0 ]; then
+          set_error_flag "File upload failed. Empty file?"
+        else
+          mkdir -p "$SENSOR_IQ_UPLOAD_PATH"
+          mv "$HASERL_sensorfile_path" "$UPLOADED_SENSOR_IQ_FILE"
+          ln -sf "$UPLOADED_SENSOR_IQ_FILE" "${SENSOR_IQ_PATH}/${SENSOR_IQ_FILE}"
+          service restart prudynt >/dev/null &
+          redirect_to $SCRIPT_NAME "success" "Custom sensor IQ file installed"
+        fi
       fi
       redirect_to $SCRIPT_NAME
       ;;
@@ -164,7 +206,7 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
 
 <div class="mb-2">
   <button type="button" class="btn btn-outline-secondary btn-sm" id="toggle-tabs">
-    <i class="bi bi-layout-sidebar"></i> Toggle Tabs
+    <i class="bi bi-layout-sidebar"></i> Toggle Configuration Tabs
   </button>
 </div>
 
@@ -172,7 +214,7 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
   <div class="col" id="preview-col">
     <div id="frame" class="position-relative mb-2">
       <img id="preview" src="/a/nostream.webp" class="img-fluid" alt="Image: Preview"
-        data-bs-toggle="modal" data-bs-target="#mdPreview" style="cursor: zoom-in;">
+        data-bs-toggle="modal" data-bs-target="#mdPreview" style="cursor: zoom-in;" tabindex="-1">
 <% if [ "true" = "$has_motors" ]; then %>
       <div class="position-absolute top-50 start-50 translate-middle">
         <%in _motors.cgi %>
@@ -181,29 +223,34 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
     </div>
   </div>
 
-  <div class="col d-none" id="tabs-col">
-    <ul class="nav nav-tabs" id="myTab" role="tablist">
+  <div class="col-12 col-lg-7 d-none" id="tabs-col">
+    <div class="d-flex gap-1 mb-3">
+      <button type="button" id="export-config" class="btn btn-secondary" title="Download the active configuration from prudynt's memory as JSON">
+        <i class="bi bi-download" title="Export JSON"></i>
+      </button>
+
+      <button type="button" id="save-config" class="btn btn-secondary" title="Write the active configuration to /etc/prudynt.json on the camera">
+        <i class="bi bi-floppy" title="Save"></i>
+      </button>
+
+      <button type="button" id="restart-prudynt" class="btn btn-danger">
+        <i class="bi bi-arrow-clockwise" title="Restart Prudynt"></i>
+      </button>
+
+      <select class="form-select ms-2" id="tab-selector" aria-label="Select tab">
 <% if [ "true" = "$has_motors" ]; then %>
-      <li class="nav-item" role="presentation"><button class="nav-link" id="ptz-tab"
-        data-bs-toggle="tab" data-bs-target="#ptz" type="button" role="tab"
-        aria-controls="ptz" aria-selected="true">Pan/Tilt</button></li>
+        <option value="ptz">Pan/Tilt Motors</option>
 <% fi %>
-      <li class="nav-item" role="presentation"><button class="nav-link" id="iq-tab"
-        data-bs-toggle="tab" data-bs-target="#iq" type="button" role="tab"
-        aria-controls="iq" aria-selected="false">Image</button></li>
-      <li class="nav-item" role="presentation"><button class="nav-link" id="streamer-tab"
-        data-bs-toggle="tab" data-bs-target="#streamer" type="button" role="tab"
-        aria-controls="streamer" aria-selected="false">Main stream</button></li>
-      <li class="nav-item" role="presentation"><button class="nav-link" id="substream-tab"
-        data-bs-toggle="tab" data-bs-target="#substream" type="button" role="tab"
-        aria-controls="substream" aria-selected="false">Substream</button></li>
-      <li class="nav-item" role="presentation"><button class="nav-link" id="audio-tab"
-        data-bs-toggle="tab" data-bs-target="#audio" type="button" role="tab"
-        aria-controls="audio" aria-selected="false">Audio</button></li>
-      <li class="nav-item" role="presentation"><button class="nav-link" id="settings-tab"
-        data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab"
-        aria-controls="settings" aria-selected="false">Settings</button></li>
-    </ul>
+        <option value="iq">Image Quality</option>
+        <option value="streamer">RTSP Main stream</option>
+        <option value="osd0">Main stream OSD</option>
+        <option value="substream">RTSP Substream</option>
+        <option value="osd1">Substream OSD</option>
+        <option value="audio">Audio Settings</option>
+        <option value="sensor">Sensor IQ File</option>
+        <option value="photosensing">Photosensing</option>
+      </select>
+    </div>
 
     <div class="tab-content">
 
@@ -213,7 +260,7 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
           <input type="hidden" name="form" value="motors">
 
           <h6>Pan motor</h6>
-          <div class="row align-items-end g-1">
+          <div class="row align-items-end g-1 mb-3">
 <% if [ "true" != "$is_spi" ]; then %>
             <div class="col"><% field_number "gpio_pan_1" "pin 1" %></div>
             <div class="col"><% field_number "gpio_pan_2" "pin 2" %></div>
@@ -231,7 +278,7 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
           </div>
 
           <h6>Tilt motor</h6>
-          <div class="row align-items-end g-1">
+          <div class="row align-items-end g-1 mb-3">
 <% if [ "true" != "$is_spi" ]; then %>
             <div class="col"><% field_number "gpio_tilt_1" "pin 1" %></div>
             <div class="col"><% field_number "gpio_tilt_2" "pin 2" %></div>
@@ -265,68 +312,73 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
       </div>
 <% fi %>
 
-    <div class="tab-pane" id="iq" role="tabpanel" aria-labelledby="iq-tab" tabindex="0">
-      <div class="row row-cols-2 row-cols-xxl-3">
-        <div class="col"><% field_range "brightness" "Brightness" "0,255,1" %></div>
-        <div class="col"><% field_range "contrast" "Contrast" "0,255,1" %></div>
-        <div class="col"><% field_range "sharpness" "Sharpness" "0,255,1" %></div>
-        <div class="col"><% field_range "saturation" "Saturation" "0,255,1" %></div>
-        <div class="col"><% field_range "backlight" "Backlight" "0,10,1" %></div>
-        <div class="col"><% field_range "wide_dynamic_range" "WDR" "0,255,1" %></div>
-        <div class="col"><% field_range "tone" "Highlights" "0,255,1" %></div>
-        <div class="col"><% field_range "defog" "Defog" "0,255,1" %></div>
-        <div class="col"><% field_range "noise_reduction" "Noise reduction" "0,255,1" %></div>
-      </div>
-      <div class="row">
-        <div class="col">
-          <div class="mb-2 select" id="image_core_wb_mode_wrap">
-            <label for="image_core_wb_mode" class="form-label">White balance mode</label>
-            <select class="form-select" id="image_core_wb_mode" name="image_core_wb_mode">
-            <option value="0">AUTO</option>
-            <option value="1">MANUAL</option>
-            <option value="2">DAY LIGHT</option>
-            <option value="3">CLOUDY</option>
-            <option value="4">INCANDESCENT</option>
-            <option value="5">FLOURESCENT</option>
-            <option value="6">TWILIGHT</option>
-            <option value="7">SHADE</option>
-            <option value="8">WARM FLOURESCENT</option>
-            <option value="9">CUSTOM</option>
-            </select>
+      <div class="tab-pane" id="iq" role="tabpanel" aria-labelledby="iq-tab" tabindex="0">
+        <div class="row g-2">
+          <div class="col-2"><% field_number_range "brightness" "Brightness" "0,255,1" %></div>
+          <div class="col-2"><% field_number_range "contrast" "Contrast" "0,255,1" %></div>
+          <div class="col-2"><% field_number_range "sharpness" "Sharpness" "0,255,1" %></div>
+          <div class="col-2"><% field_number_range "saturation" "Saturation" "0,255,1" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-2"><% field_number_range "backlight" "Backlight" "0,10,1" %></div>
+          <div class="col-2"><% field_number_range "wide_dynamic_range" "WDR" "0,255,1" %></div>
+          <div class="col-2"><% field_number_range "tone" "Highlights" "0,255,1" %></div>
+          <div class="col-2"><% field_number_range "defog" "Defog" "0,255,1" %></div>
+          <div class="col-3"><% field_number_range "noise_reduction" "Noise reduction" "0,255,1" %></div>
+          <div class="col-3">
+            <div class="mb-2 select" id="image_core_wb_mode_wrap">
+              <label for="image_core_wb_mode" class="form-label">White balance mode</label>
+              <select class="form-select" id="image_core_wb_mode" name="image_core_wb_mode">
+                <option value="0">AUTO</option>
+                <option value="1">MANUAL</option>
+                <option value="2">DAY LIGHT</option>
+                <option value="3">CLOUDY</option>
+                <option value="4">INCANDESCENT</option>
+                <option value="5">FLOURESCENT</option>
+                <option value="6">TWILIGHT</option>
+                <option value="7">SHADE</option>
+                <option value="8">WARM FLOURESCENT</option>
+                <option value="9">CUSTOM</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-3"><% field_number_range "image_wb_bgain" "Blue channel gain" "0,1024,1" %></div>
+          <div class="col-3"><% field_number_range "image_wb_rgain" "Red channel gain" "0,1024,1" %></div>
+          <div class="col-3"><% field_number_range "image_ae_compensation" "<abbr title=\"Automatic Exposure\">AE</abbr> compensation" "0,255,1" %></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-3">
+                  <% field_switch "image_hflip" "V-Flip" %>
+            <% field_switch "image_vflip" "H-Flip" %>
           </div>
         </div>
-        <div class="col"><% field_range "image_wb_bgain" "Blue channel gain" "0,1024,1" %></div>
-        <div class="col"><% field_range "image_wb_rgain" "Red channel gain" "0,1024,1" %></div>
       </div>
-      <div class="row">
-        <div class="col"><% field_range "image_ae_compensation" "<abbr title=\"Automatic Exposure\">AE</abbr> compensation" "0,255,1" %></div>
-        <div class="col"><% field_switch "image_hflip" "V-Flip" %></div>
-        <div class="col"><% field_switch "image_vflip" "H-Flip" %></div>
-      </div>
-    </div>
 
       <div class="tab-pane" id="streamer" role="tabpanel" aria-labelledby="streamer-tab" tabindex="0">
         <div class="row g-2">
           <div class="col-2"><% field_text "stream0_width" "Width" %></div>
           <div class="col-2"><% field_text "stream0_height" "Height" %></div>
-          <div class="col-4"><% field_range "stream0_fps" "FPS" "$SENSOR_FPS_MIN,$SENSOR_FPS_MAX,1" %></div>
+          <div class="col-2"><% field_number_range "stream0_fps" "FPS" "$SENSOR_FPS_MIN,$SENSOR_FPS_MAX,1" %></div>
           <div class="col-2"><% field_text "stream0_gop" "GOP" %></div>
           <div class="col-2"><% field_text "stream0_max_gop" "Max GOP" %></div>
         </div>
         <div class="row g-2">
-          <div class="col-3"><% field_select "stream0_format" "Format" "$FORMATS" %></div>
-          <div class="col-3"><% field_text "stream0_bitrate" "Bitrate" %></div>
-          <div class="col-6"><% field_select "stream0_mode" "Mode" "$modes" %></div>
-        </div>
-        <div class="row g-2">
+          <div class="col-2"><% field_select "stream0_format" "Format" "$FORMATS" %></div>
+          <div class="col-2"><% field_text "stream0_bitrate" "Bitrate" %></div>
+          <div class="col-3"><% field_select "stream0_mode" "Mode" "$modes" %></div>
           <div class="col-2"><% field_text "stream0_buffers" "Buffers" %></div>
           <div class="col-2"><% field_text "stream0_profile" "Profile" %></div>
-          <div class="col-4"><% field_text "stream0_rtsp_endpoint" "RTSP Endpoint" %></div>
         </div>
         <div class="row g-2">
-          <div class="col-4"><% field_switch "stream0_video_enabled" "Video in stream" %></div>
-          <div class="col-4"><% field_switch "stream0_audio_enabled" "Audio in stream" %></div>
+          <div class="col-4"><% field_text "stream0_rtsp_endpoint" "RTSP Endpoint" %></div>
+          <div class="col-4">
+                  <% field_switch "stream0_video_enabled" "Video in stream" %>
+            <% field_switch "stream0_audio_enabled" "Audio in stream" %>
+          </div>
         </div>
+      </div>
+
+      <div class="tab-pane" id="osd0" role="tabpanel" aria-labelledby="osd0-tab" tabindex="0">
         <div class="row g-2">
           <div class="col-4"><% field_switch "osd0_enabled" "OSD enabled" %></div>
           <div class="col-4">
@@ -374,24 +426,27 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
         <div class="row g-2">
           <div class="col-2"><% field_text "stream1_width" "Width" %></div>
           <div class="col-2"><% field_text "stream1_height" "Height" %></div>
-          <div class="col-4"><% field_range "stream1_fps" "FPS" "$SENSOR_FPS_MIN,$SENSOR_FPS_MAX,1" %></div>
+          <div class="col-2"><% field_number_range "stream1_fps" "FPS" "$SENSOR_FPS_MIN,$SENSOR_FPS_MAX,1" %></div>
           <div class="col-2"><% field_text "stream1_gop" "GOP" %></div>
           <div class="col-2"><% field_text "stream1_max_gop" "Max GOP" %></div>
         </div>
         <div class="row g-2">
-          <div class="col-3"><% field_select "stream1_format" "Format" "$FORMATS" %></div>
-          <div class="col-3"><% field_text "stream1_bitrate" "Bitrate" %></div>
-          <div class="col-6"><% field_select "stream1_mode" "Mode" "$modes" %></div>
-        </div>
-        <div class="row g-2">
+          <div class="col-2"><% field_select "stream1_format" "Format" "$FORMATS" %></div>
+          <div class="col-2"><% field_text "stream1_bitrate" "Bitrate" %></div>
+          <div class="col-3"><% field_select "stream1_mode" "Mode" "$modes" %></div>
           <div class="col-2"><% field_text "stream1_buffers" "Buffers" %></div>
           <div class="col-2"><% field_text "stream1_profile" "Profile" %></div>
-          <div class="col-4"><% field_text "stream1_rtsp_endpoint" "RTSP Endpoint" %></div>
         </div>
         <div class="row g-2">
-          <div class="col-4"><% field_switch "stream1_video_enabled" "Video in stream" %></div>
-          <div class="col-4"><% field_switch "stream1_audio_enabled" "Audio in stream" %></div>
+          <div class="col-4"><% field_text "stream1_rtsp_endpoint" "RTSP Endpoint" %></div>
+          <div class="col-4">
+                  <% field_switch "stream1_video_enabled" "Video in stream" %>
+            <% field_switch "stream1_audio_enabled" "Audio in stream" %>
+                </div>
         </div>
+      </div>
+
+      <div class="tab-pane" id="osd1" role="tabpanel" aria-labelledby="osd1-tab" tabindex="0">
         <div class="row g-2">
           <div class="col-4"><% field_switch "osd1_enabled" "OSD enabled" %></div>
           <div class="col-4">
@@ -438,14 +493,12 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
       <div class="tab-pane" id="audio" role="tabpanel" aria-labelledby="audio-tab" tabindex="0">
         <h6>Microphone</h6>
         <div class="row g-2">
-          <div class="col"><% field_select "audio_mic_format" "Codec" "$AUDIO_FORMATS" %></div>
-          <div class="col"><% field_select "audio_mic_sample_rate" "Sampling, Hz" "$AUDIO_SAMPLING" %></div>
-          <div class="col"><% field_select "audio_mic_bitrate" "Bitrate, kbps" "$AUDIO_BITRATES" %></div>
-        </div>
-        <div class="row g-2">
-          <div class="col"><% field_range "audio_mic_vol" "Mic volume" "-30,120,1" %></div>
-          <div class="col"><% field_range "audio_mic_gain" "Mic gain" "0,31,1" %></div>
-          <div class="col"><% field_range "audio_mic_alc_gain" "<abbr title=\"Automatic Level Control\">ALC</abbr> gain" "0,7,1" %></div>
+          <div class="col-2"><% field_select "audio_mic_format" "Codec" "$AUDIO_FORMATS" %></div>
+          <div class="col-2"><% field_select "audio_mic_sample_rate" "Sampling, Hz" "$AUDIO_SAMPLING" %></div>
+          <div class="col-2"><% field_select "audio_mic_bitrate" "Bitrate, kbps" "$AUDIO_BITRATES" %></div>
+          <div class="col-2"><% field_number_range "audio_mic_vol" "Mic volume" "-30,120,1" %></div>
+          <div class="col-2"><% field_number_range "audio_mic_gain" "Mic gain" "0,31,1" %></div>
+          <div class="col-2"><% field_number_range "audio_mic_alc_gain" "<abbr title=\"Automatic Level Control\">ALC</abbr> gain" "0,7,1" %></div>
         </div>
         <div class="row g-2">
           <div class="col"><% field_switch "audio_mic_agc_enabled" "<abbr title=\"Automatic gain control\">AGC</abbr> Enabled" %></div>
@@ -453,46 +506,53 @@ FONTS=$(ls -1 $OSD_FONT_PATH)
           <div class="col"><% field_switch "audio_force_stereo" "Force stereo" %></div>
         </div>
         <div class="row g-2">
-          <div class="col"><% field_range "audio_mic_noise_suppression" "Noise suppression" "0,3,1" %></div>
-          <div class="col"><% field_range "audio_mic_agc_compression_gain_db" "Compression gain, dB" "0,90,1" %></div>
-          <div class="col"><% field_range "audio_mic_agc_target_level_dbfs" "Target level, dBfs" "0,31,1" %></div>
+          <div class="col"><% field_number_range "audio_mic_noise_suppression" "Noise suppression" "0,3,1" %></div>
+          <div class="col"><% field_number_range "audio_mic_agc_compression_gain_db" "Compression gain, dB" "0,90,1" %></div>
+          <div class="col"><% field_number_range "audio_mic_agc_target_level_dbfs" "Target level, dBfs" "0,31,1" %></div>
         </div>
 
         <h6>Speaker</h6>
         <div class="row g-2">
-          <div class="col"><% field_range "audio_spk_vol" "Speaker volume" "-30,120,1" %></div>
-          <div class="col"><% field_range "audio_spk_gain" "Speaker gain" "0,31,1" %></div>
+          <div class="col"><% field_number_range "audio_spk_vol" "Speaker volume" "-30,120,1" %></div>
+          <div class="col"><% field_number_range "audio_spk_gain" "Speaker gain" "0,31,1" %></div>
           <div class="col"><% field_select "audio_spk_sample_rate" "Speaker sampling, Hz" "$AUDIO_SAMPLING" %></div>
         </div>
-        <div class="alert alert-info small mt-3">RTSP stream URL: <span id="playrtsp" class="cb"></span></div>
       </div>
 
-      <div class="tab-pane" id="settings" role="tabpanel" aria-labelledby="settings-tab" tabindex="0">
-        <h6>Configuration Management</h6>
+      <div class="tab-pane" id="photosensing" role="tabpanel" aria-labelledby="photosensing-tab" tabindex="0">
         <div class="row g-2">
           <div class="col-12">
-            <button type="button" id="export-config" class="btn btn-primary">
-              <i class="bi bi-download"></i>
-              Export Current Configuration
-            </button>
-            <p class="small text-muted mt-2">Download the active configuration from prudynt's memory as JSON.</p>
+            <% field_switch "daynight_enabled" "Enable photosensing on boot" %>
           </div>
-          <div class="col-12">
-            <button type="button" id="save-config" class="btn btn-warning">
-              <i class="bi bi-floppy"></i> Save Configuration to File
-            </button>
-            <p class="small text-muted mt-2">Write the active configuration to /etc/prudynt.json on the camera.</p>
+          <div class="col col-md-6">
+            <h6>Controls</h6>
+            <% field_checkbox "daynight_controls_color" "Change color mode" %>
+            <% field_checkbox "daynight_controls_ircut" "Flip IR cut filter" %>
+            <% field_checkbox "daynight_controls_ir850" "Toggle IR 850 nm" %>
+            <% field_checkbox "daynight_controls_ir940" "Toggle IR 940 nm" %>
+            <% field_checkbox "daynight_controls_white" "Toggle white light" %>
           </div>
-          <div class="col-12">
-            <button type="button" id="restart-prudynt" class="btn btn-danger">
-              <i class="bi bi-arrow-clockwise"></i> Restart Prudynt
-            </button>
-            <p class="small text-muted mt-2">Restart the prudynt service to apply changes that require a full restart.</p>
+          <div class="col col-md-6">
+            <h6>Thresholds</h6>
+            <% field_number_range "daynight_total_gain_night_threshold" "Switch to night mode above" "0,10000,1" %>
+            <% field_number_range "daynight_total_gain_day_threshold" "Switch to day mode below" "0,10000,1" %>
           </div>
         </div>
       </div>
 
-    </div><!-- .tab-content -->
+      <div class="tab-pane" id="sensor" role="tabpanel" aria-labelledby="sensor-tab" tabindex="0">
+        <h6>Sensor IQ file</h6>
+        <p class="alert alert-secondary">
+          File: <%= "${SENSOR_IQ_PATH}/${SENSOR_IQ_FILE}" %><br>
+          MD5: <% md5sum "${SENSOR_IQ_PATH}/${SENSOR_IQ_FILE}" | cut -d' ' -f1 %>
+        </p>
+        <p>Upload a custom sensor IQ file for <span class="fw-bold text-uppercase"><%= $soc_model %></span>
+          and <span class="fw-bold text-uppercase"><%= $sensor_model %></span>, e.g. from a stock firmware backup.</p>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#mdSensorIQ">
+          <i class="bi bi-upload"></i> Upload Sensor IQ File
+        </button>
+      </div>
+   </div><!-- .tab-content -->
   </div><!-- #tabs-col -->
 </div><!-- .preview -->
 
@@ -699,11 +759,12 @@ function handleMessage(msg) {
   if (msg.privacy && msg.privacy.enabled !== undefined) {
     $('#privacy').checked = msg.privacy.enabled;
   }
-  if (msg.rtsp) {
-    const r = msg.rtsp;
-    if (r.username && r.password && r.port && msg.stream0?.rtsp_endpoint)
-      $('#playrtsp').innerHTML = `ffplay -hide_banner -rtsp_transport tcp rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
-  }
+
+  // if (msg.rtsp) {
+  //   const r = msg.rtsp;
+  //   if (r.username && r.password && r.port && msg.stream0?.rtsp_endpoint)
+  //     $('#playrtsp').innerHTML = `ffplay -hide_banner -rtsp_transport tcp rtsp://${r.username}:${r.password}@${document.location.hostname}:${r.port}/${msg.stream0.rtsp_endpoint}`;
+  // }
 
   // Handle image params
   if (msg.image) {
@@ -713,6 +774,56 @@ function handleMessage(msg) {
         setValue(msg.image, 'image', param);
       }
     });
+  }
+
+  // Handle daynight params
+  if (msg.daynight) {
+    if (msg.daynight.enabled !== undefined) {
+      setValue(msg.daynight, 'daynight', 'enabled');
+    }
+    if (msg.daynight.total_gain_night_threshold !== undefined) {
+      setValue(msg.daynight, 'daynight', 'total_gain_night_threshold');
+    }
+    if (msg.daynight.total_gain_day_threshold !== undefined) {
+      setValue(msg.daynight, 'daynight', 'total_gain_day_threshold');
+    }
+    if (msg.daynight.controls) {
+      if (msg.daynight.controls.color !== undefined) {
+        const el = $('#daynight_controls_color');
+        if (el) {
+          el.checked = msg.daynight.controls.color;
+          el.disabled = false;
+        }
+      }
+      if (msg.daynight.controls.ircut !== undefined) {
+        const el = $('#daynight_controls_ircut');
+        if (el) {
+          el.checked = msg.daynight.controls.ircut;
+          el.disabled = false;
+        }
+      }
+      if (msg.daynight.controls.ir850 !== undefined) {
+        const el = $('#daynight_controls_ir850');
+        if (el) {
+          el.checked = msg.daynight.controls.ir850;
+          el.disabled = false;
+        }
+      }
+      if (msg.daynight.controls.ir940 !== undefined) {
+        const el = $('#daynight_controls_ir940');
+        if (el) {
+          el.checked = msg.daynight.controls.ir940;
+          el.disabled = false;
+        }
+      }
+      if (msg.daynight.controls.white !== undefined) {
+        const el = $('#daynight_controls_white');
+        if (el) {
+          el.checked = msg.daynight.controls.white;
+          el.disabled = false;
+        }
+      }
+    }
   }
 
   // Handle stream0 params
@@ -755,6 +866,18 @@ async function loadConfig() {
       motion: {enabled: null},
       privacy: {enabled: null},
       rtsp: {username: null, password: null, port: null},
+      daynight: {
+        enabled: null,
+        total_gain_night_threshold: null,
+        total_gain_day_threshold: null,
+        controls: {
+          color: null,
+          ircut: null,
+          ir850: null,
+          ir940: null,
+          white: null
+        }
+      },
       stream0: {
         width: null, height: null, fps: null, bitrate: null, gop: null, max_gop: null,
         format: null, mode: null, buffers: null, profile: null, rtsp_endpoint: null,
@@ -799,9 +922,13 @@ async function loadConfig() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const text = await response.text();
     if (text) {
-      const msg = JSON.parse(text);
-      console.log(ts(), '<===', JSON.stringify(msg));
-      handleMessage(msg);
+      try {
+        const msg = JSON.parse(text);
+        console.log(ts(), '<===', JSON.stringify(msg));
+        handleMessage(msg);
+      } catch (parseErr) {
+        console.warn(ts(), 'Invalid JSON response', text, parseErr);
+      }
     } else {
       console.log(ts(), '<===', 'Empty response');
     }
@@ -823,9 +950,13 @@ async function sendToEndpoint(payload) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const text = await response.text();
     if (text) {
-      const msg = JSON.parse(text);
-      console.log(ts(), '<===', JSON.stringify(msg));
-      handleMessage(msg);
+      try {
+        const msg = JSON.parse(text);
+        console.log(ts(), '<===', JSON.stringify(msg));
+        handleMessage(msg);
+      } catch (parseErr) {
+        console.warn(ts(), 'Invalid JSON response', text, parseErr);
+      }
     } else {
       console.log(ts(), '<===', 'Empty response');
     }
@@ -869,56 +1000,90 @@ const imagingFields = [
   "noise_reduction"
 ];
 
+const imageConfigKeyMap = {
+  brightness: "brightness",
+  contrast: "contrast",
+  sharpness: "sharpness",
+  saturation: "saturation",
+  backlight: "backlight_compensation",
+  wide_dynamic_range: "drc_strength",
+  tone: "highlight_depress",
+  defog: "defog_strength",
+  noise_reduction: "sinter_strength"
+};
+
 // Disable all imaging controls initially
 imagingFields.forEach(field => {
-  const slider = $(`#${field}`);
-  if (slider) {
-    slider.disabled = true;
-    const wrapper = slider.closest('.range, .col');
+  const input = $(`#${field}`);
+  if (input) {
+    input.disabled = true;
+    const wrapper = input.closest('.number-range, .col');
     if (wrapper) wrapper.classList.add('disabled');
   }
+  // Also disable the modal slider if it exists
+  const slider = $(`#${field}-slider`);
+  if (slider) slider.disabled = true;
 });
 
 function updateImagingLabel(name, value) {
-  const badge = $(`#${name}-show`);
-  if (badge) {
+  const input = $(`#${name}`);
+  if (input) {
+    input.value = value === undefined || value === null ? '' : value;
+  }
+  // Also update the slider value display in modal
+  const sliderValue = $(`#${name}-slider-value`);
+  if (sliderValue) {
     const displayValue = value === undefined || value === null ? '—' : value;
-    badge.textContent = displayValue;
+    sliderValue.textContent = displayValue;
+  }
+  // Update the actual slider
+  const slider = $(`#${name}-slider`);
+  if (slider && value !== undefined && value !== null) {
+    slider.value = value;
   }
 }
 
-function setSliderBounds(slider, min, max, value, defaultValue) {
+function setSliderBounds(input, slider, min, max, value, defaultValue) {
   if (Number.isFinite(min)) {
-    slider.min = min;
+    if (input) input.dataset.min = min;
+    if (slider) slider.min = min;
   }
   if (Number.isFinite(max)) {
-    slider.max = max;
+    if (input) input.dataset.max = max;
+    if (slider) slider.max = max;
   }
   if (Number.isFinite(value)) {
-    slider.value = value;
+    if (input) input.value = value;
+    if (slider) slider.value = value;
   }
   if (Number.isFinite(defaultValue)) {
-    slider.dataset.defaultValue = defaultValue;
+    if (input) input.dataset.defaultValue = defaultValue;
+    if (slider) slider.dataset.defaultValue = defaultValue;
   } else {
-    delete slider.dataset.defaultValue;
+    if (input) delete input.dataset.defaultValue;
+    if (slider) delete slider.dataset.defaultValue;
   }
 }
 
 function applyFieldMetadata(field, data) {
-  const slider = $(`#${field}`);
-  if (!slider) return;
-  const wrapper = slider.closest('.col, .range') || slider.parentElement;
+  const input = $(`#${field}`);
+  const slider = $(`#${field}-slider`);
+  if (!input) return;
+  const wrapper = input.closest('.col, .number-range') || input.parentElement;
   const isSupported = data && data.supported !== false;
   if (!isSupported) {
-    slider.disabled = true;
+    input.disabled = true;
+    if (slider) slider.disabled = true;
     if (wrapper) wrapper.classList.add('disabled');
-    delete slider.dataset.defaultValue;
+    delete input.dataset.defaultValue;
+    if (slider) delete slider.dataset.defaultValue;
     updateImagingLabel(field, '—');
     return;
   }
-  slider.disabled = false;
+  input.disabled = false;
+  if (slider) slider.disabled = false;
   if (wrapper) wrapper.classList.remove('disabled');
-  setSliderBounds(slider, Number(data.min), Number(data.max), Number(data.value), Number(data.default));
+  setSliderBounds(input, slider, Number(data.min), Number(data.max), Number(data.value), Number(data.default));
   updateImagingLabel(field, data.value);
 }
 
@@ -935,11 +1100,23 @@ async function fetchImagingState() {
   }
 }
 
-async function sendImagingUpdate(field, value, slider) {
+async function persistImagingSetting(field, value) {
+  const configKey = imageConfigKeyMap[field];
+  if (!configKey) return;
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return;
+  try {
+    await sendToEndpoint({image: {[configKey]: numericValue}});
+  } catch (err) {
+    console.warn('Failed to persist imaging setting', field, err);
+  }
+}
+
+async function sendImagingUpdate(field, value, element) {
   const params = new URLSearchParams({cmd: 'set'});
   params.append(field, value);
-  slider?.setAttribute('data-busy', '1');
-  slider?.classList.add('opacity-75');
+  element?.setAttribute('data-busy', '1');
+  element?.classList.add('opacity-75');
   try {
     const res = await fetch(`/x/json-imaging.cgi?${params.toString()}`, {cache: 'no-store'});
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -951,34 +1128,94 @@ async function sendImagingUpdate(field, value, slider) {
         applyFieldMetadata(field, fields[field] || null);
       }
     }
+    await persistImagingSetting(field, value);
   } catch (err) {
     console.error('Failed to update imaging value', err);
   } finally {
-    slider?.removeAttribute('data-busy');
-    slider?.classList.remove('opacity-75');
+    element?.removeAttribute('data-busy');
+    element?.classList.remove('opacity-75');
   }
 }
 
-$$('#iq input[type="range"]').forEach(slider => {
-  slider.addEventListener('input', ev => updateImagingLabel(ev.target.name, ev.target.value));
-  slider.addEventListener('change', ev => sendImagingUpdate(ev.target.name, ev.target.value, ev.target));
-  slider.addEventListener('dblclick', ev => {
-    const min = Number(ev.target.min ?? 0);
-    const max = Number(ev.target.max ?? 255);
-    const midpoint = Math.round((min + max) / 2);
-    const defaultValue = ev.target.dataset.defaultValue;
-    const targetValue = Number.isFinite(Number(defaultValue)) ? Number(defaultValue) : midpoint;
-    ev.target.value = targetValue;
-    updateImagingLabel(ev.target.name, ev.target.value);
-    sendImagingUpdate(ev.target.name, ev.target.value, ev.target);
-  });
+// Setup event handlers for imaging fields (number inputs and modal sliders)
+imagingFields.forEach(field => {
+  const input = $(`#${field}`);
+  const slider = $(`#${field}-slider`);
+
+  // Handle text input changes
+  if (input) {
+    input.addEventListener('change', ev => {
+      const value = parseInt(ev.target.value);
+      if (!isNaN(value)) {
+        sendImagingUpdate(field, value, ev.target);
+      }
+    });
+
+    // Double-click on input to reset to default
+    input.addEventListener('dblclick', ev => {
+      const min = Number(ev.target.dataset.min ?? 0);
+      const max = Number(ev.target.dataset.max ?? 255);
+      const midpoint = Math.round((min + max) / 2);
+      const defaultValue = ev.target.dataset.defaultValue;
+      const targetValue = Number.isFinite(Number(defaultValue)) ? Number(defaultValue) : midpoint;
+      ev.target.value = targetValue;
+      updateImagingLabel(field, targetValue);
+      sendImagingUpdate(field, targetValue, ev.target);
+    });
+  }
+
+  // Handle modal slider input (live update)
+  if (slider) {
+    slider.addEventListener('input', ev => {
+      updateImagingLabel(field, ev.target.value);
+    });
+
+    // Handle slider change (on release)
+    slider.addEventListener('change', ev => {
+      const value = parseInt(ev.target.value);
+      if (!isNaN(value)) {
+        sendImagingUpdate(field, value, ev.target);
+      }
+    });
+
+    // Double-click on slider to reset to default
+    slider.addEventListener('dblclick', ev => {
+      const min = Number(ev.target.min ?? 0);
+      const max = Number(ev.target.max ?? 255);
+      const midpoint = Math.round((min + max) / 2);
+      const defaultValue = ev.target.dataset.defaultValue;
+      const targetValue = Number.isFinite(Number(defaultValue)) ? Number(defaultValue) : midpoint;
+      ev.target.value = targetValue;
+      updateImagingLabel(field, targetValue);
+      sendImagingUpdate(field, targetValue, ev.target);
+    });
+  }
 });
 
 // Streamer controls
+function coerceStreamValue(param, el) {
+  if (el.type === 'checkbox') {
+    return el.checked;
+  }
+
+  const raw = typeof el.value === 'string' ? el.value : '';
+  const trimmed = raw.trim();
+  if (trimmed === '') {
+    return '';
+  }
+
+  // Treat any purely numeric string as a number so prudynt gets the correct type.
+  if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) {
+    return trimmed.includes('.') ? Number.parseFloat(trimmed) : Number.parseInt(trimmed, 10);
+  }
+
+  return trimmed;
+}
+
 function saveStreamValue(streamId, param) {
   const el = $(`#stream${streamId}_${param}`);
   if (!el) return;
-  const value = el.type === 'checkbox' ? el.checked : el.value;
+  const value = coerceStreamValue(param, el);
   const payload = {[`stream${streamId}`]: {[param]: value}, action: {restart_thread: ThreadRtsp | ThreadVideo}};
   sendToEndpoint(payload);
 }
@@ -990,6 +1227,19 @@ function saveStreamValue(streamId, param) {
     if (el) {
       el.addEventListener('change', () => saveStreamValue(streamId, param));
       el.disabled = true;
+    }
+
+    // Also handle modal slider if it exists
+    const slider = $(`#stream${streamId}_${param}-slider`);
+    if (slider) {
+      slider.addEventListener('input', ev => {
+        // Update the text input while dragging
+        if (el) el.value = ev.target.value;
+        const sliderValue = $(`#stream${streamId}_${param}-slider-value`);
+        if (sliderValue) sliderValue.textContent = ev.target.value;
+      });
+      slider.addEventListener('change', () => saveStreamValue(streamId, param));
+      slider.disabled = true;
     }
   });
 });
@@ -1207,6 +1457,19 @@ audio_params.forEach(param => {
     el.addEventListener('change', () => saveAudioValue(param));
     el.disabled = true;
   }
+
+  // Also handle modal slider if it exists
+  const slider = $('#audio_' + param + '-slider');
+  if (slider) {
+    slider.addEventListener('input', ev => {
+      // Update the text input while dragging
+      if (el) el.value = ev.target.value;
+      const sliderValue = $('#audio_' + param + '-slider-value');
+      if (sliderValue) sliderValue.textContent = ev.target.value;
+    });
+    slider.addEventListener('change', () => saveAudioValue(param));
+    slider.disabled = true;
+  }
 });
 
 // Motors config helpers (PTZ tab)
@@ -1294,39 +1557,176 @@ imageParams.forEach(param => {
   }
 });
 
-// Restore active tab from localStorage
-const savedTab = localStorage.getItem('preview_active_tab');
-if (savedTab) {
-  const tabButton = $(savedTab);
-  if (tabButton) {
-    const bsTab = new bootstrap.Tab(tabButton);
-    bsTab.show();
+// Daynight controls
+function saveDayNightValue(param) {
+  const el = $('#daynight_' + param);
+  if (!el) return;
+
+  let value = el.type === 'checkbox' ? el.checked : el.value;
+  if (el.type !== 'checkbox' && !isNaN(value)) {
+    value = Number(value);
+  }
+
+  const payload = {daynight: {[param]: value}};
+  console.log(ts(), 'Sending daynight param:', param, '=', value);
+  sendToEndpoint(payload);
+}
+
+function saveDayNightControlValue(control) {
+  const el = $('#daynight_controls_' + control);
+  if (!el) return;
+
+  const payload = {daynight: {controls: {[control]: el.checked}}};
+  console.log(ts(), 'Sending daynight control:', control, '=', el.checked);
+  sendToEndpoint(payload);
+}
+
+const dayNightParams = ['enabled', 'total_gain_night_threshold', 'total_gain_day_threshold'];
+dayNightParams.forEach(param => {
+  const el = $('#daynight_' + param);
+  if (el) {
+    el.addEventListener('change', () => {
+      console.log('Daynight param changed:', param);
+      saveDayNightValue(param);
+    });
+    // Don't disable - values are loaded server-side from prudynt.json
+  }
+
+  const slider = $('#daynight_' + param + '-slider');
+  if (slider) {
+    slider.addEventListener('input', ev => {
+      if (el) el.value = ev.target.value;
+      const sliderValue = $('#daynight_' + param + '-slider-value');
+      if (sliderValue) sliderValue.textContent = ev.target.value;
+    });
+    slider.addEventListener('change', () => {
+      if (el) el.value = slider.value;
+      console.log('Daynight slider changed:', param);
+      saveDayNightValue(param);
+    });
+    slider.disabled = false;
+  }
+});
+
+const dayNightControls = ['color', 'ircut', 'ir850', 'ir940', 'white'];
+dayNightControls.forEach(control => {
+  const el = $('#daynight_controls_' + control);
+  if (el) {
+    el.addEventListener('change', () => {
+      console.log('Daynight control changed:', control);
+      saveDayNightControlValue(control);
+    });
+    // Don't disable - values are loaded server-side from prudynt.json
+  }
+});
+
+// Tab selector dropdown functionality
+const tabSelector = $('#tab-selector');
+const tabPanes = {
+  'ptz': $('#ptz'),
+  'iq': $('#iq'),
+  'streamer': $('#streamer'),
+  'osd0': $('#osd0'),
+  'substream': $('#substream'),
+  'osd1': $('#osd1'),
+  'audio': $('#audio'),
+  'sensor': $('#sensor'),
+  'settings': $('#settings'),
+  'photosensing': $('#photosensing')
+};
+
+function isValidTabId(tabId) {
+  return typeof tabId === 'string' && Object.prototype.hasOwnProperty.call(tabPanes, tabId);
+}
+
+function updateTabQueryParam(tabId) {
+  if (!window.history || typeof window.history.replaceState !== 'function') return;
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tabId);
+    const nextUrl = url.toString();
+    if (nextUrl !== window.location.href) {
+      window.history.replaceState({}, '', nextUrl);
+    }
+  } catch (err) {
+    console.warn('Unable to update tab query param', err);
   }
 }
 
-// Save active tab to localStorage and handle preview switching
-$$('#myTab button[data-bs-toggle="tab"]').forEach(button => {
-  button.addEventListener('shown.bs.tab', event => {
-    localStorage.setItem('preview_active_tab', '#' + event.target.id);
+function showTab(tabId) {
+  if (!isValidTabId(tabId)) return;
+  // Hide all tab panes
+  Object.values(tabPanes).forEach(pane => {
+    if (pane) pane.classList.remove('show', 'active');
+  });
 
-    // Switch preview based on active tab
-    const preview = $('#preview');
-    if (event.target.id === 'streamer-tab') {
-      // Main stream tab - switch to ch0
+  // Show selected tab pane
+  const selectedPane = tabPanes[tabId];
+  if (selectedPane) {
+    selectedPane.classList.add('show', 'active');
+  }
+
+  // Switch preview based on active tab
+  const preview = $('#preview');
+  if (preview) {
+    if (tabId === 'streamer' || tabId === 'osd0') {
+      // Main stream tab or Main stream OSD - switch to ch0
       preview.src = '/x/ch0.mjpg';
     } else {
-      // Any other tab (including substream) - switch to ch1
+      // Any other tab (including substream and substream OSD) - switch to ch1
       preview.src = '/x/ch1.mjpg';
     }
+  }
+
+  // Save to localStorage
+  localStorage.setItem('preview_active_tab', tabId);
+  updateTabQueryParam(tabId);
+}
+
+function getInitialTabFromUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    return isValidTabId(tabParam) ? tabParam : null;
+  } catch (err) {
+    console.warn('Unable to parse preview tab from URL', err);
+    return null;
+  }
+}
+
+function getFirstSelectableTab() {
+  if (tabSelector && tabSelector.options.length) {
+    const option = Array.from(tabSelector.options).find(opt => isValidTabId(opt.value));
+    if (option) return option.value;
+  }
+  return Object.keys(tabPanes).find(isValidTabId) || null;
+}
+
+const initialTab = (() => {
+  const urlTab = getInitialTabFromUrl();
+  if (urlTab) return urlTab;
+  const savedTab = localStorage.getItem('preview_active_tab');
+  if (isValidTabId(savedTab)) return savedTab;
+  return getFirstSelectableTab();
+})();
+
+if (initialTab) {
+  if (tabSelector) tabSelector.value = initialTab;
+  showTab(initialTab);
+}
+
+// Handle tab selector change
+if (tabSelector) {
+  tabSelector.addEventListener('change', event => {
+    showTab(event.target.value);
   });
-});
+}
 
 // Export configuration button
 const exportConfigBtn = $('#export-config');
 if (exportConfigBtn) {
   exportConfigBtn.addEventListener('click', () => {
     exportConfigBtn.disabled = true;
-    exportConfigBtn.textContent = 'Exporting...';
 
     // Open the CGI endpoint which will trigger download
     window.location.href = '/x/json-prudynt-config.cgi';
@@ -1334,7 +1734,6 @@ if (exportConfigBtn) {
     // Re-enable button after a short delay
     setTimeout(() => {
       exportConfigBtn.disabled = false;
-      exportConfigBtn.innerHTML = '<i class="bi bi-download" style="color: cornflowerblue;"></i> Export Current Configuration';
     }, 1000);
   });
 }
@@ -1349,7 +1748,6 @@ if (saveConfigBtn) {
 
     try {
       saveConfigBtn.disabled = true;
-      saveConfigBtn.textContent = 'Saving...';
 
       const payload = {action: {save_config: null}};
       const res = await fetch('/x/json-prudynt.cgi', {
@@ -1371,7 +1769,6 @@ if (saveConfigBtn) {
       alert('Failed to save configuration: ' + err.message);
     } finally {
       saveConfigBtn.disabled = false;
-      saveConfigBtn.innerHTML = '<i class="bi bi-save" style="color: cornflowerblue;"></i> Save Configuration to File';
     }
   });
 }
@@ -1386,7 +1783,6 @@ if (restartPrudyntBtn) {
 
     try {
       restartPrudyntBtn.disabled = true;
-      restartPrudyntBtn.textContent = 'Restarting...';
 
       const res = await fetch('/x/restart-prudynt.cgi', {method: 'GET'});
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1401,7 +1797,6 @@ if (restartPrudyntBtn) {
       console.error('Failed to restart prudynt:', err);
       alert('Failed to restart prudynt: ' + err.message);
       restartPrudyntBtn.disabled = false;
-      restartPrudyntBtn.innerHTML = '<i class="bi bi-arrow-clockwise" style="color: cornflowerblue;"></i> Restart Prudynt';
     }
   });
 }
@@ -1421,8 +1816,8 @@ function updateTabsVisibility(visible) {
   if (visible) {
     // Showing tabs: hide tabs first, switch to ch1, then show tabs
     tabsCol.classList.remove('d-none');
-    previewCol.classList.remove('col');
-    previewCol.classList.add('col-5');
+    //previewCol.classList.remove('col');
+    //previewCol.classList.add('col-5');
     preview.src = '/x/ch1.mjpg';
     localStorage.setItem('preview_tabs_visible', visible);
   } else {
@@ -1431,8 +1826,8 @@ function updateTabsVisibility(visible) {
     const onLoad = () => {
       preview.removeEventListener('load', onLoad);
       tabsCol.classList.add('d-none');
-      previewCol.classList.remove('col-5');
-      previewCol.classList.add('col');
+      //previewCol.classList.remove('col-5');
+      //previewCol.classList.add('col');
     };
     preview.addEventListener('load', onLoad);
     preview.src = newSrc;
@@ -1471,6 +1866,24 @@ if (toggleTabsBtn) {
   </div>
 </div>
 
+<div class="modal fade" id="mdSensorIQ" tabindex="-1" aria-labelledby="mdlSensorIQ" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fs-4" id="mdlSensorIQ">Upload sensor IQ file</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <form action="<%= $SCRIPT_NAME %>" method="post" class="mb-4" enctype="multipart/form-data">
+          <input type="hidden" name="form" value="sensor">
+          <% field_file "sensorfile" "Upload a sensor IQ binary file" %>
+          <% button_submit %>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="helpModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -1488,5 +1901,9 @@ if (toggleTabsBtn) {
     </div>
   </div>
 </div>
+
+<!--
+<p>Play RTSP: <span id="playrtsp" class="cb"></span></p>
+-->
 
 <%in _footer.cgi %>

@@ -1,5 +1,24 @@
 #!/bin/sh
 
+get_wd_device() {
+	jct /dev/thingino.json get watchdog.device 2>/dev/null || \
+		fw_printenv -n watchdog_device
+}
+
+get_wd_enabled() {
+	jct /dev/thingino.json get watchdog.enabled 2>/dev/null || \
+		fw_printenv -n watchdog_enabled
+}
+
+get_wd_timeout() {
+	jct /dev/thingino.json get watchdog.timeout 2>/dev/null || \
+		fw_printenv -n watchdog_timeout
+}
+
+watchdog_device=$(get_wd_device)
+watchdog_enabled=$(get_wd_enabled)
+watchdog_timeout=$(get_wd_timeout)
+
 DAEMON="watchdog"
 DAEMON_ARGS="-T ${watchdog_timeout:-60} ${watchdog_device:-/dev/watchdog}"
 PIDFILE="/var/run/$DAEMON.pid"
@@ -9,7 +28,7 @@ PIDFILE="/var/run/$DAEMON.pid"
 start() {
 	echo_title "Starting watchdog"
 
-	if [ "true" = "$watchdog_disabled" ]; then
+	if [ "false" = "$watchdog_enabled" ]; then
 		echo_error "$DAEMON is disabled"
 		exit 1
 	fi

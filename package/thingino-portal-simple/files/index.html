@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width,initial-scale=1" name="viewport">
+<title>Thingino Initial Configuration</title>
+<link rel="stylesheet" href="portal.min.css">
+<script src="portal.min.js"></script>
+</head>
+<body>
+<header class="my-4 text-center">
+<div class="container">
+<h1><img src="logo.svg" alt="Thingino Logo" class="img-fluid" id="logo"></h1>
+<h2>Initial Configuration</h2>
+</div>
+</header>
+<main>
+<div class="container">
+
+<div id="loading" class="hidden">
+<div class="spinner"></div>
+<p class="text-center">Saving...</p>
+</div>
+
+<div id="error-message" class="alert alert-danger hidden"></div>
+
+<div id="success-wlan" class="hidden">
+<div class="alert alert-success text-center">
+<h3>Configuration Completed</h3>
+<p class="lead">Your camera is rebooting to connect to your wireless network.</p>
+<p class="alert alert-warning mb-0">The MAC address is<br><span class="lead" id="wlan-mac"></span></p>
+</div>
+<p>To get started, just tap the reset button on your camera. If it's connected to the internet, it'll tell you its IP address. If you're not hearing that, no worries! Find the IP address among DHCP server leases (usually in your wireless router).</p>
+<p>For configuration information and troubleshooting steps please refer to <a href="https://github.com/themactep/thingino-firmware/wiki/">the project Wiki</a>.</p>
+</div>
+
+<div id="success-wlanap" class="hidden">
+<div class="alert alert-success text-center">
+<h3>Configuration Completed</h3>
+<p class="lead mb-0">Your camera is rebooting to create a wireless access point.</p>
+</div>
+<p>To start, locate the <b id="wlanap-ssid-display"></b> wireless network on your device, connect using your password then open the web interface at <b>http://thingino.local/</b> using login <b>root</b> and the password you have just set up for that user.</p>
+</div>
+
+<form id="config-form" class="my-3 needs-validation" novalidate>
+<div class="mb-2">
+<label class="form-label">Hostname</label>
+<input class="form-control bg-light text-dark" type="text" name="hostname" id="hostname" required autocapitalize="none">
+<div class="invalid-feedback">Please enter hostname</div>
+</div>
+<div class="mb-2">
+<label class="form-label">Create a password for user <b>root</b></label>
+<input class="form-control bg-light text-dark" type="text" name="rootpass" id="rootpass" required autocapitalize="none">
+<div class="invalid-feedback">Please enter password</div>
+</div>
+<div class="mb-2">
+<label class="form-label"><a data-bs-toggle="collapse" href="#collapse-rootpkey" role="button" aria-expanded="false" aria-controls="collapse-rootpkey">Public SSH Key for user <b>root</b></a> <span class="small">(optional)</span></label>
+<div class="collapse" id="collapse-rootpkey">
+<textarea class="form-control bg-light text-dark text-break" name="rootpkey" id="rootpkey" rows="3"></textarea>
+</div>
+</div>
+<div class="tabs-nav mb-3">
+<button type="button" class="tab-btn active" data-tab="wlan-tab-pane">Wi-Fi Network</button>
+<button type="button" class="tab-btn" data-tab="wlanap-tab-pane">Wi-Fi Access Point</button>
+</div>
+<div id="wireless-tabs">
+<div class="tab-pane active" id="wlan-tab-pane">
+<div class="mb-2">
+<label class="form-label">Wi-Fi Network Name/SSID <span class="small text-white">(case-sensitive)</span></label>
+<input class="form-control bg-light text-dark" type="text" id="wlan_ssid" name="wlan_ssid" autocapitalize="none" required>
+<div class="invalid-feedback">Please enter network name</div>
+</div>
+<div class="mb-2">
+<label class="form-label">Wi-Fi Network Password <span class="small text-white">(case-sensitive)</span></label>
+<input class="form-control bg-light text-dark" type="text" id="wlan_pass" name="wlan_pass" autocapitalize="none" minlength="8" pattern=".{8,64}" required>
+<div class="invalid-feedback">Please enter a password 8 - 64 characters</div>
+</div>
+</div>
+<div class="tab-pane" id="wlanap-tab-pane">
+<div class="mb-2 boolean" id="wlanap_enabled_wrap">
+<span class="form-check form-switch">
+<input type="hidden" id="wlanap_enabled-false" name="wlanap_enabled" value="false">
+<input type="checkbox" id="wlanap_enabled" name="wlanap_enabled" value="true" role="switch" class="form-check-input">
+<label for="wlanap_enabled" class="form-check-label">Enable Wireless AP</label>
+</span>
+</div>
+<div class="mb-2">
+<label class="form-label">Wi-Fi AP Network SSID <span class="small text-white">(case-sensitive)</span></label>
+<input class="form-control bg-light text-dark" type="text" id="wlanap_ssid" name="wlanap_ssid" autocapitalize="none">
+<div class="invalid-feedback">Please enter network name</div>
+</div>
+<div class="mb-2">
+<label class="form-label">Wi-Fi AP Network Password <span class="small text-white">(case-sensitive)</span></label>
+<input class="form-control bg-light text-dark" type="text" id="wlanap_pass" name="wlanap_pass" autocapitalize="none" minlength="8" pattern=".{8,64}">
+<div class="invalid-feedback">Please enter a password 8 - 64 characters</div>
+</div>
+</div>
+</div>
+<input type="hidden" name="timezone" id="timezone" value="">
+<input type="submit" value="Review & Save" class="btn btn-primary my-4">
+</form>
+
+<div id="review-section" class="hidden">
+<div class="alert alert-secondary my-3">
+<h3>Ready to connect</h3>
+<p>Please double-check the entered data and correct it if you see an error!</p>
+<dl class="row" id="verify">
+<dt id="review-network-label"></dt>
+<dd id="review-network-ssid"></dd>
+<dt id="review-password-label"></dt>
+<dd class="text-break" id="review-network-pass"></dd>
+<dt>User <b>root</b> Password</dt>
+<dd id="review-rootpass"></dd>
+<dt>Camera Hostname</dt>
+<dd id="review-hostname"></dd>
+<dt>Time zone</dt>
+<dd id="review-timezone"></dd>
+<dt id="review-rootpkey-label" class="hidden">User <b>root</b> Public SSH Key</dt>
+<dd class="small text-break" id="review-rootpkey"></dd>
+</dl>
+
+<div class="row text-center">
+<div class="col my-2">
+<button type="button" class="btn btn-danger" id="btn-edit">Edit data</button>
+</div>
+<div class="col my-2">
+<button type="button" class="btn btn-success" id="btn-proceed">Proceed</button>
+</div>
+</div>
+</div>
+</div>
+
+<p class="small text-muted text-center" id="build-info"></p>
+</div>
+</main>
+
+<div class="hidden" id="timeout-warning">
+<div class="alert alert-warning text-center">
+<h5>Timeout Warning</h5>
+<p class="mb-0">For security, portal will automatically shut off after 10 minutes. Power cycle the camera to re-activate portal.</p>
+</div>
+</div>
+
+<script>
+const API_URL = '/x/api.cgi';
+const TIMEOUT_WARNING_MS = 540000;
+let formData = {};
+let systemInfo = {};
+let timeoutWarningTimer;
+
+function showElement(id) {
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function hideElement(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+
+function showError(message) {
+  const errorEl = document.getElementById('error-message');
+  errorEl.textContent = message;
+  showElement('error-message');
+}
+
+function hideError() {
+  hideElement('error-message');
+}
+
+function scheduleTimeoutWarning() {
+  clearTimeout(timeoutWarningTimer);
+  hideElement('timeout-warning');
+  timeoutWarningTimer = setTimeout(() => {
+    showElement('timeout-warning');
+  }, TIMEOUT_WARNING_MS);
+}
+
+function cancelTimeoutWarning() {
+  clearTimeout(timeoutWarningTimer);
+  hideElement('timeout-warning');
+}
+
+async function apiCall(action, data = {}) {
+  let response;
+  if (action === 'save') {
+    const params = new URLSearchParams(data);
+    response = await fetch(`${API_URL}?action=save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+  } else {
+    const params = new URLSearchParams({ action, ...data });
+    response = await fetch(`${API_URL}?${params}`);
+  }
+  if (!response.ok) throw new Error('Network error');
+  return response.json();
+}
+
+async function loadSystemInfo() {
+  try {
+    const data = await apiCall('get_info');
+    systemInfo = data;
+    document.getElementById('hostname').value = data.hostname || '';
+    document.getElementById('build-info').innerHTML = `Built for ${data.image_id || 'Unknown'}<br>${data.build_id || ''}`;
+    if (data.wlan_mac) {
+      document.getElementById('wlan-mac').textContent = data.wlan_mac;
+    }
+  } catch (e) {
+    showError('Failed to load system information');
+  }
+}
+
+function validateHostname(hostname) {
+  const badChars = hostname.replace(/[0-9A-Z\.-]/ig, '');
+  return badChars.length === 0 ? null : `Hostname cannot contain ${badChars}`;
+}
+
+function collectFormData() {
+  const form = document.getElementById('config-form');
+  const data = {
+    hostname: form.hostname.value,
+    rootpass: form.rootpass.value,
+    rootpkey: form.rootpkey.value,
+    timezone: form.timezone.value,
+    wlanap_enabled: form.wlanap_enabled.checked ? 'true' : 'false'
+  };
+
+  if (form.wlanap_enabled.checked) {
+    data.wlanap_ssid = form.wlanap_ssid.value;
+    data.wlanap_pass = form.wlanap_pass.value;
+  } else {
+    data.wlan_ssid = form.wlan_ssid.value;
+    data.wlan_pass = form.wlan_pass.value;
+  }
+
+  return data;
+}
+
+function showReview(data) {
+  hideError();
+  hideElement('config-form');
+  scheduleTimeoutWarning();
+
+  if (data.wlanap_enabled === 'true') {
+    document.getElementById('review-network-label').textContent = 'Wireless AP Network SSID';
+    document.getElementById('review-network-ssid').textContent = data.wlanap_ssid;
+    document.getElementById('review-password-label').textContent = 'Wireless AP Network Password';
+    document.getElementById('review-network-pass').textContent = data.wlanap_pass;
+  } else {
+    document.getElementById('review-network-label').textContent = 'Wireless Network SSID';
+    document.getElementById('review-network-ssid').textContent = data.wlan_ssid;
+    document.getElementById('review-password-label').textContent = 'Wireless Network Password';
+    document.getElementById('review-network-pass').textContent = data.wlan_pass;
+  }
+
+  document.getElementById('review-rootpass').textContent = data.rootpass;
+  document.getElementById('review-hostname').textContent = data.hostname;
+  document.getElementById('review-timezone').textContent = data.timezone || '';
+
+  if (data.rootpkey) {
+    document.getElementById('review-rootpkey').textContent = data.rootpkey;
+    document.getElementById('review-rootpkey-label').classList.remove('hidden');
+  } else {
+    document.getElementById('review-rootpkey-label').classList.add('hidden');
+  }
+
+  showElement('review-section');
+}
+
+function showForm() {
+  hideElement('review-section');
+  showElement('config-form');
+  scheduleTimeoutWarning();
+}
+
+async function saveConfiguration(data) {
+  showElement('loading');
+  try {
+    const result = await apiCall('save', data);
+    hideElement('loading');
+
+    if (result.success) {
+      hideElement('config-form');
+      hideElement('review-section');
+
+      if (data.wlanap_enabled === 'true') {
+        document.getElementById('wlanap-ssid-display').textContent = data.wlanap_ssid;
+        showElement('success-wlanap');
+      } else {
+        showElement('success-wlan');
+      }
+      cancelTimeoutWarning();
+    } else {
+      showError(result.error || 'Failed to save configuration');
+      showForm();
+    }
+  } catch (e) {
+    hideElement('loading');
+    showError('Failed to save configuration: ' + e.message);
+    showForm();
+  }
+}
+
+document.getElementById('config-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+
+  const form = e.target;
+  if (!form.checkValidity()) {
+    form.classList.add('was-validated');
+    return;
+  }
+
+  const data = collectFormData();
+  const hostnameError = validateHostname(data.hostname);
+
+  if (hostnameError) {
+    showError(hostnameError);
+    return;
+  }
+
+  formData = data;
+  showReview(data);
+});
+
+document.getElementById('btn-edit').addEventListener('click', () => {
+  showForm();
+});
+
+document.getElementById('btn-proceed').addEventListener('click', () => {
+  saveConfiguration(formData);
+});
+
+document.getElementById('timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_', ' ');
+
+document.getElementById('wlanap_enabled').addEventListener('change', (ev) => {
+  const apMode = ev.target.checked;
+  document.getElementById('wlan_pass').required = !apMode;
+  document.getElementById('wlan_ssid').required = !apMode;
+  document.getElementById('wlanap_pass').required = apMode;
+  document.getElementById('wlanap_ssid').required = apMode;
+});
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+scheduleTimeoutWarning();
+
+loadSystemInfo();
+</script>
+
+</body>
+</html>

@@ -13,11 +13,28 @@
 </div>
 
 <script>
-const mdPreview = document.getElementById('mdPreview')
-mdPreview.addEventListener('show.bs.modal', ev => {
+const mdPreview = document.getElementById('mdPreview');
+const previewTrigger = document.getElementById('preview');
+let lastFocusedElement = null;
+
+mdPreview.addEventListener('show.bs.modal', () => {
+  lastFocusedElement = document.activeElement || previewTrigger;
   $('#preview_fullsize').src = '/x/ch0.mjpg';
-})
-mdPreview.addEventListener('hide.bs.modal', ev => {
+});
+
+mdPreview.addEventListener('hide.bs.modal', () => {
+  if (mdPreview.contains(document.activeElement)) {
+    document.activeElement.blur();
+  }
   $('#preview_fullsize').src = '/a/nostream.webp';
-})
+});
+
+mdPreview.addEventListener('hidden.bs.modal', () => {
+  const target = lastFocusedElement && typeof lastFocusedElement.focus === 'function'
+    ? lastFocusedElement
+    : previewTrigger;
+  if (target && typeof target.focus === 'function') {
+    target.focus({ preventScroll: true });
+  }
+});
 </script>

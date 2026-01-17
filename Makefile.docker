@@ -1,0 +1,122 @@
+# Docker/Podman build configuration
+DOCKER_IMAGE := thingino-builder
+DOCKER_TAG := latest
+SHELL := /bin/bash
+CONTAINER_ENGINE ?= $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/null)
+USER_ID := $(shell id -u)
+GROUP_ID := $(shell id -g)
+USERNAME := builder
+
+# Directories
+WORKSPACE_DIR := $(shell pwd)
+DL_DIR ?= $(HOME)/dl
+
+# Container run command
+ifeq ($(findstring podman,$(CONTAINER_ENGINE)),podman)
+	CONTAINER_RUN := $(CONTAINER_ENGINE) run --rm --userns=keep-id
+else
+	CONTAINER_RUN := $(CONTAINER_ENGINE) run --rm --user $(USER_ID):$(GROUP_ID)
+endif
+
+CONTAINER_RUN_OPTS := \
+	-v $(WORKSPACE_DIR):/home/$(USERNAME)/build \
+	-v $(DL_DIR):/home/$(USERNAME)/dl \
+	-w /home/$(USERNAME)/build \
+	-e BR2_DL_DIR=/home/$(USERNAME)/dl \
+	-e HOME=/home/$(USERNAME)/build \
+	-e TERM=xterm-256color
+
+# Interactive container
+CONTAINER_RUN_INTERACTIVE := $(CONTAINER_RUN) -it $(CONTAINER_RUN_OPTS)
+
+# Non-interactive container (with -i to receive signals, but no -t for non-TTY)
+CONTAINER_RUN_EXEC := $(CONTAINER_RUN) -i $(CONTAINER_RUN_OPTS)
+
+.PHONY: docker-build
+docker-build:
+	@if ! $(CONTAINER_ENGINE) images | grep -q "$(DOCKER_IMAGE).*$(DOCKER_TAG)"; then \
+		echo "Building Docker image: $(DOCKER_IMAGE):$(DOCKER_TAG)"; \
+		$(CONTAINER_ENGINE) build \
+			--build-arg USER_ID=$(USER_ID) \
+			--build-arg GROUP_ID=$(GROUP_ID) \
+			--build-arg USERNAME=$(USERNAME) \
+			-t $(DOCKER_IMAGE):$(DOCKER_TAG) \
+			-f Dockerfile .; \
+	else \
+		echo "Docker image $(DOCKER_IMAGE):$(DOCKER_TAG) already exists (use 'make docker-clean' to rebuild)"; \
+	fi
+
+.PHONY: docker-shell
+docker-shell: docker-build
+	@echo "Starting interactive shell in container..."
+	$(CONTAINER_RUN_INTERACTIVE) $(DOCKER_IMAGE):$(DOCKER_TAG) /bin/bash
+
+.PHONY: docker-make
+docker-make: docker-build
+	$(eval TARGETS := $(if $(filter-out docker-make,$(MAKECMDGOALS)),$(filter-out docker-make,$(MAKECMDGOALS)),all))
+	$(eval CAMERA_ARG := $(if $(CAMERA),CAMERA=$(CAMERA)))
+	@echo "Running make $(CAMERA_ARG) $(TARGETS) in container..."
+	@echo '#!/bin/bash' > /tmp/docker-make-run.sh
+	@echo 'cleanup() {' >> /tmp/docker-make-run.sh
+	@echo '    echo' >> /tmp/docker-make-run.sh
+	@echo '    echo "Interrupted! Stopping container..."' >> /tmp/docker-make-run.sh
+	@echo '    podman stop -t 2 $$(podman ps -q --filter ancestor=$(DOCKER_IMAGE):$(DOCKER_TAG)) 2>/dev/null || true' >> /tmp/docker-make-run.sh
+	@echo '    exit 130' >> /tmp/docker-make-run.sh
+	@echo '}' >> /tmp/docker-make-run.sh
+	@echo 'trap cleanup INT TERM' >> /tmp/docker-make-run.sh
+	@echo '$(CONTAINER_RUN_EXEC) $(DOCKER_IMAGE):$(DOCKER_TAG) make $(CAMERA_ARG) $(TARGETS) &' >> /tmp/docker-make-run.sh
+	@echo 'wait $$!' >> /tmp/docker-make-run.sh
+	@chmod +x /tmp/docker-make-run.sh
+	@/tmp/docker-make-run.sh
+
+.PHONY: docker-clean
+docker-clean:
+	@echo "Removing Docker image..."
+	$(CONTAINER_ENGINE) rmi $(DOCKER_IMAGE):$(DOCKER_TAG) || true
+
+.PHONY: docker-info
+docker-info:
+	@echo "Container Configuration:"
+	@echo "  Engine:     $(CONTAINER_ENGINE)"
+	@echo "  Image:      $(DOCKER_IMAGE):$(DOCKER_TAG)"
+	@echo "  User ID:    $(USER_ID)"
+	@echo "  Group ID:   $(GROUP_ID)"
+	@echo "  Username:   $(USERNAME)"
+	@echo "  Workspace:  $(WORKSPACE_DIR)"
+	@echo "  Downloads:  $(DL_DIR)"
+
+# Convenience targets for building in container
+.PHONY: docker-build-firmware
+docker-build-firmware: docker-build
+	$(CONTAINER_RUN_EXEC) $(DOCKER_IMAGE):$(DOCKER_TAG) make
+
+.PHONY: docker-dev
+docker-dev: docker-build
+	$(CONTAINER_RUN_EXEC) $(DOCKER_IMAGE):$(DOCKER_TAG) make dev
+
+.PHONY: docker-menuconfig
+docker-menuconfig: docker-build
+	$(CONTAINER_RUN_INTERACTIVE) $(DOCKER_IMAGE):$(DOCKER_TAG) make menuconfig
+
+.PHONY: docker-linux-menuconfig
+docker-linux-menuconfig: docker-build
+	$(CONTAINER_RUN_INTERACTIVE) $(DOCKER_IMAGE):$(DOCKER_TAG) make linux-menuconfig
+
+.PHONY: docker-busybox-menuconfig
+docker-busybox-menuconfig: docker-build
+	$(CONTAINER_RUN_INTERACTIVE) $(DOCKER_IMAGE):$(DOCKER_TAG) make busybox-menuconfig
+
+.PHONY: docker-clean-build
+docker-clean-build: docker-build
+	$(CONTAINER_RUN_EXEC) $(DOCKER_IMAGE):$(DOCKER_TAG) make distclean
+	$(CONTAINER_RUN_EXEC) $(DOCKER_IMAGE):$(DOCKER_TAG) make
+
+.PHONY: docker-upgrade-ota
+docker-upgrade-ota: docker-build
+	$(eval IP_ARG := $(if $(IP),IP=$(IP)))
+	$(eval CAMERA_ARG := $(if $(CAMERA),CAMERA=$(CAMERA)))
+	$(CONTAINER_RUN_INTERACTIVE) $(DOCKER_IMAGE):$(DOCKER_TAG) make upgrade_ota $(IP_ARG) $(CAMERA_ARG)
+
+# Allow make targets to be passed through to container
+%:
+	@:

@@ -1,5 +1,6 @@
 config BR2_PACKAGE_THINGINO_AP
 	bool "thingino-ap"
+	select BR2_PACKAGE_THINGINO_WEBUI
 	select BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_AP_SUPPORT
 	help
 	  Local camera access via WiFi AP

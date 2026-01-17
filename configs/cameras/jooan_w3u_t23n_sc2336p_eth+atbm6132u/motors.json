@@ -5,6 +5,7 @@
     "gpio_switch": 17,
     "gpio_tilt": "51 54 52 53",
     "homing": true,
+    "is_spi": false,
     "pos_0": "2000,375",
     "speed_pan": 900,
     "speed_tilt": 900,

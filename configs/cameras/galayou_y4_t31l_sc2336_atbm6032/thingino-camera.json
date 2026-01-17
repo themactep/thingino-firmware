@@ -1,0 +1,11 @@
+{
+  "gpio": {
+    "ir940": 11,
+    "ircut": "57 58",
+    "mmc_cd": 50,
+    "wlan": {
+      "pin": 17,
+      "active_low": true
+    }
+  }
+}

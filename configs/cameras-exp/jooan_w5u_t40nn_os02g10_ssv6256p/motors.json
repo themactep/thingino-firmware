@@ -1,8 +1,11 @@
 {
   "motors": {
-    "motor_maxstep_h": "4200",
-    "motor_maxstep_v": "1200",
-    "motor_speed_h": "900",
-    "motor_speed_v": "900"
+    "gpio_pan": "112 111 110 109",
+    "gpio_tilt": "108 107 106 105",
+    "is_spi": false,
+    "steps_pan": "4200",
+    "steps_tilt": "1200",
+    "speed_pan": "900",
+    "speed_tilt": "900"
   }
 }

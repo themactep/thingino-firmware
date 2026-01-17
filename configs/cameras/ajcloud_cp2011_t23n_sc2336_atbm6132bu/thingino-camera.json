@@ -1,0 +1,18 @@
+{
+  "gpio": {
+    "button_reset": 38,
+    "call": 51,
+    "ir850": 45,
+    "ircut": "57 58",
+    "led_b": {
+      "pin": 40,
+      "active_low": false
+    },
+    "mmc_cd": 50,
+    "wlan": {
+      "active_low": true,
+      "pin": 47,
+      "toggle": true
+    }
+  }
+}

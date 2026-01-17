@@ -38,19 +38,19 @@ switch_to_day() {
 		ircut on &
 	fi
 
-	if [ "true" = "$day_night_ir850" ] && [ -n "$gpio_ir850" ] && command_present irled; then
+	if [ "true" = "$day_night_ir850" ] && [ -n "$gpio_ir850" ] && command_present light; then
 		echo_info "  turn IR LED 850nm OFF"
-		irled off ir850 &
+		light ir850 off &
 	fi
 
-	if [ "true" = "$day_night_ir940" ] && [ -n "$gpio_ir940" ] && command_present irled; then
+	if [ "true" = "$day_night_ir940" ] && [ -n "$gpio_ir940" ] && command_present light; then
 		echo_info "  turn IR LED 940nm OFF"
-		irled off ir940 &
+		light ir940 off &
 	fi
 
-	if [ "true" = "$day_night_white" ] && [ -n "$gpio_white" ] && command_present irled; then
+	if [ "true" = "$day_night_white" ] && [ -n "$gpio_white" ] && command_present light; then
 		echo_info "  turn White Light OFF"
-		irled off white &
+		light white off &
 	fi
 
 	if [ "true" = "$day_night_color" ] && command_present color; then
@@ -73,19 +73,19 @@ switch_to_night() {
 		ircut off &
 	fi
 
-	if [ "true" = "$day_night_ir850" ] && [ -n "$gpio_ir850" ] && command_present irled; then
+	if [ "true" = "$day_night_ir850" ] && [ -n "$gpio_ir850" ] && command_present light; then
 		echo_info "  turn IR LED 850nm ON"
-		irled on ir850 &
+		light ir850 on &
 	fi
 
-	if [ "true" = "$day_night_ir940" ] && [ -n "$gpio_ir940" ] && command_present irled; then
+	if [ "true" = "$day_night_ir940" ] && [ -n "$gpio_ir940" ] && command_present light; then
 		echo_info "  turn IR LED 940nm ON"
-		irled on ir940 &
+		light ir940 on &
 	fi
 
-	if [ "true" = "$day_night_white" ] && [ -n "$gpio_white" ] && command_present irled; then
+	if [ "true" = "$day_night_white" ] && [ -n "$gpio_white" ] && command_present light; then
 		echo_info "  turn White Light ON"
-		irled on white &
+		light white on &
 	fi
 }
 

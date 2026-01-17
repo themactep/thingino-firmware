@@ -8,16 +8,11 @@ start() {
 	if [ "true" != "$sysupgrade_complete" ]; then
 		echo_info "Mark sysupgrade complete"
 		fw_setenv sysupgrade_complete true
-		fifo="/run/prudynt/audio_out"
-		max=10; i=0
-		while [ $i -lt $max ] && [ ! -p "$fifo" ]; do
-			sleep 1
-			i=$((i + 1))
-		done
-		if [ -p "$fifo" ]; then
-			play /usr/share/sounds/thingino.opus
+
+		if [ -f "$PORTAL_MODE_FLAG" ]; then
+			echo_info "Portal mode is active"
 		else
-			echo_warning "FIFO $fifo not found after ${max}s"
+			play /usr/share/sounds/thingino.opus
 		fi
 	fi
 }

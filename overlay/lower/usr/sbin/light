@@ -1,0 +1,105 @@
+#!/bin/sh
+
+. /usr/share/common
+
+show_help() {
+	echo "Usage: $0 <type> <mode> [pin#]
+Where:
+	type	ir | ir850 | ir940 | white | flood
+	mode	on | off | toggle | read | gpio
+" >&2
+	exit 1
+}
+
+[ "$#" -lt 1 ] && show_help
+
+# set parameters from cli, if empty
+[ -z "$type" ] && type="$1"
+[ -z "$mode" ] && mode="${2:-read}"
+
+get_config_pin() {
+	local type="$1"
+	jct /etc/thingino.json get "gpio.$type.pin" 2>/dev/null || \
+		jct /etc/thingino.json get "gpio.$type" 2>/dev/null
+}
+
+get_config_active_low() {
+	local type="$1"
+	jct /etc/thingino.json get "gpio.$type.active_low" 2>/dev/null || echo "false"
+}
+
+set_config_pin() {
+	local type="$1"
+	local pin="$2"
+	jct /etc/thingino.json set "gpio.$type.pin" "$pin" 2>/dev/null
+}
+
+case "$type" in
+	ir)
+		pin=$(get_config_pin ir850)
+		[ -z "$pin" ] && pin=$(get_config_pin ir940)
+		if [ -z "$pin" ]; then
+			echo_error "GPIO pins for either IR lights are not defined"
+			exit 1
+		fi
+		;;
+	ir850 | ir940 | white | flood)
+		pin=$(get_config_pin "$type")
+		if [ -z "$pin" ] && [ "gpio" != "$mode" ]; then
+			echo_error "GPIO pin for $type light is not defined"
+			exit 1
+		fi
+		;;
+	*)
+		echo_error "Unknown light type $type"
+		show_help
+		;;
+esac
+
+if [ "true" = "$(get_config_active_low "$type")" ]; then
+	pin_on=0
+	pin_off=1
+else
+	pin_on=1
+	pin_off=0
+fi
+
+case "$mode" in
+	0 | off)
+		gpio set "$pin" "$pin_off"
+		;;
+	1 | on)
+		gpio set "$pin" "$pin_on"
+		;;
+	~ | toggle)
+		gpio toggle "$pin"
+		;;
+	\? | read | status)
+		if [ "$(gpio value $pin | tr -d '\n')" = "$pin_on" ]; then
+			echo -n "1"
+		else
+			echo -n "0"
+		fi
+		;;
+	gpio | pin)
+		mode="gpio"
+		new_pin="$3"
+		if [ -n "$new_pin" ]; then
+			set_config_pin "$type" "$new_pin"
+		else
+			pin=$(get_config_pin "$type")
+			if [ -z "$pin" ]; then
+				echo_error "GPIO pin is missing"
+				show_help
+			else
+				echo "$pin"
+			fi
+		fi
+		;;
+	*)
+		echo_error "Error: Unknown mode" >&2
+		show_help
+		;;
+esac
+
+exit 0

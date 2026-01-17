@@ -1,0 +1,7 @@
+{
+  "gpio": {
+    "button_reset": 60,
+    "ircds": "true",
+    "ircut": "26 25"
+  }
+}

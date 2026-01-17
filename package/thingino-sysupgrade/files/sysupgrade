@@ -4,7 +4,7 @@ echo "Run as $0 $*"
 
 # Releases older that the timestamp below
 # are not eligible for partial updates.
-RUBICON="1740787200" # 2025-03-01
+RUBICON="1768337345" # 2026-01-13
 
 KERNEL_MAGIC="27051956"
 U_BOOT_MAGIC="06050403"
@@ -24,7 +24,7 @@ SD_CARD_ROOT="/mnt/mmcblk0p1"
 
 self=$(realpath $0)
 selfupdate="true"
-bbapplets="echo flash_eraseall flashcp reboot sh sleep"
+bbapplets="echo flash_eraseall flashcp reboot sh sleep tail date"
 upgrade=""
 gestalt_app="/sbin/gestalt"
 
@@ -50,7 +50,7 @@ check_free_space() {
 	dl_size=$(curl -sIL $1 | awk '/Content-Length:\s\d{2,}/{gsub(/\r/,"",$2);print $2}')
 	if [ -z "$dl_size" ]; then
 		if [ ! -f "$gestalt_app" ]; then
-			gestalt_url="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/gestalt"
+			gestalt_url="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/stable/package/thingino-sysupgrade/files/gestalt"
 			download "$gestalt_url" "$gestalt"
 			chmod +x "$gestalt"
 		fi
@@ -346,7 +346,7 @@ unmount_config() {
 update_self() {
 	local GH_DL_URL
 
-	GH_DL_URL="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/master/package/thingino-sysupgrade/files/"
+	GH_DL_URL="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/stable/package/thingino-sysupgrade/files/"
 	download "$GH_DL_URL$stage1app" "$workdir/$stage1app"
 	chmod +x $workdir/$stage1app
 	download "$GH_DL_URL$stage2app" "/sbin/$stage2app"

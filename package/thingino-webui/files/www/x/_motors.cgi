@@ -51,7 +51,7 @@ async function moveMotor(dir, steps = 100, d = 'g') {
   } else if (dir == 'cc') {
     runMotorCmd("d=x&x=" + x_max / 2 + "&y=" + y_max / 2);
   } else {
-    let y = dir.includes("u") ? -step : dir.includes("d") ? step : 0;
+    let y = dir.includes("d") ? -step : dir.includes("u") ? step : 0;
     let x = dir.includes("l") ? -step : dir.includes("r") ? step : 0;
     runMotorCmd("d=g&x=" + x + "&y=" + y);
   }

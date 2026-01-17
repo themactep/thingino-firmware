@@ -2,16 +2,16 @@
 [ -f "/etc/shadow-" ] && return
 [ -f "/tmp/.fs" ] && return
 {
-	trap 'echo_c 160 "\nInterrupted!";echo_c 184 "\nYou will be reminded again the next time you login.\n";trap - INT;return 1' INT
+	trap 'echo -c 160 "\nInterrupted!";echo -c 184 "\nYou will be reminded again the next time you login.\n";trap - INT;return 1' INT
 	attempts=5
 	while : ; do
 		if [ "$attempts" -eq 5 ]; then
-			echo_c 015 "\nIt's your first login.\nYou are required to change your password!\n"
+			echo -c 015 -e "\nIt's your first login.\nYou are required to change your password!\n"
 		elif [ "$attempts" -gt 0 ]; then
-			echo_c 015 "Please try again. You have $attempts attempts left.\n"
+			echo -c 015 "Please try again. You have $attempts attempts left.\n"
 		else
-			echo_c 015 "No more attempts left.\n"
-			echo_c 184 "You will be reminded again the next time you login.\n"
+			echo -c 015 "No more attempts left.\n"
+			echo -c 184 "You will be reminded again the next time you login.\n"
 			trap - INT
 			return
 		fi
@@ -20,22 +20,22 @@
 		read -p "Password: " -s p1
 		echo
 		if [ -z "$p1" ]; then
-			echo_c 196 "Password cannot be empty."
+			echo -c 196 "Password cannot be empty."
 			continue
 		elif [ "$p1" = "root" ]; then
-			echo_c 196 "Password 'root' is not allowed."
+			echo -c 196 "Password 'root' is not allowed."
 			continue
 		fi
 
 		read -p "Confirm: " -s p2
 		echo
 		if [ "$p1" != "$p2" ]; then
-			echo_c 196 "Passwords mismatch."
+			echo -c 196 "Passwords mismatch."
 			continue
 		fi
 
 		echo "root:$p1" | chpasswd -c sha512 2>/dev/null
-		echo_c 118 "\nPassword updated.\n"
+		echo -c 118 "\nPassword updated.\n"
 		break
 	done
 }

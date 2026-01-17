@@ -1,0 +1,14 @@
+{
+  "gpio": {
+    "button_reset": 59,
+    "ir850": 81,
+    "ircut": "79 80",
+    "led_g": 75,
+    "led_r": 78,
+    "mmc_cd": 52,
+    "wlan": {
+      "pin": 50,
+      "active_low": true
+    }
+  }
+}

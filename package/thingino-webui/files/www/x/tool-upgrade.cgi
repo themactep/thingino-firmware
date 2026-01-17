@@ -5,8 +5,8 @@ page_title="Flash Operations"
 
 tools_action="sysupgrade"
 tools_upgrade_option="-p"
-ota_upgrade_option="Partial"
-tools_upgrade_option="Partial"
+ota_upgrade_option="Full"
+tools_upgrade_option="Full"
 mtdblock_partition="mtd0"
 
 if [ "$REQUEST_METHOD" = "POST" ]; then
@@ -68,8 +68,8 @@ get_mtd_partitions() {
     </div>
     <div class="alert alert-warning">
       <h4>OTA (Over The Air) Update</h4>
-      <p>Click to perform an upgrade to the latest firmware release from the Thingino GitHub repository.</p>
-      <% field_select "ota_upgrade_option" "Upgrade Option" "Partial,Full,Bootloader" %>
+      <p>Click to perform an upgrade to the latest firmware release from the Thingino GitHub repository. Partial upgrades are not recommended.</p>
+      <% field_select "ota_upgrade_option" "Upgrade Option" "Full,Partial" %>
       <button type="button" class="btn btn-primary" id="button-upgrade">Download & Upgrade</button>
     </div>
     <div class="alert alert-danger">
@@ -114,8 +114,6 @@ async function handleOTAUpgrade() {
   const option = $('#ota_upgrade_option').value;
   if (option === 'Full') {
     cmd += '-f';
-  } else if (option === 'Bootloader') {
-    cmd += '-b';
   } else {
     cmd += '-p';
   }

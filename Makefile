@@ -178,11 +178,11 @@ CONFIG_PARTITION_SIZE := $(SIZE_224K)
 KERNEL_PARTITION_SIZE = $(KERNEL_BIN_SIZE_ALIGNED)
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
 
-FIRMWARE_FULL_SIZE = $(FLASH_SIZE)
-FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE) - $(UB_ENV_PARTITION_SIZE) - $(CONFIG_PARTITION_SIZE))))
+FIRMWARE_FULL_SIZE = $(shell echo $$((($(FLASH_SIZE_MB) * 1024 * 1024))))
+FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FIRMWARE_FULL_SIZE) - $(U_BOOT_PARTITION_SIZE) - $(UB_ENV_PARTITION_SIZE) - $(CONFIG_PARTITION_SIZE))))
 
 # dynamic partitions
-EXTRAS_PARTITION_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(EXTRAS_OFFSET))))
+EXTRAS_PARTITION_SIZE = $(shell echo $$(($(FIRMWARE_FULL_SIZE) - $(EXTRAS_OFFSET))))
 EXTRAS_LLIMIT := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
 
 # partition offsets
@@ -214,17 +214,23 @@ endef
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR) BR2_DL_DIR=$(BR2_DL_DIR)
 
 .PHONY: all bootstrap build build_fast clean clean-nfs-debug cleanbuild defconfig distclean \
-	fast help info pack release remove_bins repack sdk toolchain update upboot-ota \
+	dev fast help info pack release remove_bins repack sdk toolchain update upboot-ota \
 	upload_tftp upgrade_ota br-% check-config force-config show-config-deps clean-config \
 	agent-info show-vars
 
-all: defconfig build pack
+# Default: fast parallel incremental build
+all: defconfig build_fast pack
 	$(info -------------------------------- $@)
 
+# legacy target used by GitHub CI
 fast: defconfig build_fast pack
 	$(info -------------------------------- $@)
 
-# rebuild from scratch
+# Development build: slow serial for debugging compilation issues
+dev: defconfig build pack
+	$(info -------------------------------- $@)
+
+# Clean build from scratch with parallel compilation
 cleanbuild: distclean defconfig build_fast pack
 	$(info -------------------------------- $@)
 
@@ -717,14 +723,17 @@ info: defconfig
 	$(info SOC_FAMILY_CAPS: $(SOC_FAMILY_CAPS))
 	$(info SOC_MODEL: $(SOC_MODEL))
 	$(info SOC_MODEL_LESS_Z: $(SOC_MODEL_LESS_Z))
-	$(info SOC_RAM: $(SOC_RAM))
+	$(info SOC_RAM_MB: $(SOC_RAM_MB))
 	$(info BR2_TOOLCHAIN_EXTERNAL_URL: $(BR2_TOOLCHAIN_EXTERNAL_URL))
 	$(info KERNEL_VERSION: $(KERNEL_VERSION))
 	$(info KERNEL_SITE: $(KERNEL_SITE))
 	$(info KERNEL_BRANCH: $(KERNEL_BRANCH))
 	$(info KERNEL_HASH: $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1))
 	$(info KERNEL_TARBALL_URL: $(KERNEL_TARBALL_URL))
-	$(info SENSOR_MODEL: $(SENSOR_MODEL))
+	$(info SENSOR_1_MODEL: $(SENSOR_1_MODEL))
+	$(info SENSOR_2_MODEL: $(SENSOR_2_MODEL))
+	$(info SENSOR_3_MODEL: $(SENSOR_3_MODEL))
+	$(info SENSOR_4_MODEL: $(SENSOR_4_MODEL))
 	$(info AVPU_CLK: $(AVPU_CLK))
 	$(info AVPU_CLK_SRC: $(AVPU_CLK_SRC))
 	$(info ISP_CLK: $(ISP_CLK))
@@ -736,7 +745,8 @@ info: defconfig
 	$(info ISP_CH0_PRE_DEQUEUE_TIME: $(ISP_CH0_PRE_DEQUEUE_TIME))
 	$(info ISP_CH0_PRE_DEQUEUE_INTERRUP_PROCESS: $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS))
 	$(info ISP_CH0_PRE_DEQUEUE_VALID_LINES: $(ISP_CH0_PRE_DEQUEUE_VALID_LINES))
-	$(info FLASH_SIZE: $(FLASH_SIZE))
+	$(info FLASH_SIZE_MB: $(FLASH_SIZE_MB))
+	$(info FIRMWARE_FULL_SIZE: $(FIRMWARE_FULL_SIZE))
 	$(info UBOOT_BOARDNAME: $(UBOOT_BOARDNAME))
 	$(info UBOOT_REPO: $(UBOOT_REPO))
 	$(info UBOOT_REPO_BRANCH: $(UBOOT_REPO_BRANCH))
@@ -757,10 +767,11 @@ help:
 	Usage:\n\
 	  make bootstrap      install system deps\n\
 	  make update         update local repo and submodules (excludes buildroot)\n\
-	  make                edit configurations\n\
-	  make                build and pack everything\n\
-	  make build          build kernel and rootfs\n\
-	  make cleanbuild     build everything from scratch, fast\n\
+	  make                build from scratch (clean + parallel) [DEFAULT]\n\
+	  make dev            serial build for debugging compilation errors\n\
+	  make fast           fast incremental build (no clean)\n\
+	  make cleanbuild     same as 'make' (clean + parallel build)\n\
+	  make build          serial build (no clean)\n\
 	  make release        build without local fragments\n\
 	  make pack           create firmware images\n\
 	  make clean          clean before reassembly\n\

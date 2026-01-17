@@ -19,19 +19,28 @@
     "spk_sample_rate": 16000,
     "spk_vol": 60,
     "tap_enabled": true,
-    "tap_path": "/run/prudynt/audio_mic.pcm"
+    "tap_path": "/run/prudynt/audio_mic.pcm",
+    "buffer_warn_frames": 80,
+    "buffer_cap_frames": 100
   },
   "daynight": {
+    "day_count_threshold": 4,
     "enabled": true,
     "ev_day_low_primary": 0,
     "ev_day_low_secondary": 0,
     "ev_night_high": 0,
+    "gb_gain_absolute": 145,
+    "gb_gain_delta": 15,
     "loglevel": "INFO",
+    "night_count_threshold": 6,
     "sample_interval_ms": 1000,
     "script_path": "/sbin/daynight",
+    "settle_samples_for_gb_record": 20,
     "switch_above_percent": 80,
     "switch_below_percent": 15,
     "tolerance_percent": 50,
+    "total_gain_day_threshold": 300,
+    "total_gain_night_threshold": 3000,
     "controls": {
       "color": true,
       "ircut": true,
@@ -47,9 +56,16 @@
     "loglevel": "INFO",
     "memory_monitoring_enabled": true,
     "osd_pool_size": 1200,
-    "timestamp_validation_enabled": true,
-    "zero_copy_buffer_pool_size": 10,
-    "zero_copy_enabled": true
+    "timestamp_validation_enabled": true
+  },
+  "http": {
+    "api_enabled": true,
+    "auth_required": true,
+    "enabled": true,
+    "mjpeg_enabled": true,
+    "password": "thingino",
+    "port": 8080,
+    "username": "thingino"
   },
   "image": {
     "ae_compensation": 128,
@@ -109,12 +125,9 @@
     "device_path": "%hostname",
     "duration": 60,
     "filename": "%Y/%m/%d/%H-%M-%S",
-    "limit": 15,
     "mount": ""
   },
   "rtsp": {
-    "adaptation_interval_seconds": 5,
-    "adaptive_bitrate_enabled": true,
     "auth_required": true,
     "bandwidth_margin": 1.2,
     "audio_only_enabled": true,
@@ -122,7 +135,7 @@
     "audio_only_info": "audio from the microphone",
     "est_bitrate": 5000,
     "name": "thingino prudynt",
-    "out_buffer_size": 1000000,
+    "out_buffer_size": 500000,
     "packet_loss_threshold": 0.05,
     "password": "thingino",
     "port": 554,
@@ -139,7 +152,7 @@
     "video_interface": 0
   },
   "stream0": {
-    "adaptive_gop": true,
+    "allow_shared": true,
     "audio_enabled": true,
     "bitrate": 3000,
     "buffers": 1,
@@ -148,7 +161,6 @@
     "fps": 0,
     "gop": 30,
     "height": 0,
-    "i_frame_interval": 0,
     "qp_init": -1,
     "qp_min": -1,
     "qp_max": -1,
@@ -164,9 +176,9 @@
       "start_delay": 0,
       "stroke_size": 4,
       "brightness": {
-        "enabled": false,
-        "format": "%b%%(%a%%) %m",
-        "position": "10,70",
+        "enabled": true,
+        "format": "%b",
+        "position": "10,-10",
         "rotation": 0,
         "fill_color": "#FFFFFFCC",
         "stroke_color": "#000000CC"
@@ -221,15 +233,17 @@
       }
     },
     "profile": 2,
-    "quality_level": 2,
     "rotation": 0,
     "rtsp_endpoint": "ch0",
     "rtsp_info": "stream0",
-    "scene_change_detection": false,
+    "scale_enabled": false,
+    "scale_height": 0,
+    "scale_width": 0,
+    "video_enabled": true,
     "width": 0
   },
   "stream1": {
-    "adaptive_gop": true,
+    "allow_shared": true,
     "audio_enabled": true,
     "bitrate": 1000,
     "buffers": 1,
@@ -238,7 +252,6 @@
     "fps": 0,
     "gop": 30,
     "height": 360,
-    "i_frame_interval": 0,
     "qp_init": -1,
     "qp_min": -1,
     "qp_max": -1,
@@ -311,11 +324,13 @@
       }
     },
     "profile": 2,
-    "quality_level": 2,
     "rotation": 0,
     "rtsp_endpoint": "ch1",
     "rtsp_info": "stream1",
-    "scene_change_detection": false,
+    "scale_enabled": false,
+    "scale_width": 0,
+    "scale_height": 0,
+    "video_enabled": true,
     "width": 640
   },
   "stream2": {
@@ -324,19 +339,14 @@
     "jpeg_channel": 0,
     "jpeg_idle_fps": 1,
     "jpeg_path": "/tmp/snapshot.jpg",
-    "jpeg_quality": 75,
-    "jpeg_refresh": 1000
+    "jpeg_quality": 75
   },
-    "stream3": {
+  "stream3": {
     "enabled": true,
     "fps": 15,
     "jpeg_channel": 1,
     "jpeg_idle_fps": 1,
     "jpeg_path": "/tmp/snapshot_ch1.jpg",
     "jpeg_quality": 75
-  },
-  "http_mjpeg": {
-    "enabled": true,
-    "port": 8081
   }
 }

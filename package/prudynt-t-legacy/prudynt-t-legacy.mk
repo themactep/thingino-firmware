@@ -62,7 +62,7 @@ define PRUDYNT_T_LEGACY_INSTALL_TARGET_CMDS
 
 	sed -i 's/;.*$$/;/' $(TARGET_DIR)/etc/prudynt.cfg
 
-	if [ "$(SOC_RAM)" -le "64" ]; then \
+	if [ "$(SOC_RAM_MB)" -le "64" ]; then \
 		sed -i 's/^\([ \t]*\)# *buffers: 2;/\1buffers: 1;/' $(TARGET_DIR)/etc/prudynt.cfg; \
 	fi
 

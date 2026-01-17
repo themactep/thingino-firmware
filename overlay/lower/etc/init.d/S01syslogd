@@ -1,7 +1,13 @@
 #!/bin/sh
 
+json_get() {
+	local key="$1" value="$2"
+	jct /etc/thigino.json get "$key" 2>/dev/null || printf '%s' "$value"
+}
+
 DAEMON="syslogd"
 DAEMON_ARGS="-n -C64 -S -t -D $RSYSLOG_ADDRESS"
+RSYSLOG_CONFIG_DOMAIN="rsyslog"
 
 # -n              Run in foreground
 # -R HOST[:PORT]  Log to HOST:PORT (default PORT:514)
@@ -19,18 +25,27 @@ PIDFILE="/run/$DAEMON.pid"
 
 . /usr/share/common
 
-if [ -n "$rsyslog_host" ]; then
-	echo_info "Adding remote logging to $rsyslog_host:${rsyslog_port:-514}"
-	DAEMON_ARGS="$DAEMON_ARGS -R $rsyslog_host:${rsyslog_port:-514}"
-fi
-
-if [ "true" = "$rsyslog_local" ]; then
-	echo_info "Adding local logging"
-	DAEMON_ARGS="$DAEMON_ARGS -L"
-fi
-
 start() {
 	echo_title "Starting syslogd"
+
+	rsyslog_enabled=$(json_get rsyslog.enabled "false")
+	rsyslog_port=$(json_get rsyslog.port 514)
+	rsyslog_file=$(json_get rsyslog.file "false")
+	rsyslog_local=$(json_get rsyslog.local "$rsyslog_file")
+
+	if [ -z "$rsyslog_host" ]; then
+		echo_warning "Remote logging not configured"
+	elif [ "true" != "$rsyslog_enabled" ]; then
+		echo_warning "Remote logging disabled"
+	else
+		echo_info "Adding remote logging to $rsyslog_host:${rsyslog_port}"
+		DAEMON_ARGS="$DAEMON_ARGS -R $rsyslog_host:${rsyslog_port}"
+	fi
+
+	if [ "true" = "$rsyslog_local" ] || [ "true" = "$rsyslog_file" ]; then
+		echo_info "Adding local logging"
+		DAEMON_ARGS="$DAEMON_ARGS -L"
+	fi
 
 	start_daemon
 }

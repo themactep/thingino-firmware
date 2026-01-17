@@ -1,5 +1,6 @@
 /.board
 /.bootstrapped
+/.ccache
 /.gitconfig
 /.idea
 /.prereqs.done
@@ -9,6 +10,7 @@
 /buildroot-*/
 /buildroot-dl-cache\.zip*
 /configs/local.*
+/dl/
 /local.mk
 /output*/
 /overlay/upper
@@ -21,3 +23,5 @@
 /toolchain/
 *.backup
 .DS_Store
+.selected_camera
+.bash_history
