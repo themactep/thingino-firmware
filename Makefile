@@ -324,7 +324,7 @@ force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.ke
 	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(MODULE_CONFIG_REAL))
 	for i in $(FRAGMENTS); do \
 		echo "** add configs/fragments/$$i.fragment"; \
-		cat configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
+		sed 's/$$(BR2_HOSTARCH)/$(BR2_HOSTARCH)/g; s/$$(INGENIC_ARCH)/$(INGENIC_ARCH)/g' configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
 		echo >>$(OUTPUT_DIR)/.config; \
 	done
 	# add module configuration
