@@ -73,6 +73,8 @@ docker-make: docker-build
 .PHONY: docker-clean
 docker-clean:
 	@echo "Removing Docker image..."
+	@echo "Stopping and removing containers using $(DOCKER_IMAGE):$(DOCKER_TAG)..."
+	@$(CONTAINER_ENGINE) ps -a --filter ancestor=$(DOCKER_IMAGE):$(DOCKER_TAG) -q | xargs -r $(CONTAINER_ENGINE) rm -f 2>/dev/null || true
 	$(CONTAINER_ENGINE) rmi $(DOCKER_IMAGE):$(DOCKER_TAG) || true
 
 .PHONY: docker-info
