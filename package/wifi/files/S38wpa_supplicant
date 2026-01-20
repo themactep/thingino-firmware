@@ -46,6 +46,10 @@ start() {
 		exit 1
 	fi
 
+	if [ "$wlan_psk" = "" ]; then
+		wlan_psk="$wlan_pass"
+	fi
+
 	if grep -q "^#auto wlan0" $WLAN_INT_FILE; then
 		echo_error "wlan0 manually disabled"
 		exit 1
