@@ -143,7 +143,7 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	chmod 755 $(TARGET_DIR)/usr/bin/prudynt
 	echo "Installed stripped prudynt binary ($$(du -h $(TARGET_DIR)/usr/bin/prudynt | cut -f1))"
 
-	[ -d /nfs ] && cp $(TARGET_DIR)/usr/bin/prudynt /nfs/prudynt
+	[ -d /nfs ] && cp $(TARGET_DIR)/usr/bin/prudynt /nfs/prudynt || true
 
 	# Copy prudyntctl
 	cp $(@D)/bin/prudyntctl $(TARGET_DIR)/usr/bin/prudyntctl
