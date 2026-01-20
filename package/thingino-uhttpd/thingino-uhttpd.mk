@@ -59,14 +59,21 @@ endif
 # Thingino-specific configuration
 THINGINO_UHTTPD_CONF_OPTS += \
 	-DCMAKE_BUILD_TYPE=Release \
-	-DCMAKE_INSTALL_PREFIX=/usr
+	-DCMAKE_INSTALL_PREFIX=/usr \
+	-DUCODE_SUPPORT=OFF
 
 # Install basic web directory structure and certificate generation script
 define THINGINO_UHTTPD_INSTALL_CONFIG
 	# Create basic web directory structure
 	mkdir -p $(TARGET_DIR)/var/www
 	mkdir -p $(TARGET_DIR)/etc/ssl/certs $(TARGET_DIR)/etc/ssl/private
-	# Note: Complete web interface provided by thingino-webui-lua package
+	# Note: Complete web interface provided by thingino-webui package
+
+        # Install startup script for uhttpd
+        $(INSTALL) -D -m 0755 $(THINGINO_UHTTPD_PKGDIR)/files/S60uhttpd \
+                $(TARGET_DIR)/etc/init.d/S60uhttpd
+        $(INSTALL) -D -m 0644 $(THINGINO_UHTTPD_PKGDIR)/files/uhttpd \
+                $(TARGET_DIR)/etc/default/uhttpd
 endef
 
 # Install certificate generation script (disabled - file missing)
