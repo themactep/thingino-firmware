@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DAEMON_ARGS="-d"
+DAEMON_ARGS=""
 
 . /usr/share/common
 
