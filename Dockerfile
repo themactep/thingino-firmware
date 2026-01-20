@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM debian:testing
+FROM debian:trixie
 
 # Build arguments
 ARG USER_ID=1000
@@ -12,7 +12,7 @@ RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get update && \
     DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y \
     ack apt-utils apt-transport-https autoconf bc bison build-essential \
     busybox ca-certificates ccache cmake cpio curl dialog file flex fzf \
-    gawk gcc-mipsel-linux-gnu git golang-go libcrypt-dev libncurses-dev locales lzop \
+    gawk git golang-go libcrypt-dev libncurses-dev locales lzop \
     m4 mc nano perl python3 python3-jinja2 python3-jsonschema python3-yaml \
     rsync ssh sudo toilet u-boot-tools unzip vim wget whiptail && \
     rm -rf /var/lib/apt/lists/*
