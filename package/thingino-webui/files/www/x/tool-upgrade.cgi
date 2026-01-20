@@ -70,13 +70,13 @@ get_mtd_partitions() {
       <h4>OTA (Over The Air) Update</h4>
       <p>Click to perform an upgrade to the latest firmware release from the Thingino GitHub repository. Partial upgrades are not recommended.</p>
       <% field_select "ota_upgrade_option" "Upgrade Option" "Full,Partial" %>
-      <button type="button" class="btn btn-primary" id="button-upgrade">Download & Upgrade</button>
+      <button type="button" class="btn btn-warning" id="button-upgrade">Download & Upgrade</button>
     </div>
     <div class="alert alert-danger">
       <h4>Flash new firmware image</h4>
       <p>Upload a sysupgrade-compatible image here to replace the current firmware</p>
       <input type="file" class="form-control" id="firmware-image" name="firmware">
-      <button type="button" class="btn btn-primary mt-2" id="button-upload">Flash image</button>
+      <button type="button" class="btn btn-danger mt-2" id="button-upload">Flash image</button>
     </div>
   </div>
   <div class="col col-lg-8">
