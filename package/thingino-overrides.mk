@@ -16,5 +16,6 @@
 include $(BR2_EXTERNAL)/package/thingino-freetype/freetype-override.mk
 include $(BR2_EXTERNAL)/package/thingino-libwebsockets/libwebsockets-override.mk
 include $(BR2_EXTERNAL)/package/thingino-live555/live555-override.mk
+include $(BR2_EXTERNAL)/package/thingino-mbedtls/mbedtls-override.mk
 include $(BR2_EXTERNAL)/package/thingino-mosquitto/mosquitto-override.mk
 include $(BR2_EXTERNAL)/package/thingino-mxml/mxml-override.mk

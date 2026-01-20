@@ -1,0 +1,9 @@
+config BR2_PACKAGE_THINGINO_MBEDTLS
+	bool "mbedTLS with HTTP/2 support"
+	select BR2_PACKAGE_MBEDTLS
+	help
+	  Mbed TLS is an open-source cryptographic library that provides
+	  SSL and TLS functionality. This version includes HTTP/2-capable
+	  configuration with ALPN, SNI, Session Tickets, and TLS 1.3 ciphers.
+
+	  https://tls.mbed.org/

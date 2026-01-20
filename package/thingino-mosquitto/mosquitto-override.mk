@@ -18,7 +18,16 @@ override MOSQUITTO_MAKE_OPTS += WITH_CJSON=no
 
 override MOSQUITTO_MAKE_OPTS += prefix=/usr
 
-ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_USE_MBEDTLS),y)
+# Prefer OpenSSL if available, even if mbedTLS option is selected
+ifeq ($(BR2_PACKAGE_OPENSSL),y)
+# OpenSSL is available - explicitly add it along with host tools
+override MOSQUITTO_DEPENDENCIES += host-pkgconf openssl toolchain-external-custom
+# Ensure OpenSSL configuration is applied
+override MOSQUITTO_MAKE_OPTS := $(filter-out WITH_TLS=%,$(MOSQUITTO_MAKE_OPTS))
+override MOSQUITTO_MAKE_OPTS += WITH_TLS=yes
+override MOSQUITTO_STATIC_LIBS += `$(PKG_CONFIG_HOST_BINARY) --libs openssl`
+else ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_USE_MBEDTLS),y)
+# Only use mbedTLS if OpenSSL is not available
 override MOSQUITTO_DEPENDENCIES := $(filter-out openssl,$(MOSQUITTO_DEPENDENCIES))
 override MOSQUITTO_DEPENDENCIES += mbedtls
 

@@ -23,7 +23,7 @@ endif
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_WEBRTC),y)
 #	PRUDYNT_T_DEPENDENCIES += libpeer
 	PRUDYNT_T_DEPENDENCIES += libdatachannel
-	PRUDYNT_T_DEPENDENCIES += mbedtls
+	# libdatachannel brings its own SSL/TLS dependency (OpenSSL or mbedTLS)
 endif
 
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_WEBSOCKETS),y)
@@ -51,12 +51,19 @@ endif
 
 # Base compiler flags
 PRUDYNT_CFLAGS += \
-	-DNO_OPENSSL=1 \
 	-I$(STAGING_DIR)/usr/include \
 	-I$(STAGING_DIR)/usr/include/liveMedia \
 	-I$(STAGING_DIR)/usr/include/groupsock \
 	-I$(STAGING_DIR)/usr/include/UsageEnvironment \
 	-I$(STAGING_DIR)/usr/include/BasicUsageEnvironment
+
+# OpenSSL support - link against OpenSSL if available and live555 uses it
+ifeq ($(BR2_PACKAGE_OPENSSL),y)
+PRUDYNT_T_DEPENDENCIES += host-pkgconf openssl
+PRUDYNT_LDFLAGS += `$(PKG_CONFIG_HOST_BINARY) --libs openssl`
+else
+PRUDYNT_CFLAGS += -DNO_OPENSSL=1
+endif
 
 # Build mode selection
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_STATIC),y)
@@ -103,7 +110,13 @@ PRUDYNT_CFLAGS += \
 	-DLIBDATACHANNEL_ENABLED=1 \
 	-DLIBPEER_AVAILABLE=1 \
 	-I$(STAGING_DIR)/usr/include
+
+# Link against SSL library based on what's available (OpenSSL preferred)
+ifeq ($(BR2_PACKAGE_OPENSSL),y)
+PRUDYNT_LDFLAGS += -ldatachannel -lusrsctp -lssl -lcrypto -ljuice
+else
 PRUDYNT_LDFLAGS += -ldatachannel -lusrsctp -lmbedtls -lmbedx509 -lmbedcrypto -ljuice
+endif
 endif
 
 PRUDYNT_LDFLAGS += $(TARGET_LDFLAGS) \

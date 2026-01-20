@@ -60,8 +60,8 @@ endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_LIBCURL_OPENSSL),y)
 THINGINO_LIBCURL_DEPENDENCIES += openssl
-THINGINO_LIBCURL_CONF_OPTS += --with-openssl=$(STAGING_DIR)/usr \
-	--with-ca-path=/etc/ssl/certs
+THINGINO_LIBCURL_CONF_OPTS += --with-openssl=$(STAGING_DIR)/usr
+THINGINO_LIBCURL_CONF_OPTS += --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
 else
 THINGINO_LIBCURL_CONF_OPTS += --without-openssl
 endif

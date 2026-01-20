@@ -23,11 +23,10 @@ config BR2_PACKAGE_THINGINO_MOSQUITTO
 config BR2_PACKAGE_THINGINO_MOSQUITTO_USE_MBEDTLS
 	bool "use mbedTLS backend"
 	depends on BR2_PACKAGE_THINGINO_MOSQUITTO
-	select BR2_PACKAGE_MBEDTLS
-	default y
+	default y if !BR2_PACKAGE_OPENSSL
 	help
-	  Build mosquitto against the in-tree mbedTLS backend instead of
-	  the upstream OpenSSL implementation.
+	  Build mosquitto with mbedTLS backend support. This option is only
+	  enabled by default when OpenSSL is not available.
 
 config BR2_PACKAGE_THINGINO_MOSQUITTO_LIBWEBSOCKETS
 	bool "mosquitto-libwebsockets"
