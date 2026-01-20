@@ -1,44 +1,87 @@
-#!/bin/haserl
-<%in _common.cgi %>
-<%
-page_title="Reset things"
-%>
-<%in _header.cgi %>
+#!/bin/sh
 
-<div class="row row-cols-md-3 g-4 mb-4">
-  <div class="col">
-    <div class="alert alert-danger">
-      <h4>Reboot camera</h4>
-      <p>Reboot camera to apply new settings. That will also delete all data stored in partitions mounted into system memory, e.g. /tmp.</p>
-      <form action="reboot.cgi" method="post">
-        <input type="hidden" name="action" value="reboot">
-        <% button_submit "Reboot camera" "danger" %>
-      </form>
-   </div>
-  </div>
-  <div class="col">
-    <div class="alert alert-danger">
-      <h4>Wipe overlay</h4>
-      <p>Wiping out overlay will remove all <a href="info-overlay.cgi">files stored in the overlay</a> partition.
-        That means that most of customization will be lost!</p>
-      <form action="firmware-reset.cgi" method="post">
-        <input type="hidden" name="action" value="wipeoverlay">
-        <input type="hidden" name="cmd" value="<% echo "flash_eraseall -j /dev/mtd2" | base64 %>">
-        <% button_submit "Wipe overlay" "danger" %>
-      </form>
-    </div>
-  </div>
-  <div class="col">
-    <div class="alert alert-danger">
-      <h4>Reset firmware</h4>
-      <p>Totally revert firmware to its original state. All custom settings and all files stored in the overlay partition will be lost!</p>
-      <form action="firmware-reset.cgi" method="post">
-        <input type="hidden" name="action" value="fullreset">
-        <input type="hidden" name="cmd" value="<% echo "firstboot -f" | base64 %>">
-        <% button_submit "Reset firmware" "danger" %>
-      </form>
-    </div>
-  </div>
-</div>
+json_escape() {
+  printf '%s' "$1" | sed \
+    -e 's/\\/\\\\/g' \
+    -e 's/"/\\"/g' \
+    -e "s/\r/\\r/g" \
+    -e "s/\n/\\n/g"
+}
 
-<%in _footer.cgi %>
+send_json() {
+  status="${2:-200 OK}"
+  printf 'Status: %s\n' "$status"
+  cat <<EOF
+Content-Type: application/json
+Cache-Control: no-store
+Pragma: no-cache
+
+$1
+EOF
+  exit 0
+}
+
+json_error() {
+  code="${1:-400}"
+  message="$2"
+  send_json "{\"error\":{\"code\":$code,\"message\":\"$(json_escape "$message")\"}}" "${3:-400 Bad Request}"
+}
+
+build_payload() {
+  cat <<'EOF'
+{
+  "actions": [
+    {
+      "id": "reboot",
+      "title": "Reboot camera",
+      "description_html": "Reboot the camera to apply new settings. This also clears temporary data in memory-backed partitions such as /tmp.",
+      "cta": {
+        "type": "form",
+        "method": "POST",
+        "action": "/x/reboot.cgi",
+        "button": "Reboot camera",
+        "variant": "danger",
+        "fields": [
+          {"name": "action", "value": "reboot"}
+        ]
+      }
+    },
+    {
+      "id": "wipeoverlay",
+      "title": "Wipe overlay",
+      "description_html": "Remove all <a href=\"/info-overlay.html\">files stored in the overlay partition</a>. Most customizations will be lost.",
+      "cta": {
+        "type": "link",
+        "href": "/firmware-reset.html?action=wipeoverlay",
+        "text": "Wipe overlay",
+        "variant": "danger"
+      }
+    },
+    {
+      "id": "fullreset",
+      "title": "Reset firmware",
+      "description_html": "Restore firmware to its factory state. All settings and overlay files will be removed.",
+      "cta": {
+        "type": "link",
+        "href": "/firmware-reset.html?action=fullreset",
+        "text": "Reset firmware",
+        "variant": "danger"
+      }
+    }
+  ]
+}
+EOF
+}
+
+handle_get() {
+  send_json "$(build_payload)"
+}
+
+case "$REQUEST_METHOD" in
+  GET|"")
+    handle_get
+    ;;
+  *)
+    json_error 405 "Method not allowed" "405 Method Not Allowed"
+    ;;
+esac

@@ -1,0 +1,103 @@
+#!/bin/sh
+
+# Heartbeat daemon - runs in background and updates cache continuously
+# Start with: /etc/init.d/S99heartbeat start
+
+CACHE_FILE="/tmp/heartbeat_cache.json"
+UPDATE_INTERVAL=1
+PIDFILE="/var/run/heartbeat-daemon.pid"
+
+start() {
+  if [ -f "$PIDFILE" ] && kill -0 $(cat "$PIDFILE") 2>/dev/null; then
+    echo "Heartbeat daemon already running"
+    return 0
+  fi
+
+  echo "Starting heartbeat daemon..."
+  heartbeat_loop &
+  echo $! > "$PIDFILE"
+}
+
+stop() {
+  if [ -f "$PIDFILE" ]; then
+    echo "Stopping heartbeat daemon..."
+    kill $(cat "$PIDFILE") 2>/dev/null
+    rm -f "$PIDFILE"
+  fi
+}
+
+heartbeat_loop() {
+  while true; do
+    ch0_rec="false"; [ -f "/run/prudynt/mp4ctl-ch0.active" ] && ch0_rec="true"
+    ch1_rec="false"; [ -f "/run/prudynt/mp4ctl-ch1.active" ] && ch1_rec="true"
+    motion_enabled="false"; [ -f "/run/prudynt/motion.active" ] && motion_enabled="true"
+    privacy_enabled="false"; [ -f "/run/prudynt/privacy.active" ] && privacy_enabled="true"
+
+    # Single prudyntctl call
+    prudynt_data=$(prudyntctl json - 2>/dev/null <<'EOF'
+{
+  "image": {"running_mode": null},
+  "audio": {"mic_enabled": null, "spk_enabled": null},
+  "daynight": {"status": null, "enabled": null}
+}
+EOF
+)
+
+    color_mode=$(echo "$prudynt_data" | grep -o '"running_mode":[^,}]*' | cut -d: -f2)
+    mic_enabled=$(echo "$prudynt_data" | grep -o '"mic_enabled":[^,}]*' | cut -d: -f2)
+    spk_enabled=$(echo "$prudynt_data" | grep -o '"spk_enabled":[^,}]*' | cut -d: -f2)
+    total_gain=$(echo "$prudynt_data" | grep -o '"total_gain":[0-9-]*' | cut -d: -f2)
+    total_gain="${total_gain:-0}"
+    daynight_enabled=$(echo "$prudynt_data" | grep -o '"enabled":[^,}]*' | cut -d: -f2)
+
+    ircut_state=$(ircut read 2>/dev/null || echo "null")
+    ir850_state=$(light ir850 read 2>/dev/null || echo "null")
+    ir940_state=$(light ir940 read 2>/dev/null || echo "null")
+    white_state=$(light white read 2>/dev/null || echo "null")
+
+    wg_status=0
+    if command -v wg >/dev/null 2>&1; then
+      wg show wg0 2>/dev/null | grep -q "latest handshake" && wg_status=1
+    fi
+
+    printf '{"time_now":%s,"daynight_brightness":"%s","total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"wg_status":%s}' \
+      "$(date +%s)" \
+      "$(awk '{print $1}' /run/prudynt/daynight_brightness 2>/dev/null || echo "unknown")" \
+      "$total_gain" \
+      "$(awk 'NR==1 {print $1}' /run/prudynt/daynight_mode 2>/dev/null || echo "unknown")" \
+      "$ch0_rec" \
+      "$ch1_rec" \
+      "$motion_enabled" \
+      "$privacy_enabled" \
+      "${color_mode:-null}" \
+      "${ircut_state}" \
+      "${ir850_state}" \
+      "${ir940_state}" \
+      "${white_state}" \
+      "${mic_enabled:-false}" \
+      "${spk_enabled:-false}" \
+      "${daynight_enabled:-false}" \
+      "$wg_status" > "$CACHE_FILE.tmp"
+
+    mv "$CACHE_FILE.tmp" "$CACHE_FILE"
+    sleep "$UPDATE_INTERVAL"
+  done
+}
+
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  restart)
+    stop
+    sleep 1
+    start
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart}"
+    exit 1
+    ;;
+esac

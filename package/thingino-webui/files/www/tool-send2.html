@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Send to Services</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-tool-send2">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <h2 class="mb-3">Send to Services</h2>
+      <p class="text-secondary mb-4">Configure where snapshots and video clips are delivered when motion is detected.</p>
+
+      <div class="row g-3">
+        <!-- Motion Detection Card -->
+        <div class="col-12 col-lg-6">
+          <div class="card h-100">
+            <div class="card-header">
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <span>Motion Detection</span>
+                <div class="form-switch m-0">
+                  <input class="form-check-input" type="checkbox" id="motion_enabled">
+                  <label class="form-check-label" for="motion_enabled">Start on boot</label>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <p>
+                <label for="motion_sensitivity">Sensitivity: <span id="motion_sensitivity_value"></span></label>
+                <input type="range" class="form-range" id="motion_sensitivity" min="1" max="8" step="1">
+              </p>
+              <p>
+                <label for="motion_cooldown">Cooldown: <span id="motion_cooldown_value"></span> seconds</label>
+                <input type="range" class="form-range" id="motion_cooldown" min="1" max="60" step="1">
+              </p>
+              <div class="text-end">
+                <button type="button" class="btn btn-primary" id="save_motion">
+                  <i class="bi bi-check-circle"></i> Save Motion Settings
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Services Overview Card -->
+        <div class="col-12 col-lg-6">
+          <div class="card h-100">
+            <div class="card-header">Available Services</div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 send2services">
+                  <thead>
+                    <tr>
+                      <th>Service</th>
+                      <th>On Motion</th>
+                      <th>Photo</th>
+                      <th>Video</th>
+                      <th>Test</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><a href="tool-send2-email.html"><i class="bi bi-envelope me-2"></i>Email</a></td>
+                      <td>
+                        <div class="form-switch d-inline-block m-0">
+                          <input class="form-check-input motion-sendto" type="checkbox" id="motion_send2email" data-service="send2email">
+                        </div>
+                      </td>
+                      <td><span id="status-email-photo" class="badge bg-secondary">…</span></td>
+                      <td><span id="status-email-video" class="badge bg-secondary">…</span></td>
+                      <td><button type="button" class="btn btn-outline-secondary btn-sm" data-sendto="email" data-sendto-bypass="true" title="Test email service">Test</button></td>
+                    </tr>
+                    <tr>
+                      <td><a href="tool-send2-ftp.html"><i class="bi bi-hdd-network me-2"></i>FTP</a></td>
+                      <td>
+                        <div class="form-switch d-inline-block m-0">
+                          <input class="form-check-input motion-sendto" type="checkbox" id="motion_send2ftp" data-service="send2ftp">
+                        </div>
+                      </td>
+                      <td><span id="status-ftp-photo" class="badge bg-secondary">…</span></td>
+                      <td><span id="status-ftp-video" class="badge bg-secondary">…</span></td>
+                      <td><button type="button" class="btn btn-outline-secondary btn-sm" data-sendto="ftp" data-sendto-bypass="true" title="Test FTP service">Test</button></td>
+                    </tr>
+                    <tr>
+                      <td><a href="tool-send2-telegram.html"><i class="bi bi-telegram me-2"></i>Telegram</a></td>
+                      <td>
+                        <div class="form-switch d-inline-block m-0">
+                          <input class="form-check-input motion-sendto" type="checkbox" id="motion_send2telegram" data-service="send2telegram">
+                        </div>
+                      </td>
+                      <td><span id="status-telegram-photo" class="badge bg-secondary">…</span></td>
+                      <td><span id="status-telegram-video" class="badge bg-secondary">…</span></td>
+                      <td><button type="button" class="btn btn-outline-secondary btn-sm" data-sendto="telegram" data-sendto-bypass="true" title="Test Telegram service">Test</button></td>
+                    </tr>
+                    <tr>
+                      <td><a href="tool-send2-mqtt.html"><i class="bi bi-broadcast me-2"></i>MQTT</a></td>
+                      <td>
+                        <div class="form-switch d-inline-block m-0">
+                          <input class="form-check-input motion-sendto" type="checkbox" id="motion_send2mqtt" data-service="send2mqtt">
+                        </div>
+                      </td>
+                      <td><span id="status-mqtt-photo" class="badge bg-secondary">…</span></td>
+                      <td><span id="status-mqtt-video" class="badge bg-secondary">…</span></td>
+                      <td><button type="button" class="btn btn-outline-secondary btn-sm" data-sendto="mqtt" data-sendto-bypass="true" title="Test MQTT service">Test</button></td>
+                    </tr>
+                    <tr>
+                      <td><a href="tool-send2-webhook.html"><i class="bi bi-link-45deg me-2"></i>Webhook</a></td>
+                      <td>
+                        <div class="form-switch d-inline-block m-0">
+                          <input class="form-check-input motion-sendto" type="checkbox" id="motion_send2webhook" data-service="send2webhook">
+                        </div>
+                      </td>
+                      <td><span id="status-webhook-photo" class="badge bg-secondary">…</span></td>
+                      <td><span id="status-webhook-video" class="badge bg-secondary">…</span></td>
+                      <td><button type="button" class="btn btn-outline-secondary btn-sm" data-sendto="webhook" data-sendto-bypass="true" title="Test Webhook service">Test</button></td>
+                    </tr>
+                    <tr>
+                      <td><a href="tool-send2-storage.html"><i class="bi bi-hdd me-2"></i>Storage</a></td>
+                      <td>
+                        <div class="form-switch d-inline-block m-0">
+                          <input class="form-check-input motion-sendto" type="checkbox" id="motion_send2storage" data-service="send2storage">
+                        </div>
+                      </td>
+                      <td><span id="status-storage-photo" class="badge bg-secondary">…</span></td>
+                      <td><span id="status-storage-video" class="badge bg-secondary">…</span></td>
+                      <td><button type="button" class="btn btn-outline-secondary btn-sm" data-sendto="storage" data-sendto-bypass="true" title="Test Storage service">Test</button></td>
+                    </tr>
+                    <tr>
+                      <td><a href="tool-send2-ntfy.html"><i class="bi bi-bell me-2"></i>Ntfy</a></td>
+                      <td>
+                        <div class="form-switch d-inline-block m-0">
+                          <input class="form-check-input motion-sendto" type="checkbox" id="motion_send2ntfy" data-service="send2ntfy">
+                        </div>
+                      </td>
+                      <td><span id="status-ntfy-photo" class="badge bg-secondary">…</span></td>
+                      <td><span id="status-ntfy-video" class="badge bg-secondary">…</span></td>
+                      <td><button type="button" class="btn btn-outline-secondary btn-sm" data-sendto="ntfy" data-sendto-bypass="true" title="Test Ntfy service">Test</button></td>
+                    </tr>
+                    <tr>
+                      <td><a href="tool-send2-gphotos.html"><i class="bi bi-google me-2"></i>Google Photos</a></td>
+                      <td>
+                        <div class="form-switch d-inline-block m-0">
+                          <input class="form-check-input motion-sendto" type="checkbox" id="motion_send2gphotos" data-service="send2gphotos">
+                        </div>
+                      </td>
+                      <td><span id="status-gphotos-photo" class="badge bg-secondary">…</span></td>
+                      <td><span id="status-gphotos-video" class="badge bg-secondary">…</span></td>
+                      <td><button type="button" class="btn btn-outline-secondary btn-sm" data-sendto="gphotos" data-sendto-bypass="true" title="Test Google Photos service">Test</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- Test Modal -->
+<div class="modal fade" id="send2-test-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="send2-test-title">Send test</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" id="send2-test-verbose" checked>
+            <label class="form-check-label small" for="send2-test-verbose">Wait for command output</label>
+          </div>
+          <span class="text-secondary small">Disable for quick fire-and-forget tests.</span>
+        </div>
+        <pre class="terminal" id="send2-test-output" style="white-space: break-spaces">(no output yet)</pre>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/tool-send2.js"></script>
+</body>
+</html>

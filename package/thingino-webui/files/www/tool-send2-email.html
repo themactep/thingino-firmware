@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Email Configuration</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-tool-send2-email">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <a href="tool-send2.html" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-arrow-left"></i> Back to Services
+        </a>
+        <h2 class="mb-0">Email Configuration</h2>
+      </div>
+
+      <form id="emailForm" class="needs-validation" novalidate autocomplete="off">
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-4">
+
+          <!-- SMTP Server Settings -->
+          <div class="col">
+            <div class="card h-100">
+              <div class="card-header">SMTP Server</div>
+              <div class="card-body">
+                <div class="row g-1 mb-3">
+                  <div class="col-9">
+                    <label for="email_host">Server address</label>
+                    <input type="text" class="form-control" id="email_host" name="email_host" placeholder="smtp.gmail.com" required>
+                  </div>
+                  <div class="col-3">
+                    <label for="email_port">Port</label>
+                    <input type="number" class="form-control" id="email_port" name="email_port" value="587" required>
+                  </div>
+                </div>
+                <p>
+                  <label for="email_username">Username</label>
+                  <input type="text" class="form-control" id="email_username" name="email_username" autocomplete="username">
+                </p>
+                <p>
+                  <label for="email_password">Password</label>
+                  <input type="password" class="form-control" id="email_password" name="email_password" autocomplete="current-password">
+                </p>
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="email_use_ssl" name="email_use_ssl">
+                  <label class="form-check-label" for="email_use_ssl">Use TLS/SSL</label>
+                </p>
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="email_trust_cert" name="email_trust_cert">
+                  <label class="form-check-label" for="email_trust_cert">Ignore SSL certificate validity</label>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Email Addresses -->
+          <div class="col">
+            <div class="card h-100">
+              <div class="card-header">Email Addresses</div>
+              <div class="card-body">
+                <p>
+                  <label for="email_from_name">Sender's name</label>
+                  <input type="text" class="form-control" id="email_from_name" name="email_from_name" placeholder="Camera">
+                </p>
+                <p>
+                  <label for="email_from_address">Sender's address</label>
+                  <input type="email" class="form-control" id="email_from_address" name="email_from_address" placeholder="camera@example.com" required>
+                </p>
+                <p>
+                  <label for="email_to_name">Recipient's name</label>
+                  <input type="text" class="form-control" id="email_to_name" name="email_to_name" placeholder="Admin">
+                </p>
+                <p>
+                  <label for="email_to_address">Recipient's address</label>
+                  <input type="email" class="form-control" id="email_to_address" name="email_to_address" placeholder="admin@example.com" required>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Message Content -->
+          <div class="col">
+            <div class="card h-100">
+              <div class="card-header">Message Content</div>
+              <div class="card-body">
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="email_send_photo" name="email_send_photo" checked>
+                  <label class="form-check-label" for="email_send_photo">Send snapshot</label>
+                </p>
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="email_send_video" name="email_send_video">
+                  <label class="form-check-label" for="email_send_video">Send video</label>
+                </p>
+                <p>
+                  <label for="email_subject">Email subject</label>
+                  <input type="text" class="form-control" id="email_subject" name="email_subject" placeholder="Motion detected">
+                </p>
+                <p>
+                  <label for="email_body">Email text</label>
+                  <textarea class="form-control" id="email_body" name="email_body" rows="4" placeholder="Motion was detected at %datetime%"></textarea>
+                  <small class="form-text text-secondary">Line breaks will be replaced with whitespaces</small>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-end">
+          <button type="button" class="btn btn-outline-secondary" id="email-reload">
+            <i class="bi bi-arrow-clockwise"></i> Reload
+          </button>
+          <button type="button" class="btn btn-outline-primary" id="test-email">
+            <i class="bi bi-send"></i> Test
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle"></i> Save Settings
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/tool-send2-email.js"></script>
+</body>
+</html>

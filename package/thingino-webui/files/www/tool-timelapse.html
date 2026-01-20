@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Timelapse Recorder</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-tool-timelapse">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <div class="card mb-3">
+        <div class="card-body">
+          <h3 class="card-title">Timelapse Recorder</h3>
+          <p class="small text-secondary">Capture periodic snapshots and store them alongside your clips.
+            Need continuous video recording instead? <a href="/tool-record.html" class="link-light text-decoration-none">Open the video recorder</a>.</p>
+
+          <form id="timelapseForm" class="needs-validation" novalidate>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
+              <div class="col">
+                <p>
+                  <label for="timelapseMount">Storage mountpoint</label>
+                  <a href="/tool-file-manager.html" class="text-decoration-none" id="timelapseMountLink">Open in File Manager</a>
+                  <select class="form-select" id="timelapseMount" data-help="Snapshots will be stored inside this mount">
+                    <option value="">Loading mounts...</option>
+                  </select>
+                </p>
+                <p>
+                  <label for="timelapseFilepath">Device-specific subdirectory</label>
+                  <input type="text" class="form-control" id="timelapseFilepath" autocomplete="off" placeholder="camera/timelapses"
+                    data-help="Keeps files separated when multiple cameras share storage">
+                </p>
+                <p>
+                  <label for="timelapseFilename">Image filename template</label>
+                  <input type="text" class="form-control strftime" id="timelapseFilename" autocomplete="off" placeholder="%Y%m%d/%Y%m%dT%H%M%S.jpg">
+                </p>
+              </div>
+              <div class="col">
+                <p>
+                  <label for="timelapseInterval">Snapshot cadence, minutes</label>
+                  <input type="number" class="form-control" id="timelapseInterval" min="1" max="1440" step="1" value="1">
+                </p>
+                <p>
+                  <label for="timelapseKeepDays">Retention window, days</label>
+                  <input type="number" class="form-control" id="timelapseKeepDays" min="0" max="365" step="1" value="7">
+                </p>
+              </div>
+              <div class="col">
+                <div class="card h-100">
+                  <div class="card-header">
+                    <div class="form-switch mb-0">
+                      <input class="form-check-input" type="checkbox" role="switch" id="timelapsePreset">
+                      <label class="form-check-label" for="timelapsePreset">Apply snapshot preset before each shot</label>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <p class="text-secondary small">Preset values are applied before each snapshot and reverted immediately after.</p>
+                    <dl>
+                      <dd class="form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="presetIrcut">
+                        <label class="form-check-label" for="presetIrcut">IR-cut filter</label>
+                      </dd>
+                      <dd class="form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="presetIr850">
+                        <label class="form-check-label" for="presetIr850">IR LED 850 nm</label>
+                      </dd>
+                      <dd class="form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="presetIr940">
+                        <label class="form-check-label" for="presetIr940">IR LED 940 nm</label>
+                      </dd>
+                      <dd class="form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="presetWhite">
+                        <label class="form-check-label" for="presetWhite">White LED</label>
+                      </dd>
+                      <dd class="form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="presetColor">
+                        <label class="form-check-label" for="presetColor">Force color mode</label>
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p class="form-switch">
+              <input class="form-check-input" type="checkbox" role="switch" id="timelapseEnabled">
+              <label class="form-check-label" for="timelapseEnabled">Launch timelapse recorder on boot</label>
+            </p>
+
+            <button type="submit" id="timelapseSubmit" class="btn btn-primary">
+              <i class="bi bi-save me-1"></i>
+              Save changes
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <div class="alert alert-info">
+      <p class="mb-2">Combine still images into a single video on your computer:</p>
+      <pre class="cb mb-0">ffmpeg -r 10 -f image2 -pattern_type glob -i '*.jpg' -vcodec libx264 -an timelapse.mp4</pre>
+    </div>
+
+    <section class="ui-debug d-none">
+      <h6>Timelapse recorder</h6>
+      <pre id="debugTimelapse"></pre>
+      <h6>Crontab</h6>
+      <pre id="debugCrontab"></pre>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/tool-timelapse.js"></script>
+</body>
+</html>

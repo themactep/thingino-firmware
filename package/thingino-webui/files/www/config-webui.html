@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Web Interface</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-config-webui">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <form id="webuiForm" class="needs-validation" novalidate autocomplete="off">
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">Web User Interface Settings</h2>
+            <small>Configure Web UI</small>
+            <button type="button" class="btn btn-outline-secondary" id="webui-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div><!-- .card-header -->
+          <div class="card-body">
+            <div class="row g-4">
+              <div class="col-12 col-lg-4">
+                <h4>Account Credentials</h4>
+                <small>Password for <b>root</b> user</small>
+                <p>
+                  <label for="webui_username">Web UI username</label>
+                  <input type="text" id="webui_username" class="form-control" value="root" readonly>
+                </p>
+                <p>
+                  <label for="webui_password">New password</label>
+                  <input type="password" id="webui_password" class="form-control" placeholder="K3wLH@Zk3R!" autocomplete="new-password">
+                  <span class="form-text">Leave blank to keep the current password.</span>
+                </p>
+              </div>
+              <div class="col-12 col-lg-4">
+                <h4>Appearance</h4>
+                <small>...</small>
+                <p>
+                  <label for="webui_theme">Theme</label>
+                  <select id="webui_theme" class="form-select">
+                    <option value="auto">Auto</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select>
+                  <span class="form-text">Auto mode switches to dark mode after sunset.</span>
+                </p>
+                <p class="form-switch">
+                  <input class="form-check-input" type="checkbox" id="webui_paranoid" role="switch">
+                  <label class="form-check-label" for="webui_paranoid">Paranoid mode</label><br>
+                  <span class="form-text">Use simplified local assets. Useful when camera is isolated from the internet.</span>
+                </p>
+              </div><!-- .col -->
+              <div class="col-12 col-lg-4">
+                <h4>Stream Behavior</h4>
+                <small>Control MJPEG streaming behavior</small>
+                <p class="form-switch">
+                  <input class="form-check-input" type="checkbox" id="webui_track_focus" role="switch">
+                  <label class="form-check-label" for="webui_track_focus">Track browser focus</label><br>
+                  <span class="form-text">Stop streaming when browser tab loses focus to save bandwidth.</span>
+                </p>
+                <p>
+                  <label for="webui_focus_timeout">Focus timeout (seconds)</label>
+                  <input type="number" id="webui_focus_timeout" class="form-control" min="0" max="300" value="0">
+                  <span class="form-text">Delay before stopping stream when focus is lost (0 = immediate).</span>
+                </p>
+              </div><!-- .col -->
+            </div><!-- .row -->
+          </div><!-- .card-body -->
+        </div><!-- .card -->
+        <button type="submit" id="webui_submit" class="btn btn-primary">Save changes</button>
+      </form>
+    </section>
+  </div><!-- .container -->
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/config-webui.js"></script>
+</body>
+</html>

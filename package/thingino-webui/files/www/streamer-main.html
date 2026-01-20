@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · RTSP Main Stream</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-streamer-main">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container">
+    <div data-app-controls></div>
+
+    <h3>RTSP Main Stream</h3>
+
+    <div class="row mb-3">
+      <div class="col-12 col-xl-4">
+        <div id="frame" class="position-relative">
+          <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Image: Preview" tabindex="-1" data-stream="ch0">
+        </div>
+      </div>
+      <div class="col col-xl-8">
+        <div class="row g-2">
+          <div class="col">
+            <p>
+              <label for="stream0_width">Width</label>
+              <input type="text" id="stream0_width" name="stream0_width" class="form-control" value="">
+            </p>
+            <p>
+              <label for="stream0_height">Height</label>
+              <input type="text" id="stream0_height" name="stream0_height" class="form-control" value="">
+            </p>
+            <p>
+              <label for="stream0_format">Format</label>
+              <select class="form-select" id="stream0_format" name="stream0_format">
+                <option value="">- Select -</option>
+                <option value="H264">H264</option>
+                <option value="H265">H265</option>
+              </select>
+            </p>
+          </div><!-- .col -->
+          <div class="col">
+            <p>
+              <label for="stream0_fps">FPS</label>
+              <input type="text" id="stream0_fps" name="stream0_fps" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="5" data-max="30" data-step="1">
+            </p>
+            <p>
+              <label for="stream0_gop">GOP</label>
+              <input type="text" id="stream0_gop" name="stream0_gop" class="form-control" value="">
+            </p>
+            <p>
+              <label for="stream0_max_gop">Max GOP</label>
+              <input type="text" id="stream0_max_gop" name="stream0_max_gop" class="form-control" value="">
+            </p>
+          </div><!-- .col -->
+          <div class="col">
+            <p>
+              <label for="stream0_mode">Mode</label>
+              <select class="form-select" id="stream0_mode" name="stream0_mode">
+                <option value="">- Select -</option>
+                <option value="CBR">CBR</option>
+                <option value="VBR">VBR</option>
+                <option value="FIXQP">FIXQP</option>
+                <option value="CAPPED_VBR">CAPPED VBR</option>
+                <option value="CAPPED_QUALITY">CAPPED QUALITY</option>
+              </select>
+            </p>
+            <p>
+              <label for="stream0_bitrate">Bitrate</label>
+              <input type="text" id="stream0_bitrate" name="stream0_bitrate" class="form-control" value="">
+            </p>
+            <p>
+              <label for="stream0_profile">Profile</label>
+              <input type="text" id="stream0_profile" name="stream0_profile" class="form-control" value="">
+            </p>
+          </div><!-- .col -->
+          <div class="col">
+            <p>
+              <label for="stream0_buffers">Buffers</label>
+              <input type="text" id="stream0_buffers" name="stream0_buffers" class="form-control" value="">
+            </p>
+            <p>
+              <label for="stream0_rtsp_endpoint">RTSP Endpoint</label>
+              <input type="text" id="stream0_rtsp_endpoint" name="stream0_rtsp_endpoint" class="form-control" value="">
+            </p>
+            <p class="form-switch">
+              <input type="hidden" id="stream0_video_enabled-false" name="stream0_video_enabled" value="false">
+              <input type="checkbox" id="stream0_video_enabled" name="stream0_video_enabled" value="true" role="switch" class="form-check-input">
+              <label for="stream0_video_enabled" class="form-check-label">Video in stream</label>
+            </p>
+            <p class="form-switch">
+              <input type="hidden" id="stream0_audio_enabled-false" name="stream0_audio_enabled" value="false">
+              <input type="checkbox" id="stream0_audio_enabled" name="stream0_audio_enabled" value="true" role="switch" class="form-check-input">
+              <label for="stream0_audio_enabled" class="form-check-label">Audio in stream</label>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/preview.js"></script>
+</body>
+</html>

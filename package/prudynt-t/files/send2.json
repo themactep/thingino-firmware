@@ -28,6 +28,17 @@
     "send_photo": false,
     "send_video": false
   },
+  "gphotos": {
+    "client_id": "",
+    "client_secret": "",
+    "refresh_token": "",
+    "album_id": "",
+    "description_template": "Thingino %type alert at %datetime",
+    "photo_name_template": "thingino-photo-%Y%m%d-%H%M%S",
+    "video_name_template": "thingino-clip-%Y%m%d-%H%M%S",
+    "send_photo": false,
+    "send_video": false
+  },
   "mqtt": {
     "host": "",
     "port": 1883,

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Telegram Configuration</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-tool-send2-telegram">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <a href="tool-send2.html" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-arrow-left"></i> Back to Services
+        </a>
+        <h2 class="mb-0">Telegram Configuration</h2>
+      </div>
+
+      <form id="telegramForm" class="needs-validation" novalidate autocomplete="off">
+        <div class="row row-cols-1 row-cols-lg-3 g-4 mb-4">
+
+          <!-- Bot Settings -->
+          <div class="col">
+            <div class="card h-100">
+              <div class="card-header">Bot Settings</div>
+              <div class="card-body">
+                <p>
+                  <label for="telegram_token">Bot Token</label>
+                  <input type="text" class="form-control" id="telegram_token" name="telegram_token" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ" required>
+                  <small class="form-text text-secondary">Get from <a href="https://t.me/BotFather" target="_blank">@BotFather</a></small>
+                </p>
+                <p>
+                  <label for="telegram_channel">Chat ID</label>
+                  <input type="text" class="form-control" id="telegram_channel" name="telegram_channel" placeholder="-100xxxxxxxxxxxx" required>
+                  <small class="form-text text-secondary">ID of the channel to post images to</small>
+                </p>
+                <p>
+                  <label for="telegram_caption">Photo caption</label>
+                  <input type="text" class="form-control" id="telegram_caption" name="telegram_caption" placeholder="Motion detected at %datetime%">
+                  <small class="form-text text-secondary">Available variables: %hostname, %datetime</small>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Message Content -->
+          <div class="col">
+            <div class="card h-100">
+              <div class="card-header">Message Content</div>
+              <div class="card-body">
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="telegram_send_photo" name="telegram_send_photo" checked>
+                  <label class="form-check-label" for="telegram_send_photo">Send photo</label>
+                </p>
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="telegram_send_video" name="telegram_send_video">
+                  <label class="form-check-label" for="telegram_send_video">Send video</label>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Help -->
+          <div class="col">
+            <h5 class="modal-title">To create a Telegram bot</h5>
+            <p>To create a channel for your Telegram bot:</p>
+            <ol>
+              <li>Start a chat with <a href="https://t.me/BotFather">@BotFather</a></li>
+              <li>Enter <code>/start</code> to start a session.</li>
+              <li>Enter <code>/newbot</code> to create a new bot.</li>
+              <li>Give your bot channel a name, e.g. <i>cool_cam_bot</i>.</li>
+              <li>Give your bot a username, e.g. <i>CoolCamBot</i>.</li>
+              <li>Copy the token assigned to your new bot by the BotFather, and paste it to the form.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="text-end">
+          <button type="button" class="btn btn-outline-secondary" id="telegram-reload">
+            <i class="bi bi-arrow-clockwise"></i> Reload
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle"></i> Save Settings
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/tool-send2-telegram.js"></script>
+</body>
+</html>

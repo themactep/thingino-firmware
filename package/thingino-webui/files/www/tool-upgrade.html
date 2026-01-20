@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Flash Operations</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-tool-upgrade">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <div class="rounded-4 border border-secondary-subtle mb-4 p-4 position-relative overflow-hidden"
+      style="background: radial-gradient(circle at 35% -10%, rgba(13,202,240,0.2), transparent 45%), radial-gradient(circle at 90% 120%, rgba(255,193,7,0.18), transparent 55%);">
+      <div class="row align-items-center g-3">
+        <div class="col-12 col-lg-8">
+          <span class="badge bg-info-subtle text-info-emphasis mb-2">Firmware and storage</span>
+          <h1 class="h3 mb-2">Flash operations & recovery</h1>
+          <p class="mb-0 text-secondary">Create encrypted backups, pull raw MTD partitions, trigger OTA upgrades, or upload a verified sysupgrade image without touching the shell.</p>
+        </div>
+        <div class="col-12 col-lg-4 text-lg-end">
+          <div class="d-inline-flex align-items-center gap-2 bg-black bg-opacity-25 rounded-pill px-3 py-2 small text-secondary">
+            <i class="bi bi-shield-lock"></i>
+            <span>Advanced maintenance</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+      <div id="statusMessage" class="alert alert-info flex-grow-1 mb-0 status-overlay">Ready</div>
+      <button type="button" class="btn btn-outline-secondary" id="refreshState">
+        <i class="bi bi-arrow-repeat me-1"></i>Refresh snapshot
+      </button>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-12 col-xl-5">
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+              <div>
+                <h5 class="card-title mb-0">Configuration backup</h5>
+                <p class="text-secondary small mb-0">Download a tar.gz archive of /etc (accounts, Wi-Fi, certificates).</p>
+              </div>
+              <button type="button" class="btn btn-primary" id="backupButton">
+                <i class="bi bi-download me-1"></i>Generate archive
+              </button>
+            </div>
+            <div class="small text-secondary" id="backupWarning"></div>
+            <dl class="row row-cols-1 row-cols-sm-2 gy-1 mb-0 small">
+              <dt class="col text-secondary">Suggested filename</dt>
+              <dd class="col" id="backupFilename">—</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-body">
+            <h5 class="card-title mb-2">MTD partition dump</h5>
+            <p class="text-secondary small">Saves a raw /dev/mtdX block for low-level recovery work. Expect large binary files.</p>
+            <div class="mb-3">
+              <label for="partitionSelect">Partition</label>
+              <select class="form-select" id="partitionSelect"></select>
+            </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+              <button type="button" class="btn btn-primary" id="partitionDownload">
+                <i class="bi bi-box-arrow-down me-1"></i>Save mtdblock
+              </button>
+              <small class="text-warning" id="partitionWarning"></small>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-body">
+            <h5 class="card-title mb-2">Thingino OTA update</h5>
+            <p class="text-secondary small">Fetch the latest signed image from GitHub and run sysupgrade with the selected scope.</p>
+            <div id="otaOptions" class="vstack gap-2 mb-3"></div>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+              <button type="button" class="btn btn-danger" id="otaRun">
+                <i class="bi bi-cloud-arrow-down me-1"></i>Download and Upgrade
+              </button>
+              <small class="text-secondary" id="otaNotes"></small>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-body">
+            <h5 class="card-title mb-2">Manual sysupgrade image</h5>
+            <p class="text-secondary small">Upload a verified .bin file and flash it directly from the browser.</p>
+            <div class="mb-3">
+              <label for="firmwareInput">Firmware image</label>
+              <input type="file" class="form-control" id="firmwareInput" accept=".bin,.img,.gz">
+            </div>
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+              <button type="button" class="btn btn-danger" id="uploadButton" disabled>
+                <i class="bi bi-upload me-1"></i>Upload and Flash
+              </button>
+              <div class="text-secondary small" id="uploadDetails"></div>
+            </div>
+            <div class="alert alert-danger mb-0 py-2" id="uploadWarning">Only flash official Thingino builds or vendor images you trust.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-xl-7">
+        <div class="card h-100">
+          <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+              <h5 class="card-title mb-0" id="commandHeading">Command console</h5>
+              <p class="text-secondary small mb-0">Streaming output from /x/run.cgi.</p>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="clearLog">
+                <i class="bi bi-eraser me-1"></i>Clear
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="copyLog" disabled>
+                <i class="bi bi-clipboard me-1"></i>Copy
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <pre id="output" class="terminal" data-reboot="true"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="ui-debug d-none">
+      <h6>/proc/mtd</h6>
+      <pre id="debugProcMtd">Waiting for data...</pre>
+      <h6>df -h</h6>
+      <pre id="debugDf">Waiting for data...</pre>
+      <h6>Uploaded image</h6>
+      <pre id="debugUpload">Waiting for data...</pre>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+
+<script src="/a/tool-upgrade.js"></script>
+</body>
+</html>

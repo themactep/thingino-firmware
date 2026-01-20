@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Image Quality</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-streamer-image">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container">
+    <div data-app-controls></div>
+
+    <h3>Image Quality</h3>
+
+    <div class="row mb-3">
+      <div class="col-12 col-xl-4">
+        <div id="frame" class="position-relative">
+          <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Image: Preview" tabindex="-1" data-stream="ch1">
+        </div>
+      </div>
+      <div class="col col-xl-8">
+        <div class="row g-2">
+          <div class="col">
+            <p>
+              <label for="brightness">Brightness</label>
+              <input type="text" id="brightness" name="brightness" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
+            </p>
+            <p>
+              <label for="contrast">Contrast</label>
+              <input type="text" id="contrast" name="contrast" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
+            </p>
+            <p>
+              <label for="sharpness">Sharpness</label>
+              <input type="text" id="sharpness" name="sharpness" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
+            </p>
+            <p>
+              <label for="saturation">Saturation</label>
+              <input type="text" id="saturation" name="saturation" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
+            </p>
+          </div><!-- .col -->
+          <div class="col">
+            <p>
+              <label for="backlight">Backlight</label>
+              <input type="text" id="backlight" name="backlight" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="10" data-step="1">
+            </p>
+            <p>
+              <label for="wide_dynamic_range">WDR</label><span class="input-group">
+              <input type="text" id="wide_dynamic_range" name="wide_dynamic_range" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
+            </p>
+            <p>
+              <label for="tone">Highlights</label>
+              <input type="text" id="tone" name="tone" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
+            </p>
+            <p>
+              <label for="defog">Defog</label>
+              <input type="text" id="defog" name="defog" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
+            </p>
+            <p>
+              <label for="noise_reduction">Noise reduction</label>
+              <input type="text" id="noise_reduction" name="noise_reduction" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
+            </p>
+          </div><!-- .col -->
+          <div class="col">
+            <p class="select" id="image_core_wb_mode_wrap">
+              <label for="image_core_wb_mode">White balance mode</label>
+              <select class="form-select" id="image_core_wb_mode" name="image_core_wb_mode">
+                <option value="0">AUTO</option>
+                <option value="1">MANUAL</option>
+                <option value="2">DAY LIGHT</option>
+                <option value="3">CLOUDY</option>
+                <option value="4">INCANDESCENT</option>
+                <option value="5">FLOURESCENT</option>
+                <option value="6">TWILIGHT</option>
+                <option value="7">SHADE</option>
+                <option value="8">WARM FLOURESCENT</option>
+                <option value="9">CUSTOM</option>
+              </select>
+            </p>
+            <p>
+              <label for="image_wb_bgain">Blue channel gain</label>
+              <input type="text" id="image_wb_bgain" name="image_wb_bgain" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="1024" data-step="1">
+            </p>
+            <p>
+              <label for="image_wb_rgain">Red channel gain</label>
+              <input type="text" id="image_wb_rgain" name="image_wb_rgain" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="1024" data-step="1">
+            </p>
+            <p>
+              <label for="image_ae_compensation"><abbr title="Automatic Exposure">AE</abbr> compensation</label>
+              <input type="text" id="image_ae_compensation" name="image_ae_compensation" class="form-control text-end" value="" pattern="[0-9]{1,}" data-min="0" data-max="255" data-step="1">
+            </p>
+          </div><!-- .col -->
+          <div class="col">
+            <p class="boolean form-switch" id="image_hflip_wrap">
+              <input type="hidden" id="image_hflip-false" name="image_hflip" value="false">
+              <input type="checkbox" id="image_hflip" name="image_hflip" value="true" role="switch" class="form-check-input">
+              <label for="image_hflip" class="form-check-label">V-Flip</label>
+            </p>
+            <p class="boolean form-switch" id="image_vflip_wrap">
+              <input type="hidden" id="image_vflip-false" name="image_vflip" value="false">
+              <input type="checkbox" id="image_vflip" name="image_vflip" value="true" role="switch" class="form-check-input">
+              <label for="image_vflip" class="form-check-label">H-Flip</label>
+            </p>
+          </div><!-- .col -->
+        </div><!-- .row -->
+      </div><!-- .col -->
+    </div><!-- .row -->
+  </div><!-- .container -->
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/preview.js"></script>
+</body>
+</html>

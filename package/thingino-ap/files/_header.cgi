@@ -50,7 +50,7 @@ configured_channel=$(jct "/etc/prudynt.json" get "recorder.channel" 2>/dev/null 
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" id="ddInfo" role="button">Information</a>
           <ul aria-labelledby="ddInfo" class="dropdown-menu">
-            <li><a class="dropdown-item" href="info.cgi">Commands and logs</a></li>
+            <li><a class="dropdown-item" href="/info.html">Commands and logs</a></li>
             <li><a class="dropdown-item" href="info-diagnostic.cgi">Share diagnostic info</a></li>
           </ul>
         </li>
@@ -186,7 +186,7 @@ configured_channel=$(jct "/etc/prudynt.json" get "recorder.channel" 2>/dev/null 
 
 <% if ! [ "true" = "$wlanap_enabled" ] && [ -z "$network_gateway" ]; then %>
     <div class="alert alert-warning">
-      <p>No Internet connection. Please <a href="config-network.cgi">check your network settings</a>.</p>
+      <p>No Internet connection. Please <a href="/config-network.html">check your network settings</a>.</p>
     </div>
 <% fi %>
 
@@ -205,7 +205,7 @@ configured_channel=$(jct "/etc/prudynt.json" get "recorder.channel" 2>/dev/null 
       <p>Network settings have been updated. Restart to apply changes.</p>
       <span class="d-flex flex-wrap gap-3">
         <a class="btn btn-danger" href="reboot.cgi">Reboot camera</a>
-        <a class="btn btn-primary" href="config-network.cgi">See network settings</a>
+        <a class="btn btn-primary" href="/config-network.html">See network settings</a>
       </span>
     </div>
 <% fi %>

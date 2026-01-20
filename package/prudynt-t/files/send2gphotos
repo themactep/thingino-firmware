@@ -1,0 +1,303 @@
+#!/bin/env sh
+
+. /usr/share/common
+. /usr/share/send2common
+
+domain="gphotos"
+config_file="/etc/send2.json"
+
+default_description="Thingino %type alert at %datetime"
+default_photo_template="thingino-photo-%Y%m%d-%H%M%S"
+default_video_template="thingino-clip-%Y%m%d-%H%M%S"
+
+oauth_token_url="https://oauth2.googleapis.com/token"
+photos_upload_url="https://photoslibrary.googleapis.com/v1/uploads"
+photos_create_url="https://photoslibrary.googleapis.com/v1/mediaItems:batchCreate"
+
+show_help() {
+	echo "Usage: $0 [options]
+Where:
+\t-a album     Google Photos album ID (optional)
+\t-c client    OAuth client ID
+\t-k secret    OAuth client secret
+\t-r token     OAuth refresh token
+\t-d template  Description template (supports %hostname, %datetime, %type, %filename)
+\t-p template  Photo filename template (strftime format, no extension)
+\t-q template  Video filename template (strftime format, no extension)
+\t-S           Send photo
+\t-V           Send video
+\t-v           Verbose output
+" >&2
+	exit 0
+}
+
+shell_escape() {
+	printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\''/g")"
+}
+
+escape_sed_replacement() {
+	printf '%s' "$1" | sed -e 's/[\\/&]/\\&/g'
+}
+
+render_template() {
+	local template="$1" media_type="$2" filename="$3"
+	[ -z "$template" ] && return
+	local host datetime
+	host=$(hostname -s 2>/dev/null || hostname)
+	datetime=$(date +"%Y-%m-%d %H:%M:%S")
+	local esc_host esc_date esc_type esc_filename
+	esc_host=$(escape_sed_replacement "$host")
+	esc_date=$(escape_sed_replacement "$datetime")
+	esc_type=$(escape_sed_replacement "$media_type")
+	esc_filename=$(escape_sed_replacement "$filename")
+	printf '%s' "$template" | sed \
+		-e "s/%hostname/$esc_host/g" \
+		-e "s/%datetime/$esc_date/g" \
+		-e "s/%type/$esc_type/g" \
+		-e "s/%filename/$esc_filename/g"
+}
+
+json_escape() {
+	printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\r//g' -e ':a;N;$!ba;s/\n/\\n/g'
+}
+
+build_filename_for() {
+	local template="$1" media_type="$2" ext="$3" base
+	base=$(render_template "$template" "$media_type" "")
+	[ -z "$base" ] && base="thingino-${media_type}-$(date +%Y%m%d-%H%M%S)"
+	base=$(printf '%s' "$base" | tr ' ' '_' | tr -c 'A-Za-z0-9._-' '-')
+	echo "${base}.${ext}"
+}
+
+get_mime_type() {
+	case "$1" in
+		jpg|jpeg) echo "image/jpeg" ;;
+		png) echo "image/png" ;;
+		gif) echo "image/gif" ;;
+		mp4) echo "video/mp4" ;;
+		mov) echo "video/quicktime" ;;
+		mkv) echo "video/x-matroska" ;;
+		*) echo "application/octet-stream" ;;
+	esac
+}
+
+read_config() {
+	[ -f "$config_file" ] || return
+
+	album_id=$(get_value album_id)
+	client_id=$(get_value client_id)
+	client_secret=$(get_value client_secret)
+	refresh_token=$(get_value refresh_token)
+	description_template=$(get_value description_template)
+	photo_name_template=$(get_value photo_name_template)
+	video_name_template=$(get_value video_name_template)
+	send_photo=$(get_value send_photo)
+	send_video=$(get_value send_video)
+}
+
+build_curl_base() {
+	if [ "true" = "$verbose" ]; then
+		printf '%s --verbose' "$CURL"
+	else
+		printf '%s --silent' "$CURL"
+	fi
+}
+
+refresh_access_token() {
+	local response_file command
+	response_file=$(mktemp)
+	add_to_garbage "$response_file"
+
+	command="$(build_curl_base) --request POST --url $(shell_escape "$oauth_token_url")"
+	command="$command -H 'Content-Type: application/x-www-form-urlencoded'"
+	command="$command --data-urlencode $(shell_escape "client_id=$client_id")"
+	command="$command --data-urlencode $(shell_escape "client_secret=$client_secret")"
+	command="$command --data-urlencode $(shell_escape "refresh_token=$refresh_token")"
+	command="$command --data-urlencode 'grant_type=refresh_token'"
+
+	[ "true" = "$verbose" ] && echo_command "$command"
+	if ! sh -c "$command" > "$response_file"; then
+		echo_error "Failed to refresh OAuth token"
+		return 1
+	fi
+
+	ACCESS_TOKEN=$(jct "$response_file" get access_token 2>/dev/null)
+	if [ -z "$ACCESS_TOKEN" ]; then
+		echo_error "OAuth response missing access_token"
+		[ "true" = "$verbose" ] && cat "$response_file" >&2
+		return 1
+	fi
+}
+
+build_payload() {
+	local upload_token="$1" file_name="$2" description="$3" output_file="$4"
+	local escaped_desc escaped_file escaped_token
+	escaped_desc=$(json_escape "$description")
+	escaped_file=$(json_escape "$file_name")
+	escaped_token=$(json_escape "$upload_token")
+	{
+		printf '{\n'
+		if [ -n "$album_id" ]; then
+			printf '  "albumId": "%s",\n' "$(json_escape "$album_id")"
+		fi
+		cat <<EOF
+  "newMediaItems": [
+    {
+      "description": "$escaped_desc",
+      "simpleMediaItem": {
+        "uploadToken": "$escaped_token",
+        "fileName": "$escaped_file"
+      }
+    }
+  ]
+}
+EOF
+	} > "$output_file"
+}
+
+upload_media_file() {
+	local source_file="$1" file_name="$2" mime_type="$3" command output
+	command="$(build_curl_base) --request POST --url $(shell_escape "$photos_upload_url")"
+	command="$command -H $(shell_escape "Authorization: Bearer $ACCESS_TOKEN")"
+	command="$command -H 'Content-Type: application/octet-stream'"
+	command="$command -H $(shell_escape "X-Goog-Upload-File-Name: $file_name")"
+	command="$command -H $(shell_escape "X-Goog-Upload-Protocol: raw")"
+	command="$command -H $(shell_escape "X-Goog-Upload-Content-Type: $mime_type")"
+	command="$command --data-binary @$(shell_escape "$source_file")"
+
+	[ "true" = "$verbose" ] && echo_command "$command"
+	if ! output=$(sh -c "$command"); then
+		echo_error "Failed to upload $file_name to Google Photos"
+		return 1
+	fi
+
+	printf '%s' "$output" | tr -d '\r\n'
+}
+
+create_media_item() {
+	local payload_file="$1" response_file command
+	response_file=$(mktemp)
+	add_to_garbage "$response_file"
+
+	command="$(build_curl_base) --request POST --url $(shell_escape "$photos_create_url")"
+	command="$command -H $(shell_escape "Authorization: Bearer $ACCESS_TOKEN")"
+	command="$command -H 'Content-Type: application/json'"
+	command="$command --data-binary @$(shell_escape "$payload_file")"
+
+	[ "true" = "$verbose" ] && echo_command "$command"
+	if ! sh -c "$command" > "$response_file"; then
+		echo_error "Failed to finalize Google Photos upload"
+		[ "true" = "$verbose" ] && cat "$response_file" >&2
+		return 1
+	fi
+
+	local status_code status_msg
+	status_code=$(jct "$response_file" path '$.newMediaItemResults[0].status.code' --mode values --unwrap-single 2>/dev/null)
+	status_msg=$(jct "$response_file" path '$.newMediaItemResults[0].status.message' --mode values --unwrap-single 2>/dev/null)
+
+	if [ -n "$status_code" ] && [ "$status_code" != "0" ]; then
+		echo_error "Google Photos rejected media: ${status_msg:-code $status_code}"
+		[ "true" = "$verbose" ] && cat "$response_file" >&2
+		return 1
+	fi
+}
+
+prepare_media_file() {
+	local media_type="$1"
+	case "$media_type" in
+		photo)
+			MEDIA_PATH=$(copy_photo) || true
+			[ -f "$MEDIA_PATH" ] || {
+				echo_error "Failed to capture snapshot"
+				return 1
+			}
+			MEDIA_EXT="jpg"
+			MEDIA_TEMPLATE="$photo_name_template"
+			;;
+		video)
+			MEDIA_PATH=$(copy_video) || true
+			[ -f "$MEDIA_PATH" ] || {
+				echo_error "Failed to record video clip"
+				return 1
+			}
+			MEDIA_EXT="${MEDIA_PATH##*.}"
+			[ "$MEDIA_EXT" = "$MEDIA_PATH" ] && MEDIA_EXT="mp4"
+			MEDIA_EXT=$(printf '%s' "$MEDIA_EXT" | tr 'A-Z' 'a-z')
+			MEDIA_TEMPLATE="$video_name_template"
+			;;
+		*)
+			echo_error "Unsupported media type $media_type"
+			return 1
+			;;
+	esac
+}
+
+send_media() {
+	local media_type="$1" file_name description mime upload_token payload_file
+	prepare_media_file "$media_type" || return 1
+	file_name=$(build_filename_for "$MEDIA_TEMPLATE" "$media_type" "$MEDIA_EXT")
+	description=$(render_template "$description_template" "$media_type" "$file_name")
+	[ -z "$description" ] && description=$(render_template "$default_description" "$media_type" "$file_name")
+	mime=$(get_mime_type "$MEDIA_EXT")
+
+	upload_token=$(upload_media_file "$MEDIA_PATH" "$file_name" "$mime") || return 1
+
+	payload_file=$(mktemp)
+	add_to_garbage "$payload_file"
+	build_payload "$upload_token" "$file_name" "$description" "$payload_file"
+
+	create_media_item "$payload_file" || return 1
+	echo_info "Uploaded $media_type as $file_name"
+}
+
+read_config
+
+while getopts "a:c:d:k:p:q:r:vSV" flag; do
+	case "$flag" in
+		a) album_id=$OPTARG ;;
+		c) client_id=$OPTARG ;;
+		d) description_template=$OPTARG ;;
+		k) client_secret=$OPTARG ;;
+		p) photo_name_template=$OPTARG ;;
+		q) video_name_template=$OPTARG ;;
+		r) refresh_token=$OPTARG ;;
+		v) verbose="true" ;;
+		S) send_photo="true" ;;
+		V) send_video="true" ;;
+		*) show_help ;;
+	esac
+done
+
+[ -z "$description_template" ] && description_template="$default_description"
+[ -z "$photo_name_template" ] && photo_name_template="$default_photo_template"
+[ -z "$video_name_template" ] && video_name_template="$default_video_template"
+
+if [ -z "$client_id" ] || [ -z "$client_secret" ] || [ -z "$refresh_token" ]; then
+	echo_error "client_id, client_secret, and refresh_token are required"
+	exit 1
+fi
+
+if [ -z "$send_photo$send_video" ]; then
+	send_photo=$(get_value send_photo)
+	send_video=$(get_value send_video)
+fi
+
+if [ "true" != "$send_photo" ] && [ "true" != "$send_video" ]; then
+	echo_error "Nothing to send. Enable send_photo and/or send_video first"
+	exit 1
+fi
+
+if ! refresh_access_token; then
+	exit 1
+fi
+
+status=0
+if [ "true" = "$send_photo" ]; then
+	send_media photo || status=1
+fi
+
+if [ "true" = "$send_video" ]; then
+	send_media video || status=1
+fi
+
+exit $status

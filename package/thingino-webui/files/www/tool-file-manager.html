@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · File Manager</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-tool-file-manager">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <div class="row align-items-center mb-3">
+      <div class="col-12 col-lg-8">
+        <h1 class="h3 mb-1">File Manager</h1>
+        <p class="text-secondary mb-0">Browse directories, download files, and preview MP4 recordings stored on the camera.</p>
+      </div>
+      <div class="col-12 col-lg-4 mt-3 mt-lg-0 d-flex gap-2 justify-content-lg-end flex-wrap">
+        <button type="button" class="btn btn-outline-secondary" id="btnParent">
+          <i class="bi bi-arrow-up me-1"></i> Up one level
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="btnRefresh">
+          <i class="bi bi-arrow-repeat me-1"></i> Refresh
+        </button>
+      </div>
+    </div>
+
+
+    <div class="status-overlay-region">
+
+      <nav aria-label="Directory trail" class="mb-3">
+        <ol class="breadcrumb mb-0" id="breadcrumbs"></ol>
+      </nav>
+
+      <div class="table-responsive">
+        <table class="table align-middle" id="fileTable">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col" class="text-end">Size (bytes)</th>
+              <th scope="col">Permissions</th>
+              <th scope="col">Date</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="emptyState" class="alert alert-secondary d-none">
+        <p class="mb-0">This directory is empty.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<div class="modal fade" id="playerModal" tabindex="-1" aria-labelledby="playerModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="playerModalLabel">Video preview</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <video id="player" class="w-100" controls playsinline></video>
+      </div>
+      <div class="modal-footer">
+        <a href="#" class="btn btn-primary" id="playerModalDownload">Download</a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="textEditorModal" tabindex="-1" aria-labelledby="textEditorModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="textEditorModalLabel">Text Editor</h1>
+        <div class="ms-auto d-flex gap-2">
+          <button type="button" class="btn btn-success" id="saveTextBtn">
+            <i class="bi bi-floppy me-1"></i>Save
+          </button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="modal-body p-0">
+        <div class="d-flex h-100">
+          <div class="flex-grow-1">
+            <textarea id="textEditor" class="form-control border-0 h-100"
+                      style="resize: none; font-family: 'Courier New', monospace; font-size: 14px;"
+                      placeholder="Loading file..."></textarea>
+          </div>
+          <div class="border-start" style="width: 300px; min-height: 400px;">
+            <div class="p-3">
+              <h6 class="mb-3">File Info</h6>
+              <div class="small">
+                <div class="mb-3">
+                  <strong>File:</strong>
+                  <div id="editorFileName" class="text-muted word-break"></div>
+                </div>
+                <div class="mb-3">
+                  <div class="form-switch">
+                    <input class="form-check-input" type="checkbox" id="lineWrapping" checked>
+                    <label class="form-check-label" for="lineWrapping">
+                      Line wrapping
+                    </label>
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <div class="form-switch">
+                    <input class="form-check-input" type="checkbox" id="autoBackup" checked>
+                    <label class="form-check-label" for="autoBackup">
+                      Auto backup on save
+                    </label>
+                  </div>
+                  <div class="form-text small">Download original before saving changes</div>
+                </div>
+                <div class="mb-3">
+                  <button type="button" class="btn btn-outline-warning btn-sm w-100" id="downloadBackupBtn">
+                    <i class="bi bi-download me-1"></i>Download Current Backup
+                  </button>
+                  <div class="form-text small">Save current version manually</div>
+                </div>
+                <div class="alert alert-danger" role="alert">
+                  <i class="bi bi-exclamation-triangle me-1"></i>
+                  Be careful editing system files! You can break the system!
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="me-auto small text-muted">
+          <span id="editorStatus">Ready</span>
+        </div>
+        <button type="button" class="btn btn-outline-secondary" id="reloadTextBtn">
+          <i class="bi bi-arrow-clockwise me-1"></i>Reload
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="fileActionsModal" tabindex="-1" aria-labelledby="fileActionsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="fileActionsModalLabel">File Actions</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex align-items-center mb-3">
+          <i class="bi bi-file-earmark fs-2 text-primary me-3" id="fileActionIcon"></i>
+          <div>
+            <h6 class="mb-1" id="fileActionName">filename.txt</h6>
+            <small class="text-muted" id="fileActionPath">/path/to/file</small>
+          </div>
+        </div>
+        <p class="text-muted small">What would you like to do with this file?</p>
+      </div>
+      <div class="modal-footer d-flex flex-column gap-2">
+        <button type="button" class="btn btn-info w-100 d-none" id="fileActionView">
+          <i class="bi bi-eye me-2"></i>View in Browser
+        </button>
+        <button type="button" class="btn btn-primary w-100" id="fileActionDownload">
+          <i class="bi bi-download me-2"></i>Download
+        </button>
+        <button type="button" class="btn btn-success w-100 d-none" id="fileActionEdit">
+          <i class="bi bi-pencil-square me-2"></i>Edit
+        </button>
+        <button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">
+          <i class="bi bi-x-circle me-2"></i>Close
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Image Preview Modal -->
+<div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-labelledby="imagePreviewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="imagePreviewModalLabel">Image Preview</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="imagePreviewImg" class="img-fluid" alt="Image preview" style="max-height: 70vh;">
+      </div>
+      <div class="modal-footer justify-content-between">
+        <div>
+          <small class="text-muted" id="imagePreviewPath"></small>
+        </div>
+        <div>
+          <a class="btn btn-primary" id="imagePreviewDownload" download>
+            <i class="bi bi-download me-2"></i>Download
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/tool-file-manager.js"></script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Sensor Data Collector</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+  <style>
+    #chart-container {
+      position: relative;
+      height: 500px;
+      margin-bottom: 2rem;
+    }
+
+    .controls select {
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      cursor: pointer;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .stat-card {
+      padding: 0.5rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 0.25rem;
+      background-color: var(--bs-body-bg);
+      text-align: center;
+    }
+
+    .stat-card.ev .stat-value {
+      color: #FF6384;
+    }
+
+    .stat-card.total_gain .stat-value {
+      color: #36A2EB;
+    }
+
+    .stat-card.ae_luma .stat-value {
+      color: #FFCE56;
+    }
+
+    .stat-card.daynight_brightness .stat-value {
+      color: #B8FF4D;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: #999;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: bold;
+      color: var(--bs-body-color);
+    }
+
+    .stat-detail {
+      font-size: 0.75rem;
+      color: #999;
+      margin-top: 0.25rem;
+    }
+
+    .stream-status {
+      font-size: 1rem;
+      margin-left: 0.5rem;
+    }
+
+    .stream-status.connected {
+      color: #28a745;
+    }
+
+    .stream-status.disconnected {
+      color: #dc3545;
+    }
+  </style>
+</head>
+
+<body id="page-tool-sensor-data">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+
+    <section class="card shadow-sm mb-4">
+      <div class="card-body">
+        <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-3 mb-3">
+          <div class="d-flex align-items-center gap-2">
+            <h2 class="mb-0">Raw Sensor Data Collection</h2>
+            <i id="stream-status" class="bi bi-circle-fill stream-status disconnected" title="Connecting..."></i>
+          </div>
+          <p class="mb-0 text-secondary small flex-grow-1">Graphs raw unprocessed sensor values for day/night algorithm analysis.</p>
+        </div>
+        <div class="row preview">
+          <div class="col-12 col-lg-5" id="preview-col">
+            <div id="frame" class="position-relative mb-2">
+              <img id="preview" src="/x/ch1.mjpg" class="img-fluid" alt="Image: Preview">
+            </div>
+            <h5 class="mt-3">Current Values</h5>
+            <div class="stat-grid" id="data-stats"></div>
+          </div>
+          <div class="col-12 col-lg-7" id="tabs-col">
+            <div id="chart-container">
+              <canvas id="dataChart"></canvas>
+            </div>
+            <div class="controls d-flex flex-wrap gap-1 w-100">
+              <button id="clear-data" class="btn btn-sm btn-danger">Clear Data</button>
+              <button id="toggle-pause" class="btn btn-sm btn-secondary">Pause</button>
+              <div class="btn-group" role="group" id="max-points">
+                <button type="button" class="btn btn-sm btn-secondary" data-points="100">100</button>
+                <button type="button" class="btn btn-sm btn-primary active" data-points="300">300</button>
+                <button type="button" class="btn btn-sm btn-secondary" data-points="600">600</button>
+                <button type="button" class="btn btn-sm btn-secondary" data-points="1200">1200</button>
+              </div>
+              <button id="export-json" class="btn btn-sm btn-outline-secondary">Export JSON</button>
+              <button id="export-csv" class="btn btn-sm btn-outline-secondary">Export CSV</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="ui-debug d-none">
+      <p>Use SSH (<code>thingino@camera</code>) to watch <code>/tmp/timegraph-stream.log</code> or query <code>/x/json-timegraph-stream.cgi</code> directly for troubleshooting.</p>
+    </div>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script src="/a/tool-sensor-data.js"></script>
+</body>
+</html>

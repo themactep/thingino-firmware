@@ -1,31 +1,65 @@
 #!/bin/sh
-. ./_json.sh
+
+http_200() {
+  printf 'Status: 200 OK\r\n'
+}
+
+http_400() {
+  printf 'Status: 400 Bad Request\r\n'
+}
+
+http_412() {
+  printf 'Status: 412 Precondition Failed\r\n'
+}
+
+json_header() {
+  printf 'Content-Type: application/json\r\n'
+  printf 'Cache-Control: no-store\r\n'
+  printf '\r\n'
+}
+
+json_error() {
+  http_412
+  json_header
+  printf '{"error":{"code":412,"message":"%s"}}
+' "$1"
+  exit 0
+}
+
+json_ok() {
+  http_200
+  json_header
+  if [ "{" = "${1:0:1}" ]; then
+    printf '{"code":200,"result":"success","message":%s}
+' "$1"
+  else
+    printf '{"code":200,"result":"success","message":"%s"}
+' "$1"
+  fi
+  exit 0
+}
 
 # @params: n - name, s - state
 if [ "$REQUEST_METHOD" = "POST" ]; then
-  eval $(echo "$CONTENT" | sed "s/&/;/g")
+  if [ -n "$CONTENT_LENGTH" ] && [ "$CONTENT_LENGTH" -gt 0 ]; then
+    CONTENT=$(dd bs=1 count="$CONTENT_LENGTH" 2>/dev/null)
+    eval $(echo "$CONTENT" | sed "s/&/;/g")
+  fi
 else
   eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
 fi
 
-[ -z "$n" ] && json_error "Required parameter '$n' is not set"
+[ -z "$n" ] && json_error "Required parameter 'n' is not set"
 
-eval pin=\$$n
-[ -z "$pin" ] && json_error "GPIO is not found"
+# Read GPIO pin from configuration file using jct (faster than grep)
+pin=$(jct /etc/thingino.json get gpio."$n".pin 2>/dev/null || jct /etc/thingino.json get gpio."$n" 2>/dev/null)
+[ -z "$pin" ] && json_error "GPIO '$n' is not configured"
 
 case "$s" in
-  0 | 1) state=${s:-0} ;;
-  *) [ $(gpio read $pin) -eq 0 ] && state=1 || state=0 ;;
+  0) state=0; gpio set "$pin" "$state" ;;
+  1) state=1; gpio set "$pin" "$state" ;;
+  *) state='"toggled"'; gpio toggle "$pin" ;;
 esac
 
-# default to output high
-[ "$pin" = "${pin//[^0-9]/}" ] && pin="${pin}O"
-case "${pin:0-1}" in
-  o) pin_on=0; pin_off=1 ;;
-  O) pin_on=1; pin_off=0 ;;
-esac
-pin=${pin:0:(-1)}
-
-gpio set "$pin" "$state"
-
-json_ok "{\"pin\":\"$pin\",\"status\":\"$(gpio read $pin)\"}"
+# Return immediately without verification
+printf 'Status: 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store\r\n\r\n{"pin":"%s","status":%s}\n' "$pin" "$state"

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Admin Profile</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-config-admin">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <form id="adminForm" class="needs-validation" novalidate autocomplete="off">
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">Admin Profile</h2>
+            <small>Name and email address of the admin record will be used as sender identity for emails originating from this camera</small>
+            <button type="button" class="btn btn-outline-secondary" id="admin-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div><!-- .card-header -->
+          <div class="card-body">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 mb-3">
+              <div class="col">
+                <p><label for="admin_name">Full name</label>
+                  <input type="text" id="admin_name" class="form-control"></p>
+                <p><label for="admin_email">Email address</label>
+                  <input type="email" id="admin_email" class="form-control"></p>
+                <p><label for="admin_telegram">Username on Telegram</label>
+                  <input type="text" id="admin_telegram" class="form-control" placeholder="@username"></p>
+                <p><label for="admin_discord">Username on Discord</label>
+                  <input type="text" id="admin_discord" class="form-control" placeholder="@username"></p>
+              </div><!-- .col -->
+            </div><!-- .row -->
+          </div><!-- .card-header -->
+        </div><!-- .card -->
+        <button type="submit" id="admin_submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Save changes</button>
+      </form>
+    </section>
+
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/config-admin.js"></script>
+</body>
+</html>

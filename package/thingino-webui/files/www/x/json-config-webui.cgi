@@ -1,0 +1,130 @@
+#!/bin/sh
+
+DOMAIN="webui"
+CONFIG_FILE="/etc/thingino.json"
+TMP_FILE="/tmp/${DOMAIN}-config.$$"
+REQ_FILE=""
+
+cleanup() {
+  [ -n "$TMP_FILE" ] && rm -f "$TMP_FILE"
+  [ -n "$REQ_FILE" ] && rm -f "$REQ_FILE"
+}
+trap cleanup EXIT
+
+json_escape() {
+  printf '%s' "$1" | sed \
+    -e 's/\\/\\\\/g' \
+    -e 's/"/\\"/g' \
+    -e "s/\r/\\r/g" \
+    -e "s/\n/\\n/g"
+}
+
+send_json() {
+  status="${2:-200 OK}"
+  printf 'Status: %s\n' "$status"
+  cat <<EOF
+Content-Type: application/json
+Cache-Control: no-store
+Pragma: no-cache
+
+$1
+EOF
+  exit 0
+}
+
+json_error() {
+  code="${1:-400}"
+  message="$2"
+  send_json "{\"error\":{\"code\":$code,\"message\":\"$(json_escape "$message")\"}}" "${3:-400 Bad Request}"
+}
+
+ensure_config() {
+  if [ ! -f "$CONFIG_FILE" ]; then
+    umask 077
+    echo '{}' >"$CONFIG_FILE"
+  fi
+}
+
+read_domain_json() {
+  ensure_config
+  local data
+  data=$(jct "$CONFIG_FILE" get "$DOMAIN" 2>/dev/null)
+  case "$data" in
+    ""|null)
+      data='{}'
+      ;;
+  esac
+  printf '%s' "$data"
+}
+
+write_config() {
+  ensure_config
+  TMP_FILE=$(mktemp /tmp/${DOMAIN}.XXXXXX)
+  echo '{}' >"$TMP_FILE"
+  jct "$TMP_FILE" set "$DOMAIN.theme" "$theme" >/dev/null 2>&1
+  jct "$TMP_FILE" set "$DOMAIN.paranoid" "$paranoid" >/dev/null 2>&1
+  jct "$CONFIG_FILE" import "$TMP_FILE" >/dev/null 2>&1
+}
+
+read_body() {
+  REQ_FILE=$(mktemp /tmp/${DOMAIN}-req.XXXXXX)
+  if [ -n "$CONTENT_LENGTH" ]; then
+    dd bs=1 count="$CONTENT_LENGTH" 2>/dev/null >"$REQ_FILE"
+  else
+    cat >"$REQ_FILE"
+  fi
+}
+
+normalize_theme() {
+  case "$1" in
+    light|dark|auto) printf '%s' "$1" ;;
+    ""|null) printf 'auto' ;;
+    *) json_error 422 "Unsupported theme" "422 Unprocessable Entity" ;;
+  esac
+}
+
+normalize_bool() {
+  case "$(printf '%s' "$1" | tr 'A-Z' 'a-z')" in
+    1|true|yes|on) printf 'true' ;;
+    0|false|no|off|""|null) printf 'false' ;;
+    *) json_error 422 "Invalid boolean value" "422 Unprocessable Entity" ;;
+  esac
+}
+
+handle_get() {
+  send_json "$(read_domain_json)"
+}
+
+handle_post() {
+  read_body
+  new_theme=$(jct "$REQ_FILE" get theme 2>/dev/null)
+  new_paranoid=$(jct "$REQ_FILE" get paranoid 2>/dev/null)
+  new_password=$(jct "$REQ_FILE" get password 2>/dev/null)
+
+  theme=$(normalize_theme "$new_theme")
+  paranoid=$(normalize_bool "$new_paranoid")
+
+  write_config
+
+  if [ -n "$new_password" ]; then
+    if command -v chpasswd >/dev/null 2>&1; then
+      echo "root:$new_password" | chpasswd -c sha512 >/dev/null 2>&1 || json_error 500 "Failed to update password" "500 Internal Server Error"
+    else
+      json_error 500 "Password tool missing" "500 Internal Server Error"
+    fi
+  fi
+
+  send_json '{"status":"ok"}'
+}
+
+case "$REQUEST_METHOD" in
+  GET|"")
+    handle_get
+    ;;
+  POST)
+    handle_post
+    ;;
+  *)
+    json_error 405 "Method not allowed" "405 Method Not Allowed"
+    ;;
+esac

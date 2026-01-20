@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · WireGuard VPN</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-config-wireguard">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <div id="wg-not-supported" class="alert alert-danger d-none">
+      <p><strong>WireGuard is not supported on this camera.</strong></p>
+      <p>The WireGuard binary (<code>/bin/wg</code>) is not found on your system.</p>
+    </div>
+
+    <section>
+      <form id="wireguardForm" class="needs-validation" novalidate autocomplete="off">
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title"><img src="/a/wireguard.svg" alt="WireGuard" class="img-fluid icon float-start me-3 mb-1" style="max-width: 48px"> Wireguard VPN</h2>
+            <small>WireGuard is a fast and simple general purpose VPN. <a href="https://github.com/themactep/thingino-firmware/wiki/VPN:-Wireguard" target="_blank">Thingino Wiki</a></small>
+            <button type="button" class="btn btn-outline-secondary" id="wireguard-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div><!-- .card-header -->
+          <div class="card-body">
+            <div class="row g-4">
+              <div class="col-12 col-lg-4">
+                <h4>Interface</h4>
+                <small>VPN client tunnel settings</small>
+                <p>
+                  <label for="wg_privkey">Private Key</label>
+                  <input type="password" id="wg_privkey" class="form-control">
+                </p>
+                <p>
+                  <label for="wg_peerpsk">Pre-Shared Key</label>
+                  <input type="password" id="wg_peerpsk" class="form-control">
+                </p>
+                <p>
+                  <label for="wg_address">FQDN or IP address</label>
+                  <input type="text" id="wg_address" class="form-control">
+                </p>
+                <p>
+                  <label for="wg_port">Port</label>
+                  <input type="text" id="wg_port" class="form-control">
+                </p>
+                <p>
+                  <label for="wg_dns">DNS</label>
+                  <input type="text" id="wg_dns" class="form-control">
+                </p>
+              </div><!-- .col -->
+              <div class="col col-12 col-lg-6 col-xxl-4 order-3 order-xxl-2">
+                <h4>Peer</h4>
+                <small>VPN server settings</small>
+                <p>
+                  <label for="wg_endpoint">Endpoint host:port</label>
+                  <input type="text" id="wg_endpoint" class="form-control">
+                </p>
+                <p>
+                  <label for="wg_peerpub">Peer Public Key</label>
+                  <input type="text" id="wg_peerpub" class="form-control">
+                </p>
+                <p>
+                  <label for="wg_mtu">MTU</label>
+                  <input type="text" id="wg_mtu" class="form-control">
+                </p>
+                <p>
+                  <label for="wg_keepalive">Persistent Keepalive</label>
+                  <input type="text" id="wg_keepalive" class="form-control">
+                </p>
+                <p>
+                  <label for="wg_allowed">Allowed CIDRs (networks)</label>
+                  <input type="text" id="wg_allowed" class="form-control">
+                </p>
+              </div><!-- .col -->
+              <div class="col col-12 col-lg-12 col-xxl-4 order-1 order-xxl-3">
+                <div id="wg-ctrl" class="alert d-none">
+                  <p id="wg-ctrl-message"></p>
+                  <p class="text-end mb-0">
+                    <button type="button" class="btn" id="btn-wg-toggle">Switch WireGuard <span id="wg-toggle-label"></span></button>
+                  </p>
+                </div><!-- .alert -->
+              </div><!-- .col -->
+            </div><!-- .row -->
+          </div><!-- .card-body -->
+        </div><!-- .card -->
+
+        <p class="form-switch">
+          <input type="checkbox" id="wg_enabled" class="form-check-input" role="switch">
+          <label for="wg_enabled" class="form-check-label">Run WireGuard at boot</label>
+        </p>
+
+        <button type="submit" id="wg_submit" class="btn btn-primary">Save changes</button>
+      </form>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/config-wireguard.js"></script>
+</body>
+</html>

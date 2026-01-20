@@ -3,7 +3,13 @@ const ThreadVideo = 2;
 const ThreadAudio = 4;
 const ThreadOSD = 8;
 
+const ImageNoStream = '/a/nostream.svg';
+
 let max = 0;
+
+if (typeof window !== 'undefined') {
+	window.network_address = window.network_address || window.location.hostname || '';
+}
 
 let recordingState = {
 	ch0: false,
@@ -14,6 +20,7 @@ const HeartBeatMaxReconnectDelay = 60 * 1000;
 const HeartBeatEndpoint = '/x/json-heartbeat.cgi';
 let heartbeatSource = null;
 let currentReconnectDelay = HeartBeatReconnectDelay;
+let debugModalCtx = null;
 
 function $(n) {
 	return document.querySelector(n)
@@ -23,6 +30,194 @@ function $$(n) {
 	return document.querySelectorAll(n)
 }
 
+function $n(n) {
+	return document.createElement(n)
+}
+
+function decodeBase64String(encoded) {
+	if (!encoded) return '';
+	try {
+		const binary = atob(encoded);
+		if (window.TextDecoder) {
+			const bytes = new Uint8Array(binary.length);
+			for (let i = 0; i < binary.length; i += 1) {
+				bytes[i] = binary.charCodeAt(i);
+			}
+			return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+		}
+		return binary;
+	} catch (err) {
+		console.warn('Failed to decode base64 payload', err);
+		return '';
+	}
+}
+
+function hideDebugModal(ctx = debugModalCtx) {
+	if (!ctx) return;
+	if (ctx.modalInstance) {
+		ctx.modalInstance.hide();
+	} else {
+		ctx.modalEl.classList.remove('show');
+		ctx.modalEl.style.display = 'none';
+		ctx.modalEl.setAttribute('aria-hidden', 'true');
+		ctx.modalEl.removeAttribute('aria-modal');
+		if (ctx.buttonRef) ctx.buttonRef.classList.remove('active');
+	}
+}
+
+function showDebugModal(ctx = debugModalCtx) {
+	if (!ctx) return;
+	if (ctx.modalInstance) {
+		ctx.modalInstance.show();
+	} else {
+		ctx.modalEl.classList.add('show');
+		ctx.modalEl.style.display = 'block';
+		ctx.modalEl.removeAttribute('aria-hidden');
+		ctx.modalEl.setAttribute('aria-modal', 'true');
+	}
+}
+
+function ensureDebugModalStructure() {
+	if (debugModalCtx) return debugModalCtx;
+	const modalEl = document.createElement('div');
+	modalEl.id = 'debugInfoModal';
+	modalEl.className = 'modal fade';
+	modalEl.tabIndex = -1;
+	modalEl.setAttribute('aria-hidden', 'true');
+	modalEl.innerHTML = `
+	  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+	    <div class="modal-content">
+	      <div class="modal-header">
+	        <h5 class="modal-title">Debug information</h5>
+	        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+	      </div>
+	      <div class="modal-body">
+	        <p class="text-body-secondary mb-0">No debug information available.</p>
+	      </div>
+	    </div>
+	  </div>`;
+	document.body.appendChild(modalEl);
+	const modalBody = modalEl.querySelector('.modal-body');
+	let modalInstance = null;
+	if (window.bootstrap && window.bootstrap.Modal) {
+		modalInstance = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+	}
+	const ctx = {
+		modalEl,
+		modalBody,
+		modalInstance,
+		buttonRef: null
+	};
+	const closeBtn = modalEl.querySelector('.btn-close');
+	if (closeBtn && (!window.bootstrap || !window.bootstrap.Modal)) {
+		closeBtn.addEventListener('click', ev => {
+			ev.preventDefault();
+			hideDebugModal(ctx);
+		});
+	}
+	modalEl.addEventListener('hidden.bs.modal', () => {
+		if (ctx.buttonRef) ctx.buttonRef.classList.remove('active');
+	});
+	debugModalCtx = ctx;
+	return ctx;
+}
+
+function populateDebugModalContent() {
+	const ctx = ensureDebugModalStructure();
+	if (!ctx || !ctx.modalBody) return ctx;
+	const fragment = document.createDocumentFragment();
+	document.querySelectorAll('.ui-debug').forEach(panel => {
+		const clone = panel.cloneNode(true);
+		clone.classList.remove('d-none');
+		fragment.appendChild(clone);
+	});
+	ctx.modalBody.innerHTML = '';
+	if (!fragment.childNodes.length) {
+		const placeholder = document.createElement('p');
+		placeholder.className = 'text-body-secondary mb-0';
+		placeholder.textContent = 'No debug information available.';
+		ctx.modalBody.appendChild(placeholder);
+	} else {
+		ctx.modalBody.appendChild(fragment);
+	}
+	return ctx;
+}
+
+const ThemeState = {
+	endpoint: '/x/json-config-webui.cgi',
+	preferenceKey: 'thingino-theme-preference',
+	activeKey: 'thingino-theme-active'
+};
+
+function safeStorageGet(key) {
+	try {
+		if (!window.localStorage) return null;
+		return localStorage.getItem(key);
+	} catch (err) {
+		return null;
+	}
+}
+
+function safeStorageSet(key, value) {
+	try {
+		if (!window.localStorage) return;
+		if (value === null || typeof value === 'undefined' || value === '') {
+			localStorage.removeItem(key);
+			return;
+		}
+		localStorage.setItem(key, value);
+	} catch (err) {
+		// Best effort cache, ignore failures
+	}
+}
+
+function applyThemeAttribute(theme) {
+	if (!theme) return;
+	document.documentElement.setAttribute('data-bs-theme', theme);
+}
+
+function rememberThemeState(activeTheme, preferenceTheme) {
+	if (activeTheme) {
+		safeStorageSet(ThemeState.activeKey, activeTheme);
+		applyThemeAttribute(activeTheme);
+	}
+	if (preferenceTheme) {
+		safeStorageSet(ThemeState.preferenceKey, preferenceTheme);
+	}
+}
+
+async function refreshThemeFromServer() {
+	if (typeof fetch !== 'function') return;
+	try {
+		const response = await fetch(ThemeState.endpoint, { headers: { 'Accept': 'application/json' } });
+		if (!response.ok) return;
+		const data = await response.json();
+		const preference = data && (data.theme || (data.webui && data.webui.theme));
+		const active = (data && data.active_theme) || preference;
+		rememberThemeState(active, preference);
+	} catch (err) {
+		if (typeof console !== 'undefined' && typeof console.debug === 'function') {
+			console.debug('Theme refresh skipped', (err && err.message) ? err.message : err);
+		}
+	}
+}
+
+(function initThemeBridge() {
+	const cachedTheme = safeStorageGet(ThemeState.activeKey);
+	if (cachedTheme) {
+		applyThemeAttribute(cachedTheme);
+	}
+	refreshThemeFromServer();
+})();
+
+window.thinginoTheme = {
+	apply: applyThemeAttribute,
+	remember: rememberThemeState,
+	refresh: refreshThemeFromServer,
+	getPreference: () => safeStorageGet(ThemeState.preferenceKey),
+	getActive: () => safeStorageGet(ThemeState.activeKey)
+};
+
 function ts() {
 	return Math.floor(Date.now());
 }
@@ -31,14 +226,68 @@ function sleep(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+function hasNavigatorClipboard() {
+	return typeof navigator !== 'undefined' && !!navigator.clipboard && !!window.isSecureContext;
+}
+
+function fallbackClipboardCopy(text) {
+	return new Promise((resolve, reject) => {
+		const textarea = document.createElement('textarea');
+		textarea.value = text;
+		textarea.style.position = 'fixed';
+		textarea.style.left = '-9999px';
+		textarea.style.top = '-9999px';
+		document.body.appendChild(textarea);
+		try {
+			textarea.focus();
+			textarea.select();
+			const successful = document.execCommand('copy');
+			if (successful) {
+				resolve(true);
+			} else {
+				reject(new Error('clipboard-fallback'));
+			}
+		} catch (err) {
+			reject(err);
+		} finally {
+			textarea.remove();
+		}
+	});
+}
+
+async function copyTextToClipboard(text) {
+	const value = typeof text === 'string' ? text : (text === null || typeof text === 'undefined' ? '' : String(text));
+	if (!value) {
+		return Promise.reject(new Error('clipboard-empty'));
+	}
+	if (hasNavigatorClipboard()) {
+		try {
+			await navigator.clipboard.writeText(value);
+			return true;
+		} catch (err) {
+			// Fallback below
+		}
+	}
+	return fallbackClipboardCopy(value);
+}
+
+const clipboardApi = window.thinginoClipboard || {};
+clipboardApi.copy = copyTextToClipboard;
+clipboardApi.fallbackCopy = fallbackClipboardCopy;
+clipboardApi.canUseNavigator = hasNavigatorClipboard;
+window.thinginoClipboard = clipboardApi;
+
 function setProgressBar(id, value, maxvalue, name) {
-	let value_percent = Math.ceil(value / (maxvalue / 100));
 	const el = $(id);
+	const safeMax = Number(maxvalue);
+	if (!el || !Number.isFinite(safeMax) || safeMax <= 0) return;
+	const safeValue = Math.max(0, Number(value) || 0);
+	const valuePercent = Math.min(100, Math.max(0, Math.round((safeValue / safeMax) * 100)));
 	el.setAttribute('aria-valuemin', '0');
-	el.setAttribute('aria-valuemax', maxvalue);
-	el.setAttribute('aria-valuenow', value);
-	el.style.width = value_percent + '%';
-	el.title = name + ': ' + value + 'KiB';
+	el.setAttribute('aria-valuemax', safeMax);
+	el.setAttribute('aria-valuenow', safeValue);
+	el.style.width = valuePercent + '%';
+	el.title = (name || 'Usage') + ': ' + safeValue + 'KiB (' + valuePercent + '%)';
 }
 
 function setValue(data, domain, name) {
@@ -68,29 +317,6 @@ function setValue(data, domain, name) {
 			if (sliderValue) sliderValue.textContent = value;
 		}
 	}
-}
-
-function dayNightIcon(mode) {
-	switch ((mode || '').toString().toLowerCase()) {
-		case 'day':
-			return '☀️';
-		case 'night':
-			return '🌙';
-		default:
-			return '❔';
-	}
-}
-
-function sendToApi(endpoint) {
-	const xhr = new XMLHttpRequest();
-	xhr.addEventListener('load', reqListener);
-	xhr.open('GET', '//' + network_address + endpoint);
-	xhr.setRequestHeader('Authorization', 'Basic ' + btoa('admin:'));
-	xhr.send();
-}
-
-function reqListener(data) {
-	console.log(data.responseText);
 }
 
 function updateRecordingIcons() {
@@ -227,6 +453,31 @@ function togglePrivacy(state) {
 		});
 }
 
+function toggleWireGuard(state) {
+	const button = $('#wireguard');
+	if (button) button.classList.add('pending');
+
+	const targetState = state ? 1 : 0;
+	fetch('/x/json-wireguard.cgi?iface=wg0&state=' + targetState)
+		.then(res => {
+			if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+			return res.json();
+		})
+		.then(data => {
+			console.log(ts(), '<===', JSON.stringify(data));
+			if (data.error) {
+				console.error('WireGuard toggle error:', data.error.message);
+				if (button) button.classList.remove('pending');
+			} else {
+				// Pending class will be removed when heartbeat confirms the state
+			}
+		})
+		.catch(err => {
+			console.error('WireGuard toggle error', err);
+			if (button) button.classList.remove('pending');
+		});
+}
+
 function toggleDayNight(mode) {
 	const button = $('#daynight');
 	if (button) button.classList.add('pending');
@@ -307,21 +558,6 @@ function toggleTheme() {
 			img.alt = newTheme === 'dark' ? 'Light mode' : 'Dark mode';
 		}
 	}
-
-	/*
-		// Save to server
-		const payload = JSON.stringify({ webui: { theme: newTheme } });
-		fetch('/x/json-config.cgi', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: payload
-		})
-		.then(res => res.json())
-		.then(data => {
-			console.log('Theme saved:', data);
-		})
-		.catch(err => console.error('Theme save error', err));
-	*/
 }
 
 async function toggleButton(el) {
@@ -349,33 +585,36 @@ async function toggleButton(el) {
 		})
 }
 
+function resolveDeviceTimezone() {
+	const uiConfig = window.thinginoUIConfig || {};
+	const deviceTimezone = (uiConfig.device && typeof uiConfig.device.timezone === 'string') ? uiConfig.device.timezone.trim() : '';
+	if (deviceTimezone) return deviceTimezone;
+	if (typeof uiConfig.timezone === 'string' && uiConfig.timezone.trim()) return uiConfig.timezone.trim();
+	return '';
+}
+
 function updateHeartbeatUi(json) {
 	if (!json) return;
-	if (json.time_now !== '') {
+	const timeNowEl = $('#time-now');
+	if (timeNowEl && json.time_now !== '') {
 		const d = new Date(json.time_now * 1000);
-		// Use device timezone if available, otherwise fall back to browser timezone
-		const deviceTz = json.timezone?.replaceAll(' ', '_');
+		const configuredTimezone = resolveDeviceTimezone();
+		const heartbeatTimezone = typeof json.timezone === 'string' ? json.timezone.trim() : '';
+		const timezoneLabel = configuredTimezone || heartbeatTimezone;
+		const timeZoneId = timezoneLabel ? timezoneLabel.replaceAll(' ', '_') : '';
 		let options = {
 			year: "numeric",
 			month: "short",
 			day: "numeric",
 			hour: "2-digit",
-			minute: "2-digit",
-			timeZone: deviceTz
+			minute: "2-digit"
 		};
-		$('#time-now').textContent = d.toLocaleString(navigator.language, options) + ' ' + json.timezone;
+		if (timeZoneId) {
+			options.timeZone = timeZoneId;
+		}
+		const formatted = d.toLocaleString(navigator.language, options);
+		timeNowEl.textContent = timezoneLabel ? formatted + ' ' + timezoneLabel : formatted;
 	}
-
-	$('.progress-stacked.memory').title = 'Free memory: ' + json.mem_free + 'KiB'
-	setProgressBar('#pb-memory-active', json.mem_active, json.mem_total, 'Memory Active');
-	setProgressBar('#pb-memory-buffers', json.mem_buffers, json.mem_total, 'Memory Buffers');
-	setProgressBar('#pb-memory-cached', json.mem_cached, json.mem_total, 'Memory Cached');
-
-	$('.progress-stacked.overlay').title = 'Free overlay: ' + json.overlay_free + 'KiB'
-	setProgressBar('#pb-overlay-used', json.overlay_used, json.overlay_total, 'Overlay Usage');
-
-	$('.progress-stacked.extras').title = 'Free extras: ' + json.extras_free + 'KiB'
-	setProgressBar('#pb-extras-used', json.extras_used, json.extras_total, 'Extras Usage');
 
 	const hasBrightness = typeof (json.daynight_brightness) !== 'undefined' && json.daynight_brightness !== 'unknown' && json.daynight_brightness !== '';
 	const hasTotalGain = typeof (json.total_gain) !== 'undefined' && json.total_gain !== 'unknown' && json.total_gain !== '' && json.total_gain >= 0;
@@ -387,8 +626,9 @@ function updateHeartbeatUi(json) {
 		$$('.dnd-gain').forEach(el => el.textContent = label);
 	}
 
-	if (typeof (json.uptime) !== 'undefined' && json.uptime !== '')
-		$('#uptime').textContent = 'Uptime:️ ' + json.uptime;
+	const uptimeEl = $('#uptime');
+	if (uptimeEl && typeof (json.uptime) !== 'undefined' && json.uptime !== '')
+		uptimeEl.textContent = 'Uptime:️ ' + json.uptime;
 
 	updateRecordingState({
 		ch0: json.rec_ch0 === true,
@@ -413,18 +653,29 @@ function updateHeartbeatUi(json) {
 		}
 	}
 
+	// Update wireguard icon
+	if (typeof (json.wg_status) !== 'undefined') {
+		const wireguardBtn = $('#wireguard');
+		if (wireguardBtn) {
+			wireguardBtn.classList.remove('pending');
+			wireguardBtn.classList.toggle('active', json.wg_status === 1);
+		}
+	}
+
 	// Update daynight mode button
 	if (typeof (json.daynight_mode) !== 'undefined') {
 		const daynightBtn = $('#daynight');
 		if (daynightBtn) {
 			daynightBtn.classList.remove('pending');
-			daynightBtn.classList.toggle('active', json.daynight_mode === 'night');
+			const isNight = json.daynight_mode === 'night';
+			const isAutoEnabled = json.daynight_enabled === true || json.daynight_enabled === 1;
+			daynightBtn.classList.toggle('active', isAutoEnabled);
+			daynightBtn.classList.toggle('is-night', isNight);
+			daynightBtn.classList.toggle('is-day', !isNight);
 
 			// Update button text and icon based on photosensing state
 			const daynightText = $('#daynight-text');
 			const daynightIcon = daynightBtn.querySelector('i');
-			const isNight = json.daynight_mode === 'night';
-			const isAutoEnabled = json.daynight_enabled === true || json.daynight_enabled === 1;
 
 			if (daynightText) {
 				daynightText.textContent = isAutoEnabled ? 'Auto' : (isNight ? 'Night' : 'Day');
@@ -576,26 +827,724 @@ function heartbeat() {
 }
 
 function initCopyToClipboard() {
+	const clipboard = window.thinginoClipboard;
 	$$(".cb").forEach(function (el) {
 		el.title = "Click to copy to clipboard";
 		el.addEventListener("click", function (ev) {
-			ev.target.preventDefault;
-			ev.target.animate({ backgroundColor: '#f80' }, 250);
-			let textArea = document.createElement("textarea");
-			textArea.value = ev.target.textContent;
-			textArea.style.position = "fixed";
-			textArea.style.left = "-999999px";
-			textArea.style.top = "-999999px";
-			document.body.appendChild(textArea);
-			textArea.focus();
-			textArea.select();
-			return new Promise((res, rej) => {
-				document.execCommand('copy') ? res() : rej();
-				textArea.remove();
+			ev.preventDefault();
+			const target = ev.currentTarget || ev.target;
+			const text = target && target.textContent ? target.textContent : '';
+			if (!text || !clipboard || typeof clipboard.copy !== 'function') return;
+			if (target && typeof target.animate === 'function') {
+				target.animate({ backgroundColor: '#f80' }, 250);
+			}
+			clipboard.copy(text).catch(err => {
+				if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+					console.warn('Clipboard copy failed', err);
+				}
 			});
 		})
 	})
 }
+
+// Shared quick actions for the Send modal to avoid duplicating markup.
+const sendModalTargets = [
+	{ key: 'email', label: 'Email', icon: 'bi bi-envelope-at' },
+	{ key: 'ftp', label: 'FTP', icon: 'bi bi-postage' },
+	{ key: 'mqtt', label: 'MQTT', icon: 'bi bi-postage' },
+	{ key: 'ntfy', label: 'Ntfy', icon: 'bi bi-postage' },
+	{ key: 'storage', label: 'Storage', icon: 'bi bi-sd-card' },
+	{ key: 'telegram', label: 'Telegram', icon: 'bi bi-telegram' },
+	{ key: 'webhook', label: 'Webhook', icon: 'bi bi-postage' }
+];
+
+let busyBarCtx = null;
+let busyBarTimeout = null;
+const BUSY_BAR_TTL = 20000; // 20 seconds
+
+function ensureBusyBar() {
+	if (busyBarCtx) return busyBarCtx;
+	const barEl = document.createElement('div');
+	barEl.id = 'thinginoBusyBar';
+	barEl.style.cssText = 'position:fixed;top:0;left:0;right:0;height:4px;z-index:9999;background:#000;overflow:hidden;';
+	barEl.innerHTML = '<div class="progress-bar" style="width:0;height:100%;background:linear-gradient(90deg,#0d6efd,#0dcaf0);transition:width 0.3s ease;"></div>';
+	document.body.insertBefore(barEl, document.body.firstChild);
+	const progressBar = barEl.querySelector('.progress-bar');
+	busyBarCtx = { barEl, progressBar };
+	return busyBarCtx;
+}
+
+function showBusy(message) {
+	const ctx = ensureBusyBar();
+
+	// Clear any existing timeout
+	if (busyBarTimeout) {
+		clearTimeout(busyBarTimeout);
+		busyBarTimeout = null;
+	}
+
+	// Animate progress bar
+	ctx.progressBar.style.width = '0%';
+	setTimeout(() => ctx.progressBar.style.width = '70%', 10);
+
+	// Set timeout to auto-hide with warning
+	busyBarTimeout = setTimeout(() => {
+		console.warn('Busy bar timeout reached - auto-hiding after', BUSY_BAR_TTL / 1000, 'seconds');
+		hideBusy();
+		if (typeof showAlert === 'function') {
+			showAlert('warning', 'Operation timed out. Please try again or check your connection.', 8000);
+		} else {
+			alert('Operation timed out. Please try again or check your connection.');
+		}
+	}, BUSY_BAR_TTL);
+}
+
+function hideBusy() {
+	// Clear the timeout when manually hiding
+	if (busyBarTimeout) {
+		clearTimeout(busyBarTimeout);
+		busyBarTimeout = null;
+	}
+
+	if (!busyBarCtx) {
+		console.warn('hideBusy: busyBarCtx is null');
+		return;
+	}
+
+	// Complete the progress bar then hide
+	busyBarCtx.progressBar.style.width = '100%';
+	setTimeout(() => {
+		if (busyBarCtx && busyBarCtx.progressBar) {
+			busyBarCtx.progressBar.style.width = '0%';
+		}
+	}, 300);
+}
+
+window.showBusy = showBusy;
+window.hideBusy = hideBusy;
+
+// Universal slider modal system
+let sliderModalInstance = null;
+let sliderModalElement = null;
+
+function ensureSliderModal() {
+	if (sliderModalElement) return sliderModalElement;
+
+	let modal = $('#thinginoSliderModal');
+	if (modal) {
+		sliderModalElement = modal;
+		return modal;
+	}
+
+	modal = document.createElement('div');
+	modal.className = 'modal fade';
+	modal.id = 'thinginoSliderModal';
+	modal.tabIndex = -1;
+	modal.setAttribute('aria-hidden', 'true');
+	modal.innerHTML = `
+		<div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title" id="sliderModalTitle"></h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<div class="d-flex justify-content-between mb-2">
+						<span id="sliderModalMin"></span>
+						<span class="fw-bold" id="sliderModalValue"></span>
+						<span id="sliderModalMax"></span>
+					</div>
+					<input type="range" id="sliderModalRange" class="form-range">
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+			</div>
+		</div>`;
+	document.body.appendChild(modal);
+	sliderModalElement = modal;
+
+	if (window.bootstrap && window.bootstrap.Modal) {
+		sliderModalInstance = new bootstrap.Modal(modal);
+	}
+
+	return modal;
+}
+
+function openSliderModal(inputId) {
+	const input = $('#' + inputId);
+	if (!input) return;
+
+	const min = parseInt(input.dataset.min) || parseInt(input.getAttribute('min')) || 0;
+	const max = parseInt(input.dataset.max) || parseInt(input.getAttribute('max')) || 100;
+	const step = parseInt(input.dataset.step) || parseInt(input.getAttribute('step')) || 1;
+	const label = input.parentElement.parentElement.querySelector('label')?.textContent || 'Value';
+
+	const modal = ensureSliderModal();
+	const slider = $('#sliderModalRange');
+	const valueDisplay = $('#sliderModalValue');
+	const titleEl = $('#sliderModalTitle');
+	const minEl = $('#sliderModalMin');
+	const maxEl = $('#sliderModalMax');
+
+	if (!slider) return;
+
+	titleEl.textContent = label;
+	minEl.textContent = min;
+	maxEl.textContent = max;
+	slider.min = min;
+	slider.max = max;
+	slider.step = step;
+	slider.value = input.value || min;
+	valueDisplay.textContent = slider.value;
+
+	// Store initial value
+	const initialValue = input.value;
+
+	// Only update display while sliding, don't update input
+	slider.oninput = function() {
+		valueDisplay.textContent = this.value;
+	};
+
+	// Remove old hidden listener if exists
+	const oldHiddenHandler = sliderModalElement?._hiddenHandler;
+	if (oldHiddenHandler) {
+		sliderModalElement.removeEventListener('hidden.bs.modal', oldHiddenHandler);
+	}
+
+	// Update input only when modal closes
+	const hiddenHandler = function() {
+		const finalValue = slider.value;
+		if (finalValue !== initialValue) {
+			input.value = finalValue;
+			input.dispatchEvent(new Event('change', { bubbles: true }));
+		}
+	};
+
+	// Store handler reference for cleanup
+	if (sliderModalElement) {
+		sliderModalElement._hiddenHandler = hiddenHandler;
+		sliderModalElement.addEventListener('hidden.bs.modal', hiddenHandler, { once: true });
+	}
+
+	if (sliderModalInstance) {
+		sliderModalInstance.show();
+	}
+}
+
+// Initialize slider buttons on page load
+function attachSliderButtons(root = document) {
+	root.querySelectorAll('.number-range .dropdown-toggle').forEach(button => {
+		if (button.dataset.sliderInitialized) return;
+		button.dataset.sliderInitialized = 'true';
+		button.addEventListener('click', (e) => {
+			e.preventDefault();
+			const input = button.closest('.input-group')?.querySelector('input[type="text"]');
+			if (input && input.id) {
+				openSliderModal(input.id);
+			}
+		});
+	});
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+	attachSliderButtons();
+});
+
+window.attachSliderButtons = attachSliderButtons;
+
+// Unified slider initialization function (deprecated - kept for compatibility)
+function initSlider(id) {
+	const input = $('#' + id);
+	const slider = $('#' + id + '-slider');
+	const sliderValue = $('#' + id + '-slider-value');
+
+	if (!input || !slider || !sliderValue) return;
+
+	const min = parseInt(slider.getAttribute('min')) || 0;
+	const max = parseInt(slider.getAttribute('max')) || 100;
+
+	slider.addEventListener('input', function() {
+		input.value = this.value;
+		sliderValue.textContent = this.value;
+	});
+
+	input.addEventListener('input', function() {
+		const val = parseInt(this.value) || min;
+		const clampedVal = Math.max(min, Math.min(max, val));
+		slider.value = clampedVal;
+		sliderValue.textContent = clampedVal;
+	});
+}
+
+function initSliders(sliderIds) {
+	if (Array.isArray(sliderIds)) {
+		sliderIds.forEach(initSlider);
+	}
+}
+
+window.initSlider = initSlider;
+window.initSliders = initSliders;
+
+function ensureSendModal() {
+	if ($('#sendModal')) return;
+	const modal = document.createElement('div');
+	modal.className = 'modal fade';
+	modal.id = 'sendModal';
+	modal.tabIndex = -1;
+	modal.setAttribute('aria-labelledby', 'sendModalLabel');
+	modal.setAttribute('aria-hidden', 'true');
+	modal.innerHTML = `
+	  <div class="modal-dialog modal-lg">
+	    <div class="modal-content">
+	      <div class="modal-header">
+	        <h5 class="modal-title" id="sendModalLabel">Send snapshot/videoclip to...</h5>
+	        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+	      </div>
+	      <div class="modal-body">
+	        <div class="row g-2" id="send-modal-grid"></div>
+	      </div>
+	    </div>
+	  </div>`;
+	document.body.appendChild(modal);
+}
+
+function buildSendModalGrid() {
+	ensureSendModal();
+	const grid = $('#send-modal-grid');
+	if (!grid) return;
+
+	const createIcon = (className) => {
+		const icon = document.createElement('i');
+		icon.className = className;
+		return icon;
+	};
+
+	grid.innerHTML = '';
+
+	sendModalTargets.forEach(target => {
+		const col = document.createElement('div');
+		col.className = 'col-12 col-lg-6';
+
+		const group = document.createElement('div');
+		group.className = 'btn-group d-flex gap-1';
+		group.setAttribute('role', 'group');
+
+		const mainBtn = document.createElement('button');
+		mainBtn.type = 'button';
+		mainBtn.className = 'btn btn-secondary text-start w-100';
+		mainBtn.dataset.sendto = target.key;
+		mainBtn.title = 'Send as configured';
+		mainBtn.appendChild(createIcon(target.icon));
+		mainBtn.appendChild(document.createTextNode(` ${target.label}`));
+		group.appendChild(mainBtn);
+
+		const photoBtn = document.createElement('button');
+		photoBtn.type = 'button';
+		photoBtn.className = 'btn btn-secondary flex-shrink-0';
+		photoBtn.dataset.sendto = target.key;
+		photoBtn.dataset.type = 'photo';
+		photoBtn.title = 'Send photo only';
+		photoBtn.appendChild(createIcon('bi bi-image'));
+		group.appendChild(photoBtn);
+
+		const videoBtn = document.createElement('button');
+		videoBtn.type = 'button';
+		videoBtn.className = 'btn btn-secondary flex-shrink-0';
+		videoBtn.dataset.sendto = target.key;
+		videoBtn.dataset.type = 'video';
+		videoBtn.title = 'Send video only';
+		videoBtn.appendChild(createIcon('bi bi-film'));
+		group.appendChild(videoBtn);
+
+		const configLink = document.createElement('a');
+		configLink.className = 'btn btn-secondary flex-shrink-0';
+		configLink.href = `/tool-send2.html`;
+		configLink.title = 'Configure';
+		configLink.appendChild(createIcon('bi bi-gear'));
+		group.appendChild(configLink);
+
+		col.appendChild(group);
+		grid.appendChild(col);
+	});
+
+	const downloadCol = document.createElement('div');
+	downloadCol.className = 'col-12 col-lg-6';
+	const downloadGroup = document.createElement('div');
+	downloadGroup.className = 'btn-group d-flex';
+	downloadGroup.setAttribute('role', 'group');
+	const downloadLink = document.createElement('a');
+	downloadLink.className = 'btn btn-secondary w-100 text-start';
+	downloadLink.href = '/x/dl0.jpg';
+	downloadLink.target = '_blank';
+	downloadLink.title = 'Save image';
+	downloadLink.appendChild(createIcon('bi bi-download'));
+	downloadLink.appendChild(document.createTextNode(' Download'));
+	downloadGroup.appendChild(downloadLink);
+	downloadCol.appendChild(downloadGroup);
+	grid.appendChild(downloadCol);
+}
+
+function ensureDebugControl(attempt = 0) {
+	const debugPanels = $$('.ui-debug');
+	if (!debugPanels.length) return;
+	debugPanels.forEach(panel => panel.classList.add('d-none'));
+	const footerStack = $('#footer-action-stack');
+	if (!footerStack) {
+		if (attempt < 20) {
+			window.setTimeout(() => ensureDebugControl(attempt + 1), 150);
+		}
+		return;
+	}
+	let debugBtn = $('#debug');
+	if (!debugBtn) {
+		debugBtn = document.createElement('button');
+		debugBtn.type = 'button';
+		debugBtn.id = 'debug';
+		debugBtn.value = '1';
+		debugBtn.title = 'Debug info';
+		debugBtn.className = 'btn btn-outline-secondary btn-sm w-100';
+		debugBtn.innerHTML = '<i class="bi bi-bug"></i> Debug';
+		footerStack.appendChild(debugBtn);
+	} else if (debugBtn.parentElement !== footerStack) {
+		footerStack.appendChild(debugBtn);
+	}
+	if (debugBtn.dataset.bound === 'true') return;
+	debugBtn.dataset.bound = 'true';
+	debugBtn.addEventListener('click', ev => {
+		ev.preventDefault();
+		const ctx = ensureDebugModalStructure();
+		const isVisible = ctx.modalEl.classList.contains('show');
+		if (isVisible) {
+			hideDebugModal(ctx);
+			return;
+		}
+		ctx.buttonRef = debugBtn;
+		populateDebugModalContent();
+		debugBtn.classList.add('active');
+		showDebugModal(ctx);
+	});
+}
+
+const ConfirmDefaults = {
+	title: 'Confirm action',
+	message: 'Are you sure you want to continue?',
+	confirmLabel: 'Continue',
+	cancelLabel: 'Cancel',
+	intent: 'danger'
+};
+
+let confirmModalCtx = null;
+const confirmProcessedElements = new WeakSet();
+const confirmFormSubmitters = new WeakMap();
+let confirmMutationObserver = null;
+let confirmScanScheduled = false;
+
+function ensureConfirmModalStructure() {
+	if (confirmModalCtx) return confirmModalCtx;
+	const modalEl = document.createElement('div');
+	modalEl.id = 'thinginoConfirmModal';
+	modalEl.className = 'modal fade';
+	modalEl.tabIndex = -1;
+	modalEl.setAttribute('aria-hidden', 'true');
+	modalEl.innerHTML = `
+	  <div class="modal-dialog modal-dialog-centered">
+	    <div class="modal-content">
+	      <div class="modal-header">
+	        <h5 class="modal-title" data-confirm-title>${ConfirmDefaults.title}</h5>
+	        <button type="button" class="btn-close" data-confirm-close aria-label="Close"></button>
+	      </div>
+	      <div class="modal-body">
+	        <p class="mb-0" data-confirm-message>${ConfirmDefaults.message}</p>
+	      </div>
+	      <div class="modal-footer gap-2">
+	        <button type="button" class="btn btn-outline-secondary" data-confirm-cancel>${ConfirmDefaults.cancelLabel}</button>
+	        <button type="button" class="btn btn-primary" data-confirm-accept>${ConfirmDefaults.confirmLabel}</button>
+	      </div>
+	    </div>
+	  </div>`;
+	const mountTarget = document.body || document.documentElement;
+	mountTarget.appendChild(modalEl);
+	const ctx = {
+		modalEl,
+		titleEl: modalEl.querySelector('[data-confirm-title]'),
+		messageEl: modalEl.querySelector('[data-confirm-message]'),
+		confirmBtn: modalEl.querySelector('[data-confirm-accept]'),
+		cancelBtn: modalEl.querySelector('[data-confirm-cancel]'),
+		closeBtn: modalEl.querySelector('[data-confirm-close]'),
+		modalInstance: null
+	};
+	if (window.bootstrap && window.bootstrap.Modal) {
+		ctx.modalInstance = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+	}
+	if (ctx.closeBtn && (!window.bootstrap || !window.bootstrap.Modal)) {
+		ctx.closeBtn.addEventListener('click', ev => {
+			ev.preventDefault();
+			hideConfirmModalInstant(ctx);
+		});
+	}
+	confirmModalCtx = ctx;
+	return ctx;
+}
+
+function hideConfirmModalInstant(ctx) {
+	if (!ctx || !ctx.modalEl) return;
+	ctx.modalEl.classList.remove('show');
+	ctx.modalEl.style.display = 'none';
+	ctx.modalEl.setAttribute('aria-hidden', 'true');
+	ctx.modalEl.removeAttribute('aria-modal');
+}
+
+function resolveConfirmIntentClass(intent) {
+	switch ((intent || ConfirmDefaults.intent).toLowerCase()) {
+		case 'warning':
+			return 'btn-warning';
+		case 'success':
+			return 'btn-success';
+		case 'primary':
+			return 'btn-primary';
+		case 'danger':
+		default:
+			return 'btn-danger';
+	}
+}
+
+function normalizeConfirmOptions(messageOrOptions, extraOptions) {
+	const normalized = { ...ConfirmDefaults };
+	const assignFrom = (source) => {
+		if (!source) return;
+		if (typeof source === 'string') {
+			normalized.message = source;
+			return;
+		}
+		if (typeof source !== 'object') return;
+		if (source.title) normalized.title = source.title;
+		if (source.message) normalized.message = source.message;
+		if (source.confirmLabel) normalized.confirmLabel = source.confirmLabel;
+		if (source.cancelLabel) normalized.cancelLabel = source.cancelLabel;
+		if (source.intent) normalized.intent = source.intent;
+	};
+	assignFrom(messageOrOptions);
+	assignFrom(extraOptions);
+	if (!normalized.message) normalized.message = ConfirmDefaults.message;
+	return normalized;
+}
+
+function showConfirmDialog(options) {
+	const ctx = ensureConfirmModalStructure();
+	if (!ctx) {
+		return Promise.resolve(true);
+	}
+	ctx.titleEl.textContent = options.title || ConfirmDefaults.title;
+	ctx.messageEl.textContent = options.message || ConfirmDefaults.message;
+	ctx.confirmBtn.textContent = options.confirmLabel || ConfirmDefaults.confirmLabel;
+	ctx.cancelBtn.textContent = options.cancelLabel || ConfirmDefaults.cancelLabel;
+	ctx.confirmBtn.className = 'btn ' + resolveConfirmIntentClass(options.intent);
+	return new Promise(resolve => {
+		let finished = false;
+		const handleConfirm = ev => {
+			if (ev) ev.preventDefault();
+			finalize(true);
+		};
+		const handleCancel = ev => {
+			if (ev) ev.preventDefault();
+			finalize(false);
+		};
+		const handleHidden = () => finalize(false);
+		const cleanup = () => {
+			ctx.confirmBtn.removeEventListener('click', handleConfirm);
+			ctx.cancelBtn.removeEventListener('click', handleCancel);
+			if (ctx.closeBtn) ctx.closeBtn.removeEventListener('click', handleCancel);
+			ctx.modalEl.removeEventListener('hidden.bs.modal', handleHidden);
+		};
+		const hideModal = () => {
+			if (ctx.modalInstance && window.bootstrap && window.bootstrap.Modal) {
+				ctx.modalInstance.hide();
+			} else {
+				hideConfirmModalInstant(ctx);
+			}
+		};
+		const finalize = result => {
+			if (finished) return;
+			finished = true;
+			cleanup();
+			hideModal();
+			resolve(result);
+		};
+		ctx.confirmBtn.addEventListener('click', handleConfirm);
+		ctx.cancelBtn.addEventListener('click', handleCancel);
+		if (ctx.closeBtn) ctx.closeBtn.addEventListener('click', handleCancel);
+		ctx.modalEl.addEventListener('hidden.bs.modal', handleHidden, { once: true });
+		if (window.bootstrap && window.bootstrap.Modal) {
+			ctx.modalInstance = window.bootstrap.Modal.getOrCreateInstance(ctx.modalEl);
+			ctx.modalInstance.show();
+		} else {
+			ctx.modalEl.classList.add('show');
+			ctx.modalEl.style.display = 'block';
+			ctx.modalEl.removeAttribute('aria-hidden');
+			ctx.modalEl.setAttribute('aria-modal', 'true');
+		}
+	});
+}
+
+function getElementConfirmOptions(element) {
+	if (!element || !element.dataset) return {};
+	const opts = {};
+	const { dataset } = element;
+	if (dataset.confirmMessage) opts.message = dataset.confirmMessage;
+	else if (dataset.confirm) opts.message = dataset.confirm;
+	if (dataset.confirmTitle) opts.title = dataset.confirmTitle;
+	if (dataset.confirmIntent) opts.intent = dataset.confirmIntent;
+	if (dataset.confirmConfirm) opts.confirmLabel = dataset.confirmConfirm;
+	else if (dataset.confirmAction) opts.confirmLabel = dataset.confirmAction;
+	if (dataset.confirmCancel) opts.cancelLabel = dataset.confirmCancel;
+	return opts;
+}
+
+function isSubmitControl(element) {
+	if (!element) return false;
+	const tag = element.tagName;
+	const type = (element.getAttribute('type') || '').toLowerCase();
+	if (tag === 'BUTTON') {
+		return type === '' || type === 'submit';
+	}
+	if (tag === 'INPUT') {
+		return type === 'submit' || type === 'image';
+	}
+	return false;
+}
+
+function attachConfirmTrigger(element) {
+	if (!element || confirmProcessedElements.has(element)) return;
+	const skip = element.dataset && (element.dataset.confirmSkip === 'true' || element.dataset.confirmSkip === '1');
+	if (skip) return;
+	confirmProcessedElements.add(element);
+	const form = element.closest('form');
+	if (form && isSubmitControl(element)) {
+		bindConfirmFormSubmit(form, element);
+		return;
+	}
+	bindConfirmClick(element);
+}
+
+function bindConfirmClick(element) {
+	element.addEventListener('click', ev => handleConfirmableClick(ev, element));
+}
+
+function bindConfirmFormSubmit(form, trigger) {
+	let submitters = confirmFormSubmitters.get(form);
+	if (!submitters) {
+		submitters = new Set();
+		confirmFormSubmitters.set(form, submitters);
+		form.addEventListener('submit', ev => handleConfirmableSubmit(ev, form), true);
+	}
+	submitters.add(trigger);
+}
+
+async function handleConfirmableClick(ev, element) {
+	if (element.dataset.confirmBypass === '1') {
+		delete element.dataset.confirmBypass;
+		return;
+	}
+	if (element.disabled) return;
+	ev.preventDefault();
+	ev.stopImmediatePropagation();
+	const options = getElementConfirmOptions(element);
+	const confirmed = await window.confirm(options.message, options);
+	if (!confirmed) return;
+	element.dataset.confirmBypass = '1';
+	window.setTimeout(() => {
+		if (typeof element.click === 'function') {
+			element.click();
+			return;
+		}
+		if (element.tagName === 'A' && element.href) {
+			if (element.target && element.target !== '_self') {
+				window.open(element.href, element.target, 'noopener');
+			} else {
+				window.location.href = element.href;
+			}
+		}
+	}, 0);
+}
+
+async function handleConfirmableSubmit(ev, form) {
+	if (form.dataset.confirmBypass === '1') {
+		delete form.dataset.confirmBypass;
+		return;
+	}
+	const submitters = confirmFormSubmitters.get(form);
+	if (!submitters || !submitters.size) return;
+	const trigger = ev.submitter;
+	if (!trigger || !submitters.has(trigger)) return;
+	ev.preventDefault();
+	ev.stopImmediatePropagation();
+	const options = getElementConfirmOptions(trigger);
+	const confirmed = await window.confirm(options.message, options);
+	if (!confirmed) return;
+	form.dataset.confirmBypass = '1';
+	const submitAgain = () => {
+		if (typeof form.requestSubmit === 'function') {
+			form.requestSubmit(trigger);
+		} else {
+			form.submit();
+		}
+	};
+	window.setTimeout(submitAgain, 0);
+}
+
+function scanConfirmTriggers(root = document) {
+	if (!root || typeof root.querySelectorAll !== 'function') return;
+	root.querySelectorAll('.confirm').forEach(attachConfirmTrigger);
+}
+
+function scheduleConfirmScan() {
+	if (confirmScanScheduled) return;
+	confirmScanScheduled = true;
+	const run = () => {
+		confirmScanScheduled = false;
+		scanConfirmTriggers();
+	};
+	if (typeof window.requestAnimationFrame === 'function') {
+		window.requestAnimationFrame(run);
+	} else {
+		window.setTimeout(run, 100);
+	}
+}
+
+function initConfirmObserver() {
+	if (confirmMutationObserver || !window.MutationObserver) return;
+	const target = document.body || document.documentElement;
+	if (!target) return;
+	confirmMutationObserver = new MutationObserver(mutations => {
+		for (const mutation of mutations) {
+			if (mutation.type === 'childList' && mutation.addedNodes && mutation.addedNodes.length) {
+				scheduleConfirmScan();
+				break;
+			}
+		}
+	});
+	confirmMutationObserver.observe(target, { childList: true, subtree: true });
+}
+
+const nativeConfirm = (typeof window !== 'undefined' && typeof window.confirm === 'function')
+	? window.confirm.bind(window)
+	: () => true;
+
+function thinginoConfirm(messageOrOptions, extraOptions) {
+	const options = normalizeConfirmOptions(messageOrOptions, extraOptions);
+	return showConfirmDialog(options);
+}
+
+thinginoConfirm.defaults = ConfirmDefaults;
+thinginoConfirm.normalize = normalizeConfirmOptions;
+thinginoConfirm.fromElement = getElementConfirmOptions;
+thinginoConfirm.scan = scanConfirmTriggers;
+
+window.nativeConfirm = nativeConfirm;
+window.confirm = thinginoConfirm;
+window.confirmAsync = thinginoConfirm;
+window.thinginoConfirm = thinginoConfirm;
 
 (() => {
 	function initAll() {
@@ -620,6 +1569,9 @@ function initCopyToClipboard() {
 		const tooltipTriggerList = $$('[data-bs-toggle="tooltip"]')
 		const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
 
+		// Populate the shared Send modal once the DOM is ready.
+		buildSendModalGrid();
+
 		// ranges
 		$$('input[type=range]').forEach(el => {
 			el.addEventListener('change', ev => {
@@ -632,16 +1584,9 @@ function initCopyToClipboard() {
 			});
 		});
 
-		// ask confirmation on action for .warning and .danger buttons
-		$$('.btn-danger, .btn-warning, .confirm').forEach(el => {
-			// for input, find its parent form and attach listener to it submit event
-			if (el.nodeName === 'INPUT') {
-				while (el.nodeName !== 'FORM') el = el.parentNode
-				el.addEventListener('submit', ev => (!confirm('Are you sure?')) ? ev.preventDefault() : null)
-			} else {
-				el.addEventListener('click', ev => (!confirm('Are you sure?')) ? ev.preventDefault() : null)
-			}
-		});
+		// scan for confirmable buttons and observe future additions
+		scanConfirmTriggers();
+		initConfirmObserver();
 
 		// toggle auto value
 		$$('input.auto-value').forEach(el => {
@@ -671,9 +1616,11 @@ function initCopyToClipboard() {
 		// handle sendto buttons
 		$$("button[data-sendto]").forEach(el => {
 			if (el.dataset.sendtoBypass === '1' || el.dataset.sendtoBypass === 'true') return;
-			el.onclick = (ev) => {
+			el.addEventListener('click', async ev => {
 				ev.preventDefault();
-				if (!confirm("Are you sure?")) return false;
+				const options = getElementConfirmOptions(el);
+				const confirmed = await confirm(options.message || 'Send this action now?', options);
+				if (!confirmed) return;
 				const params = { to: el.dataset.sendto };
 				if (el.dataset.type) {
 					params.type = el.dataset.type;
@@ -685,12 +1632,13 @@ function initCopyToClipboard() {
 				})
 					.then(res => res.json())
 					.then(data => console.log(data))
-			}
+			});
 		});
 
 		// async output of a command running on camera
-		if ($('pre#output[data-cmd]')) {
-			const el = $('pre#output[data-cmd]');
+		const outputEl = $('pre#output');
+		if (outputEl) {
+			let commandInFlight = false;
 
 			async function* makeTextFileLineIterator(url) {
 				const td = new TextDecoder('utf-8');
@@ -701,40 +1649,97 @@ function initCopyToClipboard() {
 				const re = /\n|\r|\r\n/gm;
 				let startIndex = 0;
 				let result;
+				for (; ;) {
+					result = re.exec(chunk);
+					if (!result) {
+						if (readerDone) break;
+						let remainder = chunk.substring(startIndex);
+						({ value: chunk, done: readerDone } = await rd.read());
+						chunk = remainder + (chunk ? td.decode(chunk) : '');
+						startIndex = re.lastIndex = 0;
+						continue;
+					}
+					yield chunk.substring(startIndex, result.index);
+					startIndex = re.lastIndex;
+				}
+				if (startIndex < chunk.length) yield chunk.substring(startIndex);
+			}
+
+			const finalizeStream = () => {
+				commandInFlight = false;
+				if ('true' === outputEl.dataset['reboot']) {
+					window.location.href = '/x/reboot.cgi';
+				} else {
+					outputEl.innerHTML += '\n--- finished ---\n';
+				}
+				outputEl.dispatchEvent(new CustomEvent('thingino:command-finished'));
+			};
+
+			async function streamCommand(url) {
+				if (!url || commandInFlight) return;
+				commandInFlight = true;
 				try {
-					for (; ;) {
-						result = re.exec(chunk);
-						if (!result) {
-							if (readerDone) break;
-							let remainder = chunk.substring(startIndex);
-							({ value: chunk, done: readerDone } = await rd.read());
-							chunk = remainder + (chunk ? td.decode(chunk) : '');
-							startIndex = re.lastIndex = 0;
-							continue;
-						}
-						yield chunk.substring(startIndex, result.index);
-						startIndex = re.lastIndex;
+					for await (let line of makeTextFileLineIterator(url)) {
+						const re1 = /\u001b\[1;(\d+)m/;
+						const re2 = /\u001b\[0m/;
+						line = line.replace(re1, '<span class="ansi-$1">').replace(re2, '</span>')
+						outputEl.innerHTML += line + '\n';
 					}
-					if (startIndex < chunk.length) yield chunk.substring(startIndex);
 				} finally {
-					if ('true' === el.dataset['reboot']) {
-						window.location.href = '/x/reboot.cgi'
-					} else {
-						el.innerHTML += '\n--- finished ---\n';
-					}
+					finalizeStream();
 				}
 			}
 
-			async function run() {
-				for await (let line of makeTextFileLineIterator('/x/run.cgi?cmd=' + btoa(el.dataset['cmd']))) {
-					const re1 = /\u001b\[1;(\d+)m/;
-					const re2 = /\u001b\[0m/;
-					line = line.replace(re1, '<span class="ansi-$1">').replace(re2, '</span>')
-					el.innerHTML += line + '\n';
+			const startStreaming = (command, options = {}) => {
+				if (commandInFlight) return;
+				const streamOverride = options.stream || outputEl.dataset['stream'] || '';
+				const encodedOverride = options.encoded || outputEl.dataset['encoded'] || '';
+				const resolvedCommand = command || outputEl.dataset['cmd'] || '';
+				let streamUrl = '';
+				let encodedValue = '';
+
+				if (streamOverride) {
+					streamUrl = streamOverride;
+				} else if (encodedOverride) {
+					encodedValue = encodedOverride;
+					streamUrl = '/x/run.cgi?cmd=' + encodedOverride;
+				} else if (resolvedCommand) {
+					encodedValue = btoa(resolvedCommand);
+					streamUrl = '/x/run.cgi?cmd=' + encodedValue;
+				} else {
+					return;
 				}
+				if (options.reboot !== undefined) {
+					outputEl.dataset['reboot'] = options.reboot ? 'true' : 'false';
+				}
+				outputEl.dataset['cmd'] = resolvedCommand;
+				outputEl.dataset['stream'] = streamOverride || '';
+				outputEl.dataset['encoded'] = encodedValue;
+				outputEl.innerHTML = '';
+				outputEl.dispatchEvent(new CustomEvent('thingino:command-start', { detail: { cmd: resolvedCommand } }));
+				streamCommand(streamUrl);
+			};
+
+			if (outputEl.dataset['cmd'] || outputEl.dataset['stream'] || outputEl.dataset['encoded']) {
+				startStreaming(outputEl.dataset['cmd'] || '', {
+					stream: outputEl.dataset['stream'] || '',
+					encoded: outputEl.dataset['encoded'] || ''
+				});
 			}
 
-			run()
+			outputEl.addEventListener('thingino:start-command', ev => {
+				const detail = ev.detail || {};
+				if (detail.reboot !== undefined) {
+					outputEl.dataset['reboot'] = detail.reboot ? 'true' : 'false';
+				}
+				if (detail.cmd || detail.stream || detail.encoded) {
+					startStreaming(detail.cmd || '', {
+						reboot: detail.reboot,
+						stream: detail.stream,
+						encoded: detail.encoded
+					});
+				}
+			});
 		}
 
 		initCopyToClipboard()
@@ -768,12 +1773,21 @@ function initCopyToClipboard() {
 			});
 		}
 
+		// setup wireguard button handler
+		const wireguardBtn = $('#wireguard');
+		if (wireguardBtn) {
+			wireguardBtn.addEventListener('click', ev => {
+				ev.preventDefault();
+				toggleWireGuard(!wireguardBtn.classList.contains('active'));
+			});
+		}
+
 		// setup daynight button handler
 		const daynightBtn = $('#daynight');
 		if (daynightBtn) {
 			daynightBtn.addEventListener('click', ev => {
 				ev.preventDefault();
-				const currentlyNight = daynightBtn.classList.contains('active');
+				const currentlyNight = daynightBtn.classList.contains('is-night');
 				const newMode = currentlyNight ? 'day' : 'night';
 				toggleDayNight(newMode);
 			});
@@ -815,21 +1829,7 @@ function initCopyToClipboard() {
 			});
 		}
 
-		// setup debug toggle button handler
-		const debugBtn = $('#debug');
-		if (debugBtn) {
-			debugBtn.addEventListener('click', ev => {
-				ev.preventDefault();
-				const currentlyDebug = debugBtn.classList.contains('active');
-				if (currentlyDebug) {
-					$('.ui-debug').classList.add('d-none');
-					debugBtn.classList.remove('active');
-				} else {
-					$('.ui-debug').classList.remove('d-none');
-					debugBtn.classList.add('active');
-				}
-			});
-		}
+		ensureDebugControl();
 
 		// setup camera control buttons (color, ircut, ir850, ir940, white)
 		$$("#auto, #color, #ircut, #ir850, #ir940, #white").forEach(el => {
@@ -853,15 +1853,75 @@ function initCopyToClipboard() {
 		updateRecordingIcons();
 	}
 
+	// Create universal alert area (uses existing global-message-overlay)
+	function createAlertArea() {
+		// The global-message-overlay is created by footer.js
+		// This is just for compatibility - can be removed later
+	}
+
+	// Universal alert function - delegates to global message overlay
+	window.showAlert = function(type, message, timeout = 6000) {
+		if (!message) return;
+
+		// Map alert types to variants
+		const variantMap = {
+			'success': 'success',
+			'danger': 'danger',
+			'warning': 'info',
+			'info': 'info',
+			'primary': 'info',
+			'secondary': 'info'
+		};
+
+		const variant = variantMap[type] || 'info';
+
+		// Use the global message system from footer.js
+		if (window.thinginoFooter && typeof window.thinginoFooter.showMessage === 'function') {
+			window.thinginoFooter.showMessage(message, variant);
+		} else {
+			// Fallback: create and show message directly
+			let el = $('#global-message-overlay');
+			if (!el) {
+				el = document.createElement('div');
+				el.id = 'global-message-overlay';
+				el.className = 'global-message-overlay';
+				el.setAttribute('role', 'status');
+				el.setAttribute('aria-live', 'polite');
+				document.body.appendChild(el);
+			}
+			el.textContent = message;
+			el.dataset.variant = variant;
+			el.classList.add('show');
+			setTimeout(() => el.classList.remove('show'), timeout);
+		}
+	};
+
 	window.addEventListener('load', initAll)
+	window.addEventListener('DOMContentLoaded', createAlertArea)
 
 	document.addEventListener("visibilitychange", () => {
 		if (document.hidden) {
 			if ($('#preview'))
-				$('#preview').src = '/a/nostream.webp';
+				$('#preview').src = ImageNoStream;
 		} else {
 			if ($('#preview'))
 				$('#preview').src = '/x/ch0.mjpg';
+		}
+	});
+
+	// Global modal focus management - prevent aria-hidden focus conflicts for all modals
+	document.addEventListener('hide.bs.modal', (event) => {
+		const modal = event.target;
+
+		// Check if the modal element itself has focus
+		if (document.activeElement === modal) {
+			modal.blur();
+		}
+
+		// Also check for any focused elements within the modal
+		const focusedElement = modal.querySelector(':focus');
+		if (focusedElement) {
+			focusedElement.blur();
 		}
 	});
 })();

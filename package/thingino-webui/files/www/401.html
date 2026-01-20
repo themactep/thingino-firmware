@@ -1,29 +1,42 @@
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta content="width=device-width,initial-scale=1" name="viewport">
-<title>Authentication required - thingino</title>
-<link href="/a/bootstrap.min.css" rel="stylesheet">
-<link href="/a/bootstrap.override.css" rel="stylesheet">
-<script src="/a/bootstrap.bundle.min.js"></script>
-<script src="/a/main.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Authentication required</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
 </head>
-<body id="top">
-<nav class="navbar navbar-expand-lg sticky-top">
-<div class="container"><a class="navbar-brand" href="/x/status.cgi"><img alt="" height="32" src="/a/logo.svg" width="116"></a></div>
-</nav>
-<main>
-<div class="container p-3"><h2>Authentication required</h2>
-<div class="alert alert-info">
-<p>The username is <b>root</b>, and the password is either <b>root</b> or whatever you set it to when you set up the wireless network.</p>
-</div>
-</div>
+
+<body id="page-error-401">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <h2>Authentication required</h2>
+    <div class="alert alert-info">
+      <p>The username is <b>root</b>, and the password is either <b>root</b> or whatever you set it to when you set up the wireless network.</p>
+    </div>
+  </div>
 </main>
+
 <footer class="p-3">
-<div class="container">
-<p class="text-end">Powered by <a href="https://github.com/themactep/thingino-firmware">thingino</a>.</p>
-</div>
+  <div class="container">
+    <p class="text-end">Powered by <a href="https://thingino.com/">thingino</a>.</p>
+  </div>
 </footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
 </body>
 </html>

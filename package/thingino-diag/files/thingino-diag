@@ -6,12 +6,21 @@ PRUDYNT_CONFIG_FILE="/etc/prudynt.json"
 
 show_help() {
 	echo "Thingino Diagnostics Script
-Generate diagnostics log shared via tb.thingino.com
+Generate diagnostics log
 
-Usage: $0 [-l [path]]
-Where:
-	-l	Save the log to a local file instead of uploading.
-		Optional: specify a custom path (default: /tmp)
+Usage: $0 [OPTIONS]
+Options:
+	-o -             Output to stdout
+	-o /path/file    Output to specific file
+	-u               Upload to server (tb.thingino.com)
+	-j               Upload to server and return JSON with link
+	-f               Force: skip consent prompt
+	-h               Show this help
+
+Legacy options:
+	-l [path]        Save to local file (default: /tmp)
+
+Default: Save to random temp file in /tmp/
 "
 	exit 0
 }
@@ -26,53 +35,117 @@ header() {
 infocat() {
 	[ -f "$1" ] || return
 	[ -n "$2" ] && header "$2"
-	cat $1
+	cat "$1"
 }
 
 inforun() {
 	tmp=$(mktemp) || exit 1
-	eval "$1" >"$tmp" && [ -s "$tmp" ] && { [ -n "$2" ] && header "$2"; cat "$tmp"; }
+	eval "$1" >"$tmp"
+	if [ -s "$tmp" ]; then
+		[ -n "$2" ] && header "$2"
+		cat "$tmp"
+	fi
 	rm -f "$tmp"
 }
 
-local_file=""
-output_path="/tmp"
-while getopts ":lh" opt; do
+output_mode="temp"  # temp, stdout, file, upload, json
+output_file=""
+upload_to_server="no"
+force_mode="no"
+
+while getopts ":o:l::ujfh" opt; do
 	case $opt in
+		o)
+			if [ "$OPTARG" = "-" ]; then
+				output_mode="stdout"
+			else
+				output_mode="file"
+				output_file="$OPTARG"
+				# Create directory if it doesn't exist
+				output_dir=$(dirname "$output_file")
+				[ -d "$output_dir" ] || mkdir -p "$output_dir" || die "Error: Cannot create directory $output_dir"
+			fi
+			;;
 		l)
-			local_file="yes"
-			shift $((OPTIND-1))
-			output_path="${1:-/tmp}"
-			[ -d "$output_path" ] || die "Error: Directory $output_path does not exist"
-			[ -w "$output_path" ] || die "Error: Directory $output_path is not writable"
+			# Legacy option: -l [path]
+			output_mode="temp"
+			if [ -n "$OPTARG" ]; then
+				# Path specified with -l
+				output_file="$OPTARG/thingino-diag-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 4).log"
+				output_mode="file"
+				# Create directory if it doesn't exist
+				[ -d "$OPTARG" ] || mkdir -p "$OPTARG" || die "Error: Cannot create directory $OPTARG"
+			else
+				# Check if next argument is a path (not starting with -)
+				eval next_arg=\$${OPTIND}
+				if [ -n "$next_arg" ] && [ "${next_arg#-}" = "$next_arg" ]; then
+					output_file="$next_arg/thingino-diag-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 4).log"
+					output_mode="file"
+					[ -d "$next_arg" ] || mkdir -p "$next_arg" || die "Error: Cannot create directory $next_arg"
+					OPTIND=$((OPTIND + 1))
+				fi
+				# If no path specified, use default temp mode
+			fi
+			;;
+		u)
+			output_mode="upload"
+			upload_to_server="yes"
+			;;
+		j)
+			output_mode="json"
+			upload_to_server="yes"
+			;;
+		f)
+			force_mode="yes"
 			;;
 		h)
 			show_help
 			;;
 		\?)
-			echo "Invalid option: -$OPTARG"
+			echo "Invalid option: -$OPTARG" >&2
+			show_help
+			;;
+		:)
+			echo "Option -$OPTARG requires an argument." >&2
 			show_help
 			;;
 	esac
 done
 
-if [ -t 0 ]; then
+# Determine output destination
+case "$output_mode" in
+	"stdout")
+		output_file="/dev/stdout"
+		;;
+	"file")
+		# output_file already set from -o option
+		;;
+	"upload")
+		output_file=$(mktemp)
+		;;
+	"json")
+		output_file=$(mktemp)
+		;;
+	"temp"|*)
+		output_file="/tmp/thingino-diag-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 4).log"
+		;;
+esac
+
+# Interactive confirmation (except for stdout mode or force mode)
+if [ -t 0 ] && [ "$output_mode" != "stdout" ] && [ "$force_mode" != "yes" ]; then
 	echo "Thingino Diagnostics"
-	[ -z "$local_file" ] && echo "This script requires network access."
+	[ "$upload_to_server" = "yes" ] && echo "This script requires network access."
 	echo "
 This script generates a log file for sharing with developers for diagnostic issues.
-The log may contain sensitive information, please review it before sharing the link!
-We use a self-hosted fiche server to share the log. Files are stored for 1 week.
+The log may contain sensitive information, please review it before sharing!
 "
+	[ "$upload_to_server" = "yes" ] && echo "Files uploaded to tb.thingino.com are stored for 1 week."
 	read -p "Do you wish to proceed? (yes/no): " response
 	[ "yes" = "$response" ] || die "Operation aborted by the user."
 fi
 
-if [ -n "$local_file" ]; then
-	output_file="$output_path/thingino-diag-$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 4).log"
-else
-	output_file=$(mktemp)
-fi
+# Start timing for total information gathering
+diag_start_time=$(date +%s.%N 2>/dev/null || date +%s)
 
 {
 	inforun "date"
@@ -121,22 +194,46 @@ fi
 
 	header "streamer"
 	sed 's/"password": "[^"]*"/"password": "REDACTED"/g' $PRUDYNT_CONFIG_FILE
-
 	infocat "/etc/cron/crontabs/root" "crontab"
 } > "$output_file"
 
-sed -E -i 's/(openRTSP -V -u) (\w*) (\w*) (.*)$/\1 REDACTED REDACTED \4/' $output_file
-
-if [ -z "$local_file" ]; then
-	url=$(send2termbin < $output_file)
-	rm -f "$output_file"
-
-	[ -z "$url" ] && die "\nThere was an error."
-
-	echo "Your diagnostics log link:"
-	echo "$url"
+# Calculate and display total information gathering time
+diag_end_time=$(date +%s.%N 2>/dev/null || date +%s)
+if command -v bc >/dev/null 2>&1; then
+	total_duration=$(echo "$diag_end_time - $diag_start_time" | bc 2>/dev/null || echo "0")
 else
-	echo "Diagnostics log saved locally at $output_file"
+	total_duration=$(awk "BEGIN {print $diag_end_time - $diag_start_time}" 2>/dev/null || echo "0")
 fi
+
+# Post-process to redact sensitive information (except for stdout)
+if [ "$output_mode" != "stdout" ]; then
+	sed -E -i 's/(openRTSP -V -u) (\w*) (\w*) (.*)$/\1 REDACTED REDACTED \4/' "$output_file"
+fi
+
+# Handle different output modes
+case "$output_mode" in
+	"stdout")
+		# Output already sent to stdout, nothing more to do
+		;;
+	"upload")
+		url=$(send2termbin < "$output_file")
+		rm -f "$output_file"
+		[ -z "$url" ] && die "There was an error uploading the file."
+		echo "Your diagnostics log link:"
+		echo "$url"
+		echo "Information gathering completed in ${total_duration}s"
+		;;
+	"json")
+		url=$(send2termbin < "$output_file")
+		rm -f "$output_file"
+		[ -z "$url" ] && die "There was an error uploading the file."
+		# Output JSON for web API consumption
+		printf '{"status":"ok","link":"%s","duration":"%s"}\n' "$url" "${total_duration}s"
+		;;
+	"file"|"temp")
+		echo "Diagnostics log saved at $output_file"
+		echo "Information gathering completed in ${total_duration}s"
+		;;
+esac
 
 exit 0

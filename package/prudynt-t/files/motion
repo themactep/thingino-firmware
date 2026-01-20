@@ -14,6 +14,12 @@ MOTION_STOP_FILE="/run/motors.pid"
 MOTION_VIDEO_CHANNEL=0
 MOTION_VIDEO_LENGTH=10
 
+domain=motion
+
+get_value() {
+        jct /etc/prudynt.json get "motion.$1" 2>/dev/null
+}
+
 start() {
 	echo_info "Start motion"
 	if [ -f "$MOTION_STOP_FILE" ]; then
@@ -33,10 +39,10 @@ start() {
 	need_photo=false
 	need_video=false
 
-	for service in email ftp mqtt ntfy storage telegram webhook; do
-		if [ "true" = "$(jct /etc/prudynt.json get motion.send2${service})" ]; then
-			[ "true" = "$(jct /etc/send2.json get ${service}.send_photo)" ] && need_photo=true
-			[ "true" = "$(jct /etc/send2.json get ${service}.send_video)" ] && need_video=true
+	for service in email ftp gphotos mqtt ntfy storage telegram webhook; do
+		if [ "true" = "$(get_value send2${service})" ]; then
+			[ "true" = "$(jct /etc/send2.json get ${service}.send_photo 2>/dev/null)" ] && need_photo=true
+			[ "true" = "$(jct /etc/send2.json get ${service}.send_video 2>/dev/null)" ] && need_video=true
 		fi
 	done
 
@@ -90,37 +96,43 @@ start() {
 	# send2 actions
 	send2_pids=""
 
-	if [ "true" = "$(jct /etc/prudynt.json get motion.send2email)" ]; then
+	if [ "true" = "$(get_value send2email)" ]; then
 		echo_info "Send alert to email"
 		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2email &
 		send2_pids="$send2_pids $!"
 	fi
 
-	if [ "true" = "$(jct /etc/prudynt.json get motion.send2ftp)" ]; then
+	if [ "true" = "$(get_value send2ftp)" ]; then
 		echo_info "Send alert to FTP"
 		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2ftp &
 		send2_pids="$send2_pids $!"
 	fi
 
-	if [ "true" = "$(jct /etc/prudynt.json get motion.send2mqtt)" ]; then
+	if [ "true" = "$(get_value send2mqtt)" ]; then
 		echo_info "Send alert to MQTT"
 		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2mqtt &
 		send2_pids="$send2_pids $!"
 	fi
 
-	if [ "true" = "$(jct /etc/prudynt.json get motion.send2ntfy)" ]; then
+	if [ "true" = "$(get_value send2ntfy)" ]; then
 		echo_info "Send alert to Ntfy"
 		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2ntfy &
 		send2_pids="$send2_pids $!"
 	fi
 
-	if [ "true" = "$(jct /etc/prudynt.json get motion.send2storage)" ]; then
+	if [ "true" = "$(get_value send2storage)" ]; then
 		echo_info "Save to storage"
 		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2storage &
 		send2_pids="$send2_pids $!"
 	fi
 
-	if [ "true" = "$(jct /etc/prudynt.json get motion.send2telegram)" ]; then
+	if [ "true" = "$(get_value send2gphotos)" ]; then
+		echo_info "Upload to Google Photos"
+		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2gphotos &
+		send2_pids="$send2_pids $!"
+	fi
+
+	if [ "true" = "$(get_value send2telegram)" ]; then
 		echo_info "Send alert to Telegram"
 		if [ "$need_photo" = "true" ] || [ "$need_video" = "true" ]; then
 			echo_info "MOTION_PHOTO_FILE=$MOTION_PHOTO_FILE MOTION_VIDEO_FILE=$MOTION_VIDEO_FILE"
@@ -131,13 +143,13 @@ start() {
 		fi
 	fi
 
-	if [ "true" = "$(jct /etc/prudynt.json get motion.send2webhook)" ]; then
+	if [ "true" = "$(get_value send2webhook)" ]; then
 		echo_info "Send alert to WebHook"
 		MOTION_PHOTO_FILE="$MOTION_PHOTO_FILE" MOTION_VIDEO_FILE="$MOTION_VIDEO_FILE" send2webhook &
 		send2_pids="$send2_pids $!"
 	fi
 
-	if [ "true" = "$(jct /etc/prudynt.json get motion.playonspeaker)" ]; then
+	if [ "true" = "$(get_value playonspeaker)" ]; then
 		echo_info "Send alert to play on speaker"
 		playonspeaker &
 		send2_pids="$send2_pids $!"

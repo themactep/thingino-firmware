@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Photosensing</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-config-photosensing">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <form id="photosensing-form" class="needs-validation" novalidate  autocomplete="off">
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">Photosensing</h2>
+            <small>Configure the day/night automation thresholds and the controls it toggles.</small>
+            <button type="button" class="btn btn-outline-secondary" id="photosensing-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div><!-- .card-header -->
+          <div class="card-body">
+            <div class="row g-4">
+              <div class="col-12 col-lg-4">
+                <h4>Thresholds</h4>
+                <small>Maximum and minimum boundaries of Day/Night modes</small>
+                <p class="number-range">
+                  <label for="daynight_total_gain_night_threshold">Switch to night mode above</label>
+                  <span class="input-group">
+                    <input type="text" id="daynight_total_gain_night_threshold" name="daynight_total_gain_night_threshold" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="20000" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+                <p class="number-range">
+                  <label for="daynight_total_gain_day_threshold">Switch to day mode below</label>
+                  <span class="input-group">
+                    <input type="text" id="daynight_total_gain_day_threshold" name="daynight_total_gain_day_threshold" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="20000" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+              </div>
+              <div class="col-12 col-lg-4">
+                <h4>Controls</h4>
+                <small>Select actions to perform when changing Day/Night mode</small>
+                <p class="form-switch">
+                  <input type="hidden" id="daynight_controls_color-false" name="daynight_controls_color" value="false">
+                  <input type="checkbox" id="daynight_controls_color" name="daynight_controls_color" value="true" role="switch" class="form-check-input">
+                  <label for="daynight_controls_color" class="form-check-label">Change color mode</label>
+                </p>
+                <p class="form-switch">
+                  <input type="hidden" id="daynight_controls_ircut-false" name="daynight_controls_ircut" value="false">
+                  <input type="checkbox" id="daynight_controls_ircut" name="daynight_controls_ircut" value="true" role="switch" class="form-check-input">
+                  <label for="daynight_controls_ircut" class="form-check-label">Flip IR cut filter</label>
+                </p>
+                <p class="form-switch">
+                  <input type="hidden" id="daynight_controls_ir850-false" name="daynight_controls_ir850" value="false">
+                  <input type="checkbox" id="daynight_controls_ir850" name="daynight_controls_ir850" value="true" role="switch" class="form-check-input">
+                  <label for="daynight_controls_ir850" class="form-check-label">Toggle IR 850 nm</label>
+                </p>
+                <p class="form-switch">
+                  <input type="hidden" id="daynight_controls_ir940-false" name="daynight_controls_ir940" value="false">
+                  <input type="checkbox" id="daynight_controls_ir940" name="daynight_controls_ir940" value="true" role="switch" class="form-check-input">
+                  <label for="daynight_controls_ir940" class="form-check-label">Toggle IR 940 nm</label>
+                </p>
+                <p class="form-switch">
+                  <input type="hidden" id="daynight_controls_white-false" name="daynight_controls_white" value="false">
+                  <input type="checkbox" id="daynight_controls_white" name="daynight_controls_white" value="true" role="switch" class="form-check-input">
+                  <label for="daynight_controls_white" class="form-check-label">Toggle white light</label>
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <p class="form-switch">
+          <input type="hidden" id="daynight_enabled-false" name="daynight_enabled" value="false">
+          <input type="checkbox" id="daynight_enabled" name="daynight_enabled" value="true" role="switch" class="form-check-input">
+          <label for="daynight_enabled" class="form-check-label">Enable photosensing on boot</label>
+        </p>
+
+        <button type="submit" id="photosensing-submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Save Settings</button>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/config-photosensing.js"></script>
+</body>
+</html>

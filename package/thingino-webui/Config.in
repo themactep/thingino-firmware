@@ -3,5 +3,5 @@ config BR2_PACKAGE_THINGINO_WEBUI
 	select BR2_PACKAGE_BUSYBOX_HTTPD
 	select BR2_PACKAGE_HASERL
 	help
-	  Thingino Web UI working with httpd and haserl.
+	  Thingino Web UI (HTML, JS, CSS, Auburn shell CGI).
 	  https://github.com/themactep/thingino-firmware

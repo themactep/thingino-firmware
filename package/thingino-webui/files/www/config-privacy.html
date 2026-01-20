@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Privacy Screen</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-config-privacy">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <form id="privacy-form" class="needs-validation" novalidate autocomplete="off">
+        <input type="hidden" name="privacy0_enabled" value="false">
+        <input type="hidden" id="privacy0_layer" name="privacy0_layer">
+        <input type="hidden" id="privacy0_opacity" name="privacy0_opacity">
+        <input type="hidden" id="privacy0_position" name="privacy0_position">
+        <input type="hidden" id="privacy0_rotation" name="privacy0_rotation">
+        <input type="hidden" id="privacy0_font_size" name="privacy0_font_size">
+        <input type="hidden" id="privacy0_stroke_size" name="privacy0_stroke_size">
+        <input type="hidden" id="privacy0_image_path" name="privacy0_image_path">
+        <input type="hidden" id="privacy0_image_width" name="privacy0_image_width">
+        <input type="hidden" id="privacy0_image_height" name="privacy0_image_height">
+        <input type="hidden" id="privacy0_fill_alpha" name="privacy0_fill_alpha">
+        <input type="hidden" id="privacy0_stroke_alpha" name="privacy0_stroke_alpha">
+        <input type="hidden" name="privacy1_enabled" value="false">
+        <input type="hidden" id="privacy1_layer" name="privacy1_layer">
+        <input type="hidden" id="privacy1_opacity" name="privacy1_opacity">
+        <input type="hidden" id="privacy1_position" name="privacy1_position">
+        <input type="hidden" id="privacy1_rotation" name="privacy1_rotation">
+        <input type="hidden" id="privacy1_font_size" name="privacy1_font_size">
+        <input type="hidden" id="privacy1_stroke_size" name="privacy1_stroke_size">
+        <input type="hidden" id="privacy1_image_path" name="privacy1_image_path">
+        <input type="hidden" id="privacy1_image_width" name="privacy1_image_width">
+        <input type="hidden" id="privacy1_image_height" name="privacy1_image_height">
+        <input type="hidden" id="privacy1_fill_alpha" name="privacy1_fill_alpha">
+        <input type="hidden" id="privacy1_stroke_alpha" name="privacy1_stroke_alpha">
+
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">Privacy screen overlays</h2>
+            <small>Configure the dedicated privacy OSD layers for each stream. Changes take effect immediately after the video/OSD threads restart.</small>
+            <button type="button" class="btn btn-outline-secondary" id="privacy-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div><!-- .card-header -->
+          <div class="card-body">
+            <div class="row row-cols-1 row-cols-xl-2 mb-3">
+              <div class="col">
+                <h4>Main stream (stream0)</h4>
+                <small>Typically used by RTSP and local recordings.</small>
+                <p class="form-switch"><input class="form-check-input me-1" type="checkbox" role="switch" id="privacy0_enabled" name="privacy0_enabled" value="true">
+                  <label class="form-check-label" for="privacy0_enabled">Enabled on start</label></p>
+                <p><label for="privacy0_text">Overlay text</label>
+                  <input type="text" class="form-control" id="privacy0_text" name="privacy0_text" maxlength="160" placeholder="PRIVACY ENABLED"></p>
+                <p><label for="privacy0_fill_color">Fill color</label>
+                  <input type="color" class="form-control form-control-color" id="privacy0_fill_color" name="privacy0_fill_color" aria-label="Fill color picker"></p>
+                <p><label for="privacy0_stroke_color">Stroke color</label>
+                  <input type="color" class="form-control form-control-color" id="privacy0_stroke_color" name="privacy0_stroke_color" aria-label="Stroke color picker"></p>
+              </div><!-- .col -->
+              <div class="col">
+                <h4>Substream (stream1)</h4>
+                <small>Used by thumbnails and bandwidth-constrained clients.</small>
+                <p class="form-switch"><input class="form-check-input me-1" type="checkbox" role="switch" id="privacy1_enabled" name="privacy1_enabled" value="true">
+                  <label class="form-check-label" for="privacy1_enabled">Enabled on load</label></p>
+                <p><label for="privacy1_text">Overlay text</label>
+                  <input type="text" class="form-control" id="privacy1_text" name="privacy1_text" maxlength="160" placeholder="PRIVACY ENABLED"></p>
+                <p><label for="privacy1_fill_color">Fill color</label>
+                  <input type="color" class="form-control form-control-color" id="privacy1_fill_color" name="privacy1_fill_color" aria-label="Fill color picker"></p>
+                <p><label for="privacy1_stroke_color">Stroke color</label>
+                  <input type="color" class="form-control form-control-color" id="privacy1_stroke_color" name="privacy1_stroke_color" aria-label="Stroke color picker"></p>
+              </div><!-- .col -->
+            </div><!-- .row -->
+          </div><!-- -card-body -->
+        </div><!-- -card -->
+
+        <button type="submit" id="privacy-save" class="btn btn-primary"><i class="bi bi-save me-1"></i> Save changes</button>
+      </form>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/privacy.js"></script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Sensor IQ File</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-streamer-sensor">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container">
+    <div data-app-controls></div>
+
+    <h3>Sensor IQ File</h3>
+
+    <div class="row mb-3">
+      <div class="col-12 col-xl-4">
+        <div id="frame" class="position-relative">
+          <img id="preview" src="/a/nostream.svg" class="img-fluid" alt="Image: Preview" tabindex="-1" data-stream="ch1">
+        </div>
+      </div>
+      <div class="col col-xl-8">
+        <h4>Sensor IQ file</h4>
+        <small>This file contains image quality settings for the image sensor</small>
+        <p class="alert alert-secondary" id="sensor-info">
+          <span id="sensor-loading">Loading sensor information...</span>
+          <span id="sensor-details" class="d-none">
+            File: <span id="sensor-file-path"></span><br>
+            MD5: <span id="sensor-md5"></span>
+          </span>
+        </p>
+        <p>Upload a custom sensor IQ file for <span class="fw-bold text-uppercase">t31l</span>
+          and <span class="fw-bold text-uppercase">gc2083</span>, e.g. from a stock firmware backup.</p>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#mdSensorIQ">
+          <i class="bi bi-upload"></i> Upload Sensor IQ File
+        </button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<div class="modal fade" id="mdSensorIQ" tabindex="-1" aria-labelledby="mdlSensorIQ" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fs-4" id="mdlSensorIQ">Upload sensor IQ file</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="sensorUploadForm" class="mb-4" method="post" action="/x/preview.cgi" enctype="multipart/form-data">
+          <input type="hidden" name="form" value="sensor">
+          <div class="mb-3">
+            <label for="sensorfile">Upload a sensor IQ binary file</label>
+            <input type="file" class="form-control" id="sensorfile" name="sensorfile" accept=".bin" required>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Upload sensor IQ file</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/preview.js"></script>
+</body>
+</html>

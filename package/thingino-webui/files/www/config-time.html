@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Time Configuration</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-config-time">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <div id="alert-area"></div>
+
+    <form id="timeForm" class="mb-4">
+      <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
+        <div class="col">
+          <div class="card mb-3">
+            <div class="card-body">
+              <h5 class="card-title">Time Zone</h5>
+              <datalist id="tz_list"></datalist>
+              <div class="mb-2">
+                <label for="tz_name" class="form-label">Zone name</label>
+                <input type="text" id="tz_name" name="tz_name" class="form-control" list="tz_list" autocomplete="off">
+                <span class="hint text-secondary">Start typing the name of the nearest large city in the box above then select from available variants.</span>
+              </div>
+              <p><a href="#" id="frombrowser">Pick up timezone from browser</a></p>
+              <div class="mb-2">
+                <label for="tz_data" class="form-label">Zone string</label>
+                <input type="text" id="tz_data" name="tz_data" class="form-control" readonly>
+                <span class="hint text-secondary">Control string of the timezone selected above. Read-only field, only for monitoring.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="card mb-3">
+            <div class="card-body">
+              <h5 class="card-title">Time Synchronization</h5>
+              <div class="mb-2">
+                <label for="ntp_server_0" class="form-label">NTP Server 1</label>
+                <input type="text" id="ntp_server_0" name="ntp_server_0" class="form-control">
+              </div>
+              <div class="mb-2">
+                <label for="ntp_server_1" class="form-label">NTP Server 2</label>
+                <input type="text" id="ntp_server_1" name="ntp_server_1" class="form-control">
+              </div>
+              <div class="mb-2">
+                <label for="ntp_server_2" class="form-label">NTP Server 3</label>
+                <input type="text" id="ntp_server_2" name="ntp_server_2" class="form-control">
+              </div>
+              <div class="mb-2">
+                <label for="ntp_server_3" class="form-label">NTP Server 4</label>
+                <input type="text" id="ntp_server_3" name="ntp_server_3" class="form-control">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="card mb-3">
+            <div class="card-body">
+              <h5 class="card-title">Actions</h5>
+              <button id="sync-time" type="button" class="btn btn-secondary mb-3 w-100">
+                <i class="bi bi-arrow-repeat"></i> Synchronize time
+              </button>
+              <div id="sync-time-result"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-3">
+        <button type="submit" id="time_submit" class="btn btn-primary">Save changes</button>
+      </div>
+    </form>
+
+    <div class="ui-debug d-none">
+      <p>Inspect <code>/etc/timezone</code>, <code>/etc/TZ</code>, and NTP configuration files over SSH for deeper troubleshooting.</p>
+    </div>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script>
+  window.network_address = window.location.hostname || '';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script>
+(function() {
+  const form = document.getElementById('timeForm');
+  const tzNameInput = document.getElementById('tz_name');
+  const tzDataInput = document.getElementById('tz_data');
+  const ntpServer0 = document.getElementById('ntp_server_0');
+  const ntpServer1 = document.getElementById('ntp_server_1');
+  const ntpServer2 = document.getElementById('ntp_server_2');
+  const ntpServer3 = document.getElementById('ntp_server_3');
+  const submitButton = document.getElementById('time_submit');
+  const syncButton = document.getElementById('sync-time');
+  const syncResult = document.getElementById('sync-time-result');
+  const alertArea = document.getElementById('alert-area');
+let TZ = [];
+
+  function showAlert(type, text) {
+    alertArea.innerHTML = '';
+    if (!text) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = `alert alert-${type}`;
+    wrapper.setAttribute('role', 'alert');
+    wrapper.textContent = text;
+    alertArea.appendChild(wrapper);
+  }
+
+  function showOverlayMessage(message, variant = 'info') {
+    if (window.thinginoFooter && typeof window.thinginoFooter.showMessage === 'function') {
+      window.thinginoFooter.showMessage(message, variant);
+      return;
+    }
+    const fallbackType = variant === 'danger' ? 'danger' : 'info';
+    showAlert(fallbackType, message);
+  }
+
+  function showSyncResult(type, text) {
+    syncResult.innerHTML = '';
+    if (!text) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = `alert alert-${type}`;
+    wrapper.textContent = text;
+    syncResult.appendChild(wrapper);
+  }
+
+  function toggleBusy(state, label) {
+    submitButton.disabled = state;
+    tzNameInput.disabled = state;
+    ntpServer0.disabled = state;
+    ntpServer1.disabled = state;
+    ntpServer2.disabled = state;
+    ntpServer3.disabled = state;
+    if (state) {
+      const text = label || 'Working';
+      submitButton.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>${text}`;
+    } else {
+      submitButton.textContent = 'Save changes';
+    }
+  }
+
+  function findTimezone(tzName) {
+    return TZ.find(tz => tz.n === tzName);
+  }
+
+  function updateTimezone() {
+    const tz = findTimezone(tzNameInput.value);
+    tzDataInput.value = tz ? tz.v : '';
+  }
+
+  function useBrowserTimezone(event) {
+    event.preventDefault();
+    tzNameInput.value = Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_', ' ');
+    updateTimezone();
+  }
+
+  function populateTimezones() {
+    const isFirefoxAndroid = navigator.userAgent.includes("Android") && navigator.userAgent.includes("Firefox");
+
+    if (isFirefoxAndroid) {
+      const sel = document.createElement("select");
+      sel.classList.add("form-select");
+      sel.name = "tz_name";
+      sel.id = "tz_name";
+      sel.options.add(new Option());
+      TZ.forEach(function (tz) {
+        const opt = new Option(tz.n);
+        opt.selected = (tz.n === tzNameInput.value);
+        sel.options.add(opt);
+      });
+      tzNameInput.replaceWith(sel);
+    } else {
+      const el = document.getElementById('tz_list');
+      el.innerHTML = "";
+      TZ.forEach(function (tz) {
+        const o = document.createElement("option");
+        o.value = tz.n;
+        el.appendChild(o);
+      });
+    }
+  }
+
+  async function loadTimezones() {
+    try {
+      const response = await fetch('/a/tz.json');
+      if (!response.ok) throw new Error('Failed to load timezone data');
+      TZ = await response.json();
+      populateTimezones();
+    } catch (err) {
+      console.error('Failed to load timezones:', err);
+    }
+  }
+
+  async function loadConfig(options = {}) {
+    const preserveBusy = options.preserveBusy === true;
+    if (!preserveBusy) {
+      toggleBusy(true, 'Loading');
+    }
+    try {
+      const response = await fetch('/x/json-config-time.cgi', { headers: { 'Accept': 'application/json' } });
+      if (!response.ok) throw new Error('Failed to load time configuration');
+      const data = await response.json();
+      tzNameInput.value = data.tz_name || '';
+      tzDataInput.value = data.tz_data || '';
+      ntpServer0.value = data.ntp_server_0 || '';
+      ntpServer1.value = data.ntp_server_1 || '';
+      ntpServer2.value = data.ntp_server_2 || '';
+      ntpServer3.value = data.ntp_server_3 || '';
+    } catch (err) {
+      showAlert('danger', err.message || 'Unable to load time configuration.');
+    } finally {
+      if (!preserveBusy) {
+        toggleBusy(false);
+      }
+    }
+  }
+
+  async function saveConfig(payload) {
+    toggleBusy(true, 'Saving');
+    try {
+      const response = await fetch('/x/json-config-time.cgi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (!response.ok || (result && result.error)) {
+        const message = result && result.error && result.error.message ? result.error.message : 'Failed to save settings';
+        throw new Error(message);
+      }
+      showAlert('', '');
+      showOverlayMessage(result.message || 'Time configuration saved.', 'success');
+      await loadConfig({ preserveBusy: true });
+    } catch (err) {
+      showAlert('danger', err.message || 'Failed to save time configuration.');
+    } finally {
+      toggleBusy(false);
+    }
+  }
+
+  async function syncTime() {
+    syncButton.disabled = true;
+    showBusy('Synchronizing time...');
+    showSyncResult('', '');
+
+    try {
+      const response = await fetch('/x/json-sync-time.cgi?' + new URLSearchParams({ ts: Date.now() }).toString());
+      const result = await response.json();
+
+      if (result.error) {
+        showSyncResult('danger', result.error.message || 'Synchronization failed');
+      } else {
+        showSyncResult('success', result.message || 'Time synchronized');
+      }
+    } catch (err) {
+      showSyncResult('danger', err.message || 'Failed to synchronize time');
+    } finally {
+      hideBusy();
+      syncButton.disabled = false;
+    }
+  }
+
+  form.addEventListener('submit', function(ev) {
+    ev.preventDefault();
+    const payload = {
+      action: 'update',
+      tz_name: tzNameInput.value.trim(),
+      tz_data: tzDataInput.value.trim(),
+      ntp_server_0: ntpServer0.value.trim(),
+      ntp_server_1: ntpServer1.value.trim(),
+      ntp_server_2: ntpServer2.value.trim(),
+      ntp_server_3: ntpServer3.value.trim()
+    };
+    saveConfig(payload);
+  });
+
+  tzNameInput.addEventListener('focus', (ev) => ev.target.select());
+  tzNameInput.addEventListener('change', updateTimezone);
+  tzNameInput.addEventListener('input', updateTimezone);
+  document.getElementById('frombrowser').addEventListener('click', useBrowserTimezone);
+  syncButton.addEventListener('click', syncTime);
+
+  loadTimezones();
+  loadConfig();
+})();
+</script>
+</body>
+</html>

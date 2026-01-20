@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Audio Settings</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-config-audio">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <form id="audio-form" class="needs-validation" novalidate autocomplete="off">
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">Audio Settings</h2>
+            <small>Requires prudynt service restart of the audio thread after each change.</small>
+            <button type="button" class="btn btn-outline-secondary" id="audio-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div><!-- .card-header -->
+          <div class="card-body">
+            <h4>Microphone</h4>
+            <small>Parameters of the sound coming from the camera</small>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 mb-3">
+              <div class="col">
+                <p class="select" id="audio_mic_format_wrap">
+                  <label for="audio_mic_format">Codec</label>
+                  <select class="form-select" id="audio_mic_format" name="audio_mic_format">
+                    <option value="">- Select -</option>
+                    <option value="AAC">AAC</option>
+                    <option value="G711A">G711A</option>
+                    <option value="G711U">G711U</option>
+                    <option value="G726">G726</option>
+                    <option value="OPUS">OPUS</option>
+                    <option value="PCM">PCM</option>
+                  </select>
+                </p>
+                <p class="select" id="audio_mic_sample_rate_wrap">
+                  <label for="audio_mic_sample_rate">Sampling, Hz</label>
+                  <select class="form-select" id="audio_mic_sample_rate" name="audio_mic_sample_rate" data-option-values="8000,12000,16000,24000,48000">
+                    <option value="">- Select -</option>
+                  </select>
+                </p>
+                <p class="select" id="audio_mic_bitrate_wrap">
+                  <label for="audio_mic_bitrate">Bitrate, kbps</label>
+                  <select class="form-select" id="audio_mic_bitrate" name="audio_mic_bitrate" data-range-min="6" data-range-max="256" data-range-step="2">
+                    <option value="">- Select -</option>
+                  </select>
+                </p>
+              </div><!-- .col -->
+              <div class="col">
+                <p class="number-range">
+                  <label for="audio_mic_vol">Mic volume</label>
+                  <span class="input-group">
+                    <input type="text" id="audio_mic_vol" name="audio_mic_vol" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="-30" data-max="120" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+                <p class="number-range">
+                  <label for="audio_mic_gain">Mic gain</label>
+                  <span class="input-group">
+                    <input type="text" id="audio_mic_gain" name="audio_mic_gain" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="31" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+                <p class="number-range">
+                  <label for="audio_mic_alc_gain">
+                    <abbr title="Automatic Level Control">ALC</abbr> gain
+                  </label>
+                  <span class="input-group">
+                    <input type="text" id="audio_mic_alc_gain" name="audio_mic_alc_gain" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="7" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+              </div><!-- .col -->
+              <div class="col">
+                <p class="number-range">
+                  <label for="audio_mic_noise_suppression">Noise suppression</label>
+                  <span class="input-group">
+                    <input type="text" id="audio_mic_noise_suppression" name="audio_mic_noise_suppression" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="3" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+                <p class="number-range">
+                  <label for="audio_mic_agc_compression_gain_db">Compression gain, dB</label>
+                  <span class="input-group">
+                    <input type="text" id="audio_mic_agc_compression_gain_db" name="audio_mic_agc_compression_gain_db" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="90" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+                <p class="number-range">
+                  <label for="audio_mic_agc_target_level_dbfs">Target level, dBfs</label>
+                  <span class="input-group">
+                    <input type="text" id="audio_mic_agc_target_level_dbfs" name="audio_mic_agc_target_level_dbfs" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="31" data-step="1">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                  </span>
+                </p>
+              </div><!-- .col -->
+              <div class="col">
+                <p class="form-switch">
+                  <input type="hidden" id="audio_mic_agc_enabled-false" name="audio_mic_agc_enabled" value="false">
+                  <input type="checkbox" id="audio_mic_agc_enabled" name="audio_mic_agc_enabled" value="true" role="switch" class="form-check-input">
+                  <label for="audio_mic_agc_enabled" class="form-check-label"><abbr title="Automatic gain control">AGC</abbr> Enabled</label>
+                </p>
+                <p class="form-switch">
+                  <input type="hidden" id="audio_mic_high_pass_filter-false" name="audio_mic_high_pass_filter" value="false">
+                  <input type="checkbox" id="audio_mic_high_pass_filter" name="audio_mic_high_pass_filter" value="true" role="switch" class="form-check-input">
+                  <label for="audio_mic_high_pass_filter" class="form-check-label">High pass filter</label>
+                </p>
+                <p class="form-switch">
+                  <input type="hidden" id="audio_force_stereo-false" name="audio_force_stereo" value="false">
+                  <input type="checkbox" id="audio_force_stereo" name="audio_force_stereo" value="true" role="switch" class="form-check-input">
+                  <label for="audio_force_stereo" class="form-check-label">Force stereo</label>
+                </p>
+              </div><!-- .col -->
+            </div><!-- .row -->
+
+            <h4>Speaker</h4>
+            <small>Parameters of the sound played on the camera speaker</small>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 mb-3">
+              <p class="col number-range">
+                <label for="audio_spk_vol">Speaker volume</label>
+                <span class="input-group">
+                  <input type="text" id="audio_spk_vol" name="audio_spk_vol" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="-30" data-max="120" data-step="1">
+                  <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                </span>
+              </p>
+              <p class="col number-range">
+                <label for="audio_spk_gain">Speaker gain</label>
+                <span class="input-group">
+                  <input type="text" id="audio_spk_gain" name="audio_spk_gain" class="form-control text-end" value="" pattern="[0-9]{1,}" title="numeric value" data-min="0" data-max="31" data-step="1">
+                  <button type="button" class="btn btn-outline-secondary dropdown-toggle" aria-label="Open slider"></button>
+                </span>
+              </p>
+              <p class="col select" id="audio_spk_sample_rate_wrap">
+                <label for="audio_spk_sample_rate">Speaker sampling, Hz</label>
+                <select class="form-select" id="audio_spk_sample_rate" name="audio_spk_sample_rate" data-option-values="8000,12000,16000,24000,48000">
+                  <option value="">- Select -</option>
+                </select>
+              </p>
+            </div><!-- .row -->
+          </div><!-- .card-body -->
+        </div><!-- .card -->
+
+        <button type="submit" id="audio_submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Save changes</button>
+      </form>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/audio.js"></script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Network Test</title>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-tool-ping-trace">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <form id="networkForm" class="needs-validation" novalidate autocomplete="off">
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">Network Test</h2>
+            <small>Run ping or traceroute diagnostics directly on the camera to debug connectivity issues</small>
+            <button type="button" class="btn btn-outline-secondary" id="btnClear" title="Clear output">
+              <i class="bi bi-eraser me-1"></i>Clear output
+            </button>
+          </div><!-- .card-header -->
+          <div class="card-body">
+            <div class="row mb-3">
+              <div class="col">
+                <h4>Test parameters</h4>
+                <small>Select the test type and destination. Interface and packet settings are optional.</small>
+                <p><label for="action">Action</label>
+                  <select class="form-select" id="action" name="action"></select>
+                  <span class="form-text" id="actionHelp">Choose a test type</span>
+                </p>
+                <p><label for="target">Target host</label>
+                  <input type="text" class="form-control" id="target" name="target" value="thingino.com"
+                    placeholder="FQDN or IP address" autocomplete="off" required></p>
+                <p><label for="interface">Interface</label>
+                  <select class="form-select" id="interface" name="interface">
+                    <option value="auto" selected>auto</option>
+                  </select>
+                  <span class="form-text">Pick a specific interface or stay on auto</span>
+                </p>
+                <p><label for="packetSize">Packet size, bytes</label>
+                  <input type="number" class="form-control" id="packetSize" name="packet_size" min="56" max="65535" step="1" value="56"></p>
+                <p><label for="count">Number of packets</label>
+                  <input type="number" class="form-control" id="count" name="count" min="1" max="30" step="1" value="5"></p>
+                <button type="submit" class="btn btn-primary w-100" id="runTest">
+                  <i class="bi bi-play-fill me-1"></i>Run test
+                </button>
+              </div><!-- .col -->
+              <div class="col-12 col-lg-8 col-xxl-9">
+                <h4>Diagnostics output</h4>
+                <small>Configure a test and press Run to start streaming output.</small>
+                <div id="commandHeading"></div>
+                <pre id="output" class="terminal flex-grow-1 overflow-auto"
+                  data-reboot="false"></pre>
+                <div id="streamStatus"></div>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCopy" disabled>
+                  <i class="bi bi-clipboard me-1"></i>Copy
+                </button>
+              </div><!-- .col -->
+            </div><!-- .row -->
+          </div><!-- .card-body -->
+        </div><!-- .card -->
+      </form>
+    </section>
+  </div>
+</main>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/tool-ping-trace.js"></script>
+</body>
+</html>

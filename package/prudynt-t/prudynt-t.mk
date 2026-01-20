@@ -143,6 +143,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	chmod 755 $(TARGET_DIR)/usr/bin/prudynt
 	echo "Installed stripped prudynt binary ($$(du -h $(TARGET_DIR)/usr/bin/prudynt | cut -f1))"
 
+	[ -d /nfs ] && cp $(TARGET_DIR)/usr/bin/prudynt /nfs/prudynt
+
 	# Copy prudyntctl
 	cp $(@D)/bin/prudyntctl $(TARGET_DIR)/usr/bin/prudyntctl
 
@@ -236,6 +238,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/send2email
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2ftp \
 		$(TARGET_DIR)/usr/sbin/send2ftp
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2gphotos \
+		$(TARGET_DIR)/usr/sbin/send2gphotos
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2mqtt \
 		$(TARGET_DIR)/usr/sbin/send2mqtt
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2ntfy \
@@ -264,8 +268,7 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/etc/init.d/S31prudynt
 #	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S32prudyntwd \
 #		$(TARGET_DIR)/etc/init.d/S32prudyntwd
-	# install service disabled
-	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/S98recorder \
+	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S98recorder \
 		$(TARGET_DIR)/etc/init.d/S98recorder
 
 	# assets
@@ -275,22 +278,6 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/images/thingino_100x30.bgra
 	$(INSTALL) -D -m 0644 $(@D)/res/thingino_210x64.bgra \
 		$(TARGET_DIR)/usr/share/images/thingino_210x64.bgra
-
-	# web ui
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ch0.jpg \
-		$(TARGET_DIR)/var/www/x/ch0.jpg
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ch0.mjpg \
-		$(TARGET_DIR)/var/www/x/ch0.mjpg
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ch1.jpg \
-		$(TARGET_DIR)/var/www/x/ch1.jpg
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/ch1.mjpg \
-		$(TARGET_DIR)/var/www/x/ch1.mjpg
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/image.cgi \
-		$(TARGET_DIR)/var/www/x/image.cgi
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/video.mjpg \
-		$(TARGET_DIR)/var/www/x/video.mjpg
-	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/events.cgi \
-		$(TARGET_DIR)/var/www/x/events.cgi
 
 	# Install debug-specific files and configurations to NFS
 	if [ "$(BR2_PACKAGE_PRUDYNT_T_DEBUG)" = "y" ]; then \

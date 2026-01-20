@@ -45,6 +45,6 @@ esac
 
 tmpfile="$(mktemp -u).opus"
 $CURL --silent --get --url https://thingino.com/say2 --data-urlencode q="$phrase" -o $tmpfile
-play $tmpfile && rm $tmpfile
+play "$tmpfile" && rm -f "$tmpfile"
 
 exit 0
