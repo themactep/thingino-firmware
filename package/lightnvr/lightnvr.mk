@@ -1,7 +1,7 @@
 LIGHTNVR_SITE_METHOD = git
 LIGHTNVR_SITE = https://github.com/opensensor/lightNVR
 LIGHTNVR_SITE_BRANCH = main
-LIGHTNVR_VERSION = b39e53aea1096899530d4ad6d2cbb2bea1115161
+LIGHTNVR_VERSION = 4cfb0e90a938e43399723b707682fe2f236dde87
 
 LIGHTNVR_LICENSE = MIT
 LIGHTNVR_LICENSE_FILES = COPYING
@@ -42,10 +42,21 @@ endef
 
 LIGHTNVR_PRE_BUILD_HOOKS += LIGHTNVR_BUILD_WEB_ASSETS
 
-# Main application files installation
+# Main application files installation - only gzip assets for space savings
 define LIGHTNVR_INSTALL_APP_FILES
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/lib/lightnvr
-	cp -r $(@D)/web/dist $(TARGET_DIR)/var/lib/lightnvr/web
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/lib/lightnvr/web
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/lib/lightnvr/web/assets
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/lib/lightnvr/web/css
+	$(INSTALL) -m 755 -d $(TARGET_DIR)/var/lib/lightnvr/web/img
+	# Copy only gzip-compressed JS and CSS files (saves ~70% space)
+	cp $(@D)/web/dist/assets/*.gz $(TARGET_DIR)/var/lib/lightnvr/web/assets/
+	cp $(@D)/web/dist/css/*.gz $(TARGET_DIR)/var/lib/lightnvr/web/css/
+	# Copy HTML files (both compressed and uncompressed for initial load)
+	cp $(@D)/web/dist/*.html $(TARGET_DIR)/var/lib/lightnvr/web/
+	cp $(@D)/web/dist/*.html.gz $(TARGET_DIR)/var/lib/lightnvr/web/
+	# Copy images and other static assets
+	-cp -r $(@D)/web/dist/img/* $(TARGET_DIR)/var/lib/lightnvr/web/img/ 2>/dev/null || true
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/lightnvr
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/etc/lightnvr/go2rtc
 	$(INSTALL) -m 644 $(LIGHTNVR_PKGDIR)/files/lightnvr.ini $(TARGET_DIR)/etc/lightnvr/lightnvr.ini
