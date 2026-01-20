@@ -68,8 +68,8 @@ fi
 
 # Function to select camera
 select_camera() {
-    local cameras_dir="configs/cameras"
-    local memo_file=".selected_camera"
+    local cameras_dir="configs/cameras${GROUP:+-$GROUP}"
+    local memo_file=".selected_camera${GROUP:+-$GROUP}"
 
     if [ ! -d "$cameras_dir" ]; then
         print_error "Camera configs directory not found: $cameras_dir"
@@ -228,7 +228,7 @@ case "$CMD" in
         print_info "Running CLEAN build (distclean + fast parallel)..."
 
         # Build with selected camera using cleanbuild target
-        make -f Makefile.docker docker-make CAMERA="$CAMERA" MAKECMDGOALS="cleanbuild" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        make -f Makefile.docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="cleanbuild" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     dev)
         # Select camera
@@ -246,7 +246,7 @@ case "$CMD" in
         print_info "Running SERIAL build for debugging (incremental, stops at errors)..."
 
         # Build with selected camera using dev target (serial build with V=1)
-        make -f Makefile.docker docker-make CAMERA="$CAMERA" MAKECMDGOALS="dev" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        make -f Makefile.docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="dev" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     upgrade_ota)
         # Select camera
@@ -264,7 +264,7 @@ case "$CMD" in
         print_info "Running upgrade_ota in container..."
 
         # Build with selected camera
-        make -f Makefile.docker docker-upgrade-ota CAMERA="$CAMERA" CONTAINER_ENGINE="$CONTAINER_ENGINE" "$@"
+        make -f Makefile.docker docker-upgrade-ota CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} CONTAINER_ENGINE="$CONTAINER_ENGINE" "$@"
         ;;
     build|"")
         # Select camera
@@ -282,7 +282,7 @@ case "$CMD" in
         print_info "Building firmware in container (parallel incremental)..."
 
         # Build with selected camera (uses default 'all' target which is incremental parallel)
-        make -f Makefile.docker docker-make CAMERA="$CAMERA" MAKECMDGOALS="all" CONTAINER_ENGINE="$CONTAINER_ENGINE"
+        make -f Makefile.docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="all" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
     info)
         make -f Makefile.docker docker-info CONTAINER_ENGINE="$CONTAINER_ENGINE"

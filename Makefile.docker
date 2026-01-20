@@ -55,7 +55,8 @@ docker-shell: docker-build
 docker-make: docker-build
 	$(eval TARGETS := $(if $(filter-out docker-make,$(MAKECMDGOALS)),$(filter-out docker-make,$(MAKECMDGOALS)),all))
 	$(eval CAMERA_ARG := $(if $(CAMERA),CAMERA=$(CAMERA)))
-	@echo "Running make $(CAMERA_ARG) $(TARGETS) in container..."
+	$(eval GROUP_ARG := $(if $(GROUP),GROUP=$(GROUP)))
+	@echo "Running make $(CAMERA_ARG) $(GROUP_ARG) $(TARGETS) in container..."
 	@echo '#!/bin/bash' > /tmp/docker-make-run.sh
 	@echo 'cleanup() {' >> /tmp/docker-make-run.sh
 	@echo '    echo' >> /tmp/docker-make-run.sh
@@ -64,7 +65,7 @@ docker-make: docker-build
 	@echo '    exit 130' >> /tmp/docker-make-run.sh
 	@echo '}' >> /tmp/docker-make-run.sh
 	@echo 'trap cleanup INT TERM' >> /tmp/docker-make-run.sh
-	@echo '$(CONTAINER_RUN_EXEC) $(DOCKER_IMAGE):$(DOCKER_TAG) make $(CAMERA_ARG) $(TARGETS) &' >> /tmp/docker-make-run.sh
+	@echo '$(CONTAINER_RUN_EXEC) $(DOCKER_IMAGE):$(DOCKER_TAG) make $(CAMERA_ARG) $(GROUP_ARG) $(TARGETS) &' >> /tmp/docker-make-run.sh
 	@echo 'wait $$!' >> /tmp/docker-make-run.sh
 	@chmod +x /tmp/docker-make-run.sh
 	@/tmp/docker-make-run.sh
@@ -115,7 +116,8 @@ docker-clean-build: docker-build
 docker-upgrade-ota: docker-build
 	$(eval IP_ARG := $(if $(IP),IP=$(IP)))
 	$(eval CAMERA_ARG := $(if $(CAMERA),CAMERA=$(CAMERA)))
-	$(CONTAINER_RUN_INTERACTIVE) $(DOCKER_IMAGE):$(DOCKER_TAG) make upgrade_ota $(IP_ARG) $(CAMERA_ARG)
+	$(eval GROUP_ARG := $(if $(GROUP),GROUP=$(GROUP)))
+	$(CONTAINER_RUN_INTERACTIVE) $(DOCKER_IMAGE):$(DOCKER_TAG) make upgrade_ota $(IP_ARG) $(CAMERA_ARG) $(GROUP_ARG)
 
 # Allow make targets to be passed through to container
 %:
