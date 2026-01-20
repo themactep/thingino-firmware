@@ -78,7 +78,7 @@ if [ -z "$channel" ]; then
 	exit 1
 fi
 
-command="curl --silent"
+command="curl --silent --tlsv1.2 --tls-max 1.2"
 [ "true" = "$verbose" ] && command="$command --verbose"
 command="$command -F 'chat_id=$channel'"
 [ "true" = "$silent" ] && command="$command -F 'disable_notification=true'"
