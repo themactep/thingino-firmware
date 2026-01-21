@@ -365,7 +365,7 @@ async function sendToEndpoint(payload) {
 Promise.all([loadConfig(), loadMotorParams()]).then(async () => {
   // Load webui config for focus tracking settings
   let webuiConfig = {
-    track_focus: true,
+    track_focus: false,
     focus_timeout: 0
   };
 
@@ -374,7 +374,7 @@ Promise.all([loadConfig(), loadMotorParams()]).then(async () => {
       const response = await fetch('/x/json-config-webui.cgi', { headers: { 'Accept': 'application/json' } });
       if (response.ok) {
         const data = await response.json();
-        webuiConfig.track_focus = data.track_focus !== false;
+        webuiConfig.track_focus = data.track_focus === true;
         webuiConfig.focus_timeout = Math.max(0, parseInt(data.focus_timeout) || 0);
       }
     } catch (err) {

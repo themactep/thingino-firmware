@@ -11,7 +11,7 @@
     username: 'root',
     theme: 'auto',
     paranoid: false,
-    track_focus: true,
+    track_focus: false,
     focus_timeout: 0
   };
 
@@ -74,7 +74,7 @@
       username: raw.username || webuiDefaults.username,
       theme,
       paranoid: raw.paranoid === true,
-      track_focus: raw.track_focus !== false,
+      track_focus: raw.track_focus === true,
       focus_timeout: Math.max(0, Math.min(300, focusTimeout)),
       activeTheme: resolveActiveTheme(theme)
     };
