@@ -38,7 +38,10 @@
           { label: 'Commands and logs', href: '/info.html' },
           { label: 'Overlay partition', href: '/info-overlay.html' },
           { label: 'System usage', href: '/info-usage.html' },
-          { label: 'Diagnostic info', href: '/info-diagnostic.html' }
+          { label: 'Diagnostic info', href: '/info-diagnostic.html' },
+          { type: 'divider' },
+          { label: 'Prudynt log', href: '/info.html?prudynt' },
+          { label: 'Restart Prudynt', href: '#', id: 'restart-prudynt-nav', className: 'text-danger confirm', trackActive: false }
         ]
       },
       {
@@ -58,7 +61,6 @@
           { label: 'Send to services', href: '/tool-send2.html' },
           { label: 'Flash operations', href: '/tool-upgrade.html' },
           { type: 'divider' },
-          { label: 'Restart Prudynt', href: '#', id: 'restart-prudynt-nav', className: 'text-danger confirm', trackActive: false },
           { label: 'Reboot camera', href: '/x/reboot.cgi', className: 'text-danger confirm' }
         ]
       },
@@ -444,7 +446,7 @@
     const restartPrudyntLink = nav.querySelector('#restart-prudynt-nav');
     const restartPrudyntOffcanvas = nav.querySelector('#restart-prudynt-nav-offcanvas');
 
-    const handler = function(e) {
+    const restartHandler = function(e) {
       // Let the confirmation system handle the dialog first
       if (this.classList && this.classList.contains('confirm') && this.dataset.confirmBypass !== '1') {
         return; // Let the confirmation system handle this click
@@ -459,10 +461,10 @@
     };
 
     if (restartPrudyntLink) {
-      restartPrudyntLink.addEventListener('click', handler);
+      restartPrudyntLink.addEventListener('click', restartHandler);
     }
     if (restartPrudyntOffcanvas) {
-      restartPrudyntOffcanvas.addEventListener('click', handler);
+      restartPrudyntOffcanvas.addEventListener('click', restartHandler);
     }
   }
 
