@@ -9,7 +9,6 @@ USERNAME := builder
 
 # Directories
 WORKSPACE_DIR := $(shell pwd)
-DL_DIR ?= $(HOME)/dl
 
 # Container run command
 ifeq ($(findstring podman,$(CONTAINER_ENGINE)),podman)
@@ -20,10 +19,7 @@ endif
 
 CONTAINER_RUN_OPTS := \
 	-v $(WORKSPACE_DIR):/home/$(USERNAME)/build \
-	-v $(DL_DIR):/home/$(USERNAME)/dl \
 	-w /home/$(USERNAME)/build \
-	-e BR2_DL_DIR=/home/$(USERNAME)/dl \
-	-e HOME=/home/$(USERNAME)/build \
 	-e TERM=xterm-256color
 
 # Interactive container
