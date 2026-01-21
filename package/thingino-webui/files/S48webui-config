@@ -4,7 +4,7 @@
 . /usr/share/common
 
 OS_RELEASE_FILE=${OS_RELEASE_FILE:-/etc/os-release}
-WEBUI_JS_CONFIG=${WEBUI_JS_CONFIG:-/www/a/runtime-config.js}
+WEBUI_JS_CONFIG=${WEBUI_JS_CONFIG:-/var/www/a/runtime-config.js}
 
 escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'

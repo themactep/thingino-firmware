@@ -32,6 +32,9 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/mjpeg_inotify \
 		$(TARGET_DIR)/var/www/x/mjpeg.cgi
 
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S48webui-config \
+		$(TARGET_DIR)/etc/init.d/S48webui-config
+
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S99heartbeat \
 		$(TARGET_DIR)/etc/init.d/S99heartbeat
 endef
