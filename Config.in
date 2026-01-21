@@ -270,7 +270,9 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/gadget-serial/Config.in"
 config BR2_THINGINO_DEV_EXPERIMENTAL
 	bool "Enable experimental items in menuconfig"
 	help
-	  Enables experimental options hidden in menuconfig. These features may be unstable, have unexpected behavior, or be non-functional. For developers only.
+	  Enables experimental options hidden in menuconfig.
+	  These features may be unstable, have unexpected behavior, or be non-functional.
+	  For developers only.
 endif
 
 endmenu
