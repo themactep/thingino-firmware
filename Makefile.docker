@@ -18,8 +18,8 @@ else
 endif
 
 CONTAINER_RUN_OPTS := \
-	-v $(WORKSPACE_DIR):/home/$(USERNAME)/build \
-	-w /home/$(USERNAME)/build \
+	-v $(WORKSPACE_DIR):/home/$(USERNAME) \
+	-w /home/$(USERNAME) \
 	-e TERM=xterm-256color
 
 # Interactive container
