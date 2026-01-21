@@ -22,47 +22,56 @@ ssid_changed() {
 	[ "$old_ssid" != "$wlan_ssid" ]
 }
 
+update_psk() {
+	local ssid="$1" pass="$2" psk
+	psk=$(convert_psk "$ssid" "$pass")
+	jct /etc/thingino.json set wlan.psk "$psk" 2>/dev/null
+	echo $psk
+}
+
 start() {
 	echo_title "Starting WPA Supplicant"
 
-	     wlan_pass=$(jct /etc/thingino.json get wlan.pass       2>/dev/null || fw_printenv -n wlan_pass)
-	      wlan_psk=$(jct /etc/thingino.json get wlan.psk        2>/dev/null || fw_printenv -n wlan_psk)
-	     wlan_ssid=$(jct /etc/thingino.json get wlan.ssid       2>/dev/null || fw_printenv -n wlan_ssid)
-	    wlan_bssid=$(jct /etc/thingino.json get wlan.bssid      2>/dev/null || fw_printenv -n wlan_bssid)
+	     wlan_pass=$(jct /etc/thingino.json get wlan.pass 2>/dev/null || fw_printenv -n wlan_pass)
+	      wlan_psk=$(jct /etc/thingino.json get wlan.psk 2>/dev/null || fw_printenv -n wlan_psk)
+	     wlan_ssid=$(jct /etc/thingino.json get wlan.ssid 2>/dev/null || fw_printenv -n wlan_ssid)
+	    wlan_bssid=$(jct /etc/thingino.json get wlan.bssid 2>/dev/null || fw_printenv -n wlan_bssid)
 	wlanap_enabled=$(jct /etc/thingino.json get wlan_ap.enabled 2>/dev/null || fw_printenv -n wlanap_enabled)
 
+	# Interface is not present
 	if ! iface_exists "wlan0"; then
 		echo_error "No wireless interface"
 		exit 1
 	fi
 
-	if [ "${wlan_ssid}${wlan_bssid}" = "" ]; then
-		echo_error "WiFi network missing"
-		exit 1
-	fi
-
-	if [ "${wlan_psk}${wlan_pass}" = "" ]; then
-		echo_error "WiFi password missing"
-		exit 1
-	fi
-
-	if [ "$wlan_psk" = "" ]; then
-		wlan_psk="$wlan_pass"
-	fi
-
+	# Interface present but disabled
 	if grep -q "^#auto wlan0" $WLAN_INT_FILE; then
 		echo_error "wlan0 manually disabled"
 		exit 1
 	fi
 
+	# No network
+	if [ "${wlan_ssid}${wlan_bssid}" = "" ]; then
+		echo_error "WiFi network missing"
+		exit 1
+	fi
+
+	# No credentials
+	if [ "${wlan_psk}${wlan_pass}" = "" ]; then
+		echo_error "WiFi password missing"
+		exit 1
+	fi
+
+	# PSK is not set
+	if [ "$wlan_psk" = "" ]; then
+		wlan_psk=$(update_psk "$wlan_ssid" "$wlan_pass")
+	fi
+
 	if [ ${#wlan_psk} -eq 64 ]; then
 		echo_info "Wi-Fi PSK found"
-	elif [ ${#wlan_pass} -gt 0 ] && [ ${#wlan_pass} -lt 64 ]; then
-		echo_info "Wi-Fi password found, converting to PSK"
-		wlan_psk=$(convert_psk "$wlan_ssid" "$wlan_pass")
-		cp /etc/thingino.json /root/thingino.json.before
-		jct /etc/thingino.json set wlan.psk "$wlan_psk" 2>/dev/null
-		cp /etc/thingino.json /root/thingino.json.after
+	elif [ ${#wlan_psk} -lt 64 ]; then
+		echo_info "Invalid PSK length, converting from password"
+		wlan_psk=$(update_psk "$wlan_ssid" "$wlan_pass")
 	else
 		echo_error "Invalid length of Wi-Fi password/PSK"
 		exit 1
