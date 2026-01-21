@@ -63,6 +63,8 @@ write_config() {
   echo '{}' >"$TMP_FILE"
   jct "$TMP_FILE" set "$DOMAIN.theme" "$theme" >/dev/null 2>&1
   jct "$TMP_FILE" set "$DOMAIN.paranoid" "$paranoid" >/dev/null 2>&1
+  jct "$TMP_FILE" set "$DOMAIN.track_focus" "$track_focus" >/dev/null 2>&1
+  jct "$TMP_FILE" set "$DOMAIN.focus_timeout" "$focus_timeout" >/dev/null 2>&1
   jct "$CONFIG_FILE" import "$TMP_FILE" >/dev/null 2>&1
 }
 
@@ -91,6 +93,26 @@ normalize_bool() {
   esac
 }
 
+normalize_int() {
+  val="$1"
+  min="$2"
+  max="$3"
+
+  case "$val" in
+    ""|null) printf '0' ;;
+    *[!0-9]*) json_error 422 "Invalid integer value" "422 Unprocessable Entity" ;;
+    *)
+      if [ -n "$min" ] && [ "$val" -lt "$min" ]; then
+        printf '%s' "$min"
+      elif [ -n "$max" ] && [ "$val" -gt "$max" ]; then
+        printf '%s' "$max"
+      else
+        printf '%s' "$val"
+      fi
+      ;;
+  esac
+}
+
 handle_get() {
   send_json "$(read_domain_json)"
 }
@@ -99,10 +121,14 @@ handle_post() {
   read_body
   new_theme=$(jct "$REQ_FILE" get theme 2>/dev/null)
   new_paranoid=$(jct "$REQ_FILE" get paranoid 2>/dev/null)
+  new_track_focus=$(jct "$REQ_FILE" get track_focus 2>/dev/null)
+  new_focus_timeout=$(jct "$REQ_FILE" get focus_timeout 2>/dev/null)
   new_password=$(jct "$REQ_FILE" get password 2>/dev/null)
 
   theme=$(normalize_theme "$new_theme")
   paranoid=$(normalize_bool "$new_paranoid")
+  track_focus=$(normalize_bool "$new_track_focus")
+  focus_timeout=$(normalize_int "$new_focus_timeout" 0 300)
 
   write_config
 
