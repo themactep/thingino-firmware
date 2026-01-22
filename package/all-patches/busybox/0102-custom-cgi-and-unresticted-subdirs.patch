@@ -1,0 +1,84 @@
+--- a/networking/httpd.c	2024-04-16 03:23:50.000000000 -0400
++++ a/networking/httpd.c	2026-01-22 16:50:27.544241008 -0500
+@@ -2003,6 +2003,47 @@
+ # endif
+ 
+ /*
++ * Check if a path requires NO authentication (open access).
++ * Returns 1 if path has explicit open access rule, 0 otherwise.
++ */
++static int is_open_access(const char *path)
++{
++	Htaccess *cur;
++	Htaccess *best_match = NULL;
++	size_t best_match_len = 0;
++
++	/* Find the most specific (longest) matching path */
++	for (cur = g_auth; cur; cur = cur->next) {
++		const char *dir_prefix;
++		size_t len;
++
++		dir_prefix = cur->before_colon;
++		len = strlen(dir_prefix);
++
++		/* Check if this is a prefix match */
++		if (len == 1 /* dir_prefix "/" matches all */
++		 || (strncmp(dir_prefix, path, len) == 0
++		    && (path[len] == '/' || path[len] == '\0'))
++		) {
++			/* This path matches - check if it's more specific than current best */
++			if (len > best_match_len) {
++				best_match = cur;
++				best_match_len = len;
++			}
++		}
++	}
++
++	if (!best_match)
++		return 0; /* No auth rules for this path */
++
++	/* Check if this is an "open access" entry (empty password or just "*:") */
++	if (best_match->after_colon[0] == '\0' || strcmp(best_match->after_colon, "*:") == 0)
++		return 1; /* Open access - no authentication required */
++
++	return 0;
++}
++
++/*
+  * Config file entries are of the form "/<path>:<user>:<passwd>".
+  * If config file has no prefix match for path, access is allowed.
+  *
+@@ -2399,7 +2399,7 @@
+ 	tptr = urlcopy + 1;      /* skip first '/' */
+ 
+ #if ENABLE_FEATURE_HTTPD_CGI
+-	if (is_prefixed_with(tptr, "cgi-bin/")) {
++	if (is_prefixed_with(tptr, "x/") || is_prefixed_with(tptr, "onvif/")) {
+ 		if (tptr[8] == '\0') {
+ 			/* protect listing "cgi-bin/" */
+ 			send_headers_and_exit(HTTP_FORBIDDEN);
+@@ -2586,12 +2627,17 @@
+ 	}
+ 
+ #if ENABLE_FEATURE_HTTPD_BASIC_AUTH
+-	/* Case: no "Authorization:" was seen, but page might require passwd.
+-	 * Check that with dummy user:pass */
+-	if (authorized < 0)
+-		authorized = check_user_passwd(urlcopy, (char *) "");
+-	if (!authorized)
+-		send_headers_and_exit(HTTP_UNAUTHORIZED);
++	/* Skip auth entirely for paths marked as open access */
++	if (is_open_access(urlcopy)) {
++		authorized = 1;
++	} else {
++		/* Case: no "Authorization:" was seen, but page might require passwd.
++		 * Check that with dummy user:pass */
++		if (authorized < 0)
++			authorized = check_user_passwd(urlcopy, (char *) "");
++		if (!authorized)
++			send_headers_and_exit(HTTP_UNAUTHORIZED);
++	}
+ #endif
+ 
+ 	if (found_moved_temporarily)
+
