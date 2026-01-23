@@ -1,5 +1,0 @@
-config BR2_PACKAGE_THINGINO_WEBUI_MINI
-	bool "Thingino Firmware Minimal Web User Interface"
-	help
-	  Minimal Thingino Web UI.
-	  https://github.com/themactep/thingino-firmware

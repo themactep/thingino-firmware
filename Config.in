@@ -77,8 +77,6 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-uboot/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-uhttpd/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webserver/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui-lua/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui-mini/Config.in"
 endif
 
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
