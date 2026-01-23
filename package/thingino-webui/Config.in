@@ -1,6 +1,7 @@
 config BR2_PACKAGE_THINGINO_WEBUI
 	bool "Thingino Firmware Web User Interface"
-	select BR2_PACKAGE_BUSYBOX_HTTPD
+	depends on BR2_PACKAGE_THINGINO_WEBSERVER
 	help
 	  Thingino Web UI (HTML, JS, CSS, Auburn shell CGI).
+	  Requires a web server to be selected.
 	  https://github.com/themactep/thingino-firmware

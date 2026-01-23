@@ -1,0 +1,53 @@
+config BR2_PACKAGE_THINGINO_WEBSERVER
+	bool
+
+choice
+	prompt "Web Server"
+	default BR2_PACKAGE_THINGINO_WEBSERVER_BUSYBOX
+	help
+	  Select the web server implementation for thingino.
+
+config BR2_PACKAGE_THINGINO_WEBSERVER_BUSYBOX
+	bool "BusyBox httpd"
+	depends on BR2_PACKAGE_BUSYBOX
+	select BR2_PACKAGE_BUSYBOX_HTTPD
+	select BR2_PACKAGE_THINGINO_WEBSERVER
+	help
+	  Use BusyBox's lightweight httpd server.
+	  Minimal footprint, suitable for embedded systems.
+
+config BR2_PACKAGE_THINGINO_WEBSERVER_UHTTPD
+	bool "uhttpd"
+	depends on !BR2_STATIC_LIBS
+	depends on BR2_TOOLCHAIN_HAS_SYNC_4
+	depends on BR2_USE_MMU
+	select BR2_PACKAGE_THINGINO_UHTTPD
+	select BR2_PACKAGE_THINGINO_UHTTPD_TLS
+	select BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS
+	select BR2_PACKAGE_THINGINO_UHTTPD_HTTP_REDIRECT
+	select BR2_PACKAGE_THINGINO_WEBSERVER
+	help
+	  Use thingino-uhttpd with optional TLS/HTTPS support.
+	  Modern web server with Lua scripting capability.
+
+config BR2_PACKAGE_THINGINO_WEBSERVER_NGINX
+	bool "nginx"
+	depends on BR2_USE_MMU
+	select BR2_PACKAGE_NGINX
+	select BR2_PACKAGE_NGINX_HTTP
+	select BR2_PACKAGE_THINGINO_WEBSERVER
+	help
+	  Use nginx web server.
+	  Full-featured HTTP server and reverse proxy.
+
+endchoice
+
+comment "BusyBox httpd needs BusyBox"
+	depends on !BR2_PACKAGE_BUSYBOX
+
+comment "uhttpd needs a toolchain w/ dynamic library, sync_4"
+	depends on BR2_STATIC_LIBS || !BR2_TOOLCHAIN_HAS_SYNC_4
+	depends on BR2_USE_MMU
+
+comment "nginx needs MMU support"
+	depends on !BR2_USE_MMU
