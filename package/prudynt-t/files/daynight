@@ -11,14 +11,19 @@ command_present() {
 	command -v "$1" >/dev/null 2>&1
 }
 
+get_value() {
+	jct "$PRUDYNT_CONFIG" get "daynight.controls.$1" 2>/dev/null || \
+		echo "true"
+}
+
 # Load control flags from prudynt config
 load_controls() {
 	if command_present jct && [ -f "$PRUDYNT_CONFIG" ]; then
-		day_night_color=$(jct "$PRUDYNT_CONFIG" get "daynight.controls.color" 2>/dev/null || echo "true")
-		day_night_ircut=$(jct "$PRUDYNT_CONFIG" get "daynight.controls.ircut" 2>/dev/null || echo "true")
-		day_night_ir850=$(jct "$PRUDYNT_CONFIG" get "daynight.controls.ir850" 2>/dev/null || echo "true")
-		day_night_ir940=$(jct "$PRUDYNT_CONFIG" get "daynight.controls.ir940" 2>/dev/null || echo "true")
-		day_night_white=$(jct "$PRUDYNT_CONFIG" get "daynight.controls.white" 2>/dev/null || echo "false")
+		day_night_color=$(get_value color)
+		day_night_ircut=$(get_value ircut)
+		day_night_ir850=$(get_value ir850)
+		day_night_ir940=$(get_value ir940)
+		day_night_white=$(get_value white)
 	else
 		# Fallback defaults
 		day_night_color="true"
