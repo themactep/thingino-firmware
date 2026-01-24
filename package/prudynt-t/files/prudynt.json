@@ -176,11 +176,11 @@
       "start_delay": 0,
       "stroke_size": 4,
       "brightness": {
-        "enabled": true,
+        "enabled": false,
+        "fill_color": "#FFFFFFCC",
         "format": "%b",
         "position": "10,-10",
         "rotation": 0,
-        "fill_color": "#FFFFFFCC",
         "stroke_color": "#000000CC"
       },
       "logo": {
@@ -269,19 +269,19 @@
       "brightness": {
         "enabled": false,
         "fill_color": "#FFFFFFCC",
-        "format": "%b%%(%a%%) %m",
+        "format": "%b",
         "position": "5,-5",
         "rotation": 0,
         "stroke_color": "#000000CC"
       },
       "logo": {
         "enabled": true,
+        "height": 30,
         "path": "/usr/share/images/thingino_100x30.bgra",
         "position": "-5,-5",
         "rotation": 0,
-        "width": 100,
-        "height": 30,
-        "transparency": 128
+        "transparency": 128,
+        "width": 100
       },
       "privacy": {
         "enabled": true,
