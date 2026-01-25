@@ -41,12 +41,12 @@ async function moveMotor(dir, steps = 100, d = 'g') {
 document.addEventListener('DOMContentLoaded', function() {
   const uiConfig = window.thinginoUIConfig || {};
   const hasMotors = uiConfig.device && uiConfig.device.motors === true;
-  
+
   if (!hasMotors) {
     return;
   }
 
-  const motorOverlay = document.getElementById('motor-overlay');
+  const motorOverlay = $('#motor-overlay');
   if (motorOverlay) {
     motorOverlay.style.display = '';
   }
