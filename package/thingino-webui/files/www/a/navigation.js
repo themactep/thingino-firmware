@@ -3,18 +3,18 @@
 
   const uiConfig = window.thinginoUIConfig || {};
   const globalConfig = uiConfig.nav || window.thinginoNavConfig || window.navConfig || {};
-  
+
   function buildDefaultMenu() {
     const hasMotors = uiConfig.device && uiConfig.device.motors === true;
     const settingsItems = [
       { label: 'Admin profile', href: '/config-admin.html' },
       { label: 'GPIO pins', href: '/config-gpio.html' }
     ];
-    
+
     if (hasMotors) {
       settingsItems.push({ label: 'Pan/Tilt motors', href: '/config-motors.html' });
     }
-    
+
     settingsItems.push(
       { label: 'Network', href: '/config-network.html' },
       { label: 'Audio', href: '/config-audio.html' },
@@ -25,10 +25,11 @@
       { label: 'Time', href: '/config-time.html' },
       { label: 'Web Interface', href: '/config-webui.html' },
       { label: 'WireGuard VPN', href: '/config-wireguard.html' },
+      { label: 'ZeroTier VPN', href: '/config-zerotier.html' },
       { type: 'divider' },
       { label: 'Reset...', href: '/reset.html' }
     );
-    
+
     return [
       {
         type: 'dropdown',

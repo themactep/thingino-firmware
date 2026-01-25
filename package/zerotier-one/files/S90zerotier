@@ -8,7 +8,7 @@ config_file=/etc/zerotier.json
 
 validate() {
 	nwid=$(jct "$config_file" get zerotier.nwid)
-	if [ -n "$nwid" ]; then
+	if [ -z "$nwid" ]; then
 		echo_error "No network defined"
 		exit 1
 	fi

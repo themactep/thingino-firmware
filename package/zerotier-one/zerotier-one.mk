@@ -29,8 +29,6 @@ define ZEROTIER_ONE_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/etc/zerotier.json
 	$(INSTALL) -D -m 0755 $(ZEROTIER_ONE_PKGDIR)/files/S90zerotier \
 		$(TARGET_DIR)/etc/init.d/S90zerotier
-	$(INSTALL) -D -m 0755 $(ZEROTIER_ONE_PKGDIR)/files/service-zerotier.cgi \
-		$(TARGET_DIR)/var/www/x/service-zerotier.cgi
 	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/zerotiervpnisdown.opus \
 		$(TARGET_DIR)/usr/share/sounds/zerotiervpnisdown.opus
 	$(INSTALL) -D -m 0644 $(ZEROTIER_ONE_PKGDIR)/files/zerotiervpnisup.opus \
