@@ -33,6 +33,8 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_THINGINO_WEBUI
 	select BR2_PACKAGE_UBOOT_TOOLS
 	select BR2_PACKAGE_WPA_SUPPLICANT_DEBUG_SYSLOG if BR2_PACKAGE_WPA_SUPPLICANT
+	# virtual packages
+	select BR2_PACKAGE_THINGINO_VPN
 	help
 	  Thingino System Packages
 	  include essential system setup.
@@ -110,62 +112,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-v4l2loopback/Config.in"
 endif
 
 menu "Extra Packages"
-choice
-	prompt "VPN Selection"
-	default BR2_THINGINO_VPN_NONE
-	help
-	  Select one VPN solution to include in the firmware.
-	  Only one VPN can be selected at a time to minimize flash usage.
-
-config BR2_THINGINO_VPN_NONE
-	bool "None"
-	help
-	  Do not include any VPN solution.
-
-config BR2_THINGINO_VPN_WIREGUARD
-	bool "WireGuard"
-	select BR2_PACKAGE_WIREGUARD_TOOLS
-	select BR2_PACKAGE_WIREGUARD_LINUX_COMPAT
-	help
-	  Include WireGuard VPN. Fast, modern, secure VPN tunnel.
-	  WireGuard is included in the Linux kernel (when available)
-	  or as a kernel module for older kernels.
-
-	  https://www.wireguard.com/
-
-config BR2_THINGINO_VPN_ZEROTIER
-	bool "ZeroTier-One"
-	select BR2_PACKAGE_ZEROTIER_ONE
-	depends on BR2_INSTALL_LIBSTDCPP
-	depends on BR2_TOOLCHAIN_HAS_THREADS
-	help
-	  Include ZeroTier-One VPN. Creates virtual Ethernet networks.
-	  ZeroTier appears as a virtual network interface and works
-	  like you are on the same physical LAN.
-
-	  https://www.zerotier.com/
-
-config BR2_THINGINO_VPN_TAILSCALE
-	bool "Tailscale"
-	select BR2_PACKAGE_THINGINO_TAILSCALE
-	depends on FLASH_SIZE_MB >= 16
-	help
-	  Include Tailscale VPN. WireGuard-based mesh VPN with
-	  centralized coordination. Easy to set up and manage.
-
-	  https://tailscale.com/
-
-endchoice
-
-comment "ZeroTier-One requires a toolchain w/ C++, threads"
-	depends on BR2_THINGINO_VPN_ZEROTIER && (!BR2_INSTALL_LIBSTDCPP || !BR2_TOOLCHAIN_HAS_THREADS)
-
-comment "Tailscale requires flash size > 8MB"
-	depends on BR2_THINGINO_VPN_TAILSCALE && FLASH_SIZE_MB < 16
-
-# Include VPN package definitions (not directly selectable, controlled by choice above)
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-tailscale/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/zerotier-one/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-vpn/Config.in"
 
 source "$BR2_EXTERNAL_THINGINO_PATH/package/capjpeg/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/exfat-nofuse/Config.in"

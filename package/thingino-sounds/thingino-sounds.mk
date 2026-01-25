@@ -44,7 +44,7 @@ define THINGINO_SOUNDS_INSTALL_TARGET_CMDS
 	fi
 
 	# wireguard-related voice messages
-	if [ "$(BR2_THINGINO_VPN_WIREGUARD)" = "y" ]; then \
+	if [ "$(BR2_PACKAGE_THINGINO_VPN_WIREGUARD)" = "y" ]; then \
 		$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/sounds \
 			$(THINGINO_SOUNDS_PKGDIR)/files/wireguardvpnisdown.$(THINGINO_SOUNDS_FORMAT) \
 			$(THINGINO_SOUNDS_PKGDIR)/files/wireguardvpnisup.$(THINGINO_SOUNDS_FORMAT); \
