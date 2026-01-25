@@ -656,7 +656,9 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(
 	dd if=$(CONFIG_BIN) bs=$(CONFIG_BIN_SIZE) seek=$(CONFIG_OFFSET)B count=1 of=$@ conv=notrunc status=none
 	dd if=$(KERNEL_BIN) bs=$(KERNEL_BIN_SIZE) seek=$(KERNEL_OFFSET)B count=1 of=$@ conv=notrunc status=none
 	dd if=$(ROOTFS_BIN) bs=$(ROOTFS_BIN_SIZE) seek=$(ROOTFS_OFFSET)B count=1 of=$@ conv=notrunc status=none
-	dd if=$(EXTRAS_BIN) bs=$(EXTRAS_BIN_SIZE) seek=$(EXTRAS_OFFSET)B count=1 of=$@ conv=notrunc status=none
+	@if [ $(EXTRAS_BIN_SIZE) -gt 0 ]; then \
+	  dd if=$(EXTRAS_BIN) bs=$(EXTRAS_BIN_SIZE) seek=$(EXTRAS_OFFSET)B count=1 of=$@ conv=notrunc status=none; \
+	fi
 
 $(FIRMWARE_BIN_NOBOOT): $(FIRMWARE_BIN_FULL)
 	$(info -------------------------------- $@)
@@ -680,7 +682,7 @@ $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 	find $(CONFIG_PARTITION_DIR)/ -name ".*keep" -o -name ".empty" -delete
 	# pack the config partition image
 	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(CONFIG_PARTITION_DIR)/ \
-		--pad=$(CONFIG_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
+		--eraseblock=$(ALIGN_BLOCK) --pad=$(CONFIG_PARTITION_SIZE)
 
 # create extras partition image
 $(EXTRAS_BIN): $(U_BOOT_BIN) $(ROOTFS_BIN)
@@ -689,14 +691,18 @@ $(EXTRAS_BIN): $(U_BOOT_BIN) $(ROOTFS_BIN)
 	if [ -f $@ ]; then rm $@; fi
 	# extract /opt/ from target rootfs to a separare directory
 	# NB! no deletion here. manually remove files /extras/ or use `make cleanbuild`
-	$(RSYNC) $(OUTPUT_DIR)/target/opt/ $(OUTPUT_DIR)/extras/
+	$(RSYNC) --exclude='.gitkeep' $(OUTPUT_DIR)/target/opt/ $(OUTPUT_DIR)/extras/
 	# empty /opt/ in the rootfs
 	rm -rf $(OUTPUT_DIR)/target/opt/*
 	# copy common files
-	$(RSYNC) $(BR2_EXTERNAL)/overlay/opt/ $(OUTPUT_DIR)/extras/
-	# pack the extras partition image
-	$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/extras/ \
-		--pad=$(EXTRAS_PARTITION_SIZE) --eraseblock=$(ALIGN_BLOCK)
+	$(RSYNC) --exclude='.gitkeep' $(BR2_EXTERNAL)/overlay/opt/ $(OUTPUT_DIR)/extras/
+	# pack the extras partition image if directory has content, otherwise it will be created on first use
+	if [ -n "$$(find $(OUTPUT_DIR)/extras/ -type f 2>/dev/null)" ]; then \
+		$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/extras/ \
+			--eraseblock=$(ALIGN_BLOCK) --pad=$(EXTRAS_PARTITION_SIZE); \
+	else \
+		touch $@; \
+	fi
 
 # rebuild kernel
 $(KERNEL_BIN):
