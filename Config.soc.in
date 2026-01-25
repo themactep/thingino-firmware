@@ -1051,12 +1051,14 @@ config BR2_THINGINO_AUDIO
 
 config BR2_THINGINO_AUDIO_GPIO
 	int "Speaker GPIO"
+	depends on BR2_THINGINO_AUDIO
 	default -1
 	help
 	  Speaker GPIO
 
 config BR2_THINGINO_AUDIO_GPIO_LOW
 	bool "Speaker GPIO active LOW"
+	depends on BR2_THINGINO_AUDIO
 	default n
 	help
 	  Speaker GPIO active LOW
