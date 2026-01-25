@@ -59,7 +59,7 @@ echo "Firmware compatibility verified."
 echo "Transferring sysupgrade utility to device..."
 remote_copy $LOCAL_SCRIPT $REMOTE_HOST:$REMOTE_SCRIPT || \
 	die "Failed to transfer sysupgrade utility"
-remote_copy $LOCAL_SCRIPT2 $REMOTE_HOST:/sbin/$(basename $REMOTE_SCRIPT2) || \
+remote_copy $LOCAL_SCRIPT2 $REMOTE_HOST:/sbin/$(basename $LOCAL_SCRIPT2) || \
 	die "Failed to transfer sysupgrade-stage2 utility"
 
 remote_run "chmod +x $REMOTE_SCRIPT" || \
