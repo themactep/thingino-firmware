@@ -609,20 +609,20 @@ config BR2_THINGINO_RMEM_MB_AUTO
 	  Automatically determine ISP reserved memory based on sensor configuration
 
 config BR2_THINGINO_RMEM_MB
-	int "RMEM"
+	int "ISP Reserved RAM (rmem), MB"
 	default 23 if BR2_SOC_FAMILY_64MB
 	default 29 if BR2_SOC_FAMILY_128MB
 	default 64 if BR2_SOC_FAMILY_256MB
 
 config BR2_THINGINO_ISPMEM_MB
-	int "ISP Reserved RAM (ispmem)"
+	int "ISP Reserved RAM (ispmem), MB"
 	depends on BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20
 	default 8
 	help
 	  Specify reserved memory for the ISP in MB.
 
 config BR2_THINGINO_NMEM_MB
-	int "Neural Network Reserved RAM (nmem)"
+	int "Neural Network Reserved RAM (nmem), MB"
 	depends on BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
 	default 23 if BR2_SOC_FAMILY_64MB
 	default 29 if BR2_SOC_FAMILY_128MB

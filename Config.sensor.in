@@ -1,4 +1,4 @@
-menu "Image Sensor Selection"
+menu "Image Sensor(s)"
 depends on !BR2_SOC_FAMILY_INGENIC_A1
 
 config BR2_THINGINO_IMAGE_SENSOR_QTY
@@ -10,6 +10,7 @@ config BR2_THINGINO_IMAGE_SENSOR_QTY
 config BR2_SENSOR_1_NAME
 	string "Image Sensor Model"
 	default "none"
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY >= 1
 	help
 	  Select the sensor model for your device
 
