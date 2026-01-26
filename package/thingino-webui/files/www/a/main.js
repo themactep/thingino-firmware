@@ -1171,16 +1171,28 @@ function buildSendModalGrid() {
 	const downloadCol = document.createElement('div');
 	downloadCol.className = 'col-12 col-lg-6';
 	const downloadGroup = document.createElement('div');
-	downloadGroup.className = 'btn-group d-flex';
+	downloadGroup.className = 'btn-group d-flex gap-1';
 	downloadGroup.setAttribute('role', 'group');
-	const downloadLink = document.createElement('a');
-	downloadLink.className = 'btn btn-secondary w-100 text-start';
-	downloadLink.href = '/x/dl0.jpg';
-	downloadLink.target = '_blank';
-	downloadLink.title = 'Save image';
-	downloadLink.appendChild(createIcon('bi bi-download'));
-	downloadLink.appendChild(document.createTextNode(' Download'));
-	downloadGroup.appendChild(downloadLink);
+
+	const downloadLinkCh0 = document.createElement('a');
+	downloadLinkCh0.className = 'btn btn-secondary w-100 text-start';
+	downloadLinkCh0.href = '/x/dl0.jpg';
+	downloadLinkCh0.target = '_blank';
+	downloadLinkCh0.title = 'Download main stream';
+	downloadLinkCh0.appendChild(createIcon('bi bi-download'));
+	downloadLinkCh0.appendChild(document.createTextNode(' Ch0'));
+	downloadGroup.appendChild(downloadLinkCh0);
+
+	const downloadLinkCh1 = document.createElement('a');
+	downloadLinkCh1.className = 'btn btn-secondary w-100 text-start';
+	downloadLinkCh1.href = '/x/dl1.jpg';
+	downloadLinkCh1.target = '_blank';
+	downloadLinkCh1.download = 'ch1-snapshot.jpg';
+	downloadLinkCh1.title = 'Download substream';
+	downloadLinkCh1.appendChild(createIcon('bi bi-download'));
+	downloadLinkCh1.appendChild(document.createTextNode(' Ch1'));
+	downloadGroup.appendChild(downloadLinkCh1);
+
 	downloadCol.appendChild(downloadGroup);
 	grid.appendChild(downloadCol);
 }
