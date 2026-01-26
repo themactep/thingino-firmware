@@ -209,6 +209,7 @@ build_state_payload() {
   },
   "upload": {
     "target": "$(json_escape "$UPLOAD_TARGET")",
+    "pre_command": "$(json_escape "$OTA_PRE_COMMAND")",
     "command": "$(json_escape "$SYSUPGRADE_BIN $UPLOAD_TARGET")",
     "has_image": $(bool_to_json "$upload_present"),
     "size_bytes": $upload_size
