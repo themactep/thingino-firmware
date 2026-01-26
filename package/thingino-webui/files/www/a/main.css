@@ -767,7 +767,7 @@ body.expert .expert {
 	font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 	font-size: 14px;
 	font-weight: 400;
-	max-height: 40rem;
+	/* max-height: 40rem; */
 	overflow-wrap: break-word;
 	white-space:pre-wrap;
 }

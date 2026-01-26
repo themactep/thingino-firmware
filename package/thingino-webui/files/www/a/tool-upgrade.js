@@ -1,26 +1,18 @@
 (function() {
   const API_URL = '/x/tool-upgrade.cgi';
-  const statusEl = $('#statusMessage');  const refreshBtn = $('#refreshState');
+  const statusEl = $('#statusMessage');
+  const refreshBtn = $('#refreshState');
   const backupBtn = $('#backupButton');
-  const backupFilename = $('#backupFilename');
-  const backupWarning = $('#backupWarning');
   const partitionSelect = $('#partitionSelect');
   const partitionButton = $('#partitionDownload');
-  const partitionWarning = $('#partitionWarning');
-  const otaOptions = $('#otaOptions');
   const otaButton = $('#otaRun');
-  const otaNotes = $('#otaNotes');
   const firmwareInput = $('#firmwareInput');
   const uploadButton = $('#uploadButton');
-  const uploadWarning = $('#uploadWarning');
-  const uploadDetails = $('#uploadDetails');
   const outputEl = $('#output');
   const copyLog = $('#copyLog');
   const clearLog = $('#clearLog');
-  const commandHeading = $('#commandHeading');
-  const debugProcMtd = $('#debugProcMtd');
-  const debugDf = $('#debugDf');
-  const debugUpload = $('#debugUpload');
+  const flashProgressModal = $('#flashProgressModal');
+  let flashProgressModalInstance = null;
 
   let metadata = null;
   const buttonLabels = new Map();
@@ -77,7 +69,6 @@
       opt.selected = true;
       partitionSelect.appendChild(opt);
       partitionButton.disabled = true;
-      partitionWarning.textContent = 'Is this model using raw NAND?';
       return;
     }
     list.forEach(part => {
@@ -87,71 +78,12 @@
       partitionSelect.appendChild(option);
     });
     partitionButton.disabled = false;
-    partitionWarning.textContent = getNested(metadata, ['mtd', 'warning'], '');
-  }
-
-  function createOtaOption(option, index) {
-    const id = `ota-${option.id || index}`;
-    const wrapper = document.createElement('div');
-    wrapper.className = 'form-check border rounded-3 px-3 py-2 position-relative';
-    const input = document.createElement('input');
-    input.type = 'radio';
-    input.name = 'otaOption';
-    input.value = option.id || option.flag || 'partial';
-    input.id = id;
-    input.className = 'form-check-input position-absolute top-50 translate-middle-y';
-    input.style.left = '0.85rem';
-    if (index === 0) input.checked = true;
-    const label = document.createElement('label');
-    label.className = 'form-check-label d-block ms-4';
-    label.setAttribute('for', id);
-    label.innerHTML = `<span class="fw-semibold">${option.label || 'Update'}</span><br><span class="text-secondary small">${option.description || ''}</span>`;
-    wrapper.appendChild(input);
-    wrapper.appendChild(label);
-    otaOptions.appendChild(wrapper);
-  }
-
-  function populateOtaOptions(options = []) {
-    otaOptions.innerHTML = '';
-    options.forEach((opt, index) => {
-      createOtaOption(opt, index);
-    });
-    if (!options.length) {
-      const alert = document.createElement('div');
-      alert.className = 'alert alert-secondary mb-0';
-      alert.textContent = 'OTA metadata unavailable on this model.';
-      otaOptions.appendChild(alert);
-      otaButton.disabled = true;
-    } else {
-      otaButton.disabled = false;
-    }
-  }
-
-  function updateDebug(debug = {}) {
-    debugProcMtd.textContent = debug.proc_mtd_base64 ? atob(debug.proc_mtd_base64) : 'No /proc/mtd output available.';
-    debugDf.textContent = debug.df_base64 ? atob(debug.df_base64) : 'No df output available.';
-    debugUpload.textContent = debug.upload_base64 ? atob(debug.upload_base64) : 'No upload log available.';
   }
 
   function applyState(data = {}) {
     metadata = data;
-    backupFilename.textContent = getNested(data, ['backup', 'filename'], '—');
-    backupWarning.textContent = getNested(data, ['messages', 'backup_warning'], '');
     const partitions = getNested(data, ['mtd', 'partitions'], []);
     populatePartitions(Array.isArray(partitions) ? partitions : []);
-    const otaList = getNested(data, ['ota', 'options'], []);
-    populateOtaOptions(Array.isArray(otaList) ? otaList : []);
-    const otaWarning = getNested(data, ['messages', 'ota_warning'], '');
-    const otaNote = otaWarning || getNested(data, ['ota', 'notes'], '');
-    otaNotes.textContent = otaNote;
-    const size = getNested(data, ['upload', 'size_bytes'], 0);
-    const hasImage = !!getNested(data, ['upload', 'has_image'], false);
-    const targetPath = getNested(data, ['upload', 'target'], '/tmp/fw-web.bin');
-    uploadDetails.textContent = hasImage
-      ? `Staged at ${targetPath} (${formatBytes(size)})`
-      : `Staged at ${targetPath}`;
-    uploadWarning.textContent = getNested(data, ['messages', 'flash_warning'], uploadWarning.textContent);
-    updateDebug(data.debug || {});
   }
 
   async function loadState() {
@@ -187,17 +119,27 @@
   }
 
   function handleCommandStart(ev) {
-    const detail = ev.detail || {};
-    commandHeading.textContent = detail.cmd ? `# ${detail.cmd}` : 'Command console';
     copyLog.disabled = true;
     showBusy('Running command...');
+
+    // Show the flash progress modal
+    if (flashProgressModal) {
+      if (!flashProgressModalInstance && window.bootstrap && window.bootstrap.Modal) {
+        flashProgressModalInstance = new bootstrap.Modal(flashProgressModal);
+      }
+      if (flashProgressModalInstance) {
+        flashProgressModalInstance.show();
+      }
+    }
   }
 
   function handleCommandFinished() {
     hideBusy();
     copyLog.disabled = !(outputEl && outputEl.textContent.trim());
-    setStatus('Command finished.', 'success');
     loadState();
+
+    // Keep modal open so user can see the final output
+    // They can close it manually
   }
 
   async function requestOtaCommand(option) {
@@ -276,8 +218,8 @@
   }
 
   async function handleOtaClick() {
-    const selected = otaOptions.querySelector('input[name="otaOption"]:checked');
-    const selectedLabel = selected ? selected.parentElement.querySelector('label').textContent : 'update';
+    const selected = document.querySelector('input[name="otaOption"]:checked');
+    const selectedLabel = selected ? selected.parentElement.querySelector('label .fw-semibold').textContent : 'update';
     const value = selected ? selected.value : 'partial';
 
     const confirmed = await confirm(`Are you sure you want to download and apply ${selectedLabel}?\n\nThis will reboot the camera when finished.`);
@@ -308,7 +250,6 @@
   function clearOutput() {
     if (!outputEl) return;
     outputEl.textContent = '';
-    commandHeading.textContent = 'Command console';
     copyLog.disabled = true;
   }
 
@@ -318,10 +259,6 @@
   uploadButton.addEventListener('click', uploadFirmware);
   if (refreshBtn) refreshBtn.addEventListener('click', loadState);
   if (copyLog) copyLog.addEventListener('click', copyOutput);
-  if (clearLog) clearLog.addEventListener('click', () => {
-    clearOutput();
-    setStatus('Console cleared.', 'secondary');
-  });
   if (firmwareInput) {
     firmwareInput.addEventListener('change', () => {
       uploadButton.disabled = !firmwareInput.files || !firmwareInput.files.length;

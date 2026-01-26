@@ -21,137 +21,118 @@
   <div class="container" style="min-height:80vh">
     <div data-app-controls></div>
 
-    <div class="rounded-4 border border-secondary-subtle mb-4 p-4 position-relative overflow-hidden"
-      style="background: radial-gradient(circle at 35% -10%, rgba(13,202,240,0.2), transparent 45%), radial-gradient(circle at 90% 120%, rgba(255,193,7,0.18), transparent 55%);">
-      <div class="row align-items-center g-3">
-        <div class="col-12 col-lg-8">
-          <span class="badge bg-info-subtle text-info-emphasis mb-2">Firmware and storage</span>
-          <h1 class="h3 mb-2">Flash operations & recovery</h1>
-          <p class="mb-0 text-secondary">Create encrypted backups, pull raw MTD partitions, trigger OTA upgrades, or upload a verified sysupgrade image without touching the shell.</p>
-        </div>
-        <div class="col-12 col-lg-4 text-lg-end">
-          <div class="d-inline-flex align-items-center gap-2 bg-black bg-opacity-25 rounded-pill px-3 py-2 small text-secondary">
-            <i class="bi bi-shield-lock"></i>
-            <span>Advanced maintenance</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <section>
+      <div class="card mb-3">
+        <div class="card-header">
+          <h2 class="card-title">Flash operations</h2>
+          <small>Create a backup, trigger OTA upgrade, or upload a verified image without touching the shell.</small>
+          <button type="button" class="btn btn-outline-secondary" id="refreshState" title="Reload values from camera">
+            <i class="bi bi-arrow-clockwise"></i> Reload
+          </button>
+        </div><!-- .card-header -->
+        <div class="card-body">
+          <div class="row">
 
-    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-      <div id="statusMessage" class="alert alert-info flex-grow-1 mb-0 status-overlay">Ready</div>
-      <button type="button" class="btn btn-outline-secondary" id="refreshState">
-        <i class="bi bi-arrow-repeat me-1"></i>Refresh snapshot
-      </button>
-    </div>
-
-    <div class="row g-4">
-      <div class="col-12 col-xl-5">
-        <div class="card mb-3">
-          <div class="card-body">
-            <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
-              <div>
-                <h5 class="card-title mb-0">Configuration backup</h5>
-                <p class="text-secondary small mb-0">Download a tar.gz archive of /etc (accounts, Wi-Fi, certificates).</p>
+            <div class="col-6">
+              <h4>Thingino OTA update</h4>
+              <small>Fetch the latest signed image from GitHub and run sysupgrade with the selected scope.</small>
+              <div class="vstack gap-2 mb-3">
+                <div class="form-check border rounded-3 p-2 position-relative">
+                  <input type="radio" name="otaOption" value="full" id="ota-full" class="form-check-input position-absolute top-50 translate-middle-y" style="left:1rem" checked>
+                  <label for="ota-full" class="form-check-label d-block ms-3">
+                    <span class="fw-semibold">Full image</span><br>
+                    <span class="small">Will erase everything and install a pristine new image. No customization will survive. You will have to reconfigure the system from scratch.
+                      <span class="text-warning">RECOMMENDED</span></span>
+                  </label>
+                </div>
+                <div class="form-check border rounded-3 p-2 position-relative">
+                  <input type="radio" name="otaOption" value="partial" id="ota-partial" class="form-check-input position-absolute top-50 translate-middle-y" style="left:1rem">
+                  <label for="ota-partial" class="form-check-label d-block ms-3">
+                    <span class="fw-semibold">Partial update</span><br>
+                    <span class="small">Will keep overlay partition with customizations. Most likely will end up in conflicts, so you might need to reset and reconfigure the system. <span class="text-warning">USE AT YOUR OWN RISK</span></span>
+                  </label>
+                </div>
+                <div class="form-check border rounded-3 p-2 position-relative">
+                  <input type="radio" name="otaOption" value="bootloader" id="ota-bootloader" class="form-check-input position-absolute top-50 translate-middle-y" style="left:1rem">
+                  <label for="ota-bootloader" class="form-check-label d-block ms-3">
+                    <span class="fw-semibold">Bootloader</span><br>
+                    <span class="small">Upgrades just the bootloader. This is not a normal operation and should only be done when instructed by a developer.</span>
+                  </label>
+                </div>
               </div>
+              <p class="text-warning small">OTA upgrade will reboot the camera when it finishes.</p>
+              <button type="button" class="btn btn-danger" id="otaRun">
+                <i class="bi bi-cloud-arrow-down me-1"></i>Download and Upgrade
+              </button>
+            </div>
+
+            <div class="col-3">
+              <h4>Manual sysupgrade image</h4>
+              <small>Upload and flash a verified .bin file.</small>
+              <p>
+                <label for="firmwareInput">Firmware image</label>
+                <input type="file" class="form-control" id="firmwareInput" accept=".bin,.img,.gz">
+              </p>
+              <p class="alert alert-danger small">Uploading an invalid image may render the device unresponsive!</p>
+              <button type="button" class="btn btn-danger mb-1" id="uploadButton" disabled>
+                <i class="bi bi-upload me-1"></i>Upload and Flash
+              </button>
+              <p class="text-secondary small">Staged at /tmp/fw-web.bin</p>
+            </div>
+
+            <div class="col d-none">
+              <h4>MTD partition dump</h4>
+              <small>Saves a raw /dev/mtdX block for low-level recovery work.</small>
+              <p class="text-warning small">Dumping flash partitions is intended for recovery experts.</p>
+              <p>
+                <label for="partitionSelect">Partition</label>
+                <select class="form-select" id="partitionSelect"></select>
+              </p>
+              <button type="button" class="btn btn-primary mb-3" id="partitionDownload">
+                <i class="bi bi-box-arrow-down me-1"></i>Save mtdblock
+              </button>
+            </div>
+
+            <div class="col-3">
+              <h4>Back up the configuration</h4>
+              <small>Download customizations as an archive.</small>
+              <p class="alert alert-warning small">The archive includes Wi-Fi credentials, SSH certificates, and accounts for various services. Store securely!</p>
+              <p class="small">Please note that there is no restoration procedure!
+                The saved configuration files may not be compatible with the latest changes.
+                Use them only as a reference for creating a new configuration.</p>
               <button type="button" class="btn btn-primary" id="backupButton">
                 <i class="bi bi-download me-1"></i>Generate archive
               </button>
             </div>
-            <div class="small text-secondary" id="backupWarning"></div>
-            <dl class="row row-cols-1 row-cols-sm-2 gy-1 mb-0 small">
-              <dt class="col text-secondary">Suggested filename</dt>
-              <dd class="col" id="backupFilename">—</dd>
-            </dl>
-          </div>
-        </div>
-
-        <div class="card mb-3">
-          <div class="card-body">
-            <h5 class="card-title mb-2">MTD partition dump</h5>
-            <p class="text-secondary small">Saves a raw /dev/mtdX block for low-level recovery work. Expect large binary files.</p>
-            <div class="mb-3">
-              <label for="partitionSelect">Partition</label>
-              <select class="form-select" id="partitionSelect"></select>
-            </div>
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-              <button type="button" class="btn btn-primary" id="partitionDownload">
-                <i class="bi bi-box-arrow-down me-1"></i>Save mtdblock
-              </button>
-              <small class="text-warning" id="partitionWarning"></small>
-            </div>
-          </div>
-        </div>
-
-        <div class="card mb-3">
-          <div class="card-body">
-            <h5 class="card-title mb-2">Thingino OTA update</h5>
-            <p class="text-secondary small">Fetch the latest signed image from GitHub and run sysupgrade with the selected scope.</p>
-            <div id="otaOptions" class="vstack gap-2 mb-3"></div>
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-              <button type="button" class="btn btn-danger" id="otaRun">
-                <i class="bi bi-cloud-arrow-down me-1"></i>Download and Upgrade
-              </button>
-              <small class="text-secondary" id="otaNotes"></small>
-            </div>
-          </div>
-        </div>
-
-        <div class="card mb-3">
-          <div class="card-body">
-            <h5 class="card-title mb-2">Manual sysupgrade image</h5>
-            <p class="text-secondary small">Upload a verified .bin file and flash it directly from the browser.</p>
-            <div class="mb-3">
-              <label for="firmwareInput">Firmware image</label>
-              <input type="file" class="form-control" id="firmwareInput" accept=".bin,.img,.gz">
-            </div>
-            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-              <button type="button" class="btn btn-danger" id="uploadButton" disabled>
-                <i class="bi bi-upload me-1"></i>Upload and Flash
-              </button>
-              <div class="text-secondary small" id="uploadDetails"></div>
-            </div>
-            <div class="alert alert-danger mb-0 py-2" id="uploadWarning">Only flash official Thingino builds or vendor images you trust.</div>
           </div>
         </div>
       </div>
-
-      <div class="col-12 col-xl-7">
-        <div class="card h-100">
-          <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <div>
-              <h5 class="card-title mb-0" id="commandHeading">Command console</h5>
-              <p class="text-secondary small mb-0">Streaming output from /x/run.cgi.</p>
-            </div>
-            <div class="d-flex gap-2">
-              <button type="button" class="btn btn-outline-secondary btn-sm" id="clearLog">
-                <i class="bi bi-eraser me-1"></i>Clear
-              </button>
-              <button type="button" class="btn btn-outline-secondary btn-sm" id="copyLog" disabled>
-                <i class="bi bi-clipboard me-1"></i>Copy
-              </button>
-            </div>
-          </div>
-          <div class="card-body">
-            <pre id="output" class="terminal" data-reboot="true"></pre>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <section class="ui-debug d-none">
-      <h6>/proc/mtd</h6>
-      <pre id="debugProcMtd">Waiting for data...</pre>
-      <h6>df -h</h6>
-      <pre id="debugDf">Waiting for data...</pre>
-      <h6>Uploaded image</h6>
-      <pre id="debugUpload">Waiting for data...</pre>
     </section>
   </div>
 </main>
 
-<footer data-app-footer></footer>
+<!-- Flash Progress Modal -->
+<div class="modal fade" id="flashProgressModal" tabindex="-1" aria-labelledby="flashProgressModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-lg modal-fullscreen-md-down" style="height: 80vh; max-height: 80vh;">
+    <div class="modal-content h-100 d-flex flex-column">
+      <div class="modal-header flex-shrink-0">
+        <h5 class="modal-title" id="flashProgressModalLabel">Flash Progress</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body flex-grow-1 overflow-hidden p-0" style="min-height: 0;">
+        <pre id="output" class="terminal overflow-auto h-100 m-0" data-reboot="true"></pre>
+      </div>
+      <div class="modal-footer flex-shrink-0">
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="copyLog" disabled>
+          <i class="bi bi-clipboard me-1"></i>Copy Log
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 
+<footer data-app-footer></footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
   integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
@@ -159,7 +140,6 @@
 <script src="/a/runtime-config.js"></script>
 <script src="/a/navigation.js"></script>
 <script src="/a/footer.js"></script>
-
 <script src="/a/tool-upgrade.js"></script>
 </body>
 </html>

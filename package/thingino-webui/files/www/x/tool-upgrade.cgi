@@ -199,9 +199,9 @@ build_state_payload() {
   },
   "ota": {
     "options": [
-      {"id":"partial","label":"Partial update","flag":"-p","description":"Keep configuration and refresh firmware files."},
-      {"id":"full","label":"Full image","flag":"-f","description":"Apply full sysupgrade image including rootfs."},
-      {"id":"bootloader","label":"Bootloader","flag":"-b","description":"Reflash bootloader components as well."}
+      {"id":"full","label":"Full image","flag":"-f","description":"Will erase everything and install a pristine new image. No customization will survive. You will have to reconfigure the system from scratch."},
+      {"id":"partial","label":"Partial update","flag":"-p","description":"Will keep overlay partition with configuration and changed files. Most likely will end up in conflicts, so you might need to reset and reconfigure the system."},
+      {"id":"bootloader","label":"Bootloader","flag":"-b","description":"Writes new bootloader only. Relatively safe operation when you know what you are doing. Intended for developers."}
     ],
     "pre_command": "$(json_escape "$OTA_PRE_COMMAND")",
     "command": "$(json_escape "$SYSUPGRADE_BIN")",
@@ -214,9 +214,9 @@ build_state_payload() {
     "size_bytes": $upload_size
   },
   "messages": {
-    "backup_warning": "Archive includes Wi-Fi and SSH secrets. Store securely.",
+    "backup_warning": "The archive includes Wi-Fi credentials, SSH certificates, and accounts for various services. Store securely!",
     "ota_warning": "OTA upgrade will reboot the camera when it finishes.",
-    "flash_warning": "Uploading an invalid image may brick the device."
+    "flash_warning": "Uploading an invalid image may render the device unresponsive!"
   },
   "debug": {
     "proc_mtd_base64": "$(json_escape "$debug_proc_mtd_b64")",
@@ -286,7 +286,7 @@ ota_command_for_option() {
 handle_ota_command() {
   local cmd
   cmd=$(ota_command_for_option "$POST_option") || json_error 422 "Unsupported OTA option."
-  send_state_response "OTA command prepared." "$cmd"
+  send_state_response "" "$cmd"
 }
 
 save_upload_payload() {

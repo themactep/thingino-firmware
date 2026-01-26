@@ -1180,7 +1180,7 @@ function buildSendModalGrid() {
 	downloadLinkCh0.target = '_blank';
 	downloadLinkCh0.title = 'Download main stream';
 	downloadLinkCh0.appendChild(createIcon('bi bi-download'));
-	downloadLinkCh0.appendChild(document.createTextNode(' Ch0'));
+	downloadLinkCh0.appendChild(document.createTextNode(' Download Ch0'));
 	downloadGroup.appendChild(downloadLinkCh0);
 
 	const downloadLinkCh1 = document.createElement('a');
@@ -1190,7 +1190,7 @@ function buildSendModalGrid() {
 	downloadLinkCh1.download = 'ch1-snapshot.jpg';
 	downloadLinkCh1.title = 'Download substream';
 	downloadLinkCh1.appendChild(createIcon('bi bi-download'));
-	downloadLinkCh1.appendChild(document.createTextNode(' Ch1'));
+	downloadLinkCh1.appendChild(document.createTextNode(' Download Ch1'));
 	downloadGroup.appendChild(downloadLinkCh1);
 
 	downloadCol.appendChild(downloadGroup);
@@ -1658,7 +1658,7 @@ window.thinginoConfirm = thinginoConfirm;
 				const rd = response.body.getReader();
 				let { value: chunk, done: readerDone } = await rd.read();
 				chunk = chunk ? td.decode(chunk) : '';
-				const re = /\n|\r|\r\n/gm;
+				const re = /\r\n|\n|\r/gm;
 				let startIndex = 0;
 				let result;
 				for (; ;) {
@@ -1671,10 +1671,12 @@ window.thinginoConfirm = thinginoConfirm;
 						startIndex = re.lastIndex = 0;
 						continue;
 					}
-					yield chunk.substring(startIndex, result.index);
+					const lineContent = chunk.substring(startIndex, result.index);
+					const lineEnding = result[0];
+					yield { line: lineContent, ending: lineEnding };
 					startIndex = re.lastIndex;
 				}
-				if (startIndex < chunk.length) yield chunk.substring(startIndex);
+				if (startIndex < chunk.length) yield { line: chunk.substring(startIndex), ending: '' };
 			}
 
 			const finalizeStream = () => {
@@ -1691,11 +1693,27 @@ window.thinginoConfirm = thinginoConfirm;
 				if (!url || commandInFlight) return;
 				commandInFlight = true;
 				try {
-					for await (let line of makeTextFileLineIterator(url)) {
+					for await (let { line, ending } of makeTextFileLineIterator(url)) {
 						const re1 = /\u001b\[1;(\d+)m/;
 						const re2 = /\u001b\[0m/;
 						line = line.replace(re1, '<span class="ansi-$1">').replace(re2, '</span>')
-						outputEl.innerHTML += line + '\n';
+
+						// Handle carriage return - replace last line instead of adding new
+						if (ending === '\r') {
+							// Carriage return: replace the last line
+							const lines = outputEl.innerHTML.split('\n');
+							if (lines.length > 0) {
+								lines[lines.length - 1] = line;
+								outputEl.innerHTML = lines.join('\n');
+							} else {
+								outputEl.innerHTML = line;
+							}
+						} else {
+							// Normal newline: add new line
+							outputEl.innerHTML += line + '\n';
+						}
+
+						outputEl.scrollTop = outputEl.scrollHeight;
 					}
 				} finally {
 					finalizeStream();
