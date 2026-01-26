@@ -47,6 +47,12 @@ make
 
 Read [Building from sources][7] article for more info.
 
+### Documentation
+
+- [Firmware Image Structure](docs/firmware-image-structure.md) - Partition layout and image assembly
+- [Firmware Dumping](docs/firmware.md) - How to backup existing firmware
+- [Camera Recovery](docs/camera-recovery.md) - Recovering from failed updates
+
 ### Resources
 
 - [Project Website][0]

@@ -5,6 +5,8 @@ IP camera firmware resides in a flash chip on the camera board. It can be dumped
 in several ways, depending on the camera model and the access level to the
 camera's hardware and software.
 
+> **Note**: For information about Thingino firmware structure and partition layout, see [Firmware Image Structure](firmware-image-structure.md).
+
 Dumping the original firmware with a programmer, off-board
 ----------------------------------------------------------
 
