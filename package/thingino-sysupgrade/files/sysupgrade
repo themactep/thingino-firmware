@@ -47,7 +47,7 @@ check_network() {
 check_free_space() {
 	local dl_size dl_size_offsetted flash_size free_space offset
 
-	dl_size=$(curl -sIL $1 | awk '/Content-Length:\s\d{2,}/{gsub(/\r/,"",$2);print $2}')
+	dl_size=$(curl -sIL $1 | awk 'BEGIN{IGNORECASE=1}/Content-Length:\s\d{2,}/{gsub(/\r/,"",$2);print $2}')
 	if [ -z "$dl_size" ]; then
 		if [ ! -f "$gestalt_app" ]; then
 			gestalt_url="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/stable/package/thingino-sysupgrade/files/gestalt"
