@@ -2,9 +2,10 @@
 # BusyBox httpd CGI for snapshot channel 0
 # Optional query: q=85 for JPEG quality override
 
-echo "Content-Type: image/jpeg"
-echo "Content-Disposition: attachment; filename=ch0-$(date +%s).jpg"
-echo
+printf "Content-Type: image/jpeg\r\n"
+printf "Content-Disposition: attachment; filename=ch0-$(date +%s).jpg\r\n"
+printf "Connection: close\r\n"
+printf "\r\n"
 
 Q=""
 case "$QUERY_STRING" in

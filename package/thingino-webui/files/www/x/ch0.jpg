@@ -2,8 +2,8 @@
 # BusyBox httpd CGI for snapshot channel 0
 # Optional query: q=85 for JPEG quality override
 
-echo "Content-Type: image/jpeg"
-echo
+printf "Content-Type: image/jpeg\r\n"
+printf "\r\n"
 
 Q=""
 case "$QUERY_STRING" in
