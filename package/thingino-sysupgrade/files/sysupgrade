@@ -323,7 +323,7 @@ stop_services() {
 			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S42wireguard | S42wifiap | S30dropbear | S50dropbear | S97sysupgrade)
 				continue
 				;;
-			S90httpd)
+			S50httpd | S90httpd)
 				[ -f "/tmp/webupgrade" ] && continue
 				sh -c "$i stop"
 				;;
