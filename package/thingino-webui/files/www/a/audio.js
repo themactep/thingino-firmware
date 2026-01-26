@@ -204,51 +204,6 @@
     }
   }
 
-  async function saveAllAudioSettings() {
-    const payload = { audio: {} };
-    let hasChanges = false;
-
-    // Collect all audio parameters from the form
-    for (const param of audioParams) {
-      const el = $(`#audio_${param}`);
-      if (!el) continue;
-
-      let value;
-      if (el.type === 'checkbox') {
-        value = el.checked;
-      } else {
-        value = el.value;
-        if (value !== '' && param !== 'mic_format' && !Number.isNaN(Number(value))) {
-          value = Number(value);
-        }
-      }
-
-      // Only include non-empty values
-      if (value !== '' && value !== null && value !== undefined) {
-        payload.audio[param] = value;
-        hasChanges = true;
-      }
-    }
-
-    if (!hasChanges) {
-      showAlert('warning', 'No settings to save.');
-      return;
-    }
-
-    // Add thread restart action if available
-    if (typeof ThreadAudio !== 'undefined') {
-      payload.action = { restart_thread: ThreadAudio };
-    }
-
-    try {
-      await sendAudioUpdate(payload);
-      showAlert('success', 'All audio settings saved successfully.');
-    } catch (err) {
-      showAlert('danger', `Failed to save audio settings: ${err.message || err}`);
-      throw err;
-    }
-  }
-
   async function saveAudioValue(param) {
     const el = $(`#audio_${param}`);
     if (!el) return;
@@ -273,28 +228,23 @@
   }
 
   function bindAudioControls() {
-    // Removed individual field save event listeners
-    // Audio settings will only be saved when the form is submitted
-  }
-
-  if (form) {
-    form.addEventListener('submit', async (ev) => {
-      ev.preventDefault();
-      const submitBtn = $('#audio_submit');
-      if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+    // Bind change events to all audio controls for real-time updates
+    audioParams.forEach(param => {
+      const el = $(`#audio_${param}`);
+      if (el) {
+        el.addEventListener('change', () => saveAudioValue(param));
       }
 
-      try {
-        await saveAllAudioSettings();
-      } catch (err) {
-        // Error already handled in saveAllAudioSettings
-      } finally {
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = '<i class="bi bi-save me-1"></i> Save changes';
-        }
+      // Also handle modal slider if it exists
+      const slider = $(`#audio_${param}-slider`);
+      if (slider) {
+        slider.addEventListener('input', ev => {
+          // Update the text input while dragging
+          if (el) el.value = ev.target.value;
+          const sliderValue = $(`#audio_${param}-slider-value`);
+          if (sliderValue) sliderValue.textContent = ev.target.value;
+        });
+        slider.addEventListener('change', () => saveAudioValue(param));
       }
     });
   }
