@@ -1,9 +1,9 @@
 #!/bin/sh
-# BusyBox httpd CGI for snapshot channel 0
+# BusyBox httpd CGI for snapshot channel 1
 # Optional query: q=85 for JPEG quality override
 
 echo "Content-Type: image/jpeg"
-echo "Content-Disposition: attachment; filename=ch0-$(date +%s).jpg"
+echo "Content-Disposition: attachment; filename=ch1-$(date +%s).jpg"
 echo
 
 Q=""
