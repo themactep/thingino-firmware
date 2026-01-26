@@ -13,13 +13,13 @@
 
   function showAlert(variant, message, timeout = 6000) {
     if (!message) return;
-    
+
     // Use global alert system from main.js
     if (window.showAlert && typeof window.showAlert === 'function') {
       window.showAlert(variant, message, timeout);
       return;
     }
-    
+
     // Fallback to local alert container if it exists
     if (!alertArea) return;
     const alert = document.createElement('div');
@@ -152,54 +152,75 @@
     }
   }
 
-  async function saveAllChanges() {
-    showBusy('Saving photosensing settings...');
+  async function sendDaynightUpdate(payload) {
     try {
-      const controls = {};
-      dayNightControls.forEach(control => {
-        const el = $('#daynight_controls_' + control);
-        if (el) {
-          controls[control] = el.checked;
-        }
-      });
-
-      const daynight = { controls };
-      dayNightParams.forEach(param => {
-        const el = $('#daynight_' + param);
-        if (el) {
-          if (el.type === 'checkbox') {
-            daynight[param] = el.checked;
-          } else {
-            const numeric = Number(el.value);
-            daynight[param] = Number.isNaN(numeric) ? 0 : numeric;
-          }
-        }
-      });
-
-      const payload = { daynight };
       const data = await requestPrudynt(payload);
-      
       if (data && data.daynight) {
         applyDaynightConfig(data.daynight);
       }
-      
-      showAlert('success', 'Photosensing settings saved successfully.', 3000);
     } catch (err) {
-      console.error('Failed to save photosensing settings', err);
-      showAlert('danger', `Failed to save settings: ${err.message || err}`);
-    } finally {
-      hideBusy();
+      console.error('Failed to update daynight setting', err);
+      throw err;
+    }
+  }
+
+  async function saveDaynightParam(param) {
+    const el = $('#daynight_' + param);
+    if (!el) return;
+    let value;
+    if (el.type === 'checkbox') {
+      value = el.checked;
+    } else {
+      const numeric = Number(el.value);
+      value = Number.isNaN(numeric) ? 0 : numeric;
+    }
+    const payload = { daynight: { [param]: value } };
+    try {
+      await sendDaynightUpdate(payload);
+    } catch (err) {
+      showAlert('danger', `Failed to update ${param.replace(/_/g, ' ')}: ${err.message || err}`);
+    }
+  }
+
+  async function saveDaynightControl(control) {
+    const el = $('#daynight_controls_' + control);
+    if (!el) return;
+    const value = el.checked;
+    const payload = { daynight: { controls: { [control]: value } } };
+    try {
+      await sendDaynightUpdate(payload);
+    } catch (err) {
+      showAlert('danger', `Failed to update ${control}: ${err.message || err}`);
     }
   }
 
   function bindDaynightControls() {
-    // Remove auto-save event listeners, controls are now saved on form submit
-  }
+    // Bind change events to all daynight parameters for real-time updates
+    dayNightParams.forEach(param => {
+      const el = $('#daynight_' + param);
+      if (el) {
+        el.addEventListener('change', () => saveDaynightParam(param));
+      }
 
-  if (form) {
-    form.addEventListener('submit', ev => {
-      ev.preventDefault();
-      saveAllChanges();
+      // Also handle modal slider if it exists
+      const slider = $('#daynight_' + param + '-slider');
+      if (slider) {
+        slider.addEventListener('input', ev => {
+          // Update the text input while dragging
+          if (el) el.value = ev.target.value;
+          const sliderValue = $('#daynight_' + param + '-slider-value');
+          if (sliderValue) sliderValue.textContent = ev.target.value;
+        });
+        slider.addEventListener('change', () => saveDaynightParam(param));
+      }
+    });
+
+    // Bind change events to all daynight controls
+    dayNightControls.forEach(control => {
+      const el = $('#daynight_controls_' + control);
+      if (el) {
+        el.addEventListener('change', () => saveDaynightControl(control));
+      }
     });
   }
 
