@@ -119,13 +119,13 @@ select_camera() {
             --height=~100% \
             --layout=reverse \
             --exact \
-            --no-clear \
             --prompt="Camera: " \
             --header="Select camera configuration (${#cameras[@]} available) - type to filter" \
             --preview-window=hidden | sed 's/\x1b[^a-zA-Z]*[a-zA-Z]//g')
 
-        # Reset terminal after fzf to prevent display issues
+        # Reset and clear terminal after fzf
         tput sgr0 2>/dev/null || true
+        clear
         echo "" >&2
 
     # Try whiptail (used by main Makefile)
