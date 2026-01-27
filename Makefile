@@ -42,9 +42,9 @@ BR2_DL_DIR ?= $(HOME)/dl
 
 # repo data
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD | tr -d '()' | xargs)
-GIT_HASH="$(shell git show -s --format=%H | cut -c1-7)"
-GIT_DATE="$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S UTC' --format="%cd")"
-BUILD_DATE="$(shell env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z')"
+GIT_HASH = "$(shell git show -s --format=%H | cut -c1-7)"
+GIT_DATE = "$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S UTC' --format="%cd")"
+BUILD_DATE = "$(shell env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z')"
 
 ifeq ($(GROUP),github)
 	CAMERA_SUBDIR := configs/github
@@ -139,7 +139,7 @@ endif
 U_BOOT_ENV_TXT = $(OUTPUT_DIR)/uenv.txt
 export U_BOOT_ENV_TXT
 
-UB_ENV_BIN = $(OUTPUT_DIR)/images/u-boot-env.bin
+UB_ENV_BIN := $(OUTPUT_DIR)/images/u-boot-env.bin
 CONFIG_BIN := $(OUTPUT_DIR)/images/config.jffs2
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
 ROOTFS_BIN := $(OUTPUT_DIR)/images/rootfs.squashfs
