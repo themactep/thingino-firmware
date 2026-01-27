@@ -613,6 +613,7 @@ config BR2_THINGINO_RMEM_MB
 	default 23 if BR2_SOC_FAMILY_64MB
 	default 29 if BR2_SOC_FAMILY_128MB
 	default 64 if BR2_SOC_FAMILY_256MB
+	default 23
 
 config BR2_THINGINO_ISPMEM_MB
 	int "ISP Reserved RAM (ispmem), MB"
@@ -627,6 +628,7 @@ config BR2_THINGINO_NMEM_MB
 	default 23 if BR2_SOC_FAMILY_64MB
 	default 29 if BR2_SOC_FAMILY_128MB
 	default 64 if BR2_SOC_FAMILY_256MB
+	default 23
 	help
 	  Specify reserved memory for the Neural Network module in MB.
 
