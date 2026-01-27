@@ -731,11 +731,13 @@ else ifeq ($(BR2_ISP_MEMOPT_2),y)
 else ifeq ($(BR2_ISP_MEMOPT_3),y)
 	ISP_MEMOPT := isp_memopt=3
 else
-	ifeq ($(shell test $(SOC_RAM_MB) -le 64 && ! echo "$(SOC_FAMILY)" | grep -Eq "t10|t20|t21|t30" && echo true),true)
-		ISP_MEMOPT := isp_memopt=1
-	else
-		ISP_MEMOPT :=
-	endif
+ifneq ($(SOC_RAM_MB),)
+ifeq ($(shell test $(SOC_RAM_MB) -le 64 && ! echo "$(SOC_FAMILY)" | grep -Eq "t10|t20|t21|t30" && echo true),true)
+	ISP_MEMOPT := isp_memopt=1
+else
+	ISP_MEMOPT :=
+endif
+endif
 endif
 
 ifeq ($(BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM),y)
