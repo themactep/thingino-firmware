@@ -227,7 +227,7 @@
   }
 
   form.addEventListener('submit', saveConfig);
-  
+
   const reloadButton = $('#network-reload');
   if (reloadButton) {
     reloadButton.addEventListener('click', async () => {
@@ -242,7 +242,7 @@
       }
     });
   }
-  
+
   setFormEnabled(true);
   loadConfig();
 })();

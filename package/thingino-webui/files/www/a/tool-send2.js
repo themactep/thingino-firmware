@@ -2,7 +2,7 @@
   'use strict';
 
   const endpoint = '/x/json-send2.cgi';
-  
+
   const motionEnabledInput = $('#motion_enabled');
   const motionSensitivityInput = $('#motion_sensitivity');
   const motionSensitivityValue = $('#motion_sensitivity_value');
@@ -42,10 +42,10 @@
       });
 
       if (!response.ok) throw new Error('Failed to update');
-      
+
       const result = await response.json();
       if (result.error) throw new Error(result.error.message);
-      
+
     } catch (err) {
       console.error(`Failed to update ${service}:`, err);
       showAlert('danger', `Failed to update ${service}: ${err.message || err}`);
@@ -58,11 +58,11 @@
       const response = await fetch(endpoint, {
         headers: { 'Accept': 'application/json' }
       });
-      
+
       if (!response.ok) throw new Error('Failed to load configuration');
-      
+
       const data = await response.json();
-      
+
       // Apply motion settings
       if (data.motion) {
         if (motionEnabledInput) motionEnabledInput.checked = data.motion.enabled === true || data.motion.enabled === 'true';
@@ -74,7 +74,7 @@
           motionCooldownInput.value = data.motion.cooldown_time || 15;
           if (motionCooldownValue) motionCooldownValue.textContent = motionCooldownInput.value;
         }
-        
+
         // Update motion service checkboxes
         const services = ['email', 'ftp', 'telegram', 'mqtt', 'webhook', 'storage', 'ntfy', 'gphotos'];
         services.forEach(service => {
@@ -91,13 +91,13 @@
         const serviceData = data[service];
         const photoStatus = $(`#status-${service}-photo`);
         const videoStatus = $(`#status-${service}-video`);
-        
+
         if (photoStatus && serviceData) {
           const sendPhoto = serviceData.send_photo !== false && serviceData.send_photo !== 'false';
           photoStatus.textContent = sendPhoto ? '✓' : '✗';
           photoStatus.className = sendPhoto ? 'badge bg-success' : 'badge bg-secondary';
         }
-        
+
         if (videoStatus && serviceData) {
           const sendVideo = serviceData.send_video === true || serviceData.send_video === 'true';
           videoStatus.textContent = sendVideo ? '✓' : '✗';
@@ -115,10 +115,10 @@
 
   async function saveMotionSettings() {
     if (!saveMotionButton) return;
-    
+
     showBusy('Saving motion settings...');
     saveMotionButton.disabled = true;
-    
+
     try {
       const payload = {
         motion: {
@@ -135,15 +135,15 @@
       });
 
       if (!response.ok) throw new Error('Failed to save settings');
-      
+
       const result = await response.json();
-      
+
       if (result.error) {
         throw new Error(result.error.message || 'Failed to save settings');
       }
 
       showAlert('success', 'Motion settings saved successfully.', 3000);
-      
+
     } catch (err) {
       console.error('Failed to save motion settings:', err);
       showAlert('danger', `Failed to save settings: ${err.message || err}`);
@@ -173,7 +173,7 @@
     if (!testOutput) return;
     let text = '';
     const stripAnsi = s => typeof s === 'string' ? s.replace(/\u001b\[[0-9;]*[A-Za-z]/g, '') : s;
-    
+
     if (!data) {
       text = 'No response received.';
     } else if (data.error) {
@@ -198,7 +198,7 @@
     } else {
       text = stripAnsi(JSON.stringify(data, null, 2));
     }
-    
+
     testOutput.textContent = text || '(no output)';
   };
 
@@ -207,18 +207,18 @@
       ev.preventDefault();
       const target = btn.dataset.sendto;
       if (!target) return;
-      
+
       if (testTitle) testTitle.textContent = `Test: ${target}`;
       if (testOutput) testOutput.textContent = 'Running...';
       if (testModal) testModal.show();
-      
+
       btn.disabled = true;
-      
+
       const params = new URLSearchParams({ to: target });
       if (!testVerbose || testVerbose.checked) {
         params.set('verbose', '1');
       }
-      
+
       fetch(`/x/send.cgi?${params.toString()}`)
         .then(res => res.json())
         .then(renderTestResult)

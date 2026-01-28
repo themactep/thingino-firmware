@@ -12,12 +12,12 @@
       const encodedCmd = btoa(cmd);
       const response = await fetch(`/x/run.cgi?cmd=${encodedCmd}`);
       const text = await response.text();
-      
+
       // Extract mountpoints from the HTML response (between <b># command</b> and <b># </b>)
       const lines = text.split('\n');
       const mounts = [];
       let capturing = false;
-      
+
       for (const line of lines) {
         if (line.includes('</b>') && !line.includes('#')) {
           capturing = true;
@@ -31,7 +31,7 @@
           mounts.push(line.trim());
         }
       }
-      
+
       mountSelect.innerHTML = '<option value="">Select mount point...</option>';
       mounts.forEach(mount => {
         const option = document.createElement('option');
@@ -48,16 +48,16 @@
     showBusy('Loading Storage settings...');
     try {
       await loadMountpoints();
-      
+
       const response = await fetch(endpoint, {
         headers: { 'Accept': 'application/json' }
       });
-      
+
       if (!response.ok) throw new Error('Failed to load configuration');
-      
+
       const data = await response.json();
       const storage = data.storage || {};
-      
+
       $('#storage_mount').value = storage.mount || '';
       $('#storage_device_path').value = storage.device_path || '%hostname/motion';
       $('#storage_template').value = storage.template || '%Y%m%d/%H/%Y%m%dT%H%M%S';
@@ -74,7 +74,7 @@
 
   async function saveConfig(event) {
     event.preventDefault();
-    
+
     if (!form.checkValidity()) {
       event.stopPropagation();
       form.classList.add('was-validated');
@@ -82,19 +82,19 @@
     }
 
     showBusy('Saving Storage settings...');
-    
+
     try {
       // Apply defaults if empty
       let devicePath = $('#storage_device_path').value.trim();
       let template = $('#storage_template').value.trim();
-      
+
       if (!devicePath) {
         devicePath = '%hostname/motion';
       }
       if (!template) {
         template = '%Y%m%d/%H/%Y%m%dT%H%M%S';
       }
-      
+
       const payload = {
         storage: {
           mount: $('#storage_mount').value.trim(),
@@ -113,16 +113,16 @@
       });
 
       if (!response.ok) throw new Error('Failed to save settings');
-      
+
       const result = await response.json();
-      
+
       if (result.error) {
         throw new Error(result.error.message || 'Failed to save settings');
       }
 
       showAlert('success', 'Storage settings saved successfully.', 3000);
       form.classList.remove('was-validated');
-      
+
     } catch (err) {
       console.error('Failed to save Storage settings:', err);
       showAlert('danger', `Failed to save settings: ${err.message || err}`);

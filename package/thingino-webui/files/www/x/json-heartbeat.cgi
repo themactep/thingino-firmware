@@ -23,7 +23,7 @@ EOF
 stream_heartbeat() {
   while true; do
     printf 'retry: %d\n' "$HEARTBEAT_RETRY_MS" || exit 0
-    
+
     # Just read from cache file - daemon updates it
     if [ -f "$CACHE_FILE" ]; then
       printf 'data: %s\n\n' "$(cat "$CACHE_FILE")" || exit 0
@@ -31,7 +31,7 @@ stream_heartbeat() {
       # Fallback if daemon not running
       printf 'data: {"error":"Heartbeat daemon not running"}\n\n' || exit 0
     fi
-    
+
     sleep "$HEARTBEAT_INTERVAL" || exit 0
   done
 }

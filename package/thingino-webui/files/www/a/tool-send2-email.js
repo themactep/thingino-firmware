@@ -11,12 +11,12 @@
       const response = await fetch(endpoint, {
         headers: { 'Accept': 'application/json' }
       });
-      
+
       if (!response.ok) throw new Error('Failed to load configuration');
-      
+
       const data = await response.json();
       const email = data.email || {};
-      
+
       // Apply email settings
       $('#email_host').value = email.host || '';
       $('#email_port').value = email.port || '587';
@@ -24,12 +24,12 @@
       $('#email_password').value = email.password || '';
       $('#email_use_ssl').checked = email.use_ssl === true || email.use_ssl === 'true';
       $('#email_trust_cert').checked = email.trust_cert === true || email.trust_cert === 'true';
-      
+
       $('#email_from_name').value = email.from_name || '';
       $('#email_from_address').value = email.from_address || '';
       $('#email_to_name').value = email.to_name || '';
       $('#email_to_address').value = email.to_address || '';
-      
+
       $('#email_send_photo').checked = email.send_photo !== false && email.send_photo !== 'false';
       $('#email_send_video').checked = email.send_video === true || email.send_video === 'true';
       $('#email_subject').value = email.subject || 'Motion detected';
@@ -45,7 +45,7 @@
 
   async function saveConfig(event) {
     event.preventDefault();
-    
+
     if (!form.checkValidity()) {
       event.stopPropagation();
       form.classList.add('was-validated');
@@ -53,7 +53,7 @@
     }
 
     showBusy('Saving email settings...');
-    
+
     try {
       const payload = {
         email: {
@@ -82,16 +82,16 @@
       });
 
       if (!response.ok) throw new Error('Failed to save settings');
-      
+
       const result = await response.json();
-      
+
       if (result.error) {
         throw new Error(result.error.message || 'Failed to save settings');
       }
 
       showAlert('success', 'Email settings saved successfully.', 3000);
       form.classList.remove('was-validated');
-      
+
     } catch (err) {
       console.error('Failed to save email settings:', err);
       showAlert('danger', `Failed to save settings: ${err.message || err}`);
@@ -119,6 +119,6 @@
   }
 
   // Test button handler is in tool-send2.js (handles all service test buttons)
-  
+
   loadConfig();
 })();

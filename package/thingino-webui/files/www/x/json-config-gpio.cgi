@@ -59,7 +59,7 @@ read_body() {
 handle_get() {
   gpio_json=$(jct "$CONFIG_FILE" get gpio 2>/dev/null || echo '{}')
   pwm_pins=$(pwm-ctrl -l 2>/dev/null | grep '^GPIO' | awk '{print $2}' | tr '\n' ',' | sed 's/,$//')
-  
+
   cat <<EOF
 {
   "gpio": $gpio_json,
@@ -82,9 +82,9 @@ save_gpio_pin() {
   local lit=$(normalize_bool "$(jct "$REQ_FILE" get "${name}.lit" 2>/dev/null)")
   local ch=$(jct "$REQ_FILE" get "${name}.ch" 2>/dev/null)
   local lvl=$(jct "$REQ_FILE" get "${name}.lvl" 2>/dev/null)
-  
+
   [ -z "$pin" ] && return
-  
+
   jct "$TMP_FILE" set "$DOMAIN.$name.pin" "$pin" >/dev/null 2>&1
   jct "$TMP_FILE" set "$DOMAIN.$name.active_low" "$inv" >/dev/null 2>&1
   jct "$TMP_FILE" set "$DOMAIN.$name.active_on_boot" "$lit" >/dev/null 2>&1
@@ -95,10 +95,10 @@ save_gpio_pin() {
 handle_post() {
   read_body
   ensure_config
-  
+
   TMP_FILE=$(mktemp /tmp/${DOMAIN}.XXXXXX)
   echo '{}' >"$TMP_FILE"
-  
+
   save_gpio_pin "led_r"
   save_gpio_pin "led_g"
   save_gpio_pin "led_b"
@@ -108,15 +108,15 @@ handle_post() {
   save_gpio_pin "ir850"
   save_gpio_pin "ir940"
   save_gpio_pin "white"
-  
+
   ircut_pin1=$(jct "$REQ_FILE" get "ircut_pin1" 2>/dev/null)
   ircut_pin2=$(jct "$REQ_FILE" get "ircut_pin2" 2>/dev/null)
   if [ -n "$ircut_pin1" ] && [ -n "$ircut_pin2" ]; then
     jct "$TMP_FILE" set "$DOMAIN.ircut" "$ircut_pin1 $ircut_pin2" >/dev/null 2>&1
   fi
-  
+
   jct "$CONFIG_FILE" import "$TMP_FILE" >/dev/null 2>&1
-  
+
   send_json '{"status":"ok","message":"GPIO configuration saved"}'
 }
 

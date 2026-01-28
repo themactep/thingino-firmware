@@ -11,12 +11,12 @@
       const response = await fetch(endpoint, {
         headers: { 'Accept': 'application/json' }
       });
-      
+
       if (!response.ok) throw new Error('Failed to load configuration');
-      
+
       const data = await response.json();
       const webhook = data.webhook || {};
-      
+
       $('#webhook_url').value = webhook.url || '';
       $('#webhook_message').value = webhook.message || '';
       $('#webhook_send_photo').checked = webhook.send_photo !== false && webhook.send_photo !== 'false';
@@ -32,7 +32,7 @@
 
   async function saveConfig(event) {
     event.preventDefault();
-    
+
     if (!form.checkValidity()) {
       event.stopPropagation();
       form.classList.add('was-validated');
@@ -40,7 +40,7 @@
     }
 
     showBusy('Saving Webhook settings...');
-    
+
     try {
       const payload = {
         webhook: {
@@ -59,16 +59,16 @@
       });
 
       if (!response.ok) throw new Error('Failed to save settings');
-      
+
       const result = await response.json();
-      
+
       if (result.error) {
         throw new Error(result.error.message || 'Failed to save settings');
       }
 
       showAlert('success', 'Webhook settings saved successfully.', 3000);
       form.classList.remove('was-validated');
-      
+
     } catch (err) {
       console.error('Failed to save Webhook settings:', err);
       showAlert('danger', `Failed to save settings: ${err.message || err}`);

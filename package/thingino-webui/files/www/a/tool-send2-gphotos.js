@@ -11,12 +11,12 @@
       const response = await fetch(endpoint, {
         headers: { 'Accept': 'application/json' }
       });
-      
+
       if (!response.ok) throw new Error('Failed to load configuration');
-      
+
       const data = await response.json();
       const gphotos = data.gphotos || {};
-      
+
       $('#gphotos_client_id').value = gphotos.client_id || '';
       $('#gphotos_client_secret').value = gphotos.client_secret || '';
       $('#gphotos_refresh_token').value = gphotos.refresh_token || '';
@@ -35,7 +35,7 @@
 
   async function saveConfig(event) {
     event.preventDefault();
-    
+
     if (!form.checkValidity()) {
       event.stopPropagation();
       form.classList.add('was-validated');
@@ -43,7 +43,7 @@
     }
 
     showBusy('Saving Google Photos settings...');
-    
+
     try {
       const payload = {
         gphotos: {
@@ -65,16 +65,16 @@
       });
 
       if (!response.ok) throw new Error('Failed to save settings');
-      
+
       const result = await response.json();
-      
+
       if (result.error) {
         throw new Error(result.error.message || 'Failed to save settings');
       }
 
       showAlert('success', 'Google Photos settings saved successfully.', 3000);
       form.classList.remove('was-validated');
-      
+
     } catch (err) {
       console.error('Failed to save Google Photos settings:', err);
       showAlert('danger', `Failed to save settings: ${err.message || err}`);

@@ -62,7 +62,7 @@ write_config() {
   if [ -n "$tz_data" ]; then
     echo "$tz_data" > /etc/TZ
   fi
-  
+
   if [ -n "$tz_name" ]; then
     echo "$tz_name" > /etc/timezone
   fi
@@ -96,7 +96,7 @@ read_body() {
 
 handle_get() {
   read_config
-  
+
   cat <<EOF
 {
   "tz_name": "$(json_escape "$tz_name")",
@@ -111,9 +111,9 @@ EOF
 
 handle_post() {
   read_body
-  
+
   action=$(jct "$REQ_FILE" get action 2>/dev/null)
-  
+
   case "$action" in
     reset)
       if [ -f "/rom$NTP_DEFAULT_FILE" ]; then
@@ -123,7 +123,7 @@ handle_post() {
         json_error 404 "Default NTP configuration not found" "404 Not Found"
       fi
       ;;
-      
+
     set_time)
       manual_time=$(jct "$REQ_FILE" get time 2>/dev/null)
       if [ -z "$manual_time" ]; then
@@ -136,7 +136,7 @@ handle_post() {
         json_error 500 "Failed to set time" "500 Internal Server Error"
       fi
       ;;
-      
+
     update)
       tz_name=$(jct "$REQ_FILE" get tz_name 2>/dev/null)
       tz_data=$(jct "$REQ_FILE" get tz_data 2>/dev/null)
@@ -144,19 +144,19 @@ handle_post() {
       ntp_server_1=$(jct "$REQ_FILE" get ntp_server_1 2>/dev/null)
       ntp_server_2=$(jct "$REQ_FILE" get ntp_server_2 2>/dev/null)
       ntp_server_3=$(jct "$REQ_FILE" get ntp_server_3 2>/dev/null)
-      
+
       if [ -z "$tz_name" ]; then
         json_error 422 "Timezone name cannot be empty" "422 Unprocessable Entity"
       fi
-      
+
       if [ -z "$tz_data" ]; then
         json_error 422 "Timezone value cannot be empty" "422 Unprocessable Entity"
       fi
-      
+
       write_config
       send_json '{"status":"ok","message":"Time configuration updated"}'
       ;;
-      
+
     *)
       json_error 400 "Unknown action: $action" "400 Bad Request"
       ;;

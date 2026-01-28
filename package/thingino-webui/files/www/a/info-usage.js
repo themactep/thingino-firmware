@@ -75,24 +75,24 @@
     const el = $('#' + id);
     if (!el) return;
     el.innerHTML = '';
-    
+
     items.forEach(item => {
       const legendItem = document.createElement('span');
       legendItem.className = 'd-flex align-items-center gap-1';
-      
+
       const colorBox = document.createElement('span');
       colorBox.style.display = 'inline-block';
       colorBox.style.width = '12px';
       colorBox.style.height = '12px';
       colorBox.style.backgroundColor = item.color;
       colorBox.style.borderRadius = '2px';
-      
+
       const total = item.total || 1;
       const percentage = total > 0 ? Math.round((item.value / total) * 100) : 0;
-      
+
       const text = document.createElement('span');
       text.textContent = `${item.label}: ${item.value} KiB (${percentage}%)`;
-      
+
       legendItem.appendChild(colorBox);
       legendItem.appendChild(text);
       el.appendChild(legendItem);
@@ -110,34 +110,34 @@
     const memActive = memory.active || 0;
     const memBuffers = memory.buffers || 0;
     const memCached = memory.cached || 0;
-    
+
     // Calculate "other" memory (shared, slab, etc)
     const memUsed = memTotal - memFree;
     const memAccountedFor = memActive + memBuffers + memCached;
     const memOther = Math.max(0, memUsed - memAccountedFor);
-    
+
     // Update headers with total amounts
     const memoryTitle = $('#usageMemorySection h6');
     if (memoryTitle) memoryTitle.textContent = `Memory (${memTotal} KiB)`;
-    
+
     const overlayTitle = $('#usageOverlaySection h6');
     if (overlayTitle) overlayTitle.textContent = `Overlay partition (${overlay.total || 0} KiB)`;
-    
+
     const extrasTitle = $('#usageExtrasSection h6');
     if (extrasTitle) extrasTitle.textContent = `Extras storage (${extras.total || 0} KiB)`;
-    
+
     updateUsageProgress('#pb-memory-active', memActive, memTotal, 'Memory Active');
     updateUsageProgress('#pb-memory-buffers', memBuffers, memTotal, 'Memory Buffers');
     updateUsageProgress('#pb-memory-cached', memCached, memTotal, 'Memory Cached');
     updateUsageProgress('#pb-memory-other', memOther, memTotal, 'Memory Other');
-    
+
     updateLegend('memory-legend', [
       { color: '#ff6b6b', label: 'Active', value: memActive, total: memTotal },
       { color: '#ffb347', label: 'Buffers', value: memBuffers, total: memTotal },
       { color: '#4ecdc4', label: 'Cached', value: memCached, total: memTotal },
       { color: '#95a5a6', label: 'Other', value: memOther, total: memTotal }
     ]);
-    
+
     updateUsageSummary('usage-memory-summary', formatUsageSummary({
       total: memTotal,
       free: memFree,

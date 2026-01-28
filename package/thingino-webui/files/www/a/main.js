@@ -1999,7 +1999,7 @@ window.thinginoConfirm = thinginoConfirm;
 
 		const modalId = 'passwordWarningModal';
 		let modal = document.getElementById(modalId);
-		
+
 		if (!modal) {
 			modal = document.createElement('div');
 			modal.id = modalId;
@@ -2024,6 +2024,87 @@ window.thinginoConfirm = thinginoConfirm;
 				</div>
 			`;
 			document.body.appendChild(modal);
+
+			// Add event handler for password change
+			const form = modal.querySelector('#password-change-form');
+			const newPasswordInput = modal.querySelector('#new-password');
+			const confirmPasswordInput = modal.querySelector('#confirm-password');
+			const changeBtn = modal.querySelector('#change-password-btn');
+			const alertDiv = modal.querySelector('#password-change-alert');
+
+			function showAlert(message, type) {
+				alertDiv.className = `alert alert-${type}`;
+				alertDiv.textContent = message;
+				alertDiv.classList.remove('d-none');
+			}
+
+			function hideAlert() {
+				alertDiv.classList.add('d-none');
+			}
+
+			changeBtn.addEventListener('click', async (e) => {
+				e.preventDefault();
+				hideAlert();
+
+				const newPassword = newPasswordInput.value;
+				const confirmPassword = confirmPasswordInput.value;
+
+				if (!newPassword || newPassword.length < 4) {
+					showAlert('Password must be at least 4 characters long.', 'danger');
+					return;
+				}
+
+				if (newPassword !== confirmPassword) {
+					showAlert('Passwords do not match.', 'danger');
+					return;
+				}
+
+				if (newPassword === 'root') {
+					showAlert('Please choose a password different from "root".', 'danger');
+					return;
+				}
+
+				// Disable button and show loading state
+				changeBtn.disabled = true;
+				changeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Changing...';
+
+				try {
+					const response = await fetch('/x/json-config-webui.cgi', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ password: newPassword })
+					});
+
+					const result = await response.json();
+
+					if (!response.ok || (result && result.error)) {
+						const message = result && result.error && result.error.message
+							? result.error.message
+							: 'Failed to change password';
+						throw new Error(message);
+					}
+
+					// Success!
+					showAlert('Password changed successfully! Logging out...', 'success');
+					changeBtn.textContent = 'Password Changed';
+
+					// Force logout by redirecting to a protected endpoint with wrong credentials
+					// This will clear the browser's auth cache and prompt for new credentials
+					setTimeout(() => {
+						// Close SSE connection if active
+						if (typeof cleanupHeartbeatResources === 'function') {
+							cleanupHeartbeatResources();
+						}
+						// Redirect to root with cache busting to force re-authentication
+						window.location.href = '/?logout=' + Date.now();
+					}, 2000);
+
+				} catch (err) {
+					showAlert(err.message || 'Failed to change password.', 'danger');
+					changeBtn.disabled = false;
+					changeBtn.textContent = 'Change Password';
+				}
+			});
 		}
 
 		const bsModal = new bootstrap.Modal(modal);
