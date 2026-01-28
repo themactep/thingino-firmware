@@ -1954,4 +1954,80 @@ window.thinginoConfirm = thinginoConfirm;
 			focusedElement.blur();
 		}
 	});
+
+	// Check for default password and enforce change
+	function checkDefaultPassword() {
+		// Skip check if already dismissed in this session
+		if (sessionStorage.getItem('password_check_done') === 'true') {
+			return;
+		}
+
+		// Try to authenticate with default credentials
+		const defaultAuth = btoa('root:root');
+		fetch('/x/json-heartbeat.cgi', {
+			method: 'GET',
+			headers: {
+				'Authorization': 'Basic ' + defaultAuth
+			},
+			cache: 'no-store'
+		})
+		.then(response => {
+			if (response.ok) {
+				// Default password is still active - show warning
+				showPasswordWarningModal();
+			}
+			// Mark check as done regardless of result
+			sessionStorage.setItem('password_check_done', 'true');
+		})
+		.catch(() => {
+			// Network error or auth failed - mark as checked anyway
+			sessionStorage.setItem('password_check_done', 'true');
+		});
+	}
+
+	function showPasswordWarningModal() {
+		// Don't show on password change page itself
+		if (window.location.pathname.includes('config-webui.html')) {
+			return;
+		}
+
+		const modalId = 'passwordWarningModal';
+		let modal = document.getElementById(modalId);
+		
+		if (!modal) {
+			modal = document.createElement('div');
+			modal.id = modalId;
+			modal.className = 'modal fade';
+			modal.setAttribute('data-bs-backdrop', 'static');
+			modal.setAttribute('data-bs-keyboard', 'false');
+			modal.innerHTML = `
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content border-warning">
+						<div class="modal-header bg-warning text-dark">
+							<h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-2"></i>Security Warning</h5>
+						</div>
+						<div class="modal-body">
+							<p><strong>You are using the default password "root".</strong></p>
+							<p>For security reasons, you must change the password immediately.</p>
+							<p>Please go to the WebUI Configuration page to set a new password.</p>
+						</div>
+						<div class="modal-footer">
+							<a href="/config-webui.html" class="btn btn-warning">Change Password Now</a>
+						</div>
+					</div>
+				</div>
+			`;
+			document.body.appendChild(modal);
+		}
+
+		const bsModal = new bootstrap.Modal(modal);
+		bsModal.show();
+	}
+
+	// Run password check after page loads
+	if (window.location.pathname !== '/401.html') {
+		window.addEventListener('load', () => {
+			setTimeout(checkDefaultPassword, 1000);
+		});
+	}
 })();
