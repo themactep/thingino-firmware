@@ -95,9 +95,6 @@
       paranoidSwitch.checked = normalized.paranoid;
       trackFocusSwitch.checked = normalized.track_focus;
       focusTimeoutInput.value = normalized.focus_timeout;
-      if (window.thinginoTheme && typeof window.thinginoTheme.remember === 'function') {
-        window.thinginoTheme.remember(normalized.activeTheme, normalized.theme);
-      }
       resetPasswordField();
     } catch (err) {
       showAlert('danger', err.message || 'Unable to load Web UI settings.');

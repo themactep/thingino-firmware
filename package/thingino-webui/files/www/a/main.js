@@ -173,7 +173,15 @@ function safeStorageSet(key, value) {
 
 function applyThemeAttribute(theme) {
 	if (!theme) return;
-	document.documentElement.setAttribute('data-bs-theme', theme);
+	let resolvedTheme = theme;
+
+	// Resolve 'auto' based on time of day
+	if (theme === 'auto') {
+		const hour = new Date().getHours();
+		resolvedTheme = hour >= 8 && hour < 20 ? 'light' : 'dark';
+	}
+
+	document.documentElement.setAttribute('data-bs-theme', resolvedTheme);
 }
 
 function rememberThemeState(activeTheme, preferenceTheme) {
