@@ -407,10 +407,9 @@ Promise.all([loadConfig(), loadMotorParams()]).then(async () => {
         clearTimeout(focusTimeoutId);
         focusTimeoutId = null;
       }
-      // Start preview if it was stopped
-      if (isWindowVisible) {
-        startPreview();
-      }
+      // Ensure window is marked as visible and start preview
+      isWindowVisible = true;
+      startPreview();
     }
   };
 
