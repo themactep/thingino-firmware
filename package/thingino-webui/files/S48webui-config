@@ -27,11 +27,8 @@ start() {
   build_time="$(awk -F= '/^BUILD_TIME=/{gsub(/"/, "", $2); print $2}' "$OS_RELEASE_FILE")"
   build_commit="$(awk -F'[=,"]' '/^COMMIT_ID/{print $3}' "$OS_RELEASE_FILE")"
   motors_enabled="false"
-  if [ -f /etc/motors.json ] && command -v jct >/dev/null 2>&1; then
-    gpio_pan="$(jct /etc/motors.json get motors.gpio_pan 2>/dev/null)"
-    if [ -n "$gpio_pan" ] && [ "$gpio_pan" != "null" ]; then
-      motors_enabled="true"
-    fi
+  if [ -f /etc/motors.json ]; then
+    motors_enabled="true"
   fi
 
   {
