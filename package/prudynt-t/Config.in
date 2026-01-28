@@ -127,6 +127,31 @@ config BR2_PACKAGE_PRUDYNT_T_WEBSOCKETS
 	  Disable this if you only need RTSP/HTTP interfaces and want to drop
 	  the libwebsockets dependency.
 
+config BR2_PACKAGE_PRUDYNT_T_PREBUFFER
+	bool "Enable pre-trigger buffer for motion events"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	default y if BR2_SOC_FAMILY_INGENIC_T31
+	default y if BR2_SOC_FAMILY_INGENIC_T40
+	default y if BR2_SOC_FAMILY_INGENIC_T41
+	default n
+	help
+	  Enable pre-trigger video buffer to capture frames before motion
+	  detection triggers. This provides context for motion events by
+	  including 2-10 seconds of video before the trigger occurred.
+
+	  Memory requirements (per channel):
+	  - Full frames (3s): ~1.5-2MB RAM
+	  - Keyframe-only (3s): ~0.5MB RAM
+	  - Binary size: +3-4KB
+
+	  Recommended for:
+	  - 64MB+ devices (T31, T40, T41): Enable (default)
+	  - 32MB devices (T20, T21, T10): Disable to save memory
+
+	  When disabled, this feature is completely removed at compile time
+	  with zero overhead. Motion detection still works without prebuffer,
+	  but recordings will only capture frames after the trigger.
+
 config BR2_PACKAGE_PRUDYNT_T_WEBRTC
 	bool "WebRTC support"
 	depends on BR2_PACKAGE_PRUDYNT_T
