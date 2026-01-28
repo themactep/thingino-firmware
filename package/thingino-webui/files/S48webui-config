@@ -16,11 +16,6 @@ if [ ! -f "$OS_RELEASE_FILE" ]; then
 fi
 
 start() {
-  if [ -f "$WEBUI_JS_CONFIG" ]; then
-    echo_info "File $WEBUI_JS_CONFIG exists"
-    exit 0
-  fi
-
   hostname="$(hostname -s)"
   timezone="$(cat /etc/timezone 2>/dev/null || echo UTC)"
   image_id="$(awk -F= '/^IMAGE_ID=/{gsub(/"/, "", $2); print $2}' "$OS_RELEASE_FILE")"

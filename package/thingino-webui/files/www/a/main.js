@@ -601,17 +601,15 @@ function updateHeartbeatUi(json) {
 		const configuredTimezone = resolveDeviceTimezone();
 		const heartbeatTimezone = typeof json.timezone === 'string' ? json.timezone.trim() : '';
 		const timezoneLabel = configuredTimezone || heartbeatTimezone;
-		const timeZoneId = timezoneLabel ? timezoneLabel.replaceAll(' ', '_') : '';
+		const timeZoneId = timezoneLabel ? timezoneLabel.replaceAll(' ', '_') : 'UTC';
 		let options = {
 			year: "numeric",
 			month: "short",
 			day: "numeric",
 			hour: "2-digit",
-			minute: "2-digit"
+			minute: "2-digit",
+			timeZone: timeZoneId
 		};
-		if (timeZoneId) {
-			options.timeZone = timeZoneId;
-		}
 		const formatted = d.toLocaleString(navigator.language, options);
 		timeNowEl.textContent = timezoneLabel ? formatted + ' ' + timezoneLabel : formatted;
 	}
