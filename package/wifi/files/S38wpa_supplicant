@@ -29,14 +29,18 @@ update_psk() {
 	echo $psk
 }
 
+get_value() {
+	jct /etc/thingino.json get $1 2>/dev/null || fw_printenv -n $2
+}
+
 start() {
 	echo_title "Starting WPA Supplicant"
 
-	     wlan_pass=$(jct /etc/thingino.json get wlan.pass 2>/dev/null || fw_printenv -n wlan_pass)
-	      wlan_psk=$(jct /etc/thingino.json get wlan.psk 2>/dev/null || fw_printenv -n wlan_psk)
-	     wlan_ssid=$(jct /etc/thingino.json get wlan.ssid 2>/dev/null || fw_printenv -n wlan_ssid)
-	    wlan_bssid=$(jct /etc/thingino.json get wlan.bssid 2>/dev/null || fw_printenv -n wlan_bssid)
-	wlanap_enabled=$(jct /etc/thingino.json get wlan_ap.enabled 2>/dev/null || fw_printenv -n wlanap_enabled)
+	wlan_pass=$(get_value wlan.pass wlan_pass)
+	wlan_psk=$(get_value wlan.psk wlan_psk)
+	wlan_ssid=$(get_value wlan.ssid wlan_ssid)
+	wlan_bssid=$(get_value wlan.bssid wlan_bssid)
+	wlanap_enabled=$(get_value wlan_ap.enabled wlanap_enabled)
 
 	# Interface is not present
 	if ! iface_exists "wlan0"; then
