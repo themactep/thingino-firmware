@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
+
 printf 'Status: 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store\r\n\r\n'
 
 # Get motor config values

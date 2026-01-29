@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
+
 REQ_FILE=""
 
 cleanup() {

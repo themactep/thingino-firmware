@@ -82,6 +82,46 @@
             </div><!-- .row -->
           </div><!-- .card-body -->
         </div><!-- .card -->
+
+        <!-- API Key Section -->
+        <div class="card mb-3">
+          <div class="card-header">
+            <h3 class="card-title">API Access</h3>
+            <small>API key for automation and integrations</small>
+          </div>
+          <div class="card-body">
+            <p class="text-muted">
+              <i class="bi bi-info-circle"></i>
+              Use this API key to access camera endpoints from automation tools (Home Assistant, scripts, etc.)
+            </p>
+            <div class="row g-3">
+              <div class="col-12">
+                <label for="api_key_display">API Key</label>
+                <div class="input-group">
+                  <input type="text" id="api_key_display" class="form-control font-monospace" readonly placeholder="No API key generated">
+                  <button type="button" class="btn btn-outline-secondary" id="api_key_copy" title="Copy to clipboard" disabled>
+                    <i class="bi bi-clipboard"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="col-12">
+                <button type="button" class="btn btn-success" id="api_key_generate">
+                  <i class="bi bi-plus-circle"></i> Generate New Key
+                </button>
+                <button type="button" class="btn btn-danger" id="api_key_delete" disabled>
+                  <i class="bi bi-trash"></i> Delete Key
+                </button>
+              </div>
+              <div class="col-12">
+                <div class="alert alert-info d-none" id="api_key_example">
+                  <strong>Usage example:</strong>
+                  <pre class="mb-0"><code>curl -H "X-API-Key: <span id="api_key_example_value"></span>" http://CAMERA_IP/x/ch0.jpg -o snapshot.jpg</code></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div><!-- .card -->
+
         <button type="submit" id="webui_submit" class="btn btn-primary">Save changes</button>
       </form>
     </section>

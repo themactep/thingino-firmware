@@ -1,4 +1,9 @@
 #!/bin/sh
+
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
+
 printf 'Content-Type: application/json\r\n'
 printf 'Cache-Control: no-cache\r\n'
 printf '\r\n'

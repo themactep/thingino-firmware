@@ -163,5 +163,92 @@
     });
   }
 
+  // API Key Management
+  async function loadApiKey() {
+    try {
+      const response = await fetch('/x/api-key.cgi');
+      const data = await response.json();
+
+      const keyDisplay = document.getElementById('api_key_display');
+      const copyBtn = document.getElementById('api_key_copy');
+      const deleteBtn = document.getElementById('api_key_delete');
+      const exampleDiv = document.getElementById('api_key_example');
+      const exampleValue = document.getElementById('api_key_example_value');
+
+      if (data.exists && data.api_key) {
+        keyDisplay.value = data.api_key;
+        copyBtn.disabled = false;
+        deleteBtn.disabled = false;
+        exampleDiv.classList.remove('d-none');
+        exampleValue.textContent = data.api_key;
+      } else {
+        keyDisplay.value = '';
+        keyDisplay.placeholder = 'No API key generated';
+        copyBtn.disabled = true;
+        deleteBtn.disabled = true;
+        exampleDiv.classList.add('d-none');
+      }
+    } catch (err) {
+      console.error('Failed to load API key:', err);
+    }
+  }
+
+  const generateBtn = document.getElementById('api_key_generate');
+  if (generateBtn) {
+    generateBtn.addEventListener('click', async () => {
+      if (!confirm('Generate a new API key? This will invalidate the old key if it exists.')) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/x/api-key.cgi', { method: 'POST' });
+        const data = await response.json();
+
+        if (data.api_key) {
+          await loadApiKey();
+          showAlert('success', 'API key generated successfully!');
+        } else {
+          showAlert('danger', 'Failed to generate API key');
+        }
+      } catch (err) {
+        showAlert('danger', 'Error: ' + err.message);
+      }
+    });
+  }
+
+  const deleteBtn = document.getElementById('api_key_delete');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', async () => {
+      if (!confirm('Delete the API key? API access will stop working.')) {
+        return;
+      }
+
+      try {
+        const response = await fetch('/x/api-key.cgi', { method: 'DELETE' });
+        await response.json();
+        await loadApiKey();
+        showAlert('success', 'API key deleted');
+      } catch (err) {
+        showAlert('danger', 'Error: ' + err.message);
+      }
+    });
+  }
+
+  const copyBtn = document.getElementById('api_key_copy');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      const keyDisplay = document.getElementById('api_key_display');
+      keyDisplay.select();
+      document.execCommand('copy');
+
+      const originalHtml = copyBtn.innerHTML;
+      copyBtn.innerHTML = '<i class="bi bi-check"></i>';
+      setTimeout(() => {
+        copyBtn.innerHTML = originalHtml;
+      }, 2000);
+    });
+  }
+
   loadConfig();
+  loadApiKey();
 })();

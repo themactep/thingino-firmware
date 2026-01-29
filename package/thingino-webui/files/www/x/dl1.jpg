@@ -2,6 +2,10 @@
 # BusyBox httpd CGI for snapshot channel 1
 # Optional query: q=85 for JPEG quality override
 
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
+
 printf "Content-Type: image/jpeg\r\n"
 printf "Content-Disposition: attachment; filename=ch1-$(date +%s).jpg\r\n"
 printf "Connection: close\r\n"

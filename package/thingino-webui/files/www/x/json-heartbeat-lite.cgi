@@ -1,6 +1,9 @@
 #!/bin/sh
-
 # Ultra-light heartbeat CGI - just reads from daemon-maintained cache
+
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
 
 CACHE_FILE="/tmp/heartbeat_cache.json"
 

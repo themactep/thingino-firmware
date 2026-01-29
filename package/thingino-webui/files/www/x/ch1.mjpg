@@ -2,6 +2,10 @@
 # BusyBox httpd CGI for MJPEG stream (channel 1)
 # Query params: f=<fps> q=<quality> w=<width> h=<height>
 
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
+
 BOUNDARY="prudyntmjpegboundary"
 FPS=5
 Q=""

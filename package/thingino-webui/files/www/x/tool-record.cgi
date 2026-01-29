@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
+
 . /usr/share/common
 
 RECORD_FILENAME_FB="%Y%m%d/%H/%Y%m%dT%H%M%S"

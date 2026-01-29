@@ -1,6 +1,10 @@
 #!/bin/sh
 # Generic MJPEG CGI: /x/video.mjpg?ch=0|1&f=FPS&q=QUALITY&w=WIDTH&h=HEIGHT
 
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
+
 BOUNDARY="prudyntmjpegboundary"
 CH=0
 FPS=5

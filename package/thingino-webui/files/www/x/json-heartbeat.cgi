@@ -2,6 +2,10 @@
 
 # Optimized SSE heartbeat - streams from daemon-maintained cache
 
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
+
 CACHE_FILE="/tmp/heartbeat_cache.json"
 HEARTBEAT_INTERVAL="${HEARTBEAT_INTERVAL:-1}"
 HEARTBEAT_RETRY_MS=$((HEARTBEAT_INTERVAL * 1000))

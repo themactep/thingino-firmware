@@ -22,6 +22,10 @@ let heartbeatSource = null;
 let currentReconnectDelay = HeartBeatReconnectDelay;
 let debugModalCtx = null;
 
+// Password check state - must be initialized before heartbeat can start
+let isDefaultPassword = false;
+let passwordCheckComplete = false;
+
 function $(n) {
 	return document.querySelector(n)
 }
@@ -788,6 +792,12 @@ function updateHeartbeatUi(json) {
 }
 
 function startHeartbeatSse() {
+	// Check password state before starting SSE
+	if (!passwordCheckComplete || isDefaultPassword) {
+		console.log('startHeartbeatSse blocked: passwordCheckComplete=' + passwordCheckComplete + ', isDefaultPassword=' + isDefaultPassword);
+		return;
+	}
+
 	if (heartbeatSource) return;
 	heartbeatSource = new EventSource(HeartBeatEndpoint);
 	heartbeatSource.onmessage = (event) => {
@@ -803,7 +813,7 @@ function startHeartbeatSse() {
 		heartbeatSource.close();
 		heartbeatSource = null;
 		console.log(`Reconnecting in ${currentReconnectDelay / 1000}s`);
-		setTimeout(startHeartbeatSse, currentReconnectDelay);
+		setTimeout(heartbeat, currentReconnectDelay); // Use heartbeat() instead of startHeartbeatSse()
 		// Double the delay for next failure, capped at max
 		currentReconnectDelay = Math.min(currentReconnectDelay * 2, HeartBeatMaxReconnectDelay);
 	};
@@ -824,11 +834,25 @@ document.addEventListener('visibilitychange', () => {
 	if (document.hidden) {
 		cleanupHeartbeatResources();
 	} else {
-		heartbeat();
+		// Only restart heartbeat if password check is complete and password is OK
+		if (passwordCheckComplete && !isDefaultPassword) {
+			heartbeat();
+		}
 	}
 });
 
 function heartbeat() {
+	console.trace('heartbeat() called');
+	// Don't start heartbeat until password check is complete
+	if (!passwordCheckComplete) {
+		console.log('Heartbeat disabled: password check not complete');
+		return;
+	}
+	// Don't start heartbeat if using default password
+	if (isDefaultPassword) {
+		console.log('Heartbeat disabled: default password in use');
+		return;
+	}
 	startHeartbeatSse();
 }
 
@@ -1779,7 +1803,7 @@ window.thinginoConfirm = thinginoConfirm;
 		}
 
 		initCopyToClipboard()
-		heartbeat()
+		// Don't start heartbeat here - wait for password check to complete
 
 		// setup recording button handlers
 		$$('#recorder-ch0, #recorder-ch1').forEach(button => {
@@ -1961,34 +1985,42 @@ window.thinginoConfirm = thinginoConfirm;
 		}
 	});
 
-	// Check for default password and enforce change
-	function checkDefaultPassword() {
-		// Skip check if already dismissed in this session
-		if (sessionStorage.getItem('password_check_done') === 'true') {
-			return;
-		}
+	// Check session status and default password
+	async function checkSessionAndPassword() {
+		try {
+			const response = await fetch('/x/session-status.cgi', {
+				cache: 'no-store'
+			});
 
-		// Try to authenticate with default credentials
-		const defaultAuth = btoa('root:root');
-		fetch('/x/json-heartbeat.cgi', {
-			method: 'GET',
-			headers: {
-				'Authorization': 'Basic ' + defaultAuth
-			},
-			cache: 'no-store'
-		})
-		.then(response => {
-			if (response.ok) {
-				// Default password is still active - show warning
-				showPasswordWarningModal();
+			if (!response.ok) {
+				// Session check failed - redirect to login
+				window.location.href = '/login.html';
+				return;
 			}
-			// Mark check as done regardless of result
-			sessionStorage.setItem('password_check_done', 'true');
-		})
-		.catch(() => {
-			// Network error or auth failed - mark as checked anyway
-			sessionStorage.setItem('password_check_done', 'true');
-		});
+
+			const data = await response.json();
+
+			if (!data.authenticated) {
+				// Not authenticated - redirect to login
+				window.location.href = '/login.html';
+				return;
+			}
+
+			// Check if using default password
+			if (data.is_default_password) {
+				isDefaultPassword = true;
+				passwordCheckComplete = true;
+				showPasswordWarningModal();
+			} else {
+				isDefaultPassword = false;
+				passwordCheckComplete = true;
+				heartbeat();
+			}
+		} catch (err) {
+			console.error('Session check failed:', err);
+			// On error, redirect to login
+			window.location.href = '/login.html';
+		}
 	}
 
 	function showPasswordWarningModal() {
@@ -2064,6 +2096,11 @@ window.thinginoConfirm = thinginoConfirm;
 					return;
 				}
 
+				// Close SSE connection BEFORE changing password to prevent auth prompts
+				if (typeof cleanupHeartbeatResources === 'function') {
+					cleanupHeartbeatResources();
+				}
+
 				// Disable button and show loading state
 				changeBtn.disabled = true;
 				changeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Changing...';
@@ -2085,19 +2122,21 @@ window.thinginoConfirm = thinginoConfirm;
 					}
 
 					// Success!
-					showAlert('Password changed successfully! Logging out...', 'success');
+					showAlert('Password changed successfully! Closing dialog...', 'success');
 					changeBtn.textContent = 'Password Changed';
 
-					// Force logout by redirecting to a protected endpoint with wrong credentials
-					// This will clear the browser's auth cache and prompt for new credentials
+					// Password changed - mark as secure and close modal
+					isDefaultPassword = false;
+
+					// Close modal and start heartbeat
 					setTimeout(() => {
-						// Close SSE connection if active
-						if (typeof cleanupHeartbeatResources === 'function') {
-							cleanupHeartbeatResources();
+						const bsModal = bootstrap.Modal.getInstance(modal);
+						if (bsModal) bsModal.hide();
+						// Start heartbeat now that password is secure
+						if (!heartbeatSource) {
+							heartbeat();
 						}
-						// Redirect to root with cache busting to force re-authentication
-						window.location.href = '/?logout=' + Date.now();
-					}, 2000);
+					}, 1500);
 
 				} catch (err) {
 					showAlert(err.message || 'Failed to change password.', 'danger');
@@ -2111,10 +2150,10 @@ window.thinginoConfirm = thinginoConfirm;
 		bsModal.show();
 	}
 
-	// Run password check after page loads
-	if (window.location.pathname !== '/401.html') {
+	// Run session and password check after page loads
+	if (window.location.pathname !== '/401.html' && window.location.pathname !== '/login.html') {
 		window.addEventListener('load', () => {
-			setTimeout(checkDefaultPassword, 1000);
+			setTimeout(checkSessionAndPassword, 100);
 		});
 	}
 })();

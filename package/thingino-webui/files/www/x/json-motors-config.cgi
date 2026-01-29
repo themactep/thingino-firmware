@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
+
 motors_domain="motors"
 motors_config_file="/etc/motors.json"
 

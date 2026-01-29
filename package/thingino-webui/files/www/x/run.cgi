@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
+
 echo "HTTP/1.1 200 OK
 Date: $(TZ=GMT0 date +'%a, %d %b %Y %T %Z')
 Server: $SERVER_SOFTWARE

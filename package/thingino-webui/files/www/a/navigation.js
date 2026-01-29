@@ -96,7 +96,9 @@
         menuClass: 'dropdown-menu dropdown-menu-lg-end',
         items: [
           { label: 'About thingino', href: 'https://thingino.com/', target: '_blank', rel: 'noreferrer noopener', trackActive: false },
-          { label: 'Thingino Wiki', href: 'https://github.com/themactep/thingino-firmware/wiki', target: '_blank', rel: 'noreferrer noopener', trackActive: false }
+          { label: 'Thingino Wiki', href: 'https://github.com/themactep/thingino-firmware/wiki', target: '_blank', rel: 'noreferrer noopener', trackActive: false },
+          { type: 'divider' },
+          { label: 'Logout', href: '/x/logout.cgi', className: 'text-danger', trackActive: false }
         ]
       }
     ];

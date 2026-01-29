@@ -2,13 +2,10 @@
 
 . /usr/share/common
 
-HTTPD_CONF="/etc/httpd.conf"
-PORTAL_CONF="/etc/httpd-portal.conf"
-
 if [ -f "$PORTAL_MODE_FLAG" ]; then
-	DAEMON_ARGS="-f -c $PORTAL_CONF"
+	DAEMON_ARGS="-f -c /etc/httpd-portal.conf"
 else
-	DAEMON_ARGS="-f -c $HTTPD_CONF -r Authentication"
+	DAEMON_ARGS="-f -c /etc/httpd.conf"
 fi
 
 start() {

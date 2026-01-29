@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
+
 . /usr/share/common
 
 SEND2_CONFIG="/etc/send2.json"

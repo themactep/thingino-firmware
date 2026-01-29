@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
+
 ONVIF_CONFIG="/etc/onvif.json"
 PRUDYNT_CONFIG="/etc/prudynt.json"
 
