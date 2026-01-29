@@ -12,6 +12,10 @@ case "$QUERY_STRING" in
       $CTL disable >/dev/null 2>&1
       echo '{"ok":true}'
       ;;
+  restart=1)
+      $CTL restart >/dev/null 2>&1
+      echo '{"ok":true}'
+      ;;
   status=1)
       $CTL enabled >/dev/null 2>&1 && eb=true || eb=false
       pidof telegrambot >/dev/null 2>&1 && er=true || er=false

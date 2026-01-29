@@ -17,8 +17,6 @@ TELEGRAMBOT_LDFLAGS += -Wl,--gc-sections
 # Link libraries (append-only for configurability)
 TELEGRAMBOT_LIBS += -L$(STAGING_DIR)/usr/lib -ljct -lcurl
 
-
-
 define TELEGRAMBOT_BUILD_CMDS
 	$(TARGET_CC) $(TARGET_CFLAGS) $(TELEGRAMBOT_CFLAGS) \
 		-c $(@D)/telegrambot.c \
@@ -35,14 +33,6 @@ define TELEGRAMBOT_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/etc/init.d/S93telegrambot
 	$(INSTALL) -D -m 0644 $(TELEGRAMBOT_PKGDIR)/files/etc/telegrambot.json \
 		$(TARGET_DIR)/etc/telegrambot.json
-	$(INSTALL) -D -m 0644 $(TELEGRAMBOT_PKGDIR)/files/www/a/telegrambot-ui.js \
-		$(TARGET_DIR)/var/www/a/telegrambot-ui.js
-	$(INSTALL) -D -m 0755 $(TELEGRAMBOT_PKGDIR)/files/www/x/service-telegrambot.cgi \
-		$(TARGET_DIR)/var/www/x/service-telegrambot.cgi
-	$(INSTALL) -D -m 0755 $(TELEGRAMBOT_PKGDIR)/files/www/x/json-telegrambot.cgi \
-		$(TARGET_DIR)/var/www/x/json-telegrambot.cgi
-	$(INSTALL) -D -m 0755 $(TELEGRAMBOT_PKGDIR)/files/www/x/ctl-telegrambot.cgi \
-		$(TARGET_DIR)/var/www/x/ctl-telegrambot.cgi
 endef
 
 $(eval $(generic-package))

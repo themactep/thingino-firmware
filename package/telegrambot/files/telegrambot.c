@@ -35,6 +35,15 @@ static void handle_signal(int sig) {
   g_running = 0;
 }
 
+static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow) {
+  (void)clientp;
+  (void)dltotal;
+  (void)dlnow;
+  (void)ultotal;
+  (void)ulnow;
+  return g_running ? 0 : 1; // Return non-zero to abort
+}
+
 static void print_usage(const char *prog) {
   fprintf(stderr, "Usage: %s [-f] [-d] [-c <config>]", prog);
   fprintf(stderr, "\n  -f run in foreground (disable daemon mode)\n");
@@ -119,6 +128,8 @@ static int http_get(const char *url, long timeout_s, Memory *out, long *status_c
   curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
 #endif
   curl_easy_setopt(curl, CURLOPT_USERAGENT, "telegrambot/1.0");
+  curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+  curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 
   long code = 0;
   CURLcode res = curl_easy_perform(curl);
@@ -174,6 +185,8 @@ static int http_post_json(const char *url, const char *json, long timeout_s, Mem
   curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout_s);
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
   curl_easy_setopt(curl, CURLOPT_USERAGENT, "telegrambot/1.0");
+  curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+  curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 
   long code = 0;
   CURLcode res = curl_easy_perform(curl);
@@ -340,13 +353,22 @@ static int user_allowed(const Config *cfg, const char *username) {
 static int find_command(const Config *cfg, const char *text) {
   if (!text)
     return -1;
+
+  // Strip @botname suffix for group commands
+  char clean_text[256];
+  snprintf(clean_text, sizeof(clean_text), "%s", text);
+  char *at_sign = strchr(clean_text, '@');
+  if (at_sign) {
+    *at_sign = '\0';
+  }
+
   for (int i = 0; i < cfg->cmd_count; ++i) {
     const char *h = cfg->commands[i].handle;
     if (!h || !*h)
       continue;
-    if (strcmp(text, h) == 0)
+    if (strcmp(clean_text, h) == 0)
       return i; // exact match
-    if (text[0] == '/' && strcmp(text + 1, h) == 0)
+    if (clean_text[0] == '/' && strcmp(clean_text + 1, h) == 0)
       return i; // allow "/" prefix
   }
   return -1;
@@ -638,6 +660,14 @@ static void process_update(const Config *cfg, JsonValue *upd) {
     syslog(LOG_INFO, "Message from %lld: %s", chat_id, t);
   }
 
+  // Strip @botname suffix for group commands
+  char clean_cmd[256];
+  snprintf(clean_cmd, sizeof(clean_cmd), "%s", t);
+  char *at_sign = strchr(clean_cmd, '@');
+  if (at_sign) {
+    *at_sign = '\0';
+  }
+
   // Configured commands take precedence
   int ci = find_command(cfg, t);
   if (ci >= 0) {
@@ -653,16 +683,16 @@ static void process_update(const Config *cfg, JsonValue *upd) {
   }
 
   // Built-ins
-  if (strcmp(t, "/ping") == 0) {
+  if (strcmp(clean_cmd, "/ping") == 0) {
     reply_text(cfg, chat_id, "pong");
-  } else if (strcmp(t, "/time") == 0) {
+  } else if (strcmp(clean_cmd, "/time") == 0) {
     char buf[64];
     time_t now = time(NULL);
     struct tm tm;
     localtime_r(&now, &tm);
     strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm);
     reply_text(cfg, chat_id, buf);
-  } else if (strcmp(t, "/help") == 0) {
+  } else if (strcmp(clean_cmd, "/help") == 0) {
     char buf[512];
     size_t off = 0;
     off += snprintf(buf + off, sizeof(buf) - off, "Commands:\n");

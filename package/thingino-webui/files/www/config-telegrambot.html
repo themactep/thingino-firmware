@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · Telegram Bot Service</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-service-telegrambot">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <form id="telegrambotForm" class="needs-validation" novalidate autocomplete="off">
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">Telegram Bot Service</h2>
+            <small>Configure Telegram bot to control your camera</small>
+            <button type="button" class="btn btn-outline-secondary" id="telegrambot-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="row g-4 mb-4">
+              <div class="col-12 col-lg-6">
+                <h4>Bot Settings</h4>
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="enabled" name="enabled">
+                  <label class="form-check-label" for="enabled">Launch Telegram bot on boot</label>
+                </p>
+                <p>
+                  <label for="token">Bot token</label>
+                  <input type="text" id="token" name="token" class="form-control" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ">
+                  <span class="hint text-secondary">Click <a href="#" data-bs-toggle="modal" data-bs-target="#helpModal">here</a> for help</span>
+                </p>
+                <p>
+                  <label for="users">Respond only to these users</label>
+                  <input type="text" id="users" name="users" class="form-control" placeholder="user1 user2 user3">
+                  <span class="hint text-secondary">Whitespace separated list of Telegram usernames</span>
+                </p>
+              </div>
+              <div class="col-12 col-lg-6">
+                <h4>Help</h4>
+                <p>To create a Telegram bot:</p>
+                <ol>
+                  <li>Start a chat with <a href="https://t.me/BotFather" target="_blank">@BotFather</a></li>
+                  <li>Enter <code>/start</code> to start a session</li>
+                  <li>Enter <code>/newbot</code> to create a new bot</li>
+                  <li>Give your bot a name, e.g. <i>cool_cam_bot</i></li>
+                  <li>Give your bot a username, e.g. <i>CoolCamBot</i></li>
+                  <li>Copy the token assigned by BotFather and paste it above</li>
+                </ol>
+              </div>
+            </div>
+
+            <div class="bot-commands">
+              <h4>Bot Commands</h4>
+              <p class="hint mb-3">Use $chat_id variable for the active chat ID.</p>
+              <button type="button" class="btn btn-secondary btn-sm mb-2" id="add-command">Add command</button>
+              <table class="table table-sm table-striped">
+                <thead>
+                  <tr>
+                    <th>Command</th>
+                    <th>Description</th>
+                    <th>Action</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="commands-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <button type="submit" id="telegrambot_submit" class="btn btn-primary">Save changes</button>
+        <button type="button" id="telegrambot-restart" class="btn btn-outline-warning ms-2">
+          <i class="bi bi-arrow-repeat"></i> Restart Service
+        </button>
+      </form>
+
+      <div class="alert alert-dark ui-debug d-none mt-3">
+        <h4 class="mb-3">Debug info</h4>
+        <pre id="debug-output"></pre>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="helpModalLabel">Creating a Telegram Bot</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>To create a Telegram bot for your camera:</p>
+        <ol>
+          <li>Start a chat with <a href="https://t.me/BotFather" target="_blank">@BotFather</a> on Telegram</li>
+          <li>Send the command <code>/start</code> to begin</li>
+          <li>Send the command <code>/newbot</code> to create a new bot</li>
+          <li>Follow the prompts to give your bot a display name (e.g., "My Camera Bot")</li>
+          <li>Give your bot a unique username ending in "bot" (e.g., "MyCameraBot")</li>
+          <li>BotFather will provide you with a token - copy this token</li>
+          <li>Paste the token in the "Bot token" field above</li>
+          <li>For "Respond only to these users", enter your Telegram username to restrict bot access</li>
+        </ol>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/config-telegrambot.js"></script>
+</body>
+</html>
