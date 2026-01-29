@@ -40,7 +40,7 @@ else
 endif
 
 ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
-	PRUDYNT_T_DEPENDENCIES += ingenic-musl
+	PRUDYNT_T_DEPENDENCIES += ingenic-musl libexecinfo
 endif
 
 ifeq ($(BR2_TOOLCHAIN_USES_GLIBC),y)
@@ -129,6 +129,10 @@ endif
 PRUDYNT_LDFLAGS += $(TARGET_LDFLAGS) \
 	-L$(STAGING_DIR)/usr/lib \
 	-L$(TARGET_DIR)/usr/lib
+
+ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
+	PRUDYNT_LDFLAGS += -lexecinfo
+endif
 
 define PRUDYNT_T_BUILD_CMDS
 	$(MAKE) \
