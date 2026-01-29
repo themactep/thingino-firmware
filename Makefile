@@ -664,10 +664,7 @@ $(FIRMWARE_BIN_NOBOOT): $(FIRMWARE_BIN_FULL)
 	$(info -------------------------------- $@)
 	dd if=$(FIRMWARE_BIN_FULL) of=$@ bs=$(FIRMWARE_NOBOOT_SIZE) count=1 skip=$(KERNEL_OFFSET)B
 
-$(U_BOOT_BIN):
-	$(info -------------------------------- $@)
-
-$(UB_ENV_BIN):
+$(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@)
 	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_TXT)
 
@@ -685,7 +682,7 @@ $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 		--eraseblock=$(ALIGN_BLOCK) --pad=$(CONFIG_PARTITION_SIZE)
 
 # create extras partition image
-$(EXTRAS_BIN): $(U_BOOT_BIN) $(ROOTFS_BIN)
+$(EXTRAS_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 	$(info -------------------------------- $@)
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
