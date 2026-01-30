@@ -4,7 +4,6 @@
 # Provides session creation, validation, and cleanup
 
 SESSION_DIR="/tmp/sessions"
-SESSION_TIMEOUT=3600  # 1 hour in seconds
 COOKIE_NAME="thingino_session"
 
 # Ensure session directory exists
@@ -24,13 +23,13 @@ generate_session_id() {
 create_session() {
   local username="$1"
   local is_default="${2:-false}"
-  
+
   ensure_session_dir
-  
+
   local session_id=$(generate_session_id)
   local session_file="$SESSION_DIR/$session_id"
   local timestamp=$(date +%s)
-  
+
   # Write session data
   cat > "$session_file" <<EOF
 username=$username
@@ -38,7 +37,7 @@ created=$timestamp
 last_access=$timestamp
 is_default_password=$is_default
 EOF
-  
+
   chmod 600 "$session_file"
   echo "$session_id"
 }
@@ -49,25 +48,16 @@ EOF
 validate_session() {
   local session_id="$1"
   local session_file="$SESSION_DIR/$session_id"
-  
+
   # Check if session file exists
   [ -f "$session_file" ] || return 1
-  
+
   # Read session data
   . "$session_file"
-  
-  local now=$(date +%s)
-  local age=$((now - last_access))
-  
-  # Check if session expired
-  if [ $age -gt $SESSION_TIMEOUT ]; then
-    rm -f "$session_file"
-    return 1
-  fi
-  
+
   # Update last access time
-  sed -i "s/^last_access=.*/last_access=$now/" "$session_file"
-  
+  sed -i "s/^last_access=.*/last_access=$(date +%s)/" "$session_file"
+
   return 0
 }
 
@@ -77,9 +67,9 @@ get_session_data() {
   local session_id="$1"
   local key="$2"
   local session_file="$SESSION_DIR/$session_id"
-  
+
   [ -f "$session_file" ] || return 1
-  
+
   . "$session_file"
   eval echo "\$$key"
 }
@@ -95,17 +85,6 @@ delete_session() {
 # Usage: cleanup_sessions
 cleanup_sessions() {
   ensure_session_dir
-  local now=$(date +%s)
-  
-  find "$SESSION_DIR" -type f | while read session_file; do
-    if [ -f "$session_file" ]; then
-      . "$session_file"
-      local age=$((now - last_access))
-      if [ $age -gt $SESSION_TIMEOUT ]; then
-        rm -f "$session_file"
-      fi
-    fi
-  done
 }
 
 # Extract session ID from Cookie header

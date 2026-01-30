@@ -86,8 +86,8 @@ case "$REQUEST_METHOD" in
       # Set cookie and return success
       printf "Status: 200 OK\r\n"
       printf "Content-Type: application/json\r\n"
-      printf "Set-Cookie: %s=%s; Path=/; HttpOnly; SameSite=Strict; Max-Age=%d\r\n" \
-        "$COOKIE_NAME" "$session_id" "$SESSION_TIMEOUT"
+      printf "Set-Cookie: %s=%s; Path=/; HttpOnly; SameSite=Strict\r\n" \
+        "$COOKIE_NAME" "$session_id"
       printf "Cache-Control: no-store\r\n"
       printf "\r\n"
       printf '{"success":true,"is_default_password":%s}\n' "$is_default"
