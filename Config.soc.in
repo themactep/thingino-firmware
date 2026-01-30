@@ -610,6 +610,7 @@ config BR2_THINGINO_RMEM_MB_AUTO
 
 config BR2_THINGINO_RMEM_MB
 	int "ISP Reserved RAM (rmem), MB"
+	default 10 if BR2_SOC_FAMILY_32MB
 	default 23 if BR2_SOC_FAMILY_64MB
 	default 29 if BR2_SOC_FAMILY_128MB
 	default 64 if BR2_SOC_FAMILY_256MB
