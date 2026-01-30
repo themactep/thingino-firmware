@@ -38,7 +38,7 @@ SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 # Buildroot downloads directory
 # can be reused from environment, just export the value:
 # export BR2_DL_DIR = /path/to/your/local/storage
-BR2_DL_DIR ?= $(HOME)/dl
+BR2_DL_DIR ?= $(BR2_EXTERNAL)/dl
 
 # repo data
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD | tr -d '()' | xargs)
