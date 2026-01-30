@@ -1,7 +1,0 @@
-config BR2_PACKAGE_CAPJPEG
-	bool "capjpeg"
-	help
-	  Quick and dirty libimp testing for catpure still images
-	  For Ingenic T31 only now
-
-	  https://github.com/openipc/capjpeg/

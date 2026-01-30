@@ -116,7 +116,6 @@ endif
 menu "Extra Packages"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-vpn/Config.in"
 
-source "$BR2_EXTERNAL_THINGINO_PATH/package/capjpeg/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/exfat-nofuse/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/jsonpath/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libschrift/Config.in"
