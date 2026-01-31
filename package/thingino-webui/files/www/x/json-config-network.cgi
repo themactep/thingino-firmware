@@ -201,15 +201,15 @@ setup_iface() {
   local ipv6=${7:-false}
 
   {
-    echo "auto $interface"
-    echo "iface $interface inet $mode"
+    printf 'auto %s\n' "$interface"
+    printf 'iface %s inet %s\n' "$interface" "$mode"
     if [ "$mode" = "static" ]; then
-      echo "\taddress $address"
-      echo "\tnetmask $netmask"
-      [ -n "$gateway" ] && echo "\tgateway $gateway"
-      [ -n "$broadcast" ] && echo "\tbroadcast $broadcast"
+      printf '\taddress %s\n' "$address"
+      printf '\tnetmask %s\n' "$netmask"
+      [ -n "$gateway" ] && printf '\tgateway %s\n' "$gateway"
+      [ -n "$broadcast" ] && printf '\tbroadcast %s\n' "$broadcast"
     fi
-    echo "\tdhcp-v6-enabled $ipv6"
+    printf '\tdhcp-v6-enabled %s\n' "$ipv6"
   } > "$(iface_path "$interface")"
 
   touch /tmp/network-restart.txt
