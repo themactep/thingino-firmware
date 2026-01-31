@@ -13,6 +13,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	if grep -q "^BR2_PACKAGE_NGINX=y" $(BR2_CONFIG); then \
 		$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/nginx.conf \
 			$(TARGET_DIR)/etc/nginx/nginx.conf; \
+	elif grep -q "^BR2_PACKAGE_THINGINO_UHTTPD=y" $(BR2_CONFIG); then \
+		: ; \
 	elif grep -q "^BR2_PACKAGE_BUSYBOX_HTTPD=y" $(BR2_CONFIG); then \
 		$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/httpd.conf \
 			$(TARGET_DIR)/etc/httpd.conf; \
