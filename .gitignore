@@ -11,6 +11,7 @@
 /buildroot-dl-cache\.zip*
 /configs/local.*
 /dl/
+/host-shared/
 /local.mk
 /output*/
 /overlay/upper
