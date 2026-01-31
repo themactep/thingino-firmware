@@ -2045,12 +2045,25 @@ window.thinginoConfirm = thinginoConfirm;
 							<h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-2"></i>Security Warning</h5>
 						</div>
 						<div class="modal-body">
-							<p><strong>You are using the default password "root".</strong></p>
-							<p>For security reasons, you must change the password immediately.</p>
-							<p>Please go to the WebUI Configuration page to set a new password.</p>
+							<div id="password-warning-message">
+								<p><strong>You are using the default password "root".</strong></p>
+								<p>For security reasons, you must change the password immediately.</p>
+							</div>
+							<div id="password-change-alert" class="alert d-none" role="alert"></div>
+							<form id="password-change-form">
+								<div class="mb-3">
+									<label for="new-password" class="form-label">New Password</label>
+									<input type="password" class="form-control" id="new-password" required minlength="4">
+									<div class="form-text">Minimum 4 characters</div>
+								</div>
+								<div class="mb-3">
+									<label for="confirm-password" class="form-label">Confirm Password</label>
+									<input type="password" class="form-control" id="confirm-password" required minlength="4">
+								</div>
+							</form>
 						</div>
 						<div class="modal-footer">
-							<a href="/config-webui.html" class="btn btn-warning">Change Password Now</a>
+							<button type="button" class="btn btn-warning" id="change-password-btn">Change Password</button>
 						</div>
 					</div>
 				</div>
