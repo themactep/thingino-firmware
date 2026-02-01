@@ -40,8 +40,9 @@ Thank you for using Thingino! For questions or contributions, please join our Di
 ### Building
 
 ```
-git clone --recurse-submodules https://github.com/themactep/thingino-firmware
+git clone -b stable --recurse-submodules https://github.com/themactep/thingino-firmware
 cd thingino-firmware
+make update
 make
 ```
 
