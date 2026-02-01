@@ -3,6 +3,19 @@
 
   const uiConfig = window.thinginoUIConfig || {};
   const globalConfig = uiConfig.nav || window.thinginoNavConfig || window.navConfig || {};
+  const assetTag = (document.documentElement && document.documentElement.dataset && document.documentElement.dataset.assetTs) || '';
+
+  function withAssetTag(url) {
+    if (!assetTag || typeof url !== 'string') {
+      return url;
+    }
+    if (!url.startsWith('/a/')) {
+      return url;
+    }
+    const qIndex = url.indexOf('?');
+    const base = qIndex === -1 ? url : url.slice(0, qIndex);
+    return base + '?ts=' + assetTag;
+  }
 
   function buildDefaultMenu() {
     const hasMotors = uiConfig.device && uiConfig.device.motors === true;
@@ -439,7 +452,7 @@
       return;
     }
     const script = document.createElement('script');
-    script.src = globalConfig.controlBarSrc || '/a/control-bar.js';
+    script.src = withAssetTag(globalConfig.controlBarSrc || '/a/control-bar.js');
     script.defer = true;
     script.dataset.controlBarAutoload = 'true';
     bindControlBarLoad(script);
