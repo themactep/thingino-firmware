@@ -111,7 +111,7 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/streamer-substream.html \
 		$(TARGET_DIR)/var/www/streamer-substream.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-file-manager.html \
-		$(TARGET_DIR)/var/www/tool-filemanager.html
+		$(TARGET_DIR)/var/www/tool-file-manager.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-ping-trace.html \
 		$(TARGET_DIR)/var/www/tool-ping-trace.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/tool-record.html \
