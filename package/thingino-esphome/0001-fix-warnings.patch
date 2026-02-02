@@ -1,0 +1,76 @@
+diff --git a/src/esphome_api.c b/src/esphome_api.c
+index 07eac5f..9c928fb 100644
+--- a/src/esphome_api.c
++++ b/src/esphome_api.c
+@@ -162,8 +162,23 @@ static void handle_hello_request(esphome_api_server_t *server,
+ 
+     response.api_version_major = 1;
+     response.api_version_minor = 12;
++
++    /* Compose server info without risking truncation warnings */
++    static const char server_suffix[] = " (Thingino BLE Proxy v1.0)";
++    const size_t suffix_len = sizeof(server_suffix) - 1;
++    size_t max_name_len = 0;
++    if (sizeof(response.server_info) > (suffix_len + 1)) {
++        max_name_len = sizeof(response.server_info) - suffix_len - 1;
++    }
++    size_t usable_name_len = strnlen(server->config.device_name, sizeof(server->config.device_name));
++    if (usable_name_len > max_name_len) {
++        usable_name_len = max_name_len;
++    }
+     snprintf(response.server_info, sizeof(response.server_info),
+-             "%s (Thingino BLE Proxy v1.0)", server->config.device_name);
++             "%.*s%s",
++             (int)usable_name_len,
++             server->config.device_name,
++             server_suffix);
+     strncpy(response.name, server->config.device_name, sizeof(response.name) - 1);
+ 
+     uint8_t encode_buf[512];
+@@ -460,16 +475,6 @@ static void handle_client_data(esphome_api_server_t *server,
+     }
+ }
+ 
+-static void *client_thread(void *arg) {
+-    esphome_api_server_t *server = (esphome_api_server_t *)arg;
+-    client_connection_t *client = NULL;
+-
+-    /* Find this client in the array (passed via arg is actually server) */
+-    /* We'll handle this differently - see below */
+-
+-    return NULL;
+-}
+-
+ /* -----------------------------------------------------------------
+  * TCP server
+  * ----------------------------------------------------------------- */
+diff --git a/src/esphome_proto.c b/src/esphome_proto.c
+index 57b5419..efe493c 100644
+--- a/src/esphome_proto.c
++++ b/src/esphome_proto.c
+@@ -569,12 +569,10 @@ size_t esphome_decode_frame_header(const uint8_t *buf, size_t size,
+     *msg_len = (uint32_t)len64;
+ 
+     /* Decode message type (varint) - must do this before checking total size */
+-    size_t pos_before_type = pb.pos;
+     uint64_t type64;
+     if (!pb_decode_varint(&pb, &type64)) {
+         return 0; /* Need more data */
+     }
+-    size_t type_varint_size = pb.pos - pos_before_type;
+ 
+     *msg_type = (uint16_t)type64;
+ 
+diff --git a/src/main.c b/src/main.c
+index b4f0e41..68c1188 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
+     snprintf(config.model, sizeof(config.model), "ESPHome Linux");
+     snprintf(config.manufacturer, sizeof(config.manufacturer), "Thingino");
+     snprintf(config.friendly_name, sizeof(config.friendly_name), "%s", hostname);
+-    snprintf(config.suggested_area, sizeof(config.suggested_area), "");
++    config.suggested_area[0] = '\0';
+ 
+     /* Initialize API server */
+     api_server = esphome_api_init(&config);
