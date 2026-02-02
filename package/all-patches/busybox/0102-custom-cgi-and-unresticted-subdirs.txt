@@ -1,0 +1,32 @@
+BusyBox 1.37.0 httpd ACL Subdirectory Override Patch
+=====================================================
+
+WHAT IT DOES:
+Allows subdirectories to completely bypass authentication (no Basic Auth 
+challenge at all), even when parent directories require passwords.
+
+Example: / requires password with 401 challenge, but /onvif/ has NO auth
+challenge whatsoever - it's completely open.
+
+CONFIGURATION SYNTAX:
+/:user:password           # Protect root (sends 401 + WWW-Authenticate)
+/onvif:*:                 # NO auth for /onvif (no 401, no challenge)
+
+or simply:
+/onvif:                   # Empty = completely open access
+
+KEY CHANGES:
+1. New is_open_access() function checks for open access paths
+2. Uses "most specific path match" to find applicable rule
+3. Completely skips HTTP 401 and WWW-Authenticate for open paths
+4. Subdirectory rules override parent rules based on specificity
+
+BEHAVIOR:
+- Request to /          → 401 Unauthorized (requires auth)
+- Request to /onvif/    → 200 OK (no auth challenge sent)
+- Request to /onvif/foo → 200 OK (no auth challenge sent)
+
+FILES MODIFIED:
+- networking/httpd.c
+  - Added: is_open_access() function
+  - Modified: auth check in handle_incoming_and_exit()
