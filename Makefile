@@ -766,7 +766,7 @@ info: defconfig
 
 help:
 	$(info -------------------------------- $@)
-	@echo "\n\
+	@echo -e "\n\
 	Usage:\n\
 	  make bootstrap      install system deps\n\
 	  make update         update local repo and submodules (excludes buildroot)\n\
