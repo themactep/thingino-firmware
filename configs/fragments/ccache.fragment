@@ -1,4 +1,3 @@
-# ccache.fragment
 BR2_CCACHE=y
 BR2_CCACHE_DIR="$(HOME)/.ccache"
 BR2_OPTIMIZE_S=y
