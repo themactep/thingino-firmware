@@ -1,10 +1,6 @@
 gpio_button=50
 gpio_button_call=8
 gpio_default=11o 25ID 26IDU 51o 52o 53o 54o 61o 62o 63o 64o
-gpio_ir850=59
-gpio_ircut=57 58
-gpio_led_g=16o
-gpio_led_r=17o
 gpio_mmc_cd=49
 gpio_speaker=9o
 gpio_wlan=10O

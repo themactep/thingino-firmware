@@ -1,8 +1,5 @@
 gpio_button=54
 gpio_default=38o 39o 40o 41o 45o 46o 47o 48o
 gpio_ircds=7
-gpio_ircut=57 58
-gpio_led_b=52
-gpio_led_r=53
 gpio_mmc_cd=59
 gpio_speaker=63O
