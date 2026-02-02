@@ -1,0 +1,25 @@
+config BR2_PACKAGE_THINGINO_HTTPD_SSL
+	bool "thingino-httpd-ssl"
+	depends on BR2_PACKAGE_BUSYBOX
+	depends on BR2_USE_MMU
+	depends on BR2_PACKAGE_MBEDTLS || BR2_PACKAGE_THINGINO_MBEDTLS
+	select BR2_PACKAGE_MBEDTLS_CERTGEN
+	help
+	  HTTPS wrapper for BusyBox httpd using mbedTLS.
+
+	  This package provides a lightweight SSL/TLS wrapper that allows
+	  BusyBox httpd to serve HTTPS traffic. It listens on port 443 and
+	  forwards decrypted traffic to httpd running on localhost.
+
+	  Features:
+	  - Small footprint using mbedTLS
+	  - Automatic certificate generation using mbedtls-certgen
+	  - Compatible with BusyBox httpd
+	  - Minimal configuration required
+
+comment "thingino-httpd-ssl needs BusyBox with httpd enabled"
+	depends on !BR2_PACKAGE_BUSYBOX
+
+comment "thingino-httpd-ssl needs mbedTLS"
+	depends on !BR2_PACKAGE_MBEDTLS && !BR2_PACKAGE_THINGINO_MBEDTLS
+

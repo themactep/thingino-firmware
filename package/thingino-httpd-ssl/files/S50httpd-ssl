@@ -1,0 +1,73 @@
+#!/bin/sh
+
+DAEMON="httpd-ssl"
+PIDFILE="/var/run/$DAEMON.pid"
+CERT_FILE="/etc/ssl/certs/httpd.crt"
+KEY_FILE="/etc/ssl/private/httpd.key"
+
+start() {
+	printf "Starting $DAEMON: "
+
+	# Generate certificate if it doesn't exist
+	if [ ! -f "$CERT_FILE" ] || [ ! -f "$KEY_FILE" ]; then
+		echo "Generating self-signed certificate..."
+		HOSTNAME=$(hostname 2>/dev/null || echo "thingino-camera")
+		# Use RSA for better browser compatibility
+		mbedtls-certgen -h "$HOSTNAME" -c "$CERT_FILE" -k "$KEY_FILE" -d 3650 -s 2048 -t rsa
+	fi
+
+	# Start httpd on localhost only (port 80)
+	if ! pidof httpd > /dev/null; then
+		httpd -p 127.0.0.1:80 -h /var/www &
+	fi
+
+	# Worker count (can be overridden by env)
+	: "${HTTPD_SSL_WORKERS:=5}"
+	export HTTPD_SSL_WORKERS
+
+	# Start HTTPS wrapper
+	start-stop-daemon -S -q -b -m -p $PIDFILE -x /usr/sbin/$DAEMON -- 2>&1
+	RET=$?
+	if [ $RET = 0 ]; then
+		echo "OK"
+	else
+		echo "FAIL (error code: $RET)"
+		# Try running in foreground to see error
+		/usr/sbin/$DAEMON 2>&1 | head -5
+	fi
+}
+
+stop() {
+	printf "Stopping $DAEMON: "
+	# stop the parent tracked by PID file
+	start-stop-daemon -K -q -p $PIDFILE || true
+	# ensure all preforked workers are stopped
+	killall -q $DAEMON 2>/dev/null || true
+	rm -f $PIDFILE
+	echo "OK"
+
+}
+
+restart() {
+	stop
+	sleep 1
+	start
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart|reload)
+		restart
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+esac
+
+exit $?
+
