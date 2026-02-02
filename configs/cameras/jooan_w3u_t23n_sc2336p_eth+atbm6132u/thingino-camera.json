@@ -11,6 +11,11 @@
     "wlan": {
       "pin": 6,
       "toggle": true
-    }
+    },
+    "eth": {
+      "pin": 64,
+      "active_low": false,
+      "toggle": true
+    }    
   }
 }
