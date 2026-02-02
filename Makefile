@@ -28,11 +28,11 @@ CAMERA_IP_ADDRESS := $(IP)
 # Device of SD card
 SDCARD_DEVICE ?= /dev/sdf
 
-# TFTP server IP address to upload compiled images to
-TFTP_IP_ADDRESS ?= 192.168.1.254
+# TFTP server IP address to upload compiled images to (leave empty to disable TFTP copy)
+TFTP_IP_ADDRESS ?=
 
 # TFTP server root directory for local server
-TFTP_ROOT ?= $(BR2_EXTERNAL)/tftproot
+TFTP_ROOT ?= /srv/tftp
 
 # project directories
 BR2_EXTERNAL := $(CURDIR)
@@ -565,14 +565,16 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	@echo "Update Image:"
 	@echo "$(FIRMWARE_BIN_NOBOOT)"
 	@echo "--------------------------------"
+ifneq ($(TFTP_IP_ADDRESS),)
 	@echo "Copying images to TFTP root..."
-	@sudo mkdir -p /srv/tftp
-	@sudo cp -f $(FIRMWARE_BIN_FULL) /srv/tftp/$(FIRMWARE_NAME_FULL)
-	@sudo cp -f $(FIRMWARE_BIN_NOBOOT) /srv/tftp/$(FIRMWARE_NAME_NOBOOT)
-	@sudo cp -f $(FIRMWARE_BIN_FULL).sha256sum /srv/tftp/$(FIRMWARE_NAME_FULL).sha256sum 2>/dev/null || true
-	@sudo cp -f $(FIRMWARE_BIN_NOBOOT).sha256sum /srv/tftp/$(FIRMWARE_NAME_NOBOOT).sha256sum 2>/dev/null || true
-	@echo "TFTP: /srv/tftp/$(FIRMWARE_NAME_FULL)"
-	@echo "TFTP: /srv/tftp/$(FIRMWARE_NAME_NOBOOT)"
+	@sudo mkdir -p $(TFTP_ROOT)
+	@sudo cp -f $(FIRMWARE_BIN_FULL) $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)
+	@sudo cp -f $(FIRMWARE_BIN_NOBOOT) $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT)
+	@sudo cp -f $(FIRMWARE_BIN_FULL).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL).sha256sum 2>/dev/null || true
+	@sudo cp -f $(FIRMWARE_BIN_NOBOOT).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT).sha256sum 2>/dev/null || true
+	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)"
+	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT)"
+endif
 
 # rebuild a package with smart configuration check
 rebuild-%: check-config
