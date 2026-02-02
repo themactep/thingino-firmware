@@ -16,6 +16,12 @@ get_value() {
 		echo "true"
 }
 
+get_config_pin() {
+	local type="$1"
+	jct /etc/thingino.json get "gpio.$type.pin" 2>/dev/null || \
+		jct /etc/thingino.json get "gpio.$type" 2>/dev/null
+}
+
 # Load control flags from prudynt config
 load_controls() {
 	if command_present jct && [ -f "$PRUDYNT_CONFIG" ]; then
@@ -43,17 +49,17 @@ switch_to_day() {
 		ircut on &
 	fi
 
-	if [ "true" = "$day_night_ir850" ] && [ -n "$gpio_ir850" ] && command_present light; then
+	if [ "true" = "$day_night_ir850" ] && [ -n "$(get_config_pin ir850)" ] && command_present light; then
 		echo_info "  turn IR LED 850nm OFF"
 		light ir850 off &
 	fi
 
-	if [ "true" = "$day_night_ir940" ] && [ -n "$gpio_ir940" ] && command_present light; then
+	if [ "true" = "$day_night_ir940" ] && [ -n "$(get_config_pin ir940)" ] && command_present light; then
 		echo_info "  turn IR LED 940nm OFF"
 		light ir940 off &
 	fi
 
-	if [ "true" = "$day_night_white" ] && [ -n "$gpio_white" ] && command_present light; then
+	if [ "true" = "$day_night_white" ] && [ -n "$(get_config_pin white)" ] && command_present light; then
 		echo_info "  turn White Light OFF"
 		light white off &
 	fi
@@ -78,17 +84,17 @@ switch_to_night() {
 		ircut off &
 	fi
 
-	if [ "true" = "$day_night_ir850" ] && [ -n "$gpio_ir850" ] && command_present light; then
+	if [ "true" = "$day_night_ir850" ] && [ -n "$(get_config_pin ir850)" ] && command_present light; then
 		echo_info "  turn IR LED 850nm ON"
 		light ir850 on &
 	fi
 
-	if [ "true" = "$day_night_ir940" ] && [ -n "$gpio_ir940" ] && command_present light; then
+	if [ "true" = "$day_night_ir940" ] && [ -n "$(get_config_pin ir940)" ] && command_present light; then
 		echo_info "  turn IR LED 940nm ON"
 		light ir940 on &
 	fi
 
-	if [ "true" = "$day_night_white" ] && [ -n "$gpio_white" ] && command_present light; then
+	if [ "true" = "$day_night_white" ] && [ -n "$(get_config_pin white)" ] && command_present light; then
 		echo_info "  turn White Light ON"
 		light white on &
 	fi
