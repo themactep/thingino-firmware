@@ -96,6 +96,13 @@ else ifeq ($(BR2_THINGINO_INGENIC_SDK_T41_44_1_2_0),y)
 	SDK_VERSION := 1.2.0
 endif
 
+ifeq ($(KERNEL_VERSION_3),y)
+$(info KERNEL_VERSION: 3)
+else ifeq ($(KERNEL_VERSION_4),y)
+$(info KERNEL_VERSION: 4)
+else
+$(info KERNEL_VERSION: UNKNOWN)
+endif
 $(info SDK_VERSION: $(SDK_VERSION))
 $(info SDK_LIBC_VERSION: $(SDK_LIBC_VERSION))
 $(info SDK_LIBC_NAME: $(SDK_LIBC_NAME))
