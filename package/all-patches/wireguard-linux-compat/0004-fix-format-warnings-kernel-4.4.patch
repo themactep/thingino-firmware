@@ -1,0 +1,38 @@
+--- a/src/timers.c
++++ b/src/timers.c
+@@ -44,7 +44,7 @@ static void wg_expired_retransmit_handshake(struct timer_list *timer)
+ 					  timer_retransmit_handshake);
+ 
+ 	if (peer->timer_handshake_attempts > MAX_TIMER_HANDSHAKES) {
+-		pr_debug("%s: Handshake for peer %llu (%pISpfsc) did not complete after %d attempts, giving up\n",
++		pr_debug("%s: Handshake for peer %llu (%pISpfsc) did not complete after %u attempts, giving up\n",
+ 			 peer->device->dev->name, peer->internal_id,
+ 			 &peer->endpoint.addr, MAX_TIMER_HANDSHAKES + 2);
+ 
+@@ -62,7 +62,7 @@ static void wg_expired_retransmit_handshake(struct timer_list *timer)
+ 				       jiffies + REJECT_AFTER_TIME * 3 * HZ);
+ 	} else {
+ 		++peer->timer_handshake_attempts;
+-		pr_debug("%s: Handshake for peer %llu (%pISpfsc) did not complete after %d seconds, retrying (try %d)\n",
++		pr_debug("%s: Handshake for peer %llu (%pISpfsc) did not complete after %u seconds, retrying (try %u)\n",
+ 			 peer->device->dev->name, peer->internal_id,
+ 			 &peer->endpoint.addr, REKEY_TIMEOUT,
+ 			 peer->timer_handshake_attempts + 1);
+@@ -92,7 +92,7 @@ static void wg_expired_new_handshake(struct timer_list *timer)
+ {
+ 	struct wg_peer *peer = from_timer(peer, timer, timer_new_handshake);
+ 
+-	pr_debug("%s: Retrying handshake with peer %llu (%pISpfsc) because we stopped hearing back after %d seconds\n",
++	pr_debug("%s: Retrying handshake with peer %llu (%pISpfsc) because we stopped hearing back after %u seconds\n",
+ 		 peer->device->dev->name, peer->internal_id,
+ 		 &peer->endpoint.addr, KEEPALIVE_TIMEOUT + REKEY_TIMEOUT);
+ 	/* We clear the endpoint address src address, in case this is the cause
+@@ -124,7 +124,7 @@ static void wg_queued_expired_zero_key_material(struct work_struct *work)
+ 	struct wg_peer *peer = container_of(work, struct wg_peer,
+ 					    clear_peer_work);
+ 
+-	pr_debug("%s: Zeroing out all keys for peer %llu (%pISpfsc), since we haven't received a new one in %d seconds\n",
++	pr_debug("%s: Zeroing out all keys for peer %llu (%pISpfsc), since we haven't received a new one in %u seconds\n",
+ 		 peer->device->dev->name, peer->internal_id,
+ 		 &peer->endpoint.addr, REJECT_AFTER_TIME * 3);
+ 	wg_noise_handshake_clear(&peer->handshake);

@@ -1,0 +1,13 @@
+--- a/src/compat/siphash/siphash.c	2022-06-27 00:00:00.000000000 +0000
++++ b/src/compat/siphash/siphash.c	2026-01-30 16:09:00.000000000 +0000
+@@ -13,6 +13,10 @@
+ #include <linux/siphash.h>
+ #include <asm/unaligned.h>
+ 
++#ifndef fallthrough
++#define fallthrough do {} while (0)  /* fallthrough */
++#endif
++
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
+ #ifdef __LITTLE_ENDIAN
+ #define bytemask_from_count(cnt)	(~(~0ul << (cnt)*8))
