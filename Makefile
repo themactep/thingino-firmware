@@ -57,6 +57,11 @@ else
 endif
 export CAMERA_SUBDIR
 
+# Support BOARD as an alias for CAMERA (for backward compatibility with workflows)
+ifdef BOARD
+CAMERA ?= $(BOARD)
+endif
+
 # handle the board
 include $(BR2_EXTERNAL)/board.mk
 
@@ -308,7 +313,7 @@ check-config: buildroot/Makefile
 # Force configuration regeneration
 force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.keep
 	$(info -------------------------------- $@)
-	@$(FIGLET) "$(BOARD)"
+	@$(FIGLET) "$(CAMERA)"
 	@$(FIGLET) "$(GIT_BRANCH)"
 	# delete older config
 	$(info * remove existing .config file)
