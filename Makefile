@@ -74,11 +74,11 @@ OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)
 endif
 else
 ifeq ($(GIT_BRANCH),master)
-OUTPUT_DIR ?= $(HOME)/output/$(CAMERA)
+OUTPUT_DIR ?= $(HOME)/output/$(CAMERA)-$(KERNEL_VERSION)
 else ifeq ($(GIT_BRANCH),)
-OUTPUT_DIR ?= $(HOME)/output-junk/$(CAMERA)
+OUTPUT_DIR ?= $(HOME)/output-junk/$(CAMERA)-$(KERNEL_VERSION)
 else
-OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)/$(CAMERA)
+OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)/$(CAMERA)-$(KERNEL_VERSION)
 endif
 endif
 $(info OUTPUT_DIR: $(OUTPUT_DIR))
