@@ -31,6 +31,9 @@ SDCARD_DEVICE ?= /dev/sdf
 # TFTP server IP address to upload compiled images to
 TFTP_IP_ADDRESS ?= 192.168.1.254
 
+# TFTP server root directory for local server
+TFTP_ROOT ?= $(BR2_EXTERNAL)/tftproot
+
 # project directories
 BR2_EXTERNAL := $(CURDIR)
 SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
@@ -216,6 +219,7 @@ BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$
 .PHONY: all bootstrap build build_fast clean clean-nfs-debug cleanbuild defconfig distclean \
 	dev fast help info pack release remove_bins repack sdk toolchain update upboot-ota \
 	upload_tftp upgrade_ota br-% check-config force-config show-config-deps clean-config \
+	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs \
 	agent-info show-vars
 
 # Default: fast parallel incremental build
@@ -552,6 +556,15 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	@echo "$(FIRMWARE_BIN_FULL)"
 	@echo "Update Image:"
 	@echo "$(FIRMWARE_BIN_NOBOOT)"
+	@echo "--------------------------------"
+	@echo "Copying images to TFTP root..."
+	@sudo mkdir -p /srv/tftp
+	@sudo cp -f $(FIRMWARE_BIN_FULL) /srv/tftp/$(FIRMWARE_NAME_FULL)
+	@sudo cp -f $(FIRMWARE_BIN_NOBOOT) /srv/tftp/$(FIRMWARE_NAME_NOBOOT)
+	@sudo cp -f $(FIRMWARE_BIN_FULL).sha256sum /srv/tftp/$(FIRMWARE_NAME_FULL).sha256sum 2>/dev/null || true
+	@sudo cp -f $(FIRMWARE_BIN_NOBOOT).sha256sum /srv/tftp/$(FIRMWARE_NAME_NOBOOT).sha256sum 2>/dev/null || true
+	@echo "TFTP: /srv/tftp/$(FIRMWARE_NAME_FULL)"
+	@echo "TFTP: /srv/tftp/$(FIRMWARE_NAME_NOBOOT)"
 
 # rebuild a package with smart configuration check
 rebuild-%: check-config
@@ -598,6 +611,45 @@ upgrade_ota: $(FIRMWARE_BIN_FULL)
 upload_tftp: $(FIRMWARE_BIN_FULL)
 	$(info -------------------------------- $@)
 	busybox tftp -l $(FIRMWARE_BIN_FULL) -r $(FIRMWARE_NAME_FULL) -p $(TFTP_IP_ADDRESS)
+
+# Start standalone TFTP server for serving firmware images
+tftpd-start:
+	$(info -------------------------------- $@)
+	@mkdir -p $(TFTP_ROOT)
+	@if [ "$(TFTP_PORT)" = "69" ] || [ -z "$(TFTP_PORT)" ]; then \
+		echo "Port 69 requires sudo - starting with sudo..."; \
+		sudo -E TFTP_ROOT=$(TFTP_ROOT) TFTP_PORT=$(TFTP_PORT) $(SCRIPTS_DIR)/tftpd-server.sh start; \
+	else \
+		TFTP_ROOT=$(TFTP_ROOT) TFTP_PORT=$(TFTP_PORT) $(SCRIPTS_DIR)/tftpd-server.sh start; \
+	fi
+
+# Stop standalone TFTP server
+tftpd-stop:
+	$(info -------------------------------- $@)
+	@if [ "$(TFTP_PORT)" = "69" ] || [ -z "$(TFTP_PORT)" ]; then \
+		sudo $(SCRIPTS_DIR)/tftpd-server.sh stop; \
+	else \
+		$(SCRIPTS_DIR)/tftpd-server.sh stop; \
+	fi
+
+# Restart standalone TFTP server
+tftpd-restart:
+	$(info -------------------------------- $@)
+	@if [ "$(TFTP_PORT)" = "69" ] || [ -z "$(TFTP_PORT)" ]; then \
+		sudo $(SCRIPTS_DIR)/tftpd-server.sh restart; \
+	else \
+		$(SCRIPTS_DIR)/tftpd-server.sh restart; \
+	fi
+
+# Show standalone TFTP server status
+tftpd-status:
+	$(info -------------------------------- $@)
+	@$(SCRIPTS_DIR)/tftpd-server.sh status
+
+# Show standalone TFTP server logs
+tftpd-logs:
+	$(info -------------------------------- $@)
+	@$(SCRIPTS_DIR)/tftpd-server.sh logs
 
 # download buildroot cache bundle from latest github release
 download-cache:
