@@ -24,23 +24,26 @@ BR2_EXTERNAL="$2"
 CAMERA_SUBDIR="$3"
 CAMERA="$4"
 
-[ -f "$OUTPUT_FILE" ] || echo '{}' > "$OUTPUT_FILE"
+[ -f "$OUTPUT_FILE" ] || {:echo '{}' > "$OUTPUT_FILE"}
 
 # Add system-wide config file
-#SYSTEM_CONFIG="${BR2_EXTERNAL}/configs/thingino.json"
-#if [ -f "$SYSTEM_CONFIG" ]; then
-#	jct "$OUTPUT_FILE" import "$SYSTEM_CONFIG"
-#fi
+SYSTEM_CONFIG="${BR2_EXTERNAL}/configs/thingino.json"
+if [ -f "$SYSTEM_CONFIG" ]; then
+	echo jct "$OUTPUT_FILE" import "$SYSTEM_CONFIG"
+	jct "$OUTPUT_FILE" import "$SYSTEM_CONFIG"
+fi
 
 # Add camera-specific json file
 CAMERA_CONFIG="${BR2_EXTERNAL}/${CAMERA_SUBDIR}/${CAMERA}/thingino-camera.json"
 if [ -f "$CAMERA_CONFIG" ]; then
+	echo jct "$OUTPUT_FILE" import "$CAMERA_CONFIG"
 	jct "$OUTPUT_FILE" import "$CAMERA_CONFIG"
 fi
 
 # Add local.json if it exists
-USER_CONFIG="${BR2_EXTERNAL}/configs/thingino-local.json"
+USER_CONFIG="${BR2_EXTERNAL}/configs/thingino.json"
 if [ -f "$USER_CONFIG" ]; then
+	echo jct "$OUTPUT_FILE" import "$USER_CONFIG"
 	jct "$OUTPUT_FILE" import "$USER_CONFIG"
 fi
 
