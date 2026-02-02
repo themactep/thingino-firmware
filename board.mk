@@ -2,7 +2,7 @@
 SHELL := /bin/bash
 
 # Targets that don't require board selection
-NOCAMERA_TARGETS := help bootstrap update update-buildroot update-buildroot-patches reset-buildroot download-cache agent-info show-vars
+NOCAMERA_TARGETS := help bootstrap update update-buildroot update-buildroot-patches reset-buildroot download-cache agent-info show-vars tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs
 
 # Check if current target is exempted from board selection
 # MAKECMDGOALS contains the targets specified on command line
