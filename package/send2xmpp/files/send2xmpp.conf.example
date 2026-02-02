@@ -1,0 +1,33 @@
+# XMPP Configuration for send2xmpp
+# Copy to /etc/send2xmpp.conf and edit
+
+# XMPP JID (username@domain)
+XMPP_JID="camera@xmpp.example.com"
+
+# XMPP password
+XMPP_PASSWORD="your-password-here"
+
+# Recipient JID
+XMPP_RECIPIENT="yourname@xmpp.example.com"
+
+# BOSH endpoint URL
+# Common BOSH endpoints:
+# - Prosody: https://xmpp.example.com:5281/http-bind
+# - ejabberd: https://xmpp.example.com:5443/http-bind
+# - Openfire: https://xmpp.example.com:7443/http-bind
+XMPP_BOSH_URL="https://xmpp.example.com:5281/http-bind"
+
+# Optional: XMPP resource identifier
+XMPP_RESOURCE="thingino-camera"
+
+# Optional: TLS version (for mbedTLS compatibility)
+XMPP_TLS_VERSION="--tlsv1.2 --tls-max 1.2"
+
+# Optional: Curl timeout in seconds
+CURL_TIMEOUT="30"
+
+# Optional: HTTP Upload component (auto-discovered if not set)
+# XMPP_UPLOAD_COMPONENT="upload.xmpp.example.com"
+
+# Optional: Max image file size (server dependent, typically 10MB)
+# XMPP_MAX_FILE_SIZE="10485760"

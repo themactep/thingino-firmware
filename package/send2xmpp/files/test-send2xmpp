@@ -1,0 +1,89 @@
+#!/bin/sh
+#
+# test-send2xmpp - Test script for send2xmpp functionality
+#
+
+set -e
+
+echo "=== send2xmpp Test Suite ==="
+echo ""
+
+# Check if send2xmpp exists
+if ! command -v send2xmpp >/dev/null 2>&1; then
+    echo "❌ send2xmpp not found in PATH"
+    echo "   Install it to /usr/bin/send2xmpp"
+    exit 1
+fi
+echo "✅ send2xmpp found"
+
+# Check configuration
+if [ ! -f /etc/send2xmpp.conf ]; then
+    echo "❌ Configuration file not found: /etc/send2xmpp.conf"
+    echo "   Copy send2xmpp.conf.example and edit it"
+    exit 1
+fi
+echo "✅ Configuration file exists"
+
+# Load configuration
+. /etc/send2xmpp.conf
+
+# Check required variables
+error=0
+for var in XMPP_JID XMPP_PASSWORD XMPP_RECIPIENT XMPP_BOSH_URL; do
+    eval "value=\$$var"
+    if [ -z "$value" ] || echo "$value" | grep -q "example.com"; then
+        echo "❌ $var not configured properly"
+        error=1
+    else
+        echo "✅ $var configured"
+    fi
+done
+
+if [ $error -eq 1 ]; then
+    echo ""
+    echo "Please edit /etc/send2xmpp.conf with your credentials"
+    exit 1
+fi
+
+echo ""
+echo "=== Testing BOSH Endpoint ==="
+if curl -sS --max-time 10 "$XMPP_BOSH_URL" >/dev/null 2>&1; then
+    echo "✅ BOSH endpoint reachable"
+else
+    echo "❌ BOSH endpoint not reachable: $XMPP_BOSH_URL"
+    exit 1
+fi
+
+echo ""
+echo "=== Testing Text Message ==="
+if send2xmpp -m "Test message from send2xmpp at $(date)"; then
+    echo "✅ Text message sent successfully"
+else
+    echo "❌ Failed to send text message"
+    exit 1
+fi
+
+echo ""
+echo "=== Testing Image Upload ==="
+
+# Create a small test image
+TEST_IMAGE="/tmp/test-send2xmpp-$$.jpg"
+# Create a 1x1 red pixel JPEG
+printf '\xff\xd8\xff\xe0\x00\x10\x4a\x46\x49\x46\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xff\xdb\x00\x43\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\x09\x09\x08\x0a\x0c\x14\x0d\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c\x20\x24\x2e\x27\x20\x22\x2c\x23\x1c\x1c\x28\x37\x29\x2c\x30\x31\x34\x34\x34\x1f\x27\x39\x3d\x38\x32\x3c\x2e\x33\x34\x32\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00\xff\xc4\x00\x14\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xc4\x00\x14\x10\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xda\x00\x08\x01\x01\x00\x00\x3f\x00\x7f\xff\xd9' > "$TEST_IMAGE"
+
+if send2xmpp -i "$TEST_IMAGE" -m "Test image from send2xmpp"; then
+    echo "✅ Image upload successful"
+    rm -f "$TEST_IMAGE"
+else
+    echo "❌ Image upload failed"
+    echo "   This may be normal if your server doesn't support XEP-0363"
+    rm -f "$TEST_IMAGE"
+fi
+
+echo ""
+echo "=== All Tests Complete ==="
+echo ""
+echo "Check your XMPP client for received messages."
+echo "You should have received:"
+echo "  1. A test text message"
+echo "  2. A test image (if upload is supported)"

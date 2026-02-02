@@ -1,0 +1,424 @@
+#!/bin/sh
+#
+# send2xmpp - Send messages/images to XMPP (Jabber) using pure shell + curl
+#
+# Configuration via environment variables or /etc/send2xmpp.conf
+
+# Load configuration
+[ -f /etc/send2xmpp.conf ] && . /etc/send2xmpp.conf
+
+# Required configuration
+: "${XMPP_JID:?XMPP_JID not set (e.g., camera@example.com)}"
+: "${XMPP_PASSWORD:?XMPP_PASSWORD not set}"
+: "${XMPP_RECIPIENT:?XMPP_RECIPIENT not set (e.g., user@example.com)}"
+: "${XMPP_BOSH_URL:?XMPP_BOSH_URL not set (e.g., https://xmpp.example.com:5281/http-bind)}"
+
+# Optional configuration
+XMPP_RESOURCE="${XMPP_RESOURCE:-thingino}"
+XMPP_TLS_VERSION="${XMPP_TLS_VERSION:---tlsv1.2 --tls-max 1.2}"
+CURL_TIMEOUT="${CURL_TIMEOUT:-30}"
+
+# Extract username and domain from JID
+XMPP_USER="${XMPP_JID%@*}"
+XMPP_DOMAIN="${XMPP_JID#*@}"
+
+# Generate random session ID
+gen_sid() {
+    tr -dc 'a-f0-9' < /dev/urandom | head -c 32
+}
+
+# Generate random RID (request ID)
+gen_rid() {
+    tr -dc '0-9' < /dev/urandom | head -c 10
+}
+
+# Base64 encode (for SASL PLAIN auth)
+b64encode() {
+    printf '%s' "$1" | base64 -w 0
+}
+
+# XMPP BOSH session
+SID=""
+RID=$(gen_rid)
+
+# Send BOSH request
+bosh_send() {
+    local body="$1"
+    local response
+    
+    RID=$((RID + 1))
+    
+    response=$(curl -sS $XMPP_TLS_VERSION --max-time "$CURL_TIMEOUT" \
+        -H "Content-Type: text/xml; charset=utf-8" \
+        --data "$body" \
+        "$XMPP_BOSH_URL" 2>&1)
+    
+    echo "$response"
+}
+
+# Start BOSH session
+bosh_connect() {
+    local response
+    
+    response=$(bosh_send "<?xml version='1.0'?>
+<body rid='$RID'
+      to='$XMPP_DOMAIN'
+      xml:lang='en'
+      wait='60'
+      hold='1'
+      xmlns='http://jabber.org/protocol/httpbind'
+      ver='1.6'
+      xmpp:version='1.0'
+      xmlns:xmpp='urn:xmpp:xmpp-bosh'/>")
+    
+    # Extract SID from response
+    SID=$(echo "$response" | grep -oP "sid='[^']+'" | cut -d"'" -f2)
+    
+    if [ -z "$SID" ]; then
+        echo "Error: Failed to establish BOSH session" >&2
+        return 1
+    fi
+    
+    return 0
+}
+
+# Authenticate using SASL PLAIN
+bosh_auth() {
+    local auth_string response
+    
+    # SASL PLAIN: \0username\0password
+    auth_string=$(printf '\0%s\0%s' "$XMPP_USER" "$XMPP_PASSWORD" | base64 -w 0)
+    
+    response=$(bosh_send "<?xml version='1.0'?>
+<body rid='$RID' sid='$SID' xmlns='http://jabber.org/protocol/httpbind'>
+  <auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='PLAIN'>$auth_string</auth>
+</body>")
+    
+    if ! echo "$response" | grep -q "success"; then
+        echo "Error: Authentication failed" >&2
+        return 1
+    fi
+    
+    # Restart stream after auth
+    response=$(bosh_send "<?xml version='1.0'?>
+<body rid='$RID' sid='$SID' 
+      to='$XMPP_DOMAIN'
+      xml:lang='en'
+      xmpp:restart='true'
+      xmlns='http://jabber.org/protocol/httpbind'
+      xmlns:xmpp='urn:xmpp:xmpp-bosh'/>")
+    
+    return 0
+}
+
+# Bind resource and establish session
+bosh_bind() {
+    local response
+    
+    # Bind resource
+    response=$(bosh_send "<?xml version='1.0'?>
+<body rid='$RID' sid='$SID' xmlns='http://jabber.org/protocol/httpbind'>
+  <iq type='set' id='bind_1' xmlns='jabber:client'>
+    <bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'>
+      <resource>$XMPP_RESOURCE</resource>
+    </bind>
+  </iq>
+</body>")
+    
+    # Establish session
+    response=$(bosh_send "<?xml version='1.0'?>
+<body rid='$RID' sid='$SID' xmlns='http://jabber.org/protocol/httpbind'>
+  <iq type='set' id='session_1' xmlns='jabber:client'>
+    <session xmlns='urn:ietf:params:xml:ns:xmpp-session'/>
+  </iq>
+</body>")
+    
+    return 0
+}
+
+# Send message
+send_message() {
+    local message="$1"
+    local msg_id="msg_$(gen_sid)"
+    
+    # Escape XML special characters
+    message=$(echo "$message" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'\''/\&apos;/g')
+    
+    bosh_send "<?xml version='1.0'?>
+<body rid='$RID' sid='$SID' xmlns='http://jabber.org/protocol/httpbind'>
+  <message to='$XMPP_RECIPIENT' type='chat' id='$msg_id' xmlns='jabber:client'>
+    <body>$message</body>
+  </message>
+</body>" > /dev/null
+    
+    return $?
+}
+
+# Discover HTTP Upload component (XEP-0363)
+discover_upload_component() {
+    local response upload_component
+    
+    # Use configured component if available
+    if [ -n "$XMPP_UPLOAD_COMPONENT" ]; then
+        echo "$XMPP_UPLOAD_COMPONENT"
+        return 0
+    fi
+    
+    response=$(bosh_send "<?xml version='1.0'?>
+<body rid='$RID' sid='$SID' xmlns='http://jabber.org/protocol/httpbind'>
+  <iq type='get' to='$XMPP_DOMAIN' id='disco_1' xmlns='jabber:client'>
+    <query xmlns='http://jabber.org/protocol/disco#items'/>
+  </iq>
+</body>")
+    
+    # Extract upload component (usually upload.domain or http-upload.domain)
+    upload_component=$(echo "$response" | grep -oP "jid='[^']*upload[^']*'" | head -n1 | cut -d"'" -f2)
+    
+    if [ -z "$upload_component" ]; then
+        # Try common upload component names
+        for component in "upload.$XMPP_DOMAIN" "http-upload.$XMPP_DOMAIN" "upload-proxy.$XMPP_DOMAIN"; do
+            response=$(bosh_send "<?xml version='1.0'?>
+<body rid='$RID' sid='$SID' xmlns='http://jabber.org/protocol/httpbind'>
+  <iq type='get' to='$component' id='disco_2' xmlns='jabber:client'>
+    <query xmlns='http://jabber.org/protocol/disco#info'/>
+  </iq>
+</body>")
+            
+            if echo "$response" | grep -q "urn:xmpp:http:upload"; then
+                upload_component="$component"
+                break
+            fi
+        done
+    fi
+    
+    echo "$upload_component"
+}
+
+# Request upload slot from HTTP Upload component
+request_upload_slot() {
+    local component="$1"
+    local filename="$2"
+    local filesize="$3"
+    local content_type="$4"
+    local response put_url get_url
+    
+    response=$(bosh_send "<?xml version='1.0'?>
+<body rid='$RID' sid='$SID' xmlns='http://jabber.org/protocol/httpbind'>
+  <iq type='get' to='$component' id='upload_1' xmlns='jabber:client'>
+    <request xmlns='urn:xmpp:http:upload:0' filename='$filename' size='$filesize' content-type='$content_type'/>
+  </iq>
+</body>")
+    
+    # Extract PUT and GET URLs
+    put_url=$(echo "$response" | grep -oP "<put[^>]*url='[^']+'" | head -n1 | cut -d"'" -f2)
+    get_url=$(echo "$response" | grep -oP "<get[^>]*url='[^']+'" | head -n1 | cut -d"'" -f2)
+    
+    # Alternative: Try parsing as attributes on separate lines
+    if [ -z "$put_url" ]; then
+        put_url=$(echo "$response" | grep -oP 'put[^>]*>' | grep -oP "url='[^']+'" | cut -d"'" -f2)
+        get_url=$(echo "$response" | grep -oP 'get[^>]*>' | grep -oP "url='[^']+'" | cut -d"'" -f2)
+    fi
+    
+    # Alternative: Try v0.4.0 namespace with slot element
+    if [ -z "$put_url" ]; then
+        put_url=$(echo "$response" | grep -oP '<put[^>]*>[^<]*</put>' | sed 's/<[^>]*>//g' | head -n1)
+        get_url=$(echo "$response" | grep -oP '<get[^>]*>[^<]*</get>' | sed 's/<[^>]*>//g' | head -n1)
+    fi
+    
+    if [ -z "$put_url" ] || [ -z "$get_url" ]; then
+        echo "Error: Failed to get upload slot" >&2
+        echo "Response: $response" >&2
+        return 1
+    fi
+    
+    echo "$put_url|$get_url"
+}
+
+# Upload file to HTTP server
+upload_file() {
+    local put_url="$1"
+    local file_path="$2"
+    local content_type="$3"
+    
+    curl -sS $XMPP_TLS_VERSION --max-time "$CURL_TIMEOUT" \
+        -X PUT \
+        -H "Content-Type: $content_type" \
+        --data-binary "@$file_path" \
+        "$put_url"
+    
+    return $?
+}
+
+# Send image via HTTP Upload (XEP-0363)
+send_image() {
+    local image_path="$1"
+    local caption="$2"
+    local filename filesize content_type upload_component slot_info put_url get_url
+    
+    # Validate image file
+    if [ ! -f "$image_path" ]; then
+        echo "Error: Image file not found: $image_path" >&2
+        return 1
+    fi
+    
+    # Get file info
+    filename=$(basename "$image_path")
+    filesize=$(stat -c%s "$image_path" 2>/dev/null || stat -f%z "$image_path" 2>/dev/null)
+    
+    # Detect content type
+    case "${filename##*.}" in
+        jpg|jpeg|JPG|JPEG)
+            content_type="image/jpeg"
+            ;;
+        png|PNG)
+            content_type="image/png"
+            ;;
+        gif|GIF)
+            content_type="image/gif"
+            ;;
+        webp|WEBP)
+            content_type="image/webp"
+            ;;
+        *)
+            content_type="application/octet-stream"
+            ;;
+    esac
+    
+    # Discover upload component
+    upload_component=$(discover_upload_component)
+    if [ -z "$upload_component" ]; then
+        echo "Error: Could not find HTTP Upload component" >&2
+        echo "Note: Server may not support XEP-0363 HTTP Upload" >&2
+        send_message "Image captured but upload failed: ${caption:-$image_path}"
+        return 1
+    fi
+    
+    # Request upload slot
+    slot_info=$(request_upload_slot "$upload_component" "$filename" "$filesize" "$content_type")
+    if [ $? -ne 0 ] || [ -z "$slot_info" ]; then
+        echo "Error: Failed to request upload slot" >&2
+        send_message "Image captured but upload failed: ${caption:-$image_path}"
+        return 1
+    fi
+    
+    put_url="${slot_info%|*}"
+    get_url="${slot_info#*|}"
+    
+    # Upload file
+    if ! upload_file "$put_url" "$image_path" "$content_type"; then
+        echo "Error: Failed to upload file" >&2
+        send_message "Image captured but upload failed: ${caption:-$image_path}"
+        return 1
+    fi
+    
+    # Send message with image URL
+    if [ -n "$caption" ]; then
+        send_message "$caption
+$get_url"
+    else
+        send_message "$get_url"
+    fi
+    
+    return 0
+}
+
+# Close BOSH session
+bosh_close() {
+    bosh_send "<?xml version='1.0'?>
+<body rid='$RID' sid='$SID' type='terminate' xmlns='http://jabber.org/protocol/httpbind'/>" > /dev/null
+}
+
+# Main function
+main() {
+    local message=""
+    local image_path=""
+    local verbose=0
+    
+    # Parse arguments
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -v|--verbose)
+                verbose=1
+                ;;
+            -m|--message)
+                message="$2"
+                shift
+                ;;
+            -i|--image)
+                image_path="$2"
+                shift
+                ;;
+            -h|--help)
+                cat <<EOF
+Usage: send2xmpp [OPTIONS]
+
+Options:
+  -m, --message TEXT    Message to send
+  -i, --image PATH      Image file to send
+  -v, --verbose         Verbose output
+  -h, --help            Show this help
+
+Environment variables:
+  XMPP_JID             XMPP JID (e.g., camera@example.com)
+  XMPP_PASSWORD        XMPP password
+  XMPP_RECIPIENT       Recipient JID (e.g., user@example.com)
+  XMPP_BOSH_URL        BOSH endpoint URL
+  XMPP_RESOURCE        XMPP resource (default: thingino)
+
+Configuration file: /etc/send2xmpp.conf
+EOF
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                exit 1
+                ;;
+        esac
+        shift
+    done
+    
+    # If no message provided, read from stdin or use default
+    if [ -z "$message" ] && [ -z "$image_path" ]; then
+        if [ -t 0 ]; then
+            message="Test message from $(hostname) at $(date)"
+        else
+            message=$(cat)
+        fi
+    fi
+    
+    # Connect to XMPP server
+    [ "$verbose" -eq 1 ] && echo "Connecting to XMPP server..." >&2
+    if ! bosh_connect; then
+        echo "Failed to connect to XMPP server" >&2
+        exit 1
+    fi
+    
+    # Authenticate
+    [ "$verbose" -eq 1 ] && echo "Authenticating..." >&2
+    if ! bosh_auth; then
+        echo "Authentication failed" >&2
+        bosh_close
+        exit 1
+    fi
+    
+    # Bind resource
+    [ "$verbose" -eq 1 ] && echo "Binding resource..." >&2
+    bosh_bind
+    
+    # Send message or image
+    if [ -n "$image_path" ]; then
+        [ "$verbose" -eq 1 ] && echo "Sending image: $image_path" >&2
+        send_image "$image_path" "$message"
+    elif [ -n "$message" ]; then
+        [ "$verbose" -eq 1 ] && echo "Sending message..." >&2
+        send_message "$message"
+    fi
+    
+    # Close session
+    [ "$verbose" -eq 1 ] && echo "Closing connection..." >&2
+    bosh_close
+    
+    [ "$verbose" -eq 1 ] && echo "Done!" >&2
+}
+
+main "$@"
