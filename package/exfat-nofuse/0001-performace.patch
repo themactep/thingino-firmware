@@ -1,0 +1,343 @@
+Inspired by patch to support multi-cluster for exfat_get_cluster
+https://git.kernel.org/pub/scm/linux/kernel/git/linkinjeon/exfat.git/commit/?h=dev&id=5e9ddcb70c79a5fd451a01ae203b35d14ae2eed7
+
+Adapted by Paul Philippov <paul@themactep.com>
+---
+diff --git a/exfat_api.c b/exfat_api.c
+index 32b29f0..3f78960 100644
+--- a/exfat_api.c
++++ b/exfat_api.c
+@@ -392,25 +392,32 @@ int FsWriteStat(struct inode *inode, DIR_ENTRY_T *info)
+
+ /* FsMapCluster : return the cluster number in the given cluster offset */
+ int FsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
++{
++	s32 count = 1;
++	return FsMapClusterEx(inode, clu_offset, clu, &count);
++} /* end of FsMapCluster */
++
++/* FsMapClusterEx : return the cluster number and consecutive cluster count */
++int FsMapClusterEx(struct inode *inode, s32 clu_offset, u32 *clu, s32 *count)
+ {
+ 	int err;
+ 	struct super_block *sb = inode->i_sb;
+ 	FS_INFO_T *p_fs = &(EXFAT_SB(sb)->fs_info);
+
+ 	/* check the validity of pointer parameters */
+-	if (clu == NULL)
++	if (clu == NULL || count == NULL)
+ 		return FFS_ERROR;
+
+ 	/* acquire the lock for file system critical section */
+ 	sm_P(&p_fs->v_sem);
+
+-	err = ffsMapCluster(inode, clu_offset, clu);
++	err = ffsMapClusterEx(inode, clu_offset, clu, count);
+
+ 	/* release the lock for file system critical section */
+ 	sm_V(&p_fs->v_sem);
+
+ 	return err;
+-} /* end of FsMapCluster */
++} /* end of FsMapClusterEx */
+
+ /*----------------------------------------------------------------------*/
+ /*  Directory Operation Functions                                       */
+@@ -497,6 +504,7 @@ EXPORT_SYMBOL(FsSetAttr);
+ EXPORT_SYMBOL(FsReadStat);
+ EXPORT_SYMBOL(FsWriteStat);
+ EXPORT_SYMBOL(FsMapCluster);
++EXPORT_SYMBOL(FsMapClusterEx);
+ EXPORT_SYMBOL(FsCreateDir);
+ EXPORT_SYMBOL(FsReadDir);
+ EXPORT_SYMBOL(FsRemoveDir);
+diff --git a/exfat_api.h b/exfat_api.h
+index 84bdf61..9456665 100644
+--- a/exfat_api.h
++++ b/exfat_api.h
+@@ -194,6 +194,7 @@ typedef struct {
+ 	int FsReadStat(struct inode *inode, DIR_ENTRY_T *info);
+ 	int FsWriteStat(struct inode *inode, DIR_ENTRY_T *info);
+ 	int FsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu);
++	int FsMapClusterEx(struct inode *inode, s32 clu_offset, u32 *clu, s32 *count);
+
+ /* directory management functions */
+ 	int FsCreateDir(struct inode *inode, char *path, FILE_ID_T *fid);
+diff --git a/exfat_core.c b/exfat_core.c
+index 143b721..472c090 100644
+--- a/exfat_core.c
++++ b/exfat_core.c
+@@ -1411,6 +1411,173 @@ s32 ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
+ 	return FFS_SUCCESS;
+ } /* end of ffsMapCluster */
+
++s32 ffsMapClusterEx(struct inode *inode, s32 clu_offset, u32 *clu, s32 *count)
++{
++	s32 num_clusters, num_alloced, modified = FALSE;
++	s32 orig_count, consecutive_count = 1;
++	u32 last_clu, next_clu, current_clu;
++	sector_t sector = 0;
++	CHAIN_T new_clu;
++	DENTRY_T *ep;
++	ENTRY_SET_CACHE_T *es = NULL;
++	struct super_block *sb = inode->i_sb;
++	FS_INFO_T *p_fs = &(EXFAT_SB(sb)->fs_info);
++	FILE_ID_T *fid = &(EXFAT_I(inode)->fid);
++
++	/* Store original requested count */
++	orig_count = *count;
++	*count = 0;
++
++	fid->rwoffset = (s64)(clu_offset) << p_fs->cluster_size_bits;
++
++	if (EXFAT_I(inode)->mmu_private == 0)
++		num_clusters = 0;
++	else
++		num_clusters = (s32)((EXFAT_I(inode)->mmu_private-1) >> p_fs->cluster_size_bits) + 1;
++
++	*clu = last_clu = fid->start_clu;
++
++	if (fid->flags == 0x03) {
++		/* Contiguous file - calculate consecutive clusters easily */
++		if ((clu_offset > 0) && (*clu != CLUSTER_32(~0))) {
++			last_clu += clu_offset - 1;
++
++			if (clu_offset == num_clusters) {
++				*clu = CLUSTER_32(~0);
++				return FFS_SUCCESS;
++			} else {
++				*clu += clu_offset;
++				/* For contiguous files, we can return up to the requested count
++				 * or until end of file, whichever is smaller */
++				*count = (orig_count < (num_clusters - clu_offset)) ?
++						orig_count : (num_clusters - clu_offset);
++				return FFS_SUCCESS;
++			}
++		} else if (clu_offset == 0 && *clu != CLUSTER_32(~0)) {
++			/* At start of contiguous file */
++			*count = (orig_count < num_clusters) ? orig_count : num_clusters;
++			return FFS_SUCCESS;
++		}
++	} else {
++		/* hint information */
++		if ((clu_offset > 0) && (fid->hint_last_off > 0) &&
++			(clu_offset >= fid->hint_last_off)) {
++			clu_offset -= fid->hint_last_off;
++			*clu = fid->hint_last_clu;
++		}
++
++		/* Navigate to the starting cluster */
++		while ((clu_offset > 0) && (*clu != CLUSTER_32(~0))) {
++			last_clu = *clu;
++			if (FAT_read(sb, *clu, clu) == -1)
++				return FFS_MEDIAERR;
++			clu_offset--;
++		}
++	}
++
++	if (*clu == CLUSTER_32(~0)) {
++		/* Need to allocate new cluster(s) */
++		fs_set_vol_flags(sb, VOL_DIRTY);
++
++		new_clu.dir = (last_clu == CLUSTER_32(~0)) ? CLUSTER_32(~0) : last_clu+1;
++		new_clu.size = 0;
++		new_clu.flags = fid->flags;
++
++		/* (1) allocate a cluster */
++		num_alloced = p_fs->fs_func->alloc_cluster(sb, 1, &new_clu);
++		if (num_alloced < 0)
++			return FFS_MEDIAERR;
++		else if (num_alloced == 0)
++			return FFS_FULL;
++
++		/* (2) append to the FAT chain */
++		if (last_clu == CLUSTER_32(~0)) {
++			if (new_clu.flags == 0x01)
++				fid->flags = 0x01;
++			fid->start_clu = new_clu.dir;
++			modified = TRUE;
++		} else {
++			if (new_clu.flags != fid->flags) {
++				exfat_chain_cont_cluster(sb, fid->start_clu, num_clusters);
++				fid->flags = 0x01;
++				modified = TRUE;
++			}
++			if (new_clu.flags == 0x01)
++				FAT_write(sb, last_clu, new_clu.dir);
++		}
++
++		num_clusters += num_alloced;
++		*clu = new_clu.dir;
++		*count = 1; /* We allocated only one cluster */
++
++		if (p_fs->vol_type == EXFAT) {
++			es = get_entry_set_in_dir(sb, &(fid->dir), fid->entry, ES_ALL_ENTRIES, &ep);
++			if (es == NULL)
++				return FFS_MEDIAERR;
++			/* get stream entry */
++			ep++;
++		}
++
++		/* (3) update directory entry */
++		if (modified) {
++			if (p_fs->vol_type != EXFAT) {
++				ep = get_entry_in_dir(sb, &(fid->dir), fid->entry, &sector);
++				if (!ep)
++					return FFS_MEDIAERR;
++			}
++
++			if (p_fs->fs_func->get_entry_flag(ep) != fid->flags)
++				p_fs->fs_func->set_entry_flag(ep, fid->flags);
++
++			if (p_fs->fs_func->get_entry_clu0(ep) != fid->start_clu)
++				p_fs->fs_func->set_entry_clu0(ep, fid->start_clu);
++
++			if (p_fs->vol_type != EXFAT)
++				buf_modify(sb, sector);
++		}
++
++		if (p_fs->vol_type == EXFAT) {
++			update_dir_checksum_with_entry_set(sb, es);
++			release_entry_set(es);
++		}
++
++		/* add number of new blocks to inode */
++		inode->i_blocks += num_alloced << (p_fs->cluster_size_bits - 9);
++	} else {
++		/* Found existing cluster, now find consecutive ones */
++		*count = 1;
++		current_clu = *clu;
++
++		/* Only search for consecutive clusters if more than 1 was requested
++		 * and this is not a contiguous file (already handled above) */
++		if (orig_count > 1 && fid->flags != 0x03) {
++			while (consecutive_count < orig_count) {
++				if (FAT_read(sb, current_clu, &next_clu) == -1)
++					return FFS_MEDIAERR;
++
++				if (next_clu == CLUSTER_32(~0))
++					break; /* End of chain */
++
++				if (next_clu != current_clu + 1)
++					break; /* Not consecutive */
++
++				consecutive_count++;
++				current_clu = next_clu;
++			}
++			*count = consecutive_count;
++		}
++	}
++
++	/* hint information - use current_clu which points to the last cluster found */
++	fid->hint_last_off = (s32)(fid->rwoffset >> p_fs->cluster_size_bits) + (*count - 1);
++	fid->hint_last_clu = (*count > 0) ? current_clu : *clu;
++
++	if (p_fs->dev_ejected)
++		return FFS_MEDIAERR;
++
++	return FFS_SUCCESS;
++} /* end of ffsMapClusterEx */
++
+ /*----------------------------------------------------------------------*/
+ /*  Directory Operation Functions                                       */
+ /*----------------------------------------------------------------------*/
+@@ -1418,7 +1585,7 @@ s32 ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu)
+ /* ffsCreateDir : create(make) a directory */
+ s32 ffsCreateDir(struct inode *inode, char *path, FILE_ID_T *fid)
+ {
+-	s32 ret/*, dentry*/;
++	s32 ret;
+ 	CHAIN_T dir;
+ 	UNI_NAME_T uni_name;
+ 	struct super_block *sb = inode->i_sb;
+@@ -1426,10 +1593,17 @@ s32 ffsCreateDir(struct inode *inode, char *path, FILE_ID_T *fid)
+
+ 	DPRINTK("ffsCreateDir entered\n");
+
+-	/* check the validity of directory name in the given old pathname */
++	/* check the validity of pointer parameters */
++	if ((fid == NULL) || (path == NULL) || (*path == '\0'))
++		return FFS_ERROR;
++
++	/* acquire the lock for file system critical section */
++	sm_P(&p_fs->v_sem);
++
++	/* check the validity of directory name */
+ 	ret = resolve_path(inode, path, &dir, &uni_name);
+ 	if (ret)
+-		return ret;
++		goto out;
+
+ 	fs_set_vol_flags(sb, VOL_DIRTY);
+
+@@ -1440,6 +1614,12 @@ s32 ffsCreateDir(struct inode *inode, char *path, FILE_ID_T *fid)
+ 	fs_set_vol_flags(sb, VOL_CLEAN);
+ #endif
+
++out:
++	/* release the lock for file system critical section */
++	sm_V(&p_fs->v_sem);
++
++	DPRINTK("ffsCreateDir exited (%d)\n", ret);
++
+ 	if (p_fs->dev_ejected)
+ 		return FFS_MEDIAERR;
+
+diff --git a/exfat_core.h b/exfat_core.h
+index 52d05c7..adc2048 100644
+--- a/exfat_core.h
++++ b/exfat_core.h
+@@ -537,6 +537,7 @@ s32 ffsSetAttr(struct inode *inode, u32 attr);
+ s32 ffsGetStat(struct inode *inode, DIR_ENTRY_T *info);
+ s32 ffsSetStat(struct inode *inode, DIR_ENTRY_T *info);
+ s32 ffsMapCluster(struct inode *inode, s32 clu_offset, u32 *clu);
++s32 ffsMapClusterEx(struct inode *inode, s32 clu_offset, u32 *clu, s32 *count);
+
+ /* directory management functions */
+ s32 ffsCreateDir(struct inode *inode, char *path, FILE_ID_T *fid);
+diff --git a/exfat_super.c b/exfat_super.c
+index 312de36..487f614 100644
+--- a/exfat_super.c
++++ b/exfat_super.c
+@@ -1537,6 +1537,7 @@ static int exfat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
+ 	const unsigned char blocksize_bits = sb->s_blocksize_bits;
+ 	sector_t last_block;
+ 	int err, clu_offset, sec_offset;
++	s32 cluster_count;
+ 	unsigned int cluster;
+
+ 	*phys = 0;
+@@ -1565,7 +1566,12 @@ static int exfat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
+
+ 	EXFAT_I(inode)->fid.size = i_size_read(inode);
+
+-	err = FsMapCluster(inode, clu_offset, &cluster);
++	/* Request multiple clusters for better performance in sequential reads.
++	 * We can request up to a reasonable limit (8 clusters) to improve
++	 * performance in sequential read scenarios */
++	cluster_count = 8; /* Request up to 8 consecutive clusters */
++
++	err = FsMapClusterEx(inode, clu_offset, &cluster, &cluster_count);
+
+ 	if (err) {
+ 		if (err == FFS_FULL)
+@@ -1574,7 +1580,8 @@ static int exfat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
+ 			return -EIO;
+ 	} else if (cluster != CLUSTER_32(~0)) {
+ 		*phys = START_SECTOR(cluster) + sec_offset;
+-		*mapped_blocks = p_fs->sectors_per_clu - sec_offset;
++		/* Calculate mapped blocks based on consecutive clusters found */
++		*mapped_blocks = (cluster_count * p_fs->sectors_per_clu) - sec_offset;
+ 	}
+
+ 	return 0;
+diff --git a/exfat_version.h b/exfat_version.h
+index a93fa46..ade7b32 100644
+--- a/exfat_version.h
++++ b/exfat_version.h
+@@ -16,4 +16,4 @@
+ /*                                                                      */
+ /************************************************************************/
+
+-#define EXFAT_VERSION  "1.2.9"
++#define EXFAT_VERSION  "1.2.10-multicluster"
