@@ -7,7 +7,7 @@
 BOOTLOADER=$(echo $BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME | tr -d '"')
 
 # Preset the hostname
-IMAGE_ID=$(echo $BR2_CONFIG | awk -F '/' '{print $(NF-1)}')
+IMAGE_ID=${CAMERA}
 HOSTNAME=ing-$(echo $IMAGE_ID | awk -F '_' '{print $1 "-" $2}')
 echo "$HOSTNAME" > ${TARGET_DIR}/etc/hostname
 sed -i "/^127.0.1.1/c127.0.1.1\t$HOSTNAME" ${TARGET_DIR}/etc/hosts
