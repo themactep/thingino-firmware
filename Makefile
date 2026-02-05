@@ -71,24 +71,7 @@ include $(BR2_EXTERNAL)/board.mk
 export CAMERA
 
 # working directory - set after CAMERA is defined
-ifeq ($(CAMERA),)
-# If CAMERA is not defined, use a safe default for exempted targets
-ifeq ($(GIT_BRANCH),master)
-OUTPUT_DIR ?= $(HOME)/output
-else ifeq ($(GIT_BRANCH),)
-OUTPUT_DIR ?= $(HOME)/output-junk
-else
-OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)
-endif
-else
-ifeq ($(GIT_BRANCH),master)
-OUTPUT_DIR ?= $(HOME)/output/$(CAMERA)-$(KERNEL_VERSION)
-else ifeq ($(GIT_BRANCH),)
-OUTPUT_DIR ?= $(HOME)/output-junk/$(CAMERA)-$(KERNEL_VERSION)
-else
-OUTPUT_DIR ?= $(HOME)/output-$(GIT_BRANCH)/$(CAMERA)-$(KERNEL_VERSION)
-endif
-endif
+OUTPUT_DIR ?= $(HOME)/output/$(GIT_BRANCH)/$(CAMERA)-$(KERNEL_VERSION)
 $(info OUTPUT_DIR: $(OUTPUT_DIR))
 export OUTPUT_DIR
 
