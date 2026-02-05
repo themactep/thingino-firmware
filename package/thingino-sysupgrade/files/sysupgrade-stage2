@@ -6,7 +6,7 @@ echo "stage 2 PATH is $PATH"
 die() { echo -c 160 "$1"; exit 1; }
 
 flash_firmware() {
-	echo "Flashing firmware to $mtd_dev"
+	echo -c 112 -e "\nFlashing firmware to $mtd_dev"
 	flashcp -v $fw_file $mtd_dev
 }
 
