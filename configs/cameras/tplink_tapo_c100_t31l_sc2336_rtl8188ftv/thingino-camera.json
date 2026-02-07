@@ -13,10 +13,8 @@
     "led_r": 43,
     "mmc_power": 60,
     "white": {
-      "pin": {
-        "pin": 50,
-        "active_low": true
-      },
+      "pin": 50,
+      "active_low": true
       "pwm_channel": 1
     },
     "wlan": 51
