@@ -1,0 +1,119 @@
+diff --git a/cgi.c b/cgi.c
+index 13a0bc4..3b18c92 100644
+--- a/cgi.c
++++ b/cgi.c
+@@ -94,6 +94,7 @@ static void cgi_handle_request(struct client *cl, char *url, struct path_info *p
+ static bool check_cgi_path(struct path_info *pi, const char *url)
+ {
+ 	struct interpreter *ip;
++	struct cgi_prefix *prefix;
+ 	const char *path = pi->phys;
+ 	int path_len = strlen(path);
+ 
+@@ -112,6 +113,15 @@ static bool check_cgi_path(struct path_info *pi, const char *url)
+ 
+ 	pi->ip = NULL;
+ 
++	/* Check new multi-prefix list */
++	if (!list_empty(&conf.cgi_prefixes)) {
++		list_for_each_entry(prefix, &conf.cgi_prefixes, list) {
++			if (uh_path_match(prefix->docroot_path, pi->phys))
++				return true;
++		}
++	}
++
++	/* Fallback to legacy single prefix */
+ 	if (conf.cgi_docroot_path)
+ 		return uh_path_match(conf.cgi_docroot_path, pi->phys);
+ 
+diff --git a/main.c b/main.c
+index de5f2c3..795cc57 100644
+--- a/main.c
++++ b/main.c
+@@ -166,7 +166,7 @@ static int usage(const char *name)
+ 		"	-X		Enable CORS HTTP headers on JSON-RPC api\n"
+ 		"	-e		Events subscription reconnection time (retry value)\n"
+ #endif
+-		"	-x string       URL prefix for CGI handler, default is '/cgi-bin'\n"
++		"	-x string       URL prefix for CGI handler, default is '/x'\n"
+ 		"	-y alias[=path]	URL alias handle\n"
+ 		"	-i .ext=path    Use interpreter at path for files with the given extension\n"
+ 		"	-t seconds      CGI, Lua and UBUS script timeout in seconds, default is 60\n"
+@@ -189,9 +189,10 @@ static void init_defaults_pre(void)
+ 	conf.max_script_requests = 3;
+ 	conf.max_connections = 100;
+ 	conf.realm = "Protected Area";
+-	conf.cgi_prefix = "/cgi-bin";
++	conf.cgi_prefix = "/x";
+ 	conf.cgi_path = "/sbin:/usr/sbin:/bin:/usr/bin";
+ 	INIT_LIST_HEAD(&conf.cgi_alias);
++	INIT_LIST_HEAD(&conf.cgi_prefixes);
+ 	INIT_LIST_HEAD(&conf.lua_prefix);
+ #if HAVE_UCODE
+ 	INIT_LIST_HEAD(&conf.ucode_prefix);
+@@ -200,6 +201,8 @@ static void init_defaults_pre(void)
+ 
+ static void init_defaults_post(void)
+ {
++	struct cgi_prefix *cgi;
++
+ 	uh_index_add("index.html");
+ 	uh_index_add("index.htm");
+ 	uh_index_add("default.html");
+@@ -213,6 +216,30 @@ static void init_defaults_post(void)
+ 		conf.cgi_docroot_path = str;
+ 		conf.cgi_prefix_len = strlen(conf.cgi_prefix);
+ 	};
++
++	/* Add /x/ CGI prefix */
++	cgi = calloc(1, sizeof(*cgi));
++	if (cgi) {
++		cgi->prefix = "/x";
++		cgi->prefix_len = 2;
++		char *str = malloc(strlen(conf.docroot) + 3);
++		strcpy(str, conf.docroot);
++		strcat(str, "/x");
++		cgi->docroot_path = str;
++		list_add(&cgi->list, &conf.cgi_prefixes);
++	}
++
++	/* Add /onvif/ CGI prefix */
++	cgi = calloc(1, sizeof(*cgi));
++	if (cgi) {
++		cgi->prefix = "/onvif";
++		cgi->prefix_len = 6;
++		char *str = malloc(strlen(conf.docroot) + 7);
++		strcpy(str, conf.docroot);
++		strcat(str, "/onvif");
++		cgi->docroot_path = str;
++		list_add(&cgi->list, &conf.cgi_prefixes);
++	}
+ }
+ 
+ static void fixup_prefix(char *str)
+diff --git a/uhttpd.h b/uhttpd.h
+index c755df6..4c90202 100644
+--- a/uhttpd.h
++++ b/uhttpd.h
+@@ -55,6 +55,13 @@ struct alias {
+ 	char *path;
+ };
+ 
++struct cgi_prefix {
++	struct list_head list;
++	const char *prefix;
++	const char *docroot_path;
++	int prefix_len;
++};
++
+ struct lua_prefix {
+ 	struct list_head list;
+ 	const char *handler;
+@@ -97,6 +104,7 @@ struct config {
+ 	int cgi_prefix_len;
+ 	int events_retry;
+ 	struct list_head cgi_alias;
++	struct list_head cgi_prefixes;
+ 	struct list_head lua_prefix;
+ #ifdef HAVE_UCODE
+ 	struct list_head ucode_prefix;
