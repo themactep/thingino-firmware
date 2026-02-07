@@ -17,6 +17,7 @@ define EXFAT_NOFUSE_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -D -m 0644 $(@D)/exfat.ko \
 		$(TARGET_MODULES_PATH)/extra/exfat.ko
+	$(TARGET_STRIP) --strip-debug $(TARGET_MODULES_PATH)/extra/exfat.ko
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc
 	echo exfat >> $(TARGET_DIR)/etc/modules
