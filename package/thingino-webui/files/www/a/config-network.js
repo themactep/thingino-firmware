@@ -245,4 +245,86 @@
 
   setFormEnabled(true);
   loadConfig();
+
+  // WiFi Network Scanning
+  const wifiScanBtn = $('#wifi-scan-btn');
+  const wifiScanSpinner = $('#wifi-scan-spinner');
+  const wifiScanText = $('#wifi-scan-text');
+  const wifiNetworksList = $('#wifi-networks-list');
+  let wifiScanInProgress = false;
+  let wifiNetworksScanned = false;
+
+  if (wifiScanBtn) {
+    // Only show datalist when user types at least 2 characters
+    wifiSsidInput.addEventListener('input', () => {
+      if (wifiNetworksScanned && wifiSsidInput.value.length >= 2) {
+        wifiSsidInput.setAttribute('list', 'wifi-networks-list');
+      } else {
+        wifiSsidInput.removeAttribute('list');
+      }
+    });
+
+    wifiScanBtn.addEventListener('click', async () => {
+      if (wifiScanInProgress) return;
+
+      const originalPlaceholder = wifiSsidInput.placeholder;
+      wifiScanInProgress = true;
+      wifiScanBtn.disabled = true;
+      wifiSsidInput.disabled = true;
+      wifiSsidInput.style.opacity = '0.6';
+      wifiSsidInput.placeholder = 'Scanning for networks...';
+      wifiScanSpinner.classList.remove('hidden');
+      wifiScanText.classList.add('hidden');
+
+      try {
+        const response = await fetch('/x/wifi-scan.cgi');
+        const data = await response.json();
+
+        if (data.error) {
+          console.warn('Scan error:', data.error);
+          return;
+        }
+
+        // Clear existing options
+        wifiNetworksList.innerHTML = '';
+
+        if (data.networks) {
+          // Filter out the trailing null and duplicates
+          const networks = data.networks.filter(n => n && n.ssid);
+          const seen = new Set();
+
+          networks.forEach(network => {
+            if (!seen.has(network.ssid)) {
+              seen.add(network.ssid);
+              const option = document.createElement('option');
+              const signalBars = network.signal > -50 ? '▂▄▆█' : network.signal > -60 ? '▂▄▆' : network.signal > -70 ? '▂▄' : '▂';
+              option.value = network.ssid;
+              option.textContent = `${network.ssid} ${signalBars} (${network.security})`;
+              wifiNetworksList.appendChild(option);
+            }
+          });
+
+          // Mark that networks have been scanned and update placeholder
+          wifiNetworksScanned = true;
+          wifiSsidInput.placeholder = 'Start typing to select a network';
+        }
+      } catch (error) {
+        // Don't show alert for aborted fetches (page refresh/navigation)
+        if (error.name !== 'AbortError' && error.message !== 'Failed to fetch') {
+          console.error('Scan failed:', error);
+          showAlert('danger', 'Failed to scan networks. Please try again.');
+        }
+      } finally {
+        wifiScanInProgress = false;
+        wifiScanBtn.disabled = false;
+        wifiSsidInput.disabled = false;
+        wifiSsidInput.style.opacity = '1';
+        if (!wifiNetworksScanned) {
+          wifiSsidInput.placeholder = originalPlaceholder;
+        }
+        wifiScanSpinner.classList.add('hidden');
+        wifiScanText.classList.remove('hidden');
+      }
+    });
+  }
 })();

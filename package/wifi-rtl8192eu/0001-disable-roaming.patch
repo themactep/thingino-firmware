@@ -1,0 +1,16 @@
+diff --git a/include/autoconf.h b/include/autoconf.h
+index 1357401..7e79821 100644
+--- a/include/autoconf.h
++++ b/include/autoconf.h
+@@ -159,8 +159,11 @@
+ 
+ #define CONFIG_GLOBAL_UI_PID
+ 
++/* Disable driver roaming when wpa_supplicant roaming is enabled */
++#ifndef BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_ROAMING
+ #define CONFIG_LAYER2_ROAMING
+ #define CONFIG_LAYER2_ROAMING_RESUME
++#endif
+ /* #define CONFIG_ADAPTOR_INFO_CACHING_FILE */ /* now just applied on 8192cu only, should make it general... */
+ /* #define CONFIG_RESUME_IN_WORKQUEUE */
+ /* #define CONFIG_SET_SCAN_DENY_TIMER */

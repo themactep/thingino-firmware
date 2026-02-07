@@ -1,0 +1,53 @@
+diff --git a/Makefile b/Makefile
+index 98a4e18..ee93787 100644
+--- a/Makefile
++++ b/Makefile
+@@ -117,7 +117,7 @@ CONFIG_WOW_LPS_MODE = default
+ CONFIG_SUSPEND_TYPE = 0
+ CONFIG_WOW_STA_MIX = n
+ CONFIG_GPIO_WAKEUP = n
+-# Please contact with RTK support team first. After getting the agreement from RTK support team, 
++# Please contact with RTK support team first. After getting the agreement from RTK support team,
+ # you are just able to modify the CONFIG_WAKEUP_GPIO_IDX with customized requirement.
+ CONFIG_WAKEUP_GPIO_IDX = default
+ CONFIG_HIGH_ACTIVE_DEV2HST = n
+@@ -482,7 +482,7 @@ endif
+ EXTRA_CFLAGS += -DCONFIG_RTL8821A
+ 
+ _HAL_INTFS_FILES +=	hal/rtl8812a/hal8821a_fw.o
+-		
++
+ endif
+ 
+ ifeq ($(CONFIG_BT_COEXIST), y)
+@@ -939,7 +939,7 @@ _HAL_INTFS_FILES +=	\
+ 			hal/$(RTL871X)/$(HCI_NAME)/rtl$(MODULE_SUB_NAME)_led.o \
+ 			hal/$(RTL871X)/$(HCI_NAME)/rtl$(MODULE_SUB_NAME)_xmit.o \
+ 			hal/$(RTL871X)/$(HCI_NAME)/rtl$(MODULE_SUB_NAME)_recv.o
+-			
++
+ ifeq ($(CONFIG_PCI_HCI), y)
+ _HAL_INTFS_FILES += hal/$(RTL871X)/$(HCI_NAME)/$(HCI_NAME)_ops_linux.o
+ else
+@@ -1306,9 +1306,12 @@ endif
+ EXTRA_CFLAGS += -DDM_ODM_SUPPORT_TYPE=0x04
+ 
+ ifeq ($(CONFIG_RTW_MBO), y)
++# Disable MBO/BTM roaming when wpa_supplicant roaming is enabled
++ifneq ($(BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_ROAMING),y)
+ EXTRA_CFLAGS += -DCONFIG_RTW_MBO -DCONFIG_RTW_80211K -DCONFIG_RTW_WNM -DCONFIG_RTW_BTM_ROAM
+ EXTRA_CFLAGS += -DCONFIG_RTW_80211R
+ endif
++endif
+ 
+ ifeq ($(CONFIG_PLATFORM_I386_PC), y)
+ EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
+@@ -2194,7 +2197,7 @@ ARCH := arm
+ CROSS_COMPILE := /home/android_sdk/Telechips/v13.05_r1-tcc-android-4.2.2_tcc893x-evm_build/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/bin/arm-eabi-
+ KSRC := /home/android_sdk/Telechips/v13.05_r1-tcc-android-4.2.2_tcc893x-evm_build/kernel
+ MODULE_NAME := wlan
+-endif 
++endif
+ 
+ ifeq ($(CONFIG_PLATFORM_RTL8197D), y)
+ EXTRA_CFLAGS += -DCONFIG_BIG_ENDIAN -DCONFIG_PLATFORM_RTL8197D

@@ -105,6 +105,15 @@ config BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_AUTOSCAN
 	help
 	  Enable support for the autoscan feature (allow periodic scan)
 
+config BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_ROAMING
+	bool "Enable wpa_supplicant roaming (disable driver roaming)"
+	select BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_AUTOSCAN
+	help
+	  Enable wpa_supplicant-based roaming and disable internal
+	  driver roaming. This allows wpa_supplicant to manage roaming
+	  decisions using bgscan, which is generally more reliable than
+	  driver-based roaming. Automatically enables autoscan support.
+
 config BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_EAP
 	bool "Enable EAP"
 	help

@@ -1,0 +1,16 @@
+diff --git a/include/autoconf.h b/include/autoconf.h
+index c064d7b..3ddab58 100644
+--- a/include/autoconf.h
++++ b/include/autoconf.h
+@@ -111,8 +111,11 @@
+ 
+ #define CONFIG_SKB_COPY	/* for amsdu */
+ 
++/* Disable driver roaming when wpa_supplicant roaming is enabled */
++#ifndef BR2_PACKAGE_THINGINO_WPA_SUPPLICANT_ROAMING
+ #define CONFIG_LAYER2_ROAMING
+ #define CONFIG_LAYER2_ROAMING_RESUME
++#endif
+ 
+ #define CONFIG_LONG_DELAY_ISSUE
+ #define CONFIG_NEW_SIGNAL_STAT_PROCESS

@@ -13,13 +13,60 @@ if [ "true" = "$debug" ]; then
 fi
 
 password_changed() {
-	old_pass=$(awk -F= '/^\s*psk=/{gsub(/^"|"$/, "", $2); print $2}' $CONFIG)
-	[ "$old_pass" != "$wlan_pass" ]
+	old_psk=$(awk -F= '/^\s*psk=/{print $2}' $CONFIG)
+	[ "$old_psk" != "$wlan_psk" ]
 }
 
 ssid_changed() {
 	old_ssid=$(awk -F= '/^\s*ssid=/{gsub(/^"|"$/, "", $2); print $2}' $CONFIG)
 	[ "$old_ssid" != "$wlan_ssid" ]
+}
+
+bssid_changed() {
+	old_bssid=$(awk -F= '/^\s*bssid=/{print $2}' $CONFIG)
+	[ "$old_bssid" != "$wlan_bssid" ]
+}
+
+generate_config() {
+	local tmpconf="/tmp/wpa_supplicant.conf.$$"
+
+	# Generate config in tmpfs to minimize flash writes
+	wpa_passphrase "$wlan_ssid" "dummy_password" > "$tmpconf"
+
+	# replace dummy psk with the actual psk
+	sed -i "s/psk=.*$/psk=${wlan_psk}/" "$tmpconf"
+
+	# add bssid if defined
+	if [ -n "$wlan_bssid" ]; then
+		sed -i "s/^\s*ssid=.*$/&\\n\tbssid=$wlan_bssid/" "$tmpconf"
+	else
+		sed -i '/}/i\\tscan_ssid=1' "$tmpconf"
+	fi
+
+	# add control interface for wpa_cli (in reverse order since sed '1i' inserts at top)
+	sed -i '1i ap_scan=1' "$tmpconf"
+	sed -i '1i update_config=1' "$tmpconf"
+	sed -i '1i ctrl_interface=/run/wpa_supplicant' "$tmpconf"
+
+	# activate bgscan
+	sed -i '/}/i\\tbgscan="simple:-78:60:3600"' "$tmpconf"
+
+	# Move to flash only after successful generation
+	mv "$tmpconf" "$CONFIG"
+}
+
+update_network_via_cli() {
+	# Use wpa_cli to update network without restarting
+	wpa_cli -i $IFACE set_network 0 ssid "\"$wlan_ssid\"" >/dev/null
+	wpa_cli -i $IFACE set_network 0 psk "$wlan_psk" >/dev/null
+	if [ -n "$wlan_bssid" ]; then
+		wpa_cli -i $IFACE set_network 0 bssid "$wlan_bssid" >/dev/null
+	else
+		wpa_cli -i $IFACE set_network 0 bssid "" >/dev/null
+		wpa_cli -i $IFACE set_network 0 scan_ssid 1 >/dev/null
+	fi
+	wpa_cli -i $IFACE save_config >/dev/null
+	wpa_cli -i $IFACE reassociate >/dev/null
 }
 
 update_psk() {
@@ -81,14 +128,20 @@ start() {
 		exit 1
 	fi
 
-	if [ ! -f "$CONFIG" ] || ssid_changed || password_changed; then
-		wpa_passphrase "$wlan_ssid" "dummy_password" > $CONFIG
-		sed -i "s/psk=.*$/psk=${wlan_psk}/" $CONFIG
-		if [ -n "$wlan_bssid" ]; then
-			sed -i "s/^\s*ssid=.*$/\tbssid=$wlan_bssid/" $CONFIG
-		else
-			sed -i '/}/i\\tscan_ssid=1' $CONFIG
+	# Generate initial config if missing
+	if [ ! -f "$CONFIG" ]; then
+		generate_config
+	# Update existing config via wpa_cli if wpa_supplicant is running
+	elif [ -e "$PIDFILE" ] && [ -S "/run/wpa_supplicant/$IFACE" ]; then
+		if ssid_changed || password_changed || bssid_changed; then
+			echo_info "Updating network configuration via wpa_cli"
+			update_network_via_cli
+			return 0
 		fi
+	# Fall back to regenerating config if wpa_supplicant isn't running
+	elif ssid_changed || password_changed; then
+		echo_info "Regenerating wpa_supplicant config"
+		generate_config
 	fi
 
 	if [ "true" = "$wlanap_enabled" ]; then

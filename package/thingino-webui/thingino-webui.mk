@@ -391,6 +391,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/tool-sdcard.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/tool-upgrade.cgi \
 		$(TARGET_DIR)/var/www/x/tool-upgrade.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/wifi-scan.cgi \
+		$(TARGET_DIR)/var/www/x/wifi-scan.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/video.mjpg $(TARGET_DIR)/var/www/x/video.mjpg
 
 	$(INSTALL) -D -m 0755 $(@D)/mjpeg_inotify \

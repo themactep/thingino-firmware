@@ -787,3 +787,11 @@ table.send2services td:first-child a {
 #navOffcanvas .active {
 	color: darkorange !important;
 }
+
+.hidden {
+	display: none;
+}
+
+.spinning {
+	animation: spin 1s linear infinite;
+}

@@ -1,0 +1,13 @@
+diff --git a/RT2870STA.dat b/RT2870STA.dat
+index 02f37b3..f844b5d 100644
+--- a/RT2870STA.dat
++++ b/RT2870STA.dat
+@@ -31,6 +31,8 @@ Key3Str=
+ Key4Type=0
+ Key4Str=
+ PSMode=CAM
++# AutoRoaming disabled by default for wpa_supplicant roaming compatibility
++# Set to 1 to enable driver roaming (not recommended with wpa_supplicant bgscan)
+ AutoRoaming=0
+ RoamThreshold=70
+ APSDCapable=0

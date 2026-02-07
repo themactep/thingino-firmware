@@ -67,7 +67,14 @@
 <div class="tab-pane active" id="wlan-tab-pane">
 <div class="mb-2">
 <label class="form-label">Wi-Fi Network Name/SSID <span class="small text-white">(case-sensitive)</span></label>
-<input class="form-control bg-light text-dark" type="text" id="wlan_ssid" name="wlan_ssid" autocapitalize="none" required>
+<div style="position: relative;">
+<input class="form-control bg-light text-dark" type="text" id="wlan_ssid" name="wlan_ssid" autocapitalize="none" placeholder="Enter network name or scan for networks" required>
+<datalist id="networks-list"></datalist>
+<button class="btn btn-link" type="button" id="scan-btn" title="Scan for networks">
+<span id="scan-spinner" class="hidden"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#495057" class="bi bi-arrow-clockwise" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg></span>
+<span id="scan-text"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#495057" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg></span>
+</button>
+</div>
 <div class="invalid-feedback">Please enter network name</div>
 </div>
 <div class="mb-2">
@@ -347,6 +354,87 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById(btn.dataset.tab).classList.add('active');
   });
+});
+
+// WiFi network scanning
+const scanBtn = document.getElementById('scan-btn');
+const scanSpinner = document.getElementById('scan-spinner');
+const scanText = document.getElementById('scan-text');
+const networksList = document.getElementById('networks-list');
+const ssidInput = document.getElementById('wlan_ssid');
+let scanInProgress = false;
+let networksScanned = false;
+
+// Only show datalist when user types at least 1 character
+ssidInput.addEventListener('input', () => {
+  if (networksScanned && ssidInput.value.length >= 1) {
+    ssidInput.setAttribute('list', 'networks-list');
+  } else {
+    ssidInput.removeAttribute('list');
+  }
+});
+
+scanBtn.addEventListener('click', async () => {
+  if (scanInProgress) return;
+
+  const originalPlaceholder = ssidInput.placeholder;
+  scanInProgress = true;
+  scanBtn.disabled = true;
+  ssidInput.disabled = true;
+  ssidInput.style.opacity = '0.6';
+  ssidInput.placeholder = 'Scanning for networks...';
+  scanSpinner.classList.remove('hidden');
+  scanText.classList.add('hidden');
+
+  try {
+    const response = await fetch(`${API_URL}?action=scan_networks`);
+    const data = await response.json();
+
+    if (data.error) {
+      console.warn('Scan error:', data.error);
+      return; // Silently skip if scan already in progress
+    }
+
+    // Clear existing options
+    networksList.innerHTML = '';
+
+    if (data.networks) {
+      // Filter out the trailing null and duplicates
+      const networks = data.networks.filter(n => n && n.ssid);
+      const seen = new Set();
+
+      networks.forEach(network => {
+        if (!seen.has(network.ssid)) {
+          seen.add(network.ssid);
+          const option = document.createElement('option');
+          const signalBars = network.signal > -50 ? '▂▄▆█' : network.signal > -60 ? '▂▄▆' : network.signal > -70 ? '▂▄' : '▂';
+          option.value = network.ssid;
+          option.textContent = `${network.ssid} ${signalBars} (${network.security})`;
+          networksList.appendChild(option);
+        }
+      });
+
+      // Mark that networks have been scanned and update placeholder
+      networksScanned = true;
+      ssidInput.placeholder = 'Start typing to select a network';
+    }
+  } catch (error) {
+    // Don't show alert for aborted fetches (page refresh/navigation)
+    if (error.name !== 'AbortError' && error.message !== 'Failed to fetch') {
+      console.error('Scan failed:', error);
+      alert('Failed to scan networks. Please try again.');
+    }
+  } finally {
+    scanInProgress = false;
+    scanBtn.disabled = false;
+    ssidInput.disabled = false;
+    ssidInput.style.opacity = '1';
+    if (!networksScanned) {
+      ssidInput.placeholder = originalPlaceholder;
+    }
+    scanSpinner.classList.add('hidden');
+    scanText.classList.remove('hidden');
+  }
 });
 
 scheduleTimeoutWarning();

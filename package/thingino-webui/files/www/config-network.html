@@ -59,7 +59,14 @@
                 <div class="tab-content">
                   <div class="tab-pane fade show active" id="pane-wifi-net" role="tabpanel" aria-labelledby="tab-wifi-net">
                     <p><label for="wifi_ssid">Wireless Network Name (SSID)</label>
-                      <input type="text" class="form-control" id="wifi_ssid" autocomplete="off" autocapitalize="none"></p>
+                      <div class="input-group">
+                        <input type="text" class="form-control" id="wifi_ssid" autocomplete="off" autocapitalize="none" placeholder="Enter network name or scan for networks">
+                        <datalist id="wifi-networks-list"></datalist>
+                        <button class="btn btn-outline-secondary" type="button" id="wifi-scan-btn" title="Scan for networks">
+                          <span id="wifi-scan-spinner" class="hidden"><i class="bi bi-arrow-clockwise spinning"></i></span>
+                          <span id="wifi-scan-text"><i class="bi bi-search"></i></span>
+                        </button>
+                      </div></p>
                     <p><label for="wifi_bssid">Access Point MAC (BSSID)</label>
                       <input type="text" class="form-control text-uppercase" id="wifi_bssid" placeholder="AA:BB:CC:DD:EE:FF" data-help="Optional when SSID broadcast is enabled"></p>
                     <p><label for="wifi_pass">Wi-Fi Password / PSK</label>

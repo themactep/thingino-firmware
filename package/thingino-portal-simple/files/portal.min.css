@@ -82,8 +82,10 @@ dd{margin-bottom:.5rem;margin-left:0}
 #verify dd#pkey{max-height:5em;overflow:auto;font-size:medium}
 .hidden{display:none!important}
 .spinner{border:3px solid rgba(255,255,255,.3);border-radius:50%;border-top:3px solid #fff;width:30px;height:30px;animation:spin 1s linear infinite;margin:20px auto}
-@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 #config-form{max-width:26rem}
 #loading{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background-color:rgba(33,37,41,.9);padding:2rem;border-radius:.375rem;z-index:9999;box-shadow:0 0 20px rgba(0,0,0,.5)}
 #timeout-warning .alert{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);max-width:400px;z-index:9999;box-shadow:0 0 20px rgba(0,0,0,.5)}
-
+#wlan_ssid{padding-right:2.5rem}
+#scan-btn{position:absolute;right:0.25rem;top:50%;transform:translateY(-50%);padding:0.25rem 0.5rem;font-size:1.2rem;line-height:1;border:none;background:none;cursor:pointer}
+#scan-spinner{display:inline-block;animation:spin 1s linear infinite}
