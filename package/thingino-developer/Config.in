@@ -3,6 +3,6 @@ config BR2_PACKAGE_THINGINO_DEVELOPER
 	help
 	  Enable developer options for Thingino.
 
-#config BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES
-#	string
-#	default "package/thingino-developer/thingino-developer.fragment" if BR2_PACKAGE_THINGINO_DEVELOPER
+config BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES
+	string
+	default "../package/thingino-developer/thingino-developer.fragment" if BR2_PACKAGE_THINGINO_DEVELOPER
