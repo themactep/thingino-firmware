@@ -90,24 +90,24 @@ start() {
         # Generate SSL certificate and key
         if command -v wolfssl-certgen >/dev/null 2>&1; then
             echo_info "Generating ECDSA certificate for $hostname using wolfSSL..."
-            echo_command "wolfssl-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256"
-            if wolfssl-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 >/dev/null 2>&1; then
+            echo_command "wolfssl-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 -f der"
+            if wolfssl-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 -f der >/dev/null 2>&1; then
                 echo_info "SSL certificate generated successfully with wolfSSL"
             else
                 echo_warning "wolfSSL certificate generation failed, falling back to HTTP-only"
             fi
         elif command -v mbedtls-certgen >/dev/null 2>&1; then
             echo_info "Generating ECDSA certificate for $hostname using mbedTLS..."
-            echo_command "mbedtls-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 -t ecdsa"
-            if mbedtls-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 -t ecdsa >/dev/null 2>&1; then
+            echo_command "mbedtls-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 -t ecdsa -f der"
+            if mbedtls-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 -t ecdsa -f der >/dev/null 2>&1; then
                 echo_info "SSL certificate generated successfully with mbedTLS"
             else
                 echo_warning "mbedTLS certificate generation failed, trying OpenSSL fallback..."
             fi
         elif command -v openssl-certgen >/dev/null 2>&1; then
             echo_info "Generating ECDSA certificate for $hostname using OpenSSL..."
-            echo_command "openssl-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256"
-            if openssl-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 >/dev/null 2>&1; then
+            echo_command "openssl-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 -f der"
+            if openssl-certgen -h "$hostname.local" -c "$cert_path" -k "$key_path" -s 256 -f der >/dev/null 2>&1; then
                 echo_info "SSL certificate generated successfully with OpenSSL"
             else
                 echo_warning "OpenSSL certificate generation failed, falling back to HTTP-only"
