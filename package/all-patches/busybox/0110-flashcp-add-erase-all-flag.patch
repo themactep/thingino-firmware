@@ -1,0 +1,64 @@
+Add -A flag to flashcp for full partition erase
+
+This patch adds the -A (--erase-all) flag to the BusyBox flashcp utility,
+matching the behavior of the original mtd-utils flashcp.
+
+By default, flashcp only erases the minimum number of blocks needed to fit
+the file being flashed. This can leave stale data in the partition when
+flashing a smaller image.
+
+With the -A flag, flashcp will erase the entire partition before writing,
+ensuring no stale data remains.
+
+Usage:
+  flashcp -v -A firmware.bin /dev/mtd2
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+
+--- a/miscutils/flashcp.c
++++ b/miscutils/flashcp.c
+@@ -19,10 +19,11 @@
+ //kbuild:lib-$(CONFIG_FLASHCP) += flashcp.o
+ 
+ //usage:#define flashcp_trivial_usage
+-//usage:       "[-v] FILE MTD_DEVICE"
++//usage:       "[-vA] FILE MTD_DEVICE"
+ //usage:#define flashcp_full_usage "\n\n"
+ //usage:       "Copy FILE to MTD device\n"
+ //usage:     "\n	-v	Verbose"
++//usage:     "\n	-A	Erase all (whole partition)"
+ 
+ #include "libbb.h"
+ #include <mtd/mtd-user.h>
+@@ -31,6 +32,7 @@
+ #define MTD_DEBUG 0
+ 
+ #define OPT_v (1 << 0)
++#define OPT_A (1 << 1)
+ 
+ #define BUFSIZE (4 * 1024)
+ 
+@@ -69,7 +71,7 @@
+ 	RESERVE_CONFIG_UBUFFER(buf, BUFSIZE);
+ 	RESERVE_CONFIG_UBUFFER(buf2, BUFSIZE);
+ 
+-	/*opts =*/ getopt32(argv, "^" "v" "\0" "=2"/*exactly 2 non-option args: file,dev*/);
++	/*opts =*/ getopt32(argv, "^" "vA" "\0" "=2"/*exactly 2 non-option args: file,dev*/);
+ 	argv += optind;
+ //	filename = *argv++;
+ //	devicename = *argv;
+@@ -92,7 +94,13 @@
+ #endif
+ 
+ 	/* always erase a complete block */
+-	erase_count = (uoff_t)(statb.st_size + mtd.erasesize - 1) / mtd.erasesize;
++	if (option_mask32 & OPT_A) {
++		/* erase the whole partition */
++		erase_count = (uoff_t)mtd.size / mtd.erasesize;
++	} else {
++		/* erase only enough blocks for the file */
++		erase_count = (uoff_t)(statb.st_size + mtd.erasesize - 1) / mtd.erasesize;
++	}
+ 	/* erase 1 block at a time to be able to give verbose output */
+ 	e.length = mtd.erasesize;
+ #if 0
