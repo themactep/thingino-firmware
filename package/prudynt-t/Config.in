@@ -24,7 +24,7 @@ if BR2_PACKAGE_PRUDYNT_T
 
 choice
 	prompt "Prudynt linking mode"
-	default BR2_PACKAGE_PRUDYNT_T_DYNAMIC
+	default BR2_PACKAGE_PRUDYNT_T_HYBRID
 	help
 	  Choose how Prudynt links against its dependencies.
 
