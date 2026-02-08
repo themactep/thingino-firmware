@@ -10,16 +10,15 @@ define EXFAT_NOFUSE_BUILD_CMDS
 	$(MAKE) CROSS_COMPILE=$(TARGET_CROSS) -C $(@D) KDIR=$(LINUX_DIR)
 endef
 
-TARGET_MODULES_PATH = $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
 define EXFAT_NOFUSE_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 0755 -d $(TARGET_MODULES_PATH)
-	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
-
+	krel="$$( $(MAKE) -s -C $(LINUX_DIR) kernelrelease 2>/dev/null )"; \
+	if [ -z "$$krel" ]; then krel="$(LINUX_VERSION_PROBED)"; fi; \
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/lib/modules/$$krel; \
+	touch $(TARGET_DIR)/lib/modules/$$krel/modules.builtin.modinfo; \
 	$(INSTALL) -D -m 0644 $(@D)/exfat.ko \
-		$(TARGET_MODULES_PATH)/extra/exfat.ko
-	$(TARGET_STRIP) --strip-debug $(TARGET_MODULES_PATH)/extra/exfat.ko
-
-	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc
+		$(TARGET_DIR)/lib/modules/$$krel/extra/exfat.ko; \
+	$(TARGET_STRIP) --strip-debug $(TARGET_DIR)/lib/modules/$$krel/extra/exfat.ko; \
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc; \
 	echo exfat >> $(TARGET_DIR)/etc/modules
 endef
 
