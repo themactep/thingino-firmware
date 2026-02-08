@@ -84,7 +84,7 @@ fi
 rm -f "$mount/.write_test"
 
 # Set defaults
-[ -z "$template" ] && template="${network_hostname}-%Y%m%d-%H%M%S"
+[ -z "$template" ] && template="$(hostname -s)-%Y%m%d-%H%M%S"
 
 # Create destination directory
 dest_dir="$mount"
