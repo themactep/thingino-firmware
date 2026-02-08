@@ -82,6 +82,7 @@ scan_networks() {
 	echo "{"
 	echo "\"networks\": ["
 
+	first=1
 	wpa_cli -i wlan0 scan_results 2>/dev/null | tail -n +2 | while IFS=$'\t' read -r bssid freq signal flags ssid; do
 		# Skip empty SSIDs and header
 		[ -z "$ssid" ] || [ "$ssid" = "ssid" ] && continue
@@ -96,18 +97,23 @@ scan_networks() {
 			security="WEP"
 		fi
 
-		# Output JSON (note: this creates invalid JSON with trailing comma, we'll fix in JS)
+		# Output JSON without trailing commas
+		if [ $first -eq 0 ]; then
+			echo ","
+		else
+			first=0
+		fi
 		cat <<-NETWORK
 		{
 			"ssid": "$(json_encode "$ssid")",
 			"bssid": "$(json_encode "$bssid")",
 			"signal": $signal,
 			"security": "$(json_encode "$security")"
-		},
+		}
 		NETWORK
 	done
 
-	echo "null]"
+	echo "]"
 	echo "}"
 
 	# Clean up lock if we created it
