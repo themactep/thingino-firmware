@@ -179,8 +179,17 @@ define INSTALL_AUDIO_SUPPORT
 endef
 
 define INGENIC_SDK_INSTALL_TARGET_CMDS
-	$(INSTALL) -m 0755 -d $(TARGET_MODULES_PATH)
-	touch $(TARGET_MODULES_PATH)/modules.builtin.modinfo
+	krel="$$( $(MAKE) -s -C $(LINUX_DIR) kernelrelease 2>/dev/null )"; \
+	if [ -z "$$krel" ]; then krel="$(LINUX_VERSION_PROBED)"; fi; \
+	for root in "$(TARGET_DIR)" "$(BASE_TARGET_DIR)"; do \
+		[ -n "$$root" ] || continue; \
+		[ -d "$$root" ] || continue; \
+		libdir="$$root/lib"; \
+		if [ "$(BR2_ROOTFS_MERGED_USR)" = "y" ]; then libdir="$$root/usr/lib"; fi; \
+		find "$$libdir/modules" -mindepth 1 -maxdepth 1 -type d ! -name "$$krel" -exec rm -rf {} + 2>/dev/null || true; \
+		$(INSTALL) -m 0755 -d "$$libdir/modules/$$krel"; \
+		touch "$$libdir/modules/$$krel/modules.builtin.modinfo"; \
+	done
 
 	if [ -n "$(SENSOR_1_MODEL)" ]; then \
 		$(call INSTALL_SENSOR_BIN,$(SENSOR_1_MODEL),$(SENSOR_1_BIN_NAME),$(SENSOR_1_CONFIG_NAME)); \

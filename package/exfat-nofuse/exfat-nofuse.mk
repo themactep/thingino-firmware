@@ -13,13 +13,20 @@ endef
 define EXFAT_NOFUSE_INSTALL_TARGET_CMDS
 	krel="$$( $(MAKE) -s -C $(LINUX_DIR) kernelrelease 2>/dev/null )"; \
 	if [ -z "$$krel" ]; then krel="$(LINUX_VERSION_PROBED)"; fi; \
-	$(INSTALL) -m 0755 -d $(TARGET_DIR)/lib/modules/$$krel; \
-	touch $(TARGET_DIR)/lib/modules/$$krel/modules.builtin.modinfo; \
-	$(INSTALL) -D -m 0644 $(@D)/exfat.ko \
-		$(TARGET_DIR)/lib/modules/$$krel/extra/exfat.ko; \
-	$(TARGET_STRIP) --strip-debug $(TARGET_DIR)/lib/modules/$$krel/extra/exfat.ko; \
-	$(INSTALL) -m 0755 -d $(TARGET_DIR)/etc; \
-	echo exfat >> $(TARGET_DIR)/etc/modules
+	for root in "$(TARGET_DIR)" "$(BASE_TARGET_DIR)"; do \
+		[ -n "$$root" ] || continue; \
+		[ -d "$$root" ] || continue; \
+		libdir="$$root/lib"; \
+		if [ "$(BR2_ROOTFS_MERGED_USR)" = "y" ]; then libdir="$$root/usr/lib"; fi; \
+		find "$$libdir/modules" -path "*/extra/exfat.ko" ! -path "$$libdir/modules/$$krel/extra/exfat.ko" -delete 2>/dev/null || true; \
+		$(INSTALL) -m 0755 -d "$$libdir/modules/$$krel"; \
+		touch "$$libdir/modules/$$krel/modules.builtin.modinfo"; \
+		$(INSTALL) -D -m 0644 $(@D)/exfat.ko \
+			"$$libdir/modules/$$krel/extra/exfat.ko"; \
+		$(TARGET_STRIP) --strip-debug "$$libdir/modules/$$krel/extra/exfat.ko"; \
+		$(INSTALL) -m 0755 -d "$$root/etc"; \
+		echo exfat >> "$$root/etc/modules"; \
+	done
 endef
 
 $(eval $(kernel-module))
