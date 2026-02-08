@@ -1,9 +1,30 @@
 #!/bin/sh
+# shellcheck disable=SC3043
 
 . /usr/share/common
 
 start() {
 	echo_title "Starting network"
+
+	local toggle
+	toggle=$(jct /etc/thingino.json get gpio.eth.toggle 2>/dev/null)
+	if [ "true" = "$toggle" ]; then
+		local pin active low high
+		pin=$(jct /etc/thingino.json get gpio.eth.pin 2>/dev/null)
+		active=$(jct /etc/thingino.json get gpio.eth.active_low 2>/dev/null)
+		if [ "true" = "$active" ]; then
+			low=1
+			high=0
+		else
+			low=0
+			high=1
+		fi
+		gpio set $pin $low
+		sleep 0.5
+		gpio set $pin $high
+  else
+		echo_warning "Ethernet GPIO does not need a toggle"
+  fi
 
 	ifup -v -a
 }
