@@ -15,11 +15,9 @@
       "pin": 43,
       "active_low": true
     },
-    "usb": {
-      "en": {
-        "pin": 47,
-        "active_low": false
-      }
+    "usb_en": {
+      "pin": 47,
+      "active_low": false
     },
     "wlan": {
       "pin": 60,
