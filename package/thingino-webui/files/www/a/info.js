@@ -138,5 +138,200 @@
     }
   }
 
+  // Text editor elements
+  const textEditorModalEl = $('#textEditorModal');
+  const textEditorEl = $('#textEditor');
+  const saveTextBtn = $('#saveTextBtn');
+  const reloadTextBtn = $('#reloadTextBtn');
+  const textEditorModalLabel = $('#textEditorModalLabel');
+  const editorFileName = $('#editorFileName');
+  const editorStatus = $('#editorStatus');
+  const lineWrappingToggle = $('#lineWrapping');
+  const downloadBackupBtn = $('#downloadBackupBtn');
+  const autoBackupToggle = $('#autoBackup');
+
+  // Text editor state
+  const textEditorState = {
+    currentFile: null,
+    originalContent: null,
+    isModified: false
+  };
+
+  function encodePath(path) {
+    return encodeURIComponent(path);
+  }
+
+  function downloadBackupFromMemory() {
+    if (!textEditorState.currentFile || !textEditorState.originalContent) return;
+
+    const filename = textEditorState.currentFile.split('/').pop();
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '_');
+    const backupFilename = `${filename}.backup_${timestamp}`;
+
+    const blob = new Blob([textEditorState.originalContent], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = backupFilename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }
+
+  async function loadTextFile(filePath) {
+    editorStatus.textContent = 'Loading...';
+    textEditorEl.disabled = true;
+    saveTextBtn.disabled = true;
+    reloadTextBtn.disabled = true;
+    textEditorEl.value = ''; // Clear previous content
+
+    try {
+      const response = await fetch(`/x/texteditor.cgi?file=${encodePath(filePath)}`);
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error ? data.error.message : `HTTP ${response.status}`);
+      }
+
+      textEditorState.currentFile = filePath;
+      // Decode base64 content if provided
+      let content = data.content || '';
+      if (data.content_encoding === 'base64') {
+        content = decodeBase64String(content);
+        if (!content && data.content) {
+          throw new Error('Failed to decode file content');
+        }
+      }
+      textEditorState.originalContent = content;
+      textEditorState.isModified = false;
+
+      textEditorEl.value = textEditorState.originalContent;
+      textEditorEl.disabled = !data.writable;
+      saveTextBtn.disabled = true; // Always disabled initially - no changes to save yet
+      reloadTextBtn.disabled = false;
+
+      editorFileName.textContent = filePath.split('/').pop();
+
+      editorStatus.textContent = data.writable ? 'Ready' : 'Read-only';
+      textEditorModalLabel.textContent = `Edit: ${filePath.split('/').pop()}`;
+
+    } catch (error) {
+      editorStatus.textContent = `Error: ${error.message}`;
+      textEditorEl.value = '';
+      textEditorEl.disabled = true;
+      saveTextBtn.disabled = true;
+      reloadTextBtn.disabled = true;
+      showAlert('danger', `Failed to load file: ${error.message}`);
+    }
+  }
+
+  async function saveTextFile() {
+    if (!textEditorState.currentFile || !textEditorState.isModified) return;
+
+    // Auto backup if enabled
+    if (autoBackupToggle.checked) {
+      downloadBackupFromMemory();
+      // Small delay to ensure backup download starts before save
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    editorStatus.textContent = 'Saving...';
+    saveTextBtn.disabled = true;
+
+    try {
+      const response = await fetch(`/x/texteditor.cgi?file=${encodePath(textEditorState.currentFile)}`, {
+        method: 'POST',
+        body: textEditorEl.value
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error ? data.error.message : `HTTP ${response.status}`);
+      }
+
+      textEditorState.originalContent = textEditorEl.value;
+      textEditorState.isModified = false;
+      saveTextBtn.disabled = true;
+
+      editorStatus.textContent = 'Saved successfully';
+      showAlert('success', `File saved: ${textEditorState.currentFile.split('/').pop()}`);
+
+    } catch (error) {
+      editorStatus.textContent = `Save failed: ${error.message}`;
+      saveTextBtn.disabled = !textEditorState.isModified;
+      showAlert('danger', `Failed to save file: ${error.message}`);
+    }
+  }
+
+  // Text editor event handlers
+  textEditorEl.addEventListener('input', () => {
+    // Check if content has been modified
+    textEditorState.isModified = textEditorEl.value !== textEditorState.originalContent;
+    saveTextBtn.disabled = !textEditorState.isModified;
+  });
+
+  lineWrappingToggle.addEventListener('change', function() {
+    textEditorEl.style.whiteSpace = this.checked ? 'pre-wrap' : 'pre';
+    textEditorEl.style.overflowX = this.checked ? 'hidden' : 'auto';
+  });
+
+  saveTextBtn.addEventListener('click', saveTextFile);
+
+  reloadTextBtn.addEventListener('click', () => {
+    if (textEditorState.isModified) {
+      if (!confirm('Discard unsaved changes and reload?')) return;
+    }
+    if (textEditorState.currentFile) {
+      loadTextFile(textEditorState.currentFile);
+    }
+  });
+
+  downloadBackupBtn.addEventListener('click', downloadBackupFromMemory);
+
+  textEditorModalEl.addEventListener('hidden.bs.modal', () => {
+    if (textEditorState.isModified) {
+      if (confirm('You have unsaved changes. Do you want to save before closing?')) {
+        saveTextFile();
+      }
+    }
+    // Reset editor state
+    textEditorState.currentFile = null;
+    textEditorState.originalContent = null;
+    textEditorState.isModified = false;
+    textEditorEl.value = '';
+    editorStatus.textContent = 'Ready';
+  });
+
+  // Keyboard shortcuts for text editor
+  textEditorEl.addEventListener('keydown', event => {
+    // Ctrl+S to save
+    if (event.ctrlKey && event.key === 's') {
+      event.preventDefault();
+      if (!saveTextBtn.disabled) {
+        saveTextFile();
+      }
+    }
+    // Tab key handling - insert spaces instead of changing focus
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      const start = textEditorEl.selectionStart;
+      const end = textEditorEl.selectionEnd;
+      textEditorEl.value = textEditorEl.value.substring(0, start) + '  ' + textEditorEl.value.substring(end);
+      textEditorEl.selectionStart = textEditorEl.selectionEnd = start + 2;
+      // Update modification state
+      textEditorState.isModified = textEditorEl.value !== textEditorState.originalContent;
+      saveTextBtn.disabled = !textEditorState.isModified;
+    }
+  });
+
+  window.editFile = function(filePath) {
+      const textEditorModal = new bootstrap.Modal(textEditorModalEl);
+      textEditorModal.show();
+      loadTextFile(filePath);
+  }
+
   loadSection(parseInitialTab());
 })();

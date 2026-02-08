@@ -138,7 +138,7 @@ resolve_commands() {
       cmd="crontab -l"
       extras=$(cat <<'EOF'
 <p><a href="https://devhints.io/cron">Cron syntax cheatsheet</a></p>
-<p><a class="btn btn-warning" href="/x/texteditor.cgi?f=/etc/cron/crontabs/root">Edit file</a></p>
+<p><button class="btn btn-warning" onclick="editFile('/etc/cron/crontabs/root')">Edit file</button></p>
 EOF
 )
       ;;
