@@ -1,6 +1,5 @@
 /.board
 /.bootstrapped
-/.ccache
 /.gitconfig
 /.idea
 /.prereqs.done
@@ -25,5 +24,11 @@
 *.backup
 .DS_Store
 .selected_camera
+
+# Docker, Go
+/.cache
+/.ccache
+/.config
+/.npm
 .bash_history
 .wget-hsts
