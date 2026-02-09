@@ -1,0 +1,4 @@
+gpio_button=6
+gpio_mmc_cd=59
+gpio_default=18O 43o 46O 50O 54O 61o 62o 63o
+
