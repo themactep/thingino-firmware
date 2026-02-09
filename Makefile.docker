@@ -14,7 +14,7 @@ WORKSPACE_DIR := $(shell pwd)
 ifeq ($(findstring podman,$(CONTAINER_ENGINE)),podman)
 	CONTAINER_RUN := $(CONTAINER_ENGINE) run --rm --userns=keep-id
 else
-	CONTAINER_RUN := $(CONTAINER_ENGINE) run --rm --user $(USER_ID):$(GROUP_ID)
+	CONTAINER_RUN := $(CONTAINER_ENGINE) run --rm --user $(USER_ID):$(GROUP_ID) --network=host
 endif
 
 CONTAINER_RUN_OPTS := \
@@ -32,7 +32,7 @@ CONTAINER_RUN_EXEC := $(CONTAINER_RUN) -i $(CONTAINER_RUN_OPTS)
 docker-build:
 	@if ! $(CONTAINER_ENGINE) images | grep -q "$(DOCKER_IMAGE).*$(DOCKER_TAG)"; then \
 		echo "Building Docker image: $(DOCKER_IMAGE):$(DOCKER_TAG)"; \
-		$(CONTAINER_ENGINE) build \
+		$(CONTAINER_ENGINE) build --network=host \
 			--build-arg USER_ID=$(USER_ID) \
 			--build-arg GROUP_ID=$(GROUP_ID) \
 			--build-arg USERNAME=$(USERNAME) \
