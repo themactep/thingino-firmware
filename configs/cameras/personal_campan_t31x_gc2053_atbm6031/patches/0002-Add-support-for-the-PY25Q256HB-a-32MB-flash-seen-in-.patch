@@ -1,0 +1,45 @@
+From 8955aa8f1764d5732153272e754a2df5a074b3fe Mon Sep 17 00:00:00 2001
+From: Santiago Hormazabal <santiagohssl@gmail.com>
+Date: Wed, 11 Feb 2026 18:25:10 -0300
+Subject: [PATCH 1/1] Add support for the PY25Q256HB, a 32MB flash seen in
+ newer Personal Pan Cam cameras
+
+---
+ drivers/spi/jz_spi.h | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/drivers/spi/jz_spi.h b/drivers/spi/jz_spi.h
+index a4560792..afb96892 100644
+--- a/drivers/spi/jz_spi.h
++++ b/drivers/spi/jz_spi.h
+@@ -1146,6 +1146,27 @@ static struct jz_spi_support jz_spi_support_table[] = {
+ 			.cmd_read = CMD_QUAD_READ,
+ #ifdef CONFIG_JZ_SFC
+ 			.sfc_mode = TRAN_SPI_QUAD,
++#endif
++		},
++	},
++	{
++		.name = "PY25Q256HB",
++		.id_manufactory = 0x852019,
++		.page_size = SIZE_256B,
++		.sector_size = SIZE_4KB,
++		.addr_size = 4,
++		.size = SIZE_32MB,
++		.quad_mode = {
++			.dummy_byte = 8,
++			.RDSR_CMD = CMD_RDSR_1,
++			.WRSR_CMD = CMD_WRSR_1,
++			.RDSR_DATE = 0x2, /* the data is write the spi status register for QE bit */
++			.RD_DATE_SIZE = 1,
++			.WRSR_DATE = 0x2, /* this bit should be the flash QUAD mode enable */
++			.WD_DATE_SIZE = 1,
++			.cmd_read = CMD_QUAD_READ,
++#ifdef CONFIG_JZ_SFC
++			.sfc_mode = TRAN_SPI_QUAD,
+ #endif
+ 		},
+ 	},
+-- 
+2.43.0
+
