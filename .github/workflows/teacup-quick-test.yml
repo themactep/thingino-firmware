@@ -30,4 +30,4 @@ jobs:
 
       - name: Build Tea Cup profile only
         run: |
-          BOARD=teacup make fast WORKFLOW=1
+          BOARD=teacup_t31x make fast WORKFLOW=1
