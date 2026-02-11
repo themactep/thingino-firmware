@@ -50,13 +50,22 @@
         id: 'ddInfo',
         label: 'Information',
         items: [
-          { label: 'Commands and logs', href: '/info.html' },
+          { label: 'File: crontab', href: '/info.html?crontab' },
+          { label: 'File: httpd.conf', href: '/info.html?httpd' },
+          { label: 'File: onvif.json', href: '/info.html?onvif' },
+          { label: 'File: prudynt.json', href: '/info.html?prudynt' },
+          { label: 'File: thingino.json', href: '/info.html?thingino' },
+          { label: 'Log: dmesg', href: '/info.html?dmesg' },
+          { label: 'Log: logcat', href: '/info.html?logcat' },
+          { label: 'Log: logread', href: '/info.html?logread' },
+          { label: 'Info: lsmod', href: '/info.html?lsmod' },
+          { label: 'Info: netstat', href: '/info.html?netstat' },
+          { label: 'Info: system', href: '/info.html?system' },
+          { label: 'Info: top', href: '/info.html?top' },
+          { label: 'Info: status', href: '/info.html?status' },
           { label: 'Overlay partition', href: '/info-overlay.html' },
           { label: 'System usage', href: '/info-usage.html' },
-          { label: 'Diagnostic info', href: '/info-diagnostic.html' },
-          { type: 'divider' },
-          { label: 'Prudynt log', href: '/info.html?prudynt' },
-          { label: 'Restart Prudynt', href: '#', id: 'restart-prudynt-nav', className: 'text-danger confirm', trackActive: false }
+          { label: 'Diagnostic info', href: '/info-diagnostic.html' }
         ]
       },
       {
@@ -98,7 +107,11 @@
           { label: 'Main stream OSD', href: '/streamer-osd0.html' },
           { label: 'RTSP Substream', href: '/streamer-substream.html' },
           { label: 'Substream OSD', href: '/streamer-osd1.html' },
-          { label: 'Sensor IQ File', href: '/streamer-sensor.html' }
+          { label: 'Sensor IQ File', href: '/streamer-sensor.html' },
+          { type: 'divider' },
+          { label: 'Streamer config', href: '/info.html?prudynt' },
+          { label: 'Streamer log', href: '/info.html?logcat' },
+          { label: 'Restart streamer', href: '#', id: 'restart-prudynt-nav', className: 'text-danger confirm', trackActive: false }
         ]
       },
       { type: 'link', label: 'Preview', href: '/preview.html' },
@@ -130,18 +143,25 @@
   function normalizePath(input) {
     if (!input) return '/';
     let path = input;
+    let search = '';
     try {
       const url = new URL(input, window.location.origin);
       path = url.pathname;
+      search = url.search;
     } catch (err) {
       // ignore and fall back to raw string
+      const qIndex = input.indexOf('?');
+      if (qIndex !== -1) {
+        path = input.slice(0, qIndex);
+        search = input.slice(qIndex);
+      }
     }
     if (!path) return '/';
-    path = path.split('?')[0].split('#')[0];
+    path = path.split('#')[0];
     if (path.length > 1 && path.endsWith('/')) {
-      return path.replace(/\/+$/, '');
+      path = path.replace(/\/+$/, '');
     }
-    return path || '/';
+    return (path || '/') + search;
   }
 
   function deriveBrandLabel(title) {
@@ -414,7 +434,7 @@
   }
 
   function highlightActive(nav, currentPath) {
-    const normalizedCurrent = normalizePath(currentPath || window.location.pathname);
+    const normalizedCurrent = normalizePath(currentPath || (window.location.pathname + window.location.search));
     const anchors = nav.querySelectorAll('a[data-nav-path]');
     anchors.forEach(anchor => {
       if (anchor.dataset.navPath === normalizedCurrent) {

@@ -1,7 +1,6 @@
 (function() {
-  const tabsEl = $('#infoTabs');
   const outputsEl = $('#infoOutputs');
-  const extrasEl = $('#infoExtras');;
+  const extrasEl = $('#infoExtras');
 
   function parseInitialTab() {
     const search = window.location.search.replace(/^\?/, '');
@@ -11,31 +10,6 @@
       return params.get('section') || params.get('name') || params.get('tab') || 'system';
     }
     return decodeURIComponent(search);
-  }
-
-  function updateUrl(tabId) {
-    const base = window.location.pathname;
-    const suffix = tabId ? `?${encodeURIComponent(tabId)}` : '';
-    window.history.replaceState({}, '', `${base}${suffix}`);
-  }
-
-  function renderTabs(list, activeId) {
-    tabsEl.innerHTML = '';
-    (list || []).forEach(item => {
-      const li = document.createElement('li');
-      li.className = 'nav-item';
-      const link = document.createElement('a');
-      link.href = `?${encodeURIComponent(item.id)}`;
-      link.className = `nav-link${item.id === activeId ? ' active' : ''}`;
-      link.textContent = item.label || item.id;
-      link.addEventListener('click', ev => {
-        ev.preventDefault();
-        if (item.id === activeId) return;
-        loadSection(item.id);
-      });
-      li.appendChild(link);
-      tabsEl.appendChild(li);
-    });
   }
 
   function buildShareUrl(command) {
@@ -127,10 +101,8 @@
         const message = data && data.error && data.error.message ? data.error.message : 'Failed to fetch logs.';
         throw new Error(message);
       }
-      renderTabs(data.tabs || [], data.selected || section);
       renderOutputs(data.commands || []);
       extrasEl.innerHTML = decodeExtrasHtml(data) || '';
-      updateUrl(data.selected || section);
     } catch (err) {
       showAlert('danger', err.message || 'Unable to load the requested section.');
     } finally {
