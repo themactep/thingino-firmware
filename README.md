@@ -40,8 +40,9 @@ Thank you for using Thingino! For questions or contributions, please join our Di
 ### Building
 
 ```
-git clone --recurse-submodules https://github.com/themactep/thingino-firmware
+git clone -b stable --recurse-submodules https://github.com/themactep/thingino-firmware
 cd thingino-firmware
+make update
 make
 ```
 
@@ -75,6 +76,6 @@ Read [Building from sources][7] article for more info.
 [7]: https://github.com/themactep/thingino-firmware/wiki/Building-from-sources
 [8]: https://github.com/themactep/thingino-firmware/actions/workflows/toolchain.yaml
 [9]: https://github.com/themactep/thingino-firmware/actions/workflows/firmware.yaml
-[10]: https://github.com/user-attachments/assets/6fe68e13-eb49-4c33-8836-af1e97bf8b4e
+[10]: https://github.com/user-attachments/assets/5e74827c-47f9-4ea0-b523-d12a199a9974
 [11]: https://github.com/themactep/thingino-firmware/actions/workflows/toolchain-x86_64.yaml/badge.svg
 [12]: https://github.com/themactep/thingino-firmware/actions/workflows/firmware-stable.yml/badge.svg
