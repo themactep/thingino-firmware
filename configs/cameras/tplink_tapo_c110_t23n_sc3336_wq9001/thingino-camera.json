@@ -3,7 +3,7 @@
     "button_reset": 62,
     "ir850": {
       "pin": 49,
-      "active_low": false
+      "active_low": false,
       "pwn_channel": 0
     },
     "ircut": {
@@ -24,7 +24,7 @@
     },
     "white": {
       "pin": 50,
-      "active_low": true
+      "active_low": true,
       "pwm_channel": 1
     },
     "wlan": 51
