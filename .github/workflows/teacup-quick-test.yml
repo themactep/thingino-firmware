@@ -1,0 +1,33 @@
+name: Teacup Quick Test
+
+on:
+  push:
+    branches:
+      - stable
+
+jobs:
+  build-teacup:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: "stable"
+          fetch-depth: 0
+
+      - name: Wait for cooldown (10 minutes)
+        run: sleep 600
+
+      - name: Check for new commits after cooldown
+        id: check-latest
+        run: |
+          git fetch origin stable
+          LATEST_SHA=$(git rev-parse origin/stable)
+          if [[ "$LATEST_SHA" != "$GITHUB_SHA" ]]; then
+            echo "Newer commit detected ($LATEST_SHA), skipping this run."
+            exit 78
+          fi
+
+      - name: Build Tea Cup profile only
+        run: |
+          BOARD=teacup make fast WORKFLOW=1

@@ -1,15 +1,17 @@
 name: firmware-stable
 on:
   schedule:
-    # 00:30 PST / Nightly
-    - cron:  '30 8 * * *'
+    - cron:  '30 8 * * 1'
   workflow_dispatch:
     inputs:
-      force_build:
-        type: boolean
-        description: 'Force build even if no new commits'
+      branch:
+        type: choice
+        description: 'Branch to build from'
         required: false
-        default: false
+        default: 'stable'
+        options:
+          - stable
+          - master
       tg_disabled:
         type: boolean
         description: 'Disable Telegram notifications'
@@ -35,6 +37,10 @@ on:
         description: 'Debug: Generate dummy image files'
         required: false
         default: false
+      board_list:
+        type: string
+        description: 'Comma-separated list of boards to build (e.g. board1,board2)'
+        required: false
 
 env:
   BR2_DL_DIR: ~/dl
@@ -53,61 +59,48 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
-      force_build: ${{ steps.check.outputs.force_build }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: "stable"
+          ref: ${{ github.event.inputs.branch || 'stable' }}
           fetch-depth: 0
+
+      - name: Debug checked out branch and commit
+        run: |
+          echo "Checked out branch:"
+          git branch -a
+          echo "HEAD SHA:"
+          git rev-parse HEAD
+          echo "Last commit:"
+          git log --oneline -1
 
       - name: Check for updates since last release
         id: check
         run: |
-          # Always build if manually triggered with force_build option
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.force_build }}" == "true" ]]; then
-            echo "Manual trigger with force build detected - forcing build"
-            echo "should_build=true" >> $GITHUB_OUTPUT
-            echo "force_build=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Always build if manually triggered (backward compatibility)
+          # Always build if manually triggered
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "Manual trigger detected - forcing build"
+            echo "Manual trigger detected - building"
             echo "should_build=true" >> $GITHUB_OUTPUT
-            echo "force_build=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-
-          # Get the latest firmware release tag
           LATEST_RELEASE=$(gh release list --repo ${{ github.repository }} --json tagName,name | jq -r '.[] | select(.name | startswith("firmware-")) | .tagName' | head -1)
-
           if [[ -z "$LATEST_RELEASE" ]]; then
             echo "No previous firmware release found - building"
             echo "should_build=true" >> $GITHUB_OUTPUT
-            echo "force_build=false" >> $GITHUB_OUTPUT
             exit 0
           fi
-
           echo "Latest firmware release: $LATEST_RELEASE"
-
-          # Get the commit SHA of the latest release
           LATEST_RELEASE_COMMIT=$(gh api repos/${{ github.repository }}/git/ref/tags/$LATEST_RELEASE | jq -r '.object.sha')
           CURRENT_COMMIT=$(git rev-parse HEAD)
-
           echo "Latest release commit: $LATEST_RELEASE_COMMIT"
           echo "Current commit: $CURRENT_COMMIT"
-
-          # Check if there are new commits since the last release
           if [[ "$LATEST_RELEASE_COMMIT" == "$CURRENT_COMMIT" ]]; then
             echo "No new commits since last release - skipping build"
             echo "should_build=false" >> $GITHUB_OUTPUT
-            echo "force_build=false" >> $GITHUB_OUTPUT
           else
             echo "New commits detected since last release - building"
             echo "should_build=true" >> $GITHUB_OUTPUT
-            echo "force_build=false" >> $GITHUB_OUTPUT
           fi
 
   notify-no-build:
@@ -117,36 +110,31 @@ jobs:
     steps:
       - name: Log no build needed
         run: |
-          echo "No new commits detected in stable branch since last firmware release."
-          echo "Skipping build. Use 'Force build even if no new commits' option to override."
+          echo "No new commits detected since last firmware release."
+          echo "Skipping scheduled build. Manual runs always build."
 
-  notify-begin:
+  prepare-release:
     runs-on: ubuntu-24.04
     needs: check-updates
     if: needs.check-updates.outputs.should_build == 'true'
     outputs:
-      start_time: ${{ steps.set_output.outputs.time }}
-      tg_disabled: ${{ steps.set_env.outputs.tg_disabled }}
+      tag_name: ${{ steps.set_tag.outputs.tag_name }}
     steps:
       - name: Set timezone
         run: |
           sudo timedatectl set-timezone ${{ env.TZ }}
 
-      - name: Save workflow start time to ENV
-        id: set_output
-        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
-
-      - name: Configure Environment Variables
+      - name: Configure TAG_NAME
+        id: set_tag
         run: |
-          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
-          echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
           TAG_NAME="$TAG_NAME-$(TZ=UTC date +'%Y-%m-%d')"
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
 
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: "stable"
+          ref: ${{ github.event.inputs.branch || 'stable' }}
           fetch-depth: "1"
 
       - name: Create release tag
@@ -167,9 +155,38 @@ jobs:
           if ! gh release view "$TAG_NAME" --repo "${{ github.repository }}" &>/dev/null; then
             echo "Release $TAG_NAME does not exist. Creating pre-release."
             gh release create "$TAG_NAME" --repo "${{ github.repository }}" --title "$TAG_NAME" --notes "pre-release: \`\`\`$TAG_NAME\`\`\` is currently being built, please wait..." --prerelease
-            else
+          else
             echo "Release $TAG_NAME already exists."
           fi
+
+  notify-begin:
+    runs-on: ubuntu-24.04
+    needs: prepare-release
+    if: needs.check-updates.outputs.should_build == 'true'
+    outputs:
+      start_time: ${{ steps.set_output.outputs.time }}
+      tg_disabled: ${{ steps.set_env.outputs.tg_disabled }}
+    steps:
+      - name: Set timezone
+        run: |
+          sudo timedatectl set-timezone ${{ env.TZ }}
+
+      - name: Save workflow start time to ENV
+        id: set_output
+        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
+
+      - name: Configure Environment Variables
+        id: set_env
+        run: |
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+          echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=${{ needs.prepare-release.outputs.tag_name }}" >> $GITHUB_ENV
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || 'stable' }}
+          fetch-depth: "1"
 
       - name: Send build start notification via Telegram
         if: env.TG_DISABLED == 'false'
@@ -197,13 +214,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: "stable"
-          fetch-depth: "1"
+          ref: ${{ github.event.inputs.branch || 'stable' }}
+          fetch-depth: "0"
+
+      - name: Debug checked out branch and commit
+        run: |
+          echo "Checked out branch:"
+          git branch -a
+          echo "HEAD SHA:"
+          git rev-parse HEAD
+          echo "Last commit:"
+          git log --oneline -1
 
       - name: Generate device matrix
         id: set-matrix
         run: |
-          if [[ "${{ github.event.inputs.teacup_only }}" == 'true' ]]; then
+          if [[ -n "${{ github.event.inputs.board_list }}" ]]; then
+            CONFIGS=$(echo "${{ github.event.inputs.board_list }}" | tr ',' '\n')
+          elif [[ "${{ github.event.inputs.teacup_only }}" == 'true' ]]; then
             CONFIGS=$(find configs/cameras/ -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|' | grep teacup)
           else
             CONFIGS=$(find configs/cameras/ -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|')
@@ -218,17 +246,17 @@ jobs:
 
   buildroot:
     name: ${{ matrix.thingino-version }}
-    needs: [generate-matrix, notify-begin]
+    needs: [generate-matrix, notify-begin, prepare-release]
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     outputs:
-      # Feed the hash of the commit we are building into the notify-completion release-notes step
       GIT_HASH: ${{ steps.env.outputs.git_hash }}
       TAG_NAME: ${{ steps.env.outputs.tag_name }}
     defaults:
       run:
         shell: bash
     container:
-      image: debian:bookworm
+      image: debian:trixie
     strategy:
       fail-fast: false
       matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
@@ -246,8 +274,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests 7zip build-essential bc cmake cpio curl ca-certificates file git gh make gawk jq p7zip-full procps rsync tzdata u-boot-tools unzip wget
-
+          apt-get install -y --no-install-recommends --no-install-suggests autoconf build-essential bc cmake cpio curl ca-certificates file git gh make gawk jq m4 p7zip-full perl procps python3 rsync tzdata u-boot-tools unzip wget
       - name: Set timezone
         run: |
           ln -sf /usr/share/zoneinfo/${{ env.TZ }} /etc/localtime
@@ -261,8 +288,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: 'true'
-          ref: "stable"
-          fetch-depth: "1"
+          ref: ${{ github.event.inputs.branch || 'stable' }}
+          fetch-depth: "0"
+
+      - name: Debug checked out branch and commit
+        run: |
+          echo "Checked out branch:"
+          git branch -a
+          echo "HEAD SHA:"
+          git rev-parse HEAD
+          echo "Last commit:"
+          git log --oneline -1
 
       - name: Configure environment variables
         id: env
@@ -270,13 +306,12 @@ jobs:
           echo "WEEK_NUMBER=$(date +%U)" >> $GITHUB_ENV
           echo "CURRENT_YEAR=$(date +%Y)" >> $GITHUB_ENV
           echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_ENV
-          echo "GIT_BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          echo "GIT_BRANCH=$(git branch --show-current)" >> $GITHUB_ENV
           echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
-          TAG_NAME="$TAG_NAME-$(TZ=UTC date +'%Y-%m-%d')"
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "TAG_NAME=${{ needs.prepare-release.outputs.tag_name }}" >> $GITHUB_ENV
 
           echo "GIT_HASH=$(git rev-parse --short ${GITHUB_SHA})" >> $GITHUB_OUTPUT
-          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=${{ needs.prepare-release.outputs.tag_name }}" >> $GITHUB_OUTPUT
 
       - name: Setup cache directories
         run: |
@@ -297,17 +332,11 @@ jobs:
         id: find_release
         run: |
           REPO="${{ github.repository }}"
-
-          # First try to find tag of the release with name "buildroot-dl-cache"
           RELEASE_TAG=$(gh release list --repo "$REPO" --json name,tagName | jq -r '.[] | select(.name=="buildroot-dl-cache") | .tagName' | sort -r | head -1 || echo "")
-
-          # If not found, try to find tag starting with "update_cache"
           if [ -z "$RELEASE_TAG" ]; then
             echo "Could not find release with name 'buildroot-dl-cache', trying tags starting with 'update_cache'"
             RELEASE_TAG=$(gh release list --repo "$REPO" --json tagName | jq -r '.[] | select(.tagName | startswith("update_cache")) | .tagName' | head -n 1 || echo "")
           fi
-
-          # If we found a release, mark as successful
           if [ -n "$RELEASE_TAG" ]; then
             echo "Found release with tag: $RELEASE_TAG"
             echo "release_tag=${RELEASE_TAG}" >> $GITHUB_OUTPUT
@@ -323,17 +352,12 @@ jobs:
         run: |
           REPO="${{ github.repository }}"
           RELEASE_TAG="${{ steps.find_release.outputs.release_tag }}"
-
-          # Create temporary directory for downloads
           mkdir -p /tmp/dl-cache
-
-          # Try to download all assets from the release
           echo "Downloading files from release with tag: $RELEASE_TAG"
-          set +e  # Turn off exit-on-error
+          set +e
           gh release download "$RELEASE_TAG" --repo "$REPO" --pattern "buildroot-dl-cache*" --dir "/tmp/dl-cache"
           DOWNLOAD_EXIT_CODE=$?
-          set -e  # Turn on exit-on-error again
-
+          set -e
           if [ $DOWNLOAD_EXIT_CODE -ne 0 ]; then
             echo "Warning: gh command exited with code $DOWNLOAD_EXIT_CODE."
             echo "download_succeeded=false" >> $GITHUB_OUTPUT
@@ -344,40 +368,38 @@ jobs:
             echo "Download successful!"
             echo "download_succeeded=true" >> $GITHUB_OUTPUT
           fi
-
-          # List downloaded files
           echo "Downloaded files:"
           ls -la /tmp/dl-cache/ || echo "No files found."
 
       - name: Extract buildroot-dl-cache
         if: steps.download_cache.outputs.download_succeeded == 'true'
         run: |
-          # If there are split ZIP files, we need to ensure they're processed correctly
           if ls /tmp/dl-cache/buildroot-dl-cache.zip.* &>/dev/null; then
-            # For split ZIP files, we need to extract from the first part
             echo "Extracting split ZIP files..."
             cd ~
             7z x /tmp/dl-cache/buildroot-dl-cache.zip.001 -y
           else
-            # For single ZIP file
             echo "Extracting single ZIP file..."
             cd ~
             7z x /tmp/dl-cache/buildroot-dl-cache.zip -y
           fi
-
-          # If files were extracted to a subdirectory called 'dl', move them up
           if [ -d ~/dl/dl ]; then
             echo "Moving files from ~/dl/dl to ~/dl"
             mv ~/dl/dl/* ~/dl/
             rm -rf ~/dl/dl
           fi
-
-          # Verify extraction
           echo "Verifying extraction:"
           ls -la ~/dl/
           echo "Number of files in ~/dl:"
           find ~/dl -type f | wc -l
           echo "DL cache restored successfully"
+
+      - name: Download buildroot sources if cache missing
+        if: steps.find_release.outputs.release_found != 'true' || steps.download_cache.outputs.download_succeeded != 'true'
+        run: |
+          echo "Buildroot DL cache not available, downloading sources..."
+          BOARD=${{ matrix.thingino-version }} make source WORKFLOW=1
+          echo "Source download completed"
 
       - name: Build firmware
         if: ${{ github.event.inputs.debug_enabled != 'true' }}
@@ -390,15 +412,15 @@ jobs:
         if: ${{ github.event.inputs.debug_enabled == 'true' }}
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
-          mkdir -p ${HOME}/output/${DYNAMIC_PART}/images/
-          echo "debug" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin
-          echo "debug uboot" > ${HOME}/output/${DYNAMIC_PART}/images/u-boot-lzo-with-spl.bin
-          echo "debug kernel" > ${HOME}/output/${DYNAMIC_PART}/images/uImage
-          echo "debug rootfs" > ${HOME}/output/${DYNAMIC_PART}/images/rootfs.squashfs
-          echo "debug rootfs" > ${HOME}/output/${DYNAMIC_PART}/images/rootfs.tar
-          echo "debug sha" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin.sha256sum
-          echo "debug" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin
-          echo "debug sha" > ${HOME}/output/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin.sha256sum
+          mkdir -p ${HOME}/output/stable/${DYNAMIC_PART}/images/
+          echo "debug" > ${HOME}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin
+          echo "debug uboot" > ${HOME}/output/stable/${DYNAMIC_PART}/images/u-boot-lzo-with-spl.bin
+          echo "debug kernel" > ${HOME}/output/stable/${DYNAMIC_PART}/images/uImage
+          echo "debug rootfs" > ${HOME}/output/stable/${DYNAMIC_PART}/images/rootfs.squashfs
+          echo "debug rootfs" > ${HOME}/output/stable/${DYNAMIC_PART}/images/rootfs.tar
+          echo "debug sha" > ${HOME}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin.sha256sum
+          echo "debug" > ${HOME}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin
+          echo "debug sha" > ${HOME}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin.sha256sum
           echo "TIME=7:77" >> ${GITHUB_ENV}
 
       - name: Generate build time graphs
@@ -410,13 +432,13 @@ jobs:
       - name: Validate compiled firmware artifacts
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
-          FW_PATH=${HOME}/output/${DYNAMIC_PART}/images/
-          FULL_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}.bin" ! -name "*update.bin" | head -n 1)
-          FULL_FW_UBOOT=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "u-boot-lzo-with-spl.bin" | head -n 1)
-          FULL_FW_KERNEL=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "uImage" | head -n 1)
-          FULL_FW_ROOTFS=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "rootfs.squashfs" | head -n 1)
-          FULL_FW_ROOTFS_TAR=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "rootfs.tar" | head -n 1)
-          UPDATE_FW=$(find ${HOME}/output/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}-update.bin" | head -n 1)
+          FW_PATH=${HOME}/output/stable/${DYNAMIC_PART}/images/
+          FULL_FW=$(find ${HOME}/output/stable/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}.bin" ! -name "*update.bin" | head -n 1)
+          FULL_FW_UBOOT=$(find ${HOME}/output/stable/${DYNAMIC_PART}*/images/ -name "u-boot-lzo-with-spl.bin" | head -n 1)
+          FULL_FW_KERNEL=$(find ${HOME}/output/stable/${DYNAMIC_PART}*/images/ -name "uImage" | head -n 1)
+          FULL_FW_ROOTFS=$(find ${HOME}/output/stable/${DYNAMIC_PART}*/images/ -name "rootfs.squashfs" | head -n 1)
+          FULL_FW_ROOTFS_TAR=$(find ${HOME}/output/stable/${DYNAMIC_PART}*/images/ -name "rootfs.tar" | head -n 1)
+          UPDATE_FW=$(find ${HOME}/output/stable/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}-update.bin" | head -n 1)
           echo "FULL_FW: $FULL_FW"
           if [[ -n "$FULL_FW" ]]; then
             echo "FW_PATH=${FW_PATH}" >> ${GITHUB_ENV}
@@ -439,7 +461,7 @@ jobs:
         with:
           name: ${{ matrix.thingino-version }}-build.hist-duration
           path: |
-            ~/output/${{ matrix.thingino-version }}/graphs/build.hist-duration.pdf
+            ~/output/stable/${{ matrix.thingino-version }}/graphs/build.hist-duration.pdf
 
       - name: Upload compiled firmware artifacts
         uses: actions/upload-artifact@v4
@@ -468,7 +490,7 @@ jobs:
 
       - name: Package binaries for notification
         run: |
-          7zz a -t7z -mx=9 -mmt=on /tmp/thingino-${{ matrix.thingino-version }}.7z ${{ env.FULL_FW }} ${{ env.FULL_FW_SHA }}
+          7z a -t7z -mx=9 -mmt=on /tmp/thingino-${{ matrix.thingino-version }}.7z ${{ env.FULL_FW }} ${{ env.FULL_FW_SHA }}
 
       - name: Send firmware completion notifications with attachment
         if: ${{ env.TG_DISABLED == 'false' && (env.FULL_FW) }}
@@ -490,8 +512,8 @@ jobs:
           fi
           .github/scripts/tg-notify.sh -s $TG_TOKEN $TG_CHANNEL $TG_TOPIC error $TAG_NAME "Github CI build failed!" ${{ github.run_id }} ${{ matrix.thingino-version }} ${{ github.repository }}
 
-  notify-completion:
-    needs: [buildroot, notify-begin, check-updates]
+  finalize-release:
+    needs: [buildroot, prepare-release, check-updates]
     runs-on: ubuntu-24.04
     if: always() && needs.check-updates.outputs.should_build == 'true'
     steps:
@@ -501,21 +523,20 @@ jobs:
 
       - name: Configure Environment
         run: |
-          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
           echo "GIT_HASH=${{ needs.buildroot.outputs.git_hash }}" >> $GITHUB_ENV
-          echo "TAG_NAME=${{ needs.buildroot.outputs.tag_name }}" >> $GITHUB_ENV
+          echo "TAG_NAME=${{ needs.prepare-release.outputs.tag_name }}" >> $GITHUB_ENV
 
       - name: Checkout repository source
         uses: actions/checkout@v4
         with:
           submodules: 'false'
-          ref: "stable"
+          ref: ${{ github.event.inputs.branch || 'stable' }}
 
       - name: Generate release notes
         id: release_notes
         run: |
+          GIT_HASH=$(git ls-remote origin "refs/heads/stable" | cut -f1 | cut -c1-7)
           LAST_RELEASE_TAG=$(gh release list --limit 2 --json tagName -q '.[1].tagName')
-
           if [ -z "$LAST_RELEASE_TAG" ]; then
             echo "No previous release found. Skipping release notes generation."
             echo "RELEASE_NOTES_FILE=$(pwd)/release_notes.md" >> $GITHUB_ENV
@@ -523,7 +544,6 @@ jobs:
           else
             echo "Latest release so far is $LAST_RELEASE_TAG"
           fi
-
           COMMITS=$(gh api \
             -H "Accept: application/vnd.github.v3+json" \
             /repos/${{ github.repository }}/compare/$LAST_RELEASE_TAG...$GIT_HASH \
@@ -537,7 +557,6 @@ jobs:
                     and (.commit.message | contains("Merge pull request #") | not)
                   )
                 | "\(.sha[0:7]) \(.commit.message | gsub("\n"; " "))"')
-
           if [ -z "$COMMITS" ]; then
             echo "### No changes, nightly rebuild" > release_notes.md
           else
@@ -560,20 +579,38 @@ jobs:
           echo "Attempting to fetch release URL for tag ${TAG_NAME}..."
           RELEASE_URL=$(gh release view ${{ env.TAG_NAME }} --json url -q ".url")
           echo "RELEASE_URL: $RELEASE_URL"
-
           if [[ -n "$RELEASE_URL" ]]; then
             echo "Release URL found, attempting to mark as latest..."
             if [[ -f "${{ env.RELEASE_NOTES_FILE }}" ]]; then
               echo "Release notes file exists, including --notes-file..."
-              gh release edit ${{ env.TAG_NAME }} --latest --prerelease=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
+              gh release edit ${{ env.TAG_NAME }} --latest --draft=false --prerelease=false --notes-file "${{ env.RELEASE_NOTES_FILE }}"
             else
               echo "Release notes file does not exist, skipping --notes-file..."
-              gh release edit ${{ env.TAG_NAME }} --latest --prerelease=false --notes ""
+              gh release edit ${{ env.TAG_NAME }} --latest --draft=false --prerelease=false --notes ""
             fi
             echo "Release marked as latest"
           else
             echo "Release not found, skipping latest release update"
           fi
+
+  notify-completion:
+    needs: [finalize-release, notify-begin]
+    runs-on: ubuntu-24.04
+    if: always() && needs.check-updates.outputs.should_build == 'true'
+    steps:
+      - name: Set timezone
+        run: |
+          sudo timedatectl set-timezone ${{ env.TZ }}
+
+      - name: Configure Environment
+        run: |
+          echo "TG_DISABLED=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_ENV
+
+      - name: Checkout repository source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || 'stable' }}
+          fetch-depth: "1"
 
       - name: Send notify completion summary
         if: ${{ env.TG_DISABLED == 'false' }}

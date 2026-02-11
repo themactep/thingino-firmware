@@ -79,7 +79,7 @@ jobs:
       run:
         shell: bash
     container:
-      image: debian:bookworm
+      image: debian:trixie
     strategy:
       fail-fast: false
       matrix:
