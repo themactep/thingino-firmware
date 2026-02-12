@@ -2,7 +2,7 @@
 
 json_get() {
 	local key="$1" value="$2"
-	jct /etc/thigino.json get "$key" 2>/dev/null || printf '%s' "$value"
+	jct /etc/thingino.json get "$key" 2>/dev/null || printf '%s' "$value"
 }
 
 DAEMON="syslogd"
@@ -29,6 +29,7 @@ start() {
 	echo_title "Starting syslogd"
 
 	rsyslog_enabled=$(json_get rsyslog.enabled "false")
+	rsyslog_host=$(json_get rsyslog.host "$rsyslog_host")
 	rsyslog_port=$(json_get rsyslog.port 514)
 	rsyslog_file=$(json_get rsyslog.file "false")
 	rsyslog_local=$(json_get rsyslog.local "$rsyslog_file")
