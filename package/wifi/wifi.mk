@@ -68,6 +68,13 @@ endif
 WLAN_MODULE := $(firstword $(WIFI_DRIVER_SELECTED))
 WIFI_INTERFACE := $(strip $(WIFI_DRIVER_INTERFACE_$(WLAN_MODULE)))
 
+WIFI_NETDEV = wlan0
+ifeq ($(BR2_PACKAGE_WIFI_HI3881),y)
+WIFI_NETDEV = ap0
+else ifeq ($(BR2_PACKAGE_WIFI_WQ9001),y)
+WIFI_NETDEV = wlan1
+endif
+
 ifeq ($(WIFI_INTERFACE),)
 $(error Thingino Wi-Fi driver '$(WLAN_MODULE)' is missing interface metadata)
 endif
@@ -95,7 +102,6 @@ WIFI_IS_FAMILY_HI_FLAG := $(if $(filter hi%,$(WLAN_MODULE)),1,0)
 WIFI_IS_FAMILY_MTK_FLAG := $(if $(filter mt7%,$(WLAN_MODULE)),1,0)
 WIFI_IS_FAMILY_RTL_FLAG := $(if $(filter rtl% 818% 87% 88%,$(WLAN_MODULE)),1,0)
 WIFI_IS_FAMILY_SSV_FLAG := $(if $(filter ssv%,$(WLAN_MODULE)),1,0)
-
 
 WIFI_SDIO_SET_GPIO_FLAG := 0
 WIFI_SDIO_RETURN_EARLY_FLAG := 0
@@ -140,28 +146,21 @@ endef
 
 define WIFI_INSTALL_TARGET_CMDS
 	$(INSTALL) -d $(TARGET_DIR)/etc/init.d
+
+	# Wireless service script
 	$(WIFI_TEMPLATE_PYTHON) $(WIFI_TEMPLATE_RENDERER) --template $(WIFI_PKGDIR)/files/S36wireless.in \
 		--output $(TARGET_DIR)/etc/init.d/S36wireless $(WIFI_TEMPLATE_VARS)
 	chmod 0755 $(TARGET_DIR)/etc/init.d/S36wireless
 
+	# WPA supplicant script
 	$(INSTALL) -D -m 0755 $(WIFI_PKGDIR)/files/S38wpa_supplicant \
 		$(TARGET_DIR)/etc/init.d/S38wpa_supplicant
 
-	$(INSTALL) -d $(TARGET_DIR)/usr/sbin
-	$(WIFI_TEMPLATE_PYTHON) $(WIFI_TEMPLATE_RENDERER) --template $(WIFI_PKGDIR)/files/wlan.in \
-		--output $(TARGET_DIR)/usr/sbin/wlan $(WIFI_TEMPLATE_VARS)
-	chmod 0755 $(TARGET_DIR)/usr/sbin/wlan
-
-	ln -sr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlancli
-	ln -sr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlaninfo
-	ln -sr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlanreset
-	ln -sr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlanrssi
-	ln -sr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlansetup
-	ln -sr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlantemp
-
+	# Network interface config
 	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/wlan0 \
 		$(TARGET_DIR)/etc/network/interfaces.d/wlan0
 
+	# MMC GPIO config
 	if [ "$(BR2_PACKAGE_THINGINO_KOPT_MMC1_PA_4BIT)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(WIFI_PKGDIR)/files/mmc_gpio_pa \
 			$(TARGET_DIR)/usr/sbin/mmc_gpio ; \
@@ -169,7 +168,54 @@ define WIFI_INSTALL_TARGET_CMDS
 		$(INSTALL) -D -m 0755 $(WIFI_PKGDIR)/files/mmc_gpio_pb \
 			$(TARGET_DIR)/usr/sbin/mmc_gpio ; \
 	fi
+
+	# CLI tool
+	$(INSTALL) -d $(TARGET_DIR)/usr/sbin
+	$(WIFI_TEMPLATE_PYTHON) $(WIFI_TEMPLATE_RENDERER) --template $(WIFI_PKGDIR)/files/wlan.in \
+		--output $(TARGET_DIR)/usr/sbin/wlan $(WIFI_TEMPLATE_VARS)
+	chmod 0755 $(TARGET_DIR)/usr/sbin/wlan
+
+	ln -sfr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlancli
+	ln -sfr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlaninfo
+	ln -sfr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlanreset
+	ln -sfr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlanrssi
+	ln -sfr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlansetup
+	ln -sfr $(TARGET_DIR)/usr/sbin/wlan $(TARGET_DIR)/usr/sbin/wlantemp
+
+	# Captive Portal
+	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/wpa_supplicant.conf \
+		$(TARGET_DIR)/etc/wpa_supplicant.conf
+	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/dnsd-portal.conf \
+		$(TARGET_DIR)/etc/dnsd-portal.conf
+	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/httpd-portal.conf \
+		$(TARGET_DIR)/etc/httpd-portal.conf
+	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/udhcpd-portal.conf \
+		$(TARGET_DIR)/etc/udhcpd-portal.conf
+	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/favicon.ico \
+		$(TARGET_DIR)/var/www-portal/favicon.ico
+	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/index.html \
+		$(TARGET_DIR)/var/www-portal/index.html
+	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/portal.min.js \
+		$(TARGET_DIR)/var/www-portal/portal.min.js
+	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/portal.min.css \
+		$(TARGET_DIR)/var/www-portal/portal.min.css
+	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/logo.svg \
+		$(TARGET_DIR)/var/www-portal/logo.svg
+	$(INSTALL) -D -m 0755 $(WIFI_PKGDIR)/files/portal.cgi \
+		$(TARGET_DIR)/var/www-portal/x/portal.cgi
+	$(INSTALL) -D -m 0755 $(WIFI_PKGDIR)/files/api.cgi \
+		$(TARGET_DIR)/var/www-portal/x/api.cgi
 endef
+
+# MT7601u wifi driver needs a PSK for the portal AP to function
+ifeq ($(BR2_PACKAGE_WIFI_MT7601U),y)
+define MODIFY_INSTALL_CONFIGS
+	sed -i '/key_mgmt/s/NONE/WPA-PSK/' $(TARGET_DIR)/etc/wpa_supplicant.conf
+	sed -i '/network={/a\      psk="thingino"' $(TARGET_DIR)/etc/wpa_supplicant.conf
+endef
+endif
+
+WIFI_POST_INSTALL_TARGET_HOOKS += MODIFY_INSTALL_CONFIGS
 
 $(eval $(generic-package))
 

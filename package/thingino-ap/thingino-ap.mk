@@ -16,8 +16,8 @@ define THINGINO_AP_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/resolv-ap.conf \
 		$(TARGET_DIR)/etc/resolv-ap.conf
 
-	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/wpa-ap.conf \
-		$(TARGET_DIR)/etc/wpa-ap.conf
+	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/wpa_supplicant-ap.conf \
+		$(TARGET_DIR)/etc/wpa_supplicant-ap.conf
 
 	$(INSTALL) -d $(TARGET_DIR)/etc/init.d
 	sed -e 's,@WLAN_AP_NETDEV@,$(THINGINO_AP_NETDEV),g' \
@@ -27,9 +27,6 @@ define THINGINO_AP_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -D -m 0755 $(THINGINO_AP_PKGDIR)/files/hosts-update \
 		$(TARGET_DIR)/usr/sbin/hosts-update
-
-#	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/_header.cgi \
-#		$(TARGET_DIR)/var/www/x/_header.cgi
 
 	$(INSTALL) -d $(TARGET_DIR)/var/www/a/fonts
 	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/bootstrap.min.css \

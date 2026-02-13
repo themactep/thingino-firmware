@@ -7,19 +7,34 @@ fi
 
 . /usr/share/common
 
-wlan_pass=$(jct /etc/thingino.json get wlan.pass 2>/dev/null || fw_printenv -n wlan_pass)
-wlan_ssid=$(jct /etc/thingino.json get wlan.ssid 2>/dev/null || fw_printenv -n wlan_ssid)
-wlan_enabled=$(jct /etc/thingino.json get wlan.enabled 2>/dev/null || fw_printenv -n wlan_enabled)
+wlan0_missing() {
+	! test -f /etc/network/interfaces.d/wlan0
+}
+
+wlan0_disabled() {
+	! grep -q '^auto wlan0' /etc/network/interfaces.d/wlan0 > /dev/null
+}
+
+wlan0_no_ssid() {
+	! grep -q 'ssid=' /etc/wpa_supplicant.conf > /dev/null
+}
+
+wlan0_no_pass() {
+	! grep -q 'psk=' /etc/wpa_supplicant.conf > /dev/null
+}
 
 # exit 1 to stop the interface from being brought up, and dhcp being attempted
-if [ -z "$wlan_ssid" ]; then
+if wlan0_missing; then
+	echo_error "WLAN interface not configured"
+	exit 1
+elif wlan0_disabled ; then
+	echo_error "WLAN manually disabled"
+	exit 1
+elif wlan0_no_ssid; then
 	echo_error "WLAN disabled, no SSID"
 	exit 1
-elif [ -z "$wlan_pass" ]; then
+elif wlan0_no_pass; then
 	echo_error "WLAN disabled, no password"
-	exit 1
-elif [ "$wlan_enabled" = "false" ]; then
-	echo_error "WLAN manually disabled."
 	exit 1
 fi
 

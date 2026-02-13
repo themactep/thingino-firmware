@@ -57,14 +57,9 @@ cli() {
 
 reset() {
 	local tmp_file=$(mktemp)
-	echo '{}' > $tmp_file
-	jct $tmp_file set wlan.ssid ""
-	jct $tmp_file set wlan.bssid ""
-	jct $tmp_file set wlan.pass ""
-	jct $tmp_file set wlan_ap.ssid ""
-	jct $tmp_file set wlan_ap.pass ""
-	jct /etc/thingino.json import $tmp_file
-	rm -f $tmp_file
+	remove /overlay/etc/wpa_supplicant.conf
+	remove /overlay/etc/wpa_supplicant-ap.conf
+	jct /etc/thingino.json set wlan_ap.enabled "false"
 }
 
 rssi() {
@@ -130,15 +125,18 @@ setup() {
 		[ ${#password} -ge 8 ] && [ ${#password} -le 64 ] && break
 		echo -c 160 "Passwords is not between 8 and 64 characters. Please try again."
 	done
+	echo "# created on $(date +%c)
+ctrl_interface=/run/wpa_supplicant
+update_config=1
+ap_scan=1
 
-	local psk=$(convert_psk "$ssid" "$password")
-	local temp_file=$(mktemp -u)
-	echo '{}' > $temp_file
-	jct $temp_file set wlan.ssid "$ssid"
-	jct $temp_file set wlan.pass "$psk"
-	jct $temp_file set wlan_ap.enabled "false"
-	jct /etc/thingino.json import $temp_file
-	rm -f $temp_file
+network={
+        ssid=\"$ssid\"
+        psk=\"$password\"
+        bgscan=\"simple:30:-70:3600\"
+}
+" > /etc/wpa_supplicant.conf
+	jct /etc/thingino.json set wlan_ap.enabled "false"
 
 	echo -c 40 -e "Wi-Fi settings updated. Please restart for changes to take effect.\n"
 }

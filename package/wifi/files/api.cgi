@@ -178,20 +178,29 @@ save_config() {
 	echo "$hostname" > /etc/hostname
 
 	# Update wlan settings
-	temp_file=$(mktemp -u)
-	echo '{}' > $temp_file
 	if [ "true" = "$wlanap_enabled" ]; then
+		temp_file=$(mktemp -u)
+		echo '{}' > $temp_file
 		wlanap_pass=$(convert_psk "$wlanap_ssid" "$wlanap_pass")
 		jct $temp_file set wlan_ap.ssid "$wlanap_ssid"
 		jct $temp_file set wlan_ap.pass "$wlanap_pass"
+		jct $temp_file set wlan_ap.enabled "$wlanap_enabled"
+		jct /etc/thingino.json import $temp_file
+		rm -f $temp_file
 	else
-		wlan_pass=$(convert_psk "$wlan_ssid" "$wlan_pass")
-		jct $temp_file set wlan.ssid "$wlan_ssid"
-		jct $temp_file set wlan.pass "$wlan_pass"
+		log="/tmp/wpa.log"
+		echo "# created on $(date +%c)
+ctrl_interface=/run/wpa_supplicant
+update_config=1
+ap_scan=1
+
+network={
+        ssid=\"$wlan_ssid\"
+        psk=\"$wlan_pass\"
+	bgscan=\"simple:30:-70:3600\"
+}
+" > /etc/wpa_supplicant.conf
 	fi
-	jct $temp_file set wlan_ap.enabled "$wlanap_enabled"
-	jct /etc/thingino.json import $temp_file
-	rm -f $temp_file
 
 	# Update timezone
 	echo "$timezone" > /etc/timezone

@@ -10,12 +10,20 @@ CONFIG_JSON="/etc/thingino.json"
 NETWORK_DIR="/etc/network/interfaces.d"
 REQ_FILE=""
 
+WEB_LOG="/tmp/web.log"
+
+log() {
+  echo "$1" >> $WEB_LOG
+}
+
 dns_primary=""
 dns_secondary=""
 
 [ -d "$NETWORK_DIR" ] || mkdir -p "$NETWORK_DIR"
 
 emit_json() {
+  log "emit_json()"
+
   local status="$1"
   shift
   [ -n "$status" ] && printf 'Status: %s\n' "$status"
@@ -30,6 +38,8 @@ EOF
 }
 
 json_escape() {
+  log "json_escape()"
+
   printf '%s' "$1" | sed \
     -e 's/\\/\\\\/g' \
     -e 's/"/\\"/g' \
@@ -38,17 +48,23 @@ json_escape() {
 }
 
 json_error() {
+  log "json_error()"
+
   local status=${1:-"400 Bad Request"} text="$2" code=${3:-error}
   emit_json "$status" "$(printf '{"error":{"code":"%s","message":"%s"}}' "$(json_escape "$code")" "$(json_escape "$text")")"
 }
 
 cleanup() {
+  log "cleanup()"
+
   [ -n "$REQ_FILE" ] && [ -f "$REQ_FILE" ] && rm -f "$REQ_FILE"
 }
 
 trap cleanup EXIT
 
 read_body() {
+  log "read_body()"
+
   REQ_FILE=$(mktemp /tmp/json-config-network.XXXXXX)
   if [ -n "$CONTENT_LENGTH" ]; then
     dd bs=1 count="$CONTENT_LENGTH" 2>/dev/null >"$REQ_FILE"
@@ -58,6 +74,8 @@ read_body() {
 }
 
 read_json_string() {
+  log "read_json_string()"
+
   local key="$1" value
   value=$(jct "$REQ_FILE" get "$key" 2>/dev/null)
   [ "$value" = "null" ] && value=""
@@ -65,6 +83,8 @@ read_json_string() {
 }
 
 read_json_bool() {
+  log "read_json_bool()"
+
   local key="$1" default_value="$2" value
   value=$(jct "$REQ_FILE" get "$key" 2>/dev/null)
   case "$value" in
@@ -74,10 +94,14 @@ read_json_bool() {
 }
 
 trim_value() {
+  log "trim_value()"
+
   printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
 ensure_config_file() {
+  log "ensure_config_file()"
+
   [ -f "$CONFIG_JSON" ] && return
   local old_umask
   old_umask=$(umask)
@@ -87,15 +111,21 @@ ensure_config_file() {
 }
 
 read_fw_env() {
+  log "read_fw_env()"
+
   command -v fw_printenv >/dev/null 2>&1 || return
   fw_printenv -n "$1" 2>/dev/null
 }
 
 iface_path() {
+  log "iface_path()"
+
   printf '%s/%s' "$NETWORK_DIR" "$1"
 }
 
 disable_iface() {
+  log "disable_iface()"
+
   local iface="$1" path
   path=$(iface_path "$iface")
   [ -f "$path" ] || return
@@ -103,6 +133,8 @@ disable_iface() {
 }
 
 iface_has_auto() {
+  log "iface_has_auto()"
+
   local iface="$1" path
   path=$(iface_path "$iface")
   [ -f "$path" ] || return 1
@@ -110,24 +142,34 @@ iface_has_auto() {
 }
 
 hostname_in_etc() {
+  log "hostname_in_etc()"
+
   [ -f /etc/hostname ] || return
   cat /etc/hostname
 }
 
 iface_broadcast() {
+  log "iface_broadcast()"
+
   [ -d "/sys/class/net/$1" ] || return
   ifconfig "$1" 2>/dev/null | sed -En 's/.*Bcast:([0-9\.]+).*/\1/p'
 }
 
 iface_gateway() {
+  log "iface_gateway()"
+
   ip route show | awk -v dev="$1" '$0 ~ dev && /via/ {print $3; exit}'
 }
 
 iface_ip_actual() {
+  log "iface_ip_actual()"
+
   ip route show | sed -nE "/$1/s/.+src ([0-9\.]+).+/\1/p" | head -n1
 }
 
 iface_ip_in_etc() {
+  log "iface_ip_in_etc()"
+
   local path
   path=$(iface_path "$1")
   [ -f "$path" ] || return
@@ -135,6 +177,8 @@ iface_ip_in_etc() {
 }
 
 iface_ipv6() {
+  log "iface_ipv6()"
+
   local path
   path=$(iface_path "$1")
   [ -f "$path" ] || return
@@ -142,11 +186,15 @@ iface_ipv6() {
 }
 
 iface_mac() {
+  log "iface_mac()"
+
   [ -f "/sys/class/net/$1/address" ] || return
   cat "/sys/class/net/$1/address"
 }
 
 iface_netmask() {
+  log "iface_netmask()"
+
   local from_cfg path
   path=$(iface_path "$1")
   if [ -f "$path" ]; then
@@ -161,6 +209,8 @@ iface_netmask() {
 }
 
 iface_up() {
+  log "iface_up()"
+
   local carrier="/sys/class/net/$1/carrier"
   if [ -f "$carrier" ]; then
     [ "$(cat "$carrier" 2>/dev/null)" -eq 1 ] && echo "true" && return
@@ -173,6 +223,8 @@ iface_up() {
 }
 
 is_iface_dhcp() {
+  log "is_iface_dhcp()"
+
   local path mode
   path=$(iface_path "$1")
   [ -f "$path" ] || return 1
@@ -181,6 +233,8 @@ is_iface_dhcp() {
 }
 
 setup_dns() {
+  log "setup_dns()"
+
   local primary="$1" secondary="$2"
   [ -d "/etc/default" ] || mkdir -p /etc/default
   {
@@ -192,6 +246,8 @@ setup_dns() {
 }
 
 setup_iface() {
+  log "setup_iface()"
+
   local interface=$1
   local mode=${2:-dhcp}
   local address=$3
@@ -216,6 +272,8 @@ setup_iface() {
 }
 
 normalize_mac() {
+  log "normalize_mac()"
+
   local value="$1"
   value=$(printf '%s' "$value" | tr -d '[:space:]')
   [ -n "$value" ] || return
@@ -225,15 +283,14 @@ normalize_mac() {
 }
 
 valid_mac() {
+  log "valid_mac()"
+
   printf '%s' "$1" | grep -qE '^([0-9A-F]{2}:){5}[0-9A-F]{2}$'
 }
 
-safe_fw_setenv() {
-  command -v fw_setenv >/dev/null 2>&1 || return
-  fw_setenv "$@" >/dev/null 2>&1 || true
-}
-
 mac_json_key() {
+  log "mac_json_key()"
+
   case "$1" in
     eth0) echo "eth.mac" ;;
     wlan0) echo "wlan.mac" ;;
@@ -242,6 +299,8 @@ mac_json_key() {
 }
 
 mac_env_key() {
+  log "mac_env_key()"
+
   case "$1" in
     eth0) echo "ethaddr" ;;
     wlan0) echo "wlan_mac" ;;
@@ -250,6 +309,8 @@ mac_env_key() {
 }
 
 read_known_mac() {
+  log "read_known_mac()"
+
   local iface="$1" value
   value=$(iface_mac "$iface")
   [ -n "$value" ] || value=$(jct "$CONFIG_JSON" get "$(mac_json_key "$iface")" 2>/dev/null)
@@ -258,9 +319,12 @@ read_known_mac() {
 }
 
 read_dns_servers() {
+  log "read_dns_servers()"
+
   dns_primary=""
   dns_secondary=""
-  for file in /etc/resolv.conf /etc/default/resolv.conf; do
+  # /etc/default/resolv.conf
+  for file in /etc/resolv.conf; do
     [ -f "$file" ] || continue
     while IFS= read -r ns; do
       [ -n "$ns" ] || continue
@@ -280,6 +344,8 @@ EOF
 }
 
 interface_state_json() {
+  log "interface_state_json()"
+
   local iface="$1" enabled="false" link="false" dhcp="true" ipv6="false"
   local address netmask gateway broadcast mac
 
@@ -310,6 +376,8 @@ interface_state_json() {
 }
 
 send_state() {
+  log "send_state()"
+
   ensure_config_file
 
   local hostname_value
@@ -319,13 +387,13 @@ send_state() {
 
   local wifi_ssid wifi_bssid wifi_pass wifi_ap_enabled wifi_ap_ssid wifi_ap_pass
 
-        wifi_ssid=$(jct "$CONFIG_JSON" get wlan.ssid       2>/dev/null || read_fw_env wlan_ssid)
-       wifi_bssid=$(jct "$CONFIG_JSON" get wlan.bssid      2>/dev/null || read_fw_env wlan_bssid)
-        wifi_pass=$(jct "$CONFIG_JSON" get wlan.pass       2>/dev/null || read_fw_env wlan_pass)
+  wifi_ssid="$(awk -F'"' '/ ssid=/{print $2}' /etc/wpa_supplicant.conf)"
+  wifi_bssid="$(awk -F'=' '/bssid=/{print $2}' /etc/wpa_supplicant.conf)"
+  wifi_pass="$(awk -F'"' '/psk=/{print $2}' /etc/wpa_supplicant.conf)"
 
-  wifi_ap_enabled=$(jct "$CONFIG_JSON" get wlan_ap.enabled 2>/dev/null || read_fw_env wlanap_enabled)
-     wifi_ap_ssid=$(jct "$CONFIG_JSON" get wlan_ap.ssid    2>/dev/null || read_fw_env wlanap_ssid)
-     wifi_ap_pass=$(jct "$CONFIG_JSON" get wlan_ap.pass    2>/dev/null || read_fw_env wlanap_pass)
+  wifi_ap_ssid="$(awk -F'"' '/ssid=/{print $2}' /etc/wpa_supplicant-ap.conf)"
+  wifi_ap_pass="$(awk -F'"' '/psk=/{print $2}' /etc/wpa_supplicant-ap.conf)"
+  wifi_ap_enabled=$(jct "$CONFIG_JSON" get wlan_ap.enabled 2>/dev/null)
 
   [ "$wifi_ap_enabled" = "true" ] || [ "$wifi_ap_enabled" = "false" ] || wifi_ap_enabled="false"
 
@@ -356,6 +424,8 @@ send_state() {
 }
 
 ensure_hostname() {
+  log "ensure_hostname()"
+
   local host="$1" bad
   [ -n "$host" ] || json_error "400 Bad Request" "Hostname cannot be empty" "missing_hostname"
   printf '%s' "$host" | grep -q '[[:space:]]' && json_error "400 Bad Request" "Hostname cannot contain spaces" "invalid_hostname"
@@ -364,6 +434,8 @@ ensure_hostname() {
 }
 
 ensure_dns() {
+  log "ensure_dns()"
+
   dns_primary=$(trim_value "$1")
   dns_secondary=$(trim_value "$2")
   [ -n "$dns_primary" ] || dns_primary="$dns_secondary"
@@ -371,6 +443,8 @@ ensure_dns() {
 }
 
 assign_iface_state() {
+  log "assign_iface_state()"
+
   local iface="$1" enabled="$2" dhcp="$3" ipv6="$4" address="$5" netmask="$6" gateway="$7" broadcast="$8" mac="$9" mode="${10}"
   case "$iface" in
     eth0)
@@ -410,6 +484,8 @@ assign_iface_state() {
 }
 
 process_interface_input() {
+  log "process_interface_input()"
+
   local iface="$1" prefix="interfaces.$1" enabled dhcp ipv6 address netmask gateway broadcast mac mode=""
   enabled=$(read_json_bool "$prefix.enabled" "true")
   dhcp=$(read_json_bool "$prefix.dhcp" "true")
@@ -419,6 +495,7 @@ process_interface_input() {
   gateway=$(trim_value "$(read_json_string "$prefix.gateway")")
   broadcast=$(trim_value "$(read_json_string "$prefix.broadcast")")
   mac=$(trim_value "$(read_json_string "$prefix.mac")")
+
   [ -n "$mac" ] && mac=$(normalize_mac "$mac")
 
   if [ "$enabled" = "true" ]; then
@@ -437,60 +514,69 @@ process_interface_input() {
 }
 
 setup_wireless_network() {
-  local ssid="$1" bssid="$2" pass="$3" temp_file psk pass_plain=""
-  if printf '%s' "$pass" | grep -qE '^[0-9A-Fa-f]{64}$'; then
-    pass_plain=""
-  else
-    pass_plain="$pass"
-  fi
-  psk=$(convert_psk "$ssid" "$pass")
-  temp_file=$(mktemp /tmp/wlan-config.XXXXXX)
-  echo '{}' > "$temp_file"
-  jct "$temp_file" set wlan.ssid "$ssid"
-  jct "$temp_file" set wlan.bssid "$bssid"
-  jct "$temp_file" set wlan.pass "$psk"
-  [ -n "$pass_plain" ] && jct "$temp_file" set wlan.pass_plain "$pass_plain"
-  jct "$CONFIG_JSON" import "$temp_file"
-  rm -f "$temp_file"
+  log "setup_wireless_network()"
 
-  temp_file=$(mktemp /tmp/wlan-env.XXXXXX)
-  {
-    [ -n "$ssid" ] && echo "wlan_ssid $ssid"
-    [ -n "$bssid" ] && echo "wlan_bssid $bssid"
-    [ -n "$psk" ] && echo "wlan_pass $psk"
-  } > "$temp_file"
-  safe_fw_setenv -s "$temp_file"
-  rm -f "$temp_file"
+  local ssid="$1" bssid="$2" pass="$3" ssid_line="" pass_line=""
+  if [ -n "$bssid" ]; then
+    ssid_line="bssid=\"$bssid\""
+  else
+    ssid_line="ssid=\"$ssid\""
+  fi
+
+  if printf '%s' "$pass" | grep -qE '^[0-9A-Fa-f]{64}$'; then
+    pass_line="psk=${pass}"
+  else
+    pass_line="psk=\"$pass\""
+  fi
+
+  # create wpa_supplicant.conf
+  echo "# created on $(date +%c)
+ctrl_interface=/run/wpa_supplicant
+update_config=1
+ap_scan=1
+
+network={
+        ${ssid_line}
+        ${pass_line}
+        bgscan=\"simple:30:-70:3600\"
+}
+" > /etc/wpa_supplicant.conf
 }
 
 update_wifi_ap_settings() {
-  local ssid="$1" pass="$2" enabled="$3" temp_file psk pass_plain=""
-  if [ -n "$ssid$pass" ]; then
-    if [ -n "$pass" ] && printf '%s' "$pass" | grep -qE '^[0-9A-Fa-f]{64}$'; then
-      psk=$(printf '%s' "$pass" | tr '[:lower:]' '[:upper:]')
-    else
-      psk=$(convert_psk "$ssid" "$pass")
-      pass_plain="$pass"
-    fi
+  log "update_wifi_ap_settings()"
+
+  local ssid="$1" pass="$2" enabled="$3" pass_line=""
+
+  if printf '%s' "$pass" | grep -qE '^[0-9A-Fa-f]{64}$'; then
+    pass_line="psk=${pass}"
+  else
+    pass_line="psk=\"$pass\""
   fi
 
-  temp_file=$(mktemp /tmp/wlan-ap.XXXXXX)
-  echo '{}' > "$temp_file"
+  # create wpa_supplicant.conf
+  echo "# created on $(date +%c)
+ctrl_interface=/run/wpa_supplicant
+update_config=1
+ap_scan=2
+
+network={
+        ssid=\"$ssid\"
+        mode=2
+        frequency=2412
+        key_mgmt=WPA-PSK
+        proto=RSN
+        pairwise=CCMP
+        group=CCMP
+        ${pass_line}
+}
+" > /etc/wpa_supplicant-ap.conf
   jct "$temp_file" set wlan_ap.enabled "$enabled"
-  jct "$temp_file" set wlan_ap.ssid "$ssid"
-  if [ -n "$psk" ]; then
-    jct "$temp_file" set wlan_ap.pass "$psk"
-    [ -n "$pass_plain" ] && jct "$temp_file" set wlan_ap.pass_plain "$pass_plain"
-  fi
-  jct "$CONFIG_JSON" import "$temp_file"
-  rm -f "$temp_file"
-
-  safe_fw_setenv wlanap_enabled "$enabled"
-  [ -n "$ssid" ] && safe_fw_setenv wlanap_ssid "$ssid"
-  [ -n "$psk" ] && safe_fw_setenv wlanap_pass "$psk"
 }
 
 update_hostname_files() {
+  log "update_hostname_files()"
+
   local host="$1"
   [ "$host" = "$(hostname_in_etc)" ] || echo "$host" >/etc/hostname
   if grep -q '^127.0.1.1' /etc/hosts; then
@@ -502,6 +588,8 @@ update_hostname_files() {
 }
 
 apply_interface_settings() {
+  log "apply_interface_settings()"
+
   local iface="$1" enabled="$2" mode="$3" address="$4" netmask="$5" gateway="$6" broadcast="$7" ipv6="$8" mac="$9"
   [ -n "$mode" ] || mode="dhcp"
   [ -n "$ipv6" ] || ipv6="false"
@@ -510,13 +598,12 @@ apply_interface_settings() {
   json_key=$(mac_json_key "$iface")
   env_key=$(mac_env_key "$iface")
   [ -n "$json_key" ] && jct "$CONFIG_JSON" set "$json_key" "$mac"
-  if [ -n "$env_key" ] && [ -n "$mac" ]; then
-    safe_fw_setenv "$env_key" "$mac"
-  fi
   [ "$enabled" = "true" ] || disable_iface "$iface"
 }
 
 handle_post() {
+  log "handle_post()"
+
   ensure_config_file
   read_body
 
@@ -567,8 +654,8 @@ handle_post() {
 
   update_wifi_ap_settings "$wifi_ap_ssid" "$wifi_ap_pass" "$wifi_ap_enabled"
 
-  refresh_env_dump
-  command -v update_caminfo >/dev/null 2>&1 && update_caminfo
+#  refresh_env_dump
+#  command -v update_caminfo >/dev/null 2>&1 && update_caminfo
 
   emit_json "" '{"status":"ok"}'
 }
