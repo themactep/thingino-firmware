@@ -1,5 +1,10 @@
 #!/bin/sh
 
+if [ "true" = "$(jct /etc/thingino.json get dhcp.ignore_timezone 2>/dev/null)" ]; then
+	echo "Ignore DHCP timezone settings"
+	exit 0
+fi
+
 setup_timezone_from_dhcp() {
 	echo "Use DHCP provided timezone: $tzdbstr"
 
