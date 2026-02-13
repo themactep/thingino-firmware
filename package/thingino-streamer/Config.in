@@ -10,6 +10,8 @@ config BR2_PACKAGE_THINGINO_STREAMER
 
 	  https://github.com/themactep/thingino-streamer
 
+if BR2_PACKAGE_THINGINO_STREAMER
+
 config BR2_PACKAGE_THINGINO_STREAMER_AUDIO
 	bool "Audio module support"
 	depends on BR2_PACKAGE_THINGINO_STREAMER
@@ -25,7 +27,7 @@ config BR2_PACKAGE_THINGINO_STREAMER_AUDIO_CODECS
 	bool "Audio codecs support"
 	depends on BR2_PACKAGE_THINGINO_STREAMER
 	depends on BR2_PACKAGE_FAAC
-	depends on BR2_PACKAGE_THINGINO_OPUS
+	depends on BR2_PACKAGE_OPUS
 	depends on BR2_PACKAGE_LIBHELIX_AAC
 	help
 	  Enable additional audio codecs for Thingino Streamer audio module.
@@ -244,3 +246,6 @@ config BR2_PACKAGE_THINGINO_STREAMER_WEBRTC
 
 comment "WebRTC support needs a toolchain w/ threads, dynamic library"
 	depends on BR2_PACKAGE_THINGINO_STREAMER && (!BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS)
+
+endif
+
