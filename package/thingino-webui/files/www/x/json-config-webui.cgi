@@ -138,7 +138,7 @@ handle_post() {
 
   if [ -n "$new_password" ]; then
     if command -v chpasswd >/dev/null 2>&1; then
-      echo "root:$new_password" | chpasswd -c sha512 >/dev/null 2>&1 || json_error 500 "Failed to update password" "500 Internal Server Error"
+      printf '%s:%s\n' "root" "$new_password" | chpasswd -c sha512 >/dev/null 2>&1 || json_error 500 "Failed to update password" "500 Internal Server Error"
 
       # Update session to mark password as no longer default
       if [ -n "$SESSION_ID" ]; then

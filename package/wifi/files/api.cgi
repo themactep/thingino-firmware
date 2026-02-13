@@ -4,7 +4,7 @@
 
 parse_query() {
 	while IFS='=' read -r key value; do
-		value=$(echo "$value" | sed 's/+/ /g; s/%\([0-9A-F][0-9A-F]\)/\\x\1/g' | xargs -0 printf "%b")
+		value=$(printf '%b' "$(echo "$value" | sed 's/+/ /g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')")
 		eval "PARAM_$key=\"\$value\""
 		export "PARAM_$key"
 	done <<-QUERY
@@ -13,7 +13,7 @@ parse_query() {
 }
 
 urldecode() {
-	echo "$1" | sed 's/+/ /g; s/%\([0-9A-F][0-9A-F]\)/\\x\1/g' | xargs -0 printf "%b"
+	printf '%b' "$(echo "$1" | sed 's/+/ /g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')"
 }
 
 json_encode() {
@@ -206,7 +206,7 @@ network={
 	echo "$timezone" > /etc/timezone
 
 	# Update root password
-	echo "root:$rootpass" | chpasswd -c sha512
+	printf '%s:%s\n' "root" "$rootpass" | chpasswd -c sha512
 
 	# Update SSH key if provided
 	if [ -n "$rootpkey" ]; then

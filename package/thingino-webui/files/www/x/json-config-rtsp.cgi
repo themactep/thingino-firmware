@@ -94,7 +94,7 @@ update_password() {
   [ -n "$username" ] || username="thingino"
 
   if command -v chpasswd >/dev/null 2>&1; then
-    echo "$username:$new_password" | chpasswd -c sha512 >/dev/null 2>&1 || true
+    printf '%s:%s\n' "$username" "$new_password" | chpasswd -c sha512 >/dev/null 2>&1 || true
   fi
 
   if command -v service >/dev/null 2>&1; then

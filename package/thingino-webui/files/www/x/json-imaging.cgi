@@ -52,8 +52,7 @@ IMAGING_FIFO="/run/prudynt/imagingctl"
 FIELDS="brightness contrast saturation sharpness backlight wide_dynamic_range tone defog noise_reduction"
 
 urldecode() {
-  local i="${*//+/ }"
-  echo -e "${i//%/\\x}"
+  printf '%b' "$(echo "$1" | sed 's/+/ /g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')"
 }
 
 is_number() {
