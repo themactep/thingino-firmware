@@ -49,15 +49,15 @@
                   <input type="text" id="tz_data" name="tz_data" class="form-control" readonly>
                   <span class="hint text-secondary">Control string of the time zone selected above.</span>
                 </p>
+                <p class="form-switch">
+                  <input type="hidden" id="dhcp_ignore_timezone-false" name="dhcp_ignore_timezone" value="false">
+                  <input type="checkbox" id="dhcp_ignore_timezone" name="dhcp_ignore_timezone" value="true" role="switch" class="form-check-input">
+                  <label for="dhcp_ignore_timezone" class="form-check-label">Ignore time zone sent by DHCP</label>
+                </p>
               </div>
               <div class="col">
                 <h4>Time Synchronization</h4>
                 <small>NTP servers to syncronize time with</small>
-                <p class="form-switch">
-                  <input type="hidden" id="dhcp_ignore_timezone-false" name="dhcp_ignore_timezone" value="false">
-                  <input type="checkbox" id="dhcp_ignore_timezone" name="dhcp_ignore_timezone" value="true" role="switch" class="form-check-input">
-                  <label for="dhcp_ignore_timezone" class="form-check-label">Ignore DHCP timezone</label>
-                </p>
                 <p>
                   <label for="ntp_server_0">NTP Server 1</label>
                   <input type="text" id="ntp_server_0" name="ntp_server_0" class="form-control">

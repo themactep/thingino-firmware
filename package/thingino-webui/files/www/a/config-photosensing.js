@@ -246,9 +246,6 @@
         });
       }
     });
-
-    // All fields (params, controls, schedule) are NOT auto-saved
-    // Only save when "Save configuration to file" button is clicked
   }
 
   if (reloadButton) {
@@ -275,16 +272,12 @@
       // Stop the default handler from streamer-config.js
       e.stopImmediatePropagation();
       e.preventDefault();
-      
-      // Show confirmation dialog
-      const confirmed = await confirm('Save the current configuration to /etc/prudynt.json?\n\nThis will overwrite the saved configuration file on the camera.');
-      if (!confirmed) return;
-      
+
       saveButton.disabled = true;
-      
+
       try {
         const daynight = {};
-        
+
         // Collect all daynight parameters (enabled, thresholds)
         dayNightParams.forEach(param => {
           const el = $('#daynight_' + param);
@@ -297,7 +290,7 @@
             }
           }
         });
-        
+
         // Collect schedule values
         const schedule = {};
         dayNightScheduleParams.forEach(param => {
@@ -310,7 +303,7 @@
             }
           }
         });
-        
+
         // Collect controls values
         const controls = {};
         dayNightControls.forEach(control => {
@@ -319,28 +312,28 @@
             controls[control] = el.checked;
           }
         });
-        
+
         // Build payload - just the config changes, no action needed
         daynight.schedule = schedule;
         daynight.controls = controls;
         const payload = { daynight };
-        
+
         // Save directly to config file using jct
         const response = await fetch('/x/json-prudynt-save.cgi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        
+
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        
+
         const data = await response.json();
         if (data.error) {
           throw new Error(data.error);
         }
-        
+
         showAlert('success', data.message || 'Configuration saved successfully to /etc/prudynt.json', 3000);
       } catch (err) {
         console.error('Failed to save prudynt config:', err);
