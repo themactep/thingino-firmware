@@ -30,16 +30,12 @@
         <!-- Motion Detection Card -->
         <div class="col-12 col-lg-6">
           <div class="card h-100">
-            <div class="card-header">
-              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                <span>Motion Detection</span>
-                <div class="form-switch m-0">
-                  <input class="form-check-input" type="checkbox" id="motion_enabled">
-                  <label class="form-check-label" for="motion_enabled">Start on boot</label>
-                </div>
-              </div>
-            </div>
+            <div class="card-header">Motion Detection</div>
             <div class="card-body">
+              <p class="form-switch">
+                <input class="form-check-input me-2" type="checkbox" id="motion_enabled">
+                <label class="form-check-label" for="motion_enabled">Start motion detection on boot</label>
+              </p>
               <p>
                 <label for="motion_sensitivity">Sensitivity: <span id="motion_sensitivity_value"></span></label>
                 <input type="range" class="form-range" id="motion_sensitivity" min="1" max="8" step="1">
@@ -48,11 +44,9 @@
                 <label for="motion_cooldown">Cooldown: <span id="motion_cooldown_value"></span> seconds</label>
                 <input type="range" class="form-range" id="motion_cooldown" min="1" max="60" step="1">
               </p>
-              <div class="text-end">
-                <button type="button" class="btn btn-primary" id="save_motion">
-                  <i class="bi bi-check-circle"></i> Save Motion Settings
-                </button>
-              </div>
+	      <button type="button" class="btn btn-primary" id="save_motion">
+                <i class="bi bi-check-circle"></i> Save Motion Settings
+              </button>
             </div>
           </div>
         </div>
