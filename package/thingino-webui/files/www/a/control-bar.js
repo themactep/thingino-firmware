@@ -468,13 +468,8 @@
       { type: 'button', id: 'ir940', icon: 'bi bi-lightbulb', label: 'IR LED 940 nm', title: 'IR LED 940 nm' },
       { type: 'button', id: 'white', icon: 'bi bi-lightbulb', label: 'White LED', title: 'White LED' },
       { type: 'divider' },
-      {
-        type: 'link',
-        href: '/tool-sensor-data.html',
-        icon: 'bi bi-graph-up',
-        label: 'Sensor Data Collector',
-        title: 'Sensor Data Collector'
-      }
+      { type: 'link', href: '/config-photosensing.html', icon: 'bi bi-gear', label: 'Photosensing Config', title: 'Photosensing Config' },
+      { type: 'link', href: '/tool-sensor-data.html', icon: 'bi bi-graph-up', label: 'Sensor Data Collector', title: 'Sensor Data Collector' }
     ];
 
     items.forEach(item => {
