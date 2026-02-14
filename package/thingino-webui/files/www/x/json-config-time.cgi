@@ -50,9 +50,14 @@ read_config() {
   ntp_server_1=""
   ntp_server_2=""
   ntp_server_3=""
+  dhcp_ignore_timezone=""
 
   [ -f /etc/timezone ] && tz_name="$(cat /etc/timezone)"
   [ -f /etc/TZ ] && tz_data="$(cat /etc/TZ)"
+
+  if [ -f "$CONFIG_FILE" ]; then
+    dhcp_ignore_timezone=$(jct "$CONFIG_FILE" get dhcp.ignore_timezone 2>/dev/null)
+  fi
 
   if [ -f "$NTP_WORKING_FILE" ]; then
     ntp_server_0="$(sed -n 1p $NTP_WORKING_FILE | cut -d' ' -f2)"
@@ -69,6 +74,10 @@ write_config() {
 
   if [ -n "$tz_name" ]; then
     echo "$tz_name" > /etc/timezone
+  fi
+
+  if [ -n "$dhcp_ignore_timezone" ]; then
+    jct "$CONFIG_FILE" set dhcp.ignore_timezone "$dhcp_ignore_timezone"
   fi
 
   tmp_file=$(mktemp)
@@ -108,7 +117,8 @@ handle_get() {
   "ntp_server_0": "$(json_escape "$ntp_server_0")",
   "ntp_server_1": "$(json_escape "$ntp_server_1")",
   "ntp_server_2": "$(json_escape "$ntp_server_2")",
-  "ntp_server_3": "$(json_escape "$ntp_server_3")"
+  "ntp_server_3": "$(json_escape "$ntp_server_3")",
+  "dhcp_ignore_timezone": "$(json_escape "$dhcp_ignore_timezone")"
 }
 EOF
 }
@@ -148,6 +158,7 @@ handle_post() {
       ntp_server_1=$(jct "$REQ_FILE" get ntp_server_1 2>/dev/null)
       ntp_server_2=$(jct "$REQ_FILE" get ntp_server_2 2>/dev/null)
       ntp_server_3=$(jct "$REQ_FILE" get ntp_server_3 2>/dev/null)
+      dhcp_ignore_timezone=$(jct "$REQ_FILE" get dhcp_ignore_timezone 2>/dev/null)
 
       if [ -z "$tz_name" ]; then
         json_error 422 "Timezone name cannot be empty" "422 Unprocessable Entity"
