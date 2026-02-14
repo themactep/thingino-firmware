@@ -47,6 +47,11 @@
       "ir850": true,
       "ir940": true,
       "white": false
+    },
+    "schedule": {
+      "enabled": false,
+      "start_at": "",
+      "stop_at": ""
     }
   },
   "general": {
