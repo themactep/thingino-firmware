@@ -27,7 +27,9 @@ jobs:
             echo "Newer commit detected ($LATEST_SHA), skipping this run."
             exit 78
           fi
-
+      - name: Install mkimage tool
+        run: sudo apt-get update && sudo apt-get install -y u-boot-tools
+  
       - name: Build Tea Cup profile only
         run: |
           BOARD=teacup_t31x make fast WORKFLOW=1
