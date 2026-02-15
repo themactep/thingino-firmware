@@ -19,6 +19,7 @@ endif
 
 CONTAINER_RUN_OPTS := \
 	-v $(WORKSPACE_DIR):/home/$(USERNAME) \
+	-v $(shell readlink -f dl):/home/$(USERNAME)/dl \
 	-w /home/$(USERNAME) \
 	-e TERM=xterm-256color
 
