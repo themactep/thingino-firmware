@@ -1,0 +1,13 @@
+{
+  "gpio": {
+    "button_reset": 60,
+    "ir850": 19,
+    "ircut": "26 25",
+    "led_r": 20,
+    "mmc_cd": 59,
+    "scl": "13 58",
+    "sda": "12 57",
+    "speaker": 63,
+    "wlan": ""
+  }
+}
