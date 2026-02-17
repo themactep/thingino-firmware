@@ -56,7 +56,7 @@ build_payload() {
       "description_html": "Remove all <a href=\"/info-overlay.html\">files stored in the overlay partition</a>. Most customizations will be lost.",
       "cta": {
         "type": "link",
-        "href": "/firmware-reset.html?action=wipeoverlay",
+        "href": "/config-reset.html?action=wipeoverlay",
         "text": "Wipe overlay",
         "variant": "danger"
       }
@@ -67,7 +67,7 @@ build_payload() {
       "description_html": "Restore firmware to its factory state. All settings and overlay files will be removed.",
       "cta": {
         "type": "link",
-        "href": "/firmware-reset.html?action=fullreset",
+        "href": "/config-reset.html?action=fullreset",
         "text": "Reset firmware",
         "variant": "danger"
       }
