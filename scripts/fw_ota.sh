@@ -43,6 +43,9 @@ echo "SSH connection initialized."
 
 echo "Checking firmware compatibility..."
 REMOTE_IMAGE_ID=$(remote_run "grep '^IMAGE_ID=' /etc/os-release | cut -d'=' -f2" | tr -d '\n')
+REMOTE_IMAGE_ID="${REMOTE_IMAGE_ID%-3.10}"
+REMOTE_IMAGE_ID="${REMOTE_IMAGE_ID%-4.4}"
+
 # IMAGE_ID is derived from CAMERA variable which should be set by the Makefile
 LOCAL_IMAGE_ID="${CAMERA:-unknown}"
 
