@@ -123,6 +123,11 @@ endif
 U_BOOT_ENV_TXT = $(OUTPUT_DIR)/uenv.txt
 export U_BOOT_ENV_TXT
 
+FLASH_SIZE_KB  := $(shell echo $$(($(FLASH_SIZE_MB) * 1024)))
+FLASH_SIZE     := $(shell echo $$((($(FLASH_SIZE_KB) * 1024))))
+FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
+
+
 UB_ENV_BIN := $(OUTPUT_DIR)/images/u-boot-env.bin
 CONFIG_BIN := $(OUTPUT_DIR)/images/config.jffs2
 KERNEL_BIN := $(OUTPUT_DIR)/images/uImage
@@ -162,11 +167,10 @@ CONFIG_PARTITION_SIZE := $(SIZE_224K)
 KERNEL_PARTITION_SIZE = $(KERNEL_BIN_SIZE_ALIGNED)
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
 
-FIRMWARE_FULL_SIZE = $(shell echo $$((($(FLASH_SIZE_MB) * 1024 * 1024))))
-FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FIRMWARE_FULL_SIZE) - $(U_BOOT_PARTITION_SIZE) - $(UB_ENV_PARTITION_SIZE) - $(CONFIG_PARTITION_SIZE))))
+FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE) - $(UB_ENV_PARTITION_SIZE) - $(CONFIG_PARTITION_SIZE))))
 
 # dynamic partitions
-EXTRAS_PARTITION_SIZE = $(shell echo $$(($(FIRMWARE_FULL_SIZE) - $(EXTRAS_OFFSET))))
+EXTRAS_PARTITION_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(EXTRAS_OFFSET))))
 EXTRAS_LLIMIT := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
 
 # partition offsets
@@ -527,7 +531,7 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	@$(FIGLET) $(GIT_BRANCH)
 	@if [ "$(RELEASE)" -ne 1 ]; then $(FIGLET) "NON-SECURE"; fi
 	@if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(FIGLET) "EXTRAS PARTITION IS TOO SMALL"; fi
-	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FIRMWARE_FULL_SIZE) ]; then $(FIGLET) "OVERSIZE"; else $(FIGLET) "FINE"; fi
+	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(FIGLET) "OVERSIZE"; else $(FIGLET) "FINE"; fi
 	@date +%T
 	@echo "--------------------------------"
 	@echo "Full Image:"
@@ -784,7 +788,8 @@ info: defconfig
 	$(info ISP_CH0_PRE_DEQUEUE_INTERRUP_PROCESS: $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS))
 	$(info ISP_CH0_PRE_DEQUEUE_VALID_LINES: $(ISP_CH0_PRE_DEQUEUE_VALID_LINES))
 	$(info FLASH_SIZE_MB: $(FLASH_SIZE_MB))
-	$(info FIRMWARE_FULL_SIZE: $(FIRMWARE_FULL_SIZE))
+	$(info FLASH_SIZE_KB: $(FLASH_SIZE_KB))
+	$(info FLASH_SIZE: $(FLASH_SIZE))
 	$(info UBOOT_BOARDNAME: $(UBOOT_BOARDNAME))
 	$(info UBOOT_REPO: $(UBOOT_REPO))
 	$(info UBOOT_REPO_BRANCH: $(UBOOT_REPO_BRANCH))
