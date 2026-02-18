@@ -37,7 +37,8 @@ if [ -f "$memo_file" ]; then
 	if [ -n "$prev_camera" ] && [ -d "$cameras_dir/$prev_camera" ]; then
 		echo "" >&2
 		echo "Previously selected: $prev_camera" >&2
-		read -p "Use this camera? [Y/n]: " use_prev >&2
+		read -r -n 1 -s -p "Use this camera? [Y/n]: " use_prev >&2
+		echo "" >&2
 		if [ -z "$use_prev" ] || [ "$use_prev" = "y" ] || [ "$use_prev" = "Y" ]; then
 			selected_camera="$prev_camera"
 			echo "$selected_camera"
