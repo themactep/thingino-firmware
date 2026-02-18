@@ -79,8 +79,7 @@ scan_networks() {
 	fi
 
 	# Get scan results and format as JSON
-	echo "{"
-	echo "\"networks\": ["
+	echo "{\"networks\": ["
 
 	first=1
 	wpa_cli -i wlan0 scan_results 2>/dev/null | tail -n +2 | while IFS=$'\t' read -r bssid freq signal flags ssid; do
@@ -88,13 +87,14 @@ scan_networks() {
 		[ -z "$ssid" ] || [ "$ssid" = "ssid" ] && continue
 
 		# Determine security type
-		security="Open"
 		if echo "$flags" | grep -q "WPA2-PSK"; then
 			security="WPA2"
 		elif echo "$flags" | grep -q "WPA-PSK"; then
 			security="WPA"
 		elif echo "$flags" | grep -q "WEP"; then
 			security="WEP"
+		else
+			security="Open"
 		fi
 
 		# Output JSON without trailing commas
@@ -113,8 +113,7 @@ scan_networks() {
 		NETWORK
 	done
 
-	echo "]"
-	echo "}"
+	echo "]}"
 
 	# Clean up lock if we created it
 	[ $SHOULD_SCAN -eq 1 ] && rm -f "$SCAN_LOCK"
