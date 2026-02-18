@@ -25,12 +25,8 @@ endif
 IP ?= 192.168.1.10
 CAMERA_IP_ADDRESS := $(IP)
 
-# Device of SD card
-SDCARD_DEVICE ?= /dev/sdf
-
 # TFTP server IP address to upload compiled images to (leave empty to disable TFTP copy)
 TFTP_IP_ADDRESS ?=
-
 # TFTP server root directory for local server
 TFTP_ROOT ?= /srv/tftp
 
@@ -40,7 +36,7 @@ SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 
 # Buildroot downloads directory
 # can be reused from environment, just export the value:
-# export BR2_DL_DIR = /path/to/your/local/storage
+# export BR2_DL_DIR=/path/to/your/local/storage
 BR2_DL_DIR ?= $(BR2_EXTERNAL)/dl
 
 # repo data
@@ -79,9 +75,6 @@ HOST_DIR = $(OUTPUT_DIR)/host
 
 CONFIG_PARTITION_DIR = $(OUTPUT_DIR)/config
 export CONFIG_PARTITION_DIR
-
-STDOUT_LOG ?= $(OUTPUT_DIR)/compilation.log
-STDERR_LOG ?= $(OUTPUT_DIR)/compilation-errors.log
 
 # include thingino makefile only when board configuration is available
 ifeq ($(SKIP_BOARD_SELECTION),)
@@ -202,13 +195,15 @@ define edit_file
 endef
 
 # make command for buildroot
-BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot BR2_EXTERNAL=$(BR2_EXTERNAL) O=$(OUTPUT_DIR) BR2_DL_DIR=$(BR2_DL_DIR)
+BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot \
+	BR2_EXTERNAL=$(BR2_EXTERNAL) \
+	O=$(OUTPUT_DIR) \
+	BR2_DL_DIR=$(BR2_DL_DIR)
 
 .PHONY: all bootstrap build build_fast clean clean-nfs-debug cleanbuild defconfig distclean \
 	dev fast help info pack release remove_bins repack sdk toolchain update upboot-ota \
 	upload_tftp upgrade_ota br-% check-config force-config show-config-deps clean-config \
-	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs \
-	agent-info show-vars
+	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs show-vars
 
 # Default: fast parallel incremental build
 all: defconfig build_fast pack
@@ -262,15 +257,12 @@ build_fast: $(U_BOOT_ENV_TXT)
 
 ### Configuration
 
-FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(MODULE_CONFIG_REAL))
+FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(CAMERA_CONFIG_REAL))
 
 # Configuration dependency files
 CONFIG_DEPS_FILE = $(OUTPUT_DIR)/.config.deps
 CONFIG_FRAGMENT_FILES = $(addprefix configs/fragments/,$(addsuffix .fragment,$(FRAGMENTS)))
-CONFIG_INPUT_FILES = $(CONFIG_FRAGMENT_FILES) $(MODULE_CONFIG_REAL)
-ifneq ($(CAMERA_CONFIG_REAL),$(MODULE_CONFIG_REAL))
-CONFIG_INPUT_FILES += $(CAMERA_CONFIG_REAL)
-endif
+CONFIG_INPUT_FILES = $(CONFIG_FRAGMENT_FILES) $(CAMERA_CONFIG_REAL)
 ifeq ($(RELEASE),0)
 ifneq ($(wildcard $(BR2_EXTERNAL)/configs/local.fragment),)
 CONFIG_INPUT_FILES += $(BR2_EXTERNAL)/configs/local.fragment
@@ -315,19 +307,15 @@ force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.ke
 	$(info * remove existing .config file)
 	rm -rvf $(OUTPUT_DIR)/.config
 	# add fragments of a new config
-	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(MODULE_CONFIG_REAL))
+	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(CAMERA_CONFIG_REAL))
 	for i in $(FRAGMENTS); do \
 		echo "** add configs/fragments/$$i.fragment"; \
 		echo "# $$i.fragment" >> $(OUTPUT_DIR)/.config; \
 		sed 's/$$(BR2_HOSTARCH)/$(BR2_HOSTARCH)/g; s/$$(INGENIC_ARCH)/$(INGENIC_ARCH)/g' configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
 		echo >>$(OUTPUT_DIR)/.config; \
 	done
-	# add module configuration
-	cat $(MODULE_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
-ifneq ($(CAMERA_CONFIG_REAL),$(MODULE_CONFIG_REAL))
 	# add camera configuration
 	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
-endif
 	if [ $(RELEASE) -ne 1 ]; then \
 		if [ -f $(BR2_EXTERNAL)/configs/local.fragment ]; then \
 			cat $(BR2_EXTERNAL)/configs/local.fragment >>$(OUTPUT_DIR)/.config; \
@@ -499,7 +487,6 @@ clean: clean-nfs-debug
 	rm -f $(ROOTFS_BIN) $(ROOTFS_TAR) $(EXTRAS_BIN) $(CONFIG_BIN)
 #	$(UB_ENV_BIN) $(KERNEL_BIN)
 
-
 # remove all build files
 distclean: clean-nfs-debug
 	$(info -------------------------------- $@)
@@ -647,7 +634,8 @@ tftpd-logs:
 # download buildroot cache bundle from latest github release
 download-cache:
 	$(info -------------------------------- $@)
-	BR2_EXTERNAL=$(CURDIR) BR2_DL_DIR=$(BR2_DL_DIR) $(CURDIR)/scripts/dl_buildroot_cache.sh
+	BR2_EXTERNAL=$(CURDIR) BR2_DL_DIR=$(BR2_DL_DIR) \
+		$(CURDIR)/scripts/dl_buildroot_cache.sh
 
 ### Buildroot
 
@@ -827,7 +815,6 @@ help:
 	  make clean          clean before reassembly\n\
 	  make distclean      start building from scratch\n\
 	  make rebuild-<pkg>  perform a clean package rebuild for <pkg>\n\
-	  make agent-info     show rebuild conventions and key vars\n\
 	  make show-vars      print key build variables\n\
 	  make help           print this help\n\
 	  \n\
@@ -851,25 +838,6 @@ help:
 	                      upload full firmware image to the camera\n\
 	                        over network, and flash it\n\n\
 	"
-# Show conventions and quick project introspection for assistants/tools
-agent-info:
-	$(info -------------------------------- $@)
-	@echo "Conventions:";
-	@echo "  - Rebuild pattern: rebuild-% => %-dirclean then %";
-	@echo "  - Buildroot helpers: br-% and br-%-dirclean";
-	@echo "Examples:";
-	@echo "  make rebuild-telegrambot    # clean + build telegrambot";
-	@echo "  make br-telegrambot         # just build the package";
-	@echo "  make br-telegrambot-dirclean# clean only the package";
-	@if [ -f .agent/project.yml ]; then \
-		echo "Agent memory file: .agent/project.yml"; \
-	else \
-		echo "Agent memory file not found (.agent/project.yml). Optional: add one for assistant hints."; \
-	fi;
-	@if [ -f docs/agent-memory.md ]; then \
-		echo "Project memory doc: docs/agent-memory.md"; \
-	fi;
-	@$(MAKE) --no-print-directory show-vars
 
 # Print key variables commonly needed for tooling
 show-vars:
