@@ -1,5 +1,2 @@
 gpio_button=62
 gpio_default=25ID 26IDU 6o 6O 17o 18O 49o 50o 51o 52o 53o 54o 57o 58o
-gpio_mmc_cd=61
-gpio_speaker=63o
-gpio_wlan=6o 6O
