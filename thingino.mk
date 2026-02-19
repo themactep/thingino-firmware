@@ -508,14 +508,25 @@ export KERNEL_VERSION_4
 # IMAGE SENSOR
 #
 
-SENSOR_1_MODEL := $(BR2_SENSOR_1_NAME)
-SENSOR_2_MODEL := $(BR2_SENSOR_2_NAME)
-SENSOR_3_MODEL := $(BR2_SENSOR_3_NAME)
-SENSOR_4_MODEL := $(BR2_SENSOR_4_NAME)
+SENSOR_1_MODEL := $(call qstrip,$(BR2_SENSOR_1_NAME))
+SENSOR_2_MODEL := $(call qstrip,$(BR2_SENSOR_2_NAME))
+SENSOR_3_MODEL := $(call qstrip,$(BR2_SENSOR_3_NAME))
+SENSOR_4_MODEL := $(call qstrip,$(BR2_SENSOR_4_NAME))
+
+SENSOR_1_PARAMS := $(call qstrip,$(BR2_SENSOR_1_PARAMS))
+SENSOR_2_PARAMS := $(call qstrip,$(BR2_SENSOR_2_PARAMS))
+SENSOR_3_PARAMS := $(call qstrip,$(BR2_SENSOR_3_PARAMS))
+SENSOR_4_PARAMS := $(call qstrip,$(BR2_SENSOR_4_PARAMS))
+
 export SENSOR_1_MODEL
 export SENSOR_2_MODEL
 export SENSOR_3_MODEL
 export SENSOR_4_MODEL
+
+export SENSOR_1_PARAMS
+export SENSOR_2_PARAMS
+export SENSOR_3_PARAMS
+export SENSOR_4_PARAMS
 
 #
 # ISP
@@ -770,10 +781,8 @@ else
 	ISP_CH1_DEQUEUE_DELAY_TIME :=
 endif
 
-ifeq ($(BR2_ISP_MIPI_SWITCH_GPIO),y)
+ifneq ($(BR2_ISP_MIPI_SWITCH_GPIO),)
 	ISP_MIPI_SWITCH_GPIO := mipi_switch_gpio=$(BR2_ISP_MIPI_SWITCH_GPIO)
-else
-	ISP_MIPI_SWITCH_GPIO :=
 endif
 
 ifeq ($(BR2_ISP_DIRECT_MODE_0),y)
@@ -798,10 +807,10 @@ else
 	ISP_IVDC_THRESHOLD_LINE :=
 endif
 
-ifeq ($(BR2_ISP_CONFIG_HZ),y)
-	ISP_CONFIG_HZ := isp_config_hz=$(BR2_ISP_CONFIG_HZ_VALUE)
-else
-	ISP_CONFIG_HZ :=
+ifneq ($(BR2_ISP_CONFIG_HZ),)
+ifneq ($(BR2_ISP_CONFIG_HZ),0)
+	ISP_CONFIG_HZ := isp_config_hz=$(BR2_ISP_CONFIG_HZ)
+endif
 endif
 
 ifeq ($(BR2_ISP_PRINT_LEVEL_0),y)
