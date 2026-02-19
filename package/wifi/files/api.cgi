@@ -4,7 +4,7 @@
 
 parse_query() {
 	while IFS='=' read -r key value; do
-		value=$(echo "$value" | sed 's/+/ /g; s/%\([0-9A-F][0-9A-F]\)/\\x\1/g' | xargs -0 printf "%b")
+		value=$(printf '%b' "$(echo "$value" | sed 's/+/ /g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')")
 		eval "PARAM_$key=\"\$value\""
 		export "PARAM_$key"
 	done <<-QUERY
@@ -13,7 +13,7 @@ parse_query() {
 }
 
 urldecode() {
-	echo "$1" | sed 's/+/ /g; s/%\([0-9A-F][0-9A-F]\)/\\x\1/g' | xargs -0 printf "%b"
+	printf '%b' "$(echo "$1" | sed 's/+/ /g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')"
 }
 
 json_encode() {
@@ -79,8 +79,7 @@ scan_networks() {
 	fi
 
 	# Get scan results and format as JSON
-	echo "{"
-	echo "\"networks\": ["
+	echo "{\"networks\": ["
 
 	first=1
 	wpa_cli -i wlan0 scan_results 2>/dev/null | tail -n +2 | while IFS=$'\t' read -r bssid freq signal flags ssid; do
@@ -88,13 +87,14 @@ scan_networks() {
 		[ -z "$ssid" ] || [ "$ssid" = "ssid" ] && continue
 
 		# Determine security type
-		security="Open"
 		if echo "$flags" | grep -q "WPA2-PSK"; then
 			security="WPA2"
 		elif echo "$flags" | grep -q "WPA-PSK"; then
 			security="WPA"
 		elif echo "$flags" | grep -q "WEP"; then
 			security="WEP"
+		else
+			security="Open"
 		fi
 
 		# Output JSON without trailing commas
@@ -113,8 +113,7 @@ scan_networks() {
 		NETWORK
 	done
 
-	echo "]"
-	echo "}"
+	echo "]}"
 
 	# Clean up lock if we created it
 	[ $SHOULD_SCAN -eq 1 ] && rm -f "$SCAN_LOCK"
@@ -178,26 +177,35 @@ save_config() {
 	echo "$hostname" > /etc/hostname
 
 	# Update wlan settings
-	temp_file=$(mktemp -u)
-	echo '{}' > $temp_file
 	if [ "true" = "$wlanap_enabled" ]; then
+		temp_file=$(mktemp -u)
+		echo '{}' > $temp_file
 		wlanap_pass=$(convert_psk "$wlanap_ssid" "$wlanap_pass")
 		jct $temp_file set wlan_ap.ssid "$wlanap_ssid"
 		jct $temp_file set wlan_ap.pass "$wlanap_pass"
+		jct $temp_file set wlan_ap.enabled "$wlanap_enabled"
+		jct /etc/thingino.json import $temp_file
+		rm -f $temp_file
 	else
-		wlan_pass=$(convert_psk "$wlan_ssid" "$wlan_pass")
-		jct $temp_file set wlan.ssid "$wlan_ssid"
-		jct $temp_file set wlan.pass "$wlan_pass"
+		log="/tmp/wpa.log"
+		echo "# created on $(date +%c)
+ctrl_interface=/run/wpa_supplicant
+update_config=1
+ap_scan=1
+
+network={
+        ssid=\"$wlan_ssid\"
+        psk=\"$wlan_pass\"
+	bgscan=\"simple:30:-70:3600\"
+}
+" > /etc/wpa_supplicant.conf
 	fi
-	jct $temp_file set wlan_ap.enabled "$wlanap_enabled"
-	jct /etc/thingino.json import $temp_file
-	rm -f $temp_file
 
 	# Update timezone
 	echo "$timezone" > /etc/timezone
 
 	# Update root password
-	echo "root:$rootpass" | chpasswd -c sha512
+	printf '%s:%s\n' "root" "$rootpass" | chpasswd -c sha512
 
 	# Update SSH key if provided
 	if [ -n "$rootpkey" ]; then

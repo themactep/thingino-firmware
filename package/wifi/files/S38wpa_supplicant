@@ -5,148 +5,163 @@
 IFACE=wlan0
 CONFIG="/etc/$DAEMON_SHORT.conf"
 PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
-WLAN_INT_FILE="/etc/network/interfaces.d/wlan0"
+WLAN_INT_FILE="/etc/network/interfaces.d/$IFACE"
 DAEMON_ARGS="-i $IFACE -c $CONFIG -P $PIDFILE -B"
 
 if [ "true" = "$debug" ]; then
 	DAEMON_ARGS="$DAEMON_ARGS -dd"
 fi
 
-password_changed() {
-	old_psk=$(awk -F= '/^\s*psk=/{print $2}' $CONFIG)
-	[ "$old_psk" != "$wlan_psk" ]
+credentials_from_card() {
+	local envfile ssid password
+
+	envfile="/mnt/mmcblk0p1/uenv.txt"
+	[ -f $envfile ] || return 0
+
+	ssid="$(grep '^wlan_ssid=' $envfile | cut -d= -f2-)"
+	password="$(grep '^wlan_pass=' $envfile | cut -d= -f2-)"
+        echo "# created on $(date +%c)
+ctrl_interface=/run/wpa_supplicant
+update_config=1
+ap_scan=1
+
+network={
+        ssid=\"$ssid\"
+        psk=\"$password\"
+        bgscan=\"simple:30:-70:3600\"
+}
+" > $CONFIG
 }
 
-ssid_changed() {
-	old_ssid=$(awk -F= '/^\s*ssid=/{gsub(/^"|"$/, "", $2); print $2}' $CONFIG)
-	[ "$old_ssid" != "$wlan_ssid" ]
+timeout() {
+	sleep 600 &&
+		play /usr/share/sounds/configurationportalisdown.opus &&
+		$0 stop
 }
 
-bssid_changed() {
-	old_bssid=$(awk -F= '/^\s*bssid=/{print $2}' $CONFIG)
-	[ "$old_bssid" != "$wlan_bssid" ]
+start_portal() {
+	CNET=172.16.0
+
+	sed -i "s/%dev%/$IFACE/g" /etc/udhcpd-portal.conf
+
+	echo_info "Start Captive Portal"
+
+	echo_info "Create DHCP leases database"
+	touch /run/udhcpd.leases
+
+	echo_info "Assign ${CNET}.1 to $IFACE"
+	ip a add dev $IFACE ${CNET}.1/24
+
+	echo_info "Bring $IFACE interface up"
+	ip link set $IFACE up
+
+	echo_info "Add route ${CNET}.0/24 to $IFACE"
+	ip route add ${CNET}.0/24 dev $IFACE
+
+	echo_info "Start DHCP server"
+	start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd-portal.conf
+
+	echo_info "Start DNS server"
+	start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /etc/dnsd-portal.conf -d
+
+	echo_info "Read MAC address"
+	mac_address=$(ip link show $IFACE | awk '/ether/ {print $2}')
+
+	echo_info "Update SSID with last two octets of MAC address"
+	last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
+
+	echo_info "Update SSID name in wpa_supplicant config"
+	sed -i "/ssid=\"THINGINO-\"$/ s/\"$/$last_two\"/" $CONFIG
+
+	echo_info "Set $PORTAL_MODE_FLAG"
+	touch "$PORTAL_MODE_FLAG"
+
+	echo_warning "Portal started at $(ts)"
+	play /usr/share/sounds/configurationportalisup.opus
+
+	echo_info "Start timeout countdown"
+	timeout &
 }
 
-generate_config() {
-	local tmpconf="/tmp/wpa_supplicant.conf.$$"
+stop_portal() {
+	echo_title "Captive Portal"
 
-	# Generate config in tmpfs to minimize flash writes
-	wpa_passphrase "$wlan_ssid" "dummy_password" > "$tmpconf"
-
-	# replace dummy psk with the actual psk
-	sed -i "s/psk=.*$/psk=${wlan_psk}/" "$tmpconf"
-
-	# add bssid if defined
-	if [ -n "$wlan_bssid" ]; then
-		sed -i "s/^\s*ssid=.*$/&\\n\tbssid=$wlan_bssid/" "$tmpconf"
-	else
-		sed -i '/}/i\\tscan_ssid=1' "$tmpconf"
+	if [ ! -f "$PORTAL_MODE_FLAG" ]; then
+		echo_error "Not running"
+		exit 1
 	fi
 
-	# add control interface for wpa_cli (in reverse order since sed '1i' inserts at top)
-	sed -i '1i ap_scan=1' "$tmpconf"
-	sed -i '1i update_config=1' "$tmpconf"
-	sed -i '1i ctrl_interface=/run/wpa_supplicant' "$tmpconf"
+	echo_info "Stop udhcp"
+	start-stop-daemon -K -q -x /sbin/udhcpd
 
-	# activate bgscan
-	sed -i '/}/i\\tbgscan="simple:-78:60:3600"' "$tmpconf"
+	echo_info "Stop dnsd"
+	start-stop-daemon -K -q -x /sbin/dnsd
 
-	# Move to flash only after successful generation
-	mv "$tmpconf" "$CONFIG"
+	echo_info "Stop wpa_supplicant"
+	start-stop-daemon -K -q -x /sbin/wpa_supplicant
+
+	echo_info "Remove route ${CNET}.0/24 from $IFACE"
+	ip address delete dev $IFACE ${CNET}.1/24
+
+	echo_info "Remove IP address from $IFACE"
+	ip link set $IFACE down
+
+	echo_info "Remove $PORTAL_MODE_FLAG"
+	rm -f "$PORTAL_MODE_FLAG"
+
+	echo_warning "Portal stopped at $(ts)"
 }
 
-update_network_via_cli() {
-	# Use wpa_cli to update network without restarting
-	wpa_cli -i $IFACE set_network 0 ssid "\"$wlan_ssid\"" >/dev/null
-	wpa_cli -i $IFACE set_network 0 psk "$wlan_psk" >/dev/null
-	if [ -n "$wlan_bssid" ]; then
-		wpa_cli -i $IFACE set_network 0 bssid "$wlan_bssid" >/dev/null
-	else
-		wpa_cli -i $IFACE set_network 0 bssid "" >/dev/null
-		wpa_cli -i $IFACE set_network 0 scan_ssid 1 >/dev/null
-	fi
-	wpa_cli -i $IFACE save_config >/dev/null
-	wpa_cli -i $IFACE reassociate >/dev/null
-}
-
-update_psk() {
-	local ssid="$1" pass="$2" psk
-	psk=$(convert_psk "$ssid" "$pass")
-	jct /etc/thingino.json set wlan.psk "$psk" 2>/dev/null
-	echo $psk
-}
-
-get_value() {
-	jct /etc/thingino.json get $1 2>/dev/null || fw_printenv -n $2
-}
+#update_network_via_cli() {
+#	# Use wpa_cli to update network without restarting
+#	wpa_cli -i $IFACE set_network 0 ssid "\"$wlan_ssid\"" >/dev/null
+#	wpa_cli -i $IFACE set_network 0 psk "$wlan_psk" >/dev/null
+#	if [ -n "$wlan_bssid" ]; then
+#		wpa_cli -i $IFACE set_network 0 bssid "$wlan_bssid" >/dev/null
+#	else
+#		wpa_cli -i $IFACE set_network 0 bssid "" >/dev/null
+#		wpa_cli -i $IFACE set_network 0 scan_ssid 1 >/dev/null
+#	fi
+#	wpa_cli -i $IFACE save_config >/dev/null
+#	wpa_cli -i $IFACE reassociate >/dev/null
+#}
 
 start() {
 	echo_title "Starting WPA Supplicant"
 
-	wlan_pass=$(get_value wlan.pass wlan_pass)
-	wlan_psk=$(get_value wlan.psk wlan_psk)
-	wlan_ssid=$(get_value wlan.ssid wlan_ssid)
-	wlan_bssid=$(get_value wlan.bssid wlan_bssid)
-	wlanap_enabled=$(get_value wlan_ap.enabled wlanap_enabled)
-
 	# Interface is not present
-	if ! iface_exists "wlan0"; then
+	if ! iface_exists "$IFACE"; then
 		echo_error "No wireless interface"
 		exit 1
 	fi
 
 	# Interface present but disabled
-	if grep -q "^#auto wlan0" $WLAN_INT_FILE; then
-		echo_error "wlan0 manually disabled"
+	if grep -q "^#auto $IFACE" $WLAN_INT_FILE; then
+		echo_error "$IFACE manually disabled"
 		exit 1
 	fi
 
-	# No network
-	if [ "${wlan_ssid}${wlan_bssid}" = "" ]; then
-		echo_error "WiFi network missing"
-		exit 1
-	fi
-
-	# No credentials
-	if [ "${wlan_psk}${wlan_pass}" = "" ]; then
-		echo_error "WiFi password missing"
-		exit 1
-	fi
-
-	# PSK is not set
-	if [ "$wlan_psk" = "" ]; then
-		wlan_psk=$(update_psk "$wlan_ssid" "$wlan_pass")
-	fi
-
-	if [ ${#wlan_psk} -eq 64 ]; then
-		echo_info "Wi-Fi PSK found"
-	elif [ ${#wlan_psk} -lt 64 ]; then
-		echo_info "Invalid PSK length, converting from password"
-		wlan_psk=$(update_psk "$wlan_ssid" "$wlan_pass")
-	else
-		echo_error "Invalid length of Wi-Fi password/PSK"
-		exit 1
-	fi
-
-	# Generate initial config if missing
-	if [ ! -f "$CONFIG" ]; then
-		generate_config
-	# Update existing config via wpa_cli if wpa_supplicant is running
-	elif [ -e "$PIDFILE" ] && [ -S "/run/wpa_supplicant/$IFACE" ]; then
-		if ssid_changed || password_changed || bssid_changed; then
-			echo_info "Updating network configuration via wpa_cli"
-			update_network_via_cli
-			return 0
-		fi
-	# Fall back to regenerating config if wpa_supplicant isn't running
-	elif ssid_changed || password_changed; then
-		echo_info "Regenerating wpa_supplicant config"
-		generate_config
-	fi
-
+	# AP mode enabled
+	wlanap_enabled=$(jct /etc/thingino.json wlan_ap.enabled 2>/dev/null)
 	if [ "true" = "$wlanap_enabled" ]; then
 		echo_error "WLAN AP enabled"
 		exit 1
+	fi
+
+	# Credential from SD card
+	credentials_from_card
+
+	# Credentials missing
+	if ! grep -q 'ssid=' $CONFIG; then
+		echo_error "WiFi network missing"
+		portal_mode="true"
+	elif ! grep -q 'psk=' $CONFIG; then
+		echo_error "WiFi password missing"
+		portal_mode="true"
+	fi
+
+	if [ "true" = "$portal_mode" ]; then
+		start_portal
 	fi
 
 	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1
@@ -155,6 +170,9 @@ start() {
 stop() {
 	echo_title "Stopping WPA Supplicant"
 
+	if [ "true" = "$portal_mode" ]; then
+		stop_portal
+	fi
 	stop_daemon
 }
 
@@ -170,7 +188,7 @@ case "$1" in
 		start
 		;;
 	*)
-		echo "Usage: $0 {start|stop|restart|reload}"
+		echo "Usage: $0 {start|stop|restart}" >&2
 		exit 1
 		;;
 esac
