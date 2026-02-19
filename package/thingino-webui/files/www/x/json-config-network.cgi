@@ -228,11 +228,6 @@ valid_mac() {
   printf '%s' "$1" | grep -qE '^([0-9A-F]{2}:){5}[0-9A-F]{2}$'
 }
 
-safe_fw_setenv() {
-  command -v fw_setenv >/dev/null 2>&1 || return
-  fw_setenv "$@" >/dev/null 2>&1 || true
-}
-
 mac_json_key() {
   case "$1" in
     eth0) echo "eth.mac" ;;
@@ -260,7 +255,8 @@ read_known_mac() {
 read_dns_servers() {
   dns_primary=""
   dns_secondary=""
-  for file in /etc/resolv.conf /etc/default/resolv.conf; do
+  # /etc/default/resolv.conf
+  for file in /etc/resolv.conf; do
     [ -f "$file" ] || continue
     while IFS= read -r ns; do
       [ -n "$ns" ] || continue
@@ -319,13 +315,13 @@ send_state() {
 
   local wifi_ssid wifi_bssid wifi_pass wifi_ap_enabled wifi_ap_ssid wifi_ap_pass
 
-        wifi_ssid=$(jct "$CONFIG_JSON" get wlan.ssid       2>/dev/null || read_fw_env wlan_ssid)
-       wifi_bssid=$(jct "$CONFIG_JSON" get wlan.bssid      2>/dev/null || read_fw_env wlan_bssid)
-        wifi_pass=$(jct "$CONFIG_JSON" get wlan.pass       2>/dev/null || read_fw_env wlan_pass)
+  wifi_ssid="$(awk -F'"' '/ ssid=/{print $2}' /etc/wpa_supplicant.conf)"
+  wifi_bssid="$(awk -F'=' '/bssid=/{print $2}' /etc/wpa_supplicant.conf)"
+  wifi_pass="$(awk -F'"' '/psk=/{print $2}' /etc/wpa_supplicant.conf)"
 
-  wifi_ap_enabled=$(jct "$CONFIG_JSON" get wlan_ap.enabled 2>/dev/null || read_fw_env wlanap_enabled)
-     wifi_ap_ssid=$(jct "$CONFIG_JSON" get wlan_ap.ssid    2>/dev/null || read_fw_env wlanap_ssid)
-     wifi_ap_pass=$(jct "$CONFIG_JSON" get wlan_ap.pass    2>/dev/null || read_fw_env wlanap_pass)
+  wifi_ap_ssid="$(awk -F'"' '/ssid=/{print $2}' /etc/wpa_supplicant-ap.conf)"
+  wifi_ap_pass="$(awk -F'"' '/psk=/{print $2}' /etc/wpa_supplicant-ap.conf)"
+  wifi_ap_enabled=$(jct "$CONFIG_JSON" get wlan_ap.enabled 2>/dev/null)
 
   [ "$wifi_ap_enabled" = "true" ] || [ "$wifi_ap_enabled" = "false" ] || wifi_ap_enabled="false"
 
@@ -419,6 +415,7 @@ process_interface_input() {
   gateway=$(trim_value "$(read_json_string "$prefix.gateway")")
   broadcast=$(trim_value "$(read_json_string "$prefix.broadcast")")
   mac=$(trim_value "$(read_json_string "$prefix.mac")")
+
   [ -n "$mac" ] && mac=$(normalize_mac "$mac")
 
   if [ "$enabled" = "true" ]; then
@@ -437,57 +434,60 @@ process_interface_input() {
 }
 
 setup_wireless_network() {
-  local ssid="$1" bssid="$2" pass="$3" temp_file psk pass_plain=""
-  if printf '%s' "$pass" | grep -qE '^[0-9A-Fa-f]{64}$'; then
-    pass_plain=""
+  local ssid="$1" bssid="$2" pass="$3" ssid_line="" pass_line=""
+  if [ -n "$bssid" ]; then
+    ssid_line="bssid=\"$bssid\""
   else
-    pass_plain="$pass"
+    ssid_line="ssid=\"$ssid\""
   fi
-  psk=$(convert_psk "$ssid" "$pass")
-  temp_file=$(mktemp /tmp/wlan-config.XXXXXX)
-  echo '{}' > "$temp_file"
-  jct "$temp_file" set wlan.ssid "$ssid"
-  jct "$temp_file" set wlan.bssid "$bssid"
-  jct "$temp_file" set wlan.pass "$psk"
-  [ -n "$pass_plain" ] && jct "$temp_file" set wlan.pass_plain "$pass_plain"
-  jct "$CONFIG_JSON" import "$temp_file"
-  rm -f "$temp_file"
 
-  temp_file=$(mktemp /tmp/wlan-env.XXXXXX)
-  {
-    [ -n "$ssid" ] && echo "wlan_ssid $ssid"
-    [ -n "$bssid" ] && echo "wlan_bssid $bssid"
-    [ -n "$psk" ] && echo "wlan_pass $psk"
-  } > "$temp_file"
-  safe_fw_setenv -s "$temp_file"
-  rm -f "$temp_file"
+  if printf '%s' "$pass" | grep -qE '^[0-9A-Fa-f]{64}$'; then
+    pass_line="psk=${pass}"
+  else
+    pass_line="psk=\"$pass\""
+  fi
+
+  # create wpa_supplicant.conf
+  echo "# created on $(date +%c)
+ctrl_interface=/run/wpa_supplicant
+update_config=1
+ap_scan=1
+
+network={
+        ${ssid_line}
+        ${pass_line}
+        bgscan=\"simple:30:-70:3600\"
+}
+" > /etc/wpa_supplicant.conf
 }
 
 update_wifi_ap_settings() {
-  local ssid="$1" pass="$2" enabled="$3" temp_file psk pass_plain=""
-  if [ -n "$ssid$pass" ]; then
-    if [ -n "$pass" ] && printf '%s' "$pass" | grep -qE '^[0-9A-Fa-f]{64}$'; then
-      psk=$(printf '%s' "$pass" | tr '[:lower:]' '[:upper:]')
-    else
-      psk=$(convert_psk "$ssid" "$pass")
-      pass_plain="$pass"
-    fi
+  local ssid="$1" pass="$2" enabled="$3" pass_line=""
+
+  if printf '%s' "$pass" | grep -qE '^[0-9A-Fa-f]{64}$'; then
+    pass_line="psk=${pass}"
+  else
+    pass_line="psk=\"$pass\""
   fi
 
-  temp_file=$(mktemp /tmp/wlan-ap.XXXXXX)
-  echo '{}' > "$temp_file"
+  # create wpa_supplicant.conf
+  echo "# created on $(date +%c)
+ctrl_interface=/run/wpa_supplicant
+update_config=1
+ap_scan=2
+
+network={
+        ssid=\"$ssid\"
+        mode=2
+        frequency=2412
+        key_mgmt=WPA-PSK
+        proto=RSN
+        pairwise=CCMP
+        group=CCMP
+        ${pass_line}
+}
+" > /etc/wpa_supplicant-ap.conf
   jct "$temp_file" set wlan_ap.enabled "$enabled"
-  jct "$temp_file" set wlan_ap.ssid "$ssid"
-  if [ -n "$psk" ]; then
-    jct "$temp_file" set wlan_ap.pass "$psk"
-    [ -n "$pass_plain" ] && jct "$temp_file" set wlan_ap.pass_plain "$pass_plain"
-  fi
-  jct "$CONFIG_JSON" import "$temp_file"
-  rm -f "$temp_file"
-
-  safe_fw_setenv wlanap_enabled "$enabled"
-  [ -n "$ssid" ] && safe_fw_setenv wlanap_ssid "$ssid"
-  [ -n "$psk" ] && safe_fw_setenv wlanap_pass "$psk"
 }
 
 update_hostname_files() {
@@ -510,9 +510,6 @@ apply_interface_settings() {
   json_key=$(mac_json_key "$iface")
   env_key=$(mac_env_key "$iface")
   [ -n "$json_key" ] && jct "$CONFIG_JSON" set "$json_key" "$mac"
-  if [ -n "$env_key" ] && [ -n "$mac" ]; then
-    safe_fw_setenv "$env_key" "$mac"
-  fi
   [ "$enabled" = "true" ] || disable_iface "$iface"
 }
 
