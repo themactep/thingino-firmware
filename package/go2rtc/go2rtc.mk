@@ -21,8 +21,7 @@ define GO2RTC_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(GO2RTC_PKGDIR)/files/go2rtc.yaml \
 		$(TARGET_DIR)/etc/go2rtc.yaml
 
-	$(INSTALL) -D -m 0755 $(GO2RTC_PKGDIR)/files/S97go2rtc \
-		$(TARGET_DIR)/etc/init.d/S97go2rtc
+	$(if $(filter y,$(BR2_PACKAGE_LIGHTNVR)),,$(INSTALL) -D -m 0755 $(GO2RTC_PKGDIR)/files/S97go2rtc $(TARGET_DIR)/etc/init.d/S97go2rtc)
 
 	$(INSTALL) -D -m 0755 $(@D)/bin/go2rtc \
 		$(TARGET_DIR)/usr/bin/go2rtc

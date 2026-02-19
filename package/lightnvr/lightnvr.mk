@@ -1,7 +1,6 @@
 LIGHTNVR_SITE_METHOD = git
 LIGHTNVR_SITE = https://github.com/opensensor/lightNVR
-LIGHTNVR_SITE_BRANCH = main
-LIGHTNVR_VERSION = 72865cf2a3b7ee2470af1fb48397f60e50c891f7
+LIGHTNVR_VERSION = 41fa993c9b253dc19aab5c083619ef9f8e99fcf8
 
 LIGHTNVR_LICENSE = MIT
 LIGHTNVR_LICENSE_FILES = COPYING
@@ -9,7 +8,7 @@ LIGHTNVR_LICENSE_FILES = COPYING
 LIGHTNVR_INSTALL_STAGING = YES
 
 # Dependencies
-LIGHTNVR_DEPENDENCIES = thingino-ffmpeg thingino-libcurl sqlite host-nodejs cjson libuv
+LIGHTNVR_DEPENDENCIES = thingino-ffmpeg thingino-libcurl sqlite host-nodejs cjson libuv go2rtc
 HOST_LIGHTNVR_DEPENDENCIES = host-nodejs
 
 ifeq ($(BR2_PACKAGE_MBEDTLS),y)
@@ -67,6 +66,8 @@ define LIGHTNVR_INSTALL_APP_FILES
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/opt/lightnvr/models
 	$(INSTALL) -m 0755 -D $(@D)/bin/lightnvr $(TARGET_DIR)/usr/bin/lightnvr
 	$(INSTALL) -m 0755 -D $(LIGHTNVR_PKGDIR)/files/S95lightnvr $(TARGET_DIR)/etc/init.d/S95lightnvr
+	# lightnvr manages go2rtc directly; remove standalone go2rtc init script if present
+	rm -f $(TARGET_DIR)/etc/init.d/S97go2rtc
 endef
 
 # SOD shared libraries installation - specifically using the src/sod version
