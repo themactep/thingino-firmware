@@ -45,6 +45,7 @@ json_ok() {
   exit 0
 }
 
+wlanap_enabled="$(jct /etc/thingino.json get wlan_ap.enabled 2>/dev/null)"
 if [ "true" = "$wlanap_enabled" ]; then
   [ -n "$QUERY_STRING" ] && eval $(echo "$QUERY_STRING" | sed "s/&/;/g")
   now=$(date +%s)
