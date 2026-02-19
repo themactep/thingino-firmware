@@ -229,6 +229,17 @@ dev: defconfig build pack
 # Clean build from scratch with parallel compilation
 cleanbuild: distclean defconfig build_fast pack
 	$(info -------------------------------- $@)
+ifneq ($(TFTP_IP_ADDRESS),)
+	@echo "Copying images to TFTP root..."
+	@sudo mkdir -p $(TFTP_ROOT)
+	@sudo cp -f $(FIRMWARE_BIN_FULL) $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)
+	@sudo cp -f $(FIRMWARE_BIN_NOBOOT) $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT)
+	@sudo cp -f $(FIRMWARE_BIN_FULL).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL).sha256sum 2>/dev/null || true
+	@sudo cp -f $(FIRMWARE_BIN_NOBOOT).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT).sha256sum 2>/dev/null || true
+	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)"
+	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT)"
+endif
+	@date +%T
 
 release: RELEASE=1
 release: distclean defconfig build_fast pack
@@ -537,23 +548,12 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	@if [ "$(RELEASE)" -ne 1 ]; then $(FIGLET) "NON-SECURE"; fi
 	@if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(FIGLET) "EXTRAS PARTITION IS TOO SMALL"; fi
 	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(FIGLET) "OVERSIZE"; else $(FIGLET) "FINE"; fi
-	@date +%T
 	@echo "--------------------------------"
 	@echo "Full Image:"
 	@echo "$(FIRMWARE_BIN_FULL)"
 	@echo "Update Image:"
 	@echo "$(FIRMWARE_BIN_NOBOOT)"
 	@echo "--------------------------------"
-ifneq ($(TFTP_IP_ADDRESS),)
-	@echo "Copying images to TFTP root..."
-	@sudo mkdir -p $(TFTP_ROOT)
-	@sudo cp -f $(FIRMWARE_BIN_FULL) $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)
-	@sudo cp -f $(FIRMWARE_BIN_NOBOOT) $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT)
-	@sudo cp -f $(FIRMWARE_BIN_FULL).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL).sha256sum 2>/dev/null || true
-	@sudo cp -f $(FIRMWARE_BIN_NOBOOT).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT).sha256sum 2>/dev/null || true
-	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)"
-	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT)"
-endif
 
 # rebuild a package with smart configuration check
 rebuild-%: check-config
