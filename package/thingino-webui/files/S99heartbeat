@@ -48,7 +48,8 @@ EOF
     spk_enabled=$(echo "$prudynt_data" | grep -o '"spk_enabled":[^,}]*' | cut -d: -f2)
     total_gain=$(echo "$prudynt_data" | grep -o '"total_gain":[0-9-]*' | cut -d: -f2)
     total_gain="${total_gain:-0}"
-    daynight_enabled=$(echo "$prudynt_data" | grep -o '"enabled":[^,}]*' | cut -d: -f2)
+    # Extract daynight.enabled (not schedule.enabled) - take first match only
+    daynight_enabled=$(echo "$prudynt_data" | grep -o '"enabled":[^,}]*' | head -1 | cut -d: -f2)
 
     ircut_state=$(ircut read 2>/dev/null || echo "null")
     ir850_state=$(light ir850 read 2>/dev/null || echo "null")
