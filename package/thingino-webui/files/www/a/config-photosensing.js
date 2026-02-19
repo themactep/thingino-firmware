@@ -3,6 +3,7 @@
 
   const endpoint = '/x/json-prudynt.cgi';
   const dayNightParams = ['enabled', 'total_gain_night_threshold', 'total_gain_day_threshold'];
+  const dayNightScheduleParams = ['enabled', 'start_at', 'stop_at'];
   const dayNightControls = ['color', 'ircut', 'ir850', 'ir940', 'white'];
 
   const alertArea = $('#photosensing-alerts');
@@ -58,6 +59,10 @@
       const el = $('#daynight_controls_' + control);
       if (el) el.disabled = true;
     });
+    dayNightScheduleParams.forEach(param => {
+      const el = $('#daynight_schedule_' + param);
+      if (el) el.disabled = true;
+    });
   }
 
   async function requestPrudynt(payload) {
@@ -82,7 +87,11 @@
     dayNightControls.forEach(control => {
       controls[control] = null;
     });
-    const daynight = { controls };
+    const schedule = {};
+    dayNightScheduleParams.forEach(param => {
+      schedule[param] = null;
+    });
+    const daynight = { controls, schedule };
     dayNightParams.forEach(param => {
       daynight[param] = null;
     });
@@ -107,6 +116,18 @@
           el.disabled = false;
           const wrapper = el.closest('.boolean');
           if (wrapper) wrapper.classList.remove('disabled');
+        });
+      }
+      if (daynight.schedule) {
+        dayNightScheduleParams.forEach(param => {
+          const el = $('#daynight_schedule_' + param);
+          if (!el || !Object.prototype.hasOwnProperty.call(daynight.schedule, param)) return;
+          if (el.type === 'checkbox') {
+            el.checked = !!daynight.schedule[param];
+          } else {
+            el.value = daynight.schedule[param] || '';
+          }
+          el.disabled = false;
         });
       }
     } finally {
@@ -194,15 +215,27 @@
     }
   }
 
+  async function saveDaynightScheduleParam(param) {
+    const el = $('#daynight_schedule_' + param);
+    if (!el) return;
+    let value;
+    if (el.type === 'checkbox') {
+      value = el.checked;
+    } else {
+      value = el.value || '';
+    }
+    const payload = { daynight: { schedule: { [param]: value } } };
+    try {
+      await sendDaynightUpdate(payload);
+    } catch (err) {
+      showAlert('danger', `Failed to update schedule ${param.replace(/_/g, ' ')}: ${err.message || err}`);
+    }
+  }
+
   function bindDaynightControls() {
-    // Bind change events to all daynight parameters for real-time updates
+    // Handle modal slider UI updates (but don't save)
     dayNightParams.forEach(param => {
       const el = $('#daynight_' + param);
-      if (el) {
-        el.addEventListener('change', () => saveDaynightParam(param));
-      }
-
-      // Also handle modal slider if it exists
       const slider = $('#daynight_' + param + '-slider');
       if (slider) {
         slider.addEventListener('input', ev => {
@@ -211,15 +244,6 @@
           const sliderValue = $('#daynight_' + param + '-slider-value');
           if (sliderValue) sliderValue.textContent = ev.target.value;
         });
-        slider.addEventListener('change', () => saveDaynightParam(param));
-      }
-    });
-
-    // Bind change events to all daynight controls
-    dayNightControls.forEach(control => {
-      const el = $('#daynight_controls_' + control);
-      if (el) {
-        el.addEventListener('change', () => saveDaynightControl(control));
       }
     });
   }
@@ -238,6 +262,86 @@
         reloadButton.disabled = false;
       }
     });
+  }
+
+  // Intercept save button to save directly to config file using jct
+  const saveButton = $('#save-prudynt-config');
+  if (saveButton) {
+    // Use capture phase to run BEFORE streamer-config.js handler
+    saveButton.addEventListener('click', async (e) => {
+      // Stop the default handler from streamer-config.js
+      e.stopImmediatePropagation();
+      e.preventDefault();
+
+      saveButton.disabled = true;
+
+      try {
+        const daynight = {};
+
+        // Collect all daynight parameters (enabled, thresholds)
+        dayNightParams.forEach(param => {
+          const el = $('#daynight_' + param);
+          if (el) {
+            if (el.type === 'checkbox') {
+              daynight[param] = el.checked;
+            } else {
+              const numeric = Number(el.value);
+              daynight[param] = Number.isNaN(numeric) ? 0 : numeric;
+            }
+          }
+        });
+
+        // Collect schedule values
+        const schedule = {};
+        dayNightScheduleParams.forEach(param => {
+          const el = $('#daynight_schedule_' + param);
+          if (el) {
+            if (el.type === 'checkbox') {
+              schedule[param] = el.checked;
+            } else {
+              schedule[param] = el.value || '';
+            }
+          }
+        });
+
+        // Collect controls values
+        const controls = {};
+        dayNightControls.forEach(control => {
+          const el = $('#daynight_controls_' + control);
+          if (el) {
+            controls[control] = el.checked;
+          }
+        });
+
+        // Build payload - just the config changes, no action needed
+        daynight.schedule = schedule;
+        daynight.controls = controls;
+        const payload = { daynight };
+
+        // Save directly to config file using jct
+        const response = await fetch('/x/json-prudynt-save.cgi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        showAlert('success', data.message || 'Configuration saved successfully to /etc/prudynt.json', 3000);
+      } catch (err) {
+        console.error('Failed to save prudynt config:', err);
+        showAlert('danger', `Failed to save configuration: ${err.message || err}`);
+      } finally {
+        saveButton.disabled = false;
+      }
+    }, { capture: true });
   }
 
   disablePhotosensingInputs();

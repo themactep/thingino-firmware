@@ -81,6 +81,23 @@
                   <label for="daynight_controls_white" class="form-check-label">Toggle white light</label>
                 </p>
               </div>
+              <div class="col-12 col-lg-4">
+                <h4>Time Schedule</h4>
+                <small>Enable/disable photosensing at specific times</small>
+                <p class="form-switch mt-3">
+                  <input type="hidden" id="daynight_schedule_enabled-false" name="daynight_schedule_enabled" value="false">
+                  <input type="checkbox" id="daynight_schedule_enabled" name="daynight_schedule_enabled" value="true" role="switch" class="form-check-input">
+                  <label for="daynight_schedule_enabled" class="form-check-label">Use time-based schedule</label>
+                </p>
+                <p>
+                  <label for="daynight_schedule_start_at">Start photosensing at</label>
+                  <input type="time" id="daynight_schedule_start_at" name="daynight_schedule_start_at" class="form-control" value="">
+                </p>
+                <p>
+                  <label for="daynight_schedule_stop_at">Stop photosensing at</label>
+                  <input type="time" id="daynight_schedule_stop_at" name="daynight_schedule_stop_at" class="form-control" value="">
+                </p>
+              </div>
             </div>
           </div>
         </section>
@@ -92,7 +109,7 @@
         </p>
 
         <button type="button" id="save-prudynt-config" class="btn btn-primary">
-          <i class="bi bi-floppy me-1"></i> Save configuration to file
+          <i class="bi bi-floppy me-1"></i> Save changes
         </button>
       </form>
     </div>
