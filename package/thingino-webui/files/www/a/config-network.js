@@ -1,6 +1,7 @@
 (function() {
   const form = $('#networkForm');
-  const contentWrap = $('#network-content');  const submitButton = $('#network_submit');
+  const contentWrap = $('#network-content');
+  const submitButton = $('#network_submit');
   const wifiApToggle = $('#wifi_ap_enabled');
   const hostnameInput = $('#hostname');
   const dnsPrimaryInput = $('#dns_primary');
