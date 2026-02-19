@@ -45,7 +45,7 @@ Stores U-Boot environment variables in a binary format generated from the `.uenv
 
 #### Config Partition (224 KB, fixed)
 A JFFS2 filesystem containing:
-- System configuration files from `overlay/upper/`
+- System configuration files from `user/overlay/`
 - Persistent settings that survive firmware updates
 - Network configuration, credentials, etc.
 
@@ -108,7 +108,7 @@ The build process:
 2. **Partition Creation**:
    - `u-boot-lzo-with-spl.bin` - bootloader binary
    - `u-boot-env.bin` - environment binary from uenv.txt
-   - `config.jffs2` - config partition from overlay/upper/
+   - `config.jffs2` - config partition from user/overlay/
    - `uImage` - kernel binary
    - `rootfs.squashfs` - compressed root filesystem
    - `extras.jffs2` - optional extras partition (only if has content)
