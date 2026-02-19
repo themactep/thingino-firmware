@@ -14,6 +14,13 @@ endif
 # Check if any current target is in the exempted list
 SKIP_CAMERA_SELECTION := $(strip $(foreach target,$(CURRENT_TARGETS),$(filter $(target),$(NOCAMERA_TARGETS))))
 
+# If target is normally skipped but CAMERA was explicitly provided, honor it
+ifneq ($(SKIP_CAMERA_SELECTION),)
+ifdef CAMERA
+SKIP_CAMERA_SELECTION :=
+endif
+endif
+
 # Only proceed with board selection if not exempted
 ifeq ($(SKIP_CAMERA_SELECTION),)
 BUILD_MEMO := /tmp/thingino-board.$(shell ps -o ppid= -p $$PPID | xargs)
