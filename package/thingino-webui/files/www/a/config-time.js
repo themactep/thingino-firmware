@@ -6,6 +6,7 @@
   const ntpServer1 = $('#ntp_server_1');
   const ntpServer2 = $('#ntp_server_2');
   const ntpServer3 = $('#ntp_server_3');
+  const dhcpIgnoreTimezone = $('#dhcp_ignore_timezone');
   const submitButton = $('#time_submit');
   const syncButton = $('#sync-time');
   const syncResult = $('#sync-time-result');
@@ -37,6 +38,7 @@
     ntpServer1.disabled = state;
     ntpServer2.disabled = state;
     ntpServer3.disabled = state;
+    dhcpIgnoreTimezone.disabled = state;
     if (state) {
       showBusy(label || 'Working...');
     } else {
@@ -97,6 +99,7 @@
       ntpServer1.value = data.ntp_server_1 || '';
       ntpServer2.value = data.ntp_server_2 || '';
       ntpServer3.value = data.ntp_server_3 || '';
+      dhcpIgnoreTimezone.checked = data.dhcp_ignore_timezone === 'true' || data.dhcp_ignore_timezone === true;
       updateTimezone();
     } catch (err) {
       showAlert('danger', err.message || 'Unable to load time configuration.');
@@ -163,7 +166,8 @@
       ntp_server_0: ntpServer0.value.trim(),
       ntp_server_1: ntpServer1.value.trim(),
       ntp_server_2: ntpServer2.value.trim(),
-      ntp_server_3: ntpServer3.value.trim()
+      ntp_server_3: ntpServer3.value.trim(),
+      dhcp_ignore_timezone: dhcpIgnoreTimezone.checked
     };
     saveConfig(payload);
   });
