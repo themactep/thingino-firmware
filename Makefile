@@ -91,7 +91,6 @@ endif
 
 SIZE_8M := 8388608
 SIZE_256K := 262144
-SIZE_224K := 229376
 SIZE_64K := 65536
 SIZE_32K := 32768
 
@@ -107,6 +106,15 @@ endif
 
 U_BOOT_ENV_TXT = $(OUTPUT_DIR)/uenv.txt
 export U_BOOT_ENV_TXT
+
+FLASH_SIZE_KB  := $(shell echo $$(($(FLASH_SIZE_MB) * 1024)))
+FLASH_SIZE     := $(shell echo $$((($(FLASH_SIZE_KB) * 1024))))
+FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
+
+# fixed size partitions
+U_BOOT_SIZE_KB := 256
+UB_ENV_SIZE_KB := 32
+CONFIG_SIZE_KB := 224
 
 UB_ENV_BIN := $(OUTPUT_DIR)/images/u-boot-env.bin
 CONFIG_BIN := $(OUTPUT_DIR)/images/config.jffs2
@@ -141,17 +149,27 @@ ROOTFS_BIN_SIZE_ALIGNED = $(shell echo $$((($(ROOTFS_BIN_SIZE) + $(ALIGN_BLOCK) 
 EXTRAS_BIN_SIZE_ALIGNED = $(shell echo $$((($(EXTRAS_BIN_SIZE) + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK))))
 
 # fixed size partitions
-U_BOOT_PARTITION_SIZE := $(SIZE_256K)
-UB_ENV_PARTITION_SIZE := $(SIZE_32K)
-CONFIG_PARTITION_SIZE := $(SIZE_224K)
+U_BOOT_PARTITION_SIZE := $(shell echo $$(($(U_BOOT_SIZE_KB) * 1024)))
+UB_ENV_PARTITION_SIZE := $(shell echo $$(($(UB_ENV_SIZE_KB) * 1024)))
+CONFIG_PARTITION_SIZE := $(shell echo $$(($(CONFIG_SIZE_KB) * 1024)))
 KERNEL_PARTITION_SIZE = $(KERNEL_BIN_SIZE_ALIGNED)
 ROOTFS_PARTITION_SIZE = $(ROOTFS_BIN_SIZE_ALIGNED)
 
-FIRMWARE_FULL_SIZE = $(shell echo $$((($(FLASH_SIZE_MB) * 1024 * 1024))))
-FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FIRMWARE_FULL_SIZE) - $(U_BOOT_PARTITION_SIZE) - $(UB_ENV_PARTITION_SIZE) - $(CONFIG_PARTITION_SIZE))))
+export U_BOOT_PARTITION_SIZE
+export UB_ENV_PARTITION_SIZE
+export CONFIG_PARTITION_SIZE
+export ALIGN_BLOCK
+
+# Partition sizes in KB for mtdparts
+KERNEL_SIZE_KB  = $(shell echo $$(($(KERNEL_PARTITION_SIZE) / 1024)))
+ROOTFS_SIZE_KB  = $(shell echo $$(($(ROOTFS_PARTITION_SIZE) / 1024)))
+
+FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE) - $(UB_ENV_PARTITION_SIZE) - $(CONFIG_PARTITION_SIZE))))
+
+UPGRADE_SIZE_KB = $(shell echo $$(($(FLASH_SIZE_KB) - $(U_BOOT_SIZE_KB) - $(UB_ENV_SIZE_KB) - $(CONFIG_SIZE_KB))))
 
 # dynamic partitions
-EXTRAS_PARTITION_SIZE = $(shell echo $$(($(FIRMWARE_FULL_SIZE) - $(EXTRAS_OFFSET))))
+EXTRAS_PARTITION_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(EXTRAS_OFFSET))))
 EXTRAS_LLIMIT := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
 
 # partition offsets
@@ -164,6 +182,10 @@ EXTRAS_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
 
 # special case with no uboot nor env
 EXTRAS_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PARTITION_SIZE))))
+
+
+export CONFIG_OFFSET
+export FLASH_SIZE_MB
 
 RELEASE = 0
 
@@ -205,6 +227,16 @@ dev: defconfig build pack
 # Clean build from scratch with parallel compilation
 cleanbuild: distclean defconfig build_fast pack
 	$(info -------------------------------- $@)
+ifneq ($(TFTP_IP_ADDRESS),)
+	@echo "Copying images to TFTP root..."
+	@sudo mkdir -p $(TFTP_ROOT)
+	@sudo cp -f $(FIRMWARE_BIN_FULL) $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)
+	@sudo cp -f $(FIRMWARE_BIN_NOBOOT) $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT)
+	@sudo cp -f $(FIRMWARE_BIN_FULL).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL).sha256sum 2>/dev/null || true
+	@sudo cp -f $(FIRMWARE_BIN_NOBOOT).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT).sha256sum 2>/dev/null || true
+	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)"
+	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT)"
+endif
 	@date +%T
 
 release: RELEASE=1
@@ -513,23 +545,13 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	@$(FIGLET) $(GIT_BRANCH)
 	@if [ "$(RELEASE)" -ne 1 ]; then $(FIGLET) "NON-SECURE"; fi
 	@if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(FIGLET) "EXTRAS PARTITION IS TOO SMALL"; fi
-	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FIRMWARE_FULL_SIZE) ]; then $(FIGLET) "OVERSIZE"; else $(FIGLET) "FINE"; fi
+	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(FIGLET) "OVERSIZE"; else $(FIGLET) "FINE"; fi
 	@echo "--------------------------------"
 	@echo "Full Image:"
 	@echo "$(FIRMWARE_BIN_FULL)"
 	@echo "Update Image:"
 	@echo "$(FIRMWARE_BIN_NOBOOT)"
 	@echo "--------------------------------"
-ifneq ($(TFTP_IP_ADDRESS),)
-	@echo "Copying images to TFTP root..."
-	@sudo mkdir -p $(TFTP_ROOT)
-	@sudo cp -f $(FIRMWARE_BIN_FULL) $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)
-	@sudo cp -f $(FIRMWARE_BIN_NOBOOT) $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT)
-	@sudo cp -f $(FIRMWARE_BIN_FULL).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL).sha256sum 2>/dev/null || true
-	@sudo cp -f $(FIRMWARE_BIN_NOBOOT).sha256sum $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT).sha256sum 2>/dev/null || true
-	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_FULL)"
-	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT)"
-endif
 
 # rebuild a package with smart configuration check
 rebuild-%: check-config
@@ -775,7 +797,8 @@ info: defconfig
 	$(info ISP_CH0_PRE_DEQUEUE_INTERRUP_PROCESS: $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS))
 	$(info ISP_CH0_PRE_DEQUEUE_VALID_LINES: $(ISP_CH0_PRE_DEQUEUE_VALID_LINES))
 	$(info FLASH_SIZE_MB: $(FLASH_SIZE_MB))
-	$(info FIRMWARE_FULL_SIZE: $(FIRMWARE_FULL_SIZE))
+	$(info FLASH_SIZE_KB: $(FLASH_SIZE_KB))
+	$(info FLASH_SIZE: $(FLASH_SIZE))
 	$(info UBOOT_BOARDNAME: $(UBOOT_BOARDNAME))
 	$(info UBOOT_REPO: $(UBOOT_REPO))
 	$(info UBOOT_REPO_BRANCH: $(UBOOT_REPO_BRANCH))
