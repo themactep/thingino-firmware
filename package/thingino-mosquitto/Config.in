@@ -20,17 +20,16 @@ config BR2_PACKAGE_THINGINO_MOSQUITTO
 
 	  https://mosquitto.org/
 
+if BR2_PACKAGE_THINGINO_MOSQUITTO
+
 config BR2_PACKAGE_THINGINO_MOSQUITTO_USE_MBEDTLS
-	bool "use mbedTLS backend"
-	depends on BR2_PACKAGE_THINGINO_MOSQUITTO
+	bool "Use mbedTLS backend"
 	default y if !BR2_PACKAGE_OPENSSL
 	help
-	  Build mosquitto with mbedTLS backend support. This option is only
-	  enabled by default when OpenSSL is not available.
+	  Build mosquitto with mbedTLS backend support instead of OpenSSL.
 
 config BR2_PACKAGE_THINGINO_MOSQUITTO_LIBWEBSOCKETS
 	bool "mosquitto-libwebsockets"
-	depends on BR2_PACKAGE_THINGINO_MOSQUITTO
 	select BR2_PACKAGE_LIBWEBSOCKETS
 	select BR2_PACKAGE_THINGINO_LIBWEBSOCKETS
 	help
@@ -40,7 +39,6 @@ config BR2_PACKAGE_THINGINO_MOSQUITTO_BROKER
 	bool "install the mosquitto broker"
 	depends on BR2_USE_MMU # fork()
 	depends on !BR2_STATIC_LIBS # include <dlfcn.h>
-	depends on BR2_PACKAGE_THINGINO_MOSQUITTO
 	select BR2_PACKAGE_MOSQUITTO_BROKER
 	select BR2_PACKAGE_LIBWEBSOCKETS_EXT_POLL if BR2_PACKAGE_LIBWEBSOCKETS
 	help
@@ -59,4 +57,5 @@ config BR2_PACKAGE_THINGINO_MOSQUITTO_BROKER_DYNAMIC_SECURITY_PLUGIN
 comment "mosquitto broker needs a toolchain w/ dynamic library"
 	depends on BR2_USE_MMU
 	depends on BR2_STATIC_LIBS
-	depends on BR2_PACKAGE_THINGINO_MOSQUITTO
+
+endif # BR2_PACKAGE_THINGINO_MOSQUITTO
