@@ -36,30 +36,7 @@ json_error() {
 }
 
 urldecode() {
-  local data="$1"
-  # Replace + with space using sed
-  data=$(printf '%s' "$data" | sed 's/+/ /g')
-  # Decode %XX sequences using a loop
-  local result="" char
-  while [ -n "$data" ]; do
-    case "$data" in
-      %[0-9A-Fa-f][0-9A-Fa-f]*)
-        # Extract hex digits and convert to character
-        hex="${data#%}"
-        hex="${hex%"${hex#??}"}"
-        char=$(printf "\\$(printf '%03o' "0x$hex")" 2>/dev/null || printf '%')
-        result="$result$char"
-        data="${data#%??}"
-        ;;
-      *)
-        # Take first character
-        char="${data%"${data#?}"}"
-        result="$result$char"
-        data="${data#?}"
-        ;;
-    esac
-  done
-  printf '%s' "$result"
+  printf '%b' "$(echo "$1" | sed 's/+/ /g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')"
 }
 
 get_param() {
