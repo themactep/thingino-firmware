@@ -1,7 +1,6 @@
 LIGHTNVR_SITE_METHOD = git
 LIGHTNVR_SITE = https://github.com/opensensor/lightNVR
-LIGHTNVR_SITE_BRANCH = main
-LIGHTNVR_VERSION = 72865cf2a3b7ee2470af1fb48397f60e50c891f7
+LIGHTNVR_VERSION = 453fbbd51c425b3ededddb12a269750f4b4a52e7
 
 LIGHTNVR_LICENSE = MIT
 LIGHTNVR_LICENSE_FILES = COPYING
@@ -67,6 +66,8 @@ define LIGHTNVR_INSTALL_APP_FILES
 	$(INSTALL) -m 755 -d $(TARGET_DIR)/opt/lightnvr/models
 	$(INSTALL) -m 0755 -D $(@D)/bin/lightnvr $(TARGET_DIR)/usr/bin/lightnvr
 	$(INSTALL) -m 0755 -D $(LIGHTNVR_PKGDIR)/files/S95lightnvr $(TARGET_DIR)/etc/init.d/S95lightnvr
+	# lightnvr manages go2rtc directly; remove standalone go2rtc init script if present
+	rm -f $(TARGET_DIR)/etc/init.d/S97go2rtc
 endef
 
 # SOD shared libraries installation - specifically using the src/sod version
