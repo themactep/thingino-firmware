@@ -51,5 +51,7 @@
   "wireguard": {
     "enabled": false
   },
-  "wlanap_enabled": false
+  "wlan_ap": {
+    "enabled": false
+  }
 }
