@@ -25,6 +25,7 @@ start() {
   if [ -f /etc/motors.json ]; then
     motors_enabled="true"
   fi
+  soc="$(soc -f)"
 
   {
     echo "// generated at $(date +%c)"
@@ -35,7 +36,8 @@ start() {
     echo "});"
     echo "window.thinginoUIConfig.device = Object.assign({}, window.thinginoUIConfig.device, {"
     echo "  timezone: \"$(escape "$timezone")\","
-    echo "  motors: $motors_enabled"
+    echo "  motors: $motors_enabled,"
+    echo "  soc: \"$soc\""
     echo "});"
     echo "window.thinginoFooterConfig = window.thinginoUIConfig.footer;"
   } > "$WEBUI_JS_CONFIG"
