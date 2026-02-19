@@ -47,8 +47,6 @@ BUILD_DATE = "$(shell env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %
 
 ifeq ($(GROUP),github)
 	CAMERA_SUBDIR := configs/github
-else ifeq ($(GROUP),modules)
-	CAMERA_SUBDIR := configs/modules
 else ifeq ($(GROUP),)
 	CAMERA_SUBDIR := configs/cameras
 else
