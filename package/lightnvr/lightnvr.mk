@@ -8,7 +8,7 @@ LIGHTNVR_LICENSE_FILES = COPYING
 LIGHTNVR_INSTALL_STAGING = YES
 
 # Dependencies
-LIGHTNVR_DEPENDENCIES = thingino-ffmpeg thingino-libcurl sqlite host-nodejs cjson libuv
+LIGHTNVR_DEPENDENCIES = thingino-ffmpeg thingino-libcurl sqlite host-nodejs cjson libuv go2rtc
 HOST_LIGHTNVR_DEPENDENCIES = host-nodejs
 
 ifeq ($(BR2_PACKAGE_MBEDTLS),y)
