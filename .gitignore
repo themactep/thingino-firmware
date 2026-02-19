@@ -1,34 +1,33 @@
-/.board
-/.bootstrapped
-/.gitconfig
+# IDE files
 /.idea
-/.prereqs.done
-/.settings/
 /.vscode
-/build.log
-/buildroot-*/
-/buildroot-dl-cache\.zip*
-/configs/local.*
-/dl/
-/host-shared/
-/local.mk
-/output*/
-/overlay/upper
-/overrides/
-/package/thingino-webui/files/var/www/onvif/*_files/
-/package/thingino-webui/files/var/www/onvif/*_service
-/package-repos/
-/sdk/
-/tmp/
-/toolchain/
-*.backup
-.DS_Store
-.selected_camera
+/.gitconfig
+/.settings
 
-# Docker, Go
-/.cache
-/.ccache
-/.config
-/.npm
+# OS files
+.DS_Store
+*.backup
+*.log
+
+# Docker
 .bash_history
 .wget-hsts
+
+# Buildroot
+/.cache
+/.ccache
+/dl
+/host-shared
+/user
+/output
+/overrides
+/package/thingino-webui/files/var/www/onvif/*_files
+/package/thingino-webui/files/var/www/onvif/*_service
+/retired
+/sdk
+/tmp
+/toolchain
+/local.mk
+/.prereqs.done
+/.selected_camera
+
