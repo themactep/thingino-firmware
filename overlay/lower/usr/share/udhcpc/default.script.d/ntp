@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /usr/share/common
+NTP_WORKING_FILE="/tmp/ntp.conf"
 
 setup_ntp_from_dhcp() {
 	echo "Use DHCP provided NTP servers: $ntpsrv"
@@ -11,21 +11,6 @@ setup_ntp_from_dhcp() {
 		echo "Add DHCP provided NTP servers to $NTP_WORKING_FILE"
 		echo $ntpsrv | tr ' ' '\n' | sed 's/^/server /; s/$/ iburst	#added by DHCP/' > $NTP_WORKING_FILE
 	fi
-
-	if [ -f "$TZNAME_FILE" ] && [ '444' = "$(stat -c%a $TZNAME_FILE)" ]; then
-		echo "$TZNAME_FILE is read-only, skipping update"
-	else
-		if [ -n "$tzdbstr" ]; then
-			if [ -f "$TZNAME_FILE" ] && [ "$(cat "$TZNAME_FILE")" == "$tzdbstr" ]; then
-				echo "Timezone already set to '$tzdbstr', skipping update"
-			else
-				echo "Set timezone to '$tzdbstr' from DHCP"
-				tzselect -n "${tzdbstr//\//\\\/}"
-				echo "Rebooting to enforce the timezone"
-				reboot -f
-			fi
-		fi
-	fi
 }
 
 case "$1" in
@@ -34,6 +19,9 @@ case "$1" in
 		;;
 	renew)
 		[ -n "$ntpsrv" ] && setup_ntp_from_dhcp
+		;;
+	rebound)
+		ntpd -N -q
 		;;
 esac
 

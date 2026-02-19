@@ -1,0 +1,33 @@
+#!/bin/sh
+
+if [ "true" = "$(jct /etc/thingino.json get dhcp.ignore_timezone 2>/dev/null)" ]; then
+	echo "Ignore DHCP timezone settings"
+	exit 0
+fi
+
+setup_timezone_from_dhcp() {
+	echo "Use DHCP provided timezone: $tzdbstr"
+
+	if [ -f "$TZNAME_FILE" ] && [ '444' = "$(stat -c%a $TZNAME_FILE)" ]; then
+		echo "$TZNAME_FILE is read-only, skipping update"
+	else
+		if [ -n "$tzdbstr" ]; then
+			if [ -f "$TZNAME_FILE" ] && [ "$(cat "$TZNAME_FILE")" == "$tzdbstr" ]; then
+				echo "Timezone already set to '$tzdbstr', skipping update"
+			else
+				echo "Set timezone to '$tzdbstr' from DHCP"
+				tzselect -n "${tzdbstr//\//\\\/}"
+				echo "Rebooting to enforce the timezone"
+				reboot -f
+			fi
+		fi
+	fi
+}
+
+case "$1" in
+	bound)
+		[ -n "$ntpsrv" ] && setup_timezone_from_dhcp
+		;;
+esac
+
+exit 0
