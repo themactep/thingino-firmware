@@ -18,24 +18,22 @@ override MOSQUITTO_MAKE_OPTS += WITH_CJSON=no
 
 override MOSQUITTO_MAKE_OPTS += prefix=/usr
 
-# Prefer OpenSSL if available, even if mbedTLS option is selected
-ifeq ($(BR2_PACKAGE_OPENSSL),y)
-# OpenSSL is available - explicitly add it along with host tools
+# Prefer mbedTLS or OpenSSL
+ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_USE_MBEDTLS),y)
+# Use mbedTLS backend
+override MOSQUITTO_DEPENDENCIES := $(filter-out openssl,$(MOSQUITTO_DEPENDENCIES))
+override MOSQUITTO_DEPENDENCIES += mbedtls
+override MOSQUITTO_STATIC_LIBS := $(filter-out -lssl -lcrypto,$(MOSQUITTO_STATIC_LIBS))
+override MOSQUITTO_STATIC_LIBS += -lmbedtls -lmbedx509 -lmbedcrypto
+override MOSQUITTO_MAKE_OPTS := $(filter-out WITH_TLS=%,$(MOSQUITTO_MAKE_OPTS))
+override MOSQUITTO_MAKE_OPTS += WITH_TLS=yes TLS_IMPL=mbedtls
+
+else ifeq ($(BR2_PACKAGE_OPENSSL),y)
+# Use OpenSSL backend as fallback
 override MOSQUITTO_DEPENDENCIES += host-pkgconf openssl toolchain-external-custom
-# Ensure OpenSSL configuration is applied
 override MOSQUITTO_MAKE_OPTS := $(filter-out WITH_TLS=%,$(MOSQUITTO_MAKE_OPTS))
 override MOSQUITTO_MAKE_OPTS += WITH_TLS=yes
 override MOSQUITTO_STATIC_LIBS += `$(PKG_CONFIG_HOST_BINARY) --libs openssl`
-else ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_USE_MBEDTLS),y)
-# Only use mbedTLS if OpenSSL is not available
-override MOSQUITTO_DEPENDENCIES := $(filter-out openssl,$(MOSQUITTO_DEPENDENCIES))
-override MOSQUITTO_DEPENDENCIES += mbedtls
-
-override MOSQUITTO_STATIC_LIBS := $(filter-out -lssl -lcrypto,$(MOSQUITTO_STATIC_LIBS))
-override MOSQUITTO_STATIC_LIBS += -lmbedtls -lmbedx509 -lmbedcrypto
-
-override MOSQUITTO_MAKE_OPTS := $(filter-out WITH_TLS=%,$(MOSQUITTO_MAKE_OPTS))
-override MOSQUITTO_MAKE_OPTS += WITH_TLS=yes TLS_IMPL=mbedtls
 endif
 
 # Unless the Thingino-specific broker option is enabled, skip building the
