@@ -1,0 +1,51 @@
+config BR2_PACKAGE_THINGINO_SSL
+	bool
+
+choice
+	prompt "SSL/TLS Library"
+	default BR2_PACKAGE_THINGINO_SSL_MBEDTLS
+	help
+	  Select the SSL/TLS library for thingino.
+	  Only one SSL/TLS library should be selected.
+
+config BR2_PACKAGE_THINGINO_SSL_MBEDTLS
+	bool "mbedTLS"
+	select BR2_PACKAGE_THINGINO_MBEDTLS
+	select BR2_PACKAGE_THINGINO_SSL
+	help
+	  Use mbedTLS for SSL/TLS support.
+	  Lightweight, designed for embedded systems with HTTP/2 support.
+
+	  https://tls.mbed.org/
+
+config BR2_PACKAGE_THINGINO_SSL_WOLFSSL
+	bool "wolfSSL"
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	select BR2_PACKAGE_THINGINO_WOLFSSL
+	select BR2_PACKAGE_THINGINO_SSL
+	help
+	  Use wolfSSL for SSL/TLS support.
+	  Fast, portable SSL/TLS library targeted at IoT and embedded systems.
+
+	  https://www.wolfssl.com/
+
+config BR2_PACKAGE_THINGINO_SSL_OPENSSL
+	bool "OpenSSL"
+	select BR2_PACKAGE_OPENSSL
+	select BR2_PACKAGE_THINGINO_SSL
+	help
+	  Use OpenSSL for SSL/TLS support.
+	  Full-featured, widely compatible SSL/TLS library.
+
+	  https://www.openssl.org/
+
+endchoice
+
+comment "wolfSSL needs a toolchain w/ threads"
+	depends on !BR2_TOOLCHAIN_HAS_THREADS
+
+# Include SSL library package definitions (not directly selectable, controlled by choice above)
+if BR2_PACKAGE_THINGINO_SSL
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mbedtls/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wolfssl/Config.in"
+endif
