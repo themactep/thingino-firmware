@@ -17,8 +17,8 @@ setup_timezone_from_dhcp() {
 			else
 				echo "Set timezone to '$tzdbstr' from DHCP"
 				tzselect -n "${tzdbstr//\//\\\/}"
-				echo "Rebooting to enforce the timezone"
-				reboot -f
+		#		echo "Rebooting to enforce the timezone"
+		#		reboot -f
 			fi
 		fi
 	fi
