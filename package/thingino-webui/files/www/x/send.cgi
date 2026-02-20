@@ -213,7 +213,7 @@ case "$target" in
       json_ok "Sent to $target"
     fi
     ;;
-  email | ftp | gphotos | mqtt | nfty | storage | webhook)
+  email | ftp | gphotos | mqtt | ntfy | storage | webhook)
     webui_log "send.cgi: target=$target, type=$type, opts='$opts', verbose_flag='$verbose_flag'"
     if [ -n "$verbose_flag" ]; then
       if [ -n "$opts" ]; then
