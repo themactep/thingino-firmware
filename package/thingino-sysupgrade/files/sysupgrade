@@ -12,10 +12,6 @@ ROOTFS_MAGIC="68737173"
 GITHUB_URL="https://github.com"
 PAD="\n\t\t\t    "
 
-SIZE_256K=262144
-SIZE_320K=327680
-SIZE_512K=524288
-
 workdir="/tmp/sysupgrade"
 stage1app="sysupgrade"
 stage2app="sysupgrade-stage2"
@@ -28,23 +24,22 @@ bbapplets="echo flash_eraseall flashcp reboot sh sleep tail date"
 upgrade=""
 gestalt_app="/sbin/gestalt"
 
+echo_c() {
+	echo -e "\e[38;5;$1m$2\e[0m"
+}
+
+die() {
+	echo_c 160 "$1"
+	cleanup
+	exit 1
+}
+
 bye() {
 	die "\n\n\tMaybe next time..."
 }
 
 report_size() {
 	printf "%-20s %12s\n" "$1" "$2"
-}
-
-check_network() {
-	echo -c 112 -e "\nCheck connection to $url"
-	if curl -m 5 -I $1 >/dev/null 2>&1; then
-		say "Connection is fine"
-		return
-	fi
-	echo -c 160 -e "No internet?\n"
-	ip a
-	exit 1
 }
 
 check_free_space() {
@@ -101,7 +96,7 @@ prepare_download_dir() {
 	#        when image is smaller than the actual flash size (e.g. 32MB eufy cameras)
 	if [ $(available_free_space) -lt $(full_upgrade_partition_size) ]; then
 		echo "Not enough free space in $dl_dir to download firmware!"
-		if mountpoint $SD_CARD_ROOT && test -w $SD_CARD_ROOT; then
+		if mountpoint "$SD_CARD_ROOT" && test -w "$SD_CARD_ROOT"; then
 			echo "Mountpoint $SD_CARD_ROOT is writable, using it for download."
 			dl_dir="$SD_CARD_ROOT"
 			fw_file="$SD_CARD_ROOT/fw.bin"
@@ -141,8 +136,8 @@ check_upgrade_partitions() {
 }
 
 cleanup() {
-	say "Clean up temporary files."
-	rm -rf $workdir
+	echo "Clean up temporary files."
+	rm -rf "$workdir"
 	exit 0
 }
 
@@ -155,16 +150,10 @@ clone_app() {
 	fi
 
 	if ! cp -vf "$1" "$workdir/$target"; then
-		say "Error: Failed to copy $1 to $workdir/$target"
+		echo "Error: Failed to copy $1 to $workdir/$target"
 		cleanup
 	fi
-	chmod +x $workdir/$target
-}
-
-die() {
-	echo -c 160 -e "$1"
-	cleanup
-	exit 1
+	chmod +x "$workdir/$target"
 }
 
 # url file options
@@ -179,7 +168,7 @@ download() {
 
 expand_bb() {
 	echo "set up $1"
-	ln -s $workdir/busybox $workdir/$1
+	ln -s "$workdir/busybox" "$workdir/$1"
 }
 
 extract_bootloader() {
@@ -187,11 +176,11 @@ extract_bootloader() {
 		die "$1 image does not start with a bootloader!"
 	fi
 
-	truncate -s 256K $1
+	truncate -s 256K "$1"
 }
 
 handle_payload() {
-	echo -c 208 -e "\nChanging directory to $dl_dir"
+	echo_c 208 "\nChanging directory to $dl_dir"
 
 	if [ ! -d "$dl_dir" ]; then
 		die "Cannot change directory to $dl_dir"
@@ -201,17 +190,17 @@ handle_payload() {
 		die "Cannot write to $dl_dir"
 	fi
 
-	if ! cd $dl_dir; then
+	if ! cd "$dl_dir"; then
 		die "Cannot change directory to $dl_dir"
 	fi
 
 	if [ "local" = "$upgrade" ]; then
-		echo -c 112 -e "\nUpgrade from a provided file"
+		echo_c 112 "\nUpgrade from a provided file"
 		if echo "$1" | grep -qE '^https?://'; then
 			prepare_download_dir
-			say "Download firmware from\n$1"
+			echo -e "Download firmware from\n$1"
 			check_free_space "$1"
-			if ! download $1; then
+			if ! download "$1"; then
 				die "Cannot download $1 to $fw_file"
 			fi
 		else
@@ -220,7 +209,7 @@ handle_payload() {
 			fi
 		fi
 	else
-		echo -c 112 -e "\nUpgrade from GitHub"
+		echo_c 112 "\nUpgrade from GitHub"
 		prepare_download_dir
 
 		data=/etc/os-release
@@ -236,7 +225,7 @@ handle_payload() {
 		gh_url="$GITHUB_URL/themactep/thingino-firmware/releases"
 		if [ -n "$release_date" ]; then
 			gh_url="$gh_url/download/firmware-$release_date"
-			say "Requested release from $release_date"
+			echo "Requested release from $release_date"
 		else
 			gh_url="$gh_url/latest/download"
 		fi
@@ -245,41 +234,45 @@ handle_payload() {
 
 		if [ "part" = "$upgrade" ]; then
 			case "$(partial_upgrade_partition_name)" in
-				mtd5) offset=$SIZE_320K ;;
-				mtd6) offset=$SIZE_512K ;;
-				*) die "Unknown partial upgrade partition name" ;;
+				mtd5 | mtd6)
+					offset=$(( $(full_upgrade_partition_size) - $(partial_upgrade_partition_size) ))
+					;;
+				*)
+					die "Unknown partial upgrade partition name"
+					;;
 			esac
+
 			bin_file="thingino-$profile-update.bin"
 		else
 			offset=0
 			bin_file="thingino-$profile.bin"
 		fi
 		sha_url="$gh_url/$bin_file.sha256sum"
-		sha_file=$(basename $sha_url)
+		sha_file="$(basename $sha_url)"
 
 		check_free_space "$bin_url" "$offset"
 
-		echo -c 112 -e "\nDownload checksum"
+		echo_c 112 "\nDownload checksum"
 		if ! download "$sha_url" "tempsha256sum"; then
 			die "Cannot download checksum file."
 		fi
 
-		grep -v '^#' "tempsha256sum" > $sha_file
+		grep -v '^#' "tempsha256sum" > "$sha_file"
 
-		echo -c 112 -e "\nDownload firmware"
+		echo_c 112 "\nDownload firmware"
 		if ! download "$bin_url" "$bin_file" "-C $offset"; then
 			die "Cannot download firmware from specified URL."
 		fi
 
-		echo -c 112 -e "\nVerify downloaded file"
-		if ! sha256sum -c $sha_file; then
+		echo_c 112 "\nVerify downloaded file"
+		if ! sha256sum -c "$sha_file"; then
 			die "Checksum does not match!"
 		fi
 
-		echo -c 112 -e "\nClean up"
-		rm -v $sha_file
+		echo_c 112 "\nClean up"
+		rm -v "$sha_file"
 
-		echo -c 112 -e "\nRelocate downloaded file"
+		echo_c 112 "\nRelocate downloaded file"
 		if ! mv -fv "$bin_file" "$fw_file"; then
 			die "Cannot move $bin_file to $fw_file"
 		fi
@@ -289,19 +282,15 @@ handle_payload() {
 }
 
 flush_memory() {
-	echo -c 112 -e "\nFree up memory"
-	say "Sync changes"
+	echo_c 112 "\nFree up memory"
+	echo "Sync changes"
 	sync
-	say "Drop caches"
+	echo "Drop caches"
 	echo 3 > /proc/sys/vm/drop_caches
 }
 
-say() {
-	echo -e "$1"
-}
-
 show_help() {
-	say "Usage: $0 [-x] [-f|-p|<file>|<URL>]
+	echo -e "Usage: $0 [-x] [-f|-p|<file>|<URL>]
 Where:
   -f      full upgrade with a binary from GitHub
   -p      partial upgrade with a binary from GitHub
@@ -315,7 +304,7 @@ Where:
 }
 
 stop_services() {
-	echo -c 112 -e "\nStop services"
+	echo_c 112 "\nStop services"
 	for i in $(find /etc/init.d/ -name "[KS]*" -executable | sort -nr); do
 		case "$(basename $i)" in
 			K99watchdog | S36wireless | S38wpa_supplicant | S40network | S42wireguard | S42wifiap | S30dropbear | S50dropbear | S97sysupgrade)
@@ -331,7 +320,7 @@ stop_services() {
 		esac
 	done
 
-	echo -c 112 -e "\nRunning processes:"
+	echo_c 112 "\nRunning processes:"
 	ps w
 }
 
@@ -340,9 +329,9 @@ update_self() {
 
 	GH_DL_URL="https://raw.githubusercontent.com/themactep/thingino-firmware/refs/heads/stable/package/thingino-sysupgrade/files/"
 	download "$GH_DL_URL$stage1app" "$workdir/$stage1app"
-	chmod +x $workdir/$stage1app
+	chmod +x "$workdir/$stage1app"
 	download "$GH_DL_URL$stage2app" "/sbin/$stage2app"
-	chmod +x /sbin/$stage2app
+	chmod +x "/sbin/$stage2app"
 }
 
 dl_dir="/tmp"
@@ -393,7 +382,7 @@ if [ -n "$requested_date" ]; then
 			die "Invalid date: $requested_date"
 		fi
 	else
-		say "Release date only works with upgrades from GitHub"
+		echo "Release date only works with upgrades from GitHub"
 	fi
 fi
 
@@ -401,7 +390,7 @@ check_upgrade_partitions
 
 # work in $workdir
 if [ ! -d "$workdir" ]; then
-	echo -c 112 -e "\nCreate $workdir directory"
+	echo_c 112 "\nCreate $workdir directory"
 	if ! mkdir -p "$workdir"; then
 		die "Cannot create $workdir directory"
 	fi
@@ -412,18 +401,18 @@ if [ -z "$upgrade" ]; then
 
 	upgrade="local"
 	if echo "$1" | grep -qE '^https?://'; then
-		echo -c 112 -e "\nUpgrade from a remote file"
+		echo_c 112 "\nUpgrade from a remote file"
 		url="$1"
 	else
-		echo -c 112 -e "\nUpgrade from a local file $fw_file"
+		echo_c 112 "\nUpgrade from a local file $fw_file"
 		if [ -f "$fw_file" ]; then
-			say "Found $fw_file"
+			echo "Found $fw_file"
 		else
 			ufile="$(realpath "$1")"
 			if [ ! -r "$ufile" ]; then
 				die "Cannot find file $ufile (from $(pwd))"
 			fi
-			say "Found $ufile"
+			echo "Found $ufile"
 			mv -fv "$ufile" "$fw_file"
 			ORIGINAL_ARG="${ORIGINAL_ARG/$ufile/$fw_file}"
 		fi
@@ -436,26 +425,26 @@ fi
 
 if [ "$(dirname "$self")" != "$workdir" ]; then
 	if [ "true" = "$selfupdate" ]; then
-		echo -c 112 -e "\nUpdate self"
+		echo_c 112 "\nUpdate self"
 		update_self
 	else
-		echo -c 112 -e "\nSkip self-update"
+		echo_c 112 "\nSkip self-update"
 		cp -v "$self" "$workdir/$stage1app"
 		chmod +x "$workdir/$stage1app"
 fi
 
-	echo -c 112 -e "\nRe-run script from $workdir"
+	echo_c 112 "\nRe-run script from $workdir"
 	exec "$workdir/$stage1app" $ORIGINAL_ARG
 fi
 
 if [ "full" = "$upgrade" ]; then
-	echo -c 160 -e "$PAD ____ _____ ___  ____$PAD/ ___|_   _/ _ \\\\|  _ \\\\$PAD\\\\___ \\\\ | || | | | |_) |$PAD ___) || || |_| |  __/$PAD|____/ |_| \\\\___/|_|\n\n"
-	say "\tYou have requested to perform a full firmware upgrade,"
-	say "\twhich is a risky operation replacing the existing bootloader.\n"
-	say "\tIn the event of an error, the camera will become inoperable,"
-	say "\tand you will need to perform a recovery restore the system.\n"
-	echo -c 160 -e "\tYou have ten seconds to cancel the upgrade by pressing Ctrl-C."
-	echo -c 160 -e "\tIf you would like to continue now, press Enter."
+	echo_c 160 "$PAD ____ _____ ___  ____$PAD/ ___|_   _/ _ \\\\|  _ \\\\$PAD\\\\___ \\\\ | || | | | |_) |$PAD ___) || || |_| |  __/$PAD|____/ |_| \\\\___/|_|\n\n"
+	echo -e "\tYou have requested to perform a full firmware upgrade,"
+	echo -e "\twhich is a risky operation replacing the existing bootloader.\n"
+	echo -e "\tIn the event of an error, the camera will become inoperable,"
+	echo -e "\tand you will need to perform a recovery restore the system.\n"
+	echo_c 160 "\tYou have ten seconds to cancel the upgrade by pressing Ctrl-C."
+	echo_c 160 "\tIf you would like to continue now, press Enter."
 	echo -en "\n\n\t    "
 
 	trap bye 2 15
@@ -472,28 +461,21 @@ fi
 
 trap cleanup 2 6 15
 
-#if [ -n "$url" ]; then
-#	check_network "$url"
-#fi
-
 handle_payload "$@"
 
 # upgrade bootloader only
 if [ "boot" = "$upgrade" ]; then
-	echo -c 112 -e "\nUpgrading bootloader"
+	echo_c 112 "\nUpgrading bootloader"
 	extract_bootloader "$fw_file"
 	flash_eraseall /dev/mtd0
 	flashcp -v "$fw_file" /dev/mtd0
 	exit 0
 fi
 
-# FIXME: Do we really need that if we have already flashed bootloader above?
-# [ "$(stat -c%s $fw_file)" -le $SIZE_256K ]
-
 case "$(xxd -l 4 -p "$fw_file")" in
 	"$U_BOOT_MAGIC")
 		echo "Bootloader detected"
-	 	mtd_dev=$(full_upgrade_partition_name)
+		mtd_dev=$(full_upgrade_partition_name)
 		part_size=$(full_upgrade_partition_size)
 		;;
 	"$KERNEL_MAGIC")
@@ -517,27 +499,27 @@ file_size=$(stat -c%s $fw_file)
 stop_services
 
 # TODO: remove after most cameras upgrade to dynamic snapshot firmware
-echo -c 112 -e "\nRemove snapshot"
+echo_c 112 "\nRemove snapshot"
 rm -vf /tmp/snapshot.jpg
 
 flush_memory
 
 if mountpoint -q /etc/config; then
-	echo -c 112 -e "\nUnmount config partition"
+	echo_c 112 "\nUnmount config partition"
 	umount /etc/config
 fi
 
-echo -c 112 -e "\nPrepare working directory"
+echo_c 112 "\nPrepare working directory"
 clone_app /bin/busybox
 clone_app /sbin/$stage2app
 for a in $bbapplets; do expand_bb $a; done
 
-echo -c 112 -e "\nPartitions"
+echo_c 112 "\nPartitions"
 cat /proc/mtd
 
-echo -c 208 -e "Switch to Stage 2.\n"
+echo_c 208 "Switch to Stage 2.\n"
 if ! PATH="/tmp/sysupgrade" exec "$workdir/busybox" sh "$workdir/$stage2app" "$fw_file" "$mtd_dev"; then
-	echo -c 160 -e "Error: Failed to execute $workdir/$stage2app"
+	echo_c 160 "Error: Failed to execute $workdir/$stage2app"
 	cleanup
 fi
 

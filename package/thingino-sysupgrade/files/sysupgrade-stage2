@@ -3,10 +3,17 @@
 export PATH="/tmp/sysupgrade"
 echo "stage 2 PATH is $PATH"
 
-die() { echo -c 160 "$1"; exit 1; }
+echo_c() {
+	echo -e "\e[38;5;$1m$2\e[0m"
+}
+
+die() {
+	echo_c 160 "$1"
+	exit 1
+}
 
 flash_firmware() {
-	echo -c 112 -e "\nFlashing firmware to $mtd_dev"
+	echo_c 112 "\nFlashing firmware to $mtd_dev"
 	flash_eraseall $mtd_dev
 	flashcp -v $fw_file $mtd_dev
 }
@@ -40,7 +47,7 @@ detach_and_flash() {
 	logfile="/tmp/sysupgrade-flash.log"
 	: >"$logfile"
 
-	echo -c 208 "CRITICAL PHASE: Detaching from terminal to protect against connection loss..."
+	echo_c 208 "CRITICAL PHASE: Detaching from terminal to protect against connection loss..."
 	echo "Process will continue even if SSH disconnects."
 	echo "Log file: $logfile"
 	echo ""
@@ -85,10 +92,10 @@ detach_and_flash() {
 	flash_status=$?
 
 	if [ $flash_status -eq 0 ]; then
-		echo -c 46 "Flash completed successfully. Rebooting shortly..."
+		echo_c 46 "Flash completed successfully. Rebooting shortly..."
 		echo "Rebooting"
 	else
-		echo -c 160 "Flash failed; consult $logfile for details."
+		echo_c 160 "Flash failed; consult $logfile for details."
 	fi
 
 	exit $flash_status
@@ -104,10 +111,10 @@ go_reboot() {
 [ -z "$1" ] && die "Firmware file is not set."
 [ -z "$2" ] && die "Target device is not set."
 
-fw_file=$1
+fw_file="$1"
 mtd_dev="/dev/$2"
 
-echo -c 208 "Running Stage 2 of sysupgrade."
+echo_c 208 "Running Stage 2 of sysupgrade."
 echo "Firmware: $fw_file"
 echo "Target: $mtd_dev"
 echo ""
