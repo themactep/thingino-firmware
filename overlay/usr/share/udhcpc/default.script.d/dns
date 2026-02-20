@@ -4,7 +4,7 @@ RESOLV_WORKING_FILE="/tmp/resolv.conf"
 
 case "$1" in
 	bound | renew)
-    echo "Use DHCP provided DNS servers"
+		echo "Use DHCP provided DNS servers"
 
 		if [ -L $RESOLV_WORKING_FILE ]; then
 			echo "Create linked $RESOLV_WORKING_FILE"

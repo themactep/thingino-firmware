@@ -20,8 +20,8 @@ case "$1" in
 	renew)
 		[ -n "$ntpsrv" ] && setup_ntp_from_dhcp
 		;;
-  rebound)
-    ntpd -N -q
+	rebound)
+		ntpd -N -q
 		;;
 esac
 
