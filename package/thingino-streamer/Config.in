@@ -25,7 +25,7 @@ config BR2_PACKAGE_THINGINO_STREAMER_AUDIO_CODECS
 	bool "Audio codecs support"
 	depends on BR2_PACKAGE_THINGINO_STREAMER
 	depends on BR2_PACKAGE_FAAC
-	depends on BR2_PACKAGE_THINGINO_OPUS
+	depends on BR2_PACKAGE_OPUS
 	depends on BR2_PACKAGE_LIBHELIX_AAC
 	help
 	  Enable additional audio codecs for Thingino Streamer audio module.
