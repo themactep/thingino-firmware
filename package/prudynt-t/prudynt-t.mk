@@ -12,7 +12,6 @@ PRUDYNT_T_DEPENDENCIES += ingenic-lib
 PRUDYNT_T_DEPENDENCIES += host-thingino-jct thingino-jct
 PRUDYNT_T_DEPENDENCIES += thingino-live555
 PRUDYNT_T_DEPENDENCIES += thingino-libcurl
-PRUDYNT_T_DEPENDENCIES += opus faac libhelix-aac libhelix-mp3 libflac
 PRUDYNT_T_DEPENDENCIES += libschrift
 
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_FFMPEG),y)
@@ -39,9 +38,51 @@ else
 	PRUDYNT_T_PREBUFFER_ENABLED = 0
 endif
 
-ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
-	PRUDYNT_T_DEPENDENCIES += ingenic-musl libexecinfo
+# Optional FLAC support
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_FLAC),y)
+	PRUDYNT_T_DEPENDENCIES += libflac
+	PRUDYNT_T_USE_FLAC = 1
+else
+	PRUDYNT_T_USE_FLAC = 0
 endif
+
+# Optional MP3 support
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_MP3),y)
+	PRUDYNT_T_DEPENDENCIES += libhelix-mp3
+	PRUDYNT_T_USE_MP3 = 1
+else
+	PRUDYNT_T_USE_MP3 = 0
+endif
+
+# Optional Opus support
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_OPUS),y)
+	PRUDYNT_T_DEPENDENCIES += opus
+	PRUDYNT_T_USE_OPUS = 1
+else
+	PRUDYNT_T_USE_OPUS = 0
+endif
+
+# Optional AAC support
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_AAC),y)
+	PRUDYNT_T_DEPENDENCIES += faac libhelix-aac
+	PRUDYNT_T_USE_AAC = 1
+else
+	PRUDYNT_T_USE_AAC = 0
+endif
+
+ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
+	PRUDYNT_T_DEPENDENCIES += ingenic-musl
+	PRUDYNT_SHIM_LIB = -lmuslshim
+endif
+
+ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
+	PRUDYNT_T_DEPENDENCIES += ingenic-uclibc
+	PRUDYNT_SHIM_LIB = -luclibcshim
+endif
+
+# Initialize PRUDYNT_CFLAGS with TARGET_CFLAGS to inherit architecture-specific flags
+# This is critical for XBurst CPUs which need -mno-fused-madd or -ffp-contract=off
+PRUDYNT_CFLAGS = $(TARGET_CFLAGS)
 
 ifeq ($(BR2_TOOLCHAIN_USES_GLIBC),y)
 	PRUDYNT_CFLAGS += -DLIBC_GLIBC
@@ -56,7 +97,7 @@ ifeq ($(KERNEL_VERSION_4),y)
 	PRUDYNT_CFLAGS += -DKERNEL_VERSION_4
 endif
 
-# Base compiler flags
+# Add include paths
 PRUDYNT_CFLAGS += \
 	-I$(STAGING_DIR)/usr/include \
 	-I$(STAGING_DIR)/usr/include/liveMedia \
@@ -118,20 +159,28 @@ PRUDYNT_CFLAGS += \
 	-DLIBPEER_AVAILABLE=1 \
 	-I$(STAGING_DIR)/usr/include
 
-# Link against SSL library based on what's available (OpenSSL preferred)
+PRUDYNT_LDFLAGS += -ldatachannel -lusrsctp
+
 ifeq ($(BR2_PACKAGE_OPENSSL),y)
-PRUDYNT_LDFLAGS += -ldatachannel -lusrsctp -lssl -lcrypto -ljuice
-else
-PRUDYNT_LDFLAGS += -ldatachannel -lusrsctp -lmbedtls -lmbedx509 -lmbedcrypto -ljuice
+PRUDYNT_LDFLAGS += -lssl -lcrypto -ljuice
+endif
+
+ifeq ($(BR2_PACKAGE_MBEDTLS),y)
+PRUDYNT_LDFLAGS += -lmbedtls -lmbedx509 -lmbedcrypto -ljuice
 endif
 endif
 
 PRUDYNT_LDFLAGS += $(TARGET_LDFLAGS) \
 	-L$(STAGING_DIR)/usr/lib \
-	-L$(TARGET_DIR)/usr/lib
+	-L$(TARGET_DIR)/usr/lib \
+	-Wl,--no-as-needed $(PRUDYNT_SHIM_LIB) -Wl,--as-needed
 
-ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_EXECINFO),y)
+	PRUDYNT_T_DEPENDENCIES += libexecinfo
+	PRUDYNT_T_USE_EXECINFO = 1
 	PRUDYNT_LDFLAGS += -lexecinfo
+else
+	PRUDYNT_T_USE_EXECINFO = 0
 endif
 
 define PRUDYNT_T_BUILD_CMDS
@@ -145,6 +194,11 @@ define PRUDYNT_T_BUILD_CMDS
 		$(if $(BR2_PACKAGE_PRUDYNT_T_FFMPEG),USE_FFMPEG=1) \
 		$(if $(BR2_PACKAGE_PRUDYNT_T_WEBRTC),WEBRTC_ENABLED=1,) \
 		$(if $(BR2_PACKAGE_PRUDYNT_T_WEBSOCKETS),USE_WEBSOCKETS=1,USE_WEBSOCKETS=0) \
+		USE_EXECINFO=$(PRUDYNT_T_USE_EXECINFO) \
+		USE_FLAC=$(PRUDYNT_T_USE_FLAC) \
+		USE_MP3=$(PRUDYNT_T_USE_MP3) \
+		USE_OPUS=$(PRUDYNT_T_USE_OPUS) \
+		USE_AAC=$(PRUDYNT_T_USE_AAC) \
 		USE_PREBUFFER=$(PRUDYNT_T_PREBUFFER_ENABLED) \
 		-C $(@D) all commit_tag=$(shell git show -s --format=%h)
 endef

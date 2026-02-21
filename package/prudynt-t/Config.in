@@ -1,19 +1,12 @@
 config BR2_PACKAGE_PRUDYNT_T
 	bool "Prudynt-T streamer"
 	depends on !BR2_SOC_FAMILY_INGENIC_A1
-	select BR2_PACKAGE_FAAC
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
-	select BR2_PACKAGE_LIBEXECINFO if BR2_TOOLCHAIN_USES_MUSL
-	select BR2_PACKAGE_LIBHELIX_AAC
-	select BR2_PACKAGE_LIBHELIX_MP3
-	select BR2_PACKAGE_LIBFLAC
 	select BR2_PACKAGE_LIBSCHRIFT
-	select BR2_PACKAGE_OPUS
 	select BR2_PACKAGE_THINGINO_JCT
 	select BR2_PACKAGE_THINGINO_LIVE555
 	select BR2_PACKAGE_THINGINO_ONVIF
-	select BR2_PACKAGE_THINGINO_SOUNDS
 	help
 	  Video streamer for Ingenic T-series.
 	  Now uses JSON configuration format with json-c library.
@@ -32,16 +25,6 @@ choice
 	  Hybrid: live555 static, others dynamic (balanced, ~700KB flash savings)
 	  Static: All libraries static (largest binary, no .so files needed)
 
-config BR2_PACKAGE_PRUDYNT_T_DYNAMIC
-	bool "Dynamic linking"
-	help
-	  Link all libraries dynamically. This produces the smallest binary
-	  but requires all shared libraries (.so) on the target filesystem.
-
-	  Binary size: ~2.3MB
-	  Shared libs: ~2MB
-	  Total: ~4.3MB
-
 config BR2_PACKAGE_PRUDYNT_T_HYBRID
 	bool "Hybrid linking (live555 static)"
 	help
@@ -55,6 +38,16 @@ config BR2_PACKAGE_PRUDYNT_T_HYBRID
 	  Flash savings: ~700KB vs dynamic
 
 	  Recommended for most deployments.
+
+config BR2_PACKAGE_PRUDYNT_T_DYNAMIC
+	bool "Dynamic linking"
+	help
+	  Link all libraries dynamically. This produces the smallest binary
+	  but requires all shared libraries (.so) on the target filesystem.
+
+	  Binary size: ~2.3MB
+	  Shared libs: ~2MB
+	  Total: ~4.3MB
 
 config BR2_PACKAGE_PRUDYNT_T_STATIC
 	bool "Static linking (full)"
@@ -70,6 +63,45 @@ config BR2_PACKAGE_PRUDYNT_T_STATIC
 
 endchoice
 
+config BR2_PACKAGE_PRUDYNT_T_AAC
+	bool "Enable AAC audio support"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	default y
+	select BR2_PACKAGE_FAAC
+	select BR2_PACKAGE_LIBHELIX_AAC
+	help
+	  Enable AAC audio codec support. This pulls in both faac and
+	  libhelix-aac. Disable to drop AAC dependencies and reduce
+	  binary size.
+
+config BR2_PACKAGE_PRUDYNT_T_OPUS
+	bool "Enable Opus audio support"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	default y
+	select BR2_PACKAGE_OPUS
+	select BR2_PACKAGE_THINGINO_SOUNDS
+	help
+	  Enable Opus audio codec support. Disable to drop the opus
+	  dependency and reduce binary size.
+
+config BR2_PACKAGE_PRUDYNT_T_MP3
+	bool "Enable MP3 audio support"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	default y if FLASH_SIZE_MB > 8
+	select BR2_PACKAGE_LIBHELIX_MP3
+	help
+	  Enable MP3 audio codec support. Disable to drop the libhelix-mp3
+	  dependency and reduce binary size.
+
+config BR2_PACKAGE_PRUDYNT_T_FLAC
+	bool "Enable FLAC audio support"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	default y if FLASH_SIZE_MB > 8
+	select BR2_PACKAGE_LIBFLAC
+	help
+	  Enable FLAC audio codec support. Disable to drop the libflac
+	  dependency and reduce binary size.
+
 config BR2_PACKAGE_PRUDYNT_T_FFMPEG
 	bool "Enable FFmpeg integration (parsers/bitstream filters)"
 	depends on BR2_PACKAGE_PRUDYNT_T
@@ -78,55 +110,6 @@ config BR2_PACKAGE_PRUDYNT_T_FFMPEG
 	  Enable FFmpeg-based H.264/H.265 parsing and bitstream filters (AUD insertion,
 	  extract_extradata). Prudynt will link against the FFmpeg built by the
 	  thingino-ffmpeg package in Buildroot.
-
-config BR2_PACKAGE_PRUDYNT_T_DEBUG
-	bool "Enable debug build"
-	depends on BR2_PACKAGE_PRUDYNT_T
-	select BR2_PACKAGE_GDB
-	help
-	  Enable debug build of Prudynt-T with memory safety checking.
-
-	  This option enables:
-	  - Debug symbols (-g)
-	  - Disabled optimizations (-O0)
-	  - AddressSanitizer for memory error detection (when supported)
-	  - UndefinedBehaviorSanitizer for runtime checks
-	  - Preserved debug information (no symbol stripping)
-
-	  IMPORTANT: Debug builds require NFS configuration!
-
-	  Debug components are installed to the NFS share to keep firmware
-	  images small:
-	  - Unstripped binary: $(THINGINO_NFS)/usr/bin/prudynt-debug
-	  - Debug symbols: $(THINGINO_NFS)/usr/lib/debug/usr/bin/prudynt.debug
-	  - Debug tools: $(THINGINO_NFS)/usr/bin/prudynt-*
-
-	  The firmware image will only contain the stripped binary at
-	  /usr/bin/prudynt to maintain minimal size for camera deployment.
-
-	  To use debug builds:
-	  1. Set BR2_THINGINO_NFS in buildroot configuration
-	  2. Mount NFS on camera: mount -t nfs server:/path /mnt/nfs
-	  3. Access debug tools: /mnt/nfs/usr/bin/prudynt-debug
-
-	  Use this for development, debugging memory issues, and
-	  troubleshooting crashes on camera hardware.
-
-	  WARNING: Debug builds are significantly larger and slower.
-	  Only use for development and debugging purposes.
-
-comment "prudynt-t debug build requires NFS configuration! Set BR2_THINGINO_NFS to your NFS mount point (e.g., /nfs)."
-	depends on BR2_PACKAGE_PRUDYNT_T_DEBUG
-	depends on BR2_THINGINO_NFS = ""
-
-config BR2_PACKAGE_PRUDYNT_T_WEBSOCKETS
-	bool "Enable WebSocket UI/control server"
-	depends on BR2_PACKAGE_PRUDYNT_T
-	select BR2_PACKAGE_LIBWEBSOCKETS
-	help
-	  Build the libwebsockets-based configuration UI and API server.
-	  Disable this if you only need RTSP/HTTP interfaces and want to drop
-	  the libwebsockets dependency.
 
 config BR2_PACKAGE_PRUDYNT_T_PREBUFFER
 	bool "Enable pre-trigger buffer for motion events"
@@ -170,5 +153,65 @@ config BR2_PACKAGE_PRUDYNT_T_WEBRTC
 
 comment "WebRTC support needs a toolchain w/ threads, dynamic library"
 	depends on BR2_PACKAGE_PRUDYNT_T && (!BR2_TOOLCHAIN_HAS_THREADS || BR2_STATIC_LIBS)
+
+config BR2_PACKAGE_PRUDYNT_T_WEBSOCKETS
+	bool "Enable WebSocket UI/control server"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	select BR2_PACKAGE_LIBWEBSOCKETS
+	help
+	  Build the libwebsockets-based configuration UI and API server.
+	  Disable this if you only need RTSP/HTTP interfaces and want to drop
+	  the libwebsockets dependency.
+
+config BR2_PACKAGE_PRUDYNT_T_EXECINFO
+	bool "Enable execinfo backtraces"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	depends on BR2_TOOLCHAIN_USES_MUSL
+	select BR2_PACKAGE_LIBEXECINFO
+	help
+	  Enable crash backtraces using libexecinfo. This adds dependency
+	  on libexecinfo and enables stack trace collection in crash handler.
+
+	  Disabled by default.
+
+config BR2_PACKAGE_PRUDYNT_T_DEBUG
+	bool "Enable debug build"
+	depends on BR2_PACKAGE_PRUDYNT_T
+	select BR2_PACKAGE_GDB
+	help
+	  Enable debug build of Prudynt-T with memory safety checking.
+
+	  This option enables:
+	  - Debug symbols (-g)
+	  - Disabled optimizations (-O0)
+	  - AddressSanitizer for memory error detection (when supported)
+	  - UndefinedBehaviorSanitizer for runtime checks
+	  - Preserved debug information (no symbol stripping)
+
+	  IMPORTANT: Debug builds require NFS configuration!
+
+	  Debug components are installed to the NFS share to keep firmware
+	  images small:
+	  - Unstripped binary: $(THINGINO_NFS)/usr/bin/prudynt-debug
+	  - Debug symbols: $(THINGINO_NFS)/usr/lib/debug/usr/bin/prudynt.debug
+	  - Debug tools: $(THINGINO_NFS)/usr/bin/prudynt-*
+
+	  The firmware image will only contain the stripped binary at
+	  /usr/bin/prudynt to maintain minimal size for camera deployment.
+
+	  To use debug builds:
+	  1. Set BR2_THINGINO_NFS in buildroot configuration
+	  2. Mount NFS on camera: mount -t nfs server:/path /mnt/nfs
+	  3. Access debug tools: /mnt/nfs/usr/bin/prudynt-debug
+
+	  Use this for development, debugging memory issues, and
+	  troubleshooting crashes on camera hardware.
+
+	  WARNING: Debug builds are significantly larger and slower.
+	  Only use for development and debugging purposes.
+
+comment "prudynt-t debug build requires NFS configuration! Set BR2_THINGINO_NFS to your NFS mount point (e.g., /nfs)."
+	depends on BR2_PACKAGE_PRUDYNT_T_DEBUG
+	depends on BR2_THINGINO_NFS = ""
 
 endif # BR2_PACKAGE_PRUDYNT_T
