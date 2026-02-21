@@ -43,6 +43,7 @@ for size_hex in $(awk 'NR>1{print $2}' /proc/mtd); do
 	dd if=$firmware of=$partfile bs=$align_block skip=$((needle/align_block)) count=$((size_dec/align_block))
 
 	echo " Flashing partition mtd${mtd_num}"
+	flash_eraseall /dev/mtd${mtd_num}
 	flashcp -v $partfile /dev/mtd${mtd_num}
 
 	rm $partfile
