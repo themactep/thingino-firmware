@@ -34,10 +34,12 @@ last_restart_time=0
 watchdog_start_time=0
 
 # Signal handling
-trap 'echo_info "[$LOG_TAG] Stopping watchdog..."; cleanup_and_exit' INT TERM
+trap 'echo_info "[$LOG_TAG] Received termination signal, stopping watchdog..."; cleanup_and_exit' INT TERM
 
 cleanup_and_exit() {
+    echo_info "[$LOG_TAG] Cleaning up watchdog..."
     rm -f "$PIDFILE" "$WATCHDOG_STATE_FILE"
+    echo_info "[$LOG_TAG] Watchdog cleanup complete"
     exit 0
 }
 
@@ -217,11 +219,24 @@ start() {
 stop() {
     echo_title "Stopping Streamer Watchdog"
 
-    # Use the common daemon management system
+    # First try to stop using common daemon management system
     stop_daemon
 
-    # Clean up state file
-    rm -f "$WATCHDOG_STATE_FILE"
+    # Additional cleanup for watchdog-specific processes
+    # Kill any remaining processes that might be running the watchdog loop
+    for proc_name in "streamer-watchdog" "S94streamer-watchdog" "$(basename "$0")"; do
+        if pidof "$proc_name" >/dev/null 2>&1; then
+            echo_info "Killing remaining $proc_name processes"
+            killall -TERM "$proc_name" 2>/dev/null || true
+            sleep 1
+            killall -KILL "$proc_name" 2>/dev/null || true
+        fi
+    done
+
+    # Clean up state and lock files
+    rm -f "$WATCHDOG_STATE_FILE" "$PIDFILE" "$LOCK_FILE"
+
+    echo_info "Streamer watchdog stopped"
 }
 
 status() {
