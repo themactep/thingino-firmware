@@ -185,6 +185,8 @@ define WIFI_INSTALL_TARGET_CMDS
 	# Captive Portal
 	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/wpa_supplicant.conf \
 		$(TARGET_DIR)/etc/wpa_supplicant.conf
+	$(INSTALL) -D -m 0755 $(WIFI_PKGDIR)/files/disable_wlan \
+		$(TARGET_DIR)/etc/network/if-pre-up.d/disable_wlan
 	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/dnsd-portal.conf \
 		$(TARGET_DIR)/etc/dnsd-portal.conf
 	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/httpd-portal.conf \

@@ -1,0 +1,41 @@
+#!/bin/sh
+
+# only work on a WLAN interface
+if [ "wlan0" != "$IFACE" ]; then
+	exit 0
+fi
+
+. /usr/share/common
+
+wlan0_missing() {
+	! test -f /etc/network/interfaces.d/wlan0
+}
+
+wlan0_disabled() {
+	! grep -q '^auto wlan0' /etc/network/interfaces.d/wlan0 > /dev/null
+}
+
+wlan0_no_ssid() {
+	! grep -q 'ssid=' /etc/wpa_supplicant.conf > /dev/null
+}
+
+wlan0_no_pass() {
+	! grep -q 'psk=' /etc/wpa_supplicant.conf > /dev/null
+}
+
+# exit 1 to stop the interface from being brought up, and dhcp being attempted
+if wlan0_missing; then
+	echo_error "WLAN interface not configured"
+	exit 1
+elif wlan0_disabled ; then
+	echo_error "WLAN manually disabled"
+	exit 1
+elif wlan0_no_ssid; then
+	echo_error "WLAN disabled, no SSID"
+	exit 1
+elif wlan0_no_pass; then
+	echo_error "WLAN disabled, no password"
+	exit 1
+fi
+
+exit 0
