@@ -6,6 +6,7 @@ CONTAINER_ENGINE ?= $(shell command -v podman 2>/dev/null || command -v docker 2
 USER_ID := $(shell id -u)
 GROUP_ID := $(shell id -g)
 USERNAME := builder
+DL_DIR := dl
 
 # Directories
 WORKSPACE_DIR := $(shell pwd)
@@ -19,7 +20,7 @@ endif
 
 CONTAINER_RUN_OPTS := \
 	-v $(WORKSPACE_DIR):/home/$(USERNAME) \
-	-v $(shell readlink -f dl):/home/$(USERNAME)/dl \
+	-v $(shell [ -e ${DL_DIR} ] || mkdir -p ${DL_DIR} && readlink -f ${DL_DIR}):/home/$(USERNAME)/dl \
 	-w /home/$(USERNAME) \
 	-e TERM=xterm-256color
 
