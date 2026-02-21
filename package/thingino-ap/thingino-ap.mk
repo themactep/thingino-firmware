@@ -16,8 +16,8 @@ define THINGINO_AP_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/resolv-ap.conf \
 		$(TARGET_DIR)/etc/resolv-ap.conf
 
-	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/wpa-ap.conf \
-		$(TARGET_DIR)/etc/wpa-ap.conf
+	$(INSTALL) -D -m 0644 $(THINGINO_AP_PKGDIR)/files/wpa_supplicant-ap.conf \
+		$(TARGET_DIR)/etc/wpa_supplicant-ap.conf
 
 	$(INSTALL) -d $(TARGET_DIR)/etc/init.d
 	sed -e 's,@WLAN_AP_NETDEV@,$(THINGINO_AP_NETDEV),g' \

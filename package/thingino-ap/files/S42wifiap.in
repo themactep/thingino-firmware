@@ -4,7 +4,7 @@
 
 CNET=100.64.1
 
-WPA_AP_CONF="/etc/wpa-ap.conf"
+WPA_AP_CONF="/etc/wpa_supplicant-ap.conf"
 
 wlanap_enabled=$(jct /etc/thingino.json get wlan_ap.enabled 2>/dev/null)
 
