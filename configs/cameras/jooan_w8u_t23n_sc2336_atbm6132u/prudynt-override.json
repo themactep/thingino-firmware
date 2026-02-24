@@ -1,0 +1,13 @@
+{
+  "multi_sensor": {
+    "enabled": true,
+    "count": 2,
+    "mipi_switch_gpio": 7,
+    "sensors": {
+      "0": { "model": "sc2336s0", "gpio_reset": 18 },
+      "1": { "model": "sc2336s1", "gpio_reset": 16 }
+    }
+  },
+  "stream2": { "enabled": true, "video_enabled": true, "rtsp_endpoint": "ch2" },
+  "stream3": { "enabled": true, "video_enabled": true, "rtsp_endpoint": "ch3" }
+}
