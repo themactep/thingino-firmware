@@ -1,5 +1,1 @@
 gpio_button=14
-gpio_mmc_cd=49
-gpio_scl=58i
-gpio_sda=57i
-gpio_speaker=7o

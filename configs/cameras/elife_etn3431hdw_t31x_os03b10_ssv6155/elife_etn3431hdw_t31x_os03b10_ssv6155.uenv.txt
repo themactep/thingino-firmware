@@ -1,5 +1,3 @@
 gpio_button=62
 gpio_button_call=49
 gpio_default=6o 7o 8o 9o 11o 14o 16o 17o 25ID 26IDU 57o 58o
-gpio_mmc_cd=59
-gpio_speaker=63O

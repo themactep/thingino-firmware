@@ -1,7 +1,7 @@
 # NAME: Jienuo JN-107AR-E-WIFI (T31X, SC5235, ETH, RTL8731BU)
 # FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_ETHERNET=y
-BR2_SENSOR_1_NAME=sc5235
+BR2_SENSOR_1_NAME="sc5235"
 BR2_SOC_INGENIC_T31X=y
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_RTL8733BU=y

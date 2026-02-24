@@ -11,8 +11,7 @@
     },
     "eth": {
       "pin": 64,
-      "active_low": false,
       "toggle": true
-    }    
+    }
   }
 }

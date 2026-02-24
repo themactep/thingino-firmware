@@ -1,7 +1,5 @@
 gpio_button=11
-gpio_wlan=61o
 gpio_mmc_power=62o
-gpio_mmc_cd=59
 
 # set gpio strength: 32-2
 # set gpio strength: 33-2

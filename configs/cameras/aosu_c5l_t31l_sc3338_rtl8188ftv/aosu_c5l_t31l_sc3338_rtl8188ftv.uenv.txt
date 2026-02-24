@@ -1,5 +1,2 @@
-gpio_default=14o 18O 41o 42O 43o 47o 49i 50I 51o 52o 53o 54o 57o 58O 59o 60o 61o 62o 63o
-gpio_mmc_cd=49
-gpio_speaker=42
-gpio_wlan=43o
 gpio_button=50
+gpio_default=14o 18O 41o 42O 43o 47o 49i 50I 51o 52o 53o 54o 57o 58O 59o 60o 61o 62o 63o

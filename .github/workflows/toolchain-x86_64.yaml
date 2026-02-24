@@ -285,13 +285,13 @@ jobs:
         if: ${{ github.event.inputs.debug_enabled == 'true' }}
         run: |
           DYNAMIC_PART="${{ matrix.toolchain-version }}"
-          mkdir -p ${HOME}/output/${DYNAMIC_PART}/images/
-          echo "debug" > ${HOME}/output/${DYNAMIC_PART}/images/mipsel-thingino-linux-dummy_sdk-buildroot.tar.gz
+          mkdir -p ${HOME}/output/${GIT_BRANCH}/${DYNAMIC_PART}/images/
+          echo "debug" > ${HOME}/output/${GIT_BRANCH}/${DYNAMIC_PART}/images/mipsel-thingino-linux-dummy_sdk-buildroot.tar.gz
           echo "TIME=7:77" >> ${GITHUB_ENV}
 
       - name: Rename toolchain package for release
         run: |
-          INGTC=$(find ${HOME}/output/${{ matrix.toolchain-version }}*/images/ -name "mipsel-thingino-linux-*_sdk-buildroot.tar.gz" | head -n 1)
+          INGTC=$(find ${HOME}/output/${GIT_BRANCH}/${{ matrix.toolchain-version }}*/images/ -name "mipsel-thingino-linux-*_sdk-buildroot.tar.gz" | head -n 1)
           if [[ -n "$INGTC" ]]; then
             DIR_PATH=$(dirname "$INGTC")
             TOOLCHAIN_VERSION="${{ matrix.toolchain-version }}"

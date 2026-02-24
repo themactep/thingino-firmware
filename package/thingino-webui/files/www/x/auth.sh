@@ -11,7 +11,12 @@ API_KEY_FILE="/etc/thingino-api.key"
 # Returns 0 if valid, 1 if invalid
 verify_api_key() {
   local provided_key="$HTTP_X_API_KEY"
-  
+
+  # Also accept key as ?token= query parameter (e.g. snapshot URLs returned by ONVIF)
+  if [ -z "$provided_key" ] && [ -n "$QUERY_STRING" ]; then
+    provided_key=$(echo "$QUERY_STRING" | tr '&' '\n' | grep '^token=' | head -1 | cut -d'=' -f2-)
+  fi
+
   [ -z "$provided_key" ] && return 1
   
   # Check if API key file exists

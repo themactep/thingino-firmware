@@ -2,7 +2,7 @@
 # FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_RTL8189FS=y
-BR2_SENSOR_1_NAME=jxq03p
+BR2_SENSOR_1_NAME="jxq03p"
 BR2_SOC_INGENIC_T31N=y
 FLASH_SIZE_MB=16
 KERNEL_VERSION_4=y

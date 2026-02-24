@@ -68,10 +68,8 @@ detach_and_flash() {
 			x=$((x+1))
 			if flash_firmware; then
 				echo "=== Flash completed successfully at $(date) ==="
-				echo "Rebooting in 5 seconds..."
-				sleep 5
-				echo wdt > /proc/jz/reset/reset
-				exit 0
+				go_reboot
+				exit 1
 			fi
 			[ $x -gt 1 ] && times=" $x times"
 			echo "Flashing failed${times}."
@@ -104,8 +102,10 @@ detach_and_flash() {
 go_reboot() {
 	echo "Rebooting in 5 seconds..."
 	sleep 5
+	sync
 	echo wdt > /proc/jz/reset/reset
-	exit 0
+	sleep 2
+	reboot
 }
 
 [ -z "$1" ] && die "Firmware file is not set."

@@ -1,11 +1,5 @@
 gpio_button=62
-gpio_default=6O 16O 17o 18O 49o 50o 51o 52o 53o 54o 57i 58o 59o 60o 62i 63o
-gpio_ir850=59
-gpio_ircut=50 49
-gpio_mmc_cd=61
+gpio_default=25ID 26IDU 6O 16O 17o 18O 49o 50o 51o 52o 53o 54o 57i 58o 59o 60o 62i 63o
 gpio_sensor_1=18O
 gpio_sensor_2=16O
 gpio_sensor_switch=7
-gpio_speaker=63o
-gpio_white=60O
-gpio_wlan=6

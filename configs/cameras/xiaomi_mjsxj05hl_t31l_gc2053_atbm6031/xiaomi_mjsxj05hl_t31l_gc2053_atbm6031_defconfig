@@ -2,7 +2,7 @@
 # FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_ATBM6031=y
-BR2_SENSOR_1_NAME=gc2053
+BR2_SENSOR_1_NAME="gc2053"
 BR2_SOC_INGENIC_T31L=y
 BR2_THINGINO_AUDIO=y
 BR2_PACKAGE_THINGINO_KOPT_DWC2=y

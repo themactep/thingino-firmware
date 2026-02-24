@@ -1,4 +1,1 @@
 gpio_button=61
-gpio_mmc_cd=59
-gpio_speaker=63o
-gpio_wlan=62O

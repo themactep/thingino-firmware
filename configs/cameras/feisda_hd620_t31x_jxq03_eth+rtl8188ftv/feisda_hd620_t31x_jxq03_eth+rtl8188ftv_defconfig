@@ -2,7 +2,7 @@
 # FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_ETHERNET=y
 BR2_PACKAGE_THINGINO_KOPT_JZ_MAC_V13=y
-BR2_SENSOR_1_NAME=jxq03
+BR2_SENSOR_1_NAME="jxq03"
 BR2_SOC_INGENIC_T31X=y
 BR2_AVPU_CLK_486MHZ=y
 BR2_AVPU_VPLL=y

@@ -1,5 +1,3 @@
 gpio_button=50
 gpio_led_net_rx=72
 gpio_led_net_tx=73
-gpio_mmc_cd=52
-gpio_speaker=63o

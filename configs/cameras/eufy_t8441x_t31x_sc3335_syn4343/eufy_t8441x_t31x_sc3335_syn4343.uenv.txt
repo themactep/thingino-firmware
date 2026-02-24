@@ -1,6 +1,3 @@
 gpio_button=8
 gpio_default=25ID 26ID 61o 62o
-gpio_mmc_cd=58
 gpio_mmc_power=17O
-gpio_speaker=63
-gpio_wlan=48O

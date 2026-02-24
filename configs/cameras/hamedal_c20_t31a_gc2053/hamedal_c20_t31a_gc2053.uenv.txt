@@ -4,4 +4,3 @@ gpio_button_vol_down=33
 gpio_button_vol_up=32
 gpio_default=
 gpio_default_net=
-gpio_mmc_cd=

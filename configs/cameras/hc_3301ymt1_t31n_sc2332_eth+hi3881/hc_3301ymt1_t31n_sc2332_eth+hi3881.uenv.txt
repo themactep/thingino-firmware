@@ -1,3 +1,2 @@
 gpio_button=6
 gpio_default=6I 14O 49O 50O 51o 52o 53o 54o 57o 58o 61o 62o 63o 64o
-gpio_speaker=14

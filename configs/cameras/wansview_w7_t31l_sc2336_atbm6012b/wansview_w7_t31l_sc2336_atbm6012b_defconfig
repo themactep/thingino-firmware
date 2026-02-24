@@ -2,7 +2,7 @@
 # FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_ATBM6012B=y
-BR2_SENSOR_1_NAME=sc2336
+BR2_SENSOR_1_NAME="sc2336"
 BR2_SOC_INGENIC_T31L=y
 BR2_AVPU_VPLL=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0=y

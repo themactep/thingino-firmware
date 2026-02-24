@@ -7,6 +7,7 @@ BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PACKAGE_DIR="$BASE_DIR/package"
 OVERRIDES_DIR="$BASE_DIR/overrides"
 LOCAL_MK="$BASE_DIR/local.mk"
+FORK_MODE="no"
 
 # Colors for output
 RED='\033[0;31m'
@@ -40,6 +41,7 @@ Traverse packages in package/ directory and manage local source overrides.
 OPTIONS:
     -h, --help              Show this help message
     -a, --auto              Automatically download all matching packages without prompting
+    -f, --fork              Fork GitHub repos before cloning (enables contribution workflow)
     -l, --list              List packages and their override status only
     -r, --remove PACKAGE    Remove override for specified package
     -e, --enable PACKAGE    Enable (uncomment) override for specified package
@@ -317,7 +319,7 @@ update_override() {
 
     # Pull latest changes
     print_info "Pulling latest changes on $current_branch..."
-    if git pull --ff-only origin "$current_branch" 2>&1; then
+    if git pull --recurse-submodules --ff-only origin "$current_branch" 2>&1; then
         print_success "Updated $pkg_name successfully"
     else
         print_error "Failed to update $pkg_name (conflicts or non-fast-forward)"
@@ -327,6 +329,33 @@ update_override() {
 
     cd - >/dev/null
     return 0
+}
+
+# Check if a URL points to a GitHub repository
+is_github_url() {
+    [[ "$1" =~ github\.com ]]
+}
+
+# Fork a GitHub repo and echo the fork's clone URL
+fork_github_repo() {
+    local repo_url="$1"
+    local repo_path
+    repo_path=$(echo "$repo_url" | sed -E 's|https://github\.com/||; s|git@github\.com:||; s|\.git$||')
+
+    print_info "Forking $repo_path on GitHub..." >&2
+    if ! gh repo fork "$repo_path" --clone=false >&2 2>&1; then
+        print_error "Failed to fork repository" >&2
+        return 1
+    fi
+
+    local gh_user
+    gh_user=$(gh api user --jq .login 2>/dev/null)
+    if [ -z "$gh_user" ]; then
+        print_error "Could not determine GitHub username" >&2
+        return 1
+    fi
+
+    echo "https://github.com/$gh_user/$(basename "$repo_path")"
 }
 
 # Clone or download package source
@@ -355,18 +384,58 @@ download_package() {
     fi
 
     if [ "$method" = "git" ]; then
-        print_info "Cloning $site to $dest_dir"
+        local clone_url="$site"
+        local upstream_url=""
 
-        if [ -n "$branch" ]; then
-            git clone --branch "$branch" "$site" "$dest_dir"
-        else
-            git clone "$site" "$dest_dir"
+        # Offer to fork GitHub repos for an easier contribution workflow
+        if is_github_url "$site"; then
+            local do_fork="$FORK_MODE"
+            if [ "$do_fork" != "yes" ]; then
+                read -p "Fork this GitHub repo before cloning? [y/N]: " -n 1 -r
+                echo
+                [[ $REPLY =~ ^[Yy]$ ]] && do_fork="yes"
+            fi
+            if [ "$do_fork" = "yes" ]; then
+                local fork_url
+                if fork_url=$(fork_github_repo "$site"); then
+                    upstream_url="$site"
+                    clone_url="$fork_url"
+                    print_success "Will clone fork: $clone_url"
+                else
+                    print_warning "Forking failed, cloning original..."
+                fi
+            fi
         fi
 
-        # Checkout specific version if not HEAD
+        print_info "Cloning $clone_url to $dest_dir"
+
+        if [ -n "$branch" ]; then
+            if ! git clone --recurse-submodules --branch "$branch" "$clone_url" "$dest_dir"; then
+                print_error "Clone failed"
+                return 1
+            fi
+        else
+            if ! git clone --recurse-submodules "$clone_url" "$dest_dir"; then
+                print_error "Clone failed"
+                return 1
+            fi
+        fi
+
+        # Add upstream remote if we cloned a fork
+        if [ -n "$upstream_url" ]; then
+            git -C "$dest_dir" remote add upstream "$upstream_url"
+            print_info "Added upstream remote: $upstream_url"
+        fi
+
+        # Checkout specific version if not HEAD; create a local branch to avoid detached HEAD
         if [ -n "$version" ] && [ "$version" != "HEAD" ]; then
             cd "$dest_dir"
-            git checkout "$version" 2>/dev/null || print_warning "Could not checkout version: $version"
+            local local_branch="local-$(echo "$version" | tr '/' '-' | cut -c1-30)"
+            if git checkout -b "$local_branch" "$version" 2>/dev/null; then
+                print_info "Created local branch '$local_branch' at $version"
+            else
+                print_warning "Could not create branch at version: $version"
+            fi
             cd - >/dev/null
         fi
 
@@ -628,6 +697,10 @@ main() {
                 ;;
             -a|--auto)
                 auto_mode="yes"
+                shift
+                ;;
+            -f|--fork)
+                FORK_MODE="yes"
                 shift
                 ;;
             -l|--list)

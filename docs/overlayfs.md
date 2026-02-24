@@ -8,23 +8,23 @@ giving you an illusion of a writable userland.
 ### Layers
 
 It is very crucial to understand the firmware layers and carefully plan for any additions and changes.
-E.g. your compile a package and you want to make changes to its installable configuration file. 
+E.g. your compile a package and you want to make changes to its installable configuration file.
 You could create a patch file that would change the config file _before+ compilation, you could use a
 hook in the package's makefile to make changes _after_ the compilation using sed or other useful utils,
 or you could use the overlay with replace the entire file with your own version.
 
 ### Why subdirectories?
 
-**overlay/lower/**
+**overlay/**
 
 Files from this directory will go into the final image overriding those created during compilation time.
 E.g. Dropbear package installs /etc/init.d/S50dropbear file into target directory of the fimrware, but
 that is not the versions what we need in Thingino, so we place our own version of the file into overlay
-as overlay/lower/etc/init.d/S50dropbear and it replaces the one installed by the package in the final 
+as overlay/etc/init.d/S50dropbear and it replaces the one installed by the package in the final
 image assembly, on the permanent read-only partition. These files can be restored when deleted edited
 on the camera.
 
-**overlay/upper/**
+**user/overlay/**
 
 Files from this directory will go into a writable overlay parition of the final image. These files can be
 edited or deleted on the camera, and these changes are permanent. Think of these files as of the first

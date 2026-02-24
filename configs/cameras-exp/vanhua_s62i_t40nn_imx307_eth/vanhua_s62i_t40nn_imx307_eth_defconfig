@@ -1,7 +1,7 @@
 # NAME: Vanhua S62I (T40NN, IMX307, ETH)
 # FRAG: soc-xburst2 toolchain-xburst2 ccache brand rootfs kernel system target uboot ssl
 BR2_ETHERNET=y
-BR2_SENSOR_1_NAME=imx307
+BR2_SENSOR_1_NAME="imx307"
 BR2_SOC_INGENIC_T40NN=y
 BR2_THINGINO_RMEM_MB=64
 FLASH_SIZE_MB=16

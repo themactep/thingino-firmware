@@ -10,7 +10,7 @@ start() {
 		exit 1
 	fi
 
-	if date -u -s "@$(stat -c%X "$OS_RELEASE_FILE")" >/dev/null; then
+	if date -u -s "@$(awk -F'=' '/^TIME_STAMP/{print $2}' "$OS_RELEASE_FILE")" >/dev/null; then
 		echo_info "$(date) (fail-safe)"
 	else
 		echo_error "Failed to set time"

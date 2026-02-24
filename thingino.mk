@@ -508,10 +508,24 @@ export KERNEL_VERSION_4
 # IMAGE SENSOR
 #
 
-SENSOR_1_MODEL := $(call qstrip,$(BR2_SENSOR_1_NAME))
-SENSOR_2_MODEL := $(call qstrip,$(BR2_SENSOR_2_NAME))
-SENSOR_3_MODEL := $(call qstrip,$(BR2_SENSOR_3_NAME))
-SENSOR_4_MODEL := $(call qstrip,$(BR2_SENSOR_4_NAME))
+SENSOR_1_MODEL = $(strip $(subst ",,$(BR2_SENSOR_1_NAME)))
+SENSOR_2_MODEL = $(strip $(subst ",,$(BR2_SENSOR_2_NAME)))
+SENSOR_3_MODEL = $(strip $(subst ",,$(BR2_SENSOR_3_NAME)))
+SENSOR_4_MODEL = $(strip $(subst ",,$(BR2_SENSOR_4_NAME)))
+
+# Filter out "none" values
+ifeq ($(SENSOR_1_MODEL),none)
+SENSOR_1_MODEL :=
+endif
+ifeq ($(SENSOR_2_MODEL),none)
+SENSOR_2_MODEL :=
+endif
+ifeq ($(SENSOR_3_MODEL),none)
+SENSOR_3_MODEL :=
+endif
+ifeq ($(SENSOR_4_MODEL),none)
+SENSOR_4_MODEL :=
+endif
 
 SENSOR_1_PARAMS := $(call qstrip,$(BR2_SENSOR_1_PARAMS))
 SENSOR_2_PARAMS := $(call qstrip,$(BR2_SENSOR_2_PARAMS))

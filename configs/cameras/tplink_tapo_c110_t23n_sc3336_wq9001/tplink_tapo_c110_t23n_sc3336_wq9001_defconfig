@@ -1,7 +1,7 @@
 # NAME: TP-Link Tapo C110 v3 (T23N, SC3336, WQ9001)
 # FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_SOC_INGENIC_T23N=y
-BR2_SENSOR_1_NAME=sc3336
+BR2_SENSOR_1_NAME="sc3336"
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_WQ9001=y
 BR2_PACKAGE_THINGINO_KOPT=y

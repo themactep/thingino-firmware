@@ -1,7 +1,4 @@
 gpio_default=11I 14O 18O 57o 58o 49o 52o 53o 59o 60o 61o 62o 63o
-gpio_wlan=14O
-gpio_mmc_cd=11
-gpio_speaker=10
 gpio_ttl_1=51
 gpio_ttl_2=54
 pwm_ch_white=1

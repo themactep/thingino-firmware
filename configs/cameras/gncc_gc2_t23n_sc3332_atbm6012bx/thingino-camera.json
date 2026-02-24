@@ -14,9 +14,6 @@
     "mmc_cd": 49,
     "scl": "58i",
     "sda": "57i",
-    "wlan": {
-      "pin": 6,
-      "active_low": false
-    }
+    "wlan": 6
   }
 }

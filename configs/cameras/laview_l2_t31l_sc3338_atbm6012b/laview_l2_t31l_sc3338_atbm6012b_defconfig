@@ -1,7 +1,7 @@
 # NAME: LaView L2 (T31L, SC3338, ATBM6012B)
 # FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
 BR2_SOC_INGENIC_T31L=y
-BR2_SENSOR_1_NAME=sc3338
+BR2_SENSOR_1_NAME="sc3338"
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_ATBM6012B=y
 BR2_AVPU_CLK_600MHZ=y

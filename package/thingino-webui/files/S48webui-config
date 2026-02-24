@@ -5,6 +5,7 @@
 
 OS_RELEASE_FILE=${OS_RELEASE_FILE:-/etc/os-release}
 WEBUI_JS_CONFIG=${WEBUI_JS_CONFIG:-/var/www/a/runtime-config.js}
+API_KEY_FILE=${API_KEY_FILE:-/etc/thingino-api.key}
 
 escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
@@ -16,6 +17,13 @@ if [ ! -f "$OS_RELEASE_FILE" ]; then
 fi
 
 start() {
+  if [ ! -f "$API_KEY_FILE" ]; then
+    echo_info "Generating API key"
+    new_key=$(head -c 32 /dev/urandom | hexdump -e '32/1 "%02x" "\n"')
+    echo "$new_key" > "$API_KEY_FILE"
+    chmod 600 "$API_KEY_FILE"
+  fi
+
   hostname="$(hostname -s)"
   timezone="$(cat /etc/timezone 2>/dev/null || echo UTC)"
   image_id="$(awk -F= '/^IMAGE_ID=/{gsub(/"/, "", $2); print $2}' "$OS_RELEASE_FILE")"
