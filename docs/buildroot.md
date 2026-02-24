@@ -17,6 +17,7 @@ FILES := $(shell ...)
 
 FILES = $(shell ...)
 # expand later: FILES holds the syntax $(shell ...)
+```
 
 ### Override workflow basics
 
