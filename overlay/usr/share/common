@@ -113,7 +113,6 @@ PIDFILE="/run/$DAEMON_SHORT.pid"
 
 DAEMON_CONFIG="/etc/default/$DAEMON_SHORT"
 if [ -r "$DAEMON_CONFIG" ]; then
-#	echo "Evaluating $DAEMON_CONFIG" >&2
 	. "$DAEMON_CONFIG"
 fi
 
