@@ -35,6 +35,15 @@ config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_WYZEC3P
 
 		Compatible with Ingenic T40 based WyzeCam V3 Pro hardware.
 
+config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_IGETC5PT
+	bool "iGET C5PT"
+	help
+		Select this option to use the custom device tree for iGET C5PT.
+		This will install the iget_c5pt_t41lq.dts file to the kernel's
+		arch/mips/boot/dts/ingenic directory as marmot.dts.
+
+		Compatible with Ingenic T41 based iGET C5PT hardware.
+
 config BR2_LINUX_KERNEL_EXT_THINGINO_KOPT_DTS_A1_SMART_NVR
 	bool "Smart NVR A1"
 	help
