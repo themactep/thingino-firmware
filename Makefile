@@ -210,7 +210,22 @@ BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot \
 .PHONY: all bootstrap build build_fast clean clean-nfs-debug cleanbuild defconfig distclean \
 	dev fast help info pack release remove_bins repack sdk toolchain update upboot-ota \
 	upload_tftp upgrade_ota br-% check-config force-config show-config-deps clean-config \
-	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs show-vars
+	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs show-vars run
+
+# Run a binary under QEMU in the build sysroot.
+# Usage: CAMERA=<camera> make run CMD="/bin/ffmpeg --help"  (binary with args)
+#        CAMERA=<camera> make run /bin/ffmpeg               (binary only, no args)
+CMD ?=
+ifeq (run,$(firstword $(MAKECMDGOALS)))
+  ifneq ($(CMD),)
+    _RUN_CMD := $(CMD)
+  else
+    _RUN_CMD := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+    ifneq ($(_RUN_CMD),)
+      $(eval $(_RUN_CMD):;@:)
+    endif
+  endif
+endif
 
 # Default: fast parallel incremental build
 all: defconfig build_fast pack
@@ -832,6 +847,7 @@ help:
 	  make rebuild-<pkg>  perform a clean package rebuild for <pkg>\n\
 	  make show-vars      print key build variables\n\
 	  make help           print this help\n\
+	  make run <bin>      run a target binary via QEMU (e.g. make run bin/ffmpeg)\n\
 	  \n\
 	Configuration Management:\n\
 	  make defconfig      configure buildroot (auto-detects changes)\n\
@@ -864,3 +880,7 @@ show-vars:
 	@echo "CAMERA        = $(CAMERA)";
 	@echo "HOST_DIR      = $(HOST_DIR)";
 	@echo "BR2_MAKE      = $(BR2_MAKE)";
+
+run:
+	$(info -------------------------------- $@)
+	$(SCRIPTS_DIR)/qemu_run.sh $(OUTPUT_DIR)/target $(_RUN_CMD)
