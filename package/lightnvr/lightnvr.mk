@@ -21,12 +21,14 @@ endif
 
 # Enable SOD with dynamic linking and go2rtc, use bundled cJSON
 LIGHTNVR_CONF_OPTS = \
-	-DENABLE_SOD=ON \
+	-DENABLE_SOD=OFF \
 	-DSOD_DYNAMIC_LINK=ON \
 	-DENABLE_GO2RTC=ON \
 	-DGO2RTC_BINARY_PATH=/bin/go2rtc \
 	-DGO2RTC_CONFIG_DIR=/etc/lightnvr/go2rtc \
-	-DGO2RTC_API_PORT=1984
+	-DGO2RTC_API_PORT=1984 \
+	-DCMAKE_BUILD_TYPE=Release
+
 
 # Build web assets before CMake configuration
 # Web assets are no longer checked into git, so we build them here
@@ -81,7 +83,6 @@ endef
 # The complete target installation command set
 define LIGHTNVR_INSTALL_TARGET_CMDS
 	$(LIGHTNVR_INSTALL_APP_FILES)
-	$(LIGHTNVR_INSTALL_LIBSOD)
 endef
 
 $(eval $(cmake-package))
