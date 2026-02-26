@@ -12,9 +12,6 @@ iface="$(iface_default)"
 
 CAMERA=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $OS_RELEASE_FILE)
 
-ONVIF_IFACE=$(jct $ONVIF_CONFIG get server.ifs)
-DAEMON_ARGS="-i $ONVIF_IFACE -x http://%s/onvif/device_service -m $CAMERA -n thingino -p /run/$DAEMON_SHORT.pid"
-
 start() {
 	echo_title "Starting ONVIF discovery"
 
@@ -23,7 +20,12 @@ start() {
 		exit 1
 	fi
 
-	start_daemon
+	# Start one instance per active non-loopback interface
+	for active_iface in $(ip -4 -o addr show | awk '$2 != "lo" {print $2}' | sort -u); do
+		PIDFILE="/run/${DAEMON_SHORT}_${active_iface}.pid"
+		DAEMON_ARGS="-i $active_iface -x http://%s/onvif/device_service -m $CAMERA -n thingino -p $PIDFILE"
+		start_daemon
+	done
 
 	tmpfile="$(mktemp -u).json"
 	echo '{}' > $tmpfile
@@ -54,7 +56,11 @@ start() {
 stop() {
 	echo_title "Stopping ONVIF discovery"
 
-	stop_daemon
+	for pidfile in /run/${DAEMON_SHORT}_*.pid; do
+		[ -f "$pidfile" ] || continue
+		PIDFILE="$pidfile"
+		stop_daemon
+	done
 }
 
 case "$1" in
