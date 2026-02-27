@@ -1,0 +1,895 @@
+{{include:header}}
+
+<div class="row mb-3">
+  <h1 class="h3 mb-0"><i class="bi bi-badge-cc me-2"></i>On-Screen Display (OSD)</h1>
+  <p class="text-muted mb-0">Configure text overlays and font management for video streams</p>
+</div>
+
+<div class="row mb-4">
+  <!-- Left Column - OSD Preview -->
+  <div class="col-lg-8">
+    <!-- Camera Preview Wrapper for OSD Overlay -->
+    <div class="position-relative">
+      {{include:camera-preview}}
+
+      <!-- OSD Overlay Elements (bound to canvas coordinates) -->
+      <div id="osdOverlay" class="position-absolute" style="pointer-events: none; z-index: 10;">
+        <!-- OSD Elements -->
+        <div id="preview-timestamp"></div>
+        <div id="preview-title"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column - Controls -->
+  <div class="col-lg-4">
+    <div class="row g-3">
+      <!-- OSD Configuration -->
+      <div class="col-12">
+        <div class="card">
+          <h6 class="card-header">OSD Configuration</h6>
+          <div class="card-body">
+            <form method="POST" action="/lua/streamer/osd">
+          <!-- OSD Enable -->
+          <div class="form-check mb-4">
+            <input type="checkbox" id="osd_enabled" name="osd_enabled" value="true" class="form-check-input" checked>
+            <label for="osd_enabled" class="form-check-label">Enable On-Screen Display</label>
+            <div class="form-text">Show text overlays on video stream</div>
+          </div>
+          
+          <!-- Timestamp Settings -->
+          <h6 class="text-primary mb-2">Timestamp</h6>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <div class="form-check mb-3">
+                <input type="checkbox" id="timestamp_enabled" name="timestamp_enabled" value="true" class="form-check-input" checked>
+                <label for="timestamp_enabled" class="form-check-label">Show Timestamp</label>
+                <div class="form-text">Display current date and time</div>
+              </div>
+              
+              <label for="timestamp_format" class="form-label">Timestamp Format</label>
+              <select id="timestamp_format" name="timestamp_format" class="form-select mb-3">
+                <option value="YYYY-MM-DD HH:mm:ss" selected>2024-06-15 14:30:25</option>
+                <option value="MM/DD/YYYY HH:mm:ss">06/15/2024 14:30:25</option>
+                <option value="DD/MM/YYYY HH:mm:ss">15/06/2024 14:30:25</option>
+                <option value="YYYY-MM-DD hh:mm:ss A">2024-06-15 02:30:25 PM</option>
+                <option value="custom">Custom Format</option>
+              </select>
+              
+              <div id="custom-timestamp-format" class="d-none">
+                <label for="custom_timestamp" class="form-label">Custom Format</label>
+                <input type="text" id="custom_timestamp" name="custom_timestamp" class="form-control" placeholder="YYYY-MM-DD HH:mm:ss">
+                <div class="form-text">Use YYYY, MM, DD, HH, mm, ss for date/time components</div>
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <label for="timestamp_position" class="form-label">Position</label>
+              <select id="timestamp_position" name="timestamp_position" class="form-select mb-3">
+                <option value="top-left" selected>Top Left</option>
+                <option value="top-right">Top Right</option>
+                <option value="bottom-left">Bottom Left</option>
+                <option value="bottom-right">Bottom Right</option>
+                <option value="center">Center</option>
+              </select>
+              
+              <div class="row">
+                <div class="col-6">
+                  <label for="timestamp_x_offset" class="form-label">X Offset</label>
+                  <input type="number" id="timestamp_x_offset" name="timestamp_x_offset" class="form-control" value="10" min="0">
+                </div>
+                <div class="col-6">
+                  <label for="timestamp_y_offset" class="form-label">Y Offset</label>
+                  <input type="number" id="timestamp_y_offset" name="timestamp_y_offset" class="form-control" value="10" min="0">
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Camera Name/Title -->
+          <h6 class="text-primary mb-2">Camera Title</h6>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <div class="form-check mb-3">
+                <input type="checkbox" id="title_enabled" name="title_enabled" value="true" class="form-check-input" checked>
+                <label for="title_enabled" class="form-check-label">Show Camera Title</label>
+                <div class="form-text">Display camera name or custom title</div>
+              </div>
+              
+              <label for="camera_title" class="form-label">Title Text</label>
+              <input type="text" id="camera_title" name="camera_title" class="form-control mb-3" placeholder="Camera Name" value="Thingino Camera">
+            </div>
+            
+            <div class="col-md-6">
+              <label for="title_position" class="form-label">Position</label>
+              <select id="title_position" name="title_position" class="form-select mb-3">
+                <option value="top-left" selected>Top Left</option>
+                <option value="top-right">Top Right</option>
+                <option value="bottom-left">Bottom Left</option>
+                <option value="bottom-right">Bottom Right</option>
+                <option value="center">Center</option>
+              </select>
+              
+              <div class="row">
+                <div class="col-6">
+                  <label for="title_x_offset" class="form-label">X Offset</label>
+                  <input type="number" id="title_x_offset" name="title_x_offset" class="form-control" value="10" min="0">
+                </div>
+                <div class="col-6">
+                  <label for="title_y_offset" class="form-label">Y Offset</label>
+                  <input type="number" id="title_y_offset" name="title_y_offset" class="form-control" value="40" min="0">
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Text Appearance -->
+          <h6 class="text-primary mb-2">Text Appearance</h6>
+          <div class="row mb-3">
+            <div class="col-md-6 col-lg-3">
+              <label for="text_size" class="form-label">Font Size</label>
+              <select id="text_size" name="text_size" class="form-select form-select-sm">
+                <option value="small">Small</option>
+                <option value="medium" selected>Medium</option>
+                <option value="large">Large</option>
+                <option value="xlarge">Extra Large</option>
+              </select>
+            </div>
+
+            <div class="col-md-6 col-lg-3">
+              <label for="text_color" class="form-label">Text Color</label>
+              <select id="text_color" name="text_color" class="form-select form-select-sm">
+                <option value="white" selected>White</option>
+                <option value="black">Black</option>
+                <option value="red">Red</option>
+                <option value="green">Green</option>
+                <option value="blue">Blue</option>
+                <option value="yellow">Yellow</option>
+              </select>
+            </div>
+
+            <div class="col-md-6 col-lg-3">
+              <label for="text_background" class="form-label">Background</label>
+              <select id="text_background" name="text_background" class="form-select form-select-sm">
+                <option value="none">None</option>
+                <option value="black" selected>Black</option>
+                <option value="white">White</option>
+                <option value="red">Red</option>
+                <option value="green">Green</option>
+                <option value="blue">Blue</option>
+                <option value="yellow">Yellow</option>
+              </select>
+            </div>
+
+            <div class="col-md-6 col-lg-3">
+              <label for="text_opacity" class="form-label">Opacity</label>
+              <input type="range" id="text_opacity" name="text_opacity" class="form-range" min="0" max="100" value="80">
+              <div class="d-flex justify-content-between">
+                <small class="text-muted">0%</small>
+                <small class="text-muted">100%</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Font Settings -->
+          <h6 class="text-primary mb-2">Font Settings</h6>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="ch0_font" class="form-label">Main Stream Font</label>
+              <select id="ch0_font" name="ch0_font" class="form-select form-select-sm">
+                <option value="">Default system font</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="ch1_font" class="form-label">Sub Stream Font</label>
+              <select id="ch1_font" name="ch1_font" class="form-select form-select-sm">
+                <option value="">Default system font</option>
+              </select>
+            </div>
+          </div>
+
+              <div class="d-grid">
+                <button type="submit" class="btn btn-primary">
+                  <i class="bi bi-check-lg me-1"></i>Save OSD Settings
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Font Management -->
+      <div class="col-12">
+        <div class="card">
+          <h6 class="card-header">Font Management</h6>
+          <div class="card-body">
+            <div class="mb-3">
+              <label for="font_file" class="form-label">Upload Font</label>
+              <input type="file" id="font_file" name="font_file" class="form-control form-control-sm" accept=".ttf,.otf">
+              <div class="form-text">TTF/OTF font files</div>
+            </div>
+            <div class="d-grid mb-3">
+              <button type="button" class="btn btn-outline-primary btn-sm" onclick="uploadFont()">
+                <i class="bi bi-upload me-1"></i>Upload Font
+              </button>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Uploaded Fonts</label>
+              <div id="font-list" class="border rounded p-2" style="max-height: 120px; overflow-y: auto;">
+                <div class="text-muted text-center">Loading fonts...</div>
+              </div>
+            </div>
+            <div class="d-grid">
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="refreshFontList()">
+                <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Custom timestamp format toggle
+document.getElementById('timestamp_format').addEventListener('change', function() {
+    const customDiv = document.getElementById('custom-timestamp-format');
+    if (this.value === 'custom') {
+        customDiv.classList.remove('d-none');
+    } else {
+        customDiv.classList.add('d-none');
+    }
+});
+
+// Font management functions
+function uploadFont() {
+    const fileInput = document.getElementById('font_file');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert('Please select a font file to upload');
+        return;
+    }
+
+    // Validate file type
+    if (!file.name.toLowerCase().match(/\.(ttf|otf)$/)) {
+        alert('Please select a valid TTF or OTF font file');
+        return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        alert('Font file is too large. Maximum size is 5MB');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('font_file', file);
+
+    // Show upload progress
+    const uploadBtn = document.querySelector('button[onclick="uploadFont()"]');
+    const originalText = uploadBtn.textContent;
+    uploadBtn.textContent = 'Uploading...';
+    uploadBtn.disabled = true;
+
+    fetch('/lua/api/streamer/upload-font', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('Font uploaded successfully: ' + result.filename);
+            // Clear file input
+            fileInput.value = '';
+            // Refresh font list and dropdowns
+            refreshFontList();
+        } else {
+            alert('Failed to upload font: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error uploading font:', error);
+        alert('Failed to upload font');
+    })
+    .finally(() => {
+        // Restore button
+        uploadBtn.textContent = originalText;
+        uploadBtn.disabled = false;
+    });
+}
+
+function refreshFontList() {
+    return fetch('/lua/api/streamer/list-fonts')
+        .then(response => response.json())
+        .then(result => {
+            const fontList = document.getElementById('font-list');
+
+            // Update font list display
+            if (result.success && result.fonts && result.fonts.length > 0) {
+                let html = '';
+                result.fonts.forEach(font => {
+                    const sizeKB = Math.round(font.size / 1024);
+                    // Escape font name for safe display in HTML
+                    const escapedDisplayName = font.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    html += `
+                        <div class="d-flex justify-content-between align-items-center mb-1 p-1 border rounded">
+                            <div>
+                                <small><strong>${escapedDisplayName}</strong></small><br>
+                                <small class="text-muted">${sizeKB} KB</small>
+                            </div>
+                            <button type="button" class="btn btn-outline-danger btn-sm delete-font-btn"
+                                    data-font-name="${escapedDisplayName}" title="Delete font">
+                                ×
+                            </button>
+                        </div>
+                    `;
+                });
+                fontList.innerHTML = html;
+
+                // Update font dropdowns
+                updateFontDropdowns(result.fonts);
+
+                // Add event listeners for delete buttons
+                setupFontDeleteListeners();
+            } else {
+                fontList.innerHTML = '<div class="text-muted text-center">No fonts uploaded</div>';
+                updateFontDropdowns([]);
+            }
+
+            return result; // Return the result for chaining
+        })
+        .catch(error => {
+            console.error('Error loading font list:', error);
+            document.getElementById('font-list').innerHTML =
+                '<div class="text-danger text-center">Failed to load fonts</div>';
+            throw error; // Re-throw for proper error handling
+        });
+}
+
+function updateFontDropdowns(fonts) {
+    const ch0Select = document.getElementById('ch0_font');
+    const ch1Select = document.getElementById('ch1_font');
+
+    if (!ch0Select || !ch1Select) {
+        console.warn('Font dropdown elements not found');
+        return;
+    }
+
+    // Clear existing options except default
+    ch0Select.innerHTML = '<option value="">Default system font</option>';
+    ch1Select.innerHTML = '<option value="">Default system font</option>';
+
+    // Add font options and load fonts for preview
+    fonts.forEach(font => {
+        const option0 = new Option(font.name, font.name);
+        const option1 = new Option(font.name, font.name);
+        ch0Select.add(option0);
+        ch1Select.add(option1);
+
+        // Load font for preview use
+        loadFontForPreview(font.name);
+    });
+
+    // Font selections will be loaded by loadOSDConfig()
+}
+
+function setupFontDeleteListeners() {
+    const fontList = document.getElementById('font-list');
+    if (!fontList) return;
+
+    // Remove existing listeners
+    fontList.removeEventListener('click', handleFontDeleteClick);
+    // Add new listener
+    fontList.addEventListener('click', handleFontDeleteClick);
+}
+
+function handleFontDeleteClick(event) {
+    if (event.target.classList.contains('delete-font-btn')) {
+        const fontName = event.target.getAttribute('data-font-name');
+        // Unescape HTML entities back to original font name
+        const actualFontName = fontName.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+        deleteFont(actualFontName);
+    }
+}
+
+function deleteFont(fontName) {
+    if (!confirm(`Are you sure you want to delete the font "${fontName}"?`)) {
+        return;
+    }
+
+    fetch('/lua/api/streamer/delete-font', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ font_name: fontName })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('Font deleted successfully');
+            refreshFontList();
+        } else {
+            alert('Failed to delete font: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting font:', error);
+        alert('Failed to delete font');
+    });
+}
+
+
+
+function loadFontForPreview(fontName) {
+    // Create a safe font family name for CSS (remove special characters)
+    const safeFontName = fontName.replace(/['"()]/g, '').replace(/\s+/g, '-');
+    const fontUrl = `/lua/api/streamer/get-font/${encodeURIComponent(fontName)}`;
+
+    // Try to load the font directly
+    const fontFace = new FontFace(safeFontName, `url("${fontUrl}")`);
+
+    // Load the font with timeout
+    Promise.race([
+        fontFace.load(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Font load timeout')), 5000))
+    ])
+    .then(function(loadedFont) {
+        // Add to document fonts
+        document.fonts.add(loadedFont);
+        console.log(`Font loaded for preview: ${fontName} as ${safeFontName}`);
+        // Update preview if this font is currently selected
+        updatePreview();
+    })
+    .catch(function(error) {
+        console.warn(`Font preview not available for: ${fontName}`, error.message);
+        // Don't show error for invalid/corrupted fonts, just skip them
+    });
+}
+
+// Font selection is now handled by the main OSD form submission
+
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 3000);
+}
+
+// OSD Preview using universal camera preview component
+// Listen for camera preview updates to update OSD overlays
+window.addEventListener('cameraPreviewUpdated', function(event) {
+    updateOSDOverlays();
+});
+
+function updateOSDOverlays() {
+    // Sync overlay position with canvas
+    syncOverlayWithCanvas();
+    // Update OSD overlay positions and content
+    updatePreview();
+}
+
+function syncOverlayWithCanvas() {
+    const canvas = document.getElementById('cameraPreviewCanvas');
+    const overlay = document.getElementById('osdOverlay');
+
+    if (!canvas || !overlay) return;
+
+    // Get canvas position and size
+    const canvasRect = canvas.getBoundingClientRect();
+    // Get the wrapper div position (the position-relative container)
+    const wrapperRect = overlay.parentElement.getBoundingClientRect();
+
+    // Position overlay to match canvas exactly relative to wrapper
+    overlay.style.left = (canvasRect.left - wrapperRect.left) + 'px';
+    overlay.style.top = (canvasRect.top - wrapperRect.top) + 'px';
+    overlay.style.width = canvasRect.width + 'px';
+    overlay.style.height = canvasRect.height + 'px';
+}
+
+// Preview update functions
+function updatePreview() {
+    const timestampElement = document.getElementById('preview-timestamp');
+    const titleElement = document.getElementById('preview-title');
+
+    if (!timestampElement || !titleElement) {
+        return;
+    }
+
+    // Update timestamp based on settings
+    const timestampEnabled = document.getElementById('timestamp_enabled')?.checked;
+    const timestampFormat = document.getElementById('timestamp_format')?.value;
+    const timestampPosition = document.getElementById('timestamp_position')?.value;
+
+    // Always show timestamp for preview (regardless of checkbox)
+    let timestamp = '';
+    const now = new Date();
+
+    if (timestampEnabled) {
+        switch(timestampFormat) {
+            case 'YYYY-MM-DD HH:mm:ss':
+                timestamp = now.toISOString().slice(0, 19).replace('T', ' ');
+                break;
+            case 'DD/MM/YYYY HH:mm:ss':
+                timestamp = now.toLocaleDateString('en-GB') + ' ' + now.toTimeString().slice(0, 8);
+                break;
+            case 'MM/DD/YYYY HH:mm:ss':
+                timestamp = now.toLocaleDateString('en-US') + ' ' + now.toTimeString().slice(0, 8);
+                break;
+            case 'YYYY-MM-DD hh:mm:ss A':
+                timestamp = now.toLocaleDateString('en-CA') + ' ' + now.toLocaleTimeString('en-US');
+                break;
+            case 'custom':
+                const customFormat = document.getElementById('custom_timestamp')?.value || 'YYYY-MM-DD HH:mm:ss';
+                timestamp = customFormat; // Show the format string as preview
+                break;
+            default:
+                timestamp = now.toISOString().slice(0, 19).replace('T', ' ');
+        }
+        timestampElement.style.opacity = '1';
+    } else {
+        // Show preview with reduced opacity when disabled
+        timestamp = now.toISOString().slice(0, 19).replace('T', ' ') + ' (disabled)';
+        timestampElement.style.opacity = '0.5';
+    }
+
+    timestampElement.textContent = timestamp;
+    timestampElement.style.display = 'block';
+
+    // Update position with offsets
+    const timestampXOffset = parseInt(document.getElementById('timestamp_x_offset')?.value) || 10;
+    const timestampYOffset = parseInt(document.getElementById('timestamp_y_offset')?.value) || 10;
+    updateElementPosition(timestampElement, timestampPosition, timestampXOffset, timestampYOffset);
+
+    // Update title based on settings (always show for preview)
+    const titleEnabled = document.getElementById('title_enabled')?.checked;
+    const titleText = document.getElementById('camera_title')?.value || 'Thingino Camera';
+    const titlePosition = document.getElementById('title_position')?.value;
+
+    if (titleEnabled) {
+        titleElement.textContent = titleText;
+        titleElement.style.opacity = '1';
+    } else {
+        titleElement.textContent = titleText + ' (disabled)';
+        titleElement.style.opacity = '0.5';
+    }
+
+    titleElement.style.display = 'block';
+
+    // Update position with offsets
+    const titleXOffset = parseInt(document.getElementById('title_x_offset')?.value) || 10;
+    const titleYOffset = parseInt(document.getElementById('title_y_offset')?.value) || 40;
+    updateElementPosition(titleElement, titlePosition, titleXOffset, titleYOffset);
+
+    // Update text appearance
+    updateTextAppearance();
+}
+
+function updateElementPosition(element, position, xOffset = 10, yOffset = 10) {
+    // Reset positioning styles
+    element.style.top = '';
+    element.style.left = '';
+    element.style.right = '';
+    element.style.bottom = '';
+    element.style.transform = '';
+    element.style.margin = '';
+
+    // Ensure element is positioned absolutely
+    element.style.position = 'absolute';
+
+    switch(position) {
+        case 'top-left':
+            element.style.top = yOffset + 'px';
+            element.style.left = xOffset + 'px';
+            break;
+        case 'top-right':
+            element.style.top = yOffset + 'px';
+            element.style.right = xOffset + 'px';
+            break;
+        case 'bottom-left':
+            element.style.bottom = yOffset + 'px';
+            element.style.left = xOffset + 'px';
+            break;
+        case 'bottom-right':
+            element.style.bottom = yOffset + 'px';
+            element.style.right = xOffset + 'px';
+            break;
+        case 'center':
+            element.style.top = '50%';
+            element.style.left = '50%';
+            element.style.transform = 'translate(-50%, -50%)';
+            break;
+        default:
+            element.style.top = yOffset + 'px';
+            element.style.left = xOffset + 'px';
+    }
+}
+
+function updateTextAppearance() {
+    const textSize = document.getElementById('text_size')?.value || 'medium';
+    const textColor = document.getElementById('text_color')?.value || 'white';
+    const textBackground = document.getElementById('text_background')?.value || 'black';
+    const textOpacity = document.getElementById('text_opacity')?.value || 80;
+
+    // Get selected font (use main stream font for preview)
+    const selectedFont = document.getElementById('ch0_font')?.value || '';
+
+    const elements = [
+        document.getElementById('preview-timestamp'),
+        document.getElementById('preview-title')
+    ];
+
+    elements.forEach(element => {
+        if (!element) return;
+
+        // Apply text color directly
+        element.style.color = textColor;
+
+        // Apply background color
+        if (textBackground === 'none') {
+            element.style.backgroundColor = 'transparent';
+        } else {
+            element.style.backgroundColor = textBackground;
+        }
+
+        // Apply font family
+        if (selectedFont) {
+            // Create safe font name matching the loaded font
+            const safeFontName = selectedFont.replace(/['"()]/g, '').replace(/\s+/g, '-');
+            element.style.fontFamily = `"${safeFontName}", sans-serif`;
+        } else {
+            element.style.fontFamily = 'sans-serif';
+        }
+
+        // Apply text size
+        switch(textSize) {
+            case 'small':
+                element.style.fontSize = '0.875rem';
+                break;
+            case 'medium':
+                element.style.fontSize = '1rem';
+                break;
+            case 'large':
+                element.style.fontSize = '1.25rem';
+                break;
+            case 'xlarge':
+                element.style.fontSize = '1.5rem';
+                break;
+        }
+
+        // Apply opacity - ensure 100 means fully opaque
+        element.style.opacity = textOpacity / 100;
+
+        // Apply padding and rounded corners
+        element.style.padding = '0.25rem 0.5rem';
+        element.style.borderRadius = '0.375rem';
+
+        // Ensure element is visible and positioned
+        element.style.display = 'block';
+        element.style.position = 'absolute';
+    });
+}
+
+// Add event listeners to form elements
+function addPreviewListeners() {
+    const formElements = [
+        'timestamp_enabled', 'timestamp_format', 'timestamp_position', 'custom_timestamp',
+        'timestamp_x_offset', 'timestamp_y_offset',
+        'title_enabled', 'camera_title', 'title_position',
+        'title_x_offset', 'title_y_offset',
+        'text_size', 'text_color', 'text_background', 'text_opacity',
+        'ch0_font'
+    ];
+
+    formElements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('change', updatePreview);
+            element.addEventListener('input', updatePreview);
+        }
+    });
+}
+
+// Simple test function
+function testPreview() {
+    console.log('testPreview called');
+    const timestampElement = document.getElementById('preview-timestamp');
+    const titleElement = document.getElementById('preview-title');
+
+    console.log('Elements found:', {timestampElement, titleElement});
+
+    if (timestampElement) {
+        console.log('Updating timestamp element');
+        timestampElement.textContent = 'TEST TIMESTAMP - ' + new Date().toLocaleTimeString();
+        timestampElement.style.backgroundColor = 'red';
+        timestampElement.style.color = 'white';
+        timestampElement.style.padding = '5px';
+        timestampElement.style.display = 'block';
+        timestampElement.style.visibility = 'visible';
+    } else {
+        console.error('Timestamp element not found');
+    }
+
+    if (titleElement) {
+        console.log('Updating title element');
+        titleElement.textContent = 'TEST TITLE - WORKING';
+        titleElement.style.backgroundColor = 'blue';
+        titleElement.style.color = 'white';
+        titleElement.style.padding = '5px';
+        titleElement.style.display = 'block';
+        titleElement.style.visibility = 'visible';
+    } else {
+        console.error('Title element not found');
+    }
+}
+
+// Handle OSD form submission
+function handleOSDFormSubmit(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const formData = new FormData(form);
+
+    // Convert FormData to JSON
+    const data = {};
+    for (let [key, value] of formData.entries()) {
+        data[key] = value;
+    }
+
+    // Add unchecked checkboxes as false
+    const checkboxes = ['osd_enabled', 'timestamp_enabled', 'title_enabled'];
+    checkboxes.forEach(checkbox => {
+        if (!data[checkbox]) {
+            data[checkbox] = 'false';
+        }
+    });
+
+    console.log('Saving OSD settings:', data);
+
+    // Show saving state
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Saving...';
+    submitBtn.disabled = true;
+
+    fetch('/lua/api/streamer/save-osd', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification('OSD settings saved successfully', 'success');
+        } else {
+            showNotification('Failed to save OSD settings: ' + (result.error || 'Unknown error'), 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving OSD settings:', error);
+        showNotification('Failed to save OSD settings: ' + error.message, 'danger');
+    })
+    .finally(() => {
+        // Restore button
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    });
+}
+
+// Alias for backward compatibility
+function refreshPreviewSnapshot() {
+    refreshCameraPreview();
+}
+
+// Load current OSD configuration and font selections
+function loadOSDConfig() {
+    // Load both OSD config and font selections
+    Promise.all([
+        fetch('/lua/api/streamer/get-osd').then(r => r.json()),
+        fetch('/lua/api/streamer/get-channel-fonts').then(r => r.json())
+    ])
+    .then(([osdResult, fontResult]) => {
+        // Load OSD configuration
+        if (osdResult.success && osdResult.config) {
+            const config = osdResult.config;
+
+            // Set form values from config
+            Object.keys(config).forEach(fieldName => {
+                const element = document.getElementById(fieldName);
+                if (element) {
+                    const value = config[fieldName];
+
+                    if (element.type === 'checkbox') {
+                        element.checked = (value === 'true' || value === true);
+                    } else if (element.type === 'range') {
+                        element.value = value || element.defaultValue;
+                    } else {
+                        element.value = value || '';
+                    }
+                }
+            });
+        }
+
+        // Load font selections
+        if (fontResult.success) {
+            const ch0Select = document.getElementById('ch0_font');
+            const ch1Select = document.getElementById('ch1_font');
+
+            if (ch0Select) {
+                ch0Select.value = fontResult.ch0_font || '';
+                console.log('Loaded font selection for ch0:', fontResult.ch0_font);
+            }
+            if (ch1Select) {
+                ch1Select.value = fontResult.ch1_font || '';
+                console.log('Loaded font selection for ch1:', fontResult.ch1_font);
+            }
+        }
+
+        // Update preview after loading everything
+        updatePreview();
+    })
+    .catch(error => {
+        console.error('Error loading OSD configuration:', error);
+    });
+}
+
+// Initialize the page
+document.addEventListener('DOMContentLoaded', function() {
+    // Add event listeners first
+    addPreviewListeners();
+
+    // Add form submission handler
+    const osdForm = document.querySelector('form[action="/lua/streamer/osd"]');
+    if (osdForm) {
+        osdForm.addEventListener('submit', handleOSDFormSubmit);
+    }
+
+    // Load fonts first, then configuration
+    refreshFontList().then(() => {
+        // After fonts are loaded, load OSD config (which includes font selections)
+        return loadOSDConfig();
+    }).then(() => {
+        // Update preview after everything is loaded
+        updatePreview();
+        console.log('Initialization complete - fonts and config loaded');
+    }).catch(error => {
+        console.error('Error during initialization:', error);
+        // Still try to update preview even if loading failed
+        updatePreview();
+    });
+
+    // Test the preview elements and sync overlay
+    setTimeout(() => {
+        testPreview();
+        syncOverlayWithCanvas();
+    }, 1000);
+
+    // Update preview every second for timestamp
+    setInterval(updatePreview, 1000);
+
+    // Add resize handler to keep overlay synced
+    window.addEventListener('resize', () => {
+        setTimeout(syncOverlayWithCanvas, 100);
+    });
+
+    // Camera preview component handles its own initialization and refresh
+});
+</script>
+
+{{include:footer}}

@@ -1,0 +1,147 @@
+{{include:header}}
+
+<div class="row mb-4">
+  <div class="col">
+    <h1 class="h3 mb-0"><i class="bi bi-cloud-arrow-up me-2"></i><span data-i18n="config.firmware.title">Firmware Update</span></h1>
+    <p class="text-muted" data-i18n="config.firmware.subtitle">Check for updates and manage firmware versions</p>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="row g-4">
+      <!-- Current Firmware Info -->
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-info-circle me-2"></i><span data-i18n="config.firmware.current_firmware">Current Firmware</span></h5>
+          </div>
+          <div class="card-body">
+            <div class="mb-3">
+              <div class="row">
+                <div class="col-sm-4"><strong data-i18n="system.profile">Profile:</strong></div>
+                <div class="col-sm-8">{{firmware_profile}}</div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <div class="row">
+                <div class="col-sm-4"><strong data-i18n="system.build">Build:</strong></div>
+                <div class="col-sm-8">{{firmware_build}}</div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <div class="row">
+                <div class="col-sm-4"><strong data-i18n="common.version">Version:</strong></div>
+                <div class="col-sm-8">{{firmware_version}}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Update Operations -->
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-cloud-download me-2"></i><span data-i18n="config.firmware.update_operations">Update Operations</span></h5>
+          </div>
+          <div class="card-body">
+            <div class="d-grid gap-2">
+              <button class="btn btn-outline-primary" onclick="checkUpdates()">
+                <i class="bi bi-search me-1"></i><span data-i18n="config.firmware.check_updates">Check for Updates</span>
+              </button>
+              <input type="file" id="firmwareFile" accept=".bin,.img" style="display: none;" onchange="uploadFirmware()">
+              <button class="btn btn-outline-warning" onclick="document.getElementById('firmwareFile').click()">
+                <i class="bi bi-upload me-1"></i><span data-i18n="config.firmware.upload_firmware">Upload Firmware</span>
+              </button>
+            </div>
+            <div class="mt-3">
+              <small class="text-danger">
+                <strong data-i18n="common.warning">Warning:</strong> <span data-i18n="config.firmware.warning_message">Incorrect firmware can permanently damage your device!</span>
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Update Instructions -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0"><i class="bi bi-exclamation-triangle me-2"></i><span data-i18n="config.firmware.important_information">Important Information</span></h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <h6 data-i18n="config.firmware.before_updating">Before Updating:</h6>
+                <ul class="small">
+                  <li data-i18n="config.firmware.ensure_power">Ensure stable power supply</li>
+                  <li data-i18n="config.firmware.no_disconnect">Do not disconnect during update</li>
+                  <li data-i18n="config.firmware.backup_config">Backup your configuration</li>
+                  <li data-i18n="config.firmware.verify_compatibility">Verify firmware compatibility</li>
+                </ul>
+              </div>
+              <div class="col-md-6">
+                <h6 data-i18n="config.firmware.supported_formats">Supported Formats:</h6>
+                <ul class="small">
+                  <li data-i18n="config.firmware.bin_files">.bin files (binary firmware)</li>
+                  <li data-i18n="config.firmware.img_files">.img files (disk images)</li>
+                  <li data-i18n="config.firmware.official_only">Only use official Thingino firmware</li>
+                  <li data-i18n="config.firmware.match_model">Match your camera model exactly</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    function checkUpdates() {
+        alert(window.i18n?.t('js.alert.checking_updates') || 'Checking for firmware updates...');
+        fetch('/lua/api/system/check-updates')
+            .then(response => response.json())
+            .then(data => {
+                if (data.available) {
+                    alert((window.i18n?.t('js.alert.update_available') || 'Update available') + `: ${data.version}\n${data.description}`);
+                } else {
+                    alert(window.i18n?.t('js.alert.no_updates_available') || 'No updates available. You are running the latest version.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(window.i18n?.t('js.alert.update_check_failed') || 'Failed to check for updates');
+            });
+    }
+
+    function uploadFirmware() {
+        const file = document.getElementById('firmwareFile').files[0];
+        if (file) {
+            if (confirm((window.i18n?.t('js.confirm.upload_firmware') || 'Upload firmware file') + `: ${file.name}?\n\n` + (window.i18n?.t('js.confirm.firmware_warning') || 'WARNING: Incorrect firmware can brick your device!'))) {
+                const formData = new FormData();
+                formData.append('firmware', file);
+
+                fetch('/lua/api/system/upload-firmware', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(window.i18n?.t('js.alert.firmware_upload_success') || 'Firmware uploaded successfully. System will reboot to apply update.');
+                        } else {
+                            alert((window.i18n?.t('js.alert.firmware_upload_failed') || 'Firmware upload failed') + ': ' + (data.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert(window.i18n?.t('js.alert.firmware_upload_failed') || 'Failed to upload firmware');
+                    });
+            }
+        }
+    }
+</script>
+
+{{include:footer}}
