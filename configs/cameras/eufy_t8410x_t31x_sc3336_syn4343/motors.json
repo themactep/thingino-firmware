@@ -3,7 +3,7 @@
     "gpio_invert": false,
     "gpio_pan": "7 6 8 10",
     "gpio_switch": -1,
-    "gpio_tilt": "16 14 11 9",
+    "gpio_tilt": "9 11 14 16",
     "homing": true,
     "is_spi": false,
     "pos_0": "2050,900",
