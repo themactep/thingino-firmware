@@ -16,14 +16,11 @@
 </header>
 <main>
 <div class="container">
-
 <div id="loading" class="hidden">
 <div class="spinner"></div>
 <p class="text-center">Saving...</p>
 </div>
-
 <div id="error-message" class="alert alert-danger hidden"></div>
-
 <div id="success-wlan" class="hidden">
 <div class="alert alert-success text-center">
 <h3>Configuration Completed</h3>
@@ -33,7 +30,6 @@
 <p>To get started, just tap the reset button on your camera. If it's connected to the internet, it'll tell you its IP address. If you're not hearing that, no worries! Find the IP address among DHCP server leases (usually in your wireless router).</p>
 <p>For configuration information and troubleshooting steps please refer to <a href="https://github.com/themactep/thingino-firmware/wiki/">the project Wiki</a>.</p>
 </div>
-
 <div id="success-wlan-ap" class="hidden">
 <div class="alert alert-success text-center">
 <h3>Configuration Completed</h3>
@@ -41,71 +37,68 @@
 </div>
 <p>To start, locate the <b id="wlan-ssid-display"></b> wireless network on your device, connect using your password then open the web interface at <b>http://thingino.local/</b> using login <b>root</b> and the password you have just set up for that user.</p>
 </div>
-
 <form id="config-form" class="my-3 needs-validation" novalidate>
-  <div class="mb-2">
-    <label class="form-label">Hostname</label>
-    <input class="form-control bg-light text-dark" type="text" name="hostname" id="hostname" required autocapitalize="none">
-    <div class="invalid-feedback">Please enter hostname</div>
-  </div>
-  <div class="mb-2">
-    <label class="form-label">Create a password for user <b>root</b></label>
-    <input class="form-control bg-light text-dark" type="text" name="rootpass" id="rootpass" required autocapitalize="none">
-    <div class="invalid-feedback">Please enter password</div>
-  </div>
-  <div class="mb-2">
-    <label class="form-label"><a data-bs-toggle="collapse" href="#collapse-rootpkey" role="button" aria-expanded="false" aria-controls="collapse-rootpkey">Public SSH Key for user <b>root</b></a> <span class="small">(optional)</span></label>
-    <div class="collapse" id="collapse-rootpkey">
-      <textarea class="form-control bg-light text-dark text-break" name="rootpkey" id="rootpkey" rows="3"></textarea>
-    </div>
-  </div>
-  <div class="mb-2">
-    <label class="form-label">Wi-Fi Network Name/SSID <span class="small text-white">(case-sensitive)</span></label>
-    <div style="position:relative;">
-      <input class="form-control bg-light text-dark" type="text" id="wlan_ssid" name="wlan_ssid" autocapitalize="none" placeholder="Enter network name or scan for networks" required>
-      <datalist id="networks-list"></datalist>
-      <button class="btn btn-link" type="button" id="scan-btn" title="Scan for networks">
-        <span id="scan-spinner" class="hidden"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#495057" class="bi bi-arrow-clockwise" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg></span>
-        <span id="scan-text"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#495057" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg></span>
-      </button>
-    </div>
-    <div class="invalid-feedback">Please enter network name</div>
-  </div>
-  <div class="mb-2">
-    <label class="form-label">Wi-Fi Network Password <span class="small text-white">(case-sensitive)</span></label>
-    <input class="form-control bg-light text-dark" type="text" id="wlan_pass" name="wlan_pass" autocapitalize="none" minlength="8" pattern=".{8,64}" required>
-    <div class="invalid-feedback">Please enter a password 8 - 64 characters</div>
-  </div>
-  <div class="mb-2 boolean" id="wlan_ap_wrap">
-    <span class="form-check form-switch">
-    <input type="hidden" id="wlan_ap-false" name="wlan_ap" value="false">
-    <input type="checkbox" id="wlan_ap" name="wlan_ap" value="true" role="switch" class="form-check-input">
-    <label for="wlan_ap" class="form-check-label">Act as a Wi-Fi Access Point</label>
-    </span>
-  </div>
-  <input type="hidden" name="timezone" id="timezone" value="">
-  <input type="submit" value="Review & Save" class="btn btn-primary my-4">
+<div class="mb-2">
+<label class="form-label">Hostname</label>
+<input class="form-control bg-light text-dark" type="text" name="hostname" id="hostname" required autocapitalize="none">
+<div class="invalid-feedback">Please enter hostname</div>
+</div>
+<div class="mb-2">
+<label class="form-label">Create a password for user <b>root</b></label>
+<input class="form-control bg-light text-dark" type="text" name="rootpass" id="rootpass" required autocapitalize="none">
+<div class="invalid-feedback">Please enter password</div>
+</div>
+<div class="mb-2">
+<label class="form-label"><a data-bs-toggle="collapse" href="#collapse-rootpkey" role="button" aria-expanded="false" aria-controls="collapse-rootpkey">Public SSH Key for user <b>root</b></a> <span class="small">(optional)</span></label>
+<div class="collapse" id="collapse-rootpkey">
+<textarea class="form-control bg-light text-dark text-break" name="rootpkey" id="rootpkey" rows="3"></textarea>
+</div>
+</div>
+<div class="mb-2">
+<label class="form-label">Wi-Fi Network Name/SSID <span class="small text-white">(case-sensitive)</span></label>
+<div style="position:relative;">
+<input class="form-control bg-light text-dark" type="text" id="wlan_ssid" name="wlan_ssid" autocapitalize="none" placeholder="Enter network name or scan for networks" required>
+<datalist id="networks-list"></datalist>
+<button class="btn btn-link" type="button" id="scan-btn" title="Scan for networks">
+<span id="scan-spinner" class="hidden"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#495057" class="bi bi-arrow-clockwise" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg></span>
+<span id="scan-text"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#495057" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg></span>
+</button>
+</div>
+<div class="invalid-feedback">Please enter network name</div>
+</div>
+<div class="mb-2">
+<label class="form-label">Wi-Fi Network Password <span class="small text-white">(case-sensitive)</span></label>
+<input class="form-control bg-light text-dark" type="text" id="wlan_pass" name="wlan_pass" autocapitalize="none" minlength="8" pattern=".{8,64}" required>
+<div class="invalid-feedback">Please enter a password 8 - 64 characters</div>
+</div>
+<div class="mb-2 boolean" id="wlan_ap_wrap">
+<span class="form-check form-switch">
+<input type="hidden" id="wlan_ap-false" name="wlan_ap" value="false">
+<input type="checkbox" id="wlan_ap" name="wlan_ap" value="true" role="switch" class="form-check-input">
+<label for="wlan_ap" class="form-check-label">Act as a Wi-Fi Access Point</label>
+</span>
+</div>
+<input type="hidden" name="timezone" id="timezone" value="">
+<input type="submit" value="Review & Save" class="btn btn-primary my-4">
 </form>
-
 <div id="review-section" class="hidden">
 <div class="alert alert-secondary my-3">
 <h3>Ready to connect</h3>
 <p>Please double-check the entered data and correct it if you see an error!</p>
 <dl class="row" id="verify">
-<dt id="review-network-label"></dt>
-<dd id="review-network-ssid"></dd>
-<dt id="review-password-label"></dt>
-<dd class="text-break" id="review-network-pass"></dd>
-<dt>User <b>root</b> Password</dt>
-<dd id="review-rootpass"></dd>
 <dt>Camera Hostname</dt>
 <dd id="review-hostname"></dd>
+<dt>User <b>root</b> Password</dt>
+<dd id="review-rootpass"></dd>
+<dt id="review-network-label">Wi-Fi SSID</dt>
+<dd id="review-network-ssid"></dd>
+<dt id="review-password-label">Wi-Fi Password</dt>
+<dd class="text-break" id="review-network-pass"></dd>
 <dt>Time zone</dt>
 <dd id="review-timezone"></dd>
 <dt id="review-rootpkey-label" class="hidden">User <b>root</b> Public SSH Key</dt>
 <dd class="small text-break" id="review-rootpkey"></dd>
 </dl>
-
 <div class="row text-center">
 <div class="col my-2">
 <button type="button" class="btn btn-danger" id="btn-edit">Edit data</button>
@@ -116,11 +109,9 @@
 </div>
 </div>
 </div>
-
 <p class="small text-muted text-center" id="build-info"></p>
 </div>
 </main>
-
 <div class="hidden" id="timeout-warning">
 <div class="alert alert-warning text-center">
 <h5>Timeout Warning</h5>
@@ -203,18 +194,15 @@ function validateHostname(hostname) {
 }
 
 function collectFormData() {
-  const form = document.getElementById('config-form');
   const data = {
-    hostname: form.hostname.value,
-    rootpass: form.rootpass.value,
-    rootpkey: form.rootpkey.value,
-    timezone: form.timezone.value,
-    wlan_ap: form.wlan_ap.checked ? 'true' : 'false'
+    hostname: document.getElementById('hostname').value,
+    rootpass: document.getElementById('rootpass').value,
+    rootpkey: document.getElementById('rootpkey').value,
+    timezone: document.getElementById('timezone').value,
+    wlan_ssid: document.getElementById('wlan_ssid').value,
+    wlan_pass: document.getElementById('wlan_pass').value,
+    wlan_ap: document.getElementById('wlan_ap').checked ? 'true' : 'false'
   };
-
-  data.wlan_ssid = form.wlan_ssid.value;
-  data.wlan_pass = form.wlan_pass.value;
-
   return data;
 }
 
@@ -223,13 +211,11 @@ function showReview(data) {
   hideElement('config-form');
   scheduleTimeoutWarning();
 
-  document.getElementById('review-network-label').textContent = 'Wireless AP Network SSID';
-  document.getElementById('review-network-ssid').textContent = data.wlan_ssid;
-  document.getElementById('review-password-label').textContent = 'Wireless AP Network Password';
-  document.getElementById('review-network-pass').textContent = data.wlan_pass;
-  document.getElementById('review-rootpass').textContent = data.rootpass;
   document.getElementById('review-hostname').textContent = data.hostname;
+  document.getElementById('review-rootpass').textContent = data.rootpass;
   document.getElementById('review-timezone').textContent = data.timezone || '';
+  document.getElementById('review-network-ssid').textContent = data.wlan_ssid;
+  document.getElementById('review-network-pass').textContent = data.wlan_pass;
 
   if (data.rootpkey) {
     document.getElementById('review-rootpkey').textContent = data.rootpkey;
@@ -319,11 +305,12 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 });
 
 // WiFi network scanning
-const scanBtn = document.getElementById('scan-btn');
-const scanSpinner = document.getElementById('scan-spinner');
-const scanText = document.getElementById('scan-text');
+const scanBtn      = document.getElementById('scan-btn');
+const scanSpinner  = document.getElementById('scan-spinner');
+const scanText     = document.getElementById('scan-text');
 const networksList = document.getElementById('networks-list');
-const ssidInput = document.getElementById('wlan_ssid');
+const ssidInput    = document.getElementById('wlan_ssid');
+
 let scanInProgress = false;
 let networksScanned = false;
 
@@ -369,7 +356,7 @@ scanBtn.addEventListener('click', async () => {
         if (!seen.has(network.ssid)) {
           seen.add(network.ssid);
           const option = document.createElement('option');
-          const signalBars = network.signal > -50 ? '▂▄▆█' : network.signal > -60 ? '▂▄▆' : network.signal > -70 ? '▂▄' : '▂';
+          const signalBars = network.signal > -50 ? '▂▄▆█' : network.signal > -60 ? '▂▄▆_' : network.signal > -70 ? '▂▄__' : '▂___';
           option.value = network.ssid;
           option.textContent = `${network.ssid} ${signalBars} (${network.security})`;
           networksList.appendChild(option);

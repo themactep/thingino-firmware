@@ -174,7 +174,7 @@ save_config() {
 
 	# Update wlan settings
 	if [ "true" = "$wlan_ap" ]; then
-		wlan configure "$wlan_ssid" "$wlan_pass" "$wlan_app"
+		wlan configure "$wlan_ssid" "$wlan_pass" ap
 	else
 		wlan configure "$wlan_ssid" "$wlan_pass"
 	fi
