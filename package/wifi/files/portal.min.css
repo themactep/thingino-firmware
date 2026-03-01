@@ -74,18 +74,18 @@ textarea.form-control{min-height:calc(1.5em + .75rem + 2px)}
 .mb-0{margin-bottom:0!important}
 .mb-2{margin-bottom:.5rem!important}
 .mb-3{margin-bottom:1rem!important}
+.hidden{display:none!important}
+.spinner{border:3px solid rgba(255,255,255,.3);border-radius:50%;border-top:3px solid #fff;width:30px;height:30px;animation:spin 1s linear infinite;margin:20px auto}
 dl{margin-top:0;margin-bottom:1rem}
 dt{font-weight:700}
 dd{margin-bottom:.5rem;margin-left:0}
 #logo{max-width:16rem}
-#verify dd,b{color:#f80;font-weight:700}
+#verify dd{color:#fff;font-weight:400;font-size:x-large}
 #verify dd#pkey{max-height:5em;overflow:auto;font-size:medium}
-.hidden{display:none!important}
-.spinner{border:3px solid rgba(255,255,255,.3);border-radius:50%;border-top:3px solid #fff;width:30px;height:30px;animation:spin 1s linear infinite;margin:20px auto}
-@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 #config-form{max-width:26rem}
 #loading{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background-color:rgba(33,37,41,.9);padding:2rem;border-radius:.375rem;z-index:9999;box-shadow:0 0 20px rgba(0,0,0,.5)}
 #timeout-warning .alert{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);max-width:400px;z-index:9999;box-shadow:0 0 20px rgba(0,0,0,.5)}
-#wlan_ssid{padding-right:2.5rem}
 #scan-btn{position:absolute;right:0.25rem;top:50%;transform:translateY(-50%);padding:0.25rem 0.5rem;font-size:1.2rem;line-height:1;border:none;background:none;cursor:pointer}
 #scan-spinner{display:inline-block;animation:spin 1s linear infinite}
+#wlan_ssid{padding-right:2.5rem}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}

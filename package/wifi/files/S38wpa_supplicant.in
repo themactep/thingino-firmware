@@ -1,8 +1,5 @@
 #!/bin/sh
 
-# TODO: refactor network configuration via a single cli app to reuse 
-# from webui, portal, cli and for importing credentials from a card here
-
 . /usr/share/common
 
 IFACE=@WLAN_NETDEV@
@@ -18,13 +15,13 @@ fi
 PORTAL_MODE_FLAG="/run/portal_mode"
 
 # Determine the wireless mode
-if ! grep -q 'ssid=' $CONFIG >/dev/null; then
+  if ! grep -q 'ssid=' $CONFIG >/dev/null; then
 	echo_error "WiFi network missing"
 	mode="portal"
 elif ! grep -q 'psk=' $CONFIG >/dev/null; then
 	echo_error "WiFi password missing"
 	mode="portal"
-elif ! grep -q 'mode=2' $CONFIG >/dev/null; then
+elif grep -q 'mode=2' $CONFIG >/dev/null; then
 	mode="ap"
 else
 	mode="client"
@@ -78,9 +75,9 @@ start_portal() {
 	mac_address=$(ip link show $IFACE | awk '/ether/ {print $2}')
 	last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
 	sed -i "/ssid=\"THINGINO-\"$/ s/\"$/$last_two\"/" $CONFIG
-	
+
 	echo_info "Start wpa_supplicant"
-	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1 
+	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1
 
 	echo_info "Set $PORTAL_MODE_FLAG"
 	touch "$PORTAL_MODE_FLAG"
@@ -119,9 +116,8 @@ stop_portal() {
 start_access_point() {
 	CNET=100.64.1
 
-	# Define net_dev in the global scope (populated at build time)
-	#net_dev="@WLAN_AP_NETDEV@"
-	#sed -i "s/%dev%/$net_dev/g" /etc/udhcpd-ap.conf
+	# Define in the global scope (populated at build time)
+	sed -i "s/%dev%/$IFACE/g" /etc/udhcpd-ap.conf
 
 	echo_title "WLAN Access Point"
 
@@ -155,7 +151,7 @@ start_access_point() {
         start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /tmp/dnsd.conf -d
 
         echo_info "Start wpa_supplicant"
-	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1 
+	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1
 
         echo_warning "WLAN Access Point started"
         touch "$WLANAP_MODE_FLAG"
@@ -198,7 +194,7 @@ stop_access_point() {
 #}
 
 start_client() {
-	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1 
+	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1
 }
 
 start() {
@@ -208,7 +204,9 @@ start() {
 	echo_title "Starting WPA Supplicant"
 
 	# Interface is not present
-	if ! iface_exists "$IFACE"; then
+	if iface_exists "$IFACE"; then
+		echo_info "Found $IFACE interface"
+	else
                 echo_error "Wireless interface $IFACE not found"
                 exit 1
         fi
@@ -217,6 +215,8 @@ start() {
 	if grep -q "^#auto $IFACE" $WLAN_INT_FILE; then
 		echo_error "$IFACE manually disabled"
 		exit 1
+	else
+		echo_info "$IFACE is enabled"
 	fi
 
 	# Wired interface is present
@@ -229,6 +229,7 @@ start() {
         #        exit 1
         #fi
 
+	echo_info "Starting in $mode mode"
 	case "$mode" in
 		portal) start_portal ;;
 		ap) start_access_point ;;
