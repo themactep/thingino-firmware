@@ -151,8 +151,6 @@ define WIFI_INSTALL_TARGET_CMDS
 	chmod 0755 $(TARGET_DIR)/etc/init.d/S36wireless
 
 	# WPA supplicant script
-#	$(INSTALL) -D -m 0755 $(WIFI_PKGDIR)/files/S38wpa_supplicant \
-#		$(TARGET_DIR)/etc/init.d/S38wpa_supplicant	
 	sed -e 's,@WLAN_NETDEV@,$(WIFI_NETDEV),g' \
 		$(WIFI_PKGDIR)/files/S38wpa_supplicant.in > $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
 	chmod 0755 $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
