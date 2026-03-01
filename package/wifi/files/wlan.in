@@ -20,7 +20,8 @@ Where command:
   temp        Display module temperature details
   rssi        Display signal details
   cli         CLI interface on supported modules
-  ap [on|off] Access Point mode
+  configure ssid pass [ap]
+              Create WPA supplicant config non-interactively
   reset       Reset all Wi-Fi credentials
 " >&2
 	exit 1
@@ -58,8 +59,6 @@ cli() {
 reset() {
 	local tmp_file=$(mktemp)
 	remove /overlay/etc/wpa_supplicant.conf
-	remove /overlay/etc/wpa_supplicant-ap.conf
-	jct /etc/thingino.json set wlan_ap.enabled "false"
 }
 
 rssi() {
@@ -98,7 +97,6 @@ rssi() {
 	echo "Unknown wireless device type $WLAN_MODULE_NAME."
 }
 
-
 show_info() {
 	@if WIFI_FAMILY_ATBM@
 	iwpriv wlan0 common get_ap_info
@@ -116,16 +114,34 @@ show_info() {
 	echo "Not supported on $WLAN_MODULE_NAME."
 }
 
-setup() {
-	echo -c 208 "Thingino Wi-Fi setup"
-	echo "Wi-Fi driver: $(echo -c 10 $WLAN_MODULE_NAME)"
-	read -r -p "Enter Wi-Fi SSID: " ssid
-	while :; do
-		read -r -p "Enter Wi-Fi Password: " password
-		[ ${#password} -ge 8 ] && [ ${#password} -le 64 ] && break
-		echo -c 160 "Passwords is not between 8 and 64 characters. Please try again."
-	done
-	echo "# created on $(date +%c)
+configure() {
+	local ssid="$1"
+	local password="$2"
+	local ap_mode="$3"
+
+	if [ -z "$ssid" ] || [ -z "$password" ]; then
+		echo "Usage: $entry_command configure <ssid> <password> [ap]" >&2
+		exit 1
+	fi
+
+	if [ -n "$ap_mode" ]; then
+		echo "# created on $(date +%c)
+ctrl_interface=/var/run/wpa_supplicant
+ap_scan=2
+
+network={
+	ssid=\"$ssid\"
+	mode=2
+	frequency=2412
+	key_mgmt=WPA-PSK
+	proto=RSN
+	pairwise=CCMP
+	group=CCMP
+	psk=\"$password\"
+}
+" > /etc/wpa_supplicant.conf
+	else
+		echo "# created on $(date +%c)
 ctrl_interface=/run/wpa_supplicant
 update_config=1
 ap_scan=1
@@ -137,8 +153,23 @@ network={
         bgscan=\"simple:30:-70:3600\"
 }
 " > /etc/wpa_supplicant.conf
-	jct /etc/thingino.json set wlan_ap.enabled "false"
+	fi
+}
 
+setup() {
+	echo -c 208 "Thingino Wi-Fi setup"
+	echo "Wi-Fi driver: $(echo -c 10 $WLAN_MODULE_NAME)"
+	read -r -p "Enter Wi-Fi SSID: " ssid
+	while :; do
+		read -r -p "Enter Wi-Fi Password: " password
+		[ ${#password} -ge 8 ] && [ ${#password} -le 64 ] && break
+		echo -c 160 "Passwords is not between 8 and 64 characters. Please try again."
+	done
+	read -r -p "Enable access point mode? [y/N]: " ap_answer
+	case "$ap_answer" in
+		[Yy]*) configure "$ssid" "$password" ap ;;
+		*) configure "$ssid" "$password" ;;
+	esac
 	echo -c 40 -e "Wi-Fi settings updated. Please restart for changes to take effect.\n"
 }
 
@@ -194,6 +225,7 @@ case "$entry_command" in
 		# main case selection for wlan command if no specific entry_command match
 		case "$1" in
 			cli) shift; cli "$@" ;;
+			configure) shift; configure "$@" ;;
 			info) show_info ;;
 			reset) reset ;;
 			rssi) rssi ;;
