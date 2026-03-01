@@ -13,6 +13,14 @@ if [ "true" = "$debug" ]; then
 fi
 
 PORTAL_MODE_FLAG="/run/portal_mode"
+PORTAL_CNET=172.16.0
+PORTAL_IP=${PORTAL_CNET}.1
+
+WLANAP_MODE_FLAG="/run/wlan_ap_mode"
+WLANAP_CNET=100.64.1
+WLANAP_IP=${WLANAP_CNET}.1
+
+hostname=$(hostname)
 
 # Determine the wireless mode
   if ! grep -q 'ssid=' $CONFIG >/dev/null; then
@@ -45,8 +53,6 @@ timeout() {
 }
 
 start_portal() {
-	CNET=172.16.0
-
 	# FIXME: should de done at compile time
 	sed -i "s/%dev%/$IFACE/g" /etc/udhcpd-portal.conf
 
@@ -55,20 +61,20 @@ start_portal() {
 	echo_info "Create DHCP leases database"
 	touch /run/udhcpd.leases
 
-	echo_info "Assign ${CNET}.1 to $IFACE"
-	ip a add dev $IFACE ${CNET}.1/24
+	echo_info "Assign ${PORTAL_IP} to $IFACE"
+	ip address add ${PORTAL_IP}/24 dev $IFACE
 
 	echo_info "Bring $IFACE interface up"
 	ip link set $IFACE up
 
-	echo_info "Add route ${CNET}.0/24 to $IFACE"
-	ip route add ${CNET}.0/24 dev $IFACE
+	echo_info "Add route ${PORTAL_CNET}.0/24 to $IFACE"
+	ip route add ${PORTAL_CNET}.0/24 dev $IFACE
 
 	echo_info "Start DHCP server"
-	start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd-portal.conf
+	start-stop-daemon -S -x /sbin/udhcpd -- -S -I $PORTAL_IP /etc/udhcpd-portal.conf
 
 	echo_info "Start DNS server"
-	start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /etc/dnsd-portal.conf -d
+	start-stop-daemon -S -x /sbin/dnsd -- -i $PORTAL_IP -c /etc/dnsd-portal.conf -d
 
 	# FIXME: should be done in compile time or in tmpfs
 	echo_info "Update SSID with last two octets of MAC address"
@@ -102,7 +108,7 @@ stop_portal() {
 	start-stop-daemon -K -q -x /sbin/wpa_supplicant
 
 	echo_info "Remove route ${CNET}.0/24 from $IFACE"
-	ip address delete dev $IFACE ${CNET}.1/24
+	ip address delete dev $IFACE ${$PORTAL_IP}/24
 
 	echo_info "Remove IP address from $IFACE"
 	ip link set $IFACE down
@@ -114,8 +120,6 @@ stop_portal() {
 }
 
 start_access_point() {
-	CNET=100.64.1
-
 	# Define in the global scope (populated at build time)
 	sed -i "s/%dev%/$IFACE/g" /etc/udhcpd-ap.conf
 
@@ -127,31 +131,30 @@ start_access_point() {
         echo_info "Set WLAN AP resolver configuration"
         cp /etc/resolv-ap.conf /tmp/resolv.conf
 
-        echo_info "Add IP address to $IFACE"
-        ip a add dev $IFACE ${CNET}.1/24
-
         echo_info "Bring $IFACE up"
         ip link set $IFACE up
 
-        echo_info "Add route to $IFACE"
-        ip route add ${CNET}.0/24 dev $IFACE > /dev/null 2>&1
+        echo_info "Add IP address ${WLANAP_IP}/24 to $IFACE"
+        ip address add ${WLANAP_IP}/24 dev $IFACE
+
+	echo_info "Add route ${WLANAP_CNET}.0/24 to $IFACE"
+        ip route add ${WLANAP_CNET}.0/24 dev $IFACE
 
         echo_info "Set WLAN AP DNS configuration"
         cp /etc/dnsd-ap.conf /tmp/dnsd.conf
-        hostname=$(hostname)
-        if ! grep -q $hostname /tmp/dnsd.conf >/dev/null; then
-                echo_info "Add $hostname to DNS configuration"
-                echo $hostname.local ${CNET}.1 >> /tmp/dnsd.conf
+        if ! grep -q "$hostname" /tmp/dnsd.conf; then
+                echo_info "Add ${hostname}.local to DNS configuration"
+                echo $hostname.local $WLANAP_IP >> /tmp/dnsd.conf
         fi
-
-        echo_info "Start udhcpd"
-        start-stop-daemon -S -x /sbin/udhcpd -- -S -I ${CNET}.1 /etc/udhcpd-ap.conf
-
-        echo_info "Start dnsd"
-        start-stop-daemon -S -x /sbin/dnsd -- -i ${CNET}.1 -c /tmp/dnsd.conf -d
 
         echo_info "Start wpa_supplicant"
 	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1
+
+        echo_info "Start udhcpd"
+        start-stop-daemon -S -x /sbin/udhcpd -- -S -I $WLANAP_IP /etc/udhcpd-ap.conf
+
+        echo_info "Start dnsd"
+        start-stop-daemon -S -x /sbin/dnsd -- -i $WLANAP_IP -c /tmp/dnsd.conf -d
 
         echo_warning "WLAN Access Point started"
         touch "$WLANAP_MODE_FLAG"
@@ -170,7 +173,7 @@ stop_access_point() {
         start-stop-daemon -K -q -x /sbin/wpa_supplicant
 
         echo_info "Remove IP address from $IFACE"
-        ip address delete dev $IFACE ${CNET}.1/24
+        ip address delete dev $IFACE ${WLANAP_IP}/24
 
         echo_info "Bring down $IFACE"
         ip link set $IFACE down
@@ -194,7 +197,13 @@ stop_access_point() {
 #}
 
 start_client() {
+        echo_info "Start wpa_supplicant"
 	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1
+}
+
+stop_client() {
+	echo_info "Stop wpa_supplicant"
+	start-stop-daemon -K -q -x /sbin/wpa_supplicant
 }
 
 start() {
@@ -240,10 +249,11 @@ start() {
 stop() {
 	echo_title "Stopping WPA Supplicant"
 
-	if [ "true" = "$portal_mode" ]; then
-		stop_portal
-	fi
-	stop_daemon
+	case "$mode" in
+		portal) stop_portal ;;
+		ap) stop_access_point ;;
+		*) stop_client	;;
+	esac
 }
 
 case "$1" in
