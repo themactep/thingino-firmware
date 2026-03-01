@@ -216,14 +216,10 @@ define WIFI_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(WIFI_PKGDIR)/files/hosts-update $(TARGET_DIR)/usr/sbin/hosts-update
 
 	# AP assets
-	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/bootstrap.min.css \
-		$(TARGET_DIR)/var/www/a/bootstrap.min.css
-	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/bootstrap.bundle.min.js \
-		$(TARGET_DIR)/var/www/a/bootstrap.bundle.min.js
-	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/bootstrap-icons.min.css \
-		$(TARGET_DIR)/var/www/a/bootstrap-icons.min.css
-	$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/bootstrap-icons.woff2 \
-		$(TARGET_DIR)/var/www/a/fonts/bootstrap-icons.woff2
+	#$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/bootstrap.min.css $(TARGET_DIR)/var/www/a/bootstrap.min.css
+	#$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/bootstrap.bundle.min.js $(TARGET_DIR)/var/www/a/bootstrap.bundle.min.js
+	#$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/bootstrap-icons.min.css $(TARGET_DIR)/var/www/a/bootstrap-icons.min.css
+	#$(INSTALL) -D -m 0644 $(WIFI_PKGDIR)/files/bootstrap-icons.woff2 $(TARGET_DIR)/var/www/a/fonts/bootstrap-icons.woff2
 
 endef
 
