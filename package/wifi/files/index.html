@@ -34,77 +34,57 @@
 <p>For configuration information and troubleshooting steps please refer to <a href="https://github.com/themactep/thingino-firmware/wiki/">the project Wiki</a>.</p>
 </div>
 
-<div id="success-wlanap" class="hidden">
+<div id="success-wlan-ap" class="hidden">
 <div class="alert alert-success text-center">
 <h3>Configuration Completed</h3>
 <p class="lead mb-0">Your camera is rebooting to create a wireless access point.</p>
 </div>
-<p>To start, locate the <b id="wlanap-ssid-display"></b> wireless network on your device, connect using your password then open the web interface at <b>http://thingino.local/</b> using login <b>root</b> and the password you have just set up for that user.</p>
+<p>To start, locate the <b id="wlan-ssid-display"></b> wireless network on your device, connect using your password then open the web interface at <b>http://thingino.local/</b> using login <b>root</b> and the password you have just set up for that user.</p>
 </div>
 
 <form id="config-form" class="my-3 needs-validation" novalidate>
-<div class="mb-2">
-<label class="form-label">Hostname</label>
-<input class="form-control bg-light text-dark" type="text" name="hostname" id="hostname" required autocapitalize="none">
-<div class="invalid-feedback">Please enter hostname</div>
-</div>
-<div class="mb-2">
-<label class="form-label">Create a password for user <b>root</b></label>
-<input class="form-control bg-light text-dark" type="text" name="rootpass" id="rootpass" required autocapitalize="none">
-<div class="invalid-feedback">Please enter password</div>
-</div>
-<div class="mb-2">
-<label class="form-label"><a data-bs-toggle="collapse" href="#collapse-rootpkey" role="button" aria-expanded="false" aria-controls="collapse-rootpkey">Public SSH Key for user <b>root</b></a> <span class="small">(optional)</span></label>
-<div class="collapse" id="collapse-rootpkey">
-<textarea class="form-control bg-light text-dark text-break" name="rootpkey" id="rootpkey" rows="3"></textarea>
-</div>
-</div>
-<div class="tabs-nav mb-3">
-<button type="button" class="tab-btn active" data-tab="wlan-tab-pane">Wi-Fi Network</button>
-<button type="button" class="tab-btn" data-tab="wlanap-tab-pane">Wi-Fi Access Point</button>
-</div>
-<div id="wireless-tabs">
-<div class="tab-pane active" id="wlan-tab-pane">
-<div class="mb-2">
-<label class="form-label">Wi-Fi Network Name/SSID <span class="small text-white">(case-sensitive)</span></label>
-<div style="position: relative;">
-<input class="form-control bg-light text-dark" type="text" id="wlan_ssid" name="wlan_ssid" autocapitalize="none" placeholder="Enter network name or scan for networks" required>
-<datalist id="networks-list"></datalist>
-<button class="btn btn-link" type="button" id="scan-btn" title="Scan for networks">
-<span id="scan-spinner" class="hidden"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#495057" class="bi bi-arrow-clockwise" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg></span>
-<span id="scan-text"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#495057" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg></span>
-</button>
-</div>
-<div class="invalid-feedback">Please enter network name</div>
-</div>
-<div class="mb-2">
-<label class="form-label">Wi-Fi Network Password <span class="small text-white">(case-sensitive)</span></label>
-<input class="form-control bg-light text-dark" type="text" id="wlan_pass" name="wlan_pass" autocapitalize="none" minlength="8" pattern=".{8,64}" required>
-<div class="invalid-feedback">Please enter a password 8 - 64 characters</div>
-</div>
-</div>
-<div class="tab-pane" id="wlanap-tab-pane">
-<div class="mb-2 boolean" id="wlanap_enabled_wrap">
-<span class="form-check form-switch">
-<input type="hidden" id="wlanap_enabled-false" name="wlanap_enabled" value="false">
-<input type="checkbox" id="wlanap_enabled" name="wlanap_enabled" value="true" role="switch" class="form-check-input">
-<label for="wlanap_enabled" class="form-check-label">Enable Wireless AP</label>
-</span>
-</div>
-<div class="mb-2">
-<label class="form-label">Wi-Fi AP Network SSID <span class="small text-white">(case-sensitive)</span></label>
-<input class="form-control bg-light text-dark" type="text" id="wlanap_ssid" name="wlanap_ssid" autocapitalize="none">
-<div class="invalid-feedback">Please enter network name</div>
-</div>
-<div class="mb-2">
-<label class="form-label">Wi-Fi AP Network Password <span class="small text-white">(case-sensitive)</span></label>
-<input class="form-control bg-light text-dark" type="text" id="wlanap_pass" name="wlanap_pass" autocapitalize="none" minlength="8" pattern=".{8,64}">
-<div class="invalid-feedback">Please enter a password 8 - 64 characters</div>
-</div>
-</div>
-</div>
-<input type="hidden" name="timezone" id="timezone" value="">
-<input type="submit" value="Review & Save" class="btn btn-primary my-4">
+  <div class="mb-2">
+    <label class="form-label">Hostname</label>
+    <input class="form-control bg-light text-dark" type="text" name="hostname" id="hostname" required autocapitalize="none">
+    <div class="invalid-feedback">Please enter hostname</div>
+  </div>
+  <div class="mb-2">
+    <label class="form-label">Create a password for user <b>root</b></label>
+    <input class="form-control bg-light text-dark" type="text" name="rootpass" id="rootpass" required autocapitalize="none">
+    <div class="invalid-feedback">Please enter password</div>
+  </div>
+  <div class="mb-2">
+    <label class="form-label"><a data-bs-toggle="collapse" href="#collapse-rootpkey" role="button" aria-expanded="false" aria-controls="collapse-rootpkey">Public SSH Key for user <b>root</b></a> <span class="small">(optional)</span></label>
+    <div class="collapse" id="collapse-rootpkey">
+      <textarea class="form-control bg-light text-dark text-break" name="rootpkey" id="rootpkey" rows="3"></textarea>
+    </div>
+  </div>
+  <div class="mb-2">
+    <label class="form-label">Wi-Fi Network Name/SSID <span class="small text-white">(case-sensitive)</span></label>
+    <div style="position:relative;">
+      <input class="form-control bg-light text-dark" type="text" id="wlan_ssid" name="wlan_ssid" autocapitalize="none" placeholder="Enter network name or scan for networks" required>
+      <datalist id="networks-list"></datalist>
+      <button class="btn btn-link" type="button" id="scan-btn" title="Scan for networks">
+        <span id="scan-spinner" class="hidden"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#495057" class="bi bi-arrow-clockwise" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/></svg></span>
+        <span id="scan-text"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#495057" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg></span>
+      </button>
+    </div>
+    <div class="invalid-feedback">Please enter network name</div>
+  </div>
+  <div class="mb-2">
+    <label class="form-label">Wi-Fi Network Password <span class="small text-white">(case-sensitive)</span></label>
+    <input class="form-control bg-light text-dark" type="text" id="wlan_pass" name="wlan_pass" autocapitalize="none" minlength="8" pattern=".{8,64}" required>
+    <div class="invalid-feedback">Please enter a password 8 - 64 characters</div>
+  </div>
+  <div class="mb-2 boolean" id="wlan_ap_wrap">
+    <span class="form-check form-switch">
+    <input type="hidden" id="wlan_ap-false" name="wlan_ap" value="false">
+    <input type="checkbox" id="wlan_ap" name="wlan_ap" value="true" role="switch" class="form-check-input">
+    <label for="wlan_ap" class="form-check-label">Act as a Wi-Fi Access Point</label>
+    </span>
+  </div>
+  <input type="hidden" name="timezone" id="timezone" value="">
+  <input type="submit" value="Review & Save" class="btn btn-primary my-4">
 </form>
 
 <div id="review-section" class="hidden">
@@ -229,16 +209,11 @@ function collectFormData() {
     rootpass: form.rootpass.value,
     rootpkey: form.rootpkey.value,
     timezone: form.timezone.value,
-    wlanap_enabled: form.wlanap_enabled.checked ? 'true' : 'false'
+    wlan_ap: form.wlan_ap.checked ? 'true' : 'false'
   };
 
-  if (form.wlanap_enabled.checked) {
-    data.wlanap_ssid = form.wlanap_ssid.value;
-    data.wlanap_pass = form.wlanap_pass.value;
-  } else {
-    data.wlan_ssid = form.wlan_ssid.value;
-    data.wlan_pass = form.wlan_pass.value;
-  }
+  data.wlan_ssid = form.wlan_ssid.value;
+  data.wlan_pass = form.wlan_pass.value;
 
   return data;
 }
@@ -248,18 +223,10 @@ function showReview(data) {
   hideElement('config-form');
   scheduleTimeoutWarning();
 
-  if (data.wlanap_enabled === 'true') {
-    document.getElementById('review-network-label').textContent = 'Wireless AP Network SSID';
-    document.getElementById('review-network-ssid').textContent = data.wlanap_ssid;
-    document.getElementById('review-password-label').textContent = 'Wireless AP Network Password';
-    document.getElementById('review-network-pass').textContent = data.wlanap_pass;
-  } else {
-    document.getElementById('review-network-label').textContent = 'Wireless Network SSID';
-    document.getElementById('review-network-ssid').textContent = data.wlan_ssid;
-    document.getElementById('review-password-label').textContent = 'Wireless Network Password';
-    document.getElementById('review-network-pass').textContent = data.wlan_pass;
-  }
-
+  document.getElementById('review-network-label').textContent = 'Wireless AP Network SSID';
+  document.getElementById('review-network-ssid').textContent = data.wlan_ssid;
+  document.getElementById('review-password-label').textContent = 'Wireless AP Network Password';
+  document.getElementById('review-network-pass').textContent = data.wlan_pass;
   document.getElementById('review-rootpass').textContent = data.rootpass;
   document.getElementById('review-hostname').textContent = data.hostname;
   document.getElementById('review-timezone').textContent = data.timezone || '';
@@ -290,9 +257,9 @@ async function saveConfiguration(data) {
       hideElement('config-form');
       hideElement('review-section');
 
-      if (data.wlanap_enabled === 'true') {
-        document.getElementById('wlanap-ssid-display').textContent = data.wlanap_ssid;
-        showElement('success-wlanap');
+      if (data.wlan_ap === 'true') {
+        document.getElementById('wlan-ssid-display').textContent = data.wlan_ssid;
+        showElement('success-wlan-ap');
       } else {
         showElement('success-wlan');
       }
@@ -339,13 +306,8 @@ document.getElementById('btn-proceed').addEventListener('click', () => {
 
 document.getElementById('timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_', ' ');
 
-document.getElementById('wlanap_enabled').addEventListener('change', (ev) => {
-  const apMode = ev.target.checked;
-  document.getElementById('wlan_pass').required = !apMode;
-  document.getElementById('wlan_ssid').required = !apMode;
-  document.getElementById('wlanap_pass').required = apMode;
-  document.getElementById('wlanap_ssid').required = apMode;
-});
+document.getElementById('wlan_pass').required;
+document.getElementById('wlan_ssid').required;
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
