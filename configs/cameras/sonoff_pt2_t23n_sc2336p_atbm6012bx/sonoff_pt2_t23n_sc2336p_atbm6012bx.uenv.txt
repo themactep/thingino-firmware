@@ -1,3 +1,2 @@
 gpio_button=14
 gpio_default=6O 7o 14i 16o 17o 35O 49i 50o 51o 52o 53o 54o 57o 58o 59o 60o
-gpio_mmc_power=60o

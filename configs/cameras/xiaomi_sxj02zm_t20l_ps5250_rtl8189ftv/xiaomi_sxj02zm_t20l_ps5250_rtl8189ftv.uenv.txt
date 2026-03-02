@@ -1,3 +1,1 @@
 gpio_default=50i 72o 25o 26o 76O 75o 59i 43o 47o 60O
-gpio_mmc_power=43o
-gpio_usb_en=47O

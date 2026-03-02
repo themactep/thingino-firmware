@@ -1,5 +1,3 @@
 gpio_button=6
 gpio_button_chime=7
 gpio_default=25ID 26IDU 38o 39o
-gpio_mmc_power=47o 54o
-gpio_sub1g=59
