@@ -1,0 +1,6 @@
+api_key = "sk-or-your-openrouter-key-here"
+model = "minimax/minimax-m2.5"
+skills_dir = "/etc/subzeroclaw/skills"
+log_dir	= "/tmp/subzeroclaw/logs"
+max_turns = 200
+max_messages = 40
