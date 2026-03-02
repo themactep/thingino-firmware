@@ -1,0 +1,13 @@
+config BR2_PACKAGE_SUBZEROCLAW
+	bool "subzeroclaw"
+	select BR2_PACKAGE_CJSON
+	select BR2_PACKAGE_THINGINO_LIBCURL
+	help
+	  SubZeroClaw is a skill-driven agentic runtime for edge hardware.
+	  ~380 lines of C. Reads a skill (Markdown), calls an LLM, executes
+	  shell commands, loops until done.
+
+	  Configure via ~/.subzeroclaw/config and drop skill .md files in
+	  ~/.subzeroclaw/skills/.
+
+	  https://github.com/jmlago/subzeroclaw
