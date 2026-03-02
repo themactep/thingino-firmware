@@ -67,7 +67,7 @@ include $(BR2_EXTERNAL)/board.mk
 export CAMERA
 
 # working directory - set after CAMERA is defined
-OUTPUT_ROOT_DIR ? = $(BR2_EXTERNAL)/output
+OUTPUT_ROOT_DIR ?= $(BR2_EXTERNAL)/output
 OUTPUT_DIR ?= $(OUTPUT_ROOT_DIR)/$(GIT_BRANCH)/$(CAMERA)-$(KERNEL_VERSION)
 $(info OUTPUT_DIR: $(OUTPUT_DIR))
 export OUTPUT_DIR
