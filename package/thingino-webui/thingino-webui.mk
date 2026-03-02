@@ -66,6 +66,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/config-motors.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-network.html \
 		$(TARGET_DIR)/var/www/config-network.html
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-dusk2dawn.html \
+		$(TARGET_DIR)/var/www/config-dusk2dawn.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-photosensing.html \
 		$(TARGET_DIR)/var/www/config-photosensing.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-privacy.html \
