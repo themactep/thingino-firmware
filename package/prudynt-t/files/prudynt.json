@@ -60,7 +60,7 @@
     "imp_polling_timeout": 500,
     "loglevel": "INFO",
     "memory_monitoring_enabled": true,
-    "osd_pool_size": 1200,
+    "osd_pool_size": -1,
     "timestamp_validation_enabled": true
   },
   "http": {
