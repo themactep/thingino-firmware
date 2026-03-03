@@ -34,13 +34,6 @@ define THINGINO_WEBUI_APPLY_CDN_FALLBACK
 	fi
 endef
 
-define THINGINO_WEBUI_BUILD_CMDS
-	$(TARGET_CC) $(TARGET_CFLAGS) $(TARGET_LDFLAGS) -std=c99 -pedantic \
-		-o $(@D)/mjpeg_frame $(@D)/mjpeg_frame.c
-	$(TARGET_CC) $(TARGET_CFLAGS) $(TARGET_LDFLAGS) -std=c99 -pedantic \
-		-o $(@D)/mjpeg_inotify $(@D)/mjpeg_inotify.c
-endef
-
 define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	if grep -q "^BR2_PACKAGE_NGINX=y" $(BR2_CONFIG); then \
 		$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/nginx.conf \
@@ -407,12 +400,6 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/wifi-scan.cgi \
 		$(TARGET_DIR)/var/www/x/wifi-scan.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/video.mjpg $(TARGET_DIR)/var/www/x/video.mjpg
-
-	$(INSTALL) -D -m 0755 $(@D)/mjpeg_inotify \
-		$(TARGET_DIR)/var/www/x/mjpeg.cgi
-
-	$(INSTALL) -D -m 0755 $(@D)/mjpeg_frame \
-		$(TARGET_DIR)/usr/bin/mjpeg_frame
 
 	# Install local vendor files (CDN fallbacks) when present
 	@if [ -d "$(THINGINO_WEBUI_PKGDIR)/files/www/a/vendor" ] && \
