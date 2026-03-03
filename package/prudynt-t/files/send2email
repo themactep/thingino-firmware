@@ -118,9 +118,11 @@ else
 	command="$command --url smtp://$host:$port"
 fi
 
+email_date=$(date -uR)
 email_body=${body//"/\\"}
 command="$command -H 'From: \"$from_name\" <$from_address>'"
 command="$command -H 'To: \"$to_name\" <$to_address>'"
+command="$command -H 'Date: $email_date'"
 command="$command -H 'Subject: $subject'"
 command="$command -F '=(;type=multipart/mixed'"
 command="$command -F \"=${body};type=text/plain\""
