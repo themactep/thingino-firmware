@@ -745,9 +745,8 @@ $(EXTRAS_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 			--eraseblock=$(ALIGN_BLOCK) --pad=$(EXTRAS_PARTITION_SIZE); \
 	else \
 		$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/extras/ \
-			--eraseblock=$(ALIGN_BLOCK) --pad=$(EXTRAS_PARTITION_SIZE); \
+			--eraseblock=$(ALIGN_BLOCK); \
 	fi
-	# FIXME: pack and pad it anyway, otherwise it poisons mtd5
 
 # rebuild kernel
 $(KERNEL_BIN):
