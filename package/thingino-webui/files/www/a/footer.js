@@ -6,6 +6,14 @@
   let overlayTimerId = null;
   let logModalElements = null;
 
+  function dismissOverlay() {
+    const el = $('#global-message-overlay');
+    if (!el) return;
+    clearTimeout(overlayTimerId);
+    overlayTimerId = null;
+    el.classList.remove('show');
+  }
+
   function ensureMessageOverlay() {
     let el = $('#global-message-overlay');
     if (!el) {
@@ -15,6 +23,23 @@
       el.setAttribute('role', 'status');
       el.setAttribute('aria-live', 'polite');
       el.setAttribute('aria-atomic', 'true');
+
+      let touchStartY = 0;
+
+      el.addEventListener('click', dismissOverlay);
+
+      el.addEventListener('touchstart', function (e) {
+        touchStartY = e.touches[0].clientY;
+      }, { passive: true });
+
+      el.addEventListener('touchend', function (e) {
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        // Dismiss on tap (minimal movement) or swipe up
+        if (Math.abs(dy) < 10 || dy < -20) {
+          dismissOverlay();
+        }
+      }, { passive: true });
+
       document.body.appendChild(el);
     }
     return el;
