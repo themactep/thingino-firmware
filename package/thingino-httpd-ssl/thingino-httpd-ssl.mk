@@ -18,7 +18,7 @@ endef
 define THINGINO_HTTPD_SSL_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/httpd-ssl \
 		$(TARGET_DIR)/usr/sbin/httpd-ssl
-	$(INSTALL) -D -m 0755 $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-httpd-ssl/files/S50httpd-ssl \
+	$(INSTALL) -D -m 0755 $(THINGINO_HTTPD_SSL_PKGDIR)/files/S50httpd-ssl \
 		$(TARGET_DIR)/etc/init.d/S50httpd-ssl
 	mkdir -p $(TARGET_DIR)/etc/ssl/certs
 	mkdir -p $(TARGET_DIR)/etc/ssl/private
