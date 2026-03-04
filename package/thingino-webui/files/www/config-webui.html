@@ -46,6 +46,19 @@
                   <input type="password" id="webui_password" class="form-control" placeholder="K3wLH@Zk3R!" autocomplete="new-password">
                   <span class="form-text">Leave blank to keep the current password.</span>
                 </p>
+                <p>
+                  <label for="webui_auth_bypass_ips">Trusted IPs (skip login)</label>
+                  <div class="input-group">
+                    <input type="text" id="webui_auth_bypass_ips" class="form-control" placeholder="192.168.1.0/24, 10.0.0.5" autocomplete="off">
+                    <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" id="bypass_ip_pick" data-bs-toggle="dropdown" aria-expanded="false" title="Add my current IP">
+                      <i class="bi bi-crosshair"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" id="bypass_ip_menu">
+                      <li><span class="dropdown-item text-muted" id="bypass_ip_loading"><i class="bi bi-hourglass-split me-1"></i>Detecting…</span></li>
+                    </ul>
+                  </div>
+                  <span class="form-text">Comma-separated IPs, prefixes (e.g. <code>192.168.1.</code>), or CIDR ranges (e.g. <code>192.168.1.0/24</code>) that bypass login. Leave blank to require authentication from all clients.</span>
+                </p>
               </div>
               <div class="col-12 col-lg-4">
                 <h4>Appearance</h4>
