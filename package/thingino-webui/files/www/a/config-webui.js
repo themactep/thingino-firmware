@@ -7,12 +7,14 @@
   const paranoidSwitch = $('#webui_paranoid');
   const trackFocusSwitch = $('#webui_track_focus');
   const focusTimeoutInput = $('#webui_focus_timeout');
+  const authBypassIpsInput = $('#webui_auth_bypass_ips');
   const submitButton = $('#webui_submit');  const webuiDefaults = {
     username: 'root',
     theme: 'auto',
     paranoid: false,
     track_focus: false,
-    focus_timeout: 0
+    focus_timeout: 0,
+    auth_bypass_ips: ''
   };
 
   function showOverlayMessage(message, variant = 'info') {
@@ -34,6 +36,7 @@
     paranoidSwitch.disabled = state;
     trackFocusSwitch.disabled = state;
     focusTimeoutInput.disabled = state;
+    if (authBypassIpsInput) authBypassIpsInput.disabled = state;
     if (state) {
       showBusy(label || 'Working...');
     } else {
@@ -76,6 +79,7 @@
       paranoid: raw.paranoid === true,
       track_focus: raw.track_focus === true,
       focus_timeout: Math.max(0, Math.min(300, focusTimeout)),
+      auth_bypass_ips: typeof raw.auth_bypass_ips === 'string' ? raw.auth_bypass_ips : webuiDefaults.auth_bypass_ips,
       activeTheme: resolveActiveTheme(theme)
     };
   }
@@ -95,6 +99,7 @@
       paranoidSwitch.checked = normalized.paranoid;
       trackFocusSwitch.checked = normalized.track_focus;
       focusTimeoutInput.value = normalized.focus_timeout;
+      if (authBypassIpsInput) authBypassIpsInput.value = normalized.auth_bypass_ips;
       resetPasswordField();
     } catch (err) {
       showAlert('danger', err.message || 'Unable to load Web UI settings.');
@@ -139,7 +144,8 @@
       theme: themeSelect.value,
       paranoid: paranoidSwitch.checked,
       track_focus: trackFocusSwitch.checked,
-      focus_timeout: parseInt(focusTimeoutInput.value) || 0
+      focus_timeout: parseInt(focusTimeoutInput.value) || 0,
+      auth_bypass_ips: authBypassIpsInput ? authBypassIpsInput.value.trim() : ''
     };
     const newPassword = passwordInput.value.trim();
     if (newPassword) {
@@ -147,6 +153,45 @@
     }
     saveConfig(payload);
   });
+
+  // "Pick my IP" dropdown
+  const bypassPickBtn = document.getElementById('bypass_ip_pick');
+  const bypassIpMenu = document.getElementById('bypass_ip_menu');
+  if (bypassPickBtn && bypassIpMenu) {
+    bypassPickBtn.addEventListener('show.bs.dropdown', async () => {
+      const loading = document.getElementById('bypass_ip_loading');
+      try {
+        const res = await fetch('/x/session-status.cgi', { cache: 'no-store' });
+        const data = await res.json();
+        const ip = data.client_ip || '';
+        if (!ip) throw new Error('no IP');
+
+        // Build /24 suggestion from first 3 octets
+        const subnet24 = ip.split('.').slice(0, 3).join('.') + '.0/24';
+
+        bypassIpMenu.innerHTML =
+          `<li><span class="dropdown-item text-muted small ps-3">Your IP: <strong>${ip}</strong></span></li>` +
+          `<li><hr class="dropdown-divider"></li>` +
+          `<li><a class="dropdown-item" href="#" data-ip="${ip}"><i class="bi bi-pc-display me-2"></i>Exact IP &ndash; ${ip}</a></li>` +
+          `<li><a class="dropdown-item" href="#" data-ip="${subnet24}"><i class="bi bi-diagram-3 me-2"></i>Subnet &ndash; ${subnet24}</a></li>`;
+
+        bypassIpMenu.querySelectorAll('a[data-ip]').forEach(a => {
+          a.addEventListener('click', e => {
+            e.preventDefault();
+            const pick = e.currentTarget.dataset.ip;
+            const current = authBypassIpsInput.value.trim();
+            const entries = current ? current.split(',').map(s => s.trim()).filter(Boolean) : [];
+            if (!entries.includes(pick)) {
+              entries.push(pick);
+              authBypassIpsInput.value = entries.join(', ');
+            }
+          });
+        });
+      } catch (_) {
+        if (loading) loading.textContent = 'Could not detect IP';
+      }
+    });
+  }
 
   const reloadButton = $('#webui-reload');
   if (reloadButton) {
