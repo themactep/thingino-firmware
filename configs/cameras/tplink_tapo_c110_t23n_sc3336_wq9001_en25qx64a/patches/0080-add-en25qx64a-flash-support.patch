@@ -8,13 +8,13 @@ newer Tapo C110 revision 3.0/EU devices.
 Signed-off-by: Thingino Firmware <thingino@firmware.local>
 
 ---
- drivers/spi/jz_spi.c | 21 +++++++++++++++++++++
+ drivers/spi/jz_spi.h | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
 
-diff --git a/drivers/spi/jz_spi.c b/drivers/spi/jz_spi.c
+diff --git a/drivers/spi/jz_spi.h b/drivers/spi/jz_spi.h
 index a4560792..b1234567 100644
---- a/drivers/spi/jz_spi.c
-+++ b/drivers/spi/jz_spi.c
+--- a/drivers/spi/jz_spi.h
++++ b/drivers/spi/jz_spi.h
 @@ -1146,6 +1146,27 @@ static struct jz_spi_support jz_spi_support_table[] = {
  			.cmd_read = CMD_QUAD_READ,
  #ifdef CONFIG_JZ_SFC
@@ -25,10 +25,10 @@ index a4560792..b1234567 100644
 +	{
 +		.name = "EN25QX64A",
 +		.id_manufactory = 0x1c7117,
-+		.page_size = 256,
-+		.sector_size = 4096,
-+		.addr_width = 3,
-+		.size = 8 * 1024 * 1024,
++		.page_size = SIZE_256B,
++		.sector_size = SIZE_4KB,
++		.addr_size = 3,
++		.size = SIZE_8MB,
 +		.quad_mode = {
 +			.dummy_byte = 8,
 +			.RDSR_CMD = CMD_RDSR_1,
