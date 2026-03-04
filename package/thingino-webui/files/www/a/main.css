@@ -181,6 +181,7 @@ main>div.container {position: relative;}
 	opacity: 1;
 	transform: translate(-50%, 0);
 	pointer-events: auto;
+	cursor: pointer;
 }
 
 .global-message-overlay[data-variant="success"] {
@@ -447,6 +448,10 @@ input[type="color"]+input[type="range"] {
 
 #preview-wrapper:hover button {
 	visibility: visible;
+}
+
+.navbar {
+	margin-top: 30px;
 }
 
 .navbar-brand {
