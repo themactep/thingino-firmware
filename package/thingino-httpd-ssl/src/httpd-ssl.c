@@ -43,29 +43,18 @@
 
 #include <fcntl.h>
 
-// Prefer faster cipher-suites on CPUs without AES acceleration
+// Prefer faster cipher-suites on CPUs without AES acceleration (ECDSA cert)
 static const int preferred_ciphers[] = {
-#if defined(MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256)
-    MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+#if defined(MBEDTLS_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256)
+    MBEDTLS_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
 #endif
-#if defined(MBEDTLS_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256)
-    MBEDTLS_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+#if defined(MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256)
+    MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 #endif
-#if defined(MBEDTLS_TLS_RSA_WITH_AES_128_GCM_SHA256)
-    MBEDTLS_TLS_RSA_WITH_AES_128_GCM_SHA256,
+#if defined(MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384)
+    MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
 #endif
     0};
-
-#if defined(MBEDTLS_ECP_C)
-static const mbedtls_ecp_group_id preferred_curves[] = {
-#if defined(MBEDTLS_ECP_DP_SECP256R1_ENABLED)
-    MBEDTLS_ECP_DP_SECP256R1,
-#endif
-#if defined(MBEDTLS_ECP_DP_CURVE25519_ENABLED)
-    MBEDTLS_ECP_DP_CURVE25519,
-#endif
-    MBEDTLS_ECP_DP_NONE};
-#endif
 
 volatile int keep_running = 1;
 
@@ -145,18 +134,17 @@ int main(int argc, char* argv[])
     // Optimize for performance on embedded devices
     mbedtls_ssl_conf_read_timeout(&conf, 0); // Non-blocking reads (DTLS only, safe here)
 
-    // Prefer fast cipher suites and curves
+    // Prefer fast cipher suites (ECDSA cert; ChaCha20 is fast without AES-NI)
     mbedtls_ssl_conf_ciphersuites(&conf, preferred_ciphers);
-#if defined(MBEDTLS_ECP_C)
-    mbedtls_ssl_conf_curves(&conf, preferred_curves);
-#endif
 
     // Disable renegotiation
     mbedtls_ssl_conf_renegotiation(&conf, MBEDTLS_SSL_RENEGOTIATION_DISABLED);
 
-    // Force TLS 1.2 for better performance (TLS 1.3 is more CPU intensive on this SoC)
-    mbedtls_ssl_conf_max_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3);
-    mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3);
+    // Limit to TLS 1.2 for lower CPU overhead (mbedtls 3.x API)
+#if defined(MBEDTLS_SSL_PROTO_TLS1_2)
+    mbedtls_ssl_conf_max_tls_version(&conf, MBEDTLS_SSL_VERSION_TLS1_2);
+    mbedtls_ssl_conf_min_tls_version(&conf, MBEDTLS_SSL_VERSION_TLS1_2);
+#endif
     // Setup stateless session tickets (improves repeat handshakes)
     if ((ret = mbedtls_ssl_ticket_setup(&tickets, mbedtls_ctr_drbg_random, &ctr_drbg, MBEDTLS_CIPHER_AES_128_GCM, 86400)) != 0) {
         fprintf(stderr, "Warning: ssl_ticket_setup failed: -0x%x\n", -ret);
