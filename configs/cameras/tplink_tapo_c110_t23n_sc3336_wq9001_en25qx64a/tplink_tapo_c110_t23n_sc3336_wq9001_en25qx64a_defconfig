@@ -1,6 +1,6 @@
 # NAME: TP-Link Tapo C110 v3 (T23N, SC3336, WQ9001, EN25QX64A)
 # FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
-BR2_GLOBAL_PATCH_DIR="$(BR2_EXTERNAL)/board/ingenic/xburst1/patches"
+BR2_PACKAGE_THINGINO_UBOOT_PATCH="$(BR2_EXTERNAL)/configs/cameras/tplink_tapo_c110_t23n_sc3336_wq9001_en25qx64a/patches"
 BR2_PACKAGE_THINGINO_KOPT=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
