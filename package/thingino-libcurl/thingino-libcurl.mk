@@ -1,4 +1,4 @@
-THINGINO_LIBCURL_VERSION = 8.17.0
+THINGINO_LIBCURL_VERSION = 8.18.0
 THINGINO_LIBCURL_SOURCE = curl-$(THINGINO_LIBCURL_VERSION).tar.xz
 THINGINO_LIBCURL_SITE = https://curl.se/download
 THINGINO_LIBCURL_DEPENDENCIES = host-pkgconf \
@@ -60,22 +60,15 @@ endif
 
 ifeq ($(BR2_PACKAGE_THINGINO_LIBCURL_OPENSSL),y)
 THINGINO_LIBCURL_DEPENDENCIES += openssl
-THINGINO_LIBCURL_CONF_OPTS += --with-openssl=$(STAGING_DIR)/usr
+THINGINO_LIBCURL_CONF_OPTS += --with-openssl=$(STAGING_DIR)/usr \
 THINGINO_LIBCURL_CONF_OPTS += --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
 else
 THINGINO_LIBCURL_CONF_OPTS += --without-openssl
 endif
 
-ifeq ($(BR2_PACKAGE_THINGINO_LIBCURL_BEARSSL),y)
-THINGINO_LIBCURL_CONF_OPTS += --with-bearssl=$(STAGING_DIR)/usr
-THINGINO_LIBCURL_DEPENDENCIES += bearssl
-else
-THINGINO_LIBCURL_CONF_OPTS += --without-bearssl
-endif
-
 ifeq ($(BR2_PACKAGE_THINGINO_LIBCURL_GNUTLS),y)
-THINGINO_LIBCURL_CONF_OPTS += --with-gnutls=$(STAGING_DIR)/usr \
-	--with-ca-fallback
+THINGINO_LIBCURL_CONF_OPTS += --with-gnutls=$(STAGING_DIR)/usr
+THINGINO_LIBCURL_CONF_OPTS += --with-ca-fallback
 THINGINO_LIBCURL_DEPENDENCIES += gnutls
 else
 THINGINO_LIBCURL_CONF_OPTS += --without-gnutls
@@ -95,6 +88,13 @@ THINGINO_LIBCURL_CONF_OPTS += --with-ca-bundle=/etc/ssl/certs/ca-certificates.cr
 THINGINO_LIBCURL_DEPENDENCIES += wolfssl
 else
 THINGINO_LIBCURL_CONF_OPTS += --without-wolfssl
+endif
+
+ifeq ($(BR2_PACKAGE_THINGINO_LIBCURL_BEARSSL),y)
+THINGINO_LIBCURL_CONF_OPTS += --with-bearssl=$(STAGING_DIR)/usr
+THINGINO_LIBCURL_DEPENDENCIES += bearssl
+else
+THINGINO_LIBCURL_CONF_OPTS += --without-bearssl
 endif
 
 ifeq ($(BR2_PACKAGE_C_ARES),y)
