@@ -1,0 +1,73 @@
+--- a/ustream-mbedtls.c
++++ b/ustream-mbedtls.c
+@@ -22,6 +22,7 @@
+ #include <unistd.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <errno.h>
+ 
+ #include "ustream-ssl.h"
+ #include "ustream-internal.h"
+@@ -116,17 +117,27 @@
+ static int _random(void *ctx, unsigned char *out, size_t len)
+ {
+ #ifdef linux
+-	if (getrandom(out, len, 0) != (ssize_t) len)
+-		return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
+-#else
+-	static FILE *f;
++	ssize_t r;
++
++	do {
++		r = getrandom(out, len, 0);
++	} while (r == -1 && errno == EINTR);
++
++	if (r == (ssize_t)len)
++		return 0;
+ 
+-	if (!f)
+-		f = fopen("/dev/urandom", "r");
+-	if (fread(out, len, 1, f) != 1)
++	/* getrandom() not available (kernel < 3.17) - fall through to /dev/urandom */
++	if (r != -1 || errno != ENOSYS)
+ 		return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
+ #endif
++	{
++		static FILE *f;
+ 
++		if (!f)
++			f = fopen("/dev/urandom", "r");
++		if (!f || fread(out, len, 1, f) != 1)
++			return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
++	}
+ 	return 0;
+ }
+ 
+@@ -234,8 +245,14 @@
+ 	if (server) {
+ 		mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_NONE);
+ 		mbedtls_ssl_conf_ciphersuites(conf, default_ciphersuites_server);
++		/* Force TLS 1.2 - TLS 1.3 + PSA crypto hangs on embedded MIPS */
++#if MBEDTLS_VERSION_NUMBER >= 0x03000000
++		mbedtls_ssl_conf_min_tls_version(conf, MBEDTLS_SSL_VERSION_TLS1_2);
++		mbedtls_ssl_conf_max_tls_version(conf, MBEDTLS_SSL_VERSION_TLS1_2);
++#else
+ 		mbedtls_ssl_conf_min_version(conf, MBEDTLS_SSL_MAJOR_VERSION_3,
+ 					     MBEDTLS_SSL_MINOR_VERSION_3);
++#endif
+ 	} else {
+ 		mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
+ 		mbedtls_ssl_conf_ciphersuites(conf, default_ciphersuites_client);
+@@ -375,8 +392,12 @@
+ 
+ 	/* force TLS 1.2 when not requiring validation for now */
+ 	if (!require && !ctx->server)
++#if MBEDTLS_VERSION_NUMBER >= 0x03000000
++		mbedtls_ssl_conf_max_tls_version(&ctx->conf, MBEDTLS_SSL_VERSION_TLS1_2);
++#else
+ 		mbedtls_ssl_conf_max_version(&ctx->conf, MBEDTLS_SSL_MAJOR_VERSION_3,
+ 					     MBEDTLS_SSL_MINOR_VERSION_3);
++#endif
+ 	mbedtls_ssl_conf_authmode(&ctx->conf, mode);
+ 
+ 	return 0;
