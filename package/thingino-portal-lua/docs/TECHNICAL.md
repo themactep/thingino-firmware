@@ -50,11 +50,6 @@ The portal reads configuration from environment variables sourced from `/usr/sha
 wlan_ssid="MyNetwork"           # Target WiFi network
 wlan_pass="password123"         # WiFi password (or PSK)
 
-# WiFi AP Configuration
-wlanap_enabled="false"          # Enable AP mode
-wlanap_ssid="THINGINO-1234"     # AP network name
-wlanap_pass="thingino123"       # AP password
-
 # System Configuration
 hostname="thingino-cam"         # Camera hostname
 timezone="America/New_York"     # System timezone
@@ -81,10 +76,6 @@ WiFi credentials are stored in U-Boot environment variables:
 # Set WiFi client credentials
 fw_setenv wlan_ssid "MyNetwork"
 fw_setenv wlan_pass "psk:abcd1234..."
-
-# Set WiFi AP credentials
-fw_setenv wlanap_ssid "THINGINO-1234"
-fw_setenv wlanap_pass "psk:efgh5678..."
 ```
 
 ## Security Implementation
@@ -111,14 +102,8 @@ function validate_form_data(form_data)
     end
 
     -- WiFi password validation (WPA/WPA2 requirements)
-    if form_data.wlanap_enabled == "true" then
-        if not form_data.wlanap_pass or string.len(form_data.wlanap_pass) < 8 then
-            table.insert(errors, "WiFi AP password must be at least 8 characters")
-        end
-    else
-        if not form_data.wlan_pass or string.len(form_data.wlan_pass) < 8 then
-            table.insert(errors, "WiFi network password must be at least 8 characters")
-        end
+    if not form_data.wlan_pass or string.len(form_data.wlan_pass) < 8 then
+        table.insert(errors, "WiFi network password must be at least 8 characters")
     end
 
     return errors
