@@ -1,0 +1,47 @@
+From: Thingino Firmware <thingino@firmware.local>
+Date: Wed, 4 Mar 2026
+Subject: [PATCH] Add support for EN25QX64A flash chip (ID 1c7117)
+
+Add support for the EON EN25QX64A 8MB SPI flash chip seen in
+newer Tapo C110 revision 3.0/EU devices.
+
+Signed-off-by: Thingino Firmware <thingino@firmware.local>
+
+---
+ drivers/spi/jz_spi.c | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/drivers/spi/jz_spi.c b/drivers/spi/jz_spi.c
+index a4560792..b1234567 100644
+--- a/drivers/spi/jz_spi.c
++++ b/drivers/spi/jz_spi.c
+@@ -1146,6 +1146,27 @@ static struct jz_spi_support jz_spi_support_table[] = {
+ 			.cmd_read = CMD_QUAD_READ,
+ #ifdef CONFIG_JZ_SFC
+ 			.sfc_mode = TRAN_SPI_QUAD,
++#endif
++		},
++	},
++	{
++		.name = "EN25QX64A",
++		.id_manufactory = 0x1c7117,
++		.page_size = 256,
++		.sector_size = 4096,
++		.addr_width = 3,
++		.size = 8 * 1024 * 1024,
++		.quad_mode = {
++			.dummy_byte = 8,
++			.RDSR_CMD = CMD_RDSR_1,
++			.WRSR_CMD = CMD_WRSR_1,
++			.RDSR_DATE = 0x2,
++			.RD_DATE_SIZE = 1,
++			.WRSR_DATE = 0x2,
++			.WD_DATE_SIZE = 1,
++			.cmd_read = CMD_QUAD_READ,
++#ifdef CONFIG_JZ_SFC
++			.sfc_mode = TRAN_SPI_QUAD,
+ #endif
+ 		},
+ 	},
+-- 
+2.43.0
