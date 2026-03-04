@@ -313,17 +313,16 @@ send_state() {
 
   read_dns_servers
 
-  local wifi_ssid wifi_bssid wifi_pass wifi_ap_enabled wifi_ap_ssid wifi_ap_pass
+  local wifi_ssid wifi_bssid wifi_pass wifi_ap_enabled
 
-  wifi_ssid="$(awk -F'"' '/ ssid=/{print $2}' /etc/wpa_supplicant.conf)"
-  wifi_bssid="$(awk -F'=' '/bssid=/{print $2}' /etc/wpa_supplicant.conf)"
-  wifi_pass="$(awk -F'"' '/psk=/{print $2}' /etc/wpa_supplicant.conf)"
-
-  wifi_ap_ssid="$(awk -F'"' '/ssid=/{print $2}' /etc/wpa_supplicant-ap.conf)"
-  wifi_ap_pass="$(awk -F'"' '/psk=/{print $2}' /etc/wpa_supplicant-ap.conf)"
-  wifi_ap_enabled=$(jct "$CONFIG_JSON" get wlan_ap.enabled 2>/dev/null)
-
-  [ "$wifi_ap_enabled" = "true" ] || [ "$wifi_ap_enabled" = "false" ] || wifi_ap_enabled="false"
+  wifi_ssid="$(awk -F'"' '/^[[:space:]]*ssid=/{print $2}' /etc/wpa_supplicant.conf)"
+  wifi_bssid="$(awk -F'"' '/^[[:space:]]*bssid=/{print $2}' /etc/wpa_supplicant.conf)"
+  wifi_pass="$(awk -F'"' '/^[[:space:]]*psk=/{print $2}' /etc/wpa_supplicant.conf)"
+  if grep -q 'mode=2' /etc/wpa_supplicant.conf; then
+    wifi_ap_enabled="true"
+  else
+    wifi_ap_enabled="false"
+  fi
 
   printf '{"hostname":"%s","dns":{"primary":"%s","secondary":"%s"},' \
     "$(json_escape "$hostname_value")" \
@@ -335,10 +334,7 @@ send_state() {
     "$(json_escape "$wifi_bssid")" \
     "$(json_escape "$wifi_pass")"
 
-  printf '"wifi_ap":{"enabled":%s,"ssid":"%s","password":"%s"},' \
-    "$wifi_ap_enabled" \
-    "$(json_escape "$wifi_ap_ssid")" \
-    "$(json_escape "$wifi_ap_pass")"
+  printf '"wifi_ap":{"enabled":%s},' "$wifi_ap_enabled"
 
   printf '"interfaces":{'
   local first=1 iface output
@@ -433,64 +429,6 @@ process_interface_input() {
   assign_iface_state "$iface" "$enabled" "$dhcp" "$ipv6" "$address" "$netmask" "$gateway" "$broadcast" "$mac" "$mode"
 }
 
-setup_wireless_network() {
-  local ssid="$1" bssid="$2" pass="$3" ssid_line="" pass_line=""
-  if [ -n "$bssid" ]; then
-    ssid_line="bssid=\"$bssid\""
-  else
-    ssid_line="ssid=\"$ssid\""
-  fi
-
-  if printf '%s' "$pass" | grep -qE '^[0-9A-Fa-f]{64}$'; then
-    pass_line="psk=${pass}"
-  else
-    pass_line="psk=\"$pass\""
-  fi
-
-  # create wpa_supplicant.conf
-  echo "# created on $(date +%c)
-ctrl_interface=/run/wpa_supplicant
-update_config=1
-ap_scan=1
-
-network={
-        ${ssid_line}
-        ${pass_line}
-        scan_ssid=1
-        bgscan=\"simple:30:-70:3600\"
-}
-" > /etc/wpa_supplicant.conf
-}
-
-update_wifi_ap_settings() {
-  local ssid="$1" pass="$2" enabled="$3" pass_line=""
-
-  if printf '%s' "$pass" | grep -qE '^[0-9A-Fa-f]{64}$'; then
-    pass_line="psk=${pass}"
-  else
-    pass_line="psk=\"$pass\""
-  fi
-
-  # create wpa_supplicant.conf
-  echo "# created on $(date +%c)
-ctrl_interface=/run/wpa_supplicant
-update_config=1
-ap_scan=2
-
-network={
-        ssid=\"$ssid\"
-        mode=2
-        frequency=2412
-        key_mgmt=WPA-PSK
-        proto=RSN
-        pairwise=CCMP
-        group=CCMP
-        ${pass_line}
-}
-" > /etc/wpa_supplicant-ap.conf
-  jct "$temp_file" set wlan_ap.enabled "$enabled"
-}
-
 update_hostname_files() {
   local host="$1"
   [ "$host" = "$(hostname_in_etc)" ] || echo "$host" >/etc/hostname
@@ -532,18 +470,11 @@ handle_post() {
   wifi_ssid=$(trim_value "$(read_json_string wifi.ssid)")
   wifi_pass=$(trim_value "$(read_json_string wifi.password)")
   wifi_bssid=$(trim_value "$(read_json_string wifi.bssid)")
+  wifi_ap_enabled=$(read_json_bool wifi_ap.enabled "false")
+
   if [ -n "$wifi_bssid" ]; then
     wifi_bssid=$(normalize_mac "$wifi_bssid")
     valid_mac "$wifi_bssid" || json_error "400 Bad Request" "wlan0 BSSID format is invalid" "invalid_bssid"
-  fi
-
-  wifi_ap_enabled=$(read_json_bool wifi_ap.enabled "false")
-  wifi_ap_ssid=$(trim_value "$(read_json_string wifi_ap.ssid)")
-  wifi_ap_pass=$(trim_value "$(read_json_string wifi_ap.password)")
-  if [ "$wifi_ap_enabled" = "true" ]; then
-    [ -n "$wifi_ap_ssid" ] || json_error "400 Bad Request" "Wi-Fi AP SSID cannot be empty" "missing_wlanap_ssid"
-    [ -n "$wifi_ap_pass" ] || json_error "400 Bad Request" "Wi-Fi AP password cannot be empty" "missing_wlanap_pass"
-    [ ${#wifi_ap_pass} -ge 8 ] || json_error "400 Bad Request" "Wi-Fi AP password must be at least 8 characters" "invalid_wlanap_pass"
   fi
 
   if [ "$wlan0_enabled" = "true" ] && [ -n "$wifi_ssid$wifi_pass" ]; then
@@ -559,14 +490,18 @@ handle_post() {
   update_hostname_files "$hostname_value"
   setup_dns "$dns_primary" "$dns_secondary"
 
-  if [ "$wlan0_enabled" = "true" ] && [ -n "$wifi_ssid$wifi_pass" ]; then
-    setup_wireless_network "$wifi_ssid" "$wifi_bssid" "$wifi_pass"
+  if [ "$wifi_ap_enabled" = "true" ]; then
+    # create wlan ap wpa_supplicant.conf
+    wlan configure "$wifi_ssid" "$wifi_pass" ap
+  else
+    # FIXME: need to figure out how to fit $wifi_bssid back into it:
+    # if [ -n "$bssid" ]; then
+    #   ssid_line="bssid=\"$bssid\""
+    # else
+    #   ssid_line="ssid=\"$ssid\""
+    # fi
+    wlan configure "$wifi_ssid" "$wifi_pass"
   fi
-
-  update_wifi_ap_settings "$wifi_ap_ssid" "$wifi_ap_pass" "$wifi_ap_enabled"
-
-  refresh_env_dump
-  command -v update_caminfo >/dev/null 2>&1 && update_caminfo
 
   emit_json "" '{"status":"ok"}'
 }
