@@ -7,6 +7,7 @@
 require_auth
 
 echo "Content-Type: application/json"
+echo "Connection: close"
 echo
 
 # Read exactly CONTENT_LENGTH bytes if provided; otherwise read all stdin

@@ -10,7 +10,7 @@ config_file="/etc/send2.json"
 prudynt_config="/etc/prudynt.json"
 
 send_json_response() {
-  printf 'Content-Type: application/json\r\n\r\n'
+  printf 'Content-Type: application/json\r\nConnection: close\r\n\r\n'
   printf '%s' "$1"
 }
 
@@ -37,7 +37,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
   }
 
   # Combine into response
-  printf 'Content-Type: application/json\r\n\r\n'
+  printf 'Content-Type: application/json\r\nConnection: close\r\n\r\n'
   cat <<EOF
 {
   "motion": $motion_data,

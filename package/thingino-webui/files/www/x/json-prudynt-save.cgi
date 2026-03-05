@@ -15,7 +15,7 @@ http_200() {
 
 send_headers() {
   http_200
-  printf 'Content-Type: application/json\r\n\r\n'
+  printf 'Content-Type: application/json\r\nConnection: close\r\n\r\n'
 }
 
 error_response() {

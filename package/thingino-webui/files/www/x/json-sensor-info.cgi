@@ -6,6 +6,7 @@ require_auth
 
 printf 'Content-Type: application/json\r\n'
 printf 'Cache-Control: no-cache\r\n'
+printf 'Connection: close\r\n'
 printf '\r\n'
 
 SENSOR_MODEL=$(cat /proc/jz/sensor/name)
