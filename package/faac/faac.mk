@@ -11,6 +11,8 @@ FAAC_DEPENDENCIES = host-pkgconf
 FAAC_INSTALL_STAGING = YES
 FAAC_INSTALL_TARGET = YES
 
+FAAC_CONF_ENV += CFLAGS="$(TARGET_CFLAGS) -ffast-math"
+
 FAAC_CONF_OPTS = \
 	$(if $(BR2_PACKAGE_FAAC_ENABLE_DRM),-Ddrm=true,-Ddrm=false) \
 	-Dfloating-point=single
