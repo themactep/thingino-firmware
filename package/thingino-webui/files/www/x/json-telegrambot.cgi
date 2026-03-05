@@ -1,4 +1,9 @@
 #!/bin/sh
+
+# Check authentication
+. /var/www/x/auth.sh
+require_auth
+
 config_file=/etc/telegrambot.json
 if [ "$REQUEST_METHOD" = "POST" ]; then
 	cl=${CONTENT_LENGTH:-0}
