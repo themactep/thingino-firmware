@@ -19,6 +19,7 @@ http_412() {
 json_header() {
   printf 'Content-Type: application/json\r\n'
   printf 'Cache-Control: no-store\r\n'
+  printf 'Connection: close\r\n'
   printf '\r\n'
 }
 

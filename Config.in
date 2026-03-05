@@ -81,7 +81,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-uhttpd/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webserver/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-onvif/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-httpd-ssl/Config.in"
 endif
 
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
@@ -105,7 +105,6 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/libjuice/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libdatachannel/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/usrsctp/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/prudynt-t/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/prudynt-t-legacy/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/raptor-ipc/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ffmpeg/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-fonts/Config.in"

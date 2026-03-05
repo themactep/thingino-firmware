@@ -189,7 +189,6 @@ cache-size=1000
 The portal starts automatically when:
 1. No ethernet or USB network interface is detected
 2. No WiFi credentials are configured (`wlan_ssid` and `wlan_pass` not set)
-3. WiFi AP mode is not enabled (`wlanap_enabled != "true"`)
 
 ### Manual Control
 
@@ -264,9 +263,6 @@ rootpass        - Root password (required)
 rootpkey        - SSH public key (optional)
 wlan_ssid       - WiFi network name (required for client mode)
 wlan_pass       - WiFi password (required for client mode)
-wlanap_enabled  - Enable AP mode ("true"/"false")
-wlanap_ssid     - AP network name (required for AP mode)
-wlanap_pass     - AP password (required for AP mode)
 timezone        - Browser timezone (auto-detected)
 timestamp       - Form timestamp (CSRF protection)
 mode            - Form mode ("edit"/"review"/"save")

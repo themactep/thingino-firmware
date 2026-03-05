@@ -7,6 +7,7 @@ session_id=$(get_session_from_cookie)
 if [ -z "$session_id" ] || ! validate_session "$session_id"; then
   printf "Status: 401 Unauthorized\r\n"
   printf "Content-Type: application/json\r\n"
+  printf "Connection: close\r\n"
   printf "\r\n"
   printf '{"error":"Session authentication required"}\n'
   exit 0
@@ -17,6 +18,7 @@ API_KEY_FILE="/etc/thingino-api.key"
 send_json() {
   printf "Content-Type: application/json\r\n"
   printf "Cache-Control: no-store\r\n"
+  printf "Connection: close\r\n"
   printf "\r\n"
   printf "%s\n" "$1"
 }
@@ -49,6 +51,7 @@ case "$REQUEST_METHOD" in
   *)
     printf "Status: 405 Method Not Allowed\r\n"
     printf "Content-Type: application/json\r\n"
+    printf "Connection: close\r\n"
     printf "\r\n"
     printf '{"error":"Method not allowed"}\n'
     ;;

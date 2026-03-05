@@ -12,6 +12,7 @@ json_response() {
 	echo "Content-type: application/json; charset=UTF-8"
 	echo "Cache-Control: no-store"
 	echo "Pragma: no-cache"
+	echo "Connection: close"
 	echo ""
 	echo "$1"
 }

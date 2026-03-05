@@ -6,6 +6,7 @@ require_auth
 
 printf "Content-Type: application/json\r\n"
 printf "Cache-Control: no-store\r\n"
+printf "Connection: close\r\n"
 printf "\r\n"
 
 # Restart httpd service

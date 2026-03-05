@@ -65,7 +65,20 @@
                 </p>
                 <p>
                   <label for="videoLimit">Storage limit, gigabytes</label>
-                  <input type="number" class="form-control" id="videoLimit" min="1" max="1024" step="1" value="15">
+                  <input type="number" class="form-control" id="videoLimit" min="1" max="1024" step="1" value="15"
+                    data-help="Maximum total space recordings may occupy; oldest clips are removed first when exceeded">
+                </p>
+              </div>
+              <div class="col">
+                <p>
+                  <label for="videoMinFreeMb">Minimum free space, megabytes</label>
+                  <input type="number" class="form-control" id="videoMinFreeMb" min="50" max="102400" step="50" value="500"
+                    data-help="Oldest recordings are removed to keep at least this much space free on the storage target">
+                </p>
+                <p>
+                  <label for="videoCheckInterval">Storage check interval, seconds</label>
+                  <input type="number" class="form-control" id="videoCheckInterval" min="10" max="3600" step="10" value="60"
+                    data-help="How often the storage manager checks free space and enforces limits">
                 </p>
               </div>
             </div>
@@ -73,6 +86,12 @@
             <p class="form-switch">
               <input class="form-check-input" type="checkbox" role="switch" id="videoAutostart">
               <label class="form-check-label" for="videoAutostart">Start recording automatically on boot</label>
+            </p>
+            <p class="form-switch">
+              <input class="form-check-input" type="checkbox" role="switch" id="videoCleanupEnabled">
+              <label class="form-check-label" for="videoCleanupEnabled">Enable storage manager
+                <span class="text-secondary small ms-1">removes oldest recordings to stay within limit and free space</span>
+              </label>
             </p>
 
             <button type="submit" class="btn btn-primary" id="videoSubmit">

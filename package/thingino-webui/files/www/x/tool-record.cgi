@@ -27,6 +27,9 @@ vr_defaults() {
   [ "/" = "${vr_filename: -1}" ] && vr_filename="$RECORD_FILENAME_FB"
   [ -z "$vr_duration" ] && vr_duration=60
   [ -z "$vr_limit" ] && vr_limit=15
+  [ -z "$vr_min_free_mb" ] && vr_min_free_mb=500
+  [ -z "$vr_check_interval" ] && vr_check_interval=60
+  [ -z "$vr_cleanup_enabled" ] && vr_cleanup_enabled="false"
 }
 
 vr_set_value() {
@@ -47,6 +50,9 @@ vr_read_config() {
   vr_filename=$(vr_get_value filename)
   vr_limit=$(vr_get_value limit)
   vr_mount=$(vr_get_value mount)
+  vr_min_free_mb=$(vr_get_value min_free_mb)
+  vr_check_interval=$(vr_get_value check_interval)
+  vr_cleanup_enabled=$(vr_get_value cleanup_enabled)
 }
 
 tl_defaults() {
@@ -107,6 +113,7 @@ send_json() {
 Content-Type: application/json
 Cache-Control: no-store
 Pragma: no-cache
+Connection: close
 
 $1
 EOF
@@ -192,6 +199,9 @@ parse_form_data() {
       vr_duration) POST_vr_duration="$value" ;;
       vr_filename) POST_vr_filename="$value" ;;
       vr_limit) POST_vr_limit="$value" ;;
+      vr_min_free_mb) POST_vr_min_free_mb="$value" ;;
+      vr_check_interval) POST_vr_check_interval="$value" ;;
+      vr_cleanup_enabled) POST_vr_cleanup_enabled="$value" ;;
       vr_mount) POST_vr_mount="$value" ;;
       tl_enabled) POST_tl_enabled="$value" ;;
       tl_mount) POST_tl_mount="$value" ;;
@@ -253,13 +263,17 @@ build_state_payload() {
   #debug_timelapse="$(collect_command_output "jct $tl_config_file get $tl_domain" jct "$tl_config_file" get "$tl_domain")"
   #debug_crontab="$(collect_command_output "crontab -l" crontab -l)"
 
-  local video_channel video_duration video_limit tl_interval_num tl_keep_days_num
+  local video_channel video_duration video_limit video_min_free_mb video_check_interval tl_interval_num tl_keep_days_num
   video_channel="$vr_channel"
   case "$video_channel" in ''|*[!0-9]*) video_channel=0 ;; esac
   video_duration="$vr_duration"
   case "$video_duration" in ''|*[!0-9]*) video_duration=0 ;; esac
   video_limit="$vr_limit"
   case "$video_limit" in ''|*[!0-9]*) video_limit=0 ;; esac
+  video_min_free_mb="$vr_min_free_mb"
+  case "$video_min_free_mb" in ''|*[!0-9]*) video_min_free_mb=500 ;; esac
+  video_check_interval="$vr_check_interval"
+  case "$video_check_interval" in ''|*[!0-9]*) video_check_interval=60 ;; esac
   tl_interval_num="$tl_interval"
   case "$tl_interval_num" in ''|*[!0-9]*) tl_interval_num=0 ;; esac
   tl_keep_days_num="$tl_keep_days"
@@ -270,10 +284,13 @@ build_state_payload() {
   "video": {
     "autostart": $(bool_to_json "$vr_autostart"),
     "channel": $video_channel,
+    "check_interval": $video_check_interval,
+    "cleanup_enabled": $(bool_to_json "$vr_cleanup_enabled"),
     "device_path": "$(json_escape "$vr_device_path")",
     "duration": $video_duration,
     "filename": "$(json_escape "$vr_filename")",
     "limit": $video_limit,
+    "min_free_mb": $video_min_free_mb,
     "mount": "$(json_escape "$vr_mount")"
   },
   "timelapse": {
@@ -342,20 +359,30 @@ process_video_form() {
   refresh_settings
   vr_autostart="$POST_vr_autostart"
   vr_channel="$POST_vr_channel"
+  vr_cleanup_enabled="$POST_vr_cleanup_enabled"
   vr_device_path="$POST_vr_device_path"
   vr_duration="$POST_vr_duration"
   vr_filename="$POST_vr_filename"
   vr_limit="$POST_vr_limit"
+  vr_min_free_mb="$POST_vr_min_free_mb"
+  vr_check_interval="$POST_vr_check_interval"
   vr_mount="$POST_vr_mount"
   vr_defaults
 
   vr_autostart=$(normalize_bool "$vr_autostart")
+  vr_cleanup_enabled=$(normalize_bool "$vr_cleanup_enabled")
   case "$vr_channel" in 0|1) : ;; *) vr_channel=0 ;; esac
   if ! is_positive_int "$vr_duration"; then
     json_error 422 "Clip duration must be a positive integer"
   fi
   if ! is_positive_int "$vr_limit"; then
     json_error 422 "Storage limit must be a positive integer"
+  fi
+  if ! is_positive_int "$vr_min_free_mb"; then
+    json_error 422 "Minimum free space must be a positive integer"
+  fi
+  if ! is_positive_int "$vr_check_interval"; then
+    json_error 422 "Check interval must be a positive integer"
   fi
   [ -z "$vr_mount" ] && json_error 422 "Record mount cannot be empty."
   case "$vr_filename" in
@@ -365,10 +392,13 @@ process_video_form() {
 
   vr_set_value autostart "$vr_autostart"
   vr_set_value channel "$vr_channel"
+  vr_set_value check_interval "$vr_check_interval"
+  vr_set_value cleanup_enabled "$vr_cleanup_enabled"
   vr_set_value device_path "$vr_device_path"
   vr_set_value duration "$vr_duration"
   vr_set_value filename "$vr_filename"
   vr_set_value limit "$vr_limit"
+  vr_set_value min_free_mb "$vr_min_free_mb"
   vr_set_value mount "$vr_mount"
 
   if ! jct "$vr_config_file" import "$vr_temp_config_file"; then
@@ -377,6 +407,7 @@ process_video_form() {
   fi
   rm -f "$vr_temp_config_file"
   update_caminfo
+  /etc/init.d/S95recordmgr restart >/dev/null 2>&1 || true
   send_state_response "Video recorder settings updated."
 }
 

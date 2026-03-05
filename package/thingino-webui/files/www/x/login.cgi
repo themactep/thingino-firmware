@@ -8,6 +8,7 @@ send_json() {
   printf "Content-Type: application/json\r\n"
   printf "Cache-Control: no-store\r\n"
   printf "Pragma: no-cache\r\n"
+  printf "Connection: close\r\n"
   printf "\r\n"
   printf "%s\n" "$1"
   exit 0

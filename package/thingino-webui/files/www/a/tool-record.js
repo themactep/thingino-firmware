@@ -9,7 +9,10 @@
   const videoChannel = $('#videoChannel');
   const videoDuration = $('#videoDuration');
   const videoLimit = $('#videoLimit');
+  const videoMinFreeMb = $('#videoMinFreeMb');
+  const videoCheckInterval = $('#videoCheckInterval');
   const videoAutostart = $('#videoAutostart');
+  const videoCleanupEnabled = $('#videoCleanupEnabled');
   const videoSubmit = $('#videoSubmit');
   const videoStrftimeHint = $('#videoStrftimeHint');
 
@@ -101,7 +104,10 @@
     if (videoChannel) videoChannel.value = typeof video.channel === 'number' ? String(video.channel) : (video.channel || '0');
     if (videoDuration) videoDuration.value = video.duration || 60;
     if (videoLimit) videoLimit.value = video.limit || 15;
+    if (videoMinFreeMb) videoMinFreeMb.value = video.min_free_mb || 500;
+    if (videoCheckInterval) videoCheckInterval.value = video.check_interval || 60;
     if (videoAutostart) videoAutostart.checked = boolFromValue(video.autostart);
+    if (videoCleanupEnabled) videoCleanupEnabled.checked = boolFromValue(video.cleanup_enabled);
   }
 
   function renderDebug(debug = {}) {
@@ -152,7 +158,10 @@
     params.set('vr_channel', getValue(videoChannel) || '0');
     params.set('vr_duration', getValue(videoDuration));
     params.set('vr_limit', getValue(videoLimit));
+    params.set('vr_min_free_mb', getValue(videoMinFreeMb));
+    params.set('vr_check_interval', getValue(videoCheckInterval));
     params.set('vr_autostart', isChecked(videoAutostart) ? 'true' : 'false');
+    params.set('vr_cleanup_enabled', isChecked(videoCleanupEnabled) ? 'true' : 'false');
     return params;
   }
 

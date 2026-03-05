@@ -12,6 +12,7 @@ Server: $SERVER_SOFTWARE
 Content-type: text/html; charset=UTF-8
 Cache-Control: no-store
 Pragma: no-cache
+Connection: close
 Location: /wait.html
 Status: 302 Moved Temporarily
 "
