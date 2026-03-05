@@ -3,7 +3,7 @@ config BR2_PACKAGE_THINGINO_WEBSERVER
 
 choice
 	prompt "Web Server"
-	default BR2_PACKAGE_THINGINO_WEBSERVER_BUSYBOX
+	default BR2_PACKAGE_THINGINO_WEBSERVER_UHTTPD
 	help
 	  Select the web server implementation for thingino.
 
