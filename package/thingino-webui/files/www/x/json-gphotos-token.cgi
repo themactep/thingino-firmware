@@ -12,6 +12,7 @@ send_json() {
 }
 
 echo "Content-Type: application/json"
+echo "Connection: close"
 echo
 
 if ! command -v curl >/dev/null 2>&1; then

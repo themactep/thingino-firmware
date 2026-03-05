@@ -34,6 +34,7 @@ send_json() {
 Content-Type: application/json
 Cache-Control: no-store
 Pragma: no-cache
+Connection: close
 
 $1
 EOF

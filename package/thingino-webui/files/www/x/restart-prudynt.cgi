@@ -6,6 +6,7 @@
 require_auth
 
 echo "Content-Type: application/json"
+echo "Connection: close"
 echo
 echo '{"status":"ok","message":"Prudynt restart initiated"}'
 

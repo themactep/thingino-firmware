@@ -4,7 +4,7 @@
 . /var/www/x/auth.sh
 require_auth
 
-printf 'Status: 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store\r\n\r\n'
+printf 'Status: 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n'
 
 # Get motor config values
 steps_pan_val=$(jct /etc/motors.json get motors.steps_pan 2>/dev/null); [ -z "$steps_pan_val" ] && steps_pan_val=0

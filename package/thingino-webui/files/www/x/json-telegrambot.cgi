@@ -12,6 +12,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 fi
 
 echo "Content-Type: application/json"
+echo "Connection: close"
 echo
 cat $config_file
 
