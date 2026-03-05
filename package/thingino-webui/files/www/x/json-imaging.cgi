@@ -22,6 +22,7 @@ json_header() {
   printf 'Pragma: no-cache\r\n'
   printf 'Expires: %s\r\n' "$(TZ=GMT0 date +'%a, %d %b %Y %T %Z')"
   printf 'Etag: "%s"\r\n' "$(cat /proc/sys/kernel/random/uuid)"
+  printf 'Connection: close\r\n'
   printf '\r\n'
 }
 
