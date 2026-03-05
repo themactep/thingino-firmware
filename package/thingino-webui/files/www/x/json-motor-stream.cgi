@@ -58,7 +58,6 @@ send_headers() {
   cat <<EOF
 Content-Type: text/event-stream
 Cache-Control: no-cache
-Connection: keep-alive
 
 EOF
 }
