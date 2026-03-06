@@ -6,10 +6,11 @@ CONTAINER_ENGINE ?= $(shell command -v podman 2>/dev/null || command -v docker 2
 USER_ID := $(shell id -u)
 GROUP_ID := $(shell id -g)
 USERNAME := builder
-DL_DIR := dl
 
 # Directories
 WORKSPACE_DIR := $(shell pwd)
+DL_DIR := dl
+SSH_DIR := ${WORKSPACE_DIR}/.ssh
 
 # Container run command
 ifeq ($(findstring podman,$(CONTAINER_ENGINE)),podman)
@@ -19,10 +20,22 @@ else
 endif
 
 CONTAINER_RUN_OPTS := \
-	-v $(WORKSPACE_DIR):/home/$(USERNAME) \
-	-v $(shell [ -e ${DL_DIR} ] || mkdir -p ${DL_DIR} && readlink -f ${DL_DIR}):/home/$(USERNAME)/dl \
-	-w /home/$(USERNAME) \
+	-v "$(WORKSPACE_DIR)":"/home/$(USERNAME)" \
+	-v "$(shell [ -e ${DL_DIR} ] || mkdir -p ${DL_DIR} && readlink -f ${DL_DIR})":"/home/$(USERNAME)/dl" \
+	-w "/home/$(USERNAME)" \
 	-e TERM=xterm-256color
+
+# If .ssh keys not found in build workspace
+ifeq ($(wildcard $(SSH_DIR)/id_*),)
+# then if they exist in $HOME
+ifneq ($(wildcard $(HOME)/.ssh/id_*),)
+# pass them through to container
+SSH_DIR := $(HOME)/.ssh
+CONTAINER_RUN_OPTS := \
+	-v "$(SSH_DIR)":"/home/$(USERNAME)/.ssh" \
+	$(CONTAINER_RUN_OPTS)
+endif
+endif
 
 # Interactive container
 CONTAINER_RUN_INTERACTIVE := $(CONTAINER_RUN) -it $(CONTAINER_RUN_OPTS)
