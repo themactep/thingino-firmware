@@ -4,6 +4,7 @@
 
 DAEMON="uhttpd"
 PIDFILE="/var/run/uhttpd.pid"
+PORTAL_MODE_FLAG="/run/portal_mode"
 
 start() {
     # Check if already running - verify PID file contains a valid running process
@@ -28,10 +29,10 @@ start() {
             return 1
         fi
 
-        if [ ! -f "/var/www-portal/lua/portal.lua" ]; then
-            echo_warning "Portal script /var/www-portal/lua/portal.lua not found"
-            return 1
-        fi
+        #if [ ! -f "/var/www-portal/lua/portal.lua" ]; then
+        #    echo_warning "Portal script /var/www-portal/lua/portal.lua not found"
+        #    return 1
+        #fi
 
         # Portal mode configuration
         DAEMON_ARGS_BASE="-h /var/www-portal"
