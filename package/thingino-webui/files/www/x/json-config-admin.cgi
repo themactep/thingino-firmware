@@ -24,18 +24,16 @@ json_escape() {
 }
 
 send_json() {
-  payload="$1"
   status="${2:-200 OK}"
-  echo "HTTP/1.1 200 OK
-Connection: Close
-Content-Length: ${#payload}
-Status: $status
+  printf 'Status: %s\n' "$status"
+  cat <<EOF
 Content-Type: application/json
 Cache-Control: no-store
 Pragma: no-cache
+Connection: close
 
 $1
-"
+EOF
   exit 0
 }
 
