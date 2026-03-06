@@ -142,19 +142,15 @@ save_config() {
 	rootpass="$PARAM_rootpass"
 	rootpkey="$PARAM_rootpkey"
 	timezone="$PARAM_timezone"
-	wlanap_enabled="$PARAM_wlanap_enabled"
-	wlanap_pass="$PARAM_wlanap_pass"
-	wlanap_ssid="$PARAM_wlanap_ssid"
 	wlan_pass="$PARAM_wlan_pass"
 	wlan_ssid="$PARAM_wlan_ssid"
+	wlan_ap="$PARAM_wlan_ap"
 
 	# Trim trailing whitespaces from submitted values
 	hostname=$(echo "$hostname" | sed 's/[[:space:]]*$//')
 	rootpass=$(echo "$rootpass" | sed 's/[[:space:]]*$//')
 	rootpkey=$(echo "$rootpkey" | sed 's/[[:space:]]*$//')
 	timezone=$(echo "$timezone" | sed 's/[[:space:]]*$//')
-	wlanap_pass=$(echo "$wlanap_pass" | sed 's/[[:space:]]*$//')
-	wlanap_ssid=$(echo "$wlanap_ssid" | sed 's/[[:space:]]*$//')
 	wlan_pass=$(echo "$wlan_pass" | sed 's/[[:space:]]*$//')
 	wlan_ssid=$(echo "$wlan_ssid" | sed 's/[[:space:]]*$//')
 
@@ -177,29 +173,10 @@ save_config() {
 	echo "$hostname" > /etc/hostname
 
 	# Update wlan settings
-	if [ "true" = "$wlanap_enabled" ]; then
-		temp_file=$(mktemp -u)
-		echo '{}' > $temp_file
-		wlanap_pass=$(convert_psk "$wlanap_ssid" "$wlanap_pass")
-		jct $temp_file set wlan_ap.ssid "$wlanap_ssid"
-		jct $temp_file set wlan_ap.pass "$wlanap_pass"
-		jct $temp_file set wlan_ap.enabled "$wlanap_enabled"
-		jct /etc/thingino.json import $temp_file
-		rm -f $temp_file
+	if [ "true" = "$wlan_ap" ]; then
+		wlan configure "$wlan_ssid" "$wlan_pass" ap
 	else
-		log="/tmp/wpa.log"
-		echo "# created on $(date +%c)
-ctrl_interface=/run/wpa_supplicant
-update_config=1
-ap_scan=1
-
-network={
-        ssid=\"$wlan_ssid\"
-        psk=\"$wlan_pass\"
-        scan_ssid=1
-        bgscan=\"simple:30:-70:3600\"
-}
-" > /etc/wpa_supplicant.conf
+		wlan configure "$wlan_ssid" "$wlan_pass"
 	fi
 
 	# Update timezone

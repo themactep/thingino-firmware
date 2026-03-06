@@ -33,10 +33,18 @@
             </button>
           </div><!-- .card-header -->
           <div class="card-body">
-            <div class="row g-4">
-              <div class="col-12 col-lg-4">
+
+            <div class="row row-cols-lg-3 g-4">
+              <div class="col">
                 <h4>Thresholds</h4>
                 <small>Maximum and minimum boundaries of Day/Night modes</small>
+
+                <p class="form-switch">
+                  <input type="hidden" id="daynight_enabled-false" name="daynight_enabled" value="false">
+                  <input type="checkbox" id="daynight_enabled" name="daynight_enabled" value="true" role="switch" class="form-check-input">
+                  <label for="daynight_enabled" class="form-check-label">Enable photosensing on boot</label>
+                </p>
+
                 <p class="number-range">
                   <label for="daynight_total_gain_night_threshold">Switch to night mode above</label>
                   <span class="input-group">
@@ -52,7 +60,7 @@
                   </span>
                 </p>
               </div>
-              <div class="col-12 col-lg-4">
+              <div class="col">
                 <h4>Controls</h4>
                 <small>Select actions to perform when changing Day/Night mode</small>
                 <p class="form-switch">
@@ -81,7 +89,7 @@
                   <label for="daynight_controls_white" class="form-check-label">Toggle white light</label>
                 </p>
               </div>
-              <div class="col-12 col-lg-4">
+              <div class="col">
                 <h4>Time Schedule</h4>
                 <small>Enable/disable photosensing at specific times</small>
                 <p class="form-switch mt-3">
@@ -101,12 +109,6 @@
             </div>
           </div>
         </section>
-
-        <p class="form-switch">
-          <input type="hidden" id="daynight_enabled-false" name="daynight_enabled" value="false">
-          <input type="checkbox" id="daynight_enabled" name="daynight_enabled" value="true" role="switch" class="form-check-input">
-          <label for="daynight_enabled" class="form-check-label">Enable photosensing on boot</label>
-        </p>
 
         <button type="button" id="save-prudynt-config" class="btn btn-primary">
           <i class="bi bi-floppy me-1"></i> Save changes

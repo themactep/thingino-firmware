@@ -19,9 +19,9 @@ else
 endif
 
 CONTAINER_RUN_OPTS := \
-	-v $(WORKSPACE_DIR):/home/$(USERNAME) \
+	-v $(WORKSPACE_DIR):/workspace \
 	-v $(shell [ -e ${DL_DIR} ] || mkdir -p ${DL_DIR} && readlink -f ${DL_DIR}):/home/$(USERNAME)/dl \
-	-w /home/$(USERNAME) \
+	-w /workspace \
 	-e TERM=xterm-256color
 
 # Interactive container

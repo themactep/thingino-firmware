@@ -5,6 +5,10 @@
 
 start() {
 	echo_title "Starting network"
+	if [ -f /run/wlan_ap_mode ]; then
+		echo_error "WiFi AP mode, exiting"
+		exit 0
+	fi
 
 	local toggle
 	toggle=$(jct /etc/thingino.json get gpio.eth.toggle 2>/dev/null)

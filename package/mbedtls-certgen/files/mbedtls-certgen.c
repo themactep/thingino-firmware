@@ -42,10 +42,11 @@
 #define DEFAULT_RSA_KEY_SIZE 2048
 
 static void usage(const char *prog) {
-    printf("Usage: %s -h hostname -c cert_file -k key_file [-d days] [-s key_size] [-t type] [-f format]\n", prog);
-    printf("  -h, --hostname   Hostname for certificate CN\n");
+    printf("Usage: %s -h hostname -c cert_file -k key_file [-i ip] [-d days] [-s key_size] [-t type] [-f format]\n", prog);
+    printf("  -h, --hostname   Hostname for certificate CN and DNS SAN\n");
     printf("  -c, --cert       Output certificate file\n");
     printf("  -k, --key        Output private key file\n");
+    printf("  -i, --ip         IP address to include as SAN (optional)\n");
     printf("  -d, --days       Certificate validity in days (default: %d)\n", DEFAULT_DAYS);
     printf("  -s, --key-size   Key size - ECDSA: 256,384,521 RSA: 2048,3072,4096 (default: %d)\n", DEFAULT_KEY_SIZE);
     printf("  -t, --type       Key type: ecdsa or rsa (default: ecdsa)\n");
@@ -179,6 +180,66 @@ static int write_certificate_der(mbedtls_x509write_cert *crt, const char *cert_f
     return 0;
 }
 
+/*
+ * Add SubjectAltName extension: DNS:<hostname> and optionally IP:<ip_str>.
+ * Also adds BasicConstraints (CA:FALSE).
+ * mbedtls ASN.1 write functions work backwards from the end of buf.
+ */
+static int add_cert_extensions(mbedtls_x509write_cert *crt,
+                               const char *hostname, const char *ip_str)
+{
+    unsigned char buf[512];
+    unsigned char *p = buf + sizeof(buf);
+    size_t len = 0;
+    int ret;
+
+    /* --- SubjectAltName --- */
+
+    /* IP address SAN [7] IMPLICIT OCTET STRING (write last so it ends up after DNS) */
+    if (ip_str && *ip_str) {
+        unsigned int a, b, c, d;
+        if (sscanf(ip_str, "%u.%u.%u.%u", &a, &b, &c, &d) == 4) {
+            unsigned char ip4[4] = { (unsigned char)a, (unsigned char)b,
+                                     (unsigned char)c, (unsigned char)d };
+            MBEDTLS_ASN1_CHK_ADD(len, mbedtls_asn1_write_raw_buffer(&p, buf, ip4, 4));
+            MBEDTLS_ASN1_CHK_ADD(len, mbedtls_asn1_write_len(&p, buf, 4));
+            MBEDTLS_ASN1_CHK_ADD(len, mbedtls_asn1_write_tag(&p, buf,
+                MBEDTLS_ASN1_CONTEXT_SPECIFIC | 7));
+        }
+    }
+
+    /* DNS SAN [2] IMPLICIT IA5String */
+    {
+        size_t hlen = strlen(hostname);
+        MBEDTLS_ASN1_CHK_ADD(len, mbedtls_asn1_write_raw_buffer(&p, buf,
+            (const unsigned char *)hostname, hlen));
+        MBEDTLS_ASN1_CHK_ADD(len, mbedtls_asn1_write_len(&p, buf, hlen));
+        MBEDTLS_ASN1_CHK_ADD(len, mbedtls_asn1_write_tag(&p, buf,
+            MBEDTLS_ASN1_CONTEXT_SPECIFIC | 2));
+    }
+
+    /* Wrap in SEQUENCE */
+    MBEDTLS_ASN1_CHK_ADD(len, mbedtls_asn1_write_len(&p, buf, len));
+    MBEDTLS_ASN1_CHK_ADD(len, mbedtls_asn1_write_tag(&p, buf,
+        MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE));
+
+    ret = mbedtls_x509write_crt_set_extension(
+        crt,
+        MBEDTLS_OID_SUBJECT_ALT_NAME,
+        MBEDTLS_OID_SIZE(MBEDTLS_OID_SUBJECT_ALT_NAME),
+        0, /* non-critical */
+        p, len);
+    if (ret != 0)
+        return ret;
+
+    /* --- BasicConstraints: CA:FALSE --- */
+    ret = mbedtls_x509write_crt_set_basic_constraints(crt, 0, -1);
+    if (ret != 0)
+        return ret;
+
+    return 0;
+}
+
 static int generate_ecdsa_key(mbedtls_pk_context *key, int key_size, mbedtls_ctr_drbg_context *ctr_drbg) {
     int ret;
     mbedtls_ecp_group_id curve_id;
@@ -246,7 +307,8 @@ static int generate_rsa_key(mbedtls_pk_context *key, int key_size, mbedtls_ctr_d
 }
 
 static int generate_certificate(const char *cert_file, const char *key_file,
-                               const char *hostname, int days, int key_size, const char *key_type, const char *format) {
+                               const char *hostname, const char *ip_san,
+                               int days, int key_size, const char *key_type, const char *format) {
     mbedtls_pk_context key;
     mbedtls_x509write_cert crt;
     mbedtls_entropy_context entropy;
@@ -343,6 +405,15 @@ static int generate_certificate(const char *cert_file, const char *key_file,
     /* Set signature algorithm */
     mbedtls_x509write_crt_set_md_alg(&crt, MBEDTLS_MD_SHA256);
 
+    /* Add SubjectAltName (DNS + optional IP) and BasicConstraints */
+    ret = add_cert_extensions(&crt, hostname, ip_san);
+    if (ret != 0) {
+        char error_buf[100];
+        mbedtls_strerror(ret, error_buf, sizeof(error_buf));
+        fprintf(stderr, "Error adding certificate extensions: -0x%04x - %s\n", (unsigned int) -ret, error_buf);
+        goto cleanup;
+    }
+
     /* Write certificate */
     printf("Generating self-signed certificate...\n");
     if (strcmp(format, "der") == 0) {
@@ -370,6 +441,7 @@ int main(int argc, char *argv[]) {
     char *hostname = NULL;
     char *cert_file = NULL;
     char *key_file = NULL;
+    char *ip_san = NULL;
     int days = DEFAULT_DAYS;
     int key_size = DEFAULT_KEY_SIZE;
     char *key_type = "ecdsa";
@@ -380,6 +452,7 @@ int main(int argc, char *argv[]) {
         {"hostname", required_argument, 0, 'h'},
         {"cert", required_argument, 0, 'c'},
         {"key", required_argument, 0, 'k'},
+        {"ip", required_argument, 0, 'i'},
         {"days", required_argument, 0, 'd'},
         {"key-size", required_argument, 0, 's'},
         {"type", required_argument, 0, 't'},
@@ -388,7 +461,7 @@ int main(int argc, char *argv[]) {
         {0, 0, 0, 0}
     };
 
-    while ((opt = getopt_long(argc, argv, "h:c:k:d:s:t:f:", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "h:c:k:i:d:s:t:f:", long_options, NULL)) != -1) {
         switch (opt) {
             case 'h':
                 hostname = optarg;
@@ -398,6 +471,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'k':
                 key_file = optarg;
+                break;
+            case 'i':
+                ip_san = optarg;
                 break;
             case 'd':
                 days = atoi(optarg);
@@ -448,7 +524,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef HAVE_MBEDTLS
     /* Generate certificate and key */
-    if (generate_certificate(cert_file, key_file, hostname, days, key_size, key_type, format) != 0) {
+    if (generate_certificate(cert_file, key_file, hostname, ip_san, days, key_size, key_type, format) != 0) {
         fprintf(stderr, "Failed to generate certificate and key\n");
         return 1;
     }

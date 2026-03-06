@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Include Processing</title>
+</head>
+<body>
+    <h1>{{t:dashboard.title}}</h1>
+    <p>This is a test page to verify include processing.</p>
+    
+    <div>
+        <h2>Language Selector Include Test:</h2>
+        {{include:language_selector}}
+    </div>
+    
+    <div>
+        <h2>Translation Test:</h2>
+        <p>Common save button: {{t:common.save}}</p>
+        <p>Dashboard welcome: {{t:dashboard.welcome}}</p>
+        <p>Non-existent key: {{t:nonexistent.key}}</p>
+    </div>
+</body>
+</html>

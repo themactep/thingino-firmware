@@ -1,0 +1,276 @@
+#!/bin/sh
+
+. /usr/share/common
+
+IFACE=@WLAN_NETDEV@
+WLAN_INT_FILE="/etc/network/interfaces.d/$IFACE"
+
+CONFIG="/etc/$DAEMON_SHORT.conf"
+PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
+DAEMON_ARGS="-i $IFACE -c $CONFIG -P $PIDFILE -B"
+if [ "true" = "$debug" ]; then
+	DAEMON_ARGS="$DAEMON_ARGS -dd"
+fi
+
+PORTAL_MODE_FLAG="/run/portal_mode"
+PORTAL_CNET=172.16.0
+PORTAL_IP=${PORTAL_CNET}.1
+
+WLANAP_MODE_FLAG="/run/wlan_ap_mode"
+WLANAP_CNET=100.64.1
+WLANAP_IP=${WLANAP_CNET}.1
+
+hostname=$(hostname)
+
+# Determine the wireless mode
+  if ! grep -q 'ssid=' $CONFIG >/dev/null; then
+	echo_error "WiFi network missing"
+	mode="portal"
+elif ! grep -q 'psk=' $CONFIG >/dev/null; then
+	echo_error "WiFi password missing"
+	mode="portal"
+elif grep -q 'mode=2' $CONFIG >/dev/null; then
+	mode="ap"
+else
+	mode="client"
+fi
+
+credentials_from_card() {
+	local envfile ssid password
+
+	envfile="/mnt/mmcblk0p1/uenv.txt"
+	[ -f $envfile ] || return 0
+
+	ssid="$(grep '^wlan_ssid=' $envfile | cut -d= -f2-)"
+	password="$(grep '^wlan_pass=' $envfile | cut -d= -f2-)"
+	wlan configure "$ssid" "$password"
+}
+
+timeout() {
+	sleep 600 &&
+		play /usr/share/sounds/configurationportalisdown.opus &&
+		$0 stop
+}
+
+start_portal() {
+	# FIXME: should de done at compile time
+	sed -i "s/%dev%/$IFACE/g" /etc/udhcpd-portal.conf
+
+	echo_info "Start Captive Portal"
+
+	echo_info "Create DHCP leases database"
+	touch /run/udhcpd.leases
+
+	echo_info "Assign ${PORTAL_IP} to $IFACE"
+	ip address add ${PORTAL_IP}/24 dev $IFACE
+
+	echo_info "Bring $IFACE interface up"
+	ip link set $IFACE up
+
+	echo_info "Add route ${PORTAL_CNET}.0/24 to $IFACE"
+	ip route add ${PORTAL_CNET}.0/24 dev $IFACE
+
+	echo_info "Start DHCP server"
+	start-stop-daemon -S -x /sbin/udhcpd -- -S -I $PORTAL_IP /etc/udhcpd-portal.conf
+
+	echo_info "Start DNS server"
+	start-stop-daemon -S -x /sbin/dnsd -- -i $PORTAL_IP -c /etc/dnsd-portal.conf -d
+
+	# FIXME: should be done in compile time or in tmpfs
+	echo_info "Update SSID with last two octets of MAC address"
+	mac_address=$(ip link show $IFACE | awk '/ether/ {print $2}')
+	last_two=$(echo $mac_address | awk -F: '{print $(NF-1) $NF}')
+	sed -i "/ssid=\"THINGINO-\"$/ s/\"$/$last_two\"/" $CONFIG
+
+	echo_info "Start wpa_supplicant"
+	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1
+
+	echo_info "Set $PORTAL_MODE_FLAG"
+	touch "$PORTAL_MODE_FLAG"
+
+	echo_warning "Portal started at $(ts)"
+	play /usr/share/sounds/configurationportalisup.opus
+
+	echo_info "Start timeout countdown"
+	timeout &
+}
+
+stop_portal() {
+	echo_title "Captive Portal"
+
+	echo_info "Stop udhcp"
+	start-stop-daemon -K -q -x /sbin/udhcpd
+
+	echo_info "Stop dnsd"
+	start-stop-daemon -K -q -x /sbin/dnsd
+
+	echo_info "Stop wpa_supplicant"
+	start-stop-daemon -K -q -x /sbin/wpa_supplicant
+
+	echo_info "Remove route ${CNET}.0/24 from $IFACE"
+	ip address delete dev $IFACE ${$PORTAL_IP}/24
+
+	echo_info "Remove IP address from $IFACE"
+	ip link set $IFACE down
+
+	echo_info "Remove $PORTAL_MODE_FLAG"
+	rm -f "$PORTAL_MODE_FLAG"
+
+	echo_warning "Portal stopped at $(ts)"
+}
+
+start_access_point() {
+	# Define in the global scope (populated at build time)
+	sed -i "s/%dev%/$IFACE/g" /etc/udhcpd-ap.conf
+
+	echo_title "WLAN Access Point"
+
+        echo_info "Create DHCP leases database"
+        touch /run/udhcpd_ap.leases
+
+        echo_info "Set WLAN AP resolver configuration"
+        cp /etc/resolv-ap.conf /tmp/resolv.conf
+
+        echo_info "Bring $IFACE up"
+        ip link set $IFACE up
+
+        echo_info "Add IP address ${WLANAP_IP}/24 to $IFACE"
+        ip address add ${WLANAP_IP}/24 dev $IFACE
+
+	echo_info "Add route ${WLANAP_CNET}.0/24 to $IFACE"
+        ip route add ${WLANAP_CNET}.0/24 dev $IFACE
+
+        echo_info "Set WLAN AP DNS configuration"
+        cp /etc/dnsd-ap.conf /tmp/dnsd.conf
+        if ! grep -q "$hostname" /tmp/dnsd.conf; then
+                echo_info "Add ${hostname}.local to DNS configuration"
+                echo $hostname.local $WLANAP_IP >> /tmp/dnsd.conf
+        fi
+
+        echo_info "Start wpa_supplicant"
+	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1
+
+        echo_info "Start udhcpd"
+        start-stop-daemon -S -x /sbin/udhcpd -- -S -I $WLANAP_IP /etc/udhcpd-ap.conf
+
+        echo_info "Start dnsd"
+        start-stop-daemon -S -x /sbin/dnsd -- -i $WLANAP_IP -c /tmp/dnsd.conf -d
+
+        echo_warning "WLAN Access Point started"
+        touch "$WLANAP_MODE_FLAG"
+}
+
+stop_access_point() {
+        echo_title "WLAN Access Point"
+
+        echo_info "Stop udhcpd"
+        start-stop-daemon -K -q -x /sbin/udhcpd
+
+        echo_info "Stop dnsd"
+        start-stop-daemon -K -q -x /sbin/dnsd
+
+        echo_info "Stop wpa_supplicant"
+        start-stop-daemon -K -q -x /sbin/wpa_supplicant
+
+        echo_info "Remove IP address from $IFACE"
+        ip address delete dev $IFACE ${WLANAP_IP}/24
+
+        echo_info "Bring down $IFACE"
+        ip link set $IFACE down
+
+        echo_info "WLAN Access Point stopped"
+        rm -f "$WLANAP_MODE_FLAG"
+}
+
+#update_network_via_cli() {
+#	# Use wpa_cli to update network without restarting
+#	wpa_cli -i $IFACE set_network 0 ssid "\"$wlan_ssid\"" >/dev/null
+#	wpa_cli -i $IFACE set_network 0 psk "$wlan_psk" >/dev/null
+#	if [ -n "$wlan_bssid" ]; then
+#		wpa_cli -i $IFACE set_network 0 bssid "$wlan_bssid" >/dev/null
+#	else
+#		wpa_cli -i $IFACE set_network 0 bssid "" >/dev/null
+#		wpa_cli -i $IFACE set_network 0 scan_ssid 1 >/dev/null
+#	fi
+#	wpa_cli -i $IFACE save_config >/dev/null
+#	wpa_cli -i $IFACE reassociate >/dev/null
+#}
+
+start_client() {
+        echo_info "Start wpa_supplicant"
+	start-stop-daemon -S -x $DAEMON_FULL -- $DAEMON_ARGS 2>&1
+}
+
+stop_client() {
+	echo_info "Stop wpa_supplicant"
+	start-stop-daemon -K -q -x /sbin/wpa_supplicant
+}
+
+start() {
+	# Credential from SD card
+	credentials_from_card
+
+	echo_title "Starting WPA Supplicant"
+
+	# Interface is not present
+	if iface_exists "$IFACE"; then
+		echo_info "Found $IFACE interface"
+	else
+                echo_error "Wireless interface $IFACE not found"
+                exit 1
+        fi
+
+	# Interface is present but disabled
+	if grep -q "^#auto $IFACE" $WLAN_INT_FILE; then
+		echo_error "$IFACE manually disabled"
+		exit 1
+	else
+		echo_info "$IFACE is enabled"
+	fi
+
+	# Wired interface is present
+        #if iface_exists "eth0"; then
+        #        echo_error "Wired interface found"
+        #        exit 1
+        #fi
+        #if iface_exists "usb0"; then
+        #        echo_error "Wired interface found"
+        #        exit 1
+        #fi
+
+	echo_info "Starting in $mode mode"
+	case "$mode" in
+		portal) start_portal ;;
+		ap) start_access_point ;;
+		*) start_client	;;
+	esac
+}
+
+stop() {
+	echo_title "Stopping WPA Supplicant"
+
+	case "$mode" in
+		portal) stop_portal ;;
+		ap) stop_access_point ;;
+		*) stop_client	;;
+	esac
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}" >&2
+		exit 1
+		;;
+esac
+
+exit 0

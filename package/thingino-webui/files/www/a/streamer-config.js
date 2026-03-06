@@ -15,27 +15,43 @@
   }
 
   function showAlert(type, message, duration) {
+    if (window.showAlert && typeof window.showAlert === 'function') {
+      window.showAlert(type, message, duration);
+      return;
+    }
+
     const alertWrapper = document.createElement('div');
     alertWrapper.className = 'position-fixed top-0 start-50 translate-middle-x p-3';
     alertWrapper.style.zIndex = '9999';
 
-    const alert = document.createElement('div');
-    alert.className = `alert alert-${type} alert-dismissible fade show`;
-    alert.setAttribute('role', 'alert');
-    alert.innerHTML = `
+    const alertEl = document.createElement('div');
+    alertEl.className = `alert alert-${type} alert-dismissible fade show`;
+    alertEl.setAttribute('role', 'alert');
+    alertEl.innerHTML = `
       ${message}
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
 
-    alertWrapper.appendChild(alert);
+    function dismiss() {
+      alertEl.classList.remove('show');
+      setTimeout(() => alertWrapper.remove(), 150);
+    }
+
+    let touchStartY = 0;
+    alertEl.addEventListener('click', dismiss);
+    alertEl.addEventListener('touchstart', (e) => {
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    alertEl.addEventListener('touchend', (e) => {
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dy) < 10 || dy < -20) dismiss();
+    }, { passive: true });
+
+    alertWrapper.appendChild(alertEl);
     document.body.appendChild(alertWrapper);
 
-    if (duration) {
-      setTimeout(() => {
-        alert.classList.remove('show');
-        setTimeout(() => alertWrapper.remove(), 150);
-      }, duration);
-    }
+    const timerId = duration ? setTimeout(dismiss, duration) : null;
+    alertEl.addEventListener('click', () => timerId && clearTimeout(timerId), { once: true });
   }
 
   async function savePrudyntConfig() {
@@ -103,7 +119,7 @@
 
   function getSupportedModes(soc) {
     const socFamily = getSocFamily(soc);
-    return socFamily && SOC_MODE_MAP[socFamily] 
+    return socFamily && SOC_MODE_MAP[socFamily]
       ? SOC_MODE_MAP[socFamily]
       : ['CBR', 'VBR', 'FIXQP', 'CAPPED_VBR', 'CAPPED_QUALITY'];
   }
@@ -118,20 +134,20 @@
   function populateModeSelectors(soc) {
     const supportedModes = getSupportedModes(soc);
     const selectors = document.querySelectorAll('#stream0_mode, #stream1_mode');
-    
+
     selectors.forEach(select => {
       if (!select) return;
-      
+
       const currentValue = select.value;
       select.innerHTML = '<option value="">- Select -</option>';
-      
+
       supportedModes.forEach(mode => {
         const option = document.createElement('option');
         option.value = mode;
         option.textContent = mode.replace(/_/g, ' ');
         select.appendChild(option);
       });
-      
+
       if (currentValue && supportedModes.includes(currentValue)) {
         select.value = currentValue;
       }
@@ -141,20 +157,20 @@
   function populateFormatSelectors(soc) {
     const supportedFormats = getSupportedFormats(soc);
     const selectors = document.querySelectorAll('#stream0_format, #stream1_format');
-    
+
     selectors.forEach(select => {
       if (!select) return;
-      
+
       const currentValue = select.value;
       select.innerHTML = '<option value="">- Select -</option>';
-      
+
       supportedFormats.forEach(format => {
         const option = document.createElement('option');
         option.value = format;
         option.textContent = format;
         select.appendChild(option);
       });
-      
+
       if (currentValue && supportedFormats.includes(currentValue)) {
         select.value = currentValue;
       }
@@ -183,7 +199,7 @@
     } catch (err) {
       console.warn('Failed to detect SOC, using default modes:', err);
     }
-    
+
     populateModeSelectors(null);
     populateFormatSelectors(null);
   }
@@ -193,7 +209,7 @@
     if (saveButton) {
       saveButton.addEventListener('click', savePrudyntConfig);
     }
-    
+
     detectSocAndPopulateModes();
   }
 

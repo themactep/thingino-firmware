@@ -52,10 +52,10 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/logcat/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/mbedtls-certgen/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/openimp/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/spi-tmi8152/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/subzeroclaw/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/telegrambot/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-core/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-jct/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ap/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-button/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-bluetooth/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-bluez/Config.in"
@@ -81,7 +81,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-uhttpd/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webserver/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-onvif/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/onvif-simple-server/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-httpd-ssl/Config.in"
 endif
 
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
@@ -105,7 +105,6 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/libjuice/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libdatachannel/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/usrsctp/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/prudynt-t/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/prudynt-t-legacy/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/raptor-ipc/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ffmpeg/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-fonts/Config.in"
@@ -140,6 +139,7 @@ menuconfig BR2_THINGINO_DEV_PACKAGES
 	bool "Development Packages"
 	select BR2_PACKAGE_THINGINO_KOPT
 	select BR2_PACKAGE_THINGINO_KOPT_DEVELOP
+	select BR2_PACKAGE_THINGINO_DEVELOPER
 	help
 	  Thingino Development Packages
 	  include tools for firmware development.

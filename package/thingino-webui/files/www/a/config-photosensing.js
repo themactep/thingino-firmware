@@ -313,12 +313,12 @@
           }
         });
 
-        // Build payload - just the config changes, no action needed
+        // Build payload - daynight without sun (saved separately)
         daynight.schedule = schedule;
         daynight.controls = controls;
         const payload = { daynight };
 
-        // Save directly to config file using jct
+        // Save daynight (thresholds, controls, schedule) via prudynt-save
         const response = await fetch('/x/json-prudynt-save.cgi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

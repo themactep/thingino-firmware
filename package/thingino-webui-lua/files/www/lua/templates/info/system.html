@@ -1,0 +1,209 @@
+{{include:header}}
+
+        <div class="row mb-4">
+            <div class="col">
+                <h1 class="h3 mb-0">
+                    <i class="bi bi-cpu me-2"></i><span data-i18n="info.system.title">System Information</span>
+                </h1>
+                <p class="text-muted" data-i18n="info.system.subtitle">Hardware, performance, and system details</p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="card info-card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-cpu me-2"></i><span data-i18n="info.system.hardware">Hardware</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span data-i18n="info.system.cpu_model">CPU Model:</span>
+                                <span class="text-muted">{{cpu_model}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span data-i18n="info.system.cpu_cores">CPU Cores:</span>
+                                <span class="text-muted">{{cpu_cores}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span data-i18n="info.system.architecture">Architecture:</span>
+                                <span class="text-muted">{{architecture}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span data-i18n="info.system.kernel">Kernel:</span>
+                                <span class="text-muted">{{kernel}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span data-i18n="info.system.firmware">Firmware:</span>
+                                <span class="text-muted">{{firmware_version}}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card info-card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-memory me-2"></i><span data-i18n="info.system.memory_storage">Memory & Storage</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span data-i18n="info.system.total_ram">Total RAM:</span>
+                                <span class="text-muted">{{memory_total}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span data-i18n="info.system.used_ram">Used RAM:</span>
+                                <span class="text-muted">{{memory_used}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span data-i18n="info.system.memory_usage">Memory Usage:</span>
+                                <span class="text-muted">{{memory_percentage}}%</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span data-i18n="info.system.root_filesystem">Root Filesystem:</span>
+                                <span class="text-muted">{{disk_usage}}%</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span data-i18n="info.system.temperature">Temperature:</span>
+                                <span class="text-muted">{{cpu_temp}}°C</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card info-card h-100">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-activity me-2"></i><span data-i18n="info.system.performance">Performance</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span data-i18n="info.system.uptime">Uptime:</span>
+                                <span class="text-muted">{{uptime}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span data-i18n="info.system.load_average">Load Average:</span>
+                                <span class="text-muted">{{load_average}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span data-i18n="info.system.load_1min">1 min:</span>
+                                <span class="text-muted">{{load_1min}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span data-i18n="info.system.load_5min">5 min:</span>
+                                <span class="text-muted">{{load_5min}}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-0 px-0">
+                                <span data-i18n="info.system.load_15min">15 min:</span>
+                                <span class="text-muted">{{load_15min}}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mt-2">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-lightning me-2"></i><span data-i18n="info.system.quick_actions">Quick Actions</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-primary w-100" onclick="refreshPage()">
+                                    <i class="bi bi-arrow-clockwise me-1"></i><span data-i18n="info.system.refresh_info">Refresh Info</span>
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-warning w-100" onclick="rebootSystem()">
+                                    <i class="bi bi-power me-1"></i><span data-i18n="info.system.reboot_system">Reboot System</span>
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-info w-100" onclick="exportSystemInfo()">
+                                    <i class="bi bi-download me-1"></i><span data-i18n="info.system.export_info">Export Info</span>
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="/lua/config/system" class="btn btn-outline-secondary w-100">
+                                    <i class="bi bi-gear me-1"></i><span data-i18n="info.system.system_config">System Config</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <script>
+        function refreshPage() {
+            window.location.reload();
+        }
+        
+        function rebootSystem() {
+            if (confirm(window.i18n?.t('js.confirm.reboot_system') || 'Are you sure you want to reboot the system? This will disconnect all users.')) {
+                fetch('/lua/api/system/reboot', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(window.i18n?.t('js.alert.system_rebooting_wait') || 'System is rebooting... Please wait 30-60 seconds before reconnecting.');
+                        setTimeout(() => {
+                            window.location.href = '/lua/login';
+                        }, 5000);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert(window.i18n?.t('js.alert.reboot_failed') || 'Failed to reboot system');
+                    });
+            }
+        }
+        
+        function exportSystemInfo() {
+            const systemInfo = {
+                hardware: {
+                    cpu_model: '{{cpu_model}}',
+                    cpu_cores: '{{cpu_cores}}',
+                    architecture: '{{architecture}}',
+                    kernel: '{{kernel}}',
+                    firmware: '{{firmware_version}}'
+                },
+                memory: {
+                    total: '{{memory_total}}',
+                    used: '{{memory_used}}',
+                    percentage: '{{memory_percentage}}%'
+                },
+                performance: {
+                    uptime: '{{uptime}}',
+                    load_average: '{{load_average}}',
+                    temperature: '{{cpu_temp}}°C'
+                },
+                timestamp: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(systemInfo, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `thingino-system-info-${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Auto-refresh every 30 seconds
+        setInterval(refreshPage, 30000);
+    </script>
+
+{{include:footer}}

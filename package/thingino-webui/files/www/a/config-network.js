@@ -2,15 +2,13 @@
   const form = $('#networkForm');
   const contentWrap = $('#network-content');
   const submitButton = $('#network_submit');
-  const wifiApToggle = $('#wifi_ap_enabled');
   const hostnameInput = $('#hostname');
   const dnsPrimaryInput = $('#dns_primary');
   const dnsSecondaryInput = $('#dns_secondary');
   const wifiSsidInput = $('#wifi_ssid');
   const wifiPassInput = $('#wifi_pass');
   const wifiBssidInput = $('#wifi_bssid');
-  const wifiApSsidInput = $('#wifi_ap_ssid');
-  const wifiApPassInput = $('#wifi_ap_pass');
+  const wifiApToggle = $('#wifi_ap_enabled');
 
   const ifaceCards = document.querySelectorAll('.iface-card');
 
@@ -121,8 +119,6 @@
 
   function updateWifiApValidation() {
     const enabled = wifiApToggle.checked;
-    wifiApSsidInput.required = enabled;
-    wifiApPassInput.required = enabled;
   }
 
   wifiApToggle.addEventListener('change', updateWifiApValidation);
@@ -159,8 +155,6 @@
       wifiSsidInput.value = (data.wifi && data.wifi.ssid) || '';
       wifiPassInput.value = (data.wifi && data.wifi.password) || '';
       wifiBssidInput.value = (data.wifi && data.wifi.bssid) || '';
-      wifiApSsidInput.value = (data.wifi_ap && data.wifi_ap.ssid) || '';
-      wifiApPassInput.value = (data.wifi_ap && data.wifi_ap.password) || '';
       wifiApToggle.checked = data.wifi_ap && (data.wifi_ap.enabled === true || data.wifi_ap.enabled === 'true');
       updateWifiApValidation();
       if (data.interfaces) {
@@ -191,8 +185,6 @@
       },
       wifi_ap: {
         enabled: wifiApToggle.checked,
-        ssid: wifiApSsidInput.value.trim(),
-        password: wifiApPassInput.value.trim()
       },
       interfaces: {}
     };
@@ -298,9 +290,9 @@
             if (!seen.has(network.ssid)) {
               seen.add(network.ssid);
               const option = document.createElement('option');
-              const signalBars = network.signal > -50 ? '▂▄▆█' : network.signal > -60 ? '▂▄▆' : network.signal > -70 ? '▂▄' : '▂';
+              const signalBars = network.signal > -50 ? '▂▄▆█' : network.signal > -60 ? '▂▄▆▁' : network.signal > -70 ? '▂▄▁▁' : '▂▁▁▁';
               option.value = network.ssid;
-              option.textContent = `${network.ssid} ${signalBars} (${network.security})`;
+              option.textContent = `${signalBars} (${network.security})`;
               wifiNetworksList.appendChild(option);
             }
           });

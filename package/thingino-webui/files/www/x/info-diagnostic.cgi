@@ -18,6 +18,7 @@ send_json() {
   printf 'Content-Type: application/json\r\n'
   printf 'Cache-Control: no-store\r\n'
   printf 'Pragma: no-cache\r\n'
+  printf 'Connection: close\r\n'
   printf '\r\n'
   printf '%s\n' "$body"
   exit 0
@@ -73,6 +74,7 @@ handle_post() {
     printf 'Content-Type: application/json\r\n'
     printf 'Cache-Control: no-store\r\n'
     printf 'Pragma: no-cache\r\n'
+  printf 'Connection: close\r\n'
     printf '\r\n'
     printf '%s\n' "$result"
     exit 0

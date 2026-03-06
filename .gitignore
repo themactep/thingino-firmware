@@ -29,5 +29,5 @@
 /toolchain
 /local.mk
 /.prereqs.done
-/.selected_camera
+/.selected_camera*
 

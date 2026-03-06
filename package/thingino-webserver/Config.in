@@ -3,7 +3,7 @@ config BR2_PACKAGE_THINGINO_WEBSERVER
 
 choice
 	prompt "Web Server"
-	default BR2_PACKAGE_THINGINO_WEBSERVER_BUSYBOX
+	default BR2_PACKAGE_THINGINO_WEBSERVER_UHTTPD
 	help
 	  Select the web server implementation for thingino.
 
@@ -11,6 +11,7 @@ config BR2_PACKAGE_THINGINO_WEBSERVER_BUSYBOX
 	bool "BusyBox httpd"
 	depends on BR2_PACKAGE_BUSYBOX
 	select BR2_PACKAGE_BUSYBOX_HTTPD
+	select BR2_PACKAGE_THINGINO_HTTPD_SSL
 	select BR2_PACKAGE_THINGINO_WEBSERVER
 	help
 	  Use BusyBox's lightweight httpd server.

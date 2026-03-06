@@ -1,0 +1,161 @@
+#!/bin/sh
+# recordmgr - Storage manager daemon for video recordings
+#
+# Maintains the recording storage target writable by:
+#   - Removing oldest recordings when free space drops below vr_min_free_mb
+#   - Removing oldest recordings when total recorded data exceeds vr_limit GB
+#
+# Configuration is read from the recorder section of /etc/prudynt.json:
+#   recorder.mount            - storage mount point
+#   recorder.device_path      - subdirectory within mount for recordings
+#   recorder.limit            - maximum storage used by recordings in GB
+#   recorder.min_free_mb      - minimum free space to maintain on the mount (MB)
+#   recorder.check_interval   - seconds between storage checks (default 60)
+#   recorder.cleanup_enabled  - whether this daemon should run cleanup (true/false)
+
+PIDFILE="/var/run/recordmgr.pid"
+CONFIG_FILE="/etc/prudynt.json"
+DOMAIN="recorder"
+
+DEFAULT_MIN_FREE_MB=500
+DEFAULT_CHECK_INTERVAL=60
+DEFAULT_LIMIT_GB=15
+
+read_config() {
+	vr_mount=$(jct "$CONFIG_FILE" get "$DOMAIN.mount" 2>/dev/null)
+	vr_device_path=$(jct "$CONFIG_FILE" get "$DOMAIN.device_path" 2>/dev/null)
+	vr_limit=$(jct "$CONFIG_FILE" get "$DOMAIN.limit" 2>/dev/null)
+	vr_min_free_mb=$(jct "$CONFIG_FILE" get "$DOMAIN.min_free_mb" 2>/dev/null)
+	vr_check_interval=$(jct "$CONFIG_FILE" get "$DOMAIN.check_interval" 2>/dev/null)
+	vr_cleanup_enabled=$(jct "$CONFIG_FILE" get "$DOMAIN.cleanup_enabled" 2>/dev/null)
+
+	case "$vr_min_free_mb" in ''|*[!0-9]*) vr_min_free_mb="$DEFAULT_MIN_FREE_MB" ;; esac
+	case "$vr_check_interval" in ''|*[!0-9]*) vr_check_interval="$DEFAULT_CHECK_INTERVAL" ;; esac
+	case "$vr_limit" in ''|*[!0-9]*) vr_limit="$DEFAULT_LIMIT_GB" ;; esac
+}
+
+get_free_mb() {
+	df -m "$1" 2>/dev/null | awk 'NR==2 {print $4}'
+}
+
+get_used_mb() {
+	du -sm "$1" 2>/dev/null | awk '{print $1}'
+}
+
+remove_empty_dirs() {
+	local dir="$1"
+	local root="$2"
+	while [ "$dir" != "$root" ] && [ -d "$dir" ]; do
+		rmdir "$dir" 2>/dev/null || break
+		dir=$(dirname "$dir")
+	done
+}
+
+cleanup() {
+	local rec_dir="$1"
+	local mount="$2"
+	local min_free_mb="$3"
+	local limit_mb="$4"
+
+	local free_mb used_mb fsize
+	free_mb=$(get_free_mb "$mount")
+	used_mb=$(get_used_mb "$rec_dir")
+
+	case "$free_mb" in ''|*[!0-9]*) return ;; esac
+	case "$used_mb" in ''|*[!0-9]*) used_mb=0 ;; esac
+
+	# Early exit if no cleanup needed before the expensive find
+	[ "$free_mb" -ge "$min_free_mb" ] && [ "$used_mb" -le "$limit_mb" ] && return
+
+	# Build sorted file list once. Filenames are in Y/M/D/H-M-S lexicographic order,
+	# so sorting by path yields chronological order — no per-file stat needed.
+	local tmplist
+	tmplist=$(mktemp /tmp/recordmgr.XXXXXX)
+	find "$rec_dir" -type f \( \
+		-name "*.mp4" -o -name "*.ts" -o -name "*.mkv" \
+		-o -name "*.avi" -o -name "*.mov" -o -name "*.h264" \
+		-o -name "*.h265" -o -name "*.hevc" \
+	\) 2>/dev/null | sort > "$tmplist"
+
+	local removed=0
+	while IFS= read -r oldest; do
+		# Stop as soon as both conditions are satisfied
+		[ "$free_mb" -ge "$min_free_mb" ] && [ "$used_mb" -le "$limit_mb" ] && break
+
+		[ -f "$oldest" ] || continue
+
+		fsize=$(du -m "$oldest" 2>/dev/null | awk '{print $1}')
+		case "$fsize" in ''|*[!0-9]*) fsize=0 ;; esac
+
+		logger -t recordmgr "Removing: $oldest (size: ${fsize}MB, free: ${free_mb}MB, used: ${used_mb}MB)"
+		rm -f "$oldest"
+		remove_empty_dirs "$(dirname "$oldest")" "$rec_dir"
+		removed=$((removed + 1))
+
+		free_mb=$((free_mb + fsize))
+		used_mb=$((used_mb - fsize))
+		[ "$used_mb" -lt 0 ] && used_mb=0
+	done < "$tmplist"
+
+	rm -f "$tmplist"
+
+	if [ "$removed" -eq 0 ]; then
+		logger -t recordmgr "No recordings removed (free: ${free_mb}MB, used: ${used_mb}MB)"
+	elif [ "$free_mb" -lt "$min_free_mb" ] || [ "$used_mb" -gt "$limit_mb" ]; then
+		logger -t recordmgr "No more recordings to remove (free: ${free_mb}MB, used: ${used_mb}MB)"
+	fi
+}
+
+ensure_writable() {
+	local mount="$1"
+	# Try writing a temp file; remount rw if it fails
+	if ! touch "$mount/.rw_check" 2>/dev/null; then
+		logger -t recordmgr "Mount $mount is read-only, attempting remount rw"
+		if mount -o remount,rw "$mount" 2>/dev/null; then
+			logger -t recordmgr "Remounted $mount read-write"
+		else
+			logger -t recordmgr "Failed to remount $mount read-write"
+		fi
+	else
+		rm -f "$mount/.rw_check"
+	fi
+}
+
+run_check() {
+	read_config
+
+	# Skip if cleanup is explicitly disabled
+	case "$vr_cleanup_enabled" in
+		false|0|"") return ;;
+	esac
+
+	[ -z "$vr_mount" ] && return
+	! mountpoint -q "$vr_mount" 2>/dev/null && return
+
+	ensure_writable "$vr_mount"
+
+	local rec_dir="$vr_mount"
+	[ -n "$vr_device_path" ] && rec_dir="$vr_mount/$vr_device_path"
+	[ -d "$rec_dir" ] || return
+
+	local limit_mb
+	limit_mb=$((vr_limit * 1024))
+
+	cleanup "$rec_dir" "$vr_mount" "$vr_min_free_mb" "$limit_mb"
+}
+
+main_loop() {
+	echo $$ > "$PIDFILE"
+	logger -t recordmgr "Storage manager started (pid $$)"
+
+	# Initial delay to allow mounts to settle at boot
+	sleep 10
+
+	while true; do
+		run_check
+		read_config
+		sleep "${vr_check_interval:-$DEFAULT_CHECK_INTERVAL}"
+	done
+}
+
+main_loop

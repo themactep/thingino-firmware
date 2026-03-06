@@ -19,11 +19,19 @@ define THINGINO_WEBUI_APPLY_ASSET_TAG
 	fi
 endef
 
-define THINGINO_WEBUI_BUILD_CMDS
-	$(TARGET_CC) $(TARGET_CFLAGS) $(TARGET_LDFLAGS) -std=c99 -pedantic \
-		-o $(@D)/mjpeg_frame $(@D)/mjpeg_frame.c
-	$(TARGET_CC) $(TARGET_CFLAGS) $(TARGET_LDFLAGS) -std=c99 -pedantic \
-		-o $(@D)/mjpeg_inotify $(@D)/mjpeg_inotify.c
+# When vendor/ files are present, rewrite CDN <link>/<script> tags in every
+# installed HTML page to include an onerror= fallback pointing to /a/vendor/.
+# CDN is still tried first; local copy fires only when the CDN request fails.
+define THINGINO_WEBUI_APPLY_CDN_FALLBACK
+	@root="$(TARGET_DIR)/var/www"; \
+	script="$(THINGINO_WEBUI_PKGDIR)/scripts/apply_cdn_fallback.py"; \
+	vendor_src="$(THINGINO_WEBUI_PKGDIR)/files/www/a/vendor"; \
+	if [ -f "$$script" ] && [ -d "$$vendor_src" ] && \
+		[ -n "$$(find "$$vendor_src" -maxdepth 2 -type f ! -name '*.md' ! -name '.gitkeep' 2>/dev/null | head -1)" ]; then \
+		python3 "$$script" "$$root"; \
+	else \
+		printf 'thingino-webui: CDN fallback skipped (no vendor files in %s)\n' "$$vendor_src"; \
+	fi
 endef
 
 define THINGINO_WEBUI_INSTALL_TARGET_CMDS
@@ -45,7 +53,12 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S99heartbeat \
 		$(TARGET_DIR)/etc/init.d/S99heartbeat
 
-	# HTML pages
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/etc/init.d/S95recordmgr \
+			$(TARGET_DIR)/etc/init.d/S95recordmgr
+
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/usr/sbin/recordmgr \
+			$(TARGET_DIR)/usr/sbin/recordmgr
+
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/401.html \
 		$(TARGET_DIR)/var/www/401.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-admin.html \
@@ -58,6 +71,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/config-motors.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-network.html \
 		$(TARGET_DIR)/var/www/config-network.html
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-dusk2dawn.html \
+		$(TARGET_DIR)/var/www/config-dusk2dawn.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-photosensing.html \
 		$(TARGET_DIR)/var/www/config-photosensing.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-privacy.html \
@@ -393,13 +408,15 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/wifi-scan.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/video.mjpg $(TARGET_DIR)/var/www/x/video.mjpg
 
-	$(INSTALL) -D -m 0755 $(@D)/mjpeg_inotify \
-		$(TARGET_DIR)/var/www/x/mjpeg.cgi
-
-	$(INSTALL) -D -m 0755 $(@D)/mjpeg_frame \
-		$(TARGET_DIR)/usr/bin/mjpeg_frame
+	# Install local vendor files (CDN fallbacks) when present
+	@if [ -d "$(THINGINO_WEBUI_PKGDIR)/files/www/a/vendor" ] && \
+		[ -n "$$(find "$(THINGINO_WEBUI_PKGDIR)/files/www/a/vendor" -maxdepth 2 -type f ! -name '*.md' ! -name '.gitkeep' 2>/dev/null | head -1)" ]; then \
+		cp -r "$(THINGINO_WEBUI_PKGDIR)/files/www/a/vendor" "$(TARGET_DIR)/var/www/a/"; \
+		printf 'thingino-webui: vendor fallback files installed\n'; \
+	fi
 
 	$(call THINGINO_WEBUI_APPLY_ASSET_TAG)
+	$(call THINGINO_WEBUI_APPLY_CDN_FALLBACK)
 endef
 
 $(eval $(generic-package))
