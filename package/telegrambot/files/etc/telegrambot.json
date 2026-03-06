@@ -14,6 +14,8 @@
     { "handle": "info",  "description": "System information", "exec": "/bin/cat /etc/os-release" },
     { "handle": "diag",  "description": "Gather diagnostics", "exec": "/sbin/thingino-diag" },
     { "handle": "snap",  "description": "Snap a picture", "exec": "/sbin/send2telegram -S" },
-    { "handle": "clip",  "description": "Record a clip", "exec": "/sbin/send2telegram -V" }
+    { "handle": "clip",  "description": "Record a clip", "exec": "/sbin/send2telegram -V" },
+    { "handle": "arm",   "description": "Arm motion detection", "exec": "/sbin/motion enable" },
+    { "handle": "disarm","description": "Disarm motion detection", "exec": "/sbin/motion disable" }
   ]
 }

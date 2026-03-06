@@ -20,6 +20,11 @@ get_value() {
         jct /etc/prudynt.json get "motion.$1" 2>/dev/null
 }
 
+set_enabled() {
+	echo "{ \"motion\": { \"enabled\": $1 } }" | prudyntctl json -
+	jct /etc/prudynt.json set "motion.enabled" $1
+}
+
 start() {
 	echo_info "Start motion"
 	if [ -f "$MOTION_STOP_FILE" ]; then
@@ -187,6 +192,12 @@ case "$1" in
 		;;
 	stop)
 		stop
+		;;
+	enable)
+		set_enabled true
+		;;
+	disable)
+		set_enabled false
 		;;
 	*)
 		start
