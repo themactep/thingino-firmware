@@ -381,6 +381,11 @@ function toggleRecording(channel) {
 			if (data.mp4 && data.mp4[action]) {
 				if (data.mp4[action] === 'ok') {
 					console.log(`Recording ${action} successful on channel ${channel}`);
+					const newState = action === 'start';
+					updateRecordingState({
+						ch0: channel === 0 ? newState : recordingState.ch0,
+						ch1: channel === 1 ? newState : recordingState.ch1
+					});
 				} else {
 					console.error('Recording control error:', data.mp4[action]);
 					if (button) button.classList.remove('pending');
@@ -414,17 +419,15 @@ function toggleMotion(state) {
 			return res.text();
 		})
 		.then(text => {
-			if (!text) {
-				console.log(ts(), '<===', 'Empty response (assumed success)');
-				return;
+			if (text) {
+				const data = JSON.parse(text);
+				console.log(ts(), '<===', JSON.stringify(data));
+				if (data.motion && data.motion.enabled !== undefined) {
+					updateHeartbeatUi({ motion_enabled: data.motion.enabled });
+					return;
+				}
 			}
-			const data = JSON.parse(text);
-			console.log(ts(), '<===', JSON.stringify(data));
-			if (data.motion && data.motion.enabled !== undefined) {
-				// Pending class will be removed when heartbeat confirms the state
-			} else {
-				if (button) button.classList.remove('pending');
-			}
+			updateHeartbeatUi({ motion_enabled: state });
 		})
 		.catch(err => {
 			console.error('Motion toggle error', err);
@@ -447,17 +450,15 @@ function togglePrivacy(state) {
 			return res.text();
 		})
 		.then(text => {
-			if (!text) {
-				console.log(ts(), '<===', 'Empty response (assumed success)');
-				return;
+			if (text) {
+				const data = JSON.parse(text);
+				console.log(ts(), '<===', JSON.stringify(data));
+				if (data.privacy && data.privacy.enabled !== undefined) {
+					updateHeartbeatUi({ privacy_enabled: data.privacy.enabled });
+					return;
+				}
 			}
-			const data = JSON.parse(text);
-			console.log(ts(), '<===', JSON.stringify(data));
-			if (data.privacy && data.privacy.enabled !== undefined) {
-				// Pending class will be removed when heartbeat confirms the state
-			} else {
-				if (button) button.classList.remove('pending');
-			}
+			updateHeartbeatUi({ privacy_enabled: state });
 		})
 		.catch(err => {
 			console.error('Privacy toggle error', err);
@@ -481,7 +482,7 @@ function toggleWireGuard(state) {
 				console.error('WireGuard toggle error:', data.error.message);
 				if (button) button.classList.remove('pending');
 			} else {
-				// Pending class will be removed when heartbeat confirms the state
+				updateHeartbeatUi({ wg_status: targetState });
 			}
 		})
 		.catch(err => {
@@ -506,13 +507,12 @@ function toggleDayNight(mode) {
 			return res.text();
 		})
 		.then(text => {
-			if (!text) {
-				console.log(ts(), '<===', 'Empty response (assumed success)');
-				return;
+			if (text) {
+				const data = JSON.parse(text);
+				console.log(ts(), '<===', JSON.stringify(data));
 			}
-			const data = JSON.parse(text);
-			console.log(ts(), '<===', JSON.stringify(data));
-			if (button) button.classList.remove('pending');
+			// Update button state immediately from the known target mode
+			updateHeartbeatUi({ daynight_mode: mode, daynight_enabled: false });
 		})
 		.catch(err => {
 			console.error('DayNight toggle error', err);
@@ -537,17 +537,17 @@ function toggleAudio(device, state) {
 			return res.text();
 		})
 		.then(text => {
-			if (!text) {
-				console.log(ts(), '<===', 'Empty response (assumed success)');
-				return;
+			if (text) {
+				const data = JSON.parse(text);
+				console.log(ts(), '<===', JSON.stringify(data));
+				// Use confirmed value from response if available
+				if (data.audio && data.audio[param] !== undefined) {
+					updateHeartbeatUi({ [param]: data.audio[param] });
+					return;
+				}
 			}
-			const data = JSON.parse(text);
-			console.log(ts(), '<===', JSON.stringify(data));
-			if (data.audio && data.audio[param] !== undefined) {
-				// Pending class will be removed when heartbeat confirms the state
-			} else {
-				if (button) button.classList.remove('pending');
-			}
+			// Fall back to the known target state
+			updateHeartbeatUi({ [param]: state });
 		})
 		.catch(err => {
 			console.error('Audio toggle error', err);
@@ -584,6 +584,8 @@ async function toggleButton(el) {
 		newState = currentState ? 1 : 0;
 	}
 
+	el.classList.add('pending');
+
 	const payload = JSON.stringify({ cmd: el.id, val: newState });
 	console.log('Sending to json-imp.cgi:', payload);
 	await fetch('/x/json-imp.cgi', {
@@ -593,8 +595,29 @@ async function toggleButton(el) {
 	})
 		.then(res => res.json())
 		.then(data => {
-			console.log(data.message)
+			console.log(data.message);
+			// Map button IDs to their heartbeat UI keys and update immediately
+			const keyMap = {
+				color:  { color_mode: newState },
+				ircut:  { ircut_state: newState },
+				ir850:  { ir850_state: newState },
+				ir940:  { ir940_state: newState },
+				white:  { white_state: newState },
+				auto:   { daynight_enabled: newState, daynight_mode: newState ? undefined : 'day' }
+			};
+			const update = keyMap[el.id];
+			if (update) {
+				// Remove undefined values (e.g. daynight_mode when enabling auto)
+				Object.keys(update).forEach(k => update[k] === undefined && delete update[k]);
+				updateHeartbeatUi(update);
+			} else {
+				el.classList.remove('pending');
+			}
 		})
+		.catch(err => {
+			console.error('toggleButton error', err);
+			el.classList.remove('pending');
+		});
 }
 
 function resolveDeviceTimezone() {
@@ -717,6 +740,7 @@ function updateHeartbeatUi(json) {
 	if (typeof (json.color_mode) !== 'undefined' && json.color_mode !== null) {
 		const colorBtn = $('#color');
 		if (colorBtn) {
+			colorBtn.classList.remove('pending');
 			// ISP mode: 0 = color, 1 = b&w, so active when 0
 			colorBtn.classList.toggle('active', json.color_mode == 0);
 		}
@@ -726,6 +750,7 @@ function updateHeartbeatUi(json) {
 	if (typeof (json.ircut_state) !== 'undefined' && json.ircut_state !== null) {
 		const ircutBtn = $('#ircut');
 		if (ircutBtn) {
+			ircutBtn.classList.remove('pending');
 			ircutBtn.classList.toggle('active', json.ircut_state == 1);
 		}
 	}
@@ -734,6 +759,7 @@ function updateHeartbeatUi(json) {
 	if (typeof (json.ir850_state) !== 'undefined' && json.ir850_state !== null) {
 		const ir850Btn = $('#ir850');
 		if (ir850Btn) {
+			ir850Btn.classList.remove('pending');
 			ir850Btn.classList.toggle('active', json.ir850_state == 1);
 		}
 	}
@@ -742,6 +768,7 @@ function updateHeartbeatUi(json) {
 	if (typeof (json.ir940_state) !== 'undefined' && json.ir940_state !== null) {
 		const ir940Btn = $('#ir940');
 		if (ir940Btn) {
+			ir940Btn.classList.remove('pending');
 			ir940Btn.classList.toggle('active', json.ir940_state == 1);
 		}
 	}
@@ -750,6 +777,7 @@ function updateHeartbeatUi(json) {
 	if (typeof (json.white_state) !== 'undefined' && json.white_state !== null) {
 		const whiteBtn = $('#white');
 		if (whiteBtn) {
+			whiteBtn.classList.remove('pending');
 			whiteBtn.classList.toggle('active', json.white_state == 1);
 		}
 	}
@@ -786,6 +814,7 @@ function updateHeartbeatUi(json) {
 	if (typeof (json.daynight_enabled) !== 'undefined' && json.daynight_enabled !== null) {
 		const autoBtn = $('#auto');
 		if (autoBtn) {
+			autoBtn.classList.remove('pending');
 			autoBtn.classList.toggle('active', json.daynight_enabled == 1);
 		}
 	}
