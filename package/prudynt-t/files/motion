@@ -3,7 +3,9 @@
 
 . /usr/share/common
 
-singleton "$0"
+# Only enforce singleton for start; stop must always be allowed to run
+# even if a start invocation is still in progress (e.g. waiting for video).
+[ "$1" != "stop" ] && singleton "$0"
 
 MOTION_ALARM="/run/motion/motion_alarm"
 MOTION_ALARM_DIR=$(dirname "$MOTION_ALARM")
