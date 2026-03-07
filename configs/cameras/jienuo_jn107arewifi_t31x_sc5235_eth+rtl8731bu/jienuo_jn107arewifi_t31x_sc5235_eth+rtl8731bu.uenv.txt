@@ -1,5 +1,4 @@
 gpio_button=11
-gpio_mmc_power=62o
 
 # set gpio strength: 32-2
 # set gpio strength: 33-2

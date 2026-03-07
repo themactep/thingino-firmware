@@ -1,4 +1,3 @@
 gpio_button=7
 gpio_button_call=47
 gpio_default=25ID 26IDU 6i 48i 49o 50o 51o 53o 53O 54o 57o 58o 62o
-gpio_mmc_power=52o

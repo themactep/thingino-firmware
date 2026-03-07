@@ -1,5 +1,2 @@
 gpio_button=62
 gpio_default=42o 43o 49o 50O 57o 60o 62i 63o
-gpio_mmc_power=60
-pwm_ch_ir850=0
-pwm_ch_white=1

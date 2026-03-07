@@ -1,3 +1,2 @@
 gpio_button=58
 gpio_default=25ID 26ID 61o 62o
-gpio_mmc_power=17O
