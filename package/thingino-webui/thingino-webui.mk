@@ -59,6 +59,7 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/usr/sbin/recordmgr \
 			$(TARGET_DIR)/usr/sbin/recordmgr
 
+	# HTML pages
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/401.html \
 		$(TARGET_DIR)/var/www/401.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-admin.html \

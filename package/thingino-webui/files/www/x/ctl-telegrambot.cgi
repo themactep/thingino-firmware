@@ -1,6 +1,8 @@
 #!/bin/sh
 CTL="/etc/init.d/telegrambot"
-echo "Content-Type: application/json"; echo "Connection: close"; echo
+echo "Content-Type: application/json"
+echo "Connection: close"
+echo
 case "$QUERY_STRING" in
    enabled=1)
       $CTL enable >/dev/null 2>&1
