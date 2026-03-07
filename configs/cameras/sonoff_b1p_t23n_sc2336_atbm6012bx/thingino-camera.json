@@ -11,9 +11,6 @@
     "scl": "58i",
     "sda": "57i",
     "white": 59,
-    "wlan": {
-      "pin": 6,
-      "active_low": false
-    }
+    "wlan": 6
   }
 }
