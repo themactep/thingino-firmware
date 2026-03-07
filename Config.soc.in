@@ -879,6 +879,7 @@ config BR2_ISP_IVDC_THRESHOLD_LINE_VALUE
 config BR2_ISP_CONFIG_HZ
 	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
 	int "ISP Config Hz"
+	default 0
 	help
 	  Specify the frequency for the ISP multi frame capture.
 	  This setting is only active if the feature is enabled.
