@@ -2,7 +2,17 @@
 
 . /usr/share/common
 
-IFACE=@WLAN_NETDEV@
+# Determine IFACE based on WiFi driver and mode
+if [ "@WIFI_IS_WQ9001@" = "yes" ]; then
+	CONFIG="/etc/$DAEMON_SHORT.conf"
+	if grep -q 'mode=2' $CONFIG >/dev/null 2>&1; then
+		IFACE=wlan1
+	else
+		IFACE=wlan0
+	fi
+else
+	IFACE=@WLAN_NETDEV@
+fi
 WLAN_INT_FILE="/etc/network/interfaces.d/$IFACE"
 
 CONFIG="/etc/$DAEMON_SHORT.conf"

@@ -69,13 +69,16 @@ WLAN_MODULE := $(firstword $(WIFI_DRIVER_SELECTED))
 WIFI_INTERFACE := $(strip $(WIFI_DRIVER_INTERFACE_$(WLAN_MODULE)))
 
 WIFI_IS_HI3881_FLAG := 0
+WIFI_IS_WQ9001 = no
 #ifeq ($(WLAN_MODULE),hi3881)
 ifeq ($(BR2_PACKAGE_WIFI_HI3881),y)
-WIFI_IS_HI3881_FLAG := 1
+WIFI_IS_WQ9001 = no
 WIFI_NETDEV = ap0
 else ifeq ($(BR2_PACKAGE_WIFI_WQ9001),y)
+WIFI_IS_WQ9001 = yes
 WIFI_NETDEV = wlan1
 else
+WIFI_IS_WQ9001 = no
 WIFI_NETDEV = wlan0
 endif
 
@@ -152,6 +155,7 @@ define WIFI_INSTALL_TARGET_CMDS
 
 	# WPA supplicant script
 	sed -e 's,@WLAN_NETDEV@,$(WIFI_NETDEV),g' \
+	    -e 's,@WIFI_IS_WQ9001@,$(WIFI_IS_WQ9001),g' \
 		$(WIFI_PKGDIR)/files/S38wpa_supplicant.in > $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
 	chmod 0755 $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
 

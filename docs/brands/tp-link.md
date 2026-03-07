@@ -14,7 +14,7 @@ TP-Link
 |               | TP-Link Tapo C100 (CA/5.0)  | T23N         | SC2336   |     | 25Q64      | WQ9001     |             |      |                              |
 |               | TP-Link Tapo C100 (EU/5.0)  | T23N         | SC2336   |     | 25Q64      | WQ9001     |             |      |                              |
 | 2AXJ4C110     | TP-Link Tapo C110           | TP33A        |          |     | 25Q64      | SSW101B    |             |      |                              |
-|               | TP-Link Tapo C110 (EU/v3)   | T23N         | SC2336   |     | 25Q64      | WQ9001     |             |      |                              |
+|               | TP-Link Tapo C110 (EU/v3)   | T23N         | SC3336   |     | 25Q64/EN25QX64A | WQ9001     |             |      | Flash EN25QX64A (ID 1c7117) requires kernel/uboot patch                             |
 | TE7KC110      | TP-Link Tapo C110 (V2?)     | SSC335       | SC3338   |     | 25Q64      | SSW101B    |             |      |                              |
 | 2AXJ4C120     | TP-Link Tapo C120           | SSC377       |          |     | 25Q128     | RTL8188FTV |             |      |                              |
 | 2AXJ4C125     | TP-Link Tapo C125           | SSC377D      |          |     | 25Q64      | SW6355     |             |      |                              |
