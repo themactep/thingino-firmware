@@ -1,9 +1,0 @@
-gpio_default=49o 50o 62i 63o 79O 80o 81o 82o
-gpio_ircut=49 50
-gpio_button=62
-gpio_spk_en=63
-gpio_led_b=79
-gpio_led_r=80
-gpio_white=81
-gpio_ir850=82
-
