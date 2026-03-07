@@ -36,7 +36,8 @@ ifneq ($(SENSOR_1_MODEL),)
 		SENSOR_1_BIN_NAME      = $(patsubst %s0,%,$(SENSOR_1_MODEL))
 		MULTI_SENSOR_1_ENABLED = SENSOR_1_MODEL=$(SENSOR_1_MODEL)
 		MULTI_SENSOR_2_ENABLED = SENSOR_2_MODEL=$(SENSOR_2_MODEL)
-		SENSOR_2_CONFIG_NAME   = $(SENSOR_2_MODEL)-$(SOC_FAMILY).bin
+		SENSOR_2_BIN_NAME      = $(patsubst %s1,%,$(SENSOR_2_MODEL))
+		SENSOR_2_CONFIG_NAME   = $(patsubst %s1,%,$(SENSOR_2_MODEL))-$(SOC_FAMILY).bin
 	else
 		MULTI_SENSOR_ENABLED =
 		SENSOR_1_BIN_NAME = $(SENSOR_1_MODEL)
@@ -90,6 +91,9 @@ define INSTALL_SENSOR_BIN
 		if [ -f $(@D)/sensor-iq/$(SOC_FAMILY)/$(2)-cust.bin ]; then \
 			$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/$(2)-cust.bin \
 				$(TARGET_DIR)/usr/share/sensor/$(patsubst %.bin,$(2)-cust-$(SOC_FAMILY).bin,$(3)); \
+		fi; \
+		if [ "$(1)" != "$(2)" ]; then \
+			ln -sf $(3) $(TARGET_DIR)/usr/share/sensor/$(1)-$(SOC_FAMILY).bin; \
 		fi; \
 		$(if $(filter-out $(SENSOR_2_MODEL),$(1)),echo $(1) > $(TARGET_DIR)/usr/share/sensor/model;) \
 	fi
