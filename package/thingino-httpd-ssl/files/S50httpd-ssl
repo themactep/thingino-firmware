@@ -12,10 +12,10 @@ start() {
 	if [ ! -f "$CERT_FILE" ] || [ ! -f "$KEY_FILE" ]; then
 		echo "Generating self-signed certificate..."
 		HOSTNAME=$(hostname 2>/dev/null || echo "thingino-camera")
-                IP_ADDR=$(ip -4 addr show | awk '/inet / && !/127\.0\.0/ {split($2,a,"/"); print a[1]; exit}')
-                _ip_opt=""
-                [ -n "$IP_ADDR" ] && _ip_opt="-i $IP_ADDR"
-                mbedtls-certgen -h "$HOSTNAME" -c "$CERT_FILE" -k "$KEY_FILE" -d 3650 -s 256 -t ecdsa $_ip_opt
+		IP_ADDR=$(ip -4 addr show | awk '/inet / && !/127\.0\.0/ {split($2,a,"/"); print a[1]; exit}')
+		_ip_opt=""
+		[ -n "$IP_ADDR" ] && _ip_opt="-i $IP_ADDR"
+		mbedtls-certgen -h "$HOSTNAME" -c "$CERT_FILE" -k "$KEY_FILE" -d 3650 -s 256 -t ecdsa $_ip_opt
 		httpd -p 127.0.0.1:80 -h /var/www &
 	fi
 
