@@ -105,7 +105,7 @@ go_reboot() {
 	sync
 	echo wdt > /proc/jz/reset/reset
 	sleep 2
-	reboot
+	reboot -f
 }
 
 [ -z "$1" ] && die "Firmware file is not set."
