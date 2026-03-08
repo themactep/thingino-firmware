@@ -1,0 +1,98 @@
+#!/bin/sh
+# MQTT subscription dispatcher
+# Subscribes to configured MQTT topics and executes shell actions on message receipt.
+# Environment variables available to action commands:
+#   MQTT_TOPIC   - the topic on which the message arrived
+#   MQTT_PAYLOAD - the message payload
+#
+# Topic shorthands (resolved at startup):
+#   %hostname - camera hostname
+#   %ip       - camera IP address
+#   %id       - camera MAC address without separators
+
+CONFIG_FILE="/etc/thingino.json"
+
+die() {
+	echo "$1" >&2
+	exit 1
+}
+
+# Resolve camera identity once at startup
+CAMERA_HOSTNAME=$(hostname 2>/dev/null)
+CAMERA_IP=$(ip route get 1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -1)
+CAMERA_ID=$(
+	for iface in eth0 wlan0 eth1; do
+		addr=$(cat "/sys/class/net/$iface/address" 2>/dev/null | tr -d ':')
+		[ -n "$addr" ] && { printf '%s' "$addr"; break; }
+	done
+)
+
+expand_topic() {
+	printf '%s' "$1" \
+		| sed -e "s/%hostname/$CAMERA_HOSTNAME/g" \
+		      -e "s/%ip/$CAMERA_IP/g" \
+		      -e "s/%id/$CAMERA_ID/g"
+}
+
+# Read broker settings
+host=$(jct "$CONFIG_FILE" get mqtt_sub.host 2>/dev/null | tr -d '"')
+port=$(jct "$CONFIG_FILE" get mqtt_sub.port 2>/dev/null | tr -d '"')
+username=$(jct "$CONFIG_FILE" get mqtt_sub.username 2>/dev/null | tr -d '"')
+password=$(jct "$CONFIG_FILE" get mqtt_sub.password 2>/dev/null | tr -d '"')
+use_ssl=$(jct "$CONFIG_FILE" get mqtt_sub.use_ssl 2>/dev/null)
+
+[ -n "$host" ] || die "mqtt_sub.host is not configured"
+
+port="${port:-1883}"
+
+# Build topic arguments from enabled subscriptions
+TOPICS=""
+i=0
+while true; do
+	topic=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$i.topic" 2>/dev/null | tr -d '"')
+	[ -n "$topic" ] || break
+	enabled=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$i.enabled" 2>/dev/null)
+	qos=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$i.qos" 2>/dev/null | tr -d '"')
+	if [ "$enabled" = "true" ]; then
+		topic=$(expand_topic "$topic")
+		TOPICS="$TOPICS -t $topic -q ${qos:-0}"
+	fi
+	i=$((i + 1))
+done
+
+[ -n "$TOPICS" ] || die "No enabled subscriptions configured"
+
+# Assemble mosquitto_sub command
+CMD="mosquitto_sub -h $host -p $port -v -F \"%t %p\""
+[ -n "$username" ] && CMD="$CMD -u $username"
+[ -n "$password" ] && CMD="$CMD -P $password"
+[ "$use_ssl" = "true" ] && CMD="$CMD --capath /etc/ssl/certs"
+CMD="$CMD $TOPICS"
+
+# Run subscriber loop
+sh -c "$CMD" | while IFS= read -r line; do
+	mqtt_topic="${line%% *}"
+	mqtt_payload="${line#* }"
+
+	# Match against all enabled subscriptions and run their action
+	j=0
+	while true; do
+		sub_topic=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$j.topic" 2>/dev/null | tr -d '"')
+		[ -n "$sub_topic" ] || break
+		sub_enabled=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$j.enabled" 2>/dev/null)
+		sub_action=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$j.action" 2>/dev/null | tr -d '"')
+
+		if [ "$sub_enabled" = "true" ] && [ -n "$sub_action" ]; then
+			# Expand shorthands, then convert MQTT wildcards to shell glob patterns
+			expanded=$(expand_topic "$sub_topic")
+			pattern=$(printf '%s' "$expanded" | sed -e 's/+/[^\/]*/g' -e 's/#/.*/g')
+			case "$mqtt_topic" in
+				$pattern)
+					MQTT_TOPIC="$mqtt_topic" MQTT_PAYLOAD="$mqtt_payload" sh -c "$sub_action"
+					;;
+			esac
+		fi
+		j=$((j + 1))
+	done
+done
+

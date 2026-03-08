@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>thingino · MQTT Subscriptions</title>
+  <script src="/a/theme-init.js"></script>
+  <link rel="icon" type="image/svg+xml" href="/a/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/a/main.css">
+</head>
+
+<body id="page-tool-mqtt-sub">
+<nav data-app-nav></nav>
+
+<main class="pb-4">
+  <div class="container" style="min-height:80vh">
+    <div data-app-controls></div>
+
+    <section>
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <h2 class="mb-0">MQTT Subscriptions</h2>
+      </div>
+
+      <form id="mqttSubForm" class="needs-validation" novalidate autocomplete="off">
+
+        <!-- Broker Settings -->
+        <div class="card mb-4">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <div>
+              <h5 class="mb-0">Broker Settings</h5>
+              <small class="text-secondary">Connection details shared by all subscriptions</small>
+            </div>
+            <div class="form-check form-switch mb-0">
+              <input type="checkbox" class="form-check-input" id="mqtt_sub_enabled" role="switch">
+              <label class="form-check-label" for="mqtt_sub_enabled">Enable service</label>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-12 col-md-9">
+                <label for="mqtt_sub_host">Broker address</label>
+                <input type="text" class="form-control" id="mqtt_sub_host" placeholder="192.168.1.100">
+                <div class="invalid-feedback">Broker address is required when service is enabled.</div>
+              </div>
+              <div class="col-12 col-md-3">
+                <label for="mqtt_sub_port">Port</label>
+                <input type="number" class="form-control" id="mqtt_sub_port" value="1883" min="1" max="65535">
+              </div>
+              <div class="col-12 col-md-6">
+                <label for="mqtt_sub_username">Username</label>
+                <input type="text" class="form-control" id="mqtt_sub_username" autocomplete="username">
+              </div>
+              <div class="col-12 col-md-6">
+                <label for="mqtt_sub_password">Password</label>
+                <input type="password" class="form-control" id="mqtt_sub_password" autocomplete="current-password">
+              </div>
+              <div class="col-12">
+                <div class="form-check form-switch">
+                  <input type="checkbox" class="form-check-input" id="mqtt_sub_use_ssl" role="switch">
+                  <label class="form-check-label" for="mqtt_sub_use_ssl">Use SSL/TLS</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Subscriptions List -->
+        <div class="card mb-4">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <div>
+              <h5 class="mb-0">Subscriptions</h5>
+              <small class="text-secondary">Available in action: <code>$MQTT_TOPIC</code>, <code>$MQTT_PAYLOAD</code> &nbsp;·&nbsp; Topic shorthands: <code>%hostname</code>, <code>%ip</code>, <code>%id</code></small>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" id="mqtt-sub-add">Add subscription</button>
+          </div>
+          <div class="card-body">
+            <table class="table table-sm mb-0">
+              <thead>
+                <tr>
+                  <th style="width:2rem"></th>
+                  <th>Topic</th>
+                  <th style="width:14rem">QoS</th>
+                  <th>Action</th>
+                  <th style="width:2rem"></th>
+                </tr>
+              </thead>
+              <tbody id="mqtt-sub-tbody"></tbody>
+            </table>
+            <div id="mqtt-sub-empty" class="text-center text-secondary py-3 d-none">
+              No subscriptions. Click <strong>Add subscription</strong> to create one.
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-2 justify-content-end">
+          <button type="button" class="btn btn-outline-secondary" id="mqtt-sub-reload">
+            <i class="bi bi-arrow-clockwise"></i> Reload
+          </button>
+          <button type="submit" class="btn btn-primary" id="mqtt-sub-save">
+            <i class="bi bi-check-circle"></i> Save Settings
+          </button>
+        </div>
+
+      </form>
+    </section>
+  </div>
+</main>
+
+
+<footer data-app-footer></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script src="/a/main.js"></script>
+<script src="/a/runtime-config.js"></script>
+<script src="/a/control-bar.js"></script>
+<script src="/a/navigation.js"></script>
+<script src="/a/footer.js"></script>
+<script src="/a/tool-mqtt-sub.js"></script>
+</body>
+</html>
