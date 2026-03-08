@@ -49,18 +49,16 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S48webui-config \
 		$(TARGET_DIR)/etc/init.d/S48webui-config
-
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S91mqttsub \
+		$(TARGET_DIR)/etc/init.d/S91mqttsub
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S95recordmgr \
+		$(TARGET_DIR)/etc/init.d/S95recordmgr
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/S99heartbeat \
 		$(TARGET_DIR)/etc/init.d/S99heartbeat
 
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/etc/init.d/S95recordmgr \
-			$(TARGET_DIR)/etc/init.d/S95recordmgr
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/etc/init.d/S91mqttsub \
-		$(TARGET_DIR)/etc/init.d/S91mqttsub
-
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/usr/sbin/recordmgr \
-			$(TARGET_DIR)/usr/sbin/recordmgr
-	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/usr/sbin/mqtt-sub-dispatcher \
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/recordmgr \
+		$(TARGET_DIR)/usr/sbin/recordmgr
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/mqtt-sub-dispatcher \
 		$(TARGET_DIR)/usr/sbin/mqtt-sub-dispatcher
 
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/401.html \

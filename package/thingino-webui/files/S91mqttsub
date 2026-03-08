@@ -12,8 +12,7 @@ is_enabled() {
 start() {
 	is_enabled || return 0
 	printf "Starting %s: " "$DAEMON"
-	start-stop-daemon -S -q -m -b -p "$PIDFILE" \
-		--exec /usr/sbin/mqtt-sub-dispatcher
+	start-stop-daemon -S -q -m -b -p "$PIDFILE" -x /usr/sbin/mqtt-sub-dispatcher
 	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
