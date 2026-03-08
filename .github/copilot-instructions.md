@@ -62,7 +62,7 @@ Camera config directories and defconfigs follow this pattern:
 <brand>_<model>_<soc>_<sensor>_<wifi_chip>
 ```
 
-Example: `atom_cam2_t31x_gc2053_atbm6031`  
+Example: `atom_cam2_t31x_gc2053_atbm6031`
 Defconfig: `configs/cameras/atom_cam2_t31x_gc2053_atbm6031/atom_cam2_t31x_gc2053_atbm6031_defconfig`
 
 The first line of each defconfig is a human-readable `# NAME:` comment; the second line lists `# FRAG:` (config fragments used).
@@ -120,9 +120,21 @@ CI sets `WORKFLOW=1` to skip the interactive camera selection and dependency che
 
 ### Overrides
 
-Local development unilizes override sources defined in `local.mk` file and stored in `overrides/` directory.
+Local development uses override sources stored under `overrides/` directory and wired in `local.mk` file.
+Sources from `overrides/` used as-is and patches from the package are not applied. Edit the sources directly, then create a patch for the package.
+Recompile packages using `CAMERA=<camera_defconfig> make rebuild-<packagename>`, that shorthand combines dirclean and build.
 
 ### SSH
 
 Thingino used dropbear for ssh. Uploading files with `scp` requires `-O` flag.
 
+### Work ethics
+
+Do not lie, do not assume, do not hallucinate. Always follow facts.
+If you do not have enough facts, ask user for help.
+
+Do not write documentation unless exlicitly asked to.
+
+Always test your changes.
+Write tests when you solve issues to test and confirm the solution is viable.
+Do not commit anything until all tests passed.
