@@ -58,4 +58,11 @@ override MOSQUITTO_USERS =
 
 endif # !BR2_PACKAGE_THINGINO_MOSQUITTO_BROKER
 
+ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_BROKER),y)
+ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_USE_MBEDTLS),y)
+# apps/mosquitto_ctrl and apps/mosquitto_passwd require OpenSSL; exclude when using mbedtls
+override MOSQUITTO_MAKE_DIRS = lib client src
+endif
+endif # BR2_PACKAGE_THINGINO_MOSQUITTO_BROKER
+
 endif # BR2_PACKAGE_THINGINO_MOSQUITTO
