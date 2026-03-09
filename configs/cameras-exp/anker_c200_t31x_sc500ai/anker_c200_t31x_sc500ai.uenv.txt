@@ -1,1 +1,1 @@
-gpio_default=18O 26I 42O 49o 57I
+gpio_default=18O 26i 42O 49o 57i

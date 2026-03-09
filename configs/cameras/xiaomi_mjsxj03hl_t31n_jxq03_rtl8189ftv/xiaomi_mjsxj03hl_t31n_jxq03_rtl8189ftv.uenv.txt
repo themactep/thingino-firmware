@@ -1,2 +1,2 @@
-gpio_button=51i
+gpio_button=51
 gpio_default=25ID 26IDU

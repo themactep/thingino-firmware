@@ -1,3 +1,2 @@
 gpio_button=60
 gpio_default=25o 26o 77o 60i
-gpio_ircds=true
