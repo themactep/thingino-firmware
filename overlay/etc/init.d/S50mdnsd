@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DAEMON_ARGS="-i $(ip addr show | awk '/inet.*brd/{print $NF}' | head -1) -s"
+DAEMON_ARGS="-i $(ip -o link show up | awk -F': ' '!/lo/{print $2; exit}') -s"
 
 . /usr/share/common
 
