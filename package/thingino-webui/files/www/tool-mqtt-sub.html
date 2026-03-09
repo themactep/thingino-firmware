@@ -23,96 +23,83 @@
     <div data-app-controls></div>
 
     <section>
-      <div class="d-flex align-items-center gap-2 mb-3">
-        <h2 class="mb-0">MQTT Subscriptions</h2>
-      </div>
-
       <form id="mqttSubForm" class="needs-validation" novalidate autocomplete="off">
-
-        <!-- Broker Settings -->
-        <div class="card mb-4">
-          <div class="card-header d-flex align-items-center justify-content-between">
-            <div>
-              <h5 class="mb-0">Broker Settings</h5>
-              <small class="text-secondary">Connection details shared by all subscriptions</small>
-            </div>
-            <div class="form-check form-switch mb-0">
-              <input type="checkbox" class="form-check-input" id="mqtt_sub_enabled" role="switch">
-              <label class="form-check-label" for="mqtt_sub_enabled">Enable service</label>
-            </div>
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">MQTT Subscriptions</h2>
+            <small>...</small>
+            <button type="button" class="btn btn-outline-secondary" id="mqtt-sub-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
           </div>
           <div class="card-body">
-            <div class="row g-3">
-              <div class="col-12 col-md-9">
-                <label for="mqtt_sub_host">Broker address</label>
-                <input type="text" class="form-control" id="mqtt_sub_host" placeholder="192.168.1.100">
-                <div class="invalid-feedback">Broker address is required when service is enabled.</div>
-              </div>
-              <div class="col-12 col-md-3">
-                <label for="mqtt_sub_port">Port</label>
-                <input type="number" class="form-control" id="mqtt_sub_port" value="1883" min="1" max="65535">
-              </div>
-              <div class="col-12 col-md-6">
-                <label for="mqtt_sub_username">Username</label>
-                <input type="text" class="form-control" id="mqtt_sub_username" autocomplete="username">
-              </div>
-              <div class="col-12 col-md-6">
-                <label for="mqtt_sub_password">Password</label>
-                <input type="password" class="form-control" id="mqtt_sub_password" autocomplete="current-password">
-              </div>
-              <div class="col-12">
-                <div class="form-check form-switch">
+            <div class="row g-4 mb-4">
+              <div class="col-12 col-lg-6">
+                <h4>Broker Settings</h4>
+                <small>Connection details shared by all subscriptions</small>
+                <p class="form-switch">
+                  <input type="checkbox" class="form-check-input" id="mqtt_sub_enabled" role="switch">
+                  <label class="form-check-label" for="mqtt_sub_enabled">Launch MQTT subscription service on boot</label>
+                </p>
+                <div class="row g-1 mb-3">
+                  <div class="col-9">
+                    <label for="mqtt_sub_host">Broker address</label>
+                    <input type="text" class="form-control" id="mqtt_sub_host" placeholder="192.168.1.100">
+                    <div class="invalid-feedback">Broker address is required when service is enabled.</div>
+                  </div>
+                  <div class="col-3">
+                    <label for="mqtt_sub_port">Port</label>
+                    <input type="number" class="form-control" id="mqtt_sub_port" value="1883" min="1" max="65535">
+                  </div>
+                </div>
+                <p>
+                  <label for="mqtt_sub_username">Username</label>
+                  <input type="text" class="form-control" id="mqtt_sub_username" autocomplete="username">
+                </p>
+                <p>
+                  <label for="mqtt_sub_password">Password</label>
+                  <input type="password" class="form-control" id="mqtt_sub_password" autocomplete="current-password">
+                </p>
+                <p class="form-switch">
                   <input type="checkbox" class="form-check-input" id="mqtt_sub_use_ssl" role="switch">
                   <label class="form-check-label" for="mqtt_sub_use_ssl">Use SSL/TLS</label>
-                </div>
+                </p>
+              </div>
+            </div>
+
+            <div class="mqtt-subscriptions">
+              <h4>Subscriptions</h4>
+              <p class="hint mb-3">Available in action: <code>$MQTT_TOPIC</code>, <code>$MQTT_PAYLOAD</code> &nbsp;·&nbsp; Topic shorthands: <code>%hostname</code>, <code>%ip</code>, <code>%id</code></p>
+              <button type="button" class="btn btn-secondary btn-sm mb-2" id="mqtt-sub-add">Add subscription</button>
+              <table class="table table-sm table-striped">
+                <thead>
+                  <tr>
+                    <th style="width:2rem"></th>
+                    <th>Topic</th>
+                    <th style="width:14rem">QoS</th>
+                    <th>Action</th>
+                    <th style="width:2rem"></th>
+                  </tr>
+                </thead>
+                <tbody id="mqtt-sub-tbody"></tbody>
+              </table>
+              <div id="mqtt-sub-empty" class="text-center text-secondary py-3 d-none">
+                No subscriptions. Click <strong>Add subscription</strong> to create one.
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Subscriptions List -->
-        <div class="card mb-4">
-          <div class="card-header d-flex align-items-center justify-content-between">
-            <div>
-              <h5 class="mb-0">Subscriptions</h5>
-              <small class="text-secondary">Available in action: <code>$MQTT_TOPIC</code>, <code>$MQTT_PAYLOAD</code> &nbsp;·&nbsp; Topic shorthands: <code>%hostname</code>, <code>%ip</code>, <code>%id</code></small>
-            </div>
-            <button type="button" class="btn btn-secondary btn-sm" id="mqtt-sub-add">Add subscription</button>
-          </div>
-          <div class="card-body">
-            <table class="table table-sm mb-0">
-              <thead>
-                <tr>
-                  <th style="width:2rem"></th>
-                  <th>Topic</th>
-                  <th style="width:14rem">QoS</th>
-                  <th>Action</th>
-                  <th style="width:2rem"></th>
-                </tr>
-              </thead>
-              <tbody id="mqtt-sub-tbody"></tbody>
-            </table>
-            <div id="mqtt-sub-empty" class="text-center text-secondary py-3 d-none">
-              No subscriptions. Click <strong>Add subscription</strong> to create one.
-            </div>
-          </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="d-flex gap-2 justify-content-end">
-          <button type="button" class="btn btn-outline-secondary" id="mqtt-sub-reload">
-            <i class="bi bi-arrow-clockwise"></i> Reload
-          </button>
-          <button type="submit" class="btn btn-primary" id="mqtt-sub-save">
-            <i class="bi bi-check-circle"></i> Save Settings
-          </button>
-        </div>
-
+        <button type="submit" class="btn btn-primary" id="mqtt-sub-save">
+          <i class="bi bi-check-circle"></i> Save Settings
+        </button>
+        <button type="button" class="btn btn-outline-secondary ms-2" id="mqtt-sub-reload">
+          <i class="bi bi-arrow-clockwise"></i> Reload
+        </button>
       </form>
     </section>
   </div>
 </main>
-
 
 <footer data-app-footer></footer>
 

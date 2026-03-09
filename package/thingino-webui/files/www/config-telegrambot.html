@@ -36,6 +36,7 @@
             <div class="row g-4 mb-4">
               <div class="col-12 col-lg-6">
                 <h4>Bot Settings</h4>
+                <small>...</small>
                 <p class="form-switch">
                   <input type="checkbox" class="form-check-input" id="enabled" name="enabled">
                   <label class="form-check-label" for="enabled">Launch Telegram bot on boot</label>
@@ -83,8 +84,11 @@
             </div>
           </div>
         </div>
-        <button type="submit" id="telegrambot_submit" class="btn btn-primary">Save changes</button>
-        <button type="button" id="telegrambot-restart" class="btn btn-outline-warning ms-2">
+
+        <button type="submit" class="btn btn-primary" id="telegrambot_submit">
+          Save changes
+        </button>
+        <button type="button" class="btn btn-outline-warning ms-2" id="telegrambot-restart">
           <i class="bi bi-arrow-repeat"></i> Restart Service
         </button>
       </form>
