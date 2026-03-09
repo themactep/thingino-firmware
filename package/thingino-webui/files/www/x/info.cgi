@@ -162,6 +162,10 @@ EOF
     system)
       cmd="cat /etc/os-release"
       ;;
+    thingino)
+      cmd="cat /etc/thingino.json"
+      extras=$(button_restore_from_rom "/etc/thingino.json")
+      ;;
     top)
       cmd="top -n 1 -b"
       ;;
