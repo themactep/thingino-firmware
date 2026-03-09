@@ -1,0 +1,411 @@
+ONVIF™
+
+–1–
+
+Replay Control – Ver. 21.12
+
+ONVIF™
+Replay Control Service Specification
+Version 21.12
+December 2021
+
+ONVIF™
+
+–2–
+
+Replay Control – Ver. 21.12
+
+Copyright © 2008-2021 ONVIF™ All rights reserved.
+Recipients of this document may copy, distribute, publish, or display this document so long as this copyright notice, license and disclaimer
+are retained with all copies of the document. No license is granted to modify this document.
+THIS DOCUMENT IS PROVIDED "AS IS," AND THE CORPORATION AND ITS MEMBERS AND THEIR AFFILIATES, MAKE
+NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO, WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, OR TITLE; THAT THE CONTENTS OF THIS
+DOCUMENT ARE SUITABLE FOR ANY PURPOSE; OR THAT THE IMPLEMENTATION OF SUCH CONTENTS WILL NOT INFRINGE
+ANY PATENTS, COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS.
+IN NO EVENT WILL THE CORPORATION OR ITS MEMBERS OR THEIR AFFILIATES BE LIABLE FOR ANY DIRECT, INDIRECT,
+SPECIAL, INCIDENTAL, PUNITIVE OR CONSEQUENTIAL DAMAGES, ARISING OUT OF OR RELATING TO ANY USE OR
+DISTRIBUTION OF THIS DOCUMENT, WHETHER OR NOT (1) THE CORPORATION, MEMBERS OR THEIR AFFILIATES HAVE BEEN
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGES, OR (2) SUCH DAMAGES WERE REASONABLY FORESEEABLE, AND ARISING
+OUT OF OR RELATING TO ANY USE OR DISTRIBUTION OF THIS DOCUMENT. THE FOREGOING DISCLAIMER AND LIMITATION
+ON LIABILITY DO NOT APPLY TO, INVALIDATE, OR LIMIT REPRESENTATIONS AND WARRANTIES MADE BY THE MEMBERS
+AND THEIR RESPECTIVE AFFILIATES TO THE CORPORATION AND OTHER MEMBERS IN CERTAIN WRITTEN POLICIES OF THE
+CORPORATION.
+
+ONVIF™
+
+–3–
+
+Replay Control – Ver. 21.12
+
+CONTENTS
+1
+
+Scope
+
+4
+
+2
+
+Normative references
+
+4
+
+3
+
+Terms and Definitions
+
+4
+
+3.1
+
+Definitions ................................................................................................................................ 4
+
+4
+
+Overview
+
+4
+
+5
+
+Replay Control
+
+5
+
+5.1
+
+GetReplayUri ............................................................................................................................ 5
+
+5.2
+
+ReplayConfiguration ................................................................................................................. 5
+
+5.3
+
+SetReplayConfiguration ............................................................................................................ 5
+
+5.4
+
+GetReplayConfiguration ............................................................................................................ 6
+
+5.5
+
+GetServiceCapabilities .............................................................................................................. 6
+
+Annex A
+
+Revision History
+
+8
+
+ONVIF™
+
+–4–
+
+Replay Control – Ver. 21.12
+
+1 Scope
+This document defines the web service interface for the control of a replay of recorded Video, Audio and
+Metadata. Additionally the associated events are defined.
+For a definition of the storage model see the ONVIF Recording Control Specification.
+Web service usage is outside of the scope of this document. Please refer to the ONVIF core specification.
+
+2 Normative references
+ONVIF Core Specification
+<http://www.onvif.org/specs/core/ONVIF-Core-Specification.pdf>
+ONVIF Recording Control Specification
+<http://www.onvif.org/specs/srv/rec/ONVIF-RecordingControl-Service-Spec.pdf>
+ONVIF Streaming Specification
+<http://www.onvif.org/onvif/specs/stream/ONVIF-Streaming-Spec.pdf>
+
+3 Terms and Definitions
+3.1 Definitions
+Metadata
+
+All streaming data except video and audio, including video analytics results,
+PTZ position data and other metadata (such as textual data from POS applications).
+
+Recording
+
+A container for a set of audio, video and metadata tracks. A recording can hold
+one or more tracks. A track is viewed as an infinite timeline that holds data at
+certain times.
+
+Recording Event
+
+An event associated with a Recording, represented by a notification message in
+the APIs
+
+Recording Job
+
+A job performs the transfer of data from a data source to a particular recording
+using a particular configuration
+
+Track
+
+An individual data channel consisting of video, audio, or metadata. This definition is consistent with the definition of track in [RFC 2326]
+
+Video Analytics
+
+Algorithms or programs used to analyze video data and to generate data describing object location and behaviour.
+
+4 Overview
+The replay service provides a mechanism for replay of stored video, audio and metadata. This mechanism
+may also be used to download data from the storage device so that export functionality can be provided.
+The replay protocol is based on RTSP [RFC 2326]. However because RTSP does not directly support all of
+the requirements for replay, several extensions have been added to the protocol. In particular, an RTP header
+extension is defined to allow an absolute timestamp to be associated with each access unit (e.g. video frame),
+and to convey information about stream continuity.
+The GetReplayUri command in the replay service returns the RTSP URL of a recording to allow it to be replayed
+using RTSP.
+WSDL for this service is specified in http://www.onvif.org/ver10/replay.wsdl. The following table shows the
+namespace prefix mapping used throughout this specification.
+
+ONVIF™
+
+–5–
+
+Replay Control – Ver. 21.12
+
+Table 1: Referenced namespaces (with prefix)
+Prefix
+
+Namespace URI
+
+env
+
+http://www.w3.org/2003/05/soap-envelope
+
+ter
+
+http://www.onvif.org/ver10/error
+
+xs
+
+http://www.w3.org/2001/XMLSchema
+
+tt
+
+http://www.onvif.org/ver10/schema
+
+trp
+
+http://www.onvif.org/ver10/replay/wsdl
+
+5 Replay Control
+This section defines a service for mapping replay endpoints to URI for use in RTSP.
+
+5.1 GetReplayUri
+GetReplayUri requests a URI that can be used to initiate playback of a recorded stream using RTSP as the
+control protocol. The URI is valid only as it is specified in the response. A device supporting the Replay Service
+shall support the GetReplayUri command.
+REQUEST:
+
+•
+
+StreamSetup [tt:StreamSetup]
+The StreamSetup element contains two parts. StreamType defines if a unicast or multicast media
+stream is requested. Transport specifies a chain of transport protocols defining the tunnelling of the
+media stream over different network protocols.
+
+•
+
+RecordingToken [tt:RefernceToken]
+Indicates the recording to be streamed.
+
+RESPONSE:
+
+•
+
+Uri [xs:anyURI]
+Contains the Uri to be used for requesting the media stream.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidStreamSetup
+Specification of StreamType or Transport part in StreamSetup is not supported.
+
+•
+
+env:Sender - ter:OperationProhibited - ter:StreamConflict
+Specification of StreamType or Transport part in StreamSetup causes conflict with other streams.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoRecording
+The recording does not exist.
+
+ACCESS CLASS:
+READ_MEDIA
+
+5.2 ReplayConfiguration
+The ReplayConfiguration provides optional configuration information. Currently it only contains the deprecated
+RTSP SessionTimeout which can be controlled via the RTSP layer.
+
+5.3 SetReplayConfiguration
+SetReplayConfiguration changes the configuration of the replay service. The replay service shall allow its configuration to be changed using this command.
+
+ONVIF™
+
+–6–
+
+Replay Control – Ver. 21.12
+
+REQUEST:
+
+•
+
+Configuration [tt:ReplayConfiguration]
+Holds the new configuration for the replay service.
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:ConfigModify
+The values in the configuration cannot be set.
+
+ACCESS CLASS:
+ACTUATE
+
+5.4 GetReplayConfiguration
+GetReplayConfiguration returns the current configuration of the replay service. The replay service shall allow
+its configuration to be retrieved using this command.
+REQUEST:
+This is an empty message.
+RESPONSE:
+
+•
+
+Configuration [tt:ReplayConfiguration]
+Holds the current configuration for the replay service.
+
+FAULTS:
+None
+ACCESS CLASS:
+READ_MEDIA
+
+5.5 GetServiceCapabilities
+The capabilities reflect optional functions and functionality of a service. The information is static and does not
+change during device operation.
+REQUEST:
+This is an empty message.
+RESPONSE:
+
+•
+
+Capabilities [trp:Capabilities]
+Contains the requested service capabilities using a hierarchical XML capability structure.
+
+FAULTS:
+None
+ACCESS CLASS:
+PRE_AUTH
+The following capabilites are available:
+ReversePlayback
+
+Indicator that the Device supports reverse playback as defined in the ONVIF
+Streaming Specification.
+
+ONVIF™
+
+–7–
+
+Replay Control – Ver. 21.12
+
+SessionTimeoutRange
+
+Lists the upper and lower bound of the supported range for the session timeout.
+This capability defaults to the RTSP default value.
+
+RTP_RTSP_TCP
+
+Indication if the device supports RTP/RTSP/TCP transport, see Section 5.1.1.3 of
+the ONVIF Streaming Specificiation.
+
+RTSPOverWebSocket
+
+Indicates if the device supports RTSP/RTP Playback Streaming support over WebSocket and provides the WebSocket URI for replay as described in the ONVIF
+Streaming Specification section 5.1.1.5.
+
+ONVIF™
+
+–8–
+
+Replay Control – Ver. 21.12
+
+Annex A.
+Revision History
+Rev.
+
+Date
+
+Editor
+
+Changes
+
+2.1
+
+Jul-2011
+
+Hans Busch
+
+Split from Core 2.0 without change of content.
+
+2.1.1
+
+Jan-2012
+
+Hans Busch
+
+Change Requests 287, 342, 535
+
+2.2
+
+May-2012
+
+Hans Busch
+
+Change Requests 608, 677
+
+2.2.1
+
+Dec-2012
+
+Hans Busch
+
+Change Requests 708, 742, 743
+
+16.12
+
+Dec-2016
+
+Sujith Raman
+
+Added RTSP over WebSocket
+
+17.06
+
+Jun-2017
+
+Stefan Andersson,
+Hiroyuki Sano
+
+Update method layouts Change Request 1843 Change
+Request 2054, 2065
+
+21.12
+
+Dec-2021
+
+Oksana Tyushkina,
+SergeyBogdanov
+
+Fix typo in commands names and role names.
+
+

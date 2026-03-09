@@ -1,0 +1,678 @@
+ONVIF™
+
+–1–
+
+ONVIF™
+Thermal Service Specification
+Version 22.06
+June, 2022
+
+Thermal – Ver. 22.06
+
+ONVIF™
+
+–2–
+
+Thermal – Ver. 22.06
+
+Copyright © 2008-2022 ONVIF™ All rights reserved.
+Recipients of this document may copy, distribute, publish, or display this document so long as this copyright notice, license and disclaimer
+are retained with all copies of the document. No license is granted to modify this document.
+THIS DOCUMENT IS PROVIDED "AS IS," AND THE CORPORATION AND ITS MEMBERS AND THEIR AFFILIATES, MAKE
+NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO, WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, OR TITLE; THAT THE CONTENTS OF THIS
+DOCUMENT ARE SUITABLE FOR ANY PURPOSE; OR THAT THE IMPLEMENTATION OF SUCH CONTENTS WILL NOT INFRINGE
+ANY PATENTS, COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS.
+IN NO EVENT WILL THE CORPORATION OR ITS MEMBERS OR THEIR AFFILIATES BE LIABLE FOR ANY DIRECT, INDIRECT,
+SPECIAL, INCIDENTAL, PUNITIVE OR CONSEQUENTIAL DAMAGES, ARISING OUT OF OR RELATING TO ANY USE OR
+DISTRIBUTION OF THIS DOCUMENT, WHETHER OR NOT (1) THE CORPORATION, MEMBERS OR THEIR AFFILIATES HAVE BEEN
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGES, OR (2) SUCH DAMAGES WERE REASONABLY FORESEEABLE, AND ARISING
+OUT OF OR RELATING TO ANY USE OR DISTRIBUTION OF THIS DOCUMENT. THE FOREGOING DISCLAIMER AND LIMITATION
+ON LIABILITY DO NOT APPLY TO, INVALIDATE, OR LIMIT REPRESENTATIONS AND WARRANTIES MADE BY THE MEMBERS
+AND THEIR RESPECTIVE AFFILIATES TO THE CORPORATION AND OTHER MEMBERS IN CERTAIN WRITTEN POLICIES OF THE
+CORPORATION.
+
+ONVIF™
+
+–3–
+
+Thermal – Ver. 22.06
+
+CONTENTS
+1
+
+Scope
+
+4
+
+2
+
+Normative references
+
+4
+
+3
+
+Terms and Definitions
+
+4
+
+3.1
+
+Definitions ................................................................................................................................ 4
+
+4
+
+Overview
+
+4
+
+5
+
+Service
+
+5
+
+5.1 Thermal Configuration .............................................................................................................. 5
+5.1.1
+Get Configuration ............................................................................................................. 6
+5.1.2
+Set Configuration .............................................................................................................. 7
+5.1.3
+Get Configuration Options ................................................................................................. 7
+5.1.4 Get Configurations ............................................................................................................. 8
+5.1.5
+Get Radiometry Configuration ........................................................................................... 8
+5.1.6
+Set Radiometry Configuration ........................................................................................... 9
+5.1.7
+Get Radiometry Configuration Options .............................................................................. 9
+5.1.8 GetServiceCapabilities ..................................................................................................... 10
+5.2 Events .................................................................................................................................... 10
+5.2.1 Radiometry Alarms .......................................................................................................... 10
+Annex A
+
+Revision History
+
+12
+
+ONVIF™
+
+–4–
+
+Thermal – Ver. 22.06
+
+1 Scope
+2 Normative references
+ONVIF Core Specification
+<http://www.onvif.org/onvif/specs/core/ONVIF-Core-Specification.pdf>
+
+3 Terms and Definitions
+3.1 Definitions
+Thermal Imaging
+
+Thermal imaging devices are capable of producing a VideoSource based on
+thermal differences between objects in the scene.
+
+Color Palette
+
+Thermal images can be mapped to the visible spectrum for display using different Look Up Tables, also called Color Palettes. These look up tables are used
+to map each pixel in the original grayscale, temperature based image from a
+Thermal Imager, using different color maps (e.g. Iron, Sepia, Rainbow).
+
+NUC Table
+
+A NUC, or Non-Uniformity Correction Table is a table of values used by Thermal Imagers to produce a uniform image, calibrating imperfections of the thermal detector (different responses to temperature from each pixel in the sensor
+array) and lens optical path. Thermal cameras can offer the possibility to use
+different NUC Tables for each ambient temperature range, optimizing sensitivity
+and range.
+
+Polarity
+
+The grayscale image coming from a Thermal Imaging Device can be interpreted
+from mapping its histogram in one direction or the other, resulting in “Black Hot”
+or “White Hot” polarity images. When using Black Hot polarity black pixels represent hot objects, while as white pixels represent cold objects.
+
+Cooler
+
+In order to increase their sensitivity (and range), the detector of some Thermal Imaging Devices is refrigerated. This is done by a component of the device called cryo cooler, or cooler, which is a mechanicl pump requiring maintenance. In order to facilitate predictive maintenance, based on the MTBF of the
+thermal manufacturer, the hours of operation of the camera/cooler are usually
+monitored, and the cooler can be disabled in some cameras when the thermal
+device is not in use.
+
+Radiometry
+
+Some thermal devices are calibrated in the factory and sold as radiometric cameras. These can provide absolute temperature readings for objects in the scene.
+Measurement items such as Spots and Boxes are used to define measurement
+areas.
+
+4 Overview
+The thermal (imaging) service provides configuration and control data for specific properties of thermal imaging
+devices. WSDL is part of the framework and provided in the Thermal WSDL file.
+The service includes the following operations:
+
+•
+
+Get and set imaging parameters (e.g. Polarity).
+
+•
+
+Get thermal imaging configuration options (valid ranges for imaging parameters).
+
+•
+
+Get Cooler status and runtime information from cooled thermal devices.
+
+Common Imaging Settings of Thermal and Visible Video Sources, such as Brightness or Contrast, or Lens
+Focus operations, remain in the Imaging Service.
+WSDL for this service is specified in http://www.onvif.org/ver10/thermal/wsdl/thermal.wsdl.
+
+ONVIF™
+
+–5–
+
+Thermal – Ver. 22.06
+
+Table 1: Referenced namespaces (with prefix)
+Prefix
+
+Namespace URI
+
+env
+
+http://www.w3.org/2003/05/soap-envelope
+
+ter
+
+http://www.onvif.org/ver10/error
+
+xs
+
+http://www.w3.org/2001/XMLSchema
+
+tt
+
+http://www.onvif.org/ver10/schema
+
+tth
+
+http://www.onvif.org/ver10/thermal/wsdl
+
+tns1
+
+http://www.onvif.org/ver10/topics
+
+5 Service
+The thermal service provides operations used to control and configure imaging properties on a thermal imaging
+device. A device that has one or more video sources should support the imaging service as defined in [ONVIF
+Imaging WSDL]. In the same way the imaging settings are part of the VideoSource entity, the thermal imaging
+settings represent an extension of these, to cover thermal specific settings which are exclusive of thermal video
+sources. Imaging parameters affect any video source (visible or thermal), while as thermal imaging parameters
+affect thermal video sources specifically. Common parameters to both visible and thermal video sources remain
+as shared settings under the imaging service.
+
+5.1 Thermal Configuration
+The thermal service provides operations to get or set thermal imaging parameters and the valid ranges for
+those parameters. Most parameters are common to all thermal video sources, with the exception of the Cooler
+Options, which are specific of thermal imaging devices which contain this kind of component. The following
+settings are available through the thermal imaging service operations:
+Color Palette: indicates the color map currently used to represent temperatures in each pixel. Defined types
+are:
+
+•
+
+Grayscale, BlackHot, WhiteHot, Sepia, ... . See ColorPaletteType for a full list of definitions.
+
+•
+
+Custom shall be used when color palette name does not match any of the definitions in ColorPaletteType.
+
+Polarity: Adjusts the image polarity to represent hot or cold objects in the high or low end of the histogram:
+
+•
+
+White Hot:Represents hot objects on the high end of the histogram
+
+•
+
+Black Hot: Represents cold objects on the high end of the histogram
+
+NUC Table: Indicates the Non Uniformity Correction Table currently loaded among the ones available in the
+thermal device. NUC Tables are used to compensate for non-uniformity artifacts that will show on the image
+as a result of the difference in the response of the sensor elements to ambient temperature. A thermal imaging
+device will normally be calibrated at the factory and loaded with two or three different NUC Tables to be used
+in different temperature ranges. This parameter indicates which of these NUC Tables is in use by the device.
+Cooler: For better sensitivity (range) performance, some thermal devices include a cooler. This mechanical
+component cools down the thermal detector, in order to improve its sensitivity to temperature differences, with
+a positive impact in range. Coolers are a mechanical component with a limited MTBF (usually 8.000-10.000
+hours). Therefore most cooled thermal imaging devices offer settings to disable the cooler while the imager is
+not in use, and an indication of the runtime so that predictive maintenance can be scheduled.
+Other settings of a thermal VideoSource which are common with visible VideoSources, such as Contrast,
+Brightness, Focus, Image Stabilization, etc, can be managed using the Imaging Service. The Thermal Service
+just complements these with thermal specific parameters, which are only applicable to thermal VideoSources.
+
+ONVIF™
+
+–6–
+
+Thermal – Ver. 22.06
+
+The available imaging settings can be retrieved through the GetVideoSources command, part of the media
+service, as specified in the ONVIF Media Service Specification. The thermal imaging settings apply to those
+video sources that use thermal technology.
+The thermal service also provides operations to get or set Radiometry parameters and the valid ranges for
+these parameters for those devices with the Radiometry capability. These parameters shall apply to all the
+Radiometry elements in the different configurations of the Video Analytics Service for the thermal device. The
+following Radiometry settings are available through the thermal imaging service operations:
+Radiometry Global Parameters: Holds default values that will be used in measurement modules when local
+parameters are not specified for the module. These parameters are still required for valid temperature calculations, but using these default values simplifies creation of the Analytics Modules and also offers global value
+functionality for those parameters that could be common to all the measurement modules of a thermal device:
+
+•
+
+ReflectedAmbientTemperature: Reflected Ambient Temperature for the environment in which the thermal device and the object being measured is located.
+
+•
+
+Emissivity: Emissivity of the surface of the object on which temperature is being measured.
+
+•
+
+DistanceToObject: Distance from the thermal device to the measured object.
+
+•
+
+RelativeHumidity: Relative Humidity in the environment in which the measurement is located.
+
+•
+
+AtmosphericTemperature: Temperature of the atmosphere between the thermal device and the object
+being measured.
+
+•
+
+AtmosphericTransmittance: Transmittance value for the atmosphere between the thermal device and
+the object being measured.
+
+•
+
+ExtOpticsTemperature: Temperature of the optics elements between the thermal device and the object
+being measured.
+
+•
+
+ExtOpticsTransmittance: Transmittance value for the optics elements between the thermal device and
+the object being measured.
+
+5.1.1 Get Configuration
+This operation requests the thermal imaging settings for a thermal video source on the device. A device implementing the thermal service shall support this command.
+If the thermal Video Source supports any of the settings as defined by the Configuration type in the [ONVIF
+Thermal WSDL], then it shall be possible to retrieve the imaging settings from the device through the GetConfiguration command.
+REQUEST:
+
+•
+
+VideoSourceToken [tt:ReferenceToken]
+This message contains a reference to the VideoSource for which the Configuration shall be requested.
+
+RESPONSE:
+
+•
+
+Configuration [tth:Configuration]
+This message contains the Configuration for the VideoSource that was requested
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoSource
+The requested VideoSource does not exist.
+
+•
+
+env:Receiver - ter:ActionNotSupported - ter:NoThermalForSource
+The requested VideoSource does not support thermal config settings.
+
+ONVIF™
+
+–7–
+
+Thermal – Ver. 22.06
+
+ACCESS CLASS:
+READ_MEDIA
+
+5.1.2 Set Configuration
+This operation sets the thermal configuration for a thermal video source on a device. A device implementing
+the thermal service shall support this command.
+If the device supports any of the thermal configuration as defined by the Configuration type in [ONVIF Thermal
+WSDL], then it shall be possible to configure these parameters in the device through the SetConfiguration
+command.
+Configuration options are obtained through the command defined in Section 5.1.3
+REQUEST:
+
+•
+
+VideoSourceToken [tt:ReferenceToken]
+This message shall contain a reference to the VideoSource and to the Configuration that shall be set.
+
+•
+
+Configuration [tth:Configuration]
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoSource
+The requested VideoSource does not exist.
+
+•
+
+env:Receiver - ter:ActionNotSupported - ter:NoThermalForSource
+The requested VideoSource does not support thermal configuration.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidConfiguration
+The requested configuration is incorrect.
+
+ACCESS CLASS:
+ACTUATE
+
+5.1.3 Get Configuration Options
+This operation gets the valid ranges for the thermal configurtion parameters that have device specific ranges. A
+device implementing the thermal service shall support this command. The command shall return all supported
+parameters and their ranges such that these can be applied to the SetConfigurationSettings command.
+REQUEST:
+
+•
+
+VideoSourceToken [tt:ReferenceToken]
+Reference to the VideoSource for which the thermal configuration parameter options are requested.
+
+RESPONSE:
+
+•
+
+ConfigurationOptions [tth:ConfigurationOptions]
+This message shall contain the valid ranges for the thermal configuration parameters that are categorized as device specific.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoSource
+The requested VideoSource does not exist.
+
+•
+
+env:Receiver - ter:ActionNotSupported - ter:NoThermalForSource
+The requested VideoSource does not support thermal settings.
+
+ONVIF™
+
+–8–
+
+Thermal – Ver. 22.06
+
+ACCESS CLASS:
+READ_MEDIA
+
+5.1.4 Get Configurations
+This operation requests the thermal imaging settings for all thermal video sources on the device. A device
+implementing the thermal service shall support this command.
+If a Video Source supports any of the settings as defined by the Configuration type in the [ONVIF Thermal
+WSDL], then it shall be possible to retrieve the imaging settings for it through the GetConfigurations command.
+REQUEST:
+This is an empty message.
+RESPONSE:
+
+•
+
+Configurations - optional, unbounded [tth:Configurations]
+This message contains a list with the Configuration for each thermal VideoSource in the Device, and
+its VideoSourceToken.
+
+FAULTS:
+
+•
+
+Env:Receiver - ter:ActionNotSupported - ter:NoSuchService
+The Device does not support Thermal Service.
+
+ACCESS CLASS:
+READ_MEDIA
+
+5.1.5 Get Radiometry Configuration
+This operation requests the global radiometry settings for a thermal video source on the device. A device
+implementing the thermal service and offering the Radiometry capability shall support this command.
+If the thermal Video Source supports any of the Radiometry settings as defined by the RadiometryConfiguration
+type in the [ONVIF Thermal WSDL], then it shall be possible to retrieve the radiometry settings from the device
+through the GetRadiometryConfiguration command.
+REQUEST:
+
+•
+
+VideoSourceToken [tt:ReferenceToken]
+This message contains a reference to the VideoSource for which the RadiometryConfiguration shall
+be requested.
+
+RESPONSE:
+
+•
+
+Configuration [tth:RadiometryConfiguration]
+This message contains the RadiometryConfiguration for the VideoSource that was requested
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoSource
+The requested VideoSource does not exist.
+
+•
+
+Env:Receiver - ter:ActionNotSupported - ter:NoRadiometryForSource
+The requested VideoSource does not support radiometry configuration.
+
+ACCESS CLASS:
+ACTUATE
+
+ONVIF™
+
+–9–
+
+Thermal – Ver. 22.06
+
+5.1.6 Set Radiometry Configuration
+This operation sets the radiometry configuration for a thermal video source on a device. A device implementing
+the thermal service and offering the Radiometry capability shall support this command.
+If the device supports any of the radiometry configuration as defined by the RadiometryConfiguration type in
+[ONVIF Thermal WSDL], then it shall be possible to configure these parameters in the device through the
+SetRadiometryConfiguration command.
+The possible configurable radiometry configuration parameters are described in the related schema. Radiometry Configuration options are obtained through the command defined in Section 5.1.7.
+REQUEST:
+
+•
+
+VideoSourceToken [tt:ReferenceToken]
+This message shall contain a reference to the VideoSource and to the RadiometryConfiguration that
+shall be set.
+
+•
+
+Configuration [tth:RadiometryConfiguration]
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoSource
+The requested VideoSource does not exist.
+
+•
+
+Env:Receiver - ter:ActionNotSupported - ter:NoRadiometryForSource
+The requested VideoSource does not support radiometry configuration.
+
+•
+
+Env:Sender - ter:InvalidArgVal - ter:InvalidConfiguration
+The requested radiometry configuration is incorrect.
+
+ACCESS CLASS:
+ACTUATE
+
+5.1.7 Get Radiometry Configuration Options
+This operation gets the valid ranges for the radiometry configuration parameters that have device specific
+ranges. A device implementing the thermal service and offering the Radiometry capability shall support this
+command. The command shall return all supported parameters and their ranges such that these can be applied
+to the SetRadiometryConfiguration command.
+REQUEST:
+
+•
+
+VideoSourceToken [tt:ReferenceToken]
+Reference to the VideoSource for which the radiometry configuration parameter options are requested.
+
+RESPONSE:
+
+•
+
+ConfigurationOptions [tt:RadiometryConfigurationOptions]
+This message shall contain the valid ranges for the radiometry configuration parameters that are categorized as device specific.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoSource
+The requested VideoSource does not exist.
+
+•
+
+Env:Receiver - ter:ActionNotSupported - ter:NoRadiometryForSource
+The requested VideoSource does not support radiometry settings.
+
+ONVIF™
+
+– 10 –
+
+Thermal – Ver. 22.06
+
+ACCESS CLASS:
+READ_MEDIA
+
+5.1.8 GetServiceCapabilities
+The capabilities reflect optional functions and functionality of a service. The information is static and does not
+change during device operation.
+REQUEST:
+This is an empty message.
+RESPONSE:
+
+•
+
+tth: Capabilities [tth:Capabilities]
+The capability response message contains the requested service capabilities using a hierarchical XML
+capability structure.
+
+FAULTS:
+No command specific faults!
+ACCESS CLASS:
+PRE_AUTH
+The following capabilites are available:
+Radiometry
+
+Indicates support for radiometric thermal measurements and alarms.
+
+5.2 Events
+The Message structure of these events is given by the following Message Description:
+<tt:MessageDescription IsProperty="true">
+<tt:Source>
+<tt:SimpleItemDescription Name="Source" Type="tt:ReferenceToken"/>
+</tt:Source>
+<tt:Data>
+<tt:SimpleItemDescription Name="State" Type="xs:boolean"/>
+</tt:Data>
+</tt:MessageDescription>
+
+The SourceToken points to the source the image is coming from. This is in case of the Analytics or Image
+Service a VideoSource token and in case of the Recording Service the Recording job token.
+
+5.2.1 Radiometry Alarms
+When a thermal video source has radiometry capabilities it can measure temperature. If Rules can be created
+to trigger temperature measurement alarms (e.g by an Analytics Service), it can inform a client using this event.
+This event is a basic temperature measurement alarm condition event that shall be supported by any thermal
+imaging devices that support radiometry.
+If a device is capable of processing more complex temperature analysis algorithms it can provide additional
+vendor specific temperature measurement events (e.g. isotherms, temperature trending, temperature readings
+against ambient temperature comparisons, etc.).
+If the device supports radiometry it shall provide at least the following basic event:
+Topic: tns1:VideoSource/RadiometryAlarm
+<tt:MessageDescription IsProperty=”true”>
+<tt:Source>
+
+ONVIF™
+
+– 11 –
+
+Thermal – Ver. 22.06
+
+<tt:SimpleItemDescription Name=”VideoSource” Type=”tt:ReferenceToken”/>
+</tt:Source>
+<tt:Data>
+<tt:SimpleItemDescription Name=”State” Type=”xs:oolean”/>
+</tt:Data>
+</tt:MessageDescription>
+
+ONVIF™
+
+– 12 –
+
+Thermal – Ver. 22.06
+
+Annex A.
+Revision History
+Rev.
+
+Date
+
+Editor
+
+Changes
+
+16.06
+
+Jun-2016
+
+Arsenio Vilallonga
+
+Initial version.
+
+17.06
+
+Jun-2017
+
+Hans Busch,
+Hiroyuki Sano,
+Arsenio Vilallonga
+
+Change Request 1843 Change Request 2058, 2115, 2141
+Added Radiometry Configuration related API and types
+
+22.06
+
+June-2022
+
+Sergey Bogdanov
+
+Rename sections to show real name of service command.
+
+

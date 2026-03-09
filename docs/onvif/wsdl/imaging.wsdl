@@ -1,0 +1,603 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="../../../ver20/util/onvif-wsdl-viewer.xsl"?>
+<!--
+Copyright (c) 2008-2019 by ONVIF: Open Network Video Interface Forum. All rights reserved.
+
+Recipients of this document may copy, distribute, publish, or display this document so long as this copyright notice, license and disclaimer are retained with all copies of the document. No license is granted to modify this document.
+
+THIS DOCUMENT IS PROVIDED "AS IS," AND THE CORPORATION AND ITS MEMBERS AND THEIR AFFILIATES, MAKE NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, OR TITLE; THAT THE CONTENTS OF THIS DOCUMENT ARE SUITABLE FOR ANY PURPOSE; OR THAT THE IMPLEMENTATION OF SUCH CONTENTS WILL NOT INFRINGE ANY PATENTS, COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS.
+IN NO EVENT WILL THE CORPORATION OR ITS MEMBERS OR THEIR AFFILIATES BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL, PUNITIVE OR CONSEQUENTIAL DAMAGES, ARISING OUT OF OR RELATING TO ANY USE OR DISTRIBUTION OF THIS DOCUMENT, WHETHER OR NOT (1) THE CORPORATION, MEMBERS OR THEIR AFFILIATES HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES, OR (2) SUCH DAMAGES WERE REASONABLY FORESEEABLE, AND ARISING OUT OF OR RELATING TO ANY USE OR DISTRIBUTION OF THIS DOCUMENT.  THE FOREGOING DISCLAIMER AND LIMITATION ON LIABILITY DO NOT APPLY TO, INVALIDATE, OR LIMIT REPRESENTATIONS AND WARRANTIES MADE BY THE MEMBERS AND THEIR RESPECTIVE AFFILIATES TO THE CORPORATION AND OTHER MEMBERS IN CERTAIN WRITTEN POLICIES OF THE CORPORATION.
+-->
+<wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:timg="http://www.onvif.org/ver20/imaging/wsdl" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap12/" xmlns:tt="http://www.onvif.org/ver10/schema" name="ImagingService" targetNamespace="http://www.onvif.org/ver20/imaging/wsdl">
+	<wsdl:types>
+		<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tt="http://www.onvif.org/ver10/schema" xmlns:timg="http://www.onvif.org/ver20/imaging/wsdl" targetNamespace="http://www.onvif.org/ver20/imaging/wsdl" elementFormDefault="qualified" version="19.06">
+			<xs:import namespace="http://www.onvif.org/ver10/schema" schemaLocation="../../../ver10/schema/onvif.xsd"/>
+			<!--  Message Request/Responses elements  -->
+			<!--===============================-->
+			<xs:element name="GetServiceCapabilities">
+				<xs:complexType>
+					<xs:sequence/>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="GetServiceCapabilitiesResponse">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="Capabilities" type="timg:Capabilities">
+							<xs:annotation>
+								<xs:documentation>The capabilities for the imaging service is returned in the Capabilities element.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<!--===============================-->
+			<xs:complexType name="Capabilities">
+				<xs:sequence>
+					<xs:any namespace="##any" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>   <!-- first Vendor then ONVIF -->
+				</xs:sequence>
+				<xs:attribute name="ImageStabilization" type="xs:boolean">
+					<xs:annotation>
+						<xs:documentation>Indicates whether or not Image Stabilization feature is supported.
+						The use of this capability is deprecated, a client should use GetOption to find out if image stabilization is supported.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="Presets" type="xs:boolean">
+					<xs:annotation>
+						<xs:documentation>Indicates whether or not Imaging Presets feature is supported.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="AdaptablePreset" type="xs:boolean">
+					<xs:annotation>
+						<xs:documentation>Indicates whether or not imaging preset settings can be updated.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:anyAttribute processContents="lax"/>
+			</xs:complexType>
+			<xs:element name="Capabilities" type="timg:Capabilities"/>
+			<!--===============================-->
+			<xs:element name="GetImagingSettings">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="VideoSourceToken" type="tt:ReferenceToken">
+							<xs:annotation>
+								<xs:documentation>
+							Reference token to the VideoSource for which the ImagingSettings.
+						</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="GetImagingSettingsResponse">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="ImagingSettings" type="tt:ImagingSettings20">
+							<xs:annotation>
+								<xs:documentation>
+								ImagingSettings for the VideoSource that was requested.
+							</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<!--===============================-->
+			<xs:element name="SetImagingSettings">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="VideoSourceToken" type="tt:ReferenceToken"/>
+						<xs:element name="ImagingSettings" type="tt:ImagingSettings20"/>
+						<xs:element name="ForcePersistence" type="xs:boolean" maxOccurs="1" minOccurs="0"/>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="SetImagingSettingsResponse">
+				<xs:complexType/>
+			</xs:element>
+			<!--===============================-->
+			<xs:element name="GetOptions">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="VideoSourceToken" type="tt:ReferenceToken">
+							<xs:annotation>
+								<xs:documentation>
+							Reference token to the VideoSource for which the imaging parameter options are requested.
+							</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="GetOptionsResponse">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="ImagingOptions" type="tt:ImagingOptions20">
+							<xs:annotation>
+								<xs:documentation>
+							Valid ranges for the imaging parameters that are categorized as device specific.
+							</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<!--===============================-->
+			<xs:element name="Move">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="VideoSourceToken" type="tt:ReferenceToken">
+							<xs:annotation>
+								<xs:documentation>
+							Reference to the VideoSource for the requested move (focus) operation.
+							</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:element name="Focus" type="tt:FocusMove">
+							<xs:annotation>
+								<xs:documentation>
+							Content of the requested move (focus) operation.
+							</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="MoveResponse">
+				<xs:complexType>
+					<xs:sequence/>
+				</xs:complexType>
+			</xs:element>
+			<!--===============================-->
+			<xs:element name="GetMoveOptions">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="VideoSourceToken" type="tt:ReferenceToken">
+							<xs:annotation>
+								<xs:documentation>
+							Reference token to the VideoSource for the requested move options.
+							</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="GetMoveOptionsResponse">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="MoveOptions" type="tt:MoveOptions20">
+							<xs:annotation>
+								<xs:documentation>
+							Valid ranges for the focus lens move options.
+							</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<!--===============================-->
+			<xs:element name="Stop">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="VideoSourceToken" type="tt:ReferenceToken">
+							<xs:annotation>
+								<xs:documentation>
+								Reference token to the VideoSource where the focus movement should be stopped.
+						</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="StopResponse">
+				<xs:complexType>
+					<xs:sequence>
+          </xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<!--===============================-->
+			<xs:element name="GetStatus">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="VideoSourceToken" type="tt:ReferenceToken">
+							<xs:annotation>
+								<xs:documentation>
+						Reference token to the VideoSource where the imaging status should be requested.
+						</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="GetStatusResponse">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="Status" type="tt:ImagingStatus20">
+							<xs:annotation>
+								<xs:documentation>
+						Requested imaging status.
+						</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<!--===============================-->
+			<xs:simpleType name="ImagingPresetType">
+				<xs:annotation>
+					<xs:documentation>Describes standard Imaging Preset types, used to facilitate Multi-language support and client display.
+					"Custom" Type shall be used when Imaging Preset Name does not match any of the types included in the standard classification.
+					</xs:documentation>
+				</xs:annotation>
+				<xs:restriction base="xs:string">
+					<xs:enumeration value="Custom"/>
+					<xs:enumeration value="ClearWeather"/>
+					<xs:enumeration value="Cloudy"/>
+					<xs:enumeration value="Fog"/>
+					<xs:enumeration value="Rain"/>
+					<xs:enumeration value="Snowing"/>
+					<xs:enumeration value="Snow"/>
+					<xs:enumeration value="WDR"/>
+					<xs:enumeration value="Shade"/>
+					<xs:enumeration value="Night"/>
+					<xs:enumeration value="Indoor"/>
+					<xs:enumeration value="Fluorescent"/>
+					<xs:enumeration value="Incandescent"/>
+					<xs:enumeration value="Sodium(Natrium)"/>
+					<xs:enumeration value="Sunrise(Horizon)"/>
+					<xs:enumeration value="Sunset(Rear)"/>
+					<xs:enumeration value="ExtremeHot"/>
+					<xs:enumeration value="ExtremeCold"/>
+					<xs:enumeration value="Underwater"/>
+					<xs:enumeration value="CloseUp"/>
+					<xs:enumeration value="Motion"/>
+					<xs:enumeration value="FlickerFree50"/>
+					<xs:enumeration value="FlickerFree60"/>
+				</xs:restriction>
+			</xs:simpleType>
+			<!--===============================-->
+			<xs:complexType name="ImagingPreset">
+				<xs:annotation>
+					<xs:documentation>Type describing the Imaging Preset settings.</xs:documentation>
+				</xs:annotation>
+				<xs:sequence>
+					<xs:element name="Name" type="tt:Name">
+						<xs:annotation>
+							<xs:documentation>Human readable name of the Imaging Preset.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+				</xs:sequence>
+				<xs:attribute name="token" type="tt:ReferenceToken" use="required">
+					<xs:annotation>
+						<xs:documentation>Unique identifier of this Imaging Preset.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:attribute name="type" type="xs:string" use="required">
+					<xs:annotation>
+						<xs:documentation>Indicates Imaging Preset Type. Use timg:ImagingPresetType. 
+						Used for multi-language support and display.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+				<xs:anyAttribute processContents="lax"/>
+			</xs:complexType>
+			<!--===============================-->
+			<xs:element name="GetPresets">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="VideoSourceToken" type="tt:ReferenceToken">
+							<xs:annotation>
+								<xs:documentation>
+									A reference to the VideoSource where the operation should take place.
+								</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="GetPresetsResponse">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="Preset" type="timg:ImagingPreset" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation> 
+									List of Imaging Presets which are available for the requested VideoSource.
+								</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<!--===============================-->
+			<xs:element name="GetCurrentPreset">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="VideoSourceToken" type="tt:ReferenceToken">
+							<xs:annotation>
+								<xs:documentation> Reference token to the VideoSource where the current Imaging Preset should be requested.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="GetCurrentPresetResponse">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="Preset" type="timg:ImagingPreset" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation> Current Imaging Preset in use for the specified Video Source.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<!--===============================-->
+			<xs:element name="SetCurrentPreset">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="VideoSourceToken" type="tt:ReferenceToken">
+							<xs:annotation>
+								<xs:documentation>
+								Reference token to the VideoSource to which the specified Imaging Preset should be applied.
+						</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:element name="PresetToken" type="tt:ReferenceToken">
+							<xs:annotation>
+								<xs:documentation> Reference token to the Imaging Preset to be applied to the specified Video Source. </xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="SetCurrentPresetResponse">
+				<xs:complexType>
+					<xs:sequence/>
+				</xs:complexType>
+			</xs:element>
+			<!--===============================-->
+		</xs:schema>
+	</wsdl:types>
+	<wsdl:message name="GetServiceCapabilitiesRequest">
+		<wsdl:part name="parameters" element="timg:GetServiceCapabilities"/>
+	</wsdl:message>
+	<wsdl:message name="GetServiceCapabilitiesResponse">
+		<wsdl:part name="parameters" element="timg:GetServiceCapabilitiesResponse"/>
+	</wsdl:message>
+	<wsdl:message name="GetImagingSettingsRequest">
+		<wsdl:part name="parameters" element="timg:GetImagingSettings"/>
+	</wsdl:message>
+	<wsdl:message name="GetImagingSettingsResponse">
+		<wsdl:part name="parameters" element="timg:GetImagingSettingsResponse"/>
+	</wsdl:message>
+	<wsdl:message name="SetImagingSettingsRequest">
+		<wsdl:part name="parameters" element="timg:SetImagingSettings"/>
+	</wsdl:message>
+	<wsdl:message name="SetImagingSettingsResponse">
+		<wsdl:part name="parameters" element="timg:SetImagingSettingsResponse"/>
+	</wsdl:message>
+	<wsdl:message name="GetOptionsRequest">
+		<wsdl:part name="parameters" element="timg:GetOptions"/>
+	</wsdl:message>
+	<wsdl:message name="GetOptionsResponse">
+		<wsdl:part name="parameters" element="timg:GetOptionsResponse"/>
+	</wsdl:message>
+	<wsdl:message name="MoveRequest">
+		<wsdl:part name="parameters" element="timg:Move"/>
+	</wsdl:message>
+	<wsdl:message name="MoveResponse">
+		<wsdl:part name="parameters" element="timg:MoveResponse"/>
+	</wsdl:message>
+	<wsdl:message name="GetMoveOptionsRequest">
+		<wsdl:part name="parameters" element="timg:GetMoveOptions"/>
+	</wsdl:message>
+	<wsdl:message name="GetMoveOptionsResponse">
+		<wsdl:part name="parameters" element="timg:GetMoveOptionsResponse"/>
+	</wsdl:message>
+	<wsdl:message name="StopRequest">
+		<wsdl:part name="parameters" element="timg:Stop"/>
+	</wsdl:message>
+	<wsdl:message name="StopResponse">
+		<wsdl:part name="parameters" element="timg:StopResponse"/>
+	</wsdl:message>
+	<wsdl:message name="GetStatusRequest">
+		<wsdl:part name="parameters" element="timg:GetStatus"/>
+	</wsdl:message>
+	<wsdl:message name="GetStatusResponse">
+		<wsdl:part name="parameters" element="timg:GetStatusResponse"/>
+	</wsdl:message>
+	<wsdl:message name="GetPresetsRequest">
+		<wsdl:part name="parameters" element="timg:GetPresets"/>
+	</wsdl:message>
+	<wsdl:message name="GetPresetsResponse">
+		<wsdl:part name="parameters" element="timg:GetPresetsResponse"/>
+	</wsdl:message>	
+	<wsdl:message name="GetCurrentPresetRequest">
+		<wsdl:part name="parameters" element="timg:GetCurrentPreset"/>
+	</wsdl:message>
+	<wsdl:message name="GetCurrentPresetResponse">
+		<wsdl:part name="parameters" element="timg:GetCurrentPresetResponse"/>
+	</wsdl:message>	
+	<wsdl:message name="SetCurrentPresetRequest">
+		<wsdl:part name="parameters" element="timg:SetCurrentPreset"/>
+	</wsdl:message>
+	<wsdl:message name="SetCurrentPresetResponse">
+		<wsdl:part name="parameters" element="timg:SetCurrentPresetResponse"/>
+	</wsdl:message>		
+	<wsdl:portType name="ImagingPort">
+		<wsdl:operation name="GetServiceCapabilities">
+			<wsdl:documentation>Returns the capabilities of the imaging service. The result is returned in a typed answer.</wsdl:documentation>
+			<wsdl:input message="timg:GetServiceCapabilitiesRequest"/>
+			<wsdl:output message="timg:GetServiceCapabilitiesResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="GetImagingSettings">
+			<wsdl:documentation>Get the ImagingConfiguration for the requested VideoSource.</wsdl:documentation>
+			<wsdl:input message="timg:GetImagingSettingsRequest"/>
+			<wsdl:output message="timg:GetImagingSettingsResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="SetImagingSettings">
+			<wsdl:documentation>Set the ImagingConfiguration for the requested VideoSource.</wsdl:documentation>
+			<wsdl:input message="timg:SetImagingSettingsRequest"/>
+			<wsdl:output message="timg:SetImagingSettingsResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="GetOptions">
+			<wsdl:documentation>This operation gets the valid ranges for the imaging parameters that have device specific ranges. 
+			This command is mandatory for all device implementing the imaging service. The command returns all supported parameters and their ranges 
+			such that these can be applied to the SetImagingSettings command.<br/>
+			For read-only parameters which cannot be modified via the SetImagingSettings command only a single option or identical Min and Max values 
+			is provided.</wsdl:documentation>
+			<wsdl:input message="timg:GetOptionsRequest"/>
+			<wsdl:output message="timg:GetOptionsResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="Move">
+			<wsdl:documentation>The Move command moves the focus lens in an absolute, a relative or in a continuous manner from its current position. 
+			The speed argument is optional for absolute and relative control, but required for continuous. If no speed argument is used, the default speed is used. 
+			Focus adjustments through this operation will turn off the autofocus. A device with support for remote focus control should support absolute, 
+			relative or continuous control through the Move operation. The supported MoveOpions are signalled via the GetMoveOptions command.
+			At least one focus control capability is required for this operation to be functional. <br/>
+			The move operation contains the following commands:<br/>
+				<b>Absolute</b> – Requires position parameter and optionally takes a speed argument. A unitless type is used by default for focus positioning and speed. Optionally, if supported, the position may be requested in m-1 units. <br/>
+				<b>Relative</b> – Requires distance parameter and optionally takes a speed argument. Negative distance means negative direction. 
+			<b>Continuous</b> – Requires a speed argument. Negative speed argument means negative direction.
+			</wsdl:documentation>
+			<wsdl:input message="timg:MoveRequest"/>
+			<wsdl:output message="timg:MoveResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="GetMoveOptions">
+			<wsdl:documentation>Imaging move operation options supported for the Video source.</wsdl:documentation>
+			<wsdl:input message="timg:GetMoveOptionsRequest"/>
+			<wsdl:output message="timg:GetMoveOptionsResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="Stop">
+			<wsdl:documentation>The Stop command stops all ongoing focus movements of the lense. A device with support for remote focus control as signalled via 
+			the GetMoveOptions supports this command. <br/>The operation will not affect ongoing autofocus operation.</wsdl:documentation>
+			<wsdl:input message="timg:StopRequest"/>
+			<wsdl:output message="timg:StopResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="GetStatus">
+			<wsdl:documentation>Via this command the current status of the Move operation can be requested. Supported for this command is available if the support for the Move operation is signalled via GetMoveOptions.</wsdl:documentation>
+			<wsdl:input message="timg:GetStatusRequest"/>
+			<wsdl:output message="timg:GetStatusResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="GetPresets">
+			<wsdl:documentation>Via this command the list of available Imaging Presets can be requested.</wsdl:documentation>
+			<wsdl:input message="timg:GetPresetsRequest"/>
+			<wsdl:output message="timg:GetPresetsResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="GetCurrentPreset">
+			<wsdl:documentation>Via this command the last Imaging Preset applied can be requested. 
+			If the camera configuration does not match any of the existing Imaging Presets, the output of GetCurrentPreset shall be Empty.
+			GetCurrentPreset shall return 0 if Imaging Presets are not supported by the Video Source.</wsdl:documentation>
+			<wsdl:input message="timg:GetCurrentPresetRequest"/>
+			<wsdl:output message="timg:GetCurrentPresetResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="SetCurrentPreset">
+			<wsdl:documentation>The SetCurrentPreset command shall request a given Imaging Preset to be applied to the specified Video Source.
+			SetCurrentPreset shall only be available for Video Sources with Imaging Presets Capability. 
+			Imaging Presets are defined by the Manufacturer, and offered as a tool to simplify Imaging Settings adjustments for specific scene content.
+			When the new Imaging Preset is applied by SetCurrentPreset, the Device shall adjust the Video Source settings to match those defined by the specified Imaging Preset.</wsdl:documentation>
+			<wsdl:input message="timg:SetCurrentPresetRequest"/>
+			<wsdl:output message="timg:SetCurrentPresetResponse"/>
+		</wsdl:operation>
+	</wsdl:portType>
+	<wsdl:binding name="ImagingBinding" type="timg:ImagingPort">
+		<soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+		<wsdl:operation name="GetServiceCapabilities">
+			<soap:operation soapAction="http://www.onvif.org/ver20/imaging/wsdl/GetServiceCapabilities"/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="GetImagingSettings">
+			<soap:operation soapAction="http://www.onvif.org/ver20/imaging/wsdl/GetImagingSettings"/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="SetImagingSettings">
+			<soap:operation soapAction="http://www.onvif.org/ver20/imaging/wsdl/SetImagingSettings"/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="GetOptions">
+			<soap:operation soapAction="http://www.onvif.org/ver20/imaging/wsdl/GetOptions"/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="Move">
+			<soap:operation soapAction="http://www.onvif.org/ver20/imaging/wsdl/Move"/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="Stop">
+			<soap:operation soapAction="http://www.onvif.org/ver20/imaging/wsdl/FocusStop"/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="GetStatus">
+			<soap:operation soapAction="http://www.onvif.org/ver20/imaging/wsdl/GetStatus"/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="GetMoveOptions">
+			<soap:operation soapAction="http://www.onvif.org/ver20/imaging/wsdl/GetMoveOptions"/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="GetPresets">
+			<soap:operation soapAction="http://www.onvif.org/ver20/imaging/wsdl/GetPresets"/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="GetCurrentPreset">
+			<soap:operation soapAction="http://www.onvif.org/ver20/imaging/wsdl/GetCurrentPreset"/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="SetCurrentPreset">
+			<soap:operation soapAction="http://www.onvif.org/ver20/imaging/wsdl/SetCurrentPreset"/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+	</wsdl:binding>
+</wsdl:definitions>

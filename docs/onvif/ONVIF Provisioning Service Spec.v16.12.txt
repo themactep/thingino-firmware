@@ -1,0 +1,740 @@
+ONVIF™
+
+–1–
+
+Provisioning Service - Ver. 16.12
+
+ONVIF™
+Provisioning Service Specification
+Version 16.12
+December 2016
+
+ONVIF™
+
+–2–
+
+Provisioning Service - Ver. 16.12
+
+ 2008-2016 by ONVIF: Open Network Video Interface ForumInc.. All rights reserved.
+
+Recipients of this document may copy, distribute, publish, or display this document so long as this
+copyright notice, license and disclaimer are retained with all copies of the document. No license is
+granted to modify this document.
+THIS DOCUMENT IS PROVIDED "AS IS," AND THE CORPORATION AND ITS MEMBERS AND
+THEIR AFFILIATES, MAKE NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE, NON-INFRINGEMENT, OR TITLE; THAT THE CONTENTS OF THIS
+DOCUMENT ARE SUITABLE FOR ANY PURPOSE; OR THAT THE IMPLEMENTATION OF SUCH
+CONTENTS WILL NOT INFRINGE ANY PATENTS, COPYRIGHTS, TRADEMARKS OR OTHER
+RIGHTS.
+IN NO EVENT WILL THE CORPORATION OR ITS MEMBERS OR THEIR AFFILIATES BE LIABLE
+FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL, PUNITIVE OR CONSEQUENTIAL
+DAMAGES, ARISING OUT OF OR RELATING TO ANY USE OR DISTRIBUTION OF THIS
+DOCUMENT, WHETHER OR NOT (1) THE CORPORATION, MEMBERS OR THEIR AFFILIATES
+HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES, OR (2) SUCH DAMAGES
+WERE REASONABLY FORESEEABLE, AND ARISING OUT OF OR RELATING TO ANY USE OR
+DISTRIBUTION OF THIS DOCUMENT. THE FOREGOING DISCLAIMER AND LIMITATION ON
+LIABILITY DO NOT APPLY TO, INVALIDATE, OR LIMIT REPRESENTATIONS AND WARRANTIES
+MADE BY THE MEMBERS AND THEIR RESPECTIVE AFFILIATES TO THE CORPORATION AND
+OTHER MEMBERS IN CERTAIN WRITTEN POLICIES OF THE CORPORATION.
+
+ONVIF™
+
+–3–
+
+Provisioning Service - Ver. 16.12
+
+CONTENTS
+1
+
+Scope
+
+4
+
+2
+
+Normative References
+
+4
+
+3
+
+Definitions
+
+5
+
+4
+
+Overview
+
+5
+
+5
+
+Provisioning Service
+
+6
+
+5.1
+Move Operations ............................................................................................................. 6
+5.1.1 Pan Move .................................................................................................................... 6
+5.1.2 Tilt Move ..................................................................................................................... 7
+5.1.3 Zoom Move ................................................................................................................. 7
+5.1.4 Roll Move .................................................................................................................... 8
+5.1.5 Focus Move ................................................................................................................ 8
+5.1.6 Stop............................................................................................................................. 9
+5.2
+
+Usage Operation ............................................................................................................. 9
+
+5.3
+
+Capabilities .................................................................................................................... 11
+
+5.4
+
+Service specific fault codes ........................................................................................... 12
+
+Annex A. Revision History
+
+13
+
+ONVIF™
+
+1
+
+–4–
+
+Provisioning Service - Ver. 16.12
+
+Scope
+
+This document defines the web service interface for ONVIF Provisioning features. A
+provisioning feature involves limited-lifetime components such as a stepper motor, where the
+vendor expects the feature to be used only during device installation
+Web service usage is outside of the scope of this document. Please refer to the ONVIF core
+specification.
+
+2
+
+Normative References
+
+ONVIF Core Specification
+<http://www.onvif.org/specs/core/ONVIF-Core-Specification-v261.pdf>
+ONVIF Device I/O Specification
+<http://www.onvif.org/specs/srv/io/ONVIF-DeviceIo-Service-Spec-v1606.pdf>
+
+ONVIF™
+
+3
+
+–5–
+
+Provisioning Service - Ver. 16.12
+
+Definitions
+
+Provisioning
+
+Doing something in advance to prepare for something else.
+
+Video Source
+
+Entity defined by [ONVIF Device I/O Specification]
+
+Video Source Token
+
+Token referencing a Device I/O Video Source
+
+4
+
+Overview
+
+The provisioning service allows device adjustments that are not intended for general day-today use. Its methods allow the following device adjustments:
+
+
+Pan (left/right)
+
+
+
+Tilt (up/down)
+
+
+
+Zoom (wide/telephoto)
+
+
+
+Roll (clockwise/counterclockwise, auto-level)
+
+
+
+Focus (near/far, auto-focus)
+
+There is a Stop method to stop movement on all provisioning methods. There is a GetUsage
+method to determine how much a particular movement has been used. Finally, there is a
+GetServiceCapabilities method used after device discovery to determine which provisioning
+methods are available on the device.
+The WSDL for this service is specified in
+<http://www.onvif.org/ver10/provisioning/wsdl/provisioning.wsdl>.
+Table 1: Referenced namespaces with prefix
+Prefix
+
+Namespace URI
+
+env
+
+http://www.w3.org/2003/05/soap-envelope
+
+ter
+
+http://www.onvif.org/ver10/error
+
+xs
+
+http://www.w3.org/2001/XMLSchema
+
+tt
+
+http://www.onvif.org/ver10/schema
+
+tpv
+
+http://www.onvif.org/ver10/provisioning/wsdl
+
+All sections in this specification are normative unless explicitly marked as informative.
+
+ONVIF™
+
+5
+
+–6–
+
+Provisioning Service - Ver. 16.12
+
+Provisioning Service
+
+5.1
+
+Move Operations
+
+These operations continuously move the device until the requested timeout expires, the client
+sends a Stop command, the client sends another provisioning Move command, or the device
+reaches a physical limit and cannot move in the specified direction anymore. If the request
+doesn’t contain a timeout duration, then the device shall stop when the default timeout expires.
+A device shall accept any given value of timeout. If necessary the device may adapt this
+parameter value without returning an error.
+For simplicity in managing timeouts on the device, a timeout expiration on any axis may result
+in stopping movement on all axes, emulating a Stop operation.
+5.1.1
+
+Pan Move
+
+This operation continuously moves the camera left or right.
+A device indicating MaximumPanMoves capability greater than zero shall support the
+provisional pan through the PanMove command.
+Table 2: PanMove command
+Access Class: WRITE_SYSTEM
+
+PanMove
+Message name
+
+Description
+
+PanMoveRequest
+
+This message contains a request for the device to
+move left or right.
+tt:ReferenceToken VideoSource [1][1]
+tpv:PanDirection Direction [1][1]
+xs:Duration Timeout [0][1]
+
+PanMoveResponse
+
+This is an empty message.
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+ter:NoSource
+env:Sender
+ter:ActionNotSupported
+ter:NoProvisioning
+
+The video source does not exist.
+
+Provisioning is not supported for this operation on the
+given video source.
+
+ONVIF™
+5.1.2
+
+–7–
+
+Provisioning Service - Ver. 16.12
+
+Tilt Move
+
+This operation continuously moves the camera up or down.
+A device indicating MaximumTiltMoves capability greater than zero shall support the
+provisional tilt through the TiltMove command.
+Table 3: TiltMove command
+Access Class: WRITE_SYSTEM
+
+TiltMove
+Message name
+
+Description
+
+TiltMoveRequest
+
+This message contains a request for the device to
+move up or down.
+tt:ReferenceToken VideoSource [1][1]
+tpv:TiltDirection Direction [1][1]
+xs:Duration Timeout [0][1]
+
+TiltMoveResponse
+
+This is an empty message.
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+ter:NoSource
+env:Sender
+ter:ActionNotSupported
+ter:NoProvisioning
+
+The video source does not exist.
+
+5.1.3
+
+Provisioning is not supported for this operation on the
+given video source.
+
+Zoom Move
+
+This operation continuously moves the lens focal point in or out.
+A device indicating MaximumZoomMoves capability greater than zero shall support the
+provisional zoom through the ZoomMove command.
+Table 4: ZoomMove command
+Access Class: WRITE_SYSTEM
+
+ZoomMove
+Message name
+
+Description
+
+ZoomMoveRequest
+
+This message contains a request for the device lens to
+move towards wide angle or telephoto.
+tt:ReferenceToken VideoSource [1][1]
+tpv:ZoomDirection Direction [1][1]
+xs:Duration Timeout [0][1]
+
+ZoomMoveResponse
+
+This is an empty message.
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+ter:NoSource
+env:Sender
+ter:ActionNotSupported
+ter:NoProvisioning
+
+The video source does not exist.
+
+Provisioning is not supported for this operation on the
+given video source.
+
+ONVIF™
+5.1.4
+
+–8–
+
+Provisioning Service - Ver. 16.12
+
+Roll Move
+
+This operation continuously moves the camera clockwise or counterclockwise.
+A device indicating MaximumRollMoves capability greater than zero shall support the
+provisional roll through the RollMove command.
+If a device supports the AutoLevel capability, the direction may be Auto.
+Table 5: RollMove command
+Access Class: WRITE_SYSTEM
+
+RollMove
+Message name
+
+Description
+
+RollMoveRequest
+
+This message contains a request for the device to roll
+clockwise or counterclockwise, or to auto-level.
+tt:ReferenceToken VideoSource [1][1]
+tpv:RollDirection Direction [1][1]
+xs:Duration Timeout [0][1]
+
+RollMoveResponse
+
+This is an empty message.
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+ter:NoSource
+env:Sender
+ter:ActionNotSupported
+ter:NoProvisioning
+env:Sender
+ter:ActionNotSupported
+ter:NoAutoMode
+
+The video source does not exist.
+
+5.1.5
+
+Provisioning is not supported for this operation on the
+given video source.
+Cannot set position automatically.
+
+Focus Move
+
+This operation continuously moves the camera lens in or out.
+A device indicating MaximumFocusMoves capability greater than zero shall support the
+provisional focus through the FocusMove command.
+If a device supports the AutoFocus capability, the direction may be Auto.
+Table 6: FocusMove command
+Access Class: WRITE_SYSTEM
+
+FocusMove
+Message name
+
+Description
+
+FocusMoveRequest
+
+This message contains a request for the device lens to
+focus near or far, or to auto-focus.
+tt:ReferenceToken VideoSource [1][1]
+tpv:FocusDirection Direction [1][1]
+xs:Duration Timeout [0][1]
+
+FocusMoveResponse
+
+This is an empty message.
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+
+The video source does not exist.
+
+ONVIF™
+
+–9–
+
+Provisioning Service - Ver. 16.12
+
+ter:NoSource
+env:Sender
+ter:ActionNotSupported
+ter:NoProvisioning
+env:Sender
+ter:ActionNotSupported
+ter:NoAutoMode
+5.1.6
+
+Provisioning is not supported for this operation on the
+given video source.
+Cannot set position automatically.
+
+Stop
+
+This operation immediately stops movement on all axes.
+Table 7: Stop command
+Access Class: WRITE_SYSTEM
+
+Stop
+Message name
+
+Description
+
+StopRequest
+
+This message contains a request to stop all
+movement.
+tt:ReferenceToken VideoSource [1][1]
+
+StopResponse
+
+This is an empty message.
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+ter:NoSource
+
+The video source does not exist.
+
+5.2
+
+Usage Operation
+
+This operation returns information about how many provisioning operations have been
+performed on each axis. These values can be compared to the lifetime limits from
+GetServiceCapabilities to determine how close to (or past) vendor defined life limits the
+device is. The values shall survive a SetSystemFactoryDefault operation.
+A single provisioning operation may increase the corresponding usage number by more than 1.
+For example, pan usage may increment by the number of steps the stepper motor has moved,
+which can be multiple steps per operation.
+If a particular provisioning axis is not supported, the corresponding usage value may be
+omitted from the response.
+
+ONVIF™
+
+– 10 –
+
+Provisioning Service - Ver. 16.12
+
+Table 8: GetUsage command
+Access Class: READ_SYSTEM
+
+GetUsage
+Message name
+
+Description
+
+GetUsageRequest
+
+This message contains a request for the number of
+operations performed on each axis.
+tt:ReferenceToken VideoSource [1][1]
+
+GetUsageResponse
+
+This message contains the number of operations that
+have been performed on each axis over the life of the
+device.
+tpv:Usage Usage [1][1]
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+ter:NoSource
+
+The video source does not exist.
+
+ONVIF™
+5.3
+
+– 11 –
+
+Provisioning Service - Ver. 16.12
+
+Capabilities
+
+The capabilities reflect optional functions and functionality of a service. The information is static and
+does not change during device operation.
+There is one global capability:
+
+DefaultTimeout
+
+Device-defined timeout after which movement
+stops.
+
+The rest of the capabilities is related to a specific video source and returned in a separate element
+(tpv:SourceCapabilities) containing the following properties:
+VideoSourceToken
+
+The identifier of the video source, a device
+shall supply this value.
+
+MaximumPanMoves
+
+Lifetime limit for pan moves on this video
+source; indication of pan move support as
+described in Section 5.1.1.
+
+MaximumTiltMoves
+
+Lifetime limit for tilt moves on this video
+source; indication of tilt move support as
+described in Section 5.1.15.1.2.
+
+MaximumZoomMoves
+
+Lifetime limit for zoom moves on this video
+source; indication of zoom move support as
+described in Section 5.1.3.
+
+MaximumRollMoves
+
+Lifetime limit for roll moves on this video
+source; indication of roll move support as
+described in Section 5.1.4.
+
+AutoLevel
+
+Indication of an auto-level option in a roll
+move as described in Section 5.1.4.
+If
+MaximumRollMoves
+is
+not
+defined,
+AutoLevel is ignored.
+
+MaximumFocusMoves
+
+Lifetime limit for focus moves on this video
+source; indication of focus move support as
+described in Section 5.1.5.
+
+AutoFocus
+
+Indication of an auto-focus option in a focus
+move as described in Section 5.1.5.
+If
+MaximumFocusMoves
+is
+not
+defined,
+AutoFocus is ignored.
+
+ONVIF™
+
+– 12 –
+
+Provisioning Service - Ver. 16.12
+
+Table 9: GetServiceCapabilities command
+Access Class: PRE_AUTH
+
+GetServiceCapabilities
+Message name
+
+Description
+
+GetServiceCapablitiesRequest
+
+This is an empty message.
+
+GetServiceCapabilitiesResponse
+
+The capability response message contains the requested service
+capabilities using a hierarchical XML capability structure
+tpv:Capabilities Capabilities [1][1]
+
+Fault codes
+
+Description
+
+No command-specific fault codes.
+
+5.4
+
+Service specific fault codes
+
+The table below lists the provisioning service specific fault codes. Additionally, each
+command can also generate a generic fault as defined in [ONVIF Core specification].
+Table 10: Provisioning service specific fault codes
+Fault Code
+
+Parent Subcode
+
+Fault Reason
+
+Description
+
+Subcode
+env:Sender
+
+ter:InvalidArgVal
+ter:NoSource
+
+The video source
+does not exist.
+
+There is no Video Source associated
+with the specified token.
+
+env:Sender
+
+ter:ActionNotSupported
+ter:NoProvisioning
+
+Provisioning is
+not supported for
+this operation.
+
+The operation was called on a Video
+Source that does not support that
+command, as indicated in
+GetServiceCapabilities.
+
+env:Sender
+
+ter:ActionNotSupported
+ter:NoAutoMode
+
+Cannot set
+position
+automatically.
+
+The operation was called requesting a
+direction of Auto on a Video Source that
+does not support that mode, as indicated
+in GetServiceCapabilities.
+
+ONVIF™
+
+– 13 –
+
+Provisioning Service - Ver. 16.12
+
+Annex A. Revision History
+Rev.
+
+Date
+
+Editor
+
+Changes
+
+16.12
+
+Dec-2016
+
+Steve Wolf
+Ottavio Campana
+
+First release
+
+

@@ -1,0 +1,1088 @@
+ONVIF™
+
+–1–
+
+ExportFileFormat – Ver. 22.12
+
+ONVIF™
+Export File Format Specification
+Version 22.12
+December, 2022
+
+ONVIF™
+
+–2–
+
+ExportFileFormat – Ver. 22.12
+
+Copyright © 2013-2022 ONVIF™ All rights reserved.
+Recipients of this document may copy, distribute, publish, or display this document so long as this copyright notice, license and disclaimer
+are retained with all copies of the document. No license is granted to modify this document.
+THIS DOCUMENT IS PROVIDED "AS IS," AND THE CORPORATION AND ITS MEMBERS AND THEIR AFFILIATES, MAKE
+NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO, WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, OR TITLE; THAT THE CONTENTS OF THIS
+DOCUMENT ARE SUITABLE FOR ANY PURPOSE; OR THAT THE IMPLEMENTATION OF SUCH CONTENTS WILL NOT INFRINGE
+ANY PATENTS, COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS.
+IN NO EVENT WILL THE CORPORATION OR ITS MEMBERS OR THEIR AFFILIATES BE LIABLE FOR ANY DIRECT, INDIRECT,
+SPECIAL, INCIDENTAL, PUNITIVE OR CONSEQUENTIAL DAMAGES, ARISING OUT OF OR RELATING TO ANY USE OR
+DISTRIBUTION OF THIS DOCUMENT, WHETHER OR NOT (1) THE CORPORATION, MEMBERS OR THEIR AFFILIATES HAVE BEEN
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGES, OR (2) SUCH DAMAGES WERE REASONABLY FORESEEABLE, AND ARISING
+OUT OF OR RELATING TO ANY USE OR DISTRIBUTION OF THIS DOCUMENT. THE FOREGOING DISCLAIMER AND LIMITATION
+ON LIABILITY DO NOT APPLY TO, INVALIDATE, OR LIMIT REPRESENTATIONS AND WARRANTIES MADE BY THE MEMBERS
+AND THEIR RESPECTIVE AFFILIATES TO THE CORPORATION AND OTHER MEMBERS IN CERTAIN WRITTEN POLICIES OF THE
+CORPORATION.
+
+ONVIF™
+
+–3–
+
+ExportFileFormat – Ver. 22.12
+
+CONTENTS
+1
+
+Scope
+
+4
+
+2
+
+Normative references
+
+4
+
+3
+
+Terms and Definitions
+
+4
+
+4
+
+5
+
+3.1
+
+Definitions ................................................................................................................................ 4
+
+3.2
+
+Abbreviations ........................................................................................................................... 4
+
+Overview
+
+4
+
+4.1
+
+General .................................................................................................................................... 4
+
+4.2
+
+Time Information ...................................................................................................................... 5
+
+4.3
+
+Location ................................................................................................................................... 5
+
+4.4
+
+Sealing ..................................................................................................................................... 5
+
+4.5
+
+Use case 1: Playback of chunked and oversize clips at remote site ............................................ 6
+
+4.6
+
+Use case 2: Forensic analysis at court ...................................................................................... 6
+
+4.7
+
+Use case 3: Playback at players not equipped according to the present specification ................... 6
+
+Export Format
+
+6
+
+5.1
+
+Required Side Information ........................................................................................................ 6
+
+5.2
+
+Timing ...................................................................................................................................... 8
+
+5.3
+
+Location information ................................................................................................................. 8
+
+5.4
+
+Timed metadata ....................................................................................................................... 9
+
+5.5 Signature ................................................................................................................................. 9
+5.5.1 Preparing the signature input ............................................................................................. 9
+5.5.2 Generating the signature .................................................................................................. 10
+5.5.3 Include the generated signature in the file ......................................................................... 10
+5.5.3.1 Item Protection Box ................................................................................................... 10
+5.5.3.2 Protection Scheme Info Box ...................................................................................... 10
+5.5.3.3 Scheme Type Box ..................................................................................................... 10
+5.5.3.4 Scheme Information Box ........................................................................................... 11
+5.5.3.5 Signature Box ........................................................................................................... 11
+5.5.3.6 Certificate Box .......................................................................................................... 11
+5.5.3.7 Signature Configuration Box ...................................................................................... 11
+5.6 Repeated signing .................................................................................................................... 12
+5.6.1 Procedure ........................................................................................................................ 12
+5.6.2 Additional User Information Box ....................................................................................... 12
+Annex A
+
+Repeated Signing (informative)
+
+13
+
+Annex B
+
+Box Structure (informative)
+
+15
+
+Annex C
+
+Revision History
+
+17
+
+ONVIF™
+
+–4–
+
+ExportFileFormat – Ver. 22.12
+
+1 Scope
+This document defines the ONVIF file format for exported media. The specification defines the mechanism
+necessary to support interoperable verification of the authenticity by the receiving party.
+
+2 Normative references
+TM
+
+ONVIF Core Specification
+<http://www.onvif.org/specs/core/ONVIF-Core-Specification.pdf>
+TM
+
+ONVIF Streaming Specification
+<https://www.onvif.org/specs/stream/ONVIF-Streaming-Spec.pdf>
+ISO/IEC 14496-12 Information technology — Coding of audiovisual objects – Part 12: ISO base media file
+format
+<https://www.iso.org/obp/ui/#iso:std:iso-iec:14496:-12:ed-5:v1:en>
+NIST FIPS 180-4 Secure Hash Standard
+<https://csrc.nist.gov/publications/detail/fips/180/4/final>
+ISO/IEC 14888-2 Information technology – Security techniques – Digital signatures with appendix – Part 2:
+Integer factorization based mechanisms
+<https://www.iso.org/obp/ui/#iso:std:iso-iec:14888:-2:ed-2:v1:en>
+ETSI TS 126 244 3GPP file format
+<https://www.etsi.org/deliver/etsi_ts/126200_126299/126244/16.01.00_60/ts_126244v160100p.pdf>
+PKCS#1, v2.1 RSA Cryptographic Standard
+NIST FIPS 186 Digital Signature Standard (DSS)
+<https://csrc.nist.gov/publications/detail/fips/186/4/final>
+IETF RFC 3447 Public-Key Cryptography Standards (PKCS) #1: RSA Cryptography Specifications Version 2.1
+<https://tools.ietf.org/rfc/rfc3447.txt>
+ITU-T Recommendation X.690 (2008) | ISO/IEC 8825-1:2008, Information technology – ASN.1 encoding rules:
+Specification of Basic Encoding Rules (BER),Canonical Encoding Rules (CER)and Distinguished Encoding
+Rules (DER)
+<https://www.itu.int/rec/T-REC-X.690-200811-S>
+
+3 Terms and Definitions
+3.1 Definitions
+Certificate
+
+A certificate as used in this specification binds a public key to a subject entity. The certificate
+is digitally signed by the certificate issuer to allow for verifying its authenticity
+
+Signature
+
+A digital signature or digital signature scheme is a mathematical scheme for demonstrating
+the authenticity of a digital message or document.
+
+3.2 Abbreviations
+SHA
+
+Secure Hashing Algorithm
+
+4 Overview
+4.1 General
+This specification extends the ISO/IEC 14496-12 Base File Format in order to serve Video Surveillance requirements.
+
+ONVIF™
+
+–5–
+
+ExportFileFormat – Ver. 22.12
+
+4.2 Time Information
+The ISO Base File Format has been mainly designed for storing movies and music clips. It defines a media
+timeline relative to the beginning which is defined as time zero. For Video Surveillance purposes it is important
+that the file includes the absolute start time of the captured frames. All other times can be derived using the
+relative time data defined in ISO/IEC 14496-12. Additional to this time information time corrections can be
+stored during the sealing process.
+In order to improve random access the ISOM baseline requires the movie fragment table at the end of the file.
+This redundant information does not require the protection seal.
+
+4.3 Location
+Three mechanism for storing location information are defined for MP4 files by the mobile industry.
+This specification refers to the ETSI standard which has defined means for textual and spherical representation
+using the so called 'loci' box.
+Beside the ETSI standard two defacto standards exist for Android and iOS based mobile phones:
+
+•
+
+Android phones use the '©xyz' box holding an alphanumeric string with lon and lat degrees.
+
+•
+
+Mobile phones based on iOS store similar information in sub atoms of the meta box. Note that this
+meta box is incompatible with the ISO Base File Format specification.
+
+The location information is designated to provide a best effort for the video location in order to be able to geolocate the video. For fixed cameras the location should approximate to the intersection of the camera axis with
+the ground location. For moving cameras such an appoach may not be feasible and a fallback to the camera
+location may be more suitable.
+
+4.4 Sealing
+All data that a user wishes to carry away separately are put into a metaphorical bag. The bag is then sealed to
+enable tamper detection. Anyone wanting to use the data from the bag first examines the seal. The data in the
+bag are identical with the original data as long as the seal is intact. Here, the metaphorical bag is represented
+by a file and the seal is represented by a signature over all data in the file.
+The “bag of evidence” approach builds on procedures for media data and related metadata to be securely
+extracted from a trusted storage in a separate file. It defines which metadata has to be preserved in order to
+provide for accurate replay. Data are provided “as is” without any further assertions, whatsoever, to perpetuate
+evidence.
+Processing power usage can be reduced by performing hash functions before signature algorithms are applied.
+Multiple stages of signatures might be applied to collect additional information into a single sealed file.
+International state of the art standards are applied for the file structure, hash and signature algorithms. The
+surveillance application format and the RSA2048 signature defined by ISO/IEC as well as the SHA-256 hash
+algorithm approved by NIST come into operation for most widespread interoperability.
+
+ONVIF™
+
+–6–
+
+ExportFileFormat – Ver. 22.12
+
+Figure 1: Sealing and examination process in a nutshell (Source: Wikipedia)
+
+4.5 Use case 1: Playback of chunked and oversize clips at remote site
+An operator exports a Video clip with associated Audio from a DVR of brand A onto two DVDs, because it didn’t
+fit on one. The selected recording period contains gaps because the recorder did only record when motion is
+detected. The DVD is then sent to a second site with Software where the content of the DVDs is copied to the
+local hard disk. The user then plays it back in the Video Management System of brand B. The operator at the
+playback station wants to see the gaps in the recording and to seek to a time where Video has been exported.
+On playback he expects the Video to playback smoothly with lip sync Audio.
+
+4.6 Use case 2: Forensic analysis at court
+A court receives video clips from a grocery store, a street surveillance system and a metro operator. All three
+videos are shown in the court’s approved video player.
+The judges want to see the suspect in all three video clips with exact time information. They also want to
+have information when the video clips have been exported and whether the video sequence is complete and
+authentic.
+
+4.7 Use case 3: Playback at players not equipped according to the present specification
+An authorized person receives video clips in the format defined in the present specification and wants to play
+back the media data on players conforming to the underlying standards definitions. Interpretation of the additional information added by the present specification is not required.
+
+5 Export Format
+5.1 Required Side Information
+The SurveillanceExportBox is required. It is recommended that the SurveillanceExportBox be placed as early
+as possible in files, for maximum utility.
+
+ONVIF™
+
+–7–
+
+ExportFileFormat – Ver. 22.12
+
+In order to be able to associate the recording with a camera/microphone and the exporting system the following
+information shall be placed in the box:
+
+•
+
+•
+
+•
+
+Source – Description of the video source
+○
+
+Name – Name of the camera
+
+○
+
+URL – Address under which the camera can be accessed
+
+○
+
+MAC – Unique physical address of the camera (examples: 08-00-27-00-0C-15,
+08:00:27:00:0C:15, 080027000C15)
+
+○
+
+Line – Input line number token for multi channel devices
+
+Source – Description of the audio source
+○
+
+Name – Name of the microphone
+
+○
+
+URL – Address under which the microphone can be accessed
+
+○
+
+MAC – Unique physical address of the microphone
+
+Export – Unit executing the export
+○
+
+Name – Name of the exporting unit
+
+○
+
+URL – Address under which the exporting unit can be accessed
+
+○
+
+MAC – Unique physical address of the exporting unit
+
+○
+
+Time – Date and time information as to when the export was executed (start time)
+
+○
+
+Operator – Name or identification of the operator performing the export
+
+SurveillanceExportBox
+Box Type: ‘suep’
+Container: Meta Box (‘meta’), file level
+Mandatory: Yes
+Quantity: Exactly one
+
+This box shall contain information for all available tracks.
+Syntax
+class SurveillanceExportBox
+extends FullBox(‘suep’, version = 1, 0){
+string
+ExportUnitName;
+string
+ExportUnitURL;
+string
+ExportUnitMAC;
+UInt(64)
+ExportUnitTime;
+string
+ExportOperator;
+UInt(32) entry_count;
+int i;
+for (i=0; i < entry_count; i++) {
+UInt(16)
+TrackID;
+string
+SourceName;
+string
+SourceURL;
+string
+SourceMAC;
+string
+SourceLine;
+}
+}
+
+ONVIF™
+
+–8–
+
+ExportFileFormat – Ver. 22.12
+
+Semantics
+String items are null-terminated strings in UTF-8 characters. If not applicable, the string shall contain the nulltermination only.
+ExportOperator is a string that gives the name or identification of the operator performing the export. This
+
+string may be empty.
+
+ExportUnitTime is an integer that provides date and time designation as defined in ISO/IEC 14496-12 of
+
+when the export operation has been started.
+
+entry_count is an integer that provides the number of tracks.
+
+5.2 Timing
+The box defined in the section shall be used to provide the start date and time of the capture. Subsequent
+signing instances may define corrected start times.
+StartTimeBox
+Box Types: 'cstb'
+Container: Protection Scheme Information Box (‘sinf’) or Metadata box ('meta')
+Mandatory: No
+Quantity: Zero or one
+
+Syntax
+aligned(8)
+class CorrectStartTimeBox extends Box (‘cstb’) {
+UInt(32) entry_count;
+for (i=0; i < entry_count; i++) {
+unsigned int(32) track_ID;
+unsigned int(64) startTime;
+}
+)
+
+Semantics
+track_ID
+
+An integer that provides a reference to a track in the presentation. track_IDs are never re-used
+and cannot be equal to zero.
+
+startTime
+
+The UTC based time represented by the number of 100-nanosecond intervals since January 1,
+1601 of the origin of the media timeline.
+
+Note, typically it is sufficient to provide the start time for the first track only. Multiple entries e.g. allow to correct
+audio and video synchronization.
+Each track fragment shall contain the Track Fragment Decode Time box ‘tfdt’ as defined in ISO/IEC 14496-12
+to ease seeking during playback.
+
+5.3 Location information
+When available, the location of the camera view shall be provided as 'loci' box according to ETSI TS 126 244.
+See below informal repetition of the definition.
+Location Box
+Box Types: 'loci'
+Container: User Data Box (‘udta’)
+Mandatory: No
+Quantity: Zero or one
+
+Syntax
+
+ONVIF™
+
+–9–
+
+ExportFileFormat – Ver. 22.12
+
+aligned(8)
+class LocationInformationBox extends FullBox (‘loci’) {
+UInt(16) language;
+String Name;
+UInt(8) Role;
+UInt(32) Longitude;
+UInt(32) Latitude;
+UInt(32) Altitude;
+String AstronomicalBody;
+String Notes;
+)
+
+All characters of string based fields shall be encoded as UTF-8. The following semantics apply:
+Role
+
+Shall be '1' - real location
+
+Name
+
+Human readable street address of the location, optionally including building
+internal addressing.
+
+Longitude and Latitude
+
+16.16 bit fixed point angle in degree.
+
+Altitude
+
+Height of the location in meter.
+
+5.4 Timed metadata
+ONVIF metadata supports transport of frame related scene description, events and PTZ information. This
+section defines how such information can be stored in export files.
+ISO/IEC 14496-12 Base File Format defines the box requirements for timed XML metadata. This specification
+defines how to interpret the metx box.
+aligned(8)
+class XMLMetaDataSampleEntry() extends MetaDataSampleEntry (‘metx’) {
+string content_encoding; // optional
+string namespace;
+string schema_location; // optional
+BitRateBox(); // optional
+)
+
+content_encoding
+
+Defaults to 'xml'. Options defined by ONVIF are 'gzip' and 'exi'.
+
+namespace
+
+For ONVIF compliant metadata this parameter shall be set to "http://www.onvif.org/ver10/schema".
+
+schema_location
+
+Not used.
+
+BitRateBox
+
+Not used.
+
+An ONVIF compliant device shall describe a timed metadata track containing ONVIF metadata as defined by
+the ONVIF Streaming Specification using a XMLMetaDataSampleEntry box.
+Content compression shall be signaled via the content_encoding field. See the ONVIF Streaming Specification
+for compression data format.
+Note, XML documents should not be preceeded by an XML declaration since both version and encoding are
+well defined.
+
+5.5 Signature
+5.5.1 Preparing the signature input
+Inputs to the signature algorithm are all boxes of the file. These include boxes for signature creation, whose
+corresponding type is a string, set to a null value. The input contains signatures that are already present for
+repeated signing operations.
+
+ONVIF™
+
+– 10 –
+
+ExportFileFormat – Ver. 22.12
+
+5.5.2 Generating the signature
+Implementations of this specification shall support RSASSA-PSS signatures as specified in ISO/IEC 14888-2
+and PKCS#1 v2.1 with:
+
+•
+
+SHA-256 as specified in FIPS 180-4 as cryptographic hash function
+
+•
+
+an RSA modulus length of at least 2048 bits
+
+•
+
+MGF1 as specified in PKCS#1 v2.1 as mask generation algorithm with SHA-256 as cryptographic hash
+function
+
+•
+
+Salt length 20
+
+•
+
+Trailer field number as specified by the trailerFieldBC constant
+
+Implementations may support other digital signature algorithms, if appropriate.
+The generated signature string has to be included in the SignatureBox as defined in 5.5.3.
+Generating and maintaining parameters of the signature algorithm, particularly signature and verification keys,
+is outside the scope of this document. Recommendations given, e.g., in FIPS 186 should be followed where
+appropriate.
+
+5.5.3 Include the generated signature in the file
+There are no changes to the file itself or the content after the signing operation has been performed. The sole
+exception is the input of the signature at the appropriate place.
+The following box definitions provide for signature identification and inclusion. Encryption is not required; therefore an OriginalFormatBox is not necessary.
+
+5.5.3.1 Item Protection Box
+Box Type: 'ipro'1
+Container: Meta box (‘meta’)
+Mandatory: Yes
+Quantity: Exactly one
+
+The protection_count shall be 1.
+
+5.5.3.2 Protection Scheme Info Box
+Box Type: 'sinf'2
+Container: Item Protection Box (‘ipro’)
+Mandatory: Yes
+Quantity: One per signing instance
+
+Contains exactly one SchemeTypeBox and exactly one SchemeInformationBox.
+
+5.5.3.3 Scheme Type Box
+Box Type: 'schm'2
+Container: Protection Scheme Information Box (‘sinf’)
+Mandatory: Yes
+Quantity: One per signing instance
+1
+
+Box definitions can be found in ISO/IEC 14496-12 Information technology -- Coding of audio-visual objects -- Part 12: ISO base media
+file format.
+
+ONVIF™
+
+– 11 –
+
+ExportFileFormat – Ver. 22.12
+
+The scheme_type shall be 0x6F656666 („Onvif Export File Format‟).
+The scheme_version shall be 0x00010000 (version 1).
+
+5.5.3.4 Scheme Information Box
+Box Type: 'schi'2
+Container: Protection Scheme Information Box (‘sinf’)
+Mandatory: Yes
+Quantity: One per signing instance
+
+Contains exactly one SignatureBoxand exactly one CertificateBox. May also contain exactly one Addition2
+alUserInformationBox, exactly one SignatureConfigurationBox, and one CorrectStartTimeBox .
+
+5.5.3.5 Signature Box
+Box Type: 'sibo'
+Container: Scheme Information Box (‘schi’)
+Mandatory: Yes
+Quantity: One per signing instance
+
+Syntax
+aligned(8) class SignatureBox
+extends Box(‘sibo’) {bit(8) signature[];}
+
+Semantics
+signature binary byte array. Length depends on used RSA key length.
+
+5.5.3.6 Certificate Box
+Box Type: 'cert'
+Container: Scheme Information Box (‘schi’)
+Mandatory: Yes
+Quantity: One per signing instance
+
+Syntax
+aligned(8) class CertificateBox
+extends Box(‘cert’) {
+bit(8) data[];
+}
+
+Semantics
+data is the DER encoded binary byte array representation of the certificate for the key that should be used to
+verify the signature in the SignatureBox
+
+5.5.3.7 Signature Configuration Box
+Box Type: 'sigC'
+Container: Scheme Information Box (‘schi’)
+Mandatory: No
+Quantity: Zero or one per signing instance
+
+Syntax
+2
+
+CorrectStartTimeBox was added in version 1.1 of the ONVIF Export File Format
+
+ONVIF™
+
+– 12 –
+
+ExportFileFormat – Ver. 22.12
+
+aligned(8)
+class SignatureConfigurationBox
+extends Box(‘sigC’) {
+bit(8)AlgorithmIdentifier[];
+}
+
+Semantics
+The ‘sigC’ box shall be present when the signature algorithm deviates from the default defined in 5.5.2. Its
+AlgorithmIdentifier is the signature algorithm identifier with optional parameters as defined by RFC 3280 and
+RFC 4055. It is encoded using the ASN.1 distinguished encoding rules (DER) and has the structure:
+:AlgorithmIdentifier ::= SEQUENCE {
+algorithm
+parameters
+}
+
+OBJECT IDENTIFIER,
+ANY DEFINED BY algorithm OPTIONAL
+
+5.6 Repeated signing
+5.6.1 Procedure
+To add an item, for example, electronic receiving stamps, repeated signing of the file may be required.
+Repeat steps defined in 5.5.1 and 5.5.2 and append another ProtectionSchemeInfoBox at the foot of the list
+of already existing boxes of that type as defined in 5.5.3 while not changing protection_count in the ItemProtectionBox. Parsers are required to check for the existence of multiple ProtectionSchemeInfoBox despite
+protection_count is fixed to 1, because any change of content which has already been signed would render the appropriate signature invalid. An optional AdditionalUserInformationBox might be used in order to add
+information.
+In order to include optional user information, data related to an additional signature ‘auib’ box is provided.
+
+5.6.2 Additional User Information Box
+Box Type: 'auib'
+Container: Scheme Information Box (‘schi’)
+Mandatory: No
+Quantity: Zero or one per signing instance
+
+Syntax
+aligned(8)
+class AdditionalUserInformationBox
+extends Box(‘auib’) {
+string UserInformation;
+}
+
+Semantics
+UserInformation is a null terminated string in UTF-8 characters
+
+ONVIF™
+
+– 13 –
+
+ExportFileFormat – Ver. 22.12
+
+Annex A.
+Repeated Signing (informative)
+Figure A.1 characterizes the box arrangement defined in the present specification for data export.
+
+meta
+suep ipro
+sinf
+schm
+
+schi
+
+cert sibo
+
+Figure A.1: Box structure with single signature
+Figure A.2 characterizes the box arrangement after repeated signing.
+
+meta
+suep ipro
+sinf
+
+sinf
+schm
+
+schi
+
+schm schi
+cert sibo
+
+auib sigC cert sibo
+
+Figure A.2: Box structure with double signature
+The red color represents the signature introduced at the export stage. The green color represents another
+signing operation happening after the export stage. The CertificateBox provides the public key for signature
+verification. Within the SignatureConfigurationBox information is contained describing a nondefault signature
+algorithm and its parameters. Additional information has been added in the AdditionalUserInformationBox.
+In order to check validity of a signature the signature itself has to be taken from the SignatureBox and the bit
+values for the signature string be set to zero. The hashing operation is performed followed by the signature
+operation on the hash value. Now the two signatures can be compared.
+Example: Steps to check validity of the first (red) signature from above
+
+•
+
+Remove the (green) boxes created for the second signing
+
+•
+
+Re-adjust box sizes of ‘ipro’ and ‘meta’ according to the size of removed ‘sinf’ box
+
+•
+
+Read the public key from the red CertificateBox (do not change the box content)
+
+•
+
+Take out the signature from the red SignatureBox
+
+•
+
+Set the bit values of the red SignatureBox to zero
+
+ONVIF™
+
+– 14 –
+
+ExportFileFormat – Ver. 22.12
+
+•
+
+Perform hash operation on the remaining file data
+
+•
+
+Perform signature operation on the obtained hash value
+
+•
+
+Compare the just generated signature with the signature taken out before
+
+ONVIF™
+
+– 15 –
+
+ExportFileFormat – Ver. 22.12
+
+Annex B.
+Box Structure (informative)
+The diagram below provides an overview on required boxes and their referencing for a video stream with audio
+and timed metadata. In order to simplify the example, it shows the content of a single fragment while a real
+file would contain numerous fragments.
+ftyp1
+moov1
+mvhd1
+trak1
+tkhd1
+mdia1
+mdhd1
+hdlr1
+minf1
+vmhd1
+dinf1
+dref1
+url1
+1
+stbl
+stsd1
+avc11
+1
+stts
+stsc1
+stco1
+trak1
+tkhd1
+mdia1
+mdhd1
+hdlr1
+minf1
+mhd1
+dinf1
+dref1
+url1
+1
+stbl
+stsd1
+mp4a1
+stts1
+stsc1
+stco1
+1
+udta
+loci3
+trak1
+tkhd1
+mdia1
+mdhd1
+hdlr1
+minf1
+nmhd1
+dinf1
+dref1
+url1
+stbl1
+stsd1
+metx1
+stts1
+stsc1
+
+File brand ‘isom’.
+File wide definitions
+Movie header with creation time, timescale, duration and others
+First track is expected to contain Video
+Track header with creation time, timescale, duration, track ID
+Media header with creation time, timescale, duration and others
+Signals that this is a Video track (type is 'vide')
+Contains creation time, timescale, duration and others
+Video color information
+Data location information.
+Data location flag in file must be set
+Container with sample descriptions.
+Codec information
+H.264 codec information
+Sample index by time
+Sample to chunk mapping
+List of Chunk offsets inside 'mdat' relative to file begin
+Second track with Audio
+Track header with creation time, timescale, duration, track ID
+Media header with creation time, timescale, duration and others
+Signals that this is a Audio track (type is 'soun')
+Contains creation time, timescale, duration and others
+Audio stereo balance information
+Data location information.
+Data location flag in file must be set
+Container with sample descriptions.
+Codec information
+Audio format information
+Sample index by time
+Sample to chunk mapping
+List of Chunk offsets inside 'mdat' relative to file begin
+User data
+Geo location information
+Third track with timed metadata
+Track header with creation time, timescale, duration, track ID
+Media header with creation time, timescale, duration and others
+Signals that this is a metadata track (type is 'meta')
+Contains creation time, timescale, duration and others
+Null media handler box
+Data location information.
+Data location flag in file must be set
+Container with sample descriptions.
+Codec information
+Metadata format information
+Sample index by time
+Sample to chunk mapping
+
+ONVIF™
+
+– 16 –
+stco1
+
+1
+
+mdat
+moof1
+mfhd1
+traf1
+tfhd1
+tfdt1
+trun1
+traf1
+tfhd1
+tfdt1
+trun1
+traf1
+tfhd1
+tfdt1
+trun1
+1
+mdat
+meta1
+hdlr1
+suep2
+ipro1
+sinf1
+cstb2
+schm1
+schi1
+sibo2
+cert2
+mfra1
+tfra1
+mfro1
+
+List of Chunk offsets inside 'mdat' relative to file begin
+Raw Video and Audio of first fragment (moov)
+Fragment
+Contains creation time, timescale, duration and others
+First track with Video
+Sample information
+Track fragment decode time
+Access to raw data in mdat box
+Second track with Audio
+Sample information
+Track fragment decode time
+Access to raw data in mdat box
+Third track with timed metadata
+Sample information
+Track fragment decode time
+Access to raw data in mdat box
+Raw Video and Audio of this
+File level meta information
+Export supplementary information
+File protection
+File protection information
+Start time
+Protection scheme OEFF defined by this specification
+Signature of the export
+Certificate of the exporter
+Optional movie fragment random access (must be last in file)
+Track fragment random access
+Movie fragment random access offset
+
+The superscripts denotes the specification that defines the box:
+1
+
+ISO/IEC 14496-12
+
+2
+
+This specification
+
+3
+
+ETSI TS 126 244
+
+ExportFileFormat – Ver. 22.12
+
+ONVIF™
+
+– 17 –
+
+ExportFileFormat – Ver. 22.12
+
+Annex C.
+Revision History
+Rev.
+
+Date
+
+Editor
+
+Changes
+
+1.0
+
+March 2013
+
+Gero Bäse
+
+First release
+
+1.0.1
+
+May-2014
+
+Michio Hirai
+
+Change Request 1330
+
+17.06
+
+Jun-2017
+
+Hans Busch,
+Hiroyuki Sano
+
+Change Request 1843 Change Request 2065
+
+18.06
+
+Jun-2017
+
+Stefan Andersson,
+Hans Busch
+
+Add cstb box Add suep version 1 and Annex B
+
+18.12
+
+Dec-2018
+
+Hiroyuki Sano
+
+Change Request 2299, 2356, 2358, 2359, 2383, 2405
+
+21.06
+
+Jun-2021
+
+Hans Busch
+
+Move sigC definition to 5.4. Remove obsolete UUID
+notion.
+
+21.12
+
+Dec-2021
+
+Hans Busch
+
+Add timed metadata.
+
+22.06
+
+Jun-2022
+
+Hans Busch
+
+Add location information.
+
+22.12
+
+December-2022Hans Busch
+
+Remove references to ISO 23000-10. Add support for cstb
+in meta to support cases without signing.
+
+

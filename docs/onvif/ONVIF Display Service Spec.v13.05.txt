@@ -1,0 +1,1096 @@
+ONVIF™
+
+–1–
+
+Display Service Spec. – Ver. 2.3
+
+ONVIF™
+Display Service Specification
+Version 2.3
+May, 2013
+
+ONVIF™
+
+–2–
+
+Display Service Spec. – Ver. 2.3
+
+ 2008-2013 by ONVIF: Open Network Video Interface Forum Inc.. All rights reserved.
+
+Recipients of this document may copy, distribute, publish, or display this document so long as this
+copyright notice, license and disclaimer are retained with all copies of the document. No license is
+granted to modify this document.
+THIS DOCUMENT IS PROVIDED "AS IS," AND THE CORPORATION AND ITS MEMBERS AND
+THEIR AFFILIATES, MAKE NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE, NON-INFRINGEMENT, OR TITLE; THAT THE CONTENTS OF THIS
+DOCUMENT ARE SUITABLE FOR ANY PURPOSE; OR THAT THE IMPLEMENTATION OF SUCH
+CONTENTS WILL NOT INFRINGE ANY PATENTS, COPYRIGHTS, TRADEMARKS OR OTHER
+RIGHTS.
+IN NO EVENT WILL THE CORPORATION OR ITS MEMBERS OR THEIR AFFILIATES BE LIABLE
+FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL, PUNITIVE OR CONSEQUENTIAL
+DAMAGES, ARISING OUT OF OR RELATING TO ANY USE OR DISTRIBUTION OF THIS
+DOCUMENT, WHETHER OR NOT (1) THE CORPORATION, MEMBERS OR THEIR AFFILIATES
+HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES, OR (2) SUCH DAMAGES
+WERE REASONABLY FORESEEABLE, AND ARISING OUT OF OR RELATING TO ANY USE OR
+DISTRIBUTION OF THIS DOCUMENT. THE FOREGOING DISCLAIMER AND LIMITATION ON
+LIABILITY DO NOT APPLY TO, INVALIDATE, OR LIMIT REPRESENTATIONS AND WARRANTIES
+MADE BY THE MEMBERS AND THEIR RESPECTIVE AFFILIATES TO THE CORPORATION AND
+OTHER MEMBERS IN CERTAIN WRITTEN POLICIES OF THE CORPORATION.
+
+ONVIF™
+
+–3–
+
+Display Service Spec. – Ver. 2.3
+
+CONTENTS
+1
+
+Scope
+
+4
+
+2
+
+Normative references
+
+4
+
+3
+
+Terms and Definitions
+
+4
+
+3.1
+
+Definitions........................................................................................................................ 4
+
+3.2
+
+Abbreviations .................................................................................................................. 4
+
+4
+
+Overview
+
+4
+
+5
+
+Display Service
+
+5
+
+5.1
+Panes .............................................................................................................................. 5
+5.1.1 GetPaneConfigurations .............................................................................................. 6
+5.1.2 GetPaneConfiguration ................................................................................................ 7
+5.1.3 SetPaneConfigurations ............................................................................................... 7
+5.1.4 SetPaneConfiguration ................................................................................................. 8
+5.1.5 CreatePaneConfiguration ........................................................................................... 8
+5.1.6 DeletePaneConfiguration ............................................................................................ 9
+5.2
+Layout............................................................................................................................ 10
+5.2.1 GetLayout ................................................................................................................. 10
+5.2.2 SetLayout .................................................................................................................. 10
+5.3
+Display Options ............................................................................................................. 11
+5.3.1 GetDisplayOptions .................................................................................................... 12
+5.4
+Events ........................................................................................................................... 12
+5.4.1 Decoding error event ................................................................................................ 12
+5.4.2 Layout changed event .............................................................................................. 13
+5.5
+
+Capabilities .................................................................................................................... 13
+
+5.6
+Service specific data types............................................................................................ 13
+5.6.1 CodingCapabilities .................................................................................................... 13
+5.6.2 Layout ....................................................................................................................... 14
+5.6.3 LayoutOptions ........................................................................................................... 14
+5.6.4 PaneLayoutOptions .................................................................................................. 14
+5.6.5 PaneConfiguration .................................................................................................... 15
+5.6.6 PaneLayout ............................................................................................................... 16
+5.7
+
+Service specific fault codes ........................................................................................... 17
+
+Annex A. Revision History
+
+18
+
+ONVIF™
+
+1
+
+–4–
+
+Display Service Spec. – Ver. 2.3
+
+Scope
+
+This document defines the web service interface for configuration of the display of a Video
+rendering device with optional Audio support. Additionally the associated events are defined.
+Web service usage is outside of the scope of this document. Please refer to the ONVIF core
+specification.
+
+2 Normative references
+ONVIF Core Specification
+<http://www.onvif.org/specs/core/ONVIF-Core-Specification-v211.pdf>
+ONVIF Receiver Service Specification
+<http://www.onvif.org/specs/srv/rcv/ONVIF-Receiver-Service-Spec-v211.pdf>
+ONVIF DeviceIO Service Specification
+<http://www.onvif.org/specs/srv/io/ONVIF-DeviceIo-Service-Spec-v211.pdf>
+
+3 Terms and Definitions
+3.1 Definitions
+Layout
+
+Defines the arrangement of display areas (panes) on a monitor
+
+Pane
+
+Defines an area on a physical display.
+
+3.2 Abbreviations
+RTSP
+
+4
+
+Real Time Streaming Protocol
+
+Overview
+
+The display service provides functions to enable a client to control and configure display
+devices. The service introduces panes, each of which occupies an area of the physical display.
+The configuration of the pane maps audio inputs and outputs to a video output. The
+configuration also references a Receiver Object which receives the data to be displayed.
+Functions to retrieve and configure the configuration of a pane are provided.
+
+y
+1.0
+Pane 2
+Pane 1
+Pane 3
+Pane 4
+
+Pane 5
+
+Pane 6
+
+-1.0
+-1.0
+
+0.0
+
+1.0 x
+
+Figure 1: Example layout with six panes and coordinate system
+
+ONVIF™
+
+–5–
+
+Display Service Spec. – Ver. 2.3
+
+A layout defines how these panes are visible on the display (e.g single view or quad view).
+The service introduces commands to retrieve the current layout of a display and change the
+layout.
+The service also introduces commands to request the encoding and decoding capabilities of a
+video output as well as the layout options.
+WSDL for the display service is specified in http://www.onvif.org/ver10/display.wsdl.
+Table 1: Referenced namespaces (with prefix)
+
+5
+
+Prefix
+
+Namespace URI
+
+env
+
+http://www.w3.org/2003/05/soap-envelope
+
+ter
+
+http://www.onvif.org/ver10/error
+
+xs
+
+http://www.w3.org/2001/XMLSchema
+
+tt
+
+http://www.onvif.org/ver10/schema
+
+tls
+
+http://www.onvif.org/ver10/display/wsdl
+
+Display Service
+
+A display device has a fixed number of video outputs, each of which may be attached to a
+monitor. A client can request the video outputs of the device using the DeviceIO service. Each
+of these outputs is configured with a layout (e.g. single view or split screen). The layout
+defines a number of video panes, each of which occupies an area of the physical display.
+A network video display may also have fixed number of audio inputs and audio outputs. Each
+of these outputs may be associated with a pane. Associating an audio input or output with a
+pane maps the audio and video streams from a transmitter device automatically to the correct
+outputs. The pane also contains a pointer to a receiver where the necessary information to
+connect the display device to a transmitter is stored.
+The Display Service offers functions to configure the Panes and describe and change the
+layout of the display device. The possible layouts and coding capabilities of a video output
+can be requested.
+A display device shall support the Display Service as defined in [DisplayService.wsdl].
+5.1 Panes
+A Pane is a display area on the monitor that is attached to a video output. A pane has a
+PaneConfiguration that describes which entities are associated with the pane. The
+PaneConfiguration includes:
+Pane Token:
+
+A unique identifier in the display device.
+
+Pane Name:
+
+Configuration name.
+
+AudioOutputToken: A pointer to the audio output that is associated with the pane. A client
+can retrieve the available audio outputs of a device using the
+GetAudioOutputs command of the DeviceIO service.
+
+ONVIF™
+
+–6–
+
+Display Service Spec. – Ver. 2.3
+
+AudioSourceToken: A pointer to the audio source that is associated with this pane.
+The audio connection from a display device to the NVT is established
+using the backchannel mechanism. A client can retrieve the available
+audio sources of a device using the GetAudioSources command of the
+DeviceIO service.
+AudioEncoderConfiguration: The configuration of the audio encoder including codec, bitrate
+and sample rate.
+ReceiverToken:
+
+A pointer to a receiver as defined in the ONVIF Recevier Service
+Specification that has the necessary information to receive Data from a
+Transmitter. This Receiver can be connected and the network video
+display displays the received data on the specified outputs. A client can
+retrieve the available Receivers using the GetReceivers command of
+the Receiver Service.
+
+A client has to configure the pane according to the connection to be established by setting the
+AudioOutput and/or AudioSourceToken. If a Token is not set, the corresponding session will
+not be established.
+Changing the PaneConfiguration or the parameters of a referenced receiver shall not affect
+the RTSP connection. If a client intends to apply the new parameters it shall restart the RTSP
+connection.
+The pane layout (see 5.2) of the video output defines if and where (position, size) a Pane is
+currently visible. The receiver should only establish an RTSP connection to receive data if the
+pane is visible. Layout changes shall not affect running streams.
+5.1.1 GetPaneConfigurations
+This command list all currently defined Panes of a device for a specified video output
+(regardless if this pane is visible at a moment). A display device shall support the retrieval of
+its configured panes through this command.
+
+Table 2: GetPaneConfigurations
+GetPaneConfigurations
+
+Access Class: READ_MEDIA
+
+Message name
+
+Description
+
+GetPaneConfigurationsRequest
+
+The VideoOutput element specifies the Video Output whose
+PaneConfigurations are requested.
+tt:ReferenceToken VideoOutput[1][1]
+
+GetPaneConfigurationsResponse
+
+Contains a list of defined Panes of the specified VideoOutput. Each
+VideoOutput has at least one PaneConfiguration.
+tt:PaneConfiguration PaneConfiguration [1][unbounded]
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+ter:NoVideoOutput
+
+The requested Video Output does not exist
+
+ONVIF™
+
+–7–
+
+Display Service Spec. – Ver. 2.3
+
+5.1.2 GetPaneConfiguration
+If the pane token is already known this command can be used to get the pane configuration. A
+display device shall support the retrieval of a specific pane configuration through this
+command.
+Table 3: GetPaneConfiguration
+Access Class: READ_MEDIA
+
+GetPaneConfiguration
+Message name
+
+Description
+
+GetPaneConfigurationRequest
+
+This message contains the token of the pane whose configuration is
+requested. It also conatins a VideoOutput token that specifies the
+Video Output that contains the requested pane.
+tt:ReferenceToken VideoOutput[1][1]
+tt:ReferenceToken Pane[1][1]
+
+GetPaneConfigurationResponse
+
+Contains the requested PaneConfiguration
+tt:PaneConfiguration PaneConfiguration [1][1]
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+ter:NoPane
+
+The requested pane does not exist
+
+env:Sender
+ter:InvalidArgVal
+ter:NoVideoOutput
+
+The requested Video Output does not exist
+
+5.1.3 SetPaneConfigurations
+This command changes the Configuration of all existing panes in one step. The message
+contains all PaneConfigurations (modified and not modified ones) of the video output. A
+display device shall support the modification of its panes configuration through this command.
+
+Table 4: SetPaneConfigurations
+Access Class: ACTUATE
+
+SetPaneConfigurations
+Message name
+
+Description
+
+SetPaneConfigurationsRequest
+
+This message contains the configuration of all panes of the
+specified VideoOutput.
+The PaneConfiguration element contains the modified configuration.
+
+SetPaneConfigurationsResponse
+
+tt:ReferenceToken VideoOutput[1][1]
+tt:PaneConfiguration PaneConfiguration[1][unbounded]
+This message is empty
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+ter:invalidConfig
+
+The configuration is not possible to set
+
+ONVIF™
+
+env:Sender
+ter:InvalidArgVal
+ter:NoVideoOutput
+
+–8–
+
+Display Service Spec. – Ver. 2.3
+
+The requested Video Output does not exist
+
+5.1.4 SetPaneConfiguration
+This command changes the Configuration of a single pane. A display device shall support the
+modification of a single pane configuration through this command.
+
+Table 5: SetPaneConfiguration
+SetPaneConfiguration
+
+Access Class: ACTUATE
+
+Message name
+
+Description
+
+SetPaneConfigurationRequest
+
+This message contains the token of the video output and the new
+PaneConfiguration .
+tt:ReferenceToken VideoOutput[1][1]
+tt:PaneConfiguration PaneConfiguration[1][1]
+
+SetPaneConfigurationResponse
+
+This message is empty
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+ter:NoPane
+env:Sender
+ter:InvalidArgVal
+ter:NoVideoOutput
+
+The requested pane does not exist
+
+env:Sender
+ter:InvalidArgVal
+ter:InvalidConfig
+
+The configuration is not possible to set
+
+The requested Video Output does not exist
+
+5.1.5 CreatePaneConfiguration
+This command creates a pane configuration. A display device that supports dynamic creation
+of panes shall support the creation of a pane configuration through this command.
+A service implementation is free to choose any suitable token for the PaneConfiguration and
+may ignore the content of the token field.
+
+ONVIF™
+
+–9–
+
+Display Service Spec. – Ver. 2.3
+
+Table 6: CreatePaneConfiguration
+CreatePaneConfiguration
+
+Access Class: ACTUATE
+
+Message name
+
+Description
+
+CreatePaneConfigurationRequest
+
+This message contains the token of the video output and the new
+PaneConfiguration
+tt:ReferenceToken VideoOutput[1][1]
+tt:PaneConfiguration PaneConfiguration[1][1]
+
+CreatePaneConfigurationResponse
+
+This message contains the token of the the new
+PaneConfiguration.
+tt:ReferenceToken PaneToken[1][1]
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+ter:MaxNumberOfPane
+env:Sender
+ter:InvalidArgVal
+ter:NoVideoOutput
+
+The maximum number of panes is reached
+
+env:Sender
+ter:InvalidArgVal
+ter:InvalidConfig
+
+The configuration is not possible to set
+
+The requested Video Output does not exist
+
+5.1.6 DeletePaneConfiguration
+This command deletes a pane configuration. A display device that supports dynamic deletion
+of panes shall support the deletion of a pane configuration through this command.
+
+Table 7: DeletePaneConfiguration
+DeletePaneConfiguration
+
+Access Class: ACTUATE
+
+Message name
+
+Description
+
+DeletePaneConfigurationRequest
+
+This message contains the token of the video output and the
+PaneConfiguration.
+tt:ReferenceToken VideoOutput[1][1]
+tt:ReferenceToken PaneToken[1][1]
+
+DeletePaneConfigurationResponse
+
+This message is empty
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+ter:FixedPane
+env:Sender
+ter:InvalidArgVal
+ter:NoVideoOutput
+
+It is not possible to delete this pane configuration
+
+The requested Video Output does not exist
+
+ONVIF™
+
+env:Sender
+ter:InvalidArgVal
+ter:NoPane
+
+– 10 –
+
+Display Service Spec. – Ver. 2.3
+
+The requested pane configuration does not exist.
+
+5.2 Layout
+The Layout assigns a pane configuration to a certain area of the display. The layout settings
+directly affect a specific video output. The layout consists of a list of PaneConfigurations and
+their associated display areas. If the device supports overlapping panes then the order the
+panes are displayed on the monitor is defined by the order of the PaneConfigurations in the
+list. The first Pane in the list is the one that is displayed in the foreground.
+A device may either provide a fixed number of supported layouts or it is possible to configure
+the layout free.
+
+5.2.1 GetLayout
+This command returns the current layout of a video output. A display device shall support the
+retrieval of its layout through this command.
+Table 8: GetLayout
+Access Class: READ_MEDIA
+
+GetLayout
+Message name
+
+Description
+
+GetLayoutRequest
+
+Contains the VideoOutputToken of the output the display is connected
+to.
+tt:ReferenceToken VideoOutput[1][1]
+
+GetLayoutResponse
+
+Contains the current layout of the VideoOutput
+tt:Layout Layout[1][1]
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+ter:NoVideoOutput
+
+The requested Video Output indicated with VideoOutput does not
+exist.
+
+5.2.2 SetLayout
+The SetLayout operation can be used to change the layout of a display (e.g. change from
+single view to split screen view). A display device shall support the change of layout through
+this command.
+A device implementation shall be tolerant against rounding errors when matching a layout
+against its fixed set of layouts by accepting differences of at least one percent.
+
+ONVIF™
+
+– 11 –
+
+Display Service Spec. – Ver. 2.3
+
+Table 9: SetLayout
+Access Class: ACTUATE
+
+SetLayout
+Message name
+
+Description
+
+SetLayoutRequest
+
+This message contains the token of the video output and the modified
+layout
+
+SetLayoutResponse
+
+tt:ReferenceToken VideoOutput [1][1]
+tt:Layout Layout[1][1]
+This message is an empty message
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+ter:InvalidLayout
+env:Sender
+ter:InvalidArgVal
+ter:NoVideoOutput
+
+It is not possible to set the layout
+
+5.3
+
+The requested Video Output indicated with VideoOutput does not
+exist.
+
+Display Options
+
+The Display Options contain the supported layouts (LayoutOptions) and the decoding and
+encoding capabilities (CodingCapabilities) of the device. The GetDisplayOptions command
+returns both, Layout and Coding Capabilities, of a VideoOutput.
+LayoutOptions
+The LayoutOptions describe the fixed and predefined layouts of a device. If the device does
+not offer fixed layouts and allows setting the layout free this element is empty.
+Coding Capabilities
+The network video display is able to decode audio and video streams using suitable decoding
+algorithms. The network video display supports any audio and video decoders, bitrates and
+resolution according to the manufacturer‘s choice.
+In order to ensure interoperability between the different devices, this specification mandates
+the following decoder profiles:
+The NVD shall support JPEG QVGA.
+The NVD shall support G.711μ Law (if it supports audio)
+These are the same codecs that are mandatory for the NVT.
+There are no parameters to configure a decoder; a decoder shall decode all content
+(according to its capabilities) it receives. In case of decoding errors the decoder should try to
+request a synchronization point and try to continue decoding. It shall generate an event as
+defined in section 5.4.1.
+The CodingCapabilities Element gives an indication about the decoding and encoding
+capabilities of the device.
+
+ONVIF™
+
+– 12 –
+
+Display Service Spec. – Ver. 2.3
+
+5.3.1 GetDisplayOptions
+This command lists layout and coding capabilities of a video output. A display device shall
+support the retrieval of its DisplayOptions through this command.
+Table 10: GetDisplayOptions
+GetDisplayOptions
+
+Access Class: READ_MEDIA
+
+Message name
+
+Description
+
+GetDisplayOptionsRequest
+
+This message contains the token of the video output for which the
+information is requested.
+tt:ReferenceToken VideoOutput[1][1]
+
+GetDisplayOptionsResponse
+
+Message containing the available layouts as well as codings for the
+VideoOutput.
+tt:LayoutOptions LayoutOptions[0][1]
+tt:CodingCapabilities CodingCapabilities[1][1]
+
+Fault codes
+
+Description
+
+env:Sender
+ter:InvalidArgVal
+ter:NoVideoOutput
+
+The requested VideoOutputToken does not exist
+
+5.4
+
+Events
+
+The display service shall dispatch events through the event service.
+5.4.1
+
+Decoding error event
+
+The device shall be capable of generating the following event whenever it receives a
+bitstream that it is not able to decode.
+There are several reasons why a decoder is not able to decode the bitstream. The following
+error codes are defined and shall be used by the device to inform the client about decoder
+errors:
+1) “unsupported codec or unsupported codec profile” – The device is not able to decode
+the bitstream, because the codec or the profile is not supported by the device. The
+client should the try to reconfigure the transmitter according to the CodingCapabilities
+of the device.
+2) “packet error” – there are missing or unexpected packets in the bitstream.
+Other vendor specific codes are also allowed.
+Topic: tns1:VideoDecoder/DecodingError
+<tt:MessageDescription IsProperty="false">
+<tt:Source>
+
+ONVIF™
+
+– 13 –
+
+Display Service Spec. – Ver. 2.3
+
+<tt:SimpleItemDescription Name="VideoOutputToken"
+Type="tt:ReferenceToken"/>
+</tt:Source>
+<tt:Data>
+<tt:SimpleItemDescription Name="PaneReference"
+Type="tt:ReferenceToken"/>
+<tt:SimpleItemDescription Name=”Error” Type=”xs:string”
+minOccurs=”0”/>
+</tt:Data>
+</tt:MessageDescription>
+5.4.2 Layout changed event
+This event shall be generated whenever a layout is changed. Typical reason is a call to
+SetLayout? resulting in an layout change.
+Topic: tns1:VideoOutput/Layout/LayoutChanged
+<tt:MessageDescription IsProperty="false">
+<tt:Source>
+<tt:SimpleItemDescription Name="VideoOutputToken"
+Type="tt:ReferenceToken"/>
+</tt:Source>
+</tt:MessageDescription>
+
+5.5
+
+Capabilities
+
+The capabilities reflect optional functions and functionality of a service. The information is
+static and does not change during device operation. The following capabilites are available:
+FixedLayout:
+
+Indication that the SetLayout command supports only predefined
+layouts.
+Table 11: GetServiceCapabilities command
+
+GetServiceCapabilities
+
+Access Class: PRE_AUTH
+
+Message name
+
+Description
+
+GetServiceCapabilitiesReque
+st
+
+This is an empty message.
+
+GetServiceCapabilitiesRespo
+nse
+
+The capability response message contains the requested service
+capabilities using a hierarchical XML capability structure.
+tls:Capabilities Capabilities [1][1]
+
+Fault codes
+
+Description
+
+No command specific faults!
+
+5.6 Service specific data types
+5.6.1 CodingCapabilities
+
+This type contains the Audio and Video coding capabilities of a display service.
+
+ONVIF™
+
+– 14 –
+
+Display Service Spec. – Ver. 2.3
+
+<xs:complexType name=”CodingCapabilities”>
+<xs:sequence>
+<xs:element name="AudioEncodingCapabilities" type=
+"tt:AudioEncoderConfigurationOptions minOccurs="0"/>
+<xs:element name="AudioDecodingCapabilities" type=
+"tt:AudioDecoderConfigurationOptions minOccurs="0"/>
+<xs:element name="VideoDecodingCapabilities" type=
+"tt:VideoDecoderConfigurationOptions/>
+</xs:sequence>
+</xs:complexType>
+AudioEncodingCapabilities
+If the device supports audio encoding this section describes the supported codecs and
+their configuration.
+AudioDecodingCapabilities
+If the device supports audio decoding this section describes the supported codecs and
+their settings.
+VideoDecodingCapabilities
+This section describes the supported video codesc and their configuration.
+5.6.2 Layout
+A layout describes a set of Video windows that are displayed simultaniously on a display.
+<xs:complexType name="Layout">
+<xs:sequence>
+<xs:element name="PaneLayout" type="tt:PaneLayout"
+maxOccurs="unbounded"/>
+</xs:sequence>
+</xs:complexType>
+PaneLayout
+List of the currently visible pane areas on the monitor.
+5.6.3 LayoutOptions
+The LayoutOptions describe the fixed and predefined layouts of a device.
+<xs:complexType name="LayoutOptions">
+<xs:sequence>
+<xs:element name="PaneLayoutOptions" type="tt:PaneLayoutOptions"
+maxOccurs="unbounded"/>
+</xs:sequence>
+</xs:complexType>
+PaneLayoutOptions
+Lists the possible Pane Layouts of the Video Output.
+5.6.4 PaneLayoutOptions
+Description of a pane layout describing a complete display layout.
+<xs:complexType name="PaneLayoutOptions">
+<xs:sequence>
+
+ONVIF™
+
+– 15 –
+
+Display Service Spec. – Ver. 2.3
+
+<xs:element name="Area" type="tt:Rectangle" maxOccurs="unbounded"/>
+</xs:sequence>
+</xs:complexType>
+Area
+List of areas assembling a layout. Coordinate values are in the range [-1.0, 1.0].
+5.6.5 PaneConfiguration
+Configuration of the streaming and coding settings of a Video window.
+<xs:complexType name="PaneConfiguration">
+<xs:sequence>
+<xs:element name="PaneName" type="xs:string" minOccurs="0"/>
+<xs:element name="AudioOutputToken" type="tt:ReferenceToken"
+minOccurs="0"/>
+<xs:element name="AudioSourceToken" type="tt:ReferenceToken"
+minOccurs="0"/>
+<xs:element name="AudioEncoderConfiguration"
+type="tt:AudioEncoderConfiguration" minOccurs="0"/>
+<xs:element name="ReceiverToken" type="tt:ReferenceToken"
+minOccurs="0"/>
+<xs:element name="Token" type="tt:ReferenceToken"/>
+</xs:sequence>
+</xs:complexType>
+PaneName
+Optional name of the pane configuration.
+AudioOutputToken
+If the device has audio outputs, this element contains a pointer to the audio output that
+is associated with the pane. A client can retrieve the available audio outputs of a
+device using the GetAudioOutputs command of the DeviceIO service.
+AudioSourceToken
+If the device has audio sources, this element contains a pointer to the audio source
+that is associated with this pane. The audio connection from a decoder device to the
+NVT is established using the backchannel mechanism. A client can retrieve the
+available audio sources of a device using the GetAudioSources command of the
+DeviceIO service.
+AudioEncoderConfiguration
+The configuration of the audio encoder including codec, bitrate and sample rate.
+ReceiverToken
+A pointer to a Receiver that has the necessary information to receive data from a
+Transmitter. This Receiver can be connected and the network video decoder displays
+the received data on the specified outputs. A client can retrieve the available
+Receivers using the GetReceivers command of the Receiver Service.
+Token
+A unique identifier in the display device.
+
+ONVIF™
+
+– 16 –
+
+Display Service Spec. – Ver. 2.3
+
+5.6.6 PaneLayout
+A layout describes a set of Video windows that are displayed simultaniously on a display.
+<xs:complexType name="PaneLayout">
+<xs:sequence>
+<xs:element name="Pane" type="tt:ReferenceToken"/>
+<xs:element name="Area" type="tt:Rectangle"/>
+</xs:sequence>
+</xs:complexType>
+Pane
+Reference to the configuration of the streaming and coding parameters.
+Area
+Describes the location and size of the area on the monitor. The area coordinate values
+are espressed in normalized units [-1.0, 1.0].
+
+ONVIF™
+
+– 17 –
+
+Display Service Spec. – Ver. 2.3
+
+5.7 Service specific fault codes
+Table 12 lists the display service specific fault codes.
+The specific faults are defined as subcode of a generic fault. The parent generic subcode is
+the subcode at the top of each row below and the specific fault subcode is at the bottom of
+the cell.
+Table 12: Service specific fault codes
+Fault Code
+
+Parent Subcode
+
+Fault Reason
+
+Description
+
+The Video Output
+does not exist
+
+The requested Video
+Output does not exist
+
+The
+PaneConfiguration is
+fixed.
+
+It is not possible to delete
+this pane configuration
+
+The maximum
+number of panes is
+reached.
+
+It is not possible to create a
+Pane
+because
+the
+maximum number of panes
+is reached
+
+The
+PaneConfiguration
+does not exist
+
+The
+requested
+Pane
+Configuration
+does
+not
+exist.
+
+It is not possible to
+set the configuration
+
+The
+requested
+configuration
+is
+not
+supported by the device
+
+It is not possible to
+set the layout
+
+The requested layout is not
+supported by the device
+
+Subcode
+env:Sender
+
+ter:InvalidArgVal
+ter:NoVideoOutput
+
+env:Sender
+
+ter.InvalidArgVal
+ter:FixedPane
+
+env:Sender
+
+ter:InvalidArgVal
+ter:MaximumNumberOfPanes
+
+env:Sender
+
+ter:InvalidArgVal
+Ter:NoPane
+
+envSe:nder
+
+ter:InvalidArgVal
+ter:InvalidConfig
+
+env:Sender
+
+ter:Action
+ter:InvalidLayout
+
+ONVIF™
+
+– 18 –
+
+Replay Control – Ver. 2.1.1
+
+Annex A. Revision History
+Rev.
+
+Date
+
+Editor
+
+Changes
+
+2.1
+
+Jul-2011
+
+Hans Busch
+
+Split from Core 2.0
+Change Requests 187, 190, 191
+
+2.1.1
+
+Jan-2012
+
+Hans Busch
+
+Change Request 535
+
+2.2.1
+
+Dec-2012
+
+Hans Busch
+
+Change Request 708
+
+2.3
+
+May-2013
+
+Michio Hirai
+
+Change Request 972
+
+

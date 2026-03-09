@@ -1,0 +1,3373 @@
+ONVIF™
+
+–1–
+
+ONVIF™
+PTZ Service Specification
+Version 25.12
+December, 2025
+
+Ptz – Ver. 25.12
+
+ONVIF™
+
+–2–
+
+Ptz – Ver. 25.12
+
+Copyright © 2008-2025 ONVIF™ All rights reserved.
+Recipients of this document may copy, distribute, publish, or display this document so long as this copyright notice, license and disclaimer
+are retained with all copies of the document. No license is granted to modify this document.
+THIS DOCUMENT IS PROVIDED "AS IS," AND THE CORPORATION AND ITS MEMBERS AND THEIR AFFILIATES, MAKE
+NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO, WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, OR TITLE; THAT THE CONTENTS OF THIS
+DOCUMENT ARE SUITABLE FOR ANY PURPOSE; OR THAT THE IMPLEMENTATION OF SUCH CONTENTS WILL NOT INFRINGE
+ANY PATENTS, COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS.
+IN NO EVENT WILL THE CORPORATION OR ITS MEMBERS OR THEIR AFFILIATES BE LIABLE FOR ANY DIRECT, INDIRECT,
+SPECIAL, INCIDENTAL, PUNITIVE OR CONSEQUENTIAL DAMAGES, ARISING OUT OF OR RELATING TO ANY USE OR
+DISTRIBUTION OF THIS DOCUMENT, WHETHER OR NOT (1) THE CORPORATION, MEMBERS OR THEIR AFFILIATES HAVE BEEN
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGES, OR (2) SUCH DAMAGES WERE REASONABLY FORESEEABLE, AND ARISING
+OUT OF OR RELATING TO ANY USE OR DISTRIBUTION OF THIS DOCUMENT. THE FOREGOING DISCLAIMER AND LIMITATION
+ON LIABILITY DO NOT APPLY TO, INVALIDATE, OR LIMIT REPRESENTATIONS AND WARRANTIES MADE BY THE MEMBERS
+AND THEIR RESPECTIVE AFFILIATES TO THE CORPORATION AND OTHER MEMBERS IN CERTAIN WRITTEN POLICIES OF THE
+CORPORATION.
+
+ONVIF™
+
+–3–
+
+Ptz – Ver. 25.12
+
+CONTENTS
+1
+
+Scope
+
+5
+
+2
+
+Normative references
+
+5
+
+3
+
+Terms and Definitions
+
+5
+
+3.1
+
+Definitions ................................................................................................................................ 5
+
+3.2
+
+Abbreviations ........................................................................................................................... 5
+
+4
+
+Overview
+
+5
+
+5
+
+Service
+
+6
+
+5.1 PTZ Node ................................................................................................................................ 6
+5.1.1 General ............................................................................................................................. 6
+5.1.2 GetNodes .......................................................................................................................... 7
+5.1.3 GetNode ............................................................................................................................ 7
+5.2 PTZ Configuration .................................................................................................................... 8
+5.2.1 General ............................................................................................................................. 8
+5.2.2 GetConfigurations .............................................................................................................. 9
+5.2.3 GetConfiguration ................................................................................................................ 9
+5.2.4 GetConfigurationOptions .................................................................................................... 9
+5.2.5 SetConfiguration .............................................................................................................. 10
+5.2.6 GetCompatibleConfigurations ........................................................................................... 10
+5.3 Move Operations .................................................................................................................... 11
+5.3.1 AbsoluteMove .................................................................................................................. 11
+5.3.2 RelativeMove ................................................................................................................... 12
+5.3.3 ContinuousMove .............................................................................................................. 13
+5.3.4 GeoMove ......................................................................................................................... 14
+5.3.5 Stop ................................................................................................................................ 15
+5.3.6 MoveAndStartTracking ..................................................................................................... 15
+5.3.7 GetStatus ........................................................................................................................ 17
+5.4 Preset operations ................................................................................................................... 17
+5.4.1 SetPreset ........................................................................................................................ 17
+5.4.2 GetPresets ...................................................................................................................... 18
+5.4.3 GotoPreset ...................................................................................................................... 19
+5.4.4 RemovePreset ................................................................................................................. 20
+5.5 Home position operations ....................................................................................................... 20
+5.5.1 GotoHomePosition ........................................................................................................... 20
+5.5.2 SetHomePosition ............................................................................................................. 21
+5.6 Auxiliary operations ................................................................................................................ 21
+5.6.1 SendAuxiliaryCommand ................................................................................................... 21
+5.7 Predefined PTZ Spaces .......................................................................................................... 22
+5.7.1 Absolute position spaces .................................................................................................. 22
+5.7.1.1 Generic pan/tilt position space ................................................................................... 22
+5.7.1.2 Spherical pan/tilt position space in degrees ................................................................ 23
+5.7.1.3 Generic zoom position space .................................................................................... 24
+5.7.1.4 Zoom position space in millimeters ............................................................................ 24
+5.7.1.5 Normalized digital zoom position space ...................................................................... 25
+5.7.2 Relative translation spaces ............................................................................................... 25
+5.7.2.1 Generic pan/tilt translation space ............................................................................... 26
+5.7.2.2 Generic zoom translation space ................................................................................. 26
+5.7.3 Continuous velocity spaces .............................................................................................. 26
+5.7.3.1 Generic pan/tilt velocity space ................................................................................... 27
+
+ONVIF™
+
+–4–
+
+Ptz – Ver. 25.12
+
+5.7.3.2 pan/tilt Velocity Space in Degrees per Second ........................................................... 27
+5.7.3.3 Generic zoom velocity space ..................................................................................... 27
+5.7.4 Speed spaces .................................................................................................................. 28
+5.7.4.1 Generic pan/tilt speed space ..................................................................................... 28
+5.7.4.2 Pan/tilt speed space in degrees per Second ............................................................... 28
+5.7.4.3 Generic zoom speed space ....................................................................................... 28
+5.7.4.4 Zoom speed space in millimeter per second ............................................................... 29
+5.8 Preset Tour Operations ........................................................................................................... 29
+5.8.1 GetPresetTours ................................................................................................................ 29
+5.8.2 GetPresetTour ................................................................................................................. 30
+5.8.3 GetPresetTourOptions ...................................................................................................... 30
+5.8.4 CreatePresetTour ............................................................................................................. 30
+5.8.5 ModifyPresetTour ............................................................................................................. 31
+5.8.6 OperatePresetTour ........................................................................................................... 32
+5.8.7 RemovePresetTour .......................................................................................................... 32
+5.8.8 Preset tour parameters .................................................................................................... 33
+5.9
+
+Pan/tilt control direction configuration ...................................................................................... 34
+
+5.10
+
+GetServiceCapabilities .......................................................................................................... 35
+
+5.11 Events .................................................................................................................................. 36
+5.11.1 PTZ Presets ................................................................................................................... 36
+5.11.2 PresetTours ................................................................................................................... 37
+Annex A
+A.1
+
+Additional PTZ Spaces (Informative)
+
+38
+
+Introduction ............................................................................................................................ 38
+
+A.2 Absolute Position Spaces ....................................................................................................... 38
+A.2.1 Digital pan/tilt Position Space ........................................................................................... 38
+A.2.2 Example: Positions of a window on sensor ....................................................................... 39
+A.3 Relative Translation Spaces ................................................................................................... 39
+A.3.1 Spherical pan/tilt Translation Space in Degrees ................................................................ 39
+A.3.2 Pan/tilt Translation Space in FOV .................................................................................... 39
+A.3.3 Digital pan/tilt Translation Space ...................................................................................... 40
+A.3.4 Zoom Translation Space In Millimeter ............................................................................... 41
+A.3.5 Normalized digital zoom Translation Space ...................................................................... 42
+A.3.6 Zoom Translation space in FOV ....................................................................................... 42
+A.4 Continuous Velocity Spaces ................................................................................................... 42
+A.4.1 FOV Scaled pan/tilt Velocity Space per Second ................................................................ 42
+A.4.2 Zoom Velocity Space In Millimeter Per Second ................................................................. 43
+A.4.3 Normalized digital zoom Velocity Space Per Second ......................................................... 43
+A.5 Speed Spaces ....................................................................................................................... 43
+A.5.1 Pan/tilt Speed Space In FOV Per Second ........................................................................ 43
+A.5.2 Normalized digital zoom Speed Space Per Second ........................................................... 44
+Annex B
+B.1
+
+GeoMove Positioning Space (Informative)
+
+45
+
+Introduction ............................................................................................................................ 45
+
+B.2 Preconditions ......................................................................................................................... 45
+B.2.1 Absolute Pan Tilt Position Space ..................................................................................... 45
+B.2.2 GeoOrientation ................................................................................................................ 46
+B.3
+
+Procedure .............................................................................................................................. 46
+
+Annex C
+
+Revision History
+
+49
+
+ONVIF™
+
+–5–
+
+Ptz – Ver. 25.12
+
+1 Scope
+This document defines the web service interface for configuration and operation of pan tilt zoom controllers.
+Additionally the associated events are defined.
+Web service usage is outside of the scope of this document. Please refer to the ONVIF core specification.
+
+2 Normative references
+ONVIF Core Specification
+<http://www.onvif.org/specs/core/ONVIF-Core-Specification.pdf>
+ONVIF Media Service Specification
+<http://www.onvif.org/specs/srv/media/ONVIF-Media-Service-Spec.pdf>
+
+3 Terms and Definitions
+3.1 Definitions
+Digital PTZ
+
+Function that diminishes or crops an image to adjust the image position and ratio.
+
+Optical zoom
+
+Changes the focal length (angle of view) for the device by moving the zoom
+lens in the camera’s optics.
+
+PTZ node
+
+Low-level PTZ entity that maps to the PTZ device and its capabilities.
+
+Field of View
+
+The part of the world that is visible through the camera at a particular position
+and orientation in space.
+
+Nadir
+
+The direction below a dome camera that is mounted in the ceiling and looking
+downwards.
+
+E-flip
+
+The behaviour when a PTZ Dome rotates the image and control directions as it
+passes the nadir during a tilt movement.
+
+3.2 Abbreviations
+PTZ
+
+Pan/tilt/zoom
+
+E-Flip
+
+Electrical flip
+
+FOV
+
+Field of View
+
+4 Overview
+The PTZ model groups the possible movements of the PTZ unit into a pan/tilt component and into a Zoom
+component. To steer the PTZ unit, the service provides absolute move, relative move and continuous move
+operations. Different coordinate systems and units are used to feed these operations.
+The PTZ service provides an AbsoluteMove operation to move the PTZ device to an absolute position. The
+service expects the absolute position as an argument referencing an absolute coordinate system. The speed of
+the pan/tilt movement and the Zoom movement can be specified optionally. Speed values are positive scalars
+and do not contain any directional information. It is not possible to specify speeds for Pan and Tilt separately
+without knowledge about the current position. This approach to specifying a desired position generally produces
+a non-smooth and non-intuitive action.
+A RelativeMove operation is introduced by the PTZ service in order to steer the dome relative to the current
+position, but without the need to know the current position. The operation expects a positional translation as
+an argument referencing a relative coordinate system. This specification distinguishes between relative and
+absolute coordinate systems, since there are cases where no absolute coordinate system exists for a welldefined relative coordinate system. An optional speed argument can be added to the RelativeMove operation
+with the same meaning as for the AbsoluteMove operation.
+
+ONVIF™
+
+–6–
+
+Ptz – Ver. 25.12
+
+Finally, the PTZ device can be moved continuously via the ContinuousMove command in a certain direction
+with a certain speed. Thereby, a velocity vector represents both, the direction and the speed information. The
+latter is expressed by the length of the vector.
+The pan/tilt and Zoom coordinates can be uniquely specified by augmenting the coordinates with appropriate
+space URIs. A space URI uniquely represents the underlying coordinate system. Section 5.7 defines a standard
+set of coordinate systems. A PTZ node shall implement these coordinate systems if the corresponding type
+of movement is supported by the PTZ node. In many cases, the pan/tilt position is represented by pan and tilt
+angles in a spherical coordinate system. A digital PTZ, operating on a fixed megapixel camera, may express
+the camera’s viewing direction by a pixel position on a static projection plane. Therefore, different coordinate
+systems are needed in this case in order to capture the physical or virtual movements of the PTZ device.
+Optionally, the PTZ node may define its own device specific coordinate systems to enable clients to take
+advantage of the specific properties of this PTZ node.
+The PTZ node description retrieved via the GetNode or GetNodes operation contains all coordinate systems
+supported by a specific PTZ node. Each coordinate system belongs to one of the following groups:
+
+•
+
+AbsolutePanTiltPositionSpace
+
+•
+
+RelativePanTiltTranslationSpace
+
+•
+
+ContinuousPanTiltVelocitySpace
+
+•
+
+PanTiltSpeedSpace
+
+•
+
+AbsoluteZoomPositionSpace
+
+•
+
+RelativeZoomTranslationSpace
+
+•
+
+ContinuousZoomVelocitySpace
+
+•
+
+ZoomSpeedSpace
+
+If the PTZ node does not support the coordinate systems of a certain group, the corresponding move operation
+will not be available for this PTZ node. For instance, if the list does not contain an AbsolutePanTiltPositionSpace, the AbsoluteMove operation shall fail when an absolute pan/tilt position is specified. The corresponding
+command section describes those spaces that are required for a specific move command.
+WSDL for this service is specified in http://www.onvif.org/onvif/ver20/ptz/wsdl/ptz.wsdl.
+Table 1: Referenced namespaces (with prefix)
+Prefix
+
+Namespace URI
+
+env
+
+http://www.w3.org/2003/05/soap-envelope
+
+ter
+
+http://www.onvif.org/ver10/error
+
+xs
+
+http://www.w3.org/2001/XMLSchema
+
+tt
+
+http://www.onvif.org/ver10/schema
+
+tptz
+
+http://www.onvif.org/ver20/ptz/wsdl
+
+5 Service
+5.1 PTZ Node
+5.1.1 General
+A PTZ-capable device can have multiple PTZ nodes. The PTZ nodes can represent mechanical PTZ drivers,
+uploaded PTZ drivers or digital PTZ drivers. PTZ nodes are the lowest level entities in the PTZ control API and
+
+ONVIF™
+
+–7–
+
+Ptz – Ver. 25.12
+
+reflect the supported PTZ capabilities. The PTZ node is referenced either by its name or by its reference token.
+The PTZ Service does not provide operations to create or manipulate PTZ nodes.
+The following properties shall be provided for all PTZ nodes:
+
+•
+
+Token – A unique identifier used to reference PTZ nodes.
+
+•
+
+Name – A name given by the installer.
+
+•
+
+SupportedPTZSpaces – A list of coordinate systems available for the PTZ node. For each Coordinate
+System, the PTZ node shall specify its allowed range.
+
+•
+
+MaximumNumberOfPresets – All preset operations shall be available for this PTZ node if one preset
+is supported.
+
+•
+
+HomeSupported – A boolean operator specifying the availability of a home position. If set to true, the
+Home Position operations shall be available for this PTZ node.
+
+•
+
+AuxiliaryCommands – A list of supported Auxiliary commands. If the list is not empty, the Auxiliary Operations shall be available for this PTZ node. A device may use auxiliary commands that are described
+in Core Specification.
+
+•
+
+MaximumNumberOfPresetTours – Indicates number of preset tours that can be created. Required
+preset tour operations shall be available for this PTZ node if one or more preset tours are supported.
+
+5.1.2 GetNodes
+A PTZ-capable device shall implement this operation and return all PTZ nodes available on the device.
+REQUEST:
+This is an empty message.
+RESPONSE:
+
+•
+
+PTZNode - optional, unbounded [tt:PTZNode]
+List of the existing PTZ nodes on the device.
+
+FAULTS:
+None
+ACCESS CLASS:
+READ_MEDIA
+
+5.1.3 GetNode
+A PTZ-capable device shall implement the GetNode operation and return the properties of the requested PTZ
+node, if it exists. Otherwise, the device shall respond with an appropriate fault message.
+REQUEST:
+
+•
+
+NodeToken [tt:ReferenceToken]
+Reference to the requested PTZ node.
+
+RESPONSE:
+
+•
+
+PTZNode [tt:PTZNode]
+The requested PTZ node properties.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoEntity
+No such PTZ node on the device.
+
+ONVIF™
+
+–8–
+
+Ptz – Ver. 25.12
+
+ACCESS CLASS:
+READ_MEDIA
+
+5.2 PTZ Configuration
+5.2.1 General
+The PTZConfiguration contains a reference to the PTZ node in which it belongs. This reference cannot be
+changed by a client.
+The following elements are part of the PTZ Configuration:
+
+•
+
+PTZNodeToken – A mandatory reference to the PTZ node that the PTZ configuration belongs to.
+
+•
+
+DefaultAbsolutePanTiltPositionSpace – If the PTZ node supports absolute pan/tilt movements, it shall
+specify one absolute pan/tilt position space as default.
+
+•
+
+DefaultRelativePanTiltTranslationSpace – If the PTZ node supports relative pan/tilt movements, it shall
+specify one relative pan/tilt translation space as default.
+
+•
+
+DefaultContinuousPanTiltVelocitySpace – If the PTZ node supports continuous pan/tilt movements, it
+shall specify one continuous pan/tilt velocity space as default.
+
+•
+
+DefaultPanTiltSpeedSpace – If the PTZ node supports absolute or relative movements, it shall specify
+one pan/tilt speed space as default.
+
+•
+
+DefaultAbsoluteZoomPositionSpace – If the PTZ node supports absolute zoom movements, it shall
+specify one absolute zoom position space as default.
+
+•
+
+DefaultRelativeZoomTranslationSpace – If the PTZ node supports relative zoom movements, it shall
+specify one relative zoom translation space as default.
+
+•
+
+DefaultContinuousZoomVelocitySpace – If the PTZ node supports continuous zoom movements, it
+shall specify one continuous zoom velocity space as default.
+
+•
+
+DefaultPTZSpeed – If the PTZ node supports absolute or relative PTZ movements, it shall specify
+corresponding default pan/tilt and zoom speeds.
+
+•
+
+DefaultPTZTimeout – If the PTZ node supports continuous movements, it shall specify a default timeout, after which the movement stops.
+
+•
+
+PanTiltLimits – The pan/tilt limits element should be present for a PTZ node that supports an absolute
+pan/tilt. If the element is present it signals the support for configurable pan/tilt limits. If limits are enabled,
+the pan/tilt movements shall always stay within the specified range. The pan/tilt limits are disabled by
+setting the limits to –INF or +INF.
+
+•
+
+ZoomLimits – The zoom limits element should be present for a PTZ node that supports absolute zoom.
+If the element is present it signals the supports for configurable zoom limits. If limits are enabled the
+zoom movements shall always stay within the specified range. The zoom limits are disabled by settings
+the limits to –INF and +INF.
+
+•
+
+MoveRamp – The optional acceleration ramp used by the device when moving.
+
+•
+
+PresetRamp – The optional acceleration ramp used by the device when recalling presets.
+
+•
+
+PresetTourRamp – The optional acceleration ramp used by the device when executing PresetTours.
+
+The default position/translation/velocity spaces are introduced to allow clients sending move requests without
+the need to specify a certain coordinate system. The default speeds are introduced to control the speed of
+move requests (absolute, relative, preset), where no explicit speed has been set.
+
+ONVIF™
+
+–9–
+
+Ptz – Ver. 25.12
+
+The allowed pan and tilt range for pan/tilt limits are defined by a two-dimensional space range that is mapped
+to a specific absolute pan/tilt position space. At least one pan/tilt position space is required by the PTZNode to
+support pan/tilt limits. The limits apply to all supported absolute, relative and continuous pan/tilt movements.
+The limits shall be checked within the coordinate system for which the limits have been specified. What this
+means in practice is that even if movements are specified in a different coordinate system, the requested
+movements shall be transformed to the coordinate system of the limits where the limits can be checked. When
+a relative or continuous movements is specified, which would leave the specified limits, the PTZ unit has to
+move along the specified limits. The zoom limits have to be interpreted accordingly.
+
+5.2.2 GetConfigurations
+A PTZ-capable device shall return all available PTZConfigurations through the GetConfigurations operation.
+REQUEST:
+This is an empty message.
+RESPONSE:
+
+•
+
+PTZConfiguration - optional, unbounded [tt:PTZConfiguration]
+List of all existing PTZConfigurations on the device.
+
+FAULTS:
+None
+ACCESS CLASS:
+READ_MEDIA
+
+5.2.3 GetConfiguration
+A PTZ-capable device shall return the requested PTZ configuration, if it exists, through the GetConfiguration
+operation.
+REQUEST:
+
+•
+
+ConfigurationToken [tt:ReferenceToken]
+Reference to the requested PTZ configuration.
+
+RESPONSE:
+
+•
+
+PTZConfiguration[tt:PTZConfiguration]
+The requested PTZ node configuration.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoConfig
+The requested configuration does not exist.
+
+ACCESS CLASS:
+READ_MEDIA
+
+5.2.4 GetConfigurationOptions
+A PTZ-capable device shall implement the GetConfigurationOptions operation. It returns the list of supported coordinate systems including their range limitations. Therefore, the options MAY differ depending on
+whether the PTZ configuration is assigned to a profile(see ONVIF Media Service Specification) containing a
+VideoSourceConfiguration. In this case, the options may contain additional coordinate systems referring to the
+image coordinate system described by the VideoSourceConfiguration. Each listed coordinate system belongs
+to one of the groups listed in Section 4. If the PTZ node supports continuous movements, it shall return a
+timeout range within which timeouts are accepted by the PTZ node.
+
+ONVIF™
+
+– 10 –
+
+Ptz – Ver. 25.12
+
+REQUEST:
+
+•
+
+ConfigurationToken [tt:ReferenceToken]
+Reference to the requested PTZ configuration.
+
+RESPONSE:
+
+•
+
+PTZConfigurationOptions[tt:PTZConfigurationOptions]
+The requested PTZ node configuration options.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoConfig
+The requested configuration does not exist.
+
+ACCESS CLASS:
+READ_MEDIA
+
+5.2.5 SetConfiguration
+A PTZ-capable device shall implement the SetConfiguration operation. The ForcePersistence flag indicates if
+the changes remain after reboot of the device.
+REQUEST:
+
+•
+
+ConfigurationToken [tt:ReferenceToken]
+Reference to the PTZ configuration to be modified.
+
+•
+
+PTZConfigurationOptions[tt:PTZConfigurationOptions]
+The requested PTZ node configuration options.
+
+•
+
+ForcePersistence [xs:boolean]
+Deprecated modifier for temporary settings if supported by the device.
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoConfig
+The requested configuration does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:ConfigModify
+The configuration parameters cannot be set.
+
+•
+
+env:Receiver - ter:Action - ter:ConfigurationConflict
+The new settings conflict with other uses of the configuration.
+
+ACCESS CLASS:
+ACTUATE
+
+5.2.6 GetCompatibleConfigurations
+A device signalling support for GetCompatibleConfigurations via the capability GetCompatibleConfigurations
+shall return all available PTZConfigurations that can be added to the referenced media profile through the
+GetComatibleConfigurations operation.
+A device providing more than one PTZConfiguration or more than one VideoSourceConfiguration or which has
+any other resource interdependency between PTZConfiguration entities and other resources listable in a media
+profile should implement this operation. PTZConfiguration entities returned by this operation shall not fail on
+adding them to the referenced media profile.
+
+ONVIF™
+
+– 11 –
+
+Ptz – Ver. 25.12
+
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Token of an existing media profile.
+
+RESPONSE:
+
+•
+
+PTZConfiguration - optional, unbounded [tt:PTZConfiguration]
+List of compatible PTZ node configurations.
+
+FAULTS:
+
+•
+
+env:Receiver - ter:ActionNotSupported - ter:OptionalActionNotSupported
+This method is not implemented by the device.
+
+ACCESS CLASS:
+READ_MEDIA
+
+5.3 Move Operations
+This section describes three operations to move the PTZ unit absolutely, relatively or continuously. All operations require a profile token referencing a Media Profile that includes a PTZConfiguration.
+All move commands shall be implemented non-blocking, meaning they shall not wait until the requested move
+operation has finished. The last move operation can be overwritten by sending another move request.
+Due to the wide range of physical devices this specification addressescovers, the specification does not require
+a specific response time to PTZ move operations is not required. However, a device shall strive for minimal
+latency regarding PTZ move command request-to-response time. Note that the device does not have full control
+of the lag from PTZ control input and device movement. Network delays and client delays can further increase
+lag. Implementations should minimize device lag as much as possible.
+
+5.3.1 AbsoluteMove
+If a PTZ node supports absolute pan/tilt or absolute zoom movements, it shall support the AbsoluteMove operation. The position argument of this command specifies the absolute position to which the PTZ unit moves.
+It splits into an optional pan/tilt element and an optional zoom element. If the pan/tilt position is omitted, the
+current pan/tilt movement shall not be affected by this command. The same holds for the zoom position.
+The spaces referenced within the position shall be absolute position spaces supported by the PTZ node. If the
+space information is omitted, the corresponding default spaces of the PTZ configuration, a part of the specified
+media profile, is used. A device may support absolute pan/tilt movements, absolute zoom movements or no
+absolute movements by providing only absolute position spaces for the supported cases.
+An existing Speed argument overrides DefaultSpeed of the corresponding PTZ configuration during movement
+to the requested position. If spaces are referenced within the Speed argument, they shall be speed spaces
+supported by the PTZ node.
+The operation shall fail if the requested absolute position is not reachable.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+Position [tt:PTZVector]
+Vector specifying the absolute target position.
+
+•
+
+Speed - optional [tt:PTZSpeed]
+Optional speed vector.
+
+ONVIF™
+
+– 12 –
+
+Ptz – Ver. 25.12
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+The requested profile token does not reference a PTZ configuration.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:SpaceNotSupported
+A space is referenced that is not supported by the PTZ node.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidPosition
+The requested position is out of bounds.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidSpeed
+The requested speed is out of bounds.
+
+ACCESS CLASS:
+ACTUATE
+
+5.3.2 RelativeMove
+If a PTZ node supports relative pan/tilt or relative zoom movements, then it shall support the RelativeMove
+operation. The translation argument of this operation specifies the difference from the current position to the
+position to which the PTZ device is instructed to move. The operation is split into an optional pan/tilt element
+and an optional zoom element. If the pan/tilt element is omitted, the current pan/tilt movement shall NOT be
+affected by this command. The same holds for the zoom element.
+The spaces referenced within the translation element shall be translation spaces supported by the PTZ node.
+If the space information is omitted for the translation argument, the corresponding default spaces of the PTZ
+configuration, which is part of the specified media profile, is used. A device may support relative pan/tilt movements, relative Zoom movements or no relative movements by providing only translation spaces for the supported cases.
+An existing speed argument overrides DefaultSpeed of the corresponding PTZ configuration during movement
+by the requested translation. If spaces are referenced within the speed argument, they shall be speed spaces
+supported by the PTZ node.
+The command can be used to stop the PTZ unit at its current position by sending zero values for pan/tilt and
+zoom. Stopping shall have the very same effect independent of the relative space referenced.
+If the requested translation leads to an absolute position which cannot be reached, the PTZ node shall move
+to a reachable position along the border of valid positions.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+Translation [tt:PTZVector]
+Vector specifying the positional translation relative to the current position.
+
+•
+
+Speed - optional [tt:PTZSpeed]
+Optional speed vector.
+
+RESPONSE:
+This is an empty message.
+
+ONVIF™
+
+– 13 –
+
+Ptz – Ver. 25.12
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+The requested profile token does not reference a PTZ configuration.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:SpaceNotSupported
+A space is referenced which is not supported by the PTZ node.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidTranslation
+The requested translation is out of bounds.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidSpeed
+The requested speed is out of bounds.
+
+ACCESS CLASS:
+ACTUATE
+
+5.3.3 ContinuousMove
+A PTZ-capable device shall support continuous movements. The velocity argument of this command specifies
+a signed speed value for the pan, tilt and zoom. The combined pan/tilt element is optional and the Zoom element
+itself is optional. If the pan/tilt element is omitted, the current pan/tilt movement shall not be affected by this
+command. The same holds for the zoom element. The spaces referenced within the velocity element shall
+be velocity spaces supported by the PTZ node. If the space information is omitted for the velocity argument,
+the corresponding default spaces of the PTZ configuration belonging to the specified media profile is used.
+A device may support continuous pan/tilt movements and/or continuous zoom movements by providing only
+velocity spaces for the supported cases.
+An existing timeout argument overrides the DefaultPTZTimeout parameter of the corresponding PTZ configuration for this Move operation. The timeout parameter specifies how long the PTZ node continues to move.
+A device shall stop movement in a particular axis (Pan, Tilt, or Zoom) when zero is sent as the ContinuousMove
+parameter for that axis. Stopping shall have the same effect independent of the velocity space referenced.
+This command has the same effect on a continuous move as the stop command specified in section 5.3.5.
+If the requested velocity leads to absolute positions which cannot be reached, the PTZ node shall move to
+a reachable position along the border of its range. A typical application of the continuous move operation is
+controlling PTZ via joystick.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+Velocity [tt:PTZSpeed]
+Speed vector specifying the velocity of pan, tilt and zoom.
+
+•
+
+Timeout - optional [xs:duration]
+Optional timeout.
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+ONVIF™
+
+– 14 –
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+The requested profile token does not reference a PTZ configuration.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:SpaceNotSupported
+A space is referenced which is not supported by the PTZ node.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidTranslation
+The requested translation is out of bounds.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:TimeoutNotSupported
+The specified timeout argument is not within the supported timeout range.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidVelocity
+The requested speed is out of bounds.
+
+Ptz – Ver. 25.12
+
+ACCESS CLASS:
+ACTUATE
+
+5.3.4 GeoMove
+A device signaling GeoMove in one of its PTZ nodes shall support this command.
+The optional AreaHeight and AreaWidth parameters can be added to the request, so that the PTZ-capable
+device can internally determine the zoom factor. In case both AreaHeight and AreaWidth are not provided, the
+unit will not change the zoom. AreaHeight and AreaWidth are expressed in meters.
+An existing speed argument overrides the DefaultSpeed of the corresponding PTZ configuration during movement by the requested translation. If spaces are referenced within the speed argument, they shall be speed
+spaces supported by the PTZ node.
+If the PTZ-capable device does not support automatic retrieval of the geolocation, it shall be configured by using
+SetGeoLocation before it can perform geo-referenced commands. If the client requests a GeoMove command
+before the geolocation of the device is configured, the device shall return an error.
+Depending on the kinematics of the PTZ-capable device, the requested position may not be reachable. In this
+situation the device shall return an error, signalling that it cannot perform the requested action due to physical
+limitations.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+Target [tt:GeoLocation]
+Target coordinates.
+
+•
+
+Speed - optional [tt:PTZSpeed]
+Speed vector specifying the velocity of pan, tilt and zoom.
+
+•
+
+AreaWidth - optional [xs:float]
+Optional area to be shown.
+
+•
+
+AreaHeight - optional [xs:float]
+Optional area to be shown.
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+ONVIF™
+
+– 15 –
+
+Ptz – Ver. 25.12
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+The requested profile token does not reference a PTZ configuration.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:GeoMoveNotSupported
+The device does not support geo move.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:UnreachablePosition
+The requested translation is out of bounds.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:TimeoutNotSupported
+The requested position is not reachable.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:GeoLocationUnknown
+The unit is not able to perform GeoMove because its geolocation is not configured or available.
+
+ACCESS CLASS:
+ACTUATE
+
+5.3.5 Stop
+A PTZ-capable device shall support the Stop operation. If no stop filter arguments are present, this command
+stops all ongoing pan, tilt and zoom movements. The Stop operation can be filtered to stop a specific movement
+by setting the corresponding stop argument.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+PanTilt - optional [xs:boolean]
+Stop pan and tilt operation (defaults to true).
+
+•
+
+Zoom - optional [xs:boolean]
+Stop zoom operation (defaults to true).
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+The requested profile token does not reference a PTZ configuration.
+
+ACCESS CLASS:
+ACTUATE
+
+5.3.6 MoveAndStartTracking
+A device signaling MoveAndTrack in one of its PTZ nodes shall support this command. The purpose of this
+action is to send an an atomic command to the device: move the camera to a wanted position and then delegate
+the PTZ control to the tracking algorithm. With the atomic command the latency is minimized. The move position
+is optional and can be set in three different modes:
+
+•
+
+By GeoLocation coordinates
+
+•
+
+By a preset token
+
+•
+
+By a PTZVector position
+
+ONVIF™
+
+– 16 –
+
+Ptz – Ver. 25.12
+
+An existing Speed argument overrides DefaultSpeed of the corresponding PTZ configuration during movement
+to the requested position. If spaces are referenced within the Speed argument, they shall be speed spaces
+supported by the PTZ node.
+If the detection and the tracking are done in the same device, an ObjectID reference can be passed as an
+argument, in order to specify which object should be tracked.
+The operation shall fail if the requested absolute position is not reachable.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+GeoLocation – optional [tt:GeoLocation]
+Optional target coordinates
+
+•
+
+PresetToken – optional [tt:ReferenceToken]
+Optional reference to an existing preset token.
+
+•
+
+TargetPosition – optional [tt:PTZVector]
+Optional Vector specifying the absolute target position.
+
+•
+
+Speed - optional [tt:PTZSpeed]
+Optional speed vector.
+
+•
+
+ObjectID - optional [tt:ObjectId]
+Optional object ID of the object to track.
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+The requested profile token does not reference a PTZ configuration.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:SpaceNotSupported
+A space is referenced that is not supported by the PTZ node.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidPosition
+The requested position is out of bounds.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidSpeed
+The requested speed is out of bounds.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:GeoMoveNotSupported
+The device does not support geo move.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:UnreachablePosition
+The requested translation is out of bounds.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:GeoLocationUnknown
+The unit is not able to perform GeoMove because its geolocation is not configured or available.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoToken
+The requested preset token does not exist.
+
+ACCESS CLASS:
+ACTUATE
+
+ONVIF™
+
+– 17 –
+
+Ptz – Ver. 25.12
+
+5.3.7 GetStatus
+A PTZ-capable device shall be able to report its PTZ status through the GetStatus command. The PTZ status
+contains the following information:
+
+•
+
+Position (optional) – Specifies the absolute position of the PTZ unit together with the space references.
+The default absolute spaces of the corresponding PTZ configuration shall be referenced within the
+position element. This information shall be present if the device signals support via the capability StatusPosition.
+
+•
+
+MoveStatus (optional) – Indicates if the pan/tilt/zoom device unit is currently moving, idle or in an unknown state. This information shall be present if the device signals support via the capability MoveStatus. The state Unknown shall not be used during normal operation, but is reserved to initialization
+or error conditions.
+
+•
+
+FieldOfView (optional) - Indicates the practically usable field of view of the camera after image processing.
+
+•
+
+Error (optional) – States a current PTZ error condition. This field shall be present if the MoveStatus
+signals Unkown.
+
+•
+
+UTC Time – Specifies the UTC time when this status was generated.
+
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+RESPONSE:
+
+•
+
+PTZStatus [tt:PTZStatus]
+PTZStatus for the requested MediaProfile.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+The requested profile token does not reference a PTZ configuration.
+
+•
+
+env:Receiver - ter:Action - ter:NoStatus
+No PTZ status is available in the requested Media Profile.
+
+ACCESS CLASS:
+READ_MEDIA
+
+5.4 Preset operations
+This section describes operations that manage the presets of a PTZ node. These operations shall be implemented for PTZ nodes supporting presets. All operations require a profile token referencing a media profile
+that includes a PTZConfiguration.
+
+5.4.1 SetPreset
+The SetPreset command saves the current device position parameters so that the device can move to the
+saved preset position through the GotoPreset operation.
+If the PresetToken parameter is absent, the device shall create a new preset. Otherwise it shall update the
+stored position and optionally the name of the given preset. If creation is successful, the response contains
+the PresetToken which uniquely identifies the preset. An existing preset can be overwritten by specifying the
+
+ONVIF™
+
+– 18 –
+
+Ptz – Ver. 25.12
+
+PresetToken of the corresponding preset. In both cases (overwriting or creation) an optional PresetName can
+be specified. The operation fails if the PTZ device is moving during the SetPreset operation.
+The device may internally save additional states such as imaging properties in the PTZ preset which then
+should be recalled in the GotoPreset operation. A device shall accept a valid SetPresetRequest that does not
+include the optional element PresetName.
+Devices may require unique preset names and reject a request that contains an already existing PresetName
+by responding with the error message ter:PresetExist.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+PresetToken - optional [tt:ReferenceToken]
+Optional existing preset token to update a preset position.
+
+•
+
+PresetName - optional [xs:string]
+Optional name to be assigned to the preset position.
+
+RESPONSE:
+
+•
+
+PresetToken [tt:ReferenceToken]
+Reference token assigned by the device to the preset.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+Reference to an existing preset token.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:PresetExist
+The requested name already exist for another preset.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidPresetName
+The PresetName is either too long or contains invalid characters.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoToken
+The requested preset token does not exist.
+
+•
+
+env:Receiver - ter:Action - ter:MovingPTZ
+Preset cannot be set while PTZ unit is moving.
+
+•
+
+env:Receiver - ter:Action - ter:TooManyPresets
+Maximum number of Presets reached.
+
+ACCESS CLASS:
+ACTUATE
+
+5.4.2 GetPresets
+The GetPresets operation returns the saved presets consisting of the following elements:
+
+•
+
+Token – A unique identifier to reference the preset.
+
+•
+
+Name – An optional mnemonic name.
+
+•
+
+PTZ Position – An optional absolute position. If the PTZ node supports absolute pan/tilt position spaces,
+the pan/tilt position shall be specified. If the PTZ node supports absolute zoom position spaces, the
+zoom position shall be specified.
+
+ONVIF™
+
+– 19 –
+
+Ptz – Ver. 25.12
+
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+RESPONSE:
+
+•
+
+Preset - optional, unbounded [tt:PTZPreset]
+List of presets for the requested MediaProfile.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+The requested profile token does not reference a PTZ configuration.
+
+ACCESS CLASS:
+READ_MEDIA
+
+5.4.3 GotoPreset
+The GotoPreset operation recalls a previously set preset. If the speed parameter is omitted, the default speed
+of the corresponding PTZ configuration shall be used. The speed parameter can only be specified when speed
+spaces are available for the PTZ node. The GotoPreset command is a non-blocking operation and can be
+interrupted by other move commands.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+PresetToken [tt:ReferenceToken]
+Reference to an existing preset token.
+
+•
+
+Speed - optional [PTZSpeed]
+Optional speed.
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+Reference to an existing preset token.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoToken
+The requested preset token does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:SpaceNotSupported
+A space that is not supported by the PTZ node is referenced.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidSpeed
+The requested speed is out of bounds.
+
+ACCESS CLASS:
+ACTUATE
+
+ONVIF™
+
+– 20 –
+
+Ptz – Ver. 25.12
+
+5.4.4 RemovePreset
+The RemovePreset operation removes a previously set preset.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+PresetToken [tt:ReferenceToken]
+Existing preset token to be removed.
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+Reference to an existing preset token.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoToken
+The requested preset token does not exist.
+
+ACCESS CLASS:
+ACTUATE
+
+5.5 Home position operations
+This section describes operations used to manage the home position of a PTZ node. These operations shall
+be implemented for PTZ nodes supporting home positions. All operations require a profile token referencing
+a media profile including a PTZConfiguration.
+The “home” position MAY be set by the SetHome operation or is a fix position of the PTZ unit.
+
+5.5.1 GotoHomePosition
+This operation moves the PTZ unit to its home position. If the speed parameter is omitted, the default speed of
+the corresponding PTZ configuration shall be used. The speed parameter can only be specified when speed
+spaces are available for the PTZ node.The command is non-blocking and can be interrupted by other move
+commands.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+Speed - optional [PTZSpeed]
+Optional speed.
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+ONVIF™
+
+– 21 –
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoHomePosition
+No home position has been defined for this Profile.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+Reference to an existing preset token.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidSpeed
+The requested speed is out of bounds.
+
+Ptz – Ver. 25.12
+
+ACCESS CLASS:
+ACTUATE
+
+5.5.2 SetHomePosition
+The SetHome operation saves the current position parameters as the home position, so that the GotoHome
+operation can request that the device move to the home position.
+The SetHomePosition command shall return with a failure if the “home” position is fixed and cannot be overwritten. If the SetHomePosition is successful, it shall be possible to recall the home position with the GotoHomePosition command.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+Reference to an existing preset token.
+
+•
+
+env:Receiver - ter:Action - ter:CannotOverwriteHome
+The home position is fixed and cannot be overwritten.
+
+ACCESS CLASS:
+ACTUATE
+
+5.6 Auxiliary operations
+This section describes operations to manage auxiliary commands of a PTZ node, such as an infrared (IR)
+lamp, a heater or a wiper.
+These operations shall be implemented for PTZ nodes indicating auxiliary commands in the node properties.
+All operations require a profile token referencing a media profile that includes a PTZConfiguration.
+
+5.6.1 SendAuxiliaryCommand
+This operation is used to call an auxiliary operation on the device. The supported commands can be retrieved
+via the PTZ node properties. The auxiliary command should match the supported command listed in the PTZ
+node; no other syntax is supported. If the PTZ node lists the tt:IRLamp command, then the parameter of AuxiliaryCommand command shall conform to the syntax specified in Section 8.6 Auxiliary operation of ONVIF
+Core Specification. The SendAuxiliaryCommand shall be implemented when the PTZ node supports auxiliary
+commands.
+
+ONVIF™
+
+– 22 –
+
+Ptz – Ver. 25.12
+
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+AuxiliaryData [tt:AuxiliaryData]
+Auxiliary command to be applied.
+
+RESPONSE:
+
+•
+
+AuxiliaryResponse[tt:AuxiliaryData]
+Auxiliary response information.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+Reference to an existing preset token.
+
+ACCESS CLASS:
+ACTUATE
+
+5.7 Predefined PTZ Spaces
+Spaces are used to specify absolute, relative and continuous movements. Whereas absolute movements require an absolute position, relative movements are specified by a position translation. Continuous movements
+require the specification of a velocity (relative movement over time). For these three cases, different coordinate
+systems are used describing the desired movement. The generic spaces do not absolutely specify the underlying PTZ model, so that it can be applied to any PTZ hardware.
+Note: this document includes additional non-normative spaces defined in Annex A.
+
+5.7.1 Absolute position spaces
+The absolute position spaces are used when the client wants to move the camera to a certain position. The
+absolute movement from current position A to an arbitrarily chosen position B doesn’t have to follow a specific
+path. Instead, the PTZ device may choose the shortest path in order to reach the target destination.
+For devices with dynamic ranges of values (for example, enabling or disabling a "digital zoom" feature will
+change the total zoom range), it is expected that the generic spaces will be remapped at runtime to match
+the full range of values.
+
+5.7.1.1 Generic pan/tilt position space
+The generic pan/tilt position space shall be provided by every PTZ node that supports absolute pan/tilt, since
+it does not relate to a specific physical range. Instead, the range should be defined as the full range of the PTZ
+unit normalized to the range -1 to 1 resulting in the following space description:
+<tt:AbsolutePanTiltPositionSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/PanTiltSpaces/PositionGenericSpace
+</tt:SpaceURI>
+<tt:Xrange>
+<tt:Min>-1.0</tt:Min>
+<tt:Max>1.0</tt:Max>
+</tt:Xrange>
+<tt:Yrange>
+<tt:Min>-1.0</tt:Min>
+<tt:Max>1.0</tt:Max>
+</tt:Yrange>
+
+ONVIF™
+
+– 23 –
+
+Ptz – Ver. 25.12
+
+</tt:AbsolutePanTiltPositionSpace>
+
+5.7.1.2 Spherical pan/tilt position space in degrees
+Figure 1 shows a camera with pan and tilt mechanics and the corresponding spherical coordinate system. The
+space description assumes that the dome is mounted on the ceiling. The definition of a Pan movement is the
+rotation of the camera module around the pan axis. Thereby, the tilt axis is also rotated in the same direction
+in the plane orthogonal to the pan axis, so that it is still orthogonal to the camera lens axis. Tilt movement is
+the rotation of the camera module around the tilt axis. W ith the tilt axis the camera direction can be changed
+from looking downward to looking at the horizon. Some devices may support a camera which can look above
+the horizon.
+The angles describing the rotation around pan and tilt axis are referred to as pan and tilt angles, where pan is
+represented by the X coordinate of the position vector and tilt is represented by the Y coordinate of the position
+vector. Both angles are specified in degrees. The initial position of this coordinate system is when the direction
+of the camera lens is parallel to the ceiling. The pan and tilt angles in this initial direction are zero (0,0).
+When starting from the initial direction and increasing the pan angle, objects that have previously been in
+the centre of the image will move towards the left of the image. When starting from the initial direction and
+increasing the tilt angle, objects which have been previously in the middle of the image move towards the
+bottom of the image.
+1
+
+The maximum range for pan and tilt angles are between -180 and +180 degrees . The device can restrict
+the tilt range arbitrarily. The tilt angle of a camera can change its direction in the space of a hemisphere like
+a dome camera that is typically bounded from 0 to -90 degrees. If a device cannot pan the full range, it may
+limit the pan range to an appropriate interval.
+
+±180
+
+-90°
+
+0°
+
+90°
+Pan axis
+
+-180°
+
+0°
+
+Tilt axis
+
+-90°
+Figure 1: Spherical pan/tilt position space in degrees for a camera mounted on the ceiling.
+A camera that does not support e-flip (or has disabled it) and allows an absolute tilt range between
+0 and -180°, shall not rotate the image and directions when requesting a tilt movement of less than -90°.
+If a camera supports e-flip and a client requests a tilt movement that passes nadir, the following behaviour is
+to be expected:
+
+•
+1
+
+There could be a hysteresis (±α°) room around the position of nadir, such that the image and direction
+rotation doesn’t occur exactly at the nadir, which could generate irritating oscillation.
+
+-180 and +180 is the same pan position in the space and the camera can choose to represent the pan position using any of them
+
+ONVIF™
+
+•
+
+– 24 –
+
+Ptz – Ver. 25.12
+
+When the camera rotates the image and move directions (after passing the nadir ±α°), the following
+changes to the coordinate system will occur:
+○
+
+The new pan angle will be Pnew = Pold + 180°
+
+○
+
+The new tilt angle will be Tnew = -180°
+
+○
+
+If ignoring the hysteresis area, there is a one-to-one mapping between viewing directions and
+pan/tilt coordinates, even though there are two mechanical positions of the camera matching
+the same viewing direction but with rotated image. For example, the two mechanical directions
+P1 : 35 , T1 : -20 and P2 : -145 , T2 : -160 , would be represented by the coordinate P : 35 , T
+: -20 since a tilt of < -90 – α would update the coordinates as described above.
+
+The spherical pan/tilt position space is defined as follows:
+
+- Told , -180 ≤ Told ≤ -90
+
+2
+
+<tt:AbsolutePanTiltPositionSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/PanTiltSpaces/SphericalPositionSpace
+Degrees
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>-INF</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:XRange>
+<tt:YRange>
+<tt:Min>-180.0</tt:Min>
+<tt:Max>180.0</tt:Max>
+</tt:YRange>
+</tt:AbsolutePanTiltPositionSpace>
+
+The Min and Max elements of the XRange are set to plus and minus infinity to indicate that the range is not
+bounded to either side.
+
+5.7.1.3 Generic zoom position space
+The generic zoom position space shall be provided by every PTZ node that supports absolute zoom, since it
+does not relate to a specific physical range. Instead, the range should be defined as the full range of the zoom
+normalized to the range 0 (wide) to 1 (tele). There is no assumption about how the generic zoom range is
+mapped to magnification, FOV or other physical zoom dimension. This results in the following space description:
+<tt:AbsoluteZoomPositionSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/ZoomSpaces/PositionGenericSpace
+</tt:SpaceURI>
+<tt:Xrange>
+<tt:Min>0.0</tt:Min>
+<tt:Max>1.0</tt:Max>
+</tt:Xrange>
+</tt:AbsoluteZoomPositionSpace>
+
+5.7.1.4 Zoom position space in millimeters
+The zoom position space in millimeters expresses the absolute focal length of a zoom camera. The maximum
+3
+and minimum focal length is camera specific. The zoom position space in millimeters is defined as follows:
+<tt:AbsoluteZoomPositionSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/ZoomSpaces/PositionSpaceMillimeter
+</tt:SpaceURI>
+2
+
+The particular device should reference the proposed name space but the actual ranges are device specific. The ranges indicated in the
+definition shall be interpreted as the maximum and minimum range limits for the space.
+3
+The particular device should reference the proposed name space but the actual range is device specific. The range indicated in the
+definition shall be interpreted as the maximum and minimum range limits for the space.
+
+ONVIF™
+
+– 25 –
+
+Ptz – Ver. 25.12
+
+<tt:XRange>
+<tt:Min>0.0</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:XRange>
+</tt:AbsoluteZoomPositionSpace>
+
+The current zoom magnification (M) for a camera can be calculated from the focal length as follows:
+
+where
+
+is the minimum focal length and
+
+is the current focal length.
+
+The current angle of view can be calculated with the following formula:
+
+where
+
+represents the size of the sensor in the direction of interest and
+
+is the current focal length.
+
+5.7.1.5 Normalized digital zoom position space
+The normalized digital zoom position space represents the mapping between the width of the window (Ww)
+used for a video stream and the width of the Bounds element of the video source configuration (Sw). This space
+requires a Media Profile that includes a VideoEncoderConfiguration and a VideoSourceConfiguration.
+The normalized digital zoom factor is calculated as
+
+.
+
+The maximum zoom level that can be represented by this space is limited by the smallest size of the window
+allowed by the camera.
+The normalized digital position zoom space is defined as follows:
+
+4
+
+<tt:AbsoluteZoomPositionSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/ZoomSpaces/NormalizedDigitalPosition
+Space
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>1.0</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:XRange>
+</tt:AbsoluteZoomPositionSpace>
+
+It’s important to notice that a zoom operation using this space doesn’t affect the current resolution of the video
+stream being configured in the VideoEncoderConfiguration of the Media Profile. Instead it changes the width
+and height of the window configured in the VideoSourceConfiguration.
+
+5.7.1.5.1 Example: Zoom level for cropped area
+For example, a digital PTZ unit with a natively cropped VGA (640x 480) window on a 3MP sensor (2048x1536)
+would have the zoom level
+
+5.7.2 Relative translation spaces
+A Relative pan/tilt Translation Space moves the PTZ unit a certain translation in a certain direction without
+knowing the camera’s current pan/tilt position.
+A relative pan/tilt translation can be derived from a corresponding (digital/spherical) absolute pan/tilt position
+space by taking the difference of two absolute pan/tilt positions. However, there are also relative pan/tilt trans4
+
+The particular device should reference the proposed name space but the actual range is device specific. The range indicated in the
+definition shall be interpreted as the maximum range limit for the space.
+
+ONVIF™
+
+– 26 –
+
+Ptz – Ver. 25.12
+
+lations where no corresponding absolute pan/tilt space can be defined. An example is the relative translation
+space in field of view described in Section A.3.2.
+If the camera supports e-flip, the following additional behaviour should be expected by the space defined in
+Section A.3.1:
+If the tilt translation is passing nadir position (including the room for a hysteresis ±α°), the camera should rotate
+the image at nadir ±α° as described in section 5.7.1.2 (only for cameras supporting absolute pan/tilt positioning).
+When a rotation occurs, the camera will continue the current movements according to the directions given
+when the command was issued. If the command is interrupted with a new request (after the flip), that request
+will be handled according to the new (flipped) direction and coordinates. A camera that doesn’t support e-flip
+or has it disabled will not rotate the image and directions during a tilt movement passing the nadir.
+
+5.7.2.1 Generic pan/tilt translation space
+The generic pan/tilt translation space shall be provided by every PTZ node that supports relative pan/tilt, since
+it does not relate to a specific physical range. Instead, the range should be defined as the full positive and
+negative translation range of the PTZ unit normalized to the range -1 to 1, where positive translation would
+mean clockwise rotation or movement in right/up direction resulting in the following space description:
+<tt:RelativePanTiltTranslationSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/PanTiltSpaces/TranslationGenericSpace
+</tt:SpaceURI>
+<tt:Xrange>
+<tt:Min>-1.0</tt:Min>
+<tt:Max>1.0</tt:Max>
+</tt:Xrange>
+<tt:Yrange>
+<tt:Min>-1.0</tt:Min>
+<tt:Max>1.0</tt:Max>
+</tt:Yrange>
+</tt:RelativePanTiltTranslationSpace>
+
+5.7.2.2 Generic zoom translation space
+The generic zoom translation space shall be provided by every PTZ node that supports relative zoom, since it
+does not relate to a specific physical range. Instead, the corresponding absolute range should be defined as
+the full positive and negative translation range of the Zoom normalized to the range -1 to1, where a positive
+translation maps to a movement in tele direction. The translation is signed to indicate direction (negative is to
+wide, positive is to tele). There is no assumption about how the generic zoom range is mapped to magnification,
+field of view or other physical zoom dimension. This results in the following space description:
+<tt:RelativeZoomTranslationSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/ZoomSpaces/TranslationGenericSpace
+</tt:SpaceURI>
+<tt:Xrange>
+<tt:Min>-1.0</tt:Min>
+<tt:Max>1.0</tt:Max>
+</tt:Xrange>
+</tt:RelativeZoomTranslationSpace>
+
+5.7.3 Continuous velocity spaces
+The continuous velocity spaces are used to continuously move the PTZ unit in a certain direction.
+If a camera supports e-flip (specified in section A.3.1), and it’s enabled, the following behaviour should be
+expected by the pan/tilt spaces defined in Section 5.7.3.2 and A.4.1:
+If the tilt translation is passing nadir position (including the room for a hysteresis ±α°), the camera should rotate
+the image at nadir ±α° as described in section 5.7.1.2 (only for cameras supporting absolute pan/tilt positioning).
+
+ONVIF™
+
+– 27 –
+
+Ptz – Ver. 25.12
+
+When a rotation occurs, the camera will continue the current movements according to the directions given
+when the command was issued. If the command is interrupted with a new request (after the flip), that request
+will be handled according to the new (flipped) direction and coordinates. A camera that doesn’t support e-flip
+or has it disabled will not rotate the image and directions during a tilt movement passing nadir.
+
+5.7.3.1 Generic pan/tilt velocity space
+The generic pan/tilt velocity space shall be provided by every PTZ node, since it does not relate to a specific
+physical range. Instead, the range should be defined as a range of the PTZ unit’s speed normalized to the
+range -1 to 1, where a positive velocity would map to clockwise rotation or movement in the right/up direction.
+A signed speed can be independently specified for the pan and tilt component resulting in the following space
+description:
+<tt:ContinuousPanTiltVelocitySpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/PanTiltSpaces/VelocityGenericSpace
+</tt:SpaceURI>
+<tt:Xrange>
+<tt:Min>-1.0</tt:Min>
+<tt:Max>1.0</tt:Max>
+</tt:Xrange>
+<tt:Yrange>
+<tt:Min>-1.0</tt:Min>
+<tt:Max>1.0</tt:Max>
+</tt:Yrange>
+</tt:ContinuousPanTiltVelocitySpace>
+
+5.7.3.2 pan/tilt Velocity Space in Degrees per Second
+The pan/tilt Velocity Space In Degrees Per Second describes a continuous rotation around the pan and tilt axis
+(specified in section 5.7.1.2) with a constant rotation speed. Thereby, the velocity describes the signed pan
+and tilt angle change in degrees per second. The pan velocity is expressed by the X coordinate of the direction
+5
+vector and the tilt velocity by the Y coordinate and the space is defined as follows:
+<tt:ContinuousPanTiltVelocitySpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/PanTiltSpaces/VelocitySpaceDegrees
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>-INF</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:XRange>
+<tt:YRange>
+<tt:Min>-INF</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:YRange>
+</tt:ContinuousPanTiltVelocitySpace>
+
+5.7.3.3 Generic zoom velocity space
+The generic zoom velocity space specifies a zoom factor velocity without knowing the underlying physical
+model. The range should be normalized from -1 to 1, where a positive velocity would map to TELE direction.
+A generic zoom velocity space description resembles the following:
+<tt:ContinuousZoomVelocitySpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/ZoomSpaces/VelocityGenericSpace
+</tt:SpaceURI>
+<tt:Xrange>
+<tt:Min>-1.0</tt:Min>
+5
+
+The particular device should reference the proposed name space but the actual ranges are device specific. The ranges indicated in the
+definition shall be interpreted as the maximum and minimum range limits for the space.
+
+ONVIF™
+
+– 28 –
+
+Ptz – Ver. 25.12
+
+<tt:Max>1.0</tt:Max>
+</tt:Xrange>
+</tt:ContinuousZoomVelocitySpace>
+
+5.7.4 Speed spaces
+The speed spaces specify the speed for a pan/tilt and zoom movement when moving to an absolute position
+or to a relative translation. In contrast to the velocity spaces, speed spaces do not contain any directional
+information. The speed of a combined pan/tilt movement is represented by a single non-negative scalar value.
+If relative translation space and continuous velocity space are already defined, the corresponding speed space
+is derived as follows: requesting a continuous movement with a velocity V for T seconds, is identical (up to
+acceleration and positional inaccuracies) to requesting a relative movement with relative position R and speed
+S, where R equals V times T and S equals the length of vector V. Therefore, speed values are always positive.
+
+5.7.4.1 Generic pan/tilt speed space
+The generic pan/tilt speed space shall be provided by every PTZ node that supports configurable speed for
+pan/tilt, since it does not relate to a specific physical range. Instead, the range should be defined as the full
+range of the speed range normalized to the range 0 (stopped) to 1 (full speed). This results in the following
+space description:
+<tt:PanTiltSpeedSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/PanTiltSpaces/GenericSpeedSpace
+</tt:SpaceURI>
+<tt:Xrange>
+<tt:Min>0.0</tt:Min>
+<tt:Max>1.0</tt:Max>
+</tt:Xrange>
+</tt:PanTiltSpeedSpace>
+
+5.7.4.2 Pan/tilt speed space in degrees per Second
+The pan/tilt speed space in degrees per second derives from the absolute pan/tilt position space in degrees
+6
+for absolute and relative movements. The pan/tilt speed space in degrees per second is defined as follows:
+<tt:PanTiltSpeedSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/PanTiltSpaces/SpeedSpaceDegrees
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>0.0</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:XRange>
+</tt:PanTiltSpeedSpace>
+
+5.7.4.3 Generic zoom speed space
+The generic zoom speed space shall be provided by every PTZ node that supports configurable speed for
+zoom, since it does not relate to a specific physical range. Instead, the range should be defined as the full
+range of the speed range normalized to the range 0 (stopped) to 1 (full speed). This results in the following
+space description:
+<tt:ZoomSpeedSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/ZoomSpaces/ZoomGenericSpeedSpace
+</tt:SpaceURI>
+<tt:Xrange>
+<tt:Min>0.0</tt:Min>
+6
+
+The particular device should reference the proposed name space but the actual range is device specific. The range indicated in the
+definition shall be interpreted as the maximum and minimum range limits for the space.
+
+ONVIF™
+
+– 29 –
+
+Ptz – Ver. 25.12
+
+<tt:Max>1.0</tt:Max>
+</tt:Xrange>
+</tt:ZoomSpeedSpace>
+
+5.7.4.4 Zoom speed space in millimeter per second
+The zoom speed space in millimeter per second derives from the zoom velocity space in millimeter per second
+as defined in section A.4.2 and specifies the absolute change per second of the focal length. If the device
+7
+supports the zoom speed space The zoom speed space in millimeter per second is defined as follows:
+<tt:ZoomSpeedSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/ZoomSpaces/SpeedSpaceMillimeter
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>0.0</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:XRange>
+</tt:ZoomSpeedSpace>
+
+5.8 Preset Tour Operations
+Preset tour is a feature for PTZ-capable devices, enabling the PTZ unit to move on specified presets sequentially at some interval.
+This section describes operations that manage the preset tours. These operations shall be implemented when
+a PTZ node in the PTZ service indicates support of preset tours with MaximumNumberOfPresetTours>0 capability value, All operations require a profile token referencing a Media Profile including a PTZConfiguration.
+All operations for preset tours shall always be persistent.
+PresetTours can have forward and backward directions, and in case direction is omitted, it is assumed to be
+forward. However, it is possible to specify random execution by setting the RandomPresetOrder attribute. In
+case RandomPresetOrder is set to true and Direction is also present, Direction will be ignored and presets of
+the Tour will be recalled randomly.
+
+5.8.1 GetPresetTours
+A device supporting Preset Tour feature shall return all available preset tours through GetPresetTours.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+RESPONSE:
+
+•
+
+PresetTour - optional, unbounded [tt:PTZPresetTour]
+List of preset tours defined for the requested MediaProfile.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+The requested profile token does not reference a PTZ configuration.
+
+ACCESS CLASS:
+READ_MEDIA
+7
+
+The particular device should reference the proposed name space but the actual range is device specific. The range indicated in the
+definition shall be interpreted as the maximum and minimum range limit for the space.
+
+ONVIF™
+
+– 30 –
+
+Ptz – Ver. 25.12
+
+5.8.2 GetPresetTour
+A device supporting preset tours shall return the requested preset tour through GetPresetTour.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+PresetTourToken [tt:ReferenceToken]
+Reference to an existing preset tour.
+
+RESPONSE:
+
+•
+
+PresetTour [tt:PTZPresetTour]
+The requested preset tour.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+The requested profile token does not reference a PTZ configuration.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoToken
+The requested preset tour token does not exist.
+
+ACCESS CLASS:
+READ_MEDIA
+
+5.8.3 GetPresetTourOptions
+A device supporting preset tours shall provide options for how preset tours can be configured through GetPresetTourOptions.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+PresetTourToken - optional [tt:ReferenceToken]
+Optional reference to an existing preset tour.
+
+RESPONSE:
+
+•
+
+PresetTour [tt:PTZPresetTourOptions]
+The requested preset tour options.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+The requested profile token does not reference a PTZ configuration.
+
+ACCESS CLASS:
+READ_MEDIA
+
+5.8.4 CreatePresetTour
+A device supporting Preset Tour feature shall allow creating a new Preset Tour through the CreatePresetTour.
+
+ONVIF™
+
+– 31 –
+
+Ptz – Ver. 25.12
+
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+RESPONSE:
+
+•
+
+PresetTourToken [tt:ReferenceToken]
+Reference to an existing preset tour.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+The requested profile token does not reference a PTZ configuration.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:TooManyPresetTours
+There is not enough space in the device to create the new preset tour for the profile
+
+ACCESS CLASS:
+ACTUATE
+
+5.8.5 ModifyPresetTour
+A device supporting preset tours shall allow modifying a preset tour through ModifyPresetTour.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+PresetTour [tt:PTZPresetTour]
+The preset tour parameters to be set.
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+The requested profile token does not reference a PTZ configuration.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidPresetTour
+The requested PresetTour includes invalid parameter(s).
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:TooManyPresets
+Too many TourSpots are included in the PresetTour.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoToken
+The requested preset tour token does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:SpaceNotSupported
+A space is referenced which is not supported by the PTZ node.
+
+ACCESS CLASS:
+ACTUATE
+
+ONVIF™
+
+– 32 –
+
+Ptz – Ver. 25.12
+
+5.8.6 OperatePresetTour
+A device supporting preset tours shall allow starting, stopping, or pausing a preset tour through OperatePresetTour.
+Preset tour can be operated with the PresetTourOperation parameter of OperatePresetTour command.
+
+•
+
+Start: indicates starting the preset tour or re-starting the paused preset tour.
+
+•
+
+Stop: indicates stopping the preset tour.
+
+•
+
+Pause:iIndicates pausing the preset tour.
+
+When receiving another OperatePresetTour command of Start operation for a preset tour which has already
+been started, the preset tour shall be restarted with the newly requested parameter.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+PresetTourToken [tt:PTZPresetTourToken]
+Reference to an existing preset tour.
+
+•
+
+Operation [tt:PTZPresetTourOperation]
+Operation information.
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+The requested profile token does not reference a PTZ configuration.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoToken
+The requested preset tour token does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidPresetTour
+The requested PresetTour includes invalid parameter(s).
+
+•
+
+env:Receiver - ter:InvalidArgVal - ter:ActivationFailed
+The requested preset tour cannot be activated while PTZ unit is moving or another preset tour is now
+activated.
+
+ACCESS CLASS:
+ACTUATE
+
+5.8.7 RemovePresetTour
+A device supporting preset tours shall support removing preset tours through RemoevPresetTour.
+REQUEST:
+
+•
+
+ProfileToken [tt:ReferenceToken]
+Reference to an existing media profile.
+
+•
+
+PresetTourToken [tt:PTZPresetTourToken]
+Reference to an existing preset tour.
+
+ONVIF™
+
+– 33 –
+
+Ptz – Ver. 25.12
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoProfile
+The requested profile token ProfileToken does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoPTZProfile
+The requested profile token does not reference a PTZ configuration.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoToken
+The requested preset tour token does not exist.
+
+ACCESS CLASS:
+ACTUATE
+
+5.8.8 Preset tour parameters
+A preset tour is composed of following parameters:
+PresetTour: Configuration of a preset tour.
+
+•
+
+Name: Name of the preset tour [Optional]
+
+•
+
+Status: Indicates the current status of the preset tour. This parameter in the argument of the ModifyPresetTour command shall be ignored.
+○
+
+Idle: Preset tour is not activated.
+
+○
+
+Touring: Preset tour is activated and now under touring.
+
+○
+
+Paused: Preset tour is under pause at the middle of the tour by client. This status requires
+Start operation from a client to re-start.
+
+•
+
+AutoStart: Flag to enable the preset tour activated always. When this flag is set to True in a preset tour,
+the device shall set the flags of all other preset tours referring to the same PTZNode to False, so that
+only one tour on the device is marked as AutoStart. Starting and stopping the preset tour by OperatePresetTour shall change this flag to False. Pausing and resuming the preset tour by OperatePresetTour
+shall not change this flag.
+
+•
+
+TourSpot: Presets with its configuration for touring [Optional]
+○
+
+•
+
+PresetDetail: Detail configuration of the preset for the tour spot. One out of the three options
+below shall be chosen.
+▪
+
+PresetToken: Specifies an existing PresetToken as this tour spot.
+
+▪
+
+Home: Specifies the home position as the tour spot. Only “True” to this Boolean parameter shall be valid. “False” shall be treated as an error due to an invalid argument.
+
+▪
+
+PTZPosition: Specifies the vector of PTZ node as the tour spot
+
+○
+
+Speed: PTZ speed moving to this tour spot. [Optional]
+
+○
+
+StayTime: Time duration of stay on the spot. [Optional]
+
+PresetTourStartingCondition: Configuration of the starting preset tour.
+○
+
+RecurringTime: Parameter to specify how many times the preset tour is recurred. [Optional]
+
+ONVIF™
+
+– 34 –
+○
+
+RecurringDuration: Parameter to specify how long duration time the preset tour is recurred
+[Optional]
+▪
+
+○
+
+•
+
+Ptz – Ver. 25.12
+
+If both conditions RecurringTime and RecurringDuration are configured, the preset
+tour shall finish with one of the conditions satisfied earlier. If both are omitted, PresetTour shall be recurred without limitation.
+
+PresetTourDirection: A device refers this flag to choose which direction the preset tour goes.
+It is omissible parameter and Forward shall be chosen in case it is omitted. [Optional]
+▪
+
+Forward: Preset tour goes in forward order.
+
+▪
+
+Backward: Preset tour goes in backward order.
+
+Token: Unique identifier of the preset tour
+
+5.9 Pan/tilt control direction configuration
+Pan/tilt control direction configuration is one set of parameters in PTZ configuration used to configure the
+movement directions of pan and tilt in the two following ways:
+1. E-Flip
+E-Flip is flipping of the control directions of pan/tilt when the lens passes the nadir or the zenith direction during
+a tilt movement. This functionality is useful when controlling domes using a human joystick control, where a
+client can track an object that passes the nadir and doesn’t have to bother about inverted controls.
+2. Reverse
+The Reverse parameter is for switching the positive and negative positions of the pan/tilt control direction. This
+feature can be used to configure appropriate control direction of pan/tilt based on directions that the device is
+mounted, for example, in the ceiling downwards or on the surface upwards.
+Figure 2 to Figure 5 show an example how the control directions of pan/tilt are changed by E-Flip feature and
+Reverse feature.
+
+[Side view]
+
+[Topdown view]
+-90
+
+-180
+
+0
+
+-90
+nadir
+
++/-180
+
+0
+
++90
+
+Figure 2: Normal pan/tilt control direction
+
+ONVIF™
+
+– 35 –
+
+Ptz – Ver. 25.12
+
+90
+
+0
+
+-180
+
+0
+
+-90
+
++/-180
+
+-90
+
+Figure 3: Normal pan/tilt control direction with E-Flip activated
+
+zenith
++90
+
+-90
+
++180
+
+0
+
++/-180
+
+0
+
++90
+Figure 4: Reversed pan/tilt control direction
+
++90
+
++90
+
+0
+
++180
+
+0
+
++/-180
+
+-90
+Figure 5: Reversed pan/tilt control direction with E-Flip activated
+If the control direction of pan/tilt is changed, it is recommended to adapt the orientation of the video image via
+the Rotation parameter of VideoSourceConfiguration to align pan/tilt and video.
+
+5.10 GetServiceCapabilities
+The capabilities reflect optional functions and functionality of a service. The information is static and does not
+change during device operation. The following capabilites are available:
+EFlip
+
+Indicates whether or not E-Flip is supported.
+
+ONVIF™
+
+– 36 –
+
+Ptz – Ver. 25.12
+
+Reverse
+
+Indicates whether or not reversing of pan/tilt control direction is supported.
+
+GetCompatibleConfigurations
+
+Indicates the support for GetCompatibleConfigurations command.
+
+MoveStatus
+
+Indicates that the PTZStatus includes MoveStatus information.
+
+StatusPosition
+
+Indicates that the PTZStatus includes Position information.
+
+MoveAndTrack
+
+Indicates level of support for MoveAndStartTracking. Options are PresetToken, GeoLocation, PTZVector and ObjectID.
+
+REQUEST:
+This is an empty message.
+RESPONSE:
+
+•
+
+Capabilities [tptz:Capabilities]
+List of the above defined capabilities.
+
+FAULTS:
+None
+ACCESS CLASS:
+PRE_AUTH
+
+5.11 Events
+A device supporting the PTZ service dispatches events listed in this chapter through the event service.
+
+5.11.1 PTZ Presets
+A device supporting the PTZ service specifies handling of PTZ presets. Since the move operations are nonblocking, a client is not informed when the PTZ preset has been reached. Therefore, a device supporting the
+PTZ service should support the following events which inform subscribers about the status of preset movements.
+Topic:
+tns1:PTZController/PTZPresets/Invoked
+tns1:PTZController/PTZPresets/Reached
+tns1:PTZController/PTZPresets/Aborted
+tns1:PTZController/PTZPresets/Left
+
+The typical sequence of events is that first a client requests a certain preset. When the device accepts this
+request, it will send out an invoked event. The invoked event has to follow either a reached event or an aborted
+event. The former is used when the PTZ unit was able to reach the invoked preset position, the latter in any other
+case. A reached event has to follow a left event, as soon as the PTZ unit moves away from the preset position.
+The message structure of these events is given by the following message description:
+<tt:MessageDescription>
+<tt:Source>
+<tt:SimpleItemDescription Name="PTZConfigurationToken"
+Type="tt:ReferenceToken"/>
+</tt:Source>
+<tt:Data>
+<tt:SimpleItemDescription Name="PresetToken" Type="tt:ReferenceToken"/>
+<tt:SimpleItemDescription Name="PresetName" Type="tt:Name"/>
+</tt:Data>
+</tt:MessageDescription>
+
+ONVIF™
+
+– 37 –
+
+Ptz – Ver. 25.12
+
+5.11.2 PresetTours
+When a PTZ node in a device supporting the PTZ service indicates support of Preset Tour with MaximumNumberOfPresetTours greater than 0 capability value, the device shall support the following topic to inform
+subscribers about preset tour events. Whenever a change in Preset Tours occurs, the PTZ service shall dispatch this event:
+Topic: tns1:PTZController/PTZPresetTours/Configuration
+<tt:MessageDescription isProperty=True>
+<tt:Source>
+<tt:SimpleItemDescriptionName="ProfileToken" Type="tt:ReferenceToken"/>
+<tt:SimpleItemDescriptionName="PresetTourToken" Type="tt:ReferenceToken"/>
+</tt:Source>
+<tt:Data>
+<tt:SimpleItemDescriptionName="StateChange" Type="xs:boolean"/>
+<tt:ElementItemDescription Name="PresetTour" Type="tt:PTZPresetTour"/>
+</tt:Data>
+</tt:MessageDescription>
+
+Note, the StateChange flag in the data part becomes true when the mentioned Preset Tour includes any
+changes of its State.
+
+ONVIF™
+
+– 38 –
+
+Ptz – Ver. 25.12
+
+Annex A.
+Additional PTZ Spaces (Informative)
+A.1 Introduction
+This section lists additional spaces originally defined in a white paper. For a list of normative spaces refer to
+section 5.7.
+
+A.2 Absolute Position Spaces
+A.2.1 Digital pan/tilt Position Space
+The Digital pan/tilt Position Space is suitable for Digital PTZ cameras, where the pan and tilt coordinates
+represent the centre point of a window positioned on a sensor, also known as absolute Digital PTZ. This space
+requires a Media Profile that includes a VideoEncoderConfiguration and a VideoSourceConfiguration [ONVIF
+Core Spec].
+The pan movement is a horizontal movement in the X direction on the sensor plane and the tilt movement is
+a vertical movement in the Y direction on the sensor plane. The coordinate system originates from the lower
+left of the sensor. Figure A.1 exemplifies a window located at the left upper most coordinate (0.1, 0.9) with a
+window size of (0.2 * plane width, 0.2 * plane height).
+
+Figure A.1: Digital pan/tilt Position Space.
+The Digital pan/tilt Position space is defined as follows:
+<tt:AbsolutePanTiltPositionSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/PanTiltSpaces/DigitalPositionSpace
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>0</tt:Min>
+<tt:Max>1</tt:Max>
+</tt:XRange>
+<tt:YRange>
+<tt:Min>0</tt:Min>
+<tt:Max>1</tt:Max>
+</tt:YRange>
+</tt:AbsolutePanTiltPositionSpace>
+
+ONVIF™
+
+– 39 –
+
+Ptz – Ver. 25.12
+
+A.2.2 Example: Positions of a window on sensor
+A window with VGA resolution (640x480) that is natively mapped to the same number of pixels of a cropped
+area on a 3MP (2048x1536) sensor, would have the pan and tilt range of:
+
+As long as the aspect ratio of the window and the sensor are identical, the same ranges for pan and tilt are
+expected. The device will automatically adjust the ranges based on the amount of source pixels represented
+in the window of interest (its width and height configured in the VideoSourceConfiguration of the requested
+profile).
+
+A.3 Relative Translation Spaces
+A.3.1 Spherical pan/tilt Translation Space in Degrees
+The Spherical pan/tilt Translation Space In Degrees derives from the Absolute Spherical pan/tilt Position Space
+In Degrees (see section 5.7.1.2). Instead of an absolute Position space where the reference position is fixed, the
+relative spherical space specifies the reference position as the cameras current position at all times. Thereby,
+the pan/tilt Translation is expressed as the coordinate difference from the current position to the target position.
+If a client wants to pan the camera by 5 degrees, it can use this relative spherical space and set the X coordinate
+of the direction to 5 and the Y coordinate to 0.
+The spherical pan/tilt translation space is defined as follows:
+
+1
+
+<tt:RelativePanTiltTranslationSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/PanTiltSpaces/SphericalTranslation
+Space Degrees
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>-360</tt:Min>
+<tt:Max>+360</tt:Max>
+</tt:XRange>
+<tt:YRange>
+<tt:Min>-INF</tt:Min>
+<tt:Max>+INF</tt:Max>
+</tt:YRange>
+</tt:RelativePanTiltTranslationSpace>
+
+A.3.2 Pan/tilt Translation Space in FOV
+The Relative pan/tilt Translation Space in FOV is introduced to simplify the navigation with dome cameras in
+graphical user interfaces. When the user wants to center the camera on a certain position in the current camera
+view, the user requests a movement with respect to the current FOV. Due to the mechanics of a dome, the
+image content may rotate (see Figure 1). Figure A.2 shows a rectangle representing the image content. The
+relative pan/tilt Translation Space in FOV has its origin in the centre of the image. The upper right corner corresponds to the normalized coordinate (1,1). This Space shall not be available in profiles without a VideoSource1
+
+The particular device should reference the proposed name space but the actual ranges are device specific. The ranges indicated in the
+definition shall be interpreted as the maximum and minimum range limits for the space.
+
+ONVIF™
+
+– 40 –
+
+Ptz – Ver. 25.12
+
+Configuration. The Space does not assume a certain dome model and can therefore be implemented on digital
+and mechanical domes.
+
+(1,1)
+
+(-1,1)
+
+(0,0)
+
+(-1,-1)
+
+(1,-1)
+
+Figure A.2: Relative pan/tilt Translation Space in FOV for a mechanical dome.
+The proposed minimum range for this relative direction space ranges from minus infinity to plus infinity. How2
+ever, a device may provide a different range. The relative direction space is defined as follows:
+<tt:RelativePanTiltTranslationSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/PanTiltSpaces/TranslationSpaceFov
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>-INF</tt:Min>
+<tt:Max>+INF</tt:Max>
+</tt:XRange>
+<tt:YRange>
+<tt:Min>-INF</tt:Min>
+<tt:Max>+INF</tt:Max>
+</tt:YRange>
+</tt:RelativePanTiltTranslationSpace>
+
+A.3.3 Digital pan/tilt Translation Space
+The Digital pan/tilt Translation Space is derived from the Absolute Digital pan/tilt Position Space (see section
+A.2.1). Instead of an absolute position space where the reference position is fixed, the relative space specifies
+the reference position as the camera’s current position at all times. Thereby, the pan/tilt translation is expressed
+as the coordinate difference from the current position to the target position. If a client wants to move the window
+area of the Video Source Configuration by a tenth of the sensor width horizontally, it can use this relative
+spherical space and set the X coordinate of the direction to 0.1 and the Y coordinate to 0. This Space shall not
+be available in profiles without a VideoSourceConfiguration.
+The following Figure A.3 shows the space description of this Digital pan/tilt Translation coordinate system. The
+outer box represents the image sensor, the dotted inner box the cropped area, and the arrow demonstrates a
+translation request of the cropped area with a pan/tilt vector of (0.1,-0.2).
+
+2
+
+The particular device should reference the proposed name space but the actual ranges are device specific. The ranges indicated in the
+definition sha ll be interpreted as the maximum and minimum range limits for the space.
+
+ONVIF™
+
+– 41 –
+
+Ptz – Ver. 25.12
+
+(0,0)
+
+(0.1,-0.2)
+
+Figure A.3: Relative Digital pan/tilt Translation Space.
+The maximum translation in positive direction for pan and tilt in this coordinate system would be represented
+by (1,1) the same way as the maximum negative translation would map to the coordinate (-1,-1). For example,
+a translation of a cropped area on a megapixel sensor from its lower left corner to its upper right corner corresponds to a relative movement using the translation vector (1,1) assuming that the cropped area has zero size.
+The Digital pan/tilt Translation Space is defined as fo llows:
+<tt:RelativePanTiltTranslationSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/PanTiltSpaces/DigitalTranslationSpace
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>-1</tt:Min>
+<tt:Max>+1</tt:Max>
+</tt:XRange>
+<tt:YRange>
+<tt:Min>-1</tt:Min>
+<tt:Max>+1</tt:Max>
+</tt:YRange>
+</tt:RelativePanTiltTranslationSpace>
+
+A.3.4 Zoom Translation Space In Millimeter
+The Zoom Translation Space In Millimeter derives from the Absolute Zoom Position Space In Millimeter specified in section 5.7.1.4 and specifies the translation of the focal length in the camera optics. If the device supports
+absolute zoom movements using the Absolute Zoom Position Space In Millimeter, the maximum negative and
+positive translation is given by the difference of the maximum and minimum position in Millimeter.
+The Zoom Translation Space In Millimeter is defined as follows:
+
+3
+
+<tt:RelativeZoomTranslationSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/ZoomSpaces/TranslationSpaceMillimeter
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>-INF</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:XRange>
+</tt:RelativeZoomTranslationSpace>
+3
+
+The particular device should reference the proposed name space but the actual range is device specific. The range indicated in the
+definition shall be interpreted as the maximum and minimum range limits for the space.
+
+ONVIF™
+
+– 42 –
+
+Ptz – Ver. 25.12
+
+A.3.5 Normalized digital zoom Translation Space
+The normalized digital zoom Translation Space derives from the Absolute normalized digital zoom Position
+Space specified in section 5.7.1.5 specifies the translation of the mapping between the width of a window on a
+sensor and the width of the full sensor. A translation change in positive direction would make the window smaller
+in percentage of the sensor and thereby decreasing the field of view and increasing the zoom factor. This space
+requires a MediaProfile that includes a VideoEncoderConfiguration and a VideoSourceConfiguration.
+Notice that a translation operation that uses this space will affect the width and height of the crop window that
+is configured in the VideoSourceConfiguration of the requested profile.
+The normalized digital zoom Translation Space is defined as follows:
+
+4
+
+<tt:RelativeZoomTranslationSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/ZoomSpaces/NormalizedDigital
+TranslationSpace
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>-INF</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:XRange>
+</tt:RelativeZoomTranslationSpace>
+
+A.3.6 Zoom Translation space in FOV
+The Relative Zoom Translation Space in FOV is introduced to simplify magnification with dome cameras in
+graphical user interfaces. When the user wants to modify the magnification of the current camera view, they
+draw an area centered in the middle of the current FOV, which defines the zoom factor.
+The zoom factor is represented by the ratio between the width of the desired area (Ww) and the width of the
+display window used for the video stream (Sw) relative to the current field of view.
+The relative zoom factor is calculated as
+The Zoom Translation Space in FOV is defined as follows:
+
+5
+
+<tt:RelativeZoomTranslationSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/ZoomSpaces/TranslationSpaceFov
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>0</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:XRange>
+</tt:RelativeZoomTranslationSpace>
+
+A.4 Continuous Velocity Spaces
+A.4.1 FOV Scaled pan/tilt Velocity Space per Second
+The FOV Scaled pan/tilt Velocity Space Per Second is introduced to support keyboard and joystick control,
+where the requested velocities are internally scaled by the current zoom factor of the dome. A pan/tilt vector in
+this space describes the move with respect to the current centre of the image. The length of this vector specifies
+the desired translation per second. This Space shall not be available in profiles without a VideoSourceConfiguration. The Space does not assume a certain dome model and can therefore be implemented on digital and
+mechanical domes.
+4
+
+The particular device should reference the proposed name space but the actual range is device specific. The range indicated in the
+definition shall be interpreted as the maximum and minimum range limits for the space.
+5
+The proposed minimum value in range for this relative zoom space is 0 to allow reducing the current zoom.
+
+ONVIF™
+
+– 43 –
+
+Ptz – Ver. 25.12
+
+The FOV scaled pan/tilt velocity space is defined as follows: 9
+<tt:ContinuousPanTiltVelocitySpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/PanTiltSpaces/VelocitySpaceFOV
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>-INF</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:XRange>
+<tt:YRange>
+<tt:Min>-INF</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:YRange>
+</tt:ContinuousPanTiltVelocitySpace>
+
+A.4.2 Zoom Velocity Space In Millimeter Per Second
+The Zoom Velocity Space In Millimeter Per Second derives from the Zoom Translation Space In Millimeter in
+section A.3.4 and specifies the change per second of the focal length. The Zoom Velocity Space in Millimeter
+6
+Per Second space is defined as follows:
+<tt:ContinuousZoomVelocitySpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/ZoomSpaces/VelocitySpaceMillimeter
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>-INF</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:XRange>
+</tt:ContinuousZoomVelocitySpace>
+
+A.4.3 Normalized digital zoom Velocity Space Per Second
+The normalized digital zoom Velocity Space Per Second derives from the normalized digital zoom Translation
+Space in section A.3.5 and specifies the signed change per second of the ratio between window width and
+7
+sensor width. The Normalized Digital Zoom Ve locity Space Per Second is defined as follows:
+<tt:ContinuousZoomVelocitySpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/ZoomSpaces/NormalizedDigitalVelocity
+Space
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>-INF</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:XRange>
+</tt:ContinuousZoomVelocitySpace>
+
+A.5 Speed Spaces
+A.5.1 Pan/tilt Speed Space In FOV Per Second
+The pan/tilt Speed Space in FOV Per Second derives from the Relative pan/tilt Translation Space in FOV. W
+hen the client requests a relative movement with a pan/tilt Speed of 0.5 FOV Per Second, the scene part which
+was first observed at the centre of the image will have been moved to the image border after one second. This
+Space shall not be available in profiles without a VideoSourceConfiguration. The Space does not assume a
+certain dome model and can therefore be implemented on digital and mechanical domes.
+6
+
+The particular device should reference the proposed name space but the actual range is device specific. The range indicated in the
+definition shall be interpreted as the maximum and minimum range limits for the space.
+7
+The particular device should reference the proposed name space but the actual range is device specific. The range indicated in the
+definition shall be interpreted as the maximum and minimum range limits for the space.
+
+ONVIF™
+
+– 44 –
+
+The ONVIF pan/tilt speed space in FOV per second is defined as follows:
+
+Ptz – Ver. 25.12
+8
+
+<tt:PanTiltSpeedSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/PanTiltSpaces/SpeedSpaceFOV
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>0.0</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:XRange>
+</tt:PanTiltSpeedSpace>
+
+A.5.2 Normalized digital zoom Speed Space Per Second
+The Normalized Digital Zoom Speed Space Per Second derives from the Normalized Digital Zoom Translation Space in section A.3.5and specifies the absolute change per second of the ratio between window width
+and sensor width. If the device supports absolute or relative zoom movements using the normalized digital
+zoom Position Space or the normalized digital zoom Position Space, the desired speed can be set using the
+normalized digital zoom Speed Space Per Second. The normalized digital zoom Speed Space Per Second
+9
+is defined as follows:
+<tt:ZoomSpeedSpace>
+<tt:SpaceURI>
+http://www.onvif.org/ver10/tptz/ZoomSpaces/NormalizedDigitalSpeedSpace
+</tt:SpaceURI>
+<tt:XRange>
+<tt:Min>0</tt:Min>
+<tt:Max>INF</tt:Max>
+</tt:XRange>
+</tt:ZoomSpeedSpace>
+
+8
+
+The particular device should reference the proposed name space but the actual range is device specific. The range indicated in the
+definition shall be interpreted as the maximum and minimum range limits for the space.
+9
+The particular device should reference the proposed name space but the actual range is device specific. The range indicated in the
+definition shall be interpreted as the maximum and minimum range limits for the space.
+
+ONVIF™
+
+– 45 –
+
+Ptz – Ver. 25.12
+
+Annex B.
+GeoMove Positioning Space (Informative)
+B.1 Introduction
+This section aims to provide a standard procedure to check if a given GeoLocated Point
+seen by a GeoLocated PTZ Device
+
+can be
+
+.
+
+Figure B.1: Geo-located device pointing a geo-located target.
+
+B.2 Preconditions
+The procedure described by this annex, can be applied only if the device, that we are going to use for our Geo
+pointing purposes, satisfies the two assumptions described in the following subsection.
+
+B.2.1 Absolute Pan Tilt Position Space
+In order to check if a GeoLocated point can be seen by the device, the device shall export its ranges for PAN
+and TILT angles using the Spherical pan/tilt Position Space in Degrees as follows:
+<tpz:GetNodeResponse>
+<tpz:PTZNode>
+<tpz:SupportedPTZSpaces>
+<tt:AbsolutePanTiltPositionSpace>
+<tt:URI>…</tt:URI>
+<tt:XRange>
+<tt:Min>-70</tt:Min>
+<tt:Max>90</tt:Max>
+</tt:XRange>
+<tt:YRange>
+<tt:Min>-15</tt:Min>
+<tt:Max>10</tt:Max>
+</tt:YRange>
+</tt:AbsolutePanTiltPositionSpace>
+</tpz:SupportedPTZSpaces>
+</tpz:PTZNode>
+</tpz:GetNodeResponse>
+
+In the example the device limits are:
+
+•
+•
+
+…
+
+ONVIF™
+
+– 46 –
+
+Ptz – Ver. 25.12
+
+•
+•
+B.2.2 GeoOrientation
+In order to check if a GeoLocated point can be seen by the device, the Yaw coordinate of the device GeoOrientation
+shall indicate the angular offset between the Geographical North and the 0° Pan position .
+
+Figure B.2: Yaw angle convention for a geo-located PTZ device
+
+B.3 Procedure
+Let’s consider a geo-located PTZ unit installed on a pole and a target that would like to point with the PTZ unit.
+
+Figure B.3: Geo located coordinates of PTZ device and target .
+The PTZ unit will be referenced with the geo coordinates :
+
+•
+
+: the latitude value returned by the device in the GetGeoLocationResponse.
+
+•
+
+: the latitude value returned by the device in the GetGeoLocationResponse.
+
+•
+
+: the elevation value returned by the device in the GetGeoLocatonResponse.
+
+The target will be referenced with the geo coordinates :
+
+•
+
+: the latitude of the target
+
+•
+
+: the longitude of the target
+
+•
+
+: the elevation of the target
+
+ONVIF™
+
+– 47 –
+
+Ptz – Ver. 25.12
+
+Before proceding with the calculations we need to project the two geo-located points
+and
+1
+on a Cartesian plane . In this way we could easily apply the trigonometric functions needed to check if the
+angles that device should cover to point the target are within the PAN and TILT ranges of the PTZ node.
+
+Figure B.4: anglepan representation.
+
+Figure B.5: angletilt representation.
+Once we have converted the geo-located points
+
+and
+
+into Cartesian points
+
+and
+
+we can calcutate PAN and TILT angles at which the device should move to point the target.
+To calculate the PAN angle, the following formula can be used :
+
+To calculate the TILT angle, the following formula can be used :
+
+Once we have both anglepan and angletilt we can compare them with PAN and TILT angles ranges to check
+if they can be reached by the device.
+1
+
+This can be achieved by converting WGS84 coordinates to Universal Transverse Mercator Coordinate System [https://en.wikipedia.org/wiki/Universal_Transverse_Mercator_coordinate_system].
+
+ONVIF™
+
+– 48 –
+
+Ptz – Ver. 25.12
+
+If both inequality are satisfied by the calcuted angles we can conclude that the target can be pointed by the
+device otherwise we can conclude that the target is out of the field of view of the device.
+
+ONVIF™
+
+– 49 –
+
+Ptz – Ver. 25.12
+
+Annex C.
+Revision History
+Rev.
+
+Date
+
+Editor
+
+Changes
+
+2.1
+
+Jul-2011
+
+Hans Busch
+
+Split from Core 2.0 without change of content.
+
+2.1.1
+
+Jan-2012
+
+Hans Busch
+
+Change Requests 262, 434, 535, 554
+
+2.2
+
+May-2012
+
+Takahiro Iwasaki
+
+Addition of Preset Tour and PT Control Direction features
+Change Request 648
+
+2.2.1
+
+Sep-2012
+
+Hans Busch
+
+Change Request 708, 825
+
+2.4
+
+Mar-2013
+
+Daniel Fiala
+
+Change Request 871
+
+2.4.1
+
+Dec-2013
+
+Michio Hirai
+
+Change Request 1207, 1215
+
+2.4.2
+
+Jun-2014
+
+Michio Hirai
+
+Change Request 1360, 1361, 1362
+
+2.5
+
+Dec-2014
+
+Ottavio Campana,
+Michio Hirai
+
+Addition of Ramp feature Change Request 1322
+
+2.6
+
+Jun-2015
+
+Michio Hirai
+
+Change Request 1660, 1668
+
+2.6.1
+
+Dec-2015
+
+Hiroyuki Sano
+
+Change Request 1700
+
+16.12
+
+Dec-2016
+
+Andrew Downs
+
+Incorporate PTZ spaces
+
+17.06
+
+Jun-2017
+
+Hans Busch,
+Hiroyuki Sano,
+Enrico Campana
+
+Update method layouts. Change Request 2044 Change
+Request 1843, 2001, 2030, 2031, 2035, 2043 Add
+GeoMove
+
+17.12
+
+Dec-2017
+
+Enrico Campana
+
+Add Annex B - GeoMove Positioning Space
+
+18.12
+
+Dec-2018
+
+Hiroyuki Sano
+
+Change Request 2362, 2379, 2380, 2381
+
+20.12
+
+Dec-2020
+
+Davide Cristanelli
+
+Add MoveAndStartTracking
+
+23.06
+
+Jun-2023
+
+Michael Adam
+
+Add clarification to PTZ spec regarding dynamic space
+ranges.
+
+25.12
+
+Dec-2025
+
+Mathieu Fournier
+
+Add zoom translation space in FOV.
+
+

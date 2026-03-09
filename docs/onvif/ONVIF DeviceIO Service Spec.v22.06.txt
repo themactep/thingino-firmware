@@ -1,0 +1,1191 @@
+ONVIF™
+
+–1–
+
+ONVIF™
+Device IO Service Specification
+Version 22.06
+June, 2022
+
+Device-IO – Ver. 22.06
+
+ONVIF™
+
+–2–
+
+Device-IO – Ver. 22.06
+
+Copyright © 2008-2022 ONVIF™ All rights reserved.
+Recipients of this document may copy, distribute, publish, or display this document so long as this copyright notice, license and disclaimer
+are retained with all copies of the document. No license is granted to modify this document.
+THIS DOCUMENT IS PROVIDED "AS IS," AND THE CORPORATION AND ITS MEMBERS AND THEIR AFFILIATES, MAKE
+NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO, WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, OR TITLE; THAT THE CONTENTS OF THIS
+DOCUMENT ARE SUITABLE FOR ANY PURPOSE; OR THAT THE IMPLEMENTATION OF SUCH CONTENTS WILL NOT INFRINGE
+ANY PATENTS, COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS.
+IN NO EVENT WILL THE CORPORATION OR ITS MEMBERS OR THEIR AFFILIATES BE LIABLE FOR ANY DIRECT, INDIRECT,
+SPECIAL, INCIDENTAL, PUNITIVE OR CONSEQUENTIAL DAMAGES, ARISING OUT OF OR RELATING TO ANY USE OR
+DISTRIBUTION OF THIS DOCUMENT, WHETHER OR NOT (1) THE CORPORATION, MEMBERS OR THEIR AFFILIATES HAVE BEEN
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGES, OR (2) SUCH DAMAGES WERE REASONABLY FORESEEABLE, AND ARISING
+OUT OF OR RELATING TO ANY USE OR DISTRIBUTION OF THIS DOCUMENT. THE FOREGOING DISCLAIMER AND LIMITATION
+ON LIABILITY DO NOT APPLY TO, INVALIDATE, OR LIMIT REPRESENTATIONS AND WARRANTIES MADE BY THE MEMBERS
+AND THEIR RESPECTIVE AFFILIATES TO THE CORPORATION AND OTHER MEMBERS IN CERTAIN WRITTEN POLICIES OF THE
+CORPORATION.
+
+ONVIF™
+
+–3–
+
+Device-IO – Ver. 22.06
+
+CONTENTS
+1
+
+Scope
+
+4
+
+2
+
+Normative references
+
+4
+
+3
+
+Terms and Definitions
+
+4
+
+3.1
+
+Definitions ................................................................................................................................ 4
+
+4
+
+Overview
+
+4
+
+5
+
+Service
+
+5
+
+5.1 VideoOutputs ........................................................................................................................... 5
+5.1.1 GetVideoOutputs ............................................................................................................... 5
+5.2 VideoOutputConfiguration ......................................................................................................... 5
+5.2.1 GetVideoOutputConfiguration ............................................................................................. 5
+5.2.2 SetVideoOutputConfiguration .............................................................................................. 6
+5.2.3 GetVideoOutputConfigurationOptions .................................................................................. 6
+5.3 VideoSources ........................................................................................................................... 7
+5.3.1 GetVideoSources ............................................................................................................... 7
+5.4 AudioOutputs ........................................................................................................................... 7
+5.4.1 GetAudioOutputs ............................................................................................................... 7
+5.5 AudioSources ........................................................................................................................... 7
+5.5.1 GetAudioSources ............................................................................................................... 8
+5.6 Relay Outputs .......................................................................................................................... 8
+5.6.1 GetRelayOutputs ............................................................................................................... 8
+5.6.2 GetRelayOutputOptions ...................................................................................................... 8
+5.6.3 SetRelayOutputSettings ..................................................................................................... 9
+5.6.4 SetRelayOutputState ........................................................................................................ 10
+5.7 Digital Inputs .......................................................................................................................... 10
+5.7.1 GetDigitalInputs ............................................................................................................... 10
+5.7.2 GetDigitalInputConfigurationOptions .................................................................................. 11
+5.7.3 SetDigitalInputConfigurations ............................................................................................ 11
+5.8 SerialPorts .............................................................................................................................. 12
+5.8.1 GetSerialPorts ................................................................................................................. 12
+5.8.2 GetSerialPortConfiguration ............................................................................................... 12
+5.8.3 SetSerialPortConfiguration ................................................................................................ 12
+5.8.4 GetSerialPortConfigurationOptions .................................................................................... 13
+5.8.5 SendReceiveSerialCommand ........................................................................................... 13
+5.9
+
+GetServiceCapabilities ............................................................................................................ 15
+
+5.10 Events .................................................................................................................................. 15
+5.10.1 DigitalInput State Change ............................................................................................... 15
+5.10.2 Relay Output Trigger ...................................................................................................... 16
+Annex A
+A.1
+
+Deprecated Interfaces
+
+17
+
+Configuration of media source and output ............................................................................... 17
+
+Annex B
+
+Revision History
+
+18
+
+ONVIF™
+
+–4–
+
+Device-IO – Ver. 22.06
+
+1 Scope
+This document defines the web service interface for all physical inputs and outputs. For most inputs and outputs
+this is a pure get interface while for e.g. relays also configuration and control is include.
+Web service usage is outside of the scope of this document. Please refer to the ONVIF core specification.
+
+2 Normative references
+ONVIF Core Specification
+<http://www.onvif.org/specs/core/ONVIF-Core-Specification.pdf>
+
+3 Terms and Definitions
+3.1 Definitions
+Input/Output (I/O)
+
+Currently relay ports and Video/Audio Inputs/Outputs are handled.
+
+4 Overview
+The DevideIO service offers commands to retrieve and configure the settings of physical inputs and outputs
+of a device.
+The DeviceIO service supports the configuration of the following device interfaces:
+
+•
+
+VideoOutputs
+
+•
+
+RelayOutputs
+
+•
+
+DigitalInputs
+
+•
+
+Send and/or Receive serial data communication
+
+The following commands list existing interfaces:
+
+•
+
+GetVideoOutputs – Gets all existing video outputs of the device.
+
+•
+
+GetVideoSources – Gets all existing video sources of the device.
+
+•
+
+GetAudioOutputs – Gets all existing audio outputs of the device.
+
+•
+
+GetAudioSources – Gets all existing audio sources of the device
+
+•
+
+GetRelayOutputs– Gets all existing relay outputs of the device
+
+•
+
+GetDigitalInputs – Gets all existing digital inputs of the device
+
+•
+
+GetSerialPorts - Gets a list of all available serial ports and their settings.
+
+For VideoOutputs the following commands are supported:
+
+•
+
+Set<device name>Configuration – Modifies the configuration of a specific interface.
+
+•
+
+Get< device name >Configuration – Gets the configuration of a specific interface.
+
+•
+
+Get< device name >ConfigurationOptions – Gets the supported property values for a specific interface.
+
+RelayOutputs supports following commands:
+
+•
+
+SetRelayOutputSettings – Modifies the configuration of a relay output
+
+•
+
+SetRelayOutputState – Sets the logical state
+
+ONVIF™
+
+–5–
+
+Device-IO – Ver. 22.06
+
+SerialPorts additionally support the following command:
+
+•
+
+Send and/or Receive serial command - Transmit/receive generic controlling data to/from a serial device
+
+WSDL for the DeviceIO service is specified in http://www.onvif.org/ver10/deviceio.wsdl.
+Table 1: Referenced namespaces (with prefix)
+Prefix
+
+Namespace URI
+
+env
+
+http://www.w3.org/2003/05/soap-envelope
+
+ter
+
+http://www.onvif.org/ver10/error
+
+xs
+
+http://www.w3.org/2001/XMLSchema
+
+tt
+
+http://www.onvif.org/ver10/schema
+
+tmd
+
+http://www.onvif.org/ver10/deviceIO/wsdl
+
+5 Service
+This service offers commands to retrieve and configure the physical Inputs and Outputs of a device.
+Commands to request the available video and audio in- and outputs are defined as well as commands to request
+the available relays. This service also offers functions to request and change the configuration of these entities.
+A device that has physical sources and outputs SHALL support this service as described in [DeviceIOService.wsdl].
+
+5.1 VideoOutputs
+The VideoOutput type represents the physical Video Outputs of a device that can be connected to a monitor to
+display the video signal. The structure contains the Layout Settings that can be configured using the Display
+Service.
+
+5.1.1 GetVideoOutputs
+This command lists all available video outputs of a device. A device that has one or more physical video outputs
+shall support listing of available video outputs through the GetVideoOutputs command.
+REQUEST:
+This is an empty message.
+RESPONSE:
+
+•
+
+Token - optional, unbounded [tt:ReferenceToken]
+List of tokens enumerating all available video outputs of the device.
+
+FAULTS:
+None
+ACCESS CLASS:
+READ_MEDIA
+
+5.2 VideoOutputConfiguration
+5.2.1 GetVideoOutputConfiguration
+This operation requests the configuration of a Video Output. A device that has one or more Video Outputs shall
+support the retrieval of the VideoOutputConfiguration through this command.
+
+ONVIF™
+
+–6–
+
+Device-IO – Ver. 22.06
+
+REQUEST:
+
+•
+
+VideoOutputToken [tt:ReferenceToken]
+Existing reference of a video output.
+
+RESPONSE:
+
+•
+
+Configuration [tt:VideoOutputConfiguration]
+The configuration of the video output.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoVideoOutput
+The requested Video Output does not exist.
+
+ACCESS CLASS:
+READ_MEDIA
+
+5.2.2 SetVideoOutputConfiguration
+This operation modifies a video output configuration. A device that has one or more video outputs shall support
+the setting of its video output configuration through this command.
+REQUEST:
+
+•
+
+Configuration [tt:VideoOutputConfiguration]
+The configuration of the video output.
+
+•
+
+ForcePersistence [xs:boolean]
+Deprecated modifier for temporary settings if supported by the device.
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoVideoOutput
+The requested Video Output does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:ConfigModify
+The configuration parameters are not possible to set.
+
+ACCESS CLASS:
+ACTUATE
+
+5.2.3 GetVideoOutputConfigurationOptions
+This operation requests the VideoOutputConfigurationOptions of a VideoOutput. A device that has one or more
+video outputs shall support the retrieval of VideoOutputConfigurationOptions through this command.
+REQUEST:
+
+•
+
+VideoOutputToken [tt:ReferenceToken]
+Existing reference of a video output.
+
+RESPONSE:
+
+•
+
+VideoOutputOptions [tt:VideoOutputConfigurationOptions]
+The configuration options for the video output.
+
+ONVIF™
+
+–7–
+
+Device-IO – Ver. 22.06
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoVideoOutput
+The requested Video Output does not exist.
+
+5.3 VideoSources
+A VideoSource represents physical video input. The structure contains the pixel resolution of the video, framerate and imaging settings. The imaging settings can be manipulated through the ImagingService if supported
+and contains parameters for focus, exposure and brightness, for example.
+
+5.3.1 GetVideoSources
+This operation lists all available video sources for the device. The device that has one or more video inputs
+shall support the listing of available video sources through the GetVideoSources command.
+REQUEST:
+This is an empty message.
+RESPONSE:
+
+•
+
+Token - optional, unbounded [tt:ReferenceToken]
+List of tokens enumerating all available video sources of the device.
+
+FAULTS:
+None
+ACCESS CLASS:
+READ_MEDIA
+
+5.4 AudioOutputs
+The Audio Output represents the physical audio outputs that can be connected to a loudspeaker.
+
+5.4.1 GetAudioOutputs
+This command lists all available audio outputs of a device. A device that has one or more physical audio outputs
+shall support listing of available audio outputs through the GetAudioOutputs command.
+REQUEST:
+This is an empty message.
+RESPONSE:
+
+•
+
+Token - optional, unbounded [tt:ReferenceToken]
+List of tokens enumerating all available audio outputs of the device.
+
+FAULTS:
+None
+ACCESS CLASS:
+READ_MEDIA
+
+5.5 AudioSources
+An AudioSource represents unencoded audio input and states the number of input channels
+
+ONVIF™
+
+–8–
+
+Device-IO – Ver. 22.06
+
+5.5.1 GetAudioSources
+This operation lists all available audio sources for the device. The device that has one or more audio sources
+shall support the listing of available audio inputs through the GetAudioSources command.
+REQUEST:
+This is an empty message.
+RESPONSE:
+
+•
+
+Token - optional, unbounded [tt:ReferenceToken]
+List of tokens enumerating all available audio sources of the device.
+
+FAULTS:
+None
+ACCESS CLASS:
+READ_MEDIA
+
+5.6 Relay Outputs
+The Input/Output (I/O) commands are used to control the state or observe the status of the I/O ports. If the
+device has I/O ports, then it shall support the I/O commands.
+Handling of relay outputs is also defined in DeviceManagement, see ONVIF Core Specification section Input/Output.
+
+5.6.1 GetRelayOutputs
+This operation gets a list of all available relay outputs and their settings.
+REQUEST:
+This is an empty message.
+RESPONSE:
+
+•
+
+RelayOutputs - optional, unbounded [tt:RelayOutput]
+List of tokens enumerating all available digital outputs of the device.
+
+FAULTS:
+None
+ACCESS CLASS:
+READ_MEDIA
+
+5.6.2 GetRelayOutputOptions
+Request the available settings and ranges for one or all relay outputs. The method shall return the information
+for exactly one output when a RelayOutputToken is provided as request parameter. Otherwise the method
+shall return the information for all relay outputs.
+A device that has one or more RelayOutputs should support this command.
+Two examples:
+2. Device supports PT1S to PT120S:
+<tmd:RelayOutputOptions token='44'>
+
+ONVIF™
+
+–9–
+
+Device-IO – Ver. 22.06
+
+<tmd:Mode>Monostable</tmd:Mode>
+<tmd:DelayTimes>1 120</tmd:DelayTimes>
+</tmd:RelayOutputOptions>
+2) Device supports values PT0.5S, PT1S, PT2s and PT1M:
+<tmd:RelayOutputOptions token='123'>
+<tmd:Mode>Monostable</tmd:Mode>
+<tmd:DelayTimes Discrete='True'>0.5 1 2 60</tmd:DelayTimes>
+</tmd:RelayOutputOptions>
+REQUEST:
+
+•
+
+RelayOutputToken - optional [tt:ReferenceToken]
+Optional token reference to the requested relay output.
+
+RESPONSE:
+
+•
+
+RelayOutputOptions - optional, unbounded [tt:RelayOutputOptions]
+List of options available for the relay outputs.
+
+FAULTS:
+None
+ACCESS CLASS:
+PRE_AUTH
+
+5.6.3 SetRelayOutputSettings
+This operation sets the settings of a relay output.
+The relay can work in two relay modes:
+
+•
+
+Bistable – After setting the state, the relay remains in this state.
+
+•
+
+Monostable – After setting the state, the relay returns to its idle state after the specified time.
+
+The physical idle state of a relay output can be configured by setting the IdleState to ‘open’ or ‘closed’ (inversion
+of the relay behaviour).
+Idle State ‘open’ means that the relay is open when the relay state is set to ‘inactive’ through the trigger command (see Section 5.6.4) and closed when the state is set to ‘active’ through the same command.
+Idle State ‘closed’ means, that the relay is closed when the relay state is set to ‘inactive’ through the trigger
+command (see Section 5.6.4) and open when the state is set to ‘active’ through the same command.
+The Duration parameter of the Properties field “DelayTime” describes the time after which the relay returns to
+its idle state if it is in monostable mode. If the relay is set to bistable mode the value of the parameter shall
+be ignored.
+REQUEST:
+
+•
+
+RelayOutputToken [tt:ReferenceToken]
+Token reference to the requested relay output.
+
+•
+
+RelayOutputSettings [tt:RelayOutputSettings]
+The settings to be applied to the relay output.
+
+ONVIF™
+
+– 10 –
+
+Device-IO – Ver. 22.06
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:RelayToken
+Unknown relay token reference.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:ModeError
+Monostable delay time not valid
+
+ACCESS CLASS:
+ACTUATE
+
+5.6.4 SetRelayOutputState
+1
+
+This operation triggers a relay output .
+REQUEST:
+
+•
+
+RelayOutputToken [tt:ReferenceToken]
+Token reference to the requested relay output.
+
+•
+
+LogicalState [tt:RelayLogicalState]
+Trigger request, i.e., active or inactive.
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:RelayToken
+Unknown relay token reference.
+
+ACCESS CLASS:
+ACTUATE
+
+5.7 Digital Inputs
+The DigitalInput type represents the integrated physical digital inputs of a device which enable connection to
+external devices, such as doorbells, detectors, lights or switches (device that can be toggled between an open
+and closed circuit).
+
+5.7.1 GetDigitalInputs
+This command lists all available digital inputs of a device. A device that signals support for digital inputs via
+its capabilities shall support listing of available inputs through the GetDigitalInputs command. A device having
+one or more digital inputs shall support the GetDigitalInputs command.
+REQUEST:
+This is an empty message.
+RESPONSE:
+
+•
+1
+
+DigitalInputs - optional, unbounded [tt:DigitalInput]
+List enumerating all available digital inputs of the device.
+
+There is no GetRelayState command; the current logical state of the relay output is transmitted via notification and their properties.
+
+ONVIF™
+
+– 11 –
+
+Device-IO – Ver. 22.06
+
+FAULTS:
+None
+ACCESS CLASS:
+READ_SYSTEM
+
+5.7.2 GetDigitalInputConfigurationOptions
+This operation retrieves the digital input configuration options when the digital input configuration token is
+known. If a specific digital input is specified, the options shall concern that particular configuration. If a token is
+not specified, the options shall be considered generic for the device. A device shall support the GetDigitalInputConfigurationOptions command if the device signals capability of digital input configuration via DigitalInputOptions capability.
+REQUEST:
+
+•
+
+Token - optional [tt:ReferenceToken]
+Optional token reference to the requested digital input.
+
+RESPONSE:
+
+•
+
+DigitalInputOptions - optional, unbounded [tt:DigitalInputConfigurationOptions]
+Options available for the specified digital input. If no token is specified, the options are applicable for
+all digital inputs.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoConfig
+The requested configuration indicated by Token does not exist.
+
+ACCESS CLASS:
+READ_SYSTEM
+
+5.7.3 SetDigitalInputConfigurations
+This operation modifies existing digital input configurations. When applying multiple configuration settings, the
+expected behaviour is to configure all or none. If one of the provided configurations is invalid, the expected
+behaviour of the device is to apply none of the configurations and an indication in the return fault which digital
+input configuration has not been accepted. A device shall support the SetDigitalInputConfigurations command
+if the device signals capability of digital input configuration via DigitalInputOptions capability.
+REQUEST:
+
+•
+
+DigitalInputs - unbounded[tt:DigitalInput]
+the modified digital input configurations containing the unique configuration token. The digital input
+configuration shall exist in the device.
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:NoConfig
+The requested configuration indicated by Token does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:SettingsInvalid
+The requested settings are incorrect. Token need to be returned to indicate which digital input configuration is not acceptable.
+
+ONVIF™
+
+– 12 –
+
+Device-IO – Ver. 22.06
+
+ACCESS CLASS:
+ACTUATE
+
+5.8 SerialPorts
+The SerialPort type represents the physical serial port on the device and allows serial data to be read and
+written.
+
+5.8.1 GetSerialPorts
+This command lists all available serial ports of a device. A device that has one or more physical serial ports
+shall support listing of available serial ports through the GetSerialPorts command.
+REQUEST:
+This is an empty message.
+RESPONSE:
+
+•
+
+SerialPort - optional, unbounded [tt:SerialPort]
+list of structures describing all available serial ports of the device. If a device has no serial ports an
+empty list is returned
+
+FAULTS:
+None
+ACCESS CLASS:
+READ_SYSTEM
+
+5.8.2 GetSerialPortConfiguration
+This operation gets the configuration of a serial port.
+REQUEST:
+
+•
+
+SerialPortToken [tt:ReferenceToken]
+Token reference to the requested serial port.
+
+RESPONSE:
+
+•
+
+SerialPortConfiguration - [tmd:SerialPortConfiguration]
+The configuration of the serial port.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidSerialPort
+The supplied serial port token does not exist.
+
+ACCESS CLASS:
+READ_SYSTEM
+
+5.8.3 SetSerialPortConfiguration
+This operation sets the setting of serial port.
+REQUEST:
+
+•
+
+SerialPortConfiguration [tmd:SerialPortConfiguration]
+The desired configuration of the serial port.
+
+ONVIF™
+
+•
+
+– 13 –
+
+Device-IO – Ver. 22.06
+
+ForcePersistence [xs:boolean]
+Deprecated modifier for temporary settings if supported by the device.
+
+RESPONSE:
+This is an empty message.
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidSerialPort
+The supplied serial port token does not exist.
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:ConfigModify
+The configuration parameters are not possible to set.
+
+ACCESS CLASS:
+ACTUATE
+
+5.8.4 GetSerialPortConfigurationOptions
+This operation requests the SerialPortConfigurationOptions of a SerialPort. A device that has one or more
+SerialPorts shall support this command.
+REQUEST:
+
+•
+
+SerialPortToken [tt:ReferenceToken]
+Token reference to the requested serial port.
+
+RESPONSE:
+
+•
+
+SerialPortConfigurationOptions [tmd:SerialPortConfigurationOptions]
+The configuration options for the specified serial port.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidSerialPort
+The supplied serial port token does not exist.
+
+ACCESS CLASS:
+READ_SYSTEM
+
+5.8.5 SendReceiveSerialCommand
+This section describes operations to transmit/receive generic controlling data to/from a serial device that is
+connected to the serial port of the device.
+This operation can be used for the following purposes.
+
+•
+
+Transmitting arbitrary data to the connected serial device
+
+•
+
+Receiving data from the connected serial device
+
+•
+
+Transmitting arbitrary data to the connected serial device and then receiving its response data
+
+In order to make use of this command for the above purpose, this specification defines the input parameter
+structure as follows.
+A device that indicates generic serial communication service capability shall support this command.
+
+ONVIF™
+
+– 14 –
+
+Device-IO – Ver. 22.06
+
+REQUEST:
+
+•
+
+Token [tt:ReferenceToken]
+The physical serial port reference to be used when this request is invoked.
+
+RESPONSE:
+
+•
+
+SerialData - optional [tmd:SerialData]
+Optional received data.
+
+FAULTS:
+
+•
+
+env:Sender - ter:InvalidArgVal - ter:InvalidSerialPort
+The supplied serial port token does not exist.
+
+•
+
+env:Sender - ter:OperationProhibited - ter:DataLengthOver
+Number of available bytes exceeded.
+
+•
+
+env:Sender - ter:OperationProhibited - ter:DelimiterNotSupported
+Sequence of character (delimiter) is not supported.
+
+ACCESS CLASS:
+ACTUATE
+
+•
+
+SerialData - optional [tmd:SerialData]
+This element is optional to be put in the request. When transmitting serial data is needed, the request
+should contain the element.
+
+•
+
+Timeout - optional [xs:duration]
+This element is optional to be put in the request. Depending on the specified value, it is possible for
+various configurations as follows.
+(i) TimeOut > PT0S: Indicates that the command should be responded back within the specified period of time. In the case the device received the data which meets one of the following conditions of
+DataLength and Delimiter, the device should respond back with the received data instead of waiting
+for the specified time.
+(ii) TimeOut = PT0S: Indicates that the command should be responded back immediately (Non-blocking). It will be used in the case of only transmitting data.
+(iii) TimeOut = -PT1S: Indicates that the command should be responded after one of the following
+conditions (DataLength / Delimiter) is met. How long the device can hold the blocking state is vendor
+specific.
+If this element is not present in the request, the command should be responded after one of the following
+conditions (DataLength / Delimiter) is met. How long the device can hold the blocking state is vendor
+specific.
+
+•
+
+DataLength - optional [xs:integer]
+This element is optional to be put in the request. This element may be put in the case that data length
+returned from the connected serial device is already determined as some fixed bytes length. It indicates
+the length of received data which can be regarded as available.
+
+•
+
+Delimiter - optional [xs:string]
+This element is optional to be put in the request. This element may be put in the case that the delimiter
+codes returned from the connected serial device is already known. It indicates the termination data
+sequence of the responded data. In case the string has more than one character a device shall interpret
+
+ONVIF™
+
+– 15 –
+
+Device-IO – Ver. 22.06
+
+the whole string as a single delimiter. Furthermore a device shall return the delimiter character(s) to
+the client.
+
+5.9 GetServiceCapabilities
+The capabilities reflect optional functions and functionality of a service. The information is static and does not
+change during device operation.
+REQUEST:
+This is an empty message.
+RESPONSE:
+
+•
+
+Capabilities [tmd:Capabilities]
+List of capabilities as defined below.
+
+FAULTS:
+None
+ACCESS CLASS:
+PRE_AUTH
+The following capabilites are available:
+VideoSources
+
+Number of video sources (defaults to none).
+
+VideoOutputs
+
+Number of video outputs (defaults to none).
+
+AudioSources
+
+Number of audio sources (defaults to none).
+
+AudioOutputs
+
+Number of audio outputs (defaults to none).
+
+RelayOutputs
+
+Number of relay outputs (defaults to none).
+
+DigitalInputs
+
+Number of digital inputs (defaults to none).
+
+SerialPorts
+
+Number of serial ports (defaults to none).
+
+DigitalInputOptions
+
+Indicates support for DigitalInput configuration of the idle state (defaults to false)
+
+5.10 Events
+5.10.1 DigitalInput State Change
+A device that signals support for digital inputs in its capabilities shall provide the following event whenever one
+of its input state changes:
+Topic: tns1:Device/Trigger/DigitalInput
+<tt:MessageDescription IsProperty="true">
+<tt:Source>
+<tt:SimpleItemDescription Name="InputToken" Type="tt:ReferenceToken"/>
+</tt:Source>
+<tt:Data>
+<tt:SimpleItemDescription Name="LogicalState" Type="xs:boolean"/>
+</tt:Data>
+</tt:MessageDescription>
+
+If a device supports SetDigitalInputConfigurations, the Digital Input LogicalState can be either set at "true" to
+represent the input in the active state or set at "false" to represent the input in the idle state.
+
+ONVIF™
+
+– 16 –
+
+Device-IO – Ver. 22.06
+
+If a device does not support SetDigitalInputConfigurations, the Digital Input LogicalState can be either set at
+"true" to represent the circuit in the closed state or set at "false" to represent the circuit in the open state.
+
+5.10.2 Relay Output Trigger
+A device that signals RelayOutputs in its capabilities should provide the Trigger event whenever its relay output
+state is changed. A device shall use the following topic and message format:
+Topic: tns1:Device/Trigger/Relay
+<tt:MessageDescription IsProperty="true">
+<tt:Source>
+<tt:SimpleItemDescription Name="RelayToken" Type="tt:ReferenceToken"/>
+</tt:Source>
+<tt:Data>
+<tt:SimpleItemDescription Name="LogicalState" Type="tt:RelayLogicalState"/>
+</tt:Data>
+</tt:MessageDescription>
+
+ONVIF™
+
+– 17 –
+
+Device-IO – Ver. 22.06
+
+Annex A.
+Deprecated Interfaces
+A.1 Configuration of media source and output
+The duplicated definition and interfaces for the handling of media source and output configuration between
+media service, have been deprecated with release 16.12. The following interfaces have been removed from
+the specification:
+
+•
+
+GetVideoSourceConfiguration
+
+•
+
+SetVideoSourceConfiguration
+
+•
+
+GetVideoSourceConfigurationOptions
+
+•
+
+GetAudioOutputConfiguration
+
+•
+
+SetAudioOutputConfiguration
+
+•
+
+GetAudioOutputConfigurationOptions
+
+•
+
+GetAudioSourceConfiguration
+
+•
+
+SetAudioSourceConfiguration
+
+•
+
+GetAudioSourceConfigurationOptions
+
+The definitions are available via the link http://www.onvif.org/specs/srv/io/ONVIF-DeviceIo-Service-Specv1606.pdf
+
+ONVIF™
+
+– 18 –
+
+Device-IO – Ver. 22.06
+
+Annex B.
+Revision History
+Rev.
+
+Date
+
+Editor
+
+Changes
+
+2.1
+
+Jul-2011
+
+Hans Busch
+
+Split from Core 2.0 Change Request 232
+
+2.1.1
+
+Jan-2012
+
+Hans Busch
+
+Change Requests 259, 291, 535
+
+2.2
+
+May-2012
+
+M.Tonomura
+
+Add serial port function
+
+2.2.1
+
+Dec-2012
+
+Hans Busch
+
+Change Request 708
+
+2.4.1
+
+Dec-2013
+
+Michio Hirai
+
+Change Request 1217
+
+2.5
+
+Dec-2014
+
+Michio Hirai
+
+Change Request 1492, 1516
+
+2.6
+
+Jun-2015
+
+Michio Hirai
+
+Change Request 1589, 1639, 1642
+
+2.6.1
+
+Aug-2015
+
+Tom Yui, Hans
+Busch
+
+Add Digital Input Configuration Change Request 1633
+
+16.06
+
+Jun-2016
+
+Hiroyuki Sano
+
+Change Request 1802, 1853
+
+16.12
+
+Dec-2016
+
+Hiroyuki Sano
+
+Change Request 1985
+
+17.06
+
+Jun-2017
+
+Hans Busch,
+Hiroyuki Sano
+
+Update method layouts. Change Request 1843, 2046
+Change Request 2065
+
+17.12
+
+Dec-2017
+
+Hiroyuki Sano
+
+Change Request 2212, 2213
+
+18.12
+
+Dec-2018
+
+Hiroyuki Sano
+
+Change Request 2372
+
+19.06
+
+Jun-2019
+
+Hiroyuki Sano
+
+Change Request 2454
+
+22.06
+
+Jun-2022
+
+Sergey Bogdanov
+
+Rename sections to show real name of service command.
+
+

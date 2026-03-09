@@ -1,0 +1,3382 @@
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+ONVIF®
+Audio Backchannel
+Client Test Specification
+Version 19.06
+June 2019
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+© 2019 ONVIF, Inc. All rights reserved.
+Recipients of this document may copy, distribute, publish, or display this document so long as this
+copyright notice, license and disclaimer are retained with all copies of the document. No license is
+granted to modify this document.
+THIS DOCUMENT IS PROVIDED "AS IS," AND THE CORPORATION AND ITS MEMBERS
+AND THEIR AFFILIATES, MAKE NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO, WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, OR TITLE; THAT THE CONTENTS OF
+THIS DOCUMENT ARE SUITABLE FOR ANY PURPOSE; OR THAT THE IMPLEMENTATION OF
+SUCH CONTENTS WILL NOT INFRINGE ANY PATENTS, COPYRIGHTS, TRADEMARKS OR
+OTHER RIGHTS.
+IN NO EVENT WILL THE CORPORATION OR ITS MEMBERS OR THEIR AFFILIATES BE LIABLE
+FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL, PUNITIVE OR CONSEQUENTIAL
+DAMAGES, ARISING OUT OF OR RELATING TO ANY USE OR DISTRIBUTION OF THIS
+DOCUMENT, WHETHER OR NOT (1) THE CORPORATION, MEMBERS OR THEIR AFFILIATES
+HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES, OR (2) SUCH DAMAGES
+WERE REASONABLY FORESEEABLE, AND ARISING OUT OF OR RELATING TO ANY
+USE OR DISTRIBUTION OF THIS DOCUMENT. THE FOREGOING DISCLAIMER AND
+LIMITATION ON LIABILITY DO NOT APPLY TO, INVALIDATE, OR LIMIT REPRESENTATIONS
+AND WARRANTIES MADE BY THE MEMBERS AND THEIR RESPECTIVE AFFILIATES TO
+THE CORPORATION AND OTHER MEMBERS IN CERTAIN WRITTEN POLICIES OF THE
+CORPORATION.
+
+2
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+REVISION HISTORY
+Vers.
+
+Date
+
+Description
+
+19.06
+
+Jun 14, 2019
+
+The following was done according to #309:
+'Validated Feature' section for each feature updated to be
+synchronized with feature ID used in feature list.
+'Feature Under Test' section for each test case updated to be
+synchronized with sub-feature ID used in feature list.
+'Validated Feature List' test case section removed.
+
+19.06
+
+Mar 28, 2019 The following was updated in the scope of #319:
+AUDIOBACKCHANNELSTREAMING-4
+AAC
+AUDIO
+BACKCHANNEL STREAMING (MP4A-LATM encoding name
+added)
+
+18.06
+
+Jun 21, 2018
+
+Reformatting document using new template
+
+18.06
+
+Apr 05, 2018
+
+'Required Number of Devices Summary' Annex added according to
+#241
+
+18.06
+
+Feb 14, 2018 The following were updated in the scope of #241:
+Feature Level Requirement (updated with new rules)
+Each Feature Level Requirement (updated with Check Condition
+based on Device Features and Required Number of Devices)
+
+17.06
+
+Jun 15, 2017
+
+Links in Normative references section were updated.
+
+16.07
+
+Jun 14, 2016
+
+Test
+steps
+sequence
+was
+changed
+in
+the
+following test cases: AUDIOBACKCHANNELSTREAMING-2,
+AUDIOBACKCHANNELSTREAMING-3,
+AUDIOBACKCHANNELSTREAMING-4
+
+16.07
+
+Apr 18, 2016
+
+Step
+description
+in
+Test
+Procedure
+was
+updated
+for the test cases: AUDIOBACKCHANNELSTREAMING-2,
+AUDIOBACKCHANNELSTREAMING-3,
+AUDIOBACKCHANNELSTREAMING-4.
+Old description:
+Device response has code RTSP 200 OK if it is detected
+New description:
+If Device sends response to RTSP TEARDOWN, it has code RTSP
+200 OK
+
+16.07
+
+Mar 18, 2016 Checking of TEARDOWN response was changed in
+Test
+Procedure
+and
+PASS
+criteria
+for
+the
+test
+cases and annexes: AUDIOBACKCHANNELSTREAMING-2,
+AUDIOBACKCHANNELSTREAMING-3,
+AUDIOBACKCHANNELSTREAMING-4
+Old description of checking of TEARDOWN response in Test
+Procedure:
+Device responds with code RTSP 200 OK.
+
+www.onvif.org
+
+3
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+New description of checking of TEARDOWN response in Test
+Procedure:
+Device response has code RTSP 200 OK if it is detected.
+Old description of checking of TEARDOWN response in PASS
+criteria:
+Device response on the RTSP TEARDOWN request fulfills the
+following requirements:
+New description of checking of TEARDOWN response in PASS
+criteria:
+If there is Device response on the RTSP TEARDOWN request then
+it fulfills the following requirements:
+16.07
+
+Mar 16, 2016 Docbook stylesheets were updated.
+
+16.07
+
+Mar 14, 2016 www.onvif.org was removed from Сopyright section.
+
+16.07
+
+Jan 11, 2016
+
+16.01
+
+Dec 18, 2015 General item (Test Overview) was added.
+
+Typos were fixed.
+Minor updates in formatting, typos, terms.
+TEARDOWN check was added to the Audio Backchannel Streaming
+Test Cases.
+
+15.10
+
+Oct 26, 2015
+
+Initial version:
+General parts added
+Audio Backchannel Streaming added
+Get Audio Decoder Configurations List added
+Get Audio Output Configurations List added
+Get Audio Outputs List added
+Get Audio Decoder Configuration added
+Get Audio Output Configuration added
+Profile Configuration for Audio Backchannel added
+Configure Audio Decoder Configuration added
+Configure Audio Output Configuration added
+
+4
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+Table of Contents
+1
+
+Introduction ........................................................................................................................ 8
+1.1
+
+Scope ....................................................................................................................... 8
+
+1.2
+
+Audio Backchannel Streaming .................................................................................. 9
+
+1.3
+
+Get Audio Decoder Configurations List .................................................................... 9
+
+1.4
+
+Get Audio Output Configurations List ....................................................................... 9
+
+1.5
+
+Get Audio Outputs List ............................................................................................. 9
+
+1.6
+
+Get Audio Decoder Configuration ............................................................................. 9
+
+1.7
+
+Get Audio Output Configuration ............................................................................... 9
+
+1.8
+
+Profile Configuration for Audio Backchannel ............................................................ 9
+
+1.9
+
+Configure Audio Decoder Configuration ................................................................... 9
+
+1.10
+
+Configure Audio Output Configuration .................................................................. 10
+
+2
+
+Normative references ...................................................................................................... 11
+
+3
+
+Terms and Definitions ..................................................................................................... 13
+
+4
+
+3.1
+
+Conventions ............................................................................................................ 13
+
+3.2
+
+Definitions ............................................................................................................... 13
+
+3.3
+
+Abbreviations .......................................................................................................... 13
+
+3.4
+
+Namespaces ........................................................................................................... 14
+
+Test Overview .................................................................................................................. 15
+4.1
+
+5
+
+5
+
+General ................................................................................................................... 15
+4.1.1
+
+Feature Level Requirement ......................................................................... 15
+
+4.1.2
+
+Expected Scenarios Under Test .................................................................. 15
+
+4.1.3
+
+Test Cases .................................................................................................. 16
+
+4.2
+
+Test Setup .............................................................................................................. 16
+
+4.3
+
+Prerequisites ........................................................................................................... 16
+
+Audio Backchannel Streaming Test Cases ................................................................... 18
+5.1
+
+Feature Level Requirement: ................................................................................... 18
+
+5.2
+
+Expected Scenarios Under Test: ............................................................................ 18
+
+5.3
+
+GET AUDIO DECODER CONFIGURATION OPTIONS .......................................... 19
+
+5.4
+
+G.711 AUDIO BACKCHANNEL STREAMING ........................................................ 20
+
+5.5
+
+G.726 AUDIO BACKCHANNEL STREAMING ........................................................ 23
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+5.6
+6
+
+7
+
+8
+
+9
+
+10
+
+11
+
+12
+
+6
+
+AAC AUDIO BACKCHANNEL STREAMING .......................................................... 26
+
+Get Audio Decoder Configurations List Test Cases ..................................................... 30
+6.1
+
+Feature Level Requirement: ................................................................................... 30
+
+6.2
+
+Expected Scenarios Under Test: ............................................................................ 30
+
+6.3
+
+GET AUDIO DECODER CONFIGURATIONS ........................................................ 30
+
+Get Audio Output Configurations List Test Cases ........................................................ 33
+7.1
+
+Feature Level Requirement: ................................................................................... 33
+
+7.2
+
+Expected Scenarios Under Test: ............................................................................ 33
+
+7.3
+
+GET AUDIO OUTPUT CONFIGURATIONS ........................................................... 33
+
+Get Audio Outputs List Test Cases ............................................................................... 36
+8.1
+
+Feature Level Requirement: ................................................................................... 36
+
+8.2
+
+Expected Scenarios Under Test: ............................................................................ 36
+
+8.3
+
+GET AUDIO OUTPUTS .......................................................................................... 36
+
+Get Audio Decoder Configuration Test Cases .............................................................. 38
+9.1
+
+Feature Level Requirement: ................................................................................... 38
+
+9.2
+
+Expected Scenarios Under Test: ............................................................................ 38
+
+9.3
+
+GET AUDIO DECODER CONFIGURATION ........................................................... 38
+
+Get Audio Output Configuration Test Cases ............................................................... 41
+10.1
+
+Feature Level Requirement: ................................................................................. 41
+
+10.2
+
+Expected Scenarios Under Test: .......................................................................... 41
+
+10.3
+
+GET AUDIO OUTPUT CONFIGURATION ............................................................ 41
+
+Profile Configuration for Audio Backchannel Test Cases .......................................... 44
+11.1
+
+Feature Level Requirement: ................................................................................. 44
+
+11.2
+
+Expected Scenarios Under Test: ........................................................................... 44
+
+11.3
+
+GET COMPATIBLE AUDIO OUTPUT CONFIGURATIONS ................................... 45
+
+11.4
+
+ADD AUDIO OUTPUT CONFIGURATION ............................................................ 46
+
+11.5
+
+REMOVE AUDIO OUTPUT CONFIGURATION .................................................... 48
+
+11.6
+
+GET COMPATIBLE AUDIO DECODER CONFIGURATIONS ................................ 50
+
+11.7
+
+ADD AUDIO DECODER CONFIGURATION ......................................................... 51
+
+11.8
+
+REMOVE AUDIO DECODER CONFIGURATION ................................................. 53
+
+Configure Audio Decoder Configuration Test Cases .................................................. 55
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+13
+
+A
+
+12.1
+
+Feature Level Requirement: ................................................................................. 55
+
+12.2
+
+Expected Scenarios Under Test: .......................................................................... 55
+
+12.3
+
+SET AUDIO DECODER CONFIGURATION ......................................................... 55
+
+Configure Audio Output Configuration Test Cases .................................................... 58
+13.1
+
+Feature Level Requirement: ................................................................................. 58
+
+13.2
+
+Expected Scenarios Under Test: .......................................................................... 58
+
+13.3
+
+GET AUDIO OUTPUT CONFIGURATION OPTIONS ........................................... 58
+
+13.4
+
+SET AUDIO OUTPUT CONFIGURATION ............................................................ 60
+
+Test for Appendix A ....................................................................................................... 62
+A.1
+
+Required Number of Devices Summary ................................................................. 62
+
+www.onvif.org
+
+7
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+1 Introduction
+The goal of the ONVIF Test Specification set is to make it possible to realize fully interoperable
+IP physical security implementations from different vendors. This specification also acts as an
+input document to the development of a test tool which will be used to test the ONVIF Client
+implementation conformance towards ONVIF standard. This Client Test Tool analyzes network
+communications between ONVIF Devices and Clients being tested and determines whether a
+specific Client is ONVIF conformant (see ONVIF Conformance Process Specification).
+This particular document defines test cases required for testing Audio Backchannel features of a
+Client application e.g. Audio Backchannel Streaming, Get Audio Decoder Configurations List, Get
+Audio Output Configurations List, Get Audio Outputs List, Get Audio Decoder Configuration, Get
+Audio Output Configuration, Profile Configuration for Audio Backchannel, Configure Audio Decoder
+Configuration, Configure Audio Output Configuration. It also describes the test framework, test
+setup, prerequisites, test policies needed for the execution of the described test cases.
+
+1.1 Scope
+This ONVIF Audio Backchannel Client Test Specification defines and regulates the conformance
+testing procedure for the ONVIF conformant Clients in the scope of Audio Backchannel features.
+Conformance testing is meant to be black-box network traces analysis and verification. The
+objective of this specification is to provide the test cases to test individual requirements of ONVIF
+Clients in the scope of Audio Backchannel features according to ONVIF Media Service Specification
+and ONVIF Streaming Specification.
+The principal intended purposes are:
+• Provide self-assessment tool for implementations.
+• Provide comprehensive test suite coverage for Audio Backchannel features.
+This specification does not address the following:
+• 3rd parties Client use cases
+• Non-functional (performance and regression) testing and analysis.
+• SOAP Implementation Interoperability test i.e. Web Services Interoperability Basic Profile
+version 2.0 (WS-I BP2.0).
+• Network protocol implementation Conformance test for HTTPS and HTTP protocols.
+The following sections cover test cases needed for the verification of relevant features as mentioned
+in the ONVIF Profile Specifications.
+
+8
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+1.2 Audio Backchannel Streaming
+Audio Backchannel Streaming section specifies Client ability to stream audio for backchannel to
+Device.
+
+1.3 Get Audio Decoder Configurations List
+Get Audio Decoder Configurations List section specifies Client ability to request audio decoder
+configurations list from a Device.
+
+1.4 Get Audio Output Configurations List
+Get Audio Output Configurations List section specifies Client ability to request audio output
+configurations list from a Device.
+
+1.5 Get Audio Outputs List
+Get Audio Outputs List section specifies Client ability to request audio outputs list from a Device.
+
+1.6 Get Audio Decoder Configuration
+Get Audio Decoder Configuration section specifies Client ability to request audio decoder settings
+from a Device.
+
+1.7 Get Audio Output Configuration
+Get Audio Output Configuration section specifies Client ability to request audio output settings from
+a Device.
+
+1.8 Profile Configuration for Audio Backchannel
+Profile Configuration for Audio Backchannel section specifies Client ability to configure media profile
+for audio backchannel streaming on a Device.
+
+1.9 Configure Audio Decoder Configuration
+Configure Audio Decoder Configuration section specifies Client ability to change audio decoder
+configuration on a Device.
+
+www.onvif.org
+
+9
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+1.10 Configure Audio Output Configuration
+Configure Audio Output Configuration section specifies Client ability to change audio output
+configuration on a Device.
+
+10
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+2 Normative references
+• ONVIF Conformance Process Specification:
+https://www.onvif.org/profiles/conformance/
+• ONVIF Profile Policy:
+https://www.onvif.org/profiles/
+• ONVIF Core Specifications:
+https://www.onvif.org/profiles/specifications/
+• ONVIF Core Client Test Specification:
+https://www.onvif.org/profiles/conformance/client-test/
+• ONVIF Media Service Specification:
+https://www.onvif.org/profiles/specifications/
+• ONVIF Streaming Specification:
+https://www.onvif.org/profiles/specifications/
+• ISO/IEC Directives, Part 2, Annex H:
+http://www.iso.org/directives
+• ISO 16484-5:2014-09 Annex P:
+https://www.iso.org/obp/ui/#!iso:std:63753:en
+• WS-BaseNotification:
+http://docs.oasis-open.org/wsn/wsn-ws_base_notification-1.3-spec-os.pdf
+• W3C SOAP 1.2, Part 1, Messaging Framework:
+http://www.w3.org/TR/soap12-part1/
+• W3C XML Schema Part 1: Structures Second Edition:
+http://www.w3.org/TR/xmlschema-1/
+• W3C XML Schema Part 2: Datatypes Second Edition:
+http://www.w3.org/TR/xmlschema-2/
+
+www.onvif.org
+
+11
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+• W3C Web Services Addressing 1.0 – Core:
+http://www.w3.org/TR/ws-addr-core/
+• IETF RFC 2326, Real Time Streaming Protocol (RTSP):
+http://www.ietf.org/rfc/rfc2326.txt
+
+12
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+3 Terms and Definitions
+3.1 Conventions
+The key words "shall", "shall not", "should", "should not", "may", "need not", "can", "cannot" in this
+specification are to be interpreted as described in [ISO/IEC Directives Part 2].
+
+3.2 Definitions
+This section describes terms and definitions used in this document.
+Profile
+
+See ONVIF Profile Policy.
+
+ONVIF Device
+
+Computer appliance or software program that exposes one or
+multiple ONVIF Web Services.
+
+ONVIF Client
+
+Computer appliance or software program that uses ONVIF
+Web Services.
+
+Conversation
+
+A Conversation is all exchanges between two MAC
+addresses that contains SOAP request and response.
+
+Network
+
+A network is an interconnected group
+communicating using the Internet protocol.
+
+Network Trace Capture file
+
+Data file created by a network protocol analyzer software
+(such as Wireshark). Contains network packets data recorded
+during a live network communications.
+
+SOAP
+
+SOAP is a lightweight protocol intended for exchanging
+structured information in a decentralized, distributed
+environment. It uses XML technologies to define an
+extensible messaging framework providing a message
+construct that can be exchanged over a variety of underlying
+protocols.
+
+Client Test Tool
+
+ONVIF Client Test Tool that tests ONVIF Client
+implementation towards the ONVIF Test Specification set.
+
+Configuration Entity
+
+A network video device media abstract component that is
+used to produce a media stream on the network, i.e. video
+and/or audio stream.
+
+Media Profile
+
+Maps a video or an audio source or an audio output to a video
+or an audio encoder, an audio decoder configuration and PTZ
+and analytics configuration
+
+Valid Device Response
+
+Device has responded to specific request with code HTTP or
+RTSP 200 OK and SOAP fault message has not appeared.
+
+of
+
+devices
+
+3.3 Abbreviations
+This section describes abbreviations used in this document.
+HTTP
+
+Hyper Text Transport Protocol.
+
+www.onvif.org
+
+13
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+HTTPS Hyper Text Transport Protocol over Secure Socket Layer.
+URI
+
+Uniform Resource Identifier.
+
+WSDL
+
+Web Services Description Language.
+
+XML
+
+eXtensible Markup Language.
+
+RTSP
+
+Real Time Streaming Protocol.
+
+RTP
+
+Realtime Transport Protocol.
+
+TCP
+
+Transmission Control Protocol.
+
+UDP
+
+User Datagram Protocol.
+
+SDP
+
+Session Description Protocol.
+
+AAC
+
+Advanced Audio Coding.
+
+3.4 Namespaces
+Prefix and namespaces used in this test specification are listed in Table 1. These prefixes are not
+part of the standard and an implementation can use any prefix.
+
+Table 3.1. Defined namespaces in this specification
+Prefix
+
+Namespace URI
+
+Description
+
+soapenv
+
+http://www.w3.org/2003/05/soap-
+
+Envelope namespace as defined by SOAP 1.2
+
+envelope
+
+[SOAP 1.2, Part 1]
+
+http://www.w3.org/2001/XMLSchema
+
+Instance namespace as defined by XS [XML-
+
+xs
+
+Schema, Part1] and [XMLSchema,Part 2]
+xsi
+
+http://www.w3.org/2001/XMLSchema-
+
+XML schema instance namespace
+
+instance
+tns1
+
+http://www.onvif.org/ver10/topics
+
+The namespace for the ONVIF topic namespace
+
+tt
+
+http://www.onvif.org/ver10/schema
+
+ONVIF XML schema descriptions
+
+trt
+
+http://www.onvif.org/ver10/media/wsdl
+
+The namespace for the WSDL media service
+
+tev
+
+http://www.onvif.org/ver10/events/wsdl
+
+The namespace for the WSDL event service
+
+wsnt
+
+http://docs.oasis-open.org/wsn/b-2
+
+Schema
+
+namespace
+
+of
+
+BaseNotification] specification.
+
+14
+
+www.onvif.org
+
+the
+
+[WS-
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+4 Test Overview
+This section provides information for the test setup procedure and required prerequisites that should
+be followed during test case execution.
+An ONVIF client with audio backchannel features support can provide audio backchannel
+configuration and streaming.
+An ONVIF Profile is described by a fixed set of functionalities through a number of services that
+are provided by the ONVIF standard. A number of services and functionalities are mandatory for
+each type of ONVIF Profile. An ONVIF Device and ONVIF Client may support any combination of
+Profiles and other optional services and functionalities.
+
+4.1 General
+Test Cases are grouped depending on features. Each Test Cases group provides description of
+feature requirement level for Profiles, expected scenario under test and related test cases:
+• Feature Level Requirement
+• Expected Scenarios Under Test
+• List of Test Cases
+
+4.1.1 Feature Level Requirement
+Feature Level Requirement item contains a feature ID, check condition based on Device features,
+required number of Devices and feature requirement level for the Profiles, which will be used for
+Profiles conformance.
+To claim this Feature as supported Client shall pass Expected Scenario Under Test:
+• for each Device, which supports Device Features defined in Check Condition Based on
+Device Features
+• for at least with number of Devices specified in Required Number of Devices
+If Feature Level Requirement is defined as Mandatory for some Profile, Client shall support this
+Feature to claim this Profile Conformance.
+
+4.1.2 Expected Scenarios Under Test
+Expected Scenarios Under Test item contains expected scenario under test, conditions when the
+feature will be defined as supported and as not supported.
+
+www.onvif.org
+
+15
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+4.1.3 Test Cases
+Test Case items contain list of test cases which are related to feature. Test cases provide exact
+procedure of testing feature support conditions.
+Each Test Case contains the following parts:
+• Test Label - Unique label for each test
+• Test Case ID - Unique ID for each test
+• Profile Normative References - Requirement level for the feature under test is defined in
+Profile Specification. This reference is informative and will not be used in conformance
+procedure.
+• Feature Under Test - Feature which is under current test. Typically a particular command or
+an event.
+• Test Purpose - The purpose of current test case.
+• Pre-Requisite - The pre-requisite defines when the test should be performed. In case if prereqiusite does not match, the test result will be NOT DETECTED.
+• Test Procedure - scenario expected to be reflected in network trace file.
+• Test Result - Passed and failed criteria of the test case. Depending on these criteria test result
+will be defined as PASSED or FAILED.
+
+4.2 Test Setup
+Collect Network Traces files required by the test cases.
+Collect Feature List XML files for Devices detected in the Network Trace files.
+Client shall support all mandatory and conditional features listed in the Device Feature List XML file
+supplied for the Profiles supported by the Client.
+For ONVIF compatibility, the ONVIF Client shall follow the requirements of the conformance
+process. For details, please, see the latest ONVIF Conformance Process Specification.
+
+4.3 Prerequisites
+The pre-requisites for executing the test cases described in this Test Specification include:
+The Device shall be configured with an IPv4 address.
+
+16
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+The Device shall be able to be discovered by the Client.
+
+www.onvif.org
+
+17
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+5 Audio Backchannel Streaming Test Cases
+5.1 Feature Level Requirement:
+Validated Feature: Audio Backchannel Streaming (AudioBackchannelStreaming)
+Check Condition based on Device Features: Audio Output (Media Service) is supported by
+Device.
+Required Number of Devices: 1
+Profile A Requirement: None
+Profile C Requirement: None
+Profile G Requirement: None
+Profile Q Requirement: None
+Profile S Requirement: None
+
+5.2 Expected Scenarios Under Test:
+1. Client connects to Device to stream audio for backchannel.
+2. Client is considered as supporting Audio Backchannel Streaming if the following conditions
+are met:
+• Client is able to get audio decoder configuration options to check supported audio
+backchannel streaming parameters using GetAudioOutputConfigurationOptions
+operation AND
+• Client is able to stream audio for backchannel using AAC OR G.711 OR G.726.
+3. Client is considered as NOT supporting Audio Backchannel Streaming if ANY of the
+following is TRUE:
+• No valid responses for GetAudioOutputConfigurationOptions request
+• No Audio Backchannel Streaming attempts were found OR
+• Detected AAC Audio Backchannel Streaming attempts have failed OR
+• Detected G.711 Audio Backchannel Streaming attempts have failed OR
+• Detected G.726 Audio Backchannel Streaming attempts have failed.
+
+18
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+5.3 GET AUDIO DECODER CONFIGURATION OPTIONS
+Test Label: Audio Backchannel Streaming - Get Audio Decoder Configuration Options
+Test Case ID: AUDIOBACKCHANNELSTREAMING-1
+Feature
+
+Under
+
+Test:
+
+Get
+
+Audio
+
+Decoder
+
+Configuration
+
+Options
+
+(AudioBackchannelStreaming_GetAudioDecoderConfigurationOptions)
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+Test Purpose: To verify that Client is able to get audio decoder configuration options provided by
+Device using the GetAudioDecoderConfigurationOptions operation.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with GetAudioDecoderConfigurationOptions operation present.
+• Device supports Audio Outputs.
+Test Procedure (expected to be reflected in network trace file):
+1. Client invokes GetAudioDecoderConfigurationOptions request message to retrieve
+audio decoder configuration options for the Device.
+2. Device
+
+responds
+
+with
+
+code
+
+HTTP
+
+200
+
+OK
+
+and
+
+GetAudioDecoderConfigurationOptionsResponse message.
+Test Result:
+PASS • Client GetAudioDecoderConfigurationOptions request messages are valid according to
+XML Schemas listed in Namespaces AND
+• Client GetAudioDecoderConfigurationOptions request in Test Procedure fulfills the
+following requirements:
+
+www.onvif.org
+
+19
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+soapenv:Body
+
+• [S1]
+
+element
+
+has
+
+child
+
+element
+
+trt:GetAudioDecoderConfigurationOptions AND
+• Device response to the GetAudioDecoderConfigurationOptions request fulfills the
+following requirements:
+• [S2] It has HTTP 200 response code AND
+soapenv:Body
+
+• [S3]
+
+element
+
+has
+
+child
+
+element
+
+Backchannel
+
+Streaming
+
+trt:GetAudioDecoderConfigurationOptionsResponse.
+FAIL • The Client failed PASS criteria.
+
+5.4 G.711 AUDIO BACKCHANNEL STREAMING
+Test Label: Audio Backchannel Streaming - G.711
+Test Case ID: AUDIOBACKCHANNELSTREAMING-2
+Feature
+
+Under
+
+Test:
+
+G.711
+
+Audio
+
+(AudioBackchannelStreaming_G711AudioBackchannelStreaming)
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+Test Purpose: To verify that audio backchannel streaming to Device was successfully started by
+Client.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with audio backchannel streaming with G.711 encoding.
+• Device supports G.711 encoding for Audio Outputs.
+Test Procedure (expected to be reflected in network trace file):
+
+20
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+1. Client invokes GetStreamUri request message for media profile that contains Audio Output
+Configuration and Audio Decoder Configuration with RTP-Unicast/UDP OR RTP-Multicast/
+UDP OR RTP/RTSP/TCP OR RTP-Unicast/RTSP/HTTP/TCP transport.
+2. Device responds with code HTTP 200 OK and GetStreamUriResponse message.
+3. Client invokes RTSP DESCRIBE request to retrieve media stream description with Require
+tag in RTSP header that contains "www.onvif.org/ver20/backchannel".
+4. Device responds with code RTSP 200 OK with SDP that contains media type "audio" with
+session attribute "sendonly".
+5. Client invokes RTSP SETUP request with transport parameter element to set media
+session parameters for audio backchannel with Require tag in RTSP header that contains
+"www.onvif.org/ver20/backchannel".
+6. Device responds with code RTSP 200 OK.
+7. Client invokes RTSP PLAY request to start media stream with Require tag in RTSP header
+that contains "www.onvif.org/ver20/backchannel".
+8. Device responds with code RTSP 200 OK.
+9. Client invokes RTSP TEARDOWN request to terminate the RTSP session with Require tag
+in RTSP header that contains "www.onvif.org/ver20/backchannel".
+10. If Device sends response to RTSP TEARDOWN, it has code RTSP 200 OK.
+Note: RTSP requests and RTSP response could be tunneled in HTTP if RTP-Unicast/RTSP/HTTP/
+TCP transport is used.
+Test Result:
+PASS • Client RTSP DESCRIBE request in Test Procedure fulfills the following requirements:
+• [S1] Require tag in RTSP header contains "www.onvif.org/ver20/backchannel" AND
+• Device response to the RTSP DESCRIBE request fulfills the following requirements:
+• [S3] It has RTSP 200 response code AND
+• [S4] SDP packet contains media type "audio" (m=audio) with session attribute
+"sendonly" (a=sendonly) and sessions attribute "rtpmap" with encoding name "PCMU" AND
+• There is Client RTSP SETUP request in Test Procedure that fulfills the following requirements:
+
+www.onvif.org
+
+21
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+• [S5] It is invoked for the same Device as the response for RTSP DESCRIBE request AND
+• [S6] It is invoked after the Client RTSP DESCRIBE request AND
+• [S7] RTSP address that was used to send RTSP SETUP is corresponds to media type
+"audio" with session attribute "sendonly" depending on media session attribute, general
+session attribute and address that was used for the RTSP DESCRIBE request (see [RFC
+2326]) AND
+• [S8] Require tag in RTSP header contains "www.onvif.org/ver20/backchannel" AND
+• Device response to the RTSP SETUP request fulfills the following requirements:
+• [S9] It has RTSP 200 response code AND
+• There is a Device response to the GetStreamUri request in Test Procedure that fulfills the
+following requirements:
+• [S10] It has HTTP 200 response code AND
+• [S11] It is received from the same Device as the response for RTSP DESCRIBE request
+AND
+• [S12] It is received before the Client RTSP DESCRIBE request AND
+• [S13] It contains trt:MediaUri\tt:Uri element which value is equal to RTSP address that
+was used to send the RTSP DESCRIBE request AND
+• There is Client RTSP PLAY request in Test Procedure that fulfills the following requirements:
+• [S14] It is invoked for the same Device as the response for RTSP SETUP request AND
+• [S15] It is invoked after the Client RTSP SETUP request AND
+• [S16] RTSP address that was used to send it should be equal to address that was used
+for the RTSP DESCRIBE request AND
+• [S17] Require tag in RTSP header contains "www.onvif.org/ver20/backchannel" AND
+• Device response to the RTSP PLAY request fulfills the following requirements:
+• [S18] It has RTSP 200 response code AND
+• There is Client RTSP TEARDOWN request in Test Procedure that fulfills the following
+requirements:
+• [S19] It is invoked for the same Device as the response for RTSP SETUP request AND
+
+22
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+• [S20] It is invoked after the Client RTSP PLAY request AND
+• [S21] RTSP address that was used to send it should be equal to address that was used
+for the RTSP DESCRIBE request AND
+• [S22] Require tag in RTSP header contains "www.onvif.org/ver20/backchannel" AND
+• If there is Device response on the RTSP TEARDOWN request then it fulfills the following
+requirements:
+• [S23] It has RTSP 200 response code.
+FAIL • The Client failed PASS criteria.
+
+5.5 G.726 AUDIO BACKCHANNEL STREAMING
+Test Label: Audio Backchannel Streaming - G.726
+Test Case ID: AUDIOBACKCHANNELSTREAMING-3
+Feature
+
+Under
+
+Test:
+
+G.726
+
+Audio
+
+Backchannel
+
+Streaming
+
+(AudioBackchannelStreaming_G726AudioBackchannelStreaming)
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+Test Purpose: To verify that audio backchannel streaming to Device was successfully started by
+Client.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with audio backchannel streaming with G.726 encoding.
+• Device supports G.726 encoding for Audio Outputs.
+Test Procedure (expected to be reflected in network trace file):
+
+www.onvif.org
+
+23
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+1. Client invokes GetStreamUri request message for media profile that contains Audio Output
+Configuration and Audio Decoder Configuration with RTP-Unicast/UDP OR RTP-Multicast/
+UDP OR RTP/RTSP/TCP OR RTP-Unicast/RTSP/HTTP/TCP transport.
+2. Device responds with code HTTP 200 OK and GetStreamUriResponse message.
+3. Client invokes RTSP DESCRIBE request to retrieve media stream description with Require
+tag in RTSP header that contains "www.onvif.org/ver20/backchannel".
+4. Device responds with code RTSP 200 OK with SDP that contains media type "audio" with
+session attribute "sendonly".
+5. Client invokes RTSP SETUP request with transport parameter element to set media
+session parameters for audio backchannel with Require tag in RTSP header that contains
+"www.onvif.org/ver20/backchannel".
+6. Device responds with code RTSP 200 OK.
+7. Client invokes RTSP PLAY request to start media stream with Require tag in RTSP header
+that contains "www.onvif.org/ver20/backchannel".
+8. Device responds with code RTSP 200 OK.
+9. Client invokes RTSP TEARDOWN request to terminate the RTSP session with Require tag
+in RTSP header that contains "www.onvif.org/ver20/backchannel".
+10. If Device sends response to RTSP TEARDOWN, it has code RTSP 200 OK.
+Note: RTSP requests and RTSP response could be tunneled in HTTP if RTP-Unicast/RTSP/HTTP/
+TCP transport is used.
+Test Result:
+PASS • Client RTSP DESCRIBE request in Test Procedure fulfills the following requirements:
+• [S1] Require tag in RTSP header contains "www.onvif.org/ver20/backchannel" AND
+• Device response to the RTSP DESCRIBE request fulfills the following requirements:
+• [S3] It has RTSP 200 response code AND
+• [S4] SDP packet contains media type "audio" (m=audio) with session attribute
+"sendonly" (a=sendonly) and sessions attribute "rtpmap" with encoding name "G726-*"
+AND
+
+24
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+• There is Client RTSP SETUP request in Test Procedure that fulfills the following requirements:
+• [S5] It is invoked for the same Device as the response for RTSP DESCRIBE request AND
+• [S6] It is invoked after the Client RTSP DESCRIBE request AND
+• [S7] RTSP address that was used to send RTSP SETUP is corresponds to media type
+"audio" with session attribute "sendonly" depending on media session attribute, general
+session attribute and address that was used for the RTSP DESCRIBE request (see [RFC
+2326]) AND
+• [S8] Require tag in RTSP header contains "www.onvif.org/ver20/backchannel" AND
+• Device response to the RTSP SETUP request fulfills the following requirements:
+• [S9] It has RTSP 200 response code AND
+• There is a Device response to the GetStreamUri request in Test Procedure that fulfills the
+following requirements:
+• [S10] It has HTTP 200 response code AND
+• [S11] It is received from the same Device the response for RTSP DESCRIBE request AND
+• [S12] It is received before the Client RTSP DESCRIBE request AND
+• [S13] It contains trt:MediaUri\tt:Uri element which value is equal to RTSP address that
+was used to send the RTSP DESCRIBE request AND
+• There is Client RTSP PLAY request in Test Procedure that fulfills the following requirements:
+• [S14] It is invoked for the same Device as the response for RTSP SETUP request AND
+• [S15] It is invoked after the Client RTSP SETUP request AND
+• [S16] RTSP address that was used to send it should be equal to address that was used
+for the RTSP DESCRIBE request AND
+• [S17] Require tag in RTSP header contains "www.onvif.org/ver20/backchannel" AND
+• Device response to the RTSP PLAY request fulfills the following requirements:
+• [S18] It has RTSP 200 response code AND
+• There is Client RTSP TEARDOWN request in Test Procedure that fulfills the following
+requirements:
+• [S19] It is invoked for the same Device as the response for RTSP SETUP request AND
+
+www.onvif.org
+
+25
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+• [S20] It is invoked after the Client RTSP PLAY request AND
+• [S21] RTSP address that was used to send it should be equal to address that was used
+for the RTSP DESCRIBE request AND
+• [S22] Require tag in RTSP header contains "www.onvif.org/ver20/backchannel" AND
+• If there is Device response on the RTSP TEARDOWN request then it fulfills the following
+requirements:
+• [S23] It has RTSP 200 response code.
+FAIL • The Client failed PASS criteria.
+
+5.6 AAC AUDIO BACKCHANNEL STREAMING
+Test Label: Audio Backchannel Streaming - AAC
+Test Case ID: AUDIOBACKCHANNELSTREAMING-4
+Feature
+
+Under
+
+Test:
+
+AAC
+
+Audio
+
+Backchannel
+
+Streaming
+
+(AudioBackchannelStreaming_AACAudioBackchannelStreaming)
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+Test Purpose: To verify that audio backchannel streaming to Device was successfully started by
+Client.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with audio backchannel streaming with AAC encoding.
+• Device supports AAC encoding for Audio Outputs.
+Test Procedure (expected to be reflected in network trace file):
+
+26
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+1. Client invokes GetStreamUri request message for media profile that contains Audio Output
+Configuration and Audio Decoder Configuration with RTP-Unicast/UDP OR RTP-Multicast/
+UDP OR RTP/RTSP/TCP OR RTP-Unicast/RTSP/HTTP/TCP transport.
+2. Device responds with code HTTP 200 OK and GetStreamUriResponse message.
+3. Client invokes RTSP DESCRIBE request to retrieve media stream description with Require
+tag in RTSP header that contains "www.onvif.org/ver20/backchannel".
+4. Device responds with code RTSP 200 OK with SDP that contains media type "audio" with
+session attribute "sendonly".
+5. Client invokes RTSP SETUP request with transport parameter element to set media
+session parameters for audio backchannel with Require tag in RTSP header that contains
+"www.onvif.org/ver20/backchannel".
+6. Device responds with code RTSP 200 OK.
+7. Client invokes RTSP PLAY request to start media stream with Require tag in RTSP header
+that contains "www.onvif.org/ver20/backchannel".
+8. Device responds with code RTSP 200 OK.
+9. Client invokes RTSP TEARDOWN request to terminate the RTSP session with Require tag
+in RTSP header that contains "www.onvif.org/ver20/backchannel".
+10. If Device sends response to RTSP TEARDOWN, it has code RTSP 200 OK.
+Note: RTSP requests and RTSP response could be tunneled in HTTP if RTP-Unicast/RTSP/HTTP/
+TCP transport is used.
+Test Result:
+PASS • Client RTSP DESCRIBE request in Test Procedure fulfills the following requirements:
+• [S1] Require tag in RTSP header contains "www.onvif.org/ver20/backchannel" AND
+• Device response to the RTSP DESCRIBE request fulfills the following requirements:
+• [S3] It has RTSP 200 response code AND
+• [S4] SDP packet contains media type "audio" (m=audio) with session attribute
+"sendonly" (a=sendonly) and sessions attribute "rtpmap" with encoding name "mpeg4generic" or "MP4A-LATM" AND
+
+www.onvif.org
+
+27
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+• There is Client RTSP SETUP request in Test Procedure that fulfills the following requirements:
+• [S5] It is invoked for the same Device as the response for RTSP DESCRIBE request AND
+• [S6] It is invoked after the Client RTSP DESCRIBE request AND
+• [S7] RTSP address that was used to send RTSP SETUP is corresponds to media type
+"audio" with session attribute "sendonly" depending on media session attribute, general
+session attribute and address that was used for the RTSP DESCRIBE request (see [RFC
+2326]) AND
+• [S8] Require tag in RTSP header contains "www.onvif.org/ver20/backchannel" AND
+• Device response to the RTSP SETUP request fulfills the following requirements:
+• [S9] It has RTSP 200 response code AND
+• There is a Device response to the GetStreamUri request in Test Procedure that fulfills the
+following requirements:
+• [S10] It has HTTP 200 response code AND
+• [S11] It is received from the same Device the response for RTSP DESCRIBE request AND
+• [S12] It is received before the Client RTSP DESCRIBE request AND
+• [S13] It contains trt:MediaUri\tt:Uri element which value is equal to RTSP address that
+was used to send the RTSP DESCRIBE request AND
+• There is Client RTSP PLAY request in Test Procedure that fulfills the following requirements:
+• [S14] It is invoked for the same Device as the response for RTSP SETUP request AND
+• [S15] It is invoked after the Client RTSP SETUP request AND
+• [S16] RTSP address that was used to send it should be equal to address that was used
+for the RTSP DESCRIBE request AND
+• [S17] Require tag in RTSP header contains "www.onvif.org/ver20/backchannel" AND
+• Device response to the RTSP PLAY request fulfills the following requirements:
+• [S18] It has RTSP 200 response code AND
+• There is Client RTSP TEARDOWN request in Test Procedure that fulfills the following
+requirements:
+• [S19] It is invoked for the same Device the response for RTSP SETUP request AND
+
+28
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+• [S20] It is invoked after the Client RTSP PLAY request AND
+• [S21] RTSP address that was used to send it should be equal to address that was used
+for the RTSP DESCRIBE request AND
+• [S22] Require tag in RTSP header contains "www.onvif.org/ver20/backchannel" AND
+• If there is Device response on the RTSP TEARDOWN request then it fulfills the following
+requirements:
+• [S23] It has RTSP 200 response code.
+FAIL • The Client failed PASS criteria.
+
+www.onvif.org
+
+29
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+6 Get Audio Decoder Configurations List Test Cases
+6.1 Feature Level Requirement:
+Validated Feature: Get Audio Decoder Configurations (GetAudioDecoderConfigurationsList)
+Check Condition based on Device Features: Audio Output (Media Service) is supported by
+Device.
+Required Number of Devices: 1
+Profile A Requirement: None
+Profile C Requirement: None
+Profile G Requirement: None
+Profile Q Requirement: None
+Profile S Requirement: None
+
+6.2 Expected Scenarios Under Test:
+1. Client connects to Device to retrieve a complete list of Audio Decoders.
+2. Client is considered as supporting Get Audio Decoder Configurations List if the following
+conditions are met:
+• Client is able to list available Get Audio Decoder Configurations List using
+GetAudioDecoderConfigurations operation.
+3. Client is considered as NOT supporting Get Audio Decoder Configurations List if ANY of
+the following is TRUE:
+• No valid responses for GetAudioDecoderConfigurations request.
+
+6.3 GET AUDIO DECODER CONFIGURATIONS
+Test Label: Get Audio Decoder Configurations List - Get Audio Decoder Configurations
+Test Case ID: GETAUDIODECODERCONFIGURATIONSLIST-1
+Feature
+
+Under
+
+Test:
+
+Get
+
+Audio
+
+Decoder
+
+(GetAudioDecoderConfigurationsList_GetAudioDecoderConfigurations)
+
+30
+
+www.onvif.org
+
+Configurations
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+Test Purpose: To verify that list of all audio decoder configurations items provided by Device is
+received by Client using the GetAudioDecoderConfigurations operation.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with GetAudioDecoderConfigurations operation present.
+• Device supports Audio Outputs.
+Test Procedure (expected to be reflected in network trace file):
+1. Client invokes GetAudioDecoderConfigurations request message to retrieve a list of all
+audio decoder configurations from the Device.
+2. Device
+
+responds
+
+with
+
+code
+
+HTTP
+
+200
+
+OK
+
+and
+
+GetAudioDecoderConfigurationsResponse message.
+Test Result:
+PASS • Client GetAudioDecoderConfigurations request messages are valid according to XML
+Schemas listed in Namespaces AND
+• Client GetAudioDecoderConfigurations request in Test Procedure fulfills the following
+requirements:
+• [S1] soapenv:Body element has child element trt:GetAudioDecoderConfigurations
+AND
+• Device response to the GetAudioDecoderConfigurations request fulfills the following
+requirements:
+• [S2] It has HTTP 200 response code AND
+• [S3]
+
+soapenv:Body
+
+element
+
+has
+
+child
+
+element
+
+trt:GetAudioDecoderConfigurationsResponse.
+
+www.onvif.org
+
+31
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+FAIL • The Client failed PASS criteria.
+
+32
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+7 Get Audio Output Configurations List Test Cases
+7.1 Feature Level Requirement:
+Validated Feature: Get Audio Output Configurations (GetAudioOutputConfigurationsList)
+Check Condition based on Device Features: Audio Output (Media Service) is supported by
+Device.
+Required Number of Devices: 1
+Profile A Requirement: None
+Profile C Requirement: None
+Profile G Requirement: None
+Profile Q Requirement: None
+Profile S Requirement: None
+
+7.2 Expected Scenarios Under Test:
+1. Client connects to Device to retrieve a complete list of Audio Outputs.
+2. Client is considered as supporting Get Audio Output Configurations List if the following
+conditions are met:
+• Client is able to list available Get Audio Output Configurations List using
+GetAudioOutputConfigurations operation.
+3. Client is considered as NOT supporting Get Audio Output Configurations List if ANY of the
+following is TRUE:
+• No valid responses for GetAudioOutputConfigurations request.
+
+7.3 GET AUDIO OUTPUT CONFIGURATIONS
+Test Label: Get Audio Output Configurations List - Get Audio Output Configurations
+Test Case ID: GETAUDIOOUTPUTCONFIGURATIONSLIST-1
+Feature
+
+Under
+
+Test:
+
+Get
+
+Audio
+
+Output
+
+Configurations
+
+(GetAudioOutputConfigurationsList_GetAudioOutputConfigurations)
+
+www.onvif.org
+
+33
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+Test Purpose: To verify that list of all audio output configurations items provided by Device is
+received by Client using the GetAudioOutputConfigurations operation.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with GetAudioOutputConfigurations operation present.
+• Device supports Audio Outputs.
+Test Procedure (expected to be reflected in network trace file):
+1. Client invokes GetAudioOutputConfigurations request message to retrieve a list of all
+audio output configurations from the Device.
+2. Device responds with code HTTP 200 OK and GetAudioOutputConfigurationsResponse
+message.
+Test Result:
+PASS • Client GetAudioOutputConfigurations request messages are valid according to XML
+Schemas listed in Namespaces AND
+• Client GetAudioOutputConfigurations request in Test Procedure fulfills the following
+requirements:
+• [S1] soapenv:Body element has child element trt:GetAudioOutputConfigurations AND
+• Device response to the GetAudioOutputConfigurations request fulfills the following
+requirements:
+• [S2] It has HTTP 200 response code AND
+• [S3]
+
+soapenv:Body
+
+element
+
+trt:GetAudioOutputConfigurationsResponse.
+
+34
+
+www.onvif.org
+
+has
+
+child
+
+element
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+FAIL • The Client failed PASS criteria.
+
+www.onvif.org
+
+35
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+8 Get Audio Outputs List Test Cases
+8.1 Feature Level Requirement:
+Validated Feature: Get Audio Outputs (GetAudioOutputsList)
+Check Condition based on Device Features: Audio Output (Media Service) is supported by
+Device.
+Required Number of Devices: 1
+Profile A Requirement: None
+Profile C Requirement: None
+Profile G Requirement: None
+Profile Q Requirement: None
+Profile S Requirement: None
+
+8.2 Expected Scenarios Under Test:
+1. Client connects to Device to retrieve a complete list of Audio Outputs.
+2. Client is considered as supporting Get Audio Outputs List if the following conditions are met:
+• Client is able to list available Get Audio Outputs List using GetAudioOutputs operation
+(Media Service or Device IO Service).
+3. Client is considered as NOT supporting Get Audio Outputs List if ANY of the following is
+TRUE:
+• No valid responses for GetAudioOutputs request (Media Service or Device IO Service).
+
+8.3 GET AUDIO OUTPUTS
+Test Label: Get Audio Outputs List - Get Audio Outputs
+Test Case ID: GETAUDIOOUTPUTSLIST-1
+Feature Under Test: Get Audio Outputs (GetAudioOutputsList_GetAudioOutputs)
+Profile A Normative Reference: None
+
+36
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+Test Purpose: To verify that list of all audio outputs items provided by Device is received by Client
+using the GetAudioOutputs operation (Media Service or Device IO Service).
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with GetAudioOutputs operation (Media Service or Device IO Service) present.
+• Device supports Audio Outputs.
+Test Procedure (expected to be reflected in network trace file):
+1. Client invokes GetAudioOutputs request message (Media Service or Device IO Service)
+to retrieve a list of all audio outputs from the Device.
+2. Device responds with code HTTP 200 OK and GetAudioOutputsResponse message.
+Test Result:
+PASS • Client GetAudioOutputs request messages are valid according to XML Schemas listed in
+Namespaces AND
+• Client GetAudioOutputs request in Test Procedure fulfills the following requirements:
+• [S1] soapenv:Body element has child element trt:GetAudioOutputs AND
+• Device response to the GetAudioOutputs request fulfills the following requirements:
+• [S2] It has HTTP 200 response code AND
+• [S3] soapenv:Body element has child element trt:GetAudioOutputsResponse.
+FAIL • The Client failed PASS criteria.
+
+www.onvif.org
+
+37
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+9 Get Audio Decoder Configuration Test Cases
+9.1 Feature Level Requirement:
+Validated Feature: Get Audio Decoder Configuration (GetAudioDecoderConfiguration)
+Check Condition based on Device Features: Audio Output (Media Service) is supported by
+Device.
+Required Number of Devices: 1
+Profile A Requirement: None
+Profile C Requirement: None
+Profile G Requirement: None
+Profile Q Requirement: None
+Profile S Requirement: None
+
+9.2 Expected Scenarios Under Test:
+1. Client connects to Device to retrieve an Audio Decoder Configuration.
+2. Client is considered as supporting Get Audio Decoder Configuration if the following
+conditions are met:
+• Client
+using
+
+is
+
+able
+
+to
+
+get
+
+Audio
+
+GetAudioDecoderConfiguration
+
+operation
+
+Decoder
+OR
+
+Configuration
+Client
+
+supports
+
+get_audio_decoder_configurations_list.get_audio_decoder_configurations feature.
+3. Client is considered as NOT supporting Get Audio Decoder Configuration if ANY of the
+following is TRUE:
+• No valid responses for GetAudioDecoderConfiguration request.
+
+9.3 GET AUDIO DECODER CONFIGURATION
+Test Label: Get Audio Decoder Configuration - Get Audio Decoder Configuration
+Test Case ID: GETAUDIODECODERCONFIGURATION-1
+Feature
+
+Under
+
+Test:
+
+Get
+
+Audio
+
+Decoder
+
+(GetAudioDecoderConfiguration_GetAudioDecoderConfigurationFeature)
+
+38
+
+www.onvif.org
+
+Configuration
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+Test Purpose: To verify that audio decoder configuration provided by Device is received by Client
+using the GetAudioDecoderConfiguration operation.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with GetAudioDecoderConfiguration operation present.
+• Device supports Audio Outputs.
+Test Procedure (expected to be reflected in network trace file):
+1. Client invokes GetAudioDecoderConfiguration request message to retrieve audio
+decoder configuration for specified audio decoder configuration from the Device.
+2. Device
+
+responds
+
+with
+
+code
+
+HTTP
+
+200
+
+OK
+
+and
+
+GetAudioDecoderConfigurationResponse message.
+Test Result:
+PASS • Client GetAudioDecoderConfiguration request messages are valid according to XML
+Schemas listed in Namespaces AND
+• Client GetAudioDecoderConfiguration request in Test Procedure fulfills the following
+requirements:
+• [S1] soapenv:Body element has child element trt:GetAudioDecoderConfiguration AND
+• Device response to the GetAudioDecoderConfiguration request fulfills the following
+requirements:
+• [S2] It has HTTP 200 response code AND
+• [S3]
+
+soapenv:Body
+
+element
+
+has
+
+child
+
+element
+
+trt:GetAudioDecoderConfigurationResponse.
+
+www.onvif.org
+
+39
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+FAIL • The Client failed PASS criteria.
+
+40
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+10 Get Audio Output Configuration Test Cases
+10.1 Feature Level Requirement:
+Validated Feature: Get Audio Output Configuration (GetAudioOutputConfiguration)
+Check Condition based on Device Features: Audio Output (Media Service) is supported by
+Device.
+Required Number of Devices: 1
+Profile A Requirement: None
+Profile C Requirement: None
+Profile G Requirement: None
+Profile Q Requirement: None
+Profile S Requirement: None
+
+10.2 Expected Scenarios Under Test:
+1. Client connects to Device to retrieve an Audio Output Configuration.
+2. Client is considered as supporting Get Audio Output Configuration if the following conditions
+are met:
+• Client is able to get Audio Output Configuration using GetAudioOutputConfiguration
+operation
+
+(Media
+
+Service
+
+OR
+
+Device
+
+IO
+
+Service)
+
+OR
+
+Client
+
+supports
+
+get_audio_output_configurations_list.get_audio_output_configurations feature.
+3. Client is considered as NOT supporting Get Audio Output Configuration if ANY of the
+following is TRUE:
+• No valid responses for GetAudioOutputConfiguration request.
+
+10.3 GET AUDIO OUTPUT CONFIGURATION
+Test Label: Get Audio Output Configuration - Get Audio Output Configuration
+Test Case ID: GETAUDIOOUTPUTCONFIGURATION-1
+Feature
+
+Under
+
+Test:
+
+Get
+
+Audio
+
+Output
+
+Configuration
+
+(GetAudioOutputConfiguration_GetAudioOutputConfigurationFeature)
+
+www.onvif.org
+
+41
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+Test Purpose: To verify that audio output configuration provided by Device is received by Client
+using the GetAudioOutputConfiguration operation.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with GetAudioOutputConfiguration operation present.
+• Device supports Audio Outputs.
+Test Procedure (expected to be reflected in network trace file):
+1. Client invokes GetAudioOutputConfiguration request message to retrieve audio output
+configuration for specified audio output configuration from the Device.
+2. Device responds with code HTTP 200 OK and GetAudioOutputConfigurationResponse
+message.
+Test Result:
+PASS • Client GetAudioOutputConfiguration request messages are valid according to XML
+Schemas listed in Namespaces AND
+• Client GetAudioOutputConfiguration request in Test Procedure fulfills the following
+requirements:
+• [S1] soapenv:Body element has child element trt:GetAudioOutputConfiguration AND
+• Device response to the GetAudioOutputConfiguration request fulfills the following
+requirements:
+• [S2] It has HTTP 200 response code AND
+• [S3]
+
+soapenv:Body
+
+element
+
+trt:GetAudioOutputConfigurationResponse.
+
+42
+
+www.onvif.org
+
+has
+
+child
+
+element
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+FAIL • The Client failed PASS criteria.
+
+www.onvif.org
+
+43
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+11 Profile Configuration for Audio Backchannel Test
+Cases
+11.1 Feature Level Requirement:
+Validated
+
+Feature:
+
+Profile
+
+Configuration
+
+for
+
+Audio
+
+Backchannel
+
+(ProfileConfigurationForAudioBackchannel)
+Check Condition based on Device Features: Audio Output (Media Service) is supported by
+Device.
+Required Number of Devices: 1
+Profile A Requirement: None
+Profile C Requirement: None
+Profile G Requirement: None
+Profile Q Requirement: None
+Profile S Requirement: None
+
+11.2 Expected Scenarios Under Test:
+1. Client connects to Device to configure profile for Audio Backchannel streaming.
+2. Client is considered as supporting Profile Configuration for Audio Backchannel details if the
+following conditions are met:
+• Client
+
+is
+
+able
+
+to
+
+get
+
+compatible
+
+Audio
+
+Output
+
+Configuration
+
+using
+
+GetCompatibleAudioOutputConfigurations operation for specified profile AND
+• Client is able to add or replace Audio Output Configuration in media profile using
+AddAudioOutputConfiguration operation for specified audio output configuration and
+compatible with specified profile AND
+• Client may be able to remove Audio Output Configuration from media profile using
+RemoveAudioOutputConfiguration operation for specified profile AND
+• Client
+
+is
+
+able
+
+to
+
+get
+
+compatible
+
+Audio
+
+Decoder
+
+Configuration
+
+using
+
+GetCompatibleAudioDecoderConfigurations operation for specified profile AND
+
+44
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+• Client is able to add or replace Audio Decoder Configuration in media profile using
+AddAudioDecoderConfiguration operation for specified audio decoder configuration
+and compatible with specified profile AND
+• Client may be able to remove Audio Decoder Configuration from media profile using
+RemoveAudioDecoderConfiguration operation for specified profile.
+3. Client is considered as NOT supporting Profile Configuration for Audio Backchannel if ANY
+of the following is TRUE:
+• No valid responses for GetCompatibleAudioOutputConfigurations request OR
+• No valid responses for AddAudioOutputConfiguration request OR
+• Client
+
+tries
+
+to
+
+invoke
+
+AddAudioOutputConfiguration
+
+request
+
+without
+
+GetCompatibleAudioOutputConfigurations request for specified profile OR
+• Detected RemoveAudioOutputConfiguration request attempt have failed OR
+• No valid responses for GetCompatibleAudioDecoderConfigurations request OR
+• No valid responses for AddAudioDecoderConfiguration request OR
+• Client
+
+tries
+
+to
+
+invoke
+
+AddAudioDecoderConfiguration
+
+request
+
+without
+
+GetCompatibleAudioDecoderConfigurations request for specified profile OR
+• Detected RemoveAudioDecoderConfiguration request attempt has failed.
+
+11.3 GET COMPATIBLE AUDIO OUTPUT CONFIGURATIONS
+Test Label: Profile Configuration for Audio Backchannel - Get Compatible Audio Output
+Configurations
+Test Case ID: PROFILECONFIGURATIONFORAUDIOBACKCHANNEL-1
+Feature
+
+Under
+
+Test:
+
+Get
+
+Compatible
+
+Audio
+
+Output
+
+Configurations
+
+(ProfileConfigurationForAudioBackchannel_GetCompatibleAudioOutputConfigurations)
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+
+www.onvif.org
+
+45
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+Test Purpose: To verify that compatible audio output configurations provided by Device for specified
+media profile is received by Client using the GetCompatibleAudioOutputConfigurations
+operation.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with GetCompatibleAudioOutputConfigurations operation present.
+• Device supports Audio Outputs.
+Test Procedure (expected to be reflected in network trace file):
+1. Client invokes GetCompatibleAudioOutputConfigurations request message to retrieve
+compatible audio output configurations for specified media profile from the Device.
+2. Device
+
+responds
+
+with
+
+code
+
+HTTP
+
+200
+
+OK
+
+and
+
+GetCompatibleAudioOutputConfigurationsResponse message.
+Test Result:
+PASS • Client GetCompatibleAudioOutputConfigurations request messages are valid according
+to XML Schemas listed in Namespaces AND
+• Client GetCompatibleAudioOutputConfigurations request in Test Procedure fulfills the
+following requirements:
+• [S1]
+
+soapenv:Body
+
+element
+
+has
+
+child
+
+element
+
+trt:GetCompatibleAudioOutputConfigurations AND
+• Device response to the GetCompatibleAudioOutputConfigurations request fulfills the
+following requirements:
+• [S2] It has HTTP 200 response code AND
+• [S3]
+
+soapenv:Body
+
+element
+
+has
+
+child
+
+element
+
+trt:GetCompatibleAudioOutputConfigurationsResponse.
+FAIL • The Client failed PASS criteria.
+
+11.4 ADD AUDIO OUTPUT CONFIGURATION
+Test Label: Profile Configuration for Audio Backchannel - Add Audio Output Configuration
+
+46
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+Test Case ID: PROFILECONFIGURATIONFORAUDIOBACKCHANNEL-2
+Feature
+
+Under
+
+Test:
+
+Add
+
+Audio
+
+Output
+
+Configuration
+
+(ProfileConfigurationForAudioBackchannel_AddAudioOutputConfiguration)
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+Test Purpose: To verify that Client is able to add or replace audio output configurations on a
+Device for specified audio output configuration and compatible with specified profile using the
+AddAudioOutputConfiguration operation.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with AddAudioOutputConfiguration operation present.
+• Device supports Audio Outputs.
+Test Procedure (expected to be reflected in network trace file):
+1. Client invokes GetCompatibleAudioOutputConfigurations request message to retrieve
+compatible audio output configurations for specified media profile from the Device.
+2. Device
+
+responds
+
+with
+
+code
+
+HTTP
+
+200
+
+OK
+
+and
+
+GetCompatibleAudioOutputConfigurationsResponse message.
+3. Client invokes AddAudioOutputConfiguration request message to add or replace audio
+output configurations for specified media profile and with audio output configuration token
+that was recieved in GetCompatibleAudioOutputConfigurationsResponse message
+from the Device for the same media profile.
+4. Device responds with code HTTP 200 OK and AddAudioOutputConfigurationResponse
+message.
+Test Result:
+PASS • Client AddAudioOutputConfiguration request messages are valid according to XML
+Schemas listed in Namespaces AND
+
+www.onvif.org
+
+47
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+• Client AddAudioOutputConfiguration request in Test Procedure fulfills the following
+requirements:
+• [S1] soapenv:Body element has child element trt:AddAudioOutputConfiguration AND
+• Device response to the AddAudioOutputConfiguration request fulfills the following
+requirements:
+• [S2] It has HTTP 200 response code AND
+soapenv:Body
+
+• [S3]
+
+element
+
+has
+
+child
+
+element
+
+trt:AddAudioOutputConfigurationResponse AND
+• There is Client GetCompatibleAudioOutputConfigurations request in Test Procedure that
+fulfills the following requirements:
+• [S4] It is invoked for the same Device the response for AddAudioOutputConfiguration
+request AND
+• [S5] It is invoked before the Client AddAudioOutputConfiguration request AND
+• [S6] trt:ProfileToken element value is equal to trt:ProfileToken element from the
+AddAudioOutputConfiguration request AND
+• [S7] It is the last GetCompatibleAudioOutputConfigurations request which corresponds
+[S4], [S5] AND [S6] AND
+• Device response to the GetCompatibleAudioOutputConfigurations request fulfills the
+following requirements:
+• [S8] It has HTTP 200 response code AND
+soapenv:Body
+
+• [S9]
+
+element
+
+has
+
+child
+
+element
+
+trt:GetCompatibleAudioOutputConfigurationsResponse AND
+• [S10]
+
+It
+
+contains
+
+trt:Configurations/@token
+
+attribute
+
+value
+
+equal
+
+trt:ConfigurationToken from the AddAudioOutputConfiguration request messages.
+FAIL • The Client failed PASS criteria.
+
+11.5 REMOVE AUDIO OUTPUT CONFIGURATION
+Test Label: Profile Configuration for Audio Backchannel - Remove Audio Output Configuration
+Test Case ID: PROFILECONFIGURATIONFORAUDIOBACKCHANNEL-3
+
+48
+
+www.onvif.org
+
+to
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+Feature
+
+Under
+
+Test:
+
+Remove
+
+Audio
+
+Output
+
+Configuration
+
+(ProfileConfigurationForAudioBackchannel_RemoveAudioOutputConfiguration)
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+Test Purpose: To verify that Client is able to remove audio output configurations on a Device from
+specified profile using the RemoveAudioOutputConfiguration operation.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with RemoveAudioOutputConfiguration operation present.
+• Device supports Audio Outputs.
+Test Procedure (expected to be reflected in network trace file):
+1. Client invokes RemoveAudioOutputConfiguration request message to remove audio
+output configurations from specified media profile on the Device.
+2. Device
+
+responds
+
+with
+
+code
+
+HTTP
+
+200
+
+OK
+
+and
+
+RemoveAudioOutputConfigurationResponse message.
+Test Result:
+PASS • Client RemoveAudioOutputConfiguration request messages are valid according to XML
+Schemas listed in Namespaces AND
+• Client RemoveAudioOutputConfiguration request in Test Procedure fulfills the following
+requirements:
+• [S1] soapenv:Body element has child element trt:RemoveAudioOutputConfiguration
+AND
+• Device response to the RemoveAudioOutputConfiguration request fulfills the following
+requirements:
+
+www.onvif.org
+
+49
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+• [S2] It has HTTP 200 response code AND
+soapenv:Body
+
+• [S3]
+
+element
+
+has
+
+child
+
+element
+
+trt:RemoveAudioOutputConfigurationResponse.
+FAIL • The Client failed PASS criteria.
+
+11.6 GET COMPATIBLE AUDIO DECODER
+CONFIGURATIONS
+Test Label: Profile Configuration for Audio Backchannel - Get Compatible Audio Decoder
+Configurations
+Test Case ID: PROFILECONFIGURATIONFORAUDIOBACKCHANNEL-4
+Feature
+
+Under
+
+Test:
+
+Get
+
+Compatible
+
+Audio
+
+Decoder
+
+Configurations
+
+(ProfileConfigurationForAudioBackchannel_GetCompatibleAudioDecoderConfigurations)
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+Test
+
+Purpose:
+
+by
+
+Device
+
+for
+
+To
+
+verify
+specified
+
+that
+
+compatible
+
+media
+
+profile
+
+audio
+is
+
+decoder
+received
+
+configurations
+by
+
+Client
+
+provided
+
+using
+
+the
+
+GetCompatibleAudioDecoderConfigurations operation.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with GetCompatibleAudioDecoderConfigurations operation present.
+• Device supports Audio Decoders.
+Test Procedure (expected to be reflected in network trace file):
+1. Client invokes GetCompatibleAudioDecoderConfigurations request message to retrieve
+compatible audio decoder configurations for specified media profile from the Device.
+
+50
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+2. Device
+
+responds
+
+with
+
+code
+
+HTTP
+
+200
+
+OK
+
+and
+
+GetCompatibleAudioDecoderConfigurationsResponse message.
+Test Result:
+PASS • Client GetCompatibleAudioDecoderConfigurations request messages are valid according
+to XML Schemas listed in Namespaces AND
+• Client GetCompatibleAudioDecoderConfigurations request in Test Procedure fulfills the
+following requirements:
+• [S1]
+
+soapenv:Body
+
+element
+
+has
+
+child
+
+element
+
+trt:GetCompatibleAudioDecoderConfigurations AND
+• Device response to the GetCompatibleAudioDecoderConfigurations request fulfills the
+following requirements:
+• [S2] It has HTTP 200 response code AND
+• [S3]
+
+soapenv:Body
+
+element
+
+has
+
+child
+
+element
+
+trt:GetCompatibleAudioDecoderConfigurationsResponse.
+FAIL • The Client failed PASS criteria.
+
+11.7 ADD AUDIO DECODER CONFIGURATION
+Test Label: Profile Configuration for Audio Backchannel - Add Audio Decoder Configuration
+Test Case ID: PROFILECONFIGURATIONFORAUDIOBACKCHANNEL-5
+Feature
+
+Under
+
+Test:
+
+Add
+
+Audio
+
+Decoder
+
+Configuration
+
+(ProfileConfigurationForAudioBackchannel_AddAudioDecoderConfiguration)
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+
+www.onvif.org
+
+51
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+Test Purpose: To verify that Client is able to add or replace audio decoder configurations on a
+Device for specified audio decoder configuration and compatible with specified profile using the
+AddAudioDecoderConfiguration operation.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with AddAudioDecoderConfiguration operation present.
+• Device supports Audio Decoders.
+Test Procedure (expected to be reflected in network trace file):
+1. Client invokes GetCompatibleAudioDecoderConfigurations request message to retrieve
+compatible audio decoder configurations for specified media profile from the Device.
+2. Device
+
+responds
+
+with
+
+code
+
+HTTP
+
+200
+
+OK
+
+and
+
+GetCompatibleAudioDecoderConfigurationsResponse message.
+3. Client invokes AddAudioDecoderConfiguration request message to add or replace audio
+decoder configurations for specified media profile and with audio decoder configuration
+token that was recieved in GetCompatibleAudioDecoderConfigurationsResponse
+message from the Device for the same media profile.
+4. Device
+
+responds
+
+with
+
+code
+
+HTTP
+
+200
+
+OK
+
+and
+
+AddAudioDecoderConfigurationResponse message.
+Test Result:
+PASS • Client AddAudioDecoderConfiguration request messages are valid according to XML
+Schemas listed in Namespaces AND
+• Client AddAudioDecoderConfiguration request in Test Procedure fulfills the following
+requirements:
+• [S1] soapenv:Body element has child element trt:AddAudioDecoderConfiguration
+AND
+• Device response to the AddAudioDecoderConfiguration request fulfills the following
+requirements:
+• [S2] It has HTTP 200 response code AND
+• [S3]
+
+soapenv:Body
+
+element
+
+trt:AddAudioDecoderConfigurationResponse AND
+
+52
+
+www.onvif.org
+
+has
+
+child
+
+element
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+• There is Client GetCompatibleAudioDecoderConfigurations request in Test Procedure
+that fulfills the following requirements:
+• [S4]
+
+It
+
+is
+
+invoked
+
+for
+
+the
+
+same
+
+Device
+
+as
+
+the
+
+response
+
+for
+
+AddAudioDecoderConfiguration request AND
+• [S5] It is invoked before the Client AddAudioDecoderConfiguration request AND
+• [S6] trt:ProfileToken element value is equal to trt:ProfileToken element from the
+AddAudioDecoderConfiguration request AND
+• [S7] It is the last GetCompatibleAudioDecoderConfigurations request which
+corresponds [S4], [S5] AND [S6] AND
+• Device response to the GetCompatibleAudioDecoderConfigurations request fulfills the
+following requirements:
+• [S8] It has HTTP 200 response code AND
+soapenv:Body
+
+• [S9]
+
+element
+
+has
+
+child
+
+element
+
+trt:GetCompatibleAudioDecoderConfigurationsResponse AND
+• [S10]
+
+It
+
+contains
+
+trt:Configurations/@token
+
+attribute
+
+value
+
+equal
+
+to
+
+trt:ConfigurationToken from the AddAudioDecoderConfiguration request messages.
+FAIL • The Client failed PASS criteria.
+
+11.8 REMOVE AUDIO DECODER CONFIGURATION
+Test Label: Profile Configuration for Audio Backchannel - Remove Audio Decoder Configuration
+Test Case ID: PROFILECONFIGURATIONFORAUDIOBACKCHANNEL-6
+Feature
+
+Under
+
+Test:
+
+Remove
+
+Audio
+
+Decoder
+
+Configuration
+
+(ProfileConfigurationForAudioBackchannel_RemoveAudioDecoderConfiguration)
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+
+www.onvif.org
+
+53
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+Test Purpose: To verify that Client is able to remove audio decoder configurations on a Device
+from specified profile using the RemoveAudioDecoderConfiguration operation.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with RemoveAudioDecoderConfiguration operation present.
+• Device supports Audio Decoders.
+Test Procedure (expected to be reflected in network trace file):
+1. Client invokes RemoveAudioDecoderConfiguration request message to remove audio
+decoder configurations from specified media profile on the Device.
+2. Device
+
+responds
+
+with
+
+code
+
+HTTP
+
+200
+
+OK
+
+and
+
+RemoveAudioDecoderConfigurationResponse message.
+Test Result:
+PASS • Client RemoveAudioDecoderConfiguration request messages are valid according to XML
+Schemas listed in Namespaces AND
+• Client RemoveAudioDecoderConfiguration request in Test Procedure fulfills the following
+requirements:
+• [S1] soapenv:Body element has child element trt:RemoveAudioDecoderConfiguration
+AND
+• Device response to the RemoveAudioDecoderConfiguration request fulfills the following
+requirements:
+• [S2] It has HTTP 200 response code AND
+• [S3]
+
+soapenv:Body
+
+element
+
+trt:RemoveAudioDecoderConfigurationResponse.
+FAIL • The Client failed PASS criteria.
+
+54
+
+www.onvif.org
+
+has
+
+child
+
+element
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+12 Configure Audio Decoder Configuration Test
+Cases
+12.1 Feature Level Requirement:
+Validated Feature: Configure Audio Decoder Configuration (SetAudioDecoderConfiguration)
+Check Condition based on Device Features: Audio Output (Media Service) is supported by
+Device.
+Required Number of Devices: 1
+Profile A Requirement: None
+Profile C Requirement: None
+Profile G Requirement: None
+Profile Q Requirement: None
+Profile S Requirement: None
+
+12.2 Expected Scenarios Under Test:
+1. Client connects to Device to change Audio Decoder Configuration settings.
+2. Client is considered as supporting Configure Audio Decoder Configuration if the following
+conditions are met:
+• Client
+
+is
+
+able
+
+to
+
+change
+
+Audio
+
+Decoder
+
+Configuration
+
+settings
+
+using
+
+SetAudioDecoderConfiguration operation.
+3. Client is considered as NOT supporting Configure Audio Decoder Configuration if ANY of
+the following is TRUE:
+• No valid responses for SetAudioDecoderConfiguration request.
+
+12.3 SET AUDIO DECODER CONFIGURATION
+Test Label: Configure Audio Decoder Configuration - Set Audio Decoder Configuration
+Test Case ID: SETAUDIODECODERCONFIGURATION-1
+
+www.onvif.org
+
+55
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+Feature
+
+Under
+
+Test:
+
+Set
+
+Audio
+
+Decoder
+
+Configuration
+
+(SetAudioDecoderConfiguration_SetAudioDecoderConfigurationRequest)
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+Test Purpose: To verify that Client is able to change audio decoder configuration provided by
+Device using the SetAudioDecoderConfiguration operation.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with SetAudioDecoderConfiguration operation present.
+• Device supports Audio Outputs.
+Test Procedure (expected to be reflected in network trace file):
+1. Client invokes SetAudioDecoderConfiguration request message to change audio
+decoder configuration on the Device.
+2. Device responds with code HTTP 200 OK and SetAudioDecoderConfigurationResponse
+message.
+Test Result:
+PASS • Client SetAudioDecoderConfiguration request messages are valid according to XML
+Schemas listed in Namespaces AND
+• Client SetAudioDecoderConfiguration request in Test Procedure fulfills the following
+requirements:
+• [S1] soapenv:Body element has child element trt:SetAudioDecoderConfiguration AND
+• Device response to the SetAudioDecoderConfiguration request fulfills the following
+requirements:
+• [S2] It has HTTP 200 response code AND
+
+56
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+• [S3]
+
+soapenv:Body
+
+element
+
+has
+
+child
+
+element
+
+trt:SetAudioDecoderConfigurationResponse.
+FAIL • The Client failed PASS criteria.
+
+www.onvif.org
+
+57
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+13 Configure Audio Output Configuration Test
+Cases
+13.1 Feature Level Requirement:
+Validated Feature: Configure Audio Output Configuration (SetAudioOutputConfiguration)
+Check Condition based on Device Features: Audio Output (Media Service) is supported by
+Device.
+Required Number of Devices: 1
+Profile A Requirement: None
+Profile C Requirement: None
+Profile G Requirement: None
+Profile Q Requirement: None
+Profile S Requirement: None
+
+13.2 Expected Scenarios Under Test:
+1. Client connects to Device to change audio output configuration.
+2. Client is considered as supporting Configure Audio Output Configuration if the following
+conditions are met:
+• Client
+
+is
+
+able
+
+to
+
+retrieve
+
+audio
+
+output
+
+configuration
+
+options
+
+using
+
+settings
+
+using
+
+GetAudioOutputConfigurationOptions operation AND
+• Client
+
+is
+
+able
+
+to
+
+change
+
+audio
+
+output
+
+configuration
+
+SetAudioOutputConfiguration operation.
+3. Client is considered as NOT supporting Configure Audio Output Configuration if ANY of the
+following is TRUE:
+• No valid responses for GetAudioOutputConfigurationOptions request OR
+• No valid responses for SetAudioOutputConfiguration request.
+
+13.3 GET AUDIO OUTPUT CONFIGURATION OPTIONS
+Test Label: Configure Audio Output Configuration - Get Audio Output Configuration Options
+
+58
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+Test Case ID: SETAUDIOOUTPUTCONFIGURATION-1
+Feature
+
+Under
+
+Test:
+
+Get
+
+Audio
+
+Output
+
+Configuration
+
+Options
+
+(SetAudioOutputConfiguration_GetAudioOutputConfigurationOptions)
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+Test Purpose: To verify that Client is able to get audio output configuration options provided by
+Device using the GetAudioOutputConfigurationOptions operation.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with GetAudioOutputConfigurationOptions operation present.
+• Device supports Audio Outputs.
+Test Procedure (expected to be reflected in network trace file):
+1. Client invokes GetAudioOutputConfigurationOptions request message to retrieve audio
+output configuration options for the Device.
+2. Device
+
+responds
+
+with
+
+code
+
+HTTP
+
+200
+
+OK
+
+and
+
+GetAudioOutputConfigurationOptionsResponse message.
+Test Result:
+PASS • Client GetAudioOutputConfigurationOptions request messages are valid according to
+XML Schemas listed in Namespaces AND
+• Client GetAudioOutputConfigurationOptions request in Test Procedure fulfills the following
+requirements:
+• [S1]
+
+soapenv:Body
+
+element
+
+has
+
+child
+
+element
+
+trt:GetAudioOutputConfigurationOptions AND
+• Device response to the GetAudioOutputConfigurationOptions request fulfills the following
+requirements:
+
+www.onvif.org
+
+59
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+• [S2] It has HTTP 200 response code AND
+soapenv:Body
+
+• [S3]
+
+element
+
+has
+
+child
+
+element
+
+trt:GetAudioOutputConfigurationOptionsResponse.
+FAIL • The Client failed PASS criteria.
+
+13.4 SET AUDIO OUTPUT CONFIGURATION
+Test Label: Configure Audio Output Configuration - Set Audio Output Configuration
+Test Case ID: SETAUDIOOUTPUTCONFIGURATION-2
+Feature
+
+Under
+
+Test:
+
+Set
+
+Audio
+
+Output
+
+Configuration
+
+(SetAudioOutputConfiguration_SetAudioOutputConfigurationRequest)
+Profile A Normative Reference: None
+Profile C Normative Reference: None
+Profile G Normative Reference: None
+Profile Q Normative Reference: None
+Profile S Normative Reference: None
+Test Purpose: To verify that Client is able to change audio output configuration provided by Device
+using the SetAudioOutputConfiguration operation.
+Pre-Requisite:
+• The Network Trace Capture files contains at least one Conversation between Client and
+Device with SetAudioOutputConfiguration operation present.
+• Device supports Audio Outputs.
+Test Procedure (expected to be reflected in network trace file):
+1. Client invokes SetAudioOutputConfiguration request message to change audio output
+configuration on the Device.
+2. Device responds with code HTTP 200 OK and SetAudioOutputConfigurationResponse
+message.
+Test Result:
+
+60
+
+www.onvif.org
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+PASS • Client SetAudioOutputConfiguration request messages are valid according to XML
+Schemas listed in Namespaces AND
+• Client SetAudioOutputConfiguration request in Test Procedure fulfills the following
+requirements:
+• [S1] soapenv:Body element has child element trt:SetAudioOutputConfiguration AND
+• Device response to the SetAudioOutputConfiguration request fulfills the following
+requirements:
+• [S2] It has HTTP 200 response code AND
+• [S3]
+
+soapenv:Body
+
+element
+
+has
+
+child
+
+element
+
+trt:SetAudioOutputConfigurationResponse.
+FAIL • The Client failed PASS criteria.
+
+www.onvif.org
+
+61
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+Annex A Test for Appendix A
+A.1 Required Number of Devices Summary
+Required number of devices and Device feature dependency used in this test specification are listed
+in the Table.
+
+Table A.1. Required Number of Devices Summary
+Feature ID
+
+Feature Name
+
+Required
+
+Check Condition Check Condition
+
+Number of
+
+based on
+
+based on Device
+
+Devices
+
+Device Features
+
+Features ID
+
+tc.AudioBack
+
+Audio
+
+1
+
+Audio Output
+
+channelStreaming
+
+Backchannel
+
+(Media Service)
+
+Streaming
+
+is supported by
+
+AudioOutput
+
+Device.
+tc.GetAudioD
+
+Get Audio
+
+1
+
+Audio Output
+
+ecoderConfigu
+
+Decoder
+
+(Media Service)
+
+rationsList
+
+Configurations
+
+is supported by
+
+List
+
+Device.
+
+tc.GetAudioO
+
+Get Audio Output
+
+utputConfigur
+
+Configurations
+
+1
+
+Audio Output
+(Media Service)
+
+ationsList
+
+List
+
+is supported by
+
+AudioOutput
+
+AudioOutput
+
+Device.
+tc.GetAudioO
+
+Get Audio Outputs 1
+
+Audio Output
+
+utputsList
+
+List
+
+(Media Service)
+
+AudioOutput
+
+is supported by
+Device.
+tc.GetAudioD
+
+Get Audio
+
+1
+
+Audio Output
+
+ecoderConfigu
+
+Decoder
+
+(Media Service)
+
+ration
+
+Configuration
+
+is supported by
+
+AudioOutput
+
+Device.
+tc.GetAudioO
+
+Get Audio Output
+
+1
+
+Audio Output
+
+utputConfiguration Configuration
+
+AudioOutput
+
+(Media Service)
+is supported by
+Device.
+
+tc.ProfileCo
+
+Profile
+
+1
+
+Audio Output
+
+nfigurationFo
+
+Configuratio
+
+(Media Service)
+
+rAudioBackcha
+
+n for Audio
+
+is supported by
+
+nnel
+
+Backchannel
+
+Device.
+
+www.onvif.org
+
+AudioOutput
+
+62
+
+ONVIF Audio Backchannel Client Test Specification Version 19.06
+
+Feature ID
+
+Feature Name
+
+Required
+
+Check Condition Check Condition
+
+Number of
+
+based on
+
+based on Device
+
+Devices
+
+Device Features
+
+Features ID
+
+tc.SetAudioD
+
+Configure
+
+1
+
+Audio Output
+
+ecoderConfigu
+
+Audio Decoder
+
+(Media Service)
+
+ration
+
+Configuration
+
+is supported by
+
+AudioOutput
+
+Device.
+tc.SetAudioO
+
+Configure
+
+1
+
+Audio Output
+
+utputConfiguration Audio Output
+
+(Media Service)
+
+Configuration
+
+is supported by
+
+AudioOutput
+
+Device.
+
+www.onvif.org
+
+63
+
+

@@ -1,0 +1,148 @@
+﻿<xs:schema
+    targetNamespace="http://schemas.xmlsoap.org/ws/2006/02/devprof"
+    xmlns:tns="http://schemas.xmlsoap.org/ws/2006/02/devprof"
+    xmlns:wsa="http://schemas.xmlsoap.org/ws/2004/08/addressing"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    elementFormDefault="qualified"
+    blockDefault="#all" >
+ 
+  <xs:import
+    namespace="http://schemas.xmlsoap.org/ws/2004/08/addressing"
+    schemaLocation
+    ="http://schemas.xmlsoap.org/ws/2004/08/addressing/addressing.xsd"
+    />
+
+  <xs:element name="ThisModel" type="tns:ThisModelType" />
+  <xs:complexType name="ThisModelType" >
+    <xs:sequence>
+      <xs:element name="Manufacturer" type="tns:LocalizedStringType"
+          maxOccurs="unbounded" />
+      <xs:element name="ManufacturerUrl" type="xs:anyURI"
+          minOccurs="0" />
+      <xs:element name="ModelName" type="tns:LocalizedStringType"
+          maxOccurs="unbounded" />
+      <xs:element name="ModelNumber" type="xs:string" minOccurs="0" />
+      <xs:element name="ModelUrl" type="xs:anyURI" minOccurs="0" />
+      <xs:element name="PresentationUrl" type="xs:anyURI"
+          minOccurs="0" />
+      <xs:any namespace="##other" processContents="lax"
+              minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:anyAttribute namespace="##other" processContents="lax" />
+  </xs:complexType>
+
+  <xs:element name="ThisDevice" type="tns:ThisDeviceType" />
+  <xs:complexType name="ThisDeviceType" >
+    <xs:sequence>
+      <xs:element name="FriendlyName" type="tns:LocalizedStringType"
+          maxOccurs="unbounded" />
+      <xs:element name="FirmwareVersion" type="xs:string"
+          minOccurs="0" />
+      <xs:element name="SerialNumber" type="xs:string" minOccurs="0" />
+      <xs:any namespace="##other" processContents="lax"
+              minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:anyAttribute namespace="##other" processContents="lax" />
+  </xs:complexType>
+
+  <xs:complexType name="LocalizedStringType" >
+    <xs:simpleContent>
+      <xs:extension base="xs:string" >
+        <xs:anyAttribute namespace="##other" processContents="lax" />
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:element name="Relationship" >
+    <xs:complexType>
+      <xs:sequence>
+        <xs:any namespace="##any" processContents="lax"
+                minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="Type" type="tns:DeviceRelationshipTypes" use="required" />
+      <xs:anyAttribute namespace="##other" processContents="lax" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:simpleType name="DeviceRelationshipTypes" >
+    <xs:union memberTypes="tns:DeviceRelationshipTypeURIs xs:anyURI" />
+  </xs:simpleType>
+  
+  <xs:simpleType name="DeviceRelationshipTypeURIs" >
+    <xs:restriction base="xs:anyURI" >
+      <xs:enumeration value="http://schemas.xmlsoap.org/ws/2006/02/devprof/host" />
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="DeviceMetadataDialectURIs" >
+    <xs:restriction base="xs:anyURI" >
+      <xs:enumeration value="http://schemas.xmlsoap.org/ws/2006/02/devprof/ThisModel" />
+      <xs:enumeration value="http://schemas.xmlsoap.org/ws/2006/02/devprof/ThisDevice" />
+      <xs:enumeration value="http://schemas.xmlsoap.org/ws/2006/02/devprof/Relationship" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="DeviceEventingFilterDialects" >
+    <xs:union memberTypes="tns:DeviceEventingFilterDialectURIs xs:anyURI" />
+  </xs:simpleType>
+  
+  <xs:simpleType name="DeviceEventingFilterDialectURIs" >
+    <xs:restriction base="xs:anyURI" >
+      <xs:enumeration value="http://schemas.xmlsoap.org/ws/2006/02/devprof/Action" />
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:simpleType name="DeviceActionURIs" >
+    <xs:restriction base="xs:anyURI" >
+      <xs:enumeration value="http://schemas.xmlsoap.org/ws/2006/02/devprof/Fault" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="DeviceSoapFaultSubcodes" >
+    <xs:union memberTypes="tns:DeviceSoapFaultSubcodeQNames wsa:FaultSubcodeValues xs:QName" />
+  </xs:simpleType>
+  
+  <xs:simpleType name="DeviceSoapFaultSubcodeQNames"  >
+    <xs:restriction base="xs:QName" >
+      <xs:enumeration value="tns:FilterActionNotSupported" />
+    </xs:restriction>
+  </xs:simpleType>
+  
+  <xs:element name="Host" type="tns:HostServiceType" />
+  <xs:element name="Hosted" type="tns:HostServiceType" />
+  <xs:complexType name="HostServiceType" >
+    <xs:sequence>
+      <xs:element ref="wsa:EndpointReference"
+                  maxOccurs="unbounded" />
+      <xs:element ref="tns:Types" minOccurs="0" />
+      <xs:element ref="tns:ServiceId" />
+      <xs:any namespace="##other" processContents="lax"
+              minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+    <xs:anyAttribute namespace="##other" processContents="lax" />
+  </xs:complexType>
+
+  <xs:element name="ServiceId" type="xs:anyURI" />
+  <xs:element name="Types" type="tns:QNameListType" />
+
+  <xs:simpleType name="QNameListType" >
+    <xs:list itemType="xs:QName" />
+  </xs:simpleType>
+
+  <xs:simpleType name="DiscoveryTypeValues" >
+    <xs:restriction base="xs:QName" >
+      <xs:enumeration value="tns:Device" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:element name="Profile" type="tns:AssertionType" />
+
+  <xs:complexType name="AssertionType" >
+    <xs:complexContent>
+      <xs:restriction base="xs:anyType">
+        <xs:anyAttribute namespace="##other" processContents="lax" />
+      </xs:restriction>
+    </xs:complexContent>
+  </xs:complexType>
+
+</xs:schema>
