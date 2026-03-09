@@ -46,11 +46,11 @@ GIT_DATE = "$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%d %H:%M:%S UT
 BUILD_DATE = "$(shell env -u SOURCE_DATE_EPOCH TZ=UTC date '+%Y-%m-%d %H:%M:%S %z')"
 
 ifeq ($(GROUP),github)
-	CAMERA_SUBDIR := configs/github
+CAMERA_SUBDIR := configs/github
 else ifeq ($(GROUP),)
-	CAMERA_SUBDIR := configs/cameras
+CAMERA_SUBDIR := configs/cameras
 else
-	CAMERA_SUBDIR := configs/cameras-$(GROUP)
+CAMERA_SUBDIR := configs/cameras-$(GROUP)
 endif
 export CAMERA_SUBDIR
 
