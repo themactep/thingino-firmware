@@ -270,7 +270,7 @@ update:
 	git submodule init
 	git submodule update
 	# avoid changes to buildroot from mad agents
-	chmod -R a-w $(BR2_EXTERNAL)/buildroot
+	# chmod -R a-w $(BR2_EXTERNAL)/buildroot
 	@$(FIGLET) "$(GIT_BRANCH)"
 
 update_manual:
