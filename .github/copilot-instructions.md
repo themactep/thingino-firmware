@@ -121,8 +121,17 @@ CI sets `WORKFLOW=1` to skip the interactive camera selection and dependency che
 ### Overrides
 
 Local development uses override sources stored under `overrides/` directory and wired in `local.mk` file.
-Sources from `overrides/` used as-is and patches from the package are not applied. Edit the sources directly, then create a patch for the package.
-Recompile packages using `CAMERA=<camera_defconfig> make rebuild-<packagename>`, that shorthand combines dirclean and build.
+
+Sources from `overrides/` used as-is, patches from the package are not applied.
+
+When using an override:
+1. clone package's repo or extract its bundle
+2. apply all package's patches in the tree
+3. create a git repo if it does not exsit, create a commit to pin the status before the changes
+4. edit the sources and confirm the changes work
+5. create a patch for the package using `git diff` and add it to the package directory
+
+To recompile a packages use `CAMERA=<camera_defconfig> make rebuild-<packagename>`, `rebuild-` shorthand combines `package-dirclean` and `package-build`.
 
 ### SSH
 
@@ -130,11 +139,8 @@ Thingino used dropbear for ssh. Uploading files with `scp` requires `-O` flag.
 
 ### Work ethics
 
-Do not lie, do not assume, do not hallucinate. Always follow facts.
-If you do not have enough facts, ask user for help.
+Do not lie, do not assume, do not hallucinate. Always follow facts. If you do not have enough facts, ask user for help.
 
 Do not write documentation unless exlicitly asked to.
 
-Always test your changes.
-Write tests when you solve issues to test and confirm the solution is viable.
-Do not commit anything until all tests passed.
+Always test your changes. Write tests when you solve issues to test and confirm the solution is viable. Do not commit anything until all tests pass.
