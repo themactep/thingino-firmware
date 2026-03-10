@@ -20,8 +20,8 @@
     "spk_vol": 80,
     "tap_enabled": true,
     "tap_path": "/run/prudynt/audio_mic.pcm",
-    "buffer_warn_frames": 80,
-    "buffer_cap_frames": 100
+    "buffer_warn_frames": 240,
+    "buffer_cap_frames": 400
   },
   "daynight": {
     "day_count_threshold": 4,
