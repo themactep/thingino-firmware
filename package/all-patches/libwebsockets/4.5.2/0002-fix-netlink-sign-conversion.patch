@@ -1,0 +1,210 @@
+From e14d6c8975f6d8f35f5ae838924e6afb016cce26 Mon Sep 17 00:00:00 2001
+From: Copilot <223556219+Copilot@users.noreply.github.com>
+Date: Tue, 10 Mar 2026 11:31:40 -0400
+Subject: [PATCH] 0002-fix-netlink-sign-conversion
+
+---
+ lib/roles/netlink/ops-netlink.c | 80 ++++++++++++++++++++++++---------
+ 1 file changed, 60 insertions(+), 20 deletions(-)
+
+diff --git a/lib/roles/netlink/ops-netlink.c b/lib/roles/netlink/ops-netlink.c
+index f7eb628..ee38352 100644
+--- a/lib/roles/netlink/ops-netlink.c
++++ b/lib/roles/netlink/ops-netlink.c
+@@ -45,6 +45,38 @@
+ #define lwsl_cx_netlink		lwsl_cx_info
+ #define lwsl_cx_netlink_debug	lwsl_cx_debug
+ 
++static unsigned int
++lws_rta_align(unsigned int len)
++{
++	return (len + (unsigned int)RTA_ALIGNTO - 1u) &
++	       ~((unsigned int)RTA_ALIGNTO - 1u);
++}
++
++static void *
++lws_rta_data(struct rtattr *ra)
++{
++	return (void *)((uint8_t *)ra +
++			lws_rta_align((unsigned int)sizeof(*ra)));
++}
++
++static int
++lws_rta_ok(const struct rtattr *ra, unsigned int len)
++{
++	return ra && len >= (unsigned int)sizeof(*ra) &&
++	       ra->rta_len >= sizeof(*ra) &&
++	       ra->rta_len <= len;
++}
++
++static struct rtattr *
++lws_rta_next(struct rtattr *ra, unsigned int *len)
++{
++	unsigned int step = lws_rta_align(ra->rta_len);
++
++	*len = *len >= step ? *len - step : 0u;
++
++	return (struct rtattr *)((uint8_t *)ra + step);
++}
++
+ static void
+ lws_netlink_coldplug_done_cb(lws_sorted_usec_list_t *sul)
+ {
+@@ -75,7 +107,9 @@ rops_handle_POLLIN_netlink(struct lws_context_per_thread *pt, struct lws *wsi,
+ 	struct nlmsghdr		*h;
+ 	struct msghdr		msg;
+ 	struct iovec		iov;
+-	unsigned int		n, removed;
++	ssize_t			nread;
++	unsigned int		n;
++	unsigned int		removed;
+ 	char			buf[72];
+ 
+ 	if (!(pollfd->revents & LWS_POLLIN))
+@@ -92,11 +126,12 @@ rops_handle_POLLIN_netlink(struct lws_context_per_thread *pt, struct lws *wsi,
+ 	msg.msg_iov		= &iov;
+ 	msg.msg_iovlen		= 1;
+ 
+-	n = (unsigned int)recvmsg(wsi->desc.sockfd, &msg, 0);
+-	if ((int)n < 0) {
++	nread = recvmsg(wsi->desc.sockfd, &msg, 0);
++	if (nread < 0) {
+ 		lwsl_cx_notice(cx, "recvmsg failed");
+ 		return LWS_HPI_RET_PLEASE_CLOSE_ME;
+ 	}
++	n = (unsigned int)nread;
+ 
+ 	// lwsl_hexdump_notice(s, (size_t)n);
+ 
+@@ -136,18 +171,19 @@ rops_handle_POLLIN_netlink(struct lws_context_per_thread *pt, struct lws *wsi,
+ 		case RTM_NEWLINK:
+ 
+ 			ifi = NLMSG_DATA(h);
+-			len = (unsigned int)(h->nlmsg_len - NLMSG_LENGTH(sizeof(*ifi)));
++			len = (unsigned int)(h->nlmsg_len -
++					     NLMSG_LENGTH(sizeof(*ifi)));
+ 
+ 			/* loop over all attributes for the NEWLINK message */
+-			for (attribute = IFLA_RTA(ifi); RTA_OK(attribute, len);
+-					 attribute = RTA_NEXT(attribute, len)) {
++			for (attribute = IFLA_RTA(ifi); lws_rta_ok(attribute, len);
++					 attribute = lws_rta_next(attribute, &len)) {
+ 				lwsl_cx_netlink(cx, "if attr %d",
+ 					    (int)attribute->rta_type);
+ 				switch(attribute->rta_type) {
+ 				case IFLA_IFNAME:
+ 					lwsl_cx_netlink(cx, "NETLINK ifidx %d : %s",
+ 						     ifi->ifi_index,
+-						     (char *)RTA_DATA(attribute));
++						     (char *)lws_rta_data(attribute));
+ 					break;
+ 				default:
+ 					break;
+@@ -195,26 +231,29 @@ rops_handle_POLLIN_netlink(struct lws_context_per_thread *pt, struct lws *wsi,
+ 				h->nlmsg_type == RTM_NEWADDR ? "NEWADDR" : "DELADDR");
+ 
+ 			// Parse attributes.
+-			for ( ; RTA_OK(ra, ra_len); ra = RTA_NEXT(ra, ra_len)) {
++			for ( ; lws_rta_ok(ra, ra_len);
++				      ra = lws_rta_next(ra, &ra_len)) {
+ 				//lwsl_cx_netlink_debug(cx, "%s: IFA %d\n", __func__, ra->rta_type);
+ 				switch (ra->rta_type) {
+ 				case IFA_LOCAL:
+ 					// Local address
+-					lws_sa46_copy_address(&robj.src, RTA_DATA(ra), rm->rtm_family);
++					lws_sa46_copy_address(&robj.src, lws_rta_data(ra),
++							      rm->rtm_family);
+ 					robj.src_len = rm->rtm_src_len;
+ 					lws_sa46_write_numeric_address(&robj.src, buf, sizeof(buf));
+ 					lwsl_cx_netlink_debug(cx, "IFA_LOCAL: %s/%d", buf, robj.src_len);
+ 					break;
+ 				case IFA_ADDRESS:
+ 					// Prefix address, not local interface.
+-					lws_sa46_copy_address(&robj.dest, RTA_DATA(ra),	rm->rtm_family);
++					lws_sa46_copy_address(&robj.dest, lws_rta_data(ra),
++							      rm->rtm_family);
+ 					robj.dest_len = rm->rtm_dst_len;
+ 					lws_sa46_write_numeric_address(&robj.dest, buf, sizeof(buf));
+ 					lwsl_cx_netlink_debug(cx, "IFA_ADDRESS: %s/%d", buf, robj.dest_len);
+ 					break;
+ 				case IFA_FLAGS:
+ 					lwsl_cx_netlink_debug(cx, "IFA_FLAGS: 0x%x (not handled)",
+-							*(unsigned int*)RTA_DATA(ra));
++							*(unsigned int *)lws_rta_data(ra));
+ 					break;
+ 				case IFA_BROADCAST:
+ 					lwsl_cx_netlink_debug(cx, "IFA_BROADCAST (not handled)");
+@@ -226,7 +265,7 @@ rops_handle_POLLIN_netlink(struct lws_context_per_thread *pt, struct lws *wsi,
+ 					lwsl_cx_netlink_debug(cx, "IFA_CACHEINFO (not handled)");
+ 					break;
+ 				case IFA_LABEL:
+-					strncpy(buf, RTA_DATA(ra), sizeof(buf));
++					strncpy(buf, lws_rta_data(ra), sizeof(buf));
+ 					buf[sizeof(buf)-1] = '\0';
+ 					lwsl_cx_netlink_debug(cx, "IFA_LABEL: %s (not used)", buf);
+ 					break;
+@@ -268,7 +307,8 @@ rops_handle_POLLIN_netlink(struct lws_context_per_thread *pt, struct lws *wsi,
+ #endif
+ 			ra = (struct rtattr *)RTM_RTA(rm);
+ 			ra_len = (unsigned int)RTM_PAYLOAD(h);
+-			for ( ; RTA_OK(ra, ra_len); ra = RTA_NEXT(ra, ra_len)) {
++			for ( ; lws_rta_ok(ra, ra_len);
++				      ra = lws_rta_next(ra, &ra_len)) {
+ 				lwsl_cx_netlink(cx, "atr %d", ra->rta_type);
+ 				switch (ra->rta_type) {
+ 				case NDA_DST:
+@@ -291,12 +331,12 @@ rops_handle_POLLIN_netlink(struct lws_context_per_thread *pt, struct lws *wsi,
+ 		robj.proto = rm->rtm_protocol;
+ 
+ 		// iterate over route attributes
+-		for ( ; RTA_OK(ra, ra_len); ra = RTA_NEXT(ra, ra_len)) {
++		for ( ; lws_rta_ok(ra, ra_len); ra = lws_rta_next(ra, &ra_len)) {
+ 			// lwsl_netlink("%s: atr %d\n", __func__, ra->rta_type);
+ 			switch (ra->rta_type) {
+ 			case RTA_PREFSRC: /* protocol ads: preferred src ads */
+ 			case RTA_SRC:
+-				lws_sa46_copy_address(&robj.src, RTA_DATA(ra),
++				lws_sa46_copy_address(&robj.src, lws_rta_data(ra),
+ 							rm->rtm_family);
+ 				robj.src_len = rm->rtm_src_len;
+ 				lws_sa46_write_numeric_address(&robj.src, buf, sizeof(buf));
+@@ -310,19 +350,19 @@ rops_handle_POLLIN_netlink(struct lws_context_per_thread *pt, struct lws *wsi,
+ 				if (rm->rtm_type == RTN_LOCAL &&
+ 				    ((rm->rtm_family == AF_INET && rm->rtm_dst_len == 32) ||
+ 				     (rm->rtm_family == AF_INET6 && rm->rtm_dst_len == 128))) {
+-					lws_sa46_copy_address(&robj.src, RTA_DATA(ra),
++					lws_sa46_copy_address(&robj.src, lws_rta_data(ra),
+ 							rm->rtm_family);
+ 					lwsl_cx_netlink_debug(cx, "Local addr: RTA_DST -> added to RTA_SRC");
+ 				}
+ 
+-				lws_sa46_copy_address(&robj.dest, RTA_DATA(ra),
++				lws_sa46_copy_address(&robj.dest, lws_rta_data(ra),
+ 						      rm->rtm_family);
+ 				robj.dest_len = rm->rtm_dst_len;
+ 				lws_sa46_write_numeric_address(&robj.dest, buf, sizeof(buf));
+ 				lwsl_cx_netlink_debug(cx, "RTA_DST: %s/%d", buf, robj.dest_len);
+ 				break;
+ 			case RTA_GATEWAY:
+-				lws_sa46_copy_address(&robj.gateway, RTA_DATA(ra),
++				lws_sa46_copy_address(&robj.gateway, lws_rta_data(ra),
+ 						      rm->rtm_family);
+ 
+ 				lws_sa46_write_numeric_address(&robj.gateway, buf, sizeof(buf));
+@@ -333,11 +373,11 @@ rops_handle_POLLIN_netlink(struct lws_context_per_thread *pt, struct lws *wsi,
+ 				break;
+ 			case RTA_IIF: /* int: input interface index */
+ 			case RTA_OIF: /* int: output interface index */
+-				robj.if_idx = *(int *)RTA_DATA(ra);
++				robj.if_idx = *(int *)lws_rta_data(ra);
+ 				lwsl_cx_netlink_debug(cx, "RTA_IIF/RTA_OIF: %d", robj.if_idx);
+ 				break;
+ 			case RTA_PRIORITY: /* int: priority of route */
+-				p = RTA_DATA(ra);
++				p = lws_rta_data(ra);
+ 				robj.priority = p[3] << 24 | p[2] << 16 |
+ 						 p[1] << 8  | p[0];
+ 				lwsl_cx_netlink_debug(cx, "RTA_PRIORITY: %d", robj.priority);
+-- 
+2.47.3
+
