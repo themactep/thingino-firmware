@@ -10,8 +10,4 @@
 # include dependencies that buildroot would add conditionally (like mbedtls).
 override LIBWEBSOCKETS_DEPENDENCIES := $(filter-out zlib,$(LIBWEBSOCKETS_DEPENDENCIES)) libzlib mbedtls
 
-ifeq ($(BR2_PACKAGE_THINGINO_LIBWEBSOCKETS),y)
-
 override LIBWEBSOCKETS_VERSION = 4.5.2
-
-endif
