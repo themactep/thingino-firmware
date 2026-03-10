@@ -1,0 +1,12 @@
+config BR2_PACKAGE_THINGINO_HA
+	bool "thingino-ha"
+	depends on BR2_PACKAGE_THINGINO_MOSQUITTO
+	depends on BR2_PACKAGE_THINGINO_JCT
+	help
+	  Home Assistant MQTT integration for Thingino cameras.
+	  Provides automatic MQTT discovery so all camera entities
+	  (motion, IR cut, day/night, privacy, lights, PTZ, OTA, etc.)
+	  appear automatically in Home Assistant without manual YAML.
+	  Requires the MQTT broker settings to be configured under
+	  the mqtt_sub section and Home Assistant with MQTT integration.
+	  https://github.com/themactep/thingino-firmware

@@ -68,6 +68,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/config-admin.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-audio.html \
 		$(TARGET_DIR)/var/www/config-audio.html
+	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-ha.html \
+		$(TARGET_DIR)/var/www/config-ha.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-gpio.html \
 		$(TARGET_DIR)/var/www/config-gpio.html
 	$(INSTALL) -D -m 0644 $(THINGINO_WEBUI_PKGDIR)/files/www/config-motors.html \

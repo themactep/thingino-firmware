@@ -1,0 +1,197 @@
+#!/bin/sh
+# Subscribes to Home Assistant command topics and dispatches to camera scripts.
+# Runs as a background process inside ha-daemon.
+# Publishes state immediately after each command (optimistic update) so HA
+# reflects changes instantly without waiting for ha-state's next poll cycle.
+
+. /usr/share/ha-common
+
+[ -n "$HA_CAMERA_ID" ] || { echo "ha-commands: cannot determine camera MAC" >&2; exit 1; }
+[ -n "$HA_MQTT_HOST" ] || { echo "ha-commands: ha.mqtt.host (or mqtt_sub.host) not configured" >&2; exit 1; }
+
+# Disable prudynt's automatic day/night management before manual hardware control.
+# Without this, prudynt may immediately undo hardware changes.
+prudynt_disable_auto() {
+	printf '{"daynight":{"enabled":false}}' | prudyntctl json - >/dev/null 2>&1
+}
+
+# ---------------------------------------------------------------------------
+# Subscriber command
+# LWT ensures HA sees 'offline' if this connection drops unexpectedly.
+# ---------------------------------------------------------------------------
+MSUB=$(ha_msub_cmd cmd)
+MSUB="$MSUB -v -F '%t %p'"
+# LWT: broker notifies HA immediately if this connection drops (no retain —
+# ha-state re-asserts 'online' on reconnect so we don't leave a sticky offline)
+MSUB="$MSUB --will-topic ${HA_AVAIL_TOPIC} --will-payload offline --will-qos 1"
+MSUB="$MSUB -t 'cameras/${HA_CAMERA_ID}/+/set'"
+
+# ---------------------------------------------------------------------------
+# Command dispatcher
+# After each command we publish the new state directly so HA gets instant
+# feedback instead of waiting for the next ha-state poll cycle.
+# ---------------------------------------------------------------------------
+dispatch() {
+	local topic="$1"
+	local payload="$2"
+
+	# cameras/<id>/entity/set → entity
+	local entity
+	entity=$(printf '%s' "$topic" \
+		| sed "s|cameras/${HA_CAMERA_ID}/||; s|/set\$||; s|/|_|g")
+
+	case "$entity" in
+
+		motion_guard)
+			# Use prudyntctl directly — calling 'motion enable' goes through the
+			# motion event script which has a singleton guard and may fail silently
+			# if a motion event is already in progress.
+			case "$payload" in
+				on|ON|1|true)
+					printf '{"motion":{"enabled":true}}' | prudyntctl json - >/dev/null 2>&1
+					jct /etc/prudynt.json set motion.enabled true >/dev/null 2>&1
+					ha_pub_state motion_guard ON
+					;;
+				off|OFF|0|false)
+					printf '{"motion":{"enabled":false}}' | prudyntctl json - >/dev/null 2>&1
+					jct /etc/prudynt.json set motion.enabled false >/dev/null 2>&1
+					ha_pub_state motion_guard OFF
+					;;
+			esac
+			;;
+
+		ircut)
+			prudynt_disable_auto
+			case "$payload" in
+				on|ON|day|1)   ircut on;  ha_pub_state ircut ON  ;;
+				off|OFF|night|0) ircut off; ha_pub_state ircut OFF ;;
+			esac
+			;;
+
+		daynight)
+			# Use prudyntctl to set force_mode — this controls both ISP processing
+			# and hardware (ircut, LEDs, color) through prudynt's day/night engine.
+			case "$payload" in
+				day|night)
+					printf '{"daynight":{"enabled":false,"force_mode":"%s"}}' "$payload" \
+						| prudyntctl json - >/dev/null 2>&1
+					ha_pub_state daynight "$payload"
+					;;
+			esac
+			# Daynight changes ircut/color/ir850 — re-sync all states after settle
+			{ sleep 2; ha-state; } &
+			;;
+
+		privacy)
+			case "$payload" in
+				on|ON|1)
+					privacy on
+					ha_pub_state privacy ON
+					;;
+				off|OFF|0)
+					privacy off
+					ha_pub_state privacy OFF
+					;;
+			esac
+			;;
+
+		color)
+			# running_mode: 0 = color, 1 = monochrome
+			case "$payload" in
+				on|ON|1)
+					printf '{"daynight":{"enabled":false},"image":{"running_mode":0}}' \
+						| prudyntctl json - >/dev/null 2>&1
+					ha_pub_state color ON
+					;;
+				off|OFF|0)
+					printf '{"daynight":{"enabled":false},"image":{"running_mode":1}}' \
+						| prudyntctl json - >/dev/null 2>&1
+					ha_pub_state color OFF
+					;;
+			esac
+			;;
+
+		ir850)
+			prudynt_disable_auto
+			case "$payload" in
+				on|ON|1)
+					light ir850 on
+					ha_pub_state ir850 ON
+					;;
+				off|OFF|0)
+					light ir850 off
+					ha_pub_state ir850 OFF
+					;;
+			esac
+			;;
+
+		ir940)
+			prudynt_disable_auto
+			case "$payload" in
+				on|ON|1)
+					light ir940 on
+					ha_pub_state ir940 ON
+					;;
+				off|OFF|0)
+					light ir940 off
+					ha_pub_state ir940 OFF
+					;;
+			esac
+			;;
+
+		white)
+			prudynt_disable_auto
+			case "$payload" in
+				on|ON|1)
+					light white on
+					ha_pub_state white ON
+					;;
+				off|OFF|0)
+					light white off
+					ha_pub_state white OFF
+					;;
+			esac
+			;;
+
+		snapshot)
+			prudyntctl snapshot -c 0 > "/tmp/snap_$(date +%Y%m%d_%H%M%S).jpg" &
+			;;
+
+		reboot)
+			[ "$payload" = "1" ] && reboot
+			;;
+
+		firmware)
+			[ "$payload" = "install" ] && (touch /tmp/webupgrade; sysupgrade -p) &
+			;;
+
+		*)
+			echo "ha-commands: unknown entity '$entity' (topic: $topic)" >&2
+			return
+			;;
+	esac
+}
+
+# ---------------------------------------------------------------------------
+# Subscriber loop
+# ---------------------------------------------------------------------------
+echo "ha-commands: subscribing on ${HA_MQTT_HOST}:${HA_MQTT_PORT} for ${HA_CAMERA_ID}"
+echo "ha-commands: topics: cameras/${HA_CAMERA_ID}/+/set"
+
+# Run mosquitto_sub and tee stderr so we can see connection errors
+sh -c "$MSUB" 2>&1 | while IFS= read -r line; do
+	# mosquitto_sub error lines start with "Error" or contain "Connection"
+	case "$line" in
+		Error*|*"Connection refused"*|*"authentication"*|*"not authorised"*)
+			echo "ha-commands: broker error: $line" >&2
+			;;
+		*)
+			mqtt_topic="${line%% *}"
+			mqtt_payload="${line#* }"
+			echo "ha-commands: ${mqtt_topic} = ${mqtt_payload}"
+			dispatch "$mqtt_topic" "$mqtt_payload"
+			;;
+	esac
+done
+
+echo "ha-commands: mosquitto_sub exited (exit $?)" >&2
