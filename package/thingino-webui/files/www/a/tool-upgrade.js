@@ -122,7 +122,6 @@
     copyLog.disabled = true;
     showBusy('Running command...');
 
-    // Show the flash progress modal
     if (flashProgressModal) {
       if (!flashProgressModalInstance && window.bootstrap && window.bootstrap.Modal) {
         flashProgressModalInstance = new bootstrap.Modal(flashProgressModal);
@@ -137,9 +136,6 @@
     hideBusy();
     copyLog.disabled = !(outputEl && outputEl.textContent.trim());
     loadState();
-
-    // Keep modal open so user can see the final output
-    // They can close it manually
   }
 
   async function requestOtaCommand(option) {
@@ -218,7 +214,7 @@
   }
 
   async function handleOtaClick() {
-    const selected = document.querySelector('input[name="otaOption"]:checked');
+    const selected = $('input[name="otaOption"]:checked');
     const selectedLabel = selected ? selected.parentElement.querySelector('label .fw-semibold').textContent : 'update';
     const value = selected ? selected.value : 'partial';
 

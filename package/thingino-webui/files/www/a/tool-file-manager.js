@@ -1,6 +1,6 @@
 (function() {
   const breadcrumbsEl = $('#breadcrumbs');
-  const tableBody = document.querySelector('#fileTable tbody');
+  const tableBody = $('#fileTable tbody');
   const emptyState = $('#emptyState');
   const refreshBtn = $('#btnRefresh');
   const parentBtn = $('#btnParent');

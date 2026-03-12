@@ -463,12 +463,12 @@
   }
 
   function ensureControlBarScript() {
-    if (!document.querySelector('[data-app-controls]')) return;
+    if (!$('[data-app-controls]')) return;
     if (window.thinginoControlBar && typeof window.thinginoControlBar.rebuild === 'function') {
       window.thinginoControlBar.rebuild();
       return;
     }
-    const existingScript = document.querySelector('script[data-control-bar-autoload], script[src*="/a/control-bar.js"]');
+    const existingScript = $('script[data-control-bar-autoload], script[src*="/a/control-bar.js"]');
     if (existingScript) {
       bindControlBarLoad(existingScript);
       return;
@@ -509,8 +509,8 @@
 
   function mountNavigation() {
     const nav = buildNav(menuData);
-    const placeholder = document.querySelector('[data-app-nav]');
-    const existing = document.querySelector('nav[data-generated-nav="true"]');
+    const placeholder = $('[data-app-nav]');
+    const existing = $('nav[data-generated-nav="true"]');
     if (placeholder && placeholder.parentNode) {
       placeholder.parentNode.replaceChild(nav, placeholder);
     } else if (existing && existing.parentNode) {

@@ -16,15 +16,6 @@
     { name: 'white', label: 'White LED' }
   ];
 
-  function showOverlayMessage(message, variant = 'info') {
-    if (window.thinginoFooter && typeof window.thinginoFooter.showMessage === 'function') {
-      window.thinginoFooter.showMessage(message, variant);
-      return;
-    }
-    const fallbackType = variant === 'danger' ? 'danger' : 'info';
-    showAlert(fallbackType, message);
-  }
-
   function toggleBusy(state, label) {
     submitButton.disabled = state;
     container.querySelectorAll('input, button.led-status').forEach(el => el.disabled = state);

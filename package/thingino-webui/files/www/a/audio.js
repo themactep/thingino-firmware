@@ -40,7 +40,7 @@
   }
 
   function preparePlaceholder(select) {
-    const placeholder = select.querySelector('option[value=""]');
+    const placeholder = $('option[value=""]');
     select.innerHTML = '';
     if (placeholder) {
       placeholder.textContent = placeholder.textContent || '- Select -';
@@ -70,7 +70,7 @@
   }
 
   function initDynamicSelects() {
-    const dynamicSelects = document.querySelectorAll('select[data-range-min], select[data-option-values]');
+    const dynamicSelects = $$('select[data-range-min], select[data-option-values]');
     dynamicSelects.forEach(populateDynamicSelect);
   }
 

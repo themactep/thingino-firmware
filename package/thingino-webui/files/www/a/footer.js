@@ -111,7 +111,7 @@
         if (btn) {
           btn.disabled = false;
           btn.classList.remove('pe-none');
-          btn.innerHTML = originalLabel;
+          btn.innerHTML = btn.dataset.originalLabel || '';
         }
       } else {
         const reloadDelayCfg = Number(globalConfig.restartReloadDelay);
@@ -217,10 +217,10 @@
 
   function mountFooter() {
     const footer = buildFooter();
-    const placeholder = document.querySelector('[data-app-footer]');
+    const placeholder = $('[data-app-footer]');
     if (placeholder && placeholder.parentNode) {
       placeholder.parentNode.replaceChild(footer, placeholder);
-    } else if (!document.querySelector('footer[data-generated-footer="true"]')) {
+    } else if (!$('footer[data-generated-footer="true"]')) {
       document.body.appendChild(footer);
     }
     updateHostLabel();

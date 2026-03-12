@@ -3,10 +3,6 @@
 
   const endpoint = '/x/json-prudynt.cgi';
 
-  function $(selector) {
-    return document.querySelector(selector);
-  }
-
   async function confirm(message) {
     return new Promise((resolve) => {
       const result = window.confirm(message);
@@ -133,7 +129,7 @@
 
   function populateModeSelectors(soc) {
     const supportedModes = getSupportedModes(soc);
-    const selectors = document.querySelectorAll('#stream0_mode, #stream1_mode');
+    const selectors = $$('#stream0_mode, #stream1_mode');
 
     selectors.forEach(select => {
       if (!select) return;
@@ -156,7 +152,7 @@
 
   function populateFormatSelectors(soc) {
     const supportedFormats = getSupportedFormats(soc);
-    const selectors = document.querySelectorAll('#stream0_format, #stream1_format');
+    const selectors = $$('#stream0_format, #stream1_format');
 
     selectors.forEach(select => {
       if (!select) return;

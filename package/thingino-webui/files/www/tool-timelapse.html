@@ -114,13 +114,6 @@
       <p class="mb-2">Combine still images into a single video on your computer:</p>
       <pre class="cb mb-0">ffmpeg -r 10 -f image2 -pattern_type glob -i '*.jpg' -vcodec libx264 -an timelapse.mp4</pre>
     </div>
-
-    <section class="ui-debug d-none">
-      <h6>Timelapse recorder</h6>
-      <pre id="debugTimelapse"></pre>
-      <h6>Crontab</h6>
-      <pre id="debugCrontab"></pre>
-    </section>
   </div>
 </main>
 

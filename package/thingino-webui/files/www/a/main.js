@@ -130,7 +130,7 @@ function populateDebugModalContent() {
 	const ctx = ensureDebugModalStructure();
 	if (!ctx || !ctx.modalBody) return ctx;
 	const fragment = document.createDocumentFragment();
-	document.querySelectorAll('.ui-debug').forEach(panel => {
+	$$('.ui-debug').forEach(panel => {
 		const clone = panel.cloneNode(true);
 		clone.classList.remove('d-none');
 		fragment.appendChild(clone);
@@ -307,7 +307,7 @@ function setValue(data, domain, name) {
 	const el = $(id);
 	if (!el) return;
 	const value = data[name];
-	if (typeof (value) == 'undefined') return;
+	if (typeof (value) === 'undefined') return;
 
 	el.disabled = false;
 	const wrapper = el.closest('.range, .number-range, .number, .select, .boolean, .file');
@@ -742,7 +742,7 @@ function updateHeartbeatUi(json) {
 		if (colorBtn) {
 			colorBtn.classList.remove('pending');
 			// ISP mode: 0 = color, 1 = b&w, so active when 0
-			colorBtn.classList.toggle('active', json.color_mode == 0);
+			colorBtn.classList.toggle('active', json.color_mode === 0);
 		}
 	}
 
@@ -751,7 +751,7 @@ function updateHeartbeatUi(json) {
 		const ircutBtn = $('#ircut');
 		if (ircutBtn) {
 			ircutBtn.classList.remove('pending');
-			ircutBtn.classList.toggle('active', json.ircut_state == 1);
+			ircutBtn.classList.toggle('active', json.ircut_state === 1);
 		}
 	}
 
@@ -760,7 +760,7 @@ function updateHeartbeatUi(json) {
 		const ir850Btn = $('#ir850');
 		if (ir850Btn) {
 			ir850Btn.classList.remove('pending');
-			ir850Btn.classList.toggle('active', json.ir850_state == 1);
+			ir850Btn.classList.toggle('active', json.ir850_state === 1);
 		}
 	}
 
@@ -769,7 +769,7 @@ function updateHeartbeatUi(json) {
 		const ir940Btn = $('#ir940');
 		if (ir940Btn) {
 			ir940Btn.classList.remove('pending');
-			ir940Btn.classList.toggle('active', json.ir940_state == 1);
+			ir940Btn.classList.toggle('active', json.ir940_state === 1);
 		}
 	}
 
@@ -778,7 +778,7 @@ function updateHeartbeatUi(json) {
 		const whiteBtn = $('#white');
 		if (whiteBtn) {
 			whiteBtn.classList.remove('pending');
-			whiteBtn.classList.toggle('active', json.white_state == 1);
+			whiteBtn.classList.toggle('active', json.white_state === 1);
 		}
 	}
 
@@ -815,7 +815,7 @@ function updateHeartbeatUi(json) {
 		const autoBtn = $('#auto');
 		if (autoBtn) {
 			autoBtn.classList.remove('pending');
-			autoBtn.classList.toggle('active', json.daynight_enabled == 1);
+			autoBtn.classList.toggle('active', json.daynight_enabled === 1);
 		}
 	}
 }
@@ -1624,7 +1624,7 @@ window.thinginoConfirm = thinginoConfirm;
 			const p = $('#' + id);
 			const s = $('#' + id + '-show');
 			if (el.checked) {
-				el.dataset.value = r.value;
+				el.dataset.value = p.value;
 				p.value = 'auto';
 				p.disabled = true;
 				s.textContent = '--';
@@ -1985,6 +1985,89 @@ window.thinginoConfirm = thinginoConfirm;
 		}
 	};
 
+	window.clearAlerts = function() {
+		const el = $('#global-message-overlay');
+		if (el) el.classList.remove('show');
+		if (window.thinginoFooter && typeof window.thinginoFooter.hideMessage === 'function') {
+			window.thinginoFooter.hideMessage();
+		}
+	};
+
+	// Shared overlay message helper - delegates to footer or falls back to showAlert.
+	// Exposed globally so per-page scripts don't need to duplicate this function.
+	window.showOverlayMessage = function(message, variant = 'info') {
+		if (window.thinginoFooter && typeof window.thinginoFooter.showMessage === 'function') {
+			window.thinginoFooter.showMessage(message, variant);
+			return;
+		}
+		const fallbackType = variant === 'danger' ? 'danger' : 'info';
+		window.showAlert(fallbackType, message);
+	};
+
+	// ---- Shared helpers for tool-send2-*.js service modules ----
+	const _send2Endpoint = '/x/json-send2.cgi';
+
+	// Load send2 config and call populateFn(data) with the parsed JSON.
+	window.send2Load = async function(serviceName, populateFn) {
+		showBusy(`Loading ${serviceName} settings...`);
+		try {
+			const response = await fetch(_send2Endpoint, { headers: { 'Accept': 'application/json' } });
+			if (!response.ok) throw new Error('Failed to load configuration');
+			const data = await response.json();
+			await populateFn(data);
+		} catch (err) {
+			console.error(`Failed to load ${serviceName} config:`, err);
+			showAlert('danger', `Failed to load ${serviceName} settings: ${err.message || err}`);
+		} finally {
+			hideBusy();
+		}
+	};
+
+	// Handle form submit: validate, POST the payload returned by buildPayloadFn(), show result.
+	window.send2Save = async function(serviceName, form, event, buildPayloadFn) {
+		event.preventDefault();
+		if (!form.checkValidity()) {
+			event.stopPropagation();
+			form.classList.add('was-validated');
+			return;
+		}
+		showBusy(`Saving ${serviceName} settings...`);
+		try {
+			const payload = buildPayloadFn();
+			const response = await fetch(_send2Endpoint, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			if (!response.ok) throw new Error('Failed to save settings');
+			const result = await response.json();
+			if (result.error) throw new Error(result.error.message || 'Failed to save settings');
+			showAlert('success', `${serviceName} settings saved successfully.`, 3000);
+			form.classList.remove('was-validated');
+		} catch (err) {
+			console.error(`Failed to save ${serviceName} settings:`, err);
+			showAlert('danger', `Failed to save settings: ${err.message || err}`);
+		} finally {
+			hideBusy();
+		}
+	};
+
+	// Wire up a reload button to re-run loadConfigFn and show a confirmation message.
+	window.send2SetupReload = function(button, serviceName, loadConfigFn) {
+		if (!button) return;
+		button.addEventListener('click', async () => {
+			try {
+				button.disabled = true;
+				await loadConfigFn();
+				showAlert('info', `${serviceName} settings reloaded from camera.`, 3000);
+			} catch (err) {
+				showAlert('danger', `Failed to reload ${serviceName} settings.`);
+			} finally {
+				button.disabled = false;
+			}
+		});
+	};
+
 	window.addEventListener('load', initAll)
 	window.addEventListener('DOMContentLoaded', createAlertArea)
 
@@ -2059,7 +2142,7 @@ window.thinginoConfirm = thinginoConfirm;
 		}
 
 		const modalId = 'passwordWarningModal';
-		let modal = document.getElementById(modalId);
+		let modal = $('#' + modalId);
 
 		if (!modal) {
 			modal = document.createElement('div');

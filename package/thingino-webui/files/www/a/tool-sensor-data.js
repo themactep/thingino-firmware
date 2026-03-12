@@ -42,7 +42,7 @@
       const pauseBtn = $('#toggle-pause');
       const exportJsonBtn = $('#export-json');
       const exportCsvBtn = $('#export-csv');
-      const pointButtons = document.querySelectorAll('#max-points button');
+      const pointButtons = $$('#max-points button');
 
       if (clearBtn) {
         clearBtn.addEventListener('click', () => this.clearData());

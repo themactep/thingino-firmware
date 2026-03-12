@@ -17,15 +17,6 @@
     auth_bypass_ips: ''
   };
 
-  function showOverlayMessage(message, variant = 'info') {
-    if (window.thinginoFooter && typeof window.thinginoFooter.showMessage === 'function') {
-      window.thinginoFooter.showMessage(message, variant);
-      return;
-    }
-    const fallbackType = variant === 'danger' ? 'danger' : 'info';
-    showAlert(fallbackType, message);
-  }
-
   function toggleBusy(state, label) {
     submitButton.disabled = state;
     passwordInput.disabled = state;
@@ -155,11 +146,11 @@
   });
 
   // "Pick my IP" dropdown
-  const bypassPickBtn = document.getElementById('bypass_ip_pick');
-  const bypassIpMenu = document.getElementById('bypass_ip_menu');
+  const bypassPickBtn = $('#bypass_ip_pick');
+  const bypassIpMenu = $('#bypass_ip_menu');
   if (bypassPickBtn && bypassIpMenu) {
     bypassPickBtn.addEventListener('show.bs.dropdown', async () => {
-      const loading = document.getElementById('bypass_ip_loading');
+      const loading = $('#bypass_ip_loading');
       try {
         const res = await fetch('/x/session-status.cgi', { cache: 'no-store' });
         const data = await res.json();
@@ -214,11 +205,11 @@
       const response = await fetch('/x/api-key.cgi');
       const data = await response.json();
 
-      const keyDisplay = document.getElementById('api_key_display');
-      const copyBtn = document.getElementById('api_key_copy');
-      const deleteBtn = document.getElementById('api_key_delete');
-      const exampleDiv = document.getElementById('api_key_example');
-      const exampleValue = document.getElementById('api_key_example_value');
+      const keyDisplay = $('#api_key_display');
+      const copyBtn = $('#api_key_copy');
+      const deleteBtn = $('#api_key_delete');
+      const exampleDiv = $('#api_key_example');
+      const exampleValue = $('#api_key_example_value');
 
       if (data.exists && data.api_key) {
         keyDisplay.value = data.api_key;
@@ -238,7 +229,7 @@
     }
   }
 
-  const generateBtn = document.getElementById('api_key_generate');
+  const generateBtn = $('#api_key_generate');
   if (generateBtn) {
     generateBtn.addEventListener('click', async () => {
       if (!confirm('Generate a new API key? This will invalidate the old key if it exists.')) {
@@ -261,7 +252,7 @@
     });
   }
 
-  const deleteBtn = document.getElementById('api_key_delete');
+  const deleteBtn = $('#api_key_delete');
   if (deleteBtn) {
     deleteBtn.addEventListener('click', async () => {
       if (!confirm('Delete the API key? API access will stop working.')) {
@@ -279,10 +270,10 @@
     });
   }
 
-  const copyBtn = document.getElementById('api_key_copy');
+  const copyBtn = $('#api_key_copy');
   if (copyBtn) {
     copyBtn.addEventListener('click', () => {
-      const keyDisplay = document.getElementById('api_key_display');
+      const keyDisplay = $('#api_key_display');
       keyDisplay.select();
       document.execCommand('copy');
 

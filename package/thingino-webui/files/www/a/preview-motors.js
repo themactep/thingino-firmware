@@ -22,13 +22,13 @@ async function moveMotor(dir, steps = 100, d = 'g') {
   const x0 = Number(motorParams.pos_0_x);
   const y0 = Number(motorParams.pos_0_y);
   const step = x_max / steps;
-  if (dir == 'homing') {
+  if (dir === 'homing') {
     await runMotorCmd("d=r");
     if (Number.isFinite(x0) && Number.isFinite(y0)) {
       await sleep(800);
       await runMotorCmd("d=x&x=" + x0 + "&y=" + y0);
     }
-  } else if (dir == 'cc') {
+  } else if (dir === 'cc') {
     runMotorCmd("d=x&x=" + x_max / 2 + "&y=" + y_max / 2);
   } else {
     let y = dir.includes("d") ? -step : dir.includes("u") ? step : 0;
