@@ -7,6 +7,7 @@ require_auth
 . /usr/share/common
 
 CONFIG_FILE="/etc/thingino.json"
+SYNC_STATUS_FILE="/run/sync_status"
 TMP_FILE=""
 REQ_FILE=""
 
@@ -22,6 +23,10 @@ json_escape() {
     -e 's/"/\\"/g' \
     -e "s/\r/\\r/g" \
     -e "s/\n/\\n/g"
+}
+
+base64_encode_string() {
+  printf '%s' "$1" | base64 | tr -d '\n'
 }
 
 send_json() {
@@ -52,6 +57,7 @@ read_config() {
   ntp_server_2=""
   ntp_server_3=""
   dhcp_ignore_timezone=""
+  sync_status_raw_base64=""
 
   [ -f /etc/timezone ] && tz_name="$(cat /etc/timezone)"
   [ -f /etc/TZ ] && tz_data="$(cat /etc/TZ)"
@@ -65,6 +71,10 @@ read_config() {
     ntp_server_1="$(sed -n 2p $NTP_WORKING_FILE | cut -d' ' -f2)"
     ntp_server_2="$(sed -n 3p $NTP_WORKING_FILE | cut -d' ' -f2)"
     ntp_server_3="$(sed -n 4p $NTP_WORKING_FILE | cut -d' ' -f2)"
+  fi
+
+  if [ -f "$SYNC_STATUS_FILE" ]; then
+    sync_status_raw_base64="$(base64_encode_string "$(cat "$SYNC_STATUS_FILE")")"
   fi
 }
 
@@ -119,7 +129,8 @@ handle_get() {
   "ntp_server_1": "$(json_escape "$ntp_server_1")",
   "ntp_server_2": "$(json_escape "$ntp_server_2")",
   "ntp_server_3": "$(json_escape "$ntp_server_3")",
-  "dhcp_ignore_timezone": "$(json_escape "$dhcp_ignore_timezone")"
+  "dhcp_ignore_timezone": "$(json_escape "$dhcp_ignore_timezone")",
+  "sync_status_raw_base64": "$(json_escape "$sync_status_raw_base64")"
 }
 EOF
 }

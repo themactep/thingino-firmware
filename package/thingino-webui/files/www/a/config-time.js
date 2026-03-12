@@ -10,6 +10,7 @@
   const submitButton = $('#time_submit');
   const syncButton = $('#sync-time');
   const syncResult = $('#sync-time-result');
+  const syncStatusRaw = $('#sync-status-raw');
 
   let TZ = [];
 
@@ -20,6 +21,18 @@
     wrapper.className = `alert alert-${type}`;
     wrapper.textContent = text;
     syncResult.appendChild(wrapper);
+  }
+
+  function renderSyncStatus(rawStatus) {
+    if (!syncStatusRaw) return;
+    syncStatusRaw.textContent = rawStatus || 'No runtime NTP status available yet.';
+  }
+
+  function decodeSyncStatus(data) {
+    if (!data || typeof data !== 'object') return '';
+    const encoded = typeof data.sync_status_raw_base64 === 'string' ? data.sync_status_raw_base64.trim() : '';
+    if (!encoded) return '';
+    return decodeBase64String(encoded) || '';
   }
 
   function toggleBusy(state, label) {
@@ -91,8 +104,10 @@
       ntpServer2.value = data.ntp_server_2 || '';
       ntpServer3.value = data.ntp_server_3 || '';
       dhcpIgnoreTimezone.checked = data.dhcp_ignore_timezone === 'true' || data.dhcp_ignore_timezone === true;
+      renderSyncStatus(decodeSyncStatus(data));
       updateTimezone();
     } catch (err) {
+      renderSyncStatus('');
       showAlert('danger', err.message || 'Unable to load time configuration.');
     } finally {
       if (!preserveBusy) {
@@ -139,6 +154,7 @@
       } else {
         showSyncResult('success', result.message || 'Time synchronized');
       }
+      await loadConfig({ preserveBusy: true });
     } catch (err) {
       showSyncResult('danger', err.message || 'Failed to synchronize time');
     } finally {
