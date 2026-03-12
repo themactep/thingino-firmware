@@ -350,6 +350,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		echo "Installing debug tools and documentation to NFS..."; \
 		$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/scripts/prudynt-debug-helper.sh \
 			$(BR2_THINGINO_NFS)/$(CAMERA)/usr/bin/prudynt-debug-helper; \
+		$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/scripts/prudynt-crash-watch.sh \
+			$(BR2_THINGINO_NFS)/$(CAMERA)/usr/bin/prudynt-crash-watch; \
 		if [ -f $(@D)/test_memory_safety.sh ]; then \
 			$(INSTALL) -D -m 0755 $(@D)/test_memory_safety.sh \
 				$(BR2_THINGINO_NFS)/$(CAMERA)/usr/bin/prudynt-test-memory; \
@@ -369,13 +371,14 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		echo "  /mnt/nfs/$(CAMERA)/usr/bin/prudynt-debug-helper check   - Check available debug features" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "  /mnt/nfs/$(CAMERA)/usr/bin/prudynt-debug-helper run     - Run with debug options" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "  /mnt/nfs/$(CAMERA)/usr/bin/prudynt-debug-helper gdb     - Debug with GDB" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
+		echo "  /mnt/nfs/$(CAMERA)/usr/bin/prudynt-crash-watch          - Run unattended crash capture" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "  /mnt/nfs/$(CAMERA)/usr/bin/prudynt-debug                - Run unstripped binary directly" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "  /mnt/nfs/$(CAMERA)/usr/bin/prudynt-test-memory          - Run memory safety tests" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "GDB Usage:" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "  gdb /mnt/nfs/$(CAMERA)/usr/bin/prudynt-debug" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
 		echo "  gdb /usr/bin/prudynt -s /mnt/nfs/$(CAMERA)/usr/lib/debug/usr/bin/prudynt.debug" >> $(BR2_THINGINO_NFS)/$(CAMERA)/usr/share/prudynt-debug-info.txt; \
-		echo "Debug tools installed to NFS: prudynt-debug-helper, prudynt-test-memory"; \
+		echo "Debug tools installed to NFS: prudynt-debug-helper, prudynt-crash-watch, prudynt-test-memory"; \
 	fi
 endef
 
