@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Copilot <223556219+Copilot@users.noreply.github.com>
+Date: Thu, 12 Mar 2026 11:55:00 +0000
+Subject: [PATCH] compat: fix build with kernel 3.10
+
+Kernel 3.10 exposes device_caps in struct v4l2_capability, but not in
+struct video_device yet. Guard the assignment so older kernels only touch
+the userspace capability struct.
+---
+ v4l2loopback.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/v4l2loopback.c b/v4l2loopback.c
+index cee4eec..4eb1b2e 100644
+--- a/v4l2loopback.c
++++ b/v4l2loopback.c
+@@ -698,7 +698,11 @@ static int vidioc_querycap(struct file *file, void *fh, struct v4l2_capability *
+ 		}
+ 	}
+ 
+-	dev->vdev->device_caps = cap->device_caps = cap->capabilities = capabilities;
++	cap->capabilities = capabilities;
++	cap->device_caps = capabilities;
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)
++	dev->vdev->device_caps = capabilities;
++#endif
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 3, 0)
+ 	cap->capabilities |= V4L2_CAP_DEVICE_CAPS;
+-- 
+2.49.0
