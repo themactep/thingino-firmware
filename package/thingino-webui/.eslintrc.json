@@ -1,0 +1,56 @@
+{
+  "env": {
+    "browser": true,
+    "es6": true
+  },
+  "globals": {
+    "bootstrap": "readonly",
+    "$": "readonly",
+    "$$": "readonly",
+    "$n": "readonly",
+    "ts": "readonly",
+    "setValue": "readonly",
+    "showAlert": "readonly",
+    "clearAlerts": "readonly",
+    "showBusy": "readonly",
+    "hideBusy": "readonly",
+    "showOverlayMessage": "readonly",
+    "send2Load": "readonly",
+    "send2Save": "readonly",
+    "send2SetupReload": "readonly",
+    "decodeBase64String": "readonly",
+    "ThreadRtsp": "readonly",
+    "ThreadVideo": "readonly",
+    "ThreadAudio": "readonly",
+    "ThreadOSD": "readonly",
+    "ImageNoStream": "readonly",
+    "recordingState": "readonly",
+    "updateHeartbeatUi": "readonly",
+    "Chart": "readonly"
+  },
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "script"
+  },
+  "rules": {
+    "no-unused-vars": "warn",
+    "no-undef": "error",
+    "no-redeclare": "error",
+    "no-unreachable": "error",
+    "eqeqeq": ["warn", "smart"],
+    "no-dupe-keys": "error",
+    "no-duplicate-case": "error",
+    "no-empty": "warn",
+    "no-extra-semi": "warn",
+    "use-isnan": "error",
+    "valid-typeof": "error"
+  },
+  "overrides": [
+    {
+      "files": ["files/www/a/main.js"],
+      "rules": {
+        "no-redeclare": "off"
+      }
+    }
+  ]
+}
