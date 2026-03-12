@@ -5,8 +5,6 @@
   const summary = $('#overlaySummary');
   const stateClasses = ['bg-primary', 'bg-danger', 'bg-warning', 'bg-success', 'bg-info'];
 
-
-
   function decodeListing(payload) {
     if (!payload || (typeof payload !== 'object')) return '';
     const encoded = typeof payload.listing_base64 === 'string' ? payload.listing_base64.trim() : '';

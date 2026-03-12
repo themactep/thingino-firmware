@@ -6,15 +6,6 @@
   const discordInput = $('#admin_discord');
   const submitButton = $('#admin_submit');
 
-  function showOverlayMessage(message, variant = 'info') {
-    if (window.thinginoFooter && typeof window.thinginoFooter.showMessage === 'function') {
-      window.thinginoFooter.showMessage(message, variant);
-      return;
-    }
-    const fallbackType = variant === 'danger' ? 'danger' : 'info';
-    showAlert(fallbackType, message);
-  }
-
   function toggleBusy(state, label) {
     submitButton.disabled = state;
     nameInput.disabled = state;

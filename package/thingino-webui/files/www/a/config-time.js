@@ -13,15 +13,6 @@
 
   let TZ = [];
 
-  function showOverlayMessage(message, variant = 'info') {
-    if (window.thinginoFooter && typeof window.thinginoFooter.showMessage === 'function') {
-      window.thinginoFooter.showMessage(message, variant);
-      return;
-    }
-    const fallbackType = variant === 'danger' ? 'danger' : 'info';
-    showAlert(fallbackType, message);
-  }
-
   function showSyncResult(type, text) {
     syncResult.innerHTML = '';
     if (!text) return;

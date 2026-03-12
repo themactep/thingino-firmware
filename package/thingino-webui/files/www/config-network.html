@@ -75,16 +75,14 @@
               <div class="col-12 col-xl-4">
                 <div class="card iface-card h-100" data-iface="eth0">
                   <div class="card-header d-flex justify-content-between align-items-center">
-                    <div>
-                      <h6>Ethernet (eth0)</h6>
-                      <span class="badge text-bg-secondary" data-role="link-status">Unknown link</span>
-                    </div>
-                    <div class="form-switch">
-                      <input class="form-check-input iface-enabled" type="checkbox" id="eth0_enabled">
-                      <label class="form-check-label" for="eth0_enabled">Enabled</label>
-                    </div>
+                    <h6>Ethernet (eth0)</h6>
+                    <span class="badge text-bg-secondary" data-role="link-status">Unknown link</span>
                   </div>
                   <div class="card-body">
+                    <p class="form-switch">
+                      <input class="form-check-input iface-enabled" type="checkbox" id="eth0_enabled">
+                      <label class="form-check-label" for="eth0_enabled">Enabled</label>
+                    </p>
                     <p><label for="eth0_mac">MAC Address</label>
                       <a class="generate-mac small" data-iface="eth0" title="Generate locally administered MAC"><i class="bi bi-shuffle"></i> Generate random</a>
                       <input type="text" class="form-control text-uppercase iface-mac" id="eth0_mac" placeholder="00:11:22:33:44:55" data-help="Leave blank to use factory MAC"></p>
@@ -107,16 +105,14 @@
               <div class="col-12 col-xl-4">
                 <div class="card iface-card h-100" data-iface="wlan0">
                   <div class="card-header d-flex justify-content-between align-items-center">
-                    <div>
-                      <h6>Wi-Fi (wlan0)</h6>
-                      <span class="badge text-bg-secondary" data-role="link-status">Unknown link</span>
-                    </div>
-                    <div class="form-switch">
-                      <input class="form-check-input iface-enabled" type="checkbox" id="wlan0_enabled">
-                      <label class="form-check-label" for="wlan0_enabled">Enabled</label>
-                    </div>
+                    <h6>Wi-Fi (wlan0)</h6>
+                    <span class="badge text-bg-secondary" data-role="link-status">Unknown link</span>
                   </div>
                   <div class="card-body">
+                    <p class="form-switch">
+                      <input class="form-check-input iface-enabled" type="checkbox" id="wlan0_enabled">
+                      <label class="form-check-label" for="wlan0_enabled">Enabled</label>
+                    </p>
                     <p><label for="wlan0_mac">MAC Address</label>
                       <a class="generate-mac" data-iface="wlan0" title="Generate locally administered MAC"><i class="bi bi-shuffle"></i> Generate random</a>
                       <input type="text" class="form-control text-uppercase iface-mac" id="wlan0_mac" placeholder="02:11:22:33:44:55" data-help="Leave blank to use factory MAC"></p>
@@ -142,16 +138,14 @@
               <div class="col-12 col-xl-4">
                 <div class="card iface-card h-100" data-iface="usb0">
                   <div class="card-header d-flex justify-content-between align-items-center">
-                    <div>
-                      <h6>USB/Ethernet (usb0)</h6>
-                      <span class="badge text-bg-secondary" data-role="link-status">Unknown link</span>
-                    </div>
-                    <div class="form-switch mb-0">
-                      <input class="form-check-input iface-enabled" type="checkbox" id="usb0_enabled">
-                      <label class="form-check-label" for="usb0_enabled">Enabled</label>
-                    </div>
+                    <h6>USB/Ethernet (usb0)</h6>
+                    <span class="badge text-bg-secondary" data-role="link-status">Unknown link</span>
                   </div>
                   <div class="card-body">
+                    <p class="form-switch">
+                      <input class="form-check-input iface-enabled" type="checkbox" id="usb0_enabled">
+                      <label class="form-check-label" for="usb0_enabled">Enabled</label>
+                    </p>
                     <p><label for="usb0_mac">MAC Address</label>
                       <a class="generate-mac" data-iface="usb0" title="Generate locally administered MAC"><i class="bi bi-shuffle"></i> Generate random</a>
                       <input type="text" class="form-control text-uppercase iface-mac" id="usb0_mac" placeholder="06:11:22:33:44:55" data-help="Leave blank to use factory MAC"></p>

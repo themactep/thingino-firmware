@@ -680,7 +680,7 @@
 
 
   function mountControlBars() {
-    const placeholders = document.querySelectorAll('[data-app-controls]');
+    const placeholders = $$('[data-app-controls]');
     if (!placeholders.length) return;
     placeholders.forEach(placeholder => {
       if (!placeholder.parentNode) return;

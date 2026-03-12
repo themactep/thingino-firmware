@@ -124,6 +124,19 @@ configure() {
 		exit 1
 	fi
 
+	# Derive PSK hex from passphrase so the plain password is never stored on disk.
+	# If the caller already supplied a 64-char hex PSK, use it directly.
+	local psk
+	if echo "$password" | grep -qE '^[0-9a-fA-F]{64}$'; then
+		psk="$password"
+	else
+		psk=$(wpa_passphrase "$ssid" "$password" 2>/dev/null | awk -F= '/^[[:space:]]*psk=[^"]*$/{print $2; exit}')
+	fi
+	if [ -z "$psk" ]; then
+		echo "Error: failed to derive PSK from passphrase." >&2
+		exit 1
+	fi
+
 	if [ -n "$ap_mode" ]; then
 		echo "# created on $(date +%c)
 ctrl_interface=/var/run/wpa_supplicant
@@ -137,7 +150,7 @@ network={
 	proto=RSN
 	pairwise=CCMP
 	group=CCMP
-	psk=\"$password\"
+	psk=$psk
 }
 " > /etc/wpa_supplicant.conf
 	else
@@ -148,7 +161,7 @@ ap_scan=1
 
 network={
         ssid=\"$ssid\"
-        psk=\"$password\"
+        psk=$psk
         scan_ssid=1
         bgscan=\"simple:30:-70:3600\"
 }

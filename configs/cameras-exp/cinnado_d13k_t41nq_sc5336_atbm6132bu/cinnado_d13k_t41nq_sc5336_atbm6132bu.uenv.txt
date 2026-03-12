@@ -1,0 +1,4 @@
+gpio_button=62
+gpio_default=18O 49o 50o 52O 57o 58i 62i 63O 79o 81o 82O
+
+# gpio_default=18O 49o 50o 52O 57o 58i 62i 63O 66o 67o 68o 69o 76o 77o 79o 81o 82O 83o 84o

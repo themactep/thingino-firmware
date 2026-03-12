@@ -5,6 +5,7 @@
   class SensorDataCollector {
     constructor() {
       this.sseUrl = '/x/json-timegraph-stream.cgi';
+      this.historyUrl = '/x/json-prudynt.cgi';
       this.maxPoints = 300;
       this.data = {};
       this.chart = null;
@@ -28,6 +29,11 @@
     init() {
       this.setupEventListeners();
       this.initChart();
+      this.loadHistoryAndStartStream();
+    }
+
+    async loadHistoryAndStartStream() {
+      await this.loadHistory();
       this.startStream();
     }
 
@@ -36,7 +42,7 @@
       const pauseBtn = $('#toggle-pause');
       const exportJsonBtn = $('#export-json');
       const exportCsvBtn = $('#export-csv');
-      const pointButtons = document.querySelectorAll('#max-points button');
+      const pointButtons = $$('#max-points button');
 
       if (clearBtn) {
         clearBtn.addEventListener('click', () => this.clearData());
@@ -137,7 +143,28 @@
       this.updateStreamStatus(true);
     }
 
-    addDataPoint(jsonData) {
+    async loadHistory() {
+      const requestBody = { daynight: { history: null } };
+      try {
+        const response = await fetch(this.historyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+        if (!response.ok) return;
+        const json = await response.json();
+        const history = json?.daynight?.history;
+        if (!Array.isArray(history) || history.length === 0) return;
+
+        history.forEach((sample) => this.addDataPoint(sample, false));
+        this.trimData();
+        this.updateChart();
+      } catch (error) {
+        console.error('Failed to load daynight history:', error);
+      }
+    }
+
+    addDataPoint(jsonData, updateChart = true) {
       const timestamp = new Date(parseInt(jsonData.time_now, 10) * 1000);
       const timeStr = timestamp.toLocaleTimeString();
 
@@ -167,7 +194,9 @@
       });
 
       this.trimData();
-      this.updateChart();
+      if (updateChart) {
+        this.updateChart();
+      }
     }
 
     updateStats(metricKey, value) {

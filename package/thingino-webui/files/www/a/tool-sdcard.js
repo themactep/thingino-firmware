@@ -200,7 +200,14 @@
       });
       const payload = await response.json();
       if (!response.ok || (payload && payload.error)) {
-        const message = payload && payload.error && payload.error.message ? payload.error.message : 'Unable to format the SD card.';
+        let message = 'Unable to format the SD card.';
+        if (payload && payload.error) {
+          if (payload.error.message_b64) {
+            message = stripAnsi(decodeBase64String(payload.error.message_b64));
+          } else if (payload.error.message) {
+            message = payload.error.message;
+          }
+        }
         throw new Error(message);
       }
       const message = payload.message || 'SD card formatted successfully.';

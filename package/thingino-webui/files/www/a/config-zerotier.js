@@ -6,14 +6,6 @@ let connectionStartTime = null; // Track when connection was initiated
 let isConnecting = false; // Track if we're actively trying to connect
 let isDisconnecting = false; // Track if we're actively trying to disconnect
 
-function showMessage(message, variant = 'info') {
-  if (window.thinginoFooter && typeof window.thinginoFooter.showMessage === 'function') {
-    window.thinginoFooter.showMessage(message, variant);
-    return;
-  }
-  console.log(`[${variant}] ${message}`);
-}
-
 // Load all data
 async function loadData() {
   try {
@@ -40,12 +32,12 @@ async function loadData() {
     updateUI();
   } catch (error) {
     console.error('Error loading data:', error);
-    showMessage('Error loading configuration: ' + error.message, 'danger');
+    showOverlayMessage('Error loading configuration: ' + error.message, 'danger');
   }
 }
 
 // Connect to a network
-async function connectNetwork(nwid) {
+async function connectNetwork(_nwid) {
   try {
     isConnecting = true;
     connectionStartTime = Date.now();
@@ -59,20 +51,20 @@ async function connectNetwork(nwid) {
     const data = await response.json();
     if (data.error) throw new Error(data.error.message);
 
-    showMessage('Connecting to network...', 'info');
+    showOverlayMessage('Connecting to network...', 'info');
 
     // Start polling for connection status
     pollConnectionStatus();
   } catch (error) {
     isConnecting = false;
     connectionStartTime = null;
-    showMessage('Error: ' + error.message, 'danger');
+    showOverlayMessage('Error: ' + error.message, 'danger');
     loadData(); // Refresh UI to reset button state
   }
 }
 
 // Disconnect from network
-async function disconnectNetwork(nwid) {
+async function disconnectNetwork(_nwid) {
   try {
     isDisconnecting = true;
     connectionStartTime = null;
@@ -86,12 +78,12 @@ async function disconnectNetwork(nwid) {
     const data = await response.json();
     if (data.error) throw new Error(data.error.message);
 
-    showMessage('Disconnected from network', 'warning');
+    showOverlayMessage('Disconnected from network', 'warning');
     await loadData();
     isDisconnecting = false;
   } catch (error) {
     isDisconnecting = false;
-    showMessage('Error: ' + error.message, 'danger');
+    showOverlayMessage('Error: ' + error.message, 'danger');
     loadData(); // Refresh UI to reset button state
   }
 }
@@ -110,7 +102,7 @@ function pollConnectionStatus() {
       pollInterval = null;
       connectionStartTime = null;
       isConnecting = false;
-      showMessage('Connected successfully!', 'success');
+      showOverlayMessage('Connected successfully!', 'success');
       return;
     }
 
@@ -127,7 +119,7 @@ function pollConnectionStatus() {
 }
 
 // Remove network from config
-async function removeNetwork(nwid) {
+async function removeNetwork(_nwid) {
   const confirmed = await confirm('Remove this network? This will disconnect and delete the configuration.');
   if (!confirmed) {
     return;
@@ -144,7 +136,7 @@ async function removeNetwork(nwid) {
     const data = await response.json();
     if (data.error) throw new Error(data.error.message);
 
-    showMessage('Network removed', 'success');
+    showOverlayMessage('Network removed', 'success');
 
     // Clear networks and reload immediately
     networks = {};
@@ -153,7 +145,7 @@ async function removeNetwork(nwid) {
     // Reload from backend to ensure sync
     setTimeout(() => loadData(), 500);
   } catch (error) {
-    showMessage('Error: ' + error.message, 'danger');
+    showOverlayMessage('Error: ' + error.message, 'danger');
   }
 }
 
@@ -177,10 +169,10 @@ async function toggleAutostart(nwid, on_boot) {
     if (data.error) throw new Error(data.error.message);
 
     networks[nwid].on_boot = on_boot;
-    showMessage(`Auto-start ${on_boot ? 'enabled' : 'disabled'}`, 'success');
+    showOverlayMessage(`Auto-start ${on_boot ? 'enabled' : 'disabled'}`, 'success');
     await loadData();
   } catch (error) {
-    showMessage('Error: ' + error.message, 'danger');
+    showOverlayMessage('Error: ' + error.message, 'danger');
     loadData();
   }
 }
@@ -193,18 +185,18 @@ async function addNetwork() {
   const nwid = nwidInput.value.trim();
 
   if (!nwid) {
-    showMessage('Please enter a network ID', 'danger');
+    showOverlayMessage('Please enter a network ID', 'danger');
     return;
   }
 
   if (nwid.length !== 16 || !/^[0-9a-fA-F]{16}$/.test(nwid)) {
-    showMessage('Network ID must be exactly 16 hexadecimal characters', 'danger');
+    showOverlayMessage('Network ID must be exactly 16 hexadecimal characters', 'danger');
     return;
   }
 
   // Check if network already exists
   if (networks[nwid]) {
-    showMessage('This network is already in your list', 'warning');
+    showOverlayMessage('This network is already in your list', 'warning');
     return;
   }
 
@@ -223,7 +215,7 @@ async function addNetwork() {
     const data = await response.json();
     if (data.error) throw new Error(data.error.message);
 
-    showMessage('Network added successfully', 'success');
+    showOverlayMessage('Network added successfully', 'success');
 
     // Reset form
     nwidInput.value = '';
@@ -232,7 +224,7 @@ async function addNetwork() {
     await loadData();
     return true; // Indicate success
   } catch (error) {
-    showMessage('Error: ' + error.message, 'danger');
+    showOverlayMessage('Error: ' + error.message, 'danger');
     return false; // Indicate failure
   }
 }
@@ -325,7 +317,7 @@ function renderNetworks() {
   listContainer.innerHTML = html;
 
   // Attach event listeners
-  document.querySelectorAll('.network-toggle-btn').forEach(btn => {
+  $$('.network-toggle-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const button = e.currentTarget;
       const nwid = button.dataset.nwid;
@@ -353,14 +345,14 @@ function renderNetworks() {
     });
   });
 
-  document.querySelectorAll('.autostart-toggle').forEach(toggle => {
+  $$('.autostart-toggle').forEach(toggle => {
     toggle.addEventListener('change', async (e) => {
       const nwid = e.target.dataset.nwid;
       await toggleAutostart(nwid, e.target.checked);
     });
   });
 
-  document.querySelectorAll('.remove-network').forEach(btn => {
+  $$('.remove-network').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const nwid = e.target.closest('button').dataset.nwid;
       removeNetwork(nwid);
@@ -368,7 +360,7 @@ function renderNetworks() {
   });
 
   // Retry connection links
-  document.querySelectorAll('.retry-connection').forEach(link => {
+  $$('.retry-connection').forEach(link => {
     link.addEventListener('click', async (e) => {
       e.preventDefault();
       const nwid = e.target.dataset.nwid;
@@ -378,7 +370,7 @@ function renderNetworks() {
   });
 
   // Fix inconsistent state links
-  document.querySelectorAll('.fix-inconsistent').forEach(link => {
+  $$('.fix-inconsistent').forEach(link => {
     link.addEventListener('click', async (e) => {
       e.preventDefault();
       const nwid = e.target.dataset.nwid;
@@ -416,7 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnAddNetwork = $('#btn-add-network');
   if (btnAddNetwork) {
     btnAddNetwork.addEventListener('click', () => {
-      const modal = new bootstrap.Modal(document.getElementById('addNetworkModal'));
+      const modal = new bootstrap.Modal($('#addNetworkModal'));
       modal.show();
     });
   }
@@ -426,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const success = await addNetwork();
     // Close modal only on success
     if (success) {
-      const modalEl = document.getElementById('addNetworkModal');
+      const modalEl = $('#addNetworkModal');
       const modal = bootstrap.Modal.getInstance(modalEl);
       if (modal) {
         modal.hide();
@@ -442,9 +434,9 @@ document.addEventListener('DOMContentLoaded', () => {
         btnReload.disabled = true;
         if (window.showBusy) showBusy('Reloading...');
         await loadData();
-        showMessage('Configuration reloaded from camera', 'info');
+        showOverlayMessage('Configuration reloaded from camera', 'info');
       } catch (err) {
-        showMessage('Failed to reload configuration', 'danger');
+        showOverlayMessage('Failed to reload configuration', 'danger');
       } finally {
         btnReload.disabled = false;
         if (window.hideBusy) hideBusy();

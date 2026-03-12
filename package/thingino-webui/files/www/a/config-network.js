@@ -10,16 +10,7 @@
   const wifiBssidInput = $('#wifi_bssid');
   const wifiApToggle = $('#wifi_ap_enabled');
 
-  const ifaceCards = document.querySelectorAll('.iface-card');
-
-  function showOverlayMessage(message, variant = 'info') {
-    if (window.thinginoFooter && typeof window.thinginoFooter.showMessage === 'function') {
-      window.thinginoFooter.showMessage(message, variant);
-      return;
-    }
-    const fallbackType = variant === 'danger' ? 'danger' : 'info';
-    showAlert(fallbackType, message);
-  }
+  const ifaceCards = $$('.iface-card');
 
   function toggleBusy(state, label) {
     if (state) {
@@ -118,12 +109,11 @@
   }
 
   function updateWifiApValidation() {
-    const enabled = wifiApToggle.checked;
   }
 
   wifiApToggle.addEventListener('change', updateWifiApValidation);
 
-  document.querySelectorAll('.generate-mac').forEach(button => {
+  $$('.generate-mac').forEach(button => {
     button.addEventListener('click', ev => {
       ev.preventDefault();
       handleMacGeneration(button);

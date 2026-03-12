@@ -51,7 +51,9 @@ json_error() {
   local code="${1:-400}"
   local message="$2"
   local status="${3:-400 Bad Request}"
-  send_json "{\"error\":{\"code\":$code,\"message\":\"$(json_escape "$message")\"}}" "$status"
+  local msg_b64
+  msg_b64=$(base64_encode_string "$message")
+  send_json "{\"error\":{\"code\":$code,\"message_b64\":\"$msg_b64\"}}" "$status"
 }
 
 bool_to_json() {

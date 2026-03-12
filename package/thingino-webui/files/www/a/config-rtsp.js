@@ -18,15 +18,6 @@
     return host && host.includes(':') && !host.startsWith('[') ? `[${host}]` : host;
   }
 
-  function showOverlayMessage(message, variant = 'info') {
-    if (window.thinginoFooter && typeof window.thinginoFooter.showMessage === 'function') {
-      window.thinginoFooter.showMessage(message, variant);
-      return;
-    }
-    const fallbackType = variant === 'danger' ? 'danger' : 'info';
-    showAlert(fallbackType, message);
-  }
-
   function toggleBusy(state, label) {
     passwordInput.disabled = state;
     submitButton.disabled = state;

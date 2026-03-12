@@ -27,7 +27,7 @@
         <div class="card mb-3">
           <div class="card-header">
             <h2 class="card-title">GPIO Settings</h2>
-	          <small>Requires reboot after changes.</small>
+            <small>Requires reboot after changes.</small>
             <button type="button" class="btn btn-outline-secondary" id="gpio-reload" title="Reload values from camera">
               <i class="bi bi-arrow-clockwise"></i> Reload
             </button>
@@ -39,10 +39,6 @@
 
         <button type="submit" id="gpio_submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Save changes</button>
       </form>
-    </section>
-
-    <section class="ui-debug d-none">
-      <p>Run <code>fw_printenv | grep -E ^(gpio|pwm_ch)_</code>, <code>jct /etc/thingino.json get gpio</code>, or <code>pwm-ctrl -l | grep ^GPIO</code> over SSH for deeper troubleshooting.</p>
     </section>
   </div>
 </main>

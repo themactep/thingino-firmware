@@ -19,15 +19,6 @@
   const wgNotSupported = $('#wg-not-supported');let wgStatus = 0;
   let wgSupported = false;
 
-  function showOverlayMessage(message, variant = 'info') {
-    if (window.thinginoFooter && typeof window.thinginoFooter.showMessage === 'function') {
-      window.thinginoFooter.showMessage(message, variant);
-      return;
-    }
-    const fallbackType = variant === 'danger' ? 'danger' : 'info';
-    showAlert(fallbackType, message);
-  }
-
   function toggleBusy(state, label) {
     submitButton.disabled = state;
     privkeyInput.disabled = state;
