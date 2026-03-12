@@ -6,7 +6,7 @@ require_auth
 
 . /usr/share/common
 
-TAB_LIST="crontab dmesg httpd logcat logread lsmod netstat onvif prudynt status system top weblog"
+TAB_LIST="crontab dmesg logcat logread lsmod netstat release onvif prudynt status thingino top weblog"
 
 button_restore_from_rom() {
   [ -f "/rom/$1" ] || return 1
@@ -82,18 +82,6 @@ collect_outputs() {
   printf '[%s]' "$entries"
 }
 
-tabs_json() {
-  local first=1 json="["
-  for tab in $TAB_LIST; do
-    if [ $first -eq 0 ]; then
-      json="$json,"
-    fi
-    json="$json{\"id\":\"$(json_escape "$tab")\",\"label\":\"$(json_escape "$tab")\"}"
-    first=0
-  done
-  printf '%s]' "$json"
-}
-
 parse_section() {
   local qs="$QUERY_STRING" key value
   if [ -z "$qs" ]; then
@@ -142,10 +130,6 @@ resolve_commands() {
 EOF
 )
       ;;
-    httpd)
-      cmd="cat /etc/httpd.conf; printenv"
-      extras=$(button_restore_from_rom "/etc/httpd.conf")
-      ;;
     netstat)
       cmd="netstat -a"
       ;;
@@ -157,11 +141,11 @@ EOF
       cmd="cat /etc/prudynt.json"
       extras=$(button_restore_from_rom "/etc/prudynt.json")
       ;;
+    release)
+      cmd="cat /etc/os-release"
+      ;;
     status)
       cmd="uptime; df -T; cat /proc/meminfo | grep Mem"
-      ;;
-    system)
-      cmd="cat /etc/os-release"
       ;;
     thingino)
       cmd="cat /etc/thingino.json"
@@ -189,14 +173,12 @@ handle_get() {
   resolve_commands "$name"
 
   output_json=$(collect_outputs "$cmd")
-  tabs=$(tabs_json)
   extras_b64=$(printf '%s' "$extras" | base64 | tr -d '\n')
 
   payload=$(cat <<EOF
 {
   "selected": "$(json_escape "$name")",
   "commands": $output_json,
-  "tabs": $tabs,
   "extras_html_base64": "$(json_escape "$extras_b64")"
 }
 EOF

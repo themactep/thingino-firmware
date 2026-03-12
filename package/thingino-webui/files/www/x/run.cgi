@@ -4,14 +4,7 @@
 . /var/www/x/auth.sh
 require_auth
 
-echo "HTTP/1.1 200 OK
-Date: $(TZ=GMT0 date +'%a, %d %b %Y %T %Z')
-Server: $SERVER_SOFTWARE
-Content-type: text/html; charset=UTF-8
-Cache-Control: no-store
-Pragma: no-cache
-Connection: close
-"
+printf 'Content-type: text/html; charset=UTF-8\r\nCache-Control: no-store\r\nPragma: no-cache\r\n\r\n'
 
 # parse parameters from query string
 [ -n "$QUERY_STRING" ] && eval $(echo "$QUERY_STRING" | sed "s/&/;/g")

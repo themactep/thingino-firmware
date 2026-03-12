@@ -1711,11 +1711,9 @@ window.thinginoConfirm = thinginoConfirm;
 		if (outputEl) {
 			let commandInFlight = false;
 
-			async function* makeTextFileLineIterator(url) {
+			async function* makeLineIterator(reader) {
 				const td = new TextDecoder('utf-8');
-				const response = await fetch(url);
-				const rd = response.body.getReader();
-				let { value: chunk, done: readerDone } = await rd.read();
+				let { value: chunk, done: readerDone } = await reader.read();
 				chunk = chunk ? td.decode(chunk) : '';
 				const re = /\r\n|\n|\r/gm;
 				let startIndex = 0;
@@ -1725,7 +1723,7 @@ window.thinginoConfirm = thinginoConfirm;
 					if (!result) {
 						if (readerDone) break;
 						let remainder = chunk.substring(startIndex);
-						({ value: chunk, done: readerDone } = await rd.read());
+						({ value: chunk, done: readerDone } = await reader.read());
 						chunk = remainder + (chunk ? td.decode(chunk) : '');
 						startIndex = re.lastIndex = 0;
 						continue;
@@ -1752,7 +1750,12 @@ window.thinginoConfirm = thinginoConfirm;
 				if (!url || commandInFlight) return;
 				commandInFlight = true;
 				try {
-					for await (let { line, ending } of makeTextFileLineIterator(url)) {
+					const streamResponse = await fetch(url);
+					if (!streamResponse.ok) {
+						outputEl.innerHTML = 'Error: server returned ' + streamResponse.status + ' ' + streamResponse.statusText + '\n';
+						return;
+					}
+					for await (let { line, ending } of makeLineIterator(streamResponse.body.getReader())) {
 						const re1 = /\u001b\[1;(\d+)m/;
 						const re2 = /\u001b\[0m/;
 						line = line.replace(re1, '<span class="ansi-$1">').replace(re2, '</span>')

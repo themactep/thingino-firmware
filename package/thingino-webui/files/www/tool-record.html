@@ -23,19 +23,28 @@
     <div data-app-controls></div>
 
     <section>
-      <div class="card">
-        <div class="card-body">
-          <h3 class="card-title">Video Recorder</h3>
-          <p class="text-secondary">Configure continuous clip recording directly on your storage target. Prefer periodic
-            snapshots? <a href="/tool-timelapse.html" class="link-light text-decoration-none">Open the timelapse recorder</a>.</p>
-
-          <form id="videoForm" class="needs-validation" novalidate>
+      <form id="videoForm" class="needs-validation" novalidate>
+        <div class="card mb-3">
+          <div class="card-header">
+            <h2 class="card-title">Video Recorder</h2>
+            <small>Configure continuous clip recording directly on your storage target. Prefer periodic snapshots? <a href="/tool-timelapse.html" class="link-light text-decoration-none">Open the timelapse recorder</a>.</small>
+            <button type="button" class="btn btn-outline-secondary" id="videored-reload" title="Reload values from camera">
+              <i class="bi bi-arrow-clockwise"></i> Reload
+            </button>
+          </div>
+          <div class="card-body">
             <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">
               <div class="col">
+                <h4>Storage configuration</h4>
+                <small>an SD card or a network share</small>
+                <p class="form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="videoAutostart">
+                  <label class="form-check-label" for="videoAutostart">Start recording automatically on boot</label>
+                </p>
                 <p>
                   <label for="videoMount">Storage mount</label>
                   <a href="/tool-file-manager.html" class="small text-decoration-none" id="videoMountLink">
-                    <i class="bi bi-folder2-open me-1"></i>Open in File Manager
+                    <i class="bi bi-folder2-open ms-2 me-1"></i> Open in File Manager
                   </a>
                   <select class="form-select" id="videoMount" required data-help="Select the SD card or share used for recordings">
                     <option value="">Loading mounts...</option>
@@ -52,6 +61,8 @@
                 </p>
               </div>
               <div class="col">
+                <h4>Recorder configuration</h4>
+                <small>video source and clip duration</small>
                 <p>
                   <label for="videoChannel">Stream to record</label>
                   <select class="form-select" id="videoChannel">
@@ -63,13 +74,19 @@
                   <label for="videoDuration">Clip duration, seconds</label>
                   <input type="number" class="form-control" id="videoDuration" min="5" max="3600" step="5" value="60">
                 </p>
+              </div>
+              <div class="col">
+                <h4>Storage manager</h4>
+                <small>automatically deletes oldest recordings</small>
+                <p class="form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="videoCleanupEnabled">
+                  <label class="form-check-label" for="videoCleanupEnabled">Enable storage manager</label>
+                </p>
                 <p>
                   <label for="videoLimit">Storage limit, gigabytes</label>
                   <input type="number" class="form-control" id="videoLimit" min="1" max="1024" step="1" value="15"
                     data-help="Maximum total space recordings may occupy; oldest clips are removed first when exceeded">
                 </p>
-              </div>
-              <div class="col">
                 <p>
                   <label for="videoMinFreeMb">Minimum free space, megabytes</label>
                   <input type="number" class="form-control" id="videoMinFreeMb" min="50" max="102400" step="50" value="500"
@@ -82,25 +99,12 @@
                 </p>
               </div>
             </div>
-
-            <p class="form-switch">
-              <input class="form-check-input" type="checkbox" role="switch" id="videoAutostart">
-              <label class="form-check-label" for="videoAutostart">Start recording automatically on boot</label>
-            </p>
-            <p class="form-switch">
-              <input class="form-check-input" type="checkbox" role="switch" id="videoCleanupEnabled">
-              <label class="form-check-label" for="videoCleanupEnabled">Enable storage manager
-                <span class="text-secondary small ms-1">removes oldest recordings to stay within limit and free space</span>
-              </label>
-            </p>
-
-            <button type="submit" class="btn btn-primary" id="videoSubmit">
-              <i class="bi bi-save me-1"></i>
-              Save changes
-            </button>
-          </form>
+          </div>
         </div>
-      </div>
+        <button type="submit" class="btn btn-primary" id="videoSubmit">
+          <i class="bi bi-save me-1"></i> Save changes
+        </button>
+      </form>
     </section>
   </div>
 </main>

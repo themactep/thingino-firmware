@@ -61,11 +61,15 @@
               <div class="col-12 col-lg-8 col-xxl-9">
                 <h4>Diagnostics output</h4>
                 <small>Configure a test and press Run to start streaming output.</small>
-                <div id="commandHeading"></div>
-                <pre id="output" class="terminal flex-grow-1 overflow-auto"
-                  data-reboot="false"></pre>
                 <div id="streamStatus"></div>
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCopy" disabled>
+                <div id="commandHeading"></div>
+                <div class="position-relative">
+                <pre id="output" class="terminal flex-grow-1 overflow-auto" style="min-height:24rem" data-reboot="false"></pre>
+                <button type="button" class="btn btn-sm btn-secondary active position-absolute top-0 end-0 m-2 z-1" id="btnWrap" title="Line wrap on — click to disable">
+                  <i class="bi bi-text-wrap"></i>
+                </button>
+                </div><!-- .position-relative -->
+                <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="btnCopy" disabled>
                   <i class="bi bi-clipboard me-1"></i>Copy
                 </button>
               </div><!-- .col -->

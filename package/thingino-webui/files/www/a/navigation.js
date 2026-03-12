@@ -52,7 +52,6 @@
         label: 'Information',
         items: [
           { label: 'File: crontab', href: '/info.html?crontab' },
-          { label: 'File: httpd.conf', href: '/info.html?httpd' },
           { label: 'File: onvif.json', href: '/info.html?onvif' },
           { label: 'File: prudynt.json', href: '/info.html?prudynt' },
           { label: 'File: thingino.json', href: '/info.html?thingino' },
@@ -61,7 +60,7 @@
           { label: 'Log: logread', href: '/info.html?logread' },
           { label: 'Info: lsmod', href: '/info.html?lsmod' },
           { label: 'Info: netstat', href: '/info.html?netstat' },
-          { label: 'Info: system', href: '/info.html?system' },
+          { label: 'Info: os-release', href: '/info.html?release' },
           { label: 'Info: top', href: '/info.html?top' },
           { label: 'Info: status', href: '/info.html?status' },
           { label: 'Overlay partition', href: '/info-overlay.html' },

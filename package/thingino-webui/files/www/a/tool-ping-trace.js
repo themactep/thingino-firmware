@@ -9,7 +9,9 @@
   const countInput = $('#count');
   const runButton = $('#runTest');
   const clearButton = $('#btnClear');
-  const copyButton = $('#btnCopy');  const statusText = $('#streamStatus');
+  const copyButton = $('#btnCopy');
+  const wrapButton = $('#btnWrap');
+  const statusText = $('#streamStatus');
   const commandHeading = $('#commandHeading');
   const outputEl = $('#output');
 
@@ -27,7 +29,7 @@
   }
 
   function updateStatus(text, tone = 'secondary') {
-    statusText.className = `text-${tone} mb-0`;
+    statusText.className = `text-${tone} mb-3`;
     statusText.textContent = text;
   }
 
@@ -37,6 +39,7 @@
     outputEl.dataset.stream = '';
     outputEl.dataset.encoded = '';
     copyButton.disabled = true;
+    copyButton.classList.add('d-none');
     commandHeading.textContent = 'Diagnostics output';
   }
 
@@ -173,6 +176,11 @@
 
   actionSelect.addEventListener('change', updateActionHelp);
   form.addEventListener('submit', submitForm);
+  wrapButton.addEventListener('click', () => {
+    const wrapping = wrapButton.classList.toggle('active');
+    outputEl.style.whiteSpace = wrapping ? '' : 'pre';
+    wrapButton.title = wrapping ? 'Line wrap on \u2014 click to disable' : 'Line wrap off \u2014 click to enable';
+  });
   clearButton.addEventListener('click', () => {
     clearOutput();
     updateStatus('Output cleared. Ready for a new test.', 'secondary');
@@ -184,12 +192,15 @@
     const cmd = (ev.detail && ev.detail.cmd) || outputEl.dataset.cmd || '';
     commandHeading.textContent = cmd ? `# ${cmd}` : 'Diagnostics output';
     copyButton.disabled = true;
+    copyButton.classList.add('d-none');
     updateStatus('Running test and streaming output…', 'info');
   });
 
   outputEl.addEventListener('thingino:command-finished', () => {
     setRunningState(false);
-    copyButton.disabled = !outputEl.textContent.trim();
+    const hasOutput = !!outputEl.textContent.trim();
+    copyButton.disabled = !hasOutput;
+    copyButton.classList.toggle('d-none', !hasOutput);
     updateStatus('Command finished.', 'success');
   });
 
