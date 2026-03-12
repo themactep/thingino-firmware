@@ -60,7 +60,7 @@ trap cleanup EXIT INT TERM
 # Periodic state + discovery refresh loop
 # ---------------------------------------------------------------------------
 STATE_INTERVAL=$(ha_cfg state_interval)
-STATE_INTERVAL="${STATE_INTERVAL:-60}"
+STATE_INTERVAL="${STATE_INTERVAL:-15}"
 
 DISC_INTERVAL=$(ha_cfg discovery_interval)
 DISC_INTERVAL="${DISC_INTERVAL:-3600}"

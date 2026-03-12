@@ -17,37 +17,6 @@
     "paranoid": false,
     "theme": "dark"
   },
-  "ha": {
-    "enabled": false,
-    "discovery_prefix": "homeassistant",
-    "state_interval": 15,
-    "discovery_interval": 3600,
-    "device_name": "",
-    "device_model": "",
-    "mqtt": {
-      "host": "",
-      "port": 1883,
-      "username": "",
-      "password": "",
-      "use_ssl": false,
-      "client_id_prefix": "thingino-ha"
-    },
-    "enable_motion": true,
-    "enable_motion_guard": true,
-    "enable_ircut": true,
-    "enable_daynight": true,
-    "enable_privacy": true,
-    "enable_color": true,
-    "enable_ir850": true,
-    "enable_ir940": true,
-    "enable_white_light": true,
-    "enable_gain": false,
-    "enable_rssi": true,
-    "enable_snapshot": true,
-    "enable_reboot": false,
-    "enable_ota": true,
-    "enable_ptz": false
-  },
   "wireguard": {
     "enabled": false
   }

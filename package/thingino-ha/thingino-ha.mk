@@ -1,8 +1,12 @@
 THINGINO_HA_SITE_METHOD = local
 THINGINO_HA_SITE = $(THINGINO_HA_PKGDIR)/files
 THINGINO_HA_LICENSE = MIT
+THINGINO_HA_DEPENDENCIES = thingino-core host-thingino-jct
 
 define THINGINO_HA_INSTALL_TARGET_CMDS
+	$(HOST_DIR)/bin/jct $(TARGET_DIR)/etc/thingino.json import \
+		$(THINGINO_HA_PKGDIR)/files/thingino-ha.json
+
 	$(INSTALL) -D -m 0644 $(@D)/ha-common \
 		$(TARGET_DIR)/usr/share/ha-common
 	$(INSTALL) -D -m 0755 $(@D)/S93ha \

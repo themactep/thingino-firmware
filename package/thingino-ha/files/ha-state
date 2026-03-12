@@ -120,7 +120,8 @@ if ha_entity_enabled ota; then
 	if command -v curl >/dev/null 2>&1; then
 		latest=$(curl -sf --max-time 10 \
 			"https://api.github.com/repos/themactep/thingino-firmware/releases/latest" \
-			2>/dev/null | awk -F'"' '/tag_name/{print $4; exit}')
+			2>/dev/null | awk -F'"' '/tag_name/{print $4; exit}' \
+			| tr -cd '[:alnum:]._-')
 	fi
 	sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/firmware/latest' -m '${latest:-$installed}'"
 fi

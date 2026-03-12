@@ -1,44 +1,7 @@
 # /usr/share/ha-common
 # Sourced by ha-discovery, ha-state, ha-commands, ha-daemon.
 # Provides shared camera identity, MQTT broker config, and helpers.
-#
-# MQTT broker config is read from ha.mqtt.* in /etc/thingino.json.
-# Falls back to mqtt_sub.* values so users who already have that section
-# configured don't need to duplicate anything.
-#
-# Full config structure (all under "ha" in /etc/thingino.json):
-#
-#   "ha": {
-#     "enabled": false,
-#     "discovery_prefix": "homeassistant",
-#     "state_interval": 60,
-#     "discovery_interval": 3600,
-#     "device_name": "",
-#     "device_model": "",
-#     "mqtt": {
-#       "host": "192.168.1.10",
-#       "port": 1883,
-#       "username": "",
-#       "password": "",
-#       "use_ssl": false,
-#       "client_id_prefix": "thingino-ha"
-#     },
-#     "enable_motion": true,
-#     "enable_motion_guard": true,
-#     "enable_ircut": true,
-#     "enable_daynight": true,
-#     "enable_privacy": true,
-#     "enable_color": true,
-#     "enable_ir850": true,
-#     "enable_ir940": true,
-#     "enable_white_light": true,
-#     "enable_gain": false,
-#     "enable_rssi": true,
-#     "enable_snapshot": true,
-#     "enable_reboot": false,
-#     "enable_ota": true,
-#     "enable_ptz": false
-#   }
+# Config: /etc/thingino.json under "ha" key. See /rom/thingino.json for reference.
 
 HA_CONFIG_FILE="${HA_CONFIG_FILE:-/etc/thingino.json}"
 
@@ -106,6 +69,9 @@ HA_MQTT_CLIENT_PREFIX=$(_ha_mqtt_cfg client_id_prefix)
 HA_MQTT_PORT="${HA_MQTT_PORT:-1883}"
 HA_MQTT_CLIENT_PREFIX="${HA_MQTT_CLIENT_PREFIX:-thingino-ha}"
 
+# Wrap a value in single quotes, escaping any embedded single quotes.
+_sq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+
 # ---------------------------------------------------------------------------
 # Build a mosquitto_pub or mosquitto_sub base command for a given client suffix.
 # Usage:
@@ -114,20 +80,20 @@ HA_MQTT_CLIENT_PREFIX="${HA_MQTT_CLIENT_PREFIX:-thingino-ha}"
 # ---------------------------------------------------------------------------
 ha_mpub_cmd() {
 	local suffix="${1:-pub}"
-	local cmd="mosquitto_pub -h $HA_MQTT_HOST -p $HA_MQTT_PORT"
-	cmd="$cmd -i ${HA_MQTT_CLIENT_PREFIX}-${suffix}-${HA_CAMERA_ID}"
-	[ -n "$HA_MQTT_USER" ] && cmd="$cmd -u $HA_MQTT_USER"
-	[ -n "$HA_MQTT_PASS" ] && cmd="$cmd -P $HA_MQTT_PASS"
+	local cmd="mosquitto_pub -h $(_sq "$HA_MQTT_HOST") -p $(_sq "$HA_MQTT_PORT")"
+	cmd="$cmd -i $(_sq "${HA_MQTT_CLIENT_PREFIX}-${suffix}-${HA_CAMERA_ID}")"
+	[ -n "$HA_MQTT_USER" ] && cmd="$cmd -u $(_sq "$HA_MQTT_USER")"
+	[ -n "$HA_MQTT_PASS" ] && cmd="$cmd -P $(_sq "$HA_MQTT_PASS")"
 	[ "$HA_MQTT_SSL" = "true" ] && cmd="$cmd --capath /etc/ssl/certs"
 	printf '%s' "$cmd"
 }
 
 ha_msub_cmd() {
 	local suffix="${1:-sub}"
-	local cmd="mosquitto_sub -h $HA_MQTT_HOST -p $HA_MQTT_PORT"
-	cmd="$cmd -i ${HA_MQTT_CLIENT_PREFIX}-${suffix}-${HA_CAMERA_ID}"
-	[ -n "$HA_MQTT_USER" ] && cmd="$cmd -u $HA_MQTT_USER"
-	[ -n "$HA_MQTT_PASS" ] && cmd="$cmd -P $HA_MQTT_PASS"
+	local cmd="mosquitto_sub -h $(_sq "$HA_MQTT_HOST") -p $(_sq "$HA_MQTT_PORT")"
+	cmd="$cmd -i $(_sq "${HA_MQTT_CLIENT_PREFIX}-${suffix}-${HA_CAMERA_ID}")"
+	[ -n "$HA_MQTT_USER" ] && cmd="$cmd -u $(_sq "$HA_MQTT_USER")"
+	[ -n "$HA_MQTT_PASS" ] && cmd="$cmd -P $(_sq "$HA_MQTT_PASS")"
 	[ "$HA_MQTT_SSL" = "true" ] && cmd="$cmd --capath /etc/ssl/certs"
 	printf '%s' "$cmd"
 }
