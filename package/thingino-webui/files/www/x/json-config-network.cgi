@@ -318,7 +318,7 @@ send_state() {
 
   wifi_ssid="$(awk -F'"' '/^[[:space:]]*ssid=/{print $2}' /etc/wpa_supplicant.conf)"
   wifi_bssid="$(awk -F'"' '/^[[:space:]]*bssid=/{print $2}' /etc/wpa_supplicant.conf)"
-  wifi_pass="$(awk -F'"' '/^[[:space:]]*psk=/{print $2}' /etc/wpa_supplicant.conf)"
+  wifi_pass="$(awk '/^[[:space:]]*psk=/{sub(/^[[:space:]]*psk="?/, ""); sub(/"$/, ""); print; exit}' /etc/wpa_supplicant.conf)"
   if grep -q 'mode=2' /etc/wpa_supplicant.conf; then
     wifi_ap_enabled="true"
   else
