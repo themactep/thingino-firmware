@@ -102,6 +102,7 @@ DAEMON_CONFIG="/etc/default/$DAEMON_SHORT"
 if [ -r "$DAEMON_CONFIG" ]; then
 	. "$DAEMON_CONFIG"
 fi
+DAEMON_SYSLOG="${DAEMON_SYSLOG:-true}"
 
 # test cases:
 # network={
@@ -295,7 +296,16 @@ is_gateway_reachable() {
 }
 
 log() {
-	logger -p daemon.info -t ${DAEMON_SHORT}[$$] <&0
+	local line
+
+	if [ $# -gt 0 ]; then
+		logger -p daemon.info -t ${DAEMON_SHORT}[$$] "$*"
+		return $?
+	fi
+
+	while IFS= read -r line || [ -n "$line" ]; do
+		logger -p daemon.info -t ${DAEMON_SHORT}[$$] "$line"
+	done
 }
 
 print_release() {
@@ -338,15 +348,36 @@ singleton() {
 }
 
 start_daemon() {
-	local command
+	local command log_fifo status
 
 	command="${COMMAND:-$DAEMON_FULL} -- $DAEMON_ARGS"
 	echo_command "$command"
-	if [ -n "$PIDFILE" ] && [ -f "$PIDFILE" ]; then
-		start-stop-daemon -b -S -m -p $PIDFILE -x $command 2>&1
+
+	if [ "$DAEMON_SYSLOG" = "true" ]; then
+		log_fifo=$(mktemp "/tmp/${DAEMON_SHORT}.log.XXXXXX") || return 1
+		rm -f "$log_fifo"
+		mkfifo "$log_fifo" || return 1
+
+		tee /dev/stderr < "$log_fifo" | log &
+		log "$command"
+
+		if [ -n "$PIDFILE" ] && [ -f "$PIDFILE" ]; then
+			start-stop-daemon -b -S -m -p $PIDFILE -x $command > "$log_fifo" 2>&1
+		else
+			start-stop-daemon -b -S -x $command > "$log_fifo" 2>&1
+		fi
+		status=$?
+		rm -f "$log_fifo"
 	else
-		start-stop-daemon -b -S -x $command 2>&1
+		if [ -n "$PIDFILE" ] && [ -f "$PIDFILE" ]; then
+			start-stop-daemon -b -S -m -p $PIDFILE -x $command 2>&1
+		else
+			start-stop-daemon -b -S -x $command 2>&1
+		fi
+		status=$?
 	fi
+
+	return $status
 }
 
 starting() {
