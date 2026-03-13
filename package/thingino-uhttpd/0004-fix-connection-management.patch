@@ -1,0 +1,21 @@
+diff --git a/proc.c b/proc.c
+index 89fe320..f38421d 100644
+--- a/proc.c
++++ b/proc.c
+@@ -218,6 +218,16 @@ static void proc_handle_header(struct relay *r, const char *name, const char *va
+ 		cl->dispatch.proc.status_code = atoi(buf);
+ 		return;
+ 	}
++	else if (!strcasecmp(name, "Connection")) {
++		/* Let uhttpd manage the Connection header; if the CGI script
++		 * requests close, honour it by setting connection_close so
++		 * uh_http_header() emits the correct single header and
++		 * uh_request_done() tears down the connection cleanly after
++		 * the full response body has been flushed. */
++		if (!strcasecmp(val, "close"))
++			cl->request.connection_close = true;
++		return; /* do not forward – uhttpd writes its own Connection header */
++	}
+ 	else if (!strcasecmp(name, "Content-Length") ||
+ 	         !strcasecmp(name, "Transfer-Encoding")) {
+ 		cl->request.disable_chunked = true;

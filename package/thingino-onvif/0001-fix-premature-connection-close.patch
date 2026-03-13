@@ -1,0 +1,26 @@
+diff --git a/src/onvif_simple_server.c b/src/onvif_simple_server.c
+index dfd09e7..8b6ee0b 100644
+--- a/src/onvif_simple_server.c
++++ b/src/onvif_simple_server.c
+@@ -279,7 +279,7 @@ int main(int argc, char **argv)
+     if ((tmp == NULL) || (strcmp("POST", tmp) != 0)) {
+         fprintf(stdout, "Content-type: text/html\r\n");
+         fprintf(stdout, "Content-Length: 86\r\n");
+-        fprintf(stdout, "Connection: close\r\n\r\n");
++        fprintf(stdout, "\r\n");
+         fprintf(stdout, "<html><head><title>Error</title></head><body>HTTP method not supported</body></html>\r\n");
+         log_fatal("HTTP method not supported - got: %s", tmp ? tmp : "NULL");
+ 
+diff --git a/src/utils.c b/src/utils.c
+index 5ccfee4..594b84d 100644
+--- a/src/utils.c
++++ b/src/utils.c
+@@ -343,7 +343,7 @@ void output_http_headers(long content_length)
+     }
+     fprintf(stdout, "Content-type: application/soap+xml\r\n");
+     fprintf(stdout, "Content-Length: %ld\r\n", content_length);
+-    fprintf(stdout, "Connection: close\r\n\r\n");
++    fprintf(stdout, "\r\n");
+ }
+ 
+ long cat_soap_fault(char *out, const char *fault_subcode, const char *fault_reason, const char *fault_detail)
