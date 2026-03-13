@@ -40,6 +40,7 @@ SCRIPTS_DIR := $(BR2_EXTERNAL)/scripts
 BR2_DL_DIR ?= $(BR2_EXTERNAL)/dl
 
 THINGINO_USER_DIR ?= $(BR2_EXTERNAL)/user
+export THINGINO_USER_DIR
 
 # repo data
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD | tr -d '()' | xargs)

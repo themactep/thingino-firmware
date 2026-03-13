@@ -13,7 +13,7 @@ define THINGINO_CORE_INSTALL_TARGET_CMDS
 	[ -f "$$CAMERA_CONFIG" ] && \
 		$(HOST_DIR)/bin/jct "$(THINGINO_CORE_OUTPUT_FILE)" import "$$CAMERA_CONFIG" || true
 
-	USER_CONFIG=$(BR2_EXTERNAL)/configs/local.thingino.json; \
+	USER_CONFIG=$(THINGINO_USER_DIR)/local.thingino.json; \
 	[ -f "$$USER_CONFIG" ] && \
 		$(HOST_DIR)/bin/jct "$(THINGINO_CORE_OUTPUT_FILE)" import "$$USER_CONFIG" || true
 
