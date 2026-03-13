@@ -1,17 +1,15 @@
 #!/bin/sh
 
 start() {
-	printf "Starting mosquitto: "
+	echo_title "Starting mosquitto"
 	start-stop-daemon -S -q -m -b -p /var/run/mosquitto.pid \
 		--exec /usr/sbin/mosquitto \
 		-- -c /etc/mosquitto/mosquitto.conf
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
 stop() {
-	printf "Stopping mosquitto: "
+	echo_title "Stopping mosquitto"
 	start-stop-daemon -K -q -p /var/run/mosquitto.pid
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
 restart() {
@@ -32,6 +30,7 @@ case "$1" in
 	*)
 		echo "Usage: $0 {start|stop|restart}"
 		exit 1
+		;;
 esac
 
 exit $?
