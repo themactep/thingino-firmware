@@ -1,0 +1,158 @@
+# /usr/share/ha-common
+# Sourced by ha-discovery, ha-state, ha-commands, ha-daemon.
+# Provides shared camera identity, MQTT broker config, and helpers.
+# Config: /etc/thingino.json under "ha" key. See /rom/thingino.json for reference.
+
+HA_CONFIG_FILE="${HA_CONFIG_FILE:-/etc/thingino.json}"
+
+# ---------------------------------------------------------------------------
+# Config helpers
+# ---------------------------------------------------------------------------
+
+# Read a value from ha.* — returns empty string if missing
+ha_cfg() {
+	jct "$HA_CONFIG_FILE" get "ha.$1" 2>/dev/null | tr -d '"'
+}
+
+# Read with fallback: try ha.mqtt.KEY first, then mqtt_sub.KEY
+_ha_mqtt_cfg() {
+	local key="$1"
+	local val
+	val=$(jct "$HA_CONFIG_FILE" get "ha.mqtt.${key}" 2>/dev/null | tr -d '"')
+	if [ -z "$val" ]; then
+		val=$(jct "$HA_CONFIG_FILE" get "mqtt_sub.${key}" 2>/dev/null | tr -d '"')
+	fi
+	printf '%s' "$val"
+}
+
+# Returns true (0) unless the entity is explicitly set to false
+ha_entity_enabled() {
+	local val
+	val=$(ha_cfg "enable_$1")
+	[ "$val" != "false" ]
+}
+
+# ---------------------------------------------------------------------------
+# Camera identity (resolved once, exported for child scripts)
+# ---------------------------------------------------------------------------
+if [ -z "$HA_CAMERA_ID" ]; then
+	HA_CAMERA_ID=$(
+		for iface in eth0 wlan0 eth1; do
+			addr=$(cat "/sys/class/net/$iface/address" 2>/dev/null | tr -d ':')
+			[ -n "$addr" ] && { printf '%s' "$addr"; break; }
+		done
+	)
+	export HA_CAMERA_ID
+fi
+
+if [ -z "$HA_CAMERA_HOSTNAME" ]; then
+	HA_CAMERA_HOSTNAME=$(hostname 2>/dev/null || echo "thingino")
+	export HA_CAMERA_HOSTNAME
+fi
+
+if [ -z "$HA_CAMERA_IP" ]; then
+	HA_CAMERA_IP=$(ip route get 1 2>/dev/null \
+		| awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -1)
+	export HA_CAMERA_IP
+fi
+
+# ---------------------------------------------------------------------------
+# MQTT broker settings
+# ---------------------------------------------------------------------------
+HA_MQTT_HOST=$(_ha_mqtt_cfg host)
+HA_MQTT_PORT=$(_ha_mqtt_cfg port)
+HA_MQTT_USER=$(_ha_mqtt_cfg username)
+HA_MQTT_PASS=$(_ha_mqtt_cfg password)
+HA_MQTT_SSL=$(_ha_mqtt_cfg use_ssl)
+HA_MQTT_CLIENT_PREFIX=$(_ha_mqtt_cfg client_id_prefix)
+
+HA_MQTT_PORT="${HA_MQTT_PORT:-1883}"
+HA_MQTT_CLIENT_PREFIX="${HA_MQTT_CLIENT_PREFIX:-thingino-ha}"
+
+# Wrap a value in single quotes, escaping any embedded single quotes.
+_sq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+
+# ---------------------------------------------------------------------------
+# Build a mosquitto_pub or mosquitto_sub base command for a given client suffix.
+# Usage:
+#   MPUB=$(ha_mpub_cmd "disc")    → mosquitto_pub -h ... -i thingino-ha-disc-<id> ...
+#   MSUB=$(ha_msub_cmd "cmd")     → mosquitto_sub -h ... -i thingino-ha-cmd-<id>  ...
+# ---------------------------------------------------------------------------
+ha_mpub_cmd() {
+	local suffix="${1:-pub}"
+	local cmd="mosquitto_pub -h $(_sq "$HA_MQTT_HOST") -p $(_sq "$HA_MQTT_PORT")"
+	cmd="$cmd -i $(_sq "${HA_MQTT_CLIENT_PREFIX}-${suffix}-${HA_CAMERA_ID}")"
+	[ -n "$HA_MQTT_USER" ] && cmd="$cmd -u $(_sq "$HA_MQTT_USER")"
+	[ -n "$HA_MQTT_PASS" ] && cmd="$cmd -P $(_sq "$HA_MQTT_PASS")"
+	[ "$HA_MQTT_SSL" = "true" ] && cmd="$cmd --capath /etc/ssl/certs"
+	printf '%s' "$cmd"
+}
+
+ha_msub_cmd() {
+	local suffix="${1:-sub}"
+	local cmd="mosquitto_sub -h $(_sq "$HA_MQTT_HOST") -p $(_sq "$HA_MQTT_PORT")"
+	cmd="$cmd -i $(_sq "${HA_MQTT_CLIENT_PREFIX}-${suffix}-${HA_CAMERA_ID}")"
+	[ -n "$HA_MQTT_USER" ] && cmd="$cmd -u $(_sq "$HA_MQTT_USER")"
+	[ -n "$HA_MQTT_PASS" ] && cmd="$cmd -P $(_sq "$HA_MQTT_PASS")"
+	[ "$HA_MQTT_SSL" = "true" ] && cmd="$cmd --capath /etc/ssl/certs"
+	printf '%s' "$cmd"
+}
+
+# Convenience: publish a single state value (plain text)
+ha_pub_state() {
+	local entity="$1" state="$2"
+	[ -n "$state" ] || return 0
+	local mpub
+	mpub=$(ha_mpub_cmd state)
+	sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/${entity}/state' -m '$state'"
+}
+
+# Convenience: publish a JSON payload to a state topic (uses tmpfile)
+ha_pub_state_json() {
+	local entity="$1" payload="$2"
+	local tmpfile mpub
+	tmpfile=$(mktemp /tmp/ha_state.XXXXXX) || return 1
+	printf '%s' "$payload" > "$tmpfile"
+	mpub=$(ha_mpub_cmd state)
+	sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/${entity}/state' -f '$tmpfile'"
+	local rc=$?
+	rm -f "$tmpfile"
+	return $rc
+}
+
+# Remove a previously published discovery entry (publish empty retained to clear from HA)
+ha_clear_disc() {
+	local component="$1" object_id="$2"
+	local disc_prefix
+	disc_prefix=$(ha_cfg discovery_prefix)
+	disc_prefix="${disc_prefix:-homeassistant}"
+	local topic="${disc_prefix}/${component}/thingino_${HA_CAMERA_ID}/${object_id}/config"
+	local mpub
+	mpub=$(ha_mpub_cmd disc)
+	sh -c "$mpub -r -t '$topic' -n" 2>/dev/null
+}
+
+# Convenience: publish retained discovery payload (uses tmpfile)
+ha_pub_disc() {
+	local component="$1" object_id="$2" payload="$3"
+	local disc_prefix
+	disc_prefix=$(ha_cfg discovery_prefix)
+	disc_prefix="${disc_prefix:-homeassistant}"
+	local topic="${disc_prefix}/${component}/thingino_${HA_CAMERA_ID}/${object_id}/config"
+	local tmpfile mpub
+	tmpfile=$(mktemp /tmp/ha_disc.XXXXXX) || return 1
+	printf '%s' "$payload" > "$tmpfile"
+	mpub=$(ha_mpub_cmd disc)
+	sh -c "$mpub -r -t '$topic' -f '$tmpfile'"
+	local rc=$?
+	rm -f "$tmpfile"
+	return $rc
+}
+
+# Escape a string for safe embedding in a JSON value
+ha_json_escape() {
+	printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+}
+
+# Availability topic
+HA_AVAIL_TOPIC="cameras/${HA_CAMERA_ID}/status"

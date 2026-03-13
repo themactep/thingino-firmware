@@ -95,6 +95,7 @@
         items: [
           { label: 'Timelapse Recorder', href: '/tool-timelapse.html' },
           { label: 'Video Recorder', href: '/tool-record.html' },
+          { label: 'Home Assistant', href: '/config-ha.html' },
           { label: 'MQTT Subscriptions', href: '/tool-mqtt-sub.html' }
         ]
       },

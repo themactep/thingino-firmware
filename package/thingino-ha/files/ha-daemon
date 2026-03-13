@@ -1,0 +1,77 @@
+#!/bin/sh
+# Home Assistant MQTT integration daemon.
+# Publishes discovery, starts command subscriber, polls state periodically.
+# Config: /etc/thingino.json under "ha" key — see /usr/share/ha-common.
+
+. /usr/share/ha-common
+
+[ -n "$HA_CAMERA_ID" ] || { echo "ha-daemon: cannot determine camera MAC" >&2; exit 1; }
+[ -n "$HA_MQTT_HOST" ] || { echo "ha-daemon: ha.mqtt.host (or mqtt_sub.host) not configured" >&2; exit 1; }
+
+# ---------------------------------------------------------------------------
+# Singleton: only one ha-daemon may run at a time
+# ---------------------------------------------------------------------------
+HA_LOCK="/run/ha/daemon.lock"
+mkdir -p /run/ha
+if [ -f "$HA_LOCK" ]; then
+	old_pid=$(cat "$HA_LOCK" 2>/dev/null)
+	if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+		echo "ha-daemon: already running (pid $old_pid), exiting" >&2
+		exit 1
+	fi
+fi
+printf '%s\n' "$$" > "$HA_LOCK"
+
+# ---------------------------------------------------------------------------
+# Publish discovery and start command subscriber
+# ---------------------------------------------------------------------------
+ha-discovery || { echo "ha-daemon: discovery failed" >&2; exit 1; }
+
+# Restart ha-commands automatically if it exits (e.g. transient broker disconnect)
+run_commands() {
+	local mpub
+	while true; do
+		ha-commands
+		echo "ha-daemon: ha-commands exited, restarting in 5s..."
+		sleep 5
+		# Re-assert online so HA doesn't stay unavailable during the gap
+		mpub=$(ha_mpub_cmd daemon)
+		sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'" 2>/dev/null
+	done
+}
+run_commands &
+CMD_PID=$!
+
+ha-state
+
+# ---------------------------------------------------------------------------
+# Publish offline on exit and stop command subscriber
+# ---------------------------------------------------------------------------
+cleanup() {
+	local mpub
+	mpub=$(ha_mpub_cmd daemon)
+	sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'offline'" 2>/dev/null
+	kill "$CMD_PID" 2>/dev/null
+	rm -f "$HA_LOCK"
+}
+trap cleanup EXIT INT TERM
+
+# ---------------------------------------------------------------------------
+# Periodic state + discovery refresh loop
+# ---------------------------------------------------------------------------
+STATE_INTERVAL=$(ha_cfg state_interval)
+STATE_INTERVAL="${STATE_INTERVAL:-15}"
+
+DISC_INTERVAL=$(ha_cfg discovery_interval)
+DISC_INTERVAL="${DISC_INTERVAL:-3600}"
+
+elapsed=0
+while true; do
+	sleep "$STATE_INTERVAL"
+	elapsed=$((elapsed + STATE_INTERVAL))
+	ha-state
+	if [ "$elapsed" -ge "$DISC_INTERVAL" ]; then
+		ha-discovery
+		elapsed=0
+	fi
+done

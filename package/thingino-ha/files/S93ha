@@ -1,0 +1,45 @@
+#!/bin/sh
+
+DAEMON="ha-daemon"
+PIDFILE="/var/run/ha.pid"
+LOGFILE="/tmp/ha-daemon.log"
+CONFIG_FILE="/etc/thingino.json"
+
+is_enabled() {
+	local val
+	val=$(jct "$CONFIG_FILE" get ha.enabled 2>/dev/null)
+	[ "$val" = "true" ]
+}
+
+start() {
+	is_enabled || return 0
+	printf "Starting %s: " "$DAEMON"
+	start-stop-daemon -S -q -m -b -p "$PIDFILE" \
+		-x /bin/sh -- -c "/usr/sbin/ha-daemon >> $LOGFILE 2>&1"
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	echo "  (follow log: tail -f $LOGFILE)"
+}
+
+stop() {
+	printf "Stopping %s: " "$DAEMON"
+	start-stop-daemon -K -q -p "$PIDFILE"
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	rm -f "$PIDFILE"
+}
+
+restart() {
+	stop
+	start
+}
+
+case "$1" in
+	start)   start ;;
+	stop)    stop ;;
+	restart|reload) restart ;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit $?

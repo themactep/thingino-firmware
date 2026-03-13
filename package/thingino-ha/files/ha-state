@@ -1,0 +1,127 @@
+#!/bin/sh
+# Reads current camera state and publishes each entity's value to MQTT.
+# Called at startup and periodically by ha-daemon.
+# Config: /etc/thingino.json under "ha" key — see /usr/share/ha-common.
+
+. /usr/share/ha-common
+
+PRUDYNT_CONFIG="/etc/prudynt.json"
+
+[ -n "$HA_CAMERA_ID" ] || { echo "ha-state: cannot determine camera MAC" >&2; exit 1; }
+[ -n "$HA_MQTT_HOST" ] || { echo "ha-state: ha.mqtt.host (or mqtt_sub.host) not configured" >&2; exit 1; }
+
+# Re-assert availability on every poll so a stale retained 'offline' from a
+# previous killed session can never keep entities unavailable while we're up.
+mpub=$(ha_mpub_cmd state)
+sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'"
+
+# Motion binary sensor
+if ha_entity_enabled motion; then
+	[ -f /run/motion/motion_alarm ] && ha_pub_state motion ON || ha_pub_state motion OFF
+fi
+
+# Motion Guard switch — /run/prudynt/motion.active reflects prudynt's live state
+if ha_entity_enabled motion_guard; then
+	[ -f /run/prudynt/motion.active ] && ha_pub_state motion_guard ON || ha_pub_state motion_guard OFF
+fi
+
+# IR Cut Filter switch: 1 = filter in (day), 0 = filter out (night)
+if ha_entity_enabled ircut; then
+	val=$(ircut read 2>/dev/null | tr -d '\n\r')
+	[ "$val" = "1" ] && ha_pub_state ircut ON || ha_pub_state ircut OFF
+fi
+
+# Day/Night select — prudynt manages /run/prudynt/daynight_mode
+if ha_entity_enabled daynight; then
+	val=$(awk 'NR==1 {print $1}' /run/prudynt/daynight_mode 2>/dev/null)
+	ha_pub_state daynight "${val:-day}"
+fi
+
+# Privacy screen switch — prudynt creates /run/prudynt/privacy.active when on
+if ha_entity_enabled privacy; then
+	[ -f /run/prudynt/privacy.active ] && ha_pub_state privacy ON || ha_pub_state privacy OFF
+fi
+
+# Color mode switch — read running_mode from prudynt (0=color, 1=monochrome)
+if ha_entity_enabled color; then
+	val=$(prudyntctl json - 2>/dev/null <<'EOF'
+{"image":{"running_mode":null}}
+EOF
+)
+	mode=$(printf '%s' "$val" | grep -o '"running_mode":[^,}]*' | cut -d: -f2 | tr -d ' ')
+	[ "$mode" = "0" ] && ha_pub_state color ON || ha_pub_state color OFF
+fi
+
+# IR LED 850 nm
+if ha_entity_enabled ir850 && command -v light >/dev/null 2>&1; then
+	val=$(light ir850 read 2>/dev/null | tr -d '\n\r')
+	[ "$val" = "0" ] || [ "$val" = "1" ] && \
+		{ [ "$val" = "1" ] && ha_pub_state ir850 ON || ha_pub_state ir850 OFF; }
+fi
+
+# IR LED 940 nm
+if ha_entity_enabled ir940 && command -v light >/dev/null 2>&1; then
+	val=$(light ir940 read 2>/dev/null | tr -d '\n\r')
+	[ "$val" = "0" ] || [ "$val" = "1" ] && \
+		{ [ "$val" = "1" ] && ha_pub_state ir940 ON || ha_pub_state ir940 OFF; }
+fi
+
+# White light
+if ha_entity_enabled white_light && command -v light >/dev/null 2>&1; then
+	val=$(light white read 2>/dev/null | tr -d '\n\r')
+	[ "$val" = "0" ] || [ "$val" = "1" ] && \
+		{ [ "$val" = "1" ] && ha_pub_state white ON || ha_pub_state white OFF; }
+fi
+
+# Gain sensor (ISP total gain — proxy for scene brightness)
+if ha_entity_enabled gain; then
+	gain=""
+	[ -f /proc/jz/isp/isp-m0 ] && \
+		gain=$(awk '/total_gain/{print $NF; exit}' /proc/jz/isp/isp-m0 2>/dev/null)
+	if [ -z "$gain" ] && command -v prudyntctl >/dev/null 2>&1; then
+		pdata=$(prudyntctl json - 2>/dev/null <<'PEOF'
+{"image":{"running_mode":null},"daynight":{"status":null,"enabled":null}}
+PEOF
+)
+		gain=$(printf '%s' "$pdata" | grep -o '"total_gain":[0-9-]*' | cut -d: -f2)
+	fi
+	[ -n "$gain" ] && ha_pub_state gain "$gain"
+fi
+
+# WiFi RSSI sensor
+if ha_entity_enabled rssi; then
+	rssi=""
+	if command -v iw >/dev/null 2>&1; then
+		for iface in $(ls /sys/class/net/ 2>/dev/null | grep wlan); do
+			rssi=$(iw "$iface" link 2>/dev/null | awk '/signal:/{print $2}')
+			[ -n "$rssi" ] && break
+		done
+	fi
+	if [ -z "$rssi" ] && [ -f /proc/net/wireless ]; then
+		rssi=$(awk 'NR>2{val=$4; sub(/\..*$/, "", val); if (val+0 != 0) {print val+0; exit}}' \
+			/proc/net/wireless 2>/dev/null)
+	fi
+	[ -n "$rssi" ] && [ "$rssi" != "0" ] && ha_pub_state rssi "$rssi"
+fi
+
+# Firmware update entity — publish directly since topics don't follow entity/state pattern
+if ha_entity_enabled ota; then
+	mpub=$(ha_mpub_cmd state)
+	installed=""
+	for f in /etc/os-release /usr/lib/os-release; do
+		[ -f "$f" ] || continue
+		installed=$(grep '^COMMIT_ID=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
+		[ -n "$installed" ] && break
+	done
+	[ -z "$installed" ] && installed="unknown"
+	sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/firmware/state' -m '$installed'"
+
+	latest=""
+	if command -v curl >/dev/null 2>&1; then
+		latest=$(curl -sf --max-time 10 \
+			"https://api.github.com/repos/themactep/thingino-firmware/releases/latest" \
+			2>/dev/null | awk -F'"' '/tag_name/{print $4; exit}' \
+			| tr -cd '[:alnum:]._-')
+	fi
+	sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/firmware/latest' -m '${latest:-$installed}'"
+fi
