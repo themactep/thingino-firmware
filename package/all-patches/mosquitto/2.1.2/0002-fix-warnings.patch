@@ -1,0 +1,170 @@
+diff --git a/client/client_props.c b/client/client_props.c
+index 9260602..c7fd83c 100644
+--- a/client/client_props.c
++++ b/client/client_props.c
+@@ -177,7 +177,7 @@ int cfg_parse_property(struct mosq_config *cfg, int argc, char *argv[], int *idx
+ 			break;
+ 		case MQTT_PROP_TYPE_INT32:
+ 			tmpl = atol(value);
+-			if(tmpl < 0 || tmpl > UINT32_MAX){
++			if(tmpl < 0 || (unsigned long)tmpl > UINT32_MAX){
+ 				fprintf(stderr, "Error: Property value (%ld) out of range for property %s.\n\n", tmpl, propname);
+ 				return MOSQ_ERR_INVAL;
+ 			}
+@@ -185,7 +185,7 @@ int cfg_parse_property(struct mosq_config *cfg, int argc, char *argv[], int *idx
+ 			break;
+ 		case MQTT_PROP_TYPE_VARINT:
+ 			tmpl = atol(value);
+-			if(tmpl < 0 || tmpl > UINT32_MAX){
++			if(tmpl < 0 || (unsigned long)tmpl > UINT32_MAX){
+ 				fprintf(stderr, "Error: Property value (%ld) out of range for property %s.\n\n", tmpl, propname);
+ 				return MOSQ_ERR_INVAL;
+ 			}
+diff --git a/client/client_shared.c b/client/client_shared.c
+index 9182752..fbf3075 100644
+--- a/client/client_shared.c
++++ b/client/client_shared.c
+@@ -484,10 +484,10 @@ int client_config_load(struct mosq_config *cfg, int pub_or_sub, int argc, char *
+ 		if(cfg->clean_session == false && cfg->session_expiry_interval == -1){
+ 			/* User hasn't set session-expiry-interval, but has cleared clean
+ 			 * session so default to persistent session. */
+-			cfg->session_expiry_interval = UINT32_MAX;
++			cfg->session_expiry_interval = (long)UINT32_MAX;
+ 		}
+ 		if(cfg->session_expiry_interval > 0){
+-			if(cfg->session_expiry_interval == UINT32_MAX && (cfg->id_prefix || !cfg->id)){
++			if((unsigned long)cfg->session_expiry_interval == UINT32_MAX && (cfg->id_prefix || !cfg->id)){
+ 				fprintf(stderr, "Error: You must provide a client id if you are using an infinite session expiry interval.\n");
+ 				return 1;
+ 			}
+@@ -1307,7 +1307,7 @@ int client_config_line_proc(struct mosq_config *cfg, int pub_or_sub, int argc, c
+ 				return 1;
+ 			}else{
+ 				if(!strcmp(argv[i+1], "∞")){
+-					cfg->session_expiry_interval = UINT32_MAX;
++					cfg->session_expiry_interval = (long)UINT32_MAX;
+ 				}else{
+ 					char *endptr = NULL;
+ 					cfg->session_expiry_interval = strtol(argv[i+1], &endptr, 0);
+@@ -1316,13 +1316,13 @@ int client_config_line_proc(struct mosq_config *cfg, int pub_or_sub, int argc, c
+ 						fprintf(stderr, "Error: session-expiry-interval not a number.\n\n");
+ 						return 1;
+ 					}
+-					if(cfg->session_expiry_interval > UINT32_MAX || cfg->session_expiry_interval < -1){
++					if((unsigned long)cfg->session_expiry_interval > UINT32_MAX || cfg->session_expiry_interval < -1){
+ 						fprintf(stderr, "Error: session-expiry-interval out of range.\n\n");
+ 						return 1;
+ 					}
+ 					if(cfg->session_expiry_interval == -1){
+ 						/* Convenience value for infinity. */
+-						cfg->session_expiry_interval = UINT32_MAX;
++						cfg->session_expiry_interval = (long)UINT32_MAX;
+ 					}
+ 				}
+ 				cfg->protocol_version = MQTT_PROTOCOL_V5;
+diff --git a/client/rr_client.c b/client/rr_client.c
+index f7f090f..d686072 100644
+--- a/client/rr_client.c
++++ b/client/rr_client.c
+@@ -295,7 +295,7 @@ static void report_latency(void)
+ 		}
+ 
+ 		if(s > 0){
+-			printf("Latency: %ld.%09ld\n", s, ns);
++			printf("Latency: %lld.%09ld\n", (long long)s, ns);
+ 		}else{
+ 			if(ns < 1000){
+ 				printf("Latency: %ldns\n", ns);
+diff --git a/lib/loop.c b/lib/loop.c
+index 36f9b83..4d8c39b 100644
+--- a/lib/loop.c
++++ b/lib/loop.c
+@@ -67,9 +67,9 @@ int mosquitto_loop(struct mosquitto *mosq, int timeout, int max_packets)
+ 	FD_ZERO(&writefds);
+ 	if(net__is_connected(mosq)){
+ 		maxfd = mosq->sock;
+-		FD_SET(mosq->sock, &readfds);
++		FD_SET((unsigned int)mosq->sock, &readfds);
+ 		if(mosq->want_write){
+-			FD_SET(mosq->sock, &writefds);
++			FD_SET((unsigned int)mosq->sock, &writefds);
+ 		}else{
+ #ifdef WITH_TLS
+ 			if(mosq->ssl == NULL || SSL_is_init_finished(mosq->ssl))
+@@ -77,7 +77,7 @@ int mosquitto_loop(struct mosquitto *mosq, int timeout, int max_packets)
+ 			{
+ 				COMPAT_pthread_mutex_lock(&mosq->out_packet_mutex);
+ 				if(mosq->out_packet){
+-					FD_SET(mosq->sock, &writefds);
++					FD_SET((unsigned int)mosq->sock, &writefds);
+ 				}
+ 				COMPAT_pthread_mutex_unlock(&mosq->out_packet_mutex);
+ 			}
+@@ -101,7 +101,7 @@ int mosquitto_loop(struct mosquitto *mosq, int timeout, int max_packets)
+ 	if(mosq->sockpairR != INVALID_SOCKET){
+ 		/* sockpairR is used to break out of select() before the timeout, on a
+ 		 * call to publish() etc. */
+-		FD_SET(mosq->sockpairR, &readfds);
++		FD_SET((unsigned int)mosq->sockpairR, &readfds);
+ 		if((int)mosq->sockpairR > maxfd){
+ 			maxfd = mosq->sockpairR;
+ 		}
+@@ -127,9 +127,9 @@ int mosquitto_loop(struct mosquitto *mosq, int timeout, int max_packets)
+ 
+ 	local_timeout.tv_sec = timeout_ms/1000;
+ #ifdef HAVE_PSELECT
+-	local_timeout.tv_nsec = (timeout_ms-local_timeout.tv_sec*1000)*1000000;
++	local_timeout.tv_nsec = (long)((timeout_ms-local_timeout.tv_sec*1000)*1000000);
+ #else
+-	local_timeout.tv_usec = (timeout_ms-local_timeout.tv_sec*1000)*1000;
++	local_timeout.tv_usec = (long)((timeout_ms-local_timeout.tv_sec*1000)*1000);
+ #endif
+ 
+ #ifdef HAVE_PSELECT
+@@ -146,13 +146,13 @@ int mosquitto_loop(struct mosquitto *mosq, int timeout, int max_packets)
+ 		}
+ 	}else{
+ 		if(net__is_connected(mosq)){
+-			if(FD_ISSET(mosq->sock, &readfds)){
++			if(FD_ISSET((unsigned int)mosq->sock, &readfds)){
+ 				rc = mosquitto_loop_read(mosq, max_packets);
+ 				if(rc || mosq->sock == INVALID_SOCKET){
+ 					return rc;
+ 				}
+ 			}
+-			if(mosq->sockpairR != INVALID_SOCKET && FD_ISSET(mosq->sockpairR, &readfds)){
++			if(mosq->sockpairR != INVALID_SOCKET && FD_ISSET((unsigned int)mosq->sockpairR, &readfds)){
+ #ifndef WIN32
+ 				if(read(mosq->sockpairR, &pairbuf, 1) == 0){
+ 				}
+@@ -163,10 +163,10 @@ int mosquitto_loop(struct mosquitto *mosq, int timeout, int max_packets)
+ 				 * we didn't ask for it, because at that point the publish or
+ 				 * other command wasn't present. */
+ 				if(net__is_connected(mosq)){
+-					FD_SET(mosq->sock, &writefds);
++					FD_SET((unsigned int)mosq->sock, &writefds);
+ 				}
+ 			}
+-			if(net__is_connected(mosq) && FD_ISSET(mosq->sock, &writefds)){
++			if(net__is_connected(mosq) && FD_ISSET((unsigned int)mosq->sock, &writefds)){
+ 				rc = mosquitto_loop_write(mosq, max_packets);
+ 				if(rc || !net__is_connected(mosq)){
+ 					return rc;
+@@ -214,7 +214,7 @@ static int interruptible_sleep(struct mosquitto *mosq, time_t reconnect_delay)
+ 	if(mosq->sockpairR != INVALID_SOCKET){
+ 		/* sockpairR is used to break out of select() before the
+ 		 * timeout, when mosquitto_loop_stop() is called */
+-		FD_SET(mosq->sockpairR, &readfds);
++		FD_SET((unsigned int)mosq->sockpairR, &readfds);
+ 		maxfd = mosq->sockpairR;
+ 	}
+ #ifdef HAVE_PSELECT
+@@ -229,7 +229,7 @@ static int interruptible_sleep(struct mosquitto *mosq, time_t reconnect_delay)
+ 		}else{
+ 			return MOSQ_ERR_ERRNO;
+ 		}
+-	}else if(mosq->sockpairR != INVALID_SOCKET && FD_ISSET(mosq->sockpairR, &readfds)){
++	}else if(mosq->sockpairR != INVALID_SOCKET && FD_ISSET((unsigned int)mosq->sockpairR, &readfds)){
+ #ifndef WIN32
+ 		if(read(mosq->sockpairR, &pairbuf, 1) == 0){
+ 		}
