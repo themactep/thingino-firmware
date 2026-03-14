@@ -29,6 +29,7 @@ if BR2_PACKAGE_THINGINO_LIBCURL
 
 config BR2_PACKAGE_THINGINO_LIBCURL_CURL
 	bool "curl binary"
+	select BR2_PACKAGE_LIBCURL_CURL
 	help
 	  Install curl binary as well
 
