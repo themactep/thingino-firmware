@@ -18,8 +18,11 @@ ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO),y)
 
 ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_USE_MBEDTLS),y)
 # mbedTLS backend: swap OpenSSL for mbedtls; keep cjson for client JSON output.
+# -DWITH_TLS=ON overrides mosquitto.mk's -DWITH_TLS=OFF (set when OpenSSL is
+# absent). The second inclusion of this file (via BR2_EXTERNAL_MKS, after
+# mosquitto.mk has run) ensures this value wins in CMake.
 MOSQUITTO_DEPENDENCIES += mbedtls cjson
-MOSQUITTO_CONF_OPTS += -DWITH_TLS_BACKEND=mbedtls -DWITH_TLS_PSK=OFF
+MOSQUITTO_CONF_OPTS += -DWITH_TLS=ON -DWITH_TLS_BACKEND=mbedtls -DWITH_TLS_PSK=OFF
 endif
 
 # Unless the Thingino-specific broker option is enabled, force the broker off.
