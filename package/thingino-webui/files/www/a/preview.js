@@ -36,8 +36,8 @@ const endpoint = '/x/json-prudynt.cgi';
 })();
 
 const stream_params = [
-  'width', 'height', 'fps', 'bitrate', 'gop', 'max_gop', 'format', 'mode',
-  'buffers', 'profile', 'rtsp_endpoint', 'video_enabled', 'audio_enabled'
+  'enabled', 'width', 'height', 'fps', 'bitrate', 'gop', 'max_gop', 'format', 'mode',
+  'buffers', 'profile', 'rtsp_endpoint', 'audio_enabled'
 ];
 const osd_params = ['enabled', 'fontname', 'fontsize', 'strokesize'];
 
@@ -281,9 +281,10 @@ async function loadConfig() {
       privacy: {enabled: null},
       rtsp: {username: null, password: null, port: null},
       stream0: {
+        enabled: null,
         width: null, height: null, fps: null, bitrate: null, gop: null, max_gop: null,
         format: null, mode: null, buffers: null, profile: null, rtsp_endpoint: null,
-        video_enabled: null, audio_enabled: null,
+        audio_enabled: null,
         osd: {
           enabled: null, font_path: null, font_size: null, stroke_size: null,
           logo: {enabled: null, position: null},
@@ -293,9 +294,10 @@ async function loadConfig() {
         }
       },
       stream1: {
+        enabled: null,
         width: null, height: null, fps: null, bitrate: null, gop: null, max_gop: null,
         format: null, mode: null, buffers: null, profile: null, rtsp_endpoint: null,
-        video_enabled: null, audio_enabled: null,
+        audio_enabled: null,
         osd: {
           enabled: null, font_path: null, font_size: null, stroke_size: null,
           logo: {enabled: null, position: null},

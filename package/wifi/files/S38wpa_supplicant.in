@@ -229,14 +229,14 @@ start() {
 	fi
 
 	# Wired interface is present
-	# if iface_exists "eth0"; then
-	# 		echo_error "Wired interface found"
-	# 		exit 1
-	# fi
-	# if iface_exists "usb0"; then
-	# 		echo_error "Wired interface found"
-	# 		exit 1
-	# fi
+	if iface_exists "eth0"; then
+		echo_error "Wired interface found"
+		exit 1
+	fi
+	if iface_exists "usb0"; then
+		echo_error "Wired interface found"
+		exit 1
+	fi
 
 	echo_info "Starting in $mode mode"
 	case "$mode" in

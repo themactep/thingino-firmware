@@ -4,8 +4,8 @@
     "ir850": 45,
     "ircut": "57 58",
     "led_b": 46,
-    "led_w": 60,
     "mmc_cd": 50,
+    "white": 60,
     "wlan": {
       "pin": 47,
       "active_low": true

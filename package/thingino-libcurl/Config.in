@@ -1,6 +1,7 @@
 menu "thingino-libcurl"
 config BR2_PACKAGE_THINGINO_LIBCURL
 	bool "thingino-libcurl"
+	select BR2_PACKAGE_LIBCURL
 	select BR2_PACKAGE_THINGINO_LIBCURL_MBEDTLS if BR2_PACKAGE_MBEDTLS
 	select BR2_PACKAGE_THINGINO_LIBCURL_OPENSSL if BR2_PACKAGE_OPENSSL
 	select BR2_PACKAGE_THINGINO_LIBCURL_WOLFSSL if BR2_PACKAGE_WOLFSSL
@@ -8,7 +9,7 @@ config BR2_PACKAGE_THINGINO_LIBCURL
 	select BR2_PACKAGE_THINGINO_LIBCURL_CURL
 	select BR2_PACKAGE_THINGINO_LIBCURL_SMTP_SUPPORT    # for send2email
 	select BR2_PACKAGE_THINGINO_LIBCURL_TELNET_SUPPORT  # for send2termbin
-	# optional feature for development
+	# optional features for development
 	select BR2_PACKAGE_NGHTTP2 if BR2_THINGINO_DEV_PACKAGES
 	select BR2_PACKAGE_THINGINO_LIBCURL_MQTT_SUPPORT if BR2_THINGINO_DEV_PACKAGES
 	select BR2_PACKAGE_THINGINO_LIBCURL_PROXY_SUPPORT if BR2_THINGINO_DEV_PACKAGES
@@ -28,6 +29,7 @@ if BR2_PACKAGE_THINGINO_LIBCURL
 
 config BR2_PACKAGE_THINGINO_LIBCURL_CURL
 	bool "curl binary"
+	select BR2_PACKAGE_LIBCURL_CURL
 	help
 	  Install curl binary as well
 
@@ -52,6 +54,11 @@ config BR2_PACKAGE_THINGINO_LIBCURL_WEBSOCKETS_SUPPORT
 	bool "websockets support"
 	help
 	  Enable support for websockets.
+
+config BR2_PACKAGE_THINGINO_LIBCURL_MQTT_SUPPORT
+	bool "MQTT support"
+	help
+	  Enable support for MQTT.
 
 config BR2_PACKAGE_THINGINO_LIBCURL_DICT_SUPPORT
 	bool "dict support"
@@ -83,6 +90,11 @@ config BR2_PACKAGE_THINGINO_LIBCURL_POP3_SUPPORT
 	help
 	  Enable support for POP3.
 
+config BR2_PACKAGE_THINGINO_LIBCURL_RTMP_SUPPORT
+	bool "RTMP support"
+	help
+	  Enable support for RTMP (requires rtmpdump).
+
 config BR2_PACKAGE_THINGINO_LIBCURL_RTSP_SUPPORT
 	bool "RTSP support"
 	help
@@ -108,7 +120,7 @@ config BR2_PACKAGE_THINGINO_LIBCURL_TFTP_SUPPORT
 	help
 	  Enable support for TFTP.
 
-# Packages must select that if they require a SSL/TLS-enabled libcurl.
+# Packages must select this if they require a SSL/TLS-enabled libcurl.
 # Those packages must also select one crypto package that can be used
 # as a backend below.
 config BR2_PACKAGE_THINGINO_LIBCURL_FORCE_TLS
