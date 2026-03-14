@@ -12,6 +12,10 @@
 #   recorder.min_free_mb      - minimum free space to maintain on the mount (MB)
 #   recorder.check_interval   - seconds between storage checks (default 60)
 #   recorder.cleanup_enabled  - whether this daemon should run cleanup (true/false)
+#   recorder.debug            - enable verbose recordmgr debug logs (true/false)
+#
+# Command line:
+#   -d, --debug               - force debug logging on regardless of config
 
 PIDFILE="/var/run/recordmgr.pid"
 CONFIG_FILE="/etc/prudynt.json"
@@ -20,6 +24,46 @@ DOMAIN="recorder"
 DEFAULT_MIN_FREE_MB=500
 DEFAULT_CHECK_INTERVAL=60
 DEFAULT_LIMIT_GB=15
+DEBUG_MODE=0
+DEBUG_FROM_ARG=0
+
+is_true() {
+	case "$1" in
+		true|1|yes|on) return 0 ;;
+	esac
+	return 1
+}
+
+update_debug_mode() {
+	if [ "$DEBUG_FROM_ARG" -eq 1 ] || is_true "$vr_debug"; then
+		DEBUG_MODE=1
+	else
+		DEBUG_MODE=0
+	fi
+}
+
+debug_log() {
+	[ "$DEBUG_MODE" -eq 1 ] || return 0
+	logger -t recordmgr "DEBUG: $*"
+}
+
+parse_args() {
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			-d|--debug)
+				DEBUG_FROM_ARG=1
+				;;
+			-h|--help)
+				echo "Usage: $0 [-d|--debug]"
+				exit 0
+				;;
+			*)
+				logger -t recordmgr "Ignoring unknown argument: $1"
+				;;
+		esac
+		shift
+	done
+}
 
 read_config() {
 	vr_mount=$(jct "$CONFIG_FILE" get "$DOMAIN.mount" 2>/dev/null)
@@ -28,10 +72,13 @@ read_config() {
 	vr_min_free_mb=$(jct "$CONFIG_FILE" get "$DOMAIN.min_free_mb" 2>/dev/null)
 	vr_check_interval=$(jct "$CONFIG_FILE" get "$DOMAIN.check_interval" 2>/dev/null)
 	vr_cleanup_enabled=$(jct "$CONFIG_FILE" get "$DOMAIN.cleanup_enabled" 2>/dev/null)
+	vr_debug=$(jct "$CONFIG_FILE" get "$DOMAIN.debug" 2>/dev/null)
 
 	case "$vr_min_free_mb" in ''|*[!0-9]*) vr_min_free_mb="$DEFAULT_MIN_FREE_MB" ;; esac
 	case "$vr_check_interval" in ''|*[!0-9]*) vr_check_interval="$DEFAULT_CHECK_INTERVAL" ;; esac
 	case "$vr_limit" in ''|*[!0-9]*) vr_limit="$DEFAULT_LIMIT_GB" ;; esac
+
+	update_debug_mode
 }
 
 get_free_mb() {
@@ -61,11 +108,26 @@ cleanup() {
 	free_mb=$(get_free_mb "$mount")
 	used_mb=$(get_used_mb "$rec_dir")
 
-	case "$free_mb" in ''|*[!0-9]*) return ;; esac
-	case "$used_mb" in ''|*[!0-9]*) used_mb=0 ;; esac
+	case "$free_mb" in
+		''|*[!0-9]*)
+			debug_log "Skipping cleanup: failed to read free space on $mount"
+			return
+			;;
+	esac
+	case "$used_mb" in
+		''|*[!0-9]*)
+			debug_log "Unable to read used size for $rec_dir, assuming 0MB"
+			used_mb=0
+			;;
+	esac
+
+	debug_log "Storage state: free=${free_mb}MB (min=${min_free_mb}MB) used=${used_mb}MB (limit=${limit_mb}MB) dir=$rec_dir"
 
 	# Early exit if no cleanup needed before the expensive find
-	[ "$free_mb" -ge "$min_free_mb" ] && [ "$used_mb" -le "$limit_mb" ] && return
+	if [ "$free_mb" -ge "$min_free_mb" ] && [ "$used_mb" -le "$limit_mb" ]; then
+		debug_log "Cleanup not needed: thresholds are already satisfied"
+		return
+	fi
 
 	# Build sorted file list once. Filenames are in Y/M/D/H-M-S lexicographic order,
 	# so sorting by path yields chronological order — no per-file stat needed.
@@ -76,6 +138,8 @@ cleanup() {
 		-o -name "*.avi" -o -name "*.mov" -o -name "*.h264" \
 		-o -name "*.h265" -o -name "*.hevc" \
 	\) 2>/dev/null | sort > "$tmplist"
+
+	[ ! -s "$tmplist" ] && debug_log "No candidate recording files found in $rec_dir"
 
 	local removed=0
 	while IFS= read -r oldest; do
@@ -118,28 +182,44 @@ ensure_writable() {
 		fi
 	else
 		rm -f "$mount/.rw_check"
+		debug_log "Mount $mount is writable"
 	fi
 }
 
 run_check() {
 	read_config
 
+	debug_log "Run check config: mount='${vr_mount:-}' device_path='${vr_device_path:-}' cleanup_enabled='${vr_cleanup_enabled:-}' limit_gb=$vr_limit min_free_mb=$vr_min_free_mb interval_s=$vr_check_interval debug='${vr_debug:-}'"
+
 	# Skip if cleanup is explicitly disabled
 	case "$vr_cleanup_enabled" in
-		false|0|"") return ;;
+		false|0|"")
+			debug_log "Skipping check: cleanup is disabled"
+			return
+			;;
 	esac
 
-	[ -z "$vr_mount" ] && return
-	! mountpoint -q "$vr_mount" 2>/dev/null && return
+	if [ -z "$vr_mount" ]; then
+		debug_log "Skipping check: recorder.mount is empty"
+		return
+	fi
+	if ! mountpoint -q "$vr_mount" 2>/dev/null; then
+		debug_log "Skipping check: $vr_mount is not a mountpoint"
+		return
+	fi
 
 	ensure_writable "$vr_mount"
 
 	local rec_dir="$vr_mount"
 	[ -n "$vr_device_path" ] && rec_dir="$vr_mount/$vr_device_path"
-	[ -d "$rec_dir" ] || return
+	if [ ! -d "$rec_dir" ]; then
+		debug_log "Skipping check: recording directory does not exist: $rec_dir"
+		return
+	fi
 
 	local limit_mb
 	limit_mb=$((vr_limit * 1024))
+	debug_log "Evaluating cleanup using limit=${limit_mb}MB and min_free=${vr_min_free_mb}MB"
 
 	cleanup "$rec_dir" "$vr_mount" "$vr_min_free_mb" "$limit_mb"
 }
@@ -147,6 +227,7 @@ run_check() {
 main_loop() {
 	echo $$ > "$PIDFILE"
 	logger -t recordmgr "Storage manager started (pid $$)"
+	[ "$DEBUG_FROM_ARG" -eq 1 ] && logger -t recordmgr "Debug mode forced by command-line argument"
 
 	# Initial delay to allow mounts to settle at boot
 	sleep 10
@@ -154,8 +235,10 @@ main_loop() {
 	while true; do
 		run_check
 		read_config
+		debug_log "Sleeping for ${vr_check_interval:-$DEFAULT_CHECK_INTERVAL}s"
 		sleep "${vr_check_interval:-$DEFAULT_CHECK_INTERVAL}"
 	done
 }
 
+parse_args "$@"
 main_loop

@@ -13,12 +13,24 @@ cleanup_enabled() {
 	[ "$val" = "true" ] || [ "$val" = "1" ]
 }
 
+debug_enabled() {
+	local val
+	val=$(jct "$CONFIG_FILE" get "recorder.debug" 2>/dev/null)
+	[ "$val" = "true" ] || [ "$val" = "1" ]
+}
+
 start() {
 	echo_title "Starting Recording Storage Manager"
 
 	if ! cleanup_enabled; then
 		echo_info "Recording storage manager is disabled"
 		return 0
+	fi
+
+	DAEMON_ARGS=""
+	if debug_enabled; then
+		DAEMON_ARGS="--debug"
+		echo_info "Recording storage manager debug mode enabled"
 	fi
 
 	start_daemon
