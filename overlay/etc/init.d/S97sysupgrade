@@ -5,7 +5,7 @@
 start() {
 	echo_title "Checking sysupgrade"
 
-	if [ "true" != $(fw_printenv -n sysupgrade_complete) ]; then
+	if [ "true" != "$(fw_printenv -n sysupgrade_complete)" ]; then
 		echo_info "Mark sysupgrade complete"
 		fw_setenv sysupgrade_complete true
 
