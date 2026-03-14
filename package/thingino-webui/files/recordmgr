@@ -68,6 +68,8 @@ parse_args() {
 read_config() {
 	vr_mount=$(jct "$CONFIG_FILE" get "$DOMAIN.mount" 2>/dev/null)
 	vr_device_path=$(jct "$CONFIG_FILE" get "$DOMAIN.device_path" 2>/dev/null)
+	_hostname=$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo "thingino")
+	vr_device_path=${vr_device_path//%hostname/$_hostname}
 	vr_limit=$(jct "$CONFIG_FILE" get "$DOMAIN.limit" 2>/dev/null)
 	vr_min_free_mb=$(jct "$CONFIG_FILE" get "$DOMAIN.min_free_mb" 2>/dev/null)
 	vr_check_interval=$(jct "$CONFIG_FILE" get "$DOMAIN.check_interval" 2>/dev/null)
