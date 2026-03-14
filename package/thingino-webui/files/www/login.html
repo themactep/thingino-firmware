@@ -87,6 +87,7 @@
 
       const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
+      const passwordB64 = btoa(unescape(encodeURIComponent(password)));
 
       loginBtn.disabled = true;
       loginBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Signing in...';
@@ -95,7 +96,7 @@
         const response = await fetch('/x/login.cgi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({ username, password: passwordB64, encoding: 'base64' })
         });
 
         const result = await response.json();
