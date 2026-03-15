@@ -4,8 +4,8 @@
 #
 ################################################################################
 
-THINGINO_MOSQUITTO_20X_VERSION = 2.0.22
-THINGINO_MOSQUITTO_20X_SITE = https://sources.buildroot.net/mosquitto
+THINGINO_MOSQUITTO_20X_VERSION = 2.0.23
+THINGINO_MOSQUITTO_20X_SITE = https://mosquitto.org/files/source
 THINGINO_MOSQUITTO_20X_SOURCE = mosquitto-$(THINGINO_MOSQUITTO_20X_VERSION).tar.gz
 THINGINO_MOSQUITTO_20X_LICENSE = EPL-2.0 or EDLv1.0
 THINGINO_MOSQUITTO_20X_LICENSE_FILES = LICENSE.txt epl-v20 edl-v10

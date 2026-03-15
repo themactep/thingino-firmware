@@ -313,15 +313,14 @@ diff -urNa a/lib/net_mosq.c b/lib/net_mosq.c
  int tls_ex_index_mosq = -1;
  UI_METHOD *_ui_method = NULL;
  
-@@ -146,7 +148,7 @@
- 
+@@ -149,6 +149,6 @@
  void net__cleanup(void)
  {
 -#ifdef WITH_TLS
 +#if defined(WITH_TLS) && defined(WITH_TLS_OPENSSL)
+ 	cleanup_ui_method();
+ 	if(is_tls_initialized){
  #  if OPENSSL_VERSION_NUMBER < 0x10100000L
- 	CRYPTO_cleanup_all_ex_data();
- 	ERR_free_strings();
 @@ -172,7 +174,7 @@
  #endif
  }
