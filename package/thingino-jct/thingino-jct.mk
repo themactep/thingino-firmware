@@ -25,8 +25,14 @@ define THINGINO_JCT_INSTALL_STAGING_CMDS
 		$(STAGING_DIR)/usr/include/json_config.h
 	$(INSTALL) -D -m 0644 $(@D)/src/json.h \
 		$(STAGING_DIR)/usr/include/json.h
+	$(INSTALL) -D -m 0644 $(@D)/src/json-c.pc \
+		$(STAGING_DIR)/usr/lib/pkgconfig/json-c.pc
 	ln -sf libjct.so.1.0.0 $(STAGING_DIR)/usr/lib/libjct.so.1
 	ln -sf libjct.so.1.0.0 $(STAGING_DIR)/usr/lib/libjct.so
+	ln -sf libjct.so.1.0.0 $(STAGING_DIR)/usr/lib/libjson-c.so
+	ln -sf libjct.so.1.0.0 $(STAGING_DIR)/usr/lib/libjson.so
+	ln -sf libjct.a $(STAGING_DIR)/usr/lib/libjson-c.a
+	ln -sf libjct.a $(STAGING_DIR)/usr/lib/libjson.a
 endef
 
 define THINGINO_JCT_INSTALL_TARGET_CMDS
@@ -42,6 +48,10 @@ define THINGINO_JCT_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/include/json.h
 	ln -sf libjct.so.1.0.0 $(TARGET_DIR)/usr/lib/libjct.so.1
 	ln -sf libjct.so.1.0.0 $(TARGET_DIR)/usr/lib/libjct.so
+	ln -sf libjct.so.1.0.0 $(TARGET_DIR)/usr/lib/libjson-c.so
+	ln -sf libjct.so.1.0.0 $(TARGET_DIR)/usr/lib/libjson.so
+	ln -sf libjct.a $(TARGET_DIR)/usr/lib/libjson-c.a
+	ln -sf libjct.a $(TARGET_DIR)/usr/lib/libjson.a
 endef
 
 define HOST_THINGINO_JCT_BUILD_CMDS

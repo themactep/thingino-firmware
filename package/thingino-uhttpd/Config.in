@@ -1,12 +1,12 @@
 config BR2_PACKAGE_THINGINO_UHTTPD
 	bool "thingino-uhttpd"
 	depends on !BR2_STATIC_LIBS # dlopen(), ustream-ssl
-	depends on BR2_TOOLCHAIN_HAS_SYNC_4 # json-c
+	depends on BR2_TOOLCHAIN_HAS_SYNC_4
 	depends on BR2_USE_MMU # fork()
 	depends on !BR2_PACKAGE_UHTTPD # conflicts with buildroot uhttpd
 
 	select BR2_PACKAGE_LIBUBOX
-	select BR2_PACKAGE_JSON_C
+	select BR2_PACKAGE_THINGINO_JCT
 	select BR2_PACKAGE_LIBXCRYPT if BR2_TOOLCHAIN_USES_GLIBC
 	help
 	  uHTTPd web server with HTTPS support and optional Lua scripting.
