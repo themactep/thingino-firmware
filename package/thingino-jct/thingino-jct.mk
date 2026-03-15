@@ -23,6 +23,8 @@ define THINGINO_JCT_INSTALL_STAGING_CMDS
 		$(STAGING_DIR)/usr/lib/libjct.so.1.0.0
 	$(INSTALL) -D -m 0644 $(@D)/src/json_config.h \
 		$(STAGING_DIR)/usr/include/json_config.h
+	$(INSTALL) -D -m 0644 $(@D)/src/json.h \
+		$(STAGING_DIR)/usr/include/json.h
 	ln -sf libjct.so.1.0.0 $(STAGING_DIR)/usr/lib/libjct.so.1
 	ln -sf libjct.so.1.0.0 $(STAGING_DIR)/usr/lib/libjct.so
 endef
@@ -36,6 +38,8 @@ define THINGINO_JCT_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/lib/libjct.a
 	$(INSTALL) -D -m 0644 $(@D)/src/json_config.h \
 		$(TARGET_DIR)/usr/include/json_config.h
+	$(INSTALL) -D -m 0644 $(@D)/src/json.h \
+		$(TARGET_DIR)/usr/include/json.h
 	ln -sf libjct.so.1.0.0 $(TARGET_DIR)/usr/lib/libjct.so.1
 	ln -sf libjct.so.1.0.0 $(TARGET_DIR)/usr/lib/libjct.so
 endef
