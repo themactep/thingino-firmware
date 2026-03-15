@@ -5,15 +5,6 @@ config BR2_PACKAGE_FAAC
 
 	  http://sourceforge.net/projects/faac/
 
-config BR2_PACKAGE_FAAC_ENABLE_DRM
-	bool "Build DRM variant library"
-	default n
-	depends on BR2_PACKAGE_FAAC
-	help
-	  Enable the DRM (Digital Radio Mondiale) variant of libfaac. This
-	  controls the upstream meson enable_drm option and allows the
-	  DRM-specific library to be built and installed.
-
 config BR2_PACKAGE_FAAC_INSTALL_BIN
 	bool "Install faac CLI"
 	default n
