@@ -1,0 +1,5 @@
+config BR2_PACKAGE_HOST_THINGINO_MOSQUITTO_20X
+	bool "host mosquitto (mosquitto_passwd)"
+	select BR2_PACKAGE_HOST_MOSQUITTO
+	help
+	  Wrapper to pull in the upstream host mosquitto_passwd tool.

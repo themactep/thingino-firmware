@@ -1,4 +1,4 @@
-config BR2_PACKAGE_HOST_THINGINO_MOSQUITTO
+config BR2_PACKAGE_HOST_THINGINO_MOSQUITTO_212
 	bool "host mosquitto (mosquitto_passwd)"
 	select BR2_PACKAGE_HOST_MOSQUITTO
 	help

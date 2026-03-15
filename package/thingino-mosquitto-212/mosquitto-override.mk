@@ -14,9 +14,9 @@
 #
 ################################################################################
 
-ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO),y)
+ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_212),y)
 
-ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_USE_MBEDTLS),y)
+ifeq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_212_USE_MBEDTLS),y)
 # mbedTLS backend: swap OpenSSL for mbedtls; keep cjson for client JSON output.
 # -DWITH_TLS=ON overrides mosquitto.mk's -DWITH_TLS=OFF (set when OpenSSL is
 # absent). The second inclusion of this file (via BR2_EXTERNAL_MKS, after
@@ -26,7 +26,7 @@ MOSQUITTO_CONF_OPTS += -DWITH_TLS=ON -DWITH_TLS_BACKEND=mbedtls -DWITH_TLS_PSK=O
 endif
 
 # Unless the Thingino-specific broker option is enabled, force the broker off.
-ifneq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_BROKER),y)
+ifneq ($(BR2_PACKAGE_THINGINO_MOSQUITTO_212_BROKER),y)
 
 MOSQUITTO_CONF_OPTS += -DWITH_BROKER=OFF -DWITH_PLUGINS=OFF -DWITH_APPS=OFF -DWITH_CTRL_SHELL=OFF
 # Strip readline/libedit (and thus ncurses) from the dependency list.
@@ -44,6 +44,6 @@ endef
 
 override MOSQUITTO_USERS =
 
-endif # !BR2_PACKAGE_THINGINO_MOSQUITTO_BROKER
+endif # !BR2_PACKAGE_THINGINO_MOSQUITTO_212_BROKER
 
-endif # BR2_PACKAGE_THINGINO_MOSQUITTO
+endif # BR2_PACKAGE_THINGINO_MOSQUITTO_212
