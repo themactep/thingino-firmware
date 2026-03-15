@@ -36,7 +36,9 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	select BR2_PACKAGE_THINGINO_SOUNDS if BR2_THINGINO_AUDIO
 	select BR2_PACKAGE_EXFAT_NOFUSE if BR2_THINGINO_SDCARD
 	# virtual packages
+	select BR2_PACKAGE_THINGINO_SSL
 	select BR2_PACKAGE_THINGINO_VPN
+	select BR2_PACKAGE_THINGINO_WEBSERVER
 	help
 	  Thingino System Packages
 	  include essential system setup.
@@ -79,11 +81,12 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-system/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-sysupgrade/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ubus/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-uboot/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-uhttpd/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webserver/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webui/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-onvif/Config.in"
+
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-webserver/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-httpd-ssl/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-onvif/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-uhttpd/Config.in"
 endif
 
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
