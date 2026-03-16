@@ -886,3 +886,16 @@ show-vars:
 run:
 	$(info -------------------------------- $@)
 	$(SCRIPTS_DIR)/qemu_run.sh $(OUTPUT_DIR)/target $(_RUN_CMD)
+
+# Catch-all rule: forward undefined targets to buildroot
+# This allows running buildroot targets directly without the br- prefix
+# e.g., "make linux-menuconfig" instead of "make br-linux-menuconfig"
+# Note: This must come after all explicit target definitions
+# Note: check-config is NOT a prerequisite here because:
+#   1. It would break non-buildroot targets (like when this rule incorrectly matched 'update')
+#   2. Buildroot targets will fail gracefully if config is missing
+#   3. Users should use 'make br-<target>' for buildroot targets, which includes check-config
+.DEFAULT:
+	$(info -------------------------------- $@)
+	$(BR2_MAKE) $@
+
