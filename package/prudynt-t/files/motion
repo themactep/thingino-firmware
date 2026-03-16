@@ -19,7 +19,7 @@ MOTION_VIDEO_LENGTH=10
 domain=motion
 
 get_value() {
-        jct /etc/prudynt.json get "motion.$1" 2>/dev/null
+	jct /etc/prudynt.json get "motion.$1" 2>/dev/null
 }
 
 set_enabled() {
