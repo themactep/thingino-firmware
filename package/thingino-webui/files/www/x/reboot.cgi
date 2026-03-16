@@ -6,17 +6,7 @@ require_auth
 
 umount -a -t nfs -l
 sleep 3
-echo "HTTP/1.1 302 Moved Temporarily
-Date: $(TZ=GMT0 date +'%a, %d %b %Y %T %Z')
-Server: $SERVER_SOFTWARE
-Content-type: text/html; charset=UTF-8
-Cache-Control: no-store
-Pragma: no-cache
-Connection: close
-Location: /wait.html
-Status: 302 Moved Temporarily
-"
-echo # separate header
+printf "Status: 302 Found\r\nLocation: /wait.html\r\nContent-Type: text/html; charset=UTF-8\r\nCache-Control: no-store\r\nPragma: no-cache\r\n\r\n"
 echo "I'll be back"
 sleep 1
 reboot -f

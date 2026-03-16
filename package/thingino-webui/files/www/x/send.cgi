@@ -49,15 +49,7 @@ json_ok() {
 # redirect_to "url" "flash class" "flash text"
 redirect_to() {
   #[ -n "$3" ] && alert_append "$2" "$3"
-  echo "HTTP/1.1 303 See Other
-Content-type: text/html; charset=UTF-8
-Cache-Control: no-store
-Pragma: no-cache
-Date: $(TZ=GMT0 date +'%a, %d %b %Y %T %Z')
-Server: $SERVER_SOFTWARE
-Location: $1
-
-"
+  printf "Status: 303 See Other\r\nLocation: %s\r\nContent-Type: text/html; charset=UTF-8\r\nCache-Control: no-store\r\nPragma: no-cache\r\n\r\n" "$1"
   exit 0
 }
 

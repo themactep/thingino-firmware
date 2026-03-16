@@ -1,14 +1,7 @@
 #!/bin/sh
 preview=/tmp/snap0.raw
 date=$(TZ=GMT0 date +'%a, %d %b %Y %T %Z')
-echo "HTTP/1.1 200 OK
-Content-Disposition: attachment; filename=preview-$(date +%s).raw
-Cache-Control: no-store
-Pragma: no-cache
-Date: $date
-Expires: $date
-Connection: close
-"
+printf "Content-Type: application/octet-stream\r\nContent-Disposition: attachment; filename=preview-%s.raw\r\nCache-Control: no-store\r\nPragma: no-cache\r\nExpires: %s\r\n\r\n" "$(date +%s)" "$date"
 echo snapraw 0 > /proc/jz/isp/isp-w02
 echo saveraw 1 > /proc/jz/isp/isp-w02
 cat $preview && rm $preview
