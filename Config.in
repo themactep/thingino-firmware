@@ -135,6 +135,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mosquitto-20x/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mosquitto-212/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-wpa_supplicant/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/wyze-accessory/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/llhttp/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/lightnvr/Config.in"
 
 config BR2_PACKAGE_IFUPDOWN_SCRIPTS

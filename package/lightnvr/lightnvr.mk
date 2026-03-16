@@ -8,7 +8,7 @@ LIGHTNVR_LICENSE_FILES = COPYING
 LIGHTNVR_INSTALL_STAGING = YES
 
 # Dependencies
-LIGHTNVR_DEPENDENCIES = thingino-ffmpeg thingino-libcurl sqlite host-nodejs cjson libuv go2rtc
+LIGHTNVR_DEPENDENCIES = thingino-ffmpeg thingino-libcurl sqlite host-nodejs cjson libuv llhttp go2rtc
 HOST_LIGHTNVR_DEPENDENCIES = host-nodejs
 
 ifeq ($(BR2_PACKAGE_MBEDTLS),y)
@@ -33,6 +33,8 @@ LIGHTNVR_CONF_OPTS = \
 # Build web assets before CMake configuration
 # Web assets are no longer checked into git, so we build them here
 define LIGHTNVR_BUILD_WEB_ASSETS
+	@echo "Generating version.js for web interface..."
+	cd $(@D) && bash scripts/extract_version.sh
 	@echo "Building LightNVR web assets..."
 	cd $(@D)/web && \
 		export PATH=$(HOST_DIR)/bin/:$$PATH && \

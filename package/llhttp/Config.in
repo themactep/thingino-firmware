@@ -1,0 +1,7 @@
+config BR2_PACKAGE_LLHTTP
+	bool "llhttp"
+	help
+	  Port of http_parser to llparse. HTTP request/response parser
+	  library used by Node.js.
+
+	  https://github.com/nodejs/llhttp

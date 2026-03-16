@@ -100,11 +100,18 @@ ifeq ($(KERNEL_HASH),)
 endif
 KERNEL_TARBALL_URL := $(KERNEL_SITE)/archive/$(KERNEL_HASH).tar.gz
 
+ifeq ($(KERNEL_VERSION),4.4.94)
+KERNEL_VERSION_4 := y
+else
+KERNEL_VERSION_4 := n
+endif
+
 export KERNEL_BRANCH
 export KERNEL_HASH
 export KERNEL_SITE
 export KERNEL_TARBALL_URL
 export KERNEL_VERSION
+export KERNEL_VERSION_4
 
 #
 # IMAGE SENSOR
