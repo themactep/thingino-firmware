@@ -16,17 +16,17 @@ THINGINO_UHTTPD_CONF_OPTS += -DTLS_SUPPORT=ON
 
 # mbedTLS backend
 ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS_MBEDTLS),y)
-THINGINO_UHTTPD_DEPENDENCIES += ustream-ssl mbedtls
+THINGINO_UHTTPD_DEPENDENCIES += thingino-ustream-ssl mbedtls
 endif
 
 # mbedTLS backend
 ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS_OPENSSL),y)
-THINGINO_UHTTPD_DEPENDENCIES += ustream-ssl openssl
+THINGINO_UHTTPD_DEPENDENCIES += thingino-ustream-ssl openssl
 endif
 
 # wolfSSL backend
 ifeq ($(BR2_PACKAGE_THINGINO_UHTTPD_TLS_WOLFSSL),y)
-THINGINO_UHTTPD_DEPENDENCIES += ustream-ssl thingino-wolfssl
+THINGINO_UHTTPD_DEPENDENCIES += thingino-ustream-ssl thingino-wolfssl
 endif
 
 # Ensure at least one SSL backend is selected when TLS is enabled

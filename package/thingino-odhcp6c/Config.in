@@ -1,0 +1,19 @@
+config BR2_PACKAGE_THINGINO_ODHCP6C
+	bool "thingino-odhcp6c"
+	depends on BR2_USE_MMU # fork()
+	depends on !BR2_STATIC_LIBS
+	depends on BR2_TOOLCHAIN_HAS_SYNC_4
+	select BR2_PACKAGE_THINGINO_LIBUBOX
+	help
+	  odhcp6c is a minimal DHCPv6 and RA-client for use in
+	  embedded Linux systems, especially routers.
+
+	  This is the Thingino-managed variant wired to thingino-libubox
+	  and thingino-jct instead of upstream libubox/json-c.
+
+	  https://git.openwrt.org/project/odhcp6c.git
+
+comment "thingino-odhcp6c needs a toolchain w/ dynamic library"
+	depends on BR2_USE_MMU
+	depends on BR2_STATIC_LIBS
+	depends on BR2_TOOLCHAIN_HAS_SYNC_4

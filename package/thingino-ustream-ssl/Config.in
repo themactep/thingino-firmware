@@ -1,0 +1,15 @@
+config BR2_PACKAGE_THINGINO_USTREAM_SSL
+	bool "thingino-ustream-ssl"
+	depends on !BR2_STATIC_LIBS
+	depends on BR2_TOOLCHAIN_HAS_SYNC_4
+	select BR2_PACKAGE_THINGINO_LIBUBOX
+	select BR2_PACKAGE_OPENSSL if !BR2_PACKAGE_MBEDTLS && !BR2_PACKAGE_THINGINO_WOLFSSL
+	help
+	  ustream SSL wrapper - Thingino-managed variant wired to
+	  thingino-libubox/thingino-jct instead of upstream libubox/json-c.
+
+	  https://git.openwrt.org/?p=project/ustream-ssl.git;a=summary
+
+comment "thingino-ustream-ssl needs a toolchain w/ dynamic library"
+	depends on BR2_STATIC_LIBS
+	depends on BR2_TOOLCHAIN_HAS_SYNC_4
