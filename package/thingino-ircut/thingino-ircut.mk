@@ -1,5 +1,5 @@
 THINGINO_IRCUT_SITE_METHOD = local
-THINGINO_IRCUT_SITE = $(BR2_EXTERNAL)/package/thingino-ircut
+THINGINO_IRCUT_SITE = $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-ircut
 
 define THINGINO_IRCUT_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/files/S06ircut $(TARGET_DIR)/etc/init.d/S06ircut

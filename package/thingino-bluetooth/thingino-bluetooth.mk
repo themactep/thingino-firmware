@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-THINGINO_BLUETOOTH_SITE = $(BR2_EXTERNAL)/package/thingino-bluetooth
+THINGINO_BLUETOOTH_SITE = $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-bluetooth
 THINGINO_BLUETOOTH_SITE_METHOD = local
 THINGINO_BLUETOOTH_LICENSE = MIT
 THINGINO_BLUETOOTH_LICENSE_FILES = LICENSE

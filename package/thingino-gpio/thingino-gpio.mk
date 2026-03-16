@@ -1,5 +1,5 @@
 THINGINO_GPIO_SITE_METHOD = local
-THINGINO_GPIO_SITE = $(BR2_EXTERNAL)/package/thingino-gpio
+THINGINO_GPIO_SITE = $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-gpio
 
 define THINGINO_GPIO_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/files/gpio.conf $(TARGET_DIR)/etc/gpio.conf
