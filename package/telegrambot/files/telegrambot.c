@@ -295,7 +295,7 @@ static void make_url(char *buf, size_t bufsz, const Config *cfg, const char *met
 static long read_long(JsonValue *obj, const char *key, long def) {
   JsonValue *it = get_nested_item(obj, key);
   if (it && it->type == JSON_NUMBER) {
-    return (long)it->value.number;
+    return (long)it->value.number.integer;
   }
   return def;
 }
@@ -470,7 +470,7 @@ static int load_config_file(const char *path, Config *cfg) {
     for (int i = 0; i < n && cfg->allowed_count < (int)(sizeof(cfg->allowed_ids) / sizeof(cfg->allowed_ids[0])); ++i) {
       JsonValue *el = get_array_item(arr, i);
       if (el && el->type == JSON_NUMBER)
-        cfg->allowed_ids[cfg->allowed_count++] = (long long)el->value.number;
+        cfg->allowed_ids[cfg->allowed_count++] = (long long)el->value.number.integer;
     }
   }
 
@@ -632,7 +632,7 @@ static void process_update(const Config *cfg, JsonValue *upd) {
   JsonValue *cidv = get_object_item(chat, "id");
   if (!cidv || cidv->type != JSON_NUMBER)
     return;
-  long long chat_id = (long long)cidv->value.number;
+  long long chat_id = (long long)cidv->value.number.integer;
 
   // Username check
   const char *username = NULL;
@@ -734,7 +734,7 @@ static int poll_once(const Config *cfg, long *offset_io) {
   if (!ok->value.boolean) {
     JsonValue *err = get_object_item(root, "error_code");
     JsonValue *desc = get_object_item(root, "description");
-    if (err && err->type == JSON_NUMBER && (long)err->value.number == 409 && desc && desc->type == JSON_STRING &&
+    if (err && err->type == JSON_NUMBER && (long)err->value.number.integer == 409 && desc && desc->type == JSON_STRING &&
         strcmp(desc->value.string,
                "Conflict: terminated by other getUpdates request; make sure that only one bot instance is running") ==
             0) {
@@ -756,7 +756,7 @@ static int poll_once(const Config *cfg, long *offset_io) {
     JsonValue *upd = get_array_item(res, i);
     // Track update_id
     JsonValue *uidv = upd && upd->type == JSON_OBJECT ? get_object_item(upd, "update_id") : NULL;
-    long uid = (uidv && uidv->type == JSON_NUMBER) ? (long)uidv->value.number : 0;
+    long uid = (uidv && uidv->type == JSON_NUMBER) ? (long)uidv->value.number.integer : 0;
     if (uid > *offset_io)
       *offset_io = uid;
     process_update(cfg, upd);

@@ -214,25 +214,25 @@ static int read_config(const char *config_file) {
     /* Brightness thresholds */
     v = get_nested_item(root, "brightness.threshold_low");
     if (v && v->type == JSON_NUMBER) {
-        g_config.threshold_low = (float)v->value.number;
+        g_config.threshold_low = (float)v->value.number.real;
     }
     v = get_nested_item(root, "brightness.threshold_high");
     if (v && v->type == JSON_NUMBER) {
-        g_config.threshold_high = (float)v->value.number;
+        g_config.threshold_high = (float)v->value.number.real;
     }
     v = get_nested_item(root, "brightness.hysteresis_factor");
     if (v && v->type == JSON_NUMBER) {
-        g_config.hysteresis_factor = (float)v->value.number;
+        g_config.hysteresis_factor = (float)v->value.number.real;
     }
 
     /* Timing configuration */
     v = get_nested_item(root, "timing.sample_interval_ms");
     if (v && v->type == JSON_NUMBER) {
-        g_config.sample_interval_ms = (int)v->value.number;
+        g_config.sample_interval_ms = (int)v->value.number.integer;
     }
     v = get_nested_item(root, "timing.transition_delay_s");
     if (v && v->type == JSON_NUMBER) {
-        g_config.transition_delay_s = (int)v->value.number;
+        g_config.transition_delay_s = (int)v->value.number.integer;
     }
 
     /* System configuration */
