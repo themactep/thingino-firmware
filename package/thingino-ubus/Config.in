@@ -1,0 +1,22 @@
+comment "thingino-ubus needs a toolchain w/ dynamic library"
+	depends on BR2_TOOLCHAIN_HAS_SYNC_4
+	depends on BR2_STATIC_LIBS
+
+config BR2_PACKAGE_THINGINO_UBUS
+	bool "thingino-ubus"
+	depends on BR2_TOOLCHAIN_HAS_SYNC_4
+	depends on !BR2_STATIC_LIBS
+	select BR2_PACKAGE_THINGINO_LIBUBOX
+	select BR2_PACKAGE_THINGINO_JCT
+	help
+	  Thingino-managed ubus package wired to the external
+	  libubox and thingino-jct stack.
+
+if BR2_PACKAGE_THINGINO_UBUS
+
+config BR2_PACKAGE_THINGINO_UBUS_EXAMPLES
+	bool "build and install ubus examples"
+	help
+	  Build and install client and server ubus examples.
+
+endif

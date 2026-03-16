@@ -1,0 +1,11 @@
+config BR2_PACKAGE_THINGINO_LIBUBOX
+	bool "thingino-libubox"
+	depends on !BR2_STATIC_LIBS
+	depends on BR2_TOOLCHAIN_HAS_SYNC_4
+	select BR2_PACKAGE_THINGINO_JCT
+	help
+	  Thingino-managed libubox package wired to thingino-jct for
+	  json-c compatibility.
+
+	  This package provides the OpenWrt libubox libraries and
+	  blobmsg/json helpers from the external tree.

@@ -5,7 +5,7 @@ config BR2_PACKAGE_THINGINO_UHTTPD
 	depends on BR2_USE_MMU # fork()
 	depends on !BR2_PACKAGE_UHTTPD # conflicts with buildroot uhttpd
 
-	select BR2_PACKAGE_LIBUBOX
+	select BR2_PACKAGE_THINGINO_LIBUBOX
 	select BR2_PACKAGE_THINGINO_JCT
 	select BR2_PACKAGE_LIBXCRYPT if BR2_TOOLCHAIN_USES_GLIBC
 	help
@@ -104,7 +104,7 @@ config BR2_PACKAGE_THINGINO_UHTTPD_LUA
 
 config BR2_PACKAGE_THINGINO_UHTTPD_UBUS
 	bool "Enable ubus support"
-	depends on BR2_PACKAGE_UBUS
+	select BR2_PACKAGE_THINGINO_UBUS
 	help
 	  Enable ubus support for inter-process communication
 	  with other system services.
