@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-THINGINO_USTREAM_SSL_VERSION = 5a81c108d20e24724ed847cc4be033f2a74e6635
+THINGINO_USTREAM_SSL_VERSION = 99f1c0db5a729f615bc5114b3b52fd8ac8083f34
 THINGINO_USTREAM_SSL_SITE = https://git.openwrt.org/project/ustream-ssl.git
 THINGINO_USTREAM_SSL_SITE_METHOD = git
 THINGINO_USTREAM_SSL_LICENSE = ISC
