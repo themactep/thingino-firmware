@@ -1,0 +1,67 @@
+# SoC Database for Thingino Firmware
+# Format: model,family,arch,ram_mb,uboot_board_nor,uboot_board_nand
+# arch: 1=xburst1, 2=xburst2
+# uboot_board_nand: use "-" if NAND not supported, or same as NOR if naming is same
+
+# T10 Family
+t10l,t10,1,64,isvp_t10_sfcnor_lite,-
+t10n,t10,1,64,isvp_t10_sfcnor,-
+t10a,t10,1,64,isvp_t10_sfcnor,-
+
+# T20 Family
+t20l,t20,1,64,isvp_t20_sfcnor_lite,-
+t20n,t20,1,64,isvp_t20_sfcnor,-
+t20x,t20,1,128,isvp_t20_sfcnor_ddr128M,-
+t20z,t20,1,64,isvp_t20_sfcnor,-
+
+# T21 Family
+t21l,t21,1,64,isvp_t21_sfcnor,-
+t21n,t21,1,64,isvp_t21_sfcnor,-
+t21x,t21,1,128,isvp_t21_sfcnor,-
+t21zn,t21,1,64,isvp_t21_sfcnor,-
+t21zl,t21,1,64,isvp_t21_sfcnor,-
+
+# T23 Family
+t23n,t23,1,64,isvp_t23n_sfcnor,-
+t23dl,t23,1,32,isvp_t23dl_sfcnor,-
+t23zn,t23,1,64,isvp_t23n_sfcnor,-
+
+# T30 Family
+t30l,t30,1,64,isvp_t30_sfcnor_lite,-
+t30n,t30,1,64,isvp_t30_sfcnor,-
+t30x,t30,1,128,isvp_t30_sfcnor_ddr128M,-
+t30a,t30,1,128,isvp_t30a_sfcnor_ddr128M,-
+
+# T31 Family
+t31l,t31,1,64,isvp_t31_sfcnor_lite,isvp_t31_sfcnand_lite
+t31lc,t31,1,64,isvp_t31lc_sfcnor,-
+t31n,t31,1,64,isvp_t31_sfcnor,isvp_t31_sfcnand
+t31x,t31,1,128,isvp_t31_sfcnor_ddr128M,isvp_t31_sfcnand_ddr128M
+t31a,t31,1,128,isvp_t31a_sfcnor_ddr128M,isvp_t31a_sfcnand_ddr128M
+t31al,t31,1,128,isvp_t31al_sfcnor_ddr128M,isvp_t31al_sfcnand_ddr128M
+t31zl,t31,1,64,isvp_t31_sfcnor_lite,isvp_t31_sfcnand_lite
+t31zx,t31,1,128,isvp_t31_sfcnor_ddr128M,isvp_t31_sfcnand_ddr128M
+
+# C100 Family (special case, see script for kernel version handling)
+c100,t31,1,128,isvp_c100_sfcnor,isvp_c100_sfcnand
+
+# T40 Family
+t40n,t40,2,128,isvp_t40n_sfcnor,isvp_t40n_sfcnand
+t40nn,t40,2,128,isvp_t40n_sfcnor,isvp_t40n_sfcnand
+t40xp,t40,2,256,isvp_t40xp_sfcnor,isvp_t40xp_sfcnand
+t40a,t40,2,128,isvp_t40a_sfcnor,isvp_t40a_sfcnand
+
+# T41 Family
+t41lq,t41,2,64,isvp_t41lq_sfc_nor,isvp_t41lq_sfc0_nand
+t41nq,t41,2,128,isvp_t41nq_sfc_nor,isvp_t41nq_sfc0_nand
+t41zl,t41,2,64,isvp_t41l_sfc_nor,isvp_t41l_sfc0_nand
+t41zn,t41,2,128,isvp_t41n_sfc_nor,isvp_t41n_sfc0_nand
+t41zx,t41,2,256,isvp_t41zx_sfc_nor,isvp_t41zx_sfc0_nand
+t41a,t41,2,512,isvp_t41a_sfc_nor,isvp_t41a_sfc0_nand
+
+# A1 Family
+a1n,a1,2,256,isvp_a1_all_lzma_sfc0nor,-
+a1nt,a1,2,256,isvp_a1_all_lzma_sfc0nor,-
+a1x,a1,2,256,isvp_a1_all_lzma_sfc0nor,-
+a1l,a1,2,128,isvp_a1_all_lzma_sfc0nor,-
+a1a,a1,2,512,isvp_a1_all_lzma_sfc0nor,-
