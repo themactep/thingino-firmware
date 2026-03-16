@@ -1,0 +1,50 @@
+From: Thingino <dev@thingino.com>
+Date: Mon, 16 Mar 2026 00:00:00 +0000
+Subject: [PATCH] fix jct JsonNumberValue struct access
+
+After the jct library upgrade, JsonValue.value.number changed from a
+plain double to a JsonNumberValue struct {kind, integer, real}.  Update
+all three call sites in motor.c and motor-daemon.c that cast or compare
+the field directly.
+
+---
+ src/motor.c        | 4 +++-
+ src/motor-daemon.c | 8 ++++++--
+ 2 files changed, 9 insertions(+), 3 deletions(-)
+
+--- a/src/motor.c
++++ b/src/motor.c
+@@ -40,7 +40,9 @@
+     return 0;
+ 
+   if (value->type == JSON_NUMBER) {
+-    *out = (int)value->value.number;
++    *out = (int)(value->value.number.kind == JSON_NUMBER_INT
++                     ? value->value.number.integer
++                     : value->value.number.real);
+     return 1;
+   }
+ 
+--- a/src/motor-daemon.c
++++ b/src/motor-daemon.c
+@@ -74,7 +74,9 @@
+     return 0;
+ 
+   if (value->type == JSON_NUMBER) {
+-    *out = (int)value->value.number;
++    *out = (int)(value->value.number.kind == JSON_NUMBER_INT
++                     ? value->value.number.integer
++                     : value->value.number.real);
+     return 1;
+   }
+ 
+@@ -116,7 +118,9 @@
+   }
+ 
+   if (value->type == JSON_NUMBER) {
+-    *out = (value->value.number != 0);
++    *out = (value->value.number.kind == JSON_NUMBER_INT
++                ? value->value.number.integer != 0
++                : value->value.number.real != 0.0);
+     return 1;
+   }
