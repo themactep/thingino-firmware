@@ -1,0 +1,6 @@
+config BR2_PACKAGE_INGENIC_UCLIBC
+	bool "ingenic-uclibc"
+	depends on BR2_TOOLCHAIN_USES_UCLIBC
+	help
+	  Compatibility shim for Ingenic libraries with uClibc toolchain.
+	  Provides glibc-specific functions that Ingenic libraries expect.

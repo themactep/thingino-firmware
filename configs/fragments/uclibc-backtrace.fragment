@@ -1,0 +1,2 @@
+# Enable backtrace support in uclibc-ng for crash diagnostics
+BR2_UCLIBC_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_THINGINO_PATH)/configs/fragments/uclibc/backtrace.config"
