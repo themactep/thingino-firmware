@@ -67,10 +67,10 @@ XBURST_VER := $(shell $(TOPDIR)/scripts/get_soc_params.sh $(SOC_MODEL) arch)
 # Set architecture variables
 ifeq ($(XBURST_VER),1)
     BR2_XBURST_1 := y
-    INGENIC_ARCH := xburst1
+    SOC_ARCH := xburst1
 else
     BR2_XBURST_2 := y
-    INGENIC_ARCH := xburst2
+    SOC_ARCH := xburst2
 endif
 
 # Get U-Boot board name based on flash type
@@ -83,8 +83,8 @@ endif
 
 ## Benefits
 
-✅ **Single source of truth** - All SoC data in one file  
-✅ **Easy maintenance** - Add new SoCs by adding one line  
-✅ **Reduced errors** - No more copy-paste mistakes  
-✅ **Better readability** - Tabular data vs 390 lines of ifeq  
+✅ **Single source of truth** - All SoC data in one file
+✅ **Easy maintenance** - Add new SoCs by adding one line
+✅ **Reduced errors** - No more copy-paste mistakes
+✅ **Better readability** - Tabular data vs 390 lines of ifeq
 ✅ **Documentation** - Database serves as SoC reference

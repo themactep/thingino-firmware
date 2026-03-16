@@ -1,5 +1,5 @@
 # NAME: Jooan W3-U (T23N, SC2336P, ETH, ATBM6132U)
-# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot ssl
 BR2_ETHERNET=y
 BR2_ISP_CLK_200MHZ=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0=y
@@ -7,7 +7,7 @@ BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y
 BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_ATBM6132U=y
 BR2_SENSOR_1_NAME="sc2336p"
-BR2_SOC_INGENIC_T23N=y
+BR2_INGENIC_SOC_MODEL="t23n"
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_AUDIO_GPIO=63
 BR2_THINGINO_AUDIO_GPIO_LOW=y

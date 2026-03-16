@@ -1,6 +1,6 @@
 config BR2_PACKAGE_PRUDYNT_T
 	bool "Prudynt-T streamer"
-	depends on !BR2_SOC_FAMILY_INGENIC_A1
+	depends on !BR2_SOC_FAMILY = "a1"
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
 	select BR2_PACKAGE_INGENIC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC
@@ -115,9 +115,9 @@ config BR2_PACKAGE_PRUDYNT_T_FFMPEG
 config BR2_PACKAGE_PRUDYNT_T_PREBUFFER
 	bool "Enable pre-trigger buffer for motion events"
 	depends on BR2_PACKAGE_PRUDYNT_T
-	default y if BR2_SOC_FAMILY_INGENIC_T31
-	default y if BR2_SOC_FAMILY_INGENIC_T40
-	default y if BR2_SOC_FAMILY_INGENIC_T41
+	default y if BR2_SOC_FAMILY = "t31"
+	default y if BR2_SOC_FAMILY = "t40"
+	default y if BR2_SOC_FAMILY = "t41"
 	default n
 	help
 	  Enable pre-trigger video buffer to capture frames before motion

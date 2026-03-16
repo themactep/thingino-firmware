@@ -53,8 +53,8 @@ endef
 LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
 
 define WIFI_WS73V100_INSTALL_CONFIGS
-	$(INSTALL) -m 0755 -d $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
-	touch $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/modules.builtin.modinfo
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/lib/modules/$(KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
+	touch $(TARGET_DIR)/lib/modules/$(KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/modules.builtin.modinfo
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/share/wifi
 	$(INSTALL) -D -m 0644 $(@D)/output/bin/ws73_cfg.ini \
@@ -69,10 +69,10 @@ WIFI_WS73V100_POST_INSTALL_TARGET_HOOKS += WIFI_WS73V100_INSTALL_CONFIGS
 
 define WIFI_WS73V100_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/output/bin/ws73v100.ko \
-		$(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/extra/ws73v100.ko
+		$(TARGET_DIR)/lib/modules/$(KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/extra/ws73v100.ko
 
 	$(INSTALL) -D -m 0755 $(@D)/output/bin/ws73v100_plat.ko \
-		$(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/extra/ws73v100_plat.ko
+		$(TARGET_DIR)/lib/modules/$(KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))/extra/ws73v100_plat.ko
 endef
 
 $(eval $(kernel-module))

@@ -286,13 +286,13 @@ bootstrap:
 	$(info -------------------------------- $@)
 	$(SCRIPTS_DIR)/dep_check.sh
 
-build: $(U_BOOT_ENV_TXT)
+build: BR2_MAKE_JOBS =
+build: $(U_BOOT_BIN) $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) all
 
-build_fast: $(U_BOOT_ENV_TXT)
+build_fast: BR2_MAKE_JOBS = -j$(shell nproc)
+build_fast: $(U_BOOT_BIN) $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) -j$(shell nproc) all
 
 ### Configuration
 
@@ -350,11 +350,28 @@ force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.ke
 	for i in $(FRAGMENTS); do \
 		echo "** add configs/fragments/$$i.fragment"; \
 		echo "# $$i.fragment" >> $(OUTPUT_DIR)/.config; \
-		sed 's/$$(BR2_HOSTARCH)/$(BR2_HOSTARCH)/g; s/$$(INGENIC_ARCH)/$(INGENIC_ARCH)/g' configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
+		sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
 		echo >>$(OUTPUT_DIR)/.config; \
 	done
+	# add kernel-specific headers based on SOC requirements
+	# @if [ "$(SOC_FAMILY)" = "t23" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ] || [ "$(SOC_FAMILY)" = "a1" ]; then
+	@if [ "$(KERNEL_VERSION_4)" = "y" ]; then \
+		echo "** add kernel headers: 4.4 (SOC: $(SOC_FAMILY))"; \
+		echo "BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_4_4=y" >>$(OUTPUT_DIR)/.config; \
+		echo "BR2_TOOLCHAIN_EXTERNAL_HEADERS_4_4=y" >>$(OUTPUT_DIR)/.config; \
+	else \
+		echo "** add kernel headers: 3.10 (SOC: $(SOC_FAMILY))"; \
+		echo "BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_3_10=y" >>$(OUTPUT_DIR)/.config; \
+		echo "BR2_TOOLCHAIN_EXTERNAL_HEADERS_3_10=y" >>$(OUTPUT_DIR)/.config; \
+	fi; \
+	echo >>$(OUTPUT_DIR)/.config
 	# add camera configuration
-	cat $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+	sed 's/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' $(CAMERA_CONFIG_REAL) >>$(OUTPUT_DIR)/.config
+	# add SOC-derived values
+	@echo "# SOC-derived configuration" >>$(OUTPUT_DIR)/.config
+	@echo 'BR2_SOC_FAMILY="$(SOC_FAMILY)"' >>$(OUTPUT_DIR)/.config
+	@echo 'BR2_SOC_RAM_MB=$(SOC_RAM_MB)' >>$(OUTPUT_DIR)/.config
+	@echo >>$(OUTPUT_DIR)/.config
 	if [ $(RELEASE) -ne 1 ]; then \
 		if [ -f $(THINGINO_USER_DIR)/local.fragment ]; then \
 			cat $(THINGINO_USER_DIR)/local.fragment >>$(OUTPUT_DIR)/.config; \
@@ -464,9 +481,6 @@ clean-config:
 	$(info -------------------------------- $@)
 	rm -f $(OUTPUT_DIR)/.config $(CONFIG_DEPS_FILE) $(OUTPUT_DIR)/.config_original
 
-select-device:
-	$(info -------------------------------- $@)
-
 # call configurator
 menuconfig: check-config $(OUTPUT_DIR)/.config
 	$(info -------------------------------- $@)
@@ -532,36 +546,29 @@ distclean: clean-nfs-debug
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
 # assemble final images
-pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
+pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT) $(ROOTFS_TAR)
 	$(info -------------------------------- $@)
-	$(info ALIGNMENT: $(ALIGN_BLOCK))
-	$(info  )
-	$(info $(shell printf "%-7s | %8s | %8s | %8s | %8s | %8s | %8s |" NAME OFFSET PT_SIZE CONTENT ALIGNED END LOSS))
-	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" U_BOOT $(U_BOOT_OFFSET) $(U_BOOT_PARTITION_SIZE) $(U_BOOT_BIN_SIZE) $(U_BOOT_BIN_SIZE_ALIGNED) $$(($(U_BOOT_OFFSET) + $(U_BOOT_BIN_SIZE_ALIGNED))) $$(($(U_BOOT_PARTITION_SIZE) - $(U_BOOT_BIN_SIZE_ALIGNED))) ))
-	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" UB_ENV $(UB_ENV_OFFSET) $(UB_ENV_PARTITION_SIZE) $(UB_ENV_BIN_SIZE) $(UB_ENV_BIN_SIZE_ALIGNED) $$(($(UB_ENV_OFFSET) + $(UB_ENV_BIN_SIZE_ALIGNED))) $$(($(UB_ENV_PARTITION_SIZE) - $(UB_ENV_BIN_SIZE_ALIGNED))) ))
-	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" CONFIG $(CONFIG_OFFSET) $(CONFIG_PARTITION_SIZE) $(CONFIG_BIN_SIZE) $(CONFIG_BIN_SIZE_ALIGNED) $$(($(CONFIG_OFFSET) + $(CONFIG_BIN_SIZE_ALIGNED))) $$(($(CONFIG_PARTITION_SIZE) - $(CONFIG_BIN_SIZE_ALIGNED))) ))
-	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" KERNEL $(KERNEL_OFFSET) $(KERNEL_PARTITION_SIZE) $(KERNEL_BIN_SIZE) $(KERNEL_PARTITION_SIZE) $$(($(KERNEL_OFFSET) + $(KERNEL_PARTITION_SIZE))) $$(($(KERNEL_PARTITION_SIZE) - $(KERNEL_PARTITION_SIZE))) ))
-	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" ROOTFS $(ROOTFS_OFFSET) $(ROOTFS_PARTITION_SIZE) $(ROOTFS_BIN_SIZE) $(ROOTFS_PARTITION_SIZE) $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))) $$(($(ROOTFS_PARTITION_SIZE) - $(ROOTFS_PARTITION_SIZE))) ))
-	$(info $(shell printf "%-7s | %8d | %8d | %8d | %8d | %8d | %8d |" EXTRAS $(EXTRAS_OFFSET) $(EXTRAS_PARTITION_SIZE) $(EXTRAS_BIN_SIZE) $(EXTRAS_BIN_SIZE_ALIGNED) $$(($(EXTRAS_OFFSET) + $(EXTRAS_BIN_SIZE_ALIGNED))) $$(($(EXTRAS_PARTITION_SIZE) - $(EXTRAS_BIN_SIZE_ALIGNED))) ))
-	$(info  )
-	$(info $(shell printf "%-7s | %8s | %8s | %8s | %8s | %8s | %8s |" NAME OFFSET PT_SIZE CONTENT ALIGNED END LOSS))
-	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" U_BOOT $(U_BOOT_OFFSET) $(U_BOOT_PARTITION_SIZE) $(U_BOOT_BIN_SIZE) $(U_BOOT_BIN_SIZE_ALIGNED) $$(($(U_BOOT_OFFSET) + $(U_BOOT_BIN_SIZE_ALIGNED))) $$(($(U_BOOT_PARTITION_SIZE) - $(U_BOOT_BIN_SIZE_ALIGNED))) ))
-	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" ENV $(UB_ENV_OFFSET) $(UB_ENV_PARTITION_SIZE) $(UB_ENV_BIN_SIZE) $(UB_ENV_BIN_SIZE_ALIGNED) $$(($(UB_ENV_OFFSET) + $(UB_ENV_BIN_SIZE_ALIGNED))) $$(($(UB_ENV_PARTITION_SIZE) - $(UB_ENV_BIN_SIZE_ALIGNED))) ))
-	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" CONFIG $(CONFIG_OFFSET) $(CONFIG_PARTITION_SIZE) $(CONFIG_BIN_SIZE) $(CONFIG_BIN_SIZE_ALIGNED) $$(($(CONFIG_OFFSET) + $(CONFIG_BIN_SIZE_ALIGNED))) $$(($(CONFIG_PARTITION_SIZE) - $(CONFIG_BIN_SIZE_ALIGNED))) ))
-	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" KERNEL $(KERNEL_OFFSET) $(KERNEL_PARTITION_SIZE) $(KERNEL_BIN_SIZE) $(KERNEL_PARTITION_SIZE) $$(($(KERNEL_OFFSET) + $(KERNEL_PARTITION_SIZE))) $$(($(KERNEL_PARTITION_SIZE) - $(KERNEL_PARTITION_SIZE))) ))
-	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" ROOTFS $(ROOTFS_OFFSET) $(ROOTFS_PARTITION_SIZE) $(ROOTFS_BIN_SIZE) $(ROOTFS_PARTITION_SIZE) $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))) $$(($(ROOTFS_PARTITION_SIZE) - $(ROOTFS_PARTITION_SIZE))) ))
-	$(info $(shell printf "%-7s | %08X | %08X | %08X | %08X | %08X | %08X |" EXTRAS $(EXTRAS_OFFSET) $(EXTRAS_PARTITION_SIZE) $(EXTRAS_BIN_SIZE) $(EXTRAS_BIN_SIZE_ALIGNED) $$(($(EXTRAS_OFFSET) + $(EXTRAS_BIN_SIZE_ALIGNED))) $$(($(EXTRAS_PARTITION_SIZE) - $(EXTRAS_BIN_SIZE_ALIGNED))) ))
-	$(info  )
-
+	$(info Aligned at: $(ALIGN_BLOCK))
+	$(info U-Boot Env: $(shell strings $(UB_ENV_BIN) 2>/dev/null | grep "^mtdparts" || echo "mtdparts not found"))
+	$(info Generated:  mtdparts=jz_sfc:$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(UPGRADE_SIZE_KB)k@$(shell printf '0x%x' $(KERNEL_OFFSET))(upgrade),$(FLASH_SIZE_KB)k@0(all))
 	@rm -f $(FIRMWARE_BIN_FULL).sha256sum
 	@echo "$(shell echo \# $(CAMERA))" >> $(FIRMWARE_BIN_FULL).sha256sum
 	@echo "# ${GIT_BRANCH}+${GIT_HASH}, ${BUILD_DATE}" >> "$(FIRMWARE_BIN_FULL).sha256sum"
 	@sha256sum $(FIRMWARE_BIN_FULL) | awk '{print $$1 "  " filename}' filename="$(FIRMWARE_NAME_FULL)" >> $(FIRMWARE_BIN_FULL).sha256sum
-
 	@rm -f $(FIRMWARE_BIN_NOBOOT).sha256sum
 	@echo "$(shell echo \# $(CAMERA))" >> $(FIRMWARE_BIN_NOBOOT).sha256sum
 	@echo "# ${GIT_BRANCH}+${GIT_HASH}, ${BUILD_DATE}" >> "$(FIRMWARE_BIN_NOBOOT).sha256sum"
 	@sha256sum $(FIRMWARE_BIN_NOBOOT) | awk '{print $$1 "  " filename}' filename="$(FIRMWARE_NAME_NOBOOT)" >> $(FIRMWARE_BIN_NOBOOT).sha256sum
+	@$(BR2_EXTERNAL)/scripts/save_partition_info.py "$(OUTPUT_DIR)/images/$(CAMERA).md" \
+		"$(CAMERA)" $(GIT_BRANCH) $(GIT_HASH) $(BUILD_DATE) "$(UB_ENV_BIN)" \
+		$(U_BOOT_OFFSET) $(U_BOOT_PARTITION_SIZE) $(U_BOOT_BIN_SIZE) $(U_BOOT_BIN_SIZE_ALIGNED) \
+		$(UB_ENV_OFFSET) $(UB_ENV_PARTITION_SIZE) $(UB_ENV_BIN_SIZE) $(UB_ENV_BIN_SIZE_ALIGNED) \
+		$(CONFIG_OFFSET) $(CONFIG_PARTITION_SIZE) $(CONFIG_BIN_SIZE) $(CONFIG_BIN_SIZE_ALIGNED) \
+		$(KERNEL_OFFSET) $(KERNEL_PARTITION_SIZE) $(KERNEL_BIN_SIZE) \
+		$(ROOTFS_OFFSET) $(ROOTFS_PARTITION_SIZE) $(ROOTFS_BIN_SIZE) \
+		$(U_BOOT_SIZE_KB) $(UB_ENV_SIZE_KB) $(CONFIG_SIZE_KB) $(KERNEL_SIZE_KB) $(ROOTFS_SIZE_KB) \
+		$(UPGRADE_SIZE_KB) $(FLASH_SIZE_KB) && \
+		cat $(OUTPUT_DIR)/images/$(CAMERA).md
 	@$(FIGLET) $(CAMERA)
 	@$(FIGLET) $(GIT_BRANCH)
 	@if [ "$(RELEASE)" -ne 1 ]; then $(FIGLET) "NON-SECURE"; fi
@@ -575,13 +582,13 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT)
 	@echo "--------------------------------"
 
 # rebuild a package with smart configuration check
-rebuild-%: check-config
+rebuild-%: force-config
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
 
 remove_bins:
 	$(info -------------------------------- $@)
-	rm -f $(KERNEL_BIN) $(ROOTFS_BIN) $(EXTRAS_BIN)
+	rm -f $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(EXTRAS_BIN)
 
 repack: remove_bins pack
 	$(info -------------------------------- $@)
@@ -702,14 +709,6 @@ $(OUTPUT_DIR)/.config:
 	$(info -------------------------------- $@)
 	$(MAKE) force-config
 
-$(U_BOOT_ENV_TXT): $(OUTPUT_DIR)/.config
-	$(info -------------------------------- $@)
-	touch $@
-	grep -v '^#' $(BR2_EXTERNAL)/configs/common.uenv.txt | awk NF | tee -a $@
-	grep -v '^#' $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt | awk NF | tee -a $@
-	grep -v '^#' $(THINGINO_USER_DIR)/local.uenv.txt | awk NF | tee -a $@
-	sort -u -o $@ $@
-
 $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(EXTRAS_BIN)
 	$(info -------------------------------- $@)
 	# create a blank slab
@@ -730,10 +729,6 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(
 $(FIRMWARE_BIN_NOBOOT): $(FIRMWARE_BIN_FULL)
 	$(info -------------------------------- $@)
 	dd if=$(FIRMWARE_BIN_FULL) of=$@ bs=$(FIRMWARE_NOBOOT_SIZE) count=1 skip=$(KERNEL_OFFSET)B
-
-$(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
-	$(info -------------------------------- $@)
-	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_TXT)
 
 # create config partition image
 $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
@@ -772,23 +767,50 @@ $(EXTRAS_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 # rebuild kernel
 $(KERNEL_BIN):
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) linux-rebuild
+	$(BR2_MAKE) $(BR2_MAKE_JOBS) linux-rebuild
 #	mv -vf $(OUTPUT_DIR)/images/uImage $@
 
-# rebuild rootfs
-$(ROOTFS_BIN):
+# rebuild rootfs (depends on kernel to ensure proper build order)
+$(ROOTFS_BIN): $(KERNEL_BIN)
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) all
+	$(BR2_MAKE) $(BR2_MAKE_JOBS) rootfs-squashfs
+
+$(U_BOOT_ENV_TXT): $(ROOTFS_BIN)
+	$(info -------------------------------- $@)
+	touch $@
+	grep -v '^#' $(BR2_EXTERNAL)/configs/common.uenv.txt | awk NF | tee -a $@
+	grep -v '^#' $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt | awk NF | tee -a $@
+	grep -v '^#' $(THINGINO_USER_DIR)/local.uenv.txt | awk NF | tee -a $@
+	sort -u -o $@ $@
+	# Remove any existing mtdparts and bootcmd lines (will be regenerated with aligned sizes)
+	sed -i '/^mtdparts=/d; /^bootcmd=/d; /^kern_addr=/d; /^kern_size=/d' $@
+	# Add kernel address and size
+	echo "kern_addr=$$(printf '0x%x' $(KERNEL_OFFSET))" >> $@
+	echo "kern_size=$$(printf '0x%x' $(KERNEL_PARTITION_SIZE))" >> $@
+	# Add complete mtdparts with aligned partitions and virtual aliases
+	echo "mtdparts=jz_sfc:$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(UPGRADE_SIZE_KB)k@$$(printf '0x%x' $(KERNEL_OFFSET))(upgrade),$(FLASH_SIZE_KB)k@0(all)" >> $@
+	# Simplified bootcmd - no need for sq probe or run mtdparts
+	echo 'bootcmd=sf probe;setenv bootargs mem=$${osmem} rmem=$${rmem} ispmem=$${ispmem} console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} init=$${init} mtdparts=$${mtdparts};sf read $${baseaddr} $${kern_addr} $${kern_size};bootm $${baseaddr}' >> $@
+	exit
+
+# Rebuild U-Boot with actual partition sizes after rootfs is ready
+$(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
+	$(info -------------------------------- $@ (rebuilding with actual partition sizes))
+	$(BR2_MAKE) $(BR2_MAKE_JOBS) thingino-uboot-dirclean thingino-uboot
+
+$(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
+	$(info -------------------------------- $@)
+	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_TXT)
 
 # create .tar file of rootfs
 $(ROOTFS_TAR):
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) all
+	$(BR2_MAKE) $(BR2_MAKE_JOBS) all
 
 info: defconfig
 	$(info -------------------------------- $@)
 	$(info Host architecture $(BR2_HOSTARCH))
-	$(info Building for architecture $(INGENIC_ARCH))
+	$(info Building for architecture $(SOC_ARCH))
 	$(info SOC_VENDOR: $(SOC_VENDOR))
 	$(info SOC_FAMILY: $(SOC_FAMILY))
 	$(info SOC_FAMILY_CAPS: $(SOC_FAMILY_CAPS))
@@ -877,19 +899,27 @@ help:
 # Print key variables commonly needed for tooling
 show-vars:
 	$(info -------------------------------- $@)
-	@echo "BR2_EXTERNAL  = $(BR2_EXTERNAL)";
 	@echo "OUTPUT_DIR    = $(OUTPUT_DIR)";
 	@echo "BR2_DL_DIR    = $(BR2_DL_DIR)";
 	@echo "CAMERA_SUBDIR = $(CAMERA_SUBDIR)";
 	@echo "CAMERA        = $(CAMERA)";
 	@echo "HOST_DIR      = $(HOST_DIR)";
 	@echo "BR2_MAKE      = $(BR2_MAKE)";
+	@echo "BR2_EXTERNAL  = $(BR2_EXTERNAL)";
 
 run:
 	$(info -------------------------------- $@)
 	$(SCRIPTS_DIR)/qemu_run.sh $(OUTPUT_DIR)/target $(_RUN_CMD)
 
-br-%: check-config
+# Catch-all rule: forward undefined targets to buildroot
+# This allows running buildroot targets directly without the br- prefix
+# e.g., "make linux-menuconfig" instead of "make br-linux-menuconfig"
+# Note: This must come after all explicit target definitions
+# Note: check-config is NOT a prerequisite here because:
+#   1. It would break non-buildroot targets (like when this rule incorrectly matched 'update')
+#   2. Buildroot targets will fail gracefully if config is missing
+#   3. Users should use 'make br-<target>' for buildroot targets, which includes check-config
+.DEFAULT: check-config
 	$(info -------------------------------- $@)
-	$(BR2_MAKE) $(subst br-,,$@)
+	$(BR2_MAKE) $@
 

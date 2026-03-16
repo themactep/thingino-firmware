@@ -8,111 +8,68 @@ INGENIC_LIB_LICENSE = GPL-2.0
 INGENIC_LIB_LICENSE_FILES = COPYING
 
 # Determine libc name based on variables
-ifeq ($(BR2_THINGINO_INGENIC_SDK_GCC_GLIBC),y)
+ifeq ($(BR2_TOOLCHAIN_USES_GLIBC),y)
 	SDK_LIBC_NAME := glibc
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_GCC_UCLIBC),y)
-	SDK_LIBC_NAME := uclibc
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_GCC_MUSL),y)
-	SDK_LIBC_NAME := uclibc
 else
-	# default to uClibc libs
 	SDK_LIBC_NAME := uclibc
 endif
 
 # Determine GCC version based on variables
-ifeq ($(BR2_THINGINO_INGENIC_SDK_GCC_472),y)
+ifneq ($(filter t10 t20 t21 t30,$(SOC_FAMILY)),)
 	SDK_LIBC_VERSION := 4.7.2
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_GCC_540),y)
-	SDK_LIBC_VERSION := 5.4.0
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_GCC_720),y)
+else ifneq ($(filter t40 t41 a1,$(SOC_FAMILY)),)
 	SDK_LIBC_VERSION := 7.2.0
 else
 	SDK_LIBC_VERSION := 5.4.0
 endif
 
 # Set SDK version based on configuration
-ifeq ($(BR2_THINGINO_INGENIC_SDK_A1_1_5_2),y)
-	SDK_VERSION := 1.5.2
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_A1_1_6_2),y)
+ifeq ($(SOC_FAMILY),a1)
 	SDK_VERSION := 1.6.2
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T20_3_9_0),y)
-	SDK_VERSION := 3.9.0
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T20_3_12_0),y)
-	SDK_VERSION := 3.12.0
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T21_1_0_33),y)
-	SDK_VERSION := 1.0.33
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T23_1_1_0),y)
-	SDK_VERSION := 1.1.0
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T23_1_1_0_MULTI),y)
-	SDK_VERSION := 1.1.0
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T23_1_1_2),y)
-	SDK_VERSION := 1.1.2
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T23_1_1_2_MULTI),y)
-	SDK_VERSION := 1.1.2
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T23_1_3_0),y)
-	SDK_VERSION := 1.3.0
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T23_1_3_0_MULTI),y)
-	SDK_VERSION := 1.3.0
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T30_1_0_5),y)
-	SDK_VERSION := 1.0.5
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T31_1_1_1),y)
-	SDK_VERSION := 1.1.1
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T31_1_1_2),y)
-	SDK_VERSION := 1.1.2
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T31_1_1_4),y)
-	SDK_VERSION := 1.1.4
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T31_1_1_5),y)
-	SDK_VERSION := 1.1.5
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T31_1_1_5_2),y)
-	SDK_VERSION := 1.1.5.2
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T31_1_1_6),y)
-	SDK_VERSION := 1.1.6
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T32_1_0_4),y)
-	SDK_VERSION := 1.0.4
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_C100_2_1_0),y)
-	# Use T31 1.1.6 libs for kernel version 3 C100 build
-	ifeq ($(KERNEL_VERSION_3),y)
-	SDK_VERSION := 1.1.6
+else ifeq ($(SOC_FAMILY),c100)
+	ifeq ($(KERNEL_VERSION),3.10.14)
+		SDK_VERSION := 1.1.6
 	else
-	SDK_VERSION := 2.1.0
+		SDK_VERSION := 2.1.0
 	endif
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T32_44_1_0_4),y)
-	SDK_VERSION := 1.0.4
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T31_1_0_4),y)
-	SDK_VERSION := 1.0.4
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T40_1_2_0),y)
-	SDK_VERSION := 1.2.0
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T41_1_0_1),y)
-	SDK_VERSION := 1.0.1
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T41_44_1_0_1),y)
-	SDK_VERSION := 1.0.1
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T41_1_1_0),y)
+else ifeq ($(SOC_FAMILY),t10)
+	SDK_VERSION := 3.12.0
+else ifeq ($(SOC_FAMILY),t20)
+	SDK_VERSION := 3.12.0
+else ifeq ($(SOC_FAMILY),t21)
+	SDK_VERSION := 1.0.33
+else ifeq ($(SOC_FAMILY),t23)
 	SDK_VERSION := 1.1.0
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T41_44_1_1_0),y)
-	SDK_VERSION := 1.1.0
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T41_1_1_1),y)
-	SDK_VERSION := 1.1.1
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T41_44_1_1_1),y)
-	SDK_VERSION := 1.1.1
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T41_1_2_0),y)
+else ifeq ($(SOC_FAMILY),t30)
+	SDK_VERSION := 1.0.5
+else ifeq ($(SOC_FAMILY),t31)
+	ifeq ($(KERNEL_VERSION),4.4.94)
+		SDK_VERSION := 1.1.5.2
+	else
+		SDK_VERSION := 1.1.6
+	endif
+else ifeq ($(SOC_FAMILY),t32)
+	SDK_VERSION := 1.0.4
+else ifeq ($(SOC_FAMILY),t40)
 	SDK_VERSION := 1.2.0
-else ifeq ($(BR2_THINGINO_INGENIC_SDK_T41_44_1_2_0),y)
+else ifeq ($(SOC_FAMILY),t41)
 	SDK_VERSION := 1.2.0
 endif
 
-ifeq ($(KERNEL_VERSION_3),y)
-$(info KERNEL_VERSION: 3)
-else ifeq ($(KERNEL_VERSION_4),y)
-$(info KERNEL_VERSION: 4)
+ifeq ($(KERNEL_VERSION),3.10.14)
+$(info KERNEL_VERSION: 3.10.14)
+else ifeq ($(KERNEL_VERSION),4.4.94)
+$(info KERNEL_VERSION: 4.4.94)
 else
 $(info KERNEL_VERSION: UNKNOWN)
 endif
+
 $(info SDK_VERSION: $(SDK_VERSION))
 $(info SDK_LIBC_VERSION: $(SDK_LIBC_VERSION))
 $(info SDK_LIBC_NAME: $(SDK_LIBC_NAME))
 $(info Building using libs for $(SDK_LIBC_NAME) GCC $(SDK_LIBC_VERSION) toolchain from $(SDK_VERSION) SDK)
 
-ifeq ($(BR2_SOC_FAMILY_INGENIC_T40)$(BR2_SOC_FAMILY_INGENIC_T41)$(BR2_SOC_FAMILY_INGENIC_A1),y)
+ifneq ($(filter t40 t41 a1,$(SOC_FAMILY)),)
 	# For T40/T41/A1, use their native version regardless of libc type
 	LIBALOG_FILE = $(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/libalog.so
 else

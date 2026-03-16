@@ -21,19 +21,19 @@ OPENIMP_INSTALL_STAGING = YES
 OPENIMP_DEPENDENCIES = ingenic-sdk ingenic-lib
 
 # Determine platform based on SOC family
-ifeq ($(BR2_SOC_FAMILY_INGENIC_T21),y)
+ifeq ($(SOC_FAMILY),t21)
 	OPENIMP_PLATFORM = T21
-else ifeq ($(BR2_SOC_FAMILY_INGENIC_T23),y)
+else ifeq ($(SOC_FAMILY),t23)
 	OPENIMP_PLATFORM = T23
-else ifeq ($(BR2_SOC_FAMILY_INGENIC_T30),y)
+else ifeq ($(SOC_FAMILY),t30)
 	OPENIMP_PLATFORM = T30
-else ifeq ($(BR2_SOC_FAMILY_INGENIC_T31),y)
+else ifeq ($(SOC_FAMILY),t31)
 	OPENIMP_PLATFORM = T31
-else ifeq ($(BR2_SOC_FAMILY_INGENIC_T40),y)
+else ifeq ($(SOC_FAMILY),t40)
 	OPENIMP_PLATFORM = T40
-else ifeq ($(BR2_SOC_FAMILY_INGENIC_T41),y)
+else ifeq ($(SOC_FAMILY),t41)
 	OPENIMP_PLATFORM = T41
-else ifeq ($(BR2_SOC_FAMILY_INGENIC_C100),y)
+else ifeq ($(SOC_FAMILY),c100)
 	OPENIMP_PLATFORM = C100
 else
 	# Default to T31 if platform cannot be determined

@@ -1,5 +1,5 @@
 # NAME: O-KAM QC3 (T23DL, GC1084, AIC8800DC USB)
-# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot ssl
 BR2_ISP_CLKA_600MHZ=y
 BR2_ISP_CLKA_SCLKA=y
 BR2_ISP_CLK_200MHZ=y
@@ -11,7 +11,7 @@ BR2_PACKAGE_WIFI_AIC8800=y
 BR2_PACKAGE_WIFI_AIC8800_USB=y
 BR2_PACKAGE_WIFI_AIC8800_USB_8800DC=y
 BR2_SENSOR_1_NAME="gc1084"
-BR2_SOC_INGENIC_T23DL=y
+BR2_INGENIC_SOC_MODEL="t23dl"
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_AUDIO_GPIO=63
 BR2_THINGINO_BUTTON=y

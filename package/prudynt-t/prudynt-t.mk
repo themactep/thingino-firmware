@@ -93,7 +93,7 @@ ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
 endif
 
 PRUDYNT_CFLAGS += -DPLATFORM_$(shell echo $(SOC_FAMILY) | tr a-z A-Z)
-ifeq ($(KERNEL_VERSION_4),y)
+ifeq ($(KERNEL_VERSION),4.4.94)
 	PRUDYNT_CFLAGS += -DKERNEL_VERSION_4
 endif
 

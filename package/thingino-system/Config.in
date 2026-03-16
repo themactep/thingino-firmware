@@ -13,7 +13,7 @@ config BR2_PACKAGE_THINGINO_SYSTEM_USB_ROLE
 config BR2_PACKAGE_THINGINO_SYSTEM_ENTROPY_GENERATOR
 	default y
 	bool "entropy generator"
-	depends on BR2_PACKAGE_THINGINO_SYSTEM && BR2_SOC_FAMILY_INGENIC_T40
+	depends on BR2_PACKAGE_THINGINO_SYSTEM && SOC_FAMILY = "t40"
 	help
 	  Enables the entropy service for the T40 SoC.
 

@@ -69,10 +69,10 @@ XBURST_VER := $(shell $(TOPDIR)/scripts/get_soc_params.sh $(SOC_MODEL) arch)
 # Set architecture
 ifeq ($(XBURST_VER),1)
     BR2_XBURST_1 := y
-    INGENIC_ARCH := xburst1
+    SOC_ARCH := xburst1
 else
     BR2_XBURST_2 := y
-    INGENIC_ARCH := xburst2
+    SOC_ARCH := xburst2
 endif
 
 # Get U-Boot board name
@@ -156,5 +156,5 @@ No makefile changes needed!
 
 ---
 
-**Created**: 2026-02-05  
+**Created**: 2026-02-05
 **Impact**: Reduces maintenance burden, improves code quality, future-proofs the build system

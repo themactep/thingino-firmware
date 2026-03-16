@@ -16,7 +16,7 @@ INGENIC_SDK_MODULE_MAKE_OPTS = \
 	$(MULTI_SENSOR_1_ENABLED) \
 	$(MULTI_SENSOR_2_ENABLED)
 
-ifeq ($(KERNEL_VERSION),3.10)
+ifeq ($(KERNEL_VERSION),3.10.14)
 INGENIC_SDK_MODULE_MAKE_OPTS += EXTRA_CFLAGS=-DCONFIG_KERNEL_3_10
 else
 INGENIC_SDK_MODULE_MAKE_OPTS += EXTRA_CFLAGS=-DCONFIG_KERNEL_4_4_94
@@ -24,7 +24,7 @@ endif
 
 # Old SDK's don't set the SOC in the IQ file name
 ifneq ($(SENSOR_1_MODEL),)
-	ifeq ($(BR2_SOC_INGENIC_T10)$(BR2_SOC_INGENIC_T20)$(BR2_SOC_INGENIC_T30),y)
+	ifneq ($(filter $(SOC_FAMILY),t10 t20 t30),)
 		SENSOR_1_CONFIG_NAME = $(SENSOR_1_MODEL).bin
 	else
 		SENSOR_1_CONFIG_NAME = $(SENSOR_1_MODEL)-$(SOC_FAMILY).bin
@@ -47,44 +47,40 @@ endif
 LINUX_CONFIG_LOCALVERSION = \
 	$(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
 
-ifeq ($(KERNEL_VERSION_4),y)
-	FULL_KERNEL_VERSION = 4.4.94
-else
-	FULL_KERNEL_VERSION = 3.10.14
-endif
-
-TARGET_MODULES_PATH = $(TARGET_DIR)/lib/modules/$(FULL_KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
+TARGET_MODULES_PATH = $(TARGET_DIR)/lib/modules/$(KERNEL_VERSION)$(call qstrip,$(LINUX_CONFIG_LOCALVERSION))
 
 define GENERATE_GPIO_USERKEYS_CONFIG
-	gpio_userkeys_config="gpio-userkeys gpio_config="\"; \
-	keycode=2; \
-	first_button=28; \
-	has_gpio_buttons=0; \
-	while IFS= read -r line; do \
-		case "$$line" in \
-			gpio_button=*) \
-				has_gpio_buttons=1; \
-				gpio_num=$${line#*=}; \
-				gpio_num=$$(echo $$gpio_num | tr -cd '[0-9]'); \
-				gpio_userkeys_config="$$gpio_userkeys_config$${first_button},$${gpio_num},1;"; \
-				;; \
-			gpio_button_*=*) \
-				has_gpio_buttons=1; \
-				gpio_num=$${line#*=}; \
-				gpio_num=$$(echo $$gpio_num | tr -cd '[0-9]'); \
-				gpio_userkeys_config="$$gpio_userkeys_config$${keycode},$${gpio_num},1;"; \
-				keycode=$$((keycode + 1)); \
-				;; \
-		esac; \
-	done < $(U_BOOT_ENV_TXT); \
-	if [ "$$has_gpio_buttons" -eq 1 ]; then \
-		gpio_userkeys_config=$${gpio_userkeys_config%;}; \
-		echo "$$gpio_userkeys_config\"" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys; \
+	if [ -r $(U_BOOT_ENV_TXT) ]; then \
+		gpio_userkeys_config="gpio-userkeys gpio_config="\"; \
+		keycode=2; \
+		first_button=28; \
+		has_gpio_buttons=0; \
+		while IFS= read -r line; do \
+			case "$$line" in \
+				gpio_button=*) \
+					has_gpio_buttons=1; \
+					gpio_num=$${line#*=}; \
+					gpio_num=$$(echo $$gpio_num | tr -cd '[0-9]'); \
+					gpio_userkeys_config="$$gpio_userkeys_config$${first_button},$${gpio_num},1;"; \
+					;; \
+				gpio_button_*=*) \
+					has_gpio_buttons=1; \
+					gpio_num=$${line#*=}; \
+					gpio_num=$$(echo $$gpio_num | tr -cd '[0-9]'); \
+					gpio_userkeys_config="$$gpio_userkeys_config$${keycode},$${gpio_num},1;"; \
+					keycode=$$((keycode + 1)); \
+					;; \
+			esac; \
+		done < $(U_BOOT_ENV_TXT); \
+		if [ "$$has_gpio_buttons" -eq 1 ]; then \
+			gpio_userkeys_config=$${gpio_userkeys_config%;}; \
+			echo "$$gpio_userkeys_config\"" > $(TARGET_DIR)/etc/modules.d/gpio-userkeys; \
+		fi; \
 	fi
 endef
 
 define INSTALL_SENSOR_BIN
-	if [ "$(1)" != "" ]; then \
+	if [ "$(1)" != "" ] && [ "$(1)" != "none" ]; then \
 		$(if $(filter-out $(SENSOR_2_MODEL),$(1)),ln -sf /usr/share/sensor $(TARGET_DIR)/etc/sensor;) \
 		$(INSTALL) -D -m 0644 $(@D)/sensor-iq/$(SOC_FAMILY)/$(2).bin \
 			$(TARGET_DIR)/usr/share/sensor/$(3); \
@@ -122,18 +118,18 @@ define GENERATE_MODULE_LOADER
 
 	if [ "$(SOC_FAMILY)" != "a1" ]; then \
 		if [ "$(SOC_FAMILY)" = "t23" ]; then \
-			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS) $(ISP_CH0_PRE_DEQUEUE_VALID_LINES) $(ISP_CH1_DEQUEUE_DELAY_TIME) $(ISP_MIPI_SWITCH_GPIO) $(ISP_DIRECT_MODE) $(ISP_IVDC_MEM_LINE) $(ISP_IVDC_THRESHOLD_LINE) $(ISP_CONFIG_HZ) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
+			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS) $(ISP_CH0_PRE_DEQUEUE_VALID_LINES) $(ISP_CH1_DEQUEUE_DELAY_TIME) $(ISP_MIPI_SWITCH_GPIO) $(ISP_DIRECT_MODE) $(ISP_IVDC_MEM_LINE) $(ISP_IVDC_THRESHOLD_LINE) $(ISP_CONFIG_HZ) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		elif [ "$(SOC_FAMILY)" = "t30" ]; then \
-			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK) $(ISP_PRINT_LEVEL) $(ISP_ISPW) $(ISP_ISPH) $(ISP_ISPTOP) $(ISP_ISPLEFT) $(ISP_ISPCROP) $(ISP_ISPCROPWH) $(ISP_ISPCROPTL) $(ISP_ISPSCALER) $(ISP_ISPSCALERWH) $(ISP_ISP_M1_BUFS) $(ISP_ISP_M2_BUFS) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
+			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK) $(ISP_PRINT_LEVEL) $(ISP_ISPW) $(ISP_ISPH) $(ISP_ISPTOP) $(ISP_ISPLEFT) $(ISP_ISPCROP) $(ISP_ISPCROPWH) $(ISP_ISPCROPTL) $(ISP_ISPSCALER) $(ISP_ISPSCALERWH) $(ISP_ISP_M1_BUFS) $(ISP_ISP_M2_BUFS) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		elif [ "$(SOC_FAMILY)" = "t41" ]; then \
-			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_CLKS_CLK_SRC) $(ISP_CLKS_CLK) $(ISP_DIRECT_MODE) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
+			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK_SRC) $(ISP_CLK) $(ISP_CLKA_CLK_SRC) $(ISP_CLKA_CLK) $(ISP_CLKS_CLK_SRC) $(ISP_CLKS_CLK) $(ISP_DIRECT_MODE) $(ISP_MEMOPT) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		else \
-			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK) $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS) $(ISP_CH0_PRE_DEQUEUE_VALID_LINES) $(ISP_CH1_DEQUEUE_DELAY_TIME) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/isp; \
+			echo tx_isp_$(SOC_FAMILY) $(ISP_CLK) $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM) $(ISP_CH0_PRE_DEQUEUE_TIME) $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS) $(ISP_CH0_PRE_DEQUEUE_VALID_LINES) $(ISP_CH1_DEQUEUE_DELAY_TIME) $(ISP_MEMOPT) $(ISP_PRINT_LEVEL) $(BR2_ISP_PARAMS) > $(TARGET_DIR)/etc/modules.d/20-isp; \
 		fi \
 	fi
 
 	if [ "$(SOC_FAMILY)" = "t31" ] || [ "$(SOC_FAMILY)" = "c100" ] || [ "$(SOC_FAMILY)" = "t40" ] || [ "$(SOC_FAMILY)" = "t41" ]; then \
-		echo "avpu $(AVPU_CLK_SRC) $(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/avpu; \
+		echo "avpu $(AVPU_CLK_SRC) $(AVPU_CLK)" > $(TARGET_DIR)/etc/modules.d/10-avpu; \
 	fi
 
 	if [ "$(BR2_THINGINO_PWM_ENABLE)" = "y" ]; then \
@@ -149,16 +145,16 @@ define GENERATE_MODULE_LOADER
 		echo "soc-nna" >> $(TARGET_DIR)/etc/modules.d/nna; \
 	fi
 
-	if [ -n "$(SENSOR_1_MODEL)" ]; then \
-		if [ -n "$(SENSOR_2_MODEL)" ]; then \
-			echo "sensor_$(SENSOR_1_MODEL)_$(SOC_FAMILY) $(BR2_SENSOR_1_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor_1; \
+	if [ -n "$(SENSOR_1_MODEL)" ] && [ "$(SENSOR_1_MODEL)" != "none" ]; then \
+		if [ -n "$(SENSOR_2_MODEL)" ] && [ "$(SENSOR_2_MODEL)" != "none" ]; then \
+			echo "sensor_$(SENSOR_1_MODEL)_$(SOC_FAMILY) $(SENSOR_1_PARAMS)" > $(TARGET_DIR)/etc/modules.d/30-sensor_1; \
 		else \
-			echo "sensor_$(SENSOR_1_MODEL)_$(SOC_FAMILY) $(BR2_SENSOR_1_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor; \
+			echo "sensor_$(SENSOR_1_MODEL)_$(SOC_FAMILY) $(SENSOR_1_PARAMS)" > $(TARGET_DIR)/etc/modules.d/30-sensor; \
 		fi; \
 	fi
 
-	if [ -n "$(SENSOR_2_MODEL)" ]; then \
-		echo "sensor_$(SENSOR_2_MODEL)_$(SOC_FAMILY) $(BR2_SENSOR_2_PARAMS)" > $(TARGET_DIR)/etc/modules.d/sensor_2; \
+	if [ -n "$(SENSOR_2_MODEL)" ] && [ "$(SENSOR_2_MODEL)" != "none" ]; then \
+		echo "sensor_$(SENSOR_2_MODEL)_$(SOC_FAMILY) $(SENSOR_2_PARAMS)" > $(TARGET_DIR)/etc/modules.d/30-sensor_2; \
 	fi
 endef
 
@@ -175,7 +171,7 @@ define INSTALL_AUDIO_SUPPORT
 			spk_level=1; \
 		fi; \
 	fi; \
-	echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(BR2_THINGINO_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/audio
+	echo "audio spk_gpio=$$spk_gpio spk_level=$$spk_level $(BR2_THINGINO_AUDIO_PARAMS)" > $(TARGET_DIR)/etc/modules.d/40-audio
 
 	[ -f $(@D)/config/webrtc_profile.ini ] && $(INSTALL) -D -m 0644 $(@D)/config/webrtc_profile.ini $(TARGET_DIR)/etc/
 

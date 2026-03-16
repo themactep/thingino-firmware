@@ -14,7 +14,7 @@ THINGINO_STREAMER_CFLAGS += \
 
 # Add platform and kernel version flags
 THINGINO_STREAMER_CFLAGS += -DPLATFORM_$(shell echo $(SOC_FAMILY) | tr a-z A-Z)
-ifeq ($(KERNEL_VERSION_4),y)
+ifeq ($(KERNEL_VERSION),3.10.14)
 	THINGINO_STREAMER_CFLAGS += -DKERNEL_VERSION_4
 endif
 

@@ -1,346 +1,29 @@
-config BR2_SOC_FAMILY_INGENIC_T10
-	bool
-	default y if BR2_SOC_INGENIC_T10L || BR2_SOC_INGENIC_T10N || BR2_SOC_INGENIC_T10A
-config BR2_SOC_FAMILY_INGENIC_T20
-	bool
-	default y if BR2_SOC_INGENIC_T20L || BR2_SOC_INGENIC_T20N || BR2_SOC_INGENIC_T20X || BR2_SOC_INGENIC_T20Z
-config BR2_SOC_FAMILY_INGENIC_T21
-	bool
-	default y if BR2_SOC_INGENIC_T21L || BR2_SOC_INGENIC_T21N || BR2_SOC_INGENIC_T21X || BR2_SOC_INGENIC_T21Z || BR2_SOC_INGENIC_T21ZL
-config BR2_SOC_FAMILY_INGENIC_T23
-	bool
-	default y if BR2_SOC_INGENIC_T23N || BR2_SOC_INGENIC_T23ZN || BR2_SOC_INGENIC_T23DL || BR2_SOC_INGENIC_T23DN
-config BR2_SOC_FAMILY_INGENIC_T30
-	bool
-	default y if BR2_SOC_INGENIC_T30L || BR2_SOC_INGENIC_T30N || BR2_SOC_INGENIC_T30X || BR2_SOC_INGENIC_T30A
-config BR2_SOC_FAMILY_INGENIC_C100
-	bool
-	default y if BR2_SOC_INGENIC_C100
-config BR2_SOC_FAMILY_INGENIC_T31
-	bool
-	default y if BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31A || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL || BR2_SOC_INGENIC_T31ZX
-config BR2_SOC_FAMILY_INGENIC_T32
-	bool
-	default y if BR2_SOC_INGENIC_T32LQ || BR2_SOC_INGENIC_T32NQ || BR2_SOC_INGENIC_T32XQ || BR2_SOC_INGENIC_T32A || BR2_SOC_INGENIC_T32ZL || BR2_SOC_INGENIC_T32ZN || BR2_SOC_INGENIC_T32ZX || BR2_SOC_INGENIC_T32ZR || BR2_SOC_INGENIC_T32ZMC
-config BR2_SOC_FAMILY_INGENIC_T40
-	bool
-	default y if BR2_SOC_INGENIC_T40N || BR2_SOC_INGENIC_T40NN || BR2_SOC_INGENIC_T40XP || BR2_SOC_INGENIC_T40A
-config BR2_SOC_FAMILY_INGENIC_T41
-	bool
-	default y if BR2_SOC_INGENIC_T41LQ || BR2_SOC_INGENIC_T41NQ || BR2_SOC_INGENIC_T41ZL || BR2_SOC_INGENIC_T41ZN || BR2_SOC_INGENIC_T41ZX || BR2_SOC_INGENIC_T41A
-config BR2_SOC_FAMILY_INGENIC_A1
-	bool
-	default y if BR2_SOC_INGENIC_A1N || BR2_SOC_INGENIC_A1NT || BR2_SOC_INGENIC_A1X || BR2_SOC_INGENIC_A1L || BR2_SOC_INGENIC_A1A
-
-config BR2_SOC_FAMILY_32MB
-	bool
-	default y if BR2_SOC_INGENIC_T23DL || BR2_SOC_INGENIC_T23DN
-config BR2_SOC_FAMILY_64MB
-	bool
-	default y if BR2_SOC_INGENIC_T10L || BR2_SOC_INGENIC_T10N || BR2_SOC_INGENIC_T10A || \
-			BR2_SOC_INGENIC_T20L || BR2_SOC_INGENIC_T20N || BR2_SOC_INGENIC_T20Z || \
-			BR2_SOC_INGENIC_T21L || BR2_SOC_INGENIC_T21N || BR2_SOC_INGENIC_T21Z || BR2_SOC_INGENIC_T21ZL || \
-			BR2_SOC_INGENIC_T23N || BR2_SOC_INGENIC_T23ZN || \
-			BR2_SOC_INGENIC_T30L || BR2_SOC_INGENIC_T30N || \
-			BR2_SOC_INGENIC_T31L || BR2_SOC_INGENIC_T31LC || BR2_SOC_INGENIC_T31N || BR2_SOC_INGENIC_T31AL || BR2_SOC_INGENIC_T31ZL || \
-			BR2_SOC_INGENIC_T41LQ
-config BR2_SOC_FAMILY_128MB
-	bool
-	default y if BR2_SOC_INGENIC_T20X || \
-			BR2_SOC_INGENIC_T21X || \
-			BR2_SOC_INGENIC_T30X || BR2_SOC_INGENIC_T30A || \
-			BR2_SOC_INGENIC_T31X || BR2_SOC_INGENIC_T31ZX || BR2_SOC_INGENIC_T31A || \
-			BR2_SOC_INGENIC_C100 || \
-			BR2_SOC_INGENIC_T40NN || \
-			BR2_SOC_INGENIC_T41NQ || \
-			BR2_SOC_INGENIC_A1L
-config BR2_SOC_FAMILY_256MB
-	bool
-	default y if BR2_SOC_INGENIC_T40XP || BR2_SOC_INGENIC_T40A || \
-			BR2_SOC_INGENIC_T41ZX || BR2_SOC_INGENIC_T41A || \
-			BR2_SOC_INGENIC_A1N || BR2_SOC_INGENIC_A1NT
-config BR2_SOC_FAMILY_512MB
-	bool
-	default y if BR2_SOC_INGENIC_A1A
-
-choice
-	prompt "SoC Model"
+config BR2_INGENIC_SOC_MODEL
+	string "SoC Model"
+	default ""
 	help
-	  Select the Ingenic SoC model for your device
+	  Enter the Ingenic SoC model name for your device (e.g., t31x, t40n, t41nq).
+	  This value is used to automatically derive the SoC family, architecture,
+	  RAM size, and U-Boot board name from the SoC database.
 
-config BR2_SOC_INGENIC_DUMMY
-	bool "Dummy (for toolchain)"
-config BR2_SOC_INGENIC_A1N
-	bool "Ingenic A1N"
-config BR2_SOC_INGENIC_A1L
-	bool "Ingenic A1L"
-config BR2_SOC_INGENIC_A1NT
-	bool "Ingenic A1NT"
-config BR2_SOC_INGENIC_A1X
-	bool "Ingenic A1X"
-config BR2_SOC_INGENIC_A1A
-	bool "Ingenic A1A"
-config BR2_SOC_INGENIC_T10L
-	bool "Ingenic T10L"
-config BR2_SOC_INGENIC_T10N
-	bool "Ingenic T10N"
-config BR2_SOC_INGENIC_T10A
-	bool "Ingenic T10A"
-config BR2_SOC_INGENIC_T20L
-	bool "Ingenic T20L"
-config BR2_SOC_INGENIC_T20N
-	bool "Ingenic T20N"
-config BR2_SOC_INGENIC_T20X
-	bool "Ingenic T20X"
-config BR2_SOC_INGENIC_T20Z
-	bool "Ingenic T20Z"
-config BR2_SOC_INGENIC_T21L
-	bool "Ingenic T21L"
-config BR2_SOC_INGENIC_T21N
-	bool "Ingenic T21N"
-config BR2_SOC_INGENIC_T21X
-	bool "Ingenic T21X"
-config BR2_SOC_INGENIC_T21Z
-	bool "Ingenic T21Z"
-config BR2_SOC_INGENIC_T21ZL
-	bool "Ingenic T21ZL"
-config BR2_SOC_INGENIC_T23N
-	bool "Ingenic T23N"
-config BR2_SOC_INGENIC_T23DL
-	bool "Ingenic T23DL"
-config BR2_SOC_INGENIC_T23DN
-	bool "Ingenic T23DN"
-	depends on BR2_THINGINO_DEV_EXPERIMENTAL
-config BR2_SOC_INGENIC_T23ZN
-	bool "Ingenic T23ZN"
-config BR2_SOC_INGENIC_T30L
-	bool "Ingenic T30L"
-config BR2_SOC_INGENIC_T30N
-	bool "Ingenic T30N"
-config BR2_SOC_INGENIC_T30X
-	bool "Ingenic T30X"
-config BR2_SOC_INGENIC_T30A
-	bool "Ingenic T30A"
-config BR2_SOC_INGENIC_T31L
-	bool "Ingenic T31L"
-config BR2_SOC_INGENIC_T31LC
-	bool "Ingenic T31LC"
-config BR2_SOC_INGENIC_T31N
-	bool "Ingenic T31N"
-config BR2_SOC_INGENIC_T31X
-	bool "Ingenic T31X"
-config BR2_SOC_INGENIC_T31A
-	bool "Ingenic T31A"
-config BR2_SOC_INGENIC_T31AL
-	bool "Ingenic T31AL"
-config BR2_SOC_INGENIC_T31ZL
-	bool "Ingenic T31ZL"
-config BR2_SOC_INGENIC_T31ZX
-	bool "Ingenic T31ZX"
-config BR2_SOC_INGENIC_C100
-	bool "Ingenic C100"
-config BR2_SOC_INGENIC_T32LQ
-	bool "Ingenic T32LQ"
-config BR2_SOC_INGENIC_T32NQ
-	bool "Ingenic T32NQ"
-config BR2_SOC_INGENIC_T32XQ
-	bool "Ingenic T32XQ"
-config BR2_SOC_INGENIC_T32A
-	bool "Ingenic T32A"
-config BR2_SOC_INGENIC_T32ZL
-	bool "Ingenic T32ZL"
-config BR2_SOC_INGENIC_T32ZN
-	bool "Ingenic T32ZN"
-config BR2_SOC_INGENIC_T32ZX
-	bool "Ingenic T32ZX"
-config BR2_SOC_INGENIC_T32ZR
-	bool "Ingenic T32ZR"
-config BR2_SOC_INGENIC_T32ZMC
-	bool "Ingenic T32ZMC"
-config BR2_SOC_INGENIC_T40N
-	bool "Ingenic T40N"
-config BR2_SOC_INGENIC_T40NN
-	bool "Ingenic T40NN"
-config BR2_SOC_INGENIC_T40XP
-	bool "Ingenic T40XP"
-config BR2_SOC_INGENIC_T40A
-	bool "Ingenic T40A"
-config BR2_SOC_INGENIC_T41LQ
-	bool "Ingenic T41LQ"
-config BR2_SOC_INGENIC_T41NQ
-	bool "Ingenic T41NQ"
-config BR2_SOC_INGENIC_T41ZL
-	bool "Ingenic T41ZL"
-config BR2_SOC_INGENIC_T41ZN
-	bool "Ingenic T41ZN"
-config BR2_SOC_INGENIC_T41ZX
-	bool "Ingenic T41ZX"
-config BR2_SOC_INGENIC_T41A
-	bool "Ingenic T41A"
-endchoice
+	  Supported models: t10l, t10n, t10a, t20l, t20n, t20x, t20z, t21l, t21n,
+	  t21x, t21zn, t21zl, t23n, t23dl, t23zn, t30l, t30n, t30x, t30a, t31l,
+	  t31lc, t31n, t31x, t31a, t31al, t31zl, t31zx, c100, t40n, t40nn, t40xp,
+	  t40a, t41lq, t41nq, t41zl, t41zn, t41zx, t41a, a1n, a1nt, a1x, a1l, a1a
 
-menu "SoC Configuration"
+	  Note: Model name is case-insensitive.
 
-choice
-	prompt "Ingenic SDK Version"
-	default BR2_THINGINO_INGENIC_SDK_A1_1_6_2     if BR2_SOC_FAMILY_INGENIC_A1
-	default BR2_THINGINO_INGENIC_SDK_C100_2_1_0   if BR2_SOC_FAMILY_INGENIC_C100
-	default BR2_THINGINO_INGENIC_SDK_T20_3_12_0   if BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20
-	default BR2_THINGINO_INGENIC_SDK_T21_1_0_33   if BR2_SOC_FAMILY_INGENIC_T21
-	default BR2_THINGINO_INGENIC_SDK_T23_1_1_0    if BR2_SOC_FAMILY_INGENIC_T23
-	default BR2_THINGINO_INGENIC_SDK_T30_1_0_5    if BR2_SOC_FAMILY_INGENIC_T30
-	default BR2_THINGINO_INGENIC_SDK_T31_1_1_6    if BR2_SOC_FAMILY_INGENIC_T31 && KERNEL_VERSION_3
-	default BR2_THINGINO_INGENIC_SDK_T31_1_1_5_2  if BR2_SOC_FAMILY_INGENIC_T31 && KERNEL_VERSION_4
-	default BR2_THINGINO_INGENIC_SDK_T32_1_0_4    if BR2_SOC_FAMILY_INGENIC_T32
-	default BR2_THINGINO_INGENIC_SDK_T40_1_2_0    if BR2_SOC_FAMILY_INGENIC_T40
-	default BR2_THINGINO_INGENIC_SDK_T41_1_2_0    if BR2_SOC_FAMILY_INGENIC_T41 && KERNEL_VERSION_3
-	default BR2_THINGINO_INGENIC_SDK_T41_44_1_2_0 if BR2_SOC_FAMILY_INGENIC_T41 && KERNEL_VERSION_4
+	  Leave empty to use legacy BR2_SOC_INGENIC_* variables (for backward compatibility).
 
-config BR2_THINGINO_INGENIC_SDK_A1_1_5_2
-	bool "1.5.2"
-	depends on BR2_SOC_FAMILY_INGENIC_A1
-config BR2_THINGINO_INGENIC_SDK_A1_1_6_2
-	bool "1.6.2"
-	depends on BR2_SOC_FAMILY_INGENIC_A1
-config BR2_THINGINO_INGENIC_SDK_T20_3_9_0
-	bool "3.9.0"
-	depends on BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20
-config BR2_THINGINO_INGENIC_SDK_T20_3_12_0
-	bool "3.12.0"
-	depends on BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20
-config BR2_THINGINO_INGENIC_SDK_T21_1_0_33
-	bool "1.0.33"
-	depends on BR2_SOC_FAMILY_INGENIC_T21
-config BR2_THINGINO_INGENIC_SDK_T23_1_1_0
-	bool "1.1.0"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY = 1
-config BR2_THINGINO_INGENIC_SDK_T23_1_1_0_MULTI
-	bool "1.1.0-double"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
-config BR2_THINGINO_INGENIC_SDK_T23_1_1_2
-	bool "1.1.2"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY = 1
-config BR2_THINGINO_INGENIC_SDK_T23_1_1_2_MULTI
-	bool "1.1.2-double"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
-config BR2_THINGINO_INGENIC_SDK_T23_1_3_0
-	bool "1.3.0"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY = 1
-config BR2_THINGINO_INGENIC_SDK_T23_1_3_0_MULTI
-	bool "1.3.0-double"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
-config BR2_THINGINO_INGENIC_SDK_T30_1_0_5
-	bool "1.0.5"
-	depends on BR2_SOC_FAMILY_INGENIC_T30
-config BR2_THINGINO_INGENIC_SDK_T31_1_1_1
-	bool "1.1.1"
-	depends on BR2_SOC_FAMILY_INGENIC_T31 && KERNEL_VERSION_3
-config BR2_THINGINO_INGENIC_SDK_T31_1_1_2
-	bool "1.1.2"
-	depends on BR2_SOC_FAMILY_INGENIC_T31 && KERNEL_VERSION_3
-config BR2_THINGINO_INGENIC_SDK_T31_1_1_4
-	bool "1.1.5"
-	depends on BR2_SOC_FAMILY_INGENIC_T31 && KERNEL_VERSION_3
-config BR2_THINGINO_INGENIC_SDK_T31_1_1_5
-	bool "1.1.5"
-	depends on BR2_SOC_FAMILY_INGENIC_T31 && KERNEL_VERSION_3
-config BR2_THINGINO_INGENIC_SDK_T31_1_1_5_2
-	bool "1.1.5.2"
-	depends on BR2_SOC_FAMILY_INGENIC_T31 && KERNEL_VERSION_4
-config BR2_THINGINO_INGENIC_SDK_T31_1_1_6
-	bool "1.1.6"
-	depends on BR2_SOC_FAMILY_INGENIC_T31 && KERNEL_VERSION_3
-config BR2_THINGINO_INGENIC_SDK_T32_1_0_4
-	bool "1.0.4"
-	depends on BR2_SOC_FAMILY_INGENIC_T31 && BR2_SDK_T32
-config BR2_THINGINO_INGENIC_SDK_C100_2_1_0
-	bool "2.1.0"
-	depends on BR2_SOC_FAMILY_INGENIC_C100
-config BR2_THINGINO_INGENIC_SDK_T32_44_1_0_4
-	bool "1.0.4"
-	depends on KERNEL_VERSION_4 && BR2_SOC_FAMILY_INGENIC_T32
-config BR2_THINGINO_INGENIC_SDK_T31_1_0_4
-	bool "1.0.4"
-	depends on BR2_SOC_FAMILY_INGENIC_T32
-config BR2_THINGINO_INGENIC_SDK_T40_1_2_0
-	bool "1.2.0"
-	depends on KERNEL_VERSION_4 && BR2_SOC_FAMILY_INGENIC_T40
-config BR2_THINGINO_INGENIC_SDK_T41_1_0_1
-	bool "1.0.1"
-	depends on BR2_SOC_FAMILY_INGENIC_T41
-config BR2_THINGINO_INGENIC_SDK_T41_44_1_0_1
-	bool "1.0.1"
-	depends on KERNEL_VERSION_4 && BR2_SOC_FAMILY_INGENIC_T41
-config BR2_THINGINO_INGENIC_SDK_T41_1_1_0
-	bool "1.1.0"
-	depends on BR2_SOC_FAMILY_INGENIC_T41
-config BR2_THINGINO_INGENIC_SDK_T41_44_1_1_0
-	bool "1.1.0"
-	depends on KERNEL_VERSION_4 && BR2_SOC_FAMILY_INGENIC_T41
-config BR2_THINGINO_INGENIC_SDK_T41_1_1_1
-	bool "1.1.1"
-	depends on BR2_SOC_FAMILY_INGENIC_T41
-config BR2_THINGINO_INGENIC_SDK_T41_44_1_1_1
-	bool "1.1.1"
-	depends on KERNEL_VERSION_4 && BR2_SOC_FAMILY_INGENIC_T41
-config BR2_THINGINO_INGENIC_SDK_T41_1_2_0
-	bool "1.2.0"
-	depends on BR2_SOC_FAMILY_INGENIC_T41
-config BR2_THINGINO_INGENIC_SDK_T41_44_1_2_0
-	bool "1.2.0"
-	depends on KERNEL_VERSION_4 && BR2_SOC_FAMILY_INGENIC_T41
-endchoice
+config BR2_SOC_FAMILY
+	string
 
-choice
-	prompt "Ingenic SDK GCC Version"
-	default BR2_THINGINO_INGENIC_SDK_GCC_472 if BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20 || BR2_SOC_FAMILY_INGENIC_T21 || BR2_SOC_FAMILY_INGENIC_T30
-	default BR2_THINGINO_INGENIC_SDK_GCC_540 if BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T32
-	default BR2_THINGINO_INGENIC_SDK_GCC_720 if BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41 || BR2_SOC_FAMILY_INGENIC_A1
-	help
-	  Select the GCC compiler version that was used to compile the
-	  Ingenic SDK libraries. This ensures binary compatibility between
-	  your application code and the provided SDK libraries. Choose the
-	  version that matches the SDK you're targeting.
-
-config BR2_THINGINO_INGENIC_SDK_GCC_472
-	bool "GCC 4.7.2"
-	depends on BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20 || BR2_SOC_FAMILY_INGENIC_T21 || BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
-config BR2_THINGINO_INGENIC_SDK_GCC_540
-	bool "GCC 5.4.0"
-	depends on !BR2_SOC_FAMILY_INGENIC_T21 || BR2_SOC_FAMILY_INGENIC_T23 || !BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T32
-config BR2_THINGINO_INGENIC_SDK_GCC_720
-	bool "GCC 7.2.0"
-	depends on BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41 || BR2_SOC_FAMILY_INGENIC_A1
-endchoice
-
-choice
-	prompt "Ingenic GCC Type"
-	default BR2_THINGINO_INGENIC_SDK_GCC_MUSL   if BR2_TOOLCHAIN_USES_MUSL
-	default BR2_THINGINO_INGENIC_SDK_GCC_GLIBC  if BR2_TOOLCHAIN_USES_GLIBC
-	default BR2_THINGINO_INGENIC_SDK_GCC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC
-	help
-	  Select the GCC type
-
-comment "To change the GCC Type, you need to change the"
-comment "fragment in your module to the corresponding"
-comment "GCC type, such as toolchain-musl,"
-comment "toolchain-uclibc, or toolchain-glibc."
-
-config BR2_THINGINO_INGENIC_SDK_GCC_MUSL
-	bool "musl"
-	depends on BR2_TOOLCHAIN_USES_MUSL
-
-config BR2_THINGINO_INGENIC_SDK_GCC_GLIBC
-	bool "glibc"
-	depends on BR2_TOOLCHAIN_USES_GLIBC
-
-config BR2_THINGINO_INGENIC_SDK_GCC_UCLIBC
-	bool "uClibc"
-	depends on BR2_TOOLCHAIN_USES_UCLIBC
-endchoice
+config BR2_SOC_RAM_MB
+	int "RAM size in MB"
+	default 64
 
 menu "IPU Configuration"
-depends on BR2_SOC_FAMILY_INGENIC_A1
+depends on BR2_SOC_FAMILY = "a1"
 
 choice
 	prompt "IPU Clock Source"
@@ -384,47 +67,12 @@ endchoice
 endmenu
 
 menu "ISP Configuration"
-depends on !BR2_SOC_FAMILY_INGENIC_A1
-
-if FALSE
-menu "Image Sensor Configuration"
-config BR2_SENSOR_PARAM_RESET_GPIO
-	int "Reset GPIO pin"
-	default -1
-config BR2_SENSOR_PARAM_PWDN_GPIO
-	int "Powerdown GPIO pin"
-	default -1
-config BR2_SENSOR_PARAM_SENSOR_GPIO_FUNC
-	int "GPIO function"
-	default -1
-config BR2_SENSOR_PARAM_DATA_INTERFACE
-	int "Data interface"
-	default -1
-config BR2_SENSOR_PARAM_SENSOR_MAX_FPS
-	int "Maximum FPS"
-	default -1
-config BR2_SENSOR_PARAM_SHVFLIP
-	int "Horizontal and vertical flip"
-	default -1
-config BR2_SENSOR_PARAM_FSYNC_MODE
-	int "FSync mode"
-	default -1
-config BR2_SENSOR_PARAM_WDR_BUF_SIZE
-	int "WDR buffer size"
-	default -1
-config BR2_SENSOR_PARAM_SENSOR_RESOLUTION
-	int "Resolution"
-	default -1
-config BR2_SENSOR_PARAM_DATA_TYPE
-	int "Data type"
-	default -1
-endmenu
-endif
+depends on !BR2_SOC_FAMILY = "a1"
 
 choice
 	prompt "AVPU Clock Source"
 	default BR2_AVPU_INTERNAL
-	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 	help
 	  Select the parent clock source for the AVPU.
 
@@ -441,7 +89,7 @@ endchoice
 choice
 	prompt "AVPU Clock Speed"
 	default BR2_AVPU_CLK_400MHZ
-	depends on BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 	help
 	  Choose the ISP clock speed from the predefined options.
 
@@ -466,7 +114,7 @@ endchoice
 choice
 	prompt "ISP Clock Source"
 	default BR2_ISP_CLK_INTERNAL
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 	help
 	  Select the parent clock source for the ISP. (clk_name)
 
@@ -485,9 +133,8 @@ endchoice
 
 choice
 	prompt "ISP Clock Speed"
-	default BR2_ISP_CLK_125MHZ if BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
-	default BR2_ISP_CLK_200MHZ if BR2_SOC_FAMILY_INGENIC_T23
-	default BR2_ISP_CLK_200MHZ if BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	default BR2_ISP_CLK_125MHZ if BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100"
+	default BR2_ISP_CLK_200MHZ if BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 	default BR2_ISP_CLK_90MHZ
 	help
 	  Choose the ISP clock speed from the predefined options.
@@ -500,34 +147,34 @@ config BR2_ISP_CLK_125MHZ
 	bool "125 MHz"
 config BR2_ISP_CLK_150MHZ
 	bool "150 MHz"
-	depends on BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_C100
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100"
 config BR2_ISP_CLK_175MHZ
 	bool "175 MHz"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 ||BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_200MHZ
 	bool "200 MHz"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_220MHZ
 	bool "220 MHz"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_225MHZ
 	bool "225 MHz"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_250MHZ
 	bool "250 MHz"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_300MHZ
 	bool "300 MHz"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 config BR2_ISP_CLK_350MHZ
 	bool "350 MHz"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 endchoice
 
 choice
 	prompt "ISP Scaler Clock Source"
 	default BR2_ISP_CLKS_INTERNAL
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41"
 	help
 	  Select the parent clock source for the ISP scaler. (clks_name)
 
@@ -547,7 +194,7 @@ endchoice
 choice
 	prompt "ISP Scaler Clock Speed"
 	default BR2_ISP_CLKS_400MHZ
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41"
 	help
 	  Choose the ISP's scaler clock speed from the predefined options.
 
@@ -572,7 +219,7 @@ endchoice
 choice
 	prompt "ISP AXI Bus Clock Source"
 	default BR2_ISP_CLKA_INTERNAL
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41"
 	help
 	  Select the clock source for the ISP's AXI bus. (clka_name)
 
@@ -586,7 +233,7 @@ endchoice
 choice
 	prompt "ISP AXI Bus Clock Speed"
 	default BR2_ISP_CLKA_400MHZ
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41"
 	help
 	  Choose the ISP's AXI bus clock speed from the predefined options.
 
@@ -616,69 +263,35 @@ config BR2_THINGINO_RMEM_MB_AUTO
 
 config BR2_THINGINO_RMEM_MB
 	int "ISP Reserved RAM (rmem), MB"
-	default 10 if BR2_SOC_FAMILY_32MB
-	default 23 if BR2_SOC_FAMILY_64MB
-	default 29 if BR2_SOC_FAMILY_128MB
-	default 64 if BR2_SOC_FAMILY_256MB
+	default 10 if BR2_SOC_RAM_MB = 32
+	default 23 if BR2_SOC_RAM_MB = 64
+	default 29 if BR2_SOC_RAM_MB = 128
+	default 64 if BR2_SOC_RAM_MB = 256
 	default 23
 
 config BR2_THINGINO_ISPMEM_MB
 	int "ISP Reserved RAM (ispmem), MB"
-	depends on BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20
+	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20"
 	default 8
 	help
 	  Specify reserved memory for the ISP in MB.
 
 config BR2_THINGINO_NMEM_MB
 	int "Neural Network Reserved RAM (nmem), MB"
-	depends on BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
-	default 23 if BR2_SOC_FAMILY_64MB
-	default 29 if BR2_SOC_FAMILY_128MB
-	default 64 if BR2_SOC_FAMILY_256MB
+	depends on BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	default 23 if BR2_SOC_RAM_MB = 64
+	default 29 if BR2_SOC_RAM_MB = 128
+	default 64 if BR2_SOC_RAM_MB = 256
 	default 23
 	help
 	  Specify reserved memory for the Neural Network module in MB.
 
-if FALSE
-menu "Image Sensor Configuration"
-config BR2_SENSOR_PARAM_RESET_GPIO
-	int "Reset GPIO pin"
-	default -1
-config BR2_SENSOR_PARAM_PWDN_GPIO
-	int "Powerdown GPIO pin"
-	default -1
-config BR2_SENSOR_PARAM_SENSOR_GPIO_FUNC
-	int "GPIO function"
-	default -1
-config BR2_SENSOR_PARAM_DATA_INTERFACE
-	int "Data interface"
-	default -1
-config BR2_SENSOR_PARAM_SENSOR_MAX_FPS
-	int "Maximum FPS"
-	default -1
-config BR2_SENSOR_PARAM_SHVFLIP
-	int "Horizontal and vertical flip"
-	default -1
-config BR2_SENSOR_PARAM_FSYNC_MODE
-	int "FSync mode"
-	default -1
-config BR2_SENSOR_PARAM_WDR_BUF_SIZE
-	int "WDR buffer size"
-	default -1
-config BR2_SENSOR_PARAM_SENSOR_RESOLUTION
-	int "Resolution"
-	default -1
-config BR2_SENSOR_PARAM_DATA_TYPE
-	int "Data type"
-	default -1
-endmenu
-endif
 
 menu "ISP Debug Configuration"
 
 choice
 	prompt "ISP Debug Print Level"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100"
 	default BR2_ISP_PRINT_LEVEL_1
 	help
 	  Select the debug print level for the ISP.
@@ -707,8 +320,8 @@ endchoice
 
 choice
 	prompt "ISP Memory Optimization Level"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40
-	default BR2_ISP_MEMOPT_1 if BR2_SOC_FAMILY_32MB || BR2_SOC_FAMILY_64MB
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40"
+	default BR2_ISP_MEMOPT_1 if BR2_SOC_RAM_MB <= 64
 	help
 	  Select the memory optimization level for the ISP.
 	  (isp_memopt)
@@ -735,7 +348,7 @@ config BR2_ISP_MEMOPT_3
 endchoice
 
 menuconfig BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100"
 	bool "ISP Day/Night Switch Drop Frame Number"
 	help
 	  Enable the drop frame feature during the day/night switch.
@@ -750,7 +363,7 @@ config BR2_ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM_VALUE
 	  (isp_day_night_switch_drop_frame_num)
 
 menuconfig BR2_ISP_CH0_PRE_DEQUEUE_TIME
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 	bool "ISP CH0 Pre-dequeue Time"
 	help
 	  Enable the pre-dequeue time for channel 0.
@@ -765,7 +378,7 @@ config BR2_ISP_CH0_PRE_DEQUEUE_TIME_VALUE
 	  (isp_ch0_pre_dequeue_time)
 
 menuconfig BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100"
 	bool "ISP CH0 Pre-dequeue Interrupt Processing"
 	help
 	  Enable the interrupt processing time for pre-dequeue for channel 0.
@@ -780,7 +393,7 @@ config BR2_ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS_VALUE
 	  (isp_ch0_pre_dequeue_interrupt_process)
 
 menuconfig BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100"
 	bool "ISP CH0 Valid Lines for Pre-dequeue"
 	help
 	  Enable the number of valid lines for pre-dequeue for channel 0.
@@ -795,7 +408,7 @@ config BR2_ISP_CH0_PRE_DEQUEUE_VALID_LINES_VALUE
 	  (isp_ch0_pre_dequeue_valid_lines)
 
 menuconfig BR2_ISP_CH1_DEQUEUE_DELAY_TIME
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100"
 	bool "ISP CH1 Pre-dequeue Delay Time"
 	help
 	  Enable the pre-dequeue delay time for channel 1.
@@ -810,7 +423,7 @@ config BR2_ISP_CH1_DEQUEUE_DELAY_TIME_VALUE
 	  (isp_ch1_dequeue_delay_time)
 
 config BR2_ISP_MIPI_SWITCH_GPIO
-	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
+	depends on BR2_SOC_FAMILY = "t23" && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
 	int "mipi switch"
 	default 7
 	help
@@ -820,7 +433,7 @@ config BR2_ISP_MIPI_SWITCH_GPIO
 
 choice
 	prompt "ISP Direct Mode"
-	depends on BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41"
 	help
 	  Configure non-direct mode, direct mode, and semi-direct mode.
 	  (direct_mode)
@@ -843,7 +456,7 @@ config BR2_ISP_DIRECT_MODE_2
 endchoice
 
 menuconfig BR2_ISP_IVDC_MEM_LINE
-	depends on (BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41) && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
+	depends on (BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41") && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
 	bool "ISP IVDC Mem Line"
 	help
 	  Enable the IVDC mem line configuration.
@@ -860,7 +473,7 @@ config BR2_ISP_IVDC_MEM_LINE_VALUE
 	  (ivdc_mem_line)
 
 menuconfig BR2_ISP_IVDC_THRESHOLD_LINE
-	depends on (BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T41) && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
+	depends on (BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t41") && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
 	bool "ISP Threshold Line"
 	help
 	  Enable the IVDC threshold line configuration.
@@ -877,7 +490,7 @@ config BR2_ISP_IVDC_THRESHOLD_LINE_VALUE
 	  (ivdc_threshold_line)
 
 config BR2_ISP_CONFIG_HZ
-	depends on BR2_SOC_FAMILY_INGENIC_T23 && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
+	depends on BR2_SOC_FAMILY = "t23" && BR2_THINGINO_IMAGE_SENSOR_QTY > 1
 	int "ISP Config Hz"
 	default 0
 	help
@@ -886,7 +499,7 @@ config BR2_ISP_CONFIG_HZ
 	  (isp_config_hz)
 
 menuconfig BR2_ISP_ISPW
-	depends on BR2_SOC_FAMILY_INGENIC_T30
+	depends on BR2_SOC_FAMILY = "t30"
 	bool "ISP Output Width"
 	help
 	  Set the width of the ISP output.
@@ -899,7 +512,7 @@ config BR2_ISP_ISPW_VALUE
 	  Set the width of the ISP output.
 
 menuconfig BR2_ISP_ISPH
-	depends on BR2_SOC_FAMILY_INGENIC_T30
+	depends on BR2_SOC_FAMILY = "t30"
 	bool "ISP Output Height"
 	help
 	  Set the height of the ISP output.
@@ -912,7 +525,7 @@ config BR2_ISP_ISPH_VALUE
 	  Set the height of the ISP output.
 
 menuconfig BR2_ISP_ISPTOP
-	depends on BR2_SOC_FAMILY_INGENIC_T30
+	depends on BR2_SOC_FAMILY = "t30"
 	bool "ISP Output Top"
 	help
 	  Set the top of the ISP output.
@@ -925,7 +538,7 @@ config BR2_ISP_ISPTOP_VALUE
 	  Set the top of the ISP output.
 
 menuconfig BR2_ISP_ISPLEFT
-	depends on BR2_SOC_FAMILY_INGENIC_T30
+	depends on BR2_SOC_FAMILY = "t30"
 	bool "ISP Output Left"
 	help
 	  Set the left of the ISP output.
@@ -938,7 +551,7 @@ config BR2_ISP_ISPLEFT_VALUE
 	  Set the left of the ISP output.
 
 menuconfig BR2_ISP_ISPCROP
-	depends on BR2_SOC_FAMILY_INGENIC_T30
+	depends on BR2_SOC_FAMILY = "t30"
 	bool "ISP Crop"
 	help
 	  Set the crop of the ISP output.
@@ -951,7 +564,7 @@ config BR2_ISP_ISPCROP_VALUE
 	  Set the crop of the ISP output.
 
 menuconfig BR2_ISP_ISPCROPWH
-	depends on BR2_SOC_FAMILY_INGENIC_T30
+	depends on BR2_SOC_FAMILY = "t30"
 	bool "ISP Crop Width and Height"
 	help
 	  Set the crop width and height of the ISP output.
@@ -964,7 +577,7 @@ config BR2_ISP_ISPCROPWH_VALUE
 	  Set the crop width and height of the ISP output.
 
 menuconfig BR2_ISP_ISPCROPTL
-	depends on BR2_SOC_FAMILY_INGENIC_T30
+	depends on BR2_SOC_FAMILY = "t30"
 	bool "ISP Crop Top and Left"
 	help
 	  Set the crop top and left of the ISP output.
@@ -977,7 +590,7 @@ config BR2_ISP_ISPCROPTL_VALUE
 	  Set the crop top and left of the ISP output.
 
 menuconfig BR2_ISP_ISPSCALER
-	depends on BR2_SOC_FAMILY_INGENIC_T30
+	depends on BR2_SOC_FAMILY = "t30"
 	bool "ISP Scaler"
 	help
 	  Set the scaler of the ISP output.
@@ -990,7 +603,7 @@ config BR2_ISP_ISPSCALER_VALUE
 	  Set the scaler of the ISP output.
 
 menuconfig BR2_ISP_ISPSCALERWH
-	depends on BR2_SOC_FAMILY_INGENIC_T30
+	depends on BR2_SOC_FAMILY = "t30"
 	bool "ISP Scaler Width and Height"
 	help
 	  Set the scaler width and height of the ISP output.
@@ -1003,7 +616,7 @@ config BR2_ISP_ISPSCALERWH_VALUE
 	  Set the scaler width and height of the ISP output.
 
 menuconfig BR2_ISP_ISP_M1_BUFS
-	depends on BR2_SOC_FAMILY_INGENIC_T30
+	depends on BR2_SOC_FAMILY = "t30"
 	bool "ISP M1 Bufs"
 	help
 	  Set the number of LDC input buffers.
@@ -1016,7 +629,7 @@ config BR2_ISP_ISP_M1_BUFS_VALUE
 	  Set the number of LDC input buffers.
 
 menuconfig BR2_ISP_ISP_M2_BUFS
-	depends on BR2_SOC_FAMILY_INGENIC_T30
+	depends on BR2_SOC_FAMILY = "t30"
 	bool "ISP M2 Bufs"
 	help
 	  Set the number of LDC output buffers.
@@ -1076,8 +689,8 @@ config BR2_THINGINO_AUDIO_GPIO_LOW
 config BR2_THINGINO_AUDIO_DMIC
 	bool "DMIC Support"
 	depends on BR2_THINGINO_AUDIO
-	depends on BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T32 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
-	select BR2_PACKAGE_THINGINO_KOPT_DMIC if KERNEL_VERSION_3
+	depends on BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t32" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
+	select BR2_PACKAGE_THINGINO_KOPT_DMIC if KERNEL_VERSION = 3.10.14
 	help
 	  Enable Digital Microphone (DMIC) audio suport.
 
@@ -1099,7 +712,7 @@ config BR2_THINGINO_PWM_ENABLE
 	  Enable or Disable PWM support.
 
 config BR2_THINGINO_MOTORS
-	depends on !BR2_SOC_FAMILY_INGENIC_A1
+	depends on !BR2_SOC_FAMILY = "a1"
 	bool "Pan/Tilt/Zoom Motors"
 	help
 	  The camera has Pan/Tilt or Zoom motors.
@@ -1131,12 +744,12 @@ config BR2_THINGINO_BUTTON
 
 config BR2_THINGINO_NNA
 	bool "Neural Network Acceleration Support"
-	depends on BR2_SOC_FAMILY_INGENIC_A1
+	depends on BR2_SOC_FAMILY = "a1"
 	help
 	  Enable support for Neural Network Acceleration on A1 SoCs.
 
 config BR2_THINGINO_VIDEO_OUT
-	depends on BR2_SOC_FAMILY_INGENIC_A1
+	depends on BR2_SOC_FAMILY = "a1"
 	select BR2_THINGINO_FRAMEBUFFER
 	select BR2_THINGINO_IPU
 	select BR2_THINGINO_VENC
@@ -1145,36 +758,34 @@ config BR2_THINGINO_VIDEO_OUT
 	  The hardware has a video output support.  Enables venc, framebuffer, and vo modules.
 
 config BR2_THINGINO_HDMI_AUDIO
-	depends on BR2_SOC_FAMILY_INGENIC_A1
+	depends on BR2_SOC_FAMILY = "a1"
 	bool "HDMI Audio Support"
 	help
 	  The hardware has a HDMI audio support.  Enables hdmi_audio module.
 
 config BR2_THINGINO_AIP
-	depends on BR2_SOC_FAMILY_INGENIC_A1
+	depends on BR2_SOC_FAMILY = "a1"
 	bool "Ingenic AIP Support"
 	help
 	  The hardware has a AIP DMA engine.  Enables ingenic-aip module.
 
 config BR2_THINGINO_VDEC
-	depends on BR2_SOC_FAMILY_INGENIC_A1
+	depends on BR2_SOC_FAMILY = "a1"
 	bool "VDEC Support"
 	help
 	  The hardware has a video decoder support.  Enables vdec module.
 
 config BR2_THINGINO_FRAMEBUFFER
-	depends on BR2_SOC_FAMILY_INGENIC_A1
+	depends on BR2_SOC_FAMILY = "a1"
 	bool
 
 config BR2_THINGINO_VDE
-	depends on BR2_SOC_FAMILY_INGENIC_A1
+	depends on BR2_SOC_FAMILY = "a1"
 	bool
 
 config BR2_THINGINO_IPU
-	depends on BR2_SOC_FAMILY_INGENIC_A1
+	depends on BR2_SOC_FAMILY = "a1"
 	bool
-
-endmenu
 
 source "$BR2_EXTERNAL_THINGINO_PATH/Config.sensor.in"
 
@@ -1211,14 +822,14 @@ choice
 	prompt "Kernel version"
 	help
 	  Select the desired  kernel version
-	default KERNEL_VERSION_3 if BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20 || BR2_SOC_FAMILY_INGENIC_T21 || BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31
-	default KERNEL_VERSION_4 if BR2_SOC_FAMILY_INGENIC_A1 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T41 || BR2_SOC_FAMILY_INGENIC_T40
+	default KERNEL_VERSION_3 if BR2_INGENIC_SOC_MODEL = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31"
+	default KERNEL_VERSION_4 if BR2_INGENIC_SOC_MODEL = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41" || BR2_SOC_FAMILY = "a1"
 config KERNEL_VERSION_3
 	bool "Kernel 3.10.14"
-	depends on BR2_SOC_FAMILY_INGENIC_T10 || BR2_SOC_FAMILY_INGENIC_T20 || BR2_SOC_FAMILY_INGENIC_T21 || BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T30 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "t10" || BR2_SOC_FAMILY = "t20" || BR2_SOC_FAMILY = "t21" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t30" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t41"
 config KERNEL_VERSION_4
 	bool "Kernel 4.4.94"
-	depends on BR2_SOC_FAMILY_INGENIC_A1 || BR2_SOC_FAMILY_INGENIC_C100 || BR2_SOC_FAMILY_INGENIC_T23 || BR2_SOC_FAMILY_INGENIC_T31 || BR2_SOC_FAMILY_INGENIC_T40 || BR2_SOC_FAMILY_INGENIC_T41
+	depends on BR2_SOC_FAMILY = "a1" || BR2_SOC_FAMILY = "t23" || BR2_SOC_FAMILY = "t31" || BR2_SOC_FAMILY = "c100" || BR2_SOC_FAMILY = "t40" || BR2_SOC_FAMILY = "t41"
 endchoice
 
 menu "Device Type"

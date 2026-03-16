@@ -323,10 +323,6 @@ define THINGINO_GENERATE_UBOOT_ENV
 	@env BR2_PACKAGE_THINGINO_UBOOT_ROOT='$(value BR2_PACKAGE_THINGINO_UBOOT_ROOT)' sh -c 'grep -q "^root=" $(OUTPUT_DIR)/uenv.txt || echo "root=$$BR2_PACKAGE_THINGINO_UBOOT_ROOT" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
 	@env BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE='$(value BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE)' sh -c 'grep -q "^rootfstype=" $(OUTPUT_DIR)/uenv.txt || echo "rootfstype=$$BR2_PACKAGE_THINGINO_UBOOT_ROOTFSTYPE" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
 	@env BR2_PACKAGE_THINGINO_UBOOT_INIT='$(value BR2_PACKAGE_THINGINO_UBOOT_INIT)' sh -c 'grep -q "^init=" $(OUTPUT_DIR)/uenv.txt || echo "init=$$BR2_PACKAGE_THINGINO_UBOOT_INIT" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
-	@env BR2_PACKAGE_THINGINO_UBOOT_MTDPARTS='$(value BR2_PACKAGE_THINGINO_UBOOT_MTDPARTS)' sh -c 'grep -q "^mtdparts=" $(OUTPUT_DIR)/uenv.txt || echo "mtdparts=$$BR2_PACKAGE_THINGINO_UBOOT_MTDPARTS" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
-	@env BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS='$(value BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS)' sh -c 'grep -q "^bootargs=" $(OUTPUT_DIR)/uenv.txt || echo "bootargs=$$BR2_PACKAGE_THINGINO_UBOOT_BOOTARGS" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
-	@env BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD='$(value BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD)' sh -c 'grep -q "^bootcmd=" $(OUTPUT_DIR)/uenv.txt || echo "bootcmd=$$BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
-	@env BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD='$(value BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD)' sh -c 'grep -q "^bootcmd=" $(OUTPUT_DIR)/uenv.txt || echo "bootcmd=$$BR2_PACKAGE_THINGINO_UBOOT_BOOTCMD" | sed "s/=\"/=/;s/\"$$//" >> $(OUTPUT_DIR)/uenv.txt'
 	@env BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE='$(BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE)' sh -c 'if [ "$$BR2_PACKAGE_THINGINO_UBOOT_SD_ENABLE" = "y" ]; then grep -q "^disable_sd=" $(OUTPUT_DIR)/uenv.txt && sed -i "s/^disable_sd=.*/disable_sd=false/" $(OUTPUT_DIR)/uenv.txt || echo "disable_sd=false" >> $(OUTPUT_DIR)/uenv.txt; else grep -q "^disable_sd=" $(OUTPUT_DIR)/uenv.txt && sed -i "s/^disable_sd=.*/disable_sd=true/" $(OUTPUT_DIR)/uenv.txt || echo "disable_sd=true" >> $(OUTPUT_DIR)/uenv.txt; fi'
 	@env BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE='$(BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE)' sh -c 'if [ "$$BR2_PACKAGE_THINGINO_UBOOT_ETH_ENABLE" = "y" ]; then grep -q "^disable_eth=" $(OUTPUT_DIR)/uenv.txt && sed -i "s/^disable_eth=.*/disable_eth=false/" $(OUTPUT_DIR)/uenv.txt || echo "disable_eth=false" >> $(OUTPUT_DIR)/uenv.txt; else grep -q "^disable_eth=" $(OUTPUT_DIR)/uenv.txt && sed -i "s/^disable_eth=.*/disable_eth=true/" $(OUTPUT_DIR)/uenv.txt || echo "disable_eth=true" >> $(OUTPUT_DIR)/uenv.txt; fi'
 	@sed -i "s|\$$(UBOOT_FLASH_CONTROLLER)|$(UBOOT_FLASH_CONTROLLER)|g" $(OUTPUT_DIR)/uenv.txt
@@ -336,10 +332,31 @@ endef
 THINGINO_UBOOT_PRE_BUILD_HOOKS += THINGINO_GENERATE_UBOOT_ENV
 
 #
-# Patch uboot headers with env data for device if uenv.txt exists
+# Patch uboot headers with actual partition sizes and env data
 #
 define PATCH_DEV_ENV
-	$(BR2_EXTERNAL)/scripts/uboot-device-env.sh $(OUTPUT_DIR)/uenv.txt \
+	@# Calculate actual partition sizes from built binaries
+	@if [ -f $(OUTPUT_DIR)/images/uImage ] && [ -f $(OUTPUT_DIR)/images/rootfs.squashfs ]; then \
+		KERNEL_BIN_SIZE=$$(stat -c%s $(OUTPUT_DIR)/images/uImage); \
+		KERNEL_SIZE_ALIGNED=$$(( ($$KERNEL_BIN_SIZE + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK) )); \
+		KERNEL_SIZE_KB=$$(( $$KERNEL_SIZE_ALIGNED / 1024 )); \
+		ROOTFS_BIN_SIZE=$$(stat -c%s $(OUTPUT_DIR)/images/rootfs.squashfs); \
+		ROOTFS_SIZE_ALIGNED=$$(( ($$ROOTFS_BIN_SIZE + $(ALIGN_BLOCK) - 1) / $(ALIGN_BLOCK) * $(ALIGN_BLOCK) )); \
+		ROOTFS_SIZE_KB=$$(( $$ROOTFS_SIZE_ALIGNED / 1024 )); \
+		KERNEL_OFFSET=$$(( $(CONFIG_OFFSET) + $(CONFIG_PARTITION_SIZE) )); \
+		ROOTFS_OFFSET=$$(( $$KERNEL_OFFSET + $$KERNEL_SIZE_ALIGNED )); \
+		KERNEL_OFFSET_HEX=$$(printf '0x%x' $$KERNEL_OFFSET); \
+		KERNEL_OFFSET_KB=$$(( $$KERNEL_OFFSET / 1024 )); \
+		FLASH_SIZE_BYTES=$$(( $(FLASH_SIZE_MB) * 1024 * 1024 )); \
+		FLASH_SIZE_KB=$$(( $(FLASH_SIZE_MB) * 1024 )); \
+		UPGRADE_SIZE_KB=$$(( $$FLASH_SIZE_KB - $$KERNEL_OFFSET_KB )); \
+		EXTRAS_PARTITION_SIZE=$$(( $$FLASH_SIZE_BYTES - ( $$ROOTFS_OFFSET + $$ROOTFS_SIZE_ALIGNED ) )); \
+		EXTRAS_SIZE_KB=$$(( $$EXTRAS_PARTITION_SIZE / 1024 )); \
+		MTDPARTS="$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$${KERNEL_SIZE_KB}k(kernel),$${ROOTFS_SIZE_KB}k(rootfs),$${UPGRADE_SIZE_KB}k@$${KERNEL_OFFSET_HEX}(upgrade),$${FLASH_SIZE_KB}k@0(all)"; \
+		echo "Compiling U-Boot with mtdparts=$$MTDPARTS"; \
+		sed -i "s|CONFIG_MTDPARTS_DEFAULT=.*|CONFIG_MTDPARTS_DEFAULT=\"$$MTDPARTS\"|" $(@D)/include/configs/isvp_common.h || true; \
+	fi
+	$(BR2_EXTERNAL_THINGINO_PATH)/scripts/uboot-device-env.sh $(OUTPUT_DIR)/uenv.txt \
 		$(@D)/include/configs/isvp_common.h
 endef
 THINGINO_UBOOT_PRE_BUILD_HOOKS += PATCH_DEV_ENV

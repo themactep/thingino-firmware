@@ -1,16 +1,16 @@
 {
   "gpio": {
     "button_reset": 62,
+    "eth": {
+      "pin": 64,
+      "toggle": true
+    },
     "ir850": 59,
     "ircut": "50 49",
     "mmc_cd": 61,
     "white": 60,
     "wlan": {
       "pin": 6,
-      "toggle": true
-    },
-    "eth": {
-      "pin": 64,
       "toggle": true
     }
   }

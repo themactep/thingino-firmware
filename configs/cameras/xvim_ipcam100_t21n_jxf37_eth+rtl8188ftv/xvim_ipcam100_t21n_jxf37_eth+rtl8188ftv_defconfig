@@ -1,5 +1,5 @@
 # NAME: XVIM IPCAM-100 (T21N, JXF37, ETH, RTL8188FTV)
-# FRAG: soc-xburst1 toolchain-xburst1 ccache brand rootfs kernel system target uboot ssl
+# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot ssl
 BR2_ETHERNET=y
 BR2_ISP_CLK_120MHZ=y
 BR2_PACKAGE_THINGINO_KOPT=y
@@ -13,7 +13,7 @@ BR2_PACKAGE_WIFI=y
 BR2_PACKAGE_WIFI_RTL8188FU=y
 BR2_SENSOR_1_NAME="jxf37"
 BR2_SENSOR_PARAMS="sensor_max_fps=25 sensor_gpio_func=0"
-BR2_SOC_INGENIC_T21N=y
+BR2_INGENIC_SOC_MODEL="t21n"
 BR2_THINGINO_AUDIO=y
 BR2_THINGINO_AUDIO_GPIO=63
 BR2_THINGINO_AUDIO_GPIO_LOW=y
