@@ -895,6 +895,9 @@ run:
 #   1. It would break non-buildroot targets (like when this rule incorrectly matched 'update')
 #   2. Buildroot targets will fail gracefully if config is missing
 #   3. Users should use 'make br-<target>' for buildroot targets, which includes check-config
+%: check-config
+	$(BR2_MAKE) $)
+
 .DEFAULT:
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) $@
