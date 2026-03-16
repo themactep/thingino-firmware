@@ -19,6 +19,14 @@ define THINGINO_HA_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/sbin/ha-state
 	$(INSTALL) -D -m 0755 $(@D)/ha-commands \
 		$(TARGET_DIR)/usr/sbin/ha-commands
+
+  # Web UI
+  $(INSTALL) -D -m 0644 $(@D)/config-ha.html \
+		$(TARGET_DIR)/var/www/config-ha.html
+  $(INSTALL) -D -m 0644 $(@D)/config-ha.js \
+		$(TARGET_DIR)/var/www/a/config-ha.js
+  $(INSTALL) -D -m 0755 $(@D)/json-config-ha.cgi \
+		$(TARGET_DIR)/var/www/x/jcon-config-ha.cgi
 endef
 
 $(eval $(generic-package))

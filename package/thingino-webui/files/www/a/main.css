@@ -231,6 +231,10 @@ textarea.nowrap {
   white-space: nowrap;
 }
 
+.cols-2 {
+  columns: 2;
+}
+
 .container {
   display: block;
 }

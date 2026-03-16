@@ -1,33 +1,33 @@
 {
   "ha": {
-    "enabled": false,
-    "discovery_prefix": "homeassistant",
-    "state_interval": 15,
-    "discovery_interval": 3600,
-    "device_name": "",
     "device_model": "",
-    "mqtt": {
-      "host": "",
-      "port": 1883,
-      "username": "",
-      "password": "",
-      "use_ssl": false,
-      "client_id_prefix": "thingino-ha"
-    },
-    "enable_motion": true,
-    "enable_motion_guard": true,
-    "enable_ircut": true,
-    "enable_daynight": true,
-    "enable_privacy": true,
+    "device_name": "",
+    "discovery_interval": 3600,
+    "discovery_prefix": "homeassistant",
     "enable_color": true,
+    "enable_daynight": true,
+    "enable_gain": false,
     "enable_ir850": true,
     "enable_ir940": true,
-    "enable_white_light": true,
-    "enable_gain": false,
+    "enable_ircut": true,
+    "enable_motion": true,
+    "enable_motion_guard": true,
+    "enable_ota": true,
+    "enable_privacy": true,
+    "enable_ptz": false,
+    "enable_reboot": false,
     "enable_rssi": true,
     "enable_snapshot": true,
-    "enable_reboot": false,
-    "enable_ota": true,
-    "enable_ptz": false
+    "enable_white_light": true,
+    "enabled": false,
+    "mqtt": {
+      "client_id_prefix": "thingino-ha",
+      "host": "",
+      "password": "",
+      "port": 1883,
+      "use_ssl": false,
+      "username": ""
+    },
+    "state_interval": 15
   }
 }

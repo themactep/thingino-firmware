@@ -103,14 +103,31 @@
               <div class="col-12 col-lg-4">
                 <h4>Entities</h4>
                 <small>Choose which entities to expose in Home Assistant</small>
-                <div class="mt-3">
+
+                <h5>Sensors</h5>
+                <div class="mt-3 cols-2">
                   <p class="form-switch">
                     <input type="checkbox" id="ha_enable_motion" class="form-check-input" role="switch">
                     <label for="ha_enable_motion" class="form-check-label">Motion sensor</label>
                   </p>
                   <p class="form-switch">
+                    <input type="checkbox" id="ha_enable_gain" class="form-check-input" role="switch">
+                    <label for="ha_enable_gain" class="form-check-label">Gain sensor</label>
+                  </p>
+                  <p class="form-switch">
+                    <input type="checkbox" id="ha_enable_rssi" class="form-check-input" role="switch">
+                    <label for="ha_enable_rssi" class="form-check-label">WiFi signal</label>
+                  </p>
+                  <p class="form-switch">
+                    <input type="checkbox" id="ha_enable_ota" class="form-check-input" role="switch">
+                    <label for="ha_enable_ota" class="form-check-label">Firmware update</label>
+                  </p>
+                </div>
+                <h5>Switches</h5>
+                <div class="mt-3 cols-2">
+                  <p class="form-switch">
                     <input type="checkbox" id="ha_enable_motion_guard" class="form-check-input" role="switch">
-                    <label for="ha_enable_motion_guard" class="form-check-label">Motion guard switch</label>
+                    <label for="ha_enable_motion_guard" class="form-check-label">Motion guard</label>
                   </p>
                   <p class="form-switch">
                     <input type="checkbox" id="ha_enable_ircut" class="form-check-input" role="switch">
@@ -141,24 +158,12 @@
                     <label for="ha_enable_white_light" class="form-check-label">White light</label>
                   </p>
                   <p class="form-switch">
-                    <input type="checkbox" id="ha_enable_gain" class="form-check-input" role="switch">
-                    <label for="ha_enable_gain" class="form-check-label">Gain sensor</label>
-                  </p>
-                  <p class="form-switch">
-                    <input type="checkbox" id="ha_enable_rssi" class="form-check-input" role="switch">
-                    <label for="ha_enable_rssi" class="form-check-label">WiFi signal</label>
-                  </p>
-                  <p class="form-switch">
                     <input type="checkbox" id="ha_enable_snapshot" class="form-check-input" role="switch">
                     <label for="ha_enable_snapshot" class="form-check-label">Snapshot button</label>
                   </p>
                   <p class="form-switch">
                     <input type="checkbox" id="ha_enable_reboot" class="form-check-input" role="switch">
                     <label for="ha_enable_reboot" class="form-check-label">Reboot button</label>
-                  </p>
-                  <p class="form-switch">
-                    <input type="checkbox" id="ha_enable_ota" class="form-check-input" role="switch">
-                    <label for="ha_enable_ota" class="form-check-label">Firmware update</label>
                   </p>
                 </div>
               </div>
