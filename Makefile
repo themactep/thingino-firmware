@@ -301,9 +301,7 @@ CONFIG_DEPS_FILE = $(OUTPUT_DIR)/.config.deps
 CONFIG_FRAGMENT_FILES = $(addprefix configs/fragments/,$(addsuffix .fragment,$(FRAGMENTS)))
 CONFIG_INPUT_FILES = $(CONFIG_FRAGMENT_FILES) $(CAMERA_CONFIG_REAL)
 ifeq ($(RELEASE),0)
-ifneq ($(wildcard $(THINGINO_USER_DIR)/local.fragment),)
 CONFIG_INPUT_FILES += $(THINGINO_USER_DIR)/local.fragment
-endif
 ifneq ($(wildcard $(BR2_EXTERNAL)/local.mk),)
 CONFIG_INPUT_FILES += $(BR2_EXTERNAL)/local.mk
 endif
