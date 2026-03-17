@@ -18,6 +18,60 @@ remote_run() {
 	ssh $SSH_OPTS $REMOTE_HOST "$1"
 }
 
+check_and_free_space() {
+	local fw_size_kb remote_avail_kb needed_kb
+	fw_size_kb=$(( ($(stat -c%s "$LOCAL_FW_FILE") + 1023) / 1024 ))
+	# MemAvailable was added in kernel 3.14; on 3.10 approximate with MemFree+Buffers+Cached
+	remote_avail_kb=$(remote_run "awk '/^MemAvailable:/{a=\$2} /^MemFree:/{f=\$2} /^Buffers:/{b=\$2} /^Cached:/{c=\$2} END{print (a ? a : f+b+c)}' /proc/meminfo" | tr -d '[:space:]')
+	# Require firmware size + 4MB headroom so the system keeps running during transfer
+	needed_kb=$(( fw_size_kb + 4096 ))
+	echo "Firmware size: ${fw_size_kb}KB, available RAM: ${remote_avail_kb}KB, needed: ${needed_kb}KB"
+
+	[ "$remote_avail_kb" -ge "$needed_kb" ] && return 0
+
+	echo "Not enough free RAM (need ${needed_kb}KB, have ${remote_avail_kb}KB). Attempting to free memory by remapping rmem..."
+
+	local osmem rmem_val osmem_mb osmem_addr rmem_mb rmem_addr new_osmem_mb
+	osmem=$(remote_run "fw_printenv -n osmem" | tr -d '[:space:]')
+	rmem_val=$(remote_run "fw_printenv -n rmem" | tr -d '[:space:]')
+
+	osmem_mb=$(echo "$osmem" | sed 's/M@.*//')
+	osmem_addr=$(echo "$osmem" | sed 's/.*@//')
+	rmem_mb=$(echo "$rmem_val" | sed 's/M@.*//')
+	rmem_addr=$(echo "$rmem_val" | sed 's/.*@//')
+
+	if [ -z "$rmem_mb" ] || [ "$rmem_mb" -le 0 ]; then
+		die "Not enough space in /tmp and rmem is not set or already zero. Cannot proceed."
+	fi
+
+	new_osmem_mb=$(( osmem_mb + rmem_mb ))
+	echo "Remapping memory: osmem ${osmem_mb}M -> ${new_osmem_mb}M, rmem ${rmem_mb}M -> 0M (at ${rmem_addr})"
+
+	remote_run "fw_setenv osmem ${new_osmem_mb}M@${osmem_addr} && fw_setenv rmem 0M@${rmem_addr} && reboot" || true
+
+	echo "Closing SSH mux..."
+	ssh -O exit $SSH_OPTS $REMOTE_HOST 2>/dev/null || true
+
+	echo "Waiting for device to reboot..."
+	sleep 15
+
+	local retries=30
+	while [ "$retries" -gt 0 ]; do
+		if ssh $SSH_OPTS -o ConnectTimeout=5 $REMOTE_HOST "echo ok" >/dev/null 2>&1; then
+			break
+		fi
+		retries=$(( retries - 1 ))
+		sleep 3
+	done
+	[ "$retries" -eq 0 ] && die "Device did not come back online after memory remap reboot."
+
+	echo "Device is back online with remapped memory. Re-initializing SSH mux..."
+	ssh -fN $SSH_OPTS $REMOTE_HOST || die "Failed to re-initialize SSH connection after reboot"
+
+	echo "Re-uploading sysupgrade utility (tmpfs was cleared on reboot)..."
+	upload_sysupgrade
+}
+
 trap cleanup EXIT
 
 CAMERA_IP_ADDRESS="$2"
@@ -59,16 +113,21 @@ fi
 
 echo "Firmware compatibility verified."
 
+upload_sysupgrade() {
+	remote_copy $LOCAL_SCRIPT $REMOTE_HOST:$REMOTE_SCRIPT || \
+		die "Failed to transfer sysupgrade utility"
+	remote_copy $LOCAL_SCRIPT2 $REMOTE_HOST:/sbin/$(basename $LOCAL_SCRIPT2) || \
+		die "Failed to transfer sysupgrade-stage2 utility"
+	remote_run "chmod +x $REMOTE_SCRIPT" || \
+		die "Failed to set execute permissions on sysupgrade utility"
+	echo "Sysupgrade utility installed successfully."
+}
+
 echo "Transferring sysupgrade utility to device..."
-remote_copy $LOCAL_SCRIPT $REMOTE_HOST:$REMOTE_SCRIPT || \
-	die "Failed to transfer sysupgrade utility"
-remote_copy $LOCAL_SCRIPT2 $REMOTE_HOST:/sbin/$(basename $LOCAL_SCRIPT2) || \
-	die "Failed to transfer sysupgrade-stage2 utility"
+upload_sysupgrade
 
-remote_run "chmod +x $REMOTE_SCRIPT" || \
-	die "Failed to set execute permissions on sysupgrade utility"
-
-echo "Sysupgrade utility installed successfully."
+echo "Checking available space in /tmp on device..."
+check_and_free_space
 
 echo "Transferring firmware file to the device..."
 remote_copy $LOCAL_FW_FILE $REMOTE_HOST:$REMOTE_FW_FILE || \
