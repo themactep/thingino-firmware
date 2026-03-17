@@ -1,0 +1,314 @@
+diff --git a/USB/driver_fw/drivers/aic8800/Makefile b/USB/driver_fw/drivers/aic8800/Makefile
+index fbac6e1..339314c 100644
+--- a/USB/driver_fw/drivers/aic8800/Makefile
++++ b/USB/driver_fw/drivers/aic8800/Makefile
+@@ -1,6 +1,13 @@
+ CONFIG_AIC_LOADFW_SUPPORT := m
+ CONFIG_AIC8800_WLAN_SUPPORT := m
+ 
++# Optional chip-family selection for size-optimized USB builds.
++# Leave all flags unset to preserve the legacy multi-chip build.
++export CONFIG_AIC_CHIP_8800 ?= n
++export CONFIG_AIC_CHIP_8800D80 ?= n
++export CONFIG_AIC_CHIP_8800D80X2 ?= n
++export CONFIG_AIC_CHIP_8800DC ?= n
++
+ obj-$(CONFIG_AIC_LOADFW_SUPPORT)    += aic_load_fw/
+ obj-$(CONFIG_AIC8800_WLAN_SUPPORT) += aic8800_fdrv/
+ 
+diff --git a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/Makefile b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/Makefile
+index d0970cb..5f8304e 100644
+--- a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/Makefile
++++ b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/Makefile
+@@ -17,6 +17,13 @@ CONFIG_PMIC_SETTING ?=n
+ # Select 8800DC/DW DCDC_VRF mode, check your board
+ CONFIG_VRF_DCDC_MODE = y
+ 
++# Optional chip-family selection for size-optimized USB builds.
++# Leave all flags unset to preserve the legacy multi-chip build.
++CONFIG_AIC_CHIP_8800 ?= n
++CONFIG_AIC_CHIP_8800D80 ?= n
++CONFIG_AIC_CHIP_8800D80X2 ?= n
++CONFIG_AIC_CHIP_8800DC ?= n
++
+ # ROM patch enabled option
+ CONFIG_ROM_PATCH_EN ?=y
+ 
+@@ -136,8 +143,9 @@ else
+ CONFIG_RWNX_MUMIMO_TX = n
+ endif
+ 
+-# Enable handling of radar event
+-CONFIG_RWNX_RADAR ?= y
++# Enable handling of radar/DFS events.
++# Default off for size-optimized builds; Soft AP on non-DFS channels still works.
++CONFIG_RWNX_RADAR ?= n
+ 
+ # Enable HW queue for Broadcast/Multicast traffic (need FW support)
+ CONFIG_RWNX_BCMC ?= y
+@@ -155,6 +163,7 @@ CONFIG_RWNX_DBG ?= y
+ BR_NAME = br0
+ 
+ obj-$(CONFIG_AIC8800_WLAN_SUPPORT) := $(MODULE_NAME).o
++AIC_CHIP_FAMILY_SELECTED := $(filter y,$(CONFIG_AIC_CHIP_8800) $(CONFIG_AIC_CHIP_8800D80) $(CONFIG_AIC_CHIP_8800D80X2) $(CONFIG_AIC_CHIP_8800DC))
+ $(MODULE_NAME)-y := \
+     rwnx_wakelock.o        \
+ 	rwnx_msg_tx.o          \
+@@ -179,10 +188,15 @@ $(MODULE_NAME)-y := \
+ 	regdb.o                \
+ 	md5.o                  \
+ 	aic_vendor.o           \
+-        aic_priv_cmd.o         \
+-	aicwf_compat_8800dc.o  \
+-	aicwf_compat_8800d80.o \
+-	aicwf_compat_8800d80x2.o
++	        aic_priv_cmd.o
++
++ifeq ($(AIC_CHIP_FAMILY_SELECTED),)
++$(MODULE_NAME)-y += aicwf_compat_8800dc.o aicwf_compat_8800d80.o aicwf_compat_8800d80x2.o
++else
++$(MODULE_NAME)-$(CONFIG_AIC_CHIP_8800DC) += aicwf_compat_8800dc.o
++$(MODULE_NAME)-$(CONFIG_AIC_CHIP_8800D80) += aicwf_compat_8800d80.o
++$(MODULE_NAME)-$(CONFIG_AIC_CHIP_8800D80X2) += aicwf_compat_8800d80x2.o
++endif
+ 
+ $(MODULE_NAME)-$(CONFIG_BR_SUPPORT)       += aic_br_ext.o
+ $(MODULE_NAME)-$(CONFIG_RWNX_RADAR)       += rwnx_radar.o
+@@ -251,6 +265,10 @@ ccflags-$(CONFIG_RWNX_MUMIMO_TX) += -DCONFIG_RWNX_MUMIMO_TX
+ ccflags-$(CONFIG_RFTEST) += -DCONFIG_RFTEST
+ ccflags-$(CONFIG_MCC) += -DCONFIG_MCC
+ ccflags-$(CONFIG_LOAD_BT_PATCH_IN_FDRV) += -DCONFIG_LOAD_BT_PATCH_IN_FDRV
++ccflags-$(CONFIG_AIC_CHIP_8800) += -DCONFIG_AIC_CHIP_8800
++ccflags-$(CONFIG_AIC_CHIP_8800D80) += -DCONFIG_AIC_CHIP_8800D80
++ccflags-$(CONFIG_AIC_CHIP_8800D80X2) += -DCONFIG_AIC_CHIP_8800D80X2
++ccflags-$(CONFIG_AIC_CHIP_8800DC) += -DCONFIG_AIC_CHIP_8800DC
+ 
+ ifeq ($(CONFIG_SDIO_SUPPORT), y)
+ ccflags-y += -DAICWF_SDIO_SUPPORT
+diff --git a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_compat_8800d80.h b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_compat_8800d80.h
+index 134fd1a..dcdf80f 100644
+--- a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_compat_8800d80.h
++++ b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_compat_8800d80.h
+@@ -1,9 +1,19 @@
+ #include <linux/types.h>
+ 
++#if defined(CONFIG_AIC_CHIP_8800D80) || \
++    (!defined(CONFIG_AIC_CHIP_8800) && !defined(CONFIG_AIC_CHIP_8800D80) && \
++     !defined(CONFIG_AIC_CHIP_8800D80X2) && !defined(CONFIG_AIC_CHIP_8800DC))
+ int rwnx_plat_userconfig_load_8800d80(struct rwnx_hw *rwnx_hw);
+ #ifdef CONFIG_POWER_LIMIT
+ int rwnx_plat_powerlimit_load_8800d80(struct rwnx_hw *rwnx_hw);
+ #endif
+ int aicwf_set_rf_config_8800d80(struct rwnx_hw *rwnx_hw, struct mm_set_rf_calib_cfm *cfm);
++#else
++static inline int rwnx_plat_userconfig_load_8800d80(struct rwnx_hw *rwnx_hw) { return -1; }
++#ifdef CONFIG_POWER_LIMIT
++static inline int rwnx_plat_powerlimit_load_8800d80(struct rwnx_hw *rwnx_hw) { return -1; }
++#endif
++static inline int aicwf_set_rf_config_8800d80(struct rwnx_hw *rwnx_hw, struct mm_set_rf_calib_cfm *cfm) { return -1; }
++#endif
+ 
+ 
+diff --git a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_compat_8800d80x2.h b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_compat_8800d80x2.h
+index dbd4de9..ee703ac 100644
+--- a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_compat_8800d80x2.h
++++ b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_compat_8800d80x2.h
+@@ -1,9 +1,18 @@
+ #include <linux/types.h>
+ 
++#if defined(CONFIG_AIC_CHIP_8800D80X2) || \
++    (!defined(CONFIG_AIC_CHIP_8800) && !defined(CONFIG_AIC_CHIP_8800D80) && \
++     !defined(CONFIG_AIC_CHIP_8800D80X2) && !defined(CONFIG_AIC_CHIP_8800DC))
+ int rwnx_plat_userconfig_load_8800d80x2(struct rwnx_hw *rwnx_hw);
+ #ifdef CONFIG_POWER_LIMIT
+ int rwnx_plat_powerlimit_load_8800d80x2(struct rwnx_hw *rwnx_hw);
+ #endif
+ int aicwf_set_rf_config_8800d80x2(struct rwnx_hw *rwnx_hw, struct mm_set_rf_calib_cfm *cfm);
+-
++#else
++static inline int rwnx_plat_userconfig_load_8800d80x2(struct rwnx_hw *rwnx_hw) { return -1; }
++#ifdef CONFIG_POWER_LIMIT
++static inline int rwnx_plat_powerlimit_load_8800d80x2(struct rwnx_hw *rwnx_hw) { return -1; }
++#endif
++static inline int aicwf_set_rf_config_8800d80x2(struct rwnx_hw *rwnx_hw, struct mm_set_rf_calib_cfm *cfm) { return -1; }
++#endif
+ 
+diff --git a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_compat_8800dc.h b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_compat_8800dc.h
+index c0e53cb..81882b9 100644
+--- a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_compat_8800dc.h
++++ b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/aicwf_compat_8800dc.h
+@@ -24,6 +24,9 @@ typedef struct {
+ #define DPD_RESULT_SIZE_8800DC      sizeof(rf_misc_ram_lite_t)
+ #endif
+ 
++#if defined(CONFIG_AIC_CHIP_8800DC) || \
++    (!defined(CONFIG_AIC_CHIP_8800) && !defined(CONFIG_AIC_CHIP_8800D80) && \
++     !defined(CONFIG_AIC_CHIP_8800D80X2) && !defined(CONFIG_AIC_CHIP_8800DC))
+ #ifdef CONFIG_DPD
+ extern rf_misc_ram_lite_t dpd_res;
+ #endif
+@@ -60,3 +63,41 @@ int	rwnx_plat_userconfig_load_8800dw(struct rwnx_hw *rwnx_hw);
+ int rwnx_plat_powerlimit_load_8800dcdw(struct rwnx_hw *rwnx_hw, uint16_t chip_id);
+ #endif
+ void system_config_8800dc(struct rwnx_hw *rwnx_hw);
++#else
++#ifdef CONFIG_DPD
++static rf_misc_ram_lite_t dpd_res __maybe_unused;
++#endif
++
++#ifdef CONFIG_LOFT_CALIB
++static rf_misc_ram_lite_t loft_res_local __maybe_unused;
++#endif
++
++static inline int aicwf_patch_table_load(struct rwnx_hw *rwnx_hw, char *filename) { return -1; }
++static inline void aicwf_patch_config_8800dc(struct rwnx_hw *rwnx_hw) {}
++static inline int aicwf_set_rf_config_8800dc(struct rwnx_hw *rwnx_hw, struct mm_set_rf_calib_cfm *cfm) { return -1; }
++static inline int aicwf_misc_ram_init_8800dc(struct rwnx_hw *rwnx_hw) { return -1; }
++#if defined(CONFIG_DPD) || defined(CONFIG_LOFT_CALIB)
++static inline int aicwf_misc_ram_valid_check_8800dc(struct rwnx_hw *rwnx_hw, int *valid_out) { if (valid_out) *valid_out = 0; return -1; }
++static inline int aicwf_plat_calib_load_8800dc(struct rwnx_hw *rwnx_hw) { return -1; }
++#endif
++#ifdef CONFIG_DPD
++static inline int aicwf_dpd_calib_8800dc(struct rwnx_hw *rwnx_hw, rf_misc_ram_lite_t *dpd_res) { return -1; }
++static inline int aicwf_dpd_result_apply_8800dc(struct rwnx_hw *rwnx_hw, rf_misc_ram_lite_t *dpd_res) { return -1; }
++#ifndef CONFIG_FORCE_DPD_CALIB
++static inline int aicwf_dpd_result_load_8800dc(struct rwnx_hw *rwnx_hw, rf_misc_ram_lite_t *dpd_res) { return -1; }
++static inline int aicwf_dpd_result_write_8800dc(void *buf, int buf_len) { return -1; }
++#endif
++#endif
++#ifdef CONFIG_LOFT_CALIB
++static inline int aicwf_loft_calib_8800dc(struct rwnx_hw *rwnx_hw, rf_misc_ram_lite_t *loft_res) { return -1; }
++static inline int aicwf_loft_result_apply_8800dc(struct rwnx_hw *rwnx_hw, rf_misc_ram_lite_t *loft_res) { return -1; }
++#endif
++static inline int aicwf_plat_patch_load_8800dc(struct rwnx_hw *rwnx_hw) { return -1; }
++static inline int aicwf_plat_rftest_load_8800dc(struct rwnx_hw *rwnx_hw) { return -1; }
++static inline int rwnx_plat_userconfig_load_8800dc(struct rwnx_hw *rwnx_hw) { return -1; }
++static inline int rwnx_plat_userconfig_load_8800dw(struct rwnx_hw *rwnx_hw) { return -1; }
++#ifdef CONFIG_POWER_LIMIT
++static inline int rwnx_plat_powerlimit_load_8800dcdw(struct rwnx_hw *rwnx_hw, uint16_t chip_id) { return -1; }
++#endif
++static inline void system_config_8800dc(struct rwnx_hw *rwnx_hw) {}
++#endif
+diff --git a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_main.c b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_main.c
+index ab1046a..e391d1d 100644
+--- a/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_main.c
++++ b/USB/driver_fw/drivers/aic8800/aic8800_fdrv/rwnx_main.c
+@@ -4552,6 +4552,7 @@ send_frame:
+ /**
+  * @start_radar_detection: Start radar detection in the driver.
+  */
++#ifdef CONFIG_RWNX_RADAR
+ static
+ int rwnx_cfg80211_start_radar_detection(struct wiphy *wiphy,
+                                         struct net_device *dev,
+@@ -4584,6 +4585,7 @@ int rwnx_cfg80211_start_radar_detection(struct wiphy *wiphy,
+ 
+     return 0;
+ }
++#endif
+ 
+ /**
+  * @update_ft_ies: Provide updated Fast BSS Transition information to the
+@@ -5716,7 +5718,9 @@ static struct cfg80211_ops rwnx_cfg80211_ops = {
+     .cancel_remain_on_channel = rwnx_cfg80211_cancel_remain_on_channel,
+     .dump_survey = rwnx_cfg80211_dump_survey,
+     .get_channel = rwnx_cfg80211_get_channel,
++#ifdef CONFIG_RWNX_RADAR
+     .start_radar_detection = rwnx_cfg80211_start_radar_detection,
++#endif
+     .update_ft_ies = rwnx_cfg80211_update_ft_ies,
+     .set_cqm_rssi_config = rwnx_cfg80211_set_cqm_rssi_config,
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
+diff --git a/USB/driver_fw/drivers/aic8800/aic_load_fw/Makefile b/USB/driver_fw/drivers/aic8800/aic_load_fw/Makefile
+index 482318c..690b55a 100644
+--- a/USB/driver_fw/drivers/aic8800/aic_load_fw/Makefile
++++ b/USB/driver_fw/drivers/aic8800/aic_load_fw/Makefile
+@@ -9,6 +9,13 @@ CONFIG_FOR_IPCAM = n
+ CONFIG_USB_SUSPEND_REBOOT_TIME = n
+ CONFIG_SUPPORT_USB_SUSP = n
+ 
++# Optional chip-family selection for size-optimized USB builds.
++# Leave all flags unset to preserve the legacy multi-chip build.
++CONFIG_AIC_CHIP_8800 ?= n
++CONFIG_AIC_CHIP_8800D80 ?= n
++CONFIG_AIC_CHIP_8800D80X2 ?= n
++CONFIG_AIC_CHIP_8800DC ?= n
++
+ 
+ # Need to set fw path in BOARD_KERNEL_CMDLINE
+ CONFIG_USE_FW_REQUEST ?= n
+@@ -42,18 +49,28 @@ ccflags-$(CONFIG_PREALLOC_RX_SKB) += -DCONFIG_PREALLOC_RX_SKB
+ ccflags-$(CONFIG_PREALLOC_TXQ) += -DCONFIG_PREALLOC_TXQ
+ ccflags-$(CONFIG_USB_SUSPEND_REBOOT_TIME) += -DCONFIG_USB_SUSPEND_REBOOT_TIME
+ ccflags-$(CONFIG_SUPPORT_USB_SUSP) += -DCONFIG_SUPPORT_USB_SUSP
++ccflags-$(CONFIG_AIC_CHIP_8800) += -DCONFIG_AIC_CHIP_8800
++ccflags-$(CONFIG_AIC_CHIP_8800D80) += -DCONFIG_AIC_CHIP_8800D80
++ccflags-$(CONFIG_AIC_CHIP_8800D80X2) += -DCONFIG_AIC_CHIP_8800D80X2
++ccflags-$(CONFIG_AIC_CHIP_8800DC) += -DCONFIG_AIC_CHIP_8800DC
+ 
+ 
+ obj-$(CONFIG_AIC_LOADFW_SUPPORT) := $(MODULE_NAME).o
++AIC_CHIP_FAMILY_SELECTED := $(filter y,$(CONFIG_AIC_CHIP_8800) $(CONFIG_AIC_CHIP_8800D80) $(CONFIG_AIC_CHIP_8800D80X2) $(CONFIG_AIC_CHIP_8800DC))
+ $(MODULE_NAME)-y := 	aic_bluetooth_main.o \
+ 					aicbluetooth.o \
+ 					aicwf_usb.o \
+ 					aic_txrxif.o \
+ 					aicbluetooth_cmds.o \
+-					aic_compat_8800d80.o \
+-					aic_compat_8800d80x2.o \
+ 					md5.o
+ 
++ifeq ($(AIC_CHIP_FAMILY_SELECTED),)
++$(MODULE_NAME)-y += aic_compat_8800d80.o aic_compat_8800d80x2.o
++else
++$(MODULE_NAME)-$(CONFIG_AIC_CHIP_8800D80) += aic_compat_8800d80.o
++$(MODULE_NAME)-$(CONFIG_AIC_CHIP_8800D80X2) += aic_compat_8800d80x2.o
++endif
++
+ $(MODULE_NAME)-$(CONFIG_PREALLOC_RX_SKB)	 += aicwf_rx_prealloc.o
+ $(MODULE_NAME)-$(CONFIG_PREALLOC_TXQ)     += aicwf_txq_prealloc.o
+ 
+diff --git a/USB/driver_fw/drivers/aic8800/aic_load_fw/aic_compat_8800d80.h b/USB/driver_fw/drivers/aic8800/aic_load_fw/aic_compat_8800d80.h
+index 1181cde..2c8ce09 100644
+--- a/USB/driver_fw/drivers/aic8800/aic_load_fw/aic_compat_8800d80.h
++++ b/USB/driver_fw/drivers/aic8800/aic_load_fw/aic_compat_8800d80.h
+@@ -47,8 +47,17 @@
+ #define CHIP_ID_H_MASK  0xC0
+ #define IS_CHIP_ID_H()  ((chip_id & CHIP_ID_H_MASK) == CHIP_ID_H_MASK)
+ 
++#if defined(CONFIG_AIC_CHIP_8800D80) || \
++    (!defined(CONFIG_AIC_CHIP_8800) && !defined(CONFIG_AIC_CHIP_8800D80) && \
++     !defined(CONFIG_AIC_CHIP_8800D80X2) && !defined(CONFIG_AIC_CHIP_8800DC))
+ int aicwf_patch_config_8800d80(struct aic_usb_dev *usb_dev);
+ int rwnx_plat_userconfig_load_8800d80(struct aic_usb_dev *usbdev);
+ int system_config_8800d80(struct aic_usb_dev *usb_dev);
+ int aicfw_download_fw_8800d80(struct aic_usb_dev *usb_dev);
++#else
++static inline int aicwf_patch_config_8800d80(struct aic_usb_dev *usb_dev) { return -1; }
++static inline int rwnx_plat_userconfig_load_8800d80(struct aic_usb_dev *usbdev) { return -1; }
++static inline int system_config_8800d80(struct aic_usb_dev *usb_dev) { return -1; }
++static inline int aicfw_download_fw_8800d80(struct aic_usb_dev *usb_dev) { return -1; }
++#endif
+ 
+diff --git a/USB/driver_fw/drivers/aic8800/aic_load_fw/aic_compat_8800d80x2.h b/USB/driver_fw/drivers/aic8800/aic_load_fw/aic_compat_8800d80x2.h
+index 6f1b2ea..3fb721b 100644
+--- a/USB/driver_fw/drivers/aic8800/aic_load_fw/aic_compat_8800d80x2.h
++++ b/USB/driver_fw/drivers/aic8800/aic_load_fw/aic_compat_8800d80x2.h
+@@ -35,8 +35,17 @@
+ #define FLASH_BIN_ADDR_8800M80X2             0x8000000
+ 
+ 
++#if defined(CONFIG_AIC_CHIP_8800D80X2) || \
++    (!defined(CONFIG_AIC_CHIP_8800) && !defined(CONFIG_AIC_CHIP_8800D80) && \
++     !defined(CONFIG_AIC_CHIP_8800D80X2) && !defined(CONFIG_AIC_CHIP_8800DC))
+ int aicwf_patch_config_8800d80x2(struct aic_usb_dev *usb_dev);
+ int rwnx_plat_userconfig_load_8800d80x2(struct aic_usb_dev *usbdev);
+ int system_config_8800d80x2(struct aic_usb_dev *usb_dev);
+ int aicfw_download_fw_8800d80x2(struct aic_usb_dev *usb_dev);
++#else
++static inline int aicwf_patch_config_8800d80x2(struct aic_usb_dev *usb_dev) { return -1; }
++static inline int rwnx_plat_userconfig_load_8800d80x2(struct aic_usb_dev *usbdev) { return -1; }
++static inline int system_config_8800d80x2(struct aic_usb_dev *usb_dev) { return -1; }
++static inline int aicfw_download_fw_8800d80x2(struct aic_usb_dev *usb_dev) { return -1; }
++#endif
+ 

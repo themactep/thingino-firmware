@@ -46,6 +46,16 @@ if BR2_PACKAGE_WIFI_AIC8800
 				help
 				  AIC8800DC model with single band 2.4GHz
 		endchoice
+
+		if BR2_PACKAGE_WIFI_AIC8800_USB_8800D80
+			config BR2_PACKAGE_WIFI_AIC8800_USB_8800D80_H_FIRMWARE_ONLY
+				bool "Ship H-variant firmware subset only"
+				help
+				  Install only the AIC8800D80 H-variant firmware files.
+				  This reduces the deployed firmware size, but should only
+				  be enabled when the target hardware is known to use the
+				  H variant exclusively.
+		endif
 	endif
 
 	if BR2_PACKAGE_WIFI_AIC8800_SDIO
