@@ -285,11 +285,11 @@ bootstrap:
 	$(SCRIPTS_DIR)/dep_check.sh
 
 build: BR2_MAKE_JOBS =
-build: $(U_BOOT_BIN) $(U_BOOT_ENV_TXT)
+build: $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@)
 
 build_fast: BR2_MAKE_JOBS = -j$(shell nproc)
-build_fast: $(U_BOOT_BIN) $(U_BOOT_ENV_TXT)
+build_fast: $(U_BOOT_ENV_TXT)
 	$(info -------------------------------- $@)
 
 ### Configuration
@@ -767,8 +767,22 @@ $(KERNEL_BIN):
 #	mv -vf $(OUTPUT_DIR)/images/uImage $@
 
 # rebuild rootfs (depends on kernel to ensure proper build order)
+# Pre-stamp thingino-uboot so Buildroot skips it during rootfs-squashfs.
+# It will be dirclean'd and rebuilt properly in the $(U_BOOT_BIN) rule,
+# once partition sizes are known from the rootfs.
 $(ROOTFS_BIN): $(KERNEL_BIN)
 	$(info -------------------------------- $@)
+	mkdir -p $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)
+	mkdir -p $(OUTPUT_DIR)/per-package/thingino-uboot/host
+	mkdir -p $(OUTPUT_DIR)/per-package/thingino-uboot/target
+	touch $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_downloaded \
+	      $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_extracted \
+	      $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_patched \
+	      $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_configured \
+	      $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_built \
+	      $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_installed \
+	      $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_target_installed \
+	      $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)/.stamp_images_installed
 	$(BR2_MAKE) $(BR2_MAKE_JOBS) rootfs-squashfs
 
 $(U_BOOT_ENV_TXT): $(ROOTFS_BIN)
