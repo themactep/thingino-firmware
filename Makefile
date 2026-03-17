@@ -604,23 +604,27 @@ toolchain: defconfig
 	$(BR2_MAKE) sdk
 
 # flash new uboot image to the camera
-upboot_ota: $(U_BOOT_BIN)
+upboot_ota:
 	$(info -------------------------------- $@)
+	@test -f $(U_BOOT_BIN) || { echo "ERROR: $(U_BOOT_BIN) not found. Run make first."; exit 1; }
 	$(SCRIPTS_DIR)/fw_ota.sh $(U_BOOT_BIN) $(CAMERA_IP_ADDRESS)
 
 # flash compiled update image to the camera
-update_ota: $(FIRMWARE_BIN_NOBOOT)
+update_ota:
 	$(info -------------------------------- $@)
+	@test -f $(FIRMWARE_BIN_NOBOOT) || { echo "ERROR: $(FIRMWARE_BIN_NOBOOT) not found. Run make first."; exit 1; }
 	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_NOBOOT) $(CAMERA_IP_ADDRESS)
 
 # flash compiled full image to the camera
-upgrade_ota: $(FIRMWARE_BIN_FULL)
+upgrade_ota:
 	$(info -------------------------------- $@)
+	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
 	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_FULL) $(CAMERA_IP_ADDRESS)
 
 # upload firmware to tftp server
-upload_tftp: $(FIRMWARE_BIN_FULL)
+upload_tftp:
 	$(info -------------------------------- $@)
+	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
 	busybox tftp -l $(FIRMWARE_BIN_FULL) -r $(FIRMWARE_NAME_FULL) -p $(TFTP_IP_ADDRESS)
 
 # Start standalone TFTP server for serving firmware images
@@ -932,4 +936,3 @@ run:
 .DEFAULT: check-config
 	$(info -------------------------------- $@)
 	$(BR2_MAKE) $@
-
