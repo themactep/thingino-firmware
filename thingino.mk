@@ -1,5 +1,3 @@
-$(info --- FILE: thingino.mk)
-
 # Define qstrip if not already defined (usually defined by Buildroot)
 qstrip ?= $(strip $(subst ",,$(1)))
 
@@ -11,8 +9,6 @@ SOC_VENDOR := ingenic
 
 # Get SoC model from BR2_INGENIC_SOC_MODEL (single source of truth)
 SOC_MODEL_INPUT := $(call qstrip,$(BR2_INGENIC_SOC_MODEL))
-$(info SOC_MODEL ===> $(SOC_MODEL_INPUT))
-
 ifneq ($(SOC_MODEL_INPUT),)
 	# Database-driven approach
 	SOC_MODEL := $(shell echo $(SOC_MODEL_INPUT) | tr A-Z a-z)
