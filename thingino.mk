@@ -583,6 +583,7 @@ ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME),)
 	BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME := "u-boot-lzo-with-spl.bin"
 endif
 
+ifneq ($(SOC_ARCH),)
 UBOOT_REPO := https://github.com/gtxaspec/ingenic-u-boot-$(SOC_ARCH)
 
 ifeq ($(SOC_FAMILY),t40)
@@ -596,6 +597,7 @@ else
 endif
 
 UBOOT_REPO_VERSION := $(shell git ls-remote $(UBOOT_REPO) $(UBOOT_REPO_BRANCH) | head -1 | cut -f1)
+endif
 
 export UBOOT_BOARDNAME
 export UBOOT_REPO
