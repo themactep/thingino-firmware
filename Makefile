@@ -96,12 +96,7 @@ else
 FIGLET := $(shell command -v figlet) -t -f pagga
 endif
 
-SIZE_8M := 8388608
-SIZE_256K := 262144
-SIZE_64K := 65536
-SIZE_32K := 32768
-
-ALIGN_BLOCK := $(SIZE_32K)
+ALIGN_BLOCK := 32768
 
 U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/download/latest
 
@@ -712,7 +707,7 @@ $(OUTPUT_DIR)/.config:
 $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(EXTRAS_BIN)
 	$(info -------------------------------- $@)
 	# create a blank slab
-	dd if=/dev/zero bs=$(SIZE_8M) skip=0 count=1 status=none | tr '\000' '\377' > $@
+	dd if=/dev/zero bs=8M skip=0 count=1 status=none | tr '\000' '\377' > $@
 	# add bootloader partition
 	dd if=$(U_BOOT_BIN) bs=$(U_BOOT_BIN_SIZE) seek=$(U_BOOT_OFFSET)B count=1 of=$@ conv=notrunc status=none
 	# add config partition
