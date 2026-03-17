@@ -58,4 +58,19 @@ config BR2_SENSOR_4_PARAMS
 	help
 	  Set additional parameters passed to image sensor kernel module
 
+config BR2_SENSOR_1_IQ_FILE
+	string "Custom IQ binary for Sensor 1"
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY >= 1
+	help
+	  Path to a camera-specific ISP IQ binary, relative to the
+	  BR2_EXTERNAL tree root. When set, it overrides the default IQ
+	  file provided by ingenic-sdk for this sensor/SoC combination.
+	  Example: configs/cameras/my_camera/gc1084-t23.bin
+
+config BR2_SENSOR_2_IQ_FILE
+	string "Custom IQ binary for Sensor 2"
+	depends on BR2_THINGINO_IMAGE_SENSOR_QTY >= 2
+	help
+	  Same as BR2_SENSOR_1_IQ_FILE but for the second sensor.
+
 endmenu
