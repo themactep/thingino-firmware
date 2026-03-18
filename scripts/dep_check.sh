@@ -109,7 +109,7 @@ if [ -f /etc/os-release ]; then
 			pkg_check_command="dpkg-query -W -f='\${Status}'"
 			pkg_install_cmd="apt-get install -y"
 			pkg_update_cmd="apt-get update"
-			packages="autoconf build-essential bc bison ccache cpio cmake curl dialog file flex gawk git libncurses-dev make m4 nano perl python3 python3-jsonschema rsync unzip u-boot-tools vim-tiny wget whiptail"
+			packages="autoconf build-essential bc bison ccache cpio cmake curl dialog file flex gawk git libncurses-dev libusb-1.0-0-dev make m4 nano perl python3 python3-jsonschema rsync unzip u-boot-tools vim-tiny wget whiptail"
 			;;
 		*)
 			case "$ID" in
@@ -119,35 +119,35 @@ if [ -f /etc/os-release ]; then
 					pkg_check_command="dpkg-query -W -f='\${Status}'"
 					pkg_install_cmd="apt-get install -y"
 					pkg_update_cmd="apt-get update"
-					packages="autoconf build-essential bc bison cpio cmake curl dialog file flex gawk git libncurses-dev m4 make nano perl rsync unzip u-boot-tools vim-tiny wget whiptail"
+					packages="autoconf build-essential bc bison cpio cmake curl dialog file flex gawk git libncurses-dev libusb-1.0-0-dev m4 make nano perl rsync unzip u-boot-tools vim-tiny wget whiptail"
 					;;
 				rhel|centos|fedora)
 					echo "RedHat-based"
 					pkg_manager="rpm"
 					pkg_check_command="rpm -q --whatprovides"
 					pkg_install_cmd="dnf install -y"
-					packages="autoconf gcc m4 make bc bison cpio cmake curl dialog file flex gawk git nano ncurses-devel newt perl rsync unzip uboot-tools wget"
+					packages="autoconf gcc m4 make bc bison cpio cmake curl dialog file flex gawk git nano ncurses-devel newt libusbx-devel perl rsync unzip uboot-tools wget"
 					;;
 				arch)
 					echo "Arch-based"
 					pkg_manager="pacman"
 					pkg_check_command="pacman -Q"
 					pkg_install_cmd="pacman -S --noconfirm"
-					packages="autoconf base-devel bc bison cpio cmake curl dialog file flex gawk git m4 libnewt make nano ncurses perl rsync unzip uboot-tools wget"
+					packages="autoconf base-devel bc bison cpio cmake curl dialog file flex gawk git m4 libnewt libusb make nano ncurses perl rsync unzip uboot-tools wget"
 					;;
 				alpine)
 					echo "Alpine Linux"
 					pkg_manager="apk"
 					pkg_check_command="apk info -e"
 					pkg_install_cmd="apk add"
-					packages="autoconf bash build-base bc bison cpio cmake curl dialog file findutils flex gawk git grep m4 nano ncurses-dev newt make perl rsync unzip uboot-tools wget"
+					packages="autoconf bash build-base bc bison cpio cmake curl dialog file findutils flex gawk git grep m4 nano ncurses-dev newt libusb-dev make perl rsync unzip uboot-tools wget"
 					;;
 				opensuse*)
 					echo "OpenSUSE Tumbleweed"
 					pkg_manager="zypper"
 					pkg_check_command="zypper search -i"
 					pkg_install_cmd="zypper install -y"
-					packages="autoconf bc bison cpio cmake curl dialog file findutils flex gawk gcc git grep m4 make ncurses-devel newt perl rsync unzip u-boot-tools wget"
+					packages="autoconf bc bison cpio cmake curl dialog file findutils flex gawk gcc git grep m4 make ncurses-devel newt libusb-1_0-devel perl rsync unzip u-boot-tools wget"
 					;;
 				*)
 					echo "Unsupported OS: $ID"

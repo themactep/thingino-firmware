@@ -200,7 +200,7 @@ BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot \
 
 .PHONY: all bootstrap build build_fast clean clean-nfs-debug cleanbuild defconfig distclean \
 	dev fast help info pack release remove_bins repack sdk toolchain update upboot-ota \
-	upload_tftp upgrade_ota br-% check-config force-config show-config-deps clean-config \
+	upload_tftp upload_serial upgrade_ota br-% check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs show-vars run
 
 # Run a binary under QEMU in the build sysroot.
@@ -855,6 +855,11 @@ show-vars:
 run:
 	$(info -------------------------------- $@)
 	$(SCRIPTS_DIR)/qemu_run.sh $(OUTPUT_DIR)/target $(_RUN_CMD)
+
+upload_serial:
+	$(info -------------------------------- $@)
+	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
+	$(HOST_DIR)/bin/thingino-cloner -i 0 -b -w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) --firmware-dir $(HOST_DIR)/share/thingino-cloner/firmwares --reboot
 
 # Catch-all rule: forward undefined targets to buildroot
 # This allows running buildroot targets directly without the br- prefix
