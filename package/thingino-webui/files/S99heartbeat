@@ -8,6 +8,11 @@ UPDATE_INTERVAL=1
 PIDFILE="/var/run/heartbeat-daemon.pid"
 
 start() {
+  if [ ! -f "/bin/prudynt" ]; then
+    echo "Prudynt not found. Existing"
+    return 0
+  fi
+
   if [ -f "$PIDFILE" ] && kill -0 $(cat "$PIDFILE") 2>/dev/null; then
     echo "Heartbeat daemon already running"
     return 0
