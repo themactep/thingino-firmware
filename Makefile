@@ -799,7 +799,7 @@ $(U_BOOT_ENV_TXT): $(ROOTFS_BIN)
 	# Add complete mtdparts with aligned partitions and virtual aliases
 	echo "mtdparts=jz_sfc:$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(UPGRADE_SIZE_KB)k@$$(printf '0x%x' $(KERNEL_OFFSET))(upgrade),$(FLASH_SIZE_KB)k@0(all)" >> $@
 	# Simplified bootcmd - no need for sq probe or run mtdparts
-	echo 'bootcmd=sf probe;setenv bootargs mem=$${osmem} rmem=$${rmem} ispmem=$${ispmem} console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} init=$${init} mtdparts=$${mtdparts};sf read $${baseaddr} $${kern_addr} $${kern_size};bootm $${baseaddr}' >> $@
+	echo 'bootcmd=sf probe;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM)console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} init=$${init} mtdparts=$${mtdparts};sf read $${baseaddr} $${kern_addr} $${kern_size};bootm $${baseaddr}' >> $@
 	exit
 
 # Rebuild U-Boot with actual partition sizes after rootfs is ready

@@ -301,7 +301,6 @@ define RMEM_SET_VALUE
 			grep -q "^osmem=$${osmem}M@0x0" $(OUTPUT_DIR)/uenv.txt || echo "osmem=$${osmem}M@0x0" >> $(OUTPUT_DIR)/uenv.txt && \
 			grep -q "^rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" $(OUTPUT_DIR)/uenv.txt || echo "rmem=$(ISP_RMEM_MB)M@$$(printf '0x%x' $$rmem_offset)" >> $(OUTPUT_DIR)/uenv.txt && \
 			grep -q "^nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" $(OUTPUT_DIR)/uenv.txt || echo "nmem=$(ISP_NMEM_MB)M@$$(printf '0x%x' $$nmem_offset)" >> $(OUTPUT_DIR)/uenv.txt; \
-			echo HELLO $(ISP_NMEM_MB); \
 		else \
 			osmem=$$(( $(SOC_RAM_MB) - $(ISP_RMEM_MB) )) && \
 			rmem_offset=$$(( ($(SOC_RAM_MB) - $(ISP_RMEM_MB)) * 0x100000 )) && \
