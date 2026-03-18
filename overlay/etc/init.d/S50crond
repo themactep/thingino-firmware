@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DAEMON_ARGS="-f -c /run/cron/crontabs"
+DAEMON_ARGS="-f -c /etc/cron/crontabs"
 
 . /usr/share/common
 
