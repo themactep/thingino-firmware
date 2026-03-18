@@ -1,6 +1,8 @@
 # Thingino Firmware
 # https://github.com/themactep/thingino-firmware
 
+include Makefile.guided
+
 # Ensure default target builds firmware rather than guided placeholder
 .DEFAULT_GOAL := all
 
@@ -190,18 +192,6 @@ export FLASH_SIZE_MB
 
 RELEASE = 0
 
-EDITOR := $(shell which nano vim vi ed 2>/dev/null | head -1)
-
-define edit_file
-	$(info -------------------------------- $(1))
-	@if [ -z "$(EDITOR)" ]; then \
-		echo "No suitable editor found!"; \
-		exit 1; \
-	else \
-		$(EDITOR) $(2); \
-	fi
-endef
-
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot \
 	BR2_EXTERNAL=$(BR2_EXTERNAL) \
@@ -229,7 +219,7 @@ ifeq (run,$(firstword $(MAKECMDGOALS)))
 endif
 
 # Default: fast parallel incremental build
-all: defconfig build_fast pack
+all: defconfig info build_fast pack
 	$(info -------------------------------- $@)
 
 # legacy target used by GitHub CI
@@ -393,60 +383,6 @@ defconfig: check-config
 	@$(FIGLET) $(GIT_BRANCH)
 	# Ensure buildroot is properly configured
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
-
-edit:
-	@bash -c 'while true; do \
-		CHOICE=$$(dialog --keep-tite --colors --title "Edit Menu" --menu "Choose an option to edit:" 16 60 10 \
-			"1" "Camera Config (edit-defconfig)" \
-			"2" "Module Config (edit-module)" \
-			"3" "System Config (edit-config)" \
-			"4" "Camera U-Boot Environment (edit-uenv)" \
-			"" "━━━━━━━━━ LOCAL OVERRIDES ━━━━━━━━━" \
-			"5" "Local Fragment (edit-localfragment)" \
-			"6" "Local Config (edit-localconfig)" \
-			"7" "Local Makefile (edit-localmk)" \
-			"8" "Local U-Boot Evironment (edit-localuenv)" 2>&1 >/dev/tty) || exit 0; \
-		\
-		[ -z "$$CHOICE" ] && continue; \
-		\
-		case "$$CHOICE" in \
-			"1") FILE="$(CAMERA_CONFIG_REAL)" ;; \
-			"2") FILE="$(MODULE_CONFIG_REAL)" ;; \
-			"3") FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).config" ;; \
-			"4") FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt" ;; \
-			"5") FILE="$(THINGINO_USER_DIR)/local.fragment" ;; \
-			"6") FILE="$(THINGINO_USER_DIR)/local.config" ;; \
-			"7") FILE="$(BR2_EXTERNAL)/local.mk" ;; \
-			"8") FILE="$(THINGINO_USER_DIR)/local.uenv.txt" ;; \
-			*) echo "Invalid option"; continue ;; \
-		esac; \
-		\
-		[ -z "$(EDITOR)" ] && { echo "No suitable editor found!"; exit 1; } || { $(EDITOR) "$$FILE"; break; }; \
-	done'
-
-edit-defconfig:
-	$(call edit_file,$@,$(CAMERA_CONFIG_REAL))
-
-edit-module:
-	$(call edit_file,$@,$(MODULE_CONFIG_REAL))
-
-edit-config:
-	$(call edit_file,$@,$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).config)
-
-edit-uenv:
-	$(call edit_file,$@,$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt)
-
-edit-localmk:
-	$(call edit_file,$@,$(BR2_EXTERNAL)/local.mk)
-
-edit-localconfig:
-	$(call edit_file,$@,$(THINGINO_USER_DIR)/local.config)
-
-edit-localfragment:
-	$(call edit_file,$@,$(THINGINO_USER_DIR)/local.fragment)
-
-edit-localuenv:
-	$(call edit_file,$@,$(THINGINO_USER_DIR)/local.uenv.txt)
 
 # Configuration debugging and maintenance targets
 show-config-deps:

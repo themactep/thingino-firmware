@@ -1,0 +1,76 @@
+# Guided Menu Makefile
+# Targets used by scripts/menu/menu2-guided.sh and scripts/menu/main-menu.sh
+
+EDITOR := $(shell which nano vim vi ed 2>/dev/null | head -1)
+
+# Helper function for editing files
+define edit_file
+	$(info -------------------------------- $(1))
+	@if [ -z "$(EDITOR)" ]; then \
+		echo "No suitable editor found!"; \
+		exit 1; \
+	else \
+		$(EDITOR) $(2); \
+	fi
+endef
+
+# Device selection (currently non-functional placeholder)
+# This target should be implemented to provide interactive device selection
+select-device:
+	$(info -------------------------------- $@)
+	@echo "Device selection not implemented"
+	@echo "Please set BOARD variable manually or use main-menu.sh"
+
+# Interactive edit menu
+edit:
+	@bash -c 'while true; do \
+		CHOICE=$$(dialog --keep-tite --colors --title "Edit Menu" --menu "Choose an option to edit:" 16 60 10 \
+			"1" "Camera Config (edit-defconfig)" \
+			"2" "System Config (edit-config)" \
+			"3" "Camera U-Boot Environment (edit-uenv)" \
+			"" "━━━━━━━━━ LOCAL OVERRIDES ━━━━━━━━━" \
+			"4" "Local Fragment (edit-localfragment)" \
+			"5" "Local Config (edit-localconfig)" \
+			"6" "Local Makefile (edit-localmk)" \
+			"7" "Local U-Boot Evironment (edit-localuenv)" 2>&1 >/dev/tty) || exit 0; \
+		\
+		[ -z "$$CHOICE" ] && continue; \
+		\
+		case "$$CHOICE" in \
+			"1") FILE="$(CAMERA_CONFIG_REAL)" ;; \
+			"2") FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).config" ;; \
+			"3") FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt" ;; \
+			"4") FILE="$(THINGINO_USER_DIR)/local.fragment" ;; \
+			"5") FILE="$(THINGINO_USER_DIR)/local.config" ;; \
+			"6") FILE="$(BR2_EXTERNAL)/local.mk" ;; \
+			"7") FILE="$(THINGINO_USER_DIR)/local.uenv.txt" ;; \
+			*) echo "Invalid option"; continue ;; \
+		esac; \
+		\
+		[ -z "$(EDITOR)" ] && { echo "No suitable editor found!"; exit 1; } || { $(EDITOR) "$$FILE"; break; }; \
+	done'
+
+# Individual edit targets
+edit-defconfig:
+	$(call edit_file,$@,$(CAMERA_CONFIG_REAL))
+
+edit-config:
+	$(call edit_file,$@,$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).config)
+
+edit-uenv:
+	$(call edit_file,$@,$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt)
+
+edit-localmk:
+	$(call edit_file,$@,$(BR2_EXTERNAL)/local.mk)
+
+edit-localconfig:
+	$(call edit_file,$@,$(THINGINO_USER_DIR)/local.config)
+
+edit-localfragment:
+	$(call edit_file,$@,$(THINGINO_USER_DIR)/local.fragment)
+
+edit-localuenv:
+	$(call edit_file,$@,$(THINGINO_USER_DIR)/local.uenv.txt)
+
+.PHONY: edit edit-defconfig edit-module edit-config edit-uenv \
+	edit-localmk edit-localconfig edit-localfragment edit-localuenv
