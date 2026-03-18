@@ -67,7 +67,7 @@ PATH_ARG=${1:-}
 
 case "$PATH_ARG" in
 	stop)
-		echo "STOP" > "$FIFO"
+		timeout 2 sh -c 'echo "STOP" > "$1"' -- "$FIFO" || true
 		exit 0
 		;;
 	*)
@@ -125,5 +125,8 @@ CMD="PLAY url=$PATH_ARG"
 [ -n "$DELAY" ] && CMD="$CMD delay=$DELAY"
 [ "$APPEND" -eq 1 ] && CMD="$CMD append=1"
 
-printf '%s\n' "$CMD" > "$FIFO"
+if ! timeout 2 sh -c 'printf "%s\n" "$1" > "$2"' -- "$CMD" "$FIFO" 2>/dev/null; then
+	echo "play: timed out writing to FIFO (prudynt not responding)" >&2
+	exit 1
+fi
 echo "Queued: $CMD"
