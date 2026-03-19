@@ -1,0 +1,54 @@
+--- a/ustream-mbedtls.c	2026-03-17 15:12:42.981678124 -0400
++++ b/ustream-mbedtls.c	2026-03-17 15:13:08.798212320 -0400
+@@ -17,11 +17,14 @@
+  */
+ 
+ #include <sys/types.h>
++#ifndef __UCLIBC__
+ #include <sys/random.h>
++#endif
+ #include <fcntl.h>
+ #include <unistd.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <errno.h>
+ 
+ #include "ustream-ssl.h"
+ #include "ustream-internal.h"
+@@ -115,17 +118,28 @@
+ 
+ static int _random(void *ctx, unsigned char *out, size_t len)
+ {
+-#ifdef linux
+-	if (getrandom(out, len, 0) != (ssize_t) len)
+-		return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
+-#else
+-	static FILE *f;
++#if defined(linux) && !defined(__UCLIBC__)
++	ssize_t r;
++
++	do {
++		r = getrandom(out, len, 0);
++	} while (r == -1 && errno == EINTR);
+ 
+-	if (!f)
+-		f = fopen("/dev/urandom", "r");
+-	if (fread(out, len, 1, f) != 1)
++	if (r == (ssize_t)len)
++		return 0;
++
++	/* getrandom() not available (kernel < 3.17) - fall back to /dev/urandom */
++	if (r != -1 || errno != ENOSYS)
+ 		return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
+ #endif
++	{
++		static FILE *f;
++
++		if (!f)
++			f = fopen("/dev/urandom", "r");
++		if (!f || fread(out, len, 1, f) != 1)
++			return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
++	}
+ 
+ 	return 0;
+ }
