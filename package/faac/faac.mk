@@ -14,7 +14,8 @@ FAAC_INSTALL_TARGET = YES
 FAAC_CONF_ENV += CFLAGS="$(TARGET_CFLAGS) -ffast-math"
 
 FAAC_CONF_OPTS = \
-	-Dfloating-point=single
+	-Dfloating-point=single \
+	-Dmax-channels=2
 
 ifneq ($(BR2_PACKAGE_FAAC_INSTALL_BIN),y)
 define FAAC_REMOVE_TARGET_BINARY
