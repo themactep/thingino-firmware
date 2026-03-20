@@ -22,6 +22,24 @@
  
  Boolean RTPSink::lookupByName(UsageEnvironment& env, char const* sinkName,
  				RTPSink*& resultSink) {
+@@ -123,7 +134,7 @@ char const* RTPSink::auxSDPLine() {
+ 
+ u_int32_t RTPSink::presetNextTimestamp() {
+   struct timeval timeNow;
+-  gettimeofday(&timeNow, NULL);
++  getMonotonicTime(&timeNow);
+ 
+   u_int32_t tsNow = convertToRTPTimestamp(timeNow);
+   if (!groupsockBeingUsed().hasMultipleDestinations()) {
+@@ -137,7 +148,7 @@ u_int32_t RTPSink::presetNextTimestamp() {
+ 
+ void RTPSink::getTotalBitrate(unsigned& outNumBytes, double& outElapsedTime) {
+   struct timeval timeNow;
+-  gettimeofday(&timeNow, NULL);
++  getMonotonicTime(&timeNow);
+ 
+   outNumBytes = fTotalOctetCount;
+   outElapsedTime = (double)(timeNow.tv_sec-fTotalOctetCountStartTime.tv_sec)
 @@ -172,7 +183,7 @@ RTPSink::RTPSink(UsageEnvironment& env,
      fNumChannels(numChannels), fEstimatedBitrate(0) {
    fRTPPayloadFormatName
