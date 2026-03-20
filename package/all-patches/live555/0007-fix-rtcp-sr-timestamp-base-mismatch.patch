@@ -1,0 +1,36 @@
+Fix RTCP SR timestamp base mismatch with RTP packets
+
+In OnDemandServerMediaSubsession::startStream(), the initial RTCP
+Sender Report was sent (via startPlaying -> sendReport) before
+presetNextTimestamp() updated fTimestampBase. This caused the SR's
+RTP timestamp to use the original random base while all subsequent
+RTP packets used the preset base, producing a broken NTP-to-RTP
+mapping. Clients using the SR for synchronization (e.g. ffmpeg over
+UDP) would compute wildly incorrect PTS values.
+
+Move presetNextTimestamp() before startPlaying() so the initial SR
+and RTP packets share the same timestamp domain.
+
+--- a/liveMedia/OnDemandServerMediaSubsession.cpp	2026-03-20 08:31:53.211231356 -0400
++++ b/liveMedia/OnDemandServerMediaSubsession.cpp	2026-03-20 08:31:53.213848817 -0400
+@@ -248,13 +248,18 @@
+   Destinations* destinations
+     = (Destinations*)(fDestinationsHashTable->Lookup((char const*)clientSessionId));
+   if (streamState != NULL) {
++    RTPSink* rtpSink = streamState->rtpSink(); // alias
++    if (rtpSink != NULL) {
++      // Preset the RTP timestamp before startPlaying() so that the
++      // initial RTCP SR (sent inside startPlaying) uses the correct
++      // timestamp base, matching subsequent RTP packet timestamps.
++      rtpTimestamp = rtpSink->presetNextTimestamp();
++    }
+     streamState->startPlaying(destinations, clientSessionId,
+ 			      rtcpRRHandler, rtcpRRHandlerClientData,
+ 			      serverRequestAlternativeByteHandler, serverRequestAlternativeByteHandlerClientData);
+-    RTPSink* rtpSink = streamState->rtpSink(); // alias
+     if (rtpSink != NULL) {
+       rtpSeqNum = rtpSink->currentSeqNo();
+-      rtpTimestamp = rtpSink->presetNextTimestamp();
+     }
+   }
+ }
