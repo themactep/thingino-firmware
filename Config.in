@@ -217,6 +217,7 @@ config BR2_PACKAGE_SELECT_VALGRIND
 	help
 	  Tool for debugging and profiling Linux programs.
 
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-imp-test/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-rt-tests/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-developer/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-devscripts/Config.in"
