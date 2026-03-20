@@ -190,8 +190,6 @@ EXTRAS_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PART
 export CONFIG_OFFSET
 export FLASH_SIZE_MB
 
-RELEASE = 0
-
 # make command for buildroot
 BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot \
 	BR2_EXTERNAL=$(BR2_EXTERNAL) \
@@ -245,7 +243,6 @@ ifneq ($(TFTP_IP_ADDRESS),)
 endif
 	@date +%T
 
-release: RELEASE=1
 release: distclean defconfig build_fast pack
 	$(info -------------------------------- $@)
 
@@ -285,11 +282,9 @@ FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(CAMERA_CO
 CONFIG_DEPS_FILE = $(OUTPUT_DIR)/.config.deps
 CONFIG_FRAGMENT_FILES = $(addprefix configs/fragments/,$(addsuffix .fragment,$(FRAGMENTS)))
 CONFIG_INPUT_FILES = $(CONFIG_FRAGMENT_FILES) $(CAMERA_CONFIG_REAL)
-ifeq ($(RELEASE),0)
 CONFIG_INPUT_FILES += $(THINGINO_USER_DIR)/local.fragment
 ifneq ($(wildcard $(BR2_EXTERNAL)/local.mk),)
 CONFIG_INPUT_FILES += $(BR2_EXTERNAL)/local.mk
-endif
 endif
 
 # Function to check if configuration needs regeneration
@@ -353,14 +348,12 @@ force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.ke
 	@echo 'BR2_SOC_FAMILY="$(SOC_FAMILY)"' >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_SOC_RAM_MB=$(SOC_RAM_MB)' >>$(OUTPUT_DIR)/.config
 	@echo >>$(OUTPUT_DIR)/.config
-	if [ $(RELEASE) -ne 1 ]; then \
-		if [ -f $(THINGINO_USER_DIR)/local.fragment ]; then \
-			cat $(THINGINO_USER_DIR)/local.fragment >>$(OUTPUT_DIR)/.config; \
-		fi; \
-		if [ -f $(BR2_EXTERNAL)/local.mk ]; then \
-			cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; \
-		fi; \
-	fi
+	if [ -f $(THINGINO_USER_DIR)/local.fragment ]; then \
+		cat $(THINGINO_USER_DIR)/local.fragment >>$(OUTPUT_DIR)/.config; \
+	fi; \
+	if [ -f $(BR2_EXTERNAL)/local.mk ]; then \
+		cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; \
+	fi; \
 	if [ ! -L $(OUTPUT_DIR)/thingino ]; then \
 		ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; \
 	fi
@@ -498,7 +491,6 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT) $(ROOTFS_TAR)
 		cat $(OUTPUT_DIR)/images/$(CAMERA).md
 	@$(FIGLET) $(CAMERA)
 	@$(FIGLET) $(GIT_BRANCH)
-	@if [ "$(RELEASE)" -ne 1 ]; then $(FIGLET) "NON-SECURE"; fi
 	@if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(FIGLET) "EXTRAS PARTITION IS TOO SMALL"; fi
 	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(FIGLET) "OVERSIZE"; else $(FIGLET) "FINE"; fi
 	@echo "--------------------------------"
