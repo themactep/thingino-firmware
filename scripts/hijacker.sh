@@ -33,7 +33,7 @@ say() {
 
 full_binary_file="$1"
 
-bootcmd=$(strings "$full_binary_file" | grep -E "mtdparts=\w+_sfc:[0-9]" | tail -1)
+bootcmd=$(strings "$full_binary_file" | grep -E "mtdparts=\w+:[0-9]" | tail -1)
 [ -z "$bootcmd" ] && die "Cannot determine boot command!"
 say "Boot command: $bootcmd"
 
@@ -45,7 +45,7 @@ say "Root partition #: $root_part_num"
 offset_bytes=0
 
 say "looking for mtd partitions"
-mtdparts=$(echo $bootcmd | sed -E "s/(.*)(mtdparts=jz_sfc)/\\2/" | cut -d ' ' -f 1 | cut -d: -f2)
+mtdparts=$(echo $bootcmd | sed -E "s/(.*)(mtdparts=\w+)/\2/" | cut -d ' ' -f 1 | cut -d: -f2)
 [ -z "$mtdparts" ] && die "Cannot determine partitioning!"
 say "Partitioning: $mtdparts"
 
