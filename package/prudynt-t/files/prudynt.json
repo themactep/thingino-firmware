@@ -12,7 +12,7 @@
     "mic_high_pass_filter": false,
     "mic_is_digital": false,
     "mic_noise_suppression": 0,
-    "mic_sample_rate": 48000,
+    "mic_sample_rate": 16000,
     "mic_vol": 100,
     "spk_enabled": true,
     "spk_gain": 20,
