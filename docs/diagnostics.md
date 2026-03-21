@@ -35,3 +35,8 @@ IF you do not have access to the camera shell, you can trigger generation of a
 diagnostics report by creating a file named `.diag` in the root directory of a
 blank SD card and inserting the card into the running camera. The camera will
 generate a diagnostics report and save it to the card.
+
+### RTSP Stress Testing
+
+For repeated RTSP/UDP or RTSP/TCP playback testing from a host machine, see
+`rtsp-stress-test.md`.
