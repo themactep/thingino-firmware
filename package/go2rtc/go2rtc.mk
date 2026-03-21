@@ -6,7 +6,10 @@ GO2RTC_LICENSE_FILES = LICENSE
 
 GO2RTC_INSTALL_TARGET = YES
 
-GO2RTC_DEPENDENCIES = host-upx host-go
+GO2RTC_DEPENDENCIES = host-go
+ifeq ($(BR2_PACKAGE_GO2RTC_UPX),y)
+GO2RTC_DEPENDENCIES += host-upx
+endif
 
 # Disable CGO to avoid V4L2/ALSA C dependencies on MIPS
 GO2RTC_GO_ENV = CGO_ENABLED=0 GOARCH=mipsle
@@ -25,8 +28,13 @@ define GO2RTC_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -D -m 0755 $(@D)/bin/go2rtc \
 		$(TARGET_DIR)/usr/bin/go2rtc
+endef
 
+ifeq ($(BR2_PACKAGE_GO2RTC_UPX),y)
+define GO2RTC_UPX_COMPRESS
 	$(HOST_DIR)/bin/upx --best --lzma $(TARGET_DIR)/usr/bin/go2rtc
 endef
+GO2RTC_POST_INSTALL_TARGET_HOOKS += GO2RTC_UPX_COMPRESS
+endif
 
 $(eval $(golang-package))

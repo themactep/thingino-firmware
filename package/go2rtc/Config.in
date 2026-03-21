@@ -3,5 +3,11 @@ config BR2_PACKAGE_GO2RTC
 	select BR2_PACKAGE_GO
 	help
 	  Ultimate camera streaming application with support of RTSP, WebRTC, HomeKit, FFmpeg, RTMP, etc.
-	  Note: Binary will be UPX Compressed, binary size ~3.4mb
 	  https://github.com/AlexxIT/go2rtc
+
+config BR2_PACKAGE_GO2RTC_UPX
+	bool "compress binary with UPX"
+	depends on BR2_PACKAGE_GO2RTC
+	default y
+	help
+	  Compress the go2rtc binary with UPX (--best --lzma), reducing size to ~3.4 MB.
