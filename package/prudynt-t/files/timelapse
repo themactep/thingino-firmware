@@ -57,12 +57,6 @@ ensure_dir "$storage"
 [ -z "$filename" ] && filename="%Y/%m/%d/%H%M.jpg"
 [ -z "$interval" ] && interval=1
 
-# delete older files
-find "$storage" -type f -name '*.jpg' -mtime +$keep_days -delete
-
-# delete empty directories
-find "$storage" -mindepth 1 -type d -empty -delete
-
 target="$storage/$(date +"$filename")"
 ensure_dir "$(dirname "$target")"
 

@@ -13,6 +13,12 @@ cleanup_enabled() {
 	[ "$val" = "true" ] || [ "$val" = "1" ]
 }
 
+timelapse_enabled() {
+	local val
+	val=$(jct /etc/timelapse.json get "timelapse.enabled" 2>/dev/null)
+	[ "$val" = "true" ] || [ "$val" = "1" ]
+}
+
 debug_enabled() {
 	local val
 	val=$(jct "$CONFIG_FILE" get "recorder.debug" 2>/dev/null)
@@ -22,7 +28,7 @@ debug_enabled() {
 start() {
 	echo_title "Starting Recording Storage Manager"
 
-	if ! cleanup_enabled; then
+	if ! cleanup_enabled && ! timelapse_enabled; then
 		echo_info "Recording storage manager is disabled"
 		return 0
 	fi

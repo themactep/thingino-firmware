@@ -1,9 +1,14 @@
 #!/bin/sh
-# recordmgr - Storage manager daemon for video recordings
+# recordmgr - Storage manager daemon for video recordings and timelapse
 #
 # Maintains the recording storage target writable by:
 #   - Removing oldest recordings when free space drops below vr_min_free_mb
 #   - Removing oldest recordings when total recorded data exceeds vr_limit GB
+#
+# Also manages timelapse storage:
+#   - Removes timelapse frames older than timelapse.keep_days
+#   - Removes oldest frames when free space drops below the floor
+#   - Optionally enforces a separate size cap via timelapse.limit GB
 #
 # Configuration is read from the recorder section of /etc/prudynt.json:
 #   recorder.mount            - storage mount point
@@ -14,11 +19,17 @@
 #   recorder.cleanup_enabled  - whether this daemon should run cleanup (true/false)
 #   recorder.debug            - enable verbose recordmgr debug logs (true/false)
 #
+# Timelapse configuration is read from /etc/timelapse.json:
+#   timelapse.keep_days       - delete frames older than this many days (default 7)
+#   timelapse.limit           - optional max GB for timelapse storage
+#   timelapse.min_free_mb     - optional free-space floor; inherits recorder value if unset
+#
 # Command line:
 #   -d, --debug               - force debug logging on regardless of config
 
 PIDFILE="/var/run/recordmgr.pid"
 CONFIG_FILE="/etc/prudynt.json"
+TL_CONFIG_FILE="/etc/timelapse.json"
 DOMAIN="recorder"
 
 DEFAULT_MIN_FREE_MB=500
@@ -105,6 +116,7 @@ cleanup() {
 	local mount="$2"
 	local min_free_mb="$3"
 	local limit_mb="$4"
+	local file_pattern="${5:-}"
 
 	local free_mb used_mb fsize
 	free_mb=$(get_free_mb "$mount")
@@ -135,11 +147,15 @@ cleanup() {
 	# so sorting by path yields chronological order — no per-file stat needed.
 	local tmplist
 	tmplist=$(mktemp /tmp/recordmgr.XXXXXX)
-	find "$rec_dir" -type f \( \
-		-name "*.mp4" -o -name "*.ts" -o -name "*.mkv" \
-		-o -name "*.avi" -o -name "*.mov" -o -name "*.h264" \
-		-o -name "*.h265" -o -name "*.hevc" \
-	\) 2>/dev/null | sort > "$tmplist"
+	if [ -n "$file_pattern" ]; then
+		find "$rec_dir" -type f -name "$file_pattern" 2>/dev/null | sort > "$tmplist"
+	else
+		find "$rec_dir" -type f \( \
+			-name "*.mp4" -o -name "*.ts" -o -name "*.mkv" \
+			-o -name "*.avi" -o -name "*.mov" -o -name "*.h264" \
+			-o -name "*.h265" -o -name "*.hevc" \
+		\) 2>/dev/null | sort > "$tmplist"
+	fi
 
 	[ ! -s "$tmplist" ] && debug_log "No candidate recording files found in $rec_dir"
 
@@ -226,6 +242,80 @@ run_check() {
 	cleanup "$rec_dir" "$vr_mount" "$vr_min_free_mb" "$limit_mb"
 }
 
+read_timelapse_config() {
+	tl_enabled=$(jct "$TL_CONFIG_FILE" get "timelapse.enabled" 2>/dev/null)
+	tl_mount=$(jct "$TL_CONFIG_FILE" get "timelapse.mount" 2>/dev/null)
+	[ -z "$tl_mount" ] && tl_mount=$(jct "$TL_CONFIG_FILE" get "timelapse.mountroot" 2>/dev/null)
+	tl_filepath=$(jct "$TL_CONFIG_FILE" get "timelapse.filepath" 2>/dev/null)
+	tl_keep_days=$(jct "$TL_CONFIG_FILE" get "timelapse.keep_days" 2>/dev/null)
+	tl_limit=$(jct "$TL_CONFIG_FILE" get "timelapse.limit" 2>/dev/null)
+	tl_min_free_mb=$(jct "$TL_CONFIG_FILE" get "timelapse.min_free_mb" 2>/dev/null)
+
+	case "$tl_keep_days" in ''|*[!0-9]*) tl_keep_days=7 ;; esac
+	# tl_limit and tl_min_free_mb are optional; unset means inherit from recorder config
+}
+
+run_timelapse_check() {
+	[ -f "$TL_CONFIG_FILE" ] || return
+
+	read_timelapse_config
+
+	is_true "$tl_enabled" || return
+
+	tl_mount=${tl_mount%/}
+	tl_filepath=${tl_filepath%/}
+
+	if [ -z "$tl_mount" ]; then
+		debug_log "Skipping timelapse check: mount is not set"
+		return
+	fi
+	if ! mountpoint -q "$tl_mount" 2>/dev/null; then
+		debug_log "Skipping timelapse check: $tl_mount is not a mountpoint"
+		return
+	fi
+
+	local tl_dir="$tl_mount"
+	[ -n "$tl_filepath" ] && tl_dir="$tl_mount/$tl_filepath"
+
+	if [ ! -d "$tl_dir" ]; then
+		debug_log "Skipping timelapse check: directory does not exist: $tl_dir"
+		return
+	fi
+
+	debug_log "Timelapse check: dir=$tl_dir keep_days=$tl_keep_days"
+
+	# Time-based prune: always remove frames older than keep_days
+	find "$tl_dir" -type f -name '*.jpg' -mtime +"$tl_keep_days" -delete 2>/dev/null
+	find "$tl_dir" -mindepth 1 -type d -empty -delete 2>/dev/null
+
+	# Space-based cleanup: use timelapse-specific limits when set,
+	# otherwise inherit min_free_mb from recorder config (same mount = shared floor)
+	local min_free_mb limit_mb
+	case "$tl_min_free_mb" in
+		''|*[!0-9]*) min_free_mb="${vr_min_free_mb:-$DEFAULT_MIN_FREE_MB}" ;;
+		*) min_free_mb="$tl_min_free_mb" ;;
+	esac
+	case "$tl_limit" in
+		''|*[!0-9]*) limit_mb=0 ;;
+		*) limit_mb=$((tl_limit * 1024)) ;;
+	esac
+
+	# When no explicit size limit is set, enforce the free-space floor only
+	if [ "$limit_mb" -eq 0 ]; then
+		local free_mb
+		free_mb=$(get_free_mb "$tl_mount")
+		case "$free_mb" in
+			''|*[!0-9]*)
+				debug_log "Skipping timelapse space cleanup: cannot read free space on $tl_mount"
+				return ;;
+		esac
+		[ "$free_mb" -ge "$min_free_mb" ] && return
+		limit_mb=2147483647
+	fi
+
+	cleanup "$tl_dir" "$tl_mount" "$min_free_mb" "$limit_mb" "*.jpg"
+}
+
 main_loop() {
 	echo $$ > "$PIDFILE"
 	logger -t recordmgr "Storage manager started (pid $$)"
@@ -236,6 +326,7 @@ main_loop() {
 
 	while true; do
 		run_check
+		run_timelapse_check
 		read_config
 		debug_log "Sleeping for ${vr_check_interval:-$DEFAULT_CHECK_INTERVAL}s"
 		sleep "${vr_check_interval:-$DEFAULT_CHECK_INTERVAL}"
