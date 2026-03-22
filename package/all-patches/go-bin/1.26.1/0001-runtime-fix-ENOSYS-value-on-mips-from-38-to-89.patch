@@ -1,0 +1,41 @@
+Fix SIGSEGV crash on Linux MIPS due to wrong _ENOSYS value
+
+In Go 1.26, the runtime started using futex_time64 and timer_settime64
+syscalls (added in Linux 5.1), falling back to 32-bit variants when the
+kernel returns ENOSYS. However, _ENOSYS was defined as 0x26 (38), which
+is the x86 value, while on MIPS it is 0x59 (89).
+
+When futex_time64 is called on a MIPS system with a kernel older than
+Linux 5.1 (such as T31/T20 cameras running Linux 3.10 or 4.4), the
+kernel returns -ENOSYS (-89). Go's os_linux32.go checks `ret != -_ENOSYS`
+which evaluates as `-89 != -38` = true, so it mistakenly concludes that
+futex_time64 succeeded and returns -89 to futexwakeup, which crashes.
+
+Fix: set _ENOSYS = 0x59 (89) for MIPS (both mips/mipsle and mips64/mips64le),
+matching the value in arch/mips/include/uapi/asm/errno.h.
+
+Upstream Go issue: https://github.com/golang/go/issues/77730
+Upstream fix: https://go-review.googlesource.com/c/go/+/747664
+
+--- a/src/runtime/defs_linux_mipsx.go
++++ b/src/runtime/defs_linux_mipsx.go
+@@ -12,7 +12,7 @@
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+ 	_ENOMEM = 0xc
+-	_ENOSYS = 0x26
++	_ENOSYS = 0x59
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
+--- a/src/runtime/defs_linux_mips64x.go
++++ b/src/runtime/defs_linux_mips64x.go
+@@ -12,7 +12,7 @@
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+ 	_ENOMEM = 0xc
+-	_ENOSYS = 0x26
++	_ENOSYS = 0x59
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
