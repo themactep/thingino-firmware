@@ -2,8 +2,8 @@
 # subzeroclaw
 ################################################################################
 
-SUBZEROCLAW_VERSION = 98849089aeb0e04ed47bcad0c04606d33846f2e0
-SUBZEROCLAW_SITE = https://github.com/themactep/subzeroclaw
+SUBZEROCLAW_VERSION = 8f2f2f38bd95aa2e95908316addb2a4ff07bab31
+SUBZEROCLAW_SITE = https://github.com/jmlago/subzeroclaw
 SUBZEROCLAW_SITE_METHOD = git
 
 SUBZEROCLAW_LICENSE = MIT

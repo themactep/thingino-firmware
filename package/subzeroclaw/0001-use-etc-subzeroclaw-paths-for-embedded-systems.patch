@@ -1,0 +1,137 @@
+From 98849089aeb0e04ed47bcad0c04606d33846f2e0 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@themactep.com>
+Date: Mon, 2 Mar 2026 03:52:50 -0500
+Subject: [PATCH] Use /etc/subzeroclaw for config+skills, /tmp for logs
+
+On embedded systems, writing to $HOME is discouraged. Switch the
+default paths:
+
+  - config:     /etc/subzeroclaw/config   (was ~/.subzeroclaw/config)
+  - skills_dir: /etc/subzeroclaw/skills   (was ~/.subzeroclaw/skills)
+  - log_dir:    /tmp/subzeroclaw/logs     (was ~/.subzeroclaw/logs)
+
+All three can still be overridden via config file keys or env vars.
+Update config.example and README to match.
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+---
+ README.md         | 20 ++++++++++----------
+ config.example    |  5 +++--
+ src/subzeroclaw.c | 10 ++++------
+ 3 files changed, 17 insertions(+), 18 deletions(-)
+
+diff --git a/README.md b/README.md
+index 615f322..7878e68 100644
+--- a/README.md
++++ b/README.md
+@@ -19,9 +19,9 @@ Every agentic runtime does the same thing: read a skill, call an LLM, execute to
+ You write a skill as a markdown file. You point SubZeroClaw at it. It calls an LLM, executes tools, loops until done. That's the entire runtime.
+ 
+ ```
+-~/.subzeroclaw/skills/monitor.md    ← what the agent knows
+-~/.subzeroclaw/config               ← API key + model
+-~/.subzeroclaw/logs/<session>.txt   ← full I/O trace
++/etc/subzeroclaw/skills/<skill>.md  ← what the agent knows
++/etc/subzeroclaw/config             ← API key + model
++/tmp/subzeroclaw/logs/<session>.txt ← full I/O trace
+ ```
+ 
+ The agent reads the skill into its system prompt, receives input, and autonomously calls tools until the task is complete. When context gets full, it compacts old messages into a summary and keeps going.
+@@ -51,10 +51,10 @@ Since the LLM has a shell, it has `git`, `curl`, `himalaya`, `signal-cli`, `ffmp
+ 
+ ## Skills
+ 
+-Drop a `.md` file in `~/.subzeroclaw/skills/`. It becomes part of the system prompt.
++Drop a `.md` file in `/etc/subzeroclaw/skills/`. It becomes part of the system prompt.
+ 
+ ```bash
+-cat > ~/.subzeroclaw/skills/backup.md << 'EOF'
++cat > /etc/subzeroclaw/skills/backup.md << 'EOF'
+ ## Backup Agent
+ You monitor /home/pi/data every hour.
+ - Run `rsync -avz /home/pi/data pi@nas:/backup/`
+@@ -81,9 +81,9 @@ Requires `libcjson-dev` or uses vendored cJSON automatically.
+ ## Setup
+ 
+ ```bash
+-mkdir -p ~/.subzeroclaw/skills
++mkdir -p /etc/subzeroclaw/skills
+ 
+-cat > ~/.subzeroclaw/config << EOF
++cat > /etc/subzeroclaw/config << EOF
+ api_key = "sk-or-your-openrouter-key"
+ model = "minimax/minimax-m2.5"
+ EOF
+@@ -120,7 +120,7 @@ SUBZEROCLAW_ENDPOINT
+ 
+ ## Session logging
+ 
+-Every session gets a random hex ID. All input, output, tool calls, and results are logged to `~/.subzeroclaw/logs/<session>.txt` with timestamps.
++Every session gets a random hex ID. All input, output, tool calls, and results are logged to `/tmp/subzeroclaw/logs/<session>.txt` with timestamps.
+ 
+ ```
+ === f850c58ddd4ae72a Sun Feb 16 16:30:01 2026
+@@ -147,8 +147,8 @@ No vector DB. No embeddings. One API call to compress context.
+ | `api_key` | (required) | OpenRouter API key |
+ | `model` | `minimax/minimax-m2.5` | Any OpenAI-compatible model |
+ | `endpoint` | `https://openrouter.ai/api/v1/chat/completions` | API endpoint |
+-| `skills_dir` | `~/.subzeroclaw/skills` | Path to skill markdown files |
+-| `log_dir` | `~/.subzeroclaw/logs` | Session log directory |
++| `skills_dir` | `/etc/subzeroclaw/skills` | Path to skill markdown files |
++| `log_dir` | `/tmp/subzeroclaw/logs` | Session log directory |
+ | `max_turns` | 200 | Max tool-call loops per input |
+ | `max_messages` | 40 | Trigger context compaction |
+ 
+diff --git a/config.example b/config.example
+index 21e782d..31270ff 100644
+--- a/config.example
++++ b/config.example
+@@ -1,8 +1,9 @@
+ # SubZeroClaw configuration
+-# Copy to ~/.subzeroclaw/config and edit
++# Copy to /etc/subzeroclaw/config and edit
+ 
+ api_key = "sk-or-your-openrouter-key-here"
+ model = "minimax/minimax-m2.5"
+ # endpoint = "https://openrouter.ai/api/v1/chat/completions"
+-# skills_dir = "~/.subzeroclaw/skills"
++# skills_dir = "/etc/subzeroclaw/skills"
++# log_dir = "/tmp/subzeroclaw/logs"
+ # max_turns = 50
+diff --git a/src/subzeroclaw.c b/src/subzeroclaw.c
+index 6d3b560..1c2b412 100644
+--- a/src/subzeroclaw.c
++++ b/src/subzeroclaw.c
+@@ -30,17 +30,15 @@ static void config_parse_line(Config *cfg, const char *key, const char *val) {
+ }
+ 
+ int config_load(Config *cfg) {
+-    const char *home = getenv("HOME");
+-    if (!home) home = ".";
+     memset(cfg, 0, sizeof(*cfg));
+     snprintf(cfg->endpoint,   MAX_VALUE, "https://openrouter.ai/api/v1/chat/completions");
+     snprintf(cfg->model,      MAX_VALUE, "minimax/minimax-m2.5");
+-    snprintf(cfg->skills_dir, MAX_PATH,  "%s/.subzeroclaw/skills", home);
+-    snprintf(cfg->log_dir,    MAX_PATH,  "%s/.subzeroclaw/logs", home);
++    snprintf(cfg->skills_dir, MAX_PATH,  "/etc/subzeroclaw/skills");
++    snprintf(cfg->log_dir,    MAX_PATH,  "/tmp/subzeroclaw/logs");
+     cfg->max_turns = 200; cfg->max_messages = 40;
+ 
+     char path[MAX_PATH];
+-    snprintf(path, MAX_PATH, "%s/.subzeroclaw/config", home);
++    snprintf(path, MAX_PATH, "/etc/subzeroclaw/config");
+     FILE *f = fopen(path, "r");
+     if (f) {
+         char line[2048];
+@@ -344,7 +342,7 @@ static int agent_run(const Config *cfg, cJSON *msgs, cJSON *tools,
+ int main(int argc, char **argv) {
+     if (argc > 1 && (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h"))) {
+         fprintf(stderr, "SubZeroClaw — skill-driven agentic runtime\n"
+-            "Usage: subzeroclaw [\"prompt\"]\nConfig: ~/.subzeroclaw/config\n");
++            "Usage: subzeroclaw [\"prompt\"]\nConfig: /etc/subzeroclaw/config\n");
+         return 0;
+     }
+     Config cfg;
+-- 
+2.47.3
+
