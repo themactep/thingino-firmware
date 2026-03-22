@@ -276,6 +276,24 @@ EOF
   done
 }
 
+read_wpa_supplicant_value() {
+  local key="$1"
+  [ -f /etc/wpa_supplicant.conf ] || return
+  awk -v key="$key" '
+    $0 ~ "^[[:space:]]*" key "=" {
+      value = $0
+      sub("^[[:space:]]*" key "=", "", value)
+      sub(/^[[:space:]]*/, "", value)
+      if (value ~ /^"/) {
+        sub(/^"/, "", value)
+        sub(/"$/, "", value)
+      }
+      print value
+      exit
+    }
+  ' /etc/wpa_supplicant.conf
+}
+
 interface_state_json() {
   local iface="$1" enabled="false" link="false" dhcp="true" ipv6="false"
   local address netmask gateway broadcast mac
@@ -316,9 +334,9 @@ send_state() {
 
   local wifi_ssid wifi_bssid wifi_pass wifi_ap_enabled
 
-  wifi_ssid="$(awk -F'"' '/^[[:space:]]*ssid=/{print $2}' /etc/wpa_supplicant.conf)"
-  wifi_bssid="$(awk -F'"' '/^[[:space:]]*bssid=/{print $2}' /etc/wpa_supplicant.conf)"
-  wifi_pass="$(awk '/^[[:space:]]*psk=/{sub(/^[[:space:]]*psk="?/, ""); sub(/"$/, ""); print; exit}' /etc/wpa_supplicant.conf)"
+  wifi_ssid="$(read_wpa_supplicant_value ssid)"
+  wifi_bssid="$(read_wpa_supplicant_value bssid)"
+  wifi_pass="$(read_wpa_supplicant_value psk)"
   if grep -q 'mode=2' /etc/wpa_supplicant.conf; then
     wifi_ap_enabled="true"
   else
@@ -495,13 +513,7 @@ handle_post() {
     # create wlan ap wpa_supplicant.conf
     wlan configure "$wifi_ssid" "$wifi_pass" ap
   else
-    # FIXME: need to figure out how to fit $wifi_bssid back into it:
-    # if [ -n "$bssid" ]; then
-    #   ssid_line="bssid=\"$bssid\""
-    # else
-    #   ssid_line="ssid=\"$ssid\""
-    # fi
-    wlan configure "$wifi_ssid" "$wifi_pass"
+    wlan configure "$wifi_ssid" "$wifi_pass" "$wifi_bssid"
   fi
 
   emit_json "" '{"status":"ok"}'

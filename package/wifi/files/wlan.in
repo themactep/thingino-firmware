@@ -20,7 +20,7 @@ Where command:
   temp        Display module temperature details
   rssi        Display signal details
   cli         CLI interface on supported modules
-  configure ssid pass [ap]
+	configure ssid pass [bssid] [ap]
               Create WPA supplicant config non-interactively
   reset       Reset all Wi-Fi credentials
 " >&2
@@ -117,10 +117,31 @@ show_info() {
 configure() {
 	local ssid="$1"
 	local password="$2"
-	local ap_mode="$3"
+	local bssid=""
+	local ap_mode=""
 
 	if [ -z "$ssid" ] || [ -z "$password" ]; then
-		echo "Usage: $entry_command configure <ssid> <password> [ap]" >&2
+		echo "Usage: $entry_command configure <ssid> <password> [bssid] [ap]" >&2
+		exit 1
+	fi
+
+	case "$3" in
+		"") ;;
+		ap) ap_mode="ap" ;;
+		*) bssid="$3" ;;
+	esac
+
+	case "$4" in
+		"") ;;
+		ap) ap_mode="ap" ;;
+		*)
+			echo "Usage: $entry_command configure <ssid> <password> [bssid] [ap]" >&2
+			exit 1
+			;;
+	esac
+
+	if [ -n "$bssid" ] && ! echo "$bssid" | grep -qE '^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$'; then
+		echo "Error: invalid BSSID format. Expected AA:BB:CC:DD:EE:FF." >&2
 		exit 1
 	fi
 
@@ -154,18 +175,24 @@ network={
 }
 " > /etc/wpa_supplicant.conf
 	else
-		echo "# created on $(date +%c)
+		{
+			echo "# created on $(date +%c)
 ctrl_interface=/run/wpa_supplicant
 update_config=1
 ap_scan=1
 
 network={
         ssid=\"$ssid\"
-        psk=$psk
+"
+			if [ -n "$bssid" ]; then
+				echo "        bssid=$bssid"
+			fi
+			echo "        psk=$psk
         scan_ssid=1
         bgscan=\"simple:30:-70:3600\"
 }
-" > /etc/wpa_supplicant.conf
+"
+		} > /etc/wpa_supplicant.conf
 	fi
 }
 
