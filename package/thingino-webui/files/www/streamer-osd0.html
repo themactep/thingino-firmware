@@ -39,11 +39,8 @@
               <label for="osd0_enabled" class="form-check-label">OSD enabled</label>
             </p>
             <p>
-              <label for="osd0_fontname">Font</label>
-              <select class="form-select" id="osd0_fontname">
-                <option>default.ttf</option>
-              </select>
-              <small><a href="#" data-bs-toggle="modal" data-bs-target="#mdFont">Upload a font</a></small>
+              <label class="d-block">Font file</label>
+              <button type="button" class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#mdFont">Upload or restore default font</button>
             </p>
             <p>
               <label for="osd0_fontsize">Size</label>
@@ -163,6 +160,10 @@
             <input type="file" class="form-control" id="fontfile" name="fontfile" accept=".ttf,.otf" required>
           </div>
           <button type="submit" class="btn btn-primary w-100">Upload font</button>
+        </form>
+        <form method="post" action="/x/preview.cgi" enctype="multipart/form-data">
+          <input type="hidden" name="form" value="font-reset">
+          <button type="submit" class="btn btn-outline-danger w-100">Restore firmware font</button>
         </form>
       </div>
     </div>

@@ -39,7 +39,7 @@ const stream_params = [
   'enabled', 'width', 'height', 'fps', 'bitrate', 'gop', 'max_gop', 'format', 'mode',
   'buffers', 'profile', 'rtsp_endpoint', 'audio_enabled'
 ];
-const osd_params = ['enabled', 'fontname', 'fontsize', 'strokesize'];
+const osd_params = ['enabled', 'fontsize', 'strokesize'];
 
 function rgba2color(hex8) {
   return hex8.substring(0, 7);
@@ -58,13 +58,6 @@ function handleOsdData(osd, streamIndex) {
     const el = $(`#osd${streamIndex}_enabled`);
     if (el) {
       el.checked = osd.enabled;
-      el.disabled = false;
-    }
-  }
-  if (osd.font_path) {
-    const el = $(`#osd${streamIndex}_fontname`);
-    if (el) {
-      el.value = osd.font_path.split('/').pop();
       el.disabled = false;
     }
   }
@@ -363,8 +356,12 @@ async function sendToEndpoint(payload) {
   }
 }
 
+async function loadInitialData() {
+  await Promise.all([loadConfig(), loadMotorParams()]);
+}
+
 // Init on load
-Promise.all([loadConfig(), loadMotorParams()]).then(async () => {
+loadInitialData().then(async () => {
   // Load webui config for focus tracking settings
   let webuiConfig = {
     track_focus: false,
@@ -867,15 +864,11 @@ function sendOsdUpdate(streamId, osdPayload) {
 }
 
 function setFont(streamId) {
-  const fontSelect = $(`#osd${streamId}_fontname`);
   const fontSizeInput = $(`#osd${streamId}_fontsize`);
   const strokeSizeInput = $(`#osd${streamId}_strokesize`);
-  if (!fontSelect || !fontSizeInput || !strokeSizeInput) return;
+  if (!fontSizeInput || !strokeSizeInput) return;
 
   const payload = {};
-  const fontName = fontSelect.value;
-  if (fontName)
-    payload.font_path = `/usr/share/fonts/${fontName}`;
 
   const fontSize = Number(fontSizeInput.value);
   if (!Number.isNaN(fontSize)) {
@@ -899,7 +892,6 @@ function setFont(streamId) {
   // Configuration for OSD controls
   const osdControls = [
     { id: 'enabled', handler: (e) => sendOsdUpdate(streamId, {enabled: e.target.checked}) },
-    { id: 'fontname', handler: () => setFont(streamId) },
     { id: 'fontsize', handler: () => setFont(streamId) },
     { id: 'strokesize', handler: () => setFont(streamId) },
     { id: 'logo_enabled', handler: (e) => sendOsdUpdate(streamId, {logo: {enabled: e.target.checked}}) },
