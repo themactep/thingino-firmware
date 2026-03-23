@@ -1,0 +1,93 @@
+From 0000000000000000000000000000000000000001 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@thingino.com>
+Date: Mon, 01 Jan 2024 00:00:00 +0000
+Subject: [PATCH] mips: xburst: fix jz_driver_common_interfaces flags_1 ABI position
+
+The pre-compiled ISP firmware blob (libt31-firmware-540.a, etc.) checks ABI
+compatibility by verifying that jz_driver_common_interfaces has both flags_0
+and flags_1 set to printk at struct offsets +0 and +4 respectively:
+
+  if (*pfaces && ((*pfaces)->flags_0 != (unsigned int)printk ||
+                  (*pfaces)->flags_0 != (*pfaces)->flags_1)) {
+      return -1;
+  }
+
+When this check fails the ISP firmware blob aborts initialization, resulting
+in /proc/jz/isp/, /proc/jz/encoder/, and /proc/jz/reset/ never being created.
+
+The struct has grown over the years and flags_1 is now at the end (offset ~716
+bytes for t31) while the blob still expects it at offset +4. Fix by moving
+flags_1 to immediately follow flags_0 in all affected SOC headers.
+
+Signed-off-by: Paul Philippov <paul@thingino.com>
+---
+--- a/arch/mips/xburst/soc-t21/include/mach/txx-funcs.h
++++ b/arch/mips/xburst/soc-t21/include/mach/txx-funcs.h
+@@ -34,6 +34,7 @@
+ 
+ struct jz_driver_common_interfaces {
+ 	unsigned int flags_0;			// The flags must be checked.
++	unsigned int flags_1;			// The flags must be checked.
+ 	/* platform interface */
+ 	int (*priv_platform_driver_register)(struct platform_driver *drv);
+ 	void (*priv_platform_driver_unregister)(struct platform_driver *drv);
+@@ -131,7 +132,6 @@
+ 	struct proc_dir_entry* (*priv_jz_proc_mkdir)(char *s);
+ 	/* isp driver interface */
+ 	void (*get_isp_priv_mem)(unsigned int *phyaddr, unsigned int *size);
+-	unsigned int flags_1;			// The flags must be checked.
+ };
+ 
+ #endif /*__TXX_FUNCS_H__*/
+--- a/arch/mips/xburst/soc-t23/include/mach/txx-funcs.h
++++ b/arch/mips/xburst/soc-t23/include/mach/txx-funcs.h
+@@ -38,6 +38,7 @@
+ 
+ struct jz_driver_common_interfaces {
+ 	unsigned int flags_0;			// The flags must be checked.
++	unsigned int flags_1;			// The flags must be checked.
+ 	/* platform interface */
+ 	int (*priv_platform_driver_register)(struct platform_driver *drv);
+ 	void (*priv_platform_driver_unregister)(struct platform_driver *drv);
+@@ -177,6 +178,5 @@
+ 	struct net *(*priv_get_init_net)(void);
+ 	/* isp driver interface */
+ 	void (*get_isp_priv_mem)(unsigned int *phyaddr, unsigned int *size);
+-	unsigned int flags_1;			// The flags must be checked.
+ };
+ #endif /*__TXX_FUNCS_H__*/
+--- a/arch/mips/xburst/soc-t30/include/mach/txx-funcs.h
++++ b/arch/mips/xburst/soc-t30/include/mach/txx-funcs.h
+@@ -34,6 +34,7 @@
+ 
+ struct jz_driver_common_interfaces {
+ 	unsigned int flags_0;			// The flags must be checked.
++	unsigned int flags_1;			// The flags must be checked.
+ 	/* platform interface */
+ 	int (*priv_platform_driver_register)(struct platform_driver *drv);
+ 	void (*priv_platform_driver_unregister)(struct platform_driver *drv);
+@@ -131,7 +132,6 @@
+ 	struct proc_dir_entry* (*priv_jz_proc_mkdir)(char *s);
+ 	/* isp driver interface */
+ 	void (*get_isp_priv_mem)(unsigned int *phyaddr, unsigned int *size);
+-	unsigned int flags_1;			// The flags must be checked.
+ };
+ 
+ #endif /*__TXX_FUNCS_H__*/
+--- a/arch/mips/xburst/soc-t31/include/mach/txx-funcs.h
++++ b/arch/mips/xburst/soc-t31/include/mach/txx-funcs.h
+@@ -38,6 +38,7 @@
+ 
+ struct jz_driver_common_interfaces {
+ 	unsigned int flags_0;			// The flags must be checked.
++	unsigned int flags_1;			// The flags must be checked.
+ 	/* platform interface */
+ 	int (*priv_platform_driver_register)(struct platform_driver *drv);
+ 	void (*priv_platform_driver_unregister)(struct platform_driver *drv);
+@@ -177,6 +178,5 @@
+ 	struct net *(*priv_get_init_net)(void);
+ 	/* isp driver interface */
+ 	void (*get_isp_priv_mem)(unsigned int *phyaddr, unsigned int *size);
+-	unsigned int flags_1;			// The flags must be checked.
+ };
+ #endif /*__TXX_FUNCS_H__*/
