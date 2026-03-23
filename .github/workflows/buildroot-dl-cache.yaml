@@ -57,7 +57,7 @@ jobs:
           echo "tg_disabled=${{ github.event.inputs.tg_disabled || 'false' }}" >> $GITHUB_OUTPUT
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.branch || 'master' }}
           fetch-depth: "1"
@@ -105,7 +105,7 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout repository source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: 'true'
           ref: ${{ github.event.inputs.branch || 'master' }}
@@ -192,7 +192,7 @@ jobs:
           echo "TAG_NAME=${{ needs.build-caches.outputs.tag_name }}" >> $GITHUB_ENV
 
       - name: Checkout repository source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: 'false'
           ref: ${{ github.event.inputs.branch || 'master' }}
