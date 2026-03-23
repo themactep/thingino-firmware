@@ -17,9 +17,9 @@
     "mic_sample_rate": 16000,
     "mic_vol": 80,
     "spk_enabled": true,
-    "spk_gain": 20,
+    "spk_gain": 25,
     "spk_sample_rate": 16000,
-    "spk_vol": 60,
+    "spk_vol": 80,
     "tap_enabled": true,
     "tap_path": "/run/prudynt/audio_mic.pcm"
   },
