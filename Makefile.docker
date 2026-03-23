@@ -59,7 +59,7 @@ docker-make: docker-build
 	@echo 'cleanup() {' >> /tmp/docker-make-run.sh
 	@echo '    echo' >> /tmp/docker-make-run.sh
 	@echo '    echo "Interrupted! Stopping container..."' >> /tmp/docker-make-run.sh
-	@echo '    podman stop -t 2 $$(podman ps -q --filter ancestor=$(DOCKER_IMAGE):$(DOCKER_TAG)) 2>/dev/null || true' >> /tmp/docker-make-run.sh
+	@echo '    $(CONTAINER_ENGINE) stop -t 2 $$($(CONTAINER_ENGINE) ps -q --filter ancestor=$(DOCKER_IMAGE):$(DOCKER_TAG)) 2>/dev/null || true' >> /tmp/docker-make-run.sh
 	@echo '    exit 130' >> /tmp/docker-make-run.sh
 	@echo '}' >> /tmp/docker-make-run.sh
 	@echo 'trap cleanup INT TERM' >> /tmp/docker-make-run.sh
