@@ -1,0 +1,72 @@
+From: Paul Philippov <paul@themactep.com>
+Date: Fri, 20 Dec 2024 14:50:00 +0000
+Subject: [PATCH] 0001-fix-ipv6-and-ifa-flags-issues
+
+Fix musl and older-kernel header compatibility in libwebsockets 4.5.7.
+
+This restores the local Thingino compatibility fixes that were present for
+4.5.2:
+
+- avoid IPv6 structure redefinitions between linux/ipv6.h and netinet/in.h
+- provide a fallback for IFA_FLAGS when older kernel headers do not define it
+
+Signed-off-by: Paul Philippov <paul@themactep.com>
+---
+ lib/plat/unix/private-lib-plat-unix.h | 10 ++++++++++
+ lib/plat/unix/unix-sockets.c          |  3 ++-
+ lib/roles/netlink/ops-netlink.c       |  5 +++++
+ 3 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/lib/plat/unix/private-lib-plat-unix.h b/lib/plat/unix/private-lib-plat-unix.h
+index 5d3b5ff..e595ee0 100644
+--- a/lib/plat/unix/private-lib-plat-unix.h
++++ b/lib/plat/unix/private-lib-plat-unix.h
+@@ -24,6 +24,16 @@
+  *  Included from lib/private-lib-core.h if no explicit platform
+  */
+
++/* Prevent IPv6 structure redefinition when using linux/ipv6.h */
++#ifdef __linux__
++#define __UAPI_DEF_IN6_ADDR 0
++#define __UAPI_DEF_SOCKADDR_IN6 0
++#define __UAPI_DEF_IPV6_MREQ 0
++#define __UAPI_DEF_IN6_PKTINFO 0
++#define __UAPI_DEF_IP6_MTUINFO 0
++#define __UAPI_DEF_IPPROTO_V6 0
++#endif
++
+ #include <fcntl.h>
+ #include <strings.h>
+ #include <unistd.h>
+diff --git a/lib/plat/unix/unix-sockets.c b/lib/plat/unix/unix-sockets.c
+index 0a7a844..3a9ff2c 100644
+--- a/lib/plat/unix/unix-sockets.c
++++ b/lib/plat/unix/unix-sockets.c
+@@ -26,7 +26,8 @@
+ #endif
+ #include "private-lib-core.h"
+
+-#if defined(LWS_HAVE_LINUX_IPV6_H)
++/* On Linux, netinet/in.h already provides the required IPv6 definitions. */
++#if defined(LWS_HAVE_LINUX_IPV6_H) && !defined(__linux__)
+ #include <linux/ipv6.h>
+ #endif
+
+diff --git a/lib/roles/netlink/ops-netlink.c b/lib/roles/netlink/ops-netlink.c
+index 1cd7a47..ca5b13c 100644
+--- a/lib/roles/netlink/ops-netlink.c
++++ b/lib/roles/netlink/ops-netlink.c
+@@ -36,6 +36,11 @@
+ #include <linux/netlink.h>
+ #include <linux/rtnetlink.h>
+
++/* Fallback definition for older Linux headers */
++#ifndef IFA_FLAGS
++#define IFA_FLAGS 8
++#endif
++
+ //#define lwsl_netlink lwsl_notice
+ #define lwsl_cx_netlink		lwsl_cx_info
+ #define lwsl_cx_netlink_debug	lwsl_cx_debug
+--
+2.34.1
