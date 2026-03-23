@@ -45,7 +45,9 @@ export SOC_ARCH
 
 # default to older kernel if none set
 ifeq ($(KERNEL_VERSION),)
-	ifeq ($(SOC_FAMILY),t41)
+	ifeq ($(KERNEL_VERSION_4),y)
+		KERNEL_VERSION := 4.4.94
+	else ifeq ($(SOC_FAMILY),t41)
 		KERNEL_VERSION := 4.4.94
 	else ifeq ($(SOC_FAMILY),t40)
 		KERNEL_VERSION := 4.4.94

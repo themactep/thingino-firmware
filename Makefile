@@ -277,6 +277,7 @@ build_fast: $(U_BOOT_ENV_TXT)
 ### Configuration
 
 FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(CAMERA_CONFIG_REAL))
+RAW_DEFCONFIG_MODE = $(if $(strip $(FRAGMENTS)),,y)
 
 # Configuration dependency files
 CONFIG_DEPS_FILE = $(OUTPUT_DIR)/.config.deps
@@ -321,6 +322,11 @@ force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.ke
 	# delete older config
 	$(info * remove existing .config file)
 	rm -rvf $(OUTPUT_DIR)/.config
+ifeq ($(RAW_DEFCONFIG_MODE),y)
+	# preprocess a plain Buildroot defconfig used by GitHub workflows
+	$(info * preprocess raw defconfig $(CAMERA_CONFIG_REAL))
+	sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' $(CAMERA_CONFIG_REAL) >$(OUTPUT_DIR)/.config
+else
 	# add fragments of a new config
 	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(CAMERA_CONFIG_REAL))
 	for i in $(FRAGMENTS); do \
@@ -348,6 +354,7 @@ force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.ke
 	@echo 'BR2_SOC_FAMILY="$(SOC_FAMILY)"' >>$(OUTPUT_DIR)/.config
 	@echo 'BR2_SOC_RAM_MB=$(SOC_RAM_MB)' >>$(OUTPUT_DIR)/.config
 	@echo >>$(OUTPUT_DIR)/.config
+endif
 	if [ -f $(THINGINO_USER_DIR)/local.fragment ]; then \
 		cat $(THINGINO_USER_DIR)/local.fragment >>$(OUTPUT_DIR)/.config; \
 	fi; \

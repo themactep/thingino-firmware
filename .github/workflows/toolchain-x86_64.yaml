@@ -137,7 +137,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc ccache cmake cpio curl ca-certificates file git gh locales lzop make gawk jq p7zip-full procps rsync u-boot-tools unzip wget
+          apt-get install -y --no-install-recommends --no-install-suggests build-essential bc cmake cpio curl ca-certificates file git gh locales lzop make gawk jq p7zip-full procps rsync u-boot-tools unzip wget
 
       - name: Set timezone
         run: |
@@ -180,7 +180,6 @@ jobs:
 
       - name: Setup cache directories
         run: |
-          mkdir -p ~/.ccache
           mkdir -p ~/dl
 
       - name: Fetch buildroot-dl-cache release

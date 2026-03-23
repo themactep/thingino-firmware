@@ -62,7 +62,11 @@ ifeq ($(WIFI_DRIVER_SELECTED),)
 $(error No Thingino Wi-Fi driver (BR2_PACKAGE_WIFI_*) selected)
 endif
 ifneq ($(words $(WIFI_DRIVER_SELECTED)),1)
+ifeq ($(CAMERA),build_cache)
+$(warning Multiple Thingino Wi-Fi drivers selected for cache-only config: $(WIFI_DRIVER_SELECTED))
+else
 $(error Multiple Thingino Wi-Fi drivers selected: $(WIFI_DRIVER_SELECTED))
+endif
 endif
 
 WLAN_MODULE := $(firstword $(WIFI_DRIVER_SELECTED))
