@@ -12,11 +12,16 @@ on:
         description: 'Use TG scratch channel'
         required: false
         default: false
-      latest_only:
-        type: boolean
-        description: 'Only build latest default toolchain'
+      gcc_version:
+        type: choice
+        description: 'GCC toolchain version to build'
         required: false
-        default: false
+        default: gcc15
+        options:
+          - gcc15
+          - gcc14
+          - gcc13
+          - all
       debug_enabled:
         type: boolean
         description: 'Debug: Generate dummy image files'
@@ -91,11 +96,14 @@ jobs:
       - name: Generate toolchain matrix
         id: set-matrix
         run: |
-          if [[ "${{ github.event.inputs.latest_only }}" == 'true' ]]; then
-            CONFIGS=$(find configs/github -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|' | grep gcc13)
+          if [[ "${{ github.event_name }}" == 'schedule' ]]; then
+            GCC_FILTER=gcc15
+          elif [[ "${{ github.event.inputs.gcc_version || 'gcc15' }}" == 'all' ]]; then
+            GCC_FILTER=toolchain
           else
-            CONFIGS=$(find configs/github -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|' | grep toolchain)
+            GCC_FILTER="${{ github.event.inputs.gcc_version || 'gcc15' }}"
           fi
+          CONFIGS=$(find configs/github -type f -name "*defconfig" | sort | sed 's|.*/\(.*\)_defconfig|\1|' | grep "$GCC_FILTER")
           JSON_MATRIX="{\"toolchain-version\": ["
           for CONFIG in $CONFIGS; do
             JSON_MATRIX+="\"${CONFIG}\","
