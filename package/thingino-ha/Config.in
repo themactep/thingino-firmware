@@ -1,6 +1,6 @@
 config BR2_PACKAGE_THINGINO_HA
 	bool "thingino-ha"
-	depends on BR2_PACKAGE_THINGINO_MOSQUITTO_212
+	depends on BR2_PACKAGE_THINGINO_MOSQUITTO_20X
 	depends on BR2_PACKAGE_THINGINO_JCT
 	help
 	  Home Assistant MQTT integration for Thingino cameras.
