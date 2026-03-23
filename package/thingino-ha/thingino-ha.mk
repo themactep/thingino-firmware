@@ -26,7 +26,7 @@ define THINGINO_HA_INSTALL_TARGET_CMDS
   $(INSTALL) -D -m 0644 $(@D)/config-ha.js \
 		$(TARGET_DIR)/var/www/a/config-ha.js
   $(INSTALL) -D -m 0755 $(@D)/json-config-ha.cgi \
-		$(TARGET_DIR)/var/www/x/jcon-config-ha.cgi
+		$(TARGET_DIR)/var/www/x/json-config-ha.cgi
 endef
 
 $(eval $(generic-package))
