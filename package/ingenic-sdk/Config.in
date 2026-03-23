@@ -4,3 +4,12 @@ config BR2_PACKAGE_INGENIC_SDK
 	select BR2_LINUX_KERNEL
 	help
 	  Code from Ingenic SDK
+
+config BR2_INGENIC_SDK_ISP_TRACE
+	bool "ISP vtable trace"
+	depends on BR2_PACKAGE_INGENIC_SDK
+	help
+	  Enable CONFIG_JZ_ISP_TRACE in the kernel. At module load time the
+	  driver will dump the symbolic name of every jz_driver_common_interfaces
+	  vtable entry to the kernel log. Useful for open-driver development.
+	  Check dmesg | grep jz_isp_trace on the camera.
