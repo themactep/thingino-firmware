@@ -2,15 +2,10 @@
 
 . /usr/share/common
 
-IFACE=@WLAN_NETDEV@
-WLAN_INT_FILE="/etc/network/interfaces.d/$IFACE"
+STA_IFACE=@WLAN_STA_NETDEV@
+AP_IFACE=@WLAN_AP_NETDEV@
 
 CONFIG="/etc/$DAEMON_SHORT.conf"
-PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
-DAEMON_ARGS="-i $IFACE -c $CONFIG -P $PIDFILE -B"
-if [ "true" = "$debug" ]; then
-	DAEMON_ARGS="$DAEMON_ARGS -dd"
-fi
 
 PORTAL_MODE_FLAG="/run/portal_mode"
 PORTAL_CNET=172.16.0
@@ -33,6 +28,23 @@ elif grep -q 'mode=2' $CONFIG >/dev/null; then
 	mode="ap"
 else
 	mode="client"
+fi
+
+case "$mode" in
+	portal|ap)
+		IFACE="$AP_IFACE"
+		WLAN_INT_FILE="/etc/network/interfaces.d/$STA_IFACE"
+		;;
+	*)
+		IFACE="$STA_IFACE"
+		WLAN_INT_FILE="/etc/network/interfaces.d/$STA_IFACE"
+		;;
+esac
+
+PIDFILE="/run/$DAEMON_SHORT.$IFACE.pid"
+DAEMON_ARGS="-i $IFACE -c $CONFIG -P $PIDFILE -B"
+if [ "true" = "$debug" ]; then
+	DAEMON_ARGS="$DAEMON_ARGS -dd"
 fi
 
 credentials_from_card() {

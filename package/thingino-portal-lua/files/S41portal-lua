@@ -98,7 +98,7 @@ start() {
 	/etc/init.d/S60uhttpd-lua stop
 
 	echo_info "Verify portal network setup"
-	ip addr show wlan0 | grep "172.16.0.1" && echo_info "Portal IP assigned" || echo_warning "Portal IP missing"
+	ip addr show "$portal_device" | grep "172.16.0.1" && echo_info "Portal IP assigned" || echo_warning "Portal IP missing"
 	netstat -ln | grep ":80.*LISTEN" && echo_info "Web server listening" || echo_warning "Web server not listening"
 
 	echo_warning "Portal started at $(ts)"

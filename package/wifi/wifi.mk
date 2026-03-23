@@ -73,14 +73,16 @@ WLAN_MODULE := $(firstword $(WIFI_DRIVER_SELECTED))
 WIFI_INTERFACE := $(strip $(WIFI_DRIVER_INTERFACE_$(WLAN_MODULE)))
 
 WIFI_IS_HI3881_FLAG := 0
-#ifeq ($(WLAN_MODULE),hi3881)
 ifeq ($(BR2_PACKAGE_WIFI_HI3881),y)
 WIFI_IS_HI3881_FLAG := 1
-WIFI_NETDEV = ap0
+WIFI_STA_NETDEV = ap0
+WIFI_AP_NETDEV = ap0
 else ifeq ($(BR2_PACKAGE_WIFI_WQ9001),y)
-WIFI_NETDEV = wlan1
+WIFI_STA_NETDEV = wlan0
+WIFI_AP_NETDEV = wlan1
 else
-WIFI_NETDEV = wlan0
+WIFI_STA_NETDEV = wlan0
+WIFI_AP_NETDEV = wlan0
 endif
 
 ifeq ($(WIFI_INTERFACE),)
@@ -155,7 +157,8 @@ define WIFI_INSTALL_TARGET_CMDS
 	chmod 0755 $(TARGET_DIR)/etc/init.d/S36wireless
 
 	# WPA supplicant script
-	sed -e 's,@WLAN_NETDEV@,$(WIFI_NETDEV),g' \
+	sed -e 's,@WLAN_STA_NETDEV@,$(WIFI_STA_NETDEV),g' \
+		-e 's,@WLAN_AP_NETDEV@,$(WIFI_AP_NETDEV),g' \
 		$(WIFI_PKGDIR)/files/S38wpa_supplicant.in > $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
 	chmod 0755 $(TARGET_DIR)/etc/init.d/S38wpa_supplicant
 
