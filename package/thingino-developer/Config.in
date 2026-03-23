@@ -1,5 +1,6 @@
 config BR2_PACKAGE_THINGINO_DEVELOPER
 	bool "thingino-developer"
+	select BR2_INGENIC_SDK_ISP_TRACE
 	help
 	  Enable developer options for Thingino.
 
