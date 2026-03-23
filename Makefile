@@ -72,9 +72,28 @@ include $(BR2_EXTERNAL)/board.mk
 
 export CAMERA
 
+# Detect toolchain C library from config fragments and defconfig
+ifneq ($(CAMERA_CONFIG_REAL),)
+ifndef TOOLCHAIN_LIBC
+TOOLCHAIN_LIBC := $(strip $(shell \
+	for f in $(addprefix $(BR2_EXTERNAL)/configs/fragments/,$(addsuffix .fragment,$(shell awk '/FRAG:/{gsub(/^.*FRAG:[[:space:]]*/,"");print}' $(CAMERA_CONFIG_REAL)))) $(CAMERA_CONFIG_REAL); do \
+		if grep -q 'BR2_TOOLCHAIN_BUILDROOT_MUSL=y\|BR2_TOOLCHAIN_EXTERNAL_CUSTOM_MUSL=y' "$$f" 2>/dev/null; then echo musl; break; fi; \
+		if grep -q 'BR2_TOOLCHAIN_BUILDROOT_GLIBC=y\|BR2_TOOLCHAIN_EXTERNAL_CUSTOM_GLIBC=y' "$$f" 2>/dev/null; then echo glibc; break; fi; \
+		if grep -q 'BR2_TOOLCHAIN_BUILDROOT_UCLIBC=y\|BR2_TOOLCHAIN_EXTERNAL_CUSTOM_UCLIBC=y' "$$f" 2>/dev/null; then echo uclibc; break; fi; \
+	done))
+TOOLCHAIN_LIBC := $(if $(TOOLCHAIN_LIBC),$(TOOLCHAIN_LIBC),uclibc)
+endif
+export TOOLCHAIN_LIBC
+$(info TOOLCHAIN_LIBC: $(TOOLCHAIN_LIBC))
+endif
+
 # working directory - set after CAMERA is defined
 OUTPUT_ROOT_DIR ?= $(BR2_EXTERNAL)/output
-OUTPUT_DIR ?= $(OUTPUT_ROOT_DIR)/$(GIT_BRANCH)/$(CAMERA)-$(KERNEL_VERSION)
+ifeq ($(SKIP_CAMERA_SELECTION),)
+OUTPUT_DIR ?= $(OUTPUT_ROOT_DIR)/$(GIT_BRANCH)/$(CAMERA)-$(KERNEL_VERSION)-$(TOOLCHAIN_LIBC)
+else
+OUTPUT_DIR ?= $(OUTPUT_ROOT_DIR)/$(GIT_BRANCH)
+endif
 $(info OUTPUT_DIR: $(OUTPUT_DIR))
 export OUTPUT_DIR
 
@@ -84,7 +103,7 @@ CONFIG_PARTITION_DIR = $(OUTPUT_DIR)/config
 export CONFIG_PARTITION_DIR
 
 # include thingino makefile only when board configuration is available
-ifeq ($(SKIP_BOARD_SELECTION),)
+ifeq ($(SKIP_CAMERA_SELECTION),)
 include $(BR2_EXTERNAL)/thingino.mk
 endif
 
@@ -111,6 +130,7 @@ endif
 U_BOOT_ENV_TXT = $(OUTPUT_DIR)/uenv.txt
 export U_BOOT_ENV_TXT
 
+ifeq ($(SKIP_CAMERA_SELECTION),)
 FLASH_SIZE_KB  := $(shell echo $$(($(FLASH_SIZE_MB) * 1024)))
 FLASH_SIZE     := $(shell echo $$((($(FLASH_SIZE_KB) * 1024))))
 FLASH_SIZE_HEX := $(shell printf '0x%x' $(FLASH_SIZE))
@@ -176,8 +196,18 @@ UPGRADE_SIZE_KB = $(shell echo $$(($(FLASH_SIZE_KB) - $(U_BOOT_SIZE_KB) - $(UB_E
 # dynamic partitions
 EXTRAS_PARTITION_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(EXTRAS_OFFSET))))
 EXTRAS_LLIMIT := $(shell echo $$(($(ALIGN_BLOCK) * 5)))
+else
+FLASH_SIZE_KB :=
+FLASH_SIZE :=
+FLASH_SIZE_HEX :=
+U_BOOT_PARTITION_SIZE :=
+UB_ENV_PARTITION_SIZE :=
+CONFIG_PARTITION_SIZE :=
+EXTRAS_LLIMIT :=
+endif
 
 # partition offsets
+ifeq ($(SKIP_CAMERA_SELECTION),)
 U_BOOT_OFFSET := 0
 UB_ENV_OFFSET = $(shell echo $$(($(U_BOOT_OFFSET) + $(U_BOOT_PARTITION_SIZE))))
 CONFIG_OFFSET = $(shell echo $$(($(UB_ENV_OFFSET) + $(UB_ENV_PARTITION_SIZE))))
@@ -189,6 +219,15 @@ EXTRAS_OFFSET = $(shell echo $$(($(ROOTFS_OFFSET) + $(ROOTFS_PARTITION_SIZE))))
 EXTRAS_OFFSET_NOBOOT = $(shell echo $$(($(KERNEL_PARTITION_SIZE) + $(ROOTFS_PARTITION_SIZE))))
 
 export CONFIG_OFFSET
+else
+U_BOOT_OFFSET :=
+UB_ENV_OFFSET :=
+CONFIG_OFFSET :=
+KERNEL_OFFSET :=
+ROOTFS_OFFSET :=
+EXTRAS_OFFSET :=
+EXTRAS_OFFSET_NOBOOT :=
+endif
 export FLASH_SIZE_MB
 
 # make command for buildroot
@@ -277,7 +316,7 @@ build_fast: $(U_BOOT_ENV_TXT)
 
 ### Configuration
 
-FRAGMENTS = $(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(CAMERA_CONFIG_REAL))
+FRAGMENTS = $(if $(CAMERA_CONFIG_REAL),$(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(CAMERA_CONFIG_REAL)))
 RAW_DEFCONFIG_MODE = $(if $(strip $(FRAGMENTS)),,y)
 
 # Configuration dependency files
