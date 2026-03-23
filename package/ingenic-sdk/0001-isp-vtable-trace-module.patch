@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000003 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@thingino.com>
+Date: Mon, 01 Jan 2024 00:00:02 +0000
+Subject: [PATCH] ingenic-sdk: call jz_isp_vtable_trace_init when CONFIG_JZ_ISP_TRACE=y
+
+When the kernel is built with CONFIG_JZ_ISP_TRACE=y, call
+jz_isp_vtable_trace_init() from the tx_isp module init, just before
+handing control to the closed ISP blob via tx_isp_init(). This dumps
+the entire jz_driver_common_interfaces vtable to the kernel log.
+
+Signed-off-by: Paul Philippov <paul@thingino.com>
+---
+--- a/3.10.14/isp/t31/tx-isp-module.c
++++ b/3.10.14/isp/t31/tx-isp-module.c
+@@ -14,8 +14,18 @@
+ extern int tx_isp_init(void);
+ extern void tx_isp_exit(void);
+ 
++#ifdef CONFIG_JZ_ISP_TRACE
++#include <mach/txx-funcs.h>
++extern void *get_driver_common_interfaces(void);
++extern void jz_isp_vtable_trace_init(struct jz_driver_common_interfaces *p);
++#endif
++
+ static int __init tx_isp_module_init(void)
+ {
++#ifdef CONFIG_JZ_ISP_TRACE
++	jz_isp_vtable_trace_init(
++		(struct jz_driver_common_interfaces *)get_driver_common_interfaces());
++#endif
+ 	return tx_isp_init();
+ }
+ 

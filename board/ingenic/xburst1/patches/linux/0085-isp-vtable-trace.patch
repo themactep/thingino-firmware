@@ -1,0 +1,429 @@
+From 0000000000000000000000000000000000000002 Mon Sep 17 00:00:00 2001
+From: Paul Philippov <paul@thingino.com>
+Date: Mon, 01 Jan 2024 00:00:01 +0000
+Subject: [PATCH] mips: xburst: add ISP vtable trace for open driver development
+
+The ISP firmware blobs (libt31-firmware-540.a, etc.) communicate with the
+kernel exclusively through the jz_driver_common_interfaces vtable. Every
+kernel function the blob ever calls goes through one of ~58-95 function
+pointers in this struct.
+
+Add CONFIG_JZ_ISP_TRACE which exports jz_isp_vtable_trace_init() from each
+SOC's platform.c. When called (e.g. from tx-isp-module.c at probe time), it
+dumps the entire vtable to the kernel log with pr_info, showing:
+  - The address and ABI flags of the vtable itself
+  - The resolved kernel symbol name for every function pointer
+
+This provides the complete behavioral specification of the blob's kernel
+dependencies — the prerequisite for replacing them with open implementations
+one function at a time.
+
+Usage:
+  Enable CONFIG_JZ_ISP_TRACE=y, load tx_isp, then:
+    dmesg | grep jz_isp_trace
+
+Affects: t21, t23, t30, t31
+
+Signed-off-by: Paul Philippov <paul@thingino.com>
+---
+--- a/arch/mips/xburst/Kconfig
++++ b/arch/mips/xburst/Kconfig
+@@ -248,4 +248,16 @@
+ config PMON_DEBUG
+ 	bool "pmon debug proc interface"
+ 	default n
++
++config JZ_ISP_TRACE
++	bool "ISP vtable call tracing"
++	default n
++	help
++	  When enabled, exports jz_isp_vtable_trace_init() from each SOC's
++	  platform.c. Calling this function after get_driver_common_interfaces()
++	  prints the full ISP firmware blob vtable to the kernel log via pr_info.
++	  Use to audit which kernel functions the closed ISP blob depends on,
++	  as the first step toward replacing them with open implementations.
++	  dmesg | grep jz_isp_trace
++	  Safe to leave disabled in production builds.
+ endif
+--- a/arch/mips/xburst/soc-t21/common/platform.c
++++ b/arch/mips/xburst/soc-t21/common/platform.c
+@@ -1035,4 +1035,74 @@
+ 	return (void *)&private_funcs;
+ }
+ 
++
++#ifdef CONFIG_JZ_ISP_TRACE
++void jz_isp_vtable_trace_init(struct jz_driver_common_interfaces *p)
++{
++	pr_info("jz_isp_trace: vtable at %p, flags_0=%08x flags_1=%08x printk=%08x\n",
++		p, p->flags_0, p->flags_1, (unsigned int)&printk);
++#define SHOW(f) pr_info("jz_isp_trace:  %-40s %pF\n", #f, p->f)
++	SHOW(priv_platform_driver_register);
++	SHOW(priv_platform_driver_unregister);
++	SHOW(priv_platform_set_drvdata);
++	SHOW(priv_platform_get_drvdata);
++	SHOW(priv_platform_device_register);
++	SHOW(priv_platform_device_unregister);
++	SHOW(priv_platform_get_resource);
++	SHOW(priv_dev_set_drvdata);
++	SHOW(priv_dev_get_drvdata);
++	SHOW(priv_platform_get_irq);
++	SHOW(priv_iounmap);
++	SHOW(priv_request_threaded_irq);
++	SHOW(priv_enable_irq);
++	SHOW(priv_disable_irq);
++	SHOW(priv_free_irq);
++	SHOW(priv_spin_unlock_irqrestore);
++	SHOW(priv_mutex_lock);
++	SHOW(priv_mutex_unlock);
++	SHOW(priv_clk_get);
++	SHOW(priv_clk_enable);
++	SHOW(priv_clk_is_enabled);
++	SHOW(priv_clk_disable);
++	SHOW(priv_clk_get_rate);
++	SHOW(priv_clk_put);
++	SHOW(priv_clk_set_rate);
++	SHOW(priv_i2c_get_adapter);
++	SHOW(priv_i2c_put_adapter);
++	SHOW(priv_i2c_transfer);
++	SHOW(priv_i2c_register_driver);
++	SHOW(priv_i2c_del_driver);
++	SHOW(priv_i2c_new_device);
++	SHOW(priv_i2c_get_clientdata);
++	SHOW(priv_i2c_set_clientdata);
++	SHOW(priv_i2c_unregister_device);
++	SHOW(priv_gpio_request);
++	SHOW(priv_gpio_free);
++	SHOW(priv_gpio_direction_output);
++	SHOW(priv_gpio_direction_input);
++	SHOW(priv_gpio_set_debounce);
++	SHOW(priv_jzgpio_set_func);
++	SHOW(priv_jzgpio_ctrl_pull);
++	SHOW(priv_msleep);
++	SHOW(priv_capable);
++	SHOW(priv_sched_clock);
++	SHOW(priv_try_module_get);
++	SHOW(priv_module_put);
++	SHOW(priv_init_completion);
++	SHOW(priv_complete);
++	SHOW(priv_wait_for_completion_interruptible);
++	SHOW(priv_misc_register);
++	SHOW(priv_misc_deregister);
++	SHOW(priv_proc_create_data);
++	SHOW(priv_seq_read);
++	SHOW(priv_seq_lseek);
++	SHOW(priv_single_release);
++	SHOW(priv_single_open_size);
++	SHOW(priv_jz_proc_mkdir);
++	SHOW(get_isp_priv_mem);
++#undef SHOW
++}
++EXPORT_SYMBOL(jz_isp_vtable_trace_init);
++#endif /* CONFIG_JZ_ISP_TRACE */
++
+ EXPORT_SYMBOL(get_driver_common_interfaces);
+--- a/arch/mips/xburst/soc-t23/common/platform.c
++++ b/arch/mips/xburst/soc-t23/common/platform.c
+@@ -1340,4 +1340,111 @@
+ 	return (void *)&private_funcs;
+ }
+ 
++
++#ifdef CONFIG_JZ_ISP_TRACE
++void jz_isp_vtable_trace_init(struct jz_driver_common_interfaces *p)
++{
++	pr_info("jz_isp_trace: vtable at %p, flags_0=%08x flags_1=%08x printk=%08x\n",
++		p, p->flags_0, p->flags_1, (unsigned int)&printk);
++#define SHOW(f) pr_info("jz_isp_trace:  %-40s %pF\n", #f, p->f)
++	SHOW(priv_platform_driver_register);
++	SHOW(priv_platform_driver_unregister);
++	SHOW(priv_platform_set_drvdata);
++	SHOW(priv_platform_get_drvdata);
++	SHOW(priv_platform_device_register);
++	SHOW(priv_platform_device_unregister);
++	SHOW(priv_platform_get_resource);
++	SHOW(priv_dev_set_drvdata);
++	SHOW(priv_dev_get_drvdata);
++	SHOW(priv_platform_get_irq);
++	SHOW(priv_request_mem_region);
++	SHOW(priv_release_mem_region);
++	SHOW(priv_ioremap);
++	SHOW(priv_iounmap);
++	SHOW(priv_request_threaded_irq);
++	SHOW(priv_enable_irq);
++	SHOW(priv_disable_irq);
++	SHOW(priv_free_irq);
++	SHOW(priv_spin_unlock_irqrestore);
++	SHOW(priv_mutex_lock);
++	SHOW(priv_mutex_unlock);
++	SHOW(priv_spin_lock_irqsave);
++	SHOW(priv_spin_lock_init);
++	SHOW(priv_raw_mutex_init);
++	SHOW(priv_clk_get);
++	SHOW(priv_clk_enable);
++	SHOW(priv_clk_is_enabled);
++	SHOW(priv_clk_disable);
++	SHOW(priv_clk_get_rate);
++	SHOW(priv_clk_put);
++	SHOW(priv_clk_set_rate);
++	SHOW(priv_i2c_get_adapter);
++	SHOW(priv_i2c_put_adapter);
++	SHOW(priv_i2c_transfer);
++	SHOW(priv_i2c_register_driver);
++	SHOW(priv_i2c_del_driver);
++	SHOW(priv_i2c_new_device);
++	SHOW(priv_i2c_get_clientdata);
++	SHOW(priv_i2c_set_clientdata);
++	SHOW(priv_i2c_unregister_device);
++	SHOW(priv_gpio_request);
++	SHOW(priv_gpio_free);
++	SHOW(priv_gpio_direction_output);
++	SHOW(priv_gpio_direction_input);
++	SHOW(priv_gpio_set_debounce);
++	SHOW(priv_jzgpio_set_func);
++	SHOW(priv_jzgpio_ctrl_pull);
++	SHOW(priv_msleep);
++	SHOW(priv_capable);
++	SHOW(priv_sched_clock);
++	SHOW(priv_try_module_get);
++	SHOW(priv_request_module);
++	SHOW(priv_module_put);
++	SHOW(priv_init_completion);
++	SHOW(priv_complete);
++	SHOW(priv_wait_for_completion_interruptible);
++	SHOW(priv_wait_event_interruptible);
++	SHOW(priv_wake_up_all);
++	SHOW(priv_wake_up);
++	SHOW(priv_init_waitqueue_head);
++	SHOW(priv_wait_for_completion_timeout);
++	SHOW(priv_misc_register);
++	SHOW(priv_misc_deregister);
++	SHOW(priv_proc_create_data);
++	SHOW(priv_seq_read);
++	SHOW(priv_seq_lseek);
++	SHOW(priv_single_release);
++	SHOW(priv_single_open_size);
++	SHOW(priv_jz_proc_mkdir);
++	SHOW(priv_proc_remove);
++	SHOW(priv_seq_printf);
++	SHOW(priv_simple_strtoull);
++	SHOW(priv_kthread_should_stop);
++	SHOW(priv_kthread_run);
++	SHOW(priv_kthread_stop);
++	SHOW(priv_kmalloc);
++	SHOW(priv_kfree);
++	SHOW(priv_copy_from_user);
++	SHOW(priv_copy_to_user);
++	SHOW(priv_nlmsg_new);
++	SHOW(priv_nlmsg_put);
++	SHOW(priv_netlink_unicast);
++	SHOW(priv_netlink_kernel_create);
++	SHOW(priv_sock_release);
++	SHOW(priv_filp_open);
++	SHOW(priv_filp_close);
++	SHOW(priv_get_fs);
++	SHOW(priv_set_fs);
++	SHOW(priv_vfs_read);
++	SHOW(priv_vfs_write);
++	SHOW(priv_vfs_llseek);
++	SHOW(priv_dma_cache_sync);
++	SHOW(priv_getrawmonotonic);
++	SHOW(priv_get_init_net);
++	SHOW(get_isp_priv_mem);
++#undef SHOW
++}
++EXPORT_SYMBOL(jz_isp_vtable_trace_init);
++#endif /* CONFIG_JZ_ISP_TRACE */
++
+ EXPORT_SYMBOL(get_driver_common_interfaces);
+--- a/arch/mips/xburst/soc-t30/common/platform.c
++++ b/arch/mips/xburst/soc-t30/common/platform.c
+@@ -1037,4 +1037,74 @@
+ 	return (void *)&private_funcs;
+ }
+ 
++
++#ifdef CONFIG_JZ_ISP_TRACE
++void jz_isp_vtable_trace_init(struct jz_driver_common_interfaces *p)
++{
++	pr_info("jz_isp_trace: vtable at %p, flags_0=%08x flags_1=%08x printk=%08x\n",
++		p, p->flags_0, p->flags_1, (unsigned int)&printk);
++#define SHOW(f) pr_info("jz_isp_trace:  %-40s %pF\n", #f, p->f)
++	SHOW(priv_platform_driver_register);
++	SHOW(priv_platform_driver_unregister);
++	SHOW(priv_platform_set_drvdata);
++	SHOW(priv_platform_get_drvdata);
++	SHOW(priv_platform_device_register);
++	SHOW(priv_platform_device_unregister);
++	SHOW(priv_platform_get_resource);
++	SHOW(priv_dev_set_drvdata);
++	SHOW(priv_dev_get_drvdata);
++	SHOW(priv_platform_get_irq);
++	SHOW(priv_iounmap);
++	SHOW(priv_request_threaded_irq);
++	SHOW(priv_enable_irq);
++	SHOW(priv_disable_irq);
++	SHOW(priv_free_irq);
++	SHOW(priv_spin_unlock_irqrestore);
++	SHOW(priv_mutex_lock);
++	SHOW(priv_mutex_unlock);
++	SHOW(priv_clk_get);
++	SHOW(priv_clk_enable);
++	SHOW(priv_clk_is_enabled);
++	SHOW(priv_clk_disable);
++	SHOW(priv_clk_get_rate);
++	SHOW(priv_clk_put);
++	SHOW(priv_clk_set_rate);
++	SHOW(priv_i2c_get_adapter);
++	SHOW(priv_i2c_put_adapter);
++	SHOW(priv_i2c_transfer);
++	SHOW(priv_i2c_register_driver);
++	SHOW(priv_i2c_del_driver);
++	SHOW(priv_i2c_new_device);
++	SHOW(priv_i2c_get_clientdata);
++	SHOW(priv_i2c_set_clientdata);
++	SHOW(priv_i2c_unregister_device);
++	SHOW(priv_gpio_request);
++	SHOW(priv_gpio_free);
++	SHOW(priv_gpio_direction_output);
++	SHOW(priv_gpio_direction_input);
++	SHOW(priv_gpio_set_debounce);
++	SHOW(priv_jzgpio_set_func);
++	SHOW(priv_jzgpio_ctrl_pull);
++	SHOW(priv_msleep);
++	SHOW(priv_capable);
++	SHOW(priv_sched_clock);
++	SHOW(priv_try_module_get);
++	SHOW(priv_module_put);
++	SHOW(priv_init_completion);
++	SHOW(priv_complete);
++	SHOW(priv_wait_for_completion_interruptible);
++	SHOW(priv_misc_register);
++	SHOW(priv_misc_deregister);
++	SHOW(priv_proc_create_data);
++	SHOW(priv_seq_read);
++	SHOW(priv_seq_lseek);
++	SHOW(priv_single_release);
++	SHOW(priv_single_open_size);
++	SHOW(priv_jz_proc_mkdir);
++	SHOW(get_isp_priv_mem);
++#undef SHOW
++}
++EXPORT_SYMBOL(jz_isp_vtable_trace_init);
++#endif /* CONFIG_JZ_ISP_TRACE */
++
+ EXPORT_SYMBOL(get_driver_common_interfaces);
+--- a/arch/mips/xburst/soc-t31/common/platform.c
++++ b/arch/mips/xburst/soc-t31/common/platform.c
+@@ -1311,4 +1311,111 @@
+ 	return (void *)&private_funcs;
+ }
+ 
++
++#ifdef CONFIG_JZ_ISP_TRACE
++void jz_isp_vtable_trace_init(struct jz_driver_common_interfaces *p)
++{
++	pr_info("jz_isp_trace: vtable at %p, flags_0=%08x flags_1=%08x printk=%08x\n",
++		p, p->flags_0, p->flags_1, (unsigned int)&printk);
++#define SHOW(f) pr_info("jz_isp_trace:  %-40s %pF\n", #f, p->f)
++	SHOW(priv_platform_driver_register);
++	SHOW(priv_platform_driver_unregister);
++	SHOW(priv_platform_set_drvdata);
++	SHOW(priv_platform_get_drvdata);
++	SHOW(priv_platform_device_register);
++	SHOW(priv_platform_device_unregister);
++	SHOW(priv_platform_get_resource);
++	SHOW(priv_dev_set_drvdata);
++	SHOW(priv_dev_get_drvdata);
++	SHOW(priv_platform_get_irq);
++	SHOW(priv_request_mem_region);
++	SHOW(priv_release_mem_region);
++	SHOW(priv_ioremap);
++	SHOW(priv_iounmap);
++	SHOW(priv_request_threaded_irq);
++	SHOW(priv_enable_irq);
++	SHOW(priv_disable_irq);
++	SHOW(priv_free_irq);
++	SHOW(priv_spin_unlock_irqrestore);
++	SHOW(priv_mutex_lock);
++	SHOW(priv_mutex_unlock);
++	SHOW(priv_spin_lock_irqsave);
++	SHOW(priv_spin_lock_init);
++	SHOW(priv_raw_mutex_init);
++	SHOW(priv_clk_get);
++	SHOW(priv_clk_enable);
++	SHOW(priv_clk_is_enabled);
++	SHOW(priv_clk_disable);
++	SHOW(priv_clk_get_rate);
++	SHOW(priv_clk_put);
++	SHOW(priv_clk_set_rate);
++	SHOW(priv_i2c_get_adapter);
++	SHOW(priv_i2c_put_adapter);
++	SHOW(priv_i2c_transfer);
++	SHOW(priv_i2c_register_driver);
++	SHOW(priv_i2c_del_driver);
++	SHOW(priv_i2c_new_device);
++	SHOW(priv_i2c_get_clientdata);
++	SHOW(priv_i2c_set_clientdata);
++	SHOW(priv_i2c_unregister_device);
++	SHOW(priv_gpio_request);
++	SHOW(priv_gpio_free);
++	SHOW(priv_gpio_direction_output);
++	SHOW(priv_gpio_direction_input);
++	SHOW(priv_gpio_set_debounce);
++	SHOW(priv_jzgpio_set_func);
++	SHOW(priv_jzgpio_ctrl_pull);
++	SHOW(priv_msleep);
++	SHOW(priv_capable);
++	SHOW(priv_sched_clock);
++	SHOW(priv_try_module_get);
++	SHOW(priv_request_module);
++	SHOW(priv_module_put);
++	SHOW(priv_init_completion);
++	SHOW(priv_complete);
++	SHOW(priv_wait_for_completion_interruptible);
++	SHOW(priv_wait_event_interruptible);
++	SHOW(priv_wake_up_all);
++	SHOW(priv_wake_up);
++	SHOW(priv_init_waitqueue_head);
++	SHOW(priv_wait_for_completion_timeout);
++	SHOW(priv_misc_register);
++	SHOW(priv_misc_deregister);
++	SHOW(priv_proc_create_data);
++	SHOW(priv_seq_read);
++	SHOW(priv_seq_lseek);
++	SHOW(priv_single_release);
++	SHOW(priv_single_open_size);
++	SHOW(priv_jz_proc_mkdir);
++	SHOW(priv_proc_remove);
++	SHOW(priv_seq_printf);
++	SHOW(priv_simple_strtoull);
++	SHOW(priv_kthread_should_stop);
++	SHOW(priv_kthread_run);
++	SHOW(priv_kthread_stop);
++	SHOW(priv_kmalloc);
++	SHOW(priv_kfree);
++	SHOW(priv_copy_from_user);
++	SHOW(priv_copy_to_user);
++	SHOW(priv_nlmsg_new);
++	SHOW(priv_nlmsg_put);
++	SHOW(priv_netlink_unicast);
++	SHOW(priv_netlink_kernel_create);
++	SHOW(priv_sock_release);
++	SHOW(priv_filp_open);
++	SHOW(priv_filp_close);
++	SHOW(priv_get_fs);
++	SHOW(priv_set_fs);
++	SHOW(priv_vfs_read);
++	SHOW(priv_vfs_write);
++	SHOW(priv_vfs_llseek);
++	SHOW(priv_dma_cache_sync);
++	SHOW(priv_getrawmonotonic);
++	SHOW(priv_get_init_net);
++	SHOW(get_isp_priv_mem);
++#undef SHOW
++}
++EXPORT_SYMBOL(jz_isp_vtable_trace_init);
++#endif /* CONFIG_JZ_ISP_TRACE */
++
+ EXPORT_SYMBOL(get_driver_common_interfaces);
