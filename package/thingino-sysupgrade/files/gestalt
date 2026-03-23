@@ -30,6 +30,9 @@ done
 
 current_image_id=$(grep "^IMAGE_ID=" /etc/os-release | cut -d'=' -f2)
 
+# ensure correct date and time
+ntpd -nNq
+
 fetch_profiles() {
 	echo_info "Fetching available profiles..."
 	profiles=$(curl -m 10 -s -H "Accept: application/vnd.github+json" "$LIST_URL" | sed -En 's/\s*"name": "(.*)",/\1/p' 2>/dev/null)
