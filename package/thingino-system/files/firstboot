@@ -24,8 +24,8 @@ while getopts "efh" opt; do
 done
 
 wipe() {
-	rootfs_data_dev=$(awk '$4 ~ /"rootfs_data"/ {gsub(":","",$1); print $1}' /proc/mtd)
-	if [ -z "$rootfs_data_dev" ]; then
+	extras_dev=$(awk '$4 ~ /"extras"/ {gsub(":","",$1); print $1}' /proc/mtd)
+	if [ -z "$extras_dev" ]; then
 		echo_error "Overlay partition not found!"
 		exit 1
 	fi
@@ -44,8 +44,8 @@ wipe() {
 	echo "Erasing config partition..."
 	flash_eraseall -j "${configfs_data_dev}"
 
-	echo "Erasing rootfs_data partition..."
-	flash_eraseall -j "/dev/${rootfs_data_dev}"
+	echo "Erasing extras partition..."
+	flash_eraseall -j "/dev/${extras_dev}"
 
 	if [ "$erase_mtd1" = true ]; then
 		echo "Erasing U-Boot ENV..."

@@ -167,6 +167,7 @@ export ALIGN_BLOCK
 # Partition sizes in KB for mtdparts
 KERNEL_SIZE_KB  = $(shell echo $$(($(KERNEL_PARTITION_SIZE) / 1024)))
 ROOTFS_SIZE_KB  = $(shell echo $$(($(ROOTFS_PARTITION_SIZE) / 1024)))
+EXTRAS_SIZE_KB  = $(shell echo $$(($(FLASH_SIZE_KB) - $(ROOTFS_OFFSET) / 1024 - $(ROOTFS_SIZE_KB))))
 
 FIRMWARE_NOBOOT_SIZE = $(shell echo $$(($(FLASH_SIZE) - $(U_BOOT_PARTITION_SIZE) - $(UB_ENV_PARTITION_SIZE) - $(CONFIG_PARTITION_SIZE))))
 
@@ -477,7 +478,7 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT) $(ROOTFS_TAR)
 	$(info -------------------------------- $@)
 	$(info Aligned at: $(ALIGN_BLOCK))
 	$(info U-Boot Env: $(shell strings $(UB_ENV_BIN) 2>/dev/null | grep "^mtdparts" || echo "mtdparts not found"))
-	$(info Generated:  mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(UPGRADE_SIZE_KB)k@$(shell printf '0x%x' $(KERNEL_OFFSET))(upgrade),$(FLASH_SIZE_KB)k@0(all))
+	$(info Generated:  mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(EXTRAS_SIZE_KB)k@$(shell printf '0x%x' $(EXTRAS_OFFSET))(extras),$(UPGRADE_SIZE_KB)k@$(shell printf '0x%x' $(KERNEL_OFFSET))(upgrade),$(FLASH_SIZE_KB)k@0(all))
 	@rm -f $(FIRMWARE_BIN_FULL).sha256sum
 	@echo "$(shell echo \# $(CAMERA))" >> $(FIRMWARE_BIN_FULL).sha256sum
 	@echo "# ${GIT_BRANCH}+${GIT_HASH}, ${BUILD_DATE}" >> "$(FIRMWARE_BIN_FULL).sha256sum"
@@ -732,7 +733,7 @@ $(U_BOOT_ENV_TXT): $(ROOTFS_BIN)
 	echo "kern_addr=$$(printf '0x%x' $(KERNEL_OFFSET))" >> $@
 	echo "kern_size=$$(printf '0x%x' $(KERNEL_PARTITION_SIZE))" >> $@
 	# Add complete mtdparts with aligned partitions and virtual aliases
-	echo "mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(UPGRADE_SIZE_KB)k@$$(printf '0x%x' $(KERNEL_OFFSET))(upgrade),$(FLASH_SIZE_KB)k@0(all)" >> $@
+	echo "mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(EXTRAS_SIZE_KB)k@$$(printf '0x%x' $(EXTRAS_OFFSET))(extras),$(UPGRADE_SIZE_KB)k@$$(printf '0x%x' $(KERNEL_OFFSET))(upgrade),$(FLASH_SIZE_KB)k@0(all)" >> $@
 	# Simplified bootcmd - no need for sq probe or run mtdparts
 	echo 'bootcmd=sf probe;setenv bootargs mem=$${osmem} rmem=$${rmem}$$(UBOOT_ISPMEM)$$(UBOOT_NMEM)console=$${serialport},$${baudrate}n8 panic=$${panic_timeout} root=$${root} rootfstype=$${rootfstype} init=$${init} mtdparts=$${mtdparts};sf read $${baseaddr} $${kern_addr} $${kern_size};bootm $${baseaddr}' >> $@
 	exit

@@ -69,6 +69,6 @@ mount -o noatime,move /rom/proc /proc
 mount -o noatime,move /rom/dev /dev
 mount -o noatime,move /rom/overlay /overlay
 
-# Mount writable rootfs_data into /opt
-mount_jffs2 rootfs_data /rom/opt || die "Failed to mount rootfs_data"
+# Mount writable extras into /opt
+mount_jffs2 extras /rom/opt || die "Failed to mount extras"
 mount -o noatime,move /rom/opt /opt || die "Failed to mount /opt"
