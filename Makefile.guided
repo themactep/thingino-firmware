@@ -30,9 +30,8 @@ edit:
 			"3" "Camera U-Boot Environment (edit-uenv)" \
 			"" "━━━━━━━━━ LOCAL OVERRIDES ━━━━━━━━━" \
 			"4" "Local Fragment (edit-localfragment)" \
-			"5" "Local Config (edit-localconfig)" \
-			"6" "Local Makefile (edit-localmk)" \
-			"7" "Local U-Boot Evironment (edit-localuenv)" 2>&1 >/dev/tty) || exit 0; \
+			"5" "Local Makefile (edit-localmk)" \
+			"6" "Local U-Boot Evironment (edit-localuenv)" 2>&1 >/dev/tty) || exit 0; \
 		\
 		[ -z "$$CHOICE" ] && continue; \
 		\
@@ -41,9 +40,8 @@ edit:
 			"2") FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).config" ;; \
 			"3") FILE="$(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt" ;; \
 			"4") FILE="$(THINGINO_USER_DIR)/local.fragment" ;; \
-			"5") FILE="$(THINGINO_USER_DIR)/local.config" ;; \
-			"6") FILE="$(BR2_EXTERNAL)/local.mk" ;; \
-			"7") FILE="$(THINGINO_USER_DIR)/local.uenv.txt" ;; \
+			"5") FILE="$(BR2_EXTERNAL)/local.mk" ;; \
+			"6") FILE="$(THINGINO_USER_DIR)/local.uenv.txt" ;; \
 			*) echo "Invalid option"; continue ;; \
 		esac; \
 		\
@@ -63,9 +61,6 @@ edit-uenv:
 edit-localmk:
 	$(call edit_file,$@,$(BR2_EXTERNAL)/local.mk)
 
-edit-localconfig:
-	$(call edit_file,$@,$(THINGINO_USER_DIR)/local.config)
-
 edit-localfragment:
 	$(call edit_file,$@,$(THINGINO_USER_DIR)/local.fragment)
 
@@ -73,4 +68,4 @@ edit-localuenv:
 	$(call edit_file,$@,$(THINGINO_USER_DIR)/local.uenv.txt)
 
 .PHONY: edit edit-defconfig edit-module edit-config edit-uenv \
-	edit-localmk edit-localconfig edit-localfragment edit-localuenv
+	edit-localmk edit-localfragment edit-localuenv

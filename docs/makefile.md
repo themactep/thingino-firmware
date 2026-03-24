@@ -205,8 +205,8 @@ Thingino uses a layered configuration system:
 3. **Camera config** - Camera-specific overrides
 4. **Local overrides**:
    - `user/local.fragment` - Local Buildroot config additions
-   - `user/local.config` - Local system config
    - `user/local.uenv.txt` - Local U-Boot environment
+   - `user/local.thingino.json` - Local `/etc/thingino.json` additions and overrides
    - `local.mk` - Local Makefile overrides
 
 ### Configuration Targets
@@ -269,9 +269,8 @@ Presents a dialog menu with options:
 3. System Config
 4. Camera U-Boot Environment
 5. Local Fragment
-6. Local Config
-7. Local Makefile
-8. Local U-Boot Environment
+6. Local Makefile
+7. Local U-Boot Environment
 
 #### Direct Edit Targets
 
@@ -280,7 +279,6 @@ make edit-defconfig      # Edit camera's defconfig
 make edit-config         # Edit system config
 make edit-uenv           # Edit U-Boot environment
 make edit-localfragment  # Edit local.fragment
-make edit-localconfig    # Edit local.config
 make edit-localmk        # Edit local.mk
 make edit-localuenv      # Edit local.uenv.txt
 ```
