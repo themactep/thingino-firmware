@@ -1,5 +1,8 @@
 # NAME: Wyze Cam v3 (T31X, GC2053, ATBM6031)
-# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot ssl
+# FRAG: soc-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_THINGINO_TOOLCHAIN_TYPE_EXTERNAL=y
+BR2_THINGINO_TOOLCHAIN_GCC_15=y
+BR2_THINGINO_TOOLCHAIN_LIBC_MUSL=y
 BR2_AVPU_CLK_600MHZ=y
 BR2_ISP_CLK_200MHZ=y
 BR2_PACKAGE_THINGINO_KOPT_DWC2=y

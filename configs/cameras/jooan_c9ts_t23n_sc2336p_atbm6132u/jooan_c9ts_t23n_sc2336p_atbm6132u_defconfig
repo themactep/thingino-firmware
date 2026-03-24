@@ -1,5 +1,8 @@
 # NAME: Jooan C9TS-U (T23N, SC2336P, ATBM6132U)
-# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot ssl
+# FRAG: soc-xburst1 ccache brand rootfs kernel system target uboot ssl
+BR2_THINGINO_TOOLCHAIN_TYPE_EXTERNAL=y
+BR2_THINGINO_TOOLCHAIN_GCC_15=y
+BR2_THINGINO_TOOLCHAIN_LIBC_MUSL=y
 BR2_ISP_CLK_300MHZ=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y

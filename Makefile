@@ -72,16 +72,22 @@ include $(BR2_EXTERNAL)/board.mk
 
 export CAMERA
 
-# Detect toolchain C library from config fragments and defconfig
+# Resolve toolchain fragment from split boolean selections in defconfig.
+TOOLCHAIN_TYPE_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell sed -n 's/^BR2_THINGINO_TOOLCHAIN_TYPE_\([A-Z0-9_]*\)=y/\1/p' $(CAMERA_CONFIG_REAL) | tail -n 1)))
+TOOLCHAIN_GCC_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell sed -n 's/^BR2_THINGINO_TOOLCHAIN_GCC_\([0-9][0-9]*\)=y/\1/p' $(CAMERA_CONFIG_REAL) | tail -n 1)))
+TOOLCHAIN_LIBC_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell sed -n 's/^BR2_THINGINO_TOOLCHAIN_LIBC_\([A-Z0-9_]*\)=y/\1/p' $(CAMERA_CONFIG_REAL) | tail -n 1)))
+
+TOOLCHAIN_TYPE_RAW := $(if $(TOOLCHAIN_TYPE_RAW),$(TOOLCHAIN_TYPE_RAW),EXTERNAL)
+TOOLCHAIN_GCC_RAW := $(if $(TOOLCHAIN_GCC_RAW),$(TOOLCHAIN_GCC_RAW),15)
+TOOLCHAIN_LIBC_RAW := $(if $(TOOLCHAIN_LIBC_RAW),$(TOOLCHAIN_LIBC_RAW),MUSL)
+
+TOOLCHAIN_TYPE_TAG := $(if $(filter BUILDROOT,$(TOOLCHAIN_TYPE_RAW)),br,$(if $(filter EXTERNAL,$(TOOLCHAIN_TYPE_RAW)),ext,$(if $(filter LOCAL,$(TOOLCHAIN_TYPE_RAW)),loc,ext)))
+TOOLCHAIN_LIBC_TAG := $(shell echo "$(TOOLCHAIN_LIBC_RAW)" | tr 'A-Z' 'a-z')
+TOOLCHAIN_FRAGMENT_FILE := configs/fragments/toolchain/$(TOOLCHAIN_TYPE_TAG)-gcc$(TOOLCHAIN_GCC_RAW)-$(TOOLCHAIN_LIBC_TAG).fragment
+
 ifneq ($(CAMERA_CONFIG_REAL),)
 ifndef TOOLCHAIN_LIBC
-TOOLCHAIN_LIBC := $(strip $(shell \
-	for f in $(addprefix $(BR2_EXTERNAL)/configs/fragments/,$(addsuffix .fragment,$(shell awk '/FRAG:/{gsub(/^.*FRAG:[[:space:]]*/,"");print}' $(CAMERA_CONFIG_REAL)))) $(CAMERA_CONFIG_REAL); do \
-		if grep -q 'BR2_TOOLCHAIN_BUILDROOT_MUSL=y\|BR2_TOOLCHAIN_EXTERNAL_CUSTOM_MUSL=y' "$$f" 2>/dev/null; then echo musl; break; fi; \
-		if grep -q 'BR2_TOOLCHAIN_BUILDROOT_GLIBC=y\|BR2_TOOLCHAIN_EXTERNAL_CUSTOM_GLIBC=y' "$$f" 2>/dev/null; then echo glibc; break; fi; \
-		if grep -q 'BR2_TOOLCHAIN_BUILDROOT_UCLIBC=y\|BR2_TOOLCHAIN_EXTERNAL_CUSTOM_UCLIBC=y' "$$f" 2>/dev/null; then echo uclibc; break; fi; \
-	done))
-TOOLCHAIN_LIBC := $(if $(TOOLCHAIN_LIBC),$(TOOLCHAIN_LIBC),uclibc)
+TOOLCHAIN_LIBC := $(if $(TOOLCHAIN_LIBC_TAG),$(TOOLCHAIN_LIBC_TAG),musl)
 endif
 export TOOLCHAIN_LIBC
 $(info TOOLCHAIN_LIBC: $(TOOLCHAIN_LIBC))
@@ -322,7 +328,7 @@ RAW_DEFCONFIG_MODE = $(if $(strip $(FRAGMENTS)),,y)
 # Configuration dependency files
 CONFIG_DEPS_FILE = $(OUTPUT_DIR)/.config.deps
 CONFIG_FRAGMENT_FILES = $(addprefix configs/fragments/,$(addsuffix .fragment,$(FRAGMENTS)))
-CONFIG_INPUT_FILES = $(CONFIG_FRAGMENT_FILES) $(CAMERA_CONFIG_REAL)
+CONFIG_INPUT_FILES = $(TOOLCHAIN_FRAGMENT_FILE) $(CONFIG_FRAGMENT_FILES) $(CAMERA_CONFIG_REAL)
 CONFIG_INPUT_FILES += $(THINGINO_USER_DIR)/local.fragment
 ifneq ($(wildcard $(BR2_EXTERNAL)/local.mk),)
 CONFIG_INPUT_FILES += $(BR2_EXTERNAL)/local.mk
@@ -367,12 +373,26 @@ ifeq ($(RAW_DEFCONFIG_MODE),y)
 	$(info * preprocess raw defconfig $(CAMERA_CONFIG_REAL))
 	sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' $(CAMERA_CONFIG_REAL) >$(OUTPUT_DIR)/.config
 else
-	# add fragments of a new config
+	# add toolchain fragment (from preset selection)
+	$(info * add toolchain fragment $(TOOLCHAIN_FRAGMENT_FILE))
+	@if [ ! -f "$(TOOLCHAIN_FRAGMENT_FILE)" ]; then \
+		echo "ERROR: Missing toolchain fragment $(TOOLCHAIN_FRAGMENT_FILE)"; \
+		exit 1; \
+	fi
+	@echo "# $$(basename "$(TOOLCHAIN_FRAGMENT_FILE)")" >> $(OUTPUT_DIR)/.config
+	@sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' "$(TOOLCHAIN_FRAGMENT_FILE)" >> $(OUTPUT_DIR)/.config
+	@echo >> $(OUTPUT_DIR)/.config
+	# add other fragments
 	$(info * add fragments FRAGMENTS=$(FRAGMENTS) from $(CAMERA_CONFIG_REAL))
 	for i in $(FRAGMENTS); do \
-		echo "** add configs/fragments/$$i.fragment"; \
-		echo "# $$i.fragment" >> $(OUTPUT_DIR)/.config; \
-		sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' configs/fragments/$$i.fragment >>$(OUTPUT_DIR)/.config; \
+		fragment_path="configs/fragments/$$i.fragment"; \
+		if [ ! -f "$$fragment_path" ]; then \
+			echo "ERROR: Missing fragment $$fragment_path"; \
+			exit 1; \
+		fi; \
+		echo "** add $$fragment_path"; \
+		echo "# $$(basename "$$fragment_path")" >> $(OUTPUT_DIR)/.config; \
+		sed 's/\$$[(]BR2_HOSTARCH[)]/$(BR2_HOSTARCH)/g; s/\$$[(]SOC_ARCH[)]/$(SOC_ARCH)/g; s/\$$[(]SOC_MODEL[)]/$(SOC_MODEL)/g; s/\$$[(]SOC_FAMILY[)]/$(SOC_FAMILY)/g; s/\$$[(]KERNEL_VERSION[)]/$(KERNEL_VERSION)/g; s/\$$[(]KERNEL_SITE[)]/$(subst /,\/,$(KERNEL_SITE))/g; s/\$$[(]KERNEL_HASH[)]/$(KERNEL_HASH)/g; s/\$$[(]UBOOT_BOARDNAME[)]/$(UBOOT_BOARDNAME)/g; s/\$$[(]UBOOT_REPO[)]/$(subst /,\/,$(UBOOT_REPO))/g; s/\$$[(]UBOOT_REPO_VERSION[)]/$(UBOOT_REPO_VERSION)/g' "$$fragment_path" >>$(OUTPUT_DIR)/.config; \
 		echo >>$(OUTPUT_DIR)/.config; \
 	done
 	# add kernel-specific headers based on SOC requirements

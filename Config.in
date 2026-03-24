@@ -10,6 +10,61 @@ config BR2_THINGINO_TOOLCHAIN
 	bool
 	default y if BR2_THINGINO_TOOLCHAIN_BUILD
 
+menu "Toolchain"
+
+	choice
+		prompt "Thingino toolchain type"
+		default BR2_THINGINO_TOOLCHAIN_TYPE_EXTERNAL
+		help
+		  Select toolchain source used to build fragment name.
+
+	config BR2_THINGINO_TOOLCHAIN_TYPE_BUILDROOT
+		bool "Buildroot"
+
+	config BR2_THINGINO_TOOLCHAIN_TYPE_EXTERNAL
+		bool "External"
+
+	config BR2_THINGINO_TOOLCHAIN_TYPE_LOCAL
+		bool "Local"
+
+	endchoice
+
+	choice
+		prompt "Thingino GCC version"
+		default BR2_THINGINO_TOOLCHAIN_GCC_15
+		help
+		  Select GCC major version used to build fragment name.
+
+	config BR2_THINGINO_TOOLCHAIN_GCC_13
+		bool "GCC 13"
+
+	config BR2_THINGINO_TOOLCHAIN_GCC_14
+		bool "GCC 14"
+
+	config BR2_THINGINO_TOOLCHAIN_GCC_15
+		bool "GCC 15"
+
+	endchoice
+
+	choice
+		prompt "Thingino toolchain libc"
+		default BR2_THINGINO_TOOLCHAIN_LIBC_MUSL
+		help
+		  Select C library used to build fragment name.
+
+	config BR2_THINGINO_TOOLCHAIN_LIBC_GLIBC
+		bool "glibc"
+
+	config BR2_THINGINO_TOOLCHAIN_LIBC_MUSL
+		bool "musl"
+
+	config BR2_THINGINO_TOOLCHAIN_LIBC_UCLIBC
+		bool "uClibc"
+
+	endchoice
+
+endmenu
+
 menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 	bool "System Packages"
 	default y if !BR2_THINGINO_TOOLCHAIN

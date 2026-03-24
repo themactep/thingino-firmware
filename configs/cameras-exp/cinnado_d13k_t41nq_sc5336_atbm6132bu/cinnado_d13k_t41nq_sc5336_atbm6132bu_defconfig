@@ -1,5 +1,8 @@
 # NAME: Cinnado D1 3K (T41NQ, SC5336, ATBM6132UB)
-# FRAG: soc-xburst2 toolchain ccache brand rootfs kernel system target uboot ssl
+# FRAG: soc-xburst2 ccache brand rootfs kernel system target uboot ssl
+BR2_THINGINO_TOOLCHAIN_TYPE_EXTERNAL=y
+BR2_THINGINO_TOOLCHAIN_GCC_15=y
+BR2_THINGINO_TOOLCHAIN_LIBC_MUSL=y
 BR2_AVPU_APLL=y
 BR2_AVPU_CLK_550MHZ=y
 BR2_ISP_CLKA_550MHZ=y
