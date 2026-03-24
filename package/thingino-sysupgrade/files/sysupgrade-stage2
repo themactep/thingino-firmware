@@ -18,6 +18,14 @@ flash_firmware() {
 	flashcp -v $fw_file $mtd_dev
 }
 
+stop_prudynt() {
+	echo_c 112 "\nStopping Prudynt in detached stage"
+	killall prudynt 2>/dev/null || true
+	sleep 1
+	pidof prudynt >/dev/null 2>&1 && killall -9 prudynt 2>/dev/null || true
+	sleep 1
+}
+
 stream_flash_progress() {
 	local logfile="$1"
 	local pid="$2"
@@ -60,6 +68,7 @@ detach_and_flash() {
 		exec >$logfile 2>&1
 
 		echo "=== Flash operation started at $(date) ==="
+		stop_prudynt
 
 		MAX_TRIES=3
 		x=0

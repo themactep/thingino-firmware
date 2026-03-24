@@ -18,6 +18,40 @@ remote_run() {
 	ssh $SSH_OPTS $REMOTE_HOST "$1"
 }
 
+remote_uptime_seconds() {
+	remote_run "awk '{print int(\$1)}' /proc/uptime" 2>/dev/null | tr -d '[:space:]'
+}
+
+wait_for_reboot_after_detach() {
+	local previous_uptime current_uptime retries saw_disconnect
+
+	previous_uptime="$1"
+	retries=120
+	saw_disconnect=0
+
+	echo "Waiting for detached flash to reboot the device..."
+	while [ "$retries" -gt 0 ]; do
+		if current_uptime=$(remote_uptime_seconds); then
+			if [ -n "$current_uptime" ] && [ "$current_uptime" -lt "$previous_uptime" ]; then
+				echo "Device rebooted successfully."
+				return 0
+			fi
+
+			if [ "$saw_disconnect" -eq 1 ]; then
+				echo "Device is back online after reboot."
+				return 0
+			fi
+		else
+			saw_disconnect=1
+		fi
+
+		retries=$(( retries - 1 ))
+		sleep 2
+	done
+
+	return 1
+}
+
 check_and_free_space() {
 	local fw_size_kb remote_avail_kb needed_kb
 	fw_size_kb=$(( ($(stat -c%s "$LOCAL_FW_FILE") + 1023) / 1024 ))
@@ -140,9 +174,36 @@ hash_r=$(remote_run "sha256sum $REMOTE_FW_FILE | cut -d' ' -f1")
 
 echo "Firmware file transferred and SHA256 checksum verified."
 
-remote_run "$REMOTE_SCRIPT -x $REMOTE_FW_FILE" 2>&1 | tee /dev/tty | grep -q "Rebooting" || \
-	die "Failed to flash firmware"
+pre_flash_uptime=$(remote_uptime_seconds)
+[ -z "$pre_flash_uptime" ] && die "Failed to read device uptime before flashing"
 
-echo "Firmware flashed successfully. Device is rebooting."
+ota_log=$(mktemp)
+remote_run "$REMOTE_SCRIPT -x $REMOTE_FW_FILE" 2>&1 | tee /dev/tty | tee "$ota_log" >/dev/null
+ota_status=${PIPESTATUS[0]}
+
+if grep -q "Rebooting" "$ota_log"; then
+	rm -f "$ota_log"
+	echo "Firmware flashed successfully. Device is rebooting."
+	exit 0
+fi
+
+if grep -q "Flash process running with PID" "$ota_log"; then
+	if wait_for_reboot_after_detach "$pre_flash_uptime"; then
+		rm -f "$ota_log"
+		echo "Firmware flashed successfully. Device is rebooting."
+		exit 0
+	fi
+
+	if remote_log_tail=$(remote_run "tail -n 50 /tmp/sysupgrade-flash.log" 2>/dev/null); then
+		echo "$remote_log_tail" >&2
+	fi
+	rm -f "$ota_log"
+	die "Detached flash did not complete successfully"
+fi
+
+rm -f "$ota_log"
+[ "$ota_status" -ne 0 ] && die "Failed to flash firmware"
+
+die "Failed to flash firmware"
 
 exit 0
