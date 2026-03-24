@@ -243,7 +243,7 @@ BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot \
 	BR2_DL_DIR=$(BR2_DL_DIR)
 
 .PHONY: all bootstrap build build_fast clean clean-nfs-debug cleanbuild defconfig distclean \
-	dev fast help info pack release remove_bins repack sdk toolchain update upboot-ota \
+	dev fast help info pack remove_bins repack sdk toolchain update upboot-ota \
 	upload_tftp upload_serial upgrade_ota br-% check-config force-config show-config-deps clean-config \
 	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs show-vars run
 
@@ -288,9 +288,6 @@ ifneq ($(TFTP_IP_ADDRESS),)
 	@echo "TFTP: $(TFTP_ROOT)/$(FIRMWARE_NAME_NOBOOT)"
 endif
 	@date +%T
-
-release: distclean defconfig build_fast pack
-	$(info -------------------------------- $@)
 
 # update repo and submodules with buildroot patch management
 update:
@@ -870,7 +867,6 @@ help:
 	  make fast           fast incremental build (no clean)\n\
 	  make cleanbuild     same as 'make' (clean + parallel build)\n\
 	  make build          serial build (no clean)\n\
-	  make release        build without local fragments\n\
 	  make pack           create firmware images\n\
 	  make clean          clean before reassembly\n\
 	  make distclean      start building from scratch\n\

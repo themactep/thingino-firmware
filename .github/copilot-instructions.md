@@ -18,8 +18,8 @@ CAMERA=atom_cam2_t31x_gc2053_atbm6031 make
 # Fast incremental build (skips full rebuild)
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make fast
 
-# Release build (distclean + full build)
-CAMERA=atom_cam2_t31x_gc2053_atbm6031 make release
+# Clean rebuild (distclean + full build)
+CAMERA=atom_cam2_t31x_gc2053_atbm6031 make cleanbuild
 
 # Configure kernel or packages interactively
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make menuconfig

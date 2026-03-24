@@ -84,11 +84,6 @@ make
 
 ### Advanced Variables
 
-**`RELEASE`** - Build release firmware without local overrides
-```bash
-make release  # Sets RELEASE=1
-```
-
 **`WORKFLOW`** - Skip dependency checks (used in CI/CD)
 
 ---
@@ -126,13 +121,6 @@ Complete clean build with parallel compilation. Removes all previous build artif
 make cleanbuild
 ```
 Equivalent to: `distclean defconfig build_fast pack`
-
-#### `release`
-Build release firmware without local configuration overrides.
-```bash
-make release
-```
-Disables `local.fragment` and `local.mk` inclusion.
 
 ### Build Process Targets
 
@@ -215,7 +203,7 @@ Thingino uses a layered configuration system:
 1. **Fragment files** (`configs/fragments/*.fragment`) - Modular config pieces
 2. **Module config** - SoC/sensor specific configuration
 3. **Camera config** - Camera-specific overrides
-4. **Local overrides** (optional, ignored in release builds):
+4. **Local overrides**:
    - `user/local.fragment` - Local Buildroot config additions
    - `user/local.config` - Local system config
    - `user/local.uenv.txt` - Local U-Boot environment
@@ -774,7 +762,7 @@ Sizes are 32KB-aligned for JFFS2 compatibility.
    make saveconfig
    ```
 3. **Use fragments** for modular configurations instead of duplicating full configs
-4. **Test with `release`** before committing to ensure local overrides aren't required
+4. Validate with a clean build path before committing
 
 ### Package Development
 
