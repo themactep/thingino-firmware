@@ -11,6 +11,11 @@ DL_DIR := dl
 # Directories
 WORKSPACE_DIR := $(shell pwd)
 
+# Named volume for build output — avoids macOS APFS hard-link limitations.
+# Buildroot's per-package isolation uses rsync hard-links which fail on bind-mounted
+# APFS volumes. A named Docker volume stays in the Linux VM and supports hard links.
+OUTPUT_VOLUME := thingino-build-output
+
 # Container run command
 ifeq ($(findstring podman,$(CONTAINER_ENGINE)),podman)
 	CONTAINER_RUN := $(CONTAINER_ENGINE) run --rm --userns=keep-id
@@ -20,6 +25,7 @@ endif
 
 CONTAINER_RUN_OPTS := \
 	-v $(WORKSPACE_DIR):/workspace \
+	-v $(OUTPUT_VOLUME):/workspace/output \
 	-v $(shell [ -e ${DL_DIR} ] || mkdir -p ${DL_DIR} && readlink -f ${DL_DIR}):/home/$(USERNAME)/dl \
 	-w /workspace \
 	-e TERM=xterm-256color
@@ -43,6 +49,9 @@ docker-build:
 	else \
 		echo "Docker image $(DOCKER_IMAGE):$(DOCKER_TAG) already exists (use 'make docker-clean' to rebuild)"; \
 	fi
+	@$(CONTAINER_ENGINE) volume create $(OUTPUT_VOLUME) > /dev/null 2>&1 || true
+	@$(CONTAINER_ENGINE) run --rm -v $(OUTPUT_VOLUME):/output debian:trixie \
+		sh -c "chown -R $(USER_ID):$(GROUP_ID) /output && chmod 775 /output" 2>/dev/null || true
 
 .PHONY: docker-shell
 docker-shell: docker-build
@@ -118,6 +127,20 @@ docker-upgrade-ota: docker-build
 	$(eval CAMERA_ARG := $(if $(CAMERA),CAMERA=$(CAMERA)))
 	$(eval GROUP_ARG := $(if $(GROUP),GROUP=$(GROUP)))
 	$(CONTAINER_RUN_INTERACTIVE) $(DOCKER_IMAGE):$(DOCKER_TAG) make upgrade_ota $(IP_ARG) $(CAMERA_ARG) $(GROUP_ARG)
+
+# Copy built firmware images from the named volume to ./images/ on the host.
+# Run this after a successful build: make -f Makefile.docker docker-extract-images
+.PHONY: docker-extract-images
+docker-extract-images:
+	@mkdir -p $(WORKSPACE_DIR)/images
+	@echo "Extracting firmware images from build volume..."
+	@$(CONTAINER_ENGINE) run --rm \
+		-v $(OUTPUT_VOLUME):/output:ro \
+		-v $(WORKSPACE_DIR)/images:/images \
+		debian:trixie \
+		sh -c "find /output -name 'thingino-*.bin' -exec cp -v {} /images/ \;"
+	@echo "Done. Images in ./images/:"
+	@ls -lh $(WORKSPACE_DIR)/images/*.bin 2>/dev/null || echo "  (none found)"
 
 # Allow make targets to be passed through to container
 %:
