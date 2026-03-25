@@ -27,8 +27,7 @@ endif
 
 # Camera IP address
 # shortened to just IP for convenience of running from command line
-IP ?= 192.168.1.10
-CAMERA_IP_ADDRESS := $(IP)
+IP ?=
 
 # TFTP server IP address to upload compiled images to (leave empty to disable TFTP copy)
 TFTP_IP_ADDRESS ?=
@@ -72,6 +71,7 @@ include $(BR2_EXTERNAL)/board.mk
 
 export CAMERA
 
+CAMERA_IP_ADDRESS := $(strip $(IP))
 # Resolve toolchain fragment from split boolean selections in defconfig.
 TOOLCHAIN_TYPE_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell sed -n 's/^BR2_THINGINO_TOOLCHAIN_TYPE_\([A-Z0-9_]*\)=y/\1/p' $(CAMERA_CONFIG_REAL) | tail -n 1)))
 TOOLCHAIN_GCC_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell sed -n 's/^BR2_THINGINO_TOOLCHAIN_GCC_\([0-9][0-9]*\)=y/\1/p' $(CAMERA_CONFIG_REAL) | tail -n 1)))
