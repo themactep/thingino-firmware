@@ -112,7 +112,9 @@ go_reboot() {
 	echo "Rebooting in 5 seconds..."
 	sleep 5
 	sync
-	echo wdt > /proc/jz/reset/reset
+	if [ -w /proc/jz/reset/reset ]; then
+		echo wdt > /proc/jz/reset/reset
+	fi
 	sleep 2
 	reboot -f
 }
