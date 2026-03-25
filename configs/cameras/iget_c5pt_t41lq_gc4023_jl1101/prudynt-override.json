@@ -1,8 +1,4 @@
 {
-  "daynight": {
-    "total_gain_day_threshold": 20000,
-    "total_gain_night_threshold": 20000
-  },
   "image": {
     "hflip": true,
     "vflip": true
