@@ -117,11 +117,9 @@ endif
 WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=5
 RSYNC := rsync --verbose --archive
 
-ifeq ($(shell command -v figlet),)
-FIGLET := echo
-else
-FIGLET := $(shell command -v figlet) -t -f pagga
-endif
+ORANGE := printf '\033[1;38;5;214m%s\033[0m\n'
+TEAL := printf '\033[1;38;5;30m%s\033[0m\n'
+RED := printf '\033[1;38;5;160m%s\033[0m\n'
 
 ALIGN_BLOCK := 32768
 
@@ -264,19 +262,19 @@ endif
 
 # Default: fast parallel incremental build
 all: defconfig build_fast pack
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 
 # legacy target used by GitHub CI
 fast: defconfig build_fast pack
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 
 # Development build: slow serial for debugging compilation issues
 dev: defconfig build pack
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 
 # Clean build from scratch with parallel compilation
 cleanbuild: distclean defconfig build_fast pack
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 ifneq ($(TFTP_IP_ADDRESS),)
 	@echo "Copying images to TFTP root..."
 	@sudo mkdir -p $(TFTP_ROOT)
@@ -291,13 +289,13 @@ endif
 
 # update repo and submodules with buildroot patch management
 update:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@echo "=== UPDATING MAIN REPOSITORY ==="
 	git pull --rebase --autostash
 	@echo "=== UPDATING SUBMODULES ==="
 	git submodule init
 	git submodule update
-	@$(FIGLET) "$(GIT_BRANCH)"
+	@$(ORANGE) "$(GIT_BRANCH)"
 
 update_manual:
 	@echo "=== UPDATING BUILDROOT MANUALS ==="
@@ -306,16 +304,16 @@ update_manual:
 
 # install what's needed
 bootstrap:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(SCRIPTS_DIR)/dep_check.sh
 
 build: BR2_MAKE_JOBS =
 build: $(U_BOOT_ENV_TXT)
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 
 build_fast: BR2_MAKE_JOBS = -j$(shell nproc)
 build_fast: $(U_BOOT_ENV_TXT)
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 
 ### Configuration
 
@@ -349,7 +347,7 @@ endef
 
 # Smart configuration check - only regenerate if needed
 check-config: buildroot/Makefile
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@if [ "$(call config_needs_regen)" = "yes" ]; then \
 		echo "Configuration files have changed, regenerating .config"; \
 		$(MAKE) force-config; \
@@ -359,9 +357,7 @@ check-config: buildroot/Makefile
 
 # Force configuration regeneration
 force-config: buildroot/Makefile $(OUTPUT_DIR)/.keep $(CONFIG_PARTITION_DIR)/.keep
-	$(info -------------------------------- $@)
-	@$(FIGLET) "$(CAMERA)"
-	@$(FIGLET) "$(GIT_BRANCH)"
+	@$(TEAL) "$@"
 	# delete older config
 	$(info * remove existing .config file)
 	rm -rvf $(OUTPUT_DIR)/.config
@@ -435,15 +431,13 @@ endif
 
 # Configure buildroot for a particular board
 defconfig: check-config
-	$(info -------------------------------- $@)
-	@$(FIGLET) $(CAMERA)
-	@$(FIGLET) $(GIT_BRANCH)
+	@$(TEAL) "$@"
 	# Ensure buildroot is properly configured
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) olddefconfig
 
 # Configuration debugging and maintenance targets
 show-config-deps:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@echo "Configuration input files:"
 	@for file in $(CONFIG_INPUT_FILES); do \
 		if [ -f "$$file" ]; then \
@@ -462,28 +456,28 @@ show-config-deps:
 	fi
 
 clean-config:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	rm -f $(OUTPUT_DIR)/.config $(CONFIG_DEPS_FILE) $(OUTPUT_DIR)/.config_original
 
 # call configurator
 menuconfig: check-config $(OUTPUT_DIR)/.config
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) menuconfig
 
 nconfig: check-config $(OUTPUT_DIR)/.config
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) nconfig
 
 # permanently save changes to the defconfig
 saveconfig:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) savedefconfig
 
 ### Files
 
 # Clean camera-specific NFS debug artifacts
 clean-nfs-debug:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@if [ -z "$(CAMERA)" ] || [ "$(CAMERA)" = "" ]; then \
 		echo "CAMERA variable not defined, skipping NFS debug cleanup"; \
 	elif [ ! -f "$(OUTPUT_DIR)/.config" ]; then \
@@ -515,7 +509,7 @@ clean-nfs-debug:
 
 # remove target/ directory
 clean: clean-nfs-debug
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	rm -rf $(OUTPUT_DIR)/target
 	rm -rf $(OUTPUT_DIR)/config
 	rm -rf $(OUTPUT_DIR)/extras
@@ -526,12 +520,12 @@ clean: clean-nfs-debug
 
 # remove all build files
 distclean: clean-nfs-debug
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	if [ -d "$(OUTPUT_DIR)" ]; then rm -rf $(OUTPUT_DIR); fi
 
 # assemble final images
 pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT) $(ROOTFS_TAR)
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(info Aligned at: $(ALIGN_BLOCK))
 	$(info U-Boot Env: $(shell strings $(UB_ENV_BIN) 2>/dev/null | grep "^mtdparts" || echo "mtdparts not found"))
 	$(info Generated:  mtdparts=$(UBOOT_FLASH_CONTROLLER):$(U_BOOT_SIZE_KB)k(boot),$(UB_ENV_SIZE_KB)k(env),$(CONFIG_SIZE_KB)k(config),$(KERNEL_SIZE_KB)k(kernel),$(ROOTFS_SIZE_KB)k(rootfs),$(EXTRAS_SIZE_KB)k@$(shell printf '0x%x' $(EXTRAS_OFFSET))(extras),$(UPGRADE_SIZE_KB)k@$(shell printf '0x%x' $(KERNEL_OFFSET))(upgrade),$(FLASH_SIZE_KB)k@0(all))
@@ -554,70 +548,67 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT) $(ROOTFS_TAR)
 		$(U_BOOT_SIZE_KB) $(UB_ENV_SIZE_KB) $(CONFIG_SIZE_KB) $(KERNEL_SIZE_KB) $(ROOTFS_SIZE_KB) $(EXTRAS_SIZE_KB) \
 		$(UPGRADE_SIZE_KB) $(FLASH_SIZE_KB) $(UBOOT_FLASH_CONTROLLER) && \
 		cat $(OUTPUT_DIR)/images/$(CAMERA).md
-	@$(FIGLET) $(CAMERA)
-	@$(FIGLET) $(GIT_BRANCH)
-	@if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(FIGLET) "EXTRAS PARTITION IS TOO SMALL"; fi
-	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(FIGLET) "OVERSIZE"; else $(FIGLET) "FINE"; fi
-	@echo "--------------------------------"
-	@echo "Full Image:"
-	@echo "$(FIRMWARE_BIN_FULL)"
-	@echo "Update Image:"
-	@echo "$(FIRMWARE_BIN_NOBOOT)"
-	@echo "--------------------------------"
+	@$(ORANGE) "Camera: $(CAMERA)"
+	@$(ORANGE) "Device IP: $(CAMERA_IP_ADDRESS)"
+	@echo ""
+	@if [ $(EXTRAS_PARTITION_SIZE) -lt $(EXTRAS_LLIMIT) ]; then $(RED) "EXTRAS PARTITION IS TOO SMALL"; fi
+	@if [ $(FIRMWARE_BIN_FULL_SIZE) -gt $(FLASH_SIZE) ]; then $(RED) "OVERSIZE"; fi
+	@echo "Image: $(FIRMWARE_BIN_FULL)"
+	@#echo "Update Image: $(FIRMWARE_BIN_NOBOOT)"
 
 # rebuild a package with smart configuration check
 rebuild-%: force-config
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
 
 remove_bins:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	rm -f $(U_BOOT_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(EXTRAS_BIN)
 
 repack: remove_bins pack
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 
 # build toolchain fast
 sdk: defconfig
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(BR2_MAKE) -j$(shell nproc) sdk
 
 source: defconfig
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(BR2_MAKE) BR2_DEFCONFIG=$(CAMERA_CONFIG_REAL) source
 
 # build toolchain
 toolchain: defconfig
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(BR2_MAKE) sdk
 
 # flash new uboot image to the camera
 upboot_ota:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@test -f $(U_BOOT_BIN) || { echo "ERROR: $(U_BOOT_BIN) not found. Run make first."; exit 1; }
 	$(SCRIPTS_DIR)/fw_ota.sh $(U_BOOT_BIN) $(CAMERA_IP_ADDRESS)
 
 # flash compiled update image to the camera
 update_ota:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@test -f $(FIRMWARE_BIN_NOBOOT) || { echo "ERROR: $(FIRMWARE_BIN_NOBOOT) not found. Run make first."; exit 1; }
 	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_NOBOOT) $(CAMERA_IP_ADDRESS)
 
 # flash compiled full image to the camera
 upgrade_ota:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
 	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_FULL) $(CAMERA_IP_ADDRESS)
 
 # upload firmware to tftp server
 upload_tftp:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
 	busybox tftp -l $(FIRMWARE_BIN_FULL) -r $(FIRMWARE_NAME_FULL) -p $(TFTP_IP_ADDRESS)
 
 # Start standalone TFTP server for serving firmware images
 tftpd-start:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@mkdir -p $(TFTP_ROOT)
 	@if [ "$(TFTP_PORT)" = "69" ] || [ -z "$(TFTP_PORT)" ]; then \
 		echo "Port 69 requires sudo - starting with sudo..."; \
@@ -628,7 +619,7 @@ tftpd-start:
 
 # Stop standalone TFTP server
 tftpd-stop:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@if [ "$(TFTP_PORT)" = "69" ] || [ -z "$(TFTP_PORT)" ]; then \
 		sudo $(SCRIPTS_DIR)/tftpd-server.sh stop; \
 	else \
@@ -637,7 +628,7 @@ tftpd-stop:
 
 # Restart standalone TFTP server
 tftpd-restart:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@if [ "$(TFTP_PORT)" = "69" ] || [ -z "$(TFTP_PORT)" ]; then \
 		sudo $(SCRIPTS_DIR)/tftpd-server.sh restart; \
 	else \
@@ -646,17 +637,17 @@ tftpd-restart:
 
 # Show standalone TFTP server status
 tftpd-status:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@$(SCRIPTS_DIR)/tftpd-server.sh status
 
 # Show standalone TFTP server logs
 tftpd-logs:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@$(SCRIPTS_DIR)/tftpd-server.sh logs
 
 # download buildroot cache bundle from latest github release
 download-cache:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	BR2_EXTERNAL=$(CURDIR) BR2_DL_DIR=$(BR2_DL_DIR) \
 		$(CURDIR)/scripts/dl_buildroot_cache.sh
 
@@ -664,41 +655,41 @@ download-cache:
 
 # delete all build/{package} and per-package/{package} files
 br-%-dirclean:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	rm -rf $(OUTPUT_DIR)/per-package/$(subst -dirclean,,$(subst br-,,$@)) \
 		$(OUTPUT_DIR)/build/$(subst -dirclean,,$(subst br-,,$@))* \
 		$(OUTPUT_DIR)/target
 	#  \ sed -i /^$(subst -dirclean,,$(subst br-,,$@))/d $(OUTPUT_DIR)/build/packages-file-list.txt
 
 br-%: check-config
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(BR2_MAKE) $(subst br-,,$@)
 
 # checkout buidroot submodule
 buildroot/Makefile:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	git submodule init
 	git submodule update --remote --recursive
 
 # create output directory
 $(OUTPUT_DIR)/.keep:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	test -d $(OUTPUT_DIR) || mkdir -p $(OUTPUT_DIR)
 	touch $@
 
 # create config partition directory
 $(CONFIG_PARTITION_DIR)/.keep:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	test -d $(CONFIG_PARTITION_DIR) || mkdir -p $(CONFIG_PARTITION_DIR)
 	touch $@
 
 # generate a base Buildroot config when missing
 $(OUTPUT_DIR)/.config:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(MAKE) force-config
 
 $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(ROOTFS_BIN) $(EXTRAS_BIN)
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	# create a blank slab
 	dd if=/dev/zero bs=8M skip=0 count=1 status=none | tr '\000' '\377' > $@
 	# add bootloader partition
@@ -715,12 +706,12 @@ $(FIRMWARE_BIN_FULL): $(U_BOOT_BIN) $(UB_ENV_BIN) $(CONFIG_BIN) $(KERNEL_BIN) $(
 	fi
 
 $(FIRMWARE_BIN_NOBOOT): $(FIRMWARE_BIN_FULL)
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	dd if=$(FIRMWARE_BIN_FULL) of=$@ bs=$(FIRMWARE_NOBOOT_SIZE) count=1 skip=$(KERNEL_OFFSET)B
 
 # create config partition image
 $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
 	# syncronize overlay files
@@ -733,7 +724,7 @@ $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 
 # create extras partition image
 $(EXTRAS_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
 	# extract /opt/ from target rootfs to a separare directory
@@ -754,7 +745,7 @@ $(EXTRAS_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 
 # rebuild kernel
 $(KERNEL_BIN):
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(BR2_MAKE) $(BR2_MAKE_JOBS) linux-rebuild
 #	mv -vf $(OUTPUT_DIR)/images/uImage $@
 
@@ -763,7 +754,7 @@ $(KERNEL_BIN):
 # It will be dirclean'd and rebuilt properly in the $(U_BOOT_BIN) rule,
 # once partition sizes are known from the rootfs.
 $(ROOTFS_BIN): $(KERNEL_BIN)
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	mkdir -p $(OUTPUT_DIR)/build/thingino-uboot-$(UBOOT_REPO_VERSION)
 	mkdir -p $(OUTPUT_DIR)/per-package/thingino-uboot/host
 	mkdir -p $(OUTPUT_DIR)/per-package/thingino-uboot/target
@@ -778,7 +769,7 @@ $(ROOTFS_BIN): $(KERNEL_BIN)
 	$(BR2_MAKE) $(BR2_MAKE_JOBS) rootfs-squashfs
 
 $(U_BOOT_ENV_TXT): $(ROOTFS_BIN)
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	touch $@
 	grep -v '^#' $(BR2_EXTERNAL)/configs/common.uenv.txt | awk NF | tee -a $@
 	grep -v '^#' $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt | awk NF | tee -a $@
@@ -801,17 +792,16 @@ $(U_BOOT_BIN): $(U_BOOT_ENV_TXT)
 	$(BR2_MAKE) $(BR2_MAKE_JOBS) thingino-uboot-dirclean thingino-uboot
 
 $(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(HOST_DIR)/bin/mkenvimage -s $(UB_ENV_PARTITION_SIZE) -o $@ $(U_BOOT_ENV_TXT)
 
 # create .tar file of rootfs
 $(ROOTFS_TAR):
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(BR2_MAKE) $(BR2_MAKE_JOBS) all
 
-
 help:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@echo -e "\n\
 	Usage:\n\
 	  make bootstrap      install system deps\n\
@@ -852,7 +842,7 @@ help:
 
 # Print key variables commonly needed for tooling
 show-vars:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@echo "OUTPUT_DIR    = $(OUTPUT_DIR)";
 	@echo "BR2_DL_DIR    = $(BR2_DL_DIR)";
 	@echo "CAMERA_SUBDIR = $(CAMERA_SUBDIR)";
@@ -862,11 +852,11 @@ show-vars:
 	@echo "BR2_EXTERNAL  = $(BR2_EXTERNAL)";
 
 run:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(SCRIPTS_DIR)/qemu_run.sh $(OUTPUT_DIR)/target $(_RUN_CMD)
 
 upload_serial:
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
 	$(HOST_DIR)/bin/thingino-cloner -i 0 -b -w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) --firmware-dir $(HOST_DIR)/share/thingino-cloner/firmwares --reboot
 
@@ -879,5 +869,5 @@ upload_serial:
 #   2. Buildroot targets will fail gracefully if config is missing
 #   3. Users should use 'make br-<target>' for buildroot targets, which includes check-config
 .DEFAULT: check-config
-	$(info -------------------------------- $@)
+	@$(TEAL) "$@"
 	$(BR2_MAKE) $@
