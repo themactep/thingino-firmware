@@ -8,6 +8,7 @@
     { label: 'Disable IR cut',             cmd: 'echo ir_off > /proc/jz/isp/ircut' },
     { label: 'Log to syslog',              cmd: 'logger -t mqtt "Topic: $MQTT_TOPIC Payload: $MQTT_PAYLOAD"' },
     { label: 'Conditional reboot (pay=1)', cmd: '[ "$MQTT_PAYLOAD" = "1" ] && reboot' },
+    { label: 'Telegram hub agent',         cmd: 'telegram-cam-agent "$MQTT_PAYLOAD"', topic: 'thingino/cam/%id/cmd' },
   ];
 
   const endpoint = '/x/json-config-mqtt-sub.cgi';
@@ -16,6 +17,7 @@
   const emptyMsg = $('#mqtt-sub-empty');
   const addBtn = $('#mqtt-sub-add');
   const reloadBtn = $('#mqtt-sub-reload');
+  const restartBtn = $('#mqtt-sub-restart');
   const saveBtn = $('#mqtt-sub-save');
 
   function updateEmptyState() {
@@ -33,6 +35,7 @@
       a.href = '#';
       a.textContent = p.label;
       a.dataset.cmd = p.cmd;
+      a.dataset.topic = p.topic || '';
       li.appendChild(a);
       ul.appendChild(li);
     });
@@ -97,6 +100,9 @@
       a.addEventListener('click', function (e) {
         e.preventDefault();
         inputAction.value = this.dataset.cmd;
+        if (this.dataset.topic) {
+          inputTopic.value = this.dataset.topic;
+        }
       });
     });
 
@@ -234,6 +240,23 @@
       reloadBtn.disabled = false;
     }
   });
+
+  if (restartBtn) {
+    restartBtn.addEventListener('click', async function () {
+      try {
+        restartBtn.disabled = true;
+        showBusy('Restarting MQTT subscription service...');
+        const resp = await fetch('/x/mqtt-sub-restart.cgi');
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        showOverlayMessage('MQTT subscription service restarted.', 'success');
+      } catch (err) {
+        showAlert('danger', err.message || 'Failed to restart MQTT subscription service.');
+      } finally {
+        hideBusy();
+        restartBtn.disabled = false;
+      }
+    });
+  }
 
   loadConfig();
 })();

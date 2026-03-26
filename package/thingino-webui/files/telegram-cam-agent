@@ -1,0 +1,157 @@
+#!/bin/sh
+
+CONFIG_FILE="/etc/thingino.json"
+REPLY_TOPIC_PREFIX="thingino/cam"
+
+json_escape() {
+	printf '%s' "$1" | sed \
+		-e 's/\\/\\\\/g' \
+		-e 's/"/\\"/g' \
+		-e 's/\r/\\r/g' \
+		-e 's/\n/\\n/g'
+}
+
+camera_id() {
+	if command -v soc >/dev/null 2>&1; then
+		serial=$(soc -s 2>/dev/null)
+		if [ -n "$serial" ]; then
+			printf '%s' "$serial"
+			return 0
+		fi
+	fi
+
+	for iface in eth0 wlan0 eth1; do
+		addr=$(cat "/sys/class/net/$iface/address" 2>/dev/null | tr -d ':')
+		[ -n "$addr" ] && {
+			printf '%s' "$addr"
+			return 0
+		}
+	done
+	return 1
+}
+
+publish_reply() {
+	request_id="$1"
+	chat_id="$2"
+	message="$3"
+	cam_id="$4"
+	host=$(jct "$CONFIG_FILE" get mqtt_sub.host 2>/dev/null | tr -d '"')
+	port=$(jct "$CONFIG_FILE" get mqtt_sub.port 2>/dev/null | tr -d '"')
+	username=$(jct "$CONFIG_FILE" get mqtt_sub.username 2>/dev/null | tr -d '"')
+	password=$(jct "$CONFIG_FILE" get mqtt_sub.password 2>/dev/null | tr -d '"')
+	use_ssl=$(jct "$CONFIG_FILE" get mqtt_sub.use_ssl 2>/dev/null)
+	[ -n "$host" ] || return 1
+	[ -n "$port" ] || port=1883
+	topic="$REPLY_TOPIC_PREFIX/$cam_id/reply"
+	payload=$(printf '{"request_id":"%s","chat_id":%s,"message":"%s"}' \
+		"$(json_escape "$request_id")" \
+		"${chat_id:-0}" \
+		"$(json_escape "$message")")
+	set -- -h "$host" -p "$port" -t "$topic" -m "$payload"
+	[ -n "$username" ] && set -- "$@" -u "$username"
+	[ -n "$password" ] && set -- "$@" -P "$password"
+	[ "$use_ssl" = "true" ] && set -- "$@" --capath /etc/ssl/certs
+	mosquitto_pub "$@"
+}
+
+reply_and_exit() {
+	message="$1"
+	publish_reply "$REQUEST_ID" "$CHAT_ID" "$message" "$LOCAL_CAMERA_ID" >/dev/null 2>&1 || true
+	printf '%s\n' "$message"
+	exit 0
+}
+
+reply_error_and_exit() {
+	message="$1"
+	publish_reply "$REQUEST_ID" "$CHAT_ID" "$message" "$LOCAL_CAMERA_ID" >/dev/null 2>&1 || true
+	printf '%s\n' "$message" >&2
+	exit 1
+}
+
+usage() {
+	echo "Usage: $0 '<json-payload>'"
+	exit 1
+}
+
+log_payload_debug() {
+	logger -t telegram-cam-agent "raw_argv_count=$# raw_payload=$*"
+}
+
+[ $# -ge 1 ] || usage
+[ -x /usr/bin/jct ] || [ -x /bin/jct ] || reply_error_and_exit "jct is not available"
+
+LOCAL_CAMERA_ID=$(camera_id)
+[ -n "$LOCAL_CAMERA_ID" ] || reply_error_and_exit "Unable to determine local camera ID"
+
+TMP=$(mktemp /tmp/telegram-cam-agent.XXXXXX)
+trap 'rm -f "$TMP"' EXIT INT TERM
+# Join all shell words back into one payload so the agent still works if an
+# upstream caller failed to preserve JSON quoting exactly.
+log_payload_debug "$@"
+printf '%s' "$*" >"$TMP"
+
+REQUEST_ID=$(jct "$TMP" get request_id 2>/dev/null | tr -d '"')
+CHAT_ID=$(jct "$TMP" get chat_id 2>/dev/null | tr -d '"')
+TARGET_CAMERA_ID=$(jct "$TMP" get camera_id 2>/dev/null | tr -d '"' | tr 'A-Z' 'a-z')
+COMMAND=$(jct "$TMP" get command 2>/dev/null | tr -d '"' | tr 'A-Z' 'a-z')
+ARG0=$(jct "$TMP" get args.0 2>/dev/null | tr -d '"')
+
+[ -n "$REQUEST_ID" ] || REQUEST_ID="local"
+
+if [ -n "$TARGET_CAMERA_ID" ] && [ "$TARGET_CAMERA_ID" != "$LOCAL_CAMERA_ID" ]; then
+	reply_error_and_exit "Camera ID mismatch: got $TARGET_CAMERA_ID, local is $LOCAL_CAMERA_ID"
+fi
+
+case "$COMMAND" in
+	""|help)
+		reply_and_exit "Supported commands: ping, help, debug, snap, clip, arm, disarm, register, unregister"
+		;;
+	debug)
+		reply_and_exit "debug request_id=$REQUEST_ID chat_id=${CHAT_ID:-none} target=${TARGET_CAMERA_ID:-none} command=${COMMAND:-none} argc=$#"
+		;;
+	ping)
+		reply_and_exit "pong"
+		;;
+	register)
+		if /usr/bin/telegram-cam-register register >/dev/null 2>&1 || /bin/telegram-cam-register register >/dev/null 2>&1; then
+			reply_and_exit "Registration refreshed"
+		fi
+		reply_error_and_exit "Failed to refresh registration"
+		;;
+	unregister|revoke)
+		if /usr/bin/telegram-cam-register unregister >/dev/null 2>&1 || /bin/telegram-cam-register unregister >/dev/null 2>&1; then
+			reply_and_exit "Registration revoked"
+		fi
+		reply_error_and_exit "Failed to revoke registration"
+		;;
+	arm)
+		if /sbin/motion enable >/dev/null 2>&1; then
+			reply_and_exit "Motion detection enabled"
+		fi
+		reply_error_and_exit "Failed to enable motion detection"
+		;;
+	disarm)
+		if /sbin/motion disable >/dev/null 2>&1; then
+			reply_and_exit "Motion detection disabled"
+		fi
+		reply_error_and_exit "Failed to disable motion detection"
+		;;
+	snap)
+		if /usr/sbin/send2telegram -S -c "$CHAT_ID" >/dev/null 2>&1; then
+			reply_and_exit "Snapshot sent"
+		fi
+		reply_error_and_exit "Failed to send snapshot. Configure send2telegram with the shared bot token on this camera."
+		;;
+	clip)
+		if [ -n "$ARG0" ]; then
+			logger -t telegram-cam-agent "clip command received with argument '$ARG0' (currently ignored)"
+		fi
+		if /usr/sbin/send2telegram -V -c "$CHAT_ID" >/dev/null 2>&1; then
+			reply_and_exit "Clip sent"
+		fi
+		reply_error_and_exit "Failed to send clip. Configure send2telegram with the shared bot token on this camera."
+		;;
+	*)
+		reply_error_and_exit "Unsupported command: $COMMAND"
+		;;
+esac

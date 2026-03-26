@@ -13,11 +13,18 @@ start() {
 	is_enabled || return 0
 	printf "Starting %s: " "$DAEMON"
 	start-stop-daemon -S -q -m -b -p "$PIDFILE" -x /usr/sbin/mqtt-sub-dispatcher
-	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	rc=$?
+	[ $rc = 0 ] && echo "OK" || echo "FAIL"
+	if [ $rc = 0 ] && [ -x /usr/sbin/telegram-cam-register ]; then
+		/usr/sbin/telegram-cam-register online >/dev/null 2>&1 || true
+	fi
 }
 
 stop() {
 	printf "Stopping %s: " "$DAEMON"
+	if [ -x /usr/sbin/telegram-cam-register ]; then
+		/usr/sbin/telegram-cam-register offline >/dev/null 2>&1 || true
+	fi
 	start-stop-daemon -K -q -p "$PIDFILE"
 	[ $? = 0 ] && echo "OK" || echo "FAIL"
 	rm -f "$PIDFILE"

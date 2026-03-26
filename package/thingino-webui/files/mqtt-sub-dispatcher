@@ -8,24 +8,77 @@
 # Topic shorthands (resolved at startup):
 #   %hostname - camera hostname
 #   %ip       - camera IP address
-#   %id       - camera MAC address without separators
+#   %id       - camera SoC serial number, with MAC-based fallback
 
 CONFIG_FILE="/etc/thingino.json"
+HEARTBEAT_INTERVAL="${HEARTBEAT_INTERVAL:-300}"
+HEARTBEAT_PID=""
 
 die() {
 	echo "$1" >&2
 	exit 1
 }
 
+json_unquote() {
+	printf '%s' "$1" | sed \
+		-e 's/^"//' \
+		-e 's/"$//' \
+		-e 's/\\"/"/g' \
+		-e 's/\\\\/\\/g'
+}
+
+start_presence_heartbeat() {
+	local register_cmd=""
+	if [ -x /usr/sbin/telegram-cam-register ]; then
+		register_cmd=/usr/sbin/telegram-cam-register
+	elif [ -x /bin/telegram-cam-register ]; then
+		register_cmd=/bin/telegram-cam-register
+	else
+		return 0
+	fi
+
+	(
+		while :; do
+			sleep "$HEARTBEAT_INTERVAL"
+			"$register_cmd" online >/dev/null 2>&1 || true
+		done
+	) &
+	HEARTBEAT_PID=$!
+}
+
+cleanup() {
+	if [ -n "$HEARTBEAT_PID" ]; then
+		kill "$HEARTBEAT_PID" >/dev/null 2>&1 || true
+		wait "$HEARTBEAT_PID" >/dev/null 2>&1 || true
+	fi
+}
+
+trap cleanup EXIT INT TERM
+
+camera_id() {
+	if command -v soc >/dev/null 2>&1; then
+		serial=$(soc -s 2>/dev/null)
+		if [ -n "$serial" ]; then
+			printf '%s' "$serial"
+			return 0
+		fi
+	fi
+
+	for iface in eth0 wlan0 eth1; do
+		addr=$(cat "/sys/class/net/$iface/address" 2>/dev/null | tr -d ':')
+		[ -n "$addr" ] && {
+			printf '%s' "$addr"
+			return 0
+		}
+	done
+
+	return 1
+}
+
 # Resolve camera identity once at startup
 CAMERA_HOSTNAME=$(hostname 2>/dev/null)
 CAMERA_IP=$(ip route get 1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -1)
-CAMERA_ID=$(
-	for iface in eth0 wlan0 eth1; do
-		addr=$(cat "/sys/class/net/$iface/address" 2>/dev/null | tr -d ':')
-		[ -n "$addr" ] && { printf '%s' "$addr"; break; }
-	done
-)
+CAMERA_ID=$(camera_id)
 
 expand_topic() {
 	printf '%s' "$1" \
@@ -69,6 +122,8 @@ CMD="mosquitto_sub -h $host -p $port -v -F \"%t %p\""
 [ "$use_ssl" = "true" ] && CMD="$CMD --capath /etc/ssl/certs"
 CMD="$CMD $TOPICS"
 
+start_presence_heartbeat
+
 # Run subscriber loop
 sh -c "$CMD" | while IFS= read -r line; do
 	mqtt_topic="${line%% *}"
@@ -80,7 +135,8 @@ sh -c "$CMD" | while IFS= read -r line; do
 		sub_topic=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$j.topic" 2>/dev/null | tr -d '"')
 		[ -n "$sub_topic" ] || break
 		sub_enabled=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$j.enabled" 2>/dev/null)
-		sub_action=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$j.action" 2>/dev/null | tr -d '"')
+		sub_action=$(jct "$CONFIG_FILE" get "mqtt_sub.subscriptions.$j.action" 2>/dev/null)
+		sub_action=$(json_unquote "$sub_action")
 
 		if [ "$sub_enabled" = "true" ] && [ -n "$sub_action" ]; then
 			# Expand shorthands, then convert MQTT wildcards to shell glob patterns

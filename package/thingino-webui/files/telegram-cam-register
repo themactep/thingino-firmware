@@ -1,0 +1,102 @@
+#!/bin/sh
+
+CONFIG_FILE="/etc/thingino.json"
+TOPIC_PREFIX="thingino/cam"
+DISABLED_FLAG="/etc/telegram-cam-registration.disabled"
+
+json_escape() {
+	printf '%s' "$1" | sed \
+		-e 's/\\/\\\\/g' \
+		-e 's/"/\\"/g' \
+		-e 's/\r/\\r/g' \
+		-e 's/\n/\\n/g'
+}
+
+camera_id() {
+	if command -v soc >/dev/null 2>&1; then
+		serial=$(soc -s 2>/dev/null)
+		if [ -n "$serial" ]; then
+			printf '%s' "$serial"
+			return 0
+		fi
+	fi
+
+	for iface in eth0 wlan0 eth1; do
+		addr=$(cat "/sys/class/net/$iface/address" 2>/dev/null | tr -d ':')
+		[ -n "$addr" ] && {
+			printf '%s' "$addr"
+			return 0
+		}
+	done
+	return 1
+}
+
+camera_ip() {
+	ip route get 1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -1
+}
+
+default_snapshot_url() {
+	[ -n "$1" ] || return 1
+	printf 'http://%s/x/ch0.jpg' "$1"
+}
+
+registration_disabled() {
+	[ -f "$DISABLED_FLAG" ]
+}
+
+clear_registration() {
+	topic="$1"
+	set -- -h "$mqtt_host" -p "$mqtt_port" -t "$topic" -n -r
+	[ -n "$mqtt_username" ] && set -- "$@" -u "$mqtt_username"
+	[ -n "$mqtt_password" ] && set -- "$@" -P "$mqtt_password"
+	[ "$mqtt_use_ssl" = "true" ] && set -- "$@" --capath /etc/ssl/certs
+	exec mosquitto_pub "$@"
+}
+
+status="${1:-online}"
+cam_id=$(camera_id) || exit 1
+host=$(hostname 2>/dev/null || echo "$cam_id")
+ip_addr=$(camera_ip)
+snapshot_url=$(default_snapshot_url "$ip_addr")
+
+mqtt_host=$(jct "$CONFIG_FILE" get mqtt_sub.host 2>/dev/null | tr -d '"')
+mqtt_port=$(jct "$CONFIG_FILE" get mqtt_sub.port 2>/dev/null | tr -d '"')
+mqtt_username=$(jct "$CONFIG_FILE" get mqtt_sub.username 2>/dev/null | tr -d '"')
+mqtt_password=$(jct "$CONFIG_FILE" get mqtt_sub.password 2>/dev/null | tr -d '"')
+mqtt_use_ssl=$(jct "$CONFIG_FILE" get mqtt_sub.use_ssl 2>/dev/null)
+
+[ -n "$mqtt_host" ] || exit 1
+[ -n "$mqtt_port" ] || mqtt_port=1883
+
+topic="$TOPIC_PREFIX/$cam_id/hello"
+
+case "$status" in
+	register|enable)
+		rm -f "$DISABLED_FLAG"
+		status="online"
+		;;
+	unregister|disable|clear)
+		: >"$DISABLED_FLAG" || exit 1
+		clear_registration "$topic"
+		;;
+	esac
+
+if registration_disabled; then
+	exit 0
+fi
+
+payload=$(printf '{"camera_id":"%s","name":"%s","hostname":"%s","ip":"%s","snapshot_url":"%s","status":"%s","timestamp":%s}' \
+	"$(json_escape "$cam_id")" \
+	"$(json_escape "$host")" \
+	"$(json_escape "$host")" \
+	"$(json_escape "$ip_addr")" \
+	"$(json_escape "$snapshot_url")" \
+	"$(json_escape "$status")" \
+	"$(date +%s)")
+
+set -- -h "$mqtt_host" -p "$mqtt_port" -t "$topic" -m "$payload" -r
+[ -n "$mqtt_username" ] && set -- "$@" -u "$mqtt_username"
+[ -n "$mqtt_password" ] && set -- "$@" -P "$mqtt_password"
+[ "$mqtt_use_ssl" = "true" ] && set -- "$@" --capath /etc/ssl/certs
+
+exec mosquitto_pub "$@"
