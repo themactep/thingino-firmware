@@ -30,7 +30,7 @@ CAMERA=atom_cam2_t31x_gc2053_atbm6031 make saveconfig
 # Edit a camera defconfig directly
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make edit-defconfig
 
-# OTA update to a running camera (IP defaults to 192.168.1.10)
+# OTA update to a running camera (set IP to the target device address)
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 IP=192.168.1.42 make upgrade_ota
 ```
 

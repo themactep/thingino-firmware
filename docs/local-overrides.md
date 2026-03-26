@@ -12,11 +12,23 @@ The `scripts/manage-package-overrides.sh` helper automates the whole workflow.
 
 When a package has an override, Buildroot reads its source from the directory you
 specify instead of downloading the upstream tarball or cloning the upstream repo.
-The mapping lives in `local.mk`:
+The mapping usually lives in the repository root `local.mk`:
 
 ```
 EXFAT_NOFUSE_OVERRIDE_SRCDIR = $(BR2_EXTERNAL)/overrides/exfat-nofuse
 ```
+
+Thingino also supports user-scoped override files under `THINGINO_USER_DIR`:
+
+```text
+user/common/local.mk
+user/<camera>/local.mk
+user/<camera>/<ip>/local.mk
+```
+
+Those files are layered in that order and concatenated into `OUTPUT_DIR/local.mk`
+for the active build. Use them when an override should apply only to one camera
+model or one specific device selected by the build-time `IP` value.
 
 During a build, Buildroot uses `rsync` to copy that directory into the build tree,
 so you can edit files in `overrides/<package>/`, run `make <package>-rebuild`, and
@@ -47,7 +59,8 @@ version, then asks:
   under your GitHub account, clones the fork, and adds the original as `upstream`.
 - **Download/clone this package?** – say `y` to proceed.
 
-The clone lands in `overrides/<package>/` and the entry is written to `local.mk`.
+The clone lands in `overrides/<package>/` and the entry is written to the
+repository root `local.mk`.
 
 #### Auto mode (no prompts)
 
@@ -78,10 +91,10 @@ make exfat-nofuse-rebuild all
 When you cloned via a fork (`-f`), the repo is pre-configured for the full
 fork → branch → PR workflow:
 
-| Remote | Points to |
-|--------|-----------|
-| `origin` | Your fork on GitHub |
-| `upstream` | The original repo |
+| Remote     | Points to           |
+|------------|---------------------|
+| `origin`   | Your fork on GitHub |
+| `upstream` | The original repo   |
 
 A local branch named `local-<short-hash>` was created at the pinned commit, so
 you are never in a detached HEAD state.
@@ -105,18 +118,18 @@ gh pr create --repo dorimanx/exfat-nofuse --base master \
 
 ## Managing existing overrides
 
-| Task | Command |
-|------|---------|
-| List all overrides and their paths | `./scripts/manage-package-overrides.sh -l` |
-| Temporarily disable (comment out) | `./scripts/manage-package-overrides.sh -d <package>` |
-| Re-enable a disabled override | `./scripts/manage-package-overrides.sh -e <package>` |
+| Task                               | Command                                              |
+|------------------------------------|------------------------------------------------------|
+| List all overrides and their paths | `./scripts/manage-package-overrides.sh -l`           |
+| Temporarily disable (comment out)  | `./scripts/manage-package-overrides.sh -d <package>` |
+| Re-enable a disabled override      | `./scripts/manage-package-overrides.sh -e <package>` |
 | Pull latest changes in an override | `./scripts/manage-package-overrides.sh -u <package>` |
-| Update all overrides at once | `./scripts/manage-package-overrides.sh -u --all` |
-| Remove an override entry | `./scripts/manage-package-overrides.sh -r <package>` |
-| Remove all override entries | `./scripts/manage-package-overrides.sh --clean` |
+| Update all overrides at once       | `./scripts/manage-package-overrides.sh -u --all`     |
+| Remove an override entry           | `./scripts/manage-package-overrides.sh -r <package>` |
+| Remove all override entries        | `./scripts/manage-package-overrides.sh --clean`      |
 
-Disabling an override comments out the `local.mk` line so Buildroot falls back to
-the upstream source, without losing the local clone.
+Disabling an override comments out the repository root `local.mk` line so
+Buildroot falls back to the upstream source, without losing the local clone.
 
 ---
 
@@ -125,11 +138,19 @@ the upstream source, without losing the local clone.
 ```
 firmware/
 ├── local.mk                     ← override mappings (git-ignored, machine-local)
+├── user/
+│   ├── common/
+│   │   └── local.mk             ← optional common user-scoped overrides
+│   └── <camera>/<ip>/local.mk
 ├── overrides/                   ← git-ignored; holds your local clones
 │   └── exfat-nofuse/            ← working clone (origin = fork, upstream = original)
 └── scripts/
     └── manage-package-overrides.sh
 ```
 
-Both `local.mk` and `overrides/` are git-ignored, so your local development setup
-never pollutes the firmware repository.
+Both the repository root `local.mk` and `overrides/` are git-ignored, so your
+local development setup never pollutes the firmware repository.
+
+If you need per-camera or per-device overrides, place the relevant
+`OVERRIDE_SRCDIR` lines in the matching `user/.../local.mk` file instead of the
+repository root `local.mk`.

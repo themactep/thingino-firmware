@@ -9,13 +9,14 @@ define THINGINO_CORE_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(BR2_EXTERNAL_THINGINO_PATH)/configs/common.thingino.json \
 		$(THINGINO_CORE_OUTPUT_FILE)
 
-	CAMERA_CONFIG=$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino-camera.json; \
+	CAMERA_CONFIG=$(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/thingino.json; \
 	[ -f "$$CAMERA_CONFIG" ] && \
 		$(HOST_DIR)/bin/jct "$(THINGINO_CORE_OUTPUT_FILE)" import "$$CAMERA_CONFIG" || true
 
-	USER_CONFIG=$(THINGINO_USER_DIR)/local.thingino.json; \
-	[ -f "$$USER_CONFIG" ] && \
-		$(HOST_DIR)/bin/jct "$(THINGINO_CORE_OUTPUT_FILE)" import "$$USER_CONFIG" || true
+	for USER_CONFIG in $(THINGINO_USER_JSON_FILES); do \
+		[ -f "$$USER_CONFIG" ] && \
+			$(HOST_DIR)/bin/jct "$(THINGINO_CORE_OUTPUT_FILE)" import "$$USER_CONFIG" || true; \
+	done
 
 	printf "thingino-core: generated %s\n" $(THINGINO_CORE_OUTPUT_FILE) 1>&2
 endef

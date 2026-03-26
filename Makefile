@@ -45,6 +45,7 @@ BR2_DL_DIR ?= $(BR2_EXTERNAL)/dl
 
 THINGINO_USER_DIR ?= $(BR2_EXTERNAL)/user
 export THINGINO_USER_DIR
+THINGINO_USER_COMMON_DIR := $(THINGINO_USER_DIR)/common
 
 # repo data
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD | tr -d '()' | xargs)
@@ -72,6 +73,54 @@ include $(BR2_EXTERNAL)/board.mk
 export CAMERA
 
 CAMERA_IP_ADDRESS := $(strip $(IP))
+IP_OUTPUT_TAG := $(if $(CAMERA_IP_ADDRESS),$(shell printf '%s' "$(CAMERA_IP_ADDRESS)" | sed 's/[^A-Za-z0-9._-]/_/g'))
+
+ifdef CAMERA
+THINGINO_USER_CAMERA_DIR := $(THINGINO_USER_DIR)/$(CAMERA)
+ifneq ($(CAMERA_IP_ADDRESS),)
+THINGINO_USER_DEVICE_DIR := $(THINGINO_USER_CAMERA_DIR)/$(CAMERA_IP_ADDRESS)
+endif
+endif
+
+THINGINO_USER_FRAGMENT_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/local.fragment)
+THINGINO_USER_MK_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/local.mk)
+THINGINO_USER_JSON_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/thingino.json)
+THINGINO_USER_MOTORS_JSON_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/motors.json)
+THINGINO_USER_UENV_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/local.uenv.txt)
+THINGINO_USER_OVERLAY_DIRS := $(wildcard $(THINGINO_USER_COMMON_DIR)/overlay)
+THINGINO_USER_OPT_DIRS := $(wildcard $(THINGINO_USER_COMMON_DIR)/opt)
+
+ifdef THINGINO_USER_CAMERA_DIR
+THINGINO_USER_FRAGMENT_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/local.fragment)
+THINGINO_USER_MK_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/local.mk)
+THINGINO_USER_JSON_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/thingino.json)
+THINGINO_USER_MOTORS_JSON_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/motors.json)
+THINGINO_USER_UENV_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/local.uenv.txt)
+THINGINO_USER_OVERLAY_DIRS += $(wildcard $(THINGINO_USER_CAMERA_DIR)/overlay)
+THINGINO_USER_OPT_DIRS += $(wildcard $(THINGINO_USER_CAMERA_DIR)/opt)
+endif
+
+ifdef THINGINO_USER_DEVICE_DIR
+THINGINO_USER_FRAGMENT_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/local.fragment)
+THINGINO_USER_MK_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/local.mk)
+THINGINO_USER_JSON_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/thingino.json)
+THINGINO_USER_MOTORS_JSON_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/motors.json)
+THINGINO_USER_UENV_FILES += $(wildcard $(THINGINO_USER_DEVICE_DIR)/local.uenv.txt)
+THINGINO_USER_OVERLAY_DIRS += $(wildcard $(THINGINO_USER_DEVICE_DIR)/overlay)
+THINGINO_USER_OPT_DIRS += $(wildcard $(THINGINO_USER_DEVICE_DIR)/opt)
+endif
+
+export THINGINO_USER_COMMON_DIR
+export THINGINO_USER_CAMERA_DIR
+export THINGINO_USER_DEVICE_DIR
+export THINGINO_USER_FRAGMENT_FILES
+export THINGINO_USER_MK_FILES
+export THINGINO_USER_JSON_FILES
+export THINGINO_USER_MOTORS_JSON_FILES
+export THINGINO_USER_UENV_FILES
+export THINGINO_USER_OVERLAY_DIRS
+export THINGINO_USER_OPT_DIRS
+
 # Resolve toolchain fragment from split boolean selections in defconfig.
 TOOLCHAIN_TYPE_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell sed -n 's/^BR2_THINGINO_TOOLCHAIN_TYPE_\([A-Z0-9_]*\)=y/\1/p' $(CAMERA_CONFIG_REAL) | tail -n 1)))
 TOOLCHAIN_GCC_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell sed -n 's/^BR2_THINGINO_TOOLCHAIN_GCC_\([0-9][0-9]*\)=y/\1/p' $(CAMERA_CONFIG_REAL) | tail -n 1)))
@@ -95,13 +144,15 @@ endif
 
 # working directory - set after CAMERA is defined
 OUTPUT_ROOT_DIR ?= $(BR2_EXTERNAL)/output
+OUTPUT_BASE_DIR = $(OUTPUT_ROOT_DIR)/$(GIT_BRANCH)/$(CAMERA)-$(KERNEL_VERSION)-$(TOOLCHAIN_LIBC)
 ifeq ($(SKIP_CAMERA_SELECTION),)
-OUTPUT_DIR ?= $(OUTPUT_ROOT_DIR)/$(GIT_BRANCH)/$(CAMERA)-$(KERNEL_VERSION)-$(TOOLCHAIN_LIBC)
+OUTPUT_DIR ?= $(OUTPUT_BASE_DIR)$(if $(IP_OUTPUT_TAG),-$(IP_OUTPUT_TAG))
 else
 OUTPUT_DIR ?= $(OUTPUT_ROOT_DIR)/$(GIT_BRANCH)
 endif
-$(info OUTPUT_DIR: $(OUTPUT_DIR))
 export OUTPUT_DIR
+
+GENERIC_OUTPUT_DIR = $(OUTPUT_BASE_DIR)
 
 HOST_DIR = $(OUTPUT_DIR)/host
 
@@ -112,6 +163,8 @@ export CONFIG_PARTITION_DIR
 ifeq ($(SKIP_CAMERA_SELECTION),)
 include $(BR2_EXTERNAL)/thingino.mk
 endif
+
+$(info OUTPUT_DIR: $(OUTPUT_DIR))
 
 # hardcoded variables
 WGET := wget --quiet --no-verbose --retry-connrefused --continue --timeout=5
@@ -127,8 +180,10 @@ U_BOOT_GITHUB_URL := https://github.com/gtxaspec/u-boot-ingenic/releases/downloa
 
 ifeq ($(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME),)
 U_BOOT_BIN = $(OUTPUT_DIR)/images/u-boot-lzo-with-spl.bin
+GENERIC_U_BOOT_BIN = $(GENERIC_OUTPUT_DIR)/images/u-boot-lzo-with-spl.bin
 else
 U_BOOT_BIN = $(OUTPUT_DIR)/images/$(patsubst "%",%,$(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME))
+GENERIC_U_BOOT_BIN = $(GENERIC_OUTPUT_DIR)/images/$(patsubst "%",%,$(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME))
 endif
 
 U_BOOT_ENV_TXT = $(OUTPUT_DIR)/uenv.txt
@@ -158,6 +213,8 @@ FIRMWARE_NAME_NOBOOT = thingino-$(CAMERA)-update.bin
 
 FIRMWARE_BIN_FULL := $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_FULL)
 FIRMWARE_BIN_NOBOOT := $(OUTPUT_DIR)/images/$(FIRMWARE_NAME_NOBOOT)
+GENERIC_FIRMWARE_BIN_FULL := $(GENERIC_OUTPUT_DIR)/images/$(FIRMWARE_NAME_FULL)
+GENERIC_FIRMWARE_BIN_NOBOOT := $(GENERIC_OUTPUT_DIR)/images/$(FIRMWARE_NAME_NOBOOT)
 
 # file sizes
 U_BOOT_BIN_SIZE = $(shell stat -c%s $(U_BOOT_BIN))
@@ -324,10 +381,11 @@ RAW_DEFCONFIG_MODE = $(if $(strip $(FRAGMENTS)),,y)
 CONFIG_DEPS_FILE = $(OUTPUT_DIR)/.config.deps
 CONFIG_FRAGMENT_FILES = $(addprefix configs/fragments/,$(addsuffix .fragment,$(FRAGMENTS)))
 CONFIG_INPUT_FILES = $(TOOLCHAIN_FRAGMENT_FILE) $(CONFIG_FRAGMENT_FILES) $(CAMERA_CONFIG_REAL)
-CONFIG_INPUT_FILES += $(THINGINO_USER_DIR)/local.fragment
+CONFIG_INPUT_FILES += $(THINGINO_USER_FRAGMENT_FILES)
 ifneq ($(wildcard $(BR2_EXTERNAL)/local.mk),)
 CONFIG_INPUT_FILES += $(BR2_EXTERNAL)/local.mk
 endif
+CONFIG_INPUT_FILES += $(THINGINO_USER_MK_FILES)
 
 # Function to check if configuration needs regeneration
 define config_needs_regen
@@ -408,12 +466,19 @@ else
 	@echo 'BR2_SOC_RAM_MB=$(SOC_RAM_MB)' >>$(OUTPUT_DIR)/.config
 	@echo >>$(OUTPUT_DIR)/.config
 endif
-	if [ -f $(THINGINO_USER_DIR)/local.fragment ]; then \
-		cat $(THINGINO_USER_DIR)/local.fragment >>$(OUTPUT_DIR)/.config; \
-	fi; \
-	if [ -f $(BR2_EXTERNAL)/local.mk ]; then \
-		cp -f $(BR2_EXTERNAL)/local.mk $(OUTPUT_DIR)/local.mk; \
-	fi; \
+	for file in $(THINGINO_USER_FRAGMENT_FILES); do \
+		if [ -f "$$file" ]; then \
+			cat "$$file" >>$(OUTPUT_DIR)/.config; \
+			printf '\n' >>$(OUTPUT_DIR)/.config; \
+		fi; \
+	done; \
+	rm -f $(OUTPUT_DIR)/local.mk; \
+	for file in $(THINGINO_USER_MK_FILES); do \
+		if [ -f "$$file" ]; then \
+			cat "$$file" >>$(OUTPUT_DIR)/local.mk; \
+			printf '\n' >>$(OUTPUT_DIR)/local.mk; \
+		fi; \
+	done; \
 	if [ ! -L $(OUTPUT_DIR)/thingino ]; then \
 		ln -s $(BR2_EXTERNAL) $(OUTPUT_DIR)/thingino; \
 	fi
@@ -585,20 +650,29 @@ toolchain: defconfig
 # flash new uboot image to the camera
 upboot_ota:
 	@$(TEAL) "$@"
-	@test -f $(U_BOOT_BIN) || { echo "ERROR: $(U_BOOT_BIN) not found. Run make first."; exit 1; }
-	$(SCRIPTS_DIR)/fw_ota.sh $(U_BOOT_BIN) $(CAMERA_IP_ADDRESS)
+	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
+	@fw_path="$(U_BOOT_BIN)"; \
+	if [ ! -f "$$fw_path" ]; then fw_path="$(GENERIC_U_BOOT_BIN)"; fi; \
+	test -f "$$fw_path" || { echo "ERROR: Neither $(U_BOOT_BIN) nor $(GENERIC_U_BOOT_BIN) was found. Run make first."; exit 1; }; \
+	$(SCRIPTS_DIR)/fw_ota.sh "$$fw_path" $(CAMERA_IP_ADDRESS)
 
 # flash compiled update image to the camera
 update_ota:
 	@$(TEAL) "$@"
-	@test -f $(FIRMWARE_BIN_NOBOOT) || { echo "ERROR: $(FIRMWARE_BIN_NOBOOT) not found. Run make first."; exit 1; }
-	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_NOBOOT) $(CAMERA_IP_ADDRESS)
+	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
+	@fw_path="$(FIRMWARE_BIN_NOBOOT)"; \
+	if [ ! -f "$$fw_path" ]; then fw_path="$(GENERIC_FIRMWARE_BIN_NOBOOT)"; fi; \
+	test -f "$$fw_path" || { echo "ERROR: Neither $(FIRMWARE_BIN_NOBOOT) nor $(GENERIC_FIRMWARE_BIN_NOBOOT) was found. Run make first."; exit 1; }; \
+	$(SCRIPTS_DIR)/fw_ota.sh "$$fw_path" $(CAMERA_IP_ADDRESS)
 
 # flash compiled full image to the camera
 upgrade_ota:
 	@$(TEAL) "$@"
-	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
-	$(SCRIPTS_DIR)/fw_ota.sh $(FIRMWARE_BIN_FULL) $(CAMERA_IP_ADDRESS)
+	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
+	@fw_path="$(FIRMWARE_BIN_FULL)"; \
+	if [ ! -f "$$fw_path" ]; then fw_path="$(GENERIC_FIRMWARE_BIN_FULL)"; fi; \
+	test -f "$$fw_path" || { echo "ERROR: Neither $(FIRMWARE_BIN_FULL) nor $(GENERIC_FIRMWARE_BIN_FULL) was found. Run make first."; exit 1; }; \
+	$(SCRIPTS_DIR)/fw_ota.sh "$$fw_path" $(CAMERA_IP_ADDRESS)
 
 # upload firmware to tftp server
 upload_tftp:
@@ -714,8 +788,12 @@ $(CONFIG_BIN): $(CONFIG_PARTITION_DIR)/.keep
 	@$(TEAL) "$@"
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
-	# syncronize overlay files
-	$(RSYNC) --delete $(THINGINO_USER_DIR)/overlay/ $(CONFIG_PARTITION_DIR)/
+	# rebuild config partition staging from layered user overlays
+	rm -rf $(CONFIG_PARTITION_DIR)
+	mkdir -p $(CONFIG_PARTITION_DIR)
+	for dir in $(THINGINO_USER_OVERLAY_DIRS); do \
+		$(RSYNC) --archive "$$dir"/ $(CONFIG_PARTITION_DIR)/; \
+	done
 	# delete stub files
 	find $(CONFIG_PARTITION_DIR)/ -name ".*keep" -o -name ".empty" -delete
 	# pack the config partition image
@@ -727,13 +805,16 @@ $(EXTRAS_BIN): $(ROOTFS_BIN) $(U_BOOT_BIN)
 	@$(TEAL) "$@"
 	# remove older image if present
 	if [ -f $@ ]; then rm $@; fi
+	rm -rf $(OUTPUT_DIR)/extras
+	mkdir -p $(OUTPUT_DIR)/extras
 	# extract /opt/ from target rootfs to a separare directory
-	# NB! no deletion here. manually remove files /extras/ or use `make cleanbuild`
 	$(RSYNC) --exclude='.gitkeep' $(OUTPUT_DIR)/target/opt/ $(OUTPUT_DIR)/extras/
 	# empty /opt/ in the rootfs
 	rm -rf $(OUTPUT_DIR)/target/opt/*
-	# copy common files
-	$(RSYNC) --exclude='.gitkeep' $(THINGINO_USER_DIR)/opt/ $(OUTPUT_DIR)/extras/
+	# add layered user extras so narrower scopes override broader ones
+	for dir in $(THINGINO_USER_OPT_DIRS); do \
+		$(RSYNC) --exclude='.gitkeep' --archive "$$dir"/ $(OUTPUT_DIR)/extras/; \
+	done
 	# pack the extras partition image if directory has content, otherwise it will be created on first use
 	if [ -n "$$(find $(OUTPUT_DIR)/extras/ -type f 2>/dev/null)" ]; then \
 		$(HOST_DIR)/sbin/mkfs.jffs2 --little-endian --squash --output=$@ --root=$(OUTPUT_DIR)/extras/ \
@@ -773,7 +854,9 @@ $(U_BOOT_ENV_TXT): $(ROOTFS_BIN)
 	touch $@
 	grep -v '^#' $(BR2_EXTERNAL)/configs/common.uenv.txt | awk NF | tee -a $@
 	grep -v '^#' $(BR2_EXTERNAL)/$(CAMERA_SUBDIR)/$(CAMERA)/$(CAMERA).uenv.txt | awk NF | tee -a $@
-	grep -v '^#' $(THINGINO_USER_DIR)/local.uenv.txt | awk NF | tee -a $@
+	for file in $(THINGINO_USER_UENV_FILES); do \
+		grep -v '^#' "$$file" | awk NF | tee -a $@; \
+	done
 	sort -u -o $@ $@
 	# Remove any existing mtdparts and bootcmd lines (will be regenerated with aligned sizes)
 	sed -i '/^mtdparts=/d; /^bootcmd=/d; /^kern_addr=/d; /^kern_size=/d' $@
@@ -843,13 +926,63 @@ help:
 # Print key variables commonly needed for tooling
 show-vars:
 	@$(TEAL) "$@"
-	@echo "OUTPUT_DIR    = $(OUTPUT_DIR)";
-	@echo "BR2_DL_DIR    = $(BR2_DL_DIR)";
+	@echo "AVPU_CLK = $(AVPU_CLK)";
+	@echo "AVPU_CLK_SRC = $(AVPU_CLK_SRC)";
+	@echo "BR2_DL_DIR = $(BR2_DL_DIR)";
+	@echo "BR2_EXTERNAL = $(BR2_EXTERNAL)";
+	@echo "BR2_LIBC_NAME = $(BR2_LIBC_NAME)";
+	@echo "BR2_MAKE = $(BR2_MAKE)";
+	@echo "BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME = $(BR2_PACKAGE_THINGINO_UBOOT_BOARDNAME)";
+	@echo "BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME = $(BR2_PACKAGE_THINGINO_UBOOT_FORMAT_CUSTOM_NAME)";
+	@echo "BR2_TOOLCHAIN_EXTERNAL_URL = $(BR2_TOOLCHAIN_EXTERNAL_URL)";
+	@echo "CAMERA = $(CAMERA)";
 	@echo "CAMERA_SUBDIR = $(CAMERA_SUBDIR)";
-	@echo "CAMERA        = $(CAMERA)";
-	@echo "HOST_DIR      = $(HOST_DIR)";
-	@echo "BR2_MAKE      = $(BR2_MAKE)";
-	@echo "BR2_EXTERNAL  = $(BR2_EXTERNAL)";
+	@echo "FLASH_SIZE = $(FLASH_SIZE)";
+	@echo "FLASH_SIZE_KB = $(FLASH_SIZE_KB)";
+	@echo "FLASH_SIZE_MB = $(FLASH_SIZE_MB)";
+	@echo "HOST_DIR = $(HOST_DIR)";
+	@echo "IP = $(IP)";
+	@echo "ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS = $(ISP_CH0_PRE_DEQUEUE_INTERRUPT_PROCESS)";
+	@echo "ISP_CH0_PRE_DEQUEUE_TIME = $(ISP_CH0_PRE_DEQUEUE_TIME)";
+	@echo "ISP_CH0_PRE_DEQUEUE_VALID_LINES = $(ISP_CH0_PRE_DEQUEUE_VALID_LINES)";
+	@echo "ISP_CLK = $(ISP_CLK)";
+	@echo "ISP_CLKA_CLK = $(ISP_CLKA_CLK)";
+	@echo "ISP_CLKA_CLK_SRC = $(ISP_CLKA_CLK_SRC)";
+	@echo "ISP_CLK_SRC = $(ISP_CLK_SRC)";
+	@echo "ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM = $(ISP_DAY_NIGHT_SWITCH_DROP_FRAME_NUM)";
+	@echo "ISP_MEMOPT = $(ISP_MEMOPT)";
+	@echo "KERNEL_BRANCH = $(KERNEL_BRANCH)";
+	@echo "KERNEL_HASH = $(shell git ls-remote $(KERNEL_SITE) $(KERNEL_BRANCH) | head -1 | cut -f1)";
+	@echo "KERNEL_SITE = $(KERNEL_SITE)";
+	@echo "KERNEL_TARBALL_URL = $(KERNEL_TARBALL_URL)";
+	@echo "KERNEL_VERSION = $(KERNEL_VERSION)";
+	@echo "OUTPUT_DIR = $(OUTPUT_DIR)";
+	@echo "SENSOR_1_MODEL = $(SENSOR_1_MODEL)";
+	@echo "SENSOR_2_MODEL = $(SENSOR_2_MODEL)";
+	@echo "SENSOR_3_MODEL = $(SENSOR_3_MODEL)";
+	@echo "SENSOR_4_MODEL = $(SENSOR_4_MODEL)";
+	@echo "SOC_FAMILY = $(SOC_FAMILY)";
+	@echo "SOC_FAMILY_CAPS = $(SOC_FAMILY_CAPS)";
+	@echo "SOC_MODEL = $(SOC_MODEL)";
+	@echo "SOC_MODEL_LESS_Z = $(SOC_MODEL_LESS_Z)";
+	@echo "SOC_RAM_MB = $(SOC_RAM_MB)";
+	@echo "SOC_VENDOR = $(SOC_VENDOR)";
+	@echo "STREAMER = $(STREAMER)";
+	@echo "THINGINO_USER_CAMERA_DIR = $(THINGINO_USER_CAMERA_DIR)";
+	@echo "THINGINO_USER_COMMON_DIR = $(THINGINO_USER_COMMON_DIR)";
+	@echo "THINGINO_USER_DEVICE_DIR = $(THINGINO_USER_DEVICE_DIR)";
+	@echo "THINGINO_USER_DIR = $(THINGINO_USER_DIR)";
+	@echo "THINGINO_USER_FRAGMENT_FILES = $(THINGINO_USER_FRAGMENT_FILES)";
+	@echo "THINGINO_USER_JSON_FILES = $(THINGINO_USER_JSON_FILES)";
+	@echo "THINGINO_USER_MOTORS_JSON_FILES = $(THINGINO_USER_MOTORS_JSON_FILES)";
+	@echo "THINGINO_USER_MK_FILES = $(THINGINO_USER_MK_FILES)";
+	@echo "THINGINO_USER_OPT_DIRS = $(THINGINO_USER_OPT_DIRS)";
+	@echo "THINGINO_USER_OVERLAY_DIRS = $(THINGINO_USER_OVERLAY_DIRS)";
+	@echo "THINGINO_USER_UENV_FILES = $(THINGINO_USER_UENV_FILES)";
+	@echo "UBOOT_BOARDNAME = $(UBOOT_BOARDNAME)";
+	@echo "UBOOT_REPO = $(UBOOT_REPO)";
+	@echo "UBOOT_REPO_BRANCH = $(UBOOT_REPO_BRANCH)";
+	@echo "UBOOT_REPO_VERSION = $(UBOOT_REPO_VERSION)";
 
 run:
 	@$(TEAL) "$@"

@@ -53,7 +53,7 @@ Read [Building from sources][7] article for more info.
 - [Firmware Image Structure](docs/firmware-image-structure.md) - Partition layout and image assembly
 - [Firmware Dumping](docs/firmware.md) - How to backup existing firmware
 - [Camera Recovery](docs/camera-recovery.md) - Recovering from failed updates
-- [Local Build Settings](docs/local-build-settings.md) - User-specific settings from `THINGINO_USER_DIR`
+- [Local Build Settings](docs/local-build-settings.md) - Layered user-specific settings from `THINGINO_USER_DIR/common`, per camera, and per device IP
 
 ### Resources
 

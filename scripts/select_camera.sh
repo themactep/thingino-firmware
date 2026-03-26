@@ -3,16 +3,18 @@
 # Camera selection script for Thingino firmware
 # Supports fzf, whiptail, dialog, and numbered list fallback
 #
-# Usage: select_camera.sh <cameras_dir> <memo_file>
+# Usage: select_camera.sh <cameras_dir> <memo_file> [prompt_for_ip]
 #
 # Returns: Camera directory name (not full path)
 #
 
 cameras_dir="$1"
 memo_file="$2"
+ip_memo_file="${memo_file}.ip"
+prompt_for_ip="${3:-1}"
 
 if [ -z "$cameras_dir" ] || [ -z "$memo_file" ]; then
-	echo "ERROR: Usage: $0 <cameras_dir> <memo_file>" >&2
+	echo "ERROR: Usage: $0 <cameras_dir> <memo_file> [prompt_for_ip]" >&2
 	exit 1
 fi
 
@@ -31,6 +33,36 @@ fi
 
 selected_camera=""
 
+prompt_ip_address() {
+	local current_ip new_ip
+
+	current_ip=""
+	if [ -f "$ip_memo_file" ]; then
+		current_ip=$(cat "$ip_memo_file")
+	fi
+
+	if [ -n "$current_ip" ]; then
+		echo "Current IP for $selected_camera: $current_ip" >&2
+		read -r -p "Enter IP address for $selected_camera [Enter=keep, -=clear]: " new_ip >&2
+		if [ -z "$new_ip" ]; then
+			return 0
+		fi
+	else
+		read -r -p "Enter IP address for $selected_camera [optional, Enter=generic build]: " new_ip >&2
+		if [ -z "$new_ip" ]; then
+			rm -f "$ip_memo_file"
+			return 0
+		fi
+	fi
+
+	if [ "$new_ip" = "-" ]; then
+		rm -f "$ip_memo_file"
+		return 0
+	fi
+
+	printf '%s\n' "$new_ip" > "$ip_memo_file"
+}
+
 # Check if there's a previous selection
 if [ -f "$memo_file" ]; then
 	prev_camera=$(cat "$memo_file")
@@ -41,14 +73,18 @@ if [ -f "$memo_file" ]; then
 		echo "" >&2
 		if [ -z "$use_prev" ] || [ "$use_prev" = "y" ] || [ "$use_prev" = "Y" ]; then
 			selected_camera="$prev_camera"
-			echo "$selected_camera"
-			exit 0
+		else
+			rm -f "$ip_memo_file"
 		fi
+	else
+		rm -f "$ip_memo_file"
 	fi
 fi
 
 # Try fzf first (best UX) - can be disabled with USE_FZF=0
-if [ "${USE_FZF:-1}" = "1" ] && command -v fzf >/dev/null 2>&1; then
+if [ -n "$selected_camera" ]; then
+	:
+elif [ "${USE_FZF:-1}" = "1" ] && command -v fzf >/dev/null 2>&1; then
 	echo "Select camera (type to filter in order, e.g., 't20' shows t20* cameras):" >&2
 	selected_camera=$(printf '%s\n' "${cameras[@]}" | fzf \
 		--height=~100% \
@@ -117,6 +153,10 @@ selected_camera=$(echo "$selected_camera" | sed 's/\x1b[^a-zA-Z]*[a-zA-Z]//g')
 
 # Save selection for next time
 echo "$selected_camera" > "$memo_file"
+
+if [ "$prompt_for_ip" = "1" ]; then
+	prompt_ip_address
+fi
 
 # Output just the camera name
 echo "$selected_camera"

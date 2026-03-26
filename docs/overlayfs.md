@@ -24,11 +24,16 @@ as overlay/etc/init.d/S50dropbear and it replaces the one installed by the packa
 image assembly, on the permanent read-only partition. These files can be restored when deleted edited
 on the camera.
 
-**user/overlay/**
+**user/common/overlay/**
 
 Files from this directory will go into a writable overlay parition of the final image. These files can be
 edited or deleted on the camera, and these changes are permanent. Think of these files as of the first
 round of editing done on the camera itself.
+
+Camera-scoped and device-scoped user overlays follow the same pattern:
+
+- `user/<camera>/overlay/`
+- `user/<camera>/<ip>/overlay/`
 
 Please note, files from user overlay are not part of the rootfs partition, and they are not packed into
 the .tar bundle or rootfs.squahsfs files in the output images/ directory! Instead, these files end up in

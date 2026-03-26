@@ -34,7 +34,7 @@ if [ -f "$SYSTEM_CONFIG" ]; then
 fi
 
 # Add camera-specific json file
-CAMERA_CONFIG="${BR2_EXTERNAL}/${CAMERA_SUBDIR}/${CAMERA}/thingino-camera.json"
+CAMERA_CONFIG="${BR2_EXTERNAL}/${CAMERA_SUBDIR}/${CAMERA}/thingino.json"
 if [ -f "$CAMERA_CONFIG" ]; then
 	echo jct "$OUTPUT_FILE" import "$CAMERA_CONFIG"
 	jct "$OUTPUT_FILE" import "$CAMERA_CONFIG"
