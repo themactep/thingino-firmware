@@ -19,6 +19,7 @@ Commands:
 	claim <pin>		Claim <pin> to the kernel
 	info <pin>		Get information about the <pin>
 	list			Show claimed pins via debugfs
+	sweep <pin1> <pin2>	Toggle a range of pins from pin1 to pin2
 Legacy:
 	high <pin>		Set <pin1> output state to HIGH
 	low <pin>		Set <pin1> output state to LOW
@@ -98,6 +99,15 @@ get_value() {
 	fi
 }
 
+sweep_pins() {
+	for i in $(seq $1 $2); do
+		echo $i
+		gpio set $i 1
+		sleep 1
+		gpio set $i 0
+	done
+}
+
 if [ -n "$2" ]; then
 	# sanitize converting to integer
 	pin=$(echo $2 | sed s/[^0-9]//g)
@@ -133,6 +143,8 @@ case "$1" in
 		set_value 1 ;;
 	low)
 		set_value 0 ;;
+	sweep)
+		sweep_pins "$2" "$3" ;;
 	*)
 		show_help
 		;;
