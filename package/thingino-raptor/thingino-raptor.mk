@@ -85,11 +85,6 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S31raptor \
 		$(TARGET_DIR)/etc/init.d/S31raptor
 
-	# Logo
-	if [ -f $(@D)/res/thingino_100x30.bgra ]; then \
-		$(INSTALL) -D -m 0644 $(@D)/res/thingino_100x30.bgra \
-			$(TARGET_DIR)/usr/share/images/thingino_100x30.bgra; \
-	fi
 endef
 
 $(eval $(generic-package))

@@ -1,0 +1,5 @@
+config BR2_PACKAGE_THINGINO_LOGO
+	bool "thingino-logo"
+	help
+	  Thingino logo BGRA bitmaps for OSD overlay.
+	  Installs to /usr/share/images/.
