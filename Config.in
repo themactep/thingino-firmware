@@ -167,8 +167,35 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-libimp-control/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libjuice/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/libdatachannel/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/usrsctp/Config.in"
+choice
+	prompt "Streamer"
+	default BR2_THINGINO_STREAMER_PRUDYNT
+	help
+	  Select the camera streamer to use.
+
+config BR2_THINGINO_STREAMER_PRUDYNT
+	bool "Prudynt-T"
+	select BR2_PACKAGE_PRUDYNT_T
+	help
+	  Traditional monolithic streamer.
+
+config BR2_THINGINO_STREAMER_RAPTOR
+	bool "Raptor Streaming System"
+	depends on !BR2_SOC_FAMILY = "a1"
+	select BR2_PACKAGE_THINGINO_RAPTOR
+	help
+	  Modular microservice streamer (RSS).
+
+config BR2_THINGINO_STREAMER_NONE
+	bool "None"
+	help
+	  No streamer.
+
+endchoice
+
 source "$BR2_EXTERNAL_THINGINO_PATH/package/prudynt-t/Config.in"
-source "$BR2_EXTERNAL_THINGINO_PATH/package/raptor-ipc/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/compy/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ffmpeg/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-fonts/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-live555/Config.in"
