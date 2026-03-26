@@ -103,35 +103,77 @@ return (void *)syscall(SYS_mmap2, start, len, prot, flags, fd, off >> 12);
 
 /* glibc ctype compatibility for uclibc */
 static unsigned short ctype_b_table[384];
-static int ctype_tolower_table[384];
-static int ctype_toupper_table[384];
+static __ctype_touplow_t ctype_tolower_table[384];
+static __ctype_touplow_t ctype_toupper_table[384];
+
+/* Old glibc compat (T20 libalog uses direct pointers, not _loc functions) */
+unsigned short *__ctype_b;
+__ctype_touplow_t *__ctype_tolower;
+__ctype_touplow_t *__ctype_toupper;
 
 static void __attribute__((constructor)) init_ctype_tables(void) {
     int i;
     unsigned short *b = ctype_b_table + 128;
-    int *lower = ctype_tolower_table + 128;
-    int *upper = ctype_toupper_table + 128;
+    __ctype_touplow_t *lower = ctype_tolower_table + 128;
+    __ctype_touplow_t *upper = ctype_toupper_table + 128;
 
     for (i = -128; i < 256; i++) {
         b[i] = 0;
-        lower[i] = i;
-        upper[i] = i;
+        lower[i] = (__ctype_touplow_t)i;
+        upper[i] = (__ctype_touplow_t)i;
 
         if (i >= 0 && i < 128) {
-            // Manually classify characters to avoid uclibc ctype macro conflicts
-            if ((i >= 'A' && i <= 'Z') || (i >= 'a' && i <= 'z')) b[i] |= 1024; // isalpha
-            if (i >= '0' && i <= '9') b[i] |= 2048; // isdigit
-            if (i == ' ' || i == '\t' || i == '\n' || i == '\r' || i == '\f' || i == '\v') b[i] |= 8192; // isspace
-            if (i >= 'a' && i <= 'z') {
-                b[i] |= 512; // islower
-                upper[i] = i - 32; // toupper
-            }
+            /*
+             * uclibc _ISbit(n) = (1 << n):
+             *   _ISupper=1, _ISlower=2, _ISalpha=4, _ISdigit=8,
+             *   _ISxdigit=16, _ISspace=32, _ISprint=64, _ISgraph=128,
+             *   _ISblank=256, _IScntrl=512, _ISpunct=1024, _ISalnum=2048
+             */
             if (i >= 'A' && i <= 'Z') {
-                b[i] |= 256; // isupper
-                lower[i] = i + 32; // tolower
+                b[i] |= 1;    /* _ISupper */
+                b[i] |= 4;    /* _ISalpha */
+                b[i] |= 2048; /* _ISalnum */
+                b[i] |= 64;   /* _ISprint */
+                b[i] |= 128;  /* _ISgraph */
+                lower[i] = (__ctype_touplow_t)(i + 32);
             }
+            if (i >= 'a' && i <= 'z') {
+                b[i] |= 2;    /* _ISlower */
+                b[i] |= 4;    /* _ISalpha */
+                b[i] |= 2048; /* _ISalnum */
+                b[i] |= 64;   /* _ISprint */
+                b[i] |= 128;  /* _ISgraph */
+                upper[i] = (__ctype_touplow_t)(i - 32);
+            }
+            if (i >= '0' && i <= '9') {
+                b[i] |= 8;    /* _ISdigit */
+                b[i] |= 16;   /* _ISxdigit */
+                b[i] |= 2048; /* _ISalnum */
+                b[i] |= 64;   /* _ISprint */
+                b[i] |= 128;  /* _ISgraph */
+            }
+            if ((i >= 'A' && i <= 'F') || (i >= 'a' && i <= 'f'))
+                b[i] |= 16;   /* _ISxdigit */
+            if (i == ' ' || i == '\t' || i == '\n' || i == '\r' || i == '\f' || i == '\v')
+                b[i] |= 32;   /* _ISspace */
+            if (i == ' ' || i == '\t')
+                b[i] |= 256;  /* _ISblank */
+            if (i >= 0x20 && i <= 0x7e)
+                b[i] |= 64;   /* _ISprint */
+            if (i >= 0x21 && i <= 0x7e)
+                b[i] |= 128;  /* _ISgraph */
+            if (i < 0x20 || i == 0x7f)
+                b[i] |= 512;  /* _IScntrl */
+            if ((i >= 0x21 && i <= 0x2f) || (i >= 0x3a && i <= 0x40) ||
+                (i >= 0x5b && i <= 0x60) || (i >= 0x7b && i <= 0x7e))
+                b[i] |= 1024; /* _ISpunct */
         }
     }
+
+    /* Set old-style direct pointers after tables are populated */
+    __ctype_b = ctype_b_table + 128;
+    __ctype_tolower = ctype_tolower_table + 128;
+    __ctype_toupper = ctype_toupper_table + 128;
 }
 
 const unsigned short **__ctype_b_loc(void) {
@@ -139,12 +181,12 @@ const unsigned short **__ctype_b_loc(void) {
     return (const unsigned short **)&ptr;
 }
 
-const int **__ctype_tolower_loc(void) {
-    static const int *ptr = ctype_tolower_table + 128;
-    return (const int **)&ptr;
+const __ctype_touplow_t **__ctype_tolower_loc(void) {
+    static const __ctype_touplow_t *ptr = ctype_tolower_table + 128;
+    return (const __ctype_touplow_t **)&ptr;
 }
 
-const int **__ctype_toupper_loc(void) {
-    static const int *ptr = ctype_toupper_table + 128;
-    return (const int **)&ptr;
+const __ctype_touplow_t **__ctype_toupper_loc(void) {
+    static const __ctype_touplow_t *ptr = ctype_toupper_table + 128;
+    return (const __ctype_touplow_t **)&ptr;
 }
