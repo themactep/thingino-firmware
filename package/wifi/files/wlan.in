@@ -20,7 +20,7 @@ Where command:
   temp        Display module temperature details
   rssi        Display signal details
   cli         CLI interface on supported modules
-	configure ssid pass [bssid] [ap]
+  configure <ssid> <pass> [<bssid>|ap]
               Create WPA supplicant config non-interactively
   reset       Reset all Wi-Fi credentials
 " >&2
