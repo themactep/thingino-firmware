@@ -1,0 +1,18 @@
+THINGINO_RAPTOR_COMMON_VERSION = 48be3b1
+THINGINO_RAPTOR_COMMON_SITE = https://github.com/gtxaspec/raptor-common
+THINGINO_RAPTOR_COMMON_SITE_METHOD = git
+THINGINO_RAPTOR_COMMON_INSTALL_STAGING = YES
+THINGINO_RAPTOR_COMMON_INSTALL_TARGET = NO
+
+define THINGINO_RAPTOR_COMMON_BUILD_CMDS
+	$(MAKE) -C $(@D) CC="$(TARGET_CC)" AR="$(TARGET_AR)"
+endef
+
+define THINGINO_RAPTOR_COMMON_INSTALL_STAGING_CMDS
+	$(INSTALL) -D -m 0644 $(@D)/librss_common.a \
+		$(STAGING_DIR)/usr/lib/librss_common.a
+	$(INSTALL) -D -m 0644 $(@D)/include/rss_common.h \
+		$(STAGING_DIR)/usr/include/rss_common.h
+endef
+
+$(eval $(generic-package))

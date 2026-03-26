@@ -1,0 +1,7 @@
+config BR2_PACKAGE_COMPY
+	bool "compy RTSP library"
+	help
+	  Lightweight C99 RTSP/RTP library with H.264/H.265 NAL framing,
+	  backchannel audio, and digest authentication.
+
+	  https://github.com/gtxaspec/compy

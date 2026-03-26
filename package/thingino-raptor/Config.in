@@ -1,0 +1,55 @@
+config BR2_PACKAGE_THINGINO_RAPTOR
+	bool "Raptor Streaming System"
+	depends on !BR2_SOC_FAMILY = "a1"
+	depends on BR2_THINGINO_STREAMER_RAPTOR
+	select BR2_PACKAGE_INGENIC_LIB
+	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
+	select BR2_PACKAGE_INGENIC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC
+	select BR2_PACKAGE_LIBSCHRIFT
+	select BR2_PACKAGE_COMPY
+	select BR2_PACKAGE_THINGINO_RAPTOR_HAL
+	select BR2_PACKAGE_THINGINO_RAPTOR_IPC
+	select BR2_PACKAGE_THINGINO_RAPTOR_COMMON
+	help
+	  Raptor Streaming System (RSS) -- modular microservice streamer
+	  for Ingenic SoCs. Replaces prudynt-t with independent daemons:
+	  RVD (video), RAD (audio), RSD (RTSP), ROD (OSD), RHD (HTTP),
+	  RIC (IR-cut), RMR (recording), plus raptorctl management CLI.
+
+if BR2_PACKAGE_THINGINO_RAPTOR
+
+config BR2_PACKAGE_THINGINO_RAPTOR_AAC
+	bool "Enable AAC audio support"
+	default y
+	select BR2_PACKAGE_FAAC
+	select BR2_PACKAGE_LIBHELIX_AAC
+	help
+	  Enable AAC audio codec for encoding and decoding.
+
+config BR2_PACKAGE_THINGINO_RAPTOR_OPUS
+	bool "Enable Opus audio support"
+	default y
+	select BR2_PACKAGE_OPUS
+	help
+	  Enable Opus audio codec support.
+
+config BR2_PACKAGE_THINGINO_RAPTOR_MP3
+	bool "Enable MP3 audio decoding"
+	default y if FLASH_SIZE_MB > 8
+	select BR2_PACKAGE_LIBHELIX_MP3
+	help
+	  Enable MP3 decoding for audio client (rac).
+
+config BR2_PACKAGE_THINGINO_RAPTOR_AUDIO_EFFECTS
+	bool "Enable audio effects (NS/HPF/AGC)"
+	help
+	  Enable noise suppression, high-pass filter, and automatic
+	  gain control. Requires libaudioProcess.so from Ingenic SDK.
+
+config BR2_PACKAGE_THINGINO_RAPTOR_DEBUG
+	bool "Enable debug build"
+	help
+	  Build with -O0 -g instead of -Os. Debug binaries are
+	  significantly larger.
+
+endif # BR2_PACKAGE_THINGINO_RAPTOR

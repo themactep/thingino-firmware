@@ -1,0 +1,73 @@
+#!/bin/sh
+# S31raptor -- Raptor Streaming System init script
+
+CONF=/etc/raptor.conf
+RUNDIR=/var/run/rss
+SHMDIR=/dev/shm
+
+start() {
+	echo "Starting Raptor..."
+	mkdir -p "$RUNDIR"
+
+	# RVD must start first -- it creates SHM rings
+	start-stop-daemon -S -b -x /usr/bin/rvd -- -c "$CONF"
+
+	# Wait for main ring (up to 5 seconds)
+	i=0
+	while [ $i -lt 50 ] && [ ! -e ${SHMDIR}/rss_ring_main ]; do
+		usleep 100000
+		i=$((i + 1))
+	done
+
+	if [ ! -e ${SHMDIR}/rss_ring_main ]; then
+		echo "RVD failed to create ring buffer"
+		exit 1
+	fi
+
+	# Start consumers and support daemons
+	start-stop-daemon -S -b -x /usr/bin/rad -- -c "$CONF"
+	start-stop-daemon -S -b -x /usr/bin/rod -- -c "$CONF"
+	start-stop-daemon -S -b -x /usr/bin/rsd -- -c "$CONF"
+	start-stop-daemon -S -b -x /usr/bin/ric -- -c "$CONF"
+
+	# Optional daemons -- only start if binary exists
+	[ -x /usr/bin/rhd ] && start-stop-daemon -S -b -x /usr/bin/rhd -- -c "$CONF"
+	[ -x /usr/bin/rmr ] && start-stop-daemon -S -b -x /usr/bin/rmr -- -c "$CONF"
+
+	echo "Raptor started"
+}
+
+stop() {
+	echo "Stopping Raptor..."
+
+	# Stop consumers first, then producer (RVD) last
+	for d in rmr rhd ric rsd rod rad rvd; do
+		start-stop-daemon -K -x /usr/bin/$d 2>/dev/null
+	done
+
+	# Clean up runtime files
+	rm -f "$RUNDIR"/*.pid "$RUNDIR"/*.sock
+	rm -f ${SHMDIR}/rss_ring_* ${SHMDIR}/rss_osd_*
+
+	echo "Raptor stopped"
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		sleep 1
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

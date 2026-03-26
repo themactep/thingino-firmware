@@ -1,0 +1,2 @@
+config BR2_PACKAGE_THINGINO_RAPTOR_HAL
+	bool
