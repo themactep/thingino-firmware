@@ -12,8 +12,11 @@ ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
 THINGINO_RAPTOR_DEPENDENCIES += ingenic-musl
 endif
 
+# uclibc shim needed on xburst1 platforms; xburst2 (T40/T41) libs are native uclibc
 ifeq ($(BR2_TOOLCHAIN_USES_UCLIBC),y)
+ifeq ($(filter t40 t41,$(SOC_FAMILY)),)
 THINGINO_RAPTOR_DEPENDENCIES += ingenic-uclibc
+endif
 endif
 
 # Platform: uppercase SOC_FAMILY (t31 -> T31)
