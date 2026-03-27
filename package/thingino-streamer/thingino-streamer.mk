@@ -18,6 +18,11 @@ ifeq ($(KERNEL_VERSION),3.10.14)
 	THINGINO_STREAMER_CFLAGS += -DKERNEL_VERSION_4
 endif
 
+# ISP VPU Direct Connect (IVDC): tell encoder to use ISP direct_mode DMA path
+ifeq ($(ISP_DIRECT_MODE),direct_mode=1)
+THINGINO_STREAMER_CFLAGS += -DISP_DIRECT_MODE=1
+endif
+
 # Add libc type flags
 ifeq ($(BR2_TOOLCHAIN_USES_GLIBC),y)
 	THINGINO_STREAMER_CFLAGS += -DLIBC_GLIBC
