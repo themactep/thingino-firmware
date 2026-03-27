@@ -881,7 +881,7 @@ $(UB_ENV_BIN): $(U_BOOT_ENV_TXT)
 # create .tar file of rootfs
 $(ROOTFS_TAR):
 	@$(TEAL) "$@"
-	$(BR2_MAKE) $(BR2_MAKE_JOBS) all
+	$(BR2_MAKE) $(BR2_MAKE_JOBS) rootfs-tar
 
 build-all:
 	@$(TEAL) "$@"
