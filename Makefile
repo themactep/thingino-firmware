@@ -883,6 +883,51 @@ $(ROOTFS_TAR):
 	@$(TEAL) "$@"
 	$(BR2_MAKE) $(BR2_MAKE_JOBS) all
 
+build-all:
+	@$(TEAL) "$@"
+	@echo "Building all cameras from $(CAMERA_SUBDIR)"
+	@log_dir="$(HOME)/output-$(GIT_BRANCH)/build-all-logs-$$(date +%Y%m%d-%H%M%S)"; \
+	mkdir -p "$$log_dir"; \
+	echo "Logs will be saved to: $$log_dir"; \
+	failed_cameras=""; \
+	total=0; \
+	success=0; \
+	failed=0; \
+	for camera_dir in $(CAMERA_SUBDIR)/*; do \
+		if [ -d "$$camera_dir" ]; then \
+			camera=$$(basename $$camera_dir); \
+			total=$$((total + 1)); \
+			log_file="$$log_dir/$$camera.log"; \
+			echo ""; \
+			echo "========================================"; \
+			echo "Building camera $$total: $$camera"; \
+			echo "Log: $$log_file"; \
+			echo "========================================"; \
+			if env -u OUTPUT_DIR $(MAKE) CAMERA=$$camera distclean defconfig build_fast pack 2>&1 | tee "$$log_file"; then \
+				echo "✓ SUCCESS: $$camera" | tee -a "$$log_file"; \
+				success=$$((success + 1)); \
+			else \
+				echo "✗ FAILED: $$camera" | tee -a "$$log_file"; \
+				failed=$$((failed + 1)); \
+				failed_cameras="$$failed_cameras$$camera\n"; \
+			fi; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "========================================" | tee "$$log_dir/summary.log"; \
+	echo "BUILD SUMMARY" | tee -a "$$log_dir/summary.log"; \
+	echo "========================================" | tee -a "$$log_dir/summary.log"; \
+	echo "Total cameras: $$total" | tee -a "$$log_dir/summary.log"; \
+	echo "Successful: $$success" | tee -a "$$log_dir/summary.log"; \
+	echo "Failed: $$failed" | tee -a "$$log_dir/summary.log"; \
+	echo "Logs saved to: $$log_dir" | tee -a "$$log_dir/summary.log"; \
+	if [ $$failed -gt 0 ]; then \
+		echo "" | tee -a "$$log_dir/summary.log"; \
+		echo "Failed cameras:" | tee -a "$$log_dir/summary.log"; \
+		echo -e "$$failed_cameras" | tee -a "$$log_dir/summary.log"; \
+		exit 1; \
+	fi
+
 help:
 	@$(TEAL) "$@"
 	@echo -e "\n\
@@ -899,6 +944,7 @@ help:
 	  make distclean      start building from scratch\n\
 	  make rebuild-<pkg>  perform a clean package rebuild for <pkg>\n\
 	  make show-vars      print key build variables\n\
+	  make build-all      build all camera configs one by one\n\
 	  make help           print this help\n\
 	  make run <bin>      run a target binary via QEMU (e.g. make run bin/ffmpeg)\n\
 	  \n\
