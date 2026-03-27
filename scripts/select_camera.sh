@@ -43,12 +43,12 @@ prompt_ip_address() {
 
 	if [ -n "$current_ip" ]; then
 		echo "Current IP for $selected_camera: $current_ip" >&2
-		read -r -p "Enter IP address for $selected_camera [Enter=keep, -=clear]: " new_ip >&2
+		read -r -p "IP address [$current_ip] [Enter=keep, -=clear]: " new_ip >&2
 		if [ -z "$new_ip" ]; then
 			return 0
 		fi
 	else
-		read -r -p "Enter IP address for $selected_camera [optional, Enter=generic build]: " new_ip >&2
+		read -r -p "IP address for $selected_camera [optional, Enter=generic build]: " new_ip >&2
 		if [ -z "$new_ip" ]; then
 			rm -f "$ip_memo_file"
 			return 0
