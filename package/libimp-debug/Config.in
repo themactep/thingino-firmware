@@ -1,0 +1,8 @@
+config BR2_PACKAGE_LIBIMP_DEBUG
+	bool "libimp-debug"
+	help
+	  Debug tool for Ingenic IMP (Ingenic Media Platform).
+	  Queries runtime state of the video pipeline, encoder,
+	  framesource, audio, and ISP subsystems via shared memory IPC.
+
+	  https://github.com/gtxaspec/libimp-debug
