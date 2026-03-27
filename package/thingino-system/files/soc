@@ -125,6 +125,7 @@ print_soc_model() {
 			0x0031CCCC) soc="t31al" ;;
 			0x0031DDDD) soc="t31zc" ;;
 			0x0031EEEE) soc="t31lc" ;;
+			0x0032AAAA) soc="t32nq" ;;
 			*)
 				echo "Unknown SoC signature: $cpu_sig" >&2
 				soc="unknown"
