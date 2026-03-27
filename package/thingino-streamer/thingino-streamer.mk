@@ -204,7 +204,7 @@ define THINGINO_STREAMER_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/etc/init.d/S95streamer
 
 	# Install watchdog configuration
-	$(INSTALL) -D -m 0644 $(THINGINO_STREAMER_PKGDIR)/files/configs/streamer-watchdog.conf \
+	$(INSTALL) -D -m 0644 $(THINGINO_STREAMER_PKGDIR)/files/streamer-watchdog.conf \
 		$(TARGET_DIR)/etc/default/streamer-watchdog
 
 	# Install default font
