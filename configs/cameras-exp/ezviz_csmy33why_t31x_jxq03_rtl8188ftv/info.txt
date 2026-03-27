@@ -1,0 +1,28 @@
+ The pan motor is a bipolar stepper (4 coil wires, no common) driven by the
+ MS41919 SPI stepper driver IC — not direct GPIO like the tilt.
+ The ms419x9_gpio_init function only touches two GPIO pins:
+
+ ┌──────────────┬────────┬──────┬────────────────────────────────────────────────────┐
+ │ Field        │ GPIO   │ Port │ Role                                               │
+ ├──────────────┼────────┼──────┼────────────────────────────────────────────────────┤
+ │ offset +0x00 │ 49     │ PB17 │ vd_pin — step-pulse / timing trigger               │
+ ├──────────────┼────────┼──────┼────────────────────────────────────────────────────┤
+ │ offset +0x04 │ 50     │ PB18 │ rst_pin — driver reset                             │
+ ├──────────────┼────────┼──────┼────────────────────────────────────────────────────┤
+ │ offset +0x08 │ 62     │ PB30 │ SPI CS (used by ms419x9_spi_init, not gpio_init)   │
+ └──────────────┴────────┴──────┴────────────────────────────────────────────────────┘
+
+ The SoC doesn't bit-bang 4 phase pins for the pan motor. Instead:
+
+  - The MS41919 chip sits between the SoC and the 4 motor wires
+  - The SoC programs it over SPI (CLK/MOSI/MISO hardware pins) and triggers steps via the VD pulse on PB17
+  - The chip drives the two bipolar coils from its own H-bridge outputs
+
+ So in the style of your tilt config:
+
+  "gpio_pan_vd":  "49"   (PB17 — step trigger to MS41919)
+  "gpio_pan_rst": "50"   (PB18 — MS41919 reset)
+  "gpio_pan_cs":  "62"   (PB30 — MS41919 SPI chip select)
+
+ There are no 4 direct-drive GPIO pins for pan — the MS41919 is the coil driver.
+ You'd interact with it via /dev/ms419x9 (the ez_ms419x9.ko misc device).
