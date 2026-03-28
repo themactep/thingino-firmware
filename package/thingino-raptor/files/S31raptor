@@ -25,7 +25,11 @@ start() {
 	fi
 
 	# Start consumers and support daemons
-	start-stop-daemon -S -b -x /usr/bin/rad -- -c "$CONF"
+	# If libimp-nodbg.so is installed, preload it on RAD to prevent
+	# a competing IMP debug shm thread (allows libimp-debug to work)
+	RAD_ENV=""
+	[ -f /usr/lib/libimp-nodbg.so ] && RAD_ENV="LD_PRELOAD=/usr/lib/libimp-nodbg.so"
+	env $RAD_ENV start-stop-daemon -S -b -x /usr/bin/rad -- -c "$CONF"
 	start-stop-daemon -S -b -x /usr/bin/rod -- -c "$CONF"
 	start-stop-daemon -S -b -x /usr/bin/rsd -- -c "$CONF"
 	start-stop-daemon -S -b -x /usr/bin/ric -- -c "$CONF"
