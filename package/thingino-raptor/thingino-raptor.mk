@@ -67,7 +67,7 @@ define THINGINO_RAPTOR_BUILD_CMDS
 		COMPY_CFLAGS="-I$(STAGING_DIR)/usr/include $(if $(filter TLS=1,$(THINGINO_RAPTOR_MAKE_OPTS)),-DCOMPY_HAS_TLS)" \
 		EXTRA_CFLAGS="$(TARGET_CFLAGS) -I$(STAGING_DIR)/usr/include" \
 		$(THINGINO_RAPTOR_MAKE_OPTS) \
-		-C $(@D) rvd rsd rad rhd rod ric rmr raptorctl ringdump rac
+		-C $(@D) rvd rsd rad rhd rod ric rmr rmd raptorctl ringdump rac
 endef
 
 define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
