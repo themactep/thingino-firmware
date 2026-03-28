@@ -72,7 +72,7 @@ endef
 
 define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	# Daemons
-	$(foreach d,rvd rsd rad rhd rod ric rmr,\
+	$(foreach d,rvd rsd rad rhd rod ric rmr rmd,\
 		$(INSTALL) -D -m 0755 $(@D)/$(d)/$(d) \
 			$(TARGET_DIR)/usr/bin/$(d)$(sep))
 
@@ -83,8 +83,8 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 				$(TARGET_DIR)/usr/bin/$(t); \
 		fi$(sep))
 
-	# Config
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/raptor.conf \
+	# Config — use the canonical config from the raptor repo
+	$(INSTALL) -D -m 0644 $(@D)/config/raptor.conf \
 		$(TARGET_DIR)/etc/raptor.conf
 
 	# Init script
