@@ -52,7 +52,7 @@ make openimp
 
 3. **Compatibility**:
    - Drop-in replacement for proprietary library
-   - Works with prudynt-t, thingino-streamer, etc.
+   - Works with prudynt-t, strero, etc.
 
 4. **Override Protection**:
    - Uses a finalize hook to ensure the OpenIMP library is installed LAST

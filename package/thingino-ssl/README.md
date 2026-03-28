@@ -51,7 +51,7 @@ Various thingino packages will automatically use the selected SSL library:
 - **thingino-uhttpd**: Provides TLS support using selected library
 - **thingino-httpd-ssl**: Requires mbedTLS
 - **thingino-mosquitto**: Can use OpenSSL or other libraries
-- **thingino-streamer**: Supports OpenSSL or mbedTLS for RTMPS
+- **strero**: Supports OpenSSL or mbedTLS for RTMPS
 
 ## Notes
 

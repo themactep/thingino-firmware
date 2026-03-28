@@ -91,7 +91,7 @@ The script will:
 Download all matching packages without prompts:
 
 ```bash
-./scripts/manage-package-overrides.sh -a thingino-streamer
+./scripts/manage-package-overrides.sh -a strero
 ./scripts/manage-package-overrides.sh -a openimp
 ```
 
@@ -255,7 +255,7 @@ make thingino-button-rebuild
 
 ```bash
 # Set up overrides for streamer and related packages
-./scripts/manage-package-overrides.sh -a thingino-streamer
+./scripts/manage-package-overrides.sh -a strero
 ./scripts/manage-package-overrides.sh -a libpeer
 ./scripts/manage-package-overrides.sh -a openimp
 
@@ -289,7 +289,7 @@ make thingino-button-rebuild
 ./scripts/manage-package-overrides.sh -a "thingino-core"
 ./scripts/manage-package-overrides.sh -a "thingino-system"
 ./scripts/manage-package-overrides.sh -a "thingino-webui"
-./scripts/manage-package-overrides.sh -a "thingino-streamer"
+./scripts/manage-package-overrides.sh -a "strero"
 
 # Verify setup
 ./scripts/manage-package-overrides.sh -l thingino-*
@@ -390,7 +390,7 @@ Before committing changes or creating a clean build:
 [ERROR] Failed to update package-name (conflicts or non-fast-forward)
 ```
 
-**Solution**: 
+**Solution**:
 ```bash
 cd overrides/package-name
 git status
@@ -431,7 +431,7 @@ The script can be used in automation scripts:
 #!/bin/bash
 # Setup development environment
 ./scripts/manage-package-overrides.sh -a thingino-button
-./scripts/manage-package-overrides.sh -a thingino-streamer
+./scripts/manage-package-overrides.sh -a strero
 ./scripts/manage-package-overrides.sh -a openimp
 
 # Daily update
