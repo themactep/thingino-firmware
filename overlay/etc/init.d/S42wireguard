@@ -222,7 +222,7 @@ fi
 
 case "$1" in
 	force)
-		start
+		start "$1"
 		;;
 	start)
 		start
