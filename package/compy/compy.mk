@@ -8,6 +8,11 @@ COMPY_CONF_OPTS = \
 	-DCOMPY_SHARED=OFF \
 	-DCMAKE_C_FLAGS="$(TARGET_CFLAGS)"
 
+ifeq ($(BR2_PACKAGE_MBEDTLS),y)
+COMPY_CONF_OPTS += -DCOMPY_TLS_MBEDTLS=ON
+COMPY_DEPENDENCIES += mbedtls
+endif
+
 # compy's CMakeLists.txt uses FetchContent for header-only macro
 # libraries (slice99, datatype99, interface99, metalang99).
 # These are fetched during the cmake configure step.

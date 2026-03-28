@@ -42,6 +42,15 @@ config BR2_PACKAGE_THINGINO_RAPTOR_MP3
 	help
 	  Enable MP3 decoding for audio client (rac).
 
+config BR2_PACKAGE_THINGINO_RAPTOR_TLS
+	bool "Enable RTSPS (TLS-encrypted RTSP)"
+	default y
+	select BR2_PACKAGE_MBEDTLS
+	help
+	  Enable RTSPS support via mbedTLS. Allows encrypted RTSP
+	  streaming when tls=true is set in raptor.conf with a
+	  certificate and private key.
+
 config BR2_PACKAGE_THINGINO_RAPTOR_AUDIO_EFFECTS
 	bool "Enable audio effects (NS/HPF/AGC)"
 	help
