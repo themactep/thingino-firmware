@@ -20,6 +20,17 @@ RESTART_WINDOW=300       # Time window in seconds (5 minutes)
 # SSL debugging disabled for production
 SSL_DEBUG=0
 
+# Core listen and request handling profile.
+# Default values match the launch profile verified on-device:
+# /usr/bin/uhttpd -h /var/www -x /x -t 0 -T 15 -k 10 -n 20 -N 100 -s 443 -C ... -K ... -p 80
+UHTTPD_DOCROOT="/var/www"
+UHTTPD_PORTAL_DOCROOT="/var/www-portal"
+UHTTPD_CGI_PREFIX="/x"
+UHTTPD_COMMON_ARGS="-t 0 -T 15 -k 10 -n 20 -N 100"
+UHTTPD_HTTP_LISTEN="80"
+UHTTPD_HTTPS_LISTEN="443"
+UHTTPD_PORTAL_HTTP_LISTEN="172.16.0.1:80"
+
 # Additional uhttpd arguments
 # Add any extra arguments here
 EXTRA_ARGS=""
