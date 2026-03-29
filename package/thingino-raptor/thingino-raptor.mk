@@ -67,7 +67,9 @@ define THINGINO_RAPTOR_BUILD_CMDS
 		COMPY_CFLAGS="-I$(STAGING_DIR)/usr/include $(if $(filter TLS=1,$(THINGINO_RAPTOR_MAKE_OPTS)),-DCOMPY_HAS_TLS)" \
 		EXTRA_CFLAGS="$(TARGET_CFLAGS) -I$(STAGING_DIR)/usr/include" \
 		$(THINGINO_RAPTOR_MAKE_OPTS) \
-		-C $(@D) rvd rsd rad rhd rod ric rmr rmd raptorctl ringdump rac
+		-C $(@D) rvd rsd rad rhd rod ric rmr rmd \
+		$(if $(BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC),rwd) \
+		raptorctl ringdump rac
 endef
 
 define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
@@ -75,6 +77,13 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	$(foreach d,rvd rsd rad rhd rod ric rmr rmd,\
 		$(INSTALL) -D -m 0755 $(@D)/$(d)/$(d) \
 			$(TARGET_DIR)/usr/bin/$(d)$(sep))
+
+	# RWD (optional — requires WebRTC + TLS)
+	$(if $(BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC),\
+		if [ -f $(@D)/rwd/rwd ]; then \
+			$(INSTALL) -D -m 0755 $(@D)/rwd/rwd \
+				$(TARGET_DIR)/usr/bin/rwd; \
+		fi$(sep))
 
 	# Tools
 	$(foreach t,raptorctl ringdump rac,\
