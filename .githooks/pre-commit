@@ -1,0 +1,18 @@
+#!/bin/sh
+
+set -e
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- 'package/thingino-webui/files/www/a/*.js')
+
+if [ -z "$staged_files" ]; then
+  exit 0
+fi
+
+echo "pre-commit: formatting staged web UI JavaScript files with Prettier"
+
+npx --yes prettier --write -- $staged_files
+
+echo "$staged_files" | while IFS= read -r file; do
+  [ -n "$file" ] || continue
+  git add -- "$file"
+done

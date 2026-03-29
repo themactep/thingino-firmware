@@ -1,23 +1,23 @@
-(function() {
-  const form = $('#timeForm');
-  const tzNameInput = $('#tz_name');
-  const tzDataInput = $('#tz_data');
-  const ntpServer0 = $('#ntp_server_0');
-  const ntpServer1 = $('#ntp_server_1');
-  const ntpServer2 = $('#ntp_server_2');
-  const ntpServer3 = $('#ntp_server_3');
-  const dhcpIgnoreTimezone = $('#dhcp_ignore_timezone');
-  const submitButton = $('#time_submit');
-  const syncButton = $('#sync-time');
-  const syncResult = $('#sync-time-result');
-  const syncStatusRaw = $('#sync-status-raw');
+(function () {
+  const form = $("#timeForm");
+  const tzNameInput = $("#tz_name");
+  const tzDataInput = $("#tz_data");
+  const ntpServer0 = $("#ntp_server_0");
+  const ntpServer1 = $("#ntp_server_1");
+  const ntpServer2 = $("#ntp_server_2");
+  const ntpServer3 = $("#ntp_server_3");
+  const dhcpIgnoreTimezone = $("#dhcp_ignore_timezone");
+  const submitButton = $("#time_submit");
+  const syncButton = $("#sync-time");
+  const syncResult = $("#sync-time-result");
+  const syncStatusRaw = $("#sync-status-raw");
 
   let TZ = [];
 
   function showSyncResult(type, text) {
-    syncResult.innerHTML = '';
+    syncResult.innerHTML = "";
     if (!text) return;
-    const wrapper = document.createElement('div');
+    const wrapper = document.createElement("div");
     wrapper.className = `alert alert-${type}`;
     wrapper.textContent = text;
     syncResult.appendChild(wrapper);
@@ -25,14 +25,18 @@
 
   function renderSyncStatus(rawStatus) {
     if (!syncStatusRaw) return;
-    syncStatusRaw.textContent = rawStatus || 'No runtime NTP status available yet.';
+    syncStatusRaw.textContent =
+      rawStatus || "No runtime NTP status available yet.";
   }
 
   function decodeSyncStatus(data) {
-    if (!data || typeof data !== 'object') return '';
-    const encoded = typeof data.sync_status_raw_base64 === 'string' ? data.sync_status_raw_base64.trim() : '';
-    if (!encoded) return '';
-    return decodeBase64String(encoded) || '';
+    if (!data || typeof data !== "object") return "";
+    const encoded =
+      typeof data.sync_status_raw_base64 === "string"
+        ? data.sync_status_raw_base64.trim()
+        : "";
+    if (!encoded) return "";
+    return decodeBase64String(encoded) || "";
   }
 
   function toggleBusy(state, label) {
@@ -44,33 +48,35 @@
     ntpServer3.disabled = state;
     dhcpIgnoreTimezone.disabled = state;
     if (state) {
-      showBusy(label || 'Working...');
+      showBusy(label || "Working...");
     } else {
       hideBusy();
     }
   }
 
   function findTimezone(tzName) {
-    return TZ.find(tz => tz.n === tzName);
+    return TZ.find((tz) => tz.n === tzName);
   }
 
   function updateTimezone() {
     const tz = findTimezone(tzNameInput.value);
-    tzDataInput.value = tz ? tz.v : '';
+    tzDataInput.value = tz ? tz.v : "";
   }
 
   function useBrowserTimezone(event) {
     event.preventDefault();
-    tzNameInput.value = Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_', ' ');
+    tzNameInput.value = Intl.DateTimeFormat()
+      .resolvedOptions()
+      .timeZone.replaceAll("_", " ");
     updateTimezone();
   }
 
   function populateTimezones() {
-    const el = $('#tz_list');
+    const el = $("#tz_list");
     if (!el) return;
-    el.innerHTML = '';
+    el.innerHTML = "";
     TZ.forEach((tz) => {
-      const option = document.createElement('option');
+      const option = document.createElement("option");
       option.value = tz.n;
       el.appendChild(option);
     });
@@ -78,37 +84,41 @@
 
   async function loadTimezones() {
     try {
-      const response = await fetch('/a/tz.json');
-      if (!response.ok) throw new Error('Failed to load timezone data');
+      const response = await fetch("/a/tz.json");
+      if (!response.ok) throw new Error("Failed to load timezone data");
       TZ = await response.json();
       populateTimezones();
       updateTimezone();
     } catch (err) {
-      console.error('Failed to load timezones:', err);
+      console.error("Failed to load timezones:", err);
     }
   }
 
   async function loadConfig(options = {}) {
     const preserveBusy = options.preserveBusy === true;
     if (!preserveBusy) {
-      toggleBusy(true, 'Loading time settings...');
+      toggleBusy(true, "Loading time settings...");
     }
     try {
-      const response = await fetch('/x/json-config-time.cgi', { headers: { 'Accept': 'application/json' } });
-      if (!response.ok) throw new Error('Failed to load time configuration');
+      const response = await fetch("/x/json-config-time.cgi", {
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) throw new Error("Failed to load time configuration");
       const data = await response.json();
-      tzNameInput.value = data.tz_name || '';
-      tzDataInput.value = data.tz_data || '';
-      ntpServer0.value = data.ntp_server_0 || '';
-      ntpServer1.value = data.ntp_server_1 || '';
-      ntpServer2.value = data.ntp_server_2 || '';
-      ntpServer3.value = data.ntp_server_3 || '';
-      dhcpIgnoreTimezone.checked = data.dhcp_ignore_timezone === 'true' || data.dhcp_ignore_timezone === true;
+      tzNameInput.value = data.tz_name || "";
+      tzDataInput.value = data.tz_data || "";
+      ntpServer0.value = data.ntp_server_0 || "";
+      ntpServer1.value = data.ntp_server_1 || "";
+      ntpServer2.value = data.ntp_server_2 || "";
+      ntpServer3.value = data.ntp_server_3 || "";
+      dhcpIgnoreTimezone.checked =
+        data.dhcp_ignore_timezone === "true" ||
+        data.dhcp_ignore_timezone === true;
       renderSyncStatus(decodeSyncStatus(data));
       updateTimezone();
     } catch (err) {
-      renderSyncStatus('');
-      showAlert('danger', err.message || 'Unable to load time configuration.');
+      renderSyncStatus("");
+      showAlert("danger", err.message || "Unable to load time configuration.");
     } finally {
       if (!preserveBusy) {
         toggleBusy(false);
@@ -117,23 +127,29 @@
   }
 
   async function saveConfig(payload) {
-    toggleBusy(true, 'Saving time settings...');
+    toggleBusy(true, "Saving time settings...");
     try {
-      const response = await fetch('/x/json-config-time.cgi', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      const response = await fetch("/x/json-config-time.cgi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
       const result = await response.json();
       if (!response.ok || (result && result.error)) {
-        const message = result && result.error && result.error.message ? result.error.message : 'Failed to save settings';
+        const message =
+          result && result.error && result.error.message
+            ? result.error.message
+            : "Failed to save settings";
         throw new Error(message);
       }
-      showAlert('', '');
-      showOverlayMessage(result.message || 'Time configuration saved.', 'success');
+      showAlert("", "");
+      showOverlayMessage(
+        result.message || "Time configuration saved.",
+        "success",
+      );
       await loadConfig({ preserveBusy: true });
     } catch (err) {
-      showAlert('danger', err.message || 'Failed to save time configuration.');
+      showAlert("danger", err.message || "Failed to save time configuration.");
     } finally {
       toggleBusy(false);
     }
@@ -141,59 +157,67 @@
 
   async function syncTime() {
     syncButton.disabled = true;
-    syncButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Synchronizing...';
-    showBusy('Synchronizing time...');
-    showSyncResult('', '');
+    syncButton.innerHTML =
+      '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Synchronizing...';
+    showBusy("Synchronizing time...");
+    showSyncResult("", "");
 
     try {
-      const response = await fetch('/x/json-sync-time.cgi?' + new URLSearchParams({ ts: Date.now() }).toString());
+      const response = await fetch(
+        "/x/json-sync-time.cgi?" +
+          new URLSearchParams({ ts: Date.now() }).toString(),
+      );
       const result = await response.json();
 
       if (result.error) {
-        showSyncResult('danger', result.error.message || 'Synchronization failed');
+        showSyncResult(
+          "danger",
+          result.error.message || "Synchronization failed",
+        );
       } else {
-        showSyncResult('success', result.message || 'Time synchronized');
+        showSyncResult("success", result.message || "Time synchronized");
       }
       await loadConfig({ preserveBusy: true });
     } catch (err) {
-      showSyncResult('danger', err.message || 'Failed to synchronize time');
+      showSyncResult("danger", err.message || "Failed to synchronize time");
     } finally {
       hideBusy();
       syncButton.disabled = false;
-      syncButton.innerHTML = '<i class="bi bi-arrow-repeat"></i> Synchronize time';
+      syncButton.innerHTML =
+        '<i class="bi bi-arrow-repeat"></i> Synchronize time';
     }
   }
 
-  form.addEventListener('submit', function(ev) {
+  form.addEventListener("submit", function (ev) {
     ev.preventDefault();
     const payload = {
-      action: 'update',
+      action: "update",
       tz_name: tzNameInput.value.trim(),
       tz_data: tzDataInput.value.trim(),
       ntp_server_0: ntpServer0.value.trim(),
       ntp_server_1: ntpServer1.value.trim(),
       ntp_server_2: ntpServer2.value.trim(),
       ntp_server_3: ntpServer3.value.trim(),
-      dhcp_ignore_timezone: dhcpIgnoreTimezone.checked
+      dhcp_ignore_timezone: dhcpIgnoreTimezone.checked,
     };
     saveConfig(payload);
   });
 
-  tzNameInput.addEventListener('change', updateTimezone);
-  tzNameInput.addEventListener('input', updateTimezone);
+  tzNameInput.addEventListener("change", updateTimezone);
+  tzNameInput.addEventListener("input", updateTimezone);
 
-  $('#frombrowser').addEventListener('click', useBrowserTimezone);
-  syncButton.addEventListener('click', syncTime);
+  $("#frombrowser").addEventListener("click", useBrowserTimezone);
+  syncButton.addEventListener("click", syncTime);
 
-  const reloadButton = $('#time-reload');
+  const reloadButton = $("#time-reload");
   if (reloadButton) {
-    reloadButton.addEventListener('click', async () => {
+    reloadButton.addEventListener("click", async () => {
       try {
         reloadButton.disabled = true;
         await loadConfig();
-        showAlert('info', 'Time settings reloaded from camera.', 3000);
+        showAlert("info", "Time settings reloaded from camera.", 3000);
       } catch (err) {
-        showAlert('danger', 'Failed to reload time settings.');
+        showAlert("danger", "Failed to reload time settings.");
       } finally {
         reloadButton.disabled = false;
       }

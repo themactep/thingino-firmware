@@ -1,20 +1,21 @@
-(function() {
-  const form = $('#webuiForm');
-  const usernameInput = $('#webui_username');
-  const passwordInput = $('#webui_password');
-  const passwordReveal = $('#webui_password_reveal');
-  const themeSelect = $('#webui_theme');
-  const paranoidSwitch = $('#webui_paranoid');
-  const trackFocusSwitch = $('#webui_track_focus');
-  const focusTimeoutInput = $('#webui_focus_timeout');
-  const authBypassIpsInput = $('#webui_auth_bypass_ips');
-  const submitButton = $('#webui_submit');  const webuiDefaults = {
-    username: 'root',
-    theme: 'auto',
+(function () {
+  const form = $("#webuiForm");
+  const usernameInput = $("#webui_username");
+  const passwordInput = $("#webui_password");
+  const passwordReveal = $("#webui_password_reveal");
+  const themeSelect = $("#webui_theme");
+  const paranoidSwitch = $("#webui_paranoid");
+  const trackFocusSwitch = $("#webui_track_focus");
+  const focusTimeoutInput = $("#webui_focus_timeout");
+  const authBypassIpsInput = $("#webui_auth_bypass_ips");
+  const submitButton = $("#webui_submit");
+  const webuiDefaults = {
+    username: "root",
+    theme: "auto",
     paranoid: false,
     track_focus: false,
     focus_timeout: 0,
-    auth_bypass_ips: ''
+    auth_bypass_ips: "",
   };
 
   function toggleBusy(state, label) {
@@ -29,60 +30,68 @@
     focusTimeoutInput.disabled = state;
     if (authBypassIpsInput) authBypassIpsInput.disabled = state;
     if (state) {
-      showBusy(label || 'Working...');
+      showBusy(label || "Working...");
     } else {
       hideBusy();
     }
   }
 
   function resetPasswordField() {
-    passwordInput.value = '';
-    passwordInput.type = 'password';
+    passwordInput.value = "";
+    passwordInput.type = "password";
     if (passwordReveal) {
       passwordReveal.checked = false;
     }
   }
 
   function handlePasswordReveal() {
-    passwordInput.type = passwordReveal.checked ? 'text' : 'password';
+    passwordInput.type = passwordReveal.checked ? "text" : "password";
     passwordInput.focus();
   }
 
   if (passwordReveal) {
-    passwordReveal.addEventListener('change', handlePasswordReveal);
+    passwordReveal.addEventListener("change", handlePasswordReveal);
   }
 
   function resolveActiveTheme(themePreference) {
-    if (themePreference === 'light' || themePreference === 'dark') {
+    if (themePreference === "light" || themePreference === "dark") {
       return themePreference;
     }
     const hour = new Date().getHours();
-    return hour > 8 && hour < 20 ? 'light' : 'dark';
+    return hour > 8 && hour < 20 ? "light" : "dark";
   }
 
   function normalizeConfig(raw) {
-    const allowedThemes = ['light', 'dark', 'auto'];
-    const theme = allowedThemes.includes(raw.theme) ? raw.theme : webuiDefaults.theme;
-    const focusTimeout = parseInt(raw.focus_timeout) || webuiDefaults.focus_timeout;
+    const allowedThemes = ["light", "dark", "auto"];
+    const theme = allowedThemes.includes(raw.theme)
+      ? raw.theme
+      : webuiDefaults.theme;
+    const focusTimeout =
+      parseInt(raw.focus_timeout) || webuiDefaults.focus_timeout;
     return {
       username: raw.username || webuiDefaults.username,
       theme,
       paranoid: raw.paranoid === true,
       track_focus: raw.track_focus === true,
       focus_timeout: Math.max(0, Math.min(300, focusTimeout)),
-      auth_bypass_ips: typeof raw.auth_bypass_ips === 'string' ? raw.auth_bypass_ips : webuiDefaults.auth_bypass_ips,
-      activeTheme: resolveActiveTheme(theme)
+      auth_bypass_ips:
+        typeof raw.auth_bypass_ips === "string"
+          ? raw.auth_bypass_ips
+          : webuiDefaults.auth_bypass_ips,
+      activeTheme: resolveActiveTheme(theme),
     };
   }
 
   async function loadConfig(options = {}) {
     const preserveBusy = options.preserveBusy === true;
     if (!preserveBusy) {
-      toggleBusy(true, 'Loading WebUI settings...');
+      toggleBusy(true, "Loading WebUI settings...");
     }
     try {
-      const response = await fetch('/x/json-config-webui.cgi', { headers: { 'Accept': 'application/json' } });
-      if (!response.ok) throw new Error('Failed to load Web UI settings');
+      const response = await fetch("/x/json-config-webui.cgi", {
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) throw new Error("Failed to load Web UI settings");
       const data = await response.json();
       const normalized = normalizeConfig(data);
       usernameInput.value = normalized.username;
@@ -90,10 +99,11 @@
       paranoidSwitch.checked = normalized.paranoid;
       trackFocusSwitch.checked = normalized.track_focus;
       focusTimeoutInput.value = normalized.focus_timeout;
-      if (authBypassIpsInput) authBypassIpsInput.value = normalized.auth_bypass_ips;
+      if (authBypassIpsInput)
+        authBypassIpsInput.value = normalized.auth_bypass_ips;
       resetPasswordField();
     } catch (err) {
-      showAlert('danger', err.message || 'Unable to load Web UI settings.');
+      showAlert("danger", err.message || "Unable to load Web UI settings.");
     } finally {
       if (!preserveBusy) {
         toggleBusy(false);
@@ -102,41 +112,49 @@
   }
 
   async function saveConfig(payload) {
-    toggleBusy(true, 'Saving WebUI settings...');
+    toggleBusy(true, "Saving WebUI settings...");
     try {
-      const response = await fetch('/x/json-config-webui.cgi', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      const response = await fetch("/x/json-config-webui.cgi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
       const result = await response.json();
       if (!response.ok || (result && result.error)) {
-        const message = result && result.error && result.error.message ? result.error.message : 'Failed to save settings';
+        const message =
+          result && result.error && result.error.message
+            ? result.error.message
+            : "Failed to save settings";
         throw new Error(message);
       }
-      showAlert('', '');
-      showOverlayMessage('Web UI settings saved.', 'success');
+      showAlert("", "");
+      showOverlayMessage("Web UI settings saved.", "success");
       resetPasswordField();
       await loadConfig({ preserveBusy: true });
       // Reload preview focus settings if the function is available
-      if (window.reloadPreviewFocusSettings && typeof window.reloadPreviewFocusSettings === 'function') {
+      if (
+        window.reloadPreviewFocusSettings &&
+        typeof window.reloadPreviewFocusSettings === "function"
+      ) {
         await window.reloadPreviewFocusSettings();
       }
     } catch (err) {
-      showAlert('danger', err.message || 'Failed to save Web UI settings.');
+      showAlert("danger", err.message || "Failed to save Web UI settings.");
     } finally {
       toggleBusy(false);
     }
   }
 
-  form.addEventListener('submit', function(ev) {
+  form.addEventListener("submit", function (ev) {
     ev.preventDefault();
     const payload = {
       theme: themeSelect.value,
       paranoid: paranoidSwitch.checked,
       track_focus: trackFocusSwitch.checked,
       focus_timeout: parseInt(focusTimeoutInput.value) || 0,
-      auth_bypass_ips: authBypassIpsInput ? authBypassIpsInput.value.trim() : ''
+      auth_bypass_ips: authBypassIpsInput
+        ? authBypassIpsInput.value.trim()
+        : "",
     };
     const newPassword = passwordInput.value.trim();
     if (newPassword) {
@@ -146,19 +164,19 @@
   });
 
   // "Pick my IP" dropdown
-  const bypassPickBtn = $('#bypass_ip_pick');
-  const bypassIpMenu = $('#bypass_ip_menu');
+  const bypassPickBtn = $("#bypass_ip_pick");
+  const bypassIpMenu = $("#bypass_ip_menu");
   if (bypassPickBtn && bypassIpMenu) {
-    bypassPickBtn.addEventListener('show.bs.dropdown', async () => {
-      const loading = $('#bypass_ip_loading');
+    bypassPickBtn.addEventListener("show.bs.dropdown", async () => {
+      const loading = $("#bypass_ip_loading");
       try {
-        const res = await fetch('/x/session-status.cgi', { cache: 'no-store' });
+        const res = await fetch("/x/session-status.cgi", { cache: "no-store" });
         const data = await res.json();
-        const ip = data.client_ip || '';
-        if (!ip) throw new Error('no IP');
+        const ip = data.client_ip || "";
+        if (!ip) throw new Error("no IP");
 
         // Build /24 suggestion from first 3 octets
-        const subnet24 = ip.split('.').slice(0, 3).join('.') + '.0/24';
+        const subnet24 = ip.split(".").slice(0, 3).join(".") + ".0/24";
 
         bypassIpMenu.innerHTML =
           `<li><span class="dropdown-item text-muted small ps-3">Your IP: <strong>${ip}</strong></span></li>` +
@@ -166,33 +184,38 @@
           `<li><a class="dropdown-item" href="#" data-ip="${ip}"><i class="bi bi-pc-display me-2"></i>Exact IP &ndash; ${ip}</a></li>` +
           `<li><a class="dropdown-item" href="#" data-ip="${subnet24}"><i class="bi bi-diagram-3 me-2"></i>Subnet &ndash; ${subnet24}</a></li>`;
 
-        bypassIpMenu.querySelectorAll('a[data-ip]').forEach(a => {
-          a.addEventListener('click', e => {
+        bypassIpMenu.querySelectorAll("a[data-ip]").forEach((a) => {
+          a.addEventListener("click", (e) => {
             e.preventDefault();
             const pick = e.currentTarget.dataset.ip;
             const current = authBypassIpsInput.value.trim();
-            const entries = current ? current.split(',').map(s => s.trim()).filter(Boolean) : [];
+            const entries = current
+              ? current
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : [];
             if (!entries.includes(pick)) {
               entries.push(pick);
-              authBypassIpsInput.value = entries.join(', ');
+              authBypassIpsInput.value = entries.join(", ");
             }
           });
         });
       } catch (_) {
-        if (loading) loading.textContent = 'Could not detect IP';
+        if (loading) loading.textContent = "Could not detect IP";
       }
     });
   }
 
-  const reloadButton = $('#webui-reload');
+  const reloadButton = $("#webui-reload");
   if (reloadButton) {
-    reloadButton.addEventListener('click', async () => {
+    reloadButton.addEventListener("click", async () => {
       try {
         reloadButton.disabled = true;
         await loadConfig();
-        showAlert('info', 'Web UI settings reloaded from camera.', 3000);
+        showAlert("info", "Web UI settings reloaded from camera.", 3000);
       } catch (err) {
-        showAlert('danger', 'Failed to reload web UI settings.');
+        showAlert("danger", "Failed to reload web UI settings.");
       } finally {
         reloadButton.disabled = false;
       }
@@ -202,80 +225,84 @@
   // API Key Management
   async function loadApiKey() {
     try {
-      const response = await fetch('/x/api-key.cgi');
+      const response = await fetch("/x/api-key.cgi");
       const data = await response.json();
 
-      const keyDisplay = $('#api_key_display');
-      const copyBtn = $('#api_key_copy');
-      const deleteBtn = $('#api_key_delete');
-      const exampleDiv = $('#api_key_example');
-      const exampleValue = $('#api_key_example_value');
+      const keyDisplay = $("#api_key_display");
+      const copyBtn = $("#api_key_copy");
+      const deleteBtn = $("#api_key_delete");
+      const exampleDiv = $("#api_key_example");
+      const exampleValue = $("#api_key_example_value");
 
       if (data.exists && data.api_key) {
         keyDisplay.value = data.api_key;
         copyBtn.disabled = false;
         deleteBtn.disabled = false;
-        exampleDiv.classList.remove('d-none');
+        exampleDiv.classList.remove("d-none");
         exampleValue.textContent = data.api_key;
       } else {
-        keyDisplay.value = '';
-        keyDisplay.placeholder = 'No API key generated';
+        keyDisplay.value = "";
+        keyDisplay.placeholder = "No API key generated";
         copyBtn.disabled = true;
         deleteBtn.disabled = true;
-        exampleDiv.classList.add('d-none');
+        exampleDiv.classList.add("d-none");
       }
     } catch (err) {
-      console.error('Failed to load API key:', err);
+      console.error("Failed to load API key:", err);
     }
   }
 
-  const generateBtn = $('#api_key_generate');
+  const generateBtn = $("#api_key_generate");
   if (generateBtn) {
-    generateBtn.addEventListener('click', async () => {
-      if (!confirm('Generate a new API key? This will invalidate the old key if it exists.')) {
+    generateBtn.addEventListener("click", async () => {
+      if (
+        !confirm(
+          "Generate a new API key? This will invalidate the old key if it exists.",
+        )
+      ) {
         return;
       }
 
       try {
-        const response = await fetch('/x/api-key.cgi', { method: 'POST' });
+        const response = await fetch("/x/api-key.cgi", { method: "POST" });
         const data = await response.json();
 
         if (data.api_key) {
           await loadApiKey();
-          showAlert('success', 'API key generated successfully!');
+          showAlert("success", "API key generated successfully!");
         } else {
-          showAlert('danger', 'Failed to generate API key');
+          showAlert("danger", "Failed to generate API key");
         }
       } catch (err) {
-        showAlert('danger', 'Error: ' + err.message);
+        showAlert("danger", "Error: " + err.message);
       }
     });
   }
 
-  const deleteBtn = $('#api_key_delete');
+  const deleteBtn = $("#api_key_delete");
   if (deleteBtn) {
-    deleteBtn.addEventListener('click', async () => {
-      if (!confirm('Delete the API key? API access will stop working.')) {
+    deleteBtn.addEventListener("click", async () => {
+      if (!confirm("Delete the API key? API access will stop working.")) {
         return;
       }
 
       try {
-        const response = await fetch('/x/api-key.cgi', { method: 'DELETE' });
+        const response = await fetch("/x/api-key.cgi", { method: "DELETE" });
         await response.json();
         await loadApiKey();
-        showAlert('success', 'API key deleted');
+        showAlert("success", "API key deleted");
       } catch (err) {
-        showAlert('danger', 'Error: ' + err.message);
+        showAlert("danger", "Error: " + err.message);
       }
     });
   }
 
-  const copyBtn = $('#api_key_copy');
+  const copyBtn = $("#api_key_copy");
   if (copyBtn) {
-    copyBtn.addEventListener('click', () => {
-      const keyDisplay = $('#api_key_display');
+    copyBtn.addEventListener("click", () => {
+      const keyDisplay = $("#api_key_display");
       keyDisplay.select();
-      document.execCommand('copy');
+      document.execCommand("copy");
 
       const originalHtml = copyBtn.innerHTML;
       copyBtn.innerHTML = '<i class="bi bi-check"></i>';
