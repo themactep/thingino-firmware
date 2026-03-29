@@ -15,10 +15,14 @@ let recordingState = {
 	ch0: false,
 	ch1: false
 };
-const HeartBeatReconnectDelay = 2 * 1000;
-const HeartBeatMaxReconnectDelay = 60 * 1000;
+const HeartBeatReconnectDelay = 5 * 1000;
+const HeartBeatMaxReconnectDelay = 120 * 1000;
 const HeartBeatEndpoint = '/x/json-heartbeat.cgi';
+const SlowHeartbeatEndpoint = '/x/json-heartbeat-slow.cgi';
+const SlowHeartbeatPollInterval = 15 * 1000;
 let heartbeatSource = null;
+let slowHeartbeatTimer = null;
+let slowHeartbeatInFlight = false;
 let currentReconnectDelay = HeartBeatReconnectDelay;
 let debugModalCtx = null;
 
@@ -848,11 +852,66 @@ function startHeartbeatSse() {
 	};
 }
 
+async function fetchSlowHeartbeatStatus() {
+	if (slowHeartbeatInFlight || !passwordCheckComplete || isDefaultPassword || document.hidden) {
+		return;
+	}
+
+	slowHeartbeatInFlight = true;
+
+	try {
+		const response = await fetch(SlowHeartbeatEndpoint, {
+			cache: 'no-store',
+			credentials: 'same-origin'
+		});
+
+		if (!response.ok) {
+			throw new Error(`Slow heartbeat request failed: ${response.status}`);
+		}
+
+		updateHeartbeatUi(await response.json());
+	} catch (error) {
+		console.error('Slow heartbeat fetch error', error);
+	} finally {
+		slowHeartbeatInFlight = false;
+		scheduleSlowHeartbeatStatus();
+	}
+}
+
+function scheduleSlowHeartbeatStatus(delay = SlowHeartbeatPollInterval) {
+	if (slowHeartbeatTimer) {
+		clearTimeout(slowHeartbeatTimer);
+		slowHeartbeatTimer = null;
+	}
+
+	if (!passwordCheckComplete || isDefaultPassword || document.hidden) {
+		return;
+	}
+
+	slowHeartbeatTimer = setTimeout(() => {
+		slowHeartbeatTimer = null;
+		fetchSlowHeartbeatStatus();
+	}, delay);
+}
+
+function startSlowHeartbeatStatus() {
+	if (slowHeartbeatTimer || slowHeartbeatInFlight) {
+		return;
+	}
+
+	fetchSlowHeartbeatStatus();
+}
+
 function cleanupHeartbeatResources() {
 	if (heartbeatSource) {
 		heartbeatSource.close();
 		heartbeatSource = null;
 	}
+	if (slowHeartbeatTimer) {
+		clearTimeout(slowHeartbeatTimer);
+		slowHeartbeatTimer = null;
+	}
+	slowHeartbeatInFlight = false;
 	currentReconnectDelay = HeartBeatReconnectDelay;
 }
 
@@ -883,6 +942,7 @@ function heartbeat() {
 		return;
 	}
 	startHeartbeatSse();
+	startSlowHeartbeatStatus();
 }
 
 function initCopyToClipboard() {

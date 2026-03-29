@@ -418,10 +418,14 @@ loadInitialData().then(async () => {
   const streamUrl = `/x/${streamChannel}.mjpg`;
 
   // Preview
-  const timeout = 5000;
+  const timeout = 15000;
+  const restartBackoffInitialMs = 15000;
+  const restartBackoffMaxMs = 60000;
   let lastLoadTime = Date.now();
   let isWindowVisible = true;
   let focusTimeoutId = null;
+  let nextRestartAt = 0;
+  let restartBackoffMs = restartBackoffInitialMs;
 
   // Function to start the preview stream
   function startPreview() {
@@ -432,6 +436,7 @@ loadInitialData().then(async () => {
     if (isWindowVisible) {
       preview.src = streamUrl;
       lastLoadTime = Date.now();
+      nextRestartAt = 0;
     }
   }
 
@@ -442,6 +447,7 @@ loadInitialData().then(async () => {
       focusTimeoutId = null;
     }
     preview.src = ImageNoStream;
+    nextRestartAt = 0;
   }
 
   // Function to stop preview with delay
@@ -470,14 +476,19 @@ loadInitialData().then(async () => {
 
   preview.addEventListener('load', () => {
     lastLoadTime = Date.now();
+    restartBackoffMs = restartBackoffInitialMs;
+    nextRestartAt = 0;
   });
 
   // Stream watchdog - restart if no frames received
   setInterval(() => {
-    if (isWindowVisible && Date.now() - lastLoadTime > timeout) {
+    const now = Date.now();
+    if (isWindowVisible && now - lastLoadTime > timeout && now >= nextRestartAt) {
       // Restart stream
       preview.src = preview.src.split('?')[0] + '?' + new Date().getTime();
-      lastLoadTime = Date.now();
+      lastLoadTime = now;
+      nextRestartAt = now + restartBackoffMs;
+      restartBackoffMs = Math.min(restartBackoffMs * 2, restartBackoffMaxMs);
     }
   }, 1000);
 
@@ -485,7 +496,7 @@ loadInitialData().then(async () => {
   function handleVisibilityChange() {
     if (document.hidden) {
       isWindowVisible = false;
-      stopPreviewWithDelay();
+      stopPreview();
     } else {
       isWindowVisible = true;
       startPreview();
@@ -503,9 +514,13 @@ loadInitialData().then(async () => {
     stopPreviewWithDelay();
   }
 
+  window.addEventListener('beforeunload', stopPreview);
+  window.addEventListener('pagehide', stopPreview);
+
   // Add event listeners for visibility changes only if tracking is enabled
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
   if (webuiConfig.track_focus) {
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleWindowFocus);
     window.addEventListener('blur', handleWindowBlur);
   }
