@@ -7,7 +7,7 @@ LIBSCHRIFT_INSTALL_STAGING = YES
 LIBSCHRIFT_INSTALL_TARGET = YES
 
 define LIBSCHRIFT_BUILD_CMDS
-	$(TARGET_CC) $(TARGET_CFLAGS) -std=c99 -pedantic -Wall -Wextra -Wconversion -fPIC -c -o $(@D)/schrift.o $(@D)/schrift.c
+	$(TARGET_CC) -Os -std=c99 -pedantic -Wall -Wextra -Wconversion -fPIC -c -o $(@D)/schrift.o $(@D)/schrift.c
 	$(TARGET_CC) $(TARGET_LDFLAGS) -shared -o $(@D)/libschrift.so $(@D)/schrift.o
 endef
 
