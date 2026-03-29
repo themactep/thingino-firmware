@@ -42,22 +42,38 @@
               <div class="col-12 col-lg-4">
                 <h4>Interface</h4>
                 <small>VPN client tunnel settings</small>
-                <p>
+                <div class="mb-3">
                   <label for="wg_privkey">Private Key</label>
-                  <input type="password" id="wg_privkey" class="form-control">
-                </p>
+                  <div class="input-group">
+                    <input type="password" id="wg_privkey" class="form-control">
+                    <button type="button" class="btn btn-outline-secondary" id="wg-generate-keypair" title="Generate key pair" aria-label="Generate key pair">
+                      <i class="bi bi-key"></i>
+                    </button>
+                  </div>
+                </div>
                 <p>
+                  <label for="wg_localpub">Public Key (derived)</label>
+                  <input type="text" id="wg_localpub" class="form-control" readonly>
+                </p>
+                <div class="mb-3">
                   <label for="wg_peerpsk">Pre-Shared Key</label>
-                  <input type="password" id="wg_peerpsk" class="form-control">
-                </p>
-                <p>
-                  <label for="wg_address">FQDN or IP address</label>
-                  <input type="text" id="wg_address" class="form-control">
-                </p>
-                <p>
-                  <label for="wg_port">Port</label>
-                  <input type="text" id="wg_port" class="form-control">
-                </p>
+                  <div class="input-group">
+                    <input type="password" id="wg_peerpsk" class="form-control">
+                    <button type="button" class="btn btn-outline-secondary" id="wg-generate-psk" title="Generate PSK" aria-label="Generate PSK">
+                      <i class="bi bi-shield-lock"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="d-flex gap-2 mb-3">
+                  <div>
+                    <label for="wg_address">FQDN or IP address</label>
+                    <input type="text" id="wg_address" class="form-control">
+                  </div>
+                  <div>
+                    <label for="wg_port">Port</label>
+                    <input type="text" id="wg_port" class="form-control">
+                  </div>
+                </div>
                 <p>
                   <label for="wg_dns">DNS</label>
                   <input type="text" id="wg_dns" class="form-control">
@@ -74,26 +90,41 @@
                   <label for="wg_peerpub">Peer Public Key</label>
                   <input type="text" id="wg_peerpub" class="form-control">
                 </p>
-                <p>
-                  <label for="wg_mtu">MTU</label>
-                  <input type="text" id="wg_mtu" class="form-control">
-                </p>
-                <p>
-                  <label for="wg_keepalive">Persistent Keepalive</label>
-                  <input type="text" id="wg_keepalive" class="form-control">
-                </p>
+                <div class="d-flex gap-2 mb-3">
+                  <div>
+                    <label for="wg_mtu">MTU</label>
+                    <input type="text" id="wg_mtu" class="form-control">
+                  </div>
+                  <div>
+                    <label for="wg_keepalive">Persistent Keepalive</label>
+                    <input type="text" id="wg_keepalive" class="form-control">
+                  </div>
+                </div>
                 <p>
                   <label for="wg_allowed">Allowed CIDRs (networks)</label>
                   <input type="text" id="wg_allowed" class="form-control">
                 </p>
               </div><!-- .col -->
               <div class="col col-12 col-lg-12 col-xxl-4 order-1 order-xxl-3">
-                <div id="wg-ctrl" class="alert d-none">
-                  <p id="wg-ctrl-message"></p>
-                  <p class="text-end mb-0">
-                    <button type="button" class="btn" id="btn-wg-toggle">Switch WireGuard <span id="wg-toggle-label"></span></button>
-                  </p>
-                </div><!-- .alert -->
+                <h4>Provisioning</h4>
+                <small>Import peer profile from a provisioning server</small>
+                <p>
+                  <label for="wg_provision_url">Provisioner URL</label>
+                  <input type="text" id="wg_provision_url" class="form-control" placeholder="http://192.168.88.20:8081/provision/wireguard/peer">
+                </p>
+                <p>
+                  <label for="wg_provision_peer">Peer Name</label>
+                  <input type="text" id="wg_provision_peer" class="form-control" placeholder="thingino">
+                </p>
+                <p>
+                  <label for="wg_provision_token">Provision Token</label>
+                  <input type="password" id="wg_provision_token" class="form-control" placeholder="Optional shared token">
+                </p>
+                <p>
+                  <button type="button" class="btn btn-outline-primary" id="wg-import-profile">
+                    <i class="bi bi-download"></i> Import from provisioner
+                  </button>
+                </p>
               </div><!-- .col -->
             </div><!-- .row -->
           </div><!-- .card-body -->
@@ -106,6 +137,14 @@
 
         <button type="submit" id="wg_submit" class="btn btn-primary">Save changes</button>
       </form>
+
+      <div id="wg-ctrl" class="alert d-none my-3">
+        <p id="wg-ctrl-message"></p>
+        <button type="button" class="btn" id="btn-wg-toggle">Switch WireGuard
+          <span id="wg-toggle-label"></span>
+        </button>
+      </div>
+
     </section>
   </div>
 </main>

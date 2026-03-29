@@ -1,6 +1,7 @@
 (function () {
   const form = $("#wireguardForm");
   const privkeyInput = $("#wg_privkey");
+  const localpubInput = $("#wg_localpub");
   const peerpskInput = $("#wg_peerpsk");
   const addressInput = $("#wg_address");
   const portInput = $("#wg_port");
@@ -12,6 +13,12 @@
   const allowedInput = $("#wg_allowed");
   const enabledSwitch = $("#wg_enabled");
   const submitButton = $("#wg_submit");
+  const generateKeypairButton = $("#wg-generate-keypair");
+  const generatePskButton = $("#wg-generate-psk");
+  const importProfileButton = $("#wg-import-profile");
+  const provisionUrlInput = $("#wg_provision_url");
+  const provisionPeerInput = $("#wg_provision_peer");
+  const provisionTokenInput = $("#wg_provision_token");
   const toggleButton = $("#btn-wg-toggle");
   const wgCtrl = $("#wg-ctrl");
   const wgCtrlMessage = $("#wg-ctrl-message");
@@ -19,10 +26,64 @@
   const wgNotSupported = $("#wg-not-supported");
   let wgStatus = 0;
   let wgSupported = false;
+  let isBusy = false;
+
+  function setKeyInputVisibility(input, visible) {
+    input.type = visible ? "text" : "password";
+  }
+
+  function updateKeyActionButton(button, input, options) {
+    if (!button) {
+      return;
+    }
+
+    const hasValue = input.value.trim().length !== 0;
+    const icon = button.querySelector("i");
+    const isVisible = input.type === "text";
+
+    button.disabled = isBusy;
+
+    if (!hasValue) {
+      setKeyInputVisibility(input, false);
+      button.title = options.generateTitle;
+      button.setAttribute("aria-label", options.generateTitle);
+      if (icon) {
+        icon.className = `bi ${options.generateIcon}`;
+      }
+      return;
+    }
+
+    button.title = isVisible ? options.hideTitle : options.showTitle;
+    button.setAttribute("aria-label", button.title);
+    if (icon) {
+      icon.className = `bi ${isVisible ? "bi-eye-slash" : "bi-eye"}`;
+    }
+  }
+
+  function updateKeyActionButtons() {
+    updateKeyActionButton(generateKeypairButton, privkeyInput, {
+      generateTitle: "Generate key pair",
+      generateIcon: "bi-key",
+      showTitle: "Show private key",
+      hideTitle: "Hide private key",
+    });
+    updateKeyActionButton(generatePskButton, peerpskInput, {
+      generateTitle: "Generate PSK",
+      generateIcon: "bi-shield-lock",
+      showTitle: "Show pre-shared key",
+      hideTitle: "Hide pre-shared key",
+    });
+  }
 
   function toggleBusy(state, label) {
+    isBusy = state;
     submitButton.disabled = state;
+    if (importProfileButton) importProfileButton.disabled = state;
     privkeyInput.disabled = state;
+    if (provisionUrlInput) provisionUrlInput.disabled = state;
+    if (provisionPeerInput) provisionPeerInput.disabled = state;
+    if (provisionTokenInput) provisionTokenInput.disabled = state;
+    if (localpubInput) localpubInput.disabled = state;
     peerpskInput.disabled = state;
     addressInput.disabled = state;
     portInput.disabled = state;
@@ -33,6 +94,7 @@
     keepaliveInput.disabled = state;
     allowedInput.disabled = state;
     enabledSwitch.disabled = state;
+    updateKeyActionButtons();
     if (state) {
       showBusy(label || "Working...");
     } else {
@@ -81,11 +143,17 @@
       }
 
       privkeyInput.value = data.privkey || "";
+      if (localpubInput) localpubInput.value = data.localpub || "";
       peerpskInput.value = data.peerpsk || "";
       addressInput.value = data.address || "";
       portInput.value = data.port || "";
       dnsInput.value = data.dns || "";
       endpointInput.value = data.endpoint || "";
+      if (provisionUrlInput) provisionUrlInput.value = data.provision_url || "";
+      if (provisionPeerInput)
+        provisionPeerInput.value = data.provision_peer || "";
+      if (provisionTokenInput)
+        provisionTokenInput.value = data.provision_token || "";
       peerpubInput.value = data.peerpub || "";
       mtuInput.value = data.mtu || "";
       keepaliveInput.value = data.keepalive || "";
@@ -93,6 +161,7 @@
       enabledSwitch.checked = data.enabled === true;
 
       updateWgControl(data.wg_status || 0);
+      updateKeyActionButtons();
     } catch (err) {
       showAlert(
         "danger",
@@ -102,6 +171,101 @@
       if (!preserveBusy) {
         toggleBusy(false);
       }
+    }
+  }
+
+  async function generateWireGuardKeys(action) {
+    toggleBusy(
+      true,
+      action === "generate_keypair"
+        ? "Generating WireGuard key pair..."
+        : "Generating pre-shared key...",
+    );
+    try {
+      const response = await fetch("/x/json-config-wireguard.cgi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const result = await response.json();
+      if (!response.ok || (result && result.error)) {
+        const message =
+          result && result.error && result.error.message
+            ? result.error.message
+            : "Failed to generate WireGuard keys";
+        throw new Error(message);
+      }
+
+      const data = (result && result.data) || {};
+      if (action === "generate_keypair") {
+        privkeyInput.value = data.privkey || "";
+        if (localpubInput) localpubInput.value = data.localpub || "";
+      }
+      if (typeof data.peerpsk === "string") {
+        peerpskInput.value = data.peerpsk;
+      }
+
+      showOverlayMessage(
+        result.message ||
+          (action === "generate_keypair"
+            ? "WireGuard key pair generated."
+            : "WireGuard pre-shared key generated."),
+        "success",
+      );
+    } catch (err) {
+      showAlert("danger", err.message || "Failed to generate WireGuard keys.");
+    } finally {
+      toggleBusy(false);
+    }
+  }
+
+  async function handleKeyAction(action, input) {
+    if (input.value.trim().length === 0) {
+      await generateWireGuardKeys(action);
+      return;
+    }
+
+    setKeyInputVisibility(input, input.type === "password");
+    updateKeyActionButtons();
+  }
+
+  async function importProvisionedProfile() {
+    toggleBusy(true, "Importing WireGuard profile...");
+    try {
+      const response = await fetch("/x/json-config-wireguard.cgi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "provision_import",
+          provision_url: provisionUrlInput
+            ? provisionUrlInput.value.trim()
+            : "",
+          provision_peer: provisionPeerInput
+            ? provisionPeerInput.value.trim()
+            : "",
+          provision_token: provisionTokenInput
+            ? provisionTokenInput.value.trim()
+            : "",
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || (result && result.error)) {
+        const message =
+          result && result.error && result.error.message
+            ? result.error.message
+            : "Failed to import WireGuard profile";
+        throw new Error(message);
+      }
+
+      showOverlayMessage(
+        result.message || "WireGuard profile imported.",
+        "success",
+      );
+      await loadConfig({ preserveBusy: true });
+    } catch (err) {
+      showAlert("danger", err.message || "Failed to import WireGuard profile.");
+    } finally {
+      toggleBusy(false);
     }
   }
 
@@ -179,6 +343,11 @@
       port: portInput.value.trim(),
       dns: dnsInput.value.trim(),
       endpoint: endpointInput.value.trim(),
+      provision_url: provisionUrlInput ? provisionUrlInput.value.trim() : "",
+      provision_peer: provisionPeerInput ? provisionPeerInput.value.trim() : "",
+      provision_token: provisionTokenInput
+        ? provisionTokenInput.value.trim()
+        : "",
       peerpub: peerpubInput.value.trim(),
       mtu: mtuInput.value.trim(),
       keepalive: keepaliveInput.value.trim(),
@@ -189,15 +358,26 @@
 
   toggleButton.addEventListener("click", toggleWireGuard);
 
-  $$('.password input[type="checkbox"]').forEach((checkbox) => {
-    checkbox.addEventListener("change", function () {
-      const targetId = this.getAttribute("data-for");
-      const targetInput = $("#" + targetId);
-      if (targetInput) {
-        targetInput.type = this.checked ? "text" : "password";
-      }
-    });
-  });
+  if (generateKeypairButton) {
+    generateKeypairButton.addEventListener("click", () =>
+      handleKeyAction("generate_keypair", privkeyInput),
+    );
+  }
+
+  if (generatePskButton) {
+    generatePskButton.addEventListener("click", () =>
+      handleKeyAction("generate_psk", peerpskInput),
+    );
+  }
+
+  if (importProfileButton) {
+    importProfileButton.addEventListener("click", () =>
+      importProvisionedProfile(),
+    );
+  }
+
+  privkeyInput.addEventListener("input", updateKeyActionButtons);
+  peerpskInput.addEventListener("input", updateKeyActionButtons);
 
   const reloadButton = $("#wireguard-reload");
   if (reloadButton) {
