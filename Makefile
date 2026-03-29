@@ -121,10 +121,15 @@ export THINGINO_USER_UENV_FILES
 export THINGINO_USER_OVERLAY_DIRS
 export THINGINO_USER_OPT_DIRS
 
-# Resolve toolchain fragment from split boolean selections in defconfig.
-TOOLCHAIN_TYPE_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell sed -n 's/^BR2_THINGINO_TOOLCHAIN_TYPE_\([A-Z0-9_]*\)=y/\1/p' $(CAMERA_CONFIG_REAL) | tail -n 1)))
-TOOLCHAIN_GCC_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell sed -n 's/^BR2_THINGINO_TOOLCHAIN_GCC_\([0-9][0-9]*\)=y/\1/p' $(CAMERA_CONFIG_REAL) | tail -n 1)))
-TOOLCHAIN_LIBC_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell sed -n 's/^BR2_THINGINO_TOOLCHAIN_LIBC_\([A-Z0-9_]*\)=y/\1/p' $(CAMERA_CONFIG_REAL) | tail -n 1)))
+FRAGMENTS = $(if $(CAMERA_CONFIG_REAL),$(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(CAMERA_CONFIG_REAL)))
+RAW_DEFCONFIG_MODE = $(if $(strip $(FRAGMENTS)),,y)
+CONFIG_FRAGMENT_FILES = $(addprefix configs/fragments/,$(addsuffix .fragment,$(FRAGMENTS)))
+EARLY_TOOLCHAIN_INPUT_FILES = $(CONFIG_FRAGMENT_FILES) $(CAMERA_CONFIG_REAL) $(THINGINO_USER_FRAGMENT_FILES)
+
+# Resolve toolchain fragment from the effective pre-Buildroot config stack.
+TOOLCHAIN_TYPE_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell $(SCRIPTS_DIR)/resolve_toolchain_value.sh TYPE $(EARLY_TOOLCHAIN_INPUT_FILES))))
+TOOLCHAIN_GCC_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell $(SCRIPTS_DIR)/resolve_toolchain_value.sh GCC $(EARLY_TOOLCHAIN_INPUT_FILES))))
+TOOLCHAIN_LIBC_RAW := $(if $(CAMERA_CONFIG_REAL),$(strip $(shell $(SCRIPTS_DIR)/resolve_toolchain_value.sh LIBC $(EARLY_TOOLCHAIN_INPUT_FILES))))
 
 TOOLCHAIN_TYPE_RAW := $(if $(TOOLCHAIN_TYPE_RAW),$(TOOLCHAIN_TYPE_RAW),EXTERNAL)
 TOOLCHAIN_GCC_RAW := $(if $(TOOLCHAIN_GCC_RAW),$(TOOLCHAIN_GCC_RAW),15)
@@ -374,12 +379,8 @@ build_fast: $(U_BOOT_ENV_TXT)
 
 ### Configuration
 
-FRAGMENTS = $(if $(CAMERA_CONFIG_REAL),$(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(CAMERA_CONFIG_REAL)))
-RAW_DEFCONFIG_MODE = $(if $(strip $(FRAGMENTS)),,y)
-
 # Configuration dependency files
 CONFIG_DEPS_FILE = $(OUTPUT_DIR)/.config.deps
-CONFIG_FRAGMENT_FILES = $(addprefix configs/fragments/,$(addsuffix .fragment,$(FRAGMENTS)))
 CONFIG_INPUT_FILES = $(TOOLCHAIN_FRAGMENT_FILE) $(CONFIG_FRAGMENT_FILES) $(CAMERA_CONFIG_REAL)
 CONFIG_INPUT_FILES += $(THINGINO_USER_FRAGMENT_FILES)
 ifneq ($(wildcard $(BR2_EXTERNAL)/local.mk),)
