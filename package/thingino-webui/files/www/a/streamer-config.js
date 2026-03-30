@@ -1,7 +1,7 @@
 (function () {
-  'use strict';
+  "use strict";
 
-  const endpoint = '/x/json-prudynt.cgi';
+  const endpoint = "/x/json-prudynt.cgi";
 
   async function confirm(message) {
     return new Promise((resolve) => {
@@ -11,58 +11,71 @@
   }
 
   function showAlert(type, message, duration) {
-    if (window.showAlert && typeof window.showAlert === 'function') {
+    if (window.showAlert && typeof window.showAlert === "function") {
       window.showAlert(type, message, duration);
       return;
     }
 
-    const alertWrapper = document.createElement('div');
-    alertWrapper.className = 'position-fixed top-0 start-50 translate-middle-x p-3';
-    alertWrapper.style.zIndex = '9999';
+    const alertWrapper = document.createElement("div");
+    alertWrapper.className =
+      "position-fixed top-0 start-50 translate-middle-x p-3";
+    alertWrapper.style.zIndex = "9999";
 
-    const alertEl = document.createElement('div');
+    const alertEl = document.createElement("div");
     alertEl.className = `alert alert-${type} alert-dismissible fade show`;
-    alertEl.setAttribute('role', 'alert');
+    alertEl.setAttribute("role", "alert");
     alertEl.innerHTML = `
       ${message}
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
 
     function dismiss() {
-      alertEl.classList.remove('show');
+      alertEl.classList.remove("show");
       setTimeout(() => alertWrapper.remove(), 150);
     }
 
     let touchStartY = 0;
-    alertEl.addEventListener('click', dismiss);
-    alertEl.addEventListener('touchstart', (e) => {
-      touchStartY = e.touches[0].clientY;
-    }, { passive: true });
-    alertEl.addEventListener('touchend', (e) => {
-      const dy = e.changedTouches[0].clientY - touchStartY;
-      if (Math.abs(dy) < 10 || dy < -20) dismiss();
-    }, { passive: true });
+    alertEl.addEventListener("click", dismiss);
+    alertEl.addEventListener(
+      "touchstart",
+      (e) => {
+        touchStartY = e.touches[0].clientY;
+      },
+      { passive: true },
+    );
+    alertEl.addEventListener(
+      "touchend",
+      (e) => {
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dy) < 10 || dy < -20) dismiss();
+      },
+      { passive: true },
+    );
 
     alertWrapper.appendChild(alertEl);
     document.body.appendChild(alertWrapper);
 
     const timerId = duration ? setTimeout(dismiss, duration) : null;
-    alertEl.addEventListener('click', () => timerId && clearTimeout(timerId), { once: true });
+    alertEl.addEventListener("click", () => timerId && clearTimeout(timerId), {
+      once: true,
+    });
   }
 
   async function savePrudyntConfig() {
-    const confirmed = await confirm('Save the current configuration to /etc/prudynt.json?\n\nThis will overwrite the saved configuration file on the camera.');
+    const confirmed = await confirm(
+      "Save the current configuration to /etc/prudynt.json?\n\nThis will overwrite the saved configuration file on the camera.",
+    );
     if (!confirmed) return;
 
-    const saveButton = $('#save-prudynt-config');
+    const saveButton = $("#save-prudynt-config");
     if (saveButton) saveButton.disabled = true;
 
     try {
       const payload = { action: { save_config: null } };
       const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -70,41 +83,48 @@
       }
 
       const data = await response.json();
-      if (!data?.action || data.action.save_config !== 'ok') {
-        throw new Error('Save failed');
+      if (!data?.action || data.action.save_config !== "ok") {
+        throw new Error("Save failed");
       }
 
-      showAlert('success', 'Configuration saved successfully to /etc/prudynt.json', 3000);
+      showAlert(
+        "success",
+        "Configuration saved successfully to /etc/prudynt.json",
+        3000,
+      );
     } catch (err) {
-      console.error('Failed to save prudynt config:', err);
-      showAlert('danger', `Failed to save configuration: ${err.message || err}`);
+      console.error("Failed to save prudynt config:", err);
+      showAlert(
+        "danger",
+        `Failed to save configuration: ${err.message || err}`,
+      );
     } finally {
       if (saveButton) saveButton.disabled = false;
     }
   }
 
   const SOC_MODE_MAP = {
-    t10: ['CBR', 'VBR', 'FIXQP', 'SMART'],
-    t20: ['CBR', 'VBR', 'FIXQP', 'SMART'],
-    t21: ['CBR', 'VBR', 'FIXQP', 'SMART'],
-    t23: ['CBR', 'VBR', 'FIXQP', 'SMART'],
-    t30: ['CBR', 'VBR', 'FIXQP', 'SMART'],
-    t31: ['CBR', 'VBR', 'FIXQP', 'CAPPED_VBR', 'CAPPED_QUALITY'],
-    t40: ['CBR', 'VBR', 'FIXQP', 'CAPPED_VBR', 'CAPPED_QUALITY'],
-    t41: ['CBR', 'VBR', 'FIXQP', 'CAPPED_VBR', 'CAPPED_QUALITY'],
-    c100: ['CBR', 'VBR', 'FIXQP', 'CAPPED_VBR', 'CAPPED_QUALITY']
+    t10: ["CBR", "VBR", "FIXQP", "SMART"],
+    t20: ["CBR", "VBR", "FIXQP", "SMART"],
+    t21: ["CBR", "VBR", "FIXQP", "SMART"],
+    t23: ["CBR", "VBR", "FIXQP", "SMART"],
+    t30: ["CBR", "VBR", "FIXQP", "SMART"],
+    t31: ["CBR", "VBR", "FIXQP", "CAPPED_VBR", "CAPPED_QUALITY"],
+    t40: ["CBR", "VBR", "FIXQP", "CAPPED_VBR", "CAPPED_QUALITY"],
+    t41: ["CBR", "VBR", "FIXQP", "CAPPED_VBR", "CAPPED_QUALITY"],
+    c100: ["CBR", "VBR", "FIXQP", "CAPPED_VBR", "CAPPED_QUALITY"],
   };
 
   const SOC_FORMAT_MAP = {
-    t10: ['H264'],
-    t20: ['H264'],
-    t21: ['H264'],
-    t23: ['H264'],
-    t30: ['H264', 'H265'],
-    t31: ['H264', 'H265'],
-    t40: ['H264', 'H265'],
-    t41: ['H264', 'H265'],
-    c100: ['H264', 'H265']
+    t10: ["H264"],
+    t20: ["H264"],
+    t21: ["H264"],
+    t23: ["H264"],
+    t30: ["H264", "H265"],
+    t31: ["H264", "H265"],
+    t40: ["H264", "H265"],
+    t41: ["H264", "H265"],
+    c100: ["H264", "H265"],
   };
 
   function getSocFamily(soc) {
@@ -117,30 +137,30 @@
     const socFamily = getSocFamily(soc);
     return socFamily && SOC_MODE_MAP[socFamily]
       ? SOC_MODE_MAP[socFamily]
-      : ['CBR', 'VBR', 'FIXQP', 'CAPPED_VBR', 'CAPPED_QUALITY'];
+      : ["CBR", "VBR", "FIXQP", "CAPPED_VBR", "CAPPED_QUALITY"];
   }
 
   function getSupportedFormats(soc) {
     const socFamily = getSocFamily(soc);
     return socFamily && SOC_FORMAT_MAP[socFamily]
       ? SOC_FORMAT_MAP[socFamily]
-      : ['H264', 'H265'];
+      : ["H264", "H265"];
   }
 
   function populateModeSelectors(soc) {
     const supportedModes = getSupportedModes(soc);
-    const selectors = $$('#stream0_mode, #stream1_mode');
+    const selectors = $$("#stream0_mode, #stream1_mode");
 
-    selectors.forEach(select => {
+    selectors.forEach((select) => {
       if (!select) return;
 
       const currentValue = select.value;
       select.innerHTML = '<option value="">- Select -</option>';
 
-      supportedModes.forEach(mode => {
-        const option = document.createElement('option');
+      supportedModes.forEach((mode) => {
+        const option = document.createElement("option");
         option.value = mode;
-        option.textContent = mode.replace(/_/g, ' ');
+        option.textContent = mode.replace(/_/g, " ");
         select.appendChild(option);
       });
 
@@ -152,16 +172,16 @@
 
   function populateFormatSelectors(soc) {
     const supportedFormats = getSupportedFormats(soc);
-    const selectors = $$('#stream0_format, #stream1_format');
+    const selectors = $$("#stream0_format, #stream1_format");
 
-    selectors.forEach(select => {
+    selectors.forEach((select) => {
       if (!select) return;
 
       const currentValue = select.value;
       select.innerHTML = '<option value="">- Select -</option>';
 
-      supportedFormats.forEach(format => {
-        const option = document.createElement('option');
+      supportedFormats.forEach((format) => {
+        const option = document.createElement("option");
         option.value = format;
         option.textContent = format;
         select.appendChild(option);
@@ -182,7 +202,7 @@
         return;
       }
 
-      const response = await fetch('/etc/os-release');
+      const response = await fetch("/etc/os-release");
       if (response.ok) {
         const text = await response.text();
         const socMatch = text.match(/^SOC=(.+)$/m);
@@ -193,7 +213,7 @@
         }
       }
     } catch (err) {
-      console.warn('Failed to detect SOC, using default modes:', err);
+      console.warn("Failed to detect SOC, using default modes:", err);
     }
 
     populateModeSelectors(null);
@@ -201,16 +221,18 @@
   }
 
   function initStreamerConfig() {
-    const saveButton = $('#save-prudynt-config');
+    const saveButton = $("#save-prudynt-config");
     if (saveButton) {
-      saveButton.addEventListener('click', savePrudyntConfig);
+      saveButton.addEventListener("click", savePrudyntConfig);
     }
 
     detectSocAndPopulateModes();
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initStreamerConfig, { once: true });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initStreamerConfig, {
+      once: true,
+    });
   } else {
     initStreamerConfig();
   }

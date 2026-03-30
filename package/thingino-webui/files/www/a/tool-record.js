@@ -1,95 +1,101 @@
-(function() {
-  const API_URL = '/x/tool-record.cgi';
-  const statusEl = $('#statusMessage');
-  const videoForm = $('#videoForm');
-  const videoMount = $('#videoMount');
-  const videoMountLink = $('#videoMountLink');
-  const videoDevicePath = $('#videoDevicePath');
-  const videoFilename = $('#videoFilename');
-  const videoChannel = $('#videoChannel');
-  const videoDuration = $('#videoDuration');
-  const videoLimit = $('#videoLimit');
-  const videoMinFreeMb = $('#videoMinFreeMb');
-  const videoCheckInterval = $('#videoCheckInterval');
-  const videoAutostart = $('#videoAutostart');
-  const videoCleanupEnabled = $('#videoCleanupEnabled');
-  const videoSubmit = $('#videoSubmit');
-  const videoStrftimeHint = $('#videoStrftimeHint');
+(function () {
+  const API_URL = "/x/tool-record.cgi";
+  const statusEl = $("#statusMessage");
+  const videoForm = $("#videoForm");
+  const videoMount = $("#videoMount");
+  const videoMountLink = $("#videoMountLink");
+  const videoDevicePath = $("#videoDevicePath");
+  const videoFilename = $("#videoFilename");
+  const videoChannel = $("#videoChannel");
+  const videoDuration = $("#videoDuration");
+  const videoLimit = $("#videoLimit");
+  const videoMinFreeMb = $("#videoMinFreeMb");
+  const videoCheckInterval = $("#videoCheckInterval");
+  const videoAutostart = $("#videoAutostart");
+  const videoCleanupEnabled = $("#videoCleanupEnabled");
+  const videoSubmit = $("#videoSubmit");
+  const videoStrftimeHint = $("#videoStrftimeHint");
 
-  const debugVideo = $('#debugVideo');
-  const debugCrontab = $('#debugCrontab');
+  const debugVideo = $("#debugVideo");
+  const debugCrontab = $("#debugCrontab");
 
   const buttonLabels = new Map();
   if (videoSubmit) buttonLabels.set(videoSubmit, videoSubmit.innerHTML);
   function getValue(el) {
-    return el && typeof el.value === 'string' ? el.value : '';
+    return el && typeof el.value === "string" ? el.value : "";
   }
 
   function isChecked(el) {
     return !!(el && el.checked);
   }
 
-  function setStatus(message, variant = 'info') {
+  function setStatus(message, variant = "info") {
     if (!statusEl) return;
     statusEl.textContent = message;
     statusEl.className = `alert alert-${variant} status-overlay`;
-    statusEl.classList.remove('d-none');
+    statusEl.classList.remove("d-none");
   }
 
   function hideStatus() {
     if (!statusEl) return;
-    statusEl.classList.add('d-none');
+    statusEl.classList.add("d-none");
   }
 
   function toggleButton(button, loading) {
     if (!button) return;
     if (loading) {
       button.disabled = true;
-      button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+      button.innerHTML =
+        '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
     } else {
       button.disabled = false;
-      button.innerHTML = buttonLabels.get(button) || 'Save changes';
+      button.innerHTML = buttonLabels.get(button) || "Save changes";
     }
   }
 
-  function populateMountSelect(select, mounts = [], current = '') {
+  function populateMountSelect(select, mounts = [], current = "") {
     if (!select) return;
-    select.innerHTML = '';
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = mounts.length ? 'Select a mount' : 'No mounts detected';
+    select.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = mounts.length
+      ? "Select a mount"
+      : "No mounts detected";
     select.appendChild(placeholder);
-    mounts.forEach(value => {
-      const option = document.createElement('option');
+    mounts.forEach((value) => {
+      const option = document.createElement("option");
       option.value = value;
       option.textContent = value;
       select.appendChild(option);
     });
     if (current && !mounts.includes(current)) {
-      const fallback = document.createElement('option');
+      const fallback = document.createElement("option");
       fallback.value = current;
       fallback.textContent = `${current} (missing)`;
       select.appendChild(fallback);
     }
-    select.value = current || '';
+    select.value = current || "";
   }
 
   function boolFromValue(value) {
-    return value === true || value === 'true' || value === 1 || value === '1';
+    return value === true || value === "true" || value === 1 || value === "1";
   }
 
   function updateLink(link, path) {
     if (!link) return;
     if (!path) {
-      link.classList.add('disabled');
-      link.setAttribute('aria-disabled', 'true');
-      link.removeAttribute('href');
+      link.classList.add("disabled");
+      link.setAttribute("aria-disabled", "true");
+      link.removeAttribute("href");
       return;
     }
-    const normalized = path.startsWith('/') ? path : `/${path}`;
-    const url = normalized === '/' ? '/tool-file-manager.html' : `/tool-file-manager.html?cd=${encodeURIComponent(normalized)}`;
-    link.classList.remove('disabled');
-    link.removeAttribute('aria-disabled');
+    const normalized = path.startsWith("/") ? path : `/${path}`;
+    const url =
+      normalized === "/"
+        ? "/tool-file-manager.html"
+        : `/tool-file-manager.html?cd=${encodeURIComponent(normalized)}`;
+    link.classList.remove("disabled");
+    link.removeAttribute("aria-disabled");
     link.href = url;
   }
 
@@ -99,24 +105,34 @@
   }
 
   function applyVideoState(video = {}) {
-    if (videoDevicePath) videoDevicePath.value = video.device_path || '';
-    if (videoFilename) videoFilename.value = video.filename || '';
-    if (videoChannel) videoChannel.value = typeof video.channel === 'number' ? String(video.channel) : (video.channel || '0');
+    if (videoDevicePath) videoDevicePath.value = video.device_path || "";
+    if (videoFilename) videoFilename.value = video.filename || "";
+    if (videoChannel)
+      videoChannel.value =
+        typeof video.channel === "number"
+          ? String(video.channel)
+          : video.channel || "0";
     if (videoDuration) videoDuration.value = video.duration || 60;
     if (videoLimit) videoLimit.value = video.limit || 15;
     if (videoMinFreeMb) videoMinFreeMb.value = video.min_free_mb || 500;
-    if (videoCheckInterval) videoCheckInterval.value = video.check_interval || 60;
+    if (videoCheckInterval)
+      videoCheckInterval.value = video.check_interval || 60;
     if (videoAutostart) videoAutostart.checked = boolFromValue(video.autostart);
-    if (videoCleanupEnabled) videoCleanupEnabled.checked = boolFromValue(video.cleanup_enabled);
+    if (videoCleanupEnabled)
+      videoCleanupEnabled.checked = boolFromValue(video.cleanup_enabled);
   }
 
   function renderDebug(debug = {}) {
-    if (debugVideo) debugVideo.textContent = debug.video || 'No recorder data available.';
-    if (debugCrontab) debugCrontab.textContent = debug.crontab || 'No crontab entries available.';
+    if (debugVideo)
+      debugVideo.textContent = debug.video || "No recorder data available.";
+    if (debugCrontab)
+      debugCrontab.textContent =
+        debug.crontab || "No crontab entries available.";
   }
 
   function updateHints(hint) {
-    const text = hint || 'Supports strftime-style placeholders such as %Y or %H.';
+    const text =
+      hint || "Supports strftime-style placeholders such as %Y or %H.";
     if (videoStrftimeHint) videoStrftimeHint.textContent = text;
   }
 
@@ -130,20 +146,25 @@
   }
 
   async function loadState() {
-    showBusy('Loading recorder settings...');
+    showBusy("Loading recorder settings...");
     try {
-      const response = await fetch(API_URL, { headers: { 'Accept': 'application/json' } });
+      const response = await fetch(API_URL, {
+        headers: { Accept: "application/json" },
+      });
       const payload = await response.json();
       if (!response.ok || (payload && payload.error)) {
-        const message = payload && payload.error ? payload.error.message : `Request failed with status ${response.status}`;
-        throw new Error(message || 'Unable to load settings');
+        const message =
+          payload && payload.error
+            ? payload.error.message
+            : `Request failed with status ${response.status}`;
+        throw new Error(message || "Unable to load settings");
       }
       applyState(payload.data || {});
-      setStatus('Settings loaded.', 'success');
+      setStatus("Settings loaded.", "success");
       setTimeout(hideStatus, 2000);
     } catch (err) {
-      setStatus('Unable to load settings.', 'danger');
-      showAlert('danger', err.message || 'Recorder API request failed.');
+      setStatus("Unable to load settings.", "danger");
+      showAlert("danger", err.message || "Recorder API request failed.");
     } finally {
       hideBusy();
     }
@@ -151,51 +172,57 @@
 
   function buildVideoParams() {
     const params = new URLSearchParams();
-    params.set('form', 'video');
-    params.set('vr_mount', getValue(videoMount).trim());
-    params.set('vr_device_path', getValue(videoDevicePath).trim());
-    params.set('vr_filename', getValue(videoFilename).trim());
-    params.set('vr_channel', getValue(videoChannel) || '0');
-    params.set('vr_duration', getValue(videoDuration));
-    params.set('vr_limit', getValue(videoLimit));
-    params.set('vr_min_free_mb', getValue(videoMinFreeMb));
-    params.set('vr_check_interval', getValue(videoCheckInterval));
-    params.set('vr_autostart', isChecked(videoAutostart) ? 'true' : 'false');
-    params.set('vr_cleanup_enabled', isChecked(videoCleanupEnabled) ? 'true' : 'false');
+    params.set("form", "video");
+    params.set("vr_mount", getValue(videoMount).trim());
+    params.set("vr_device_path", getValue(videoDevicePath).trim());
+    params.set("vr_filename", getValue(videoFilename).trim());
+    params.set("vr_channel", getValue(videoChannel) || "0");
+    params.set("vr_duration", getValue(videoDuration));
+    params.set("vr_limit", getValue(videoLimit));
+    params.set("vr_min_free_mb", getValue(videoMinFreeMb));
+    params.set("vr_check_interval", getValue(videoCheckInterval));
+    params.set("vr_autostart", isChecked(videoAutostart) ? "true" : "false");
+    params.set(
+      "vr_cleanup_enabled",
+      isChecked(videoCleanupEnabled) ? "true" : "false",
+    );
     return params;
   }
 
   async function submitForm(event) {
     event.preventDefault();
     toggleButton(videoSubmit, true);
-    showBusy('Saving recorder settings...');
+    showBusy("Saving recorder settings...");
     try {
       const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: buildVideoParams().toString()
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: buildVideoParams().toString(),
       });
       const payload = await response.json();
       if (!response.ok || (payload && payload.error)) {
-        const message = payload && payload.error ? payload.error.message : `Request failed with status ${response.status}`;
-        throw new Error(message || 'Unable to save changes');
+        const message =
+          payload && payload.error
+            ? payload.error.message
+            : `Request failed with status ${response.status}`;
+        throw new Error(message || "Unable to save changes");
       }
       applyState(payload.data || {});
-      const successMessage = payload.message || 'Video recorder updated.';
-      setStatus(successMessage, 'success');
-      showAlert('success', successMessage);
+      const successMessage = payload.message || "Video recorder updated.";
+      setStatus(successMessage, "success");
+      showAlert("success", successMessage);
       setTimeout(hideStatus, 2000);
     } catch (err) {
-      setStatus('Unable to save changes.', 'danger');
-      showAlert('danger', err.message || 'Unexpected error while saving.');
+      setStatus("Unable to save changes.", "danger");
+      showAlert("danger", err.message || "Unexpected error while saving.");
     } finally {
       hideBusy();
       toggleButton(videoSubmit, false);
     }
   }
 
-  if (videoForm) videoForm.addEventListener('submit', submitForm);
-  if (videoMount) videoMount.addEventListener('change', updateVideoLink);
+  if (videoForm) videoForm.addEventListener("submit", submitForm);
+  if (videoMount) videoMount.addEventListener("change", updateVideoLink);
 
   loadState();
 })();

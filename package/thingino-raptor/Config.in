@@ -1,7 +1,7 @@
 config BR2_PACKAGE_THINGINO_RAPTOR
 	bool "Raptor Streaming System"
 	depends on !BR2_SOC_FAMILY = "a1"
-	depends on BR2_THINGINO_STREAMER_RAPTOR
+	depends on BR2_PACKAGE_THINGINO_STREAMER_RAPTOR
 	select BR2_PACKAGE_INGENIC_LIB
 	select BR2_PACKAGE_INGENIC_MUSL if BR2_TOOLCHAIN_USES_MUSL
 	select BR2_PACKAGE_INGENIC_UCLIBC if BR2_TOOLCHAIN_USES_UCLIBC
@@ -50,6 +50,25 @@ config BR2_PACKAGE_THINGINO_RAPTOR_TLS
 	  Enable RTSPS support via mbedTLS. Allows encrypted RTSP
 	  streaming when tls=true is set in raptor.conf with a
 	  certificate and private key.
+
+config BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
+	bool "Enable WebRTC daemon (RWD)"
+	default y
+	depends on BR2_PACKAGE_THINGINO_RAPTOR_TLS
+	select BR2_PACKAGE_MBEDTLS_DTLS_SRTP
+	help
+	  Build the WebRTC streaming daemon (RWD) with WHIP signaling.
+	  Sends H.264 + Opus to browsers via SRTP with sub-second latency.
+	  Requires mbedTLS with DTLS-SRTP support.
+
+config BR2_PACKAGE_THINGINO_RAPTOR_WEBTORRENT
+	bool "Enable WebTorrent sharing (external WebRTC)"
+	default y
+	depends on BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
+	help
+	  Enable peer-to-peer external sharing via WebTorrent trackers.
+	  Allows viewing camera streams without port forwarding by
+	  signaling through public tracker infrastructure.
 
 config BR2_PACKAGE_THINGINO_RAPTOR_AUDIO_EFFECTS
 	bool "Enable audio effects (NS/HPF/AGC)"

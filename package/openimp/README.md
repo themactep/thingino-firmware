@@ -124,7 +124,7 @@ After building and flashing your firmware:
    file /usr/lib/libimp.so
    ```
 
-3. Test with your streaming application (e.g., prudynt-t, thingino-streamer)
+3. Test with your streaming application (e.g., prudynt-t, strero)
 
 ## Troubleshooting
 

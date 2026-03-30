@@ -62,6 +62,8 @@ start() {
 	 speed_tilt=$(jct $MOTORS_CONFIG get motors.speed_tilt)
 	     homing=$(jct $MOTORS_CONFIG get motors.homing)
 	     is_spi=$(jct $MOTORS_CONFIG get motors.is_spi)
+	   invert_x=$(jct $MOTORS_CONFIG get motors.invert_x)
+	   invert_y=$(jct $MOTORS_CONFIG get motors.invert_y)
 
 	[ -z "$gpio_pan" ] && echo_warning "gpio_pan is not set"
 	[ -z "$gpio_tilt" ] && echo_warning "gpio_tilt is not set"
@@ -77,6 +79,14 @@ start() {
 		echo_info "Module motor already loaded."
 	else
 		modprobe_args="hmaxstep=$steps_pan vmaxstep=$steps_tilt"
+
+		if [ -n "$invert_x" ]; then
+			modprobe_args="$modprobe_args invert_x=$invert_x"
+		fi
+
+		if [ -n "$invert_y" ]; then
+			modprobe_args="$modprobe_args invert_y=$invert_y"
+		fi
 
 		if [ "true" != "$is_spi" ]; then
 			modprobe_args="$modprobe_args tcu_channels=2"

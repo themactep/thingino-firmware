@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# SSL Certificate Generation Script for Thingino Streamer
+# SSL Certificate Generation Script for Strero
 # Generates self-signed certificates for RTSPS and RTMPS streaming
 
 set -e
@@ -29,7 +29,7 @@ NC='\033[0m' # No Color
 usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
-    echo "Generate SSL certificates for Thingino Streamer (RTSPS/RTMPS)"
+    echo "Generate SSL certificates for Strero (RTSPS/RTMPS)"
     echo ""
     echo "Options:"
     echo "  -c, --cert-file PATH     Certificate file path (default: $CERT_FILE)"
@@ -314,7 +314,7 @@ esac
 # Main execution
 main() {
     if [ "$QUIET" != "1" ]; then
-        echo "Thingino Streamer SSL Certificate Generator"
+        echo "Strero SSL Certificate Generator"
         echo "==========================================="
         echo ""
     fi

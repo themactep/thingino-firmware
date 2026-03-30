@@ -3,9 +3,53 @@
 # Heartbeat daemon - runs in background and updates cache continuously
 # Start with: /etc/init.d/S99heartbeat start
 
-CACHE_FILE="/tmp/heartbeat_cache.json"
+FAST_CACHE_FILE="/tmp/heartbeat_cache.json"
+SLOW_CACHE_FILE="/tmp/heartbeat_slow_cache.json"
 UPDATE_INTERVAL=1
+SLOW_UPDATE_INTERVAL=15
 PIDFILE="/var/run/heartbeat-daemon.pid"
+
+read_first_field() {
+  local value _
+
+  if read -r value _ < "$1"; then
+    printf '%s\n' "$value"
+  else
+    printf '%s\n' "$2"
+  fi
+}
+
+parse_prudynt_data() {
+  printf '%s\n' "$1" | awk '
+    BEGIN {
+      color_mode = "null"
+      mic_enabled = "false"
+      spk_enabled = "false"
+      total_gain = "0"
+      daynight_enabled = "false"
+    }
+    {
+      if (match($0, /"running_mode":[^,}]*/)) {
+        color_mode = substr($0, RSTART + 15, RLENGTH - 15)
+      }
+      if (match($0, /"mic_enabled":[^,}]*/)) {
+        mic_enabled = substr($0, RSTART + 14, RLENGTH - 14)
+      }
+      if (match($0, /"spk_enabled":[^,}]*/)) {
+        spk_enabled = substr($0, RSTART + 14, RLENGTH - 14)
+      }
+      if (match($0, /"total_gain":[0-9-]*/)) {
+        total_gain = substr($0, RSTART + 13, RLENGTH - 13)
+      }
+      if (match($0, /"daynight":\{"enabled":[^,}]*/)) {
+        daynight_enabled = substr($0, RSTART + 22, RLENGTH - 22)
+      }
+    }
+    END {
+      printf "%s|%s|%s|%s|%s\n", color_mode, mic_enabled, spk_enabled, total_gain, daynight_enabled
+    }
+  '
+}
 
 start() {
   if [ ! -f "/bin/prudynt" ]; then
@@ -32,6 +76,8 @@ stop() {
 }
 
 heartbeat_loop() {
+  slow_counter=0
+
   while true; do
     ch0_rec="false"; [ -f "/run/prudynt/mp4ctl-ch0.active" ] && ch0_rec="true"
     ch1_rec="false"; [ -f "/run/prudynt/mp4ctl-ch1.active" ] && ch1_rec="true"
@@ -48,44 +94,63 @@ heartbeat_loop() {
 EOF
 )
 
-    color_mode=$(echo "$prudynt_data" | grep -o '"running_mode":[^,}]*' | cut -d: -f2)
-    mic_enabled=$(echo "$prudynt_data" | grep -o '"mic_enabled":[^,}]*' | cut -d: -f2)
-    spk_enabled=$(echo "$prudynt_data" | grep -o '"spk_enabled":[^,}]*' | cut -d: -f2)
-    total_gain=$(echo "$prudynt_data" | grep -o '"total_gain":[0-9-]*' | cut -d: -f2)
-    total_gain="${total_gain:-0}"
-    # Extract daynight.enabled (not schedule.enabled) - take first match only
-    daynight_enabled=$(echo "$prudynt_data" | grep -o '"enabled":[^,}]*' | head -1 | cut -d: -f2)
+    parsed_prudynt=$(parse_prudynt_data "$prudynt_data")
+    old_ifs=$IFS
+    set -f
+    IFS='|'
+    set -- $parsed_prudynt
+    IFS=$old_ifs
+    set +f
 
-    ircut_state=$(ircut read 2>/dev/null || echo "null")
-    ir850_state=$(light ir850 read 2>/dev/null || echo "null")
-    ir940_state=$(light ir940 read 2>/dev/null || echo "null")
-    white_state=$(light white read 2>/dev/null || echo "null")
+    color_mode=${1:-null}
+    mic_enabled=${2:-false}
+    spk_enabled=${3:-false}
+    total_gain=${4:-0}
+    daynight_enabled=${5:-false}
 
-    wg_status=0
-    if command -v wg >/dev/null 2>&1; then
-      wg show wg0 2>/dev/null | grep -q "latest handshake" && wg_status=1
-    fi
-
-    printf '{"time_now":%s,"daynight_brightness":"%s","total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s,"wg_status":%s}' \
+    printf '{"time_now":%s,"daynight_brightness":"%s","total_gain":%s,"daynight_mode":"%s","rec_ch0":%s,"rec_ch1":%s,"motion_enabled":%s,"privacy_enabled":%s,"color_mode":%s,"mic_enabled":%s,"spk_enabled":%s,"daynight_enabled":%s}' \
       "$(date +%s)" \
-      "$(awk '{print $1}' /run/prudynt/daynight_brightness 2>/dev/null || echo "unknown")" \
+      "$(read_first_field /run/prudynt/daynight_brightness "unknown")" \
       "$total_gain" \
-      "$(awk 'NR==1 {print $1}' /run/prudynt/daynight_mode 2>/dev/null || echo "unknown")" \
+      "$(read_first_field /run/prudynt/daynight_mode "unknown")" \
       "$ch0_rec" \
       "$ch1_rec" \
       "$motion_enabled" \
       "$privacy_enabled" \
       "${color_mode:-null}" \
-      "${ircut_state}" \
-      "${ir850_state}" \
-      "${ir940_state}" \
-      "${white_state}" \
       "${mic_enabled:-false}" \
       "${spk_enabled:-false}" \
-      "${daynight_enabled:-false}" \
-      "$wg_status" > "$CACHE_FILE.tmp"
+      "${daynight_enabled:-false}" > "$FAST_CACHE_FILE.tmp"
+    printf '\n' >> "$FAST_CACHE_FILE.tmp"
 
-    mv "$CACHE_FILE.tmp" "$CACHE_FILE"
+    mv "$FAST_CACHE_FILE.tmp" "$FAST_CACHE_FILE"
+
+    if [ "$slow_counter" -le 0 ]; then
+      ircut_state=$(ircut read 2>/dev/null || echo "null")
+      ir850_state=$(light ir850 read 2>/dev/null || echo "null")
+      ir940_state=$(light ir940 read 2>/dev/null || echo "null")
+      white_state=$(light white read 2>/dev/null || echo "null")
+
+      wg_status=0
+      if command -v wg >/dev/null 2>&1; then
+        case "$(wg show wg0 2>/dev/null)" in
+          *"latest handshake"*) wg_status=1 ;;
+        esac
+      fi
+
+      printf '{"ircut_state":%s,"ir850_state":%s,"ir940_state":%s,"white_state":%s,"wg_status":%s}' \
+        "${ircut_state}" \
+        "${ir850_state}" \
+        "${ir940_state}" \
+        "${white_state}" \
+        "$wg_status" > "$SLOW_CACHE_FILE.tmp"
+      printf '\n' >> "$SLOW_CACHE_FILE.tmp"
+
+      mv "$SLOW_CACHE_FILE.tmp" "$SLOW_CACHE_FILE"
+      slow_counter=$SLOW_UPDATE_INTERVAL
+    fi
+
+    slow_counter=$((slow_counter - 1))
     sleep "$UPDATE_INTERVAL"
   done
 }

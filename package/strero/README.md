@@ -1,4 +1,4 @@
-# Thingino Streamer Buildroot Package Updates
+# Strero Buildroot Package Updates
 
 This directory contains the updated buildroot package files for streamer-t with JSON configuration support.
 
@@ -19,8 +19,8 @@ This directory contains the updated buildroot package files for streamer-t with 
 - Removed C++11/GCC requirements (json-c is a C library)
 - Updated help text to mention JSON configuration
 
-#### streamer-t.mk
-- Updated `THINGINO_STREAMER_DEPENDENCIES` to use `json-c`
+#### strero.mk
+- Updated `STRERO_DEPENDENCIES` to use `json-c`
 - Modified install commands to handle `.json` files instead of `.cfg`
 - Simplified configuration processing (no more complex awk scripts)
 - Updated low-memory device buffer adjustment for JSON format
@@ -32,12 +32,12 @@ This directory contains the updated buildroot package files for streamer-t with 
 
 1. Copy these files to your thingino buildroot package directory:
    ```bash
-   cp -r buildroot-package/* /path/to/thingino/package/thingino-streamer/
+   cp -r buildroot-package/* /path/to/thingino/package/strero/
    ```
 
 2. Rebuild the package:
    ```bash
-   make thingino-streamer-rebuild
+   make strero-rebuild
    ```
 
 ## Configuration Migration

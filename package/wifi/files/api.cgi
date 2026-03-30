@@ -4,6 +4,9 @@
 
 parse_query() {
 	while IFS='=' read -r key value; do
+		case "$key" in
+			*[!A-Za-z0-9_]*|[0-9]*|"") continue ;;
+		esac
 		value=$(printf '%b' "$(echo "$value" | sed 's/+/ /g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')")
 		eval "PARAM_$key=\"\$value\""
 		export "PARAM_$key"
@@ -128,6 +131,9 @@ parse_post() {
 		fi
 
 		while IFS='=' read -r key value; do
+			case "$key" in
+				*[!A-Za-z0-9_]*|[0-9]*|"") continue ;;
+			esac
 			value=$(urldecode "$value")
 			eval "PARAM_$key=\"\$value\""
 			export "PARAM_$key"

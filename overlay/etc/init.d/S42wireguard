@@ -201,14 +201,11 @@ stop() {
 
 	for r in $(ip route | awk '/dev wg/{print $1}') ; do
 		echo_info "Remove routing to $r"
-		route del $r dev $WIREGUARD_INTERFACE
+		ip route del $r dev $WIREGUARD_INTERFACE 2>/dev/null || true
 	done
 
-	echo_info "Stop WireGuard interface"
-	ip link set down $WIREGUARD_INTERFACE
-
 	echo_info "Remove WireGuard interface"
-	ip address del $wireguard_address dev $WIREGUARD_INTERFACE
+	ip link del dev $WIREGUARD_INTERFACE 2>/dev/null || true
 
 	if [ -s "$RESOLV_BAK" ]; then
 		echo_info "Restore original resolver configuration"
@@ -222,7 +219,7 @@ fi
 
 case "$1" in
 	force)
-		start
+		start force
 		;;
 	start)
 		start
