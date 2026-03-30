@@ -52,6 +52,10 @@ ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_DEBUG),y)
 THINGINO_RAPTOR_MAKE_OPTS += DEBUG=1
 endif
 
+ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_WEBTORRENT),y)
+THINGINO_RAPTOR_MAKE_OPTS += WEBTORRENT=1
+endif
+
 # Libraries are pre-built by their own packages and installed to staging.
 # Override LIB_HAL etc. to point at staging .a files.
 # Use EXTRA_CFLAGS (not CFLAGS) so the raptor Makefile keeps its own flags.

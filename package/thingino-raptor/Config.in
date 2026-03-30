@@ -61,6 +61,15 @@ config BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 	  Sends H.264 + Opus to browsers via SRTP with sub-second latency.
 	  Requires mbedTLS with DTLS-SRTP support.
 
+config BR2_PACKAGE_THINGINO_RAPTOR_WEBTORRENT
+	bool "Enable WebTorrent sharing (external WebRTC)"
+	default y
+	depends on BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
+	help
+	  Enable peer-to-peer external sharing via WebTorrent trackers.
+	  Allows viewing camera streams without port forwarding by
+	  signaling through public tracker infrastructure.
+
 config BR2_PACKAGE_THINGINO_RAPTOR_AUDIO_EFFECTS
 	bool "Enable audio effects (NS/HPF/AGC)"
 	help
