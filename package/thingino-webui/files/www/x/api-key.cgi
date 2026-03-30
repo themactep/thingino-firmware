@@ -2,9 +2,10 @@
 
 . /var/www/x/auth.sh
 
-# This endpoint requires session auth (not API key, to prevent recursion)
+# Trusted-IP bypass is handled inside require_auth; API key auth is intentionally
+# excluded here (would be circular), so verify_api_key is skipped via the fallback.
 session_id=$(get_session_from_cookie)
-if [ -z "$session_id" ] || ! validate_session "$session_id"; then
+if ! is_trusted_ip && { [ -z "$session_id" ] || ! validate_session "$session_id"; }; then
   printf "Status: 401 Unauthorized\r\n"
   printf "Content-Type: application/json\r\n"
   printf "Connection: close\r\n"
