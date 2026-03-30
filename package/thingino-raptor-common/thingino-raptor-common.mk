@@ -13,6 +13,8 @@ define THINGINO_RAPTOR_COMMON_INSTALL_STAGING_CMDS
 		$(STAGING_DIR)/usr/lib/librss_common.a
 	$(INSTALL) -D -m 0644 $(@D)/include/rss_common.h \
 		$(STAGING_DIR)/usr/include/rss_common.h
+	$(INSTALL) -D -m 0644 $(@D)/include/rss_net.h \
+		$(STAGING_DIR)/usr/include/rss_net.h
 endef
 
 $(eval $(generic-package))
