@@ -2,21 +2,38 @@
 
 . /usr/share/common
 
-parse_query() {
-	while IFS='=' read -r key value; do
-		case "$key" in
-			*[!A-Za-z0-9_]*|[0-9]*|"") continue ;;
-		esac
-		value=$(printf '%b' "$(echo "$value" | sed 's/+/ /g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')")
-		eval "PARAM_$key=\"\$value\""
-		export "PARAM_$key"
-	done <<-QUERY
-	$(echo "$QUERY_STRING" | tr '&' '\n')
-	QUERY
-}
-
 urldecode() {
 	printf '%b' "$(echo "$1" | sed 's/+/ /g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')"
+}
+
+set_param() {
+	key="$1"
+	value="$2"
+
+	case "$key" in
+		action) PARAM_action="$value" ;;
+		hostname) PARAM_hostname="$value" ;;
+		rootpass) PARAM_rootpass="$value" ;;
+		rootpkey) PARAM_rootpkey="$value" ;;
+		timezone) PARAM_timezone="$value" ;;
+		wlan_pass) PARAM_wlan_pass="$value" ;;
+		wlan_ssid) PARAM_wlan_ssid="$value" ;;
+		wlan_ap) PARAM_wlan_ap="$value" ;;
+		*) ;;
+	esac
+}
+
+parse_form_data() {
+	while IFS='=' read -r key value; do
+		[ -n "$key" ] || continue
+		set_param "$(urldecode "$key")" "$(urldecode "$value")"
+	done <<-FORM
+	$(printf '%s' "$1" | tr '&' '\n')
+	FORM
+}
+
+parse_query() {
+	parse_form_data "$QUERY_STRING"
 }
 
 json_encode() {
@@ -124,22 +141,13 @@ scan_networks() {
 
 parse_post() {
 	if [ "$REQUEST_METHOD" = "POST" ]; then
-		if [ -n "$CONTENT_LENGTH" ]; then
-			read -n "$CONTENT_LENGTH" POST_DATA
-		else
-			read POST_DATA
-		fi
+		case "$CONTENT_LENGTH" in
+			''|*[!0-9]*) POST_DATA='' ;;
+			0) POST_DATA='' ;;
+			*) POST_DATA=$(dd bs=1 count="$CONTENT_LENGTH" 2>/dev/null) ;;
+		esac
 
-		while IFS='=' read -r key value; do
-			case "$key" in
-				*[!A-Za-z0-9_]*|[0-9]*|"") continue ;;
-			esac
-			value=$(urldecode "$value")
-			eval "PARAM_$key=\"\$value\""
-			export "PARAM_$key"
-		done <<-POST
-		$(echo "$POST_DATA" | tr '&' '\n')
-		POST
+		parse_form_data "$POST_DATA"
 	fi
 }
 
