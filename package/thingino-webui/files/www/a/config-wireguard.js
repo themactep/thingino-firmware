@@ -16,6 +16,8 @@
   const generateKeypairButton = $("#wg-generate-keypair");
   const generatePskButton = $("#wg-generate-psk");
   const importProfileButton = $("#wg-import-profile");
+  const importFileButton = $("#wg-import-file");
+  const importFileInput = $("#wg-import-file-input");
   const provisionUrlInput = $("#wg_provision_url");
   const provisionPeerInput = $("#wg_provision_peer");
   const provisionTokenInput = $("#wg_provision_token");
@@ -79,6 +81,7 @@
     isBusy = state;
     submitButton.disabled = state;
     if (importProfileButton) importProfileButton.disabled = state;
+    if (importFileButton) importFileButton.disabled = state;
     privkeyInput.disabled = state;
     if (provisionUrlInput) provisionUrlInput.disabled = state;
     if (provisionPeerInput) provisionPeerInput.disabled = state;
@@ -374,6 +377,88 @@
     importProfileButton.addEventListener("click", () =>
       importProvisionedProfile(),
     );
+  }
+
+  function parseWgConf(text) {
+    const result = {};
+    let section = null;
+    for (const line of text.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const sectionMatch = trimmed.match(/^\[(\w+)\]$/);
+      if (sectionMatch) {
+        section = sectionMatch[1].toLowerCase();
+        continue;
+      }
+      const kvMatch = trimmed.match(/^(\w+)\s*=\s*(.+)$/);
+      if (kvMatch && section) {
+        result[section + "." + kvMatch[1].toLowerCase()] = kvMatch[2].trim();
+      }
+    }
+    return result;
+  }
+
+  if (importFileButton && importFileInput) {
+    importFileButton.addEventListener("click", () => importFileInput.click());
+    importFileInput.addEventListener("change", function () {
+      const file = this.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const conf = parseWgConf(e.target.result);
+        if (conf["interface.privatekey"])
+          privkeyInput.value = conf["interface.privatekey"];
+        if (conf["interface.address"])
+          addressInput.value = conf["interface.address"];
+        if (conf["interface.dns"]) dnsInput.value = conf["interface.dns"];
+        if (conf["interface.listenport"])
+          portInput.value = conf["interface.listenport"];
+        if (conf["peer.publickey"]) peerpubInput.value = conf["peer.publickey"];
+        if (conf["peer.presharedkey"])
+          peerpskInput.value = conf["peer.presharedkey"];
+        if (conf["peer.endpoint"]) endpointInput.value = conf["peer.endpoint"];
+        if (conf["peer.allowedips"])
+          allowedInput.value = conf["peer.allowedips"];
+        if (conf["peer.persistentkeepalive"])
+          keepaliveInput.value = conf["peer.persistentkeepalive"];
+        updateKeyActionButtons();
+
+        if (privkeyInput.value.trim()) {
+          fetch("/x/json-config-wireguard.cgi", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "derive_pubkey",
+              privkey: privkeyInput.value.trim(),
+            }),
+          })
+            .then((r) => r.json())
+            .then((result) => {
+              if (result && result.data && result.data.localpub) {
+                if (localpubInput) localpubInput.value = result.data.localpub;
+              }
+              showOverlayMessage(
+                "WireGuard config file imported. Review settings and save.",
+                "success",
+              );
+            })
+            .catch(() => {
+              showOverlayMessage(
+                "WireGuard config file imported. Review settings and save.",
+                "success",
+              );
+            });
+        } else {
+          showOverlayMessage(
+            "WireGuard config file imported. Review settings and save.",
+            "success",
+          );
+        }
+
+        importFileInput.value = "";
+      };
+      reader.readAsText(file);
+    });
   }
 
   privkeyInput.addEventListener("input", updateKeyActionButtons);

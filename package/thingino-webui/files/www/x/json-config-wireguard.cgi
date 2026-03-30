@@ -271,6 +271,20 @@ handle_get() {
   printf '%s' "$payload"
 }
 
+handle_derive_pubkey() {
+  local privkey localpub
+
+  wg_supported || json_error 503 "WireGuard tooling is not available" "503 Service Unavailable"
+
+  privkey=$(jct "$REQ_FILE" get privkey 2>/dev/null)
+  [ -n "$privkey" ] || json_error 400 "Missing privkey field" "400 Bad Request"
+
+  localpub=$(derive_public_key "$privkey")
+  [ -n "$localpub" ] || json_error 400 "Failed to derive public key from provided private key" "400 Bad Request"
+
+  send_json "{\"status\":\"ok\",\"data\":{\"localpub\":\"$localpub\"}}"
+}
+
 handle_generate_keypair() {
   local privkey localpub payload
 
@@ -308,6 +322,9 @@ handle_post() {
 
   action=$(jct "$REQ_FILE" get action 2>/dev/null)
   case "$action" in
+    derive_pubkey)
+      handle_derive_pubkey
+      ;;
     generate_keypair)
       handle_generate_keypair
       ;;

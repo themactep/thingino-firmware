@@ -120,11 +120,15 @@
                   <label for="wg_provision_token">Provision Token</label>
                   <input type="password" id="wg_provision_token" class="form-control" placeholder="Optional shared token">
                 </p>
-                <p>
+                <div class="d-flex gap-2 flex-wrap">
                   <button type="button" class="btn btn-outline-primary" id="wg-import-profile">
                     <i class="bi bi-download"></i> Import from provisioner
                   </button>
-                </p>
+                  <input type="file" id="wg-import-file-input" accept=".conf" class="d-none">
+                  <button type="button" class="btn btn-outline-secondary" id="wg-import-file">
+                    <i class="bi bi-file-earmark-arrow-up"></i> Import from file
+                  </button>
+                </div>
               </div><!-- .col -->
             </div><!-- .row -->
           </div><!-- .card-body -->
