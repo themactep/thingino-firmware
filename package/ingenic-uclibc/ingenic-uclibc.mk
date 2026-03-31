@@ -1,10 +1,13 @@
+INGENIC_UCLIBC_VERSION = 97c9ba8
+INGENIC_UCLIBC_SITE = https://github.com/gtxaspec/ingenic-uclibc
+INGENIC_UCLIBC_SITE_METHOD = git
 INGENIC_UCLIBC_INSTALL_STAGING = YES
 
-INGENIC_UCLIBC_LICENSE = GPL-2.0
+INGENIC_UCLIBC_LICENSE = MIT
+INGENIC_UCLIBC_LICENSE_FILES = LICENSE
 
 define INGENIC_UCLIBC_BUILD_CMDS
-	$(TARGET_CC) -fPIC -shared -o $(@D)/libuclibcshim.so \
-		$(INGENIC_UCLIBC_PKGDIR)/ingenic_shim.c
+	$(TARGET_CC) -fPIC -shared -o $(@D)/libuclibcshim.so $(@D)/uclibc_shim.c
 endef
 
 define INGENIC_UCLIBC_INSTALL_STAGING_CMDS
