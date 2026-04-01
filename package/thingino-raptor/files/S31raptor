@@ -5,12 +5,62 @@ CONF=/etc/raptor.conf
 RUNDIR=/var/run/rss
 SHMDIR=/dev/shm
 
+# Read a boolean from raptor.conf: config_bool <section> <key> <default>
+config_bool() {
+	val=$(sed -n "/^\[$1\]/,/^\[/{ /^$2\s*=/{s/.*=\s*//;s/\s*#.*//;p;q}}" "$CONF")
+	case "${val:-$3}" in
+		true|yes|1) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
+# Start a daemon, report status: start_daemon <name> [env_prefix]
+start_daemon() {
+	name=$1
+	shift
+	if [ ! -x "/usr/bin/$name" ]; then
+		printf "  %-4s skipped (not installed)\n" "$name"
+		return
+	fi
+	if ! config_bool "$(daemon_section $name)" "enabled" "true"; then
+		printf "  %-4s disabled\n" "$name"
+		return
+	fi
+	if [ $# -gt 0 ]; then
+		env "$@" start-stop-daemon -S -b -x /usr/bin/$name -- -c "$CONF"
+	else
+		start-stop-daemon -S -b -x /usr/bin/$name -- -c "$CONF"
+	fi
+	if [ $? -eq 0 ]; then
+		printf "  %-4s started\n" "$name"
+	else
+		printf "  %-4s FAILED\n" "$name"
+	fi
+}
+
+# Map daemon name to config section
+daemon_section() {
+	case $1 in
+		rvd)  echo "sensor" ;;
+		rsd)  echo "rtsp" ;;
+		rad)  echo "audio" ;;
+		rhd)  echo "http" ;;
+		rod)  echo "osd" ;;
+		ric)  echo "ircut" ;;
+		rmr)  echo "recording" ;;
+		rmd)  echo "motion" ;;
+		rwd)  echo "webrtc" ;;
+		*)    echo "$1" ;;
+	esac
+}
+
 start() {
-	echo "Starting Raptor..."
+	echo "Starting Raptor Streaming System..."
 	mkdir -p "$RUNDIR"
 
 	# RVD must start first -- it creates SHM rings
 	start-stop-daemon -S -b -x /usr/bin/rvd -- -c "$CONF"
+	printf "  %-4s started\n" "rvd"
 
 	# Wait for main ring (up to 5 seconds)
 	i=0
@@ -20,40 +70,43 @@ start() {
 	done
 
 	if [ ! -e ${SHMDIR}/rss_ring_main ]; then
-		echo "RVD failed to create ring buffer"
+		printf "  rvd  FAILED (no ring after 5s)\n"
 		exit 1
 	fi
 
-	# Start consumers and support daemons
-	# If libimp-nodbg.so is installed, preload it on RAD to prevent
-	# a competing IMP debug shm thread (allows libimp-debug to work)
+	# Audio: preload libimp-nodbg if available to avoid competing IMP debug thread
 	RAD_ENV=""
 	[ -f /usr/lib/libimp-nodbg.so ] && RAD_ENV="LD_PRELOAD=/usr/lib/libimp-nodbg.so"
-	env $RAD_ENV start-stop-daemon -S -b -x /usr/bin/rad -- -c "$CONF"
-	start-stop-daemon -S -b -x /usr/bin/rod -- -c "$CONF"
-	start-stop-daemon -S -b -x /usr/bin/rsd -- -c "$CONF"
-	start-stop-daemon -S -b -x /usr/bin/ric -- -c "$CONF"
+	start_daemon rad $RAD_ENV
 
-	# Optional daemons -- only start if binary exists
-	[ -x /usr/bin/rhd ] && start-stop-daemon -S -b -x /usr/bin/rhd -- -c "$CONF"
-	[ -x /usr/bin/rmr ] && start-stop-daemon -S -b -x /usr/bin/rmr -- -c "$CONF"
+	# Core daemons
+	start_daemon rod
+	start_daemon rsd
+	start_daemon rhd
+	start_daemon ric
+	start_daemon rmr
+	start_daemon rmd
+	start_daemon rwd
 
-	echo "Raptor started"
+	echo "Done."
 }
 
 stop() {
-	echo "Stopping Raptor..."
+	echo "Stopping Raptor Streaming System..."
 
 	# Stop consumers first, then producer (RVD) last
-	for d in rmr rhd ric rsd rod rad rvd; do
-		start-stop-daemon -K -x /usr/bin/$d 2>/dev/null
+	for d in rwd rmd rmr ric rhd rsd rod rad rvd; do
+		if pidof $d >/dev/null 2>&1; then
+			start-stop-daemon -K -x /usr/bin/$d 2>/dev/null
+			printf "  %-4s stopped\n" "$d"
+		fi
 	done
 
 	# Clean up runtime files
 	rm -f "$RUNDIR"/*.pid "$RUNDIR"/*.sock
 	rm -f ${SHMDIR}/rss_ring_* ${SHMDIR}/rss_osd_*
 
-	echo "Raptor stopped"
+	echo "Done."
 }
 
 case "$1" in
