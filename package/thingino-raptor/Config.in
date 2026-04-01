@@ -20,66 +20,112 @@ config BR2_PACKAGE_THINGINO_RAPTOR
 
 if BR2_PACKAGE_THINGINO_RAPTOR
 
+menu "Daemon selection"
+
+config BR2_PACKAGE_THINGINO_RAPTOR_FULL
+	bool "Full (all daemons)"
+	default y
+	help
+	  Build and install all raptor daemons. Disable to select
+	  individual daemons below. RVD (video) and tools (raptorctl,
+	  ringdump, rac) are always included.
+
+config BR2_PACKAGE_THINGINO_RAPTOR_RSD
+	bool "RSD (RTSP server)"
+	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
+
+config BR2_PACKAGE_THINGINO_RAPTOR_RAD
+	bool "RAD (audio capture/speaker)"
+	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
+
+config BR2_PACKAGE_THINGINO_RAPTOR_RHD
+	bool "RHD (HTTP snapshots/MJPEG)"
+	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
+
+config BR2_PACKAGE_THINGINO_RAPTOR_ROD
+	bool "ROD (OSD renderer)"
+	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
+
+config BR2_PACKAGE_THINGINO_RAPTOR_RIC
+	bool "RIC (IR-cut controller)"
+	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
+
+config BR2_PACKAGE_THINGINO_RAPTOR_RMR
+	bool "RMR (fMP4 recording)"
+	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
+
+config BR2_PACKAGE_THINGINO_RAPTOR_RMD
+	bool "RMD (motion detection)"
+	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
+
+config BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
+	bool "RWD (WebRTC/WHIP server)"
+	default y if BR2_PACKAGE_THINGINO_RAPTOR_FULL
+	depends on BR2_PACKAGE_THINGINO_RAPTOR_TLS
+	select BR2_PACKAGE_MBEDTLS_DTLS_SRTP
+	help
+	  WebRTC streaming daemon with WHIP signaling, two-way audio
+	  backchannel, and HTTPS. Requires TLS support (mbedTLS).
+
+config BR2_PACKAGE_THINGINO_RAPTOR_WEBTORRENT
+	bool "  WebTorrent sharing (external WebRTC)"
+	default y if BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
+	depends on BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
+	help
+	  Peer-to-peer external sharing via WebTorrent trackers.
+	  View camera without port forwarding.
+
+config BR2_PACKAGE_THINGINO_RAPTOR_RAC
+	bool "rac (audio record/playback tool)"
+	default y if BR2_PACKAGE_THINGINO_RAPTOR_RAD
+	depends on BR2_PACKAGE_THINGINO_RAPTOR_RAD
+
+endmenu
+
+menu "Codec and feature options"
+
 config BR2_PACKAGE_THINGINO_RAPTOR_AAC
-	bool "Enable AAC audio support"
+	bool "AAC audio support"
 	default y
 	select BR2_PACKAGE_FAAC
 	select BR2_PACKAGE_LIBHELIX_AAC
 	help
-	  Enable AAC audio codec for encoding and decoding.
+	  AAC audio codec for encoding and decoding.
 
 config BR2_PACKAGE_THINGINO_RAPTOR_OPUS
-	bool "Enable Opus audio support"
+	bool "Opus audio support"
 	default y
 	select BR2_PACKAGE_OPUS
 	help
-	  Enable Opus audio codec support.
+	  Opus audio codec support.
 
 config BR2_PACKAGE_THINGINO_RAPTOR_MP3
-	bool "Enable MP3 audio decoding"
+	bool "MP3 audio decoding"
 	default y if FLASH_SIZE_MB > 8
 	select BR2_PACKAGE_LIBHELIX_MP3
 	help
-	  Enable MP3 decoding for audio client (rac).
+	  MP3 decoding for audio client (rac).
 
 config BR2_PACKAGE_THINGINO_RAPTOR_TLS
-	bool "Enable RTSPS (TLS-encrypted RTSP)"
+	bool "TLS support (RTSPS, HTTPS)"
 	default y
 	select BR2_PACKAGE_MBEDTLS
 	help
-	  Enable RTSPS support via mbedTLS. Allows encrypted RTSP
-	  streaming when tls=true is set in raptor.conf with a
-	  certificate and private key.
-
-config BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
-	bool "Enable WebRTC daemon (RWD)"
-	default y
-	depends on BR2_PACKAGE_THINGINO_RAPTOR_TLS
-	select BR2_PACKAGE_MBEDTLS_DTLS_SRTP
-	help
-	  Build the WebRTC streaming daemon (RWD) with WHIP signaling.
-	  Sends H.264 + Opus to browsers via SRTP with sub-second latency.
-	  Requires mbedTLS with DTLS-SRTP support.
-
-config BR2_PACKAGE_THINGINO_RAPTOR_WEBTORRENT
-	bool "Enable WebTorrent sharing (external WebRTC)"
-	default y
-	depends on BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
-	help
-	  Enable peer-to-peer external sharing via WebTorrent trackers.
-	  Allows viewing camera streams without port forwarding by
-	  signaling through public tracker infrastructure.
+	  Enable mbedTLS for RTSPS, RWD HTTPS signaling, and
+	  optional RHD HTTPS.
 
 config BR2_PACKAGE_THINGINO_RAPTOR_AUDIO_EFFECTS
-	bool "Enable audio effects (NS/HPF/AGC)"
+	bool "Audio effects (NS/HPF/AGC)"
 	help
-	  Enable noise suppression, high-pass filter, and automatic
+	  Noise suppression, high-pass filter, and automatic
 	  gain control. Requires libaudioProcess.so from Ingenic SDK.
 
 config BR2_PACKAGE_THINGINO_RAPTOR_DEBUG
-	bool "Enable debug build"
+	bool "Debug build"
 	help
 	  Build with -O0 -g instead of -Os. Debug binaries are
 	  significantly larger.
+
+endmenu
 
 endif # BR2_PACKAGE_THINGINO_RAPTOR

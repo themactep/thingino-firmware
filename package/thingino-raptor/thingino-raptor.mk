@@ -55,6 +55,38 @@ ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_WEBTORRENT),y)
 THINGINO_RAPTOR_MAKE_OPTS += WEBTORRENT=1
 endif
 
+# Per-daemon build targets (RVD + tools always built)
+THINGINO_RAPTOR_TARGETS = rvd raptorctl ringdump
+
+ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_RAC),y)
+THINGINO_RAPTOR_TARGETS += rac
+endif
+
+ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_RSD),y)
+THINGINO_RAPTOR_TARGETS += rsd
+endif
+ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_RAD),y)
+THINGINO_RAPTOR_TARGETS += rad
+endif
+ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_RHD),y)
+THINGINO_RAPTOR_TARGETS += rhd
+endif
+ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_ROD),y)
+THINGINO_RAPTOR_TARGETS += rod
+endif
+ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_RIC),y)
+THINGINO_RAPTOR_TARGETS += ric
+endif
+ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_RMR),y)
+THINGINO_RAPTOR_TARGETS += rmr
+endif
+ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_RMD),y)
+THINGINO_RAPTOR_TARGETS += rmd
+endif
+ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC),y)
+THINGINO_RAPTOR_TARGETS += rwd
+endif
+
 # Libraries are pre-built by their own packages and installed to staging.
 # Override LIB_HAL etc. to point at staging .a files.
 # Use EXTRA_CFLAGS (not CFLAGS) so the raptor Makefile keeps its own flags.
@@ -70,26 +102,12 @@ define THINGINO_RAPTOR_BUILD_CMDS
 		COMPY_CFLAGS="-I$(STAGING_DIR)/usr/include $(if $(filter TLS=1,$(THINGINO_RAPTOR_MAKE_OPTS)),-DCOMPY_HAS_TLS)" \
 		EXTRA_CFLAGS="$(TARGET_CFLAGS) -I$(STAGING_DIR)/usr/include" \
 		$(THINGINO_RAPTOR_MAKE_OPTS) \
-		-C $(@D) rvd rsd rad rhd rod ric rmr rmd \
-		$(if $(BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC),rwd) \
-		raptorctl ringdump rac
+		-C $(@D) $(THINGINO_RAPTOR_TARGETS)
 endef
 
 define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
-	# Daemons
-	$(foreach d,rvd rsd rad rhd rod ric rmr rmd,\
-		$(INSTALL) -D -m 0755 $(@D)/$(d)/$(d) \
-			$(TARGET_DIR)/usr/bin/$(d)$(sep))
-
-	# RWD (optional — requires WebRTC + TLS)
-	$(if $(BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC),\
-		if [ -f $(@D)/rwd/rwd ]; then \
-			$(INSTALL) -D -m 0755 $(@D)/rwd/rwd \
-				$(TARGET_DIR)/usr/bin/rwd; \
-		fi$(sep))
-
-	# Tools
-	$(foreach t,raptorctl ringdump rac,\
+	# Install selected daemons and tools
+	$(foreach t,$(THINGINO_RAPTOR_TARGETS),\
 		if [ -f $(@D)/$(t)/$(t) ]; then \
 			$(INSTALL) -D -m 0755 $(@D)/$(t)/$(t) \
 				$(TARGET_DIR)/usr/bin/$(t); \
