@@ -194,12 +194,7 @@ iface_exists() {
 	fi
 
 	if ip link show $iface &> /dev/null; then
-		if [ "eth0" = $iface ] && ! is_gateway_reachable; then
-			echo_warning "eth0 has no local connection"
-			return 1
-		fi
-
-		# echo_info "Interface '$iface' exists." >&2
+		echo_info "Interface '$iface' exists."
 		return 0
 	else
 		echo_warning "Interface '$iface' does not exist."
