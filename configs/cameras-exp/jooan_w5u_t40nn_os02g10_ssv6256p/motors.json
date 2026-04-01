@@ -2,6 +2,8 @@
   "motors": {
     "gpio_pan": "112 111 110 109",
     "gpio_tilt": "108 107 106 105",
+    "invert_x": false,
+    "invert_y": false,
     "is_spi": false,
     "steps_pan": "4200",
     "steps_tilt": "1200",

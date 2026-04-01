@@ -1,5 +1,7 @@
 {
   "motors": {
+    "invert_x": false,
+    "invert_y": false,
     "is_spi": false,
     "steps_pan": "5900",
     "steps_tilt": "900",
