@@ -68,7 +68,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 	  backchannel, and HTTPS. Requires TLS support (mbedTLS).
 
 config BR2_PACKAGE_THINGINO_RAPTOR_WEBTORRENT
-	bool "  WebTorrent sharing (external WebRTC)"
+	bool "WebTorrent sharing (external WebRTC)"
 	default y if BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 	depends on BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 	help
