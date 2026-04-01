@@ -1,4 +1,4 @@
-THINGINO_RAPTOR_VERSION = 6c86342
+THINGINO_RAPTOR_VERSION = f1ef5d4
 THINGINO_RAPTOR_SITE = https://github.com/gtxaspec/raptor
 THINGINO_RAPTOR_SITE_METHOD = git
 
@@ -91,11 +91,8 @@ endif
 # Override LIB_HAL etc. to point at staging .a files.
 # Use EXTRA_CFLAGS (not CFLAGS) so the raptor Makefile keeps its own flags.
 define THINGINO_RAPTOR_BUILD_CMDS
-	printf '%s\n' \
-		'#define RSS_BUILD_HASH "$(THINGINO_RAPTOR_VERSION)"' \
-		'#define RSS_BUILD_TIME "$(shell date -u +%Y-%m-%dT%H:%M:%SZ)"' \
-		> $(@D)/rss_build.h
 	$(MAKE) \
+		RSS_BUILD_HASH="$(THINGINO_RAPTOR_VERSION)" \
 		PLATFORM=$(THINGINO_RAPTOR_PLATFORM) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
 		SYSROOT=$(STAGING_DIR) \
