@@ -188,16 +188,19 @@
 
     const formData = new FormData(form);
     const errors = [];
+    const typeBadge = $('#motors-type-badge');
 
     // Check GPIO fields
-    for (let i = 0; i < 8; i++) {
-      const field = requiredFields[i];
-      const value = formData.get(field);
-      if (!value || value.trim() === "") {
-        errors.push(
-          `${field.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())} is required`,
-        );
-      }
+    if (typeBadge.textContent === "Discrete GPIO driver") {
+        for (let i = 0; i < 8; i++) {
+          const field = requiredFields[i];
+          const value = formData.get(field);
+          if (!value || value.trim() === "") {
+            errors.push(
+              `${field.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())} is required`,
+            );
+          }
+        }
     }
 
     // Check steps fields
