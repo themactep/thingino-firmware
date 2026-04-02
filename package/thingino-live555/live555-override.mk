@@ -7,7 +7,7 @@
 ifeq ($(BR2_PACKAGE_THINGINO_LIVE555),y)
 
 # Pin to a specific version tested with Thingino
-override LIVE555_VERSION = 2026.03.23
+override LIVE555_VERSION = 2026.04.01
 override LIVE555_SITE = https://download.live555.com
 
 # Override CFLAGS to remove -std=c++20 from being passed to C files

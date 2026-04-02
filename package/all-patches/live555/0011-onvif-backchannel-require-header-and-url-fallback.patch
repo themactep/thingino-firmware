@@ -820,7 +820,7 @@ index 62e5c40..721e671 100644
      // Then, get server parameters from the 'subsession':
      if (streamingMode == RTP_TCP) {
        // Note that we'll be streaming over the RTSP TCP connection:
-@@ -1580,12 +1601,12 @@ void RTSPServer::RTSPClientSession
+@@ -1601,12 +1622,12 @@ void RTSPServer::RTSPClientSession
      delete[] clientsDestinationAddressStr;
      Port serverRTPPort(0);
      Port serverRTCPPort(0);
@@ -834,7 +834,7 @@ index 62e5c40..721e671 100644
 +
      subsession->getStreamParameters(fOurSessionId, fOurClientConnection->fClientAddr,
  				    clientRTPPort, clientRTCPPort,
- 				    fStreamStates[trackNum].tcpSocketNum, rtpChannelId, rtcpChannelId,
+ 				    streamingMode == RTP_TCP
 @@ -1593,7 +1614,7 @@ void RTSPServer::RTSPClientSession
  				    destinationAddress, destinationTTL, fIsMulticast,
  				    serverRTPPort, serverRTCPPort,
