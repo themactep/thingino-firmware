@@ -80,15 +80,15 @@ start() {
 	else
 		modprobe_args="hmaxstep=$steps_pan vmaxstep=$steps_tilt"
 
-		if [ -n "$invert_x" ]; then
-			modprobe_args="$modprobe_args invert_x=$invert_x"
-		fi
+		if [ "true" = "$is_spi" ]; then
+			if [ -n "$invert_x" ]; then
+				modprobe_args="$modprobe_args invert_x=$invert_x"
+			fi
 
-		if [ -n "$invert_y" ]; then
-			modprobe_args="$modprobe_args invert_y=$invert_y"
-		fi
-
-		if [ "true" != "$is_spi" ]; then
+			if [ -n "$invert_y" ]; then
+				modprobe_args="$modprobe_args invert_y=$invert_y"
+			fi
+		else
 			modprobe_args="$modprobe_args tcu_channels=2"
 
 			echo_info "Set GPIO per motor phase"
