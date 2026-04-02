@@ -58,7 +58,7 @@ cli() {
 
 reset() {
 	local tmp_file=$(mktemp)
-	remove /overlay/etc/wpa_supplicant.conf
+	rm /overlay/etc/wpa_supplicant.conf
 }
 
 rssi() {
