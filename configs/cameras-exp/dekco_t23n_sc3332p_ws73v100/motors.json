@@ -1,5 +1,6 @@
 {
   "motors": {
+    "homing": true,
     "invert_x": false,
     "invert_y": false,
     "is_spi": false,
