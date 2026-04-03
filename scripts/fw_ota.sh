@@ -5,7 +5,8 @@ die() { echo -e "\e[38;5;160m$1\e[0m" >&2; exit 1; }
 [ "$#" -ne 2 ] && die "Usage: $0 FIRMWARE_FILE IP_ADDRESS"
 
 cleanup() {
-	ssh -O exit $SSH_OPTS $REMOTE_HOST 2>/dev/null;
+	ssh -O exit $SSH_OPTS $REMOTE_HOST 2>/dev/null
+	printf '\033[0m' 2>/dev/null || true
 }
 
 remote_copy() {
@@ -100,7 +101,7 @@ check_and_free_space() {
 	[ "$retries" -eq 0 ] && die "Device did not come back online after memory remap reboot."
 
 	echo "Device is back online with remapped memory. Re-initializing SSH mux..."
-	ssh -fN $SSH_OPTS $REMOTE_HOST || die "Failed to re-initialize SSH connection after reboot"
+	ssh -fN $SSH_OPTS $REMOTE_HOST >/dev/null 2>/dev/null || die "Failed to re-initialize SSH connection after reboot"
 
 	echo "Re-uploading sysupgrade utility (tmpfs was cleared on reboot)..."
 	upload_sysupgrade
@@ -124,7 +125,7 @@ SSH_OPTS="-o ConnectTimeout=30 -o ServerAliveInterval=2 \
 -o UserKnownHostsFile=/dev/null"
 
 echo "Initializing SSH connection to $REMOTE_HOST..."
-ssh -fN $SSH_OPTS $REMOTE_HOST || \
+ssh -fN $SSH_OPTS $REMOTE_HOST >/dev/null 2>/dev/null || \
 	die "Failed to initialize ssh connection"
 
 echo "SSH connection initialized."
