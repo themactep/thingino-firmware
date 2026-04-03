@@ -43,6 +43,7 @@ multi-camera workflows, bulk configuration, and richer monitoring.
 
 - [camera-agent.md](camera-agent.md): canonical API service on the camera
 - [api-rfc.md](api-rfc.md): concrete API resources, actions, and payloads
+- [request-tree.md](request-tree.md): target request tree and response-scope rules
 - [camera-agent-implementation.md](camera-agent-implementation.md): first package and daemon plan in this tree
 - [hub.md](hub.md): centralized desktop service and UI
 - [hub-integration.md](hub-integration.md): how the existing `/home/paul/thingino/hub` fits and evolves
@@ -62,6 +63,10 @@ multi-camera workflows, bulk configuration, and richer monitoring.
 The hub should not need to know whether a camera runs prudynt, raptor, or
 strero. The camera API presents stable resources and capability flags; backend
 adapters translate those resources to local implementation details.
+
+That model should be accessed through narrow resource endpoints. Full-document
+reads are exceptional and should be limited to explicit config export or debug
+flows.
 
 ### Low camera footprint
 

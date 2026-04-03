@@ -35,6 +35,14 @@ It should not be required for normal Thingino operation.
 If the camera UI exists, it should consume the same canonical camera agent API
 as the desktop hub. It should not call private streamer internals directly.
 
+More specifically:
+
+- normal controls must use narrow `/settings/*`, `/runtime/*`, and `/actions/*`
+	routes
+- the UI must not depend on bulk mixed camera payloads after every write
+- `GET /config` is reserved for explicit full-config views such as export,
+	import review, and advanced debugging
+
 ## Benefits
 
 - less duplicated logic
@@ -56,6 +64,7 @@ Good candidates:
 - network diagnostics
 - basic camera info
 - minimal controls for image, motion, privacy, reboot
+- explicit config export and advanced debug view backed by `GET /config`
 
 Poor candidates:
 

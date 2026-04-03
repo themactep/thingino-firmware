@@ -69,10 +69,14 @@ Candidate responsibilities for that abstraction:
 
 - fetch device and capability information
 - fetch runtime state
-- fetch and patch camera config
+- fetch full config only for explicit config screens, backup, and diff tools
+- fetch and patch narrow settings resources for normal UI controls
 - trigger snapshot, clip, reboot, and restart actions
 - emit normalized action and state records to a hub-local history writer
 - fall back to MQTT or ONVIF only where native API is not present yet
+
+The target request tree and response-scope rules are defined in
+[request-tree.md](request-tree.md).
 
 ## Compatibility strategy during transition
 
@@ -119,11 +123,12 @@ Suggested global UI behavior:
 
 ## Immediate implementation opportunities in the hub
 
-1. add a lightweight camera-agent client module
-2. extend camera state model to store capabilities and API reachability
-3. add a native API probe on registration refresh
-4. prefer native snapshot action over raw snapshot URL when available
-5. add camera config read and patch screens backed by the native API
+1. split the current coarse camera client into resource-specific methods
+2. stop using `probe()` as the default answer to every UI request
+3. extend camera state model to store API reachability and selected runtime fields
+4. prefer narrow `/settings/*` and `/runtime/*` endpoints for normal controls
+5. reserve `GET /config` for explicit full-config screens and tooling
+6. prefer native snapshot action over raw snapshot URL when available
 
 ## Historical storage integration
 
@@ -141,6 +146,9 @@ Important boundary:
 
 - the UI may read history from the database
 - the control path should not require the database to issue live camera actions
+
+The same rule applies to API reads: quick controls should not require fetching
+full camera config or full runtime blobs before every write.
 
 This lets history and graphs grow in parallel with the native API rollout
 without turning analytics storage into a dependency for core operation.
