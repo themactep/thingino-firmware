@@ -15,7 +15,7 @@
 
 #define AGENT_CONFIG "/etc/thingino.json"
 #define AGENT_DOCROOT "/var/www"
-#define AGENT_API_PREFIX "/x/api/v1"
+#define AGENT_API_PREFIX "/api/v1"
 #define AGENTCTL_PATH "/usr/sbin/thingino-agentctl"
 #define REQUEST_BUFFER_SIZE 32768
 #define BODY_LIMIT 65536

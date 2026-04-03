@@ -39,14 +39,14 @@ Implemented in tree:
 - reboot action now exists at `/actions/reboot`
 - adapter auto-selection exists through `agent.backend`
 - a managed local-only listener now exists through `thingino-agentd` and `S95thingino-agent`
-- the managed listener now defaults to a native local HTTP daemon for non-TLS mode, and the known local API tree is now served directly by the daemon; a single packaged CGI dispatcher at `/var/www/x/api` remains only for the current TLS or `uhttpd` compatibility path
-- remote HTTPS exposure now exists through the current TLS `uhttpd` path when explicitly enabled with `agent.tls=true`, while non-TLS mode is enforced as loopback-only and remote TLS binds require `agent.token`
+- the managed listener now defaults to a native local HTTP daemon for non-TLS mode, and the known local API tree is now served directly by the daemon in both listener modes
+- remote HTTPS exposure now exists through an in-package mbedTLS proxy when explicitly enabled with `agent.tls=true`, while non-TLS mode is enforced as loopback-only and remote TLS binds require `agent.token`
 - `/events` now exists as an agent-owned SSE endpoint
 - `/config/schema` now exists through the agent-owned config route using `PATH_INFO`
 
 Partially implemented:
 
-- the agent now has a native local standalone listener for the known local API tree, while `uhttpd` and a single packaged CGI dispatcher remain only for the current TLS path
+- the agent now has a native local standalone listener for the known local API tree, and TLS mode now runs the same native API behind an in-package mbedTLS proxy bound on the configured external port
 - narrow settings coverage exists for image controls, motion enabled or tuning, daynight enabled or force-mode, privacy enabled or channel, and most first-pass stream controls, but not the full request tree
 - compatibility bulk `PATCH /config` still exists for migration
 
@@ -58,11 +58,11 @@ Validated on flashed image:
 - `GET` validation passed for health, runtime system or network or streaming, privacy settings, motion tuning, and stream setting reads for streams `0` and `1`
 - representative `PATCH` validation passed for motion sensitivity, motion cooldown time, and privacy channel with restore where applicable
 - reboot action path validated through the flashed CGI wrapper using a mocked `reboot` binary so the device was not restarted
-- managed local-only listener lifecycle validated by starting `S95thingino-agent` on loopback, confirming `127.0.0.1:1998`, and reading `/x/api/v1/health` plus `/x/api/v1/runtime/system`
-- rebuilt-and-flashed image revalidated with in-image `thingino-agentd` and `S95thingino-agent`, including `/x/api/v1/device`, then restored to the default disabled listener state
-- hot validation confirmed `/x/api/v1/config/schema` returns the current machine-readable schema and `/x/api/v1/events` streams agent-owned SSE with typed motion, recording completion, firmware lifecycle, health warning, streamer restart, and state-change events sourced from prudynt runtime signals
-- rebuilt-and-flashed image revalidated `/x/api/v1/config/schema` and `/x/api/v1/events` through the in-image managed listener, then restored the default disabled listener state
-- hot validation confirmed representative narrow `PATCH` support for `/x/api/v1/settings/streams/0/format` and `/x/api/v1/settings/streams/1/mode`, then restored the original stream values and default disabled listener state
+- managed local-only listener lifecycle validated by starting `S95thingino-agent` on loopback, confirming `127.0.0.1:1998`, and reading `/api/v1/health` plus `/api/v1/runtime/system`
+- rebuilt-and-flashed image revalidated with in-image `thingino-agentd` and `S95thingino-agent`, including `/api/v1/device`, then restored to the default disabled listener state
+- hot validation confirmed `/api/v1/config/schema` returns the current machine-readable schema and `/api/v1/events` streams agent-owned SSE with typed motion, recording completion, firmware lifecycle, health warning, streamer restart, and state-change events sourced from prudynt runtime signals
+- rebuilt-and-flashed image revalidated `/api/v1/config/schema` and `/api/v1/events` through the in-image managed listener, then restored the default disabled listener state
+- hot validation confirmed representative narrow `PATCH` support for `/api/v1/settings/streams/0/format` and `/api/v1/settings/streams/1/mode`, then restored the original stream values and default disabled listener state
 - hot validation confirmed representative narrow `GET` and `PATCH` support for the first stream OSD setting paths after live script upload, then restored the original OSD values and default disabled listener state
 - hot validation confirmed representative narrow `GET` and `PATCH` support for the second stream OSD setting paths after live script upload, then restored the original OSD values and default disabled listener state
 - hot validation confirmed representative narrow `GET` and `PATCH` support for the third stream OSD brightness setting paths after live script upload, then restored the original OSD values and default disabled listener state
@@ -73,12 +73,13 @@ Validated on flashed image:
 - hot validation confirmed direct and managed-listener support for `/runtime/firmware`, including default idle state and a simulated pending partial-upgrade marker, then restored the default disabled listener state
 - hot validation confirmed richer `/runtime/system` and `/health` payloads with load-average and memory fields sourced from `/proc`, then restored the default disabled listener state
 - hot validation confirmed representative narrow `GET` and `PATCH` support for the first send2 capability and setting paths after live script upload, then restored the original send2 values and default disabled listener state
-- hot validation confirmed representative narrow `GET` support for `/x/api/v1/capabilities/services` and `/x/api/v1/capabilities/firmware` after live script upload
+- hot validation confirmed representative narrow `GET` support for `/api/v1/capabilities/services` and `/api/v1/capabilities/firmware` after live script upload
 - rebuilt-and-flashed image validation now confirms representative stream `format` writes, OSD `time/format` reads or writes, storage `mount` and `duration` reads or writes, runtime storage reads, send2 telegram reads or writes, richer `/runtime/system`, richer `/health`, current schema event types, and `/events` hello output, then restores the default disabled listener state
-- rebuilt-and-flashed image validation now also confirms the in-image native listener binary is the active non-TLS transport, with representative `/x/api/v1/device`, `/x/api/v1/config/schema`, `/x/api/v1/runtime/system`, and `/x/api/v1/events` SSE hello behavior all passing before restore to the default disabled listener state
-- rebuilt-and-flashed image validation now also confirms `agent.tls=true` starts `uhttpd` on `127.0.0.1:1998` and serves the same representative `/x/api/v1/device`, `/x/api/v1/runtime/system`, `/x/api/v1/config/schema`, and `/x/api/v1/events` routes through the packaged single-file dispatcher at `/var/www/x/api`, then restores the default disabled listener state
-- live validation now also confirms remote exposure policy on the updated wrapper and init path: non-TLS `agent.listen=0.0.0.0` fails closed, TLS `agent.listen=0.0.0.0` without `agent.token` fails closed, and authenticated remote HTTPS requests return `401` without a bearer token and `200` with the configured bearer token, then restore the default disabled listener state
-- live validation now also confirms the native non-TLS path does not require the packaged `/var/www/x/api` compatibility dispatcher: after temporarily removing that file on the flashed camera, representative `/x/api/v1/device`, `/x/api/v1/config/schema`, and `/x/api/v1/events` requests still passed through the daemon, then the file and default disabled listener state were restored
+- rebuilt-and-flashed image validation now also confirms the in-image native listener binary is the active non-TLS transport, with representative `/api/v1/device`, `/api/v1/config/schema`, `/api/v1/runtime/system`, and `/api/v1/events` SSE hello behavior all passing before restore to the default disabled listener state
+- rebuilt-and-flashed image validation now also confirms `agent.tls=true` starts the in-package mbedTLS proxy on the configured listener port and forwards to a loopback native backend listener on the derived backend port while serving the same representative `/api/v1/device`, `/api/v1/runtime/system`, `/api/v1/config/schema`, and `/api/v1/events` routes, then restores the default disabled listener state
+- rebuilt live-camera validation now confirms the canonical listener path is `/api/v1/*` in both native and TLS-proxy modes: representative `/api/v1/device` requests return `200`, the retired `/x/api/v1/device` path now returns `404`, and the default disabled listener state is restored afterward
+- live validation now also confirms remote exposure policy on the updated wrapper and init path: non-TLS `agent.listen=0.0.0.0` fails closed, TLS `agent.listen=0.0.0.0` without `agent.token` fails closed, unauthenticated remote HTTPS requests return `401`, and authenticated remote HTTPS requests return `200`, then restore the default disabled listener state
+- live validation now also confirms the TLS stop or restart path removes the prefork proxy workers and loopback backend listener cleanly before restoring the default disabled listener state
 - hot validation with the rebuilt native listener now confirms `/runtime/system`, `/settings/motion/sensitivity` GET or PATCH, and `/actions/snapshot` continue to work even after their installed CGI route files are temporarily removed on the live camera, proving those paths are now directly owned by the daemon rather than the CGI fallback path, with state restored afterward
 - hot validation with the rebuilt native listener now also confirms `/actions/privacy`, `/actions/daynight`, and `/actions/record` continue to work even after their installed CGI route files are temporarily removed on the live camera, proving those action paths are directly owned by the daemon rather than the CGI fallback path, with temporary runtime state and test artifacts restored afterward
 - hot validation with the rebuilt native listener now also confirms the remaining top-level routes and generic resource path are no longer required for the local API path: after temporarily removing `device`, `health`, `capabilities`, `state`, `config`, `events`, and `resource.cgi`, representative top-level, runtime, settings, schema, and SSE requests still passed through the daemon, with the installed files restored afterward
@@ -86,7 +87,6 @@ Validated on flashed image:
 Not implemented yet:
 
 - additional backend adapters beyond prudynt
-- native TLS or an intentional proxy design to replace the current `uhttpd` TLS path
 
 ## First implementation target
 
@@ -261,7 +261,7 @@ Candidate integration tasks:
 2. done: add package include under the relevant menu
 3. done in initial form: install agent script and support files
 4. done in local-only form: install init script and managed listener lifecycle
-5. pending: add any required TLS helper dependencies for remote exposure
+5. done: add the required mbedTLS helper dependencies for remote exposure
 6. done: add the first backend adapter, starting with prudynt
 
 ## Suggested init behavior
@@ -273,10 +273,10 @@ Candidate integration tasks:
 
 Current lifecycle shape:
 
-- `S95thingino-agent` manages the local-only listener lifecycle
-- `thingino-agentd` starts the native listener on `agent.listen:agent.port` by default and falls back to a dedicated `uhttpd` instance only when `agent.tls=true`
+- `S95thingino-agent` manages the listener lifecycle in both native and TLS-proxy modes
+- `thingino-agentd` starts the native listener on `agent.listen:agent.port` by default and, when `agent.tls=true`, starts a loopback native backend listener plus the in-package mbedTLS proxy on the configured external port
 - `thingino-agentd` enforces loopback-only non-TLS binds and requires `agent.token` before allowing non-loopback TLS exposure
-- the managed listener serves `/var/www` with CGI prefix `/x`, so the agent continues to expose `/x/api/v1/*`
+- the managed listeners expose `/api/v1/*`, with the native listener handling request routing directly instead of via web-root CGI assets
 - default config keeps the listener disabled until explicitly enabled in `thingino.json`
 
 ## Risks
@@ -284,7 +284,7 @@ Current lifecycle shape:
 - too much shelling out can make the daemon slow or fragile
 - too much backend-specific logic in v1 can freeze the wrong model
 - serving the API from a streamer would lock the northbound contract to one backend boundary
-- serving the API through CGI for too long would keep request handling and auth weaker than a native agent server
+- keeping stale CGI compatibility assets around after the transport migrated would obscure which layer owns the live API path
 - remote exposure before auth is solid creates avoidable risk
 
 ## Acceptance checklist for the first package
@@ -305,5 +305,5 @@ Current validation notes:
 - on-device smoke validation passed for representative routes including `/device`, `/runtime/motion`, `/settings/image/hflip`, `/config`, `/state`, snapshot, and narrow `PATCH /settings/*`
 - live testing exposed and fixed a JSON encoding bug in prudynt stream `format` and `mode` fields
 - local-only managed listener lifecycle is wired in-tree and live-validated on the flashed image with temporary enable plus restore
-- live validation now confirms the native non-TLS listener continues to work even when the packaged `/var/www/x/api` compatibility dispatcher file is temporarily absent, so the camera-hosted web compatibility asset is not required for the native path
+- live validation now confirms the native non-TLS listener continues to work without the old web-root compatibility dispatcher, so the camera-hosted compatibility asset is not required for the current agent transport
 - broad runtime coverage and full request-tree validation are still pending

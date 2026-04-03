@@ -1,5 +1,0 @@
-#!/bin/sh
-. /usr/share/thingino-agent-api-common
-require_method POST
-require_token_if_configured
-run_agentctl_json service streaming start

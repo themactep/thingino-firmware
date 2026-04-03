@@ -1,5 +1,0 @@
-#!/bin/sh
-. /usr/share/thingino-agent-api-common
-require_method GET
-require_token_if_configured
-run_agentctl_stream events

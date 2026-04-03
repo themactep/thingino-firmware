@@ -42,7 +42,7 @@ default_snapshot_url() {
 
 default_api_base_url() {
 	[ -n "$1" ] || return 1
-	printf 'http://%s/x/api/v1' "$1"
+	printf 'http://%s/api/v1' "$1"
 }
 
 registration_disabled() {

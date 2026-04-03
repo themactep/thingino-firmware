@@ -19,6 +19,19 @@ listener_port() {
 	printf '%s' "$port"
 }
 
+backend_port() {
+	port=$(listener_port)
+	if [ "$port" -le 64535 ]; then
+		printf '%s' $((port + 1000))
+	else
+		printf '%s' $((port - 1))
+	fi
+}
+
+tls_enabled() {
+	[ "true" = "$(read_config agent.tls)" ]
+}
+
 listener_pid() {
 	port=$(listener_port)
 	netstat -lntp 2>/dev/null | awk -v port=":$port" '
@@ -32,6 +45,45 @@ listener_pid() {
 	'
 }
 
+backend_listener_pid() {
+	port=$(backend_port)
+	netstat -lntp 2>/dev/null | awk -v port=":$port" '
+		index($4, port) {
+			split($7, pidprog, "/")
+			if (pidprog[1] ~ /^[0-9]+$/) {
+				print pidprog[1]
+				exit
+			}
+		}
+	'
+}
+
+find_agent_pids() {
+	target_path=$1
+	target_port=$2
+	ps w 2>/dev/null | awk -v target_path="$target_path" -v target_port="--port $target_port" '
+		index($0, target_path) && index($0, target_port) { print $1 }
+	'
+}
+
+terminate_agent_pids() {
+	target_path=$1
+	target_port=$2
+	description=$3
+	pids=$(find_agent_pids "$target_path" "$target_port" | tr '\n' ' ')
+	[ -n "$pids" ] || return 0
+	echo "- Killing $description on port $target_port"
+	kill $pids 2>/dev/null || true
+	sleep 0.2
+	remaining=
+	for pid in $pids; do
+		if kill -0 "$pid" 2>/dev/null; then
+			remaining="$remaining $pid"
+		fi
+	done
+	[ -z "$remaining" ] || kill -9 $remaining 2>/dev/null || true
+}
+
 ensure_pidfile() {
 	pid_dir=$(dirname "$PIDFILE")
 	[ -d "$pid_dir" ] || mkdir -p "$pid_dir"
@@ -39,23 +91,9 @@ ensure_pidfile() {
 }
 
 stop_listener_fallback() {
-	pid=$(listener_pid)
-	[ -n "$pid" ] || return 0
-	cmdline=$(tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null)
-	case "$cmdline" in
-		*"/usr/bin/uhttpd"*"-x /x"*"-p 127.0.0.1:$(listener_port)"*|*"/usr/bin/uhttpd"*"-x /x"*"-s 127.0.0.1:$(listener_port)"*)
-			echo "- Killing agent listener on port $(listener_port)"
-			kill "$pid" 2>/dev/null || true
-			sleep 0.2
-			kill -9 "$pid" 2>/dev/null || true
-			;;
-		*"/usr/libexec/thingino-agent/listener"*"--port $(listener_port)"*)
-			echo "- Killing native agent listener on port $(listener_port)"
-			kill "$pid" 2>/dev/null || true
-			sleep 0.2
-			kill -9 "$pid" 2>/dev/null || true
-			;;
-		esac
+	terminate_agent_pids /usr/libexec/thingino-agent/tls-proxy "$(listener_port)" "agent TLS proxy"
+	terminate_agent_pids /usr/libexec/thingino-agent/listener "$(listener_port)" "native agent listener"
+	terminate_agent_pids /usr/libexec/thingino-agent/listener "$(backend_port)" "native TLS backend listener"
 }
 
 start() {
@@ -100,6 +138,11 @@ start() {
 	if [ -z "$(listener_pid)" ]; then
 		rm -f "$PIDFILE"
 		echo_error "Agent listener did not become ready"
+		return 1
+	fi
+	if tls_enabled && [ -z "$(backend_listener_pid)" ]; then
+		rm -f "$PIDFILE"
+		echo_error "Agent TLS backend listener did not become ready"
 		return 1
 	fi
 

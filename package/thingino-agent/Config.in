@@ -1,8 +1,9 @@
 config BR2_PACKAGE_THINGINO_AGENT
 	bool "thingino-agent"
+	depends on BR2_PACKAGE_MBEDTLS || BR2_PACKAGE_THINGINO_MBEDTLS
 	select BR2_PACKAGE_THINGINO_CORE
 	select BR2_PACKAGE_THINGINO_JCT
-	select BR2_PACKAGE_THINGINO_UHTTPD
+	select BR2_PACKAGE_MBEDTLS_CERTGEN
 	help
 	  Standalone Thingino camera-agent groundwork.
 
@@ -15,5 +16,7 @@ config BR2_PACKAGE_THINGINO_AGENT
 	  from any particular streamer process.
 
 	  The current lifecycle path runs a native local listener for non-TLS
-	  mode and falls back to thingino-uhttpd only for the current TLS
-	  compatibility path.
+	  mode and uses an in-package mbedTLS proxy for HTTPS exposure.
+
+comment "thingino-agent needs mbedTLS"
+	depends on !BR2_PACKAGE_MBEDTLS && !BR2_PACKAGE_THINGINO_MBEDTLS

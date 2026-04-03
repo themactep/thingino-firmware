@@ -1,12 +1,11 @@
 #!/bin/sh
 
 THINGINO_AGENT_CONFIG="${THINGINO_AGENT_CONFIG:-/etc/thingino.json}"
-THINGINO_AGENT_DOCROOT="${THINGINO_AGENT_DOCROOT:-/var/www}"
-THINGINO_AGENT_CGI_PREFIX="${THINGINO_AGENT_CGI_PREFIX:-/x}"
-THINGINO_AGENT_COMMON_ARGS="${THINGINO_AGENT_COMMON_ARGS:--t 0 -T 15 -k 10 -n 20 -N 100}"
 THINGINO_AGENT_TLS_CERT="${THINGINO_AGENT_TLS_CERT:-/etc/ssl/certs/uhttpd.crt}"
 THINGINO_AGENT_TLS_KEY="${THINGINO_AGENT_TLS_KEY:-/etc/ssl/private/uhttpd.key}"
 THINGINO_AGENT_NATIVE_LISTENER="${THINGINO_AGENT_NATIVE_LISTENER:-/usr/libexec/thingino-agent/listener}"
+THINGINO_AGENT_TLS_PROXY="${THINGINO_AGENT_TLS_PROXY:-/usr/libexec/thingino-agent/tls-proxy}"
+THINGINO_AGENT_TLS_WORKERS="${THINGINO_AGENT_TLS_WORKERS:-5}"
 
 [ "$1" = "--" ] && shift
 
@@ -43,6 +42,73 @@ config_bool() {
 	esac
 }
 
+backend_port() {
+	listener_port=$1
+	if [ "$listener_port" -le 64535 ]; then
+		printf '%s' $((listener_port + 1000))
+	else
+		printf '%s' $((listener_port - 1))
+	fi
+}
+
+find_matching_pids() {
+	target_path=$1
+	target_port=$2
+	ps w 2>/dev/null | awk -v target_path="$target_path" -v target_port="--port $target_port" '
+		index($0, target_path) && index($0, target_port) { print $1 }
+	'
+}
+
+terminate_matching_pids() {
+	target_path=$1
+	target_port=$2
+	pids=$(find_matching_pids "$target_path" "$target_port" | tr '\n' ' ')
+	[ -n "$pids" ] || return 0
+	kill $pids 2>/dev/null || true
+	sleep 0.2
+	remaining=
+	for pid in $pids; do
+		if kill -0 "$pid" 2>/dev/null; then
+			remaining="$remaining $pid"
+		fi
+	done
+	[ -z "$remaining" ] || kill -9 $remaining 2>/dev/null || true
+}
+
+ensure_tls_certificate() {
+	[ -s "$THINGINO_AGENT_TLS_CERT" ] && [ -s "$THINGINO_AGENT_TLS_KEY" ] && return 0
+	mkdir -p "$(dirname "$THINGINO_AGENT_TLS_CERT")" "$(dirname "$THINGINO_AGENT_TLS_KEY")" || return 1
+	hostname=$(hostname 2>/dev/null)
+	[ -n "$hostname" ] || hostname="thingino-camera"
+	ip_addr=$(ip -4 addr show 2>/dev/null | awk '/inet / && !/127\.0\.0/ {split($2,a,"/"); print a[1]; exit}')
+	_ip_opt=
+	[ -n "$ip_addr" ] && _ip_opt="-i $ip_addr"
+	if ! command -v mbedtls-certgen >/dev/null 2>&1; then
+		echo "agent.tls is enabled but mbedtls-certgen is not available" >&2
+		return 1
+	fi
+	if ! mbedtls-certgen -h "$hostname.local" -c "$THINGINO_AGENT_TLS_CERT" -k "$THINGINO_AGENT_TLS_KEY" -s 256 -t ecdsa $_ip_opt >/dev/null 2>&1; then
+		echo "agent.tls is enabled but TLS certificate generation failed" >&2
+		return 1
+	fi
+	[ -s "$THINGINO_AGENT_TLS_CERT" ] && [ -s "$THINGINO_AGENT_TLS_KEY" ]
+}
+
+cleanup_tls_children() {
+	if [ -n "$proxy_pid" ]; then
+		kill "$proxy_pid" 2>/dev/null || true
+		wait "$proxy_pid" 2>/dev/null || true
+		proxy_pid=
+	fi
+	terminate_matching_pids "$THINGINO_AGENT_TLS_PROXY" "$port"
+	if [ -n "$backend_pid" ]; then
+		kill "$backend_pid" 2>/dev/null || true
+		wait "$backend_pid" 2>/dev/null || true
+		backend_pid=
+	fi
+	[ -n "$backend_port" ] && terminate_matching_pids "$THINGINO_AGENT_NATIVE_LISTENER" "$backend_port"
+}
+
 listen_addr=$(config_text agent.listen)
 [ -n "$listen_addr" ] || listen_addr="127.0.0.1"
 
@@ -62,26 +128,32 @@ if [ "$port" -le 0 ]; then
 fi
 
 if config_bool agent.tls; then
-	if ! command -v uhttpd >/dev/null 2>&1; then
-		echo "uhttpd is required when agent.tls is enabled" >&2
+	if [ ! -x "$THINGINO_AGENT_TLS_PROXY" ]; then
+		echo "TLS proxy '$THINGINO_AGENT_TLS_PROXY' is missing" >&2
 		exit 1
 	fi
-
-	if [ ! -d "$THINGINO_AGENT_DOCROOT" ]; then
-		echo "agent docroot '$THINGINO_AGENT_DOCROOT' does not exist" >&2
-		exit 1
-	fi
-
-	args="-f -h $THINGINO_AGENT_DOCROOT -x $THINGINO_AGENT_CGI_PREFIX $THINGINO_AGENT_COMMON_ARGS"
-	if [ ! -s "$THINGINO_AGENT_TLS_CERT" ] || [ ! -s "$THINGINO_AGENT_TLS_KEY" ]; then
-		echo "agent.tls is enabled but TLS certificate or key is missing" >&2
+	if [ ! -x "$THINGINO_AGENT_NATIVE_LISTENER" ]; then
+		echo "native agent listener '$THINGINO_AGENT_NATIVE_LISTENER' is missing" >&2
 		exit 1
 	fi
 	if ! is_loopback_addr "$listen_addr" && [ -z "$(config_text agent.token)" ]; then
 		echo "remote HTTPS agent exposure requires agent.token to be configured" >&2
 		exit 1
 	fi
-	args="$args -s $listen_addr:$port -C $THINGINO_AGENT_TLS_CERT -K $THINGINO_AGENT_TLS_KEY"
+	if ! ensure_tls_certificate; then
+		exit 1
+	fi
+	backend_port=$(backend_port "$port")
+	"$THINGINO_AGENT_NATIVE_LISTENER" --listen 127.0.0.1 --port "$backend_port" &
+	backend_pid=$!
+	sleep 0.2
+	if ! kill -0 "$backend_pid" 2>/dev/null; then
+		echo "failed to start native backend listener for TLS mode" >&2
+		wait "$backend_pid" 2>/dev/null || true
+		exit 1
+	fi
+	trap 'cleanup_tls_children; exit 0' INT TERM HUP
+	trap 'cleanup_tls_children' EXIT
 	case "$listen_addr" in
 		127.0.0.1|::1|localhost)
 			: local-only listener
@@ -90,7 +162,20 @@ if config_bool agent.tls; then
 			echo "warning: agent listener is not bound to loopback" >&2
 			;;
 	esac
-	exec /usr/bin/uhttpd $args
+	HTTPD_SSL_WORKERS="$THINGINO_AGENT_TLS_WORKERS" \
+		"$THINGINO_AGENT_TLS_PROXY" \
+		--listen "$listen_addr" \
+		--port "$port" \
+		--backend-host 127.0.0.1 \
+		--backend-port "$backend_port" \
+		--cert "$THINGINO_AGENT_TLS_CERT" \
+		--key "$THINGINO_AGENT_TLS_KEY" &
+	proxy_pid=$!
+	wait "$proxy_pid"
+	proxy_status=$?
+	trap - EXIT INT TERM HUP
+	cleanup_tls_children
+	exit "$proxy_status"
 else
 	if [ ! -x "$THINGINO_AGENT_NATIVE_LISTENER" ]; then
 		echo "native agent listener '$THINGINO_AGENT_NATIVE_LISTENER' is missing" >&2
