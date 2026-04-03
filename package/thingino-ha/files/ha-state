@@ -108,10 +108,16 @@ fi
 if ha_entity_enabled ota; then
 	mpub=$(ha_mpub_cmd state)
 	installed=""
+	build_date=""
 	for f in /etc/os-release /usr/lib/os-release; do
 		[ -f "$f" ] || continue
 		installed=$(grep '^COMMIT_ID=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
-		[ -n "$installed" ] && break
+		[ -n "$installed" ] && {
+			# Extract YYYYMMDD from BUILD_TIME for date comparison
+			build_time=$(grep '^BUILD_TIME=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
+			build_date=$(echo "$build_time" | sed 's/^\([0-9]\{4\}\)-\([0-9]\{2\}\)-\([0-9]\{2\}\).*/\1\2\3/')
+			break
+		}
 	done
 	[ -z "$installed" ] && installed="unknown"
 	sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/firmware/state' -m '$installed'"
@@ -122,6 +128,12 @@ if ha_entity_enabled ota; then
 			"https://api.github.com/repos/themactep/thingino-firmware/releases/latest" \
 			2>/dev/null | awk -F'"' '/tag_name/{print $4; exit}' \
 			| tr -cd '[:alnum:]._-')
+	fi
+	# If installed build date >= latest release date, suppress false update notification.
+	# Release tags follow firmware-YYYY-MM-DD; locally compiled builds may be newer.
+	if [ -n "$latest" ] && [ -n "$build_date" ]; then
+		latest_date=$(echo "$latest" | sed 's/.*\([0-9]\{4\}\)-\([0-9]\{2\}\)-\([0-9]\{2\}\).*/\1\2\3/')
+		[ ${#latest_date} -eq 8 ] && [ "$build_date" -ge "$latest_date" ] && latest="$installed"
 	fi
 	sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/firmware/latest' -m '${latest:-$installed}'"
 fi
