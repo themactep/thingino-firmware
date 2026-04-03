@@ -20,6 +20,7 @@
     : "Save motors";
   const typeBadge = $("#motors-type-badge");
   let initialLoadComplete = false;
+  let motorIsSpi = false;
 
   function showAlert(variant, message, timeout = 6000) {
     if (!message) return;
@@ -121,9 +122,9 @@
     setMotorFieldValue("pos_0_x", posParts[0] || "");
     setMotorFieldValue("pos_0_y", posParts[1] || "");
     updateHomingInputs();
-    const isSpi = config.is_spi === true || config.is_spi === "true";
-    setMotorPinInputsEnabled(!isSpi);
-    updateBadge(isSpi);
+    motorIsSpi = config.is_spi === true || config.is_spi === "true";
+    setMotorPinInputsEnabled(!motorIsSpi);
+    updateBadge(motorIsSpi);
   }
 
   async function loadMotorsConfig(options = {}) {
@@ -189,14 +190,16 @@
     const formData = new FormData(form);
     const errors = [];
 
-    // Check GPIO fields
-    for (let i = 0; i < 8; i++) {
-      const field = requiredFields[i];
-      const value = formData.get(field);
-      if (!value || value.trim() === "") {
-        errors.push(
-          `${field.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())} is required`,
-        );
+    // Check GPIO fields (skip for SPI motor boards where pins are irrelevant)
+    if (!motorIsSpi) {
+      for (let i = 0; i < 8; i++) {
+        const field = requiredFields[i];
+        const value = formData.get(field);
+        if (!value || value.trim() === "") {
+          errors.push(
+            `${field.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())} is required`,
+          );
+        }
       }
     }
 
