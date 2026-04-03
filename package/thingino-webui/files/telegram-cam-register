@@ -40,6 +40,11 @@ default_snapshot_url() {
 	printf 'http://%s/x/ch0.jpg' "$1"
 }
 
+default_api_base_url() {
+	[ -n "$1" ] || return 1
+	printf 'http://%s/x/api/v1' "$1"
+}
+
 registration_disabled() {
 	[ -f "$DISABLED_FLAG" ]
 }
@@ -58,6 +63,7 @@ cam_id=$(camera_id) || exit 1
 host=$(hostname 2>/dev/null || echo "$cam_id")
 ip_addr=$(camera_ip)
 snapshot_url=$(default_snapshot_url "$ip_addr")
+api_base_url=$(default_api_base_url "$ip_addr")
 
 mqtt_host=$(jct "$CONFIG_FILE" get mqtt_sub.host 2>/dev/null | tr -d '"')
 mqtt_port=$(jct "$CONFIG_FILE" get mqtt_sub.port 2>/dev/null | tr -d '"')
@@ -85,12 +91,13 @@ if registration_disabled; then
 	exit 0
 fi
 
-payload=$(printf '{"camera_id":"%s","name":"%s","hostname":"%s","ip":"%s","snapshot_url":"%s","status":"%s","timestamp":%s}' \
+payload=$(printf '{"camera_id":"%s","name":"%s","hostname":"%s","ip":"%s","snapshot_url":"%s","api_base_url":"%s","status":"%s","timestamp":%s}' \
 	"$(json_escape "$cam_id")" \
 	"$(json_escape "$host")" \
 	"$(json_escape "$host")" \
 	"$(json_escape "$ip_addr")" \
 	"$(json_escape "$snapshot_url")" \
+	"$(json_escape "$api_base_url")" \
 	"$(json_escape "$status")" \
 	"$(date +%s)")
 
