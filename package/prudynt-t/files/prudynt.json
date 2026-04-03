@@ -172,8 +172,8 @@
       "brightness": {
         "enabled": false,
         "fill_color": "#FFFFFFCC",
-        "format": "%b%%(%a%%) %m",
-        "position": "10,70",
+        "format": "%b",
+        "position": "10,-10",
         "rotation": 0,
         "stroke_color": "#000000CC"
       },
@@ -263,7 +263,7 @@
       "brightness": {
         "enabled": false,
         "fill_color": "#FFFFFFCC",
-        "format": "%b%%(%a%%) %m",
+        "format": "%b",
         "position": "5,-5",
         "rotation": 0,
         "stroke_color": "#000000CC"
