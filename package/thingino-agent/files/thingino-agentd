@@ -1,0 +1,113 @@
+#!/bin/sh
+
+THINGINO_AGENT_CONFIG="${THINGINO_AGENT_CONFIG:-/etc/thingino.json}"
+THINGINO_AGENT_DOCROOT="${THINGINO_AGENT_DOCROOT:-/var/www}"
+THINGINO_AGENT_CGI_PREFIX="${THINGINO_AGENT_CGI_PREFIX:-/x}"
+THINGINO_AGENT_COMMON_ARGS="${THINGINO_AGENT_COMMON_ARGS:--t 0 -T 15 -k 10 -n 20 -N 100}"
+THINGINO_AGENT_TLS_CERT="${THINGINO_AGENT_TLS_CERT:-/etc/ssl/certs/uhttpd.crt}"
+THINGINO_AGENT_TLS_KEY="${THINGINO_AGENT_TLS_KEY:-/etc/ssl/private/uhttpd.key}"
+THINGINO_AGENT_NATIVE_LISTENER="${THINGINO_AGENT_NATIVE_LISTENER:-/usr/libexec/thingino-agent/listener}"
+
+[ "$1" = "--" ] && shift
+
+config_json() {
+	key=$1
+	if command -v jct >/dev/null 2>&1 && [ -f "$THINGINO_AGENT_CONFIG" ]; then
+		jct "$THINGINO_AGENT_CONFIG" get "$key" 2>/dev/null | tr -d '\r\n'
+	fi
+}
+
+config_text() {
+	config_json "$1" | tr -d '"'
+}
+
+is_loopback_addr() {
+	case "$1" in
+		127.0.0.1|::1|localhost)
+			return 0
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+
+config_bool() {
+	case "$(config_text "$1")" in
+		1|true|TRUE|yes|on)
+			return 0
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+
+listen_addr=$(config_text agent.listen)
+[ -n "$listen_addr" ] || listen_addr="127.0.0.1"
+
+port=$(config_text agent.port)
+[ -n "$port" ] || port=1998
+
+case "$port" in
+	''|*[!0-9]*)
+		echo "agent.port must be a positive integer" >&2
+		exit 1
+		;;
+	esac
+
+if [ "$port" -le 0 ]; then
+	echo "agent.port must be greater than zero" >&2
+	exit 1
+fi
+
+if config_bool agent.tls; then
+	if ! command -v uhttpd >/dev/null 2>&1; then
+		echo "uhttpd is required when agent.tls is enabled" >&2
+		exit 1
+	fi
+
+	if [ ! -d "$THINGINO_AGENT_DOCROOT" ]; then
+		echo "agent docroot '$THINGINO_AGENT_DOCROOT' does not exist" >&2
+		exit 1
+	fi
+
+	args="-f -h $THINGINO_AGENT_DOCROOT -x $THINGINO_AGENT_CGI_PREFIX $THINGINO_AGENT_COMMON_ARGS"
+	if [ ! -s "$THINGINO_AGENT_TLS_CERT" ] || [ ! -s "$THINGINO_AGENT_TLS_KEY" ]; then
+		echo "agent.tls is enabled but TLS certificate or key is missing" >&2
+		exit 1
+	fi
+	if ! is_loopback_addr "$listen_addr" && [ -z "$(config_text agent.token)" ]; then
+		echo "remote HTTPS agent exposure requires agent.token to be configured" >&2
+		exit 1
+	fi
+	args="$args -s $listen_addr:$port -C $THINGINO_AGENT_TLS_CERT -K $THINGINO_AGENT_TLS_KEY"
+	case "$listen_addr" in
+		127.0.0.1|::1|localhost)
+			: local-only listener
+			;;
+		*)
+			echo "warning: agent listener is not bound to loopback" >&2
+			;;
+	esac
+	exec /usr/bin/uhttpd $args
+else
+	if [ ! -x "$THINGINO_AGENT_NATIVE_LISTENER" ]; then
+		echo "native agent listener '$THINGINO_AGENT_NATIVE_LISTENER' is missing" >&2
+		exit 1
+	fi
+	case "$listen_addr" in
+		localhost)
+			listen_addr=127.0.0.1
+			;;
+		::1)
+			echo "native non-TLS listener currently supports IPv4 loopback only; use 127.0.0.1" >&2
+			exit 1
+			;;
+	esac
+	if ! is_loopback_addr "$listen_addr"; then
+		echo "non-TLS agent listener must stay loopback-only; enable agent.tls for remote exposure" >&2
+		exit 1
+	fi
+	exec "$THINGINO_AGENT_NATIVE_LISTENER" --listen "$listen_addr" --port "$port"
+fi

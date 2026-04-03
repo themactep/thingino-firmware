@@ -1,0 +1,27 @@
+#!/bin/sh
+. /usr/share/thingino-agent-api-common
+require_method POST
+require_token_if_configured
+
+body_file=$(read_request_body_file)
+trap 'rm -f "$body_file"' EXIT INT TERM
+
+duration=$(json_field "$body_file" duration_seconds)
+stream_id=$(json_field "$body_file" stream_id)
+path=$(json_field "$body_file" path)
+
+[ -n "$duration" ] || duration=10
+[ -n "$stream_id" ] || stream_id=0
+
+case "$duration" in
+	''|*[!0-9]*) json_error 400 "record.duration_seconds must be an integer" ;;
+esac
+case "$stream_id" in
+	''|*[!0-9]*) json_error 400 "record.stream_id must be an integer" ;;
+esac
+
+if [ -n "$path" ]; then
+	run_agentctl_json record "$duration" "$stream_id" "$path"
+else
+	run_agentctl_json record "$duration" "$stream_id"
+fi

@@ -1,0 +1,138 @@
+#!/bin/sh
+
+DAEMON="thingino-agentd"
+PIDFILE="/run/thingino-agentd.pid"
+
+. /usr/share/common
+
+read_config() {
+	jct /etc/thingino.json get "$1" 2>/dev/null | tr -d '\n'
+}
+
+read_config_text() {
+	read_config "$1" | tr -d '"'
+}
+
+listener_port() {
+	port=$(read_config_text agent.port)
+	[ -n "$port" ] || port=1998
+	printf '%s' "$port"
+}
+
+listener_pid() {
+	port=$(listener_port)
+	netstat -lntp 2>/dev/null | awk -v port=":$port" '
+		index($4, port) {
+			split($7, pidprog, "/")
+			if (pidprog[1] ~ /^[0-9]+$/) {
+				print pidprog[1]
+				exit
+			}
+		}
+	'
+}
+
+ensure_pidfile() {
+	pid_dir=$(dirname "$PIDFILE")
+	[ -d "$pid_dir" ] || mkdir -p "$pid_dir"
+	: > "$PIDFILE"
+}
+
+stop_listener_fallback() {
+	pid=$(listener_pid)
+	[ -n "$pid" ] || return 0
+	cmdline=$(tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null)
+	case "$cmdline" in
+		*"/usr/bin/uhttpd"*"-x /x"*"-p 127.0.0.1:$(listener_port)"*|*"/usr/bin/uhttpd"*"-x /x"*"-s 127.0.0.1:$(listener_port)"*)
+			echo "- Killing agent listener on port $(listener_port)"
+			kill "$pid" 2>/dev/null || true
+			sleep 0.2
+			kill -9 "$pid" 2>/dev/null || true
+			;;
+		*"/usr/libexec/thingino-agent/listener"*"--port $(listener_port)"*)
+			echo "- Killing native agent listener on port $(listener_port)"
+			kill "$pid" 2>/dev/null || true
+			sleep 0.2
+			kill -9 "$pid" 2>/dev/null || true
+			;;
+		esac
+}
+
+start() {
+	echo_title "Starting Thingino agent listener"
+
+	if [ "true" != "$(read_config agent.enabled)" ]; then
+		echo_info "Disabled"
+		return 0
+	fi
+
+	port=$(read_config_text agent.port)
+	[ -n "$port" ] || port=1998
+	case "$port" in
+		''|*[!0-9]*)
+			echo_error "agent.port must be a positive integer"
+			return 1
+			;;
+	esac
+	if [ "$port" -le 0 ]; then
+		echo_info "Disabled: agent.port <= 0"
+		return 0
+	fi
+
+	listen_addr=$(read_config_text agent.listen)
+	[ -n "$listen_addr" ] || listen_addr="127.0.0.1"
+	echo_info "Listener: $listen_addr:$port"
+
+	ensure_pidfile || {
+		echo_error "Failed to prepare $PIDFILE"
+		return 1
+	}
+
+	start_daemon
+	status=$?
+	if [ $status -ne 0 ]; then
+		rm -f "$PIDFILE"
+		echo_error "Failed to start agent listener"
+		return $status
+	fi
+
+	sleep 0.5
+	if [ -z "$(listener_pid)" ]; then
+		rm -f "$PIDFILE"
+		echo_error "Agent listener did not become ready"
+		return 1
+	fi
+
+	echo_info "Agent listener started"
+	return 0
+}
+
+stop() {
+	echo_title "Stopping Thingino agent listener"
+	stop_daemon
+	stop_listener_fallback
+	rm -f "$PIDFILE"
+}
+
+case "$1" in
+	start)
+		start
+		status=$?
+		;;
+	stop)
+		stop
+		status=$?
+		;;
+	restart)
+		stop
+		sleep 1
+		start
+		status=$?
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+	esac
+
+exit ${status:-0}

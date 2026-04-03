@@ -1,0 +1,177 @@
+#!/bin/sh
+. /usr/share/thingino-agent-api-common
+
+request_path=${PATH_INFO:-}
+
+case "$request_path" in
+	/v1) resource= ;;
+	/v1/*) resource=${request_path#/v1/} ;;
+	*) json_error 404 "Not Found" ;;
+esac
+
+case "$resource" in
+	device)
+		require_method GET
+		require_token_if_configured
+		run_agentctl_json device
+		;;
+	health)
+		require_method GET
+		require_token_if_configured
+		run_agentctl_json health
+		;;
+	state)
+		require_method GET
+		require_token_if_configured
+		run_agentctl_json state
+		;;
+	capabilities)
+		require_method GET
+		require_token_if_configured
+		run_agentctl_json capabilities
+		;;
+	capabilities/*)
+		require_method GET
+		require_token_if_configured
+		run_agentctl_json capabilities "${resource#capabilities/}"
+		;;
+	config|config/)
+		require_method_one_of GET PATCH
+		require_token_if_configured
+		case "${REQUEST_METHOD:-GET}" in
+			GET)
+				run_agentctl_json config
+				;;
+			PATCH)
+				body_file=$(read_request_body_file)
+				trap 'rm -f "$body_file"' EXIT INT TERM
+				run_agentctl_json apply-config "$body_file"
+				;;
+		esac
+		;;
+	config/schema)
+		require_method GET
+		require_token_if_configured
+		run_agentctl_json schema
+		;;
+	runtime/*)
+		require_method GET
+		require_token_if_configured
+		run_agentctl_json runtime "${resource#runtime/}"
+		;;
+	settings/*)
+		require_method_one_of GET PATCH
+		require_token_if_configured
+		setting_path=${resource#settings/}
+		case "${REQUEST_METHOD:-GET}" in
+			GET)
+				run_agentctl_json get-setting "$setting_path"
+				;;
+			PATCH)
+				body_file=$(read_request_body_file)
+				trap 'rm -f "$body_file"' EXIT INT TERM
+				run_agentctl_json set-setting "$setting_path" "$body_file"
+				;;
+		esac
+		;;
+	actions/snapshot)
+		require_method POST
+		require_token_if_configured
+		stream_id=$(query_param stream_id)
+		[ -n "$stream_id" ] || stream_id=0
+		tmpfile=$(mktemp /tmp/thingino-agent-snapshot.XXXXXX)
+		errfile=$(mktemp /tmp/thingino-agent-snapshot.err.XXXXXX)
+		if ! thingino-agentctl snapshot "$stream_id" >"$tmpfile" 2>"$errfile"; then
+			err=$(cat "$errfile" 2>/dev/null)
+			rm -f "$tmpfile" "$errfile"
+			json_error 500 "${err:-thingino-agentctl failed}"
+		fi
+		rm -f "$errfile"
+		header_jpeg
+		cat "$tmpfile"
+		rm -f "$tmpfile"
+		;;
+	actions/privacy)
+		require_method POST
+		require_token_if_configured
+		body_file=$(read_request_body_file)
+		trap 'rm -f "$body_file"' EXIT INT TERM
+		enabled=$(json_field "$body_file" enabled)
+		channel=$(json_field "$body_file" channel)
+		[ -n "$channel" ] || channel=all
+		case "$enabled" in
+			true|1|on|yes) state=on ;;
+			false|0|off|no) state=off ;;
+			*) json_error 400 "privacy.enabled must be true or false" ;;
+		esac
+		run_agentctl_json privacy "$state" "$channel"
+		;;
+	actions/daynight)
+		require_method POST
+		require_token_if_configured
+		body_file=$(read_request_body_file)
+		trap 'rm -f "$body_file"' EXIT INT TERM
+		mode=$(json_field "$body_file" mode)
+		mode=$(printf '%s' "$mode" | tr -d '"' | tr 'A-Z' 'a-z')
+		case "$mode" in
+			auto|day|night) ;;
+			*) json_error 400 "daynight.mode must be auto, day, or night" ;;
+		esac
+		run_agentctl_json daynight "$mode"
+		;;
+	actions/record)
+		require_method POST
+		require_token_if_configured
+		body_file=$(read_request_body_file)
+		trap 'rm -f "$body_file"' EXIT INT TERM
+		duration=$(json_field "$body_file" duration_seconds)
+		stream_id=$(json_field "$body_file" stream_id)
+		path=$(json_field "$body_file" path)
+		[ -n "$duration" ] || duration=10
+		[ -n "$stream_id" ] || stream_id=0
+		case "$duration" in
+			''|*[!0-9]*) json_error 400 "record.duration_seconds must be an integer" ;;
+		esac
+		case "$stream_id" in
+			''|*[!0-9]*) json_error 400 "record.stream_id must be an integer" ;;
+		esac
+		if [ -n "$path" ]; then
+			run_agentctl_json record "$duration" "$stream_id" "$path"
+		else
+			run_agentctl_json record "$duration" "$stream_id"
+		fi
+		;;
+	actions/reboot)
+		require_method POST
+		require_token_if_configured
+		run_agentctl_json reboot
+		;;
+	actions/services/streaming/start)
+		require_method POST
+		require_token_if_configured
+		run_agentctl_json service streaming start
+		;;
+	actions/services/streaming/stop)
+		require_method POST
+		require_token_if_configured
+		run_agentctl_json service streaming stop
+		;;
+	actions/services/streaming/restart)
+		require_method POST
+		require_token_if_configured
+		run_agentctl_json service streaming restart
+		;;
+	actions/streamer/restart)
+		require_method POST
+		require_token_if_configured
+		run_agentctl_json restart-streamer
+		;;
+	events)
+		require_method GET
+		require_token_if_configured
+		run_agentctl_stream events
+		;;
+	*)
+		json_error 404 "Not Found"
+		;;
+esac

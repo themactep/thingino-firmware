@@ -1,0 +1,220 @@
+#!/bin/sh
+
+OS_RELEASE_FILE="${OS_RELEASE_FILE:-/etc/os-release}"
+THINGINO_CONFIG_FILE="${THINGINO_CONFIG_FILE:-/etc/thingino.json}"
+
+thingino_agent_json_string() {
+	value=$(printf '%s' "$1" | awk 'BEGIN { ORS="" } {
+		gsub(/\\/, "\\\\");
+		gsub(/"/, "\\\"");
+		gsub(/\t/, "\\t");
+		gsub(/\r/, "\\r");
+		if (NR > 1) {
+			printf "\\n";
+		}
+		printf "%s", $0;
+	}')
+	printf '"%s"' "$value"
+}
+
+thingino_agent_json_bool() {
+	case "$1" in
+		1|true|TRUE|yes|on) printf 'true' ;;
+		*) printf 'false' ;;
+	esac
+}
+
+thingino_agent_os_release_value() {
+	key=$1
+	[ -r "$OS_RELEASE_FILE" ] || return 0
+	awk -F '=' -v key="$key" '
+		$1 == key {
+			value = substr($0, index($0, "=") + 1)
+			gsub(/^"|"$/, "", value)
+			print value
+			exit
+		}
+	' "$OS_RELEASE_FILE" 2>/dev/null | tr -d '\n'
+}
+
+thingino_agent_json_config_value() {
+	file=$1
+	path=$2
+	if command -v jct >/dev/null 2>&1 && [ -f "$file" ]; then
+		jct "$file" get "$path" 2>/dev/null | tr -d '\n\r'
+	fi
+}
+
+thingino_agent_text_config_value() {
+	path=$1
+	thingino_agent_json_config_value "$THINGINO_CONFIG_FILE" "$path" | tr -d '"'
+}
+
+thingino_agent_clean_mac() {
+	printf '%s' "$1" | tr -d ':\n\r' | tr 'A-F' 'a-f'
+}
+
+thingino_agent_camera_id() {
+	value=$(thingino_agent_text_config_value eth.mac)
+	[ -n "$value" ] || value=$(thingino_agent_text_config_value wlan.mac)
+	[ -n "$value" ] || value=$(fw_printenv -n ethaddr 2>/dev/null)
+	[ -n "$value" ] || value=$(fw_printenv -n wlan_mac 2>/dev/null)
+	[ -n "$value" ] || value=$(thingino_agent_os_release_value IMAGE_ID)
+	thingino_agent_clean_mac "$value"
+}
+
+thingino_agent_camera_model() {
+	value=$(thingino_agent_text_config_value ha.device_model)
+	[ -n "$value" ] || value=$(thingino_agent_os_release_value IMAGE_ID)
+	[ -n "$value" ] || value=$(thingino_agent_os_release_value HOSTNAME)
+	[ -n "$value" ] || value=$(soc -m 2>/dev/null | tr -d '\n')
+	printf '%s' "$value"
+}
+
+thingino_agent_firmware_version() {
+	value=$(thingino_agent_os_release_value BUILD_ID)
+	[ -n "$value" ] || value=$(thingino_agent_os_release_value COMMIT_ID)
+	[ -n "$value" ] || value=$(thingino_agent_os_release_value VERSION_ID)
+	printf '%s' "$value"
+}
+
+thingino_agent_hostname() {
+	value=$(hostname 2>/dev/null | tr -d '\n')
+	case "$value" in
+		""|"(none)") value="" ;;
+	esac
+	[ -n "$value" ] || value=$(cat /etc/hostname 2>/dev/null | tr -d '\n')
+	[ -n "$value" ] || value=$(thingino_agent_os_release_value HOSTNAME)
+	printf '%s' "$value"
+}
+
+thingino_agent_default_ip() {
+	ip_addr=$(hostname -i 2>/dev/null | awk '{for (i = 1; i <= NF; i++) if ($i !~ /^127\./) { print $i; exit }}')
+	if [ -n "$ip_addr" ]; then
+		printf '%s' "$ip_addr"
+		return 0
+	fi
+
+	ip_addr=$(ip -4 route get 1 2>/dev/null | awk '{for (i = 1; i <= NF; i++) if ($i == "src") { print $(i + 1); exit }}')
+	if [ -n "$ip_addr" ]; then
+		printf '%s' "$ip_addr"
+		return 0
+	fi
+
+	ip_addr=$(ip -4 addr show scope global 2>/dev/null | awk '/inet / {sub(/\/.*/, "", $2); print $2; exit}')
+	if [ -n "$ip_addr" ]; then
+		printf '%s' "$ip_addr"
+		return 0
+	fi
+
+	ifconfig 2>/dev/null | awk '
+		/inet addr:/ { sub(/.*inet addr:/, "", $0); sub(/ .*/, "", $0); if ($0 !~ /^127\./) { print; exit } }
+		/inet / && $2 !~ /^127\./ { print $2; exit }
+	'
+}
+
+thingino_agent_uptime_seconds() {
+	cut -d '.' -f 1 /proc/uptime 2>/dev/null || printf '0'
+}
+
+thingino_agent_loadavg_field() {
+	field_index=$1
+	awk -v field_index="$field_index" 'NR == 1 && NF >= field_index { print $field_index; exit }' /proc/loadavg 2>/dev/null | tr -d '\n'
+}
+
+thingino_agent_meminfo_kib() {
+	field_name=$1
+	awk -v field_name="$field_name" '$1 == field_name":" { print $2; exit }' /proc/meminfo 2>/dev/null | tr -d '\n'
+}
+
+thingino_agent_mem_available_kib() {
+	available_kib=$(thingino_agent_meminfo_kib MemAvailable)
+	if [ -n "$available_kib" ]; then
+		printf '%s' "$available_kib"
+		return 0
+	fi
+	free_kib=$(thingino_agent_meminfo_kib MemFree)
+	buffers_kib=$(thingino_agent_meminfo_kib Buffers)
+	cached_kib=$(thingino_agent_meminfo_kib Cached)
+	free_kib=${free_kib:-0}
+	buffers_kib=${buffers_kib:-0}
+	cached_kib=${cached_kib:-0}
+	printf '%s' $((free_kib + buffers_kib + cached_kib))
+}
+
+thingino_agent_mem_used_kib() {
+	total_kib=$(thingino_agent_meminfo_kib MemTotal)
+	available_kib=$(thingino_agent_mem_available_kib)
+	total_kib=${total_kib:-0}
+	available_kib=${available_kib:-0}
+	used_kib=$((total_kib - available_kib))
+	if [ "$used_kib" -lt 0 ]; then
+		used_kib=0
+	fi
+	printf '%s' "$used_kib"
+}
+
+thingino_agent_json_value_or() {
+	value=$1
+	default_value=$2
+	if [ -n "$value" ]; then
+		printf '%s' "$value"
+	else
+		printf '%s' "$default_value"
+	fi
+}
+
+thingino_agent_json_string_or_null() {
+	value=$1
+	if [ -n "$value" ]; then
+		thingino_agent_json_string "$value"
+	else
+		printf 'null'
+	fi
+}
+
+thingino_agent_timestamp_utc() {
+	date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || printf '1970-01-01T00:00:00Z'
+}
+
+thingino_agent_sse_payload() {
+	event_type=$1
+	payload_fields=$2
+	printf '{'
+	printf '"type":%s,' "$(thingino_agent_json_string "$event_type")"
+	printf '"timestamp":%s' "$(thingino_agent_json_string "$(thingino_agent_timestamp_utc)")"
+	[ -n "$payload_fields" ] && printf ',%s' "$payload_fields"
+	printf '}'
+}
+
+thingino_agent_sse_emit() {
+	event_type=$1
+	payload=$2
+	printf 'event: %s\n' "$event_type" || exit 0
+	printf 'data: %s\n\n' "$payload" || exit 0
+}
+
+thingino_agent_setting_path_label() {
+	printf '%s' "$1" | tr '/' '.'
+}
+
+thingino_agent_print_setting_leaf() {
+	key=$1
+	value=$2
+	printf '{"%s":%s}\n' "$key" "$(thingino_agent_json_value_or "$value" null)"
+}
+
+thingino_agent_print_setting_update() {
+	path=$1
+	key=$2
+	value=$3
+	printf '{"status":"accepted","applied":["settings.%s"],"staged":[],"restart_required":[],"resource":{"%s":%s}}\n' \
+		"$(thingino_agent_setting_path_label "$path")" "$key" "$(thingino_agent_json_value_or "$value" null)"
+}
+
+thingino_agent_print_setting_resource_update() {
+	path=$1
+	resource_json=$2
+	printf '{"status":"accepted","applied":["settings.%s"],"staged":[],"restart_required":[],"resource":%s}\n' \
+		"$(thingino_agent_setting_path_label "$path")" "$(thingino_agent_json_value_or "$resource_json" null)"
+}

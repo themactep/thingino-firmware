@@ -1,0 +1,128 @@
+#!/bin/sh
+
+THINGINO_AGENT_CONFIG="${THINGINO_AGENT_CONFIG:-/etc/thingino.json}"
+
+header_json() {
+	printf 'Content-Type: application/json\r\n\r\n'
+}
+
+header_jpeg() {
+	printf 'Content-Type: image/jpeg\r\n\r\n'
+}
+
+header_sse() {
+	printf 'Content-Type: text/event-stream\r\n'
+	printf 'Cache-Control: no-cache\r\n\r\n'
+}
+
+header_status() {
+	code="$1"
+	message="$2"
+	printf 'Status: %s %s\r\n' "$code" "$message"
+}
+
+json_escape() {
+	printf '%s' "$1" | awk 'BEGIN { ORS="" } {
+		gsub(/\\/, "\\\\");
+		gsub(/"/, "\\\"");
+		gsub(/\t/, "\\t");
+		gsub(/\r/, "\\r");
+		if (NR > 1) {
+			printf "\\n";
+		}
+		printf "%s", $0;
+	}'
+}
+
+json_error() {
+	code="$1"
+	message="$2"
+	header_status "$code" "$message"
+	header_json
+	esc_message=$(json_escape "$message")
+	printf '{"status":"error","error":{"code":"http_%s","message":"%s"}}\n' "$code" "$esc_message"
+	exit 0
+}
+
+require_method() {
+	expected="$1"
+	actual="${REQUEST_METHOD:-GET}"
+	[ "$actual" = "$expected" ] || json_error 405 "Method Not Allowed"
+}
+
+require_method_one_of() {
+	actual="${REQUEST_METHOD:-GET}"
+	for expected in "$@"; do
+		[ "$actual" = "$expected" ] && return 0
+	done
+	json_error 405 "Method Not Allowed"
+}
+
+query_param() {
+	key="$1"
+	printf '%s' "${QUERY_STRING:-}" | tr '&' '\n' | awk -F '=' -v key="$key" '$1 == key { print $2; exit }' | sed 's/%20/ /g; s/%2[Ff]/\//g; s/%3[Aa]/:/g'
+}
+
+api_resource_path() {
+	script_name=${SCRIPT_NAME:-$0}
+	printf '%s' "$script_name" | sed 's|^.*/api/v1/||'
+}
+
+read_request_body_file() {
+	tmpfile=$(mktemp /tmp/thingino-agent-body.XXXXXX)
+	cat >"$tmpfile"
+	printf '%s\n' "$tmpfile"
+}
+
+json_field() {
+	file="$1"
+	path="$2"
+	if command -v jct >/dev/null 2>&1; then
+		jct "$file" get "$path" 2>/dev/null | tr -d '\n'
+	fi
+}
+
+agent_token() {
+	if command -v jct >/dev/null 2>&1 && [ -f "$THINGINO_AGENT_CONFIG" ]; then
+		jct "$THINGINO_AGENT_CONFIG" get agent.token 2>/dev/null | tr -d '\n'
+	fi
+}
+
+require_token_if_configured() {
+	expected=$(agent_token)
+	[ -n "$expected" ] || return 0
+	auth_header=${HTTP_AUTHORIZATION:-}
+	case "$auth_header" in
+		"Bearer $expected") return 0 ;;
+		*) json_error 401 "Unauthorized" ;;
+	esac
+}
+
+run_agentctl_json() {
+	command="$1"
+	shift
+	errfile=$(mktemp /tmp/thingino-agent-api.err.XXXXXX)
+	if ! output=$(thingino-agentctl "$command" "$@" 2>"$errfile"); then
+		err=$(cat "$errfile" 2>/dev/null)
+		rm -f "$errfile"
+		json_error 500 "${err:-thingino-agentctl failed}"
+	fi
+	rm -f "$errfile"
+	header_json
+	printf '%s' "$output"
+}
+
+run_agentctl_stream() {
+	command="$1"
+	shift
+	errfile=$(mktemp /tmp/thingino-agent-api.err.XXXXXX)
+	header_sse
+	if ! thingino-agentctl "$command" "$@" 2>"$errfile"; then
+		err=$(cat "$errfile" 2>/dev/null)
+		rm -f "$errfile"
+		printf 'event: error\n' || exit 0
+		printf 'data: {"status":"error","message":"%s"}\n\n' "$(json_escape "${err:-thingino-agentctl failed}")" || exit 0
+		exit 0
+	fi
+	rm -f "$errfile"
+}

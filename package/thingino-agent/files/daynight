@@ -1,0 +1,17 @@
+#!/bin/sh
+. /usr/share/thingino-agent-api-common
+require_method POST
+require_token_if_configured
+
+body_file=$(read_request_body_file)
+trap 'rm -f "$body_file"' EXIT INT TERM
+
+mode=$(json_field "$body_file" mode)
+mode=$(printf '%s' "$mode" | tr -d '"' | tr 'A-Z' 'a-z')
+
+case "$mode" in
+	auto|day|night) ;;
+	*) json_error 400 "daynight.mode must be auto, day, or night" ;;
+esac
+
+run_agentctl_json daynight "$mode"

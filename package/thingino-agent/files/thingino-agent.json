@@ -1,0 +1,11 @@
+{
+  "agent": {
+    "enabled": false,
+    "backend": "auto",
+    "listen": "127.0.0.1",
+    "port": 1998,
+    "tls": false,
+    "token": "",
+    "notes": "Managed local-only listener. The external API belongs to the agent; backend adapters stay behind it."
+  }
+}

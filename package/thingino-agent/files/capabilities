@@ -1,0 +1,12 @@
+#!/bin/sh
+. /usr/share/thingino-agent-api-common
+require_method GET
+require_token_if_configured
+
+path_info=${PATH_INFO:-}
+resource=${path_info#/}
+
+case "$resource" in
+	"") run_agentctl_json capabilities ;;
+	*) run_agentctl_json capabilities "$resource" ;;
+esac

@@ -50,7 +50,11 @@ Current phase 1 status:
 	- first narrow send2 settings now exist for motion output enables and per-service `send_photo` or `send_video` flags, with `capabilities/send2` exposed through the agent-owned route tree
 	- snapshot, clip, privacy, daynight, reboot, and streamer service control paths exist
 	- managed listener lifecycle was live-validated on the flashed image through `127.0.0.1:1998`
-	- rebuilt image validation confirmed the in-image listener path end to end and restored the default disabled state afterward
+	- native local listener transport now exists for non-TLS mode, and the known local API tree is now daemon-owned end to end; a single packaged CGI dispatcher at `/var/www/x/api` remains only for the current TLS or `uhttpd` compatibility path
+	- live validation proved representative native ownership first by removing selected runtime, settings, and action CGI files, and then by removing the remaining top-level route scripts plus `resource.cgi` while representative top-level, runtime, settings, schema, and SSE requests still passed through the daemon
+	- rebuilt image validation confirmed the in-image listener path end to end in both modes: native non-TLS on `127.0.0.1:1998/x/api/v1/*` and TLS `uhttpd` compatibility through the packaged `/var/www/x/api` dispatcher, then restored the default disabled state afterward
+	- remote HTTPS listener exposure now works through the current TLS `uhttpd` path when explicitly enabled, and live validation now confirms remote non-TLS binds are rejected, remote TLS binds without `agent.token` are rejected, and authenticated remote HTTPS requests succeed when `agent.tls=true`, `agent.listen=0.0.0.0`, and `agent.token` is configured
+	- live validation now also confirms the native non-TLS listener does not depend on the packaged `/var/www/x/api` compatibility dispatcher: with that file temporarily removed on the flashed camera, representative `/x/api/v1/device`, `/x/api/v1/config/schema`, and `/x/api/v1/events` requests still passed through the daemon, then the file and default disabled state were restored
 	- hot validation confirmed agent-owned typed SSE events and machine-readable schema output on the live camera, including motion edges, recording completion, firmware pending transitions, health warnings, and streamer restart lifecycle
 	- rebuilt image validation confirmed the in-image `/events` and `/config/schema` paths end to end and restored the default disabled state afterward
 	- hot validation confirmed representative stream `format` and `mode` writes through the managed listener and restored the original values afterward
@@ -67,11 +71,9 @@ Current phase 1 status:
 	- hot validation confirmed representative services and firmware capability reads through the managed listener
 	- corrected full-image OTA validation now confirms the running device hashes match the rebuilt target for `thingino-agentctl`, `lib.sh`, and the prudynt adapter, and revalidates representative stream, OSD, storage, send2, runtime, health, schema, and SSE hello behavior on the flashed image before restoring the default disabled listener state
 - partially implemented
-	- the agent is still CGI and shell based behind a managed local-only listener rather than a native agent server
-	- the request tree is only partially covered so far
+	- the local non-TLS path is now native-owned for the known request tree, but `uhttpd` plus a single packaged CGI dispatcher are still retained for the current TLS path
 	- bulk `PATCH /config` remains for migration
 - not implemented yet
-	- remote HTTPS listener and TLS-managed exposure
 	- additional backend adapters
 
 Review questions:
