@@ -2,6 +2,8 @@
 
 Status: Proposed
 
+Implementation progress: In progress
+
 ## Purpose
 
 This document describes how the desktop hub should retain deeper operational
@@ -156,6 +158,13 @@ Recommended flow:
 
 This lets analytics evolve in parallel with native API work.
 
+Current implementation status:
+
+- SQLite-backed history storage already exists in the current hub
+- native action history is already recorded and shown in camera detail and history views
+- coarse probe and state samples already exist for first-pass operational diagnosis
+- graph views, config diffs, and broader normalized sampling are not implemented yet
+
 ## What should not happen
 
 Avoid these failure modes:
@@ -169,11 +178,9 @@ Avoid these failure modes:
 
 Recommended order once implementation starts:
 
-1. SQLite database initialization and migration bootstrap
-2. `action_events` table for native API operations
-3. `state_samples` table for periodic health and mode tracking
-4. first camera timeline view in the hub UI
-5. graph views for a small set of normalized fields
+1. expand normalized sampling only for fields that directly help current hub operation and troubleshooting
+2. add config diff or change records for native config writes
+3. add graph views for a small set of normalized fields once the sampled data is stable enough to be useful
 
 ## Relationship to the rest of the plan
 
@@ -187,3 +194,7 @@ The database becomes most valuable when:
 
 At that point, the historical store turns the hub from a live control surface
 into a useful analysis tool as well.
+
+The next development phase is not a history-first phase. Phase 2a should remain
+parallel and subordinate to Phase 2 until the hub's live camera-management path
+is complete and stable.

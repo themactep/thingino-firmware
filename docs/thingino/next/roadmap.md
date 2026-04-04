@@ -99,6 +99,28 @@ Deliverables:
 - basic bulk operations
 - initial persistent history store for action logs and coarse state samples
 
+Current phase 2 status:
+
+- implemented in tree
+	- hub defaults now target the canonical `/api/v1` path instead of the retired `/x/api/v1` path
+	- hub-native API access now accepts self-signed HTTPS camera-agent endpoints so remote TLS exposure can be the normal camera-to-hub path
+	- camera registration now works end to end against remote HTTPS agent exposure with token auth on the live validation camera
+	- camera roster and detail views now survive native snapshot truncation by falling back to the raw snapshot URL instead of falsely marking cameras offline
+	- camera capability parsing now matches the current native agent schema for top-level `image`, `motion`, `daynight`, and `privacy` capability trees plus `backend.raw` config payloads
+	- camera detail pages now render from cached supported-controls data instead of blocking on live native capability, config, and state reads during page load
+	- quick controls for motion, privacy, anti-flicker, and day or night now return narrow deltas instead of full camera objects
+	- manual camera-page refresh actions for snapshot, native API, and ONVIF now queue background work and acknowledge immediately instead of blocking the page
+	- camera detail feedback now uses a floating toast so action notifications do not shift the page layout
+	- local history view exists with database-backed native action events and coarse state samples
+- partially implemented
+	- camera-page cache hydration still depends on existing background refreshes or manual refresh actions rather than a targeted detail-page refresh-on-open path
+	- some action feedback strings remain more verbose than necessary for frequent quick-control use
+	- response-shape and non-blocking behavior are live-validated but not yet covered by lightweight hub regression tests
+- not implemented yet
+	- enrollment or pairing flow for first-time camera adoption
+	- event feed view driven from the agent event stream
+	- bulk camera operations beyond single-camera refresh or delete flows
+
 Review questions:
 
 - can users operate cameras normally without the camera-hosted UI
@@ -118,6 +140,19 @@ Deliverables:
 - state samples for key graphable fields
 - config change records or diffs
 - first timeline and graph views in the hub UI
+
+Current phase 2a status:
+
+- implemented in tree
+	- SQLite-backed history store exists in the hub
+	- native action history is recorded and shown on camera detail pages and history pages
+	- coarse probe or state samples exist for API probes and snapshot or probe status
+- partially implemented
+	- timeline view exists, but graph views are still absent
+	- state sampling is useful for coarse diagnosis but not yet broad enough for trend analysis across more camera subsystems
+- not implemented yet
+	- config diff or change records
+	- graph views for sampled state
 
 Review questions:
 
@@ -178,6 +213,13 @@ Review questions:
 - remote access productization
 
 These should stay deferred until the local network architecture works well.
+
+## Next recommended work
+
+- add targeted background hydration when a camera detail page opens so cached controls and summary fields refresh quickly without waiting for manual button presses
+- add lightweight hub regression coverage for minimal action responses and queued refresh behavior on camera-page routes
+- shorten repetitive quick-action success messages so routine control use reads cleanly in the floating toast
+- watch send2 configuration reads on slower cameras and cache or defer them if they become the next page-load bottleneck
 
 ## Reassessment checklist
 

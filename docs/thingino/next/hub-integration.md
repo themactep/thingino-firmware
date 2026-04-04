@@ -2,6 +2,8 @@
 
 Status: Proposed
 
+Implementation progress: In progress
+
 ## Purpose
 
 This document maps the target architecture to the existing hub project located
@@ -20,6 +22,8 @@ Observed structure:
 - ONVIF device identity lookup
 - snapshot preview caching
 - persisted camera registry and config editing
+- native camera-agent client layer
+- SQLite-backed history store and timeline views
 
 Relevant files in the current hub:
 
@@ -37,11 +41,11 @@ Relevant files in the current hub:
 
 ## What it does not yet solve cleanly
 
-- canonical Thingino-native camera control
-- capability-driven configuration UI
-- distinction between runtime state and persisted config on the device
-- hub-native understanding of non-MQTT actions and device resources
-- long-lived historical storage for graphs, timelines, and drift analysis
+- first-time enrollment and pairing workflow
+- event-feed view driven from the native agent event stream
+- bulk operations beyond single-camera workflows
+- lightweight regression coverage for response-shape and queued-refresh behavior
+- deeper historical analysis such as graphs and config diffs
 
 ## Integration target
 
@@ -74,6 +78,13 @@ Candidate responsibilities for that abstraction:
 - trigger snapshot, clip, reboot, and restart actions
 - emit normalized action and state records to a hub-local history writer
 - fall back to MQTT or ONVIF only where native API is not present yet
+
+Current progress against that refactor:
+
+- the hub already has a native camera-agent client layer
+- native API-capable cameras now drive camera detail controls through capability-aware fields
+- quick controls and camera-page refresh actions no longer require full camera payload reads on every interaction
+- the remaining work is to keep page-open hydration and slower secondary reads narrow, cached, and well-tested
 
 The target request tree and response-scope rules are defined in
 [request-tree.md](request-tree.md).
@@ -123,12 +134,11 @@ Suggested global UI behavior:
 
 ## Immediate implementation opportunities in the hub
 
-1. split the current coarse camera client into resource-specific methods
-2. stop using `probe()` as the default answer to every UI request
-3. extend camera state model to store API reachability and selected runtime fields
-4. prefer narrow `/settings/*` and `/runtime/*` endpoints for normal controls
-5. reserve `GET /config` for explicit full-config screens and tooling
-6. prefer native snapshot action over raw snapshot URL when available
+1. add background hydration when a camera detail page opens so cached detail data refreshes automatically without blocking initial render
+2. add lightweight regression coverage for minimal action responses and queued refresh behavior
+3. shorten repetitive quick-action messages so the UI feedback stays concise
+4. cache or defer slower secondary reads such as send2 overview fetches if they become the next latency source
+5. continue reserving `GET /config` for explicit config screens and tooling
 
 ## Historical storage integration
 
@@ -150,6 +160,9 @@ Important boundary:
 The same rule applies to API reads: quick controls should not require fetching
 full camera config or full runtime blobs before every write.
 
+That principle is now partly implemented in the current hub and should continue
+to guide the remaining Phase 2 work.
+
 This lets history and graphs grow in parallel with the native API rollout
 without turning analytics storage into a dependency for core operation.
 
@@ -158,3 +171,7 @@ without turning analytics storage into a dependency for core operation.
 - current hub features keep working during transition
 - native API-capable cameras expose richer state in the same UI
 - Telegram flows can gradually move from MQTT command strings to typed actions
+
+The next development phase remains Phase 2 hub completion, with only narrow
+Phase 2a additions when they directly support the hub becoming the normal
+operator surface.

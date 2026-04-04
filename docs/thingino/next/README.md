@@ -22,6 +22,14 @@ This is a working design set, not a frozen specification.
 
 Unless a file says otherwise, treat its current contents as Proposed.
 
+Current implementation center of gravity:
+
+- Phase 1 camera-agent work is materially in progress on-device
+- Phase 2 hub work is materially in progress in `/home/paul/thingino/hub`
+- Phase 2a history work has started in the hub, but is still early and should remain downstream from live control
+
+The next development phase is still Phase 2: finish making the hub the normal operator surface for native-camera control, while continuing limited Phase 2a work only where it directly supports that path
+
 ## Core direction
 
 Thingino should expose one canonical southbound API from each camera and let

@@ -2,6 +2,8 @@
 
 Status: Proposed
 
+Implementation progress: In progress
+
 ## Purpose
 
 The desktop hub is the primary monitoring and configuration surface for Thingino
@@ -19,6 +21,17 @@ Current characteristics:
 - camera roster, camera detail, and config pages
 - ONVIF device detail fetches for identity metadata
 - snapshot preview caching and camera registration state
+- native camera-agent client support with `/api/v1` defaults
+- self-signed HTTPS camera-agent support for remote TLS endpoints
+- database-backed action and coarse state history views
+- camera detail quick controls for native motion, privacy, day/night, image, stream, and send2 settings
+
+Recent implementation progress:
+
+- camera detail pages now render from cached supported-controls data instead of blocking on live native capability or config reads
+- quick controls now use narrow responses instead of full camera payloads where possible
+- manual refresh actions now queue work and acknowledge immediately instead of blocking the page
+- feedback for quick actions now floats above the page instead of shifting layout
 
 This matters because the new architecture does not start from zero. The current
 hub should be treated as the first desktop control plane component and expanded
@@ -58,6 +71,10 @@ As the hub matures, this should include a local historical store for trend and
 timeline analysis. That store belongs in the hub because it is expensive in
 storage terms and does not help the camera do its primary job.
 
+That history store is no longer hypothetical; a first SQLite-backed action and
+coarse-state history layer already exists and should continue to grow only as a
+downstream analytics path.
+
 ## Camera relationship model
 
 The hub should treat each camera as an independently versioned device exposing a
@@ -74,6 +91,13 @@ Important rule: the hub must consume capabilities, not assumptions.
 - event feed
 - firmware version visibility
 - bulk operations for safe common settings
+
+Current near-term priorities:
+
+- refresh stale cached camera-detail data automatically when a detail page opens
+- keep quick-control and refresh responses narrow and fast
+- add lightweight regression coverage for response shape and non-blocking behavior
+- reduce remaining dependency on slow or broad reads such as send2 overview fetches when they become the next bottleneck
 
 For the existing hub, phase-one evolution should focus on adding Thingino API
 client capabilities next to the current MQTT and ONVIF logic.
@@ -195,3 +219,8 @@ Recommended order:
 - move snapshot fetches to the canonical API when available
 
 This lets the hub remain useful while the camera-side service is being built.
+
+In practice this integration has already started and is now the active development phase.
+The next phase for development is still Phase 2: complete the hub as the normal
+management surface before expanding Phase 2a beyond its current lightweight
+history foundation.
