@@ -2,8 +2,15 @@
 
 DAEMON="thingino-agentd"
 PIDFILE="/run/thingino-agentd.pid"
+BOOTSTRAP_CONFIG="/etc/thingino-agent-bootstrap.json"
 
 . /usr/share/common
+
+apply_bootstrap_config() {
+	if [ -f "$BOOTSTRAP_CONFIG" ] && command -v jct >/dev/null 2>&1; then
+		jct /etc/thingino.json import "$BOOTSTRAP_CONFIG" >/dev/null 2>&1 || true
+	fi
+}
 
 read_config() {
 	jct /etc/thingino.json get "$1" 2>/dev/null | tr -d '\n'
@@ -98,6 +105,7 @@ stop_listener_fallback() {
 
 start() {
 	echo_title "Starting Thingino agent listener"
+	apply_bootstrap_config
 
 	if [ "true" != "$(read_config agent.enabled)" ]; then
 		echo_info "Disabled"
