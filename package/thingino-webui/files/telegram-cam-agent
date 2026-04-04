@@ -35,6 +35,7 @@ publish_reply() {
 	chat_id="$2"
 	message="$3"
 	cam_id="$4"
+	ok_flag="${5:-true}"
 	host=$(jct "$CONFIG_FILE" get mqtt_sub.host 2>/dev/null | tr -d '"')
 	port=$(jct "$CONFIG_FILE" get mqtt_sub.port 2>/dev/null | tr -d '"')
 	username=$(jct "$CONFIG_FILE" get mqtt_sub.username 2>/dev/null | tr -d '"')
@@ -43,9 +44,10 @@ publish_reply() {
 	[ -n "$host" ] || return 1
 	[ -n "$port" ] || port=1883
 	topic="$REPLY_TOPIC_PREFIX/$cam_id/reply"
-	payload=$(printf '{"request_id":"%s","chat_id":%s,"message":"%s"}' \
+	payload=$(printf '{"request_id":"%s","chat_id":%s,"ok":%s,"message":"%s"}' \
 		"$(json_escape "$request_id")" \
 		"${chat_id:-0}" \
+		"$ok_flag" \
 		"$(json_escape "$message")")
 	set -- -h "$host" -p "$port" -t "$topic" -m "$payload"
 	[ -n "$username" ] && set -- "$@" -u "$username"
@@ -56,14 +58,14 @@ publish_reply() {
 
 reply_and_exit() {
 	message="$1"
-	publish_reply "$REQUEST_ID" "$CHAT_ID" "$message" "$LOCAL_CAMERA_ID" >/dev/null 2>&1 || true
+	publish_reply "$REQUEST_ID" "$CHAT_ID" "$message" "$LOCAL_CAMERA_ID" true >/dev/null 2>&1 || true
 	printf '%s\n' "$message"
 	exit 0
 }
 
 reply_error_and_exit() {
 	message="$1"
-	publish_reply "$REQUEST_ID" "$CHAT_ID" "$message" "$LOCAL_CAMERA_ID" >/dev/null 2>&1 || true
+	publish_reply "$REQUEST_ID" "$CHAT_ID" "$message" "$LOCAL_CAMERA_ID" false >/dev/null 2>&1 || true
 	printf '%s\n' "$message" >&2
 	exit 1
 }
@@ -104,7 +106,7 @@ fi
 
 case "$COMMAND" in
 	""|help)
-		reply_and_exit "Supported commands: ping, help, debug, snap, clip, arm, disarm, register, unregister"
+		reply_and_exit "Supported commands: ping, help, debug, snap, clip, arm, disarm, register, unregister, install-agent-bootstrap"
 		;;
 	debug)
 		reply_and_exit "debug request_id=$REQUEST_ID chat_id=${CHAT_ID:-none} target=${TARGET_CAMERA_ID:-none} command=${COMMAND:-none} argc=$#"
@@ -150,6 +152,15 @@ case "$COMMAND" in
 			reply_and_exit "Clip sent"
 		fi
 		reply_error_and_exit "Failed to send clip. Configure send2telegram with the shared bot token on this camera."
+		;;
+	install-agent-bootstrap)
+		[ -n "$ARG0" ] || reply_error_and_exit "install-agent-bootstrap requires a bearer token"
+		bootstrap_payload=$(printf '{"agent":{"enabled":true,"tls":true,"listen":"0.0.0.0","port":1998,"token":"%s"}}' "$(json_escape "$ARG0")")
+		if printf '%s\n' "$bootstrap_payload" > /etc/thingino-agent-bootstrap.json \
+			&& /etc/init.d/S95thingino-agent restart >/dev/null 2>&1; then
+			reply_and_exit "Agent bootstrap installed"
+		fi
+		reply_error_and_exit "Failed to install agent bootstrap"
 		;;
 	*)
 		reply_error_and_exit "Unsupported command: $COMMAND"
