@@ -7,5 +7,15 @@
     "tls": false,
     "token": "",
     "notes": "Managed local-only listener. The external API belongs to the agent; backend adapters stay behind it."
+  },
+  "mqtt_sub": {
+    "subscriptions": [
+      {
+        "enabled": true,
+        "topic": "thingino/cam/%id/cmd",
+        "qos": 0,
+        "action": "telegram-cam-agent \"$MQTT_PAYLOAD\""
+      }
+    ]
   }
 }

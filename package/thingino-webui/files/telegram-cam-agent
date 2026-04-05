@@ -97,6 +97,10 @@ CHAT_ID=$(jct "$TMP" get chat_id 2>/dev/null | tr -d '"')
 TARGET_CAMERA_ID=$(jct "$TMP" get camera_id 2>/dev/null | tr -d '"' | tr 'A-Z' 'a-z')
 COMMAND=$(jct "$TMP" get command 2>/dev/null | tr -d '"' | tr 'A-Z' 'a-z')
 ARG0=$(jct "$TMP" get args.0 2>/dev/null | tr -d '"')
+ARG1=$(jct "$TMP" get args.1 2>/dev/null | tr -d '"')
+ARG2=$(jct "$TMP" get args.2 2>/dev/null | tr -d '"')
+ARG3=$(jct "$TMP" get args.3 2>/dev/null | tr -d '"')
+ARG4=$(jct "$TMP" get args.4 2>/dev/null | tr -d '"')
 
 [ -n "$REQUEST_ID" ] || REQUEST_ID="local"
 
@@ -155,7 +159,16 @@ case "$COMMAND" in
 		;;
 	install-agent-bootstrap)
 		[ -n "$ARG0" ] || reply_error_and_exit "install-agent-bootstrap requires a bearer token"
-		bootstrap_payload=$(printf '{"agent":{"enabled":true,"tls":true,"listen":"0.0.0.0","port":1998,"token":"%s"}}' "$(json_escape "$ARG0")")
+		mqtt_host=$(json_escape "$ARG1")
+		mqtt_port=${ARG2:-1883}
+		mqtt_username=$(json_escape "$ARG3")
+		mqtt_password=$(json_escape "$ARG4")
+		if [ -n "$ARG1" ]; then
+			bootstrap_payload=$(printf '{"agent":{"enabled":true,"tls":true,"listen":"0.0.0.0","port":1998,"token":"%s"},"mqtt_sub":{"enabled":true,"host":"%s","port":%s,"username":"%s","password":"%s"}}' \
+				"$(json_escape "$ARG0")" "$mqtt_host" "$mqtt_port" "$mqtt_username" "$mqtt_password")
+		else
+			bootstrap_payload=$(printf '{"agent":{"enabled":true,"tls":true,"listen":"0.0.0.0","port":1998,"token":"%s"}}' "$(json_escape "$ARG0")")
+		fi
 		if printf '%s\n' "$bootstrap_payload" > /etc/thingino-agent-bootstrap.json \
 			&& /etc/init.d/S95thingino-agent restart >/dev/null 2>&1; then
 			reply_and_exit "Agent bootstrap installed"
