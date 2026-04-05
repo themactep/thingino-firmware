@@ -495,6 +495,25 @@ thingino_agent_prudynt_stream_text_field() {
 	thingino_agent_prudynt_text "stream${stream_id}.${field}"
 }
 
+# Return the runtime value of a stream field (width/height/fps) by querying the
+# running prudynt process via prudyntctl. Falls back to the static config value
+# when prudyntctl is unavailable or returns 0.
+thingino_agent_prudynt_runtime_stream_field() {
+	stream_id=$1
+	field=$2
+	if command -v prudyntctl >/dev/null 2>&1; then
+		_rt_tmp=$(mktemp)
+		prudyntctl json "{\"stream${stream_id}\":{\"${field}\":null}}" >"$_rt_tmp" 2>/dev/null
+		_rt_val=$(thingino_agent_json_config_value "$_rt_tmp" "stream${stream_id}.${field}")
+		rm -f "$_rt_tmp"
+		if [ -n "$_rt_val" ] && [ "$_rt_val" != "0" ] && [ "$_rt_val" != "null" ]; then
+			printf '%s' "$_rt_val"
+			return
+		fi
+	fi
+	thingino_agent_prudynt_raw "stream${stream_id}.${field}"
+}
+
 thingino_agent_prudynt_rtsp_port() {
 	rtsp_port=$(thingino_agent_prudynt_text rtsp.port)
 	[ -n "$rtsp_port" ] || rtsp_port=554
@@ -713,9 +732,9 @@ thingino_agent_prudynt_print_stream_config() {
 	printf '"id":%s,' "$stream_id"
 	printf '"enabled":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" enabled)" false)"
 	printf '"audio_enabled":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" audio_enabled)" false)"
-	printf '"width":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" width)" null)"
-	printf '"height":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" height)" null)"
-	printf '"fps":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" fps)" null)"
+	printf '"width":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_runtime_stream_field "$stream_id" width)" null)"
+	printf '"height":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_runtime_stream_field "$stream_id" height)" null)"
+	printf '"fps":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_runtime_stream_field "$stream_id" fps)" null)"
 	printf '"bitrate":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" bitrate)" null)"
 	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_text_field "$stream_id" format)")"
 	printf '"mode":%s' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_text_field "$stream_id" mode)")"
@@ -733,9 +752,9 @@ thingino_agent_prudynt_print_stream_runtime() {
 	printf '"enabled":%s,' "$enabled"
 	printf '"video_enabled":%s,' "$video_enabled"
 	printf '"audio_enabled":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" audio_enabled)" false)"
-	printf '"width":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" width)" null)"
-	printf '"height":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" height)" null)"
-	printf '"fps":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" fps)" null)"
+	printf '"width":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_runtime_stream_field "$stream_id" width)" null)"
+	printf '"height":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_runtime_stream_field "$stream_id" height)" null)"
+	printf '"fps":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_runtime_stream_field "$stream_id" fps)" null)"
 	printf '"bitrate":%s,' "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_stream_field "$stream_id" bitrate)" null)"
 	printf '"format":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_text_field "$stream_id" format)")"
 	printf '"mode":%s,' "$(thingino_agent_json_string_or_null "$(thingino_agent_prudynt_stream_text_field "$stream_id" mode)")"
