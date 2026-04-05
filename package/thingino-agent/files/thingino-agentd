@@ -144,6 +144,7 @@ if config_bool agent.tls; then
 		exit 1
 	fi
 	backend_port=$(backend_port "$port")
+	chrt -r -p 10 $$ 2>/dev/null || true
 	"$THINGINO_AGENT_NATIVE_LISTENER" --listen 127.0.0.1 --port "$backend_port" &
 	backend_pid=$!
 	sleep 0.2
