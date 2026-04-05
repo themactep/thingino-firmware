@@ -107,6 +107,12 @@ start() {
 	echo_title "Starting Thingino agent listener"
 	apply_bootstrap_config
 
+	if command -v service >/dev/null 2>&1 && service heartbeat status >/dev/null 2>&1; then
+		echo_info "Disabling heartbeat (replaced by agent)"
+		service heartbeat disable
+		service heartbeat stop 2>/dev/null || true
+	fi
+
 	if [ "true" != "$(read_config agent.enabled)" ]; then
 		echo_info "Disabled"
 		return 0
