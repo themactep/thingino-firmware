@@ -719,6 +719,22 @@ static int handle_direct_route(struct http_request *request)
         argv[1] = "restart-streamer";
         return execute_agentctl_json(request->client_fd, argv, NULL);
     }
+    if (strncmp(relative, "/actions/send2/", 15) == 0 && strcmp(request->method, "POST") == 0) {
+        const char *send2_rest = relative + 15;
+        const char *slash = strchr(send2_rest, '/');
+        if (slash != NULL) {
+            size_t svc_len = (size_t)(slash - send2_rest);
+            if (svc_len > 0 && svc_len < 64) {
+                static char svc_buf[64];
+                memcpy(svc_buf, send2_rest, svc_len);
+                svc_buf[svc_len] = '\0';
+                argv[1] = "send2-test";
+                argv[2] = svc_buf;
+                argv[3] = (char *)(slash + 1);
+                return execute_agentctl_json(request->client_fd, argv, NULL);
+            }
+        }
+    }
     if (strcmp(relative, "/actions/snapshot") == 0 && strcmp(request->method, "POST") == 0) {
         stream_id = query_param_value(request, "stream_id");
         argv[1] = "snapshot";

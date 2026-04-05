@@ -1928,3 +1928,29 @@ thingino_agent_adapter_prudynt_reboot() {
 	(sleep 1; reboot -f) >/dev/null 2>&1 &
 	printf '{"status":"accepted","operation":"reboot"}\n'
 }
+
+thingino_agent_adapter_prudynt_send2_test() {
+	service=$(printf '%s' "${1:-}" | tr 'A-Z' 'a-z')
+	action=$(printf '%s' "${2:-test}" | tr 'A-Z' 'a-z')
+	[ -n "$service" ] || { echo "send2-test: service name required" >&2; return 1; }
+	tool="/usr/sbin/send2${service}"
+	[ -x "$tool" ] || { echo "send2-test: unsupported service '$service'" >&2; return 1; }
+	case "$action" in
+		test)
+			"$tool" -v
+			;;
+		test-photo)
+			"$tool" -v -S
+			;;
+		test-video)
+			"$tool" -v -V
+			;;
+		*)
+			echo "send2-test: unsupported action '$action'" >&2
+			return 1
+			;;
+	esac
+	printf '{"status":"accepted","service":%s,"action":%s}\n' \
+		"$(thingino_agent_json_string "$service")" \
+		"$(thingino_agent_json_string "$action")"
+}

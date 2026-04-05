@@ -324,6 +324,9 @@ case "$command" in
 	restart-streamer)
 		adapter_call service streaming restart
 		;;
+	send2-test)
+		adapter_call send2_test "$@"
+		;;
 	reboot)
 		adapter_call reboot
 		;;
