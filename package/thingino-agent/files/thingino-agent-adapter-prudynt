@@ -1247,7 +1247,7 @@ thingino_agent_adapter_prudynt_get_setting() {
 			rest=${path#send2/services/}
 			service=${rest%/send-photo}
 			thingino_agent_prudynt_send2_service_supported "$service" || return 1
-			thingino_agent_print_setting_leaf send_photo "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_send2_raw "$service" send_photo)" false)"
+			thingino_agent_print_setting_leaf send_photo "$(thingino_agent_json_value_or "$(thingino_agent_prudynt_send2_raw "$service" send_photo)" true)"
 			;;
 		send2/services/*/send-video)
 			rest=${path#send2/services/}
