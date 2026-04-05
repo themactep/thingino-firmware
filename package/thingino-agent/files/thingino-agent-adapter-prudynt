@@ -1954,22 +1954,26 @@ thingino_agent_adapter_prudynt_send2_test() {
 	[ -n "$service" ] || { echo "send2-test: service name required" >&2; return 1; }
 	tool="/usr/sbin/send2${service}"
 	[ -x "$tool" ] || { echo "send2-test: unsupported service '$service'" >&2; return 1; }
+	# Suppress all tool output: the agent listener merges stderr into the
+	# response body, which would break JSON parsing. Report success/failure
+	# via exit code instead.
+	_send2_ok=true
 	case "$action" in
-		test)
-			"$tool" -v
-			;;
-		test-photo)
-			"$tool" -v -S
-			;;
-		test-video)
-			"$tool" -v -V
-			;;
+		test)       "$tool" -S >/dev/null 2>&1 || _send2_ok=false ;;
+		test-photo) "$tool" -S >/dev/null 2>&1 || _send2_ok=false ;;
+		test-video) "$tool" -V >/dev/null 2>&1 || _send2_ok=false ;;
 		*)
 			echo "send2-test: unsupported action '$action'" >&2
 			return 1
 			;;
 	esac
-	printf '{"status":"accepted","service":%s,"action":%s}\n' \
+	if [ "$_send2_ok" = "false" ]; then
+		printf '{"status":"error","service":%s,"action":%s,"message":"send2 test failed"}\n' \
+			"$(thingino_agent_json_string "$service")" \
+			"$(thingino_agent_json_string "$action")"
+		return 1
+	fi
+	printf '{"status":"ok","service":%s,"action":%s}\n' \
 		"$(thingino_agent_json_string "$service")" \
 		"$(thingino_agent_json_string "$action")"
 }
