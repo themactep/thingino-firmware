@@ -32,6 +32,16 @@ Recent implementation progress:
 - quick controls now use narrow responses instead of full camera payloads where possible
 - manual refresh actions now queue work and acknowledge immediately instead of blocking the page
 - feedback for quick actions now floats above the page instead of shifting layout
+- live fleet events now have a dedicated `/events` page sourced from hub actions, MQTT registrations, and native camera-agent `/events`
+- runtime status cards now have a dedicated `/status` page instead of sharing the roster dashboard
+- dashboard now supports first-pass bulk actions for queued refreshes, rescans, and streaming service controls across selected cameras
+- dashboard bulk actions now persist per-camera results through redirect and expose retry controls for failed rows instead of only a summary flash
+- guided enrollment now lives on a dedicated `/enroll` page with a primary credentials-first connect flow
+- the hub now resolves the authoritative roster identity from discovery instead of asking the operator to type a camera ID during enrollment
+- pairing and connect flows can now repair camera-side MQTT command subscriptions, preserve a camera-reachable broker host, install the bootstrap over MQTT, and save the resulting native API token back into hub state
+- camera detail pages now expose direct `Connect to Hub` and `Pair` actions plus a copyable OTA rebuild command for the exact image and camera IP
+- partial override saves now preserve unrelated auth and token fields so editing a display name or another single override no longer breaks API access
+- camera history pages now include explicit config-change audit entries for native config writes, send2 writes, hub override saves, and enrollment updates
 
 This matters because the new architecture does not start from zero. The current
 hub should be treated as the first desktop control plane component and expanded
@@ -94,9 +104,7 @@ Important rule: the hub must consume capabilities, not assumptions.
 
 Current near-term priorities:
 
-- refresh stale cached camera-detail data automatically when a detail page opens
-- keep quick-control and refresh responses narrow and fast
-- add lightweight regression coverage for response shape and non-blocking behavior
+- keep reducing operator-visible friction in first-connect and recovery flows so probe and pairing details stay advanced tools instead of the main workflow
 - reduce remaining dependency on slow or broad reads such as send2 overview fetches when they become the next bottleneck
 
 For the existing hub, phase-one evolution should focus on adding Thingino API
@@ -168,6 +176,7 @@ Recommended safeguards:
 - simple bulk changes with preview
 - clear distinction between live state and saved config
 - no requirement to open the camera-hosted UI for normal operations
+- autodiscovery plus one obvious connect action using valid credentials for the normal path
 
 ## Deferred ideas
 

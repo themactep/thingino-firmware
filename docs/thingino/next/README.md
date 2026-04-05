@@ -28,6 +28,12 @@ Current implementation center of gravity:
 - Phase 2 hub work is materially in progress in `/home/paul/thingino/hub`
 - Phase 2a history work has started in the hub, but is still early and should remain downstream from live control
 
+Current notable Phase 2 realities:
+
+- the hub now has dedicated `/status`, `/events`, and `/enroll` pages instead of overloading the roster dashboard
+- first-connect work now centers on autodiscovery plus a credentials-first connect path rather than manual camera-ID entry
+- pairing repair already includes camera-side MQTT subscription recovery and bootstrap/token synchronization back into hub state
+
 The next development phase is still Phase 2: finish making the hub the normal operator surface for native-camera control, while continuing limited Phase 2a work only where it directly supports that path
 
 ## Core direction

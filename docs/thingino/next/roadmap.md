@@ -112,14 +112,15 @@ Current phase 2 status:
 	- manual camera-page refresh actions for snapshot, native API, and ONVIF now queue background work and acknowledge immediately instead of blocking the page
 	- camera detail feedback now uses a floating toast so action notifications do not shift the page layout
 	- local history view exists with database-backed native action events and coarse state samples
+	- dashboard now includes a live event feed driven from hub actions, MQTT registrations, and native camera-agent `/events` subscriptions
+	- dashboard now supports first-pass bulk camera operations for queued refreshes, rescans, and streaming service actions
+	- dashboard now supports first-pass enrollment that writes static camera entries and immediately queues refresh or hydration work
+	- enrollment now includes a guided probe path with duplicate-IP detection plus immediate native API and ONVIF validation before save
+	- enrollment now also supports token handoff by generating a pairing bundle with a bearer token, `/etc/thingino-agent-bootstrap.json` payload, and exact `jct` or restart commands for the camera
 - partially implemented
-	- camera-page cache hydration still depends on existing background refreshes or manual refresh actions rather than a targeted detail-page refresh-on-open path
-	- some action feedback strings remain more verbose than necessary for frequent quick-control use
-	- response-shape and non-blocking behavior are live-validated but not yet covered by lightweight hub regression tests
+	- enrollment is now guided, validated, and can hand off a token plus bootstrap payload, but it is still a lightweight operator-assisted form rather than a fuller trust-onboarding workflow
 - not implemented yet
-	- enrollment or pairing flow for first-time camera adoption
-	- event feed view driven from the agent event stream
-	- bulk camera operations beyond single-camera refresh or delete flows
+	- deeper pairing features such as trust bootstrap beyond token handoff, camera-side token install automation, or duplicate-resolution guidance
 
 Review questions:
 
@@ -147,11 +148,11 @@ Current phase 2a status:
 	- SQLite-backed history store exists in the hub
 	- native action history is recorded and shown on camera detail pages and history pages
 	- coarse probe or state samples exist for API probes and snapshot or probe status
+	- explicit config-change records now exist for native config patches, send2 writes, hub override saves, and enrollment changes, and those records are shown on camera history pages
 - partially implemented
 	- timeline view exists, but graph views are still absent
 	- state sampling is useful for coarse diagnosis but not yet broad enough for trend analysis across more camera subsystems
 - not implemented yet
-	- config diff or change records
 	- graph views for sampled state
 
 Review questions:
@@ -216,10 +217,9 @@ These should stay deferred until the local network architecture works well.
 
 ## Next recommended work
 
-- add targeted background hydration when a camera detail page opens so cached controls and summary fields refresh quickly without waiting for manual button presses
-- add lightweight hub regression coverage for minimal action responses and queued refresh behavior on camera-page routes
-- shorten repetitive quick-action success messages so routine control use reads cleanly in the floating toast
-- watch send2 configuration reads on slower cameras and cache or defer them if they become the next page-load bottleneck
+- add richer per-camera result rendering and retry affordances for dashboard bulk actions
+- extend pairing beyond operator-assisted token handoff into fuller trust bootstrap or camera-side token install automation for first-time camera adoption
+- add lightweight graph views for the normalized history data that already exists
 
 ## Reassessment checklist
 

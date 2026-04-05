@@ -41,9 +41,7 @@ Relevant files in the current hub:
 
 ## What it does not yet solve cleanly
 
-- first-time enrollment and pairing workflow
-- event-feed view driven from the native agent event stream
-- bulk operations beyond single-camera workflows
+- fully polished autodiscovery and one-click connection for every recovery case
 - lightweight regression coverage for response-shape and queued-refresh behavior
 - deeper historical analysis such as graphs and config diffs
 
@@ -84,6 +82,9 @@ Current progress against that refactor:
 - the hub already has a native camera-agent client layer
 - native API-capable cameras now drive camera detail controls through capability-aware fields
 - quick controls and camera-page refresh actions no longer require full camera payload reads on every interaction
+- dedicated `/status`, `/events`, and `/enroll` pages now separate runtime status, live events, and onboarding from the main roster
+- the preferred connect path now uses discovered roster identity plus valid credentials instead of manual camera-ID entry
+- pairing repair now handles missing camera MQTT command subscriptions and avoids copying container-local broker aliases into camera config
 - the remaining work is to keep page-open hydration and slower secondary reads narrow, cached, and well-tested
 
 The target request tree and response-scope rules are defined in
@@ -131,11 +132,12 @@ Suggested global UI behavior:
 - show transport used per camera: native API, MQTT-only, ONVIF-only
 - show capability load failures clearly
 - avoid hiding working cameras just because one transport is unavailable
+- keep destructive or stateful actions on the camera detail page instead of adding roster-card clutter
 
 ## Immediate implementation opportunities in the hub
 
-1. add background hydration when a camera detail page opens so cached detail data refreshes automatically without blocking initial render
-2. add lightweight regression coverage for minimal action responses and queued refresh behavior
+1. keep tightening the credentials-first connect path until autodiscovered cameras are adoptable with one obvious action in the common case
+2. add lightweight regression coverage for connect and override-preservation behavior next to the existing queued-refresh and minimal-response tests
 3. shorten repetitive quick-action messages so the UI feedback stays concise
 4. cache or defer slower secondary reads such as send2 overview fetches if they become the next latency source
 5. continue reserving `GET /config` for explicit config screens and tooling
@@ -171,6 +173,7 @@ without turning analytics storage into a dependency for core operation.
 - current hub features keep working during transition
 - native API-capable cameras expose richer state in the same UI
 - Telegram flows can gradually move from MQTT command strings to typed actions
+- autodiscovered cameras can be connected and recovered without asking the operator to know or type the hub-facing camera identity
 
 The next development phase remains Phase 2 hub completion, with only narrow
 Phase 2a additions when they directly support the hub becoming the normal

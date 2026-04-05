@@ -163,7 +163,9 @@ Current implementation status:
 - SQLite-backed history storage already exists in the current hub
 - native action history is already recorded and shown in camera detail and history views
 - coarse probe and state samples already exist for first-pass operational diagnosis
-- graph views, config diffs, and broader normalized sampling are not implemented yet
+- dashboard live events now also feed from history-backed action records plus native camera-agent event subscriptions
+- config-change history rows now exist for native config patches, send2 writes, hub override saves, and enrollment updates, and they are surfaced in the camera history timeline
+- graph views and broader normalized sampling are not implemented yet
 
 ## What should not happen
 
@@ -179,8 +181,12 @@ Avoid these failure modes:
 Recommended order once implementation starts:
 
 1. expand normalized sampling only for fields that directly help current hub operation and troubleshooting
-2. add config diff or change records for native config writes
-3. add graph views for a small set of normalized fields once the sampled data is stable enough to be useful
+2. add graph views for a small set of normalized fields once the sampled data is stable enough to be useful
+
+The current next slice should likely focus on graph views and a slightly wider
+set of normalized samples, because the hub now has enough action, probe, and
+config-change history to make those views useful without inventing synthetic
+data first.
 
 ## Relationship to the rest of the plan
 
