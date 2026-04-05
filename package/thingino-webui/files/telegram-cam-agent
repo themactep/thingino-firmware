@@ -169,9 +169,14 @@ case "$COMMAND" in
 		else
 			bootstrap_payload=$(printf '{"agent":{"enabled":true,"tls":true,"listen":"0.0.0.0","port":1998,"token":"%s"}}' "$(json_escape "$ARG0")")
 		fi
-		if printf '%s\n' "$bootstrap_payload" > /etc/thingino-agent-bootstrap.json \
-			&& /etc/init.d/S95thingino-agent restart >/dev/null 2>&1; then
-			reply_and_exit "Agent bootstrap installed"
+		if printf '%s\n' "$bootstrap_payload" > /etc/thingino-agent-bootstrap.json; then
+			# Reply before restarting the agent so the MQTT client is still alive
+			# when the reply is published. The restart would otherwise kill the
+			# connection before mosquitto_pub can send the reply.
+			publish_reply "$REQUEST_ID" "$CHAT_ID" "Agent bootstrap installed" "$LOCAL_CAMERA_ID" true >/dev/null 2>&1 || true
+			(/etc/init.d/S95thingino-agent restart >/dev/null 2>&1) &
+			printf 'Agent bootstrap installed\n'
+			exit 0
 		fi
 		reply_error_and_exit "Failed to install agent bootstrap"
 		;;
