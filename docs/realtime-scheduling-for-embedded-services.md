@@ -171,6 +171,78 @@ to under 200ms.
 
 ---
 
+## Pairing TLS Proxy Spike
+
+After the real-time scheduling fix, a separate pairing-time regression showed up on rebuilt
+firmware with BusyBox 1.37 and the in-package TLS proxy enabled.
+
+### Symptoms
+
+- A hub-initiated `Pair` action could briefly pin `tls-proxy` near 100% CPU.
+- `top` on the camera showed samples like:
+
+```text
+PID   PPID USER  STAT  VSZ  %VSZ CPU %CPU COMMAND
+3746  3715 root  R     2020 2.1   0 94.9 /usr/libexec/thingino-agent/tls-proxy --listen 0.0.0.0 --port 1998 ...
+```
+
+- The spike happened during remote HTTPS pairing on `:1998`, not during loopback access to the
+     native backend listener on `127.0.0.1:2998`.
+- Pairing still often completed, but the proxy consumed far more CPU than expected on a single-core
+     MIPS camera.
+
+### Diagnosis
+
+There turned out to be two contributing factors:
+
+1. **Hub-side pairing confirmation was heavier than necessary.**
+      The confirmation path reused the full native API probe sequence (`/device`, `/capabilities`,
+      `/state`) instead of a single cheap request, and successful pairing could immediately trigger
+      more follow-up API refreshes.
+
+2. **The TLS proxy handshake loop could busy-spin.**
+      In `thingino-agent-tls-event.c`, new TLS connections in handshake state were always registered
+      in both the read and write `select()` sets. On a TCP socket, writability is usually ready
+      immediately, so the loop could wake continuously and call `mbedtls_ssl_handshake()` again even
+      when mbedTLS was returning `MBEDTLS_ERR_SSL_WANT_READ`. On a loaded single-core device this
+      manifested as `tls-proxy` consuming nearly all available user-space CPU for the duration of the
+      handshake burst.
+
+### Mitigation
+
+The validated mitigation was:
+
+- **Reduce hub-side confirmation load**
+     Change pairing confirmation to use a single lightweight `GET /device` call instead of the full
+     three-request probe sequence.
+
+- **Reduce TLS proxy worker fan-out**
+     Lower the default `THINGINO_AGENT_TLS_WORKERS` from `5` to `1` for this embedded target.
+
+- **Fix the handshake event loop**
+     Track whether mbedTLS wants read or write progress and only place the socket in the matching
+     `select()` set during handshake. Do not unconditionally watch both directions for every pending
+     TLS handshake.
+
+### Live Validation
+
+After applying those changes and rebuilding the firmware:
+
+- A controlled hub-triggered `Pair` action completed successfully.
+- The camera-side monitor showed one stable external `1998` connection and one loopback proxied
+     `2998` connection.
+- The earlier `tls-proxy` near-100% CPU sample did not reproduce during the monitored pairing run.
+
+### If It Reappears
+
+1. Watch the camera during pairing with `ps`, `netstat`, and a bounded `top` sample loop.
+2. Check whether `tls-proxy` is pegged during handshake or only after the connection is established.
+3. Confirm how many live `1998 -> 2998` flows exist; one stable proxied flow is expected.
+4. Re-check the hub confirmation path before assuming the proxy is at fault; repeated short-lived
+      HTTPS connections from the hub can still amplify load on constrained hardware.
+
+---
+
 ## General Guidance
 
 Apply this pattern to any embedded service that must respond to network requests on a loaded
@@ -231,5 +303,8 @@ add fork+exec load that compounds the scheduler starvation problem. Replace them
 |------|--------|
 | `package/thingino-agent/files/thingino-agentd` | Added `chrt -r -p 10 $$` before launching agent processes |
 | `package/thingino-agent/files/S95thingino-agent` | Disable and stop heartbeat service on agent start |
+| `hub/app/main.py` | Pairing confirmation reduced from a full probe sequence to a single `GET /device` request |
+| `package/thingino-agent/files/thingino-agentd` | Reduced default `THINGINO_AGENT_TLS_WORKERS` from `5` to `1` |
+| `package/thingino-agent/files/thingino-agent-tls-event.c` | Handshake loop now waits only on the socket direction requested by mbedTLS |
 
 Commits: `9496c8d72`, `a5442b958`
