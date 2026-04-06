@@ -119,10 +119,13 @@ stop_portal() {
 	echo_info "Stop wpa_supplicant"
 	start-stop-daemon -K -q -x /sbin/wpa_supplicant
 
-	echo_info "Remove route ${CNET}.0/24 from $IFACE"
-	ip address delete dev $IFACE ${$PORTAL_IP}/24
+	echo_info "Remove route ${PORTAL_CNET}.0/24 from $IFACE"
+	ip route delete ${PORTAL_CNET}.0/24 dev $IFACE
 
 	echo_info "Remove IP address from $IFACE"
+	ip address delete dev $IFACE ${PORTAL_IP}/24
+
+	echo_info "Bring down $IFACE"
 	ip link set $IFACE down
 
 	echo_info "Remove $PORTAL_MODE_FLAG"
