@@ -67,6 +67,14 @@ config BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC
 	  WebRTC streaming daemon with WHIP signaling, two-way audio
 	  backchannel, and HTTPS. Requires TLS support (mbedTLS).
 
+config BR2_PACKAGE_THINGINO_RAPTOR_RWC
+	bool "RWC (USB webcam)"
+	depends on BR2_PACKAGE_THINGINO_KOPT_GADGET_WEBCAM
+	help
+	  USB webcam daemon. Reads JPEG/H.264 frames from ring buffers
+	  and feeds them to the UVC gadget. Requires USB Gadget Webcam
+	  kernel option.
+
 config BR2_PACKAGE_THINGINO_RAPTOR_WEBTORRENT
 	bool "WebTorrent sharing (external WebRTC)"
 	default y if BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC

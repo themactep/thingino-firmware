@@ -30,6 +30,12 @@ config BR2_PACKAGE_THINGINO_KOPT_GADGET_SERIAL
 	help
 	  Enable USB Gadget serial support
 
+config BR2_PACKAGE_THINGINO_KOPT_GADGET_WEBCAM
+	bool "USB Gadget Webcam (UVC)"
+	depends on BR2_PACKAGE_THINGINO_KOPT
+	help
+	  Enable USB UVC webcam gadget (g_webcam module).
+
 config BR2_PACKAGE_THINGINO_KOPT_JZ_MAC
 	bool "Ethernet Support"
 	depends on BR2_PACKAGE_THINGINO_KOPT

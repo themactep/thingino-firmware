@@ -1,4 +1,4 @@
-THINGINO_RAPTOR_VERSION = 49622da8d2b60478f4c3c560b1bfb4530af86320
+THINGINO_RAPTOR_VERSION = a15a46b
 THINGINO_RAPTOR_SITE = https://github.com/gtxaspec/raptor
 THINGINO_RAPTOR_SITE_METHOD = git
 
@@ -85,6 +85,9 @@ THINGINO_RAPTOR_TARGETS += rmd
 endif
 ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_WEBRTC),y)
 THINGINO_RAPTOR_TARGETS += rwd
+endif
+ifeq ($(BR2_PACKAGE_THINGINO_RAPTOR_RWC),y)
+THINGINO_RAPTOR_TARGETS += rwc
 endif
 
 # Libraries are pre-built by their own packages and installed to staging.
