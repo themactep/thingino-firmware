@@ -319,7 +319,7 @@ jobs:
           mkdir -p ~/dl
 
       - name: Restore build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         if: always()
         with:
           path: ~/.ccache
@@ -459,14 +459,14 @@ jobs:
 
       - name: Upload duration graph artifact
         if: ${{ github.event.inputs.graph_enabled == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: ${{ matrix.thingino-version }}-build.hist-duration
           path: |
             ${{ github.workspace }}/output/stable/${{ matrix.thingino-version }}/graphs/build.hist-duration.pdf
 
       - name: Upload compiled firmware artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: thingino-${{ matrix.thingino-version }}-firmware
           path: |
@@ -480,15 +480,7 @@ jobs:
             ${{ env.UPDATE_FW_SHA }}
 
       - name: Post compiled firmware artifacts to release
-        uses: softprops/action-gh-release@v2.1.0
-        with:
-          tag_name: ${{ env.TAG_NAME }}
-          make_latest: false
-          prerelease: true
-          files: |
-            ${{ env.FULL_FW }}
-            ${{ env.FULL_FW_SHA }}
-            ${{ env.UPDATE_FW_SHA }}
+        run: gh release upload "$TAG_NAME" "$FULL_FW" "$FULL_FW_SHA" "$UPDATE_FW_SHA" --clobber
 
       - name: Package binaries for notification
         run: |
