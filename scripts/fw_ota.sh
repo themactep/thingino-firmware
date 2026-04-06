@@ -56,15 +56,14 @@ wait_for_reboot_after_detach() {
 check_and_free_space() {
 	local fw_size_kb remote_avail_kb needed_kb
 	fw_size_kb=$(( ($(stat -c%s "$LOCAL_FW_FILE") + 1023) / 1024 ))
-	# MemAvailable was added in kernel 3.14; on 3.10 approximate with MemFree+Buffers+Cached
-	remote_avail_kb=$(remote_run "awk '/^MemAvailable:/{a=\$2} /^MemFree:/{f=\$2} /^Buffers:/{b=\$2} /^Cached:/{c=\$2} END{print (a ? a : f+b+c)}' /proc/meminfo" | tr -d '[:space:]')
-	# Require firmware size + 4MB headroom so the system keeps running during transfer
+	remote_avail_kb=$(remote_run "df -k /tmp | awk 'NR==2{print \$4}'" | tr -d '[:space:]')
+	# Require firmware size + 4MB headroom for sysupgrade working files
 	needed_kb=$(( fw_size_kb + 4096 ))
-	echo "Firmware size: ${fw_size_kb}KB, available RAM: ${remote_avail_kb}KB, needed: ${needed_kb}KB"
+	echo "Firmware size: ${fw_size_kb}KB, available /tmp: ${remote_avail_kb}KB, needed: ${needed_kb}KB"
 
 	[ "$remote_avail_kb" -ge "$needed_kb" ] && return 0
 
-	echo "Not enough free RAM (need ${needed_kb}KB, have ${remote_avail_kb}KB). Attempting to free memory by remapping rmem..."
+	echo "Not enough free space in /tmp (need ${needed_kb}KB, have ${remote_avail_kb}KB). Attempting to free memory by remapping rmem..."
 
 	local osmem rmem_val osmem_mb osmem_addr rmem_mb rmem_addr new_osmem_mb
 	osmem=$(remote_run "fw_printenv -n osmem" | tr -d '[:space:]')
