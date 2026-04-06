@@ -85,6 +85,9 @@ Current progress against that refactor:
 - dedicated `/status`, `/events`, and `/enroll` pages now separate runtime status, live events, and onboarding from the main roster
 - the preferred connect path now uses discovered roster identity plus valid credentials instead of manual camera-ID entry
 - pairing repair now handles missing camera MQTT command subscriptions and avoids copying container-local broker aliases into camera config
+- setup and recovery now use explicit authoritative facts for each camera: MQTT broker presence, agent capability, hub registration, and pairing
+- the per-camera UI is now decomposed into focused pages so long-term settings, send2 routing, action history, and expert tools no longer compete on one mixed detail page
+- the camera API client now retries transient `IncompleteRead` failures before marking a paired camera offline, which keeps healthy cameras from oscillating between usable controls and false offline banners
 - the remaining work is to keep page-open hydration and slower secondary reads narrow, cached, and well-tested
 
 The target request tree and response-scope rules are defined in
@@ -133,6 +136,7 @@ Suggested global UI behavior:
 - show capability load failures clearly
 - avoid hiding working cameras just because one transport is unavailable
 - keep destructive or stateful actions on the camera detail page instead of adding roster-card clutter
+- keep setup-state facts separate from transient native API probe failures so a paired camera does not appear unpaired just because one read was slow or partial
 
 ## Immediate implementation opportunities in the hub
 
@@ -141,6 +145,12 @@ Suggested global UI behavior:
 3. shorten repetitive quick-action messages so the UI feedback stays concise
 4. cache or defer slower secondary reads such as send2 overview fetches if they become the next latency source
 5. continue reserving `GET /config` for explicit config screens and tooling
+
+The current implementation is already following that direction:
+
+- detail pages hydrate from cached supported-controls payloads first
+- send2 and settings live on dedicated pages so broad config reads are not required for every view
+- stale or partial probe failures are no longer allowed to dominate the operator-visible setup state on their own
 
 ## Historical storage integration
 

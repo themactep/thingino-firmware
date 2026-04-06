@@ -40,6 +40,9 @@ Recent implementation progress:
 - the hub now resolves the authoritative roster identity from discovery instead of asking the operator to type a camera ID during enrollment
 - pairing and connect flows can now repair camera-side MQTT command subscriptions, preserve a camera-reachable broker host, install the bootstrap over MQTT, and save the resulting native API token back into hub state
 - camera detail pages now expose direct `Connect to Hub` and `Pair` actions plus a copyable OTA rebuild command for the exact image and camera IP
+- camera pages now present setup as an explicit four-rung ladder: present on MQTT broker, has agent capability, registered on hub, paired
+- the normal per-camera workflow is now split into dedicated Camera, Info and ONVIF, Settings, Send2, Overrides, Native Actions, History, and Expert Config pages instead of one mixed detail surface
+- the hub now tolerates transient short native API reads instead of immediately collapsing a paired camera back to offline status during healthy-but-busy camera responses
 - partial override saves now preserve unrelated auth and token fields so editing a display name or another single override no longer breaks API access
 - camera history pages now include explicit config-change audit entries for native config writes, send2 writes, hub override saves, and enrollment updates
 
@@ -177,6 +180,7 @@ Recommended safeguards:
 - clear distinction between live state and saved config
 - no requirement to open the camera-hosted UI for normal operations
 - autodiscovery plus one obvious connect action using valid credentials for the normal path
+- setup state should be legible as a monotonic ladder rather than inferred from mixed symptoms such as probe freshness or page-specific control failures
 
 ## Deferred ideas
 

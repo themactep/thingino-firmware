@@ -50,6 +50,11 @@ More specifically:
 - consistent behavior between hub and local UI
 - simpler path to remove streamer-specific assumptions
 
+The desktop hub is already moving in this direction. The current operator flow is
+now centered on dedicated hub pages for camera controls, settings, send2,
+history, and recovery, with setup rendered as an explicit ladder instead of a
+page-specific collection of warnings.
+
 ## Packaging direction
 
 - ship the camera agent independently
@@ -65,6 +70,8 @@ Good candidates:
 - basic camera info
 - minimal controls for image, motion, privacy, reboot
 - explicit config export and advanced debug view backed by `GET /config`
+- a last-resort local recovery surface when the hub cannot yet complete the
+	connect or pair flow
 
 Poor candidates:
 
@@ -72,6 +79,8 @@ Poor candidates:
 - multi-camera views
 - bulk editing workflows
 - heavy historical analytics
+- being the place where normal send2 routing or long-term configuration is
+	managed once the hub is available
 
 ## Exit criteria
 

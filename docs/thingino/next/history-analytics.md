@@ -165,6 +165,8 @@ Current implementation status:
 - coarse probe and state samples already exist for first-pass operational diagnosis
 - dashboard live events now also feed from history-backed action records plus native camera-agent event subscriptions
 - config-change history rows now exist for native config patches, send2 writes, hub override saves, and enrollment updates, and they are surfaced in the camera history timeline
+- setup-state transitions are now expressed from explicit facts such as MQTT presence, agent capability, hub registration, and pairing, which gives the timeline a cleaner model than inferring state from random UI symptoms
+- dedicated Native Actions and History pages now make those stored action and config-change records inspectable without overloading the main camera page
 - graph views and broader normalized sampling are not implemented yet
 
 ## What should not happen
