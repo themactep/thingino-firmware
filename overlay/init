@@ -37,6 +37,33 @@ mount_jffs2() {
 		die "Failed to mount /dev/$blk as $target!"
 }
 
+prepare_overlay_dirs() {
+	overlay_rootdir="/overlay/root"
+	overlay_workdir="/overlay/work"
+	mkdir -p "$overlay_rootdir" || return 1
+	mkdir -p "$overlay_workdir" || return 1
+}
+
+cleanup_overlay_dirs() {
+	rmdir /overlay/work 2>/dev/null
+	rmdir /overlay/root 2>/dev/null
+}
+
+mount_overlay() {
+	if grep -q overlayfs /proc/filesystems; then
+		mount -t overlayfs -o noatime,lowerdir=/,upperdir=/overlay overlay /mnt && return 0
+		prepare_overlay_dirs || return 1
+		mount -t overlay -o noatime,lowerdir=/,upperdir="$overlay_rootdir",workdir="$overlay_workdir" overlay /mnt && return 0
+		return 1
+	fi
+
+	prepare_overlay_dirs || return 1
+	mount -t overlay -o noatime,lowerdir=/,upperdir="$overlay_rootdir",workdir="$overlay_workdir" overlay /mnt && return 0
+	cleanup_overlay_dirs
+	mount -t overlayfs -o noatime,lowerdir=/,upperdir=/overlay overlay /mnt && return 0
+	return 1
+}
+
 trap 'on_exit "$@"' EXIT
 
 # Mount /proc
@@ -50,18 +77,7 @@ grep -q 'root=.*nfs\|mmcblk\|ram' /proc/cmdline && \
 # Mount persisted overlay partition
 mount_jffs2 config /overlay
 
-grep -q overlayfs /proc/filesystems && overlay_type="overlayfs" || overlay_type="overlay"
-if [ "$overlay_type" = "overlayfs" ]; then
-	mount -t overlayfs overlay -o noatime,lowerdir=/,upperdir=/overlay /mnt || \
-		die "Failed to mount overlay!"
-else
-	overlay_rootdir="/overlay/root"
-	overlay_workdir="/overlay/work"
-	mkdir -p "$overlay_rootdir" || die "Failed to create overlay rootdir!"
-	mkdir -p "$overlay_workdir" || die "Failed to create overlay workdir!"
-	mount -t overlay overlay -o noatime,lowerdir=/,upperdir="$overlay_rootdir",workdir="$overlay_workdir" /mnt || \
-		die "Failed to mount overlay!"
-fi
+mount_overlay || die "Failed to mount overlay!"
 
 # Pivot root to overlay
 pivot_root /mnt /mnt/rom || die "Failed to pivot_root!"
