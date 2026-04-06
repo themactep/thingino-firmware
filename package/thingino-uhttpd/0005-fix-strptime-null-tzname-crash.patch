@@ -1,0 +1,18 @@
+diff --git a/file.c b/file.c
+index d93ee36..413c5ca 100644
+--- a/file.c
++++ b/file.c
+@@ -313,7 +313,12 @@ static time_t uh_file_date2unix(const char *date)
+
+ 	memset(&t, 0, sizeof(t));
+
+-	if (strptime(date, "%a, %d %b %Y %H:%M:%S %Z", &t) != NULL)
++	/* Avoid %Z: musl strptime calls strlen(tzname[0]) for timezone
++	 * matching but musl __tzname[] is zero-init and NULL until tzset()
++	 * runs, causing a NULL-deref SIGSEGV in strlen on any
++	 * If-Modified-Since request. HTTP dates are always UTC and
++	 * timegm() treats the struct as UTC, so %Z is unnecessary. */
++	if (strptime(date, "%a, %d %b %Y %H:%M:%S", &t) != NULL)
+ 		return timegm(&t);
+
+ 	return 0;
