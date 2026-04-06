@@ -38,6 +38,8 @@ typedef enum {
 typedef struct conn_s {
 	cstate_t state;
 	int tls_done;
+	int tls_want_read;
+	int tls_want_write;
 	mbedtls_ssl_context ssl;
 	mbedtls_net_context client_fd;
 	int http_fd;
@@ -230,8 +232,12 @@ int run_event_server(mbedtls_net_context *listen_fd, mbedtls_ssl_config *conf)
 			}
 			if (!conn->tls_done) {
 				if (tls_fd >= 0) {
-					FD_SET(tls_fd, &rfds);
-					FD_SET(tls_fd, &wfds);
+					if (conn->tls_want_read) {
+						FD_SET(tls_fd, &rfds);
+					}
+					if (conn->tls_want_write) {
+						FD_SET(tls_fd, &wfds);
+					}
 				}
 				continue;
 			}
@@ -285,6 +291,8 @@ int run_event_server(mbedtls_net_context *listen_fd, mbedtls_ssl_config *conf)
 				new_conn->http_fd = http_connect_nb();
 				new_conn->http_connected = 0;
 				new_conn->state = new_conn->http_fd < 0 ? C_SHUTDOWN : C_HANDSHAKE;
+				new_conn->tls_want_read = 1;
+				new_conn->tls_want_write = 1;
 				set_nonblock(client_fd);
 				tcp_tune(client_fd);
 				rb_init(&new_conn->to_http);
@@ -323,6 +331,14 @@ int run_event_server(mbedtls_net_context *listen_fd, mbedtls_ssl_config *conf)
 
 				if (ret == 0) {
 					conn->tls_done = 1;
+					conn->tls_want_read = 0;
+					conn->tls_want_write = 0;
+				} else if (ret == MBEDTLS_ERR_SSL_WANT_READ) {
+					conn->tls_want_read = 1;
+					conn->tls_want_write = 0;
+				} else if (ret == MBEDTLS_ERR_SSL_WANT_WRITE) {
+					conn->tls_want_read = 0;
+					conn->tls_want_write = 1;
 				} else if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 					conn->state = C_SHUTDOWN;
 				}
