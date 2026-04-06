@@ -803,7 +803,7 @@ function resolveDeviceTimezone() {
 function updateHeartbeatUi(json) {
   if (!json) return;
   const timeNowEl = $("#time-now");
-  if (timeNowEl && json.time_now !== "") {
+  if (timeNowEl && json.time_now != null && json.time_now !== "") {
     const d = new Date(json.time_now * 1000);
     const configuredTimezone = resolveDeviceTimezone();
     const heartbeatTimezone =
