@@ -91,8 +91,7 @@ thingino_agent_prudynt_send2_service_supported() {
 
 thingino_agent_prudynt_send2_service_has_send_video() {
 	case "$1" in
-		mqtt|ntfy) return 1 ;;
-		email|ftp|gphotos|storage|telegram|webhook) return 0 ;;
+		email|ftp|gphotos|mqtt|ntfy|storage|telegram|webhook) return 0 ;;
 		*) return 1 ;;
 	esac
 }
@@ -1837,7 +1836,9 @@ thingino_agent_adapter_prudynt_apply_config() {
 	thingino_agent_prudynt_persist_send2_if_present "$source_file" gphotos.send_photo
 	thingino_agent_prudynt_persist_send2_if_present "$source_file" gphotos.send_video
 	thingino_agent_prudynt_persist_send2_if_present "$source_file" mqtt.send_photo
+	thingino_agent_prudynt_persist_send2_if_present "$source_file" mqtt.send_video
 	thingino_agent_prudynt_persist_send2_if_present "$source_file" ntfy.send_photo
+	thingino_agent_prudynt_persist_send2_if_present "$source_file" ntfy.send_video
 	thingino_agent_prudynt_persist_send2_if_present "$source_file" storage.send_photo
 	thingino_agent_prudynt_persist_send2_if_present "$source_file" storage.send_video
 	thingino_agent_prudynt_persist_send2_if_present "$source_file" telegram.send_photo
