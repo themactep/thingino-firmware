@@ -10,7 +10,7 @@ THINGINO_CLONER_SITE = $(call github,gtxaspec,thingino-cloner,$(THINGINO_CLONER_
 THINGINO_CLONER_LICENSE = GPL-2.0
 THINGINO_CLONER_LICENSE_FILES = LICENSE
 
-HOST_THINGINO_CLONER_DEPENDENCIES = host-pkgconf host-libusb
+HOST_THINGINO_CLONER_DEPENDENCIES = host-pkgconf host-libusb host-zlib
 
 define HOST_THINGINO_CLONER_INSTALL_FIRMWARES
 	mkdir -p $(HOST_DIR)/share/thingino-cloner
