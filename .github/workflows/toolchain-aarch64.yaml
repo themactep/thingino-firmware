@@ -309,18 +309,14 @@ jobs:
           fi
 
       - name: Upload toolchain artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: thingino-toolchain_aarch64_${{ matrix.toolchain-version }}-linux-mipsel.tar.gz
           path: ${{ env.INGTC }}
 
       - name: Upload toolchain to release
         if: github.event_name != 'pull_request'
-        uses: softprops/action-gh-release@v2.1.0
-        with:
-          make_latest: false
-          tag_name: ${{ env.TAG_NAME }}
-          files: ${{ env.INGTC }}
+        run: gh release upload "$TAG_NAME" "$INGTC" --clobber
 
 
       - name: Send firmware completion notifications
