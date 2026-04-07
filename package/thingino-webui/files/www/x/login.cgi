@@ -52,7 +52,7 @@ verify_password() {
 
   # Generate hash with mkpasswd
   # Note: mkpasswd defaults to sha512, or use -m sha512 (no dash)
-  local test_hash=$(mkpasswd "$password" -S "$salt" 2>/dev/null)
+  local test_hash=$(mkpasswd "$password" "$salt" 2>/dev/null)
 
   # Compare hashes
   [ "$test_hash" = "$stored_hash" ] && return 0
