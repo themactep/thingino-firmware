@@ -124,6 +124,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_TLS
 
 config BR2_PACKAGE_THINGINO_RAPTOR_AUDIO_EFFECTS
 	bool "Audio effects (NS/HPF/AGC)"
+	default y
 	help
 	  Noise suppression, high-pass filter, and automatic
 	  gain control. Requires libaudioProcess.so from Ingenic SDK.
@@ -135,5 +136,7 @@ config BR2_PACKAGE_THINGINO_RAPTOR_DEBUG
 	  significantly larger.
 
 endmenu
+
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-raptor/Config.in.conf"
 
 endif # BR2_PACKAGE_THINGINO_RAPTOR
