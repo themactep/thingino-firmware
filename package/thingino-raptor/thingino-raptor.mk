@@ -1,4 +1,4 @@
-THINGINO_RAPTOR_VERSION = 54fd7e5
+THINGINO_RAPTOR_VERSION = 31b457d
 THINGINO_RAPTOR_SITE = https://github.com/gtxaspec/raptor
 THINGINO_RAPTOR_SITE_METHOD = git
 
@@ -125,6 +125,11 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S31raptor \
 		$(TARGET_DIR)/etc/init.d/S31raptor
 
+	# Patch raptor.conf with buildroot config overrides
+	$(call THINGINO_RAPTOR_PATCH_CONF)
+
 endef
+
+include $(BR2_EXTERNAL_THINGINO_PATH)/package/thingino-raptor/thingino-raptor-conf.mk
 
 $(eval $(generic-package))
