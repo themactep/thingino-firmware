@@ -22,7 +22,7 @@ start_daemon() {
 		printf "  %-4s skipped (not installed)\n" "$name"
 		return
 	fi
-	if ! config_bool "$(daemon_section $name)" "enabled" "true"; then
+	if ! config_bool "$(daemon_section $name)" "enabled" "$(daemon_default_enabled $name)"; then
 		printf "  %-4s disabled\n" "$name"
 		return
 	fi
@@ -38,7 +38,7 @@ start_daemon() {
 	fi
 }
 
-# Map daemon name to config section
+# Map daemon name to config section and default enabled state
 daemon_section() {
 	case $1 in
 		rvd)  echo "sensor" ;;
@@ -50,7 +50,15 @@ daemon_section() {
 		rmr)  echo "recording" ;;
 		rmd)  echo "motion" ;;
 		rwd)  echo "webrtc" ;;
+		rwc)  echo "webcam" ;;
 		*)    echo "$1" ;;
+	esac
+}
+
+daemon_default_enabled() {
+	case $1 in
+		rmr|rmd|rwc) echo "false" ;;
+		*) echo "true" ;;
 	esac
 }
 
@@ -91,15 +99,28 @@ start() {
 	echo "Done."
 }
 
+stop_daemon() {
+	pid=$(pidof "$1") || return
+	kill "$pid" 2>/dev/null
+	i=0
+	while [ $i -lt 30 ] && kill -0 "$pid" 2>/dev/null; do
+		sleep 0.1
+		i=$((i + 1))
+	done
+	if kill -0 "$pid" 2>/dev/null; then
+		kill -9 "$pid" 2>/dev/null
+		printf "  %-4s killed\n" "$1"
+	else
+		printf "  %-4s stopped\n" "$1"
+	fi
+}
+
 stop() {
 	echo "Stopping Raptor Streaming System..."
 
 	# Stop consumers first, then producer (RVD) last
 	for d in rwd rmd rmr ric rhd rsd rod rad rvd; do
-		if pidof $d >/dev/null 2>&1; then
-			start-stop-daemon -K -x /usr/bin/$d 2>/dev/null
-			printf "  %-4s stopped\n" "$d"
-		fi
+		stop_daemon $d
 	done
 
 	# Clean up runtime files
@@ -118,7 +139,6 @@ case "$1" in
 		;;
 	restart)
 		stop
-		sleep 1
 		start
 		;;
 	*)
