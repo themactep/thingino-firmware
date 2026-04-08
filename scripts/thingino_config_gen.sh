@@ -41,7 +41,7 @@ if [ -f "$CAMERA_CONFIG" ]; then
 fi
 
 # Add local.json if it exists
-USER_CONFIG="${BR2_EXTERNAL}/configs/thingino.json"
+USER_CONFIG="${BR2_EXTERNAL}/user/common/thingino.json"
 if [ -f "$USER_CONFIG" ]; then
 	echo jct "$OUTPUT_FILE" import "$USER_CONFIG"
 	jct "$OUTPUT_FILE" import "$USER_CONFIG"
