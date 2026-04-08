@@ -121,6 +121,12 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/config/raptor.conf \
 		$(TARGET_DIR)/etc/raptor.conf
 
+	# Web pages (editable on device)
+	$(INSTALL) -D -m 0644 $(@D)/rhd/index.html \
+		$(TARGET_DIR)/usr/share/raptor/index.html
+	$(INSTALL) -D -m 0644 $(@D)/rwd/webrtc.html \
+		$(TARGET_DIR)/usr/share/raptor/webrtc.html
+
 	# Init script
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S31raptor \
 		$(TARGET_DIR)/etc/init.d/S31raptor
