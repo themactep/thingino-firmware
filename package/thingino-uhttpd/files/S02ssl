@@ -1,0 +1,72 @@
+#!/bin/sh
+
+. /usr/share/common
+
+CERT_PATH="/etc/ssl/certs/uhttpd.crt"
+KEY_PATH="/etc/ssl/private/uhttpd.key"
+
+start() {
+	# Skip if certificates already exist and are non-empty
+	if [ -f "$CERT_PATH" ] && [ -f "$KEY_PATH" ] && [ -s "$CERT_PATH" ] && [ -s "$KEY_PATH" ]; then
+		return 0
+	fi
+
+	echo_title "Generating SSL certificates"
+
+	# Create SSL directories if they don't exist
+	mkdir -p "$(dirname "$CERT_PATH")" "$(dirname "$KEY_PATH")"
+
+	# Get hostname for certificate
+	hostname=$(hostname)
+	[ -z "$hostname" ] && hostname="localhost"
+
+	# Get primary non-loopback IPv4 address for SAN
+	ip_addr=$(ip -4 addr show | awk '/inet / && !/127\.0\.0/ {split($2,a,"/"); print a[1]; exit}')
+
+	if command -v wolfssl-certgen >/dev/null 2>&1; then
+		echo_info "Generating ECDSA certificate for $hostname using wolfSSL..."
+		echo_command "wolfssl-certgen -h $hostname.local -c $CERT_PATH -k $KEY_PATH -s 256 -f der"
+		if wolfssl-certgen -h "$hostname.local" -c "$CERT_PATH" -k "$KEY_PATH" -s 256 -f der >/dev/null 2>&1; then
+			echo_info "SSL certificate generated successfully with wolfSSL"
+			return 0
+		fi
+		echo_warning "wolfSSL certificate generation failed"
+	elif command -v mbedtls-certgen >/dev/null 2>&1; then
+		echo_info "Generating ECDSA certificate for $hostname using mbedTLS..."
+		_ip_opt=""
+		[ -n "$ip_addr" ] && _ip_opt="-i $ip_addr"
+		echo_command "mbedtls-certgen -h $hostname.local -c $CERT_PATH -k $KEY_PATH -s 256 -t ecdsa -f der $_ip_opt"
+		if mbedtls-certgen -h "$hostname.local" -c "$CERT_PATH" -k "$KEY_PATH" -s 256 -t ecdsa -f der $_ip_opt >/dev/null 2>&1; then
+			echo_info "SSL certificate generated successfully with mbedTLS"
+			return 0
+		fi
+		echo_warning "mbedTLS certificate generation failed"
+	elif command -v openssl-certgen >/dev/null 2>&1; then
+		echo_info "Generating ECDSA certificate for $hostname using OpenSSL..."
+		echo_command "openssl-certgen -h $hostname.local -c $CERT_PATH -k $KEY_PATH -s 256 -f der"
+		if openssl-certgen -h "$hostname.local" -c "$CERT_PATH" -k "$KEY_PATH" -s 256 -f der >/dev/null 2>&1; then
+			echo_info "SSL certificate generated successfully with OpenSSL"
+			return 0
+		fi
+		echo_warning "OpenSSL certificate generation failed"
+	else
+		echo_warning "No certificate generator available (wolfssl-certgen, mbedtls-certgen, or openssl-certgen not found)"
+	fi
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		;;
+	restart|reload)
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit $?
