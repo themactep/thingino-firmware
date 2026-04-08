@@ -182,6 +182,9 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset webrtc key "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_WEBRTC_KEY))"; \
 	rset webrtc https "$(call raptor_bval,WEBRTC_HTTPS)"; \
 	rset webrtc local_ip "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_WEBRTC_LOCAL_IP))"; \
+	rset webrtc audio_mode "$(if $(filter y,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_WEBRTC_AUDIO_MODE_AUTO)),auto,$(if $(filter y,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_WEBRTC_AUDIO_MODE_OPUS)),opus,))"; \
+	rset webrtc opus_complexity "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_WEBRTC_OPUS_COMPLEXITY))"; \
+	rset webrtc opus_bitrate "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_WEBRTC_OPUS_BITRATE))"; \
 	\
 	rset webcam enabled "$(call raptor_bval,WEBCAM_ENABLED)"; \
 	rset webcam device "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_WEBCAM_DEVICE))"; \
