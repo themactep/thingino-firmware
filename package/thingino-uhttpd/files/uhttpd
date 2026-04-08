@@ -1,4 +1,4 @@
-# uhttpd-lua configuration file
+# uhttpd configuration file
 # This file is sourced by the init script
 
 # Debug mode disabled for production (reduces size)
