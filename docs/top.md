@@ -1,6 +1,108 @@
 BusyBox top
 ===========
 
+Default `top` window
+--------------------
+
+```
+Mem: 32336K used, 4576K free, 212K shrd, 3400K buff, 12256K cached
+CPU:  0.0% usr 18.1% sys  0.0% nic 81.8% idle  0.0% io  0.0% irq  0.0% sirq
+Load average: 4.12 1.07 0.36 1/93 6123
+  PID  PPID USER     STAT   VSZ %VSZ CPU %CPU COMMAND
+ 1073     1 root     S    42888115.7   0  9.0 /bin/prudynt
+ 2256     1 root     S     3084  8.3   0  0.0 /sbin/telegrambot
+ 1217     1 root     S     2416  6.5   0  0.0 /sbin/wpa_supplicant ...
+```
+
+Default `top` (no flags) shows one row per **process**, sorted by CPU usage descending.
+Use `top -H` to show individual **threads** instead.
+
+### Header lines explained
+
+`Mem: 32336K used, 4576K free, 212K shrd, 3400K buff, 12256K cached`
+
+- **used** = RAM actively used by processes/kernel
+- **free** = completely unused RAM
+- **shrd** = shared memory (libs, etc.)
+- **buff** = buffers for block I/O
+- **cached** = page cache (file data); can be reclaimed under pressure
+
+Effective free ≈ `free + buff + cached`.
+On a camera with 64 MB total RAM, 23 MB is typically reserved as `rmem` for ISP/media hardware and never appears here at all.
+
+`CPU: 0.0% usr 18.1% sys 0.0% nic 81.8% idle 0.0% io 0.0% irq 0.0% sirq`
+
+- **usr** = user-space processes
+- **sys** = kernel / syscall overhead
+- **nic** = niced (low-priority) user processes
+- **idle** = CPU has nothing to do
+- **io** = waiting for I/O (high value → storage or network bottleneck)
+- **irq** = hardware interrupt handlers
+- **sirq** = soft-IRQ handlers (network, timers, etc.)
+
+High **sys** with low **usr** usually means the kernel is spending more time serving syscalls and interrupts than running application code — common when video pipeline DMA is not used and the CPU copies frame buffers manually.
+
+`Load average: 4.12 1.07 0.36 1/93 6123`
+
+- Three numbers: average number of runnable + uninterruptible tasks over the last **1 / 5 / 15 minutes**
+- On a **single-core** CPU (T20, T23, T31…) load **1.0 = 100% utilized**; load 4.0 = four tasks waiting for every one running
+- `1/93` = 1 task currently running out of 93 total
+- `6123` = most recently assigned PID
+
+### Process list columns
+
+`PID PPID USER STAT VSZ %VSZ CPU %CPU COMMAND`
+
+- **PID** = process ID
+- **PPID** = parent PID
+- **USER** = owner
+- **STAT** = process state (see table below)
+- **VSZ** = virtual address space size (KiB); includes mmap'd media regions — usually large for prudynt and not a useful indicator of real RAM use
+- **%VSZ** = VSZ as % of total RAM; misleading for media processes, ignore it
+- **CPU** = last CPU core used (always `0` on single-core SoCs)
+- **%CPU** = CPU usage over the last sample interval
+- **COMMAND** = executable path and arguments; kernel threads appear in `[brackets]`
+
+### STAT values
+
+The STAT field is one base letter optionally followed by modifier flags.
+
+**Base state:**
+
+| Letter | Meaning |
+|--------|---------|
+| `R` | **Running** — on CPU or in the run queue right now |
+| `S` | **Sleeping** — waiting for an event (interruptible); wakes on signal |
+| `D` | **Disk sleep** — uninterruptible sleep, usually waiting for I/O or hardware; cannot be killed with signals |
+| `Z` | **Zombie** — process exited but parent has not yet called `wait()`; consumes no resources except a PID slot |
+| `T` | **Stopped** — paused by `SIGSTOP` or a debugger |
+| `W` | **Paging** — obsolete on kernels ≥ 2.6; appears on some Ingenic 3.10 kernels for kernel threads with no backing pages |
+
+**Modifier flags** (appended after base letter):
+
+| Flag | Meaning |
+|------|---------|
+| `<` | High priority (negative nice value) |
+| `N` | Low priority (positive nice value / niced) |
+| `s` | Session leader |
+| `l` | Multi-threaded |
+| `+` | In the foreground process group |
+
+Common combinations on Thingino cameras:
+
+| STAT | What you're looking at |
+|------|------------------------|
+| `S` | Normal sleeping process |
+| `R` | Active process (or the `top` process itself) |
+| `SW` | Kernel thread sleeping with no page backing |
+| `SW<` | High-priority kernel thread (e.g. IRQ threads) |
+| `SWN` | Low-priority kernel thread (e.g. `jffs2_gcd_*` garbage collector) |
+| `DW` | Kernel thread stuck in uninterruptible I/O — normal for `[isp_fw_process]` waiting on ISP hardware; prolonged `D` in a user process indicates a hardware or driver stall |
+| `Sl` | Multi-threaded sleeping process (e.g. `prudynt` with its worker threads) |
+| `Z` | Zombie — investigate if count grows over time |
+
+A rising count of `D`-state processes combined with high **sys** CPU and load spikes usually points to ISP or flash driver contention.
+
 Using `top -H` for threads view
 ----------------------------------
 
