@@ -69,6 +69,7 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset jpeg quality "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_JPEG_QUALITY))"; \
 	rset jpeg fps "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_JPEG_FPS))"; \
 	rset jpeg bufshare "$(call raptor_bval,JPEG_BUFSHARE)"; \
+	rset jpeg idle "$(call raptor_bval,JPEG_IDLE)"; \
 	\
 	rset ring main_slots "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RING_MAIN_SLOTS))"; \
 	rset ring main_data_mb "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RING_MAIN_DATA_MB))"; \
@@ -103,7 +104,6 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset rtsp tls "$(call raptor_bval,RTSP_TLS)"; \
 	rset rtsp tls_cert "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_TLS_CERT))"; \
 	rset rtsp tls_key "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_TLS_KEY))"; \
-	rset rtsp tls_port "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_TLS_PORT))"; \
 	rset rtsp session_name "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_SESSION_NAME))"; \
 	rset rtsp session_info "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_SESSION_INFO))"; \
 	rset rtsp session_timeout "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_RTSP_SESSION_TIMEOUT))"; \
