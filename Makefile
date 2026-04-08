@@ -325,20 +325,39 @@ ifeq (run,$(firstword $(MAKECMDGOALS)))
   endif
 endif
 
+# Create user directory skeleton for common, per-camera, and per-device levels
+USER_DIR_FILES := local.fragment local.mk local.uenv.txt thingino.json motors.json
+
+define create_user_dir
+	@mkdir -p $(1)/overlay $(1)/opt
+	@$(foreach f,$(USER_DIR_FILES),test -f $(1)/$(f) || touch $(1)/$(f);)
+endef
+
+user-dirs:
+ifneq ($(THINGINO_USER_DIR),/dev/null)
+	$(call create_user_dir,$(THINGINO_USER_COMMON_DIR))
+ifdef THINGINO_USER_CAMERA_DIR
+	$(call create_user_dir,$(THINGINO_USER_CAMERA_DIR))
+endif
+ifdef THINGINO_USER_DEVICE_DIR
+	$(call create_user_dir,$(THINGINO_USER_DEVICE_DIR))
+endif
+endif
+
 # Default: fast parallel incremental build
-all: defconfig build_fast pack
+all: user-dirs defconfig build_fast pack
 	@$(TEAL) "$@"
 
 # legacy target used by GitHub CI
-fast: defconfig build_fast pack
+fast: user-dirs defconfig build_fast pack
 	@$(TEAL) "$@"
 
 # Development build: slow serial for debugging compilation issues
-dev: defconfig build pack
+dev: user-dirs defconfig build pack
 	@$(TEAL) "$@"
 
 # Clean build from scratch with parallel compilation
-cleanbuild: distclean defconfig build_fast pack
+cleanbuild: user-dirs distclean defconfig build_fast pack
 	@$(TEAL) "$@"
 ifneq ($(TFTP_IP_ADDRESS),)
 	@echo "Copying images to TFTP root..."
