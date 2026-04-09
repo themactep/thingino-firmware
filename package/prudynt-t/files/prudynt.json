@@ -25,7 +25,7 @@
   },
   "daynight": {
     "controls": {
-      "binswitch": true,
+      "binswitch": false,
       "color": true,
       "ir850": true,
       "ir940": true,
