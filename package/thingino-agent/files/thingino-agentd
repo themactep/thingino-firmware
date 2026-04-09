@@ -137,8 +137,16 @@ if config_bool agent.tls; then
 		exit 1
 	fi
 	if ! is_loopback_addr "$listen_addr" && [ -z "$(config_text agent.token)" ]; then
-		echo "remote HTTPS agent exposure requires agent.token to be configured" >&2
-		exit 1
+		_token=$(head -c 24 /dev/urandom 2>/dev/null | base64 2>/dev/null | tr -d '\n=' | tr '+/' '-_' | head -c 32)
+		if [ -z "$_token" ]; then
+			echo "remote HTTPS agent exposure requires agent.token to be configured" >&2
+			exit 1
+		fi
+		jct "$THINGINO_AGENT_CONFIG" set agent.token "$_token" 2>/dev/null || {
+			echo "remote HTTPS agent exposure requires agent.token to be configured" >&2
+			exit 1
+		}
+		echo "Generated new agent token on first start" >&2
 	fi
 	if ! ensure_tls_certificate; then
 		exit 1
