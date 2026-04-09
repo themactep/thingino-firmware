@@ -54,7 +54,7 @@
   },
   "general": {
     "allocation_tracking_enabled": false,
-    "audio_debug_verbose": true,
+    "audio_debug_verbose": false,
     "imp_polling_timeout": 500,
     "loglevel": "INFO",
     "memory_monitoring_enabled": true,
