@@ -20,8 +20,16 @@ start() {
 	hostname=$(hostname)
 	[ -z "$hostname" ] && hostname="localhost"
 
-	# Get primary non-loopback IPv4 address for SAN
-	ip_addr=$(ip -4 addr show | awk '/inet / && !/127\.0\.0/ {split($2,a,"/"); print a[1]; exit}')
+	# Collect stable IP addresses as -i flags for SAN entries.
+	# IPv4: primary non-loopback address.
+	# IPv6: only /128 addresses (static/DHCPv6). Skip /64 SLAAC
+	#        (may rotate), fe80:: link-local, and scope host (loopback).
+	_ip_opts=""
+	_ipv4=$(ip -4 addr show | awk '/inet / && !/127\.0\.0/ {split($2,a,"/"); print a[1]; exit}')
+	[ -n "$_ipv4" ] && _ip_opts="-i $_ipv4"
+	for _v6 in $(ip -6 addr show | awk '/inet6/ && /128/ && !/fe80/ && !/scope host/{split($2,a,"/"); print a[1]}'); do
+		_ip_opts="$_ip_opts -i $_v6"
+	done
 
 	if command -v wolfssl-certgen >/dev/null 2>&1; then
 		echo_info "Generating ECDSA certificate for $hostname using wolfSSL..."
@@ -33,10 +41,8 @@ start() {
 		echo_warning "wolfSSL certificate generation failed"
 	elif command -v mbedtls-certgen >/dev/null 2>&1; then
 		echo_info "Generating ECDSA certificate for $hostname using mbedTLS..."
-		_ip_opt=""
-		[ -n "$ip_addr" ] && _ip_opt="-i $ip_addr"
-		echo_command "mbedtls-certgen -h $hostname.local -c $CERT_PATH -k $KEY_PATH -s 256 -t ecdsa -f der $_ip_opt"
-		if mbedtls-certgen -h "$hostname.local" -c "$CERT_PATH" -k "$KEY_PATH" -s 256 -t ecdsa -f der $_ip_opt >/dev/null 2>&1; then
+		echo_command "mbedtls-certgen -h $hostname.local -c $CERT_PATH -k $KEY_PATH -s 256 -t ecdsa -f der $_ip_opts"
+		if mbedtls-certgen -h "$hostname.local" -c "$CERT_PATH" -k "$KEY_PATH" -s 256 -t ecdsa -f der $_ip_opts >/dev/null 2>&1; then
 			echo_info "SSL certificate generated successfully with mbedTLS"
 			return 0
 		fi
