@@ -4,7 +4,7 @@ config BR2_PACKAGE_THINGINO_STREAMER
 choice
 	prompt "Streamer"
 	default BR2_PACKAGE_THINGINO_STREAMER_NONE if BR2_THINGINO_TOOLCHAIN
-	default BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT if !BR2_SOC_FAMILY = "a1"
+	default BR2_PACKAGE_THINGINO_STREAMER_RAPTOR if !BR2_SOC_FAMILY = "a1"
 	help
 	  Select the camera streamer to use.
 
