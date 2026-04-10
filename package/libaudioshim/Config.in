@@ -1,0 +1,6 @@
+config BR2_PACKAGE_LIBAUDIOSHIM
+	bool "libaudioshim"
+	help
+	  Audio shim library for Ingenic SoC platforms.
+
+	  https://github.com/gtxaspec/libaudioshim
