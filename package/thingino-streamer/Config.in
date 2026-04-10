@@ -8,6 +8,11 @@ choice
 	help
 	  Select the camera streamer to use.
 
+config BR2_PACKAGE_THINGINO_STREAMER_NONE
+	bool "None"
+	help
+	  No streamer.
+
 config BR2_PACKAGE_THINGINO_STREAMER_PRUDYNT
 	bool "Prudynt-T"
 	depends on !BR2_SOC_FAMILY = "a1"
@@ -31,11 +36,6 @@ config BR2_PACKAGE_THINGINO_STREAMER_STRERO
 	select BR2_PACKAGE_THINGINO_STREAMER
 	help
 	  Strero streaming stack.
-
-config BR2_PACKAGE_THINGINO_STREAMER_NONE
-	bool "None"
-	help
-	  No streamer.
 
 endchoice
 
