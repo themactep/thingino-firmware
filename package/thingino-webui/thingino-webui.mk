@@ -385,6 +385,8 @@ define THINGINO_WEBUI_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/var/www/x/json-timegraph-stream.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/json-wireguard.cgi \
 		$(TARGET_DIR)/var/www/x/json-wireguard.cgi
+	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/legacy-url-recovery.cgi \
+		$(TARGET_DIR)/var/www/x/legacy-url-recovery.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/login.cgi \
 		$(TARGET_DIR)/var/www/x/login.cgi
 	$(INSTALL) -D -m 0755 $(THINGINO_WEBUI_PKGDIR)/files/www/x/logout.cgi \

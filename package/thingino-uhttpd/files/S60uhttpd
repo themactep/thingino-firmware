@@ -15,11 +15,13 @@ UHTTPD_COMMON_ARGS="${UHTTPD_COMMON_ARGS:--t 0 -T 15 -k 10 -n 20 -N 100}"
 UHTTPD_HTTP_LISTEN="${UHTTPD_HTTP_LISTEN:-80}"
 UHTTPD_HTTPS_LISTEN="${UHTTPD_HTTPS_LISTEN:-443}"
 UHTTPD_PORTAL_HTTP_LISTEN="${UHTTPD_PORTAL_HTTP_LISTEN:-172.16.0.1:80}"
+UHTTPD_ERROR_HANDLER="${UHTTPD_ERROR_HANDLER:-/x/legacy-url-recovery.cgi}"
 
 build_uhttpd_args() {
     local docroot="$1"
     local listen_http="$2"
     local listen_https="$3"
+    local error_handler="$4"
     local args="-h $docroot -x $UHTTPD_CGI_PREFIX $UHTTPD_COMMON_ARGS"
 
     if [ -n "$listen_https" ]; then
@@ -28,6 +30,10 @@ build_uhttpd_args() {
 
     if [ -n "$listen_http" ]; then
         args="$args -p $listen_http"
+    fi
+
+    if [ -n "$error_handler" ]; then
+        args="$args -E $error_handler"
     fi
 
     if [ -n "$EXTRA_ARGS" ]; then
@@ -67,7 +73,7 @@ start() {
 
         # Portal mode configuration
         # Portal mode uses HTTP only (no SSL) - bind to portal IP
-        DAEMON_ARGS_HTTP="$(build_uhttpd_args "$UHTTPD_PORTAL_DOCROOT" "$UHTTPD_PORTAL_HTTP_LISTEN" "")"
+        DAEMON_ARGS_HTTP="$(build_uhttpd_args "$UHTTPD_PORTAL_DOCROOT" "$UHTTPD_PORTAL_HTTP_LISTEN" "" "")"
 
         echo_info "Starting uhttpd with args: $DAEMON_ARGS_HTTP"
         /usr/bin/$DAEMON $DAEMON_ARGS_HTTP 2>&1 &
@@ -103,7 +109,7 @@ start() {
     if [ -f "$cert_path" ] && [ -f "$key_path" ] && [ -s "$cert_path" ] && [ -s "$key_path" ]; then
         echo_info "SSL certificates found, attempting to start with SSL support..."
 
-        DAEMON_ARGS_SSL="$(build_uhttpd_args "$UHTTPD_DOCROOT" "$UHTTPD_HTTP_LISTEN" "$UHTTPD_HTTPS_LISTEN")"
+        DAEMON_ARGS_SSL="$(build_uhttpd_args "$UHTTPD_DOCROOT" "$UHTTPD_HTTP_LISTEN" "$UHTTPD_HTTPS_LISTEN" "$UHTTPD_ERROR_HANDLER")"
 
         # Start uhttpd with SSL
         echo_command "/usr/bin/$DAEMON $DAEMON_ARGS_SSL"
@@ -128,7 +134,7 @@ start() {
     fi
 
     # Fallback: HTTP-only mode
-    DAEMON_ARGS_HTTP="$(build_uhttpd_args "$UHTTPD_DOCROOT" "$UHTTPD_HTTP_LISTEN" "")"
+    DAEMON_ARGS_HTTP="$(build_uhttpd_args "$UHTTPD_DOCROOT" "$UHTTPD_HTTP_LISTEN" "" "$UHTTPD_ERROR_HANDLER")"
 
     /usr/bin/$DAEMON $DAEMON_ARGS_HTTP >/dev/null 2>&1 &
     local uhttpd_pid=$!
