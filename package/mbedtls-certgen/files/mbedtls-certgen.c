@@ -393,13 +393,13 @@ static int generate_certificate(const char *cert_file, const char *key_file,
     /* Serial number: 8 random bytes (RFC 5280 Section 4.1.2.2).
      * Must be a positive INTEGER, so prepend 0x00 to avoid sign bit. */
     {
-        unsigned char serial[9];
-        serial[0] = 0x00; /* ensure positive */
-        ret = mbedtls_ctr_drbg_random(&ctr_drbg, serial + 1, 8);
+        unsigned char serial[8];
+        ret = mbedtls_ctr_drbg_random(&ctr_drbg, serial, sizeof(serial));
         if (ret != 0) {
             print_mbedtls_error("Error generating serial", ret);
             goto cleanup;
         }
+        serial[0] &= 0x7F; /* clear high bit to ensure positive INTEGER */
         ret = mbedtls_x509write_crt_set_serial_raw(&crt, serial, sizeof(serial));
     }
     if (ret != 0) {
