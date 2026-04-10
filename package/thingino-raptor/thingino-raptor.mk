@@ -130,6 +130,10 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	# Init script
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S31raptor \
 		$(TARGET_DIR)/etc/init.d/S31raptor
+	if [ "$(BR2_PACKAGE_THINGINO_ONVIF)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S96onvif_discovery \
+			$(TARGET_DIR)/etc/init.d/S96onvif_discovery; \
+	fi
 
 	# Patch raptor.conf with buildroot config overrides
 	$(call THINGINO_RAPTOR_PATCH_CONF)

@@ -91,9 +91,6 @@ define THINGINO_ONVIF_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/res/onvif.json \
 		$(TARGET_DIR)/etc/onvif.json
 
-	$(INSTALL) -D -m 0755 $(THINGINO_ONVIF_PKGDIR)/files/S96onvif_discovery \
-		$(TARGET_DIR)/etc/init.d/S96onvif_discovery
-
 	$(INSTALL) -D -m 0755 $(THINGINO_ONVIF_PKGDIR)/files/S97onvif_notify \
 		$(TARGET_DIR)/etc/init.d/S97onvif_notify
 endef

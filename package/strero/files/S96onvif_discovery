@@ -4,14 +4,27 @@ DAEMON=wsd_simple_server
 ONVIF_CONFIG=/etc/onvif.json
 MOTORS_CONFIG=/etc/motors.json
 MOTORS_BIN="/bin/motors"
-
-PRUDYNT_CONFIG=/etc/prudynt.json
+STRERO_RTSP_CONFIG=/etc/streamer.d/rtsp.json
 
 . /usr/share/common
 
 iface="$(iface_default)"
 
 CAMERA=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $OS_RELEASE_FILE)
+
+strero_rtsp_user() {
+	user=$(jct "$STRERO_RTSP_CONFIG" get username 2>/dev/null | tr -d '\n')
+	[ -n "$user" ] || user=$(jct "$STRERO_RTSP_CONFIG" get auth.username 2>/dev/null | tr -d '\n')
+	[ -n "$user" ] || user=$(jct "$STRERO_RTSP_CONFIG" get rtsp.username 2>/dev/null | tr -d '\n')
+	echo "$user"
+}
+
+strero_rtsp_pass() {
+	pass=$(jct "$STRERO_RTSP_CONFIG" get password 2>/dev/null | tr -d '\n')
+	[ -n "$pass" ] || pass=$(jct "$STRERO_RTSP_CONFIG" get auth.password 2>/dev/null | tr -d '\n')
+	[ -n "$pass" ] || pass=$(jct "$STRERO_RTSP_CONFIG" get rtsp.password 2>/dev/null | tr -d '\n')
+	echo "$pass"
+}
 
 start() {
 	echo_title "Starting ONVIF discovery"
@@ -36,10 +49,8 @@ start() {
 	jct $tmpfile set camera.serial_num "$(fw_printenv -n ethaddr | sed 's/://g' | tr -d "\n")"
 	jct $tmpfile set camera.firmware_ver "$(awk -F'[=,"]' '/^BUILD_ID/{print $3 $4}' /etc/os-release | tr -d "\n")"
 	jct $tmpfile set server.ifs $iface
-	username=$(jct "$PRUDYNT_CONFIG" get rtsp.username 2>/dev/null | tr -d '\n')
-	password=$(jct "$PRUDYNT_CONFIG" get rtsp.password 2>/dev/null | tr -d '\n')
-	jct $tmpfile set server.username "$username"
-	jct $tmpfile set server.password "$password"
+	jct $tmpfile set server.username "$(strero_rtsp_user)"
+	jct $tmpfile set server.password "$(strero_rtsp_pass)"
 
 	# conditional PTZ config
 	if [ -f "$MOTORS_BIN" ]; then
