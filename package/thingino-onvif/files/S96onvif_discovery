@@ -1,16 +1,77 @@
 #!/bin/sh
 
 DAEMON=wsd_simple_server
-PRUDYNT_CONFIG=/etc/prudynt.json
 ONVIF_CONFIG=/etc/onvif.json
 MOTORS_CONFIG=/etc/motors.json
 MOTORS_BIN="/bin/motors"
+
+PRUDYNT_CONFIG=/etc/prudynt.json
+RAPTOR_CONFIG=/etc/raptor.conf
+STRERO_RTSP_CONFIG=/etc/streamer.d/rtsp.json
 
 . /usr/share/common
 
 iface="$(iface_default)"
 
 CAMERA=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $OS_RELEASE_FILE)
+
+raptor_conf_get() {
+	section="$1"
+	key="$2"
+
+	sed -n "/^\[$section\]/,/^\[/{ /^$key[[:space:]]*=/{s/^[^=]*=[[:space:]]*//;s/[[:space:]]*#.*$//;s/^[[:space:]]*//;s/[[:space:]]*$//;p;q}}" "$RAPTOR_CONFIG"
+}
+
+streamer_profile() {
+	# Prefer active daemons; fall back to known config files.
+	if pidof streamer > /dev/null 2>&1; then
+		echo "strero"
+	elif pidof rsd > /dev/null 2>&1 || pidof rvd > /dev/null 2>&1; then
+		echo "raptor"
+	elif pidof prudynt > /dev/null 2>&1; then
+		echo "prudynt"
+	elif [ -f "$RAPTOR_CONFIG" ]; then
+		echo "raptor"
+	elif [ -f "$STRERO_RTSP_CONFIG" ]; then
+		echo "strero"
+	else
+		echo "prudynt"
+	fi
+}
+
+streamer_rtsp_user() {
+	case "$1" in
+		strero)
+			user=$(jct "$STRERO_RTSP_CONFIG" get username 2>/dev/null | tr -d '\n')
+			[ -n "$user" ] || user=$(jct "$STRERO_RTSP_CONFIG" get auth.username 2>/dev/null | tr -d '\n')
+			[ -n "$user" ] || user=$(jct "$STRERO_RTSP_CONFIG" get rtsp.username 2>/dev/null | tr -d '\n')
+			echo "$user"
+			;;
+		raptor)
+			raptor_conf_get rtsp username | tr -d '\n'
+			;;
+		*)
+			jct "$PRUDYNT_CONFIG" get rtsp.username 2>/dev/null | tr -d '\n'
+			;;
+	esac
+}
+
+streamer_rtsp_pass() {
+	case "$1" in
+		strero)
+			pass=$(jct "$STRERO_RTSP_CONFIG" get password 2>/dev/null | tr -d '\n')
+			[ -n "$pass" ] || pass=$(jct "$STRERO_RTSP_CONFIG" get auth.password 2>/dev/null | tr -d '\n')
+			[ -n "$pass" ] || pass=$(jct "$STRERO_RTSP_CONFIG" get rtsp.password 2>/dev/null | tr -d '\n')
+			echo "$pass"
+			;;
+		raptor)
+			raptor_conf_get rtsp password | tr -d '\n'
+			;;
+		*)
+			jct "$PRUDYNT_CONFIG" get rtsp.password 2>/dev/null | tr -d '\n'
+			;;
+	esac
+}
 
 start() {
 	echo_title "Starting ONVIF discovery"
@@ -35,8 +96,13 @@ start() {
 	jct $tmpfile set camera.serial_num "$(fw_printenv -n ethaddr | sed 's/://g' | tr -d "\n")"
 	jct $tmpfile set camera.firmware_ver "$(awk -F'[=,"]' '/^BUILD_ID/{print $3 $4}' /etc/os-release | tr -d "\n")"
 	jct $tmpfile set server.ifs $iface
-	jct $tmpfile set server.username $(jct $PRUDYNT_CONFIG get rtsp.username)
-	jct $tmpfile set server.password $(jct $PRUDYNT_CONFIG get rtsp.password)
+
+	profile=$(streamer_profile)
+	username=$(streamer_rtsp_user "$profile")
+	password=$(streamer_rtsp_pass "$profile")
+
+	jct $tmpfile set server.username "$username"
+	jct $tmpfile set server.password "$password"
 
 	# conditional PTZ config
 	if [ -f "$MOTORS_BIN" ]; then
