@@ -126,9 +126,6 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/usr/share/raptor/index.html
 	$(INSTALL) -D -m 0644 $(@D)/rwd/webrtc.html \
 		$(TARGET_DIR)/usr/share/raptor/webrtc.html
-	# Override webui preview page with a Raptor WebRTC frontend when raptor is installed.
-	$(INSTALL) -D -m 0644 $(THINGINO_RAPTOR_PKGDIR)/files/www/preview.html \
-		$(TARGET_DIR)/var/www/preview.html
 	# Install same-origin WHIP proxy used by native preview (no iframe).
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/www/x/webrtc-whip.cgi \
 		$(TARGET_DIR)/var/www/x/webrtc-whip.cgi
