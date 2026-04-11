@@ -29,7 +29,7 @@ endef
 
 define WIFI_RTL8192EU_INSTALL_FIRMWARE
 	$(INSTALL) -D -m 0644 $(WIFI_RTL8192EU_PKGDIR)/rtl8192her.bin \
-		$(TARGET_DIR)/lib/firmware/rtlwifi/rtl8192her.bin
+		$(TARGET_DIR)/usr/lib/firmware/rtlwifi/rtl8192her.bin
 endef
 
 # WIFI_RTL8192EU_POST_INSTALL_TARGET_HOOKS += WIFI_RTL8192EU_INSTALL_FIRMWARE
