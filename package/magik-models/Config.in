@@ -1,6 +1,5 @@
 config BR2_PACKAGE_MAGIK_MODELS
 	bool "magik-models"
-	depends on BR2_PACKAGE_INGENIC_LIB_IVS
 	help
 	  Pre-trained JZDL neural network models for Ingenic SoCs.
 
