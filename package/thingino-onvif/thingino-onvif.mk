@@ -91,6 +91,7 @@ define THINGINO_ONVIF_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/res/onvif.json \
 		$(TARGET_DIR)/etc/onvif.json
 
+	# S96onvif_discovery is streamer-specific and installed by the selected streamer package.
 	$(INSTALL) -D -m 0755 $(THINGINO_ONVIF_PKGDIR)/files/S97onvif_notify \
 		$(TARGET_DIR)/etc/init.d/S97onvif_notify
 endef
