@@ -122,6 +122,18 @@ config BR2_PACKAGE_THINGINO_RAPTOR_TLS
 	  Enable mbedTLS for RTSPS, RWD HTTPS signaling, and
 	  optional RHD HTTPS.
 
+config BR2_PACKAGE_THINGINO_RAPTOR_IVS_DETECT
+	bool "IVS detection (person/object/YOLO)"
+	default y
+	select BR2_PACKAGE_INGENIC_LIB_JZDL
+	select BR2_PACKAGE_MAGIK_MODELS
+	select BR2_PACKAGE_MAGIK_MODELS_YOLOV5
+	help
+	  JZDL YOLOv5 inference and motion bounding box tracking.
+	  Installs JZDL (609KB) and YOLOv5 model (870KB).
+	  Enable personDet separately in ingenic-lib for the
+	  built-in person detection algorithm (+1.5MB).
+
 config BR2_PACKAGE_THINGINO_RAPTOR_AUDIO_EFFECTS
 	bool "Audio effects (NS/HPF/AGC)"
 	default y

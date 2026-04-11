@@ -214,6 +214,12 @@ define THINGINO_RAPTOR_PATCH_CONF
 	rset motion record "$(call raptor_bval,MOTION_RECORD)"; \
 	rset motion record_post_sec "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_MOTION_RECORD_POST_SEC))"; \
 	rset motion gpio_pin "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_MOTION_GPIO_PIN))"; \
+	rset motion det_distance "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_MOTION_DET_DISTANCE))"; \
+	rset motion motion_trigger "$(call raptor_bval,MOTION_TRIGGER)"; \
+	rset motion model "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_MOTION_MODEL))"; \
+	rset motion num_classes "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_MOTION_NUM_CLASSES))"; \
+	rset motion conf_threshold "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_MOTION_CONF_THRESHOLD))"; \
+	rset motion nms_threshold "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_MOTION_NMS_THRESHOLD))"; \
 	\
 	rset log level "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_LOG_LEVEL))"; \
 	rset log target "$(call qstrip,$(BR2_PACKAGE_THINGINO_RAPTOR_CONF_LOG_TARGET))"; \
