@@ -713,6 +713,8 @@ const previewSliderIds = [
   const sensorDetails = $("#sensor-details");
   const sensorFilePath = $("#sensor-file-path");
   const sensorMd5 = $("#sensor-md5");
+  const sensorSocFamily = $("#sensor-soc-family");
+  const sensorModel = $("#sensor-model");
 
   async function fetchSensorInfo() {
     try {
@@ -728,6 +730,8 @@ const previewSliderIds = [
 
       sensorFilePath.textContent = data.file_path || "Unknown";
       sensorMd5.textContent = data.md5 || "Unknown";
+      if (sensorSocFamily) sensorSocFamily.textContent = data.soc_family || "Unknown";
+      if (sensorModel) sensorModel.textContent = data.sensor_model || "Unknown";
 
       sensorLoading.classList.add("d-none");
       sensorDetails.classList.remove("d-none");
