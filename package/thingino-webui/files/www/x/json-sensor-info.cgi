@@ -10,8 +10,8 @@ printf 'Connection: close\r\n'
 printf '\r\n'
 
 SENSOR_MODEL=$(cat /proc/jz/sensor/name 2>/dev/null)
-SOC_MODEL=$(soc -f 2>/dev/null)
-SOC_FAMILY=$(echo "$SOC_MODEL" | sed 's/[0-9x].*//' | tr '[:upper:]' '[:lower:]')
+SOC_MODEL=$(soc -m 2>/dev/null)
+SOC_FAMILY=$(soc -f 2>/dev/null)
 
 SENSOR_IQ_PATH="/etc/sensor"
 SENSOR_IQ_FILE="${SENSOR_MODEL}-${SOC_MODEL}.bin"
