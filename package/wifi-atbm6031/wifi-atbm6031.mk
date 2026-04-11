@@ -36,7 +36,8 @@ define WIFI_ATBM6031_INSTALL_CONFIGS
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/wifi \
 		$(WIFI_ATBM_WIFI_PKGDIR)/files/*.txt
 
-	$(INSTALL) -D -m 0644 $(@D)/firmware/firmware_sdio.bin \
+	$(INSTALL) -d $(TARGET_DIR)/lib/firmware
+	$(INSTALL) -m 0644 $(@D)/firmware/firmware_sdio.bin \
 		$(TARGET_DIR)/lib/firmware/$(call qstrip,$(ATBM6031_MODULE_NAME))_fw.bin
 endef
 

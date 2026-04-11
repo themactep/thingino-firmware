@@ -28,7 +28,8 @@ define WIFI_RTL8192EU_LINUX_CONFIG_FIXUPS
 endef
 
 define WIFI_RTL8192EU_INSTALL_FIRMWARE
-	$(INSTALL) -D -m 0644 $(WIFI_RTL8192EU_PKGDIR)/rtl8192her.bin \
+	$(INSTALL) -d $(TARGET_DIR)/lib/firmware/rtlwifi
+	$(INSTALL) -m 0644 $(WIFI_RTL8192EU_PKGDIR)/rtl8192her.bin \
 		$(TARGET_DIR)/lib/firmware/rtlwifi/rtl8192her.bin
 endef
 

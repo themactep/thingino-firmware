@@ -42,7 +42,8 @@ define WIFI_HI3881_INSTALL_CONFIGS
 	$(INSTALL) -D -m 0644 $(@D)/firmware/wifi_cfg/fcc/wifi_cfg \
 		$(TARGET_DIR)/usr/share/wifi/wifi_cfg
 
-	$(INSTALL) -D -m 0644 $(@D)/firmware/hi3881_fw.bin \
+	$(INSTALL) -d $(TARGET_DIR)/lib/firmware
+	$(INSTALL) -m 0644 $(@D)/firmware/hi3881_fw.bin \
 		$(TARGET_DIR)/lib/firmware/hi3881_fw.bin
 
 	sed -i 's|ADDR_FILE_FILES=1,0xe4800,/vendor/firmware/hisilicon/hi3881_fw.bin;|ADDR_FILE_FILES=1,0xe4800,/lib/firmware/hi3881_fw.bin;|' $(TARGET_DIR)/usr/share/wifi/wifi_cfg

@@ -51,12 +51,14 @@ define WIFI_ATBM6031X_INSTALL_CONFIGS
 endef
 
 define WIFI_ATBM6031X_INSTALL_CONFIGS_WIFI
-	$(INSTALL) -D -m 0644 $(@D)/firmware/firmware_lite_sdio.bin \
+	$(INSTALL) -d $(TARGET_DIR)/lib/firmware
+	$(INSTALL) -m 0644 $(@D)/firmware/firmware_lite_sdio.bin \
 		$(TARGET_DIR)/lib/firmware/$(call qstrip,$(ATBM6031X_MODULE_NAME))_fw.bin
 endef
 
 define WIFI_ATBM6031X_INSTALL_CONFIGS_BLE
-	$(INSTALL) -D -m 0644 $(@D)/firmware/firmware_sdio_wifi_bt_comb.bin \
+	$(INSTALL) -d $(TARGET_DIR)/lib/firmware
+	$(INSTALL) -m 0644 $(@D)/firmware/firmware_sdio_wifi_bt_comb.bin \
 		$(TARGET_DIR)/lib/firmware/$(call qstrip,$(ATBM6031X_MODULE_NAME))_fw.bin
 endef
 

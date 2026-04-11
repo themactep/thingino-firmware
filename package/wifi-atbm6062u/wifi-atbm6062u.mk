@@ -37,7 +37,8 @@ define WIFI_ATBM6062U_INSTALL_CONFIGS
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/wifi \
 		$(WIFI_ATBM_WIFI_PKGDIR)/files/*.txt
 
-	$(INSTALL) -D -m 0644 $(@D)/firmware/cronus_IPC_NOTXCONRIM_NoBLE_USB_svn19514_24M_wifi6phy_DCDC.bin \
+	$(INSTALL) -d $(TARGET_DIR)/lib/firmware
+	$(INSTALL) -m 0644 $(@D)/firmware/cronus_IPC_NOTXCONRIM_NoBLE_USB_svn19514_24M_wifi6phy_DCDC.bin \
 		$(TARGET_DIR)/lib/firmware/$(call qstrip,$(ATBM6062U_MODULE_NAME))_fw.bin
 endef
 

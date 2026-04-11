@@ -28,7 +28,8 @@ define WIFI_RTL8189ES_LINUX_CONFIG_FIXUPS
 endef
 
 define WIFI_RTL8189ES_INSTALL_CONFIGS
-	$(INSTALL) -D -m 0644 $(WIFI_RTL8189ES_PKGDIR)/files/PHY_REG_PG.txt \
+	$(INSTALL) -d $(TARGET_DIR)/lib/firmware
+	$(INSTALL) -m 0644 $(WIFI_RTL8189ES_PKGDIR)/files/PHY_REG_PG.txt \
 		$(TARGET_DIR)/lib/firmware/PHY_REG_PG.txt
 endef
 

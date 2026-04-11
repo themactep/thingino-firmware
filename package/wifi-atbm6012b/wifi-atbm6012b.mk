@@ -36,7 +36,8 @@ define WIFI_ATBM6012B_INSTALL_CONFIGS
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/wifi \
 		$(WIFI_ATBM_WIFI_PKGDIR)/files/*.txt
 
-	$(INSTALL) -D -m 0644 $(@D)/firmware/firmware_usb.bin \
+	$(INSTALL) -d $(TARGET_DIR)/lib/firmware
+	$(INSTALL) -m 0644 $(@D)/firmware/firmware_usb.bin \
 		$(TARGET_DIR)/lib/firmware/$(call qstrip,$(ATBM6012B_MODULE_NAME))_fw.bin
 endef
 WIFI_ATBM6012B_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6012B_INSTALL_CONFIGS

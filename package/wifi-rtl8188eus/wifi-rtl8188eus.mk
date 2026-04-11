@@ -27,7 +27,8 @@ WIFI_RTL8188EUS_MODULE_MAKE_OPTS = \
 	CONFIG_CALIBRATE_TX_POWER_TO_MAX=y
 
 define WIFI_RTL8188EUS_INSTALL_FIRMWARE
-	$(INSTALL) -D -m 0644 $(WIFI_RTL8188EUS_PKGDIR)/rtl8188fufw.bin \
+	$(INSTALL) -d $(TARGET_DIR)/lib/firmware/rtlwifi
+	$(INSTALL) -m 0644 $(WIFI_RTL8188EUS_PKGDIR)/rtl8188fufw.bin \
 		$(TARGET_DIR)/lib/firmware/rtlwifi/rtl8188fufw.bin
 endef
 

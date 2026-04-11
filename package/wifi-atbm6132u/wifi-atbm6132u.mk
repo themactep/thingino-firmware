@@ -46,7 +46,8 @@ define WIFI_ATBM6132U_INSTALL_CONFIGS
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/wifi \
 		$(WIFI_ATBM_WIFI_PKGDIR)/files/*.txt
 
-	$(INSTALL) -D -m 0644 $(@D)/firmware/firmware_mercurius_usb.bin \
+	$(INSTALL) -d $(TARGET_DIR)/lib/firmware
+	$(INSTALL) -m 0644 $(@D)/firmware/firmware_mercurius_usb.bin \
 		$(TARGET_DIR)/lib/firmware/$(call qstrip,$(ATBM6132U_MODULE_NAME))_fw.bin
 endef
 
