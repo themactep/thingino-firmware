@@ -2,3 +2,17 @@ config BR2_PACKAGE_INGENIC_LIB
 	bool "ingenic-lib"
 	help
 	  Ingenic IMP platform libraries
+
+config BR2_PACKAGE_INGENIC_LIB_JZDL
+	bool "JZDL standalone inference (libjzdl.m.so — 609KB)"
+	depends on BR2_PACKAGE_INGENIC_LIB
+	help
+	  Standalone JZDL neural network inference library.
+	  Required for YOLOv5 and custom model detection.
+
+config BR2_PACKAGE_INGENIC_LIB_PERSONDET
+	bool "PersonDet IVS algorithm (libpersonDet_inf.so + libjzdl.so — 1.5MB)"
+	depends on BR2_PACKAGE_INGENIC_LIB
+	help
+	  Person detection via IVS pipeline using built-in model.
+	  No separate model file needed.

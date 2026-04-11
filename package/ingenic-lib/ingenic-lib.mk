@@ -83,12 +83,25 @@ else
 	endif
 endif
 
+ACCEL_DIR = $(@D)/acceleration-modules
+
 define INGENIC_LIB_INSTALL_STAGING_CMDS
 	$(INSTALL) -m 0644 -t $(STAGING_DIR)/usr/lib/ \
 		$(@D)/$(SOC_FAMILY_CAPS)/lib/$(SDK_VERSION)/$(SDK_LIBC_NAME)/$(SDK_LIBC_VERSION)/*.so
 
 	$(INSTALL) -D -m 0644 $(LIBALOG_FILE) \
 		$(STAGING_DIR)/usr/lib/libalog.so
+
+	$(if $(BR2_PACKAGE_INGENIC_LIB_JZDL), \
+		$(INSTALL) -m 0644 \
+			$(ACCEL_DIR)/jzdl/lib/$(SDK_LIBC_VERSION)/$(SDK_LIBC_NAME)/libjzdl.m.so \
+			$(STAGING_DIR)/usr/lib/ \
+	)
+	$(if $(BR2_PACKAGE_INGENIC_LIB_PERSONDET), \
+		$(INSTALL) -m 0644 -t $(STAGING_DIR)/usr/lib/ \
+			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/IVS/$(SDK_LIBC_NAME)/libpersonDet_inf.so \
+			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/IVS/$(SDK_LIBC_NAME)/libjzdl.so \
+	)
 endef
 
 define INGENIC_LIB_INSTALL_TARGET_CMDS
@@ -97,6 +110,17 @@ define INGENIC_LIB_INSTALL_TARGET_CMDS
 
 	$(INSTALL) -D -m 0644 $(LIBALOG_FILE) \
 		$(TARGET_DIR)/usr/lib/libalog.so
+
+	$(if $(BR2_PACKAGE_INGENIC_LIB_JZDL), \
+		$(INSTALL) -m 0644 \
+			$(ACCEL_DIR)/jzdl/lib/$(SDK_LIBC_VERSION)/$(SDK_LIBC_NAME)/libjzdl.m.so \
+			$(TARGET_DIR)/usr/lib/ \
+	)
+	$(if $(BR2_PACKAGE_INGENIC_LIB_PERSONDET), \
+		$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/lib/ \
+			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/IVS/$(SDK_LIBC_NAME)/libpersonDet_inf.so \
+			$(ACCEL_DIR)/ivs/lib/$(SDK_LIBC_VERSION)/IVS/$(SDK_LIBC_NAME)/libjzdl.so \
+	)
 endef
 
 $(eval $(generic-package))
