@@ -9,12 +9,10 @@ HA_CONFIG_FILE="${HA_CONFIG_FILE:-/etc/thingino.json}"
 # Config helpers
 # ---------------------------------------------------------------------------
 
-# Read a value from ha.* — returns empty string if missing
 ha_cfg() {
 	jct "$HA_CONFIG_FILE" get "ha.$1" 2>/dev/null | tr -d '"'
 }
 
-# Read with fallback: try ha.mqtt.KEY first, then mqtt_sub.KEY
 _ha_mqtt_cfg() {
 	local key="$1"
 	local val
@@ -25,7 +23,6 @@ _ha_mqtt_cfg() {
 	printf '%s' "$val"
 }
 
-# Returns true (0) unless the entity is explicitly set to false
 ha_entity_enabled() {
 	local val
 	val=$(ha_cfg "enable_$1")
@@ -33,7 +30,7 @@ ha_entity_enabled() {
 }
 
 # ---------------------------------------------------------------------------
-# Camera identity (resolved once, exported for child scripts)
+# Camera identity
 # ---------------------------------------------------------------------------
 if [ -z "$HA_CAMERA_ID" ]; then
 	HA_CAMERA_ID=$(
@@ -69,14 +66,14 @@ HA_MQTT_CLIENT_PREFIX=$(_ha_mqtt_cfg client_id_prefix)
 HA_MQTT_PORT="${HA_MQTT_PORT:-1883}"
 HA_MQTT_CLIENT_PREFIX="${HA_MQTT_CLIENT_PREFIX:-thingino-ha}"
 
-# Wrap a value in single quotes, escaping any embedded single quotes.
+# Delay between individual MQTT publishes within a batch session (microseconds).
+# Prevents burst-flooding the broker when many entities are published at once.
+HA_PUB_DELAY_US="${HA_PUB_DELAY_US:-80000}"
+
 _sq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 
 # ---------------------------------------------------------------------------
-# Build a mosquitto_pub or mosquitto_sub base command for a given client suffix.
-# Usage:
-#   MPUB=$(ha_mpub_cmd "disc")    → mosquitto_pub -h ... -i thingino-ha-disc-<id> ...
-#   MSUB=$(ha_msub_cmd "cmd")     → mosquitto_sub -h ... -i thingino-ha-cmd-<id>  ...
+# MQTT command builders
 # ---------------------------------------------------------------------------
 ha_mpub_cmd() {
 	local suffix="${1:-pub}"
@@ -98,29 +95,145 @@ ha_msub_cmd() {
 	printf '%s' "$cmd"
 }
 
-# Convenience: publish a single state value (plain text)
-ha_pub_state() {
-	local entity="$1" state="$2"
-	[ -n "$state" ] || return 0
-	local mpub
-	mpub=$(ha_mpub_cmd state)
-	sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/${entity}/state' -m '$state'"
+# ---------------------------------------------------------------------------
+# State cache
+#
+# Tracks the last published value for each entity so ha-state only publishes
+# on actual change — not on every poll cycle.
+#
+# Why this matters:
+#   Without caching, ha-state publishes ALL entities every state_interval
+#   seconds even when nothing changed. With 15 entities and a 15s interval,
+#   that is 60 unnecessary MQTT connections per minute at idle.
+#   With caching, an idle camera produces zero MQTT traffic between polls.
+#
+# Cache lives in /tmp (auto-cleared on reboot). ha-daemon clears it on
+# startup so the first ha-state call always does a full publish to sync HA.
+#
+# State messages use the MQTT retained flag (-r) so Home Assistant recovers
+# the last known state immediately after its own restart, without waiting
+# for the next poll cycle.
+# ---------------------------------------------------------------------------
+_HA_STATE_CACHE_DIR="/tmp/ha_state_cache_${HA_CAMERA_ID}"
+
+# Clear all cached states. Call from ha-daemon on startup.
+ha_state_cache_clear() {
+	rm -rf "$_HA_STATE_CACHE_DIR"
 }
 
-# Convenience: publish a JSON payload to a state topic (uses tmpfile)
+# Return 0 if entity state changed since last publish; update cache.
+# Return 1 if unchanged — caller should skip publishing.
+_ha_state_changed() {
+	local entity="$1" state="$2"
+	mkdir -p "$_HA_STATE_CACHE_DIR"
+	local cache_file="$_HA_STATE_CACHE_DIR/$entity"
+	local last=""
+	[ -f "$cache_file" ] && last=$(cat "$cache_file" 2>/dev/null)
+	if [ "$state" = "$last" ]; then
+		return 1  # unchanged
+	fi
+	printf '%s' "$state" > "$cache_file"
+	return 0  # changed
+}
+
+# ---------------------------------------------------------------------------
+# Publish queue
+#
+# ha_pub_begin / ha_pub_flush wrap publish calls into a controlled,
+# rate-limited sequence to avoid burst-flooding the broker.
+#
+# Outside of a session, all helpers publish immediately (backward compatible).
+# ---------------------------------------------------------------------------
+_HA_PUB_QUEUE_FILE=""
+
+ha_pub_begin() {
+	_HA_PUB_QUEUE_FILE=$(mktemp /tmp/ha_pubq.XXXXXX) || _HA_PUB_QUEUE_FILE=""
+}
+
+_ha_pub_exec() {
+	local retain="$1" suffix="$2" topic="$3" tmpfile="$4"
+	[ -f "$tmpfile" ] || return 1
+	local mpub
+	mpub=$(ha_mpub_cmd "$suffix")
+	[ "$retain" = "1" ] && mpub="$mpub -r"
+	sh -c "$mpub -t $(_sq "$topic") -f $(_sq "$tmpfile")" 2>/dev/null
+	rm -f "$tmpfile"
+}
+
+_ha_queue_or_pub() {
+	local retain="$1" suffix="$2" topic="$3" tmpfile="$4"
+	if [ -n "$_HA_PUB_QUEUE_FILE" ]; then
+		printf '%s|%s|%s|%s\n' "$retain" "$suffix" "$topic" "$tmpfile" \
+			>> "$_HA_PUB_QUEUE_FILE"
+	else
+		_ha_pub_exec "$retain" "$suffix" "$topic" "$tmpfile"
+	fi
+}
+
+ha_pub_flush() {
+	[ -n "$_HA_PUB_QUEUE_FILE" ] || return 0
+	local retain suffix topic tmpfile
+	while IFS='|' read -r retain suffix topic tmpfile; do
+		_ha_pub_exec "$retain" "$suffix" "$topic" "$tmpfile"
+		usleep "$HA_PUB_DELAY_US" 2>/dev/null || true
+	done < "$_HA_PUB_QUEUE_FILE"
+	rm -f "$_HA_PUB_QUEUE_FILE"
+	_HA_PUB_QUEUE_FILE=""
+}
+
+# ---------------------------------------------------------------------------
+# Public publish helpers
+# ---------------------------------------------------------------------------
+
+# Publish a state value.
+#
+# By default, publishes only if the value changed since last time (change-
+# detection via cache). Pass force=1 to always publish regardless of cache —
+# used on daemon startup for a full sync and by ha-commands for optimistic
+# updates after a command.
+#
+# All state messages use the MQTT retained flag so Home Assistant immediately
+# recovers the last known state after restarting, without waiting for the
+# next poll cycle.
+ha_pub_state() {
+	local entity="$1" state="$2" force="${3:-0}"
+	[ -n "$state" ] || return 0
+
+	if [ "$force" = "1" ]; then
+		# Force: always publish and update cache.
+		mkdir -p "$_HA_STATE_CACHE_DIR"
+		printf '%s' "$state" > "${_HA_STATE_CACHE_DIR}/${entity}"
+	else
+		# Normal: skip if state unchanged since last publish.
+		_ha_state_changed "$entity" "$state" || return 0
+	fi
+
+	local topic="cameras/${HA_CAMERA_ID}/${entity}/state"
+	local tmpfile
+	tmpfile=$(mktemp /tmp/ha_state.XXXXXX) || return 1
+	printf '%s' "$state" > "$tmpfile"
+	_ha_queue_or_pub 1 state "$topic" "$tmpfile"
+}
+
+# Publish a JSON state payload with the same change-detection logic.
 ha_pub_state_json() {
-	local entity="$1" payload="$2"
-	local tmpfile mpub
+	local entity="$1" payload="$2" force="${3:-0}"
+
+	if [ "$force" = "1" ]; then
+		mkdir -p "$_HA_STATE_CACHE_DIR"
+		printf '%s' "$payload" > "${_HA_STATE_CACHE_DIR}/${entity}"
+	else
+		_ha_state_changed "$entity" "$payload" || return 0
+	fi
+
+	local topic="cameras/${HA_CAMERA_ID}/${entity}/state"
+	local tmpfile
 	tmpfile=$(mktemp /tmp/ha_state.XXXXXX) || return 1
 	printf '%s' "$payload" > "$tmpfile"
-	mpub=$(ha_mpub_cmd state)
-	sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/${entity}/state' -f '$tmpfile'"
-	local rc=$?
-	rm -f "$tmpfile"
-	return $rc
+	_ha_queue_or_pub 1 state "$topic" "$tmpfile"
 }
 
-# Remove a previously published discovery entry (publish empty retained to clear from HA)
+# Clear a discovery topic (empty retained message removes entity from HA).
 ha_clear_disc() {
 	local component="$1" object_id="$2"
 	local disc_prefix
@@ -129,30 +242,25 @@ ha_clear_disc() {
 	local topic="${disc_prefix}/${component}/thingino_${HA_CAMERA_ID}/${object_id}/config"
 	local mpub
 	mpub=$(ha_mpub_cmd disc)
-	sh -c "$mpub -r -t '$topic' -n" 2>/dev/null
+	sh -c "$mpub -r -t $(_sq "$topic") -n" 2>/dev/null
+	usleep "$HA_PUB_DELAY_US" 2>/dev/null || true
 }
 
-# Convenience: publish retained discovery payload (uses tmpfile)
+# Publish a retained discovery payload.
 ha_pub_disc() {
 	local component="$1" object_id="$2" payload="$3"
 	local disc_prefix
 	disc_prefix=$(ha_cfg discovery_prefix)
 	disc_prefix="${disc_prefix:-homeassistant}"
 	local topic="${disc_prefix}/${component}/thingino_${HA_CAMERA_ID}/${object_id}/config"
-	local tmpfile mpub
+	local tmpfile
 	tmpfile=$(mktemp /tmp/ha_disc.XXXXXX) || return 1
 	printf '%s' "$payload" > "$tmpfile"
-	mpub=$(ha_mpub_cmd disc)
-	sh -c "$mpub -r -t '$topic' -f '$tmpfile'"
-	local rc=$?
-	rm -f "$tmpfile"
-	return $rc
+	_ha_queue_or_pub 1 disc "$topic" "$tmpfile"
 }
 
-# Escape a string for safe embedding in a JSON value
 ha_json_escape() {
 	printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
 }
 
-# Availability topic
 HA_AVAIL_TOPIC="cameras/${HA_CAMERA_ID}/status"
