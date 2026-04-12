@@ -20,7 +20,10 @@ prudynt_disable_auto() {
 # LWT ensures HA sees 'offline' if this connection drops unexpectedly.
 # ---------------------------------------------------------------------------
 MSUB=$(ha_msub_cmd cmd)
-MSUB="$MSUB -v -F '%t %p'"
+# -v prints "topic payload" on each line — do NOT add -F: it was introduced in
+# mosquitto 1.5 and its absence causes mosquitto_sub to exit immediately on
+# older embedded builds, triggering the infinite reconnect loop.
+MSUB="$MSUB -v"
 # LWT: broker notifies HA immediately if this connection drops (no retain —
 # ha-state re-asserts 'online' on reconnect so we don't leave a sticky offline)
 MSUB="$MSUB --will-topic ${HA_AVAIL_TOPIC} --will-payload offline --will-qos 1"
@@ -178,8 +181,28 @@ dispatch() {
 echo "ha-commands: subscribing on ${HA_MQTT_HOST}:${HA_MQTT_PORT} for ${HA_CAMERA_ID}"
 echo "ha-commands: topics: cameras/${HA_CAMERA_ID}/+/set"
 
-# Run mosquitto_sub and tee stderr so we can see connection errors
-sh -c "$MSUB" 2>&1 | while IFS= read -r line; do
+# Use a named FIFO so we can track the mosquitto_sub PID and kill it explicitly
+# on exit. Without this, mosquitto_sub becomes an orphan when the pipe closes:
+# ha-daemon restarts ha-commands, launching a second mosquitto_sub with the
+# same client_id — the two instances then fight each other endlessly, producing
+# the "already connected, closing old connection" flood in the broker log.
+MSUB_FIFO="/tmp/ha_msub_${HA_CAMERA_ID}.fifo"
+rm -f "$MSUB_FIFO"
+mkfifo "$MSUB_FIFO" || { echo "ha-commands: cannot create fifo" >&2; exit 1; }
+
+# In BusyBox ash, 'sh -c "simple_command"' execs the command directly, so
+# MSUB_PID is the mosquitto_sub PID itself.
+sh -c "$MSUB" > "$MSUB_FIFO" 2>&1 &
+MSUB_PID=$!
+
+cleanup_sub() {
+	kill "$MSUB_PID" 2>/dev/null
+	wait "$MSUB_PID" 2>/dev/null
+	rm -f "$MSUB_FIFO"
+}
+trap cleanup_sub EXIT INT TERM
+
+while IFS= read -r line; do
 	# mosquitto_sub error lines start with "Error" or contain "Connection"
 	case "$line" in
 		Error*|*"Connection refused"*|*"authentication"*|*"not authorised"*)
@@ -188,10 +211,11 @@ sh -c "$MSUB" 2>&1 | while IFS= read -r line; do
 		*)
 			mqtt_topic="${line%% *}"
 			mqtt_payload="${line#* }"
+			[ -z "$mqtt_topic" ] && continue
 			echo "ha-commands: ${mqtt_topic} = ${mqtt_payload}"
 			dispatch "$mqtt_topic" "$mqtt_payload"
 			;;
 	esac
-done
+done < "$MSUB_FIFO"
 
-echo "ha-commands: mosquitto_sub exited (exit $?)" >&2
+echo "ha-commands: mosquitto_sub exited" >&2
