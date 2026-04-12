@@ -38,6 +38,15 @@ build_uhttpd_args() {
 }
 
 start() {
+    local display_hostname
+
+    display_hostname="$(hostname 2>/dev/null)"
+    [ -z "$display_hostname" ] && display_hostname="localhost"
+    case "$display_hostname" in
+        *.local) ;;
+        *) display_hostname="${display_hostname}.local" ;;
+    esac
+
     # Check if already running - verify PID file contains a valid running process
     if [ -f $PIDFILE ]; then
         local pid=$(cat $PIDFILE)
@@ -162,8 +171,8 @@ start() {
 
         if pgrep uhttpd >/dev/null 2>&1 && netstat -ln | grep -q ":443.*LISTEN" && netstat -ln | grep -q ":80.*LISTEN"; then
             echo_info "uhttpd started successfully with SSL support"
-            echo_info "HTTPS: https://$(hostname):443/"
-            echo_info "HTTP:  http://$(hostname):80/ (redirects to HTTPS)"
+            echo_info "HTTPS: https://$display_hostname:443/"
+            echo_info "HTTP:  http://$display_hostname:80/ (redirects to HTTPS)"
             return 0
         else
             kill "$uhttpd_pid" 2>/dev/null
@@ -185,7 +194,7 @@ start() {
 
     if pgrep uhttpd >/dev/null 2>&1 && netstat -ln | grep -q ":80.*LISTEN"; then
         echo_info "uhttpd started successfully (HTTP only)"
-        echo_info "HTTP:  http://$(hostname):80/"
+        echo_info "HTTP:  http://$display_hostname:80/"
         return 0
     else
         echo_warning "FAIL"
