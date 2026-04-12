@@ -107,9 +107,13 @@ define THINGINO_RAPTOR_BUILD_CMDS
 		CROSS_COMPILE=$(TARGET_CROSS) \
 		SYSROOT=$(STAGING_DIR) \
 		LIB_HAL=$(STAGING_DIR)/usr/lib/libraptor_hal.a \
-		LIB_IPC=$(STAGING_DIR)/usr/lib/librss_ipc.a \
-		LIB_COMMON=$(STAGING_DIR)/usr/lib/librss_common.a \
+		LIB_HAL_FILE=$(STAGING_DIR)/usr/lib/libraptor_hal.a \
+		LIB_IPC="-L$(STAGING_DIR)/usr/lib -lrss_ipc" \
+		LIB_IPC_FILE=$(STAGING_DIR)/usr/lib/librss_ipc.so \
+		LIB_COMMON="-L$(STAGING_DIR)/usr/lib -lrss_common" \
+		LIB_COMMON_FILE=$(STAGING_DIR)/usr/lib/librss_common.so \
 		LIB_COMPY=$(STAGING_DIR)/usr/lib/libcompy.a \
+		LIB_COMPY_FILE=$(STAGING_DIR)/usr/lib/libcompy.a \
 		COMPY_CFLAGS="-I$(STAGING_DIR)/usr/include $(if $(filter TLS=1,$(THINGINO_RAPTOR_MAKE_OPTS)),-DCOMPY_HAS_TLS)" \
 		EXTRA_CFLAGS="$(TARGET_CFLAGS) -I$(STAGING_DIR)/usr/include" \
 		$(THINGINO_RAPTOR_MAKE_OPTS) \
