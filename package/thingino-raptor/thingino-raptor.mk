@@ -1,4 +1,4 @@
-THINGINO_RAPTOR_VERSION = 2cc4553
+THINGINO_RAPTOR_VERSION = d49067c
 THINGINO_RAPTOR_SITE = https://github.com/gtxaspec/raptor
 THINGINO_RAPTOR_SITE_METHOD = git
 
@@ -106,8 +106,10 @@ define THINGINO_RAPTOR_BUILD_CMDS
 		PLATFORM=$(THINGINO_RAPTOR_PLATFORM) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
 		SYSROOT=$(STAGING_DIR) \
-		LIB_HAL=$(STAGING_DIR)/usr/lib/libraptor_hal.a \
-		LIB_HAL_FILE=$(STAGING_DIR)/usr/lib/libraptor_hal.a \
+		LIB_HAL_VIDEO=$(STAGING_DIR)/usr/lib/libraptor_hal_video.a \
+		LIB_HAL_VIDEO_FILE=$(STAGING_DIR)/usr/lib/libraptor_hal_video.a \
+		LIB_HAL_AUDIO=$(STAGING_DIR)/usr/lib/libraptor_hal_audio.a \
+		LIB_HAL_AUDIO_FILE=$(STAGING_DIR)/usr/lib/libraptor_hal_audio.a \
 		LIB_IPC="-L$(STAGING_DIR)/usr/lib -lrss_ipc" \
 		LIB_IPC_FILE=$(STAGING_DIR)/usr/lib/librss_ipc.so \
 		LIB_COMMON="-L$(STAGING_DIR)/usr/lib -lrss_common" \
