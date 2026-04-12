@@ -24,7 +24,7 @@ endif
 
 ifeq ($(BR2_INGENIC_SDK_ISP_TRACE),y)
 INGENIC_SDK_EXTRA_CFLAGS += -DCONFIG_JZ_ISP_TRACE
-define LINUX_KCONFIG_FIXUP_CMDS
+define INGENIC_SDK_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_JZ_ISP_TRACE)
 endef
 endif
@@ -226,4 +226,3 @@ endef
 
 $(eval $(kernel-module))
 $(eval $(generic-package))
-
