@@ -9,18 +9,32 @@
 [ -n "$HA_MQTT_HOST" ] || { echo "ha-daemon: ha.mqtt.host (or mqtt_sub.host) not configured" >&2; exit 1; }
 
 # ---------------------------------------------------------------------------
-# Singleton: only one ha-daemon may run at a time
+# Singleton: only one ha-daemon may run at a time.
+# Use mkdir for an atomic test-and-set — unlike a plain file check+write,
+# mkdir either succeeds (we own the lock) or fails (someone else does),
+# with no window between the two steps.
 # ---------------------------------------------------------------------------
-HA_LOCK="/run/ha/daemon.lock"
+HA_LOCK_DIR="/run/ha/daemon.lock.d"
 mkdir -p /run/ha
-if [ -f "$HA_LOCK" ]; then
-	old_pid=$(cat "$HA_LOCK" 2>/dev/null)
+if ! mkdir "$HA_LOCK_DIR" 2>/dev/null; then
+	old_pid=$(cat "${HA_LOCK_DIR}/pid" 2>/dev/null)
 	if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
 		echo "ha-daemon: already running (pid $old_pid), exiting" >&2
 		exit 1
 	fi
+	# Stale lock from a previous crash — take it over
+	rm -rf "$HA_LOCK_DIR"
+	mkdir "$HA_LOCK_DIR" 2>/dev/null || { echo "ha-daemon: cannot acquire lock" >&2; exit 1; }
 fi
-printf '%s\n' "$$" > "$HA_LOCK"
+printf '%s\n' "$$" > "${HA_LOCK_DIR}/pid"
+
+# ---------------------------------------------------------------------------
+# Clear state cache on startup.
+# This ensures the first ha-state call (with "force") publishes all entity
+# values to fully sync Home Assistant, even if the camera was previously
+# running and had a populated cache.
+# ---------------------------------------------------------------------------
+ha_state_cache_clear
 
 # ---------------------------------------------------------------------------
 # Publish discovery and start command subscriber
@@ -34,7 +48,6 @@ run_commands() {
 		ha-commands
 		echo "ha-daemon: ha-commands exited, restarting in 5s..."
 		sleep 5
-		# Re-assert online so HA doesn't stay unavailable during the gap
 		mpub=$(ha_mpub_cmd daemon)
 		sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'" 2>/dev/null
 	done
@@ -42,17 +55,20 @@ run_commands() {
 run_commands &
 CMD_PID=$!
 
-ha-state
+# First ha-state call: force-publish all entities to fully sync HA.
+# Subsequent calls in the loop below only publish changed values.
+ha-state force
 
 # ---------------------------------------------------------------------------
-# Publish offline on exit and stop command subscriber
+# Cleanup on exit
 # ---------------------------------------------------------------------------
 cleanup() {
 	local mpub
 	mpub=$(ha_mpub_cmd daemon)
 	sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'offline'" 2>/dev/null
 	kill "$CMD_PID" 2>/dev/null
-	rm -f "$HA_LOCK"
+	wait "$CMD_PID" 2>/dev/null
+	rm -rf "$HA_LOCK_DIR"
 }
 trap cleanup EXIT INT TERM
 
@@ -69,6 +85,7 @@ elapsed=0
 while true; do
 	sleep "$STATE_INTERVAL"
 	elapsed=$((elapsed + STATE_INTERVAL))
+	# No "force" argument: only publishes entities that changed since last poll.
 	ha-state
 	if [ "$elapsed" -ge "$DISC_INTERVAL" ]; then
 		ha-discovery
