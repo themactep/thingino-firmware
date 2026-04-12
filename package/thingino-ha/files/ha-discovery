@@ -51,6 +51,11 @@ light_gpio_ok() {
 	[ "$v" = "0" ] || [ "$v" = "1" ]
 }
 
+# Open a publish session: all ha_pub_disc / ha_clear_disc calls below are
+# queued and flushed at the end with rate limiting, preventing the burst of
+# rapid-fire MQTT connections that flooded the broker on startup.
+ha_pub_begin
+
 # ---------------------------------------------------------------------------
 # Entity definitions — each entity either publishes or clears its topic
 # ---------------------------------------------------------------------------
@@ -172,7 +177,10 @@ for _dir in up down left right home; do
 	ha_clear_disc button "ptz_${_dir}"
 done
 
-# Mark device online
+# Flush all queued discovery publishes with rate limiting.
+ha_pub_flush
+
+# Mark device online (published directly, not queued — must happen after flush)
 mpub=$(ha_mpub_cmd disc)
 sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'"
 
