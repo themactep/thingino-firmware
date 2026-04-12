@@ -1,0 +1,195 @@
+#!/bin/sh
+
+DAEMON="thingino-agentd"
+PIDFILE="/run/thingino-agentd.pid"
+BOOTSTRAP_CONFIG="/etc/thingino-agent-bootstrap.json"
+
+. /usr/share/common
+
+apply_bootstrap_config() {
+	if [ -f "$BOOTSTRAP_CONFIG" ] && command -v jct >/dev/null 2>&1; then
+		jct /etc/thingino.json import "$BOOTSTRAP_CONFIG" >/dev/null 2>&1 || true
+	fi
+}
+
+read_config() {
+	jct /etc/thingino.json get "$1" 2>/dev/null | tr -d '\n'
+}
+
+read_config_text() {
+	read_config "$1" | tr -d '"'
+}
+
+listener_port() {
+	port=$(read_config_text agent.port)
+	[ -n "$port" ] || port=1998
+	printf '%s' "$port"
+}
+
+backend_port() {
+	port=$(listener_port)
+	if [ "$port" -le 64535 ]; then
+		printf '%s' $((port + 1000))
+	else
+		printf '%s' $((port - 1))
+	fi
+}
+
+tls_enabled() {
+	[ "true" = "$(read_config agent.tls)" ]
+}
+
+listener_pid() {
+	port=$(listener_port)
+	netstat -lntp 2>/dev/null | awk -v port=":$port" '
+		index($4, port) {
+			split($7, pidprog, "/")
+			if (pidprog[1] ~ /^[0-9]+$/) {
+				print pidprog[1]
+				exit
+			}
+		}
+	'
+}
+
+backend_listener_pid() {
+	port=$(backend_port)
+	netstat -lntp 2>/dev/null | awk -v port=":$port" '
+		index($4, port) {
+			split($7, pidprog, "/")
+			if (pidprog[1] ~ /^[0-9]+$/) {
+				print pidprog[1]
+				exit
+			}
+		}
+	'
+}
+
+find_agent_pids() {
+	target_path=$1
+	target_port=$2
+	ps w 2>/dev/null | awk -v target_path="$target_path" -v target_port="--port $target_port" '
+		index($0, target_path) && index($0, target_port) { print $1 }
+	'
+}
+
+terminate_agent_pids() {
+	target_path=$1
+	target_port=$2
+	description=$3
+	pids=$(find_agent_pids "$target_path" "$target_port" | tr '\n' ' ')
+	[ -n "$pids" ] || return 0
+	echo "- Killing $description on port $target_port"
+	kill $pids 2>/dev/null || true
+	sleep 0.2
+	remaining=
+	for pid in $pids; do
+		if kill -0 "$pid" 2>/dev/null; then
+			remaining="$remaining $pid"
+		fi
+	done
+	[ -z "$remaining" ] || kill -9 $remaining 2>/dev/null || true
+}
+
+ensure_pidfile() {
+	pid_dir=$(dirname "$PIDFILE")
+	[ -d "$pid_dir" ] || mkdir -p "$pid_dir"
+	: > "$PIDFILE"
+}
+
+stop_listener_fallback() {
+	terminate_agent_pids /usr/libexec/thingino-agent/tls-proxy "$(listener_port)" "agent TLS proxy"
+	terminate_agent_pids /usr/libexec/thingino-agent/listener "$(listener_port)" "native agent listener"
+	terminate_agent_pids /usr/libexec/thingino-agent/listener "$(backend_port)" "native TLS backend listener"
+}
+
+start() {
+	echo_title "Starting Thingino agent listener"
+	apply_bootstrap_config
+
+	if command -v service >/dev/null 2>&1 && service heartbeat status >/dev/null 2>&1; then
+		echo_info "Disabling heartbeat (replaced by agent)"
+		service heartbeat disable
+		service heartbeat stop 2>/dev/null || true
+	fi
+
+	if [ "true" != "$(read_config agent.enabled)" ]; then
+		echo_info "Disabled"
+		return 0
+	fi
+
+	port=$(read_config_text agent.port)
+	[ -n "$port" ] || port=1998
+	case "$port" in
+		''|*[!0-9]*)
+			echo_error "agent.port must be a positive integer"
+			return 1
+			;;
+	esac
+	if [ "$port" -le 0 ]; then
+		echo_info "Disabled: agent.port <= 0"
+		return 0
+	fi
+
+	listen_addr=$(read_config_text agent.listen)
+	[ -n "$listen_addr" ] || listen_addr="127.0.0.1"
+	echo_info "Listener: $listen_addr:$port"
+
+	ensure_pidfile || {
+		echo_error "Failed to prepare $PIDFILE"
+		return 1
+	}
+
+	start_daemon
+	status=$?
+	if [ $status -ne 0 ]; then
+		rm -f "$PIDFILE"
+		echo_error "Failed to start agent listener"
+		return $status
+	fi
+
+	sleep 0.5
+	if [ -z "$(listener_pid)" ]; then
+		rm -f "$PIDFILE"
+		echo_error "Agent listener did not become ready"
+		return 1
+	fi
+	if tls_enabled && [ -z "$(backend_listener_pid)" ]; then
+		rm -f "$PIDFILE"
+		echo_error "Agent TLS backend listener did not become ready"
+		return 1
+	fi
+
+	echo_info "Agent listener started"
+	return 0
+}
+
+stop() {
+	echo_title "Stopping Thingino agent listener"
+	stop_daemon
+	stop_listener_fallback
+	rm -f "$PIDFILE"
+}
+
+case "$1" in
+	start)
+		start
+		status=$?
+		;;
+	stop)
+		stop
+		status=$?
+		;;
+	restart)
+		stop
+		sleep 1
+		start
+		status=$?
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+	esac
+
+exit ${status:-0}

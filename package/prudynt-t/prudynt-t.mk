@@ -2,7 +2,7 @@ PRUDYNT_T_SITE_METHOD = git
 # PRUDYNT_T_SITE = https://github.com/gtxaspec/prudynt-t
 PRUDYNT_T_SITE = https://github.com/themactep/prudynt-t
 PRUDYNT_T_SITE_BRANCH = stable
-PRUDYNT_T_VERSION = e81a8816dfc437a5f31dbd6cb8d6b2b40f324468
+PRUDYNT_T_VERSION = c37556b3b56b8e0529ec7d50f658e2417ac0eb8c
 
 PRUDYNT_T_OVERRIDE_FILE = $(BR2_EXTERNAL_THINGINO_PATH)/$(CAMERA_SUBDIR)/$(CAMERA)/prudynt.json
 
@@ -334,6 +334,10 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/etc/init.d/S31prudynt
 #	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S32prudyntwd \
 #		$(TARGET_DIR)/etc/init.d/S32prudyntwd
+	if [ "$(BR2_PACKAGE_THINGINO_ONVIF)" = "y" ]; then \
+		$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S96onvif_discovery \
+			$(TARGET_DIR)/etc/init.d/S96onvif_discovery; \
+	fi
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/S98recorder \
 		$(TARGET_DIR)/etc/init.d/S98recorder
 

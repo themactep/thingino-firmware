@@ -36,6 +36,9 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Minimum memory (MiB) for podman machine VM to avoid OOM during builds
+PODMAN_MIN_MEMORY_MB=8192
+
 # Detect container engine
 if command -v podman >/dev/null 2>&1; then
     CONTAINER_ENGINE="podman"
@@ -52,6 +55,23 @@ else
     echo "Or install Docker:"
     echo "  curl -fsSL https://get.docker.com | sudo sh"
     exit 1
+fi
+
+# Ensure podman machine has enough memory (macOS/Windows only; Linux rootless has no VM)
+if [ "$CONTAINER_ENGINE" = "podman" ] && podman machine list >/dev/null 2>&1; then
+    PODMAN_MACHINE=$(podman machine list --format "{{.Name}}" 2>/dev/null | head -1)
+    if [ -n "$PODMAN_MACHINE" ]; then
+        CURRENT_MEM=$(podman machine inspect "$PODMAN_MACHINE" --format "{{.Resources.Memory}}" 2>/dev/null)
+        if [ -n "$CURRENT_MEM" ] && [ "$CURRENT_MEM" -lt "$PODMAN_MIN_MEMORY_MB" ]; then
+            print_info "Podman machine memory is ${CURRENT_MEM} MiB — increasing to ${PODMAN_MIN_MEMORY_MB} MiB to prevent OOM crashes..."
+            if podman machine set --memory "$PODMAN_MIN_MEMORY_MB" "$PODMAN_MACHINE" 2>/dev/null; then
+                print_success "Podman machine memory updated to ${PODMAN_MIN_MEMORY_MB} MiB"
+            else
+                print_error "Could not set podman machine memory automatically."
+                echo "  Run manually: podman machine set --memory ${PODMAN_MIN_MEMORY_MB} ${PODMAN_MACHINE}"
+            fi
+        fi
+    fi
 fi
 
 # Build image if needed

@@ -103,6 +103,7 @@ menuconfig BR2_THINGINO_SYSTEM_PACKAGES
 if BR2_THINGINO_SYSTEM_PACKAGES
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-diag-tools/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-lib/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/magik-models/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-musl/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-pwm/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/ingenic-sdk/Config.in"
@@ -152,6 +153,7 @@ endif
 menuconfig BR2_THINGINO_STREAMER_PACKAGES
 	bool "Streamer Packages"
 	default y if !BR2_THINGINO_TOOLCHAIN
+  select BR2_PACKAGE_THINGINO_STREAMER
 	help
 	  Thingino Streamer Packages
 	  Audio/Video Streaming related packages
@@ -187,6 +189,7 @@ source "$BR2_EXTERNAL_THINGINO_PATH/package/libschrift/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/nino/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-esphome/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-ha/Config.in"
+source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-agent/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-freetype/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-libwebsockets/Config.in"
 source "$BR2_EXTERNAL_THINGINO_PATH/package/thingino-mosquitto-20x/Config.in"
@@ -206,7 +209,6 @@ endmenu
 menuconfig BR2_THINGINO_DEV_PACKAGES
 	bool "Development Packages"
 	select BR2_PACKAGE_THINGINO_KOPT
-	select BR2_PACKAGE_THINGINO_KOPT_DEVELOP
 	help
 	  Thingino Development Packages
 	  include tools for firmware development.

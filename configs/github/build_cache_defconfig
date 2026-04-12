@@ -1,4 +1,4 @@
-# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot
+# FRAG: soc-xburst1 ccache brand rootfs kernel system target uboot
 # MODULE: t31al_gc2053_atbm6031
 BR2_INGENIC_SOC_MODEL="t31x"
 BR2_SENSOR_GC2053=y

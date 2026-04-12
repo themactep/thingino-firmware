@@ -1,0 +1,336 @@
+#!/bin/sh
+
+. /usr/libexec/thingino-agent/lib.sh
+
+THINGINO_AGENT_ADAPTER=
+
+load_adapter_modules() {
+	for module in /usr/libexec/thingino-agent/adapters/*.sh; do
+		[ -r "$module" ] || continue
+		. "$module"
+	done
+}
+
+adapter_function() {
+	action=$1
+	printf 'thingino_agent_adapter_%s_%s' "$THINGINO_AGENT_ADAPTER" "$action"
+}
+
+adapter_call() {
+	action=$1
+	shift
+	func=$(adapter_function "$action")
+	if ! command -v "$func" >/dev/null 2>&1; then
+		echo "adapter '$THINGINO_AGENT_ADAPTER' does not implement $action" >&2
+		return 1
+	fi
+	"$func" "$@"
+}
+
+select_adapter() {
+	configured=$(thingino_agent_text_config_value agent.backend)
+	case "$configured" in
+		""|auto)
+			for candidate in prudynt null; do
+				func="thingino_agent_adapter_${candidate}_detect"
+				if command -v "$func" >/dev/null 2>&1 && "$func"; then
+					THINGINO_AGENT_ADAPTER=$candidate
+					return 0
+				fi
+			done
+			;;
+		prudynt|null)
+			func="thingino_agent_adapter_${configured}_detect"
+			if command -v "$func" >/dev/null 2>&1 && "$func"; then
+				THINGINO_AGENT_ADAPTER=$configured
+				return 0
+			fi
+			echo "configured backend '$configured' is not available" >&2
+			return 1
+			;;
+		*)
+			echo "unsupported configured backend '$configured'" >&2
+			return 1
+			;;
+	esac
+
+	echo "no camera-agent backend adapter is available" >&2
+	return 1
+}
+
+print_device() {
+	backend=$(adapter_call name)
+	printf '{'
+	printf '"id":%s,' "$(thingino_agent_json_string "$(thingino_agent_camera_id)")"
+	printf '"name":%s,' "$(thingino_agent_json_string "$(thingino_agent_hostname)")"
+	printf '"hostname":%s,' "$(thingino_agent_json_string "$(thingino_agent_hostname)")"
+	printf '"manufacturer":"Thingino",'
+	printf '"model":%s,' "$(thingino_agent_json_string "$(thingino_agent_camera_model)")"
+	printf '"software":{'
+	printf '"firmware_version":%s,' "$(thingino_agent_json_string "$(thingino_agent_firmware_version)")"
+	printf '"api_version":"0-local",'
+	printf '"streamer":%s' "$(thingino_agent_json_string "$backend")"
+	printf '},'
+	printf '"backend":{"name":%s,"available":true}' "$(thingino_agent_json_string "$backend")"
+	printf '}\n'
+}
+
+print_config_schema() {
+	printf '{'
+	printf '"version":"0-local",'
+	printf '"format":"thingino-agent-schema",'
+	printf '"resources":{'
+	printf '"events":{"transport":"sse","content_type":"text/event-stream","event_types":["hello","state.changed","motion.started","motion.stopped","streamer.restarted","record.completed","firmware.progress","health.warning","keepalive","error"]},'
+	printf '"config":{"read":true,"patch":true},'
+	printf '"config_schema":{"read":true}'
+	printf '},'
+	printf '"settings":{'
+	printf '"image":{'
+	printf '"brightness":{"type":"integer"},'
+	printf '"contrast":{"type":"integer"},'
+	printf '"saturation":{"type":"integer"},'
+	printf '"sharpness":{"type":"integer"},'
+	printf '"anti_flicker":{"type":"integer"},'
+	printf '"hflip":{"type":"boolean"},'
+	printf '"vflip":{"type":"boolean"}'
+	printf '},'
+	printf '"motion":{'
+	printf '"enabled":{"type":"boolean"},'
+	printf '"sensitivity":{"type":"integer"},'
+	printf '"cooldown_time":{"type":"integer"},'
+	printf '"outputs":{"type":"object","properties":{'
+	printf '"send2":{"type":"object","additionalProperties":{"type":"object","properties":{"enabled":{"type":"boolean","write_supported":true}}}}'
+	printf '}}'
+	printf '},'
+	printf '"daynight":{'
+	printf '"enabled":{"type":"boolean"},'
+	printf '"force_mode":{"type":"string","enum":["day","night",null]}'
+	printf '},'
+	printf '"privacy":{'
+	printf '"enabled":{"type":"boolean"},'
+	printf '"channel":{"type":"string","enum":["all"]}'
+	printf '},'
+	printf '"storage":{'
+	printf '"autostart":{"type":"boolean","write_supported":true},'
+	printf '"channel":{"type":"integer","write_supported":true},'
+	printf '"device_path":{"type":"string","write_supported":true},'
+	printf '"duration":{"type":"integer","write_supported":true},'
+	printf '"filename":{"type":"string","write_supported":true},'
+	printf '"mount":{"type":"string","write_supported":true}'
+	printf '},'
+	printf '"streams":{'
+	printf '"item_id_type":"integer",'
+	printf '"properties":{'
+	printf '"enabled":{"type":"boolean"},'
+	printf '"audio_enabled":{"type":"boolean"},'
+	printf '"width":{"type":"integer"},'
+	printf '"height":{"type":"integer"},'
+	printf '"fps":{"type":"integer"},'
+	printf '"bitrate":{"type":"integer"},'
+	printf '"format":{"type":"string","enum":["H264","H265"],"read_only":false,"write_supported":true},'
+	printf '"mode":{"type":"string","enum":["CBR","VBR","SMART","FIXQP","CAPPED_VBR","CAPPED_QUALITY"],"read_only":false,"write_supported":true},'
+	printf '"osd":{"type":"object","properties":{'
+	printf '"enabled":{"type":"boolean","write_supported":true},'
+	printf '"font_path":{"type":"string","write_supported":true},'
+	printf '"font_size":{"type":"integer","write_supported":true},'
+	printf '"start_delay":{"type":"integer","write_supported":true},'
+	printf '"stroke_size":{"type":"integer","write_supported":true},'
+	printf '"brightness":{"type":"object","properties":{'
+	printf '"enabled":{"type":"boolean","write_supported":true},'
+	printf '"fill_color":{"type":"string","write_supported":true},'
+	printf '"format":{"type":"string","write_supported":true},'
+	printf '"position":{"type":"string","write_supported":true},'
+	printf '"rotation":{"type":"integer","write_supported":true},'
+	printf '"stroke_color":{"type":"string","write_supported":true}'
+	printf '}},'
+	printf '"time":{"type":"object","properties":{'
+	printf '"enabled":{"type":"boolean","write_supported":true},'
+	printf '"fill_color":{"type":"string","write_supported":true},'
+	printf '"format":{"type":"string","write_supported":true},'
+	printf '"position":{"type":"string","write_supported":true},'
+	printf '"rotation":{"type":"integer","write_supported":true},'
+	printf '"stroke_color":{"type":"string","write_supported":true}'
+	printf '}},'
+	printf '"uptime":{"type":"object","properties":{'
+	printf '"enabled":{"type":"boolean","write_supported":true},'
+	printf '"fill_color":{"type":"string","write_supported":true},'
+	printf '"format":{"type":"string","write_supported":true},'
+	printf '"position":{"type":"string","write_supported":true},'
+	printf '"rotation":{"type":"integer","write_supported":true},'
+	printf '"stroke_color":{"type":"string","write_supported":true}'
+	printf '}},'
+	printf '"usertext":{"type":"object","properties":{'
+	printf '"enabled":{"type":"boolean","write_supported":true},'
+	printf '"fill_color":{"type":"string","write_supported":true},'
+	printf '"format":{"type":"string","write_supported":true},'
+	printf '"position":{"type":"string","write_supported":true},'
+	printf '"rotation":{"type":"integer","write_supported":true},'
+	printf '"stroke_color":{"type":"string","write_supported":true}'
+	printf '}},'
+	printf '"logo":{"type":"object","properties":{'
+	printf '"enabled":{"type":"boolean","write_supported":true},'
+	printf '"height":{"type":"integer","write_supported":true},'
+	printf '"path":{"type":"string","write_supported":true},'
+	printf '"position":{"type":"string","write_supported":true},'
+	printf '"rotation":{"type":"integer","write_supported":true},'
+	printf '"transparency":{"type":"integer","write_supported":true},'
+	printf '"width":{"type":"integer","write_supported":true}'
+	printf '}},'
+	printf '"privacy":{"type":"object","properties":{'
+	printf '"enabled":{"type":"boolean","write_supported":true},'
+	printf '"fill_color":{"type":"string","write_supported":true},'
+	printf '"font_size":{"type":"integer","write_supported":true},'
+	printf '"image_height":{"type":"integer","write_supported":true},'
+	printf '"image_path":{"type":"string","write_supported":true},'
+	printf '"image_width":{"type":"integer","write_supported":true},'
+	printf '"layer":{"type":"integer","write_supported":true},'
+	printf '"opacity":{"type":"integer","write_supported":true},'
+	printf '"position":{"type":"string","write_supported":true},'
+	printf '"rotation":{"type":"integer","write_supported":true},'
+	printf '"stroke_color":{"type":"string","write_supported":true},'
+	printf '"stroke_size":{"type":"integer","write_supported":true},'
+	printf '"text":{"type":"string","write_supported":true}'
+	printf '}}'
+	printf '}}'
+	printf '}'
+	printf '}'
+	printf ','
+	printf '"send2":{'
+	printf '"services":{"type":"object","additionalProperties":{"type":"object","properties":{'
+	printf '"send_photo":{"type":"boolean","write_supported":true},'
+	printf '"send_video":{"type":"boolean","write_supported":true}'
+	printf '}}}'
+	printf '}'
+	printf '},'
+	printf '"actions":{'
+	printf '"snapshot":{"method":"POST"},'
+	printf '"record":{"method":"POST"},'
+	printf '"reboot":{"method":"POST"},'
+	printf '"services.streaming":{"method":"POST","operations":["start","stop","restart"]}'
+	printf '}'
+	printf '}\n'
+}
+
+usage() {
+	cat <<'EOF'
+Usage: thingino-agentctl <command> [args...]
+
+Read commands:
+  device                        Print canonical device identity JSON
+  health                        Print coarse health JSON
+  capabilities [group]          Print capability JSON
+  runtime <resource|all>        Print runtime resource JSON
+  state                         Compatibility alias for runtime all
+  config                        Print full persisted config JSON
+  schema                        Print machine-readable config schema JSON
+  events                        Stream agent events in SSE format
+  get-setting <path>            Print a narrow setting resource JSON
+
+Write and action commands:
+  set-setting <path> <json>     Apply a narrow setting resource update
+  apply-config <json-file>      Compatibility bulk config patch
+  snapshot [stream]             Write JPEG bytes to stdout
+  record [seconds] [stream] [path]
+  privacy <on|off> [channel]
+  daynight <auto|day|night>
+  service <name> <start|stop|restart>
+  restart-streamer
+  reboot
+
+The agent owns the external API. Backend-specific glue is loaded through the
+installed adapter modules.
+EOF
+	exit 1
+}
+
+command=$1
+[ -n "$command" ] || usage
+shift
+
+load_adapter_modules
+select_adapter || exit 1
+
+case "$command" in
+	device)
+		print_device
+		;;
+	health)
+		adapter_call get_health
+		;;
+	capabilities)
+		group=${1:-all}
+		adapter_call get_capabilities "$group"
+		;;
+	runtime)
+		resource=${1:-all}
+		adapter_call get_runtime "$resource"
+		;;
+	state)
+		adapter_call get_runtime all
+		;;
+	config)
+		adapter_call get_config
+		;;
+	schema)
+		print_config_schema
+		;;
+	events)
+		adapter_call get_events
+		;;
+	get-setting)
+		path=$1
+		[ -n "$path" ] || {
+			echo "usage: thingino-agentctl get-setting <path>" >&2
+			exit 1
+		}
+		adapter_call get_setting "$path"
+		;;
+	set-setting)
+		path=$1
+		body_file=$2
+		[ -n "$path" ] || {
+			echo "usage: thingino-agentctl set-setting <path> <json-file>" >&2
+			exit 1
+		}
+		[ -n "$body_file" ] || {
+			echo "usage: thingino-agentctl set-setting <path> <json-file>" >&2
+			exit 1
+		}
+		adapter_call set_setting "$path" "$body_file"
+		;;
+	apply-config)
+		body_file=$1
+		[ -n "$body_file" ] || {
+			echo "usage: thingino-agentctl apply-config <json-file>" >&2
+			exit 1
+		}
+		adapter_call apply_config "$body_file"
+		;;
+	snapshot)
+		adapter_call snapshot "$@"
+		;;
+	record)
+		adapter_call record "$@"
+		;;
+	privacy)
+		adapter_call privacy "$@"
+		;;
+	daynight)
+		adapter_call daynight "$@"
+		;;
+	service)
+		adapter_call service "$@"
+		;;
+	restart-streamer)
+		adapter_call service streaming restart
+		;;
+	send2-test)
+		adapter_call send2_test "$@"
+		;;
+	reboot)
+		adapter_call reboot
+		;;
+	*)
+		usage
+		;;
+esac

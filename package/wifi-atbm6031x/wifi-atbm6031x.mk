@@ -42,8 +42,8 @@ define WIFI_ATBM6031X_COPY_CONFIG_BLE
 endef
 
 define WIFI_ATBM6031X_INSTALL_CONFIGS
-	$(INSTALL) -m 0755 -d $(TARGET_DIR)/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)
-	touch $(TARGET_DIR)/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)/modules.builtin.modinfo
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)
+	touch $(TARGET_DIR)/usr/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)/modules.builtin.modinfo
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/share/wifi
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/wifi \
@@ -52,12 +52,12 @@ endef
 
 define WIFI_ATBM6031X_INSTALL_CONFIGS_WIFI
 	$(INSTALL) -D -m 0644 $(@D)/firmware/firmware_lite_sdio.bin \
-		$(TARGET_DIR)/lib/firmware/$(call qstrip,$(ATBM6031X_MODULE_NAME))_fw.bin
+		$(TARGET_DIR)/usr/lib/firmware/$(call qstrip,$(ATBM6031X_MODULE_NAME))_fw.bin
 endef
 
 define WIFI_ATBM6031X_INSTALL_CONFIGS_BLE
 	$(INSTALL) -D -m 0644 $(@D)/firmware/firmware_sdio_wifi_bt_comb.bin \
-		$(TARGET_DIR)/lib/firmware/$(call qstrip,$(ATBM6031X_MODULE_NAME))_fw.bin
+		$(TARGET_DIR)/usr/lib/firmware/$(call qstrip,$(ATBM6031X_MODULE_NAME))_fw.bin
 endef
 
 WIFI_ATBM6031X_PRE_CONFIGURE_HOOKS += WIFI_ATBM6031X_COPY_CONFIG

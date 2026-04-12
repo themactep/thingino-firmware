@@ -1,4 +1,4 @@
-THINGINO_RAPTOR_HAL_VERSION = 4ed512a6bb7fc60997a86750c0333cf2c1f34de1
+THINGINO_RAPTOR_HAL_VERSION = dbe2f4b
 THINGINO_RAPTOR_HAL_SITE = https://github.com/gtxaspec/raptor-hal
 THINGINO_RAPTOR_HAL_SITE_METHOD = git
 THINGINO_RAPTOR_HAL_GIT_SUBMODULES = YES
@@ -14,12 +14,17 @@ define THINGINO_RAPTOR_HAL_BUILD_CMDS
 		PLATFORM=$(THINGINO_RAPTOR_HAL_PLATFORM) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
 		INGENIC_HEADERS=$(@D)/ingenic-headers \
+		$(if $(BR2_PACKAGE_THINGINO_RAPTOR_IVS_DETECT),\
+			CXX=$(TARGET_CROSS)g++ \
+			JZDL_INCLUDE=$(@D)/ingenic-headers/Txx/jzdl,) \
 		$(if $(BR2_PACKAGE_THINGINO_RAPTOR_DEBUG),DEBUG=1,)
 endef
 
 define THINGINO_RAPTOR_HAL_INSTALL_STAGING_CMDS
-	$(INSTALL) -D -m 0644 $(@D)/libraptor_hal.a \
-		$(STAGING_DIR)/usr/lib/libraptor_hal.a
+	$(INSTALL) -D -m 0644 $(@D)/libraptor_hal_video.a \
+		$(STAGING_DIR)/usr/lib/libraptor_hal_video.a
+	$(INSTALL) -D -m 0644 $(@D)/libraptor_hal_audio.a \
+		$(STAGING_DIR)/usr/lib/libraptor_hal_audio.a
 	$(INSTALL) -D -m 0644 $(@D)/include/raptor_hal.h \
 		$(STAGING_DIR)/usr/include/raptor_hal.h
 endef

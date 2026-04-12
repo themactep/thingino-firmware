@@ -319,7 +319,7 @@ jobs:
           mkdir -p ~/dl
 
       - name: Restore build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         if: always()
         with:
           path: ~/.ccache
@@ -412,15 +412,15 @@ jobs:
         if: ${{ github.event.inputs.debug_enabled == 'true' }}
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
-          mkdir -p ${HOME}/output/stable/${DYNAMIC_PART}/images/
-          echo "debug" > ${HOME}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin
-          echo "debug uboot" > ${HOME}/output/stable/${DYNAMIC_PART}/images/u-boot-lzo-with-spl.bin
-          echo "debug kernel" > ${HOME}/output/stable/${DYNAMIC_PART}/images/uImage
-          echo "debug rootfs" > ${HOME}/output/stable/${DYNAMIC_PART}/images/rootfs.squashfs
-          echo "debug rootfs" > ${HOME}/output/stable/${DYNAMIC_PART}/images/rootfs.tar
-          echo "debug sha" > ${HOME}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin.sha256sum
-          echo "debug" > ${HOME}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin
-          echo "debug sha" > ${HOME}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin.sha256sum
+          mkdir -p ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/
+          echo "debug" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin
+          echo "debug uboot" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/u-boot-lzo-with-spl.bin
+          echo "debug kernel" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/uImage
+          echo "debug rootfs" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/rootfs.squashfs
+          echo "debug rootfs" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/rootfs.tar
+          echo "debug sha" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}.bin.sha256sum
+          echo "debug" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin
+          echo "debug sha" > ${GITHUB_WORKSPACE}/output/stable/${DYNAMIC_PART}/images/thingino-${DYNAMIC_PART}-update.bin.sha256sum
           echo "TIME=7:77" >> ${GITHUB_ENV}
 
       - name: Generate build time graphs
@@ -432,13 +432,14 @@ jobs:
       - name: Validate compiled firmware artifacts
         run: |
           DYNAMIC_PART="${{ matrix.thingino-version }}"
-          FW_PATH=${HOME}/output/stable/${DYNAMIC_PART}/images/
-          FULL_FW=$(find ${HOME}/output/stable/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}.bin" ! -name "*update.bin" | head -n 1)
-          FULL_FW_UBOOT=$(find ${HOME}/output/stable/${DYNAMIC_PART}*/images/ -name "u-boot-lzo-with-spl.bin" | head -n 1)
-          FULL_FW_KERNEL=$(find ${HOME}/output/stable/${DYNAMIC_PART}*/images/ -name "uImage" | head -n 1)
-          FULL_FW_ROOTFS=$(find ${HOME}/output/stable/${DYNAMIC_PART}*/images/ -name "rootfs.squashfs" | head -n 1)
-          FULL_FW_ROOTFS_TAR=$(find ${HOME}/output/stable/${DYNAMIC_PART}*/images/ -name "rootfs.tar" | head -n 1)
-          UPDATE_FW=$(find ${HOME}/output/stable/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}-update.bin" | head -n 1)
+          OUT_BASE="${GITHUB_WORKSPACE}/output/stable"
+          FW_PATH=${OUT_BASE}/${DYNAMIC_PART}/images/
+          FULL_FW=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}.bin" ! -name "*update.bin" | head -n 1)
+          FULL_FW_UBOOT=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "u-boot-lzo-with-spl.bin" | head -n 1)
+          FULL_FW_KERNEL=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "uImage" | head -n 1)
+          FULL_FW_ROOTFS=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "rootfs.squashfs" | head -n 1)
+          FULL_FW_ROOTFS_TAR=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "rootfs.tar" | head -n 1)
+          UPDATE_FW=$(find ${OUT_BASE}/${DYNAMIC_PART}*/images/ -name "thingino-${DYNAMIC_PART}-update.bin" | head -n 1)
           echo "FULL_FW: $FULL_FW"
           if [[ -n "$FULL_FW" ]]; then
             echo "FW_PATH=${FW_PATH}" >> ${GITHUB_ENV}
@@ -451,20 +452,21 @@ jobs:
             echo "UPDATE_FW=${UPDATE_FW}" >> ${GITHUB_ENV}
             echo "UPDATE_FW_SHA=${UPDATE_FW}.sha256sum" >> ${GITHUB_ENV}
           else
-            echo "Matching .bin files not found."
+            echo "Matching .bin files not found under: ${OUT_BASE}/${DYNAMIC_PART}*/images/"
+            ls -la "${OUT_BASE}" || true
             exit 1
           fi
 
       - name: Upload duration graph artifact
         if: ${{ github.event.inputs.graph_enabled == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: ${{ matrix.thingino-version }}-build.hist-duration
           path: |
-            ~/output/stable/${{ matrix.thingino-version }}/graphs/build.hist-duration.pdf
+            ${{ github.workspace }}/output/stable/${{ matrix.thingino-version }}/graphs/build.hist-duration.pdf
 
       - name: Upload compiled firmware artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: thingino-${{ matrix.thingino-version }}-firmware
           path: |
@@ -478,15 +480,7 @@ jobs:
             ${{ env.UPDATE_FW_SHA }}
 
       - name: Post compiled firmware artifacts to release
-        uses: softprops/action-gh-release@v2.1.0
-        with:
-          tag_name: ${{ env.TAG_NAME }}
-          make_latest: false
-          prerelease: true
-          files: |
-            ${{ env.FULL_FW }}
-            ${{ env.FULL_FW_SHA }}
-            ${{ env.UPDATE_FW_SHA }}
+        run: gh release upload "$TAG_NAME" "$FULL_FW" "$FULL_FW_SHA" "$UPDATE_FW_SHA" --clobber
 
       - name: Package binaries for notification
         run: |

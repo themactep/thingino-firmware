@@ -29,15 +29,15 @@ endef
 LINUX_CONFIG_LOCALVERSION = $(shell awk -F "=" '/^CONFIG_LOCALVERSION=/ {print $$2}' $(BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE))
 
 define WIFI_ATBM6012B_INSTALL_CONFIGS
-	$(INSTALL) -m 0755 -d $(TARGET_DIR)/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)
-	touch $(TARGET_DIR)/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)/modules.builtin.modinfo
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)
+	touch $(TARGET_DIR)/usr/lib/modules/3.10.14$(LINUX_CONFIG_LOCALVERSION)/modules.builtin.modinfo
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/share/wifi
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/wifi \
 		$(WIFI_ATBM_WIFI_PKGDIR)/files/*.txt
 
 	$(INSTALL) -D -m 0644 $(@D)/firmware/firmware_usb.bin \
-		$(TARGET_DIR)/lib/firmware/$(call qstrip,$(ATBM6012B_MODULE_NAME))_fw.bin
+		$(TARGET_DIR)/usr/lib/firmware/$(call qstrip,$(ATBM6012B_MODULE_NAME))_fw.bin
 endef
 WIFI_ATBM6012B_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6012B_INSTALL_CONFIGS
 

@@ -1,5 +1,7 @@
 {
     "motors": {
+        "invert_x": false,
+        "invert_y": false,
         "gpio_pan": "63 62 61 60",
         "gpio_tilt": "59 52 53 49"
     }

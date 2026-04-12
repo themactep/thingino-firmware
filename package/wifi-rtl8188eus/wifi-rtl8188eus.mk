@@ -28,7 +28,7 @@ WIFI_RTL8188EUS_MODULE_MAKE_OPTS = \
 
 define WIFI_RTL8188EUS_INSTALL_FIRMWARE
 	$(INSTALL) -D -m 0644 $(WIFI_RTL8188EUS_PKGDIR)/rtl8188fufw.bin \
-		$(TARGET_DIR)/lib/firmware/rtlwifi/rtl8188fufw.bin
+		$(TARGET_DIR)/usr/lib/firmware/rtlwifi/rtl8188fufw.bin
 endef
 
 define WIFI_RTL8188EUS_LINUX_CONFIG_FIXUPS

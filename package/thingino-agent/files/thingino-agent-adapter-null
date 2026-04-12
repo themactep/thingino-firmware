@@ -1,0 +1,193 @@
+#!/bin/sh
+
+thingino_agent_adapter_null_detect() {
+	return 0
+}
+
+thingino_agent_adapter_null_name() {
+	printf 'none'
+}
+
+thingino_agent_adapter_null_get_health() {
+	ip_addr=$(thingino_agent_default_ip)
+	printf '{"status":"degraded","healthy":false,"backend":{"name":"none","available":true},"checks":{"system":{"uptime_seconds":%s,"hostname":%s,"streamer_running":false,"load_average_1m":%s,"load_average_5m":%s,"load_average_15m":%s,"memory_total_kib":%s,"memory_free_kib":%s,"memory_available_kib":%s,"memory_used_kib":%s},"network":{"ip":%s,"online":%s},"streaming":{"name":"streaming","running":false,"healthy":false,"controllable":false}}}\n' \
+		"$(thingino_agent_uptime_seconds)" \
+		"$(thingino_agent_json_string "$(thingino_agent_hostname)")" \
+		"$(thingino_agent_json_value_or "$(thingino_agent_loadavg_field 1)" null)" \
+		"$(thingino_agent_json_value_or "$(thingino_agent_loadavg_field 2)" null)" \
+		"$(thingino_agent_json_value_or "$(thingino_agent_loadavg_field 3)" null)" \
+		"$(thingino_agent_json_value_or "$(thingino_agent_meminfo_kib MemTotal)" null)" \
+		"$(thingino_agent_json_value_or "$(thingino_agent_meminfo_kib MemFree)" null)" \
+		"$(thingino_agent_json_value_or "$(thingino_agent_mem_available_kib)" null)" \
+		"$(thingino_agent_json_value_or "$(thingino_agent_mem_used_kib)" null)" \
+		"$(thingino_agent_json_string_or_null "$ip_addr")" \
+		"$(thingino_agent_json_bool "$( [ -n "$ip_addr" ] && printf true || printf false )")"
+}
+
+thingino_agent_adapter_null_get_capabilities() {
+	group=${1:-all}
+	case "$group" in
+		all)
+			printf '{"backend":{"name":"none"},"image":{},"motion":{"enabled":false},"daynight":{"enabled":false},"privacy":{"enabled":false},"storage":{"configured":false,"runtime":false},"streams":{"count":0,"snapshot":false,"clip_recording":false},"services":{},"send2":{},"firmware":{"upgrade":false}}\n'
+			;;
+		image)
+			printf '{}\n'
+			;;
+		motion)
+			printf '{"enabled":false}\n'
+			;;
+		daynight)
+			printf '{"enabled":false}\n'
+			;;
+		privacy)
+			printf '{"enabled":false}\n'
+			;;
+		storage)
+			printf '{"configured":false,"runtime":false}\n'
+			;;
+		streams)
+			printf '{"count":0,"snapshot":false,"clip_recording":false}\n'
+			;;
+		services)
+			printf '{}\n'
+			;;
+		send2)
+			printf '{}\n'
+			;;
+		firmware)
+			printf '{"upgrade":false}\n'
+			;;
+		*)
+			echo "unsupported capability resource: $group" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_adapter_null_get_runtime() {
+	resource=${1:-all}
+	ip_addr=$(thingino_agent_default_ip)
+	case "$resource" in
+		all)
+			printf '{"system":{"uptime_seconds":%s,"hostname":%s,"streamer_running":false,"load_average_1m":%s,"load_average_5m":%s,"load_average_15m":%s,"memory_total_kib":%s,"memory_free_kib":%s,"memory_available_kib":%s,"memory_used_kib":%s},"network":{"ip":%s,"online":%s},"storage":{"configured_mount":null,"mounted":false,"filesystem":null,"record_root":null,"writable":false,"total_kib":null,"used_kib":null,"available_kib":null},"recording":{"supported":false,"active":false,"configured_autostart":false,"configured_channel":null,"configured_duration_seconds":null,"configured_mount":null,"record_root":null,"writable":false,"current_channel":null,"current_duration_seconds":null,"current_path":null,"current_mount":null,"current_directory":null,"current_name_template":null,"loop":null},"firmware":{"upgrade_supported":false,"pending_full":false,"pending_partial":false,"pending_action":"none","boot_marked_complete":null,"current_version":%s},"services":{"streaming":{"name":"streaming","running":false,"healthy":false,"controllable":false}},"streams":[]}\n' \
+				"$(thingino_agent_uptime_seconds)" \
+				"$(thingino_agent_json_string "$(thingino_agent_hostname)")" \
+				"$(thingino_agent_json_value_or "$(thingino_agent_loadavg_field 1)" null)" \
+				"$(thingino_agent_json_value_or "$(thingino_agent_loadavg_field 2)" null)" \
+				"$(thingino_agent_json_value_or "$(thingino_agent_loadavg_field 3)" null)" \
+				"$(thingino_agent_json_value_or "$(thingino_agent_meminfo_kib MemTotal)" null)" \
+				"$(thingino_agent_json_value_or "$(thingino_agent_meminfo_kib MemFree)" null)" \
+				"$(thingino_agent_json_value_or "$(thingino_agent_mem_available_kib)" null)" \
+				"$(thingino_agent_json_value_or "$(thingino_agent_mem_used_kib)" null)" \
+				"$(thingino_agent_json_string_or_null "$ip_addr")" \
+				"$(thingino_agent_json_bool "$( [ -n "$ip_addr" ] && printf true || printf false )")" \
+				"$(thingino_agent_json_string_or_null "$(thingino_agent_firmware_version)")"
+			;;
+		system)
+			printf '{"uptime_seconds":%s,"hostname":%s,"streamer_running":false,"load_average_1m":%s,"load_average_5m":%s,"load_average_15m":%s,"memory_total_kib":%s,"memory_free_kib":%s,"memory_available_kib":%s,"memory_used_kib":%s}\n' \
+				"$(thingino_agent_uptime_seconds)" \
+				"$(thingino_agent_json_string "$(thingino_agent_hostname)")" \
+				"$(thingino_agent_json_value_or "$(thingino_agent_loadavg_field 1)" null)" \
+				"$(thingino_agent_json_value_or "$(thingino_agent_loadavg_field 2)" null)" \
+				"$(thingino_agent_json_value_or "$(thingino_agent_loadavg_field 3)" null)" \
+				"$(thingino_agent_json_value_or "$(thingino_agent_meminfo_kib MemTotal)" null)" \
+				"$(thingino_agent_json_value_or "$(thingino_agent_meminfo_kib MemFree)" null)" \
+				"$(thingino_agent_json_value_or "$(thingino_agent_mem_available_kib)" null)" \
+				"$(thingino_agent_json_value_or "$(thingino_agent_mem_used_kib)" null)"
+			;;
+		network)
+			printf '{"ip":%s,"online":%s}\n' \
+				"$(thingino_agent_json_string_or_null "$ip_addr")" \
+				"$(thingino_agent_json_bool "$( [ -n "$ip_addr" ] && printf true || printf false )")"
+			;;
+		motion)
+			printf '{"enabled":false,"active":false}\n'
+			;;
+		daynight)
+			printf '{"enabled":false,"target_mode":null,"running_mode":null}\n'
+			;;
+		privacy)
+			printf '{"enabled":false}\n'
+			;;
+		storage)
+			printf '{"configured_mount":null,"mounted":false,"filesystem":null,"record_root":null,"writable":false,"total_kib":null,"used_kib":null,"available_kib":null}\n'
+			;;
+		recording)
+			printf '{"supported":false,"active":false,"configured_autostart":false,"configured_channel":null,"configured_duration_seconds":null,"configured_mount":null,"record_root":null,"writable":false,"current_channel":null,"current_duration_seconds":null,"current_path":null,"current_mount":null,"current_directory":null,"current_name_template":null,"loop":null}\n'
+			;;
+		firmware)
+			printf '{"upgrade_supported":false,"pending_full":false,"pending_partial":false,"pending_action":"none","boot_marked_complete":null,"current_version":%s}\n' "$(thingino_agent_json_string_or_null "$(thingino_agent_firmware_version)")"
+			;;
+		services/streaming)
+			printf '{"name":"streaming","running":false,"healthy":false,"controllable":false}\n'
+			;;
+		streams/*)
+			stream_id=${resource#streams/}
+			printf '{"id":%s,"enabled":false,"video_enabled":false,"audio_enabled":false,"width":null,"height":null,"fps":null,"bitrate":null,"format":null,"mode":null,"rtsp_endpoint":null,"rtsp_name":null,"rtsp_url":null,"rtsp_listener_up":false,"recording_active":false,"healthy":false}\n' "$stream_id"
+			;;
+		*)
+			echo "unsupported runtime resource: $resource" >&2
+			return 1
+			;;
+	esac
+}
+
+thingino_agent_adapter_null_get_config() {
+	printf '{"backend":{"name":"none","raw":{}}}\n'
+}
+
+thingino_agent_adapter_null_get_events() {
+	retry_ms=5000
+	printf 'retry: %s\n\n' "$retry_ms" || exit 0
+	thingino_agent_sse_emit hello "$(thingino_agent_sse_payload hello '"backend":"none","status":"degraded"')" || exit 0
+	thingino_agent_sse_emit health.warning "$(thingino_agent_sse_payload health.warning '"status":"degraded","network_online":false,"streamer_running":false')" || exit 0
+	while true; do
+		sleep 5 || exit 0
+		thingino_agent_sse_emit keepalive "$(thingino_agent_sse_payload keepalive '')" || exit 0
+	done
+}
+
+thingino_agent_adapter_null_get_setting() {
+	echo "settings are not supported without an active backend adapter" >&2
+	return 1
+}
+
+thingino_agent_adapter_null_set_setting() {
+	echo "settings are not supported without an active backend adapter" >&2
+	return 1
+}
+
+thingino_agent_adapter_null_apply_config() {
+	echo "bulk config patch is not supported without an active backend adapter" >&2
+	return 1
+}
+
+thingino_agent_adapter_null_snapshot() {
+	echo "snapshot is not supported without an active backend adapter" >&2
+	return 1
+}
+
+thingino_agent_adapter_null_record() {
+	echo "record action is not supported without an active backend adapter" >&2
+	return 1
+}
+
+thingino_agent_adapter_null_privacy() {
+	echo "privacy action is not supported without an active backend adapter" >&2
+	return 1
+}
+
+thingino_agent_adapter_null_daynight() {
+	echo "daynight action is not supported without an active backend adapter" >&2
+	return 1
+}
+
+thingino_agent_adapter_null_service() {
+	echo "service control is not supported without an active backend adapter" >&2
+	return 1
+}
+
+thingino_agent_adapter_null_reboot() {
+	echo "reboot is not supported without an active backend adapter" >&2
+	return 1
+}

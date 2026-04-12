@@ -87,18 +87,36 @@ rm -f ${TARGET_DIR}/usr/bin/ldd
 echo '#!/bin/sh
 LD_TRACE_LOADED_OBJECTS=1 exec "$@"' > ${TARGET_DIR}/usr/bin/ldd && chmod +x ${TARGET_DIR}/usr/bin/ldd
 
+# Resolve the real on-disk lib directory: with merged-usr rootfs, /lib is a
+# symlink to /usr/lib. Operate on /usr/lib directly so we never accidentally
+# convert the symlink to a real directory or create broken literal-glob
+# symlinks when the pattern fails to expand.
+if [ -L "${TARGET_DIR}/lib" ] || [ ! -d "${TARGET_DIR}/lib" ]; then
+	LIB_DIR="${TARGET_DIR}/usr/lib"
+else
+	LIB_DIR="${TARGET_DIR}/lib"
+fi
+
 if grep -q "^BR2_TOOLCHAIN_USES_MUSL=y" $BR2_CONFIG >/dev/null; then
-	ln -srf ${TARGET_DIR}/lib/libc.so ${TARGET_DIR}/lib/ld-uClibc.so.0
+	if [ -e "${LIB_DIR}/libc.so" ]; then
+		ln -srf "${LIB_DIR}/libc.so" "${LIB_DIR}/ld-uClibc.so.0"
+	fi
 fi
 
 if grep -q "^BR2_TOOLCHAIN_USES_UCLIBC=y" $BR2_CONFIG >/dev/null; then
-	ln -srf ${TARGET_DIR}/lib/libuClibc*.so ${TARGET_DIR}/lib/libpthread.so.0
-	ln -srf ${TARGET_DIR}/lib/libuClibc*.so ${TARGET_DIR}/lib/libdl.so.0
-	ln -srf ${TARGET_DIR}/lib/libuClibc*.so ${TARGET_DIR}/lib/libm.so.0
+	for libuclibc in "${LIB_DIR}"/libuClibc-*.so; do
+		[ -e "$libuclibc" ] || continue
+		ln -srf "$libuclibc" "${LIB_DIR}/libpthread.so.0"
+		ln -srf "$libuclibc" "${LIB_DIR}/libdl.so.0"
+		ln -srf "$libuclibc" "${LIB_DIR}/libm.so.0"
+		break
+	done
 fi
 
 if grep -q "^BR2_TOOLCHAIN_USES_GLIBC=y" $BR2_CONFIG >/dev/null; then
-	ln -srf ${TARGET_DIR}/lib/libc.so.6 ${TARGET_DIR}/lib/libpthread.so.0
+	if [ -e "${LIB_DIR}/libc.so.6" ]; then
+		ln -srf "${LIB_DIR}/libc.so.6" "${LIB_DIR}/libpthread.so.0"
+	fi
 fi
 
 #

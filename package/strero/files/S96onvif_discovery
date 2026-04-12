@@ -1,0 +1,97 @@
+#!/bin/sh
+
+DAEMON=wsd_simple_server
+ONVIF_CONFIG=/etc/onvif.json
+MOTORS_CONFIG=/etc/motors.json
+MOTORS_BIN="/bin/motors"
+STRERO_RTSP_CONFIG=/etc/streamer.d/rtsp.json
+
+. /usr/share/common
+
+iface="$(iface_default)"
+
+CAMERA=$(awk -F '=' '/^IMAGE_ID=/ {print $2}' $OS_RELEASE_FILE)
+
+strero_rtsp_user() {
+	user=$(jct "$STRERO_RTSP_CONFIG" get username 2>/dev/null | tr -d '\n')
+	[ -n "$user" ] || user=$(jct "$STRERO_RTSP_CONFIG" get auth.username 2>/dev/null | tr -d '\n')
+	[ -n "$user" ] || user=$(jct "$STRERO_RTSP_CONFIG" get rtsp.username 2>/dev/null | tr -d '\n')
+	echo "$user"
+}
+
+strero_rtsp_pass() {
+	pass=$(jct "$STRERO_RTSP_CONFIG" get password 2>/dev/null | tr -d '\n')
+	[ -n "$pass" ] || pass=$(jct "$STRERO_RTSP_CONFIG" get auth.password 2>/dev/null | tr -d '\n')
+	[ -n "$pass" ] || pass=$(jct "$STRERO_RTSP_CONFIG" get rtsp.password 2>/dev/null | tr -d '\n')
+	echo "$pass"
+}
+
+start() {
+	echo_title "Starting ONVIF discovery"
+
+	if ! is_gateway_reachable; then
+		echo_error "Disabled"
+		exit 1
+	fi
+
+	# Start one instance per active non-loopback interface
+	for active_iface in $(ip -4 -o addr show | awk '$2 != "lo" {print $2}' | sort -u); do
+		PIDFILE="/run/${DAEMON_SHORT}_${active_iface}.pid"
+		DAEMON_ARGS="-i $active_iface -x http://%s/onvif/device_service -m $CAMERA -n thingino -p $PIDFILE"
+		start_daemon
+	done
+
+	tmpfile="$(mktemp -u).json"
+	echo '{}' > $tmpfile
+	jct $tmpfile set camera.manufacturer "Thingino"
+	jct $tmpfile set camera.model "$CAMERA"
+	jct $tmpfile set camera.hardware_id "ingenic_$SOC_MODEL"
+	jct $tmpfile set camera.serial_num "$(fw_printenv -n ethaddr | sed 's/://g' | tr -d "\n")"
+	jct $tmpfile set camera.firmware_ver "$(awk -F'[=,"]' '/^BUILD_ID/{print $3 $4}' /etc/os-release | tr -d "\n")"
+	jct $tmpfile set server.ifs $iface
+	jct $tmpfile set server.username "$(strero_rtsp_user)"
+	jct $tmpfile set server.password "$(strero_rtsp_pass)"
+
+	# conditional PTZ config
+	if [ -f "$MOTORS_BIN" ]; then
+		steps_pan=$(jct $MOTORS_CONFIG get motors.steps_pan | tr -d "\n")
+		steps_tilt=$(jct $MOTORS_CONFIG get motors.steps_tilt | tr -d "\n")
+
+		jct $tmpfile set ptz.enable 1
+		jct $tmpfile set ptz.max_step_x "$steps_pan"
+		jct $tmpfile set ptz.max_step_y "$steps_tilt"
+	else
+		jct $tmpfile set ptz.enable 0
+	fi
+	jct $ONVIF_CONFIG import $tmpfile
+	rm -f $tmpfile
+}
+
+stop() {
+	echo_title "Stopping ONVIF discovery"
+
+	for pidfile in /run/${DAEMON_SHORT}_*.pid; do
+		[ -f "$pidfile" ] || continue
+		PIDFILE="$pidfile"
+		stop_daemon
+	done
+}
+
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		start
+		;;
+	*)
+		echo "Usage: $0 {start|stop|restart}"
+		exit 1
+		;;
+esac
+
+exit 0

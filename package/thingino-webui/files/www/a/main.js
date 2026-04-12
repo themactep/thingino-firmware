@@ -78,6 +78,122 @@ function decodeBase64String(encoded) {
   }
 }
 
+function agentApiUrl(path) {
+  const rawPath = String(path || "");
+  const normalized = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+  const queryIndex = normalized.indexOf("?");
+  const agentPath =
+    queryIndex >= 0 ? normalized.slice(0, queryIndex) : normalized;
+  const query = queryIndex >= 0 ? normalized.slice(queryIndex + 1) : "";
+  const params = new URLSearchParams(query);
+  params.set("agent_path", agentPath);
+  return `/x/agent.cgi?${params.toString()}`;
+}
+
+if (typeof window !== "undefined") {
+  window.agentApiUrl = agentApiUrl;
+}
+
+const AgentConfigCache = {
+  pending: null,
+  value: null,
+  fetchedAt: 0,
+};
+
+function invalidateAgentConfigCache() {
+  AgentConfigCache.pending = null;
+  AgentConfigCache.value = null;
+  AgentConfigCache.fetchedAt = 0;
+}
+
+async function getAgentConfig(options = {}) {
+  const { force = false, maxAgeMs = 3000 } = options;
+  const now = Date.now();
+  if (
+    !force &&
+    AgentConfigCache.value &&
+    now - AgentConfigCache.fetchedAt <= maxAgeMs
+  ) {
+    return AgentConfigCache.value;
+  }
+  if (!force && AgentConfigCache.pending) {
+    return AgentConfigCache.pending;
+  }
+
+  AgentConfigCache.pending = agentJsonRequest("/api/v1/config", {
+    cache: "no-store",
+  })
+    .then((payload) => {
+      AgentConfigCache.value = payload;
+      AgentConfigCache.fetchedAt = Date.now();
+      return payload;
+    })
+    .finally(() => {
+      AgentConfigCache.pending = null;
+    });
+
+  return AgentConfigCache.pending;
+}
+
+if (typeof window !== "undefined") {
+  window.getThinginoAgentConfig = getAgentConfig;
+  window.invalidateThinginoAgentConfig = invalidateAgentConfigCache;
+}
+
+function isPreviewBootPending() {
+  return (
+    typeof document !== "undefined" &&
+    document.body &&
+    document.body.id === "page-preview" &&
+    typeof window !== "undefined" &&
+    window.__thinginoPreviewBootPending === true
+  );
+}
+
+async function agentJsonRequest(path, options = {}) {
+  const requestOptions = { ...options };
+  const headers = new Headers(requestOptions.headers || {});
+  headers.set("Accept", "application/json");
+
+  if (requestOptions.body !== undefined) {
+    headers.set("Content-Type", "application/json");
+    requestOptions.body = JSON.stringify(requestOptions.body);
+  }
+
+  requestOptions.headers = headers;
+
+  const response = await fetch(agentApiUrl(path), requestOptions);
+  const text = await response.text();
+  const trimmedText = text ? text.trim() : "";
+  let payload = null;
+
+  if (trimmedText) {
+    try {
+      payload = JSON.parse(trimmedText);
+    } catch (_err) {
+      payload = null;
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      (payload && payload.error && payload.error.message) ||
+      (payload && payload.message) ||
+      (trimmedText && trimmedText.length <= 200 ? trimmedText : null) ||
+      `HTTP error ${response.status}`;
+    const error = new Error(message);
+    error.status = response.status;
+    error.body = trimmedText;
+    throw error;
+  }
+
+  return payload;
+}
+
+function clearPendingButton(button) {
+  if (button) button.classList.remove("pending");
+}
+
 function hideDebugModal(ctx = debugModalCtx) {
   if (!ctx) return;
   if (ctx.modalInstance) {
