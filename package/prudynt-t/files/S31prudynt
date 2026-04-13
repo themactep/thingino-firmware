@@ -1,17 +1,34 @@
 #!/bin/sh
 
-. /usr/share/common
-
-COMMAND="$DAEMON_FULL"
+DAEMON="prudynt"
+DAEMON_PATH="/usr/bin/$DAEMON"
+PIDFILE="/run/$DAEMON.pid"
 
 start() {
-	echo_title "Starting Prudynt"
-	start_daemon
+	printf "Starting %s: " "$DAEMON"
+	start-stop-daemon -S -q -b -m -p "$PIDFILE" -x "$DAEMON_PATH"
+	rc=$?
+	[ $rc = 0 ] && echo "OK" || echo "FAIL"
+	return $rc
 }
 
 stop() {
-	echo_title "Stopping Prudynt"
-	stop_daemon
+	printf "Stopping %s: " "$DAEMON"
+	start-stop-daemon -K -q -p "$PIDFILE" -x "$DAEMON_PATH"
+	rc=$?
+	if [ $rc != 0 ] && pidof "$DAEMON" >/dev/null 2>&1; then
+		start-stop-daemon -K -q -x "$DAEMON_PATH"
+		rc=$?
+	fi
+	[ $rc = 0 ] && echo "OK" || echo "FAIL"
+	rm -f "$PIDFILE"
+	return $rc
+}
+
+restart() {
+	stop
+	sleep 1
+	start
 }
 
 case "$1" in
@@ -21,10 +38,8 @@ case "$1" in
 	stop)
 		stop
 		;;
-	restart)
-		stop || true
-		sleep 1
-		start
+	restart|reload)
+		restart
 		;;
 	*)
 		echo "Usage: $0 {start|stop|restart}"
@@ -32,4 +47,4 @@ case "$1" in
 		;;
 esac
 
-exit 0
+exit $?
