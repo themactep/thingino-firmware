@@ -747,7 +747,7 @@ config BR2_THINGINO_CLONER
 	select BR2_PACKAGE_HOST_THINGINO_CLONER
 	help
 	  The device supports USB boot mode for flashing via thingino-cloner.
-	  Enables the host-side thingino-cloner tool, used by 'make upload_serial'.
+	  Enables the host-side thingino-cloner tool, used by 'make cloner'.
 
 config BR2_THINGINO_NNA
 	bool "Neural Network Acceleration Support"

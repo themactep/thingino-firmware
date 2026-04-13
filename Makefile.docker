@@ -112,12 +112,12 @@ docker-clean-build: docker-build
 	$(CONTAINER_RUN_EXEC) $(DOCKER_IMAGE):$(DOCKER_TAG) make distclean
 	$(CONTAINER_RUN_EXEC) $(DOCKER_IMAGE):$(DOCKER_TAG) make
 
-.PHONY: docker-upgrade-ota
-docker-upgrade-ota: docker-build
+.PHONY: docker-ota
+docker-ota: docker-build
 	$(eval IP_ARG := $(if $(IP),IP=$(IP)))
 	$(eval CAMERA_ARG := $(if $(CAMERA),CAMERA=$(CAMERA)))
 	$(eval GROUP_ARG := $(if $(GROUP),GROUP=$(GROUP)))
-	$(CONTAINER_RUN_INTERACTIVE) $(DOCKER_IMAGE):$(DOCKER_TAG) make upgrade_ota $(IP_ARG) $(CAMERA_ARG) $(GROUP_ARG)
+	$(CONTAINER_RUN_INTERACTIVE) $(DOCKER_IMAGE):$(DOCKER_TAG) make ota $(IP_ARG) $(CAMERA_ARG) $(GROUP_ARG)
 
 # Allow make targets to be passed through to container
 %:

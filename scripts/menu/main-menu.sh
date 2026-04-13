@@ -19,8 +19,7 @@ function main_menu() {
 			"edit" "Edit configurations" \
 			"make" "Generate firmware" \
 			"make fast" "Generate firmware (use $(nproc) CPU Cores)" \
-			"upgrade_ota" "Upload the full firmware file to the camera over network, and flash it"  \
-			"update_ota" "Upload the update firmware file to the camera over network, and flash it"  \
+			"ota" "Upload the full firmware file to the camera over network, and flash it"  \
 			3>&1 1>&2 2>&3)
 
 			exit_status
@@ -48,10 +47,8 @@ function show_help() {
 			show_help_msgbox "This option starts the compilation process for the entire firmware project based on your current configuration settings. It's a key step in creating the custom thingino firmware for your device." 7;;
 		"HELP make fast")
 			show_help_msgbox "This option starts the compilation process for the entire firmware project based on your current configuration settings. It's a key step in creating the custom thingino firmware for your device.\n\nThis option will uses all available CPU cores for your system during compilation: \Zb\Z1$(nproc) cores available\Zn" 10;;
-		"HELP upgrade_ota")
+		"HELP ota")
 			show_help_msgbox "This function initiates an Over-the-Air (OTA) upgrade using the full firmware image. You'll need to specify the target device's IP address. It's used for comprehensive updates that include the bootloader, kernel, and filesystem." 8;;
-		"HELP update_ota")
-			show_help_msgbox "This option performs an OTA update with just the firmware update image, excluding the bootloader. You'll need to provide the target device's IP address. It's ideal for routine software updates after the initial full installation." 8;;
 		"HELP saveconfig")
 			show_help_msgbox "The 'saveconfig' option saves any current changes to the configuration file." 7;;
 		"HELP defconfig")
@@ -125,13 +122,9 @@ execute_choice() {
 					;;
 			esac
 			;;
-		upgrade_ota | update_ota)
+		ota)
 			local action="upgrade"
 			local warning="You are about to start a full upgrade, which includes upgrading the device's bootloader. This operation is critical and may disrupt the device's functionality if it fails. Proceed with caution. Are you sure you want to continue with the flashing process?"
-			[ "$1" = "update_ota" ] && {
-				action="update"
-				warning="Flashing will begin. Be careful, as this might disrupt the device's operation if it fails. Are you sure you want to continue?"
-			}
 
 			# Fix for containers, or environments with broken privs
 

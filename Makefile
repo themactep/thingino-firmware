@@ -307,8 +307,8 @@ BR2_MAKE = $(MAKE) -C $(BR2_EXTERNAL)/buildroot \
 
 .PHONY: all bootstrap build build_fast clean clean-nfs-debug cleanbuild defconfig distclean \
 	dev fast help pack remove_bins repack sdk toolchain update upboot-ota \
-	upload_tftp upload_serial upgrade_ota br-% check-config force-config show-config-deps clean-config \
-	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs show-vars run
+	upload_tftp cloner ota br-% check-config force-config show-config-deps clean-config \
+	tftpd-start tftpd-stop tftpd-restart tftpd-status tftpd-logs show-vars run user-dirs
 
 # Run a binary under QEMU in the build sysroot.
 # Usage: CAMERA=<camera> make run CMD="/bin/ffmpeg --help"  (binary with args)
@@ -660,17 +660,8 @@ upboot_ota:
 	test -f "$$fw_path" || { echo "ERROR: Neither $(U_BOOT_BIN) nor $(GENERIC_U_BOOT_BIN) was found. Run make first."; exit 1; }; \
 	$(SCRIPTS_DIR)/fw_ota.sh "$$fw_path" $(CAMERA_IP_ADDRESS)
 
-# flash compiled update image to the camera
-update_ota:
-	@$(TEAL) "$@"
-	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
-	@fw_path="$(FIRMWARE_BIN_NOBOOT)"; \
-	if [ ! -f "$$fw_path" ]; then fw_path="$(GENERIC_FIRMWARE_BIN_NOBOOT)"; fi; \
-	test -f "$$fw_path" || { echo "ERROR: Neither $(FIRMWARE_BIN_NOBOOT) nor $(GENERIC_FIRMWARE_BIN_NOBOOT) was found. Run make first."; exit 1; }; \
-	$(SCRIPTS_DIR)/fw_ota.sh "$$fw_path" $(CAMERA_IP_ADDRESS)
-
 # flash compiled full image to the camera
-upgrade_ota:
+ota:
 	@$(TEAL) "$@"
 	@[ -n "$(CAMERA_IP_ADDRESS)" ] || { echo "ERROR: IP is required for $@. Use 'make $@ IP=<camera-ip>'."; exit 1; }
 	@fw_path="$(FIRMWARE_BIN_FULL)"; \
@@ -965,10 +956,7 @@ help:
 	  make upboot_ota IP=192.168.1.10\n\
 	                      upload bootloader to the camera\n\
 	                        over network, and flash it\n\n\
-	  make update_ota IP=192.168.1.10\n\
-	                      upload kernel and roofts to the camera\n\
-	                        over network, and flash them\n\n\
-	  make upgrade_ota IP=192.168.1.10\n\
+	  make ota IP=192.168.1.10\n\
 	                      upload full firmware image to the camera\n\
 	                        over network, and flash it\n\n\
 	"
@@ -1038,7 +1026,7 @@ run:
 	@$(TEAL) "$@"
 	$(SCRIPTS_DIR)/qemu_run.sh $(OUTPUT_DIR)/target $(_RUN_CMD)
 
-upload_serial:
+cloner:
 	@$(TEAL) "$@"
 	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
 	$(HOST_DIR)/bin/thingino-cloner -i 0 -b -w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) --firmware-dir $(HOST_DIR)/share/thingino-cloner/firmwares --reboot
