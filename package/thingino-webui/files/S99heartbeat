@@ -9,10 +9,14 @@ UPDATE_INTERVAL=1
 SLOW_UPDATE_INTERVAL=15
 PIDFILE="/var/run/heartbeat-daemon.pid"
 
+is_prudynt_running() {
+  pidof prudynt >/dev/null 2>&1
+}
+
 read_first_field() {
   local value _
 
-  if read -r value _ < "$1"; then
+  if [ -r "$1" ] && read -r value _ < "$1"; then
     printf '%s\n' "$value"
   else
     printf '%s\n' "$2"
@@ -53,7 +57,12 @@ parse_prudynt_data() {
 
 start() {
   if [ ! -f "/bin/prudynt" ]; then
-    echo "Prudynt not found. Existing"
+    echo "Prudynt not found. Exiting"
+    return 0
+  fi
+
+  if ! is_prudynt_running; then
+    echo "Prudynt is not running. Exiting"
     return 0
   fi
 
@@ -79,6 +88,11 @@ heartbeat_loop() {
   slow_counter=0
 
   while true; do
+    if ! is_prudynt_running; then
+      rm -f "$PIDFILE"
+      exit 0
+    fi
+
     ch0_rec="false"; [ -f "/run/prudynt/mp4ctl-ch0.active" ] && ch0_rec="true"
     ch1_rec="false"; [ -f "/run/prudynt/mp4ctl-ch1.active" ] && ch1_rec="true"
     motion_enabled="false"; [ -f "/run/prudynt/motion.active" ] && motion_enabled="true"
