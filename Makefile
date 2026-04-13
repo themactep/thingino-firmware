@@ -628,6 +628,13 @@ pack: $(FIRMWARE_BIN_FULL) $(FIRMWARE_BIN_NOBOOT) $(ROOTFS_TAR)
 # rebuild a package with smart configuration check
 rebuild-%: force-config
 	@$(TEAL) "$@"
+	@PKG_NAME="$(subst rebuild-,,$@)"; \
+	OVERRIDE_DIR="overrides/$$PKG_NAME"; \
+	if [ -d "$$OVERRIDE_DIR" ]; then \
+		echo "Cleaning build artifacts in override: $$OVERRIDE_DIR"; \
+		rm -rf "$$OVERRIDE_DIR/obj" "$$OVERRIDE_DIR/bin" "$$OVERRIDE_DIR/.built" "$$OVERRIDE_DIR/.stamp_*"; \
+	fi; \
+	true
 	$(BR2_MAKE) $(subst rebuild-,,$@)-dirclean $(subst rebuild-,,$@)
 
 remove_bins:
