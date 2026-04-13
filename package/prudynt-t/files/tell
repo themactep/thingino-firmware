@@ -1,7 +1,20 @@
 #!/bin/sh
 # TTS client
+set -eu
 
-. /usr/share/common
+PLAY_BIN="/usr/sbin/play"
+PORTAL_MODE_FLAG="/run/portal_mode"
+CURL_BIN="/usr/bin/curl"
+CURL_ARGS="--show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5"
+TMP_FILE=""
+
+cleanup() {
+	if [ -n "$TMP_FILE" ] && [ -f "$TMP_FILE" ]; then
+		rm -f "$TMP_FILE"
+	fi
+}
+
+trap cleanup EXIT INT TERM
 
 no_internet() {
 	ping -c1 -W1 1.1.1.1 >/dev/null 2>&1 || return 0
@@ -9,8 +22,7 @@ no_internet() {
 }
 
 portal_is_up() {
-	[ -f "$PORTAL_MODE_FLAG" ] || return 0
-	return 0
+	[ -f "$PORTAL_MODE_FLAG" ]
 }
 
 if [ -z "$1" ]; then
@@ -24,9 +36,9 @@ fi
 
 if no_internet; then
 	if portal_is_up; then
-		play /usr/share/sounds/configurationportalmode.opus
+		"$PLAY_BIN" /usr/share/sounds/configurationportalmode.opus
 	else
-		play /usr/share/sounds/configurationportalisdown.opus \
+		"$PLAY_BIN" /usr/share/sounds/configurationportalisdown.opus \
 			/usr/share/sounds/pleasepowercycletorestart.opus
 		exit 1
 	fi
@@ -43,8 +55,9 @@ case "$1" in
 		phrase="$*" ;;
 esac
 
-tmpfile="$(mktemp -u).opus"
-$CURL --silent --get --url https://thingino.com/say2 --data-urlencode q="$phrase" -o $tmpfile
-play "$tmpfile" && rm -f "$tmpfile"
+TMP_FILE="$(mktemp /tmp/tell.XXXXXX.opus)"
+"$CURL_BIN" $CURL_ARGS --silent --get --url https://thingino.com/say2 \
+	--data-urlencode q="$phrase" -o "$TMP_FILE"
+"$PLAY_BIN" "$TMP_FILE"
 
 exit 0
