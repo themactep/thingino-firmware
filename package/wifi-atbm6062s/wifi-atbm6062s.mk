@@ -28,8 +28,6 @@ endef
 
 define WIFI_ATBM6062S_INSTALL_TARGET_CMDS
 	$(INSTALL) -d $(TARGET_DIR)/usr/lib/modules/$(LINUX_VERSION_PROBED)/extra
-	$(INSTALL) -m 0644 $(@D)/driver_install/cfg80211.ko \
-		$(TARGET_DIR)/usr/lib/modules/$(LINUX_VERSION_PROBED)/extra/cfg80211.ko
 	$(INSTALL) -m 0644 $(@D)/driver_install/atbm6062s.ko \
 		$(TARGET_DIR)/usr/lib/modules/$(LINUX_VERSION_PROBED)/extra/atbm6062s.ko
 endef
@@ -61,9 +59,10 @@ define WIFI_ATBM6062S_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_CORE)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PROC)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PRIV)
-	# Disable kernel's CFG80211/MAC80211 - driver provides its own with WPA3 support
-	$(call KCONFIG_DISABLE_OPT,CONFIG_CFG80211)
-	$(call KCONFIG_DISABLE_OPT,CONFIG_MAC80211)
+	# Use kernel's CFG80211/MAC80211 - driver's backported cfg80211 is broken on 4.4
+	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,m)
+	$(call KCONFIG_ENABLE_OPT,CONFIG_CFG80211_WEXT)
+	$(call KCONFIG_SET_OPT,CONFIG_MAC80211,m)
 endef
 endif
 
