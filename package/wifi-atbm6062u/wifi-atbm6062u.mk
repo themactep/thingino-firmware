@@ -28,6 +28,8 @@ endef
 
 define WIFI_ATBM6062U_INSTALL_TARGET_CMDS
 	$(INSTALL) -d $(TARGET_DIR)/usr/lib/modules/$(LINUX_VERSION_PROBED)/extra
+	$(INSTALL) -m 0644 $(@D)/driver_install/cfg80211.ko \
+		$(TARGET_DIR)/usr/lib/modules/$(LINUX_VERSION_PROBED)/extra/cfg80211.ko
 	$(INSTALL) -m 0644 $(@D)/driver_install/atbm6062u.ko \
 		$(TARGET_DIR)/usr/lib/modules/$(LINUX_VERSION_PROBED)/extra/atbm6062u.ko
 endef
@@ -59,10 +61,9 @@ define WIFI_ATBM6062U_LINUX_CONFIG_FIXUPS
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_CORE)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PROC)
 	$(call KCONFIG_ENABLE_OPT,CONFIG_WEXT_PRIV)
-	# Use kernel's CFG80211/MAC80211 - driver's backported cfg80211 is broken on 4.4
-	$(call KCONFIG_SET_OPT,CONFIG_CFG80211,m)
-	$(call KCONFIG_ENABLE_OPT,CONFIG_CFG80211_WEXT)
-	$(call KCONFIG_SET_OPT,CONFIG_MAC80211,m)
+	# Disable kernel's CFG80211/MAC80211 - driver provides its own backported version
+	$(call KCONFIG_DISABLE_OPT,CONFIG_CFG80211)
+	$(call KCONFIG_DISABLE_OPT,CONFIG_MAC80211)
 endef
 endif
 
@@ -106,6 +107,16 @@ ifeq ($(KERNEL_VERSION),3.10.14)
 WIFI_ATBM6062U_PRE_CONFIGURE_HOOKS += WIFI_ATBM6062U_COPY_CONFIG
 $(eval $(kernel-module))
 else
+# Enable WEXT support in driver's backported cfg80211 so it exports
+# wireless_send_event and wireless_nlevent_flush (kernel doesn't provide
+# these when CONFIG_CFG80211 is disabled)
+define WIFI_ATBM6062U_ENABLE_WEXT
+	$(SED) 's/^# obj-\$$(CONFIG_WEXT_CORE)/obj-$$(CONFIG_WEXT_CORE)/' $(@D)/wireless/Makefile
+	$(SED) 's/^# obj-\$$(CONFIG_WEXT_PROC)/obj-$$(CONFIG_WEXT_PROC)/' $(@D)/wireless/Makefile
+	$(SED) 's/^# obj-\$$(CONFIG_WEXT_SPY)/obj-$$(CONFIG_WEXT_SPY)/' $(@D)/wireless/Makefile
+	$(SED) 's/^# obj-\$$(CONFIG_WEXT_PRIV)/obj-$$(CONFIG_WEXT_PRIV)/' $(@D)/wireless/Makefile
+endef
+WIFI_ATBM6062U_POST_PATCH_HOOKS += WIFI_ATBM6062U_ENABLE_WEXT
 WIFI_ATBM6062U_PRE_BUILD_HOOKS += WIFI_ATBM6062U_COPY_CONFIG
 endif
 $(eval $(generic-package))
