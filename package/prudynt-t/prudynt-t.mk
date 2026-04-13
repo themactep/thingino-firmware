@@ -122,6 +122,15 @@ else
 PRUDYNT_CFLAGS += -DBINARY_DYNAMIC
 endif
 
+# MIPS musl hybrid builds may inherit PIE defaults from toolchain wrappers,
+# which causes non-PIC object relocation failures during final link.
+ifeq ($(BR2_PACKAGE_PRUDYNT_T_HYBRID),y)
+ifeq ($(BR2_TOOLCHAIN_USES_MUSL),y)
+PRUDYNT_CFLAGS += -fno-PIE
+PRUDYNT_LDFLAGS += -no-pie
+endif
+endif
+
 # Debug vs Production build flags
 ifeq ($(BR2_PACKAGE_PRUDYNT_T_DEBUG),y)
 	# Debug build: disable optimizations, add debug symbols
