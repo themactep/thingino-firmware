@@ -27,10 +27,11 @@ define WIFI_ATBM6062S_BUILD_CMDS
 endef
 
 define WIFI_ATBM6062S_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0644 $(@D)/driver_install/cfg80211.ko \
-		$(TARGET_DIR)/lib/modules/$(LINUX_VERSION_PROBED)/extra/cfg80211.ko
-	$(INSTALL) -D -m 0644 $(@D)/driver_install/atbm6062s.ko \
-		$(TARGET_DIR)/lib/modules/$(LINUX_VERSION_PROBED)/extra/atbm6062s.ko
+	$(INSTALL) -d $(TARGET_DIR)/usr/lib/modules/$(LINUX_VERSION_PROBED)/extra
+	$(INSTALL) -m 0644 $(@D)/driver_install/cfg80211.ko \
+		$(TARGET_DIR)/usr/lib/modules/$(LINUX_VERSION_PROBED)/extra/cfg80211.ko
+	$(INSTALL) -m 0644 $(@D)/driver_install/atbm6062s.ko \
+		$(TARGET_DIR)/usr/lib/modules/$(LINUX_VERSION_PROBED)/extra/atbm6062s.ko
 endef
 endif
 
@@ -82,15 +83,16 @@ define WIFI_ATBM6062S_INSTALL_CONFIGS
 endef
 else
 define WIFI_ATBM6062S_INSTALL_CONFIGS
-	$(INSTALL) -m 0755 -d $(TARGET_DIR)/lib/modules/$(LINUX_VERSION_PROBED)$(LINUX_CONFIG_LOCALVERSION)
-	touch $(TARGET_DIR)/lib/modules/$(LINUX_VERSION_PROBED)$(LINUX_CONFIG_LOCALVERSION)/modules.builtin.modinfo
+	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/lib/modules/$(LINUX_VERSION_PROBED)$(LINUX_CONFIG_LOCALVERSION)
+	touch $(TARGET_DIR)/usr/lib/modules/$(LINUX_VERSION_PROBED)$(LINUX_CONFIG_LOCALVERSION)/modules.builtin.modinfo
 
 	$(INSTALL) -m 0755 -d $(TARGET_DIR)/usr/share/wifi
 	$(INSTALL) -m 0644 -t $(TARGET_DIR)/usr/share/wifi \
 		$(WIFI_ATBM_WIFI_PKGDIR)/files/*.txt
 
-	$(INSTALL) -D -m 0644 $(@D)/firmware/cronus_SDIO_NoBLE_SDIO_svn19514_24M_wifi6phy_DCDC.bin \
-		$(TARGET_DIR)/lib/firmware/atbm6062s_fw.bin
+	$(INSTALL) -d $(TARGET_DIR)/usr/lib/firmware
+	$(INSTALL) -m 0644 $(@D)/firmware/cronus_SDIO_NoBLE_SDIO_svn19514_24M_wifi6phy_DCDC.bin \
+		$(TARGET_DIR)/usr/lib/firmware/atbm6062s_fw.bin
 endef
 endif
 
