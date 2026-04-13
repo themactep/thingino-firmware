@@ -9,7 +9,7 @@
 #   ./docker-build.sh menuconfig # Run menuconfig in container
 #   ./docker-build.sh shell      # Open interactive shell
 #   ./docker-build.sh clean      # Clean build in container
-#   ./docker-build.sh upgrade_ota # Upgrade firmware OTA
+#   ./docker-build.sh ota # Upgrade firmware OTA
 #
 
 set -e
@@ -248,7 +248,7 @@ case "$CMD" in
         # Build with selected camera using dev target (serial build with V=1)
         make -f Makefile.docker docker-make CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} MAKECMDGOALS="dev" CONTAINER_ENGINE="$CONTAINER_ENGINE"
         ;;
-    upgrade_ota)
+    ota)
         # Select camera
         CAMERA=$(select_camera)
 
@@ -261,10 +261,10 @@ case "$CMD" in
         fi
 
         print_success "Selected camera: $CAMERA"
-        print_info "Running upgrade_ota in container..."
+        print_info "Running ota in container..."
 
         # Build with selected camera
-        make -f Makefile.docker docker-upgrade-ota CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} CONTAINER_ENGINE="$CONTAINER_ENGINE" "$@"
+        make -f Makefile.docker docker-ota CAMERA="$CAMERA" ${GROUP:+GROUP="$GROUP"} CONTAINER_ENGINE="$CONTAINER_ENGINE" "$@"
         ;;
     build|"")
         # Select camera
@@ -313,7 +313,7 @@ Unknown command. Available commands:
   ./docker-build.sh clean        Clean build artifacts
   ./docker-build.sh info         Show container configuration
   ./docker-build.sh rebuild-image Rebuild the container image
-  ./docker-build.sh upgrade_ota  Upgrade firmware OTA (requires IP=x.x.x.x)
+    ./docker-build.sh ota          Upgrade firmware OTA (requires IP=x.x.x.x)
 
 EOF
         exit 1

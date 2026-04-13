@@ -3,6 +3,6 @@ config BR2_PACKAGE_HOST_THINGINO_CLONER
 	help
 	  USB flashing tool for Ingenic SoC devices.
 	  Bootstraps a device over USB, then reads or writes SPI NOR flash.
-	  Used by 'make upload_serial'.
+	  Used by 'make cloner'.
 
 	  https://github.com/gtxaspec/thingino-cloner
