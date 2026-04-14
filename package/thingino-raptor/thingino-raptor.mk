@@ -146,11 +146,19 @@ define THINGINO_RAPTOR_INSTALL_TARGET_CMDS
 	# Init script
 	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S31raptor \
 		$(TARGET_DIR)/etc/init.d/S31raptor
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/privacy \
+		$(TARGET_DIR)/usr/sbin/privacy
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/microphone \
+		$(TARGET_DIR)/usr/sbin/microphone
+	$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/speaker \
+		$(TARGET_DIR)/usr/sbin/speaker
 	if [ "$(BR2_PACKAGE_THINGINO_RAPTOR_RAC)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/record \
 			$(TARGET_DIR)/usr/sbin/record; \
 		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/play \
 			$(TARGET_DIR)/usr/sbin/play; \
+		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/tell \
+			$(TARGET_DIR)/usr/sbin/tell; \
 	fi
 	if [ "$(BR2_PACKAGE_THINGINO_ONVIF)" = "y" ]; then \
 		$(INSTALL) -D -m 0755 $(THINGINO_RAPTOR_PKGDIR)/files/S96onvif_discovery \

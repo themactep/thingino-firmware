@@ -1,0 +1,25 @@
+#!/bin/sh
+set -eu
+
+usage() {
+	echo "Usage: $0 <on|off> [channel]" >&2
+}
+
+state=${1:-}
+channel=${2:-all}
+
+case "$state" in
+	on|off)
+		;;
+	*)
+		usage
+		exit 1
+		;;
+esac
+
+command -v raptorctl >/dev/null 2>&1 || {
+	echo "privacy: raptorctl is not installed" >&2
+	exit 1
+}
+
+exec raptorctl rod privacy "$state" "$channel"

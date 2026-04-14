@@ -1,0 +1,84 @@
+#!/bin/sh
+set -eu
+
+RAPTOR_CONFIG="${RAPTOR_CONFIG:-/etc/raptor.conf}"
+RAPTOR_INIT="/etc/init.d/S31raptor"
+
+config_get() {
+	key=$1
+	default_value=$2
+	if command -v raptorctl >/dev/null 2>&1; then
+		value=$(raptorctl config get audio "$key" 2>/dev/null | tr -d '\n\r"')
+		if [ -n "$value" ]; then
+			printf '%s' "$value"
+			return 0
+		fi
+	fi
+	[ -r "$RAPTOR_CONFIG" ] || {
+		printf '%s' "$default_value"
+		return 0
+	}
+	awk -v key="$key" -v default_value="$default_value" '
+		BEGIN { in_section = 0; value = "" }
+		{
+			line = $0
+			sub(/[[:space:]]*[#;].*$/, "", line)
+			if (line ~ "^[[:space:]]*\\[audio\\][[:space:]]*$") {
+				in_section = 1
+				next
+			}
+			if (in_section && line ~ "^[[:space:]]*\\[.*\\][[:space:]]*$") {
+				exit
+			}
+			if (in_section && line ~ "^[[:space:]]*" key "[[:space:]]*=") {
+				sub(/^[^=]*=[[:space:]]*/, "", line)
+				gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+				value = line
+				print value
+				exit
+			}
+		}
+		END {
+			if (value == "") {
+				print default_value
+			}
+		}
+	' "$RAPTOR_CONFIG" | tr -d '\n\r"'
+}
+
+config_bool() {
+	case "$(config_get "$1" "$2" | tr 'A-Z' 'a-z')" in
+		1|true|yes|on) printf 'true' ;;
+		*) printf 'false' ;;
+	esac
+}
+
+set_bool() {
+	key=$1
+	value=$2
+	command -v raptorctl >/dev/null 2>&1 || {
+		echo "microphone: raptorctl is not installed" >&2
+		exit 1
+	}
+	raptorctl config set audio "$key" "$value" >/dev/null
+	if [ -x "$RAPTOR_INIT" ] && pidof rvd >/dev/null 2>&1; then
+		"$RAPTOR_INIT" restart >/dev/null
+	fi
+}
+
+case "${1:-}" in
+	on)
+		set_bool enabled true
+		;;
+	off)
+		set_bool enabled false
+		;;
+	status)
+		config_bool enabled true
+		printf '\n'
+		;;
+	*)
+		echo "Usage: $0 {on|off|status}" >&2
+		exit 1
+		;;
+esac
