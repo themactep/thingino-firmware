@@ -60,14 +60,19 @@ endif
 
 KERNEL_SITE := https://github.com/gtxaspec/thingino-linux
 
-ifeq ($(SOC_FAMILY),a1)
-	KERNEL_BRANCH := ingenic-a1
-else ifeq ($(SOC_FAMILY),c100)
+ifeq ($(SOC_ARCH),xburst1)
 	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t31-4.4.94
+		ifeq ($(SOC_FAMILY),t23)
+			KERNEL_BRANCH := ingenic-t23-4.4.94
+			KERNEL_HASH := b8a1f1ed22272b844fd423871f4aca16e8b779ff
+		else
+			KERNEL_BRANCH := ingenic-t31-4.4.94
+		endif
 	else
-		KERNEL_BRANCH := ingenic-t31
+		KERNEL_BRANCH := ingenic-t31-th-stable
 	endif
+else ifeq ($(SOC_FAMILY),a1)
+	KERNEL_BRANCH := ingenic-a1
 else ifeq ($(SOC_FAMILY),t41)
 	ifeq ($(KERNEL_VERSION),4.4.94)
 		KERNEL_BRANCH := ingenic-t41-4.4.94
@@ -76,21 +81,8 @@ else ifeq ($(SOC_FAMILY),t41)
 	endif
 else ifeq ($(SOC_FAMILY),t40)
 	KERNEL_BRANCH := ingenic-t40
-else ifeq ($(SOC_FAMILY),t31)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t31-4.4.94
-	else
-		KERNEL_BRANCH := ingenic-t31
-	endif
-else ifeq ($(SOC_FAMILY),t23)
-	ifeq ($(KERNEL_VERSION),4.4.94)
-		KERNEL_BRANCH := ingenic-t23-4.4.94
-		KERNEL_HASH := b8a1f1ed22272b844fd423871f4aca16e8b779ff
-	else
-		KERNEL_BRANCH := ingenic-t31
-	endif
 else
-	KERNEL_BRANCH := ingenic-t31
+	KERNEL_BRANCH := ingenic-t40
 endif
 
 ifeq ($(KERNEL_HASH),)
