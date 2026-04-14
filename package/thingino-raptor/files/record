@@ -1,0 +1,124 @@
+#!/bin/sh
+set -eu
+
+RAC_BIN="/usr/bin/rac"
+
+usage() {
+	cat <<'EOF'
+Usage: record [-t seconds] [-r rate] [path|-]
+
+Record microphone audio through rac when the raptor streamer is active.
+
+Options:
+	-t seconds  Limit recording duration in seconds
+	-r rate     Expected sample rate in Hz (info only)
+	-h          Show this help
+
+Notes:
+	- Output is PCM16 LE only when the live raptor audio codec is l16, pcmu, or pcma.
+	- Current rac builds do not decode live AAC or Opus while recording.
+	- Use '-' to write to stdout.
+
+Examples:
+	record -t 5 /tmp/sample.pcm
+	record -r 16000 -
+EOF
+}
+
+current_codec() {
+	"$RAC_BIN" status 2>/dev/null | sed -n 's/.*"codec":"\([^"]*\)".*/\1/p' | head -n 1
+}
+
+require_integer() {
+	case "$2" in
+		''|*[!0-9]*)
+			echo "record: $1 must be a non-negative integer" >&2
+			exit 1
+			;;
+		*)
+			return 0
+			;;
+	esac
+}
+
+DURATION=""
+RATE=""
+
+while getopts "t:r:c:m:n:s:xh" opt; do
+	case "$opt" in
+		t) DURATION=$OPTARG ;;
+		r) RATE=$OPTARG ;;
+		c|m|n|s|x)
+			echo "record: option -$opt is not supported by the raptor rac wrapper" >&2
+			exit 1
+			;;
+		h)
+			usage
+			exit 0
+			;;
+		*)
+			usage >&2
+			exit 1
+			;;
+	esac
+done
+shift $((OPTIND - 1))
+
+PATH_ARG=${1:-}
+
+if [ ! -x "$RAC_BIN" ]; then
+	echo "record: rac is not installed" >&2
+	exit 1
+fi
+
+if [ -n "$DURATION" ]; then
+	require_integer duration "$DURATION"
+	if [ "$DURATION" -le 0 ]; then
+		echo "record: duration must be greater than zero" >&2
+		exit 1
+	fi
+fi
+
+if [ -n "$RATE" ]; then
+	require_integer rate "$RATE"
+	if [ "$RATE" -le 0 ]; then
+		echo "record: rate must be greater than zero" >&2
+		exit 1
+	fi
+fi
+
+if [ -z "$PATH_ARG" ]; then
+	usage >&2
+	exit 1
+fi
+
+LIVE_CODEC=$(current_codec || true)
+case "$LIVE_CODEC" in
+	aac|opus)
+		echo "record: current raptor audio codec is $LIVE_CODEC" >&2
+		echo "record: this rac build records raw encoded $LIVE_CODEC frames, not PCM16" >&2
+		echo "record: switch raptor audio codec to l16/pcmu/pcma before using this wrapper" >&2
+		exit 1
+		;;
+esac
+
+if [ "$PATH_ARG" != "-" ]; then
+	parent_dir=$(dirname "$PATH_ARG")
+	if [ ! -d "$parent_dir" ]; then
+		mkdir -p "$parent_dir"
+	fi
+fi
+
+set -- "$RAC_BIN" record
+
+if [ -n "$DURATION" ]; then
+	set -- "$@" -d "$DURATION"
+fi
+
+if [ -n "$RATE" ]; then
+	set -- "$@" -r "$RATE"
+fi
+
+set -- "$@" "$PATH_ARG"
+
+exec "$@"

@@ -1,0 +1,126 @@
+#!/bin/sh
+set -eu
+
+RAC_BIN="/usr/bin/rac"
+
+usage() {
+	cat <<'EOF'
+Usage: play [-v volume] [-g gain] [-r rate] [-s] [path|-]
+
+Play audio through rac when the raptor streamer is active.
+
+Options:
+	-v volume   Set speaker volume before playback
+	-g gain     Set speaker gain before playback
+	-r rate     Override sample rate in Hz for PCM16 LE input
+	-s          Read audio data from stdin
+	-h          Show this help
+
+Notes:
+	- rac plays a single file or stdin stream and does not provide a queue.
+	- Supported formats come from rac: PCM16 LE, MP3, AAC, Opus.
+
+Examples:
+	play /usr/share/sounds/chime.opus
+	play -v 80 -g 20 /usr/share/sounds/chime.mp3
+	cat /tmp/alert.pcm | play -s -r 16000
+EOF
+}
+
+require_integer() {
+	case "$2" in
+		''|*[!0-9]*)
+			echo "play: $1 must be a non-negative integer" >&2
+			exit 1
+			;;
+		*)
+			return 0
+			;;
+	esac
+}
+
+ensure_supported_path() {
+	case "$1" in
+		*://*)
+			echo "play: remote URLs are not supported by rac" >&2
+			exit 1
+			;;
+		*)
+			return 0
+			;;
+	esac
+}
+
+VOL=""
+GAIN=""
+RATE=""
+READ_STDIN=0
+
+while getopts "v:g:r:f:l:d:Ash" opt; do
+	case "$opt" in
+		v) VOL=$OPTARG ;;
+		g) GAIN=$OPTARG ;;
+		r) RATE=$OPTARG ;;
+		s) READ_STDIN=1 ;;
+		f|l|d|A)
+			echo "play: option -$opt is not supported by the raptor rac wrapper" >&2
+			exit 1
+			;;
+		h)
+			usage
+			exit 0
+			;;
+		*)
+			usage >&2
+			exit 1
+			;;
+	esac
+done
+shift $((OPTIND - 1))
+
+PATH_ARG=${1:-}
+
+if [ ! -x "$RAC_BIN" ]; then
+	echo "play: rac is not installed" >&2
+	exit 1
+fi
+
+case "$PATH_ARG" in
+	stop)
+		echo "play: stop is not supported by the raptor rac wrapper" >&2
+		exit 1
+		;;
+	esac
+
+if [ -n "$VOL" ]; then
+	require_integer volume "$VOL"
+	"$RAC_BIN" ao-volume "$VOL"
+fi
+
+if [ -n "$GAIN" ]; then
+	require_integer gain "$GAIN"
+	"$RAC_BIN" ao-gain "$GAIN"
+fi
+
+if [ -n "$RATE" ]; then
+	require_integer rate "$RATE"
+fi
+
+if [ "$READ_STDIN" -eq 1 ] || [ "$PATH_ARG" = "-" ]; then
+	PATH_ARG="-"
+elif [ -z "$PATH_ARG" ]; then
+	usage >&2
+	exit 1
+else
+	ensure_supported_path "$PATH_ARG"
+	if [ ! -e "$PATH_ARG" ]; then
+		echo "play: '$PATH_ARG' not found" >&2
+		exit 1
+	fi
+fi
+
+if [ -n "$RATE" ]; then
+	exec "$RAC_BIN" play -r "$RATE" "$PATH_ARG"
+fi
+
+exec "$RAC_BIN" play "$PATH_ARG"
