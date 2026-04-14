@@ -1,5 +1,5 @@
 # NAME: TPTEK WOR504JCH (T31X, GC4653, ETH, RTL8731)
-# FRAG: soc-xburst1 ccache brand rootfs kernel system target uboot ssl
+# FRAG: soc-xburst1 core ssl
 BR2_THINGINO_TOOLCHAIN_TYPE_EXTERNAL=y
 BR2_THINGINO_TOOLCHAIN_GCC_15=y
 BR2_THINGINO_TOOLCHAIN_LIBC_UCLIBC=y

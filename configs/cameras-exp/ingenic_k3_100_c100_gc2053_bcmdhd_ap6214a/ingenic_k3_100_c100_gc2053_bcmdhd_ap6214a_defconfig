@@ -1,5 +1,5 @@
 # NAME: Ingenic K3 100 EVB (C100, GC2053, SYN4343)
-# FRAG: soc-xburst1 -xb1-gcc14-glibc-br ccache brand rootfs kernel system target uboot ssl
+# FRAG: soc-xburst1 -xb1-gcc14-glibc-br core ssl
 BR2_THINGINO_TOOLCHAIN_TYPE_EXTERNAL=y
 BR2_THINGINO_TOOLCHAIN_GCC_15=y
 BR2_THINGINO_TOOLCHAIN_LIBC_UCLIBC=y

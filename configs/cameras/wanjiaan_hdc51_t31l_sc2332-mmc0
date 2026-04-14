@@ -1,5 +1,5 @@
 # NAME: Wanjiaan HDC51 (T31L, SC2332, RTL8188FTV)
-# FRAG: soc-xburst1 toolchain ccache brand rootfs kernel system target uboot ssl
+# FRAG: soc-xburst1 toolchain core ssl
 BR2_PACKAGE_THINGINO_KOPT_MMC0=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0_BOOT=y
 BR2_PACKAGE_THINGINO_KOPT_MMC0_PB_4BIT=y

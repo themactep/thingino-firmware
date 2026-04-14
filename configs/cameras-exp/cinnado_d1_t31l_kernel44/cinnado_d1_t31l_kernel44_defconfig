@@ -1,5 +1,5 @@
 # NAME: Cinnado D1 T31L (T31L, SC2336, ATBM6031) with Kernel 4.4
-# FRAG: soc-xburst1 ccache brand rootfs kernel system target uboot ssl
+# FRAG: soc-xburst1 core ssl
 BR2_THINGINO_TOOLCHAIN_TYPE_EXTERNAL=y
 BR2_THINGINO_TOOLCHAIN_GCC_15=y
 BR2_THINGINO_TOOLCHAIN_LIBC_UCLIBC=y
