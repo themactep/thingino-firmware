@@ -34,6 +34,8 @@ stop() {
 	echo_title "Stopping HA daemon"
 
 	stop_daemon
+	killall -q ha-state ha-commands 2>/dev/null
+	sleep 1
 }
 
 case "$1" in
