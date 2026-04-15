@@ -16,8 +16,8 @@ OPEN_TX_ISP_MODULE_MAKE_OPTS = \
 	INSTALL_MOD_PATH=$(TARGET_DIR) \
 	INSTALL_MOD_DIR=ingenic
 
-# The driver Kbuild expects DIR to point to the source directory
-OPEN_TX_ISP_MODULE_MAKE_OPTS += DIR=driver
+# Buildroot enters driver/ via MODULE_SUBDIRS, so DIR is relative to that
+OPEN_TX_ISP_MODULE_MAKE_OPTS += DIR=.
 
 # Add XBurst platform include paths for soc headers
 OPEN_TX_ISP_MODULE_MAKE_OPTS += \
