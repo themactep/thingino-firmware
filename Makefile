@@ -89,6 +89,7 @@ THINGINO_USER_MOTORS_JSON_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/motors
 THINGINO_USER_UENV_FILES := $(wildcard $(THINGINO_USER_COMMON_DIR)/local.uenv.txt)
 THINGINO_USER_OVERLAY_DIRS := $(wildcard $(THINGINO_USER_COMMON_DIR)/overlay)
 THINGINO_USER_OPT_DIRS := $(wildcard $(THINGINO_USER_COMMON_DIR)/opt)
+THINGINO_ROOT_LOCAL_MK_FILES := $(wildcard $(BR2_EXTERNAL)/local.mk)
 
 ifdef THINGINO_USER_CAMERA_DIR
 THINGINO_USER_FRAGMENT_FILES += $(wildcard $(THINGINO_USER_CAMERA_DIR)/local.fragment)
@@ -113,6 +114,7 @@ endif
 export THINGINO_USER_COMMON_DIR
 export THINGINO_USER_CAMERA_DIR
 export THINGINO_USER_DEVICE_DIR
+export THINGINO_ROOT_LOCAL_MK_FILES
 export THINGINO_USER_FRAGMENT_FILES
 export THINGINO_USER_MK_FILES
 export THINGINO_USER_JSON_FILES
@@ -120,6 +122,35 @@ export THINGINO_USER_MOTORS_JSON_FILES
 export THINGINO_USER_UENV_FILES
 export THINGINO_USER_OVERLAY_DIRS
 export THINGINO_USER_OPT_DIRS
+
+define collect_user_tree_files
+$(strip $(foreach dir,$(1),$(shell if [ -d "$(dir)" ]; then find "$(dir)" -type f | LC_ALL=C sort; fi)))
+endef
+
+THINGINO_USER_OVERLAY_FILES := $(call collect_user_tree_files,$(THINGINO_USER_OVERLAY_DIRS))
+THINGINO_USER_OPT_FILES := $(call collect_user_tree_files,$(THINGINO_USER_OPT_DIRS))
+
+BUILD_SUMMARY_TARGETS := all fast dev cleanbuild build build_fast
+
+define print_build_user_files_section
+$(if $(strip $(2)),$(info $(1):)$(foreach file,$(2),$(info   - $(file))),$(info $(1): none))
+endef
+
+ifneq ($(filter $(BUILD_SUMMARY_TARGETS),$(CURRENT_TARGETS)),)
+$(info )
+$(info === User Build Inputs ===)
+$(info THINGINO_USER_DIR: $(THINGINO_USER_DIR))
+$(call print_build_user_files_section,repo local.mk,$(THINGINO_ROOT_LOCAL_MK_FILES))
+$(call print_build_user_files_section,local.fragment,$(THINGINO_USER_FRAGMENT_FILES))
+$(call print_build_user_files_section,user local.mk,$(THINGINO_USER_MK_FILES))
+$(call print_build_user_files_section,thingino.json,$(THINGINO_USER_JSON_FILES))
+$(call print_build_user_files_section,motors.json,$(THINGINO_USER_MOTORS_JSON_FILES))
+$(call print_build_user_files_section,local.uenv.txt,$(THINGINO_USER_UENV_FILES))
+$(call print_build_user_files_section,overlay files,$(THINGINO_USER_OVERLAY_FILES))
+$(call print_build_user_files_section,opt files,$(THINGINO_USER_OPT_FILES))
+$(info =========================)
+$(info )
+endif
 
 FRAGMENTS = $(if $(CAMERA_CONFIG_REAL),$(shell awk '/FRAG:/ {$$1=$$1;gsub(/^.+:\s*/,"");print}' $(CAMERA_CONFIG_REAL)))
 RAW_DEFCONFIG_MODE = $(if $(strip $(FRAGMENTS)),,y)
