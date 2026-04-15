@@ -98,25 +98,19 @@ endif
 
 WIFI_ATBM6062U_POST_INSTALL_TARGET_HOOKS += WIFI_ATBM6062U_INSTALL_CONFIGS
 
+ifeq ($(KERNEL_VERSION),3.10.14)
 define WIFI_ATBM6062U_COPY_CONFIG
 	$(INSTALL) -D -m 0644 $(@D)/configs/atbm6062u.config \
 		$(@D)/.config
 endef
-
-ifeq ($(KERNEL_VERSION),3.10.14)
 WIFI_ATBM6062U_PRE_CONFIGURE_HOOKS += WIFI_ATBM6062U_COPY_CONFIG
 $(eval $(kernel-module))
 else
-# Enable WEXT support in driver's backported cfg80211 so it exports
-# wireless_send_event and wireless_nlevent_flush (kernel doesn't provide
-# these when CONFIG_CFG80211 is disabled)
-define WIFI_ATBM6062U_ENABLE_WEXT
-	$(SED) 's/^# obj-\$$(CONFIG_WEXT_CORE)/obj-$$(CONFIG_WEXT_CORE)/' $(@D)/wireless/Makefile
-	$(SED) 's/^# obj-\$$(CONFIG_WEXT_PROC)/obj-$$(CONFIG_WEXT_PROC)/' $(@D)/wireless/Makefile
-	$(SED) 's/^# obj-\$$(CONFIG_WEXT_SPY)/obj-$$(CONFIG_WEXT_SPY)/' $(@D)/wireless/Makefile
-	$(SED) 's/^# obj-\$$(CONFIG_WEXT_PRIV)/obj-$$(CONFIG_WEXT_PRIV)/' $(@D)/wireless/Makefile
+define WIFI_ATBM6062U_COPY_CONFIG
+	$(INSTALL) -D -m 0644 $(@D)/configs/atbm6062u.config \
+		$(@D)/.config
+	$(SED) 's/CONFIG_CPTCFG_CFG80211_WEXT=y/# CONFIG_CPTCFG_CFG80211_WEXT is not set/' $(@D)/.config
 endef
-WIFI_ATBM6062U_POST_PATCH_HOOKS += WIFI_ATBM6062U_ENABLE_WEXT
 WIFI_ATBM6062U_PRE_BUILD_HOOKS += WIFI_ATBM6062U_COPY_CONFIG
 endif
 $(eval $(generic-package))
