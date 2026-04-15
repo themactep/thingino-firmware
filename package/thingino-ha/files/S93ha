@@ -34,7 +34,7 @@ stop() {
 	echo_title "Stopping HA daemon"
 
 	stop_daemon
-	killall -q ha-state ha-commands 2>/dev/null
+	killall -q ha-state ha-commands ha-state ha-discovery 2>/dev/null
 	sleep 1
 }
 
