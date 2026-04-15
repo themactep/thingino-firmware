@@ -19,8 +19,17 @@ mkdir -p /run/ha
 if ! mkdir "$HA_LOCK_DIR" 2>/dev/null; then
 	old_pid=$(cat "${HA_LOCK_DIR}/pid" 2>/dev/null)
 	if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
-		echo "ha-daemon: already running (pid $old_pid), exiting" >&2
-		exit 1
+		echo "ha-daemon: previous instance (pid $old_pid) still alive, waiting..." >&2
+		kill "$old_pid" 2>/dev/null
+		timeout=10
+		while kill -0 "$old_pid" 2>/dev/null && [ "$timeout" -gt 0 ]; do
+			sleep 1
+			timeout=$((timeout - 1))
+		done
+		if kill -0 "$old_pid" 2>/dev/null; then
+			echo "ha-daemon: previous instance did not exit, killing..." >&2
+			kill -9 "$old_pid" 2>/dev/null
+		fi
 	fi
 	# Stale lock from a previous crash — take it over
 	rm -rf "$HA_LOCK_DIR"
