@@ -5,50 +5,53 @@ if [ -f .prereqs.done ]; then
 fi
 
 preinit_check() {
-echo "Running dependencies check..."
+	echo "Running dependencies check..."
 
-# Check if the current directory path contains spaces.
-case "$PWD" in
-*" "*)
-	echo "Error: Current directory path \"$PWD\" cannot contain spaces"
-	exit 1
-	;;
-esac
-
-# Check for supported architecture.
-host_arch=$(uname -m)
-if [ "$host_arch" != "x86_64" ] && [ "$host_arch" != "aarch64" ]; then
-	echo "Unsupported architecture: $host_arch. Only x86_64 and aarch64 are supported."
-else
-	echo "Host architecture is $host_arch"
-fi
-
-# Check dd (coreutils or uutils)
-dd_version_output=$(dd --version 2>&1 | head -n1)
-
-# Check if it's uutils coreutils (Rust rewrite)
-if echo "$dd_version_output" | grep -q "uutils coreutils"; then
-	echo "dd (uutils coreutils) detected - OK"
-else
-	# Classic coreutils - require >= 9.0
-	req=9.0
-	echo "$dd_version_output" | grep -oE '[0-9]+\.[0-9]+' | {
-		read cur_ver || { echo "Unable to determine dd version" >&2; exit 1; }
-		if [ "$(printf '%s\n' "$req" "$cur_ver" | sort -V | head -n1)" != "$req" ]; then
-			echo "dd version $cur_ver is less than required $req."
-			echo "Please update the coreutils for your distribution."
+	# Check if the current directory path contains spaces.
+	case "$PWD" in
+		*" "*)
+			echo "Error: Current directory path \"$PWD\" cannot contain spaces"
 			exit 1
-		else
-			echo "dd version is $cur_ver, which is >= $req"
-		fi
-	}
-fi
+			;;
+	esac
 
-if [ $? -ne 0 ]; then
-	exit 1
-fi
+	# Check for supported architecture.
+	host_arch=$(uname -m)
+	if [ "$host_arch" != "x86_64" ] && [ "$host_arch" != "aarch64" ]; then
+		echo "Unsupported architecture: $host_arch. Only x86_64 and aarch64 are supported."
+	else
+		echo "Host architecture is $host_arch"
+	fi
 
-echo "All preinit checks passed"
+	# Check dd (coreutils or uutils)
+	dd_version_output=$(dd --version 2>&1 | head -n1)
+
+	# Check if it's uutils coreutils (Rust rewrite)
+	if echo "$dd_version_output" | grep -q "uutils coreutils"; then
+		echo "dd (uutils coreutils) detected - OK"
+	else
+		# Classic coreutils - require >= 9.0
+		req=9.0
+		echo "$dd_version_output" | grep -oE '[0-9]+\.[0-9]+' | {
+			read cur_ver || {
+				echo "Unable to determine dd version" >&2
+				exit 1
+			}
+			if [ "$(printf '%s\n' "$req" "$cur_ver" | sort -V | head -n1)" != "$req" ]; then
+				echo "dd version $cur_ver is less than required $req."
+				echo "Please update the coreutils for your distribution."
+				exit 1
+			else
+				echo "dd version is $cur_ver, which is >= $req"
+			fi
+		}
+	fi
+
+	if [ $? -ne 0 ]; then
+		exit 1
+	fi
+
+	echo "All preinit checks passed"
 
 }
 
@@ -77,6 +80,25 @@ install_packages() {
 	else
 		echo "Failed to install $*"
 	fi
+}
+
+check_required_tools() {
+	required_tools="rg shfmt npx"
+	missing_tools=""
+
+	for tool in $required_tools; do
+		if ! command -v "$tool" >/dev/null 2>&1; then
+			missing_tools="$missing_tools $tool"
+		fi
+	done
+
+	if [ -n "$missing_tools" ]; then
+		echo "Missing required tools:$missing_tools"
+		echo "Please install the missing tools and run make again."
+		exit 1
+	fi
+
+	echo "All required tooling is installed (rg, shfmt, npx)"
 }
 
 # Check if sudo is available
@@ -109,45 +131,45 @@ if [ -f /etc/os-release ]; then
 			pkg_check_command="dpkg-query -W -f='\${Status}'"
 			pkg_install_cmd="apt-get install -y"
 			pkg_update_cmd="apt-get update"
-			packages="autoconf build-essential bc bison ccache cpio cmake curl dialog file flex gawk git libncurses-dev libusb-1.0-0-dev make m4 nano perl python3 python3-jsonschema rsync unzip u-boot-tools vim-tiny wget whiptail"
+			packages="autoconf build-essential bc bison ccache cpio cmake curl dialog file flex gawk git libncurses-dev libusb-1.0-0-dev make m4 nano perl python3 python3-jsonschema rsync unzip u-boot-tools vim-tiny wget whiptail ripgrep shfmt nodejs npm"
 			;;
 		*)
 			case "$ID" in
-				ubuntu|debian|linuxmint|zorin)
+				ubuntu | debian | linuxmint | zorin)
 					echo "Detected as Debian-based via ID"
 					pkg_manager="dpkg"
 					pkg_check_command="dpkg-query -W -f='\${Status}'"
 					pkg_install_cmd="apt-get install -y"
 					pkg_update_cmd="apt-get update"
-					packages="autoconf build-essential bc bison cpio cmake curl dialog file flex gawk git libncurses-dev libusb-1.0-0-dev m4 make nano perl rsync unzip u-boot-tools vim-tiny wget whiptail"
+					packages="autoconf build-essential bc bison cpio cmake curl dialog file flex gawk git libncurses-dev libusb-1.0-0-dev m4 make nano perl rsync unzip u-boot-tools vim-tiny wget whiptail ripgrep shfmt nodejs npm"
 					;;
-				rhel|centos|fedora)
+				rhel | centos | fedora)
 					echo "RedHat-based"
 					pkg_manager="rpm"
 					pkg_check_command="rpm -q --whatprovides"
 					pkg_install_cmd="dnf install -y"
-					packages="autoconf gcc m4 make bc bison cpio cmake curl dialog file flex gawk git nano ncurses-devel newt libusbx-devel perl rsync unzip uboot-tools wget"
+					packages="autoconf gcc m4 make bc bison cpio cmake curl dialog file flex gawk git nano ncurses-devel newt libusbx-devel perl rsync unzip uboot-tools wget ripgrep shfmt nodejs npm"
 					;;
 				arch)
 					echo "Arch-based"
 					pkg_manager="pacman"
 					pkg_check_command="pacman -Q"
 					pkg_install_cmd="pacman -S --noconfirm"
-					packages="autoconf base-devel bc bison cpio cmake curl dialog file flex gawk git m4 libnewt libusb make nano ncurses perl rsync unzip uboot-tools wget"
+					packages="autoconf base-devel bc bison cpio cmake curl dialog file flex gawk git m4 libnewt libusb make nano ncurses perl rsync unzip uboot-tools wget ripgrep shfmt nodejs npm"
 					;;
 				alpine)
 					echo "Alpine Linux"
 					pkg_manager="apk"
 					pkg_check_command="apk info -e"
 					pkg_install_cmd="apk add"
-					packages="autoconf bash build-base bc bison cpio cmake curl dialog file findutils flex gawk git grep m4 nano ncurses-dev newt libusb-dev make perl rsync unzip uboot-tools wget"
+					packages="autoconf bash build-base bc bison cpio cmake curl dialog file findutils flex gawk git grep m4 nano ncurses-dev newt libusb-dev make perl rsync unzip uboot-tools wget ripgrep shfmt nodejs npm"
 					;;
 				opensuse*)
 					echo "OpenSUSE Tumbleweed"
 					pkg_manager="zypper"
 					pkg_check_command="zypper search -i"
 					pkg_install_cmd="zypper install -y"
-					packages="autoconf bc bison cpio cmake curl dialog file findutils flex gawk gcc git grep m4 make ncurses-devel newt libusb-1_0-devel perl rsync unzip u-boot-tools wget"
+					packages="autoconf bc bison cpio cmake curl dialog file findutils flex gawk gcc git grep m4 make ncurses-devel newt libusb-1_0-devel perl rsync unzip u-boot-tools wget ripgrep shfmt nodejs npm"
 					;;
 				*)
 					echo "Unsupported OS: $ID"
@@ -169,8 +191,8 @@ for pkg in $packages; do
 		dpkg)
 			# Special case for vim-tiny: check if either vim-tiny or full vim is installed
 			if [ "$pkg" = "vim-tiny" ]; then
-				if ! $pkg_check_command "vim-tiny" 2>/dev/null | grep -q "install ok installed" && \
-				   ! $pkg_check_command "vim" 2>/dev/null | grep -q "install ok installed"; then
+				if ! $pkg_check_command "vim-tiny" 2>/dev/null | grep -q "install ok installed" &&
+					! $pkg_check_command "vim" 2>/dev/null | grep -q "install ok installed"; then
 					packages_to_install="$packages_to_install $pkg"
 				else
 					echo "Package vim-tiny or vim is installed"
@@ -246,5 +268,7 @@ else
 		touch .prereqs.done
 	fi
 fi
+
+check_required_tools
 
 exit 0
