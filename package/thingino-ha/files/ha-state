@@ -12,160 +12,288 @@
 
 . /usr/share/ha-common
 
-PRUDYNT_CONFIG="/etc/prudynt.json"
+[ -n "$HA_CAMERA_ID" ] || {
+	echo "ha-state: cannot determine camera MAC" >&2
+	exit 1
+}
+[ -n "$HA_MQTT_HOST" ] || {
+	echo "ha-state: ha.mqtt.host (or mqtt_sub.host) not configured" >&2
+	exit 1
+}
 
-[ -n "$HA_CAMERA_ID" ] || { echo "ha-state: cannot determine camera MAC" >&2; exit 1; }
-[ -n "$HA_MQTT_HOST" ] || { echo "ha-state: ha.mqtt.host (or mqtt_sub.host) not configured" >&2; exit 1; }
+HA_STATE_LOCK_DIR="${HA_RUN_DIR}/state.lock.d"
+HA_STATE_PENDING="${HA_RUN_DIR}/state.pending"
+HA_STATE_FORCE_PENDING="${HA_RUN_DIR}/state-force.pending"
 
-# force=1 publishes all entities; force=0 publishes only changed ones.
-FORCE=0
-[ "${1:-}" = "force" ] && FORCE=1
+STATE_REQUEST_FORCE=0
+[ "${1:-}" = "force" ] && STATE_REQUEST_FORCE=1
 
-# Open a publish session: all ha_pub_state calls below are queued and flushed
-# at the end with rate limiting instead of firing simultaneously.
-ha_pub_begin
-
-# Re-assert availability so a stale retained 'offline' never keeps entities
-# unavailable while we're running. Published directly (not queued) so it
-# reaches the broker immediately before any state values.
-mpub=$(ha_mpub_cmd state)
-sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'"
-
-# Motion binary sensor
-if ha_entity_enabled motion; then
-	[ -f /run/motion/motion_alarm ] \
-		&& ha_pub_state motion ON "$FORCE" \
-		|| ha_pub_state motion OFF "$FORCE"
+if [ "$STATE_REQUEST_FORCE" = "1" ]; then
+	HA_STATE_QUEUE_FILE="$HA_STATE_FORCE_PENDING"
+else
+	HA_STATE_QUEUE_FILE="$HA_STATE_PENDING"
 fi
 
-# Motion Guard switch
-if ha_entity_enabled motion_guard; then
-	[ -f /run/prudynt/motion.active ] \
-		&& ha_pub_state motion_guard ON "$FORCE" \
-		|| ha_pub_state motion_guard OFF "$FORCE"
+if ! ha_try_lock "$HA_STATE_LOCK_DIR" "ha-state" "$HA_STATE_QUEUE_FILE"; then
+	exit 0
 fi
 
-# IR Cut Filter switch: 1 = filter in (day), 0 = filter out (night)
-if ha_entity_enabled ircut; then
-	val=$(ircut read 2>/dev/null | tr -d '\n\r')
-	[ "$val" = "1" ] \
-		&& ha_pub_state ircut ON "$FORCE" \
-		|| ha_pub_state ircut OFF "$FORCE"
+cleanup() {
+	ha_unlock "$HA_STATE_LOCK_DIR"
+}
+trap cleanup EXIT INT TERM
+
+HA_FW_CACHE_DIR="/tmp/ha_fw_cache_${HA_CAMERA_ID}"
+HA_FW_LATEST_CACHE_TTL="${HA_FW_LATEST_CACHE_TTL:-21600}"
+
+ha_fw_cache_read() {
+	[ -f "${HA_FW_CACHE_DIR}/latest" ] || return 1
+	cat "${HA_FW_CACHE_DIR}/latest" 2>/dev/null
+}
+
+ha_fw_cache_fresh() {
+	local now cached_at
+	[ -f "${HA_FW_CACHE_DIR}/timestamp" ] || return 1
+	now=$(date +%s 2>/dev/null)
+	cached_at=$(cat "${HA_FW_CACHE_DIR}/timestamp" 2>/dev/null)
+	case "$now:$cached_at:$HA_FW_LATEST_CACHE_TTL" in
+		*[!0-9:]* | ::*) return 1 ;;
+	esac
+	[ $((now - cached_at)) -lt "$HA_FW_LATEST_CACHE_TTL" ]
+}
+
+ha_fw_cache_write() {
+	local latest="$1"
+	local now
+
+	mkdir -p "$HA_FW_CACHE_DIR" || return 1
+	printf '%s' "$latest" >"${HA_FW_CACHE_DIR}/latest"
+	now=$(date +%s 2>/dev/null)
+	case "$now" in
+		"" | *[!0-9]*) : ;;
+		*) printf '%s' "$now" >"${HA_FW_CACHE_DIR}/timestamp" ;;
+	esac
+}
+
+ha_fw_fetch_latest() {
+	command -v curl >/dev/null 2>&1 || return 1
+	curl -sf --max-time 10 \
+		"https://api.github.com/repos/themactep/thingino-firmware/releases/latest" \
+		2>/dev/null | awk -F'"' '/tag_name/{print $4; exit}' | tr -cd '[:alnum:]._-'
+}
+
+ha_fw_get_latest() {
+	local latest cached
+
+	if ha_fw_cache_fresh; then
+		ha_fw_cache_read
+		return 0
+	fi
+
+	latest=$(ha_fw_fetch_latest)
+	if [ -n "$latest" ]; then
+		ha_fw_cache_write "$latest"
+		printf '%s' "$latest"
+		return 0
+	fi
+
+	cached=$(ha_fw_cache_read)
+	[ -n "$cached" ] && printf '%s' "$cached"
+}
+
+PRUDYNT_STATE_JSON=""
+HAVE_PRUDYNT_STATE_JSON=0
+if command -v light >/dev/null 2>&1; then
+	HA_HAS_LIGHT=1
+else
+	HA_HAS_LIGHT=0
 fi
 
-# Day/Night select
-if ha_entity_enabled daynight; then
-	val=$(awk 'NR==1 {print $1}' /run/prudynt/daynight_mode 2>/dev/null)
-	ha_pub_state daynight "${val:-day}" "$FORCE"
-fi
+ha_json_field() {
+	local payload="$1"
+	local field="$2"
+	printf '%s\n' "$payload" | sed -n "s/.*\"${field}\":\([^,}]*\).*/\1/p" | head -n 1 | tr -d ' '
+}
 
-# Privacy screen switch
-if ha_entity_enabled privacy; then
-	[ -f /run/prudynt/privacy.active ] \
-		&& ha_pub_state privacy ON "$FORCE" \
-		|| ha_pub_state privacy OFF "$FORCE"
-fi
-
-# Color mode switch (0=color, 1=monochrome)
-if ha_entity_enabled color; then
-	val=$(prudyntctl json - 2>/dev/null <<'EOF'
-{"image":{"running_mode":null}}
+ha_load_prudynt_state() {
+	[ "$HAVE_PRUDYNT_STATE_JSON" = "1" ] && return 0
+	HAVE_PRUDYNT_STATE_JSON=1
+	if ! command -v prudyntctl >/dev/null 2>&1; then
+		PRUDYNT_STATE_JSON=""
+		return 1
+	fi
+	PRUDYNT_STATE_JSON=$(
+		prudyntctl json - 2>/dev/null <<'EOF'
+{
+  "image": {"running_mode": null},
+  "daynight": {"status": null, "enabled": null}
+}
 EOF
-)
-	mode=$(printf '%s' "$val" | grep -o '"running_mode":[^,}]*' | cut -d: -f2 | tr -d ' ')
-	[ "$mode" = "0" ] \
-		&& ha_pub_state color ON "$FORCE" \
-		|| ha_pub_state color OFF "$FORCE"
-fi
+	)
+	[ -n "$PRUDYNT_STATE_JSON" ]
+}
 
-# IR LED 850 nm
-if ha_entity_enabled ir850 && command -v light >/dev/null 2>&1; then
-	val=$(light ir850 read 2>/dev/null | tr -d '\n\r')
-	[ "$val" = "0" ] || [ "$val" = "1" ] && \
-		{ [ "$val" = "1" ] \
-			&& ha_pub_state ir850 ON "$FORCE" \
-			|| ha_pub_state ir850 OFF "$FORCE"; }
-fi
+ha_read_light_state() {
+	[ "$HA_HAS_LIGHT" = "1" ] || return 1
+	light "$1" read 2>/dev/null | tr -d '\n\r'
+}
 
-# IR LED 940 nm
-if ha_entity_enabled ir940 && command -v light >/dev/null 2>&1; then
-	val=$(light ir940 read 2>/dev/null | tr -d '\n\r')
-	[ "$val" = "0" ] || [ "$val" = "1" ] && \
-		{ [ "$val" = "1" ] \
-			&& ha_pub_state ir940 ON "$FORCE" \
-			|| ha_pub_state ir940 OFF "$FORCE"; }
-fi
+publish_state() {
+	local FORCE="$1"
 
-# White light
-if ha_entity_enabled white_light && command -v light >/dev/null 2>&1; then
-	val=$(light white read 2>/dev/null | tr -d '\n\r')
-	[ "$val" = "0" ] || [ "$val" = "1" ] && \
-		{ [ "$val" = "1" ] \
-			&& ha_pub_state white ON "$FORCE" \
-			|| ha_pub_state white OFF "$FORCE"; }
-fi
+	PRUDYNT_STATE_JSON=""
+	HAVE_PRUDYNT_STATE_JSON=0
 
-# Gain sensor
-if ha_entity_enabled gain; then
-	gain=""
-	[ -f /proc/jz/isp/isp-m0 ] && \
-		gain=$(awk '/total_gain/{print $NF; exit}' /proc/jz/isp/isp-m0 2>/dev/null)
-	if [ -z "$gain" ] && command -v prudyntctl >/dev/null 2>&1; then
-		pdata=$(prudyntctl json - 2>/dev/null <<'PEOF'
-{"image":{"running_mode":null},"daynight":{"status":null,"enabled":null}}
-PEOF
-)
-		gain=$(printf '%s' "$pdata" | grep -o '"total_gain":[0-9-]*' | cut -d: -f2)
-	fi
-	[ -n "$gain" ] && ha_pub_state gain "$gain" "$FORCE"
-fi
+	# Open a publish session: all ha_pub_state calls below are queued and flushed
+	# at the end with rate limiting instead of firing simultaneously.
+	ha_pub_begin
 
-# WiFi RSSI sensor
-if ha_entity_enabled rssi; then
-	rssi=""
-	if command -v iw >/dev/null 2>&1; then
-		for iface in $(ls /sys/class/net/ 2>/dev/null | grep wlan); do
-			rssi=$(iw "$iface" link 2>/dev/null | awk '/signal:/{print $2}')
-			[ -n "$rssi" ] && break
-		done
-	fi
-	if [ -z "$rssi" ] && [ -f /proc/net/wireless ]; then
-		rssi=$(awk 'NR>2{val=$4; sub(/\..*$/, "", val); if (val+0 != 0) {print val+0; exit}}' \
-			/proc/net/wireless 2>/dev/null)
-	fi
-	[ -n "$rssi" ] && [ "$rssi" != "0" ] && ha_pub_state rssi "$rssi" "$FORCE"
-fi
-
-# Firmware update entity
-if ha_entity_enabled ota; then
+	# Re-assert availability so a stale retained 'offline' never keeps entities
+	# unavailable while we're running. Published directly (not queued) so it
+	# reaches the broker immediately before any state values.
 	mpub=$(ha_mpub_cmd state)
-	installed=""
-	build_date=""
-	for f in /etc/os-release /usr/lib/os-release; do
-		[ -f "$f" ] || continue
-		installed=$(grep '^COMMIT_ID=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
-		[ -n "$installed" ] && {
-			build_time=$(grep '^BUILD_TIME=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
-			build_date=$(echo "$build_time" | sed 's/^\([0-9]\{4\}\)-\([0-9]\{2\}\)-\([0-9]\{2\}\).*/\1\2\3/')
-			break
-		}
-	done
-	[ -z "$installed" ] && installed="unknown"
-	sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/firmware/state' -m '$installed'"
+	sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'"
 
-	latest=""
-	if command -v curl >/dev/null 2>&1; then
-		latest=$(curl -sf --max-time 10 \
-			"https://api.github.com/repos/themactep/thingino-firmware/releases/latest" \
-			2>/dev/null | awk -F'"' '/tag_name/{print $4; exit}' \
-			| tr -cd '[:alnum:]._-')
+	# Motion binary sensor
+	if ha_entity_enabled motion; then
+		[ -f /run/motion/motion_alarm ] &&
+			ha_pub_state motion ON "$FORCE" ||
+			ha_pub_state motion OFF "$FORCE"
 	fi
-	if [ -n "$latest" ] && [ -n "$build_date" ]; then
-		latest_date=$(echo "$latest" | sed 's/.*\([0-9]\{4\}\)-\([0-9]\{2\}\)-\([0-9]\{2\}\).*/\1\2\3/')
-		[ ${#latest_date} -eq 8 ] && [ "$build_date" -ge "$latest_date" ] && latest="$installed"
-	fi
-	sh -c "$mpub -t 'cameras/${HA_CAMERA_ID}/firmware/latest' -m '${latest:-$installed}'"
-fi
 
-# Flush all queued state publishes with rate limiting.
-ha_pub_flush
+	# Motion Guard switch
+	if ha_entity_enabled motion_guard; then
+		[ -f /run/prudynt/motion.active ] &&
+			ha_pub_state motion_guard ON "$FORCE" ||
+			ha_pub_state motion_guard OFF "$FORCE"
+	fi
+
+	# IR Cut Filter switch: 1 = filter in (day), 0 = filter out (night)
+	if ha_entity_enabled ircut; then
+		val=$(ircut read 2>/dev/null | tr -d '\n\r')
+		[ "$val" = "1" ] &&
+			ha_pub_state ircut ON "$FORCE" ||
+			ha_pub_state ircut OFF "$FORCE"
+	fi
+
+	# Day/Night select
+	if ha_entity_enabled daynight; then
+		val=$(awk 'NR==1 {print $1}' /run/prudynt/daynight_mode 2>/dev/null)
+		ha_pub_state daynight "${val:-day}" "$FORCE"
+	fi
+
+	# Privacy screen switch
+	if ha_entity_enabled privacy; then
+		[ -f /run/prudynt/privacy.active ] &&
+			ha_pub_state privacy ON "$FORCE" ||
+			ha_pub_state privacy OFF "$FORCE"
+	fi
+
+	# Color mode switch (0=color, 1=monochrome)
+	if ha_entity_enabled color; then
+		ha_load_prudynt_state >/dev/null 2>&1 || true
+		mode=$(ha_json_field "$PRUDYNT_STATE_JSON" running_mode)
+		[ "$mode" = "0" ] &&
+			ha_pub_state color ON "$FORCE" ||
+			ha_pub_state color OFF "$FORCE"
+	fi
+
+	# IR LED 850 nm
+	if ha_entity_enabled ir850 && [ "$HA_HAS_LIGHT" = "1" ]; then
+		val=$(ha_read_light_state ir850)
+		[ "$val" = "0" ] || [ "$val" = "1" ] &&
+			{ [ "$val" = "1" ] &&
+				ha_pub_state ir850 ON "$FORCE" ||
+				ha_pub_state ir850 OFF "$FORCE"; }
+	fi
+
+	# IR LED 940 nm
+	if ha_entity_enabled ir940 && [ "$HA_HAS_LIGHT" = "1" ]; then
+		val=$(ha_read_light_state ir940)
+		[ "$val" = "0" ] || [ "$val" = "1" ] &&
+			{ [ "$val" = "1" ] &&
+				ha_pub_state ir940 ON "$FORCE" ||
+				ha_pub_state ir940 OFF "$FORCE"; }
+	fi
+
+	# White light
+	if ha_entity_enabled white_light && [ "$HA_HAS_LIGHT" = "1" ]; then
+		val=$(ha_read_light_state white)
+		[ "$val" = "0" ] || [ "$val" = "1" ] &&
+			{ [ "$val" = "1" ] &&
+				ha_pub_state white ON "$FORCE" ||
+				ha_pub_state white OFF "$FORCE"; }
+	fi
+
+	# Gain sensor
+	if ha_entity_enabled gain; then
+		gain=""
+		[ -f /proc/jz/isp/isp-m0 ] &&
+			gain=$(awk '/total_gain/{print $NF; exit}' /proc/jz/isp/isp-m0 2>/dev/null)
+		if [ -z "$gain" ]; then
+			ha_load_prudynt_state >/dev/null 2>&1 || true
+			gain=$(ha_json_field "$PRUDYNT_STATE_JSON" total_gain)
+		fi
+		[ -n "$gain" ] && ha_pub_state gain "$gain" "$FORCE"
+	fi
+
+	# WiFi RSSI sensor
+	if ha_entity_enabled rssi; then
+		rssi=""
+		if command -v iw >/dev/null 2>&1; then
+			for iface_path in /sys/class/net/wlan*; do
+				[ -e "$iface_path" ] || continue
+				iface=${iface_path##*/}
+				rssi=$(iw "$iface" link 2>/dev/null | awk '/signal:/{print $2; exit}')
+				[ -n "$rssi" ] && break
+			done
+		fi
+		if [ -z "$rssi" ] && [ -f /proc/net/wireless ]; then
+			rssi=$(awk 'NR>2{val=$4; sub(/\..*$/, "", val); if (val+0 != 0) {print val+0; exit}}' \
+				/proc/net/wireless 2>/dev/null)
+		fi
+		[ -n "$rssi" ] && [ "$rssi" != "0" ] && ha_pub_state rssi "$rssi" "$FORCE"
+	fi
+
+	# Firmware update entity
+	if ha_entity_enabled ota; then
+		installed=""
+		build_date=""
+		for f in /etc/os-release /usr/lib/os-release; do
+			[ -f "$f" ] || continue
+			installed=$(grep '^COMMIT_ID=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
+			[ -n "$installed" ] && {
+				build_time=$(grep '^BUILD_TIME=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
+				build_date=$(echo "$build_time" | sed 's/^\([0-9]\{4\}\)-\([0-9]\{2\}\)-\([0-9]\{2\}\).*/\1\2\3/')
+				break
+			}
+		done
+		[ -z "$installed" ] && installed="unknown"
+		ha_pub_state firmware "$installed" "$FORCE"
+
+		latest=$(ha_fw_get_latest)
+		if [ -n "$latest" ] && [ -n "$build_date" ]; then
+			latest_date=$(echo "$latest" | sed 's/.*\([0-9]\{4\}\)-\([0-9]\{2\}\)-\([0-9]\{2\}\).*/\1\2\3/')
+			[ ${#latest_date} -eq 8 ] && [ "$build_date" -ge "$latest_date" ] && latest="$installed"
+		fi
+		ha_pub_topic firmware_latest "cameras/${HA_CAMERA_ID}/firmware/latest" "${latest:-$installed}" 1 "$FORCE" state
+	fi
+
+	# Flush all queued state publishes with rate limiting.
+	ha_pub_flush
+}
+
+next_force="$STATE_REQUEST_FORCE"
+while true; do
+	rm -f "$HA_STATE_PENDING" "$HA_STATE_FORCE_PENDING"
+	publish_state "$next_force"
+	if [ -f "$HA_STATE_FORCE_PENDING" ]; then
+		next_force=1
+		continue
+	fi
+	if [ -f "$HA_STATE_PENDING" ]; then
+		next_force=0
+		continue
+	fi
+	break
+done

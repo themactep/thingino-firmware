@@ -6,182 +6,209 @@
 
 . /usr/share/ha-common
 
-[ -n "$HA_CAMERA_ID" ]    || { echo "ha-discovery: cannot determine camera MAC" >&2; exit 1; }
-[ -n "$HA_MQTT_HOST" ]    || { echo "ha-discovery: ha.mqtt.host (or mqtt_sub.host) not configured" >&2; exit 1; }
+[ -n "$HA_CAMERA_ID" ] || {
+	echo "ha-discovery: cannot determine camera MAC" >&2
+	exit 1
+}
+[ -n "$HA_MQTT_HOST" ] || {
+	echo "ha-discovery: ha.mqtt.host (or mqtt_sub.host) not configured" >&2
+	exit 1
+}
 
-# ---------------------------------------------------------------------------
-# Device info
-# ---------------------------------------------------------------------------
-get_firmware_version() {
-	local ver
-	for f in /etc/os-release /usr/lib/os-release; do
-		[ -f "$f" ] || continue
-		ver=$(grep '^COMMIT_ID=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
-		[ -n "$ver" ] && echo "$ver" && return
+HA_DISCOVERY_LOCK_DIR="${HA_RUN_DIR}/discovery.lock.d"
+HA_DISCOVERY_PENDING="${HA_RUN_DIR}/discovery.pending"
+
+if ! ha_try_lock "$HA_DISCOVERY_LOCK_DIR" "ha-discovery" "$HA_DISCOVERY_PENDING"; then
+	exit 0
+fi
+
+cleanup() {
+	ha_unlock "$HA_DISCOVERY_LOCK_DIR"
+}
+trap cleanup EXIT INT TERM
+
+publish_discovery() {
+
+	# ---------------------------------------------------------------------------
+	# Device info
+	# ---------------------------------------------------------------------------
+	get_firmware_version() {
+		local ver
+		for f in /etc/os-release /usr/lib/os-release; do
+			[ -f "$f" ] || continue
+			ver=$(grep '^COMMIT_ID=' "$f" 2>/dev/null | cut -d= -f2- | tr -d '"')
+			[ -n "$ver" ] && echo "$ver" && return
+		done
+		echo "unknown"
+	}
+
+	FW_VERSION=$(get_firmware_version)
+
+	DEVICE_NAME=$(ha_cfg device_name)
+	DEVICE_NAME="${DEVICE_NAME:-$HA_CAMERA_HOSTNAME}"
+
+	DEVICE_MODEL=$(ha_cfg device_model)
+	DEVICE_MODEL="${DEVICE_MODEL:-Thingino Camera}"
+
+	DISC_PREFIX=$(ha_cfg discovery_prefix)
+	DISC_PREFIX="${DISC_PREFIX:-homeassistant}"
+
+	# ---------------------------------------------------------------------------
+	# Shared JSON fragments reused by every entity
+	# ---------------------------------------------------------------------------
+	DEVICE_JSON="{\"identifiers\":[\"thingino_${HA_CAMERA_ID}\"],\"name\":\"$(ha_json_escape "$DEVICE_NAME")\",\"model\":\"$(ha_json_escape "$DEVICE_MODEL")\",\"manufacturer\":\"Thingino\",\"sw_version\":\"$(ha_json_escape "$FW_VERSION")\",\"configuration_url\":\"http://${HA_CAMERA_IP}\"}"
+	AVAIL_JSON="{\"topic\":\"${HA_AVAIL_TOPIC}\",\"payload_available\":\"online\",\"payload_not_available\":\"offline\"}"
+
+	ST="cameras/${HA_CAMERA_ID}"
+
+	# ---------------------------------------------------------------------------
+	# Helper: check if a light GPIO is actually configured on this board
+	# ---------------------------------------------------------------------------
+	light_gpio_ok() {
+		command -v light >/dev/null 2>&1 || return 1
+		local v
+		v=$(light "$1" read 2>/dev/null | tr -d '\n\r')
+		[ "$v" = "0" ] || [ "$v" = "1" ]
+	}
+
+	# Open a publish session: all ha_pub_disc / ha_clear_disc calls below are
+	# queued and flushed at the end with rate limiting, preventing the burst of
+	# rapid-fire MQTT connections that flooded the broker on startup.
+	ha_pub_begin
+
+	# ---------------------------------------------------------------------------
+	# Entity definitions — each entity either publishes or clears its topic
+	# ---------------------------------------------------------------------------
+
+	# Binary sensor: Motion detected
+	if ha_entity_enabled motion; then
+		ha_pub_disc binary_sensor motion \
+			"{\"name\":\"Motion\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_motion\",\"state_topic\":\"${ST}/motion/state\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"device_class\":\"motion\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	else
+		ha_clear_disc binary_sensor motion
+	fi
+
+	# Switch: Motion Guard
+	if ha_entity_enabled motion_guard; then
+		ha_pub_disc switch motion_guard \
+			"{\"name\":\"Motion Guard\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_motion_guard\",\"state_topic\":\"${ST}/motion_guard/state\",\"command_topic\":\"${ST}/motion_guard/set\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"icon\":\"mdi:motion-sensor\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	else
+		ha_clear_disc switch motion_guard
+	fi
+
+	# Switch: IR Cut Filter
+	if ha_entity_enabled ircut; then
+		ha_pub_disc switch ircut \
+			"{\"name\":\"IR Cut Filter\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_ircut\",\"state_topic\":\"${ST}/ircut/state\",\"command_topic\":\"${ST}/ircut/set\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"icon\":\"mdi:camera-iris\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	else
+		ha_clear_disc switch ircut
+	fi
+
+	# Select: Day/Night mode
+	if ha_entity_enabled daynight; then
+		ha_pub_disc select daynight \
+			"{\"name\":\"Day\\/Night Mode\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_daynight\",\"state_topic\":\"${ST}/daynight/state\",\"command_topic\":\"${ST}/daynight/set\",\"options\":[\"day\",\"night\"],\"icon\":\"mdi:theme-light-dark\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	else
+		ha_clear_disc select daynight
+	fi
+
+	# Switch: Privacy screen
+	if ha_entity_enabled privacy; then
+		ha_pub_disc switch privacy \
+			"{\"name\":\"Privacy Screen\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_privacy\",\"state_topic\":\"${ST}/privacy/state\",\"command_topic\":\"${ST}/privacy/set\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"icon\":\"mdi:eye-off\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	else
+		ha_clear_disc switch privacy
+	fi
+
+	# Switch: Color mode
+	if ha_entity_enabled color; then
+		ha_pub_disc switch color \
+			"{\"name\":\"Color Mode\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_color\",\"state_topic\":\"${ST}/color/state\",\"command_topic\":\"${ST}/color/set\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"icon\":\"mdi:palette\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	else
+		ha_clear_disc switch color
+	fi
+
+	# Switch: IR LED 850 nm
+	if ha_entity_enabled ir850 && light_gpio_ok ir850; then
+		ha_pub_disc switch ir850 \
+			"{\"name\":\"IR LED 850nm\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_ir850\",\"state_topic\":\"${ST}/ir850/state\",\"command_topic\":\"${ST}/ir850/set\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"icon\":\"mdi:led-on\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	else
+		ha_clear_disc switch ir850
+	fi
+
+	# Switch: IR LED 940 nm
+	if ha_entity_enabled ir940 && light_gpio_ok ir940; then
+		ha_pub_disc switch ir940 \
+			"{\"name\":\"IR LED 940nm\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_ir940\",\"state_topic\":\"${ST}/ir940/state\",\"command_topic\":\"${ST}/ir940/set\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"icon\":\"mdi:led-on\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	else
+		ha_clear_disc switch ir940
+	fi
+
+	# Switch: White light
+	if ha_entity_enabled white_light && light_gpio_ok white; then
+		ha_pub_disc switch white \
+			"{\"name\":\"White Light\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_white\",\"state_topic\":\"${ST}/white/state\",\"command_topic\":\"${ST}/white/set\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"icon\":\"mdi:lightbulb\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	else
+		ha_clear_disc switch white
+	fi
+
+	# Sensor: Gain
+	if ha_entity_enabled gain; then
+		ha_pub_disc sensor gain \
+			"{\"name\":\"Gain\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_gain\",\"state_topic\":\"${ST}/gain/state\",\"unit_of_measurement\":\"dB\",\"state_class\":\"measurement\",\"icon\":\"mdi:brightness-6\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	else
+		ha_clear_disc sensor gain
+	fi
+
+	# Sensor: WiFi RSSI
+	if ha_entity_enabled rssi; then
+		ha_pub_disc sensor rssi \
+			"{\"name\":\"WiFi Signal\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_rssi\",\"state_topic\":\"${ST}/rssi/state\",\"unit_of_measurement\":\"dBm\",\"device_class\":\"signal_strength\",\"state_class\":\"measurement\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	else
+		ha_clear_disc sensor rssi
+	fi
+
+	# Button: Snapshot
+	if ha_entity_enabled snapshot; then
+		ha_pub_disc button snapshot \
+			"{\"name\":\"Snapshot\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_snapshot\",\"command_topic\":\"${ST}/snapshot/set\",\"payload_press\":\"1\",\"icon\":\"mdi:camera\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	else
+		ha_clear_disc button snapshot
+	fi
+
+	# Button: Reboot
+	if ha_entity_enabled reboot; then
+		ha_pub_disc button reboot \
+			"{\"name\":\"Reboot\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_reboot\",\"command_topic\":\"${ST}/reboot/set\",\"payload_press\":\"1\",\"device_class\":\"restart\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	else
+		ha_clear_disc button reboot
+	fi
+
+	# Update: OTA firmware
+	if ha_entity_enabled ota; then
+		ha_pub_disc update firmware \
+			"{\"name\":\"Firmware\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_firmware\",\"state_topic\":\"${ST}/firmware/state\",\"latest_version_topic\":\"${ST}/firmware/latest\",\"command_topic\":\"${ST}/firmware/set\",\"payload_install\":\"install\",\"device_class\":\"firmware\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
+	else
+		ha_clear_disc update firmware
+	fi
+
+	# PTZ: always cleared (handled by dedicated ONVIF/RTSP integrations)
+	for _dir in up down left right home; do
+		ha_clear_disc button "ptz_${_dir}"
 	done
-	echo "unknown"
+
+	# Flush all queued discovery publishes with rate limiting.
+	ha_pub_flush
+
+	# Mark device online (published directly, not queued — must happen after flush)
+	mpub=$(ha_mpub_cmd disc)
+	sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'"
+
+	echo "ha-discovery: registered ${DEVICE_NAME} (${HA_CAMERA_ID}) on ${HA_MQTT_HOST}:${HA_MQTT_PORT}"
 }
 
-FW_VERSION=$(get_firmware_version)
-
-DEVICE_NAME=$(ha_cfg device_name)
-DEVICE_NAME="${DEVICE_NAME:-$HA_CAMERA_HOSTNAME}"
-
-DEVICE_MODEL=$(ha_cfg device_model)
-DEVICE_MODEL="${DEVICE_MODEL:-Thingino Camera}"
-
-DISC_PREFIX=$(ha_cfg discovery_prefix)
-DISC_PREFIX="${DISC_PREFIX:-homeassistant}"
-
-# ---------------------------------------------------------------------------
-# Shared JSON fragments reused by every entity
-# ---------------------------------------------------------------------------
-DEVICE_JSON="{\"identifiers\":[\"thingino_${HA_CAMERA_ID}\"],\"name\":\"$(ha_json_escape "$DEVICE_NAME")\",\"model\":\"$(ha_json_escape "$DEVICE_MODEL")\",\"manufacturer\":\"Thingino\",\"sw_version\":\"$(ha_json_escape "$FW_VERSION")\",\"configuration_url\":\"http://${HA_CAMERA_IP}\"}"
-AVAIL_JSON="{\"topic\":\"${HA_AVAIL_TOPIC}\",\"payload_available\":\"online\",\"payload_not_available\":\"offline\"}"
-
-ST="cameras/${HA_CAMERA_ID}"
-
-# ---------------------------------------------------------------------------
-# Helper: check if a light GPIO is actually configured on this board
-# ---------------------------------------------------------------------------
-light_gpio_ok() {
-	command -v light >/dev/null 2>&1 || return 1
-	local v
-	v=$(light "$1" read 2>/dev/null | tr -d '\n\r')
-	[ "$v" = "0" ] || [ "$v" = "1" ]
-}
-
-# Open a publish session: all ha_pub_disc / ha_clear_disc calls below are
-# queued and flushed at the end with rate limiting, preventing the burst of
-# rapid-fire MQTT connections that flooded the broker on startup.
-ha_pub_begin
-
-# ---------------------------------------------------------------------------
-# Entity definitions — each entity either publishes or clears its topic
-# ---------------------------------------------------------------------------
-
-# Binary sensor: Motion detected
-if ha_entity_enabled motion; then
-	ha_pub_disc binary_sensor motion \
-		"{\"name\":\"Motion\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_motion\",\"state_topic\":\"${ST}/motion/state\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"device_class\":\"motion\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
-else
-	ha_clear_disc binary_sensor motion
-fi
-
-# Switch: Motion Guard
-if ha_entity_enabled motion_guard; then
-	ha_pub_disc switch motion_guard \
-		"{\"name\":\"Motion Guard\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_motion_guard\",\"state_topic\":\"${ST}/motion_guard/state\",\"command_topic\":\"${ST}/motion_guard/set\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"icon\":\"mdi:motion-sensor\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
-else
-	ha_clear_disc switch motion_guard
-fi
-
-# Switch: IR Cut Filter
-if ha_entity_enabled ircut; then
-	ha_pub_disc switch ircut \
-		"{\"name\":\"IR Cut Filter\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_ircut\",\"state_topic\":\"${ST}/ircut/state\",\"command_topic\":\"${ST}/ircut/set\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"icon\":\"mdi:camera-iris\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
-else
-	ha_clear_disc switch ircut
-fi
-
-# Select: Day/Night mode
-if ha_entity_enabled daynight; then
-	ha_pub_disc select daynight \
-		"{\"name\":\"Day\\/Night Mode\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_daynight\",\"state_topic\":\"${ST}/daynight/state\",\"command_topic\":\"${ST}/daynight/set\",\"options\":[\"day\",\"night\"],\"icon\":\"mdi:theme-light-dark\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
-else
-	ha_clear_disc select daynight
-fi
-
-# Switch: Privacy screen
-if ha_entity_enabled privacy; then
-	ha_pub_disc switch privacy \
-		"{\"name\":\"Privacy Screen\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_privacy\",\"state_topic\":\"${ST}/privacy/state\",\"command_topic\":\"${ST}/privacy/set\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"icon\":\"mdi:eye-off\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
-else
-	ha_clear_disc switch privacy
-fi
-
-# Switch: Color mode
-if ha_entity_enabled color; then
-	ha_pub_disc switch color \
-		"{\"name\":\"Color Mode\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_color\",\"state_topic\":\"${ST}/color/state\",\"command_topic\":\"${ST}/color/set\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"icon\":\"mdi:palette\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
-else
-	ha_clear_disc switch color
-fi
-
-# Switch: IR LED 850 nm
-if ha_entity_enabled ir850 && light_gpio_ok ir850; then
-	ha_pub_disc switch ir850 \
-		"{\"name\":\"IR LED 850nm\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_ir850\",\"state_topic\":\"${ST}/ir850/state\",\"command_topic\":\"${ST}/ir850/set\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"icon\":\"mdi:led-on\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
-else
-	ha_clear_disc switch ir850
-fi
-
-# Switch: IR LED 940 nm
-if ha_entity_enabled ir940 && light_gpio_ok ir940; then
-	ha_pub_disc switch ir940 \
-		"{\"name\":\"IR LED 940nm\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_ir940\",\"state_topic\":\"${ST}/ir940/state\",\"command_topic\":\"${ST}/ir940/set\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"icon\":\"mdi:led-on\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
-else
-	ha_clear_disc switch ir940
-fi
-
-# Switch: White light
-if ha_entity_enabled white_light && light_gpio_ok white; then
-	ha_pub_disc switch white \
-		"{\"name\":\"White Light\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_white\",\"state_topic\":\"${ST}/white/state\",\"command_topic\":\"${ST}/white/set\",\"payload_on\":\"ON\",\"payload_off\":\"OFF\",\"icon\":\"mdi:lightbulb\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
-else
-	ha_clear_disc switch white
-fi
-
-# Sensor: Gain
-if ha_entity_enabled gain; then
-	ha_pub_disc sensor gain \
-		"{\"name\":\"Gain\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_gain\",\"state_topic\":\"${ST}/gain/state\",\"unit_of_measurement\":\"dB\",\"state_class\":\"measurement\",\"icon\":\"mdi:brightness-6\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
-else
-	ha_clear_disc sensor gain
-fi
-
-# Sensor: WiFi RSSI
-if ha_entity_enabled rssi; then
-	ha_pub_disc sensor rssi \
-		"{\"name\":\"WiFi Signal\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_rssi\",\"state_topic\":\"${ST}/rssi/state\",\"unit_of_measurement\":\"dBm\",\"device_class\":\"signal_strength\",\"state_class\":\"measurement\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
-else
-	ha_clear_disc sensor rssi
-fi
-
-# Button: Snapshot
-if ha_entity_enabled snapshot; then
-	ha_pub_disc button snapshot \
-		"{\"name\":\"Snapshot\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_snapshot\",\"command_topic\":\"${ST}/snapshot/set\",\"payload_press\":\"1\",\"icon\":\"mdi:camera\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
-else
-	ha_clear_disc button snapshot
-fi
-
-# Button: Reboot
-if ha_entity_enabled reboot; then
-	ha_pub_disc button reboot \
-		"{\"name\":\"Reboot\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_reboot\",\"command_topic\":\"${ST}/reboot/set\",\"payload_press\":\"1\",\"device_class\":\"restart\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
-else
-	ha_clear_disc button reboot
-fi
-
-# Update: OTA firmware
-if ha_entity_enabled ota; then
-	ha_pub_disc update firmware \
-		"{\"name\":\"Firmware\",\"unique_id\":\"thingino_${HA_CAMERA_ID}_firmware\",\"state_topic\":\"${ST}/firmware/state\",\"latest_version_topic\":\"${ST}/firmware/latest\",\"command_topic\":\"${ST}/firmware/set\",\"payload_install\":\"install\",\"device_class\":\"firmware\",\"availability\":${AVAIL_JSON},\"device\":${DEVICE_JSON}}"
-else
-	ha_clear_disc update firmware
-fi
-
-# PTZ: always cleared (handled by dedicated ONVIF/RTSP integrations)
-for _dir in up down left right home; do
-	ha_clear_disc button "ptz_${_dir}"
+while true; do
+	rm -f "$HA_DISCOVERY_PENDING"
+	publish_discovery
+	[ -f "$HA_DISCOVERY_PENDING" ] || break
 done
-
-# Flush all queued discovery publishes with rate limiting.
-ha_pub_flush
-
-# Mark device online (published directly, not queued — must happen after flush)
-mpub=$(ha_mpub_cmd disc)
-sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'"
-
-echo "ha-discovery: registered ${DEVICE_NAME} (${HA_CAMERA_ID}) on ${HA_MQTT_HOST}:${HA_MQTT_PORT}"

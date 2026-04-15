@@ -5,8 +5,100 @@
 
 . /usr/share/ha-common
 
-[ -n "$HA_CAMERA_ID" ] || { echo "ha-daemon: cannot determine camera MAC" >&2; exit 1; }
-[ -n "$HA_MQTT_HOST" ] || { echo "ha-daemon: ha.mqtt.host (or mqtt_sub.host) not configured" >&2; exit 1; }
+[ -n "$HA_CAMERA_ID" ] || {
+	echo "ha-daemon: cannot determine camera MAC" >&2
+	exit 1
+}
+[ -n "$HA_MQTT_HOST" ] || {
+	echo "ha-daemon: ha.mqtt.host (or mqtt_sub.host) not configured" >&2
+	exit 1
+}
+
+HA_LOCK_DIR="/run/ha/daemon.lock.d"
+CLEANUP_DONE=0
+
+record_pid() {
+	local name="$1"
+	local pid="$2"
+	local start_time
+
+	printf '%s\n' "$pid" >"${HA_LOCK_DIR}/${name}.pid"
+
+	start_time=$(ha_pid_start_time "$pid")
+	if [ -n "$start_time" ]; then
+		printf '%s\n' "$start_time" >"${HA_LOCK_DIR}/${name}.start"
+	else
+		rm -f "${HA_LOCK_DIR}/${name}.start"
+	fi
+}
+
+clear_pid_record() {
+	rm -f "${HA_LOCK_DIR}/$1.pid" "${HA_LOCK_DIR}/$1.start"
+}
+
+terminate_recorded_pid() {
+	local name="$1"
+	local cmdline="$2"
+	local pid
+	local start_time
+	local timeout
+
+	pid=$(cat "${HA_LOCK_DIR}/${name}.pid" 2>/dev/null)
+	start_time=$(cat "${HA_LOCK_DIR}/${name}.start" 2>/dev/null)
+
+	if ! ha_recorded_pid_matches "$pid" "$start_time" "$cmdline"; then
+		clear_pid_record "$name"
+		return 0
+	fi
+
+	echo "ha-daemon: terminating stale ${name} process (pid $pid)" >&2
+	kill "$pid" 2>/dev/null
+	timeout=10
+	while ha_recorded_pid_matches "$pid" "$start_time" "$cmdline" && [ "$timeout" -gt 0 ]; do
+		sleep 1
+		timeout=$((timeout - 1))
+	done
+
+	if ha_recorded_pid_matches "$pid" "$start_time" "$cmdline"; then
+		echo "ha-daemon: stale ${name} process did not exit, killing (pid $pid)" >&2
+		kill -9 "$pid" 2>/dev/null
+	fi
+
+	clear_pid_record "$name"
+}
+
+wait_for_lock_metadata() {
+	local timeout=5
+	while [ "$timeout" -gt 0 ]; do
+		[ -s "${HA_LOCK_DIR}/pid" ] && [ -s "${HA_LOCK_DIR}/start" ] && return 0
+		sleep 1
+		timeout=$((timeout - 1))
+	done
+	return 1
+}
+
+cleanup() {
+	[ "$CLEANUP_DONE" = "1" ] && return 0
+	CLEANUP_DONE=1
+
+	local mpub
+
+	if [ -n "$COMMANDS_PID" ]; then
+		kill "$COMMANDS_PID" 2>/dev/null
+		wait "$COMMANDS_PID" 2>/dev/null
+		clear_pid_record commands
+	fi
+
+	mpub=$(ha_mpub_cmd daemon)
+	sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'offline'" 2>/dev/null
+	rm -rf "$HA_LOCK_DIR"
+}
+
+handle_signal() {
+	trap - EXIT INT TERM
+	cleanup
+	exit 0
+}
 
 # ---------------------------------------------------------------------------
 # Singleton: only one ha-daemon may run at a time.
@@ -14,19 +106,28 @@
 # mkdir either succeeds (we own the lock) or fails (someone else does),
 # with no window between the two steps.
 # ---------------------------------------------------------------------------
-HA_LOCK_DIR="/run/ha/daemon.lock.d"
 mkdir -p /run/ha
 if ! mkdir "$HA_LOCK_DIR" 2>/dev/null; then
+	wait_for_lock_metadata >/dev/null 2>&1 || true
 	old_pid=$(cat "${HA_LOCK_DIR}/pid" 2>/dev/null)
-	if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+	old_start=$(cat "${HA_LOCK_DIR}/start" 2>/dev/null)
+	if ha_recorded_pid_matches "$old_pid" "$old_start" "ha-daemon"; then
 		echo "ha-daemon: already running (pid $old_pid), exiting" >&2
 		exit 1
 	fi
+	terminate_recorded_pid commands "ha-commands"
 	# Stale lock from a previous crash — take it over
 	rm -rf "$HA_LOCK_DIR"
-	mkdir "$HA_LOCK_DIR" 2>/dev/null || { echo "ha-daemon: cannot acquire lock" >&2; exit 1; }
+	mkdir "$HA_LOCK_DIR" 2>/dev/null || {
+		echo "ha-daemon: cannot acquire lock" >&2
+		exit 1
+	}
 fi
-printf '%s\n' "$$" > "${HA_LOCK_DIR}/pid"
+printf '%s\n' "$$" >"${HA_LOCK_DIR}/pid"
+printf '%s\n' "$(ha_pid_start_time "$$")" >"${HA_LOCK_DIR}/start"
+COMMANDS_PID=""
+trap cleanup EXIT
+trap handle_signal INT TERM
 
 # ---------------------------------------------------------------------------
 # Clear state cache on startup.
@@ -39,51 +140,52 @@ ha_state_cache_clear
 # ---------------------------------------------------------------------------
 # Publish discovery and start command subscriber
 # ---------------------------------------------------------------------------
-ha-discovery || { echo "ha-daemon: discovery failed" >&2; exit 1; }
+ha-discovery || {
+	echo "ha-daemon: discovery failed" >&2
+	exit 1
+}
 
-# Restart ha-commands automatically if it exits (e.g. transient broker disconnect)
-run_commands() {
+start_commands() {
+	ha-commands &
+	COMMANDS_PID=$!
+	record_pid commands "$COMMANDS_PID"
+}
+
+restart_commands_if_needed() {
 	local mpub
-	while true; do
-		ha-commands
-		echo "ha-daemon: ha-commands exited, restarting in 5s..."
-		sleep 5
+
+	if [ -n "$COMMANDS_PID" ] && kill -0 "$COMMANDS_PID" 2>/dev/null; then
+		return 0
+	fi
+
+	if [ -n "$COMMANDS_PID" ]; then
+		wait "$COMMANDS_PID" 2>/dev/null
+		clear_pid_record commands
+		echo "ha-daemon: ha-commands exited, restarting..." >&2
 		mpub=$(ha_mpub_cmd daemon)
 		sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'" 2>/dev/null
-	done
+	fi
+
+	start_commands
 }
-run_commands &
-CMD_PID=$!
+
+start_commands
 
 # First ha-state call: force-publish all entities to fully sync HA.
 # Subsequent calls in the loop below only publish changed values.
 ha-state force
 
 # ---------------------------------------------------------------------------
-# Cleanup on exit
-# ---------------------------------------------------------------------------
-cleanup() {
-	local mpub
-	mpub=$(ha_mpub_cmd daemon)
-	sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'offline'" 2>/dev/null
-	kill "$CMD_PID" 2>/dev/null
-	wait "$CMD_PID" 2>/dev/null
-	rm -rf "$HA_LOCK_DIR"
-}
-trap cleanup EXIT INT TERM
-
-# ---------------------------------------------------------------------------
 # Periodic state + discovery refresh loop
 # ---------------------------------------------------------------------------
-STATE_INTERVAL=$(ha_cfg state_interval)
-STATE_INTERVAL="${STATE_INTERVAL:-15}"
+STATE_INTERVAL=$(ha_cfg_positive_int state_interval 15)
 
-DISC_INTERVAL=$(ha_cfg discovery_interval)
-DISC_INTERVAL="${DISC_INTERVAL:-3600}"
+DISC_INTERVAL=$(ha_cfg_positive_int discovery_interval 3600)
 
 elapsed=0
 while true; do
 	sleep "$STATE_INTERVAL"
+	restart_commands_if_needed
 	elapsed=$((elapsed + STATE_INTERVAL))
 	# No "force" argument: only publishes entities that changed since last poll.
 	ha-state

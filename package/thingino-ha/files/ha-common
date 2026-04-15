@@ -10,15 +10,23 @@ HA_CONFIG_FILE="${HA_CONFIG_FILE:-/etc/thingino.json}"
 # ---------------------------------------------------------------------------
 
 ha_cfg() {
-	jct "$HA_CONFIG_FILE" get "ha.$1" 2>/dev/null | tr -d '"'
+	local val
+	val=$(jct "$HA_CONFIG_FILE" get "ha.$1" 2>/dev/null)
+	val=${val#\"}
+	val=${val%\"}
+	printf '%s' "$val"
 }
 
 _ha_mqtt_cfg() {
 	local key="$1"
 	local val
-	val=$(jct "$HA_CONFIG_FILE" get "ha.mqtt.${key}" 2>/dev/null | tr -d '"')
+	val=$(jct "$HA_CONFIG_FILE" get "ha.mqtt.${key}" 2>/dev/null)
+	val=${val#\"}
+	val=${val%\"}
 	if [ -z "$val" ]; then
-		val=$(jct "$HA_CONFIG_FILE" get "mqtt_sub.${key}" 2>/dev/null | tr -d '"')
+		val=$(jct "$HA_CONFIG_FILE" get "mqtt_sub.${key}" 2>/dev/null)
+		val=${val#\"}
+		val=${val%\"}
 	fi
 	printf '%s' "$val"
 }
@@ -27,6 +35,19 @@ ha_entity_enabled() {
 	local val
 	val=$(ha_cfg "enable_$1")
 	[ "$val" != "false" ]
+}
+
+ha_cfg_positive_int() {
+	local key="$1"
+	local default_value="$2"
+	local value
+
+	value=$(ha_cfg "$key")
+	case "$value" in
+		""|*[!0-9]*) printf '%s' "$default_value" ;;
+		0) printf '%s' "$default_value" ;;
+		*) printf '%s' "$value" ;;
+	esac
 }
 
 # ---------------------------------------------------------------------------
@@ -62,37 +83,118 @@ HA_MQTT_USER=$(_ha_mqtt_cfg username)
 HA_MQTT_PASS=$(_ha_mqtt_cfg password)
 HA_MQTT_SSL=$(_ha_mqtt_cfg use_ssl)
 HA_MQTT_CLIENT_PREFIX=$(_ha_mqtt_cfg client_id_prefix)
+HA_DISCOVERY_PREFIX=$(ha_cfg discovery_prefix)
 
 HA_MQTT_PORT="${HA_MQTT_PORT:-1883}"
 HA_MQTT_CLIENT_PREFIX="${HA_MQTT_CLIENT_PREFIX:-thingino-ha}"
+HA_DISCOVERY_PREFIX="${HA_DISCOVERY_PREFIX:-homeassistant}"
 
 # Delay between individual MQTT publishes within a batch session (microseconds).
 # Prevents burst-flooding the broker when many entities are published at once.
 HA_PUB_DELAY_US="${HA_PUB_DELAY_US:-80000}"
+HA_RUN_DIR="${HA_RUN_DIR:-/run/ha}"
 
-_sq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+_sq() {
+	case "$1" in
+		*\'*) printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")" ;;
+		*) printf "'%s'" "$1" ;;
+	esac
+}
+
+ha_pid_start_time() {
+	awk '{print $22}' "/proc/$1/stat" 2>/dev/null
+}
+
+ha_recorded_pid_matches() {
+	local pid="$1" start_time="$2" cmdline="$3"
+	local current_start current_cmdline
+
+	[ -n "$pid" ] || return 1
+	[ -r "/proc/$pid/stat" ] || return 1
+
+	current_start=$(ha_pid_start_time "$pid")
+	[ -n "$current_start" ] || return 1
+	[ -z "$start_time" ] || [ "$current_start" = "$start_time" ] || return 1
+
+	if [ -n "$cmdline" ]; then
+		current_cmdline=$(tr '\000' ' ' < "/proc/$pid/cmdline" 2>/dev/null)
+		case "$current_cmdline" in
+			*"$cmdline"*) ;;
+			*) return 1 ;;
+		esac
+	fi
+
+	return 0
+}
+
+ha_try_lock() {
+	local lock_dir="$1" cmdline="$2" pending_file="$3"
+	local pid start_time
+
+	mkdir -p "$HA_RUN_DIR" || return 1
+
+	if mkdir "$lock_dir" 2>/dev/null; then
+		printf '%s\n' "$$" > "${lock_dir}/pid"
+		printf '%s\n' "$(ha_pid_start_time "$$")" > "${lock_dir}/start"
+		return 0
+	fi
+
+	[ -n "$pending_file" ] && : > "$pending_file"
+
+	pid=$(cat "${lock_dir}/pid" 2>/dev/null)
+	start_time=$(cat "${lock_dir}/start" 2>/dev/null)
+	if ha_recorded_pid_matches "$pid" "$start_time" "$cmdline"; then
+		return 1
+	fi
+
+	rm -rf "$lock_dir"
+	if mkdir "$lock_dir" 2>/dev/null; then
+		printf '%s\n' "$$" > "${lock_dir}/pid"
+		printf '%s\n' "$(ha_pid_start_time "$$")" > "${lock_dir}/start"
+		return 0
+	fi
+
+	return 1
+}
+
+ha_unlock() {
+	rm -rf "$1"
+}
 
 # ---------------------------------------------------------------------------
 # MQTT command builders
 # ---------------------------------------------------------------------------
+_HA_CMD_MPUB="mosquitto_pub -h $(_sq "$HA_MQTT_HOST") -p $(_sq "$HA_MQTT_PORT")"
+[ -n "$HA_MQTT_USER" ] && _HA_CMD_MPUB="${_HA_CMD_MPUB} -u $(_sq "$HA_MQTT_USER")"
+[ -n "$HA_MQTT_PASS" ] && _HA_CMD_MPUB="${_HA_CMD_MPUB} -P $(_sq "$HA_MQTT_PASS")"
+[ "$HA_MQTT_SSL" = "true" ] && _HA_CMD_MPUB="${_HA_CMD_MPUB} --capath /etc/ssl/certs"
+
+_HA_CLIENT_CMD_PREFIX="$(_sq "${HA_MQTT_CLIENT_PREFIX}-cmd-${HA_CAMERA_ID}")"
+_HA_CLIENT_DISC_PREFIX="$(_sq "${HA_MQTT_CLIENT_PREFIX}-disc-${HA_CAMERA_ID}")"
+_HA_CLIENT_STATE_PREFIX="$(_sq "${HA_MQTT_CLIENT_PREFIX}-state-${HA_CAMERA_ID}")"
+_HA_CLIENT_DAEMON_PREFIX="$(_sq "${HA_MQTT_CLIENT_PREFIX}-daemon-${HA_CAMERA_ID}")"
+
 ha_mpub_cmd() {
 	local suffix="${1:-pub}"
-	local cmd="mosquitto_pub -h $(_sq "$HA_MQTT_HOST") -p $(_sq "$HA_MQTT_PORT")"
-	cmd="$cmd -i $(_sq "${HA_MQTT_CLIENT_PREFIX}-${suffix}-${HA_CAMERA_ID}")"
-	[ -n "$HA_MQTT_USER" ] && cmd="$cmd -u $(_sq "$HA_MQTT_USER")"
-	[ -n "$HA_MQTT_PASS" ] && cmd="$cmd -P $(_sq "$HA_MQTT_PASS")"
-	[ "$HA_MQTT_SSL" = "true" ] && cmd="$cmd --capath /etc/ssl/certs"
-	printf '%s' "$cmd"
+	local mpub="${_HA_CMD_MPUB} -i "
+	case "$suffix" in
+		cmd) mpub="${mpub}${_HA_CLIENT_CMD_PREFIX}" ;;
+		disc) mpub="${mpub}${_HA_CLIENT_DISC_PREFIX}" ;;
+		state) mpub="${mpub}${_HA_CLIENT_STATE_PREFIX}" ;;
+		daemon) mpub="${mpub}${_HA_CLIENT_DAEMON_PREFIX}" ;;
+		*) mpub="${mpub}$(_sq "${HA_MQTT_CLIENT_PREFIX}-${suffix}-${HA_CAMERA_ID}")" ;;
+	esac
+	printf '%s' "$mpub"
 }
 
 ha_msub_cmd() {
 	local suffix="${1:-sub}"
-	local cmd="mosquitto_sub -h $(_sq "$HA_MQTT_HOST") -p $(_sq "$HA_MQTT_PORT")"
-	cmd="$cmd -i $(_sq "${HA_MQTT_CLIENT_PREFIX}-${suffix}-${HA_CAMERA_ID}")"
-	[ -n "$HA_MQTT_USER" ] && cmd="$cmd -u $(_sq "$HA_MQTT_USER")"
-	[ -n "$HA_MQTT_PASS" ] && cmd="$cmd -P $(_sq "$HA_MQTT_PASS")"
-	[ "$HA_MQTT_SSL" = "true" ] && cmd="$cmd --capath /etc/ssl/certs"
-	printf '%s' "$cmd"
+	local msub="mosquitto_sub -h $(_sq "$HA_MQTT_HOST") -p $(_sq "$HA_MQTT_PORT")"
+	msub="${msub} -i $(_sq "${HA_MQTT_CLIENT_PREFIX}-${suffix}-${HA_CAMERA_ID}")"
+	[ -n "$HA_MQTT_USER" ] && msub="${msub} -u $(_sq "$HA_MQTT_USER")"
+	[ -n "$HA_MQTT_PASS" ] && msub="${msub} -P $(_sq "$HA_MQTT_PASS")"
+	[ "$HA_MQTT_SSL" = "true" ] && msub="${msub} --capath /etc/ssl/certs"
+	printf '%s' "$msub"
 }
 
 # ---------------------------------------------------------------------------
@@ -115,6 +217,14 @@ ha_msub_cmd() {
 # for the next poll cycle.
 # ---------------------------------------------------------------------------
 _HA_STATE_CACHE_DIR="/tmp/ha_state_cache_${HA_CAMERA_ID}"
+
+_ha_cache_store() {
+	local cache_key="$1"
+	local payload="$2"
+
+	mkdir -p "$_HA_STATE_CACHE_DIR"
+	printf '%s' "$payload" > "${_HA_STATE_CACHE_DIR}/${cache_key}"
+}
 
 # Clear all cached states. Call from ha-daemon on startup.
 ha_state_cache_clear() {
@@ -153,10 +263,26 @@ ha_pub_begin() {
 _ha_pub_exec() {
 	local retain="$1" suffix="$2" topic="$3" tmpfile="$4"
 	[ -f "$tmpfile" ] || return 1
-	local mpub
-	mpub=$(ha_mpub_cmd "$suffix")
+	local mpub_client mpub
+	case "$suffix" in
+		cmd) mpub_client="${_HA_CLIENT_CMD_PREFIX}" ;;
+		disc) mpub_client="${_HA_CLIENT_DISC_PREFIX}" ;;
+		state) mpub_client="${_HA_CLIENT_STATE_PREFIX}" ;;
+		daemon) mpub_client="${_HA_CLIENT_DAEMON_PREFIX}" ;;
+		*) mpub_client="$(_sq "${HA_MQTT_CLIENT_PREFIX}-${suffix}-${HA_CAMERA_ID}")" ;;
+	esac
+	mpub="${_HA_CMD_MPUB} -i ${mpub_client}"
+
 	[ "$retain" = "1" ] && mpub="$mpub -r"
-	sh -c "$mpub -t $(_sq "$topic") -f $(_sq "$tmpfile")" 2>/dev/null
+	
+	local topic_sq="${topic//\'/\'\\\\\'\'}"
+	local tmpfile_sq="${tmpfile//\'/\'\\\\\'\'}"
+
+	if [ -s "$tmpfile" ]; then
+		sh -c "$mpub -t '$topic_sq' -f '$tmpfile_sq'" 2>/dev/null
+	else
+		sh -c "$mpub -t '$topic_sq' -n" 2>/dev/null
+	fi
 	rm -f "$tmpfile"
 }
 
@@ -185,6 +311,23 @@ ha_pub_flush() {
 # Public publish helpers
 # ---------------------------------------------------------------------------
 
+ha_pub_topic() {
+	local cache_key="$1" topic="$2" payload="$3" retain="${4:-1}" force="${5:-0}" suffix="${6:-state}"
+	local tmpfile
+
+	[ -n "$payload" ] || return 0
+
+	if [ "$force" = "1" ]; then
+		_ha_cache_store "$cache_key" "$payload"
+	else
+		_ha_state_changed "$cache_key" "$payload" || return 0
+	fi
+
+	tmpfile=$(mktemp /tmp/ha_state.XXXXXX) || return 1
+	printf '%s' "$payload" > "$tmpfile"
+	_ha_queue_or_pub "$retain" "$suffix" "$topic" "$tmpfile"
+}
+
 # Publish a state value.
 #
 # By default, publishes only if the value changed since last time (change-
@@ -197,62 +340,31 @@ ha_pub_flush() {
 # next poll cycle.
 ha_pub_state() {
 	local entity="$1" state="$2" force="${3:-0}"
-	[ -n "$state" ] || return 0
-
-	if [ "$force" = "1" ]; then
-		# Force: always publish and update cache.
-		mkdir -p "$_HA_STATE_CACHE_DIR"
-		printf '%s' "$state" > "${_HA_STATE_CACHE_DIR}/${entity}"
-	else
-		# Normal: skip if state unchanged since last publish.
-		_ha_state_changed "$entity" "$state" || return 0
-	fi
-
 	local topic="cameras/${HA_CAMERA_ID}/${entity}/state"
-	local tmpfile
-	tmpfile=$(mktemp /tmp/ha_state.XXXXXX) || return 1
-	printf '%s' "$state" > "$tmpfile"
-	_ha_queue_or_pub 1 state "$topic" "$tmpfile"
+	ha_pub_topic "$entity" "$topic" "$state" 1 "$force" state
 }
 
 # Publish a JSON state payload with the same change-detection logic.
 ha_pub_state_json() {
 	local entity="$1" payload="$2" force="${3:-0}"
-
-	if [ "$force" = "1" ]; then
-		mkdir -p "$_HA_STATE_CACHE_DIR"
-		printf '%s' "$payload" > "${_HA_STATE_CACHE_DIR}/${entity}"
-	else
-		_ha_state_changed "$entity" "$payload" || return 0
-	fi
-
 	local topic="cameras/${HA_CAMERA_ID}/${entity}/state"
-	local tmpfile
-	tmpfile=$(mktemp /tmp/ha_state.XXXXXX) || return 1
-	printf '%s' "$payload" > "$tmpfile"
-	_ha_queue_or_pub 1 state "$topic" "$tmpfile"
+	ha_pub_topic "$entity" "$topic" "$payload" 1 "$force" state
 }
 
 # Clear a discovery topic (empty retained message removes entity from HA).
 ha_clear_disc() {
 	local component="$1" object_id="$2"
-	local disc_prefix
-	disc_prefix=$(ha_cfg discovery_prefix)
-	disc_prefix="${disc_prefix:-homeassistant}"
-	local topic="${disc_prefix}/${component}/thingino_${HA_CAMERA_ID}/${object_id}/config"
-	local mpub
-	mpub=$(ha_mpub_cmd disc)
-	sh -c "$mpub -r -t $(_sq "$topic") -n" 2>/dev/null
-	usleep "$HA_PUB_DELAY_US" 2>/dev/null || true
+	local topic="${HA_DISCOVERY_PREFIX}/${component}/thingino_${HA_CAMERA_ID}/${object_id}/config"
+	local tmpfile
+	tmpfile=$(mktemp /tmp/ha_disc_clear.XXXXXX) || return 1
+	: > "$tmpfile"
+	_ha_queue_or_pub 1 disc "$topic" "$tmpfile"
 }
 
 # Publish a retained discovery payload.
 ha_pub_disc() {
 	local component="$1" object_id="$2" payload="$3"
-	local disc_prefix
-	disc_prefix=$(ha_cfg discovery_prefix)
-	disc_prefix="${disc_prefix:-homeassistant}"
-	local topic="${disc_prefix}/${component}/thingino_${HA_CAMERA_ID}/${object_id}/config"
+	local topic="${HA_DISCOVERY_PREFIX}/${component}/thingino_${HA_CAMERA_ID}/${object_id}/config"
 	local tmpfile
 	tmpfile=$(mktemp /tmp/ha_disc.XXXXXX) || return 1
 	printf '%s' "$payload" > "$tmpfile"
@@ -260,7 +372,8 @@ ha_pub_disc() {
 }
 
 ha_json_escape() {
-	printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+	local val="${1//\\/\\\\}"
+	printf '%s' "${val//\"/\\\"}"
 }
 
 HA_AVAIL_TOPIC="cameras/${HA_CAMERA_ID}/status"
