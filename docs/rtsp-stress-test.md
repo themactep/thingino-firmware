@@ -49,6 +49,10 @@ The script requires:
 - `python3`
 - `timeout`
 
+Important: SSH must be non-interactive. Configure passwordless SSH (key/agent)
+for the user passed to `--ssh-user` (default `root`). If SSH prompts for a
+password, the script cannot continue.
+
 The host machine is where you run `scripts/rtsp-stress-test.sh`.
 
 ### On the camera

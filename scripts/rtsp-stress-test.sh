@@ -24,6 +24,11 @@ print_error() {
 	echo -e "${RED}[ERR]${NC} $*" >&2
 }
 
+print_verbose() {
+	[ "$VERBOSE" -eq 1 ] || return 0
+	echo -e "${YELLOW}[DBG]${NC} $*"
+}
+
 usage() {
 	cat <<'EOF'
 Usage: rtsp-stress-test.sh [OPTIONS]
@@ -41,6 +46,11 @@ Required host tools:
 
 Required remote tools:
   jct
+
+SSH NOTES:
+  - The script uses non-interactive SSH calls.
+  - Configure passwordless SSH (key/agent) for --ssh-user on the camera.
+  - If SSH prompts for a password, the script will not proceed.
 
 OPTIONS:
   --camera HOST               Camera IP or hostname
@@ -63,6 +73,7 @@ OPTIONS:
   --scenario SPEC            Scenario as label:bitrate:fps:gop:est_bitrate
   --recommended-matrix       Add the standard UDP tuning matrix
   --no-restore               Do not restore original config after modified scenarios
+  -v, --verbose              Print probe/retry details
   -h, --help                 Show this help
 
 SCENARIO FORMAT:
@@ -124,6 +135,7 @@ STREAM_TIMEOUT=60
 START_CMD=""
 RESTORE_CONFIG=1
 RECOMMENDED_MATRIX=0
+VERBOSE=0
 SCENARIOS=()
 OUTPUT_DIR="./rtsp-stress-$(date +%Y%m%d-%H%M%S)"
 
@@ -209,6 +221,10 @@ while [ $# -gt 0 ]; do
 			RESTORE_CONFIG=0
 			shift
 			;;
+		-v|--verbose)
+			VERBOSE=1
+			shift
+			;;
 		-h|--help)
 			usage
 			exit 0
@@ -259,14 +275,18 @@ if [ "$RECOMMENDED_MATRIX" -eq 1 ]; then
 fi
 
 SSH_DEST="${SSH_USER}@${CAMERA_HOST}"
+SSH_SOCKET_DIR="${TMPDIR:-/tmp}/rtsp-stress-ssh"
+mkdir -p "$SSH_SOCKET_DIR"
 SSH_OPTS=(
 	-o ConnectTimeout=5
 	-o ServerAliveInterval=5
 	-o ServerAliveCountMax=3
+	-o BatchMode=yes
+	-o NumberOfPasswordPrompts=0
 	-o StrictHostKeyChecking=accept-new
 	-o ControlMaster=auto
 	-o ControlPersist=600
-	-o ControlPath="${OUTPUT_DIR}/ssh-control-%C"
+	-o ControlPath="${SSH_SOCKET_DIR}/%C"
 )
 
 close_ssh_master() {
@@ -284,27 +304,77 @@ OVERALL_SUMMARY="${OUTPUT_DIR}/overall-summary.txt"
 METADATA_FILE="${OUTPUT_DIR}/metadata.txt"
 FAILED_SCENARIOS=0
 MODIFIED_CONFIG=0
+SSH_AUTH_ERROR=0
+SSH_LAST_ERROR=""
+SSH_AUTH_DETAIL=""
+
+ssh_auth_error_match() {
+	local text="$1"
+	printf '%s\n' "$text" | grep -Eiq \
+		'permission denied|password:|keyboard-interactive|no supported authentication methods|authentication failed'
+}
 
 wait_for_ssh() {
 	local deadline=$((SECONDS + BOOT_TIMEOUT))
+	local attempt=1
+	local ssh_err=""
+	SSH_AUTH_ERROR=0
+	SSH_LAST_ERROR=""
+	SSH_AUTH_DETAIL=""
 	while [ "$SECONDS" -lt "$deadline" ]; do
-		if remote_ssh "echo up" >/dev/null 2>&1; then
+		if ssh_err="$(remote_ssh "echo up" 2>&1)"; then
+			print_verbose "SSH probe succeeded on attempt ${attempt}"
 			return 0
 		fi
+		SSH_LAST_ERROR="${ssh_err%%$'\n'*}"
+		if ssh_auth_error_match "$ssh_err"; then
+			SSH_AUTH_ERROR=1
+			SSH_AUTH_DETAIL="${ssh_err%%$'\n'*}"
+			print_verbose "SSH probe failed due to authentication policy: ${SSH_AUTH_DETAIL}"
+			return 1
+		fi
+		print_verbose "SSH probe attempt ${attempt} failed; retrying in 5s"
+		attempt=$((attempt + 1))
 		sleep 5
 	done
+	# One final auth-only probe helps distinguish "network timeout" vs "auth denied".
+	ssh_err="$(ssh "${SSH_OPTS[@]}" -o PreferredAuthentications=publickey -o PasswordAuthentication=no "$SSH_DEST" "echo up" 2>&1 || true)"
+	if ssh_auth_error_match "$ssh_err"; then
+		SSH_AUTH_ERROR=1
+		SSH_AUTH_DETAIL="${ssh_err%%$'\n'*}"
+		print_verbose "Final SSH auth probe failed: ${SSH_AUTH_DETAIL}"
+		return 1
+	fi
+	print_verbose "SSH probe timed out after ${BOOT_TIMEOUT}s"
+	if [ -n "$SSH_LAST_ERROR" ]; then
+		print_verbose "Last SSH error: ${SSH_LAST_ERROR}"
+	fi
 	return 1
 }
 
 wait_for_stream() {
 	local deadline=$((SECONDS + STREAM_TIMEOUT))
+	local attempt=1
+	local probe_log=""
 	while [ "$SECONDS" -lt "$deadline" ]; do
-		if timeout 5s ffmpeg -hide_banner -loglevel error -rtsp_transport "$TRANSPORT" \
-			-i "$RTSP_URL" -t 2 -f null - >/dev/null 2>&1; then
+		if probe_log="$(timeout 5s ffmpeg -hide_banner -loglevel error -rtsp_transport "$TRANSPORT" \
+			-i "$RTSP_URL" -t 2 -f null - 2>&1 >/dev/null)"; then
+			print_verbose "RTSP probe succeeded on attempt ${attempt}"
 			return 0
 		fi
+		if [ "$VERBOSE" -eq 1 ]; then
+			local first_line
+			first_line="$(printf '%s\n' "$probe_log" | head -n1)"
+			if [ -n "$first_line" ]; then
+				print_verbose "RTSP probe attempt ${attempt} failed: ${first_line}"
+			else
+				print_verbose "RTSP probe attempt ${attempt} failed with no ffmpeg error text"
+			fi
+		fi
+		attempt=$((attempt + 1))
 		sleep 2
 	done
+	print_verbose "RTSP probe timed out after ${STREAM_TIMEOUT}s"
 	return 1
 }
 
@@ -382,6 +452,10 @@ reboot_and_wait() {
 	remote_ssh "reboot -f" >/dev/null 2>&1 || true
 	sleep 5
 	wait_for_ssh || {
+		if [ "$SSH_AUTH_ERROR" -eq 1 ]; then
+			print_error "SSH authentication failed (password prompt or denied). Configure passwordless SSH for ${SSH_DEST}"
+			return 1
+		fi
 		print_error "Camera did not return to SSH within ${BOOT_TIMEOUT}s"
 		return 1
 	}
@@ -560,7 +634,15 @@ restore_original_config() {
 }
 
 print_info "Connecting to ${CAMERA_HOST}"
+if [ "$VERBOSE" -eq 1 ]; then
+	print_verbose "SSH target: ${SSH_DEST} (timeout ${BOOT_TIMEOUT}s)"
+fi
 wait_for_ssh || {
+	if [ "$SSH_AUTH_ERROR" -eq 1 ]; then
+		print_error "SSH authentication failed (password prompt or denied). Configure passwordless SSH for ${SSH_DEST}"
+		[ -n "$SSH_AUTH_DETAIL" ] && print_error "SSH error detail: ${SSH_AUTH_DETAIL}"
+		exit 1
+	fi
 	print_error "Unable to reach camera over SSH"
 	exit 1
 }
