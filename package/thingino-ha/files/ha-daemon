@@ -50,13 +50,23 @@ ha_state_cache_clear
 # ---------------------------------------------------------------------------
 ha-discovery || { echo "ha-daemon: discovery failed" >&2; exit 1; }
 
-# Restart ha-commands automatically if it exits (e.g. transient broker disconnect)
+# Restart ha-commands automatically if it exits (e.g. transient broker disconnect).
+# Backoff doubles on each crash (5s → 10s → ... → 300s max).
+# Backoff resets if ha-commands ran for more than 60s — indicates a healthy
+# connection that dropped transiently rather than a crash loop at startup.
 run_commands() {
-	local mpub
+	local mpub delay=5 max_delay=300 start_time elapsed
 	while true; do
+		start_time=$(date +%s)
 		ha-commands
-		echo "ha-daemon: ha-commands exited, restarting in 5s..."
-		sleep 5
+		elapsed=$(( $(date +%s) - start_time ))
+		if [ "$elapsed" -ge 60 ]; then
+			delay=5
+		fi
+		echo "ha-daemon: ha-commands exited after ${elapsed}s, restarting in ${delay}s..." >&2
+		sleep "$delay"
+		delay=$((delay * 2))
+		[ "$delay" -gt "$max_delay" ] && delay="$max_delay"
 		mpub=$(ha_mpub_cmd daemon)
 		sh -c "$mpub -r -t '${HA_AVAIL_TOPIC}' -m 'online'" 2>/dev/null
 	done
@@ -98,6 +108,8 @@ while true; do
 	ha-state
 	if [ "$elapsed" -ge "$DISC_INTERVAL" ]; then
 		ha-discovery
+		# OTA check aligned with discovery interval
+		ha-state force_ota
 		elapsed=0
 	fi
 done
