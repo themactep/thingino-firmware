@@ -1,0 +1,16 @@
+config BR2_PACKAGE_OPEN_TX_ISP
+	bool "Open TX-ISP driver"
+	depends on BR2_PACKAGE_INGENIC_SDK
+	help
+	  Open-source replacement for the proprietary Ingenic TX-ISP
+	  firmware blob. Provides a fully open tx-isp-t31.ko driver
+	  with no binary dependencies.
+
+	  The driver supports T31 family SoCs and is compatible with
+	  kernel 3.10 through 7.0.
+
+	  From https://github.com/opensensor/open-tx-isp
+
+	  When enabled, this replaces the blob ISP module from ingenic-sdk.
+
+	  If unsure, say N.
