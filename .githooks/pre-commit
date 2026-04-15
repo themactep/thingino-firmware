@@ -2,17 +2,40 @@
 
 set -e
 
-staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- 'package/thingino-webui/files/www/a/*.js')
+js_staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- 'package/thingino-webui/files/www/a/*.js')
 
-if [ -z "$staged_files" ]; then
-  exit 0
+if [ -n "$js_staged_files" ]; then
+	echo "pre-commit: formatting staged web UI JavaScript files with Prettier"
+
+	echo "$js_staged_files" | while IFS= read -r file; do
+		[ -n "$file" ] || continue
+		npx --yes prettier --write -- "$file"
+		git add -- "$file"
+	done
 fi
 
-echo "pre-commit: formatting staged web UI JavaScript files with Prettier"
+shell_staged_files=$(
+	git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
+		[ -f "$file" ] || continue
 
-npx --yes prettier --write -- $staged_files
+		if git show ":$file" 2>/dev/null | rg -q '^#!/bin/sh'; then
+			printf '%s\n' "$file"
+		fi
+	done
+)
 
-echo "$staged_files" | while IFS= read -r file; do
-  [ -n "$file" ] || continue
-  git add -- "$file"
-done
+if [ -n "$shell_staged_files" ]; then
+	if ! command -v shfmt >/dev/null 2>&1; then
+		echo "pre-commit: shfmt is required to format /bin/sh scripts"
+		echo "Install shfmt, then commit again"
+		exit 1
+	fi
+
+	echo "pre-commit: formatting staged /bin/sh scripts with shfmt (tabs indentation)"
+
+	echo "$shell_staged_files" | while IFS= read -r file; do
+		[ -n "$file" ] || continue
+		shfmt -w -i 0 -ci "$file"
+		git add -- "$file"
+	done
+fi
