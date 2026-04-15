@@ -1,12 +1,13 @@
 WIFI_ATBM6062U_SITE_METHOD = git
+
+ATBM6062U_MODULE_NAME = atbm6062u
+ATBM6062U_MODULE_OPTS = atbm_printk_mask=0
+
 ifeq ($(KERNEL_VERSION),3.10.14)
 # Kernel 3.10 - upstream source with kernel-module build system
 WIFI_ATBM6062U_SITE = https://github.com/gtxaspec/atbm-wifi
 WIFI_ATBM6062U_SITE_BRANCH = atbm-606x
 WIFI_ATBM6062U_VERSION = 4164499b15fb28d1f1fa694088f42dc2493f377e
-
-ATBM6062U_MODULE_NAME = atbm6062u
-ATBM6062U_MODULE_OPTS = atbm_printk_mask=0
 
 WIFI_ATBM6062U_MODULE_MAKE_OPTS = \
 	KDIR=$(LINUX_DIR)
