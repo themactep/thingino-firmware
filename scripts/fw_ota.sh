@@ -22,6 +22,27 @@ remote_uptime_seconds() {
 	remote_run "awk '{print int(\$1)}' /proc/uptime" 2>/dev/null | tr -d '[:space:]'
 }
 
+select_remote_fw_path() {
+	if remote_run "mountpoint -q /mnt/mmcblk0p1 && [ -w /mnt/mmcblk0p1 ]" >/dev/null 2>&1; then
+		REMOTE_FW_FILE="/mnt/mmcblk0p1/fw.bin"
+		echo "Using SD card staging area at /mnt/mmcblk0p1."
+	else
+		REMOTE_FW_FILE="/tmp/fw.bin"
+	fi
+
+	REMOTE_FW_DIR="${REMOTE_FW_FILE%/*}"
+}
+
+remote_mem_available_kb() {
+	remote_run "awk '\$1==\"MemAvailable:\" { print int(\$2); found=1 } \$1==\"MemFree:\" && !memfree { memfree=int(\$2) } END { if (found) print; else print memfree }' /proc/meminfo" 2>/dev/null | tr -d '[:space:]'
+}
+
+prepare_upload_memory() {
+	echo "Freeing memory before upload..."
+	remote_run "rm -f /tmp/snapshot.jpg; sync; if [ -x /etc/init.d/S31raptor ]; then /etc/init.d/S31raptor stop; elif [ -x /etc/init.d/S31prudynt ]; then /etc/init.d/S31prudynt stop; elif pidof prudynt >/dev/null 2>&1; then killall prudynt 2>/dev/null || true; fi; sleep 1; [ -w /proc/sys/vm/drop_caches ] && echo 3 > /proc/sys/vm/drop_caches || true" >/dev/null || \
+		echo "Warning: failed to free memory before upload."
+}
+
 wait_for_reboot_after_detach() {
 	local previous_uptime current_uptime retries saw_disconnect
 
@@ -53,16 +74,32 @@ wait_for_reboot_after_detach() {
 }
 
 check_and_free_space() {
-	local fw_size_kb remote_avail_kb needed_kb
+	local fw_size_kb remote_avail_kb remote_memavail_kb needed_kb mem_needed_kb
 	fw_size_kb=$(( ($(stat -c%s "$LOCAL_FW_FILE") + 1023) / 1024 ))
-	remote_avail_kb=$(remote_run "df -k /tmp | awk 'NR==2{print \$4}'" | tr -d '[:space:]')
-	# Require firmware size + 4MB headroom for sysupgrade working files
+	# Need room for the firmware plus sysupgrade working files in /tmp.
 	needed_kb=$(( fw_size_kb + 4096 ))
-	echo "Firmware size: ${fw_size_kb}KB, available /tmp: ${remote_avail_kb}KB, needed: ${needed_kb}KB"
+	# Uploading into tmpfs also needs extra RAM for dropbear/scp buffers and page cache.
+	mem_needed_kb=$(( fw_size_kb + 8192 ))
 
-	[ "$remote_avail_kb" -ge "$needed_kb" ] && return 0
+	select_remote_fw_path
+	prepare_upload_memory
 
-	echo "Not enough free space in /tmp (need ${needed_kb}KB, have ${remote_avail_kb}KB). Attempting to free memory by remapping rmem..."
+	remote_avail_kb=$(remote_run "df -k $REMOTE_FW_DIR | awk 'NR==2{print \$4}'" | tr -d '[:space:]')
+	[ -n "$remote_avail_kb" ] || die "Failed to read available space in /tmp on the device."
+	echo "Firmware size: ${fw_size_kb}KB, available ${REMOTE_FW_DIR}: ${remote_avail_kb}KB, needed in ${REMOTE_FW_DIR}: ${needed_kb}KB"
+
+	if [ "$REMOTE_FW_DIR" != "/tmp" ]; then
+		[ "$remote_avail_kb" -ge "$needed_kb" ] && return 0
+		die "Not enough free space in ${REMOTE_FW_DIR} on the device."
+	fi
+
+	remote_memavail_kb=$(remote_mem_available_kb)
+	[ -n "$remote_memavail_kb" ] || die "Failed to read available RAM on the device."
+	echo "Available RAM: ${remote_memavail_kb}KB, needed for upload: ${mem_needed_kb}KB"
+
+	[ "$remote_avail_kb" -ge "$needed_kb" ] && [ "$remote_memavail_kb" -ge "$mem_needed_kb" ] && return 0
+
+	echo "Not enough upload headroom on the device. Attempting to free memory by remapping rmem..."
 
 	local osmem rmem_val osmem_mb osmem_addr rmem_mb rmem_addr new_osmem_mb
 	osmem=$(remote_run "fw_printenv -n osmem" | tr -d '[:space:]')
@@ -74,7 +111,7 @@ check_and_free_space() {
 	rmem_addr=$(echo "$rmem_val" | sed 's/.*@//')
 
 	if [ -z "$rmem_mb" ] || [ "$rmem_mb" -le 0 ]; then
-		die "Not enough space in /tmp and rmem is not set or already zero. Cannot proceed."
+		die "Not enough upload headroom and rmem is not set or already zero. Cannot proceed."
 	fi
 
 	new_osmem_mb=$(( osmem_mb + rmem_mb ))
@@ -103,6 +140,22 @@ check_and_free_space() {
 
 	echo "Re-uploading sysupgrade utility (tmpfs was cleared on reboot)..."
 	upload_sysupgrade
+	select_remote_fw_path
+	prepare_upload_memory
+
+	remote_avail_kb=$(remote_run "df -k $REMOTE_FW_DIR | awk 'NR==2{print \$4}'" | tr -d '[:space:]')
+	[ -n "$remote_avail_kb" ] || die "Failed to read available space in ${REMOTE_FW_DIR} after memory remap."
+	echo "Post-remap available ${REMOTE_FW_DIR}: ${remote_avail_kb}KB"
+
+	if [ "$REMOTE_FW_DIR" = "/tmp" ]; then
+		remote_memavail_kb=$(remote_mem_available_kb)
+		[ -n "$remote_memavail_kb" ] || die "Failed to read available RAM after memory remap."
+		echo "Post-remap available RAM: ${remote_memavail_kb}KB"
+		[ "$remote_avail_kb" -ge "$needed_kb" ] && [ "$remote_memavail_kb" -ge "$mem_needed_kb" ] && return 0
+		die "Not enough upload headroom after memory remap."
+	fi
+
+	[ "$remote_avail_kb" -ge "$needed_kb" ] || die "Not enough free space in ${REMOTE_FW_DIR} after memory remap."
 }
 
 trap cleanup EXIT
@@ -114,6 +167,7 @@ LOCAL_SCRIPT="$(dirname "$0")/../package/thingino-sysupgrade/files/sysupgrade"
 LOCAL_SCRIPT2="$(dirname "$0")/../package/thingino-sysupgrade/files/sysupgrade-stage2"
 
 REMOTE_FW_FILE="/tmp/fw.bin"
+REMOTE_FW_DIR="/tmp"
 REMOTE_HOST="root@$CAMERA_IP_ADDRESS"
 REMOTE_SCRIPT="/tmp/sup"
 
