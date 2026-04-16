@@ -34,7 +34,18 @@ select_remote_fw_path() {
 }
 
 remote_mem_available_kb() {
-	remote_run "awk '\$1==\"MemAvailable:\" { print int(\$2); found=1 } \$1==\"MemFree:\" && !memfree { memfree=int(\$2) } END { if (found) print; else print memfree }' /proc/meminfo" 2>/dev/null | tr -d '[:space:]'
+	remote_run "awk '\$1==\"MemAvailable:\" { print int(\$2); found=1 } \$1==\"MemFree:\" && !memfree { memfree=int(\$2) } END { if (!found) print memfree }' /proc/meminfo" 2>/dev/null | tr -d '[:space:]'
+}
+
+is_integer() {
+	case "$1" in
+		''|*[!0-9]*)
+			return 1
+			;;
+		*)
+			return 0
+			;;
+	esac
 }
 
 prepare_upload_memory() {
@@ -85,7 +96,7 @@ check_and_free_space() {
 	prepare_upload_memory
 
 	remote_avail_kb=$(remote_run "df -k $REMOTE_FW_DIR | awk 'NR==2{print \$4}'" | tr -d '[:space:]')
-	[ -n "$remote_avail_kb" ] || die "Failed to read available space in /tmp on the device."
+	is_integer "$remote_avail_kb" || die "Failed to read available space in ${REMOTE_FW_DIR} on the device."
 	echo "Firmware size: ${fw_size_kb}KB, available ${REMOTE_FW_DIR}: ${remote_avail_kb}KB, needed in ${REMOTE_FW_DIR}: ${needed_kb}KB"
 
 	if [ "$REMOTE_FW_DIR" != "/tmp" ]; then
@@ -94,7 +105,7 @@ check_and_free_space() {
 	fi
 
 	remote_memavail_kb=$(remote_mem_available_kb)
-	[ -n "$remote_memavail_kb" ] || die "Failed to read available RAM on the device."
+	is_integer "$remote_memavail_kb" || die "Failed to read available RAM on the device."
 	echo "Available RAM: ${remote_memavail_kb}KB, needed for upload: ${mem_needed_kb}KB"
 
 	[ "$remote_avail_kb" -ge "$needed_kb" ] && [ "$remote_memavail_kb" -ge "$mem_needed_kb" ] && return 0
@@ -144,12 +155,12 @@ check_and_free_space() {
 	prepare_upload_memory
 
 	remote_avail_kb=$(remote_run "df -k $REMOTE_FW_DIR | awk 'NR==2{print \$4}'" | tr -d '[:space:]')
-	[ -n "$remote_avail_kb" ] || die "Failed to read available space in ${REMOTE_FW_DIR} after memory remap."
+	is_integer "$remote_avail_kb" || die "Failed to read available space in ${REMOTE_FW_DIR} after memory remap."
 	echo "Post-remap available ${REMOTE_FW_DIR}: ${remote_avail_kb}KB"
 
 	if [ "$REMOTE_FW_DIR" = "/tmp" ]; then
 		remote_memavail_kb=$(remote_mem_available_kb)
-		[ -n "$remote_memavail_kb" ] || die "Failed to read available RAM after memory remap."
+		is_integer "$remote_memavail_kb" || die "Failed to read available RAM after memory remap."
 		echo "Post-remap available RAM: ${remote_memavail_kb}KB"
 		[ "$remote_avail_kb" -ge "$needed_kb" ] && [ "$remote_memavail_kb" -ge "$mem_needed_kb" ] && return 0
 		die "Not enough upload headroom after memory remap."
