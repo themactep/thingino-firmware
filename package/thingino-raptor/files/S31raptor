@@ -1,6 +1,9 @@
 #!/bin/sh
 # S31raptor -- Raptor Streaming System init script
 
+PATH=/bin:/sbin:/usr/bin:/usr/sbin${PATH:+:$PATH}
+export PATH
+
 CONF=/etc/raptor.conf
 RUNDIR=/var/run/rss
 SHMDIR=/dev/shm
