@@ -9,23 +9,43 @@ read_config() {
 	jct /etc/thingino.json get "$1" 2>/dev/null
 }
 
+ha_processes_gone() {
+	local proc
+	for proc in ha-daemon ha-commands ha-discovery ha-state; do
+		if pidof "$proc" >/dev/null 2>&1; then
+			return 1
+		fi
+	done
+	return 0
+}
+
+wait_for_ha_shutdown() {
+	local timeout=20
+	while [ "$timeout" -gt 0 ]; do
+		ha_processes_gone && return 0
+		sleep 1
+		timeout=$((timeout - 1))
+	done
+	return 1
+}
+
 start() {
 	echo_title "Starting HA daemon"
 
-  if [ "true" != $(read_config "ha.enabled") ]; then
+	if [ "true" != $(read_config "ha.enabled") ]; then
 		echo_error "Disabled"
 		exit 1
-  else
-    echo_info "Enabled"
+	else
+		echo_info "Enabled"
 	fi
 
-  host=$(read_config "ha.mqtt.host")
-  if [ -z "$host" ]; then
-    echo_error "HA MQTT host is not configured"
-    exit 1
-  else
-    echo_info "HA MQTT host: $host"
-  fi
+	host=$(read_config "ha.mqtt.host")
+	if [ -z "$host" ]; then
+		echo_error "HA MQTT host is not configured"
+		exit 1
+	else
+		echo_info "HA MQTT host: $host"
+	fi
 
 	start_daemon
 }
@@ -34,6 +54,12 @@ stop() {
 	echo_title "Stopping HA daemon"
 
 	stop_daemon
+	killall -q ha-commands ha-discovery ha-state 2>/dev/null
+	if ! wait_for_ha_shutdown; then
+		killall -q -9 ha-commands ha-discovery ha-state 2>/dev/null
+		start-stop-daemon -K -s SIGKILL -n ha-daemon 2>/dev/null
+		wait_for_ha_shutdown || true
+	fi
 }
 
 case "$1" in
@@ -45,7 +71,6 @@ case "$1" in
 		;;
 	restart)
 		stop
-		sleep 1
 		start
 		;;
 	*)
