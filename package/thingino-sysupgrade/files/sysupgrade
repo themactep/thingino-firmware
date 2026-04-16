@@ -282,7 +282,7 @@ flush_memory() {
 }
 
 show_help() {
-	echo -e "Usage: $0 [-x] [-f|-p|<file>|<URL>]
+	echo -e "Usage: $0 [<file>|<URL>] [-f|-p] [-b] [-d] [-x]
 Where:
   -f      full upgrade with a binary from GitHub
   -p      partial upgrade with a binary from GitHub
