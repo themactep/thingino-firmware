@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /usr/share/common
+. /usr/share/prudynt-helpers
 
 singleton $0
 
@@ -12,7 +12,7 @@ command_present() {
 }
 
 get_value() {
-	jct "$PRUDYNT_CONFIG" get "daynight.controls.$1" 2>/dev/null || \
+	jct "$PRUDYNT_CONFIG" get "daynight.controls.$1" 2>/dev/null ||
 		echo "true"
 }
 

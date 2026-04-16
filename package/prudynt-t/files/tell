@@ -1,7 +1,7 @@
 #!/bin/sh
 # TTS client
 
-. /usr/share/common
+. /usr/share/prudynt-helpers
 
 no_internet() {
 	ping -c1 -W1 1.1.1.1 >/dev/null 2>&1 || return 0
@@ -36,11 +36,14 @@ case "$1" in
 	%ip)
 		iface="$(ip r | awk '/default/{print $5}' | uniq)"
 		ipaddr=$(ip r | sed -nE "/$iface/s/.+src ([0-9\.]+).+?/\1/p" | uniq)
-		phrase="IP address is $ipaddr" ;;
+		phrase="IP address is $ipaddr"
+		;;
 	%time)
-		phrase="$(date)" ;;
+		phrase="$(date)"
+		;;
 	*)
-		phrase="$*" ;;
+		phrase="$*"
+		;;
 esac
 
 tmpfile="$(mktemp -u).opus"

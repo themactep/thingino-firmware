@@ -17,7 +17,7 @@
     "mic_sample_rate": 16000,
     "mic_vol": 80,
     "spk_enabled": true,
-    "spk_gain": 25,
+    "spk_gain": 20,
     "spk_sample_rate": 16000,
     "spk_vol": 80,
     "tap_enabled": true,
@@ -25,7 +25,7 @@
   },
   "daynight": {
     "controls": {
-      "binswitch": true,
+      "binswitch": false,
       "color": true,
       "ir850": true,
       "ir940": true,
@@ -54,7 +54,7 @@
   },
   "general": {
     "allocation_tracking_enabled": false,
-    "audio_debug_verbose": true,
+    "audio_debug_verbose": false,
     "imp_polling_timeout": 500,
     "loglevel": "INFO",
     "memory_monitoring_enabled": true,

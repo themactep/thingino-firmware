@@ -3,7 +3,7 @@
 # https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html
 # https://mosquitto.org/documentation/
 
-. /usr/share/common
+. /usr/share/prudynt-helpers
 . /usr/share/send2common
 
 domain="mqtt"

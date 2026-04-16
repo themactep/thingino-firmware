@@ -1,0 +1,54 @@
+#!/bin/sh
+
+CURL="curl --show-error --fail --connect-timeout 10 --max-time 30 --retry 3 --location --max-redirs 5"
+EMAIL_FORMAT='^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+PORTAL_MODE_FLAG="/run/portal_mode"
+
+echo_command() {
+	echo -c 101 -e "$1" >&2
+}
+
+echo_error() {
+	echo -c 160 -e "$1" >&2
+}
+
+echo_info() {
+	echo -c 240 -e "- $1" >&2
+}
+
+echo_title() {
+	echo -c 15 -e "$1 ..." >&2
+}
+
+echo_warning() {
+	echo -c 142 -e "$1" >&2
+}
+
+ensure_dir() {
+	if [ -d "$1" ]; then
+		echo_info "Directory $1 exists"
+		return 0
+	fi
+
+	if ! mkdir -p "$1"; then
+		echo_error "Cannot create directory $1"
+	fi
+
+	if [ ! -w "$1" ]; then
+		echo_error "Cannot write to $1"
+	fi
+}
+
+singleton() {
+	if [ -z "$1" ]; then
+		echo_error "Program name is missing"
+		exit 1
+	fi
+
+	appname=$(basename "$1")
+	pids=$(pidof -o %PPID "$appname")
+	if [ -n "$pids" ]; then
+		echo_error "$appname is already running with PIDs $pids. Exiting"
+		exit 1
+	fi
+}

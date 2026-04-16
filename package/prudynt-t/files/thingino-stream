@@ -3,11 +3,11 @@
 # Thingino streaming service using pure C RTSP server + FFmpeg
 # Replaces prudynt for testing C++ dependency elimination
 
-. /usr/share/common
+. /usr/share/prudynt-helpers
 
 RTSP_SERVER="/usr/bin/thingino-rtsp-server"
 FFMPEG_BIN="/usr/bin/ffmpeg"
-RTSP_PORT="8554"  # Use non-standard port to avoid conflict with prudynt
+RTSP_PORT="8554" # Use non-standard port to avoid conflict with prudynt
 RTSP_USER="thingino"
 RTSP_PASS="thingino"
 
@@ -44,7 +44,7 @@ start_rtsp_server() {
 		# Find the actual PID
 		RTSP_SERVER_PID=$(pidof thingino-rtsp-server)
 		if [ -n "$RTSP_SERVER_PID" ]; then
-			echo $RTSP_SERVER_PID > "$RTSP_PID"
+			echo $RTSP_SERVER_PID >"$RTSP_PID"
 			echo_info "RTSP server started (PID: $RTSP_SERVER_PID)"
 			return 0
 		fi
@@ -90,7 +90,7 @@ start_ffmpeg_stream() {
 	fi
 
 	FFMPEG_STREAM_PID=$!
-	echo $FFMPEG_STREAM_PID > "$FFMPEG_PID"
+	echo $FFMPEG_STREAM_PID >"$FFMPEG_PID"
 
 	if kill -0 $FFMPEG_STREAM_PID 2>/dev/null; then
 		echo_info "FFmpeg stream started (PID: $FFMPEG_STREAM_PID)"
@@ -210,6 +210,6 @@ case "$1" in
 		echo "Eliminates C++ dependencies from the streaming pipeline"
 		exit 1
 		;;
-	esac
+esac
 
 exit 0

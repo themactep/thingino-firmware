@@ -4,30 +4,28 @@ PRUDYNT_APP="prudynt"
 PRUDYNT_CONFIG="/etc/prudynt.json"
 FIFO_PATH="/run/prudynt/mp4ctl"
 
-. /usr/share/common
-
 start() {
-	echo_title "Starting Record service"
+	echo -c 15 "Starting Record service"
 
 	if ! pidof $PRUDYNT_APP >/dev/null 2>&1; then
-		echo_error "Streamer is not running"
+		echo "Streamer is not running" >&2
 		exit 1
 	fi
 
 	if [ "true" != "$(jct $PRUDYNT_CONFIG get recorder.autostart 2>/dev/null)" ]; then
-		echo_warning "Autostart is not set"
+		echo "Autostart is not set"
 		exit 0
 	fi
 
-	/sbin/record || echo_warning "record command failed"
+	/sbin/record || echo "record command failed"
 }
 
 stop() {
-	echo_title "Stopping Recording service"
+	echo -c 15 "Stopping Recording service"
 
 	pidof prudynt || return 0
 
-	[ -p "$FIFO_PATH" ] && printf 'STOP\n' > "$FIFO_PATH"
+	[ -p "$FIFO_PATH" ] && printf 'STOP\n' >"$FIFO_PATH"
 }
 
 case "$1" in
@@ -44,7 +42,8 @@ case "$1" in
 		start
 		;;
 	*)
-		usage "{start|stop|restart}"
+		echo "Usage: $0 {start|stop|restart}" >&2
+		exit 1
 		;;
 esac
 
