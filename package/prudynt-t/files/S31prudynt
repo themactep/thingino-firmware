@@ -5,6 +5,19 @@ export PATH
 
 DAEMON="/usr/bin/prudynt"
 PIDFILE="/run/prudynt.pid"
+HEARTBEAT_INIT="/etc/init.d/S99heartbeat"
+
+restart_heartbeat() {
+	if [ -x "$HEARTBEAT_INIT" ]; then
+		"$HEARTBEAT_INIT" restart >/dev/null 2>&1
+	fi
+}
+
+stop_heartbeat() {
+	if [ -x "$HEARTBEAT_INIT" ]; then
+		"$HEARTBEAT_INIT" stop >/dev/null 2>&1
+	fi
+}
 
 start_daemon() {
 	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON"
@@ -24,10 +37,16 @@ stop_daemon() {
 start() {
 	echo -c 15 "Starting Prudynt"
 	start_daemon
+	status=$?
+	if [ "$status" -eq 0 ]; then
+		restart_heartbeat
+	fi
+	return "$status"
 }
 
 stop() {
 	echo -c 15 "Stopping Prudynt"
+	stop_heartbeat
 	stop_daemon
 }
 

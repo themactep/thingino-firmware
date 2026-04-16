@@ -8,11 +8,31 @@ SLOW_CACHE_FILE="/tmp/heartbeat_slow_cache.json"
 UPDATE_INTERVAL=1
 SLOW_UPDATE_INTERVAL=15
 PIDFILE="/var/run/heartbeat-daemon.pid"
+PRUDYNT_BIN="/usr/bin/prudynt"
+PRUDYNT_PIDFILE="/run/prudynt.pid"
+
+prudynt_is_running() {
+  local pid
+
+  [ -r "$PRUDYNT_PIDFILE" ] || return 1
+  IFS= read -r pid < "$PRUDYNT_PIDFILE" || return 1
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" 2>/dev/null
+}
+
+cleanup_runtime() {
+  rm -f \
+    "$PIDFILE" \
+    "$FAST_CACHE_FILE" \
+    "$FAST_CACHE_FILE.tmp" \
+    "$SLOW_CACHE_FILE" \
+    "$SLOW_CACHE_FILE.tmp"
+}
 
 read_first_field() {
   local value _
 
-  if read -r value _ < "$1"; then
+  if [ -r "$1" ] && read -r value _ < "$1"; then
     printf '%s\n' "$value"
   else
     printf '%s\n' "$2"
@@ -52,8 +72,15 @@ parse_prudynt_data() {
 }
 
 start() {
-  if [ ! -f "/bin/prudynt" ]; then
-    echo "Prudynt not found. Existing"
+  if [ ! -x "$PRUDYNT_BIN" ]; then
+    echo "Prudynt not found. Exiting"
+    cleanup_runtime
+    return 0
+  fi
+
+  if ! prudynt_is_running; then
+    echo "Prudynt is not running. Exiting"
+    cleanup_runtime
     return 0
   fi
 
@@ -71,14 +98,20 @@ stop() {
   if [ -f "$PIDFILE" ]; then
     echo "Stopping heartbeat daemon..."
     kill $(cat "$PIDFILE") 2>/dev/null
-    rm -f "$PIDFILE"
   fi
+
+  cleanup_runtime
 }
 
 heartbeat_loop() {
   slow_counter=0
 
   while true; do
+    if ! prudynt_is_running; then
+      cleanup_runtime
+      exit 0
+    fi
+
     ch0_rec="false"; [ -f "/run/prudynt/mp4ctl-ch0.active" ] && ch0_rec="true"
     ch1_rec="false"; [ -f "/run/prudynt/mp4ctl-ch1.active" ] && ch1_rec="true"
     motion_enabled="false"; [ -f "/run/prudynt/motion.active" ] && motion_enabled="true"
