@@ -310,6 +310,8 @@ define PRUDYNT_T_INSTALL_TARGET_CMDS
 	# send2 scripts
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/send2.json \
 		$(TARGET_DIR)/etc/send2.json
+	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/prudynt-helpers \
+		$(TARGET_DIR)/usr/share/prudynt-helpers
 	$(INSTALL) -D -m 0644 $(PRUDYNT_T_PKGDIR)/files/send2common \
 		$(TARGET_DIR)/usr/share/send2common
 	$(INSTALL) -D -m 0755 $(PRUDYNT_T_PKGDIR)/files/send2email \

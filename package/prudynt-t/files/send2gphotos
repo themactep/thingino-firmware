@@ -1,6 +1,6 @@
 #!/bin/env sh
 
-. /usr/share/common
+. /usr/share/prudynt-helpers
 . /usr/share/send2common
 
 domain="gphotos"

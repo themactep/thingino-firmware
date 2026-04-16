@@ -2,7 +2,7 @@
 # Sends data to ntfy.sh
 # https://docs.ntfy.sh/publish/
 
-. /usr/share/common
+. /usr/share/prudynt-helpers
 . /usr/share/send2common
 
 domain="ntfy"

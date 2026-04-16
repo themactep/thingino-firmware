@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /usr/share/common
+. /usr/share/prudynt-helpers
 
 PRUDYNT_APP="prudynt"
 PRUDYNT_CONFIG="/etc/prudynt.json"
@@ -15,9 +15,10 @@ json_get() {
 
 expand_template() {
 	local value="$1"
-	local host_short
+	local host_short host_short_escaped
 	host_short=$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo "thingino")
-	value=${value//%hostname/$host_short}
+	host_short_escaped=$(printf '%s' "$host_short" | sed 's/[\\/&]/\\&/g')
+	value=$(printf '%s' "$value" | sed "s/%hostname/$host_short_escaped/g")
 	printf '%s' "$value"
 }
 
@@ -83,8 +84,7 @@ if ! echo "$duration" | grep -Eq '^[0-9]+$' || [ "$duration" -le 0 ]; then
 fi
 
 case "$stream_number" in
-	0|1)
-		;;
+	0 | 1) ;;
 	*)
 		echo_error "Invalid stream number: $stream_number"
 		exit 1
@@ -116,7 +116,7 @@ if [ "$one_time" = "true" ]; then
 		*) file_path="$file_path.mp4" ;;
 	esac
 	ensure_dir "$(dirname "$file_path")"
-	printf 'START path=%s dur=%s ch=%s\n' "$file_path" "$duration" "$stream_number" > "$FIFO_PATH"
+	printf 'START path=%s dur=%s ch=%s\n' "$file_path" "$duration" "$stream_number" >"$FIFO_PATH"
 	if wait_for_active_creation "$ACTIVE_FILE" 10; then
 		wait_for_active_completion "$ACTIVE_FILE"
 	else
@@ -124,7 +124,7 @@ if [ "$one_time" = "true" ]; then
 	fi
 else
 	printf 'START mount=%s dir=%s name=%s dur=%s ch=%s loop=1\n' \
-		"$mount" "${device_path}" "$filename" "$duration" "$stream_number" > "$FIFO_PATH"
+		"$mount" "${device_path}" "$filename" "$duration" "$stream_number" >"$FIFO_PATH"
 fi
 
 [ -n "$LEDD_FLAG" ] && [ -f "$LEDD_FLAG" ] && rm -f "$LEDD_FLAG"

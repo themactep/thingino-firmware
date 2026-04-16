@@ -1,16 +1,33 @@
 #!/bin/sh
 
-. /usr/share/common
+PATH=/bin:/sbin:/usr/bin:/usr/sbin${PATH:+:$PATH}
+export PATH
 
-COMMAND="$DAEMON_FULL"
+DAEMON="/usr/bin/prudynt"
+PIDFILE="/run/prudynt.pid"
+
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON"
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 start() {
-	echo_title "Starting Prudynt"
+	echo -c 15 "Starting Prudynt"
 	start_daemon
 }
 
 stop() {
-	echo_title "Stopping Prudynt"
+	echo -c 15 "Stopping Prudynt"
 	stop_daemon
 }
 
