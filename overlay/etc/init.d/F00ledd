@@ -1,22 +1,90 @@
 #!/bin/sh
 
-LINK_FILE="/run/boot"
-DAEMON_ARGS="0.05 $LINK_FILE"
+DAEMON="/usr/bin/ledd"
+PIDFILE="/run/ledd.pid"
+LEDD_DIR="/run/ledd"
+BLINK_INTERVAL="500"
+STATE_FILE="/run/ledd.state"
+CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
+JCT_BIN="${JCT_BIN:-$(command -v jct 2>/dev/null)}"
 
-. /usr/share/common
+start_daemon() {
+	if [ ! -x "$DAEMON" ]; then
+		echo "LED daemon not installed"
+		return 1
+	fi
+
+	# Kill any stale instance before starting fresh
+	start-stop-daemon -K -o -x "$DAEMON" >/dev/null 2>&1 || true
+	rm -f "$PIDFILE"
+
+	mkdir -p "$LEDD_DIR"
+	"$DAEMON"
+	sleep 0.1
+	pidof -s ledd >"$PIDFILE" 2>/dev/null || true
+}
+
+get_led_records() {
+	[ -n "$JCT_BIN" ] || return
+	[ -r "$CONFIG_JSON" ] || return
+	"$JCT_BIN" "$CONFIG_JSON" path '$.gpio.*' --mode paths 2>/dev/null |
+		tr ',' '\n' |
+		sed -n 's/.*"\$\.gpio\.\(led_[^".]*\)".*/\1/p' |
+		sort -u | while read -r name; do
+		pin=$("$JCT_BIN" "$CONFIG_JSON" get "gpio.$name.pin" 2>/dev/null) || true
+		[ -z "$pin" ] && pin=$("$JCT_BIN" "$CONFIG_JSON" get "gpio.$name" 2>/dev/null) || true
+		pin=$(printf '%s' "$pin" | tr -d '"')
+		case "$pin" in
+			'' | *[!0-9]*) continue ;;
+		esac
+		active_low=$("$JCT_BIN" "$CONFIG_JSON" get "gpio.$name.active_low" 2>/dev/null | tr -d '"') || true
+		active_on_boot=$("$JCT_BIN" "$CONFIG_JSON" get "gpio.$name.active_on_boot" 2>/dev/null | tr -d '"') || true
+		echo "$pin:$active_low:$active_on_boot"
+	done
+}
+
+save_led_states() {
+	: >"$STATE_FILE"
+	get_led_records | while IFS=: read -r pin _active_low _active_on_boot; do
+		state=$(gpio read "$pin" 2>/dev/null) || continue
+		case "$state" in
+			0 | 1) echo "$pin:$state" >>"$STATE_FILE" ;;
+		esac
+	done
+}
+
+restore_led_states() {
+	[ -f "$STATE_FILE" ] || return 0
+	while IFS=: read -r pin state; do
+		case "$pin:$state" in
+			*[!0-9:]* | : | *:) continue ;;
+		esac
+		gpio set "$pin" "$state" >/dev/null 2>&1 || true
+	done <"$STATE_FILE"
+	rm -f "$STATE_FILE"
+}
 
 start() {
-	echo_title "Starting LED daemon"
+	echo "Starting LED daemon"
 
-	start_daemon
-	touch $LINK_FILE
+	save_led_states
+	start_daemon || return 1
+	get_led_records | while IFS=: read -r pin _active_low _active_on_boot; do
+		echo "$BLINK_INTERVAL" >"$LEDD_DIR/$pin"
+	done
 }
 
 stop() {
-	echo_title "Stopping LED daemon"
+	echo "Stopping LED daemon"
 
-	rm -f $LINK_FILE
-	stop_daemon
+	rm -f "$LEDD_DIR"/* 2>/dev/null || true
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		rm -f "$PIDFILE"
+	else
+		start-stop-daemon -K -o -x "$DAEMON" >/dev/null 2>&1 || true
+	fi
+	restore_led_states
 }
 
 case "$1" in

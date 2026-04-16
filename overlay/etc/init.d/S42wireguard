@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. /usr/share/common
+CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
+JCT_BIN="${JCT_BIN:-$(command -v jct 2>/dev/null)}"
+RESOLV_WORKING_FILE="/tmp/resolv.conf"
 
 WIREGUARD_INTERFACE="wg0"
 RESOLV_BAK="${RESOLV_WORKING_FILE}.bak"
@@ -21,11 +23,11 @@ wireguard_json_get() {
 wireguard_load_config() {
 	local key value var
 	if [ -z "$JCT_BIN" ]; then
-		echo_error "jct utility not found; cannot read $CONFIG_JSON"
+		echo "jct utility not found; cannot read $CONFIG_JSON" >&2
 		return 1
 	fi
 	if [ ! -r "$CONFIG_JSON" ]; then
-		echo_error "Config file $CONFIG_JSON not found"
+		echo "Config file $CONFIG_JSON not found" >&2
 		return 1
 	fi
 	for key in enabled address allowed dns endpoint keepalive mtu peerpsk peerpub port privkey watchdog watchdog_interval watchdog_stale; do
@@ -41,7 +43,7 @@ wireguard_load_config() {
 
 wireguard_validate_config() {
 	if [ -z "$wireguard_address" ]; then
-		echo_error "No WireGuard IP address configured"
+		echo "No WireGuard IP address configured" >&2
 		return 1
 	fi
 }
@@ -64,7 +66,7 @@ wireguard_watchdog_remove_cron() {
 	[ -f "$WIREGUARD_CRONTABS_RAM" ] || return 0
 
 	tmp_file=$(mktemp) || return 1
-	sed '/wireguard-watchdog/d;/wireguard-watchdog every few minutes/,+1d' "$WIREGUARD_CRONTABS_RAM" > "$tmp_file"
+	sed '/wireguard-watchdog/d;/wireguard-watchdog every few minutes/,+1d' "$WIREGUARD_CRONTABS_RAM" >"$tmp_file"
 	cp "$tmp_file" "$WIREGUARD_CRONTABS_RAM"
 	rm -f "$tmp_file"
 }
@@ -73,23 +75,23 @@ wireguard_watchdog_install_cron() {
 	local interval tmp_file
 
 	[ -x "$WIREGUARD_WATCHDOG_BIN" ] || {
-		echo_error "WireGuard watchdog script $WIREGUARD_WATCHDOG_BIN not found"
+		echo "WireGuard watchdog script $WIREGUARD_WATCHDOG_BIN not found" >&2
 		return 1
 	}
 
 	[ "true" = "$wireguard_watchdog" ] || {
-		echo_info "WireGuard watchdog disabled"
+		echo "WireGuard watchdog disabled"
 		return 0
 	}
 
 	wireguard_seed_ram_crontab || {
-		echo_error "Unable to prepare runtime crontab"
+		echo "Unable to prepare runtime crontab" >&2
 		return 1
 	}
 
 	interval="$wireguard_watchdog_interval"
 	case "$interval" in
-		''|*[!0-9]*|0)
+		'' | *[!0-9]* | 0)
 			interval=2
 			;;
 	esac
@@ -106,16 +108,16 @@ wireguard_watchdog_install_cron() {
 	{
 		printf '%s\n' "$WIREGUARD_CRON_MARK"
 		printf '*/%s * * * * %s >/dev/null 2>&1\n' "$interval" "$WIREGUARD_WATCHDOG_BIN"
-	} >> "$tmp_file"
+	} >>"$tmp_file"
 
 	cp "$tmp_file" "$WIREGUARD_CRONTABS_RAM"
 	rm -f "$tmp_file"
 
-	echo_info "WireGuard watchdog scheduled every $interval minute(s)"
+	echo "WireGuard watchdog scheduled every $interval minute(s)"
 }
 
 start() {
-	echo_title "Starting WireGuard"
+	echo -c 15 "Starting WireGuard"
 
 	# "force" is for testing, to start WireGuard on demand without having it enabled at boot
 	# "start" is for the normal boot process
@@ -124,22 +126,22 @@ start() {
 	wireguard_validate_config || exit 1
 
 	if [ "true" != "$wireguard_enabled" ] && [ "force" != "$1" ]; then
-		echo_error "WireGuard disabled"
+		echo "WireGuard disabled" >&2
 		exit 1
 	fi
 
 	if ip link show $WIREGUARD_INTERFACE 2>&1 | grep -q 'UP'; then
-		echo_error "WireGuard interface $WIREGUARD_INTERFACE already up"
+		echo "WireGuard interface $WIREGUARD_INTERFACE already up" >&2
 		exit 1
 	fi
 
 	# make sure the system clock is syncronized
 	ntpd -qnN
 
-	echo_info "Create WireGuard network interface"
+	echo "Create WireGuard network interface"
 	ip link add dev $WIREGUARD_INTERFACE type wireguard
 
-	echo_info "Create WireGuard configuration"
+	echo "Create WireGuard configuration"
 	tmp_file=$(mktemp -u)
 	{
 		echo '[Interface]'
@@ -151,41 +153,41 @@ start() {
 		[ -n "$wireguard_peerpsk" ] && echo "PresharedKey=$wireguard_peerpsk"
 		[ -n "$wireguard_allowed" ] && echo "AllowedIPs=$wireguard_allowed"
 		[ -n "$wireguard_keepalive" ] && echo "PersistentKeepalive=$wireguard_keepalive"
-	} >> "$tmp_file"
+	} >>"$tmp_file"
 
-	echo_info "Apply WireGuard configuration"
+	echo "Apply WireGuard configuration"
 	wg setconf "$WIREGUARD_INTERFACE" "$tmp_file"
 
-	echo_info "Clean up"
+	echo "Clean up"
 	rm "$tmp_file"
 
-	echo_info "Assign IP address to WireGuard interface"
+	echo "Assign IP address to WireGuard interface"
 	ip address add $wireguard_address dev $WIREGUARD_INTERFACE
 
 	if [ -n "$wireguard_mtu" ]; then
 		link_mtu="mtu $wireguard_mtu"
 	fi
 
-	echo_info "Start WireGuard interface"
+	echo "Start WireGuard interface"
 	ip link set $link_mtu up dev $WIREGUARD_INTERFACE
 
-	if [ -n "$wireguard_dns" ] ; then
-		echo_info "Create custom resolver configuration"
+	if [ -n "$wireguard_dns" ]; then
+		echo "Create custom resolver configuration"
 		tmp_file=$(mktemp)
-		grep -v nameserver $RESOLV_WORKING_FILE >> "$tmp_file"
-		for x in $(echo $wireguard_dns | tr "," " ") ; do
-			echo "nameserver $x" >> "$tmp_file"
+		grep -v nameserver $RESOLV_WORKING_FILE >>"$tmp_file"
+		for x in $(echo $wireguard_dns | tr "," " "); do
+			echo "nameserver $x" >>"$tmp_file"
 		done
 
-		echo_info "Back up existing resolver configuration"
+		echo "Back up existing resolver configuration"
 		mv "$RESOLV_WORKING_FILE" "$RESOLV_BAK"
 
-		echo_info "Set up custom resolver configuration"
+		echo "Set up custom resolver configuration"
 		mv "$tmp_file" "$RESOLV_WORKING_FILE"
 	fi
 
-	for r in $(echo "$wireguard_allowed" | tr "," " ") ; do
-		echo_info "Add routing to $r"
+	for r in $(echo "$wireguard_allowed" | tr "," " "); do
+		echo "Add routing to $r"
 		ip route add $r dev $WIREGUARD_INTERFACE
 	done
 
@@ -193,22 +195,22 @@ start() {
 }
 
 stop() {
-	echo_title "Stopping WireGuard"
+	echo -c 15 "Stopping WireGuard"
 
 	wireguard_load_config || exit 1
 	wireguard_validate_config || exit 1
 	wireguard_watchdog_remove_cron
 
-	for r in $(ip route | awk '/dev wg/{print $1}') ; do
-		echo_info "Remove routing to $r"
+	for r in $(ip route | awk '/dev wg/{print $1}'); do
+		echo "Remove routing to $r"
 		ip route del $r dev $WIREGUARD_INTERFACE 2>/dev/null || true
 	done
 
-	echo_info "Remove WireGuard interface"
+	echo "Remove WireGuard interface"
 	ip link del dev $WIREGUARD_INTERFACE 2>/dev/null || true
 
 	if [ -s "$RESOLV_BAK" ]; then
-		echo_info "Restore original resolver configuration"
+		echo "Restore original resolver configuration"
 		mv "$RESOLV_BAK" "$RESOLV_WORKING_FILE"
 	fi
 }

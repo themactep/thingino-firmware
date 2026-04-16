@@ -1,16 +1,14 @@
 #!/bin/sh
 
-. /usr/share/common
-
 if [ -z "$2" ]; then
-	echo_error "Error: should be run by odhcp6c"
+	echo "Error: should be run by odhcp6c" >&2
 	exit 1
 fi
 
 # Define the base directory for tracking DHCPv6 data
 DHCP6_DATA_BASE="/var/run/odhcp6c"
 if ! mkdir -p "$DHCP6_DATA_BASE"; then
-	echo_error "Error: cannot create $DHCP6_DATA_BASE"
+	echo "Error: cannot create $DHCP6_DATA_BASE" >&2
 	exit 1
 fi
 
@@ -107,7 +105,7 @@ write_lease() {
 		done
 
 		echo "}"
-	} > "$lease_file"
+	} >"$lease_file"
 }
 
 # Extract DNS information and domain search from the lease file
@@ -130,11 +128,11 @@ extract_dns_and_domains() {
 					domains="${domains%;}"
 					;;
 			esac
-		done < "$lease_file"
+		done <"$lease_file"
 	fi
 
-	# Return both dns and domains
-	echo "$dns" "$domains"
+	EXTRACTED_DNS="$dns"
+	EXTRACTED_DOMAINS="$domains"
 }
 
 # Update resolv.conf with DNS information and search domains
@@ -147,22 +145,22 @@ update_resolv() {
 	(
 		flock 9
 		# Use a unique identifier to remove only DHCPv6 entries
-		grep -v "# added by odhcp6c" /tmp/resolv.conf > /tmp/resolv.conf.tmp
+		grep -v "# added by odhcp6c" /tmp/resolv.conf >/tmp/resolv.conf.tmp
 
 		# Add unique search domains to resolv.conf
 		for domain in $domains; do
 			if ! grep -q "search $domain" /tmp/resolv.conf.tmp; then
-				echo "search $domain # added by odhcp6c" >> /tmp/resolv.conf.tmp
+				echo "search $domain # added by odhcp6c" >>/tmp/resolv.conf.tmp
 			fi
-			echo_info "added search $domain"
+			echo "added search $domain"
 		done
 
 		# Add unique DNS servers to resolv.conf
 		for c in $dns; do
 			if ! grep -q "nameserver $c" /tmp/resolv.conf.tmp; then
-				echo "nameserver $c # added by odhcp6c" >> /tmp/resolv.conf.tmp
+				echo "nameserver $c # added by odhcp6c" >>/tmp/resolv.conf.tmp
 			fi
-			echo_info "added nameserver $c"
+			echo "added nameserver $c"
 		done
 
 		# Move the temporary file to /tmp/resolv.conf
@@ -192,20 +190,20 @@ add_address() {
 
 	# Check if the address already exists
 	if ip -6 address show dev "$dev_name" | grep -q "$addr"; then
-		echo_warning "Address already exists: $addr dev $dev_name, updating lifetimes"
+		echo "Address already exists: $addr dev $dev_name, updating lifetimes"
 
 		# Update the address with the new preferred and valid lifetimes
 		ip -6 address change "$addr" dev "$dev_name" preferred_lft "$pref_lft" valid_lft "$valid_lft" || {
-			echo_warning "Failed to update address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
+			echo "Failed to update address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
 			return 1
 		}
 		return 0
 	fi
 
-	echo_info "Adding address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
+	echo "Adding address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
 
 	ip -6 address add "$addr" dev "$dev_name" preferred_lft "$pref_lft" valid_lft "$valid_lft" || {
-		echo_warning "Failed to add address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
+		echo "Failed to add address: $addr dev $dev_name preferred_lft $pref_lft valid_lft $valid_lft"
 		return 1
 	}
 
@@ -231,7 +229,9 @@ setup_interface() {
 
 	# Extract DNS information and search domains from the lease file
 	lease_file="$DHCP6_DATA_BASE/${device}.leases"
-	read -r dns domains < <(extract_dns_and_domains "$lease_file")
+	extract_dns_and_domains "$lease_file"
+	dns="$EXTRACTED_DNS"
+	domains="$EXTRACTED_DOMAINS"
 
 	# Call update_resolv to update resolv.conf with DNS information and search domains
 	if [ -n "$dns" ]; then
@@ -250,7 +250,7 @@ teardown_interface() {
 
 	# Check if the lease file exists
 	if [ -f "$lease_file" ]; then
-		echo_info "Attempting to remove addresses and routes from $device"
+		echo "Attempting to remove addresses and routes from $device"
 
 		# Read the lease file line by line
 		while read -r line; do
@@ -263,26 +263,26 @@ teardown_interface() {
 				if [ -n "$addr" ]; then
 					# Attempt to remove the address
 					if ip -6 address del "$addr" dev "$device"; then
-						echo_info "Successfully removed address: $addr dev $device"
+						echo "Successfully removed address: $addr dev $device"
 					else
-						echo_warning "Failed to remove address: $addr dev $device"
+						echo "Failed to remove address: $addr dev $device"
 					fi
 
 					# Attempt to remove the route for this address
 					if ip -6 route del "$addr" dev "$device"; then
-						echo_info "Successfully removed route: $addr dev $device"
+						echo "Successfully removed route: $addr dev $device"
 					else
-						echo_warning "Failed to remove route: $addr dev $device"
+						echo "Failed to remove route: $addr dev $device"
 					fi
 				fi
 			fi
-		done < "$lease_file"
+		done <"$lease_file"
 
 		# Remove the lease file after processing
-		echo_info "Removing lease file: $lease_file"
+		echo "Removing lease file: $lease_file"
 		rm -f "$lease_file"
 	else
-		echo_warning "No existing lease file found for $device"
+		echo "No existing lease file found for $device"
 	fi
 }
 

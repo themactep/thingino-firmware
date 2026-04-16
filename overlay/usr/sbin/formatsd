@@ -1,45 +1,59 @@
 #!/bin/sh
 # Formats SD card
 
-. /usr/share/common
+singleton() {
+	if [ -z "$1" ]; then
+		echo "Program name is missing" >&2
+		exit 1
+	fi
+
+	local appname pids
+
+	appname=$(basename "$1")
+	pids=$(pidof -o %PPID "$appname")
+	if [ -n "$pids" ]; then
+		echo "$appname is already running with PIDs $pids. Exiting" >&2
+		exit 1
+	fi
+}
 
 singleton "$0"
 
 format_partition() {
 	unmount_partition $1
-	echo_info "Format partition"
+	echo "Format partition"
 	if ! $MKFS -n thingino $1 2>&1; then
-		echo_error "Cannot format $1 to $POST_fstype"
+		echo "Cannot format $1 to $POST_fstype" >&2
 		exit 1
 	fi
 }
 
 mount_partitions() {
-	echo_info "Mount partition"
-	echo /sbin/mdev > /proc/sys/kernel/hotplug
+	echo "Mount partition"
+	echo /sbin/mdev >/proc/sys/kernel/hotplug
 	if ! mdev -s; then
-		echo_error "Cannot re-mount SD card"
+		echo "Cannot re-mount SD card" >&2
 		exit 1
 	fi
 }
 
 unmount_partition() {
-	echo_info "Unmount partition"
+	echo "Unmount partition"
 	local limit=5
 	while mountpoint -q $1; do
 		if [ "$limit" -le 0 ]; then
-			echo_error "Cannot unmount $1"
+			echo "Cannot unmount $1" >&2
 			exit 1
 		fi
 		umount -l $1 2>&1
 		sleep 0.5
-		limit=$((limit-1))
+		limit=$((limit - 1))
 	done
 }
 
 reinsert_sdcard() {
-	echo_info "Reinsert card"
-	echo "" > /proc/sys/kernel/hotplug
+	echo "Reinsert card"
+	echo "" >/proc/sys/kernel/hotplug
 	mmc 0 -r
 	sleep 1
 	mmc 0
@@ -47,9 +61,9 @@ reinsert_sdcard() {
 }
 
 repartition_sdcard() {
-	echo_info "Repartition card"
+	echo "Repartition card"
 	if ! echo -e "o\nn\np\n1\n\n\nt\n$FSTYPE\nw" | fdisk $1 2>&1; then
-		echo_error "Cannot create a partition on $1"
+		echo "Cannot create a partition on $1" >&2
 		exit 1
 	fi
 }
@@ -67,14 +81,14 @@ esac
 
 device_name="$(awk -F= '/DEVNAME/{print $2}' /sys/bus/mmc/devices/*/block/*/uevent)"
 if [ -z "$device_name" ]; then
-	echo_error "No SD card device found"
+	echo "No SD card device found" >&2
 	exit 1
 fi
 
-unmount_partition  "/mnt/${device_name}p1"
+unmount_partition "/mnt/${device_name}p1"
 repartition_sdcard "/dev/${device_name}"
 reinsert_sdcard
-format_partition   "/dev/${device_name}p1"
+format_partition "/dev/${device_name}p1"
 mount_partitions
 
 exit 0

@@ -1,17 +1,284 @@
 #!/bin/sh
 
+DAEMON="/usr/sbin/mdnsd"
 DAEMON_ARGS="-i $(ip -o link show up | awk -F': ' '!/lo/{print $2; exit}') -s"
+PIDFILE="/var/run/mdnsd.pid"
+MDNS_SERVICE_DIR="/etc/mdns.d"
+UHTTPD_DEFAULTS="/etc/default/uhttpd"
+UHTTPD_HTTP_LISTEN_DEFAULT="80"
+UHTTPD_HTTPS_LISTEN_DEFAULT="443"
+UHTTPD_CERT_DEFAULT="/etc/ssl/certs/uhttpd.crt"
+UHTTPD_KEY_DEFAULT="/etc/ssl/private/uhttpd.key"
+PRUDYNT_CONFIG="/etc/prudynt.json"
+RAPTOR_CONFIG="/etc/raptor.conf"
+STRERO_RTSP_CONFIG="/etc/streamer.d/rtsp.json"
 
-. /usr/share/common
+ensure_dir() {
+	if [ -d "$1" ]; then
+		return 0
+	fi
+
+	mkdir -p "$1" || {
+		echo "Cannot create directory $1" >&2
+		return 1
+	}
+
+	if [ ! -w "$1" ]; then
+		echo "Cannot write to $1" >&2
+		return 1
+	fi
+}
+
+start_daemon() {
+	start-stop-daemon -S -b -p "$PIDFILE" -x "$DAEMON" -- $@
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
+
+local_hostname() {
+	local host
+
+	host="$(hostname 2>/dev/null)"
+	[ -z "$host" ] && host="localhost"
+	case "$host" in
+		*.local) echo "$host" ;;
+		*) echo "${host}.local" ;;
+	esac
+}
+
+normalize_port() {
+	local listen="$1"
+
+	[ -z "$listen" ] && return
+	echo "${listen##*:}"
+}
+
+bool_with_default() {
+	local value="$1"
+	local default="$2"
+
+	value=$(echo "$value" | tr -d '[:space:]' | tr 'A-Z' 'a-z')
+	[ -n "$value" ] || value="$default"
+
+	case "$value" in
+		true | yes | 1 | on) echo "true" ;;
+		false | no | 0 | off) echo "false" ;;
+		*) echo "$default" ;;
+	esac
+}
+
+json_text() {
+	local file="$1"
+	local key="$2"
+
+	command -v jct >/dev/null 2>&1 || return
+	jct "$file" get "$key" 2>/dev/null | tr -d '\r\n'
+}
+
+json_first_text() {
+	local file="$1"
+	local key value
+	shift
+
+	for key in "$@"; do
+		value=$(json_text "$file" "$key")
+		[ -n "$value" ] && {
+			echo "$value"
+			return 0
+		}
+	done
+
+	return 1
+}
+
+raptor_conf_text() {
+	local section="$1"
+	local key="$2"
+
+	[ -f "$RAPTOR_CONFIG" ] || return
+	sed -n "/^\[$section\]/,/^\[/{ /^$key[[:space:]]*=/{s/^[^=]*=[[:space:]]*//;s/[[:space:]]*#.*$//;s/^[[:space:]]*//;s/[[:space:]]*$//;p;q}}" "$RAPTOR_CONFIG"
+}
+
+raptor_bool_default() {
+	local section="$1"
+	local key="$2"
+	local default="$3"
+	local value
+
+	value=$(raptor_conf_text "$section" "$key")
+	bool_with_default "$value" "$default"
+}
+
+probe_rtsp_raptor() {
+	local enabled tls port
+
+	[ -f "$RAPTOR_CONFIG" ] || return 1
+	enabled=$(raptor_bool_default rtsp enabled true)
+	[ "$enabled" = "true" ] || return 1
+
+	tls=$(raptor_bool_default rtsp tls true)
+	port=$(normalize_port "$(raptor_conf_text rtsp port)")
+	if [ -z "$port" ]; then
+		if [ "$tls" = "true" ]; then
+			port="322"
+		else
+			port="554"
+		fi
+	fi
+
+	RTSP_MDNS_TYPE="_rtsp._tcp"
+	[ "$tls" = "true" ] && RTSP_MDNS_TYPE="_rtsps._tcp"
+	RTSP_MDNS_PORT="$port"
+	return 0
+}
+
+probe_rtsp_prudynt() {
+	local enabled port
+
+	[ -f "$PRUDYNT_CONFIG" ] || return 1
+	enabled=$(bool_with_default "$(json_text "$PRUDYNT_CONFIG" "rtsp.enabled")" "true")
+	[ "$enabled" = "true" ] || return 1
+
+	port=$(normalize_port "$(json_text "$PRUDYNT_CONFIG" "rtsp.port")")
+	[ -n "$port" ] || port="554"
+
+	RTSP_MDNS_TYPE="_rtsp._tcp"
+	RTSP_MDNS_PORT="$port"
+	return 0
+}
+
+probe_rtsp_strero() {
+	local enabled tls port
+
+	[ -f "$STRERO_RTSP_CONFIG" ] || return 1
+	enabled=$(bool_with_default "$(json_first_text "$STRERO_RTSP_CONFIG" enabled rtsp.enabled)" "true")
+	[ "$enabled" = "true" ] || return 1
+
+	tls=$(bool_with_default "$(json_first_text "$STRERO_RTSP_CONFIG" tls_enabled tls rtsp.tls_enabled rtsp.tls tls.enabled)" "false")
+	port=$(normalize_port "$(json_first_text "$STRERO_RTSP_CONFIG" port listen_port rtsp.port rtsp.listen_port)")
+	if [ -z "$port" ]; then
+		if [ "$tls" = "true" ]; then
+			port="322"
+		else
+			port="554"
+		fi
+	fi
+
+	RTSP_MDNS_TYPE="_rtsp._tcp"
+	[ "$tls" = "true" ] && RTSP_MDNS_TYPE="_rtsps._tcp"
+	RTSP_MDNS_PORT="$port"
+	return 0
+}
+
+detect_rtsp_mdns() {
+	RTSP_MDNS_TYPE=""
+	RTSP_MDNS_PORT=""
+
+	if pidof raptor >/dev/null 2>&1; then
+		probe_rtsp_raptor && return 0
+	fi
+	if pidof streamer >/dev/null 2>&1; then
+		probe_rtsp_strero && return 0
+	fi
+	if pidof prudynt >/dev/null 2>&1; then
+		probe_rtsp_prudynt && return 0
+	fi
+
+	probe_rtsp_raptor && return 0
+	probe_rtsp_strero && return 0
+	probe_rtsp_prudynt && return 0
+	return 1
+}
+
+generate_web_services() {
+	local local_host http_listen https_listen http_port https_port cert_path key_path
+
+	local_host="$(local_hostname)"
+
+	http_listen="$UHTTPD_HTTP_LISTEN_DEFAULT"
+	https_listen="$UHTTPD_HTTPS_LISTEN_DEFAULT"
+	cert_path="$UHTTPD_CERT_DEFAULT"
+	key_path="$UHTTPD_KEY_DEFAULT"
+
+	if [ -r "$UHTTPD_DEFAULTS" ]; then
+		. "$UHTTPD_DEFAULTS"
+		[ -n "$UHTTPD_HTTP_LISTEN" ] && http_listen="$UHTTPD_HTTP_LISTEN"
+		[ -n "$UHTTPD_HTTPS_LISTEN" ] && https_listen="$UHTTPD_HTTPS_LISTEN"
+	fi
+
+	http_port="$(normalize_port "$http_listen")"
+	https_port="$(normalize_port "$https_listen")"
+	[ -z "$http_port" ] && http_port="80"
+	[ -z "$https_port" ] && https_port="443"
+
+	ensure_dir "$MDNS_SERVICE_DIR"
+
+	cat >"$MDNS_SERVICE_DIR/http.service" <<-EOF
+		# Auto-generated by S50mdnsd
+		name Thingino Web UI
+		type _http._tcp
+		port $http_port
+		target $local_host
+	EOF
+
+	if [ -f "$cert_path" ] && [ -f "$key_path" ] && [ -s "$cert_path" ] && [ -s "$key_path" ]; then
+		cat >"$MDNS_SERVICE_DIR/https.service" <<-EOF
+			# Auto-generated by S50mdnsd
+			name Thingino Web UI (HTTPS)
+			type _https._tcp
+			port $https_port
+			target $local_host
+		EOF
+	else
+		rm -f "$MDNS_SERVICE_DIR/https.service"
+	fi
+}
+
+generate_rtsp_services() {
+	local local_host svc_file svc_name
+
+	local_host="$(local_hostname)"
+	rm -f "$MDNS_SERVICE_DIR/rtsp.service" "$MDNS_SERVICE_DIR/rtsps.service"
+
+	detect_rtsp_mdns || return 0
+
+	svc_file="$MDNS_SERVICE_DIR/rtsp.service"
+	svc_name="Thingino RTSP"
+	if [ "$RTSP_MDNS_TYPE" = "_rtsps._tcp" ]; then
+		svc_file="$MDNS_SERVICE_DIR/rtsps.service"
+		svc_name="Thingino RTSPS"
+	fi
+
+	cat >"$svc_file" <<-EOF
+		# Auto-generated by S50mdnsd
+		name $svc_name
+		type $RTSP_MDNS_TYPE
+		port $RTSP_MDNS_PORT
+		target $local_host
+	EOF
+}
 
 start() {
-	echo_title "Starting mdnsd"
+	echo -c 15 "Starting mdnsd"
 
-	start_daemon
+	generate_web_services
+	generate_rtsp_services
+
+	# shellcheck disable=SC2086
+	start_daemon $DAEMON_ARGS
 }
 
 stop() {
-	echo_title "Stopping mdnsd"
+	echo -c 15 "Stopping mdnsd"
 
 	stop_daemon
 }

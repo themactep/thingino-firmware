@@ -1,18 +1,24 @@
 #!/bin/sh
 
-. /usr/share/common
-
 USB_EN_PIN=""
 USB_EN_ACTIVE_LOW=0
 USB_EN_ACTIVE_ON_BOOT=1
 PARSED_PIN=""
 
 CONFIG_JSON="/etc/thingino.json"
+JCT_BIN="${JCT_BIN:-$(command -v jct 2>/dev/null)}"
+
+ensure_command() {
+	if ! command -v "$1" >/dev/null 2>&1; then
+		echo "Missing $1" >&2
+		exit 1
+	fi
+}
 
 bool_flag() {
 	case "${1:-}" in
-		1|true|TRUE|on|ON|yes|YES) echo 1 ;;
-		0|false|FALSE|off|OFF|no|NO) echo 0 ;;
+		1 | true | TRUE | on | ON | yes | YES) echo 1 ;;
+		0 | false | FALSE | off | OFF | no | NO) echo 0 ;;
 		*) echo "${2:-0}" ;;
 	esac
 }
@@ -45,7 +51,7 @@ parse_scalar_pin() {
 	set -- $raw
 	raw="$1"
 	case "$raw" in
-		''|*[!0-9]*) return 1 ;;
+		'' | *[!0-9]*) return 1 ;;
 		-1) return 1 ;;
 	esac
 	PARSED_PIN="$raw"
@@ -99,34 +105,34 @@ configure_usb_power() {
 			target=$pin_off
 			state_desc="off"
 		fi
-		echo_info "Set USB power GPIO $USB_EN_PIN $state_desc via $CONFIG_JSON"
+		echo "Set USB power GPIO $USB_EN_PIN $state_desc via $CONFIG_JSON"
 		if ! gpio set "$USB_EN_PIN" "$target"; then
-			echo_error "Failed to set USB power GPIO $USB_EN_PIN to $target"
+			echo "Failed to set USB power GPIO $USB_EN_PIN to $target" >&2
 			return 1
 		fi
 		return 0
 	fi
 
-	echo_warning "USB power GPIO is not set in thingino configuration"
+	echo "USB power GPIO is not set in thingino configuration"
 	return 1
 }
 
 configure_usb_role() {
 	#FIXME: we should store the host type in the system config for USB-DIRECT devices, etc.
-	kernel_version=`uname -r | cut -d. -f1-2`
+	kernel_version=$(uname -r | cut -d. -f1-2)
 	if [ "$kernel_version" = "4.4" ]; then
-		echo_info "Setting USB controller to host mode"
+		echo "Setting USB controller to host mode"
 		usb-role -m host >/dev/null 2>&1
 		if [ $? -ne 0 ]; then
-			echo_warning "Failed to set USB controller to host mode"
+			echo "Failed to set USB controller to host mode"
 		else
-			echo_info "USB controller set to host mode"
+			echo "USB controller set to host mode"
 		fi
 	fi
 }
 
 start() {
-	echo_title "Configuring USB"
+	echo -c 15 "Configuring USB"
 	configure_usb_power
 	configure_usb_role
 }

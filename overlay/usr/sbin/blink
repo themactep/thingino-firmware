@@ -1,10 +1,8 @@
 #!/bin/sh
 # Blinks a LED
 
-. /usr/share/common
-
 PID_FILE="/run/blink.pid"
-echo $$ > $PID
+echo $$ >"$PID_FILE"
 
 cleanup() {
 	# FIXME: set pin to the predefined default status

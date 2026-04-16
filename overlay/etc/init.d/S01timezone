@@ -1,46 +1,48 @@
 #!/bin/sh
 
-. /usr/share/common
+TZCODE_FILE="/etc/TZ"
+TZJSON_FILE="/usr/share/tz.json"
+TZNAME_FILE="/etc/timezone"
 
 start() {
-	echo_title "Setting timezone"
+	echo -c 15 "Setting timezone"
 
 	if [ ! -f "$TZNAME_FILE" ]; then
-		echo_info "Timezone name not found, default to GMT"
-		echo "Etc/GMT" > "$TZNAME_FILE"
+		echo "Timezone name not found, default to GMT"
+		echo "Etc/GMT" >"$TZNAME_FILE"
 	fi
 
-	echo_info "Timezone name: $(cat $TZNAME_FILE)"
+	echo "Timezone name: $(cat $TZNAME_FILE)"
 	tzname=$(cat "$TZNAME_FILE")
 
 	if [ ! -f "$TZJSON_FILE" ]; then
-		echo_error "$TZJSON_FILE not found"
+		echo "$TZJSON_FILE not found" >&2
 		exit 1
 	fi
 
-	tz=$(cat "$TZJSON_FILE" | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' | \
-		sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' | \
-		sed -En "/${tzname//\//\\\/}:/p" | head -1 | cut -d: -f2-)
+	tz=$(cat "$TZJSON_FILE" | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' |
+		sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' |
+		grep -F "${tzname}:" | head -1 | cut -d: -f2-)
 
 	if [ -z "$tz" ]; then
-		echo_error "Timezone $tzname not found in $TZJSON_FILE"
+		echo "Timezone $tzname not found in $TZJSON_FILE" >&2
 		exit 1
 	fi
 
 	if [ ! -f "$TZCODE_FILE" ]; then
-		echo_info "Timezone code not found, default to GMT0"
-		echo "GMT0" > "$TZCODE_FILE"
+		echo "Timezone code not found, default to GMT0"
+		echo "GMT0" >"$TZCODE_FILE"
 	fi
 
 	if [ "$tz" != "$(cat $TZCODE_FILE)" ]; then
-		echo_info "Set timezone to $tz"
-		echo "$tz" > "$TZCODE_FILE"
+		echo "Set timezone to $tz"
+		echo "$tz" >"$TZCODE_FILE"
 	fi
 
-	echo_info "Set TZ to $tz"
+	echo "Set TZ to $tz"
 	TZ="$tz"
 
-	echo_info "Export TZ globally"
+	echo "Export TZ globally"
 	export TZ
 }
 

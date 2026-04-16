@@ -1,15 +1,23 @@
 #!/bin/sh
 
-. /usr/share/common
+CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
+JCT_BIN="${JCT_BIN:-$(command -v jct 2>/dev/null)}"
 
 LED_RECORDS=""
 JSON_LED_COUNT=0
 PARSED_PIN=""
 
+ensure_command() {
+	if ! command -v "$1" >/dev/null 2>&1; then
+		echo "Missing $1" >&2
+		exit 1
+	fi
+}
+
 bool_flag() {
 	case "${1:-}" in
-		1|true|TRUE|on|ON|yes|YES) echo 1 ;;
-		0|false|FALSE|off|OFF|no|NO) echo 0 ;;
+		1 | true | TRUE | on | ON | yes | YES) echo 1 ;;
+		0 | false | FALSE | off | OFF | no | NO) echo 0 ;;
 		*) echo "${2:-0}" ;;
 	esac
 }
@@ -42,7 +50,7 @@ parse_scalar_pin() {
 	set -- $raw
 	raw="$1"
 	case "$raw" in
-		''|*[!0-9]*) return 1 ;;
+		'' | *[!0-9]*) return 1 ;;
 		-1) return 1 ;;
 	esac
 	PARSED_PIN="$raw"
@@ -108,19 +116,25 @@ EOF
 discover_led_configs
 
 start() {
-	echo_title "Configuring LEDs"
+	echo -c 15 "Configuring LEDs"
 	ensure_command gpio
 
 	if [ "$JSON_LED_COUNT" -eq 0 ]; then
-		echo_warning "No LED pins defined in prudynt configuration"
+		echo "No LED pins defined in prudynt configuration"
 		return
 	fi
 
 	printf '%s\n' "$LED_RECORDS" | while IFS=: read -r led_name pin active_low active_on_boot; do
 		[ -n "$pin" ] || continue
 		case "$active_low" in
-			1) pin_on=0; pin_off=1 ;;
-			*) pin_on=1; pin_off=0 ;;
+			1)
+				pin_on=0
+				pin_off=1
+				;;
+			*)
+				pin_on=1
+				pin_off=0
+				;;
 		esac
 		if [ "$active_on_boot" = "1" ]; then
 			target=$pin_on
@@ -129,9 +143,9 @@ start() {
 			target=$pin_off
 			state_desc="off"
 		fi
-		echo_info "Set GPIO $pin $state_desc (LED $led_name)"
+		echo "Set GPIO $pin $state_desc (LED $led_name)"
 		gpio set "$pin" "$target"
-	 done
+	done
 }
 
 case "$1" in

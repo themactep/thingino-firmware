@@ -3,15 +3,13 @@
 # Configuration of the bridge should be done in /etc/network/interfaces.d/bridgeX
 # Read more at https://wiki.debian.org/BridgeNetworkConnections
 
-. /usr/share/common
-
 if [ ! -x /sbin/brctl ]; then
-	echo_error "No bridge ports control utility"
+	echo "No bridge ports control utility" >&2
 	exit 0
 fi
 
 if [ -z "$IF_BRIDGE_PORTS" ]; then
-	echo_error "No bridge ports defined"
+	echo "No bridge ports defined" >&2
 	exit 0
 fi
 
@@ -30,6 +28,6 @@ esac
 brctl delbr $IFACE
 
 for i in $INTERFACES; do
-	echo_info "Bringing down $i"
+	echo "Bringing down $i"
 	ip link set $i down
 done

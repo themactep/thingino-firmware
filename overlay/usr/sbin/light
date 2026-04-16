@@ -1,7 +1,5 @@
 #!/bin/sh
 
-. /usr/share/common
-
 show_help() {
 	echo "Usage: $0 <type> <mode> [pin#]
 Where:
@@ -19,7 +17,7 @@ Where:
 
 get_config_pin() {
 	local type="$1"
-	jct /etc/thingino.json get "gpio.$type.pin" 2>/dev/null || \
+	jct /etc/thingino.json get "gpio.$type.pin" 2>/dev/null ||
 		jct /etc/thingino.json get "gpio.$type" 2>/dev/null
 }
 
@@ -39,19 +37,19 @@ case "$type" in
 		pin=$(get_config_pin ir850)
 		[ -z "$pin" ] && pin=$(get_config_pin ir940)
 		if [ -z "$pin" ]; then
-			echo_error "GPIO pins for either IR lights are not defined"
+			echo "GPIO pins for either IR lights are not defined" >&2
 			exit 1
 		fi
 		;;
 	ir850 | ir940 | white | flood)
 		pin=$(get_config_pin "$type")
 		if [ -z "$pin" ] && [ "gpio" != "$mode" ]; then
-			echo_error "GPIO pin for $type light is not defined"
+			echo "GPIO pin for $type light is not defined" >&2
 			exit 1
 		fi
 		;;
 	*)
-		echo_error "Unknown light type $type"
+		echo "Unknown light type $type" >&2
 		show_help
 		;;
 esac
@@ -89,7 +87,7 @@ case "$mode" in
 		else
 			pin=$(get_config_pin "$type")
 			if [ -z "$pin" ]; then
-				echo_error "GPIO pin is missing"
+				echo "GPIO pin is missing" >&2
 				show_help
 			else
 				echo "$pin"
@@ -97,7 +95,7 @@ case "$mode" in
 		fi
 		;;
 	*)
-		echo_error "Error: Unknown mode" >&2
+		echo "Error: Unknown mode" >&2
 		show_help
 		;;
 esac

@@ -1,7 +1,30 @@
 #!/bin/sh
 # Timezone selector
 
-. /usr/share/common
+TZJSON_FILE="/usr/share/tz.json"
+
+get_terminal_height() {
+	local height
+
+	height=""
+	if command -v stty >/dev/null 2>&1; then
+		height=$(stty size 2>/dev/null | cut -d' ' -f1)
+	fi
+	if [ -z "$height" ] && command -v tput >/dev/null 2>&1; then
+		height=$(tput lines 2>/dev/null)
+	fi
+	if [ -z "$height" ] && [ -n "$LINES" ]; then
+		height=$LINES
+	fi
+	if [ -z "$height" ] && command -v ttysize >/dev/null 2>&1; then
+		height=$(ttysize h 2>/dev/null)
+	fi
+	if [ -z "$height" ] || [ "$height" -lt 10 ]; then
+		height=24
+	fi
+
+	echo "$height"
+}
 
 LIST_PATH="/tmp/timezone_list.txt"
 
@@ -18,28 +41,28 @@ Where:
 }
 
 fetch_timezones() {
-	echo_info "Loading timezone data..."
+	echo "Loading timezone data..."
 
 	if [ ! -f "$TZJSON_FILE" ]; then
-		echo_error "Error: Timezone data file not found at $TZJSON_FILE"
+		echo "Error: Timezone data file not found at $TZJSON_FILE" >&2
 		exit 1
 	fi
 
 	# Extract timezone data
-	cat "$TZJSON_FILE" | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' | \
-	sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' | sort > /tmp/tz_raw.txt
+	cat "$TZJSON_FILE" | sed 's/},{/\n/g' | sed 's/^\[{//;s/}\]$//' |
+		sed 's/"n":"\([^"]*\)","v":"\([^"]*\)"/\1:\2/' | sort >/tmp/tz_raw.txt
 
 	if [ ! -s /tmp/tz_raw.txt ]; then
-		echo_error "Error: Failed to parse timezone data"
+		echo "Error: Failed to parse timezone data" >&2
 		exit 1
 	fi
 
 	# Create numbered list
 	count=1
 	while IFS=':' read -r name value; do
-		echo "$count:$name:$value" >> $LIST_PATH
+		echo "$count:$name:$value" >>$LIST_PATH
 		count=$((count + 1))
-	done < /tmp/tz_raw.txt
+	done </tmp/tz_raw.txt
 
 	rm -f /tmp/tz_raw.txt
 }
@@ -59,10 +82,10 @@ display_timezones_page() {
 		per_page=50
 	fi
 
-	total_count=$(wc -l < $LIST_PATH)
-	total_pages=$(( (total_count + per_page - 1) / per_page ))
-	start_line=$(( (page - 1) * per_page + 1 ))
-	end_line=$(( page * per_page ))
+	total_count=$(wc -l <$LIST_PATH)
+	total_pages=$(((total_count + per_page - 1) / per_page))
+	start_line=$(((page - 1) * per_page + 1))
+	end_line=$((page * per_page))
 
 	echo "Available timezones (page $page of $total_pages), use [PgUp]/[PgDn] keys to navigate."
 	echo
@@ -79,11 +102,11 @@ set_timezone() {
 	local selected_tz="$1"
 	tz_name=$(echo "$selected_tz" | cut -d':' -f1)
 	tz_data=$(echo "$selected_tz" | cut -d':' -f2-)
-	echo "$tz_name" > /etc/timezone
-	echo "$tz_data" > /etc/TZ
+	echo "$tz_name" >/etc/timezone
+	echo "$tz_data" >/etc/TZ
 	# Restart timezone service to apply changes
-	service restart timezone > /dev/null 2>&1
-	echo_info "Timezone updated to $tz_name ($tz_data)"
+	service restart timezone >/dev/null 2>&1
+	echo "Timezone updated to $tz_name ($tz_data)"
 }
 
 get_by_name() {
@@ -151,8 +174,8 @@ interactive_shell() {
 				# Read the final character of the escape sequence
 				char3=$(dd bs=1 count=1 2>/dev/null)
 				case "$char3" in
-					"A") selection="up" ;;      # Up arrow
-					"B") selection="down" ;;    # Down arrow
+					"A") selection="up" ;;   # Up arrow
+					"B") selection="down" ;; # Down arrow
 					"5")
 						# Page Up - read the trailing ~
 						dd bs=1 count=1 2>/dev/null
@@ -202,13 +225,13 @@ interactive_shell() {
 		stty "$old_tty_settings"
 
 		case "$selection" in
-			"pgup"|"up")
+			"pgup" | "up")
 				if [ $current_page -gt 1 ]; then
 					current_page=$((current_page - 1))
 				fi
 				;;
-			"pgdn"|"down")
-				total_count=$(wc -l < $LIST_PATH)
+			"pgdn" | "down")
+				total_count=$(wc -l <$LIST_PATH)
 				terminal_height=$(get_terminal_height)
 				per_page=$((terminal_height - 8))
 				if [ "$per_page" -lt 5 ]; then
@@ -216,16 +239,16 @@ interactive_shell() {
 				elif [ "$per_page" -gt 50 ]; then
 					per_page=50
 				fi
-				total_pages=$(( (total_count + per_page - 1) / per_page ))
+				total_pages=$(((total_count + per_page - 1) / per_page))
 				if [ $current_page -lt $total_pages ]; then
 					current_page=$((current_page + 1))
 				fi
 				;;
-			"f"|"F")
+			"f" | "F")
 				current_page=1
 				;;
-			"l"|"L")
-				total_count=$(wc -l < $LIST_PATH)
+			"l" | "L")
+				total_count=$(wc -l <$LIST_PATH)
 				terminal_height=$(get_terminal_height)
 				per_page=$((terminal_height - 8))
 				if [ "$per_page" -lt 5 ]; then
@@ -233,9 +256,9 @@ interactive_shell() {
 				elif [ "$per_page" -gt 50 ]; then
 					per_page=50
 				fi
-				current_page=$(( (total_count + per_page - 1) / per_page ))
+				current_page=$(((total_count + per_page - 1) / per_page))
 				;;
-			"q"|"Q")
+			"q" | "Q")
 				exit 0
 				;;
 			[0-9]*)
@@ -244,7 +267,7 @@ interactive_shell() {
 					set_timezone "$selected_tz"
 					break
 				else
-					echo_warning "Invalid selection. Please try again."
+					echo "Invalid selection. Please try again."
 				fi
 				;;
 			*)

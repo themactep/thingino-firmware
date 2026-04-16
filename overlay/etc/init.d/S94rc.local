@@ -1,29 +1,27 @@
 #!/bin/sh
 
-. /usr/share/common
-
 START_SCRIPT="/etc/rc.local"
 STOP_SCRIPT="/etc/rc.local.stop"
 
 start() {
-	echo_title "Starting rc.local"
+	echo -c 15 "Starting rc.local"
 
 	if [ -x "$START_SCRIPT" ]; then
 		#( ( nohup /etc/rc.local >/dev/null 2>&1 </dev/null & ) & )
 		start-stop-daemon -b -S -x /bin/env -- \
 			/bin/sh -c "$START_SCRIPT 2>&1 | logger -p daemon.info -t $0"
 	else
-		echo_info "Nothing to run"
+		echo "Nothing to run"
 	fi
 }
 
 stop() {
-	echo_title "Stopping rc.local"
+	echo -c 15 "Stopping rc.local"
 
 	if [ -x "$STOP_SCRIPT" ]; then
 		$STOP_SCRIPT
 	else
-		echo_info "Nothing to run"
+		echo "Nothing to run"
 	fi
 }
 

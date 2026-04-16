@@ -1,31 +1,32 @@
 #!/bin/sh
 
-. /usr/share/common
+RESOLV_DEFAULT_FILE="/etc/default/resolv.conf"
+RESOLV_WORKING_FILE="/tmp/resolv.conf"
 
 if [ ! -f /etc/network/interfaces.d/$IFACE ]; then
-	echo_error "No configuration file for $IFACE"
+	echo "No configuration file for $IFACE" >&2
 	exit 0
 fi
 
 if grep -q static /etc/network/interfaces.d/$IFACE >/dev/null; then
-	echo_error "$IFACE uses dynamic IP address"
+	echo "$IFACE uses dynamic IP address" >&2
 	exit 0
 fi
 
 if [ ! -f "$RESOLV_DEFAULT_FILE" ]; then
-	echo_error "$IFACE does not use static DNS servers"
+	echo "$IFACE does not use static DNS servers" >&2
 	exit 0
 fi
 
 if [ ! -f "$RESOLV_WORKING_FILE" ]; then
-	echo_info "Adding static DNS servers for $IFACE"
+	echo "Adding static DNS servers for $IFACE"
 	cp "$RESOLV_DEFAULT_FILE" "$RESOLV_WORKING_FILE"
 fi
 
 grep -v '^#' /etc/default/resolv.conf | while read line; do
 	if ! grep -q "^$line$" "$RESOLV_WORKING_FILE" >/dev/null; then
-		echo_info "append $line"
-		echo "$line" >> "$RESOLV_WORKING_FILE"
+		echo "append $line"
+		echo "$line" >>"$RESOLV_WORKING_FILE"
 	fi
 done
 

@@ -1,15 +1,13 @@
 #!/bin/sh
 # udhcpc script edited by Tim Riker <Tim@Rikers.org>
 
-. /usr/share/common
-
 if [ -z "$1" ]; then
-	echo_error "Error: should be called from udhcpc"
+	echo "Error: should be called from udhcpc" >&2
 	exit 0
 fi
 
 if [ ! -d /sys/class/net/$interface ]; then
-	echo_error "Interface $interface not found"
+	echo "Interface $interface not found" >&2
 	exit 0
 fi
 
@@ -28,11 +26,14 @@ WIRED_METRIC=100
 get_interface_type() {
 	case "$1" in
 		wlan* | wlp* | wls*)
-			echo "wireless" ;;
+			echo "wireless"
+			;;
 		eth* | enp* | ens* | usb* | enx*)
-			echo "wired" ;;
+			echo "wired"
+			;;
 		*)
-			echo "unknown" ;;
+			echo "unknown"
+			;;
 	esac
 }
 
@@ -46,13 +47,13 @@ case "$1" in
 		echo "Setting IP address $ip on $interface"
 		ip addr add $ip$NETMASK $BROADCAST dev $interface
 		if [ -n "$router" ]; then
-			echo_info "Deleting routers"
+			echo "Deleting routers"
 			while route del default gw 0.0.0.0 dev $interface; do
 				:
 			done
 
 			for i in $router; do
-				echo_info "Adding router $i"
+				echo "Adding router $i"
 				if [ "$subnet" = "255.255.255.255" ]; then
 					ip route add $i dev $interface
 				fi

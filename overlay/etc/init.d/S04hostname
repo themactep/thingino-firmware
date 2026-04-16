@@ -1,6 +1,8 @@
 #!/bin/sh
 
-. /usr/share/common
+HOSTNAME_FILE="/etc/hostname"
+HOSTS_FILE="/etc/hosts"
+OS_RELEASE_FILE="/etc/os-release"
 
 default_hostname() {
 	echo "$(sed -n 's/^HOSTNAME=//p' $OS_RELEASE_FILE)"
@@ -12,26 +14,26 @@ is_user_modified_hostname() {
 	hostname="$(hostname)"
 
 	if [ -z "$hostname" ]; then
-		echo_warning "Hostname is blank and should be generated"
+		echo "Hostname is blank and should be generated"
 		return 1
 	fi
 
 	if [ "(none)" = "$hostname" ]; then
-		echo_warning "Hostname is '(none)' and should be generated"
+		echo "Hostname is '(none)' and should be generated"
 		return 1
 	fi
 
 	if [ "$(default_hostname)" = "$hostname" ]; then
-		echo_warning "Hostname $hostname is default and should be generated"
+		echo "Hostname $hostname is default and should be generated"
 		return 1
 	fi
 
 	if echo "$hostname" | grep -i -q "^$(default_hostname)-[0-9a-f]\{4\}$"; then
-		echo_warning "Hostname $hostname is auto-generated and should be regenerated if the MAC address has changed"
+		echo "Hostname $hostname is auto-generated and should be regenerated if the MAC address has changed"
 		return 1
 	fi
 
-	echo_info "Hostname $hostname is custom, skipping generation"
+	echo "Hostname $hostname is custom, skipping generation"
 
 	return 0
 }
@@ -40,10 +42,10 @@ set_hostname() {
 	local new_hostname="$1"
 	local source="$2"
 
-	echo_info "Setting hostname to $new_hostname ($source)"
+	echo "Setting hostname to $new_hostname ($source)"
 
 	if [ "$(hostname)" != "$new_hostname" ]; then
-		echo_info "Updating current hostname"
+		echo "Updating current hostname"
 		hostname "$new_hostname"
 	fi
 
@@ -51,21 +53,21 @@ set_hostname() {
 
 	ip="127.0.1.1"
 	hostname_in_hosts=$(sed -nE "s/^$ip\s+(.*)$/\1/p" $HOSTS_FILE)
-	echo_info "Hostname in $HOSTS_FILE is $hostname_in_hosts"
+	echo "Hostname in $HOSTS_FILE is $hostname_in_hosts"
 
 	if [ "$hostname_in_hosts" = "$new_hostname" ]; then
-		echo_info "Hostname in $HOSTS_FILE is correct"
+		echo "Hostname in $HOSTS_FILE is correct"
 	else
-		echo_info "Updating hostname in $HOSTS_FILE"
+		echo "Updating hostname in $HOSTS_FILE"
 		sed -i "/^$ip/c$ip\t$new_hostname" $HOSTS_FILE
 	fi
 
 	hostname_in_hostname=$(cat $HOSTNAME_FILE)
 	if [ "$hostname_in_hostname" = "$new_hostname" ]; then
-		echo_info "Hostname in $HOSTNAME_FILE is correct"
+		echo "Hostname in $HOSTNAME_FILE is correct"
 	else
-		echo_info "Saving hostname in $HOSTNAME_FILE"
-		echo $new_hostname > $HOSTNAME_FILE
+		echo "Saving hostname in $HOSTNAME_FILE"
+		echo $new_hostname >$HOSTNAME_FILE
 	fi
 }
 
@@ -73,25 +75,25 @@ generate() {
 	local wlan_mac=$(jct /etc/thingino.json get wlan.mac 2>/dev/null || fw_printenv -n wlan_mac)
 	local generated_hostname="$(default_hostname)-$(echo $wlan_mac | sed -E 's/://g;s/.*(.{4})$/\1/')"
 
-	echo_info "Generated name: $generated_hostname"
+	echo "Generated name: $generated_hostname"
 	set_hostname "$generated_hostname" "auto-generated"
 }
 
 start() {
-	echo_title "Configuring hostname"
+	echo -c 15 "Configuring hostname"
 
 	# Check if hostname is configured via 'conf s hostname'
 	if [ -n "$hostname" ]; then
-		echo_info "Using configured hostname: $hostname"
+		echo "Using configured hostname: $hostname"
 		set_hostname "$hostname" "configured"
 	elif is_user_modified_hostname; then
-		echo_info "Hostname is already customized, keeping current"
+		echo "Hostname is already customized, keeping current"
 	else
 		generate
 	fi
 
 	current_hostname=$(hostname)
-	echo_info "Hostname set to $current_hostname"
+	echo "Hostname set to $current_hostname"
 
 	HOSTNAME="$current_hostname"
 	export HOSTNAME

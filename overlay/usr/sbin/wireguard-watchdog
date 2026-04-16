@@ -1,7 +1,5 @@
 #!/bin/sh
 
-. /usr/share/common
-
 WIREGUARD_LIB_ONLY=1
 . /etc/init.d/S42wireguard
 
@@ -28,7 +26,7 @@ save_state() {
 	tmp_file=$(mktemp) || return 1
 	{
 		printf 'zero_handshake_since=%s\n' "${zero_handshake_since:-0}"
-	} > "$tmp_file"
+	} >"$tmp_file"
 	cp "$tmp_file" "$STATE_FILE"
 	rm -f "$tmp_file"
 }
@@ -50,7 +48,7 @@ watchdog_interval_seconds() {
 	local minutes="$wireguard_watchdog_interval"
 
 	case "$minutes" in
-		''|*[!0-9]*|0)
+		'' | *[!0-9]* | 0)
 			minutes=2
 			;;
 	esac
@@ -64,8 +62,7 @@ watchdog_stale_seconds() {
 
 	if [ -n "$wireguard_watchdog_stale" ]; then
 		case "$wireguard_watchdog_stale" in
-			*[!0-9]*|0)
-				;;
+			*[!0-9]* | 0) ;;
 			*)
 				echo "$wireguard_watchdog_stale"
 				return 0
@@ -76,7 +73,7 @@ watchdog_stale_seconds() {
 	interval=$(watchdog_interval_seconds)
 	keepalive="$wireguard_keepalive"
 	case "$keepalive" in
-		''|*[!0-9]*)
+		'' | *[!0-9]*)
 			keepalive=0
 			;;
 	esac
@@ -99,7 +96,7 @@ latest_handshake_epoch() {
 	while read -r peer ts; do
 		[ -n "$peer" ] || continue
 		case "$ts" in
-			''|*[!0-9]*)
+			'' | *[!0-9]*)
 				ts=0
 				;;
 		esac

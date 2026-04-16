@@ -1,16 +1,14 @@
 #!/bin/sh
 
-. /usr/share/common
-
 if [ ! -x /sbin/vconfig ]; then
-	echo_error "No VLAN support"
+	echo "No VLAN support" >&2
 	exit 0
 fi
 
 if [ -z "$IF_VLAN_RAW_DEVICE" ] && [ -z "$(echo $IFACE | grep '.\+\.[0-9]\+$')" ]; then
-	echo_error "No VLAN on $IFACE"
+	echo "No VLAN on $IFACE" >&2
 	exit 0
 fi
 
-echo_info "Removing VLAN from $IFACE"
+echo "Removing VLAN from $IFACE"
 vconfig rem $IFACE

@@ -1,6 +1,9 @@
 #!/bin/sh
 
-. /usr/share/common
+die() {
+	echo "$1" >&2
+	exit 1
+}
 
 gpiodir=/sys/class/gpio
 
@@ -35,27 +38,27 @@ list_pins() {
 
 claim_pin() {
 	export_pin
-	echo "$pin" > /proc/gpio_claim/gpio
+	echo "$pin" >/proc/gpio_claim/gpio
 }
 
 export_pin() {
 	[ -d "$gpiodir/gpio$pin" ] && return
-	echo "$pin" > "$gpiodir/export"
+	echo "$pin" >"$gpiodir/export"
 }
 
 unexport_pin() {
 	[ -d "$gpiodir/gpio$pin" ] || return
-	echo "$pin" > "$gpiodir/unexport"
+	echo "$pin" >"$gpiodir/unexport"
 }
 
 set_direction() {
 	export_pin
-	echo "$1" > "$gpiodir/gpio$pin/direction"
+	echo "$1" >"$gpiodir/gpio$pin/direction"
 }
 
 set_value() {
 	set_direction "out"
-	echo "$1" > "$gpiodir/gpio$pin/value"
+	echo "$1" >"$gpiodir/gpio$pin/value"
 }
 
 toggle_value() {
@@ -118,33 +121,47 @@ fi
 
 case "$1" in
 	export | catch)
-		export_pin ;;
+		export_pin
+		;;
 	unexport | release)
-		unexport_pin ;;
+		unexport_pin
+		;;
 	input)
-		set_direction "in" ;;
+		set_direction "in"
+		;;
 	output)
-		set_direction "out" ;;
+		set_direction "out"
+		;;
 	set)
-		set_value ${3:-1} ;;
+		set_value ${3:-1}
+		;;
 	toggle)
-		toggle_value ;;
+		toggle_value
+		;;
 	get | read | value)
-		get_value ;;
+		get_value
+		;;
 	claim)
-		claim_pin ;;
+		claim_pin
+		;;
 	info)
-		get_pin_info ;;
+		get_pin_info
+		;;
 	list)
-		list_pins ;;
+		list_pins
+		;;
 	clear)
-		set_value 0 ;;
+		set_value 0
+		;;
 	high)
-		set_value 1 ;;
+		set_value 1
+		;;
 	low)
-		set_value 0 ;;
+		set_value 0
+		;;
 	sweep)
-		sweep_pins "$2" "$3" ;;
+		sweep_pins "$2" "$3"
+		;;
 	*)
 		show_help
 		;;

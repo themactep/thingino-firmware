@@ -1,20 +1,14 @@
 #!/bin/sh
 
-. /usr/share/common
-
 TZCODE_FILE="/etc/TZ"
 if [ -f "$TZCODE_FILE" ]; then
 	TZ="$(cat $TZCODE_FILE)"
 	export TZ
 else
-	echo_info "Cannot find $TZCODE_FILE"
+	echo "Cannot find $TZCODE_FILE"
 fi
 
-rm -f /run/boot
-
-sleep 0.1
-
-echo 0.5 > /run/boot
+service start ledd
 
 execute_and_log() {
 	script="$1"
@@ -24,11 +18,11 @@ execute_and_log() {
 		clean_line=$(echo "$line" | awk '{ gsub(/\x1b\[[0-9;]*m/, ""); $1=$1; print }')
 		echo "$clean_line" | logger -p daemon.info -t "$script"
 		echo "$line"
-	done < /tmp/initlogpipe &
+	done </tmp/initlogpipe &
 
 	logger_pid=$!
 
-	/bin/sh -c "$script start" > /tmp/initlogpipe 2>&1
+	/bin/sh -c "$script start" >/tmp/initlogpipe 2>&1
 
 	rm -f /tmp/initlogpipe
 }

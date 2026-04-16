@@ -4,7 +4,12 @@
 # camera profiles (scalar pins, strings with o/O suffix, structured objects,
 # lists of pins, and the /dev/tmi8152_ir_cut device shim).
 
-. /usr/share/common
+ensure_command() {
+	if ! command -v "$1" >/dev/null 2>&1; then
+		echo "Missing $1" >&2
+		exit 1
+	fi
+}
 
 MODE_FILE="/tmp/ircutmode.txt"
 : "${IRCUT_PULSE_US:=10000}"
@@ -13,7 +18,7 @@ CONFIG_ROOT="gpio.ircut"
 : "${CONFIG_JSON:=/etc/thingino.json}"
 : "${JCT_BIN:=$(command -v jct 2>/dev/null)}"
 
-[ -f "$MODE_FILE" ] || echo "-1" > "$MODE_FILE"
+[ -f "$MODE_FILE" ] || echo "-1" >"$MODE_FILE"
 
 pin1=""
 pin2=""
@@ -30,10 +35,10 @@ first_char() {
 
 bool_flag() {
 	case "${1:-}" in
-		1|true|TRUE|on|ON|yes|YES)
+		1 | true | TRUE | on | ON | yes | YES)
 			echo 1
 			;;
-		0|false|FALSE|off|OFF|no|NO)
+		0 | false | FALSE | off | OFF | no | NO)
 			echo 0
 			;;
 		*)
@@ -76,8 +81,8 @@ register_pin() {
 			pin_count=0
 			return 0
 			;;
-		""|*[!0-9])
-			echo_warning "Ignoring invalid IRCUT pin '$pin'"
+		"" | *[!0-9])
+			echo "Ignoring invalid IRCUT pin '$pin'"
 			return 0
 			;;
 	esac
@@ -93,7 +98,7 @@ register_pin() {
 		pin_count=2
 		return 0
 	fi
-	echo_warning "Ignoring extra IRCUT pin '$pin'"
+	echo "Ignoring extra IRCUT pin '$pin'"
 }
 
 parse_pin_token() {
@@ -157,10 +162,10 @@ extract_node() {
 				idx=$((idx + 1))
 				[ "$ircut_disabled" -eq 0 ] || break
 			done
-			[ "$idx" -gt 0 ] || echo_warning "Empty IRCUT array at $key"
+			[ "$idx" -gt 0 ] || echo "Empty IRCUT array at $key"
 			;;
 		"{")
-			echo_warning "Unhandled IRCUT object at $key"
+			echo "Unhandled IRCUT object at $key"
 			;;
 		*)
 			parse_scalar_tokens "$raw" "$node_active"
@@ -175,7 +180,7 @@ load_ircut_config() {
 		extract_node "$CONFIG_ROOT" "$default_active"
 	fi
 	if [ "$pin_count" -eq 0 ] && [ "$ircut_disabled" -eq 0 ] && [ -n "$gpio_ircut" ]; then
-		echo_info "Falling back to gpio_ircut environment override"
+		echo "Falling back to gpio_ircut environment override"
 		parse_scalar_tokens "$gpio_ircut" "$default_active"
 	fi
 }
@@ -216,7 +221,7 @@ gpio_set_level() {
 }
 
 write_mode() {
-	printf '%s\n' "$1" > "$MODE_FILE"
+	printf '%s\n' "$1" >"$MODE_FILE"
 }
 
 read_mode() {
@@ -225,7 +230,7 @@ read_mode() {
 		value=$(sed -n '1p' "$MODE_FILE" 2>/dev/null | tr -d '\r\n ')
 	fi
 	case "$value" in
-		0|1)
+		0 | 1)
 			echo "$value"
 			return 0
 			;;
@@ -245,12 +250,12 @@ apply_single() {
 		level=$single_close_level
 		label="day"
 	fi
-	echo_info "Set IRCUT GPIO $pin1 to $level ($label)"
+	echo "Set IRCUT GPIO $pin1 to $level ($label)"
 	gpio_set_level "$pin1" "$level"
 }
 
 apply_dual_open() {
-	echo_info "IRCUT -> night (pin1 idle, pin2 assert)"
+	echo "IRCUT -> night (pin1 idle, pin2 assert)"
 	gpio_set_level "$pin1" "$pin1_idle"
 	gpio_set_level "$pin2" "$pin2_assert"
 	usleep "$IRCUT_PULSE_US"
@@ -258,7 +263,7 @@ apply_dual_open() {
 }
 
 apply_dual_close() {
-	echo_info "IRCUT -> day (pin1 assert, pin2 idle)"
+	echo "IRCUT -> day (pin1 assert, pin2 idle)"
 	gpio_set_level "$pin2" "$pin2_idle"
 	gpio_set_level "$pin1" "$pin1_assert"
 	usleep "$IRCUT_PULSE_US"
@@ -268,10 +273,10 @@ apply_dual_close() {
 apply_tmi() {
 	local target="$1"
 	[ -c /dev/tmi8152_ir_cut ] || {
-		echo_error "Missing /dev/tmi8152_ir_cut"
+		echo "Missing /dev/tmi8152_ir_cut" >&2
 		return 1
 	}
-	echo -n "$target" > /dev/tmi8152_ir_cut
+	echo -n "$target" >/dev/tmi8152_ir_cut
 }
 
 apply_state() {
@@ -291,7 +296,7 @@ apply_state() {
 			fi
 			;;
 		*)
-			echo_error "IRCUT control mode not initialized"
+			echo "IRCUT control mode not initialized" >&2
 			return 1
 			;;
 	esac
@@ -303,13 +308,13 @@ show_status() {
 	state=$(read_mode)
 	case "$state" in
 		0)
-			echo_info "IRCUT filter is removed"
+			echo "IRCUT filter is removed"
 			;;
 		1)
-			echo_info "IRCUT filter is set"
+			echo "IRCUT filter is set"
 			;;
 		*)
-			echo_info "IRCUT filter is in unknown state"
+			echo "IRCUT filter is in unknown state"
 			;;
 	esac
 }
@@ -317,13 +322,13 @@ show_status() {
 load_ircut_config
 
 if [ "$ircut_disabled" -eq 1 ]; then
-	echo_info "$disabled_reason"
+	echo "$disabled_reason"
 	exit 0
 fi
 
 case "$pin_count" in
 	0)
-		echo_error "No IRCUT pins defined in configuration"
+		echo "No IRCUT pins defined in configuration" >&2
 		exit 1
 		;;
 	1)
@@ -349,13 +354,13 @@ fi
 calc_levels
 
 case "$1" in
-	0|off|night)
+	0 | off | night)
 		apply_state 0 || exit 1
 		;;
-	1|on|day)
+	1 | on | day)
 		apply_state 1 || exit 1
 		;;
-	~|toggle)
+	~ | toggle)
 		if [ "$(read_mode)" = "0" ]; then
 			apply_state 1 || exit 1
 		else
@@ -365,7 +370,7 @@ case "$1" in
 	status)
 		show_status
 		;;
-	\?|read)
+	\? | read)
 		printf '%s' "$(read_mode)"
 		;;
 	*)

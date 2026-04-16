@@ -1,14 +1,12 @@
 #!/bin/sh
 
-. /usr/share/common
-
 start() {
-	echo_title "Applying sysctl settings"
+	echo -c 15 "Applying sysctl settings"
 
 	if sysctl -q -p; then
-		echo_info "Sysctl settings applied"
+		echo "Sysctl settings applied"
 	else
-		echo_error "Failed to apply sysctl settings"
+		echo "Failed to apply sysctl settings" >&2
 		exit 1
 	fi
 }

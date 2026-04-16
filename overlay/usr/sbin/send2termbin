@@ -1,7 +1,5 @@
 #!/bin/env sh
 
-. /usr/share/common
-
 if [ -t 0 ]; then
 	if [ -z "$1" ]; then
 		echo "Usage: $0 <command>" >&2
@@ -16,7 +14,7 @@ else
 fi
 
 if [ ! -s "$file" ]; then
-	echo_error "File $file is empty"
+	echo "File $file is empty" >&2
 	exit 1
 fi
 

@@ -1,10 +1,14 @@
 #!/bin/sh
 # LED controller that parses gpio.led_* definitions and drives channels
 # by color first-letter (r, g, b, y, c, m, w, ...). Supports numbers,
-# strings with o/O suffix, structured pin objects, and environment
-# overrides (gpio_led_*).
+# strings with o/O suffix, and structured pin objects.
 
-. /usr/share/common
+ensure_command() {
+	if ! command -v "$1" >/dev/null 2>&1; then
+		echo "Missing $1" >&2
+		exit 1
+	fi
+}
 
 CONFIG_JSON="${CONFIG_JSON:-/etc/thingino.json}"
 JCT_BIN="${JCT_BIN:-$(command -v jct 2>/dev/null)}"
@@ -30,8 +34,8 @@ Colors, use the first letter:
 
 bool_flag() {
 	case "${1:-}" in
-		1|true|TRUE|on|ON|yes|YES) echo 1 ;;
-		0|false|FALSE|off|OFF|no|NO) echo 0 ;;
+		1 | true | TRUE | on | ON | yes | YES) echo 1 ;;
+		0 | false | FALSE | off | OFF | no | NO) echo 0 ;;
 		*) echo "${2:-0}" ;;
 	esac
 }
@@ -46,6 +50,14 @@ jct_get() {
 	[ -n "$JCT_BIN" ] || return 1
 	[ -r "$CONFIG_JSON" ] || return 1
 	"$JCT_BIN" "$CONFIG_JSON" get "$1" 2>/dev/null
+}
+
+config_list_keys() {
+	[ -n "$JCT_BIN" ] || return 1
+	[ -r "$CONFIG_JSON" ] || return 1
+	"$JCT_BIN" "$CONFIG_JSON" path '$.gpio.*' --mode paths 2>/dev/null |
+		tr ',' '\n' |
+		sed -n 's/.*"\$\.\([^"[]*\)".*/\1/p'
 }
 
 get_bool_or_default() {
@@ -71,7 +83,7 @@ register_channel() {
 	[ -n "$letter" ] || return 1
 	[ -n "$pin" ] || return 1
 	case "$pin" in
-		''|*-*) return 1 ;;
+		'' | *-*) return 1 ;;
 		*[!0-9]*) return 1 ;;
 	esac
 	upper=$(printf '%s' "$letter" | tr '[:lower:]' '[:upper:]')
@@ -113,7 +125,7 @@ parse_scalar_pin() {
 			;;
 	esac
 	case "$pin" in
-		''|*[!0-9]*) return 1 ;;
+		'' | *[!0-9]*) return 1 ;;
 	esac
 	case "$suffix" in
 		o) active=1 ;;
@@ -169,23 +181,6 @@ $keys
 EOF
 }
 
-discover_from_env() {
-	local key value letter
-	[ -r "$ENV_DUMP_FILE" ] || return
-	while IFS='=' read -r key value; do
-		case "$key" in
-			gpio_led_*)
-				letter=$(printf '%s' "${key#gpio_led_}" | tr '[:upper:]' '[:lower:]' | cut -c1)
-				value=$(printf '%s' "$value" | tr -d '\r')
-				value=${value%\"}
-				value=${value#\"}
-				parse_scalar_pin "$value" 0 || continue
-				register_channel "$letter" "$PARSED_PIN" "$PARSED_ACTIVE"
-				;;
-		esac
-	done < "$ENV_DUMP_FILE"
-}
-
 channel_defined() {
 	local letter_u pin
 	letter_u=$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')
@@ -227,7 +222,7 @@ resolve_targets() {
 		return 0
 	fi
 	case "$letter" in
-		r|g|b)
+		r | g | b)
 			TARGET_LIST="$letter"
 			;;
 		y)
@@ -236,7 +231,7 @@ resolve_targets() {
 		c)
 			TARGET_LIST="g b"
 			;;
-		m|p)
+		m | p)
 			TARGET_LIST="r b"
 			;;
 		w)
@@ -256,7 +251,7 @@ apply_targets() {
 			missing=1
 		fi
 	done
-	[ "$missing" -eq 0 ] || echo_warning "One or more LED channels missing for requested color"
+	[ "$missing" -eq 0 ] || echo "One or more LED channels missing for requested color"
 	for letter in $LED_LETTERS; do
 		state="off"
 		for target in $TARGET_LIST; do
@@ -271,7 +266,6 @@ apply_targets() {
 
 discover_leds() {
 	discover_from_config
-	discover_from_env
 }
 
 [ $# -eq 1 ] || show_help
@@ -279,7 +273,7 @@ discover_leds() {
 discover_leds
 
 if [ "$CHANNEL_COUNT" -eq 0 ]; then
-	echo_error "No LED GPIO definitions found"
+	echo "No LED GPIO definitions found" >&2
 	exit 1
 fi
 
@@ -287,12 +281,15 @@ ensure_command gpio
 
 arg=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
 case "$arg" in
-	-h|--help|help|'') show_help ;;
-	off|0) color="off" ;;
+	-h | --help | help | '') show_help ;;
+	off | 0) color="off" ;;
 	*) color=$(printf '%s' "$arg" | cut -c1) ;;
 esac
 
-resolve_targets "$color" || { echo_error "Unsupported color '$1'"; exit 1; }
+resolve_targets "$color" || {
+	echo "Unsupported color '$1'" >&2
+	exit 1
+}
 
 apply_targets
 

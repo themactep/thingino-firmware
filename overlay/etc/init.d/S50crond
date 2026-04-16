@@ -1,25 +1,41 @@
 #!/bin/sh
 
+DAEMON="/usr/sbin/crond"
 DAEMON_ARGS="-f -c /etc/cron/crontabs"
+PIDFILE="/run/crond.pid"
 
-. /usr/share/common
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $@
+}
+
+stop_daemon() {
+	if [ -f "$PIDFILE" ]; then
+		start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+		status=$?
+		rm -f "$PIDFILE"
+		return $status
+	fi
+
+	start-stop-daemon -K -x "$DAEMON"
+}
 
 start() {
-	echo_title "Starting crond"
+	echo -c 15 "Starting crond"
 
-	if [ ! -f $DAEMON_FULL ]; then
-		echo_error "Disabled"
+	if [ ! -x "$DAEMON" ]; then
+		echo "Disabled" >&2
 		exit 1
 	fi
 
-	start_daemon
+	# shellcheck disable=SC2086
+	start_daemon $DAEMON_ARGS
 }
 
 stop() {
-	echo_title "Stopping crond"
+	echo -c 15 "Stopping crond"
 
-	if [ ! -f $DAEMON_FULL ]; then
-		echo_error "Disabled"
+	if [ ! -x "$DAEMON" ]; then
+		echo "Disabled" >&2
 		exit 1
 	fi
 

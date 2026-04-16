@@ -5,8 +5,8 @@ json_get() {
 	jct /etc/thingino.json get "$key" 2>/dev/null || printf '%s' "$value"
 }
 
-DAEMON="syslogd"
-DAEMON_ARGS="-n -C64 -S -t -D $RSYSLOG_ADDRESS"
+DAEMON="/sbin/syslogd"
+BASE_DAEMON_ARGS="-n -C64 -S -t -D"
 RSYSLOG_CONFIG_DOMAIN="rsyslog"
 
 # -n              Run in foreground
@@ -21,12 +21,30 @@ RSYSLOG_CONFIG_DOMAIN="rsyslog"
 # -t              Strip client-generated timestamps
 # -D              Drop duplicates
 
-PIDFILE="/run/$DAEMON.pid"
+PIDFILE="/run/syslogd.pid"
 
-. /usr/share/common
+start_daemon() {
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- "$@"
+}
+
+stop_daemon() {
+	start-stop-daemon -K -p "$PIDFILE" -x "$DAEMON"
+	status=$?
+	if [ "$status" -ne 0 ]; then
+		return "$status"
+	fi
+
+	while [ -f "$PIDFILE" ] && start-stop-daemon -K -t -p "$PIDFILE" -x "$DAEMON"; do
+		sleep 0.1
+	done
+
+	rm -f "$PIDFILE"
+	return 0
+}
 
 start() {
-	echo_title "Starting syslogd"
+	echo -c 15 "Starting syslogd"
+	daemon_args="$BASE_DAEMON_ARGS"
 
 	rsyslog_enabled=$(json_get rsyslog.enabled "false")
 	rsyslog_host=$(json_get rsyslog.host "$rsyslog_host")
@@ -35,24 +53,25 @@ start() {
 	rsyslog_local=$(json_get rsyslog.local "$rsyslog_file")
 
 	if [ -z "$rsyslog_host" ]; then
-		echo_warning "Remote logging not configured"
+		echo "Remote logging not configured"
 	elif [ "true" != "$rsyslog_enabled" ]; then
-		echo_warning "Remote logging disabled"
+		echo "Remote logging disabled"
 	else
-		echo_info "Adding remote logging to $rsyslog_host:${rsyslog_port}"
-		DAEMON_ARGS="$DAEMON_ARGS -R $rsyslog_host:${rsyslog_port}"
+		echo "Adding remote logging to $rsyslog_host:${rsyslog_port}"
+		daemon_args="$daemon_args -R $rsyslog_host:${rsyslog_port}"
 	fi
 
 	if [ "true" = "$rsyslog_local" ] || [ "true" = "$rsyslog_file" ]; then
-		echo_info "Adding local logging"
-		DAEMON_ARGS="$DAEMON_ARGS -L"
+		echo "Adding local logging"
+		daemon_args="$daemon_args -L"
 	fi
 
-	start_daemon
+	# shellcheck disable=SC2086
+	start_daemon $daemon_args
 }
 
 stop() {
-	echo_title "Stopping syslogd"
+	echo -c 15 "Stopping syslogd"
 
 	stop_daemon
 }

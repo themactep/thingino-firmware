@@ -1,12 +1,10 @@
 #!/bin/sh
 # shellcheck disable=SC3043
 
-. /usr/share/common
-
 start() {
-	echo_title "Starting network"
+	echo -c 15 "Starting network"
 	if [ -f /run/wlan_ap_mode ]; then
-		echo_error "WiFi AP mode, exiting"
+		echo "WiFi AP mode, exiting"
 		exit 0
 	fi
 
@@ -26,15 +24,15 @@ start() {
 		gpio set $pin $low
 		sleep 0.5
 		gpio set $pin $high
-  else
-		echo_warning "Ethernet GPIO does not need a toggle"
-  fi
+	else
+		echo "Ethernet GPIO does not need a toggle"
+	fi
 
 	ifup -v -a
 }
 
 stop() {
-	echo_title "Stopping network"
+	echo -c 15 "Stopping network"
 
 	ifdown -v -a
 }
