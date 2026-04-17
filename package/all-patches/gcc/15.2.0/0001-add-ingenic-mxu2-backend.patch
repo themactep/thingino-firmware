@@ -1644,7 +1644,7 @@
      DONE;
 --- a/gcc/config/mips/mips-mxu2.md
 +++ b/gcc/config/mips/mips-mxu2.md
-@@ -0,0 +1,1849 @@
+@@ -0,0 +1,1874 @@
 +;; Machine Description for MIPS INGENIC MXU2
 +;; Based on the Ingenic MXU2 XBurst@Instruction Set Arch Release Date: Nov. 18,2014
 +;; Contributed by Qian Liu (qian.liu@ingenic.com), Ingenic.
@@ -1852,8 +1852,8 @@
 +		    (match_operand:IMXU2 2 "register_operand" "q")))]
 +  "ISA_HAS_MXU2"
 +  "add<mxu2fmt>\t%w0,%w1,%w2"
-+  [(set_attr "mode" "TI")
-+   (set_attr "lat_type" "lat3")])
++  [(set_attr "type" "simd_int_arith")
++   (set_attr "mode" "TI")])
 +
 +(define_insn "mxu2_sub<mode>3"
 +  [(set (match_operand:IMXU2 0 "register_operand" "=q")
@@ -1861,8 +1861,8 @@
 +		     (match_operand:IMXU2 2 "register_operand" "q")))]
 +  "ISA_HAS_MXU2"
 +  "sub<mxu2fmt>\t%w0,%w1,%w2"
-+  [(set_attr "mode" "TI")
-+   (set_attr "lat_type" "lat3")])
++  [(set_attr "type" "simd_int_arith")
++   (set_attr "mode" "TI")])
 +
 +(define_insn "mxu2_mul<mode>3"
 +  [(set (match_operand:IMXU2 0 "register_operand" "=q")
@@ -2004,8 +2004,8 @@
 +		       (match_operand:IMXU2 2 "register_operand" "q")))]
 +  "ISA_HAS_MXU2"
 +  "addss<mxu2fmt>\t%w0,%w1,%w2"
-+  [(set_attr "mode" "TI")
-+   (set_attr "lat_type" "lat3")])
++  [(set_attr "type" "simd_int_arith")
++   (set_attr "mode" "TI")])
 +
 +(define_insn "mxu2_usadd<mode>3"
 +  [(set (match_operand:IMXU2 0 "register_operand" "=q")
@@ -2013,8 +2013,8 @@
 +		       (match_operand:IMXU2 2 "register_operand" "q")))]
 +  "ISA_HAS_MXU2"
 +  "adduu<mxu2fmt>\t%w0,%w1,%w2"
-+  [(set_attr "mode" "TI")
-+   (set_attr "lat_type" "lat3")])
++  [(set_attr "type" "simd_int_arith")
++   (set_attr "mode" "TI")])
 +
 +;; Float operations
 +(define_insn "mxu2_add<mode>3"
@@ -3385,7 +3385,7 @@
 +		 (match_operand:SI 2 "const_imm10_operand"))))]
 +  "ISA_HAS_MXU2"
 +  "lu1q\t%w0,%2(%z1)"
-+  [(set_attr "lat_type"	"lat5")
++  [(set_attr "type"	"simd_load")
 +  (set_attr "move_type" "load")
 +  (set_attr "can_delay" "no")
 +  (set_attr "mode" "TI")]
@@ -3434,7 +3434,7 @@
 +	(match_operand:MXU2 0 "register_operand"  "q"))]
 +  "ISA_HAS_MXU2"
 +  "su1q\t%w0,%2(%z1)"
-+  [(set_attr "lat_type" "unknown")
++  [(set_attr "type" "simd_store")
 +   (set_attr "mode" "TI")
 +   (set_attr "can_delay" "no")]
 +)
@@ -3494,6 +3494,31 @@
 +  [(set_attr "mode" "TI")
 +   (set_attr "lat_type"	"lat3")])
 +
++
++;; ---------------- MXU2 pipeline scheduler description ----------------
++;; Without these reservations, the scheduler treats MXU2 ops as 1-cycle
++;; (default for type="unknown") and never reorders independent insns
++;; into the latency shadow of vector ops. The vendor toolchains include
++;; a similar description and beat us by ~12% on byte-blend benchmarks
++;; thanks to filling delay slots productively.
++;;
++;; Latency values are for XBurst1 + MXU2: addv/subv/sat are 3-cycle
++;; result-to-use, lu1q is 5-cycle, su1q is 1-cycle issue.
++
++(define_automaton "mxu2_pipe")
++(define_cpu_unit "mxu2_eu" "mxu2_pipe")
++
++(define_insn_reservation "mxu2_simd_arith" 3
++  (eq_attr "type" "simd_int_arith")
++  "mxu2_eu")
++
++(define_insn_reservation "mxu2_simd_load" 5
++  (eq_attr "type" "simd_load")
++  "mxu2_eu")
++
++(define_insn_reservation "mxu2_simd_store" 1
++  (eq_attr "type" "simd_store")
++  "mxu2_eu")
 --- a/gcc/config/mips/mips.opt
 +++ b/gcc/config/mips/mips.opt
 @@ -328,6 +328,10 @@
