@@ -168,6 +168,9 @@ define GENERATE_MODULE_LOADER
 		echo "soc-nna" >> $(TARGET_DIR)/etc/modules.d/nna; \
 	fi
 
+	#JZ-AES
+	echo "jz-aes" >> $(TARGET_DIR)/etc/modules.d/jz-aes; \
+
 	if [ -n "$(SENSOR_1_MODEL)" ] && [ "$(SENSOR_1_MODEL)" != "none" ]; then \
 		if [ -n "$(SENSOR_2_MODEL)" ] && [ "$(SENSOR_2_MODEL)" != "none" ]; then \
 			echo "sensor_$(SENSOR_1_MODEL)_$(SOC_FAMILY) $(SENSOR_1_PARAMS)" > $(TARGET_DIR)/etc/modules.d/30-sensor_1; \
