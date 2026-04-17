@@ -1264,6 +1264,72 @@
  }
  
  /* Implement EH_USES.  */
+@@ -22122,6 +22563,56 @@
+   return true;
+ }
+ 
++/* MXU2 has no general-purpose vector permutation instruction with decoded
++   semantics, so we lower constant-mask shuffles via a stack roundtrip:
++   spill source(s) to stack slots, load each output element through one
++   GP scratch register, store back, lu1q the result.  This avoids the
++   element-wise insfcpuw/mtcpusw fallback whose 4 GP pseudos per shuffle
++   overwhelm the reload pass in tight loops (e.g. ChaCha20 diagonals).  */
++
++static bool
++mips_expand_mxu2_shuffle (struct expand_vec_perm_d *d)
++{
++  if (!ISA_HAS_MXU2 || !MXU2_SUPPORTED_MODE_P (d->vmode))
++    return false;
++  /* Only handle integer vector modes. The MXU2 backend currently doesn't
++     model V4SF for the FP shuffle case here.  */
++  if (!INTEGRAL_MODE_P (GET_MODE_INNER (d->vmode)))
++    return false;
++  if (d->testing_p)
++    return true;
++
++  machine_mode emode = GET_MODE_INNER (d->vmode);
++  unsigned int esize = GET_MODE_SIZE (emode);
++  unsigned int n = d->nelt;
++  rtx src1_slot = assign_stack_temp (d->vmode, n * esize);
++  rtx dst_slot = assign_stack_temp (d->vmode, n * esize);
++  rtx src2_slot = NULL_RTX;
++
++  mips_emit_move (src1_slot, d->op0);
++  if (!d->one_vector_p)
++    {
++      src2_slot = assign_stack_temp (d->vmode, n * esize);
++      mips_emit_move (src2_slot, d->op1);
++    }
++
++  for (unsigned int i = 0; i < n; i++)
++    {
++      unsigned int idx = d->perm[i] & (2 * n - 1);
++      rtx src_mem = (idx < n)
++	? adjust_address (src1_slot, emode, idx * esize)
++	: adjust_address (src2_slot ? src2_slot : src1_slot,
++			   emode, (idx - n) * esize);
++      rtx dst_mem = adjust_address (dst_slot, emode, i * esize);
++      rtx tmp = gen_reg_rtx (emode);
++      mips_emit_move (tmp, src_mem);
++      mips_emit_move (dst_mem, tmp);
++    }
++
++  mips_emit_move (d->target, dst_slot);
++  return true;
++}
++
+ static bool
+ mips_expand_vec_perm_const_1 (struct expand_vec_perm_d *d)
+ {
+@@ -22158,6 +22649,8 @@
+     return true;
+   if (mips_expand_msa_shuffle (d))
+     return true;
++  if (mips_expand_mxu2_shuffle (d))
++    return true;
+   return false;
+ }
+ 
 --- a/gcc/config/mips/mips-ftypes.def
 +++ b/gcc/config/mips/mips-ftypes.def
 @@ -36,6 +36,7 @@
