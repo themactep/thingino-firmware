@@ -1264,7 +1264,7 @@
  }
  
  /* Implement EH_USES.  */
-@@ -22122,6 +22563,56 @@
+@@ -22122,6 +22563,52 @@
    return true;
  }
  
@@ -1279,10 +1279,6 @@
 +mips_expand_mxu2_shuffle (struct expand_vec_perm_d *d)
 +{
 +  if (!ISA_HAS_MXU2 || !MXU2_SUPPORTED_MODE_P (d->vmode))
-+    return false;
-+  /* Only handle integer vector modes. The MXU2 backend currently doesn't
-+     model V4SF for the FP shuffle case here.  */
-+  if (!INTEGRAL_MODE_P (GET_MODE_INNER (d->vmode)))
 +    return false;
 +  if (d->testing_p)
 +    return true;
@@ -1321,7 +1317,7 @@
  static bool
  mips_expand_vec_perm_const_1 (struct expand_vec_perm_d *d)
  {
-@@ -22158,6 +22649,8 @@
+@@ -22158,6 +22645,8 @@
      return true;
    if (mips_expand_msa_shuffle (d))
      return true;
@@ -1515,7 +1511,25 @@
    if (<UNITMODE>mode == QImode || <UNITMODE>mode == HImode)
      {
        rtx dest1 = gen_reg_rtx (SImode);
-@@ -391,8 +405,14 @@
+@@ -337,8 +351,16 @@
+   [(match_operand:<UNITMODE> 0 "register_operand")
+    (match_operand:FMSA 1 "register_operand")
+    (match_operand 2 "const_<indeximm>_operand")]
+-  "ISA_HAS_MSA"
++  "ISA_HAS_MSA || ISA_HAS_MXU2"
+ {
++  if (ISA_HAS_MXU2)
++    {
++      if (<MODE>mode == V4SFmode)
++	emit_insn (gen_mxu2_mtfpu_w_f (operands[0], operands[1], operands[2]));
++      else
++	emit_insn (gen_mxu2_mtfpu_d_f (operands[0], operands[1], operands[2]));
++      DONE;
++    }
+   rtx temp;
+   HOST_WIDE_INT val = INTVAL (operands[2]);
+ 
+@@ -391,8 +413,14 @@
    [(match_operand:IMSA 0 "register_operand")
     (match_operand:<UNITMODE> 1 "reg_or_0_operand")
     (match_operand 2 "const_<indeximm>_operand")]
@@ -1531,7 +1545,27 @@
    rtx index = GEN_INT (1 << INTVAL (operands[2]));
    emit_insn (gen_msa_insert_<msafmt> (operands[0], operands[1],
  				      operands[0], index));
-@@ -659,7 +679,7 @@
+@@ -403,8 +431,18 @@
+   [(match_operand:FMSA 0 "register_operand")
+    (match_operand:<UNITMODE> 1 "register_operand")
+    (match_operand 2 "const_<indeximm>_operand")]
+-  "ISA_HAS_MSA"
++  "ISA_HAS_MSA || ISA_HAS_MXU2"
+ {
++  if (ISA_HAS_MXU2)
++    {
++      if (<MODE>mode == V4SFmode)
++	emit_insn (gen_mxu2_insffpu_w_f (operands[0], operands[0],
++					  operands[2], operands[1]));
++      else
++	emit_insn (gen_mxu2_insffpu_d_f (operands[0], operands[0],
++					  operands[2], operands[1]));
++      DONE;
++    }
+   rtx index = GEN_INT (1 << INTVAL (operands[2]));
+   emit_insn (gen_msa_insve_<msafmt_f>_scalar (operands[0], operands[1],
+ 					      operands[0], index));
+@@ -659,7 +697,7 @@
  (define_expand "mov<mode>"
    [(set (match_operand:MSA 0)
  	(match_operand:MSA 1))]
@@ -1540,7 +1574,7 @@
  {
    if (mips_legitimize_move (<MODE>mode, operands[0], operands[1]))
      DONE;
-@@ -668,7 +688,7 @@
+@@ -668,7 +706,7 @@
  (define_expand "movmisalign<mode>"
    [(set (match_operand:MSA 0)
  	(match_operand:MSA 1))]
