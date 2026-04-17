@@ -392,7 +392,14 @@ static int gcm_crypt_internal(mbedtls_gcm_context *ctx, size_t length,
     (void)ad; (void)ad_len;            /* AAD handled by caller's GHASH */
 
     if (length == 0) return 0;
-    if (length > 16 * 1024) return -1; /* pre-allocated buffers cap */
+    /* Scratch buffers (ctx->scratch_ctr / scratch_ks) are sized by
+     * MBEDTLS_GCM_ALT_SCRATCH_SIZE. Each needs n_ctr * 16 bytes of
+     * space where n_ctr = ceil(length/16). With scratch of 16 KB + 64,
+     * the safe input limit is exactly SCRATCH_SIZE (which aligns to
+     * 16 * (SCRATCH_SIZE/16)). TLS 1.3 records can reach 16385 bytes
+     * (16384 plaintext + 1-byte content-type), so the old 16 KB cap
+     * was off-by-one and rejected valid records. */
+    if (length > MBEDTLS_GCM_ALT_SCRATCH_SIZE) return -1;
 
     gcm_derive_j0(ctx, iv, iv_len, J0);
 

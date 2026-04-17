@@ -460,11 +460,12 @@ int mbedtls_ccm_encrypt_and_tag(mbedtls_ccm_context *ctx, size_t length,
     if (iv_len < 7 || iv_len > 13) return MBEDTLS_ERR_CCM_BAD_INPUT;
     if (tag_len < 4 || tag_len > 16 || (tag_len & 1)) return MBEDTLS_ERR_CCM_BAD_INPUT;
     if (ad_len >= 0xff00) return MBEDTLS_ERR_CCM_BAD_INPUT;
-    /* Enforce the 16 KB TLS record limit — our pre-allocated scratch
-     * buffers are sized exactly for that. A larger record would need a
-     * bigger SCRATCH_SIZE or a fallback malloc path; neither is needed
-     * for TLS record-layer consumers. */
-    if (length > 16 * 1024) return MBEDTLS_ERR_CCM_BAD_INPUT;
+    /* Scratch buffers (ctx->scratch_mac / scratch_ctr / scratch_ks) are
+     * sized by MBEDTLS_CCM_ALT_SCRATCH_SIZE. Each needs n_ctr * 16
+     * bytes where n_ctr = ceil(length/16). TLS 1.3 records can reach
+     * 16385 bytes (16384 plaintext + 1-byte content-type), so a flat
+     * 16 KB cap was off-by-one and rejected valid records. */
+    if (length > MBEDTLS_CCM_ALT_SCRATCH_SIZE) return MBEDTLS_ERR_CCM_BAD_INPUT;
 
     /* Dispatch: small records stay in CPU entirely; larger records go
      * through /dev/aes. Threshold is driven by ioctl round-trip cost
@@ -542,7 +543,7 @@ int mbedtls_ccm_auth_decrypt(mbedtls_ccm_context *ctx, size_t length,
     if (iv_len < 7 || iv_len > 13) return MBEDTLS_ERR_CCM_BAD_INPUT;
     if (tag_len < 4 || tag_len > 16 || (tag_len & 1)) return MBEDTLS_ERR_CCM_BAD_INPUT;
     if (ad_len >= 0xff00) return MBEDTLS_ERR_CCM_BAD_INPUT;
-    if (length > 16 * 1024) return MBEDTLS_ERR_CCM_BAD_INPUT;
+    if (length > MBEDTLS_CCM_ALT_SCRATCH_SIZE) return MBEDTLS_ERR_CCM_BAD_INPUT;
 
     use_hw = ((int)length >= CCM_ALT_HW_MIN_SIZE) && ccm_hw_fd_get() >= 0;
 
