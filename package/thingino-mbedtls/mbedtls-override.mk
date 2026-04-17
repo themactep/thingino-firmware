@@ -136,3 +136,36 @@ override MBEDTLS_CONF_OPTS += -DUSE_SHARED_MBEDTLS_LIBRARY=ON -DUSE_STATIC_MBEDT
 
 # Add the HTTP/2 configuration hook to mbedtls
 MBEDTLS_PRE_CONFIGURE_HOOKS += MBEDTLS_ENABLE_HTTP2_FEATURES
+
+################################################################################
+#
+# jz-crypto AES_ALT / CCM_ALT / GCM_ALT — hardware AES via /dev/aes on all
+# Ingenic T-series SoCs. The ALT sources live in alt/ next to this file
+# (vendored snapshot of jz-crypto/aes/). Runtime requires jz-aes.ko, which
+# is built and installed by the ingenic-sdk package.
+#
+################################################################################
+
+define MBEDTLS_INSTALL_JZ_CRYPTO_ALT
+	# Enable ALT hooks in mbedtls_config.h
+	$(SED) "s://#define MBEDTLS_AES_ALT:#define MBEDTLS_AES_ALT:" \
+		$(@D)/include/mbedtls/mbedtls_config.h
+	$(SED) "s://#define MBEDTLS_CCM_ALT:#define MBEDTLS_CCM_ALT:" \
+		$(@D)/include/mbedtls/mbedtls_config.h
+	$(SED) "s://#define MBEDTLS_GCM_ALT:#define MBEDTLS_GCM_ALT:" \
+		$(@D)/include/mbedtls/mbedtls_config.h
+
+	# Install ALT headers + sources
+	cp $(THINGINO_EXTERNAL_PATH)/package/thingino-mbedtls/alt/aes_alt.h $(@D)/include/mbedtls/
+	cp $(THINGINO_EXTERNAL_PATH)/package/thingino-mbedtls/alt/ccm_alt.h $(@D)/include/mbedtls/
+	cp $(THINGINO_EXTERNAL_PATH)/package/thingino-mbedtls/alt/gcm_alt.h $(@D)/include/mbedtls/
+	cp $(THINGINO_EXTERNAL_PATH)/package/thingino-mbedtls/alt/aes_alt.c $(@D)/library/
+	cp $(THINGINO_EXTERNAL_PATH)/package/thingino-mbedtls/alt/ccm_alt.c $(@D)/library/
+	cp $(THINGINO_EXTERNAL_PATH)/package/thingino-mbedtls/alt/gcm_alt.c $(@D)/library/
+
+	# Add ALT .c files to the src_crypto build list (after aes.c)
+	$(SED) '/^    aes\.c$$/a\    aes_alt.c\n    ccm_alt.c\n    gcm_alt.c' \
+		$(@D)/library/CMakeLists.txt
+endef
+
+MBEDTLS_PRE_CONFIGURE_HOOKS += MBEDTLS_INSTALL_JZ_CRYPTO_ALT
