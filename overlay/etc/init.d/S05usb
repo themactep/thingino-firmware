@@ -59,7 +59,7 @@ parse_scalar_pin() {
 }
 
 load_usb_gpio_from_json() {
-	local base="gpio.usb.en" raw pin="" active_low=0 active_boot=1 nested_active
+	local base="gpio.usb_en" raw pin="" active_low=0 active_boot=1 nested_active
 	[ -n "$JCT_BIN" ] || return 1
 	[ -r "$CONFIG_JSON" ] || return 1
 	active_low=$(get_bool_or_default "$base.active_low" 0)
