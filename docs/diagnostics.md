@@ -15,8 +15,19 @@ Alternatively, you can run the following command on the command line:
 ```bash
 thingino-diag
 ```
-This will generate a diagnostics report and send it to tb.thingino.com server
-for temporary storage. You will be presented with a URL of the report for sharing.
+By default this saves diagnostics to a random temp file in `/tmp/`.
+
+To upload diagnostics to `tb.thingino.com`:
+
+```bash
+thingino-diag -u
+```
+
+To upload and return JSON with the link:
+
+```bash
+thingino-diag -j
+```
 
 ### Saving to a File
 
@@ -24,10 +35,13 @@ If the camera does not have internet access, you can save the diagnostics report
 to a file by running:
 
 ```bash
-thingino-diag -l /path
+thingino-diag -o /path/file
 ```
 
 This will generate a diagnostics report and print the path to the file.
+You can also stream output to stdout with `thingino-diag -o -`.
+
+Legacy option `-l [path]` is still accepted for local file output.
 
 ### Using an SD Card
 
