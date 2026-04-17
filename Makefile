@@ -1085,6 +1085,26 @@ cloner:
 	@test -f $(FIRMWARE_BIN_FULL) || { echo "ERROR: $(FIRMWARE_BIN_FULL) not found. Run make first."; exit 1; }
 	$(HOST_DIR)/bin/thingino-cloner -i 0 -b -w $(FIRMWARE_BIN_FULL) --cpu $(SOC_FAMILY) --firmware-dir $(HOST_DIR)/share/thingino-cloner/firmwares --reboot
 
+ifneq ($(THINGINO_NEEDS_RELAUNCH),)
+.PHONY: __thingino_relaunch
+__thingino_relaunch:
+	@echo
+	@echo "=== Relaunching with explicit parameters ==="
+	@echo "$(RESTART_DISPLAY_CMD)"
+	@echo "============================================"
+	@histfile="$$HISTFILE"; \
+	if [ -z "$$histfile" ]; then histfile="$$HOME/.bash_history"; fi; \
+	if [ -n "$$histfile" ]; then \
+		mkdir -p "$$(dirname "$$histfile")" 2>/dev/null || true; \
+		touch "$$histfile" 2>/dev/null || true; \
+		if [ -w "$$histfile" ]; then printf '%s\n' "$(RESTART_DISPLAY_CMD)" >> "$$histfile"; fi; \
+	fi
+	@$(RESTART_CMD)
+
+$(foreach goal,$(CURRENT_TARGETS),$(eval .PHONY: $(goal)))
+$(foreach goal,$(CURRENT_TARGETS),$(eval $(goal): __thingino_relaunch ; @:))
+endif
+
 # Catch-all rule: forward undefined targets to buildroot
 # This allows running buildroot targets directly without the br- prefix
 # e.g., "make linux-menuconfig" instead of "make br-linux-menuconfig"

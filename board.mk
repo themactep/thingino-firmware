@@ -25,6 +25,8 @@ endif
 ifeq ($(SKIP_CAMERA_SELECTION),)
 BUILD_MEMO := /tmp/thingino-board.$(shell ps -o ppid= -p $$PPID | xargs)
 BUILD_IP_MEMO := $(BUILD_MEMO).ip
+INITIAL_CAMERA := $(strip $(CAMERA))
+INITIAL_IP := $(strip $(IP))
 IP_EXPLICIT := $(filter command line environment environment override,$(origin IP))
 
 ifneq ($(IP_EXPLICIT),)
@@ -64,6 +66,17 @@ CAMERA_CONFIG := $(shell find $(CAMERA_SUBDIR)/$(CAMERA) -name "$(CAMERA)_defcon
 else
 # CAMERA was provided via command line, find its config
 CAMERA_CONFIG := $(shell find $(CAMERA_SUBDIR) -name "$(CAMERA)_defconfig")
+endif
+endif
+
+CAMERA_SOURCED_DURING_LAUNCH := $(if $(and $(strip $(CAMERA)),$(if $(strip $(INITIAL_CAMERA)),,yes)),yes,)
+IP_SOURCED_DURING_LAUNCH := $(if $(and $(if $(IP_EXPLICIT),,yes),$(strip $(IP)),$(if $(strip $(INITIAL_IP)),,yes)),yes,)
+ifneq ($(filter yes,$(CAMERA_SOURCED_DURING_LAUNCH) $(IP_SOURCED_DURING_LAUNCH)),)
+ifneq ($(THINGINO_RESTARTED_WITH_PARAMS),1)
+THINGINO_NEEDS_RELAUNCH := 1
+RESTART_ARGS := CAMERA=$(CAMERA)$(if $(strip $(IP)), IP=$(IP))
+RESTART_DISPLAY_CMD := $(strip $(RESTART_ARGS) $(MAKE) --no-print-directory $(CURRENT_TARGETS))
+RESTART_CMD := $(strip THINGINO_RESTARTED_WITH_PARAMS=1 $(RESTART_DISPLAY_CMD))
 endif
 endif
 
