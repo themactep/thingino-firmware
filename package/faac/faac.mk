@@ -48,13 +48,24 @@ define FAAC_INSTALL_STAGING_CMDS
 	$(INSTALL) -D -m 0644 $(@D)/include/faaccfg.h $(STAGING_DIR)/usr/include/faaccfg.h
 	$(INSTALL) -D -m 0644 $(@D)/libfaac/libfaac.a $(STAGING_DIR)/usr/lib/libfaac.a
 	$(INSTALL) -D -m 0755 $(@D)/libfaac/libfaac.so $(STAGING_DIR)/usr/lib/libfaac.so
+	# Generate faac.pc inline. Upstream removed libfaac/faac.pc.in in
+	# knik0/faac commit 9ed7f23 ("remove obsolete pkg-config template"),
+	# so we can't sed a template that is not there. Mirror the content of
+	# the old template with our fixed staging paths.
 	mkdir -p $(STAGING_DIR)/usr/lib/pkgconfig
-	sed -e 's|@prefix@|/usr|' \
-		-e 's|@exec_prefix@|/usr|' \
-		-e 's|@libdir@|/usr/lib|' \
-		-e 's|@includedir@|/usr/include|' \
-		-e 's|@VERSION@|1.40.0|' \
-		$(@D)/libfaac/faac.pc.in > $(STAGING_DIR)/usr/lib/pkgconfig/faac.pc
+	printf '%s\n' \
+		'prefix=/usr' \
+		'exec_prefix=/usr' \
+		'libdir=/usr/lib' \
+		'includedir=/usr/include' \
+		'' \
+		'Name: FAAC' \
+		'Description: Freeware Advanced Audio Coder' \
+		'Version: 1.40.0' \
+		'Libs: -L$${libdir} -lfaac' \
+		'Libs.private: -lm' \
+		'Cflags: -I$${includedir}' \
+		> $(STAGING_DIR)/usr/lib/pkgconfig/faac.pc
 endef
 
 define FAAC_INSTALL_TARGET_CMDS
