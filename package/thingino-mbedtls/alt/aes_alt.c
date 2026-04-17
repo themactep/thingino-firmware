@@ -296,10 +296,19 @@ static int hw_fd = -1;
 
 /*
  * Observability: count HW CBC ops and total bytes, emit a stderr line every
- * AES_ALT_STATS_EVERY ops. Keeps output low (~once every few seconds of
- * active streaming) but confirms the HW is actually being hit. Disable by
- * setting AES_ALT_STATS_EVERY to 0 at build time.
+ * AES_ALT_STATS_EVERY ops. Whole logging path is gated on JZ_CRYPTO_DEBUG;
+ * libraries should be silent by default. Build with -DJZ_CRYPTO_DEBUG=1 to
+ * enable both the one-time "using HW" message and the periodic stats.
  */
+#ifndef JZ_CRYPTO_DEBUG
+#define JZ_CRYPTO_DEBUG 0
+#endif
+#if JZ_CRYPTO_DEBUG
+#define JZ_CRYPTO_LOG(...) fprintf(stderr, __VA_ARGS__)
+#else
+#define JZ_CRYPTO_LOG(...) ((void)0)
+#endif
+
 #ifndef AES_ALT_STATS_EVERY
 #define AES_ALT_STATS_EVERY 1000
 #endif
@@ -317,10 +326,10 @@ static int hw_get_fd(void)
     hw_fd = open("/dev/aes", O_RDWR);
     if (hw_fd < 0) {
         hw_fd = -2;
-        fprintf(stderr, "aes_alt: /dev/aes not available, using software AES\n");
+        JZ_CRYPTO_LOG("aes_alt: /dev/aes not available, using software AES\n");
         return -1;
     }
-    fprintf(stderr, "aes_alt: using hardware AES engine (/dev/aes fd=%d)\n", hw_fd);
+    JZ_CRYPTO_LOG("aes_alt: using hardware AES engine (/dev/aes fd=%d)\n", hw_fd);
     return hw_fd;
 }
 
@@ -328,15 +337,15 @@ static void hw_count(unsigned int bytes)
 {
     hw_ops_total++;
     hw_bytes_total += bytes;
-#if AES_ALT_STATS_EVERY > 0
+#if JZ_CRYPTO_DEBUG && AES_ALT_STATS_EVERY > 0
     if (++hw_ops_since_report >= AES_ALT_STATS_EVERY) {
-        fprintf(stderr,
-                "aes_alt: %lu HW CBC ops, %lu.%02lu MB through engine\n",
-                hw_ops_total,
-                hw_bytes_total / (1024UL * 1024UL),
+        fprintf(stderr, "aes_alt: %lu HW CBC ops, %lu.%02lu MB through engine\n",
+                hw_ops_total, hw_bytes_total / (1024UL * 1024UL),
                 (hw_bytes_total % (1024UL * 1024UL)) * 100UL / (1024UL * 1024UL));
         hw_ops_since_report = 0;
     }
+#else
+    (void)hw_ops_since_report;
 #endif
 }
 

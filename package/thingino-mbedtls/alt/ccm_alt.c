@@ -78,7 +78,18 @@ struct jz_aes_para {
 #define CCM_ALT_HW_MIN_SIZE 512
 #endif
 
-/* Stats — same format as aes_alt.c for consistency in logs. */
+/* Stats — same format as aes_alt.c for consistency in logs. Entire
+ * logging path is gated on JZ_CRYPTO_DEBUG so the library stays silent
+ * by default; build with -DJZ_CRYPTO_DEBUG=1 to enable. */
+#ifndef JZ_CRYPTO_DEBUG
+#define JZ_CRYPTO_DEBUG 0
+#endif
+#if JZ_CRYPTO_DEBUG
+#define JZ_CRYPTO_LOG(...) fprintf(stderr, __VA_ARGS__)
+#else
+#define JZ_CRYPTO_LOG(...) ((void)0)
+#endif
+
 #ifndef CCM_ALT_STATS_EVERY
 #define CCM_ALT_STATS_EVERY 500
 #endif
@@ -101,10 +112,10 @@ static int ccm_hw_fd_get(void)
     ccm_hw_fd = open("/dev/aes", O_RDWR);
     if (ccm_hw_fd < 0) {
         ccm_hw_fd = -2;
-        fprintf(stderr, "ccm_alt: /dev/aes not available, falling back to software\n");
+        JZ_CRYPTO_LOG("ccm_alt: /dev/aes not available, falling back to software\n");
         return -1;
     }
-    fprintf(stderr, "ccm_alt: using hardware AES engine (/dev/aes fd=%d)\n", ccm_hw_fd);
+    JZ_CRYPTO_LOG("ccm_alt: using hardware AES engine (/dev/aes fd=%d)\n", ccm_hw_fd);
     return ccm_hw_fd;
 }
 
@@ -112,17 +123,17 @@ static void ccm_stats(unsigned int bytes)
 {
     ccm_ops_total++;
     ccm_bytes_total += bytes;
-#if CCM_ALT_STATS_EVERY > 0
+#if JZ_CRYPTO_DEBUG && CCM_ALT_STATS_EVERY > 0
     if (++ccm_ops_since_report >= CCM_ALT_STATS_EVERY) {
-        fprintf(stderr,
-                "ccm_alt: %lu HW ops, %lu.%02lu MB through engine, "
+        fprintf(stderr, "ccm_alt: %lu HW ops, %lu.%02lu MB through engine, "
                 "%lu SW small-record bypasses\n",
-                ccm_ops_total,
-                ccm_bytes_total / (1024UL * 1024UL),
+                ccm_ops_total, ccm_bytes_total / (1024UL * 1024UL),
                 (ccm_bytes_total % (1024UL * 1024UL)) * 100UL / (1024UL * 1024UL),
                 ccm_sw_small);
         ccm_ops_since_report = 0;
     }
+#else
+    (void)ccm_ops_since_report; (void)ccm_sw_small;
 #endif
 }
 
