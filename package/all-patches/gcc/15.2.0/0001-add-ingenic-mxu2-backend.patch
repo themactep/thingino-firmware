@@ -1247,24 +1247,30 @@
        if (!TARGET_EXPLICIT_RELOCS)
  	sorry ("MIPS16 requires %<-mexplicit-relocs%>");
      }
-@@ -21114,6 +21545,16 @@
+@@ -21114,6 +21545,22 @@
        for (regno = DSP_ACC_REG_FIRST; regno <= DSP_ACC_REG_LAST; regno += 2)
  	mips_swap_registers (regno);
      }
 +  if (ISA_HAS_MXU2)
 +    {
++      /* All $vr regs are callee-saved.  Caller-save lowering for V4SI
++	 currently spirals in reload (see test/codegen/out/v4i32_call_across).
++	 Mark all callee-saved so any function that uses $vr saves it in
++	 the prologue via su1q and restores in epilogue via lu1q.
++	 (TODO: revisit once reload's caller-save handling for COP2 regs
++	 is debugged. The trade-off is some prologue overhead vs ICE.)  */
 +      unsigned int regno;
 +      for (regno = COP2_REG_FIRST; regno < COP2_REG_LAST; regno++)
 +	{
 +	  fixed_regs[regno] = 0;
-+	  call_used_regs[regno] = 1;
++	  call_used_regs[regno] = 0;
 +	}
 +      fixed_regs[COP2_REG_LAST] = 1;
 +    }
  }
  
  /* Implement EH_USES.  */
-@@ -22122,6 +22563,52 @@
+@@ -22122,6 +22569,52 @@
    return true;
  }
  
@@ -1317,7 +1323,7 @@
  static bool
  mips_expand_vec_perm_const_1 (struct expand_vec_perm_d *d)
  {
-@@ -22158,6 +22645,8 @@
+@@ -22158,6 +22651,8 @@
      return true;
    if (mips_expand_msa_shuffle (d))
      return true;
