@@ -1644,7 +1644,7 @@
      DONE;
 --- a/gcc/config/mips/mips-mxu2.md
 +++ b/gcc/config/mips/mips-mxu2.md
-@@ -0,0 +1,1845 @@
+@@ -0,0 +1,1849 @@
 +;; Machine Description for MIPS INGENIC MXU2
 +;; Based on the Ingenic MXU2 XBurst@Instruction Set Arch Release Date: Nov. 18,2014
 +;; Contributed by Qian Liu (qian.liu@ingenic.com), Ingenic.
@@ -1852,7 +1852,8 @@
 +		    (match_operand:IMXU2 2 "register_operand" "q")))]
 +  "ISA_HAS_MXU2"
 +  "add<mxu2fmt>\t%w0,%w1,%w2"
-+  [(set_attr "mode" "TI")])
++  [(set_attr "mode" "TI")
++   (set_attr "lat_type" "lat3")])
 +
 +(define_insn "mxu2_sub<mode>3"
 +  [(set (match_operand:IMXU2 0 "register_operand" "=q")
@@ -1860,7 +1861,8 @@
 +		     (match_operand:IMXU2 2 "register_operand" "q")))]
 +  "ISA_HAS_MXU2"
 +  "sub<mxu2fmt>\t%w0,%w1,%w2"
-+  [(set_attr "mode" "TI")])
++  [(set_attr "mode" "TI")
++   (set_attr "lat_type" "lat3")])
 +
 +(define_insn "mxu2_mul<mode>3"
 +  [(set (match_operand:IMXU2 0 "register_operand" "=q")
@@ -2002,7 +2004,8 @@
 +		       (match_operand:IMXU2 2 "register_operand" "q")))]
 +  "ISA_HAS_MXU2"
 +  "addss<mxu2fmt>\t%w0,%w1,%w2"
-+  [(set_attr "mode" "TI")])
++  [(set_attr "mode" "TI")
++   (set_attr "lat_type" "lat3")])
 +
 +(define_insn "mxu2_usadd<mode>3"
 +  [(set (match_operand:IMXU2 0 "register_operand" "=q")
@@ -2010,7 +2013,8 @@
 +		       (match_operand:IMXU2 2 "register_operand" "q")))]
 +  "ISA_HAS_MXU2"
 +  "adduu<mxu2fmt>\t%w0,%w1,%w2"
-+  [(set_attr "mode" "TI")])
++  [(set_attr "mode" "TI")
++   (set_attr "lat_type" "lat3")])
 +
 +;; Float operations
 +(define_insn "mxu2_add<mode>3"
