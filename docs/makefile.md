@@ -30,7 +30,7 @@ export CAMERA=t31_gc2053_lite
 make
 
 # 3. Flash to camera
-make upgrade_ota IP=192.168.1.10
+make ota IP=192.168.1.10
 ```
 
 To force a generic, non-device-specific build from the command line, clear the
@@ -75,7 +75,7 @@ make distclean         # Complete clean (removes OUTPUT_DIR)
 - The last non-empty value is reused in the current terminal session
 - Clear it with `IP=` to return to a generic build/output path
 ```bash
-make upgrade_ota IP=192.168.88.111
+make ota IP=192.168.88.111
 
 # Force a generic build for the current session
 IP= make
@@ -425,22 +425,15 @@ make toolchain
 
 ### Over-The-Air (OTA) Updates
 
-#### `upgrade_ota`
+#### `ota`
 Flash full firmware image (includes bootloader).
 ```bash
-make upgrade_ota IP=192.168.1.10
+make ota IP=192.168.1.10
 ```
 If a session IP is already active, the same command can be run without repeating
 `IP=...`.
 
 **Warning**: Flashing bootloader can brick the camera if interrupted.
-
-#### `update_ota`
-Flash kernel and rootfs only (no bootloader).
-```bash
-make update_ota IP=192.168.1.10
-```
-Safer option for regular updates.
 
 #### `upboot_ota`
 Flash bootloader only.
@@ -821,8 +814,7 @@ make rebuild-<package>        # Rebuild package
 make <package>-menuconfig     # Configure package (kernel, busybox, etc.)
 
 # Deploy
-make upgrade_ota IP=x.x.x.x   # Flash full firmware
-make update_ota IP=x.x.x.x    # Flash kernel+rootfs only
+make ota IP=x.x.x.x           # Flash full firmware
 
 # Clean
 make clean                    # Clean build artifacts

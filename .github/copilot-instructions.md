@@ -31,7 +31,7 @@ CAMERA=atom_cam2_t31x_gc2053_atbm6031 make saveconfig
 CAMERA=atom_cam2_t31x_gc2053_atbm6031 make edit-defconfig
 
 # OTA update to a running camera (set IP to the target device address)
-CAMERA=atom_cam2_t31x_gc2053_atbm6031 IP=192.168.1.42 make upgrade_ota
+CAMERA=atom_cam2_t31x_gc2053_atbm6031 IP=192.168.1.42 make ota
 ```
 
 There are no automated test targets. Build validation happens via GitHub Actions (`.github/workflows/`).

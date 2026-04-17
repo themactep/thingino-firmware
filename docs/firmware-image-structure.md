@@ -135,11 +135,8 @@ make CAMERA=your_camera cleanbuild
 # Flash bootloader only (rarely needed)
 make CAMERA=your_camera upboot_ota IP=192.168.1.10
 
-# Flash kernel and rootfs (normal updates)
-make CAMERA=your_camera update_ota IP=192.168.1.10
-
 # Flash complete firmware including bootloader
-make CAMERA=your_camera upgrade_ota IP=192.168.1.10
+make CAMERA=your_camera ota IP=192.168.1.10
 ```
 
 ### Using a Programmer
