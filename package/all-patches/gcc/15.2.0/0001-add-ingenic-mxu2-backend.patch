@@ -1644,7 +1644,7 @@
      DONE;
 --- a/gcc/config/mips/mips-mxu2.md
 +++ b/gcc/config/mips/mips-mxu2.md
-@@ -0,0 +1,1874 @@
+@@ -0,0 +1,1880 @@
 +;; Machine Description for MIPS INGENIC MXU2
 +;; Based on the Ingenic MXU2 XBurst@Instruction Set Arch Release Date: Nov. 18,2014
 +;; Contributed by Qian Liu (qian.liu@ingenic.com), Ingenic.
@@ -3519,6 +3519,12 @@
 +(define_insn_reservation "mxu2_simd_store" 1
 +  (eq_attr "type" "simd_store")
 +  "mxu2_eu")
++
++;; Force 4-cycle bypass between simd arithmetic and a store consuming
++;; its result. XBurst1 needs a 1-cycle gap between addv/addss and a
++;; dependent su1q to avoid pipeline stall — this hint pushes the
++;; scheduler to put an independent insn (typically addiu) between them.
++(define_bypass 4 "mxu2_simd_arith" "mxu2_simd_store")
 --- a/gcc/config/mips/mips.opt
 +++ b/gcc/config/mips/mips.opt
 @@ -328,6 +328,10 @@
