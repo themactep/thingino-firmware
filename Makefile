@@ -410,6 +410,9 @@ update:
 	@echo "=== UPDATING SUBMODULES ==="
 	git submodule init
 	git submodule update
+	@echo "=== CHECKING EXTERNAL TOOLCHAIN BUNDLES ==="
+	BR2_DL_DIR=$(BR2_DL_DIR) \
+		$(CURDIR)/scripts/update_toolchain_bundles.sh
 	@$(ORANGE) "$(GIT_BRANCH)"
 
 update_manual:
