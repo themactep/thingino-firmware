@@ -26,9 +26,8 @@ release = json.load(sys.stdin)
 for asset in release.get("assets", []):
     name = asset.get("name")
     updated = asset.get("updated_at")
-    url = asset.get("browser_download_url")
-    if name and updated and url:
-        print(f"{name}\t{updated}\t{url}")
+    if name and updated:
+        print(f"{name}\t{updated}")
 '
 )"
 
@@ -43,24 +42,29 @@ trap 'rm -f "${assets_file}"' EXIT
 printf '%s\n' "${assets}" > "${assets_file}"
 
 checked=0
-downloaded=0
+kept=0
+removed=0
+missing=0
 
-while IFS='	' read -r name updated_at url; do
+while IFS='	' read -r name updated_at; do
 	checked=$((checked + 1))
 	dst="${BR2_DL_DIR}/${name}"
 	stamp="${dst}.github-updated-at"
 
-	if [ -f "${dst}" ] && [ -f "${stamp}" ] && [ "$(cat "${stamp}")" = "${updated_at}" ]; then
-		echo "Up-to-date: ${name}"
+	if [ ! -f "${dst}" ]; then
+		missing=$((missing + 1))
 		continue
 	fi
 
-	tmp="${dst}.tmp.$$"
-	echo "Downloading: ${name}"
-	curl -fL --progress-bar -o "${tmp}" "${url}"
-	mv "${tmp}" "${dst}"
-	printf '%s\n' "${updated_at}" > "${stamp}"
-	downloaded=$((downloaded + 1))
+	if [ -f "${stamp}" ] && [ "$(cat "${stamp}")" = "${updated_at}" ]; then
+		echo "Current: ${name}"
+		kept=$((kept + 1))
+		continue
+	fi
+
+	echo "Removing stale bundle: ${name}"
+	rm -f "${dst}" "${stamp}"
+	removed=$((removed + 1))
 done < "${assets_file}"
 
-echo "Toolchain bundles checked: ${checked}, downloaded: ${downloaded}"
+echo "Toolchain bundles checked: ${checked}, current: ${kept}, removed stale: ${removed}, missing locally: ${missing}"
